@@ -858,6 +858,9 @@ emit_case(
     const idl_case_label_t *label;
     const idl_type_spec_t *type_spec;
 
+    if (_case->try_construct.annotation)
+      idl_warning(pstate, IDL_WARN_UNSUPPORTED_ANNOTATIONS, idl_location(node), "The @try_construct annotation is not supported yet in the C generator, the default try-construct behavior will be used");
+
     type_spec = idl_strip(idl_type_spec(node), IDL_STRIP_ALIASES|IDL_STRIP_FORWARD);
     if (idl_is_external(node) && !idl_is_unbounded_string(type_spec))
       opcode |= DDS_OP_FLAG_EXT;
@@ -1460,7 +1463,9 @@ emit_member(
   (void)user_data;
   const idl_member_t *member = (const idl_member_t *)node;
   if (member->value.annotation)
-    idl_warning(pstate, IDL_WARN_GENERIC, idl_location(node), "Explicit defaults are not supported yet in the C generator, the value from the @default annotation will not be used");
+    idl_warning(pstate, IDL_WARN_UNSUPPORTED_ANNOTATIONS, idl_location(node), "Explicit defaults are not supported yet in the C generator, the value from the @default annotation will not be used");
+  if (member->try_construct.annotation)
+    idl_warning(pstate, IDL_WARN_UNSUPPORTED_ANNOTATIONS, idl_location(node), "The @try_construct annotation is not supported yet in the C generator, the default try-construct behavior will be used");
   return IDL_RETCODE_OK;
 }
 
@@ -1477,7 +1482,7 @@ emit_bitmask(
   (void)user_data;
   const idl_bitmask_t *bitmask = (const idl_bitmask_t *)node;
   if (bitmask->extensibility.annotation && bitmask->extensibility.value != IDL_FINAL)
-    idl_warning(pstate, IDL_WARN_GENERIC, idl_location(node), "Extensibility appendable and mutable for bitmask type are not yet supported in the C generator, the extensibility will not be used");
+    idl_warning(pstate, IDL_WARN_UNSUPPORTED_ANNOTATIONS, idl_location(node), "Extensibility appendable and mutable for bitmask type are not yet supported in the C generator, the extensibility will not be used");
   return IDL_RETCODE_OK;
 }
 
@@ -1494,6 +1499,8 @@ emit_enum(
   (void)user_data;
   const idl_enum_t *_enum = (const idl_enum_t *)node;
   uint32_t value = 0, value_c = 0;
+  if (_enum->default_enumerator && idl_mask(_enum->default_enumerator) == IDL_DEFAULT_ENUMERATOR)
+    idl_warning(pstate, IDL_WARN_UNSUPPORTED_ANNOTATIONS, idl_location(node), "The @default_literal annotation is not supported yet in the C generator and will not be used");
   for (idl_enumerator_t *e1 = _enum->enumerators; e1; e1 = idl_next(e1), value++) {
     if (e1->value.annotation)
       value = e1->value.value;
