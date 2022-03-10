@@ -1122,6 +1122,32 @@ annotate_try_construct(
   return IDL_RETCODE_OK;
 }
 
+static idl_retcode_t
+warn_unsupported_annotation(
+  idl_pstate_t *pstate,
+  idl_annotation_appl_t *annotation_appl,
+  idl_node_t *node)
+{
+  (void)node;
+
+  assert(annotation_appl);
+  assert(annotation_appl->annotation);
+  assert(annotation_appl->annotation->name);
+
+  const char *identifier = annotation_appl->annotation->name->identifier;
+  if (strcmp(identifier, "verbatim") == 0 ||
+      strcmp(identifier, "service") == 0 ||
+      strcmp(identifier, "oneway") == 0 ||
+      strcmp(identifier, "ami") == 0 ||
+      strcmp(identifier, "ignore_literal_names") == 0 ||
+      strcmp(identifier, "non_serialized") == 0) {
+    idl_warning(pstate, IDL_WARN_UNSUPPORTED_ANNOTATIONS, idl_location(node),
+      "@%s is currently not supported, and will be skipped in parsing", identifier);
+  }
+
+  return IDL_RETCODE_OK;
+}
+
 static const idl_builtin_annotation_t annotations[] = {
   /* general purpose */
   { .syntax = "@annotation id { unsigned long value; };",
@@ -1192,6 +1218,34 @@ static const idl_builtin_annotation_t annotations[] = {
       "<p>Specify the data member must be understood by any application "
       "making use of that piece of data.</p>",
     .callback = annotate_must_understand },
+  { .syntax = "@annotation verbatim {"
+              "enum PlacementKind {"
+              "BEGIN_FILE,"
+              "BEFORE_DECLARATION,"
+              "BEGIN_DECLARATION,"
+              "END_DECLARATION,"
+              "AFTER_DECLARATION,"
+              "END_FILE"
+              "};"
+              "string language default \"*\";"
+              "PlacementKind placement default BEFORE_DECLARATION;"
+              "string text;"
+              "};",
+    .summary =
+      "<p>Insert the code verbatim.</p>",
+    .callback = warn_unsupported_annotation },
+  { .syntax = "@annotation service {string platform default \"*\"; };",
+    .summary =
+      "<p>Indicate that an interface is to be treated as a service.</p>",
+    .callback = warn_unsupported_annotation },
+  { .syntax = "@annotation ami { boolean value default TRUE; };",
+    .summary =
+      "<p>Indicate that an interface or an operation is to be made callable asynchronously.</p>",
+    .callback = warn_unsupported_annotation },
+  { .syntax = "@annotation oneway { boolean value default TRUE; };",
+    .summary =
+      "<p>Indicate that an operation is one way only.</p>",
+    .callback = warn_unsupported_annotation },
   /* units and ranges */
   { .syntax = "@annotation range { any min; any max; };",
     .summary =
@@ -1267,6 +1321,14 @@ static const idl_builtin_annotation_t annotations[] = {
     .summary =
       "<p>This annotation allows setting the (fallback)behaviour when constructing fails.</p>",
     .callback = annotate_try_construct },
+  { .syntax = "@annotation ignore_literal_names { boolean value default TRUE; };",
+    .summary =
+      "<p>Allows ignoring literal names in assignability checking of enumerated types.</p>",
+    .callback = warn_unsupported_annotation },
+  { .syntax = "@annotation non_serialized { boolean value default TRUE; };",
+    .summary =
+      "<p>Allows ignoring fields during serialization.</p>",
+    .callback = warn_unsupported_annotation },
   { .syntax = NULL, .summary = NULL, .callback = 0 }
 };
 
