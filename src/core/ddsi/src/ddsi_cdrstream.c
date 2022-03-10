@@ -1299,9 +1299,10 @@ inline bool dds_stream_write_sample (dds_ostream_t * __restrict os, const void *
 bool dds_stream_write_sampleLE (dds_ostreamLE_t * __restrict os, const void * __restrict data, const struct ddsi_sertype_default * __restrict type)
 {
   const struct ddsi_sertype_default_desc *desc = &type->type;
-  if (type->opt_size && desc->align && (((struct dds_ostream *)os)->m_index % desc->align) == 0)
+  size_t opt_size = os->x.m_xcdr_version == CDR_ENC_VERSION_1 ? type->opt_size_xcdr1 : type->opt_size_xcdr2;
+  if (opt_size && desc->align && (((struct dds_ostream *)os)->m_index % desc->align) == 0)
   {
-    dds_os_put_bytes ((struct dds_ostream *)os, data, (uint32_t) type->opt_size);
+    dds_os_put_bytes ((struct dds_ostream *)os, data, (uint32_t) opt_size);
     return true;
   }
   else
@@ -1360,9 +1361,10 @@ bool dds_stream_write_sampleLE (dds_ostreamLE_t * __restrict os, const void * __
 bool dds_stream_write_sampleBE (dds_ostreamBE_t * __restrict os, const void * __restrict data, const struct ddsi_sertype_default * __restrict type)
 {
   const struct ddsi_sertype_default_desc *desc = &type->type;
-  if (type->opt_size && desc->align && (((struct dds_ostream *)os)->m_index % desc->align) == 0)
+  size_t opt_size = os->x.m_xcdr_version == CDR_ENC_VERSION_1 ? type->opt_size_xcdr1 : type->opt_size_xcdr2;
+  if (opt_size && desc->align && (((struct dds_ostream *)os)->m_index % desc->align) == 0)
   {
-    dds_os_put_bytes ((struct dds_ostream *)os, data, (uint32_t) type->opt_size);
+    dds_os_put_bytes ((struct dds_ostream *)os, data, (uint32_t) opt_size);
     return true;
   }
   else
@@ -3537,12 +3539,13 @@ static const uint32_t *dds_stream_extract_key_from_data_skip_adr (dds_istream_t 
 void dds_stream_read_sample (dds_istream_t * __restrict is, void * __restrict data, const struct ddsi_sertype_default * __restrict type)
 {
   const struct ddsi_sertype_default_desc *desc = &type->type;
-  if (type->opt_size)
+  size_t opt_size = is->m_xcdr_version == CDR_ENC_VERSION_1 ? type->opt_size_xcdr1 : type->opt_size_xcdr2;
+  if (opt_size)
   {
     /* Layout of struct & CDR is the same, but sizeof(struct) may include padding at
-       the end that is not present in CDR, so we must use type->opt_size to avoid a
+       the end that is not present in CDR, so we must use type->opt_size_xcdrx to avoid a
        potential out-of-bounds read */
-    dds_is_get_bytes (is, data, (uint32_t) type->opt_size, 1);
+    dds_is_get_bytes (is, data, (uint32_t) opt_size, 1);
   }
   else
   {

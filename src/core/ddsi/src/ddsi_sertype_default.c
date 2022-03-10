@@ -62,7 +62,8 @@ static bool sertype_default_equal (const struct ddsi_sertype *acmn, const struct
     (a->type.ops.nops > 0) &&
     memcmp (a->type.ops.ops, b->type.ops.ops, a->type.ops.nops * sizeof (*a->type.ops.ops)) != 0)
     return false;
-  assert (a->opt_size == b->opt_size);
+  assert (a->opt_size_xcdr1 == b->opt_size_xcdr1);
+  assert (a->opt_size_xcdr2 == b->opt_size_xcdr2);
   return true;
 }
 
@@ -176,11 +177,11 @@ static void sertype_default_free_samples (const struct ddsi_sertype *sertype_com
   }
 }
 
-static size_t get_optimized_size (const struct ddsi_sertype_default *st)
+static size_t get_optimized_size (const struct ddsi_sertype_default *st, uint16_t encoding_version)
 {
   /* Check if topic cannot be optimised (memcpy marshal) */
   if (!(st->type.flagset & DDS_TOPIC_NO_OPTIMIZE))
-     return dds_stream_check_optimize (&st->type, st->encoding_version);
+     return dds_stream_check_optimize (&st->type, encoding_version);
   return 0;
 }
 
@@ -211,20 +212,19 @@ static struct ddsi_sertype * sertype_default_derive_sertype (const struct ddsi_s
     ddsrt_atomic_st32 (&derived_sertype->c.flags_refc, refc & ~DDSI_SERTYPE_REFC_MASK);
     derived_sertype->c.base_sertype = ddsi_sertype_ref (base_sertype);
     derived_sertype->c.serdata_ops = required_ops;
-    derived_sertype->encoding_version = data_representation == DDS_DATA_REPRESENTATION_XCDR1 ? CDR_ENC_VERSION_1 : CDR_ENC_VERSION_2;
-    derived_sertype->opt_size = get_optimized_size (derived_sertype);
+    derived_sertype->write_encoding_version = data_representation == DDS_DATA_REPRESENTATION_XCDR1 ? CDR_ENC_VERSION_1 : CDR_ENC_VERSION_2;
   }
 
   return (struct ddsi_sertype *) derived_sertype;
 }
 
 // move to cdr_stream?
-static dds_ostream_t ostream_from_buffer(void *buffer, size_t size, uint16_t encoding_version) {
+static dds_ostream_t ostream_from_buffer(void *buffer, size_t size, uint16_t write_encoding_version) {
   dds_ostream_t os;
   os.m_buffer = buffer;
   os.m_size = (uint32_t) size;
   os.m_index = 0;
-  os.m_xcdr_version = encoding_version;
+  os.m_xcdr_version = write_encoding_version;
   return os;
 }
 
@@ -249,7 +249,7 @@ static size_t sertype_default_get_serialized_size (
 
 static bool sertype_default_serialize_into (const struct ddsi_sertype *type, const void *sample, void* dst_buffer, size_t dst_size) {
   const struct ddsi_sertype_default *type_default = (const struct ddsi_sertype_default *)type;
-  dds_ostream_t os = ostream_from_buffer(dst_buffer, dst_size, type_default->encoding_version);
+  dds_ostream_t os = ostream_from_buffer(dst_buffer, dst_size, type_default->write_encoding_version);
   return dds_stream_write_sample(&os, sample, type_default);
 }
 
@@ -309,7 +309,9 @@ dds_return_t ddsi_sertype_default_init (const struct ddsi_domaingv *gv, struct d
   if (min_xcdrv == CDR_ENC_VERSION_2)
     st->c.allowed_data_representation &= ~DDS_DATA_REPRESENTATION_FLAG_XCDR1;
   st->encoding_format = ddsi_sertype_extensibility_enc_format (type_ext);
-  st->encoding_version = data_representation == DDS_DATA_REPRESENTATION_XCDR1 ? CDR_ENC_VERSION_1 : CDR_ENC_VERSION_2;
+  /* Store the encoding version used for writing data using this sertype. When reading data,
+     the encoding version from the encapsulation header in the CDR is used */
+  st->write_encoding_version = data_representation == DDS_DATA_REPRESENTATION_XCDR1 ? CDR_ENC_VERSION_1 : CDR_ENC_VERSION_2;
   st->serpool = gv->serpool;
   st->type.size = desc->m_size;
   st->type.align = desc->m_align;
@@ -353,8 +355,13 @@ dds_return_t ddsi_sertype_default_init (const struct ddsi_domaingv *gv, struct d
     st->type.typemap_ser.sz = 0;
   }
 
-  if ((st->opt_size = get_optimized_size (st)) > 0)
-    GVTRACE ("Marshalling for type: %s is %soptimised\n", st->c.type_name, st->opt_size ? "" : "not ");
+  st->opt_size_xcdr1 = (st->c.allowed_data_representation & DDS_DATA_REPRESENTATION_FLAG_XCDR1) ? get_optimized_size (st, CDR_ENC_VERSION_1) : 0;
+  if (st->opt_size_xcdr1 > 0)
+    GVTRACE ("Marshalling XCDR1 for type: %s is %soptimised\n", st->c.type_name, st->opt_size_xcdr1 ? "" : "not ");
+
+  st->opt_size_xcdr2 = (st->c.allowed_data_representation & DDS_DATA_REPRESENTATION_FLAG_XCDR2) ? get_optimized_size (st, CDR_ENC_VERSION_2) : 0;
+  if (st->opt_size_xcdr2 > 0)
+    GVTRACE ("Marshalling XCDR2 for type: %s is %soptimised\n", st->c.type_name, st->opt_size_xcdr2 ? "" : "not ");
 
   return DDS_RETCODE_OK;
 }

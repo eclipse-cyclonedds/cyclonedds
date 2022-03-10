@@ -142,11 +142,12 @@ struct ddsi_sertype_default_desc {
 
 struct ddsi_sertype_default {
   struct ddsi_sertype c;
-  uint16_t encoding_format; /* CDR_ENC_FORMAT_(PLAIN|DELIMITED|PL) */
-  uint16_t encoding_version; /* CDR_ENC_VERSION_(1|2) */
+  uint16_t encoding_format; /* CDR_ENC_FORMAT_(PLAIN|DELIMITED|PL) - CDR encoding format for the top-level type in this sertype */
+  uint16_t write_encoding_version; /* CDR_ENC_VERSION_(1|2) - CDR encoding version used for writing data using this sertype */
   struct serdatapool *serpool;
   struct ddsi_sertype_default_desc type;
-  size_t opt_size;
+  size_t opt_size_xcdr1;
+  size_t opt_size_xcdr2;
 };
 
 struct ddsi_plist_sample {
