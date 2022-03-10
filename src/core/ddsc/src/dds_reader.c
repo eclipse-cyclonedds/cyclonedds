@@ -518,19 +518,21 @@ static iox_sub_options_t create_iox_sub_options(const dds_qos_t* qos) {
     opts.queueCapacity = (uint64_t)qos->history.depth;
   } else {
     opts.queueCapacity = max_sub_queue_capacity;
+    if (qos->reliability.kind == DDS_RELIABILITY_RELIABLE) {
+      opts.queueFullPolicy = QueueFullPolicy_BLOCK_PRODUCER;
+    }
   }
 
-  if(qos->reliability.kind == DDS_RELIABILITY_RELIABLE) {
-    opts.queueFullPolicy = QueueFullPolicy_BLOCK_PRODUCER; 
-  }
-
-  if(qos->durability.kind == DDS_DURABILITY_VOLATILE) {
+  // with BEST EFFORT DDS requires that no historical
+  // data is received (regardless of durability)
+  if(qos->reliability.kind == DDS_RELIABILITY_BEST_EFFORT ||
+     qos->durability.kind == DDS_DURABILITY_VOLATILE) {
     opts.historyRequest = 0;
   } else {
-    // Transient Local and stronger
+    // TRANSIENT LOCAL and stronger
     opts.historyRequest = (uint64_t) qos->history.depth;
-    // if the publisher cannot guarantee support for this request we
-    // will not be connected by iceoryx
+    // if the publisher does not support historicial data
+    // it will not be connected by iceoryx
     opts.requirePublisherHistorySupport = true;
   }
 

@@ -308,12 +308,13 @@ static bool dds_writer_support_shm(const struct ddsi_config* cfg, const dds_qos_
   if(qos->history.kind != DDS_HISTORY_KEEP_LAST) {
     return false;
   }
-
   // we cannot support the required history with iceoryx
-  if(qos->durability.kind == DDS_DURABILITY_TRANSIENT_LOCAL && 
-    qos->history.depth > (int32_t) iox_cfg_max_publisher_history()) {
+  if (qos->durability.kind == DDS_DURABILITY_TRANSIENT_LOCAL &&
+      qos->durability_service.history.kind == DDS_HISTORY_KEEP_LAST &&
+      qos->durability_service.history.depth >
+          (int32_t)iox_cfg_max_publisher_history()) {
     return false;
-  } 
+  }
 
   return (DDS_WRITER_QOS_CHECK_FIELDS == (qos->present & DDS_WRITER_QOS_CHECK_FIELDS) &&
           DDS_LIVELINESS_AUTOMATIC == qos->liveliness.kind &&
@@ -333,7 +334,11 @@ static iox_pub_options_t create_iox_pub_options(const dds_qos_t* qos) {
     opts.historyCapacity = 0;
   } else {
     // Transient Local and stronger
-    opts.historyCapacity = (uint64_t) qos->history.depth;
+    if (qos->durability_service.history.kind == DDS_HISTORY_KEEP_LAST) {
+      opts.historyCapacity = (uint64_t)qos->durability_service.history.depth;
+    } else {
+      opts.historyCapacity = 0;
+    }
   }
 
   return opts;
