@@ -475,7 +475,7 @@ static struct ddsi_serdata* serdata_default_from_received_iox_buffer(const struc
 
   const struct ddsi_sertype_default* tp = (const struct ddsi_sertype_default*)tpcmn;
 
-  struct ddsi_serdata_default *d = serdata_default_new_size (tp, kind, ice_hdr->data_size, tp->encoding_version);
+  struct ddsi_serdata_default *d = serdata_default_new_size (tp, kind, ice_hdr->data_size, tp->write_encoding_version);
 
   // note: we do not deserialize or memcpy here, just take ownership of the chunk
   d->c.iox_chunk = iox_buffer;
@@ -495,7 +495,7 @@ static struct ddsi_serdata* serdata_default_from_received_iox_buffer(const struc
 static struct ddsi_serdata *ddsi_serdata_default_from_loaned_sample (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, const char *sample)
 {
   const struct ddsi_sertype_default *t = (const struct ddsi_sertype_default *)type;
-  struct ddsi_serdata_default *d = serdata_default_new (t, kind, t->encoding_version);
+  struct ddsi_serdata_default *d = serdata_default_new (t, kind, t->write_encoding_version);
 
   if(d == NULL)
     return NULL;
@@ -541,7 +541,9 @@ static struct ddsi_serdata_default *serdata_default_from_sample_cdr_common (cons
 
       /* FIXME: detect cases where the XCDR1 and 2 representations are equal,
          so that we could alias the XCDR1 key from d->data */
-      if (tp->encoding_version == CDR_ENC_VERSION_2)
+      /* FIXME: use CDR encoding version used by the writer, not the write encoding
+         of the sertype */
+      if (tp->write_encoding_version == CDR_ENC_VERSION_2)
       {
         d->key.buftype = KEYBUFTYPE_DYNALIAS;
         // dds_ostream_add_to_serdata_default pads the size to a multiple of 4,
