@@ -468,6 +468,8 @@ static int config_warning(const idlc_option_t *opt, const char *arg)
     add_disable_warning(IDL_WARN_INHERIT_APPENDABLE);
   else if (strcmp(arg, "no-enum-consecutive") == 0)
     add_disable_warning(IDL_WARN_ENUM_CONSECUTIVE);
+  else if (strcmp(arg, "no-unsupported-annotations") == 0)
+    add_disable_warning(IDL_WARN_UNSUPPORTED_ANNOTATIONS);
   else
     return IDLC_BAD_ARGUMENT;
   return 0;
