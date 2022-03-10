@@ -876,16 +876,21 @@ annotate_topic(
   const idl_annotation_appl_param_t *p;
 
   for (p = annotation_appl->parameters; p; p = idl_next(p)) {
-    if (!idl_identifier_is(p->member, "platform"))
-      continue;
-    assert(idl_mask(p->const_expr) == (IDL_LITERAL|IDL_STRING));
-    platform = ((idl_literal_t *)p->const_expr)->value.str;
-    break;
+    if (idl_identifier_is(p->member, "platform")) {
+      assert(idl_mask(p->const_expr) == (IDL_LITERAL|IDL_STRING));
+      platform = ((idl_literal_t *)p->const_expr)->value.str;
+    } else if (idl_identifier_is(p->member, "name")) {
+      idl_warning(pstate, IDL_WARN_UNSUPPORTED_ANNOTATIONS, idl_location(node),
+        "@topic::name parameter is currently ignored.");
+    }
   }
 
   /* only apply topic annotation if platform equals "*" or "DDS" */
-  if (strcmp(platform, "*") != 0 && strcmp(platform, "DDS") != 0)
+  if (strcmp(platform, "*") != 0 && strcmp(platform, "DDS") != 0) {
+    idl_warning(pstate, IDL_WARN_UNSUPPORTED_ANNOTATIONS, idl_location(node),
+      "@topic::platform parameter only supports \"*\" and \"DDS\", \"%s\" is not supported and this annotation is therefore ignored.", platform);
     return IDL_RETCODE_OK;
+  }
 
   return set_nested(pstate, annotation_appl, node, false);
 }

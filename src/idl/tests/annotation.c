@@ -398,9 +398,10 @@ CU_Test(idl_annotation, topic)
     {               N() S("s1"), "nested", true  },
     { T()               S("s1"), "topic",  false },
     { T()           N() S("s1"), "topic",  false },
-    { T(P("!DDS"))      S("s1"), NULL,     false },
     { T(P("DDS"))       S("s1"), "topic",  false },
-    { T(P("!DDS"))  N() S("s1"), "nested", true  }
+    { T(P("!DDS"))      S("s1"), NULL,     false },
+    { T(P("!DDS"))      S("s1"), NULL,     false  },
+    { T(P("CORBA"))     S("s1"), NULL,     false  }
   };
 
   static const size_t n = sizeof(tests)/sizeof(tests[0]);
