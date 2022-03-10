@@ -610,7 +610,8 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
     if (!q_omg_security_check_create_reader (pp, gv->config.domainId, tp->m_name, rqos))
     {
       rc = DDS_RETCODE_NOT_ALLOWED_BY_SECURITY;
-      goto err_not_allowed;
+      thread_state_asleep(lookup_thread_state());
+      goto err_bad_qos;
     }
   }
 #endif
@@ -687,14 +688,13 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
     // NB: This may fail due to icoeryx being out of internal resources for subsribers.
     //     In this case terminate is called by iox_sub_init.
     //     it is currently (iceoryx 2.0 and lower) not possible to change this to
-    //     e.g. return a nullptr and handle the error here.
-    iox_sub_storage_t s; // storage is ignored internally now but we cannot pass a nullptr
-    rd->m_iox_sub = iox_sub_init(&s, gv->config.iceoryx_service, rd->m_topic->m_stype->type_name, rd->m_topic->m_name, &opts);
+    //     e.g. return a nullptr and handle the error here.   
+    rd->m_iox_sub = iox_sub_init(&(iox_sub_storage_t){0}, gv->config.iceoryx_service, rd->m_topic->m_stype->type_name, rd->m_topic->m_name, &opts);
 
     // NB: Due to some storage paradigm change of iceoryx structs
     // we now have a pointer 8 bytes before m_iox_sub
     // We use this address to store a pointer to the context.
-    iox_sub_context_t **context = get_context_ptr(rd->m_iox_sub);
+    iox_sub_context_t **context = iox_sub_context_ptr(rd->m_iox_sub);
     *context = &rd->m_iox_sub_context;
 
     rc = shm_monitor_attach_reader(&rd->m_entity.m_domain->m_shm_monitor, rd);
@@ -703,8 +703,12 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
       // we fail if we cannot attach to the listener (as we would get no data)
       iox_sub_deinit(rd->m_iox_sub);
       rd->m_iox_sub = NULL;
-      DDS_CLOG (DDS_LC_SHM, &rd->m_entity.m_domain->gv.logconfig, "Failed to attach iox subscriber to iox listener\n");
-      goto err_bad_qos; // we need to clean up everything
+      DDS_CLOG(DDS_LC_WARNING | DDS_LC_SHM,
+               &rd->m_entity.m_domain->gv.logconfig,
+               "Failed to attach iox subscriber to iox listener\n");
+      // FIXME: We need to clean up everything created up to now.
+      //        Currently there is only partial cleanup, we need to extend it.
+      goto err_bad_qos;
     }
 
     // those are set once and never changed
@@ -733,10 +737,6 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
   dds_subscriber_unlock (sub);
   return reader;
 
-#ifdef DDS_HAS_SECURITY
-err_not_allowed:
-  thread_state_asleep (lookup_thread_state ());
-#endif
 err_bad_qos:
 err_data_repr:
   dds_delete_qos (rqos);

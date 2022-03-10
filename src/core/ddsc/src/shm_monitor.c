@@ -34,11 +34,9 @@ void shm_monitor_init(shm_monitor_t* monitor)
 {
     ddsrt_mutex_init(&monitor->m_lock);
     
-    // storage is ignored internally now but we cannot pass a nullptr
-    iox_listener_storage_t s;
-    monitor->m_listener = iox_listener_init(&s);
-    iox_user_trigger_storage_t t;
-    monitor->m_wakeup_trigger = iox_user_trigger_init(&t);
+    // storage is ignored internally now but we cannot pass a nullptr    
+    monitor->m_listener = iox_listener_init(&(iox_listener_storage_t){0});
+    monitor->m_wakeup_trigger = iox_user_trigger_init(&(iox_user_trigger_storage_t){0});
 
     monitor->m_state = SHM_MONITOR_RUNNING;
 }
@@ -111,13 +109,14 @@ static void receive_data_wakeup_handler(struct dds_reader* rd)
     // The consumer here is essentially the reader history cache.
     if (ChunkReceiveResult_SUCCESS != take_result) 
     {
-      switch(take_result) {
-        case ChunkReceiveResult_TOO_MANY_CHUNKS_HELD_IN_PARALLEL : 
+      switch(take_result) 
+      {
+        case ChunkReceiveResult_TOO_MANY_CHUNKS_HELD_IN_PARALLEL :
         {
           // we hold to many chunks and cannot get more
-          DDS_WARNING("iceoryx subscriber: TOO_MANY_CHUNKS_HELD_IN_PARALLEL - could not take sample\n");
-          DDS_CLOG (DDS_LC_SHM, &rd->m_entity.m_domain->gv.logconfig, 
-              "iceoryx subscriber: TOO_MANY_CHUNKS_HELD_IN_PARALLEL - could not take sample\n");
+          DDS_CLOG (DDS_LC_WARNING | DDS_LC_SHM, &rd->m_entity.m_domain->gv.logconfig, 
+              "DDS reader with topic %s : iceoryx subscriber - TOO_MANY_CHUNKS_HELD_IN_PARALLEL -"
+              "could not take sample\n", rd->m_topic->m_name);
           break;
         }
         case ChunkReceiveResult_NO_CHUNK_AVAILABLE: {
@@ -126,9 +125,9 @@ static void receive_data_wakeup_handler(struct dds_reader* rd)
         }
         default : {
           // some unkown error occurred
-          DDS_WARNING("iceoryx subscriber: UNKNOWN_ERROR - could not take sample\n");
-          DDS_CLOG(DDS_LC_SHM, &rd->m_entity.m_domain->gv.logconfig,
-              "iceoryx subscriber: UNKNOWN_ERROR - could not take sample\n");
+          DDS_CLOG(DDS_LC_WARNING | DDS_LC_SHM, &rd->m_entity.m_domain->gv.logconfig,
+              "DDS reader with topic %s : iceoryx subscriber - UNKNOWN ERROR -"
+              "could not take sample\n", rd->m_topic->m_name);
         }
       }
 
