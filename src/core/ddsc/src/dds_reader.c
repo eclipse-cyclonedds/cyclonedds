@@ -110,7 +110,7 @@ static dds_return_t dds_reader_delete (dds_entity *e)
     // since the mutex is needed and the data needs to be released using the iceoryx subscriber
     DDS_CLOG (DDS_LC_SHM, &e->m_domain->gv.logconfig, "Release iceoryx's subscriber\n");
     iox_sub_deinit(rd->m_iox_sub);
-    iox_sub_storage_extension_fini(&rd->m_iox_sub_stor);
+    iox_sub_context_fini(&rd->m_iox_sub_context);
   }
 #endif
 
@@ -610,7 +610,8 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
     if (!q_omg_security_check_create_reader (pp, gv->config.domainId, tp->m_name, rqos))
     {
       rc = DDS_RETCODE_NOT_ALLOWED_BY_SECURITY;
-      goto err_not_allowed;
+      thread_state_asleep(lookup_thread_state());
+      goto err_bad_qos;
     }
   }
 #endif
@@ -658,15 +659,12 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
 
     iox_sub_options_t opts;
     iox_sub_options_init(&opts);
-
-    iox_sub_storage_extension_init(&rd->m_iox_sub_stor);
+    
+    iox_sub_context_init(&rd->m_iox_sub_context);
 
     assert (rqos->durability.kind == DDS_DURABILITY_VOLATILE);
 
-    // TODO: need the max from iceoryx here,
-    // available in the API of master but not in release_1.0, will be available
-    // in the upcoming release 2.0 (planned March 2022)
-    const int32_t max_sub_queue_capacity = 256; // value from iceoryx 1.0
+    const uint32_t max_sub_queue_capacity = iox_cfg_max_subscriber_queue_capacity();
 
     // NB: We may lose data after history.depth many samples are received (if we
     // are not taking them fast enough from the iceoryx queue and move them in
@@ -677,23 +675,46 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
     // shared memory but limit the queueCapacity accordingly (otherwise iceoryx
     // emits a warning and limits it itself)
 
-    if (rqos->history.depth <= max_sub_queue_capacity) {
+    if ((uint32_t) rqos->history.depth <= max_sub_queue_capacity) {
       opts.queueCapacity = (uint64_t)rqos->history.depth;
     } else {
-      opts.queueCapacity = (uint64_t)max_sub_queue_capacity;
+      opts.queueCapacity = max_sub_queue_capacity;
     }
 
     // NB: since currently we only support the volatile reader case we will
     // never request historical data
     opts.historyRequest = 0;
 
-    rd->m_iox_sub = iox_sub_init(&rd->m_iox_sub_stor.storage, gv->config.iceoryx_service, rd->m_topic->m_stype->type_name, rd->m_topic->m_name, &opts);
-    shm_monitor_attach_reader(&rd->m_entity.m_domain->m_shm_monitor, rd);
+    // NB: This may fail due to icoeryx being out of internal resources for subsribers.
+    //     In this case terminate is called by iox_sub_init.
+    //     it is currently (iceoryx 2.0 and lower) not possible to change this to
+    //     e.g. return a nullptr and handle the error here.   
+    rd->m_iox_sub = iox_sub_init(&(iox_sub_storage_t){0}, gv->config.iceoryx_service, rd->m_topic->m_stype->type_name, rd->m_topic->m_name, &opts);
+
+    // NB: Due to some storage paradigm change of iceoryx structs
+    // we now have a pointer 8 bytes before m_iox_sub
+    // We use this address to store a pointer to the context.
+    iox_sub_context_t **context = iox_sub_context_ptr(rd->m_iox_sub);
+    *context = &rd->m_iox_sub_context;
+
+    rc = shm_monitor_attach_reader(&rd->m_entity.m_domain->m_shm_monitor, rd);
+
+    if (rc != DDS_RETCODE_OK) {
+      // we fail if we cannot attach to the listener (as we would get no data)
+      iox_sub_deinit(rd->m_iox_sub);
+      rd->m_iox_sub = NULL;
+      DDS_CLOG(DDS_LC_WARNING | DDS_LC_SHM,
+               &rd->m_entity.m_domain->gv.logconfig,
+               "Failed to attach iox subscriber to iox listener\n");
+      // FIXME: We need to clean up everything created up to now.
+      //        Currently there is only partial cleanup, we need to extend it.
+      goto err_bad_qos;
+    }
 
     // those are set once and never changed
     // they are used to access reader and monitor from the callback when data is received
-    rd->m_iox_sub_stor.monitor = &rd->m_entity.m_domain->m_shm_monitor;
-    rd->m_iox_sub_stor.parent_reader = rd;
+    rd->m_iox_sub_context.monitor = &rd->m_entity.m_domain->m_shm_monitor;
+    rd->m_iox_sub_context.parent_reader = rd;
   }
 #endif
 
@@ -716,10 +737,6 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
   dds_subscriber_unlock (sub);
   return reader;
 
-#ifdef DDS_HAS_SECURITY
-err_not_allowed:
-  thread_state_asleep (lookup_thread_state ());
-#endif
 err_bad_qos:
 err_data_repr:
   dds_delete_qos (rqos);

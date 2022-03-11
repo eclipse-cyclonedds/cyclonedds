@@ -29,16 +29,7 @@ extern "C" {
 #define SHM_MAX_NUMBER_OF_READERS 127
 
 struct dds_reader;
-struct shm_monitor ;
-
-typedef struct {
-    iox_user_trigger_storage_t storage;
-    struct shm_monitor* monitor;
-
-    //we cannot use those in concurrent wakeups (i.e. only one user callback can be invoked per trigger)
-    void (*call) (void*);
-    void* arg;
-} iox_user_trigger_storage_extension_t;
+struct shm_monitor;
 
 enum shm_monitor_states {
     SHM_MONITOR_NOT_RUNNING = 0,
@@ -48,16 +39,12 @@ enum shm_monitor_states {
 /// @brief abstraction for monitoring the shared memory communication with an internal
 ///        thread responsible for reacting on received data via shared memory
 struct shm_monitor {
-    ddsrt_mutex_t m_lock; //currently not needed but we keep it until finalized
-
-    iox_listener_storage_t m_listener_storage;
+    ddsrt_mutex_t m_lock;
     iox_listener_t m_listener;
 
-    //use this if we wait but want to wake up for some reason e.g. terminate
-    iox_user_trigger_storage_extension_t m_wakeup_trigger_storage;
+    //use this if we wait but want to wake up for some reason e.g. terminate   
     iox_user_trigger_t m_wakeup_trigger;
-
-    //TODO: atomics
+   
     uint32_t m_number_of_attached_readers;
     uint32_t m_state;
 };
@@ -71,12 +58,6 @@ void shm_monitor_init(shm_monitor_t* monitor);
 /// @brief delete the shm_monitor
 /// @param monitor self
 void shm_monitor_destroy(shm_monitor_t* monitor);
-
-/// @brief wake up the internal listener and invoke a function in the listener thread
-/// @param monitor self
-/// @param function function to invoke
-/// @param arg generic argument for the function (lifetime must be ensured by the user)
-dds_return_t shm_monitor_wake_and_invoke(shm_monitor_t* monitor, void (*function) (void*), void* arg);
 
 /// @brief wake up the internal listener and disable execution of listener callbacks
 ///        due to received data
