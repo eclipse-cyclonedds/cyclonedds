@@ -33,10 +33,8 @@ static void shm_subscriber_callback(iox_sub_t subscriber, void * context_data);
 void shm_monitor_init(shm_monitor_t* monitor) 
 {
     // storage is ignored internally now but we cannot pass a nullptr
-    iox_listener_storage_t s;
-    monitor->m_listener = iox_listener_init(&s);
-    iox_user_trigger_storage_t t;
-    monitor->m_wakeup_trigger = iox_user_trigger_init(&t);
+    monitor->m_listener = iox_listener_init(&(iox_listener_storage_t){0});
+    monitor->m_wakeup_trigger = iox_user_trigger_init(&(iox_user_trigger_storage_t){0});
 
     monitor->m_state = SHM_MONITOR_RUNNING;
 }
