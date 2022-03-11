@@ -17,6 +17,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
+#include <inttypes.h>
 
 #include "idl/processor.h"
 #include "idl/string.h"
@@ -402,6 +403,46 @@ static idl_retcode_t validate_must_understand(idl_pstate_t *pstate, void *root)
 }
 
 static idl_retcode_t
+check_bitbound(
+  const idl_pstate_t *pstate,
+  bool revisit,
+  const idl_path_t *path,
+  const void *node,
+  void *user_data)
+{
+  (void) revisit;
+  (void) path;
+  (void) user_data;
+
+  if (idl_is_bitmask(node)) {
+    const idl_bit_value_t *_bit_value = node;
+    const idl_bitmask_t *_bitmask = node;
+    IDL_FOREACH(_bit_value, _bitmask->bit_values) {
+      if (_bit_value->position.value >= _bitmask->bit_bound.value) {
+        idl_error(pstate, idl_location(_bit_value),
+          "Position overflow for bit value '%s' (%hu), bit_bound is %hu", idl_identifier(_bit_value), _bit_value->position.value, _bitmask->bit_bound.value);
+        return IDL_RETCODE_OUT_OF_RANGE;
+      }
+    }
+  } else if (idl_is_enum(node)) {
+    const idl_enum_t *_enum = node;
+    const idl_enumerator_t *_e = NULL;
+    uint64_t max = (UINT64_C(0x1) << _enum->bit_bound.value);
+    IDL_FOREACH(_e, _enum->enumerators) {
+      if (_e->value.value >= max) {
+        idl_error(pstate, idl_location(_e),
+          "Enumerator overflow for value '%s' (%u), max allowed value is %" PRIu64 " (bit_bound %hu)", idl_identifier(_e), _e->value.value, max-1, _enum->bit_bound.value);
+        return IDL_RETCODE_OUT_OF_RANGE;
+      }
+    }
+  } else {
+    assert(0);
+  }
+
+  return IDL_RETCODE_OK;
+}
+
+static idl_retcode_t
 validate_datarepresentation(
   const idl_pstate_t* pstate,
   const bool revisit,
@@ -422,6 +463,17 @@ validate_datarepresentation(
   }
 
   return IDL_RETCODE_OK;
+}
+
+static idl_retcode_t validate_bitbound(idl_pstate_t *pstate)
+{
+  idl_visitor_t visitor;
+  memset(&visitor, 0, sizeof(visitor));
+  visitor.visit = IDL_BITMASK | IDL_ENUM;
+  visitor.accept[IDL_ACCEPT_BITMASK] = &check_bitbound;
+  visitor.accept[IDL_ACCEPT_ENUM] = &check_bitbound;
+
+  return idl_visit(pstate, pstate->root, &visitor, NULL);
 }
 
 static idl_retcode_t set_type_extensibility(idl_pstate_t *pstate)
@@ -503,6 +555,8 @@ grammar:
   if ((ret = validate_forwards(pstate, pstate->root)))
     goto err;
   if ((ret = validate_must_understand(pstate, pstate->root)))
+    goto err;
+  if ((ret = validate_bitbound(pstate)))
     goto err;
   if ((ret = idl_propagate_autoid(pstate, pstate->root, IDL_SEQUENTIAL)) != IDL_RETCODE_OK)
     goto err;

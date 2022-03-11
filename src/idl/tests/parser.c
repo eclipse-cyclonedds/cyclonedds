@@ -346,3 +346,56 @@ CU_Test(idl_parser, require_xcdr2)
 #undef LB_DEF
 #undef BITS_DEF
 #undef UMEM_DEF
+
+typedef struct bit_bound_test {
+  const char *str;
+  bool is_valid;
+} bit_bound_test_t;
+
+static void test_bit_bound(bit_bound_test_t test)
+{
+  idl_pstate_t *pstate = NULL;
+  idl_retcode_t ret = idl_create_pstate(IDL_FLAG_ANNOTATIONS, NULL, &pstate);
+  CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
+  CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
+  if (!pstate)
+    return;
+
+  pstate->config.default_extensibility = IDL_FINAL;
+  ret = idl_parse_string(pstate, test.str);
+  if (test.is_valid) {
+    CU_ASSERT_EQUAL(ret, IDL_RETCODE_OK);
+  } else {
+    CU_ASSERT_EQUAL(ret, IDL_RETCODE_OUT_OF_RANGE);
+  }
+
+  idl_delete_pstate(pstate);
+}
+
+CU_Test(idl_parser, bit_bound_validation)
+{
+  bit_bound_test_t tests[] =
+    {
+      //bitmasks have an implicit bit bound of 32
+      {"bitmask bm { @position(32) flag0 };", false},
+      {"bitmask bm { @position(31) flag0 };", true},
+      {"bitmask bm { @position(31) flag0, flag1 };", false},
+      {"bitmask bm { @position(30) flag0, flag1 };", true},
+      //bitmasks with an explicitly set bit bound
+      {"@bit_bound(2) bitmask bm { @position(2) flag0 };", false},
+      {"@bit_bound(2) bitmask bm { @position(1) flag0 };", true},
+      {"@bit_bound(2) bitmask bm { @position(1) flag0, flag1 };", false},
+      {"@bit_bound(2) bitmask bm { @position(0) flag0, flag1 };", true},
+      //enums have an implicit bit bound of 32
+      {"enum e { @value(4294967295) e_0, e_1 };", false},
+      {"enum e { @value(4294967294) e_0, e_1 };", true},
+      {"enum e { e_0, @value(4294967295) e_1 };", true},
+      //enums with an explicitly set bit bound
+      {"@bit_bound(2) enum e { @value(3) e_0, e_1 };", false},
+      {"@bit_bound(2) enum e { @value(2) e_0, e_1 };", true},
+      {"@bit_bound(2) enum e { e_0, @value(3) e_1 };", true},
+    };
+
+  for (size_t i = 0; i < sizeof(tests)/sizeof(tests[0]); i++)
+    test_bit_bound(tests[i]);
+}

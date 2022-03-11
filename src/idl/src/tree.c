@@ -2522,7 +2522,7 @@ idl_create_enum(
   static const struct methods methods = {
     delete_enum, iterate_enum, describe_enum };
   static const enum idl_declaration_kind kind = IDL_SPECIFIER_DECLARATION;
-  uint32_t value = 0;
+  uint32_t value = UINT32_MAX;
 
   if ((ret = create_node(pstate, size, mask, location, &methods, &node)))
     goto err_alloc;
@@ -2532,12 +2532,25 @@ idl_create_enum(
 
   assert(enumerators);
   node->enumerators = enumerators;
-  for (idl_enumerator_t *e1 = enumerators; e1; e1 = idl_next(e1), value++) {
+  for (idl_enumerator_t *e1 = enumerators; e1; e1 = idl_next(e1)) {
     e1->node.parent = (idl_node_t*)node;
-    if (e1->value.annotation)
+    if (e1->value.annotation) {
+      //explicit value assigned
       value = e1->value.value;
-    else
-      e1->value.value = value;
+    } else {
+      //implicit value derived
+
+      //check for possible wraparound
+      if (value == UINT32_MAX && idl_previous(e1)) {
+        idl_error(pstate, idl_location(e1),
+          "Implicit value of enumerator '%s' will wrap around due to previous value being UINT32_MAX (%u).",
+          e1->name->identifier, UINT32_MAX);
+        ret = IDL_RETCODE_OUT_OF_RANGE;
+        goto err_wraparound;
+      }
+      e1->value.value = ++value;
+    }
+
     for (idl_enumerator_t *e2 = enumerators; e2; e2 = idl_next(e2)) {
       if (e2 == e1)
         break;
@@ -2576,6 +2589,7 @@ idl_create_enum(
 err_declare:
 err_clash:
 err_defaults:
+err_wraparound:
   free(node);
 err_alloc:
   return ret;

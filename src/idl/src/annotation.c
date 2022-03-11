@@ -999,12 +999,6 @@ annotate_bit_bound(
     idl_bitmask_t *bm = (idl_bitmask_t *)node;
     bm->bit_bound.annotation = annotation_appl;
     bm->bit_bound.value = value;
-    for (idl_bit_value_t *e1 = bm->bit_values; e1; e1 = idl_next(e1)) {
-      if (e1->position.value >= bm->bit_bound.value) {
-        idl_error(pstate, idl_location(e1), "Position overflow for bit value '%s' (%u), bit_bound is %u", e1->name->identifier, (unsigned) e1->position.value, (unsigned) bm->bit_bound.value);
-        return IDL_RETCODE_OUT_OF_RANGE;
-      }
-    }
   } else if (idl_is_enum(node)) {
     if (value == 0 || value > 32) {
       idl_error(pstate, idl_location(annotation_appl),
@@ -1014,12 +1008,6 @@ annotate_bit_bound(
     idl_enum_t *_enum = (idl_enum_t *)node;
     _enum->bit_bound.annotation = annotation_appl;
     _enum->bit_bound.value = value;
-    for (idl_enumerator_t *e1 = _enum->enumerators; e1; e1 = idl_next(e1)) {
-      if (e1->value.value >= (1ull << _enum->bit_bound.value)) {
-        idl_error(pstate, idl_location(e1), "Enumerator value (%u) overflow, bit_bound is %u", e1->value.value, _enum->bit_bound.value);
-        return IDL_RETCODE_OUT_OF_RANGE;
-      }
-    }
   } else {
     idl_error(pstate, idl_location(annotation_appl),
       "@bit_bound can only be applied to enum and bitmask types");
