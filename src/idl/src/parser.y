@@ -1053,6 +1053,8 @@ annotation_appl_header:
           pstate->annotation_scope = declaration->scope;
         } else {
           pstate->parser.state = IDL_PARSE_UNKNOWN_ANNOTATION_APPL_PARAMS;
+          if (strcmp(@1.first.file->name, "<builtin>") && strcmp(@3.last.file->name, "<builtin>"))
+            idl_warning(pstate, IDL_WARN_UNSUPPORTED_ANNOTATIONS, LOC(@1.first, @3.last), "Unrecognized annotation: @%s", $3->identifier);
         }
 
         idl_delete_scoped_name($3);
