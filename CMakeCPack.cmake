@@ -30,10 +30,9 @@ set(CPACK_PACKAGE_VENDOR "Eclipse Cyclone DDS project")
 set(CPACK_PACKAGE_CONTACT "https://github.com/eclipse-cyclonedds/cyclonedds")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Eclipse Cyclone DDS")
 
-# WiX requires a .txt file extension for CPACK_RESOURCE_FILE_LICENSE
 file(COPY "${PROJECT_SOURCE_DIR}/LICENSE" DESTINATION "${CMAKE_BINARY_DIR}")
-file(RENAME "${CMAKE_BINARY_DIR}/LICENSE" "${CMAKE_BINARY_DIR}/license.txt")
-set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_BINARY_DIR}/license.txt")
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_BINARY_DIR}/LICENSE")
+set(CPACK_WIX_LICENSE_RTF "${CMAKE_BINARY_DIR}/LICENSE")
 
 # Packages could be generated on alien systems. e.g. Debian packages could be
 # created on Red Hat Enterprise Linux, but since packages also need to be
