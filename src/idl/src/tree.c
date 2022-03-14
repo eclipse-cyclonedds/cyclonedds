@@ -2455,8 +2455,8 @@ bool idl_is_enum(const void *ptr)
     return false;
   /* an enum must have a name */
   assert(node->name && node->name->identifier);
-  /* an enum must have no parent or a module parent */
-  assert(!node->node.parent || (idl_mask(node->node.parent) & IDL_MODULE));
+  /* an enum must have no parent or a module or annotation parent */
+  assert(!node->node.parent || idl_mask(node->node.parent) & (IDL_MODULE | IDL_ANNOTATION));
   /* an enum must have at least one enumerator */
   assert(node->enumerators && (idl_mask(node->enumerators) & IDL_ENUMERATOR));
   return true;
