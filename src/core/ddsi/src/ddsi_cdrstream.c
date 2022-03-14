@@ -596,11 +596,15 @@ static uint32_t dds_stream_check_optimize1 (const struct ddsi_sertype_default_de
             ops += 3;
             break;
           case DDS_OP_VAL_ENU:
+            if (xcdr_version == CDR_ENC_VERSION_2) /* xcdr2 arrays have a dheader for non-primitive types */
+              return 0;
             if (DDS_OP_TYPE_SZ (insn) != 4 || !check_optimize_impl (xcdr_version, ops, sizeof (uint32_t), ops[2], &off, member_offs))
               return 0;
             ops += 4;
             break;
           case DDS_OP_VAL_BMK:
+            if (xcdr_version == CDR_ENC_VERSION_2) /* xcdr2 arrays have a dheader for non-primitive types */
+              return 0;
             if (!check_optimize_impl (xcdr_version, ops, DDS_OP_TYPE_SZ (insn), ops[2], &off, member_offs))
               return 0;
             ops += 5;

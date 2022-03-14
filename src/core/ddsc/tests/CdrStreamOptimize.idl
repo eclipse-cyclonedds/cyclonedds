@@ -112,4 +112,17 @@ module CdrStreamOptimize {
     long f1;
     n4 f2;
   };
+
+  @bit_bound(8)
+  bitmask bm1 { B1, B2, B3 };
+
+  @final
+  struct t10 {
+    bm1 f1[3];
+  };
+
+  @final
+  struct t11 {
+    en1 f1[3];
+  };
 };

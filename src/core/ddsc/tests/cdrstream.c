@@ -1859,10 +1859,12 @@ CU_TheoryDataPoints (ddsc_cdrstream, check_optimize) = {
                                                  |      |        |        |      |      |      |        |        |      / array of non-primitive type is currently not optimized (FIXME: could be optimized for XCDR1?)
                                                  |      |        |        |      |      |      |        |        |      |      / CDR and memory have equal alignment
                                                  |      |        |        |      |      |      |        |        |      |      |      / field f2 is 1-byte aligned in CDR (because of 1-byte type in nested type), but 2-byte in memory
-                                                 |      |        |        |      |      |      |        |        |      |      |      |      / type of f2 is appendable */
-  CU_DataPoints (const dds_topic_descriptor_t *, D(t1), D(t1_a), D(t1_m), D(t2), D(t3), D(t4), D(t4_1), D(t4_2), D(t5), D(t6), D(t7), D(t8), D(t9) ),
-  CU_DataPoints (size_t,                         4,     0,       0,       16,    0,     5,     13,      29,      16,    0,     16,    0,     0     ), /* optimized size xcdr1 */
-  CU_DataPoints (size_t,                         4,     0,       0,       0,     0,     5,     13,      29,      0,     0,     16,    0,     0     )  /* optimized size xcdr2 */
+                                                 |      |        |        |      |      |      |        |        |      |      |      |      / type of f2 is appendable
+                                                 |      |        |        |      |      |      |        |        |      |      |      |      |      / bitmask (bit bound 8) array (dheader in v2)
+                                                 |      |        |        |      |      |      |        |        |      |      |      |      |      |       / enum (bit bound 32) array (dheader in v2) */
+  CU_DataPoints (const dds_topic_descriptor_t *, D(t1), D(t1_a), D(t1_m), D(t2), D(t3), D(t4), D(t4_1), D(t4_2), D(t5), D(t6), D(t7), D(t8), D(t9), D(t10), D(t11) ),
+  CU_DataPoints (size_t,                         4,     0,       0,       16,    0,     5,     13,      29,      16,    0,     16,    0,     0,     3,      12     ), /* optimized size xcdr1 */
+  CU_DataPoints (size_t,                         4,     0,       0,       0,     0,     5,     13,      29,      0,     0,     16,    0,     0,     0,      0      )  /* optimized size xcdr2 */
 };
 
 CU_Theory ((const dds_topic_descriptor_t *desc, size_t opt_size_xcdr1, size_t opt_size_xcdr2), ddsc_cdrstream, check_optimize)
