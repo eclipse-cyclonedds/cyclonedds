@@ -46,6 +46,11 @@ function(CHECK_HASH OUTVAR HASH_FILE APPEND_FILE)
         return()
     endif()
 
+    cmake_path(ABSOLUTE_PATH HASH_FILE NORMALIZE OUTPUT_VARIABLE _hash_file)
+    cmake_path(ABSOLUTE_PATH APPEND_FILE NORMALIZE OUTPUT_VARIABLE _append_file)
+
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${_hash_file} ${_append_file})
+
     generate_hash_text(_gen_hash_line "${HASH_FILE}" "" "")
 
     file(READ "${APPEND_FILE}" _file_data)
@@ -59,22 +64,19 @@ function(CHECK_HASH OUTVAR HASH_FILE APPEND_FILE)
 endfunction()
 
 
-function(CHECK_HASHES)
-    set(one_value_keywords OUTVAR)
+function(CHECK_HASHES OUTVAR)
     set(multi_value_keywords HASH_FILES APPEND_FILES)
-    cmake_parse_arguments(_check_hashes "" "${one_value_keywords}" "${multi_value_keywords}" "" ${ARGN})
+    cmake_parse_arguments(_check_hashes "" "" "${multi_value_keywords}" "" ${ARGN})
 
+    set(${OUTVAR} 1 PARENT_SCOPE)
     foreach(_hash_file ${_check_hashes_HASH_FILES})
         foreach(_append_file ${_check_hashes_APPEND_FILES})
             check_hash(_test ${_hash_file} ${_append_file})
             if (NOT ${_test})
-                set(${_check_hashes_OUTVAR} 0 PARENT_SCOPE)
-                return()
+                set(${OUTVAR} 0 PARENT_SCOPE)
             endif()
         endforeach()
     endforeach()
-
-    set(${_check_hashes_OUTVAR} 1 PARENT_SCOPE)
 endfunction()
 
 

@@ -281,7 +281,7 @@ CU_Test(ddsc_security_config, empty, .init = ddsrt_init, .fini = ddsrt_fini)
      but the implementation doesn't include support for it. */
   const char *log_expected[] = {
 #ifndef DDS_HAS_SECURITY
-    "config: //CycloneDDS/Domain: Security: unknown element*",
+    "config: //CycloneDDS/Domain: DDS Security is not enabled, setting security configuration is not allowed!*",
 #else
     "config: //CycloneDDS/Domain/Security/Authentication/IdentityCertificate/#text: element missing in configuration*",
     "config: //CycloneDDS/Domain/Security/Authentication/IdentityCA/#text: element missing in configuration*",

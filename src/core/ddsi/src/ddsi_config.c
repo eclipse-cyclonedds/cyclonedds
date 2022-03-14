@@ -738,11 +738,18 @@ static int if_peer (struct cfgst *cfgst, void *parent, struct cfgelem const * co
 
 static int if_omg_security (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
 {
+#ifdef DDS_HAS_SECURITY
   struct ddsi_config_omg_security_listelem *new = if_common (cfgst, parent, cfgelem, sizeof (*new));
   if (new == NULL)
     return -1;
   memset(&new->cfg, 0, sizeof(new->cfg));
   return 0;
+#else
+  DDSRT_UNUSED_ARG(parent);
+  DDSRT_UNUSED_ARG(cfgelem);
+  cfg_error(cfgst, "DDS Security is not enabled, setting security configuration is not allowed!");
+  return -1;
+#endif
 }
 
 static void ff_free (struct cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)

@@ -15,6 +15,7 @@
 
 #include "dds/features.h"
 
+
 struct cfgelem;
 
 void gendef_pf_nop (FILE *fp, void *parent, struct cfgelem const * const cfgelem);

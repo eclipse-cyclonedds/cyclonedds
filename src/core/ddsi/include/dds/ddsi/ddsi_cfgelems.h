@@ -2050,6 +2050,7 @@ static struct cfgelem domain_cfgattrs[] = {
   END_MARKER
 };
 
+
 static struct cfgelem domain_cfgelems[] = {
   MOVED("Id", "CycloneDDS/Domain[@Id]"),
   GROUP("General", general_cfgelems, NULL, 1,

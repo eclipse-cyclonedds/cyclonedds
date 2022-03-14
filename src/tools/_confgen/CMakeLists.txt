@@ -13,19 +13,20 @@
 include(HashUtilities)
 
 set(confgen_hash_files
-  ${CMAKE_CURRENT_SOURCE_DIR}/../../core/ddsi/include/dds/ddsi/ddsi_config.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/../../core/ddsi/include/dds/ddsi/ddsi_cfgunits.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/../../core/ddsi/include/dds/ddsi/ddsi_cfgelems.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/../../core/ddsi/src/ddsi_config.c
+  ${CMAKE_CURRENT_LIST_DIR}/../../core/ddsi/include/dds/ddsi/ddsi_config.h
+  ${CMAKE_CURRENT_LIST_DIR}/../../core/ddsi/include/dds/ddsi/ddsi_cfgunits.h
+  ${CMAKE_CURRENT_LIST_DIR}/../../core/ddsi/include/dds/ddsi/ddsi_cfgelems.h
+  ${CMAKE_CURRENT_LIST_DIR}/../../core/ddsi/src/ddsi_config.c
   _confgen.h _confgen.c generate_rnc.c generate_md.c generate_xsd.c generate_defconfig.c
 )
 
 check_hashes(
-  OUTVAR _confgen_hash_correct
-  HASH_FILES ${confgen_hash_files}
-  APPEND_FILES "${generated_defconfig_src}"
+  _confgen_hash_correct
+  HASH_FILES
+    ${confgen_hash_files}
+  APPEND_FILES
+    "${generated_defconfig_src}"
 )
-
 
 if (NOT ${_confgen_hash_correct})
   if (CMAKE_CROSSCOMPILING)
@@ -39,7 +40,7 @@ if (NOT ${_confgen_hash_correct})
 
   add_executable(_confgen-exe
     _confgen.c generate_rnc.c generate_md.c generate_xsd.c generate_defconfig.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../core/ddsi/src/ddsi_config.c
+    ${CMAKE_CURRENT_LIST_DIR}/../../core/ddsi/src/ddsi_config.c
   )
 
   target_link_libraries(_confgen-exe PRIVATE ddsrt-internal compat)
@@ -90,10 +91,8 @@ if (NOT ${_confgen_hash_correct})
     VERBATIM
   )
 else()
+  message(STATUS "Using cached _confgen")
   add_custom_target(
     _confgen
-    COMMAND ${CMAKE_COMMAND} -E true
   )
 endif()
-
-

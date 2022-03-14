@@ -1,11 +1,10 @@
-set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/../../cmake/Modules")
-
-message("${CMAKE_CURRENT_LIST_DIR}/../../cmake/Modules")
+message(STATUS ${MAIN_PROJECT_DIR} yay)
+set(CMAKE_MODULE_PATH "${MAIN_PROJECT_DIR}/cmake/Modules")
 
 include(HashUtilities)
 
 # Path we need to strip out of parser.{c,h}
-string(REGEX REPLACE "[-+:/\\=()]" "_" _path_to_tok "${CMAKE_CURRENT_BINARY_DIR}")
+string(REGEX REPLACE "[-+:/\\=()]" "_" _path_to_tok ${binary_dir})
 string(TOUPPER "${_path_to_tok}" _path_to_tok)
 
 # Strip out the paths of generated files
@@ -13,26 +12,28 @@ filter_files(
   FIND "${_path_to_tok}"
   REPLACE ""
   FILES
-    "${CMAKE_CURRENT_BINARY_DIR}/parser.c"
-    "${CMAKE_CURRENT_BINARY_DIR}/parser.h"
+    ${binary_dir}/parser.c
+    ${binary_dir}/parser.h
 )
 filter_files(
-  FIND "${CMAKE_CURRENT_BINARY_DIR}/"
+  FIND "${binary_dir}/"
   REPLACE ""
   FILES
-    "${CMAKE_CURRENT_BINARY_DIR}/parser.c"
-    "${CMAKE_CURRENT_BINARY_DIR}/parser.h"
+    ${binary_dir}/parser.c
+    ${binary_dir}/parser.h
 )
 
-# ... that we can then copy into place and append a hash
-file(COPY "${CMAKE_CURRENT_BINARY_DIR}/parser.c" DESTINATION "${CMAKE_CURRENT_LIST_DIR}/src/")
-file(COPY "${CMAKE_CURRENT_BINARY_DIR}/parser.h" DESTINATION "${CMAKE_CURRENT_LIST_DIR}/src/")
 append_hashes(
-  PREFIX "/*"
-  POSTFIX "*/"
-  HASH_FILES
-    "${CMAKE_CURRENT_LIST_DIR}/src/parser.y"
-  APPEND_FILES
-    "${CMAKE_CURRENT_LIST_DIR}/src/parser.c"
-    "${CMAKE_CURRENT_LIST_DIR}/src/parser.h"
+    PREFIX "/*"
+    POSTFIX "*/"
+    HASH_FILES
+      ${source_dir}/src/parser.y
+    APPEND_FILES
+      ${binary_dir}/parser.c
+      ${binary_dir}/parser.h
 )
+
+file(COPY ${binary_dir}/parser.c DESTINATION ${source_dir}/src)
+file(COPY ${binary_dir}/parser.h DESTINATION ${source_dir}/src)
+file(COPY ${binary_dir}/parser.c DESTINATION ${binary_dir}/src)
+file(COPY ${binary_dir}/parser.h DESTINATION ${binary_dir}/src)
