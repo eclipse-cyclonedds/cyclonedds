@@ -266,7 +266,7 @@ include(CTest)
 option(APPEND_PROJECT_NAME_TO_INCLUDEDIR
   "When ON headers are installed to a folder ending with an extra ${PROJECT_NAME}. \
   This avoids include directory search order issues when overriding this package
-  from a merged catkin, ament, or colcon workspace." ON)
+  from a merged catkin, ament, or colcon workspace." OFF)
 
 if(APPEND_PROJECT_NAME_TO_INCLUDEDIR)
   set(CMAKE_INSTALL_INCLUDEDIR "${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME}")
