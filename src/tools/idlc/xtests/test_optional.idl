@@ -32,6 +32,8 @@ struct test_opt_base {
   @optional long b1n;
 };
 
+typedef string td_str;
+
 @topic @appendable
 struct test_opt : test_opt_base {
   @optional long f1;
@@ -66,6 +68,10 @@ struct test_opt : test_opt_base {
   @optional sequence<string<128> > f15n;
   @optional string<128> f16[3];
   @optional string<128> f16n[3];
+  @optional td_str f17;
+  @optional td_str f17n;
+  @optional td_str f18[2];
+  @optional td_str f18n[2];
 };
 
 #else
@@ -168,6 +174,14 @@ void init_sample (void *s)
   for (int n = 0; n < 3; n++)
     STRCPY ((*s1->f16)[n], STR128);
   s1->f16n = NULL;
+
+  STRA (s1->f17, STR128);
+  s1->f17n = NULL;
+
+  A (s1->f18);
+  for (int n = 0; n < 2; n++)
+    STRA ((*s1->f18)[n], STR128);
+  s1->f18n = NULL;
 }
 
 int cmp_sample (const void *sa, const void *sb)
@@ -240,6 +254,13 @@ int cmp_sample (const void *sa, const void *sb)
   for (int n = 0; n < 3; n++)
     CMPEXTASTR(a, b, f16, n, STR128);
   CMP (a, b, f16n, NULL);
+
+  CMPSTR (a, b, f17, STR128);
+  CMP (a, b, f17n, NULL);
+
+  for (int n = 0; n < 2; n++)
+    CMPEXTASTR(a, b, f18, n, STR128);
+  CMP (a, b, f18n, NULL);
 
   return 0;
 }

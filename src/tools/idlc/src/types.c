@@ -158,12 +158,13 @@ emit_field(
     str_ptr = "* ";
 
   if (idl_is_external(root) || idl_is_optional(root)) {
-    if (idl_is_array(node) || (idl_is_string(type_spec) && idl_is_bounded(type_spec))) {
+    idl_type_spec_t *actual_type = idl_strip(type_spec, IDL_STRIP_ALIASES|IDL_STRIP_FORWARD);
+    if (idl_is_array(node) || (idl_is_string(actual_type) && idl_is_bounded(actual_type))) {
       /* for arrays and bounded strings, add paratheses so that it won't be an
          array of pointers but a pointer to the array, e.g. long (*member_name)[5] */
       ptr_open = "(* ";
       ptr_close = ")";
-    } else if (!idl_is_string(type_spec)) { /* unbounded strings are already a pointer, don't add an extra * for external */
+    } else if (!idl_is_string(actual_type)) { /* unbounded strings are already a pointer, don't add an extra * for external */
       ptr_open = "* ";
     }
   }
