@@ -10,11 +10,6 @@
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
 
-if(BUILD_SCHEMA OR BUILD_DOCS)
-  add_custom_target(
-    schema ALL DEPENDS "${generated_cyclonedds_rnc}" "${generated_cyclonedds_xsd}" "${generated_options_md}" _confgen)
-endif()
-
 if(BUILD_DOCS)
   find_package(Sphinx REQUIRED breathe exhale)
   sphinx_add_docs(
@@ -22,7 +17,6 @@ if(BUILD_DOCS)
     BREATHE_PROJECTS ddsc_api_docs
     BUILDER html
     SOURCE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/manual")
-  add_dependencies(docs schema)
 
   install(
     DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/docs"

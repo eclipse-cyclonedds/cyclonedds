@@ -251,7 +251,6 @@ option(BUILD_IDLC_TESTING "Build the idl compiler tests" OFF)
 option(BUILD_EXAMPLES "Build examples." OFF)
 
 option(BUILD_DOCS "Build documentation." OFF)
-option(BUILD_SCHEMA "Build generated schema for configuration options." ${not_crosscompiling})
 
 # Build all executables and libraries into the top-level /bin and /lib folders.
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
