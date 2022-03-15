@@ -643,6 +643,61 @@ static DDS_XTypes_TypeObject *get_typeobj12 (void)
     });
 }
 
+static DDS_XTypes_TypeObject *get_typeobj13 (void)
+{
+  DDS_XTypes_TypeIdentifier ti_f1;
+
+  /* f1 type identifier */
+  {
+    DDS_XTypes_TypeIdentifier *ti_long = calloc (1, sizeof (*ti_long));
+    ti_long->_d = DDS_XTypes_TK_INT32;
+
+    /* typedef long td_arr[3] */
+    DDS_XTypes_TypeObject *to_alias_arr = calloc (1, sizeof (*to_alias_arr));
+    uint8_t *bound_seq = calloc (1, sizeof (*bound_seq));
+    bound_seq[0] = 3;
+    to_alias_arr->_d = DDS_XTypes_EK_COMPLETE;
+    to_alias_arr->_u.complete = (DDS_XTypes_CompleteTypeObject) {
+      ._d = DDS_XTypes_TK_ALIAS,
+      ._u.alias_type = (DDS_XTypes_CompleteAliasType) {
+        .alias_flags = 0,
+        .header = { .detail = { .type_name = "t13::td_arr" } },
+        .body = { .common = { .related_flags = 0, .related_type = (DDS_XTypes_TypeIdentifier) {
+          ._d = DDS_XTypes_TI_PLAIN_ARRAY_SMALL,
+          ._u.array_sdefn = {
+            .header = { .equiv_kind = DDS_XTypes_EK_BOTH, .element_flags = 0 },
+            .array_bound_seq = { ._maximum = 1, ._length = 1, ._buffer = bound_seq, ._release = true },
+            .element_identifier = ti_long
+          }
+        } } }
+      }
+    };
+
+    /* typedef td_seq td */
+    DDS_XTypes_TypeObject *to_alias = calloc (1, sizeof (*to_alias));
+    to_alias->_d = DDS_XTypes_EK_COMPLETE;
+    to_alias->_u.complete = (DDS_XTypes_CompleteTypeObject) {
+      ._d = DDS_XTypes_TK_ALIAS,
+      ._u.alias_type = (DDS_XTypes_CompleteAliasType) {
+        .alias_flags = 0,
+        .header = { .detail = { .type_name = "t13::td" } },
+        .body = { .common = { .related_flags = 0 } }
+      }
+    };
+    get_typeid (&to_alias->_u.complete._u.alias_type.body.common.related_type, to_alias_arr);
+    get_typeid (&ti_f1, to_alias);
+  }
+
+
+  return get_typeobj_struct (
+    "t13::test_struct",
+    DDS_XTypes_IS_FINAL,
+    (DDS_XTypes_TypeIdentifier) { ._d = DDS_XTypes_TK_NONE },
+    1, (smember_t[]) {
+      { 0, 0, ti_f1, "f1" },
+    });
+}
+
 typedef DDS_XTypes_TypeObject * (*get_typeobj_t) (void);
 
 CU_Test(idlc_type_meta, type_obj_serdes)
@@ -663,7 +718,8 @@ CU_Test(idlc_type_meta, type_obj_serdes)
     { "module t9 { @bit_bound(2) bitmask bm { bm0, bm1 }; @topic @final struct test_struct { bm f1; bm f2; }; };", get_typeobj9 },
     { "module t10 { enum en { en0, en1 }; @topic @final struct test_struct { en f1; en f2; }; };", get_typeobj10 },
     { "module t11 { @final union test_union switch (char) { case 'a': @id(99) long f1; default: @id(5) unsigned short f2; }; };", get_typeobj11 },
-    { "module t12 { typedef sequence<long> td_seq; typedef td_seq td_array[2]; struct test_struct { td_array f1; }; };", get_typeobj12 }
+    { "module t12 { typedef sequence<long> td_seq; typedef td_seq td_array[2]; struct test_struct { td_array f1; }; };", get_typeobj12 },
+    { "module t13 { typedef long td_arr[3]; typedef td_arr td; @topic @final struct test_struct { td f1; }; };", get_typeobj13 }
   };
 
   uint32_t flags = IDL_FLAG_EXTENDED_DATA_TYPES |
