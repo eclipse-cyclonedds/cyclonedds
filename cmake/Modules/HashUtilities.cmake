@@ -33,8 +33,7 @@ endfunction()
 
 
 function(generate_hash_text OUTVAR HASH_FILE PREFIX POSTFIX)
-    cmake_path(ABSOLUTE_PATH HASH_FILE NORMALIZE OUTPUT_VARIABLE _hash_file)
-    hash_of_file(_hash "${_hash_file}")
+    hash_of_file(_hash "${HASH_FILE}")
     get_filename_component(_fname "${_hash_file}" NAME)
     set(${OUTVAR} "${PREFIX} generated from ${_fname}[${_hash}] ${POSTFIX}" PARENT_SCOPE)
 endfunction()
@@ -46,10 +45,7 @@ function(CHECK_HASH OUTVAR HASH_FILE APPEND_FILE)
         return()
     endif()
 
-    cmake_path(ABSOLUTE_PATH HASH_FILE NORMALIZE OUTPUT_VARIABLE _hash_file)
-    cmake_path(ABSOLUTE_PATH APPEND_FILE NORMALIZE OUTPUT_VARIABLE _append_file)
-
-    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${_hash_file} ${_append_file})
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${HASH_FILE} ${APPEND_FILE})
 
     generate_hash_text(_gen_hash_line "${HASH_FILE}" "" "")
 
