@@ -98,7 +98,6 @@ if (NOT ${_confgen_hash_correct})
     VERBATIM
   )
 else()
-  message(STATUS "Using cached _confgen")
   add_custom_target(
     _confgen
   )
