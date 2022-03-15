@@ -933,7 +933,7 @@ add_typedef (
   const idl_type_spec_t *type_spec = idl_is_array (node) ? node : idl_type_spec (node);
 
   // don't visit fully descriptive type-spec, but visit plain-collection type-spec
-  bool visit_type_spec = !has_fully_descriptive_typeid_impl (type_spec, true, true);
+  bool visit_type_spec = idl_is_array (node) || !has_fully_descriptive_typeid_impl (type_spec, false, false);
 
   if (revisit) {
     assert (dtm->stack->to_minimal->_u.minimal._d == DDS_XTypes_TK_ALIAS);
