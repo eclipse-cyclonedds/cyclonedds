@@ -279,6 +279,7 @@ static struct cfgelem general_cfgelems[] = {
   END_MARKER
 };
 
+#ifdef DDS_HAS_SECURITY
 static struct cfgelem authentication_library_attributes[] = {
   STRING("path", NULL, 1, "dds_security_auth",
     MEMBEROF(ddsi_config_omg_security_listelem, cfg.authentication_plugin.library_path),
@@ -569,7 +570,9 @@ static struct cfgelem security_omg_config_elements[] = {
     )),
   END_MARKER
 };
+#endif /* DDS_HAS_SECURITY */
 
+#ifdef DDS_HAS_NETWORK_PARTITIONS
 static struct cfgelem networkpartition_cfgattrs[] = {
   STRING("Name", NULL, 1, NULL,
     MEMBEROF(ddsi_config_networkpartition_listelem, name),
@@ -690,7 +693,9 @@ static struct cfgelem partitioning_cfgelems[] = {
     )),
   END_MARKER
 };
+#endif /* DDS_HAS_NETWORK_PARTITIONS */
 
+#ifdef DDS_HAS_NETWORK_CHANNELS
 static struct cfgelem channel_cfgelems[] = {
 #ifdef DDS_HAS_BANDWIDTH_LIMITING
   STRING("DataBandwidthLimit", NULL, 1, "inf",
@@ -702,6 +707,7 @@ static struct cfgelem channel_cfgelems[] = {
       "a leaky bucket scheme. The default value \"inf\" means Cyclone DDS imposes "
       "no limitation, the underlying operating system and hardware will "
       "likely limit the maximum transmit rate.</p>")
+    BEHIND_FLAG("DDS_HAS_BANDWIDTH_LIMITING")
     UNIT("bandwidth")),
   STRING("AuxiliaryBandwidthLimit", NULL, 1, "inf",
     MEMBEROF(ddsi_config_channel_listelem, auxiliary_bandwidth_limit),
@@ -733,7 +739,9 @@ static struct cfgelem channel_cfgelems[] = {
       "traffic.\n"
       "When an application is run without Administrative priveleges then "
       "only the diffserv value of 0, 8, 40 or 56 is allowed.</p>"
-    )),
+    ),
+    BEHIND_FLAG("DDS_HAS_NETWORK_CHANNELS")
+  ),
   END_MARKER
 };
 
@@ -766,6 +774,7 @@ static struct cfgelem channels_cfgelems[] = {
     DESCRIPTION("<p>This element defines a channel.</p>")),
   END_MARKER
 };
+#endif /* DDS_HAS_NETWORK_CHANNELS */
 
 static struct cfgelem thread_properties_sched_cfgelems[] = {
   ENUM("Class", NULL, 1, "default",
@@ -1368,6 +1377,7 @@ static struct cfgelem internal_cfgelems[] = {
       "scheduled exactly, whereas a value of 10ms would mean that events are "
       "rounded up to the nearest 10 milliseconds.</p>"),
     UNIT("duration")),
+#ifdef DDS_HAS_BANDWIDTH_LIMITING
   STRING("AuxiliaryBandwidthLimit", NULL, 1, "inf",
     MEMBER(auxiliary_bandwidth_limit),
     FUNCTIONS(0, uf_bandwidth, 0, pf_bandwidth),
@@ -1379,7 +1389,10 @@ static struct cfgelem internal_cfgelems[] = {
       "Bandwidth limiting uses a leaky bucket scheme. The default value "
       "\"inf\" means Cyclone DDS imposes no limitation, the underlying operating "
       "system and hardware will likely limit the maximum transmit rate.</p>"
-    )),
+    ),
+    BEHIND_FLAG("DDS_HAS_BANDWIDTH_LIMITING")
+  ),
+#endif
   INT("DDSI2DirectMaxThreads", NULL, 1, "1",
     MEMBER(ddsi2direct_max_threads),
     FUNCTIONS(0, uf_uint, 0, pf_uint),
@@ -1681,6 +1694,7 @@ static struct cfgelem tcp_cfgelems[] = {
   END_MARKER
 };
 
+#ifdef DDS_HAS_SSL
 static struct cfgelem ssl_cfgelems[] = {
   BOOL("Enable", NULL, 1, "false",
     MEMBER(ssl_enable),
@@ -1734,7 +1748,9 @@ static struct cfgelem ssl_cfgelems[] = {
     )),
   END_MARKER
 };
+#endif
 
+#ifdef DDS_HAS_SHM
 static struct cfgelem shmem_cfgelems[] = {
   BOOL("Enable", NULL, 1, "false",
     MEMBER(enable_shm),
@@ -1785,6 +1801,7 @@ static struct cfgelem shmem_cfgelems[] = {
     DESCRIPTION("<p>The number of messages which will be stored on the publisher for late joining subscribers. Should be a value between 0 and 16 and be equal to or larger than SubHistoryRequest.</p>")),
   END_MARKER
 };
+#endif
 
 static struct cfgelem discovery_peer_cfgattrs[] = {
   STRING("Address", NULL, 1, NULL,
@@ -1925,13 +1942,17 @@ static struct cfgelem discovery_cfgelems[] = {
       "specified by the DDSI 2.1 specification and rarely need to be "
       "changed.</p>"
     )),
+#ifdef DDS_HAS_TOPIC_DISCOVERY
   BOOL("EnableTopicDiscoveryEndpoints", NULL, 1, "false",
     MEMBER(enable_topic_discovery_endpoints),
     FUNCTIONS(0, uf_boolean, 0, pf_boolean),
     DESCRIPTION(
       "<p>This element controls whether the built-in endpoints for topic "
       "discovery are created and used to exchange topic discovery information.</p>"
-    )),
+    ),
+    BEHIND_FLAG("DDS_HAS_TOPIC_DISCOVERY")
+  ),
+#endif
   STRING("LeaseDuration", NULL, 1, "10 s",
     MEMBER(lease_duration),
     FUNCTIONS(0, uf_duration_ms_1hr, 0, pf_duration),
@@ -2050,7 +2071,6 @@ static struct cfgelem domain_cfgattrs[] = {
   END_MARKER
 };
 
-
 static struct cfgelem domain_cfgelems[] = {
   MOVED("Id", "CycloneDDS/Domain[@Id]"),
   GROUP("General", general_cfgelems, NULL, 1,
@@ -2059,6 +2079,7 @@ static struct cfgelem domain_cfgelems[] = {
     DESCRIPTION(
       "<p>The General element specifies overall Cyclone DDS service settings.</p>"
     )),
+#ifdef DDS_HAS_SECURITY
   GROUP("Security|DDSSecurity", security_omg_config_elements, NULL, INT_MAX,
     MEMBER(omg_security_configuration),
     FUNCTIONS(if_omg_security, 0, 0, 0),
@@ -2066,8 +2087,11 @@ static struct cfgelem domain_cfgelems[] = {
       "<p>This element is used to configure Cyclone DDS with the DDS Security "
       "specification plugins and settings.</p>"
     ),
+    BEHIND_FLAG("DDS_HAS_SECURITY"),
     MAXIMUM(1)), /* Security must occur at most once, but INT_MAX is required
                     because of the way its processed (for now) */
+#endif
+#ifdef DDS_HAS_NETWORK_PARTITIONS
   GROUP("Partitioning", partitioning_cfgelems, NULL, 1,
     NOMEMBER,
     NOFUNCTIONS,
@@ -2075,7 +2099,11 @@ static struct cfgelem domain_cfgelems[] = {
       "<p>The Partitioning element specifies Cyclone DDS network partitions and "
       "how DCPS partition/topic combinations are mapped onto the network "
       "partitions.</p>"
-    )),
+    ),
+    BEHIND_FLAG("DDS_HAS_NETWORK_PARTITIONS")
+  ),
+#endif
+#ifdef DDS_HAS_NETWORK_CHANNELS
   GROUP("Channels", channels_cfgelems, NULL, 1,
     NOMEMBER,
     NOFUNCTIONS,
@@ -2085,7 +2113,10 @@ static struct cfgelem domain_cfgelems[] = {
       "and setting their priorities appropriately, chanenls can be used to "
       "map transport priorities to operating system scheduler priorities, "
       "ensuring system-wide end-to-end priority preservation.</p>"
-    )),
+    ),
+    BEHIND_FLAG("DDS_HAS_NETWORK_CHANNELS")
+  ),
+#endif
   GROUP("Threads", threads_cfgelems, NULL, 1,
     NOMEMBER,
     NOFUNCTIONS,
@@ -2140,20 +2171,28 @@ static struct cfgelem domain_cfgelems[] = {
       "<p>The TCP element allows specifying various parameters related to "
       "running DDSI over TCP.</p>"
     )),
+#ifdef DDS_HAS_SSL
   GROUP("SSL", ssl_cfgelems, NULL, 1,
     NOMEMBER,
     NOFUNCTIONS,
     DESCRIPTION(
       "<p>The SSL element allows specifying various parameters related to "
       "using SSL/TLS for DDSI over TCP.</p>"
-    )),
+    ),
+    BEHIND_FLAG("DDS_HAS_SSL")
+  ),
+#endif
+#ifdef DDS_HAS_SHM
   GROUP("SharedMemory", shmem_cfgelems, NULL, 1,
     NOMEMBER,
     NOFUNCTIONS,
     DESCRIPTION(
       "<p>The Shared Memory element allows specifying various parameters "
       "related to using shared memory.</p>"
-    )),
+    ),
+    BEHIND_FLAG("DDS_HAS_SHM")
+  ),
+#endif
   END_MARKER
 };
 
@@ -2165,8 +2204,12 @@ static struct cfgelem root_cfgelems[] = {
       "<p>The General element specifying Domain related settings.</p>"
     )),
   MOVED("General", "CycloneDDS/Domain/General"),
+#if DDS_HAS_NETWORK_PARTITIONS
   MOVED("Partitioning", "CycloneDDS/Domain/Partitioning"),
+#endif
+#if DDS_HAS_NETWORK_CHANNELS
   MOVED("Channels", "CycloneDDS/Domain/Channels"),
+#endif
   MOVED("Threads", "CycloneDDS/Domain/Threads"),
   MOVED("Sizing", "CycloneDDS/Domain/Sizing"),
   MOVED("Compatibility", "CycloneDDS/Domain/Compatibility"),
@@ -2174,9 +2217,15 @@ static struct cfgelem root_cfgelems[] = {
   MOVED("Tracing", "CycloneDDS/Domain/Tracing"),
   MOVED("Internal|Unsupported", "CycloneDDS/Domain/Internal"),
   MOVED("TCP", "CycloneDDS/Domain/TCP"),
+#if DDS_HAS_SECURITY
   MOVED("DDSSecurity", "CycloneDDS/Domain/Security"),
+#endif
+#if DDS_HAS_SSL
   MOVED("SSL", "CycloneDDS/Domain/SSL"),
+#endif
+#ifdef DDS_HAS_SHM
   MOVED("SharedMemory", "CycloneDDS/Domain/SharedMemory"),
+#endif
   MOVED("DDSI2E|DDSI2", "CycloneDDS/Domain"),
   END_MARKER
 };

@@ -60,17 +60,18 @@
 #define VALUES(...) .values = (const char *[]){ __VA_ARGS__, NULL }
 #define MAXIMUM(num) .force_maximum = 1, .maximum = num
 #define MINIMUM(num) .force_minimum = 1, .minimum = num
+#define BEHIND_FLAG(name) .flag = name
 
 #define NOMEMBER 0, NULL
 #define NOFUNCTIONS 0
-#define NOMETADATA { NULL, NULL, NULL, NULL, 0, 0, 0, 0, 0, NULL, NULL, NULL, NULL }
+#define NOMETADATA { NULL, NULL, NULL, NULL, 0, 0, 0, 0, 0, NULL, NULL, NULL, NULL, NULL }
 #define END_MARKER { NULL, NULL, NULL, 0, NULL, 0, NULL, 0, NULL, NOMETADATA }
 
 #define ELEMENT(name, elems, attrs, multip, dflt, ofst, mname, funcs, desc, ...) \
   { name, elems, attrs, multip, dflt, ofst, mname, funcs, desc, { __VA_ARGS__ } }
 
 #define MOVED(name, whereto) \
-  { ">" name, NULL, NULL, 0, whereto, 0, NULL, 0, NULL, NOMETADATA }
+  { ">" name, NULL, NULL, 0, whereto, 0, NULL, 0, NULL, NOMETADATA}
 
 #define EXPAND(macro, args) macro args /* Visual Studio */
 
@@ -114,6 +115,7 @@
 #undef STRING
 #undef LIST
 #undef GROUP
+#undef BEHIND_FLAG
 
 
 const char *schema(void) { return "config"; }

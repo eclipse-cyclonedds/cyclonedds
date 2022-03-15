@@ -60,6 +60,7 @@ enum ddsi_boolean_default {
   DDSI_BOOLDEF_TRUE
 };
 
+#ifdef DDS_HAS_SHM
 enum ddsi_shm_loglevel {
   DDSI_SHM_OFF = 0,
   DDSI_SHM_FATAL,
@@ -69,6 +70,7 @@ enum ddsi_shm_loglevel {
   DDSI_SHM_DEBUG,
   DDSI_SHM_VERBOSE
 };
+#endif
 
 #define DDSI_PARTICIPANT_INDEX_AUTO -1
 #define DDSI_PARTICIPANT_INDEX_NONE -2
@@ -78,6 +80,7 @@ struct ddsi_config_listelem {
   struct ddsi_config_listelem *next;
 };
 
+#ifdef DDS_HAS_NETWORK_PARTITIONS
 struct networkpartition_address {
   struct networkpartition_address *next;
   ddsi_locator_t loc;
@@ -89,7 +92,9 @@ struct ddsi_config_networkpartition_listelem {
   char *address_string;
   struct networkpartition_address *uc_addresses;
   struct networkpartition_address *asm_addresses;
+#ifdef DDS_HAS_SSM
   struct networkpartition_address *ssm_addresses;
+#endif
 };
 
 struct ddsi_config_ignoredpartition_listelem {
@@ -103,14 +108,18 @@ struct ddsi_config_partitionmapping_listelem {
   char *DCPSPartitionTopic;
   struct ddsi_config_networkpartition_listelem *partition;
 };
+#endif /* DDS_HAS_NETWORK_PARTITIONS */
 
+#ifdef DDS_HAS_NETWORK_CHANNELS
 struct ddsi_config_channel_listelem {
   struct ddsi_config_channel_listelem *next;
   char   *name;
   int    priority;
   int64_t resolution;
+#ifdef DDS_HAS_BANDWIDTH_LIMITING
   uint32_t data_bandwidth_limit;
   uint32_t auxiliary_bandwidth_limit;
+#endif
   int    diffserv_field;
   struct thread_state1 *channel_reader_ts;  /* keeping an handle to the running thread for this channel */
   struct nn_dqueue *dqueue; /* The handle of teh delivery queue servicing incoming data for this channel*/
@@ -118,6 +127,7 @@ struct ddsi_config_channel_listelem {
   uint32_t queueId; /* the index of the networkqueue serviced by this channel*/
   struct ddsi_tran_conn * transmit_conn; /* the connection used for sending data out via this channel */
 };
+#endif /* DDS_HAS_NETWORK_CHANNELS */
 
 struct ddsi_config_maybe_int32 {
   int isdefault;
@@ -152,8 +162,12 @@ struct ddsi_config_prune_deleted_ppant {
 #define DDSI_AMC_FALSE 0u
 #define DDSI_AMC_SPDP 1u
 #define DDSI_AMC_ASM 2u
+#ifdef DDS_HAS_SSM
 #define DDSI_AMC_SSM 4u
 #define DDSI_AMC_TRUE (DDSI_AMC_SPDP | DDSI_AMC_ASM | DDSI_AMC_SSM)
+#else
+#define DDSI_AMC_TRUE (DDSI_AMC_SPDP | DDSI_AMC_ASM)
+#endif
 #define DDSI_AMC_DEFAULT 0x80000000u
 
 /* FIXME: this should be fully dynamic ... but this is easier for a quick hack */
@@ -173,6 +187,7 @@ enum ddsi_many_sockets_mode {
   DDSI_MSM_MANY_UNICAST
 };
 
+#ifdef DDS_HAS_SECURITY
 struct ddsi_plugin_library_properties {
   char *library_path;
   char *library_init;
@@ -207,11 +222,15 @@ struct ddsi_config_omg_security_listelem {
   struct ddsi_config_omg_security_listelem *next;
   struct ddsi_config_omg_security cfg;
 };
+#endif /* DDS_HAS_SECURITY */
 
+#ifdef DDS_HAS_SSL
 struct ddsi_config_ssl_min_version {
   int major;
   int minor;
 };
+#endif
+
 struct ddsi_config_socket_buf_size {
   struct ddsi_config_maybe_uint32 min, max;
 };
@@ -300,7 +319,9 @@ struct ddsi_config
   int publish_uc_locators; /* Publish discovery unicast locators */
   int enable_uc_locators; /* If false, don't even try to create a unicast socket */
 
+#ifdef DDS_HAS_TOPIC_DISCOVERY
   int enable_topic_discovery_endpoints;
+#endif
 
   /* TCP transport configuration */
   int tcp_nodelay;
@@ -309,6 +330,7 @@ struct ddsi_config
   int64_t tcp_write_timeout;
   int tcp_use_peeraddr_for_unicast;
 
+#ifdef DDS_HAS_SSL
   /* SSL support for TCP */
   int ssl_enable;
   int ssl_verify;
@@ -319,13 +341,18 @@ struct ddsi_config
   char * ssl_key_pass;
   char * ssl_ciphers;
   struct ddsi_config_ssl_min_version ssl_min_version;
+#endif
 
+#ifdef DDS_HAS_NETWORK_CHANNELS
   struct ddsi_config_channel_listelem *channels;
   struct ddsi_config_channel_listelem *max_channel; /* channel with highest prio; always computed */
+#endif /* DDS_HAS_NETWORK_CHANNELS */
+#ifdef DDS_HAS_NETWORK_PARTITIONS
   struct ddsi_config_networkpartition_listelem *networkPartitions;
   unsigned nof_networkPartitions;
   struct ddsi_config_ignoredpartition_listelem *ignoredPartitions;
   struct ddsi_config_partitionmapping_listelem *partitionMappings;
+#endif /* DDS_HAS_NETWORK_PARTITIONS */
   struct ddsi_config_peer_listelem *peers;
   struct ddsi_config_peer_listelem *peers_group;
   struct ddsi_config_thread_properties_listelem *thread_properties;
@@ -363,7 +390,9 @@ struct ddsi_config
   int64_t schedule_time_rounding;
   int64_t auto_resched_nack_delay;
   int64_t ds_grace_period;
+#ifdef DDS_HAS_BANDWIDTH_LIMITING
   uint32_t auxiliary_bandwidth_limit; /* bytes/second */
+#endif
   uint32_t max_queued_rexmit_bytes;
   unsigned max_queued_rexmit_msgs;
   unsigned ddsi2direct_max_threads;
@@ -391,12 +420,16 @@ struct ddsi_config
   struct ddsi_config_prune_deleted_ppant prune_deleted_ppant;
   int redundant_networking;
 
+#ifdef DDS_HAS_SECURITY
   struct ddsi_config_omg_security_listelem *omg_security_configuration;
+#endif
 
+#ifdef DDS_HAS_SHM
   int enable_shm;
   char *shm_locator;
   char *iceoryx_service;
-  enum ddsi_shm_loglevel shm_log_lvl;
+  enum ddsi_shm_loglevel shm_log_lvl;  
+#endif
 
 #if defined (__cplusplus)
 public:
@@ -411,4 +444,3 @@ public:
 #endif
 
 #endif /* DDSI_CONFIG_H */
-

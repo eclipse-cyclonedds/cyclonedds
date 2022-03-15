@@ -191,6 +191,9 @@ static void gen_defaults (FILE *out, void *parent, struct cfgelem const * const 
     if (ce->name[0] == '>' || ce->name[0] == '|') /* moved or deprecated, so don't care */
       continue;
 
+    if (ce->meta.flag)
+      fprintf(out, "#ifdef %s\n", ce->meta.flag);
+
     if (ce->multiplicity <= 1)
     {
       if (ce->defconfig_print)
@@ -219,6 +222,8 @@ static void gen_defaults (FILE *out, void *parent, struct cfgelem const * const 
       }
 #endif
     }
+    if (ce->meta.flag)
+      fprintf(out, "#endif /* %s */\n", ce->meta.flag);
   }
 }
 

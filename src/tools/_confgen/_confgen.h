@@ -72,11 +72,13 @@ struct cfgmeta {
   unsigned int flags;
   const int force_maximum, maximum;
   const int force_minimum, minimum;
+  const char *flag;
   const char *type;
   const char *unit;
   const char *range;
   const char **values;
 };
+
 
 struct cfgelem {
   const char *name;

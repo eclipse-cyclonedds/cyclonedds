@@ -43,6 +43,13 @@ if (NOT ${_confgen_hash_correct})
     ${CMAKE_CURRENT_LIST_DIR}/../../core/ddsi/src/ddsi_config.c
   )
 
+  get_cmake_property(_variableNames VARIABLES)
+  foreach (_variableName ${_variableNames})
+    if(_variableName MATCHES "^ENABLE_([A-Za-z0-9_]+)$")
+      target_compile_definitions(_confgen-exe PUBLIC "DDS_HAS_${CMAKE_MATCH_1}=1")
+    endif()
+  endforeach()
+
   target_link_libraries(_confgen-exe PRIVATE ddsrt-internal compat)
   target_include_directories(_confgen-exe
     PRIVATE

@@ -1,4 +1,3 @@
-message(STATUS ${MAIN_PROJECT_DIR} yay)
 set(CMAKE_MODULE_PATH "${MAIN_PROJECT_DIR}/cmake/Modules")
 
 include(HashUtilities)
