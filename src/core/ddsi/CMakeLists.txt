@@ -9,13 +9,8 @@
 #
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
-set(defconfig_src "${CMAKE_CURRENT_BINARY_DIR}/defconfig.c")
 
 
-add_custom_command(
-  OUTPUT ${defconfig_src}
-  COMMAND ddsconf-native -f defconfig -o ${defconfig_src}
-  DEPENDS ddsconf-native)
 
 set(srcs_ddsi
   ddsi_eth.c
@@ -179,14 +174,15 @@ if(ENABLE_SECURITY)
   list(APPEND hdrs_private_ddsi ddsi_security_msg.h ddsi_security_exchange.h)
 endif()
 if(ENABLE_SHM)
-  list(APPEND srcs_ddsi ddsi_shm_transport.c) 
+  list(APPEND srcs_ddsi ddsi_shm_transport.c)
   list(APPEND hdrs_private_ddsi ddsi_shm_transport.h)
 endif()
 
 prepend(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi/" ${hdrs_private_ddsi})
 prepend(srcs_ddsi "${CMAKE_CURRENT_LIST_DIR}/src/" ${srcs_ddsi})
 
-target_sources(ddsc PRIVATE ${srcs_ddsi} ${defconfig_src} ${hdrs_private_ddsi})
+target_sources(ddsc PRIVATE ${srcs_ddsi} ${generated_defconfig_src} ${hdrs_private_ddsi})
+add_dependencies(ddsc _confgen)
 target_include_directories(ddsc PRIVATE "${CMAKE_CURRENT_LIST_DIR}/include")
 
 install(

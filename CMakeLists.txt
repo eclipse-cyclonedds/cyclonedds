@@ -41,7 +41,6 @@ option(WERROR "Treat compiler warnings as errors" OFF)
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/Modules")
 
 option(BUILD_IDLC "Build IDL preprocessor" ${not_crosscompiling})
-option(BUILD_DDSCONF "Build DDSCONF buildtool" ${not_crosscompiling})
 option(BUILD_DDSPERF "Build ddsperf tool" ${not_crosscompiling})
 
 set(CMAKE_C_STANDARD 99)
@@ -252,7 +251,6 @@ option(BUILD_IDLC_TESTING "Build the idl compiler tests" OFF)
 option(BUILD_EXAMPLES "Build examples." OFF)
 
 option(BUILD_DOCS "Build documentation." OFF)
-option(BUILD_SCHEMA "Build generated schema for configuration options." ${not_crosscompiling})
 
 # Build all executables and libraries into the top-level /bin and /lib folders.
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
@@ -327,6 +325,14 @@ install(
   DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig"
   COMPONENT dev
 )
+
+# Generated file paths
+# although the following files are generated, they are checked into source
+# control for convenience, but the user must copy them manually
+set(generated_cyclonedds_rnc "${CMAKE_CURRENT_SOURCE_DIR}/etc/cyclonedds.rnc")
+set(generated_cyclonedds_xsd "${CMAKE_CURRENT_SOURCE_DIR}/etc/cyclonedds.xsd")
+set(generated_options_md     "${CMAKE_CURRENT_SOURCE_DIR}/docs/manual/options.md")
+set(generated_defconfig_src  "${CMAKE_CURRENT_SOURCE_DIR}/src/core/ddsi/defconfig.c")
 
 add_subdirectory(compat)
 add_subdirectory(src)

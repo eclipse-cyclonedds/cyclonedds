@@ -10,26 +10,35 @@
 
 """
     pre-commit-hook must-match-hash
-        given file 'a' there should be a file 'a.hash' that is matching
+        Given append_files and hash_files ensure generated files are up to date
 """
 
 import sys
-import hashlib
+import argparse
+import subprocess
+
+
+def make_parser():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--hash-files', type=str, nargs='+')
+    parser.add_argument('--append-files', type=str, nargs='+')
+    return parser
 
 
 def main():
-    for file in sys.argv[1:]:
-        with open(file) as f:
-            hash = hashlib.sha1(f.read().replace('\r', '').encode()).hexdigest()
+    data = make_parser().parse_args(sys.argv[1:])
+    hash_file_list = ";".join(data.hash_files)
+    append_file_list = ";".join(data.append_files)
 
-        print(hash)
-
-        with open(f"{file}.hash") as f:
-            cmake_hash = f.read().strip()
-            print(cmake_hash)
-            if hash != cmake_hash:
-                print(f"Hashfile incorrect for {file}", file=sys.stderr)
-                sys.exit(1)
+    try:
+        subprocess.check_call([
+            "cmake",
+            f"-DHASH_FILES={hash_file_list}",
+            f"-DAPPEND_FILES={append_file_list}",
+            "-P", "cmake/CheckHashScript.cmake"
+        ])
+    except subprocess.CalledProcessError:
+        sys.exit(1)
 
 
 if __name__ == "__main__":

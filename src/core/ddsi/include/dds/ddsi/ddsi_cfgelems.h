@@ -707,6 +707,7 @@ static struct cfgelem channel_cfgelems[] = {
       "a leaky bucket scheme. The default value \"inf\" means Cyclone DDS imposes "
       "no limitation, the underlying operating system and hardware will "
       "likely limit the maximum transmit rate.</p>")
+    BEHIND_FLAG("DDS_HAS_BANDWIDTH_LIMITING")
     UNIT("bandwidth")),
   STRING("AuxiliaryBandwidthLimit", NULL, 1, "inf",
     MEMBEROF(ddsi_config_channel_listelem, auxiliary_bandwidth_limit),
@@ -738,7 +739,9 @@ static struct cfgelem channel_cfgelems[] = {
       "traffic.\n"
       "When an application is run without Administrative priveleges then "
       "only the diffserv value of 0, 8, 40 or 56 is allowed.</p>"
-    )),
+    ),
+    BEHIND_FLAG("DDS_HAS_NETWORK_CHANNELS")
+  ),
   END_MARKER
 };
 
@@ -1386,7 +1389,9 @@ static struct cfgelem internal_cfgelems[] = {
       "Bandwidth limiting uses a leaky bucket scheme. The default value "
       "\"inf\" means Cyclone DDS imposes no limitation, the underlying operating "
       "system and hardware will likely limit the maximum transmit rate.</p>"
-    )),
+    ),
+    BEHIND_FLAG("DDS_HAS_BANDWIDTH_LIMITING")
+  ),
 #endif
   INT("DDSI2DirectMaxThreads", NULL, 1, "1",
     MEMBER(ddsi2direct_max_threads),
@@ -1944,7 +1949,9 @@ static struct cfgelem discovery_cfgelems[] = {
     DESCRIPTION(
       "<p>This element controls whether the built-in endpoints for topic "
       "discovery are created and used to exchange topic discovery information.</p>"
-    )),
+    ),
+    BEHIND_FLAG("DDS_HAS_TOPIC_DISCOVERY")
+  ),
 #endif
   STRING("LeaseDuration", NULL, 1, "10 s",
     MEMBER(lease_duration),
@@ -2080,6 +2087,7 @@ static struct cfgelem domain_cfgelems[] = {
       "<p>This element is used to configure Cyclone DDS with the DDS Security "
       "specification plugins and settings.</p>"
     ),
+    BEHIND_FLAG("DDS_HAS_SECURITY"),
     MAXIMUM(1)), /* Security must occur at most once, but INT_MAX is required
                     because of the way its processed (for now) */
 #endif
@@ -2091,7 +2099,9 @@ static struct cfgelem domain_cfgelems[] = {
       "<p>The Partitioning element specifies Cyclone DDS network partitions and "
       "how DCPS partition/topic combinations are mapped onto the network "
       "partitions.</p>"
-    )),
+    ),
+    BEHIND_FLAG("DDS_HAS_NETWORK_PARTITIONS")
+  ),
 #endif
 #ifdef DDS_HAS_NETWORK_CHANNELS
   GROUP("Channels", channels_cfgelems, NULL, 1,
@@ -2103,7 +2113,9 @@ static struct cfgelem domain_cfgelems[] = {
       "and setting their priorities appropriately, chanenls can be used to "
       "map transport priorities to operating system scheduler priorities, "
       "ensuring system-wide end-to-end priority preservation.</p>"
-    )),
+    ),
+    BEHIND_FLAG("DDS_HAS_NETWORK_CHANNELS")
+  ),
 #endif
   GROUP("Threads", threads_cfgelems, NULL, 1,
     NOMEMBER,
@@ -2166,7 +2178,9 @@ static struct cfgelem domain_cfgelems[] = {
     DESCRIPTION(
       "<p>The SSL element allows specifying various parameters related to "
       "using SSL/TLS for DDSI over TCP.</p>"
-    )),
+    ),
+    BEHIND_FLAG("DDS_HAS_SSL")
+  ),
 #endif
 #ifdef DDS_HAS_SHM
   GROUP("SharedMemory", shmem_cfgelems, NULL, 1,
@@ -2175,7 +2189,9 @@ static struct cfgelem domain_cfgelems[] = {
     DESCRIPTION(
       "<p>The Shared Memory element allows specifying various parameters "
       "related to using shared memory.</p>"
-    )),
+    ),
+    BEHIND_FLAG("DDS_HAS_SHM")
+  ),
 #endif
   END_MARKER
 };

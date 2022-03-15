@@ -11,7 +11,7 @@
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/features.h"
 
-#include "ddsconf.h"
+#include "_confgen.h"
 
 static void *cfg_address (void *parent, struct cfgelem const * const cfgelem)
 {
@@ -72,7 +72,6 @@ void gendef_pf_maybe_uint32 (FILE *out, void *parent, struct cfgelem const * con
     fprintf (out, "  cfg->%s.value = UINT32_C (%"PRIu32");\n", cfgelem->membername, p->value);
 }
 
-#ifdef DDS_HAS_SSL
 void gendef_pf_min_tls_version (FILE *out, void *parent, struct cfgelem const * const cfgelem)
 {
   struct ddsi_config_ssl_min_version * const p = cfg_address (parent, cfgelem);
@@ -82,7 +81,6 @@ void gendef_pf_min_tls_version (FILE *out, void *parent, struct cfgelem const * 
   cfg->%s.minor = %d;\n",
              cfgelem->membername, p->major, cfgelem->membername, p->minor);
 }
-#endif
 
 void gendef_pf_string (FILE *out, void *parent, struct cfgelem const * const cfgelem)
 {
@@ -122,11 +120,9 @@ void gendef_pf_tracemask (FILE *out, void *parent, struct cfgelem const * const 
 void gendef_pf_xcheck (FILE *out, void *parent, struct cfgelem const * const cfgelem) {
   gendef_pf_uint32 (out, parent, cfgelem);
 }
-#ifdef DDS_HAS_BANDWIDTH_LIMITING
 void gendef_pf_bandwidth (FILE *out, void *parent, struct cfgelem const * const cfgelem) {
   gendef_pf_uint32 (out, parent, cfgelem);
 }
-#endif
 void gendef_pf_memsize (FILE *out, void *parent, struct cfgelem const * const cfgelem) {
   gendef_pf_uint32 (out, parent, cfgelem);
 }
@@ -195,6 +191,9 @@ static void gen_defaults (FILE *out, void *parent, struct cfgelem const * const 
     if (ce->name[0] == '>' || ce->name[0] == '|') /* moved or deprecated, so don't care */
       continue;
 
+    if (ce->meta.flag)
+      fprintf(out, "#ifdef %s\n", ce->meta.flag);
+
     if (ce->multiplicity <= 1)
     {
       if (ce->defconfig_print)
@@ -223,6 +222,8 @@ static void gen_defaults (FILE *out, void *parent, struct cfgelem const * const 
       }
 #endif
     }
+    if (ce->meta.flag)
+      fprintf(out, "#endif /* %s */\n", ce->meta.flag);
   }
 }
 

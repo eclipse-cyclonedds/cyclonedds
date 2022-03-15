@@ -9,9 +9,11 @@
 #
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
+
 set(CMAKE_INSTALL_TOOLSDIR "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}/tools")
+
+add_subdirectory(_confgen)
 add_subdirectory(pubsub)
-add_subdirectory(ddsconf)
 if(BUILD_IDLC)
   add_subdirectory(idlpp)
   add_subdirectory(idlc)
