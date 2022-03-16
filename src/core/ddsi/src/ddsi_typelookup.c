@@ -101,6 +101,12 @@ bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const ddsi_typeid_t 
 
   struct ddsi_serdata *serdata = ddsi_serdata_from_sample (gv->tl_svc_request_type, SDK_DATA, &request);
   ddsrt_free (request.data._u.getTypes.type_ids._buffer);
+  if (!serdata)
+  {
+    GVTRACE (" from_sample failed\n");
+    ddsrt_mutex_unlock (&gv->typelib_lock);
+    return false;
+  }
   serdata->timestamp = ddsrt_time_wallclock ();
   type->state = DDSI_TYPE_REQUESTED;
   ddsrt_mutex_unlock (&gv->typelib_lock);
@@ -133,6 +139,11 @@ static void write_typelookup_reply (struct writer *wr, seqno_t seqno, struct DDS
   reply.return_data._u.getType._u.result.types._length = types->_length;
   reply.return_data._u.getType._u.result.types._buffer = types->_buffer;
   struct ddsi_serdata *serdata = ddsi_serdata_from_sample (gv->tl_svc_reply_type, SDK_DATA, &reply);
+  if (!serdata)
+  {
+    GVTRACE (" from_sample failed\n");
+    return;
+  }
   serdata->timestamp = ddsrt_time_wallclock ();
 
   GVTRACE ("wr "PGUIDFMT"\n", PGUID (wr->e.guid));
