@@ -3431,7 +3431,11 @@ static void dds_stream_extract_key_from_data_skip_subtype (dds_istream_t * __res
       break;
     }
     case DDS_OP_VAL_ENU: case DDS_OP_VAL_BMK: {
-      const uint32_t elem_size = DDS_OP_TYPE_SZ (insn);
+      /* Get size of enumerated type: bitmask in union (JEQ4) is a special case, because the
+         bitmask definition is in the serializer instructions after the union case instructions,
+         so we need to get the size from subops[0] for a bitmask. Enums are defined inline in
+         the union case instructions, so we'll use insn to get the size of an enum type. */
+      const uint32_t elem_size = DDS_OP_TYPE_SZ (DDS_OP (insn) == DDS_OP_JEQ4 && subtype == DDS_OP_VAL_BMK ? subops[0] : insn);
       dds_cdr_alignto (is, get_align (is->m_xcdr_version, elem_size));
       is->m_index += num * elem_size;
       break;
