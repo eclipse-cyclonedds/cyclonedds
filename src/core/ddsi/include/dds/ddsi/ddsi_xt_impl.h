@@ -103,6 +103,7 @@ struct xt_map {
 
 struct xt_alias {
   struct ddsi_type *related_type;
+  DDS_XTypes_AliasMemberFlag related_flags;
   struct xt_type_detail detail;
 };
 
@@ -113,6 +114,7 @@ struct xt_annotation_member {
 };
 struct xt_annotation_parameter {
   struct ddsi_type *member_type;
+  DDS_XTypes_AnnotationParameterFlag flags;
   DDS_XTypes_MemberName name;
   DDS_XTypes_NameHash name_hash;
   struct DDS_XTypes_AnnotationParameterValue default_value;
@@ -165,6 +167,7 @@ struct xt_union {
 
 struct xt_bitfield {
   uint16_t position;
+  DDS_XTypes_BitsetMemberFlag flags;
   uint8_t bitcount;
   DDS_XTypes_TypeKind holder_type; // Must be primitive integer type
   struct xt_member_detail detail;
@@ -196,6 +199,7 @@ struct xt_enum {
 
 struct xt_bitflag {
   uint16_t position;
+  DDS_XTypes_BitflagFlag flags;
   struct xt_member_detail detail;
 };
 struct xt_bitflag_seq {
