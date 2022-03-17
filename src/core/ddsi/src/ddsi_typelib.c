@@ -38,6 +38,11 @@ DDSI_LIST_CODE_TMPL(static, ddsi_type_proxy_guid_list, ddsi_guid_t, nullguid, dd
 static int ddsi_type_compare_wrap (const void *type_a, const void *type_b);
 const ddsrt_avl_treedef_t ddsi_typelib_treedef = DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct ddsi_type, avl_node), 0, ddsi_type_compare_wrap, 0);
 
+static int ddsi_typeid_compare_src_dep (const void *typedep_a, const void *typedep_b);
+static int ddsi_typeid_compare_dep_src (const void *typedep_a, const void *typedep_b);
+const ddsrt_avl_treedef_t ddsi_typedeps_treedef = DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct ddsi_type_dep, src_avl_node), 0, ddsi_typeid_compare_src_dep, 0);
+const ddsrt_avl_treedef_t ddsi_typedeps_reverse_treedef = DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct ddsi_type_dep, dep_avl_node), 0, ddsi_typeid_compare_dep_src, 0);
+
 bool ddsi_typeinfo_equal (const ddsi_typeinfo_t *a, const ddsi_typeinfo_t *b)
 {
   if (a == NULL || b == NULL)
@@ -277,22 +282,61 @@ static int ddsi_type_compare_wrap (const void *type_a, const void *type_b)
   return ddsi_type_compare (type_a, type_b);
 }
 
+static int ddsi_typeid_compare_src_dep (const void *typedep_a, const void *typedep_b)
+{
+  const struct ddsi_type_dep *a = (const struct ddsi_type_dep *) typedep_a, *b = (const struct ddsi_type_dep *) typedep_b;
+  int cmp;
+  if ((cmp = ddsi_typeid_compare (&a->src_type_id, &b->src_type_id)))
+    return cmp;
+  return ddsi_typeid_compare (&a->dep_type_id, &b->dep_type_id);
+}
+
+static int ddsi_typeid_compare_dep_src (const void *typedep_a, const void *typedep_b)
+{
+  const struct ddsi_type_dep *a = (const struct ddsi_type_dep *) typedep_a, *b = (const struct ddsi_type_dep *) typedep_b;
+  int cmp;
+  if ((cmp = ddsi_typeid_compare (&a->dep_type_id, &b->dep_type_id)))
+    return cmp;
+  return ddsi_typeid_compare (&a->src_type_id, &b->src_type_id);
+}
+
+static void type_dep_trace (struct ddsi_domaingv *gv, const char *prefix, struct ddsi_type_dep *dep)
+{
+  struct ddsi_typeid_str tistr, tistrdep;
+  GVTRACE ("%sdep <%s, %s>\n", prefix, ddsi_make_typeid_str (&tistr, &dep->src_type_id), ddsi_make_typeid_str (&tistrdep, &dep->dep_type_id));
+}
+
 static void ddsi_type_fini (struct ddsi_domaingv *gv, struct ddsi_type *type)
 {
+  struct ddsi_type_dep key;
+  memset (&key, 0, sizeof (key));
+  ddsi_typeid_copy (&key.src_type_id, &type->xt.id);
   ddsi_xt_type_fini (gv, &type->xt);
   if (type->sertype)
     ddsi_sertype_unref ((struct ddsi_sertype *) type->sertype);
-  struct ddsi_type_dep *dep1, *dep = type->deps;
-  while (dep)
+
+  struct ddsi_type_dep *dep;
+  while ((dep = ddsrt_avl_lookup_succ_eq (&ddsi_typedeps_treedef, &gv->typedeps, &key)) != NULL && !ddsi_typeid_compare (&dep->src_type_id, &key.src_type_id))
   {
-    ddsi_type_unref_locked (gv, dep->type);
-    dep1 = dep->prev;
+    type_dep_trace (gv, "ddsi_type_fini ", dep);
+    ddsrt_avl_delete (&ddsi_typedeps_treedef, &gv->typedeps, dep);
+    ddsrt_avl_delete (&ddsi_typedeps_reverse_treedef, &gv->typedeps_reverse, dep);
+    if (dep->from_type_info)
+    {
+      /* This dependency record was added based on dependencies from a type-info object,
+         and the dep-type was ref-counted when creating the dependency. Therefore, an
+         unref is required at this point when the from_type_info flag is set. */
+      struct ddsi_type *dep_type = ddsi_type_lookup_locked (gv, &dep->dep_type_id);
+      ddsi_type_unref_locked (gv, dep_type);
+    }
+    ddsi_typeid_fini (&dep->src_type_id);
+    ddsi_typeid_fini (&dep->dep_type_id);
     ddsrt_free (dep);
-    dep = dep1;
   }
 #ifndef NDEBUG
   assert (!ddsi_type_proxy_guid_list_count (&type->proxy_guids));
 #endif
+  ddsi_typeid_fini (&key.src_type_id);
   ddsrt_free (type);
 }
 
@@ -327,29 +371,37 @@ static dds_return_t ddsi_type_new (struct ddsi_domaingv *gv, struct ddsi_type **
   return DDS_RETCODE_OK;
 }
 
-static void type_add_dep (struct ddsi_domaingv *gv, struct ddsi_type *type, const struct DDS_XTypes_TypeIdentifier *dep_type_id, const struct DDS_XTypes_TypeObject *dep_type_obj, uint32_t *n_match_upd, struct generic_proxy_endpoint ***gpe_match_upd)
+static void ddsi_type_register_dep_impl (struct ddsi_domaingv *gv, const ddsi_typeid_t *src_type_id, struct ddsi_type **dst_dep_type, const struct DDS_XTypes_TypeIdentifier *dep_tid, bool from_type_info)
 {
-  struct ddsi_typeid_str tistr, tistrdep;
-  GVTRACE ("type %s add dep %s\n", ddsi_make_typeid_str (&tistr, &type->xt.id), ddsi_make_typeid_str_impl (&tistrdep, dep_type_id));
-  struct ddsi_type *dep_type;
-  ddsi_type_ref_id_locked_impl (gv, &dep_type, dep_type_id);
-  assert (dep_type);
-  if (dep_type_obj)
+  struct ddsi_typeid dep_type_id;
+  dep_type_id.x = *dep_tid;
+  struct ddsi_type_dep *dep = ddsrt_calloc (1, sizeof (*dep));
+  ddsi_typeid_copy (&dep->src_type_id, src_type_id);
+  ddsi_typeid_copy (&dep->dep_type_id, &dep_type_id);
+  bool existing = ddsrt_avl_lookup (&ddsi_typedeps_treedef, &gv->typedeps, dep) != NULL;
+  type_dep_trace (gv, existing ? "has " : "add ", dep);
+  if (!existing)
   {
-    assert (n_match_upd);
-    assert (gpe_match_upd);
-    if (ddsi_xt_type_add_typeobj (gv, &dep_type->xt, dep_type_obj) == DDS_RETCODE_OK)
-    {
-      dep_type->state = DDSI_TYPE_RESOLVED;
-      (void) ddsi_type_get_gpe_matches (gv, type, gpe_match_upd, n_match_upd);
-    }
+    dep->from_type_info = from_type_info;
+    ddsrt_avl_insert (&ddsi_typedeps_treedef, &gv->typedeps, dep);
+    ddsrt_avl_insert (&ddsi_typedeps_reverse_treedef, &gv->typedeps_reverse, dep);
+    ddsi_type_ref_id_locked (gv, dst_dep_type, &dep_type_id);
   }
-  /* FIXME: This should be using more efficient storage structure, but as the number
-     of dependent types is typically rather small, the performance hit is limited */
-  struct ddsi_type_dep *tmp = type->deps;
-  type->deps = ddsrt_malloc (sizeof (*type->deps));
-  type->deps->prev = tmp;
-  type->deps->type = dep_type;
+  else
+  {
+    ddsi_typeid_fini (&dep->src_type_id);
+    ddsi_typeid_fini (&dep->dep_type_id);
+    ddsrt_free (dep);
+    if (!from_type_info)
+      ddsi_type_ref_id_locked (gv, dst_dep_type, &dep_type_id);
+    else
+      *dst_dep_type = ddsi_type_lookup_locked (gv, &dep_type_id);
+  }
+}
+
+void ddsi_type_register_dep (struct ddsi_domaingv *gv, const ddsi_typeid_t *src_type_id, struct ddsi_type **dst_dep_type, const struct DDS_XTypes_TypeIdentifier *dep_tid)
+{
+  ddsi_type_register_dep_impl (gv, src_type_id, dst_dep_type, dep_tid, false);
 }
 
 static void type_add_deps (struct ddsi_domaingv *gv, struct ddsi_type *type, const ddsi_typeinfo_t *type_info, const ddsi_typemap_t *type_map, ddsi_typeid_kind_t kind, uint32_t *n_match_upd, struct generic_proxy_endpoint ***gpe_match_upd)
@@ -365,33 +417,36 @@ static void type_add_deps (struct ddsi_domaingv *gv, struct ddsi_type *type, con
     else
       dep_ids = &type_info->x.minimal.dependent_typeids;
 
-    // FIXME: find a better approach to keep track of type dependencies
     for (uint32_t n = 0; dep_ids && n < dep_ids->_length; n++)
     {
       const struct DDS_XTypes_TypeIdentifier *dep_type_id = &dep_ids->_buffer[n].type_id;
       if (!ddsi_typeid_compare_impl (&type->xt.id.x, dep_type_id))
         continue;
-      const struct DDS_XTypes_TypeObject *dep_type_obj = type_map ? ddsi_typemap_typeobj (type_map, dep_type_id) : NULL;
-      struct ddsi_type_dep *dep = type->deps;
-      while (dep)
+
+      struct ddsi_type *dst_dep_type = NULL;
+      ddsi_type_register_dep_impl (gv, &type->xt.id, &dst_dep_type, dep_type_id, true);
+      assert (dst_dep_type);
+      if (type_map && !dst_dep_type->xt.has_obj)
       {
-        if (!ddsi_typeid_compare_impl (&dep->type->xt.id.x, dep_type_id) && dep_type_obj != NULL && ddsi_xt_type_add_typeobj (gv, &dep->type->xt, dep_type_obj) == DDS_RETCODE_OK)
+        const struct DDS_XTypes_TypeObject *dep_type_obj = ddsi_typemap_typeobj (type_map, dep_type_id);
+        if (dep_type_obj)
         {
-          dep->type->state = DDSI_TYPE_RESOLVED;
-          (void) ddsi_type_get_gpe_matches (gv, dep->type, gpe_match_upd, n_match_upd);
-          break;
+          assert (n_match_upd);
+          assert (gpe_match_upd);
+          if (ddsi_xt_type_add_typeobj (gv, &dst_dep_type->xt, dep_type_obj) == DDS_RETCODE_OK)
+          {
+            dst_dep_type->state = DDSI_TYPE_RESOLVED;
+            (void) ddsi_type_get_gpe_matches (gv, type, gpe_match_upd, n_match_upd);
+          }
+          else
+          {
+            // FIXME
+            dst_dep_type->state = DDSI_TYPE_INVALID;
+          }
         }
-        dep = dep->prev;
       }
-      if (!dep)
-        type_add_dep (gv, type, dep_type_id, dep_type_obj, n_match_upd, gpe_match_upd);
     }
   }
-}
-
-static dds_return_t type_validate (struct ddsi_domaingv *gv, const struct ddsi_type *type)
-{
-  return ddsi_xt_validate (gv, &type->xt);
 }
 
 dds_return_t ddsi_type_ref_locked (struct ddsi_domaingv *gv, struct ddsi_type **type, const struct ddsi_type *src)
@@ -470,7 +525,7 @@ dds_return_t ddsi_type_ref_local (struct ddsi_domaingv *gv, struct ddsi_type **t
   GVTRACE (" refc %"PRIu32"\n", t->refc);
 
   type_add_deps (gv, t, type_info, type_map, kind, &n_match_upd, &gpe_match_upd);
-  if ((ret = type_validate (gv, t)) != DDS_RETCODE_OK)
+  if ((ret = ddsi_xt_validate (gv, &t->xt)) != DDS_RETCODE_OK)
   {
     ddsrt_mutex_unlock (&gv->typelib_lock);
     goto err;
@@ -524,7 +579,7 @@ dds_return_t ddsi_type_ref_proxy (struct ddsi_domaingv *gv, struct ddsi_type **t
   GVTRACE(" refc %"PRIu32"\n", t->refc);
 
   type_add_deps (gv, t, type_info, NULL, kind, NULL, NULL);
-  if ((ret = type_validate (gv, t)) != DDS_RETCODE_OK)
+  if ((ret = ddsi_xt_validate (gv, &t->xt)) != DDS_RETCODE_OK)
     goto err;
 
   if (proxy_guid != NULL && !ddsi_type_proxy_guid_exists (t, proxy_guid))
@@ -628,12 +683,10 @@ void ddsi_type_unref_sertype (struct ddsi_domaingv *gv, const struct ddsi_sertyp
 
 void ddsi_type_unref_locked (struct ddsi_domaingv *gv, struct ddsi_type *type)
 {
-  if (type)
-  {
-    struct ddsi_typeid_str tistr;
-    GVTRACE ("unref ddsi_type id %s", ddsi_make_typeid_str (&tistr, &type->xt.id));
-    ddsi_type_unref_impl_locked (gv, type);
-  }
+  assert (type);
+  struct ddsi_typeid_str tistr;
+  GVTRACE ("unref ddsi_type id %s", ddsi_make_typeid_str (&tistr, &type->xt.id));
+  ddsi_type_unref_impl_locked (gv, type);
 }
 
 static void ddsi_type_register_with_proxy_endpoints_locked (struct ddsi_domaingv *gv, const struct ddsi_type *type)

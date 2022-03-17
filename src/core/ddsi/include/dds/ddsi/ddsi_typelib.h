@@ -31,6 +31,8 @@ extern "C" {
 #ifdef DDS_HAS_TYPE_DISCOVERY
 
 extern const ddsrt_avl_treedef_t ddsi_typelib_treedef;
+extern const ddsrt_avl_treedef_t ddsi_typedeps_treedef;
+extern const ddsrt_avl_treedef_t ddsi_typedeps_reverse_treedef;
 
 struct generic_proxy_endpoint;
 struct ddsi_domaingv;
@@ -42,7 +44,9 @@ struct ddsi_type_pair;
 enum ddsi_type_state {
   DDSI_TYPE_UNRESOLVED,
   DDSI_TYPE_REQUESTED,
+  DDSI_TYPE_PARTIAL_RESOLVED,
   DDSI_TYPE_RESOLVED,
+  DDSI_TYPE_INVALID,
 };
 
 /* Used for converting type-id to strings */
@@ -64,6 +68,7 @@ DDS_EXPORT uint32_t ddsi_typeinfo_get_dependent_typeids (const ddsi_typeinfo_t *
 
 DDS_EXPORT ddsi_typemap_t *ddsi_typemap_deser (const struct ddsi_sertype_cdr_data *ser);
 
+DDS_EXPORT void ddsi_type_register_dep (struct ddsi_domaingv *gv, const ddsi_typeid_t *src_type_id, struct ddsi_type **dst_dep_type, const struct DDS_XTypes_TypeIdentifier *dep_type_id);
 DDS_EXPORT dds_return_t ddsi_type_ref_locked (struct ddsi_domaingv *gv, struct ddsi_type **type, const struct ddsi_type *src);
 DDS_EXPORT dds_return_t ddsi_type_ref_id_locked (struct ddsi_domaingv *gv, struct ddsi_type **type, const ddsi_typeid_t *type_id);
 DDS_EXPORT dds_return_t ddsi_type_ref_local (struct ddsi_domaingv *gv, struct ddsi_type **type, const struct ddsi_sertype *sertype, ddsi_typeid_kind_t kind);

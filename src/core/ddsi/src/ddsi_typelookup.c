@@ -262,13 +262,13 @@ void ddsi_tl_handle_reply (struct ddsi_domaingv *gv, struct ddsi_serdata *d)
       type->state = DDSI_TYPE_RESOLVED;
       if (ddsi_typeid_is_minimal_impl (&r.type_identifier))
       {
-        GVTRACE (" resolved minimal type %p\n", type);
+        GVTRACE (" resolved minimal type %s\n", ddsi_make_typeid_str_impl (&str, &r.type_identifier));
         if (ddsi_type_get_gpe_matches (gv, type, &gpe_match_upd, &n_match_upd))
           resolved = true;
       }
       else
       {
-        GVTRACE (" resolved complete type %p\n", type);
+        GVTRACE (" resolved complete type %s\n", ddsi_make_typeid_str_impl (&str, &r.type_identifier));
 
         // FIXME: create sertype from received (complete) type object, check if it exists and register if not
         // bool sertype_new = false;
