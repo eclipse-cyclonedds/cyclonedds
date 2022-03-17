@@ -1521,6 +1521,8 @@ int rtps_init (struct ddsi_domaingv *gv)
   ddsrt_mutex_init (&gv->typelib_lock);
   ddsrt_cond_init (&gv->typelib_resolved_cond);
   ddsrt_avl_init (&ddsi_typelib_treedef, &gv->typelib);
+  ddsrt_avl_init (&ddsi_typedeps_treedef, &gv->typedeps);
+  ddsrt_avl_init (&ddsi_typedeps_reverse_treedef, &gv->typedeps_reverse);
 #endif
   ddsrt_mutex_init (&gv->new_topic_lock);
   ddsrt_cond_init (&gv->new_topic_cond);
@@ -1941,6 +1943,8 @@ err_unicast_sockets:
   ddsrt_cond_destroy (&gv->new_topic_cond);
 #ifdef DDS_HAS_TYPE_DISCOVERY
   ddsrt_avl_free (&ddsi_typelib_treedef, &gv->typelib, 0);
+  ddsrt_avl_free (&ddsi_typedeps_treedef, &gv->typedeps, 0);
+  ddsrt_avl_free (&ddsi_typedeps_reverse_treedef, &gv->typedeps_reverse, 0);
   ddsrt_mutex_destroy (&gv->typelib_lock);
   ddsrt_cond_destroy (&gv->typelib_resolved_cond);
 #endif
@@ -2320,9 +2324,13 @@ void rtps_fini (struct ddsi_domaingv *gv)
 #ifndef NDEBUG
   {
     assert(ddsrt_avl_is_empty(&gv->typelib));
+    assert(ddsrt_avl_is_empty(&gv->typedeps));
+    assert(ddsrt_avl_is_empty(&gv->typedeps_reverse));
   }
 #endif
   ddsrt_avl_free (&ddsi_typelib_treedef, &gv->typelib, 0);
+  ddsrt_avl_free (&ddsi_typedeps_treedef, &gv->typedeps, 0);
+  ddsrt_avl_free (&ddsi_typedeps_reverse_treedef, &gv->typedeps_reverse, 0);
   ddsrt_mutex_destroy (&gv->typelib_lock);
 #endif /* DDS_HAS_TYPE_DISCOVERY */
 #ifndef NDEBUG

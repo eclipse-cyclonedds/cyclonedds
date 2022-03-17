@@ -1,4 +1,5 @@
 /*
+ * Copyright(c) 2022 ZettaScale Technology
  * Copyright(c) 2006 to 2018 ADLINK Technology Limited and others
  *
  * This program and the accompanying materials are made available under the
@@ -327,6 +328,8 @@ struct ddsi_domaingv {
 #ifdef DDS_HAS_TYPE_DISCOVERY
   ddsrt_mutex_t typelib_lock;
   ddsrt_avl_tree_t typelib;
+  ddsrt_avl_tree_t typedeps;
+  ddsrt_avl_tree_t typedeps_reverse;
   ddsrt_cond_t typelib_resolved_cond;
 #endif
 #ifdef DDS_HAS_TOPIC_DISCOVERY

@@ -268,8 +268,11 @@ struct xt_type
 DDSRT_STATIC_ASSERT (offsetof (struct xt_type, id) == 0);
 
 struct ddsi_type_dep {
-  struct ddsi_type *type;
-  struct ddsi_type_dep *prev;
+  ddsrt_avl_node_t src_avl_node;
+  ddsrt_avl_node_t dep_avl_node;
+  ddsi_typeid_t src_type_id;    // type that has the dependency on dep_type_id
+  ddsi_typeid_t dep_type_id;    // dependent type, a direct or indirect dependency of src_type_id
+  bool from_type_info;          // entry was added based on a dependent type in the type-info, requires unref of the dependent type on deletion
 };
 
 struct ddsi_type {
@@ -280,7 +283,6 @@ struct ddsi_type {
   seqno_t request_seqno;                        /* sequence number of the last type lookup request message */
   struct ddsi_type_proxy_guid_list proxy_guids; /* administration for proxy endpoints (not proxy topics) that are using this type */
   uint32_t refc;                                /* refcount for this record */
-  struct ddsi_type_dep *deps;                   /* dependent type records */
 };
 
 /* The xt_type member must be at offset 0 so that the type identifier field
