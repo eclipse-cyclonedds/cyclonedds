@@ -410,32 +410,24 @@ static uint32_t get_primitive_size (enum dds_stream_typecode type)
 
 static uint32_t get_collection_elem_size (uint32_t insn, const uint32_t * __restrict ops)
 {
-  uint32_t elem_sz;
   switch (DDS_OP_SUBTYPE (insn))
   {
     case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
-      elem_sz = get_primitive_size (DDS_OP_SUBTYPE (insn));
-      break;
+      return get_primitive_size (DDS_OP_SUBTYPE (insn));
     case DDS_OP_VAL_ENU:
-      elem_sz = sizeof (uint32_t);
-      break;
+      return sizeof (uint32_t);
     case DDS_OP_VAL_BMK:
-      elem_sz = DDS_OP_TYPE_SZ (insn);
-      break;
+      return DDS_OP_TYPE_SZ (insn);
     case DDS_OP_VAL_STR:
-      elem_sz = sizeof (char *);
-      break;
+      return sizeof (char *);
     case DDS_OP_VAL_BST: case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU:
       if (DDS_OP_TYPE (insn) == DDS_OP_VAL_ARR)
-        elem_sz = ops[4];
-      else
-        abort ();
+        return ops[4];
       break;
     case DDS_OP_VAL_EXT:
-      abort ();
       break;
   }
-  return elem_sz;
+  abort ();
 }
 
 static uint32_t get_adr_type_size (uint32_t insn, const uint32_t * __restrict ops)
