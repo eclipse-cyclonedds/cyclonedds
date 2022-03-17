@@ -162,7 +162,7 @@ target_link_libraries(oneliner PRIVATE RoundTrip Space ddsc)
 # Iceoryx itself isn't really supported yet on Windows, so it
 # better not be part of the tests.  That also saves us from
 # having to figure out now how to start/stop RouDi on Windows.
-if(ENABLE_SHM)
+if(ENABLE_SHM AND NOT DEFINED ENV{COLCON})
   idlc_generate(TARGET Array100 FILES Array100.idl WARNINGS no-implicit-extensibility)
   idlc_generate(TARGET DynamicData FILES DynamicData.idl WARNINGS no-implicit-extensibility)
 
