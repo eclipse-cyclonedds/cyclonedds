@@ -518,9 +518,6 @@ static iox_sub_options_t create_iox_sub_options(const dds_qos_t* qos) {
     opts.queueCapacity = (uint64_t)qos->history.depth;
   } else {
     opts.queueCapacity = max_sub_queue_capacity;
-    if (qos->reliability.kind == DDS_RELIABILITY_RELIABLE) {
-      opts.queueFullPolicy = QueueFullPolicy_BLOCK_PRODUCER;
-    }
   }
 
   // with BEST EFFORT DDS requires that no historical
