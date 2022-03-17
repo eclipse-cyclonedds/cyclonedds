@@ -326,10 +326,6 @@ static iox_pub_options_t create_iox_pub_options(const dds_qos_t* qos) {
   iox_pub_options_t opts;
   iox_pub_options_init(&opts);
 
-  if(qos->reliability.kind == DDS_RELIABILITY_RELIABLE) {
-    opts.subscriberTooSlowPolicy = ConsumerTooSlowPolicy_WAIT_FOR_CONSUMER;
-  }
-
   if(qos->durability.kind == DDS_DURABILITY_VOLATILE) {
     opts.historyCapacity = 0;
   } else {
