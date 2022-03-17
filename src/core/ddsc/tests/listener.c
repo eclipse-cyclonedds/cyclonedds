@@ -306,23 +306,23 @@ CU_Test (ddsc_listener, matched)
   // to delay things much.)
   dotest ("sm da r pm w' ?sm r ?pm w' ;" // matched reader/writer pair
           " wr w' 1   ; ?da r take{(1,0,0)} r ?ack w' ;" // wait-for-acks => writer drops data
-          " deaf P    ; ?sm(1,0,0,-1,w') r ?da r take{d1} r ; wr w' 2 ;" // write lost on "wire"
-          " hearing P ; ?sm(2,1,1,1,w') r  ?da r sleep 0.3 take{(2,0,0)} r ; ?!pm");
+          " deaf! P   ; ?sm(1,0,0,-1,w') r ?da r take{d1} r ; wr w' 2 ;" // write lost on "wire"
+          " hearing! P; ?sm(2,1,1,1,w') r  ?da r sleep 0.3 take{(2,0,0)} r ; ?!pm");
   dotest ("sm da r pm w' ; ?sm r ?pm w' ;"
-          " r'' ?pm w' deaf P'' ;" // with second reader: reader is deaf so won't ACK
+          " r'' ?pm w' deaf! P'' ;" // with second reader: reader is deaf so won't ACK
           " wr w' 1   ; ?da r take{(1,0,0)} r ?ack(r) w' ;" // wait for ack from r' (not r'')
-          " deaf P    ; ?sm(1,0,0,-1,w') r ?da r take{d1} r ; wr w' 2 ;" // write lost on "wire"
-          " hearing P ; ?sm(2,1,1,1,w') r  ?da r sleep 0.3 take{(2,0,0)} r ; ?!pm");
+          " deaf! P   ; ?sm(1,0,0,-1,w') r ?da r take{d1} r ; wr w' 2 ;" // write lost on "wire"
+          " hearing! P; ?sm(2,1,1,1,w') r  ?da r sleep 0.3 take{(2,0,0)} r ; ?!pm");
   // same without taking the "dispose" after disconnect
   // sample 1 will be delivered anew
   dotest ("sm da r pm w' ; ?sm r ?pm w' ; wr w' 1 ; ?da r take{(1,0,0)} r ;"
-          " deaf P ; ?sm(1,0,0,-1,w') r ?da r ; wr w' 2 ;"
-          " hearing P ; ?sm(2,1,1,1,w') r ?da r sleep 0.3 take{d1,(2,0,0)} r ; ?!pm");
+          " deaf! P ; ?sm(1,0,0,-1,w') r ?da r ; wr w' 2 ;"
+          " hearing! P ; ?sm(2,1,1,1,w') r ?da r sleep 0.3 take{d1,(2,0,0)} r ; ?!pm");
 
   // if a volatile writer loses the reader temporarily, the data won't show up
   dotest ("sm da r pm w' ; ?sm r ?pm w' ; wr w' 1 ; ?da r read{(1,0,0)} r ;"
-          " deaf P' ; ?!sm ?!da ?pm(1,0,0,-1,r) w' ; wr w' 2 ;"
-          " hearing P' ; ?!sm ?pm(2,1,1,1,r) w' ?!da ; wr w' 3 ;"
+          " deaf! P' ; ?!sm ?!da ?pm(1,0,0,-1,r) w' ; wr w' 2 ;"
+          " hearing! P' ; ?!sm ?pm(2,1,1,1,r) w' ?!da ; wr w' 3 ;"
           " ?da r sleep 0.3 read{s(1,0,0),f(3,0,0)} r");
   // if a transient-local writer loses the reader temporarily, what data
   // has been published during the disconnect must still show up; delete
@@ -332,14 +332,14 @@ CU_Test (ddsc_listener, matched)
   // - second: d.s. keep-all: both writes are kept and 3 samples arrive
   dotest ("sm da r(d=tl) pm w'(d=tl,h=1,ds=0/1) ; ?sm r ?pm w' ;"
           " wr w' 1 ; ?da r read{(1,0,0)} r ;"
-          " deaf P' ; ?pm(1,0,0,-1,r) w' ; wr w' 2 wr w' 2 ;"
-          " hearing P' ; ?pm(2,1,1,1,r) w' ; wr w' 3 ;"
+          " deaf! P' ; ?pm(1,0,0,-1,r) w' ; wr w' 2 wr w' 2 ;"
+          " hearing! P' ; ?pm(2,1,1,1,r) w' ; wr w' 3 ;"
           " ?da(2) r read{s(1,0,0),f(2,0,0),f(3,0,0)} r ;"
           " -w' ?sm r ?da r read(3,3) r");
   dotest ("sm da r(d=tl) pm w'(d=tl,h=1,ds=0/all) ; ?sm r ?pm w' ;"
           " wr w' 1 ; ?da r read{(1,0,0)} r ;"
-          " deaf P' ; ?pm(1,0,0,-1,r) w' ; wr w' 2 wr w' 2 ;"
-          " hearing P' ; ?pm(2,1,1,1,r) w' ; wr w' 3 ;"
+          " deaf! P' ; ?pm(1,0,0,-1,r) w' ; wr w' 2 wr w' 2 ;"
+          " hearing! P' ; ?pm(2,1,1,1,r) w' ; wr w' 3 ;"
           " ?da(3) r read{s(1,0,0),f(2,0,0),f(2,0,0),f(3,0,0)} r ;"
           " -w' ?sm r ?da r read(4,3) r");
 }
@@ -407,8 +407,8 @@ CU_Test (ddsc_listener, data_available)
   // non-auto-dispose, transient-local: disconnect => no_writers, reconnect => alive (using invalid samples)
   // the invalid sample has the source time stamp of the latest update -- one wonders whether that is wise?
   dotest ("da r(d=tl) ?pm w'(d=tl,ad=n) ; wr w' (1,2,3)@1.1 ?da r read{fan(1,2,3)w'} r ;"
-          " deaf P ; ?da r read{suo(1,2,3)w'@1.1,fuo1w'@1.1} r ;"
-          " hearing P ; ?da r read{sao(1,2,3)w'@1.1,fao1w'@1.1} r");
+          " deaf! P ; ?da r read{suo(1,2,3)w'@1.1,fuo1w'@1.1} r ;"
+          " hearing! P ; ?da r read{sao(1,2,3)w'@1.1,fao1w'@1.1} r");
 }
 
 CU_Test (ddsc_listener, data_available_delete_writer)
