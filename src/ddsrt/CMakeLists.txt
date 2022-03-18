@@ -121,6 +121,11 @@ if(WITH_LWIP)
     "${source_dir}/src/sockets/posix/gethostname.c")
 else()
   if(WIN32)
+    if(POLICY CMP0075)
+      # suppress warnings concerning a change in behaviour of check_include_files in
+      # combination with CMAKE_REQUIRED_LIBRARIES
+      cmake_policy(SET CMP0075 NEW)
+    endif()
     set(CMAKE_EXTRA_INCLUDE_FILES "ws2tcpip.h")
     set(CMAKE_REQUIRED_LIBRARIES ws2_32 iphlpapi)
     set(hostname_header "winsock2.h")
