@@ -3408,8 +3408,8 @@ static void endpoint_common_init (struct entity_common *e, struct endpoint_commo
 
 #ifdef DDS_HAS_TYPE_DISCOVERY
   c->type_pair = ddsrt_malloc (sizeof (*c->type_pair));
-  c->type_pair->minimal = ddsi_type_ref_local (pp->e.gv, sertype, DDSI_TYPEID_KIND_MINIMAL);
-  c->type_pair->complete = ddsi_type_ref_local (pp->e.gv, sertype, DDSI_TYPEID_KIND_COMPLETE);
+  ddsi_type_ref_local (pp->e.gv, &c->type_pair->minimal, sertype, DDSI_TYPEID_KIND_MINIMAL);
+  ddsi_type_ref_local (pp->e.gv, &c->type_pair->complete, sertype, DDSI_TYPEID_KIND_COMPLETE);
 #endif
 }
 
@@ -5750,14 +5750,14 @@ static struct ddsi_topic_definition * new_topic_definition (struct ddsi_domaingv
   tpd->type_pair = ddsrt_malloc (sizeof (*tpd->type_pair));
   if (type != NULL)
   {
-    tpd->type_pair->minimal = ddsi_type_ref_local (gv, type, DDSI_TYPEID_KIND_MINIMAL);
-    tpd->type_pair->complete = ddsi_type_ref_local (gv, type, DDSI_TYPEID_KIND_COMPLETE);
+    ddsi_type_ref_local (gv, &tpd->type_pair->minimal, type, DDSI_TYPEID_KIND_MINIMAL);
+    ddsi_type_ref_local (gv, &tpd->type_pair->complete, type, DDSI_TYPEID_KIND_COMPLETE);
   }
   else
   {
     assert (qos->present & QP_TYPE_INFORMATION);
-    tpd->type_pair->minimal = ddsi_type_ref_proxy (gv, qos->type_information, DDSI_TYPEID_KIND_MINIMAL, NULL);
-    tpd->type_pair->complete = ddsi_type_ref_proxy (gv, qos->type_information, DDSI_TYPEID_KIND_COMPLETE, NULL);
+    ddsi_type_ref_proxy (gv, &tpd->type_pair->minimal, qos->type_information, DDSI_TYPEID_KIND_MINIMAL, NULL);
+    ddsi_type_ref_proxy (gv, &tpd->type_pair->complete, qos->type_information, DDSI_TYPEID_KIND_COMPLETE, NULL);
   }
 
   set_topic_definition_hash (tpd);
@@ -5993,8 +5993,8 @@ static int proxy_endpoint_common_init (struct entity_common *e, struct proxy_end
   if (plist->qos.present & QP_TYPE_INFORMATION)
   {
     c->type_pair = ddsrt_malloc (sizeof (*c->type_pair));
-    c->type_pair->minimal = ddsi_type_ref_proxy (proxypp->e.gv, plist->qos.type_information, DDSI_TYPEID_KIND_MINIMAL, guid);
-    c->type_pair->complete = ddsi_type_ref_proxy (proxypp->e.gv, plist->qos.type_information, DDSI_TYPEID_KIND_COMPLETE, guid);
+    ddsi_type_ref_proxy (proxypp->e.gv, &c->type_pair->minimal, plist->qos.type_information, DDSI_TYPEID_KIND_MINIMAL, guid);
+    ddsi_type_ref_proxy (proxypp->e.gv, &c->type_pair->complete, plist->qos.type_information, DDSI_TYPEID_KIND_COMPLETE, guid);
   }
   else
   {
