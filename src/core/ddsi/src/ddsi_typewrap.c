@@ -463,6 +463,7 @@ static dds_return_t add_minimal_typeobj (struct ddsi_domaingv *gv, struct xt_typ
   switch (mto->_d)
   {
     case DDS_XTypes_TK_ALIAS:
+      xt->_u.alias.flags = mto->_u.alias_type.alias_flags;
       xt->_u.alias.related_type = ddsi_type_ref_id_locked_impl (gv, &mto->_u.alias_type.body.common.related_type);
       xt->_u.alias.related_flags = mto->_u.alias_type.body.common.related_flags;
       break;
@@ -505,6 +506,7 @@ static dds_return_t add_minimal_typeobj (struct ddsi_domaingv *gv, struct xt_typ
       }
       break;
     case DDS_XTypes_TK_BITSET:
+      xt->_u.bitset.flags = mto->_u.bitset_type.bitset_flags;
       xt->_u.bitset.fields.length = mto->_u.bitset_type.field_seq._length;
       xt->_u.bitset.fields.seq = ddsrt_calloc (xt->_u.bitset.fields.length, sizeof (*xt->_u.bitset.fields.seq));
       for (uint32_t n = 0; n < xt->_u.bitset.fields.length; n++)
@@ -513,21 +515,25 @@ static dds_return_t add_minimal_typeobj (struct ddsi_domaingv *gv, struct xt_typ
         xt->_u.bitset.fields.seq[n].flags = mto->_u.bitset_type.field_seq._buffer[n].common.flags;
         xt->_u.bitset.fields.seq[n].bitcount = mto->_u.bitset_type.field_seq._buffer[n].common.bitcount;
         xt->_u.bitset.fields.seq[n].holder_type = mto->_u.bitset_type.field_seq._buffer[n].common.holder_type;
+        xt->_u.bitset.fields.seq[n].flags = mto->_u.bitset_type.field_seq._buffer[n].common.flags;
         memcpy (xt->_u.bitset.fields.seq[n].detail.name_hash, mto->_u.bitset_type.field_seq._buffer[n].name_hash,
           sizeof (xt->_u.bitset.fields.seq[n].detail.name_hash));
       }
       break;
     case DDS_XTypes_TK_SEQUENCE:
+      xt->_u.seq.c.flags = mto->_u.sequence_type.collection_flag;
       xt->_u.seq.c.element_type = ddsi_type_ref_id_locked_impl (gv, &mto->_u.sequence_type.element.common.type);
       xt->_u.seq.c.element_flags = mto->_u.sequence_type.element.common.element_flags;
       xt->_u.seq.bound = mto->_u.sequence_type.header.common.bound;
       break;
     case DDS_XTypes_TK_ARRAY:
+      xt->_u.array.c.flags = mto->_u.array_type.collection_flag;
       xt->_u.array.c.element_type = ddsi_type_ref_id_locked_impl (gv, &mto->_u.array_type.element.common.type);
       xt->_u.array.c.element_flags = mto->_u.array_type.element.common.element_flags;
       xt_lbounds_dup (&xt->_u.array.bounds, &mto->_u.array_type.header.common.bound_seq);
       break;
     case DDS_XTypes_TK_MAP:
+      xt->_u.map.c.flags = mto->_u.map_type.collection_flag;
       xt->_u.map.c.element_type = ddsi_type_ref_id_locked_impl (gv, &mto->_u.map_type.element.common.type);
       xt->_u.map.c.element_flags = mto->_u.map_type.element.common.element_flags;
       xt->_u.map.key_type = ddsi_type_ref_id_locked_impl (gv, &mto->_u.map_type.key.common.type);
@@ -586,6 +592,7 @@ static dds_return_t add_complete_typeobj (struct ddsi_domaingv *gv, struct xt_ty
   switch (cto->_d)
   {
     case DDS_XTypes_TK_ALIAS:
+      xt->_u.alias.flags = cto->_u.alias_type.alias_flags;
       xt->_u.alias.related_type = ddsi_type_ref_id_locked_impl (gv, &cto->_u.alias_type.body.common.related_type);
       xt->_u.alias.related_flags = cto->_u.alias_type.body.common.related_flags;
       memcpy(&xt->_u.alias.detail.type_name, cto->_u.alias_type.header.detail.type_name, sizeof(xt->_u.alias.detail.type_name));
@@ -630,6 +637,7 @@ static dds_return_t add_complete_typeobj (struct ddsi_domaingv *gv, struct xt_ty
       break;
     case DDS_XTypes_TK_BITSET:
       memcpy(&xt->_u.bitset.detail.type_name, cto->_u.bitset_type.header.detail.type_name, sizeof(xt->_u.bitset.detail.type_name));
+      xt->_u.bitset.flags = cto->_u.bitset_type.bitset_flags;
       xt->_u.bitset.fields.length = cto->_u.bitset_type.field_seq._length;
       xt->_u.bitset.fields.seq = ddsrt_calloc (xt->_u.bitset.fields.length, sizeof (*xt->_u.bitset.fields.seq));
       for (uint32_t n = 0; n < xt->_u.bitset.fields.length; n++)
@@ -638,20 +646,24 @@ static dds_return_t add_complete_typeobj (struct ddsi_domaingv *gv, struct xt_ty
         xt->_u.bitset.fields.seq[n].flags = cto->_u.bitset_type.field_seq._buffer[n].common.flags;
         xt->_u.bitset.fields.seq[n].bitcount = cto->_u.bitset_type.field_seq._buffer[n].common.bitcount;
         xt->_u.bitset.fields.seq[n].holder_type = cto->_u.bitset_type.field_seq._buffer[n].common.holder_type;
+        xt->_u.bitset.fields.seq[n].flags = cto->_u.bitset_type.field_seq._buffer[n].common.flags;
         set_member_detail(&xt->_u.bitset.fields.seq[n].detail, &cto->_u.bitset_type.field_seq._buffer[n].detail);
       }
       break;
     case DDS_XTypes_TK_SEQUENCE:
+      xt->_u.seq.c.flags = cto->_u.sequence_type.collection_flag;
       xt->_u.seq.c.element_type = ddsi_type_ref_id_locked_impl (gv, &cto->_u.sequence_type.element.common.type);
       xt->_u.seq.c.element_flags = cto->_u.sequence_type.element.common.element_flags;
       xt->_u.seq.bound = cto->_u.sequence_type.header.common.bound;
       break;
     case DDS_XTypes_TK_ARRAY:
+      xt->_u.array.c.flags = cto->_u.array_type.collection_flag;
       xt->_u.array.c.element_type = ddsi_type_ref_id_locked_impl (gv, &cto->_u.array_type.element.common.type);
       xt->_u.array.c.element_flags = cto->_u.array_type.element.common.element_flags;
       xt_lbounds_dup (&xt->_u.array.bounds, &cto->_u.array_type.header.common.bound_seq);
       break;
     case DDS_XTypes_TK_MAP:
+      xt->_u.map.c.flags = cto->_u.map_type.collection_flag;
       xt->_u.map.c.element_type = ddsi_type_ref_id_locked_impl (gv, &cto->_u.map_type.element.common.type);
       xt->_u.map.c.element_flags = cto->_u.map_type.element.common.element_flags;
       xt->_u.map.key_type = ddsi_type_ref_id_locked_impl (gv, &cto->_u.map_type.key.common.type);
@@ -1240,6 +1252,7 @@ static struct xt_type * xt_dup (struct ddsi_domaingv *gv, const struct xt_type *
       xt_applied_member_annotations_copy (&dst->_u.map.key_annotations, &src->_u.map.key_annotations);
       break;
     case DDS_XTypes_TK_ALIAS:
+      dst->_u.alias.flags = src->_u.alias.flags;
       dst->_u.alias.related_type = ddsi_type_ref_locked (gv, src->_u.alias.related_type);
       dst->_u.alias.related_flags = src->_u.alias.related_flags;
       xt_type_detail_copy (&dst->_u.alias.detail, &src->_u.alias.detail);
@@ -1264,6 +1277,7 @@ static struct xt_type * xt_dup (struct ddsi_domaingv *gv, const struct xt_type *
       xt_type_detail_copy (&dst->_u.union_type.detail, &src->_u.union_type.detail);
       break;
     case DDS_XTypes_TK_BITSET:
+      dst->_u.bitset.flags = src->_u.bitset.flags;
       xt_bitfield_seq_copy (&dst->_u.bitset.fields, &src->_u.bitset.fields);
       xt_type_detail_copy (&dst->_u.bitset.detail, &src->_u.bitset.detail);
       break;
@@ -2158,6 +2172,7 @@ void ddsi_xt_get_typeobject_impl (const struct xt_type *xt, struct DDS_XTypes_Ty
       case DDS_XTypes_TK_ALIAS:
       {
         struct DDS_XTypes_CompleteAliasType *calias = &cto->_u.alias_type;
+        calias->alias_flags = xt->_u.alias.flags;
         get_type_detail (&calias->header.detail, &xt->_u.alias.detail);
         ddsi_typeid_copy_to_impl (&calias->body.common.related_type, &xt->_u.alias.related_type->xt.id);
         calias->body.common.related_flags = xt->_u.alias.related_flags;
@@ -2214,6 +2229,7 @@ void ddsi_xt_get_typeobject_impl (const struct xt_type *xt, struct DDS_XTypes_Ty
       case DDS_XTypes_TK_BITSET:
       {
         struct DDS_XTypes_CompleteBitsetType *cbitset = &cto->_u.bitset_type;
+        cbitset->bitset_flags = xt->_u.bitset.flags;
         get_type_detail (&cbitset->header.detail, &xt->_u.bitset.detail);
         cbitset->field_seq._length = xt->_u.bitset.fields.length;
         cbitset->field_seq._buffer = ddsrt_malloc (xt->_u.bitset.fields.length * sizeof (*cbitset->field_seq._buffer));
