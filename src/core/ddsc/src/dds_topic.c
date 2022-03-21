@@ -203,6 +203,21 @@ void dds_topic_allow_set_qos (struct dds_topic *tp)
   ddsrt_mutex_unlock (&pp->m_entity.m_mutex);
 }
 
+static void ktopic_unref (dds_participant * const pp, struct dds_ktopic * const ktp)
+{
+  if (--ktp->refc == 0)
+  {
+    ddsrt_avl_delete (&participant_ktopics_treedef, &pp->m_ktopics, ktp);
+    dds_delete_qos (ktp->qos);
+    dds_free (ktp->name);
+    dds_free (ktp->type_name);
+#ifdef DDS_HAS_TOPIC_DISCOVERY
+    ddsrt_hh_free (ktp->topic_guid_map);
+#endif
+    dds_free (ktp);
+  }
+}
+
 static void dds_topic_close (dds_entity *e) ddsrt_nonnull_all;
 
 static void dds_topic_close (dds_entity *e)
@@ -221,20 +236,7 @@ static void dds_topic_close (dds_entity *e)
 #ifdef DDS_HAS_TOPIC_DISCOVERY
   topic_guid_map_unref (&e->m_domain->gv, ktp, tp->m_stype);
 #endif
-
-  // unref ktopic and delete if last ref
-  if (--ktp->refc == 0)
-  {
-    ddsrt_avl_delete (&participant_ktopics_treedef, &pp->m_ktopics, ktp);
-    dds_delete_qos (ktp->qos);
-    dds_free (ktp->name);
-    dds_free (ktp->type_name);
-#ifdef DDS_HAS_TOPIC_DISCOVERY
-    ddsrt_hh_free (ktp->topic_guid_map);
-#endif
-    dds_free (ktp);
-  }
-
+  ktopic_unref (pp, ktp);
   ddsrt_mutex_unlock (&pp->m_entity.m_mutex);
   ddsi_sertype_unref (tp->m_stype);
 }
@@ -551,15 +553,26 @@ dds_entity_t dds_create_topic_impl (
     ddsrt_mutex_unlock (&gv->sertypes_lock);
   }
 
+#ifdef DDS_HAS_TYPE_DISCOVERY
+  struct ddsi_type *type;
+  if ((rc = ddsi_type_ref_local (gv, &type, sertype_registered, DDSI_TYPEID_KIND_MINIMAL)) != DDS_RETCODE_OK
+      || ddsi_type_ref_local (gv, NULL, sertype_registered, DDSI_TYPEID_KIND_COMPLETE) != DDS_RETCODE_OK)
+  {
+    if (rc == DDS_RETCODE_OK)
+      ddsi_type_unref (gv, type);
+    ddsi_sertype_unref (*sertype);
+    ktopic_unref (pp, ktp);
+    ddsrt_mutex_unlock (&pp->m_entity.m_mutex);
+    GVTRACE ("dds_create_topic_generic: invalid type\n");
+    rc = DDS_RETCODE_BAD_PARAMETER;
+    goto error_typeref;
+  }
+#endif
+
   /* Create topic referencing ktopic & sertype_registered */
   hdl = create_topic_pp_locked (pp, ktp, (sertype_registered->ops == &ddsi_sertype_ops_builtintopic), name, sertype_registered, listener, sedp_plist);
   ddsi_sertype_unref (*sertype);
   *sertype = sertype_registered;
-
-#ifdef DDS_HAS_TYPE_DISCOVERY
-  (void) ddsi_type_ref_local (gv, sertype_registered, DDSI_TYPEID_KIND_MINIMAL);
-  (void) ddsi_type_ref_local (gv, sertype_registered, DDSI_TYPEID_KIND_COMPLETE);
-#endif
 
   const bool new_topic_def = register_topic_type_for_discovery (gv, pp, ktp, is_builtin, sertype_registered);
   ddsrt_mutex_unlock (&pp->m_entity.m_mutex);
@@ -581,8 +594,11 @@ dds_entity_t dds_create_topic_impl (
   return hdl;
 
  error:
-  dds_entity_unpin (&pp->m_entity);
   dds_delete_qos (new_qos);
+#ifdef DDS_HAS_TYPE_DISCOVERY
+error_typeref:
+#endif
+  dds_entity_unpin (&pp->m_entity);
   return rc;
 }
 

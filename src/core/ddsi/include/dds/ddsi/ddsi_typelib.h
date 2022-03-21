@@ -1,4 +1,5 @@
 /*
+ * Copyright(c) 2022 ZettaScale Technology
  * Copyright(c) 2006 to 2019 ADLINK Technology Limited and others
  *
  * This program and the accompanying materials are made available under the
@@ -63,10 +64,10 @@ DDS_EXPORT uint32_t ddsi_typeinfo_get_dependent_typeids (const ddsi_typeinfo_t *
 
 DDS_EXPORT ddsi_typemap_t *ddsi_typemap_deser (const struct ddsi_sertype_cdr_data *ser);
 
-DDS_EXPORT struct ddsi_type * ddsi_type_ref_locked (struct ddsi_domaingv *gv, struct ddsi_type *type);
-DDS_EXPORT struct ddsi_type * ddsi_type_ref_id_locked (struct ddsi_domaingv *gv, const ddsi_typeid_t *type_id);
-DDS_EXPORT struct ddsi_type * ddsi_type_ref_local (struct ddsi_domaingv *gv, const struct ddsi_sertype *sertype, ddsi_typeid_kind_t kind);
-DDS_EXPORT struct ddsi_type * ddsi_type_ref_proxy (struct ddsi_domaingv *gv, const ddsi_typeinfo_t *type_info, ddsi_typeid_kind_t kind, const ddsi_guid_t *proxy_guid);
+DDS_EXPORT dds_return_t ddsi_type_ref_locked (struct ddsi_domaingv *gv, struct ddsi_type **type, const struct ddsi_type *src);
+DDS_EXPORT dds_return_t ddsi_type_ref_id_locked (struct ddsi_domaingv *gv, struct ddsi_type **type, const ddsi_typeid_t *type_id);
+DDS_EXPORT dds_return_t ddsi_type_ref_local (struct ddsi_domaingv *gv, struct ddsi_type **type, const struct ddsi_sertype *sertype, ddsi_typeid_kind_t kind);
+DDS_EXPORT dds_return_t ddsi_type_ref_proxy (struct ddsi_domaingv *gv, struct ddsi_type **type, const ddsi_typeinfo_t *type_info, ddsi_typeid_kind_t kind, const ddsi_guid_t *proxy_guid);
 DDS_EXPORT const struct ddsi_sertype *ddsi_type_sertype (const struct ddsi_type *type);
 DDS_EXPORT bool ddsi_type_has_typeobj (const struct ddsi_type *type);
 DDS_EXPORT struct ddsi_typeobj *ddsi_type_get_typeobj (const struct ddsi_type *type);

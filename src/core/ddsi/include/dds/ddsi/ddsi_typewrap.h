@@ -1,4 +1,5 @@
 /*
+ * Copyright(c) 2022 ZettaScale Technology
  * Copyright(c) 2006 to 2019 ADLINK Technology Limited and others
  *
  * This program and the accompanying materials are made available under the
@@ -69,7 +70,7 @@ DDS_EXPORT dds_return_t ddsi_xt_type_add_typeobj (struct ddsi_domaingv *gv, stru
 DDS_EXPORT void ddsi_xt_get_typeobject (const struct xt_type *xt, ddsi_typeobj_t *to);
 DDS_EXPORT void ddsi_xt_type_fini (struct ddsi_domaingv *gv, struct xt_type *xt);
 DDS_EXPORT bool ddsi_xt_is_assignable_from (struct ddsi_domaingv *gv, const struct xt_type *rd_xt, const struct xt_type *wr_xt, const dds_type_consistency_enforcement_qospolicy_t *tce);
-
+DDS_EXPORT dds_return_t ddsi_xt_validate (struct ddsi_domaingv *gv, const struct xt_type *t);
 
 #else /* DDS_HAS_TYPE_DISCOVERY */
 

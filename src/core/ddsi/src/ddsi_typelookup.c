@@ -1,4 +1,5 @@
 /*
+ * Copyright(c) 2022 ZettaScale Technology
  * Copyright(c) 2006 to 2019 ADLINK Technology Limited and others
  *
  * This program and the accompanying materials are made available under the
@@ -256,7 +257,7 @@ void ddsi_tl_handle_reply (struct ddsi_domaingv *gv, struct ddsi_serdata *d)
       continue;
     }
 
-    if (ddsi_xt_type_add_typeobj (gv, &type->xt, &r.type_object) == 0)
+    if (ddsi_xt_type_add_typeobj (gv, &type->xt, &r.type_object) == DDS_RETCODE_OK)
     {
       type->state = DDSI_TYPE_RESOLVED;
       if (ddsi_typeid_is_minimal_impl (&r.type_identifier))
