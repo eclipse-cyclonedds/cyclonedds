@@ -103,15 +103,11 @@ struct xt_map {
 
 struct xt_alias {
   struct ddsi_type *related_type;
+  DDS_XTypes_AliasTypeFlag flags;
   DDS_XTypes_AliasMemberFlag related_flags;
   struct xt_type_detail detail;
 };
 
-struct xt_annotation_member {
-  DDS_XTypes_MemberName name;
-  struct ddsi_type *member_type;
-  struct DDS_XTypes_AnnotationParameterValue default_value;
-};
 struct xt_annotation_parameter {
   struct ddsi_type *member_type;
   DDS_XTypes_AnnotationParameterFlag flags;
@@ -177,6 +173,7 @@ struct xt_bitfield_seq {
   struct xt_bitfield *seq;
 };
 struct xt_bitset {
+  DDS_XTypes_BitsetTypeFlag flags;
   struct xt_bitfield_seq fields;
   struct xt_type_detail detail;
 };
@@ -191,7 +188,7 @@ struct xt_enum_literal_seq {
   struct xt_enum_literal *seq;
 };
 struct xt_enum {
-  DDS_XTypes_EnumTypeFlag flags;  // spec says unused, but this flag is actually used for extensibility
+  DDS_XTypes_EnumTypeFlag flags;
   DDS_XTypes_BitBound bit_bound;
   struct xt_enum_literal_seq literals;
   struct xt_type_detail detail;
@@ -207,7 +204,7 @@ struct xt_bitflag_seq {
   struct xt_bitflag *seq;
 };
 struct xt_bitmask {
-  DDS_XTypes_BitmaskTypeFlag flags;  // spec says unused, but this flag is actually used for extensibility
+  DDS_XTypes_BitmaskTypeFlag flags;
   DDS_XTypes_BitBound bit_bound;
   struct xt_bitflag_seq bitflags;
   struct xt_type_detail detail;
