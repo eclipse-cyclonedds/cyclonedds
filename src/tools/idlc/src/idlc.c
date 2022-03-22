@@ -59,6 +59,7 @@ static struct {
   int keylist;
   int case_sensitive;
   int default_extensibility;
+  bool default_nested;
   struct idlc_disable_warning_list disable_warnings;
   int help;
   int version;
@@ -314,6 +315,7 @@ static idl_retcode_t idlc_parse(void)
     pstate->scanner.position.column = 1;
     pstate->config.flags |= IDL_WRITE;
     pstate->config.default_extensibility = config.default_extensibility;
+    pstate->config.default_nested = config.default_nested;
     pstate->config.disable_warnings = config.disable_warnings.list;
     pstate->config.n_disable_warnings = config.disable_warnings.count;
   }
@@ -442,6 +444,18 @@ static int config_default_extensibility(const idlc_option_t *opt, const char *ar
   return 0;
 }
 
+static int config_default_nested(const idlc_option_t *opt, const char *arg)
+{
+  (void)opt;
+  if (strcmp(arg, "true") == 0)
+    config.default_nested = true;
+  else if (strcmp(arg, "false") == 0)
+    config.default_nested = false;
+  else
+    return IDLC_BAD_ARGUMENT;
+  return 0;
+}
+
 static int add_disable_warning(idl_warning_t warning)
 {
   if (config.disable_warnings.count == config.disable_warnings.size) {
@@ -540,6 +554,11 @@ static const idlc_option_t *compopts[] = {
     "is set on a type. Possible values are final, appendable and mutable. "
     "(default: final)" },
   &(idlc_option_t){
+    IDLC_FUNCTION, { .function = &config_default_nested }, 'n', "", "<nested>",
+    "Set the default nestedness that is used in case no nestedness"
+    "is set on a type. Possible values are true and false. "
+    "(default: true)" },
+  &(idlc_option_t){
     IDLC_FUNCTION, { .function = &config_warning }, 'W', "", "<no-warning>",
     "Enable or disable warnings. Possible values are: no-implicit-extensibility, "
     "no-extra-token-directive, no-unknown_escape_seq, no-inherit-appendable, "
@@ -602,6 +621,7 @@ int main(int argc, char *argv[])
   config.compile = 1;
   config.preprocess = 1;
   config.default_extensibility = IDL_DEFAULT_EXTENSIBILITY_UNDEFINED;
+  config.default_nested = false;
   config.disable_warnings.list = NULL;
   config.disable_warnings.size = 0;
   config.disable_warnings.count = 0;

@@ -156,6 +156,7 @@ idl_create_pstate(
 
   pstate->config.flags = flags;
   pstate->config.default_extensibility = IDL_DEFAULT_EXTENSIBILITY_UNDEFINED;
+  pstate->config.default_nested = false;
   pstate->global_scope = pstate->scope = scope;
 
   if (pstate->config.flags & IDL_FLAG_ANNOTATIONS) {
@@ -476,6 +477,31 @@ static idl_retcode_t validate_bitbound(idl_pstate_t *pstate)
   return idl_visit(pstate, pstate->root, &visitor, NULL);
 }
 
+static void
+set_nestedness(
+  const idl_pstate_t* pstate,
+  void* node,
+  bool current_fallback)
+{
+  IDL_FOREACH(node, node) {
+    if (idl_is_module(node)) {
+      idl_module_t *mod = node;
+      if (!mod->default_nested.annotation)
+        mod->default_nested.value = current_fallback;
+      else
+        current_fallback = mod->default_nested.value;
+
+      IDL_FOREACH(node, mod->definitions) {
+        set_nestedness(pstate, node, current_fallback);
+      }
+    } else if (idl_is_union(node) && !((idl_union_t*)node)->nested.annotation) {
+      ((idl_union_t*)node)->nested.value = current_fallback;
+    } else if (idl_is_struct(node) && !((idl_struct_t*)node)->nested.annotation) {
+      ((idl_struct_t*)node)->nested.value = current_fallback;
+    }
+  }
+}
+
 static idl_retcode_t set_type_extensibility(idl_pstate_t *pstate)
 {
   if (pstate->config.default_extensibility == IDL_DEFAULT_EXTENSIBILITY_UNDEFINED && idl_has_unset_extensibility_r(pstate->root)) {
@@ -562,6 +588,8 @@ grammar:
     goto err;
   if ((ret = idl_set_xcdr2_required(pstate->root) != IDL_RETCODE_OK))
     goto err;
+
+  set_nestedness(pstate, pstate->root, pstate->config.default_nested);
 
   if (pstate->keylists) {
     if ((ret = idl_validate_keylists(pstate)) != IDL_RETCODE_OK)
