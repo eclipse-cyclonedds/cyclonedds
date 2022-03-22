@@ -60,33 +60,33 @@ if (NOT ${_confgen_hash_correct})
 
   add_custom_target(
     _confgen
-    COMMAND _confgen-exe ARGS -f defconfig -o "${generated_defconfig_src}"
-    COMMAND _confgen-exe ARGS -f rnc -o "${generated_cyclonedds_rnc}"
-    COMMAND _confgen-exe ARGS -f xsd -o "${generated_cyclonedds_xsd}"
-    COMMAND _confgen-exe ARGS -f md -o "${generated_options_md}"
+    COMMAND _confgen-exe -f defconfig -o "${generated_defconfig_src}"
+    COMMAND _confgen-exe -f rnc -o "${generated_cyclonedds_rnc}"
+    COMMAND _confgen-exe -f xsd -o "${generated_cyclonedds_xsd}"
+    COMMAND _confgen-exe -f md -o "${generated_options_md}"
     # Append hashes to defconfig.c
-    COMMAND ${CMAKE_COMMAND} ARGS
+    COMMAND ${CMAKE_COMMAND}
       "-DPREFIX=/*"
       "-DPOSTFIX=*/"
       -DHASH_FILES=${out_confgen_hash_files}
       -DAPPEND_FILES=${generated_defconfig_src}
       -P ${CMAKE_SOURCE_DIR}/cmake/AppendHashScript.cmake
     # Append hashes to rnc
-    COMMAND ${CMAKE_COMMAND} ARGS
+    COMMAND ${CMAKE_COMMAND}
       "-DPREFIX=#"
       "-DPOSTFIX="
       -DHASH_FILES=${out_confgen_hash_files}
       -DAPPEND_FILES=${generated_cyclonedds_rnc}
       -P ${CMAKE_SOURCE_DIR}/cmake/AppendHashScript.cmake
     # Append hashes to xsd
-    COMMAND ${CMAKE_COMMAND} ARGS
+    COMMAND ${CMAKE_COMMAND}
       "-DPREFIX=<!---"
       "-DPOSTFIX=-->"
       -DHASH_FILES=${out_confgen_hash_files}
       -DAPPEND_FILES=${generated_cyclonedds_xsd}
       -P ${CMAKE_SOURCE_DIR}/cmake/AppendHashScript.cmake
     # Append hashes to md
-    COMMAND ${CMAKE_COMMAND} ARGS
+    COMMAND ${CMAKE_COMMAND}
       "-DPREFIX=<!---"
       "-DPOSTFIX=-->"
       -DHASH_FILES=${out_confgen_hash_files}
