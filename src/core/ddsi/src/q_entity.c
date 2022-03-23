@@ -3329,6 +3329,7 @@ void update_proxy_endpoint_matching (const struct ddsi_domaingv *gv, struct gene
   const char *tp = entity_topic_name (&proxy_ep->e);
   ddsrt_mtime_t tnow = ddsrt_time_monotonic ();
 
+  thread_state_awake (lookup_thread_state (), gv);
   entidx_enum_init_topic (&it, gv->entity_index, mkind, tp, &max);
   while ((em = entidx_enum_next_max (&it, &max)) != NULL)
   {
@@ -3336,6 +3337,7 @@ void update_proxy_endpoint_matching (const struct ddsi_domaingv *gv, struct gene
     generic_do_match_connect (&proxy_ep->e, em, tnow, false);
   }
   entidx_enum_fini (&it);
+  thread_state_asleep (lookup_thread_state ());
 }
 
 
