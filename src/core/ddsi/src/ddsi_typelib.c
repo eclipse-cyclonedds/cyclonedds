@@ -323,18 +323,6 @@ static struct ddsi_type * ddsi_type_new (struct ddsi_domaingv *gv, const struct 
   return type;
 }
 
-static bool type_has_dep (const struct ddsi_type *type, const struct DDS_XTypes_TypeIdentifier *dep_type_id)
-{
-  struct ddsi_type_dep *dep = type->deps;
-  while (dep)
-  {
-    if (!ddsi_typeid_compare_impl (&dep->type->xt.id.x, dep_type_id))
-      return true;
-    dep = dep->prev;
-  }
-  return false;
-}
-
 static void type_add_dep (struct ddsi_domaingv *gv, struct ddsi_type *type, const struct DDS_XTypes_TypeIdentifier *dep_type_id, const struct DDS_XTypes_TypeObject *dep_type_obj, uint32_t *n_match_upd, struct generic_proxy_endpoint ***gpe_match_upd)
 {
   struct ddsi_typeid_str tistr, tistrdep;
@@ -376,11 +364,22 @@ static void type_add_deps (struct ddsi_domaingv *gv, struct ddsi_type *type, con
     for (uint32_t n = 0; dep_ids && n < dep_ids->_length; n++)
     {
       const struct DDS_XTypes_TypeIdentifier *dep_type_id = &dep_ids->_buffer[n].type_id;
-      if (ddsi_typeid_compare_impl (&type->xt.id.x, dep_type_id) && !type_has_dep (type, dep_type_id))
+      if (!ddsi_typeid_compare_impl (&type->xt.id.x, dep_type_id))
+        continue;
+      const struct DDS_XTypes_TypeObject *dep_type_obj = type_map ? ddsi_typemap_typeobj (type_map, dep_type_id) : NULL;
+      struct ddsi_type_dep *dep = type->deps;
+      while (dep)
       {
-        const struct DDS_XTypes_TypeObject *dep_type_obj = type_map ? ddsi_typemap_typeobj (type_map, dep_type_id) : NULL;
-        type_add_dep (gv, type, dep_type_id, dep_type_obj, n_match_upd, gpe_match_upd);
+        if (!ddsi_typeid_compare_impl (&dep->type->xt.id.x, dep_type_id) && dep_type_obj != NULL && ddsi_xt_type_add_typeobj (gv, &dep->type->xt, dep_type_obj) == DDS_RETCODE_OK)
+        {
+          dep->type->state = DDSI_TYPE_RESOLVED;
+          (void) ddsi_type_get_gpe_matches (gv, dep->type, gpe_match_upd, n_match_upd);
+          break;
+        }
+        dep = dep->prev;
       }
+      if (!dep)
+        type_add_dep (gv, type, dep_type_id, dep_type_obj, n_match_upd, gpe_match_upd);
     }
   }
 }
