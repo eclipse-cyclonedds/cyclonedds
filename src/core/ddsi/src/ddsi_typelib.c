@@ -763,6 +763,24 @@ uint32_t ddsi_type_get_gpe_matches (struct ddsi_domaingv *gv, const struct ddsi_
   return n;
 }
 
+bool ddsi_type_resolved (struct ddsi_domaingv *gv, const struct ddsi_type *type, bool require_deps)
+{
+  bool resolved = type && !ddsi_xt_is_unresolved (&type->xt);
+  if (resolved && require_deps)
+  {
+    struct ddsi_type_dep tmpl, *dep = &tmpl;
+    memset (&tmpl, 0, sizeof (tmpl));
+    ddsi_typeid_copy (&tmpl.src_type_id, &type->xt.id);
+    while (resolved && (dep = ddsrt_avl_lookup_succ (&ddsi_typedeps_treedef, &gv->typedeps, dep)) && !ddsi_typeid_compare (&type->xt.id, &dep->src_type_id))
+    {
+      if (ddsi_xt_is_unresolved (&type->xt))
+        resolved = false;
+    }
+    ddsi_typeid_fini (&tmpl.src_type_id);
+  }
+  return resolved;
+}
+
 bool ddsi_is_assignable_from (struct ddsi_domaingv *gv, const struct ddsi_type_pair *rd_type_pair, const struct ddsi_type_pair *wr_type_pair, const dds_type_consistency_enforcement_qospolicy_t *tce)
 {
   if (!rd_type_pair || !wr_type_pair)
@@ -839,20 +857,6 @@ void ddsi_type_pair_free (struct ddsi_type_pair *type_pair)
     ddsrt_free (type_pair->complete);
   }
   ddsrt_free (type_pair);
-}
-
-bool ddsi_type_pair_has_minimal_obj (const struct ddsi_type_pair *type_pair)
-{
-  if (type_pair == NULL || type_pair->minimal == NULL)
-    return false;
-  return type_pair->minimal->xt.has_obj;
-}
-
-bool ddsi_type_pair_has_complete_obj (const struct ddsi_type_pair *type_pair)
-{
-  if (type_pair == NULL || type_pair->complete == NULL)
-    return false;
-  return type_pair->complete->xt.has_obj;
 }
 
 #endif /* DDS_HAS_TYPE_DISCOVERY */

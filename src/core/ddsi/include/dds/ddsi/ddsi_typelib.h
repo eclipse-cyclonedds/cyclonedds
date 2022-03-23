@@ -80,6 +80,7 @@ DDS_EXPORT void ddsi_type_unreg_proxy (struct ddsi_domaingv *gv, struct ddsi_typ
 DDS_EXPORT void ddsi_type_unref (struct ddsi_domaingv *gv, struct ddsi_type *type);
 DDS_EXPORT void ddsi_type_unref_sertype (struct ddsi_domaingv *gv, const struct ddsi_sertype *sertype);
 DDS_EXPORT void ddsi_type_unref_locked (struct ddsi_domaingv *gv, struct ddsi_type *type);
+DDS_EXPORT bool ddsi_type_resolved (struct ddsi_domaingv *gv, const struct ddsi_type *type, bool require_deps);
 
 DDS_EXPORT bool ddsi_is_assignable_from (struct ddsi_domaingv *gv, const struct ddsi_type_pair *rd_type_pair, const struct ddsi_type_pair *wr_type_pair, const dds_type_consistency_enforcement_qospolicy_t *tce);
 DDS_EXPORT const ddsi_typeid_t *ddsi_type_pair_minimal_id (const struct ddsi_type_pair *type_pair);
@@ -87,9 +88,6 @@ DDS_EXPORT const ddsi_typeid_t *ddsi_type_pair_complete_id (const struct ddsi_ty
 DDS_EXPORT const struct ddsi_sertype *ddsi_type_pair_complete_sertype (const struct ddsi_type_pair *type_pair);
 DDS_EXPORT struct ddsi_type_pair *ddsi_type_pair_init (const ddsi_typeid_t *type_id_minimal, const ddsi_typeid_t *type_id_complete);
 DDS_EXPORT void ddsi_type_pair_free (struct ddsi_type_pair *type_pair);
-DDS_EXPORT bool ddsi_type_pair_has_minimal_obj (const struct ddsi_type_pair *type_pair);
-DDS_EXPORT bool ddsi_type_pair_has_complete_obj (const struct ddsi_type_pair *type_pair);
-
 
 /**
  * Returns the type lookup meta object for the provided type identifier.

@@ -454,7 +454,7 @@ static void set_member_detail (struct xt_member_detail *dst, const DDS_XTypes_Co
   }
 }
 
-static bool xt_is_unresolved (const struct xt_type *t)
+bool ddsi_xt_is_unresolved (const struct xt_type *t)
 {
   return (t->kind == DDSI_TYPEID_KIND_MINIMAL || t->kind == DDSI_TYPEID_KIND_COMPLETE) && t->_d == DDS_XTypes_TK_NONE;
 }
@@ -471,7 +471,7 @@ static dds_return_t xt_valid_struct_base_type (struct ddsi_domaingv *gv, const s
   /* only a base type that is resolved, i.e. has a type object or is fully descriptive,
      can be used to check the type */
   const struct xt_type *bt = &t->_u.structure.base_type->xt;
-  if (!xt_is_unresolved (bt) && (ddsi_xt_unalias (bt))->_d != DDS_XTypes_TK_STRUCTURE)
+  if (!ddsi_xt_is_unresolved (bt) && (ddsi_xt_unalias (bt))->_d != DDS_XTypes_TK_STRUCTURE)
   {
     GVTRACE ("base type for struct is not a struct type\n");
     return DDS_RETCODE_BAD_PARAMETER;
@@ -501,10 +501,10 @@ static int xt_member_id_cmp (const void *va, const void *vb)
 
 static dds_return_t xt_valid_struct_member_ids (struct ddsi_domaingv *gv, const struct xt_type *t)
 {
-  assert (!xt_is_unresolved (t) && t->_d == DDS_XTypes_TK_STRUCTURE);
+  assert (!ddsi_xt_is_unresolved (t) && t->_d == DDS_XTypes_TK_STRUCTURE);
   dds_return_t ret = DDS_RETCODE_OK;
   uint32_t cnt = 0;
-  for (const struct xt_type *t1 = t; t1 && !xt_is_unresolved (t1); t1 = t1->_u.structure.base_type ? &t1->_u.structure.base_type->xt : NULL)
+  for (const struct xt_type *t1 = t; t1 && !ddsi_xt_is_unresolved (t1); t1 = t1->_u.structure.base_type ? &t1->_u.structure.base_type->xt : NULL)
     cnt += t1->_u.structure.members.length;
   if (cnt == 0 && !t->_u.structure.base_type)
   {
@@ -513,7 +513,7 @@ static dds_return_t xt_valid_struct_member_ids (struct ddsi_domaingv *gv, const 
   }
   DDS_XTypes_MemberId *ids = ddsrt_malloc (cnt * sizeof (*ids));
   uint32_t cnt1 = cnt;
-  for (const struct xt_type *t1 = t; t1 && !xt_is_unresolved (t1); t1 = t1->_u.structure.base_type ? &t1->_u.structure.base_type->xt : NULL)
+  for (const struct xt_type *t1 = t; t1 && !ddsi_xt_is_unresolved (t1); t1 = t1->_u.structure.base_type ? &t1->_u.structure.base_type->xt : NULL)
   {
     for (uint32_t n = 0; n < t1->_u.structure.members.length; n++)
       ids[--cnt1] = t1->_u.structure.members.seq[n].id;
@@ -536,7 +536,7 @@ err:
 
 static dds_return_t xt_valid_union_member_ids (struct ddsi_domaingv *gv, const struct xt_type *t)
 {
-  assert (!xt_is_unresolved (t) && t->_d == DDS_XTypes_TK_UNION);
+  assert (!ddsi_xt_is_unresolved (t) && t->_d == DDS_XTypes_TK_UNION);
   dds_return_t ret = DDS_RETCODE_OK;
   uint32_t cnt = t->_u.union_type.members.length;
   if (cnt == 0)
@@ -571,7 +571,7 @@ static int xt_enum_value_cmp (const void *va, const void *vb)
 
 static dds_return_t xt_valid_enum_values (struct ddsi_domaingv *gv, const struct xt_type *t)
 {
-  assert (!xt_is_unresolved (t) && t->_d == DDS_XTypes_TK_ENUM);
+  assert (!ddsi_xt_is_unresolved (t) && t->_d == DDS_XTypes_TK_ENUM);
   dds_return_t ret = DDS_RETCODE_OK;
   uint32_t cnt = t->_u.enum_type.literals.length;
   int32_t *values = ddsrt_malloc (cnt * sizeof (*values));
@@ -601,7 +601,7 @@ static int xt_bitmask_position_cmp (const void *va, const void *vb)
 
 static dds_return_t xt_valid_bitmask_positions (struct ddsi_domaingv *gv, const struct xt_type *t)
 {
-  assert (!xt_is_unresolved (t) && t->_d == DDS_XTypes_TK_BITMASK);
+  assert (!ddsi_xt_is_unresolved (t) && t->_d == DDS_XTypes_TK_BITMASK);
   dds_return_t ret = DDS_RETCODE_OK;
   uint32_t cnt = t->_u.bitmask.bitflags.length;
   uint16_t *positions = ddsrt_malloc (cnt * sizeof (*positions));
@@ -1678,7 +1678,7 @@ static struct xt_type *xt_expand_basetype (struct ddsi_domaingv *gv, const struc
   assert (t->_d == DDS_XTypes_TK_STRUCTURE);
   assert (t->_u.structure.base_type);
   const struct xt_type *b = ddsi_xt_unalias (&t->_u.structure.base_type->xt);
-  if (xt_is_unresolved (b))
+  if (ddsi_xt_is_unresolved (b))
   {
     struct ddsi_typeid_str tidstr;
     GVWARNING ("assignability check: base type %s unresolved in xt_expand_basetype\n", ddsi_make_typeid_str (&tidstr, &b->id));
@@ -2128,7 +2128,7 @@ static bool xt_is_assignable_from_struct (struct ddsi_domaingv *gv, const struct
   {
     const struct xt_struct_member *m1 = &te1->_u.structure.members.seq[i1];
     const struct xt_type *m1t = ddsi_xt_unalias (&m1->type->xt);
-    if (xt_is_unresolved (m1t))
+    if (ddsi_xt_is_unresolved (m1t))
     {
       struct ddsi_typeid_str tidstr;
       GVWARNING ("assignability check: member %"PRIu32" type %s unresolved in xt_is_assignable_from_struct\n", m1->id, ddsi_make_typeid_str (&tidstr, &m1t->id));
@@ -2148,7 +2148,7 @@ static bool xt_is_assignable_from_struct (struct ddsi_domaingv *gv, const struct
         any_member_match = true;
         match = true;
         const struct xt_type *m2t = ddsi_xt_unalias (&m2->type->xt);
-        if (xt_is_unresolved (m2t))
+        if (ddsi_xt_is_unresolved (m2t))
         {
           struct ddsi_typeid_str tidstr;
           GVWARNING ("assignability check: member %"PRIu32" type %s unresolved in xt_is_assignable_from_struct\n", m2->id, ddsi_make_typeid_str (&tidstr, &m2t->id));
@@ -2230,11 +2230,11 @@ static bool xt_is_assignable_from_struct (struct ddsi_domaingv *gv, const struct
               {
                 const struct xt_type *km1_t = ddsi_xt_unalias (&km1->type->xt),
                   *km2_t = ddsi_xt_unalias (&km2->type->xt);
-                if (xt_is_unresolved (km1_t) || xt_is_unresolved (km2_t))
+                if (ddsi_xt_is_unresolved (km1_t) || ddsi_xt_is_unresolved (km2_t))
                 {
                   struct ddsi_typeid_str tidstr;
                   GVWARNING ("assignability check: union member %"PRIu32" type %s unresolved in xt_is_assignable_from_struct\n",
-                      (xt_is_unresolved (km1_t) ? km1 : km2)->id, ddsi_make_typeid_str (&tidstr, &(xt_is_unresolved (km1_t) ? km1_t : km2_t)->id));
+                      (ddsi_xt_is_unresolved (km1_t) ? km1 : km2)->id, ddsi_make_typeid_str (&tidstr, &(ddsi_xt_is_unresolved (km1_t) ? km1_t : km2_t)->id));
                   goto struct_failed;
                 }
                 struct xt_type *km1_kh = xt_type_keyholder (gv, km1_t),
@@ -2323,10 +2323,10 @@ struct_failed:
 bool ddsi_xt_is_assignable_from (struct ddsi_domaingv *gv, const struct xt_type *rd_xt, const struct xt_type *wr_xt, const dds_type_consistency_enforcement_qospolicy_t *tce)
 {
   const struct xt_type *t1 = ddsi_xt_unalias (rd_xt), *t2 = ddsi_xt_unalias (wr_xt);
-  if (xt_is_unresolved (t1) || xt_is_unresolved (t2))
+  if (ddsi_xt_is_unresolved (t1) || ddsi_xt_is_unresolved (t2))
   {
     struct ddsi_typeid_str tidstr;
-    GVWARNING ("assignability check: unresolved type %s in ddsi_xt_is_assignable_from\n", ddsi_make_typeid_str (&tidstr, &(xt_is_unresolved (t1) ? t1 : t2)->id));
+    GVWARNING ("assignability check: unresolved type %s in ddsi_xt_is_assignable_from\n", ddsi_make_typeid_str (&tidstr, &(ddsi_xt_is_unresolved (t1) ? t1 : t2)->id));
     return false;
   }
 
