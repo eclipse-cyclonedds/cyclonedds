@@ -499,8 +499,8 @@ void get_participant_builtin_topic_data (const struct participant *pp, ddsi_plis
   }
 #endif
 
-  /* Participant QoS's insofar as they are set, different from the default, and mapped to the SPDP data, rather than to the Adlink-specific CMParticipant endpoint.  Currently, that means just USER_DATA. */
-  qosdiff = ddsi_xqos_delta (&pp->plist->qos, &ddsi_default_plist_participant.qos, QP_USER_DATA);
+  /* Participant QoS's insofar as they are set, different from the default, and mapped to the SPDP data, rather than to the Adlink-specific CMParticipant endpoint. */
+  qosdiff = ddsi_xqos_delta (&pp->plist->qos, &ddsi_default_plist_participant.qos, QP_USER_DATA | QP_ENTITY_NAME);
   if (pp->e.gv->config.explicitly_publish_qos_set_to_default)
     qosdiff |= ~(QP_UNRECOGNIZED_INCOMPATIBLE_MASK | QP_LIVELINESS);
 
@@ -1090,7 +1090,7 @@ static struct writer *get_sedp_writer (const struct participant *pp, unsigned en
 static int sedp_write_endpoint_impl
 (
    struct writer *wr, int alive, const ddsi_guid_t *guid,
-   const struct entity_common *common, const struct endpoint_common *epcommon,
+   const struct endpoint_common *epcommon,
    const dds_qos_t *xqos, struct addrset *as, nn_security_info_t *security
 #ifdef DDS_HAS_TYPE_DISCOVERY
    , const struct ddsi_sertype *sertype
@@ -1112,13 +1112,6 @@ static int sedp_write_endpoint_impl
   ddsi_plist_init_empty (&ps);
   ps.present |= PP_ENDPOINT_GUID;
   ps.endpoint_guid = *guid;
-
-  if (common && *common->name != 0)
-  {
-    ps.present |= PP_ENTITY_NAME;
-    ps.aliased |= PP_ENTITY_NAME;
-    ps.entity_name = common->name;
-  }
 
 #ifdef DDS_HAS_SECURITY
   if (security)
@@ -1310,9 +1303,9 @@ int sedp_write_writer (struct writer *wr)
     }
 #endif
 #ifdef DDS_HAS_TYPE_DISCOVERY
-    return sedp_write_endpoint_impl (sedp_wr, 1, &wr->e.guid, &wr->e, &wr->c, wr->xqos, as, security, wr->type);
+    return sedp_write_endpoint_impl (sedp_wr, 1, &wr->e.guid, &wr->c, wr->xqos, as, security, wr->type);
 #else
-    return sedp_write_endpoint_impl (sedp_wr, 1, &wr->e.guid, &wr->e, &wr->c, wr->xqos, as, security);
+    return sedp_write_endpoint_impl (sedp_wr, 1, &wr->e.guid, &wr->c, wr->xqos, as, security);
 #endif
   }
   return 0;
@@ -1352,9 +1345,9 @@ int sedp_write_reader (struct reader *rd)
   }
 #endif
 #ifdef DDS_HAS_TYPE_DISCOVERY
-  const int ret = sedp_write_endpoint_impl (sedp_wr, 1, &rd->e.guid, &rd->e, &rd->c, rd->xqos, as, security, rd->type);
+  const int ret = sedp_write_endpoint_impl (sedp_wr, 1, &rd->e.guid, &rd->c, rd->xqos, as, security, rd->type);
 #else
-  const int ret = sedp_write_endpoint_impl (sedp_wr, 1, &rd->e.guid, &rd->e, &rd->c, rd->xqos, as, security);
+  const int ret = sedp_write_endpoint_impl (sedp_wr, 1, &rd->e.guid, &rd->c, rd->xqos, as, security);
 #endif
   unref_addrset (as);
   return ret;
@@ -1367,9 +1360,9 @@ int sedp_dispose_unregister_writer (struct writer *wr)
     unsigned entityid = determine_publication_writer(wr);
     struct writer *sedp_wr = get_sedp_writer (wr->c.pp, entityid);
 #ifdef DDS_HAS_TYPE_DISCOVERY
-    return sedp_write_endpoint_impl (sedp_wr, 0, &wr->e.guid, NULL, NULL, NULL, NULL, NULL, NULL);
-#else
     return sedp_write_endpoint_impl (sedp_wr, 0, &wr->e.guid, NULL, NULL, NULL, NULL, NULL);
+#else
+    return sedp_write_endpoint_impl (sedp_wr, 0, &wr->e.guid, NULL, NULL, NULL, NULL);
 #endif
   }
   return 0;
@@ -1382,9 +1375,9 @@ int sedp_dispose_unregister_reader (struct reader *rd)
     unsigned entityid = determine_subscription_writer(rd);
     struct writer *sedp_wr = get_sedp_writer (rd->c.pp, entityid);
 #ifdef DDS_HAS_TYPE_DISCOVERY
-    return sedp_write_endpoint_impl (sedp_wr, 0, &rd->e.guid, NULL, NULL, NULL, NULL, NULL, NULL);
-#else
     return sedp_write_endpoint_impl (sedp_wr, 0, &rd->e.guid, NULL, NULL, NULL, NULL, NULL);
+#else
+    return sedp_write_endpoint_impl (sedp_wr, 0, &rd->e.guid, NULL, NULL, NULL, NULL);
 #endif
   }
   return 0;
@@ -1603,10 +1596,11 @@ static void handle_sedp_alive_endpoint (const struct receiver_state *rst, seqno_
   assert (xqos->present & QP_DURABILITY);
   reliable = (xqos->reliability.kind == DDS_RELIABILITY_RELIABLE);
 
-  GVLOGDISC (" %s %s %s: %s%s.%s/%s",
+  GVLOGDISC (" %s %s %s %s: %s%s.%s/%s",
              reliable ? "reliable" : "best-effort",
              durability_to_string (xqos->durability.kind),
              sedp_kind == SEDP_KIND_WRITER ? "writer" : "reader",
+             (xqos->present & QP_ENTITY_NAME) ? xqos->entity_name : "unnamed",
              ((!(xqos->present & QP_PARTITION) || xqos->partition.n == 0 || *xqos->partition.strs[0] == '\0')
               ? "(default)" : xqos->partition.strs[0]),
              ((xqos->present & QP_PARTITION) && xqos->partition.n > 1) ? "+" : "",

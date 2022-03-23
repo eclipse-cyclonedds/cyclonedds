@@ -1908,6 +1908,7 @@ static const struct piddesc piddesc_omg[] = {
   QP  (PARTITION,                           partition, XQ, XS, XSTOP),
   QP  (TIME_BASED_FILTER,                   time_based_filter, XD),
   QP  (TRANSPORT_PRIORITY,                  transport_priority, Xi),
+  QP  (ENTITY_NAME,                         entity_name, XS),
   /* Type consistency enforcement has some custom validations and uses a bitbound(16) enum */
   { PID_TYPE_CONSISTENCY_ENFORCEMENT, PDF_QOS | PDF_FUNCTION, QP_TYPE_CONSISTENCY_ENFORCEMENT, "TYPE_CONSISTENCY_ENFORCEMENT",
     offsetof (struct ddsi_plist, qos.type_consistency), membersize (struct ddsi_plist, qos.type_consistency),
@@ -1929,7 +1930,6 @@ static const struct piddesc piddesc_omg[] = {
   PPV (PARTICIPANT_GUID,                    participant_guid, XG),
   PPV (GROUP_GUID,                          group_guid, XG),
   PP  (BUILTIN_ENDPOINT_SET,                builtin_endpoint_set, Xu),
-  PP  (ENTITY_NAME,                         entity_name, XS),
   PP  (KEYHASH,                             keyhash, XK),
   PPV (ENDPOINT_GUID,                       endpoint_guid, XG),
 #ifdef DDS_HAS_SSM

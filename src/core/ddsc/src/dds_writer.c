@@ -399,10 +399,12 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   if (qos)
     ddsi_xqos_mergein_missing (wqos, qos, DDS_WRITER_QOS_MASK);
   if (pub->m_entity.m_qos)
-    ddsi_xqos_mergein_missing (wqos, pub->m_entity.m_qos, ~(uint64_t)0);
+    ddsi_xqos_mergein_missing (wqos, pub->m_entity.m_qos, ~QP_ENTITY_NAME);
   if (tp->m_ktopic->qos)
-    ddsi_xqos_mergein_missing (wqos, tp->m_ktopic->qos, ~(uint64_t)0);
+    ddsi_xqos_mergein_missing (wqos, tp->m_ktopic->qos, ~QP_ENTITY_NAME);
   ddsi_xqos_mergein_missing (wqos, &ddsi_default_qos_writer, ~QP_DATA_REPRESENTATION);
+  dds_apply_entity_naming(wqos, pub->m_entity.m_qos, gv);
+
   if ((rc = dds_ensure_valid_data_representation (wqos, tp->m_stype->allowed_data_representation, false)) != 0)
     goto err_data_repr;
 

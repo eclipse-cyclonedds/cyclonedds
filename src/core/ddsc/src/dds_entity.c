@@ -1610,4 +1610,3 @@ dds_return_t dds_return_loan (dds_entity_t entity, void **buf, int32_t bufsz)
   dds_entity_unpin (p_entity);
   return ret;
 }
-

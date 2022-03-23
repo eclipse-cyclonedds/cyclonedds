@@ -111,7 +111,7 @@ static int print_addrset_if_notempty (ddsi_tran_conn_t conn, const char *prefix,
 static int print_any_endpoint_common (ddsi_tran_conn_t conn, const char *label, const struct entity_common *e, const struct dds_qos *xqos)
 {
   int x = 0;
-  x += cpf (conn, "  %s "PGUIDFMT" ", label, PGUID (e->guid));
+  x += cpf (conn, "  %s "PGUIDFMT" %s ", label, PGUID (e->guid), (xqos->present & QP_ENTITY_NAME) ? xqos->entity_name : "");
   if (xqos->present & QP_PARTITION)
   {
     if (xqos->partition.n > 1) cpf (conn, "{");
@@ -151,7 +151,7 @@ static int print_participants (struct thread_state1 * const ts1, struct ddsi_dom
   while ((p = entidx_enum_participant_next (&e)) != NULL)
   {
     ddsrt_mutex_lock (&p->e.lock);
-    x += cpf (conn, "pp "PGUIDFMT" %s%s\n", PGUID (p->e.guid), p->e.name, p->is_ddsi2_pp ? " [ddsi2]" : "");
+    x += cpf (conn, "pp "PGUIDFMT" %s%s\n", PGUID (p->e.guid), (p->plist->qos.present & QP_ENTITY_NAME) ? p->plist->qos.entity_name : "", p->is_ddsi2_pp ? " [ddsi2]" : "");
     ddsrt_mutex_unlock (&p->e.lock);
 
     {

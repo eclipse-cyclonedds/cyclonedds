@@ -43,7 +43,7 @@ extern "C" {
 #define PP_BUILTIN_ENDPOINT_SET                 ((uint64_t)1 << 17)
 #define PP_PROPERTIES                           ((uint64_t)1 << 18)
 #define PP_TYPE_MAX_SIZE_SERIALIZED             ((uint64_t)1 << 19)
-#define PP_ENTITY_NAME                          ((uint64_t)1 << 20)
+#define PP_CYCLONE_REDUNDANT_NETWORKING         ((uint64_t)1 << 20)
 #define PP_KEYHASH                              ((uint64_t)1 << 21)
 #define PP_STATUSINFO                           ((uint64_t)1 << 22)
 #define PP_ORIGINAL_WRITER_INFO                 ((uint64_t)1 << 23)
@@ -67,7 +67,6 @@ extern "C" {
 #define PP_CYCLONE_RECEIVE_BUFFER_SIZE          ((uint64_t)1 << 38)
 #define PP_CYCLONE_TOPIC_GUID                   ((uint64_t)1 << 39)
 #define PP_CYCLONE_REQUESTS_KEYHASH             ((uint64_t)1 << 40)
-#define PP_CYCLONE_REDUNDANT_NETWORKING         ((uint64_t)1 << 41)
 
 /* Set for unrecognized parameters that are in the reserved space or
    in our own vendor-specific space that have the
@@ -217,7 +216,6 @@ typedef struct ddsi_plist {
 #endif
   uint32_t builtin_endpoint_set;
   /* int type_max_size_serialized; */
-  char *entity_name;
   ddsi_keyhash_t keyhash;
   uint32_t statusinfo;
   nn_adlink_participant_version_info_t adlink_participant_version_info;

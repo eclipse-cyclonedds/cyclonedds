@@ -239,6 +239,7 @@ typedef struct dds_data_representation_qospolicy {
   dds_data_representation_id_seq_t value;
 } dds_data_representation_qospolicy_t;
 
+
 /***/
 
 /* Qos Present bit indices */
@@ -274,6 +275,8 @@ typedef struct dds_data_representation_qospolicy {
 #define QP_TYPE_INFORMATION                  ((uint64_t)1 << 33)
 #define QP_LOCATOR_MASK                      ((uint64_t)1 << 34)
 #define QP_DATA_REPRESENTATION               ((uint64_t)1 << 35)
+#define QP_ENTITY_NAME                       ((uint64_t)1 << 36)
+
 
 /* Partition QoS is not RxO according to the specification (DDS 1.2,
    section 7.1.3), but communication will not take place unless it
@@ -297,6 +300,7 @@ struct dds_qos {
   /*      Extras: */
   /* xx */char *topic_name;
   /* xx */char *type_name;
+  /* xx */char *entity_name;
 #ifdef DDS_HAS_TYPE_DISCOVERY
   /* xx */struct ddsi_typeinfo *type_information;
 #endif

@@ -267,7 +267,7 @@ The default value is: "".
 
 
 ### //CycloneDDS/Domain/General
-Children: [AllowMulticast](#cycloneddsdomaingeneralallowmulticast), [DontRoute](#cycloneddsdomaingeneraldontroute), [EnableMulticastLoopback](#cycloneddsdomaingeneralenablemulticastloopback), [ExternalNetworkAddress](#cycloneddsdomaingeneralexternalnetworkaddress), [ExternalNetworkMask](#cycloneddsdomaingeneralexternalnetworkmask), [FragmentSize](#cycloneddsdomaingeneralfragmentsize), [Interfaces](#cycloneddsdomaingeneralinterfaces), [MaxMessageSize](#cycloneddsdomaingeneralmaxmessagesize), [MaxRexmitMessageSize](#cycloneddsdomaingeneralmaxrexmitmessagesize), [MulticastRecvNetworkInterfaceAddresses](#cycloneddsdomaingeneralmulticastrecvnetworkinterfaceaddresses), [MulticastTimeToLive](#cycloneddsdomaingeneralmulticasttimetolive), [RedundantNetworking](#cycloneddsdomaingeneralredundantnetworking), [Transport](#cycloneddsdomaingeneraltransport), [UseIPv6](#cycloneddsdomaingeneraluseipv)
+Children: [AllowMulticast](#cycloneddsdomaingeneralallowmulticast), [DontRoute](#cycloneddsdomaingeneraldontroute), [EnableMulticastLoopback](#cycloneddsdomaingeneralenablemulticastloopback), [EntityAutoNaming](#cycloneddsdomaingeneralentityautonaming), [ExternalNetworkAddress](#cycloneddsdomaingeneralexternalnetworkaddress), [ExternalNetworkMask](#cycloneddsdomaingeneralexternalnetworkmask), [FragmentSize](#cycloneddsdomaingeneralfragmentsize), [Interfaces](#cycloneddsdomaingeneralinterfaces), [MaxMessageSize](#cycloneddsdomaingeneralmaxmessagesize), [MaxRexmitMessageSize](#cycloneddsdomaingeneralmaxrexmitmessagesize), [MulticastRecvNetworkInterfaceAddresses](#cycloneddsdomaingeneralmulticastrecvnetworkinterfaceaddresses), [MulticastTimeToLive](#cycloneddsdomaingeneralmulticasttimetolive), [RedundantNetworking](#cycloneddsdomaingeneralredundantnetworking), [Transport](#cycloneddsdomaingeneraltransport), [UseIPv6](#cycloneddsdomaingeneraluseipv)
 
 The General element specifies overall Cyclone DDS service settings.
 
@@ -309,6 +309,24 @@ Boolean
 This element specifies whether Cyclone DDS allows IP multicast packets to be visible to all DDSI participants in the same node, including itself. It must be "true" for intra-node multicast communications, but if a node runs only a single Cyclone DDS service and does not host any other DDSI-capable programs, it should be set to "false" for improved performance.
 
 The default value is: "true".
+
+
+#### //CycloneDDS/Domain/General/EntityAutoNaming
+Attributes: [seed](#cycloneddsdomaingeneralentityautonamingseed)
+
+One of: empty, fancy
+
+This element specifies the entity autonaming mode. By default set to 'empty' which means no name will be set (but you can still use dds\_qset\_entity\_name). When set to 'fancy' participants, publishers, subscribers, writers and readers will get randomly generated names. An autonamed entity will share a 3-letter prefix with their parent entity.
+
+The default value is: "empty".
+
+
+#### //CycloneDDS/Domain/General/EntityAutoNaming[@seed]
+Text
+
+Provide an initial seed for the entity naming. Your string will be hashed to provided the random state. When provided the same sequence of names is generated every run. If you create your entities in the same order this will ensure they are the same between runs. If you run multiple nodes set this via environment variable to ensure every node generates unique names. When left empty (the default) a random starting seed is chosen.
+
+The default value is: "".
 
 
 #### //CycloneDDS/Domain/General/ExternalNetworkAddress
@@ -1856,13 +1874,13 @@ While none prevents any message from being written to a DDSI2 log file.
 The categorisation of tracing output is incomplete and hence most of the verbosity levels and categories are not of much use in the current release. This is an ongoing process and here we describe the target situation rather than the current situation. Currently, the most useful verbosity levels are config, fine and finest.
 
 The default value is: "none".
-<!--- generated from ddsi_config.h[65e4d0ff87910896249e76fb2e80d209874d4f7d] -->
+<!--- generated from ddsi_config.h[d83341240eb94904ea3ec99923b48e6c9d46eac9] -->
 <!--- generated from ddsi_cfgunits.h[1e595223d52f30511d2b844a979277227d15fd3e] -->
-<!--- generated from ddsi_cfgelems.h[1b576c58b8e860d90bb52a8f134dd0d4c4717ce8] -->
-<!--- generated from ddsi_config.c[cfa9bdfba7ced22441d4139e93049ca8ac705da4] -->
-<!--- generated from _confgen.h[4c987ae42ea0d7e691a88609b30aaf756260a8c4] -->
+<!--- generated from ddsi_cfgelems.h[f53071290641a0dd462f0d91f5d3915993f54df1] -->
+<!--- generated from ddsi_config.c[2268ced025845892469541837b5b2b7e45bb4eb6] -->
+<!--- generated from _confgen.h[953b18751857ee91ad95b1edbb9713b05f7f8cdf] -->
 <!--- generated from _confgen.c[d1f3a36646cebdcbe4788725beebad9f5ee90f94] -->
 <!--- generated from generate_rnc.c[9785c4c557a472db1c1685daa2b82c39202ed17a] -->
 <!--- generated from generate_md.c[c3f3a8c63374bad4dbfb792e3509d4a5ab0d03fd] -->
 <!--- generated from generate_xsd.c[47ff306dce0c19d2c18704ce674642f62cccf40f] -->
-<!--- generated from generate_defconfig.c[a92ac1bffb20880e2efbc215e17b1c8c32f4ee5e] -->
+<!--- generated from generate_defconfig.c[eec9ab7b2d053e68500799b693d089e84153a37b] -->

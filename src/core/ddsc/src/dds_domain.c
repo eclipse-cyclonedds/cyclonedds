@@ -68,7 +68,6 @@ struct config_source {
 static dds_entity_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_id, const struct config_source *config, bool implicit)
 {
   dds_entity_t domh;
-  uint32_t len;
 
   if ((domh = dds_entity_init (&domain->m_entity, &dds_global.m_entity, DDS_KIND_DOMAIN, implicit, true, NULL, NULL, 0)) < 0)
     return domh;
@@ -172,14 +171,6 @@ static dds_entity_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
   }
 
   dds__builtin_init (domain);
-
-  /* Set additional default participant properties */
-
-  const char *progname = "UNKNOWN"; /* FIXME: once retrieving process names is back in */
-  len = (uint32_t) (strlen (progname) + 13);
-  domain->gv.default_local_plist_pp.entity_name = dds_alloc (len);
-  (void) snprintf (domain->gv.default_local_plist_pp.entity_name, len, "%s<%u>", progname, (unsigned) ddsrt_getpid ());
-  domain->gv.default_local_plist_pp.present |= PP_ENTITY_NAME;
 
   if (rtps_start (&domain->gv) < 0)
   {

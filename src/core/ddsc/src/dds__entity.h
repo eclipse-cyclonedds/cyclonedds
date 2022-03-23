@@ -225,7 +225,6 @@ dds_generic_unimplemented_operation(
         dds_entity_t handle,
         dds_entity_kind_t kind);
 
-
 #if defined (__cplusplus)
 }
 #endif

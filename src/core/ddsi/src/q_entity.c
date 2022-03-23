@@ -303,12 +303,11 @@ const ddsrt_fibheap_def_t ldur_fhdef = DDSRT_FIBHEAPDEF_INITIALIZER(offsetof (st
 /* used in (proxy)participant for writer liveliness monitoring */
 const ddsrt_fibheap_def_t lease_fhdef_pp = DDSRT_FIBHEAPDEF_INITIALIZER(offsetof (struct lease, pp_heapnode), compare_lease_tdur);
 
-static void entity_common_init (struct entity_common *e, struct ddsi_domaingv *gv, const struct ddsi_guid *guid, const char *name, enum entity_kind kind, ddsrt_wctime_t tcreate, nn_vendorid_t vendorid, bool onlylocal)
+static void entity_common_init (struct entity_common *e, struct ddsi_domaingv *gv, const struct ddsi_guid *guid, enum entity_kind kind, ddsrt_wctime_t tcreate, nn_vendorid_t vendorid, bool onlylocal)
 {
   e->guid = *guid;
   e->kind = kind;
   e->tupdate = tcreate;
-  e->name = ddsrt_strdup (name ? name : "");
   e->onlylocal = onlylocal;
   e->gv = gv;
   ddsrt_mutex_init (&e->lock);
@@ -329,7 +328,6 @@ static void entity_common_fini (struct entity_common *e)
 {
   if (e->tk)
     ddsi_tkmap_instance_unref (e->gv->m_tkmap, e->tk);
-  ddsrt_free (e->name);
   ddsrt_mutex_destroy (&e->qos_lock);
   ddsrt_mutex_destroy (&e->lock);
 }
@@ -1072,7 +1070,7 @@ dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv
 
   pp = ddsrt_malloc (sizeof (*pp));
 
-  entity_common_init (&pp->e, gv, ppguid, "", EK_PARTICIPANT, ddsrt_time_wallclock (), NN_VENDORID_ECLIPSE, ((flags & RTPS_PF_ONLY_LOCAL) != 0));
+  entity_common_init (&pp->e, gv, ppguid, EK_PARTICIPANT, ddsrt_time_wallclock (), NN_VENDORID_ECLIPSE, ((flags & RTPS_PF_ONLY_LOCAL) != 0));
   pp->user_refc = 1;
   pp->builtin_refc = 0;
   pp->state = PARTICIPANT_STATE_INITIALIZING;
@@ -3399,7 +3397,7 @@ static void endpoint_common_init (struct entity_common *e, struct endpoint_commo
 #ifndef DDS_HAS_TYPE_DISCOVERY
   DDSRT_UNUSED_ARG (sertype);
 #endif
-  entity_common_init (e, gv, guid, NULL, kind, ddsrt_time_wallclock (), NN_VENDORID_ECLIPSE, pp->e.onlylocal || onlylocal);
+  entity_common_init (e, gv, guid, kind, ddsrt_time_wallclock (), NN_VENDORID_ECLIPSE, pp->e.onlylocal || onlylocal);
   c->pp = ref_participant (pp, &e->guid);
   if (group_guid)
     c->group_guid = *group_guid;
@@ -4030,7 +4028,7 @@ struct local_orphan_writer *new_local_orphan_writer (struct ddsi_domaingv *gv, d
 
   memset (&guid.prefix, 0, sizeof (guid.prefix));
   guid.entityid = entityid;
-  entity_common_init (&wr->e, gv, &guid, NULL, EK_WRITER, ddsrt_time_wallclock (), NN_VENDORID_ECLIPSE, true);
+  entity_common_init (&wr->e, gv, &guid, EK_WRITER, ddsrt_time_wallclock (), NN_VENDORID_ECLIPSE, true);
   wr->c.pp = NULL;
   memset (&wr->c.group_guid, 0, sizeof (wr->c.group_guid));
 
@@ -4645,7 +4643,7 @@ dds_return_t ddsi_new_topic
   struct topic *tp = ddsrt_malloc (sizeof (*tp));
   if (tp_out)
     *tp_out = tp;
-  entity_common_init (&tp->e, gv, tpguid, NULL, EK_TOPIC, timestamp, NN_VENDORID_ECLIPSE, pp->e.onlylocal);
+  entity_common_init (&tp->e, gv, tpguid, EK_TOPIC, timestamp, NN_VENDORID_ECLIPSE, pp->e.onlylocal);
   tp->pp = ref_participant (pp, &tp->e.guid);
 
   /* Copy QoS, merging in defaults */
@@ -5213,7 +5211,7 @@ bool new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *pp
 
   proxypp = ddsrt_malloc (sizeof (*proxypp));
 
-  entity_common_init (&proxypp->e, gv, ppguid, "", EK_PROXY_PARTICIPANT, timestamp, vendor, false);
+  entity_common_init (&proxypp->e, gv, ppguid, EK_PROXY_PARTICIPANT, timestamp, vendor, false);
   proxypp->refc = 1;
   proxypp->lease_expired = 0;
   proxypp->deleting = 0;
@@ -5352,7 +5350,7 @@ int update_proxy_participant_plist_locked (struct proxy_participant *proxypp, se
   {
     proxypp->seq = seq;
 
-    const uint64_t pmask = PP_ENTITY_NAME;
+    const uint64_t pmask = 0;
     const uint64_t qmask = QP_USER_DATA;
     ddsi_plist_t *new_plist = ddsrt_malloc (sizeof (*new_plist));
     ddsi_plist_init_empty (new_plist);
@@ -5977,7 +5975,6 @@ int delete_proxy_topic_locked (struct proxy_participant *proxypp, struct proxy_t
 
 static int proxy_endpoint_common_init (struct entity_common *e, struct proxy_endpoint_common *c, enum entity_kind kind, const struct ddsi_guid *guid, ddsrt_wctime_t tcreate, seqno_t seq, struct proxy_participant *proxypp, struct addrset *as, const ddsi_plist_t *plist)
 {
-  const char *name;
   int ret;
 
   if (is_builtin_entityid (guid->entityid, proxypp->vendor))
@@ -5985,8 +5982,7 @@ static int proxy_endpoint_common_init (struct entity_common *e, struct proxy_end
   else
     assert ((plist->qos.present & (QP_TOPIC_NAME | QP_TYPE_NAME)) == (QP_TOPIC_NAME | QP_TYPE_NAME));
 
-  name = (plist->present & PP_ENTITY_NAME) ? plist->entity_name : "";
-  entity_common_init (e, proxypp->e.gv, guid, name, kind, tcreate, proxypp->vendor, false);
+  entity_common_init (e, proxypp->e.gv, guid, kind, tcreate, proxypp->vendor, false);
   c->xqos = ddsi_xqos_dup (&plist->qos);
   c->as = ref_addrset (as);
   c->vendor = proxypp->vendor;

@@ -17,6 +17,7 @@
 #include "dds/export.h"
 #include "dds/features.h"
 #include "dds/ddsrt/sched.h"
+#include "dds/ddsrt/random.h"
 #include "dds/ddsi/ddsi_portmapping.h"
 #include "dds/ddsi/ddsi_locator.h"
 
@@ -249,6 +250,11 @@ struct ddsi_config_network_interface_listelem {
   struct ddsi_config_network_interface cfg;
 };
 
+enum ddsi_config_entity_naming_mode {
+  DDSI_ENTITY_NAMING_DEFAULT_EMPTY,
+  DDSI_ENTITY_NAMING_DEFAULT_FANCY
+};
+
 /* Expensive checks (compiled in when NDEBUG not defined, enabled only if flag set in xchecks) */
 #define DDSI_XCHECK_WHC 1u
 #define DDSI_XCHECK_RHC 2u
@@ -430,6 +436,9 @@ struct ddsi_config
   char *iceoryx_service;
   enum ddsi_shm_loglevel shm_log_lvl;  
 #endif
+
+  enum ddsi_config_entity_naming_mode entity_naming_mode;
+  ddsrt_prng_seed_t entity_naming_seed;
 
 #if defined (__cplusplus)
 public:
