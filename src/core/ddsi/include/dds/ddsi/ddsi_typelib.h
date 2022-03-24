@@ -106,12 +106,12 @@ DDS_EXPORT void ddsi_type_register_with_proxy_endpoints (struct ddsi_domaingv *g
 
 /**
  * Gets a list of proxy endpoints that are registered for the provided type
- * and stores it in the gpe_match_upd parameter. The parameter n_match_upd
+ * or for types that (indirectly) depend on this type. The resulting set of
+ * endpoints is stored in the gpe_match_upd parameter. The parameter n_match_upd
  * should contain the actual number of entries in gpe_match_upd and will
- * be updated if new entries are added. The return value is the number
- * of entries appended to the list.
+ * be updated if new entries are added.
  */
-DDS_EXPORT uint32_t ddsi_type_get_gpe_matches (struct ddsi_domaingv *gv, const struct ddsi_type *type, struct generic_proxy_endpoint ***gpe_match_upd, uint32_t *n_match_upd);
+DDS_EXPORT void ddsi_type_get_gpe_matches (struct ddsi_domaingv *gv, const struct ddsi_type *type, struct generic_proxy_endpoint ***gpe_match_upd, uint32_t *n_match_upd);
 
 /**
  * Compares the provided type lookup meta objects.

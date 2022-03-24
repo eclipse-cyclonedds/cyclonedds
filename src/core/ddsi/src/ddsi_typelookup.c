@@ -316,8 +316,8 @@ void ddsi_tl_handle_reply (struct ddsi_domaingv *gv, struct ddsi_serdata *d)
       if (ddsi_typeid_is_minimal_impl (&r.type_identifier))
       {
         GVTRACE (" resolved minimal type %s\n", ddsi_make_typeid_str_impl (&str, &r.type_identifier));
-        if (ddsi_type_get_gpe_matches (gv, type, &gpe_match_upd, &n_match_upd))
-          resolved = true;
+        ddsi_type_get_gpe_matches (gv, type, &gpe_match_upd, &n_match_upd);
+        resolved = true;
       }
       else
       {
@@ -337,9 +337,14 @@ void ddsi_tl_handle_reply (struct ddsi_domaingv *gv, struct ddsi_serdata *d)
         // ddsrt_mutex_unlock (&gv->sertypes_lock);
         // type->sertype = &st->c; // refcounted by sertype_register/lookup
 
-        if (ddsi_type_get_gpe_matches (gv, type, &gpe_match_upd, &n_match_upd))
-          resolved = true;
+        ddsi_type_get_gpe_matches (gv, type, &gpe_match_upd, &n_match_upd);
+        resolved = true;
       }
+    }
+    else
+    {
+      type->state = DDSI_TYPE_INVALID;
+
     }
   }
   if (resolved)
