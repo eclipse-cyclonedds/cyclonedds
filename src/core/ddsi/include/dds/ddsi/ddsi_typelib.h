@@ -64,7 +64,6 @@ DDS_EXPORT ddsi_typeinfo_t * ddsi_typeinfo_dup (const ddsi_typeinfo_t *src);
 DDS_EXPORT const ddsi_typeid_t *ddsi_typeinfo_minimal_typeid (const ddsi_typeinfo_t *typeinfo);
 DDS_EXPORT const ddsi_typeid_t *ddsi_typeinfo_complete_typeid (const ddsi_typeinfo_t *typeinfo);
 DDS_EXPORT bool ddsi_typeinfo_valid (const ddsi_typeinfo_t *typeinfo);
-DDS_EXPORT uint32_t ddsi_typeinfo_get_dependent_typeids (const ddsi_typeinfo_t *type_info, const ddsi_typeid_t *** dep_ids, ddsi_typeid_kind_t kind);
 
 DDS_EXPORT ddsi_typemap_t *ddsi_typemap_deser (const struct ddsi_sertype_cdr_data *ser);
 
@@ -74,8 +73,7 @@ DDS_EXPORT dds_return_t ddsi_type_ref_id_locked (struct ddsi_domaingv *gv, struc
 DDS_EXPORT dds_return_t ddsi_type_ref_local (struct ddsi_domaingv *gv, struct ddsi_type **type, const struct ddsi_sertype *sertype, ddsi_typeid_kind_t kind);
 DDS_EXPORT dds_return_t ddsi_type_ref_proxy (struct ddsi_domaingv *gv, struct ddsi_type **type, const ddsi_typeinfo_t *type_info, ddsi_typeid_kind_t kind, const ddsi_guid_t *proxy_guid);
 DDS_EXPORT const struct ddsi_sertype *ddsi_type_sertype (const struct ddsi_type *type);
-DDS_EXPORT bool ddsi_type_has_typeobj (const struct ddsi_type *type);
-DDS_EXPORT struct ddsi_typeobj *ddsi_type_get_typeobj (const struct ddsi_type *type);
+DDS_EXPORT struct ddsi_typeobj *ddsi_type_get_typeobj (struct ddsi_domaingv *gv, const struct ddsi_type *type);
 DDS_EXPORT void ddsi_type_unreg_proxy (struct ddsi_domaingv *gv, struct ddsi_type *type, const ddsi_guid_t *proxy_guid);
 DDS_EXPORT void ddsi_type_unref (struct ddsi_domaingv *gv, struct ddsi_type *type);
 DDS_EXPORT void ddsi_type_unref_sertype (struct ddsi_domaingv *gv, const struct ddsi_sertype *sertype);

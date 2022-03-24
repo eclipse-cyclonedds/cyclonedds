@@ -2772,27 +2772,17 @@ static bool topickind_qos_match_p_lock (
 #ifdef DDS_HAS_TYPE_DISCOVERY
   bool rd_type_lookup, wr_type_lookup;
   const ddsi_typeid_t *req_type_id = NULL;
-  const ddsi_typeid_t ** req_dep_ids = NULL;
-  uint32_t req_ndep_ids = 0;
   bool ret = qos_match_p (gv, rdqos, wrqos, reason, rd_type_pair, wr_type_pair, &rd_type_lookup, &wr_type_lookup);
   if (!ret)
   {
     /* In case qos_match_p returns false, one of rd_type_look and wr_type_lookup could
        be set to indicate that type information is missing. At this point, we know this
        is the case so do a type lookup request for either rd_type_pair->minimal or
-       wr_type_pair->minimal. */
+       wr_type_pair->minimal or a dependent type for one of these. */
     if (rd_type_lookup)
-    {
       req_type_id = ddsi_type_pair_minimal_id (rd_type_pair);
-      if (rdqos->present & QP_TYPE_INFORMATION)
-        req_ndep_ids = ddsi_typeinfo_get_dependent_typeids (rdqos->type_information, &req_dep_ids, DDSI_TYPEID_KIND_MINIMAL);
-    }
     else if (wr_type_lookup)
-    {
       req_type_id = ddsi_type_pair_minimal_id (wr_type_pair);
-      if (wrqos->present & QP_TYPE_INFORMATION)
-        req_ndep_ids = ddsi_typeinfo_get_dependent_typeids (wrqos->type_information, &req_dep_ids, DDSI_TYPEID_KIND_MINIMAL);
-    }
   }
 #else
   bool ret = qos_match_p (gv, rdqos, wrqos, reason);
@@ -2803,9 +2793,7 @@ static bool topickind_qos_match_p_lock (
 #ifdef DDS_HAS_TYPE_DISCOVERY
   if (req_type_id)
   {
-    (void) ddsi_tl_request_type (gv, req_type_id, req_dep_ids, req_ndep_ids);
-    if (req_dep_ids)
-      ddsrt_free ((void *) req_dep_ids);
+    (void) ddsi_tl_request_type (gv, req_type_id, true);
     return false;
   }
 #endif

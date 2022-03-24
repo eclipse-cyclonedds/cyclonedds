@@ -730,7 +730,7 @@ dds_return_t ddsi_xt_validate (struct ddsi_domaingv *gv, const struct xt_type *t
 {
   dds_return_t ret;
 
-  if (t->kind == DDSI_TYPEID_KIND_FULLY_DESCRIPTIVE || !t->has_obj)
+  if (t->kind == DDSI_TYPEID_KIND_FULLY_DESCRIPTIVE || ddsi_xt_is_unresolved (t))
     return DDS_RETCODE_OK;
   switch (t->_d)
   {
@@ -814,7 +814,6 @@ static dds_return_t add_minimal_typeobj (struct ddsi_domaingv *gv, struct xt_typ
 {
   const struct DDS_XTypes_MinimalTypeObject *mto = &to->_u.minimal;
   dds_return_t ret = DDS_RETCODE_OK;
-  xt->has_obj = 1;
   if (!xt->_d)
     xt->_d = mto->_d;
   else if (xt->_d != mto->_d)
@@ -936,7 +935,6 @@ static dds_return_t add_minimal_typeobj (struct ddsi_domaingv *gv, struct xt_typ
 
 err_tk:
 err_to:
-  xt->has_obj = 0;
   xt->_d = DDS_XTypes_TK_NONE;
   return ret;
 }
@@ -945,7 +943,6 @@ static dds_return_t add_complete_typeobj (struct ddsi_domaingv *gv, struct xt_ty
 {
   const struct DDS_XTypes_CompleteTypeObject *cto = &to->_u.complete;
   dds_return_t ret = DDS_RETCODE_OK;
-  xt->has_obj = 1;
   if (!xt->_d)
     xt->_d = cto->_d;
   else if (xt->_d != cto->_d)
@@ -1068,7 +1065,6 @@ static dds_return_t add_complete_typeobj (struct ddsi_domaingv *gv, struct xt_ty
   return ret;
 
 err_tk:
-  xt->has_obj = 0;
   xt->_d = DDS_XTypes_TK_NONE;
   return ret;
 }
@@ -1079,7 +1075,7 @@ dds_return_t ddsi_xt_type_add_typeobj (struct ddsi_domaingv *gv, struct xt_type 
   assert (xt);
   assert (to);
   assert (xt->kind == DDSI_TYPEID_KIND_MINIMAL || xt->kind == DDSI_TYPEID_KIND_COMPLETE);
-  if (xt->has_obj)
+  if (xt->_d != DDS_XTypes_TK_NONE)
     return DDS_RETCODE_OK;
 
   if (xt->kind == DDSI_TYPEID_KIND_MINIMAL)
@@ -1115,7 +1111,6 @@ dds_return_t ddsi_xt_type_init_impl (struct ddsi_domaingv *gv, struct xt_type *x
   }
   else
   {
-    xt->is_plain_collection = ti->_d >= DDS_XTypes_TI_PLAIN_SEQUENCE_SMALL && ti->_d <= DDS_XTypes_TI_PLAIN_MAP_LARGE;
     switch (ti->_d)
     {
       case DDS_XTypes_TI_STRING8_SMALL:
@@ -1805,7 +1800,7 @@ static struct xt_type *xt_type_keyholder (struct ddsi_domaingv *gv, const struct
 
 static bool xt_is_plain_collection (const struct xt_type *t)
 {
-  return t->is_plain_collection;
+  return t->_d >= DDS_XTypes_TI_PLAIN_SEQUENCE_SMALL && t->_d <= DDS_XTypes_TI_PLAIN_MAP_LARGE;
 }
 
 static bool xt_is_plain_collection_equiv_kind (const struct xt_type *t, DDS_XTypes_EquivalenceKind ek)
@@ -2396,7 +2391,7 @@ void ddsi_xt_get_typeobject_impl (const struct xt_type *xt, struct DDS_XTypes_Ty
 {
   assert (xt);
   assert (to);
-  assert (xt->has_obj);
+  assert (!ddsi_xt_is_unresolved(xt));
   assert (!xt_is_fully_descriptive (xt));
 
   memset (to, 0, sizeof (*to));

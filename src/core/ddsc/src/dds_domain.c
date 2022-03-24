@@ -1,4 +1,5 @@
 /*
+ * Copyright(c) 2022 ZettaScale Technology
  * Copyright(c) 2006 to 2019 ADLINK Technology Limited and others
  *
  * This program and the accompanying materials are made available under the
@@ -443,6 +444,9 @@ static dds_return_t wait_for_type_resolved(
   const struct ddsi_sertype *type_st;
   const ddsi_typeid_t *ddsi_type_id = type_id;
 
+  // in case a sertype is requested, dependent type must also be resolved
+  bool include_deps = sertype != NULL;
+
   if (ddsi_typeid_is_none (ddsi_type_id) || !ddsi_typeid_is_hash (ddsi_type_id))
   {
     rc = DDS_RETCODE_BAD_PARAMETER;
@@ -472,9 +476,9 @@ static dds_return_t wait_for_type_resolved(
     rc = DDS_RETCODE_OK;
     goto resolved;
   }
-  else if (type_obj != NULL && (ddsi_type_has_typeobj (type)))
+  else if (type_obj != NULL && (ddsi_type_resolved (gv, type, false)))
   {
-    * (ddsi_typeobj_t **) type_obj = ddsi_type_get_typeobj (type);
+    * (ddsi_typeobj_t **) type_obj = ddsi_type_get_typeobj (gv, type);
     rc = DDS_RETCODE_OK;
     goto resolved;
   }
@@ -485,7 +489,7 @@ static dds_return_t wait_for_type_resolved(
   }
   ddsrt_mutex_unlock (&gv->typelib_lock);
 
-  if (!ddsi_tl_request_type (gv, ddsi_type_id, NULL, 0))
+  if (!ddsi_tl_request_type (gv, ddsi_type_id, include_deps))
   {
     rc = DDS_RETCODE_PRECONDITION_NOT_MET;
     goto err_unpin;
@@ -496,13 +500,13 @@ static dds_return_t wait_for_type_resolved(
   if (sertype != NULL)
     *sertype = NULL;
   ddsrt_mutex_lock (&gv->typelib_lock);
-  while (!ddsi_type_has_typeobj (type))
+  while (!ddsi_type_resolved (gv, type, include_deps))
   {
     if (!ddsrt_cond_waituntil (&gv->typelib_resolved_cond, &gv->typelib_lock, abstimeout))
       break;
   }
 
-  if (ddsi_type_has_typeobj (type))
+  if (ddsi_type_resolved (gv, type, include_deps))
   {
     if (sertype != NULL)
     {
@@ -514,7 +518,7 @@ static dds_return_t wait_for_type_resolved(
         *sertype = ddsi_sertype_ref (type_st);
     }
     if (type_obj != NULL)
-      * (ddsi_typeobj_t **) type_obj = ddsi_type_get_typeobj (type);
+      * (ddsi_typeobj_t **) type_obj = ddsi_type_get_typeobj (gv, type);
   }
   rc = DDS_RETCODE_OK;
 
