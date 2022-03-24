@@ -407,10 +407,12 @@ static void type_add_deps (struct ddsi_domaingv *gv, struct ddsi_type *type, con
       if (ddsi_xt_type_add_typeobj (gv, &dst_dep_type->xt, dep_type_obj) == DDS_RETCODE_OK)
       {
         dst_dep_type->state = DDSI_TYPE_RESOLVED;
-        (void) ddsi_type_get_gpe_matches (gv, type, gpe_match_upd, n_match_upd);
+        ddsi_type_get_gpe_matches (gv, type, gpe_match_upd, n_match_upd);
       }
       else
+      {
         dst_dep_type->state = DDSI_TYPE_INVALID;
+      }
     }
   }
 }
@@ -660,8 +662,7 @@ static void ddsi_type_register_with_proxy_endpoints_locked (struct ddsi_domaingv
     /* For proxy topics the type is not registered (in its topic definition),
        becauses (besides that it causes some locking-order trouble) it would
        only be used when searching for topics and at that point it can easily
-       be retrieved using the type identifier via a lookup in the type_lookup
-       administration. */
+       be retrieved using the type identifier via a lookup in the typelib. */
     assert (!is_topic_entityid (guid.entityid));
 #endif
     struct entity_common *ec;
@@ -670,7 +671,6 @@ static void ddsi_type_register_with_proxy_endpoints_locked (struct ddsi_domaingv
       assert (ec->kind == EK_PROXY_READER || ec->kind == EK_PROXY_WRITER);
       struct generic_proxy_endpoint *gpe = (struct generic_proxy_endpoint *) ec;
       ddsrt_mutex_lock (&gpe->e.lock);
-      // FIXME: sertype from endpoint?
       if (gpe->c.type == NULL && type->sertype != NULL)
         gpe->c.type = ddsi_sertype_ref (type->sertype);
       ddsrt_mutex_unlock (&gpe->e.lock);
@@ -695,10 +695,10 @@ void ddsi_type_register_with_proxy_endpoints (struct ddsi_domaingv *gv, const st
   }
 }
 
-uint32_t ddsi_type_get_gpe_matches (struct ddsi_domaingv *gv, const struct ddsi_type *type, struct generic_proxy_endpoint ***gpe_match_upd, uint32_t *n_match_upd)
+static void ddsi_type_get_gpe_matches_impl (struct ddsi_domaingv *gv, const struct ddsi_type *type, struct generic_proxy_endpoint ***gpe_match_upd, uint32_t *n_match_upd)
 {
   if (!ddsi_type_proxy_guid_list_count (&type->proxy_guids))
-    return 0;
+    return;
 
   uint32_t n = 0;
   thread_state_awake (lookup_thread_state (), gv);
@@ -717,9 +717,23 @@ uint32_t ddsi_type_get_gpe_matches (struct ddsi_domaingv *gv, const struct ddsi_
     }
   }
   *n_match_upd += n;
-  ddsi_type_register_with_proxy_endpoints_locked (gv, type);
+  if (type->sertype != NULL)
+    ddsi_type_register_with_proxy_endpoints_locked (gv, type);
   thread_state_asleep (lookup_thread_state ());
-  return n;
+}
+
+void ddsi_type_get_gpe_matches (struct ddsi_domaingv *gv, const struct ddsi_type *type, struct generic_proxy_endpoint ***gpe_match_upd, uint32_t *n_match_upd)
+{
+  if (ddsi_type_resolved (gv, type, true))
+    ddsi_type_get_gpe_matches_impl (gv, type, gpe_match_upd, n_match_upd);
+  struct ddsi_type_dep tmpl, *reverse_dep = &tmpl;
+  memset (&tmpl, 0, sizeof (tmpl));
+  ddsi_typeid_copy (&tmpl.dep_type_id, &type->xt.id);
+  while ((reverse_dep = ddsrt_avl_lookup_succ (&ddsi_typedeps_reverse_treedef, &gv->typedeps_reverse, reverse_dep)) && !ddsi_typeid_compare (&type->xt.id, &reverse_dep->dep_type_id))
+  {
+    struct ddsi_type *dep_src_type = ddsi_type_lookup_locked (gv, &reverse_dep->src_type_id);
+    ddsi_type_get_gpe_matches (gv, dep_src_type, gpe_match_upd, n_match_upd);
+  }
 }
 
 bool ddsi_type_resolved (struct ddsi_domaingv *gv, const struct ddsi_type *type, bool require_deps)
