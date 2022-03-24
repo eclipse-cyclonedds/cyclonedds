@@ -555,9 +555,10 @@ static const idlc_option_t *compopts[] = {
     "(default: final)" },
   &(idlc_option_t){
     IDLC_FUNCTION, { .function = &config_default_nested }, 'n', "", "<nested>",
-    "Set the default nestedness that is used in case no nestedness"
-    "is set on a type. Possible values are true and false. "
-    "(default: true)" },
+    "Set the default nestedness that is used in the absence of nestedness specifiers on a type "
+    "(@topic/nested), or other specifiers in its hierarchy (@default_nestedness on modules), "
+    "with an unset nestedness implicitly being false. Possible values for this option are: true, "
+    "false (default: true). " },
   &(idlc_option_t){
     IDLC_FUNCTION, { .function = &config_warning }, 'W', "", "<no-warning>",
     "Enable or disable warnings. Possible values are: no-implicit-extensibility, "
