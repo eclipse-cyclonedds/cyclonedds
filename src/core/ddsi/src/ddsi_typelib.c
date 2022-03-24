@@ -193,34 +193,6 @@ static const struct DDS_XTypes_TypeObject * ddsi_typemap_typeobj (const ddsi_typ
   return NULL;
 }
 
-uint32_t ddsi_typeinfo_get_dependent_typeids (const ddsi_typeinfo_t *type_info, const ddsi_typeid_t *** dep_ids, ddsi_typeid_kind_t kind)
-{
-  assert (dep_ids);
-  assert (kind == DDSI_TYPEID_KIND_MINIMAL || kind == DDSI_TYPEID_KIND_COMPLETE);
-  int32_t cnt = (kind == DDSI_TYPEID_KIND_MINIMAL) ? type_info->x.minimal.dependent_typeid_count : type_info->x.complete.dependent_typeid_count;
-  if (cnt <= 0)
-  {
-    *dep_ids = NULL;
-    return 0;
-  }
-
-  *dep_ids = ddsrt_malloc ((uint32_t) cnt * sizeof (**dep_ids));
-  if (kind == DDSI_TYPEID_KIND_MINIMAL)
-  {
-    // FIXME: remove cast
-    for (int32_t n = 0; n < type_info->x.minimal.dependent_typeid_count; n++)
-      (*dep_ids)[n] = (ddsi_typeid_t *) &type_info->x.minimal.dependent_typeids._buffer[n].type_id;
-  }
-  else
-  {
-    // FIXME: remove cast
-    for (int32_t n = 0; n < type_info->x.complete.dependent_typeid_count; n++)
-      (*dep_ids)[n] = (ddsi_typeid_t *) &type_info->x.complete.dependent_typeids._buffer[n].type_id;
-  }
-  return (uint32_t) cnt;
-}
-
-
 ddsi_typemap_t *ddsi_typemap_deser (const struct ddsi_sertype_cdr_data *ser)
 {
   unsigned char *data;
@@ -408,43 +380,37 @@ static void type_add_deps (struct ddsi_domaingv *gv, struct ddsi_type *type, con
 {
   assert (type_info);
   assert (kind == DDSI_TYPEID_KIND_MINIMAL || kind == DDSI_TYPEID_KIND_COMPLETE);
-  if ((kind == DDSI_TYPEID_KIND_MINIMAL && type_info->x.minimal.dependent_typeid_count > 0)
-    || (kind == DDSI_TYPEID_KIND_COMPLETE && type_info->x.complete.dependent_typeid_count > 0))
+  if ((kind == DDSI_TYPEID_KIND_MINIMAL && !type_info->x.minimal.dependent_typeid_count)
+    || (kind == DDSI_TYPEID_KIND_COMPLETE && !type_info->x.complete.dependent_typeid_count))
+    return;
+
+  const dds_sequence_DDS_XTypes_TypeIdentifierWithSize *dep_ids =
+    (kind == DDSI_TYPEID_KIND_COMPLETE) ? &type_info->x.complete.dependent_typeids : &type_info->x.minimal.dependent_typeids;
+
+  for (uint32_t n = 0; dep_ids && n < dep_ids->_length; n++)
   {
-    const dds_sequence_DDS_XTypes_TypeIdentifierWithSize *dep_ids;
-    if (kind == DDSI_TYPEID_KIND_COMPLETE)
-      dep_ids = &type_info->x.complete.dependent_typeids;
-    else
-      dep_ids = &type_info->x.minimal.dependent_typeids;
+    const struct DDS_XTypes_TypeIdentifier *dep_type_id = &dep_ids->_buffer[n].type_id;
+    if (!ddsi_typeid_compare_impl (&type->xt.id.x, dep_type_id))
+      continue;
 
-    for (uint32_t n = 0; dep_ids && n < dep_ids->_length; n++)
+    struct ddsi_type *dst_dep_type = NULL;
+    ddsi_type_register_dep_impl (gv, &type->xt.id, &dst_dep_type, dep_type_id, true);
+    assert (dst_dep_type);
+    if (!type_map || ddsi_type_resolved (gv, dst_dep_type, false))
+      continue;
+
+    const struct DDS_XTypes_TypeObject *dep_type_obj = ddsi_typemap_typeobj (type_map, dep_type_id);
+    if (dep_type_obj)
     {
-      const struct DDS_XTypes_TypeIdentifier *dep_type_id = &dep_ids->_buffer[n].type_id;
-      if (!ddsi_typeid_compare_impl (&type->xt.id.x, dep_type_id))
-        continue;
-
-      struct ddsi_type *dst_dep_type = NULL;
-      ddsi_type_register_dep_impl (gv, &type->xt.id, &dst_dep_type, dep_type_id, true);
-      assert (dst_dep_type);
-      if (type_map && !dst_dep_type->xt.has_obj)
+      assert (n_match_upd);
+      assert (gpe_match_upd);
+      if (ddsi_xt_type_add_typeobj (gv, &dst_dep_type->xt, dep_type_obj) == DDS_RETCODE_OK)
       {
-        const struct DDS_XTypes_TypeObject *dep_type_obj = ddsi_typemap_typeobj (type_map, dep_type_id);
-        if (dep_type_obj)
-        {
-          assert (n_match_upd);
-          assert (gpe_match_upd);
-          if (ddsi_xt_type_add_typeobj (gv, &dst_dep_type->xt, dep_type_obj) == DDS_RETCODE_OK)
-          {
-            dst_dep_type->state = DDSI_TYPE_RESOLVED;
-            (void) ddsi_type_get_gpe_matches (gv, type, gpe_match_upd, n_match_upd);
-          }
-          else
-          {
-            // FIXME
-            dst_dep_type->state = DDSI_TYPE_INVALID;
-          }
-        }
+        dst_dep_type->state = DDSI_TYPE_RESOLVED;
+        (void) ddsi_type_get_gpe_matches (gv, type, gpe_match_upd, n_match_upd);
       }
+      else
+        dst_dep_type->state = DDSI_TYPE_INVALID;
     }
   }
 }
@@ -601,16 +567,9 @@ const struct ddsi_sertype *ddsi_type_sertype (const struct ddsi_type *type)
   return type->sertype;
 }
 
-bool ddsi_type_has_typeobj (const struct ddsi_type *type)
+struct ddsi_typeobj *ddsi_type_get_typeobj (struct ddsi_domaingv *gv, const struct ddsi_type *type)
 {
-  if (type == NULL)
-    return false;
-  return type->xt.has_obj;
-}
-
-struct ddsi_typeobj *ddsi_type_get_typeobj (const struct ddsi_type *type)
-{
-  if (!ddsi_type_has_typeobj (type))
+  if (!ddsi_type_resolved (gv, type, false))
     return NULL;
 
   ddsi_typeobj_t *to = ddsrt_malloc (sizeof (*to));
@@ -773,7 +732,8 @@ bool ddsi_type_resolved (struct ddsi_domaingv *gv, const struct ddsi_type *type,
     ddsi_typeid_copy (&tmpl.src_type_id, &type->xt.id);
     while (resolved && (dep = ddsrt_avl_lookup_succ (&ddsi_typedeps_treedef, &gv->typedeps, dep)) && !ddsi_typeid_compare (&type->xt.id, &dep->src_type_id))
     {
-      if (ddsi_xt_is_unresolved (&type->xt))
+      struct ddsi_type *dep_type = ddsi_type_lookup_locked (gv, &dep->dep_type_id);
+      if (dep_type && ddsi_xt_is_unresolved (&dep_type->xt))
         resolved = false;
     }
     ddsi_typeid_fini (&tmpl.src_type_id);

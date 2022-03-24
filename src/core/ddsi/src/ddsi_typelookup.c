@@ -54,7 +54,66 @@ static struct writer *get_typelookup_writer (const struct ddsi_domaingv *gv, uin
   return wr;
 }
 
-bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const ddsi_typeid_t *type_id, const ddsi_typeid_t ** dependent_type_ids, uint32_t dependent_type_id_count)
+static int32_t tl_request_add_deps (struct ddsi_domaingv * const gv, DDS_Builtin_TypeLookup_Request *request, int32_t cnt, const struct ddsi_type *type)
+{
+  struct ddsi_type_dep tmpl, *dep = &tmpl;
+  memset (&tmpl, 0, sizeof (tmpl));
+  ddsi_typeid_copy (&tmpl.src_type_id, &type->xt.id);
+  while (cnt >= 0 && (dep = ddsrt_avl_lookup_succ (&ddsi_typedeps_treedef, &gv->typedeps, dep)) && !ddsi_typeid_compare (&type->xt.id, &dep->src_type_id) && cnt < INT32_MAX)
+  {
+    struct ddsi_type *dep_type = ddsi_type_lookup_locked (gv, &dep->dep_type_id);
+    assert (dep_type);
+    if (dep_type->state == DDSI_TYPE_UNRESOLVED)
+    {
+      assert (cnt >= 0 && cnt < INT32_MAX);
+      request->data._u.getTypes.type_ids._length = (uint32_t) ++cnt;
+      struct DDS_XTypes_TypeIdentifier *tmp = ddsrt_realloc (request->data._u.getTypes.type_ids._buffer,
+        (uint32_t) cnt * sizeof (*request->data._u.getTypes.type_ids._buffer));
+      if (!tmp)
+      {
+        if (cnt)
+          ddsrt_free (request->data._u.getTypes.type_ids._buffer);
+        ddsi_typeid_fini (&tmpl.src_type_id);
+        return DDS_RETCODE_OUT_OF_RESOURCES;
+      }
+      request->data._u.getTypes.type_ids._buffer = tmp;
+      ddsi_typeid_copy_impl (&request->data._u.getTypes.type_ids._buffer[cnt - 1], &dep_type->xt.id.x);
+    }
+    cnt = tl_request_add_deps (gv, request, cnt, dep_type);
+  }
+  ddsi_typeid_fini (&tmpl.src_type_id);
+  return cnt;
+}
+
+static dds_return_t create_tl_request_msg (struct ddsi_domaingv * const gv, DDS_Builtin_TypeLookup_Request *request, const struct writer *wr, const struct ddsi_type *type, bool include_deps)
+{
+  int32_t cnt = 0;
+  memset (request, 0, sizeof (*request));
+  memcpy (&request->header.requestId.writer_guid.guidPrefix, &wr->e.guid.prefix, sizeof (request->header.requestId.writer_guid.guidPrefix));
+  memcpy (&request->header.requestId.writer_guid.entityId, &wr->e.guid.entityid, sizeof (request->header.requestId.writer_guid.entityId));
+  request->header.requestId.sequence_number.high = (int32_t) (type->request_seqno >> 32);
+  request->header.requestId.sequence_number.low = (uint32_t) type->request_seqno;
+  (void) snprintf (request->header.instanceName, sizeof (request->header.instanceName), "dds.builtin.TOS.%08"PRIx32 "%08"PRIx32 "%08"PRIx32 "%08"PRIx32,
+    wr->c.pp->e.guid.prefix.u[0], wr->c.pp->e.guid.prefix.u[1], wr->c.pp->e.guid.prefix.u[2], wr->c.pp->e.guid.entityid.u);
+  request->data._d = DDS_Builtin_TypeLookup_getTypes_HashId;
+
+  request->data._u.getTypes.type_ids._length = 0;
+  if (type->state == DDSI_TYPE_UNRESOLVED)
+  {
+    request->data._u.getTypes.type_ids._length = (uint32_t) ++cnt;
+    if ((request->data._u.getTypes.type_ids._buffer = ddsrt_malloc (sizeof (*request->data._u.getTypes.type_ids._buffer))) == NULL)
+      return DDS_RETCODE_OUT_OF_RESOURCES;
+    ddsi_typeid_copy_impl (&request->data._u.getTypes.type_ids._buffer[0], &type->xt.id.x);
+  }
+
+  if (include_deps)
+    cnt = tl_request_add_deps (gv, request, cnt, type);
+
+  assert (cnt <= INT32_MAX);
+  return (dds_return_t) cnt;
+}
+
+bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const ddsi_typeid_t *type_id, bool include_deps)
 {
   struct ddsi_typeid_str tidstr;
   assert (ddsi_typeid_is_hash (type_id));
@@ -67,11 +126,12 @@ bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const ddsi_typeid_t 
     ddsrt_mutex_unlock (&gv->typelib_lock);
     return false;
   }
-  else if (!dependent_type_id_count && (type->state == DDSI_TYPE_REQUESTED || type->xt.has_obj))
+
+  if (!include_deps && (type->state == DDSI_TYPE_REQUESTED || ddsi_type_resolved (gv, type, false)))
   {
     // type lookup is pending or the type is already resolved, so we'll return true
     // to indicate that the type request is done (or not required)
-    GVTRACE ("state not-new for %s\n", ddsi_make_typeid_str (&tidstr, type_id));
+    GVTRACE ("%s is %s\n", ddsi_make_typeid_str (&tidstr, type_id), type->state == DDSI_TYPE_REQUESTED ? "requested" : "resolved");
     ddsrt_mutex_unlock (&gv->typelib_lock);
     return true;
   }
@@ -85,20 +145,8 @@ bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const ddsi_typeid_t 
   }
 
   DDS_Builtin_TypeLookup_Request request;
-  memset (&request, 0, sizeof (request));
-  memcpy (&request.header.requestId.writer_guid.guidPrefix, &wr->e.guid.prefix, sizeof (request.header.requestId.writer_guid.guidPrefix));
-  memcpy (&request.header.requestId.writer_guid.entityId, &wr->e.guid.entityid, sizeof (request.header.requestId.writer_guid.entityId));
   type->request_seqno++;
-  request.header.requestId.sequence_number.high = (int32_t) (type->request_seqno >> 32);
-  request.header.requestId.sequence_number.low = (uint32_t) type->request_seqno;
-  (void) snprintf (request.header.instanceName, sizeof (request.header.instanceName), "dds.builtin.TOS.%08"PRIx32 "%08"PRIx32 "%08"PRIx32 "%08"PRIx32,
-    wr->c.pp->e.guid.prefix.u[0], wr->c.pp->e.guid.prefix.u[1], wr->c.pp->e.guid.prefix.u[2], wr->c.pp->e.guid.entityid.u);
-  request.data._d = DDS_Builtin_TypeLookup_getTypes_HashId;
-  request.data._u.getTypes.type_ids._length = 1 + dependent_type_id_count;
-  request.data._u.getTypes.type_ids._buffer = ddsrt_malloc ((dependent_type_id_count + 1) * sizeof (*request.data._u.getTypes.type_ids._buffer));
-  ddsi_typeid_copy_impl (&request.data._u.getTypes.type_ids._buffer[0], &type_id->x);
-  for (uint32_t n = 0; n < dependent_type_id_count; n++)
-    ddsi_typeid_copy_impl (&request.data._u.getTypes.type_ids._buffer[n + 1], &dependent_type_ids[n]->x);
+  create_tl_request_msg (gv, &request, wr, type, include_deps);
 
   struct ddsi_serdata *serdata = ddsi_serdata_from_sample (gv->tl_svc_request_type, SDK_DATA, &request);
   ddsrt_free (request.data._u.getTypes.type_ids._buffer);
@@ -122,23 +170,28 @@ bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const ddsi_typeid_t 
   return true;
 }
 
-static void write_typelookup_reply (struct writer *wr, seqno_t seqno, struct DDS_XTypes_TypeIdentifierTypeObjectPairSeq *types)
+static void create_tl_reply_msg (DDS_Builtin_TypeLookup_Reply *reply, const struct writer *wr, seqno_t seqno, const struct DDS_XTypes_TypeIdentifierTypeObjectPairSeq *types)
+{
+  memset (reply, 0, sizeof (*reply));
+  memcpy (&reply->header.requestId.writer_guid.guidPrefix, &wr->e.guid.prefix, sizeof (reply->header.requestId.writer_guid.guidPrefix));
+  memcpy (&reply->header.requestId.writer_guid.entityId, &wr->e.guid.entityid, sizeof (reply->header.requestId.writer_guid.entityId));
+  reply->header.requestId.sequence_number.high = (int32_t) (seqno >> 32);
+  reply->header.requestId.sequence_number.low = (uint32_t) seqno;
+  (void) snprintf (reply->header.instanceName, sizeof (reply->header.instanceName), "dds.builtin.TOS.%08"PRIx32 "%08"PRIx32 "%08"PRIx32 "%08"PRIx32,
+    wr->c.pp->e.guid.prefix.u[0], wr->c.pp->e.guid.prefix.u[1], wr->c.pp->e.guid.prefix.u[2], wr->c.pp->e.guid.entityid.u);
+  reply->return_data._d = DDS_Builtin_TypeLookup_getTypes_HashId;
+  reply->return_data._u.getType._d = DDS_RETCODE_OK;
+  reply->return_data._u.getType._u.result.types._length = types->_length;
+  reply->return_data._u.getType._u.result.types._buffer = types->_buffer;
+
+}
+
+static void write_typelookup_reply (struct writer *wr, seqno_t seqno, const struct DDS_XTypes_TypeIdentifierTypeObjectPairSeq *types)
 {
   struct ddsi_domaingv * const gv = wr->e.gv;
   DDS_Builtin_TypeLookup_Reply reply;
-  memset (&reply, 0, sizeof (reply));
-
+  create_tl_reply_msg (&reply, wr, seqno, types);
   GVTRACE (" tl-reply ");
-  memcpy (&reply.header.requestId.writer_guid.guidPrefix, &wr->e.guid.prefix, sizeof (reply.header.requestId.writer_guid.guidPrefix));
-  memcpy (&reply.header.requestId.writer_guid.entityId, &wr->e.guid.entityid, sizeof (reply.header.requestId.writer_guid.entityId));
-  reply.header.requestId.sequence_number.high = (int32_t) (seqno >> 32);
-  reply.header.requestId.sequence_number.low = (uint32_t) seqno;
-  (void) snprintf (reply.header.instanceName, sizeof (reply.header.instanceName), "dds.builtin.TOS.%08"PRIx32 "%08"PRIx32 "%08"PRIx32 "%08"PRIx32,
-    wr->c.pp->e.guid.prefix.u[0], wr->c.pp->e.guid.prefix.u[1], wr->c.pp->e.guid.prefix.u[2], wr->c.pp->e.guid.entityid.u);
-  reply.return_data._d = DDS_Builtin_TypeLookup_getTypes_HashId;
-  reply.return_data._u.getType._d = DDS_RETCODE_OK;
-  reply.return_data._u.getType._u.result.types._length = types->_length;
-  reply.return_data._u.getType._u.result.types._buffer = types->_buffer;
   struct ddsi_serdata *serdata = ddsi_serdata_from_sample (gv->tl_svc_reply_type, SDK_DATA, &reply);
   if (!serdata)
   {
@@ -195,7 +248,7 @@ void ddsi_tl_handle_request (struct ddsi_domaingv *gv, struct ddsi_serdata *d)
     }
     GVTRACE (" id %s", ddsi_make_typeid_str_impl (&tidstr, type_id));
     const struct ddsi_type *type = ddsi_type_lookup_locked_impl (gv, type_id);
-    if (type && type->xt.has_obj)
+    if (type && ddsi_type_resolved (gv, type, false))
     {
       types._buffer = ddsrt_realloc (types._buffer, (types._length + 1) * sizeof (*types._buffer));
       ddsi_typeid_copy_impl (&types._buffer[types._length].type_identifier, type_id);
@@ -251,7 +304,7 @@ void ddsi_tl_handle_reply (struct ddsi_domaingv *gv, struct ddsi_serdata *d)
          object should not be stored as there is no endpoint using this type */
       continue;
     }
-    if (type->xt.has_obj)
+    if (ddsi_type_resolved (gv, type, false))
     {
       GVTRACE (" already resolved\n");
       continue;

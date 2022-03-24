@@ -215,8 +215,6 @@ struct xt_type
 {
   ddsi_typeid_t id;
   ddsi_typeid_kind_t kind;
-  unsigned is_plain_collection : 1;
-  unsigned has_obj : 1;
   struct DDS_XTypes_StronglyConnectedComponentId sc_component_id;
 
   uint8_t _d;
