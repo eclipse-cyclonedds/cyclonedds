@@ -432,12 +432,18 @@ CU_Test(idl_annotation, default_nested)
     const char *str;
     struct { bool a; bool v; } dn[3];
     struct { bool a; bool v; } n[2];
+    bool pstate_default_nested;
   } tests[] = {
-    {         M("m1",         M("m2",        S("s1")) M("m3", S("s2"))), {{0,0},{0,0},{0,0}}, {{0,0},{0,0}} },
-    { DN()    M("m1",         M("m2",        S("s1")) M("m3", S("s2"))), {{1,1},{0,1},{0,1}}, {{0,1},{0,1}} },
-    { DN()    M("m1", DN(NO)  M("m2",        S("s1")) M("m3", S("s2"))), {{1,1},{1,0},{0,1}}, {{0,0},{0,1}} },
-    { DN(NO)  M("m1", DN(YES) M("m2",        S("s1")) M("m3", S("s2"))), {{1,0},{1,1},{0,0}}, {{0,1},{0,0}} },
-    { DN(YES) M("m1",         M("m2", N(NO)  S("s1")) M("m3", S("s2"))), {{1,1},{0,1},{0,1}}, {{1,0},{0,1}} }
+    {         M("m1",         M("m2",        S("s1")) M("m3", S("s2"))), {{0,0},{0,0},{0,0}}, {{0,0},{0,0}}, false },
+    { DN()    M("m1",         M("m2",        S("s1")) M("m3", S("s2"))), {{1,1},{0,1},{0,1}}, {{0,1},{0,1}}, false },
+    { DN()    M("m1", DN(NO)  M("m2",        S("s1")) M("m3", S("s2"))), {{1,1},{1,0},{0,1}}, {{0,0},{0,1}}, false },
+    { DN(NO)  M("m1", DN(YES) M("m2",        S("s1")) M("m3", S("s2"))), {{1,0},{1,1},{0,0}}, {{0,1},{0,0}}, false },
+    { DN(YES) M("m1",         M("m2", N(NO)  S("s1")) M("m3", S("s2"))), {{1,1},{0,1},{0,1}}, {{1,0},{0,1}}, false },
+    {         M("m1",         M("m2",        S("s1")) M("m3", S("s2"))), {{0,1},{0,1},{0,1}}, {{0,1},{0,1}}, true },
+    { DN()    M("m1",         M("m2",        S("s1")) M("m3", S("s2"))), {{1,1},{0,1},{0,1}}, {{0,1},{0,1}}, true },
+    { DN()    M("m1", DN(NO)  M("m2",        S("s1")) M("m3", S("s2"))), {{1,1},{1,0},{0,1}}, {{0,0},{0,1}}, true },
+    { DN(NO)  M("m1", DN(YES) M("m2",        S("s1")) M("m3", S("s2"))), {{1,0},{1,1},{0,0}}, {{0,1},{0,0}}, true },
+    { DN(YES) M("m1",         M("m2", N(NO)  S("s1")) M("m3", S("s2"))), {{1,1},{0,1},{0,1}}, {{1,0},{0,1}}, true },
   };
 
   static const size_t n = sizeof(tests)/sizeof(tests[0]);
@@ -449,7 +455,13 @@ CU_Test(idl_annotation, default_nested)
 
   for (size_t i=0; i < n; i++) {
     pstate = NULL;
-    ret = parse_string(IDL_FLAG_ANNOTATIONS, tests[i].str, &pstate);
+    ret = idl_create_pstate(IDL_FLAG_ANNOTATIONS, NULL, &pstate);
+    if (IDL_RETCODE_OK == ret) {
+      pstate->config.default_extensibility = IDL_FINAL;
+      pstate->config.default_nested = tests[i].pstate_default_nested;
+      ret = idl_parse_string(pstate, tests[i].str);
+    }
+
     CU_ASSERT_EQUAL(ret, IDL_RETCODE_OK);
     if (ret == IDL_RETCODE_OK) {
       m = (idl_module_t *)pstate->root;
@@ -473,7 +485,8 @@ CU_Test(idl_annotation, default_nested)
       CU_ASSERT(!tests[i].n[1].a == !s->nested.annotation);
       CU_ASSERT(s->nested.value == tests[i].n[1].v);
     }
-    idl_delete_pstate(pstate);
+    if (pstate)
+      idl_delete_pstate(pstate);
   }
 }
 #undef M
