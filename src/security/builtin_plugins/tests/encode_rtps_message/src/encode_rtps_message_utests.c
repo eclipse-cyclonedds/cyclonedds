@@ -464,7 +464,7 @@ crypto_decrypt_data(
 {
   bool result = true;
   EVP_CIPHER_CTX *ctx;
-  crypto_session_key_t session_key;
+  crypto_session_key_t session_key = {.data = {0} };
   uint32_t key_size = crypto_get_key_size(CRYPTO_TRANSFORM_KIND(transformation_kind));
   int len = 0;
 
