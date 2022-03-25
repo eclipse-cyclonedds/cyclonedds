@@ -2125,7 +2125,7 @@ int main (int argc, char *argv[])
   sigset_t sigset, osigset;
   ddsrt_thread_t sigtid;
 #endif
-  char netload_if[256];
+  char netload_if[256] = {0};
   double netload_bw = -1;
   double rss_init = 0.0, rss_final = 0.0;
   ddsrt_threadattr_init (&attr);
