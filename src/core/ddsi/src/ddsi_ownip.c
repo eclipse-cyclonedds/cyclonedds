@@ -365,7 +365,7 @@ static void log_arbitrary_selection (struct ddsi_domaingv *gv, const struct nn_i
     GVLOG (DDS_LC_INFO, "%s%s", (i == 0) ? "" : ", ", interfaces[maxq_list[i]].name);
   GVLOG (DDS_LC_INFO, "\n");
 }
-  
+
 int find_own_ip (struct ddsi_domaingv *gv)
 {
   char addrbuf[DDSI_LOCSTRLEN];
@@ -373,9 +373,12 @@ int find_own_ip (struct ddsi_domaingv *gv)
   GVLOG (DDS_LC_CONFIG, "interfaces:");
 
   size_t n_interfaces, maxq_count, *maxq_list;
-  struct nn_interface *interfaces;
-  if (!gather_interfaces (gv, &n_interfaces, &interfaces, &maxq_count, &maxq_list))
+  struct nn_interface *interfaces = NULL;
+  if (!gather_interfaces (gv, &n_interfaces, &interfaces, &maxq_count, &maxq_list)) {
+    if (interfaces)
+      ddsrt_free(interfaces);
     return 0;
+  }
 #ifndef NDEBUG
   // assert that we can identify all interfaces with an `int`, so we can
   // then just cast the size_t's to int's
