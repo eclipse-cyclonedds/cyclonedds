@@ -801,7 +801,7 @@ typedef struct struct_annotation_test {
   m_a_t members[8];
 } s_a_t;
 
-static void test_annotation_meta_info(s_a_t test)
+static void test_annotation_meta_info(const s_a_t *test)
 {
   uint32_t flags = IDL_FLAG_EXTENDED_DATA_TYPES |
                    IDL_FLAG_ANONYMOUS_TYPES |
@@ -815,7 +815,7 @@ static void test_annotation_meta_info(s_a_t test)
   CU_ASSERT_EQUAL_FATAL (ret, IDL_RETCODE_OK);
 
   memset (&descriptor, 0, sizeof (descriptor)); /* static analyzer */
-  ret = generate_test_descriptor (pstate, test.idl, &descriptor);
+  ret = generate_test_descriptor (pstate, test->idl, &descriptor);
   CU_ASSERT_EQUAL_FATAL (ret, IDL_RETCODE_OK);
 
   ret = generate_descriptor_type_meta (pstate, descriptor.topic, &dtm);
@@ -827,8 +827,8 @@ static void test_annotation_meta_info(s_a_t test)
     DDS_XTypes_CompleteStructMemberSeq mseq = tm->to_complete->_u.complete._u.struct_type.member_seq;
     for (size_t i = 0; i < mseq._length; i++)
     {
-      //CU_ASSERT_FATAL(i < sizeof(test.members)/sizeof(test.members[0]));
-      m_a_t m = test.members[i];
+      //CU_ASSERT_FATAL(i < sizeof(test->members)/sizeof(test->members[0]));
+      m_a_t m = test->members[i];
       CU_ASSERT_PTR_NOT_NULL_FATAL(mseq._buffer);
       if (!mseq._buffer)
         continue;
@@ -927,7 +927,7 @@ CU_Test(idlc_type_meta, type_obj_annotations)
     };
 
   for (size_t i = 0; i < sizeof(tests)/sizeof(tests[0]); i++)
-    test_annotation_meta_info(tests[i]);
+    test_annotation_meta_info(tests + i);
 }
 
 
