@@ -67,7 +67,7 @@ static ssize_t ddsi_udp_conn_read (ddsi_tran_conn_t conn_cmn, unsigned char * bu
   struct ddsi_domaingv * const gv = conn->m_base.m_base.gv;
   dds_return_t rc;
   ssize_t ret = 0;
-  ddsrt_msghdr_t msghdr;
+  ddsrt_msghdr_t msghdr = {.msg_flags = 0};
   union addr src;
   ddsrt_iovec_t msg_iov;
   socklen_t srclen = (socklen_t) sizeof (src);
