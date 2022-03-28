@@ -1751,6 +1751,9 @@ static int64_t check_remote_participant_permissions(uint32_t domain_id, struct p
   int64_t permissions_hdl = DDS_SECURITY_HANDLE_NIL;
   struct ddsi_domaingv *gv = pp->e.gv;
 
+  if (!sc)
+    goto no_sc;
+
   if (proxypp->plist->present & PP_PERMISSIONS_TOKEN)
       q_omg_shallow_copyin_DataHolder(&permissions_token, &proxypp->plist->permissions_token);
   else
@@ -1812,6 +1815,7 @@ no_credentials:
   ddsi_handshake_release(handshake);
 no_handshake:
   q_omg_shallow_free_DataHolder(&permissions_token);
+no_sc:
   return permissions_hdl;
 }
 
@@ -1927,6 +1931,9 @@ bool q_omg_security_register_remote_participant(struct participant *pp, struct p
   DDS_Security_ParticipantCryptoHandle crypto_handle;
   int64_t permissions_handle;
   bool notify_handshake = false;
+
+  if (!sc)
+    return false;
 
   permissions_handle = check_remote_participant_permissions(gv->config.domainId, pp, proxypp, proxypp->sec_attr->remote_identity_handle);
   if (permissions_handle == 0)
