@@ -172,6 +172,13 @@ void ddsi_tl_handle_request (struct ddsi_domaingv *gv, struct ddsi_serdata *d)
   DDS_Builtin_TypeLookup_Request req;
   memset (&req, 0, sizeof (req));
   ddsi_serdata_to_sample (d, &req, NULL, NULL);
+  if (req.data._d != DDS_Builtin_TypeLookup_getTypes_HashId)
+  {
+    GVTRACE (" handle-tl-req wr "PGUIDFMT " unknown req-type %"PRIi32, PGUID (from_guid (&req.header.requestId.writer_guid)), req.data._d);
+    ddsi_sertype_free_sample (d->type, &req, DDS_FREE_CONTENTS);
+    return;
+  }
+
   GVTRACE (" handle-tl-req wr "PGUIDFMT " seqnr %"PRIu64" ntypeids %"PRIu32, PGUID (from_guid (&req.header.requestId.writer_guid)), from_seqno (&req.header.requestId.sequence_number), req.data._u.getTypes.type_ids._length);
 
   ddsrt_mutex_lock (&gv->typelib_lock);
@@ -221,6 +228,13 @@ void ddsi_tl_handle_reply (struct ddsi_domaingv *gv, struct ddsi_serdata *d)
   DDS_Builtin_TypeLookup_Reply reply;
   memset (&reply, 0, sizeof (reply));
   ddsi_serdata_to_sample (d, &reply, NULL, NULL);
+  if (reply.return_data._d != DDS_Builtin_TypeLookup_getTypes_HashId)
+  {
+    GVTRACE (" handle-tl-reply wr "PGUIDFMT " unknown reply-type %"PRIi32, PGUID (from_guid (&reply.header.requestId.writer_guid)), reply.return_data._d);
+    ddsi_sertype_free_sample (d->type, &reply, DDS_FREE_CONTENTS);
+    return;
+  }
+
   bool resolved = false;
   ddsrt_mutex_lock (&gv->typelib_lock);
   GVTRACE ("handle-tl-reply wr "PGUIDFMT " seqnr %"PRIu64" ntypeids %"PRIu32"\n", PGUID (from_guid (&reply.header.requestId.writer_guid)), from_seqno (&reply.header.requestId.sequence_number), reply.return_data._u.getType._u.result.types._length);
