@@ -2414,8 +2414,14 @@ static int convert_assumemulticastcapable (struct ddsi_config * const cfg)
     }
     size_t addr_count;
     char ** names = split_at_comma(cfg->depr_assumeMulticastCapable, &addr_count);
-    for (size_t i = 0; i < addr_count; ++i) {
+    for (size_t i = 0; i < addr_count; ++i)
+    {
       struct ddsi_config_network_interface *iface_cfg = network_interface_find_or_append(cfg, true, names[i], NULL);
+      if (!iface_cfg)
+      {
+        ddsrt_free (names);
+        return 0;
+      }
       iface_cfg->multicast = DDSI_BOOLDEF_TRUE;
     }
     ddsrt_free (names);
