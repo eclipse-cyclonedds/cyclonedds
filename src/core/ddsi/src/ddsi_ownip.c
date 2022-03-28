@@ -273,7 +273,11 @@ static bool gather_interfaces (struct ddsi_domaingv * const gv, size_t *n_interf
   ddsrt_freeifaddrs (ifa_root);
   assert ((*n_interfaces > 0) == (*maxq_count > 0));
   if (*n_interfaces == 0)
+  {
     GVERROR ("failed to find interfaces for \"%s\"\n", gv->m_factory->m_typename);
+    ddsrt_free (*maxq_list);
+    ddsrt_free (*interfaces);
+  }
   return (*n_interfaces > 0);
 }
 
