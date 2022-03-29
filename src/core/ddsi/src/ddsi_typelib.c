@@ -348,7 +348,7 @@ static dds_return_t ddsi_type_new (struct ddsi_domaingv *gv, struct ddsi_type **
   GVTRACE (" new %p", *type);
   if ((ret = ddsi_xt_type_init_impl (gv, &(*type)->xt, type_id, type_obj)) != DDS_RETCODE_OK)
   {
-    ddsrt_free (*type);
+    ddsi_type_fini (gv, *type);
     *type = NULL;
     return ret;
   }
@@ -510,6 +510,17 @@ dds_return_t ddsi_type_ref_id_locked (struct ddsi_domaingv *gv, struct ddsi_type
   return ddsi_type_ref_id_locked_impl (gv, type, &type_id->x);
 }
 
+static bool valid_top_level_type (const struct ddsi_type *type)
+{
+  if (type->state == DDSI_TYPE_INVALID)
+    return false;
+  if (type->xt.kind != DDSI_TYPEID_KIND_COMPLETE && type->xt.kind != DDSI_TYPEID_KIND_MINIMAL)
+    return false;
+  if (!ddsi_xt_is_unresolved (&type->xt) && type->xt._d != DDS_XTypes_TK_STRUCTURE && type->xt._d != DDS_XTypes_TK_UNION)
+    return false;
+  return true;
+}
+
 dds_return_t ddsi_type_ref_local (struct ddsi_domaingv *gv, struct ddsi_type **type, const struct ddsi_sertype *sertype, ddsi_typeid_kind_t kind)
 {
   struct generic_proxy_endpoint **gpe_match_upd = NULL;
@@ -526,6 +537,7 @@ dds_return_t ddsi_type_ref_local (struct ddsi_domaingv *gv, struct ddsi_type **t
       *type = NULL;
     return DDS_RETCODE_OK;
   }
+
   ddsi_typemap_t *type_map = ddsi_sertype_typemap (sertype);
   const struct DDS_XTypes_TypeIdentifier *type_id = (kind == DDSI_TYPEID_KIND_MINIMAL) ? &type_info->x.minimal.typeid_with_size.type_id : &type_info->x.complete.typeid_with_size.type_id;
   const struct DDS_XTypes_TypeObject *type_obj = ddsi_typemap_typeobj (type_map, type_id);
@@ -533,7 +545,6 @@ dds_return_t ddsi_type_ref_local (struct ddsi_domaingv *gv, struct ddsi_type **t
   GVTRACE ("ref ddsi_type local sertype %p id %s", sertype, ddsi_make_typeid_str_impl (&tistr, type_id));
 
   ddsrt_mutex_lock (&gv->typelib_lock);
-
   struct ddsi_type *t = ddsi_type_lookup_locked_impl (gv, type_id);
   if (!t)
     ret = ddsi_type_new (gv, &t, type_id, type_obj);
@@ -548,9 +559,12 @@ dds_return_t ddsi_type_ref_local (struct ddsi_domaingv *gv, struct ddsi_type **t
   t->refc++;
   GVTRACE (" refc %"PRIu32"\n", t->refc);
 
-  if ((ret = type_add_deps (gv, t, type_info, type_map, kind, &n_match_upd, &gpe_match_upd))
+  if ((ret = valid_top_level_type (t) ? DDS_RETCODE_OK : DDS_RETCODE_BAD_PARAMETER)
+      || (ret = type_add_deps (gv, t, type_info, type_map, kind, &n_match_upd, &gpe_match_upd))
       || (ret = ddsi_xt_validate (gv, &t->xt)))
   {
+    GVWARNING ("local sertype with invalid top-level type %s\n", ddsi_make_typeid_str (&tistr, &t->xt.id));
+    ddsi_type_unref_locked (gv, t);
     ddsrt_mutex_unlock (&gv->typelib_lock);
     goto err;
   }
@@ -599,10 +613,20 @@ dds_return_t ddsi_type_ref_proxy (struct ddsi_domaingv *gv, struct ddsi_type **t
     goto err;
   t->refc++;
   GVTRACE(" refc %"PRIu32"\n", t->refc);
+  if (!valid_top_level_type (t))
+  {
+    ret = DDS_RETCODE_BAD_PARAMETER;
+    ddsi_type_unref_locked (gv, t);
+    GVTRACE (" invalid top-level type\n");
+    goto err;
+  }
 
   if ((ret = type_add_deps (gv, t, type_info, NULL, kind, NULL, NULL))
       || (ret = ddsi_xt_validate (gv, &t->xt)))
+  {
+    ddsi_type_unref_locked (gv, t);
     goto err;
+  }
 
   if (proxy_guid != NULL && !ddsi_type_proxy_guid_exists (t, proxy_guid))
   {

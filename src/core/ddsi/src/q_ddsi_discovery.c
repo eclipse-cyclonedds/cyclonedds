@@ -1808,7 +1808,8 @@ static void handle_sedp_alive_topic (const struct receiver_state *rst, seqno_t s
     else
     {
       GVLOGDISC (" NEW proxy-topic");
-      new_proxy_topic (proxypp, seq, &datap->topic_guid, type_id_minimal, type_id_complete, xqos, timestamp);
+      if (ddsi_new_proxy_topic (proxypp, seq, &datap->topic_guid, type_id_minimal, type_id_complete, xqos, timestamp) != DDS_RETCODE_OK)
+        GVLOGDISC (" failed");
     }
   }
 }
