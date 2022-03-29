@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include "dds/features.h"
 #include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/md5.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_cdrstream.h"
@@ -402,6 +403,26 @@ void ddsi_typeid_get_equivalence_hash (const ddsi_typeid_t *type_id, DDS_XTypes_
 {
   assert (ddsi_typeid_is_hash (type_id));
   memcpy (hash, type_id->x._u.equivalence_hash, sizeof (*hash));
+}
+
+dds_return_t ddsi_typeobj_get_hash_id (const struct DDS_XTypes_TypeObject *type_obj, ddsi_typeid_t *type_id)
+{
+  assert (type_obj);
+  assert (type_id);
+  if (type_obj->_d != DDS_XTypes_EK_MINIMAL && type_obj->_d != DDS_XTypes_EK_COMPLETE)
+    return DDS_RETCODE_BAD_PARAMETER;
+  dds_ostream_t os = { .m_buffer = NULL, .m_index = 0, .m_size = 0, .m_xcdr_version = CDR_ENC_VERSION_2 };
+  dds_stream_writeLE ((dds_ostreamLE_t *) &os, (const void *) type_obj, DDS_XTypes_TypeObject_desc.m_ops);
+
+  char buf[16];
+  ddsrt_md5_state_t md5st;
+  ddsrt_md5_init (&md5st);
+  ddsrt_md5_append (&md5st, (ddsrt_md5_byte_t *) os.m_buffer, os.m_index);
+  ddsrt_md5_finish (&md5st, (ddsrt_md5_byte_t *) buf);
+  type_id->x._d = type_obj->_d;
+  memcpy (type_id->x._u.equivalence_hash, buf, sizeof(DDS_XTypes_EquivalenceHash));
+  dds_ostream_fini (&os);
+  return DDS_RETCODE_OK;
 }
 
 void ddsi_typeobj_fini_impl (struct DDS_XTypes_TypeObject *typeobj)
@@ -1080,7 +1101,7 @@ dds_return_t ddsi_xt_type_add_typeobj (struct ddsi_domaingv *gv, struct xt_type 
 
   if (xt->kind == DDSI_TYPEID_KIND_MINIMAL)
     ret = (to->_d != DDS_XTypes_EK_MINIMAL) ? DDS_RETCODE_BAD_PARAMETER : add_minimal_typeobj (gv, xt, to);
-  else if (xt->kind == DDSI_TYPEID_KIND_COMPLETE)
+  else
     ret = (to->_d != DDS_XTypes_EK_COMPLETE) ? DDS_RETCODE_BAD_PARAMETER : add_complete_typeobj (gv, xt, to);
 
   if (ret != DDS_RETCODE_OK || (ret = ddsi_xt_validate (gv, xt)) != DDS_RETCODE_OK)
