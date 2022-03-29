@@ -316,6 +316,10 @@ static bool dds_writer_support_shm(const struct ddsi_config* cfg, const dds_qos_
     return false;
   }
 
+  if (qos->ignorelocal.value != DDS_IGNORELOCAL_NONE) {
+    return false;
+  }
+
   return (DDS_WRITER_QOS_CHECK_FIELDS == (qos->present & DDS_WRITER_QOS_CHECK_FIELDS) &&
           DDS_LIVELINESS_AUTOMATIC == qos->liveliness.kind &&
           DDS_INFINITY == qos->deadline.deadline);

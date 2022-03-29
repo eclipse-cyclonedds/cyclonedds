@@ -490,7 +490,11 @@ static bool dds_reader_support_shm(const struct ddsi_config* cfg, const dds_qos_
   if(!(qos->durability.kind == DDS_DURABILITY_VOLATILE ||
     qos->durability.kind == DDS_DURABILITY_TRANSIENT_LOCAL)) {
     return false;
-  }  
+  }
+
+  if (qos->ignorelocal.value != DDS_IGNORELOCAL_NONE) {
+    return false;
+  }
 
   return (DDS_READER_QOS_CHECK_FIELDS ==
               (qos->present & DDS_READER_QOS_CHECK_FIELDS) &&
