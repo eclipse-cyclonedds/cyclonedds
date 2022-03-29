@@ -3396,8 +3396,17 @@ static void endpoint_common_init (struct entity_common *e, struct endpoint_commo
 
 #ifdef DDS_HAS_TYPE_DISCOVERY
   c->type_pair = ddsrt_malloc (sizeof (*c->type_pair));
-  ddsi_type_ref_local (pp->e.gv, &c->type_pair->minimal, sertype, DDSI_TYPEID_KIND_MINIMAL);
-  ddsi_type_ref_local (pp->e.gv, &c->type_pair->complete, sertype, DDSI_TYPEID_KIND_COMPLETE);
+
+  /* Referencing the top-level type shouldn't fail at this point. The sertype that is passed,
+     and which is used to get the type_info and type_map from, is from the topic (or derived
+     from the topic's sertype using the same type descriptor). The topic's sertype is already
+     referenced (and therefore validated and in the type-lib) during topic creation. */
+  dds_return_t ret;
+  ret = ddsi_type_ref_local (pp->e.gv, &c->type_pair->minimal, sertype, DDSI_TYPEID_KIND_MINIMAL);
+  assert (ret == DDS_RETCODE_OK);
+  ret = ddsi_type_ref_local (pp->e.gv, &c->type_pair->complete, sertype, DDSI_TYPEID_KIND_COMPLETE);
+  assert (ret == DDS_RETCODE_OK);
+  (void) ret;
 #endif
 }
 
@@ -4655,6 +4664,7 @@ dds_return_t ddsi_new_topic
     ELOGDISC (tp, "}\n");
   }
   tp->definition = ref_topic_definition (gv, sertype, ddsi_typeinfo_complete_typeid (tp_qos->type_information), tp_qos, new_topic_def);
+  assert (tp->definition);
   if (new_topic_def)
     builtintopic_write_topic (gv->builtin_topic_interface, tp->definition, timestamp, true);
   ddsi_xqos_fini (tp_qos);
@@ -4694,6 +4704,7 @@ void update_topic_qos (struct topic *tp, const dds_qos_t *xqos)
   ddsi_xqos_mergein_missing (newqos, tpd->xqos, ~(uint64_t)0);
   ddsrt_mutex_lock (&gv->topic_defs_lock);
   tp->definition = ref_topic_definition_locked (gv, NULL, ddsi_type_pair_complete_id (tpd->type_pair), newqos, &new_tpd);
+  assert (tp->definition);
   unref_topic_definition_locked (tpd, ddsrt_time_wallclock());
   ddsrt_mutex_unlock (&gv->topic_defs_lock);
   if (new_tpd)
@@ -4752,8 +4763,8 @@ static struct ddsi_topic_definition * ref_topic_definition_locked (struct ddsi_d
     *is_new = false;
   } else {
     tpd = new_topic_definition (gv, sertype, qos);
-    assert (tpd != NULL);
-    *is_new = true;
+    if (tpd)
+      *is_new = true;
   }
   return tpd;
 }
@@ -5730,22 +5741,46 @@ static void set_topic_definition_hash (struct ddsi_topic_definition *tpd)
 
 static struct ddsi_topic_definition * new_topic_definition (struct ddsi_domaingv *gv, const struct ddsi_sertype *type, const struct dds_qos *qos)
 {
+  dds_return_t ret;
   assert ((qos->present & (QP_TOPIC_NAME | QP_TYPE_NAME)) == (QP_TOPIC_NAME | QP_TYPE_NAME));
   struct ddsi_topic_definition *tpd = ddsrt_malloc (sizeof (*tpd));
+  if (!tpd)
+    goto err;
   tpd->xqos = ddsi_xqos_dup (qos);
   tpd->refc = 1;
   tpd->gv = gv;
   tpd->type_pair = ddsrt_malloc (sizeof (*tpd->type_pair));
+  if (!tpd->type_pair)
+  {
+    ddsi_xqos_fini (tpd->xqos);
+    ddsrt_free (tpd);
+    tpd = NULL;
+    goto err;
+  }
   if (type != NULL)
   {
-    ddsi_type_ref_local (gv, &tpd->type_pair->minimal, type, DDSI_TYPEID_KIND_MINIMAL);
-    ddsi_type_ref_local (gv, &tpd->type_pair->complete, type, DDSI_TYPEID_KIND_COMPLETE);
+    /* This shouldn't fail, because the sertype used here is already in the typelib
+       as the types are referenced from dds_create_topic_impl */
+    ret = ddsi_type_ref_local (gv, &tpd->type_pair->minimal, type, DDSI_TYPEID_KIND_MINIMAL);
+    assert (ret == DDS_RETCODE_OK);
+    ret = ddsi_type_ref_local (gv, &tpd->type_pair->complete, type, DDSI_TYPEID_KIND_COMPLETE);
+    assert (ret == DDS_RETCODE_OK);
+    (void) ret;
   }
   else
   {
     assert (qos->present & QP_TYPE_INFORMATION);
-    ddsi_type_ref_proxy (gv, &tpd->type_pair->minimal, qos->type_information, DDSI_TYPEID_KIND_MINIMAL, NULL);
-    ddsi_type_ref_proxy (gv, &tpd->type_pair->complete, qos->type_information, DDSI_TYPEID_KIND_COMPLETE, NULL);
+    if ((ret = ddsi_type_ref_proxy (gv, &tpd->type_pair->minimal, qos->type_information, DDSI_TYPEID_KIND_MINIMAL, NULL)) != DDS_RETCODE_OK
+        || ddsi_type_ref_proxy (gv, &tpd->type_pair->complete, qos->type_information, DDSI_TYPEID_KIND_COMPLETE, NULL) != DDS_RETCODE_OK)
+    {
+      if (ret == DDS_RETCODE_OK)
+        ddsi_type_unref (gv, tpd->type_pair->minimal);
+      ddsi_xqos_fini (tpd->xqos);
+      ddsrt_free (tpd->type_pair);
+      ddsrt_free (tpd);
+      tpd = NULL;
+      goto err;
+    }
   }
 
   set_topic_definition_hash (tpd);
@@ -5760,6 +5795,7 @@ static struct ddsi_topic_definition * new_topic_definition (struct ddsi_domaingv
   }
 
   ddsrt_hh_add_absent (gv->topic_defs, tpd);
+err:
   return tpd;
 }
 
@@ -5842,19 +5878,18 @@ struct proxy_topic *lookup_proxy_topic (struct proxy_participant *proxypp, const
   return ptp;
 }
 
-void new_proxy_topic (struct proxy_participant *proxypp, seqno_t seq, const ddsi_guid_t *guid, const ddsi_typeid_t *type_id_minimal, const ddsi_typeid_t *type_id_complete, struct dds_qos *qos, ddsrt_wctime_t timestamp)
+dds_return_t ddsi_new_proxy_topic (struct proxy_participant *proxypp, seqno_t seq, const ddsi_guid_t *guid, const ddsi_typeid_t *type_id_minimal, const ddsi_typeid_t *type_id_complete, struct dds_qos *qos, ddsrt_wctime_t timestamp)
 {
   assert (proxypp != NULL);
   struct ddsi_domaingv *gv = proxypp->e.gv;
   bool new_tpd = false;
-  struct ddsi_topic_definition *tpd;
+  struct ddsi_topic_definition *tpd = NULL;
   if (!ddsi_typeid_is_none (type_id_complete))
     tpd = ref_topic_definition (gv, NULL, type_id_complete, qos, &new_tpd);
-  else
-  {
-    assert (!ddsi_typeid_is_none (type_id_minimal));
+  else if (!ddsi_typeid_is_none (type_id_minimal))
     tpd = ref_topic_definition (gv, NULL, type_id_minimal, qos, &new_tpd);
-  }
+  if (tpd == NULL)
+    return DDS_RETCODE_BAD_PARAMETER;
 #ifndef NDEBUG
   bool found_proxytp = lookup_proxy_topic (proxypp, guid);
   assert (!found_proxytp);
@@ -5871,12 +5906,13 @@ void new_proxy_topic (struct proxy_participant *proxypp, seqno_t seq, const ddsi
   if (new_tpd)
   {
     builtintopic_write_topic (gv->builtin_topic_interface, tpd, timestamp, true);
-
     ddsrt_mutex_lock (&gv->new_topic_lock);
     gv->new_topic_version++;
     ddsrt_cond_broadcast (&gv->new_topic_cond);
     ddsrt_mutex_unlock (&gv->new_topic_lock);
   }
+
+  return DDS_RETCODE_OK;
 }
 
 void update_proxy_topic (struct proxy_participant *proxypp, struct proxy_topic *proxytp, seqno_t seq, struct dds_qos *xqos, ddsrt_wctime_t timestamp)
@@ -5914,6 +5950,7 @@ void update_proxy_topic (struct proxy_participant *proxypp, struct proxy_topic *
   ddsi_xqos_mergein_missing (newqos, tpd0->xqos, ~(uint64_t) 0);
   bool new_tpd = false;
   struct ddsi_topic_definition *tpd1 = ref_topic_definition_locked (gv, NULL, ddsi_type_pair_complete_id (tpd0->type_pair), newqos, &new_tpd);
+  assert (tpd1);
   unref_topic_definition_locked (tpd0, timestamp);
   proxytp->definition = tpd1;
   ddsrt_mutex_unlock (&gv->topic_defs_lock);
@@ -5980,9 +6017,14 @@ static int proxy_endpoint_common_init (struct entity_common *e, struct proxy_end
 #ifdef DDS_HAS_TYPE_DISCOVERY
   if (plist->qos.present & QP_TYPE_INFORMATION)
   {
-    c->type_pair = ddsrt_malloc (sizeof (*c->type_pair));
-    ddsi_type_ref_proxy (proxypp->e.gv, &c->type_pair->minimal, plist->qos.type_information, DDSI_TYPEID_KIND_MINIMAL, guid);
-    ddsi_type_ref_proxy (proxypp->e.gv, &c->type_pair->complete, plist->qos.type_information, DDSI_TYPEID_KIND_COMPLETE, guid);
+    if ((c->type_pair = ddsrt_calloc (1, sizeof (*c->type_pair))) == NULL)
+    {
+      ret = DDS_RETCODE_OUT_OF_RESOURCES;
+      goto err;
+    }
+    if ((ret = ddsi_type_ref_proxy (proxypp->e.gv, &c->type_pair->minimal, plist->qos.type_information, DDSI_TYPEID_KIND_MINIMAL, guid))
+        || (ret = ddsi_type_ref_proxy (proxypp->e.gv, &c->type_pair->complete, plist->qos.type_information, DDSI_TYPEID_KIND_COMPLETE, guid)))
+      goto err;
   }
   else
   {
@@ -6000,15 +6042,26 @@ static int proxy_endpoint_common_init (struct entity_common *e, struct proxy_end
   q_omg_get_proxy_endpoint_security_info(e, &proxypp->security_info, plist, &c->security_info);
 #endif
 
-  if ((ret = ref_proxy_participant (proxypp, c)) != DDS_RETCODE_OK)
+  ret = ref_proxy_participant (proxypp, c);
+
+#ifdef DDS_HAS_TYPE_DISCOVERY
+err:
+#endif
+  if (ret != DDS_RETCODE_OK)
   {
 #ifdef DDS_HAS_TYPE_DISCOVERY
     if (c->type_pair != NULL)
     {
-      ddsi_type_unreg_proxy (proxypp->e.gv, c->type_pair->minimal, guid);
-      ddsi_type_unreg_proxy (proxypp->e.gv, c->type_pair->complete, guid);
-      ddsi_type_unref (proxypp->e.gv, c->type_pair->minimal);
-      ddsi_type_unref (proxypp->e.gv, c->type_pair->complete);
+      if (c->type_pair->minimal)
+      {
+        ddsi_type_unreg_proxy (proxypp->e.gv, c->type_pair->minimal, guid);
+        ddsi_type_unref (proxypp->e.gv, c->type_pair->minimal);
+      }
+      if (c->type_pair->complete)
+      {
+        ddsi_type_unreg_proxy (proxypp->e.gv, c->type_pair->complete, guid);
+        ddsi_type_unref (proxypp->e.gv, c->type_pair->complete);
+      }
       ddsrt_free (c->type_pair);
     }
 #endif
@@ -6016,10 +6069,9 @@ static int proxy_endpoint_common_init (struct entity_common *e, struct proxy_end
     ddsrt_free (c->xqos);
     unref_addrset (c->as);
     entity_common_fini (e);
-    return ret;
   }
 
-  return DDS_RETCODE_OK;
+  return ret;
 }
 
 static void proxy_endpoint_common_fini (struct entity_common *e, struct proxy_endpoint_common *c)

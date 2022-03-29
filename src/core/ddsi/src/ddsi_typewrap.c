@@ -1114,7 +1114,7 @@ dds_return_t ddsi_xt_type_init_impl (struct ddsi_domaingv *gv, struct xt_type *x
 {
   assert (xt);
   assert (ti);
-  dds_return_t ret = DDS_RETCODE_OK;
+  dds_return_t ret = DDS_RETCODE_OK, ret_validate = DDS_RETCODE_OK;
 
   ddsi_typeid_copy_impl (&xt->id.x, ti);
   if (!ddsi_typeid_is_hash_impl (ti))
@@ -1206,7 +1206,13 @@ dds_return_t ddsi_xt_type_init_impl (struct ddsi_domaingv *gv, struct xt_type *x
         break;
     }
   }
-  if (ret != DDS_RETCODE_OK || (ret = ddsi_xt_validate (gv, xt)) != DDS_RETCODE_OK)
+  if (ret != DDS_RETCODE_OK || (ret_validate = ddsi_xt_validate (gv, xt)) != DDS_RETCODE_OK)
+  {
+    if (ret == DDS_RETCODE_OK)
+    {
+      ddsi_xt_type_fini (gv, xt, true);
+      ret = ret_validate;
+    }
     GVWARNING ("type " PTYPEIDFMT ": ddsi_xt_type_init_impl with invalid type object\n", PTYPEID (xt->id.x));
   return ret;
 }
