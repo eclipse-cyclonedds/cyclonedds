@@ -260,15 +260,14 @@ static bool gather_interfaces (struct ddsi_domaingv * const gv, size_t *n_interf
 
     if (*n_interfaces == max_interfaces)
     {
-      size_t *new_maxq_list;
-      struct nn_interface *new_interfaces;
       max_interfaces *= 2;
-      if ((new_maxq_list = ddsrt_realloc (*maxq_list, max_interfaces * sizeof (**maxq_list))) == NULL ||
-          (new_interfaces = ddsrt_realloc (*interfaces, max_interfaces * sizeof (**interfaces))) == NULL)
-      {
+      size_t *new_maxq_list;
+      if ((new_maxq_list = ddsrt_realloc (*maxq_list, max_interfaces * sizeof (**maxq_list))) == NULL)
         goto fail;
-      }
       *maxq_list = new_maxq_list;
+      struct nn_interface *new_interfaces;
+      if ((new_interfaces = ddsrt_realloc (*interfaces, max_interfaces * sizeof (**interfaces))) == NULL)
+        goto fail;
       *interfaces = new_interfaces;
     }
 
