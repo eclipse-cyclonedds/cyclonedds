@@ -146,7 +146,13 @@ bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const ddsi_typeid_t 
 
   DDS_Builtin_TypeLookup_Request request;
   type->request_seqno++;
-  create_tl_request_msg (gv, &request, wr, type, include_deps);
+  dds_return_t n = create_tl_request_msg (gv, &request, wr, type, include_deps);
+  if (n <= 0)
+  {
+    GVTRACE (n == 0 ? "no resolvable types" : "out of memory");
+    ddsrt_mutex_unlock (&gv->typelib_lock);
+    return false;
+  }
 
   struct ddsi_serdata *serdata = ddsi_serdata_from_sample (gv->tl_svc_request_type, SDK_DATA, &request);
   ddsrt_free (request.data._u.getTypes.type_ids._buffer);
@@ -310,9 +316,8 @@ void ddsi_tl_handle_reply (struct ddsi_domaingv *gv, struct ddsi_serdata *d)
       continue;
     }
 
-    if (ddsi_xt_type_add_typeobj (gv, &type->xt, &r.type_object) == DDS_RETCODE_OK)
+    if (ddsi_type_add_typeobj (gv, type, &r.type_object) == DDS_RETCODE_OK)
     {
-      type->state = DDSI_TYPE_RESOLVED;
       if (ddsi_typeid_is_minimal_impl (&r.type_identifier))
       {
         GVTRACE (" resolved minimal type %s\n", ddsi_make_typeid_str_impl (&str, &r.type_identifier));
@@ -340,11 +345,6 @@ void ddsi_tl_handle_reply (struct ddsi_domaingv *gv, struct ddsi_serdata *d)
         ddsi_type_get_gpe_matches (gv, type, &gpe_match_upd, &n_match_upd);
         resolved = true;
       }
-    }
-    else
-    {
-      type->state = DDSI_TYPE_INVALID;
-
     }
   }
   if (resolved)

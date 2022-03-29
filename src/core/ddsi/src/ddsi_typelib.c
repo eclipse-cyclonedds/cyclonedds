@@ -328,10 +328,23 @@ struct ddsi_type * ddsi_type_lookup_locked (struct ddsi_domaingv *gv, const ddsi
 static dds_return_t ddsi_type_new (struct ddsi_domaingv *gv, struct ddsi_type **type, const struct DDS_XTypes_TypeIdentifier *type_id, const struct DDS_XTypes_TypeObject *type_obj)
 {
   dds_return_t ret;
+  struct ddsi_typeid_str tistr;
   assert (type);
   assert (!ddsi_typeid_is_none_impl (type_id));
   assert (!ddsi_type_lookup_locked_impl (gv, type_id));
-  *type = ddsrt_calloc (1, sizeof (**type));
+
+  ddsi_typeid_t type_obj_id;
+  if (type_obj && ((ret = ddsi_typeobj_get_hash_id (type_obj, &type_obj_id))
+      || (ret = (ddsi_typeid_compare_impl (&type_obj_id.x, type_id) ? DDS_RETCODE_BAD_PARAMETER : DDS_RETCODE_OK))))
+  {
+    GVWARNING ("non-matching type identifier (%s) and type object (%s)\n", ddsi_make_typeid_str_impl (&tistr, type_id), ddsi_make_typeid_str (&tistr, &type_obj_id));
+    *type = NULL;
+    return ret;
+  }
+
+  if ((*type = ddsrt_calloc (1, sizeof (**type))) == NULL)
+    return DDS_RETCODE_OUT_OF_RESOURCES;
+
   GVTRACE (" new %p", *type);
   if ((ret = ddsi_xt_type_init_impl (gv, &(*type)->xt, type_id, type_obj)) != DDS_RETCODE_OK)
   {
@@ -341,6 +354,56 @@ static dds_return_t ddsi_type_new (struct ddsi_domaingv *gv, struct ddsi_type **
   }
   ddsrt_avl_insert (&ddsi_typelib_treedef, &gv->typelib, *type);
   return DDS_RETCODE_OK;
+}
+
+static void set_type_invalid (struct ddsi_domaingv *gv, struct ddsi_type *type)
+{
+  type->state = DDSI_TYPE_INVALID;
+
+  struct ddsi_type_dep tmpl, *reverse_dep = &tmpl;
+  memset (&tmpl, 0, sizeof (tmpl));
+  ddsi_typeid_copy (&tmpl.dep_type_id, &type->xt.id);
+  while ((reverse_dep = ddsrt_avl_lookup_succ (&ddsi_typedeps_reverse_treedef, &gv->typedeps_reverse, reverse_dep)) && !ddsi_typeid_compare (&type->xt.id, &reverse_dep->dep_type_id))
+  {
+    struct ddsi_type *dep_src_type = ddsi_type_lookup_locked (gv, &reverse_dep->src_type_id);
+    set_type_invalid (gv, dep_src_type);
+  }
+}
+
+dds_return_t ddsi_type_add_typeobj (struct ddsi_domaingv *gv, struct ddsi_type *type, const struct DDS_XTypes_TypeObject *type_obj)
+{
+  dds_return_t ret = DDS_RETCODE_OK;
+  if (type->state != DDSI_TYPE_RESOLVED)
+  {
+    ddsi_typeid_t type_id;
+    int cmp = -1;
+    if ((ret = ddsi_typeobj_get_hash_id (type_obj, &type_id))
+        || (ret = (cmp = ddsi_typeid_compare (&type->xt.id, &type_id)) ? DDS_RETCODE_BAD_PARAMETER : DDS_RETCODE_OK)
+        || (ret = ddsi_xt_type_add_typeobj (gv, &type->xt, type_obj))
+    ) {
+      if (cmp == 0)
+      {
+        /* Mark this type and all types that (indirectly) depend on this type
+           invalid, because at this point we know that the type object that matches
+           the type id for this type is invalid (except in case of a hash collision
+           and a different valid type object exists with the same id) */
+        set_type_invalid (gv, type);
+      }
+      else
+      {
+        /* In case the object does not match the type id, only mark the current
+           type invalid. Types depending on this type may still be valid once
+           this type is resolved with a valid type object. */
+        type->state = DDSI_TYPE_INVALID;
+
+        /* FIXME: retry in case the type object does not match the type id? Could be a (malicious)
+           node that (intentionally) sends the wrong type object for this type-id */
+      }
+    }
+    else
+      type->state = DDSI_TYPE_RESOLVED;
+  }
+  return ret;
 }
 
 static void ddsi_type_register_dep_impl (struct ddsi_domaingv *gv, const ddsi_typeid_t *src_type_id, struct ddsi_type **dst_dep_type, const struct DDS_XTypes_TypeIdentifier *dep_tid, bool from_type_info)
@@ -376,18 +439,19 @@ void ddsi_type_register_dep (struct ddsi_domaingv *gv, const ddsi_typeid_t *src_
   ddsi_type_register_dep_impl (gv, src_type_id, dst_dep_type, dep_tid, false);
 }
 
-static void type_add_deps (struct ddsi_domaingv *gv, struct ddsi_type *type, const ddsi_typeinfo_t *type_info, const ddsi_typemap_t *type_map, ddsi_typeid_kind_t kind, uint32_t *n_match_upd, struct generic_proxy_endpoint ***gpe_match_upd)
+static dds_return_t type_add_deps (struct ddsi_domaingv *gv, struct ddsi_type *type, const ddsi_typeinfo_t *type_info, const ddsi_typemap_t *type_map, ddsi_typeid_kind_t kind, uint32_t *n_match_upd, struct generic_proxy_endpoint ***gpe_match_upd)
 {
   assert (type_info);
   assert (kind == DDSI_TYPEID_KIND_MINIMAL || kind == DDSI_TYPEID_KIND_COMPLETE);
+  dds_return_t ret = DDS_RETCODE_OK;
   if ((kind == DDSI_TYPEID_KIND_MINIMAL && !type_info->x.minimal.dependent_typeid_count)
     || (kind == DDSI_TYPEID_KIND_COMPLETE && !type_info->x.complete.dependent_typeid_count))
-    return;
+    return ret;
 
   const dds_sequence_DDS_XTypes_TypeIdentifierWithSize *dep_ids =
     (kind == DDSI_TYPEID_KIND_COMPLETE) ? &type_info->x.complete.dependent_typeids : &type_info->x.minimal.dependent_typeids;
 
-  for (uint32_t n = 0; dep_ids && n < dep_ids->_length; n++)
+  for (uint32_t n = 0; dep_ids && n < dep_ids->_length && ret == DDS_RETCODE_OK; n++)
   {
     const struct DDS_XTypes_TypeIdentifier *dep_type_id = &dep_ids->_buffer[n].type_id;
     if (!ddsi_typeid_compare_impl (&type->xt.id.x, dep_type_id))
@@ -402,19 +466,12 @@ static void type_add_deps (struct ddsi_domaingv *gv, struct ddsi_type *type, con
     const struct DDS_XTypes_TypeObject *dep_type_obj = ddsi_typemap_typeobj (type_map, dep_type_id);
     if (dep_type_obj)
     {
-      assert (n_match_upd);
-      assert (gpe_match_upd);
-      if (ddsi_xt_type_add_typeobj (gv, &dst_dep_type->xt, dep_type_obj) == DDS_RETCODE_OK)
-      {
-        dst_dep_type->state = DDSI_TYPE_RESOLVED;
+      assert (n_match_upd && gpe_match_upd);
+      if ((ret = ddsi_type_add_typeobj (gv, dst_dep_type, dep_type_obj)) == DDS_RETCODE_OK)
         ddsi_type_get_gpe_matches (gv, type, gpe_match_upd, n_match_upd);
-      }
-      else
-      {
-        dst_dep_type->state = DDSI_TYPE_INVALID;
-      }
     }
   }
+  return ret;
 }
 
 dds_return_t ddsi_type_ref_locked (struct ddsi_domaingv *gv, struct ddsi_type **type, const struct ddsi_type *src)
@@ -472,7 +529,6 @@ dds_return_t ddsi_type_ref_local (struct ddsi_domaingv *gv, struct ddsi_type **t
   ddsi_typemap_t *type_map = ddsi_sertype_typemap (sertype);
   const struct DDS_XTypes_TypeIdentifier *type_id = (kind == DDSI_TYPEID_KIND_MINIMAL) ? &type_info->x.minimal.typeid_with_size.type_id : &type_info->x.complete.typeid_with_size.type_id;
   const struct DDS_XTypes_TypeObject *type_obj = ddsi_typemap_typeobj (type_map, type_id);
-  bool resolved = false;
 
   GVTRACE ("ref ddsi_type local sertype %p id %s", sertype, ddsi_make_typeid_str_impl (&tistr, type_id));
 
@@ -482,7 +538,7 @@ dds_return_t ddsi_type_ref_local (struct ddsi_domaingv *gv, struct ddsi_type **t
   if (!t)
     ret = ddsi_type_new (gv, &t, type_id, type_obj);
   else if (type_obj)
-    ret = ddsi_xt_type_add_typeobj (gv, &t->xt, type_obj);
+    ret = ddsi_type_add_typeobj (gv, t, type_obj);
   if (ret != DDS_RETCODE_OK)
   {
     ddsrt_mutex_unlock (&gv->typelib_lock);
@@ -492,8 +548,8 @@ dds_return_t ddsi_type_ref_local (struct ddsi_domaingv *gv, struct ddsi_type **t
   t->refc++;
   GVTRACE (" refc %"PRIu32"\n", t->refc);
 
-  type_add_deps (gv, t, type_info, type_map, kind, &n_match_upd, &gpe_match_upd);
-  if ((ret = ddsi_xt_validate (gv, &t->xt)) != DDS_RETCODE_OK)
+  if ((ret = type_add_deps (gv, t, type_info, type_map, kind, &n_match_upd, &gpe_match_upd))
+      || (ret = ddsi_xt_validate (gv, &t->xt)))
   {
     ddsrt_mutex_unlock (&gv->typelib_lock);
     goto err;
@@ -503,10 +559,8 @@ dds_return_t ddsi_type_ref_local (struct ddsi_domaingv *gv, struct ddsi_type **t
   {
     t->sertype = ddsi_sertype_ref (sertype);
     GVTRACE ("type %s resolved\n", ddsi_make_typeid_str_impl (&tistr, type_id));
-    resolved = true;
-  }
-  if (resolved)
     ddsrt_cond_broadcast (&gv->typelib_resolved_cond);
+  }
   ddsrt_mutex_unlock (&gv->typelib_lock);
 
   if (gpe_match_upd != NULL)
@@ -546,8 +600,8 @@ dds_return_t ddsi_type_ref_proxy (struct ddsi_domaingv *gv, struct ddsi_type **t
   t->refc++;
   GVTRACE(" refc %"PRIu32"\n", t->refc);
 
-  type_add_deps (gv, t, type_info, NULL, kind, NULL, NULL);
-  if ((ret = ddsi_xt_validate (gv, &t->xt)) != DDS_RETCODE_OK)
+  if ((ret = type_add_deps (gv, t, type_info, NULL, kind, NULL, NULL))
+      || (ret = ddsi_xt_validate (gv, &t->xt)))
     goto err;
 
   if (proxy_guid != NULL && !ddsi_type_proxy_guid_exists (t, proxy_guid))
