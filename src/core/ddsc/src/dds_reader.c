@@ -618,10 +618,12 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
   if (qos)
     ddsi_xqos_mergein_missing (rqos, qos, DDS_READER_QOS_MASK);
   if (sub->m_entity.m_qos)
-    ddsi_xqos_mergein_missing (rqos, sub->m_entity.m_qos, ~(uint64_t)0);
+    ddsi_xqos_mergein_missing (rqos, sub->m_entity.m_qos, ~QP_ENTITY_NAME);
   if (tp->m_ktopic->qos)
-    ddsi_xqos_mergein_missing (rqos, tp->m_ktopic->qos, ~(uint64_t)0);
+    ddsi_xqos_mergein_missing (rqos, tp->m_ktopic->qos, ~QP_ENTITY_NAME);
   ddsi_xqos_mergein_missing (rqos, &ddsi_default_qos_reader, ~QP_DATA_REPRESENTATION);
+  dds_apply_entity_naming(rqos, sub->m_entity.m_qos, gv);
+
   if ((rc = dds_ensure_valid_data_representation (rqos, tp->m_stype->allowed_data_representation, false)) != 0)
     goto err_data_repr;
 

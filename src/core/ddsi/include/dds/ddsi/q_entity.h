@@ -210,7 +210,6 @@ struct entity_common {
   enum entity_kind kind;
   ddsi_guid_t guid;
   ddsrt_wctime_t tupdate; /* timestamp of last update */
-  char *name;
   uint64_t iid;
   struct ddsi_tkmap_instance *tk;
   ddsrt_mutex_t lock;

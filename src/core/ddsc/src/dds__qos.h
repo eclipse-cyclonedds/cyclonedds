@@ -24,15 +24,15 @@ extern "C" {
    QP_DEADLINE | QP_LATENCY_BUDGET | QP_OWNERSHIP | QP_LIVELINESS |     \
    QP_RELIABILITY | QP_TRANSPORT_PRIORITY | QP_LIFESPAN |               \
    QP_DESTINATION_ORDER | QP_HISTORY | QP_RESOURCE_LIMITS |             \
-   QP_DATA_REPRESENTATION)
+   QP_DATA_REPRESENTATION | QP_ENTITY_NAME)
 
 #define DDS_PARTICIPANT_QOS_MASK                                        \
   (QP_USER_DATA | QP_ADLINK_ENTITY_FACTORY | QP_CYCLONE_IGNORELOCAL |   \
-   QP_PROPERTY_LIST | QP_LIVELINESS) // liveliness is a Cyclone DDS special
+   QP_PROPERTY_LIST | QP_LIVELINESS | QP_ENTITY_NAME) // liveliness is a Cyclone DDS special
 
 #define DDS_PUBLISHER_QOS_MASK                                          \
   (QP_PARTITION | QP_PRESENTATION | QP_GROUP_DATA |                     \
-   QP_ADLINK_ENTITY_FACTORY | QP_CYCLONE_IGNORELOCAL)
+   QP_ADLINK_ENTITY_FACTORY | QP_CYCLONE_IGNORELOCAL | QP_ENTITY_NAME)
 
 #define DDS_READER_QOS_MASK                                             \
   (QP_USER_DATA | QP_DURABILITY | QP_DEADLINE | QP_LATENCY_BUDGET |     \
@@ -40,11 +40,12 @@ extern "C" {
    QP_RELIABILITY | QP_DESTINATION_ORDER | QP_HISTORY |                 \
    QP_RESOURCE_LIMITS | QP_ADLINK_READER_DATA_LIFECYCLE |               \
    QP_CYCLONE_IGNORELOCAL | QP_PROPERTY_LIST |                          \
-   QP_TYPE_CONSISTENCY_ENFORCEMENT | QP_DATA_REPRESENTATION)
+   QP_TYPE_CONSISTENCY_ENFORCEMENT | QP_DATA_REPRESENTATION |           \
+   QP_ENTITY_NAME)
 
 #define DDS_SUBSCRIBER_QOS_MASK                                         \
   (QP_PARTITION | QP_PRESENTATION | QP_GROUP_DATA |                     \
-   QP_ADLINK_ENTITY_FACTORY | QP_CYCLONE_IGNORELOCAL)
+   QP_ADLINK_ENTITY_FACTORY | QP_CYCLONE_IGNORELOCAL | QP_ENTITY_NAME)
 
 #define DDS_WRITER_QOS_MASK                                             \
   (QP_USER_DATA | QP_DURABILITY | QP_DURABILITY_SERVICE | QP_DEADLINE | \
@@ -52,9 +53,12 @@ extern "C" {
    QP_LIVELINESS | QP_RELIABILITY | QP_TRANSPORT_PRIORITY |             \
    QP_LIFESPAN | QP_DESTINATION_ORDER | QP_HISTORY |                    \
    QP_RESOURCE_LIMITS | QP_ADLINK_WRITER_DATA_LIFECYCLE |               \
-   QP_CYCLONE_IGNORELOCAL | QP_PROPERTY_LIST | QP_DATA_REPRESENTATION)
+   QP_CYCLONE_IGNORELOCAL | QP_PROPERTY_LIST | QP_DATA_REPRESENTATION | \
+   QP_ENTITY_NAME)
 
 dds_return_t dds_ensure_valid_data_representation (dds_qos_t *qos, uint32_t allowed_data_representations, bool topicqos);
+
+void dds_apply_entity_naming(dds_qos_t *qos, /* optional */ dds_qos_t *parent_qos, struct ddsi_domaingv *gv);
 
 #if defined (__cplusplus)
 }

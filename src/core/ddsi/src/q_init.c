@@ -1540,6 +1540,9 @@ int rtps_init (struct ddsi_domaingv *gv)
   ddsrt_mutex_init (&gv->privileged_pp_lock);
   gv->privileged_pp = NULL;
 
+  ddsrt_mutex_init(&gv->naming_lock);
+  ddsrt_prng_init(&gv->naming_rng, &gv->config.entity_naming_seed);
+
   /* Base participant GUID.  IID initialisation should be from a really good random
      generator and yield almost-unique numbers, and with a fallback of using process
      id, timestamp and a counter, so incorporating that should do a lot to construct
@@ -1913,6 +1916,8 @@ err_unicast_sockets:
   ddsrt_mutex_destroy (&gv->spdp_lock);
   ddsrt_mutex_destroy (&gv->lock);
   ddsrt_mutex_destroy (&gv->privileged_pp_lock);
+  ddsrt_mutex_destroy (&gv->naming_lock);
+
   entity_index_free (gv->entity_index);
   gv->entity_index = NULL;
   deleted_participants_admin_free (gv->deleted_participants);
@@ -2298,6 +2303,8 @@ void rtps_fini (struct ddsi_domaingv *gv)
   ddsrt_mutex_destroy (&gv->participant_set_lock);
   ddsrt_cond_destroy (&gv->participant_set_cond);
   free_special_types (gv);
+
+  ddsrt_mutex_destroy(&gv->naming_lock);
 
 #ifdef DDS_HAS_TOPIC_DISCOVERY
 #ifndef NDEBUG

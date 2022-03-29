@@ -24,9 +24,6 @@ CU_Test (ddsi_plist, unalias_copy_merge)
   ddsi_plist_t p0, p0memcpy;
   char *p0strs[7];
   ddsi_plist_init_empty (&p0);
-  p0.present = PP_ENTITY_NAME;
-  p0.aliased = PP_ENTITY_NAME;
-  p0.entity_name = "nemo";
   p0.qos.present = QP_PARTITION;
   p0.qos.aliased = QP_PARTITION;
   p0.qos.partition.n = 3;
@@ -61,7 +58,6 @@ CU_Test (ddsi_plist, unalias_copy_merge)
 #endif
   ddsi_plist_fini (&p0alias);
   CU_ASSERT (memcmp (&p0, &p0memcpy, sizeof (p0)) == 0);
-  CU_ASSERT_STRING_EQUAL (p0.entity_name, "nemo");
   CU_ASSERT_STRING_EQUAL (p0.qos.partition.strs[0], p0strs[0]);
   CU_ASSERT_STRING_EQUAL (p0.qos.partition.strs[1], p0strs[1]);
   CU_ASSERT_STRING_EQUAL (p0.qos.partition.strs[2], p0strs[2]);
@@ -81,8 +77,6 @@ CU_Test (ddsi_plist, unalias_copy_merge)
   CU_ASSERT (p1.aliased == 0);
   CU_ASSERT (p1.qos.present == p0.qos.present);
   CU_ASSERT (p1.qos.aliased == 0);
-  CU_ASSERT (p1.entity_name != p0.entity_name);
-  CU_ASSERT_STRING_EQUAL (p1.entity_name, p0.entity_name);
   CU_ASSERT (p1.qos.partition.n == p0.qos.partition.n);
   CU_ASSERT (p1.qos.partition.strs != p0.qos.partition.strs);
   CU_ASSERT (p1.qos.partition.strs[0] != p0.qos.partition.strs[0]);
@@ -115,9 +109,6 @@ CU_Test (ddsi_plist, unalias_copy_merge)
      added as unaliased ones */
   ddsi_plist_t p2, p2memcpy;
   ddsi_plist_init_empty (&p2);
-  p2.present = PP_ENTITY_NAME;
-  p2.aliased = PP_ENTITY_NAME;
-  p2.entity_name = "omen";
   memcpy (&p2memcpy, &p2, sizeof (p2));
   ddsi_plist_mergein_missing (&p2, &p0, p0.present, p0.qos.present);
   CU_ASSERT (memcmp (&p0, &p0memcpy, sizeof (p0)) == 0);
@@ -125,8 +116,6 @@ CU_Test (ddsi_plist, unalias_copy_merge)
   CU_ASSERT (p2.aliased == p2memcpy.aliased);
   CU_ASSERT (p2.qos.present == p0.qos.present);
   CU_ASSERT (p2.qos.aliased == p2memcpy.qos.aliased);
-  CU_ASSERT (p2.entity_name == p2memcpy.entity_name);
-  CU_ASSERT_STRING_EQUAL (p2.entity_name, "omen");
   CU_ASSERT (p2.qos.partition.n == p0.qos.partition.n);
   CU_ASSERT (p2.qos.partition.strs != p0.qos.partition.strs);
   CU_ASSERT (p2.qos.partition.strs[0] != p0.qos.partition.strs[0]);
@@ -160,8 +149,6 @@ CU_Test (ddsi_plist, unalias_copy_merge)
   CU_ASSERT (p0.aliased == 0);
   CU_ASSERT (p0.qos.present == p0memcpy.qos.present);
   CU_ASSERT (p0.qos.aliased == 0);
-  CU_ASSERT (p0.entity_name != p0memcpy.entity_name);
-  CU_ASSERT_STRING_EQUAL (p0.entity_name, p0memcpy.entity_name);
   CU_ASSERT (p0.qos.partition.n == p0memcpy.qos.partition.n);
   CU_ASSERT (p0.qos.partition.strs == p0memcpy.qos.partition.strs);
   CU_ASSERT (p0.qos.partition.strs[0] != p0strs[0]);
@@ -192,8 +179,6 @@ CU_Test (ddsi_plist, unalias_copy_merge)
   CU_ASSERT (p3.aliased == 0);
   CU_ASSERT (p3.qos.present == p0.qos.present);
   CU_ASSERT (p3.qos.aliased == 0);
-  CU_ASSERT (p3.entity_name != p0.entity_name);
-  CU_ASSERT_STRING_EQUAL (p3.entity_name, p0.entity_name);
   CU_ASSERT (p3.qos.partition.n == p0.qos.partition.n);
   CU_ASSERT (p3.qos.partition.strs != p0.qos.partition.strs);
   CU_ASSERT (p3.qos.partition.strs[0] != p0.qos.partition.strs[0]);
@@ -226,9 +211,6 @@ CU_Test (ddsi_plist, unalias_copy_merge)
      added as unaliased ones */
   ddsi_plist_t p4, p4memcpy;
   ddsi_plist_init_empty (&p4);
-  p4.present = PP_ENTITY_NAME;
-  p4.aliased = PP_ENTITY_NAME;
-  p4.entity_name = "omen";
   memcpy (&p4memcpy, &p4, sizeof (p4));
   ddsi_plist_mergein_missing (&p4, &p0, p0.present, p0.qos.present);
   CU_ASSERT (memcmp (&p0, &p0memcpy, sizeof (p0)) == 0);
@@ -236,8 +218,6 @@ CU_Test (ddsi_plist, unalias_copy_merge)
   CU_ASSERT (p4.aliased == p4memcpy.aliased);
   CU_ASSERT (p4.qos.present == p0.qos.present);
   CU_ASSERT (p4.qos.aliased == p4memcpy.qos.aliased);
-  CU_ASSERT (p4.entity_name == p4memcpy.entity_name);
-  CU_ASSERT_STRING_EQUAL (p4.entity_name, "omen");
   CU_ASSERT (p4.qos.partition.n == p0.qos.partition.n);
   CU_ASSERT (p4.qos.partition.strs != p0.qos.partition.strs);
   CU_ASSERT (p4.qos.partition.strs[0] != p0.qos.partition.strs[0]);

@@ -338,7 +338,11 @@ CU_Test(ddsc_domain_create, raw_config)
      There is a tiny discrepancy in the source information for the tracing flags, which
      is dealt with by rewriting the {0} indicating it is from the first configuration
      source to {}, indicating it is the default to match what the initializer-based
-     version prints. */
+     version prints.
+
+     There is another tiny discrepancy: the autonaming seed will be randomized if unset.
+     We exclude it from comparison.
+  */
 
   dds_entity_t domain;
   struct logsink_arg arg_xml = { .buf = NULL, .capacity = 0, .size = 0 };
@@ -363,11 +367,15 @@ CU_Test(ddsc_domain_create, raw_config)
   dds_set_trace_sink (0, NULL);
 
   {
+    const char * autonaming_conf_prefix = "config: Domain/General/EntityAutoNaming[@seed]: ";
     size_t i = 0, j = 0;
     while (i < arg_xml.size && j < arg_raw.size)
     {
       if (strcmp (arg_xml.buf[i], arg_raw.buf[j]) != 0)
-        break;
+        if (strncmp (arg_xml.buf[i], autonaming_conf_prefix, strlen(autonaming_conf_prefix)) != 0 ||
+            strncmp (arg_raw.buf[j], autonaming_conf_prefix, strlen(autonaming_conf_prefix)) != 0) {
+          break;
+        }
       i++;
       j++;
     }

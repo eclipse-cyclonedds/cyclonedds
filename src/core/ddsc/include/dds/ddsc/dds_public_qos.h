@@ -487,6 +487,21 @@ dds_qset_data_representation (
   const dds_data_representation_id_t *values);
 
 /**
+ * @brief Set the entity name.
+ *
+ * When using this QoS to initialize a participant, publisher, subscriber, reader or writer
+ * it will take the name set here. This name is visible over discovery and can be used
+ * to make sense of network in tooling.
+ *
+ * @param[in,out] qos - Pointer to a dds_qos_t structure that will store the entity name.
+ * @param[in] name - Pointer to the entity name to set.
+ */
+DDS_EXPORT void
+dds_qset_entity_name (
+  dds_qos_t * __restrict qos,
+  const char * name);
+
+/**
  * @brief Get the userdata from a qos structure
  *
  * @param[in] qos - Pointer to a dds_qos_t structure storing the policy
@@ -898,6 +913,17 @@ dds_qget_data_representation (
   const dds_qos_t * __restrict qos,
   uint32_t *n,
   dds_data_representation_id_t **values);
+
+/**
+ * @brief Get the entity name from a qos structure
+ *
+ * @param[in] qos - Pointer to a dds_qos_t structure storing the entity name
+ * @param[in,out] name - Pointer to a string that will store the returned entity name
+ *
+ * @returns - false iff any of the arguments is invalid or the qos is not present in the qos object
+ *            or if a buffer to store the name could not be allocated.
+ */
+DDS_EXPORT bool dds_qget_entity_name (const dds_qos_t * __restrict qos, char **name);
 
 #if defined (__cplusplus)
 }

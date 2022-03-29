@@ -15,8 +15,10 @@
 #include <stdbool.h>
 #include "dds/dds.h"
 #include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsi/ddsi_plist.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 #include "dds__qos.h"
 
 static void dds_qos_data_copy_in (ddsi_octetseq_t *data, const void * __restrict value, size_t sz, bool overwrite)
@@ -443,6 +445,14 @@ void dds_qset_bprop (dds_qos_t * __restrict qos, const char * name, const void *
   }
 }
 
+void dds_qset_entity_name (dds_qos_t * __restrict qos, const char * name)
+{
+  if (qos == NULL || name == NULL)
+    return;
+  qos->entity_name = dds_string_dup(name);
+  qos->present |= QP_ENTITY_NAME;
+}
+
 void dds_qset_type_consistency (dds_qos_t * __restrict qos, dds_type_consistency_kind_t kind,
   bool ignore_sequence_bounds, bool ignore_string_bounds, bool ignore_member_names, bool prevent_type_widening, bool force_type_validation)
 {
@@ -865,3 +875,25 @@ dds_return_t dds_ensure_valid_data_representation (dds_qos_t *qos, uint32_t allo
   return DDS_RETCODE_OK;
 }
 
+bool dds_qget_entity_name (const dds_qos_t * __restrict qos, char **name)
+{
+  if (qos == NULL || name == NULL || !(qos->present & QP_ENTITY_NAME))
+    return false;
+
+  *name = dds_string_dup (qos->entity_name);
+  return *name != NULL;
+}
+
+void dds_apply_entity_naming(dds_qos_t *qos, /* optional */ dds_qos_t *parent_qos, struct ddsi_domaingv *gv) {
+  if (gv->config.entity_naming_mode == DDSI_ENTITY_NAMING_DEFAULT_FANCY && !(qos->present & QP_ENTITY_NAME)) {
+    char name_buf[16];
+    ddsrt_mutex_lock(&gv->naming_lock);
+    ddsrt_prng_random_name(&gv->naming_rng, name_buf, sizeof(name_buf));
+    ddsrt_mutex_unlock(&gv->naming_lock);
+    if (parent_qos && parent_qos->present & QP_ENTITY_NAME) {
+      // Copy the parent prefix
+      memcpy(name_buf, parent_qos->entity_name, strnlen(parent_qos->entity_name, 3));
+    }
+    dds_qset_entity_name(qos, name_buf);
+  }
+}

@@ -171,6 +171,13 @@ void gendef_pf_retransmit_merging (FILE *out, void *parent, struct cfgelem const
 void gendef_pf_sched_class (FILE *out, void *parent, struct cfgelem const * const cfgelem) {
   gendef_pf_int (out, parent, cfgelem);
 }
+void gendef_pf_entity_naming_mode (FILE *out, void *parent, struct cfgelem const * const cfgelem) {
+  gendef_pf_int (out, parent, cfgelem);
+}
+void gendef_pf_random_seed (FILE *out, void *parent, struct cfgelem const * const cfgelem) {
+  (void) out; (void) parent; (void) cfgelem;
+  // skipped on purpose: set explicitly
+}
 void gendef_pf_transport_selector (FILE *out, void *parent, struct cfgelem const * const cfgelem) {
   gendef_pf_int (out, parent, cfgelem);
 }

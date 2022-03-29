@@ -81,6 +81,23 @@ static struct cfgelem interfaces_cfgelems[] = {
   END_MARKER
 };
 
+static struct cfgelem entity_autonaming_attributes[] = {
+  STRING("seed", NULL, 1, "",
+    MEMBER(entity_naming_seed),
+    FUNCTIONS(0, uf_random_seed, 0, pf_random_seed),
+    DESCRIPTION(
+      "<p>Provide an initial seed for the entity naming. Your string will be "
+      "hashed to provided the random state. When provided the same sequence of "
+      "names is generated every run. If you create your entities in the same "
+      "order this will ensure they are the same between runs. If you run multiple "
+      "nodes set this via environment variable to ensure every node generates "
+      "unique names. When left empty (the default) a random starting seed is "
+      "chosen.</p>"
+    )),
+  END_MARKER
+};
+
+
 static struct cfgelem general_cfgelems[] = {
   STRING("MulticastRecvNetworkInterfaceAddresses", NULL, 1, "preferred",
     MEMBER(networkRecvAddressStrings),
@@ -276,6 +293,17 @@ static struct cfgelem general_cfgelems[] = {
     DESCRIPTION(
       "<p>When enabled, use selected network interfaces in parallel for "
       "redundancy.</p>")),
+  ENUM("EntityAutoNaming", entity_autonaming_attributes, 1, "empty",
+    MEMBER(entity_naming_mode),
+    FUNCTIONS(0, uf_entity_naming_mode, 0, pf_entity_naming_mode),
+    DESCRIPTION(
+      "<p>This element specifies the entity autonaming mode. By default set "
+      "to 'empty' which means no name will be set (but you can still use "
+      "dds_qset_entity_name). When set to 'fancy' participants, publishers, "
+      "subscribers, writers and readers will get randomly generated names. "
+      "An autonamed entity will share a 3-letter prefix with their parent "
+      "entity.</p>"),
+    VALUES("empty","fancy")),
   END_MARKER
 };
 

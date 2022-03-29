@@ -22,6 +22,7 @@
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/fibheap.h"
 #include "dds/ddsrt/avl.h"
+#include "dds/ddsrt/random.h"
 
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/ddsi_ownip.h"
@@ -344,6 +345,9 @@ struct ddsi_domaingv {
   bool handshake_include_optional;
 #endif
 
+  /* naming */
+  ddsrt_mutex_t naming_lock;
+  ddsrt_prng_t naming_rng;
 };
 
 #if defined (__cplusplus)
