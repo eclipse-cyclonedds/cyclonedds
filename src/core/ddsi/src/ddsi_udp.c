@@ -131,6 +131,10 @@ static ssize_t ddsi_udp_conn_write (ddsi_tran_conn_t conn_cmn, const ddsi_locato
   ssize_t nsent = -1;
   unsigned retry = 2;
   int sendflags = 0;
+#if defined _WIN32 && !defined WINCE
+  ddsrt_mtime_t timeout = DDSRT_MTIME_NEVER;
+  ddsrt_mtime_t tnow = { 0 };
+#endif
   union addr dstaddr;
   assert (niov <= INT_MAX);
   ddsi_ipaddr_from_loc (&dstaddr.x, dst);
@@ -149,17 +153,39 @@ static ssize_t ddsi_udp_conn_write (ddsi_tran_conn_t conn_cmn, const ddsi_locato
 #if MSG_NOSIGNAL && !LWIP_SOCKET
   sendflags |= MSG_NOSIGNAL;
 #endif
-  do {
-    rc = ddsrt_sendmsg (conn->m_sock, &msg, sendflags, &nsent);
-#if defined _WIN32 && !defined WINCE
-    if (rc == DDS_RETCODE_TRY_AGAIN)
+  rc = ddsrt_sendmsg (conn->m_sock, &msg, sendflags, &nsent);
+  if (rc != DDS_RETCODE_OK)
+  {
+    // IIRC, NOT_ALLOWED is something that spuriously happens on some old versions of Linux i.c.w. firewalls
+    // details never understood properly, but retrying a few times helped make it behave a bit better
+    //
+    // TRY_AGAIN should only occur on Windows because on Linux we can (and do) use blocking sockets.  It may
+    // be that currently the socket is also blocking on Windows, because we currently separate create sockets
+    // for transmitting data, but it would actually be preferable to go back to re-using the socket used for
+    // receiving unicast traffic if there is only a single network interface (less resource usage, easier
+    // for firewall configuration) and so it makes sense to keep the code.
+    while (rc == DDS_RETCODE_INTERRUPTED || rc == DDS_RETCODE_TRY_AGAIN || (rc == DDS_RETCODE_NOT_ALLOWED && retry-- > 0))
     {
-      WSANETWORKEVENTS ev;
-      WaitForSingleObject (conn->m_sockEvent, INFINITE);
-      WSAEnumNetworkEvents (conn->m_sock, conn->m_sockEvent, &ev);
-    }
+#if defined _WIN32 && !defined WINCE
+      if (rc == DDS_RETCODE_TRY_AGAIN)
+      {
+        // I've once seen a case where a passing INFINITE could cause WaitForSingleObject to block
+        // for hours on end on a functioning Ethernet.  That's definitely not what one would expect,
+        // the best guess is that it was a hardware or driver issue.  Better to drop the datagram
+        // after a little while, the upper layers allow for packet loss anyway.
+        tnow = ddsrt_time_monotonic ();
+        if (timeout.v == DDSRT_MTIME_NEVER.v)
+          timeout = ddsrt_mtime_add_duration (tnow, DDS_MSECS (100));
+        else if (tnow.v >= timeout.v)
+          break;
+        WSANETWORKEVENTS ev;
+        WaitForSingleObject (conn->m_sockEvent, 5);
+        WSAEnumNetworkEvents (conn->m_sock, conn->m_sockEvent, &ev);
+      }
 #endif
-  } while (rc == DDS_RETCODE_INTERRUPTED || rc == DDS_RETCODE_TRY_AGAIN || (rc == DDS_RETCODE_NOT_ALLOWED && retry-- > 0));
+      rc = ddsrt_sendmsg (conn->m_sock, &msg, sendflags, &nsent);
+    }
+  }
 
   if (nsent > 0 && gv->pcap_fp)
   {
