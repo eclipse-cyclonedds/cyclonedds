@@ -3,7 +3,7 @@ set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/Modules")
 include(HashUtilities)
 
 check_hashes(
-    OUTVAR _test
+    _test
     HASH_FILES ${HASH_FILES}
     APPEND_FILES ${APPEND_FILES}
 )
