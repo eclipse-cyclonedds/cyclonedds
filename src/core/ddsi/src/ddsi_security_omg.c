@@ -388,6 +388,7 @@ static void unregister_and_free_pending_match(const struct ddsi_domaingv * gv, d
     const char *ename;
     bool r = true;
 
+    assert(sc);
     switch (match->kind)
     {
     case EK_PROXY_PARTICIPANT:
@@ -774,16 +775,14 @@ static void release_plugins (struct ddsi_domaingv *gv, dds_security_context *sc)
 void q_omg_security_stop (struct ddsi_domaingv *gv)
 {
   dds_security_context *sc = gv->security_context;
+  assert(sc);
 
   ddsi_handshake_admin_stop(gv);
 
-  if (sc)
-  {
-    if (sc->authentication_context)
-      sc->authentication_context->set_listener (sc->authentication_context, NULL, NULL);
-    if (sc->access_control_context)
-      sc->access_control_context->set_listener (sc->access_control_context, NULL, NULL);
-  }
+  if (sc->authentication_context)
+    sc->authentication_context->set_listener (sc->authentication_context, NULL, NULL);
+  if (sc->access_control_context)
+    sc->access_control_context->set_listener (sc->access_control_context, NULL, NULL);
 }
 
 void q_omg_security_deinit (struct dds_security_context *sc)
@@ -794,6 +793,7 @@ void q_omg_security_deinit (struct dds_security_context *sc)
 void q_omg_security_free (struct ddsi_domaingv *gv)
 {
   dds_security_context *sc = gv->security_context;
+  assert(sc);
 
   ddsrt_avl_cfree(&participant_index_treedef, &sc->partiticpant_index.participants, 0);
   ddsrt_mutex_destroy(&sc->partiticpant_index.lock);
@@ -1071,6 +1071,7 @@ dds_return_t q_omg_security_check_create_participant(struct participant *pp, uin
   ddsi_guid_t candidate_guid;
   ddsi_guid_t adjusted_guid;
 
+  /* Security context may be NULL at this point if participant has no security configured */
   if (!sc)
     return DDS_RETCODE_OK;
 
@@ -1218,9 +1219,9 @@ static void cleanup_participant_sec_attributes(void *arg)
   struct ddsi_domaingv * gv = info->gv;
   dds_security_context *sc = gv->security_context;
   struct participant_sec_attributes *attr;
-
   struct pp_proxypp_match *pm;
 
+  assert(sc);
   if ((attr = participant_index_remove(sc, info->crypto_handle)) == NULL)
     return;
 
@@ -1751,9 +1752,7 @@ static int64_t check_remote_participant_permissions(uint32_t domain_id, struct p
   int64_t permissions_hdl = DDS_SECURITY_HANDLE_NIL;
   struct ddsi_domaingv *gv = pp->e.gv;
 
-  if (!sc)
-    goto no_sc;
-
+  assert (sc);
   if (proxypp->plist->present & PP_PERMISSIONS_TOKEN)
       q_omg_shallow_copyin_DataHolder(&permissions_token, &proxypp->plist->permissions_token);
   else
@@ -1815,7 +1814,6 @@ no_credentials:
   ddsi_handshake_release(handshake);
 no_handshake:
   q_omg_shallow_free_DataHolder(&permissions_token);
-no_sc:
   return permissions_hdl;
 }
 
@@ -2263,7 +2261,7 @@ static void send_reader_crypto_tokens(struct reader *rd, struct proxy_writer *pw
   bool r;
 
   GVTRACE("send reader tokens "PGUIDFMT" to writer "PGUIDFMT"\n", PGUID(rd->e.guid), PGUID(pwr->e.guid));
-
+  assert(sc);
   r = sc->crypto_context->crypto_key_exchange->create_local_datareader_crypto_tokens(sc->crypto_context->crypto_key_exchange, &tokens, local_crypto, remote_crypto, &exception);
   if (!r)
     EXCEPTION_ERROR(gv, &exception,"Failed to create local reader crypto tokens "PGUIDFMT" for remote writer "PGUIDFMT, PGUID(rd->e.guid), PGUID(pwr->e.guid));
@@ -2290,6 +2288,9 @@ static bool q_omg_security_register_remote_writer_match(struct proxy_writer *pwr
   struct proxypp_pp_match *proxypp_match;
   bool send_tokens = false;
   bool allowed = false;
+
+  if (!sc)
+    return false;
 
   if ((proxypp_match = get_pp_proxypp_match_if_authenticated(pp, proxypp, pwr->e.guid.entityid)) == NULL)
     return false;
@@ -2415,6 +2416,7 @@ void q_omg_security_deregister_remote_writer_match(const struct ddsi_domaingv *g
 
   if (m->crypto_handle != 0)
   {
+    assert(sc);
     if (!sc->crypto_context->crypto_key_factory->unregister_datawriter(sc->crypto_context->crypto_key_factory, m->crypto_handle, &exception))
       EXCEPTION_ERROR(gv, &exception, "Failed to unregister remote writer "PGUIDFMT" for reader "PGUIDFMT, PGUID(m->pwr_guid), PGUID(*rd_guid));
   }
@@ -2426,7 +2428,10 @@ void q_omg_security_deregister_remote_writer(const struct proxy_writer *pwr)
   struct dds_security_context *sc = gv->security_context;
 
   if (q_omg_proxy_participant_is_secure(pwr->c.proxypp))
+  {
+    assert(sc);
     clear_pending_matches_by_remote_guid(sc, &sc->security_matches, &pwr->e.guid);
+  }
 }
 
 bool q_omg_security_check_remote_reader_permissions(const struct proxy_reader *prd, uint32_t domain_id, struct participant *pp, bool *relay_only)
@@ -2573,6 +2578,7 @@ void q_omg_security_deregister_remote_reader_match(const struct ddsi_domaingv *g
 
   if (m->crypto_handle != 0)
   {
+    assert(sc);
     if (!sc->crypto_context->crypto_key_factory->unregister_datareader(sc->crypto_context->crypto_key_factory, m->crypto_handle, &exception))
       EXCEPTION_ERROR(gv, &exception, "Failed to unregister remote reader "PGUIDFMT" for writer "PGUIDFMT, PGUID(m->prd_guid), PGUID(*wr_guid));
   }
@@ -2584,7 +2590,10 @@ void q_omg_security_deregister_remote_reader(const struct proxy_reader *prd)
   struct dds_security_context *sc = gv->security_context;
 
   if (q_omg_proxy_participant_is_secure(prd->c.proxypp))
+  {
+    assert(sc);
     clear_pending_matches_by_remote_guid(sc, &sc->security_matches, &prd->e.guid);
+  }
 }
 
 static void send_writer_crypto_tokens(struct writer *wr, struct proxy_reader *prd, DDS_Security_DatawriterCryptoHandle local_crypto, DDS_Security_DatareaderCryptoHandle remote_crypto)
@@ -2596,7 +2605,7 @@ static void send_writer_crypto_tokens(struct writer *wr, struct proxy_reader *pr
   bool r;
 
   GVTRACE("send writer tokens "PGUIDFMT" to reader "PGUIDFMT"\n", PGUID(wr->e.guid), PGUID(prd->e.guid));
-
+  assert(sc);
   r = sc->crypto_context->crypto_key_exchange->create_local_datawriter_crypto_tokens(sc->crypto_context->crypto_key_exchange, &tokens, local_crypto, remote_crypto, &exception);
   if (!r)
     EXCEPTION_ERROR(gv, &exception,"Failed to create local writer crypto tokens "PGUIDFMT" for remote reader "PGUIDFMT, PGUID(wr->e.guid), PGUID(prd->e.guid));
@@ -2634,7 +2643,7 @@ static bool q_omg_security_register_remote_reader_match(struct proxy_reader *prd
   {
     /* The builtin ParticipantVolatileSecure endpoints do not exchange tokens.
      * Simulate that we already got them. */
-
+    assert(sc);
     *crypto_handle = sc->crypto_context->crypto_key_factory->register_matched_remote_datareader(
         sc->crypto_context->crypto_key_factory, wr->sec_attr->crypto_handle, proxypp->sec_attr->crypto_handle, proxypp_match->shared_secret, relay_only, &exception);
     if (*crypto_handle != 0)
@@ -2653,6 +2662,7 @@ static bool q_omg_security_register_remote_reader_match(struct proxy_reader *prd
     /* Generate writer crypto info. */
     if (pending_match->crypto_handle == 0)
     {
+      assert(sc);
       *crypto_handle = sc->crypto_context->crypto_key_factory->register_matched_remote_datareader(
           sc->crypto_context->crypto_key_factory, wr->sec_attr->crypto_handle, proxypp->sec_attr->crypto_handle, proxypp_match->shared_secret, relay_only, &exception);
       if (*crypto_handle == 0)
@@ -3219,6 +3229,7 @@ bool q_omg_security_encode_rtps_message (const struct ddsi_domaingv *gv, int64_t
   assert (src_len <= UINT32_MAX);
   assert (dst_buf);
   assert (dst_len);
+  assert (sc);
 
   if (dst_handle != 0)
   {

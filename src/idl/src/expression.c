@@ -437,7 +437,7 @@ static idl_intval_t bitval(const idl_const_expr_t *const_expr)
 
   const idl_bit_value_t *val = (idl_bit_value_t *)const_expr;
 
-  return (idl_intval_t){.type = IDL_ULLONG, .value = {.ullng = (uint64_t) (0x1 << val->position.value)} };
+  return (idl_intval_t){.type = IDL_ULLONG, .value = {.ullng = (uint64_t) (0x1ull << val->position.value)} };
 }
 
 #undef u
