@@ -75,7 +75,7 @@ This type system also supports type evolution.
 The interoperable networking protocol and standard C++ API make it easy to build systems that integrate multiple DDS implementations.
 Zero-configuration discovery is also included in the standard and supported by all implementations.
 
-DDS actually brings more: publish-subscribe messaging is a nice abstraction over "ordinary" networking, but it doesn't affect how one *thinks* about systems.
+DDS actually brings more: publish-subscribe messaging is a nice abstraction over "ordinary" networking, but plain publish-subscribe doesn't affect how one *thinks* about systems.
 A very powerful architecture that truly changes the perspective on distributed systems is that of the "shared data space", in itself an old idea, and really just a distributed database.
 Most shared data space designs have failed miserably in real-time control systems because they provided strong consistency guarantees and sacrificed too much performance and flexibility.
 The *eventually consistent* shared data space of DDS has been very successful in helping with building systems that need to satisfy many "ilities": dependability, maintainability, extensibility, upgradeability, ...
@@ -139,8 +139,8 @@ There are some configuration options specified using CMake defines in addition t
 * `-DENABLE_SECURITY=NO`: to not build the security interfaces and hooks in the core code, nor the plugins (one can enable security without OpenSSL present, you'll just have to find plugins elsewhere in that case)
 * `-DENABLE_LIFESPAN=NO`: to exclude support for finite lifespans QoS
 * `-DENABLE_DEADLINE_MISSED=NO`: to exclude support for finite deadline QoS settings
-* `-DENABLE_TYPE_DISCOVERY=YES`: to include support for type discovery and checking type compatibility
-* `-DENABLE_TOPIC_DISCOVERY=YES`: to include support for topic discovery (requires type discovery)
+* `-DENABLE_TYPE_DISCOVERY=YES`: to include support for type discovery and checking type compatibility (likely to become enabled by default in the future)
+* `-DENABLE_TOPIC_DISCOVERY=YES`: to include support for topic discovery (requires `-DENABLE_TYPE_DISCOVERY=YES`; somewhat likely to become enabled by default in the future)
 
 ### For application developers
 
