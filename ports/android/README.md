@@ -16,7 +16,7 @@ document.
 [1]: https://developer.android.com/studio
 [2]: https://stackoverflow.com/questions/43923996/adb-root-is-not-working-on-emulator-cannot-run-as-root-in-production-builds
 
- * Download [Android Studio](1) and extract the archive.
+ * Download [Android Studio][1] and extract the archive.
 
  * Run `android-studio/bin/studio.sh` to launch the *Android Studio Setup
    Wizard* and install the *Android SDK*. Select the *Android Virtual Device*
@@ -38,7 +38,7 @@ document.
    to download the emulator image. When the download is finished, select *Q*,
    click *Next*, then *Finish* to create the *Android Virtual Device (AVD)*.
 
-> As can be read from [this StackOverflow post](2), it is important to NOT
+> As can be read from [this StackOverflow post][2], it is important to NOT
 > select a *Google Play* image, as these images do not allow you to gain
 > root privileges.
 
@@ -48,9 +48,9 @@ document.
 [3]: https://developer.android.com/ndk/guides/cmake
 [4]: https://developer.android.com/ndk/guides/cmake#variables
 
-The [Android NDK supports CMake](3) via a toolchain file. Build parameters
+The [Android NDK supports CMake][3] via a toolchain file. Build parameters
 such as ABI can specified on the command line. For the complete list of
-supported variables, consult the [Toolchain Arguments](4) section.
+supported variables, consult the [Toolchain Arguments][4] section.
 
 ```
 $ cd cyclonedds
@@ -137,7 +137,7 @@ $ ip rule add from all lookup main pref 99
 
  * You should now be able to ping the host from the emulator and vice versa.
 
-> The [KDE Community Wiki](5) is an excellent source of information on the
+> The [KDE Community Wiki][5] is an excellent source of information on the
 > Android emulator. The second-to-last instruction stems from there and was
 > vital to establish communication between the emulator and the host.
 
