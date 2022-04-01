@@ -267,3 +267,117 @@ dds_return_t deliver_locally_allinsync (struct ddsi_domaingv *gv, struct entity_
   } while (rc == DDS_RETCODE_TRY_AGAIN);
   return rc;
 }
+
+#if DDS_HAS_SHM
+
+static dds_return_t deliver_locally_slowpath_except_iceoryx(
+    struct ddsi_domaingv *gv, struct entity_common *source_entity,
+    bool source_entity_locked, const struct ddsi_writer_info *wrinfo,
+    const struct deliver_locally_ops *__restrict ops, void *vsourceinfo) {
+  struct type_sample_cache tsc;
+  ddsrt_avl_iter_t it;
+  struct reader *rd;
+  type_sample_cache_init(&tsc);
+  if (!source_entity_locked)
+    ddsrt_mutex_lock(&source_entity->lock);
+  rd = ops->first_reader(gv->entity_index, source_entity, &it);
+  if (rd != NULL)
+    EETRACE(source_entity, " =>");
+  while (rd != NULL) {
+    if (rd->has_iceoryx) {
+      rd = ops->next_reader(gv->entity_index, &it);
+      continue; // skip non iceoryx readers
+    }
+    struct ddsi_serdata *payload;
+    struct ddsi_tkmap_instance *tk;
+    if (!type_sample_cache_lookup(&payload, &tk, &tsc, rd->type)) {
+      payload = ops->makesample(&tk, gv, rd->type, vsourceinfo);
+      type_sample_cache_store(&tsc, rd->type, payload, tk);
+    }
+    /* check payload to allow for deserialisation failures */
+    if (payload) {
+      EETRACE(source_entity, " " PGUIDFMT, PGUID(rd->e.guid));
+      (void)ddsi_rhc_store(rd->rhc, wrinfo, payload, tk);
+    }
+    rd = ops->next_reader(gv->entity_index, &it);
+  }
+  EETRACE(source_entity, "\n");
+  if (!source_entity_locked)
+    ddsrt_mutex_unlock(&source_entity->lock);
+  type_sample_cache_fini(&tsc, gv);
+  return DDS_RETCODE_OK;
+}
+
+static dds_return_t deliver_locally_fastpath_except_iceoryx(
+    struct ddsi_domaingv *gv, struct entity_common *source_entity,
+    bool source_entity_locked, struct local_reader_ary *fastpath_rdary,
+    const struct ddsi_writer_info *wrinfo,
+    const struct deliver_locally_ops *__restrict ops, void *vsourceinfo) {
+  struct reader **const rdary = fastpath_rdary->rdary;
+  uint32_t i = 0;
+  while (rdary[i]) {
+    if (rdary[i]->has_iceoryx) {
+      ++i;
+      continue; // skip iceoryx readers
+    }
+    struct ddsi_sertype const *const type = rdary[i]->type;
+    struct ddsi_serdata *payload;
+    struct ddsi_tkmap_instance *tk;
+    if ((payload = ops->makesample(&tk, gv, type, vsourceinfo)) == NULL) {
+      /* malformed payload: skip all readers with the same type */
+      while (rdary[++i] && rdary[i]->type == type)
+        ; /* do nothing */
+    } else {
+      do {
+        if (rdary[i]->has_iceoryx) {
+          ++i;
+          continue;
+        }
+        dds_return_t rc;
+        while (!ddsi_rhc_store(rdary[i]->rhc, wrinfo, payload, tk)) {
+          if ((rc = ops->on_failure_fastpath(
+                   source_entity, source_entity_locked, fastpath_rdary,
+                   vsourceinfo)) != DDS_RETCODE_OK) {
+            free_sample_after_store(gv, payload, tk);
+            return rc;
+          }
+        }
+        while (rdary[++i] && rdary[i]->has_iceoryx)
+          ; // skip iceoryx readers
+      } while (rdary[i] && rdary[i]->type == type);
+      free_sample_after_store(gv, payload, tk);
+    }
+  }
+  return DDS_RETCODE_OK;
+}
+
+dds_return_t deliver_locally_allinsync_except_iceoryx(
+    struct ddsi_domaingv *gv, struct entity_common *source_entity,
+    bool source_entity_locked, struct local_reader_ary *fastpath_rdary,
+    const struct ddsi_writer_info *wrinfo,
+    const struct deliver_locally_ops *__restrict ops, void *vsourceinfo) {
+  dds_return_t rc;
+  /* FIXME: Retry loop for re-delivery of rejected reliable samples is a bad
+     hack should instead throttle back the writer by skipping acknowledgement
+     and retry */
+  do {
+    ddsrt_mutex_lock(&fastpath_rdary->rdary_lock);
+    if (fastpath_rdary->fastpath_ok) {
+      EETRACE(source_entity, " => EVERYONE\n");
+      if (fastpath_rdary->rdary[0])
+        rc = deliver_locally_fastpath_except_iceoryx(
+            gv, source_entity, source_entity_locked, fastpath_rdary, wrinfo,
+            ops, vsourceinfo);
+      else
+        rc = DDS_RETCODE_OK;
+      ddsrt_mutex_unlock(&fastpath_rdary->rdary_lock);
+    } else {
+      ddsrt_mutex_unlock(&fastpath_rdary->rdary_lock);
+      rc = deliver_locally_slowpath_except_iceoryx(
+          gv, source_entity, source_entity_locked, wrinfo, ops, vsourceinfo);
+    }
+  } while (rc == DDS_RETCODE_TRY_AGAIN);
+  return rc;
+}
+
+#endif

@@ -192,6 +192,36 @@ static dds_return_t deliver_locally (struct writer *wr, struct ddsi_serdata *pay
 }
 
 #if DDS_HAS_SHM
+// TODO refactor almost-duplication, but this is still better than introducing
+// more runtime logic in existing functions
+// maybe we could pass some array of readers which we want to deliver to
+static dds_return_t
+deliver_locally_except_iceoryx(struct writer *wr, struct ddsi_serdata *payload,
+                               struct ddsi_tkmap_instance *tk) {
+  static const struct deliver_locally_ops deliver_locally_ops = {
+      .makesample = local_make_sample,
+      .first_reader = writer_first_in_sync_reader,
+      .next_reader = writer_next_in_sync_reader,
+      .on_failure_fastpath = local_on_delivery_failure_fastpath};
+  struct local_sourceinfo sourceinfo = {
+      .src_type = wr->type,
+      .src_payload = payload,
+      .src_tk = tk,
+      .timeout = {0},
+  };
+  dds_return_t rc;
+  struct ddsi_writer_info wrinfo;
+  ddsi_make_writer_info(&wrinfo, &wr->e, wr->xqos, payload->statusinfo);
+  rc = deliver_locally_allinsync_except_iceoryx(
+      wr->e.gv, &wr->e, false, &wr->rdary, &wrinfo, &deliver_locally_ops,
+      &sourceinfo);
+  if (rc == DDS_RETCODE_TIMEOUT)
+    DDS_CERROR(&wr->e.gv->logconfig,
+               "The writer could not deliver data on time, probably due to a "
+               "local reader resources being full\n");
+  return rc;
+}
+
 static bool deliver_data_via_iceoryx(dds_writer *wr, struct ddsi_serdata *d) {
     if (wr->m_iox_pub != NULL && d->iox_chunk != NULL)
     {
@@ -263,18 +293,25 @@ static dds_return_t deliver_data (struct writer *ddsi_wr, dds_writer *wr, struct
       ret = DDS_RETCODE_ERROR;
   }
 
-  bool suppress_local_delivery = false;
 #ifdef DDS_HAS_SHM
-  if (wr && ret == DDS_RETCODE_OK) {
-    //suppress if we successfully sent it via iceoryx
-    suppress_local_delivery = deliver_data_via_iceoryx(wr, d);
+  if (ret == DDS_RETCODE_OK) {
+    bool delivered = false;
+    if (wr)
+      delivered = deliver_data_via_iceoryx(wr, d);
+
+    if (delivered)
+      // in this case we already sent the iceoryx chunk
+      // but still have the serialized data to deliver
+      // to local non-iceoryx readers
+      ret = deliver_locally_except_iceoryx(ddsi_wr, d, tk);
+    else
+      ret = deliver_locally(ddsi_wr, d, tk);
   }
 #else
-  (void) wr;
+  (void)wr;
+  if (ret == DDS_RETCODE_OK)
+    ret = deliver_locally(ddsi_wr, d, tk);
 #endif
-
-  if (ret == DDS_RETCODE_OK && !suppress_local_delivery)
-    ret = deliver_locally (ddsi_wr, d, tk);
 
   ddsi_tkmap_instance_unref (ddsi_wr->e.gv->m_tkmap, tk);
 

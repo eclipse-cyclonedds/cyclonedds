@@ -425,6 +425,9 @@ struct reader
 #ifdef DDS_HAS_SECURITY
   struct reader_sec_attributes *sec_attr;
 #endif
+#ifdef DDS_HAS_SHM
+  unsigned has_iceoryx : 1;
+#endif
 };
 
 #ifdef DDS_HAS_TOPIC_DISCOVERY

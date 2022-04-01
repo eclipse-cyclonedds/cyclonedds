@@ -701,6 +701,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
   thread_state_asleep (lookup_thread_state ());
 
 #ifdef DDS_HAS_SHM
+  rd->m_rd->has_iceoryx = false;
   if (0x0 == (rqos->ignore_locator_type & NN_LOCATOR_KIND_SHEM))
   {
     DDS_CLOG (DDS_LC_SHM, &rd->m_entity.m_domain->gv.logconfig, "Reader's topic name will be DDS:Cyclone:%s\n", rd->m_topic->m_name);    
@@ -739,6 +740,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
     // they are used to access reader and monitor from the callback when data is received
     rd->m_iox_sub_context.monitor = &rd->m_entity.m_domain->m_shm_monitor;
     rd->m_iox_sub_context.parent_reader = rd;
+    rd->m_rd->has_iceoryx = true;
   }
 #endif
 
