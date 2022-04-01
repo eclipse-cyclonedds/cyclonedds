@@ -73,14 +73,14 @@ CU_Test(ddsrt_getifaddrs, ipv4)
   ret = ddsrt_getifaddrs(&ifa_root, afs);
   CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
   for (ifa = ifa_root; ifa; ifa = ifa->next) {
-    CU_ASSERT_PTR_NOT_EQUAL_FATAL(ifa->addr, NULL);
-    assert (ifa->addr != NULL); /* for the benefit of clang's static analyzer */
-    CU_ASSERT_EQUAL(ifa->addr->sa_family, AF_INET);
-    if (ifa->addr->sa_family == AF_INET) {
+    CU_ASSERT_PTR_NOT_EQUAL_FATAL(ifa->ifaddr.ipaddr.addr, NULL);
+    assert (ifa->ifaddr.ipaddr.addr != NULL); /* for the benefit of clang's static analyzer */
+    CU_ASSERT_EQUAL(ifa->ifaddr.ipaddr.addr->sa_family, AF_INET);
+    if (ifa->ifaddr.ipaddr.addr->sa_family == AF_INET) {
       if (ifa->flags & IFF_LOOPBACK) {
-        CU_ASSERT(ddsrt_sockaddr_isloopback(ifa->addr));
+        CU_ASSERT(ddsrt_sockaddr_isloopback(ifa->ifaddr.ipaddr.addr));
       } else {
-        CU_ASSERT(!ddsrt_sockaddr_isloopback(ifa->addr));
+        CU_ASSERT(!ddsrt_sockaddr_isloopback(ifa->ifaddr.ipaddr.addr));
       }
       seen = 1;
     }
@@ -99,7 +99,7 @@ CU_Test(ddsrt_getifaddrs, null_filter)
   ret = ddsrt_getifaddrs(&ifa_root, NULL);
   CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
   for (ifa = ifa_root; ifa; ifa = ifa->next) {
-    CU_ASSERT_PTR_NOT_EQUAL_FATAL(ifa->addr, NULL);
+    CU_ASSERT_PTR_NOT_EQUAL_FATAL(ifa->ifaddr.ipaddr.addr, NULL);
     cnt++;
   }
 
@@ -131,16 +131,16 @@ CU_Test(ddsrt_getifaddrs, ipv6)
     ret = ddsrt_getifaddrs(&ifa_root, afs);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     for (ifa = ifa_root; ifa; ifa = ifa->next) {
-      CU_ASSERT_PTR_NOT_EQUAL_FATAL(ifa->addr, NULL);
-      assert (ifa->addr != NULL); /* for the benefit of clang's static analyzer */
-      CU_ASSERT_EQUAL(ifa->addr->sa_family, AF_INET6);
-      if (ifa->addr->sa_family == AF_INET6) {
+      CU_ASSERT_PTR_NOT_EQUAL_FATAL(ifa->ifaddr.ipaddr.addr, NULL);
+      assert (ifa->ifaddr.ipaddr.addr != NULL); /* for the benefit of clang's static analyzer */
+      CU_ASSERT_EQUAL(ifa->ifaddr.ipaddr.addr->sa_family, AF_INET6);
+      if (ifa->ifaddr.ipaddr.addr->sa_family == AF_INET6) {
         have_ipv6 = 1;
         /* macOS assigns a link-local address to the loopback interface, so
            the loopback address must be assigned to the loopback interface,
            but the loopback interface can have addresses other than the
            loopback address assigned. */
-        if (ddsrt_sockaddr_isloopback(ifa->addr)) {
+        if (ddsrt_sockaddr_isloopback(ifa->ifaddr.ipaddr.addr)) {
           CU_ASSERT(ifa->flags & IFF_LOOPBACK);
         }
       }
@@ -172,13 +172,13 @@ CU_Test(ddsrt_getifaddrs, ipv4_n_ipv6)
     ret = ddsrt_getifaddrs(&ifa_root, afs);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     for (ifa = ifa_root; ifa; ifa = ifa->next) {
-      CU_ASSERT_PTR_NOT_EQUAL_FATAL(ifa->addr, NULL);
-      assert (ifa->addr != NULL); /* for the benefit of clang's static analyzer */
-      CU_ASSERT(ifa->addr->sa_family == AF_INET ||
-                ifa->addr->sa_family == AF_INET6);
-      if (ifa->addr->sa_family == AF_INET) {
+      CU_ASSERT_PTR_NOT_EQUAL_FATAL(ifa->ifaddr.ipaddr.addr, NULL);
+      assert (ifa->ifaddr.ipaddr.addr != NULL); /* for the benefit of clang's static analyzer */
+      CU_ASSERT(ifa->ifaddr.ipaddr.addr->sa_family == AF_INET ||
+                ifa->ifaddr.ipaddr.addr->sa_family == AF_INET6);
+      if (ifa->ifaddr.ipaddr.addr->sa_family == AF_INET) {
         have_ipv4 = 1;
-      } else if (ifa->addr->sa_family == AF_INET6) {
+      } else if (ifa->ifaddr.ipaddr.addr->sa_family == AF_INET6) {
         have_ipv6 = 1;
       }
     }

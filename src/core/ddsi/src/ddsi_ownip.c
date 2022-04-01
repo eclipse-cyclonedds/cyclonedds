@@ -133,7 +133,7 @@ static enum maybe_add_interface_result maybe_add_interface (struct ddsi_domaingv
   if ((ifa->flags & IFF_UP) == 0) {
     GVLOG (DDS_LC_CONFIG, " (interface down)");
     return MAI_IGNORED;
-  } else if (ddsrt_sockaddr_isunspecified(ifa->addr)) {
+  } else if (ddsrt_sockaddr_isunspecified(ifa->ifaddr.ipaddr.addr)) {
     GVLOG (DDS_LC_CONFIG, " (address unspecified)");
     return MAI_IGNORED;
   }
@@ -150,7 +150,7 @@ static enum maybe_add_interface_result maybe_add_interface (struct ddsi_domaingv
       break;
   }
 
-  if (ddsi_locator_from_sockaddr (gv->m_factory, &dst->loc, ifa->addr) < 0)
+  if (ddsi_locator_from_sockaddr (gv->m_factory, &dst->loc, ifa->ifaddr.ipaddr.addr) < 0)
     return MAI_IGNORED;
   ddsi_locator_to_string_no_port(addrbuf, sizeof(addrbuf), &dst->loc);
   GVLOG (DDS_LC_CONFIG, " %s(", addrbuf);
@@ -165,7 +165,7 @@ static enum maybe_add_interface_result maybe_add_interface (struct ddsi_domaingv
     loopback = true;
     q += 0;
 #if DDSRT_HAVE_IPV6
-    if (ifa->addr->sa_family == AF_INET6 && IN6_IS_ADDR_LINKLOCAL (&((struct sockaddr_in6 *)ifa->addr)->sin6_addr))
+    if (ifa->ifaddr.ipaddr.addr->sa_family == AF_INET6 && IN6_IS_ADDR_LINKLOCAL (&((struct sockaddr_in6 *)ifa->ifaddr.ipaddr.addr)->sin6_addr))
       link_local = true;
     else
       q += 1;
@@ -184,7 +184,7 @@ static enum maybe_add_interface_result maybe_add_interface (struct ddsi_domaingv
        which it was received.  But that means proper multi-homing
        support and has quite an impact in various places, not least of
        which is the abstraction layer. */
-    if (ifa->addr->sa_family == AF_INET6 && IN6_IS_ADDR_LINKLOCAL (&((struct sockaddr_in6 *)ifa->addr)->sin6_addr))
+    if (ifa->ifaddr.ipaddr.addr->sa_family == AF_INET6 && IN6_IS_ADDR_LINKLOCAL (&((struct sockaddr_in6 *)ifa->ifaddr.ipaddr.addr)->sin6_addr))
       link_local = true;
     else
       q += 5;
@@ -203,9 +203,9 @@ static enum maybe_add_interface_result maybe_add_interface (struct ddsi_domaingv
 
   GVLOG (DDS_LC_CONFIG, "q%d)", q);
 
-  if (ifa->addr->sa_family == AF_INET && ifa->netmask)
+  if (ifa->ifaddr.ipaddr.addr->sa_family == AF_INET && ifa->ifaddr.ipaddr.netmask)
   {
-    if (ddsi_locator_from_sockaddr (gv->m_factory, &dst->netmask, ifa->netmask) < 0)
+    if (ddsi_locator_from_sockaddr (gv->m_factory, &dst->netmask, ifa->ifaddr.ipaddr.netmask) < 0)
       return MAI_IGNORED;
   }
   else

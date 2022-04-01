@@ -213,16 +213,16 @@ copyaddr(
     goto err_ifa;
   ifa->flags = getflags(iface);
   ifa->type = guess_iftype(iface);
-  if (!(ifa->addr = ddsrt_memdup(sa, sz)))
+  if (!(ifa->ifaddr.ipaddr.addr = ddsrt_memdup(sa, sz)))
     goto err_ifa_addr;
   if ((rc = copyname(iface->FriendlyName, &ifa->name)))
     goto err_ifa_name;
 
-  if (ifa->addr->sa_family == AF_INET6) {
+  if (ifa->ifaddr.ipaddr.addr->sa_family == AF_INET6) {
     ifa->index = iface->Ipv6IfIndex;
 
     /* Address is not in addrtable if the interface is not connected. */
-  } else if (ifa->addr->sa_family == AF_INET && (ifa->flags & IFF_UP)) {
+  } else if (ifa->ifaddr.ipaddr.addr->sa_family == AF_INET && (ifa->flags & IFF_UP)) {
     DWORD i = 0;
     struct sockaddr_in nm, bc, *sin = (struct sockaddr_in *)sa;
 
@@ -241,9 +241,9 @@ copyaddr(
     }
 
     assert(i < addrtable->dwNumEntries);
-    if (!(ifa->netmask = ddsrt_memdup(&nm, sz)))
+    if (!(ifa->ifaddr.ipaddr.netmask = ddsrt_memdup(&nm, sz)))
       goto err_ifa_netmask;
-    if (!(ifa->broadaddr = ddsrt_memdup(&bc, sz)))
+    if (!(ifa->ifaddr.ipaddr.broadaddr = ddsrt_memdup(&bc, sz)))
       goto err_ifa_broadaddr;
   }
 

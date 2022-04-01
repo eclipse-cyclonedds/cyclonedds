@@ -68,10 +68,10 @@ ddsrt_getifaddrs(
     ifa->index = (int) (ifr - ifc.ifc_req);
     ifa->flags = IFF_UP | ((strcmp(ifr->ifr_name, "lo0")==0) ? IFF_LOOPBACK : IFF_MULTICAST);
     ifa->name = strdup (ifr->ifr_name);
-    ifa->addr = ddsrt_memdup (&ifr->ifr_addr, sizeof (struct sockaddr_in));
-    ifa->netmask = ddsrt_memdup (&ifr->ifr_addr, sizeof (struct sockaddr_in));
-    ((struct sockaddr_in *) ifa->netmask)->sin_addr.s_addr = htonl (0xffffff00);
-    ifa->broadaddr = NULL;
+    ifa->ifaddr.ipaddr.addr = ddsrt_memdup (&ifr->ifr_addr, sizeof (struct sockaddr_in));
+    ifa->ifaddr.ipaddr.netmask = ddsrt_memdup (&ifr->ifr_addr, sizeof (struct sockaddr_in));
+    ((struct sockaddr_in *) ifa->ifaddr.ipaddr.netmask)->sin_addr.s_addr = htonl (0xffffff00);
+    ifa->ifaddr.ipaddr.broadaddr = NULL;
     ifa->next = NULL;
     *ifap = ifa;
     ifap = &ifa->next;

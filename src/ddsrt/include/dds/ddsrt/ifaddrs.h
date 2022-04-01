@@ -30,9 +30,13 @@ struct ddsrt_ifaddrs {
   uint32_t index;
   uint32_t flags;
   enum ddsrt_iftype type;
-  struct sockaddr *addr;
-  struct sockaddr *netmask;
-  struct sockaddr *broadaddr;
+  union {
+    struct {
+	  struct sockaddr *addr;
+	  struct sockaddr *netmask;
+	  struct sockaddr *broadaddr; 
+	}ipaddr;
+  }ifaddr;
 };
 
 typedef struct ddsrt_ifaddrs ddsrt_ifaddrs_t;
