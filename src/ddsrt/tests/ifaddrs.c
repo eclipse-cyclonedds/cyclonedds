@@ -73,14 +73,14 @@ CU_Test(ddsrt_getifaddrs, ipv4)
   ret = ddsrt_getifaddrs(&ifa_root, afs);
   CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
   for (ifa = ifa_root; ifa; ifa = ifa->next) {
-    CU_ASSERT_PTR_NOT_EQUAL_FATAL(ifa->addr, NULL);
-    assert (ifa->addr != NULL); /* for the benefit of clang's static analyzer */
-    CU_ASSERT_EQUAL(ifa->addr->sa_family, AF_INET);
-    if (ifa->addr->sa_family == AF_INET) {
+    CU_ASSERT_PTR_NOT_EQUAL_FATAL(ifa->ifaddr.ipaddr.addr, NULL);
+    assert (ifa->ifaddr.ipaddr.addr != NULL); /* for the benefit of clang's static analyzer */
+    CU_ASSERT_EQUAL(ifa->ifaddr.ipaddr.addr->sa_family, AF_INET);
+    if (ifa->ifaddr.ipaddr.addr->sa_family == AF_INET) {
       if (ifa->flags & IFF_LOOPBACK) {
-        CU_ASSERT(ddsrt_sockaddr_isloopback(ifa->addr));
+        CU_ASSERT(ddsrt_sockaddr_isloopback(ifa->ifaddr.ipaddr.addr));
       } else {
-        CU_ASSERT(!ddsrt_sockaddr_isloopback(ifa->addr));
+        CU_ASSERT(!ddsrt_sockaddr_isloopback(ifa->ifaddr.ipaddr.addr));
       }
       seen = 1;
     }
@@ -99,7 +99,7 @@ CU_Test(ddsrt_getifaddrs, null_filter)
   ret = ddsrt_getifaddrs(&ifa_root, NULL);
   CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
   for (ifa = ifa_root; ifa; ifa = ifa->next) {
-    CU_ASSERT_PTR_NOT_EQUAL_FATAL(ifa->addr, NULL);
+    CU_ASSERT_PTR_NOT_EQUAL_FATAL(ifa->ifaddr.ipaddr.addr, NULL);
     cnt++;
   }
 

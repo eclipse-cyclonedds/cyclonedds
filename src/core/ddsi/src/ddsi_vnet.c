@@ -162,11 +162,11 @@ static int ddsi_vnet_enumerate_interfaces (ddsi_tran_factory_t fact, enum ddsi_t
   (*ifs)->name = ddsrt_strdup (fact->m_typename);
   (*ifs)->index = 0;
   (*ifs)->flags = IFF_UP | IFF_MULTICAST;
-  (*ifs)->addr = ddsrt_malloc (sizeof (struct sockaddr_storage));
-  memset ((*ifs)->addr, 0, sizeof (struct sockaddr_storage));
-  (*ifs)->addr->sa_data[0] = 1;
-  (*ifs)->netmask = NULL;
-  (*ifs)->broadaddr = NULL;
+  (*ifs)->ifaddr.ipaddr.addr = ddsrt_malloc (sizeof (struct sockaddr_storage));
+  memset ((*ifs)->ifaddr.ipaddr.addr, 0, sizeof (struct sockaddr_storage));
+  (*ifs)->ifaddr.ipaddr.addr->sa_data[0] = 1;
+  (*ifs)->ifaddr.ipaddr.netmask = NULL;
+  (*ifs)->ifaddr.ipaddr.broadaddr = NULL;
   return 0;
 }
 

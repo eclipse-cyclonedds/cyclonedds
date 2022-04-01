@@ -88,7 +88,7 @@ copyaddr(
      structure as described in lwip/netif.h */
 
   if ((ifa = ddsrt_calloc_s(1, sizeof(*ifa))) == NULL ||
-      (ifa->addr = ddsrt_memdup(&sa, sa.s2_len)) == NULL ||
+      (ifa->ifaddr.ipaddr.addr = ddsrt_memdup(&sa, sa.s2_len)) == NULL ||
       (ddsrt_asprintf(&ifa->name, "%s%d", netif->name, netif->num) == -1))
   {
     rc = DDS_RETCODE_OUT_OF_RESOURCES;
@@ -99,8 +99,8 @@ copyaddr(
 
     if (IP_IS_V4(addr)) {
       static const size_t sz = sizeof(struct sockaddr_in);
-      if ((ifa->netmask = ddsrt_calloc_s(1, sz)) == NULL ||
-          (ifa->broadaddr = ddsrt_calloc_s(1, sz)) == NULL)
+      if ((ifa->ifaddr.ipaddr.netmask = ddsrt_calloc_s(1, sz)) == NULL ||
+          (ifa->ifaddr.ipaddr.broadaddr = ddsrt_calloc_s(1, sz)) == NULL)
       {
         rc = DDS_RETCODE_OUT_OF_RESOURCES;
       } else {
@@ -108,8 +108,8 @@ copyaddr(
           ip_2_ip4(&netif->ip_addr)->addr |
           ip_2_ip4(&netif->netmask)->addr);
 
-        sockaddr_from_ip_addr((struct sockaddr*)ifa->netmask, &netif->netmask);
-        sockaddr_from_ip_addr((struct sockaddr*)ifa->broadaddr, &broadaddr);
+        sockaddr_from_ip_addr((struct sockaddr*)ifa->ifaddr.ipaddr.netmask, &netif->netmask);
+        sockaddr_from_ip_addr((struct sockaddr*)ifa->ifaddr.ipaddr.broadaddr, &broadaddr);
       }
     }
   }

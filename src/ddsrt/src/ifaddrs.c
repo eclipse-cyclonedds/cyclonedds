@@ -20,9 +20,9 @@ ddsrt_freeifaddrs(ddsrt_ifaddrs_t *ifa)
   while (ifa != NULL) {
     next = ifa->next;
     ddsrt_free(ifa->name);
-    ddsrt_free(ifa->addr);
-    ddsrt_free(ifa->netmask);
-    ddsrt_free(ifa->broadaddr);
+    ddsrt_free(ifa->ifaddr.ipaddr.addr);
+    ddsrt_free(ifa->ifaddr.ipaddr.netmask);
+    ddsrt_free(ifa->ifaddr.ipaddr.broadaddr);
     ddsrt_free(ifa);
     ifa = next;
   }

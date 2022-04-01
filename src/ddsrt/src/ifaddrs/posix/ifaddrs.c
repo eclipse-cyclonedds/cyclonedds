@@ -147,19 +147,19 @@ copyaddr(ddsrt_ifaddrs_t **ifap, const struct ifaddrs *sys_ifa, enum ddsrt_iftyp
     ifa->type = type;
     ifa->flags = sys_ifa->ifa_flags;
     if ((ifa->name = ddsrt_strdup(sys_ifa->ifa_name)) == NULL ||
-        (ifa->addr = ddsrt_memdup(sys_ifa->ifa_addr, sz)) == NULL ||
+        (ifa->ifaddr.ipaddr.addr = ddsrt_memdup(sys_ifa->ifa_addr, sz)) == NULL ||
           (sys_ifa->ifa_netmask != NULL &&
-        (ifa->netmask = ddsrt_memdup(sys_ifa->ifa_netmask, sz)) == NULL) ||
+        (ifa->ifaddr.ipaddr.netmask = ddsrt_memdup(sys_ifa->ifa_netmask, sz)) == NULL) ||
           (sys_ifa->ifa_broadaddr != NULL &&
           (sys_ifa->ifa_flags & IFF_BROADCAST) &&
-        (ifa->broadaddr = ddsrt_memdup(sys_ifa->ifa_broadaddr, sz)) == NULL))
+        (ifa->ifaddr.ipaddr.broadaddr = ddsrt_memdup(sys_ifa->ifa_broadaddr, sz)) == NULL))
     {
       err = DDS_RETCODE_OUT_OF_RESOURCES;
     }
     /* Seen on macOS using OpenVPN: netmask without an address family,
        in which case copy it from the interface address */
-    if (ifa->addr && ifa->netmask && ifa->netmask->sa_family == 0) {
-      ifa->netmask->sa_family = ifa->addr->sa_family;
+    if (ifa->ifaddr.ipaddr.addr && ifa->ifaddr.ipaddr.netmask && ifa->ifaddr.ipaddr.netmask->sa_family == 0) {
+      ifa->ifaddr.ipaddr.netmask->sa_family = ifa->ifaddr.ipaddr.addr->sa_family;
     }
   }
 
