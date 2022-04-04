@@ -2293,8 +2293,8 @@ static void writer_add_local_connection (struct writer *wr, struct reader *rd)
   ddsrt_avl_insert_ipath (&wr_local_readers_treedef, &wr->local_readers, m, &path);
 
 #ifdef DDS_HAS_SHM
-  // if (!wr->has_iceoryx || !rd->has_iceoryx)
-  local_reader_ary_insert(&wr->rdary, rd);
+  if (!wr->has_iceoryx || !rd->has_iceoryx)
+    local_reader_ary_insert(&wr->rdary, rd);
 #else
   local_reader_ary_insert(&wr->rdary, rd);
 #endif
@@ -2585,8 +2585,8 @@ static void proxy_writer_add_connection (struct proxy_writer *pwr, struct reader
   ddsrt_avl_insert_ipath (&pwr_readers_treedef, &pwr->readers, m, &path);
 
 #ifdef DDS_HAS_SHM
-  // if (!pwr->is_iceoryx || !rd->has_iceoryx)
-  local_reader_ary_insert(&pwr->rdary, rd);
+  if (!pwr->is_iceoryx || !rd->has_iceoryx)
+    local_reader_ary_insert(&pwr->rdary, rd);
 #else
   local_reader_ary_insert(&pwr->rdary, rd);
 #endif

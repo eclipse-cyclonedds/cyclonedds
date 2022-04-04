@@ -292,14 +292,11 @@ static dds_return_t deliver_data (struct writer *ddsi_wr, dds_writer *wr, struct
   }
 
 #ifdef DDS_HAS_SHM
-  // delivers to all iceoryx readers, including local ones
-
-  bool delivered = deliver_data_via_iceoryx(wr, d);
   if (ret == DDS_RETCODE_OK) {
-
+    // delivers to all iceoryx readers, including local ones
+    bool delivered = deliver_data_via_iceoryx(wr, d);
     if (delivered) {
       // delivers to all local non-iceoryx readers since
-      // only those are in the fastpath if DDS_HAS_SHM is true
       ret = deliver_locally_except_iceoryx(ddsi_wr, d, tk);
     } else {
       ret = deliver_locally(ddsi_wr, d, tk);
