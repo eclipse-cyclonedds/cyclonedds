@@ -187,6 +187,13 @@ static dds_return_t deliver_locally_slowpath (struct ddsi_domaingv *gv, struct e
     EETRACE (source_entity, " =>");
   while (rd != NULL)
   {
+#ifdef DDS_HAS_SHM
+    if (rd->has_iceoryx) {
+      rd = ops->next_reader(gv->entity_index, &it);
+      continue; // skip iceoryx readers
+    }
+#endif
+
     struct ddsi_serdata *payload;
     struct ddsi_tkmap_instance *tk;
     if (!type_sample_cache_lookup (&payload, &tk, &tsc, rd->type))
@@ -268,45 +275,7 @@ dds_return_t deliver_locally_allinsync (struct ddsi_domaingv *gv, struct entity_
   return rc;
 }
 
-#if DDS_HAS_SHM
-
-static dds_return_t deliver_locally_slowpath_except_iceoryx(
-    struct ddsi_domaingv *gv, struct entity_common *source_entity,
-    bool source_entity_locked, const struct ddsi_writer_info *wrinfo,
-    const struct deliver_locally_ops *__restrict ops, void *vsourceinfo) {
-  struct type_sample_cache tsc;
-  ddsrt_avl_iter_t it;
-  struct reader *rd;
-  type_sample_cache_init(&tsc);
-  if (!source_entity_locked)
-    ddsrt_mutex_lock(&source_entity->lock);
-  rd = ops->first_reader(gv->entity_index, source_entity, &it);
-  if (rd != NULL)
-    EETRACE(source_entity, " =>");
-  while (rd != NULL) {
-    if (rd->has_iceoryx) {
-      rd = ops->next_reader(gv->entity_index, &it);
-      continue; // skip non iceoryx readers
-    }
-    struct ddsi_serdata *payload;
-    struct ddsi_tkmap_instance *tk;
-    if (!type_sample_cache_lookup(&payload, &tk, &tsc, rd->type)) {
-      payload = ops->makesample(&tk, gv, rd->type, vsourceinfo);
-      type_sample_cache_store(&tsc, rd->type, payload, tk);
-    }
-    /* check payload to allow for deserialisation failures */
-    if (payload) {
-      EETRACE(source_entity, " " PGUIDFMT, PGUID(rd->e.guid));
-      (void)ddsi_rhc_store(rd->rhc, wrinfo, payload, tk);
-    }
-    rd = ops->next_reader(gv->entity_index, &it);
-  }
-  EETRACE(source_entity, "\n");
-  if (!source_entity_locked)
-    ddsrt_mutex_unlock(&source_entity->lock);
-  type_sample_cache_fini(&tsc, gv);
-  return DDS_RETCODE_OK;
-}
+#ifdef DDS_HAS_SHM
 
 static dds_return_t deliver_locally_fastpath_except_iceoryx(
     struct ddsi_domaingv *gv, struct entity_common *source_entity,
@@ -373,11 +342,12 @@ dds_return_t deliver_locally_allinsync_except_iceoryx(
       ddsrt_mutex_unlock(&fastpath_rdary->rdary_lock);
     } else {
       ddsrt_mutex_unlock(&fastpath_rdary->rdary_lock);
-      rc = deliver_locally_slowpath_except_iceoryx(
-          gv, source_entity, source_entity_locked, wrinfo, ops, vsourceinfo);
+      rc = deliver_locally_slowpath(gv, source_entity, source_entity_locked,
+                                    wrinfo, ops, vsourceinfo);
     }
   } while (rc == DDS_RETCODE_TRY_AGAIN);
   return rc;
 }
 
 #endif
+

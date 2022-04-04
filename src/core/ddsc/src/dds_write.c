@@ -192,9 +192,6 @@ static dds_return_t deliver_locally (struct writer *wr, struct ddsi_serdata *pay
 }
 
 #if DDS_HAS_SHM
-// TODO refactor almost-duplication, but this is still better than introducing
-// more runtime logic in existing functions
-// maybe we could pass some array of readers which we want to deliver to
 static dds_return_t
 deliver_locally_except_iceoryx(struct writer *wr, struct ddsi_serdata *payload,
                                struct ddsi_tkmap_instance *tk) {
@@ -223,27 +220,28 @@ deliver_locally_except_iceoryx(struct writer *wr, struct ddsi_serdata *payload,
 }
 
 static bool deliver_data_via_iceoryx(dds_writer *wr, struct ddsi_serdata *d) {
-    if (wr->m_iox_pub != NULL && d->iox_chunk != NULL)
-    {
-      iox_chunk_header_t* chunk_header = iox_chunk_header_from_user_payload(d->iox_chunk);
-      iceoryx_header_t *ice_hdr = iox_chunk_header_to_user_header(chunk_header);
+  if (wr && wr->m_iox_pub && d->iox_chunk) {
+    iox_chunk_header_t *chunk_header =
+        iox_chunk_header_from_user_payload(d->iox_chunk);
+    iceoryx_header_t *ice_hdr = iox_chunk_header_to_user_header(chunk_header);
 
-      // Local readers go through Iceoryx as well (because the Iceoryx support code doesn't exclude
-      // that), which means we should suppress the internal path
-      ice_hdr->guid = wr->m_wr->e.guid;
-      ice_hdr->tstamp = d->timestamp.v;
-      ice_hdr->statusinfo = d->statusinfo;
-      ice_hdr->data_kind = (unsigned char)d->kind;
-      ddsi_serdata_get_keyhash (d, &ice_hdr->keyhash, false);
-      // iox_pub_publish_chunk takes ownership, storing a null pointer here doesn't
-      // preclude the existence of race conditions on this, but it certainly improves
-      // the chances of detecting them
+    // Local readers go through Iceoryx as well (because the Iceoryx support
+    // code doesn't exclude that), which means we should suppress the internal
+    // path
+    ice_hdr->guid = wr->m_wr->e.guid;
+    ice_hdr->tstamp = d->timestamp.v;
+    ice_hdr->statusinfo = d->statusinfo;
+    ice_hdr->data_kind = (unsigned char)d->kind;
+    ddsi_serdata_get_keyhash(d, &ice_hdr->keyhash, false);
+    // iox_pub_publish_chunk takes ownership, storing a null pointer here
+    // doesn't preclude the existence of race conditions on this, but it
+    // certainly improves the chances of detecting them
 
-      iox_pub_publish_chunk (wr->m_iox_pub, d->iox_chunk);
-      d->iox_chunk = NULL;
-      return true; //we published the chunk
-    }
-    return false; // we did not publish the chunk
+    iox_pub_publish_chunk(wr->m_iox_pub, d->iox_chunk);
+    d->iox_chunk = NULL;
+    return true; // we published the chunk
+  }
+  return false; // we did not publish the chunk
 }
 #endif
 
@@ -294,25 +292,25 @@ static dds_return_t deliver_data (struct writer *ddsi_wr, dds_writer *wr, struct
   }
 
 #ifdef DDS_HAS_SHM
-  if (ret == DDS_RETCODE_OK) {
-    bool delivered = false;
-    if (wr)
-      delivered = deliver_data_via_iceoryx(wr, d);
+  // delivers to all iceoryx readers, including local ones
 
-    if (delivered)
-      // in this case we already sent the iceoryx chunk
-      // but still have the serialized data to deliver
-      // to local non-iceoryx readers
+  bool delivered = deliver_data_via_iceoryx(wr, d);
+  if (ret == DDS_RETCODE_OK) {
+
+    if (delivered) {
+      // delivers to all local non-iceoryx readers since
+      // only those are in the fastpath if DDS_HAS_SHM is true
       ret = deliver_locally_except_iceoryx(ddsi_wr, d, tk);
-    else
+    } else {
       ret = deliver_locally(ddsi_wr, d, tk);
+    }
   }
 #else
   (void)wr;
   if (ret == DDS_RETCODE_OK)
+    // delivers to all local readers
     ret = deliver_locally(ddsi_wr, d, tk);
 #endif
-
   ddsi_tkmap_instance_unref (ddsi_wr->e.gv->m_tkmap, tk);
 
   return ret;

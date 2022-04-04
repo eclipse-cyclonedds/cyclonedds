@@ -343,6 +343,9 @@ struct writer
   unsigned test_suppress_retransmit : 1; /* iff 1, the writer does not respond to retransmit requests */
   unsigned test_suppress_heartbeat : 1; /* iff 1, the writer suppresses all periodic heartbeats */
   unsigned test_drop_outgoing_data : 1; /* iff 1, the writer drops outgoing data, forcing the readers to request a retransmit */
+#ifdef DDS_HAS_SHM
+  unsigned has_iceoryx : 1;
+#endif
 #ifdef DDS_HAS_SSM
   unsigned supports_ssm: 1;
   struct addrset *ssm_as;
@@ -411,6 +414,9 @@ struct reader
 #ifdef DDS_HAS_SSM
   unsigned favours_ssm: 1; /* iff 1, this reader favours SSM */
 #endif
+#ifdef DDS_HAS_SHM
+  unsigned has_iceoryx : 1;
+#endif
   nn_count_t init_acknack_count; /* initial value for "count" (i.e. ACK seq num) for newly matched proxy writers */
 #ifdef DDS_HAS_NETWORK_PARTITIONS
   struct networkpartition_address *uc_as;
@@ -424,9 +430,6 @@ struct reader
   void *ddsi2direct_cbarg;
 #ifdef DDS_HAS_SECURITY
   struct reader_sec_attributes *sec_attr;
-#endif
-#ifdef DDS_HAS_SHM
-  unsigned has_iceoryx : 1;
 #endif
 };
 
@@ -541,7 +544,7 @@ struct proxy_writer {
   unsigned supports_ssm: 1; /* iff 1, this proxy writer supports SSM */
 #endif
 #ifdef DDS_HAS_SHM
-  unsigned is_iceoryx: 1;
+  unsigned is_iceoryx : 1;
 #endif
   uint32_t alive_vclock; /* virtual clock counting transitions between alive/not-alive */
   struct nn_defrag *defrag; /* defragmenter for this proxy writer; FIXME: perhaps shouldn't be for historical data */
