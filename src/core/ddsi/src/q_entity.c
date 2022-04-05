@@ -3774,6 +3774,9 @@ static void new_writer_guid_common_init (struct writer *wr, const char *topic_na
   wr->test_suppress_retransmit = 0;
   wr->test_suppress_heartbeat = 0;
   wr->test_drop_outgoing_data = 0;
+#ifdef DDS_HAS_SHM
+  wr->has_iceoryx = (0x0 == (xqos->ignore_locator_type & NN_LOCATOR_KIND_SHEM));
+#endif
   wr->alive_vclock = 0;
   wr->init_burst_size_limit = UINT32_MAX - UINT16_MAX;
   wr->rexmit_burst_size_limit = UINT32_MAX - UINT16_MAX;
@@ -4443,6 +4446,9 @@ static dds_return_t new_reader_guid
   rd->request_keyhash = rd->type->request_keyhash;
   rd->ddsi2direct_cb = 0;
   rd->ddsi2direct_cbarg = 0;
+#ifdef DDS_HAS_SHM
+  rd->has_iceoryx = (0x0 == (xqos->ignore_locator_type & NN_LOCATOR_KIND_SHEM));
+#endif
   rd->init_acknack_count = 1;
   rd->num_writers = 0;
 #ifdef DDS_HAS_SSM
