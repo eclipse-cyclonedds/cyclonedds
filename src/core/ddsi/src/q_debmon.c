@@ -52,282 +52,627 @@ struct debug_monitor {
   ddsrt_mutex_t lock;
   ddsrt_cond_t cond;
   struct ddsi_domaingv *gv;
-  struct plugin *plugins;
   int stop;
 };
 
-static int cpf (ddsi_tran_conn_t conn, const char *fmt, ...) ddsrt_attribute_format_printf(2, 3);
+struct st {
+  ddsi_tran_conn_t conn;
+  struct ddsi_domaingv *gv;
+  struct thread_state1 *ts1;
+  bool error;
+  const char *comma;
+  // almost guaranteed to be large enough (some strings are user-controlled),
+  // everything else is way smaller than this
+  char chunkbuf[4096];
+  uint16_t pos;
+};
 
-static int cpf (ddsi_tran_conn_t conn, const char *fmt, ...)
+static void cpemitchunk(struct st *st, ddsi_locator_t loc)
+{
+  // HTTP chunk delimiter (pos-8 == chunk_size)
+  // 'chunk header' 2* '\r\n' + 4 hex digits = 8 bytes
+  // use buf+memcpy to avoid null terminator
+  char header[11];
+  snprintf(header, sizeof (header), "\r\n%04"PRIX16"\r\n\r\n", (uint16_t)(st->pos - 8));
+  memcpy(st->chunkbuf, header, (st->pos > 8) ? 8 : 10);
+
+  ddsrt_iovec_t iov;
+  iov.iov_base = st->chunkbuf;
+  iov.iov_len = (ddsrt_iov_len_t) ((st->pos > 8) ? st->pos : 10);
+
+  if (ddsi_conn_write (st->conn, &loc, 1, &iov, 0) < 0)
+    st->error = true;
+
+  st->pos = 8;
+}
+
+static void cpf (struct st *st, const char *fmt, ...) ddsrt_attribute_format_printf(2, 3);
+
+static void cpf (struct st *st, const char *fmt, ...)
 {
   ddsi_locator_t loc;
-  if (!ddsi_conn_peer_locator (conn, &loc))
-    return 0;
+  if (st->error)
+  {
+    // do nothing
+  }
+  else if (!ddsi_conn_peer_locator (st->conn, &loc))
+  {
+    st->error = true;
+  }
   else
   {
     va_list ap;
-    ddsrt_iovec_t iov;
-    char buf[4096];
-    int n;
     va_start (ap, fmt);
-    n = vsnprintf (buf, sizeof (buf), fmt, ap);
+    const int cnt = vsnprintf (st->chunkbuf + st->pos, sizeof (st->chunkbuf) - st->pos, fmt, ap);
+    if (cnt < 0 || cnt > UINT16_MAX - st->pos)
+      st->error = true;
+    else
+      st->pos = (uint16_t) (st->pos + cnt);
     va_end (ap);
-    iov.iov_base = buf;
-    iov.iov_len = (ddsrt_iov_len_t) n;
-    return ddsi_conn_write (conn, &loc, 1, &iov, 0) < 0 ? -1 : 0;
+
+    if (st->pos > sizeof (st->chunkbuf) / 2)
+      cpemitchunk(st, loc);
   }
 }
 
+static void cpfstr (struct st *st, const char *v)
+{
+  cpf (st, "%s\"%s\"", st->comma, v);
+  st->comma = ",";
+}
+
+static void cpfguid (struct st *st, const ddsi_guid_t *v)
+{
+  cpf (st, "%s\""PGUIDFMT"\"", st->comma, PGUID (*v));
+  st->comma = ",";
+}
+
+static void cpfkstr (struct st *st, const char *key, const char *v)
+{
+  cpf (st, "%s\"%s\":\"%s\"", st->comma, key, v);
+  st->comma = ",";
+}
+
+static void cpfkguid (struct st *st, const char *key, const ddsi_guid_t *v)
+{
+  cpf (st, "%s\"%s\":\""PGUIDFMT"\"", st->comma, key, PGUID (*v));
+  st->comma = ",";
+}
+
+static void cpfku64 (struct st *st, const char *key, uint64_t v)
+{
+  cpf (st, "%s\"%s\":%"PRIu64, st->comma, key, v);
+  st->comma = ",";
+}
+
+static void cpfkseqno (struct st *st, const char *key, seqno_t v)
+{
+  cpfku64 (st, key, v);
+}
+
+static void cpfksize (struct st *st, const char *key, size_t v)
+{
+  cpf (st, "%s\"%s\":%"PRIuSIZE, st->comma, key, v);
+  st->comma = ",";
+}
+
+static void cpfku32 (struct st *st, const char *key, uint32_t v)
+{
+  cpf (st, "%s\"%s\":%"PRIu32, st->comma, key, v);
+  st->comma = ",";
+}
+
+static void cpfki64 (struct st *st, const char *key, int64_t v)
+{
+  cpf (st, "%s\"%s\":%"PRId64, st->comma, key, v);
+  st->comma = ",";
+}
+
+static void cpfkbool (struct st *st, const char *key, bool v)
+{
+  cpf (st, "%s\"%s\":%s", st->comma, key, v ? "true" : "false");
+  st->comma = ",";
+}
+
+static void cpfobj (struct st *st, void (*f) (struct st *st, void *v), void *v)
+{
+  cpf (st, "%s{", st->comma);
+  st->comma = "";
+  f (st, v);
+  cpf (st, "}");
+  st->comma = ",";
+}
+
+static void cpfkobj (struct st *st, const char *key, void (*f) (struct st *st, void *v), void *v)
+{
+  cpf (st, "%s\"%s\":", st->comma, key);
+  st->comma = "";
+  cpfobj (st, f, v);
+}
+
+static void cpfkseq (struct st *st, const char *key, void (*f) (struct st *st, void *v), void *v)
+{
+  cpf (st, "%s\"%s\":[", st->comma, key);
+  st->comma = "";
+  f (st, v);
+  cpf (st, "]");
+  st->comma = ",";
+}
+
 struct print_address_arg {
-  ddsi_tran_conn_t conn;
-  int count;
+  struct st *st;
 };
 
 static void print_address (const ddsi_xlocator_t *n, void *varg)
 {
   struct print_address_arg *arg = varg;
   char buf[DDSI_LOCSTRLEN];
-  arg->count += cpf (arg->conn, " %s", ddsi_locator_to_string (buf, sizeof(buf), &n->c));
+  cpfstr (arg->st, ddsi_locator_to_string (buf, sizeof (buf), &n->c));
 }
 
-static int print_addrset (ddsi_tran_conn_t conn, const char *prefix, struct addrset *as, const char *suffix)
+static void print_addrset (struct st *st, void *vas)
 {
+  struct addrset * const as = vas;
   struct print_address_arg pa_arg;
-  pa_arg.conn = conn;
-  pa_arg.count = cpf (conn, "%s", prefix);
-  addrset_forall(as, print_address, &pa_arg);
-  pa_arg.count += cpf (conn, "%s", suffix);
-  return pa_arg.count;
+  pa_arg.st = st;
+  addrset_forall (as, print_address, &pa_arg);
 }
 
-static int print_addrset_if_notempty (ddsi_tran_conn_t conn, const char *prefix, struct addrset *as, const char *suffix)
+static void print_partition_seq (struct st *st, void *vxqos)
 {
-  if (addrset_empty(as))
-    return 0;
-  else
-    return print_addrset (conn, prefix, as, suffix);
-}
-
-static int print_any_endpoint_common (ddsi_tran_conn_t conn, const char *label, const struct entity_common *e, const struct dds_qos *xqos)
-{
-  int x = 0;
-  x += cpf (conn, "  %s "PGUIDFMT" %s ", label, PGUID (e->guid), (xqos->present & QP_ENTITY_NAME) ? xqos->entity_name : "");
+  dds_qos_t * const xqos = vxqos;
   if (xqos->present & QP_PARTITION)
-  {
-    if (xqos->partition.n > 1) cpf (conn, "{");
     for (uint32_t i = 0; i < xqos->partition.n; i++)
-      x += cpf (conn, "%s%s", i == 0 ? "" : ",", xqos->partition.strs[i]);
-    if (xqos->partition.n > 1) cpf (conn, "}");
-    const char *topic_name = (xqos->present & QP_TOPIC_NAME) ? xqos->topic_name : "null";
-    const char *topic_typename = (xqos->present & QP_TYPE_NAME) ? xqos->type_name : "null";
-    x += cpf (conn, ".%s/%s", topic_name, topic_typename);
-  }
-  cpf (conn, "\n");
-  return x;
+      cpfstr (st, xqos->partition.strs[i]);
 }
 
-static int print_endpoint_common (ddsi_tran_conn_t conn, const char *label, const struct entity_common *e, const struct endpoint_common *c, const struct dds_qos *xqos)
+static void print_any_endpoint_common (struct st *st, const struct entity_common *e, const struct dds_qos *xqos)
+{
+  cpfkguid (st, "guid", &e->guid);
+  if (xqos->present & QP_ENTITY_NAME)
+    cpfkstr (st, "name", xqos->entity_name);
+  cpfkseq (st, "partitions", print_partition_seq, (struct dds_qos *) xqos);
+  if (xqos->present & QP_TOPIC_NAME)
+    cpfkstr (st, "topic", xqos->topic_name);
+  if (xqos->present & QP_TYPE_NAME)
+    cpfkstr (st, "type", xqos->type_name);
+}
+
+static void print_endpoint_common (struct st *st, const struct entity_common *e, const struct endpoint_common *c, const struct dds_qos *xqos)
 {
   DDSRT_UNUSED_ARG (c);
-  return print_any_endpoint_common (conn, label, e, xqos);
+  print_any_endpoint_common (st, e, xqos);
 }
 
-static int print_proxy_endpoint_common (ddsi_tran_conn_t conn, const char *label, const struct entity_common *e, const struct proxy_endpoint_common *c)
+static void print_proxy_endpoint_common (struct st *st, const struct entity_common *e, const struct proxy_endpoint_common *c)
 {
-  int x = 0;
-  x += print_any_endpoint_common (conn, label, e, c->xqos);
-  x += print_addrset_if_notempty (conn, "    as", c->as, "\n");
-  return x;
+  print_any_endpoint_common (st, e, c->xqos);
+  cpfkseq (st, "as", print_addrset, c->as);
 }
 
+struct print_reader_arg {
+  struct participant *p;
+  struct reader *r;
+};
 
-static int print_participants (struct thread_state1 * const ts1, struct ddsi_domaingv *gv, ddsi_tran_conn_t conn)
+#ifdef DDS_HAS_NETWORK_PARTITIONS
+static void print_nwpart_seq (struct st *st, void *vr)
+{
+  struct reader * const r = vr;
+  char buf[DDSI_LOCSTRLEN];
+  for (const struct networkpartition_address *a = r->uc_as; a != NULL; a = a->next)
+    cpfstr (st, ddsi_locator_to_string (buf, sizeof(buf), &a->loc));
+  for (const struct networkpartition_address *a = r->mc_as; a != NULL; a = a->next)
+    cpfstr (st, ddsi_locator_to_string (buf, sizeof(buf), &a->loc));
+}
+#endif
+
+static void print_reader_wrseq (struct st *st, void *vr)
+{
+  struct reader * const r = vr;
+  ddsrt_avl_iter_t it;
+  for (struct rd_wr_match *m = ddsrt_avl_iter_first (&rd_local_writers_treedef, &r->local_writers, &it); m; m = ddsrt_avl_iter_next (&it))
+    cpfguid (st, &m->wr_guid);
+}
+
+static void print_reader_pwrseq (struct st *st, void *vr)
+{
+  struct reader * const r = vr;
+  ddsrt_avl_iter_t it;
+  for (struct rd_pwr_match *m = ddsrt_avl_iter_first (&rd_writers_treedef, &r->writers, &it); m; m = ddsrt_avl_iter_next (&it))
+    cpfguid (st, &m->pwr_guid);
+}
+
+static void print_reader (struct st *st, void *varg)
+{
+  struct print_reader_arg * const arg = varg;
+  struct reader * const r = arg->r;
+  ddsrt_mutex_lock (&r->e.lock);
+  print_endpoint_common (st, &r->e, &r->c, r->xqos);
+#ifdef DDS_HAS_NETWORK_PARTITIONS
+  if (r->uc_as || r->mc_as)
+    cpfobj (st, print_nwpart_seq, r);
+#endif
+  cpfkseq (st, "local_writers", print_reader_wrseq, r);
+  cpfkseq (st, "proxy_writers", print_reader_pwrseq, r);
+  ddsrt_mutex_unlock (&r->e.lock);
+}
+
+struct print_writer_arg {
+  struct participant *p;
+  struct writer *w;
+};
+
+static void print_whc_state (struct st *st, void *vw)
+{
+  struct writer * const w = vw;
+  struct whc_state whcst;
+  whc_get_state (w->whc, &whcst);
+  cpfkseqno (st, "min_seq", whcst.min_seq);
+  cpfkseqno (st, "max_seq", whcst.max_seq);
+  cpfksize (st, "unacked_bytes", whcst.unacked_bytes);
+  cpfku32 (st, "whc_low", w->whc_low);
+  cpfku32 (st, "whc_high", w->whc_high);
+  cpfkseqno (st, "max_drop_seq", writer_max_drop_seq (w));
+}
+
+static void print_writer_hb (struct st *st, void *vw)
+{
+  struct writer * const w = vw;
+  cpfku32 (st, "n_since_last_write", w->hbcontrol.hbs_since_last_write);
+  cpfki64 (st, "t_last_nonfinal_hb", w->hbcontrol.t_of_last_ackhb.v);
+  cpfki64 (st, "t_last_hb", w->hbcontrol.t_of_last_hb.v);
+  cpfki64 (st, "t_last_write", w->hbcontrol.t_of_last_write.v);
+  cpfki64 (st, "t_sched", w->hbcontrol.tsched.v);
+  cpfku32 (st, "n_reliable_readers", w->num_reliable_readers);
+}
+
+static void print_writer_ack (struct st *st, void *vw)
+{
+  struct writer * const w = vw;
+  cpfku32 (st, "n_acks_received", w->num_acks_received);
+  cpfku32 (st, "n_nacks_received", w->num_nacks_received);
+  cpfku32 (st, "rexmit_count", w->rexmit_count);
+  cpfku32 (st, "rexmit_lost_count", w->rexmit_lost_count);
+  cpfku32 (st, "throttle_count", w->throttle_count);
+}
+
+static void print_writer_rdseq (struct st *st, void *vw)
+{
+  struct writer * const w = vw;
+  ddsrt_avl_iter_t it;
+  for (struct wr_rd_match *m = ddsrt_avl_iter_first (&wr_local_readers_treedef, &w->local_readers, &it); m; m = ddsrt_avl_iter_next (&it))
+    cpfguid (st, &m->rd_guid);
+}
+
+static void print_writer_rd (struct st *st, void *vm)
+{
+  struct wr_prd_match * const m = vm;
+  cpfkguid (st, "guid", &m->prd_guid);
+  cpfkbool (st, "reliable", m->is_reliable);
+  cpfkbool (st, "assumed_in_sync", m->assumed_in_sync);
+  cpfkbool (st, "has_replied_to_hb", m->has_replied_to_hb);
+  cpfkbool (st, "reliable", m->is_reliable);
+  cpfkseqno (st, "seq", m->seq);
+  cpfku32 (st, "rexmit_requests", m->rexmit_requests);
+}
+
+static void print_writer_prdseq (struct st *st, void *vw)
+{
+  struct writer * const w = vw;
+  ddsrt_avl_iter_t it;
+  for (struct wr_prd_match *m = ddsrt_avl_iter_first (&wr_readers_treedef, &w->readers, &it); m; m = ddsrt_avl_iter_next (&it))
+    cpfobj (st, print_writer_rd, m);
+}
+
+static void print_writer (struct st *st, void *varg)
+{
+  struct print_writer_arg * const arg = varg;
+  struct writer * const w = arg->w;
+  ddsrt_mutex_lock (&w->e.lock);
+  print_endpoint_common (st, &w->e, &w->c, w->xqos);
+  cpfkobj (st, "whc", print_whc_state, w);
+  cpfkseqno (st, "seq", w->seq);
+  cpfkseqno (st, "seq_xmit", writer_read_seq_xmit (w));
+  cpfkseqno (st, "cs_seq", w->cs_seq);
+  cpfkbool (st, "throttling", w->throttling);
+  cpfkbool (st, "reliable", w->reliable);
+  if (w->reliable)
+  {
+    cpfkobj (st, "heartbeat", print_writer_hb, w);
+    cpfkobj (st, "ack", print_writer_ack, w);
+  }
+  cpfku64 (st, "rexmit_bytes", w->rexmit_bytes);
+  cpfku32 (st, "throttle_count", w->throttle_count);
+  cpfku64 (st, "time_throttled", w->time_throttled);
+  cpfku64 (st, "time_retransmit", w->time_retransmit);
+
+  cpfkseq (st, "as", print_addrset, w->as);
+  cpfkseq (st, "local_readers", print_writer_rdseq, w);
+  cpfkseq (st, "proxy_readers", print_writer_prdseq, w);
+  ddsrt_mutex_unlock (&w->e.lock);
+}
+
+struct print_reader_seq_arg {
+  struct participant *p;
+  struct entidx_enum_reader *er;
+};
+
+static void print_reader_seq (struct st *st, void *varg)
+{
+  struct print_reader_seq_arg * const arg = varg;
+  struct reader *r;
+  while (!st->error && (r = entidx_enum_reader_next (arg->er)) != NULL)
+    if (r->c.pp == arg->p)
+      cpfobj (st, print_reader, &(struct print_reader_arg){ .p = arg->p, .r = r });
+}
+
+struct print_writer_seq_arg {
+  struct participant *p;
+  struct entidx_enum_writer *ew;
+};
+
+static void print_writer_seq (struct st *st, void *varg)
+{
+  struct print_writer_seq_arg * const arg = varg;
+  struct writer *w;
+  while (!st->error && (w = entidx_enum_writer_next (arg->ew)) != NULL)
+    if (w->c.pp == arg->p)
+      cpfobj (st, print_writer, &(struct print_writer_arg){ .p = arg->p, .w = w });
+}
+
+static void print_participant_flags (struct st *st, void *vp)
+{
+  struct participant * const p = vp;
+  if (p->is_ddsi2_pp)
+    cpfstr (st, "ddsi2");
+}
+
+static void print_participant (struct st *st, void *vp)
+{
+  struct participant *p = vp;
+
+  ddsrt_mutex_lock (&p->e.lock);
+  cpfkguid (st, "guid", &p->e.guid);
+  cpfkstr (st, "name", (p->plist->qos.present & QP_ENTITY_NAME) ? p->plist->qos.entity_name : "");
+  cpfkseq (st, "flags", print_participant_flags, p);
+  ddsrt_mutex_unlock (&p->e.lock);
+
+  {
+    struct entidx_enum_reader er;
+    entidx_enum_reader_init (&er, st->gv->entity_index);
+    cpfkseq (st, "readers", print_reader_seq, &(struct print_reader_seq_arg){ .p = p, .er = &er });
+    entidx_enum_reader_fini (&er);
+  }
+
+  {
+    struct entidx_enum_writer ew;
+    entidx_enum_writer_init (&ew, st->gv->entity_index);
+    cpfkseq (st, "writers", print_writer_seq, &(struct print_writer_seq_arg){ .p = p, .ew = &ew });
+    entidx_enum_writer_fini (&ew);
+  }
+}
+
+static void print_participants_seq (struct st *st, void *ve)
+{
+  struct entidx_enum_participant *e = ve;
+  struct participant *p;
+  while (!st->error && (p = entidx_enum_participant_next (e)) != NULL)
+    cpfobj (st, print_participant, p);
+}
+
+static void print_participants (struct st *st)
 {
   struct entidx_enum_participant e;
-  struct participant *p;
-  int x = 0;
-  thread_state_awake_fixed_domain (ts1);
-  entidx_enum_participant_init (&e, gv->entity_index);
-  while ((p = entidx_enum_participant_next (&e)) != NULL)
-  {
-    ddsrt_mutex_lock (&p->e.lock);
-    x += cpf (conn, "pp "PGUIDFMT" %s%s\n", PGUID (p->e.guid), (p->plist->qos.present & QP_ENTITY_NAME) ? p->plist->qos.entity_name : "", p->is_ddsi2_pp ? " [ddsi2]" : "");
-    ddsrt_mutex_unlock (&p->e.lock);
-
-    {
-      struct entidx_enum_reader er;
-      struct reader *r;
-      entidx_enum_reader_init (&er, gv->entity_index);
-      while ((r = entidx_enum_reader_next (&er)) != NULL)
-      {
-        ddsrt_avl_iter_t writ;
-        struct rd_pwr_match *m;
-        if (r->c.pp != p)
-          continue;
-        ddsrt_mutex_lock (&r->e.lock);
-        print_endpoint_common (conn, "rd", &r->e, &r->c, r->xqos);
-#ifdef DDS_HAS_NETWORK_PARTITIONS
-        if (r->uc_as || r->mc_as)
-        {
-          char buf[DDSI_LOCSTRLEN];
-          x += cpf (conn, "    as");
-          for (const struct networkpartition_address *a = r->uc_as; a != NULL; a = a->next)
-            x += cpf (conn, " %s", ddsi_locator_to_string (buf, sizeof(buf), &a->loc));
-          for (const struct networkpartition_address *a = r->mc_as; a != NULL; a = a->next)
-            x += cpf (conn, " %s", ddsi_locator_to_string (buf, sizeof(buf), &a->loc));
-          x += cpf (conn, "\n");
-        }
-#endif
-        for (m = ddsrt_avl_iter_first (&rd_writers_treedef, &r->writers, &writ); m; m = ddsrt_avl_iter_next (&writ))
-          x += cpf (conn, "    pwr "PGUIDFMT"\n", PGUID (m->pwr_guid));
-        ddsrt_mutex_unlock (&r->e.lock);
-      }
-      entidx_enum_reader_fini (&er);
-    }
-
-    {
-      struct entidx_enum_writer ew;
-      struct writer *w;
-      entidx_enum_writer_init (&ew, gv->entity_index);
-      while ((w = entidx_enum_writer_next (&ew)) != NULL)
-      {
-        ddsrt_avl_iter_t rdit;
-        struct wr_prd_match *m;
-        struct whc_state whcst;
-        if (w->c.pp != p)
-          continue;
-        ddsrt_mutex_lock (&w->e.lock);
-        print_endpoint_common (conn, "wr", &w->e, &w->c, w->xqos);
-        whc_get_state(w->whc, &whcst);
-        x += cpf (conn, "    whc [%"PRIu64",%"PRIu64"] unacked %"PRIuSIZE"%s [%"PRIu32",%"PRIu32"] seq %"PRIu64" seq_xmit %"PRIu64" cs_seq %"PRIu64"\n",
-                  whcst.min_seq, whcst.max_seq, whcst.unacked_bytes,
-                  w->throttling ? " THROTTLING" : "",
-                  w->whc_low, w->whc_high,
-                  w->seq, writer_read_seq_xmit (w), w->cs_seq);
-        if (w->reliable)
-        {
-          x += cpf (conn, "    hb %"PRIu32" ackhb %"PRId64" hb %"PRId64" wr %"PRId64" sched %"PRId64" #rel %"PRId32"\n",
-                    w->hbcontrol.hbs_since_last_write, w->hbcontrol.t_of_last_ackhb.v,
-                    w->hbcontrol.t_of_last_hb.v, w->hbcontrol.t_of_last_write.v,
-                    w->hbcontrol.tsched.v, w->num_reliable_readers);
-          x += cpf (conn, "    #acks %"PRIu32" #nacks %"PRIu32" #rexmit %"PRIu32" #lost %"PRIu32" #throttle %"PRIu32"\n",
-                    w->num_acks_received, w->num_nacks_received, w->rexmit_count, w->rexmit_lost_count, w->throttle_count);
-          x += cpf (conn, "    max-drop-seq %"PRIu64"\n", writer_max_drop_seq (w));
-        }
-        x += print_addrset_if_notempty (conn, "    as", w->as, "\n");
-        for (m = ddsrt_avl_iter_first (&wr_readers_treedef, &w->readers, &rdit); m; m = ddsrt_avl_iter_next (&rdit))
-        {
-          char wr_prd_flags[4];
-          wr_prd_flags[0] = m->is_reliable ? 'R' : 'U';
-          wr_prd_flags[1] = m->assumed_in_sync ? 's' : '.';
-          wr_prd_flags[2] = m->has_replied_to_hb ? 'a' : '.'; /* a = ack seen */
-          wr_prd_flags[3] = 0;
-          x += cpf (conn, "    prd "PGUIDFMT" %s @ %"PRIu64" [%"PRIu64",%"PRIu64"] #nacks %"PRIu32"\n",
-                    PGUID (m->prd_guid), wr_prd_flags, m->seq, m->min_seq, m->max_seq, m->rexmit_requests);
-        }
-        ddsrt_mutex_unlock (&w->e.lock);
-      }
-      entidx_enum_writer_fini (&ew);
-    }
-  }
+  thread_state_awake_fixed_domain (st->ts1);
+  entidx_enum_participant_init (&e, st->gv->entity_index);
+  cpfkseq (st, "participants", print_participants_seq, &e);
   entidx_enum_participant_fini (&e);
-  thread_state_asleep (ts1);
-  return x;
+  thread_state_asleep (st->ts1);
 }
 
-static int print_proxy_participants (struct thread_state1 * const ts1, struct ddsi_domaingv *gv, ddsi_tran_conn_t conn)
+struct print_proxy_reader_arg {
+  struct proxy_participant *p;
+  struct proxy_reader *r;
+};
+
+static void print_proxy_reader_wrseq (struct st *st, void *vr)
+{
+  struct proxy_reader * const r = vr;
+  ddsrt_avl_iter_t it;
+  for (struct prd_wr_match *m = ddsrt_avl_iter_first (&prd_writers_treedef, &r->writers, &it); m; m = ddsrt_avl_iter_next (&it))
+    cpfguid (st, &m->wr_guid);
+}
+
+static void print_proxy_reader (struct st *st, void *varg)
+{
+  struct print_proxy_reader_arg * const arg = varg;
+  struct proxy_reader * const r = arg->r;
+  ddsrt_mutex_lock (&r->e.lock);
+  print_proxy_endpoint_common (st, &r->e, &r->c);
+  cpfkseq (st, "local_writers", print_proxy_reader_wrseq, r);
+  ddsrt_mutex_unlock (&r->e.lock);
+}
+
+struct print_proxy_reader_seq_arg {
+  struct proxy_participant *p;
+  struct entidx_enum_proxy_reader *er;
+};
+
+static void print_proxy_reader_seq (struct st *st, void *varg)
+{
+  struct print_proxy_reader_seq_arg * const arg = varg;
+  struct proxy_reader *r;
+  while (!st->error && (r = entidx_enum_proxy_reader_next (arg->er)) != NULL)
+    if (r->c.proxypp == arg->p)
+      cpfobj (st, print_proxy_reader, &(struct print_proxy_reader_arg){ .p = arg->p, .r = r });
+}
+
+static void print_proxy_writer_rd (struct st *st, void *vm)
+{
+  struct pwr_rd_match * const m = vm;
+  cpfkguid (st, "guid", &m->rd_guid);
+  cpfkseqno (st, "last_nack_seq_end_p1", m->last_nack.seq_end_p1);
+  cpfku32 (st, "last_nack_frag_end_p1", m->last_nack.frag_end_p1);
+  cpfki64 (st, "t_last_nack", m->t_last_nack.v);
+  switch (m->in_sync)
+  {
+    case PRMSS_SYNC:
+      cpfkstr (st, "in_sync", "sync");
+      break;
+    case PRMSS_TLCATCHUP:
+      cpfkstr (st, "in_sync", "tlcatchup");
+      cpfkseqno (st, "end_of_tl_seq", m->u.not_in_sync.end_of_tl_seq);
+      break;
+    case PRMSS_OUT_OF_SYNC:
+      cpfkstr (st, "in_sync", "out_of_sync");
+      cpfkseqno (st, "end_of_tl_seq", m->u.not_in_sync.end_of_tl_seq);
+      break;
+  }
+}
+
+static void print_proxy_writer_rdseq (struct st *st, void *vw)
+{
+  struct proxy_writer * const w = vw;
+  ddsrt_avl_iter_t it;
+  for (struct pwr_rd_match *m = ddsrt_avl_iter_first (&pwr_readers_treedef, &w->readers, &it); m; m = ddsrt_avl_iter_next (&it))
+    cpfobj (st, print_proxy_writer_rd, m);
+}
+
+struct print_proxy_writer_arg {
+  struct proxy_participant *p;
+  struct proxy_writer *w;
+};
+
+static void print_proxy_writer (struct st *st, void *varg)
+{
+  struct print_proxy_writer_arg * const arg = varg;
+  struct proxy_writer * const w = arg->w;
+  ddsrt_mutex_lock (&w->e.lock);
+  print_proxy_endpoint_common (st, &w->e, &w->c);
+  cpfkseqno (st, "last_seq", w->last_seq);
+  cpfku32 (st, "last_fragnum", w->last_fragnum);
+  cpfkseq (st, "local_readers", print_proxy_writer_rdseq, w);
+  uint64_t disc_frags, disc_samples;
+  nn_defrag_stats (w->defrag, &disc_frags);
+  nn_reorder_stats (w->reorder, &disc_samples);
+  cpfku64 (st, "discarded_fragment_bytes", disc_frags);
+  cpfku64 (st, "discarded_sample_bytes", disc_samples);
+  ddsrt_mutex_unlock (&w->e.lock);
+}
+
+struct print_proxy_writer_seq_arg {
+  struct proxy_participant *p;
+  struct entidx_enum_proxy_writer *ew;
+};
+
+static void print_proxy_writer_seq (struct st *st, void *varg)
+{
+  struct print_proxy_writer_seq_arg * const arg = varg;
+  struct proxy_writer *w;
+  while (!st->error && (w = entidx_enum_proxy_writer_next (arg->ew)) != NULL)
+    if (w->c.proxypp == arg->p)
+      cpfobj (st, print_proxy_writer, &(struct print_proxy_writer_arg){ .p = arg->p, .w = w });
+}
+
+static void print_proxy_participant_flags (struct st *st, void *vp)
+{
+  struct proxy_participant * const p = vp;
+  if (p->implicitly_created)
+    cpfstr (st, "implicitly_created");
+  if (p->is_ddsi2_pp)
+    cpfstr (st, "ddsi2");
+  if (p->minimal_bes_mode)
+    cpfstr (st, "minimal_bes_mode");
+  if (p->redundant_networking)
+    cpfstr (st, "redundant_networking");
+}
+
+static void print_proxy_participant (struct st *st, void *vp)
+{
+  struct proxy_participant * const p = vp;
+
+  ddsrt_mutex_lock (&p->e.lock);
+  cpfkguid (st, "guid", &p->e.guid);
+  cpfkseq (st, "flags", print_proxy_participant_flags, p);
+  ddsrt_mutex_unlock (&p->e.lock);
+  cpfkseq (st, "as_data", print_addrset, p->as_default);
+  cpfkseq (st, "as_meta", print_addrset, p->as_meta);
+
+  {
+    struct entidx_enum_proxy_reader er;
+    entidx_enum_proxy_reader_init (&er, st->gv->entity_index);
+    cpfkseq (st, "proxy_readers", print_proxy_reader_seq, &(struct print_proxy_reader_seq_arg){ .p = p, .er = &er });
+    entidx_enum_proxy_reader_fini (&er);
+  }
+
+  {
+    struct entidx_enum_proxy_writer ew;
+    entidx_enum_proxy_writer_init (&ew, st->gv->entity_index);
+    cpfkseq (st, "proxy_writers", print_proxy_writer_seq, &(struct print_proxy_writer_seq_arg){ .p = p, .ew = &ew });
+    entidx_enum_proxy_writer_fini (&ew);
+  }
+}
+
+static void print_proxy_participants_seq (struct st *st, void *ve)
+{
+  struct entidx_enum_proxy_participant *e = ve;
+  struct proxy_participant *p;
+  while (!st->error && (p = entidx_enum_proxy_participant_next (e)) != NULL)
+    cpfobj (st, print_proxy_participant, p);
+}
+
+static void print_proxy_participants (struct st *st)
 {
   struct entidx_enum_proxy_participant e;
-  struct proxy_participant *p;
-  int x = 0;
-  thread_state_awake_fixed_domain (ts1);
-  entidx_enum_proxy_participant_init (&e, gv->entity_index);
-  while ((p = entidx_enum_proxy_participant_next (&e)) != NULL)
-  {
-    ddsrt_mutex_lock (&p->e.lock);
-    x += cpf (conn, "proxypp "PGUIDFMT"%s\n", PGUID (p->e.guid), p->is_ddsi2_pp ? " [ddsi2]" : "");
-    ddsrt_mutex_unlock (&p->e.lock);
-    x += print_addrset (conn, "  as data", p->as_default, "");
-    x += print_addrset (conn, " meta", p->as_default, "\n");
-
-    {
-      struct entidx_enum_proxy_reader er;
-      struct proxy_reader *r;
-      entidx_enum_proxy_reader_init (&er, gv->entity_index);
-      while ((r = entidx_enum_proxy_reader_next (&er)) != NULL)
-      {
-        ddsrt_avl_iter_t writ;
-        struct prd_wr_match *m;
-        if (r->c.proxypp != p)
-          continue;
-        ddsrt_mutex_lock (&r->e.lock);
-        print_proxy_endpoint_common (conn, "prd", &r->e, &r->c);
-        for (m = ddsrt_avl_iter_first (&rd_writers_treedef, &r->writers, &writ); m; m = ddsrt_avl_iter_next (&writ))
-          x += cpf (conn, "    wr "PGUIDFMT"\n", PGUID (m->wr_guid));
-        ddsrt_mutex_unlock (&r->e.lock);
-      }
-      entidx_enum_proxy_reader_fini (&er);
-    }
-
-    {
-      struct entidx_enum_proxy_writer ew;
-      struct proxy_writer *w;
-      entidx_enum_proxy_writer_init (&ew, gv->entity_index);
-      while ((w = entidx_enum_proxy_writer_next (&ew)) != NULL)
-      {
-        ddsrt_avl_iter_t rdit;
-        struct pwr_rd_match *m;
-        if (w->c.proxypp != p)
-          continue;
-        ddsrt_mutex_lock (&w->e.lock);
-        print_proxy_endpoint_common (conn, "pwr", &w->e, &w->c);
-        x += cpf (conn, "    last_seq %"PRIu64" last_fragnum %"PRIu32"\n", w->last_seq, w->last_fragnum);
-        for (m = ddsrt_avl_iter_first (&wr_readers_treedef, &w->readers, &rdit); m; m = ddsrt_avl_iter_next (&rdit))
-        {
-          x += cpf (conn, "    rd "PGUIDFMT" (nack %"PRIu64" frag %"PRIu32" %"PRId64")\n",
-                    PGUID (m->rd_guid), m->last_nack.seq_end_p1, m->last_nack.frag_end_p1, m->t_last_nack.v);
-          switch (m->in_sync)
-          {
-            case PRMSS_SYNC:
-              break;
-            case PRMSS_TLCATCHUP:
-              x += cpf (conn, "      tl-catchup end_of_tl_seq %"PRIu64"\n", m->u.not_in_sync.end_of_tl_seq);
-              break;
-            case PRMSS_OUT_OF_SYNC:
-              x += cpf (conn, "      out-of-sync end_of_tl_seq %"PRIu64"\n", m->u.not_in_sync.end_of_tl_seq);
-              break;
-          }
-        }
-        ddsrt_mutex_unlock (&w->e.lock);
-      }
-      entidx_enum_proxy_writer_fini (&ew);
-    }
-  }
+  thread_state_awake_fixed_domain (st->ts1);
+  entidx_enum_proxy_participant_init (&e, st->gv->entity_index);
+  cpfkseq (st, "proxy_participants", print_proxy_participants_seq, &e);
   entidx_enum_proxy_participant_fini (&e);
-  thread_state_asleep (ts1);
-  return x;
+  thread_state_asleep (st->ts1);
+}
+
+static void print_domain (struct st *st, void *varg)
+{
+  (void) varg;
+  print_participants (st);
+  print_proxy_participants (st);
 }
 
 static void debmon_handle_connection (struct debug_monitor *dm, ddsi_tran_conn_t conn)
 {
-  struct thread_state1 * const ts1 = lookup_thread_state ();
-  struct plugin *p;
-  int r = 0;
-  r += print_participants (ts1, dm->gv, conn);
-  if (r == 0)
-    r += print_proxy_participants (ts1, dm->gv, conn);
+  ddsi_locator_t loc;
+  const char *http_header = "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n";
+  const ddsrt_iovec_t iov = { .iov_base = (void *) http_header, .iov_len = (ddsrt_iov_len_t) strlen (http_header) };
 
-  /* Note: can only add plugins (at the tail) */
-  ddsrt_mutex_lock (&dm->lock);
-  p = dm->plugins;
-  while (r == 0 && p != NULL)
-  {
-    ddsrt_mutex_unlock (&dm->lock);
-    r += p->fn (conn, cpf, p->arg);
-    ddsrt_mutex_lock (&dm->lock);
-    p = p->next;
+  struct thread_state1 * const ts1 = lookup_thread_state ();
+  struct st st = {
+    .conn = conn,
+    .gv = dm->gv,
+    .ts1 = ts1,
+    .error = false,
+    .comma = "",
+    .pos = 8
+  };
+
+  if (!ddsi_conn_peer_locator(st.conn, &loc)) {
+    return;
   }
-  ddsrt_mutex_unlock (&dm->lock);
+
+  if (ddsi_conn_write (st.conn, &loc, 1, &iov, 0) < 0) {
+    // If we cant even send headers dont bother with encoding the rest
+    return;
+  }
+
+  // Encode data
+  cpfobj (&st, print_domain, NULL);
+
+  // Last content chunk
+  if (st.pos > 8)
+    cpemitchunk(&st, loc);
+
+  // Terminating chunk
+  cpemitchunk(&st, loc);
 }
 
 static uint32_t debmon_main (void *vdm)
@@ -368,7 +713,6 @@ struct debug_monitor *new_debug_monitor (struct ddsi_domaingv *gv, int32_t port)
   dm = ddsrt_malloc (sizeof (*dm));
 
   dm->gv = gv;
-  dm->plugins = NULL;
   if ((dm->tran_factory = ddsi_factory_find (gv, "tcp")) == NULL)
     dm->tran_factory = ddsi_factory_find (gv, "tcp6");
 
@@ -410,23 +754,6 @@ err_invalid_port:
   return NULL;
 }
 
-void add_debug_monitor_plugin (struct debug_monitor *dm, debug_monitor_plugin_t fn, void *arg)
-{
-  struct plugin *p, **pp;
-  if (dm != NULL && (p = ddsrt_malloc (sizeof (*p))) != NULL)
-  {
-    p->fn = fn;
-    p->arg = arg;
-    p->next = NULL;
-    ddsrt_mutex_lock (&dm->lock);
-    pp = &dm->plugins;
-    while (*pp)
-      pp = &(*pp)->next;
-    *pp = p;
-    ddsrt_mutex_unlock (&dm->lock);
-  }
-}
-
 void free_debug_monitor (struct debug_monitor *dm)
 {
   if (dm == NULL)
@@ -441,12 +768,6 @@ void free_debug_monitor (struct debug_monitor *dm)
   ddsi_listener_free (dm->servsock);
   ddsrt_cond_destroy (&dm->cond);
   ddsrt_mutex_destroy (&dm->lock);
-
-  while (dm->plugins) {
-    struct plugin *p = dm->plugins;
-    dm->plugins = p->next;
-    ddsrt_free (p);
-  }
   ddsrt_free (dm);
 }
 
