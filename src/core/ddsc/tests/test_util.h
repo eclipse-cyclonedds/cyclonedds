@@ -1,4 +1,5 @@
 /*
+ * Copyright(c) 2022 ZettaScale Technology
  * Copyright(c) 2020 ADLINK Technology Limited and others
  *
  * This program and the accompanying materials are made available under the
@@ -14,6 +15,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include "dds/ddsi/ddsi_domaingv.h"
 
 /* Get unique g_topic name on each invocation. */
 char *create_unique_topic_name (const char *prefix, char *name, size_t size);
@@ -27,5 +29,8 @@ void no_sync_reader_writer (dds_entity_t participant_rd, dds_entity_t reader, dd
 /* Print message preceded by time stamp */
 void tprintf (const char *msg, ...)
   ddsrt_attribute_format_printf (1, 2);
+
+/* Get gv from the provided entity */
+struct ddsi_domaingv *get_domaingv (dds_entity_t handle);
 
 #endif /* _TEST_UTIL_H_ */

@@ -1,4 +1,5 @@
 /*
+ * Copyright(c) 2022 ZettaScale Technology
  * Copyright(c) 2006 to 2020 ADLINK Technology Limited and others
  *
  * This program and the accompanying materials are made available under the
@@ -18,9 +19,14 @@
 #include "CUnit/Test.h"
 #include "CUnit/Theory.h"
 
+#include "dds/ddsrt/heap.h"
+#include "dds/ddsi/ddsi_cdrstream.h"
 #include "test_util.h"
 
 #include "Space.h"
 #include "RoundTrip.h"
+
+void xcdr2_ser (const void *obj, const dds_topic_descriptor_t *desc, dds_ostream_t *os);
+void xcdr2_deser (unsigned char *buf, uint32_t sz, void **obj, const dds_topic_descriptor_t *desc);
 
 #endif /* _TEST_COMMON_H_ */
