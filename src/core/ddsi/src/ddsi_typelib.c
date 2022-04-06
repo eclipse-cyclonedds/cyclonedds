@@ -283,7 +283,7 @@ static void ddsi_type_fini (struct ddsi_domaingv *gv, struct ddsi_type *type)
   struct ddsi_type_dep key;
   memset (&key, 0, sizeof (key));
   ddsi_typeid_copy (&key.src_type_id, &type->xt.id);
-  ddsi_xt_type_fini (gv, &type->xt);
+  ddsi_xt_type_fini (gv, &type->xt, true);
   if (type->sertype)
     ddsi_sertype_unref ((struct ddsi_sertype *) type->sertype);
 
