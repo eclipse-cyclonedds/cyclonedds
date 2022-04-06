@@ -93,17 +93,6 @@ ${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}\
   return pp;
 }
 
-static struct ddsi_domaingv *get_domaingv (dds_entity_t handle)
-{
-  dds_return_t rc;
-  struct dds_entity *x;
-  rc = dds_entity_pin (handle, &x);
-  CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
-  struct ddsi_domaingv * const gv = &x->m_domain->gv;
-  dds_entity_unpin (x);
-  return gv;
-}
-
 static bool endpoint_has_iceoryx_enabled (dds_entity_t rd_or_wr)
 {
   dds_return_t rc;

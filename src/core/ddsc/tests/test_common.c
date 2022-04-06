@@ -1,4 +1,5 @@
 /*
+ * Copyright(c) 2022 ZettaScale Technology
  * Copyright(c) 2006 to 2018 ADLINK Technology Limited and others
  *
  * This program and the accompanying materials are made available under the
@@ -78,4 +79,50 @@ void sync_reader_writer (dds_entity_t participant_rd, dds_entity_t reader, dds_e
 void no_sync_reader_writer (dds_entity_t participant_rd, dds_entity_t reader, dds_entity_t participant_wr, dds_entity_t writer, dds_duration_t timeout)
 {
   sync_reader_writer_impl (participant_rd, reader, participant_wr, writer, false, timeout);
+}
+
+void xcdr2_ser (const void *obj, const dds_topic_descriptor_t *desc, dds_ostream_t *os)
+{
+  struct ddsi_sertype_default sertype;
+  memset (&sertype, 0, sizeof (sertype));
+  sertype.type = (struct ddsi_sertype_default_desc) {
+    .size = desc->m_size,
+    .align = desc->m_align,
+    .flagset = desc->m_flagset,
+    .keys.nkeys = 0,
+    .keys.keys = NULL,
+    .ops.nops = dds_stream_countops (desc->m_ops, desc->m_nkeys, desc->m_keys),
+    .ops.ops = (uint32_t *) desc->m_ops
+  };
+
+  os->m_buffer = NULL;
+  os->m_index = 0;
+  os->m_size = 0;
+  os->m_xcdr_version = CDR_ENC_VERSION_2;
+  bool ret = dds_stream_write_sampleLE ((dds_ostreamLE_t *) os, obj, &sertype);
+  CU_ASSERT_FATAL (ret);
+}
+
+void xcdr2_deser (unsigned char *buf, uint32_t sz, void **obj, const dds_topic_descriptor_t *desc)
+{
+  unsigned char *data;
+  uint32_t srcoff = 0;
+  DDSRT_WARNING_MSVC_OFF(6326)
+  bool bswap = (DDSRT_ENDIAN != DDSRT_LITTLE_ENDIAN);
+  DDSRT_WARNING_MSVC_ON(6326)
+  if (bswap)
+  {
+    data = ddsrt_malloc (sz);
+    memcpy (data, buf, sz);
+    const uint32_t *ret = dds_stream_normalize_data ((char *) data, &srcoff, sz, bswap, CDR_ENC_VERSION_2, desc->m_ops);
+    CU_ASSERT_NOT_EQUAL_FATAL (ret, NULL);
+  }
+  else
+    data = buf;
+
+  dds_istream_t is = { .m_buffer = data, .m_index = 0, .m_size = sz, .m_xcdr_version = CDR_ENC_VERSION_2 };
+  *obj = ddsrt_calloc (1, desc->m_size);
+  dds_stream_read (&is, (void *) *obj, desc->m_ops);
+  if (bswap)
+    ddsrt_free (data);
 }
