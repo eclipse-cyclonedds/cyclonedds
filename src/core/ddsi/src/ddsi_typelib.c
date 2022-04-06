@@ -223,7 +223,7 @@ ddsi_typemap_t *ddsi_typemap_deser (const struct ddsi_sertype_cdr_data *ser)
   return typemap;
 }
 
-static void ddsi_typemap_fini (ddsi_typemap_t *typemap)
+void ddsi_typemap_fini (ddsi_typemap_t *typemap)
 {
   dds_stream_free_sample (typemap, DDS_XTypes_TypeMapping_desc.m_ops);
 }

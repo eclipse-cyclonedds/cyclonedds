@@ -66,6 +66,7 @@ DDS_EXPORT const ddsi_typeid_t *ddsi_typeinfo_complete_typeid (const ddsi_typein
 DDS_EXPORT bool ddsi_typeinfo_valid (const ddsi_typeinfo_t *typeinfo);
 
 DDS_EXPORT ddsi_typemap_t *ddsi_typemap_deser (const struct ddsi_sertype_cdr_data *ser);
+DDS_EXPORT void ddsi_typemap_fini (ddsi_typemap_t *typemap);
 
 DDS_EXPORT void ddsi_type_register_dep (struct ddsi_domaingv *gv, const ddsi_typeid_t *src_type_id, struct ddsi_type **dst_dep_type, const struct DDS_XTypes_TypeIdentifier *dep_type_id);
 DDS_EXPORT dds_return_t ddsi_type_ref_locked (struct ddsi_domaingv *gv, struct ddsi_type **type, const struct ddsi_type *src);
