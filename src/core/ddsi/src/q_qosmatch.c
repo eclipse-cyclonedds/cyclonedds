@@ -70,14 +70,16 @@ static int partitions_match_p (const dds_qos_t *a, const dds_qos_t *b)
 
 #ifdef DDS_HAS_TYPE_DISCOVERY
 
-static bool is_endpoint_type_resolved (struct ddsi_domaingv *gv, char *type_name, const ddsi_type_pair_t *type_pair, bool *req_lookup, const char *entity)
+static uint32_t is_endpoint_type_resolved (struct ddsi_domaingv *gv, char *type_name, const ddsi_type_pair_t *type_pair, bool *req_lookup, const char *entity)
   ddsrt_nonnull((1, 2, 3));
 
-static bool is_endpoint_type_resolved (struct ddsi_domaingv *gv, char *type_name, const ddsi_type_pair_t *type_pair, bool *req_lookup, const char *entity)
+static uint32_t is_endpoint_type_resolved (struct ddsi_domaingv *gv, char *type_name, const ddsi_type_pair_t *type_pair, bool *req_lookup, const char *entity)
 {
   assert (type_pair);
   ddsrt_mutex_lock (&gv->typelib_lock);
-  if (!ddsi_type_resolved (gv, type_pair->minimal, true) && !ddsi_type_resolved (gv, type_pair->complete, true))
+  bool min_resolved = ddsi_type_resolved (gv, type_pair->minimal, true),
+    compl_resolved = ddsi_type_resolved (gv, type_pair->complete, true);
+  if (!min_resolved && !compl_resolved)
   {
     struct ddsi_typeid_str str;
     const ddsi_typeid_t *tid_m = ddsi_type_pair_minimal_id (type_pair),
@@ -94,10 +96,13 @@ static bool is_endpoint_type_resolved (struct ddsi_domaingv *gv, char *type_name
     if (req_lookup != NULL)
       *req_lookup = true;
     ddsrt_mutex_unlock (&gv->typelib_lock);
-    return false;
+    return DDS_XTypes_TK_NONE;
   }
   ddsrt_mutex_unlock (&gv->typelib_lock);
-  return true;
+
+  if (min_resolved && compl_resolved)
+    return DDS_XTypes_EK_BOTH;
+  return compl_resolved ? DDS_XTypes_EK_COMPLETE : DDS_XTypes_EK_MINIMAL;
 }
 
 #endif /* DDS_HAS_TYPE_DISCOVERY */
@@ -247,10 +252,12 @@ bool qos_match_mask_p (
     }
     else
     {
-      if (!is_endpoint_type_resolved (gv, rd_qos->type_name, rd_type_pair, rd_typeid_req_lookup, "rd")
-          || !is_endpoint_type_resolved (gv, wr_qos->type_name, wr_type_pair, wr_typeid_req_lookup, "wr"))
+      uint32_t rd_resolved, wr_resolved;
+      if (!(rd_resolved = is_endpoint_type_resolved (gv, rd_qos->type_name, rd_type_pair, rd_typeid_req_lookup, "rd"))
+          || !(wr_resolved = is_endpoint_type_resolved (gv, wr_qos->type_name, wr_type_pair, wr_typeid_req_lookup, "wr")))
         return false;
-      if (!ddsi_is_assignable_from (gv, rd_type_pair, wr_type_pair, &tce))
+
+      if (!ddsi_is_assignable_from (gv, rd_type_pair, rd_resolved, wr_type_pair, wr_resolved, &tce))
       {
         *reason = DDS_TYPE_CONSISTENCY_ENFORCEMENT_QOS_POLICY_ID;
         return false;
