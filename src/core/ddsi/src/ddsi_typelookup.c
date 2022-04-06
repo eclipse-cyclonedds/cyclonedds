@@ -279,29 +279,16 @@ void ddsi_tl_handle_request (struct ddsi_domaingv *gv, struct ddsi_serdata *d)
   ddsrt_free (types._buffer);
 }
 
-void ddsi_tl_handle_reply (struct ddsi_domaingv *gv, struct ddsi_serdata *d)
+void ddsi_tl_add_types (struct ddsi_domaingv *gv, const DDS_Builtin_TypeLookup_Reply *reply, struct generic_proxy_endpoint ***gpe_match_upd, uint32_t *n_match_upd)
 {
-  struct generic_proxy_endpoint **gpe_match_upd = NULL;
-  uint32_t n_match_upd = 0;
-  assert (!(d->statusinfo & (NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER)));
-
-  DDS_Builtin_TypeLookup_Reply reply;
-  memset (&reply, 0, sizeof (reply));
-  ddsi_serdata_to_sample (d, &reply, NULL, NULL);
-  if (reply.return_data._d != DDS_Builtin_TypeLookup_getTypes_HashId)
-  {
-    GVTRACE (" handle-tl-reply wr "PGUIDFMT " unknown reply-type %"PRIi32, PGUID (from_guid (&reply.header.requestId.writer_guid)), reply.return_data._d);
-    ddsi_sertype_free_sample (d->type, &reply, DDS_FREE_CONTENTS);
-    return;
-  }
-
   bool resolved = false;
   ddsrt_mutex_lock (&gv->typelib_lock);
-  GVTRACE ("handle-tl-reply wr "PGUIDFMT " seqnr %"PRIu64" ntypeids %"PRIu32"\n", PGUID (from_guid (&reply.header.requestId.writer_guid)), from_seqno (&reply.header.requestId.sequence_number), reply.return_data._u.getType._u.result.types._length);
-  for (uint32_t n = 0; n < reply.return_data._u.getType._u.result.types._length; n++)
+  GVTRACE ("tl-reply-add-types wr "PGUIDFMT " seqnr %"PRIu64" ntypeids %"PRIu32"\n", PGUID (from_guid (&reply->header.requestId.writer_guid)),
+      from_seqno (&reply->header.requestId.sequence_number), reply->return_data._u.getType._u.result.types._length);
+  for (uint32_t n = 0; n < reply->return_data._u.getType._u.result.types._length; n++)
   {
     struct ddsi_typeid_str str;
-    DDS_XTypes_TypeIdentifierTypeObjectPair r = reply.return_data._u.getType._u.result.types._buffer[n];
+    DDS_XTypes_TypeIdentifierTypeObjectPair r = reply->return_data._u.getType._u.result.types._buffer[n];
     GVTRACE (" type %s", ddsi_make_typeid_str_impl (&str, &r.type_identifier));
     struct ddsi_type *type = ddsi_type_lookup_locked_impl (gv, &r.type_identifier);
     if (!type)
@@ -321,7 +308,7 @@ void ddsi_tl_handle_reply (struct ddsi_domaingv *gv, struct ddsi_serdata *d)
       if (ddsi_typeid_is_minimal_impl (&r.type_identifier))
       {
         GVTRACE (" resolved minimal type %s\n", ddsi_make_typeid_str_impl (&str, &r.type_identifier));
-        ddsi_type_get_gpe_matches (gv, type, &gpe_match_upd, &n_match_upd);
+        ddsi_type_get_gpe_matches (gv, type, gpe_match_upd, n_match_upd);
         resolved = true;
       }
       else
@@ -342,7 +329,7 @@ void ddsi_tl_handle_reply (struct ddsi_domaingv *gv, struct ddsi_serdata *d)
         // ddsrt_mutex_unlock (&gv->sertypes_lock);
         // type->sertype = &st->c; // refcounted by sertype_register/lookup
 
-        ddsi_type_get_gpe_matches (gv, type, &gpe_match_upd, &n_match_upd);
+        ddsi_type_get_gpe_matches (gv, type, gpe_match_upd, n_match_upd);
         resolved = true;
       }
     }
@@ -350,7 +337,24 @@ void ddsi_tl_handle_reply (struct ddsi_domaingv *gv, struct ddsi_serdata *d)
   if (resolved)
     ddsrt_cond_broadcast (&gv->typelib_resolved_cond);
   ddsrt_mutex_unlock (&gv->typelib_lock);
+}
 
+void ddsi_tl_handle_reply (struct ddsi_domaingv *gv, struct ddsi_serdata *d)
+{
+  struct generic_proxy_endpoint **gpe_match_upd = NULL;
+  uint32_t n_match_upd = 0;
+  assert (!(d->statusinfo & (NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER)));
+
+  DDS_Builtin_TypeLookup_Reply reply;
+  memset (&reply, 0, sizeof (reply));
+  ddsi_serdata_to_sample (d, &reply, NULL, NULL);
+  if (reply.return_data._d != DDS_Builtin_TypeLookup_getTypes_HashId)
+  {
+    GVTRACE (" handle-tl-reply wr "PGUIDFMT " unknown reply-type %"PRIi32, PGUID (from_guid (&reply.header.requestId.writer_guid)), reply.return_data._d);
+    ddsi_sertype_free_sample (d->type, &reply, DDS_FREE_CONTENTS);
+    return;
+  }
+  ddsi_tl_add_types (gv, &reply, &gpe_match_upd, &n_match_upd);
   ddsi_sertype_free_sample (d->type, &reply, DDS_FREE_CONTENTS);
 
   if (gpe_match_upd != NULL)

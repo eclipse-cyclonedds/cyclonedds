@@ -1,4 +1,5 @@
 /*
+ * Copyright(c) 2022 ZettaScale Technology
  * Copyright(c) 2006 to 2019 ADLINK Technology Limited and others
  *
  * This program and the accompanying materials are made available under the
@@ -25,6 +26,7 @@
 #include "dds/ddsi/ddsi_plist_generic.h"
 #include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/ddsi_xt_typeinfo.h"
+#include "dds/ddsi/ddsi_xt_typelookup.h"
 #include "dds/ddsi/ddsi_typelib.h"
 
 #if defined (__cplusplus)
@@ -45,7 +47,7 @@ struct ddsi_type;
  * Send a type lookup request message in order to request type information for the
  * provided type identifier.
  */
-bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const ddsi_typeid_t *type_id, bool include_deps);
+DDS_EXPORT bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const ddsi_typeid_t *type_id, bool include_deps);
 
 /**
  * Handle an incoming type lookup request message. For all types requested
@@ -53,14 +55,19 @@ bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const ddsi_typeid_t 
  * lookup reply message. In case none of the requested types is known,
  * an empty reply message will be sent.
  */
-void ddsi_tl_handle_request (struct ddsi_domaingv *gv, struct ddsi_serdata *sample_common);
+DDS_EXPORT void ddsi_tl_handle_request (struct ddsi_domaingv *gv, struct ddsi_serdata *sample_common);
+
+/**
+ * Add type information from a type lookup reply to the type library.
+ */
+DDS_EXPORT void ddsi_tl_add_types (struct ddsi_domaingv *gv, const DDS_Builtin_TypeLookup_Reply *reply, struct generic_proxy_endpoint ***gpe_match_upd, uint32_t *n_match_upd);
 
 /**
  * Handle an incoming type lookup reply message. The sertypes from this
  * reply are registered in the local type administation and referenced
  * from the corresponding proxy endpoints.
  */
-void ddsi_tl_handle_reply (struct ddsi_domaingv *gv, struct ddsi_serdata *sample_common);
+DDS_EXPORT void ddsi_tl_handle_reply (struct ddsi_domaingv *gv, struct ddsi_serdata *sample_common);
 
 #if defined (__cplusplus)
 }
