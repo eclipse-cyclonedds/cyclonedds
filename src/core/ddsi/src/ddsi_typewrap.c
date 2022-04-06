@@ -1092,7 +1092,7 @@ err_tk:
 
 dds_return_t ddsi_xt_type_add_typeobj (struct ddsi_domaingv *gv, struct xt_type *xt, const struct DDS_XTypes_TypeObject *to)
 {
-  dds_return_t ret = DDS_RETCODE_OK;
+  dds_return_t ret = DDS_RETCODE_OK, ret_validate = DDS_RETCODE_OK;
   assert (xt);
   assert (to);
   assert (xt->kind == DDSI_TYPEID_KIND_MINIMAL || xt->kind == DDSI_TYPEID_KIND_COMPLETE);
@@ -1104,8 +1104,15 @@ dds_return_t ddsi_xt_type_add_typeobj (struct ddsi_domaingv *gv, struct xt_type 
   else
     ret = (to->_d != DDS_XTypes_EK_COMPLETE) ? DDS_RETCODE_BAD_PARAMETER : add_complete_typeobj (gv, xt, to);
 
-  if (ret != DDS_RETCODE_OK || (ret = ddsi_xt_validate (gv, xt)) != DDS_RETCODE_OK)
+  if (ret != DDS_RETCODE_OK || (ret_validate = ddsi_xt_validate (gv, xt)) != DDS_RETCODE_OK)
+  {
+    if (ret == DDS_RETCODE_OK)
+    {
+      ddsi_xt_type_fini (gv, xt, false);
+      ret = ret_validate;
+    }
     GVWARNING ("type " PTYPEIDFMT ": ddsi_xt_type_add_typeobj with invalid type object\n", PTYPEID (xt->id.x));
+  }
 
   return ret;
 }
@@ -1214,6 +1221,7 @@ dds_return_t ddsi_xt_type_init_impl (struct ddsi_domaingv *gv, struct xt_type *x
       ret = ret_validate;
     }
     GVWARNING ("type " PTYPEIDFMT ": ddsi_xt_type_init_impl with invalid type object\n", PTYPEID (xt->id.x));
+  }
   return ret;
 }
 
@@ -1347,7 +1355,7 @@ static void get_minimal_member_detail (DDS_XTypes_MinimalMemberDetail *dst, cons
   memcpy (dst->name_hash, src->name_hash, sizeof (dst->name_hash));
 }
 
-void ddsi_xt_type_fini (struct ddsi_domaingv *gv, struct xt_type *xt)
+void ddsi_xt_type_fini (struct ddsi_domaingv *gv, struct xt_type *xt, bool include_typeid)
 {
   switch (xt->_d)
   {
@@ -1396,7 +1404,9 @@ void ddsi_xt_type_fini (struct ddsi_domaingv *gv, struct xt_type *xt)
     default:
       break;
   }
-  ddsi_typeid_fini (&xt->id);
+  xt->_d = DDS_XTypes_TK_NONE;
+  if (include_typeid)
+    ddsi_typeid_fini (&xt->id);
 }
 
 static void xt_applied_type_annotations_copy (struct xt_applied_type_annotations *dst, const struct xt_applied_type_annotations *src)
@@ -1819,7 +1829,7 @@ static struct xt_type *xt_type_keyholder (struct ddsi_domaingv *gv, const struct
     }
     default:
       assert (false);
-      ddsi_xt_type_fini (gv, tkh);
+      ddsi_xt_type_fini (gv, tkh, true);
       ddsrt_free (tkh);
       return NULL;
   }
@@ -2187,9 +2197,9 @@ static bool xt_is_assignable_from_struct (struct ddsi_domaingv *gv, const struct
         struct xt_type *m1_ke = xt_type_key_erased (gv, m1t),
           *m2_ke = xt_type_key_erased (gv, m2t);
         bool ke_assignable = ddsi_xt_is_assignable_from (gv, m1_ke, m2_ke, tce);
-        ddsi_xt_type_fini (gv, m1_ke);
+        ddsi_xt_type_fini (gv, m1_ke, true);
         ddsrt_free (m1_ke);
-        ddsi_xt_type_fini (gv, m2_ke);
+        ddsi_xt_type_fini (gv, m2_ke, true);
         ddsrt_free (m2_ke);
 
         if (!ke_assignable)
@@ -2229,9 +2239,9 @@ static bool xt_is_assignable_from_struct (struct ddsi_domaingv *gv, const struct
           struct xt_type *m1_kh = xt_type_keyholder (gv, m1t),
             *m2_kh = xt_type_keyholder (gv, m2t);
           bool kh_assignable = ddsi_xt_is_assignable_from (gv, m1_kh, m2_kh, tce);
-          ddsi_xt_type_fini (gv, m1_kh);
+          ddsi_xt_type_fini (gv, m1_kh, true);
           ddsrt_free (m1_kh);
-          ddsi_xt_type_fini (gv, m2_kh);
+          ddsi_xt_type_fini (gv, m2_kh, true);
           ddsrt_free (m2_kh);
           if (!kh_assignable)
             goto struct_failed;
@@ -2262,9 +2272,9 @@ static bool xt_is_assignable_from_struct (struct ddsi_domaingv *gv, const struct
                 struct xt_type *km1_kh = xt_type_keyholder (gv, km1_t),
                   *km2_kh = xt_type_keyholder (gv, km2_t);
                 bool kh_assignable = ddsi_xt_is_assignable_from (gv, km1_kh, km2_kh, tce);
-                ddsi_xt_type_fini (gv, km1_kh);
+                ddsi_xt_type_fini (gv, km1_kh, true);
                 ddsrt_free (km1_kh);
-                ddsi_xt_type_fini (gv, km2_kh);
+                ddsi_xt_type_fini (gv, km2_kh, true);
                 ddsrt_free (km2_kh);
                 if (!kh_assignable)
                   goto struct_failed;
@@ -2331,12 +2341,12 @@ static bool xt_is_assignable_from_struct (struct ddsi_domaingv *gv, const struct
 struct_failed:
   if (te1 && te1 != t1)
   {
-    ddsi_xt_type_fini (gv, te1);
+    ddsi_xt_type_fini (gv, te1, true);
     ddsrt_free (te1);
   }
   if (te2 && te2 != t2)
   {
-    ddsi_xt_type_fini (gv, te2);
+    ddsi_xt_type_fini (gv, te2, true);
     ddsrt_free (te2);
   }
   return result;
