@@ -363,3 +363,54 @@ idl_retcode_t idl_relative_path(const char *base, const char *path, char **relpa
   *relpathp = rel;
   return IDL_RETCODE_OK;
 }
+
+#if _WIN32
+static inline idl_retcode_t idl_mkdir(const char *pathname, int mode) {
+  (void) mode;
+  return _mkdir(pathname);
+}
+#else
+static inline idl_retcode_t idl_mkdir(const char *pathname, mode_t mode) {
+  return mkdir(pathname, mode);
+}
+#endif
+
+idl_retcode_t idl_mkpath(const char *path)
+{
+  idl_retcode_t ret = IDL_RETCODE_NO_MEMORY;
+  char *full_path;
+
+  assert(path);
+  if (!(full_path = absolute_path(path)))
+    goto err_full_path;
+
+  if(idl_untaint_path(full_path) < 0)
+    goto err_untaint;
+
+  {
+    char chr, *ptr = full_path;
+
+    for (; *ptr && *ptr != '/' && *ptr != sep; ptr++)
+      /* skip ahead to first separator to skip drive */;
+
+    while (*ptr)
+    {
+      for (++ptr; *ptr && *ptr != '/' && *ptr != sep; ptr++)
+        /* search for next segment */;
+      assert(ptr[-1] != '/' && ptr[-1] != sep);
+      chr = *ptr;
+      *ptr = '\0';
+      if ((ret = idl_mkdir(full_path, 0777)) == -1 && errno != EEXIST)
+        goto err_mkdir;
+      *ptr = chr;
+    }
+
+    ret = IDL_RETCODE_OK;
+  }
+
+  err_mkdir:
+  err_untaint:
+  free(full_path);
+  err_full_path:
+  return ret;
+}

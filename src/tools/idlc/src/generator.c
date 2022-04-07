@@ -362,6 +362,8 @@ idlc_generate(const idl_pstate_t *pstate, const idlc_generator_config_t *config)
   const char *sep, *ext, *file, *path;
   char empty[1] = { '\0' };
   char *dir = NULL, *basename = NULL;
+  char* rel_path = NULL;
+  char *output_path = NULL;
   struct generator generator;
 
   assert(pstate->paths);
@@ -369,7 +371,7 @@ idlc_generate(const idl_pstate_t *pstate, const idlc_generator_config_t *config)
   assert(config);
   path = pstate->sources->path->name;
   /* use relative directory if user provided a relative path, use current
-     word directory otherwise */
+     work directory otherwise */
   sep = ext = NULL;
   for (const char *ptr = path; ptr[0]; ptr++) {
     if (idl_isseparator((unsigned char)ptr[0]) && ptr[1] != '\0')
@@ -395,12 +397,43 @@ idlc_generate(const idl_pstate_t *pstate, const idlc_generator_config_t *config)
   memset(&generator, 0, sizeof(generator));
   generator.path = file;
 
+  if(config->base_dir) {
+    char* old_dir = dir;
+    // If we run into a path error we can still recover and use existing dir
+    if(idl_relative_path(config->base_dir, pstate->sources->path->name, &rel_path) == IDL_RETCODE_NO_MEMORY)
+      goto err_rel_path;
+    // If root is not a parent of file path, or there was an error resolving rel path then skip
+    if(rel_path != NULL && strncmp(rel_path, "../", 3) != 0) {
+      dir = NULL;
+      size_t print_len = strlen(rel_path);
+      if (sep)
+        print_len -= strlen(sep);
+      if (!(dir = idl_strndup(rel_path, print_len))) {
+        goto err_rel_path;
+      }
+      if (old_dir && old_dir[0] != '\0')
+        free(old_dir);
+    }
+  }
+
   sep = dir[0] == '\0' ? "" : "/";
-  if (idl_asprintf(&generator.header.path, "%s%s%s.h", dir, sep, basename) < 0)
+  if(config->output_dir && config->output_dir[0] != '\0') {
+    if(idl_asprintf(&output_path, "%s%s%s", config->output_dir, sep, dir) < 0)
+      goto err_rel_path;
+    sep = "/";
+  } else {
+    if(!(output_path = idl_strdup(dir)))
+      goto err_rel_path;
+  }
+
+  if(idl_mkpath(output_path) < 0)
+    goto err_mkpath;
+
+  if (idl_asprintf(&generator.header.path, "%s%s%s.h", output_path, sep, basename) < 0)
     goto err_header;
   if (!(generator.header.handle = idl_fopen(generator.header.path, "wb")))
     goto err_header;
-  if (idl_asprintf(&generator.source.path, "%s%s%s.c", dir, sep, basename) < 0)
+  if (idl_asprintf(&generator.source.path, "%s%s%s.c", output_path, sep, basename) < 0)
     goto err_source;
   if (!(generator.source.handle = idl_fopen(generator.source.path, "wb")))
     goto err_source;
@@ -426,6 +459,12 @@ err_header:
     fclose(generator.header.handle);
   if (generator.header.path)
     free(generator.header.path);
+err_mkpath:
+  if (output_path)
+    free(output_path);
+err_rel_path:
+  if(rel_path)
+    free(rel_path);
   if (basename)
     free(basename);
 err_basename:

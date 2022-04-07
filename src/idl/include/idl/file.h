@@ -30,4 +30,7 @@ idl_normalize_path(const char *path, char **abspathp);
 IDL_EXPORT idl_retcode_t
 idl_relative_path(const char *base, const char *path, char **relpathp);
 
+IDL_EXPORT idl_retcode_t
+idl_mkpath(const char *path);
+
 #endif /* IDL_FILE_H */
