@@ -325,6 +325,14 @@ struct ddsi_type * ddsi_type_lookup_locked (struct ddsi_domaingv *gv, const ddsi
   return ddsi_type_lookup_locked_impl (gv, &type_id->x);
 }
 
+struct ddsi_type * ddsi_type_lookup (struct ddsi_domaingv *gv, const ddsi_typeid_t *type_id)
+{
+  ddsrt_mutex_lock (&gv->typelib_lock);
+  struct ddsi_type *type = ddsi_type_lookup_locked_impl (gv, &type_id->x);
+  ddsrt_mutex_unlock (&gv->typelib_lock);
+  return type;
+}
+
 static dds_return_t ddsi_type_new (struct ddsi_domaingv *gv, struct ddsi_type **type, const struct DDS_XTypes_TypeIdentifier *type_id, const struct DDS_XTypes_TypeObject *type_obj)
 {
   dds_return_t ret;

@@ -64,7 +64,7 @@ module XSpace {
       @id(3) XType3_1a struct_3;
     };
 
-    /* Types for top-level type checking */
+    /* Test types for type object validation and type dependencies */
     typedef sequence<long> seql;
     enum e { E1, E2 };
     bitmask bm { BM1, BM2 };
@@ -84,6 +84,16 @@ module XSpace {
 
     union to_uniondisc switch (long) {
       case 1: long u1;
+    };
+
+    @nested @appendable
+    struct dep_test_nested {
+      long n1;
+      long n2;
+    };
+
+    struct dep_test {
+      dep_test_nested f1;
     };
 
 };

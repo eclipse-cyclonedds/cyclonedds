@@ -98,6 +98,8 @@ DDS_EXPORT void ddsi_type_pair_free (struct ddsi_type_pair *type_pair);
  *   that are referring to it.
  */
 DDS_EXPORT struct ddsi_type * ddsi_type_lookup_locked (struct ddsi_domaingv *gv, const ddsi_typeid_t *type_id);
+/* Same as above, but does not require to have the lock */
+DDS_EXPORT struct ddsi_type * ddsi_type_lookup (struct ddsi_domaingv *gv, const ddsi_typeid_t *type_id);
 
 /**
  * For all proxy endpoints registered with the type lookup meta object that is
