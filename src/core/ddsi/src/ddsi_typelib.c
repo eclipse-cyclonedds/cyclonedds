@@ -391,13 +391,10 @@ dds_return_t ddsi_type_add_typeobj (struct ddsi_domaingv *gv, struct ddsi_type *
       }
       else
       {
-        /* In case the object does not match the type id, only mark the current
-           type invalid. Types depending on this type may still be valid once
-           this type is resolved with a valid type object. */
-        type->state = DDSI_TYPE_INVALID;
-
-        /* FIXME: retry in case the type object does not match the type id? Could be a (malicious)
-           node that (intentionally) sends the wrong type object for this type-id */
+        /* In case the object does not match the type id, reset the type's state to
+           unresolved so that it can de resolved in case the correct type object
+           is received */
+        type->state = DDSI_TYPE_UNRESOLVED;
       }
     }
     else

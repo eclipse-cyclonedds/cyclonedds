@@ -54,7 +54,7 @@ static struct writer *get_typelookup_writer (const struct ddsi_domaingv *gv, uin
   return wr;
 }
 
-static int32_t tl_request_add_deps (struct ddsi_domaingv * const gv, DDS_Builtin_TypeLookup_Request *request, int32_t cnt, const struct ddsi_type *type)
+static int32_t tl_request_add_deps (struct ddsi_domaingv * const gv, DDS_Builtin_TypeLookup_Request *request, int32_t cnt, struct ddsi_type *type)
 {
   struct ddsi_type_dep tmpl, *dep = &tmpl;
   memset (&tmpl, 0, sizeof (tmpl));
@@ -78,6 +78,7 @@ static int32_t tl_request_add_deps (struct ddsi_domaingv * const gv, DDS_Builtin
       }
       request->data._u.getTypes.type_ids._buffer = tmp;
       ddsi_typeid_copy_impl (&request->data._u.getTypes.type_ids._buffer[cnt - 1], &dep_type->xt.id.x);
+      dep_type->state = DDSI_TYPE_REQUESTED;
     }
     cnt = tl_request_add_deps (gv, request, cnt, dep_type);
   }
@@ -85,12 +86,16 @@ static int32_t tl_request_add_deps (struct ddsi_domaingv * const gv, DDS_Builtin
   return cnt;
 }
 
-static dds_return_t create_tl_request_msg (struct ddsi_domaingv * const gv, DDS_Builtin_TypeLookup_Request *request, const struct writer *wr, const struct ddsi_type *type, bool include_deps)
+static dds_return_t create_tl_request_msg (struct ddsi_domaingv * const gv, DDS_Builtin_TypeLookup_Request *request, const struct writer *wr, struct ddsi_type *type, bool include_deps)
 {
   int32_t cnt = 0;
   memset (request, 0, sizeof (*request));
   memcpy (&request->header.requestId.writer_guid.guidPrefix, &wr->e.guid.prefix, sizeof (request->header.requestId.writer_guid.guidPrefix));
   memcpy (&request->header.requestId.writer_guid.entityId, &wr->e.guid.entityid, sizeof (request->header.requestId.writer_guid.entityId));
+  /* For the (DDS-RPC) sample identity, we'll use the sequence number of the top-level
+     type that requires a lookup, even if the top-level type itself is resolved and only
+     one or more of its dependencies need to be resolved. When handling the reply, there
+     is (currently) no need to correlate the reply message to a specific request. */
   request->header.requestId.sequence_number.high = (int32_t) (type->request_seqno >> 32);
   request->header.requestId.sequence_number.low = (uint32_t) type->request_seqno;
   (void) snprintf (request->header.instanceName, sizeof (request->header.instanceName), "dds.builtin.TOS.%08"PRIx32 "%08"PRIx32 "%08"PRIx32 "%08"PRIx32,
@@ -104,6 +109,7 @@ static dds_return_t create_tl_request_msg (struct ddsi_domaingv * const gv, DDS_
     if ((request->data._u.getTypes.type_ids._buffer = ddsrt_malloc (sizeof (*request->data._u.getTypes.type_ids._buffer))) == NULL)
       return DDS_RETCODE_OUT_OF_RESOURCES;
     ddsi_typeid_copy_impl (&request->data._u.getTypes.type_ids._buffer[0], &type->xt.id.x);
+    type->state = DDSI_TYPE_REQUESTED;
   }
 
   if (include_deps)
@@ -163,7 +169,6 @@ bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const ddsi_typeid_t 
     return false;
   }
   serdata->timestamp = ddsrt_time_wallclock ();
-  type->state = DDSI_TYPE_REQUESTED;
   ddsrt_mutex_unlock (&gv->typelib_lock);
 
   thread_state_awake (lookup_thread_state (), gv);
@@ -283,6 +288,9 @@ void ddsi_tl_add_types (struct ddsi_domaingv *gv, const DDS_Builtin_TypeLookup_R
 {
   bool resolved = false;
   ddsrt_mutex_lock (&gv->typelib_lock);
+  /* No need to correlate the sample identity of the incoming reply with the request
+     that was sent, because the reply itself contains the type-id to type object mapping
+     and we're not interested in what specific reply results in resolving a type */
   GVTRACE ("tl-reply-add-types wr "PGUIDFMT " seqnr %"PRIu64" ntypeids %"PRIu32"\n", PGUID (from_guid (&reply->header.requestId.writer_guid)),
       from_seqno (&reply->header.requestId.sequence_number), reply->return_data._u.getType._u.result.types._length);
   for (uint32_t n = 0; n < reply->return_data._u.getType._u.result.types._length; n++)
