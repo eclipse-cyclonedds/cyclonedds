@@ -15,6 +15,7 @@
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/process.h"
 #include "dds/ddsrt/threads.h"
+#include "dds/ddsi/ddsi_iid.h"
 #include "dds__entity.h"
 #include "test_util.h"
 
@@ -47,4 +48,16 @@ struct ddsi_domaingv *get_domaingv (dds_entity_t handle)
   struct ddsi_domaingv * const gv = &x->m_domain->gv;
   dds_entity_unpin (x);
   return gv;
+}
+
+void gen_test_guid (struct ddsi_domaingv *gv, ddsi_guid_t *guid, uint32_t entity_id)
+{
+  union { uint64_t u64; uint32_t u32[2]; } u;
+  u.u32[0] = gv->ppguid_base.prefix.u[1];
+  u.u32[1] = gv->ppguid_base.prefix.u[2];
+  u.u64 += ddsi_iid_gen ();
+  guid->prefix.u[0] = gv->ppguid_base.prefix.u[0];
+  guid->prefix.u[1] = u.u32[0];
+  guid->prefix.u[2] = u.u32[1];
+  guid->entityid.u = entity_id;
 }

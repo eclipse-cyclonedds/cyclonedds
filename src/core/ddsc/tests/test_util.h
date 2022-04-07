@@ -33,4 +33,7 @@ void tprintf (const char *msg, ...)
 /* Get gv from the provided entity */
 struct ddsi_domaingv *get_domaingv (dds_entity_t handle);
 
+/* Generate a guid */
+void gen_test_guid (struct ddsi_domaingv *gv, ddsi_guid_t *guid, uint32_t entity_id);
+
 #endif /* _TEST_UTIL_H_ */
