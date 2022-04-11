@@ -202,7 +202,7 @@ static DDS_XTypes_TypeObject *get_typeobj_union(const char *name, uint16_t flags
     ._d = DDS_XTypes_TK_UNION,
     ._u.union_type = (DDS_XTypes_CompleteUnionType) {
       .union_flags = flags,
-      .discriminator = { .common = { .member_flags = DDS_XTypes_IS_MUST_UNDERSTAND, .type_id = disc_type } },
+      .discriminator = { .common = { .member_flags = DDS_XTypes_IS_MUST_UNDERSTAND | DDS_XTypes_TRY_CONSTRUCT_DISCARD, .type_id = disc_type } },
       .member_seq = {
         ._maximum = member_cnt,
         ._length = member_cnt,
@@ -224,9 +224,9 @@ static DDS_XTypes_TypeObject *get_typeobj1 (void)
     DDS_XTypes_IS_APPENDABLE,
     (DDS_XTypes_TypeIdentifier) { ._d = DDS_XTypes_TK_NONE },
     3, (smember_t[]) {
-      { 0, DDS_XTypes_IS_KEY | DDS_XTypes_IS_MUST_UNDERSTAND, { ._d = DDS_XTypes_TK_INT64 }, "f1" },
-      { 1, DDS_XTypes_IS_OPTIONAL, { ._d = DDS_XTypes_TI_STRING8_SMALL, ._u.string_sdefn.bound = 0 }, "f2" },
-      { 4, DDS_XTypes_IS_EXTERNAL, { ._d = DDS_XTypes_TK_CHAR8 }, "f3" }
+      { 0, DDS_XTypes_IS_KEY | DDS_XTypes_IS_MUST_UNDERSTAND | DDS_XTypes_TRY_CONSTRUCT_DISCARD, { ._d = DDS_XTypes_TK_INT64 }, "f1" },
+      { 1, DDS_XTypes_IS_OPTIONAL | DDS_XTypes_TRY_CONSTRUCT_DISCARD, { ._d = DDS_XTypes_TI_STRING8_SMALL, ._u.string_sdefn.bound = 0 }, "f2" },
+      { 4, DDS_XTypes_IS_EXTERNAL | DDS_XTypes_TRY_CONSTRUCT_DISCARD, { ._d = DDS_XTypes_TK_CHAR8 }, "f3" }
     });
 }
 
@@ -237,8 +237,8 @@ static DDS_XTypes_TypeObject *get_typeobj2 (void)
     DDS_XTypes_IS_MUTABLE,
     (DDS_XTypes_TypeIdentifier) { ._d = DDS_XTypes_TK_NONE },
     2, (smember_t[]) {
-      { 0, DDS_XTypes_IS_OPTIONAL | DDS_XTypes_IS_EXTERNAL, { ._d = DDS_XTypes_TK_UINT32 }, "f1" },
-      { 1, DDS_XTypes_IS_OPTIONAL | DDS_XTypes_IS_EXTERNAL, { ._d = DDS_XTypes_TK_UINT32 }, "f2" }
+      { 0, DDS_XTypes_IS_OPTIONAL | DDS_XTypes_IS_EXTERNAL | DDS_XTypes_TRY_CONSTRUCT_DISCARD, { ._d = DDS_XTypes_TK_UINT32 }, "f1" },
+      { 1, DDS_XTypes_IS_OPTIONAL | DDS_XTypes_IS_EXTERNAL | DDS_XTypes_TRY_CONSTRUCT_DISCARD, { ._d = DDS_XTypes_TK_UINT32 }, "f2" }
     });
 }
 
@@ -249,8 +249,8 @@ static DDS_XTypes_TypeObject *get_typeobj3 (void)
     DDS_XTypes_IS_FINAL,
     (DDS_XTypes_TypeIdentifier) { ._d = DDS_XTypes_TK_INT16 },
     2, (umember_t[]) {
-      { 0, 0, { ._d = DDS_XTypes_TK_INT32 }, "f1", 1, (int32_t[]) { 1 } },
-      { 1, DDS_XTypes_IS_EXTERNAL | DDS_XTypes_IS_DEFAULT, { ._d = DDS_XTypes_TI_STRING8_SMALL, ._u.string_sdefn.bound = 0 }, "f2", 2, (int32_t[]) { 2, 3 } }
+      { 0, DDS_XTypes_TRY_CONSTRUCT_DISCARD, { ._d = DDS_XTypes_TK_INT32 }, "f1", 1, (int32_t[]) { 1 } },
+      { 1, DDS_XTypes_IS_EXTERNAL | DDS_XTypes_IS_DEFAULT | DDS_XTypes_TRY_CONSTRUCT_DISCARD, { ._d = DDS_XTypes_TI_STRING8_SMALL, ._u.string_sdefn.bound = 0 }, "f2", 2, (int32_t[]) { 2, 3 } }
     });
 }
 
@@ -273,14 +273,14 @@ static DDS_XTypes_TypeObject *get_typeobj4 (void)
     DDS_XTypes_IS_MUTABLE | DDS_XTypes_IS_NESTED,
     (DDS_XTypes_TypeIdentifier) { ._d = DDS_XTypes_TK_NONE },
     1, (smember_t[]) {
-      { 5, 0, { ._d = DDS_XTypes_TK_INT32 }, "a1" }
+      { 5, DDS_XTypes_TRY_CONSTRUCT_DISCARD, { ._d = DDS_XTypes_TK_INT32 }, "a1" }
     }));
   return get_typeobj_struct (
     "t4::test_struct",
     DDS_XTypes_IS_MUTABLE,
     ti_base,
     1, (smember_t[]) {
-      { 10, 0, { ._d = DDS_XTypes_TK_INT32 }, "f1" }
+      { 10, DDS_XTypes_TRY_CONSTRUCT_DISCARD, { ._d = DDS_XTypes_TK_INT32 }, "f1" }
     });
 }
 
@@ -301,7 +301,7 @@ static DDS_XTypes_TypeObject *get_typeobj5 (void)
       .body = { .common = { .related_flags = 0, .related_type = (DDS_XTypes_TypeIdentifier) {
         ._d = DDS_XTypes_TI_PLAIN_SEQUENCE_SMALL,
         ._u.seq_sdefn = {
-          .header = { .equiv_kind = DDS_XTypes_EK_BOTH, .element_flags = 0 },
+          .header = { .equiv_kind = DDS_XTypes_EK_BOTH, .element_flags = DDS_XTypes_TRY_CONSTRUCT_DISCARD },
           .bound = 0,
           .element_identifier = ti_long
         }
@@ -314,7 +314,7 @@ static DDS_XTypes_TypeObject *get_typeobj5 (void)
   DDS_XTypes_TypeIdentifier ti_seq = {
     ._d = DDS_XTypes_TI_PLAIN_SEQUENCE_SMALL,
     ._u.seq_sdefn = {
-      .header = { .equiv_kind = DDS_XTypes_EK_COMPLETE, .element_flags = 0 },
+      .header = { .equiv_kind = DDS_XTypes_EK_COMPLETE, .element_flags = DDS_XTypes_TRY_CONSTRUCT_DISCARD },
       .bound = 0
     }
   };
@@ -326,8 +326,8 @@ static DDS_XTypes_TypeObject *get_typeobj5 (void)
     DDS_XTypes_IS_FINAL,
     (DDS_XTypes_TypeIdentifier) { ._d = DDS_XTypes_TK_NONE },
     2, (smember_t[]) {
-      { 0, 0, ti_seq, "f1" },
-      { 1, 0, ti_alias, "f2" }
+      { 0, DDS_XTypes_TRY_CONSTRUCT_DISCARD, ti_seq, "f1" },
+      { 1, DDS_XTypes_TRY_CONSTRUCT_DISCARD, ti_alias, "f2" }
     });
 }
 
@@ -345,7 +345,7 @@ static DDS_XTypes_TypeObject *get_typeobj6 (void)
     ti_f1 = (DDS_XTypes_TypeIdentifier) {
       ._d = DDS_XTypes_TI_PLAIN_ARRAY_SMALL,
       ._u.array_sdefn = {
-        .header = { .equiv_kind = DDS_XTypes_EK_BOTH, .element_flags = 0 },
+        .header = { .equiv_kind = DDS_XTypes_EK_BOTH, .element_flags = DDS_XTypes_TRY_CONSTRUCT_DISCARD },
         .array_bound_seq = { ._maximum = 1, ._length = 1, ._buffer = f1bound_seq, ._release = true },
         .element_identifier = ti_f1_el
       }
@@ -356,6 +356,7 @@ static DDS_XTypes_TypeObject *get_typeobj6 (void)
     // the other 2 fields.
     ti_f1._u.array_sdefn.array_bound_seq._buffer = f1bound_seq;
     ti_f1._u.array_sdefn.element_identifier = ti_f1_el;
+    ti_f1._u.array_sdefn.header.element_flags = DDS_XTypes_TRY_CONSTRUCT_DISCARD;
   }
 
   /* f2 type identifier: string<555> f2[999][3] */
@@ -370,7 +371,7 @@ static DDS_XTypes_TypeObject *get_typeobj6 (void)
     ti_f2 = (DDS_XTypes_TypeIdentifier) {
       ._d = DDS_XTypes_TI_PLAIN_ARRAY_LARGE,
       ._u.array_ldefn = {
-        .header = { .equiv_kind = DDS_XTypes_EK_BOTH, .element_flags = 0 },
+        .header = { .equiv_kind = DDS_XTypes_EK_BOTH, .element_flags = DDS_XTypes_TRY_CONSTRUCT_DISCARD },
         .array_bound_seq = { ._maximum = 2, ._length = 2, ._buffer = f2bound_seq, ._release = true },
         .element_identifier = ti_f2_el
       }
@@ -378,6 +379,7 @@ static DDS_XTypes_TypeObject *get_typeobj6 (void)
     // Clang's static analyzer ...
     ti_f2._u.array_ldefn.array_bound_seq._buffer = f2bound_seq;
     ti_f2._u.array_ldefn.element_identifier = ti_f2_el;
+    ti_f2._u.array_ldefn.header.element_flags = DDS_XTypes_TRY_CONSTRUCT_DISCARD;
   }
 
   /* f3 type identifier: a[3] f3 */
@@ -389,7 +391,7 @@ static DDS_XTypes_TypeObject *get_typeobj6 (void)
       DDS_XTypes_IS_FINAL | DDS_XTypes_IS_NESTED,
       (DDS_XTypes_TypeIdentifier) { ._d = DDS_XTypes_TK_NONE },
       1, (smember_t[]) {
-        { 0, 0, { ._d = DDS_XTypes_TK_INT32 }, "a1" }
+        { 0, DDS_XTypes_TRY_CONSTRUCT_DISCARD, { ._d = DDS_XTypes_TK_INT32 }, "a1" }
       }));
 
     uint8_t *f3bound_seq = calloc (1, sizeof (*f3bound_seq));
@@ -397,7 +399,7 @@ static DDS_XTypes_TypeObject *get_typeobj6 (void)
     ti_f3 = (DDS_XTypes_TypeIdentifier) {
       ._d = DDS_XTypes_TI_PLAIN_ARRAY_SMALL,
       ._u.array_sdefn = {
-        .header = { .equiv_kind = DDS_XTypes_EK_COMPLETE, .element_flags = 0 },
+        .header = { .equiv_kind = DDS_XTypes_EK_COMPLETE, .element_flags = DDS_XTypes_TRY_CONSTRUCT_DISCARD },
         .array_bound_seq = { ._maximum = 1, ._length = 1, ._buffer = f3bound_seq, ._release = true },
         .element_identifier = ti_a
       }
@@ -405,6 +407,7 @@ static DDS_XTypes_TypeObject *get_typeobj6 (void)
     // Clang's static analyzer ...
     ti_f3._u.array_sdefn.array_bound_seq._buffer = f3bound_seq;
     ti_f3._u.array_sdefn.element_identifier = ti_a;
+    ti_f3._u.array_sdefn.header.element_flags = DDS_XTypes_TRY_CONSTRUCT_DISCARD;
   }
 
   return get_typeobj_struct (
@@ -412,9 +415,9 @@ static DDS_XTypes_TypeObject *get_typeobj6 (void)
     DDS_XTypes_IS_FINAL,
     (DDS_XTypes_TypeIdentifier) { ._d = DDS_XTypes_TK_NONE },
     3, (smember_t[]) {
-      { 0, 0, ti_f1, "f1" },
-      { 1, 0, ti_f2, "f2" },
-      { 2, 0, ti_f3, "f3" }
+      { 0, DDS_XTypes_TRY_CONSTRUCT_DISCARD, ti_f1, "f1" },
+      { 1, DDS_XTypes_TRY_CONSTRUCT_DISCARD, ti_f2, "f2" },
+      { 2, DDS_XTypes_TRY_CONSTRUCT_DISCARD, ti_f3, "f3" }
     });
 }
 
@@ -465,8 +468,8 @@ static DDS_XTypes_TypeObject *get_typeobj7 (void)
     DDS_XTypes_IS_FINAL,
     (DDS_XTypes_TypeIdentifier) { ._d = DDS_XTypes_TK_NONE },
     2, (smember_t[]) {
-      { 0, 0, ti_f1, "f1" },
-      { 1, 0, ti_f2, "f2" }
+      { 0, DDS_XTypes_TRY_CONSTRUCT_DISCARD, ti_f1, "f1" },
+      { 1, DDS_XTypes_TRY_CONSTRUCT_DISCARD, ti_f2, "f2" }
     });
 }
 
@@ -485,7 +488,7 @@ static DDS_XTypes_TypeObject *get_typeobj8 (void)
     ti_f1 = (DDS_XTypes_TypeIdentifier) {
       ._d = DDS_XTypes_TI_PLAIN_ARRAY_SMALL,
       ._u.array_sdefn = {
-        .header = { .equiv_kind = DDS_XTypes_EK_BOTH, .element_flags = 0 },
+        .header = { .equiv_kind = DDS_XTypes_EK_BOTH, .element_flags = DDS_XTypes_TRY_CONSTRUCT_DISCARD },
         .array_bound_seq = { ._maximum = 2, ._length = 2, ._buffer = f1bound_seq, ._release = true },
         .element_identifier = ti_f1_el
       }
@@ -497,7 +500,7 @@ static DDS_XTypes_TypeObject *get_typeobj8 (void)
     DDS_XTypes_IS_FINAL,
     (DDS_XTypes_TypeIdentifier) { ._d = DDS_XTypes_TK_NONE },
     1, (smember_t[]) {
-      { 0, 0, ti_f1, "f1" }
+      { 0, DDS_XTypes_TRY_CONSTRUCT_DISCARD, ti_f1, "f1" }
     });
 }
 
@@ -529,8 +532,8 @@ static DDS_XTypes_TypeObject *get_typeobj9 (void)
     DDS_XTypes_IS_FINAL,
     (DDS_XTypes_TypeIdentifier) { ._d = DDS_XTypes_TK_NONE },
     2, (smember_t[]) {
-      { 0, 0, ti_f, "f1" },
-      { 1, 0, ti_f, "f2" }
+      { 0, DDS_XTypes_TRY_CONSTRUCT_DISCARD, ti_f, "f1" },
+      { 1, DDS_XTypes_TRY_CONSTRUCT_DISCARD, ti_f, "f2" }
     });
 }
 
@@ -562,8 +565,8 @@ static DDS_XTypes_TypeObject *get_typeobj10 (void)
     DDS_XTypes_IS_FINAL,
     (DDS_XTypes_TypeIdentifier) { ._d = DDS_XTypes_TK_NONE },
     2, (smember_t[]) {
-      { 0, 0, ti_f, "f1" },
-      { 1, 0, ti_f, "f2" }
+      { 0, DDS_XTypes_TRY_CONSTRUCT_DISCARD, ti_f, "f1" },
+      { 1, DDS_XTypes_TRY_CONSTRUCT_DISCARD, ti_f, "f2" }
     });
 }
 
@@ -574,8 +577,8 @@ static DDS_XTypes_TypeObject *get_typeobj11 (void)
     DDS_XTypes_IS_FINAL,
     (DDS_XTypes_TypeIdentifier) { ._d = DDS_XTypes_TK_CHAR8 },
     2, (umember_t[]) {
-      { 99, 0, { ._d = DDS_XTypes_TK_INT32 }, "f1", 1, (int32_t[]) { 'a' } },
-      { 5, DDS_XTypes_IS_DEFAULT, { ._d = DDS_XTypes_TK_UINT16 }, "f2", 0, (int32_t[]) { 0 } }
+      { 99, DDS_XTypes_TRY_CONSTRUCT_DISCARD, { ._d = DDS_XTypes_TK_INT32 }, "f1", 1, (int32_t[]) { 'a' } },
+      { 5, DDS_XTypes_IS_DEFAULT | DDS_XTypes_TRY_CONSTRUCT_DISCARD, { ._d = DDS_XTypes_TK_UINT16 }, "f2", 0, (int32_t[]) { 0 } }
     });
 }
 
@@ -602,7 +605,7 @@ static DDS_XTypes_TypeObject *get_typeobj12 (void)
         .body = { .common = { .related_flags = 0, .related_type = (DDS_XTypes_TypeIdentifier) {
           ._d = DDS_XTypes_TI_PLAIN_SEQUENCE_SMALL,
           ._u.seq_sdefn = {
-            .header = { .equiv_kind = DDS_XTypes_EK_BOTH, .element_flags = 0 },
+            .header = { .equiv_kind = DDS_XTypes_EK_BOTH, .element_flags = DDS_XTypes_TRY_CONSTRUCT_DISCARD },
             .bound = 0,
             .element_identifier = ti_long
           }
@@ -624,7 +627,7 @@ static DDS_XTypes_TypeObject *get_typeobj12 (void)
         .body = { .common = { .related_flags = 0, .related_type = (DDS_XTypes_TypeIdentifier) {
           ._d = DDS_XTypes_TI_PLAIN_ARRAY_SMALL,
           ._u.array_sdefn = {
-            .header = { .equiv_kind = DDS_XTypes_EK_COMPLETE, .element_flags = 0 },
+            .header = { .equiv_kind = DDS_XTypes_EK_COMPLETE, .element_flags = DDS_XTypes_TRY_CONSTRUCT_DISCARD },
             .array_bound_seq = { ._maximum = 1, ._length = 1, ._buffer = bound_seq, ._release = true },
             .element_identifier = ti_alias_seq
           }
@@ -639,7 +642,7 @@ static DDS_XTypes_TypeObject *get_typeobj12 (void)
     DDS_XTypes_IS_FINAL,
     (DDS_XTypes_TypeIdentifier) { ._d = DDS_XTypes_TK_NONE },
     1, (smember_t[]) {
-      { 0, 0, ti_f1, "f1" },
+      { 0, DDS_XTypes_TRY_CONSTRUCT_DISCARD, ti_f1, "f1" },
     });
 }
 
@@ -665,7 +668,7 @@ static DDS_XTypes_TypeObject *get_typeobj13 (void)
         .body = { .common = { .related_flags = 0, .related_type = (DDS_XTypes_TypeIdentifier) {
           ._d = DDS_XTypes_TI_PLAIN_ARRAY_SMALL,
           ._u.array_sdefn = {
-            .header = { .equiv_kind = DDS_XTypes_EK_BOTH, .element_flags = 0 },
+            .header = { .equiv_kind = DDS_XTypes_EK_BOTH, .element_flags = DDS_XTypes_TRY_CONSTRUCT_DISCARD },
             .array_bound_seq = { ._maximum = 1, ._length = 1, ._buffer = bound_seq, ._release = true },
             .element_identifier = ti_long
           }
@@ -694,7 +697,7 @@ static DDS_XTypes_TypeObject *get_typeobj13 (void)
     DDS_XTypes_IS_FINAL,
     (DDS_XTypes_TypeIdentifier) { ._d = DDS_XTypes_TK_NONE },
     1, (smember_t[]) {
-      { 0, 0, ti_f1, "f1" },
+      { 0, DDS_XTypes_TRY_CONSTRUCT_DISCARD, ti_f1, "f1" },
     });
 }
 
