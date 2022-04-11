@@ -93,7 +93,7 @@ static uint32_t deps_typeid_hash (const void *type_id)
   return hash32;
 }
 
-static dds_return_t create_tl_request_msg (struct ddsi_domaingv * const gv, DDS_Builtin_TypeLookup_Request *request, const struct writer *wr, struct ddsi_type *type, bool include_deps)
+static dds_return_t create_tl_request_msg (struct ddsi_domaingv * const gv, DDS_Builtin_TypeLookup_Request *request, const struct writer *wr, const ddsi_guid_t *proxypp_guid, struct ddsi_type *type, bool include_deps)
 {
   int32_t cnt = 0;
   uint32_t index = 0;
@@ -107,8 +107,9 @@ static dds_return_t create_tl_request_msg (struct ddsi_domaingv * const gv, DDS_
      is (currently) no need to correlate the reply message to a specific request. */
   request->header.requestId.sequence_number.high = (int32_t) (type->request_seqno >> 32);
   request->header.requestId.sequence_number.low = (uint32_t) type->request_seqno;
+  const ddsi_guid_t *instance_name_guid = proxypp_guid ? proxypp_guid : &nullguid;
   (void) snprintf (request->header.instanceName, sizeof (request->header.instanceName), "dds.builtin.TOS.%08"PRIx32 "%08"PRIx32 "%08"PRIx32 "%08"PRIx32,
-    wr->c.pp->e.guid.prefix.u[0], wr->c.pp->e.guid.prefix.u[1], wr->c.pp->e.guid.prefix.u[2], wr->c.pp->e.guid.entityid.u);
+    instance_name_guid->prefix.u[0], instance_name_guid->prefix.u[1], instance_name_guid->prefix.u[2], instance_name_guid->entityid.u);
   request->data._d = DDS_Builtin_TypeLookup_getTypes_HashId;
 
   if (!ddsi_type_resolved (gv, type, false))
@@ -144,7 +145,7 @@ static dds_return_t create_tl_request_msg (struct ddsi_domaingv * const gv, DDS_
   return (dds_return_t) cnt;
 }
 
-bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const ddsi_typeid_t *type_id, bool include_deps)
+bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const ddsi_typeid_t *type_id, const ddsi_guid_t *proxypp_guid, bool include_deps)
 {
   struct ddsi_typeid_str tidstr;
   assert (ddsi_typeid_is_hash (type_id));
@@ -177,7 +178,7 @@ bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const ddsi_typeid_t 
 
   DDS_Builtin_TypeLookup_Request request;
   type->request_seqno++;
-  dds_return_t n = create_tl_request_msg (gv, &request, wr, type, include_deps);
+  dds_return_t n = create_tl_request_msg (gv, &request, wr, proxypp_guid, type, include_deps);
   if (n <= 0)
   {
     GVTRACE (n == 0 ? "no resolvable types" : "out of memory");
