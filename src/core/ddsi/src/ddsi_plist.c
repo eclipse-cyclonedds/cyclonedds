@@ -730,7 +730,7 @@ static dds_return_t ser_type_information (struct nn_xmsg *xmsg, nn_parameterid_t
 static dds_return_t valid_type_information (const void *src, size_t srcoff)
 {
   ddsi_typeinfo_t const * const * x = deser_generic_src (src, &srcoff, alignof (ddsi_typeinfo_t *));
-  return *x != NULL && ddsi_typeinfo_valid (*x);
+  return (*x != NULL && ddsi_typeinfo_valid (*x)) ? DDS_RETCODE_OK : DDS_RETCODE_BAD_PARAMETER;
 }
 
 static bool equal_type_information (const void *srcx, const void *srcy, size_t srcoff)
