@@ -5,19 +5,24 @@ module DDS {
 
 typedef octet GuidPrefix_t[12];
 
+@final
 struct EntityId_t {
     octet entityKey[3]; octet entityKind;
 };
 
+@final
 struct GUID_t {
     GuidPrefix_t guidPrefix;
     EntityId_t entityId;
 };
+
+@final
 struct SequenceNumber {
     long high;
     unsigned long low;
 };
 
+@final
 struct SampleIdentity {
     GUID_t writer_guid;
     SequenceNumber sequence_number;
@@ -45,11 +50,13 @@ enum RemoteExceptionCode {
 
 typedef string<255> InstanceName;
 
+@final
 struct RequestHeader {
     DDS::SampleIdentity requestId;
     DDS::RPC::InstanceName instanceName;
 };
 
+@final
 struct ReplyHeader {
     DDS::SampleIdentity relatedRequestId;
     DDS::RPC::RemoteExceptionCode remoteEx;
@@ -112,6 +119,7 @@ union TypeLookup_Call switch(long) {
 
 @nested(FALSE)
 @RPCRequestType
+@final
 struct TypeLookup_Request {
     DDS::RPC::RequestHeader header;
     TypeLookup_Call data;
@@ -127,6 +135,7 @@ union TypeLookup_Return switch(long) {
 
 @nested(FALSE)
 @RPCReplyType
+@final
 struct TypeLookup_Reply {
     DDS::RPC::ReplyHeader header;
     TypeLookup_Return return_data; // changed from return to return_data to avoid collision with return keyword
