@@ -795,14 +795,12 @@ CU_Theory ((const char *test_descr, const dds_topic_descriptor_t *topic_desc, ty
 
   DDS_XTypes_TypeMapping *tmap;
   typemap_deser (&tmap, &desc.type_mapping);
-
-  // add proxy endpoint types (invalid) via tl lookup reply impl
-  DDS_Builtin_TypeLookup_Reply reply_invalid_types = {
-    .header = { .instanceName = "dummy", .requestId = { .sequence_number = { .low = 1, .high = 0 }, .writer_guid = { .guidPrefix = { 0 }, .entityId = { .entityKind = EK_WRITER, .entityKey = { 0 } } } } },
+  DDS_Builtin_TypeLookup_Reply reply = {
+    .header = { .remoteEx = DDS_RPC_REMOTE_EX_OK, .relatedRequestId = { .sequence_number = { .low = 1, .high = 0 }, .writer_guid = { .guidPrefix = { 0 }, .entityId = { .entityKind = EK_WRITER, .entityKey = { 0 } } } } },
     .return_data = { ._d = DDS_Builtin_TypeLookup_getTypes_HashId, ._u = { .getType = { ._d = DDS_RETCODE_OK, ._u = { .result =
       { .types = { ._length = tmap->identifier_object_pair_minimal._length, ._maximum = tmap->identifier_object_pair_minimal._maximum, ._release = false, ._buffer = tmap->identifier_object_pair_minimal._buffer } } } } } }
     };
-  ddsi_tl_add_types (gv, &reply_invalid_types, &gpe_match_upd, &n_match_upd);
+  ddsi_tl_add_types (gv, &reply, &gpe_match_upd, &n_match_upd);
 
   // expect no match because of invalid types
   CU_ASSERT_EQUAL_FATAL (n_match_upd, 0);
@@ -869,7 +867,7 @@ CU_Test (ddsc_xtypes, resolve_dep_type, .init = xtypes_init, .fini = xtypes_fini
 
   // add proxy reader's top-level type
   reply = (DDS_Builtin_TypeLookup_Reply) {
-    .header = { .instanceName = "dummy", .requestId = { .sequence_number = { .low = 1, .high = 0 }, .writer_guid = { .guidPrefix = { 0 }, .entityId = { .entityKind = EK_WRITER, .entityKey = { 0 } } } } },
+    .header = { .remoteEx = DDS_RPC_REMOTE_EX_OK, .relatedRequestId = { .sequence_number = { .low = 1, .high = 0 }, .writer_guid = { .guidPrefix = { 0 }, .entityId = { .entityKind = EK_WRITER, .entityKey = { 0 } } } } },
     .return_data = { ._d = DDS_Builtin_TypeLookup_getTypes_HashId, ._u = { .getType = { ._d = DDS_RETCODE_OK, ._u = { .result =
       { .types = { ._length = 1, ._maximum = 1, ._release = false, ._buffer = &tmap->identifier_object_pair_minimal._buffer[0] } } } } } }
     };
@@ -879,7 +877,7 @@ CU_Test (ddsc_xtypes, resolve_dep_type, .init = xtypes_init, .fini = xtypes_fini
 
   // add nested type and expect match
   reply = (DDS_Builtin_TypeLookup_Reply) {
-    .header = { .instanceName = "dummy", .requestId = { .sequence_number = { .low = 1, .high = 0 }, .writer_guid = { .guidPrefix = { 0 }, .entityId = { .entityKind = EK_WRITER, .entityKey = { 0 } } } } },
+    .header = { .remoteEx = DDS_RPC_REMOTE_EX_OK, .relatedRequestId = { .sequence_number = { .low = 1, .high = 0 }, .writer_guid = { .guidPrefix = { 0 }, .entityId = { .entityKind = EK_WRITER, .entityKey = { 0 } } } } },
     .return_data = { ._d = DDS_Builtin_TypeLookup_getTypes_HashId, ._u = { .getType = { ._d = DDS_RETCODE_OK, ._u = { .result =
       { .types = { ._length = 1, ._maximum = 1, ._release = false, ._buffer = &tmap->identifier_object_pair_minimal._buffer[1] } } } } } }
     };

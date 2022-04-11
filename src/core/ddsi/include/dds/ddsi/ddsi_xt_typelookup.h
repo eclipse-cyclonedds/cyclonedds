@@ -289,7 +289,7 @@ typedef struct DDS_Builtin_TypeLookup_Return
 
 typedef struct DDS_Builtin_TypeLookup_Reply
 {
-  struct DDS_RPC_RequestHeader header;
+  struct DDS_RPC_ReplyHeader header;
   struct DDS_Builtin_TypeLookup_Return return_data;
 } DDS_Builtin_TypeLookup_Reply;
 
