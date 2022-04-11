@@ -489,7 +489,8 @@ static dds_return_t wait_for_type_resolved(
   }
   ddsrt_mutex_unlock (&gv->typelib_lock);
 
-  if (!ddsi_tl_request_type (gv, ddsi_type_id, include_deps))
+  // FIXME: provide proxy pp guid
+  if (!ddsi_tl_request_type (gv, ddsi_type_id, NULL, include_deps))
   {
     rc = DDS_RETCODE_PRECONDITION_NOT_MET;
     goto err_unpin;

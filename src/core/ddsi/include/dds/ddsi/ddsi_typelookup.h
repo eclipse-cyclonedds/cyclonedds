@@ -47,7 +47,7 @@ struct ddsi_type;
  * Send a type lookup request message in order to request type information for the
  * provided type identifier.
  */
-DDS_EXPORT bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const ddsi_typeid_t *type_id, bool include_deps);
+DDS_EXPORT bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const ddsi_typeid_t *type_id, const ddsi_guid_t *proxypp_guid, bool include_deps);
 
 /**
  * Handle an incoming type lookup request message. For all types requested

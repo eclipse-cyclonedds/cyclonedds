@@ -2745,6 +2745,13 @@ static void reader_qos_mismatch (struct reader * rd, dds_qos_policy_id_t reason)
   }
 }
 
+#ifdef DDS_HAS_TYPE_DISCOVERY
+static bool is_proxy_endpoint (const struct entity_common *e)
+{
+  return e->kind == EK_PROXY_READER || e->kind == EK_PROXY_WRITER;
+}
+#endif
+
 static bool topickind_qos_match_p_lock (
     struct ddsi_domaingv *gv,
     struct entity_common *rd,
@@ -2772,6 +2779,7 @@ static bool topickind_qos_match_p_lock (
 #ifdef DDS_HAS_TYPE_DISCOVERY
   bool rd_type_lookup, wr_type_lookup;
   const ddsi_typeid_t *req_type_id = NULL;
+  ddsi_guid_t *proxypp_guid = NULL;
   bool ret = qos_match_p (gv, rdqos, wrqos, reason, rd_type_pair, wr_type_pair, &rd_type_lookup, &wr_type_lookup);
   if (!ret)
   {
@@ -2779,10 +2787,16 @@ static bool topickind_qos_match_p_lock (
        be set to indicate that type information is missing. At this point, we know this
        is the case so do a type lookup request for either rd_type_pair->minimal or
        wr_type_pair->minimal or a dependent type for one of these. */
-    if (rd_type_lookup)
+    if (rd_type_lookup && is_proxy_endpoint (rd))
+    {
       req_type_id = ddsi_type_pair_minimal_id (rd_type_pair);
-    else if (wr_type_lookup)
+      proxypp_guid = &((struct generic_proxy_endpoint *) rd)->c.proxypp->e.guid;
+    }
+    else if (wr_type_lookup && is_proxy_endpoint (wr))
+    {
       req_type_id = ddsi_type_pair_minimal_id (wr_type_pair);
+      proxypp_guid = &((struct generic_proxy_endpoint *) wr)->c.proxypp->e.guid;
+    }
   }
 #else
   bool ret = qos_match_p (gv, rdqos, wrqos, reason);
@@ -2793,7 +2807,7 @@ static bool topickind_qos_match_p_lock (
 #ifdef DDS_HAS_TYPE_DISCOVERY
   if (req_type_id)
   {
-    (void) ddsi_tl_request_type (gv, req_type_id, true);
+    (void) ddsi_tl_request_type (gv, req_type_id, proxypp_guid, true);
     return false;
   }
 #endif
