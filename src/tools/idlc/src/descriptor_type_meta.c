@@ -198,6 +198,12 @@ has_fully_descriptive_typeid (const idl_type_spec_t *type_spec)
 static idl_retcode_t
 get_typeid(const idl_pstate_t *pstate, struct descriptor_type_meta *dtm, const idl_type_spec_t *type_spec, bool alias_related_type, DDS_XTypes_TypeIdentifier *ti, DDS_XTypes_TypeKind kind, bool array_element);
 
+static DDS_XTypes_CollectionElementFlag
+get_sequence_element_flags(const idl_sequence_t *seq);
+
+static DDS_XTypes_CollectionElementFlag
+get_array_element_flags(const idl_node_t *node);
+
 static idl_retcode_t
 get_plain_typeid (const idl_pstate_t *pstate, struct descriptor_type_meta *dtm, const idl_type_spec_t *type_spec, bool alias_related_type, DDS_XTypes_TypeIdentifier *ti, DDS_XTypes_TypeKind kind)
 {
@@ -220,6 +226,7 @@ get_plain_typeid (const idl_pstate_t *pstate, struct descriptor_type_meta *dtm, 
       ti->_u.array_sdefn.element_identifier = calloc (1, sizeof (*ti->_u.array_sdefn.element_identifier));
       if ((ret = get_typeid (pstate, dtm, type_spec, false, ti->_u.array_sdefn.element_identifier, kind, true)) < 0)
         return ret;
+      ti->_u.array_sdefn.header.element_flags = get_array_element_flags (type_spec);
       if (has_fully_descriptive_typeid_impl (type_spec, true, alias_related_type))
         ti->_u.array_sdefn.header.equiv_kind = DDS_XTypes_EK_BOTH;
       else
@@ -227,6 +234,7 @@ get_plain_typeid (const idl_pstate_t *pstate, struct descriptor_type_meta *dtm, 
     } else {
       ti->_d = DDS_XTypes_TI_PLAIN_ARRAY_LARGE;
       ti->_u.array_ldefn.element_identifier = calloc (1, sizeof (*ti->_u.array_ldefn.element_identifier));
+      ti->_u.array_ldefn.header.element_flags = get_array_element_flags (type_spec);
       for (; literal; literal = idl_next (literal)) {
         assert (literal->value.uint64 < UINT32_MAX);
         uint32_t val = literal->value.uint32;
@@ -275,6 +283,7 @@ get_plain_typeid (const idl_pstate_t *pstate, struct descriptor_type_meta *dtm, 
         if (!idl_is_bounded (seq) || seq->maximum <= UINT8_MAX) {
           ti->_d = DDS_XTypes_TI_PLAIN_SEQUENCE_SMALL;
           ti->_u.seq_sdefn.bound = (uint8_t) seq->maximum;
+          ti->_u.seq_sdefn.header.element_flags = get_sequence_element_flags (seq);
           ti->_u.seq_sdefn.element_identifier = calloc (1, sizeof (*ti->_u.seq_sdefn.element_identifier));
           if ((ret = get_typeid (pstate, dtm, idl_type_spec (type_spec), false, ti->_u.seq_sdefn.element_identifier, kind, false)) < 0)
             return ret;
@@ -285,6 +294,7 @@ get_plain_typeid (const idl_pstate_t *pstate, struct descriptor_type_meta *dtm, 
         } else {
           ti->_d = DDS_XTypes_TI_PLAIN_SEQUENCE_LARGE;
           ti->_u.seq_ldefn.bound = seq->maximum;
+          ti->_u.seq_ldefn.header.element_flags = get_sequence_element_flags (seq);
           ti->_u.seq_ldefn.element_identifier = calloc (1, sizeof (*ti->_u.seq_ldefn.element_identifier));
           if ((ret = get_typeid (pstate, dtm, idl_type_spec (type_spec), false, ti->_u.seq_ldefn.element_identifier, kind, false)) < 0)
             return ret;
@@ -386,19 +396,18 @@ static DDS_XTypes_StructMemberFlag
 get_struct_member_flags(const idl_member_t *member)
 {
   DDS_XTypes_StructMemberFlag flags = 0u;
-  if (member->try_construct.annotation) {
-    switch (member->try_construct.value) {
-      case IDL_DISCARD:
-        flags |= DDS_XTypes_TRY_CONSTRUCT_DISCARD;
-        break;
-      case IDL_USE_DEFAULT:
-        flags |= DDS_XTypes_TRY_CONSTRUCT_USE_DEFAULT;
-        break;
-      case IDL_TRIM:
-        flags |= DDS_XTypes_TRY_CONSTRUCT_TRIM;
-        break;
-    }
+  switch (member->try_construct.value) {
+    case IDL_DISCARD:
+      flags |= DDS_XTypes_TRY_CONSTRUCT_DISCARD;
+      break;
+    case IDL_USE_DEFAULT:
+      flags |= DDS_XTypes_TRY_CONSTRUCT_USE_DEFAULT;
+      break;
+    case IDL_TRIM:
+      flags |= DDS_XTypes_TRY_CONSTRUCT_TRIM;
+      break;
   }
+
   if (member->external.value)
     flags |= DDS_XTypes_IS_EXTERNAL;
   if (member->key.value)
@@ -434,6 +443,10 @@ static DDS_XTypes_UnionDiscriminatorFlag
 get_union_discriminator_flags(const idl_switch_type_spec_t *switch_type_spec)
 {
   DDS_XTypes_UnionDiscriminatorFlag flags = 0u;
+
+  // FIXME: support non-default try-construct
+  flags |= DDS_XTypes_TRY_CONSTRUCT_DISCARD;
+
   // XTypes spec 7.2.2.4.4.4.6: In a union type, the discriminator member shall always have the 'must understand' attribute set to true
   flags |= DDS_XTypes_IS_MUST_UNDERSTAND;
   if (switch_type_spec->key.value)
@@ -446,18 +459,16 @@ static DDS_XTypes_UnionMemberFlag
 get_union_case_flags(const idl_case_t *_case)
 {
   DDS_XTypes_UnionMemberFlag flags = 0u;
-  if (_case->try_construct.annotation) {
-    switch (_case->try_construct.value) {
-      case IDL_DISCARD:
-        flags |= DDS_XTypes_TRY_CONSTRUCT_DISCARD;
-        break;
-      case IDL_USE_DEFAULT:
-        flags |= DDS_XTypes_TRY_CONSTRUCT_USE_DEFAULT;
-        break;
-      case IDL_TRIM:
-        flags |= DDS_XTypes_TRY_CONSTRUCT_TRIM;
-        break;
-    }
+  switch (_case->try_construct.value) {
+    case IDL_DISCARD:
+      flags |= DDS_XTypes_TRY_CONSTRUCT_DISCARD;
+      break;
+    case IDL_USE_DEFAULT:
+      flags |= DDS_XTypes_TRY_CONSTRUCT_USE_DEFAULT;
+      break;
+    case IDL_TRIM:
+      flags |= DDS_XTypes_TRY_CONSTRUCT_TRIM;
+      break;
   }
   if (_case->external.value)
     flags |= DDS_XTypes_IS_EXTERNAL;
@@ -468,13 +479,31 @@ get_union_case_flags(const idl_case_t *_case)
 }
 
 static DDS_XTypes_CollectionElementFlag
-get_collection_element_flags(const idl_sequence_t *seq)
+get_sequence_element_flags(const idl_sequence_t *seq)
 {
   DDS_XTypes_CollectionElementFlag flags = 0u;
+
+  // FIXME: support non-default try-construct
+  flags |= DDS_XTypes_TRY_CONSTRUCT_DISCARD;
 
   (void) seq;
   // FIXME: support @external for sequence element type
   // if (seq->external)
+  //   flags |= DDS_XTypes_IS_EXTERNAL;
+  return flags;
+}
+
+static DDS_XTypes_CollectionElementFlag
+get_array_element_flags(const idl_node_t *node)
+{
+  DDS_XTypes_CollectionElementFlag flags = 0u;
+
+  // FIXME: support non-default try-construct
+  flags |= DDS_XTypes_TRY_CONSTRUCT_DISCARD;
+
+  (void) node;
+  // FIXME: support @external for array element type
+  // if (arr->external)
   //   flags |= DDS_XTypes_IS_EXTERNAL;
   return flags;
 }
@@ -988,7 +1017,7 @@ add_array (
 
   if (!revisit) {
     dtm->stack->to_minimal->_u.minimal._u.array_type.element.common.element_flags =
-      dtm->stack->to_complete->_u.complete._u.array_type.element.common.element_flags = get_collection_element_flags (node);
+      dtm->stack->to_complete->_u.complete._u.array_type.element.common.element_flags = get_sequence_element_flags (node);
 
     if ((ret = get_complete_type_detail (type_spec, &dtm->stack->to_complete->_u.complete._u.array_type.header.detail)) < 0)
       return ret;
@@ -1428,7 +1457,7 @@ emit_sequence(
        No need to include sequence_type.header.detail here, because sequences are anonymous
        types and there is no type name to store */
     dtm->stack->to_minimal->_u.minimal._u.sequence_type.element.common.element_flags =
-      dtm->stack->to_complete->_u.complete._u.sequence_type.element.common.element_flags = get_collection_element_flags (node);
+      dtm->stack->to_complete->_u.complete._u.sequence_type.element.common.element_flags = get_sequence_element_flags (node);
     dtm->stack->to_minimal->_u.minimal._u.sequence_type.header.common.bound =
       dtm->stack->to_complete->_u.complete._u.sequence_type.header.common.bound = seq->maximum;
     return IDL_VISIT_REVISIT | IDL_VISIT_TYPE_SPEC;
