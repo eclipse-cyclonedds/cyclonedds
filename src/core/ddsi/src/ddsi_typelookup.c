@@ -209,12 +209,11 @@ bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const ddsi_typeid_t 
 static void create_tl_reply_msg (DDS_Builtin_TypeLookup_Reply *reply, const struct writer *wr, seqno_t seqno, const struct DDS_XTypes_TypeIdentifierTypeObjectPairSeq *types)
 {
   memset (reply, 0, sizeof (*reply));
-  memcpy (&reply->header.requestId.writer_guid.guidPrefix, &wr->e.guid.prefix, sizeof (reply->header.requestId.writer_guid.guidPrefix));
-  memcpy (&reply->header.requestId.writer_guid.entityId, &wr->e.guid.entityid, sizeof (reply->header.requestId.writer_guid.entityId));
-  reply->header.requestId.sequence_number.high = (int32_t) (seqno >> 32);
-  reply->header.requestId.sequence_number.low = (uint32_t) seqno;
-  (void) snprintf (reply->header.instanceName, sizeof (reply->header.instanceName), "dds.builtin.TOS.%08"PRIx32 "%08"PRIx32 "%08"PRIx32 "%08"PRIx32,
-    wr->c.pp->e.guid.prefix.u[0], wr->c.pp->e.guid.prefix.u[1], wr->c.pp->e.guid.prefix.u[2], wr->c.pp->e.guid.entityid.u);
+  memcpy (&reply->header.relatedRequestId.writer_guid.guidPrefix, &wr->e.guid.prefix, sizeof (reply->header.relatedRequestId.writer_guid.guidPrefix));
+  memcpy (&reply->header.relatedRequestId.writer_guid.entityId, &wr->e.guid.entityid, sizeof (reply->header.relatedRequestId.writer_guid.entityId));
+  reply->header.relatedRequestId.sequence_number.high = (int32_t) (seqno >> 32);
+  reply->header.relatedRequestId.sequence_number.low = (uint32_t) seqno;
+  reply->header.remoteEx = DDS_RPC_REMOTE_EX_OK;
   reply->return_data._d = DDS_Builtin_TypeLookup_getTypes_HashId;
   reply->return_data._u.getType._d = DDS_RETCODE_OK;
   reply->return_data._u.getType._u.result.types._length = types->_length;
@@ -316,8 +315,8 @@ void ddsi_tl_add_types (struct ddsi_domaingv *gv, const DDS_Builtin_TypeLookup_R
   /* No need to correlate the sample identity of the incoming reply with the request
      that was sent, because the reply itself contains the type-id to type object mapping
      and we're not interested in what specific reply results in resolving a type */
-  GVTRACE ("tl-reply-add-types wr "PGUIDFMT " seqnr %"PRIu64" ntypeids %"PRIu32"\n", PGUID (from_guid (&reply->header.requestId.writer_guid)),
-      from_seqno (&reply->header.requestId.sequence_number), reply->return_data._u.getType._u.result.types._length);
+  GVTRACE ("tl-reply-add-types wr "PGUIDFMT " seqnr %"PRIu64" ntypeids %"PRIu32"\n", PGUID (from_guid (&reply->header.relatedRequestId.writer_guid)),
+      from_seqno (&reply->header.relatedRequestId.sequence_number), reply->return_data._u.getType._u.result.types._length);
   for (uint32_t n = 0; n < reply->return_data._u.getType._u.result.types._length; n++)
   {
     struct ddsi_typeid_str str;
@@ -383,7 +382,7 @@ void ddsi_tl_handle_reply (struct ddsi_domaingv *gv, struct ddsi_serdata *d)
   ddsi_serdata_to_sample (d, &reply, NULL, NULL);
   if (reply.return_data._d != DDS_Builtin_TypeLookup_getTypes_HashId)
   {
-    GVTRACE (" handle-tl-reply wr "PGUIDFMT " unknown reply-type %"PRIi32, PGUID (from_guid (&reply.header.requestId.writer_guid)), reply.return_data._d);
+    GVTRACE (" handle-tl-reply wr "PGUIDFMT " unknown reply-type %"PRIi32, PGUID (from_guid (&reply.header.relatedRequestId.writer_guid)), reply.return_data._d);
     ddsi_sertype_free_sample (d->type, &reply, DDS_FREE_CONTENTS);
     return;
   }

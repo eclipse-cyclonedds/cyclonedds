@@ -168,13 +168,13 @@ const dds_topic_descriptor_t DDS_Builtin_TypeLookup_Request_desc =
 static const uint32_t DDS_Builtin_TypeLookup_Reply_ops [] =
 {
   /* TypeLookup_Reply */
-  DDS_OP_ADR | DDS_OP_TYPE_EXT, offsetof (DDS_Builtin_TypeLookup_Reply, header), (3u << 16u) + 7u /* RequestHeader */,
+  DDS_OP_ADR | DDS_OP_TYPE_EXT, offsetof (DDS_Builtin_TypeLookup_Reply, header), (3u << 16u) + 7u /* ReplyHeader */,
   DDS_OP_ADR | DDS_OP_TYPE_EXT, offsetof (DDS_Builtin_TypeLookup_Reply, return_data), (3u << 16u) + 36u /* TypeLookup_Return */,
   DDS_OP_RTS,
 
-  /* RequestHeader */
-  DDS_OP_ADR | DDS_OP_TYPE_EXT, offsetof (DDS_RPC_RequestHeader, requestId), (3u << 16u) + 7u /* SampleIdentity */,
-  DDS_OP_ADR | DDS_OP_TYPE_BST, offsetof (DDS_RPC_RequestHeader, instanceName), 256u,
+  /* ReplyHeader */
+  DDS_OP_ADR | DDS_OP_TYPE_EXT, offsetof (DDS_RPC_ReplyHeader, relatedRequestId), (3u << 16u) + 7u /* SampleIdentity */,
+  DDS_OP_ADR | DDS_OP_TYPE_ENU | (2 << DDS_OP_FLAG_SZ_SHIFT), offsetof (DDS_RPC_ReplyHeader, remoteEx), 5u,
   DDS_OP_RTS,
 
   /* SampleIdentity */

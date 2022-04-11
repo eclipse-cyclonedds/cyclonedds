@@ -128,7 +128,7 @@ union TypeLookup_Return switch(long) {
 @nested(FALSE)
 @RPCReplyType
 struct TypeLookup_Reply {
-    DDS::RPC::RequestHeader header;
+    DDS::RPC::ReplyHeader header;
     TypeLookup_Return return_data; // changed from return to return_data to avoid collision with return keyword
 };
 
