@@ -810,6 +810,7 @@ CU_Theory ((const char *test_descr, const dds_topic_descriptor_t *topic_desc, ty
 
   struct ddsi_type *type = ddsi_type_lookup (gv, (ddsi_typeid_t *) &tmap->identifier_object_pair_minimal._buffer[0].type_identifier);
   CU_ASSERT_PTR_NOT_NULL_FATAL (type);
+  assert (type);
   CU_ASSERT_EQUAL_FATAL (type->state, DDSI_TYPE_INVALID);
 
   // clean up
