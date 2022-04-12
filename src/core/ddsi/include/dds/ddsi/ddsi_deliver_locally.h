@@ -55,12 +55,6 @@ dds_return_t deliver_locally_one (struct ddsi_domaingv *gv, struct entity_common
 
 dds_return_t deliver_locally_allinsync (struct ddsi_domaingv *gv, struct entity_common *source_entity, bool source_entity_locked, struct local_reader_ary *fastpath_rdary, const struct ddsi_writer_info *wrinfo, const struct deliver_locally_ops * __restrict ops, void *vsourceinfo);
 
-dds_return_t deliver_locally_allinsync_except_iceoryx(
-    struct ddsi_domaingv *gv, struct entity_common *source_entity,
-    bool source_entity_locked, struct local_reader_ary *fastpath_rdary,
-    const struct ddsi_writer_info *wrinfo,
-    const struct deliver_locally_ops *__restrict ops, void *vsourceinfo);
-
 #if defined (__cplusplus)
 }
 #endif
