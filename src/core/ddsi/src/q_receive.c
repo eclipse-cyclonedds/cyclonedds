@@ -1890,7 +1890,7 @@ static int handle_Gap (struct receiver_state *rst, ddsrt_etime_t tnow, struct nn
   }
   RSTTRACE (PGUIDFMT" -> "PGUIDFMT, PGUID (src), PGUID (dst));
 
-  if (!pwr->have_seen_heartbeat && pwr->n_reliable_readers > 0)
+  if (!pwr->have_seen_heartbeat && pwr->n_reliable_readers > 0 && vendor_is_eclipse (rst->vendor))
   {
     RSTTRACE (": no heartbeat seen yet");
     ddsrt_mutex_unlock (&pwr->e.lock);
@@ -2345,7 +2345,7 @@ static void handle_regular (struct receiver_state *rst, ddsrt_etime_t tnow, stru
      been seen could potentially result in a disruption of the data flow to
      the best-effort readers.  That state should last only for a very short
      time, but it is rather inelegant.  */
-  if (!pwr->have_seen_heartbeat && pwr->n_reliable_readers > 0)
+  if (!pwr->have_seen_heartbeat && pwr->n_reliable_readers > 0 && vendor_is_eclipse (rst->vendor))
   {
     ddsrt_mutex_unlock (&pwr->e.lock);
     RSTTRACE (" "PGUIDFMT" -> "PGUIDFMT": no heartbeat seen yet", PGUID (pwr->e.guid), PGUID (dst));
