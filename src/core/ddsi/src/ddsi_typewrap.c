@@ -701,6 +701,11 @@ static dds_return_t xt_valid_type_flags (struct ddsi_domaingv *gv, uint16_t flag
 static dds_return_t xt_valid_member_flags (struct ddsi_domaingv *gv, uint16_t flags, uint8_t member_flag_kind)
 {
   dds_return_t ret = DDS_RETCODE_OK;
+
+  /* FIXME: (flags & (T1|T2)) == 0 is also invalid, but as we use this (invalid)
+     value for the try-construct flags in the 0.9 release, this check cannot currently
+     be added here */
+
   switch (member_flag_kind)
   {
     case MEMBER_FLAG_COLLECTION_ELEMENT:
