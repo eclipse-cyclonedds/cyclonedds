@@ -361,6 +361,10 @@ static dds_return_t ddsi_type_new (struct ddsi_domaingv *gv, struct ddsi_type **
     *type = NULL;
     return ret;
   }
+  if (!ddsi_typeid_is_hash (&(*type)->xt.id))
+    (*type)->state = DDSI_TYPE_RESOLVED;
+  /* inserted with refc 0 (set by calloc), refc is increased in
+     ddsi_type_ref_* functions */
   ddsrt_avl_insert (&ddsi_typelib_treedef, &gv->typelib, *type);
   return DDS_RETCODE_OK;
 }
@@ -480,7 +484,7 @@ static dds_return_t type_add_deps (struct ddsi_domaingv *gv, struct ddsi_type *t
   return ret;
 }
 
-dds_return_t ddsi_type_ref_locked (struct ddsi_domaingv *gv, struct ddsi_type **type, const struct ddsi_type *src)
+void ddsi_type_ref_locked (struct ddsi_domaingv *gv, struct ddsi_type **type, const struct ddsi_type *src)
 {
   assert (src);
   struct ddsi_type *t = (struct ddsi_type *) src;
@@ -488,7 +492,6 @@ dds_return_t ddsi_type_ref_locked (struct ddsi_domaingv *gv, struct ddsi_type **
   GVTRACE ("ref ddsi_type %p refc %"PRIu32"\n", t, t->refc);
   if (type)
     *type = t;
-  return DDS_RETCODE_OK;
 }
 
 dds_return_t ddsi_type_ref_id_locked_impl (struct ddsi_domaingv *gv, struct ddsi_type **type, const struct DDS_XTypes_TypeIdentifier *type_id)
