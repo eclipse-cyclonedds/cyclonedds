@@ -176,7 +176,46 @@ CU_Test(idl_parser, embedded_module)
 #undef LL
 #undef LD
 
-// x. use already existing name
+
+#define M(name, contents) "module " name " { " contents " };"
+#define S(name, contents) "@final struct " name " { " contents " };"
+#define L(name) "long " name ";"
+#define SD(name) S(name, L("f1"))
+#define T(name, alias) "typedef " name " " alias ";"
+CU_Test(idl_parser, name_collision)
+{
+  struct { const char *idl; bool valid; } tests[] =
+    {
+      { M("a", SD("s1")) M("a", SD("s2")), true },
+      { M("a", SD("s1")) M("a", SD("s1")), false },
+      { M("a", SD("a")), false },
+      { M("a", S("b", L("a"))), true },
+      { M("a", T("long", "a")), false },
+      { M("a", M("a", SD("b"))), false },
+      { M("a", M("b", M("a", SD("c")))), true },
+      { M("a", M("b", S("a", L("b")))), true },
+      { M("a", SD("s")) M("a", SD("t")) , true },
+      { M("m", M("i1", T("string", "s1")) M("i2", T("string", "i1"))), true },
+      /* FIXME: because i1 introduced in i2, typedef to i1 should not be allowed
+      { M("m", M("i1", T("string", "s1")) M("i2", T("i1::s1", "s2") T("string", "i1") S("x", "i1 f1;"))), false }, */
+    };
+
+  for (size_t i = 0; i < sizeof(tests)/sizeof(tests[0]); i++)
+  {
+    idl_pstate_t *pstate = NULL;
+    idl_retcode_t ret = idl_create_pstate(IDL_FLAG_ANNOTATIONS, NULL, &pstate);
+    CU_ASSERT_EQUAL_FATAL(ret, IDL_RETCODE_OK);
+    CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
+    assert(pstate);
+    ret = idl_parse_string(pstate, tests[i].idl);
+    CU_ASSERT_EQUAL_FATAL(ret, tests[i].valid ? IDL_RETCODE_OK : IDL_RETCODE_SEMANTIC_ERROR);
+    idl_delete_pstate(pstate);
+  }
+}
+#undef M
+#undef S
+#undef L
+#undef T
 
 CU_Test(idl_parser, struct_in_struct_same_module)
 {

@@ -77,6 +77,7 @@ struct idl_pstate;
 #define IDL_FIND_IGNORE_CASE (1u<<0)
 #define IDL_FIND_IGNORE_IMPORTS (1u<<1)
 #define IDL_FIND_ANNOTATION (1u<<2)
+#define IDL_FIND_SCOPE_DECLARATION (1u<<3)
 
 IDL_EXPORT const idl_declaration_t *
 idl_find(
