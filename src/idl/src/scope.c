@@ -390,7 +390,8 @@ idl_find(
   cmp = (flags & IDL_FIND_IGNORE_CASE) ? &namecasecmp : &namecmp;
 
   for (entry = scope->declarations.first; entry; entry = entry->next) {
-    if (is_annotation(scope, entry) && !(flags & IDL_FIND_ANNOTATION))
+    if ((is_annotation(scope, entry) && !(flags & IDL_FIND_ANNOTATION))
+        || (entry->kind == IDL_SCOPE_DECLARATION && !(flags & IDL_FIND_SCOPE_DECLARATION)))
       continue;
     if (cmp(name, entry->name) == 0)
     {
@@ -431,7 +432,7 @@ idl_find_scoped_name(
 
   for (size_t i=0; i < scoped_name->length && scope;) {
     const idl_name_t *name = scoped_name->names[i];
-    entry = idl_find(pstate, scope, name, (flags|IDL_FIND_IGNORE_CASE));
+    entry = idl_find(pstate, scope, name, (flags|IDL_FIND_IGNORE_CASE|IDL_FIND_SCOPE_DECLARATION));
     if (entry && entry->kind != IDL_USE_DECLARATION) {
       if (cmp(name, entry->name) != 0)
         return NULL;
@@ -515,7 +516,7 @@ idl_resolve(
 
   for (size_t i=0; i < scoped_name->length && scope;) {
     const idl_name_t *name = scoped_name->names[i];
-    entry = idl_find(pstate, scope, name, flags|ignore_case);
+    entry = idl_find(pstate, scope, name, flags|ignore_case|IDL_FIND_SCOPE_DECLARATION);
     if (entry && entry->kind != IDL_USE_DECLARATION) {
       /* identifiers are case insensitive. however, all references to a
          definition must use the same case as the defining occurence */
