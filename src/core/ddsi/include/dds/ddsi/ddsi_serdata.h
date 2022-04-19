@@ -174,7 +174,8 @@ typedef uint32_t(*ddsi_serdata_iox_size_t) (const struct ddsi_serdata* d);
 // to avoid serializing the data for zero-copy data transfer if all subscribers are reachable via Iceoryx.
 //
 // The first case is when "sub" is not NULL, in which case it is a pointer to the Iceoryx subscriber
-typedef struct ddsi_serdata* (*ddsi_serdata_from_iox_t) (const struct ddsi_sertype* type, enum ddsi_serdata_kind kind, void* sub, void* buffer);
+// deserialize_hint is set to true if the data needs to be serialized for network use
+typedef struct ddsi_serdata* (*ddsi_serdata_from_iox_t) (const struct ddsi_sertype* type, enum ddsi_serdata_kind kind, bool deserialize_hint, void* sub, void* buffer);
 #endif
 
 struct ddsi_serdata_ops {
@@ -323,19 +324,19 @@ DDS_INLINE_EXPORT inline uint32_t ddsi_serdata_iox_size(const struct ddsi_serdat
   return d->type->iox_size;
 }
 
-inline struct ddsi_serdata* ddsi_serdata_from_iox(const struct ddsi_sertype* type, enum ddsi_serdata_kind kind, void* sub, void* iox_buffer) ddsrt_nonnull_all;
+inline struct ddsi_serdata* ddsi_serdata_from_iox(const struct ddsi_sertype* type, enum ddsi_serdata_kind kind, void* sub,  void* iox_buffer) ddsrt_nonnull_all;
 
-DDS_INLINE_EXPORT inline struct ddsi_serdata* ddsi_serdata_from_iox(const struct ddsi_sertype* type, enum ddsi_serdata_kind kind, void* sub, void* iox_buffer)
+DDS_INLINE_EXPORT inline struct ddsi_serdata* ddsi_serdata_from_iox(const struct ddsi_sertype* type, enum ddsi_serdata_kind kind, void* sub,  void* iox_buffer )
 {
-  return type->serdata_ops->from_iox_buffer(type, kind, sub, iox_buffer);
+  return type->serdata_ops->from_iox_buffer(type, kind,false, sub, iox_buffer);
 }
 
-inline struct ddsi_serdata *ddsi_serdata_from_loaned_sample(const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, const char *sample) ddsrt_nonnull_all;
+inline struct ddsi_serdata *ddsi_serdata_from_loaned_sample(const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, bool deserialize_hint, const char *sample) ddsrt_nonnull_all;
 
-DDS_INLINE_EXPORT inline struct ddsi_serdata *ddsi_serdata_from_loaned_sample(const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, const char *sample)
+DDS_INLINE_EXPORT inline struct ddsi_serdata *ddsi_serdata_from_loaned_sample(const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, bool deserialize_hint, const char *sample)
 {
   if (type->serdata_ops->from_iox_buffer)
-    return type->serdata_ops->from_iox_buffer (type, kind, NULL, (void *) sample);
+    return type->serdata_ops->from_iox_buffer (type, kind, deserialize_hint, NULL, (void *) sample);
   else
     return type->serdata_ops->from_sample (type, kind, sample);
 }

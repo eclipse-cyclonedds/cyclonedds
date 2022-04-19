@@ -479,7 +479,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
     // where we either have network readers (requiring serialization) or not.
 
     // do not serialize yet (may not need it if only using iceoryx or no readers)
-    d = ddsi_serdata_from_loaned_sample (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, iox_chunk);
+    d = ddsi_serdata_from_loaned_sample (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, false, iox_chunk);
     if(d == NULL) {
       ret = DDS_RETCODE_BAD_PARAMETER;
       goto release_chunk;
@@ -488,7 +488,13 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
     // serialize for network since we will need to send via network anyway
     // we also need to serialize into an iceoryx chunk
  
-    d = ddsi_serdata_from_sample (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, data);
+    if (iceoryx_available) {
+      d = ddsi_serdata_from_loaned_sample (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, true, iox_chunk);
+    } else {
+      d = ddsi_serdata_from_sample (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, data);
+    }
+
+    
     if(d == NULL) {
       ret = DDS_RETCODE_BAD_PARAMETER;
       goto release_chunk;

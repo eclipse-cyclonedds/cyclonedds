@@ -511,8 +511,9 @@ static struct ddsi_serdata *ddsi_serdata_default_from_loaned_sample (const struc
   return serdata;
 }
 
-static struct ddsi_serdata* serdata_default_from_iox(const struct ddsi_sertype* tpcmn, enum ddsi_serdata_kind kind, void* sub, void* buffer)
+static struct ddsi_serdata* serdata_default_from_iox(const struct ddsi_sertype* tpcmn, enum ddsi_serdata_kind kind, bool deserialize_hint,  void* sub, void* buffer)
 {
+  (void)deserialize_hint;
   if (sub == NULL)
     return ddsi_serdata_default_from_loaned_sample(tpcmn, kind, buffer);
   else
