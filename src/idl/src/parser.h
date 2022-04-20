@@ -1,8 +1,8 @@
-/* A Bison parser, made by GNU Bison 3.7.  */
+/* A Bison parser, made by GNU Bison 3.8.2.  */
 
 /* Bison interface for Yacc-like parsers in C
 
-   Copyright (C) 1984, 1989-1990, 2000-2015, 2018-2020 Free Software Foundation,
+   Copyright (C) 1984, 1989-1990, 2000-2015, 2018-2021 Free Software Foundation,
    Inc.
 
    This program is free software: you can redistribute it and/or modify
@@ -16,7 +16,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
 
 /* As a special exception, you may create a larger work that contains
    part or all of the Bison parser skeleton and distribute that work
@@ -206,6 +206,7 @@ struct IDL_YYLTYPE
 
 
 
+
 #ifndef YYPUSH_MORE_DEFINED
 # define YYPUSH_MORE_DEFINED
 enum { YYPUSH_MORE = 4 };
@@ -226,8 +227,7 @@ void idl_yypstate_delete (idl_yypstate *ps);
 int idl_iskeyword(idl_pstate_t *pstate, const char *str, int nc);
 void idl_yypstate_delete_stack(idl_yypstate *yyps);
 
-#line 230 "parser.h"
+#line 231 "parser.h"
 
 #endif /* !YY_IDL_YY_PARSER_H_INCLUDED  */
-/* generated from parser.y[c5eaedb4a13d082e1b358e1e9b92f9d888389cf7] */
-/* generated from parser.y[c5eaedb4a13d082e1b358e1e9b92f9d888389cf7] */
+/* generated from parser.y[f06932bc906d64ee91e7e775cb0ec38f2b4438ac] */
