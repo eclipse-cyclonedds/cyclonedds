@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2006 to 2018 ADLINK Technology Limited and others
+ * Copyright(c) 2006 to 2022 ZettaScale Technology and others
  * Copyright(c) 2021 Apex.AI, Inc
  *
  * This program and the accompanying materials are made available under the
