@@ -1287,7 +1287,7 @@ inline const uint32_t *dds_stream_write (dds_ostream_t * __restrict os, const ch
   return dds_stream_writeLE ((dds_ostreamLE_t *) os, data, ops);
 }
 
-inline bool dds_stream_write_sample (dds_ostream_t * __restrict os, const void * __restrict data, const struct ddsi_sertype_default * __restrict type)
+bool dds_stream_write_sample (dds_ostream_t * __restrict os, const void * __restrict data, const struct ddsi_sertype_default * __restrict type)
 {
   return dds_stream_write_sampleLE ((dds_ostreamLE_t *) os, data, type);
 }
