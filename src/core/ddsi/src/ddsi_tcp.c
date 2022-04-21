@@ -805,6 +805,10 @@ static dds_return_t ddsi_tcp_create_conn (ddsi_tran_conn_t *conn_out, struct dds
   struct ddsi_tran_factory_tcp * const fact = (struct ddsi_tran_factory_tcp *) fact_cmn;
   (void) qos;
   (void) port;
+  struct ddsi_domaingv const * const gv = fact->fact.gv;
+  struct nn_interface const * const intf = qos->m_interface ? qos->m_interface : &gv->interfaces[0];
+
+  fact->ddsi_tcp_conn_client.m_base.m_interf = intf;
   *conn_out = &fact->ddsi_tcp_conn_client.m_base;
   return DDS_RETCODE_OK;
 }
