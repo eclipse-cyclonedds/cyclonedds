@@ -252,6 +252,12 @@ option(BUILD_EXAMPLES "Build examples." OFF)
 
 option(BUILD_DOCS "Build documentation." OFF)
 
+option(ENABLE_LTO "Enable link time optimization." ON)
+
+if(MSVC)
+  option(INSTALL_PDB "Install PDB files next to DLLs." ${BUILD_SHARED_LIBS})
+endif()
+
 # Build all executables and libraries into the top-level /bin and /lib folders.
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
