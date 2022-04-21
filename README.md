@@ -82,8 +82,7 @@ The *eventually consistent* shared data space of DDS has been very successful in
 Truth be told, that's why it was invented, and publish-subscribe messaging was simply an implementation technique.
 
 Cyclone DDS aims at full coverage of the specs and today already covers most of this.
-Some optional parts are still missing.
-With references to the individual OMG specifications:
+With references to the individual OMG specifications, the following is available:
 
 - [DCPS](https://www.omg.org/spec/DDS/1.4/PDF) the base specification
   - zero configuration discovery (if multicast works)
