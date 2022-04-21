@@ -28,13 +28,15 @@ if(ENABLE_SSL AND OPENSSL_FOUND)
   endif()
 endif()
 
-include(CheckIPOSupported)
-check_ipo_supported(RESULT ipo_supported OUTPUT error)
-if(ipo_supported)
-  set_property(TARGET ddsc PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
-  set_property(TARGET ddsc PROPERTY INTERPROCEDURAL_OPTIMIZATION_MINSIZEREL TRUE)
-  #-flto and debugging info do not seem to go well together
-  #set_property(TARGET ddsc PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELWITHDEBINFO TRUE)
+if(ENABLE_LTO)
+  include(CheckIPOSupported)
+  check_ipo_supported(RESULT ipo_supported OUTPUT error)
+  if(ipo_supported)
+    set_property(TARGET ddsc PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
+    set_property(TARGET ddsc PROPERTY INTERPROCEDURAL_OPTIMIZATION_MINSIZEREL TRUE)
+    #-flto and debugging info do not seem to go well together
+    #set_property(TARGET ddsc PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELWITHDEBINFO TRUE)
+  endif()
 endif()
 
 # Support the OMG DDS Security within ddsc adds quite a bit of code.
@@ -113,7 +115,7 @@ install(
   LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib
   ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib
 )
-if (MSVC)
+if (INSTALL_PDB)
   install(FILES $<TARGET_PDB_FILE:ddsc>
     DESTINATION "${CMAKE_INSTALL_BINDIR}"
     COMPONENT dev
