@@ -13,7 +13,6 @@
 set(CMAKE_INSTALL_TOOLSDIR "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}/tools")
 
 add_subdirectory(_confgen)
-add_subdirectory(pubsub)
 if(BUILD_IDLC)
   add_subdirectory(idlpp)
   add_subdirectory(idlc)
