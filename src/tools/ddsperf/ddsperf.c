@@ -2159,7 +2159,7 @@ int main (int argc, char *argv[])
       case 'k': histdepth = atoi (optarg); if (histdepth < 0) histdepth = 0; break;
       case 'l': sublatency = true; break;
       case 'L': ignorelocal = DDS_IGNORELOCAL_NONE; break;
-      case 'T': case 'K': /* 'K' because of my muscle memory with pubsub ... */
+      case 'T':
         if (strcmp (optarg, "KS") == 0) topicsel = KS;
         else if (strcmp (optarg, "K32") == 0) topicsel = K32;
         else if (strcmp (optarg, "K256") == 0) topicsel = K256;
