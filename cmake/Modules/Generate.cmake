@@ -12,7 +12,7 @@
 
 function(IDLC_GENERATE)
   set(options NO_TYPE_INFO)
-  set(one_value_keywords TARGET DEFAULT_EXTENSIBILITY)
+  set(one_value_keywords TARGET DEFAULT_EXTENSIBILITY BASE_DIR)
   set(multi_value_keywords FILES FEATURES INCLUDES WARNINGS)
   cmake_parse_arguments(
     IDLC "${options}" "${one_value_keywords}" "${multi_value_keywords}" "" ${ARGN})
@@ -20,6 +20,7 @@ function(IDLC_GENERATE)
   set(gen_args
     ${IDLC_UNPARSED_ARGUMENTS}
     TARGET ${IDLC_TARGET}
+    BASE_DIR ${IDLC_BASE_DIR}
     FILES ${IDLC_FILES}
     FEATURES ${IDLC_FEATURES}
     INCLUDES ${IDLC_INCLUDES}
@@ -33,7 +34,7 @@ endfunction()
 
 function(IDLC_GENERATE_GENERIC)
   set(options NO_TYPE_INFO)
-  set(one_value_keywords TARGET BACKEND DEFAULT_EXTENSIBILITY)
+  set(one_value_keywords TARGET BACKEND DEFAULT_EXTENSIBILITY BASE_DIR)
   set(multi_value_keywords FILES FEATURES INCLUDES WARNINGS SUFFIXES DEPENDS)
   cmake_parse_arguments(
     IDLC "${options}" "${one_value_keywords}" "${multi_value_keywords}" "" ${ARGN})
@@ -113,7 +114,13 @@ function(IDLC_GENERATE_GENERIC)
     list(APPEND IDLC_ARGS "-t")
   endif()
 
+  if(IDLC_BASE_DIR)
+    file(REAL_PATH ${IDLC_BASE_DIR} _base_dir_abs)
+    list(APPEND IDLC_ARGS "-b${_base_dir_abs}")
+  endif()
+
   set(_dir ${CMAKE_CURRENT_BINARY_DIR})
+  list(APPEND IDLC_ARGS "-o${_dir}")
   set(_target ${IDLC_TARGET})
   foreach(_file ${IDLC_FILES})
     get_filename_component(_path ${_file} ABSOLUTE)
@@ -127,11 +134,29 @@ function(IDLC_GENERATE_GENERIC)
   set(_outputs "")
   foreach(_file ${_files})
     get_filename_component(_name ${_file} NAME_WE)
+    get_filename_component(_name_ext ${_file} NAME)
+
+    # Determine middle path for directory reconstruction
+    if(IDLC_BASE_DIR)
+      file(RELATIVE_PATH _file_path_rel ${_base_dir_abs} ${_file})
+      # Hard Fail
+      if(_file_path_rel MATCHES "^\\.\\.")
+        message(FATAL_ERROR "Cannot use base dir with different file tree from input file (${_base_dir_abs} to ${_file} yields ${_file_path_rel})")
+      endif()
+      string(REPLACE ${_name_ext} "" _mid_dir_path ${_file_path_rel})
+      string(REGEX REPLACE "[\\/]$" "" _mid_dir_path ${_mid_dir_path})
+    endif()
+
     set(_file_outputs "")
     foreach(_suffix ${IDLC_SUFFIXES})
-      list(APPEND _file_outputs "${_dir}/${_name}${_suffix}")
-      list(APPEND _outputs ${_file_outputs})
+      if(IDLC_BASE_DIR)
+        list(APPEND _file_outputs "${_dir}/${_mid_dir_path}/${_name}${_suffix}")
+      else()
+        list(APPEND _file_outputs "${_dir}/${_name}${_suffix}")
+      endif()
     endforeach()
+
+    list(APPEND _outputs ${_file_outputs})
     add_custom_command(
       OUTPUT   ${_file_outputs}
       COMMAND  ${_idlc_executable}
