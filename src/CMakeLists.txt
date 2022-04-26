@@ -100,9 +100,11 @@ add_subdirectory(core)
 if(BUILD_DOCS)
   set(DOXYGEN_GENERATE_HTML NO)
   set(DOXYGEN_GENERATE_XML YES)
+  set(DOXYGEN_OPTIMIZE_OUTPUT_FOR_C YES)
   set(DOXYGEN_STRIP_FROM_PATH "core/ddsc/include/dds/" "ddsrt/include/dds/")
-  set(DOXYGEN_EXCLUDE_PATTERNS "*/tests/*")
+  set(DOXYGEN_EXCLUDE_PATTERNS "*/tests/*" "*/xtests/*")
   set(DOXYGEN_MACRO_EXPANSION YES)
+  set(DOXYGEN_WARN_NO_PARAMDOC YES)
   set(DOXYGEN_PREDEFINED
     "__restrict="
     "__attribute__="

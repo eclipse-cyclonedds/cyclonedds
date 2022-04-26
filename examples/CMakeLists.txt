@@ -65,19 +65,6 @@ if (ENABLE_SHM)
     COMPONENT dev)
 endif ()
 
-if (BUILD_DOCS)
-  find_package(Sphinx REQUIRED)
-  sphinx_add_docs(
-    examples_docs
-    BUILDER html
-    SOURCE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
-  install(
-    DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/examples_docs/"
-    DESTINATION "${CMAKE_INSTALL_EXAMPLESDIR}"
-    COMPONENT dev
-    PATTERN "_sources" EXCLUDE)
-endif()
-
 add_subdirectory(helloworld)
 add_subdirectory(roundtrip)
 add_subdirectory(throughput)
