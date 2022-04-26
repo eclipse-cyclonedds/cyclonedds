@@ -77,7 +77,7 @@ void nn_xmsg_setdstPWR (struct nn_xmsg *m, const struct proxy_writer *pwr);
 
 /* For sending to all in the address set AS -- typically, the writer's
    address set to multicast to all matched readers */
-void nn_xmsg_setdstN (struct nn_xmsg *msg, struct addrset *as, struct addrset *as_group);
+void nn_xmsg_setdstN (struct nn_xmsg *msg, struct addrset *as);
 
 int nn_xmsg_setmaxdelay (struct nn_xmsg *msg, int64_t maxdelay);
 

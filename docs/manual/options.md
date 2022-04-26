@@ -139,38 +139,18 @@ The default value is: "none".
 
 
 #### //CycloneDDS/Domain/Discovery/Peers
-Children: [Group](#cycloneddsdomaindiscoverypeersgroup), [Peer](#cycloneddsdomaindiscoverypeerspeer)
+Children: [Peer](#cycloneddsdomaindiscoverypeerspeer)
 
 This element statically configures addresses for discovery.
 
 
-##### //CycloneDDS/Domain/Discovery/Peers/Group
-Children: [Peer](#cycloneddsdomaindiscoverypeersgrouppeer)
-
-This element statically configures a fault tolerant group of addresses for discovery. Each member of the group is tried in sequence until one succeeds.
-
-
-###### //CycloneDDS/Domain/Discovery/Peers/Group/Peer
-Attributes: [Address](#cycloneddsdomaindiscoverypeersgrouppeeraddress)
-
-This element statically configures an addresses for discovery.
-
-
-###### //CycloneDDS/Domain/Discovery/Peers/Group/Peer[@Address]
-Text
-
-This element specifies an IP address to which discovery packets must be sent, in addition to the default multicast address (see also General/AllowMulticast). Both a hostnames and a numerical IP address is accepted; the hostname or IP address may be suffixed with :PORT to explicitly set the port to which it must be sent. Multiple Peers may be specified.
-
-The default value is: "".
-
-
 ##### //CycloneDDS/Domain/Discovery/Peers/Peer
-Attributes: [Address](#cycloneddsdomaindiscoverypeersgrouppeeraddress)
+Attributes: [Address](#cycloneddsdomaindiscoverypeerspeeraddress)
 
 This element statically configures an addresses for discovery.
 
 
-##### //CycloneDDS/Domain/Discovery/Peers/Group/Peer[@Address]
+##### //CycloneDDS/Domain/Discovery/Peers/Peer[@Address]
 Text
 
 This element specifies an IP address to which discovery packets must be sent, in addition to the default multicast address (see also General/AllowMulticast). Both a hostnames and a numerical IP address is accepted; the hostname or IP address may be suffixed with :PORT to explicitly set the port to which it must be sent. Multiple Peers may be specified.
@@ -1874,9 +1854,9 @@ While none prevents any message from being written to a DDSI2 log file.
 The categorisation of tracing output is incomplete and hence most of the verbosity levels and categories are not of much use in the current release. This is an ongoing process and here we describe the target situation rather than the current situation. Currently, the most useful verbosity levels are config, fine and finest.
 
 The default value is: "none".
-<!--- generated from ddsi_config.h[c7263a7c7d00e81bdc6c1c618a412cd3259f9e42] -->
+<!--- generated from ddsi_config.h[3feac1b401fd6ea335ff2dabcf02968d161544de] -->
 <!--- generated from ddsi_cfgunits.h[fc550f1620aa20dcd9244ef4e24299d5001efbb4] -->
-<!--- generated from ddsi_cfgelems.h[cd0320484aaf2f9bb45f1e572bd5a7fe4f2493bd] -->
+<!--- generated from ddsi_cfgelems.h[2336569264035fa1b1a77474138aab5564d3c893] -->
 <!--- generated from ddsi_config.c[b4c99f582dc579a4ae9434f1b7296b767cc8ad65] -->
 <!--- generated from _confgen.h[01ffa8a2e53b2309451756861466551cfe28c8ce] -->
 <!--- generated from _confgen.c[13cd40932d695abae1470202a42c18dc4d09ea84] -->

@@ -186,18 +186,6 @@ CycloneDDS configuration</xs:documentation>
 &lt;p&gt;This element statically configures addresses for discovery.&lt;/p&gt;</xs:documentation>
     </xs:annotation>
     <xs:complexType>
-      <xs:choice minOccurs="0" maxOccurs="unbounded">
-        <xs:element ref="config:Group"/>
-        <xs:element ref="config:Peer"/>
-      </xs:choice>
-    </xs:complexType>
-  </xs:element>
-  <xs:element name="Group">
-    <xs:annotation>
-      <xs:documentation>
-&lt;p&gt;This element statically configures a fault tolerant group of addresses for discovery. Each member of the group is tried in sequence until one succeeds.&lt;/p&gt;</xs:documentation>
-    </xs:annotation>
-    <xs:complexType>
       <xs:sequence>
         <xs:element minOccurs="0" maxOccurs="unbounded" ref="config:Peer"/>
       </xs:sequence>
@@ -1971,9 +1959,9 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==&lt;br&gt;
     </xs:restriction>
   </xs:simpleType>
 </xs:schema>
-<!--- generated from ddsi_config.h[c7263a7c7d00e81bdc6c1c618a412cd3259f9e42] -->
+<!--- generated from ddsi_config.h[3feac1b401fd6ea335ff2dabcf02968d161544de] -->
 <!--- generated from ddsi_cfgunits.h[fc550f1620aa20dcd9244ef4e24299d5001efbb4] -->
-<!--- generated from ddsi_cfgelems.h[cd0320484aaf2f9bb45f1e572bd5a7fe4f2493bd] -->
+<!--- generated from ddsi_cfgelems.h[2336569264035fa1b1a77474138aab5564d3c893] -->
 <!--- generated from ddsi_config.c[b4c99f582dc579a4ae9434f1b7296b767cc8ad65] -->
 <!--- generated from _confgen.h[01ffa8a2e53b2309451756861466551cfe28c8ce] -->
 <!--- generated from _confgen.c[13cd40932d695abae1470202a42c18dc4d09ea84] -->
