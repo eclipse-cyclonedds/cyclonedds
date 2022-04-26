@@ -360,7 +360,6 @@ struct ddsi_config
   struct ddsi_config_partitionmapping_listelem *partitionMappings;
 #endif /* DDS_HAS_NETWORK_PARTITIONS */
   struct ddsi_config_peer_listelem *peers;
-  struct ddsi_config_peer_listelem *peers_group;
   struct ddsi_config_thread_properties_listelem *thread_properties;
 
   /* debug/test/undoc features: */

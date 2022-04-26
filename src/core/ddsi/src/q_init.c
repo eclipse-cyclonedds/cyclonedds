@@ -1860,15 +1860,6 @@ int rtps_init (struct ddsi_domaingv *gv)
   {
     add_peer_addresses (gv, gv->as_disc, gv->config.peers);
   }
-  if (gv->config.peers_group)
-  {
-    gv->as_disc_group = new_addrset ();
-    add_peer_addresses (gv, gv->as_disc_group, gv->config.peers_group);
-  }
-  else
-  {
-    gv->as_disc_group = NULL;
-  }
 
   gv->gcreq_queue = gcreq_queue_new (gv);
 
@@ -2285,7 +2276,6 @@ void rtps_fini (struct ddsi_domaingv *gv)
     free_config_networkpartition_addresses (np);
 #endif
   unref_addrset (gv->as_disc);
-  unref_addrset (gv->as_disc_group);
 
   /* Must delay freeing of rbufpools until after *all* references have
      been dropped, which only happens once all receive threads have

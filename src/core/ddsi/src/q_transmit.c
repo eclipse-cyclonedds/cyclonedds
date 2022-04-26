@@ -203,7 +203,7 @@ struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct writer *wr, const stru
 
   if (prd_guid == NULL)
   {
-    nn_xmsg_setdstN (msg, wr->as, wr->as_group);
+    nn_xmsg_setdstN (msg, wr->as);
     add_Heartbeat (msg, wr, whcst, hbansreq, 0, to_entityid (NN_ENTITYID_UNKNOWN), issync);
   }
   else
@@ -486,7 +486,7 @@ static dds_return_t create_fragment_message_simple (struct writer *wr, seqno_t s
   if ((*pmsg = nn_xmsg_new (gv->xmsgpool, &wr->e.guid, wr->c.pp, sizeof (InfoTimestamp_t) + sizeof (Data_t) + expected_inline_qos_size, NN_XMSG_KIND_DATA)) == NULL)
     return DDS_RETCODE_OUT_OF_RESOURCES;
 
-  nn_xmsg_setdstN (*pmsg, wr->as, wr->as_group);
+  nn_xmsg_setdstN (*pmsg, wr->as);
   nn_xmsg_setmaxdelay (*pmsg, wr->xqos->latency_budget.duration);
   nn_xmsg_add_timestamp (*pmsg, serdata->timestamp);
   data = nn_xmsg_append (*pmsg, &sm_marker, sizeof (Data_t));
@@ -574,7 +574,7 @@ dds_return_t create_fragment_message (struct writer *wr, seqno_t seq, const stru
   }
   else
   {
-    nn_xmsg_setdstN (*pmsg, wr->as, wr->as_group);
+    nn_xmsg_setdstN (*pmsg, wr->as);
     nn_xmsg_setmaxdelay (*pmsg, wr->xqos->latency_budget.duration);
   }
 
@@ -699,7 +699,7 @@ static void create_HeartbeatFrag (struct writer *wr, seqno_t seq, unsigned fragn
   if (prd)
     nn_xmsg_setdstPRD (*pmsg, prd);
   else
-    nn_xmsg_setdstN (*pmsg, wr->as, wr->as_group);
+    nn_xmsg_setdstN (*pmsg, wr->as);
   hbf = nn_xmsg_append (*pmsg, &sm_marker, sizeof (HeartbeatFrag_t));
   nn_xmsg_submsg_init (*pmsg, sm_marker, SMID_HEARTBEAT_FRAG);
   hbf->readerId = nn_hton_entityid (prd ? prd->e.guid.entityid : to_entityid (NN_ENTITYID_UNKNOWN));
@@ -744,7 +744,7 @@ dds_return_t write_hb_liveliness (struct ddsi_domaingv * const gv, struct ddsi_g
   if ((msg = nn_xmsg_new (gv->xmsgpool, &wr->e.guid, wr->c.pp, sizeof (InfoTS_t) + sizeof (Heartbeat_t), NN_XMSG_KIND_CONTROL)) == NULL)
     return DDS_RETCODE_OUT_OF_RESOURCES;
   ddsrt_mutex_lock (&wr->e.lock);
-  nn_xmsg_setdstN (msg, wr->as, wr->as_group);
+  nn_xmsg_setdstN (msg, wr->as);
   whc_get_state (wr->whc, &whcst);
   add_Heartbeat (msg, wr, &whcst, 0, 1, to_entityid (NN_ENTITYID_UNKNOWN), 1);
   ddsrt_mutex_unlock (&wr->e.lock);
@@ -1316,7 +1316,7 @@ static int write_sample_eot (struct thread_state1 * const ts1, struct nn_xpack *
       ddsrt_free (plist);
     }
   }
-  else if (addrset_empty (wr->as) && (wr->as_group == NULL || addrset_empty (wr->as_group)))
+  else if (addrset_empty (wr->as))
   {
     /* No network destination, so no point in doing all the work involved
        in going all the way.  We do have to record that we "transmitted"

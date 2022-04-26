@@ -349,7 +349,6 @@ struct writer
   uint32_t alive_vclock; /* virtual clock counting transitions between alive/not-alive */
   const struct ddsi_sertype * type; /* type of the data written by this writer */
   struct addrset *as; /* set of addresses to publish to */
-  struct addrset *as_group; /* alternate case, used for SPDP, when using Cloud with multiple bootstrap locators */
   struct xevent *heartbeat_xevent; /* timed event for "periodically" publishing heartbeats when unack'd data present, NULL <=> unreliable */
   struct ldur_fhnode *lease_duration; /* fibheap node to keep lease duration for this writer, NULL in case of automatic liveliness with inifite duration  */
   struct whc *whc; /* WHC tracking history, T-L durability service history + samples by sequence number for retransmit */
