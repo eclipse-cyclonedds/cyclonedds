@@ -1814,18 +1814,6 @@ static struct cfgelem shmem_cfgelems[] = {
     VALUES(
       "off","fatal","error","warn","info","debug","verbose"
     )),
-  INT(DEPRECATED("SubQueueCapacity"), NULL, 1, "256",
-    NOMEMBER,
-    NOFUNCTIONS,
-    DESCRIPTION("<p>Size of the history chunk queue, this is the amount of messages stored between taking from the iceoryx subscriber, exceeding this number will cause the oldest to be pushed off the queue. Should be a value between 1 and 256.</p>")),
-  INT(DEPRECATED("SubHistoryRequest"), NULL, 1, "16",
-    NOMEMBER,
-    NOFUNCTIONS,
-    DESCRIPTION("<p>The number of messages published before subscription which will be requested by a subscriber upon subscription. Should be a value between 0 and 16.</p>")),
-  INT(DEPRECATED("PubHistoryCapacity"), NULL, 1, "16",
-    NOMEMBER,
-    NOFUNCTIONS,
-    DESCRIPTION("<p>The number of messages which will be stored on the publisher for late joining subscribers. Should be a value between 0 and 16 and be equal to or larger than SubHistoryRequest.</p>")),
   END_MARKER
 };
 #endif
