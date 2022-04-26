@@ -151,7 +151,7 @@ struct ddsi_config;
 /**
  * @def DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION
  * @ingroup builtintopic_constants
- * Pseudo dds_topic_t for the builtin topic DcpsParticipant. Samples from this topic are
+ * Pseudo dds_topic_t for the builtin topic DcpsSubscription. Samples from this topic are
  * @ref dds_builtintopic_endpoint structs.
  */
 
@@ -232,11 +232,11 @@ typedef enum dds_status_id {
 #define DDS_SAMPLE_REJECTED_STATUS             (1u << DDS_SAMPLE_REJECTED_STATUS_ID)
 /**
  * @anchor DDS_DATA_ON_READERS_STATUS
- * New information is available. */
+ * New information is available in some of the data readers of a subscriber. */
 #define DDS_DATA_ON_READERS_STATUS             (1u << DDS_DATA_ON_READERS_STATUS_ID)
 /**
  * @anchor DDS_DATA_AVAILABLE_STATUS
- * New information is available. */
+ * New information is available in a data reader. */
 #define DDS_DATA_AVAILABLE_STATUS              (1u << DDS_DATA_AVAILABLE_STATUS_ID)
 /**
  * @anchor DDS_LIVELINESS_LOST_STATUS
