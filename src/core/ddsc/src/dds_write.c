@@ -460,9 +460,18 @@ static dds_return_t dds_write_impl_iox (dds_writer *wr, struct writer *ddsi_wr, 
   ddsrt_mutex_lock (&ddsi_wr->e.lock);
   const bool no_network_readers = addrset_empty (ddsi_wr->as);
   ddsrt_mutex_unlock (&ddsi_wr->e.lock);
+
+  // NB: local readers are not in L := ddsi_wr->rdary if they use iceoryx.
+  // Furthermore, all readers that ignore local publishers will not use iceoryx.
+  // We will never use only(!) iceoryx if there is any local reader in L.
+  // We will serialize the data in this case and deliver it mixed, i.e.
+  // partially with iceoryx as required by the QoS and type. The readers in L
+  // will get the data via the local delivery mechanism (fast path or slow
+  // path).
   const bool use_only_iceoryx =
       no_network_readers &&
-      ddsi_wr->xqos->durability.kind == DDS_DURABILITY_VOLATILE;
+      ddsi_wr->xqos->durability.kind == DDS_DURABILITY_VOLATILE &&
+      ddsi_wr->rdary.n_readers == 0;
 
   // 4. Prepare serdata
   // avoid serialization for volatile writers if there are no network readers
@@ -508,6 +517,7 @@ static dds_return_t dds_write_impl_iox (dds_writer *wr, struct writer *ddsi_wr, 
   if(use_only_iceoryx) {
     // deliver via iceoryx only
     // TODO: can we avoid constructing d in this case?
+    // There are no local non-iceoryx readers in this case.
     deliver_data_via_iceoryx (wr, d);
     ddsi_serdata_unref (&d->x); // refc(d) = 0
   } else {
