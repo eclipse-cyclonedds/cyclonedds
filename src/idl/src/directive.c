@@ -16,6 +16,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if SYS_FAMILY == SYS_UNIX
+#include <sys/stat.h>
+#endif
+
 #include "idl/processor.h"
 #include "idl/string.h"
 #include "idl/misc.h"
@@ -118,8 +122,22 @@ static void delete_line(void *ptr)
   free(dir);
 }
 
-static idl_retcode_t push_line(idl_pstate_t *pstate, struct line *dir)
-{
+#if SYS_FAMILY == SYS_UNIX
+static bool is_same_file(const char *path1, const char *path2) {
+  struct stat s1, s2;
+  if (stat(path1, &s1) == -1) {
+    perror("stat error");
+    return false;
+  }
+  if (stat(path2, &s2) == -1) {
+    perror("stat error");
+    return false;
+  }
+  return s1.st_dev == s2.st_dev && s1.st_ino == s2.st_ino;
+}
+#endif
+
+static idl_retcode_t push_line(idl_pstate_t *pstate, struct line *dir) {
   idl_retcode_t ret;
 
   if (dir->flags & (START_OF_FILE|RETURN_TO_FILE)) {
@@ -154,7 +172,11 @@ static idl_retcode_t push_line(idl_pstate_t *pstate, struct line *dir)
 
     if (dir->flags & RETURN_TO_FILE) {
       for (; src; src = src->parent)
+#if SYS_FAMILY == SYS_UNIX
+        if (src->path->name && is_same_file(src->path->name, dir->path) == 0)
+#else
         if (src->path->name && strcmp(src->path->name, dir->path) == 0)
+#endif
           break;
       if (src) {
         pstate->scanner.position.source = src;
