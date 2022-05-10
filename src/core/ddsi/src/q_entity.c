@@ -4000,6 +4000,10 @@ static dds_return_t new_writer_guid (struct writer **wr_out, const struct ddsi_g
       }
     }
   }
+  else
+  {
+    wr->lease = NULL;
+  }
 
   return 0;
 }
