@@ -140,6 +140,8 @@ There are some configuration options specified using CMake defines in addition t
 * `-DENABLE_DEADLINE_MISSED=NO`: to exclude support for finite deadline QoS settings
 * `-DENABLE_TYPE_DISCOVERY=YES`: to include support for type discovery and checking type compatibility (likely to become enabled by default in the future)
 * `-DENABLE_TOPIC_DISCOVERY=YES`: to include support for topic discovery (requires `-DENABLE_TYPE_DISCOVERY=YES`; somewhat likely to become enabled by default in the future)
+* `-DENABLE_SOURCE_SPECIFIC_MULTICAST=NO`: to disable support for source-specific multicast (disabling this and `-DENABLE_IPV6=NO` may be needed for QNX builds)
+* `-DENABLE_IPV6=NO`: to disable ipv6 support (disabling this and `-DENABLE_SOURCE_SPECIFIC_MULTICAST=NO` may be needed for QNX builds)
 
 ### For application developers
 
