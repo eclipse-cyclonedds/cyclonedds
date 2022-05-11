@@ -1259,9 +1259,7 @@ static void cleanup_participant_sec_attributes(void *arg)
   if (!sc->crypto_context->crypto_key_factory->unregister_participant(sc->crypto_context->crypto_key_factory, attr->crypto_handle, &exception))
     EXCEPTION_ERROR(gv, &exception, "Failed to unregister participant");
 
-  ddsrt_avl_cfree(&pp_proxypp_treedef, &attr->proxy_participants, NULL);
-  ddsrt_mutex_unlock(&attr->lock);
-  ddsrt_free(attr);
+  participant_sec_attributes_free(attr);
   ddsrt_free(arg);
 }
 
