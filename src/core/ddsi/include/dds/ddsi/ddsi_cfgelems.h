@@ -1,6 +1,5 @@
 /*
- * Copyright(c) 2022 ZettaScale Technology
- * Copyright(c) 2020 ADLINK Technology Limited and others
+ * Copyright(c) 2020 to 2022 ZettaScale Technology and others
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -1815,18 +1814,6 @@ static struct cfgelem shmem_cfgelems[] = {
     VALUES(
       "off","fatal","error","warn","info","debug","verbose"
     )),
-  INT(DEPRECATED("SubQueueCapacity"), NULL, 1, "256",
-    NOMEMBER,
-    NOFUNCTIONS,
-    DESCRIPTION("<p>Size of the history chunk queue, this is the amount of messages stored between taking from the iceoryx subscriber, exceeding this number will cause the oldest to be pushed off the queue. Should be a value between 1 and 256.</p>")),
-  INT(DEPRECATED("SubHistoryRequest"), NULL, 1, "16",
-    NOMEMBER,
-    NOFUNCTIONS,
-    DESCRIPTION("<p>The number of messages published before subscription which will be requested by a subscriber upon subscription. Should be a value between 0 and 16.</p>")),
-  INT(DEPRECATED("PubHistoryCapacity"), NULL, 1, "16",
-    NOMEMBER,
-    NOFUNCTIONS,
-    DESCRIPTION("<p>The number of messages which will be stored on the publisher for late joining subscribers. Should be a value between 0 and 16 and be equal to or larger than SubHistoryRequest.</p>")),
   END_MARKER
 };
 #endif
@@ -1846,16 +1833,6 @@ static struct cfgelem discovery_peer_cfgattrs[] = {
   END_MARKER
 };
 
-static struct cfgelem discovery_peers_group_cfgelems[] = {
-  GROUP("Peer", NULL, discovery_peer_cfgattrs, INT_MAX,
-    MEMBER(peers_group),
-    FUNCTIONS(if_peer, 0, 0, 0),
-    DESCRIPTION(
-      "<p>This element statically configures an addresses for discovery.</p>"
-    )),
-  END_MARKER
-};
-
 static struct cfgelem discovery_peers_cfgelems[] = {
   GROUP("Peer", NULL, discovery_peer_cfgattrs, INT_MAX,
     MEMBER(peers),
@@ -1863,16 +1840,6 @@ static struct cfgelem discovery_peers_cfgelems[] = {
     DESCRIPTION(
       "<p>This element statically configures an addresses for discovery.</p>"
     )),
-  GROUP("Group", discovery_peers_group_cfgelems, NULL, 1,
-    NOMEMBER,
-    NOFUNCTIONS,
-    DESCRIPTION(
-      "<p>This element statically configures a fault tolerant group of "
-      "addresses for discovery. Each member of the group is tried in "
-      "sequence until one succeeds.</p>"
-    ),
-    MAXIMUM(0)), /* Group element can occur more than once, but 1 is required
-                    because of the way its processed (for now) */
   END_MARKER
 };
 

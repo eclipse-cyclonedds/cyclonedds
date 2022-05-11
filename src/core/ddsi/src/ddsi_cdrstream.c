@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2006 to 2018 ADLINK Technology Limited and others
+ * Copyright(c) 2006 to 2022 ZettaScale Technology and others
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -1282,12 +1282,12 @@ static inline bool dds_stream_write_bitmask_arr (dds_ostream_t * __restrict os, 
   return dds_stream_write_bitmask_arrLE ((dds_ostreamLE_t *) os, insn, addr, num, bits_h, bits_l);
 }
 
-inline const uint32_t *dds_stream_write (dds_ostream_t * __restrict os, const char * __restrict data, const uint32_t * __restrict ops)
+const uint32_t *dds_stream_write (dds_ostream_t * __restrict os, const char * __restrict data, const uint32_t * __restrict ops)
 {
   return dds_stream_writeLE ((dds_ostreamLE_t *) os, data, ops);
 }
 
-inline bool dds_stream_write_sample (dds_ostream_t * __restrict os, const void * __restrict data, const struct ddsi_sertype_default * __restrict type)
+bool dds_stream_write_sample (dds_ostream_t * __restrict os, const void * __restrict data, const struct ddsi_sertype_default * __restrict type)
 {
   return dds_stream_write_sampleLE ((dds_ostreamLE_t *) os, data, type);
 }
@@ -1338,12 +1338,12 @@ static inline bool dds_stream_write_bitmask_arr (dds_ostream_t * __restrict os, 
   return dds_stream_write_bitmask_arrBE ((dds_ostreamBE_t *) os, insn, addr, num, bits_h, bits_l);
 }
 
-inline const uint32_t *dds_stream_write (dds_ostream_t * __restrict os, const char * __restrict data, const uint32_t * __restrict ops)
+const uint32_t *dds_stream_write (dds_ostream_t * __restrict os, const char * __restrict data, const uint32_t * __restrict ops)
 {
   return dds_stream_writeBE ((dds_ostreamBE_t *) os, data, ops);
 }
 
-inline bool dds_stream_write_sample (dds_ostream_t * __restrict os, const void * __restrict data, const struct ddsi_sertype_default * __restrict type)
+bool dds_stream_write_sample (dds_ostream_t * __restrict os, const void * __restrict data, const struct ddsi_sertype_default * __restrict type)
 {
   return dds_stream_write_sampleBE ((dds_ostreamBE_t *) os, data, type);
 }

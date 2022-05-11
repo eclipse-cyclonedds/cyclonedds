@@ -1,5 +1,5 @@
 ..
-   Copyright(c) 2006 to 2018 ADLINK Technology Limited and others
+   Copyright(c) 2006 to 2019 ZettaScale Technology and others
 
    This program and the accompanying materials are made available under the
    terms of the Eclipse Public License v. 2.0 which is available at
@@ -112,11 +112,11 @@ and the HelloworldPublisher in the other console window by typing:
 
 The output HelloworldPublisher should look like
 
-.. image:: ../_static/pictures/HelloworldPublisherWindows.png
+.. image:: ../_static/pictures/HelloWorldPublisher.png
 
 while the HelloworldSubscriber will be looking like this
 
-.. image:: ../_static/pictures/HelloworldSubscriberWindows.png
+.. image:: ../_static/pictures/HelloWorldSubscriber.png
 
 For more information on how to build this application your own and the code which has
 been used, please have a look at the :ref:`Hello World! <HelloWorld>` chapter.

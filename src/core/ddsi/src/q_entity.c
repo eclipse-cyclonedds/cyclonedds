@@ -1,6 +1,5 @@
 /*
- * Copyright(c) 2022 ZettaScale Technology
- * Copyright(c) 2006 to 2018 ADLINK Technology Limited and others
+ * Copyright(c) 2006 to 2022 ZettaScale Technology and others
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -607,9 +606,7 @@ static void force_as_disc_address(struct ddsi_domaingv *gv, const ddsi_guid_t *s
   assert (wr != NULL);
   ddsrt_mutex_lock (&wr->e.lock);
   unref_addrset (wr->as);
-  unref_addrset (wr->as_group);
   wr->as = ref_addrset (gv->as_disc);
-  wr->as_group = ref_addrset (gv->as_disc_group);
   ddsrt_mutex_unlock (&wr->e.lock);
 }
 
@@ -3814,7 +3811,6 @@ static void new_writer_guid_common_init (struct writer *wr, const char *topic_na
     ((wr->e.guid.entityid.u & NN_ENTITYID_KIND_MASK) == NN_ENTITYID_KIND_WRITER_WITH_KEY);
   wr->type = ddsi_sertype_ref (type);
   wr->as = new_addrset ();
-  wr->as_group = NULL;
 
 #ifdef DDS_HAS_NETWORK_PARTITIONS
   /* This is an open issue how to encrypt mesages send for various
@@ -4008,6 +4004,10 @@ static dds_return_t new_writer_guid (struct writer **wr_out, const struct ddsi_g
         lease_register (wr->lease);
       }
     }
+  }
+  else
+  {
+    wr->lease = NULL;
   }
 
   return 0;

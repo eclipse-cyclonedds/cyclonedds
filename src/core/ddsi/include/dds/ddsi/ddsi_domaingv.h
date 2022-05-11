@@ -1,6 +1,5 @@
 /*
- * Copyright(c) 2022 ZettaScale Technology
- * Copyright(c) 2006 to 2018 ADLINK Technology Limited and others
+ * Copyright(c) 2006 to 2022 ZettaScale Technology and others
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -210,11 +209,9 @@ struct ddsi_domaingv {
 
   /*
     Initial discovery address set, and the current discovery address
-    set. These are the addresses that SPDP pings get sent to. The
-    as_disc_group is an FT group (only use first working).
+    set. These are the addresses that SPDP pings get sent to.
   */
   struct addrset *as_disc;
-  struct addrset *as_disc_group;
 
   ddsrt_mutex_t lock;
 

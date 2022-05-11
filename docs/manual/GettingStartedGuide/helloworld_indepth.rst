@@ -1,5 +1,5 @@
 ..
-   Copyright(c) 2006 to 2018 ADLINK Technology Limited and others
+   Copyright(c) 2006 to 2020 ZettaScale Technology and others
 
    This program and the accompanying materials are made available under the
    terms of the Eclipse Public License v. 2.0 which is available at
@@ -120,18 +120,15 @@ translated into programming languages to be useful in the
 creation of DDS applications.
 
 To be able to do that, there's a pre-compile step that actually
-compiles the IDL file into the desired programming language.
-
-A java application :code:`org.eclipse.cyclonedds.compilers.Idlc`
-is supplied to support this pre-compile step. This is available
-in :code:`idlc-jar-with-dependencies.jar`
+compiles the IDL file into the desired programming language. The
+`idlc` executable is supplied to perform this pre-compile step.
 
 The compilation from IDL into c source code is as simple as
-starting that java application with an IDL file. In the case of
+starting that executable with an IDL file. In the case of
 the *Hello World!* example, that IDL file is HelloWorldData.idl.
 ::
 
-    java -classpath "<install_dir>/share/CycloneDDS/idlc/idlc-jar-with-dependencies.jar" org.eclipse.cyclonedds.compilers.Idlc HelloWorldData.idl
+    idlc HelloWorldData.idl
 
 :Windows: The :code:`HelloWorldType` project within the HelloWorld solution.
 :Linux: The :code:`make datatype` command.
@@ -289,7 +286,7 @@ in the info array at the same index.
 
     ret = dds_read (reader, samples, info, MAX_SAMPLES, MAX_SAMPLES);
 
-The :code:`dds_read` function returns the number of samples it
+The :c:func:`dds_read()` function returns the number of samples it
 actually read. We can use that to determine if the function actually
 read some data. When it has, then it is still possible that the
 data part of the sample is not valid. This has some use cases

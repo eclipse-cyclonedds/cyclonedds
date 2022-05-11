@@ -1,5 +1,5 @@
 #
-# Copyright(c) 2006 to 2022 ADLINK Technology Limited and others
+# Copyright(c) 2006 to 2022 ZettaScale Technology and others
 #
 # This program and the accompanying materials are made available under the
 # terms of the Eclipse Public License v. 2.0 which is available at
@@ -160,8 +160,10 @@ if(DDSRT_HAVE_GETADDRINFO OR DDSRT_HAVE_GETHOSTBYNAME_R)
   set(DDSRT_HAVE_DNS TRUE)
 endif()
 check_type_size("struct sockaddr_in6" SIZEOF_SOCKADDR_IN6)
-if(SIZEOF_SOCKADDR_IN6)
-  set(DDSRT_HAVE_IPV6 TRUE)
+if(ENABLE_IPV6)
+  if(SIZEOF_SOCKADDR_IN6)
+    set(DDSRT_HAVE_IPV6 TRUE)
+  endif()
 endif()
 
 if(WITH_FREERTOS)

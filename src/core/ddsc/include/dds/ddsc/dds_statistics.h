@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2020 ADLINK Technology Limited and others
+ * Copyright(c) 2020 ZettaScale Technology and others
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -13,7 +13,13 @@
 #ifndef DDS_STATISTICS_H
 #define DDS_STATISTICS_H
 
-/* A quick-and-dirty provisional interface */
+/**
+ * @defgroup statistics (DDS Statistics)
+ * @ingroup dds
+ * @warning Unstable API
+ *
+ * A quick-and-dirty provisional interface
+ */
 
 #include "dds/dds.h"
 #include "dds/ddsrt/attributes.h"
@@ -23,31 +29,45 @@
 extern "C" {
 #endif
 
+/**
+ * @brief Kind of statistical value
+ * @ingroup statistics
+ */
 enum dds_stat_kind {
-  DDS_STAT_KIND_UINT32,          ///< value is a 32-bit unsigned integer
-  DDS_STAT_KIND_UINT64,          ///< value is a 64-bit unsigned integer
-  DDS_STAT_KIND_LENGTHTIME       ///< value is integral(length(t) dt)
+  DDS_STAT_KIND_UINT32,          /**< value is a 32-bit unsigned integer */
+  DDS_STAT_KIND_UINT64,          /**< value is a 64-bit unsigned integer */
+  DDS_STAT_KIND_LENGTHTIME       /**< value is integral(length(t) dt) */
 };
 
+/**
+ * @brief KeyValue statistics entry
+ * @ingroup statistics
+ */
 struct dds_stat_keyvalue {
-  const char *name;              ///< name, memory owned by library
-  enum dds_stat_kind kind;       ///< value type
+  const char *name;              /**< name, memory owned by library */
+  enum dds_stat_kind kind;       /**< value type */
   union {
-    uint32_t u32;
-    uint64_t u64;
-    uint64_t lengthtime;
-  } u;
+    uint32_t u32; /**< used if kind == DDS_STAT_KIND_UINT32 */
+    uint64_t u64; /**< used if kind == DDS_STAT_KIND_UINT64 */
+    uint64_t lengthtime; /**< used if kind == DDS_STAT_KIND_LENGTHTIME */
+  } u; /**< value */
 };
 
+/**
+ * @brief Statistics container
+ * @ingroup statistics
+ */
 struct dds_statistics {
-  dds_entity_t entity;           ///< handle of entity to which this set of values applies
-  uint64_t opaque;               ///< internal data
-  dds_time_t time;               ///< time stamp of latest call to `dds_refresh_statistics`
-  size_t count;                  ///< number of key-value pairs
-  struct dds_stat_keyvalue kv[]; ///< data
+  dds_entity_t entity;           /**< handle of entity to which this set of values applies */
+  uint64_t opaque;               /**< internal data */
+  dds_time_t time;               /**< time stamp of latest call to dds_refresh_statistics() */
+  size_t count;                  /**< number of key-value pairs */
+  struct dds_stat_keyvalue kv[]; /**< data */
 };
 
-/** @brief Allocate a new statistics object for entity
+/**
+ * @brief Allocate a new statistics object for entity
+ * @ingroup statistics
  *
  * This allocates and populates a newly allocated `struct dds_statistics` for the
  * specified entity.
@@ -59,7 +79,9 @@ struct dds_statistics {
  */
 DDS_EXPORT struct dds_statistics *dds_create_statistics (dds_entity_t entity);
 
-/** @brief Update a previously created statistics structure with current values
+/**
+ * @brief Update a previously created statistics structure with current values
+ * @ingroup statistics
  *
  * Only the time stamp and the values (and "opaque") may change.  The set of keys and the
  * types of the values do not change.
@@ -77,7 +99,9 @@ DDS_EXPORT struct dds_statistics *dds_create_statistics (dds_entity_t entity);
  */
 DDS_EXPORT dds_return_t dds_refresh_statistics (struct dds_statistics *stat);
 
-/** @brief Free a previously created statistics object
+/**
+ * @brief Free a previously created statistics object
+ * @ingroup statistics
  *
  * This frees the statistics object.  Passing a null pointer is a no-op.  The operation
  * succeeds also if the referenced entity no longer exists.
@@ -86,7 +110,9 @@ DDS_EXPORT dds_return_t dds_refresh_statistics (struct dds_statistics *stat);
  */
 DDS_EXPORT void dds_delete_statistics (struct dds_statistics *stat);
 
-/** @brief Lookup a specific value by name
+/**
+ * @brief Lookup a specific value by name
+ * @ingroup statistics
  *
  * This looks up the specified name in the list of keys in `stat` and returns the address
  * of the key-value pair if present, a null pointer if not.  If `stat` is a null pointer,

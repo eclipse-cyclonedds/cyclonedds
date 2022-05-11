@@ -1,5 +1,5 @@
 #
-# Copyright(c) 2006 to 2018 ADLINK Technology Limited and others
+# Copyright(c) 2006 to 2022 ZettaScale Technology and others
 #
 # This program and the accompanying materials are made available under the
 # terms of the Eclipse Public License v. 2.0 which is available at
@@ -28,13 +28,15 @@ if(ENABLE_SSL AND OPENSSL_FOUND)
   endif()
 endif()
 
-include(CheckIPOSupported)
-check_ipo_supported(RESULT ipo_supported OUTPUT error)
-if(ipo_supported)
-  set_property(TARGET ddsc PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
-  set_property(TARGET ddsc PROPERTY INTERPROCEDURAL_OPTIMIZATION_MINSIZEREL TRUE)
-  #-flto and debugging info do not seem to go well together
-  #set_property(TARGET ddsc PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELWITHDEBINFO TRUE)
+if(ENABLE_LTO)
+  include(CheckIPOSupported)
+  check_ipo_supported(RESULT ipo_supported OUTPUT error)
+  if(ipo_supported)
+    set_property(TARGET ddsc PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
+    set_property(TARGET ddsc PROPERTY INTERPROCEDURAL_OPTIMIZATION_MINSIZEREL TRUE)
+    #-flto and debugging info do not seem to go well together
+    #set_property(TARGET ddsc PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELWITHDEBINFO TRUE)
+  endif()
 endif()
 
 # Support the OMG DDS Security within ddsc adds quite a bit of code.
@@ -113,7 +115,7 @@ install(
   LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib
   ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib
 )
-if (MSVC)
+if (INSTALL_PDB)
   install(FILES $<TARGET_PDB_FILE:ddsc>
     DESTINATION "${CMAKE_INSTALL_BINDIR}"
     COMPONENT dev
@@ -123,22 +125,4 @@ endif()
 
 if(BUILD_TESTING AND BUILD_IDLC)
   add_subdirectory(xtests)
-endif()
-
-if(BUILD_DOCS)
-  set(DOXYGEN_GENERATE_HTML NO)
-  set(DOXYGEN_GENERATE_XML YES)
-  set(DOXYGEN_STRIP_FROM_PATH "ddsc/include/dds/")
-  set(DOXYGEN_EXCLUDE_PATTERNS "*/tests/*")
-  set(DOXYGEN_MACRO_EXPANSION YES)
-  set(DOXYGEN_PREDEFINED
-    "__restrict="
-    "__attribute__="
-    "__declspec(x)="
-    "DDS_EXPORT="
-    "DDS_INLINE_EXPORT="
-    "DDS_DEPRECATED_EXPORT="
-    "DDSRT_STATIC_ASSERT(x)=")
-  find_package(Doxygen REQUIRED)
-  doxygen_add_docs(ddsc_api_docs "ddsc/include/dds/")
 endif()

@@ -1,5 +1,5 @@
 #
-# Copyright(c) 2021 ADLINK Technology Limited and others
+# Copyright(c) 2018 to 2022 ZettaScale Technology and others
 #
 # This program and the accompanying materials are made available under the
 # terms of the Eclipse Public License v. 2.0 which is available at
@@ -59,7 +59,7 @@ install(
   DESTINATION "${CMAKE_INSTALL_BINDIR}"
   COMPONENT dev)
 
-if (MSVC)
+if (INSTALL_PDB)
   install(FILES $<TARGET_PDB_FILE:idlc>
     DESTINATION "${CMAKE_INSTALL_BINDIR}"
     COMPONENT dev

@@ -1,5 +1,5 @@
 #
-# Copyright(c) 2006 to 2019 ADLINK Technology Limited and others
+# Copyright(c) 2006 to 2022 ZettaScale Technology and others
 #
 # This program and the accompanying materials are made available under the
 # terms of the Eclipse Public License v. 2.0 which is available at
@@ -13,7 +13,6 @@
 set(CMAKE_INSTALL_TOOLSDIR "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}/tools")
 
 add_subdirectory(_confgen)
-add_subdirectory(pubsub)
 if(BUILD_IDLC)
   add_subdirectory(idlpp)
   add_subdirectory(idlc)

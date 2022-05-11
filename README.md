@@ -1,8 +1,12 @@
+![GitHub release](https://img.shields.io/github/v/release/eclipse-cyclonedds/cyclonedds?include_prereleases)
 [![Build Status](https://dev.azure.com/eclipse-cyclonedds/cyclonedds/_apis/build/status/Pull%20requests?branchName=master)](https://dev.azure.com/eclipse-cyclonedds/cyclonedds/_build/latest?definitionId=4&branchName=master)
 [![Coverity Status](https://scan.coverity.com/projects/19078/badge.svg)](https://scan.coverity.com/projects/eclipse-cyclonedds-cyclonedds)
 [![Coverage](https://img.shields.io/azure-devops/coverage/eclipse-cyclonedds/cyclonedds/4/master)](https://dev.azure.com/eclipse-cyclonedds/cyclonedds/_build/latest?definitionId=4&branchName=master)
 [![License](https://img.shields.io/badge/License-EPL%202.0-blue)](https://choosealicense.com/licenses/epl-2.0/)
 [![License](https://img.shields.io/badge/License-EDL%201.0-blue)](https://choosealicense.com/licenses/edl-1.0/)
+[![Website](https://img.shields.io/badge/web-cyclonedds.io-blue)](https://cyclonedds.io)
+[![Community](https://img.shields.io/badge/discord-join%20community-5865f2)](https://discord.gg/BkRYQPpZVV)
+
 
 # Eclipse Cyclone DDS
 
@@ -82,8 +86,7 @@ The *eventually consistent* shared data space of DDS has been very successful in
 Truth be told, that's why it was invented, and publish-subscribe messaging was simply an implementation technique.
 
 Cyclone DDS aims at full coverage of the specs and today already covers most of this.
-Some optional parts are still missing.
-With references to the individual OMG specifications:
+With references to the individual OMG specifications, the following is available:
 
 - [DCPS](https://www.omg.org/spec/DDS/1.4/PDF) the base specification
   - zero configuration discovery (if multicast works)
@@ -141,6 +144,8 @@ There are some configuration options specified using CMake defines in addition t
 * `-DENABLE_DEADLINE_MISSED=NO`: to exclude support for finite deadline QoS settings
 * `-DENABLE_TYPE_DISCOVERY=YES`: to include support for type discovery and checking type compatibility (likely to become enabled by default in the future)
 * `-DENABLE_TOPIC_DISCOVERY=YES`: to include support for topic discovery (requires `-DENABLE_TYPE_DISCOVERY=YES`; somewhat likely to become enabled by default in the future)
+* `-DENABLE_SOURCE_SPECIFIC_MULTICAST=NO`: to disable support for source-specific multicast (disabling this and `-DENABLE_IPV6=NO` may be needed for QNX builds)
+* `-DENABLE_IPV6=NO`: to disable ipv6 support (disabling this and `-DENABLE_SOURCE_SPECIFIC_MULTICAST=NO` may be needed for QNX builds)
 
 ### For application developers
 
@@ -205,7 +210,7 @@ This will automatically download and/or build CUnit (and, at the moment, OpenSSL
 
 ## Documentation
 
-The [documentation](https://cyclonedds.io) is still rather limited and some parts of it are still only available in the form of text files in the `docs` directory.
+The [documentation](https://cyclonedds.io/docs) is still rather limited and some parts of it are still only available in the form of text files in the `docs` directory.
 This README is usually out-of-date and the state of the documentation is slowly improving, so it definitely worth hopping over to have a look.
 
 ## Building and Running the Roundtrip Example

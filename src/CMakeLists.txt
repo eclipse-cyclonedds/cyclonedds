@@ -1,5 +1,5 @@
 #
-# Copyright(c) 2019 ADLINK Technology Limited and others
+# Copyright(c) 2018 to 2022 ZettaScale Technology and others
 #
 # This program and the accompanying materials are made available under the
 # terms of the Eclipse Public License v. 2.0 which is available at
@@ -27,6 +27,7 @@ option(ENABLE_LIFESPAN "Enable Lifespan QoS support" ON)
 option(ENABLE_DEADLINE_MISSED "Enable Deadline Missed QoS support" ON)
 option(ENABLE_NETWORK_PARTITIONS "Enable network partition support" ON)
 option(ENABLE_SOURCE_SPECIFIC_MULTICAST "Enable support for source-specific multicast" ON)
+option(ENABLE_IPV6 "Enable ipv6 support" ON)
 option(ENABLE_TYPE_DISCOVERY "Enable Type Discovery support" OFF)
 option(ENABLE_TOPIC_DISCOVERY "Enable Topic Discovery support" OFF)
 if(ENABLE_TOPIC_DISCOVERY)
@@ -96,3 +97,27 @@ if(BUILD_IDLC)
 endif()
 add_subdirectory(security)
 add_subdirectory(core)
+
+if(BUILD_DOCS)
+  set(DOXYGEN_GENERATE_HTML NO)
+  set(DOXYGEN_GENERATE_XML YES)
+  set(DOXYGEN_OPTIMIZE_OUTPUT_FOR_C YES)
+  set(DOXYGEN_STRIP_FROM_PATH "core/ddsc/include/dds/" "ddsrt/include/dds/")
+  set(DOXYGEN_EXCLUDE_PATTERNS "*/tests/*" "*/xtests/*")
+  set(DOXYGEN_MACRO_EXPANSION YES)
+  set(DOXYGEN_WARN_NO_PARAMDOC YES)
+  set(DOXYGEN_PREDEFINED
+    "__restrict="
+    "__attribute__="
+    "__declspec(x)="
+    "DDS_EXPORT="
+    "DDS_INLINE_EXPORT="
+    "DDS_DEPRECATED_EXPORT="
+    "DDSRT_STATIC_ASSERT(x)="
+    "DOXYGEN_SHOULD_SKIP_THIS=1"
+    "ddsrt_attribute_warn_unused_result="
+    "ddsrt_attribute_malloc="
+    "ddsrt_nonnull(x)=")
+  find_package(Doxygen REQUIRED)
+  doxygen_add_docs(ddsc_api_docs "core/ddsc/include/dds/" "ddsrt/include/dds/ddsrt/retcode.h")
+endif()

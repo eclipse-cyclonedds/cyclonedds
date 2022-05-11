@@ -1,6 +1,5 @@
 /*
- * Copyright(c) 2022 ZettaScale Technology
- * Copyright(c) 2006 to 2021 ADLINK Technology Limited and others
+ * Copyright(c) 2006 to 2022 ZettaScale Technology and others
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -502,6 +501,8 @@ static dds_return_t xt_valid_struct_base_type (struct ddsi_domaingv *gv, const s
 
 static dds_return_t xt_valid_union_disc_type (struct ddsi_domaingv *gv, const struct xt_type *t)
 {
+  if (ddsi_xt_is_unresolved (&t->_u.union_type.disc_type->xt))
+    return DDS_RETCODE_OK;
   uint8_t d = ddsi_xt_unalias (&t->_u.union_type.disc_type->xt)->_d;
   if (d != DDS_XTypes_TK_BOOLEAN && d != DDS_XTypes_TK_BYTE && d != DDS_XTypes_TK_CHAR8 && d != DDS_XTypes_TK_CHAR16
       && d != DDS_XTypes_TK_INT16 && d != DDS_XTypes_TK_INT32 && d != DDS_XTypes_TK_INT64

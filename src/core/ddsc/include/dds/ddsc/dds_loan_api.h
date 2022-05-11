@@ -1,4 +1,5 @@
 /*
+ * Copyright(c) 2021 ZettaScale Technology
  * Copyright(c) 2021 Apex.AI, Inc
  *
  * This program and the accompanying materials are made available under the
@@ -24,7 +25,9 @@
 extern "C" {
 #endif
 
-/** @brief Check if a Loan is available to reader/writer
+/**
+ * @ingroup loan
+ * @brief Check if a Loan is available to reader/writer
  * The loan is available if the shared memory is enabled and all the constraints
  * to enable shared memory are met and the type is fixed
  * @note dds_loan_sample can be used if and only if
@@ -36,7 +39,9 @@ extern "C" {
  */
 DDS_EXPORT bool dds_is_loan_available(const dds_entity_t entity);
 
-/** @brief Check if a shared memory is available to reader/writer.
+/**
+ * @ingroup loan
+ * @brief Check if a shared memory is available to reader/writer.
  *
  * @note dds_loan_shared_memory_buffer can be used if and only if
  * dds_is_shared_memory_available returns true.
@@ -49,7 +54,9 @@ DDS_EXPORT bool dds_is_shared_memory_available(const dds_entity_t entity);
 
 DDS_DEPRECATED_EXPORT bool is_loan_available(const dds_entity_t entity);
 
-/** @brief Loan a shared memory buffer of a specific size from the writer.
+/**
+ * @ingroup loan
+ * @brief Loan a shared memory buffer of a specific size from the writer.
  *
  * @note Currently this function is to be used with dds_writecdr by adding the
  * loaned buffer to serdata as iox_chunk.
@@ -66,7 +73,9 @@ DDS_EXPORT dds_return_t dds_loan_shared_memory_buffer(dds_entity_t writer,
                                                       size_t size,
                                                       void **buffer);
 
-/** @brief Loan a sample from the writer.
+/**
+ * @ingroup loan
+ * @brief Loan a sample from the writer.
  *
  * @note This function is to be used with dds_write to publish the loaned
  * sample.

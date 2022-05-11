@@ -1,5 +1,5 @@
 #
-# Copyright(c) 2006 to 2019 ADLINK Technology Limited and others
+# Copyright(c) 2006 to 2022 ZettaScale Technology and others
 #
 # This program and the accompanying materials are made available under the
 # terms of the Eclipse Public License v. 2.0 which is available at
@@ -251,6 +251,12 @@ option(BUILD_IDLC_TESTING "Build the idl compiler tests" OFF)
 option(BUILD_EXAMPLES "Build examples." OFF)
 
 option(BUILD_DOCS "Build documentation." OFF)
+
+option(ENABLE_LTO "Enable link time optimization." ON)
+
+if(MSVC)
+  option(INSTALL_PDB "Install PDB files next to DLLs." ${BUILD_SHARED_LIBS})
+endif()
 
 # Build all executables and libraries into the top-level /bin and /lib folders.
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")

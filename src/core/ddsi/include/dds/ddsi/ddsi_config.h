@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2006 to 2018 ADLINK Technology Limited and others
+ * Copyright(c) 2006 to 2022 ZettaScale Technology and others
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -360,7 +360,6 @@ struct ddsi_config
   struct ddsi_config_partitionmapping_listelem *partitionMappings;
 #endif /* DDS_HAS_NETWORK_PARTITIONS */
   struct ddsi_config_peer_listelem *peers;
-  struct ddsi_config_peer_listelem *peers_group;
   struct ddsi_config_thread_properties_listelem *thread_properties;
 
   /* debug/test/undoc features: */
