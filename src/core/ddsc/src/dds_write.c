@@ -427,6 +427,17 @@ static dds_return_t get_iox_chunk (dds_writer *wr, const void *data, void **iox_
   }
 }
 
+// Synchronizes the current number of fast path readers and returns it.
+// Locking the mutex is needed to synchronize the value.
+// This number may change concurrently any time we do not hold the lock,
+// i.e. become outdated when we return from the function.
+static uint32_t get_num_fast_path_readers(struct writer *ddsi_wr) {
+  ddsrt_mutex_lock(&ddsi_wr->rdary.rdary_lock);
+  uint32_t n = ddsi_wr->rdary.n_readers;
+  ddsrt_mutex_unlock(&ddsi_wr->rdary.rdary_lock);
+  return n;
+}
+
 // has to support two cases:
 // 1) data is in an external buffer allocated on the stack or dynamically
 // 2) data is in an iceoryx buffer obtained by dds_loan_sample
@@ -468,10 +479,20 @@ static dds_return_t dds_write_impl_iox (dds_writer *wr, struct writer *ddsi_wr, 
   // partially with iceoryx as required by the QoS and type. The readers in L
   // will get the data via the local delivery mechanism (fast path or slow
   // path).
+
+  const uint32_t num_fast_path_readers = get_num_fast_path_readers(ddsi_wr);
+
+  // If use_only_iceoryx is true, there were no fast path readers at the moment
+  // we checked.
+  // If fast path readers arive later, they may not get data but this
+  // is fine as we can consider their connections not fully established
+  // and hence they are not considered for data transfer.
+  // The alternative is to block new fast path connections entirely (by holding
+  // the mutex) until data delivery is complete.
   const bool use_only_iceoryx =
       no_network_readers &&
       ddsi_wr->xqos->durability.kind == DDS_DURABILITY_VOLATILE &&
-      ddsi_wr->rdary.n_readers == 0;
+      num_fast_path_readers == 0;
 
   // 4. Prepare serdata
   // avoid serialization for volatile writers if there are no network readers
