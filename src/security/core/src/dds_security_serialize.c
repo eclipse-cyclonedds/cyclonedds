@@ -701,9 +701,13 @@ DDS_Security_Deserialize_PropertyQosPolicy(
     if (!DDS_Security_Deserialize_PropertySeq(dser, &policy->value))
         return 0;
 
-    if (sl - dser->remain > len)
-        return DDS_Security_Deserialize_BinaryPropertySeq(dser, &policy->binary_value);
-
+    DDS_Security_Deserialize_align(dser, 4);
+    size_t consumed = sl - dser->remain;
+    if (consumed > len) {
+        return 0;
+    } else if (len - consumed >= 4) {
+         return DDS_Security_Deserialize_BinaryPropertySeq(dser, &policy->binary_value);
+    }
     return 1;
 }
 
