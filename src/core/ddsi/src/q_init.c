@@ -2046,6 +2046,15 @@ int rtps_start (struct ddsi_domaingv *gv)
       rtps_stop (gv);
       return -1;
     }
+    else {
+      ddsi_locator_t loc;
+      char buf[DDSI_LOCSTRLEN];
+
+      if (get_debug_monitor_locator(gv->debmon, &loc)) {
+        ddsi_xqos_add_property_if_unset(&gv->default_local_plist_pp.qos, true, DDS_BUILTIN_TOPIC_PARTICIPANT_DEBUG_MONITOR, \
+          ddsi_locator_to_string (buf, sizeof(buf), &loc));
+      }
+    }
   }
 
   return 0;
