@@ -489,7 +489,11 @@ static bool dds_reader_support_shm(const struct ddsi_config* cfg, const dds_qos_
   if(!(qos->durability.kind == DDS_DURABILITY_VOLATILE ||
     qos->durability.kind == DDS_DURABILITY_TRANSIENT_LOCAL)) {
     return false;
-  }  
+  }
+
+  if (qos->ignorelocal.value != DDS_IGNORELOCAL_NONE) {
+    return false;
+  }
 
   return (DDS_READER_QOS_CHECK_FIELDS ==
               (qos->present & DDS_READER_QOS_CHECK_FIELDS) &&
@@ -698,7 +702,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
   thread_state_asleep (lookup_thread_state ());
 
 #ifdef DDS_HAS_SHM
-  if (0x0 == (rqos->ignore_locator_type & NN_LOCATOR_KIND_SHEM))
+  if (rd->m_rd->has_iceoryx)
   {
     DDS_CLOG (DDS_LC_SHM, &rd->m_entity.m_domain->gv.logconfig, "Reader's topic name will be DDS:Cyclone:%s\n", rd->m_topic->m_name);    
     

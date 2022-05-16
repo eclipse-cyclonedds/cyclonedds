@@ -315,6 +315,10 @@ static bool dds_writer_support_shm(const struct ddsi_config* cfg, const dds_qos_
     return false;
   }
 
+  if (qos->ignorelocal.value != DDS_IGNORELOCAL_NONE) {
+    return false;
+  }
+
   return (DDS_WRITER_QOS_CHECK_FIELDS == (qos->present & DDS_WRITER_QOS_CHECK_FIELDS) &&
           DDS_LIVELINESS_AUTOMATIC == qos->liveliness.kind &&
           DDS_INFINITY == qos->deadline.deadline);
@@ -464,7 +468,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   thread_state_asleep (lookup_thread_state ());
 
 #ifdef DDS_HAS_SHM
-  if (0x0 == (wqos->ignore_locator_type & NN_LOCATOR_KIND_SHEM))
+  if (wr->m_wr->has_iceoryx)
   {
     DDS_CLOG (DDS_LC_SHM, &wr->m_entity.m_domain->gv.logconfig, "Writer's topic name will be DDS:Cyclone:%s\n", wr->m_topic->m_name);
     iox_pub_options_t opts = create_iox_pub_options(wqos);
@@ -475,7 +479,6 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
     //     e.g. return a nullptr and handle the error here.   
     wr->m_iox_pub = iox_pub_init(&(iox_pub_storage_t){0}, gv->config.iceoryx_service, wr->m_topic->m_stype->type_name, wr->m_topic->m_name, &opts);
     memset(wr->m_iox_pub_loans, 0, sizeof(wr->m_iox_pub_loans));
-    dds_sleepfor(DDS_MSECS(10));
   }
 #endif
 

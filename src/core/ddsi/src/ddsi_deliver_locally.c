@@ -187,6 +187,13 @@ static dds_return_t deliver_locally_slowpath (struct ddsi_domaingv *gv, struct e
     EETRACE (source_entity, " =>");
   while (rd != NULL)
   {
+#ifdef DDS_HAS_SHM
+    if (rd->has_iceoryx) {
+      rd = ops->next_reader(gv->entity_index, &it);
+      continue; // skip iceoryx readers
+    }
+#endif
+
     struct ddsi_serdata *payload;
     struct ddsi_tkmap_instance *tk;
     if (!type_sample_cache_lookup (&payload, &tk, &tsc, rd->type))

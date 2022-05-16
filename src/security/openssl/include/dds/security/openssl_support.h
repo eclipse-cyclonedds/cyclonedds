@@ -40,6 +40,8 @@
 #include <WinSock2.h>
 #endif
 
+#define OPENSSL_API_COMPAT 10101
+
 #include <openssl/opensslv.h>
 #include <openssl/opensslconf.h>
 #include <openssl/asn1.h>

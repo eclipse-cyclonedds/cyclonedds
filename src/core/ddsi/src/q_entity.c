@@ -382,7 +382,10 @@ static void local_reader_ary_remove (struct local_reader_ary *x, struct reader *
   for (i = 0; i < x->n_readers; i++)
     if (x->rdary[i] == rd)
       break;
-  assert (i < x->n_readers);
+  if (i >= x->n_readers) {
+    ddsrt_mutex_unlock(&x->rdary_lock);
+    return; // rd not found, nothing to do
+  }
   if (i + 1 < x->n_readers)
   {
     /* dropping the final one never requires any fixups; dropping one that has
@@ -2283,7 +2286,13 @@ static void writer_add_local_connection (struct writer *wr, struct reader *rd)
             PGUID (wr->e.guid), PGUID (rd->e.guid));
   m->rd_guid = rd->e.guid;
   ddsrt_avl_insert_ipath (&wr_local_readers_treedef, &wr->local_readers, m, &path);
-  local_reader_ary_insert (&wr->rdary, rd);
+
+#ifdef DDS_HAS_SHM
+  if (!wr->has_iceoryx || !rd->has_iceoryx)
+    local_reader_ary_insert(&wr->rdary, rd);
+#else
+  local_reader_ary_insert(&wr->rdary, rd);
+#endif
 
   /* Store available data into the late joining reader when it is reliable (we don't do
      historical data for best-effort data over the wire, so also not locally). */
@@ -2569,7 +2578,14 @@ static void proxy_writer_add_connection (struct proxy_writer *pwr, struct reader
   }
 
   ddsrt_avl_insert_ipath (&pwr_readers_treedef, &pwr->readers, m, &path);
+
+#ifdef DDS_HAS_SHM
+  if (!pwr->is_iceoryx || !rd->has_iceoryx)
+    local_reader_ary_insert(&pwr->rdary, rd);
+#else
   local_reader_ary_insert(&pwr->rdary, rd);
+#endif
+
   ddsrt_mutex_unlock (&pwr->e.lock);
   qxev_pwr_entityid (pwr, &rd->e.guid);
 
@@ -3766,6 +3782,9 @@ static void new_writer_guid_common_init (struct writer *wr, const char *topic_na
   wr->test_suppress_retransmit = 0;
   wr->test_suppress_heartbeat = 0;
   wr->test_drop_outgoing_data = 0;
+#ifdef DDS_HAS_SHM
+  wr->has_iceoryx = (0x0 == (xqos->ignore_locator_type & NN_LOCATOR_KIND_SHEM));
+#endif
   wr->alive_vclock = 0;
   wr->init_burst_size_limit = UINT32_MAX - UINT16_MAX;
   wr->rexmit_burst_size_limit = UINT32_MAX - UINT16_MAX;
@@ -4438,6 +4457,9 @@ static dds_return_t new_reader_guid
   rd->request_keyhash = rd->type->request_keyhash;
   rd->ddsi2direct_cb = 0;
   rd->ddsi2direct_cbarg = 0;
+#ifdef DDS_HAS_SHM
+  rd->has_iceoryx = (0x0 == (xqos->ignore_locator_type & NN_LOCATOR_KIND_SHEM));
+#endif
   rd->init_acknack_count = 1;
   rd->num_writers = 0;
 #ifdef DDS_HAS_SSM

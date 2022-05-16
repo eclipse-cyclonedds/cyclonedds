@@ -36,6 +36,10 @@
 #include "dds/ddsi/q_addrset.h"
 #endif
 
+struct ddsi_serdata_plain { struct ddsi_serdata p; };
+struct ddsi_serdata_iox   { struct ddsi_serdata x; };
+struct ddsi_serdata_any   { struct ddsi_serdata a; };
+
 dds_return_t dds_write (dds_entity_t writer, const void *data)
 {
   dds_return_t ret;
@@ -192,44 +196,42 @@ static dds_return_t deliver_locally (struct writer *wr, struct ddsi_serdata *pay
 }
 
 #if DDS_HAS_SHM
-static bool deliver_data_via_iceoryx(dds_writer *wr, struct ddsi_serdata *d) {
-    if (wr->m_iox_pub != NULL && d->iox_chunk != NULL)
-    {
-      iox_chunk_header_t* chunk_header = iox_chunk_header_from_user_payload(d->iox_chunk);
-      iceoryx_header_t *ice_hdr = iox_chunk_header_to_user_header(chunk_header);
+static void deliver_data_via_iceoryx (dds_writer *wr, struct ddsi_serdata_iox *d)
+{
+  iox_chunk_header_t *chunk_header =
+  iox_chunk_header_from_user_payload(d->x.iox_chunk);
+  iceoryx_header_t *ice_hdr = iox_chunk_header_to_user_header(chunk_header);
 
-      // Local readers go through Iceoryx as well (because the Iceoryx support code doesn't exclude
-      // that), which means we should suppress the internal path
-      ice_hdr->guid = wr->m_wr->e.guid;
-      ice_hdr->tstamp = d->timestamp.v;
-      ice_hdr->statusinfo = d->statusinfo;
-      ice_hdr->data_kind = (unsigned char)d->kind;
-      ddsi_serdata_get_keyhash (d, &ice_hdr->keyhash, false);
-      // iox_pub_publish_chunk takes ownership, storing a null pointer here doesn't
-      // preclude the existence of race conditions on this, but it certainly improves
-      // the chances of detecting them
-
-      iox_pub_publish_chunk (wr->m_iox_pub, d->iox_chunk);
-      d->iox_chunk = NULL;
-      return true; //we published the chunk
-    }
-    return false; // we did not publish the chunk
+  // Local readers go through Iceoryx as well (because the Iceoryx support
+  // code doesn't exclude that), which means we should suppress the internal
+  // path
+  ice_hdr->guid = wr->m_wr->e.guid;
+  ice_hdr->tstamp = d->x.timestamp.v;
+  ice_hdr->statusinfo = d->x.statusinfo;
+  ice_hdr->data_kind = (unsigned char)d->x.kind;
+  ddsi_serdata_get_keyhash(&d->x, &ice_hdr->keyhash, false);
+  // iox_pub_publish_chunk takes ownership, storing a null pointer here
+  // doesn't preclude the existence of race conditions on this, but it
+  // certainly improves the chances of detecting them
+  iox_pub_publish_chunk(wr->m_iox_pub, d->x.iox_chunk);
+  d->x.iox_chunk = NULL;
 }
 #endif
 
-static struct ddsi_serdata *convert_serdata(struct writer *ddsi_wr, struct ddsi_serdata *din) {
-  struct ddsi_serdata *dout;
-  if (ddsi_wr->type == din->type)
+static struct ddsi_serdata_any *convert_serdata(struct writer *ddsi_wr, struct ddsi_serdata_any *din)
+{
+  struct ddsi_serdata_any *dout;
+  if (ddsi_wr->type == din->a.type)
   {
     dout = din;
     // dout refc: must consume 1
     // din refc: must consume 0 (it is an alias of dact)
   }
-  else if (din->type->ops->version == ddsi_sertype_v0)
+  else if (din->a.type->ops->version == ddsi_sertype_v0)
   {
     // deliberately allowing mismatches between d->type and ddsi_wr->type:
     // that way we can allow transferring data from one domain to another
-    dout = ddsi_serdata_ref_as_type (ddsi_wr->type, din);
+    dout = (struct ddsi_serdata_any *) ddsi_serdata_ref_as_type (ddsi_wr->type, &din->a);
     // dout refc: must consume 1
     // din refc: must consume 1 (independent of dact: types are distinct)
   }
@@ -237,84 +239,88 @@ static struct ddsi_serdata *convert_serdata(struct writer *ddsi_wr, struct ddsi_
   {
     // hope for the best (the type checks/conversions were missing in the
     // sertopic days anyway, so this is simply bug-for-bug compatibility
-    dout = ddsi_sertopic_wrap_serdata (ddsi_wr->type, din->kind, din);
+    dout = (struct ddsi_serdata_any *) ddsi_sertopic_wrap_serdata (ddsi_wr->type, din->a.kind, &din->a);
     // dout refc: must consume 1
     // din refc: must consume 1
   }
   return dout;
 }
 
-static dds_return_t deliver_data (struct writer *ddsi_wr, dds_writer *wr, struct ddsi_serdata *d, struct nn_xpack *xp, bool flush) {
-  struct thread_state1 * const ts1 = lookup_thread_state ();
-
-  struct ddsi_tkmap_instance *tk = ddsi_tkmap_lookup_instance_ref (ddsi_wr->e.gv->m_tkmap, d);
+static dds_return_t deliver_data_network (struct thread_state1 * const ts1, struct writer *ddsi_wr, struct ddsi_serdata_any *d, struct nn_xpack *xp, bool flush, struct ddsi_tkmap_instance *tk)
+{
   // write_sample_gc always consumes 1 refc from d
-  int ret = write_sample_gc (ts1, xp, ddsi_wr, d, tk);
+  int ret = write_sample_gc (ts1, xp, ddsi_wr, &d->a, tk);
   if (ret >= 0)
   {
     /* Flush out write unless configured to batch */
     if (flush && xp != NULL)
       nn_xpack_send (xp, false);
-    ret = DDS_RETCODE_OK;
+    return DDS_RETCODE_OK;
   }
   else
   {
-    if (ret != DDS_RETCODE_TIMEOUT)
-      ret = DDS_RETCODE_ERROR;
+    return (ret == DDS_RETCODE_TIMEOUT) ? ret : DDS_RETCODE_ERROR;
   }
+}
 
-  bool suppress_local_delivery = false;
+static dds_return_t deliver_data_any (struct thread_state1 * const ts1, struct writer *ddsi_wr, dds_writer *wr, struct ddsi_serdata_any *d, struct nn_xpack *xp, bool flush)
+{
+  struct ddsi_tkmap_instance * const tk = ddsi_tkmap_lookup_instance_ref (ddsi_wr->e.gv->m_tkmap, &d->a);
+  dds_return_t ret;
+  if ((ret = deliver_data_network (ts1, ddsi_wr, d, xp, flush, tk)) != DDS_RETCODE_OK)
+  {
+    ddsi_tkmap_instance_unref (ddsi_wr->e.gv->m_tkmap, tk);
+    return ret;
+  }
 #ifdef DDS_HAS_SHM
-  if (wr && ret == DDS_RETCODE_OK) {
-    //suppress if we successfully sent it via iceoryx
-    suppress_local_delivery = deliver_data_via_iceoryx(wr, d);
+  if (d->a.iox_chunk != NULL)
+  {
+    // delivers to all iceoryx readers, including local ones
+    deliver_data_via_iceoryx (wr, (struct ddsi_serdata_iox *) d);
   }
 #else
   (void) wr;
 #endif
-
-  if (ret == DDS_RETCODE_OK && !suppress_local_delivery)
-    ret = deliver_locally (ddsi_wr, d, tk);
-
+  ret = deliver_locally (ddsi_wr, &d->a, tk);
   ddsi_tkmap_instance_unref (ddsi_wr->e.gv->m_tkmap, tk);
-
   return ret;
 }
 
-static dds_return_t dds_writecdr_impl_common (struct writer *ddsi_wr, struct nn_xpack *xp, struct ddsi_serdata *din, bool flush, dds_writer *wr)
+static dds_return_t dds_writecdr_impl_common (struct writer *ddsi_wr, struct nn_xpack *xp, struct ddsi_serdata_any *din, bool flush, dds_writer *wr)
 {
   // consumes 1 refc from din in all paths (weird, but ... history ...)
   // let refc(din) be r, so upon returning it must be r-1
   struct thread_state1 * const ts1 = lookup_thread_state ();
   int ret = DDS_RETCODE_OK;
+  assert (wr != NULL);
 
-  struct ddsi_serdata *d = convert_serdata(ddsi_wr, din);
-
+  struct ddsi_serdata_any * const d = convert_serdata(ddsi_wr, din);
   if (d == NULL)
   {
-    ddsi_serdata_unref(din); // refc(din) = r - 1 as required
+    ddsi_serdata_unref(&din->a); // refc(din) = r - 1 as required
     return DDS_RETCODE_ERROR;
   }
 
   // d = din: refc(d) = r, otherwise refc(d) = 1
 
   thread_state_awake (ts1, ddsi_wr->e.gv);
-  ddsi_serdata_ref(d); // d = din: refc(d) = r + 1, otherwise refc(d) = 2
+  ddsi_serdata_ref (&d->a); // d = din: refc(d) = r + 1, otherwise refc(d) = 2
 
 #ifdef DDS_HAS_SHM
   // transfer ownership of an iceoryx chunk if it exists
   // din and d may alias each other
   // note: use those assignments instead of if-statement (jump) for efficiency
-  void* iox_chunk = din->iox_chunk;
-  din->iox_chunk = NULL;  
-  d->iox_chunk = iox_chunk;    
+  void* iox_chunk = din->a.iox_chunk;
+  din->a.iox_chunk = NULL;
+  d->a.iox_chunk = iox_chunk;
+  assert ((wr->m_iox_pub == NULL) == (d->a.iox_chunk == NULL));
 #endif
 
-  ret = deliver_data(ddsi_wr, wr, d, xp, flush); // d = din: refc(d) = r, otherwise refc(d) = 1
+  ret = deliver_data_any (ts1, ddsi_wr, wr, d, xp, flush);
 
   if(d != din)
-    ddsi_serdata_unref(din); // d != din: refc(din) = r - 1 as required, refc(d) unchanged
-  ddsi_serdata_unref(d); // d = din: refc(d) = r - 1, otherwise refc(din) = r-1 and refc(d) = 0
+    ddsi_serdata_unref(&din->a); // d != din: refc(din) = r - 1 as required, refc(d) unchanged
+  ddsi_serdata_unref(&d->a); // d = din: refc(d) = r - 1, otherwise refc(din) = r-1 and refc(d) = 0
 
   thread_state_asleep (ts1);
   return ret;
@@ -351,8 +357,16 @@ static bool evalute_topic_filter (const dds_writer *wr, const void *data, bool w
   return true;
 }
 
+static void set_statusinfo_timestamp (struct ddsi_serdata_any *d, dds_time_t tstamp, dds_write_action action)
+{
+  d->a.statusinfo = (((action & DDS_WR_DISPOSE_BIT) ? NN_STATUSINFO_DISPOSE : 0) |
+                     ((action & DDS_WR_UNREGISTER_BIT) ? NN_STATUSINFO_UNREGISTER : 0));
+  d->a.timestamp.v = tstamp;
+}
+
 #ifdef DDS_HAS_SHM
-static size_t get_required_buffer_size(struct dds_topic *topic, const void *sample) {
+static size_t get_required_buffer_size(struct dds_topic *topic, const void *sample)
+{
   bool has_fixed_size_type = topic->m_stype->fixed_size;
   if (has_fixed_size_type) {
     return topic->m_stype->iox_size;
@@ -361,8 +375,8 @@ static size_t get_required_buffer_size(struct dds_topic *topic, const void *samp
   return ddsi_sertype_get_serialized_size(topic->m_stype, (void*) sample);
 }
 
-static bool fill_iox_chunk(dds_writer *wr, const void *sample, void *iox_chunk,
-                           size_t sample_size) {
+static bool fill_iox_chunk(dds_writer *wr, const void *sample, void *iox_chunk, size_t sample_size)
+{
   bool has_fixed_size_type = wr->m_topic->m_stype->fixed_size;
   bool ret = true;
   iceoryx_header_t *iox_header = iceoryx_header_from_chunk(iox_chunk);
@@ -380,6 +394,179 @@ static bool fill_iox_chunk(dds_writer *wr, const void *sample, void *iox_chunk,
     }
   }
   return ret;
+}
+
+static dds_return_t create_and_fill_chunk (dds_writer *wr, const void *data, void **iox_chunk)
+{
+  const size_t required_size = get_required_buffer_size(wr->m_topic, data);
+  if (required_size == SIZE_MAX)
+    return DDS_RETCODE_OUT_OF_RESOURCES;
+  if ((*iox_chunk = shm_create_chunk (wr->m_iox_pub, required_size)) == NULL)
+    return DDS_RETCODE_OUT_OF_RESOURCES;
+  if (!fill_iox_chunk (wr, data, *iox_chunk, required_size))
+    return DDS_RETCODE_BAD_PARAMETER; // serialization failed
+  return DDS_RETCODE_OK;
+}
+
+static dds_return_t get_iox_chunk (dds_writer *wr, const void *data, void **iox_chunk)
+{
+  //note: whether the data was loaned cannot be determined in the non-iceoryx case currently
+  if (!deregister_pub_loan (wr, data))
+    return create_and_fill_chunk (wr, data, iox_chunk);
+  else
+  {
+    // The user already provided an iceoryx_chunk with data (by using the dds_loan API)
+    // We assume if we got the data from a loan it contains raw data
+    // (i.e. not serialized)
+    // This requires the user to adhere to the contract, we cannot enforce this
+    // with the given API.
+    *iox_chunk = (void *) data;
+    iceoryx_header_t *iox_header = iceoryx_header_from_chunk (*iox_chunk);
+    iox_header->shm_data_state = IOX_CHUNK_CONTAINS_RAW_DATA;
+    return DDS_RETCODE_OK;
+  }
+}
+
+// Synchronizes the current number of fast path readers and returns it.
+// Locking the mutex is needed to synchronize the value.
+// This number may change concurrently any time we do not hold the lock,
+// i.e. become outdated when we return from the function.
+static uint32_t get_num_fast_path_readers(struct writer *ddsi_wr) {
+  ddsrt_mutex_lock(&ddsi_wr->rdary.rdary_lock);
+  uint32_t n = ddsi_wr->rdary.n_readers;
+  ddsrt_mutex_unlock(&ddsi_wr->rdary.rdary_lock);
+  return n;
+}
+
+// has to support two cases:
+// 1) data is in an external buffer allocated on the stack or dynamically
+// 2) data is in an iceoryx buffer obtained by dds_loan_sample
+static dds_return_t dds_write_impl_iox (dds_writer *wr, struct writer *ddsi_wr, bool writekey, const void *data, dds_time_t tstamp, dds_write_action action)
+{
+  assert (thread_is_awake ());
+  assert (wr != NULL && wr->m_iox_pub != NULL);
+
+  void *iox_chunk = NULL;
+  dds_return_t ret;
+
+  //note: whether the data was loaned cannot be determined in the non-iceoryx case currently
+  if ((ret = get_iox_chunk (wr, data, &iox_chunk)) != 0)
+    return ret;
+  assert (iox_chunk != NULL);
+
+  // The following holds from here
+  // 1) data still points to the original data
+  // 2) iox_chunk is NOT NULL
+  //    a) was created by the write call or
+  //    b) data is an iceoryx chunk and iox_chunk == data
+  // in case 2 a) iox_chunk will contain serialized or raw data
+  //
+  // in case 2 a) and b) we must ensure we publish or release the chunk (failure)
+  // in 2b) we could argue to not release the chunk but the user effectively passed ownership
+  //        by calling write
+
+  // ddsi_wr->as can be changed by the matching/unmatching of proxy readers if we don't hold the lock
+  // it is rather unfortunate that this then means we have to lock here to check, then lock again to
+  // actually distribute the data, so some further refactoring is needed.
+  ddsrt_mutex_lock (&ddsi_wr->e.lock);
+  const bool no_network_readers = addrset_empty (ddsi_wr->as);
+  ddsrt_mutex_unlock (&ddsi_wr->e.lock);
+
+  // NB: local readers are not in L := ddsi_wr->rdary if they use iceoryx.
+  // Furthermore, all readers that ignore local publishers will not use iceoryx.
+  // We will never use only(!) iceoryx if there is any local reader in L.
+  // We will serialize the data in this case and deliver it mixed, i.e.
+  // partially with iceoryx as required by the QoS and type. The readers in L
+  // will get the data via the local delivery mechanism (fast path or slow
+  // path).
+
+  const uint32_t num_fast_path_readers = get_num_fast_path_readers(ddsi_wr);
+
+  // If use_only_iceoryx is true, there were no fast path readers at the moment
+  // we checked.
+  // If fast path readers arive later, they may not get data but this
+  // is fine as we can consider their connections not fully established
+  // and hence they are not considered for data transfer.
+  // The alternative is to block new fast path connections entirely (by holding
+  // the mutex) until data delivery is complete.
+  const bool use_only_iceoryx =
+      no_network_readers &&
+      ddsi_wr->xqos->durability.kind == DDS_DURABILITY_VOLATILE &&
+      num_fast_path_readers == 0;
+
+  // 4. Prepare serdata
+  // avoid serialization for volatile writers if there are no network readers
+
+  struct ddsi_serdata_iox *d = NULL;
+  if (use_only_iceoryx)
+  {
+    // note: If we could keep ownership of the loaned data after iox publish we could implement lazy
+    // serialization (only serializing when sending from writer history cache, i.e. not when storing).
+    // The benefit of this would be minor in most cases though, when we assume a static configuration
+    // where we either have network readers (requiring serialization) or not.
+
+    // do not serialize yet (may not need it if only using iceoryx or no readers)
+    d = (struct ddsi_serdata_iox *) ddsi_serdata_from_loaned_sample (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, iox_chunk);
+  }
+  else
+  {
+    // serialize for network since we will need to send via network anyway
+    // we also need to serialize into an iceoryx chunk
+
+    struct ddsi_serdata *dtmp = ddsi_serdata_from_sample (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, data);
+    if (dtmp != NULL)
+    {
+      // Needed for the mixed case where serdata d was created for the network path
+      // but iceoryx can also be used.
+      // In this case d was created by ddsi_serdata_from_sample and we need
+      // to set the iceoryx chunk.
+      dtmp->iox_chunk = iox_chunk;
+      d = (struct ddsi_serdata_iox *) dtmp;
+    }
+  }
+  if (d == NULL)
+  {
+    iox_pub_release_chunk (wr->m_iox_pub, iox_chunk);
+    return DDS_RETCODE_BAD_PARAMETER;
+  }
+  assert (d->x.iox_chunk != NULL);
+
+  // refc(d) = 1 after successful construction
+  set_statusinfo_timestamp ((struct ddsi_serdata_any *) d, tstamp, action);
+
+  // 5. Deliver the data
+  if(use_only_iceoryx) {
+    // deliver via iceoryx only
+    // TODO: can we avoid constructing d in this case?
+    // There are no local non-iceoryx readers in this case.
+    deliver_data_via_iceoryx (wr, d);
+    ddsi_serdata_unref (&d->x); // refc(d) = 0
+  } else {
+    // this may convert the input data if needed (convert_serdata) and then deliver it using
+    // network and/or iceoryx as required
+    // d refc(d) = 1, call will reduce refcount by 1
+    ret = dds_writecdr_impl_common (ddsi_wr, wr->m_xp, (struct ddsi_serdata_any *) d, !wr->whc_batch, wr);
+    if (ret != DDS_RETCODE_OK)
+      iox_pub_release_chunk (wr->m_iox_pub, d->x.iox_chunk);
+  }
+  return ret;
+}
+#endif
+
+static dds_return_t dds_write_impl_plain (dds_writer *wr, struct writer *ddsi_wr, bool writekey, const void *data, dds_time_t tstamp, dds_write_action action)
+{
+  assert (thread_is_awake ());
+#ifdef DDS_HAS_SHM
+  assert (wr->m_iox_pub == NULL);
+#endif
+
+  struct ddsi_serdata_plain *d = NULL;
+  d = (struct ddsi_serdata_plain *) ddsi_serdata_from_sample (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, data);
+  if (d == NULL)
+    return DDS_RETCODE_BAD_PARAMETER;
+
+  set_statusinfo_timestamp ((struct ddsi_serdata_any *) d, tstamp, action);
+  return dds_writecdr_impl_common(ddsi_wr, wr->m_xp, (struct ddsi_serdata_any *) d, !wr->whc_batch, wr);
 }
 
 // has to support two cases:
@@ -401,214 +588,21 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
     return DDS_RETCODE_OK;
 
   thread_state_awake (ts1, &wr->m_entity.m_domain->gv);
-
-  // 3. Check availability of iceoryx and reader status
-  bool iceoryx_available = wr->m_iox_pub != NULL;  
-  void *iox_chunk = NULL;
-
-  if(iceoryx_available) {
-    //note: whether the data was loaned cannot be determined in the non-iceoryx case currently
-    if(!deregister_pub_loan(wr, data))
-    {
-      size_t required_size = get_required_buffer_size(wr->m_topic, data);
-      if(required_size == SIZE_MAX) {
-        ret = DDS_RETCODE_OUT_OF_RESOURCES;
-        goto finalize_write;
-      }
-      iox_chunk = shm_create_chunk(wr->m_iox_pub, required_size);
-
-      if(iox_chunk) {
-        if(!fill_iox_chunk(wr, data, iox_chunk, required_size)) {
-          // serialization failed
-          ret = DDS_RETCODE_BAD_PARAMETER;
-          goto release_chunk;
-        }
-      } else {
-        // we failed to obtain a chunk, iceoryx transport is thus not available
-        // we cannot use the network path is now since due to the locators
-        // readers on the same machine would not get the data
-        // TODO: proper fallback logic to network path?
-
-        // iceoryx_available = false;
-        ret = DDS_RETCODE_OUT_OF_RESOURCES;
-        goto finalize_write;      
-      } 
-    } else {
-      // The user already provided an iceoryx_chunk with data (by using the dds_loan API)
-      // We assume if we got the data from a loan it contains raw data
-      // (i.e. not serialized)
-      // This requires the user to adhere to the contract, we cannot enforce this
-      // with the given API.
-      iox_chunk = (void*) data;
-      iceoryx_header_t *iox_header = iceoryx_header_from_chunk(iox_chunk);
-      iox_header->shm_data_state = IOX_CHUNK_CONTAINS_RAW_DATA;      
-    }
-  }
-
-  // The following holds from here
-  // 1) data still points to the original data
-  // 2) iox_chunk is NULL or
-  // 3) iox_chunk is NOT NULL
-  //    a) was created by the write call or
-  //    b) data is an iceoryx chunk and iox_chunk == data
-  // in case 3 a) iox_chunk will contain serialized or raw data
-  //
-  // in case 3 a) and b) we must ensure we publish or release the chunk (failure)
-  // in 3b) we could argue to not release the chunk but the user effectively passed ownership
-  //        by calling write
-
-  // ddsi_wr->as can be changed by the matching/unmatching of proxy readers if we don't hold the lock
-  // it is rather unfortunate that this then means we have to lock here to check, then lock again to
-  // actually distribute the data, so some further refactoring is needed.
-  ddsrt_mutex_lock (&ddsi_wr->e.lock);
-  bool no_network_readers = addrset_empty (ddsi_wr->as);
-  ddsrt_mutex_unlock (&ddsi_wr->e.lock);
-  bool use_only_iceoryx =
-      iceoryx_available && no_network_readers &&
-      ddsi_wr->xqos->durability.kind == DDS_DURABILITY_VOLATILE;
-
-  // 4. Prepare serdata
-  // avoid serialization for volatile writers if there are no network readers
-
-  struct ddsi_serdata *d = NULL;
-
-  if(use_only_iceoryx) {
-    // note: If we could keep ownership of the loaned data after iox publish we could implement lazy
-    // serialization (only serializing when sending from writer history cache, i.e. not when storing).
-    // The benefit of this would be minor in most cases though, when we assume a static configuration
-    // where we either have network readers (requiring serialization) or not.
-
-    // do not serialize yet (may not need it if only using iceoryx or no readers)
-    d = ddsi_serdata_from_loaned_sample (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, iox_chunk);
-    if(d == NULL) {
-      ret = DDS_RETCODE_BAD_PARAMETER;
-      goto release_chunk;
-    }   
-  } else {
-    // serialize for network since we will need to send via network anyway
-    // we also need to serialize into an iceoryx chunk
- 
-    d = ddsi_serdata_from_sample (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, data);
-    if(d == NULL) {
-      ret = DDS_RETCODE_BAD_PARAMETER;
-      goto release_chunk;
-    }
-
-    // Needed for the mixed case where serdata d was created for the network path
-    // but iceoryx can also be used.
-    // In this case d was created by ddsi_serdata_from_sample and we need
-    // to set the iceoryx chunk.
-    if(iceoryx_available) {
-      d->iox_chunk = iox_chunk;
-    } else {
-      d->iox_chunk = NULL;
-    }  
-  }
-
-  // refc(d) = 1 after successful construction
-
-  d->statusinfo = (((action & DDS_WR_DISPOSE_BIT) ? NN_STATUSINFO_DISPOSE : 0) |
-                  ((action & DDS_WR_UNREGISTER_BIT) ? NN_STATUSINFO_UNREGISTER : 0));
-  d->timestamp.v = tstamp;
-
-  // 5. Deliver the data
-
-  if(use_only_iceoryx) {
-    // deliver via iceoryx only
-    // TODO: can we avoid constructing d in this case?
-    if(deliver_data_via_iceoryx(wr, d)) {
-      ret = DDS_RETCODE_OK;
-    } else {
-      // Did not publish iox_chunk. We have to return the chunk (if any).      
-      iox_pub_release_chunk(wr->m_iox_pub, d->iox_chunk);
-      d->iox_chunk = NULL;
-      ret = DDS_RETCODE_ERROR;
-    }
-    ddsi_serdata_unref(d); // refc(d) = 0
-  } else {
-    // this may convert the input data if needed (convert_serdata) and then deliver it using
-    // network and/or iceoryx as required
-    // d refc(d) = 1, call will reduce refcount by 1
-    ret = dds_writecdr_impl_common(ddsi_wr, wr->m_xp, d, !wr->whc_batch, wr);
-
-    if(ret != DDS_RETCODE_OK && d->iox_chunk) {                      
-        iox_pub_release_chunk(wr->m_iox_pub, d->iox_chunk);
-    }
-  }
-
-finalize_write:
-  thread_state_asleep (ts1);
-  return ret;
-
-release_chunk:  
-  if(iox_chunk) {    
-    iox_pub_release_chunk(wr->m_iox_pub, iox_chunk);
-  }
-  thread_state_asleep (ts1);
-  return ret;
-}
-
-#else
-
-// implementation if no shared memory (iceoryx) is available
-dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstamp, dds_write_action action)
-{
-  struct thread_state1 * const ts1 = lookup_thread_state ();
-  const bool writekey = action & DDS_WR_KEY_BIT;
-  struct writer *ddsi_wr = wr->m_wr;
-  struct ddsi_serdata *d;
-  dds_return_t ret = DDS_RETCODE_OK;
-
-  if (data == NULL)
-    return DDS_RETCODE_BAD_PARAMETER;
-
-  /* Check for topic filter */
-  if (!evalute_topic_filter(wr, data, writekey))
-    return DDS_RETCODE_OK;
-
-  thread_state_awake (ts1, &wr->m_entity.m_domain->gv);
-
-  /* Serialize and write data or key */
-  if ((d = ddsi_serdata_from_sample (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, data)) == NULL)
-    ret = DDS_RETCODE_BAD_PARAMETER;
+#ifdef DDS_HAS_SHM
+  if (wr->m_iox_pub)
+    ret = dds_write_impl_iox (wr, ddsi_wr, writekey, data, tstamp, action);
   else
-  {
-    struct ddsi_tkmap_instance *tk;
-    d->statusinfo = (((action & DDS_WR_DISPOSE_BIT) ? NN_STATUSINFO_DISPOSE : 0) |
-                     ((action & DDS_WR_UNREGISTER_BIT) ? NN_STATUSINFO_UNREGISTER : 0));
-    d->timestamp.v = tstamp;
-    ddsi_serdata_ref (d);
-
-    tk = ddsi_tkmap_lookup_instance_ref (wr->m_entity.m_domain->gv.m_tkmap, d);
-    ret = write_sample_gc (ts1, wr->m_xp, ddsi_wr, d, tk);
-
-    if (ret >= 0) {
-      /* Flush out write unless configured to batch */
-      if (!wr->whc_batch)
-        nn_xpack_send (wr->m_xp, false);
-      ret = DDS_RETCODE_OK;
-    } else if (ret != DDS_RETCODE_TIMEOUT) {
-      ret = DDS_RETCODE_ERROR;
-    }
-
-    if (ret == DDS_RETCODE_OK)
-      ret = deliver_locally (ddsi_wr, d, tk);
-    ddsi_serdata_unref (d);
-    ddsi_tkmap_instance_unref (wr->m_entity.m_domain->gv.m_tkmap, tk);
-  }
+    ret = dds_write_impl_plain (wr, ddsi_wr, writekey, data, tstamp, action);
+#else
+  ret = dds_write_impl_plain (wr, ddsi_wr, writekey, data, tstamp, action);
+#endif
   thread_state_asleep (ts1);
   return ret;
 }
-#endif
 
 dds_return_t dds_writecdr_impl (dds_writer *wr, struct nn_xpack *xp, struct ddsi_serdata *dinp, bool flush)
 {
-  return dds_writecdr_impl_common (wr->m_wr, xp, dinp, flush, wr);
-}
-
-dds_return_t dds_writecdr_local_orphan_impl (struct local_orphan_writer *lowr, struct nn_xpack *xp, struct ddsi_serdata *dinp)
-{
-  return dds_writecdr_impl_common (&lowr->wr, xp, dinp, true, NULL);
+  return dds_writecdr_impl_common (wr->m_wr, xp, (struct ddsi_serdata_any *) dinp, flush, wr);
 }
 
 void dds_write_flush (dds_entity_t writer)
@@ -622,4 +616,28 @@ void dds_write_flush (dds_entity_t writer)
     thread_state_asleep (ts1);
     dds_writer_unlock (wr);
   }
+}
+
+dds_return_t dds_writecdr_local_orphan_impl (struct local_orphan_writer *lowr, struct ddsi_serdata *d)
+{
+  // this never sends on the network and xp is only relevant for the network
+#ifdef DDS_HAS_SHM
+  assert (d->iox_chunk == NULL);
+#endif
+  
+  // consumes 1 refc from din in all paths (weird, but ... history ...)
+  // let refc(din) be r, so upon returning it must be r-1
+  struct thread_state1 * const ts1 = lookup_thread_state ();
+  int ret = DDS_RETCODE_OK;
+  assert (lowr->wr.type == d->type);
+
+  // d = din: refc(d) = r, otherwise refc(d) = 1
+
+  thread_state_awake (ts1, lowr->wr.e.gv);
+  struct ddsi_tkmap_instance * const tk = ddsi_tkmap_lookup_instance_ref (lowr->wr.e.gv->m_tkmap, d);
+  deliver_locally (&lowr->wr, d, tk);
+  ddsi_tkmap_instance_unref (lowr->wr.e.gv->m_tkmap, tk);
+  ddsi_serdata_unref(d); // d = din: refc(d) = r - 1
+  thread_state_asleep (ts1);
+  return ret;
 }
