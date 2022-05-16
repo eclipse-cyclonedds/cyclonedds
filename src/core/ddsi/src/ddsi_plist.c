@@ -3615,6 +3615,42 @@ dds_qos_t * ddsi_xqos_dup (const dds_qos_t *src)
   return dst;
 }
 
+bool ddsi_xqos_add_property_if_unset (dds_qos_t *q, bool propagate, const char *name, const char *value)
+{
+  if ((q->present & QP_PROPERTY_LIST) == 0)
+  {
+    // No properties, definitely not set
+    q->present |= QP_PROPERTY_LIST;
+    q->property.value.n = 1;
+    q->property.value.props = ddsrt_malloc(sizeof(dds_property_t));
+    q->property.binary_value.n = 0;
+    q->property.binary_value.props = NULL;
+    q->property.value.props[0].propagate = propagate;
+    q->property.value.props[0].name = ddsrt_strdup(name);
+    q->property.value.props[0].value = ddsrt_strdup(value);
+
+    return true;
+  }
+
+  for (size_t i = 0; i < q->property.value.n; i++)
+  {
+    if (strcmp (q->property.value.props[i].name, name) == 0)
+    {
+      // Already exists
+      return false;
+    }
+  }
+
+  // does not exists, append
+  q->property.value.props = dds_realloc (q->property.value.props,
+    (q->property.value.n + 1) * sizeof (*q->property.value.props));
+  q->property.value.props[q->property.value.n].propagate = propagate;
+  q->property.value.props[q->property.value.n].name = ddsrt_strdup (name);
+  q->property.value.props[q->property.value.n].value = ddsrt_strdup (value);
+  q->property.value.n++;
+  return true;
+}
+
 bool ddsi_xqos_has_prop_prefix (const dds_qos_t *xqos, const char *nameprefix)
 {
   if (!(xqos->present & QP_PROPERTY_LIST))

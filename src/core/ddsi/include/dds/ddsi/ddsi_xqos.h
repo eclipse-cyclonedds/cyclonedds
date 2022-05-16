@@ -489,6 +489,18 @@ DDS_EXPORT void ddsi_xqos_log (uint32_t cat, const struct ddsrt_log_cfg *logcfg,
 DDS_EXPORT size_t ddsi_xqos_print (char * __restrict buf, size_t bufsize, const dds_qos_t *xqos);
 
 /**
+ * @brief Add a property 'name' to the properties of "xqos" if it does not exists
+ *
+ * @param[in]  xqos        qos object to add property to.
+ * @param[in]  propagate   whether to propagate (emit to wire) the property
+ * @param[in]  name        property name
+ * @param[in]  value       property value
+ *
+ * @returns true iff xqos was modified (property did not exist yet)
+ */
+DDS_EXPORT bool ddsi_xqos_add_property_if_unset (dds_qos_t *xqos, bool propagate, const char *name, const char *value);
+
+/**
  * @brief Duplicate "src"
  *
  * @param[in]  src       dds_qos_t to be duplicated

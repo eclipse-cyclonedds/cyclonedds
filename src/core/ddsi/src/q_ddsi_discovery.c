@@ -499,7 +499,7 @@ void get_participant_builtin_topic_data (const struct participant *pp, ddsi_plis
 #endif
 
   /* Participant QoS's insofar as they are set, different from the default, and mapped to the SPDP data, rather than to the Adlink-specific CMParticipant endpoint. */
-  qosdiff = ddsi_xqos_delta (&pp->plist->qos, &ddsi_default_plist_participant.qos, QP_USER_DATA | QP_ENTITY_NAME);
+  qosdiff = ddsi_xqos_delta (&pp->plist->qos, &ddsi_default_plist_participant.qos, QP_USER_DATA | QP_ENTITY_NAME | QP_PROPERTY_LIST);
   if (pp->e.gv->config.explicitly_publish_qos_set_to_default)
     qosdiff |= ~(QP_UNRECOGNIZED_INCOMPATIBLE_MASK | QP_LIVELINESS);
 

@@ -9,22 +9,29 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include <stddef.h>
 #include <ctype.h>
+#include <stddef.h>
 #include <assert.h>
 #include <string.h>
 
+#include "dds/ddsrt/string.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/md5.h"
-#include "dds/ddsi/q_bswap.h"
-#include "dds/ddsi/ddsi_config_impl.h"
-#include "dds/ddsi/q_freelist.h"
+
+#include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/ddsi_plist.h"
-#include "dds/ddsi/ddsi_domaingv.h"
-#include "dds__serdata_builtintopic.h"
 #include "dds/ddsi/ddsi_tkmap.h"
-#include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/ddsi_domaingv.h"
+#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_entity_index.h"
+
+#include "dds/ddsi/q_bswap.h"
+#include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/q_addrset.h"
+#include "dds/ddsi/q_freelist.h"
+
+#include "dds__serdata_builtintopic.h"
+
 
 static const uint64_t unihashconsts[] = {
   UINT64_C (16292676669999574021),
@@ -99,6 +106,53 @@ static struct ddsi_serdata_builtintopic *serdata_builtin_new(const struct ddsi_s
   return d;
 }
 
+struct format_address_arg {
+  char *buf;
+  size_t buf_pos;
+  size_t buf_size;
+  bool first;
+};
+
+static void format_address (const ddsi_xlocator_t *n, void *varg)
+{
+  struct format_address_arg *arg = varg;
+  char buf[DDSI_LOCSTRLEN];
+
+  if (!arg->buf) return;
+
+  ddsi_xlocator_to_string (buf, sizeof(buf), n);
+  const size_t nsize = strlen(buf) + (arg->first ? 0 : 1);
+
+  if (nsize > arg->buf_size - arg->buf_pos - 1) {
+    arg->buf_size += 4 * nsize;
+    arg->buf = ddsrt_realloc(arg->buf, arg->buf_size);
+
+    if (!arg->buf) return;
+  }
+
+  arg->buf_pos += (size_t) snprintf (arg->buf + arg->buf_pos, arg->buf_size - arg->buf_pos, "%s%s", arg->first ? "" : ",", buf);
+}
+
+static char * format_addrset (struct addrset *as)
+{
+  struct format_address_arg pa_arg;
+  pa_arg.buf = (char*) ddsrt_malloc(DDSI_LOCSTRLEN * 3 + 4);
+  pa_arg.buf_pos = 0;
+  pa_arg.buf_size = DDSI_LOCSTRLEN * 3 + 4;
+
+  addrset_forall(as, format_address, &pa_arg);
+  return pa_arg.buf;
+}
+
+static void add_pp_addresses_to_xqos(dds_qos_t *q, const struct proxy_participant *proxypp)
+{
+  char * addresses = format_addrset(proxypp->as_meta);
+  if (addresses) {
+    ddsi_xqos_add_property_if_unset(q, true, DDS_BUILTIN_TOPIC_PARTICIPANT_PROPERTY_NETWORKADDRESSES, addresses);
+    ddsrt_free(addresses);
+  }
+}
+
 static void translate_pp_lease_duration (dds_qos_t *qos, const ddsi_plist_t *plist)
 {
   // Participant lease duration doesn't play by the rules because it doesn't officially exist as a QoS
@@ -112,6 +166,7 @@ static void translate_pp_lease_duration (dds_qos_t *qos, const ddsi_plist_t *pli
 static void from_entity_pp (struct ddsi_serdata_builtintopic_participant *d, const struct participant *pp)
 {
   ddsi_xqos_copy(&d->common.xqos, &pp->plist->qos);
+  ddsi_xqos_add_property_if_unset(&d->common.xqos, true, DDS_BUILTIN_TOPIC_PARTICIPANT_PROPERTY_NETWORKADDRESSES, "localprocess");
   d->pphandle = pp->e.iid;
   translate_pp_lease_duration (&d->common.xqos, pp->plist);
 }
@@ -119,6 +174,7 @@ static void from_entity_pp (struct ddsi_serdata_builtintopic_participant *d, con
 static void from_entity_proxypp (struct ddsi_serdata_builtintopic_participant *d, const struct proxy_participant *proxypp)
 {
   ddsi_xqos_copy(&d->common.xqos, &proxypp->plist->qos);
+  add_pp_addresses_to_xqos(&d->common.xqos, proxypp);
   d->pphandle = proxypp->e.iid;
   translate_pp_lease_duration (&d->common.xqos, proxypp->plist);
 }

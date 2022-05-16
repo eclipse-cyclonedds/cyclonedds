@@ -159,20 +159,6 @@ static void make_builtin_volatile_endpoint_xqos (dds_qos_t *q, const dds_qos_t *
 }
 #endif
 
-#ifdef DDS_HAS_SECURITY
-static void add_property_to_xqos(dds_qos_t *q, const char *name, const char *value)
-{
-  assert(!(q->present & QP_PROPERTY_LIST));
-  q->present |= QP_PROPERTY_LIST;
-  q->property.value.n = 1;
-  q->property.value.props = ddsrt_malloc(sizeof(dds_property_t));
-  q->property.binary_value.n = 0;
-  q->property.binary_value.props = NULL;
-  q->property.value.props[0].name = ddsrt_strdup(name);
-  q->property.value.props[0].value = ddsrt_strdup(value);
-}
-#endif
-
 static int set_recvips (struct ddsi_domaingv *gv)
 {
   gv->recvips = NULL;
@@ -1489,6 +1475,7 @@ int rtps_init (struct ddsi_domaingv *gv)
   gv->default_local_plist_pp.qos.present |= QP_LIVELINESS;
   gv->default_local_plist_pp.qos.liveliness.kind = DDS_LIVELINESS_AUTOMATIC;
   gv->default_local_plist_pp.qos.liveliness.lease_duration = gv->config.lease_duration;
+
   ddsi_xqos_copy (&gv->spdp_endpoint_xqos, &ddsi_default_qos_reader);
   ddsi_xqos_mergein_missing (&gv->spdp_endpoint_xqos, &ddsi_default_qos_writer, ~(uint64_t)0);
   gv->spdp_endpoint_xqos.durability.kind = DDS_DURABILITY_TRANSIENT_LOCAL;
@@ -1507,10 +1494,30 @@ int rtps_init (struct ddsi_domaingv *gv)
   gv->builtin_stateless_xqos_wr.reliability.kind = DDS_RELIABILITY_BEST_EFFORT;
   gv->builtin_stateless_xqos_wr.durability.kind = DDS_DURABILITY_VOLATILE;
 
+  /* participant location properties */
+  {
+    char * procname = ddsrt_getprocessname();
+    char namebuf[256];
+
+    if (procname) {
+      ddsi_xqos_add_property_if_unset(&gv->default_local_plist_pp.qos, true, DDS_BUILTIN_TOPIC_PARTICIPANT_PROPERTY_PROCESS_NAME, procname);
+      ddsrt_free(procname);
+    }
+
+    snprintf(namebuf, sizeof(namebuf), "%" PRIdPID, ddsrt_getpid());
+    ddsi_xqos_add_property_if_unset(&gv->default_local_plist_pp.qos, true, DDS_BUILTIN_TOPIC_PARTICIPANT_PROPERTY_PID, namebuf);
+
+#if DDSRT_HAVE_GETHOSTNAME
+    if (ddsrt_gethostname(namebuf, sizeof(namebuf)) == DDS_RETCODE_OK) {
+      ddsi_xqos_add_property_if_unset(&gv->default_local_plist_pp.qos, true, DDS_BUILTIN_TOPIC_PARTICIPANT_PROPERTY_HOSTNAME, namebuf);
+    }
+#endif
+  }
+
   /* Setting these properties allows the CryptoKeyFactory to recognize
    * the entities (see DDS Security spec chapter 8.8.8.1). */
-  add_property_to_xqos(&gv->builtin_secure_volatile_xqos_rd, DDS_SEC_PROP_BUILTIN_ENDPOINT_NAME, "BuiltinParticipantVolatileMessageSecureReader");
-  add_property_to_xqos(&gv->builtin_secure_volatile_xqos_wr, DDS_SEC_PROP_BUILTIN_ENDPOINT_NAME, "BuiltinParticipantVolatileMessageSecureWriter");
+  ddsi_xqos_add_property_if_unset(&gv->builtin_secure_volatile_xqos_rd, false, DDS_SEC_PROP_BUILTIN_ENDPOINT_NAME, "BuiltinParticipantVolatileMessageSecureReader");
+  ddsi_xqos_add_property_if_unset(&gv->builtin_secure_volatile_xqos_wr, false, DDS_SEC_PROP_BUILTIN_ENDPOINT_NAME, "BuiltinParticipantVolatileMessageSecureWriter");
 #endif
 
   ddsrt_mutex_init (&gv->sertypes_lock);
