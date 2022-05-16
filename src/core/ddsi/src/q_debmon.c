@@ -49,6 +49,7 @@ struct debug_monitor {
   struct thread_state1 *servts;
   ddsi_tran_factory_t tran_factory;
   ddsi_tran_listener_t servsock;
+  ddsi_locator_t servlocator;
   ddsrt_mutex_t lock;
   ddsrt_cond_t cond;
   struct ddsi_domaingv *gv;
@@ -729,10 +730,9 @@ struct debug_monitor *new_debug_monitor (struct ddsi_domaingv *gv, int32_t port)
   }
 
   {
-    ddsi_locator_t loc;
     char buf[DDSI_LOCSTRLEN];
-    (void) ddsi_listener_locator(dm->servsock, &loc);
-    GVLOG (DDS_LC_CONFIG, "debmon at %s\n", ddsi_locator_to_string (buf, sizeof(buf), &loc));
+    (void) ddsi_listener_locator(dm->servsock, &dm->servlocator);
+    GVLOG (DDS_LC_CONFIG, "debmon at %s\n", ddsi_locator_to_string (buf, sizeof(buf), &dm->servlocator));
   }
 
   ddsrt_mutex_init (&dm->lock);
@@ -752,6 +752,12 @@ err_servsock:
 err_invalid_port:
   ddsrt_free(dm);
   return NULL;
+}
+
+bool get_debug_monitor_locator (struct debug_monitor *dm, ddsi_locator_t *locator) {
+  if (!dm || dm->stop) return false;
+  memcpy(locator, &dm->servlocator, sizeof(ddsi_locator_t));
+  return true;
 }
 
 void free_debug_monitor (struct debug_monitor *dm)
