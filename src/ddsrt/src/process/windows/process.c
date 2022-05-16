@@ -9,11 +9,28 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
+#include "windows.h"
+#include <stddef.h>
 #include <process.h>
+#include <libloaderapi.h>
 #include "dds/ddsrt/process.h"
+#include "dds/ddsrt/io.h"
+#include "dds/ddsrt/string.h"
 
 ddsrt_pid_t
 ddsrt_getpid(void)
 {
   return GetCurrentProcessId();
+}
+
+char *
+ddsrt_getprocessname(void)
+{
+  char *ret;
+  char buff[256];
+  if (GetModuleFileNameA(NULL, buff, sizeof(buff)) == 0) {
+    if (!ddsrt_asprintf(&ret, "process-%ld", (long) ddsrt_getpid())) return NULL;
+    return ret;
+  }
+  return ddsrt_strdup(buff);
 }

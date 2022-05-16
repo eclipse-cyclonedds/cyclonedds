@@ -20,3 +20,8 @@ ddsrt_getpid(void)
   return xTaskGetCurrentTaskHandle();
 }
 
+char *
+ddsrt_getprocessname(void)
+{
+  return pcTaskGetName(xTaskGetCurrentTaskHandle());
+}

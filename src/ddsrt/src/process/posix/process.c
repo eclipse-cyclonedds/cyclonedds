@@ -10,8 +10,17 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <unistd.h>
+#include <stddef.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
 #include "dds/ddsrt/process.h"
+#include "dds/ddsrt/string.h"
+#include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/io.h"
+
 
 ddsrt_pid_t
 ddsrt_getpid(void)
@@ -19,3 +28,58 @@ ddsrt_getpid(void)
   /* Mapped to taskIdSelf() in VxWorks kernel mode. */
   return getpid();
 }
+
+#if (defined(__APPLE__) || defined(__FreeBSD__) || defined(_GNU_SOURCE))
+  // _basename not needed
+#else
+static const char *_basename(char const *path)
+{
+  const char *s = strrchr(path, '/');
+  return s ? s + 1 : path;
+}
+#endif
+
+char *
+ddsrt_getprocessname(void)
+{
+  char *ret;
+#if defined(__APPLE__) || defined(__FreeBSD__)
+  const char * appname = getprogname();
+#elif defined(_GNU_SOURCE)
+  const char * appname = program_invocation_name;
+#else
+  const char * appname = NULL;
+
+  char buff[400];
+  struct stat statbuf;
+  if (stat("/proc/self/cmdline", &statbuf) == 0) {
+    FILE *f = fopen("/proc/self/cmdline", "r");
+
+    buff[0] = '\0';
+    for(size_t i = 0; i < sizeof(buff); ++i) {
+      int c = fgetc(f);
+      if (c == EOF || c == '\0') {
+        buff[i] = '\0';
+        break;
+      } else {
+        buff[i] = (char) c;
+      }
+    }
+
+    if (buff[0] != '\0') {
+      appname = _basename(buff);
+    }
+
+    if (f) fclose(f);
+  }
+#endif
+
+  if (!appname) {
+    if (!ddsrt_asprintf(&ret, "process-%ld", (long) ddsrt_getpid())) return NULL;
+    return ret;
+  }
+
+  ret = ddsrt_strdup(appname);
+  return ret;
+}
+

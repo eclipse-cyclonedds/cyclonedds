@@ -55,6 +55,18 @@ extern "C" {
 DDS_EXPORT ddsrt_pid_t
 ddsrt_getpid(void);
 
+/**
+ * @brief Return process name of the calling process.
+ *
+ * On linux maps to /proc/self/cmdline's first entry (argv[0]),
+ * on mac/windows maps to relevant API calls. Falls back to process-{pid}
+ * on failure.
+ *
+ * @returns The process name of the calling process.
+ */
+DDS_EXPORT char *
+ddsrt_getprocessname(void);
+
 #if defined (__cplusplus)
 }
 #endif
