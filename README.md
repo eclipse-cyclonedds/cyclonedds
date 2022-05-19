@@ -142,8 +142,8 @@ There are some configuration options specified using CMake defines in addition t
 * `-DENABLE_SECURITY=NO`: to not build the security interfaces and hooks in the core code, nor the plugins (one can enable security without OpenSSL present, you'll just have to find plugins elsewhere in that case)
 * `-DENABLE_LIFESPAN=NO`: to exclude support for finite lifespans QoS
 * `-DENABLE_DEADLINE_MISSED=NO`: to exclude support for finite deadline QoS settings
-* `-DENABLE_TYPE_DISCOVERY=YES`: to include support for type discovery and checking type compatibility (likely to become enabled by default in the future)
-* `-DENABLE_TOPIC_DISCOVERY=YES`: to include support for topic discovery (requires `-DENABLE_TYPE_DISCOVERY=YES`; somewhat likely to become enabled by default in the future)
+* `-DENABLE_TYPE_DISCOVERY=NO`: to exclude support for type discovery and checking type compatibility (effectively most of XTypes), requires also disabling topic discovery using `-DENABLE_TOPIC_DISCOVERY=NO`
+* `-DENABLE_TOPIC_DISCOVERY=NO`: to exclude support for topic discovery
 * `-DENABLE_SOURCE_SPECIFIC_MULTICAST=NO`: to disable support for source-specific multicast (disabling this and `-DENABLE_IPV6=NO` may be needed for QNX builds)
 * `-DENABLE_IPV6=NO`: to disable ipv6 support (disabling this and `-DENABLE_SOURCE_SPECIFIC_MULTICAST=NO` may be needed for QNX builds)
 
@@ -282,6 +282,9 @@ E.g. (on Linux):
                 <AllowMulticast>default</AllowMulticast>
                 <MaxMessageSize>65500B</MaxMessageSize>
             </General>
+            <Discovery>
+                <EnableTopicDiscoveryEndpoints>true</EnableTopicDiscoveryEndpoints>
+            </Discovery>
             <Internal>
                 <Watermarks>
                     <WhcHigh>500kB</WhcHigh>
@@ -313,6 +316,7 @@ This example shows a few things:
   If the selected interface doesn't support it, it obviously won't be used (`false`); but if it does support it, the type of the network adapter determines the default value.
   For a wired network, it will use multicast for initial discovery as well as for data when there are multiple peers that the data needs to go to (`true`). 
   On a WiFi network it will use it only for initial discovery (`spdp`), because multicast on WiFi is very unreliable.
+* `EnableTopicDiscoveryEndpoints` turns on topic discovery (assuming it is enabled at compile time), it is disabled by default because it isn't used in many system and comes with a significant amount of overhead in discovery traffic.
 * `Verbosity` allows control over the tracing, "config" dumps the configuration to the trace output (which defaults to "cyclonedds.log", but here the process id is appended).
   Which interface is used, what multicast settings are used, etc., is all in the trace.
   Setting the verbosity to "finest" gives way more output on the inner workings, and there are various other levels as well.
