@@ -1494,6 +1494,12 @@ int rtps_init (struct ddsi_domaingv *gv)
   gv->builtin_stateless_xqos_wr.reliability.kind = DDS_RELIABILITY_BEST_EFFORT;
   gv->builtin_stateless_xqos_wr.durability.kind = DDS_DURABILITY_VOLATILE;
 
+  /* Setting these properties allows the CryptoKeyFactory to recognize
+   * the entities (see DDS Security spec chapter 8.8.8.1). */
+  ddsi_xqos_add_property_if_unset(&gv->builtin_secure_volatile_xqos_rd, false, DDS_SEC_PROP_BUILTIN_ENDPOINT_NAME, "BuiltinParticipantVolatileMessageSecureReader");
+  ddsi_xqos_add_property_if_unset(&gv->builtin_secure_volatile_xqos_wr, false, DDS_SEC_PROP_BUILTIN_ENDPOINT_NAME, "BuiltinParticipantVolatileMessageSecureWriter");
+#endif
+
   /* participant location properties */
   {
     char * procname = ddsrt_getprocessname();
@@ -1514,11 +1520,6 @@ int rtps_init (struct ddsi_domaingv *gv)
 #endif
   }
 
-  /* Setting these properties allows the CryptoKeyFactory to recognize
-   * the entities (see DDS Security spec chapter 8.8.8.1). */
-  ddsi_xqos_add_property_if_unset(&gv->builtin_secure_volatile_xqos_rd, false, DDS_SEC_PROP_BUILTIN_ENDPOINT_NAME, "BuiltinParticipantVolatileMessageSecureReader");
-  ddsi_xqos_add_property_if_unset(&gv->builtin_secure_volatile_xqos_wr, false, DDS_SEC_PROP_BUILTIN_ENDPOINT_NAME, "BuiltinParticipantVolatileMessageSecureWriter");
-#endif
 
   ddsrt_mutex_init (&gv->sertypes_lock);
   gv->sertypes = ddsrt_hh_new (1, ddsi_sertype_hash_wrap, ddsi_sertype_equal_wrap);
@@ -2051,7 +2052,7 @@ int rtps_start (struct ddsi_domaingv *gv)
       char buf[DDSI_LOCSTRLEN];
 
       if (get_debug_monitor_locator(gv->debmon, &loc)) {
-        ddsi_xqos_add_property_if_unset(&gv->default_local_plist_pp.qos, true, DDS_BUILTIN_TOPIC_PARTICIPANT_DEBUG_MONITOR, \
+        ddsi_xqos_add_property_if_unset(&gv->default_local_plist_pp.qos, true, DDS_BUILTIN_TOPIC_PARTICIPANT_DEBUG_MONITOR,
           ddsi_locator_to_string (buf, sizeof(buf), &loc));
       }
     }

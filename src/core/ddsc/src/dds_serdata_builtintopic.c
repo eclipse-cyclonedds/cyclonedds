@@ -125,9 +125,10 @@ static void format_address (const ddsi_xlocator_t *n, void *varg)
 
   if (nsize > arg->buf_size - arg->buf_pos - 1) {
     arg->buf_size += 4 * nsize;
-    arg->buf = ddsrt_realloc(arg->buf, arg->buf_size);
+    char * new_buffer = ddsrt_realloc(arg->buf, arg->buf_size);
 
-    if (!arg->buf) return;
+    if (!new_buffer) return;
+    arg->buf = new_buffer;
   }
 
   arg->buf_pos += (size_t) snprintf (arg->buf + arg->buf_pos, arg->buf_size - arg->buf_pos, "%s%s", arg->first ? "" : ",", buf);
