@@ -52,7 +52,7 @@ static void setqos (dds_qos_t *q, size_t i, bool isrd, bool create)
     }
     else
     {
-      char buf[20];
+      char buf[23];
       snprintf (buf, sizeof (buf), "ud%zu%c", i, isrd ? 'r' : 'w');
       dds_qset_userdata (q, buf, strlen (buf));
       snprintf (buf, sizeof (buf), "td%zu", i);
@@ -71,7 +71,7 @@ static void setqos (dds_qos_t *q, size_t i, bool isrd, bool create)
     }
     else
     {
-      char buf[20];
+      char buf[23];
       snprintf (buf, sizeof (buf), "ud%zu%c", i, isrd ? 'r' : 'w');
       dds_qset_userdata (q, buf, strlen (buf));
       snprintf (buf, sizeof (buf), "td%zu", (size_t) 0);
