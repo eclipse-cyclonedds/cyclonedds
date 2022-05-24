@@ -176,7 +176,16 @@ void *ddsrt_fibheap_extract_min (const ddsrt_fibheap_def_t *fhdef, ddsrt_fibheap
             ddsrt_fibheap_node_t * const n1 = n->next;
 
             /* if n is first root with this high a degree, there's certainly
-               not going to be another root to merge with yet */
+               not going to be another root to merge with yet
+
+               GCC 12 static analyzer warns that roots[n->degree] may be
+               uninitialized, but that is clearly wrong, it is just lazily
+               initialized a few lines down.  Always initializing all of
+               roots[] would take care of that, but high-degree nodes are
+               rather rare and extract_min is called very often. */
+#if __GNUC__ >= 12
+            DDSRT_WARNING_GNUC_OFF(analyzer-use-of-uninitialized-value)
+#endif
             while (n->degree < min_degree_noninit && roots[n->degree]) {
                 unsigned const degree = n->degree;
                 ddsrt_fibheap_node_t *u, *v;
@@ -190,6 +199,9 @@ void *ddsrt_fibheap_extract_min (const ddsrt_fibheap_def_t *fhdef, ddsrt_fibheap
                 ddsrt_fibheap_add_as_child (u, v);
                 n = u;
             }
+#if __GNUC__ >= 12
+            DDSRT_WARNING_GNUC_ON(analyzer-use-of-uninitialized-value)
+#endif
 
             /* n may have changed, hence need to retest whether or not
                enough of roots has been initialised -- note that
