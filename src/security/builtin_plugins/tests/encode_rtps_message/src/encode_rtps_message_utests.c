@@ -962,6 +962,7 @@ static void encode_rtps_message_sign(DDS_Security_CryptoTransformKind_Enum trans
   /* Now call the function. */
 
   buffer = &plain_buffer;
+  encoded_buffer._buffer = NULL;
   while ((uint32_t) index != reader_list._length)
   {
     result = crypto->crypto_transform->encode_rtps_message(
@@ -979,12 +980,17 @@ static void encode_rtps_message_sign(DDS_Security_CryptoTransformKind_Enum trans
     }
 
     CU_ASSERT_FATAL(result);
+    assert(result);
     CU_ASSERT(exception.code == 0);
     CU_ASSERT(exception.message == NULL);
+
+    if (index == 0)
+      assert (encoded_buffer._buffer != NULL);
 
     reset_exception(&exception);
     buffer = NULL;
   }
+  assert (encoded_buffer._buffer != NULL);
 
   result = check_encoded_data(&encoded_buffer, encoded, &header, &footer, &data);
   CU_ASSERT_FATAL(result);
