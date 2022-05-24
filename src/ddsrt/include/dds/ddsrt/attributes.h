@@ -42,6 +42,12 @@
 # define ddsrt_attribute_malloc
 #endif
 
+#if ddsrt_has_attribute(malloc) && ddsrt_gnuc >= 120000
+# define ddsrt_attribute_malloc2(params) __attribute__ ((__malloc__ params))
+#else
+# define ddsrt_attribute_malloc2(params)
+#endif
+
 #if ddsrt_has_attribute(unused)
 # define ddsrt_attribute_unused __attribute__((__unused__))
 #else
