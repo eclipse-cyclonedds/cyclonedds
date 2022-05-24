@@ -324,3 +324,56 @@ CU_Test(idl_file, relative)
       free(rel);
   }
 }
+
+
+typedef struct out_file_test{
+  const char *path;
+  const char *output_dir;
+  const char *base_dir;
+  const char *out_ext;
+  idl_retcode_t ret;
+  const char *expected_out;
+} out_file_test_t;
+
+static void test_out_file(const out_file_test_t test)
+{
+  char *out = NULL;
+  idl_retcode_t ret = idl_generate_out_file(test.path, test.output_dir, test.base_dir, test.out_ext, &out, true);
+
+  CU_ASSERT_EQUAL(ret, test.ret);
+
+  if(ret != IDL_RETCODE_BAD_PARAMETER){
+    CU_ASSERT_STRING_EQUAL(out, test.expected_out);
+  }
+
+  if (out)
+    free(out);
+}
+
+CU_Test(idl_file, out_file_generation)
+{
+  const out_file_test_t out_tests[] = {
+      {"a/b.idl",            NULL,    NULL,         NULL, IDL_RETCODE_OK,            "a/b"},
+      {"a/b.idl",            NULL,    NULL,         "c",  IDL_RETCODE_OK,            "a/b.c"},
+      {"a/b.idl",            "c",     NULL,         NULL, IDL_RETCODE_OK,            "c/a/b"},
+      {ROOT"a/b.idl",        NULL,    ROOT"a",      "c",  IDL_RETCODE_OK,            "b.c"},
+      {ROOT"a/b.idl",        "f",     ROOT"a",      "c",  IDL_RETCODE_OK,            "f/b.c"},
+      {ROOT"a/b.idl",        NULL,    NULL,         NULL, IDL_RETCODE_OK,            "b"},
+      {ROOT"a/b.idl",        NULL,    NULL,         "c",  IDL_RETCODE_OK,            "b.c"},
+      {"a/b.idl",            "c",     NULL,         NULL, IDL_RETCODE_OK,            "c/a/b"},
+      {ROOT"a/b.idl",        "c",     NULL,         NULL, IDL_RETCODE_OK,            "c/b"},
+      {"a/b.idl",            ROOT"c", NULL,         NULL, IDL_RETCODE_OK,            ROOT"c/a/b"},
+      {"a/b/c.idl",          "..",    NULL,         NULL, IDL_RETCODE_OK,            "../a/b/c"},
+      {"a/b/c.idl",          "../d",  NULL,         NULL, IDL_RETCODE_OK,            "../d/a/b/c"},
+      {"a/b/c.idl",          ".",     NULL,         NULL, IDL_RETCODE_OK,            "./a/b/c"},
+      {ROOT"a/b/c/file.idl", ".",     ROOT"a/b/",   NULL, IDL_RETCODE_OK,            "./c/file"},
+      {ROOT"a/b/c/file.idl", "..",    ROOT"a/b/",   "h",  IDL_RETCODE_OK,            "../c/file.h"},
+      {ROOT"a/b/c/file.idl", ".",     ROOT"a/b/",   NULL, IDL_RETCODE_OK,            "./c/file"},
+      {ROOT"a/b/c/file.idl", NULL,    ROOT"a/b/",   NULL, IDL_RETCODE_OK,            "c/file"},
+      {ROOT"a/b/c/file.idl", ".",     ROOT"a/b/d/", NULL, IDL_RETCODE_BAD_PARAMETER, "./c/file"},
+      {ROOT"a/b/c/file.idl", NULL,    ROOT"a/b/d/", NULL, IDL_RETCODE_BAD_PARAMETER, "c/file"}
+  };
+
+  for (size_t i = 0; i < sizeof(out_tests)/sizeof(out_tests[0]); i++)
+    test_out_file(out_tests[i]);
+}
