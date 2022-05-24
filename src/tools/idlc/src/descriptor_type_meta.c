@@ -1612,6 +1612,18 @@ xtypes_typeinfo_fini (struct DDS_XTypes_TypeInformation *type_information)
     idl_free (type_information->complete.dependent_typeids._buffer);
 }
 
+static void
+generate_type_meta_ser_impl_free_mapping_buffers (
+  DDS_XTypes_TypeMapping *mapping)
+{
+  if (mapping->identifier_complete_minimal._buffer)
+    idl_free (mapping->identifier_complete_minimal._buffer);
+  if (mapping->identifier_object_pair_complete._buffer)
+    idl_free (mapping->identifier_object_pair_complete._buffer);
+  if (mapping->identifier_object_pair_minimal._buffer)
+    idl_free (mapping->identifier_object_pair_minimal._buffer);
+}
+
 static idl_retcode_t
 generate_type_meta_ser_impl (
   const idl_pstate_t *pstate,
@@ -1687,20 +1699,17 @@ generate_type_meta_ser_impl (
 
   if ((ret = xcdr2_ser (&mapping, &DDS_XTypes_TypeMapping_desc, os_typemap)) < 0)
     goto err_map_ser;
-  ret = IDL_RETCODE_OK;
+
+  generate_type_meta_ser_impl_free_mapping_buffers (&mapping);
+  descriptor_type_meta_fini (&dtm);
+  return IDL_RETCODE_OK;
 
 err_map_ser:
 err_map:
-  if (mapping.identifier_complete_minimal._buffer)
-    idl_free (mapping.identifier_complete_minimal._buffer);
-  if (mapping.identifier_object_pair_complete._buffer)
-    idl_free (mapping.identifier_object_pair_complete._buffer);
-  if (mapping.identifier_object_pair_minimal._buffer)
-    idl_free (mapping.identifier_object_pair_minimal._buffer);
+  generate_type_meta_ser_impl_free_mapping_buffers (&mapping);
 err_dep_ser:
 err_dep:
-  if (ret)
-    xtypes_typeinfo_fini (type_information);
+  xtypes_typeinfo_fini (type_information);
 err_gen:
   descriptor_type_meta_fini (&dtm);
   return ret;
