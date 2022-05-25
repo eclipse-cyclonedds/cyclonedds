@@ -269,6 +269,37 @@ err_file:
   return ret;
 }
 
+static idl_file_t *idlc_parse_make_file (const char *file)
+{
+  idl_file_t *f;
+  if ((f = idl_malloc(sizeof(*f))) == NULL)
+    return NULL;
+  f->next = NULL;
+  if (!(f->name = idl_strdup(file))) {
+    idl_free(f);
+    return NULL;
+  }
+  return f;
+}
+
+static idl_source_t *idlc_parse_make_source (idl_position_t *position, idl_file_t *paths, idl_file_t *files)
+{
+  idl_source_t *source;
+  if ((source = idl_malloc (sizeof (*source))) == NULL)
+    return NULL;
+  source->parent = NULL;
+  source->previous = source->next = NULL;
+  source->includes = NULL;
+  source->additional_directory = false;
+  source->path = paths;
+  source->file = files;
+  position->source = source;
+  position->file = (const idl_file_t *) files;
+  position->line = 1;
+  position->column = 1;
+  return source;
+}
+
 static idl_retcode_t idlc_parse(const idl_builtin_annotation_t ** generator_annotations)
 {
   idl_retcode_t ret = IDL_RETCODE_OK;
@@ -280,8 +311,8 @@ static idl_retcode_t idlc_parse(const idl_builtin_annotation_t ** generator_anno
     flags |= IDL_FLAG_CASE_SENSITIVE;
 
   if(config.compile) {
-    idl_source_t *source;
     if ((ret = idl_create_pstate(flags, generator_annotations == NULL ? NULL : *generator_annotations, &pstate))) {
+      pstate = NULL;
       return ret;
     }
     assert(config.file);
@@ -289,33 +320,21 @@ static idl_retcode_t idlc_parse(const idl_builtin_annotation_t ** generator_anno
       if (ret == IDL_RETCODE_NO_ENTRY)
         idl_error(pstate, NULL, "could not open file at location: %s", config.file);
       idl_delete_pstate(pstate);
+      pstate = NULL;
       return ret;
     }
-    if (!(pstate->files = idl_malloc(sizeof(*pstate->files)))) {
+    if ((pstate->files = idlc_parse_make_file (config.file)) == NULL)
+    {
       idl_delete_pstate(pstate);
+      pstate = NULL;
       return IDL_RETCODE_NO_MEMORY;
     }
-    pstate->files->next = NULL;
-    if (!(pstate->files->name = idl_strdup(config.file))) {
+    if ((pstate->sources = idlc_parse_make_source (&pstate->scanner.position, pstate->paths, pstate->files)) == NULL)
+    {
       idl_delete_pstate(pstate);
+      pstate = NULL;
       return IDL_RETCODE_NO_MEMORY;
     }
-    if (!(source = idl_malloc(sizeof(*source)))) {
-      idl_delete_pstate(pstate);
-      return IDL_RETCODE_NO_MEMORY;
-    }
-    source->parent = NULL;
-    source->previous = source->next = NULL;
-    source->includes = NULL;
-    source->additional_directory = false;
-    source->path = pstate->paths;
-    source->file = pstate->files;
-    pstate->sources = source;
-    /* populate first source file */
-    pstate->scanner.position.source = source;
-    pstate->scanner.position.file = (const idl_file_t *)pstate->files;
-    pstate->scanner.position.line = 1;
-    pstate->scanner.position.column = 1;
     pstate->config.flags |= IDL_WRITE;
     pstate->config.default_extensibility = config.default_extensibility;
     pstate->config.default_nested = config.default_nested;
@@ -370,6 +389,7 @@ static idl_retcode_t idlc_parse(const idl_builtin_annotation_t ** generator_anno
   }
 
   if (ret == IDL_RETCODE_OK && config.compile) {
+    assert(pstate);
     ret = idl_parse(pstate);
     assert(ret != IDL_RETCODE_NEED_REFILL);
     if (ret == IDL_RETCODE_OK) {
@@ -388,6 +408,11 @@ static idl_retcode_t idlc_parse(const idl_builtin_annotation_t ** generator_anno
     }
   }
 
+  if (ret != IDL_RETCODE_OK)
+  {
+    idl_delete_pstate(pstate);
+    pstate = NULL;
+  }
   return ret;
 }
 
@@ -742,7 +767,6 @@ int main(int argc, char *argv[])
         idl_free(generator_config.output_dir);
       if(generator_config.base_dir)
         idl_free(generator_config.base_dir);
-      idl_delete_pstate(pstate);
       if (ret) {
         fprintf(stderr, "Failed to compile '%s'\n", config.file);
         goto err_generate;
@@ -760,5 +784,6 @@ err_alloc_opts:
     idl_free(config.disable_warnings.list);
   idl_free(config.argv);
 err_argv:
+  idl_delete_pstate(pstate);
   return exit_code;
 }
