@@ -24,7 +24,6 @@
 #include "idl/tree.h"
 #include "idl/string.h"
 #include "idl/processor.h"
-#include "idl/file.h"
 #include "idl/version.h"
 #include "idl/stream.h"
 
@@ -36,6 +35,7 @@
 #include "plugin.h"
 #include "options.h"
 #include "descriptor_type_meta.h"
+#include "file.h"
 
 #if 0
 #define IDLC_DEBUG_PREPROCESSOR (1u<<2)
@@ -54,6 +54,8 @@ struct idlc_disable_warning_list
 static struct {
   char *file; /* path of input file or "-" for STDIN */
   const char *lang;
+  const char *output_dir; /* path to write completed files */
+  const char* base_dir; /* Path to start reconstruction of dir structure */
   int compile;
   int preprocess;
   int keylist;
@@ -564,6 +566,15 @@ static const idlc_option_t *compopts[] = {
     "Enable or disable warnings. Possible values are: no-implicit-extensibility, "
     "no-extra-token-directive, no-unknown_escape_seq, no-inherit-appendable, "
     "no-eof-newline, no-enum-consecutive. " },
+  &(idlc_option_t){
+    IDLC_STRING, { .string = &config.output_dir }, 'o', "", "<directory>",
+    "Set the output directory for compiled files." },
+  &(idlc_option_t){
+    IDLC_STRING, { .string = &config.base_dir }, 'b', "", "<directory>",
+    "Enable directory reconstruction starting from <base_dir> "
+    "Attempts to recreate directory structure matching input. "
+    "Use without the -o option will compile IDL files in-place. "
+    "Fail-silent if root_dir is not a parent of input" },
 #ifdef DDS_HAS_TYPE_DISCOVERY
   &(idlc_option_t){
     IDLC_FLAG, { .flag = &config.no_type_info }, 't', "", "",
@@ -697,6 +708,19 @@ int main(int argc, char *argv[])
     } else if (config.compile) {
       idlc_generator_config_t generator_config;
       memset(&generator_config, 0, sizeof(generator_config));
+
+      // Duplicate/Untaint the output dir to keep header guards neat
+      if(config.output_dir) {
+        if(!(generator_config.output_dir = idl_strdup(config.output_dir)))
+          goto err_generate;
+        if(idl_untaint_path(generator_config.output_dir) < 0)
+          goto err_generate;
+      }
+      // Root dir must be normalized because relativity comparison will be done
+      if(config.base_dir) {
+        if(idl_normalize_path(config.base_dir, &generator_config.base_dir) < 0)
+          goto err_generate;
+      }
 #ifdef DDS_HAS_TYPE_DISCOVERY
       if(!config.no_type_info)
         generator_config.generate_type_info = true;
@@ -704,6 +728,11 @@ int main(int argc, char *argv[])
 #endif // DDS_HAS_TYPE_DISCOVERY
       if (gen.generate)
         ret = gen.generate(pstate, &generator_config);
+
+      if(generator_config.output_dir)
+        free(generator_config.output_dir);
+      if(generator_config.base_dir)
+        free(generator_config.base_dir);
       idl_delete_pstate(pstate);
       if (ret) {
         fprintf(stderr, "Failed to compile '%s'\n", config.file);

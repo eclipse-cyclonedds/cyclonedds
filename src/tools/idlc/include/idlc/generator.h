@@ -28,6 +28,9 @@ extern "C" {
 
 typedef struct idlc_generator_config idlc_generator_config_t;
 struct idlc_generator_config  {
+  char *output_dir; /* path to write completed files */
+  char* base_dir; /* Path to start reconstruction of dir structure */
+
   /** Flag to indicate if xtypes type information is included in the generated types */
   bool generate_type_info;
 
