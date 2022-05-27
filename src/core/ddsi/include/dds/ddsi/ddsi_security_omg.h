@@ -1053,7 +1053,7 @@ decode_SecPrefix(
  * by the decrypted RTPS message. Then the normal sequence can continue
  * as if there was no encrypted data.
  *
- * @param[in]     ts1         Thread information.
+ * @param[in]     thrst         Thread information.
  * @param[in]     gv          Global information.
  * @param[in,out] rmsg        Message information.
  * @param[in,out] hdr         Message header.
@@ -1067,7 +1067,7 @@ decode_SecPrefix(
  * @retval NN_RTPS_MSG_STATE_ENCODED  Decoding succeeded.
  * @retval NN_RTPS_MSG_STATE_ERROR    Decoding failed.
  */
-nn_rtps_msg_state_t decode_rtps_message(struct thread_state1 * const ts1, struct ddsi_domaingv *gv, struct nn_rmsg **rmsg, Header_t **hdr, unsigned char **buff, size_t *sz, struct nn_rbufpool *rbpool, bool isstream);
+nn_rtps_msg_state_t decode_rtps_message(struct thread_state * const thrst, struct ddsi_domaingv *gv, struct nn_rmsg **rmsg, Header_t **hdr, unsigned char **buff, size_t *sz, struct nn_rbufpool *rbpool, bool isstream);
 
 /**
  * @brief Send the RTPS message securely.
@@ -1411,7 +1411,7 @@ decode_SecPrefix(
 
 DDS_INLINE_EXPORT inline nn_rtps_msg_state_t
 decode_rtps_message(
-  UNUSED_ARG(struct thread_state1 * const ts1),
+  UNUSED_ARG(struct thread_state * const thrst),
   UNUSED_ARG(struct ddsi_domaingv *gv),
   UNUSED_ARG(struct nn_rmsg **rmsg),
   UNUSED_ARG(Header_t **hdr),

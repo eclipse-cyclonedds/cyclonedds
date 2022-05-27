@@ -5664,11 +5664,11 @@ void purge_proxy_participants (struct ddsi_domaingv *gv, const ddsi_xlocator_t *
 {
   /* FIXME: check whether addr:port can't be reused for a new connection by the time we get here. */
   /* NOTE: This function exists for the sole purpose of cleaning up after closing a TCP connection in ddsi_tcp_close_conn and the state of the calling thread could be anything at this point. Because of that we do the unspeakable and toggle the thread state conditionally. We can't afford to have it in "asleep", as that causes a race with the garbage collector. */
-  struct thread_state1 * const ts1 = lookup_thread_state ();
+  struct thread_state * const thrst = lookup_thread_state ();
   struct entidx_enum_proxy_participant est;
   struct proxy_purge_data data;
 
-  thread_state_awake (ts1, gv);
+  thread_state_awake (thrst, gv);
   data.loc = loc;
   data.timestamp = ddsrt_time_wallclock();
   entidx_enum_proxy_participant_init (&est, gv->entity_index);
@@ -5680,7 +5680,7 @@ void purge_proxy_participants (struct ddsi_domaingv *gv, const ddsi_xlocator_t *
   if (delete_from_as_disc)
     remove_from_addrset (gv, gv->as_disc, loc);
 
-  thread_state_asleep (ts1);
+  thread_state_asleep (thrst);
 }
 
 int delete_proxy_participant_by_guid (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, ddsrt_wctime_t timestamp, int isimplicit)
@@ -5708,13 +5708,13 @@ int delete_proxy_participant_by_guid (struct ddsi_domaingv *gv, const struct dds
 
 uint64_t get_entity_instance_id (const struct ddsi_domaingv *gv, const struct ddsi_guid *guid)
 {
-  struct thread_state1 *ts1 = lookup_thread_state ();
+  struct thread_state *thrst = lookup_thread_state ();
   struct entity_common *e;
   uint64_t iid = 0;
-  thread_state_awake (ts1, gv);
+  thread_state_awake (thrst, gv);
   if ((e = entidx_lookup_guid_untyped (gv->entity_index, guid)) != NULL)
     iid = e->iid;
-  thread_state_asleep (ts1);
+  thread_state_asleep (thrst);
   return iid;
 }
 

@@ -804,11 +804,11 @@ static void wait_for_receive_threads (struct ddsi_domaingv *gv)
   }
   for (uint32_t i = 0; i < gv->n_recv_threads; i++)
   {
-    if (gv->recv_threads[i].ts)
+    if (gv->recv_threads[i].thrst)
     {
-      join_thread (gv->recv_threads[i].ts);
-      /* setting .ts to NULL helps in sanity checking */
-      gv->recv_threads[i].ts = NULL;
+      join_thread (gv->recv_threads[i].thrst);
+      /* setting .thrst to NULL helps in sanity checking */
+      gv->recv_threads[i].thrst = NULL;
     }
   }
   if (trigev)
@@ -962,7 +962,7 @@ static int setup_and_start_recv_threads (struct ddsi_domaingv *gv)
 
   for (uint32_t i = 0; i < MAX_RECV_THREADS; i++)
   {
-    gv->recv_threads[i].ts = NULL;
+    gv->recv_threads[i].thrst = NULL;
     gv->recv_threads[i].arg.mode = RTM_SINGLE;
     gv->recv_threads[i].arg.rbpool = NULL;
     gv->recv_threads[i].arg.gv = gv;
@@ -1018,7 +1018,7 @@ static int setup_and_start_recv_threads (struct ddsi_domaingv *gv)
         goto fail;
       }
     }
-    if (create_thread (&gv->recv_threads[i].ts, gv, gv->recv_threads[i].name, recv_thread, &gv->recv_threads[i].arg) != DDS_RETCODE_OK)
+    if (create_thread (&gv->recv_threads[i].thrst, gv, gv->recv_threads[i].name, recv_thread, &gv->recv_threads[i].arg) != DDS_RETCODE_OK)
     {
       GVERROR ("rtps_init: failed to start thread %s\n", gv->recv_threads[i].name);
       goto fail;
@@ -2078,7 +2078,7 @@ static void builtins_dqueue_ready_cb (void *varg)
 
 void rtps_stop (struct ddsi_domaingv *gv)
 {
-  struct thread_state1 * const ts1 = lookup_thread_state ();
+  struct thread_state * const thrst = lookup_thread_state ();
 
 #ifdef DDS_HAS_NETWORK_CHANNELS
   struct ddsi_config_channel_listelem * chptr;
@@ -2141,14 +2141,14 @@ void rtps_stop (struct ddsi_domaingv *gv)
     /* Clean up proxy readers, proxy writers and proxy
        participants. Deleting a proxy participants deletes all its
        readers and writers automatically */
-    thread_state_awake (ts1, gv);
+    thread_state_awake (thrst, gv);
     entidx_enum_proxy_participant_init (&est, gv->entity_index);
     while ((proxypp = entidx_enum_proxy_participant_next (&est)) != NULL)
     {
       delete_proxy_participant_by_guid (gv, &proxypp->e.guid, tnow, 1);
     }
     entidx_enum_proxy_participant_fini (&est);
-    thread_state_asleep (ts1);
+    thread_state_asleep (thrst);
   }
 
   {
@@ -2163,7 +2163,7 @@ void rtps_stop (struct ddsi_domaingv *gv)
        rwriters to get all SEDP and SPDP dispose+unregister messages
        out. FIXME: need to keep xevent thread alive for a while
        longer. */
-    thread_state_awake (ts1, gv);
+    thread_state_awake (thrst, gv);
     entidx_enum_writer_init (&est_wr, gv->entity_index);
     while ((wr = entidx_enum_writer_next (&est_wr)) != NULL)
     {
@@ -2171,7 +2171,7 @@ void rtps_stop (struct ddsi_domaingv *gv)
         delete_writer_nolinger (gv, &wr->e.guid);
     }
     entidx_enum_writer_fini (&est_wr);
-    thread_state_awake_to_awake_no_nest (ts1);
+    thread_state_awake_to_awake_no_nest (thrst);
     entidx_enum_reader_init (&est_rd, gv->entity_index);
     while ((rd = entidx_enum_reader_next (&est_rd)) != NULL)
     {
@@ -2179,7 +2179,7 @@ void rtps_stop (struct ddsi_domaingv *gv)
         delete_reader (gv, &rd->e.guid);
     }
     entidx_enum_reader_fini (&est_rd);
-    thread_state_awake_to_awake_no_nest (ts1);
+    thread_state_awake_to_awake_no_nest (thrst);
 #ifdef DDS_HAS_TOPIC_DISCOVERY
     struct entidx_enum_topic est_tp;
     struct topic *tp;
@@ -2187,7 +2187,7 @@ void rtps_stop (struct ddsi_domaingv *gv)
     while ((tp = entidx_enum_topic_next (&est_tp)) != NULL)
       delete_topic (gv, &tp->e.guid);
     entidx_enum_topic_fini (&est_tp);
-    thread_state_awake_to_awake_no_nest (ts1);
+    thread_state_awake_to_awake_no_nest (thrst);
 #endif
     entidx_enum_participant_init (&est_pp, gv->entity_index);
     while ((pp = entidx_enum_participant_next (&est_pp)) != NULL)
@@ -2195,7 +2195,7 @@ void rtps_stop (struct ddsi_domaingv *gv)
       delete_participant (gv, &pp->e.guid);
     }
     entidx_enum_participant_fini (&est_pp);
-    thread_state_asleep (ts1);
+    thread_state_asleep (thrst);
   }
 
   /* Stop background (handshake) processing in security implementation,

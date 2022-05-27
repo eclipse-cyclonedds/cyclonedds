@@ -2910,7 +2910,7 @@ static struct receiver_state *rst_cow_if_needed (int *rst_live, struct nn_rmsg *
 
 static int handle_submsg_sequence
 (
-  struct thread_state1 * const ts1,
+  struct thread_state * const thrst,
   struct ddsi_domaingv *gv,
   ddsi_tran_conn_t conn,
   const ddsi_locator_t *srcloc,
@@ -2965,7 +2965,7 @@ static int handle_submsg_sequence
   timestamp = DDSRT_WCTIME_INVALID;
   defer_hb_state_init (&defer_hb_state);
   assert (thread_is_asleep ());
-  thread_state_awake_fixed_domain (ts1);
+  thread_state_awake_fixed_domain (thrst);
   enum validation_result vr = (len >= sizeof (SubmessageHeader_t)) ? VR_NOT_UNDERSTOOD : VR_MALFORMED;
   while (vr != VR_MALFORMED && submsg <= (end - sizeof (SubmessageHeader_t)))
   {
@@ -3004,7 +3004,7 @@ static int handle_submsg_sequence
       break;
     }
 
-    thread_state_awake_to_awake_no_nest (ts1);
+    thread_state_awake_to_awake_no_nest (thrst);
     switch (sm->smhdr.submessageId)
     {
       case SMID_ACKNACK: {
@@ -3152,7 +3152,7 @@ static int handle_submsg_sequence
     GVTRACE ("short (size %"PRIuSIZE" exp %p act %p)", submsg_size, (void *) submsg, (void *) end);
     vr = VR_MALFORMED;
   }
-  thread_state_asleep (ts1);
+  thread_state_asleep (thrst);
   assert (thread_is_asleep ());
   defer_hb_state_fini (gv, &defer_hb_state);
   if (deferred_wakeup)
@@ -3166,7 +3166,7 @@ static int handle_submsg_sequence
   }
 }
 
-static void handle_rtps_message (struct thread_state1 * const ts1, struct ddsi_domaingv *gv, ddsi_tran_conn_t conn, const ddsi_guid_prefix_t *guidprefix, struct nn_rbufpool *rbpool, struct nn_rmsg *rmsg, size_t sz, unsigned char *msg, const ddsi_locator_t *srcloc)
+static void handle_rtps_message (struct thread_state * const thrst, struct ddsi_domaingv *gv, ddsi_tran_conn_t conn, const ddsi_guid_prefix_t *guidprefix, struct nn_rbufpool *rbpool, struct nn_rmsg *rmsg, size_t sz, unsigned char *msg, const ddsi_locator_t *srcloc)
 {
   Header_t *hdr = (Header_t *) msg;
   assert (thread_is_asleep ());
@@ -3193,20 +3193,20 @@ static void handle_rtps_message (struct thread_state1 * const ts1, struct ddsi_d
       GVTRACE ("HDR(%"PRIx32":%"PRIx32":%"PRIx32" vendor %d.%d) len %lu from %s\n",
                PGUIDPREFIX (hdr->guid_prefix), hdr->vendorid.id[0], hdr->vendorid.id[1], (unsigned long) sz, addrstr);
     }
-    nn_rtps_msg_state_t res = decode_rtps_message (ts1, gv, &rmsg, &hdr, &msg, &sz, rbpool, conn->m_stream);
+    nn_rtps_msg_state_t res = decode_rtps_message (thrst, gv, &rmsg, &hdr, &msg, &sz, rbpool, conn->m_stream);
     if (res != NN_RTPS_MSG_STATE_ERROR)
     {
-      handle_submsg_sequence (ts1, gv, conn, srcloc, ddsrt_time_wallclock (), ddsrt_time_elapsed (), &hdr->guid_prefix, guidprefix, msg, (size_t) sz, msg + RTPS_MESSAGE_HEADER_SIZE, rmsg, res == NN_RTPS_MSG_STATE_ENCODED);
+      handle_submsg_sequence (thrst, gv, conn, srcloc, ddsrt_time_wallclock (), ddsrt_time_elapsed (), &hdr->guid_prefix, guidprefix, msg, (size_t) sz, msg + RTPS_MESSAGE_HEADER_SIZE, rmsg, res == NN_RTPS_MSG_STATE_ENCODED);
     }
   }
 }
 
-void ddsi_handle_rtps_message (struct thread_state1 * const ts1, struct ddsi_domaingv *gv, ddsi_tran_conn_t conn, const ddsi_guid_prefix_t *guidprefix, struct nn_rbufpool *rbpool, struct nn_rmsg *rmsg, size_t sz, unsigned char *msg, const ddsi_locator_t *srcloc)
+void ddsi_handle_rtps_message (struct thread_state * const thrst, struct ddsi_domaingv *gv, ddsi_tran_conn_t conn, const ddsi_guid_prefix_t *guidprefix, struct nn_rbufpool *rbpool, struct nn_rmsg *rmsg, size_t sz, unsigned char *msg, const ddsi_locator_t *srcloc)
 {
-  handle_rtps_message (ts1, gv, conn, guidprefix, rbpool, rmsg, sz, msg, srcloc);
+  handle_rtps_message (thrst, gv, conn, guidprefix, rbpool, rmsg, sz, msg, srcloc);
 }
 
-static bool do_packet (struct thread_state1 * const ts1, struct ddsi_domaingv *gv, ddsi_tran_conn_t conn, const ddsi_guid_prefix_t *guidprefix, struct nn_rbufpool *rbpool)
+static bool do_packet (struct thread_state * const thrst, struct ddsi_domaingv *gv, ddsi_tran_conn_t conn, const ddsi_guid_prefix_t *guidprefix, struct nn_rbufpool *rbpool)
 {
   /* UDP max packet size is 64kB */
 
@@ -3294,7 +3294,7 @@ static bool do_packet (struct thread_state1 * const ts1, struct ddsi_domaingv *g
   if (sz > 0 && !gv->deaf)
   {
     nn_rmsg_setsize (rmsg, (uint32_t) sz);
-    handle_rtps_message(ts1, gv, conn, guidprefix, rbpool, rmsg, (size_t) sz, buff, &srcloc);
+    handle_rtps_message(thrst, gv, conn, guidprefix, rbpool, rmsg, (size_t) sz, buff, &srcloc);
   }
   nn_rmsg_commit (rmsg);
   return (sz > 0);
@@ -3358,13 +3358,13 @@ static void local_participant_set_fini (struct local_participant_set *lps)
   ddsrt_free (lps->ps);
 }
 
-static void rebuild_local_participant_set (struct thread_state1 * const ts1, struct ddsi_domaingv *gv, struct local_participant_set *lps)
+static void rebuild_local_participant_set (struct thread_state * const thrst, struct ddsi_domaingv *gv, struct local_participant_set *lps)
 {
   struct entidx_enum_participant est;
   struct participant *pp;
   unsigned nps_alloc;
   GVTRACE ("pp set gen changed: local %"PRIu32" global %"PRIu32"\n", lps->gen, ddsrt_atomic_ld32 (&gv->participant_set_generation));
-  thread_state_awake_fixed_domain (ts1);
+  thread_state_awake_fixed_domain (thrst);
  restart:
   lps->gen = ddsrt_atomic_ld32 (&gv->participant_set_generation);
   /* Actual local set of participants may never be older than the
@@ -3409,7 +3409,7 @@ static void rebuild_local_participant_set (struct thread_state1 * const ts1, str
     GVTRACE ("  set changed - restarting\n");
     goto restart;
   }
-  thread_state_asleep (ts1);
+  thread_state_asleep (thrst);
 
   /* The definition of the hash enumeration allows visiting one
      participant multiple times, so guard against that, too.  Note
@@ -3461,7 +3461,7 @@ void trigger_recv_threads (const struct ddsi_domaingv *gv)
 {
   for (uint32_t i = 0; i < gv->n_recv_threads; i++)
   {
-    if (gv->recv_threads[i].ts == NULL)
+    if (gv->recv_threads[i].thrst == NULL)
       continue;
     switch (gv->recv_threads[i].arg.mode)
     {
@@ -3488,7 +3488,7 @@ void trigger_recv_threads (const struct ddsi_domaingv *gv)
 
 uint32_t recv_thread (void *vrecv_thread_arg)
 {
-  struct thread_state1 * const ts1 = lookup_thread_state ();
+  struct thread_state * const thrst = lookup_thread_state ();
   struct recv_thread_arg *recv_thread_arg = vrecv_thread_arg;
   struct ddsi_domaingv * const gv = recv_thread_arg->gv;
   struct nn_rbufpool *rbpool = recv_thread_arg->rbpool;
@@ -3502,7 +3502,7 @@ uint32_t recv_thread (void *vrecv_thread_arg)
     while (ddsrt_atomic_ld32 (&gv->rtps_keepgoing))
     {
       LOG_THREAD_CPUTIME (&gv->logconfig, next_thread_cputime);
-      (void) do_packet (ts1, gv, conn, NULL, rbpool);
+      (void) do_packet (thrst, gv, conn, NULL, rbpool);
     }
   }
   else
@@ -3559,7 +3559,7 @@ uint32_t recv_thread (void *vrecv_thread_arg)
       {
         /* first rebuild local participant set - unless someone's toggling "deafness", this
          only happens when the participant set has changed, so might as well rebuild it */
-        rebuild_local_participant_set (ts1, gv, &lps);
+        rebuild_local_participant_set (thrst, gv, &lps);
         os_sockWaitsetPurge (waitset, num_fixed);
         for (uint32_t i = 0; i < lps.nps; i++)
         {
@@ -3580,7 +3580,7 @@ uint32_t recv_thread (void *vrecv_thread_arg)
           else
             guid_prefix = &lps.ps[(unsigned)idx - num_fixed].guid_prefix;
           /* Process message and clean out connection if failed or closed */
-          if (!do_packet (ts1, gv, conn, guid_prefix, rbpool) && !conn->m_connless)
+          if (!do_packet (thrst, gv, conn, guid_prefix, rbpool) && !conn->m_connless)
             ddsi_conn_free (conn);
         }
       }

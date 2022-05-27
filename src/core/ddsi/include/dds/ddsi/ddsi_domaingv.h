@@ -223,12 +223,12 @@ struct ddsi_domaingv {
   uint32_t n_recv_threads;
   struct recv_thread {
     const char *name;
-    struct thread_state1 *ts;
+    struct thread_state *thrst;
     struct recv_thread_arg arg;
   } recv_threads[MAX_RECV_THREADS];
 
   /* Listener thread for connection based transports */
-  struct thread_state1 *listen_ts;
+  struct thread_state *listen_ts;
 
   /* Flag cleared when stopping (receive threads). FIXME. */
   ddsrt_atomic_uint32_t rtps_keepgoing;
@@ -273,7 +273,7 @@ struct ddsi_domaingv {
 
 #ifndef DDS_HAS_NETWORK_CHANNELS
   uint32_t networkQueueId;
-  struct thread_state1 *channel_reader_ts;
+  struct thread_state *channel_reader_thrst;
 
   /* Application data gets its own delivery queue */
   struct nn_dqueue *user_dqueue;
@@ -307,7 +307,7 @@ struct ddsi_domaingv {
   struct nn_xpack *sendq_head;
   struct nn_xpack *sendq_tail;
   int sendq_stop;
-  struct thread_state1 *sendq_ts;
+  struct thread_state *sendq_ts;
   bool sendq_running;
   ddsrt_mutex_t sendq_running_lock;
 

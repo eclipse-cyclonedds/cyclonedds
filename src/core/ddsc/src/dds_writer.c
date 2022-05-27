@@ -182,11 +182,11 @@ static void dds_writer_close (dds_entity *e)
 {
   struct dds_writer * const wr = (struct dds_writer *) e;
   struct ddsi_domaingv * const gv = &e->m_domain->gv;
-  struct thread_state1 * const ts1 = lookup_thread_state ();
-  thread_state_awake (ts1, gv);
+  struct thread_state * const thrst = lookup_thread_state ();
+  thread_state_awake (thrst, gv);
   nn_xpack_send (wr->m_xp, false);
   (void) delete_writer (gv, &e->m_guid);
-  thread_state_asleep (ts1);
+  thread_state_asleep (thrst);
 
   ddsrt_mutex_lock (&e->m_mutex);
   while (wr->m_wr != NULL)

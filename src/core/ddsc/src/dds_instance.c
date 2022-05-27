@@ -66,7 +66,7 @@ static void dds_instance_remove (struct dds_domain *dom, const dds_writer *write
 
 dds_return_t dds_register_instance (dds_entity_t writer, dds_instance_handle_t *handle, const void *data)
 {
-  struct thread_state1 * const ts1 = lookup_thread_state ();
+  struct thread_state * const thrst = lookup_thread_state ();
   dds_writer *wr;
   dds_return_t ret;
 
@@ -76,7 +76,7 @@ dds_return_t dds_register_instance (dds_entity_t writer, dds_instance_handle_t *
   if ((ret = dds_writer_lock (writer, &wr)) != DDS_RETCODE_OK)
     return ret;
 
-  thread_state_awake (ts1, &wr->m_entity.m_domain->gv);
+  thread_state_awake (thrst, &wr->m_entity.m_domain->gv);
   struct ddsi_tkmap_instance * const inst = dds_instance_find (wr, data, true);
   if (inst == NULL)
     ret = DDS_RETCODE_BAD_PARAMETER;
@@ -85,7 +85,7 @@ dds_return_t dds_register_instance (dds_entity_t writer, dds_instance_handle_t *
     *handle = inst->m_iid;
     ret = DDS_RETCODE_OK;
   }
-  thread_state_asleep (ts1);
+  thread_state_asleep (thrst);
   dds_writer_unlock (wr);
   return ret;
 }
@@ -102,7 +102,7 @@ dds_return_t dds_unregister_instance_ih (dds_entity_t writer, dds_instance_handl
 
 dds_return_t dds_unregister_instance_ts (dds_entity_t writer, const void *data, dds_time_t timestamp)
 {
-  struct thread_state1 * const ts1 = lookup_thread_state ();
+  struct thread_state * const thrst = lookup_thread_state ();
   dds_return_t ret;
   bool autodispose = true;
   dds_write_action action = DDS_WR_ACTION_UNREGISTER;
@@ -117,21 +117,21 @@ dds_return_t dds_unregister_instance_ts (dds_entity_t writer, const void *data, 
   if (wr->m_entity.m_qos)
     (void) dds_qget_writer_data_lifecycle (wr->m_entity.m_qos, &autodispose);
 
-  thread_state_awake (ts1, &wr->m_entity.m_domain->gv);
+  thread_state_awake (thrst, &wr->m_entity.m_domain->gv);
   if (autodispose)
   {
     dds_instance_remove (wr->m_entity.m_domain, wr, data, DDS_HANDLE_NIL);
     action |= DDS_WR_DISPOSE_BIT;
   }
   ret = dds_write_impl (wr, data, timestamp, action);
-  thread_state_asleep (ts1);
+  thread_state_asleep (thrst);
   dds_writer_unlock (wr);
   return ret;
 }
 
 dds_return_t dds_unregister_instance_ih_ts (dds_entity_t writer, dds_instance_handle_t handle, dds_time_t timestamp)
 {
-  struct thread_state1 * const ts1 = lookup_thread_state ();
+  struct thread_state * const thrst = lookup_thread_state ();
   dds_return_t ret = DDS_RETCODE_OK;
   bool autodispose = true;
   dds_write_action action = DDS_WR_ACTION_UNREGISTER;
@@ -144,7 +144,7 @@ dds_return_t dds_unregister_instance_ih_ts (dds_entity_t writer, dds_instance_ha
   if (wr->m_entity.m_qos)
     (void) dds_qget_writer_data_lifecycle (wr->m_entity.m_qos, &autodispose);
 
-  thread_state_awake (ts1, &wr->m_entity.m_domain->gv);
+  thread_state_awake (thrst, &wr->m_entity.m_domain->gv);
   if (autodispose)
   {
     dds_instance_remove (wr->m_entity.m_domain, wr, NULL, handle);
@@ -161,24 +161,24 @@ dds_return_t dds_unregister_instance_ih_ts (dds_entity_t writer, dds_instance_ha
     ret = dds_write_impl (wr, sample, timestamp, action);
     ddsi_sertype_free_sample (tp, sample, DDS_FREE_ALL);
   }
-  thread_state_asleep (ts1);
+  thread_state_asleep (thrst);
   dds_writer_unlock (wr);
   return ret;
 }
 
 dds_return_t dds_writedispose_ts (dds_entity_t writer, const void *data, dds_time_t timestamp)
 {
-  struct thread_state1 * const ts1 = lookup_thread_state ();
+  struct thread_state * const thrst = lookup_thread_state ();
   dds_return_t ret;
   dds_writer *wr;
 
   if ((ret = dds_writer_lock (writer, &wr)) != DDS_RETCODE_OK)
     return ret;
 
-  thread_state_awake (ts1, &wr->m_entity.m_domain->gv);
+  thread_state_awake (thrst, &wr->m_entity.m_domain->gv);
   if ((ret = dds_write_impl (wr, data, timestamp, DDS_WR_ACTION_WRITE_DISPOSE)) == DDS_RETCODE_OK)
     dds_instance_remove (wr->m_entity.m_domain, wr, data, DDS_HANDLE_NIL);
-  thread_state_asleep (ts1);
+  thread_state_asleep (thrst);
   dds_writer_unlock (wr);
   return ret;
 }
@@ -196,7 +196,7 @@ static dds_return_t dds_dispose_impl (dds_writer *wr, const void *data, dds_inst
 
 dds_return_t dds_dispose_ts (dds_entity_t writer, const void *data, dds_time_t timestamp)
 {
-  struct thread_state1 * const ts1 = lookup_thread_state ();
+  struct thread_state * const thrst = lookup_thread_state ();
   dds_return_t ret;
   dds_writer *wr;
 
@@ -206,16 +206,16 @@ dds_return_t dds_dispose_ts (dds_entity_t writer, const void *data, dds_time_t t
   if ((ret = dds_writer_lock (writer, &wr)) != DDS_RETCODE_OK)
     return ret;
 
-  thread_state_awake (ts1, &wr->m_entity.m_domain->gv);
+  thread_state_awake (thrst, &wr->m_entity.m_domain->gv);
   ret = dds_dispose_impl (wr, data, DDS_HANDLE_NIL, timestamp);
-  thread_state_asleep (ts1);
+  thread_state_asleep (thrst);
   dds_writer_unlock(wr);
   return ret;
 }
 
 dds_return_t dds_dispose_ih_ts (dds_entity_t writer, dds_instance_handle_t handle, dds_time_t timestamp)
 {
-  struct thread_state1 * const ts1 = lookup_thread_state ();
+  struct thread_state * const thrst = lookup_thread_state ();
   dds_return_t ret;
   dds_writer *wr;
 
@@ -223,7 +223,7 @@ dds_return_t dds_dispose_ih_ts (dds_entity_t writer, dds_instance_handle_t handl
     return ret;
 
   struct ddsi_tkmap_instance *tk;
-  thread_state_awake (ts1, &wr->m_entity.m_domain->gv);
+  thread_state_awake (thrst, &wr->m_entity.m_domain->gv);
   if ((tk = ddsi_tkmap_find_by_id (wr->m_entity.m_domain->gv.m_tkmap, handle)) == NULL)
     ret = DDS_RETCODE_PRECONDITION_NOT_MET;
   else
@@ -235,14 +235,14 @@ dds_return_t dds_dispose_ih_ts (dds_entity_t writer, dds_instance_handle_t handl
     ret = dds_dispose_impl (wr, sample, handle, timestamp);
     ddsi_sertype_free_sample (tp, sample, DDS_FREE_ALL);
   }
-  thread_state_asleep (ts1);
+  thread_state_asleep (thrst);
   dds_writer_unlock (wr);
   return ret;
 }
 
 dds_instance_handle_t dds_lookup_instance (dds_entity_t entity, const void *data)
 {
-  struct thread_state1 * const ts1 = lookup_thread_state ();
+  struct thread_state * const thrst = lookup_thread_state ();
   const struct ddsi_sertype *sertype;
   struct ddsi_serdata *sd;
   dds_entity *w_or_r;
@@ -267,7 +267,7 @@ dds_instance_handle_t dds_lookup_instance (dds_entity_t entity, const void *data
   }
 
   dds_instance_handle_t ih;
-  thread_state_awake (ts1, &w_or_r->m_domain->gv);
+  thread_state_awake (thrst, &w_or_r->m_domain->gv);
   if ((sd = ddsi_serdata_from_sample (sertype, SDK_KEY, data)) == NULL)
     ih = DDS_HANDLE_NIL;
   else
@@ -275,7 +275,7 @@ dds_instance_handle_t dds_lookup_instance (dds_entity_t entity, const void *data
     ih = ddsi_tkmap_lookup (w_or_r->m_domain->gv.m_tkmap, sd);
     ddsi_serdata_unref (sd);
   }
-  thread_state_asleep (ts1);
+  thread_state_asleep (thrst);
   dds_entity_unlock (w_or_r);
   return ih;
 }
@@ -287,7 +287,7 @@ dds_instance_handle_t dds_instance_lookup (dds_entity_t entity, const void *data
 
 dds_return_t dds_instance_get_key (dds_entity_t entity, dds_instance_handle_t ih, void *data)
 {
-  struct thread_state1 * const ts1 = lookup_thread_state ();
+  struct thread_state * const thrst = lookup_thread_state ();
   dds_return_t ret;
   const dds_topic *topic;
   struct ddsi_tkmap_instance *tk;
@@ -315,7 +315,7 @@ dds_return_t dds_instance_get_key (dds_entity_t entity, dds_instance_handle_t ih
       return DDS_RETCODE_ILLEGAL_OPERATION;
   }
 
-  thread_state_awake (ts1, &e->m_domain->gv);
+  thread_state_awake (thrst, &e->m_domain->gv);
   if ((tk = ddsi_tkmap_find_by_id (e->m_domain->gv.m_tkmap, ih)) == NULL)
     ret = DDS_RETCODE_BAD_PARAMETER;
   else
@@ -327,7 +327,7 @@ dds_return_t dds_instance_get_key (dds_entity_t entity, dds_instance_handle_t ih
     ddsi_tkmap_instance_unref (e->m_domain->gv.m_tkmap, tk);
     ret = DDS_RETCODE_OK;
   }
-  thread_state_asleep (ts1);
+  thread_state_asleep (thrst);
   dds_entity_unlock (e);
   return ret;
 }

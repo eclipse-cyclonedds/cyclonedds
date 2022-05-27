@@ -725,10 +725,10 @@ dds_return_t write_hb_liveliness (struct ddsi_domaingv * const gv, struct ddsi_g
 {
   struct nn_xmsg *msg = NULL;
   struct whc_state whcst;
-  struct thread_state1 * const ts1 = lookup_thread_state ();
+  struct thread_state * const thrst = lookup_thread_state ();
   struct lease *lease;
 
-  thread_state_awake (ts1, gv);
+  thread_state_awake (thrst, gv);
   struct writer *wr = entidx_lookup_writer_guid (gv->entity_index, wr_guid);
   if (wr == NULL)
   {
@@ -750,7 +750,7 @@ dds_return_t write_hb_liveliness (struct ddsi_domaingv * const gv, struct ddsi_g
   ddsrt_mutex_unlock (&wr->e.lock);
   nn_xpack_addmsg (xp, msg, 0);
   nn_xpack_send (xp, true);
-  thread_state_asleep (ts1);
+  thread_state_asleep (thrst);
   return DDS_RETCODE_OK;
 }
 
@@ -1011,7 +1011,7 @@ static int writer_may_continue (const struct writer *wr, const struct whc_state 
   return (whcst->unacked_bytes <= wr->whc_low && !wr->retransmitting) || (wr->state != WRST_OPERATIONAL);
 }
 
-static dds_return_t throttle_writer (struct thread_state1 * const ts1, struct nn_xpack *xp, struct writer *wr)
+static dds_return_t throttle_writer (struct thread_state * const thrst, struct nn_xpack *xp, struct writer *wr)
 {
   /* Sleep (cond_wait) without updating the thread's vtime: the
      garbage collector won't free the writer while we leave it
@@ -1091,10 +1091,10 @@ static dds_return_t throttle_writer (struct thread_state1 * const ts1, struct nn
     result = DDS_RETCODE_TIMEOUT;
     if (reltimeout > 0)
     {
-      thread_state_asleep (ts1);
+      thread_state_asleep (thrst);
       if (ddsrt_cond_waitfor (&wr->throttle_cond, &wr->e.lock, reltimeout))
         result = DDS_RETCODE_OK;
-      thread_state_awake_domain_ok (ts1);
+      thread_state_awake_domain_ok (thrst);
       whc_get_state(wr->whc, &whcst);
     }
     if (result == DDS_RETCODE_TIMEOUT)
@@ -1203,7 +1203,7 @@ prd_is_deleting:
   return r;
 }
 
-static int write_sample_eot (struct thread_state1 * const ts1, struct nn_xpack *xp, struct writer *wr, struct ddsi_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk, int end_of_txn, int gc_allowed)
+static int write_sample_eot (struct thread_state * const thrst, struct nn_xpack *xp, struct writer *wr, struct ddsi_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk, int end_of_txn, int gc_allowed)
 {
   struct ddsi_domaingv const * const gv = wr->e.gv;
   int r;
@@ -1253,14 +1253,14 @@ static int write_sample_eot (struct thread_state1 * const ts1, struct nn_xpack *
       dds_return_t ores;
       assert(gc_allowed); /* also see beginning of the function */
       if (gv->config.prioritize_retransmit && wr->retransmitting)
-        ores = throttle_writer (ts1, xp, wr);
+        ores = throttle_writer (thrst, xp, wr);
       else
       {
         maybe_grow_whc (wr);
         if (whcst.unacked_bytes <= wr->whc_high)
           ores = DDS_RETCODE_OK;
         else
-          ores = throttle_writer (ts1, xp, wr);
+          ores = throttle_writer (thrst, xp, wr);
       }
       if (ores == DDS_RETCODE_TIMEOUT)
       {
@@ -1388,34 +1388,34 @@ drop:
   return r;
 }
 
-int write_sample_gc (struct thread_state1 * const ts1, struct nn_xpack *xp, struct writer *wr, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk)
+int write_sample_gc (struct thread_state * const thrst, struct nn_xpack *xp, struct writer *wr, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk)
 {
-  return write_sample_eot (ts1, xp, wr, NULL, serdata, tk, 0, 1);
+  return write_sample_eot (thrst, xp, wr, NULL, serdata, tk, 0, 1);
 }
 
-int write_sample_nogc (struct thread_state1 * const ts1, struct nn_xpack *xp, struct writer *wr, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk)
+int write_sample_nogc (struct thread_state * const thrst, struct nn_xpack *xp, struct writer *wr, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk)
 {
-  return write_sample_eot (ts1, xp, wr, NULL, serdata, tk, 0, 0);
+  return write_sample_eot (thrst, xp, wr, NULL, serdata, tk, 0, 0);
 }
 
-int write_sample_gc_notk (struct thread_state1 * const ts1, struct nn_xpack *xp, struct writer *wr, struct ddsi_serdata *serdata)
+int write_sample_gc_notk (struct thread_state * const thrst, struct nn_xpack *xp, struct writer *wr, struct ddsi_serdata *serdata)
 {
   struct ddsi_tkmap_instance *tk;
   int res;
   assert (thread_is_awake ());
   tk = ddsi_tkmap_lookup_instance_ref (wr->e.gv->m_tkmap, serdata);
-  res = write_sample_eot (ts1, xp, wr, NULL, serdata, tk, 0, 1);
+  res = write_sample_eot (thrst, xp, wr, NULL, serdata, tk, 0, 1);
   ddsi_tkmap_instance_unref (wr->e.gv->m_tkmap, tk);
   return res;
 }
 
-int write_sample_nogc_notk (struct thread_state1 * const ts1, struct nn_xpack *xp, struct writer *wr, struct ddsi_serdata *serdata)
+int write_sample_nogc_notk (struct thread_state * const thrst, struct nn_xpack *xp, struct writer *wr, struct ddsi_serdata *serdata)
 {
   struct ddsi_tkmap_instance *tk;
   int res;
   assert (thread_is_awake ());
   tk = ddsi_tkmap_lookup_instance_ref (wr->e.gv->m_tkmap, serdata);
-  res = write_sample_eot (ts1, xp, wr, NULL, serdata, tk, 0, 0);
+  res = write_sample_eot (thrst, xp, wr, NULL, serdata, tk, 0, 0);
   ddsi_tkmap_instance_unref (wr->e.gv->m_tkmap, tk);
   return res;
 }
