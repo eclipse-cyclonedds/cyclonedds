@@ -112,16 +112,23 @@ struct thread_state1 {
 };
 #undef THREAD_BASE
 
+#define THREAD_STATE_BATCH 32
+
+struct thread_states_list {
+  struct thread_state1 ts[THREAD_STATE_BATCH];
+  struct thread_states_list *next;
+  uint32_t nthreads; // = THREAD_STATE_BATCH + (next ? next->nthreads : 0)
+};
+
 struct thread_states {
   ddsrt_mutex_t lock;
-  uint32_t nthreads;
-  struct thread_state1 *ts; /* [nthreads] */
+  ddsrt_atomic_voidp_t thread_states_head;
 };
 
 extern DDS_EXPORT struct thread_states thread_states;
 extern ddsrt_thread_local struct thread_state1 *tsd_thread_state;
 
-DDS_EXPORT void thread_states_init (unsigned maxthreads);
+DDS_EXPORT void thread_states_init (void);
 DDS_EXPORT bool thread_states_fini (void);
 
 DDS_EXPORT const struct ddsi_config_thread_properties_listelem *lookup_thread_properties (const struct ddsi_config *config, const char *name);

@@ -37,30 +37,37 @@ struct gcreq_queue {
   struct thread_state1 *ts;
 };
 
-static void threads_vtime_gather_for_wait (const struct ddsi_domaingv *gv, uint32_t *nivs, struct idx_vtime *ivs)
+static void threads_vtime_gather_for_wait (const struct ddsi_domaingv *gv, uint32_t *nivs, struct idx_vtime *ivs, struct thread_states_list *cur)
 {
   /* copy vtimes of threads, skipping those that are sleeping */
-  uint32_t i, j;
-  for (i = j = 0; i < thread_states.nthreads; i++)
+#ifndef NDEBUG
+  const uint32_t nthreads = cur->nthreads;
+#endif
+  uint32_t dstidx;
+  for (dstidx = 0; cur; cur = cur->next)
   {
-    vtime_t vtime = ddsrt_atomic_ld32 (&thread_states.ts[i].vtime);
-    if (vtime_awake_p (vtime))
+    for (uint32_t i = 0; i < THREAD_STATE_BATCH; i++)
     {
-      ddsrt_atomic_fence_ldld ();
-      /* ts[i].gv is set before ts[i].vtime indicates the thread is awake, so if the thread hasn't
+      vtime_t vtime = ddsrt_atomic_ld32 (&cur->ts[i].vtime);
+      if (vtime_awake_p (vtime))
+      {
+        ddsrt_atomic_fence_ldld ();
+        /* ts[i].gv is set before ts[i].vtime indicates the thread is awake, so if the thread hasn't
          gone through another sleep/wake cycle since loading ts[i].vtime, ts[i].gv is correct; if
          instead it has gone through another cycle since loading ts[i].vtime, then the thread will
          be dropped from the live threads on the next check.  So it won't ever wait with unknown
          duration for progres of threads stuck in another domain */
-      if (gv == ddsrt_atomic_ldvoidp (&thread_states.ts[i].gv))
-      {
-        ivs[j].idx = i;
-        ivs[j].vtime = vtime;
-        ++j;
+        if (gv == ddsrt_atomic_ldvoidp (&cur->ts[i].gv))
+        {
+          assert (dstidx < nthreads);
+          ivs[dstidx].ts1 = &cur->ts[i];
+          ivs[dstidx].vtime = vtime;
+          ++dstidx;
+        }
       }
     }
   }
-  *nivs = j;
+  *nivs = dstidx;
 }
 
 static int threads_vtime_check (const struct ddsi_domaingv *gv, uint32_t *nivs, struct idx_vtime *ivs)
@@ -70,10 +77,9 @@ static int threads_vtime_check (const struct ddsi_domaingv *gv, uint32_t *nivs, 
   uint32_t i = 0;
   while (i < *nivs)
   {
-    uint32_t thridx = ivs[i].idx;
-    vtime_t vtime = ddsrt_atomic_ld32 (&thread_states.ts[thridx].vtime);
+    vtime_t vtime = ddsrt_atomic_ld32 (&ivs[i].ts1->vtime);
     assert (vtime_awake_p (ivs[i].vtime));
-    if (!vtime_gt (vtime, ivs[i].vtime) && ddsrt_atomic_ldvoidp (&thread_states.ts[thridx].gv) == gv)
+    if (!vtime_gt (vtime, ivs[i].vtime) && ddsrt_atomic_ldvoidp (&ivs[i].ts1->gv) == gv)
       ++i;
     else
     {
@@ -260,10 +266,11 @@ void gcreq_queue_free (struct gcreq_queue *q)
 struct gcreq *gcreq_new (struct gcreq_queue *q, gcreq_cb_t cb)
 {
   struct gcreq *gcreq;
-  gcreq = ddsrt_malloc (offsetof (struct gcreq, vtimes) + thread_states.nthreads * sizeof (*gcreq->vtimes));
+  struct thread_states_list * const tslist = ddsrt_atomic_ldvoidp (&thread_states.thread_states_head);
+  gcreq = ddsrt_malloc (offsetof (struct gcreq, vtimes) + tslist->nthreads * sizeof (*gcreq->vtimes));
   gcreq->cb = cb;
   gcreq->queue = q;
-  threads_vtime_gather_for_wait (q->gv, &gcreq->nvtimes, gcreq->vtimes);
+  threads_vtime_gather_for_wait (q->gv, &gcreq->nvtimes, gcreq->vtimes, tslist);
   ddsrt_mutex_lock (&q->lock);
   q->count++;
   ddsrt_mutex_unlock (&q->lock);

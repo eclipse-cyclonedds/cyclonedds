@@ -10,6 +10,7 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include <assert.h>
+#include <string.h>
 
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/sync.h"
@@ -39,6 +40,7 @@ struct threadmon_domain {
 
 struct ddsi_threadmon {
   int keepgoing;
+  uint32_t av_ary_size;
   struct alive_vt *av_ary;
   void (*renew_cb) (void *arg);
   void *renew_arg;
@@ -58,6 +60,27 @@ static struct threadmon_domain *find_domain (struct ddsi_threadmon *sl, const st
   return ddsrt_hh_lookup (sl->domains, &dummy);
 }
 
+static void update_av_ary (struct ddsi_threadmon *sl, uint32_t nthreads)
+{
+  if (nthreads > sl->av_ary_size)
+  {
+    struct alive_vt *av_ary = ddsrt_malloc (nthreads * sizeof (*av_ary));
+    uint32_t i;
+    for (i = 0; i < nthreads - sl->av_ary_size; i++)
+    {
+      av_ary[i].alive = true;
+      av_ary[i].vt = 0;
+    }
+    // passing a null pointer to memcpy is undefined behaviour, even when
+    // copying 0 bytes
+    if (sl->av_ary)
+      memcpy (&av_ary[i], sl->av_ary, sl->av_ary_size * sizeof (*av_ary));
+    ddsrt_free (sl->av_ary);
+    sl->av_ary = av_ary;
+    sl->av_ary_size = nthreads;
+  }
+}
+
 static uint32_t threadmon_thread (struct ddsi_threadmon *sl)
 {
   /* Do not check more often than once every 100ms (no particular
@@ -66,11 +89,6 @@ static uint32_t threadmon_thread (struct ddsi_threadmon *sl)
      assignment. */
   ddsrt_mtime_t tlast = { 0 };
   bool was_alive = true;
-  for (uint32_t i = 0; i < thread_states.nthreads; i++)
-  {
-    sl->av_ary[i].alive = true;
-    sl->av_ary[i].vt = 0;
-  }
   ddsrt_mutex_lock (&sl->lock);
   while (sl->keepgoing)
   {
@@ -92,44 +110,53 @@ static uint32_t threadmon_thread (struct ddsi_threadmon *sl)
        considered "alive".  An awake one may be switching to another domain immediately after loading
        the domain here, but in that case it is making progress -- and so also mostly ignored.  (This
        is a similar argument to that used for the GC). */
-    unsigned n_not_alive = 0;
+    struct thread_states_list * const tslist = ddsrt_atomic_ldvoidp (&thread_states.thread_states_head);
+    update_av_ary (sl, tslist->nthreads);
+    uint32_t n_not_alive = 0;
     tlast = tnow;
-    for (uint32_t i = 0; i < thread_states.nthreads; i++)
+    struct alive_vt *av_ary_cur = sl->av_ary;
+    for (struct thread_states_list *cur = tslist; cur; cur = cur->next)
     {
-      if (thread_states.ts[i].state == THREAD_STATE_ZERO)
-        continue;
+      for (uint32_t i = 0; i < THREAD_STATE_BATCH; i++, av_ary_cur++)
+      {
+        const uint32_t threadidx = (uint32_t) (av_ary_cur - sl->av_ary);
+        assert (threadidx < tslist->nthreads);
+        struct thread_state * const thrst = &cur->thrst[i];
+        if (st->state == THREAD_STATE_ZERO)
+          continue;
 
-      vtime_t vt = ddsrt_atomic_ld32 (&thread_states.ts[i].vtime);
-      ddsrt_atomic_fence_ldld ();
-      struct ddsi_domaingv const * const gv = ddsrt_atomic_ldvoidp (&thread_states.ts[i].gv);
-      struct threadmon_domain *tmdom = find_domain (sl, gv);
-      if (tmdom == NULL)
-        continue;
+        vtime_t vt = ddsrt_atomic_ld32 (&ts->vtime);
+        ddsrt_atomic_fence_ldld ();
+        struct ddsi_domaingv const * const gv = ddsrt_atomic_ldvoidp (&ts->gv);
+        struct threadmon_domain *tmdom = find_domain (sl, gv);
+        if (tmdom == NULL)
+          continue;
 
-      bool alive = vtime_asleep_p (vt) || vtime_asleep_p (sl->av_ary[i].vt) || vtime_gt (vt, sl->av_ary[i].vt);
-      n_not_alive += (unsigned) !alive;
-      tmdom->n_not_alive += (unsigned) !alive;
+        bool alive = vtime_asleep_p (vt) || vtime_asleep_p (av_ary_cur->vt) || vtime_gt (vt, av_ary_cur->vt);
+        n_not_alive += (unsigned) !alive;
+        tmdom->n_not_alive += (unsigned) !alive;
 
-      /* Construct a detailed trace line for domains that have tracing enabled, domains that don't
+        /* Construct a detailed trace line for domains that have tracing enabled, domains that don't
          only get "failed to make progress"/"once again made progress" messages */
-      if (tmdom->msgpos < sizeof (tmdom->msg) && (gv->logconfig.c.mask & DDS_LC_TRACE))
-      {
-        tmdom->msgpos +=
-          (size_t) snprintf (tmdom->msg + tmdom->msgpos, sizeof (tmdom->msg) - tmdom->msgpos,
-                             " %"PRIu32"(%s):%c:%"PRIx32"->%"PRIx32, i, thread_states.ts[i].name, alive ? 'a' : 'd', sl->av_ary[i].vt, vt);
-      }
+        if (tmdom->msgpos < sizeof (tmdom->msg) && (gv->logconfig.c.mask & DDS_LC_TRACE))
+        {
+          tmdom->msgpos += (size_t) snprintf (tmdom->msg + tmdom->msgpos, sizeof (tmdom->msg) - tmdom->msgpos,
+                                              " %"PRIu32"(%s):%c:%"PRIx32"->%"PRIx32,
+                                              threadidx, ts->name, alive ? 'a' : 'd', av_ary_cur->vt, vt);
+        }
 
-      sl->av_ary[i].vt = vt;
-      if (sl->av_ary[i].alive != alive)
-      {
-        const char *name = thread_states.ts[i].name;
-        const char *msg;
-        if (!alive)
-          msg = "failed to make progress";
-        else
-          msg = "once again made progress";
-        DDS_CLOG (alive ? DDS_LC_INFO : DDS_LC_WARNING, &gv->logconfig, "thread %s %s\n", name ? name : "(anon)", msg);
-        sl->av_ary[i].alive = alive;
+        av_ary_cur->vt = vt;
+        if (av_ary_cur->alive != alive)
+        {
+          const char *name = ts->name;
+          const char *msg;
+          if (!alive)
+            msg = "failed to make progress";
+          else
+            msg = "once again made progress";
+          DDS_CLOG (alive ? DDS_LC_INFO : DDS_LC_WARNING, &gv->logconfig, "thread %s %s\n", name ? name : "(anon)", msg);
+          av_ary_cur->alive = alive;
+        }
       }
     }
 
@@ -207,18 +234,13 @@ struct ddsi_threadmon *ddsi_threadmon_new (int64_t liveliness_monitoring_interva
   sl->liveliness_monitoring_interval = liveliness_monitoring_interval;
   sl->noprogress_log_stacktraces = noprogress_log_stacktraces;
   sl->domains = ddsrt_hh_new (1, threadmon_domain_hash, threadmon_domain_eq);
-
-  if ((sl->av_ary = ddsrt_malloc (thread_states.nthreads * sizeof (*sl->av_ary))) == NULL)
-    goto fail_vtimes;
-  /* service lease update thread initializes av_ary */
+  /* service lease update thread dynamically grows av_ary */
+  sl->av_ary_size = 0;
+  sl->av_ary = NULL;
 
   ddsrt_mutex_init (&sl->lock);
   ddsrt_cond_init (&sl->cond);
   return sl;
-
- fail_vtimes:
-  ddsrt_free (sl);
-  return NULL;
 }
 
 dds_return_t ddsi_threadmon_start (struct ddsi_threadmon *sl, const char *name)

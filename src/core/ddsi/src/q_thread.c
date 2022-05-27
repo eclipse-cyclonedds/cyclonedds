@@ -56,7 +56,7 @@ DDSRT_STATIC_ASSERT(THREAD_STATE_ZERO == 0 &&
 #if Q_THREAD_DEBUG
 #include <execinfo.h>
 
-void thread_vtime_trace (struct thread_state1 *ts1)
+void thread_vtime_trace (struct thread_state1 *ts)
 {
   if (++ts1->stks_idx == Q_THREAD_NSTACKS)
     ts1->stks_idx = 0;
@@ -91,17 +91,20 @@ static void ddsrt_free_aligned (void *ptr)
   }
 }
 
-void thread_states_init (unsigned maxthreads)
+void thread_states_init (void)
 {
   /* Called with ddsrt's singleton mutex held (see dds_init/fini).  Application threads
      remaining alive can result in thread_states remaining alive, and as those thread
      cache the address, we must then re-use the old array. */
-  if (thread_states.ts == NULL)
+  if (ddsrt_atomic_ldvoidp (&thread_states.thread_states_head) == NULL)
   {
+    struct thread_states_list *tslist;
     ddsrt_mutex_init (&thread_states.lock);
-    thread_states.nthreads = maxthreads;
-    thread_states.ts = ddsrt_malloc_aligned_cacheline (maxthreads * sizeof (*thread_states.ts));
-    memset (thread_states.ts, 0, maxthreads * sizeof (*thread_states.ts));
+    tslist = ddsrt_malloc_aligned_cacheline (sizeof (*tslist));
+    tslist->next = NULL;
+    tslist->nthreads = THREAD_STATE_BATCH;
+    memset (tslist->ts, 0, sizeof (tslist->ts));
+    ddsrt_atomic_stvoidp (&thread_states.thread_states_head, tslist);
   }
 
   /* This thread should be at the same address as before, or never have had a slot
@@ -133,27 +136,37 @@ bool thread_states_fini (void)
      if there are still users. */
   uint32_t others = 0;
   ddsrt_mutex_lock (&thread_states.lock);
-  for (uint32_t i = 0; i < thread_states.nthreads; i++)
+  for (struct thread_states_list *cur = ddsrt_atomic_ldvoidp (&thread_states.thread_states_head); cur; cur = cur->next)
   {
-    switch (thread_states.ts[i].state)
+    for (uint32_t i = 0; i < THREAD_STATE_BATCH; i++)
     {
-      case THREAD_STATE_ZERO:
-        break;
-      case THREAD_STATE_LAZILY_CREATED:
-        others++;
-        break;
-      case THREAD_STATE_STOPPED:
-      case THREAD_STATE_INIT:
-      case THREAD_STATE_ALIVE:
-        assert (0);
+      switch (cur->ts[i].state)
+      {
+        case THREAD_STATE_ZERO:
+          break;
+        case THREAD_STATE_LAZILY_CREATED:
+          others++;
+          break;
+        case THREAD_STATE_STOPPED:
+        case THREAD_STATE_INIT:
+        case THREAD_STATE_ALIVE:
+          assert (0);
+      }
     }
   }
   ddsrt_mutex_unlock (&thread_states.lock);
   if (others == 0)
   {
+    // no other threads active, no need to worry about atomicity
     ddsrt_mutex_destroy (&thread_states.lock);
-    ddsrt_free_aligned (thread_states.ts);
-    thread_states.ts = NULL;
+    struct thread_states_list *head = ddsrt_atomic_ldvoidp (&thread_states.thread_states_head);
+    ddsrt_atomic_stvoidp (&thread_states.thread_states_head, NULL);
+    while (head)
+    {
+      struct thread_states_list *next = head->next;
+      ddsrt_free_aligned (head);
+      head = next;
+    }
     return true;
   }
   else
@@ -164,15 +177,18 @@ bool thread_states_fini (void)
 
 static struct thread_state1 *find_thread_state (ddsrt_thread_t tid)
 {
-  if (thread_states.ts)
+  if (ddsrt_atomic_ldvoidp (&thread_states.thread_states_head))
   {
     ddsrt_mutex_lock (&thread_states.lock);
-    for (uint32_t i = 0; i < thread_states.nthreads; i++)
+    for (struct thread_states_list *cur = ddsrt_atomic_ldvoidp (&thread_states.thread_states_head); cur; cur = cur->next)
     {
-      if (thread_states.ts[i].state > THREAD_STATE_INIT && ddsrt_thread_equal (thread_states.ts[i].tid, tid))
+      for (uint32_t i = 0; i < THREAD_STATE_BATCH; i++)
       {
-        ddsrt_mutex_unlock (&thread_states.lock);
-        return &thread_states.ts[i];
+        if (cur->ts[i].state > THREAD_STATE_INIT && ddsrt_thread_equal (cur->ts[i].tid, tid))
+        {
+          ddsrt_mutex_unlock (&thread_states.lock);
+          return &cur->ts[i];
+        }
       }
     }
     ddsrt_mutex_unlock (&thread_states.lock);
@@ -255,19 +271,36 @@ const struct ddsi_config_thread_properties_listelem *lookup_thread_properties (c
   return e;
 }
 
+static struct thread_state1 *grow_thread_states (void)
+{
+  struct thread_states_list *x;
+  if ((x = ddsrt_malloc_aligned_cacheline (sizeof (*x))) == NULL)
+    return NULL;
+  memset (x->ts, 0, sizeof (x->ts));
+  do {
+    x->next = ddsrt_atomic_ldvoidp (&thread_states.thread_states_head);
+    x->nthreads = THREAD_STATE_BATCH + x->next->nthreads;
+  } while (!ddsrt_atomic_casvoidp (&thread_states.thread_states_head, x->next, x));
+  return &x->ts[0];
+}
+
 static struct thread_state1 *init_thread_state (const char *tname, const struct ddsi_domaingv *gv, enum thread_state state)
 {
-  uint32_t i;
-  for (i = 0; i < thread_states.nthreads; i++)
-    if (thread_states.ts[i].state == THREAD_STATE_ZERO)
-      break;
-  if (i == thread_states.nthreads)
+  struct thread_states_list *cur;
+  uint32_t i = 0; // clearly, if cur != NULL, i will be initialized, but clang ain't so sure
+  for (cur = ddsrt_atomic_ldvoidp (&thread_states.thread_states_head); cur; cur = cur->next)
+    for (i = 0; i < THREAD_STATE_BATCH; i++)
+      if (cur->ts[i].state == THREAD_STATE_ZERO)
+        break;
+  struct thread_state1 *ts1;
+  if (cur != NULL)
+    ts1 = &cur->ts[i];
+  else
   {
-    DDS_FATAL ("create_thread: %s: no free slot\n", tname ? tname : "(anon)");
-    return NULL;
+    if ((ts1 = grow_thread_states ()) == NULL)
+      return NULL;
   }
 
-  struct thread_state1 * const ts1 = &thread_states.ts[i];
   assert (vtime_asleep_p (ddsrt_atomic_ld32 (&ts1->vtime)));
   ddsrt_atomic_stvoidp (&ts1->gv, (struct ddsi_domaingv *) gv);
   (void) ddsrt_strlcpy (ts1->name, tname, sizeof (ts1->name));
@@ -385,16 +418,19 @@ dds_return_t join_thread (struct thread_state1 *ts1)
 
 void log_stack_traces (const struct ddsrt_log_cfg *logcfg, const struct ddsi_domaingv *gv)
 {
-  for (uint32_t i = 0; i < thread_states.nthreads; i++)
+  for (struct thread_states_list *cur = ddsrt_atomic_ldvoidp (&thread_states.thread_states_head); cur; cur = cur->next)
   {
-    struct thread_state1 * const ts1 = &thread_states.ts[i];
-    if (ts1->state > THREAD_STATE_INIT && (gv == NULL || ddsrt_atomic_ldvoidp (&ts1->gv) == gv))
+    for (uint32_t i = 0; i < THREAD_STATE_BATCH; i++)
     {
-      /* There's a race condition here that may cause us to call log_stacktrace with an invalid
-         thread id (or even with a thread id mapping to a newly created thread that isn't really
-         relevant in this context!) but this is an optional debug feature, so it's not worth the
-         bother to avoid it. */
-      log_stacktrace (logcfg, ts1->name, ts1->tid);
+      struct thread_state1 * const ts1 = &cur->ts[i];
+      if (ts1->state > THREAD_STATE_INIT && (gv == NULL || ddsrt_atomic_ldvoidp (&ts1->gv) == gv))
+      {
+        /* There's a race condition here that may cause us to call log_stacktrace with an invalid
+           thread id (or even with a thread id mapping to a newly created thread that isn't really
+           relevant in this context!) but this is an optional debug feature, so it's not worth the
+           bother to avoid it. */
+        log_stacktrace (logcfg, ts1->name, ts1->tid);
+      }
     }
   }
 }

@@ -433,7 +433,7 @@ struct ddsi_config
   int enable_shm;
   char *shm_locator;
   char *iceoryx_service;
-  enum ddsi_shm_loglevel shm_log_lvl;  
+  enum ddsi_shm_loglevel shm_log_lvl;
 #endif
 
   enum ddsi_config_entity_naming_mode entity_naming_mode;

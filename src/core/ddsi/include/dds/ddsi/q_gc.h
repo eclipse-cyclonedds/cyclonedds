@@ -31,7 +31,7 @@ struct proxy_reader;
 typedef void (*gcreq_cb_t) (struct gcreq *gcreq);
 
 struct idx_vtime {
-  uint32_t idx;
+  struct thread_state1 *ts1;
   vtime_t vtime;
 };
 

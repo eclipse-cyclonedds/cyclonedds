@@ -1076,7 +1076,7 @@ CU_Init(ddssec_builtin_listeners_auth)
 {
     int res = 0;
     dds_openssl_init ();
-    thread_states_init(16);
+    thread_states_init();
 
     plugins = load_plugins(&access_control   /* Access Control */,
                            &auth  /* Authentication */,

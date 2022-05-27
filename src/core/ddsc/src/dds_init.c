@@ -112,7 +112,7 @@ dds_return_t dds_init (void)
   ddsrt_mutex_init (&dds_global.m_mutex);
   ddsrt_cond_init (&dds_global.m_cond);
   ddsi_iid_init ();
-  thread_states_init (128);
+  thread_states_init ();
 
   if (dds_handle_server_init () != DDS_RETCODE_OK)
   {

@@ -132,7 +132,7 @@ load_plugins(
         }
     }
 
-    thread_states_init(16);
+    thread_states_init();
     xeventq_start(plugins->gv.xevents, "TEST");
     return plugins;
 
