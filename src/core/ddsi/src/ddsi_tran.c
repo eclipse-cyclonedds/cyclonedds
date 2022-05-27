@@ -133,7 +133,7 @@ void ddsi_conn_free (ddsi_tran_conn_t conn)
       {
         for (uint32_t i = 0; i < conn->m_base.gv->n_recv_threads; i++)
         {
-          if (!conn->m_base.gv->recv_threads[i].ts)
+          if (!conn->m_base.gv->recv_threads[i].thrst)
             assert (!ddsrt_atomic_ld32 (&conn->m_base.gv->rtps_keepgoing));
           else
           {

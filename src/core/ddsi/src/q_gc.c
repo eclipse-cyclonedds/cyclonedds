@@ -34,7 +34,7 @@ struct gcreq_queue {
   int terminate;
   int32_t count;
   struct ddsi_domaingv *gv;
-  struct thread_state1 *ts;
+  struct thread_state *thrst;
 };
 
 static void threads_vtime_gather_for_wait (const struct ddsi_domaingv *gv, uint32_t *nivs, struct idx_vtime *ivs, struct thread_states_list *cur)
@@ -48,19 +48,19 @@ static void threads_vtime_gather_for_wait (const struct ddsi_domaingv *gv, uint3
   {
     for (uint32_t i = 0; i < THREAD_STATE_BATCH; i++)
     {
-      vtime_t vtime = ddsrt_atomic_ld32 (&cur->ts[i].vtime);
+      vtime_t vtime = ddsrt_atomic_ld32 (&cur->thrst[i].vtime);
       if (vtime_awake_p (vtime))
       {
         ddsrt_atomic_fence_ldld ();
-        /* ts[i].gv is set before ts[i].vtime indicates the thread is awake, so if the thread hasn't
-         gone through another sleep/wake cycle since loading ts[i].vtime, ts[i].gv is correct; if
-         instead it has gone through another cycle since loading ts[i].vtime, then the thread will
-         be dropped from the live threads on the next check.  So it won't ever wait with unknown
-         duration for progres of threads stuck in another domain */
-        if (gv == ddsrt_atomic_ldvoidp (&cur->ts[i].gv))
+        /* thrst[i].gv is set before thrst[i].vtime indicates the thread is awake, so if the thread
+           hasn't gone through another sleep/wake cycle since loading thrst[i].vtime, thrst[i].gv is
+           correct; if instead it has gone through another cycle since loading thrst[i].vtime, then
+           the thread will be dropped from the live threads on the next check.  So it won't ever wait
+           with unknown duration for progres of threads stuck in another domain */
+        if (gv == ddsrt_atomic_ldvoidp (&cur->thrst[i].gv))
         {
           assert (dstidx < nthreads);
-          ivs[dstidx].ts1 = &cur->ts[i];
+          ivs[dstidx].thrst = &cur->thrst[i];
           ivs[dstidx].vtime = vtime;
           ++dstidx;
         }
@@ -72,14 +72,13 @@ static void threads_vtime_gather_for_wait (const struct ddsi_domaingv *gv, uint3
 
 static int threads_vtime_check (const struct ddsi_domaingv *gv, uint32_t *nivs, struct idx_vtime *ivs)
 {
-  /* check all threads in ts have made progress those that have are
-     removed from the set */
+  /* remove all threads that have moved on from the set, return true when none remain */
   uint32_t i = 0;
   while (i < *nivs)
   {
-    vtime_t vtime = ddsrt_atomic_ld32 (&ivs[i].ts1->vtime);
+    vtime_t vtime = ddsrt_atomic_ld32 (&ivs[i].thrst->vtime);
     assert (vtime_awake_p (ivs[i].vtime));
-    if (!vtime_gt (vtime, ivs[i].vtime) && ddsrt_atomic_ldvoidp (&ivs[i].ts1->gv) == gv)
+    if (!vtime_gt (vtime, ivs[i].vtime) && ddsrt_atomic_ldvoidp (&ivs[i].thrst->gv) == gv)
       ++i;
     else
     {
@@ -93,7 +92,7 @@ static int threads_vtime_check (const struct ddsi_domaingv *gv, uint32_t *nivs, 
 
 static uint32_t gcreq_queue_thread (struct gcreq_queue *q)
 {
-  struct thread_state1 * const ts1 = lookup_thread_state ();
+  struct thread_state * const thrst = lookup_thread_state ();
   ddsrt_mtime_t next_thread_cputime = { 0 };
   ddsrt_mtime_t t_trigger_recv_threads = { 0 };
   int64_t shortsleep = DDS_MSECS (1);
@@ -153,9 +152,9 @@ static uint32_t gcreq_queue_thread (struct gcreq_queue *q)
        very little impact on its primary purpose and be less of a
        burden on the system than having a separate thread or adding it
        to the workload of the data handling threads. */
-    thread_state_awake_fixed_domain (ts1);
+    thread_state_awake_fixed_domain (thrst);
     delay = check_and_handle_lease_expiration (q->gv, ddsrt_time_elapsed ());
-    thread_state_asleep (ts1);
+    thread_state_asleep (thrst);
 
     if (gcreq)
     {
@@ -180,9 +179,9 @@ static uint32_t gcreq_queue_thread (struct gcreq_queue *q)
            multi-phase delete) or freeing the delete request.  Reset
            the current gcreq as this one obviously is no more.  */
         DDS_CTRACE (&q->gv->logconfig, "gc %p: deleting\n", (void *) gcreq);
-        thread_state_awake_fixed_domain (ts1);
+        thread_state_awake_fixed_domain (thrst);
         gcreq->cb (gcreq);
-        thread_state_asleep (ts1);
+        thread_state_asleep (thrst);
         gcreq = NULL;
         trace_shortsleep = 1;
       }
@@ -202,7 +201,7 @@ struct gcreq_queue *gcreq_queue_new (struct ddsi_domaingv *gv)
   q->terminate = 0;
   q->count = 0;
   q->gv = gv;
-  q->ts = NULL;
+  q->thrst = NULL;
   ddsrt_mutex_init (&q->lock);
   ddsrt_cond_init (&q->cond);
   return q;
@@ -210,13 +209,13 @@ struct gcreq_queue *gcreq_queue_new (struct ddsi_domaingv *gv)
 
 bool gcreq_queue_start (struct gcreq_queue *q)
 {
-  if (create_thread (&q->ts, q->gv, "gc", (uint32_t (*) (void *)) gcreq_queue_thread, q) == DDS_RETCODE_OK)
+  if (create_thread (&q->thrst, q->gv, "gc", (uint32_t (*) (void *)) gcreq_queue_thread, q) == DDS_RETCODE_OK)
     return true;
   else
   {
-    /* we use q->ts as a marker whether the thread exists, protect against the possibility
+    /* we use q->thrst as a marker whether the thread exists, protect against the possibility
        that create_thread changes it in a failing case */
-    q->ts = NULL;
+    q->thrst = NULL;
     return false;
   }
 }
@@ -234,7 +233,7 @@ void gcreq_queue_free (struct gcreq_queue *q)
   struct gcreq *gcreq;
 
   /* Shutdown is complicated only gcreq_eueu */
-  if (q->ts)
+  if (q->thrst)
   {
     /* Create a no-op not dependent on any thread */
     gcreq = gcreq_new (q, gcreq_free);
@@ -255,7 +254,7 @@ void gcreq_queue_free (struct gcreq_queue *q)
        which point the thread terminates. */
     gcreq_enqueue (gcreq);
 
-    join_thread (q->ts);
+    join_thread (q->thrst);
     assert (q->first == NULL);
   }
   ddsrt_cond_destroy (&q->cond);

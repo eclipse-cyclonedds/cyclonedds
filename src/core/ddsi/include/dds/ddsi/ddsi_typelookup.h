@@ -34,7 +34,7 @@ extern "C" {
 
 struct ddsi_guid;
 struct ddsi_domaingv;
-struct thread_state1;
+struct thread_state;
 struct nn_xpack;
 struct participant;
 struct receiver_state;

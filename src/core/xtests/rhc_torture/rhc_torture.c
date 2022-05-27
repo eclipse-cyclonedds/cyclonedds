@@ -49,7 +49,7 @@
 static ddsrt_prng_t prng;
 
 static struct ddsi_sertype *mdtype;
-static struct thread_state1 *mainthread;
+static struct thread_state *mainthread;
 static dds_time_t tref_dds;
 static uint32_t seq;
 

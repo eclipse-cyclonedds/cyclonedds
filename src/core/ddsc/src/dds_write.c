@@ -246,10 +246,10 @@ static struct ddsi_serdata_any *convert_serdata(struct writer *ddsi_wr, struct d
   return dout;
 }
 
-static dds_return_t deliver_data_network (struct thread_state1 * const ts1, struct writer *ddsi_wr, struct ddsi_serdata_any *d, struct nn_xpack *xp, bool flush, struct ddsi_tkmap_instance *tk)
+static dds_return_t deliver_data_network (struct thread_state * const thrst, struct writer *ddsi_wr, struct ddsi_serdata_any *d, struct nn_xpack *xp, bool flush, struct ddsi_tkmap_instance *tk)
 {
   // write_sample_gc always consumes 1 refc from d
-  int ret = write_sample_gc (ts1, xp, ddsi_wr, &d->a, tk);
+  int ret = write_sample_gc (thrst, xp, ddsi_wr, &d->a, tk);
   if (ret >= 0)
   {
     /* Flush out write unless configured to batch */
@@ -263,11 +263,11 @@ static dds_return_t deliver_data_network (struct thread_state1 * const ts1, stru
   }
 }
 
-static dds_return_t deliver_data_any (struct thread_state1 * const ts1, struct writer *ddsi_wr, dds_writer *wr, struct ddsi_serdata_any *d, struct nn_xpack *xp, bool flush)
+static dds_return_t deliver_data_any (struct thread_state * const thrst, struct writer *ddsi_wr, dds_writer *wr, struct ddsi_serdata_any *d, struct nn_xpack *xp, bool flush)
 {
   struct ddsi_tkmap_instance * const tk = ddsi_tkmap_lookup_instance_ref (ddsi_wr->e.gv->m_tkmap, &d->a);
   dds_return_t ret;
-  if ((ret = deliver_data_network (ts1, ddsi_wr, d, xp, flush, tk)) != DDS_RETCODE_OK)
+  if ((ret = deliver_data_network (thrst, ddsi_wr, d, xp, flush, tk)) != DDS_RETCODE_OK)
   {
     ddsi_tkmap_instance_unref (ddsi_wr->e.gv->m_tkmap, tk);
     return ret;
@@ -290,7 +290,7 @@ static dds_return_t dds_writecdr_impl_common (struct writer *ddsi_wr, struct nn_
 {
   // consumes 1 refc from din in all paths (weird, but ... history ...)
   // let refc(din) be r, so upon returning it must be r-1
-  struct thread_state1 * const ts1 = lookup_thread_state ();
+  struct thread_state * const thrst = lookup_thread_state ();
   int ret = DDS_RETCODE_OK;
   assert (wr != NULL);
 
@@ -303,7 +303,7 @@ static dds_return_t dds_writecdr_impl_common (struct writer *ddsi_wr, struct nn_
 
   // d = din: refc(d) = r, otherwise refc(d) = 1
 
-  thread_state_awake (ts1, ddsi_wr->e.gv);
+  thread_state_awake (thrst, ddsi_wr->e.gv);
   ddsi_serdata_ref (&d->a); // d = din: refc(d) = r + 1, otherwise refc(d) = 2
 
 #ifdef DDS_HAS_SHM
@@ -316,13 +316,13 @@ static dds_return_t dds_writecdr_impl_common (struct writer *ddsi_wr, struct nn_
   assert ((wr->m_iox_pub == NULL) == (d->a.iox_chunk == NULL));
 #endif
 
-  ret = deliver_data_any (ts1, ddsi_wr, wr, d, xp, flush);
+  ret = deliver_data_any (thrst, ddsi_wr, wr, d, xp, flush);
 
   if(d != din)
     ddsi_serdata_unref(&din->a); // d != din: refc(din) = r - 1 as required, refc(d) unchanged
   ddsi_serdata_unref(&d->a); // d = din: refc(d) = r - 1, otherwise refc(din) = r-1 and refc(d) = 0
 
-  thread_state_asleep (ts1);
+  thread_state_asleep (thrst);
   return ret;
 }
 
@@ -575,7 +575,7 @@ static dds_return_t dds_write_impl_plain (dds_writer *wr, struct writer *ddsi_wr
 dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstamp, dds_write_action action)
 {
   // 1. Input validation
-  struct thread_state1 * const ts1 = lookup_thread_state ();
+  struct thread_state * const thrst = lookup_thread_state ();
   const bool writekey = action & DDS_WR_KEY_BIT;
   struct writer *ddsi_wr = wr->m_wr;
   int ret = DDS_RETCODE_OK;
@@ -587,7 +587,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
   if (!evalute_topic_filter (wr, data, writekey))
     return DDS_RETCODE_OK;
 
-  thread_state_awake (ts1, &wr->m_entity.m_domain->gv);
+  thread_state_awake (thrst, &wr->m_entity.m_domain->gv);
 #ifdef DDS_HAS_SHM
   if (wr->m_iox_pub)
     ret = dds_write_impl_iox (wr, ddsi_wr, writekey, data, tstamp, action);
@@ -596,7 +596,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
 #else
   ret = dds_write_impl_plain (wr, ddsi_wr, writekey, data, tstamp, action);
 #endif
-  thread_state_asleep (ts1);
+  thread_state_asleep (thrst);
   return ret;
 }
 
@@ -607,13 +607,13 @@ dds_return_t dds_writecdr_impl (dds_writer *wr, struct nn_xpack *xp, struct ddsi
 
 void dds_write_flush (dds_entity_t writer)
 {
-  struct thread_state1 * const ts1 = lookup_thread_state ();
+  struct thread_state * const thrst = lookup_thread_state ();
   dds_writer *wr;
   if (dds_writer_lock (writer, &wr) == DDS_RETCODE_OK)
   {
-    thread_state_awake (ts1, &wr->m_entity.m_domain->gv);
+    thread_state_awake (thrst, &wr->m_entity.m_domain->gv);
     nn_xpack_send (wr->m_xp, true);
-    thread_state_asleep (ts1);
+    thread_state_asleep (thrst);
     dds_writer_unlock (wr);
   }
 }
@@ -627,17 +627,17 @@ dds_return_t dds_writecdr_local_orphan_impl (struct local_orphan_writer *lowr, s
   
   // consumes 1 refc from din in all paths (weird, but ... history ...)
   // let refc(din) be r, so upon returning it must be r-1
-  struct thread_state1 * const ts1 = lookup_thread_state ();
+  struct thread_state * const thrst = lookup_thread_state ();
   int ret = DDS_RETCODE_OK;
   assert (lowr->wr.type == d->type);
 
   // d = din: refc(d) = r, otherwise refc(d) = 1
 
-  thread_state_awake (ts1, lowr->wr.e.gv);
+  thread_state_awake (thrst, lowr->wr.e.gv);
   struct ddsi_tkmap_instance * const tk = ddsi_tkmap_lookup_instance_ref (lowr->wr.e.gv->m_tkmap, d);
   deliver_locally (&lowr->wr, d, tk);
   ddsi_tkmap_instance_unref (lowr->wr.e.gv->m_tkmap, tk);
   ddsi_serdata_unref(d); // d = din: refc(d) = r - 1
-  thread_state_asleep (ts1);
+  thread_state_asleep (thrst);
   return ret;
 }

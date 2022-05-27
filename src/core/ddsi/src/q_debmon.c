@@ -46,7 +46,7 @@ struct plugin {
 };
 
 struct debug_monitor {
-  struct thread_state1 *servts;
+  struct thread_state *servts;
   ddsi_tran_factory_t tran_factory;
   ddsi_tran_listener_t servsock;
   ddsi_locator_t servlocator;
@@ -59,7 +59,7 @@ struct debug_monitor {
 struct st {
   ddsi_tran_conn_t conn;
   struct ddsi_domaingv *gv;
-  struct thread_state1 *ts1;
+  struct thread_state *thrst;
   bool error;
   const char *comma;
   // almost guaranteed to be large enough (some strings are user-controlled),
@@ -465,11 +465,11 @@ static void print_participants_seq (struct st *st, void *ve)
 static void print_participants (struct st *st)
 {
   struct entidx_enum_participant e;
-  thread_state_awake_fixed_domain (st->ts1);
+  thread_state_awake_fixed_domain (st->thrst);
   entidx_enum_participant_init (&e, st->gv->entity_index);
   cpfkseq (st, "participants", print_participants_seq, &e);
   entidx_enum_participant_fini (&e);
-  thread_state_asleep (st->ts1);
+  thread_state_asleep (st->thrst);
 }
 
 struct print_proxy_reader_arg {
@@ -626,11 +626,11 @@ static void print_proxy_participants_seq (struct st *st, void *ve)
 static void print_proxy_participants (struct st *st)
 {
   struct entidx_enum_proxy_participant e;
-  thread_state_awake_fixed_domain (st->ts1);
+  thread_state_awake_fixed_domain (st->thrst);
   entidx_enum_proxy_participant_init (&e, st->gv->entity_index);
   cpfkseq (st, "proxy_participants", print_proxy_participants_seq, &e);
   entidx_enum_proxy_participant_fini (&e);
-  thread_state_asleep (st->ts1);
+  thread_state_asleep (st->thrst);
 }
 
 static void print_domain (struct st *st, void *varg)
@@ -646,11 +646,11 @@ static void debmon_handle_connection (struct debug_monitor *dm, ddsi_tran_conn_t
   const char *http_header = "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n";
   const ddsrt_iovec_t iov = { .iov_base = (void *) http_header, .iov_len = (ddsrt_iov_len_t) strlen (http_header) };
 
-  struct thread_state1 * const ts1 = lookup_thread_state ();
+  struct thread_state * const thrst = lookup_thread_state ();
   struct st st = {
     .conn = conn,
     .gv = dm->gv,
-    .ts1 = ts1,
+    .thrst = thrst,
     .error = false,
     .comma = "",
     .pos = 8

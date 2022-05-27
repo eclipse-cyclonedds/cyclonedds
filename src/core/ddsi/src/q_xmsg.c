@@ -1329,17 +1329,17 @@ static void nn_xpack_send_real (struct nn_xpack *xp)
 static uint32_t nn_xpack_sendq_thread (void *vgv)
 {
   struct ddsi_domaingv *gv = vgv;
-  struct thread_state1 * const ts1 = lookup_thread_state ();
-  thread_state_awake_fixed_domain (ts1);
+  struct thread_state * const thrst = lookup_thread_state ();
+  thread_state_awake_fixed_domain (thrst);
   ddsrt_mutex_lock (&gv->sendq_lock);
   while (!(gv->sendq_stop && gv->sendq_head == NULL))
   {
     struct nn_xpack *xp;
     if ((xp = gv->sendq_head) == NULL)
     {
-      thread_state_asleep (ts1);
+      thread_state_asleep (thrst);
       (void) ddsrt_cond_wait (&gv->sendq_cond, &gv->sendq_lock);
-      thread_state_awake_fixed_domain (ts1);
+      thread_state_awake_fixed_domain (thrst);
     }
     else
     {
@@ -1353,7 +1353,7 @@ static uint32_t nn_xpack_sendq_thread (void *vgv)
     }
   }
   ddsrt_mutex_unlock (&gv->sendq_lock);
-  thread_state_asleep (ts1);
+  thread_state_asleep (thrst);
   return 0;
 }
 

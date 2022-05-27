@@ -3771,7 +3771,7 @@ decode_rtps_message_awake (
 
 nn_rtps_msg_state_t
 decode_rtps_message (
-  struct thread_state1 * const ts1,
+  struct thread_state * const thrst,
   struct ddsi_domaingv *gv,
   struct nn_rmsg **rmsg,
   Header_t **hdr,
@@ -3782,11 +3782,11 @@ decode_rtps_message (
 {
   struct proxy_participant *proxypp;
   nn_rtps_msg_state_t ret;
-  thread_state_awake_fixed_domain (ts1);
+  thread_state_awake_fixed_domain (thrst);
   ret = check_rtps_message_is_secure (gv, *hdr, *buff, isstream, &proxypp);
   if (ret == NN_RTPS_MSG_STATE_ENCODED)
     ret = decode_rtps_message_awake (rmsg, hdr, buff, sz, rbpool, isstream, proxypp);
-  thread_state_asleep (ts1);
+  thread_state_asleep (thrst);
   return ret;
 }
 
@@ -4046,7 +4046,7 @@ DDS_EXPORT extern inline int decode_SecPrefix(
   UNUSED_ARG(int byteswap));
 
 DDS_EXPORT extern inline nn_rtps_msg_state_t decode_rtps_message(
-  UNUSED_ARG(struct thread_state1 * const ts1),
+  UNUSED_ARG(struct thread_state * const thrst),
   UNUSED_ARG(struct ddsi_domaingv *gv),
   UNUSED_ARG(struct nn_rmsg **rmsg),
   UNUSED_ARG(Header_t **hdr),

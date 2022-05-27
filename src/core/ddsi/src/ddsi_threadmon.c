@@ -49,7 +49,7 @@ struct ddsi_threadmon {
 
   ddsrt_mutex_t lock;
   ddsrt_cond_t cond;
-  struct thread_state1 *ts;
+  struct thread_state *thrst;
   struct ddsrt_hh *domains;
 };
 
@@ -122,12 +122,12 @@ static uint32_t threadmon_thread (struct ddsi_threadmon *sl)
         const uint32_t threadidx = (uint32_t) (av_ary_cur - sl->av_ary);
         assert (threadidx < tslist->nthreads);
         struct thread_state * const thrst = &cur->thrst[i];
-        if (st->state == THREAD_STATE_ZERO)
+        if (thrst->state == THREAD_STATE_ZERO)
           continue;
 
-        vtime_t vt = ddsrt_atomic_ld32 (&ts->vtime);
+        vtime_t vt = ddsrt_atomic_ld32 (&thrst->vtime);
         ddsrt_atomic_fence_ldld ();
-        struct ddsi_domaingv const * const gv = ddsrt_atomic_ldvoidp (&ts->gv);
+        struct ddsi_domaingv const * const gv = ddsrt_atomic_ldvoidp (&thrst->gv);
         struct threadmon_domain *tmdom = find_domain (sl, gv);
         if (tmdom == NULL)
           continue;
@@ -142,13 +142,13 @@ static uint32_t threadmon_thread (struct ddsi_threadmon *sl)
         {
           tmdom->msgpos += (size_t) snprintf (tmdom->msg + tmdom->msgpos, sizeof (tmdom->msg) - tmdom->msgpos,
                                               " %"PRIu32"(%s):%c:%"PRIx32"->%"PRIx32,
-                                              threadidx, ts->name, alive ? 'a' : 'd', av_ary_cur->vt, vt);
+                                              threadidx, thrst->name, alive ? 'a' : 'd', av_ary_cur->vt, vt);
         }
 
         av_ary_cur->vt = vt;
         if (av_ary_cur->alive != alive)
         {
-          const char *name = ts->name;
+          const char *name = thrst->name;
           const char *msg;
           if (!alive)
             msg = "failed to make progress";
@@ -230,7 +230,7 @@ struct ddsi_threadmon *ddsi_threadmon_new (int64_t liveliness_monitoring_interva
 
   sl = ddsrt_malloc (sizeof (*sl));
   sl->keepgoing = -1;
-  sl->ts = NULL;
+  sl->thrst = NULL;
   sl->liveliness_monitoring_interval = liveliness_monitoring_interval;
   sl->noprogress_log_stacktraces = noprogress_log_stacktraces;
   sl->domains = ddsrt_hh_new (1, threadmon_domain_hash, threadmon_domain_eq);
@@ -251,7 +251,7 @@ dds_return_t ddsi_threadmon_start (struct ddsi_threadmon *sl, const char *name)
   ddsrt_mutex_unlock (&sl->lock);
 
   /* FIXME: thread properties */
-  if (create_thread_with_properties (&sl->ts, NULL, name, (uint32_t (*) (void *)) threadmon_thread, sl) != DDS_RETCODE_OK)
+  if (create_thread_with_properties (&sl->thrst, NULL, name, (uint32_t (*) (void *)) threadmon_thread, sl) != DDS_RETCODE_OK)
     goto fail_thread;
   return 0;
 
@@ -299,7 +299,7 @@ void ddsi_threadmon_stop (struct ddsi_threadmon *sl)
     sl->keepgoing = 0;
     ddsrt_cond_signal (&sl->cond);
     ddsrt_mutex_unlock (&sl->lock);
-    join_thread (sl->ts);
+    join_thread (sl->thrst);
   }
 }
 

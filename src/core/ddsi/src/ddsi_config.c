@@ -705,7 +705,7 @@ static int if_channel(struct cfgst *cfgst, void *parent, struct cfgelem const * 
   if (new == NULL)
     return -1;
   new->name = NULL;
-  new->channel_reader_ts = NULL;
+  new->channel_reader_thrst = NULL;
   new->dqueue = NULL;
   new->queueId = 0;
   new->evq = NULL;
@@ -2166,7 +2166,7 @@ static int set_default_channel (struct config *cfg)
     c->auxiliary_bandwidth_limit = 0;
 #endif
     c->diffserv_field = 0;
-    c->channel_reader_ts = NULL;
+    c->channel_reader_thrst = NULL;
     c->queueId = 0;
     c->dqueue = NULL;
     c->evq = NULL;
