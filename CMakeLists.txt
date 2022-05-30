@@ -200,10 +200,13 @@ if(ANALYZER)
     endif()
   elseif(ANALYZER STREQUAL "on")
     if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
-      if(CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL "10")
+      # GCC 10 static analyzer is a bit problematic
+      # GCC 11 is a full rewrite, also not quite happy with the code
+      # GCC 12 is pretty much happy, but some parts of IDLC (main file, type object
+      # generation) still cause problems, but we can disable those
+      if(CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL "12")
         message(STATUS "Enabling analyzer: GCC")
-        # -Wanalyzer-malloc-leak generates lots of false positives
-        add_compile_options(-fanalyzer -Wno-analyzer-malloc-leak)
+        add_compile_options(-fanalyzer)
       endif()
     endif()
   endif()

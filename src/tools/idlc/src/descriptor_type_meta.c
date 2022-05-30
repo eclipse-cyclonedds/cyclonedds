@@ -29,6 +29,7 @@
 #include "idl/processor.h"
 #include "idl/stream.h"
 #include "idl/string.h"
+#include "idl/misc.h"
 #include "generator.h"
 #include "descriptor_type_meta.h"
 
@@ -112,10 +113,18 @@ static idl_retcode_t add_to_seq_generic(dds_sequence_t *seq, const void *elem, s
   assert ((seq->_length + 1) <= SIZE_MAX / elem_size);
   unsigned char *buf = idl_realloc (seq->_buffer, (seq->_length + 1) * elem_size);
   if (buf == NULL) {
+#if __GNUC__ >= 12
+    IDL_WARNING_GNUC_OFF(analyzer-malloc-leak)
+    IDL_WARNING_GNUC_OFF(analyzer-double-free)
+#endif
     idl_free (seq->_buffer);
     seq->_buffer = NULL;
     seq->_release = false;
     return IDL_RETCODE_NO_MEMORY;
+#if __GNUC__ >= 12
+    IDL_WARNING_GNUC_ON(analyzer-double-free)
+    IDL_WARNING_GNUC_ON(analyzer-malloc-leak)
+#endif
   }
   seq->_buffer = buf;
   memcpy (seq->_buffer + seq->_length * elem_size, elem, elem_size);
