@@ -23,12 +23,12 @@ jobs:
     vmImage: $(image)
   strategy:
     matrix:
-      'Ubuntu 20.04 LTS with GCC 10 (Debug, x86_64)':
-        image: ubuntu-20.04
+      'Ubuntu 22.04 LTS with GCC 12 (Debug, x86_64)':
+        image: ubuntu-22.04
         analyzer: on
         # not enabling "undefined" because of some false positives
         sanitizer: address
-        cc: gcc-10
+        cc: gcc-12
         coverage: on
       'Ubuntu 20.04 LTS with GCC 10 (Debug, x86_64, Iceoryx)':
         image: ubuntu-20.04
