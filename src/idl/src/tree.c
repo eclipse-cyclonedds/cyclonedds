@@ -3576,16 +3576,16 @@ bool idl_is_keyless(const void *node, bool keylist)
   return true;
 }
 
-bool idl_is_topic_key(const void *node, bool keylist, const idl_path_t *path, uint32_t *order)
+idl_keytype_t idl_is_topic_key(const void *node, bool keylist, const idl_path_t *path, uint32_t *order)
 {
   bool all_keys = false;
-  uint32_t key = 0;
+  idl_keytype_t key = IDL_KEYTYPE_NONE;
   uint32_t id = 0;
 
   if (!idl_is_topic(node, keylist))
-    return false;
+    return IDL_KEYTYPE_NONE;
   if (!path->length || node != path->nodes[0])
-    return false;
+    return IDL_KEYTYPE_NONE;
 
   /* constructed types, sequences, aliases and declarators carry the key */
   static const idl_mask_t mask =
@@ -3593,7 +3593,7 @@ bool idl_is_topic_key(const void *node, bool keylist, const idl_path_t *path, ui
     IDL_SEQUENCE | IDL_DECLARATOR;
 
   /* start from level 1, the members of the topic node */
-  for (size_t i = 1; (key || i == 1) && i < path->length; i++) {
+  for (size_t i = 1; (key != IDL_KEYTYPE_NONE || i == 1) && i < path->length; i++) {
     assert(path->nodes[i]);
 
     /* struct members can be explicitly annotated */
@@ -3601,24 +3601,29 @@ bool idl_is_topic_key(const void *node, bool keylist, const idl_path_t *path, ui
       const idl_member_t *member = (const idl_member_t *)path->nodes[i];
       /* path cannot be valid if not preceeded by struct */
       if (i > 1 && !idl_is_struct(path->nodes[i - 1]))
-        return false;
+        return IDL_KEYTYPE_NONE;
 
       if (member->key.value)
-        key = 1;
+        key = IDL_KEYTYPE_EXPLICIT;
       /* possibly implicit @key, but only if no other members are explicitly
         annotated, an intermediate aggregate type has no explicitly annotated
         fields and node is not on the first level */
       else if (all_keys || no_specific_key(idl_parent(member)))
-        key = all_keys = (i > 1);
+      {
+        all_keys = (i > 1);
+        key = (i > 1) ? IDL_KEYTYPE_IMPLICIT : IDL_KEYTYPE_NONE;
+      }
       else
-        key = 0;
+      {
+        key = IDL_KEYTYPE_NONE;
+      }
 
       /* if key member found, get the id from the declarator node which
          should be next in the path (can be overwritten by the id of a key
          field further down in the path in a next iteration) */
-      if (key) {
+      if (key != IDL_KEYTYPE_NONE) {
         if (!idl_is_declarator(path->nodes[i + 1]))
-          return false;
+          return IDL_KEYTYPE_NONE;
         const idl_declarator_t *declarator = (const idl_declarator_t *)path->nodes[i + 1];
         id = declarator->id.value;
       }
@@ -3628,37 +3633,40 @@ bool idl_is_topic_key(const void *node, bool keylist, const idl_path_t *path, ui
       const idl_case_t *_case = (const idl_case_t *)path->nodes[i];
       /* path cannot be valid if not preceeded by union */
       if (i > 0 && !idl_is_union(path->nodes[i - 1]))
-        return false;
+        return IDL_KEYTYPE_NONE;
 
       /* union cases cannot be annotated, but can be part of the key if an
         intermediate aggregate type has no explicitly annotated fields or if
         the switch type specifier is not annotated */
       if (all_keys || no_specific_key(idl_parent(_case)))
-        key = all_keys = (i > 1);
+      {
+        all_keys = (i > 1);
+        key = (i > 1) ? IDL_KEYTYPE_IMPLICIT : IDL_KEYTYPE_NONE;
+      }
 
     /* switch type specifiers can be explicitly annotated */
     } else if (idl_is_switch_type_spec(path->nodes[i])) {
       const idl_switch_type_spec_t *switch_type_spec = (const idl_switch_type_spec_t *)path->nodes[i];
       /* path cannot be valid if not preceeded by union */
       if (i != 0 && !idl_is_union(path->nodes[i - 1]))
-        return false;
+        return IDL_KEYTYPE_NONE;
 
       /* possibly (implicit) @key, but only if last in path and not first */
       if (switch_type_spec->key.value)
-        key = (i == path->length - 1);
+        key = (i == path->length - 1) ? IDL_KEYTYPE_EXPLICIT : IDL_KEYTYPE_NONE;
       else
-        key = (i == path->length - 1) ? (i > 1) : 0;
+        key = ((i == path->length - 1) ? (i > 1) : 0) ? IDL_KEYTYPE_IMPLICIT : IDL_KEYTYPE_NONE;
     } else if (!(idl_mask(node) & mask)) {
-      key = 0;
+      key = IDL_KEYTYPE_NONE;
     }
   }
 
-  if (key && (idl_mask(path->nodes[path->length - 1]) & mask)) {
+  if (key != IDL_KEYTYPE_NONE && (idl_mask(path->nodes[path->length - 1]) & mask)) {
     *order = id;
-    return true;
+    return key;
   }
   *order = 0;
-  return false;
+  return IDL_KEYTYPE_NONE;
 }
 
 bool idl_is_extensible(const idl_node_t *node, idl_extensibility_t extensibility)

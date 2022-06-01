@@ -348,8 +348,9 @@ enum dds_stream_opcode {
      [KOF, 0, n] [offset-1] ... [offset-n]
        where
         n      = number of key offsets in following ops
-        offset = offset of the key field, relative to the previous offset
-                  (repeated n times, e.g. when key in nested struct)
+        offset = Offset of the key field relative to the previous offset, repeated n times when key is
+                 in a nested struct. In case of inheritance of mutable structs, a single offset of
+                 the key member relative to the first op of the top-level type (index 0).
   */
   DDS_OP_KOF = 0x07 << 24,
 

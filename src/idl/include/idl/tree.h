@@ -512,6 +512,12 @@ struct idl_annotation_appl {
   idl_annotation_appl_param_t *parameters;
 };
 
+typedef enum idl_keytype {
+  IDL_KEYTYPE_NONE,
+  IDL_KEYTYPE_IMPLICIT,
+  IDL_KEYTYPE_EXPLICIT
+} idl_keytype_t;
+
 IDL_EXPORT bool idl_is_declaration(const void *node);
 IDL_EXPORT bool idl_is_module(const void *node);
 IDL_EXPORT bool idl_is_const(const void *node);
@@ -550,8 +556,7 @@ IDL_EXPORT bool idl_is_annotation_appl(const void *node);
 IDL_EXPORT bool idl_is_topic(const void *node, bool keylist);
 IDL_EXPORT bool idl_is_keyless(const void *node, bool keylist);
 IDL_EXPORT bool idl_is_forward(const void *node);
-/* 1-based, returns 0 if path does not refer to key, non-0 otherwise */
-IDL_EXPORT bool idl_is_topic_key(const void *node, bool keylist, const idl_path_t *path, uint32_t *order);
+IDL_EXPORT idl_keytype_t idl_is_topic_key(const void *node, bool keylist, const idl_path_t *path, uint32_t *order);
 IDL_EXPORT bool idl_is_extensible(const idl_node_t *node, idl_extensibility_t extensibility);
 IDL_EXPORT bool idl_has_unset_extensibility_r(idl_node_t *node);
 IDL_EXPORT bool idl_is_external(const idl_node_t *node);
