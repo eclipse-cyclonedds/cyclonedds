@@ -71,7 +71,8 @@ set(headers
   "${source_dir}/include/dds/ddsrt/threads.h"
   "${source_dir}/src/threads_priv.h"
   "${source_dir}/include/dds/ddsrt/cdtors.h"
-  "${source_dir}/include/dds/ddsrt/random.h")
+  "${source_dir}/include/dds/ddsrt/random.h"
+  "${source_dir}/include/dds/ddsrt/align.h")
 
 set(sources
   "${source_dir}/src/atomics.c"
