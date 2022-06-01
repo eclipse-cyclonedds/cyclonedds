@@ -130,8 +130,9 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_adr (uint32_t insn, dd
     if (ops_offs)
     {
       assert (ops_offs_idx < DDSI_CDRSTREAM_MAX_NESTING_DEPTH);
-      assert (ops - op0 < UINT32_MAX);
-      ops_offs[ops_offs_idx] = (uint32_t) (ops - op0_type);
+      ptrdiff_t offs = ops - op0_type;
+      assert (offs >= INT32_MIN && offs <= INT32_MAX);
+      ops_offs[ops_offs_idx] = (uint32_t) (offs);
     }
 
     /* skip DLC instruction for base type, handle as if it is final because the base type's
@@ -162,8 +163,9 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_adr (uint32_t insn, dd
       {
         assert (ops_offs);
         assert (ops_offs_idx < DDSI_CDRSTREAM_MAX_NESTING_DEPTH);
-        assert (ops - op0 < UINT32_MAX);
-        ops_offs[ops_offs_idx] = (uint32_t) (ops - op0_type);
+        ptrdiff_t offs = ops - op0_type;
+        assert (offs >= INT32_MIN && offs <= INT32_MAX);
+        ops_offs[ops_offs_idx] = (uint32_t) (offs);
         bool found = false;
         uint32_t n;
 
