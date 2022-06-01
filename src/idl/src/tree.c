@@ -1454,7 +1454,7 @@ bool idl_is_empty(const void *node)
   if(!idl_is_struct(node))
     return false;
   const idl_struct_t *s = (const idl_struct_t *)node;
-  if (!s->members)
+  if (!s->members && !s->inherit_spec)
     return true;
   bool empty = true;
   for (idl_member_t *m = s->members; empty && m; m = idl_next(m)) {
@@ -1462,6 +1462,10 @@ bool idl_is_empty(const void *node)
       empty = false;
     else if (!idl_is_empty(m->type_spec))
       empty = false;
+  }
+  if (empty && s->inherit_spec) {
+    idl_struct_t *base_struct = (idl_struct_t*)s->inherit_spec->base;
+    return idl_is_empty(base_struct);
   }
   return empty;
 }
