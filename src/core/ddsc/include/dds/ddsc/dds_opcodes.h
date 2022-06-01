@@ -13,6 +13,7 @@
 #ifndef DDS_OPCODES_H
 #define DDS_OPCODES_H
 
+#include "dds/ddsrt/align.h"
 #include "dds/ddsrt/static_assert.h"
 
 #if defined (__cplusplus)

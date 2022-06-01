@@ -38,35 +38,6 @@
 
 static const uint16_t nop = UINT16_MAX;
 
-struct alignment {
-  int value;
-  int ordering;
-  const char *rendering;
-};
-
-static const struct alignment alignments[] = {
-#define ALIGNMENT_1BY (&alignments[0])
-  { 1, 0, "1u" },
-#define ALIGNMENT_2BY (&alignments[1])
-  { 2, 2, "2u" },
-#define ALIGNMENT_4BY (&alignments[2])
-  { 4, 4, "4u" },
-#define ALIGNMENT_PTR (&alignments[3])
-  { 0, 6, "sizeof (char *)" },
-#define ALIGNMENT_8BY (&alignments[4])
-  { 8, 8, "8u" }
-};
-
-static const struct alignment *
-max_alignment(const struct alignment *a, const struct alignment *b)
-{
-  if (!a)
-    return b;
-  if (!b)
-    return a;
-  return b->ordering > a->ordering ? b : a;
-}
-
 static idl_retcode_t push_field(
   struct descriptor *descriptor, const void *node, struct field **fieldp)
 {
@@ -176,88 +147,17 @@ stash_opcode(
 {
   enum dds_stream_typecode typecode;
   struct instruction inst = { OPCODE, { .opcode = { .code = code, .order = order } } };
-  const struct alignment *alignment = NULL;
-
-  if (code & DDS_OP_FLAG_EXT) {
-    descriptor->flags |= DDS_TOPIC_NO_OPTIMIZE;
-    descriptor->alignment = max_alignment(descriptor->alignment, ALIGNMENT_PTR);
-  }
 
   descriptor->n_opcodes++;
-  switch (DDS_OP(code)) {
-    case DDS_OP_ADR:
-    case DDS_OP_JEQ4:
-      typecode = DDS_OP_TYPE(code);
-      if (typecode == DDS_OP_VAL_ARR)
-        typecode = DDS_OP_SUBTYPE(code);
-      break;
-    case DDS_OP_JEQ:
-      assert (0); // deprecated
-      return IDL_RETCODE_BAD_PARAMETER;
-    default:
-      return stash_instruction(pstate, instructions, index, &inst);
+  if (DDS_OP (code) == DDS_OP_ADR || DDS_OP (code) == DDS_OP_JEQ4)
+  {
+    typecode = DDS_OP_TYPE (code);
+    if (typecode == DDS_OP_VAL_ARR)
+      typecode = DDS_OP_SUBTYPE (code);
+    if (typecode == DDS_OP_VAL_UNI)
+      descriptor->flags |= DDS_TOPIC_CONTAINS_UNION;
   }
 
-  switch (typecode) {
-    case DDS_OP_VAL_STR:
-    case DDS_OP_VAL_SEQ:
-    case DDS_OP_VAL_BSQ:
-      alignment = ALIGNMENT_PTR;
-      descriptor->flags |= DDS_TOPIC_NO_OPTIMIZE;
-      break;
-    case DDS_OP_VAL_STU:
-    case DDS_OP_VAL_ARR:
-      /* alignment set by array element type or members of nested struct */
-      descriptor->flags |= DDS_TOPIC_NO_OPTIMIZE;
-      break;
-    case DDS_OP_VAL_BST:
-      alignment = ALIGNMENT_1BY;
-      descriptor->flags |= DDS_TOPIC_NO_OPTIMIZE;
-      break;
-    case DDS_OP_VAL_EXT:
-      /* External struct or union does not mean that the type is NO_OPTIMIZE
-         (if there is no FLAG_EXT). In case of a external union, the
-         NO_OPTIMIZE flag will be set when emitting opcodes for the union. */
-      alignment = ALIGNMENT_1BY;
-      break;
-    case DDS_OP_VAL_8BY:
-      alignment = ALIGNMENT_8BY;
-      break;
-    case DDS_OP_VAL_4BY:
-      alignment = ALIGNMENT_4BY;
-      break;
-    case DDS_OP_VAL_2BY:
-      alignment = ALIGNMENT_2BY;
-      break;
-    case DDS_OP_VAL_BLN:
-    case DDS_OP_VAL_1BY:
-      alignment = ALIGNMENT_1BY;
-      break;
-    case DDS_OP_VAL_ENU:
-      alignment = ALIGNMENT_4BY; /* enum size in memory is 4 bytes (FIXME: some exceptions..) */
-      if (DDS_OP_TYPE_SZ(code) != 4)
-        descriptor->flags |= DDS_TOPIC_NO_OPTIMIZE;
-      break;
-    case DDS_OP_VAL_BMK:
-      switch (DDS_OP_TYPE_SZ(code)) {
-        case 1: alignment = ALIGNMENT_1BY; break;
-        case 2: alignment = ALIGNMENT_2BY; break;
-        case 4: alignment = ALIGNMENT_4BY; break;
-        case 8: alignment = ALIGNMENT_8BY; break;
-        default: abort ();
-      }
-      break;
-    case DDS_OP_VAL_UNI:
-      /* strictly speaking a topic with a union can be optimized if all
-         members have the same size, and if the non-basetype members are all
-         optimizable themselves, and the alignment of the discriminant is not
-         less than the alignment of the members */
-      alignment = ALIGNMENT_1BY;
-      descriptor->flags |= DDS_TOPIC_NO_OPTIMIZE | DDS_TOPIC_CONTAINS_UNION;
-      break;
-  }
-
-  descriptor->alignment = max_alignment(descriptor->alignment, alignment);
   return stash_instruction(pstate, instructions, index, &inst);
 }
 
@@ -2457,10 +2357,9 @@ static int print_descriptor(FILE *fp, struct descriptor *descriptor, bool type_i
     return -1;
   fmt = "const dds_topic_descriptor_t %1$s_desc =\n{\n"
         "  .m_size = sizeof (%1$s),\n" /* size of type */
-        "  .m_align = %2$s,\n" /* alignment */
+        "  .m_align = dds_alignof (%1$s),\n" /* alignment */
         "  .m_flagset = ";
-  assert(descriptor->alignment);
-  if (idl_fprintf(fp, fmt, type, descriptor->alignment->rendering) < 0)
+  if (idl_fprintf(fp, fmt, type) < 0)
     return -1;
   if (print_flags(fp, descriptor, type_info) < 0)
     return -1;

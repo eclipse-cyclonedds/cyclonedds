@@ -25,6 +25,7 @@
 #include <stdbool.h>
 #include "dds/export.h"
 #include "dds/features.h"
+#include "dds/ddsrt/align.h"
 #include "dds/ddsc/dds_public_alloc.h"
 #include "dds/ddsc/dds_opcodes.h"
 
@@ -144,7 +145,6 @@ struct dds_type_meta_ser
  * @brief Default datarepresentation flag, XCDR1 and XCDR2 flags
  */
 #define DDS_DATA_REPRESENTATION_RESTRICT_DEFAULT  (DDS_DATA_REPRESENTATION_FLAG_XCDR1 | DDS_DATA_REPRESENTATION_FLAG_XCDR2)
-
 
 /**
  * @brief Topic Descriptor
