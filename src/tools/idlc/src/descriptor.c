@@ -815,6 +815,7 @@ emit_case(
         if (idl_is_external(node))
           has_size = true;
         stash_jeq_offset(pstate, &ctype->instructions, off, type_spec, opcode, (int16_t)off);
+        descriptor->n_opcodes++; /* this stashes an opcode, but is using stash_jeq_offset so we'll increase the opcode count here */
         off++;
       }
       /* generate union case discriminator */
