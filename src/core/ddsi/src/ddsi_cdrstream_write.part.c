@@ -527,7 +527,7 @@ static bool dds_stream_write_pl_memberBO (uint32_t mid, DDS_OSTREAM_T * __restri
 
   /* get must-understand flag from first member op */
   uint32_t flags = DDS_OP_FLAGS (ops[0]);
-  bool must_understand = flags & DDS_OP_FLAG_MU;
+  bool must_understand = flags & (DDS_OP_FLAG_MU | DDS_OP_FLAG_KEY);
 
   /* add emheader with data length code and flags and optionally the serialized size of the data */
   uint32_t em_hdr = 0;
