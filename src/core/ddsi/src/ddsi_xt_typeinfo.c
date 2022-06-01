@@ -101,12 +101,12 @@ static const uint32_t DDS_XTypes_TypeIdentifier_ops [] =
 const dds_topic_descriptor_t DDS_XTypes_TypeIdentifier_desc =
 {
   .m_size = sizeof (DDS_XTypes_TypeIdentifier),
-  .m_align = sizeof (char *),
-  .m_flagset = DDS_TOPIC_NO_OPTIMIZE | DDS_TOPIC_CONTAINS_UNION,
+  .m_align = dds_alignof (DDS_XTypes_TypeIdentifier),
+  .m_flagset = DDS_TOPIC_CONTAINS_UNION,
   .m_nkeys = 0u,
   .m_typename = "DDS::XTypes::TypeIdentifier",
   .m_keys = NULL,
-  .m_nops = 52,
+  .m_nops = 63,
   .m_ops = DDS_XTypes_TypeIdentifier_ops,
   .m_meta = ""
 };
@@ -711,12 +711,12 @@ static const uint32_t DDS_XTypes_TypeObject_ops [] =
 const dds_topic_descriptor_t DDS_XTypes_TypeObject_desc =
 {
   .m_size = sizeof (DDS_XTypes_TypeObject),
-  .m_align = 8u,
-  .m_flagset = DDS_TOPIC_NO_OPTIMIZE | DDS_TOPIC_CONTAINS_UNION,
+  .m_align = dds_alignof (DDS_XTypes_TypeObject),
+  .m_flagset = DDS_TOPIC_CONTAINS_UNION,
   .m_nkeys = 0u,
   .m_typename = "DDS::XTypes::TypeObject",
   .m_keys = NULL,
-  .m_nops = 368,
+  .m_nops = 404,
   .m_ops = DDS_XTypes_TypeObject_ops,
   .m_meta = ""
 };
@@ -837,12 +837,12 @@ static const uint32_t DDS_XTypes_TypeInformation_ops [] =
 const dds_topic_descriptor_t DDS_XTypes_TypeInformation_desc =
 {
   .m_size = sizeof (DDS_XTypes_TypeInformation),
-  .m_align = sizeof (char *),
-  .m_flagset = DDS_TOPIC_NO_OPTIMIZE | DDS_TOPIC_CONTAINS_UNION,
+  .m_align = dds_alignof (DDS_XTypes_TypeInformation),
+  .m_flagset = DDS_TOPIC_CONTAINS_UNION,
   .m_nkeys = 0u,
   .m_typename = "DDS::XTypes::TypeInformation",
   .m_keys = NULL,
-  .m_nops = 67,
+  .m_nops = 78,
   .m_ops = DDS_XTypes_TypeInformation_ops,
   .m_meta = ""
 };
