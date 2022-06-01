@@ -55,7 +55,7 @@ static dds_entity_t g_subscriber2 = 0;
 
 typedef void (*sample_init) (void *s);
 typedef void (*sample_check) (void *s1, void *s2);
-typedef void (*typeobj_modify) (dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectPair *type_id_obj_seq);
+typedef void (*typeobj_modify) (dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectPair *type_id_obj_seq, uint32_t kind);
 
 static void xtypes_init (void)
 {
@@ -617,27 +617,33 @@ CU_Test (ddsc_xtypes, invalid_top_level_local_non_hash, .init = xtypes_init, .fi
   ddsrt_free (desc.type_information.data);
 }
 
-static void mod_toplevel (dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectPair *type_id_obj_seq)
+static void mod_toplevel (dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectPair *type_id_obj_seq, uint32_t kind)
 {
+  assert (kind == DDS_XTypes_EK_MINIMAL);
+  (void) kind;
   assert (type_id_obj_seq->_buffer[0].type_object._u.minimal._d == DDS_XTypes_TK_STRUCTURE);
   type_id_obj_seq->_buffer[0].type_object._u.minimal._u.struct_type.member_seq._buffer[0].common.member_flags = 0x7f;
 }
 
-static void mod_inherit (dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectPair *type_id_obj_seq)
+static void mod_inherit (dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectPair *type_id_obj_seq, uint32_t kind)
 {
+  assert (kind == DDS_XTypes_EK_MINIMAL);
+  (void) kind;
   assert (type_id_obj_seq->_buffer[0].type_object._u.minimal._d == DDS_XTypes_TK_STRUCTURE);
   ddsi_typeid_fini_impl (&type_id_obj_seq->_buffer[0].type_object._u.minimal._u.struct_type.header.base_type);
   ddsi_typeid_copy_impl (&type_id_obj_seq->_buffer[0].type_object._u.minimal._u.struct_type.header.base_type,
       &type_id_obj_seq->_buffer[0].type_object._u.minimal._u.struct_type.member_seq._buffer[0].common.member_type_id);
 }
 
-static void mod_uniondisc (dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectPair *type_id_obj_seq)
+static void mod_uniondisc (dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectPair *type_id_obj_seq, uint32_t kind)
 {
+  assert (kind == DDS_XTypes_EK_MINIMAL);
+  (void) kind;
   assert (type_id_obj_seq->_buffer[0].type_object._u.minimal._d == DDS_XTypes_TK_UNION);
   type_id_obj_seq->_buffer[0].type_object._u.minimal._u.union_type.discriminator.common.type_id._d = DDS_XTypes_TK_FLOAT32;
 }
 
-static void modify_type_meta (dds_topic_descriptor_t *dst_desc, const dds_topic_descriptor_t *src_desc, typeobj_modify mod, bool update_typeinfo)
+static void modify_type_meta (dds_topic_descriptor_t *dst_desc, const dds_topic_descriptor_t *src_desc, typeobj_modify mod, bool update_typeinfo, uint32_t kind)
 {
   memcpy (dst_desc, src_desc, sizeof (*dst_desc));
 
@@ -652,26 +658,53 @@ static void modify_type_meta (dds_topic_descriptor_t *dst_desc, const dds_topic_
   {
     assert (ti);
     // confirm that top-level type is the first in type map
-    assert (!ddsi_typeid_compare_impl (&ti->minimal.typeid_with_size.type_id, &tmap->identifier_object_pair_minimal._buffer[0].type_identifier));
-    ddsi_typeid_fini_impl (&ti->minimal.typeid_with_size.type_id);
-    for (uint32_t n = 0; n < tmap->identifier_object_pair_minimal._length; n++)
-      ddsi_typeid_fini_impl (&tmap->identifier_object_pair_minimal._buffer[n].type_identifier);
+    if (kind == DDS_XTypes_EK_MINIMAL || kind == DDS_XTypes_EK_BOTH)
+    {
+      assert (!ddsi_typeid_compare_impl (&ti->minimal.typeid_with_size.type_id, &tmap->identifier_object_pair_minimal._buffer[0].type_identifier));
+      ddsi_typeid_fini_impl (&ti->minimal.typeid_with_size.type_id);
+      for (uint32_t n = 0; n < tmap->identifier_object_pair_minimal._length; n++)
+        ddsi_typeid_fini_impl (&tmap->identifier_object_pair_minimal._buffer[n].type_identifier);
+    }
+    if (kind == DDS_XTypes_EK_COMPLETE || kind == DDS_XTypes_EK_BOTH)
+    {
+      assert (!ddsi_typeid_compare_impl (&ti->complete.typeid_with_size.type_id, &tmap->identifier_object_pair_complete._buffer[0].type_identifier));
+      ddsi_typeid_fini_impl (&ti->complete.typeid_with_size.type_id);
+      for (uint32_t n = 0; n < tmap->identifier_object_pair_complete._length; n++)
+        ddsi_typeid_fini_impl (&tmap->identifier_object_pair_complete._buffer[n].type_identifier);
+    }
   }
 
   // modify the specified object in the type mapping
-  mod (&tmap->identifier_object_pair_minimal);
+  if (kind == DDS_XTypes_EK_MINIMAL || kind == DDS_XTypes_EK_BOTH)
+    mod (&tmap->identifier_object_pair_minimal, DDS_XTypes_EK_MINIMAL);
+  if (kind == DDS_XTypes_EK_COMPLETE || kind == DDS_XTypes_EK_BOTH)
+    mod (&tmap->identifier_object_pair_complete, DDS_XTypes_EK_COMPLETE);
 
   if (update_typeinfo)
   {
     // get hash-id for modified type and store in type map and replace top-level type id
-    for (uint32_t n = 0; n < tmap->identifier_object_pair_minimal._length; n++)
+    if (kind == DDS_XTypes_EK_MINIMAL || kind == DDS_XTypes_EK_BOTH)
     {
-      ddsi_typeid_t type_id;
-      ddsi_typeobj_get_hash_id (&tmap->identifier_object_pair_minimal._buffer[n].type_object, &type_id);
-      ddsi_typeid_copy_impl (&tmap->identifier_object_pair_minimal._buffer[n].type_identifier, &type_id.x);
-      ddsi_typeid_fini (&type_id);
+      for (uint32_t n = 0; n < tmap->identifier_object_pair_minimal._length; n++)
+      {
+        ddsi_typeid_t type_id;
+        ddsi_typeobj_get_hash_id (&tmap->identifier_object_pair_minimal._buffer[n].type_object, &type_id);
+        ddsi_typeid_copy_impl (&tmap->identifier_object_pair_minimal._buffer[n].type_identifier, &type_id.x);
+        ddsi_typeid_fini (&type_id);
+      }
+      ddsi_typeid_copy_impl (&ti->minimal.typeid_with_size.type_id, &tmap->identifier_object_pair_minimal._buffer[0].type_identifier);
     }
-    ddsi_typeid_copy_impl (&ti->minimal.typeid_with_size.type_id, &tmap->identifier_object_pair_minimal._buffer[0].type_identifier);
+    if (kind == DDS_XTypes_EK_COMPLETE || kind == DDS_XTypes_EK_BOTH)
+    {
+      for (uint32_t n = 0; n < tmap->identifier_object_pair_complete._length; n++)
+      {
+        ddsi_typeid_t type_id;
+        ddsi_typeobj_get_hash_id (&tmap->identifier_object_pair_complete._buffer[n].type_object, &type_id);
+        ddsi_typeid_copy_impl (&tmap->identifier_object_pair_complete._buffer[n].type_identifier, &type_id.x);
+        ddsi_typeid_fini (&type_id);
+      }
+      ddsi_typeid_copy_impl (&ti->complete.typeid_with_size.type_id, &tmap->identifier_object_pair_complete._buffer[0].type_identifier);
+    }
   }
 
   // replace the type map and type info in the topic descriptor with updated ones
@@ -708,7 +741,7 @@ CU_Theory ((const char *test_descr, const dds_topic_descriptor_t *topic_desc, ty
   printf("Test invalid_type_object_local: %s\n", test_descr);
 
   dds_topic_descriptor_t desc;
-  modify_type_meta (&desc, topic_desc, mod, matching_typeinfo);
+  modify_type_meta (&desc, topic_desc, mod, matching_typeinfo, DDS_XTypes_EK_MINIMAL);
 
   // test that topic creation fails
   create_unique_topic_name ("ddsc_xtypes", topic_name, sizeof (topic_name));
@@ -779,7 +812,7 @@ CU_Theory ((const char *test_descr, const dds_topic_descriptor_t *topic_desc, ty
   CU_ASSERT_FATAL (wr > 0);
 
   dds_topic_descriptor_t desc;
-  modify_type_meta (&desc, topic_desc, mod, true);
+  modify_type_meta (&desc, topic_desc, mod, true, DDS_XTypes_EK_MINIMAL);
 
   DDS_XTypes_TypeInformation *ti;
   typeinfo_deser (&ti, &desc.type_information);
@@ -820,19 +853,38 @@ CU_Theory ((const char *test_descr, const dds_topic_descriptor_t *topic_desc, ty
   ddsrt_free (desc.type_mapping.data);
 }
 
-static void mod_dep_test (dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectPair *type_id_obj_seq)
+static void mod_dep_test (dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectPair *type_id_obj_seq, uint32_t kind)
 {
   // Remove member n2 from dep_test_nested
-  assert (type_id_obj_seq->_buffer[1].type_object._u.minimal._d == DDS_XTypes_TK_STRUCTURE);
-  assert (type_id_obj_seq->_buffer[1].type_object._u.minimal._u.struct_type.member_seq._length == 2);
-  type_id_obj_seq->_buffer[1].type_object._u.minimal._u.struct_type.member_seq._length = 1;
+  if (kind == DDS_XTypes_EK_MINIMAL)
+  {
+    assert (type_id_obj_seq->_buffer[1].type_object._u.minimal._d == DDS_XTypes_TK_STRUCTURE);
+    assert (type_id_obj_seq->_buffer[1].type_object._u.minimal._u.struct_type.member_seq._length == 2);
+    type_id_obj_seq->_buffer[1].type_object._u.minimal._u.struct_type.member_seq._length = 1;
+  }
+  else
+  {
+    assert (type_id_obj_seq->_buffer[1].type_object._u.complete._d == DDS_XTypes_TK_STRUCTURE);
+    assert (type_id_obj_seq->_buffer[1].type_object._u.complete._u.struct_type.member_seq._length == 2);
+    type_id_obj_seq->_buffer[1].type_object._u.complete._u.struct_type.member_seq._length = 1;
+  }
 
-  // Recalculate type id for dep_test_nested and replace dep_test.f1 member type id
+  // Recalculate type ids for dep_test_nested and replace dep_test.f1 member type id
   ddsi_typeid_t type_id;
-  assert (type_id_obj_seq->_buffer[0].type_object._u.minimal._d == DDS_XTypes_TK_STRUCTURE);
-  ddsi_typeid_fini_impl (&type_id_obj_seq->_buffer[0].type_object._u.minimal._u.struct_type.member_seq._buffer[0].common.member_type_id);
-  ddsi_typeobj_get_hash_id (&type_id_obj_seq->_buffer[1].type_object, &type_id);
-  ddsi_typeid_copy_impl (&type_id_obj_seq->_buffer[0].type_object._u.minimal._u.struct_type.member_seq._buffer[0].common.member_type_id, &type_id.x);
+  if (kind == DDS_XTypes_EK_MINIMAL)
+  {
+    assert (type_id_obj_seq->_buffer[0].type_object._u.minimal._d == DDS_XTypes_TK_STRUCTURE);
+    ddsi_typeid_fini_impl (&type_id_obj_seq->_buffer[0].type_object._u.minimal._u.struct_type.member_seq._buffer[0].common.member_type_id);
+    ddsi_typeobj_get_hash_id (&type_id_obj_seq->_buffer[1].type_object, &type_id);
+    ddsi_typeid_copy_impl (&type_id_obj_seq->_buffer[0].type_object._u.minimal._u.struct_type.member_seq._buffer[0].common.member_type_id, &type_id.x);
+  }
+  else
+  {
+    assert (type_id_obj_seq->_buffer[0].type_object._u.complete._d == DDS_XTypes_TK_STRUCTURE);
+    ddsi_typeid_fini_impl (&type_id_obj_seq->_buffer[0].type_object._u.complete._u.struct_type.member_seq._buffer[0].common.member_type_id);
+    ddsi_typeobj_get_hash_id (&type_id_obj_seq->_buffer[1].type_object, &type_id);
+    ddsi_typeid_copy_impl (&type_id_obj_seq->_buffer[0].type_object._u.complete._u.struct_type.member_seq._buffer[0].common.member_type_id, &type_id.x);
+  }
 }
 
 CU_Test (ddsc_xtypes, resolve_dep_type, .init = xtypes_init, .fini = xtypes_fini)
@@ -848,7 +900,7 @@ CU_Test (ddsc_xtypes, resolve_dep_type, .init = xtypes_init, .fini = xtypes_fini
   CU_ASSERT_FATAL (wr > 0);
 
   dds_topic_descriptor_t desc;
-  modify_type_meta (&desc, &XSpace_dep_test_desc, mod_dep_test, true);
+  modify_type_meta (&desc, &XSpace_dep_test_desc, mod_dep_test, true, DDS_XTypes_EK_BOTH);
 
   DDS_XTypes_TypeInformation *ti;
   typeinfo_deser (&ti, &desc.type_information);
