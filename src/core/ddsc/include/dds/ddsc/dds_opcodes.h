@@ -553,6 +553,8 @@ enum dds_stream_typecode_subtype {
  * it can be that a simple copy+optional byteswap can produce the right
  * C memory layout straight from CDR. If this flag is added it means that
  * there is pointer 'magic' involved in decoding the type and no shortcuts should be taken.
+ * @deprecated Optimizability is determined runtime when creating the sertype_default
+ * for the type, this flag is not used.
  */
 #define DDS_TOPIC_NO_OPTIMIZE                   (1u << 0)
 

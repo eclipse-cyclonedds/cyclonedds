@@ -149,6 +149,16 @@ static void sertype_default_realloc_samples (void **ptrs, const struct ddsi_sert
   }
 }
 
+static bool type_may_contain_ptr (const struct ddsi_sertype_default *tp)
+{
+  /* In case the optimized size for both XCDR1 and 2 is 0 (not optimized),
+     there may be a pointer in the type and free_samples needs to do a full
+     dds_stream_free_sample for each sample. */
+  /* TODO: improve this check so that it only returns true in case the type
+     really contains a pointer, by inspection of the serializer ops */
+  return tp->opt_size_xcdr1 == 0 || tp->opt_size_xcdr2 == 0;
+}
+
 static void sertype_default_free_samples (const struct ddsi_sertype *sertype_common, void **ptrs, size_t count, dds_free_op_t op)
 {
   if (count > 0)
@@ -160,7 +170,7 @@ static void sertype_default_free_samples (const struct ddsi_sertype *sertype_com
     for (size_t i = 0, off = 0; i < count; i++, off += size)
       assert ((char *)ptrs[i] == (char *)ptrs[0] + off);
 #endif
-    if (type->flagset & DDS_TOPIC_NO_OPTIMIZE)
+    if (type_may_contain_ptr (tp))
     {
       char *ptr = ptrs[0];
       for (size_t i = 0; i < count; i++)
@@ -174,14 +184,6 @@ static void sertype_default_free_samples (const struct ddsi_sertype *sertype_com
       dds_free (ptrs[0]);
     }
   }
-}
-
-static size_t get_optimized_size (const struct ddsi_sertype_default *st, uint16_t encoding_version)
-{
-  /* Check if topic cannot be optimised (memcpy marshal) */
-  if (!(st->type.flagset & DDS_TOPIC_NO_OPTIMIZE))
-     return dds_stream_check_optimize (&st->type, encoding_version);
-  return 0;
 }
 
 static struct ddsi_sertype * sertype_default_derive_sertype (const struct ddsi_sertype *base_sertype, dds_data_representation_id_t data_representation, dds_type_consistency_enforcement_qospolicy_t tce_qos)
@@ -341,7 +343,7 @@ dds_return_t ddsi_sertype_default_init (const struct ddsi_domaingv *gv, struct d
       GVTRACE ("Flag DDS_TOPIC_XTYPES_METADATA set for type %s but topic descriptor does not contains type information\n", desc->m_typename);
       return DDS_RETCODE_BAD_PARAMETER;
     }
-    st->type.typeinfo_ser.data =  ddsrt_memdup (desc->type_information.data, desc->type_information.sz);
+    st->type.typeinfo_ser.data = ddsrt_memdup (desc->type_information.data, desc->type_information.sz);
     st->type.typeinfo_ser.sz = desc->type_information.sz;
     st->type.typemap_ser.data = ddsrt_memdup (desc->type_mapping.data, desc->type_mapping.sz);
     st->type.typemap_ser.sz = desc->type_mapping.sz;
@@ -354,11 +356,11 @@ dds_return_t ddsi_sertype_default_init (const struct ddsi_domaingv *gv, struct d
     st->type.typemap_ser.sz = 0;
   }
 
-  st->opt_size_xcdr1 = (st->c.allowed_data_representation & DDS_DATA_REPRESENTATION_FLAG_XCDR1) ? get_optimized_size (st, CDR_ENC_VERSION_1) : 0;
+  st->opt_size_xcdr1 = (st->c.allowed_data_representation & DDS_DATA_REPRESENTATION_FLAG_XCDR1) ? dds_stream_check_optimize (&st->type, CDR_ENC_VERSION_1) : 0;
   if (st->opt_size_xcdr1 > 0)
     GVTRACE ("Marshalling XCDR1 for type: %s is %soptimised\n", st->c.type_name, st->opt_size_xcdr1 ? "" : "not ");
 
-  st->opt_size_xcdr2 = (st->c.allowed_data_representation & DDS_DATA_REPRESENTATION_FLAG_XCDR2) ? get_optimized_size (st, CDR_ENC_VERSION_2) : 0;
+  st->opt_size_xcdr2 = (st->c.allowed_data_representation & DDS_DATA_REPRESENTATION_FLAG_XCDR2) ? dds_stream_check_optimize (&st->type, CDR_ENC_VERSION_2) : 0;
   if (st->opt_size_xcdr2 > 0)
     GVTRACE ("Marshalling XCDR2 for type: %s is %soptimised\n", st->c.type_name, st->opt_size_xcdr2 ? "" : "not ");
 
