@@ -533,6 +533,8 @@ err:
 
 dds_return_t dds_resolve_type (dds_entity_t entity, const dds_typeid_t *type_id, dds_duration_t timeout, struct ddsi_sertype **sertype)
 {
+  if (!ddsi_typeid_is_complete (type_id))
+    return DDS_RETCODE_BAD_PARAMETER;
   return wait_for_type_resolved (entity, type_id, timeout, sertype, NULL);
 }
 

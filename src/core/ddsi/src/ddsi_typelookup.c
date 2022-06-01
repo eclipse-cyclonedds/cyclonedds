@@ -27,6 +27,8 @@
 #include "dds/ddsi/ddsi_xt_typelookup.h"
 #include "dds/ddsi/ddsi_typelookup.h"
 #include "dds/ddsi/ddsi_typelib.h"
+#include "dds/ddsi/ddsi_typebuilder.h"
+#include "dds/ddsi/ddsi_cdrstream.h"
 #include "dds/ddsi/q_gc.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_protocol.h"
@@ -350,19 +352,35 @@ void ddsi_tl_add_types (struct ddsi_domaingv *gv, const DDS_Builtin_TypeLookup_R
       {
         GVTRACE (" resolved complete type %s\n", ddsi_make_typeid_str_impl (&str, &r.type_identifier));
 
-        // FIXME: create sertype from received (complete) type object, check if it exists and register if not
-        // bool sertype_new = false;
-        // struct ddsi_sertype *st = ...
-        // ddsrt_mutex_lock (&gv->sertypes_lock);
-        // struct ddsi_sertype *existing_sertype = ddsi_sertype_lookup_locked (gv, &st->c);
-        // if (existing_sertype == NULL)
-        // {
-        //   ddsi_sertype_register_locked (gv, &st->c);
-        //   sertype_new = true;
-        // }
-        // ddsi_sertype_unref_locked (gv, &st->c); // unref because both init_from_ser and sertype_lookup/register refcounts the type
-        // ddsrt_mutex_unlock (&gv->sertypes_lock);
-        // type->sertype = &st->c; // refcounted by sertype_register/lookup
+        if (ddsi_type_resolved (gv, type, true))
+        {
+          dds_topic_descriptor_t *desc;
+          if (ddsi_topic_descriptor_from_type (gv, &desc, type) != DDS_RETCODE_OK)
+          {
+            GVTRACE (" failed to create type descriptor\n");
+            continue;
+          }
+          struct ddsi_sertype_default *st = ddsrt_malloc (sizeof (*st));
+          uint16_t min_xcdrv = dds_stream_minimum_xcdr_version (desc->m_ops);
+          dds_data_representation_id_t data_representation = min_xcdrv == CDR_ENC_VERSION_2 ? DDS_DATA_REPRESENTATION_XCDR2 : DDS_DATA_REPRESENTATION_XCDR1;
+          if (ddsi_sertype_default_init (gv, st, desc, min_xcdrv, data_representation) != DDS_RETCODE_OK)
+          {
+            ddsrt_free (st);
+            GVTRACE (" failed to create sertype\n");
+            continue;
+          }
+
+          ddsi_topic_descriptor_fini (desc);
+          ddsrt_free (desc);
+
+          ddsrt_mutex_lock (&gv->sertypes_lock);
+          struct ddsi_sertype *existing_sertype = ddsi_sertype_lookup_locked (gv, &st->c);
+          if (existing_sertype == NULL)
+            ddsi_sertype_register_locked (gv, &st->c);
+          ddsi_sertype_unref_locked (gv, &st->c); // unref because both init_from_ser and sertype_lookup/register refcounts the type
+          ddsrt_mutex_unlock (&gv->sertypes_lock);
+          type->sertype = &st->c; // refcounted by sertype_register/lookup
+        }
 
         ddsi_type_get_gpe_matches (gv, type, gpe_match_upd, n_match_upd);
         resolved = true;

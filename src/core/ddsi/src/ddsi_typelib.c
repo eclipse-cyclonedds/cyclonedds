@@ -1123,4 +1123,71 @@ void ddsi_type_pair_free (struct ddsi_type_pair *type_pair)
   ddsrt_free (type_pair);
 }
 
+dds_return_t ddsi_wait_for_type_resolved (struct ddsi_domaingv *gv, const ddsi_typeid_t *type_id, dds_duration_t timeout, ddsi_typeobj_t **type_obj, ddsi_type_resolve_kind_t resolved_kind, ddsi_type_request_t request)
+{
+  dds_return_t ret;
+
+  if (ddsi_typeid_is_none (type_id) || !ddsi_typeid_is_hash (type_id))
+  {
+    ret = DDS_RETCODE_BAD_PARAMETER;
+    goto err;
+  }
+
+  ddsrt_mutex_lock (&gv->typelib_lock);
+  struct ddsi_type *type = ddsi_type_lookup_locked (gv, type_id);
+  if (type == NULL)
+  {
+    /* For a type to be resolved, we require it's top-level type identifier to be known
+       and added to the type library as a result of a discovered endpoint or topic,
+       or a topic created locally. */
+    ret = DDS_RETCODE_PRECONDITION_NOT_MET;
+    goto err_unlock;
+  }
+
+  if (ddsi_type_resolved (gv, type, resolved_kind))
+  {
+    if (type_obj)
+      *type_obj = ddsi_type_get_typeobj (gv, type);
+    ret = DDS_RETCODE_OK;
+    goto resolved;
+  }
+  else if (timeout == 0)
+  {
+    ret = DDS_RETCODE_TIMEOUT;
+    goto err_unlock;
+  }
+  ddsrt_mutex_unlock (&gv->typelib_lock);
+
+  if (request == DDSI_TYPE_SEND_REQUEST)
+  {
+    // FIXME: provide proxy pp guid
+    if (!ddsi_tl_request_type (gv, type_id, NULL, resolved_kind))
+    {
+      ret = DDS_RETCODE_PRECONDITION_NOT_MET;
+      goto err;
+    }
+  }
+
+  const dds_time_t tnow = dds_time ();
+  const dds_time_t abstimeout = (DDS_INFINITY - timeout <= tnow) ? DDS_NEVER : (tnow + timeout);
+  ddsrt_mutex_lock (&gv->typelib_lock);
+  while (!ddsi_type_resolved (gv, type, resolved_kind))
+  {
+    if (!ddsrt_cond_waituntil (&gv->typelib_resolved_cond, &gv->typelib_lock, abstimeout))
+    {
+      ret = DDS_RETCODE_TIMEOUT;
+      goto err_unlock;
+    }
+  }
+  if (type_obj)
+    *type_obj = ddsi_type_get_typeobj (gv, type);
+  ret = DDS_RETCODE_OK;
+
+resolved:
+err_unlock:
+  ddsrt_mutex_unlock (&gv->typelib_lock);
+err:
+  return ret;
+}
+
 #endif /* DDS_HAS_TYPE_DISCOVERY */
