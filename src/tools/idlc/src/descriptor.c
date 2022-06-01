@@ -2277,8 +2277,6 @@ static int print_flags(FILE *fp, struct descriptor *descriptor, bool type_info)
   const char *vec[MAX_FLAGS] = { NULL };
   size_t cnt, len = 0;
 
-  if (descriptor->flags & DDS_TOPIC_NO_OPTIMIZE)
-    vec[len++] = "DDS_TOPIC_NO_OPTIMIZE";
   if (descriptor->flags & DDS_TOPIC_CONTAINS_UNION)
     vec[len++] = "DDS_TOPIC_CONTAINS_UNION";
   if (descriptor->flags & DDS_TOPIC_FIXED_KEY)

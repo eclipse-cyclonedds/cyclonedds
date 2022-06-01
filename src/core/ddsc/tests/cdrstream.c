@@ -90,7 +90,7 @@ static const uint32_t TestIdl_MsgNested_ops [] =
   DDS_OP_RTS
 };
 
-const dds_topic_descriptor_t TestIdl_MsgNested_desc = { sizeof (TestIdl_MsgNested), 4u, DDS_TOPIC_NO_OPTIMIZE, 0u, "TestIdl::MsgNested", NULL, 17, TestIdl_MsgNested_ops, "" };
+const dds_topic_descriptor_t TestIdl_MsgNested_desc = { sizeof (TestIdl_MsgNested), 4u, 0u, 0u, "TestIdl::MsgNested", NULL, 17, TestIdl_MsgNested_ops, "" };
 
 static void * sample_init_nested (void)
 {
@@ -145,7 +145,7 @@ static const uint32_t TestIdl_Msg_ops [] =
   DDS_OP_RTS
 };
 
-const dds_topic_descriptor_t TestIdl_MsgStr_desc = { sizeof (TestIdl_MsgStr), sizeof (char *), DDS_TOPIC_NO_OPTIMIZE, 0u, "TestIdl::MsgStr", NULL, 14, TestIdl_Msg_ops, "" };
+const dds_topic_descriptor_t TestIdl_MsgStr_desc = { sizeof (TestIdl_MsgStr), sizeof (char *), 0u, 0u, "TestIdl::MsgStr", NULL, 14, TestIdl_Msg_ops, "" };
 
 static void * sample_init_str (void)
 {
@@ -257,7 +257,7 @@ static const uint32_t TestIdl_MsgUnion_ops [] =
   DDS_OP_RTS
 };
 
-const dds_topic_descriptor_t TestIdl_MsgUnion_desc = { sizeof (TestIdl_MsgUnion), 4u, DDS_TOPIC_NO_OPTIMIZE | DDS_TOPIC_CONTAINS_UNION, 0u, "TestIdl::MsgUnion", NULL, 3, TestIdl_MsgUnion_ops, "" };
+const dds_topic_descriptor_t TestIdl_MsgUnion_desc = { sizeof (TestIdl_MsgUnion), 4u, DDS_TOPIC_CONTAINS_UNION, 0u, "TestIdl::MsgUnion", NULL, 3, TestIdl_MsgUnion_ops, "" };
 
 static void * sample_init_union (void)
 {
@@ -323,7 +323,7 @@ static const uint32_t TestIdl_MsgRecursive_ops [] =
   DDS_OP_RTS
 };
 
-const dds_topic_descriptor_t TestIdl_MsgRecursive_desc = { sizeof (TestIdl_MsgRecursive), 4u, DDS_TOPIC_NO_OPTIMIZE, 0u, "TestIdl::MsgRecursive", NULL, 18, TestIdl_MsgRecursive_ops, "" };
+const dds_topic_descriptor_t TestIdl_MsgRecursive_desc = { sizeof (TestIdl_MsgRecursive), 4u, 0u, 0u, "TestIdl::MsgRecursive", NULL, 18, TestIdl_MsgRecursive_ops, "" };
 
 static void * sample_init_recursive (void)
 {
@@ -416,7 +416,7 @@ static const uint32_t TestIdl_MsgExt_ops [] =
   DDS_OP_RTS
 };
 
-const dds_topic_descriptor_t TestIdl_MsgExt_desc = { sizeof (TestIdl_MsgExt), sizeof (char *), DDS_TOPIC_NO_OPTIMIZE, 0u, "TestIdl_MsgExt", NULL, 9, TestIdl_MsgExt_ops, "" };
+const dds_topic_descriptor_t TestIdl_MsgExt_desc = { sizeof (TestIdl_MsgExt), sizeof (char *), 0u, 0u, "TestIdl_MsgExt", NULL, 9, TestIdl_MsgExt_ops, "" };
 
 static void * sample_init_ext (void)
 {
@@ -531,7 +531,7 @@ static const uint32_t TestIdl_MsgOpt_ops [] =
   DDS_OP_RTS
 };
 
-const dds_topic_descriptor_t TestIdl_MsgOpt_desc = { sizeof (TestIdl_MsgOpt), sizeof (char *), DDS_TOPIC_NO_OPTIMIZE, 0u, "TestIdl_MsgOpt", NULL, 9, TestIdl_MsgOpt_ops, "" };
+const dds_topic_descriptor_t TestIdl_MsgOpt_desc = { sizeof (TestIdl_MsgOpt), sizeof (char *), 0u, 0u, "TestIdl_MsgOpt", NULL, 9, TestIdl_MsgOpt_ops, "" };
 
 static void * sample_init_opt (void)
 {
@@ -712,7 +712,7 @@ static const uint32_t TestIdl_AppendableMsg_ops [] =
   DDS_OP_RTS,
 };
 
-const dds_topic_descriptor_t TestIdl_MsgAppendable_desc = { sizeof (TestIdl_AppendableMsg), 4u, DDS_TOPIC_NO_OPTIMIZE, 0u, "TestIdl::AppendableMsg", NULL, 4, TestIdl_AppendableMsg_ops, "" };
+const dds_topic_descriptor_t TestIdl_MsgAppendable_desc = { sizeof (TestIdl_AppendableMsg), 4u, 0u, 0u, "TestIdl::AppendableMsg", NULL, 4, TestIdl_AppendableMsg_ops, "" };
 
 static void * sample_init_appendable (void)
 {
@@ -849,7 +849,7 @@ static const dds_key_descriptor_t TestIdl_MsgKeysNested_keys[3] =
   { "msg_field1.submsg_field4.submsg2_field2", 37, 2 }
 };
 
-const dds_topic_descriptor_t TestIdl_MsgKeysNested_desc = { sizeof (TestIdl_MsgKeysNested), sizeof (char *), DDS_TOPIC_FIXED_KEY | DDS_TOPIC_FIXED_KEY_XCDR2 | DDS_TOPIC_NO_OPTIMIZE, 3u, "TestIdl::MsgKeysNested", TestIdl_MsgKeysNested_keys, 8, TestIdl_MsgKeysNested_ops, "" };
+const dds_topic_descriptor_t TestIdl_MsgKeysNested_desc = { sizeof (TestIdl_MsgKeysNested), sizeof (char *), DDS_TOPIC_FIXED_KEY | DDS_TOPIC_FIXED_KEY_XCDR2, 3u, "TestIdl::MsgKeysNested", TestIdl_MsgKeysNested_keys, 8, TestIdl_MsgKeysNested_ops, "" };
 
 static void * sample_empty_keysnested (void)
 {
@@ -953,7 +953,7 @@ static const uint32_t TestIdl_MsgArr_ops [] =
   DDS_OP_RTS
 };
 
-const dds_topic_descriptor_t TestIdl_MsgArr_desc = { sizeof (TestIdl_MsgArr), sizeof (char *), DDS_TOPIC_NO_OPTIMIZE | DDS_TOPIC_CONTAINS_UNION, 0u, "TestIdl::MsgArr", NULL, 6, TestIdl_MsgArr_ops, "" };
+const dds_topic_descriptor_t TestIdl_MsgArr_desc = { sizeof (TestIdl_MsgArr), sizeof (char *), DDS_TOPIC_CONTAINS_UNION, 0u, "TestIdl::MsgArr", NULL, 6, TestIdl_MsgArr_ops, "" };
 
 static void * sample_init_arr (void)
 {
@@ -1219,7 +1219,7 @@ static const uint32_t TestIdl_MsgAppendDefaults2_ops [] =
 };
 
 const dds_topic_descriptor_t TestIdl_MsgAppendDefaults1_desc = { sizeof (TestIdl_MsgAppendDefaults1), 4u, 0u, 0u, "TestIdl::MsgAppendDefaults1", NULL, 0, TestIdl_MsgAppendDefaults1_ops, "" };
-const dds_topic_descriptor_t TestIdl_MsgAppendDefaults2_desc = { sizeof (TestIdl_MsgAppendDefaults2), 4u, DDS_TOPIC_NO_OPTIMIZE | DDS_TOPIC_CONTAINS_UNION, 0u, "TestIdl::MsgAppendDefaults2", NULL, 0, TestIdl_MsgAppendDefaults2_ops, "" };
+const dds_topic_descriptor_t TestIdl_MsgAppendDefaults2_desc = { sizeof (TestIdl_MsgAppendDefaults2), 4u, DDS_TOPIC_CONTAINS_UNION, 0u, "TestIdl::MsgAppendDefaults2", NULL, 0, TestIdl_MsgAppendDefaults2_ops, "" };
 
 static void * sample_init_appenddefaults1 (void)
 {
@@ -1427,8 +1427,8 @@ static const uint32_t TestIdl_MsgMutable2_ops [] =
   DDS_OP_RTS,
 };
 
-const dds_topic_descriptor_t TestIdl_MsgMutable1_desc = { sizeof (TestIdl_MsgMutable1), 4u, DDS_TOPIC_NO_OPTIMIZE, 0u, "TestIdl::MsgMutable1", NULL, 0, TestIdl_MsgMutable1_ops, "" };
-const dds_topic_descriptor_t TestIdl_MsgMutable2_desc = { sizeof (TestIdl_MsgMutable2), 4u, DDS_TOPIC_NO_OPTIMIZE, 0u, "TestIdl::MsgMutable2", NULL, 0, TestIdl_MsgMutable2_ops, "" };
+const dds_topic_descriptor_t TestIdl_MsgMutable1_desc = { sizeof (TestIdl_MsgMutable1), 4u, 0u, 0u, "TestIdl::MsgMutable1", NULL, 0, TestIdl_MsgMutable1_ops, "" };
+const dds_topic_descriptor_t TestIdl_MsgMutable2_desc = { sizeof (TestIdl_MsgMutable2), 4u, 0u, 0u, "TestIdl::MsgMutable2", NULL, 0, TestIdl_MsgMutable2_ops, "" };
 
 static void * sample_init_mutable1 (void)
 {
@@ -1845,44 +1845,57 @@ CU_Theory ((const dds_topic_descriptor_t *desc, uint16_t min_xcdrv),
 
 
 #define D(n) (&CdrStreamOptimize_ ## n ## _desc)
-CU_TheoryDataPoints (ddsc_cdrstream, check_optimize) = {
-  /*
-                                                 / final type
-                                                 |      / appendable type: has DHEADER in CDR
-                                                 |      |        / mutable type: has EMHEADER and DHEADERS
-                                                 |      |        |        / XCDR2 uses 4 byte padding for 64-bits type, does not match memory layout
-                                                 |      |        |        |      / external field is pointer type
-                                                 |      |        |        |      |      / nested struct (aligned at 4 byte) at offset 0 can be optimized
-                                                 |      |        |        |      |      |      / 2 nested structs, alignment in CDR equal to memory alignment
-                                                 |      |        |        |      |      |      |        / 2-level nesting, also using same alignment in CDR and memory
-                                                 |      |        |        |      |      |      |        |        / XCDR2 uses 4 byte alignment for 64 bits types
-                                                 |      |        |        |      |      |      |        |        |      / array of non-primitive type is currently not optimized (FIXME: could be optimized for XCDR1?)
-                                                 |      |        |        |      |      |      |        |        |      |      / CDR and memory have equal alignment
-                                                 |      |        |        |      |      |      |        |        |      |      |      / field f2 is 1-byte aligned in CDR (because of 1-byte type in nested type), but 2-byte in memory
-                                                 |      |        |        |      |      |      |        |        |      |      |      |      / type of f2 is appendable
-                                                 |      |        |        |      |      |      |        |        |      |      |      |      |      / bitmask (bit bound 8) array (dheader in v2)
-                                                 |      |        |        |      |      |      |        |        |      |      |      |      |      |       / enum (bit bound 32) array (dheader in v2) */
-  CU_DataPoints (const dds_topic_descriptor_t *, D(t1), D(t1_a), D(t1_m), D(t2), D(t3), D(t4), D(t4_1), D(t4_2), D(t5), D(t6), D(t7), D(t8), D(t9), D(t10), D(t11) ),
-  CU_DataPoints (size_t,                         4,     0,       0,       16,    0,     5,     13,      29,      16,    0,     16,    0,     0,     3,      12     ), /* optimized size xcdr1 */
-  CU_DataPoints (size_t,                         4,     0,       0,       0,     0,     5,     13,      29,      0,     0,     16,    0,     0,     0,      0      )  /* optimized size xcdr2 */
-};
-
-CU_Theory ((const dds_topic_descriptor_t *desc, size_t opt_size_xcdr1, size_t opt_size_xcdr2), ddsc_cdrstream, check_optimize)
+CU_Test (ddsc_cdrstream, check_optimize)
 {
-  printf("running test for desc: %s\n", desc->m_typename);
-  struct ddsi_sertype_default_desc ddsi_desc;
-  ddsi_desc.ops.nops = desc->m_nops;
-  ddsi_desc.ops.ops = (uint32_t *) desc->m_ops;
-  ddsi_desc.size = desc->m_size;
-  if (!(desc->m_flagset & DDS_TOPIC_NO_OPTIMIZE))
+  static const struct {
+    const dds_topic_descriptor_t *desc;
+    size_t opt_size_xcdr1;
+    size_t opt_size_xcdr2;
+    const char *description;
+  } tests[] = {
+    { D(t1),     4,    4, "final type" },
+    { D(t1_a),   0,    0, "appendable type: has DHEADER in CDR" },
+    { D(t1_m),   0,    0, "mutable type: has EMHEADER and DHEADERS" },
+    { D(t2),    16,    0, "XCDR2 uses 4 byte padding for 64-bits type, does not match memory layout" },
+    { D(t3),     0,    0, "external field is pointer type" },
+    { D(t4),     5,    5, "nested struct (aligned at 4 byte) at offset 0 can be optimized" },
+    { D(t4a),   13,   13, "2 nested structs, alignment in CDR equal to memory alignment" },
+    { D(t4b),   29,   29, "2 levels of nesting, also using same alignment in CDR and memory" },
+    { D(t5),    16,    0, "XCDR2 uses 4 byte alignment for 64 bits types" },
+    { D(t5a),    0,    0, "array of non-primitive type is currently not optimized (FIXME: could be optimized for XCDR1?)" },
+    { D(t6),    16,   16, "CDR and memory have equal alignment" },
+    { D(t7),     0,    0, "field f2 is 1-byte aligned in CDR (because of 1-byte type in nested type), but 2-byte in memory" },
+    { D(t8),     0,    0, "type of f2 is appendable" },
+    { D(t9),     3,    0, "bitmask (bit bound 8) array (dheader in v2)" },
+    { D(t10),   12,    0, "enum (bit bound 32) array (dheader in v2)" },
+    { D(t11),  410,  410, "final type with array" },
+    { D(t12),    4,    4, "32 bits bitmask" },
+    { D(t13),    1,    1, "8 bit bitmask" },
+    { D(t14),    8,    8, "64 bits bitmask" },
+    { D(t15),  100,  100, "2 levels of nesting with array in inner type" },
+    { D(t16),    0,    0, "string member is ptr" },
+    { D(t17),    0,    0, "string array is array of ptrs" },
+    { D(t18),    0,    0, "sequence has ptr" },
+    { D(t19),    0,    0, "external member is ptr" },
+    { D(t20),    0,    0, "external array is ptr" },
+    { D(t21),    0,    0, "8 bit enum maps to 32 bits enum in memory" },
+    { D(t22),    0,    0, "16 bits enum maps to 32 bits enum in memory" },
+    { D(t23),    0,    0, "external nested struct is ptr" },
+    { D(t24),    0,    0, "external memner in nested struct" },
+    { D(t25),    0,    0, "union type currently not optimized" },
+    { D(t26),    0,    0, "union type member currently not optimized" },
+    { D(t27),   16,    0, "inheritance, base members before derived type members, xcdr2 has 4 byte alignment for long long" },
+  };
+
+  for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
   {
-    CU_ASSERT_EQUAL_FATAL (dds_stream_check_optimize (&ddsi_desc, XCDR1), opt_size_xcdr1);
-    CU_ASSERT_EQUAL_FATAL (dds_stream_check_optimize (&ddsi_desc, XCDR2), opt_size_xcdr2);
-  }
-  else
-  {
-    CU_ASSERT_EQUAL_FATAL (opt_size_xcdr1, 0);
-    CU_ASSERT_EQUAL_FATAL (opt_size_xcdr2, 0);
+    printf("running test for desc %s: %s ", tests[i].desc->m_typename, tests[i].description);
+    struct ddsi_sertype_default_desc ddsi_desc = { .ops.nops = tests[i].desc->m_nops, .ops.ops = (uint32_t *) tests[i].desc->m_ops, .size = tests[i].desc->m_size };
+    size_t opt1 = dds_stream_check_optimize (&ddsi_desc, XCDR1);
+    size_t opt2 = dds_stream_check_optimize (&ddsi_desc, XCDR2);
+    printf ("(opt cdr1: %zu, cdr2: %zu)\n", opt1, opt2);
+    CU_ASSERT_EQUAL_FATAL (opt1, tests[i].opt_size_xcdr1);
+    CU_ASSERT_EQUAL_FATAL (opt2, tests[i].opt_size_xcdr2);
   }
 }
 #undef D

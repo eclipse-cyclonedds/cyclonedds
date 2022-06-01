@@ -17,6 +17,7 @@
 #include <setjmp.h>
 
 #include "dds/dds.h"
+#include "dds/ddsrt/align.h"
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/heap.h"
@@ -162,23 +163,21 @@ static const struct {
 
 static const void *advance (const void *status, size_t *off, char code)
 {
-#define alignof(type_) offsetof (struct { char c; type_ d; }, d)
   size_t align = 1, size = 1;
   switch (code)
   {
     case 'n': case 'c': case 'P':
-      align = alignof (uint32_t); size = sizeof (uint32_t);
+      align = dds_alignof (uint32_t); size = sizeof (uint32_t);
       break;
     case 'E': case 'I':
-      align = alignof (dds_instance_handle_t); size = sizeof (dds_instance_handle_t);
+      align = dds_alignof (dds_instance_handle_t); size = sizeof (dds_instance_handle_t);
       break;
     case 'R':
-      align = alignof (dds_sample_rejected_status_kind); size = sizeof (dds_sample_rejected_status_kind);
+      align = dds_alignof (dds_sample_rejected_status_kind); size = sizeof (dds_sample_rejected_status_kind);
       break;
     default:
       abort ();
   }
-#undef alignof
   *off = (*off + align - 1) & ~(align - 1);
   const void *p = (const char *) status + *off;
   *off += size;

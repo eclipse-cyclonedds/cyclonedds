@@ -10,119 +10,80 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 module CdrStreamOptimize {
-  @final
-  struct t1 {
-    long f1;
-  };
+  @final struct t1 { long f1; };
+  @appendable struct t1_a { long f1; };
+  @mutable struct t1_m { long f1; };
 
-  @appendable
-  struct t1_a {
-    long f1;
-  };
+  @final struct t2 { octet f1; long long f2; };
 
-  @mutable
-  struct t1_m {
-    long f1;
-  };
+  @final struct t3 { @external octet f1; };
 
-  @final
-  struct t2 {
-    octet f1;
-    long long f2;
-  };
+  @nested @final struct n4 { long f1; octet f2; };
+  @final struct t4 { n4 f1; };
+  @final struct t4a { n4 f1; n4 f2; };
+  @final struct t4b { t4a f1; t4a f2; };
 
-  @final
-  struct t3 {
-    @external octet f1;
-  };
+  @nested @final struct n5 { octet f1; long long f2; };
+  @final struct t5 { n5 f1; };
+  @final struct t5a { n5 f1[3]; };
 
-  @nested @final
-  struct n1 {
-    long f1;
-    octet f2;
-  };
+  enum en6 { E6_1, E6_2 };
+  @final struct t6 { boolean f1; en6 f2; octet f3; short f5; long f6; };
 
-  @final
-  struct t4 {
-    n1 f1;
-  };
+  @nested @final struct n7 { octet f1; short f2; };
+  @final struct t7 { octet f1; n7 f2; short f3; };
 
-  @final
-  struct t4_1 {
-    n1 f1;
-    n1 f2;
-  };
+  @nested @appendable struct n8 { long f1; };
+  @final struct t8 { long f1; n8 f2; };
 
-  @final
-  struct t4_2 {
-    t4_1 f1;
-    t4_1 f2;
-  };
+  @bit_bound(8) bitmask bm9 { B9_1, B9_2, B9_3 };
+  @final struct t9 { bm9 f1[3]; };
 
-  @nested @final
-  struct n2 {
-    octet f1;
-    long long f2;
-  };
+  enum en10 { E10_1, E10_2 };
+  @final struct t10 { en10 f1[3]; };
 
-  @final
-  struct t5 {
-    n2 f1;
-  };
+  @final struct t11 { long f1[100]; long f2; float f3; char f4; boolean f5; };
 
-  @final
-  struct t6 {
-    n2 f1[3];
-  };
+  bitmask bm12 { BM12_0, BM12_1 };
+  @final struct t12 { bm12 f1; };
 
-  enum en1 {
-    E1,
-    E2
-  };
+  @bit_bound(8) bitmask bm13 { BM13_0, BM13_1 };
+  @final struct t13 { bm13 f1; };
 
-  @final
-  struct t7 {
-    boolean f1;
-    en1 f2;
-    octet f3;
-    short f5;
-    long f6;
-  };
+  @bit_bound(64) bitmask bm14 { BM14_0, BM14_1 };
+  @final struct t14 { bm14 f1; };
 
-  @nested @final
-  struct n3 {
-    octet f1;
-    short f2;
-  };
+  @nested @final struct n15_1 { char f3[100]; };
+  @nested @final struct n15_2 { n15_1 f2; };
+  @final struct t15 { n15_2 f1; };
 
-  @final
-  struct t8 {
-    octet f1;
-    n3 f2;
-    short f3;
-  };
+  @final struct t16 { string f1; };
 
-  @nested @appendable
-  struct n4 {
-    long f1;
-  };
+  @final struct t17 { string<100> f1; };
 
-  @final
-  struct t9 {
-    long f1;
-    n4 f2;
-  };
+  @final struct t18 { sequence<long> f1; };
 
-  @bit_bound(8)
-  bitmask bm1 { B1, B2, B3 };
+  @final struct t19 { @external long f1; };
 
-  @final
-  struct t10 {
-    bm1 f1[3];
-  };
+  @final struct t20 { @external long f1[100]; };
 
-  @final
-  struct t11 {
-    en1 f1[3];
-  };
+  @bit_bound(8) enum en21 { E21_0, E21_1 };
+  @final struct t21 { en21 f1; };
+
+  @bit_bound(16) enum en22 { E22_0, E22_1 };
+  @final struct t22 { en22 f1; };
+
+  @nested @final struct n23 { long s1; };
+  @final struct t23 { @external n23 f1; };
+
+  @nested @final struct n24 { @external long s1; };
+  @final struct t24 { n24 f1; };
+
+  @final union t25 switch(short) { case 1: long f1; };
+
+  @nested @final union u26 switch(short) { case 1: long u1; };
+  @final struct t26 { u26 f1; };
+
+  @nested @final struct b27 { long b1; };
+  @final struct t27 : b27 { long long f1; };
 };
