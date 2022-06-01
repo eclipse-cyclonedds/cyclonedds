@@ -454,11 +454,23 @@ static void xt_lbounds_dup (struct DDS_XTypes_LBoundSeq *dst, const struct DDS_X
   dst->_buffer = ddsrt_memdup (src->_buffer, dst->_length * sizeof (*dst->_buffer));
 }
 
+static void get_namehash (DDS_XTypes_NameHash name_hash, const char *name)
+{
+  /* FIXME: multi byte utf8 chars? */
+  char buf[16];
+  ddsrt_md5_state_t md5st;
+  ddsrt_md5_init (&md5st);
+  ddsrt_md5_append (&md5st, (ddsrt_md5_byte_t *) name, (uint32_t) strlen (name));
+  ddsrt_md5_finish (&md5st, (ddsrt_md5_byte_t *) buf);
+  memcpy (name_hash, buf, sizeof (DDS_XTypes_NameHash));
+}
+
 static void DDS_XTypes_AppliedBuiltinMemberAnnotations_copy (struct DDS_XTypes_AppliedBuiltinMemberAnnotations *dst, const struct DDS_XTypes_AppliedBuiltinMemberAnnotations *src);
 static void DDS_XTypes_AppliedAnnotationSeq_copy (struct DDS_XTypes_AppliedAnnotationSeq *dst, const struct DDS_XTypes_AppliedAnnotationSeq *src);
 static void set_member_detail (struct xt_member_detail *dst, const DDS_XTypes_CompleteMemberDetail *src)
 {
   ddsrt_strlcpy (dst->name, src->name, sizeof (dst->name));
+  get_namehash (dst->name_hash, dst->name);
   if (src->ann_builtin) {
     dst->annotations.ann_builtin = ddsrt_calloc(1, sizeof(struct DDS_XTypes_AppliedBuiltinMemberAnnotations));
     DDS_XTypes_AppliedBuiltinMemberAnnotations_copy (dst->annotations.ann_builtin, src->ann_builtin);
@@ -983,7 +995,7 @@ static dds_return_t add_complete_typeobj (struct ddsi_domaingv *gv, struct xt_ty
       xt->_u.alias.flags = cto->_u.alias_type.alias_flags;
       ddsi_type_register_dep (gv, &xt->id, &xt->_u.alias.related_type, &cto->_u.alias_type.body.common.related_type);
       xt->_u.alias.related_flags = cto->_u.alias_type.body.common.related_flags;
-      memcpy(&xt->_u.alias.detail.type_name, cto->_u.alias_type.header.detail.type_name, sizeof(xt->_u.alias.detail.type_name));
+      memcpy (&xt->_u.alias.detail.type_name, cto->_u.alias_type.header.detail.type_name, sizeof(xt->_u.alias.detail.type_name));
       xt->_u.alias.flags = cto->_u.alias_type.alias_flags;
       xt->_u.alias.related_flags = cto->_u.alias_type.body.common.related_flags;
       break;
@@ -996,7 +1008,7 @@ static dds_return_t add_complete_typeobj (struct ddsi_domaingv *gv, struct xt_ty
         ddsi_type_register_dep (gv, &xt->id, &xt->_u.structure.base_type, &cto->_u.struct_type.header.base_type);
       else
         xt->_u.structure.base_type = NULL;
-      memcpy(&xt->_u.structure.detail.type_name, cto->_u.struct_type.header.detail.type_name, sizeof(xt->_u.structure.detail.type_name));
+      memcpy (&xt->_u.structure.detail.type_name, cto->_u.struct_type.header.detail.type_name, sizeof(xt->_u.structure.detail.type_name));
       xt->_u.structure.members.length = cto->_u.struct_type.member_seq._length;
       xt->_u.structure.members.seq = ddsrt_calloc (xt->_u.structure.members.length, sizeof (*xt->_u.structure.members.seq));
       for (uint32_t n = 0; n < xt->_u.structure.members.length; n++)
@@ -1004,7 +1016,7 @@ static dds_return_t add_complete_typeobj (struct ddsi_domaingv *gv, struct xt_ty
         xt->_u.structure.members.seq[n].id = cto->_u.struct_type.member_seq._buffer[n].common.member_id;
         xt->_u.structure.members.seq[n].flags = cto->_u.struct_type.member_seq._buffer[n].common.member_flags;
         ddsi_type_register_dep (gv, &xt->id, &xt->_u.structure.members.seq[n].type, &cto->_u.struct_type.member_seq._buffer[n].common.member_type_id);
-        set_member_detail(&xt->_u.structure.members.seq[n].detail, &cto->_u.struct_type.member_seq._buffer[n].detail);
+        set_member_detail (&xt->_u.structure.members.seq[n].detail, &cto->_u.struct_type.member_seq._buffer[n].detail);
       }
       break;
     case DDS_XTypes_TK_UNION:
@@ -1022,11 +1034,11 @@ static dds_return_t add_complete_typeobj (struct ddsi_domaingv *gv, struct xt_ty
         xt->_u.union_type.members.seq[n].label_seq._length = cto->_u.union_type.member_seq._buffer[n].common.label_seq._length;
         xt->_u.union_type.members.seq[n].label_seq._buffer = ddsrt_memdup (cto->_u.union_type.member_seq._buffer[n].common.label_seq._buffer,
           cto->_u.union_type.member_seq._buffer[n].common.label_seq._length * sizeof (*cto->_u.union_type.member_seq._buffer[n].common.label_seq._buffer));
-        set_member_detail(&xt->_u.union_type.members.seq[n].detail, &cto->_u.union_type.member_seq._buffer[n].detail);
+        set_member_detail (&xt->_u.union_type.members.seq[n].detail, &cto->_u.union_type.member_seq._buffer[n].detail);
       }
       break;
     case DDS_XTypes_TK_BITSET:
-      memcpy(&xt->_u.bitset.detail.type_name, cto->_u.bitset_type.header.detail.type_name, sizeof(xt->_u.bitset.detail.type_name));
+      memcpy (&xt->_u.bitset.detail.type_name, cto->_u.bitset_type.header.detail.type_name, sizeof(xt->_u.bitset.detail.type_name));
       xt->_u.bitset.flags = cto->_u.bitset_type.bitset_flags;
       xt->_u.bitset.fields.length = cto->_u.bitset_type.field_seq._length;
       xt->_u.bitset.fields.seq = ddsrt_calloc (xt->_u.bitset.fields.length, sizeof (*xt->_u.bitset.fields.seq));
@@ -1037,7 +1049,7 @@ static dds_return_t add_complete_typeobj (struct ddsi_domaingv *gv, struct xt_ty
         xt->_u.bitset.fields.seq[n].bitcount = cto->_u.bitset_type.field_seq._buffer[n].common.bitcount;
         xt->_u.bitset.fields.seq[n].holder_type = cto->_u.bitset_type.field_seq._buffer[n].common.holder_type;
         xt->_u.bitset.fields.seq[n].flags = cto->_u.bitset_type.field_seq._buffer[n].common.flags;
-        set_member_detail(&xt->_u.bitset.fields.seq[n].detail, &cto->_u.bitset_type.field_seq._buffer[n].detail);
+        set_member_detail (&xt->_u.bitset.fields.seq[n].detail, &cto->_u.bitset_type.field_seq._buffer[n].detail);
       }
       break;
     case DDS_XTypes_TK_SEQUENCE:
@@ -1069,20 +1081,20 @@ static dds_return_t add_complete_typeobj (struct ddsi_domaingv *gv, struct xt_ty
       {
         xt->_u.enum_type.literals.seq[n].value = cto->_u.enumerated_type.literal_seq._buffer[n].common.value;
         xt->_u.enum_type.literals.seq[n].flags = cto->_u.enumerated_type.literal_seq._buffer[n].common.flags;
-        set_member_detail(&xt->_u.enum_type.literals.seq[n].detail, &cto->_u.enumerated_type.literal_seq._buffer[n].detail);
+        set_member_detail (&xt->_u.enum_type.literals.seq[n].detail, &cto->_u.enumerated_type.literal_seq._buffer[n].detail);
       }
       break;
     case DDS_XTypes_TK_BITMASK:
       xt->_u.bitmask.flags = cto->_u.bitmask_type.bitmask_flags;
       xt->_u.bitmask.bit_bound = cto->_u.bitmask_type.header.common.bit_bound;
-      memcpy(&xt->_u.bitmask.detail.type_name, cto->_u.bitmask_type.header.detail.type_name, sizeof(xt->_u.bitmask.detail.type_name));
+      memcpy (&xt->_u.bitmask.detail.type_name, cto->_u.bitmask_type.header.detail.type_name, sizeof(xt->_u.bitmask.detail.type_name));
       xt->_u.bitmask.bitflags.length = cto->_u.bitmask_type.flag_seq._length;
       xt->_u.bitmask.bitflags.seq = ddsrt_calloc (xt->_u.bitmask.bitflags.length, sizeof (*xt->_u.bitmask.bitflags.seq));
       for (uint32_t n = 0; n < xt->_u.bitmask.bitflags.length; n++)
       {
         xt->_u.bitmask.bitflags.seq[n].position = cto->_u.bitmask_type.flag_seq._buffer[n].common.position;
         xt->_u.bitmask.bitflags.seq[n].flags = cto->_u.bitmask_type.flag_seq._buffer[n].common.flags;
-        set_member_detail(&xt->_u.bitmask.bitflags.seq[n].detail, &cto->_u.bitmask_type.flag_seq._buffer[n].detail);
+        set_member_detail (&xt->_u.bitmask.bitflags.seq[n].detail, &cto->_u.bitmask_type.flag_seq._buffer[n].detail);
       }
       break;
     default:
@@ -1361,6 +1373,20 @@ static void get_minimal_member_detail (DDS_XTypes_MinimalMemberDetail *dst, cons
   memcpy (dst->name_hash, src->name_hash, sizeof (dst->name_hash));
 }
 
+static void xt_applied_member_annotations_fini (struct xt_applied_member_annotations *ann)
+{
+  if (ann->ann_builtin)
+  {
+    ddsrt_free (ann->ann_builtin->unit);
+    ddsrt_free (ann->ann_builtin->min);
+    ddsrt_free (ann->ann_builtin->max);
+    ddsrt_free (ann->ann_builtin->hash_id);
+    ddsrt_free (ann->ann_builtin);
+  }
+  // TODO: implement custom annotations
+  //ddsrt_free (xt->_u.structure.members.seq[n].detail.annotations.ann_custom);
+}
+
 void ddsi_xt_type_fini (struct ddsi_domaingv *gv, struct xt_type *xt, bool include_typeid)
 {
   switch (xt->_d)
@@ -1375,7 +1401,10 @@ void ddsi_xt_type_fini (struct ddsi_domaingv *gv, struct xt_type *xt, bool inclu
       if (xt->_u.structure.base_type)
         ddsi_type_unref_locked (gv, xt->_u.structure.base_type);
       for (uint32_t n = 0; n < xt->_u.structure.members.length; n++)
+      {
         ddsi_type_unref_locked (gv, xt->_u.structure.members.seq[n].type);
+        xt_applied_member_annotations_fini (&xt->_u.structure.members.seq[n].detail.annotations);
+      }
       ddsrt_free (xt->_u.structure.members.seq);
       break;
     case DDS_XTypes_TK_UNION:
@@ -1384,6 +1413,7 @@ void ddsi_xt_type_fini (struct ddsi_domaingv *gv, struct xt_type *xt, bool inclu
       {
         ddsi_type_unref_locked (gv, xt->_u.union_type.members.seq[n].type);
         ddsrt_free (xt->_u.union_type.members.seq[n].label_seq._buffer);
+        xt_applied_member_annotations_fini (&xt->_u.union_type.members.seq[n].detail.annotations);
       }
       ddsrt_free (xt->_u.union_type.members.seq);
       break;
