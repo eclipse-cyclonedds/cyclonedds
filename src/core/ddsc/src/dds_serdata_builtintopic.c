@@ -132,6 +132,8 @@ static void format_address (const ddsi_xlocator_t *n, void *varg)
   }
 
   arg->buf_pos += (size_t) snprintf (arg->buf + arg->buf_pos, arg->buf_size - arg->buf_pos, "%s%s", arg->first ? "" : ",", buf);
+  if (arg->first)
+    arg->first = false;
 }
 
 static char * format_addrset (struct addrset *as)
@@ -140,6 +142,7 @@ static char * format_addrset (struct addrset *as)
   pa_arg.buf = (char*) ddsrt_malloc(DDSI_LOCSTRLEN * 3 + 4);
   pa_arg.buf_pos = 0;
   pa_arg.buf_size = DDSI_LOCSTRLEN * 3 + 4;
+  pa_arg.first = true;
 
   addrset_forall(as, format_address, &pa_arg);
   return pa_arg.buf;
