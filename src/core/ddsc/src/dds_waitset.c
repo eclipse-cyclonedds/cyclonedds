@@ -333,6 +333,34 @@ dds_return_t dds_waitset_attach (dds_entity_t waitset, dds_entity_t entity, dds_
     if (ret < 0 && dds_entity_kind (e) == DDS_KIND_SUBSCRIBER)
       dds_subscriber_adjust_materialize_data_on_readers ((dds_subscriber *) e, false);
 
+#if DDS_HAS_SHM
+    struct dds_reader * rd = NULL;
+    // if read condition is attached
+    if ((dds_entity_kind(e) == DDS_KIND_COND_READ) &&
+        (dds_entity_kind(e->m_parent) == DDS_KIND_READER)) {
+      rd = (dds_reader *)e->m_parent;
+    }
+    // if status condition of a reader is attached with any status mask
+    // TODO(Sumanth), or should we only enable this with data available status mask
+    else if ((dds_entity_supports_validate_status(e)) &&
+             (dds_entity_kind(e) == DDS_KIND_READER)) {
+      rd = (dds_reader *)e;
+    }
+
+    // if communication is over SHM
+    if ((rd) && (rd->m_iox_sub != NULL)) {
+      // Attach this specific reader to the iox listener, which transfers the data from the iox
+      // subscriber queue to the reader history cache in a separate background thread, as
+      // opposed to transferring the data when actually read/take is called
+      if (DDS_RETCODE_OK != shm_monitor_attach_reader(&rd->m_entity.m_domain->m_shm_monitor, rd)) {
+        // we fail if we cannot attach to the listener (as we would get no data)
+        iox_sub_deinit(rd->m_iox_sub);
+        rd->m_iox_sub = NULL;
+        ret = DDS_RETCODE_ERROR;
+      }
+    }
+#endif  // DDS_HAS_SHM
+
   err_scope:
     dds_entity_unpin (e);
   err_entity:
@@ -364,6 +392,20 @@ dds_return_t dds_waitset_detach (dds_entity_t waitset, dds_entity_t entity)
       ; /* entity invalid */
     else
     {
+#if DDS_HAS_SHM
+      if ((dds_entity_kind(e) == DDS_KIND_COND_READ) &&
+          (dds_entity_kind(e->m_parent) == DDS_KIND_READER)) {
+        struct dds_reader * rd = (dds_reader *) e->m_parent;
+        if (rd->m_iox_sub != NULL) {
+          // If the currently detached entity is a read condition and if there are no valid
+          // statuses for this reader, then detach the iox listener from this specific reader
+          if (!dds_entity_supports_validate_status(e)) {
+            shm_monitor_detach_reader(&rd->m_entity.m_domain->m_shm_monitor, rd);
+          }
+        }
+      }
+      // TODO(Sumanth), detaching based on the status mask seems to be not trivial, check this
+#endif
       ret = dds_entity_observer_unregister (e, ws, true);
 
       // This waitset no longer requires a subscriber to have a materialized DATA_ON_READERS

@@ -39,13 +39,9 @@ enum shm_monitor_states {
 /// @brief abstraction for monitoring the shared memory communication with an internal
 ///        thread responsible for reacting on received data via shared memory
 struct shm_monitor {
-    ddsrt_mutex_t m_lock;
     iox_listener_t m_listener;
-
     //use this if we wait but want to wake up for some reason e.g. terminate   
     iox_user_trigger_t m_wakeup_trigger;
-   
-    uint32_t m_number_of_attached_readers;
     uint32_t m_state;
 };
 

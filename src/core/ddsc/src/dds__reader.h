@@ -43,6 +43,11 @@ struct nn_rsample_info;
 struct nn_rdata;
 DDS_EXPORT void dds_reader_ddsi2direct (dds_entity_t entity, void (*cb) (const struct nn_rsample_info *sampleinfo, const struct nn_rdata *fragchain, void *arg), void *cbarg);
 
+/*
+  Transfer the samples from the iox subscriber queue to the reader history cache
+*/
+void dds_transfer_samples_from_iox_to_rhc (dds_reader * reader);
+
 DEFINE_ENTITY_LOCK_UNLOCK(dds_reader, DDS_KIND_READER)
 
 #if defined (__cplusplus)

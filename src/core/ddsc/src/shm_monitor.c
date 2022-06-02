@@ -32,9 +32,7 @@ static void shm_subscriber_callback(iox_sub_t subscriber, void * context_data);
 
 void shm_monitor_init(shm_monitor_t* monitor) 
 {
-    ddsrt_mutex_init(&monitor->m_lock);
-    
-    // storage is ignored internally now but we cannot pass a nullptr    
+    // storage is ignored internally now but we cannot pass a nullptr
     monitor->m_listener = iox_listener_init(&(iox_listener_storage_t){0});
     monitor->m_wakeup_trigger = iox_user_trigger_init(&(iox_user_trigger_storage_t){0});
 
@@ -51,7 +49,6 @@ void shm_monitor_destroy(shm_monitor_t* monitor)
 
     iox_listener_deinit(monitor->m_listener);
     iox_user_trigger_deinit(monitor->m_wakeup_trigger);
-    ddsrt_mutex_destroy(&monitor->m_lock);
 }
 
 dds_return_t shm_monitor_wake_and_disable(shm_monitor_t* monitor) 
@@ -70,111 +67,46 @@ dds_return_t shm_monitor_wake_and_enable(shm_monitor_t* monitor)
 
 dds_return_t shm_monitor_attach_reader(shm_monitor_t* monitor, struct dds_reader* reader) 
 {
-
-    if(iox_listener_attach_subscriber_event_with_context_data(monitor->m_listener,
-                                                              reader->m_iox_sub,
-                                                              SubscriberEvent_DATA_RECEIVED,
-                                                              shm_subscriber_callback,
-                                                              &reader->m_iox_sub_context) != ListenerResult_SUCCESS) {
-        DDS_CLOG(DDS_LC_SHM, &reader->m_rd->e.gv->logconfig, "error attaching reader\n");    
+  enum iox_ListenerResult attach_result =
+      iox_listener_attach_subscriber_event_with_context_data(monitor->m_listener,
+                                                             reader->m_iox_sub,
+                                                             SubscriberEvent_DATA_RECEIVED,
+                                                             shm_subscriber_callback,
+                                                             &reader->m_iox_sub_context);
+  if(ListenerResult_SUCCESS != attach_result) {
+    switch (attach_result) {
+      case ListenerResult_EVENT_ALREADY_ATTACHED:{
+        break;
+      }
+      case ListenerResult_LISTENER_FULL:
+      case ListenerResult_EMPTY_EVENT_CALLBACK:
+      case ListenerResult_EMPTY_INVALIDATION_CALLBACK:
+      case ListenerResult_UNDEFINED_ERROR:
+      default: {
+        DDS_CLOG(DDS_LC_SHM, &reader->m_rd->e.gv->logconfig, "error attaching reader\n");
         return DDS_RETCODE_OUT_OF_RESOURCES;
+      }
     }
-    ++monitor->m_number_of_attached_readers;
+  }
 
-    return DDS_RETCODE_OK;
+  reader->m_iox_sub_context.monitor = &reader->m_entity.m_domain->m_shm_monitor;
+  return DDS_RETCODE_OK;
 }
 
 dds_return_t shm_monitor_detach_reader(shm_monitor_t* monitor, struct dds_reader* reader) 
 {
-    iox_listener_detach_subscriber_event(monitor->m_listener, reader->m_iox_sub, SubscriberEvent_DATA_RECEIVED); 
-    --monitor->m_number_of_attached_readers;
+    // if the reader is attached
+    if (reader->m_iox_sub_context.monitor != NULL && reader->m_iox_sub_context.parent_reader != NULL) {
+        iox_listener_detach_subscriber_event(monitor->m_listener, reader->m_iox_sub, SubscriberEvent_DATA_RECEIVED);
+        reader->m_iox_sub_context.monitor = NULL;
+        reader->m_iox_sub_context.parent_reader = NULL;
+    }
     return DDS_RETCODE_OK;
 }
 
 static void receive_data_wakeup_handler(struct dds_reader* rd)
 {
-  void* chunk = NULL;
-  struct ddsi_domaingv* gv = rd->m_rd->e.gv;
-  thread_state_awake(lookup_thread_state(), gv);
-
-  while (true)
-  {
-    shm_lock_iox_sub(rd->m_iox_sub);
-    enum iox_ChunkReceiveResult take_result = iox_sub_take_chunk(rd->m_iox_sub, (const void** const)&chunk);
-    shm_unlock_iox_sub(rd->m_iox_sub);
-
-    // NB: If we cannot take the chunk (sample) the user may lose data.
-    // Since the subscriber queue can overflow and will evict the least recent sample.
-    // This entirely depends on the producer and consumer frequency (and the queue size if they are close).
-    // The consumer here is essentially the reader history cache.
-    if (ChunkReceiveResult_SUCCESS != take_result) 
-    {
-      switch(take_result) 
-      {
-        case ChunkReceiveResult_TOO_MANY_CHUNKS_HELD_IN_PARALLEL :
-        {
-          // we hold to many chunks and cannot get more
-          DDS_CLOG (DDS_LC_WARNING | DDS_LC_SHM, &rd->m_entity.m_domain->gv.logconfig, 
-              "DDS reader with topic %s : iceoryx subscriber - TOO_MANY_CHUNKS_HELD_IN_PARALLEL -"
-              "could not take sample\n", rd->m_topic->m_name);
-          break;
-        }
-        case ChunkReceiveResult_NO_CHUNK_AVAILABLE: {
-          // no more chunks to take, ok
-          break;
-        }
-        default : {
-          // some unkown error occurred
-          DDS_CLOG(DDS_LC_WARNING | DDS_LC_SHM, &rd->m_entity.m_domain->gv.logconfig,
-              "DDS reader with topic %s : iceoryx subscriber - UNKNOWN ERROR -"
-              "could not take sample\n", rd->m_topic->m_name);
-        }
-      }
-
-      break;
-    }
-  
-    const iceoryx_header_t* ice_hdr = iceoryx_header_from_chunk(chunk);
-
-    // Get writer or proxy writer
-    struct entity_common * e = entidx_lookup_guid_untyped (gv->entity_index, &ice_hdr->guid);
-    if (e == NULL || (e->kind != EK_PROXY_WRITER && e->kind != EK_WRITER))
-    {
-      // Ignore that doesn't match a known writer or proxy writer
-      DDS_CLOG (DDS_LC_SHM, &gv->logconfig, "unknown source entity, ignore.\n");
-      continue;
-    }
-
-    // Create struct ddsi_serdata    
-    struct ddsi_serdata* d = ddsi_serdata_from_iox(rd->m_topic->m_stype, ice_hdr->data_kind, &rd->m_iox_sub, chunk);    
-    d->timestamp.v = ice_hdr->tstamp;
-    d->statusinfo = ice_hdr->statusinfo;
-
-    // Get struct ddsi_tkmap_instance
-    struct ddsi_tkmap_instance* tk;
-    if ((tk = ddsi_tkmap_lookup_instance_ref(gv->m_tkmap, d)) == NULL)
-    {
-      DDS_CLOG(DDS_LC_SHM, &gv->logconfig, "ddsi_tkmap_lookup_instance_ref failed.\n");
-      goto release;
-    }
-
-    // Generate writer_info
-    struct ddsi_writer_info wrinfo;
-    struct dds_qos *xqos;
-    if (e->kind == EK_PROXY_WRITER)
-      xqos = ((struct proxy_writer *) e)->c.xqos;
-    else
-      xqos = ((struct writer *) e)->xqos;
-    ddsi_make_writer_info(&wrinfo, e, xqos, d->statusinfo);
-    (void)ddsi_rhc_store(rd->m_rd->rhc, &wrinfo, d, tk);
-
-release:
-    if (tk)
-      ddsi_tkmap_instance_unref(gv->m_tkmap, tk);
-    if (d)
-      ddsi_serdata_unref(d);
-  }
-  thread_state_asleep(lookup_thread_state());
+  dds_transfer_samples_from_iox_to_rhc(rd);
 }
 
 static void shm_subscriber_callback(iox_sub_t subscriber, void * context_data)
@@ -182,7 +114,7 @@ static void shm_subscriber_callback(iox_sub_t subscriber, void * context_data)
     (void)subscriber;
     // we know it is actually in extended storage since we created it like this
     iox_sub_context_t *context = (iox_sub_context_t*) context_data;
-    if(context->monitor->m_state == SHM_MONITOR_RUNNING) {
+    if((context->monitor) && (context->monitor->m_state == SHM_MONITOR_RUNNING)) {
         receive_data_wakeup_handler(context->parent_reader);
     }
 }
