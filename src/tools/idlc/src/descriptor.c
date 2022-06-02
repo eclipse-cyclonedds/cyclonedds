@@ -2190,7 +2190,7 @@ static idl_retcode_t get_ctype_keys(const idl_pstate_t *pstate, struct descripto
            to the current PLM instruction offset, which is within its ctype). A derived type cannot add keys
            (not allowed in IDL) and therefore is not in the offset list, the offset in this list is the offset
            of the key field in the base type. */
-        uint32_t ops_offs = (uint32_t) inst->data.inst_offset.addr_offs + (uint32_t) inst->data.inst_offset.elem_offs;
+        uint32_t ops_offs = (uint32_t) base_type_ops_offs + (uint32_t) inst->data.inst_offset.addr_offs + (uint32_t) inst->data.inst_offset.elem_offs;
         if ((ret = get_ctype_keys(pstate, descriptor, cbasetype, &ctype_keys, n_keys, false, ops_offs)) != IDL_RETCODE_OK)
           goto err;
         break;

@@ -1,0 +1,59 @@
+/*
+ * Copyright(c) 2021 to 2022 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
+
+#if defined(__IDLC__)
+
+@nested @mutable struct t_base_base {
+  @key long bb1;
+};
+@nested @mutable struct t_base : t_base_base {
+  long b1;
+};
+@topic @mutable struct test_struct_inherit_mutable_keys : t_base {
+  long f1;
+};
+
+#else
+
+#include "dds/dds.h"
+#include "test_struct_inherit_mutable_keys.h"
+#include "common.h"
+
+const dds_topic_descriptor_t *desc = &test_struct_inherit_mutable_keys_desc;
+
+void init_sample (void *s)
+{
+  test_struct_inherit_mutable_keys *s1 = (test_struct_inherit_mutable_keys *) s;
+  s1->f1 = 1;
+  s1->parent.b1 = 2;
+  s1->parent.parent.bb1 = 3;
+}
+
+int cmp_sample (const void *sa, const void *sb)
+{
+  test_struct_inherit_mutable_keys *a = (test_struct_inherit_mutable_keys *) sa;
+  test_struct_inherit_mutable_keys *b = (test_struct_inherit_mutable_keys *) sb;
+  CMP(a, b, f1, 1);
+  CMP(a, b, parent.b1, 2);
+  CMP(a, b, parent.parent.bb1, 3);
+  return 0;
+}
+
+int cmp_key (const void *sa, const void *sb)
+{
+  test_struct_inherit_mutable_keys *a = (test_struct_inherit_mutable_keys *) sa;
+  test_struct_inherit_mutable_keys *b = (test_struct_inherit_mutable_keys *) sb;
+  CMP(a, b, parent.parent.bb1, 3);
+  return 0;
+}
+
+#endif
