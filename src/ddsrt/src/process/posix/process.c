@@ -42,7 +42,6 @@ static const char *_basename(char const *path)
 char *
 ddsrt_getprocessname(void)
 {
-  char *ret;
 #if defined(__APPLE__) || defined(__FreeBSD__)
   const char * appname = getprogname();
 #elif defined(_GNU_SOURCE)
@@ -74,12 +73,17 @@ ddsrt_getprocessname(void)
   }
 #endif
 
-  if (!appname) {
-    if (!ddsrt_asprintf(&ret, "process-%ld", (long) ddsrt_getpid())) return NULL;
-    return ret;
+  if (appname) {
+    return ddsrt_strdup (appname);
+  } else {
+    char *ret = NULL;
+    if (ddsrt_asprintf (&ret, "process-%ld", (long) ddsrt_getpid()) > 0) {
+      return ret;
+    } else {
+      if (ret)
+        ddsrt_free (ret);
+      return NULL;
+    }
   }
-
-  ret = ddsrt_strdup(appname);
-  return ret;
 }
 
