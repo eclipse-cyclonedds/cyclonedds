@@ -50,13 +50,11 @@ ddsrt_getprocessname(void)
   const char * appname = NULL;
 
   char buff[400];
-  struct stat statbuf;
-  if (stat("/proc/self/cmdline", &statbuf) == 0) {
-    FILE *f = fopen("/proc/self/cmdline", "r");
-
+  FILE *fp;
+  if ((fp = fopen("/proc/self/cmdline", "r")) != NULL) {
     buff[0] = '\0';
     for(size_t i = 0; i < sizeof(buff); ++i) {
-      int c = fgetc(f);
+      int c = fgetc(fp);
       if (c == EOF || c == '\0') {
         buff[i] = '\0';
         break;
@@ -64,12 +62,10 @@ ddsrt_getprocessname(void)
         buff[i] = (char) c;
       }
     }
-
     if (buff[0] != '\0') {
       appname = _basename(buff);
     }
-
-    if (f) fclose(f);
+    fclose(fp);
   }
 #endif
 
