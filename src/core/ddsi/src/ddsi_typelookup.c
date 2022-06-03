@@ -118,7 +118,7 @@ static dds_return_t create_tl_request_msg (struct ddsi_domaingv * const gv, DDS_
     deps = ddsrt_hh_new (1, deps_typeid_hash, deps_typeid_equal);
     cnt += tl_request_get_deps (gv, deps, 0, type);
   }
-  assert (cnt >= 0 && cnt <= INT32_MAX);
+  assert (cnt >= 0);
   request->data._u.getTypes.type_ids._length = (uint32_t) cnt;
   if ((request->data._u.getTypes.type_ids._buffer = ddsrt_malloc ((uint32_t) cnt * sizeof (*request->data._u.getTypes.type_ids._buffer))) == NULL)
   {
