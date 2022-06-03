@@ -284,22 +284,22 @@ static struct thread_state *grow_thread_states (void)
   return &x->thrst[0];
 }
 
-static struct thread_state *init_thread_state (const char *tname, const struct ddsi_domaingv *gv, enum thread_state_kind state)
+static struct thread_state *get_available_thread_slot ()
 {
   struct thread_states_list *cur;
-  uint32_t i = 0; // clearly, if cur != NULL, i will be initialized, but clang ain't so sure
+  uint32_t i;
   for (cur = ddsrt_atomic_ldvoidp (&thread_states.thread_states_head); cur; cur = cur->next)
     for (i = 0; i < THREAD_STATE_BATCH; i++)
       if (cur->thrst[i].state == THREAD_STATE_ZERO)
-        break;
-  struct thread_state *thrst;
-  if (cur != NULL)
-    thrst = &cur->thrst[i];
-  else
-  {
-    if ((thrst = grow_thread_states ()) == NULL)
-      return NULL;
-  }
+        return &cur->thrst[i];
+  return grow_thread_states ();
+}
+
+static struct thread_state *init_thread_state (const char *tname, const struct ddsi_domaingv *gv, enum thread_state_kind state)
+{
+  struct thread_state * const thrst = get_available_thread_slot ();
+  if (thrst == NULL)
+    return thrst;
 
   assert (vtime_asleep_p (ddsrt_atomic_ld32 (&thrst->vtime)));
   ddsrt_atomic_stvoidp (&thrst->gv, (struct ddsi_domaingv *) gv);
