@@ -627,26 +627,6 @@ int rtps_config_prep (struct ddsi_domaingv *gv, struct cfgst *cfgst)
     goto err_config_late_error;
   }
 
-  /* Thread admin: need max threads, which is currently (2 or 3) for each
-     configured channel plus 9: main, recv (up to 3x), dqueue.builtin,
-     lease, gc, debmon; once thread state admin has been inited, upgrade the
-     main thread one participating in the thread tracking stuff as
-     if it had been created using create_thread(). */
-#if 0 /* FIXME: threads are per-process, not per-domain */
-  {
-  /* Temporary: thread states for each application thread is managed using thread_states structure
-  */
-#define USER_MAX_THREADS 50
-
-#ifdef DDS_HAS_NETWORK_CHANNELS
-    const unsigned max_threads = 9 + USER_MAX_THREADS + num_channel_threads + gv->config.ddsi2direct_max_threads;
-#else
-    const unsigned max_threads = 11 + USER_MAX_THREADS + gv->config.ddsi2direct_max_threads;
-#endif
-    thread_states_init (max_threads);
-  }
-#endif
-
   /* Now the per-thread-log-buffers are set up, so print the configuration.  Note that configurations
      passed in as initializers don't have associated parsing state and source information.
 
