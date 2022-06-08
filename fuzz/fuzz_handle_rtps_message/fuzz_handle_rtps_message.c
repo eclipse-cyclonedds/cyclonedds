@@ -73,7 +73,7 @@ int LLVMFuzzerTestOneInput(
     return EXIT_SUCCESS;
 
   ddsi_iid_init();
-  thread_states_init(64);
+  thread_states_init();
 
   memset(&dds_global, 0, sizeof(dds_global));
   memset(&gv, 0, sizeof(gv));
