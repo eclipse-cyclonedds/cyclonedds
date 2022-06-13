@@ -45,7 +45,7 @@ static struct ddsi_domaingv gv;
 static struct ddsi_config cfg;
 static ddsi_tran_conn_t fakeconn;
 static ddsi_tran_factory_t fakenet;
-static struct thread_state1 *ts1;
+static struct thread_state *thrst;
 static struct nn_rbufpool *rbpool;
 // static struct ddsi_tkmap_instance *tk;
 
@@ -95,9 +95,9 @@ int LLVMFuzzerTestOneInput(
   fakeconn->m_read_fn = &fakeconn_read;
   fakeconn->m_write_fn = &fakeconn_write;
 
-  ts1 = lookup_thread_state();
-  ts1->state = THREAD_STATE_ALIVE;
-  ddsrt_atomic_stvoidp(&ts1->gv, &gv);
+  thrst = lookup_thread_state();
+  thrst->state = THREAD_STATE_ALIVE;
+  ddsrt_atomic_stvoidp(&thrst->gv, &gv);
 
   rbpool = nn_rbufpool_new(&gv.logconfig, gv.config.rbuf_size, gv.config.rmsg_chunk_size);
   nn_rbufpool_setowner(rbpool, ddsrt_thread_self());
@@ -108,7 +108,7 @@ int LLVMFuzzerTestOneInput(
   unsigned char *buff = (unsigned char *) NN_RMSG_PAYLOAD (rmsg);
   memcpy (buff, data, size);
   nn_rmsg_setsize (rmsg, (uint32_t) size);
-  ddsi_handle_rtps_message (ts1, &gv, fakeconn, &guidprefix, rbpool, rmsg, size, buff, &srcloc);
+  ddsi_handle_rtps_message (thrst, &gv, fakeconn, &guidprefix, rbpool, rmsg, size, buff, &srcloc);
   nn_rmsg_commit (rmsg);
 
   nn_reorder_free (gv.spdp_reorder);
