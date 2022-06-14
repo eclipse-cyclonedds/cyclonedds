@@ -2820,7 +2820,7 @@ static bool topickind_qos_match_p_lock (
 #ifdef DDS_HAS_TYPE_DISCOVERY
   if (req_type_id)
   {
-    (void) ddsi_tl_request_type (gv, req_type_id, proxypp_guid, true);
+    (void) ddsi_tl_request_type (gv, req_type_id, proxypp_guid, DDSI_TYPE_RESOLVE_INCLUDE_DEPS);
     return false;
   }
 #endif
@@ -5835,7 +5835,7 @@ err:
   return tpd;
 }
 
-dds_return_t lookup_topic_definition_by_name (struct ddsi_domaingv *gv, const char * topic_name, struct ddsi_topic_definition **tpd)
+dds_return_t lookup_topic_definition (struct ddsi_domaingv *gv, const char * topic_name, const ddsi_typeid_t *type_id, struct ddsi_topic_definition **tpd)
 {
   assert (tpd != NULL);
   *tpd = NULL;
@@ -5844,7 +5844,8 @@ dds_return_t lookup_topic_definition_by_name (struct ddsi_domaingv *gv, const ch
   ddsrt_mutex_lock (&gv->topic_defs_lock);
   for (struct ddsi_topic_definition *tpd1 = ddsrt_hh_iter_first (gv->topic_defs, &it); tpd1; tpd1 = ddsrt_hh_iter_next (&it))
   {
-    if (!strcmp (tpd1->xqos->topic_name, topic_name))
+    if (!strcmp (tpd1->xqos->topic_name, topic_name) &&
+        (!type_id || !(tpd1->xqos->present & QP_TYPE_INFORMATION) || !ddsi_typeid_compare (type_id, ddsi_typeinfo_complete_typeid (tpd1->xqos->type_information))))
     {
       if (*tpd == NULL)
         *tpd = tpd1;

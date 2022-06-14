@@ -60,6 +60,13 @@ extern "C" {
 typedef struct ddsi_typeid dds_typeid_t;
 
 /**
+ * @brief DDS Type Information (XTypes)
+ * @ingroup dds
+ * DOC_TODO
+ */
+typedef struct ddsi_typeinfo dds_typeinfo_t;
+
+/**
  * @brief DDS Type Object (XTypes)
  * @ingroup dds
  * DOC_TODO
@@ -1461,29 +1468,48 @@ dds_create_topic_arbitrary (
   const struct ddsi_plist *sedp_plist);
 
 /**
- * @brief Finds a named topic.
+ * @brief Finds a locally created or discovered remote topic by topic name and type
  * @ingroup topic
  *
- * Finds a locally created topic based on the topic name.
+ * Finds a locally created topic or a discovered remote topic based on the topic
+ * name and type. In case the topic is not found, this function will wait for
+ * the topic to become available until the provided time out.
  *
- * @param[in]  participant  The participant on which to find the topic.
+ * When using the scope DDS_FIND_SCOPE_LOCAL_DOMAIN, there will be no requests sent
+ * over the network for resolving the proveded type in case it is unresolved. This
+ * also applies to dependent types: in case a dependency of the provided type is
+ * unresolved, no requests will be sent for resolving the type when using LOCAL_DOMAIN
+ * scope.
+ *
+ * In case the scope is DDS_FIND_SCOPE_GLOBAL, for unresolved types (or dependencies)
+ * a type lookup request will be sent.
+ *
+ * The returned topic should be released with dds_delete.
+ *
+ * @param[in]  scope        The scope used to find the topic.
+ * @param[in]  participant  The handle of the participant the found topic will be created in
  * @param[in]  name         The name of the topic to find.
+ * @param[in]  type_info    The type (dds_typeinfo_t) of the topic to find.
+ * @param[in]  timeout      The timeout for waiting for the topic to become available
  *
  * @returns A valid topic handle or an error code.
  *
  * @retval >0
  *             A valid topic handle.
+ * @retval 0
+ *             No topic of this name existed yet
  * @retval DDS_RETCODE_BAD_PARAMETER
  *             Participant was invalid.
  * @retval DDS_RETCODE_PRECONDITION_NOT_MET
  *             No topic of this name existed yet in the participant
  */
-DDS_DEPRECATED_EXPORT dds_entity_t
-dds_find_topic(dds_entity_t participant, const char *name);
+DDS_EXPORT dds_entity_t
+dds_find_topic (dds_find_scope_t scope, dds_entity_t participant, const char *name, const dds_typeinfo_t *type_info, dds_duration_t timeout);
 
 /**
- * @brief Finds a locally created or discovered remote topic by topic name
- * @ingroup topic
+ * @deprecated Finds a locally created or discovered remote topic by topic name
+ * @ingroup deprecated
+ * Use @ref dds_find_topic instead.
  *
  * Finds a locally created topic or a discovered remote topic based on the topic
  * name. In case the topic is not found, this function will wait for
@@ -1512,8 +1538,53 @@ dds_find_topic(dds_entity_t participant, const char *name);
  * @retval DDS_RETCODE_PRECONDITION_NOT_MET
  *             Multiple topics with the provided name were found.
  */
-DDS_EXPORT dds_entity_t
+DDS_DEPRECATED_EXPORT dds_entity_t
 dds_find_topic_scoped (dds_find_scope_t scope, dds_entity_t participant, const char *name, dds_duration_t timeout);
+
+
+#ifdef DDS_HAS_TOPIC_DISCOVERY
+
+/**
+ * @ingroup topic
+ * @brief Creates topic descriptor for the provided type_info
+ *
+ * @param[in]  scope        The scope used to find the type: DDS_FIND_SCOPE_LOCAL_DOMAIN or DDS_FIND_SCOPE_GLOBAL. In case DDS_FIND_SCOPE_GLOBAL is used, a type lookup request will be sent to other nodes.
+ * @param[in]  participant  The handle of the participant.
+ * @param[in]  type_info    The type (dds_typeinfo_t) of the topic to find.
+ * @param[in]  timeout      The timeout for waiting for the type to become available
+ * @param[out] descriptor - Pointer to a dds_topic_descriptor_t that will be populated. To free allocated memory for this descriptor, use dds_delete_topic_descriptor.
+ *
+ * @returns A dds_return_t indicating success or failure.
+ *
+ * @retval DDS_RETCODE_OK
+ *             The topic descriptor has been succesfully created.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             Type_info or descriptor parameter not provided, invalid entity (not a participant) or scope invalid.
+ * @retval DDS_RETCODE_PRECONDITION_NOT_MET
+ *             The participant or the type_id was not found.
+ * @retval DDS_RETCODE_TIMEOUT
+ *             Type was not resolved within the provided timeout
+ */
+DDS_EXPORT dds_return_t
+dds_create_topic_descriptor (dds_find_scope_t scope, dds_entity_t participant, const dds_typeinfo_t *type_info, dds_duration_t timeout, dds_topic_descriptor_t *descriptor);
+
+/**
+ * @ingroup topic
+ * @brief Delete memory allocated to the provided topic descriptor
+ *
+ * @param[in] descriptor - Pointer to a dds_topic_descriptor_t
+ *
+ * @returns A dds_return_t indicating success or failure.
+ *
+ * @retval DDS_RETCODE_OK
+ *             The topic descriptor has been succesfully deleted.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             No descriptor provided
+ */
+DDS_EXPORT dds_return_t
+dds_delete_topic_descriptor (dds_topic_descriptor_t *descriptor);
+
+#endif // DDS_HAS_TOPIC_DISCOVERY
 
 /**
  * @brief Returns the name of a given topic.
@@ -4413,27 +4484,25 @@ dds_get_matched_publication_data (
 
 #ifdef DDS_HAS_TYPE_DISCOVERY
 /**
- * @brief Gets the type identifier from endpoint information that was
+ * @brief Gets the type information from endpoint information that was
  *        retrieved by dds_get_matched_subscription_data or
  *        dds_get_matched_publication_data
  * @ingroup builtintopic
  *
  * @param[in] builtintopic_endpoint  The builtintopic endpoint struct
- * @param[in] kind                   Kind of type identifier (minimal/complete)
- * @param[out] type_identifier       Type identifier that will be allocated by this function in case of success. Needs to be freed by the caller.
+ * @param[out] type_info             Type information that will be allocated by this function in case of success.
  *
  * @returns A dds_return_t indicating success or failure.
  *
  * @retval DDS_RETCODE_OK
  *             The operation was successful.
- *
- * DOC_TODO: more return values?
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             One or more parameters are invalid
  */
 DDS_EXPORT dds_return_t
-dds_builtintopic_get_endpoint_typeid (
+dds_builtintopic_get_endpoint_type_info (
   dds_builtintopic_endpoint_t * builtintopic_endpoint,
-  dds_typeid_kind_t kind,
-  dds_typeid_t **type_identifier);
+  const dds_typeinfo_t ** type_info);
 #endif
 
 /**
@@ -4564,42 +4633,6 @@ dds_domain_set_deafmute (
 
 
 #ifdef DDS_HAS_TYPE_DISCOVERY
-
-/**
- * @brief This function resolves the type for the provided type identifier,
- * which can e.g. be retrieved from endpoint or topic discovery data.
- * @ingroup xtypes
- *
- * @param[in]   entity              A domain entity or an entity bound to a domain, such
- *                                  as a participant, reader or writer.
- * @param[in]   type_id             Type identifier
- * @param[in]   timeout             Timeout for waiting for requested type information to be available
- * @param[out]  sertype             The type information, or NULL if the type could not be resolved
- *
- * @remark The resulting type from the sertype out parameter is
- * refcounted and needs to be dereferenced at some point. This
- * can be done by creating a topic using dds_create_topic_generic,
- * which takes over the ownership of the type or alternatively by
- * using ddsi_sertype_unref to release the reference.
- *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             The operation was successful.
- * @retval DDS_BAD_PARAMETER
- *             The entity parameter is not a valid parameter, type_id or type name
- *             is not provided, or the sertype out parameter is NULL
- * @retval DDS_RETCODE_NOT_FOUND
- *             A type with the provided type_id and type_name was not found
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
-*/
-DDS_EXPORT dds_return_t
-dds_resolve_type (
-  dds_entity_t entity,
-  const dds_typeid_t *type_id,
-  dds_duration_t timeout,
-  struct ddsi_sertype **sertype);
 
 /**
  * @brief This function resolves the type for the provided type identifier,

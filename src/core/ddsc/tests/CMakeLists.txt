@@ -94,7 +94,6 @@ endif()
 
 if(ENABLE_TYPE_DISCOVERY)
   list(APPEND ddsc_test_sources
-    "typelookup.c"
     "xtypes.c"
     "data_representation.c"
     "typebuilder.c")
@@ -102,6 +101,7 @@ endif()
 
 if(ENABLE_TOPIC_DISCOVERY)
   list(APPEND ddsc_test_sources
+    "typelookup.c"
     "topic_discovery.c"
     "topic_find_global.c")
 endif()

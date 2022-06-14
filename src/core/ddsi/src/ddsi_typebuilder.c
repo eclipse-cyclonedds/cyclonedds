@@ -808,7 +808,7 @@ static dds_return_t typebuilder_add_aggrtype (struct typebuilder_data *tbd, stru
 {
   assert (tbd);
   dds_return_t ret = DDS_RETCODE_OK;
-  assert (ddsi_type_resolved (tbd->gv, type, true));
+  assert (ddsi_type_resolved (tbd->gv, type, DDSI_TYPE_RESOLVE_INCLUDE_DEPS));
   assert (type->xt.kind == DDSI_TYPEID_KIND_COMPLETE);
   ddsi_typeid_copy (&tb_aggrtype->id, &type->xt.id);
   tb_aggrtype->kind = type->xt._d;
@@ -1820,7 +1820,7 @@ static uint32_t get_descriptor_flagset (const struct typebuilder_data *tbd)
   return flags;
 }
 
-static dds_return_t get_topic_descriptor (dds_topic_descriptor_t **desc, struct typebuilder_data *tbd)
+static dds_return_t get_topic_descriptor (dds_topic_descriptor_t *desc, struct typebuilder_data *tbd)
 {
   dds_return_t ret;
   unsigned char *typeinfo_data , *typemap_data;
@@ -1870,7 +1870,7 @@ static dds_return_t get_topic_descriptor (dds_topic_descriptor_t **desc, struct 
     .type_mapping.sz = typemap_sz,
     .restrict_data_representation = 0
   };
-  if (d.m_typename == NULL || !(*desc = ddsrt_memdup (&d, sizeof (**desc))))
+  if (d.m_typename == NULL)
   {
     ddsrt_free ((void *) d.m_typename);
     ddsrt_free (d.type_information.data);
@@ -1878,14 +1878,14 @@ static dds_return_t get_topic_descriptor (dds_topic_descriptor_t **desc, struct 
     ret = DDS_RETCODE_OUT_OF_RESOURCES;
     goto err;
   }
-
+  memcpy (desc, &d, sizeof (*desc));
   ret = DDS_RETCODE_OK;
 
 err:
   return ret;
 }
 
-dds_return_t ddsi_topic_descriptor_from_type (struct ddsi_domaingv *gv, dds_topic_descriptor_t **desc, const struct ddsi_type *type)
+dds_return_t ddsi_topic_descriptor_from_type (struct ddsi_domaingv *gv, dds_topic_descriptor_t *desc, const struct ddsi_type *type)
 {
   assert (gv);
   assert (desc);

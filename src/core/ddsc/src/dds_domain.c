@@ -431,118 +431,23 @@ void dds_write_set_batch (bool enable)
 
 #ifdef DDS_HAS_TYPE_DISCOVERY
 
-static dds_return_t wait_for_type_resolved(
-  dds_entity_t entity,
-  const dds_typeid_t *type_id,
-  dds_duration_t timeout,
-  struct ddsi_sertype **sertype,
-  dds_typeobj_t **type_obj)
-{
-  dds_return_t rc;
-  struct dds_entity *e;
-  const struct ddsi_sertype *type_st;
-  const ddsi_typeid_t *ddsi_type_id = type_id;
-
-  // in case a sertype is requested, dependent type must also be resolved
-  bool include_deps = sertype != NULL;
-
-  if (ddsi_typeid_is_none (ddsi_type_id) || !ddsi_typeid_is_hash (ddsi_type_id))
-  {
-    rc = DDS_RETCODE_BAD_PARAMETER;
-    goto err;
-  }
-
-  if ((rc = dds_entity_pin (entity, &e)) < 0)
-    goto err;
-  if (e->m_domain == NULL)
-  {
-    rc = DDS_RETCODE_ILLEGAL_OPERATION;
-    goto err_unpin;
-  }
-
-  struct ddsi_domaingv *gv = &e->m_domain->gv;
-  ddsrt_mutex_lock (&gv->typelib_lock);
-  struct ddsi_type *type = ddsi_type_lookup_locked (gv, ddsi_type_id);
-  if (type == NULL)
-  {
-    rc = DDS_RETCODE_PRECONDITION_NOT_MET;
-    goto err_unlock;
-  }
-
-  if (sertype != NULL && (type_st = ddsi_type_sertype (type)))
-  {
-    *sertype = ddsi_sertype_ref (type_st);
-    rc = DDS_RETCODE_OK;
-    goto resolved;
-  }
-  else if (type_obj != NULL && (ddsi_type_resolved (gv, type, false)))
-  {
-    * (ddsi_typeobj_t **) type_obj = ddsi_type_get_typeobj (gv, type);
-    rc = DDS_RETCODE_OK;
-    goto resolved;
-  }
-  else if (timeout == 0)
-  {
-    rc = DDS_RETCODE_TIMEOUT;
-    goto err_unlock;
-  }
-  ddsrt_mutex_unlock (&gv->typelib_lock);
-
-  // FIXME: provide proxy pp guid
-  if (!ddsi_tl_request_type (gv, ddsi_type_id, NULL, include_deps))
-  {
-    rc = DDS_RETCODE_PRECONDITION_NOT_MET;
-    goto err_unpin;
-  }
-
-  const dds_time_t tnow = dds_time ();
-  const dds_time_t abstimeout = (DDS_INFINITY - timeout <= tnow) ? DDS_NEVER : (tnow + timeout);
-  if (sertype != NULL)
-    *sertype = NULL;
-  ddsrt_mutex_lock (&gv->typelib_lock);
-  while (!ddsi_type_resolved (gv, type, include_deps))
-  {
-    if (!ddsrt_cond_waituntil (&gv->typelib_resolved_cond, &gv->typelib_lock, abstimeout))
-      break;
-  }
-
-  if (ddsi_type_resolved (gv, type, include_deps))
-  {
-    if (sertype != NULL)
-    {
-      /* FIXME: currently a sertype cannot be generated from a type object (that
-         is received for a remote type), so unless a local type is added with
-         the requested type id, sertype will be NULL in the current implementation */
-      type_st = ddsi_type_sertype (type);
-      if (type_st != NULL)
-        *sertype = ddsi_sertype_ref (type_st);
-    }
-    if (type_obj != NULL)
-      * (ddsi_typeobj_t **) type_obj = ddsi_type_get_typeobj (gv, type);
-  }
-  rc = DDS_RETCODE_OK;
-
-resolved:
-err_unlock:
-  ddsrt_mutex_unlock (&gv->typelib_lock);
-err_unpin:
-  dds_entity_unpin (e);
-err:
-  return rc;
-}
-
-dds_return_t dds_resolve_type (dds_entity_t entity, const dds_typeid_t *type_id, dds_duration_t timeout, struct ddsi_sertype **sertype)
-{
-  if (!ddsi_typeid_is_complete (type_id))
-    return DDS_RETCODE_BAD_PARAMETER;
-  return wait_for_type_resolved (entity, type_id, timeout, sertype, NULL);
-}
-
 dds_return_t dds_get_typeobj (dds_entity_t entity, const dds_typeid_t *type_id, dds_duration_t timeout, dds_typeobj_t **type_obj)
 {
+  dds_return_t ret;
+  struct dds_entity *e;
+
   if (type_obj == NULL)
     return DDS_RETCODE_BAD_PARAMETER;
-  return wait_for_type_resolved (entity, type_id, timeout, NULL, type_obj);
+  if ((ret = dds_entity_pin (entity, &e)) < 0)
+    goto err;
+  if (e->m_domain == NULL)
+    ret = DDS_RETCODE_ILLEGAL_OPERATION;
+  else
+    ret = ddsi_wait_for_type_resolved (&e->m_domain->gv, (const ddsi_typeid_t *) type_id, timeout, (ddsi_typeobj_t **) type_obj, DDSI_TYPE_RESOLVE_IGNORE_DEPS, DDSI_TYPE_SEND_REQUEST);
+
+err:
+  dds_entity_unpin (e);
+  return ret;
 }
 
 dds_return_t dds_free_typeobj (dds_typeobj_t *type_obj)
