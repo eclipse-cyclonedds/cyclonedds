@@ -309,10 +309,12 @@ cat >>$cfg <<EOF
 EOF
 fi
 cat >>$cfg <<EOF
+    <Discovery>
+      <LeaseDuration>2s</LeaseDuration>
+    </Discovery>
     <Internal>
       <SynchronousDeliveryPriorityThreshold>\${async:-0}</SynchronousDeliveryPriorityThreshold>
-      <LeaseDuration>2s</LeaseDuration>
-      <MinimumSocketReceiveBufferSize>6MB</MinimumSocketReceiveBufferSize>
+      <SocketReceiveBufferSize max="6MB"/>
       $watermarks
     </Internal>
     <Tracing>
