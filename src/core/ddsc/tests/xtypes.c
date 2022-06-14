@@ -643,6 +643,24 @@ static void mod_uniondisc (dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectPair 
   type_id_obj_seq->_buffer[0].type_object._u.minimal._u.union_type.discriminator.common.type_id._d = DDS_XTypes_TK_FLOAT32;
 }
 
+static void mod_unionmembers (dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectPair *type_id_obj_seq, uint32_t kind)
+{
+  assert (kind == DDS_XTypes_EK_MINIMAL);
+  (void) kind;
+  assert (type_id_obj_seq->_buffer[0].type_object._u.minimal._d == DDS_XTypes_TK_UNION);
+  assert (type_id_obj_seq->_buffer[0].type_object._u.minimal._u.union_type.member_seq._length == 2);
+  type_id_obj_seq->_buffer[0].type_object._u.minimal._u.union_type.member_seq._buffer[0].common.member_flags |= DDS_XTypes_IS_DEFAULT;
+}
+
+static void mod_arraybound (dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectPair *type_id_obj_seq, uint32_t kind)
+{
+  assert (kind == DDS_XTypes_EK_MINIMAL);
+  (void) kind;
+  assert (type_id_obj_seq->_buffer[0].type_object._u.minimal._d == DDS_XTypes_TK_STRUCTURE);
+  assert (type_id_obj_seq->_buffer[0].type_object._u.minimal._u.struct_type.member_seq._buffer[0].common.member_type_id._d == DDS_XTypes_TI_PLAIN_ARRAY_SMALL);
+  type_id_obj_seq->_buffer[0].type_object._u.minimal._u.struct_type.member_seq._buffer[0].common.member_type_id._u.array_sdefn.array_bound_seq._buffer[0] = 5;
+}
+
 static void modify_type_meta (dds_topic_descriptor_t *dst_desc, const dds_topic_descriptor_t *src_desc, typeobj_modify mod, bool update_typeinfo, uint32_t kind)
 {
   memcpy (dst_desc, src_desc, sizeof (*dst_desc));
@@ -728,10 +746,12 @@ CU_TheoryDataPoints (ddsc_xtypes, invalid_type_object_local) = {
   CU_DataPoints (const char *,                    "invalid flag, non-matching typeid",
   /*                                              |               */"invalid flag, matching typeid",
   /*                                              |                |               */"invalid inheritance",
-  /*                                              |                |                |              */"invalid union discr"),
-  CU_DataPoints (const dds_topic_descriptor_t *,  &D(to_toplevel), &D(to_toplevel), &D(to_inherit), &D(to_uniondisc) ),
-  CU_DataPoints (typeobj_modify,                  mod_toplevel,    mod_toplevel,    mod_inherit,    mod_uniondisc    ),
-  CU_DataPoints (bool,                            false,           true,            true,           true             ),
+  /*                                              |                |                |              */"invalid union discr",
+  /*                                              |                |                |               |                */"union multiple default",
+  /*                                              |                |                |               |                 |                   */"array bound overflow"),
+  CU_DataPoints (const dds_topic_descriptor_t *,  &D(to_toplevel), &D(to_toplevel), &D(to_inherit), &D(to_uniondisc), &D(to_unionmembers), &D(to_arraybound) ),
+  CU_DataPoints (typeobj_modify,                  mod_toplevel,    mod_toplevel,    mod_inherit,    mod_uniondisc,    mod_unionmembers,    mod_arraybound    ),
+  CU_DataPoints (bool,                            false,           true,            true,           true,             true,                true              ),
 };
 #undef D
 

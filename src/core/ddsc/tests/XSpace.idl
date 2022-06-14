@@ -95,4 +95,15 @@ module XSpace {
       dep_test_nested f1;
     };
 
+    union to_unionmembers switch (long) {
+      case 1: long u1;
+      default: short u2;
+    };
+
+    typedef octet td_byte[1000000000];
+    typedef td_byte tdd_byte;
+    struct to_arraybound {
+      tdd_byte f1[1];
+    };
+
 };
