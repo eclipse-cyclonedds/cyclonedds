@@ -81,7 +81,7 @@ static struct ktopic_type_guid * topic_guid_map_refc_impl (const struct dds_ktop
 {
   struct ktopic_type_guid *m = NULL;
   ddsi_typeid_t *type_id = ddsi_sertype_typeid (sertype, DDSI_TYPEID_KIND_COMPLETE);
-  if (ddsi_typeid_is_none (type_id) || !ddsi_typeid_is_hash (type_id))
+  if (ddsi_typeid_is_none (type_id))
     goto no_typeid;
   struct ktopic_type_guid templ = { .type_id = type_id };
   m = ddsrt_hh_lookup (ktp->topic_guid_map, &templ);
@@ -363,7 +363,7 @@ static bool register_topic_type_for_discovery (struct ddsi_domaingv * const gv, 
      complete xtypes type-id as key; for both local and discovered topic with type information,
      both minimal and complete type identifiers are always set */
   ddsi_typeid_t *type_id = ddsi_sertype_typeid (sertype, DDSI_TYPEID_KIND_COMPLETE);
-  if (ddsi_typeid_is_none (type_id) || !ddsi_typeid_is_hash (type_id))
+  if (ddsi_typeid_is_none (type_id))
     goto free_typeid;
 
   struct ktopic_type_guid templ = { .type_id = type_id }, *m;

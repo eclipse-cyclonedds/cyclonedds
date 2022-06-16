@@ -391,6 +391,10 @@ void ddsi_tl_add_types (struct ddsi_domaingv *gv, const DDS_Builtin_TypeLookup_R
         resolved = true;
       }
     }
+    else
+    {
+      GVTRACE (" failed to add typeobj\n");
+    }
   }
   if (resolved)
     ddsrt_cond_broadcast (&gv->typelib_resolved_cond);
