@@ -360,8 +360,10 @@ if $provision ; then
     done
 fi
 if [ "$security" != "none" ] ; then
-    ssh $r mkdir -p $remotedir $remotedir/secperf
-    scp $secfiles $r:$remotedir/secperf
+    for r in $remotes ; do
+    	ssh $r mkdir -p $remotedir $remotedir/secperf
+    	scp $secfiles $r:$remotedir/secperf
+    done
 fi
 
 topic=KS
