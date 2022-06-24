@@ -1058,17 +1058,24 @@ static int inst_accepts_sample (const struct dds_rhc_default *rhc, const struct 
   return 1;
 }
 
-static void update_inst (struct rhc_instance *inst, const struct ddsi_writer_info * __restrict wrinfo, bool wr_iid_valid, ddsrt_wctime_t tstamp)
+static void update_inst_common (struct rhc_instance *inst, const struct ddsi_writer_info * __restrict wrinfo, ddsrt_wctime_t tstamp)
 {
   inst->tstamp = tstamp;
-  inst->wr_iid_islive = wr_iid_valid;
-  if (wr_iid_valid)
-  {
-    inst->wr_iid = wrinfo->iid;
-    if (inst->wr_iid != wrinfo->iid)
-      inst->wr_guid = wrinfo->guid;
-  }
   inst->strength = wrinfo->ownership_strength;
+}
+
+static void update_inst_have_wr_iid (struct rhc_instance *inst, const struct ddsi_writer_info * __restrict wrinfo, ddsrt_wctime_t tstamp)
+{
+  update_inst_common (inst, wrinfo, tstamp);
+  inst->wr_iid = wrinfo->iid;
+  inst->wr_guid = wrinfo->guid;
+  inst->wr_iid_islive = true;
+}
+
+static void update_inst_no_wr_iid (struct rhc_instance *inst, const struct ddsi_writer_info * __restrict wrinfo, ddsrt_wctime_t tstamp)
+{
+  update_inst_common (inst, wrinfo, tstamp);
+  inst->wr_iid_islive = false;
 }
 
 static void drop_instance_noupdate_no_writers (struct dds_rhc_default *__restrict rhc, struct rhc_instance * __restrict * __restrict instptr)
@@ -1317,7 +1324,7 @@ static int rhc_unregister_updateinst (struct dds_rhc_default *rhc, struct rhc_in
         if (inst->latest == NULL || inst->latest->isread)
         {
           inst_set_invsample (rhc, inst, trig_qc, nda);
-          update_inst (inst, wrinfo, false, tstamp);
+          update_inst_no_wr_iid (inst, wrinfo, tstamp);
         }
         if (!inst->autodispose)
           rhc->n_not_alive_no_writers++;
@@ -1344,7 +1351,7 @@ static int rhc_unregister_updateinst (struct dds_rhc_default *rhc, struct rhc_in
       TRACE (",#0,empty,nowriters");
       assert (inst_is_empty (inst));
       inst_set_invsample (rhc, inst, trig_qc, nda);
-      update_inst (inst, wrinfo, false, tstamp);
+      update_inst_no_wr_iid (inst, wrinfo, tstamp);
       if (inst->autodispose)
       {
         TRACE (",autodispose");
@@ -1690,7 +1697,7 @@ static bool dds_rhc_default_store (struct ddsi_rhc * __restrict rhc_common, cons
       if ((bool) inst->isdisposed > old_isdisposed && (inst->latest == NULL || inst->latest->isread))
         inst_set_invsample (rhc, inst, &trig_qc, &notify_data_available);
 
-      update_inst (inst, wrinfo, true, sample->timestamp);
+      update_inst_have_wr_iid (inst, wrinfo, sample->timestamp);
 
       /* Can only add samples => only need to give special treatment
          to instances that were empty before.  It is, however, not
