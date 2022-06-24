@@ -33,6 +33,7 @@ set(ddsc_test_sources
     "cdr.c"
     "config.c"
     "data_avail_stress.c"
+    "destorder.c"
     "discstress.c"
     "dispose.c"
     "domain.c"
