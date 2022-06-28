@@ -16,6 +16,7 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsi/ddsi_cdrstream.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_serdata_default.h"
 #include "dds/ddsi/ddsi_sertype.h"
@@ -818,8 +819,6 @@ static dds_return_t typebuilder_add_aggrtype (struct typebuilder_data *tbd, stru
 {
   assert (tbd);
   dds_return_t ret = DDS_RETCODE_OK;
-  assert (ddsi_type_resolved (tbd->gv, type, DDSI_TYPE_INCLUDE_DEPS));
-  assert (type->xt.kind == DDSI_TYPEID_KIND_COMPLETE);
   ddsi_typeid_copy (&tb_aggrtype->id, &type->xt.id);
   tb_aggrtype->kind = type->xt._d;
   switch (type->xt._d)
@@ -1797,6 +1796,13 @@ dds_return_t ddsi_topic_descriptor_from_type (struct ddsi_domaingv *gv, dds_topi
   struct typebuilder_data *tbd;
   if (!(tbd = typebuilder_data_new (gv, type)))
     return DDS_RETCODE_OUT_OF_RESOURCES;
+
+  /* The top-level type and all its dependencies are resolved, and the caller of this
+     function should have a reference to the top-level ddsi_type, we can access the
+     type and its dependencies without taking the typelib lock */
+  assert (ddsi_type_resolved_locked (tbd->gv, type, DDSI_TYPE_INCLUDE_DEPS));
+  assert (type->xt.kind == DDSI_TYPEID_KIND_COMPLETE);
+
   if ((ret = typebuilder_add_aggrtype (tbd, &tbd->toplevel_type, type)))
     goto err;
   set_implicit_keys_aggrtype (&tbd->toplevel_type, true, false);

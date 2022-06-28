@@ -443,7 +443,15 @@ dds_return_t dds_get_typeobj (dds_entity_t entity, const dds_typeid_t *type_id, 
   if (e->m_domain == NULL)
     ret = DDS_RETCODE_ILLEGAL_OPERATION;
   else
-    ret = ddsi_wait_for_type_resolved (&e->m_domain->gv, (const ddsi_typeid_t *) type_id, timeout, (ddsi_typeobj_t **) type_obj, DDSI_TYPE_IGNORE_DEPS, DDSI_TYPE_SEND_REQUEST);
+  {
+    struct ddsi_domaingv *gv = &e->m_domain->gv;
+    struct ddsi_type *type;
+    ret = ddsi_wait_for_type_resolved (gv, (const ddsi_typeid_t *) type_id, timeout, &type, DDSI_TYPE_IGNORE_DEPS, DDSI_TYPE_SEND_REQUEST);
+    if (ret != DDS_RETCODE_OK)
+      goto err;
+    *type_obj = ddsi_type_get_typeobj (gv, type);
+    ddsi_type_unref (gv, type);
+  }
 
 err:
   dds_entity_unpin (e);

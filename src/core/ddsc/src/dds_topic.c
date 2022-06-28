@@ -883,6 +883,7 @@ static dds_entity_t find_remote_topic_impl (dds_participant *pp_topic, const cha
   struct ddsi_topic_definition *tpd;
   struct ddsi_domaingv * gv = &pp_topic->m_entity.m_domain->gv;
   const struct ddsi_typeid *type_id = ddsi_typeinfo_complete_typeid (type_info);
+  struct ddsi_type *resolved_type = NULL;
 
   if ((ret = lookup_topic_definition (gv, name, type_id, &tpd)) != DDS_RETCODE_OK)
     return ret;
@@ -893,15 +894,23 @@ static dds_entity_t find_remote_topic_impl (dds_participant *pp_topic, const cha
   assert (!type_info || !ddsi_typeid_compare (tpd_type_id, type_id));
   if (!ddsi_type_resolved (gv, tpd->type_pair->complete, DDSI_TYPE_INCLUDE_DEPS))
   {
-    if ((ret = ddsi_wait_for_type_resolved (gv, tpd_type_id, timeout, NULL, DDSI_TYPE_INCLUDE_DEPS, DDSI_TYPE_SEND_REQUEST)) != DDS_RETCODE_OK)
+    if ((ret = ddsi_wait_for_type_resolved (gv, tpd_type_id, timeout, &resolved_type, DDSI_TYPE_INCLUDE_DEPS, DDSI_TYPE_SEND_REQUEST)) != DDS_RETCODE_OK)
       return ret;
+    assert (!ddsi_type_compare (tpd->type_pair->complete, resolved_type));
   }
 
   assert (ddsi_type_resolved (gv, tpd->type_pair->complete, DDSI_TYPE_INCLUDE_DEPS));
-  const struct ddsi_sertype *sertype_type_pair = ddsi_type_pair_complete_sertype (tpd->type_pair);
-  assert (sertype_type_pair);
-  struct ddsi_sertype *sertype = ddsi_sertype_ref (sertype_type_pair);
-  return dds_create_topic_impl (pp_topic->m_entity.m_hdllink.hdl, name, false, &sertype, tpd->xqos, NULL, NULL, false);
+
+  dds_topic_descriptor_t *desc = ddsrt_malloc (sizeof (*desc));
+  if ((ret = ddsi_topic_descriptor_from_type (gv, desc, tpd->type_pair->complete)))
+    goto err_desc;
+  ret = dds_create_topic (pp_topic->m_entity.m_hdllink.hdl, desc, name, tpd->xqos, NULL);
+  ddsi_topic_descriptor_fini (desc);
+  if (resolved_type)
+    ddsi_type_unref (gv, resolved_type);
+err_desc:
+  ddsrt_free (desc);
+  return ret;
 }
 
 #endif /* DDS_HAS_TOPIC_DISCOVERY */
@@ -1153,13 +1162,13 @@ dds_return_t dds_create_topic_descriptor (dds_find_scope_t scope, dds_entity_t p
     return DDS_RETCODE_BAD_PARAMETER;
   }
   struct ddsi_domaingv * gv = &e->m_domain->gv;
-  const ddsi_typeid_t *type_id = ddsi_typeinfo_complete_typeid (type_info);
-  if ((ret = ddsi_wait_for_type_resolved (gv, type_id, timeout, NULL, DDSI_TYPE_INCLUDE_DEPS, scope == DDS_FIND_SCOPE_GLOBAL ? DDSI_TYPE_SEND_REQUEST : DDSI_TYPE_NO_REQUEST)))
-    goto err;
 
-  struct ddsi_type *type = ddsi_type_lookup_locked (gv, type_id);
+  struct ddsi_type *type;
+  if ((ret = ddsi_wait_for_type_resolved (gv, ddsi_typeinfo_complete_typeid (type_info), timeout, &type, DDSI_TYPE_INCLUDE_DEPS, scope == DDS_FIND_SCOPE_GLOBAL ? DDSI_TYPE_SEND_REQUEST : DDSI_TYPE_NO_REQUEST)))
+    goto err;
   assert (type && ddsi_type_resolved (gv, type, DDSI_TYPE_INCLUDE_DEPS));
   ret = ddsi_topic_descriptor_from_type (gv, descriptor, type);
+  ddsi_type_unref (gv, type);
 
 err:
   dds_entity_unpin (e);

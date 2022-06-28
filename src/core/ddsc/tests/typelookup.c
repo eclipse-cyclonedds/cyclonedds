@@ -391,7 +391,8 @@ CU_Test(ddsc_typelookup, api_resolve_invalid, .init = typelookup_init, .fini = t
   struct dds_entity *e;
   memset (type_id, 0xff, 8);
   CU_ASSERT_EQUAL_FATAL (dds_entity_pin (g_participant2, &e), 0);
-  ret = ddsi_wait_for_type_resolved (&e->m_domain->gv, type_id, DDS_SECS (3), NULL, DDSI_TYPE_INCLUDE_DEPS, DDSI_TYPE_SEND_REQUEST);
+  struct ddsi_type *type;
+  ret = ddsi_wait_for_type_resolved (&e->m_domain->gv, type_id, DDS_SECS (3), &type, DDSI_TYPE_INCLUDE_DEPS, DDSI_TYPE_SEND_REQUEST);
   dds_entity_unpin (e);
   CU_ASSERT_NOT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
 
