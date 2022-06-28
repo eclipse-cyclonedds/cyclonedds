@@ -48,11 +48,6 @@ enum ddsi_type_state {
   DDSI_TYPE_INVALID,
 };
 
-typedef enum ddsi_type_resolve_kind {
-  DDSI_TYPE_RESOLVE_IGNORE_DEPS,
-  DDSI_TYPE_RESOLVE_INCLUDE_DEPS
-} ddsi_type_resolve_kind_t;
-
 typedef enum ddsi_type_request {
   DDSI_TYPE_NO_REQUEST,
   DDSI_TYPE_SEND_REQUEST
@@ -65,7 +60,7 @@ struct ddsi_typeid_str {
 
 DDS_EXPORT char *ddsi_make_typeid_str (struct ddsi_typeid_str *buf, const ddsi_typeid_t *type_id);
 
-DDS_EXPORT bool ddsi_typeinfo_equal (const ddsi_typeinfo_t *a, const ddsi_typeinfo_t *b);
+DDS_EXPORT bool ddsi_typeinfo_equal (const ddsi_typeinfo_t *a, const ddsi_typeinfo_t *b, ddsi_type_include_deps_t deps);
 DDS_EXPORT ddsi_typeid_t *ddsi_typeinfo_typeid (const ddsi_typeinfo_t *type_info, ddsi_typeid_kind_t kind);
 DDS_EXPORT ddsi_typeinfo_t *ddsi_typeinfo_deser (const struct ddsi_sertype_cdr_data *ser);
 DDS_EXPORT void ddsi_typeinfo_fini (ddsi_typeinfo_t *typeinfo);
@@ -91,8 +86,8 @@ DDS_EXPORT void ddsi_type_unreg_proxy (struct ddsi_domaingv *gv, struct ddsi_typ
 DDS_EXPORT void ddsi_type_unref (struct ddsi_domaingv *gv, struct ddsi_type *type);
 DDS_EXPORT void ddsi_type_unref_sertype (struct ddsi_domaingv *gv, const struct ddsi_sertype *sertype);
 DDS_EXPORT void ddsi_type_unref_locked (struct ddsi_domaingv *gv, struct ddsi_type *type);
-DDS_EXPORT bool ddsi_type_resolved (struct ddsi_domaingv *gv, const struct ddsi_type *type, ddsi_type_resolve_kind_t resolved_kind);
-DDS_EXPORT dds_return_t ddsi_wait_for_type_resolved (struct ddsi_domaingv *gv, const ddsi_typeid_t *type_id, dds_duration_t timeout, ddsi_typeobj_t **type_obj, ddsi_type_resolve_kind_t resolved_kind, ddsi_type_request_t request);
+DDS_EXPORT bool ddsi_type_resolved (struct ddsi_domaingv *gv, const struct ddsi_type *type, ddsi_type_include_deps_t resolved_kind);
+DDS_EXPORT dds_return_t ddsi_wait_for_type_resolved (struct ddsi_domaingv *gv, const ddsi_typeid_t *type_id, dds_duration_t timeout, ddsi_typeobj_t **type_obj, ddsi_type_include_deps_t resolved_kind, ddsi_type_request_t request);
 
 DDS_EXPORT bool ddsi_is_assignable_from (struct ddsi_domaingv *gv, const struct ddsi_type_pair *rd_type_pair, uint32_t rd_resolved, const struct ddsi_type_pair *wr_type_pair, uint32_t wr_resolved, const dds_type_consistency_enforcement_qospolicy_t *tce);
 DDS_EXPORT const ddsi_typeid_t *ddsi_type_pair_minimal_id (const struct ddsi_type_pair *type_pair);

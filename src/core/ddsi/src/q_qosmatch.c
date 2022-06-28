@@ -76,8 +76,8 @@ static uint32_t is_endpoint_type_resolved (struct ddsi_domaingv *gv, char *type_
 {
   assert (type_pair);
   ddsrt_mutex_lock (&gv->typelib_lock);
-  bool min_resolved = ddsi_type_resolved (gv, type_pair->minimal, DDSI_TYPE_RESOLVE_INCLUDE_DEPS),
-    compl_resolved = ddsi_type_resolved (gv, type_pair->complete, DDSI_TYPE_RESOLVE_INCLUDE_DEPS);
+  bool min_resolved = ddsi_type_resolved (gv, type_pair->minimal, DDSI_TYPE_INCLUDE_DEPS),
+    compl_resolved = ddsi_type_resolved (gv, type_pair->complete, DDSI_TYPE_INCLUDE_DEPS);
   if (!min_resolved && !compl_resolved)
   {
     struct ddsi_typeid_str str;

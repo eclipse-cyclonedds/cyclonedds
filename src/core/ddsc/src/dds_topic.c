@@ -741,7 +741,7 @@ static dds_topic *pin_if_matching_topic (dds_entity * const e_pp_child, const ch
   if (!strcmp (tp->m_ktopic->name, name))
   {
 #ifdef DDS_HAS_TYPE_DISCOVERY
-    if (!(tp->m_ktopic->qos->present & QP_TYPE_INFORMATION) || ddsi_typeinfo_equal (tp->m_ktopic->qos->type_information, type_info))
+    if (!(tp->m_ktopic->qos->present & QP_TYPE_INFORMATION) || ddsi_typeinfo_equal (tp->m_ktopic->qos->type_information, type_info, DDSI_TYPE_IGNORE_DEPS))
       return tp;
 #else
     (void) type_info;
@@ -891,13 +891,13 @@ static dds_entity_t find_remote_topic_impl (dds_participant *pp_topic, const cha
 
   const struct ddsi_typeid *tpd_type_id = ddsi_type_pair_complete_id (tpd->type_pair);
   assert (!type_info || !ddsi_typeid_compare (tpd_type_id, type_id));
-  if (!ddsi_type_resolved (gv, tpd->type_pair->complete, DDSI_TYPE_RESOLVE_INCLUDE_DEPS))
+  if (!ddsi_type_resolved (gv, tpd->type_pair->complete, DDSI_TYPE_INCLUDE_DEPS))
   {
-    if ((ret = ddsi_wait_for_type_resolved (gv, tpd_type_id, timeout, NULL, DDSI_TYPE_RESOLVE_INCLUDE_DEPS, DDSI_TYPE_SEND_REQUEST)) != DDS_RETCODE_OK)
+    if ((ret = ddsi_wait_for_type_resolved (gv, tpd_type_id, timeout, NULL, DDSI_TYPE_INCLUDE_DEPS, DDSI_TYPE_SEND_REQUEST)) != DDS_RETCODE_OK)
       return ret;
   }
 
-  assert (ddsi_type_resolved (gv, tpd->type_pair->complete, DDSI_TYPE_RESOLVE_INCLUDE_DEPS));
+  assert (ddsi_type_resolved (gv, tpd->type_pair->complete, DDSI_TYPE_INCLUDE_DEPS));
   const struct ddsi_sertype *sertype_type_pair = ddsi_type_pair_complete_sertype (tpd->type_pair);
   assert (sertype_type_pair);
   struct ddsi_sertype *sertype = ddsi_sertype_ref (sertype_type_pair);
@@ -1154,11 +1154,11 @@ dds_return_t dds_create_topic_descriptor (dds_find_scope_t scope, dds_entity_t p
   }
   struct ddsi_domaingv * gv = &e->m_domain->gv;
   const ddsi_typeid_t *type_id = ddsi_typeinfo_complete_typeid (type_info);
-  if ((ret = ddsi_wait_for_type_resolved (gv, type_id, timeout, NULL, DDSI_TYPE_RESOLVE_INCLUDE_DEPS, scope == DDS_FIND_SCOPE_GLOBAL ? DDSI_TYPE_SEND_REQUEST : DDSI_TYPE_NO_REQUEST)))
+  if ((ret = ddsi_wait_for_type_resolved (gv, type_id, timeout, NULL, DDSI_TYPE_INCLUDE_DEPS, scope == DDS_FIND_SCOPE_GLOBAL ? DDSI_TYPE_SEND_REQUEST : DDSI_TYPE_NO_REQUEST)))
     goto err;
 
   struct ddsi_type *type = ddsi_type_lookup_locked (gv, type_id);
-  assert (type && ddsi_type_resolved (gv, type, DDSI_TYPE_RESOLVE_INCLUDE_DEPS));
+  assert (type && ddsi_type_resolved (gv, type, DDSI_TYPE_INCLUDE_DEPS));
   ret = ddsi_topic_descriptor_from_type (gv, descriptor, type);
 
 err:

@@ -2820,7 +2820,7 @@ static bool topickind_qos_match_p_lock (
 #ifdef DDS_HAS_TYPE_DISCOVERY
   if (req_type_id)
   {
-    (void) ddsi_tl_request_type (gv, req_type_id, proxypp_guid, DDSI_TYPE_RESOLVE_INCLUDE_DEPS);
+    (void) ddsi_tl_request_type (gv, req_type_id, proxypp_guid, DDSI_TYPE_INCLUDE_DEPS);
     return false;
   }
 #endif

@@ -230,19 +230,27 @@ static bool type_id_with_size_equal (const struct DDS_XTypes_TypeIdentifierWithS
 
 static bool type_id_with_sizeseq_equal (const struct dds_sequence_DDS_XTypes_TypeIdentifierWithSize *a, const struct dds_sequence_DDS_XTypes_TypeIdentifierWithSize *b)
 {
-    if (a->_length != b->_length)
+  if (a->_length != b->_length)
+    return false;
+  for (uint32_t n = 0; n < a->_length; n++)
+  {
+    bool found = false;
+    for (uint32_t m = 0; !found && m < b->_length; m++)
+    {
+      if (type_id_with_size_equal (&a->_buffer[n], &b->_buffer[m]))
+        found = true;
+    }
+    if (!found)
       return false;
-    for (uint32_t n = 0; n < a->_length; n++)
-      if (!type_id_with_size_equal (&a->_buffer[n], &b->_buffer[n]))
-        return false;
-    return true;
+  }
+  return true;
 }
 
-bool ddsi_type_id_with_deps_equal (const struct DDS_XTypes_TypeIdentifierWithDependencies *a, const struct DDS_XTypes_TypeIdentifierWithDependencies *b)
+bool ddsi_type_id_with_deps_equal (const struct DDS_XTypes_TypeIdentifierWithDependencies *a, const struct DDS_XTypes_TypeIdentifierWithDependencies *b, ddsi_type_include_deps_t deps)
 {
   return type_id_with_size_equal (&a->typeid_with_size, &b->typeid_with_size)
     && a->dependent_typeid_count == b->dependent_typeid_count
-    && type_id_with_sizeseq_equal (&a->dependent_typeids, &b->dependent_typeids);
+    && (!deps || type_id_with_sizeseq_equal (&a->dependent_typeids, &b->dependent_typeids));
 }
 
 int ddsi_typeid_compare_impl (const struct DDS_XTypes_TypeIdentifier *a, const struct DDS_XTypes_TypeIdentifier *b)

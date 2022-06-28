@@ -47,6 +47,11 @@ typedef enum ddsi_typeid_kind {
   DDSI_TYPEID_KIND_FULLY_DESCRIPTIVE
 } ddsi_typeid_kind_t;
 
+typedef enum ddsi_type_include_deps {
+  DDSI_TYPE_IGNORE_DEPS,
+  DDSI_TYPE_INCLUDE_DEPS
+} ddsi_type_include_deps_t;
+
 DDS_EXPORT const char * ddsi_typekind_descr (unsigned char disc);
 
 DDS_EXPORT void ddsi_typeid_copy (ddsi_typeid_t *dst, const ddsi_typeid_t *src);
@@ -59,7 +64,7 @@ DDS_EXPORT bool ddsi_typeid_is_hash (const ddsi_typeid_t *type_id);
 DDS_EXPORT bool ddsi_typeid_is_minimal (const ddsi_typeid_t *type_id);
 DDS_EXPORT bool ddsi_typeid_is_complete (const ddsi_typeid_t *type_id);
 DDS_EXPORT void ddsi_typeid_get_equivalence_hash (const ddsi_typeid_t *type_id, DDS_XTypes_EquivalenceHash *hash);
-DDS_EXPORT bool ddsi_type_id_with_deps_equal (const struct DDS_XTypes_TypeIdentifierWithDependencies *a, const struct DDS_XTypes_TypeIdentifierWithDependencies *b);
+DDS_EXPORT bool ddsi_type_id_with_deps_equal (const struct DDS_XTypes_TypeIdentifierWithDependencies *a, const struct DDS_XTypes_TypeIdentifierWithDependencies *b, ddsi_type_include_deps_t deps);
 DDS_EXPORT ddsi_typeid_kind_t ddsi_typeid_kind (const ddsi_typeid_t *type);
 
 DDS_EXPORT dds_return_t ddsi_typeobj_get_hash_id (const struct DDS_XTypes_TypeObject *type_obj, ddsi_typeid_t *type_id);

@@ -818,7 +818,7 @@ static dds_return_t typebuilder_add_aggrtype (struct typebuilder_data *tbd, stru
 {
   assert (tbd);
   dds_return_t ret = DDS_RETCODE_OK;
-  assert (ddsi_type_resolved (tbd->gv, type, DDSI_TYPE_RESOLVE_INCLUDE_DEPS));
+  assert (ddsi_type_resolved (tbd->gv, type, DDSI_TYPE_INCLUDE_DEPS));
   assert (type->xt.kind == DDSI_TYPEID_KIND_COMPLETE);
   ddsi_typeid_copy (&tb_aggrtype->id, &type->xt.id);
   tb_aggrtype->kind = type->xt._d;

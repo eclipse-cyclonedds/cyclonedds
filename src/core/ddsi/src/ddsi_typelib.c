@@ -42,11 +42,11 @@ static int ddsi_typeid_compare_dep_src (const void *typedep_a, const void *typed
 const ddsrt_avl_treedef_t ddsi_typedeps_treedef = DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct ddsi_type_dep, src_avl_node), 0, ddsi_typeid_compare_src_dep, 0);
 const ddsrt_avl_treedef_t ddsi_typedeps_reverse_treedef = DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct ddsi_type_dep, dep_avl_node), 0, ddsi_typeid_compare_dep_src, 0);
 
-bool ddsi_typeinfo_equal (const ddsi_typeinfo_t *a, const ddsi_typeinfo_t *b)
+bool ddsi_typeinfo_equal (const ddsi_typeinfo_t *a, const ddsi_typeinfo_t *b, ddsi_type_include_deps_t deps)
 {
   if (a == NULL || b == NULL)
     return a == b;
-  return ddsi_type_id_with_deps_equal (&a->x.minimal, &b->x.minimal) && ddsi_type_id_with_deps_equal (&a->x.complete, &b->x.complete);
+  return ddsi_type_id_with_deps_equal (&a->x.minimal, &b->x.minimal, deps) && ddsi_type_id_with_deps_equal (&a->x.complete, &b->x.complete, deps);
 }
 
 ddsi_typeinfo_t * ddsi_typeinfo_dup (const ddsi_typeinfo_t *src)
@@ -469,7 +469,7 @@ static dds_return_t type_add_deps (struct ddsi_domaingv *gv, struct ddsi_type *t
     struct ddsi_type *dst_dep_type = NULL;
     ddsi_type_register_dep_impl (gv, &type->xt.id, &dst_dep_type, dep_type_id, true);
     assert (dst_dep_type);
-    if (!type_map || ddsi_type_resolved (gv, dst_dep_type, DDSI_TYPE_RESOLVE_IGNORE_DEPS))
+    if (!type_map || ddsi_type_resolved (gv, dst_dep_type, DDSI_TYPE_IGNORE_DEPS))
       continue;
 
     const struct DDS_XTypes_TypeObject *dep_type_obj = ddsi_typemap_typeobj (type_map, dep_type_id);
@@ -861,7 +861,7 @@ err_typemap:
 
 struct ddsi_typeobj *ddsi_type_get_typeobj (struct ddsi_domaingv *gv, const struct ddsi_type *type)
 {
-  if (!ddsi_type_resolved (gv, type, DDSI_TYPE_RESOLVE_IGNORE_DEPS))
+  if (!ddsi_type_resolved (gv, type, DDSI_TYPE_IGNORE_DEPS))
     return NULL;
 
   ddsi_typeobj_t *to = ddsrt_malloc (sizeof (*to));
@@ -1014,7 +1014,7 @@ static void ddsi_type_get_gpe_matches_impl (struct ddsi_domaingv *gv, const stru
 
 void ddsi_type_get_gpe_matches (struct ddsi_domaingv *gv, const struct ddsi_type *type, struct generic_proxy_endpoint ***gpe_match_upd, uint32_t *n_match_upd)
 {
-  if (ddsi_type_resolved (gv, type, DDSI_TYPE_RESOLVE_INCLUDE_DEPS))
+  if (ddsi_type_resolved (gv, type, DDSI_TYPE_INCLUDE_DEPS))
     ddsi_type_get_gpe_matches_impl (gv, type, gpe_match_upd, n_match_upd);
   struct ddsi_type_dep tmpl, *reverse_dep = &tmpl;
   memset (&tmpl, 0, sizeof (tmpl));
@@ -1026,11 +1026,11 @@ void ddsi_type_get_gpe_matches (struct ddsi_domaingv *gv, const struct ddsi_type
   }
 }
 
-bool ddsi_type_resolved (struct ddsi_domaingv *gv, const struct ddsi_type *type, ddsi_type_resolve_kind_t resolved_kind)
+bool ddsi_type_resolved (struct ddsi_domaingv *gv, const struct ddsi_type *type, ddsi_type_include_deps_t resolved_kind)
 {
   bool resolved = type && !ddsi_xt_is_unresolved (&type->xt);
-  assert (resolved_kind == DDSI_TYPE_RESOLVE_IGNORE_DEPS || resolved_kind == DDSI_TYPE_RESOLVE_INCLUDE_DEPS);
-  if (resolved && resolved_kind == DDSI_TYPE_RESOLVE_INCLUDE_DEPS)
+  assert (resolved_kind == DDSI_TYPE_IGNORE_DEPS || resolved_kind == DDSI_TYPE_INCLUDE_DEPS);
+  if (resolved && resolved_kind == DDSI_TYPE_INCLUDE_DEPS)
   {
     struct ddsi_type_dep tmpl, *dep = &tmpl;
     memset (&tmpl, 0, sizeof (tmpl));
@@ -1124,7 +1124,7 @@ void ddsi_type_pair_free (struct ddsi_type_pair *type_pair)
   ddsrt_free (type_pair);
 }
 
-dds_return_t ddsi_wait_for_type_resolved (struct ddsi_domaingv *gv, const ddsi_typeid_t *type_id, dds_duration_t timeout, ddsi_typeobj_t **type_obj, ddsi_type_resolve_kind_t resolved_kind, ddsi_type_request_t request)
+dds_return_t ddsi_wait_for_type_resolved (struct ddsi_domaingv *gv, const ddsi_typeid_t *type_id, dds_duration_t timeout, ddsi_typeobj_t **type_obj, ddsi_type_include_deps_t resolved_kind, ddsi_type_request_t request)
 {
   dds_return_t ret;
 

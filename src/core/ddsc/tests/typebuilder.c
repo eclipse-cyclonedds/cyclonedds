@@ -129,7 +129,30 @@ CU_Theory((const dds_topic_descriptor_t *desc), ddsc_typebuilder, topic_desc, .i
       CU_FAIL_FATAL ("different ops");
     }
   }
-  // FIXME: check type_information, type_mapping, restrict_data_representation
+
+  printf ("typeinfo: %u (%u)\n", generated_desc->type_information.sz, desc->type_information.sz);
+  const struct ddsi_sertype_cdr_data tinfo_ser = { .sz = desc->type_information.sz, .data = desc->type_information.data };
+  ddsi_typeinfo_t *tinfo = ddsi_typeinfo_deser (&tinfo_ser);
+  const struct ddsi_sertype_cdr_data gen_tinfo_ser = { .sz = generated_desc->type_information.sz, .data = generated_desc->type_information.data };
+  ddsi_typeinfo_t *gen_tinfo = ddsi_typeinfo_deser (&gen_tinfo_ser);
+  CU_ASSERT_FATAL (ddsi_typeinfo_equal (tinfo, gen_tinfo, DDSI_TYPE_INCLUDE_DEPS));
+  ddsi_typeinfo_fini (tinfo);
+  ddsrt_free (tinfo);
+  ddsi_typeinfo_fini (gen_tinfo);
+  ddsrt_free (gen_tinfo);
+
+  printf ("typeinfo: %u (%u)\n", generated_desc->type_mapping.sz, desc->type_mapping.sz);
+  const struct ddsi_sertype_cdr_data tmap_ser = { .sz = desc->type_mapping.sz, .data = desc->type_mapping.data };
+  ddsi_typemap_t *tmap = ddsi_typemap_deser (&tmap_ser);
+  const struct ddsi_sertype_cdr_data gen_tmap_ser = { .sz = generated_desc->type_mapping.sz, .data = generated_desc->type_mapping.data };
+  ddsi_typemap_t *gen_tmap = ddsi_typemap_deser (&gen_tmap_ser);
+  CU_ASSERT_FATAL (tmap_equal (tmap, gen_tmap));
+  ddsi_typemap_fini (tmap);
+  ddsrt_free (tmap);
+  ddsi_typemap_fini (gen_tmap);
+  ddsrt_free (gen_tmap);
+
+  // we don't check restrict_data_representation, this information is not in the type meta-data
 
   // cleanup
   ddsi_topic_descriptor_fini (generated_desc);
