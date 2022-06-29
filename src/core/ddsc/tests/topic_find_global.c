@@ -32,14 +32,12 @@
 
 static dds_entity_t g_domain1 = 0;
 static dds_entity_t g_participant1 = 0;
-static dds_entity_t g_topic1 = 0;
 static dds_entity_t g_domain_remote1 = 0;
 static dds_entity_t g_domain_remote2 = 0;
 
 ddsrt_atomic_uint32_t g_stop;
 
 #define MAX_NAME_SIZE (100)
-char g_topic_name_global[MAX_NAME_SIZE];
 
 static void topic_find_global_init (void)
 {
@@ -61,10 +59,6 @@ static void topic_find_global_init (void)
 
   g_participant1 = dds_create_participant (DDS_DOMAINID1, NULL, NULL);
   CU_ASSERT_FATAL (g_participant1 > 0);
-
-  create_unique_topic_name("ddsc_topic_find_test1", g_topic_name_global, MAX_NAME_SIZE);
-  g_topic1 = dds_create_topic (g_participant1, &Space_Type1_desc, g_topic_name_global, NULL, NULL);
-  CU_ASSERT_FATAL (g_topic1 > 0);
 }
 
 static void topic_find_global_fini (void)
