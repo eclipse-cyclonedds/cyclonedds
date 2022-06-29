@@ -265,4 +265,24 @@ module TypeBuilderTypes {
     @hashid("test") long f1;
   };
 
+  typedef sequence<string> t19_1;
+  typedef sequence<string> t19_2;
+  struct t19 {
+      t19_2 f1;
+      t19_1 f2;
+  };
+
+  union t20_1 switch (short) {
+    case 1:
+    case 2:
+      sequence<long> u1;
+    case 3:
+    default:
+      short u2[3];
+  };
+  struct t20 {
+    t20_1 f1;
+    long f2;
+  };
+
 };

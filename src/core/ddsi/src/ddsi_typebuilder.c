@@ -130,6 +130,7 @@ struct typebuilder_union_member
   uint32_t disc_value;
   bool is_external;
   bool is_default;
+  bool is_last_label;
 };
 
 struct typebuilder_union
@@ -766,9 +767,12 @@ static dds_return_t typebuilder_add_union (struct typebuilder_data *tbd, struct 
   {
     uint32_t sz = 0, align = 0;
     bool is_ext = type->xt._u.union_type.members.seq[n].flags & DDS_XTypes_IS_EXTERNAL;
+    bool is_default = type->xt._u.union_type.members.seq[n].flags & DDS_XTypes_IS_DEFAULT;
     for (uint32_t l = 0; l < type->xt._u.union_type.members.seq[n].label_seq._length; l++)
     {
+      bool is_last = !is_default && (l == type->xt._u.union_type.members.seq[n].label_seq._length - 1);
       tb_aggrtype->detail._union.cases[c].is_external = is_ext;
+      tb_aggrtype->detail._union.cases[c].is_last_label = is_last;
       tb_aggrtype->detail._union.cases[c].disc_value = (uint32_t) type->xt._u.union_type.members.seq[n].label_seq._buffer[l];
       if ((ret = typebuilder_add_type (tbd, &sz, &align, &tb_aggrtype->detail._union.cases[c].type, type->xt._u.union_type.members.seq[n].type, is_ext, false)))
       {
@@ -777,10 +781,11 @@ static dds_return_t typebuilder_add_union (struct typebuilder_data *tbd, struct 
       }
       c++;
     }
-    if (type->xt._u.union_type.members.seq[n].flags & DDS_XTypes_IS_DEFAULT)
+    if (is_default)
     {
       tb_aggrtype->detail._union.cases[c].is_external = is_ext;
       tb_aggrtype->detail._union.cases[c].is_default = true;
+      tb_aggrtype->detail._union.cases[c].is_last_label = true;
       tb_aggrtype->detail._union.cases[c].disc_value = 0;
       if ((ret = typebuilder_add_type (tbd, &sz, &align, &tb_aggrtype->detail._union.cases[c].type, type->xt._u.union_type.members.seq[n].type, is_ext, false)))
       {
@@ -1116,7 +1121,7 @@ static dds_return_t get_ops_struct (const struct typebuilder_struct *tb_struct, 
   return ret;
 }
 
-static dds_return_t get_ops_union_case (struct typebuilder_type *tb_type, uint32_t flags, uint32_t disc_value, uint32_t offset, uint32_t *inline_types_offs, struct typebuilder_ops *ops)
+static dds_return_t get_ops_union_case (struct typebuilder_type *tb_type, uint32_t flags, uint32_t disc_value, uint32_t offset, bool include_inline_type, uint32_t *inline_types_offs, struct typebuilder_ops *ops)
 {
   dds_return_t ret = DDS_RETCODE_OK;
   switch (tb_type->type_code)
@@ -1179,15 +1184,17 @@ static dds_return_t get_ops_union_case (struct typebuilder_type *tb_type, uint32
       assert (inst_offs_idx < *inline_types_offs);
       OR_OP (inst_offs_idx, *inline_types_offs - inst_offs_idx);
 
-      // store ops index and temporarily replace it with index for inline types
-      uint32_t ops_idx = ops->index;
-      ops->index = *inline_types_offs;
-      if ((ret = get_ops_type (tb_type, 0u, 0u, ops)))
-        return ret;
-      *inline_types_offs = ops->index;
-      ops->index = ops_idx;
-
-      SET_OP ((*inline_types_offs)++, DDS_OP_RTS);
+      if (include_inline_type)
+      {
+        // temporarily replace ops->index with index for inline types
+        uint32_t ops_idx = ops->index;
+        ops->index = *inline_types_offs;
+        if ((ret = get_ops_type (tb_type, 0u, 0u, ops)))
+          return ret;
+        *inline_types_offs = ops->index;
+        ops->index = ops_idx;
+        SET_OP ((*inline_types_offs)++, DDS_OP_RTS);
+      }
       break;
     }
     case DDS_OP_VAL_EXT:
@@ -1236,7 +1243,7 @@ static dds_return_t get_ops_union (const struct typebuilder_union *tb_union, uin
   {
     uint32_t case_flags = 0u;
     case_flags |= tb_union->cases[c].is_external ? DDS_OP_FLAG_EXT : 0u;
-    if ((ret = get_ops_union_case (&tb_union->cases[c].type, case_flags, tb_union->cases[c].disc_value, tb_union->member_offs, &inline_types_offs, ops)))
+    if ((ret = get_ops_union_case (&tb_union->cases[c].type, case_flags, tb_union->cases[c].disc_value, tb_union->member_offs, tb_union->cases[c].is_last_label, &inline_types_offs, ops)))
       return ret;
   }
 
