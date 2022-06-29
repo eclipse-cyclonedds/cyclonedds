@@ -118,29 +118,32 @@ static dds_return_t create_tl_request_msg (struct ddsi_domaingv * const gv, DDS_
     deps = ddsrt_hh_new (1, deps_typeid_hash, deps_typeid_equal);
     cnt += tl_request_get_deps (gv, deps, 0, type);
   }
-  assert (cnt >= 0);
   request->data._u.getTypes.type_ids._length = (uint32_t) cnt;
-  if ((request->data._u.getTypes.type_ids._buffer = ddsrt_malloc ((uint32_t) cnt * sizeof (*request->data._u.getTypes.type_ids._buffer))) == NULL)
+  if (cnt > 0)
   {
-    if (deps)
-      ddsrt_hh_free (deps);
-    return DDS_RETCODE_OUT_OF_RESOURCES;
+    if ((request->data._u.getTypes.type_ids._buffer = ddsrt_malloc ((uint32_t) cnt * sizeof (*request->data._u.getTypes.type_ids._buffer))) == NULL)
+    {
+      cnt = DDS_RETCODE_OUT_OF_RESOURCES;
+      goto err;
+    }
+
+    if (!ddsi_type_resolved (gv, type, false))
+    {
+      ddsi_typeid_copy_impl (&request->data._u.getTypes.type_ids._buffer[index++], &type->xt.id.x);
+      type->state = DDSI_TYPE_REQUESTED;
+    }
+
+    if (include_deps)
+    {
+      struct ddsrt_hh_iter iter;
+      for (ddsi_typeid_t *tid = ddsrt_hh_iter_first (deps, &iter); tid; tid = ddsrt_hh_iter_next (&iter))
+        ddsi_typeid_copy_impl (&request->data._u.getTypes.type_ids._buffer[index++], &tid->x);
+    }
   }
 
-  if (!ddsi_type_resolved (gv, type, false))
-  {
-    ddsi_typeid_copy_impl (&request->data._u.getTypes.type_ids._buffer[index++], &type->xt.id.x);
-    type->state = DDSI_TYPE_REQUESTED;
-  }
-
+err:
   if (include_deps)
-  {
-    struct ddsrt_hh_iter iter;
-    for (ddsi_typeid_t *tid = ddsrt_hh_iter_first (deps, &iter); tid; tid = ddsrt_hh_iter_next (&iter))
-      ddsi_typeid_copy_impl (&request->data._u.getTypes.type_ids._buffer[index++], &tid->x);
     ddsrt_hh_free (deps);
-  }
-
   return (dds_return_t) cnt;
 }
 
