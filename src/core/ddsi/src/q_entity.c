@@ -6067,7 +6067,6 @@ static int proxy_endpoint_common_init (struct entity_common *e, struct proxy_end
   {
     c->type_pair = NULL;
   }
-  c->type = NULL;
 #endif
 
   if (plist->present & PP_GROUP_GUID)
@@ -6114,10 +6113,6 @@ err:
 static void proxy_endpoint_common_fini (struct entity_common *e, struct proxy_endpoint_common *c)
 {
   unref_proxy_participant (c->proxypp, c);
-#ifdef DDS_HAS_TYPE_DISCOVERY
-  if (c->type != NULL)
-    ddsi_sertype_unref ((struct ddsi_sertype *) c->type);
-#endif
   ddsi_xqos_fini (c->xqos);
   ddsrt_free (c->xqos);
   unref_addrset (c->as);

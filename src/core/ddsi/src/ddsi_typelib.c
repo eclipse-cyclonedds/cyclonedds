@@ -284,8 +284,6 @@ static void ddsi_type_fini (struct ddsi_domaingv *gv, struct ddsi_type *type)
   memset (&key, 0, sizeof (key));
   ddsi_typeid_copy (&key.src_type_id, &type->xt.id);
   ddsi_xt_type_fini (gv, &type->xt, true);
-  if (type->sertype)
-    ddsi_sertype_unref ((struct ddsi_sertype *) type->sertype);
 
   struct ddsi_type_dep *dep;
   while ((dep = ddsrt_avl_lookup_succ_eq (&ddsi_typedeps_treedef, &gv->typedeps, &key)) != NULL && !ddsi_typeid_compare (&dep->src_type_id, &key.src_type_id))
@@ -535,6 +533,7 @@ dds_return_t ddsi_type_ref_local (struct ddsi_domaingv *gv, struct ddsi_type **t
   uint32_t n_match_upd = 0;
   struct ddsi_typeid_str tistr;
   dds_return_t ret = DDS_RETCODE_OK;
+  bool resolved = false;
 
   assert (sertype);
   assert (kind == DDSI_TYPEID_KIND_MINIMAL || kind == DDSI_TYPEID_KIND_COMPLETE);
@@ -555,9 +554,16 @@ dds_return_t ddsi_type_ref_local (struct ddsi_domaingv *gv, struct ddsi_type **t
   ddsrt_mutex_lock (&gv->typelib_lock);
   struct ddsi_type *t = ddsi_type_lookup_locked_impl (gv, type_id);
   if (!t)
+  {
     ret = ddsi_type_new (gv, &t, type_id, type_obj);
+    resolved = true;
+  }
   else if (type_obj)
+  {
+    enum ddsi_type_state s = t->state;
     ret = ddsi_type_add_typeobj (gv, t, type_obj);
+    resolved = (t->state == DDSI_TYPE_RESOLVED && t->state != s);
+  }
   if (ret != DDS_RETCODE_OK)
   {
     ddsrt_mutex_unlock (&gv->typelib_lock);
@@ -577,9 +583,8 @@ dds_return_t ddsi_type_ref_local (struct ddsi_domaingv *gv, struct ddsi_type **t
     goto err;
   }
 
-  if (t->sertype == NULL)
+  if (resolved)
   {
-    t->sertype = ddsi_sertype_ref (sertype);
     GVTRACE ("type %s resolved\n", ddsi_make_typeid_str_impl (&tistr, type_id));
     ddsrt_cond_broadcast (&gv->typelib_resolved_cond);
   }
@@ -646,13 +651,6 @@ dds_return_t ddsi_type_ref_proxy (struct ddsi_domaingv *gv, struct ddsi_type **t
 err:
   ddsrt_mutex_unlock (&gv->typelib_lock);
   return ret;
-}
-
-const struct ddsi_sertype *ddsi_type_sertype (const struct ddsi_type *type)
-{
-  if (type == NULL)
-    return NULL;
-  return type->sertype;
 }
 
 static dds_return_t xcdr2_ser (const void *obj, const dds_topic_descriptor_t *desc, dds_ostream_t *os)
@@ -755,7 +753,7 @@ err:
   return ret;
 }
 
-static dds_return_t ddsi_type_get_typeinfo (struct ddsi_domaingv *gv, const struct ddsi_type *type, struct ddsi_typeinfo *type_info)
+dds_return_t ddsi_type_get_typeinfo (struct ddsi_domaingv *gv, const struct ddsi_type *type, struct ddsi_typeinfo *type_info)
 {
   assert (ddsi_typeid_is_complete (&type->xt.id));
   memset (type_info, 0, sizeof (*type_info));
@@ -962,51 +960,6 @@ void ddsi_type_unref_locked (struct ddsi_domaingv *gv, struct ddsi_type *type)
   ddsi_type_unref_impl_locked (gv, type);
 }
 
-static void ddsi_type_register_with_proxy_endpoints_locked (struct ddsi_domaingv *gv, const struct ddsi_type *type)
-{
-  assert (type);
-  thread_state_awake (lookup_thread_state (), gv);
-
-  struct ddsi_type_proxy_guid_list_iter proxy_guid_it;
-  for (ddsi_guid_t guid = ddsi_type_proxy_guid_list_iter_first (&type->proxy_guids, &proxy_guid_it); !is_null_guid (&guid); guid = ddsi_type_proxy_guid_list_iter_next (&proxy_guid_it))
-  {
-#ifdef DDS_HAS_TOPIC_DISCOVERY
-    /* For proxy topics the type is not registered (in its topic definition),
-       becauses (besides that it causes some locking-order trouble) it would
-       only be used when searching for topics and at that point it can easily
-       be retrieved using the type identifier via a lookup in the typelib. */
-    assert (!is_topic_entityid (guid.entityid));
-#endif
-    struct entity_common *ec;
-    if ((ec = entidx_lookup_guid_untyped (gv->entity_index, &guid)) != NULL)
-    {
-      assert (ec->kind == EK_PROXY_READER || ec->kind == EK_PROXY_WRITER);
-      struct generic_proxy_endpoint *gpe = (struct generic_proxy_endpoint *) ec;
-      ddsrt_mutex_lock (&gpe->e.lock);
-      if (gpe->c.type == NULL && type->sertype != NULL)
-        gpe->c.type = ddsi_sertype_ref (type->sertype);
-      ddsrt_mutex_unlock (&gpe->e.lock);
-    }
-  }
-  thread_state_asleep (lookup_thread_state ());
-}
-
-void ddsi_type_register_with_proxy_endpoints (struct ddsi_domaingv *gv, const struct ddsi_sertype *sertype)
-{
-  ddsi_typeid_t *type_id = ddsi_sertype_typeid (sertype, DDSI_TYPEID_KIND_COMPLETE);
-  if (ddsi_typeid_is_none (type_id))
-    type_id = ddsi_sertype_typeid (sertype, DDSI_TYPEID_KIND_MINIMAL);
-  if (!ddsi_typeid_is_none (type_id))
-  {
-    ddsrt_mutex_lock (&gv->typelib_lock);
-    struct ddsi_type *type = ddsi_type_lookup_locked (gv, type_id);
-    ddsi_type_register_with_proxy_endpoints_locked (gv, type);
-    ddsrt_mutex_unlock (&gv->typelib_lock);
-    ddsi_typeid_fini (type_id);
-    ddsrt_free (type_id);
-  }
-}
-
 static void ddsi_type_get_gpe_matches_impl (struct ddsi_domaingv *gv, const struct ddsi_type *type, struct generic_proxy_endpoint ***gpe_match_upd, uint32_t *n_match_upd)
 {
   if (!ddsi_type_proxy_guid_list_count (&type->proxy_guids))
@@ -1029,8 +982,6 @@ static void ddsi_type_get_gpe_matches_impl (struct ddsi_domaingv *gv, const stru
     }
   }
   *n_match_upd += n;
-  if (type->sertype != NULL)
-    ddsi_type_register_with_proxy_endpoints_locked (gv, type);
   thread_state_asleep (lookup_thread_state ());
 }
 
@@ -1114,11 +1065,28 @@ const ddsi_typeid_t *ddsi_type_pair_complete_id (const struct ddsi_type_pair *ty
   return &type_pair->complete->xt.id;
 }
 
-const struct ddsi_sertype *ddsi_type_pair_complete_sertype (const struct ddsi_type_pair *type_pair)
+ddsi_typeinfo_t *ddsi_type_pair_minimal_info (struct ddsi_domaingv *gv, const struct ddsi_type_pair *type_pair)
+{
+  if (type_pair == NULL || type_pair->minimal == NULL)
+    return NULL;
+  ddsi_typeinfo_t *type_info;
+  if (!(type_info = ddsrt_malloc (sizeof (*type_info))))
+    return NULL;
+  if (ddsi_type_get_typeinfo (gv, type_pair->minimal, type_info))
+    return NULL;
+  return type_info;
+}
+
+ddsi_typeinfo_t *ddsi_type_pair_complete_info (struct ddsi_domaingv *gv, const struct ddsi_type_pair *type_pair)
 {
   if (type_pair == NULL || type_pair->complete == NULL)
     return NULL;
-  return type_pair->complete->sertype;
+  ddsi_typeinfo_t *type_info;
+  if (!(type_info = ddsrt_malloc (sizeof (*type_info))))
+    return NULL;
+  if (ddsi_type_get_typeinfo (gv, type_pair->complete, type_info))
+    return NULL;
+  return type_info;
 }
 
 struct ddsi_type_pair *ddsi_type_pair_init (const ddsi_typeid_t *type_id_minimal, const ddsi_typeid_t *type_id_complete)

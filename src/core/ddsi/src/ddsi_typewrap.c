@@ -18,7 +18,6 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_cdrstream.h"
-#include "dds/ddsi/ddsi_sertype.h"
 #include "dds/ddsi/ddsi_xt_impl.h"
 #include "dds/ddsi/ddsi_xt_typemap.h"
 #include "dds/ddsi/ddsi_typelookup.h"

@@ -510,7 +510,6 @@ struct proxy_endpoint_common
   seqno_t seq; /* sequence number of most recent SEDP message */
 #ifdef DDS_HAS_TYPE_DISCOVERY
   struct ddsi_type_pair *type_pair;
-  const struct ddsi_sertype * type; /* sertype for data this endpoint reads/writes */
 #endif
 #ifdef DDS_HAS_SECURITY
   nn_security_info_t security_info;

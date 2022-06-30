@@ -1234,7 +1234,7 @@ static int sedp_write_endpoint_impl
 
 #ifdef DDS_HAS_TOPIC_DISCOVERY
 
-static int sedp_write_topic_impl (struct writer *wr, int alive, const ddsi_guid_t *guid, const dds_qos_t *xqos, const struct ddsi_sertype *sertype)
+static int sedp_write_topic_impl (struct writer *wr, int alive, const ddsi_guid_t *guid, const dds_qos_t *xqos, ddsi_typeinfo_t *type_info)
 {
   struct ddsi_domaingv * const gv = wr->e.gv;
   const dds_qos_t *defqos = &ddsi_default_qos_topic;
@@ -1254,10 +1254,11 @@ static int sedp_write_topic_impl (struct writer *wr, int alive, const ddsi_guid_
   if (gv->config.explicitly_publish_qos_set_to_default)
     qosdiff |= ~QP_UNRECOGNIZED_INCOMPATIBLE_MASK;
 
-  assert (sertype);
-  if ((ps.qos.type_information = ddsi_sertype_typeinfo (sertype)))
+  if (type_info)
+  {
+    ps.qos.type_information = type_info;
     ps.qos.present |= QP_TYPE_INFORMATION;
-
+  }
   if (xqos)
     ddsi_xqos_mergein_missing (&ps.qos, xqos, qosdiff);
   return write_and_fini_plist (wr, &ps, alive);
@@ -1273,8 +1274,8 @@ int sedp_write_topic (struct topic *tp, bool alive)
     unsigned entityid = determine_topic_writer (tp);
     struct writer *sedp_wr = get_sedp_writer (tp->pp, entityid);
     ddsrt_mutex_lock (&tp->e.qos_lock);
-    const struct ddsi_sertype *sertype = ddsi_type_pair_complete_sertype (tp->definition->type_pair);
-    res = sedp_write_topic_impl (sedp_wr, alive, &tp->e.guid, tp->definition->xqos, sertype);
+    // the allocation type info object is freed with the plist
+    res = sedp_write_topic_impl (sedp_wr, alive, &tp->e.guid, tp->definition->xqos, ddsi_type_pair_complete_info (tp->e.gv, tp->definition->type_pair));
     ddsrt_mutex_unlock (&tp->e.qos_lock);
   }
   return res;

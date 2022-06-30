@@ -581,10 +581,6 @@ dds_entity_t dds_create_topic_impl (
   const bool new_topic_def = register_topic_type_for_discovery (gv, pp, ktp, is_builtin, sertype_registered);
   ddsrt_mutex_unlock (&pp->m_entity.m_mutex);
 
-#ifdef DDS_HAS_TYPE_DISCOVERY
-  ddsi_type_register_with_proxy_endpoints (gv, sertype_registered);
-#endif
-
   if (new_topic_def)
   {
     ddsrt_mutex_lock (&gv->new_topic_lock);
