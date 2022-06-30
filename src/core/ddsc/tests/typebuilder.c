@@ -132,9 +132,10 @@ static bool tmap_equal (ddsi_typemap_t *a, ddsi_typemap_t *b)
 
 #define D(n) TypeBuilderTypes_ ## n ## _desc
 CU_TheoryDataPoints (ddsc_typebuilder, topic_desc) = {
-  CU_DataPoints (const dds_topic_descriptor_t *, &D(t1), &D(t2), &D(t3), &D(t4), &D(t5), &D(t6), &D(t7), &D(t8),
-                                                 &D(t9), &D(t10), &D(t11), &D(t12), &D(t13), &D(t14), &D(t15), &D(t16),
-                                                 &D(t17), &D(t18), &D(t19), &D(t20) ),
+  // CU_DataPoints (const dds_topic_descriptor_t *, &D(t1), &D(t2), &D(t3), &D(t4), &D(t5), &D(t6), &D(t7), &D(t8),
+  //                                                &D(t9), &D(t10), &D(t11), &D(t12), &D(t13), &D(t14), &D(t15), &D(t16),
+  //                                                &D(t17), &D(t18), &D(t19), &D(t20), &D(t21) ),
+  CU_DataPoints (const dds_topic_descriptor_t *, &D(t21))
 };
 #undef D
 

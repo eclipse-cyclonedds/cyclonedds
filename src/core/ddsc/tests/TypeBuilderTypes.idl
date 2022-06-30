@@ -285,4 +285,18 @@ module TypeBuilderTypes {
     long f2;
   };
 
+
+  enum t21_1 {
+    T21_1_0,
+    T21_1_1
+  };
+  union t21_2 switch(short) {
+    case 1:
+      t21_1 u1[3];
+  };
+  struct t21 {
+    t21_2 f1;
+  };
+
+
 };

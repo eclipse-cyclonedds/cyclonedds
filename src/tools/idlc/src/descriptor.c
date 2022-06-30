@@ -833,7 +833,8 @@ emit_case(
         assert (case_type != INLINE);
         if ((ret = stash_member_size(pstate, &ctype->instructions, off++, node, true)))
           return ret;
-      } else if (idl_is_enum(type_spec)) {
+      } else if (idl_is_enum(type_spec) && case_type == INLINE) {
+        // only add max for inline ENU, not for IN_UNION array of enum
         if ((ret = stash_single(pstate, &ctype->instructions, off++, idl_enum_max_value(type_spec))))
           return ret;
       } else {
