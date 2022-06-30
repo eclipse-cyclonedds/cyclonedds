@@ -997,6 +997,7 @@ void ddsi_type_get_gpe_matches (struct ddsi_domaingv *gv, const struct ddsi_type
     struct ddsi_type *dep_src_type = ddsi_type_lookup_locked (gv, &reverse_dep->src_type_id);
     ddsi_type_get_gpe_matches (gv, dep_src_type, gpe_match_upd, n_match_upd);
   }
+  ddsi_typeid_fini (&tmpl.dep_type_id);
 }
 
 bool ddsi_type_resolved_locked (struct ddsi_domaingv *gv, const struct ddsi_type *type, ddsi_type_include_deps_t resolved_kind)
