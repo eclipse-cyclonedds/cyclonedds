@@ -155,13 +155,13 @@ static idl_retcode_t push_line(idl_pstate_t *pstate, struct line *dir)
     dir->path = norm;
     assert(dir->file);
 
-    /* reuse normalized filename if include is absolute */
     if (idl_isabsolute(dir->file)) {
+      /* reuse normalized filename if include is absolute */
       free(dir->file);
       if (!(dir->file = idl_strdup(dir->path)))
         return IDL_RETCODE_NO_MEMORY;
-    /* use original filename by default */
     } else {
+      /* use original filename by default */
       (void)idl_untaint_path(dir->file);
     }
 
