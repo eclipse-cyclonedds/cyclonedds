@@ -252,6 +252,7 @@ get_plain_typeid (const idl_pstate_t *pstate, struct descriptor_type_meta *dtm, 
     switch (idl_type (type_spec))
     {
       case IDL_BOOL: ti->_d = DDS_XTypes_TK_BOOLEAN; break;
+      case IDL_INT8: case IDL_CHAR: ti->_d = DDS_XTypes_TK_CHAR8; break;
       case IDL_UINT8: case IDL_OCTET: ti->_d = DDS_XTypes_TK_BYTE; break;
       case IDL_INT16: case IDL_SHORT: ti->_d = DDS_XTypes_TK_INT16; break;
       case IDL_INT32: case IDL_LONG: ti->_d = DDS_XTypes_TK_INT32; break;
@@ -262,7 +263,6 @@ get_plain_typeid (const idl_pstate_t *pstate, struct descriptor_type_meta *dtm, 
       case IDL_FLOAT: ti->_d = DDS_XTypes_TK_FLOAT32; break;
       case IDL_DOUBLE: ti->_d = DDS_XTypes_TK_FLOAT64; break;
       case IDL_LDOUBLE: ti->_d = DDS_XTypes_TK_FLOAT128; break;
-      case IDL_CHAR: ti->_d = DDS_XTypes_TK_CHAR8; break;
       case IDL_STRING:
       {
         if (!idl_is_bounded(type_spec)) {
@@ -616,6 +616,11 @@ set_xtypes_annotation_parameter_value(
       val->_d = DDS_XTypes_TK_BOOLEAN;
       val->_u.boolean_value = lit->value.bln;
       break;
+    case IDL_INT8:
+    case IDL_CHAR:
+      val->_d = DDS_XTypes_TK_CHAR8;
+      val->_u.char_value = lit->value.chr;
+      break;
     case IDL_OCTET:
     case IDL_UINT8:
       val->_d = DDS_XTypes_TK_BYTE;
@@ -658,10 +663,6 @@ set_xtypes_annotation_parameter_value(
     case IDL_DOUBLE:
       val->_d = DDS_XTypes_TK_FLOAT64;
       val->_u.float64_value = lit->value.dbl;
-      break;
-    case IDL_CHAR:
-      val->_d = DDS_XTypes_TK_CHAR8;
-      val->_u.char_value = lit->value.chr;
       break;
     /*  //enums are currently not allowed in min/max/range annotations
     case IDL_ENUM:
