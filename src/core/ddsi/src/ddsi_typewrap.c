@@ -2241,7 +2241,7 @@ static bool xt_is_assignable_from_struct (struct ddsi_domaingv *gv, const struct
         if (!ke_assignable)
           goto struct_failed;
         /* Rule: "For any string key member m2 in T2, the m1 member of T1 with the same member ID verifies m1.type.length >= m2.type.length. */
-        if (m2_k && xt_is_string (m2t) && xt_string_bound (m1t) < xt_string_bound (m2t))
+        if (m2_k && xt_is_string (m2t) && !xt_check_bound (xt_string_bound (m1t), xt_string_bound (m2t)))
           goto struct_failed;
         /* Rule: "For any enumerated key member m2 in T2, the m1 member of T1 with the same member ID verifies that all
             literals in m2.type appear as literals in m1.type" */
@@ -2264,9 +2264,9 @@ static bool xt_is_assignable_from_struct (struct ddsi_domaingv *gv, const struct
         }
 
         /* Rule: "For any sequence or map key member m2 in T2, the m1 member of T1 with the same member ID verifies m1.type.length >= m2.type.length" */
-        if (m2_k && m2t->_d == DDS_XTypes_TK_SEQUENCE && m1t->_u.seq.bound < m2t->_u.seq.bound)
+        if (m2_k && m2t->_d == DDS_XTypes_TK_SEQUENCE && !xt_check_bound (m1t->_u.seq.bound, m2t->_u.seq.bound))
           goto struct_failed;
-        if (m2_k && m2t->_d == DDS_XTypes_TK_MAP && m1t->_u.map.bound < m2t->_u.map.bound)
+        if (m2_k && m2t->_d == DDS_XTypes_TK_MAP && !xt_check_bound (m1t->_u.map.bound, m2t->_u.map.bound))
           goto struct_failed;
         /* Rule: "For any structure or union key member m2 in T2, the m1 member of T1 with the same member ID verifies that KeyHolder(m1.type)
             isassignable-from KeyHolder(m2.type)." */
