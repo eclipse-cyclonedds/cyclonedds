@@ -1552,7 +1552,7 @@ dds_find_topic_scoped (dds_find_scope_t scope, dds_entity_t participant, const c
  * @param[in]  participant  The handle of the participant.
  * @param[in]  type_info    The type (dds_typeinfo_t) of the topic to find.
  * @param[in]  timeout      The timeout for waiting for the type to become available
- * @param[out] descriptor - Pointer to a dds_topic_descriptor_t that will be populated. To free allocated memory for this descriptor, use dds_delete_topic_descriptor.
+ * @param[out] descriptor - Pointer to a dds_topic_descriptor_t pointer that will be allocated and populated. To free allocated memory for this descriptor, use dds_delete_topic_descriptor.
  *
  * @returns A dds_return_t indicating success or failure.
  *
@@ -1566,7 +1566,7 @@ dds_find_topic_scoped (dds_find_scope_t scope, dds_entity_t participant, const c
  *             Type was not resolved within the provided timeout
  */
 DDS_EXPORT dds_return_t
-dds_create_topic_descriptor (dds_find_scope_t scope, dds_entity_t participant, const dds_typeinfo_t *type_info, dds_duration_t timeout, dds_topic_descriptor_t *descriptor);
+dds_create_topic_descriptor (dds_find_scope_t scope, dds_entity_t participant, const dds_typeinfo_t *type_info, dds_duration_t timeout, dds_topic_descriptor_t **descriptor);
 
 /**
  * @ingroup topic

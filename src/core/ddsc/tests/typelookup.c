@@ -334,8 +334,8 @@ CU_Test(ddsc_typelookup, api_resolve, .init = typelookup_init, .fini = typelooku
   assert (writer_ep); // clang static analyzer
 
   /* check if type can be resolved */
-  dds_topic_descriptor_t *desc = dds_alloc (sizeof (*desc));
-  ret = dds_create_topic_descriptor (DDS_FIND_SCOPE_GLOBAL, g_participant2, writer_ep->type_info, DDS_SECS (15), desc);
+  dds_topic_descriptor_t *desc;
+  ret = dds_create_topic_descriptor (DDS_FIND_SCOPE_GLOBAL, g_participant2, writer_ep->type_info, DDS_SECS (15), &desc);
   CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
 
   /* create a topic in domain 2 with this sertype and create a reader */
@@ -345,7 +345,6 @@ CU_Test(ddsc_typelookup, api_resolve, .init = typelookup_init, .fini = typelooku
   CU_ASSERT_FATAL (reader > 0);
   sync_reader_writer (g_participant2, reader, g_participant1, writer);
   dds_delete_topic_descriptor (desc);
-  dds_free (desc);
 
   /* write and take a sample */
   ret = dds_set_status_mask (reader, DDS_DATA_AVAILABLE_STATUS);
