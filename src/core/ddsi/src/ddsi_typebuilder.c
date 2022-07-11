@@ -281,8 +281,6 @@ static void typebuilder_aggrtype_fini (struct typebuilder_aggregated_type *tb_ag
     case DDS_XTypes_TK_UNION:
       typebuilder_union_fini (&tb_aggrtype->detail._union);
       break;
-    default:
-      abort ();
   }
 }
 
@@ -293,7 +291,8 @@ static void typebuilder_ops_fini (struct typebuilder_ops *ops)
 
 static void typebuilder_data_free (struct typebuilder_data *tbd)
 {
-  typebuilder_aggrtype_fini (&tbd->toplevel_type);
+  if (!ddsi_typeid_is_none (&tbd->toplevel_type.id))
+    typebuilder_aggrtype_fini (&tbd->toplevel_type);
 
   struct typebuilder_dep_types_iter_d it;
   for (struct typebuilder_aggregated_type *tb_aggrtype = typebuilder_dep_types_iter_d_first (&tbd->dep_types, &it); tb_aggrtype; tb_aggrtype = typebuilder_dep_types_iter_d_next (&it))
@@ -1804,11 +1803,15 @@ dds_return_t ddsi_topic_descriptor_from_type (struct ddsi_domaingv *gv, dds_topi
   if (!(tbd = typebuilder_data_new (gv, type)))
     return DDS_RETCODE_OUT_OF_RESOURCES;
 
-  /* The top-level type and all its dependencies are resolved, and the caller of this
-     function should have a reference to the top-level ddsi_type, we can access the
-     type and its dependencies without taking the typelib lock */
-  assert (ddsi_type_resolved_locked (tbd->gv, type, DDSI_TYPE_INCLUDE_DEPS));
-  assert (type->xt.kind == DDSI_TYPEID_KIND_COMPLETE);
+  /* Because the top-level type and all its dependencies are resolved, and the caller
+     of this function should have a reference to the top-level ddsi_type, we can access
+     the type and its dependencies without taking the typelib lock */
+  if (!ddsi_type_resolved_locked (tbd->gv, type, DDSI_TYPE_INCLUDE_DEPS)
+      || type->xt.kind != DDSI_TYPEID_KIND_COMPLETE)
+  {
+    ret = DDS_RETCODE_BAD_PARAMETER;
+    goto err;
+  }
 
   if ((ret = typebuilder_add_aggrtype (tbd, &tbd->toplevel_type, type)))
     goto err;
