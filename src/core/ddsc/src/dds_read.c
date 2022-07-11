@@ -33,7 +33,6 @@
 */
 static dds_return_t dds_read_impl (bool take, dds_entity_t reader_or_condition, void **buf, size_t bufsz, uint32_t maxs, dds_sample_info_t *si, uint32_t mask, dds_instance_handle_t hand, bool lock, bool only_reader)
 {
-  struct thread_state * const thrst = lookup_thread_state ();
   dds_return_t ret = DDS_RETCODE_OK;
   struct dds_entity *entity;
   struct dds_reader *rd;
@@ -62,6 +61,7 @@ static dds_return_t dds_read_impl (bool take, dds_entity_t reader_or_condition, 
     cond = (dds_readcond *) entity;
   }
 
+  struct thread_state * const thrst = lookup_thread_state ();
   thread_state_awake (thrst, &entity->m_domain->gv);
 
   /* Allocate samples if not provided (assuming all or none provided) */
@@ -143,7 +143,6 @@ fail:
 
 static dds_return_t dds_readcdr_impl (bool take, dds_entity_t reader_or_condition, struct ddsi_serdata **buf, uint32_t maxs, dds_sample_info_t *si, uint32_t mask, dds_instance_handle_t hand, bool lock)
 {
-  struct thread_state * const thrst = lookup_thread_state ();
   dds_return_t ret = DDS_RETCODE_OK;
   struct dds_reader *rd;
   struct dds_entity *entity;
@@ -162,6 +161,7 @@ static dds_return_t dds_readcdr_impl (bool take, dds_entity_t reader_or_conditio
     rd = (dds_reader *) entity->m_parent;
   }
 
+  struct thread_state * const thrst = lookup_thread_state ();
   thread_state_awake (thrst, &entity->m_domain->gv);
 
   /* read/take resets data available status -- must reset before reading because

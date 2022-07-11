@@ -607,10 +607,10 @@ dds_return_t dds_writecdr_impl (dds_writer *wr, struct nn_xpack *xp, struct ddsi
 
 void dds_write_flush (dds_entity_t writer)
 {
-  struct thread_state * const thrst = lookup_thread_state ();
   dds_writer *wr;
   if (dds_writer_lock (writer, &wr) == DDS_RETCODE_OK)
   {
+    struct thread_state * const thrst = lookup_thread_state ();
     thread_state_awake (thrst, &wr->m_entity.m_domain->gv);
     nn_xpack_send (wr->m_xp, true);
     thread_state_asleep (thrst);
