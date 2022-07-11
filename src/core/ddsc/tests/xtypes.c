@@ -260,19 +260,71 @@ static void sample_check_XType3a_3 (void *ptr1, void *ptr2)
   CU_ASSERT_EQUAL_FATAL (s_rd->struct_3.long_5, 0);
 }
 
+static void sample_init_XType4 (void *ptr)
+{
+  XSpace_XType4 *sample = (XSpace_XType4 *) ptr;
+  uint32_t *s1 = ddsrt_malloc (999 * sizeof (*s1));
+  for (uint32_t n = 0; n < 999; n++) s1[n] = n;
+  uint32_t *s2 = ddsrt_malloc (10 * sizeof (*s2));
+  for (uint32_t n = 0; n < 10; n++) s2[n] = n;
+  sample->seq_1 = (dds_sequence_uint32) { ._length = 999, ._maximum = 999, ._buffer = s1, ._release = true };
+  sample->seq_2 = (dds_sequence_uint32) { ._length = 10, ._maximum = 10, ._buffer = s2, ._release = true };
+}
+static void sample_init_XType4a (void *ptr)
+{
+  XSpace_XType4a *sample = (XSpace_XType4a *) ptr;
+  uint32_t *s1 = ddsrt_malloc (999 * sizeof (*s1));
+  for (uint32_t n = 0; n < 999; n++) s1[n] = n;
+  uint32_t *s2 = ddsrt_malloc (5 * sizeof (*s2));
+  for (uint32_t n = 0; n < 5; n++) s2[n] = n;
+  sample->seq_1 = (dds_sequence_uint32) { ._length = 999, ._maximum = 999, ._buffer = s1, ._release = true };
+  sample->seq_2 = (dds_sequence_uint32) { ._length = 5, ._maximum = 5, ._buffer = s2, ._release = true };
+}
+static void sample_check_XType4a_4 (void *ptr1, void *ptr2)
+{
+  XSpace_XType4a *s_wr = (XSpace_XType4a *) ptr1;
+  XSpace_XType4 *s_rd = (XSpace_XType4 *) ptr2;
+  CU_ASSERT_FATAL (s_rd->seq_1._length == s_wr->seq_1._length && s_rd->seq_1._length == 999);
+  CU_ASSERT_FATAL (s_rd->seq_2._length == s_wr->seq_2._length && s_rd->seq_2._length == 5);
+  for (uint32_t n = 0; n < 999; n++)
+    CU_ASSERT_FATAL (s_rd->seq_1._buffer[n] == s_wr->seq_1._buffer[n] && s_rd->seq_1._buffer[n] == n);
+  for (uint32_t n = 0; n < 5; n++)
+    CU_ASSERT_FATAL (s_rd->seq_2._buffer[n] == s_wr->seq_2._buffer[n] && s_rd->seq_2._buffer[n] == n);
+}
+
+static void sample_init_XType5a (void *ptr)
+{
+  XSpace_XType5a *sample = (XSpace_XType5a *) ptr;
+  for (uint32_t n = 0; n < 999; n++) sample->str_1[n] = 'a';
+  for (uint32_t n = 0; n < 5; n++) sample->str_2[n] = 'a';
+  sample->str_1[999] = '\0';
+  sample->str_2[5] = '\0';
+}
+static void sample_check_XType5a_5 (void *ptr1, void *ptr2)
+{
+  XSpace_XType5a *s_wr = (XSpace_XType5a *) ptr1;
+  XSpace_XType5 *s_rd = (XSpace_XType5 *) ptr2;
+  CU_ASSERT_FATAL (strlen (s_rd->str_1) == strlen (s_wr->str_1) && strlen (s_rd->str_1) == 999);
+  CU_ASSERT_FATAL (strlen (s_rd->str_2) == strlen (s_wr->str_2) && strlen (s_rd->str_2) == 5);
+  CU_ASSERT_FATAL (!strcmp (s_rd->str_1, s_wr->str_1));
+  CU_ASSERT_FATAL (!strcmp (s_rd->str_2, s_wr->str_2));
+}
+
 #define D(n) XSpace_ ## n ## _desc
 #define I(n) sample_init_ ## n
 #define C(n) sample_check_ ## n
 CU_TheoryDataPoints (ddsc_xtypes, basic) = {
   CU_DataPoints (const char *,                   "mutable_bitmask",
   /*                                             |                      */"appendable_field",
-  /*                                             |                       |                       */"appendable_nested"),
-  CU_DataPoints (const dds_topic_descriptor_t *, &D(XType1),             &D(XType2),              &D(XType3),             ),
-  CU_DataPoints (const dds_topic_descriptor_t *, &D(XType1a),            &D(XType2a),             &D(XType3a),            ),
-  CU_DataPoints (sample_init,                    I(XType1),              I(XType2),               I(XType3),              ),
-  CU_DataPoints (sample_init,                    I(XType1a),             I(XType2a),              I(XType3a),             ),
-  CU_DataPoints (sample_check,                   C(XType1_1a),           C(XType2_2a),            C(XType3_3a),           ),
-  CU_DataPoints (sample_check,                   C(XType1a_1),           C(XType2a_2),            C(XType3a_3),           ),
+  /*                                             |                       |                       */"appendable_nested",
+  /*                                             |                       |                        |              */"mutable_seq",
+  /*                                             |                       |                        |               |              */"strlen_keys"      ),
+  CU_DataPoints (const dds_topic_descriptor_t *, &D(XType1),             &D(XType2),              &D(XType3),     &D(XType4),     &D(XType5),         ),
+  CU_DataPoints (const dds_topic_descriptor_t *, &D(XType1a),            &D(XType2a),             &D(XType3a),    &D(XType4a),    &D(XType5a),        ),
+  CU_DataPoints (sample_init,                    I(XType1),              I(XType2),               I(XType3),      I(XType4),      NULL,               ),
+  CU_DataPoints (sample_init,                    I(XType1a),             I(XType2a),              I(XType3a),     I(XType4a),     I(XType5a),         ),
+  CU_DataPoints (sample_check,                   C(XType1_1a),           C(XType2_2a),            C(XType3_3a),   NULL,           NULL,               ),
+  CU_DataPoints (sample_check,                   C(XType1a_1),           C(XType2a_2),            C(XType3a_3),   C(XType4a_4),   C(XType5a_5),       ),
 };
 
 CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc1, const dds_topic_descriptor_t *desc2, sample_init fn_init1, sample_init fn_init2, sample_check fn_check1, sample_check fn_check2),
@@ -281,7 +333,9 @@ CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc1, const dds_to
   for (int t = 0; t <= 1; t++)
   {
     printf ("Running test xtypes_basic: %s (run %d/2)\n", descr, t + 1);
-    do_test (t ? desc1 : desc2, NULL, t ? desc2 : desc1, NULL, true, t ? fn_init2 : fn_init1, true, t ? fn_check2 : fn_check1);
+    sample_init i = t ? fn_init2 : fn_init1;
+    sample_check c = t ? fn_check2 : fn_check1;
+    do_test (t ? desc1 : desc2, NULL, t ? desc2 : desc1, NULL, i != NULL, i, c != NULL, c);
   }
 }
 #undef D

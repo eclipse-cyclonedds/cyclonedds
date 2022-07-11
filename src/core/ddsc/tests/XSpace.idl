@@ -62,6 +62,26 @@ module XSpace {
       @id(2) long long_2;
       @id(3) XType3_1a struct_3;
     };
+    @mutable
+    struct XType4 {
+      sequence<uint32> seq_1;
+      sequence<uint32, 10> seq_2;
+    };
+    @mutable
+    struct XType4a {
+      sequence<uint32, 999> seq_1;
+      sequence<uint32, 5> seq_2;
+    };
+    @mutable
+    struct XType5 {
+      @key string str_1;
+      @key string<10> str_2;
+    };
+    @mutable
+    struct XType5a {
+      @key string<999> str_1;
+      @key string<5> str_2;
+    };
 
     /* Test types for type object validation and type dependencies */
     typedef sequence<long> seql;
