@@ -888,13 +888,9 @@ static dds_entity_t find_remote_topic_impl (dds_participant *pp_topic, const cha
 
   const struct ddsi_typeid *tpd_type_id = ddsi_type_pair_complete_id (tpd->type_pair);
   assert (!type_info || !ddsi_typeid_compare (tpd_type_id, type_id));
-  if (!ddsi_type_resolved (gv, tpd->type_pair->complete, DDSI_TYPE_INCLUDE_DEPS))
-  {
-    if ((ret = ddsi_wait_for_type_resolved (gv, tpd_type_id, timeout, &resolved_type, DDSI_TYPE_INCLUDE_DEPS, DDSI_TYPE_SEND_REQUEST)) != DDS_RETCODE_OK)
-      return ret;
-    assert (!ddsi_type_compare (tpd->type_pair->complete, resolved_type));
-  }
-
+  if ((ret = ddsi_wait_for_type_resolved (gv, tpd_type_id, timeout, &resolved_type, DDSI_TYPE_INCLUDE_DEPS, DDSI_TYPE_SEND_REQUEST)) != DDS_RETCODE_OK)
+    return ret;
+  assert (!ddsi_type_compare (tpd->type_pair->complete, resolved_type));
   assert (ddsi_type_resolved (gv, tpd->type_pair->complete, DDSI_TYPE_INCLUDE_DEPS));
 
   dds_topic_descriptor_t *desc = ddsrt_malloc (sizeof (*desc));

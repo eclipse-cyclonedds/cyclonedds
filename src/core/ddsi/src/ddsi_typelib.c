@@ -1123,69 +1123,74 @@ void ddsi_type_pair_free (struct ddsi_type_pair *type_pair)
   ddsrt_free (type_pair);
 }
 
-dds_return_t ddsi_wait_for_type_resolved (struct ddsi_domaingv *gv, const ddsi_typeid_t *type_id, dds_duration_t timeout, struct ddsi_type **type, ddsi_type_include_deps_t resolved_kind, ddsi_type_request_t request)
+static dds_return_t check_type_resolved_impl_locked (struct ddsi_domaingv *gv, const ddsi_typeid_t *type_id, dds_duration_t timeout, struct ddsi_type **type, ddsi_type_include_deps_t resolved_kind, bool *resolved)
 {
-  dds_return_t ret;
+  dds_return_t ret = DDS_RETCODE_OK;
 
-  assert (type);
-  if (ddsi_typeid_is_none (type_id) || !ddsi_typeid_is_hash (type_id))
-  {
-    ret = DDS_RETCODE_BAD_PARAMETER;
-    goto err;
-  }
-
-  ddsrt_mutex_lock (&gv->typelib_lock);
-  *type = ddsi_type_lookup_locked (gv, type_id);
-  if (*type == NULL)
-  {
-    /* For a type to be resolved, we require it's top-level type identifier to be known
-       and added to the type library as a result of a discovered endpoint or topic,
-       or a topic created locally. */
+  /* For a type to be resolved, we require it's top-level type identifier to be known
+      and added to the type library as a result of a discovered endpoint or topic,
+      or a topic created locally. */
+  if ((*type = ddsi_type_lookup_locked (gv, type_id)) == NULL)
     ret = DDS_RETCODE_PRECONDITION_NOT_MET;
-    goto err_unlock;
-  }
-
-  if (ddsi_type_resolved_locked (gv, *type, resolved_kind))
+  else if (ddsi_type_resolved_locked (gv, *type, resolved_kind))
   {
     ddsi_type_ref_locked (gv, NULL, *type);
-    ret = DDS_RETCODE_OK;
-    goto resolved;
+    *resolved = true;
   }
-  else if (timeout == 0)
-  {
+  else if (!timeout)
     ret = DDS_RETCODE_TIMEOUT;
-    goto err_unlock;
-  }
-  ddsrt_mutex_unlock (&gv->typelib_lock);
+  else
+    *resolved = false;
 
-  if (request == DDSI_TYPE_SEND_REQUEST)
-  {
-    // FIXME: provide proxy pp guid
-    if (!ddsi_tl_request_type (gv, type_id, NULL, resolved_kind))
-    {
-      ret = DDS_RETCODE_PRECONDITION_NOT_MET;
-      goto err;
-    }
-  }
+  return ret;
+}
 
+static dds_return_t wait_for_type_resolved_impl_locked (struct ddsi_domaingv *gv, dds_duration_t timeout, const struct ddsi_type *type, ddsi_type_include_deps_t resolved_kind)
+{
+  dds_return_t ret = DDS_RETCODE_OK;
   const dds_time_t tnow = dds_time ();
   const dds_time_t abstimeout = (DDS_INFINITY - timeout <= tnow) ? DDS_NEVER : (tnow + timeout);
-  ddsrt_mutex_lock (&gv->typelib_lock);
-  while (!ddsi_type_resolved_locked (gv, *type, resolved_kind))
+  while (!ddsi_type_resolved_locked (gv, type, resolved_kind))
   {
     if (!ddsrt_cond_waituntil (&gv->typelib_resolved_cond, &gv->typelib_lock, abstimeout))
     {
       ret = DDS_RETCODE_TIMEOUT;
-      goto err_unlock;
+      goto timeout;
     }
   }
-  ddsi_type_ref_locked (gv, NULL, *type);
-  ret = DDS_RETCODE_OK;
+  ddsi_type_ref_locked (gv, NULL, type);
+timeout:
+  return ret;
+}
 
-resolved:
-err_unlock:
+dds_return_t ddsi_wait_for_type_resolved (struct ddsi_domaingv *gv, const ddsi_typeid_t *type_id, dds_duration_t timeout, struct ddsi_type **type, ddsi_type_include_deps_t resolved_kind, ddsi_type_request_t request)
+{
+  dds_return_t ret;
+  bool resolved;
+
+  assert (type);
+  if (ddsi_typeid_is_none (type_id) || !ddsi_typeid_is_hash (type_id))
+    return DDS_RETCODE_BAD_PARAMETER;
+
+  ddsrt_mutex_lock (&gv->typelib_lock);
+  ret = check_type_resolved_impl_locked (gv, type_id, timeout, type, resolved_kind, &resolved);
   ddsrt_mutex_unlock (&gv->typelib_lock);
-err:
+
+  if (ret != DDS_RETCODE_OK || resolved)
+    goto out;
+
+  // TODO: provide proxy pp guid to ddsi_tl_request_type so that request can be sent to a specific node
+  if (request == DDSI_TYPE_SEND_REQUEST && !ddsi_tl_request_type (gv, type_id, NULL, resolved_kind))
+  {
+    ret = DDS_RETCODE_PRECONDITION_NOT_MET;
+    goto out;
+  }
+
+  ddsrt_mutex_lock (&gv->typelib_lock);
+  ret = wait_for_type_resolved_impl_locked (gv, timeout, *type, resolved_kind);
+  ddsrt_mutex_unlock (&gv->typelib_lock);
+
+out:
   return ret;
 }
 
