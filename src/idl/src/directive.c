@@ -122,7 +122,7 @@ static idl_retcode_t push_line(idl_pstate_t *pstate, struct line *dir)
 {
   idl_retcode_t ret;
 
-  if (dir->flags & (START_OF_FILE|RETURN_TO_FILE)) {
+  if (dir->flags & START_OF_FILE) {
     char *norm = NULL;
     const idl_source_t *src = pstate->scanner.position.source;
 
@@ -147,39 +147,32 @@ static idl_retcode_t push_line(idl_pstate_t *pstate, struct line *dir)
       }
     }
 
-    if ((ret = idl_normalize_path(dir->path, &norm)) < 0)
+    if ((ret = idl_normalize_path(dir->path, &norm)) < 0) {
+      idl_error(pstate, NULL, "Invalid line marker: path '%s' not found", dir->path);
       return ret;
+    }
     free(dir->path);
     dir->path = norm;
+    assert(dir->file);
 
-    if (dir->flags & RETURN_TO_FILE) {
-      for (; src; src = src->parent)
-        if (src->path->name && strcmp(src->path->name, dir->path) == 0)
-          break;
-      if (src) {
-        pstate->scanner.position.source = src;
-        pstate->scanner.position.file = src->path;
-      } else {
-        idl_error(pstate, idl_location(dir),
-          "Invalid line marker, file '%s' not on include stack", dir->path);
-        return IDL_RETCODE_SEMANTIC_ERROR;
-      }
-    } else {
-      assert(dir->file);
-
+    if (idl_isabsolute(dir->file)) {
       /* reuse normalized filename if include is absolute */
-      if (idl_isabsolute(dir->file)) {
-        free(dir->file);
-        if (!(dir->file = idl_strdup(dir->path)))
-          return IDL_RETCODE_NO_MEMORY;
+      free(dir->file);
+      if (!(dir->file = idl_strdup(dir->path)))
+        return IDL_RETCODE_NO_MEMORY;
+    } else {
       /* use original filename by default */
-      } else {
-        (void)idl_untaint_path(dir->file);
-      }
-
-      if ((ret = push_source(pstate, dir->file, dir->path, dir->flags)))
-        return ret;
+      (void)idl_untaint_path(dir->file);
     }
+
+    if ((ret = push_source(pstate, dir->file, dir->path, dir->flags)))
+      return ret;
+  } else if (dir->flags & RETURN_TO_FILE) {
+    const idl_source_t *src = pstate->scanner.position.source;
+    assert (src && src->parent);
+    src = src->parent;
+    pstate->scanner.position.source = src;
+    pstate->scanner.position.file = src->path;
   } else {
     if ((ret = push_file(pstate, dir->path)))
       return ret;
