@@ -1152,7 +1152,7 @@ dds_return_t dds_create_topic_descriptor (dds_find_scope_t scope, dds_entity_t p
 
   dds_entity *e;
   if ((ret = dds_entity_pin (participant, &e)) < 0)
-    goto err;
+    goto err_pin;
   if (e->m_kind != DDS_KIND_PARTICIPANT)
   {
     ret = DDS_RETCODE_BAD_PARAMETER;
@@ -1169,6 +1169,7 @@ dds_return_t dds_create_topic_descriptor (dds_find_scope_t scope, dds_entity_t p
 
 err:
   dds_entity_unpin (e);
+err_pin:
   if (ret != DDS_RETCODE_OK)
     ddsrt_free (*descriptor);
   return ret;
