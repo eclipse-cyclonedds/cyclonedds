@@ -1140,7 +1140,6 @@ DDS_GET_STATUS(topic, inconsistent_topic, INCONSISTENT_TOPIC, total_count_change
 dds_return_t dds_create_topic_descriptor (dds_find_scope_t scope, dds_entity_t participant, const dds_typeinfo_t *type_info, dds_duration_t timeout, dds_topic_descriptor_t **descriptor)
 {
   dds_return_t ret;
-  dds_entity *e;
 
   if (scope != DDS_FIND_SCOPE_GLOBAL && scope != DDS_FIND_SCOPE_LOCAL_DOMAIN)
     return DDS_RETCODE_BAD_PARAMETER;
@@ -1151,15 +1150,16 @@ dds_return_t dds_create_topic_descriptor (dds_find_scope_t scope, dds_entity_t p
   if (*descriptor == NULL)
     return DDS_RETCODE_OUT_OF_RESOURCES;
 
+  dds_entity *e;
   if ((ret = dds_entity_pin (participant, &e)) < 0)
-    return ret;
+    goto err;
   if (e->m_kind != DDS_KIND_PARTICIPANT)
   {
-    dds_entity_unpin (e);
-    return DDS_RETCODE_BAD_PARAMETER;
+    ret = DDS_RETCODE_BAD_PARAMETER;
+    goto err;
   }
-  struct ddsi_domaingv * gv = &e->m_domain->gv;
 
+  struct ddsi_domaingv * gv = &e->m_domain->gv;
   struct ddsi_type *type;
   if ((ret = ddsi_wait_for_type_resolved (gv, ddsi_typeinfo_complete_typeid (type_info), timeout, &type, DDSI_TYPE_INCLUDE_DEPS, scope == DDS_FIND_SCOPE_GLOBAL ? DDSI_TYPE_SEND_REQUEST : DDSI_TYPE_NO_REQUEST)))
     goto err;
@@ -1169,6 +1169,8 @@ dds_return_t dds_create_topic_descriptor (dds_find_scope_t scope, dds_entity_t p
 
 err:
   dds_entity_unpin (e);
+  if (ret != DDS_RETCODE_OK)
+    ddsrt_free (*descriptor);
   return ret;
 }
 
