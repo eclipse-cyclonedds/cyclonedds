@@ -78,22 +78,58 @@ static void create_remote_topic (char * topic_name_remote)
   CU_ASSERT_FATAL (topic_remote > 0);
 }
 
+static void wait_for_remote_topic (char * topic_name_remote)
+{
+  dds_entity_t topic_rd = dds_create_reader (g_participant1, DDS_BUILTIN_TOPIC_DCPSTOPIC, NULL, NULL);
+  CU_ASSERT_FATAL (topic_rd > 0);
+  dds_time_t t_exp = dds_time () + DDS_SECS (10);
+  bool seen = false;
+  do
+  {
+    void *raw[1] = { 0 };
+    dds_sample_info_t sample_info[1];
+    dds_return_t n;
+    while ((n = dds_take (topic_rd, raw, sample_info, 1, 1)) > 0)
+    {
+      if (sample_info[0].valid_data && !strcmp (((dds_builtintopic_topic_t *) raw[0])->topic_name, topic_name_remote))
+        seen = true;
+      dds_return_loan (topic_rd, raw, n);
+    }
+    dds_sleepfor (DDS_MSECS (10));
+  }
+  while (!seen && dds_time () < t_exp);
+}
+
+static dds_typeinfo_t *get_desc_typeinfo (const dds_topic_descriptor_t *desc)
+{
+  const struct ddsi_sertype_cdr_data tinfo_ser = { .sz = desc->type_information.sz, .data = desc->type_information.data };
+  ddsi_typeinfo_t *type_info = ddsi_typeinfo_deser (&tinfo_ser);
+  CU_ASSERT_FATAL (type_info != NULL);
+  return (dds_typeinfo_t *) type_info;
+}
+
 CU_Test(ddsc_topic_find_global, domain, .init = topic_find_global_init, .fini = topic_find_global_fini)
 {
   char topic_name_remote[MAX_NAME_SIZE];
   create_remote_topic (topic_name_remote);
+  wait_for_remote_topic (topic_name_remote);
 
-  dds_entity_t topic = dds_find_topic (DDS_FIND_SCOPE_GLOBAL, g_domain1, topic_name_remote, NULL, DDS_SECS (10));
+  dds_typeinfo_t *type_info = get_desc_typeinfo (&Space_Type1_desc);
+  dds_entity_t topic = dds_find_topic (DDS_FIND_SCOPE_GLOBAL, g_domain1, topic_name_remote, type_info, DDS_SECS (10));
   CU_ASSERT_EQUAL_FATAL (topic, DDS_RETCODE_BAD_PARAMETER);
+  dds_free_typeinfo (type_info);
 }
 
 CU_Test(ddsc_topic_find_global, participant, .init = topic_find_global_init, .fini = topic_find_global_fini)
 {
   char topic_name_remote[MAX_NAME_SIZE];
   create_remote_topic (topic_name_remote);
+  wait_for_remote_topic (topic_name_remote);
 
-  dds_entity_t topic = dds_find_topic (DDS_FIND_SCOPE_GLOBAL, g_participant1, topic_name_remote, NULL, DDS_SECS (10));
+  dds_typeinfo_t *type_info = get_desc_typeinfo (&Space_Type1_desc);
+  dds_entity_t topic = dds_find_topic (DDS_FIND_SCOPE_GLOBAL, g_participant1, topic_name_remote, type_info, DDS_SECS (10));
   CU_ASSERT_FATAL (topic > 0);
+  dds_free_typeinfo (type_info);
 }
 
 enum topic_thread_state {
@@ -197,15 +233,20 @@ CU_Theory ((uint32_t num_local_pp, uint32_t num_remote_pp, uint32_t num_tp), dds
   tprintf ("find topics\n");
   for (uint32_t n = 0; n < num_local_pp + num_remote_pp; n++)
   {
+    // wait for thread to finish creating topic
     ret = topics_thread_state (&create_args[n], DONE, DDS_MSECS (10000));
     CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
 
+    dds_typeinfo_t *type_info = get_desc_typeinfo (create_args[n].topic_desc);
     for (uint32_t t = 0; t < create_args[n].num_tp; t++)
     {
-      set_topic_name (topic_name, create_args->topic_name_prefix, t);
-      dds_entity_t topic = dds_find_topic (DDS_FIND_SCOPE_GLOBAL, g_participant1, topic_name, NULL, DDS_SECS (20));
+      set_topic_name (topic_name, create_args[n].topic_name_prefix, t);
+      dds_entity_t topic = dds_find_topic (DDS_FIND_SCOPE_GLOBAL, g_participant1, topic_name, (dds_typeinfo_t *) type_info, DDS_SECS (5));
       CU_ASSERT_FATAL (topic > 0);
     }
+
+    ddsi_typeinfo_fini (type_info);
+    ddsrt_free (type_info);
   }
 
   /* Stop threads (which will delete their topics) and keep looking
@@ -269,8 +310,18 @@ CU_Test (ddsc_topic_find_global, same_name, .init = topic_find_global_init, .fin
   }
   while (seen < 2 && dds_time () < t_exp);
 
-  /* find topic should return DDS_RETCODE_PRECONDITION_NOT_MET because
-     multiple topics with this name are found */
-  dds_entity_t topic = dds_find_topic (DDS_FIND_SCOPE_GLOBAL, g_participant1, topic_name, NULL, DDS_SECS (20));
-  CU_ASSERT_EQUAL_FATAL (topic, DDS_RETCODE_PRECONDITION_NOT_MET);
+  ddsi_typeinfo_t *typeinfo1, *typeinfo2;
+  dds_return_t ret;
+  ret = dds_get_typeinfo (topic_remote1, &typeinfo1);
+  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+  ret = dds_get_typeinfo (topic_remote2, &typeinfo2);
+  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+
+  dds_entity_t topic1 = dds_find_topic (DDS_FIND_SCOPE_GLOBAL, g_participant1, topic_name, typeinfo1, DDS_SECS (5));
+  CU_ASSERT_FATAL (topic1 > 0);
+  dds_entity_t topic2 = dds_find_topic (DDS_FIND_SCOPE_GLOBAL, g_participant1, topic_name, typeinfo2, DDS_SECS (5));
+  CU_ASSERT_FATAL (topic2 > 0);
+
+  dds_free_typeinfo (typeinfo1);
+  dds_free_typeinfo (typeinfo2);
 }

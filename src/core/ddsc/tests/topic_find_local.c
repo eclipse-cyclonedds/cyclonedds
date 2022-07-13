@@ -30,6 +30,7 @@ static dds_entity_t g_domain1 = 0;
 static dds_entity_t g_participant1 = 0;
 static dds_entity_t g_participant2 = 0;
 static dds_entity_t g_topic1 = 0;
+static dds_typeinfo_t *g_type_info = NULL;
 
 #define MAX_NAME_SIZE (100)
 char g_topic_name_local[MAX_NAME_SIZE];
@@ -50,10 +51,18 @@ static void topic_find_local_init (void)
   create_unique_topic_name("ddsc_topic_find_test1", g_topic_name_local, MAX_NAME_SIZE);
   g_topic1 = dds_create_topic (g_participant1, &Space_Type1_desc, g_topic_name_local, NULL, NULL);
   CU_ASSERT_FATAL (g_topic1 > 0);
+
+#ifdef DDS_HAS_TOPIC_DISCOVERY
+  dds_return_t ret = dds_get_typeinfo (g_topic1, &g_type_info);
+  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+#endif
 }
 
 static void topic_find_local_fini (void)
 {
+#ifdef DDS_HAS_TOPIC_DISCOVERY
+  dds_free_typeinfo (g_type_info);
+#endif
   dds_delete (g_domain1);
 }
 
@@ -67,11 +76,11 @@ static void topic_find_local_domain_impl (enum topic_find_local_domain_impl_dele
   assert (dir == -1 || dir == 1);
   dds_return_t ret;
   dds_entity_t topic[2];
-  topic[0] = dds_find_topic (DDS_FIND_SCOPE_LOCAL_DOMAIN, g_participant1, g_topic_name_local, NULL, 0);
+  topic[0] = dds_find_topic (DDS_FIND_SCOPE_LOCAL_DOMAIN, g_participant1, g_topic_name_local, g_type_info, 0);
   CU_ASSERT_FATAL (topic[0] > 0);
   CU_ASSERT_NOT_EQUAL_FATAL (topic[0], g_topic1);
   CU_ASSERT_EQUAL_FATAL (dds_get_participant (topic[0]), g_participant1);
-  topic[1] = dds_find_topic (DDS_FIND_SCOPE_LOCAL_DOMAIN, g_participant2, g_topic_name_local, NULL, 0);
+  topic[1] = dds_find_topic (DDS_FIND_SCOPE_LOCAL_DOMAIN, g_participant2, g_topic_name_local, g_type_info, 0);
   CU_ASSERT_FATAL (topic[1] > 0);
   CU_ASSERT_NOT_EQUAL_FATAL (topic[1], topic[0]);
   CU_ASSERT_NOT_EQUAL_FATAL (topic[1], g_topic1);
@@ -115,34 +124,34 @@ CU_Test(ddsc_topic_find_local, domain_delete_pp_reversed, .init = topic_find_loc
 
 CU_Test(ddsc_topic_find_local, participant, .init = topic_find_local_init, .fini = topic_find_local_fini)
 {
-  dds_entity_t topic = dds_find_topic (DDS_FIND_SCOPE_PARTICIPANT, g_participant1, g_topic_name_local, NULL, 0);
+  dds_entity_t topic = dds_find_topic (DDS_FIND_SCOPE_PARTICIPANT, g_participant1, g_topic_name_local, g_type_info, 0);
   CU_ASSERT_FATAL (topic > 0);
   CU_ASSERT_NOT_EQUAL_FATAL (topic, g_topic1);
 }
 
 CU_Test(ddsc_topic_find_local, non_participants, .init = topic_find_local_init, .fini = topic_find_local_fini)
 {
-  dds_entity_t topic = dds_find_topic (DDS_FIND_SCOPE_PARTICIPANT, g_topic1, "non_participant", NULL, 0);
+  dds_entity_t topic = dds_find_topic (DDS_FIND_SCOPE_PARTICIPANT, g_topic1, "non_participant", g_type_info, 0);
   CU_ASSERT_EQUAL_FATAL (topic, DDS_RETCODE_BAD_PARAMETER);
 }
 
 CU_Test(ddsc_topic_find_local, null, .init = topic_find_local_init, .fini = topic_find_local_fini)
 {
   DDSRT_WARNING_MSVC_OFF (6387); /* Disable SAL warning on intentional misuse of the API */
-  dds_entity_t topic = dds_find_topic (DDS_FIND_SCOPE_PARTICIPANT, g_participant1, NULL, NULL, 0);
+  dds_entity_t topic = dds_find_topic (DDS_FIND_SCOPE_PARTICIPANT, g_participant1, NULL, g_type_info, 0);
   DDSRT_WARNING_MSVC_ON (6387);
   CU_ASSERT_EQUAL_FATAL (topic, DDS_RETCODE_BAD_PARAMETER);
 }
 
 CU_Test(ddsc_topic_find_local, unknown, .init = topic_find_local_init, .fini = topic_find_local_fini)
 {
-  dds_entity_t topic = dds_find_topic (DDS_FIND_SCOPE_PARTICIPANT, g_participant1, "unknown", NULL, 0);
+  dds_entity_t topic = dds_find_topic (DDS_FIND_SCOPE_PARTICIPANT, g_participant1, "unknown", g_type_info, 0);
   CU_ASSERT_EQUAL_FATAL (topic, 0);
 }
 
 CU_Test(ddsc_topic_find_local, deleted, .init = topic_find_local_init, .fini = topic_find_local_fini)
 {
   dds_delete (g_topic1);
-  dds_entity_t topic = dds_find_topic (DDS_FIND_SCOPE_PARTICIPANT, g_participant1, g_topic_name_local, NULL, 0);
+  dds_entity_t topic = dds_find_topic (DDS_FIND_SCOPE_PARTICIPANT, g_participant1, g_topic_name_local, g_type_info, 0);
   CU_ASSERT_EQUAL_FATAL (topic, 0);
 }

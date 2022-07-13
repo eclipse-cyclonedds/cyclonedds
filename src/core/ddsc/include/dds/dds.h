@@ -1468,7 +1468,7 @@ dds_create_topic_arbitrary (
   const struct ddsi_plist *sedp_plist);
 
 /**
- * @brief Finds a locally created or discovered remote topic by topic name and type
+ * @brief Finds a locally created or discovered remote topic by topic name and type information
  * @ingroup topic
  *
  * Finds a locally created topic or a discovered remote topic based on the topic
@@ -1476,20 +1476,24 @@ dds_create_topic_arbitrary (
  * the topic to become available until the provided time out.
  *
  * When using the scope DDS_FIND_SCOPE_LOCAL_DOMAIN, there will be no requests sent
- * over the network for resolving the proveded type in case it is unresolved. This
- * also applies to dependent types: in case a dependency of the provided type is
- * unresolved, no requests will be sent for resolving the type when using LOCAL_DOMAIN
- * scope.
+ * over the network for resolving the type in case it is unresolved. This also applies
+ * to dependent types: in case a dependency of the provided type is unresolved, no
+ * requests will be sent for resolving the type when using LOCAL_DOMAIN scope.
  *
  * In case the scope is DDS_FIND_SCOPE_GLOBAL, for unresolved types (or dependencies)
  * a type lookup request will be sent.
  *
+ * In case no type information is provided and multiple (discovered) topics exist
+ * with the provided name, an arbitrary topic with that name will be returned.
+ * In this scenario, it would be better to read DCPSTopic data and use that to
+ * get the required topic meta-data.
+ *
  * The returned topic should be released with dds_delete.
  *
- * @param[in]  scope        The scope used to find the topic.
+ * @param[in]  scope        The scope used to find the topic. In case topic discovery is not enabled in the build, SCOPE_GLOBAL cannot be used.
  * @param[in]  participant  The handle of the participant the found topic will be created in
  * @param[in]  name         The name of the topic to find.
- * @param[in]  type_info    The type (dds_typeinfo_t) of the topic to find.
+ * @param[in]  type_info    The type information of the topic to find. Optional, and should not be provided in case topic discovery is not enabled in the build.
  * @param[in]  timeout      The timeout for waiting for the topic to become available
  *
  * @returns A valid topic handle or an error code.
@@ -1497,11 +1501,11 @@ dds_create_topic_arbitrary (
  * @retval >0
  *             A valid topic handle.
  * @retval 0
- *             No topic of this name existed yet
+ *             No topic of this name exists
  * @retval DDS_RETCODE_BAD_PARAMETER
- *             Participant was invalid.
+ *             Participant or type information was invalid.
  * @retval DDS_RETCODE_PRECONDITION_NOT_MET
- *             No topic of this name existed yet in the participant
+ *             The provided type could not be found.
  */
 DDS_EXPORT dds_entity_t
 dds_find_topic (dds_find_scope_t scope, dds_entity_t participant, const char *name, const dds_typeinfo_t *type_info, dds_duration_t timeout);
@@ -1512,13 +1516,12 @@ dds_find_topic (dds_find_scope_t scope, dds_entity_t participant, const char *na
  * Use @ref dds_find_topic instead.
  *
  * Finds a locally created topic or a discovered remote topic based on the topic
- * name. In case the topic is not found, this function will wait for
- * the topic to become available until the provided time out.
+ * name. In case the topic is not found, this function will wait for the topic
+ * to become available until the provided time out.
  *
- * In case multiple (discovered) topics are found with the provided name,
- * this function will return an error code. The caller can decide to
- * read DCPSTopic data itself and select one of the topic definitions
- * to create the topic.
+ * In case multiple (discovered) topics exist with the provided name, this function
+ * will return randomly one of these topic. The caller can decide to read DCPSTopic
+ * data and select one of the topic definitions to create the topic.
  *
  * The returned topic should be released with dds_delete.
  *
@@ -1535,8 +1538,6 @@ dds_find_topic (dds_find_scope_t scope, dds_entity_t participant, const char *na
  *             No topic of this name existed yet
  * @retval DDS_RETCODE_BAD_PARAMETER
  *             Participant handle or scope invalid
- * @retval DDS_RETCODE_PRECONDITION_NOT_MET
- *             Multiple topics with the provided name were found.
  */
 DDS_DEPRECATED_EXPORT dds_entity_t
 dds_find_topic_scoped (dds_find_scope_t scope, dds_entity_t participant, const char *name, dds_duration_t timeout);

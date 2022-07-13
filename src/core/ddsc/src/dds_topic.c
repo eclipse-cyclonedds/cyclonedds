@@ -728,7 +728,13 @@ static dds_topic *pin_if_matching_topic (dds_entity * const e_pp_child, const ch
   if (!strcmp (tp->m_ktopic->name, name))
   {
 #ifdef DDS_HAS_TYPE_DISCOVERY
-    if (!(tp->m_ktopic->qos->present & QP_TYPE_INFORMATION) || ddsi_typeinfo_equal (tp->m_ktopic->qos->type_information, type_info, DDSI_TYPE_IGNORE_DEPS))
+    /* In case no type info is provided, returns any (the first) topic with the specified
+       name. If type info is set, it should match the topic's type info should match */
+    ddsi_typeinfo_t *topic_type_info = ddsi_sertype_typeinfo (tp->m_stype);
+    bool ti_match = !ddsi_typeinfo_set (type_info) || (ddsi_typeinfo_set (topic_type_info) && ddsi_typeinfo_equal (topic_type_info, type_info, DDSI_TYPE_IGNORE_DEPS));
+    ddsi_typeinfo_fini (topic_type_info);
+    ddsrt_free (topic_type_info);
+    if (ti_match)
       return tp;
 #else
     (void) type_info;
@@ -827,7 +833,7 @@ static dds_entity_t find_local_topic_pp (dds_participant *pp, const char *name, 
   }
 }
 
-static dds_entity_t find_local_topic_impl (dds_find_scope_t scope, dds_participant *pp_topic, const char *name, const ddsi_typeinfo_t *type_info)
+static dds_return_t find_local_topic_impl (dds_find_scope_t scope, dds_participant *pp_topic, const char *name, const ddsi_typeinfo_t *type_info)
 {
   // On entry: pp_topic is pinned, no locks held
 
@@ -877,9 +883,7 @@ static dds_entity_t find_remote_topic_impl (dds_participant *pp_topic, const cha
   if (tpd == NULL)
     return DDS_RETCODE_OK;
 
-  const struct ddsi_typeid *tpd_type_id = ddsi_type_pair_complete_id (tpd->type_pair);
-  assert (!type_info || !ddsi_typeid_compare (tpd_type_id, type_id));
-  if ((ret = ddsi_wait_for_type_resolved (gv, tpd_type_id, timeout, &resolved_type, DDSI_TYPE_INCLUDE_DEPS, DDSI_TYPE_SEND_REQUEST)) != DDS_RETCODE_OK)
+  if ((ret = ddsi_wait_for_type_resolved (gv, type_id, timeout, &resolved_type, DDSI_TYPE_INCLUDE_DEPS, DDSI_TYPE_SEND_REQUEST)) != DDS_RETCODE_OK)
     return ret;
   assert (!ddsi_type_compare (tpd->type_pair->complete, resolved_type));
   assert (ddsi_type_resolved (gv, tpd->type_pair->complete, DDSI_TYPE_INCLUDE_DEPS));
@@ -898,7 +902,7 @@ err_desc:
 
 #endif /* DDS_HAS_TOPIC_DISCOVERY */
 
-dds_entity_t dds_find_topic (dds_find_scope_t scope, dds_entity_t participant, const char *name, const dds_typeinfo_t *type_info, dds_duration_t timeout)
+static dds_entity_t dds_find_topic_impl (dds_find_scope_t scope, dds_entity_t participant, const char *name, const dds_typeinfo_t *type_info, dds_duration_t timeout)
 {
   dds_entity_t hdl;
   dds_return_t ret;
@@ -948,9 +952,21 @@ dds_entity_t dds_find_topic (dds_find_scope_t scope, dds_entity_t participant, c
   return hdl;
 }
 
+dds_entity_t dds_find_topic (dds_find_scope_t scope, dds_entity_t participant, const char *name, const dds_typeinfo_t *type_info, dds_duration_t timeout)
+{
+#ifdef DDS_HAS_TOPIC_DISCOVERY
+  if (type_info && !ddsi_typeinfo_valid (type_info))
+    return DDS_RETCODE_BAD_PARAMETER;
+#else
+  if (type_info != NULL)
+    return DDS_RETCODE_BAD_PARAMETER;
+#endif
+  return dds_find_topic_impl (scope, participant, name, type_info, timeout);
+}
+
 dds_entity_t dds_find_topic_scoped (dds_find_scope_t scope, dds_entity_t participant, const char *name, dds_duration_t timeout)
 {
-  return dds_find_topic (scope, participant, name, NULL, timeout);
+  return dds_find_topic_impl (scope, participant, name, NULL, timeout);
 }
 
 dds_return_t dds_set_topic_filter_extended (dds_entity_t topic, const struct dds_topic_filter *filter)

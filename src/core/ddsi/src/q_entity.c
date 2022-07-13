@@ -5838,23 +5838,17 @@ err:
 dds_return_t lookup_topic_definition (struct ddsi_domaingv *gv, const char * topic_name, const ddsi_typeid_t *type_id, struct ddsi_topic_definition **tpd)
 {
   assert (tpd != NULL);
-  *tpd = NULL;
   struct ddsrt_hh_iter it;
   dds_return_t ret = DDS_RETCODE_OK;
+  *tpd = NULL;
   ddsrt_mutex_lock (&gv->topic_defs_lock);
   for (struct ddsi_topic_definition *tpd1 = ddsrt_hh_iter_first (gv->topic_defs, &it); tpd1; tpd1 = ddsrt_hh_iter_next (&it))
   {
     if (!strcmp (tpd1->xqos->topic_name, topic_name) &&
-        (!type_id || !(tpd1->xqos->present & QP_TYPE_INFORMATION) || !ddsi_typeid_compare (type_id, ddsi_typeinfo_complete_typeid (tpd1->xqos->type_information))))
+        (ddsi_typeid_is_none (type_id) || ((tpd1->xqos->present & QP_TYPE_INFORMATION) && !ddsi_typeid_compare (type_id, ddsi_typeinfo_complete_typeid (tpd1->xqos->type_information)))))
     {
-      if (*tpd == NULL)
-        *tpd = tpd1;
-      else
-      {
-        *tpd = NULL;
-        ret = DDS_RETCODE_PRECONDITION_NOT_MET;
-        break;
-      }
+      *tpd = tpd1;
+      break;
     }
   }
   ddsrt_mutex_unlock (&gv->topic_defs_lock);
