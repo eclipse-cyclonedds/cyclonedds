@@ -210,7 +210,6 @@ static void ktopic_unref (dds_participant * const pp, struct dds_ktopic * const 
     ddsrt_avl_delete (&participant_ktopics_treedef, &pp->m_ktopics, ktp);
     dds_delete_qos (ktp->qos);
     dds_free (ktp->name);
-    dds_free (ktp->type_name);
 #ifdef DDS_HAS_TOPIC_DISCOVERY
     ddsrt_hh_free (ktp->topic_guid_map);
 #endif
@@ -298,7 +297,6 @@ const struct dds_entity_deriver dds_entity_deriver_topic = {
 *                        ktopic with this name exists
 * @param[in]  pp         pinned & locked participant
 * @param[in]  name       topic name to look for
-* @param[in]  type_name  type name the topic must have
 * @param[in]  new_qos    QoS for the new topic (can be NULL)
 *
 * @returns success + ktopic, success + NULL or error.
@@ -311,7 +309,7 @@ const struct dds_entity_deriver dds_entity_deriver_topic = {
 * @retval DDS_RETCODE_PRECONDITION_NOT_MET
 *             a ktopic exists with a different type name
 */
-static dds_return_t lookup_and_check_ktopic (struct dds_ktopic **ktp_out, dds_participant *pp, const char *name, const char *type_name, const dds_qos_t *new_qos)
+static dds_return_t lookup_and_check_ktopic (struct dds_ktopic **ktp_out, dds_participant *pp, const char *name, const dds_qos_t *new_qos)
 {
   struct ddsi_domaingv * const gv = &pp->m_entity.m_domain->gv;
   struct dds_ktopic *ktp;
@@ -319,11 +317,6 @@ static dds_return_t lookup_and_check_ktopic (struct dds_ktopic **ktp_out, dds_pa
   {
     GVTRACE ("lookup_and_check_ktopic_may_unlock_pp: no such ktopic\n");
     return DDS_RETCODE_OK;
-  }
-  else if (strcmp (ktp->type_name, type_name) != 0)
-  {
-    GVTRACE ("lookup_and_check_ktopic_may_unlock_pp: ktp %p typename %s mismatch\n", (void *) ktp, ktp->type_name);
-    return DDS_RETCODE_PRECONDITION_NOT_MET;
   }
   else if (!dupdef_qos_ok (new_qos, ktp))
   {
@@ -513,7 +506,7 @@ dds_entity_t dds_create_topic_impl (
            name, (*sertype)->type_name);
   ddsrt_mutex_lock (&pp->m_entity.m_mutex);
   struct dds_ktopic *ktp;
-  if ((rc = lookup_and_check_ktopic (&ktp, pp, name, (*sertype)->type_name, new_qos)) != DDS_RETCODE_OK)
+  if ((rc = lookup_and_check_ktopic (&ktp, pp, name, new_qos)) != DDS_RETCODE_OK)
   {
     GVTRACE ("dds_create_topic_generic: failed after compatibility check: %s\n", dds_strretcode (rc));
     ddsrt_mutex_unlock (&pp->m_entity.m_mutex);
@@ -529,8 +522,6 @@ dds_entity_t dds_create_topic_impl (
     ktp->defer_set_qos = 0;
     ktp->qos = new_qos;
     ktp->name = dds_string_dup (name);
-    /* have to copy these because the ktopic can outlast any specific sertype */
-    ktp->type_name = dds_string_dup ((*sertype)->type_name);
 #ifdef DDS_HAS_TOPIC_DISCOVERY
     ktp->topic_guid_map = ddsrt_hh_new (1, ktopic_type_guid_hash, ktopic_type_guid_equal);
 #endif

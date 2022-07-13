@@ -300,7 +300,7 @@ struct ktopic_type_guid {
 #endif
 
 typedef struct dds_ktopic {
-  /* name -> <type_name, QoS> mapping for topics, part of the participant
+  /* name -> <QoS> mapping for topics, part of the participant
      and protected by the participant's lock (including the actual QoS
      setting)
 
@@ -312,7 +312,6 @@ typedef struct dds_ktopic {
   uint32_t defer_set_qos; /* set_qos must wait for this to be 0 */
   dds_qos_t *qos;
   char *name; /* [constant] */
-  char *type_name; /* [constant] */
 #ifdef DDS_HAS_TOPIC_DISCOVERY
   struct ddsrt_hh *topic_guid_map; /* mapping of this ktopic to ddsi topics */
 #endif
