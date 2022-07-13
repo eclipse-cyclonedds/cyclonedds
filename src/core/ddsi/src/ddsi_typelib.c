@@ -163,17 +163,19 @@ static bool typeinfo_dependent_typeids_valid (const struct DDS_XTypes_TypeIdenti
   return true;
 }
 
+bool ddsi_typeinfo_set (const ddsi_typeinfo_t *typeinfo)
+{
+  const ddsi_typeid_t *tid_min = ddsi_typeinfo_minimal_typeid (typeinfo), *tid_compl = ddsi_typeinfo_complete_typeid (typeinfo);
+  return !ddsi_typeid_is_none (tid_min) || !ddsi_typeid_is_none (tid_compl);
+}
+
 bool ddsi_typeinfo_valid (const ddsi_typeinfo_t *typeinfo)
 {
-  const ddsi_typeid_t *tid_min = ddsi_typeinfo_minimal_typeid (typeinfo);
-  const ddsi_typeid_t *tid_compl = ddsi_typeinfo_complete_typeid (typeinfo);
-  if (ddsi_typeid_is_none (tid_min) || ddsi_typeid_is_fully_descriptive (tid_min) ||
-      ddsi_typeid_is_none (tid_compl) || ddsi_typeid_is_fully_descriptive (tid_compl))
-    return false;
-  if (!typeinfo_dependent_typeids_valid (&typeinfo->x.minimal, DDSI_TYPEID_KIND_MINIMAL) ||
-      !typeinfo_dependent_typeids_valid (&typeinfo->x.complete, DDSI_TYPEID_KIND_COMPLETE))
-    return false;
-  return true;
+  const ddsi_typeid_t *tid_min = ddsi_typeinfo_minimal_typeid (typeinfo), *tid_compl = ddsi_typeinfo_complete_typeid (typeinfo);
+  return !ddsi_typeid_is_none (tid_min) && !ddsi_typeid_is_none (tid_compl) &&
+      !ddsi_typeid_is_fully_descriptive (tid_min) && !ddsi_typeid_is_fully_descriptive (tid_compl) &&
+      typeinfo_dependent_typeids_valid (&typeinfo->x.minimal, DDSI_TYPEID_KIND_MINIMAL) &&
+      typeinfo_dependent_typeids_valid (&typeinfo->x.complete, DDSI_TYPEID_KIND_COMPLETE);
 }
 
 const struct DDS_XTypes_TypeObject * ddsi_typemap_typeobj (const ddsi_typemap_t *tmap, const struct DDS_XTypes_TypeIdentifier *type_id)

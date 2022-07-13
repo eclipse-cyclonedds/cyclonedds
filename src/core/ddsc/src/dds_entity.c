@@ -1610,3 +1610,45 @@ dds_return_t dds_return_loan (dds_entity_t entity, void **buf, int32_t bufsz)
   dds_entity_unpin (p_entity);
   return ret;
 }
+
+#ifdef DDS_HAS_TYPE_DISCOVERY
+
+dds_return_t dds_get_typeinfo (dds_entity_t entity, dds_typeinfo_t **type_info)
+{
+  dds_return_t ret;
+  dds_entity *e;
+
+  if (!type_info)
+    return DDS_RETCODE_BAD_PARAMETER;
+  if ((ret = dds_entity_pin (entity, &e)) != DDS_RETCODE_OK)
+    return ret;
+  switch (dds_entity_kind (e))
+  {
+    case DDS_KIND_TOPIC: {
+      struct dds_topic * const tp = (struct dds_topic *) e;
+      if (!(*type_info = ddsi_sertype_typeinfo (tp->m_stype)))
+        ret = DDS_RETCODE_NOT_FOUND;
+      break;
+    }
+    case DDS_KIND_READER:
+    case DDS_KIND_WRITER:
+      ret = dds_get_typeinfo (dds_get_topic (entity), type_info);
+      break;
+    default:
+      ret = DDS_RETCODE_ILLEGAL_OPERATION;
+      break;
+  }
+  dds_entity_unpin (e);
+  return ret;
+}
+
+dds_return_t dds_free_typeinfo (dds_typeinfo_t *type_info)
+{
+  if (type_info == NULL)
+    return DDS_RETCODE_BAD_PARAMETER;
+  ddsi_typeinfo_fini (type_info);
+  dds_free (type_info);
+  return DDS_RETCODE_OK;
+}
+
+#endif /* DDS_HAS_TYPE_DISCOVERY */

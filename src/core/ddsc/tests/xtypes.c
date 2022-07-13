@@ -971,3 +971,31 @@ CU_Test (ddsc_xtypes, resolve_dep_type, .init = xtypes_init, .fini = xtypes_fini
   ddsrt_free (desc.type_information.data);
   ddsrt_free (desc.type_mapping.data);
 }
+
+CU_Test (ddsc_xtypes, get_type_info, .init = xtypes_init, .fini = xtypes_fini)
+{
+  char topic_name[100];
+  create_unique_topic_name ("ddsc_xtypes", topic_name, sizeof (topic_name));
+
+  dds_entity_t topic = dds_create_topic (g_participant1, &XSpace_XType1_desc, topic_name, NULL, NULL);
+  CU_ASSERT_FATAL (topic > 0);
+  dds_entity_t wr = dds_create_writer (g_participant1, topic, NULL, NULL);
+  CU_ASSERT_FATAL (wr > 0);
+  dds_entity_t rd = dds_create_reader (g_participant1, topic, NULL, NULL);
+  CU_ASSERT_FATAL (rd > 0);
+
+  dds_typeinfo_t *type_info_tp, *type_info_wr, *type_info_rd;
+  dds_return_t ret;
+  ret = dds_get_typeinfo (topic, &type_info_tp);
+  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+  ret = dds_get_typeinfo (wr, &type_info_wr);
+  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+  ret = dds_get_typeinfo (rd, &type_info_rd);
+  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_FATAL (ddsi_typeinfo_equal (type_info_tp, type_info_wr, DDSI_TYPE_INCLUDE_DEPS));
+  CU_ASSERT_FATAL (ddsi_typeinfo_equal (type_info_tp, type_info_rd, DDSI_TYPE_INCLUDE_DEPS));
+
+  dds_free_typeinfo (type_info_tp);
+  dds_free_typeinfo (type_info_wr);
+  dds_free_typeinfo (type_info_rd);
+}

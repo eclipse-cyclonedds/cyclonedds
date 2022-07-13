@@ -4683,6 +4683,48 @@ DDS_EXPORT dds_return_t
 dds_free_typeobj (
   dds_typeobj_t *type_obj);
 
+/**
+ * @brief This function gets the type information from the
+ * provided topic, reader or writer
+ * @ingroup xtypes
+ *
+ * @param[in]   entity          A topic/reader/writer entity
+ * @param[out]  type_info       The type information, untouched if returncode indicates failure
+ *
+ *
+ * @returns A dds_return_t indicating success or failure.
+ *
+ * @retval DDS_RETCODE_OK
+ *             The operation was successful.
+ * @retval DDS_BAD_PARAMETER
+ *             The type_info parameter is null
+ * @retval DDS_RETCODE_NOT_FOUND
+ *             The entity does not have type information set
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION
+ *             The operation is invoked on an inappropriate object.
+*/
+DDS_EXPORT dds_return_t
+dds_get_typeinfo (
+  dds_entity_t entity,
+  dds_typeinfo_t **type_info);
+
+/**
+ * @brief Free the type information that was retrieved using dds_get_typeinfo
+ * @ingroup xtypes
+ *
+ * @param[in]  type_info     The type information
+ *
+ *
+ * @returns A dds_return_t indicating success or failure.
+ *
+ * @retval DDS_RETCODE_OK
+ *             The operation was successful.
+ * @retval DDS_BAD_PARAMETER
+ *             The type_info parameter is NULL
+*/
+DDS_EXPORT dds_return_t
+dds_free_typeinfo (
+  dds_typeinfo_t *type_info);
 
 #endif /* DDS_HAS_TYPE_DISCOVERY */
 
