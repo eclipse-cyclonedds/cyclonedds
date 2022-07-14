@@ -731,7 +731,7 @@ static dds_topic *pin_if_matching_topic (dds_entity * const e_pp_child, const ch
     /* In case no type info is provided, returns any (the first) topic with the specified
        name. If type info is set, it should match the topic's type info should match */
     ddsi_typeinfo_t *topic_type_info = ddsi_sertype_typeinfo (tp->m_stype);
-    bool ti_match = !ddsi_typeinfo_set (type_info) || (ddsi_typeinfo_set (topic_type_info) && ddsi_typeinfo_equal (topic_type_info, type_info, DDSI_TYPE_IGNORE_DEPS));
+    bool ti_match = !ddsi_typeinfo_present (type_info) || (ddsi_typeinfo_present (topic_type_info) && ddsi_typeinfo_equal (topic_type_info, type_info, DDSI_TYPE_IGNORE_DEPS));
     ddsi_typeinfo_fini (topic_type_info);
     ddsrt_free (topic_type_info);
     if (ti_match)

@@ -163,7 +163,7 @@ static bool typeinfo_dependent_typeids_valid (const struct DDS_XTypes_TypeIdenti
   return true;
 }
 
-bool ddsi_typeinfo_set (const ddsi_typeinfo_t *typeinfo)
+bool ddsi_typeinfo_present (const ddsi_typeinfo_t *typeinfo)
 {
   const ddsi_typeid_t *tid_min = ddsi_typeinfo_minimal_typeid (typeinfo), *tid_compl = ddsi_typeinfo_complete_typeid (typeinfo);
   return !ddsi_typeid_is_none (tid_min) || !ddsi_typeid_is_none (tid_compl);

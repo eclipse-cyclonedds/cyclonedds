@@ -1659,4 +1659,19 @@ dds_return_t dds_free_typeinfo (dds_typeinfo_t *type_info)
   return DDS_RETCODE_OK;
 }
 
+#else
+
+dds_return_t dds_get_typeinfo (dds_entity_t entity, dds_typeinfo_t **type_info)
+{
+  (void) entity;
+  (void) type_info;
+  return DDS_RETCODE_UNSUPPORTED;
+}
+
+dds_return_t dds_free_typeinfo (dds_typeinfo_t *type_info)
+{
+  (void) type_info;
+  return DDS_RETCODE_UNSUPPORTED;
+}
+
 #endif /* DDS_HAS_TYPE_DISCOVERY */
