@@ -2321,6 +2321,12 @@ static int print_flags(FILE *fp, struct descriptor *descriptor, bool type_info)
       uint32_t typecode = DDS_OP_TYPE(i.data.opcode.code);
       if (typecode == DDS_OP_VAL_STR || typecode == DDS_OP_VAL_BST || typecode == DDS_OP_VAL_SEQ || typecode == DDS_OP_VAL_BSQ)
         fixed_size = false;
+      if (typecode == DDS_OP_VAL_ARR)
+      {
+        uint32_t subtypecode = DDS_OP_SUBTYPE(i.data.opcode.code);
+        if (subtypecode == DDS_OP_VAL_STR || subtypecode == DDS_OP_VAL_BST || subtypecode == DDS_OP_VAL_SEQ || subtypecode == DDS_OP_VAL_BSQ)
+          fixed_size = false;
+      }
     }
   }
 

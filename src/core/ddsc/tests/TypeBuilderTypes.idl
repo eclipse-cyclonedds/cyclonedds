@@ -12,13 +12,15 @@
 
 module TypeBuilderTypes {
 
+  enum en { E1, E2 };
+  bitmask bm { BM1, BM2 };
+
+  /* basic test */
   struct t1 {
     long f1;
   };
 
-  enum en { E1, E2 };
-  bitmask bm { BM1, BM2 };
-
+  /* external members */
   struct t2 {
     octet f1;
     char f2;
@@ -35,22 +37,25 @@ module TypeBuilderTypes {
     bm f13;
   };
 
-  struct t1a {
+  /* nesting */
+  struct t3a {
     short f1;
   };
 
   struct t3 {
     t1 f1;
-    t1a f2;
+    t3a f2;
     t2 f3;
   };
 
+  /* basic sequences */
   struct t4 {
     sequence<long> f1;
     sequence<string> f2;
     sequence<t1> f3;
   };
 
+  /* member types */
   typedef sequence<float, 2> td1;
   typedef long tda1[2];
   typedef tda1 tda2;
@@ -95,11 +100,11 @@ module TypeBuilderTypes {
     case 35: t4 u35;
   };
 
+  /* collection types */
   typedef long arr_def[300];
   typedef arr_def arr_def2[300];
   typedef sequence<arr_def> seq_def;
   typedef sequence<arr_def> seq_arr_def[2];
-
   struct t6 {
     long f1[2];
     char f2[1000];
@@ -125,6 +130,7 @@ module TypeBuilderTypes {
     sequence<sequence<sequence<seq_arr_def, 4> >, 2> f22[3][4];
   };
 
+  /* member id / index in keys */
   @nested
   struct tk1 {
     @id(2) long tk1_1;
@@ -156,6 +162,7 @@ module TypeBuilderTypes {
     @id (5) @key tk3 f5;
   };
 
+  /* key enum and bitmask members */
   struct t8 {
     char f1;
     @key bm f2;
@@ -166,6 +173,7 @@ module TypeBuilderTypes {
     en f7;
   };
 
+  /* optional aggregated type members */
   @appendable
   struct t9 {
     @optional long f1;
@@ -174,6 +182,7 @@ module TypeBuilderTypes {
     @optional t7 f4;
   };
 
+  /* inheritance */
   struct t10_2 {
     long f10_2;
   };
@@ -185,6 +194,7 @@ module TypeBuilderTypes {
     t10_2 f2;
   };
 
+  /* nesting */
   @nested struct t11a { long f1; };
   @nested @appendable struct t11b { t11a f1; };
   struct t11 {
@@ -192,6 +202,7 @@ module TypeBuilderTypes {
     t11b u2;
   };
 
+  /* key members */
   @nested struct t12a { long fa1; };
   @nested struct t12b { long fb1; t12a fb2; };
   @mutable
@@ -207,6 +218,7 @@ module TypeBuilderTypes {
     string f9[5];
   };
 
+  /* keys in mutable type */
   @nested @mutable struct t13a {
     char b1;
     @key t1 b2;
@@ -220,6 +232,7 @@ module TypeBuilderTypes {
     t11 f4;
   };
 
+  /* keys in nested types */
   @nested struct t14a { long a1; };
   @nested struct t14b { @key t14a b1; };
   @nested struct t14c { @key t14b c1; };
@@ -227,6 +240,7 @@ module TypeBuilderTypes {
     @key t14c f1;
   };
 
+  /* optional union type members */
   union t15a switch (char) {
     case 'a': long u1;
     case 'z': string u2;
@@ -250,21 +264,25 @@ module TypeBuilderTypes {
     @optional bm16 f3;
   };
 
+  /* key alignment xcdrv1 / xcdrv2 */
   struct t16 {
     @key char f1;
     @key long long f2;
     @key char f3;
   };
 
+  /* enum with non-default bit-bound as switch type */
   union t17 switch(en8) {
     case EN8_1: t14 u1;
     case EN8_2: t15 u2;
   };
 
+  /* hash member id */
   struct t18 {
     @hashid("test") long f1;
   };
 
+  /* multiple typedefs for same source type */
   typedef sequence<string> t19_1;
   typedef sequence<string> t19_2;
   struct t19 {
@@ -272,6 +290,7 @@ module TypeBuilderTypes {
       t19_1 f2;
   };
 
+  /* sequence type union member */
   union t20_1 switch (short) {
     case 1:
     case 2:
@@ -285,7 +304,7 @@ module TypeBuilderTypes {
     long f2;
   };
 
-
+  /* test enum type union member */
   enum t21_1 {
     T21_1_0,
     T21_1_1
@@ -298,5 +317,25 @@ module TypeBuilderTypes {
     t21_2 f1;
   };
 
+  /* test fixed type flag for arrays with fixed-lendth element type */
+  struct t22_1 {
+    char f1[3];
+  };
+  typedef long arr_l[3];
+  typedef arr_l arr_l2[4];
+  typedef arr_l2 arr_l3;
+  struct t22 {
+    long long f1[2][3];
+    arr_l3 f2;
+    arr_l3 f3[2];
+    t22_1 f4;
+  };
+
+  /* string type makes it a non-fixed types */
+  typedef string arr_s[2];
+  typedef arr_s arr_s2;
+  struct t23 {
+    arr_s2 f1[2];
+  };
 
 };
