@@ -1630,10 +1630,18 @@ dds_return_t dds_get_typeinfo (dds_entity_t entity, dds_typeinfo_t **type_info)
         ret = DDS_RETCODE_NOT_FOUND;
       break;
     }
-    case DDS_KIND_READER:
-    case DDS_KIND_WRITER:
-      ret = dds_get_typeinfo (dds_get_topic (entity), type_info);
+    case DDS_KIND_READER: {
+      struct dds_reader * const rd = (struct dds_reader *) e;
+      if (!(*type_info = ddsi_sertype_typeinfo (rd->m_rd->type)))
+        ret = DDS_RETCODE_NOT_FOUND;
       break;
+    }
+    case DDS_KIND_WRITER: {
+      struct dds_writer * const wr = (struct dds_writer *) e;
+      if (!(*type_info = ddsi_sertype_typeinfo (wr->m_wr->type)))
+        ret = DDS_RETCODE_NOT_FOUND;
+      break;
+    }
     default:
       ret = DDS_RETCODE_ILLEGAL_OPERATION;
       break;
