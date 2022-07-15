@@ -4611,7 +4611,7 @@ dds_assert_liveliness (
  *
  * @retval DDS_RETCODE_OK
  *             The operation was successful.
- * @retval DDS_BAD_PARAMETER
+ * @retval DDS_RETCODE_BAD_PARAMETER
  *             The entity parameter is not a valid parameter.
  * @retval DDS_RETCODE_ILLEGAL_OPERATION
  *             The operation is invoked on an inappropriate object.
