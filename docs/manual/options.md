@@ -342,7 +342,7 @@ This element specifies the network interfaces for use by Cyclone DDS. Multiple i
 
 
 ##### //CycloneDDS/Domain/General/Interfaces/NetworkInterface
-Attributes: [address](#cycloneddsdomaingeneralinterfacesnetworkinterfaceaddress), [autodetermine](#cycloneddsdomaingeneralinterfacesnetworkinterfaceautodetermine), [multicast](#cycloneddsdomaingeneralinterfacesnetworkinterfacemulticast), [name](#cycloneddsdomaingeneralinterfacesnetworkinterfacename), [prefer_multicast](#cycloneddsdomaingeneralinterfacesnetworkinterfaceprefermulticast), [priority](#cycloneddsdomaingeneralinterfacesnetworkinterfacepriority)
+Attributes: [address](#cycloneddsdomaingeneralinterfacesnetworkinterfaceaddress), [autodetermine](#cycloneddsdomaingeneralinterfacesnetworkinterfaceautodetermine), [multicast](#cycloneddsdomaingeneralinterfacesnetworkinterfacemulticast), [name](#cycloneddsdomaingeneralinterfacesnetworkinterfacename), [prefer_multicast](#cycloneddsdomaingeneralinterfacesnetworkinterfaceprefermulticast), [presence_required](#cycloneddsdomaingeneralinterfacesnetworkinterfacepresencerequired), [priority](#cycloneddsdomaingeneralinterfacesnetworkinterfacepriority)
 
 This element defines a network interface. You can set autodetermine="true" to autoselect the interface CycloneDDS deems to be the highest quality. If autodetermine="false" (the default), you must specify the name and/or address attribute. If you specify both they must match the same interface.
 
@@ -384,6 +384,14 @@ Boolean
 When false (default) Cyclone DDS uses unicast for data whenever there a single unicast suffices. Setting this to true makes it prefer multicasting data, falling back to unicast only when no multicast is available.
 
 The default value is: "false".
+
+
+##### //CycloneDDS/Domain/General/Interfaces/NetworkInterface[@presence_required]
+Boolean
+
+By default all specified network interfaces must be present, if they are missing Cyclone will refuse to start. By explicitly setting this setting for an interface you can instruct Cyclone to simply ignore that interface if it is not present.
+
+The default value is: "true".
 
 
 ##### //CycloneDDS/Domain/General/Interfaces/NetworkInterface[@priority]
@@ -1854,10 +1862,10 @@ While none prevents any message from being written to a DDSI2 log file.
 The categorisation of tracing output is incomplete and hence most of the verbosity levels and categories are not of much use in the current release. This is an ongoing process and here we describe the target situation rather than the current situation. Currently, the most useful verbosity levels are config, fine and finest.
 
 The default value is: "none".
-<!--- generated from ddsi_config.h[618b11f05cc24a67b19d704eb575106d39d3c56a] -->
+<!--- generated from ddsi_config.h[87da706bc9c463a87326e87b311d8291d5761d43] -->
 <!--- generated from ddsi_cfgunits.h[fc550f1620aa20dcd9244ef4e24299d5001efbb4] -->
-<!--- generated from ddsi_cfgelems.h[5069088213adad4334ba1045cf7b14ef65482c0f] -->
-<!--- generated from ddsi_config.c[93784170c086e52b501574ea6a2f9a47ebd4da5f] -->
+<!--- generated from ddsi_cfgelems.h[c54fbee60d780fadc6ebc3c738c5d2c5051e689a] -->
+<!--- generated from ddsi_config.c[98486715ac072b7b3cc3a449d55676be1218c98c] -->
 <!--- generated from _confgen.h[01ffa8a2e53b2309451756861466551cfe28c8ce] -->
 <!--- generated from _confgen.c[13cd40932d695abae1470202a42c18dc4d09ea84] -->
 <!--- generated from generate_rnc.c[a2ec6e48d33ac14a320c8ec3f320028a737920e0] -->

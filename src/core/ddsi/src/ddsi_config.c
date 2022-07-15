@@ -692,7 +692,6 @@ static int if_network_interfaces(struct cfgst *cfgst, void *parent, struct cfgel
   struct ddsi_config_network_interface_listelem *new = if_common (cfgst, parent, cfgelem, sizeof(*new));
   if (new == NULL)
     return -1;
-  new->cfg.automatic = false;
   new->cfg.name = NULL;
   new->cfg.address = NULL;
   return 0;
@@ -2350,6 +2349,7 @@ static struct ddsi_config_network_interface * network_interface_find_or_append(s
   iface->cfg.name = name ? ddsrt_strdup(name) : NULL;
   iface->cfg.address = address ? ddsrt_strdup(address) : NULL;
   iface->cfg.prefer_multicast = false;
+  iface->cfg.presence_required = true;
   iface->cfg.priority.isdefault = 1;
   iface->cfg.multicast = DDSI_BOOLDEF_DEFAULT;
 

@@ -453,6 +453,13 @@ CycloneDDS configuration</xs:documentation>
 &lt;p&gt;The default value is: "false".&lt;/p&gt;</xs:documentation>
         </xs:annotation>
       </xs:attribute>
+      <xs:attribute name="presence_required" type="xs:boolean">
+        <xs:annotation>
+          <xs:documentation>
+&lt;p&gt;By default all specified network interfaces must be present, if they are missing Cyclone will refuse to start. By explicitly setting this setting for an interface you can instruct Cyclone to simply ignore that interface if it is not present.&lt;/p&gt;
+&lt;p&gt;The default value is: "true".&lt;/p&gt;</xs:documentation>
+        </xs:annotation>
+      </xs:attribute>
       <xs:attribute name="priority">
         <xs:annotation>
           <xs:documentation>
@@ -1959,10 +1966,10 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==&lt;br&gt;
     </xs:restriction>
   </xs:simpleType>
 </xs:schema>
-<!--- generated from ddsi_config.h[618b11f05cc24a67b19d704eb575106d39d3c56a] -->
+<!--- generated from ddsi_config.h[87da706bc9c463a87326e87b311d8291d5761d43] -->
 <!--- generated from ddsi_cfgunits.h[fc550f1620aa20dcd9244ef4e24299d5001efbb4] -->
-<!--- generated from ddsi_cfgelems.h[5069088213adad4334ba1045cf7b14ef65482c0f] -->
-<!--- generated from ddsi_config.c[93784170c086e52b501574ea6a2f9a47ebd4da5f] -->
+<!--- generated from ddsi_cfgelems.h[c54fbee60d780fadc6ebc3c738c5d2c5051e689a] -->
+<!--- generated from ddsi_config.c[98486715ac072b7b3cc3a449d55676be1218c98c] -->
 <!--- generated from _confgen.h[01ffa8a2e53b2309451756861466551cfe28c8ce] -->
 <!--- generated from _confgen.c[13cd40932d695abae1470202a42c18dc4d09ea84] -->
 <!--- generated from generate_rnc.c[a2ec6e48d33ac14a320c8ec3f320028a737920e0] -->
