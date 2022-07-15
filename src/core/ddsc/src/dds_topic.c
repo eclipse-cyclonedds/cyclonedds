@@ -1191,4 +1191,18 @@ dds_return_t dds_delete_topic_descriptor (dds_topic_descriptor_t *descriptor)
   return DDS_RETCODE_OK;
 }
 
-#endif
+#else
+
+dds_return_t dds_create_topic_descriptor (dds_find_scope_t scope, dds_entity_t participant, const dds_typeinfo_t *type_info, dds_duration_t timeout, dds_topic_descriptor_t **descriptor)
+{
+  (void) scope; (void) participant; (void) type_info; (void) timeout; (void) descriptor;
+  return DDS_RETCODE_UNSUPPORTED;
+}
+
+dds_return_t dds_delete_topic_descriptor (dds_topic_descriptor_t *descriptor)
+{
+  (void) descriptor;
+  return DDS_RETCODE_UNSUPPORTED;
+}
+
+#endif /* DDS_HAS_TOPIC_DISCOVERY */

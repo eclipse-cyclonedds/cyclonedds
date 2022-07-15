@@ -1543,8 +1543,6 @@ DDS_DEPRECATED_EXPORT dds_entity_t
 dds_find_topic_scoped (dds_find_scope_t scope, dds_entity_t participant, const char *name, dds_duration_t timeout);
 
 
-#ifdef DDS_HAS_TOPIC_DISCOVERY
-
 /**
  * @ingroup topic
  * @brief Creates topic descriptor for the provided type_info
@@ -1565,6 +1563,9 @@ dds_find_topic_scoped (dds_find_scope_t scope, dds_entity_t participant, const c
  *             The participant or the type_id was not found.
  * @retval DDS_RETCODE_TIMEOUT
  *             Type was not resolved within the provided timeout
+ * @retval DDS_RETCODE_UNSUPPORTED
+ *             Cyclone DDS built without type discovery
+ *             (cf. DDS_HAS_TYPE_DISCOVERY)
  */
 DDS_EXPORT dds_return_t
 dds_create_topic_descriptor (dds_find_scope_t scope, dds_entity_t participant, const dds_typeinfo_t *type_info, dds_duration_t timeout, dds_topic_descriptor_t **descriptor);
@@ -1581,11 +1582,12 @@ dds_create_topic_descriptor (dds_find_scope_t scope, dds_entity_t participant, c
  *             The topic descriptor has been succesfully deleted.
  * @retval DDS_RETCODE_BAD_PARAMETER
  *             No descriptor provided
+ * @retval DDS_RETCODE_UNSUPPORTED
+ *             Cyclone DDS built without type discovery
+ *             (cf. DDS_HAS_TYPE_DISCOVERY)
  */
 DDS_EXPORT dds_return_t
 dds_delete_topic_descriptor (dds_topic_descriptor_t *descriptor);
-
-#endif // DDS_HAS_TOPIC_DISCOVERY
 
 /**
  * @brief Returns the name of a given topic.
@@ -4632,9 +4634,6 @@ dds_domain_set_deafmute (
  * make good use of it.
  */
 
-
-#ifdef DDS_HAS_TYPE_DISCOVERY
-
 /**
  * @brief This function resolves the type for the provided type identifier,
  * which can e.g. be retrieved from endpoint or topic discovery data.
@@ -4651,13 +4650,16 @@ dds_domain_set_deafmute (
  *
  * @retval DDS_RETCODE_OK
  *             The operation was successful.
- * @retval DDS_BAD_PARAMETER
+ * @retval DDS_RETCODE_BAD_PARAMETER
  *             The entity parameter is not a valid parameter, type_id or type name
  *             is not provided, or the sertype out parameter is NULL
  * @retval DDS_RETCODE_NOT_FOUND
  *             A type with the provided type_id and type_name was not found
  * @retval DDS_RETCODE_ILLEGAL_OPERATION
  *             The operation is invoked on an inappropriate object.
+ * @retval DDS_RETCODE_UNSUPPORTED
+ *             Cyclone DDS built without type discovery
+ *             (cf. DDS_HAS_TYPE_DISCOVERY)
 */
 DDS_EXPORT dds_return_t
 dds_get_typeobj (
@@ -4677,8 +4679,11 @@ dds_get_typeobj (
  *
  * @retval DDS_RETCODE_OK
  *             The operation was successful.
- * @retval DDS_BAD_PARAMETER
+ * @retval DDS_RETCODE_BAD_PARAMETER
  *             The type_obj parameter is NULL
+ * @retval DDS_RETCODE_UNSUPPORTED
+ *             Cyclone DDS built without type discovery
+ *             (cf. DDS_HAS_TYPE_DISCOVERY)
 */
 DDS_EXPORT dds_return_t
 dds_free_typeobj (
@@ -4697,12 +4702,15 @@ dds_free_typeobj (
  *
  * @retval DDS_RETCODE_OK
  *             The operation was successful.
- * @retval DDS_BAD_PARAMETER
+ * @retval DDS_RETCODE_BAD_PARAMETER
  *             The type_info parameter is null
  * @retval DDS_RETCODE_NOT_FOUND
  *             The entity does not have type information set
  * @retval DDS_RETCODE_ILLEGAL_OPERATION
  *             The operation is invoked on an inappropriate object.
+ * @retval DDS_RETCODE_UNSUPPORTED
+ *             Cyclone DDS built without type discovery
+ *             (cf. DDS_HAS_TYPE_DISCOVERY)
 */
 DDS_EXPORT dds_return_t
 dds_get_typeinfo (
@@ -4720,14 +4728,15 @@ dds_get_typeinfo (
  *
  * @retval DDS_RETCODE_OK
  *             The operation was successful.
- * @retval DDS_BAD_PARAMETER
+ * @retval DDS_RETCODE_BAD_PARAMETER
  *             The type_info parameter is NULL
+ * @retval DDS_RETCODE_UNSUPPORTED
+ *             Cyclone DDS built without type discovery
+ *             (cf. DDS_HAS_TYPE_DISCOVERY)
 */
 DDS_EXPORT dds_return_t
 dds_free_typeinfo (
   dds_typeinfo_t *type_info);
-
-#endif /* DDS_HAS_TYPE_DISCOVERY */
 
 #if defined (__cplusplus)
 }

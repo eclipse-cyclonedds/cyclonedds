@@ -466,4 +466,18 @@ dds_return_t dds_free_typeobj (dds_typeobj_t *type_obj)
   return DDS_RETCODE_OK;
 }
 
+#else
+
+dds_return_t dds_get_typeobj (dds_entity_t entity, const dds_typeid_t *type_id, dds_duration_t timeout, dds_typeobj_t **type_obj)
+{
+  (void) entity; (void) type_id; (void) timeout; (void) type_obj;
+  return DDS_RETCODE_UNSUPPORTED;
+}
+
+dds_return_t dds_free_typeobj (dds_typeobj_t *type_obj)
+{
+  (void) type_obj;
+  return DDS_RETCODE_UNSUPPORTED;
+}
+
 #endif /* DDS_HAS_TYPE_DISCOVERY */
