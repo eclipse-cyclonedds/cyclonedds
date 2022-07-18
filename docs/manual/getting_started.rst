@@ -92,7 +92,7 @@ This install step copies everything to:
 -  ``<install-location>/lib``
 -  ``<install-location>/bin``
 -  ``<install-location>/include/ddsc``
--  ``<install-location>/share/Cyclone DDS``
+-  ``<install-location>/share/CycloneDDS``
 
 At this point, you are ready to use Eclipse Cyclone DDS in your own
 projects.
@@ -168,7 +168,7 @@ This step will copies everything to:
 -  ``<install-location>/lib``
 -  ``<install-location>/bin``
 -  ``<install-location>/include/ddsc``
--  ``<install-location>/share/Cyclone DDS``
+-  ``<install-location>/share/CycloneDDS``
 
 At this point, you are ready to use Eclipse Cyclone DDS in your
 projects.
@@ -308,7 +308,7 @@ interface card. This is one of the most common issues on machine
 configurations with multiple network interface cards.
 
 This default behavior can be overridden by updating the property
-``//Cyclone DDS/Domain/General/``
+``//CycloneDDS/Domain/General/``
 
 ``NetworkInterfaceAddress`` in a deployment file (e.g.
 ``cyclonedds.xml``) that you created to point to it through an OS
@@ -425,7 +425,7 @@ out-of-the-box. There are two important reasons to choose this means:
 
 In order to use CMake you need to provide a ``CMakeLists.txt``. A sample
 CMakeList file can be found within
-``<install-location>/share/Cyclone DDS/examples/helloworld/``
+``<install-location>/share/CycloneDDS/examples/helloworld/``
 
 The content of the ``CMakeLists.txt`` is:
 
@@ -433,14 +433,14 @@ The content of the ``CMakeLists.txt`` is:
 
     cmake_minimum_required(VERSION 3.5)
 
-    if (NOT TARGET Cyclone DDS::ddsc)
+    if (NOT TARGET CycloneDDS::ddsc)
         # Find the Cyclone DDS package. If it is not in a default location, try
         # finding it relative to the example where it most likely resides.
-        find_package(Cyclone DDS REQUIRED PATHS
+        find_package(CycloneDDS REQUIRED PATHS
     "${CMAKE_SOURCE_DIR}/../../")
     endif()
 
-    # This is a convenience function, provided by the Cyclone DDS package,
+    # This is a convenience function, provided by the CycloneDDS package,
     # that will supply a library target related the the given idl file.
     # In short, it takes the idl file, generates the source files with
     # the proper data types and compiles them into a library.
@@ -452,8 +452,8 @@ The content of the ``CMakeLists.txt`` is:
 
     # Both executables need to be linked to the idl data type library and
     # the ddsc API library.
-    target_link_libraries(HelloworldPublisher HelloWorldData_lib Cyclone DDS::ddsc)
-    target_link_libraries(HelloworldSubscriber HelloWorldData_lib Cyclone DDS::ddsc)
+    target_link_libraries(HelloworldPublisher HelloWorldData_lib CycloneDDS::ddsc)
+    target_link_libraries(HelloworldSubscriber HelloWorldData_lib CycloneDDS::ddsc)
 
 To build a Cyclone based application you need to link your business code
 with:
@@ -480,10 +480,10 @@ is built with the CMake ``target_link_libraries()`` call. This call
 combines the ``ddsc`` lib, the datatype helper lib, and the application
 code lib.
 
-**Note:** CMake attempts to find the ``Cyclone DDS`` CMake package in the
+**Note:** CMake attempts to find the ``CycloneDDS`` CMake package in the
 default location, two levels above the current source directory. Every
 path and dependencies is automatically set. CMake uses the default
-locations to locate the code Cyclone DDS package.
+locations to locate the code CycloneDDS package.
 
 Building the Hello World! Example
 '''''''''''''''''''''''''''''''''
@@ -495,7 +495,7 @@ On Linux
 
 It's good practice to build examples or applications out-of-source by
 creating a ``build`` directory in the
-``cyclonedds/build/install/share/Cyclone DDS/examples/helloworld``
+``cyclonedds/build/install/share/CycloneDDS/examples/helloworld``
 directory.
 
 Configure the build environment:
@@ -1527,8 +1527,7 @@ installed on your machine.
    Windows, Xcode on macOS);
 -  `Git <https://git-scm.com/>`__ version control system,
    `CMake <https://cmake.org/download/>`__\ (version 3.7 or later);
--  Eclipse Cyclone DDS;
--  CXX IDL compiler.
+-  Eclipse Cyclone DDS
 
 The installation of `Eclipse Cyclone
 DDS <#installing-eclipse-cyclone-dds>`__ with the C language support
@@ -1589,7 +1588,7 @@ This copies everything to:
 -  ``<cyclonedds-cxx-install-location>/lib``
 -  ``<cyclonedds-cxx-install-location>/bin``
 -  ``<cyclonedds-cxx-install-location>/include/ddsc``
--  ``<cyclonedds-cxx-install-location>/share/Cyclone DDS CXX``
+-  ``<cyclonedds-cxx-install-location>/share/CycloneDDS CXX``
 
 At this point, you are ready to use Eclipse Cyclone DDS CXX in your
 projects.
@@ -1670,7 +1669,7 @@ This copies everything to:
 -  ``<cyclonedds-cxx-install-location>/lib``
 -  ``<cyclonedds-cxx-install-location>/bin``
 -  ``<cyclonedds-cxx-install-location>/include/ddsc``
--  ``<cyclonedds-cxx-install-location>/share/Cyclone DDS CXX``
+-  ``<cyclonedds-cxx-install-location>/share/CycloneDDS CXX``
 
 At this point, you are ready to use Eclipse Cyclone DDS CXX in your
 projects.
@@ -1836,7 +1835,7 @@ To test your installation, the *Hello World* example can be used. The
 code of this application is detailed in the next chapter.
 
 The *DDS CXX Hello World* example can be found in the
-``<cyclonedds-cxx-install-location>/share/Cyclone DDS CXX/helloworld``
+``<cyclonedds-cxx-install-location>/share/CycloneDDS CXX/helloworld``
 directory for both Linux and Windows. This chapter describes the example
 build process using the CMake.
 
@@ -1899,7 +1898,7 @@ the CMake ``target_link_libraries()`` statement which links the ddscxx
 lib, the datatype wrapper classes lib (e.g ``ddscxxHelloWorldData_lib``)
 and the application code lib.
 
-The CMake tries to find the ``Cyclone DDS`` and ``Cyclone DDS CXX``
+The CMake tries to find the ``CycloneDDS`` and ``CycloneDDSCXX``
 CMake packages, the details regarding how to locate those packages are
 described in the next section. When the packages are found, every path
 and dependencies are automatically set.
