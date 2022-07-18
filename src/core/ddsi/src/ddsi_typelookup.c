@@ -27,6 +27,8 @@
 #include "dds/ddsi/ddsi_xt_typelookup.h"
 #include "dds/ddsi/ddsi_typelookup.h"
 #include "dds/ddsi/ddsi_typelib.h"
+#include "dds/ddsi/ddsi_typebuilder.h"
+#include "dds/ddsi/ddsi_cdrstream.h"
 #include "dds/ddsi/q_gc.h"
 #include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_protocol.h"
@@ -64,7 +66,7 @@ static int32_t tl_request_get_deps (struct ddsi_domaingv * const gv, struct ddsr
   {
     struct ddsi_type *dep_type = ddsi_type_lookup_locked (gv, &dep->dep_type_id);
     assert (dep_type);
-    if (!ddsi_type_resolved (gv, dep_type, false))
+    if (!ddsi_type_resolved_locked (gv, dep_type, DDSI_TYPE_IGNORE_DEPS))
     {
       assert (ddsi_typeid_is_hash (&dep_type->xt.id));
       ddsrt_hh_add (deps, &dep_type->xt.id);
@@ -92,7 +94,7 @@ static uint32_t deps_typeid_hash (const void *type_id)
   return hash32;
 }
 
-static dds_return_t create_tl_request_msg (struct ddsi_domaingv * const gv, DDS_Builtin_TypeLookup_Request *request, const struct writer *wr, const ddsi_guid_t *proxypp_guid, struct ddsi_type *type, bool include_deps)
+static dds_return_t create_tl_request_msg (struct ddsi_domaingv * const gv, DDS_Builtin_TypeLookup_Request *request, const struct writer *wr, const ddsi_guid_t *proxypp_guid, struct ddsi_type *type, ddsi_type_include_deps_t resolve_deps)
 {
   int32_t cnt = 0;
   uint32_t index = 0;
@@ -111,9 +113,9 @@ static dds_return_t create_tl_request_msg (struct ddsi_domaingv * const gv, DDS_
     instance_name_guid->prefix.u[0], instance_name_guid->prefix.u[1], instance_name_guid->prefix.u[2], instance_name_guid->entityid.u);
   request->data._d = DDS_Builtin_TypeLookup_getTypes_HashId;
 
-  if (!ddsi_type_resolved (gv, type, false))
+  if (!ddsi_type_resolved_locked (gv, type, DDSI_TYPE_IGNORE_DEPS))
     cnt++;
-  if (include_deps)
+  if (resolve_deps == DDSI_TYPE_INCLUDE_DEPS)
   {
     deps = ddsrt_hh_new (1, deps_typeid_hash, deps_typeid_equal);
     cnt += tl_request_get_deps (gv, deps, 0, type);
@@ -127,13 +129,13 @@ static dds_return_t create_tl_request_msg (struct ddsi_domaingv * const gv, DDS_
       goto err;
     }
 
-    if (!ddsi_type_resolved (gv, type, false))
+    if (!ddsi_type_resolved_locked (gv, type, DDSI_TYPE_IGNORE_DEPS))
     {
       ddsi_typeid_copy_impl (&request->data._u.getTypes.type_ids._buffer[index++], &type->xt.id.x);
       type->state = DDSI_TYPE_REQUESTED;
     }
 
-    if (include_deps)
+    if (resolve_deps == DDSI_TYPE_INCLUDE_DEPS)
     {
       struct ddsrt_hh_iter iter;
       for (ddsi_typeid_t *tid = ddsrt_hh_iter_first (deps, &iter); tid; tid = ddsrt_hh_iter_next (&iter))
@@ -142,12 +144,12 @@ static dds_return_t create_tl_request_msg (struct ddsi_domaingv * const gv, DDS_
   }
 
 err:
-  if (include_deps)
+  if (resolve_deps == DDSI_TYPE_INCLUDE_DEPS)
     ddsrt_hh_free (deps);
   return (dds_return_t) cnt;
 }
 
-bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const ddsi_typeid_t *type_id, const ddsi_guid_t *proxypp_guid, bool include_deps)
+bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const ddsi_typeid_t *type_id, const ddsi_guid_t *proxypp_guid, ddsi_type_include_deps_t deps)
 {
   struct ddsi_typeid_str tidstr;
   assert (ddsi_typeid_is_hash (type_id));
@@ -161,7 +163,7 @@ bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const ddsi_typeid_t 
     return false;
   }
 
-  if (!include_deps && (type->state == DDSI_TYPE_REQUESTED || ddsi_type_resolved (gv, type, false)))
+  if (deps != DDSI_TYPE_INCLUDE_DEPS && (type->state == DDSI_TYPE_REQUESTED || ddsi_type_resolved_locked (gv, type, DDSI_TYPE_IGNORE_DEPS)))
   {
     // type lookup is pending or the type is already resolved, so we'll return true
     // to indicate that the type request is done (or not required)
@@ -180,7 +182,7 @@ bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const ddsi_typeid_t 
 
   DDS_Builtin_TypeLookup_Request request;
   type->request_seqno++;
-  dds_return_t n = create_tl_request_msg (gv, &request, wr, proxypp_guid, type, include_deps);
+  dds_return_t n = create_tl_request_msg (gv, &request, wr, proxypp_guid, type, deps);
   if (n <= 0)
   {
     GVTRACE (n == 0 ? "no resolvable types" : "out of memory");
@@ -286,7 +288,7 @@ void ddsi_tl_handle_request (struct ddsi_domaingv *gv, struct ddsi_serdata *d)
     }
     GVTRACE (" id %s", ddsi_make_typeid_str_impl (&tidstr, type_id));
     const struct ddsi_type *type = ddsi_type_lookup_locked_impl (gv, type_id);
-    if (type && ddsi_type_resolved (gv, type, false))
+    if (type && ddsi_type_resolved_locked (gv, type, DDSI_TYPE_IGNORE_DEPS))
     {
       types._buffer = ddsrt_realloc (types._buffer, (types._length + 1) * sizeof (*types._buffer));
       ddsi_typeid_copy_impl (&types._buffer[types._length].type_identifier, type_id);
@@ -332,7 +334,7 @@ void ddsi_tl_add_types (struct ddsi_domaingv *gv, const DDS_Builtin_TypeLookup_R
          object should not be stored as there is no endpoint using this type */
       continue;
     }
-    if (ddsi_type_resolved (gv, type, false))
+    if (ddsi_type_resolved_locked (gv, type, DDSI_TYPE_IGNORE_DEPS))
     {
       GVTRACE (" already resolved\n");
       continue;
@@ -349,24 +351,13 @@ void ddsi_tl_add_types (struct ddsi_domaingv *gv, const DDS_Builtin_TypeLookup_R
       else
       {
         GVTRACE (" resolved complete type %s\n", ddsi_make_typeid_str_impl (&str, &r.type_identifier));
-
-        // FIXME: create sertype from received (complete) type object, check if it exists and register if not
-        // bool sertype_new = false;
-        // struct ddsi_sertype *st = ...
-        // ddsrt_mutex_lock (&gv->sertypes_lock);
-        // struct ddsi_sertype *existing_sertype = ddsi_sertype_lookup_locked (gv, &st->c);
-        // if (existing_sertype == NULL)
-        // {
-        //   ddsi_sertype_register_locked (gv, &st->c);
-        //   sertype_new = true;
-        // }
-        // ddsi_sertype_unref_locked (gv, &st->c); // unref because both init_from_ser and sertype_lookup/register refcounts the type
-        // ddsrt_mutex_unlock (&gv->sertypes_lock);
-        // type->sertype = &st->c; // refcounted by sertype_register/lookup
-
         ddsi_type_get_gpe_matches (gv, type, gpe_match_upd, n_match_upd);
         resolved = true;
       }
+    }
+    else
+    {
+      GVTRACE (" failed to add typeobj\n");
     }
   }
   if (resolved)

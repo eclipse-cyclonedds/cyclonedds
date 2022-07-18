@@ -1646,9 +1646,18 @@ generate_type_meta_ser_impl (
 
     if ((ret = get_typeid_with_size (&tidws, tm->ti_minimal, tm->to_minimal)) < 0)
       goto err_dep;
-    if ((ret = add_to_seq ((dds_sequence_t *) &type_information->minimal.dependent_typeids, &tidws, sizeof (tidws))) < 0)
-      goto err_dep;
-    type_information->minimal.dependent_typeid_count++;
+
+    /* Minimal type ids can be equal for different types (e.g. only type name differs for an typedef),
+       so check if the type id is already in the list and don't add duplicates */
+    bool found = false;
+    for (uint32_t n = 0; !found && n < type_information->minimal.dependent_typeids._length; n++)
+      found = !ddsi_typeid_compare_impl (&type_information->minimal.dependent_typeids._buffer[n].type_id, &tidws.type_id);
+    if (!found)
+    {
+      if ((ret = add_to_seq ((dds_sequence_t *) &type_information->minimal.dependent_typeids, &tidws, sizeof (tidws))) < 0)
+        goto err_dep;
+      type_information->minimal.dependent_typeid_count++;
+    }
 
     if ((ret = get_typeid_with_size (&tidws, tm->ti_complete, tm->to_complete)) < 0)
       goto err_dep;

@@ -276,7 +276,6 @@ struct ddsi_type {
   struct xt_type xt;                            /* wrapper for XTypes type id/obj */
   ddsrt_avl_node_t avl_node;
   enum ddsi_type_state state;
-  const struct ddsi_sertype *sertype;           /* sertype associated with the type identifier, NULL if type is unresolved or not used as a top-level type */
   seqno_t request_seqno;                        /* sequence number of the last type lookup request message */
   struct ddsi_type_proxy_guid_list proxy_guids; /* administration for proxy endpoints (not proxy topics) that are using this type */
   uint32_t refc;                                /* refcount for this record */
@@ -300,6 +299,7 @@ DDS_EXPORT bool ddsi_typeid_is_none_impl (const struct DDS_XTypes_TypeIdentifier
 DDS_EXPORT void ddsi_xt_get_typeobject_impl (const struct xt_type *xt, struct DDS_XTypes_TypeObject *to);
 DDS_EXPORT dds_return_t ddsi_type_ref_id_locked_impl (struct ddsi_domaingv *gv, struct ddsi_type **type, const struct DDS_XTypes_TypeIdentifier *type_id);
 DDS_EXPORT struct ddsi_type * ddsi_type_lookup_locked_impl (struct ddsi_domaingv *gv, const struct DDS_XTypes_TypeIdentifier *type_id);
+DDS_EXPORT const struct DDS_XTypes_TypeObject * ddsi_typemap_typeobj (const ddsi_typemap_t *tmap, const struct DDS_XTypes_TypeIdentifier *type_id);
 
 DDS_EXPORT bool ddsi_typeid_is_hash_impl (const struct DDS_XTypes_TypeIdentifier *type_id);
 DDS_EXPORT bool ddsi_typeid_is_minimal_impl (const struct DDS_XTypes_TypeIdentifier *type_id);

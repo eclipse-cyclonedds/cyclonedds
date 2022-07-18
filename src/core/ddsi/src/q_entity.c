@@ -2820,7 +2820,7 @@ static bool topickind_qos_match_p_lock (
 #ifdef DDS_HAS_TYPE_DISCOVERY
   if (req_type_id)
   {
-    (void) ddsi_tl_request_type (gv, req_type_id, proxypp_guid, true);
+    (void) ddsi_tl_request_type (gv, req_type_id, proxypp_guid, DDSI_TYPE_INCLUDE_DEPS);
     return false;
   }
 #endif
@@ -5835,25 +5835,20 @@ err:
   return tpd;
 }
 
-dds_return_t lookup_topic_definition_by_name (struct ddsi_domaingv *gv, const char * topic_name, struct ddsi_topic_definition **tpd)
+dds_return_t lookup_topic_definition (struct ddsi_domaingv *gv, const char * topic_name, const ddsi_typeid_t *type_id, struct ddsi_topic_definition **tpd)
 {
   assert (tpd != NULL);
-  *tpd = NULL;
   struct ddsrt_hh_iter it;
   dds_return_t ret = DDS_RETCODE_OK;
+  *tpd = NULL;
   ddsrt_mutex_lock (&gv->topic_defs_lock);
   for (struct ddsi_topic_definition *tpd1 = ddsrt_hh_iter_first (gv->topic_defs, &it); tpd1; tpd1 = ddsrt_hh_iter_next (&it))
   {
-    if (!strcmp (tpd1->xqos->topic_name, topic_name))
+    if (!strcmp (tpd1->xqos->topic_name, topic_name) &&
+        (ddsi_typeid_is_none (type_id) || ((tpd1->xqos->present & QP_TYPE_INFORMATION) && !ddsi_typeid_compare (type_id, ddsi_typeinfo_complete_typeid (tpd1->xqos->type_information)))))
     {
-      if (*tpd == NULL)
-        *tpd = tpd1;
-      else
-      {
-        *tpd = NULL;
-        ret = DDS_RETCODE_PRECONDITION_NOT_MET;
-        break;
-      }
+      *tpd = tpd1;
+      break;
     }
   }
   ddsrt_mutex_unlock (&gv->topic_defs_lock);
@@ -6066,7 +6061,6 @@ static int proxy_endpoint_common_init (struct entity_common *e, struct proxy_end
   {
     c->type_pair = NULL;
   }
-  c->type = NULL;
 #endif
 
   if (plist->present & PP_GROUP_GUID)
@@ -6113,10 +6107,6 @@ err:
 static void proxy_endpoint_common_fini (struct entity_common *e, struct proxy_endpoint_common *c)
 {
   unref_proxy_participant (c->proxypp, c);
-#ifdef DDS_HAS_TYPE_DISCOVERY
-  if (c->type != NULL)
-    ddsi_sertype_unref ((struct ddsi_sertype *) c->type);
-#endif
   ddsi_xqos_fini (c->xqos);
   ddsrt_free (c->xqos);
   unref_addrset (c->as);

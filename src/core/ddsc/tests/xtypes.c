@@ -697,6 +697,24 @@ static void mod_uniondisc (dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectPair 
   type_id_obj_seq->_buffer[0].type_object._u.minimal._u.union_type.discriminator.common.type_id._d = DDS_XTypes_TK_FLOAT32;
 }
 
+static void mod_unionmembers (dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectPair *type_id_obj_seq, uint32_t kind)
+{
+  assert (kind == DDS_XTypes_EK_MINIMAL);
+  (void) kind;
+  assert (type_id_obj_seq->_buffer[0].type_object._u.minimal._d == DDS_XTypes_TK_UNION);
+  assert (type_id_obj_seq->_buffer[0].type_object._u.minimal._u.union_type.member_seq._length == 2);
+  type_id_obj_seq->_buffer[0].type_object._u.minimal._u.union_type.member_seq._buffer[0].common.member_flags |= DDS_XTypes_IS_DEFAULT;
+}
+
+static void mod_arraybound (dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectPair *type_id_obj_seq, uint32_t kind)
+{
+  assert (kind == DDS_XTypes_EK_MINIMAL);
+  (void) kind;
+  assert (type_id_obj_seq->_buffer[0].type_object._u.minimal._d == DDS_XTypes_TK_STRUCTURE);
+  assert (type_id_obj_seq->_buffer[0].type_object._u.minimal._u.struct_type.member_seq._buffer[0].common.member_type_id._d == DDS_XTypes_TI_PLAIN_ARRAY_SMALL);
+  type_id_obj_seq->_buffer[0].type_object._u.minimal._u.struct_type.member_seq._buffer[0].common.member_type_id._u.array_sdefn.array_bound_seq._buffer[0] = 5;
+}
+
 static void modify_type_meta (dds_topic_descriptor_t *dst_desc, const dds_topic_descriptor_t *src_desc, typeobj_modify mod, bool update_typeinfo, uint32_t kind)
 {
   memcpy (dst_desc, src_desc, sizeof (*dst_desc));
@@ -782,10 +800,12 @@ CU_TheoryDataPoints (ddsc_xtypes, invalid_type_object_local) = {
   CU_DataPoints (const char *,                    "invalid flag, non-matching typeid",
   /*                                              |               */"invalid flag, matching typeid",
   /*                                              |                |               */"invalid inheritance",
-  /*                                              |                |                |              */"invalid union discr"),
-  CU_DataPoints (const dds_topic_descriptor_t *,  &D(to_toplevel), &D(to_toplevel), &D(to_inherit), &D(to_uniondisc) ),
-  CU_DataPoints (typeobj_modify,                  mod_toplevel,    mod_toplevel,    mod_inherit,    mod_uniondisc    ),
-  CU_DataPoints (bool,                            false,           true,            true,           true             ),
+  /*                                              |                |                |              */"invalid union discr",
+  /*                                              |                |                |               |                */"union multiple default",
+  /*                                              |                |                |               |                 |                   */"array bound overflow"),
+  CU_DataPoints (const dds_topic_descriptor_t *,  &D(to_toplevel), &D(to_toplevel), &D(to_inherit), &D(to_uniondisc), &D(to_unionmembers), &D(to_arraybound) ),
+  CU_DataPoints (typeobj_modify,                  mod_toplevel,    mod_toplevel,    mod_inherit,    mod_uniondisc,    mod_unionmembers,    mod_arraybound    ),
+  CU_DataPoints (bool,                            false,           true,            true,           true,             true,                true              ),
 };
 #undef D
 
@@ -1004,4 +1024,32 @@ CU_Test (ddsc_xtypes, resolve_dep_type, .init = xtypes_init, .fini = xtypes_fini
   ddsrt_free (tmap);
   ddsrt_free (desc.type_information.data);
   ddsrt_free (desc.type_mapping.data);
+}
+
+CU_Test (ddsc_xtypes, get_type_info, .init = xtypes_init, .fini = xtypes_fini)
+{
+  char topic_name[100];
+  create_unique_topic_name ("ddsc_xtypes", topic_name, sizeof (topic_name));
+
+  dds_entity_t topic = dds_create_topic (g_participant1, &XSpace_XType1_desc, topic_name, NULL, NULL);
+  CU_ASSERT_FATAL (topic > 0);
+  dds_entity_t wr = dds_create_writer (g_participant1, topic, NULL, NULL);
+  CU_ASSERT_FATAL (wr > 0);
+  dds_entity_t rd = dds_create_reader (g_participant1, topic, NULL, NULL);
+  CU_ASSERT_FATAL (rd > 0);
+
+  dds_typeinfo_t *type_info_tp, *type_info_wr, *type_info_rd;
+  dds_return_t ret;
+  ret = dds_get_typeinfo (topic, &type_info_tp);
+  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+  ret = dds_get_typeinfo (wr, &type_info_wr);
+  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+  ret = dds_get_typeinfo (rd, &type_info_rd);
+  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+  CU_ASSERT_FATAL (ddsi_typeinfo_equal (type_info_tp, type_info_wr, DDSI_TYPE_INCLUDE_DEPS));
+  CU_ASSERT_FATAL (ddsi_typeinfo_equal (type_info_tp, type_info_rd, DDSI_TYPE_INCLUDE_DEPS));
+
+  dds_free_typeinfo (type_info_tp);
+  dds_free_typeinfo (type_info_wr);
+  dds_free_typeinfo (type_info_rd);
 }

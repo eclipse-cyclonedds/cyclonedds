@@ -510,7 +510,6 @@ struct proxy_endpoint_common
   seqno_t seq; /* sequence number of most recent SEDP message */
 #ifdef DDS_HAS_TYPE_DISCOVERY
   struct ddsi_type_pair *type_pair;
-  const struct ddsi_sertype * type; /* sertype for data this endpoint reads/writes */
 #endif
 #ifdef DDS_HAS_SECURITY
   nn_security_info_t security_info;
@@ -818,7 +817,7 @@ dds_return_t delete_topic (struct ddsi_domaingv *gv, const struct ddsi_guid *gui
 
 int topic_definition_equal (const struct ddsi_topic_definition *tpd_a, const struct ddsi_topic_definition *tpd_b);
 uint32_t topic_definition_hash (const struct ddsi_topic_definition *tpd);
-dds_return_t lookup_topic_definition_by_name (struct ddsi_domaingv *gv, const char * topic_name, struct ddsi_topic_definition **tpd);
+dds_return_t lookup_topic_definition (struct ddsi_domaingv *gv, const char * topic_name, const ddsi_typeid_t *type_id, struct ddsi_topic_definition **tpd);
 dds_return_t ddsi_new_proxy_topic (struct proxy_participant *proxypp, seqno_t seq, const ddsi_guid_t *guid, const ddsi_typeid_t *type_id_minimal, const ddsi_typeid_t *type_id, struct dds_qos *qos, ddsrt_wctime_t timestamp);
 struct proxy_topic *lookup_proxy_topic (struct proxy_participant *proxypp, const ddsi_guid_t *guid);
 void update_proxy_topic (struct proxy_participant *proxypp, struct proxy_topic *proxytp, seqno_t seq, struct dds_qos *xqos, ddsrt_wctime_t timestamp);
