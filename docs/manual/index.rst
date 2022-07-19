@@ -18,7 +18,7 @@ Welcome to Eclipse Cyclone DDS's documentation!
    :maxdepth: 3
    :caption: Contents
 
-   GettingStartedGuide/index
+   getting_started
    config
    security
    shared_memory
