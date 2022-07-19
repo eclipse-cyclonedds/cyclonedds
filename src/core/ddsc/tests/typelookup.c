@@ -361,6 +361,11 @@ CU_Test(ddsc_typelookup, api_resolve, .init = typelookup_init, .fini = typelooku
   dds_free (type_name);
 }
 
+// the definition of `ddsi_typeid_t` is well hidden, but we need it if we want to
+// have a static assertion that an intentional but weird memset doesn't go out of
+// bounds
+#include "dds/ddsi/ddsi_xt_impl.h"
+
 CU_Test(ddsc_typelookup, api_resolve_invalid, .init = typelookup_init, .fini = typelookup_fini)
 {
   char name[100];
@@ -388,6 +393,8 @@ CU_Test(ddsc_typelookup, api_resolve_invalid, .init = typelookup_init, .fini = t
 
   /* confirm that invalid type id cannot be resolved */
   struct dds_entity *e;
+  DDSRT_STATIC_ASSERT (sizeof (*type_id) >= 8);
+  // coverity[suspicious_sizeof]
   memset (type_id, 0xff, 8);
   CU_ASSERT_EQUAL_FATAL (dds_entity_pin (g_participant2, &e), 0);
   struct ddsi_type *type;
