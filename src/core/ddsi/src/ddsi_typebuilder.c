@@ -455,10 +455,7 @@ static dds_return_t typebuilder_add_type (struct typebuilder_data *tbd, uint32_t
     case DDS_XTypes_TK_BITMASK: {
       uint64_t bits = 0;
       for (uint32_t n = 0; n < type->xt._u.bitmask.bitflags.length; n++)
-      {
-        assert (type->xt._u.bitmask.bitflags.seq[n].position >= 0);
         bits |= 1llu << type->xt._u.bitmask.bitflags.seq[n].position;
-      }
       tb_type->type_code = DDS_OP_VAL_BMK;
       tb_type->args.bitmask_args.bits_l = (uint32_t) (bits & 0xffffffffu);
       tb_type->args.bitmask_args.bits_h = (uint32_t) (bits >> 32);
