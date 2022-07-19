@@ -1555,120 +1555,159 @@ static uint32_t add_to_key_size (uint32_t keysize, uint32_t field_size, bool dhe
   return sz;
 }
 
-static dds_return_t typebuilder_get_keys (struct typebuilder_data *tbd, struct typebuilder_ops *ops, struct dds_key_descriptor **key_desc)
+static dds_return_t typebuilder_get_keys_push_ops (struct typebuilder_data *tbd, struct typebuilder_ops *ops, struct typebuilder_key const ***p_keys_by_id)
 {
-  dds_return_t ret = DDS_RETCODE_OK;
-  if ((ret = get_keys_aggrtype (tbd, NULL, &tbd->toplevel_type, false)))
-    return ret;
+  dds_return_t ret;
+  assert (tbd->n_keys > 0);
 
-  if (tbd->n_keys)
+  struct typebuilder_key const **keys_by_id;
+  if (!(keys_by_id = ddsrt_malloc (tbd->n_keys * sizeof (*keys_by_id))))
+    return DDS_RETCODE_OUT_OF_RESOURCES;
+  *p_keys_by_id = keys_by_id;
+
+  for (uint32_t k = 0; k < tbd->n_keys; k++)
+    keys_by_id[k] = &tbd->keys[k];
+  qsort ((struct typebuilder_key **) keys_by_id, tbd->n_keys, sizeof (*keys_by_id), key_id_cmp);
+
+  // key ops (sorted by member index)
+  for (uint32_t k = 0; k < tbd->n_keys; k++)
   {
-    struct typebuilder_key **keys_by_id;
-    if (!(keys_by_id = ddsrt_malloc (tbd->n_keys * sizeof (*keys_by_id))))
-      return DDS_RETCODE_OUT_OF_RESOURCES;
-    if (!(*key_desc = ddsrt_malloc (tbd->n_keys * sizeof (**key_desc))))
+    struct typebuilder_key *key = &tbd->keys[k];
+    assert (key->path && key->path->parts && key->path->n_parts);
+    key->key_index = k;
+
+    key->kof_idx = ops->index;
+    if ((ret = push_op_arg (ops, DDS_OP_KOF)) != 0)
+      goto err;
+
+    uint32_t n_key_offs = 0;
+    bool inherit_mutable = false;
+    for (uint32_t n = 0; n < key->path->n_parts; n++)
     {
-      ddsrt_free (keys_by_id);
-      return DDS_RETCODE_OUT_OF_RESOURCES;
-    }
-
-    for (uint32_t k = 0; k < tbd->n_keys; k++)
-      keys_by_id[k] = &tbd->keys[k];
-    qsort (keys_by_id, tbd->n_keys, sizeof (*keys_by_id), key_id_cmp);
-
-    // key ops (sorted by member index)
-    for (uint32_t k = 0; k < tbd->n_keys; k++)
-    {
-      struct typebuilder_key *key = &tbd->keys[k];
-      assert (key->path && key->path->parts && key->path->n_parts);
-      key->key_index = k;
-
-      key->kof_idx = ops->index;
-      push_op_arg (ops, DDS_OP_KOF);
-
-      uint32_t n_key_offs = 0;
-      bool inherit_mutable = false;
-      for (uint32_t n = 0; n < key->path->n_parts; n++)
+      switch (key->path->parts[n].kind)
       {
-        switch (key->path->parts[n].kind)
-        {
-          case KEY_PATH_PART_REGULAR:
-            push_op_arg (ops, (inherit_mutable ? key->path->parts[n].member->parent->insn_offs : 0u) + key->path->parts[n].member->insn_offs);
-            inherit_mutable = false;
-            n_key_offs++;
-            break;
-          case KEY_PATH_PART_INHERIT:
-            push_op_arg (ops, 0u);
-            inherit_mutable = false;
-            n_key_offs++;
-            break;
-          case KEY_PATH_PART_INHERIT_MUTABLE:
-            inherit_mutable = true;
-            break;
-        }
-      }
-      OR_OP (key->kof_idx, n_key_offs);
-    }
-
-    uint32_t keysz_xcdr1 = 0, keysz_xcdr2 = 0;
-    for (uint32_t k = 0; k < tbd->n_keys; k++)
-    {
-      // size XCDR2: using key definition order
-      struct typebuilder_key *key_xcdr1 = &tbd->keys[k];
-      keysz_xcdr1 = add_to_key_size (keysz_xcdr1, key_xcdr1->path->parts[key_xcdr1->path->n_parts - 1].member->type.size, false,
-          key_xcdr1->path->parts[key_xcdr1->path->n_parts - 1].member->type.cdr_align, XCDR1_MAX_ALIGN);
-
-      // size XCDR2: using member id sort order
-      struct typebuilder_key *key_xcdr2 = keys_by_id[k];
-      const struct typebuilder_struct_member *key_member = key_xcdr2->path->parts[key_xcdr2->path->n_parts - 1].member;
-      bool dheader = key_member->type.type_code == DDS_OP_VAL_ARR &&
-          !(key_member->type.args.collection_args.element_type.type->type_code == DDS_OP_VAL_BLN || key_member->type.args.collection_args.element_type.type->type_code <= DDS_OP_VAL_8BY);
-      keysz_xcdr2 = add_to_key_size (keysz_xcdr2, key_member->type.size, dheader,
-          key_xcdr2->path->parts[key_xcdr2->path->n_parts - 1].member->type.cdr_align, XCDR2_MAX_ALIGN);
-    }
-
-    if (keysz_xcdr1 > 0 && keysz_xcdr1 <= DDS_FIXED_KEY_MAX_SIZE)
-      tbd->fixed_key_xcdr1 = true;
-    if (keysz_xcdr2 > 0 && keysz_xcdr2 <= DDS_FIXED_KEY_MAX_SIZE)
-      tbd->fixed_key_xcdr2 = true;
-
-    // build key descriptor list (keys sorted by member id)
-    for (uint32_t k = 0; k < tbd->n_keys; k++)
-    {
-      struct typebuilder_key *key = keys_by_id[k];
-      (*key_desc)[k] = (struct dds_key_descriptor) { .m_name = ddsrt_malloc (key->path->name_len + 1), .m_offset = key->kof_idx, .m_idx = key->key_index };
-      if (!(*key_desc)[k].m_name)
-      {
-        ret = DDS_RETCODE_OUT_OF_RESOURCES;
-        ddsrt_free (*key_desc);
-        ddsrt_free (keys_by_id);
-        goto err;
-      }
-
-      size_t name_csr = 0;
-      for (uint32_t p = 0; p < key->path->n_parts; p++)
-      {
-        if (name_csr > 0 && key->path->parts[p].kind != KEY_PATH_PART_INHERIT_MUTABLE)
-        {
-          (void) ddsrt_strlcpy ((char *) (*key_desc)[k].m_name + name_csr, KEY_NAME_SEP, (key->path->name_len + 1) - name_csr);
-          name_csr += strlen (KEY_NAME_SEP);
-        }
-        if (key->path->parts[p].kind == KEY_PATH_PART_INHERIT)
-        {
-          (void) ddsrt_strlcpy ((char *) (*key_desc)[k].m_name + name_csr, STRUCT_BASE_MEMBER_NAME, (key->path->name_len + 1) - name_csr);
-          name_csr += strlen (STRUCT_BASE_MEMBER_NAME);
-        }
-        else if (key->path->parts[p].kind == KEY_PATH_PART_REGULAR)
-        {
-          (void) ddsrt_strlcpy ((char *) (*key_desc)[k].m_name + name_csr, key->path->parts[p].member->member_name, (key->path->name_len + 1) - name_csr);
-          name_csr += strlen (key->path->parts[p].member->member_name);
-        }
+        case KEY_PATH_PART_REGULAR:
+          if ((ret = push_op_arg (ops, (inherit_mutable ? key->path->parts[n].member->parent->insn_offs : 0u) + key->path->parts[n].member->insn_offs)) != 0)
+            goto err;
+          inherit_mutable = false;
+          n_key_offs++;
+          break;
+        case KEY_PATH_PART_INHERIT:
+          if ((ret = push_op_arg (ops, 0u)) != 0)
+            goto err;
+          inherit_mutable = false;
+          n_key_offs++;
+          break;
+        case KEY_PATH_PART_INHERIT_MUTABLE:
+          inherit_mutable = true;
+          break;
       }
     }
-    ddsrt_free (keys_by_id);
+    OR_OP (key->kof_idx, n_key_offs);
   }
+  return DDS_RETCODE_OK;
 
 err:
+  ddsrt_free ((void *) keys_by_id);
+  return ret;
+}
+
+static void typebuilder_get_keys_calc_size (const struct typebuilder_data *tbd, struct typebuilder_key const * const *keys_by_id, uint32_t *p_keysz_xcdr1, uint32_t *p_keysz_xcdr2)
+{
+  uint32_t keysz_xcdr1 = 0, keysz_xcdr2 = 0;
+  for (uint32_t k = 0; k < tbd->n_keys; k++)
+  {
+    // size XCDR2: using key definition order
+    const struct typebuilder_key *key_xcdr1 = &tbd->keys[k];
+    keysz_xcdr1 = add_to_key_size (keysz_xcdr1, key_xcdr1->path->parts[key_xcdr1->path->n_parts - 1].member->type.size, false,
+                                   key_xcdr1->path->parts[key_xcdr1->path->n_parts - 1].member->type.cdr_align, XCDR1_MAX_ALIGN);
+
+    // size XCDR2: using member id sort order
+    const struct typebuilder_key *key_xcdr2 = keys_by_id[k];
+    const struct typebuilder_struct_member *key_member = key_xcdr2->path->parts[key_xcdr2->path->n_parts - 1].member;
+    bool dheader = key_member->type.type_code == DDS_OP_VAL_ARR &&
+    !(key_member->type.args.collection_args.element_type.type->type_code == DDS_OP_VAL_BLN || key_member->type.args.collection_args.element_type.type->type_code <= DDS_OP_VAL_8BY);
+    keysz_xcdr2 = add_to_key_size (keysz_xcdr2, key_member->type.size, dheader,
+                                   key_xcdr2->path->parts[key_xcdr2->path->n_parts - 1].member->type.cdr_align, XCDR2_MAX_ALIGN);
+  }
+  *p_keysz_xcdr1 = keysz_xcdr1;
+  *p_keysz_xcdr2 = keysz_xcdr2;
+}
+
+static char *typebuilder_get_keys_make_name (const struct typebuilder_key *key)
+{
+  char *name = ddsrt_malloc (key->path->name_len + 1);
+  if (!name)
+    return NULL;
+  size_t name_csr = 0;
+  for (uint32_t p = 0; p < key->path->n_parts; p++)
+  {
+    if (name_csr > 0 && key->path->parts[p].kind != KEY_PATH_PART_INHERIT_MUTABLE)
+    {
+      (void) ddsrt_strlcpy (name + name_csr, KEY_NAME_SEP, (key->path->name_len + 1) - name_csr);
+      name_csr += strlen (KEY_NAME_SEP);
+    }
+    if (key->path->parts[p].kind == KEY_PATH_PART_INHERIT)
+    {
+      (void) ddsrt_strlcpy (name + name_csr, STRUCT_BASE_MEMBER_NAME, (key->path->name_len + 1) - name_csr);
+      name_csr += strlen (STRUCT_BASE_MEMBER_NAME);
+    }
+    else if (key->path->parts[p].kind == KEY_PATH_PART_REGULAR)
+    {
+      (void) ddsrt_strlcpy (name + name_csr, key->path->parts[p].member->member_name, (key->path->name_len + 1) - name_csr);
+      name_csr += strlen (key->path->parts[p].member->member_name);
+    }
+  }
+  return name;
+}
+
+static dds_return_t typebuilder_get_keys_build_descriptor (const struct typebuilder_data *tbd, struct typebuilder_key const * const *keys_by_id, struct dds_key_descriptor **key_desc)
+{
+  // build key descriptor list (keys sorted by member id)
+  if (!(*key_desc = ddsrt_malloc (tbd->n_keys * sizeof (**key_desc))))
+    return DDS_RETCODE_OUT_OF_RESOURCES;
+  for (uint32_t k = 0; k < tbd->n_keys; k++)
+  {
+    struct typebuilder_key const * key = keys_by_id[k];
+    (*key_desc)[k] = (struct dds_key_descriptor) {
+      .m_name = typebuilder_get_keys_make_name (key),
+      .m_offset = key->kof_idx,
+      .m_idx = key->key_index
+    };
+    if (!(*key_desc)[k].m_name)
+    {
+      for (uint32_t i = 0; i < k; i++)
+        ddsrt_free ((char *) (*key_desc)[k].m_name); // cast const away, inherited from ye olden days
+      ddsrt_free (*key_desc);
+      return DDS_RETCODE_OUT_OF_RESOURCES;
+    }
+  }
+  return DDS_RETCODE_OK;
+}
+
+static dds_return_t typebuilder_get_keys (struct typebuilder_data *tbd, struct typebuilder_ops *ops, struct dds_key_descriptor **key_desc)
+{
+  dds_return_t ret;
+  if ((ret = get_keys_aggrtype (tbd, NULL, &tbd->toplevel_type, false)))
+    return ret;
+  if (tbd->n_keys == 0)
+    return ret;
+
+  struct typebuilder_key const **keys_by_id;
+  if ((ret = typebuilder_get_keys_push_ops (tbd, ops, &keys_by_id)) != 0)
+    return ret;
+
+  uint32_t keysz_xcdr1, keysz_xcdr2;
+  typebuilder_get_keys_calc_size (tbd, keys_by_id, &keysz_xcdr1, &keysz_xcdr2);
+
+  if (keysz_xcdr1 > 0 && keysz_xcdr1 <= DDS_FIXED_KEY_MAX_SIZE)
+    tbd->fixed_key_xcdr1 = true;
+  if (keysz_xcdr2 > 0 && keysz_xcdr2 <= DDS_FIXED_KEY_MAX_SIZE)
+    tbd->fixed_key_xcdr2 = true;
+
+  // build key descriptor list (keys sorted by member id)
+  ret = typebuilder_get_keys_build_descriptor (tbd, keys_by_id, key_desc);
+  ddsrt_free ((void *) keys_by_id);
   return ret;
 }
 
