@@ -109,7 +109,6 @@ Cyclone DDS CI results are [public](https://dev.azure.com/eclipse-cyclonedds/cyc
 - macOS 10.15 with clang 12
 - macOS 10.15 with clang 12 while targeting macOS 10.12
 - Windows Server 2019 with Visual Studio 2019
-- Windows Server 2019 with gcc 10 (mingw)
 
 These are run with a mixture of debug, debug-with-address sanitizer and release builds.
 
