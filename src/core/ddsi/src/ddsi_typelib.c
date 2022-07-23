@@ -60,7 +60,10 @@ ddsi_typeinfo_t * ddsi_typeinfo_dup (const ddsi_typeinfo_t *src)
     dst->x.minimal.dependent_typeids._release = true;
     dst->x.minimal.dependent_typeids._buffer = ddsrt_calloc (dst->x.minimal.dependent_typeids._length, sizeof (*dst->x.minimal.dependent_typeids._buffer));
     for (uint32_t n = 0; n < dst->x.minimal.dependent_typeids._length; n++)
+    {
       ddsi_typeid_copy_impl (&dst->x.minimal.dependent_typeids._buffer[n].type_id, &src->x.minimal.dependent_typeids._buffer[n].type_id);
+      dst->x.minimal.dependent_typeids._buffer[n].typeobject_serialized_size = src->x.minimal.dependent_typeids._buffer[n].typeobject_serialized_size;
+    }
   }
 
   ddsi_typeid_copy_impl (&dst->x.complete.typeid_with_size.type_id, &src->x.complete.typeid_with_size.type_id);
@@ -71,7 +74,10 @@ ddsi_typeinfo_t * ddsi_typeinfo_dup (const ddsi_typeinfo_t *src)
     dst->x.complete.dependent_typeids._release = true;
     dst->x.complete.dependent_typeids._buffer = ddsrt_calloc (dst->x.complete.dependent_typeids._length, sizeof (*dst->x.complete.dependent_typeids._buffer));
     for (uint32_t n = 0; n < dst->x.complete.dependent_typeids._length; n++)
+    {
       ddsi_typeid_copy_impl (&dst->x.complete.dependent_typeids._buffer[n].type_id, &src->x.complete.dependent_typeids._buffer[n].type_id);
+      dst->x.complete.dependent_typeids._buffer[n].typeobject_serialized_size = src->x.complete.dependent_typeids._buffer[n].typeobject_serialized_size;
+    }
   }
 
   return dst;
