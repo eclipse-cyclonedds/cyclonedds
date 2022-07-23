@@ -698,77 +698,169 @@ static dds_return_t get_typeid_with_size (DDS_XTypes_TypeIdentifierWithSize *typ
   return DDS_RETCODE_OK;
 }
 
-static dds_return_t get_typeid_with_deps (struct ddsi_domaingv *gv, DDS_XTypes_TypeIdentifierWithDependencies *typeid_with_deps, const struct ddsi_type *type, ddsi_typeid_kind_t kind)
+static dds_return_t DDS_XTypes_TypeIdentifierWithDependencies_deps_init (DDS_XTypes_TypeIdentifierWithDependencies *x, uint32_t n_deps)
 {
-  dds_return_t ret;
-  DDS_XTypes_TypeObject to;
-  ddsi_typeid_t ti;
-  struct ddsi_type_dep tmpl, *dep = &tmpl;
-  uint32_t n_deps = 0, n = 0;
-
-  ddsi_xt_get_typeobject_kind_impl (&type->xt, &to, kind);
-  if ((ret = ddsi_typeobj_get_hash_id (&to, &ti)))
-    goto err;
-#ifndef NDEBUG
-  struct ddsi_type *tmp_type = ddsi_type_lookup_locked (gv, &ti);
-  assert (tmp_type);
-#endif
-  if ((ret = get_typeid_with_size (&typeid_with_deps->typeid_with_size, &ti.x, &to)))
-    goto err;
-  memset (&tmpl, 0, sizeof (tmpl));
-  ddsi_typeid_copy (&tmpl.src_type_id, &ti);
-
-  while ((dep = ddsrt_avl_lookup_succ (&ddsi_typedeps_treedef, &gv->typedeps, dep)) && !ddsi_typeid_compare (&ti, &dep->src_type_id))
-    n_deps += ddsi_typeid_is_hash (&dep->dep_type_id) ? 1 : 0;
-  assert (n_deps <= INT32_MAX);
-
-  if (n_deps > 0)
+  x->dependent_typeid_count = 0;
+  x->dependent_typeids._release = true;
+  x->dependent_typeids._length = 0;
+  x->dependent_typeids._maximum = n_deps;
+  if (n_deps == 0)
+    x->dependent_typeids._buffer = NULL;
+  else
   {
-    typeid_with_deps->dependent_typeids._release = true;
-    typeid_with_deps->dependent_typeids._buffer = ddsrt_calloc (n_deps, sizeof (*typeid_with_deps->dependent_typeids._buffer));
-    dep = &tmpl;
-    while ((dep = ddsrt_avl_lookup_succ (&ddsi_typedeps_treedef, &gv->typedeps, dep)) && !ddsi_typeid_compare (&ti, &dep->src_type_id))
+    if ((x->dependent_typeids._buffer = ddsrt_calloc (n_deps, sizeof (*x->dependent_typeids._buffer))) == NULL)
+      return DDS_RETCODE_OUT_OF_RESOURCES;
+  }
+  return DDS_RETCODE_OK;
+}
+
+static dds_return_t DDS_XTypes_TypeIdentifierWithDependencies_deps_append (DDS_XTypes_TypeIdentifierWithDependencies *x, const DDS_XTypes_TypeIdentifier *ti, const DDS_XTypes_TypeObject *to)
+{
+  assert (x->dependent_typeid_count >= 0  && (uint32_t) x->dependent_typeid_count == x->dependent_typeids._length);
+  assert (x->dependent_typeids._length < x->dependent_typeids._maximum);
+  dds_return_t ret;
+  if ((ret = get_typeid_with_size (&x->dependent_typeids._buffer[x->dependent_typeids._length], ti, to)))
+    return ret;
+  // if identical to one already present, ignore it (needed for minimal typeobjects)
+  for (uint32_t i = 0; i < x->dependent_typeids._length; i++)
+  {
+    if (ddsi_typeid_compare_impl (&x->dependent_typeids._buffer[i].type_id, &x->dependent_typeids._buffer[x->dependent_typeids._length].type_id) == 0)
     {
-      /* XTypes spec 7.6.3.2.1: The TypeIdentifiers included in the TypeInformation shall include only direct HASH TypeIdentifiers,
-         so we'll skip both fully descriptive and indirect hash identifiers (kind DDSI_TYPEID_KIND_PLAIN_COLLECTION_MINIMAL and
-         DDSI_TYPEID_KIND_PLAIN_COLLECTION_COMPLETE) */
-      if (!ddsi_typeid_is_hash (&dep->dep_type_id))
-        continue;
-
-      typeid_with_deps->dependent_typeid_count++;
-      typeid_with_deps->dependent_typeids._length++;
-      typeid_with_deps->dependent_typeids._maximum++;
-
-      DDS_XTypes_TypeObject to_dep;
-      struct ddsi_type *dep_type = ddsi_type_lookup_locked (gv, &dep->dep_type_id);
-      ddsi_xt_get_typeobject_kind_impl (&dep_type->xt, &to_dep, kind);
-      if ((ret = get_typeid_with_size (&typeid_with_deps->dependent_typeids._buffer[n++], &dep->dep_type_id.x, &to_dep)))
-      {
-        ddsi_typeobj_fini_impl (&to_dep);
-        for (uint32_t i = 0; i < n - 1; i++)
-          ddsi_typeid_fini_impl (&typeid_with_deps->dependent_typeids._buffer[i].type_id);
-        ddsrt_free (typeid_with_deps->dependent_typeids._buffer);
-        goto err;
-      }
-      ddsi_typeobj_fini_impl (&to_dep);
+      assert (x->dependent_typeids._buffer[i].typeobject_serialized_size == x->dependent_typeids._buffer[x->dependent_typeids._length].typeobject_serialized_size);
+      return DDS_RETCODE_OK;
     }
   }
+  x->dependent_typeid_count++;
+  x->dependent_typeids._length++;
+  return DDS_RETCODE_OK;
+}
 
-err:
-  ddsi_typeid_fini (&tmpl.src_type_id);
-  ddsi_typeid_fini (&ti);
-  ddsi_typeobj_fini_impl (&to);
+static void DDS_XTypes_TypeIdentifierWithDependencies_deps_fini (DDS_XTypes_TypeIdentifierWithDependencies *x)
+{
+  for (uint32_t i = 0; i < x->dependent_typeids._length; i++)
+    ddsi_typeid_fini_impl (&x->dependent_typeids._buffer[i].type_id);
+  ddsrt_free (&x->dependent_typeids._buffer);
+}
+
+static dds_return_t ddsi_typeinfo_deps_init (struct ddsi_typeinfo *type_info, uint32_t n_deps)
+{
+  dds_return_t ret;
+  if ((ret = DDS_XTypes_TypeIdentifierWithDependencies_deps_init (&type_info->x.minimal, n_deps)) != 0)
+    return ret;
+  if ((ret = DDS_XTypes_TypeIdentifierWithDependencies_deps_init (&type_info->x.complete, n_deps)) != 0)
+    DDS_XTypes_TypeIdentifierWithDependencies_deps_fini (&type_info->x.minimal);
+  return ret;
+}
+
+static dds_return_t ddsi_typeinfo_deps_append (struct ddsi_domaingv *gv, struct ddsi_typeinfo *type_info, const struct ddsi_type_dep *dep)
+{
+  struct ddsi_type const * const dep_type = ddsi_type_lookup_locked (gv, &dep->dep_type_id);
+  DDS_XTypes_TypeObject to_dep_m;
+  ddsi_typeid_t ti_dep_m;
+  dds_return_t ret;
+
+  ddsi_xt_get_typeobject_kind_impl (&dep_type->xt, &to_dep_m, DDSI_TYPEID_KIND_MINIMAL);
+  if ((ret = ddsi_typeobj_get_hash_id (&to_dep_m, &ti_dep_m)))
+  {
+    ddsi_typeobj_fini_impl (&to_dep_m);
+    return ret;
+  }
+
+  DDS_XTypes_TypeObject to_dep_c;
+  ddsi_xt_get_typeobject_kind_impl (&dep_type->xt, &to_dep_c, DDSI_TYPEID_KIND_COMPLETE);
+
+  // append dedups because two different complete type ids can map to the same minimal type id
+  // (it does so inefficiently, but ... well ... good enough for now)
+  if ((ret = DDS_XTypes_TypeIdentifierWithDependencies_deps_append (&type_info->x.minimal, &ti_dep_m.x, &to_dep_m)) == 0)
+    ret = DDS_XTypes_TypeIdentifierWithDependencies_deps_append (&type_info->x.complete, &dep_type->xt.id.x, &to_dep_c);
+
+  ddsi_typeobj_fini_impl (&to_dep_c);
+  ddsi_typeobj_fini_impl (&to_dep_m);
+  ddsi_typeid_fini (&ti_dep_m);
+  return ret;
+}
+
+static void ddsi_typeinfo_deps_fini (struct ddsi_typeinfo *type_info)
+{
+  DDS_XTypes_TypeIdentifierWithDependencies_deps_fini (&type_info->x.minimal);
+  DDS_XTypes_TypeIdentifierWithDependencies_deps_fini (&type_info->x.complete);
+}
+
+static dds_return_t ddsi_type_get_typeinfo_toplevel (struct ddsi_domaingv *gv, const struct ddsi_type *type, struct ddsi_typeinfo *type_info)
+{
+  DDS_XTypes_TypeObject to_c, to_m;
+  ddsi_typeid_t ti_m;
+  dds_return_t ret;
+  ddsi_xt_get_typeobject_kind_impl (&type->xt, &to_c, DDSI_TYPEID_KIND_COMPLETE);
+  ddsi_xt_get_typeobject_kind_impl (&type->xt, &to_m, DDSI_TYPEID_KIND_MINIMAL);
+  if ((ret = ddsi_typeobj_get_hash_id (&to_m, &ti_m)))
+    goto err_typeid;
+
+#ifndef NDEBUG
+  {
+    ddsi_typeid_t ti_c;
+    if (ddsi_typeobj_get_hash_id (&to_c, &ti_c) != 0)
+      abort ();
+    assert (ddsi_typeid_compare(&type->xt.id, &ti_c) == 0);
+    ddsi_typeid_fini (&ti_c);
+  }
+  struct ddsi_type *tmp_type = ddsi_type_lookup_locked (gv, &type->xt.id);
+  assert (tmp_type);
+#else
+  (void) gv;
+#endif
+
+  if ((ret = get_typeid_with_size (&type_info->x.minimal.typeid_with_size, &ti_m.x, &to_m)) == 0)
+    ret = get_typeid_with_size (&type_info->x.complete.typeid_with_size, &type->xt.id.x, &to_c);
+
+  ddsi_typeid_fini (&ti_m);
+err_typeid:
+  ddsi_typeobj_fini_impl (&to_c);
+  ddsi_typeobj_fini_impl (&to_m);
   return ret;
 }
 
 dds_return_t ddsi_type_get_typeinfo (struct ddsi_domaingv *gv, const struct ddsi_type *type, struct ddsi_typeinfo *type_info)
 {
-  assert (ddsi_typeid_is_complete (&type->xt.id));
-  memset (type_info, 0, sizeof (*type_info));
   dds_return_t ret;
-  if ((ret = get_typeid_with_deps (gv, &type_info->x.minimal, type, DDSI_TYPEID_KIND_MINIMAL))
-      || (ret = get_typeid_with_deps (gv, &type_info->x.complete, type, DDSI_TYPEID_KIND_COMPLETE)))
-    ddsi_typeinfo_fini (type_info);
+
+  assert (ddsi_typeid_is_complete (&type->xt.id));
+  if ((ret = ddsi_type_get_typeinfo_toplevel (gv, type, type_info)))
+    return ret;
+
+  struct ddsi_type_dep tmpl;
+  memset (&tmpl, 0, sizeof (tmpl));
+  ddsi_typeid_copy (&tmpl.src_type_id, &type->xt.id);
+
+  uint32_t n_deps = 0;
+  struct ddsi_type_dep *dep = &tmpl;
+  while ((dep = ddsrt_avl_lookup_succ (&ddsi_typedeps_treedef, &gv->typedeps, dep)) && !ddsi_typeid_compare (&type->xt.id, &dep->src_type_id))
+    n_deps += ddsi_typeid_is_hash (&dep->dep_type_id) ? 1 : 0;
+  assert (n_deps <= INT32_MAX);
+
+  if ((ret = ddsi_typeinfo_deps_init (type_info, n_deps)))
+  {
+    ddsi_typeid_fini (&tmpl.src_type_id);
+    return ret;
+  }
+
+  dep = &tmpl;
+  while ((dep = ddsrt_avl_lookup_succ (&ddsi_typedeps_treedef, &gv->typedeps, dep)) && !ddsi_typeid_compare (&type->xt.id, &dep->src_type_id))
+  {
+    /* XTypes spec 7.6.3.2.1: The TypeIdentifiers included in the TypeInformation shall include only direct HASH TypeIdentifiers,
+     so we'll skip both fully descriptive and indirect hash identifiers (kind DDSI_TYPEID_KIND_PLAIN_COLLECTION_MINIMAL and
+     DDSI_TYPEID_KIND_PLAIN_COLLECTION_COMPLETE) */
+    if (!ddsi_typeid_is_hash (&dep->dep_type_id))
+      continue;
+    if ((ret = ddsi_typeinfo_deps_append (gv, type_info, dep)) != 0)
+    {
+      ddsi_typeinfo_deps_fini (type_info);
+      ddsi_typeid_fini (&tmpl.src_type_id);
+      return ret;
+    }
+  }
+
+  ddsi_typeid_fini (&tmpl.src_type_id);
   return ret;
 }
 
