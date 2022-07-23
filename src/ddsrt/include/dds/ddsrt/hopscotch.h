@@ -56,10 +56,10 @@ struct ddsrt_hh_iter {
 DDS_EXPORT struct ddsrt_hh *ddsrt_hh_new (uint32_t init_size, ddsrt_hh_hash_fn hash, ddsrt_hh_equals_fn equals) ddsrt_nonnull_all;
 DDS_EXPORT void ddsrt_hh_free (struct ddsrt_hh * __restrict hh) ddsrt_nonnull_all;
 DDS_EXPORT void *ddsrt_hh_lookup (const struct ddsrt_hh * __restrict rt, const void * __restrict keyobject) ddsrt_nonnull_all;
-DDS_EXPORT int ddsrt_hh_add (struct ddsrt_hh * __restrict rt, const void * __restrict data) ddsrt_nonnull_all;
+DDS_EXPORT int ddsrt_hh_add (struct ddsrt_hh * __restrict rt, void * __restrict data) ddsrt_nonnull_all;
 DDS_EXPORT int ddsrt_hh_remove (struct ddsrt_hh * __restrict rt, const void * __restrict keyobject) ddsrt_nonnull_all;
-DDS_EXPORT void ddsrt_hh_add_absent (struct ddsrt_hh * __restrict rt, const void * __restrict data) ddsrt_nonnull_all;
-DDS_EXPORT void ddsrt_hh_remove_present (struct ddsrt_hh * __restrict rt, const void * __restrict keyobject) ddsrt_nonnull_all;
+DDS_EXPORT void ddsrt_hh_add_absent (struct ddsrt_hh * __restrict rt, void * __restrict data) ddsrt_nonnull_all;
+DDS_EXPORT void ddsrt_hh_remove_present (struct ddsrt_hh * __restrict rt, void * __restrict keyobject) ddsrt_nonnull_all;
 DDS_EXPORT void ddsrt_hh_enum (struct ddsrt_hh * __restrict rt, void (*f) (void *a, void *f_arg), void *f_arg) ddsrt_nonnull ((1, 2)); /* may delete a */
 DDS_EXPORT void *ddsrt_hh_iter_first (struct ddsrt_hh * __restrict rt, struct ddsrt_hh_iter * __restrict iter) ddsrt_nonnull_all; /* may delete nodes */
 DDS_EXPORT void *ddsrt_hh_iter_next (struct ddsrt_hh_iter * __restrict iter) ddsrt_nonnull_all;
@@ -84,7 +84,7 @@ struct ddsrt_chh_iter {
 DDS_EXPORT struct ddsrt_chh *ddsrt_chh_new (uint32_t init_size, ddsrt_hh_hash_fn hash, ddsrt_hh_equals_fn equals, ddsrt_hh_buckets_gc_fn gc_buckets, void *gc_buckets_arg);
 DDS_EXPORT void ddsrt_chh_free (struct ddsrt_chh * __restrict hh);
 DDS_EXPORT void *ddsrt_chh_lookup (struct ddsrt_chh * __restrict rt, const void * __restrict keyobject);
-DDS_EXPORT int ddsrt_chh_add (struct ddsrt_chh * __restrict rt, const void * __restrict data);
+DDS_EXPORT int ddsrt_chh_add (struct ddsrt_chh * __restrict rt, void * __restrict data);
 DDS_EXPORT int ddsrt_chh_remove (struct ddsrt_chh * __restrict rt, const void * __restrict keyobject);
 DDS_EXPORT void ddsrt_chh_enum_unsafe (struct ddsrt_chh * __restrict rt, void (*f) (void *a, void *f_arg), void *f_arg); /* may delete a */
 DDS_EXPORT void *ddsrt_chh_iter_first (struct ddsrt_chh * __restrict rt, struct ddsrt_chh_iter *it);
