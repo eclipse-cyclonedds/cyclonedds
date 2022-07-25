@@ -630,13 +630,11 @@ static dds_return_t typebuilder_add_struct (struct typebuilder_data *tbd, struct
   {
     if (!(tb_aggrtype->base_type = ddsrt_calloc (1, sizeof (*tb_aggrtype->base_type))))
     {
-      typebuilder_aggrtype_fini (tb_aggrtype);
       ret = DDS_RETCODE_OUT_OF_RESOURCES;
       goto err;
     }
     if ((ret = typebuilder_add_type (tbd, &sz, &align, tb_aggrtype->base_type, type->xt._u.structure.base_type, false, true)))
     {
-      typebuilder_aggrtype_fini (tb_aggrtype);
       goto err;
     }
 
@@ -663,7 +661,6 @@ static dds_return_t typebuilder_add_struct (struct typebuilder_data *tbd, struct
   tb_aggrtype->detail._struct.n_members = type->xt._u.structure.members.length;
   if (!(tb_aggrtype->detail._struct.members = ddsrt_calloc (tb_aggrtype->detail._struct.n_members, sizeof (*tb_aggrtype->detail._struct.members))))
   {
-    typebuilder_aggrtype_fini (tb_aggrtype);
     ret = DDS_RETCODE_OUT_OF_RESOURCES;
     goto err;
   }
@@ -688,20 +685,17 @@ static dds_return_t typebuilder_add_struct (struct typebuilder_data *tbd, struct
     };
     if (tb_aggrtype->detail._struct.members[n].member_name == NULL)
     {
-      typebuilder_aggrtype_fini (tb_aggrtype);
       ret = DDS_RETCODE_OUT_OF_RESOURCES;
       goto err;
     }
 
     if ((ret = typebuilder_add_type (tbd, &sz, &align, &tb_aggrtype->detail._struct.members[n].type, type->xt._u.structure.members.seq[n].type, is_ext || is_opt, true)))
     {
-      typebuilder_aggrtype_fini (tb_aggrtype);
       goto err;
     }
 
     if (is_key && !supported_key_type (&tb_aggrtype->detail._struct.members[n].type, true))
     {
-      typebuilder_aggrtype_fini (tb_aggrtype);
       ret = DDS_RETCODE_UNSUPPORTED;
       goto err;
     }
@@ -734,7 +728,6 @@ static dds_return_t typebuilder_add_union (struct typebuilder_data *tbd, struct 
 
   if ((ret = typebuilder_add_type (tbd, &disc_sz, &disc_align, &tb_aggrtype->detail._union.disc_type, type->xt._u.union_type.disc_type, false, false)))
   {
-    typebuilder_aggrtype_fini (tb_aggrtype);
     goto err;
   }
   tb_aggrtype->detail._union.disc_size = disc_sz;
@@ -742,7 +735,6 @@ static dds_return_t typebuilder_add_union (struct typebuilder_data *tbd, struct 
   // TODO: support for union (discriminator) as part of a type's key
   if (tb_aggrtype->detail._union.disc_is_key)
   {
-    typebuilder_aggrtype_fini (tb_aggrtype);
     ret = DDS_RETCODE_UNSUPPORTED;
     goto err;
   }
@@ -758,7 +750,6 @@ static dds_return_t typebuilder_add_union (struct typebuilder_data *tbd, struct 
   tb_aggrtype->detail._union.n_cases = n_cases;
   if (!(tb_aggrtype->detail._union.cases = ddsrt_calloc (n_cases, sizeof (*tb_aggrtype->detail._union.cases))))
   {
-    typebuilder_aggrtype_fini (tb_aggrtype);
     ret = DDS_RETCODE_OUT_OF_RESOURCES;
     goto err;
   }
@@ -775,7 +766,6 @@ static dds_return_t typebuilder_add_union (struct typebuilder_data *tbd, struct 
       tb_aggrtype->detail._union.cases[c].disc_value = (uint32_t) type->xt._u.union_type.members.seq[n].label_seq._buffer[l];
       if ((ret = typebuilder_add_type (tbd, &sz, &align, &tb_aggrtype->detail._union.cases[c].type, type->xt._u.union_type.members.seq[n].type, is_ext, false)))
       {
-        typebuilder_aggrtype_fini (tb_aggrtype);
         goto err;
       }
       c++;
@@ -788,7 +778,6 @@ static dds_return_t typebuilder_add_union (struct typebuilder_data *tbd, struct 
       tb_aggrtype->detail._union.cases[c].disc_value = 0;
       if ((ret = typebuilder_add_type (tbd, &sz, &align, &tb_aggrtype->detail._union.cases[c].type, type->xt._u.union_type.members.seq[n].type, is_ext, false)))
       {
-        typebuilder_aggrtype_fini (tb_aggrtype);
         goto err;
       }
       c++;
