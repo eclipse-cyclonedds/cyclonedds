@@ -1,0 +1,22 @@
+struct A {
+  @key
+  string name;
+  string message;
+  unsigned long count;
+};
+
+struct T {
+  short s;
+  long l;
+};
+
+struct B {
+  A a;
+  sequence<T> ts;
+};
+
+struct C {
+  B b;
+  @key
+  short k;
+};
