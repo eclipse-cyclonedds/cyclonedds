@@ -51,6 +51,13 @@ if (ENABLE_TOPIC_DISCOVERY)
       listtopics/readme.rst
     DESTINATION "${CMAKE_INSTALL_EXAMPLESDIR}/listtopics"
     COMPONENT dev)
+  install(
+    FILES
+      dynsub/dynsub.c
+      dynsub/CMakeLists.txt
+      dynsub/readme.rst
+    DESTINATION "${CMAKE_INSTALL_EXAMPLESDIR}/dynsub"
+    COMPONENT dev)
 endif ()
 
 if (ENABLE_SHM)
@@ -70,6 +77,7 @@ add_subdirectory(roundtrip)
 add_subdirectory(throughput)
 if (ENABLE_TOPIC_DISCOVERY)
   add_subdirectory(listtopics)
+  add_subdirectory(dynsub)
 endif ()
 if (ENABLE_SHM)
   add_subdirectory(shm_throughput)
