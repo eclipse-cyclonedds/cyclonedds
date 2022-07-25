@@ -692,16 +692,14 @@ static dds_return_t deser_type_information (void * __restrict dst, struct flagse
   dds_return_t ret = 0;
 
   if (dd->bswap)
-  {
     buf = ddsrt_memdup (dd->buf, dd->bufsz);
-    if (!dds_stream_normalize_data ((char *) buf, &srcoff, (uint32_t) dd->bufsz, dd->bswap, CDR_ENC_VERSION_2, DDS_XTypes_TypeInformation_desc.m_ops))
-    {
-      ret = DDS_RETCODE_BAD_PARAMETER;
-      goto err_normalize;
-    }
-  }
   else
     buf = (unsigned char *) dd->buf;
+  if (!dds_stream_normalize_data ((char *) buf, &srcoff, (uint32_t) dd->bufsz, dd->bswap, CDR_ENC_VERSION_2, DDS_XTypes_TypeInformation_desc.m_ops))
+  {
+    ret = DDS_RETCODE_BAD_PARAMETER;
+    goto err_normalize;
+  }
 
   dds_istream_t is = { .m_buffer = buf, .m_index = 0, .m_size = (uint32_t) dd->bufsz, .m_xcdr_version = CDR_ENC_VERSION_2 };
   ddsi_typeinfo_t const ** x = deser_generic_dst (dst, &dstoff, dds_alignof (ddsi_typeinfo_t *));
