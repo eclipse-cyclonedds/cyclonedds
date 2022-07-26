@@ -73,19 +73,12 @@ jobs:
         topic_discovery: off
         idlc_testing: off # temporary dislabled because of passing -t option to idlc in this test for recursive types
         cc: clang-10
-      'macOS 10.15 with Clang 12 (macOS 10.12, Release, x86_64)':
-        image: macOS-10.15
-        build_type: Release
-        sanitizer: undefined
-        macos_deployment_target: '10.12'
-        ssl: off
-        cc: clang
-      'macOS 10.15 with Clang 12 (Debug, x86_64)':
-        image: macOS-10.15
+      'macOS 11 with Clang 12 (Debug, x86_64)':
+        image: macOS-11
         sanitizer: address,undefined
         cc: clang
-      'macOS 10.15 with Clang 12 (Release, x86_64)':
-        image: macOS-10.15
+      'macOS 11 with Clang 12 (Release, x86_64)':
+        image: macOS-11
         build_type: Release
         sanitizer: undefined
         cc: clang
