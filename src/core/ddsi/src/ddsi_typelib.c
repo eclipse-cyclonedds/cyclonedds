@@ -739,7 +739,7 @@ static void DDS_XTypes_TypeIdentifierWithDependencies_deps_fini (DDS_XTypes_Type
 {
   for (uint32_t i = 0; i < x->dependent_typeids._length; i++)
     ddsi_typeid_fini_impl (&x->dependent_typeids._buffer[i].type_id);
-  ddsrt_free (&x->dependent_typeids._buffer);
+  ddsrt_free (x->dependent_typeids._buffer);
 }
 
 static dds_return_t ddsi_typeinfo_deps_init (struct ddsi_typeinfo *type_info, uint32_t n_deps)
