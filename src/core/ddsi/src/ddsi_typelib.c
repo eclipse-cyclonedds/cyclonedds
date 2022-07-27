@@ -1174,7 +1174,10 @@ ddsi_typeinfo_t *ddsi_type_pair_minimal_info (struct ddsi_domaingv *gv, const st
   if (!(type_info = ddsrt_malloc (sizeof (*type_info))))
     return NULL;
   if (ddsi_type_get_typeinfo (gv, type_pair->minimal, type_info))
+  {
+    ddsrt_free (type_info);
     return NULL;
+  }
   return type_info;
 }
 
@@ -1186,7 +1189,10 @@ ddsi_typeinfo_t *ddsi_type_pair_complete_info (struct ddsi_domaingv *gv, const s
   if (!(type_info = ddsrt_malloc (sizeof (*type_info))))
     return NULL;
   if (ddsi_type_get_typeinfo (gv, type_pair->complete, type_info))
+  {
+    ddsrt_free (type_info);
     return NULL;
+  }
   return type_info;
 }
 
