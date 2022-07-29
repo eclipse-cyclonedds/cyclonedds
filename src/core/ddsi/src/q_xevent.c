@@ -896,8 +896,6 @@ static void handle_xevk_acknack (struct nn_xpack *xp, struct xevent *ev, ddsrt_m
 
   if (!pwr->have_seen_heartbeat)
     msg = make_preemptive_acknack (ev, pwr, rwn, tnow);
-  else if (!(rwn->heartbeat_since_ack || rwn->heartbeatfrag_since_ack))
-    msg = NULL;
   else
     msg = make_and_resched_acknack (ev, pwr, rwn, tnow, false);
   ddsrt_mutex_unlock (&pwr->e.lock);
