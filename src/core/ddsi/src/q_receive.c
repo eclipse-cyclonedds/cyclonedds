@@ -1294,20 +1294,25 @@ static int handle_Heartbeat (struct receiver_state *rst, ddsrt_etime_t tnow, str
     return 1;
   }
 
+  // Inserting a GAP for [1..gap_end_seq) is our way of implementing the processing of
+  // a heartbeat that indicates some data we're still waiting for is no longer available.
+  // (A no-op GAP is thrown away very quickly.)
+  //
+  // By definition that means we need gap_end_seq = firstseq, but the first heartbeat has
+  // to be treated specially because the spec doesn't define anything for a full handshake
+  // establishing a well-defined start point for a reliable session *and* it also defines
+  // that one may have a transient-local writer with a volatile reader, and so the last
+  // sequence number is the only one that can be used to start up a volatile reader ...
+  seqno_t gap_end_seq = firstseq;
   if (!pwr->have_seen_heartbeat)
   {
-    struct nn_rdata *gap;
-    struct nn_rsample_chain sc;
-    int refc_adjust = 0;
-    nn_reorder_result_t res;
-    nn_defrag_notegap (pwr->defrag, 1, lastseq + 1);
-    gap = nn_rdata_newgap (rmsg);
-    res = nn_reorder_gap (&sc, pwr->reorder, gap, 1, lastseq + 1, &refc_adjust);
-    /* proxy writer is not accepting data until it has received a heartbeat, so
-       there can't be any data to deliver */
-    assert (res <= 0);
-    (void) res;
-    nn_fragchain_adjust_refcount (gap, refc_adjust);
+    // Note: if the writer is Cyclone DDS, there will not be any data, for other implementations
+    // anything goes.
+    gap_end_seq = lastseq + 1;
+    // validate_Heartbeat requires that 0 < firstseq <= lastseq+1 (lastseq = firstseq - 1
+    // is the encoding for an empty WHC), this matters here because it guarantees changing
+    // gap_end_seq doesn't lower sequence number.
+    assert (gap_end_seq >= firstseq);
     pwr->have_seen_heartbeat = 1;
   }
 
@@ -1321,7 +1326,7 @@ static int handle_Heartbeat (struct receiver_state *rst, ddsrt_etime_t tnow, str
     pwr->last_fragnum = UINT32_MAX;
   }
 
-  nn_defrag_notegap (pwr->defrag, 1, firstseq);
+  nn_defrag_notegap (pwr->defrag, 1, gap_end_seq);
 
   {
     struct nn_rdata *gap;
@@ -1340,6 +1345,9 @@ static int handle_Heartbeat (struct receiver_state *rst, ddsrt_etime_t tnow, str
         {
           if (wn->filtered)
           {
+            // Content filtering on reader GUID, and the HEARTBEAT destination GUID is
+            // just that one reader, so it makes sense to "trust" the heartbeat and
+            // use the advertised first sequence number in the WHC
             struct nn_reorder *ro = wn->u.not_in_sync.reorder;
             if ((res = nn_reorder_gap (&sc, ro, gap, 1, firstseq, &refc_adjust)) > 0)
               nn_dqueue_enqueue1 (pwr->dqueue, &wn->rd_guid, &sc, res);
@@ -1356,7 +1364,7 @@ static int handle_Heartbeat (struct receiver_state *rst, ddsrt_etime_t tnow, str
 
     if (!filtered)
     {
-      if ((res = nn_reorder_gap (&sc, pwr->reorder, gap, 1, firstseq, &refc_adjust)) > 0)
+      if ((res = nn_reorder_gap (&sc, pwr->reorder, gap, 1, gap_end_seq, &refc_adjust)) > 0)
       {
         if (pwr->deliver_synchronously)
           deliver_user_data_synchronously (&sc, NULL);
@@ -1383,6 +1391,9 @@ static int handle_Heartbeat (struct receiver_state *rst, ddsrt_etime_t tnow, str
             break;
           case PRMSS_OUT_OF_SYNC: {
             struct nn_reorder *ro = wn->u.not_in_sync.reorder;
+            // per-reader "out-of-sync" reorder admins need to use firstseq: they are used
+            // to retrieve transient-local data, hence fast-forwarding to lastseq would
+            // mean they would never need to retrieve any historical data
             if ((res = nn_reorder_gap (&sc, ro, gap, 1, firstseq, &refc_adjust)) > 0)
             {
               if (pwr->deliver_synchronously)
