@@ -28,6 +28,7 @@ if(ENABLE_TYPE_DISCOVERY)
 endif()
 
 set(ddsc_test_sources
+    "asymdisconnect.c"
     "basic.c"
     "builtin_topics.c"
     "cdr.c"
