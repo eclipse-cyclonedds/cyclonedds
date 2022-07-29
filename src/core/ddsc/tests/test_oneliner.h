@@ -231,8 +231,15 @@
  * All entities share the listeners with their global state. Only the latest invocation is visible.
  *
  * @param[in]  ops  Program to execute.
+ * @param[in]  config_override  XML configuration fragment or NULL
  *
  * @return > 0 success, 0 failure, < 0 invalid input
+ */
+int test_oneliner_with_config (const char *ops, const char *config_override);
+
+/** @brief shorthand for test_oneliner_with_config (ops, NULL)
+ * @param[in] ops Program to execute
+ * @return > 0 sucess, 0 failure, < 0 invalid input
  */
 int test_oneliner (const char *ops);
 
@@ -295,13 +302,16 @@ struct oneliner_ctx {
   ddsrt_mutex_t g_mutex;
   ddsrt_cond_t g_cond;
   struct oneliner_cb cb[3];
+  
+  const char *config_override; // optional
 };
 
 /** @brief Initialize a "oneliner test" context
  *
  * @param[out] ctx   context to initialize
+ * @param[in] config_override  XML configuration fragment or NULL
  */
-void test_oneliner_init (struct oneliner_ctx *ctx);
+void test_oneliner_init (struct oneliner_ctx *ctx, const char *config_override);
 
 /** @brief Run a sequence of operations in an initialized context
  *
