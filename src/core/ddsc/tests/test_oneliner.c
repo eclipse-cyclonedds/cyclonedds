@@ -863,6 +863,14 @@ static void make_participant (struct oneliner_ctx *ctx, int ent, dds_qos_t *qos,
 #else
   char* conf = ddsrt_expand_envvars("${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}<Discovery><ExternalDomainId>0</ExternalDomainId></Discovery>", domid);
 #endif
+  if (ctx->config_override)
+  {
+    size_t newsize = strlen (conf) + strlen (ctx->config_override) + 1;
+    char *conf1 = ddsrt_malloc (newsize);
+    (void) snprintf (conf1, newsize, "%s,%s", conf, ctx->config_override);
+    ddsrt_free (conf);
+    conf = conf1;
+  }
   entname_t name;
   dds_entity_t bisub;
   mprintf (ctx, "create domain %"PRIu32, domid);
@@ -1945,7 +1953,7 @@ static void test_oneliner_step1 (struct oneliner_ctx *ctx)
   }
 }
 
-void test_oneliner_init (struct oneliner_ctx *ctx)
+void test_oneliner_init (struct oneliner_ctx *ctx, const char *config_override)
 {
   dds_qos_t *qos = dds_create_qos ();
   dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_MSECS (100));
@@ -1957,6 +1965,7 @@ void test_oneliner_init (struct oneliner_ctx *ctx)
     .qos = qos,
     .entqos = dds_create_qos (),
     .result = 1,
+    .config_override = config_override,
     .cb = {
       [0] = { .ctx = ctx, .list = dds_create_listener (&ctx->cb[0]) },
       [1] = { .ctx = ctx, .list = dds_create_listener (&ctx->cb[1]) },
@@ -2025,13 +2034,18 @@ int test_oneliner_fini (struct oneliner_ctx *ctx)
   return ctx->result;
 }
 
-int test_oneliner (const char *ops)
+int test_oneliner_with_config (const char *ops, const char *config_override)
 {
   struct oneliner_ctx ctx;
-  test_oneliner_init (&ctx);
+  test_oneliner_init (&ctx, config_override);
   mprintf (&ctx, "dotest: %s\n", ops);
   test_oneliner_step (&ctx, ops);
   if (test_oneliner_fini (&ctx) <= 0)
     mfprintf (&ctx, stderr, "FAIL: %s\n", test_oneliner_message (&ctx));
   return ctx.result;
+}
+
+int test_oneliner (const char *ops)
+{
+  return test_oneliner_with_config (ops, NULL);
 }
