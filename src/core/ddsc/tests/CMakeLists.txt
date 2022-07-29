@@ -67,6 +67,7 @@ set(ddsc_test_sources
     "topic_find_local.c"
     "transientlocal.c"
     "types.c"
+    "uninitialized.c"
     "unregister.c"
     "unsupported.c"
     "userdata.c"
