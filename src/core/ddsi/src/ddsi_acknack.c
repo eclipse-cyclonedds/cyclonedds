@@ -403,6 +403,31 @@ struct nn_xmsg *make_and_resched_acknack (struct xevent *ev, struct proxy_writer
     (void) resched_xevent_if_earlier (ev, ddsrt_mtime_add_duration (rwn->t_last_nack, gv->config.nack_delay));
     return NULL;
   }
+  else if (!(rwn->heartbeat_since_ack || rwn->heartbeatfrag_since_ack))
+  {
+    // Not really allowed to send an ACKNACK by the spec, except we do it sometimes to recover
+    // from packet loss after an asymmetrical disconnect where the writer never has any reason
+    // to send a heartbeat
+    switch (aanr)
+    {
+      case AANR_SUPPRESSED_ACK:
+        // handled above
+        assert (0);
+      case AANR_ACK:
+        // we only break the rules if we need retransmits
+        return NULL;
+      case AANR_NACK:
+      case AANR_NACKFRAG_ONLY:
+      case AANR_SUPPRESSED_NACK:
+        // suppress these spontaneous NACKs if they be more frequent than the auto-resched nack_delay
+        if (tnow.v < ddsrt_mtime_add_duration (rwn->t_last_nack, gv->config.auto_resched_nack_delay).v)
+        {
+          (void) resched_xevent_if_earlier (ev, ddsrt_mtime_add_duration (rwn->t_last_nack, gv->config.auto_resched_nack_delay));
+          return NULL;
+        }
+        break;
+    }
+ }
 
   // Committing to sending a message in response: update the state.  Note that there's still a
   // possibility of not sending a message, but that is only in case of failures of some sort.
