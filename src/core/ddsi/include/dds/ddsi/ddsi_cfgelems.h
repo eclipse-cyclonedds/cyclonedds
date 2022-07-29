@@ -1377,7 +1377,7 @@ static struct cfgelem internal_cfgelems[] = {
       "<p>This setting controls the delay between sending identical "
       "acknowledgements.</p>"),
     UNIT("duration")),
-  STRING("AutoReschedNackDelay", NULL, 1, "1 s",
+  STRING("AutoReschedNackDelay", NULL, 1, "3 s",
     MEMBER(auto_resched_nack_delay),
     FUNCTIONS(0, uf_duration_inf, 0, pf_duration),
     DESCRIPTION(

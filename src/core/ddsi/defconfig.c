@@ -68,7 +68,7 @@ void ddsi_config_init_default (struct ddsi_config *cfg)
   cfg->socket_sndbuf_size.max.isdefault = 1;
   cfg->nack_delay = INT64_C (100000000);
   cfg->ack_delay = INT64_C (10000000);
-  cfg->auto_resched_nack_delay = INT64_C (1000000000);
+  cfg->auto_resched_nack_delay = INT64_C (3000000000);
   cfg->preemptive_ack_delay = INT64_C (10000000);
   cfg->ddsi2direct_max_threads = UINT32_C (1);
   cfg->max_sample_size = UINT32_C (2147483647);
@@ -106,7 +106,7 @@ void ddsi_config_init_default (struct ddsi_config *cfg)
 }
 /* generated from ddsi_config.h[618b11f05cc24a67b19d704eb575106d39d3c56a] */
 /* generated from ddsi_cfgunits.h[fc550f1620aa20dcd9244ef4e24299d5001efbb4] */
-/* generated from ddsi_cfgelems.h[2336569264035fa1b1a77474138aab5564d3c893] */
+/* generated from ddsi_cfgelems.h[5069088213adad4334ba1045cf7b14ef65482c0f] */
 /* generated from ddsi_config.c[93784170c086e52b501574ea6a2f9a47ebd4da5f] */
 /* generated from _confgen.h[01ffa8a2e53b2309451756861466551cfe28c8ce] */
 /* generated from _confgen.c[13cd40932d695abae1470202a42c18dc4d09ea84] */
