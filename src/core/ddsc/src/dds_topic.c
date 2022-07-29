@@ -440,21 +440,6 @@ dds_entity_t dds_create_topic_impl (
   if (!allow_dcps && strncmp (name, "DCPS", 4) == 0)
     return DDS_RETCODE_BAD_PARAMETER;
 
-#ifdef DDS_HAS_TYPE_DISCOVERY
-  /* ensure that in case type information is present, both minimal and complete
-     type identifiers are present for the top-level type */
-  ddsi_typeinfo_t *type_info = ddsi_sertype_typeinfo (*sertype);
-  if (type_info != NULL)
-  {
-    if (ddsi_typeid_is_none (ddsi_typeinfo_minimal_typeid (type_info)) || ddsi_typeid_is_none (ddsi_typeinfo_complete_typeid (type_info)))
-      rc = DDS_RETCODE_BAD_PARAMETER;
-    ddsi_typeinfo_fini (type_info);
-    ddsrt_free (type_info);
-    if (rc < 0)
-      return rc;
-  }
-#endif
-
   {
     dds_entity *par_ent;
     if ((rc = dds_entity_pin (participant, &par_ent)) < 0)
@@ -466,6 +451,24 @@ dds_entity_t dds_create_topic_impl (
     }
     pp = (struct dds_participant *) par_ent;
   }
+
+#ifdef DDS_HAS_TYPE_DISCOVERY
+  /* ensure that in case type information is present, both minimal and complete
+     type identifiers are present for the top-level type */
+  ddsi_typeinfo_t *type_info = ddsi_sertype_typeinfo (*sertype);
+  if (type_info != NULL)
+  {
+    if (ddsi_typeid_is_none (ddsi_typeinfo_minimal_typeid (type_info)) || ddsi_typeid_is_none (ddsi_typeinfo_complete_typeid (type_info)))
+      rc = DDS_RETCODE_BAD_PARAMETER;
+    ddsi_typeinfo_fini (type_info);
+    ddsrt_free (type_info);
+    if (rc < 0)
+    {
+      dds_entity_unpin (&pp->m_entity);
+      return rc;
+    }
+  }
+#endif
 
   new_qos = dds_create_qos ();
   if (qos)
