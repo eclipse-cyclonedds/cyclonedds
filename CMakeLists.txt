@@ -9,12 +9,8 @@
 #
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.16)
 project(CycloneDDS VERSION 0.10.0 LANGUAGES C)
-if(CMAKE_VERSION VERSION_LESS 3.12)
-  # GENERATE_EXPORT_HEADER requires a C++ compiler up to version 3.12
-  enable_language(CXX)
-endif()
 
 # Set a default build type if none was specified
 set(default_build_type "RelWithDebInfo")
@@ -177,12 +173,6 @@ if(${CMAKE_GENERATOR} STREQUAL "Xcode")
   set (CMAKE_XCODE_ATTRIBUTE_GCC_WARN_UNUSED_VARIABLE YES)
   set (CMAKE_XCODE_ATTRIBUTE_CLANG_WARN_DOCUMENTATION_COMMENTS YES)
   set (CMAKE_XCODE_ATTRIBUTE_GCC_WARN_ABOUT_MISSING_PROTOTYPES YES)
-endif()
-
-if(CMAKE_VERSION VERSION_LESS 3.13)
-  macro(add_link_options)
-    link_libraries(${ARGV})
-  endmacro()
 endif()
 
 # Make it easy to enable MSVC, Clang's/gcc's analyzers
