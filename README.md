@@ -113,7 +113,7 @@ In order to build Cyclone DDS you need a Linux, Mac or Windows 10 machine (or, w
 
   * C compiler (most commonly GCC on Linux, Visual Studio on Windows, Xcode on macOS);
   * Optionally GIT version control system;
-  * [CMake](https://cmake.org/download/), version 3.10 or later;
+  * [CMake](https://cmake.org/download/), version 3.16 or later;
   * Optionally [OpenSSL](https://www.openssl.org/), preferably version 1.1;
   * Optionally [Eclipse Iceoryx](https://iceoryx.io) version 2.0 for shared memory and zero-copy support;
   * Optionally [Bison](https://www.gnu.org/software/bison/) parser generator. A cached source is checked into the repository.
