@@ -57,6 +57,10 @@ if(ENABLE_SHM)
   endif()
   find_package(iceoryx_binding_c ${iceoryx_required})
   set(ENABLE_SHM ${iceoryx_binding_c_FOUND} CACHE STRING "" FORCE)
+  if(ENABLE_SHM AND APPLE)
+    get_filename_component(iceoryx_libdir "${ICEORYX_LIB}" DIRECTORY)
+    set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_RPATH};${iceoryx_libdir}")
+  endif()
 endif()
 
 # ones that linger in the sources
