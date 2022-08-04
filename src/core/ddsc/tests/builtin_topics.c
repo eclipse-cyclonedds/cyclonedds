@@ -24,8 +24,6 @@ static dds_entity_t g_topic       = 0;
 
 #define MAX_SAMPLES 2
 
-static dds_sample_info_t g_info[MAX_SAMPLES];
-
 static void setup (void)
 {
   const char *config = "\
@@ -183,12 +181,13 @@ CU_Test(ddsc_builtin_topics, read_publication_data, .init = setup, .fini = teard
   dds_return_t ret;
   dds_builtintopic_endpoint_t *data;
   void *samples[MAX_SAMPLES];
+  dds_sample_info_t info[MAX_SAMPLES];
 
   reader = dds_create_reader(g_participant, DDS_BUILTIN_TOPIC_DCPSPUBLICATION, NULL, NULL);
   CU_ASSERT_FATAL(reader > 0);
 
   samples[0] = NULL;
-  ret = dds_read(reader, samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
+  ret = dds_read(reader, samples, info, MAX_SAMPLES, MAX_SAMPLES);
   data = samples[0];
   CU_ASSERT_FATAL(ret > 0);
   CU_ASSERT_STRING_EQUAL_FATAL(data->topic_name, "RoundTrip");
@@ -200,6 +199,7 @@ CU_Test(ddsc_builtin_topics, read_subscription_data, .init = setup, .fini = tear
   dds_entity_t reader;
   dds_return_t ret;
   void * samples[MAX_SAMPLES];
+  dds_sample_info_t info[MAX_SAMPLES];
   const char *exp[] = { "DCPSSubscription", "RoundTrip" };
   unsigned seen = 0;
   dds_qos_t *qos;
@@ -208,7 +208,7 @@ CU_Test(ddsc_builtin_topics, read_subscription_data, .init = setup, .fini = tear
   CU_ASSERT_FATAL(reader > 0);
 
   samples[0] = NULL;
-  ret = dds_read(reader, samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
+  ret = dds_read(reader, samples, info, MAX_SAMPLES, MAX_SAMPLES);
   CU_ASSERT_FATAL(ret == 2);
   qos = dds_create_qos();
   for (int i = 0; i < ret; i++) {
@@ -233,14 +233,14 @@ CU_Test(ddsc_builtin_topics, read_participant_data, .init = setup, .fini = teard
 {
   dds_entity_t reader;
   dds_return_t ret;
-  //dds_builtintopic_participant_t *data;
   void * samples[MAX_SAMPLES];
+  dds_sample_info_t info[MAX_SAMPLES];
 
   reader = dds_create_reader(g_participant, DDS_BUILTIN_TOPIC_DCPSPARTICIPANT, NULL, NULL);
   CU_ASSERT_FATAL(reader > 0);
 
   samples[0] = NULL;
-  ret = dds_read(reader, samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
+  ret = dds_read(reader, samples, info, MAX_SAMPLES, MAX_SAMPLES);
   CU_ASSERT_FATAL(ret > 0);
   dds_return_loan(reader, samples, ret);
 }
@@ -253,7 +253,8 @@ CU_Test(ddsc_builtin_topics, read_topic_data, .init = setup, .fini = teardown)
   dds_entity_t reader = dds_create_reader(g_participant, DDS_BUILTIN_TOPIC_DCPSTOPIC, NULL, NULL);
   CU_ASSERT_FATAL(reader > 0);
   void * samples[MAX_SAMPLES] = { NULL };
-  dds_return_t ret = dds_read(reader, samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
+  dds_sample_info_t info[MAX_SAMPLES];
+  dds_return_t ret = dds_read(reader, samples, info, MAX_SAMPLES, MAX_SAMPLES);
   CU_ASSERT_FATAL(ret >= 0);
   for (int i = 0; i < ret; i++)
   {
