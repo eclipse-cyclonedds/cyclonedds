@@ -10,9 +10,11 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include "dds/dds.h"
+#include "dds/ddsrt/environ.h"
 #include "dds__reader.h"
 #include "test_common.h"
 
+static dds_entity_t g_domain      = 0;
 static dds_entity_t g_participant = 0;
 static dds_entity_t g_subscriber  = 0;
 static dds_entity_t g_publisher   = 0;
@@ -24,40 +26,35 @@ static dds_entity_t g_topic       = 0;
 
 static dds_sample_info_t g_info[MAX_SAMPLES];
 
-static void
-qos_init(void)
+static void setup (void)
 {
+  const char *config = "\
+${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}\
+<Discovery>\
+  <Tag>\\${CYCLONEDDS_PID}</Tag>\
+</Discovery>";
+  char *conf = ddsrt_expand_envvars (config, 0);
+  g_domain = dds_create_domain (0, conf);
+  CU_ASSERT_FATAL (g_domain > 0);
+  ddsrt_free (conf);
+
+  g_participant = dds_create_participant(0, NULL, NULL);
+  CU_ASSERT_FATAL(g_participant > 0);
+  g_topic = dds_create_topic(g_participant, &RoundTripModule_DataType_desc, "RoundTrip", NULL, NULL);
+  CU_ASSERT_FATAL(g_topic > 0);
+  g_subscriber = dds_create_subscriber(g_participant, NULL, NULL);
+  CU_ASSERT_FATAL(g_subscriber > 0);
+  g_publisher = dds_create_publisher(g_participant, NULL, NULL);
+  CU_ASSERT_FATAL(g_publisher > 0);
+  g_writer = dds_create_writer(g_publisher, g_topic, NULL, NULL);
+  CU_ASSERT_FATAL(g_writer > 0);
+  g_reader = dds_create_reader(g_subscriber, g_topic, NULL, NULL);
+  CU_ASSERT_FATAL(g_reader > 0);
 }
 
-static void
-qos_fini(void)
+static void teardown (void)
 {
-}
-
-static void
-setup(void)
-{
-    qos_init();
-
-    g_participant = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
-    CU_ASSERT_FATAL(g_participant > 0);
-    g_topic = dds_create_topic(g_participant, &RoundTripModule_DataType_desc, "RoundTrip", NULL, NULL);
-    CU_ASSERT_FATAL(g_topic > 0);
-    g_subscriber = dds_create_subscriber(g_participant, NULL, NULL);
-    CU_ASSERT_FATAL(g_subscriber > 0);
-    g_publisher = dds_create_publisher(g_participant, NULL, NULL);
-    CU_ASSERT_FATAL(g_publisher > 0);
-    g_writer = dds_create_writer(g_publisher, g_topic, NULL, NULL);
-    CU_ASSERT_FATAL(g_writer > 0);
-    g_reader = dds_create_reader(g_subscriber, g_topic, NULL, NULL);
-    CU_ASSERT_FATAL(g_reader > 0);
-}
-
-static void
-teardown(void)
-{
-    qos_fini();
-    dds_delete(g_participant);
+  dds_delete (g_domain);
 }
 
 enum cdqobe_kind {
