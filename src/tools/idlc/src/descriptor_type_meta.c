@@ -1430,11 +1430,14 @@ emit_sequence(
 
   (void) path;
   /* In case the sequence is not a plain collection type identifier, which means that the
-     sequence itself (not the element type) cannot be expressed by as a (non-hash) type
+     sequence itself (not the element type) cannot be expressed by a (non-hash) type
      identifier but also needs a type object, a hashed type is added for this sequence */
-  assert (!has_fully_descriptive_typeid (node));
   if (has_plain_collection_typeid (node))
     return IDL_VISIT_TYPE_SPEC;
+
+  /* Sequence node should not be a fully descriptive type (which does not need a hashed
+     type identifier. A fully descriptive sequence is handled in emit_declarator */
+  assert (!has_fully_descriptive_typeid (node));
 
   if (revisit) {
     assert (dtm->stack->to_minimal->_u.minimal._d == DDS_XTypes_TK_SEQUENCE);
