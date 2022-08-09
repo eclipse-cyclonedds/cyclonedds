@@ -237,10 +237,11 @@ struct ddsi_config_socket_buf_size {
 };
 
 struct ddsi_config_network_interface {
-  bool automatic;
+  int automatic;
   char *name;
   char *address;
-  bool prefer_multicast;
+  int prefer_multicast;
+  int presence_required;
   enum ddsi_boolean_default multicast;
   struct ddsi_config_maybe_int32 priority;
 };

@@ -53,6 +53,15 @@ static struct cfgelem network_interface_attributes[] = {
       "multicasting data, falling back to unicast only when no multicast "
       "is available.</p>"
     )),
+  BOOL("presence_required", NULL, 1, "true",
+    MEMBEROF(ddsi_config_network_interface_listelem, cfg.presence_required),
+    FUNCTIONS(0, uf_boolean, 0, pf_boolean),
+    DESCRIPTION(
+      "<p>By default all specified network interfaces must be present, if they "
+      "are missing Cyclone will refuse to start. By explicitly setting this setting "
+      "for an interface you can instruct Cyclone to simply ignore that interface if "
+      "it is not present.</p>"
+    )),
   STRING("multicast", NULL, 1, "default",
     MEMBEROF(ddsi_config_network_interface_listelem, cfg.multicast),
     FUNCTIONS(0, uf_boolean_default, 0, pf_boolean_default),

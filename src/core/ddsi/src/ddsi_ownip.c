@@ -306,7 +306,7 @@ fail:
   return false;
 }
 
-static bool match_config_interface (struct ddsi_domaingv * const gv, size_t n_interfaces, struct nn_interface const * const interfaces, const struct ddsi_config_network_interface_listelem *iface, size_t *match)
+static bool match_config_interface (struct ddsi_domaingv * const gv, size_t n_interfaces, struct nn_interface const * const interfaces, const struct ddsi_config_network_interface_listelem *iface, size_t *match, bool required)
 {
   const bool has_name = iface->cfg.name != NULL && iface->cfg.name[0] != '\0';
   const bool has_address = iface->cfg.address != NULL && iface->cfg.address[0] != '\0';
@@ -319,8 +319,13 @@ static bool match_config_interface (struct ddsi_domaingv * const gv, size_t n_in
     enum find_interface_result address_result = find_interface_by_address (gv, iface->cfg.address, n_interfaces, interfaces, &address_match);
 
     if (name_result != FIR_OK || address_result != FIR_OK) {
-      GVERROR ("%s/%s: does not match an available interface\n", iface->cfg.name, iface->cfg.address);
-      return false;
+      if (required) {
+        GVERROR ("%s/%s: does not match an available interface\n", iface->cfg.name, iface->cfg.address);
+        return false;
+      }
+
+      GVWARNING ("%s/%s: optional interface was not found.\n", iface->cfg.name, iface->cfg.address);
+      return true;
     }
     else if (name_match != address_match) {
       GVERROR ("%s/%s: do not match the same interface\n", iface->cfg.name, iface->cfg.address);
@@ -332,14 +337,22 @@ static bool match_config_interface (struct ddsi_domaingv * const gv, size_t n_in
   } else if (has_name) {
     enum find_interface_result name_result = find_interface_by_name (iface->cfg.name, n_interfaces, interfaces, match);
     if (name_result != FIR_OK) {
-      GVERROR ("%s: does not match an available interface\n", iface->cfg.name);
-      return false;
+      if (required) {
+        GVERROR ("%s: does not match an available interface.\n", iface->cfg.name);
+        return false;
+      }
+      GVWARNING ("%s: optional interface was not found.\n", iface->cfg.name);
+      return true;
     }
   } else if (has_address) {
     enum find_interface_result address_result = find_interface_by_address (gv, iface->cfg.address, n_interfaces, interfaces, match);
     if (address_result != FIR_OK) {
-      GVERROR ("%s: does not match an available interface\n", iface->cfg.address);
-      return false;
+      if (required) {
+        GVERROR ("%s: does not match an available interface\n", iface->cfg.address);
+        return false;
+      }
+      GVWARNING ("%s: optional interface was not found.\n", iface->cfg.address);
+      return true;
     }
   } else {
     GVERROR ("Nameless and address-less interface listed in interfaces.\n");
@@ -356,12 +369,12 @@ static bool add_matching_interface (struct ddsi_domaingv *gv, struct interface_p
       return false;
     }
   }
-  
-  act_iface->prefer_multicast = (unsigned int) cfg_iface->cfg.prefer_multicast;
-  
+
+  act_iface->prefer_multicast = ((unsigned) cfg_iface->cfg.prefer_multicast) & 1;
+
   if (!cfg_iface->cfg.priority.isdefault)
     act_iface->priority = cfg_iface->cfg.priority.value;
-  
+
   if (cfg_iface->cfg.multicast != DDSI_BOOLDEF_DEFAULT) {
     if (act_iface->mc_capable && cfg_iface->cfg.multicast == DDSI_BOOLDEF_FALSE) {
       GVLOG (DDS_LC_CONFIG, "disabling multicast on interface %s.", act_iface->name);
@@ -372,7 +385,7 @@ static bool add_matching_interface (struct ddsi_domaingv *gv, struct interface_p
       act_iface->mc_capable = 1;
     }
   }
-  
+
   if (*num_matches == MAX_XMIT_CONNS)
   {
     GVERROR ("too many interfaces specified\n");
@@ -394,7 +407,7 @@ static void log_arbitrary_selection (struct ddsi_domaingv *gv, const struct nn_i
     GVLOG (DDS_LC_INFO, "%s%s", (i == 0) ? "" : ", ", interfaces[maxq_list[i]].name);
   GVLOG (DDS_LC_INFO, "\n");
 }
-  
+
 int find_own_ip (struct ddsi_domaingv *gv)
 {
   char addrbuf[DDSI_LOCSTRLEN];
@@ -440,7 +453,7 @@ int find_own_ip (struct ddsi_domaingv *gv)
       bool has_name = iface->cfg.name != NULL && iface->cfg.name[0] != '\0';
       bool has_address = iface->cfg.address != NULL && iface->cfg.address[0] != '\0';
       if (!iface->cfg.automatic) {
-        ok = match_config_interface(gv, n_interfaces, interfaces, iface, &match);
+        ok = match_config_interface(gv, n_interfaces, interfaces, iface, &match, iface->cfg.presence_required);
       } else if (has_name || has_address) {
         GVERROR ("An autodetermined interface should not have its name or address property specified.\n");
         ok = false;
