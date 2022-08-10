@@ -718,6 +718,8 @@ static dds_return_t xt_valid_type_flags (struct ddsi_domaingv *gv, uint16_t flag
     case DDS_XTypes_TK_UNION:
       if (flags & ~(F|A|M|N|H))
         ret = DDS_RETCODE_BAD_PARAMETER;
+      if (!(flags & (F|A|M)))
+        ret = DDS_RETCODE_BAD_PARAMETER;
       break;
     case DDS_XTypes_TK_ALIAS:
     case DDS_XTypes_TK_BITSET:
@@ -731,6 +733,8 @@ static dds_return_t xt_valid_type_flags (struct ddsi_domaingv *gv, uint16_t flag
     case DDS_XTypes_TK_BITMASK:
       // spec says unused, but this flag is actually used for extensibility
       if (flags & ~(F|A))
+        ret = DDS_RETCODE_BAD_PARAMETER;
+      if (!(flags & (F|A)))
         ret = DDS_RETCODE_BAD_PARAMETER;
       break;
     case DDS_XTypes_TK_ANNOTATION:
