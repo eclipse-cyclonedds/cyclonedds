@@ -1087,8 +1087,13 @@ static void ddsi_type_get_gpe_matches_impl (struct ddsi_domaingv *gv, const stru
 
 void ddsi_type_get_gpe_matches (struct ddsi_domaingv *gv, const struct ddsi_type *type, struct generic_proxy_endpoint ***gpe_match_upd, uint32_t *n_match_upd)
 {
-  if (ddsi_type_resolved_locked (gv, type, DDSI_TYPE_INCLUDE_DEPS))
-    ddsi_type_get_gpe_matches_impl (gv, type, gpe_match_upd, n_match_upd);
+  /* No check for resolved state of dependencies for this type at this point: matching for
+     endpoints using this type as top-level type (or dependent type, via reverse
+     dependencies) will be re-tried, and missing dependencies will be requested from there.
+     This should be changed so that dependencies are requested from this point, which will
+     also fix type resolvind triggered by find_topic, in case an incomplete type lookup
+     response is received and additional types need to be requested. */
+  ddsi_type_get_gpe_matches_impl (gv, type, gpe_match_upd, n_match_upd);
   struct ddsi_type_dep tmpl, *reverse_dep = &tmpl;
   memset (&tmpl, 0, sizeof (tmpl));
   ddsi_typeid_copy (&tmpl.dep_type_id, &type->xt.id);
