@@ -1360,6 +1360,12 @@ static dds_return_t resolve_ops_offsets_union (const struct typebuilder_union *t
   dds_return_t ret = DDS_RETCODE_OK;
   for (uint32_t m = 0; m < tb_union->n_cases; m++)
   {
+    /* In case its not the last label and the member type is not an aggregated
+       type defined outside the current union, the offset to the in-union type
+       ops is already set (or not required, for primitive types which are inline
+       in the current JEQ4) */
+    if (!tb_union->cases[m].is_last_label && tb_union->cases[m].type.type_code != DDS_OP_VAL_STU && tb_union->cases[m].type.type_code != DDS_OP_VAL_UNI)
+      continue;
     if ((ret = resolve_ops_offsets_type (&tb_union->cases[m].type, ops)))
       return ret;
   }
