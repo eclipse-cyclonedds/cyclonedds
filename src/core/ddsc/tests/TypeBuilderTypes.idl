@@ -338,4 +338,33 @@ module TypeBuilderTypes {
     arr_s2 f1[2];
   };
 
+
+  struct t24_1 {
+    long f1;
+  };
+  union t24_2 switch(octet) {
+    case 1: long a;
+    case 2: case 3: t24_1 b;
+    case 4: case 5: sequence<t24_1> c;
+  };
+  union t24 switch(octet) {
+    case 1: case 2:
+      sequence<t24_1> u1;
+    case 3: case 4:
+      t24_1 u2;
+    case 5: case 6:
+      t24_1 u3[2];
+    case 7: case 8:
+      sequence<t24_1> u4[2];
+
+    case 10: case 11:
+      sequence<t24_2> s1;
+    case 12: case 13:
+      t24_2 s2;
+
+    case 99:
+    default:
+      sequence<t24_1> u99;
+  };
+
 };
