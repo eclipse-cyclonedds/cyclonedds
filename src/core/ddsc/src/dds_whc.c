@@ -401,7 +401,7 @@ static ddsrt_mtime_t whc_deadline_missed_cb(void *hc, ddsrt_mtime_t tnow)
     struct whc_idxnode *idxnode = vidxnode;
     deadline_reregister_instance_locked (&whc->deadline, &idxnode->deadline, tnow);
 
-    status_cb_data_t cb_data;
+    ddsi_status_cb_data_t cb_data;
     cb_data.raw_status_id = (int) DDS_OFFERED_DEADLINE_MISSED_STATUS_ID;
     cb_data.extra = 0;
     cb_data.handle = 0;

@@ -29,30 +29,30 @@
 DDS_EXPORT extern inline bool builtintopic_is_visible (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_guid *guid, nn_vendorid_t vendorid);
 DDS_EXPORT extern inline bool builtintopic_is_builtintopic (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_sertype *type);
 DDS_EXPORT extern inline struct ddsi_tkmap_instance *builtintopic_get_tkmap_entry (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_guid *guid);
-DDS_EXPORT extern inline void builtintopic_write_endpoint (const struct ddsi_builtin_topic_interface *btif, const struct entity_common *e, ddsrt_wctime_t timestamp, bool alive);
+DDS_EXPORT extern inline void builtintopic_write_endpoint (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_entity_common *e, ddsrt_wctime_t timestamp, bool alive);
 DDS_EXPORT extern inline void builtintopic_write_topic (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_topic_definition *tpd, ddsrt_wctime_t timestamp, bool alive);
 
-DDS_EXPORT extern inline seqno_t writer_read_seq_xmit (const struct writer *wr);
-DDS_EXPORT extern inline void writer_update_seq_xmit (struct writer *wr, seqno_t nv);
+DDS_EXPORT extern inline seqno_t ddsi_writer_read_seq_xmit (const struct ddsi_writer *wr);
+DDS_EXPORT extern inline void ddsi_writer_update_seq_xmit (struct ddsi_writer *wr, seqno_t nv);
 
-int compare_guid (const void *va, const void *vb)
+int ddsi_compare_guid (const void *va, const void *vb)
 {
   return memcmp (va, vb, sizeof (ddsi_guid_t));
 }
 
-bool is_null_guid (const ddsi_guid_t *guid)
+bool ddsi_is_null_guid (const ddsi_guid_t *guid)
 {
   return guid->prefix.u[0] == 0 && guid->prefix.u[1] == 0 && guid->prefix.u[2] == 0 && guid->entityid.u == 0;
 }
 
-ddsi_entityid_t to_entityid (unsigned u)
+ddsi_entityid_t ddsi_to_entityid (unsigned u)
 {
   ddsi_entityid_t e;
   e.u = u;
   return e;
 }
 
-void entity_common_init (struct entity_common *e, struct ddsi_domaingv *gv, const struct ddsi_guid *guid, enum entity_kind kind, ddsrt_wctime_t tcreate, nn_vendorid_t vendorid, bool onlylocal)
+void ddsi_entity_common_init (struct ddsi_entity_common *e, struct ddsi_domaingv *gv, const struct ddsi_guid *guid, enum ddsi_entity_kind kind, ddsrt_wctime_t tcreate, nn_vendorid_t vendorid, bool onlylocal)
 {
   e->guid = *guid;
   e->kind = kind;
@@ -73,7 +73,7 @@ void entity_common_init (struct entity_common *e, struct ddsi_domaingv *gv, cons
   }
 }
 
-void entity_common_fini (struct entity_common *e)
+void ddsi_entity_common_fini (struct ddsi_entity_common *e)
 {
   if (e->tk)
     ddsi_tkmap_instance_unref (e->gv->m_tkmap, e->tk);
@@ -81,27 +81,27 @@ void entity_common_fini (struct entity_common *e)
   ddsrt_mutex_destroy (&e->lock);
 }
 
-nn_vendorid_t get_entity_vendorid (const struct entity_common *e)
+nn_vendorid_t ddsi_get_entity_vendorid (const struct ddsi_entity_common *e)
 {
   switch (e->kind)
   {
-    case EK_PARTICIPANT:
-    case EK_TOPIC:
-    case EK_READER:
-    case EK_WRITER:
+    case DDSI_EK_PARTICIPANT:
+    case DDSI_EK_TOPIC:
+    case DDSI_EK_READER:
+    case DDSI_EK_WRITER:
       return NN_VENDORID_ECLIPSE;
-    case EK_PROXY_PARTICIPANT:
-      return ((const struct proxy_participant *) e)->vendor;
-    case EK_PROXY_READER:
-      return ((const struct proxy_reader *) e)->c.vendor;
-    case EK_PROXY_WRITER:
-      return ((const struct proxy_writer *) e)->c.vendor;
+    case DDSI_EK_PROXY_PARTICIPANT:
+      return ((const struct ddsi_proxy_participant *) e)->vendor;
+    case DDSI_EK_PROXY_READER:
+      return ((const struct ddsi_proxy_reader *) e)->c.vendor;
+    case DDSI_EK_PROXY_WRITER:
+      return ((const struct ddsi_proxy_writer *) e)->c.vendor;
   }
   assert (0);
   return NN_VENDORID_UNKNOWN;
 }
 
-int is_builtin_entityid (ddsi_entityid_t id, nn_vendorid_t vendorid)
+int ddsi_is_builtin_entityid (ddsi_entityid_t id, nn_vendorid_t vendorid)
 {
   if ((id.u & NN_ENTITYID_SOURCE_MASK) == NN_ENTITYID_SOURCE_BUILTIN)
     return 1;
@@ -117,7 +117,7 @@ int is_builtin_entityid (ddsi_entityid_t id, nn_vendorid_t vendorid)
   }
 }
 
-bool update_qos_locked (struct entity_common *e, dds_qos_t *ent_qos, const dds_qos_t *xqos, ddsrt_wctime_t timestamp)
+bool ddsi_update_qos_locked (struct ddsi_entity_common *e, dds_qos_t *ent_qos, const dds_qos_t *xqos, ddsrt_wctime_t timestamp)
 {
   uint64_t mask;
 
@@ -133,7 +133,7 @@ bool update_qos_locked (struct entity_common *e, dds_qos_t *ent_qos, const dds_q
           !!(xqos->present & QP_TOPIC_DATA), b, b, bstr,
           !!(mask & QP_TOPIC_DATA));
 #endif
-  EELOGDISC (e, "update_qos_locked "PGUIDFMT" delta=%"PRIu64" QOS={", PGUID(e->guid), mask);
+  EELOGDISC (e, "ddsi_update_qos_locked "PGUIDFMT" delta=%"PRIu64" QOS={", PGUID(e->guid), mask);
   ddsi_xqos_log (DDS_LC_DISCOVERY, &e->gv->logconfig, xqos);
   EELOGDISC (e, "}\n");
 
@@ -149,34 +149,10 @@ bool update_qos_locked (struct entity_common *e, dds_qos_t *ent_qos, const dds_q
   return true;
 }
 
-struct entity_common * get_entity_parent (struct entity_common *e)
-{
-  switch (e->kind)
-  {
-#ifdef DDS_HAS_TOPIC_DISCOVERY
-    case EK_TOPIC:
-      return &((struct topic *)e)->pp->e;
-#endif
-    case EK_WRITER:
-      return &((struct writer *)e)->c.pp->e;
-    case EK_READER:
-      return &((struct reader *)e)->c.pp->e;
-    case EK_PROXY_WRITER:
-      return &((struct proxy_writer *)e)->c.proxypp->e;
-    case EK_PROXY_READER:
-      return &((struct proxy_reader *)e)->c.proxypp->e;
-    case EK_PARTICIPANT:
-    case EK_PROXY_PARTICIPANT:
-    default:
-      return NULL;
-  }
-  return NULL;
-}
-
-uint64_t get_entity_instance_id (const struct ddsi_domaingv *gv, const struct ddsi_guid *guid)
+uint64_t ddsi_get_entity_instanceid (const struct ddsi_domaingv *gv, const struct ddsi_guid *guid)
 {
   struct thread_state *thrst = lookup_thread_state ();
-  struct entity_common *e;
+  struct ddsi_entity_common *e;
   uint64_t iid = 0;
   thread_state_awake (thrst, gv);
   if ((e = entidx_lookup_guid_untyped (gv->entity_index, guid)) != NULL)
@@ -185,7 +161,7 @@ uint64_t get_entity_instance_id (const struct ddsi_domaingv *gv, const struct dd
   return iid;
 }
 
-int set_topic_type_name (dds_qos_t *xqos, const char * topic_name, const char * type_name)
+int ddsi_set_topic_type_name (dds_qos_t *xqos, const char * topic_name, const char * type_name)
 {
   if (!(xqos->present & QP_TYPE_NAME))
   {

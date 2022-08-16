@@ -114,17 +114,17 @@ dds_return_t dds_write_ts (dds_entity_t writer, const void *data, dds_time_t tim
   return ret;
 }
 
-static struct reader *writer_first_in_sync_reader (struct entity_index *entity_index, struct entity_common *wrcmn, ddsrt_avl_iter_t *it)
+static struct ddsi_reader *writer_first_in_sync_reader (struct entity_index *entity_index, struct ddsi_entity_common *wrcmn, ddsrt_avl_iter_t *it)
 {
-  assert (wrcmn->kind == EK_WRITER);
-  struct writer *wr = (struct writer *) wrcmn;
-  struct wr_rd_match *m = ddsrt_avl_iter_first (&wr_local_readers_treedef, &wr->local_readers, it);
+  assert (wrcmn->kind == DDSI_EK_WRITER);
+  struct ddsi_writer *wr = (struct ddsi_writer *) wrcmn;
+  struct ddsi_wr_rd_match *m = ddsrt_avl_iter_first (&ddsi_wr_local_readers_treedef, &wr->local_readers, it);
   return m ? entidx_lookup_reader_guid (entity_index, &m->rd_guid) : NULL;
 }
 
-static struct reader *writer_next_in_sync_reader (struct entity_index *entity_index, ddsrt_avl_iter_t *it)
+static struct ddsi_reader *writer_next_in_sync_reader (struct entity_index *entity_index, ddsrt_avl_iter_t *it)
 {
-  struct wr_rd_match *m = ddsrt_avl_iter_next (it);
+  struct ddsi_wr_rd_match *m = ddsrt_avl_iter_next (it);
   return m ? entidx_lookup_reader_guid (entity_index, &m->rd_guid) : NULL;
 }
 
@@ -155,12 +155,12 @@ static struct ddsi_serdata *local_make_sample (struct ddsi_tkmap_instance **tk, 
   return d;
 }
 
-static dds_return_t local_on_delivery_failure_fastpath (struct entity_common *source_entity, bool source_entity_locked, struct local_reader_ary *fastpath_rdary, void *vsourceinfo)
+static dds_return_t local_on_delivery_failure_fastpath (struct ddsi_entity_common *source_entity, bool source_entity_locked, struct ddsi_local_reader_ary *fastpath_rdary, void *vsourceinfo)
 {
   (void) fastpath_rdary;
   (void) source_entity_locked;
-  assert (source_entity->kind == EK_WRITER);
-  struct writer *wr = (struct writer *) source_entity;
+  assert (source_entity->kind == DDSI_EK_WRITER);
+  struct ddsi_writer *wr = (struct ddsi_writer *) source_entity;
   struct local_sourceinfo *si = vsourceinfo;
   ddsrt_mtime_t tnow = ddsrt_time_monotonic ();
   if (si->timeout.v == 0)
@@ -174,7 +174,7 @@ static dds_return_t local_on_delivery_failure_fastpath (struct entity_common *so
   }
 }
 
-static dds_return_t deliver_locally (struct writer *wr, struct ddsi_serdata *payload, struct ddsi_tkmap_instance *tk)
+static dds_return_t deliver_locally (struct ddsi_writer *wr, struct ddsi_serdata *payload, struct ddsi_tkmap_instance *tk)
 {
   static const struct deliver_locally_ops deliver_locally_ops = {
     .makesample = local_make_sample,
@@ -220,7 +220,7 @@ static void deliver_data_via_iceoryx (dds_writer *wr, struct ddsi_serdata_iox *d
 }
 #endif
 
-static struct ddsi_serdata_any *convert_serdata(struct writer *ddsi_wr, struct ddsi_serdata_any *din)
+static struct ddsi_serdata_any *convert_serdata(struct ddsi_writer *ddsi_wr, struct ddsi_serdata_any *din)
 {
   struct ddsi_serdata_any *dout;
   if (ddsi_wr->type == din->a.type)
@@ -248,7 +248,7 @@ static struct ddsi_serdata_any *convert_serdata(struct writer *ddsi_wr, struct d
   return dout;
 }
 
-static dds_return_t deliver_data_network (struct thread_state * const thrst, struct writer *ddsi_wr, struct ddsi_serdata_any *d, struct nn_xpack *xp, bool flush, struct ddsi_tkmap_instance *tk)
+static dds_return_t deliver_data_network (struct thread_state * const thrst, struct ddsi_writer *ddsi_wr, struct ddsi_serdata_any *d, struct nn_xpack *xp, bool flush, struct ddsi_tkmap_instance *tk)
 {
   // write_sample_gc always consumes 1 refc from d
   int ret = write_sample_gc (thrst, xp, ddsi_wr, &d->a, tk);
@@ -265,7 +265,7 @@ static dds_return_t deliver_data_network (struct thread_state * const thrst, str
   }
 }
 
-static dds_return_t deliver_data_any (struct thread_state * const thrst, struct writer *ddsi_wr, dds_writer *wr, struct ddsi_serdata_any *d, struct nn_xpack *xp, bool flush)
+static dds_return_t deliver_data_any (struct thread_state * const thrst, struct ddsi_writer *ddsi_wr, dds_writer *wr, struct ddsi_serdata_any *d, struct nn_xpack *xp, bool flush)
 {
   struct ddsi_tkmap_instance * const tk = ddsi_tkmap_lookup_instance_ref (ddsi_wr->e.gv->m_tkmap, &d->a);
   dds_return_t ret;
@@ -288,7 +288,7 @@ static dds_return_t deliver_data_any (struct thread_state * const thrst, struct 
   return ret;
 }
 
-static dds_return_t dds_writecdr_impl_common (struct writer *ddsi_wr, struct nn_xpack *xp, struct ddsi_serdata_any *din, bool flush, dds_writer *wr)
+static dds_return_t dds_writecdr_impl_common (struct ddsi_writer *ddsi_wr, struct nn_xpack *xp, struct ddsi_serdata_any *din, bool flush, dds_writer *wr)
 {
   // consumes 1 refc from din in all paths (weird, but ... history ...)
   // let refc(din) be r, so upon returning it must be r-1
@@ -433,7 +433,7 @@ static dds_return_t get_iox_chunk (dds_writer *wr, const void *data, void **iox_
 // Locking the mutex is needed to synchronize the value.
 // This number may change concurrently any time we do not hold the lock,
 // i.e. become outdated when we return from the function.
-static uint32_t get_num_fast_path_readers(struct writer *ddsi_wr) {
+static uint32_t get_num_fast_path_readers(struct ddsi_writer *ddsi_wr) {
   ddsrt_mutex_lock(&ddsi_wr->rdary.rdary_lock);
   uint32_t n = ddsi_wr->rdary.n_readers;
   ddsrt_mutex_unlock(&ddsi_wr->rdary.rdary_lock);
@@ -443,7 +443,7 @@ static uint32_t get_num_fast_path_readers(struct writer *ddsi_wr) {
 // has to support two cases:
 // 1) data is in an external buffer allocated on the stack or dynamically
 // 2) data is in an iceoryx buffer obtained by dds_loan_sample
-static dds_return_t dds_write_impl_iox (dds_writer *wr, struct writer *ddsi_wr, bool writekey, const void *data, dds_time_t tstamp, dds_write_action action)
+static dds_return_t dds_write_impl_iox (dds_writer *wr, struct ddsi_writer *ddsi_wr, bool writekey, const void *data, dds_time_t tstamp, dds_write_action action)
 {
   assert (thread_is_awake ());
   assert (wr != NULL && wr->m_iox_pub != NULL);
@@ -555,7 +555,7 @@ static dds_return_t dds_write_impl_iox (dds_writer *wr, struct writer *ddsi_wr, 
 }
 #endif
 
-static dds_return_t dds_write_impl_plain (dds_writer *wr, struct writer *ddsi_wr, bool writekey, const void *data, dds_time_t tstamp, dds_write_action action)
+static dds_return_t dds_write_impl_plain (dds_writer *wr, struct ddsi_writer *ddsi_wr, bool writekey, const void *data, dds_time_t tstamp, dds_write_action action)
 {
   assert (thread_is_awake ());
 #ifdef DDS_HAS_SHM
@@ -579,7 +579,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
   // 1. Input validation
   struct thread_state * const thrst = lookup_thread_state ();
   const bool writekey = action & DDS_WR_KEY_BIT;
-  struct writer *ddsi_wr = wr->m_wr;
+  struct ddsi_writer *ddsi_wr = wr->m_wr;
   int ret = DDS_RETCODE_OK;
 
   if (data == NULL)
@@ -620,7 +620,7 @@ void dds_write_flush (dds_entity_t writer)
   }
 }
 
-dds_return_t dds_writecdr_local_orphan_impl (struct local_orphan_writer *lowr, struct ddsi_serdata *d)
+dds_return_t dds_writecdr_local_orphan_impl (struct ddsi_local_orphan_writer *lowr, struct ddsi_serdata *d)
 {
   // this never sends on the network and xp is only relevant for the network
 #ifdef DDS_HAS_SHM

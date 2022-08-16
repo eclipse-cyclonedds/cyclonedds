@@ -46,7 +46,7 @@ void write_pmd_message_guid (struct ddsi_domaingv * const gv, struct ddsi_guid *
   struct thread_state * const thrst = lookup_thread_state ();
   struct lease *lease;
   thread_state_awake (thrst, gv);
-  struct participant *pp = entidx_lookup_participant_guid (gv->entity_index, pp_guid);
+  struct ddsi_participant *pp = entidx_lookup_participant_guid (gv->entity_index, pp_guid);
   if (pp == NULL)
     GVTRACE ("write_pmd_message("PGUIDFMT") - builtin pmd writer not found\n", PGUID (*pp_guid));
   else
@@ -58,17 +58,17 @@ void write_pmd_message_guid (struct ddsi_domaingv * const gv, struct ddsi_guid *
   thread_state_asleep (thrst);
 }
 
-void write_pmd_message (struct thread_state * const thrst, struct nn_xpack *xp, struct participant *pp, unsigned pmd_kind)
+void write_pmd_message (struct thread_state * const thrst, struct nn_xpack *xp, struct ddsi_participant *pp, unsigned pmd_kind)
 {
 #define PMD_DATA_LENGTH 1
   struct ddsi_domaingv * const gv = pp->e.gv;
-  struct writer *wr;
+  struct ddsi_writer *wr;
   unsigned char data[PMD_DATA_LENGTH] = { 0 };
   ParticipantMessageData_t pmd;
   struct ddsi_serdata *serdata;
   struct ddsi_tkmap_instance *tk;
 
-  if ((wr = get_builtin_writer (pp, NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER)) == NULL)
+  if ((wr = ddsi_get_builtin_writer (pp, NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER)) == NULL)
   {
     GVTRACE ("write_pmd_message("PGUIDFMT") - builtin pmd writer not found\n", PGUID (pp->e.guid));
     return;
@@ -91,7 +91,7 @@ void handle_pmd_message (const struct receiver_state *rst, struct ddsi_serdata *
 {
   /* use sample with knowledge of internal representation: there's a deserialized sample inside already */
   const struct ddsi_serdata_pserop *sample = (const struct ddsi_serdata_pserop *) sample_common;
-  struct proxy_participant *proxypp;
+  struct ddsi_proxy_participant *proxypp;
   ddsi_guid_t ppguid;
   struct lease *l;
   RSTTRACE (" PMD ST%"PRIx32, sample->c.statusinfo);
@@ -119,7 +119,7 @@ void handle_pmd_message (const struct receiver_state *rst, struct ddsi_serdata *
       const ParticipantMessageData_t *pmd = sample->sample;
       ppguid.prefix = pmd->participantGuidPrefix;
       ppguid.entityid.u = NN_ENTITYID_PARTICIPANT;
-      if (delete_proxy_participant_by_guid (rst->gv, &ppguid, sample->c.timestamp, 0) < 0)
+      if (ddsi_delete_proxy_participant_by_guid (rst->gv, &ppguid, sample->c.timestamp, 0) < 0)
         RSTTRACE (" unknown");
       else
         RSTTRACE (" delete");

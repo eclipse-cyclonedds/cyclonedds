@@ -20,9 +20,9 @@ extern "C" {
 #endif
 
 struct addrset;
-struct writer;
+struct ddsi_writer;
 
-struct addrset *compute_writer_addrset (const struct writer *wr);
+struct addrset *compute_writer_addrset (const struct ddsi_writer *wr);
 
 #if defined (__cplusplus)
 }

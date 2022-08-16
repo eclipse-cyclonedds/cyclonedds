@@ -275,7 +275,7 @@ Mainly because in OpenSplice it's quite hard to get a failure state from DDSI
 to the application.
 
 In Cyclone, however, ddsc::dds_create_participant() results in a direct call to
-ddsi::new_participant(). This means that if creation of an entity (or
+ddsi::ddsi_new_participant(). This means that if creation of an entity (or
 participant in this example) fails due to security issues in ddsi, we can fail
 the actual ddsc API call with a proper error result (there's already the
 DDS_RETCODE_NOT_ALLOWED_BY_SECURITY in the ddsc API (not used)).

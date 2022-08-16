@@ -92,7 +92,7 @@ It is also used to determine the gap information that is added to samples to a s
 ### Heartbeats
 
 A writer is triggered to send heartbeats once in a while. Normally, that is broadcasted. But, for the volatile secure writer, it has to be send to each reader specifically. The heartbeat submessage that is send to each reader individually is encoded with a reader specific key. This key is generated from the shared secret which was determined during the authentication phase.
- 
+
 When a writer should send heartbeats, ```handle_xevk_heartbeat()``` is called. For the volatile secure writer, the control is immediately submitted to ```send_heartbeat_to_all_readers()```. This will add heartbeat submessages to an rtps message for every reader it deems necessary.
 
 
@@ -111,15 +111,15 @@ Notes</br>
 
 The following elements are added to the data structures:
 
-* struct wr_prd_match::lst_seq     : Highest seq send to this reader used when filter is applied
-* struct pwr_rd_match::last_seq    : Reader specific last received sequence number from the writer.
-* struct proxy_writer::uses_filter : Indicates that a content-filter is active
-* struct proxy_reader::filter      : The filter to apply for this specific reader
+* struct ddsi_wr_prd_match::lst_seq     : Highest seq send to this reader used when filter is applied
+* struct ddsi_pwr_rd_match::last_seq    : Reader specific last received sequence number from the writer.
+* struct ddsi_proxy_writer::uses_filter : Indicates that a content-filter is active
+* struct ddsi_proxy_reader::filter      : The filter to apply for this specific reader
 
 Functions added:
 
-* writer_hbcontrol_p2p : This function creates a heartbeat destined for a specific reader. The volatile secure writer will use an submessage encoding which uses a distinct key for each reader. Therefor a reader specific heartbeat is needed. 
-* nn_defrag_prune : When a volatile secure reader is deleted then the defragmentation administration could still contain messages destined for this reader. This function removes these messages from the defragmentation administration. 
+* writer_hbcontrol_p2p : This function creates a heartbeat destined for a specific reader. The volatile secure writer will use an submessage encoding which uses a distinct key for each reader. Therefor a reader specific heartbeat is needed.
+* nn_defrag_prune : When a volatile secure reader is deleted then the defragmentation administration could still contain messages destined for this reader. This function removes these messages from the defragmentation administration.
 * volatile_secure_data_filter : The filter applied to the secure volatile messages which filters on the destination participant guid.
 * write_sample_p2p_wrlock_held : This function writes a message to a particular reader.
 

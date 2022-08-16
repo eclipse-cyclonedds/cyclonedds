@@ -23,10 +23,10 @@ struct gcreq;
 struct gcreq_queue;
 struct ddsi_domaingv;
 
-struct writer;
-struct reader;
-struct proxy_writer;
-struct proxy_reader;
+struct ddsi_writer;
+struct ddsi_reader;
+struct ddsi_proxy_writer;
+struct ddsi_proxy_reader;
 
 typedef void (*gcreq_cb_t) (struct gcreq *gcreq);
 

@@ -25,31 +25,15 @@
 extern "C" {
 #endif
 
-struct proxy_participant;
-struct proxy_endpoint_common;
+struct ddsi_proxy_participant;
 struct dds_qos;
 struct addrset;
 
-/* Representing proxy subscriber & publishers as "groups": until DDSI2
-   gets a reason to care about these other than for the generation of
-   CM topics, there's little value in distinguishing between the two.
-   In another way, they're secondly-class citizens, too: "real"
-   entities are garbage collected and found using lock-free hash
-   tables, but "groups" only live in the context of a proxy
-   participant. */
-struct proxy_group {
-  ddsrt_avl_node_t avlnode;
-  ddsi_guid_t guid;
-  char *name;
-  struct proxy_participant *proxypp; /* uncounted backref to proxy participant */
-  struct dds_qos *xqos; /* publisher/subscriber QoS */
-};
-
-struct proxy_endpoint_common
+struct ddsi_proxy_endpoint_common
 {
-  struct proxy_participant *proxypp; /* counted backref to proxy participant */
-  struct proxy_endpoint_common *next_ep; /* next \ endpoint belonging to this proxy participant */
-  struct proxy_endpoint_common *prev_ep; /* prev / -- this is in arbitrary ordering */
+  struct ddsi_proxy_participant *proxypp; /* counted backref to proxy participant */
+  struct ddsi_proxy_endpoint_common *next_ep; /* next \ endpoint belonging to this proxy participant */
+  struct ddsi_proxy_endpoint_common *prev_ep; /* prev / -- this is in arbitrary ordering */
   struct dds_qos *xqos; /* proxy endpoint QoS lives here; FIXME: local ones should have it moved to common as well */
   struct addrset *as; /* address set to use for communicating with this endpoint */
   ddsi_guid_t group_guid; /* 0:0:0:0 if not available */
@@ -63,14 +47,14 @@ struct proxy_endpoint_common
 #endif
 };
 
-struct generic_proxy_endpoint {
-  struct entity_common e;
-  struct proxy_endpoint_common c;
+struct ddsi_generic_proxy_endpoint {
+  struct ddsi_entity_common e;
+  struct ddsi_proxy_endpoint_common c;
 };
 
-struct proxy_writer {
-  struct entity_common e;
-  struct proxy_endpoint_common c;
+struct ddsi_proxy_writer {
+  struct ddsi_entity_common e;
+  struct ddsi_proxy_endpoint_common c;
   ddsrt_avl_tree_t readers; /* matching LOCAL readers, see pwr_rd_match */
   int32_t n_reliable_readers; /* number of those that are reliable */
   int32_t n_readers_out_of_sync; /* number of those that require special handling (accepting historical data, waiting for historical data set to become complete) */
@@ -95,18 +79,18 @@ struct proxy_writer {
   struct nn_reorder *reorder; /* message reordering for this proxy writer, out-of-sync readers can have their own, see pwr_rd_match */
   struct nn_dqueue *dqueue; /* delivery queue for asynchronous delivery (historical data is always delivered asynchronously) */
   struct xeventq *evq; /* timed event queue to be used for ACK generation */
-  struct local_reader_ary rdary; /* LOCAL readers for fast-pathing; if not fast-pathed, fall back to scanning local_readers */
+  struct ddsi_local_reader_ary rdary; /* LOCAL readers for fast-pathing; if not fast-pathed, fall back to scanning local_readers */
   ddsi2direct_directread_cb_t ddsi2direct_cb;
   void *ddsi2direct_cbarg;
   struct lease *lease;
 };
 
 
-typedef int (*filter_fn_t)(struct writer *wr, struct proxy_reader *prd, struct ddsi_serdata *serdata);
+typedef int (*ddsi_filter_fn_t)(struct ddsi_writer *wr, struct ddsi_proxy_reader *prd, struct ddsi_serdata *serdata);
 
-struct proxy_reader {
-  struct entity_common e;
-  struct proxy_endpoint_common c;
+struct ddsi_proxy_reader {
+  struct ddsi_entity_common e;
+  struct ddsi_proxy_endpoint_common c;
   unsigned deleting: 1; /* set when being deleted */
   unsigned is_fict_trans_reader: 1; /* only true when it is certain that is a fictitious transient data reader (affects built-in topic generation) */
   unsigned requests_keyhash: 1; /* 1 iff this reader would like to receive keyhashes */
@@ -119,39 +103,38 @@ struct proxy_reader {
 #endif
   ddsrt_avl_tree_t writers; /* matching LOCAL writers */
   uint32_t receive_buffer_size; /* assumed receive buffer size inherited from proxypp */
-  filter_fn_t filter;
+  ddsi_filter_fn_t filter;
 };
 
-DDS_EXPORT extern const ddsrt_avl_treedef_t pwr_readers_treedef;
-DDS_EXPORT extern const ddsrt_avl_treedef_t prd_writers_treedef;
+DDS_EXPORT extern const ddsrt_avl_treedef_t ddsi_pwr_readers_treedef;
+DDS_EXPORT extern const ddsrt_avl_treedef_t ddsi_prd_writers_treedef;
 
-bool is_proxy_endpoint (const struct entity_common *e);
+void ddsi_proxy_writer_set_alive_may_unlock (struct ddsi_proxy_writer *pwr, bool notify);
+int ddsi_proxy_writer_set_notalive (struct ddsi_proxy_writer *pwr, bool notify);
+void ddsi_proxy_writer_get_alive_state (struct ddsi_proxy_writer *pwr, struct ddsi_alive_state *st);
+struct ddsi_entity_common *ddsi_entity_common_from_proxy_endpoint_common (const struct ddsi_proxy_endpoint_common *c);
+bool ddsi_is_proxy_endpoint (const struct ddsi_entity_common *e);
+
 
 /* To create a new proxy writer or reader; the proxy participant is
    determined from the GUID and must exist. */
-DDS_EXPORT int new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct addrset *as, const struct ddsi_plist *plist, struct nn_dqueue *dqueue, struct xeventq *evq, ddsrt_wctime_t timestamp, seqno_t seq);
-DDS_EXPORT int new_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct addrset *as, const struct ddsi_plist *plist, ddsrt_wctime_t timestamp, seqno_t seq
+DDS_EXPORT int ddsi_new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct addrset *as, const struct ddsi_plist *plist, struct nn_dqueue *dqueue, struct xeventq *evq, ddsrt_wctime_t timestamp, seqno_t seq);
+DDS_EXPORT int ddsi_new_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct addrset *as, const struct ddsi_plist *plist, ddsrt_wctime_t timestamp, seqno_t seq
 #ifdef DDS_HAS_SSM
-                      , int favours_ssm
+, int favours_ssm
 #endif
-                      );
+);
 
 /* To delete a proxy writer or reader; these synchronously hide it
    from the outside world, preventing it from being matched to a
    reader or writer. Actual deletion is scheduled in the future, when
    no outstanding references may still exist (determined by checking
    thread progress, &c.). */
-DDS_EXPORT int delete_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, ddsrt_wctime_t timestamp, int isimplicit);
-DDS_EXPORT int delete_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, ddsrt_wctime_t timestamp, int isimplicit);
+DDS_EXPORT int ddsi_delete_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, ddsrt_wctime_t timestamp, int isimplicit);
+DDS_EXPORT int ddsi_delete_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, ddsrt_wctime_t timestamp, int isimplicit);
 
-DDS_EXPORT void update_proxy_reader (struct proxy_reader *prd, seqno_t seq, struct addrset *as, const struct dds_qos *xqos, ddsrt_wctime_t timestamp);
-DDS_EXPORT void update_proxy_writer (struct proxy_writer *pwr, seqno_t seq, struct addrset *as, const struct dds_qos *xqos, ddsrt_wctime_t timestamp);
-
-void proxy_writer_set_alive_may_unlock (struct proxy_writer *pwr, bool notify);
-int proxy_writer_set_notalive (struct proxy_writer *pwr, bool notify);
-void proxy_writer_get_alive_state (struct proxy_writer *pwr, struct alive_state *st);
-
-struct entity_common *entity_common_from_proxy_endpoint_common (const struct proxy_endpoint_common *c);
+DDS_EXPORT void ddsi_update_proxy_reader (struct ddsi_proxy_reader *prd, seqno_t seq, struct addrset *as, const struct dds_qos *xqos, ddsrt_wctime_t timestamp);
+DDS_EXPORT void ddsi_update_proxy_writer (struct ddsi_proxy_writer *pwr, seqno_t seq, struct addrset *as, const struct dds_qos *xqos, ddsrt_wctime_t timestamp);
 
 #if defined (__cplusplus)
 }

@@ -118,7 +118,7 @@ dds_return_t dds_wait_for_acks (dds_entity_t publisher_or_writer, dds_duration_t
       return DDS_RETCODE_UNSUPPORTED;
 
     case DDS_KIND_WRITER:
-      ret = dds__writer_wait_for_acks ((struct dds_writer *) p_or_w_ent, NULL, abstimeout);
+      ret = dds__ddsi_writer_wait_for_acks ((struct dds_writer *) p_or_w_ent, NULL, abstimeout);
       dds_entity_unpin (p_or_w_ent);
       return ret;
 

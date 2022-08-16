@@ -249,11 +249,11 @@ typedef struct dds_domain {
   struct ddsi_sertype *builtin_reader_type;
   struct ddsi_sertype *builtin_writer_type;
 
-  struct local_orphan_writer *builtintopic_writer_participant;
-  struct local_orphan_writer *builtintopic_writer_publications;
-  struct local_orphan_writer *builtintopic_writer_subscriptions;
+  struct ddsi_local_orphan_writer *builtintopic_writer_participant;
+  struct ddsi_local_orphan_writer *builtintopic_writer_publications;
+  struct ddsi_local_orphan_writer *builtintopic_writer_subscriptions;
 #ifdef DDS_HAS_TOPIC_DISCOVERY
-  struct local_orphan_writer *builtintopic_writer_topics;
+  struct ddsi_local_orphan_writer *builtintopic_writer_topics;
 #endif
 
   struct ddsi_builtin_topic_interface btif;
@@ -295,7 +295,7 @@ struct ktopic_type_guid {
   ddsi_typeid_t *type_id;
   uint32_t refc;
   ddsi_guid_t guid;
-  struct topic *tp;
+  struct ddsi_topic *tp;
 };
 #endif
 
@@ -327,7 +327,7 @@ typedef struct dds_reader {
   struct dds_entity m_entity;
   struct dds_topic *m_topic; /* refc'd, constant, lock(rd) -> lock(tp) allowed */
   struct dds_rhc *m_rhc; /* aliases m_rd->rhc with a wider interface, FIXME: but m_rd owns it for resource management */
-  struct reader *m_rd;
+  struct ddsi_reader *m_rd;
   bool m_loan_out;
   void *m_loan;
   uint32_t m_loan_size;
@@ -351,7 +351,7 @@ typedef struct dds_writer {
   struct dds_entity m_entity;
   struct dds_topic *m_topic; /* refc'd, constant, lock(wr) -> lock(tp) allowed */
   struct nn_xpack *m_xp;
-  struct writer *m_wr;
+  struct ddsi_writer *m_wr;
   struct whc *m_whc; /* FIXME: ownership still with underlying DDSI writer (cos of DDSI built-in writers )*/
   bool whc_batch; /* FIXME: channels + latency budget */
 #ifdef DDS_HAS_SHM

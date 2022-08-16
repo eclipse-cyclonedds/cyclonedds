@@ -76,7 +76,7 @@ static void dds_reader_close (dds_entity *e)
 #endif
 
   thread_state_awake (lookup_thread_state (), &e->m_domain->gv);
-  (void) delete_reader (&e->m_domain->gv, &e->m_guid);
+  (void) ddsi_delete_reader (&e->m_domain->gv, &e->m_guid);
   thread_state_asleep (lookup_thread_state ());
 
   ddsrt_mutex_lock (&e->m_mutex);
@@ -137,10 +137,10 @@ static dds_return_t dds_reader_qos_set (dds_entity *e, const dds_qos_t *qos, boo
     return ret;
   if (enabled)
   {
-    struct reader *rd;
+    struct ddsi_reader *rd;
     thread_state_awake (lookup_thread_state (), &e->m_domain->gv);
     if ((rd = entidx_lookup_reader_guid (e->m_domain->gv.entity_index, &e->m_guid)) != NULL)
-      update_reader_qos (rd, qos);
+      ddsi_update_reader_qos (rd, qos);
     thread_state_asleep (lookup_thread_state ());
   }
   return DDS_RETCODE_OK;
@@ -260,7 +260,7 @@ void dds_reader_data_available_cb (struct dds_reader *rd)
   ddsrt_mutex_unlock (&rd->m_entity.m_observers_lock);
 }
 
-static void update_requested_deadline_missed (struct dds_requested_deadline_missed_status * __restrict st, const status_cb_data_t *data)
+static void update_requested_deadline_missed (struct dds_requested_deadline_missed_status * __restrict st, const ddsi_status_cb_data_t *data)
 {
   st->last_instance_handle = data->handle;
   st->total_count++;
@@ -272,21 +272,21 @@ static void update_requested_deadline_missed (struct dds_requested_deadline_miss
   st->total_count_change++;
 }
 
-static void update_requested_incompatible_qos (struct dds_requested_incompatible_qos_status * __restrict st, const status_cb_data_t *data)
+static void update_requested_incompatible_qos (struct dds_requested_incompatible_qos_status * __restrict st, const ddsi_status_cb_data_t *data)
 {
   st->last_policy_id = data->extra;
   st->total_count++;
   st->total_count_change++;
 }
 
-static void update_sample_lost (struct dds_sample_lost_status * __restrict st, const status_cb_data_t *data)
+static void update_sample_lost (struct dds_sample_lost_status * __restrict st, const ddsi_status_cb_data_t *data)
 {
   (void) data;
   st->total_count++;
   st->total_count_change++;
 }
 
-static void update_sample_rejected (struct dds_sample_rejected_status * __restrict st, const status_cb_data_t *data)
+static void update_sample_rejected (struct dds_sample_rejected_status * __restrict st, const ddsi_status_cb_data_t *data)
 {
   st->last_reason = data->extra;
   st->last_instance_handle = data->handle;
@@ -294,42 +294,42 @@ static void update_sample_rejected (struct dds_sample_rejected_status * __restri
   st->total_count_change++;
 }
 
-static void update_liveliness_changed (struct dds_liveliness_changed_status * __restrict st, const status_cb_data_t *data)
+static void update_liveliness_changed (struct dds_liveliness_changed_status * __restrict st, const ddsi_status_cb_data_t *data)
 {
-  DDSRT_STATIC_ASSERT ((uint32_t) LIVELINESS_CHANGED_ADD_ALIVE == 0 &&
-                       LIVELINESS_CHANGED_ADD_ALIVE < LIVELINESS_CHANGED_ADD_NOT_ALIVE &&
-                       LIVELINESS_CHANGED_ADD_NOT_ALIVE < LIVELINESS_CHANGED_REMOVE_NOT_ALIVE &&
-                       LIVELINESS_CHANGED_REMOVE_NOT_ALIVE < LIVELINESS_CHANGED_REMOVE_ALIVE &&
-                       LIVELINESS_CHANGED_REMOVE_ALIVE < LIVELINESS_CHANGED_ALIVE_TO_NOT_ALIVE &&
-                       LIVELINESS_CHANGED_ALIVE_TO_NOT_ALIVE < LIVELINESS_CHANGED_NOT_ALIVE_TO_ALIVE &&
-                       (uint32_t) LIVELINESS_CHANGED_NOT_ALIVE_TO_ALIVE < UINT32_MAX);
-  assert (data->extra <= (uint32_t) LIVELINESS_CHANGED_NOT_ALIVE_TO_ALIVE);
+  DDSRT_STATIC_ASSERT ((uint32_t) DDSI_LIVELINESS_CHANGED_ADD_ALIVE == 0 &&
+                       DDSI_LIVELINESS_CHANGED_ADD_ALIVE < DDSI_LIVELINESS_CHANGED_ADD_NOT_ALIVE &&
+                       DDSI_LIVELINESS_CHANGED_ADD_NOT_ALIVE < DDSI_LIVELINESS_CHANGED_REMOVE_NOT_ALIVE &&
+                       DDSI_LIVELINESS_CHANGED_REMOVE_NOT_ALIVE < DDSI_LIVELINESS_CHANGED_REMOVE_ALIVE &&
+                       DDSI_LIVELINESS_CHANGED_REMOVE_ALIVE < DDSI_LIVELINESS_CHANGED_ALIVE_TO_NOT_ALIVE &&
+                       DDSI_LIVELINESS_CHANGED_ALIVE_TO_NOT_ALIVE < DDSI_LIVELINESS_CHANGED_NOT_ALIVE_TO_ALIVE &&
+                       (uint32_t) DDSI_LIVELINESS_CHANGED_NOT_ALIVE_TO_ALIVE < UINT32_MAX);
+  assert (data->extra <= (uint32_t) DDSI_LIVELINESS_CHANGED_NOT_ALIVE_TO_ALIVE);
   st->last_publication_handle = data->handle;
-  switch ((enum liveliness_changed_data_extra) data->extra)
+  switch ((enum ddsi_liveliness_changed_data_extra) data->extra)
   {
-    case LIVELINESS_CHANGED_ADD_ALIVE:
+    case DDSI_LIVELINESS_CHANGED_ADD_ALIVE:
       st->alive_count++;
       st->alive_count_change++;
       break;
-    case LIVELINESS_CHANGED_ADD_NOT_ALIVE:
+    case DDSI_LIVELINESS_CHANGED_ADD_NOT_ALIVE:
       st->not_alive_count++;
       st->not_alive_count_change++;
       break;
-    case LIVELINESS_CHANGED_REMOVE_NOT_ALIVE:
+    case DDSI_LIVELINESS_CHANGED_REMOVE_NOT_ALIVE:
       st->not_alive_count--;
       st->not_alive_count_change--;
       break;
-    case LIVELINESS_CHANGED_REMOVE_ALIVE:
+    case DDSI_LIVELINESS_CHANGED_REMOVE_ALIVE:
       st->alive_count--;
       st->alive_count_change--;
       break;
-    case LIVELINESS_CHANGED_ALIVE_TO_NOT_ALIVE:
+    case DDSI_LIVELINESS_CHANGED_ALIVE_TO_NOT_ALIVE:
       st->alive_count--;
       st->alive_count_change--;
       st->not_alive_count++;
       st->not_alive_count_change++;
       break;
-    case LIVELINESS_CHANGED_NOT_ALIVE_TO_ALIVE:
+    case DDSI_LIVELINESS_CHANGED_NOT_ALIVE_TO_ALIVE:
       st->not_alive_count--;
       st->not_alive_count_change--;
       st->alive_count++;
@@ -338,7 +338,7 @@ static void update_liveliness_changed (struct dds_liveliness_changed_status * __
   }
 }
 
-static void update_subscription_matched (struct dds_subscription_matched_status * __restrict st, const status_cb_data_t *data)
+static void update_subscription_matched (struct dds_subscription_matched_status * __restrict st, const ddsi_status_cb_data_t *data)
 {
   st->last_publication_handle = data->handle;
   if (data->add) {
@@ -369,7 +369,7 @@ STATUS_CB_IMPL (reader, sample_lost,                SAMPLE_LOST,                
 STATUS_CB_IMPL (reader, requested_deadline_missed,  REQUESTED_DEADLINE_MISSED,  total_count_change)
 STATUS_CB_IMPL (reader, requested_incompatible_qos, REQUESTED_INCOMPATIBLE_QOS, total_count_change)
 
-void dds_reader_status_cb (void *ventity, const status_cb_data_t *data)
+void dds_reader_status_cb (void *ventity, const ddsi_status_cb_data_t *data)
 {
   dds_reader * const rd = ventity;
 
@@ -645,7 +645,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
 
   thread_state_awake (lookup_thread_state (), gv);
   const struct ddsi_guid * ppguid = dds_entity_participant_guid (&sub->m_entity);
-  struct participant * pp = entidx_lookup_participant_guid (gv->entity_index, ppguid);
+  struct ddsi_participant * pp = entidx_lookup_participant_guid (gv->entity_index, ppguid);
 
   /* When deleting a participant, the child handles (that include the subscriber)
      are removed before removing the DDSI participant. So at this point, within
@@ -698,7 +698,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
 
   /* Reader gets the sertype from the topic, as the serdata functions the reader uses are
      not specific for a data representation (the representation can be retrieved from the cdr header) */
-  rc = new_reader (&rd->m_rd, &rd->m_entity.m_guid, NULL, pp, tp->m_name, tp->m_stype, rqos, &rd->m_rhc->common.rhc, dds_reader_status_cb, rd);
+  rc = ddsi_new_reader (&rd->m_rd, &rd->m_entity.m_guid, NULL, pp, tp->m_name, tp->m_stype, rqos, &rd->m_rhc->common.rhc, dds_reader_status_cb, rd);
   assert (rc == DDS_RETCODE_OK); /* FIXME: can be out-of-resources at the very least */
   thread_state_asleep (lookup_thread_state ());
 
@@ -744,7 +744,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
   }
 #endif
 
-  rd->m_entity.m_iid = get_entity_instance_id (&rd->m_entity.m_domain->gv, &rd->m_entity.m_guid);
+  rd->m_entity.m_iid = ddsi_get_entity_instanceid (&rd->m_entity.m_domain->gv, &rd->m_entity.m_guid);
   dds_entity_register_child (&sub->m_entity, &rd->m_entity);
 
   // After including the reader amongst the subscriber's children, the subscriber will start
@@ -788,23 +788,23 @@ void dds_reader_ddsi2direct (dds_entity_t entity, ddsi2direct_directread_cb_t cb
   }
 
   dds_reader *dds_rd = (dds_reader *) dds_entity;
-  struct reader *rd = dds_rd->m_rd;
+  struct ddsi_reader *rd = dds_rd->m_rd;
   ddsi_guid_t pwrguid;
-  struct proxy_writer *pwr;
-  struct rd_pwr_match *m;
+  struct ddsi_proxy_writer *pwr;
+  struct ddsi_rd_pwr_match *m;
   memset (&pwrguid, 0, sizeof (pwrguid));
   ddsrt_mutex_lock (&rd->e.lock);
 
   rd->ddsi2direct_cb = cb;
   rd->ddsi2direct_cbarg = cbarg;
-  while ((m = ddsrt_avl_lookup_succ_eq (&rd_writers_treedef, &rd->writers, &pwrguid)) != NULL)
+  while ((m = ddsrt_avl_lookup_succ_eq (&ddsi_rd_writers_treedef, &rd->writers, &pwrguid)) != NULL)
   {
     /* have to be careful walking the tree -- pretty is different, but
        I want to check this before I write a lookup_succ function. */
-    struct rd_pwr_match *m_next;
+    struct ddsi_rd_pwr_match *m_next;
     ddsi_guid_t pwrguid_next;
     pwrguid = m->pwr_guid;
-    if ((m_next = ddsrt_avl_find_succ (&rd_writers_treedef, &rd->writers, m)) != NULL)
+    if ((m_next = ddsrt_avl_find_succ (&ddsi_rd_writers_treedef, &rd->writers, m)) != NULL)
       pwrguid_next = m_next->pwr_guid;
     else
     {

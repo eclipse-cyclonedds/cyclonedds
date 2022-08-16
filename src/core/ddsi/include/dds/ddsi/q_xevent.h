@@ -24,15 +24,15 @@ extern "C" {
    With the messages now via the "untimed" path, that should not
    introduce any issues. */
 
-struct writer;
-struct pwr_rd_match;
-struct participant;
-struct proxy_participant;
+struct ddsi_writer;
+struct ddsi_pwr_rd_match;
+struct ddsi_participant;
+struct ddsi_proxy_participant;
 struct ddsi_tran_conn;
 struct xevent;
 struct xeventq;
-struct proxy_writer;
-struct proxy_reader;
+struct ddsi_proxy_writer;
+struct ddsi_proxy_reader;
 struct ddsi_domaingv;
 struct nn_xmsg;
 
@@ -46,8 +46,8 @@ DDS_EXPORT void xeventq_stop (struct xeventq *evq);
 
 DDS_EXPORT void qxev_msg (struct xeventq *evq, struct nn_xmsg *msg);
 
-DDS_EXPORT void qxev_pwr_entityid (struct proxy_writer * pwr, const ddsi_guid_t *guid);
-DDS_EXPORT void qxev_prd_entityid (struct proxy_reader * prd, const ddsi_guid_t *guid);
+DDS_EXPORT void qxev_pwr_entityid (struct ddsi_proxy_writer * pwr, const ddsi_guid_t *guid);
+DDS_EXPORT void qxev_prd_entityid (struct ddsi_proxy_reader * prd, const ddsi_guid_t *guid);
 DDS_EXPORT void qxev_nt_callback (struct xeventq *evq, void (*cb) (void *arg), void *arg);
 
 enum qxev_msg_rexmit_result {

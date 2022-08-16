@@ -322,8 +322,8 @@ CU_Test(ddsc_security_qos, empty, .init = ddsrt_init, .fini = ddsrt_fini)
      support for it. */
   const char *log_expected[] = {
 #ifdef DDS_HAS_SECURITY
-    "new_participant(*): using security settings from QoS*",
-    "new_participant(*): required security property * missing*",
+    "ddsi_new_participant(*): using security settings from QoS*",
+    "ddsi_new_participant(*): required security property * missing*",
 #endif
     NULL
   };

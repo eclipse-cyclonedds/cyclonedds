@@ -25,7 +25,7 @@
 
 #define ACK_REASON_IN_FLAGS 0
 
-static seqno_t next_deliv_seq (const struct proxy_writer *pwr, const seqno_t next_seq)
+static seqno_t next_deliv_seq (const struct ddsi_proxy_writer *pwr, const seqno_t next_seq)
 {
   /* We want to determine next_deliv_seq, the next sequence number to
      be delivered to all in-sync readers, so that we can acknowledge
@@ -74,7 +74,7 @@ static seqno_t next_deliv_seq (const struct proxy_writer *pwr, const seqno_t nex
   return next_deliv_seq;
 }
 
-static void add_AckNack_getsource (const struct proxy_writer *pwr, const struct pwr_rd_match *rwn, struct nn_reorder **reorder, seqno_t *bitmap_base, int *notail)
+static void add_AckNack_getsource (const struct ddsi_proxy_writer *pwr, const struct ddsi_pwr_rd_match *rwn, struct nn_reorder **reorder, seqno_t *bitmap_base, int *notail)
 {
   /* if in sync, look at proxy writer status, else look at proxy-writer--reader match status */
   if (rwn->in_sync == PRMSS_OUT_OF_SYNC || rwn->filtered)
@@ -116,7 +116,7 @@ struct add_AckNack_info {
   } nackfrag;
 };
 
-static bool add_AckNack_makebitmaps (const struct proxy_writer *pwr, const struct pwr_rd_match *rwn, struct add_AckNack_info *info)
+static bool add_AckNack_makebitmaps (const struct ddsi_proxy_writer *pwr, const struct ddsi_pwr_rd_match *rwn, struct add_AckNack_info *info)
 {
   struct nn_reorder *reorder;
   seqno_t bitmap_base;
@@ -162,7 +162,7 @@ static bool add_AckNack_makebitmaps (const struct proxy_writer *pwr, const struc
   return true;
 }
 
-static void add_NackFrag (struct nn_xmsg *msg, const struct proxy_writer *pwr, const struct pwr_rd_match *rwn, const struct add_AckNack_info *info)
+static void add_NackFrag (struct nn_xmsg *msg, const struct ddsi_proxy_writer *pwr, const struct ddsi_pwr_rd_match *rwn, const struct add_AckNack_info *info)
 {
   struct nn_xmsg_marker sm_marker;
   NackFrag_t *nf;
@@ -202,7 +202,7 @@ static void add_NackFrag (struct nn_xmsg *msg, const struct proxy_writer *pwr, c
   encode_datareader_submsg (msg, sm_marker, pwr, &rwn->rd_guid);
 }
 
-static void add_AckNack (struct nn_xmsg *msg, const struct proxy_writer *pwr, const struct pwr_rd_match *rwn, const struct add_AckNack_info *info)
+static void add_AckNack (struct nn_xmsg *msg, const struct ddsi_proxy_writer *pwr, const struct ddsi_pwr_rd_match *rwn, const struct add_AckNack_info *info)
 {
   /* If pwr->have_seen_heartbeat == 0, no heartbeat has been received
      by this proxy writer yet, so we'll be sending a pre-emptive
@@ -247,7 +247,7 @@ static void add_AckNack (struct nn_xmsg *msg, const struct proxy_writer *pwr, co
   encode_datareader_submsg (msg, sm_marker, pwr, &rwn->rd_guid);
 }
 
-static enum add_AckNack_result get_AckNack_info (const struct proxy_writer *pwr, const struct pwr_rd_match *rwn, struct last_nack_summary *nack_summary, struct add_AckNack_info *info, bool ackdelay_passed, bool nackdelay_passed)
+static enum add_AckNack_result get_AckNack_info (const struct ddsi_proxy_writer *pwr, const struct ddsi_pwr_rd_match *rwn, struct last_nack_summary *nack_summary, struct add_AckNack_info *info, bool ackdelay_passed, bool nackdelay_passed)
 {
   /* If pwr->have_seen_heartbeat == 0, no heartbeat has been received
      by this proxy writer yet, so we'll be sending a pre-emptive
@@ -349,7 +349,7 @@ static enum add_AckNack_result get_AckNack_info (const struct proxy_writer *pwr,
   return result;
 }
 
-void sched_acknack_if_needed (struct xevent *ev, struct proxy_writer *pwr, struct pwr_rd_match *rwn, ddsrt_mtime_t tnow, bool avoid_suppressed_nack)
+void sched_acknack_if_needed (struct xevent *ev, struct ddsi_proxy_writer *pwr, struct ddsi_pwr_rd_match *rwn, ddsrt_mtime_t tnow, bool avoid_suppressed_nack)
 {
   // This is the relatively expensive and precise code to determine what the ACKNACK event will do,
   // the alternative is to do:
@@ -384,7 +384,7 @@ void sched_acknack_if_needed (struct xevent *ev, struct proxy_writer *pwr, struc
     (void) resched_xevent_if_earlier (ev, tnow);
 }
 
-struct nn_xmsg *make_and_resched_acknack (struct xevent *ev, struct proxy_writer *pwr, struct pwr_rd_match *rwn, ddsrt_mtime_t tnow, bool avoid_suppressed_nack)
+struct nn_xmsg *make_and_resched_acknack (struct xevent *ev, struct ddsi_proxy_writer *pwr, struct ddsi_pwr_rd_match *rwn, ddsrt_mtime_t tnow, bool avoid_suppressed_nack)
 {
   struct ddsi_domaingv * const gv = pwr->e.gv;
   struct nn_xmsg *msg;
@@ -438,10 +438,10 @@ struct nn_xmsg *make_and_resched_acknack (struct xevent *ev, struct proxy_writer
   rwn->heartbeatfrag_since_ack = 0;
   rwn->nack_sent_on_nackdelay = (info.nack_sent_on_nackdelay ? 1 : 0);
 
-  struct participant *pp = NULL;
+  struct ddsi_participant *pp = NULL;
   if (q_omg_proxy_participant_is_secure (pwr->c.proxypp))
   {
-    struct reader *rd = entidx_lookup_reader_guid (pwr->e.gv->entity_index, &rwn->rd_guid);
+    struct ddsi_reader *rd = entidx_lookup_reader_guid (pwr->e.gv->entity_index, &rwn->rd_guid);
     if (rd)
       pp = rd->c.pp;
   }

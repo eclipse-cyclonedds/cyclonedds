@@ -33,7 +33,7 @@ extern const ddsrt_avl_treedef_t ddsi_typelib_treedef;
 extern const ddsrt_avl_treedef_t ddsi_typedeps_treedef;
 extern const ddsrt_avl_treedef_t ddsi_typedeps_reverse_treedef;
 
-struct generic_proxy_endpoint;
+struct ddsi_generic_proxy_endpoint;
 struct ddsi_domaingv;
 struct ddsi_sertype;
 struct ddsi_sertype_cdr_data;
@@ -125,7 +125,7 @@ DDS_EXPORT struct ddsi_type * ddsi_type_lookup (struct ddsi_domaingv *gv, const 
  * should contain the actual number of entries in gpe_match_upd and will
  * be updated if new entries are added.
  */
-DDS_EXPORT void ddsi_type_get_gpe_matches (struct ddsi_domaingv *gv, const struct ddsi_type *type, struct generic_proxy_endpoint ***gpe_match_upd, uint32_t *n_match_upd);
+DDS_EXPORT void ddsi_type_get_gpe_matches (struct ddsi_domaingv *gv, const struct ddsi_type *type, struct ddsi_generic_proxy_endpoint ***gpe_match_upd, uint32_t *n_match_upd);
 
 /**
  * Compares the provided type lookup meta objects.

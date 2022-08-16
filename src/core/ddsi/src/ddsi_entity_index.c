@@ -45,9 +45,9 @@ static const uint64_t unihashconsts[] = {
 
 static int all_entities_compare (const void *va, const void *vb);
 static const ddsrt_avl_treedef_t all_entities_treedef =
-  DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct entity_common, all_entities_avlnode), 0, all_entities_compare, 0);
+  DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct ddsi_entity_common, all_entities_avlnode), 0, all_entities_compare, 0);
 
-static uint32_t hash_entity_guid (const struct entity_common *c)
+static uint32_t hash_entity_guid (const struct ddsi_entity_common *c)
 {
   return
     (uint32_t) (((((uint32_t) c->guid.prefix.u[0] + unihashconsts[0]) *
@@ -62,7 +62,7 @@ static uint32_t hash_entity_guid_wrapper (const void *c)
   return hash_entity_guid (c);
 }
 
-static int entity_guid_eq (const struct entity_common *a, const struct entity_common *b)
+static int entity_guid_eq (const struct ddsi_entity_common *a, const struct ddsi_entity_common *b)
 {
   return
     a->guid.prefix.u[0] == b->guid.prefix.u[0] && a->guid.prefix.u[1] == b->guid.prefix.u[1] &&
@@ -76,8 +76,8 @@ static int entity_guid_eq_wrapper (const void *a, const void *b)
 
 static int all_entities_compare (const void *va, const void *vb)
 {
-  const struct entity_common *a = va;
-  const struct entity_common *b = vb;
+  const struct ddsi_entity_common *a = va;
+  const struct ddsi_entity_common *b = vb;
   const char *tp_a = "";
   const char *tp_b = "";
   int cmpres;
@@ -87,14 +87,14 @@ static int all_entities_compare (const void *va, const void *vb)
 
   switch (a->kind)
   {
-    case EK_PARTICIPANT:
-    case EK_PROXY_PARTICIPANT:
+    case DDSI_EK_PARTICIPANT:
+    case DDSI_EK_PROXY_PARTICIPANT:
       break;
 
-    case EK_TOPIC: {
+    case DDSI_EK_TOPIC: {
 #ifdef DDS_HAS_TOPIC_DISCOVERY
-      const struct topic *tpa = va;
-      const struct topic *tpb = vb;
+      const struct ddsi_topic *tpa = va;
+      const struct ddsi_topic *tpb = vb;
       assert ((tpa->definition->xqos->present & QP_TOPIC_NAME) && tpa->definition->xqos->topic_name);
       assert ((tpb->definition->xqos->present & QP_TOPIC_NAME) && tpb->definition->xqos->topic_name);
       tp_a = tpa->definition->xqos->topic_name;
@@ -103,9 +103,9 @@ static int all_entities_compare (const void *va, const void *vb)
 #endif
     }
 
-    case EK_WRITER: {
-      const struct writer *wra = va;
-      const struct writer *wrb = vb;
+    case DDSI_EK_WRITER: {
+      const struct ddsi_writer *wra = va;
+      const struct ddsi_writer *wrb = vb;
       assert ((wra->xqos->present & QP_TOPIC_NAME) && wra->xqos->topic_name);
       assert ((wrb->xqos->present & QP_TOPIC_NAME) && wrb->xqos->topic_name);
       tp_a = wra->xqos->topic_name;
@@ -113,9 +113,9 @@ static int all_entities_compare (const void *va, const void *vb)
       break;
     }
 
-    case EK_READER: {
-      const struct reader *rda = va;
-      const struct reader *rdb = vb;
+    case DDSI_EK_READER: {
+      const struct ddsi_reader *rda = va;
+      const struct ddsi_reader *rdb = vb;
       assert ((rda->xqos->present & QP_TOPIC_NAME) && rda->xqos->topic_name);
       assert ((rdb->xqos->present & QP_TOPIC_NAME) && rdb->xqos->topic_name);
       tp_a = rda->xqos->topic_name;
@@ -123,10 +123,10 @@ static int all_entities_compare (const void *va, const void *vb)
       break;
     }
 
-    case EK_PROXY_WRITER:
-    case EK_PROXY_READER: {
-      const struct generic_proxy_endpoint *ga = va;
-      const struct generic_proxy_endpoint *gb = vb;
+    case DDSI_EK_PROXY_WRITER:
+    case DDSI_EK_PROXY_READER: {
+      const struct ddsi_generic_proxy_endpoint *ga = va;
+      const struct ddsi_generic_proxy_endpoint *gb = vb;
       assert ((ga->c.xqos->present & QP_TOPIC_NAME) && ga->c.xqos->topic_name);
       assert ((gb->c.xqos->present & QP_TOPIC_NAME) && gb->c.xqos->topic_name);
       tp_a = ga->c.xqos->topic_name;
@@ -141,7 +141,7 @@ static int all_entities_compare (const void *va, const void *vb)
     return memcmp (&a->guid, &b->guid, sizeof (a->guid));
 }
 
-static void match_endpoint_range (enum entity_kind kind, const char *tp, struct match_entities_range_key *min, struct match_entities_range_key *max)
+static void match_endpoint_range (enum ddsi_entity_kind kind, const char *tp, struct match_entities_range_key *min, struct match_entities_range_key *max)
 {
   /* looking for entities of kind KIND; initialize fake entities such that they are
      valid input to all_entities_compare and that span the range of all possibly
@@ -153,10 +153,10 @@ static void match_endpoint_range (enum entity_kind kind, const char *tp, struct 
   min->xqos.topic_name = max->xqos.topic_name = (char *) tp;
   switch (kind)
   {
-    case EK_PARTICIPANT:
-    case EK_PROXY_PARTICIPANT:
+    case DDSI_EK_PARTICIPANT:
+    case DDSI_EK_PROXY_PARTICIPANT:
       break;
-    case EK_TOPIC:
+    case DDSI_EK_TOPIC:
 #ifdef DDS_HAS_TOPIC_DISCOVERY
       min->entity.tp.definition = &min->tpdef;
       max->entity.tp.definition = &max->tpdef;
@@ -164,16 +164,16 @@ static void match_endpoint_range (enum entity_kind kind, const char *tp, struct 
       max->entity.tp.definition->xqos = &max->xqos;
 #endif
       break;
-    case EK_WRITER:
+    case DDSI_EK_WRITER:
       min->entity.wr.xqos = &min->xqos;
       max->entity.wr.xqos = &max->xqos;
       break;
-    case EK_READER:
+    case DDSI_EK_READER:
       min->entity.rd.xqos = &min->xqos;
       max->entity.rd.xqos = &max->xqos;
       break;
-    case EK_PROXY_WRITER:
-    case EK_PROXY_READER:
+    case DDSI_EK_PROXY_WRITER:
+    case DDSI_EK_PROXY_READER:
       min->entity.gpe.c.vendor = max->entity.gpe.c.vendor = NN_VENDORID_ECLIPSE;
       min->entity.gpe.c.xqos = &min->xqos;
       max->entity.gpe.c.xqos = &max->xqos;
@@ -181,7 +181,7 @@ static void match_endpoint_range (enum entity_kind kind, const char *tp, struct 
   }
 }
 
-static void match_entity_kind_min (enum entity_kind kind, struct match_entities_range_key *min)
+static void match_entity_kind_min (enum ddsi_entity_kind kind, struct match_entities_range_key *min)
 {
   /* looking for entities of kind KIND; initialize fake entities such that they are
      valid input to all_entities_compare and that span the range of all possibly
@@ -192,23 +192,23 @@ static void match_entity_kind_min (enum entity_kind kind, struct match_entities_
   min->xqos.topic_name = "";
   switch (kind)
   {
-    case EK_PARTICIPANT:
-    case EK_PROXY_PARTICIPANT:
+    case DDSI_EK_PARTICIPANT:
+    case DDSI_EK_PROXY_PARTICIPANT:
       break;
-    case EK_TOPIC:
+    case DDSI_EK_TOPIC:
 #ifdef DDS_HAS_TOPIC_DISCOVERY
       min->entity.tp.definition = &min->tpdef;
       min->entity.tp.definition->xqos = &min->xqos;
 #endif
       break;
-    case EK_WRITER:
+    case DDSI_EK_WRITER:
       min->entity.wr.xqos = &min->xqos;
       break;
-    case EK_READER:
+    case DDSI_EK_READER:
       min->entity.rd.xqos = &min->xqos;
       break;
-    case EK_PROXY_WRITER:
-    case EK_PROXY_READER:
+    case DDSI_EK_PROXY_WRITER:
+    case DDSI_EK_PROXY_READER:
       min->entity.gpe.c.vendor = NN_VENDORID_ECLIPSE;
       min->entity.gpe.c.xqos = &min->xqos;
       break;
@@ -257,7 +257,7 @@ void entity_index_free (struct entity_index *entidx)
   ddsrt_free (entidx);
 }
 
-static void add_to_all_entities (struct entity_index *ei, struct entity_common *e)
+static void add_to_all_entities (struct entity_index *ei, struct ddsi_entity_common *e)
 {
   ddsrt_mutex_lock (&ei->all_entities_lock);
   assert (ddsrt_avl_lookup (&all_entities_treedef, &ei->all_entities, e) == NULL);
@@ -265,7 +265,7 @@ static void add_to_all_entities (struct entity_index *ei, struct entity_common *
   ddsrt_mutex_unlock (&ei->all_entities_lock);
 }
 
-static void remove_from_all_entities (struct entity_index *ei, struct entity_common *e)
+static void remove_from_all_entities (struct entity_index *ei, struct ddsi_entity_common *e)
 {
   ddsrt_mutex_lock (&ei->all_entities_lock);
   assert (ddsrt_avl_lookup (&all_entities_treedef, &ei->all_entities, e) != NULL);
@@ -273,7 +273,7 @@ static void remove_from_all_entities (struct entity_index *ei, struct entity_com
   ddsrt_mutex_unlock (&ei->all_entities_lock);
 }
 
-static void entity_index_insert (struct entity_index *ei, struct entity_common *e)
+static void entity_index_insert (struct entity_index *ei, struct ddsi_entity_common *e)
 {
   int x;
   x = ddsrt_chh_add (ei->guid_hash, e);
@@ -282,7 +282,7 @@ static void entity_index_insert (struct entity_index *ei, struct entity_common *
   add_to_all_entities (ei, e);
 }
 
-static void entity_index_remove (struct entity_index *ei, struct entity_common *e)
+static void entity_index_remove (struct entity_index *ei, struct ddsi_entity_common *e)
 {
   int x;
   remove_from_all_entities (ei, e);
@@ -294,126 +294,126 @@ static void entity_index_remove (struct entity_index *ei, struct entity_common *
 void *entidx_lookup_guid_untyped (const struct entity_index *ei, const struct ddsi_guid *guid)
 {
   /* FIXME: could (now) require guid to be first in entity_common; entity_common already is first in entity */
-  struct entity_common e;
+  struct ddsi_entity_common e;
   e.guid = *guid;
   assert (thread_is_awake ());
   return ddsrt_chh_lookup (ei->guid_hash, &e);
 }
 
-static void *entidx_lookup_guid_int (const struct entity_index *ei, const struct ddsi_guid *guid, enum entity_kind kind)
+static void *entidx_lookup_guid_int (const struct entity_index *ei, const struct ddsi_guid *guid, enum ddsi_entity_kind kind)
 {
-  struct entity_common *res;
+  struct ddsi_entity_common *res;
   if ((res = entidx_lookup_guid_untyped (ei, guid)) != NULL && res->kind == kind)
     return res;
   else
     return NULL;
 }
 
-void *entidx_lookup_guid (const struct entity_index *ei, const struct ddsi_guid *guid, enum entity_kind kind)
+void *entidx_lookup_guid (const struct entity_index *ei, const struct ddsi_guid *guid, enum ddsi_entity_kind kind)
 {
   return entidx_lookup_guid_int (ei, guid, kind);
 }
 
-void entidx_insert_participant_guid (struct entity_index *ei, struct participant *pp)
+void entidx_insert_participant_guid (struct entity_index *ei, struct ddsi_participant *pp)
 {
   entity_index_insert (ei, &pp->e);
 }
 
-void entidx_insert_proxy_participant_guid (struct entity_index *ei, struct proxy_participant *proxypp)
+void entidx_insert_proxy_participant_guid (struct entity_index *ei, struct ddsi_proxy_participant *proxypp)
 {
   entity_index_insert (ei, &proxypp->e);
 }
 
-void entidx_insert_writer_guid (struct entity_index *ei, struct writer *wr)
+void entidx_insert_writer_guid (struct entity_index *ei, struct ddsi_writer *wr)
 {
   entity_index_insert (ei, &wr->e);
 }
 
-void entidx_insert_reader_guid (struct entity_index *ei, struct reader *rd)
+void entidx_insert_reader_guid (struct entity_index *ei, struct ddsi_reader *rd)
 {
   entity_index_insert (ei, &rd->e);
 }
 
-void entidx_insert_proxy_writer_guid (struct entity_index *ei, struct proxy_writer *pwr)
+void entidx_insert_proxy_writer_guid (struct entity_index *ei, struct ddsi_proxy_writer *pwr)
 {
   entity_index_insert (ei, &pwr->e);
 }
 
-void entidx_insert_proxy_reader_guid (struct entity_index *ei, struct proxy_reader *prd)
+void entidx_insert_proxy_reader_guid (struct entity_index *ei, struct ddsi_proxy_reader *prd)
 {
   entity_index_insert (ei, &prd->e);
 }
 
-void entidx_remove_participant_guid (struct entity_index *ei, struct participant *pp)
+void entidx_remove_participant_guid (struct entity_index *ei, struct ddsi_participant *pp)
 {
   entity_index_remove (ei, &pp->e);
 }
 
-void entidx_remove_proxy_participant_guid (struct entity_index *ei, struct proxy_participant *proxypp)
+void entidx_remove_proxy_participant_guid (struct entity_index *ei, struct ddsi_proxy_participant *proxypp)
 {
   entity_index_remove (ei, &proxypp->e);
 }
 
-void entidx_remove_writer_guid (struct entity_index *ei, struct writer *wr)
+void entidx_remove_writer_guid (struct entity_index *ei, struct ddsi_writer *wr)
 {
   entity_index_remove (ei, &wr->e);
 }
 
-void entidx_remove_reader_guid (struct entity_index *ei, struct reader *rd)
+void entidx_remove_reader_guid (struct entity_index *ei, struct ddsi_reader *rd)
 {
   entity_index_remove (ei, &rd->e);
 }
 
-void entidx_remove_proxy_writer_guid (struct entity_index *ei, struct proxy_writer *pwr)
+void entidx_remove_proxy_writer_guid (struct entity_index *ei, struct ddsi_proxy_writer *pwr)
 {
   entity_index_remove (ei, &pwr->e);
 }
 
-void entidx_remove_proxy_reader_guid (struct entity_index *ei, struct proxy_reader *prd)
+void entidx_remove_proxy_reader_guid (struct entity_index *ei, struct ddsi_proxy_reader *prd)
 {
   entity_index_remove (ei, &prd->e);
 }
 
-struct participant *entidx_lookup_participant_guid (const struct entity_index *ei, const struct ddsi_guid *guid)
+struct ddsi_participant *entidx_lookup_participant_guid (const struct entity_index *ei, const struct ddsi_guid *guid)
 {
-  DDSRT_STATIC_ASSERT (offsetof (struct participant, e) == 0);
+  DDSRT_STATIC_ASSERT (offsetof (struct ddsi_participant, e) == 0);
   assert (guid->entityid.u == NN_ENTITYID_PARTICIPANT);
-  return entidx_lookup_guid_int (ei, guid, EK_PARTICIPANT);
+  return entidx_lookup_guid_int (ei, guid, DDSI_EK_PARTICIPANT);
 }
 
-struct proxy_participant *entidx_lookup_proxy_participant_guid (const struct entity_index *ei, const struct ddsi_guid *guid)
+struct ddsi_proxy_participant *entidx_lookup_proxy_participant_guid (const struct entity_index *ei, const struct ddsi_guid *guid)
 {
-  DDSRT_STATIC_ASSERT (offsetof (struct proxy_participant, e) == 0);
+  DDSRT_STATIC_ASSERT (offsetof (struct ddsi_proxy_participant, e) == 0);
   assert (guid->entityid.u == NN_ENTITYID_PARTICIPANT);
-  return entidx_lookup_guid_int (ei, guid, EK_PROXY_PARTICIPANT);
+  return entidx_lookup_guid_int (ei, guid, DDSI_EK_PROXY_PARTICIPANT);
 }
 
-struct writer *entidx_lookup_writer_guid (const struct entity_index *ei, const struct ddsi_guid *guid)
+struct ddsi_writer *entidx_lookup_writer_guid (const struct entity_index *ei, const struct ddsi_guid *guid)
 {
-  DDSRT_STATIC_ASSERT (offsetof (struct writer, e) == 0);
-  assert (is_writer_entityid (guid->entityid));
-  return entidx_lookup_guid_int (ei, guid, EK_WRITER);
+  DDSRT_STATIC_ASSERT (offsetof (struct ddsi_writer, e) == 0);
+  assert (ddsi_is_writer_entityid (guid->entityid));
+  return entidx_lookup_guid_int (ei, guid, DDSI_EK_WRITER);
 }
 
-struct reader *entidx_lookup_reader_guid (const struct entity_index *ei, const struct ddsi_guid *guid)
+struct ddsi_reader *entidx_lookup_reader_guid (const struct entity_index *ei, const struct ddsi_guid *guid)
 {
-  DDSRT_STATIC_ASSERT (offsetof (struct reader, e) == 0);
-  assert (is_reader_entityid (guid->entityid));
-  return entidx_lookup_guid_int (ei, guid, EK_READER);
+  DDSRT_STATIC_ASSERT (offsetof (struct ddsi_reader, e) == 0);
+  assert (ddsi_is_reader_entityid (guid->entityid));
+  return entidx_lookup_guid_int (ei, guid, DDSI_EK_READER);
 }
 
-struct proxy_writer *entidx_lookup_proxy_writer_guid (const struct entity_index *ei, const struct ddsi_guid *guid)
+struct ddsi_proxy_writer *entidx_lookup_proxy_writer_guid (const struct entity_index *ei, const struct ddsi_guid *guid)
 {
-  DDSRT_STATIC_ASSERT (offsetof (struct proxy_writer, e) == 0);
-  assert (is_writer_entityid (guid->entityid));
-  return entidx_lookup_guid_int (ei, guid, EK_PROXY_WRITER);
+  DDSRT_STATIC_ASSERT (offsetof (struct ddsi_proxy_writer, e) == 0);
+  assert (ddsi_is_writer_entityid (guid->entityid));
+  return entidx_lookup_guid_int (ei, guid, DDSI_EK_PROXY_WRITER);
 }
 
-struct proxy_reader *entidx_lookup_proxy_reader_guid (const struct entity_index *ei, const struct ddsi_guid *guid)
+struct ddsi_proxy_reader *entidx_lookup_proxy_reader_guid (const struct entity_index *ei, const struct ddsi_guid *guid)
 {
-  DDSRT_STATIC_ASSERT (offsetof (struct proxy_reader, e) == 0);
-  assert (is_reader_entityid (guid->entityid));
-  return entidx_lookup_guid_int (ei, guid, EK_PROXY_READER);
+  DDSRT_STATIC_ASSERT (offsetof (struct ddsi_proxy_reader, e) == 0);
+  assert (ddsi_is_reader_entityid (guid->entityid));
+  return entidx_lookup_guid_int (ei, guid, DDSI_EK_PROXY_READER);
 }
 
 /* Enumeration */
@@ -436,9 +436,9 @@ static void entidx_enum_init_minmax_int (struct entidx_enum *st, const struct en
   ddsrt_mutex_unlock (&st->entidx->all_entities_lock);
 }
 
-void entidx_enum_init_topic (struct entidx_enum *st, const struct entity_index *ei, enum entity_kind kind, const char *topic, struct match_entities_range_key *max)
+void entidx_enum_init_topic (struct entidx_enum *st, const struct entity_index *ei, enum ddsi_entity_kind kind, const char *topic, struct match_entities_range_key *max)
 {
-  assert (kind == EK_READER || kind == EK_WRITER || kind == EK_PROXY_READER || kind == EK_PROXY_WRITER);
+  assert (kind == DDSI_EK_READER || kind == DDSI_EK_WRITER || kind == DDSI_EK_PROXY_READER || kind == DDSI_EK_PROXY_WRITER);
   struct match_entities_range_key min;
   match_endpoint_range (kind, topic, &min, max);
   entidx_enum_init_minmax_int (st, ei, &min);
@@ -446,9 +446,9 @@ void entidx_enum_init_topic (struct entidx_enum *st, const struct entity_index *
     st->cur = NULL;
 }
 
-void entidx_enum_init_topic_w_prefix (struct entidx_enum *st, const struct entity_index *ei, enum entity_kind kind, const char *topic, const ddsi_guid_prefix_t *prefix, struct match_entities_range_key *max)
+void entidx_enum_init_topic_w_prefix (struct entidx_enum *st, const struct entity_index *ei, enum ddsi_entity_kind kind, const char *topic, const ddsi_guid_prefix_t *prefix, struct match_entities_range_key *max)
 {
-  assert (kind == EK_READER || kind == EK_WRITER || kind == EK_PROXY_READER || kind == EK_PROXY_WRITER);
+  assert (kind == DDSI_EK_READER || kind == DDSI_EK_WRITER || kind == DDSI_EK_PROXY_READER || kind == DDSI_EK_PROXY_WRITER);
   struct match_entities_range_key min;
   match_endpoint_range (kind, topic, &min, max);
   min.entity.e.guid.prefix = *prefix;
@@ -458,7 +458,7 @@ void entidx_enum_init_topic_w_prefix (struct entidx_enum *st, const struct entit
     st->cur = NULL;
 }
 
-void entidx_enum_init (struct entidx_enum *st, const struct entity_index *ei, enum entity_kind kind)
+void entidx_enum_init (struct entidx_enum *st, const struct entity_index *ei, enum ddsi_entity_kind kind)
 {
   struct match_entities_range_key min;
   match_entity_kind_min (kind, &min);
@@ -469,32 +469,32 @@ void entidx_enum_init (struct entidx_enum *st, const struct entity_index *ei, en
 
 void entidx_enum_writer_init (struct entidx_enum_writer *st, const struct entity_index *ei)
 {
-  entidx_enum_init (&st->st, ei, EK_WRITER);
+  entidx_enum_init (&st->st, ei, DDSI_EK_WRITER);
 }
 
 void entidx_enum_reader_init (struct entidx_enum_reader *st, const struct entity_index *ei)
 {
-  entidx_enum_init (&st->st, ei, EK_READER);
+  entidx_enum_init (&st->st, ei, DDSI_EK_READER);
 }
 
 void entidx_enum_proxy_writer_init (struct entidx_enum_proxy_writer *st, const struct entity_index *ei)
 {
-  entidx_enum_init (&st->st, ei, EK_PROXY_WRITER);
+  entidx_enum_init (&st->st, ei, DDSI_EK_PROXY_WRITER);
 }
 
 void entidx_enum_proxy_reader_init (struct entidx_enum_proxy_reader *st, const struct entity_index *ei)
 {
-  entidx_enum_init (&st->st, ei, EK_PROXY_READER);
+  entidx_enum_init (&st->st, ei, DDSI_EK_PROXY_READER);
 }
 
 void entidx_enum_participant_init (struct entidx_enum_participant *st, const struct entity_index *ei)
 {
-  entidx_enum_init (&st->st, ei, EK_PARTICIPANT);
+  entidx_enum_init (&st->st, ei, DDSI_EK_PARTICIPANT);
 }
 
 void entidx_enum_proxy_participant_init (struct entidx_enum_proxy_participant *st, const struct entity_index *ei)
 {
-  entidx_enum_init (&st->st, ei, EK_PROXY_PARTICIPANT);
+  entidx_enum_init (&st->st, ei, DDSI_EK_PROXY_PARTICIPANT);
 }
 
 void *entidx_enum_next (struct entidx_enum *st)
@@ -524,39 +524,39 @@ void *entidx_enum_next_max (struct entidx_enum *st, const struct match_entities_
   return res;
 }
 
-struct writer *entidx_enum_writer_next (struct entidx_enum_writer *st)
+struct ddsi_writer *entidx_enum_writer_next (struct entidx_enum_writer *st)
 {
-  DDSRT_STATIC_ASSERT (offsetof (struct writer, e) == 0);
+  DDSRT_STATIC_ASSERT (offsetof (struct ddsi_writer, e) == 0);
   return entidx_enum_next (&st->st);
 }
 
-struct reader *entidx_enum_reader_next (struct entidx_enum_reader *st)
+struct ddsi_reader *entidx_enum_reader_next (struct entidx_enum_reader *st)
 {
-  DDSRT_STATIC_ASSERT (offsetof (struct reader, e) == 0);
+  DDSRT_STATIC_ASSERT (offsetof (struct ddsi_reader, e) == 0);
   return entidx_enum_next (&st->st);
 }
 
-struct proxy_writer *entidx_enum_proxy_writer_next (struct entidx_enum_proxy_writer *st)
+struct ddsi_proxy_writer *entidx_enum_proxy_writer_next (struct entidx_enum_proxy_writer *st)
 {
-  DDSRT_STATIC_ASSERT (offsetof (struct proxy_writer, e) == 0);
+  DDSRT_STATIC_ASSERT (offsetof (struct ddsi_proxy_writer, e) == 0);
   return entidx_enum_next (&st->st);
 }
 
-struct proxy_reader *entidx_enum_proxy_reader_next (struct entidx_enum_proxy_reader *st)
+struct ddsi_proxy_reader *entidx_enum_proxy_reader_next (struct entidx_enum_proxy_reader *st)
 {
-  DDSRT_STATIC_ASSERT (offsetof (struct proxy_reader, e) == 0);
+  DDSRT_STATIC_ASSERT (offsetof (struct ddsi_proxy_reader, e) == 0);
   return entidx_enum_next (&st->st);
 }
 
-struct participant *entidx_enum_participant_next (struct entidx_enum_participant *st)
+struct ddsi_participant *entidx_enum_participant_next (struct entidx_enum_participant *st)
 {
-  DDSRT_STATIC_ASSERT (offsetof (struct participant, e) == 0);
+  DDSRT_STATIC_ASSERT (offsetof (struct ddsi_participant, e) == 0);
   return entidx_enum_next (&st->st);
 }
 
-struct proxy_participant *entidx_enum_proxy_participant_next (struct entidx_enum_proxy_participant *st)
+struct ddsi_proxy_participant *entidx_enum_proxy_participant_next (struct entidx_enum_proxy_participant *st)
 {
-  DDSRT_STATIC_ASSERT (offsetof (struct proxy_participant, e) == 0);
+  DDSRT_STATIC_ASSERT (offsetof (struct ddsi_proxy_participant, e) == 0);
   return entidx_enum_next (&st->st);
 }
 
@@ -598,31 +598,31 @@ void entidx_enum_proxy_participant_fini (struct entidx_enum_proxy_participant *s
 
 #ifdef DDS_HAS_TOPIC_DISCOVERY
 
-void entidx_insert_topic_guid (struct entity_index *ei, struct topic *tp)
+void entidx_insert_topic_guid (struct entity_index *ei, struct ddsi_topic *tp)
 {
   entity_index_insert (ei, &tp->e);
 }
 
-void entidx_remove_topic_guid (struct entity_index *ei, struct topic *tp)
+void entidx_remove_topic_guid (struct entity_index *ei, struct ddsi_topic *tp)
 {
   entity_index_remove (ei, &tp->e);
 }
 
-struct topic *entidx_lookup_topic_guid (const struct entity_index *ei, const struct ddsi_guid *guid)
+struct ddsi_topic *entidx_lookup_topic_guid (const struct entity_index *ei, const struct ddsi_guid *guid)
 {
-  DDSRT_STATIC_ASSERT (offsetof (struct topic, e) == 0);
-  assert (is_topic_entityid (guid->entityid));
-  return entidx_lookup_guid_int (ei, guid, EK_TOPIC);
+  DDSRT_STATIC_ASSERT (offsetof (struct ddsi_topic, e) == 0);
+  assert (ddsi_is_topic_entityid (guid->entityid));
+  return entidx_lookup_guid_int (ei, guid, DDSI_EK_TOPIC);
 }
 
 void entidx_enum_topic_init (struct entidx_enum_topic *st, const struct entity_index *ei)
 {
-  entidx_enum_init (&st->st, ei, EK_TOPIC);
+  entidx_enum_init (&st->st, ei, DDSI_EK_TOPIC);
 }
 
-struct topic *entidx_enum_topic_next (struct entidx_enum_topic *st)
+struct ddsi_topic *entidx_enum_topic_next (struct entidx_enum_topic *st)
 {
-  DDSRT_STATIC_ASSERT (offsetof (struct topic, e) == 0);
+  DDSRT_STATIC_ASSERT (offsetof (struct ddsi_topic, e) == 0);
   return entidx_enum_next (&st->st);
 }
 

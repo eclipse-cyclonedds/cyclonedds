@@ -34,18 +34,18 @@
 #include "dds/ddsi/ddsi_participant.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
 
-bool write_auth_handshake_message(const struct participant *pp, const struct proxy_participant *proxypp, nn_dataholderseq_t *mdata, bool request, const nn_message_identity_t *related_message_id)
+bool write_auth_handshake_message(const struct ddsi_participant *pp, const struct ddsi_proxy_participant *proxypp, nn_dataholderseq_t *mdata, bool request, const nn_message_identity_t *related_message_id)
 {
   struct ddsi_domaingv *gv = pp->e.gv;
   struct nn_participant_generic_message pmg;
   struct ddsi_serdata *serdata;
-  struct writer *wr;
+  struct ddsi_writer *wr;
   seqno_t seq;
-  struct proxy_reader *prd;
+  struct ddsi_proxy_reader *prd;
   ddsi_guid_t prd_guid;
   bool result = false;
 
-  if ((wr = get_builtin_writer (pp, NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER)) == NULL) {
+  if ((wr = ddsi_get_builtin_writer (pp, NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER)) == NULL) {
     GVTRACE ("write_handshake("PGUIDFMT") - builtin stateless message writer not found", PGUID (pp->e.guid));
     return false;
   }
@@ -76,7 +76,7 @@ bool write_auth_handshake_message(const struct participant *pp, const struct pro
   return result;
 }
 
-void auth_get_serialized_participant_data(struct participant *pp, ddsi_octetseq_t *seq)
+void auth_get_serialized_participant_data(struct ddsi_participant *pp, ddsi_octetseq_t *seq)
 {
   struct nn_xmsg *mpayload;
   ddsi_plist_t ps;
@@ -99,8 +99,8 @@ void handle_auth_handshake_message(const struct receiver_state *rst, ddsi_entity
 {
   const struct ddsi_serdata_pserop *sample = (const struct ddsi_serdata_pserop *) sample_common;
   const struct nn_participant_generic_message *msg = sample->sample;
-  struct participant *pp = NULL;
-  struct proxy_writer *pwr = NULL;
+  struct ddsi_participant *pp = NULL;
+  struct ddsi_proxy_writer *pwr = NULL;
   ddsi_guid_t guid;
   const ddsi_guid_t *pwr_guid;
   struct ddsi_handshake *handshake;
@@ -143,19 +143,19 @@ void handle_auth_handshake_message(const struct receiver_state *rst, ddsi_entity
   }
 }
 
-static bool write_crypto_exchange_message(const struct participant *pp, const ddsi_guid_t *dst_pguid, const ddsi_guid_t *src_eguid, const ddsi_guid_t *dst_eguid, const char *classid, const nn_dataholderseq_t *tokens)
+static bool write_crypto_exchange_message(const struct ddsi_participant *pp, const ddsi_guid_t *dst_pguid, const ddsi_guid_t *src_eguid, const ddsi_guid_t *dst_eguid, const char *classid, const nn_dataholderseq_t *tokens)
 {
   struct ddsi_domaingv * const gv = pp->e.gv;
   struct nn_participant_generic_message pmg;
   struct ddsi_tkmap_instance *tk;
   struct ddsi_serdata *serdata;
-  struct proxy_reader *prd;
+  struct ddsi_proxy_reader *prd;
   ddsi_guid_t prd_guid;
-  struct writer *wr;
+  struct ddsi_writer *wr;
   seqno_t seq;
   int r;
 
-  if ((wr = get_builtin_writer (pp, NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER)) == NULL)
+  if ((wr = ddsi_get_builtin_writer (pp, NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER)) == NULL)
   {
     GVLOG (DDS_LC_DISCOVERY, "write_crypto_exchange_message("PGUIDFMT") - builtin volatile secure writer not found\n", PGUID (pp->e.guid));
     return false;
@@ -186,23 +186,23 @@ static bool write_crypto_exchange_message(const struct participant *pp, const dd
   return (r < 0 ? false : true);
 }
 
-bool write_crypto_participant_tokens(const struct participant *pp, const struct proxy_participant *proxypp, const nn_dataholderseq_t *tokens)
+bool write_crypto_participant_tokens(const struct ddsi_participant *pp, const struct ddsi_proxy_participant *proxypp, const nn_dataholderseq_t *tokens)
 {
   return write_crypto_exchange_message(pp, &proxypp->e.guid, NULL, NULL, GMCLASSID_SECURITY_PARTICIPANT_CRYPTO_TOKENS, tokens);
 }
 
-bool write_crypto_writer_tokens(const struct writer *wr, const struct proxy_reader *prd, const nn_dataholderseq_t *tokens)
+bool write_crypto_writer_tokens(const struct ddsi_writer *wr, const struct ddsi_proxy_reader *prd, const nn_dataholderseq_t *tokens)
 {
-  struct participant *pp = wr->c.pp;
-  struct proxy_participant *proxypp = prd->c.proxypp;
+  struct ddsi_participant *pp = wr->c.pp;
+  struct ddsi_proxy_participant *proxypp = prd->c.proxypp;
 
   return write_crypto_exchange_message(pp, &proxypp->e.guid, &wr->e.guid, &prd->e.guid, GMCLASSID_SECURITY_DATAWRITER_CRYPTO_TOKENS, tokens);
 }
 
-bool write_crypto_reader_tokens(const struct reader *rd, const struct proxy_writer *pwr, const nn_dataholderseq_t *tokens)
+bool write_crypto_reader_tokens(const struct ddsi_reader *rd, const struct ddsi_proxy_writer *pwr, const nn_dataholderseq_t *tokens)
 {
-  struct participant *pp = rd->c.pp;
-  struct proxy_participant *proxypp = pwr->c.proxypp;
+  struct ddsi_participant *pp = rd->c.pp;
+  struct ddsi_proxy_participant *proxypp = pwr->c.proxypp;
 
   return write_crypto_exchange_message(pp, &proxypp->e.guid, &rd->e.guid, &pwr->e.guid, GMCLASSID_SECURITY_DATAREADER_CRYPTO_TOKENS, tokens);
 }
@@ -219,13 +219,13 @@ void handle_crypto_exchange_message(const struct receiver_state *rst, struct dds
 
   if (strcmp(GMCLASSID_SECURITY_PARTICIPANT_CRYPTO_TOKENS, msg->message_class_id) == 0)
   {
-    struct participant * const pp = entidx_lookup_participant_guid(gv->entity_index, &msg->destination_participant_guid);
+    struct ddsi_participant * const pp = entidx_lookup_participant_guid(gv->entity_index, &msg->destination_participant_guid);
     if (!pp)
     {
       GVWARNING("received a crypto exchange message from "PGUIDFMT" with participant unknown "PGUIDFMT, PGUID(proxypp_guid), PGUID(msg->destination_participant_guid));
       return;
     }
-    struct proxy_participant *proxypp = entidx_lookup_proxy_participant_guid(gv->entity_index, &proxypp_guid);
+    struct ddsi_proxy_participant *proxypp = entidx_lookup_proxy_participant_guid(gv->entity_index, &proxypp_guid);
     if (!proxypp)
     {
       GVWARNING("received a crypto exchange message from "PGUIDFMT" with proxy participant unknown "PGUIDFMT, PGUID(proxypp_guid), PGUID(msg->destination_participant_guid));
@@ -235,7 +235,7 @@ void handle_crypto_exchange_message(const struct receiver_state *rst, struct dds
   }
   else if (strcmp(GMCLASSID_SECURITY_DATAWRITER_CRYPTO_TOKENS, msg->message_class_id) == 0)
   {
-    struct reader * const rd = entidx_lookup_reader_guid(gv->entity_index, &msg->destination_endpoint_guid);
+    struct ddsi_reader * const rd = entidx_lookup_reader_guid(gv->entity_index, &msg->destination_endpoint_guid);
     if (!rd)
     {
       GVWARNING("received a crypto exchange message from "PGUIDFMT" with reader unknown "PGUIDFMT, PGUID(proxypp_guid), PGUID(msg->destination_participant_guid));
@@ -245,7 +245,7 @@ void handle_crypto_exchange_message(const struct receiver_state *rst, struct dds
   }
   else if (strcmp(GMCLASSID_SECURITY_DATAREADER_CRYPTO_TOKENS, msg->message_class_id) == 0)
   {
-    struct writer * const wr = entidx_lookup_writer_guid(gv->entity_index, &msg->destination_endpoint_guid);
+    struct ddsi_writer * const wr = entidx_lookup_writer_guid(gv->entity_index, &msg->destination_endpoint_guid);
     if (!wr)
     {
       GVWARNING("received a crypto exchange message from "PGUIDFMT" with writer unknown "PGUIDFMT, PGUID(proxypp_guid), PGUID(msg->destination_participant_guid));

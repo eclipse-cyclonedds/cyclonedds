@@ -137,8 +137,8 @@ static void receive_data_wakeup_handler(struct dds_reader* rd)
     const iceoryx_header_t* ice_hdr = iceoryx_header_from_chunk(chunk);
 
     // Get writer or proxy writer
-    struct entity_common * e = entidx_lookup_guid_untyped (gv->entity_index, &ice_hdr->guid);
-    if (e == NULL || (e->kind != EK_PROXY_WRITER && e->kind != EK_WRITER))
+    struct ddsi_entity_common * e = entidx_lookup_guid_untyped (gv->entity_index, &ice_hdr->guid);
+    if (e == NULL || (e->kind != DDSI_EK_PROXY_WRITER && e->kind != DDSI_EK_WRITER))
     {
       // Ignore that doesn't match a known writer or proxy writer
       DDS_CLOG (DDS_LC_SHM, &gv->logconfig, "unknown source entity, ignore.\n");
@@ -161,10 +161,10 @@ static void receive_data_wakeup_handler(struct dds_reader* rd)
     // Generate writer_info
     struct ddsi_writer_info wrinfo;
     struct dds_qos *xqos;
-    if (e->kind == EK_PROXY_WRITER)
-      xqos = ((struct proxy_writer *) e)->c.xqos;
+    if (e->kind == DDSI_EK_PROXY_WRITER)
+      xqos = ((struct ddsi_proxy_writer *) e)->c.xqos;
     else
-      xqos = ((struct writer *) e)->xqos;
+      xqos = ((struct ddsi_writer *) e)->xqos;
     ddsi_make_writer_info(&wrinfo, e, xqos, d->statusinfo);
     (void)ddsi_rhc_store(rd->m_rd->rhc, &wrinfo, d, tk);
 

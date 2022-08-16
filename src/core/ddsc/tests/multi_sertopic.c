@@ -252,19 +252,19 @@ static void waitfor_or_reset_fastpath (dds_entity_t rdhandle, bool fastpath, siz
   CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
   CU_ASSERT_FATAL (dds_entity_kind (x) == DDS_KIND_READER);
 
-  struct reader * const rd = ((struct dds_reader *) x)->m_rd;
-  struct rd_pwr_match *m;
+  struct ddsi_reader * const rd = ((struct dds_reader *) x)->m_rd;
+  struct ddsi_rd_pwr_match *m;
   ddsi_guid_t cursor;
   size_t wrcount = 0;
   thread_state_awake (lookup_thread_state (), rd->e.gv);
   ddsrt_mutex_lock (&rd->e.lock);
 
   memset (&cursor, 0, sizeof (cursor));
-  while ((m = ddsrt_avl_lookup_succ (&rd_writers_treedef, &rd->writers, &cursor)) != NULL)
+  while ((m = ddsrt_avl_lookup_succ (&ddsi_rd_writers_treedef, &rd->writers, &cursor)) != NULL)
   {
     cursor = m->pwr_guid;
     ddsrt_mutex_unlock (&rd->e.lock);
-    struct proxy_writer * const pwr = entidx_lookup_proxy_writer_guid (rd->e.gv->entity_index, &cursor);
+    struct ddsi_proxy_writer * const pwr = entidx_lookup_proxy_writer_guid (rd->e.gv->entity_index, &cursor);
     ddsrt_mutex_lock (&pwr->rdary.rdary_lock);
     if (!fastpath)
       pwr->rdary.fastpath_ok = false;
@@ -283,11 +283,11 @@ static void waitfor_or_reset_fastpath (dds_entity_t rdhandle, bool fastpath, siz
   }
 
   memset (&cursor, 0, sizeof (cursor));
-  while ((m = ddsrt_avl_lookup_succ (&rd_local_writers_treedef, &rd->local_writers, &cursor)) != NULL)
+  while ((m = ddsrt_avl_lookup_succ (&ddsi_rd_local_writers_treedef, &rd->local_writers, &cursor)) != NULL)
   {
     cursor = m->pwr_guid;
     ddsrt_mutex_unlock (&rd->e.lock);
-    struct writer * const wr = entidx_lookup_writer_guid (rd->e.gv->entity_index, &cursor);
+    struct ddsi_writer * const wr = entidx_lookup_writer_guid (rd->e.gv->entity_index, &cursor);
     ddsrt_mutex_lock (&wr->rdary.rdary_lock);
     if (!fastpath)
       wr->rdary.fastpath_ok = fastpath;

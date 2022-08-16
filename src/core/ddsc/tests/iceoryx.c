@@ -168,7 +168,7 @@ static bool check_writer_addrset (dds_entity_t wrhandle, int nports, const uint3
   rc = dds_entity_pin (wrhandle, &x);
   CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
   CU_ASSERT_FATAL (dds_entity_kind (x) == DDS_KIND_WRITER);
-  struct writer * const wr = ((struct dds_writer *) x)->m_wr;
+  struct ddsi_writer * const wr = ((struct dds_writer *) x)->m_wr;
   CU_ASSERT_FATAL (nports < 31);
   struct check_writer_addrset_helper_arg arg = {
     .ports_seen = 0,
@@ -272,7 +272,7 @@ static bool allmatched (dds_entity_t ws, dds_entity_t wr, int nrds, const dds_en
     dds_return_t rc = dds_get_guid (rds[i], &rdguids[i]);
     CU_ASSERT_FATAL (rc == 0);
   }
-  qsort (rdguids, (size_t) nrds, sizeof (rdguids[0]), compare_guid);
+  qsort (rdguids, (size_t) nrds, sizeof (rdguids[0]), ddsi_compare_guid);
 
   const dds_time_t abstimeout = dds_time () + DDS_SECS (2);
   while (dds_time () < abstimeout)
@@ -294,7 +294,7 @@ static bool allmatched (dds_entity_t ws, dds_entity_t wr, int nrds, const dds_en
       mguids[i] = ep->key;
       dds_builtintopic_free_endpoint (ep);
     }
-    qsort (mguids, (size_t) nms, sizeof (mguids[0]), compare_guid);
+    qsort (mguids, (size_t) nms, sizeof (mguids[0]), ddsi_compare_guid);
     if (memcmp (mguids, rdguids, (size_t) nms * sizeof (*mguids)) != 0)
       continue;
 
@@ -396,7 +396,7 @@ out:
 
 struct fastpath_info {
   uint32_t nrd;
-  struct reader *rdary0;
+  struct ddsi_reader *rdary0;
 };
 
 static struct fastpath_info getset_fastpath_reader_count (dds_entity_t wrhandle, struct fastpath_info new)
@@ -407,7 +407,7 @@ static struct fastpath_info getset_fastpath_reader_count (dds_entity_t wrhandle,
   rc = dds_entity_pin (wrhandle, &x);
   CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
   CU_ASSERT_FATAL (dds_entity_kind (x) == DDS_KIND_WRITER);
-  struct writer * const wr = ((struct dds_writer *) x)->m_wr;
+  struct ddsi_writer * const wr = ((struct dds_writer *) x)->m_wr;
   ddsrt_mutex_lock (&wr->rdary.rdary_lock);
   while (!wr->rdary.fastpath_ok)
   {

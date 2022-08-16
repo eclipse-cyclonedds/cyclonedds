@@ -291,7 +291,7 @@ static struct nn_xmsg *nn_xmsg_allocnew (struct nn_xmsgpool *pool, size_t expect
   return m;
 }
 
-struct nn_xmsg *nn_xmsg_new (struct nn_xmsgpool *pool, const ddsi_guid_t *src_guid, struct participant *pp, size_t expected_size, enum nn_xmsg_kind kind)
+struct nn_xmsg *nn_xmsg_new (struct nn_xmsgpool *pool, const ddsi_guid_t *src_guid, struct ddsi_participant *pp, size_t expected_size, enum nn_xmsg_kind kind)
 {
   struct nn_xmsg *m;
   if ((m = nn_freelist_pop (&pool->freelist)) != NULL)
@@ -658,7 +658,7 @@ void nn_xmsg_add_entityid (struct nn_xmsg * m)
   nn_xmsg_submsg_setnext (m, sm);
 }
 
-void nn_xmsg_serdata (struct nn_xmsg *m, struct ddsi_serdata *serdata, size_t off, size_t len, struct writer *wr)
+void nn_xmsg_serdata (struct nn_xmsg *m, struct ddsi_serdata *serdata, size_t off, size_t len, struct ddsi_writer *wr)
 {
   if (serdata->kind != SDK_EMPTY)
   {
@@ -692,7 +692,7 @@ static void nn_xmsg_setdst1_common (struct ddsi_domaingv *gv, struct nn_xmsg *m,
 #ifdef DDS_HAS_SECURITY
   if (m->sec_info.use_rtps_encoding && !m->sec_info.dst_pp_handle)
   {
-    struct proxy_participant *proxypp;
+    struct ddsi_proxy_participant *proxypp;
     ddsi_guid_t guid;
 
     guid.prefix = *gp;
@@ -725,7 +725,7 @@ bool nn_xmsg_getdst1prefix (struct nn_xmsg *m, ddsi_guid_prefix_t *gp)
   return false;
 }
 
-void nn_xmsg_setdstPRD (struct nn_xmsg *m, const struct proxy_reader *prd)
+void nn_xmsg_setdstPRD (struct nn_xmsg *m, const struct ddsi_proxy_reader *prd)
 {
   // only accepting endpoints that have an address
   assert (m->dstmode == NN_XMSG_DST_UNSET);
@@ -746,7 +746,7 @@ void nn_xmsg_setdstPRD (struct nn_xmsg *m, const struct proxy_reader *prd)
   }
 }
 
-void nn_xmsg_setdstPWR (struct nn_xmsg *m, const struct proxy_writer *pwr)
+void nn_xmsg_setdstPWR (struct nn_xmsg *m, const struct ddsi_proxy_writer *pwr)
 {
   // only accepting endpoints that have an address
   assert (m->dstmode == NN_XMSG_DST_UNSET);
@@ -788,7 +788,7 @@ static void clear_readerId (struct nn_xmsg *m)
   assert (m->kind == NN_XMSG_KIND_DATA_REXMIT || m->kind == NN_XMSG_KIND_DATA_REXMIT_NOMERGE);
   assert (m->kindspecific.data.readerId_off != 0);
   *((ddsi_entityid_t *) (m->data->payload + m->kindspecific.data.readerId_off)) =
-    nn_hton_entityid (to_entityid (NN_ENTITYID_UNKNOWN));
+    nn_hton_entityid (ddsi_to_entityid (NN_ENTITYID_UNKNOWN));
 }
 
 static ddsi_entityid_t load_readerId (const struct nn_xmsg *m)
@@ -809,7 +809,7 @@ int nn_xmsg_merge_rexmit_destinations_wrlock_held (struct ddsi_domaingv *gv, str
 {
   assert (m->kindspecific.data.wrseq >= 1);
   assert (m->kindspecific.data.wrguid.prefix.u[0] != 0);
-  assert (is_writer_entityid (m->kindspecific.data.wrguid.entityid));
+  assert (ddsi_is_writer_entityid (m->kindspecific.data.wrguid.entityid));
   assert (memcmp (&m->kindspecific.data.wrguid, &madd->kindspecific.data.wrguid, sizeof (m->kindspecific.data.wrguid)) == 0);
   assert (m->kindspecific.data.wrseq == madd->kindspecific.data.wrseq);
   assert (m->kindspecific.data.wrfragid == madd->kindspecific.data.wrfragid);
@@ -855,11 +855,11 @@ int nn_xmsg_merge_rexmit_destinations_wrlock_held (struct ddsi_domaingv *gv, str
         case NN_XMSG_DST_ONE:
           if (memcmp (&m->data->dst.guid_prefix, &madd->data->dst.guid_prefix, sizeof (m->data->dst.guid_prefix)) != 0)
           {
-            struct writer *wr;
+            struct ddsi_writer *wr;
             /* This is why wr->e.lock must be held: we can't safely
                reference the writer's address set if it isn't -- so
                FIXME: add a way to atomically replace the contents of
-               an addrset in rebuild_writer_addrset: then we don't
+               an addrset in ddsi_rebuild_writer_addrset: then we don't
                need the lock anymore, and the '_wrlock_held' suffix
                can go and everyone's life will become easier! */
             if ((wr = entidx_lookup_writer_guid (gv->entity_index, &m->kindspecific.data.wrguid)) == NULL)
@@ -1024,11 +1024,11 @@ static void nn_xmsg_chain_release (struct ddsi_domaingv *gv, struct nn_xmsg_chai
           wrguid.prefix.u[2] != m->kindspecific.data.wrguid.prefix.u[2] ||
           wrguid.entityid.u != m->kindspecific.data.wrguid.entityid.u)
       {
-        struct writer *wr;
+        struct ddsi_writer *wr;
         assert (m->kindspecific.data.wrseq != 0);
         wrguid = m->kindspecific.data.wrguid;
         if ((wr = entidx_lookup_writer_guid (gv->entity_index, &m->kindspecific.data.wrguid)) != NULL)
-          writer_update_seq_xmit (wr, m->kindspecific.data.wrseq);
+          ddsi_writer_update_seq_xmit (wr, m->kindspecific.data.wrseq);
       }
     }
 

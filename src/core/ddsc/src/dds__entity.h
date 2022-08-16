@@ -148,7 +148,7 @@ union dds_status_union {
 
 #define STATUS_CB_IMPL(entity_kind_, name_, NAME_, ...)                 \
   STATUS_CB_IMPL_INVOKE(entity_kind_, name_, NAME_, __VA_ARGS__)        \
-  static void status_cb_##name_ (dds_##entity_kind_ * const e, const status_cb_data_t *data) \
+  static void status_cb_##name_ (dds_##entity_kind_ * const e, const ddsi_status_cb_data_t *data) \
   {                                                                     \
     struct dds_listener const * const listener = &e->m_entity.m_listener; \
     update_##name_ (&e->m_##name_##_status, data);                      \

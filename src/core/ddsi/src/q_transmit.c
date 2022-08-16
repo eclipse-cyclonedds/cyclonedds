@@ -43,12 +43,12 @@
 #include "dds/ddsi/sysdeps.h"
 #include "dds__whc.h"
 
-static const struct wr_prd_match *root_rdmatch (const struct writer *wr)
+static const struct ddsi_wr_prd_match *root_rdmatch (const struct ddsi_writer *wr)
 {
-  return ddsrt_avl_root (&wr_readers_treedef, &wr->readers);
+  return ddsrt_avl_root (&ddsi_wr_readers_treedef, &wr->readers);
 }
 
-static int have_reliable_subs (const struct writer *wr)
+static int have_reliable_subs (const struct ddsi_writer *wr)
 {
   if (ddsrt_avl_is_empty (&wr->readers) || root_rdmatch (wr)->min_seq == MAX_SEQ_NUMBER)
     return 0;
@@ -66,7 +66,7 @@ void writer_hbcontrol_init (struct hbcontrol *hbc)
   hbc->last_packetid = 0;
 }
 
-static void writer_hbcontrol_note_hb (struct writer *wr, ddsrt_mtime_t tnow, int ansreq)
+static void writer_hbcontrol_note_hb (struct ddsi_writer *wr, ddsrt_mtime_t tnow, int ansreq)
 {
   struct hbcontrol * const hbc = &wr->hbcontrol;
 
@@ -80,7 +80,7 @@ static void writer_hbcontrol_note_hb (struct writer *wr, ddsrt_mtime_t tnow, int
   hbc->hbs_since_last_write++;
 }
 
-int64_t writer_hbcontrol_intv (const struct writer *wr, const struct whc_state *whcst, UNUSED_ARG (ddsrt_mtime_t tnow))
+int64_t writer_hbcontrol_intv (const struct ddsi_writer *wr, const struct whc_state *whcst, UNUSED_ARG (ddsrt_mtime_t tnow))
 {
   struct ddsi_domaingv const * const gv = wr->e.gv;
   struct hbcontrol const * const hbc = &wr->hbcontrol;
@@ -106,7 +106,7 @@ int64_t writer_hbcontrol_intv (const struct writer *wr, const struct whc_state *
   return ret;
 }
 
-void writer_hbcontrol_note_asyncwrite (struct writer *wr, ddsrt_mtime_t tnow)
+void writer_hbcontrol_note_asyncwrite (struct ddsi_writer *wr, ddsrt_mtime_t tnow)
 {
   struct ddsi_domaingv const * const gv = wr->e.gv;
   struct hbcontrol * const hbc = &wr->hbcontrol;
@@ -129,13 +129,13 @@ void writer_hbcontrol_note_asyncwrite (struct writer *wr, ddsrt_mtime_t tnow)
   }
 }
 
-int writer_hbcontrol_must_send (const struct writer *wr, const struct whc_state *whcst, ddsrt_mtime_t tnow /* monotonic */)
+int writer_hbcontrol_must_send (const struct ddsi_writer *wr, const struct whc_state *whcst, ddsrt_mtime_t tnow /* monotonic */)
 {
   struct hbcontrol const * const hbc = &wr->hbcontrol;
   return (tnow.v >= hbc->t_of_last_hb.v + writer_hbcontrol_intv (wr, whcst, tnow));
 }
 
-struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct writer *wr, const struct whc_state *whcst, ddsrt_mtime_t tnow, int hbansreq, int issync)
+struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct ddsi_writer *wr, const struct whc_state *whcst, ddsrt_mtime_t tnow, int hbansreq, int issync)
 {
   struct ddsi_domaingv const * const gv = wr->e.gv;
   struct nn_xmsg *msg;
@@ -205,11 +205,11 @@ struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct writer *wr, const stru
   if (prd_guid == NULL)
   {
     nn_xmsg_setdstN (msg, wr->as);
-    add_Heartbeat (msg, wr, whcst, hbansreq, 0, to_entityid (NN_ENTITYID_UNKNOWN), issync);
+    add_Heartbeat (msg, wr, whcst, hbansreq, 0, ddsi_to_entityid (NN_ENTITYID_UNKNOWN), issync);
   }
   else
   {
-    struct proxy_reader *prd;
+    struct ddsi_proxy_reader *prd;
     if ((prd = entidx_lookup_proxy_reader_guid (gv->entity_index, prd_guid)) == NULL)
     {
       ETRACE (wr, "writer_hbcontrol: wr "PGUIDFMT" unknown prd "PGUIDFMT"\n", PGUID (wr->e.guid), PGUID (*prd_guid));
@@ -221,7 +221,7 @@ struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct writer *wr, const stru
     nn_xmsg_setdstPRD (msg, prd);
     // send to all readers in the participant: whether or not the entityid is set affects
     // the retransmit requests
-    add_Heartbeat (msg, wr, whcst, hbansreq, 0, to_entityid (NN_ENTITYID_UNKNOWN), issync);
+    add_Heartbeat (msg, wr, whcst, hbansreq, 0, ddsi_to_entityid (NN_ENTITYID_UNKNOWN), issync);
   }
 
   /* It is possible that the encoding removed the submessage(s). */
@@ -235,7 +235,7 @@ struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct writer *wr, const stru
   return msg;
 }
 
-static int writer_hbcontrol_ack_required_generic (const struct writer *wr, const struct whc_state *whcst, ddsrt_mtime_t tlast, ddsrt_mtime_t tnow, int piggyback)
+static int writer_hbcontrol_ack_required_generic (const struct ddsi_writer *wr, const struct whc_state *whcst, ddsrt_mtime_t tlast, ddsrt_mtime_t tnow, int piggyback)
 {
   struct ddsi_domaingv const * const gv = wr->e.gv;
   struct hbcontrol const * const hbc = &wr->hbcontrol;
@@ -271,13 +271,13 @@ static int writer_hbcontrol_ack_required_generic (const struct writer *wr, const
   return 0;
 }
 
-int writer_hbcontrol_ack_required (const struct writer *wr, const struct whc_state *whcst, ddsrt_mtime_t tnow)
+int writer_hbcontrol_ack_required (const struct ddsi_writer *wr, const struct whc_state *whcst, ddsrt_mtime_t tnow)
 {
   struct hbcontrol const * const hbc = &wr->hbcontrol;
   return writer_hbcontrol_ack_required_generic (wr, whcst, hbc->t_of_last_write, tnow, 0);
 }
 
-struct nn_xmsg *writer_hbcontrol_piggyback (struct writer *wr, const struct whc_state *whcst, ddsrt_mtime_t tnow, uint32_t packetid, int *hbansreq)
+struct nn_xmsg *writer_hbcontrol_piggyback (struct ddsi_writer *wr, const struct whc_state *whcst, ddsrt_mtime_t tnow, uint32_t packetid, int *hbansreq)
 {
   struct hbcontrol * const hbc = &wr->hbcontrol;
   uint32_t last_packetid;
@@ -328,7 +328,7 @@ struct nn_xmsg *writer_hbcontrol_piggyback (struct writer *wr, const struct whc_
               PGUID (wr->e.guid),
               *hbansreq ? "" : " final",
               (hbc->tsched.v == DDS_NEVER) ? INFINITY : (double) (hbc->tsched.v - tnow.v) / 1e9,
-              whcst->max_seq, writer_read_seq_xmit(wr));
+              whcst->max_seq, ddsi_writer_read_seq_xmit(wr));
     }
     else
     {
@@ -338,7 +338,7 @@ struct nn_xmsg *writer_hbcontrol_piggyback (struct writer *wr, const struct whc_
               (hbc->tsched.v == DDS_NEVER) ? INFINITY : (double) (hbc->tsched.v - tnow.v) / 1e9,
               root_rdmatch (wr)->min_seq,
               root_rdmatch (wr)->all_have_replied_to_hb ? "" : "!",
-              whcst->max_seq, writer_read_seq_xmit(wr));
+              whcst->max_seq, ddsi_writer_read_seq_xmit(wr));
     }
   }
 
@@ -346,7 +346,7 @@ struct nn_xmsg *writer_hbcontrol_piggyback (struct writer *wr, const struct whc_
 }
 
 #ifdef DDS_HAS_SECURITY
-struct nn_xmsg *writer_hbcontrol_p2p(struct writer *wr, const struct whc_state *whcst, int hbansreq, struct proxy_reader *prd)
+struct nn_xmsg *writer_hbcontrol_p2p(struct ddsi_writer *wr, const struct whc_state *whcst, int hbansreq, struct ddsi_proxy_reader *prd)
 {
   struct ddsi_domaingv const * const gv = wr->e.gv;
   struct nn_xmsg *msg;
@@ -386,7 +386,7 @@ struct nn_xmsg *writer_hbcontrol_p2p(struct writer *wr, const struct whc_state *
 }
 #endif
 
-void add_Heartbeat (struct nn_xmsg *msg, struct writer *wr, const struct whc_state *whcst, int hbansreq, int hbliveliness, ddsi_entityid_t dst, int issync)
+void add_Heartbeat (struct nn_xmsg *msg, struct ddsi_writer *wr, const struct whc_state *whcst, int hbansreq, int hbliveliness, ddsi_entityid_t dst, int issync)
 {
   struct ddsi_domaingv const * const gv = wr->e.gv;
   struct nn_xmsg_marker sm_marker;
@@ -426,7 +426,7 @@ void add_Heartbeat (struct nn_xmsg *msg, struct writer *wr, const struct whc_sta
     /* If data present in WHC, wr->seq > 0, but xmit_seq possibly still 0 */
     min = whcst->min_seq;
     max = wr->seq;
-    const seqno_t seq_xmit = writer_read_seq_xmit (wr);
+    const seqno_t seq_xmit = ddsi_writer_read_seq_xmit (wr);
     assert (min <= max);
     /* Informing readers of samples that haven't even been transmitted makes little sense,
        but for transient-local data, we let the first heartbeat determine the time at which
@@ -454,7 +454,7 @@ void add_Heartbeat (struct nn_xmsg *msg, struct writer *wr, const struct whc_sta
   encode_datawriter_submsg(msg, sm_marker, wr);
 }
 
-static dds_return_t create_fragment_message_simple (struct writer *wr, seqno_t seq, struct ddsi_serdata *serdata, struct nn_xmsg **pmsg)
+static dds_return_t create_fragment_message_simple (struct ddsi_writer *wr, seqno_t seq, struct ddsi_serdata *serdata, struct nn_xmsg **pmsg)
 {
 #define TEST_KEYHASH 0
   /* actual expected_inline_qos_size is typically 0, but always claiming 32 bytes won't make
@@ -495,7 +495,7 @@ static dds_return_t create_fragment_message_simple (struct writer *wr, seqno_t s
   nn_xmsg_submsg_init (*pmsg, sm_marker, SMID_DATA);
   data->x.smhdr.flags = (unsigned char) (data->x.smhdr.flags | contentflag);
   data->x.extraFlags = 0;
-  data->x.readerId = to_entityid (NN_ENTITYID_UNKNOWN);
+  data->x.readerId = ddsi_to_entityid (NN_ENTITYID_UNKNOWN);
   data->x.writerId = nn_hton_entityid (wr->e.guid.entityid);
   data->x.writerSN = toSN (seq);
   data->x.octetsToInlineQos = (unsigned short) ((char*) (data+1) - ((char*) &data->x.octetsToInlineQos + 2));
@@ -524,7 +524,7 @@ static dds_return_t create_fragment_message_simple (struct writer *wr, seqno_t s
   return 0;
 }
 
-dds_return_t create_fragment_message (struct writer *wr, seqno_t seq, const struct ddsi_plist *plist, struct ddsi_serdata *serdata, uint32_t fragnum, uint16_t nfrags, struct proxy_reader *prd, struct nn_xmsg **pmsg, int isnew, uint32_t advertised_fragnum)
+dds_return_t create_fragment_message (struct ddsi_writer *wr, seqno_t seq, const struct ddsi_plist *plist, struct ddsi_serdata *serdata, uint32_t fragnum, uint16_t nfrags, struct ddsi_proxy_reader *prd, struct nn_xmsg **pmsg, int isnew, uint32_t advertised_fragnum)
 {
   /* We always fragment into FRAGMENT_SIZEd fragments, which are near
      the smallest allowed fragment size & can't be bothered (yet) to
@@ -639,7 +639,7 @@ dds_return_t create_fragment_message (struct writer *wr, seqno_t seq, const stru
   }
 
   ddcmn->extraFlags = 0;
-  ddcmn->readerId = nn_hton_entityid (prd ? prd->e.guid.entityid : to_entityid (NN_ENTITYID_UNKNOWN));
+  ddcmn->readerId = nn_hton_entityid (prd ? prd->e.guid.entityid : ddsi_to_entityid (NN_ENTITYID_UNKNOWN));
   ddcmn->writerId = nn_hton_entityid (wr->e.guid.entityid);
   ddcmn->writerSN = toSN (seq);
 
@@ -689,7 +689,7 @@ dds_return_t create_fragment_message (struct writer *wr, seqno_t seq, const stru
   return ret;
 }
 
-static void create_HeartbeatFrag (struct writer *wr, seqno_t seq, unsigned fragnum, struct proxy_reader *prd, struct nn_xmsg **pmsg)
+static void create_HeartbeatFrag (struct ddsi_writer *wr, seqno_t seq, unsigned fragnum, struct ddsi_proxy_reader *prd, struct nn_xmsg **pmsg)
 {
   struct ddsi_domaingv const * const gv = wr->e.gv;
   struct nn_xmsg_marker sm_marker;
@@ -703,7 +703,7 @@ static void create_HeartbeatFrag (struct writer *wr, seqno_t seq, unsigned fragn
     nn_xmsg_setdstN (*pmsg, wr->as);
   hbf = nn_xmsg_append (*pmsg, &sm_marker, sizeof (HeartbeatFrag_t));
   nn_xmsg_submsg_init (*pmsg, sm_marker, SMID_HEARTBEAT_FRAG);
-  hbf->readerId = nn_hton_entityid (prd ? prd->e.guid.entityid : to_entityid (NN_ENTITYID_UNKNOWN));
+  hbf->readerId = nn_hton_entityid (prd ? prd->e.guid.entityid : ddsi_to_entityid (NN_ENTITYID_UNKNOWN));
   hbf->writerId = nn_hton_entityid (wr->e.guid.entityid);
   hbf->writerSN = toSN (seq);
   hbf->lastFragmentNum = fragnum + 1; /* network format is 1 based */
@@ -730,7 +730,7 @@ dds_return_t write_hb_liveliness (struct ddsi_domaingv * const gv, struct ddsi_g
   struct lease *lease;
 
   thread_state_awake (thrst, gv);
-  struct writer *wr = entidx_lookup_writer_guid (gv->entity_index, wr_guid);
+  struct ddsi_writer *wr = entidx_lookup_writer_guid (gv->entity_index, wr_guid);
   if (wr == NULL)
   {
     GVTRACE ("write_hb_liveliness("PGUIDFMT") - writer not found\n", PGUID (*wr_guid));
@@ -747,7 +747,7 @@ dds_return_t write_hb_liveliness (struct ddsi_domaingv * const gv, struct ddsi_g
   ddsrt_mutex_lock (&wr->e.lock);
   nn_xmsg_setdstN (msg, wr->as);
   whc_get_state (wr->whc, &whcst);
-  add_Heartbeat (msg, wr, &whcst, 0, 1, to_entityid (NN_ENTITYID_UNKNOWN), 1);
+  add_Heartbeat (msg, wr, &whcst, 0, 1, ddsi_to_entityid (NN_ENTITYID_UNKNOWN), 1);
   ddsrt_mutex_unlock (&wr->e.lock);
   nn_xpack_addmsg (xp, msg, 0);
   nn_xpack_send (xp, true);
@@ -778,7 +778,7 @@ static int must_skip_frag (const char *frags_to_skip, unsigned frag)
 }
 #endif
 
-static void transmit_sample_lgmsg_unlocks_wr (struct nn_xpack *xp, struct writer *wr, seqno_t seq, const struct ddsi_plist *plist, struct ddsi_serdata *serdata, struct proxy_reader *prd, int isnew, uint32_t nfrags, uint32_t nfrags_lim)
+static void transmit_sample_lgmsg_unlocks_wr (struct nn_xpack *xp, struct ddsi_writer *wr, seqno_t seq, const struct ddsi_plist *plist, struct ddsi_serdata *serdata, struct ddsi_proxy_reader *prd, int isnew, uint32_t nfrags, uint32_t nfrags_lim)
 {
 #if 0
   const char *frags_to_skip = getenv ("SKIPFRAGS");
@@ -822,7 +822,7 @@ static void transmit_sample_lgmsg_unlocks_wr (struct nn_xpack *xp, struct writer
   }
 }
 
-static void transmit_sample_unlocks_wr (struct nn_xpack *xp, struct writer *wr, const struct whc_state *whcst, seqno_t seq, const struct ddsi_plist *plist, struct ddsi_serdata *serdata, struct proxy_reader *prd, int isnew)
+static void transmit_sample_unlocks_wr (struct nn_xpack *xp, struct ddsi_writer *wr, const struct whc_state *whcst, seqno_t seq, const struct ddsi_plist *plist, struct ddsi_serdata *serdata, struct ddsi_proxy_reader *prd, int isnew)
 {
   /* on entry: &wr->e.lock held; on exit: lock no longer held */
   struct ddsi_domaingv const * const gv = wr->e.gv;
@@ -864,7 +864,7 @@ static void transmit_sample_unlocks_wr (struct nn_xpack *xp, struct writer *wr, 
     nn_xpack_send (xp, true);
 }
 
-void enqueue_spdp_sample_wrlock_held (struct writer *wr, seqno_t seq, struct ddsi_serdata *serdata, struct proxy_reader *prd)
+void enqueue_spdp_sample_wrlock_held (struct ddsi_writer *wr, seqno_t seq, struct ddsi_serdata *serdata, struct ddsi_proxy_reader *prd)
 {
   assert (wr->e.guid.entityid.u == NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
   struct nn_xmsg *msg = NULL;
@@ -872,7 +872,7 @@ void enqueue_spdp_sample_wrlock_held (struct writer *wr, seqno_t seq, struct dds
     qxev_msg (wr->evq, msg);
 }
 
-int enqueue_sample_wrlock_held (struct writer *wr, seqno_t seq, const struct ddsi_plist *plist, struct ddsi_serdata *serdata, struct proxy_reader *prd, int isnew)
+int enqueue_sample_wrlock_held (struct ddsi_writer *wr, seqno_t seq, const struct ddsi_plist *plist, struct ddsi_serdata *serdata, struct ddsi_proxy_reader *prd, int isnew)
 {
   struct ddsi_domaingv const * const gv = wr->e.gv;
   uint32_t i, sz, nfrags;
@@ -935,7 +935,7 @@ int enqueue_sample_wrlock_held (struct writer *wr, seqno_t seq, const struct dds
   return (enqueued != QXEV_MSG_REXMIT_DROPPED) ? 0 : -1;
 }
 
-static int insert_sample_in_whc (struct writer *wr, seqno_t seq, struct ddsi_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk)
+static int insert_sample_in_whc (struct ddsi_writer *wr, seqno_t seq, struct ddsi_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk)
 {
   /* returns: < 0 on error, 0 if no need to insert in whc, > 0 if inserted */
   int insres, res = 0;
@@ -976,7 +976,7 @@ static int insert_sample_in_whc (struct writer *wr, seqno_t seq, struct ddsi_pli
     if (wr->xqos->lifespan.duration != DDS_INFINITY && (serdata->statusinfo & (NN_STATUSINFO_UNREGISTER | NN_STATUSINFO_DISPOSE)) == 0)
       exp = ddsrt_mtime_add_duration(serdata->twrite, wr->xqos->lifespan.duration);
 #endif
-    res = ((insres = whc_insert (wr->whc, writer_max_drop_seq (wr), seq, exp, plist, serdata, tk)) < 0) ? insres : 1;
+    res = ((insres = whc_insert (wr->whc, ddsi_writer_max_drop_seq (wr), seq, exp, plist, serdata, tk)) < 0) ? insres : 1;
 
 #ifdef DDS_HAS_DEADLINE_MISSED
     if (!(wr->reliable && have_reliable_subs (wr)) && !wr->handle_as_transient_local)
@@ -996,30 +996,30 @@ static int insert_sample_in_whc (struct writer *wr, seqno_t seq, struct ddsi_pli
 #ifndef NDEBUG
   if (((wr->e.guid.entityid.u == NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER) ||
        (wr->e.guid.entityid.u == NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER)) &&
-       !is_local_orphan_endpoint (&wr->e))
+       !ddsi_is_local_orphan_endpoint (&wr->e))
   {
     struct whc_state whcst;
     whc_get_state(wr->whc, &whcst);
     if (WHCST_ISEMPTY(&whcst))
-      assert (wr->c.pp->state >= PARTICIPANT_STATE_DELETING_BUILTINS);
+      assert (wr->c.pp->state >= DDSI_PARTICIPANT_STATE_DELETING_BUILTINS);
   }
 #endif
   return res;
 }
 
-static int writer_may_continue (const struct writer *wr, const struct whc_state *whcst)
+static int writer_may_continue (const struct ddsi_writer *wr, const struct whc_state *whcst)
 {
   return (whcst->unacked_bytes <= wr->whc_low && !wr->retransmitting) || (wr->state != WRST_OPERATIONAL);
 }
 
-static dds_return_t throttle_writer (struct thread_state * const thrst, struct nn_xpack *xp, struct writer *wr)
+static dds_return_t throttle_writer (struct thread_state * const thrst, struct nn_xpack *xp, struct ddsi_writer *wr)
 {
   /* Sleep (cond_wait) without updating the thread's vtime: the
      garbage collector won't free the writer while we leave it
      unchanged.  Alternatively, we could decide to go back to sleep,
      allow garbage collection and check the writers existence every
      time we get woken up.  That would preclude the use of a condition
-     variable embedded in "struct writer", of course.
+     variable embedded in "struct ddsi_writer", of course.
 
      For normal data that would be okay, because the thread forwarding
      data from the network queue to rtps_write() simply uses the gid
@@ -1059,7 +1059,7 @@ static dds_return_t throttle_writer (struct thread_state * const thrst, struct n
     ASSERT_MUTEX_HELD (&wr->e.lock);
     assert (wr->throttling == 0);
     assert (thread_is_awake ());
-    assert (!is_builtin_entityid(wr->e.guid.entityid, NN_VENDORID_ECLIPSE));
+    assert (!ddsi_is_builtin_entityid(wr->e.guid.entityid, NN_VENDORID_ECLIPSE));
   }
 
   GVLOG (DDS_LC_THROTTLE,
@@ -1118,7 +1118,7 @@ static dds_return_t throttle_writer (struct thread_state * const thrst, struct n
   return result;
 }
 
-static int maybe_grow_whc (struct writer *wr)
+static int maybe_grow_whc (struct ddsi_writer *wr)
 {
   struct ddsi_domaingv const * const gv = wr->e.gv;
   if (!wr->retransmitting && gv->config.whc_adaptive && wr->whc_high < gv->config.whc_highwater_mark)
@@ -1136,13 +1136,13 @@ static int maybe_grow_whc (struct writer *wr)
   return 0;
 }
 
-int write_sample_p2p_wrlock_held(struct writer *wr, seqno_t seq, struct ddsi_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk, struct proxy_reader *prd)
+int write_sample_p2p_wrlock_held(struct ddsi_writer *wr, seqno_t seq, struct ddsi_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk, struct ddsi_proxy_reader *prd)
 {
   struct ddsi_domaingv * const gv = wr->e.gv;
   int r = 0;
   ddsrt_mtime_t tnow;
   int rexmit = 1;
-  struct wr_prd_match *wprd = NULL;
+  struct ddsi_wr_prd_match *wprd = NULL;
   seqno_t gseq;
   struct nn_xmsg *gap = NULL;
 
@@ -1153,7 +1153,7 @@ int write_sample_p2p_wrlock_held(struct writer *wr, seqno_t seq, struct ddsi_pli
 
   if (prd->filter)
   {
-    if ((wprd = ddsrt_avl_lookup (&wr_readers_treedef, &wr->readers, &prd->e.guid)) != NULL)
+    if ((wprd = ddsrt_avl_lookup (&ddsi_wr_readers_treedef, &wr->readers, &prd->e.guid)) != NULL)
     {
       if (wprd->seq == MAX_SEQ_NUMBER)
         goto prd_is_deleting;
@@ -1204,7 +1204,7 @@ prd_is_deleting:
   return r;
 }
 
-static int write_sample_eot (struct thread_state * const thrst, struct nn_xpack *xp, struct writer *wr, struct ddsi_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk, int end_of_txn, int gc_allowed)
+static int write_sample_eot (struct thread_state * const thrst, struct nn_xpack *xp, struct ddsi_writer *wr, struct ddsi_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk, int end_of_txn, int gc_allowed)
 {
   struct ddsi_domaingv const * const gv = wr->e.gv;
   int r;
@@ -1238,7 +1238,7 @@ static int write_sample_eot (struct thread_state * const thrst, struct nn_xpack 
   ddsrt_mutex_lock (&wr->e.lock);
 
   if (!wr->alive)
-    writer_set_alive_may_unlock (wr, true);
+    ddsi_writer_set_alive_may_unlock (wr, true);
 
   if (end_of_txn)
   {
@@ -1309,7 +1309,7 @@ static int write_sample_eot (struct thread_state * const thrst, struct nn_xpack 
   else if (wr->test_drop_outgoing_data)
   {
     GVTRACE ("test_drop_outgoing_data");
-    writer_update_seq_xmit (wr, seq);
+    ddsi_writer_update_seq_xmit (wr, seq);
     ddsrt_mutex_unlock (&wr->e.lock);
     if (plist != NULL)
     {
@@ -1325,7 +1325,7 @@ static int write_sample_eot (struct thread_state * const thrst, struct nn_xpack 
 
       (Note that no network destination is very nearly the same as no
       matching proxy readers.  The exception is the SPDP writer.) */
-    writer_update_seq_xmit (wr, seq);
+    ddsi_writer_update_seq_xmit (wr, seq);
     ddsrt_mutex_unlock (&wr->e.lock);
     if (plist != NULL)
     {
@@ -1389,17 +1389,17 @@ drop:
   return r;
 }
 
-int write_sample_gc (struct thread_state * const thrst, struct nn_xpack *xp, struct writer *wr, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk)
+int write_sample_gc (struct thread_state * const thrst, struct nn_xpack *xp, struct ddsi_writer *wr, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk)
 {
   return write_sample_eot (thrst, xp, wr, NULL, serdata, tk, 0, 1);
 }
 
-int write_sample_nogc (struct thread_state * const thrst, struct nn_xpack *xp, struct writer *wr, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk)
+int write_sample_nogc (struct thread_state * const thrst, struct nn_xpack *xp, struct ddsi_writer *wr, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk)
 {
   return write_sample_eot (thrst, xp, wr, NULL, serdata, tk, 0, 0);
 }
 
-int write_sample_gc_notk (struct thread_state * const thrst, struct nn_xpack *xp, struct writer *wr, struct ddsi_serdata *serdata)
+int write_sample_gc_notk (struct thread_state * const thrst, struct nn_xpack *xp, struct ddsi_writer *wr, struct ddsi_serdata *serdata)
 {
   struct ddsi_tkmap_instance *tk;
   int res;
@@ -1410,7 +1410,7 @@ int write_sample_gc_notk (struct thread_state * const thrst, struct nn_xpack *xp
   return res;
 }
 
-int write_sample_nogc_notk (struct thread_state * const thrst, struct nn_xpack *xp, struct writer *wr, struct ddsi_serdata *serdata)
+int write_sample_nogc_notk (struct thread_state * const thrst, struct nn_xpack *xp, struct ddsi_writer *wr, struct ddsi_serdata *serdata)
 {
   struct ddsi_tkmap_instance *tk;
   int res;

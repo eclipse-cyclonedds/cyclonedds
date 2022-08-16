@@ -22,8 +22,8 @@
 extern "C" {
 #endif
 
-int is_builtin_topic (ddsi_entityid_t id, nn_vendorid_t vendorid);
-int is_topic_entityid (ddsi_entityid_t id);
+DDS_EXPORT int ddsi_is_builtin_topic (ddsi_entityid_t id, nn_vendorid_t vendorid);
+DDS_EXPORT int ddsi_is_topic_entityid (ddsi_entityid_t id);
 
 #ifdef DDS_HAS_TOPIC_DISCOVERY
 
@@ -38,13 +38,13 @@ struct ddsi_topic_definition {
   struct ddsi_domaingv *gv;
 };
 
-struct topic {
-  struct entity_common e;
+struct ddsi_topic {
+  struct ddsi_entity_common e;
   struct ddsi_topic_definition *definition; /* ref to (shared) topic definition, protected by e.qos_lock */
-  struct participant *pp; /* backref to the participant */
+  struct ddsi_participant *pp; /* backref to the participant */
 };
 
-struct proxy_topic
+struct ddsi_proxy_topic
 {
   ddsi_entityid_t entityid;
   struct ddsi_topic_definition *definition; /* ref to (shared) topic definition */
@@ -53,16 +53,18 @@ struct proxy_topic
   unsigned deleted: 1;
 };
 
-dds_return_t ddsi_new_topic (struct topic **tp_out, struct ddsi_guid *tpguid, struct participant *pp, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos, bool is_builtin, bool *new_topic_def);
-void update_topic_qos (struct topic *tp, const dds_qos_t *xqos);
-dds_return_t delete_topic (struct ddsi_domaingv *gv, const struct ddsi_guid *guid);
-int topic_definition_equal (const struct ddsi_topic_definition *tpd_a, const struct ddsi_topic_definition *tpd_b);
-uint32_t topic_definition_hash (const struct ddsi_topic_definition *tpd);
-dds_return_t lookup_topic_definition (struct ddsi_domaingv *gv, const char * topic_name, const ddsi_typeid_t *type_id, struct ddsi_topic_definition **tpd);
-dds_return_t ddsi_new_proxy_topic (struct proxy_participant *proxypp, seqno_t seq, const ddsi_guid_t *guid, const ddsi_typeid_t *type_id_minimal, const ddsi_typeid_t *type_id, struct dds_qos *qos, ddsrt_wctime_t timestamp);
-struct proxy_topic *lookup_proxy_topic (struct proxy_participant *proxypp, const ddsi_guid_t *guid);
-void update_proxy_topic (struct proxy_participant *proxypp, struct proxy_topic *proxytp, seqno_t seq, struct dds_qos *xqos, ddsrt_wctime_t timestamp);
-int delete_proxy_topic_locked (struct proxy_participant *proxypp, struct proxy_topic *proxytp, ddsrt_wctime_t timestamp);
+int ddsi_topic_definition_equal (const struct ddsi_topic_definition *tpd_a, const struct ddsi_topic_definition *tpd_b);
+uint32_t ddsi_topic_definition_hash (const struct ddsi_topic_definition *tpd);
+
+dds_return_t ddsi_new_proxy_topic (struct ddsi_proxy_participant *proxypp, seqno_t seq, const ddsi_guid_t *guid, const ddsi_typeid_t *type_id_minimal, const ddsi_typeid_t *type_id, struct dds_qos *qos, ddsrt_wctime_t timestamp);
+struct ddsi_proxy_topic *ddsi_lookup_proxy_topic (struct ddsi_proxy_participant *proxypp, const ddsi_guid_t *guid);
+void ddsi_update_proxy_topic (struct ddsi_proxy_participant *proxypp, struct ddsi_proxy_topic *proxytp, seqno_t seq, struct dds_qos *xqos, ddsrt_wctime_t timestamp);
+int ddsi_delete_proxy_topic_locked (struct ddsi_proxy_participant *proxypp, struct ddsi_proxy_topic *proxytp, ddsrt_wctime_t timestamp);
+
+DDS_EXPORT dds_return_t ddsi_new_topic (struct ddsi_topic **tp_out, struct ddsi_guid *tpguid, struct ddsi_participant *pp, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos, bool is_builtin, bool *new_topic_def);
+DDS_EXPORT void ddsi_update_topic_qos (struct ddsi_topic *tp, const dds_qos_t *xqos);
+DDS_EXPORT dds_return_t ddsi_delete_topic (struct ddsi_domaingv *gv, const struct ddsi_guid *guid);
+DDS_EXPORT dds_return_t ddsi_lookup_topic_definition (struct ddsi_domaingv *gv, const char * topic_name, const ddsi_typeid_t *type_id, struct ddsi_topic_definition **tpd);
 
 #endif /* DDS_HAS_TOPIC_DISCOVERY */
 
