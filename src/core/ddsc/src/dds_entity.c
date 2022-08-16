@@ -28,7 +28,8 @@
 #include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/q_transmit.h"
 #include "dds/ddsi/q_bswap.h"
-#include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/ddsi_entity.h"
+#include "dds/ddsi/ddsi_endpoint.h"
 
 DDS_EXPORT extern inline dds_entity *dds_entity_from_handle_link (struct dds_handle_link *hdllink);
 DDS_EXPORT extern inline bool dds_entity_is_enabled (const dds_entity *e);

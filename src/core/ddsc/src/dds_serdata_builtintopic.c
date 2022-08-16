@@ -26,7 +26,9 @@
 #include "dds/ddsi/ddsi_entity_index.h"
 
 #include "dds/ddsi/q_bswap.h"
-#include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/ddsi_entity.h"
+#include "dds/ddsi/ddsi_participant.h"
+#include "dds/ddsi/ddsi_proxy_participant.h"
 #include "dds/ddsi/q_addrset.h"
 #include "dds/ddsi/q_freelist.h"
 

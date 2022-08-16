@@ -30,6 +30,9 @@
 #include "dds/ddsi/q_transmit.h"
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/q_bswap.h"
+#include "dds/ddsi/ddsi_entity.h"
+#include "dds/ddsi/ddsi_participant.h"
+#include "dds/ddsi/ddsi_proxy_participant.h"
 
 bool write_auth_handshake_message(const struct participant *pp, const struct proxy_participant *proxypp, nn_dataholderseq_t *mdata, bool request, const nn_message_identity_t *related_message_id)
 {

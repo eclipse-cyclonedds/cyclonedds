@@ -19,7 +19,8 @@
 #include "dds/ddsc/dds_rhc.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/ddsi_serdata.h"
-#include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/ddsi_entity.h"
+#include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 

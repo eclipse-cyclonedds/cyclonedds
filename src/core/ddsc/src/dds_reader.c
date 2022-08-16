@@ -25,7 +25,8 @@
 #include "dds__topic.h"
 #include "dds__get_status.h"
 #include "dds__qos.h"
-#include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/ddsi_entity.h"
+#include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds__builtin.h"
@@ -704,8 +705,8 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
 #ifdef DDS_HAS_SHM
   if (rd->m_rd->has_iceoryx)
   {
-    DDS_CLOG (DDS_LC_SHM, &rd->m_entity.m_domain->gv.logconfig, "Reader's topic name will be DDS:Cyclone:%s\n", rd->m_topic->m_name);    
-    
+    DDS_CLOG (DDS_LC_SHM, &rd->m_entity.m_domain->gv.logconfig, "Reader's topic name will be DDS:Cyclone:%s\n", rd->m_topic->m_name);
+
     iox_sub_context_init(&rd->m_iox_sub_context);
 
     iox_sub_options_t opts = create_iox_sub_options(rqos);
@@ -713,7 +714,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
     // NB: This may fail due to icoeryx being out of internal resources for subsribers.
     //     In this case terminate is called by iox_sub_init.
     //     it is currently (iceoryx 2.0 and lower) not possible to change this to
-    //     e.g. return a nullptr and handle the error here.   
+    //     e.g. return a nullptr and handle the error here.
     rd->m_iox_sub = iox_sub_init(&(iox_sub_storage_t){0}, gv->config.iceoryx_service, rd->m_topic->m_stype->type_name, rd->m_topic->m_name, &opts);
 
     // NB: Due to some storage paradigm change of iceoryx structs

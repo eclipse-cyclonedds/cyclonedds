@@ -15,7 +15,7 @@
 #include "dds__subscriber.h"
 #include "dds__qos.h"
 #include "dds/ddsi/ddsi_iid.h"
-#include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/version.h"
@@ -112,7 +112,7 @@ bool dds_subscriber_compute_data_on_readers_locked (dds_subscriber *sub)
 {
   // sub->m_entity.m_mutex must be locked
   ddsrt_avl_iter_t it;
-  
+
   // Returning true when some reader has DATA_AVAILABLE set isn't the correct behaviour
   // because it doesn't reset the DATA_ON_READERS state on the first read/take on one of
   // the subscriber's readers.  It seems highly unlikely to be a problem in practice:
@@ -174,7 +174,7 @@ void dds_subscriber_adjust_materialize_data_on_readers (dds_subscriber *sub, boo
       if (x == rd) // FIXME: can this ever not be true?
       {
         ddsrt_mutex_unlock (&sub->m_entity.m_mutex);
-        
+
         ddsrt_mutex_lock (&x->m_observers_lock);
         ddsrt_mutex_lock (&sub->m_entity.m_observers_lock);
         if (sub->materialize_data_on_readers)
@@ -183,7 +183,7 @@ void dds_subscriber_adjust_materialize_data_on_readers (dds_subscriber *sub, boo
           ddsrt_atomic_and32 (&x->m_status.m_status_and_mask, ~(uint32_t)(DDS_DATA_ON_READERS_STATUS << SAM_ENABLED_SHIFT));
         ddsrt_mutex_unlock (&sub->m_entity.m_observers_lock);
         ddsrt_mutex_unlock (&x->m_observers_lock);
-        
+
         ddsrt_mutex_lock (&sub->m_entity.m_mutex);
       }
       dds_entity_unpin (x);

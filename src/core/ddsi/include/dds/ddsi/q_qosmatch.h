@@ -14,7 +14,7 @@
 
 #include "dds/features.h"
 #include "dds/ddsi/ddsi_typelib.h"
-#include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/ddsi_entity.h"
 #if defined (__cplusplus)
 extern "C" {
 #endif

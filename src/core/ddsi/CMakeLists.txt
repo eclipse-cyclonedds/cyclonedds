@@ -54,12 +54,18 @@ set(srcs_ddsi
   ddsi_list_genptr.c
   ddsi_wraddrset.c
   ddsi_typelib.c
+  ddsi_entity.c
+  ddsi_entity_match.c
+  ddsi_participant.c
+  ddsi_proxy_participant.c
+  ddsi_topic.c
+  ddsi_endpoint.c
+  ddsi_proxy_endpoint.c
   q_addrset.c
   q_bitset_inlines.c
   q_bswap.c
   q_ddsi_discovery.c
   q_debmon.c
-  q_entity.c
   q_gc.c
   q_init.c
   q_lat_estim.c
@@ -127,12 +133,18 @@ set(hdrs_private_ddsi
   ddsi_list_genptr.h
   ddsi_wraddrset.h
   ddsi_typelib.h
+  ddsi_entity.h
+  ddsi_entity_match.h
+  ddsi_participant.h
+  ddsi_proxy_participant.h
+  ddsi_topic.h
+  ddsi_endpoint.h
+  ddsi_proxy_endpoint.h
   q_addrset.h
   q_bitset.h
   q_bswap.h
   q_ddsi_discovery.h
   q_debmon.h
-  q_entity.h
   q_feature_check.h
   q_freelist.h
   q_gc.h

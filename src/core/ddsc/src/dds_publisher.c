@@ -18,7 +18,7 @@
 #include "dds__writer.h"
 #include "dds__qos.h"
 #include "dds/ddsi/ddsi_iid.h"
-#include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/version.h"
 

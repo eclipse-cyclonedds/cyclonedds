@@ -37,7 +37,7 @@
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_radmin.h" /* sampleinfo */
-#include "dds/ddsi/q_entity.h" /* proxy_writer_info */
+#include "dds/ddsi/ddsi_entity.h" /* proxy_writer_info */
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_serdata_default.h"
 #ifdef DDS_HAS_LIFESPAN
