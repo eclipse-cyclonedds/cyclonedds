@@ -27,8 +27,6 @@ extern "C" {
 #define DPG_LOCAL 1
 #define DPG_REMOTE 2
 
-extern const ddsrt_avl_treedef_t deleted_participants_treedef;
-
 extern const ddsrt_fibheap_def_t ldur_fhdef;
 extern const ddsrt_fibheap_def_t lease_fhdef_pp;
 
@@ -46,31 +44,20 @@ struct deleted_participants_admin {
   int64_t delay;
 };
 
-static const unsigned builtin_writers_besmask =
-  NN_DISC_BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER |
-  NN_DISC_BUILTIN_ENDPOINT_SUBSCRIPTION_ANNOUNCER |
-  NN_DISC_BUILTIN_ENDPOINT_PUBLICATION_ANNOUNCER |
-  NN_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_WRITER
-#ifdef DDS_HAS_TYPE_DISCOVERY
-  | NN_BUILTIN_ENDPOINT_TL_SVC_REQUEST_DATA_WRITER
-  | NN_BUILTIN_ENDPOINT_TL_SVC_REPLY_DATA_WRITER
-#endif
-;
-
 struct avail_entityid_set {
   struct inverse_uint32_set x;
 };
 
-enum participant_state {
-  PARTICIPANT_STATE_INITIALIZING,
-  PARTICIPANT_STATE_OPERATIONAL,
-  PARTICIPANT_STATE_DELETE_STARTED,
-  PARTICIPANT_STATE_DELETING_BUILTINS
+enum ddsi_participant_state {
+  DDSI_PARTICIPANT_STATE_INITIALIZING,
+  DDSI_PARTICIPANT_STATE_OPERATIONAL,
+  DDSI_PARTICIPANT_STATE_DELETE_STARTED,
+  DDSI_PARTICIPANT_STATE_DELETING_BUILTINS
 };
 
-struct participant
+struct ddsi_participant
 {
-  struct entity_common e;
+  struct ddsi_entity_common e;
   dds_duration_t lease_duration; /* constant */
   uint32_t bes; /* built-in endpoint set */
   unsigned is_ddsi2_pp: 1; /* true for the "federation leader", the ddsi2 participant itself in OSPL; FIXME: probably should use this for broker mode as well ... */
@@ -83,7 +70,7 @@ struct participant
   ddsrt_mutex_t refc_lock;
   int32_t user_refc; /* number of non-built-in endpoints in this participant [refc_lock] */
   int32_t builtin_refc; /* number of built-in endpoints in this participant [refc_lock] */
-  enum participant_state state; /* current state of this participant [refc_lock] */
+  enum ddsi_participant_state state; /* current state of this participant [refc_lock] */
   ddsrt_fibheap_t ldur_auto_wr; /* Heap that contains lease duration for writers with automatic liveliness in this participant */
   ddsrt_atomic_voidp_t minl_man; /* clone of min(leaseheap_man) */
   ddsrt_fibheap_t leaseheap_man; /* keeps leases for this participant's writers (with liveliness manual-by-participant) */
@@ -106,8 +93,8 @@ struct participant
      endpoints: that one synchronously reaches reference count zero
      and is then freed immediately.
 
-     If new_writer() and/or new_reader() may be called in parallel to
-     delete_participant(), trouble ensues. The current glue code
+     If ddsi_new_writer () and/or ddsi_new_reader () may be called in parallel to
+     ddsi_delete_participant (), trouble ensues. The current glue code
      performs all local discovery single-threaded, and can't ever get
      into that issue.
 
@@ -146,6 +133,23 @@ struct participant
   /* Set this flag to mark the participant as an local entity only. */
 #define RTPS_PF_ONLY_LOCAL 16u
 
+
+void ddsi_participant_add_wr_lease_locked (struct ddsi_participant * pp, const struct ddsi_writer * wr);
+void ddsi_participant_remove_wr_lease_locked (struct ddsi_participant * pp, struct ddsi_writer * wr);
+dds_return_t ddsi_participant_allocate_entityid (ddsi_entityid_t *id, uint32_t kind, struct ddsi_participant *pp);
+void ddsi_participant_release_entityid (struct ddsi_participant *pp, ddsi_entityid_t id);
+void ddsi_gc_participant_lease (struct gcreq *gcreq);
+void ddsi_prune_deleted_participant_guids (struct deleted_participants_admin *admin, ddsrt_mtime_t tnow);
+void ddsi_remove_deleted_participant_guid (struct deleted_participants_admin *admin, const struct ddsi_guid *guid, unsigned for_what);
+void ddsi_remember_deleted_participant_guid (struct deleted_participants_admin *admin, const struct ddsi_guid *guid);
+struct ddsi_participant *ddsi_ref_participant (struct ddsi_participant *pp, const struct ddsi_guid *guid_of_refing_entity);
+void ddsi_unref_participant (struct ddsi_participant *pp, const struct ddsi_guid *guid_of_refing_entity);
+struct deleted_participants_admin *ddsi_deleted_participants_admin_new (const ddsrt_log_cfg_t *logcfg, int64_t delay);
+void ddsi_deleted_participants_admin_free (struct deleted_participants_admin *admin);
+int ddsi_is_deleted_participant_guid (struct deleted_participants_admin *admin, const struct ddsi_guid *guid, unsigned for_what);
+
+
+
 /**
  * @brief Create a new participant in the domain
  *
@@ -173,7 +177,7 @@ struct participant
  * @retval DDS_RETCODE_OUT_OF_RESOURCES
  *               The configured maximum number of participants has been reached.
 */
-dds_return_t new_participant (struct ddsi_guid *ppguid, struct ddsi_domaingv *gv, unsigned flags, const struct ddsi_plist *plist);
+DDS_EXPORT dds_return_t ddsi_new_participant (struct ddsi_guid *ppguid, struct ddsi_domaingv *gv, unsigned flags, const struct ddsi_plist *plist);
 
 /**
  * @brief Initiate the deletion of the participant:
@@ -199,32 +203,36 @@ dds_return_t new_participant (struct ddsi_guid *ppguid, struct ddsi_domaingv *gv
  * @retval DDS_RETCODE_BAD_PARAMETER
  *               ppguid lookup failed.
 */
-dds_return_t delete_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid);
-void update_participant_plist (struct participant *pp, const struct ddsi_plist *plist);
-bool participant_builtin_writers_ready (struct participant *pp);
+DDS_EXPORT dds_return_t ddsi_delete_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid);
 
-/* Gets the interval for PMD messages, which is the minimal lease duration for writers
-   with auto liveliness in this participant, or the participants lease duration if shorter */
-DDS_EXPORT dds_duration_t pp_get_pmd_interval (struct participant *pp);
+/**
+ * @brief Updates the parameters list for this participant and trigger sending
+ * an updated SPDP message.
+ *
+ * @param[in] pp The participant
+ * @param[in] plist The new parameters
+ */
+DDS_EXPORT void ddsi_update_participant_plist (struct ddsi_participant *pp, const struct ddsi_plist *plist);
 
-/* To obtain the builtin writer to be used for publishing SPDP, SEDP,
-   PMD stuff for PP and its endpoints, given the entityid.  If PP has
-   its own writer, use it; else use the privileged participant. */
-DDS_EXPORT struct writer *get_builtin_writer (const struct participant *pp, unsigned entityid);
+/**
+ * @brief Gets the interval for PMD messages, which is the minimal lease duration for writers
+ * with auto liveliness in this participant, or the participants lease duration if shorter
+ *
+ * @param[in] pp The participant
+ * @returns The PMD interval of the participant
+ */
+DDS_EXPORT dds_duration_t ddsi_participant_get_pmd_interval (struct ddsi_participant *pp);
 
-void participant_add_wr_lease_locked (struct participant * pp, const struct writer * wr);
-void participant_remove_wr_lease_locked (struct participant * pp, struct writer * wr);
-dds_return_t pp_allocate_entityid (ddsi_entityid_t *id, uint32_t kind, struct participant *pp);
-void pp_release_entityid (struct participant *pp, ddsi_entityid_t id);
-void gc_participant_lease (struct gcreq *gcreq);
-void prune_deleted_participant_guids (struct deleted_participants_admin *admin, ddsrt_mtime_t tnow);
-void remove_deleted_participant_guid (struct deleted_participants_admin *admin, const struct ddsi_guid *guid, unsigned for_what);
-void remember_deleted_participant_guid (struct deleted_participants_admin *admin, const struct ddsi_guid *guid);
-struct participant *ref_participant (struct participant *pp, const struct ddsi_guid *guid_of_refing_entity);
-void unref_participant (struct participant *pp, const struct ddsi_guid *guid_of_refing_entity);
-struct deleted_participants_admin *deleted_participants_admin_new (const ddsrt_log_cfg_t *logcfg, int64_t delay);
-void deleted_participants_admin_free (struct deleted_participants_admin *admin);
-int is_deleted_participant_guid (struct deleted_participants_admin *admin, const struct ddsi_guid *guid, unsigned for_what);
+/**
+ * @brief To obtain the builtin writer to be used for publishing SPDP, SEDP, PMD stuff for
+ * PP and its endpoints, given the entityid. If PP has its own writer, use it; else use the
+ * privileged participant.
+ *
+ * @param[in] pp The participant
+ * @param[in] entityid The entity ID of the writer
+ * @returns The built-in writer
+ */
+DDS_EXPORT struct ddsi_writer *ddsi_get_builtin_writer (const struct ddsi_participant *pp, unsigned entityid);
 
 #if defined (__cplusplus)
 }

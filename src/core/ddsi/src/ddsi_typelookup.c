@@ -40,17 +40,29 @@
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/q_misc.h"
 
-static struct writer *get_typelookup_writer (const struct ddsi_domaingv *gv, uint32_t wr_eid)
+static bool participant_builtin_writers_ready (struct ddsi_participant *pp)
 {
-  struct participant *pp;
-  struct writer *wr = NULL;
+  // lock is needed to read the state, we're fine even if the state flips
+  // from operational to deleting, this exists to protect against the gap
+  // between making the participant discoverable through the entity index
+  // and checking pp->bes
+  ddsrt_mutex_lock (&pp->refc_lock);
+  const bool x = pp->state >= DDSI_PARTICIPANT_STATE_OPERATIONAL;
+  ddsrt_mutex_unlock (&pp->refc_lock);
+  return x;
+}
+
+static struct ddsi_writer *get_typelookup_writer (const struct ddsi_domaingv *gv, uint32_t wr_eid)
+{
+  struct ddsi_participant *pp;
+  struct ddsi_writer *wr = NULL;
   struct entidx_enum_participant est;
   thread_state_awake (lookup_thread_state (), gv);
   entidx_enum_participant_init (&est, gv->entity_index);
   while (wr == NULL && (pp = entidx_enum_participant_next (&est)) != NULL)
   {
     if (participant_builtin_writers_ready (pp))
-      wr = get_builtin_writer (pp, wr_eid);
+      wr = ddsi_get_builtin_writer (pp, wr_eid);
   }
   entidx_enum_participant_fini (&est);
   thread_state_asleep (lookup_thread_state ());
@@ -96,7 +108,7 @@ static uint32_t deps_typeid_hash (const void *type_id)
   return hash32;
 }
 
-static dds_return_t create_tl_request_msg (struct ddsi_domaingv * const gv, DDS_Builtin_TypeLookup_Request *request, const struct writer *wr, const ddsi_guid_t *proxypp_guid, struct ddsi_type *type, ddsi_type_include_deps_t resolve_deps)
+static dds_return_t create_tl_request_msg (struct ddsi_domaingv * const gv, DDS_Builtin_TypeLookup_Request *request, const struct ddsi_writer *wr, const ddsi_guid_t *proxypp_guid, struct ddsi_type *type, ddsi_type_include_deps_t resolve_deps)
 {
   int32_t cnt = 0;
   uint32_t index = 0;
@@ -174,7 +186,7 @@ bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const ddsi_typeid_t 
     return true;
   }
 
-  struct writer *wr = get_typelookup_writer (gv, NN_ENTITYID_TL_SVC_BUILTIN_REQUEST_WRITER);
+  struct ddsi_writer *wr = get_typelookup_writer (gv, NN_ENTITYID_TL_SVC_BUILTIN_REQUEST_WRITER);
   if (wr == NULL)
   {
     GVTRACE ("no pp found with tl request writer");
@@ -213,7 +225,7 @@ bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const ddsi_typeid_t 
   return true;
 }
 
-static void create_tl_reply_msg (DDS_Builtin_TypeLookup_Reply *reply, const struct writer *wr, seqno_t seqno, const struct DDS_XTypes_TypeIdentifierTypeObjectPairSeq *types)
+static void create_tl_reply_msg (DDS_Builtin_TypeLookup_Reply *reply, const struct ddsi_writer *wr, seqno_t seqno, const struct DDS_XTypes_TypeIdentifierTypeObjectPairSeq *types)
 {
   memset (reply, 0, sizeof (*reply));
   memcpy (&reply->header.relatedRequestId.writer_guid.guidPrefix, &wr->e.guid.prefix, sizeof (reply->header.relatedRequestId.writer_guid.guidPrefix));
@@ -228,7 +240,7 @@ static void create_tl_reply_msg (DDS_Builtin_TypeLookup_Reply *reply, const stru
 
 }
 
-static void write_typelookup_reply (struct writer *wr, seqno_t seqno, const struct DDS_XTypes_TypeIdentifierTypeObjectPairSeq *types)
+static void write_typelookup_reply (struct ddsi_writer *wr, seqno_t seqno, const struct DDS_XTypes_TypeIdentifierTypeObjectPairSeq *types)
 {
   struct ddsi_domaingv * const gv = wr->e.gv;
   DDS_Builtin_TypeLookup_Reply reply;
@@ -300,7 +312,7 @@ void ddsi_tl_handle_request (struct ddsi_domaingv *gv, struct ddsi_serdata *d)
   }
   ddsrt_mutex_unlock (&gv->typelib_lock);
 
-  struct writer *wr = get_typelookup_writer (gv, NN_ENTITYID_TL_SVC_BUILTIN_REPLY_WRITER);
+  struct ddsi_writer *wr = get_typelookup_writer (gv, NN_ENTITYID_TL_SVC_BUILTIN_REPLY_WRITER);
   if (wr != NULL)
     write_typelookup_reply (wr, from_seqno (&req.header.requestId.sequence_number), &types);
   else
@@ -315,7 +327,7 @@ void ddsi_tl_handle_request (struct ddsi_domaingv *gv, struct ddsi_serdata *d)
   ddsrt_free (types._buffer);
 }
 
-void ddsi_tl_add_types (struct ddsi_domaingv *gv, const DDS_Builtin_TypeLookup_Reply *reply, struct generic_proxy_endpoint ***gpe_match_upd, uint32_t *n_match_upd)
+void ddsi_tl_add_types (struct ddsi_domaingv *gv, const DDS_Builtin_TypeLookup_Reply *reply, struct ddsi_generic_proxy_endpoint ***gpe_match_upd, uint32_t *n_match_upd)
 {
   bool resolved = false;
   ddsrt_mutex_lock (&gv->typelib_lock);
@@ -369,7 +381,7 @@ void ddsi_tl_add_types (struct ddsi_domaingv *gv, const DDS_Builtin_TypeLookup_R
 
 void ddsi_tl_handle_reply (struct ddsi_domaingv *gv, struct ddsi_serdata *d)
 {
-  struct generic_proxy_endpoint **gpe_match_upd = NULL;
+  struct ddsi_generic_proxy_endpoint **gpe_match_upd = NULL;
   uint32_t n_match_upd = 0;
   assert (!(d->statusinfo & (NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER)));
 
@@ -390,7 +402,7 @@ void ddsi_tl_handle_reply (struct ddsi_domaingv *gv, struct ddsi_serdata *d)
     for (uint32_t e = 0; e < n_match_upd; e++)
     {
       GVTRACE (" trigger matching "PGUIDFMT"\n", PGUID(gpe_match_upd[e]->e.guid));
-      update_proxy_endpoint_matching (gv, gpe_match_upd[e]);
+      ddsi_update_proxy_endpoint_matching (gv, gpe_match_upd[e]);
     }
     ddsrt_free (gpe_match_upd);
   }

@@ -586,11 +586,11 @@ static void test_proxy_rd_create (struct ddsi_domaingv *gv, const char *topic_na
   struct addrset *as = new_addrset ();
   add_locator_to_addrset (gv, as, &gv->loc_default_uc);
   ref_addrset (as); // increase refc to 2, new_proxy_participant does not add a ref
-  int rc = new_proxy_participant (gv, pp_guid, 0, NULL, as, as, plist, DDS_INFINITY, NN_VENDORID_ECLIPSE, 0, ddsrt_time_wallclock (), 1);
+  int rc = ddsi_new_proxy_participant (gv, pp_guid, 0, NULL, as, as, plist, DDS_INFINITY, NN_VENDORID_ECLIPSE, 0, ddsrt_time_wallclock (), 1);
   CU_ASSERT_FATAL (rc);
 
   ddsi_xqos_mergein_missing (&plist->qos, &ddsi_default_qos_reader, ~(uint64_t)0);
-  rc = new_proxy_reader (gv, pp_guid, rd_guid, as, plist, ddsrt_time_wallclock (), 1, 0);
+  rc = ddsi_new_proxy_reader (gv, pp_guid, rd_guid, as, plist, ddsrt_time_wallclock (), 1, 0);
   CU_ASSERT_EQUAL_FATAL (rc, exp_ret);
   ddsi_plist_fini (plist);
   ddsrt_free (plist);
@@ -612,8 +612,8 @@ static void test_proxy_rd_fini (const ddsi_guid_t *pp_guid, const ddsi_guid_t *r
   struct ddsi_domaingv *gv = get_domaingv (g_participant1);
   struct thread_state * const thrst = lookup_thread_state ();
   thread_state_awake (thrst, gv);
-  delete_proxy_reader (gv, rd_guid, ddsrt_time_wallclock (), false);
-  delete_proxy_participant_by_guid (gv, pp_guid, ddsrt_time_wallclock (), false);
+  ddsi_delete_proxy_reader (gv, rd_guid, ddsrt_time_wallclock (), false);
+  ddsi_delete_proxy_participant_by_guid (gv, pp_guid, ddsrt_time_wallclock (), false);
   thread_state_asleep (thrst);
 }
 
@@ -899,13 +899,13 @@ CU_Theory ((const char *test_descr, const dds_topic_descriptor_t *topic_desc, ty
   test_proxy_rd_create (gv, topic_name, ti, DDS_RETCODE_OK, &pp_guid, &rd_guid);
   test_proxy_rd_matches (wr, false);
 
-  struct generic_proxy_endpoint **gpe_match_upd = NULL;
+  struct ddsi_generic_proxy_endpoint **gpe_match_upd = NULL;
   uint32_t n_match_upd = 0;
 
   DDS_XTypes_TypeMapping *tmap;
   typemap_deser (&tmap, &desc.type_mapping);
   DDS_Builtin_TypeLookup_Reply reply = {
-    .header = { .remoteEx = DDS_RPC_REMOTE_EX_OK, .relatedRequestId = { .sequence_number = { .low = 1, .high = 0 }, .writer_guid = { .guidPrefix = { 0 }, .entityId = { .entityKind = EK_WRITER, .entityKey = { 0 } } } } },
+    .header = { .remoteEx = DDS_RPC_REMOTE_EX_OK, .relatedRequestId = { .sequence_number = { .low = 1, .high = 0 }, .writer_guid = { .guidPrefix = { 0 }, .entityId = { .entityKind = DDSI_EK_WRITER, .entityKey = { 0 } } } } },
     .return_data = { ._d = DDS_Builtin_TypeLookup_getTypes_HashId, ._u = { .getType = { ._d = DDS_RETCODE_OK, ._u = { .result =
       { .types = { ._length = tmap->identifier_object_pair_minimal._length, ._maximum = tmap->identifier_object_pair_minimal._maximum, ._release = false, ._buffer = tmap->identifier_object_pair_minimal._buffer } } } } } }
     };
@@ -987,7 +987,7 @@ CU_Test (ddsc_xtypes, resolve_dep_type, .init = xtypes_init, .fini = xtypes_fini
   test_proxy_rd_create (gv, topic_name, ti, DDS_RETCODE_OK, &pp_guid, &rd_guid);
   test_proxy_rd_matches (wr, false);
 
-  struct generic_proxy_endpoint **gpe_match_upd = NULL;
+  struct ddsi_generic_proxy_endpoint **gpe_match_upd = NULL;
   uint32_t n_match_upd = 0;
   DDS_Builtin_TypeLookup_Reply reply;
   DDS_XTypes_TypeMapping *tmap;
@@ -995,7 +995,7 @@ CU_Test (ddsc_xtypes, resolve_dep_type, .init = xtypes_init, .fini = xtypes_fini
 
   // add proxy reader's top-level type
   reply = (DDS_Builtin_TypeLookup_Reply) {
-    .header = { .remoteEx = DDS_RPC_REMOTE_EX_OK, .relatedRequestId = { .sequence_number = { .low = 1, .high = 0 }, .writer_guid = { .guidPrefix = { 0 }, .entityId = { .entityKind = EK_WRITER, .entityKey = { 0 } } } } },
+    .header = { .remoteEx = DDS_RPC_REMOTE_EX_OK, .relatedRequestId = { .sequence_number = { .low = 1, .high = 0 }, .writer_guid = { .guidPrefix = { 0 }, .entityId = { .entityKind = DDSI_EK_WRITER, .entityKey = { 0 } } } } },
     .return_data = { ._d = DDS_Builtin_TypeLookup_getTypes_HashId, ._u = { .getType = { ._d = DDS_RETCODE_OK, ._u = { .result =
       { .types = { ._length = 1, ._maximum = 1, ._release = false, ._buffer = &tmap->identifier_object_pair_minimal._buffer[0] } } } } } }
     };
@@ -1008,7 +1008,7 @@ CU_Test (ddsc_xtypes, resolve_dep_type, .init = xtypes_init, .fini = xtypes_fini
   gpe_match_upd = NULL;
   n_match_upd = 0;
   reply = (DDS_Builtin_TypeLookup_Reply) {
-    .header = { .remoteEx = DDS_RPC_REMOTE_EX_OK, .relatedRequestId = { .sequence_number = { .low = 1, .high = 0 }, .writer_guid = { .guidPrefix = { 0 }, .entityId = { .entityKind = EK_WRITER, .entityKey = { 0 } } } } },
+    .header = { .remoteEx = DDS_RPC_REMOTE_EX_OK, .relatedRequestId = { .sequence_number = { .low = 1, .high = 0 }, .writer_guid = { .guidPrefix = { 0 }, .entityId = { .entityKind = DDSI_EK_WRITER, .entityKey = { 0 } } } } },
     .return_data = { ._d = DDS_Builtin_TypeLookup_getTypes_HashId, ._u = { .getType = { ._d = DDS_RETCODE_OK, ._u = { .result =
       { .types = { ._length = 1, ._maximum = 1, ._release = false, ._buffer = &tmap->identifier_object_pair_minimal._buffer[1] } } } } } }
     };
@@ -1017,7 +1017,7 @@ CU_Test (ddsc_xtypes, resolve_dep_type, .init = xtypes_init, .fini = xtypes_fini
 
   assert (gpe_match_upd);
   for (uint32_t e = 0; e < n_match_upd; e++)
-    update_proxy_endpoint_matching (gv, gpe_match_upd[e]);
+    ddsi_update_proxy_endpoint_matching (gv, gpe_match_upd[e]);
   ddsrt_free (gpe_match_upd);
 
   test_proxy_rd_matches (wr, true);

@@ -36,7 +36,7 @@ struct ddsi_guid;
 struct ddsi_domaingv;
 struct thread_state;
 struct nn_xpack;
-struct participant;
+struct ddsi_participant;
 struct receiver_state;
 struct ddsi_serdata;
 struct ddsi_sertype;
@@ -59,7 +59,7 @@ DDS_EXPORT void ddsi_tl_handle_request (struct ddsi_domaingv *gv, struct ddsi_se
 /**
  * Add type information from a type lookup reply to the type library.
  */
-DDS_EXPORT void ddsi_tl_add_types (struct ddsi_domaingv *gv, const DDS_Builtin_TypeLookup_Reply *reply, struct generic_proxy_endpoint ***gpe_match_upd, uint32_t *n_match_upd);
+DDS_EXPORT void ddsi_tl_add_types (struct ddsi_domaingv *gv, const DDS_Builtin_TypeLookup_Reply *reply, struct ddsi_generic_proxy_endpoint ***gpe_match_upd, uint32_t *n_match_upd);
 
 /**
  * Handle an incoming type lookup reply message. The sertypes from this

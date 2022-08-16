@@ -1616,7 +1616,7 @@ static void dowaitforack (struct oneliner_ctx *ctx)
   if (dds_entity_kind (x) != DDS_KIND_WRITER)
     error_dds (ctx, ret, "wait for ack: %"PRId32" is not a writer", ctx->es[ent]);
   else
-    ret = dds__writer_wait_for_acks ((struct dds_writer *) x, (ent1 < 0) ? NULL : &rdguid.i, dds_time () + DDS_SECS (5));
+    ret = dds__ddsi_writer_wait_for_acks ((struct dds_writer *) x, (ent1 < 0) ? NULL : &rdguid.i, dds_time () + DDS_SECS (5));
   dds_entity_unpin (x);
   if (ret != 0)
   {
@@ -1742,7 +1742,7 @@ static void dodeaf_maybe_imm (struct oneliner_ctx *ctx, bool immediate)
         error_dds (ctx, ret, "%s: pin counterpart participant failed %"PRId32, mode, ctx->es[9*i]);
       }
       thread_state_awake (lookup_thread_state (), &x->m_domain->gv);
-      delete_proxy_participant_by_guid (&x->m_domain->gv, &xprime->m_guid, ddsrt_time_wallclock (), true);
+      ddsi_delete_proxy_participant_by_guid (&x->m_domain->gv, &xprime->m_guid, ddsrt_time_wallclock (), true);
       thread_state_asleep (lookup_thread_state ());
       dds_entity_unpin (xprime);
     }
@@ -1777,7 +1777,7 @@ static void dohearing_maybe_imm (struct oneliner_ctx *ctx, bool immediate)
       if (i == ent / 9 || ctx->es[9*i] == 0)
         continue;
       dds_entity *xprime;
-      struct participant *pp;
+      struct ddsi_participant *pp;
       if ((ret = dds_entity_pin (ctx->es[9*i], &xprime)) < 0)
         error_dds (ctx, ret, "%s: pin counterpart participant failed %"PRId32, mode, ctx->es[9*i]);
       thread_state_awake (lookup_thread_state (), &xprime->m_domain->gv);

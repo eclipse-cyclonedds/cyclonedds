@@ -240,7 +240,7 @@ void ddsi_typemap_fini (ddsi_typemap_t *typemap)
 static bool ddsi_type_proxy_guid_exists (struct ddsi_type *type, const ddsi_guid_t *proxy_guid)
 {
   struct ddsi_type_proxy_guid_list_iter it;
-  for (ddsi_guid_t guid = ddsi_type_proxy_guid_list_iter_first (&type->proxy_guids, &it); !is_null_guid (&guid); guid = ddsi_type_proxy_guid_list_iter_next (&it))
+  for (ddsi_guid_t guid = ddsi_type_proxy_guid_list_iter_first (&type->proxy_guids, &it); !ddsi_is_null_guid (&guid); guid = ddsi_type_proxy_guid_list_iter_next (&it))
   {
     if (guid_eq (&guid, proxy_guid))
       return true;
@@ -455,7 +455,7 @@ void ddsi_type_register_dep (struct ddsi_domaingv *gv, const ddsi_typeid_t *src_
   ddsi_type_register_dep_impl (gv, src_type_id, dst_dep_type, dep_tid, false);
 }
 
-static dds_return_t type_add_deps (struct ddsi_domaingv *gv, struct ddsi_type *type, const ddsi_typeinfo_t *type_info, const ddsi_typemap_t *type_map, ddsi_typeid_kind_t kind, uint32_t *n_match_upd, struct generic_proxy_endpoint ***gpe_match_upd)
+static dds_return_t type_add_deps (struct ddsi_domaingv *gv, struct ddsi_type *type, const ddsi_typeinfo_t *type_info, const ddsi_typemap_t *type_map, ddsi_typeid_kind_t kind, uint32_t *n_match_upd, struct ddsi_generic_proxy_endpoint ***gpe_match_upd)
 {
   assert (type_info);
   assert (kind == DDSI_TYPEID_KIND_MINIMAL || kind == DDSI_TYPEID_KIND_COMPLETE);
@@ -538,7 +538,7 @@ static bool valid_top_level_type (const struct ddsi_type *type)
 
 dds_return_t ddsi_type_ref_local (struct ddsi_domaingv *gv, struct ddsi_type **type, const struct ddsi_sertype *sertype, ddsi_typeid_kind_t kind)
 {
-  struct generic_proxy_endpoint **gpe_match_upd = NULL;
+  struct ddsi_generic_proxy_endpoint **gpe_match_upd = NULL;
   uint32_t n_match_upd = 0;
   struct ddsi_typeid_str tistr;
   dds_return_t ret = DDS_RETCODE_OK;
@@ -604,7 +604,7 @@ dds_return_t ddsi_type_ref_local (struct ddsi_domaingv *gv, struct ddsi_type **t
     for (uint32_t e = 0; e < n_match_upd; e++)
     {
       GVTRACE ("type %s trigger matching "PGUIDFMT"\n", ddsi_make_typeid_str_impl (&tistr, type_id), PGUID(gpe_match_upd[e]->e.guid));
-      update_proxy_endpoint_matching (gv, gpe_match_upd[e]);
+      ddsi_update_proxy_endpoint_matching (gv, gpe_match_upd[e]);
     }
     ddsrt_free (gpe_match_upd);
   }
@@ -1061,7 +1061,7 @@ void ddsi_type_unref_locked (struct ddsi_domaingv *gv, struct ddsi_type *type)
   ddsi_type_unref_impl_locked (gv, type);
 }
 
-static void ddsi_type_get_gpe_matches_impl (struct ddsi_domaingv *gv, const struct ddsi_type *type, struct generic_proxy_endpoint ***gpe_match_upd, uint32_t *n_match_upd)
+static void ddsi_type_get_gpe_matches_impl (struct ddsi_domaingv *gv, const struct ddsi_type *type, struct ddsi_generic_proxy_endpoint ***gpe_match_upd, uint32_t *n_match_upd)
 {
   if (!ddsi_type_proxy_guid_list_count (&type->proxy_guids))
     return;
@@ -1070,15 +1070,15 @@ static void ddsi_type_get_gpe_matches_impl (struct ddsi_domaingv *gv, const stru
   thread_state_awake (lookup_thread_state (), gv);
   *gpe_match_upd = ddsrt_realloc (*gpe_match_upd, (*n_match_upd + ddsi_type_proxy_guid_list_count (&type->proxy_guids)) * sizeof (**gpe_match_upd));
   struct ddsi_type_proxy_guid_list_iter it;
-  for (ddsi_guid_t guid = ddsi_type_proxy_guid_list_iter_first (&type->proxy_guids, &it); !is_null_guid (&guid); guid = ddsi_type_proxy_guid_list_iter_next (&it))
+  for (ddsi_guid_t guid = ddsi_type_proxy_guid_list_iter_first (&type->proxy_guids, &it); !ddsi_is_null_guid (&guid); guid = ddsi_type_proxy_guid_list_iter_next (&it))
   {
-    if (!is_topic_entityid (guid.entityid))
+    if (!ddsi_is_topic_entityid (guid.entityid))
     {
-      struct entity_common *ec = entidx_lookup_guid_untyped (gv->entity_index, &guid);
+      struct ddsi_entity_common *ec = entidx_lookup_guid_untyped (gv->entity_index, &guid);
       if (ec != NULL)
       {
-        assert (ec->kind == EK_PROXY_READER || ec->kind == EK_PROXY_WRITER);
-        (*gpe_match_upd)[*n_match_upd + n++] = (struct generic_proxy_endpoint *) ec;
+        assert (ec->kind == DDSI_EK_PROXY_READER || ec->kind == DDSI_EK_PROXY_WRITER);
+        (*gpe_match_upd)[*n_match_upd + n++] = (struct ddsi_generic_proxy_endpoint *) ec;
       }
     }
   }
@@ -1086,7 +1086,7 @@ static void ddsi_type_get_gpe_matches_impl (struct ddsi_domaingv *gv, const stru
   thread_state_asleep (lookup_thread_state ());
 }
 
-void ddsi_type_get_gpe_matches (struct ddsi_domaingv *gv, const struct ddsi_type *type, struct generic_proxy_endpoint ***gpe_match_upd, uint32_t *n_match_upd)
+void ddsi_type_get_gpe_matches (struct ddsi_domaingv *gv, const struct ddsi_type *type, struct ddsi_generic_proxy_endpoint ***gpe_match_upd, uint32_t *n_match_upd)
 {
   /* No check for resolved state of dependencies for this type at this point: matching for
      endpoints using this type as top-level type (or dependent type, via reverse

@@ -79,7 +79,7 @@ void lease_management_term (struct ddsi_domaingv *gv)
   ddsrt_mutex_destroy (&gv->leaseheap_lock);
 }
 
-struct lease *lease_new (ddsrt_etime_t texpire, dds_duration_t tdur, struct entity_common *e)
+struct lease *lease_new (ddsrt_etime_t texpire, dds_duration_t tdur, struct ddsi_entity_common *e)
 {
   struct lease *l;
   if ((l = ddsrt_malloc (sizeof (*l))) == NULL)
@@ -223,7 +223,7 @@ int64_t check_and_handle_lease_expiration (struct ddsi_domaingv *gv, ddsrt_etime
   while ((l = ddsrt_fibheap_min (&lease_fhdef, &gv->leaseheap)) != NULL && l->tsched.v <= tnowE.v)
   {
     ddsi_guid_t g = l->entity->guid;
-    enum entity_kind k = l->entity->kind;
+    enum ddsi_entity_kind k = l->entity->kind;
 
     assert (l->tsched.v != TSCHED_NOT_ON_HEAP);
     ddsrt_fibheap_extract_min (&lease_fhdef, &gv->leaseheap);
@@ -269,9 +269,9 @@ int64_t check_and_handle_lease_expiration (struct ddsi_domaingv *gv, ddsrt_etime
 
        I guess that means there is a really good argument for the SPDP
        and SEDP writers to be per-participant! */
-    if (k == EK_PROXY_PARTICIPANT)
+    if (k == DDSI_EK_PROXY_PARTICIPANT)
     {
-      struct proxy_participant *proxypp;
+      struct ddsi_proxy_participant *proxypp;
       if ((proxypp = entidx_lookup_proxy_participant_guid (gv->entity_index, &g)) != NULL &&
           entidx_lookup_proxy_participant_guid (gv->entity_index, &proxypp->privileged_pp_guid) != NULL)
       {
@@ -287,19 +287,19 @@ int64_t check_and_handle_lease_expiration (struct ddsi_domaingv *gv, ddsrt_etime
 
     switch (k)
     {
-      case EK_PROXY_PARTICIPANT:
-        delete_proxy_participant_by_guid (gv, &g, ddsrt_time_wallclock(), 1);
+      case DDSI_EK_PROXY_PARTICIPANT:
+        ddsi_delete_proxy_participant_by_guid (gv, &g, ddsrt_time_wallclock(), 1);
         break;
-      case EK_PROXY_WRITER:
-        proxy_writer_set_notalive ((struct proxy_writer *) l->entity, true);
+      case DDSI_EK_PROXY_WRITER:
+        ddsi_proxy_writer_set_notalive ((struct ddsi_proxy_writer *) l->entity, true);
         break;
-      case EK_WRITER:
-        writer_set_notalive ((struct writer *) l->entity, true);
+      case DDSI_EK_WRITER:
+        ddsi_writer_set_notalive ((struct ddsi_writer *) l->entity, true);
         break;
-      case EK_PARTICIPANT:
-      case EK_TOPIC:
-      case EK_READER:
-      case EK_PROXY_READER:
+      case DDSI_EK_PARTICIPANT:
+      case DDSI_EK_TOPIC:
+      case DDSI_EK_READER:
+      case DDSI_EK_PROXY_READER:
         assert (false);
         break;
     }

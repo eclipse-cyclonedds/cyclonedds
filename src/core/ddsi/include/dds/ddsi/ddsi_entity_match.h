@@ -23,14 +23,14 @@
 extern "C" {
 #endif
 
-struct participant;
-struct proxy_participant;
-struct writer;
-struct reader;
-struct proxy_writer;
-struct proxy_reader;
-struct alive_state;
-struct generic_proxy_endpoint;
+struct ddsi_participant;
+struct ddsi_proxy_participant;
+struct ddsi_writer;
+struct ddsi_reader;
+struct ddsi_proxy_writer;
+struct ddsi_proxy_reader;
+struct ddsi_alive_state;
+struct ddsi_generic_proxy_endpoint;
 
 struct bestab {
   unsigned besflag;
@@ -40,12 +40,12 @@ struct bestab {
 
 #ifdef DDS_HAS_SECURITY
 struct setab {
-  enum entity_kind kind;
+  enum ddsi_entity_kind kind;
   uint32_t id;
 };
 #endif
 
-struct prd_wr_match {
+struct ddsi_prd_wr_match {
   ddsrt_avl_node_t avlnode;
   ddsi_guid_t wr_guid;
 #ifdef DDS_HAS_SECURITY
@@ -53,7 +53,7 @@ struct prd_wr_match {
 #endif
 };
 
-struct rd_pwr_match {
+struct ddsi_rd_pwr_match {
   ddsrt_avl_node_t avlnode;
   ddsi_guid_t pwr_guid;
   unsigned pwr_alive: 1; /* tracks pwr's alive state */
@@ -67,19 +67,19 @@ struct rd_pwr_match {
 #endif
 };
 
-struct wr_rd_match {
+struct ddsi_wr_rd_match {
   ddsrt_avl_node_t avlnode;
   ddsi_guid_t rd_guid;
 };
 
-struct rd_wr_match {
+struct ddsi_rd_wr_match {
   ddsrt_avl_node_t avlnode;
   ddsi_guid_t wr_guid;
   unsigned wr_alive: 1; /* tracks wr's alive state */
   uint32_t wr_alive_vclock; /* used to ensure progress */
 };
 
-struct wr_prd_match {
+struct ddsi_wr_prd_match {
   ddsrt_avl_node_t avlnode;
   ddsi_guid_t prd_guid; /* guid of the proxy reader */
   unsigned assumed_in_sync: 1; /* set to 1 upon receipt of ack not nack'ing msgs */
@@ -118,7 +118,7 @@ struct last_nack_summary {
   uint32_t frag_base;
 };
 
-struct pwr_rd_match {
+struct ddsi_pwr_rd_match {
   ddsrt_avl_node_t avlnode;
   ddsi_guid_t rd_guid;
   ddsrt_mtime_t tcreate;
@@ -149,54 +149,55 @@ struct pwr_rd_match {
 #endif
 };
 
-void connect_writer_with_proxy_reader_secure(struct writer *wr, struct proxy_reader *prd, ddsrt_mtime_t tnow, int64_t crypto_handle);
-void connect_reader_with_proxy_writer_secure(struct reader *rd, struct proxy_writer *pwr, ddsrt_mtime_t tnow, int64_t crypto_handle);
-void match_writer_with_proxy_readers (struct writer *wr, ddsrt_mtime_t tnow);
-void match_writer_with_local_readers (struct writer *wr, ddsrt_mtime_t tnow);
-void match_reader_with_proxy_writers (struct reader *rd, ddsrt_mtime_t tnow);
-void match_reader_with_local_writers (struct reader *rd, ddsrt_mtime_t tnow);
-void match_proxy_writer_with_readers (struct proxy_writer *pwr, ddsrt_mtime_t tnow);
-void match_proxy_reader_with_writers (struct proxy_reader *prd, ddsrt_mtime_t tnow);
-void free_wr_prd_match (const struct ddsi_domaingv *gv, const ddsi_guid_t *wr_guid, struct wr_prd_match *m);
-void free_rd_pwr_match (struct ddsi_domaingv *gv, const ddsi_guid_t *rd_guid, struct rd_pwr_match *m);
-void free_pwr_rd_match (struct pwr_rd_match *m);
-void free_prd_wr_match (struct prd_wr_match *m);
-void free_rd_wr_match (struct rd_wr_match *m);
-void free_wr_rd_match (struct wr_rd_match *m);
-DDS_EXPORT void update_proxy_endpoint_matching (const struct ddsi_domaingv *gv, struct generic_proxy_endpoint *proxy_ep);
+void connect_writer_with_proxy_reader_secure (struct ddsi_writer *wr, struct ddsi_proxy_reader *prd, ddsrt_mtime_t tnow, int64_t crypto_handle);
+void connect_reader_with_proxy_writer_secure (struct ddsi_reader *rd, struct ddsi_proxy_writer *pwr, ddsrt_mtime_t tnow, int64_t crypto_handle);
+void match_writer_with_proxy_readers (struct ddsi_writer *wr, ddsrt_mtime_t tnow);
+void match_writer_with_local_readers (struct ddsi_writer *wr, ddsrt_mtime_t tnow);
+void match_reader_with_proxy_writers (struct ddsi_reader *rd, ddsrt_mtime_t tnow);
+void match_reader_with_local_writers (struct ddsi_reader *rd, ddsrt_mtime_t tnow);
+void match_proxy_writer_with_readers (struct ddsi_proxy_writer *pwr, ddsrt_mtime_t tnow);
+void match_proxy_reader_with_writers (struct ddsi_proxy_reader *prd, ddsrt_mtime_t tnow);
+void free_wr_prd_match (const struct ddsi_domaingv *gv, const ddsi_guid_t *wr_guid, struct ddsi_wr_prd_match *m);
+void free_rd_pwr_match (struct ddsi_domaingv *gv, const ddsi_guid_t *rd_guid, struct ddsi_rd_pwr_match *m);
+void free_pwr_rd_match (struct ddsi_pwr_rd_match *m);
+void free_prd_wr_match (struct ddsi_prd_wr_match *m);
+void free_rd_wr_match (struct ddsi_rd_wr_match *m);
+void free_wr_rd_match (struct ddsi_wr_rd_match *m);
 
-void writer_add_connection (struct writer *wr, struct proxy_reader *prd, int64_t crypto_handle);
-void writer_add_local_connection (struct writer *wr, struct reader *rd);
-void reader_add_connection (struct reader *rd, struct proxy_writer *pwr, nn_count_t *init_count, const struct alive_state *alive_state, int64_t crypto_handle);
-void reader_add_local_connection (struct reader *rd, struct writer *wr, const struct alive_state *alive_state);
-void proxy_writer_add_connection (struct proxy_writer *pwr, struct reader *rd, ddsrt_mtime_t tnow, nn_count_t init_count, int64_t crypto_handle);
-void proxy_reader_add_connection (struct proxy_reader *prd, struct writer *wr, int64_t crypto_handle);
+void writer_add_connection (struct ddsi_writer *wr, struct ddsi_proxy_reader *prd, int64_t crypto_handle);
+void writer_add_local_connection (struct ddsi_writer *wr, struct ddsi_reader *rd);
+void reader_add_connection (struct ddsi_reader *rd, struct ddsi_proxy_writer *pwr, nn_count_t *init_count, const struct ddsi_alive_state *alive_state, int64_t crypto_handle);
+void reader_add_local_connection (struct ddsi_reader *rd, struct ddsi_writer *wr, const struct ddsi_alive_state *alive_state);
+void proxy_writer_add_connection (struct ddsi_proxy_writer *pwr, struct ddsi_reader *rd, ddsrt_mtime_t tnow, nn_count_t init_count, int64_t crypto_handle);
+void proxy_reader_add_connection (struct ddsi_proxy_reader *prd, struct ddsi_writer *wr, int64_t crypto_handle);
 
-void writer_drop_connection (const struct ddsi_guid *wr_guid, const struct proxy_reader *prd);
-void writer_drop_local_connection (const struct ddsi_guid *wr_guid, struct reader *rd);
-void reader_drop_connection (const struct ddsi_guid *rd_guid, const struct proxy_writer *pwr);
-void reader_drop_local_connection (const struct ddsi_guid *rd_guid, const struct writer *wr);
-void proxy_writer_drop_connection (const struct ddsi_guid *pwr_guid, struct reader *rd);
-void proxy_reader_drop_connection (const struct ddsi_guid *prd_guid, struct writer *wr);
+void writer_drop_connection (const struct ddsi_guid *wr_guid, const struct ddsi_proxy_reader *prd);
+void writer_drop_local_connection (const struct ddsi_guid *wr_guid, struct ddsi_reader *rd);
+void reader_drop_connection (const struct ddsi_guid *rd_guid, const struct ddsi_proxy_writer *pwr);
+void reader_drop_local_connection (const struct ddsi_guid *rd_guid, const struct ddsi_writer *wr);
+void proxy_writer_drop_connection (const struct ddsi_guid *pwr_guid, struct ddsi_reader *rd);
+void proxy_reader_drop_connection (const struct ddsi_guid *prd_guid, struct ddsi_writer *wr);
 
-void local_reader_ary_init (struct local_reader_ary *x);
-void local_reader_ary_fini (struct local_reader_ary *x);
-void local_reader_ary_setinvalid (struct local_reader_ary *x);
-void local_reader_ary_insert (struct local_reader_ary *x, struct reader *rd);
-void local_reader_ary_remove (struct local_reader_ary *x, struct reader *rd);
-void local_reader_ary_setfastpath_ok (struct local_reader_ary *x, bool fastpath_ok);
+void local_reader_ary_init (struct ddsi_local_reader_ary *x);
+void local_reader_ary_fini (struct ddsi_local_reader_ary *x);
+void local_reader_ary_setinvalid (struct ddsi_local_reader_ary *x);
+void local_reader_ary_insert (struct ddsi_local_reader_ary *x, struct ddsi_reader *rd);
+void local_reader_ary_remove (struct ddsi_local_reader_ary *x, struct ddsi_reader *rd);
+void local_reader_ary_setfastpath_ok (struct ddsi_local_reader_ary *x, bool fastpath_ok);
 
 #ifdef DDS_HAS_SECURITY
-void handshake_end_cb (struct ddsi_handshake *handshake, struct participant *pp, struct proxy_participant *proxypp, enum ddsi_handshake_state result);
-bool proxy_participant_has_pp_match (struct ddsi_domaingv *gv, struct proxy_participant *proxypp);
-void proxy_participant_create_handshakes (struct ddsi_domaingv *gv, struct proxy_participant *proxypp);
-void disconnect_proxy_participant_secure (struct proxy_participant *proxypp);
-void match_volatile_secure_endpoints (struct participant *pp, struct proxy_participant *proxypp);
-void update_proxy_participant_endpoint_matching (struct proxy_participant *proxypp, struct participant *pp);
+void handshake_end_cb (struct ddsi_handshake *handshake, struct ddsi_participant *pp, struct ddsi_proxy_participant *proxypp, enum ddsi_handshake_state result);
+bool proxy_participant_has_pp_match (struct ddsi_domaingv *gv, struct ddsi_proxy_participant *proxypp);
+void proxy_participant_create_handshakes (struct ddsi_domaingv *gv, struct ddsi_proxy_participant *proxypp);
+void disconnect_proxy_participant_secure (struct ddsi_proxy_participant *proxypp);
+void match_volatile_secure_endpoints (struct ddsi_participant *pp, struct ddsi_proxy_participant *proxypp);
+void update_proxy_participant_endpoint_matching (struct ddsi_proxy_participant *proxypp, struct ddsi_participant *pp);
 #endif
+
+DDS_EXPORT void ddsi_update_proxy_endpoint_matching (const struct ddsi_domaingv *gv, struct ddsi_generic_proxy_endpoint *proxy_ep);
 
 #if defined (__cplusplus)
 }
 #endif
 
-#endif /* DDSI_ENTITY_H */
+#endif /* DDSI_ENTITY_MATCH_H */

@@ -44,12 +44,12 @@ typedef enum {
 
 struct ddsi_hsadmin;
 struct participant_sec_attributes;
-struct proxy_participant_sec_attributes;
-struct writer_sec_attributes;
-struct reader_sec_attributes;
+struct ddsi_proxy_participant_sec_attributes;
+struct ddsi_writer_sec_attributes;
+struct ddsi_reader_sec_attributes;
 struct dds_security_context;
-struct topic;
-struct proxy_endpoint_common;
+struct ddsi_topic;
+struct ddsi_proxy_endpoint_common;
 
 #ifdef DDS_HAS_SECURITY
 
@@ -88,7 +88,7 @@ struct participant_sec_attributes {
   bool initialized;
 };
 
-struct proxy_participant_sec_attributes {
+struct ddsi_proxy_participant_sec_attributes {
   struct dds_security_context *sc;
   DDS_Security_IdentityHandle remote_identity_handle;
   DDS_Security_ParticipantCryptoHandle crypto_handle;
@@ -97,21 +97,21 @@ struct proxy_participant_sec_attributes {
   bool initialized;
 };
 
-struct writer_sec_attributes {
+struct ddsi_writer_sec_attributes {
   DDS_Security_EndpointSecurityAttributes attr;
   DDS_Security_DatawriterCryptoHandle crypto_handle;
   bool plugin_attr;
 };
 
-struct reader_sec_attributes {
+struct ddsi_reader_sec_attributes {
   DDS_Security_EndpointSecurityAttributes attr;
   DDS_Security_DatareaderCryptoHandle crypto_handle;
   bool plugin_attr;
 };
 
-DDS_EXPORT struct dds_security_access_control *q_omg_participant_get_access_control(const struct participant *pp);
-DDS_EXPORT struct dds_security_authentication *q_omg_participant_get_authentication(const struct participant *pp);
-DDS_EXPORT struct dds_security_cryptography *q_omg_participant_get_cryptography(const struct participant *pp);
+DDS_EXPORT struct dds_security_access_control *q_omg_participant_get_access_control(const struct ddsi_participant *pp);
+DDS_EXPORT struct dds_security_authentication *q_omg_participant_get_authentication(const struct ddsi_participant *pp);
+DDS_EXPORT struct dds_security_cryptography *q_omg_participant_get_cryptography(const struct ddsi_participant *pp);
 
 void q_omg_vlog_exception(const struct ddsrt_log_cfg *lc, uint32_t cat, DDS_Security_SecurityException *exception, const char *file, uint32_t line, const char *func, const char *fmt, va_list ap);
 void q_omg_log_exception(const struct ddsrt_log_cfg *lc, uint32_t cat, DDS_Security_SecurityException *exception, const char *file, uint32_t line, const char *func, const char *fmt, ...);
@@ -123,7 +123,7 @@ void q_omg_log_exception(const struct ddsrt_log_cfg *lc, uint32_t cat, DDS_Secur
  *
  * @returns bool  True if access control is enabled for participant
  */
-bool q_omg_participant_is_access_protected(const struct participant *pp);
+bool q_omg_participant_is_access_protected(const struct ddsi_participant *pp);
 
 /**
  * @brief Check if protection at RTPS level is enabled for the participant.
@@ -132,7 +132,7 @@ bool q_omg_participant_is_access_protected(const struct participant *pp);
  *
  * @returns bool  True if RTPS protection enabled for participant
  */
-bool q_omg_participant_is_rtps_protected(const struct participant *pp);
+bool q_omg_participant_is_rtps_protected(const struct ddsi_participant *pp);
 
 /**
  * @brief Check if liveliness is protected for the participant.
@@ -141,7 +141,7 @@ bool q_omg_participant_is_rtps_protected(const struct participant *pp);
  *
  * @returns bool  True  if liveliness data for participant is protected
  */
-bool q_omg_participant_is_liveliness_protected(const struct participant *pp);
+bool q_omg_participant_is_liveliness_protected(const struct ddsi_participant *pp);
 
 /**
  * @brief Check if discovery is protected for the participant.
@@ -150,7 +150,7 @@ bool q_omg_participant_is_liveliness_protected(const struct participant *pp);
  *
  * @returns bool  True  if discovery data for participant is protected
  */
-bool q_omg_participant_is_discovery_protected(const struct participant *pp);
+bool q_omg_participant_is_discovery_protected(const struct ddsi_participant *pp);
 
 /**
  * @brief Check if security is enabled for the participant.
@@ -159,7 +159,7 @@ bool q_omg_participant_is_discovery_protected(const struct participant *pp);
  *
  * @returns bool  True if participant is secure
  */
-bool q_omg_participant_is_secure(const struct participant *pp);
+bool q_omg_participant_is_secure(const struct ddsi_participant *pp);
 
 /**
  * @brief Check if security is enabled for the proxy participant.
@@ -168,7 +168,7 @@ bool q_omg_participant_is_secure(const struct participant *pp);
  *
  * @returns bool  True if proxy participant is secure
  */
-bool q_omg_proxy_participant_is_secure(const struct proxy_participant *proxypp);
+bool q_omg_proxy_participant_is_secure(const struct ddsi_proxy_participant *proxypp);
 
 /**
  * @brief Check security if it is allowed to create the participant.
@@ -187,11 +187,11 @@ bool q_omg_proxy_participant_is_secure(const struct proxy_participant *proxypp);
  * @retval DDS_RETCODE_NOT_ALLOWED_BY_SECURITY
  *                          Participant is not allowed
  */
-dds_return_t q_omg_security_check_create_participant(struct participant *pp, uint32_t domain_id);
+dds_return_t q_omg_security_check_create_participant(struct ddsi_participant *pp, uint32_t domain_id);
 
-void q_omg_security_participant_set_initialized(struct participant *pp);
+void q_omg_security_participant_set_initialized(struct ddsi_participant *pp);
 
-bool q_omg_security_participant_is_initialized(struct participant *pp);
+bool q_omg_security_participant_is_initialized(struct ddsi_participant *pp);
 
 /**
  * @brief Remove the participant from the security plugins.
@@ -202,7 +202,7 @@ bool q_omg_security_participant_is_initialized(struct participant *pp);
  *
  * @param[in] pp  Participant to remove.
  */
-void q_omg_security_deregister_participant(struct participant *pp);
+void q_omg_security_deregister_participant(struct ddsi_participant *pp);
 
 /**
  * @brief Get the identity handle associate with this participant.
@@ -218,7 +218,7 @@ void q_omg_security_deregister_participant(struct participant *pp);
  * @retval !0 Identity handle associated with the participant.
  * @retval 0  Invalid handle the participant was not registered
  */
-int64_t q_omg_security_get_local_participant_handle(const struct participant *pp);
+int64_t q_omg_security_get_local_participant_handle(const struct ddsi_participant *pp);
 
 /**
  * @brief Get security info flags of the given participant.
@@ -230,7 +230,7 @@ int64_t q_omg_security_get_local_participant_handle(const struct participant *pp
  * @retval true   Security info set.
  * @retval false  Security info not set.
  */
-bool q_omg_get_participant_security_info(const struct participant *pp, nn_security_info_t *info);
+bool q_omg_get_participant_security_info(const struct ddsi_participant *pp, nn_security_info_t *info);
 
 /**
  * @brief Get the is_rtps_protected flag of the given remote participant.
@@ -242,7 +242,7 @@ bool q_omg_get_participant_security_info(const struct participant *pp, nn_securi
  * @retval true   RTPS protected is set.
  * @retval false  RTPS protected is not set.
  */
-bool q_omg_security_is_local_rtps_protected(const struct participant *pp, ddsi_entityid_t entityid);
+bool q_omg_security_is_local_rtps_protected(const struct ddsi_participant *pp, ddsi_entityid_t entityid);
 
 /**
  * @brief Check if the participant and the proxy participant
@@ -262,7 +262,7 @@ bool q_omg_security_is_local_rtps_protected(const struct participant *pp, ddsi_e
  *                security info settings.
  * @retval false  Otherwise.
  */
-bool q_omg_is_similar_participant_security_info(struct participant *pp, struct proxy_participant *proxypp);
+bool q_omg_is_similar_participant_security_info(struct ddsi_participant *pp, struct ddsi_proxy_participant *proxypp);
 
 /**
  * @brief Check if the parameter list key hash is protected
@@ -322,7 +322,7 @@ bool q_omg_security_check_create_topic(const struct ddsi_domaingv *gv, const dds
  * @retval true   Security info set.
  * @retval false  Security info not set (probably unsecure writer).
  */
-bool q_omg_get_writer_security_info(const struct writer *wr, nn_security_info_t *info);
+bool q_omg_get_writer_security_info(const struct ddsi_writer *wr, nn_security_info_t *info);
 
 /**
  * @brief Return the builtin writer id for this writers' discovery.
@@ -339,7 +339,7 @@ bool q_omg_get_writer_security_info(const struct writer *wr, nn_security_info_t 
  * @retval NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER
  * @retval NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER
  */
-unsigned determine_publication_writer(const struct writer *wr);
+unsigned determine_publication_writer(const struct ddsi_writer *wr);
 
 /**
  * @brief Check if security allows to create the writer.
@@ -356,7 +356,7 @@ unsigned determine_publication_writer(const struct writer *wr);
  * @retval true   Creation of the writer is allowed
  * @retval false  Otherwise.
  */
-bool q_omg_security_check_create_writer(struct participant *pp, uint32_t domain_id, const char *topic_name, const struct dds_qos *writer_qos);
+bool q_omg_security_check_create_writer(struct ddsi_participant *pp, uint32_t domain_id, const char *topic_name, const struct dds_qos *writer_qos);
 
 /**
  * @brief Register the writer with security.
@@ -370,7 +370,7 @@ bool q_omg_security_check_create_writer(struct participant *pp, uint32_t domain_
  *
  * @param[in] wr  The writer to register.
  */
-void q_omg_security_register_writer(struct writer *wr);
+void q_omg_security_register_writer(struct ddsi_writer *wr);
 
 /**
  * @brief Remove the writer from security.
@@ -381,7 +381,7 @@ void q_omg_security_register_writer(struct writer *wr);
  *
  * @param[in] wr  The writer to remove.
  */
-void q_omg_security_deregister_writer(struct writer *wr);
+void q_omg_security_deregister_writer(struct ddsi_writer *wr);
 
 /**
  * @brief Get security info flags of the given reader.
@@ -393,7 +393,7 @@ void q_omg_security_deregister_writer(struct writer *wr);
  * @retval true   Security info set.
  * @retval false  Security info not set (probably unsecure reader).
  */
-bool q_omg_get_reader_security_info(const struct reader *rd, nn_security_info_t *info);
+bool q_omg_get_reader_security_info(const struct ddsi_reader *rd, nn_security_info_t *info);
 
 /**
  * @brief Return the builtin writer id for this readers' discovery.
@@ -410,7 +410,7 @@ bool q_omg_get_reader_security_info(const struct reader *rd, nn_security_info_t 
  * @retval NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_WRITER
  * @retval NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER
  */
-unsigned determine_subscription_writer(const struct reader *rd);
+unsigned determine_subscription_writer(const struct ddsi_reader *rd);
 
 #ifdef DDS_HAS_TOPIC_DISCOVERY
 /**
@@ -424,7 +424,7 @@ unsigned determine_subscription_writer(const struct reader *rd);
  * @returns unsigned
  * @retval NN_ENTITYID_SEDP_BUILTIN_TOPIC_WRITER
  */
-unsigned determine_topic_writer(const struct topic *tp);
+unsigned determine_topic_writer(const struct ddsi_topic *tp);
 #endif /* DDS_HAS_TOPIC_DISCOVERY */
 
 /**
@@ -442,7 +442,7 @@ unsigned determine_topic_writer(const struct topic *tp);
  * @retval true   Creation of the writer is allowed
  * @retval false  Otherwise.
  */
-bool q_omg_security_check_create_reader(struct participant *pp, uint32_t domain_id, const char *topic_name, const struct dds_qos *reader_qos);
+bool q_omg_security_check_create_reader(struct ddsi_participant *pp, uint32_t domain_id, const char *topic_name, const struct dds_qos *reader_qos);
 
 /**
  * @brief Register the reader with security.
@@ -456,7 +456,7 @@ bool q_omg_security_check_create_reader(struct participant *pp, uint32_t domain_
  *
  * @param[in] rd  The reader to register.
  */
-void q_omg_security_register_reader(struct reader *rd);
+void q_omg_security_register_reader(struct ddsi_reader *rd);
 
 /**
  * @brief Remove the reader from security.
@@ -467,7 +467,7 @@ void q_omg_security_register_reader(struct reader *rd);
  *
  * @param[in] rd  The reader to remove.
  */
-void q_omg_security_deregister_reader(struct reader *rd);
+void q_omg_security_deregister_reader(struct ddsi_reader *rd);
 
 /**
  * @brief Determine if the proxy participant is allowed to be deleted
@@ -498,7 +498,7 @@ bool is_proxy_participant_deletion_allowed(struct ddsi_domaingv * const gv, cons
  * @retval true   The entity messages are RTPS protected.
  * @retval false  The entity messages are not RTPS protected.
  */
-bool q_omg_security_is_remote_rtps_protected(const struct proxy_participant *proxy_pp, ddsi_entityid_t entityid);
+bool q_omg_security_is_remote_rtps_protected(const struct ddsi_proxy_participant *proxy_pp, ddsi_entityid_t entityid);
 
 /**
  * @brief Set security information, depending on plist, into the given
@@ -507,7 +507,7 @@ bool q_omg_security_is_remote_rtps_protected(const struct proxy_participant *pro
  * @param[in] proxypp  Proxy participant to set security info on.
  * @param[in] plist    Paramater list, possibly contains security info.
  */
-void set_proxy_participant_security_info(struct proxy_participant *proxypp, const ddsi_plist_t *plist);
+void set_proxy_participant_security_info(struct ddsi_proxy_participant *proxypp, const ddsi_plist_t *plist);
 
 /**
  * @brief Determine if the messages, related to the given remote
@@ -520,7 +520,7 @@ void set_proxy_participant_security_info(struct proxy_participant *proxypp, cons
  * @retval true   The entity messages are RTPS protected.
  * @retval false  The entity messages are not RTPS protected.
  */
-bool q_omg_security_is_local_rtps_protected(const struct participant *pp, ddsi_entityid_t entityid);
+bool q_omg_security_is_local_rtps_protected(const struct ddsi_participant *pp, ddsi_entityid_t entityid);
 
 /**
  * @brief Check if the participant allows communication with unauthenticated
@@ -532,7 +532,7 @@ bool q_omg_security_is_local_rtps_protected(const struct participant *pp, ddsi_e
  * @retval true   The participant allows unauthenticated communication
  * @retval false  Otherwise.
  */
-bool q_omg_participant_allow_unauthenticated(struct participant *pp);
+bool q_omg_participant_allow_unauthenticated(struct ddsi_participant *pp);
 
 /**
  * @brief Initialize the proxy participant security attributes
@@ -540,11 +540,11 @@ bool q_omg_participant_allow_unauthenticated(struct participant *pp);
  * @param[in] proxypp  The proxy participant.
  *
  */
-void q_omg_security_init_remote_participant(struct proxy_participant *proxypp);
+void q_omg_security_init_remote_participant(struct ddsi_proxy_participant *proxypp);
 
-void q_omg_security_remote_participant_set_initialized(struct proxy_participant *proxypp);
+void q_omg_security_remote_participant_set_initialized(struct ddsi_proxy_participant *proxypp);
 
-bool q_omg_security_remote_participant_is_initialized(struct proxy_participant *proxypp);
+bool q_omg_security_remote_participant_is_initialized(struct ddsi_proxy_participant *proxypp);
 
 /**
  * @brief Registers the matched proxy participant with the crypto plugin
@@ -563,7 +563,7 @@ bool q_omg_security_remote_participant_is_initialized(struct proxy_participant *
  * @retval true    The proxy participant is allowed.
  * @retval false   The proxy participant is not allowed.
  */
-bool q_omg_security_register_remote_participant(struct participant *pp, struct proxy_participant *proxypp, int64_t shared_secret);
+bool q_omg_security_register_remote_participant(struct ddsi_participant *pp, struct ddsi_proxy_participant *proxypp, int64_t shared_secret);
 
 /**
  * @brief Sets the matching participant and proxy participant as authorized.
@@ -577,7 +577,7 @@ bool q_omg_security_register_remote_participant(struct participant *pp, struct p
  * @param[in] pp                 The participant.
  * @param[in] proxypp            The proxy participant.
  */
-void q_omg_security_set_remote_participant_authenticated(struct participant *pp, struct proxy_participant *proxypp);
+void q_omg_security_set_remote_participant_authenticated(struct ddsi_participant *pp, struct ddsi_proxy_participant *proxypp);
 
 /**
  * @brief Removes a registered proxy participant from administation of the authentication,
@@ -585,7 +585,7 @@ void q_omg_security_set_remote_participant_authenticated(struct participant *pp,
  *
  * @param[in] proxypp            The proxy participant.
  */
-void q_omg_security_deregister_remote_participant(struct proxy_participant *proxypp);
+void q_omg_security_deregister_remote_participant(struct ddsi_proxy_participant *proxypp);
 
 /**
  * @brief Generate and send the crypto tokens needed for encoding RTPS messages.
@@ -597,7 +597,7 @@ void q_omg_security_deregister_remote_participant(struct proxy_participant *prox
  * @param[in] pp                 The participant.
  * @param[in] proxypp            The proxy participant.
  */
-void q_omg_security_participant_send_tokens(struct participant *pp, struct proxy_participant *proxypp);
+void q_omg_security_participant_send_tokens(struct ddsi_participant *pp, struct ddsi_proxy_participant *proxypp);
 
 /**
  * @brief Get the cypto handle associated with the proxy participant.
@@ -612,7 +612,7 @@ void q_omg_security_participant_send_tokens(struct participant *pp, struct proxy
  * @retval !0  Valid crypto handle associated with the proxy participant.
  * @retval 0   Otherwise.
  */
-int64_t q_omg_security_get_remote_participant_handle(struct proxy_participant *proxypp);
+int64_t q_omg_security_get_remote_participant_handle(struct ddsi_proxy_participant *proxypp);
 
 /**
  * @brief Set the crypto tokens used for the encryption and decryption of RTPS messages.
@@ -627,7 +627,7 @@ int64_t q_omg_security_get_remote_participant_handle(struct proxy_participant *p
  * @param[in] proxypp   The remote participant.
  * @param[in] tokens    The crypto token received from the remote participant for the local participant.
  */
-void q_omg_security_set_participant_crypto_tokens(struct participant *pp, struct proxy_participant *proxypp, const nn_dataholderseq_t *tokens);
+void q_omg_security_set_participant_crypto_tokens(struct ddsi_participant *pp, struct ddsi_proxy_participant *proxypp, const nn_dataholderseq_t *tokens);
 
 /**
  * @brief Check if the writer has the is_discovery_protected flag set
@@ -636,7 +636,7 @@ void q_omg_security_set_participant_crypto_tokens(struct participant *pp, struct
  *
  * @returns bool  True if the writer has the is_discovery_protected flag set
  */
-bool q_omg_writer_is_discovery_protected(const struct writer *wr);
+bool q_omg_writer_is_discovery_protected(const struct ddsi_writer *wr);
 
 /**
  * @brief Check if the writer has the is_submessage_protected flag set
@@ -645,7 +645,7 @@ bool q_omg_writer_is_discovery_protected(const struct writer *wr);
  *
  * @returns bool  True if the writer has the is_submessage_protected flag set
  */
-bool q_omg_writer_is_submessage_protected(const struct writer *wr);
+bool q_omg_writer_is_submessage_protected(const struct ddsi_writer *wr);
 
 /**
  * @brief Check if the writer has the is_payload_protected flag set
@@ -654,7 +654,7 @@ bool q_omg_writer_is_submessage_protected(const struct writer *wr);
  *
  * @returns bool  True if the writer has the is_payload_protected flag set
  */
-bool q_omg_writer_is_payload_protected(const struct writer *wr);
+bool q_omg_writer_is_payload_protected(const struct ddsi_writer *wr);
 
 /**
  * @brief Check if the remote writer is allowed to communicate with endpoints of the
@@ -671,7 +671,7 @@ bool q_omg_writer_is_payload_protected(const struct writer *wr);
  * @retval true   The remote writer is allowed to communicate.
  * @retval false  Otherwise.
  */
-bool q_omg_security_check_remote_writer_permissions(const struct proxy_writer *pwr, uint32_t domain_id, struct participant *pp);
+bool q_omg_security_check_remote_writer_permissions(const struct ddsi_proxy_writer *pwr, uint32_t domain_id, struct ddsi_participant *pp);
 
 /**
  * @brief Check it the remote writer is allowed to communicate with the local reader.
@@ -693,7 +693,7 @@ bool q_omg_security_check_remote_writer_permissions(const struct proxy_writer *p
  * @retval true   The local reader and remote writer are allowed to communicate.
  * @retval false  Otherwise.
  */
-bool q_omg_security_match_remote_writer_enabled(struct reader *rd, struct proxy_writer *pwr, int64_t *crypto_handle);
+bool q_omg_security_match_remote_writer_enabled(struct ddsi_reader *rd, struct ddsi_proxy_writer *pwr, int64_t *crypto_handle);
 
 /**
  * @brief Release the security information associated with the match between a reader and
@@ -707,7 +707,7 @@ bool q_omg_security_match_remote_writer_enabled(struct reader *rd, struct proxy_
  * @param[in] rd_guid  The guid of the reader.
  * @param[in] match    The reader-proxy_writer match.
  */
-void q_omg_security_deregister_remote_writer_match(const struct ddsi_domaingv *gv, const ddsi_guid_t *rd_guid, struct rd_pwr_match *match);
+void q_omg_security_deregister_remote_writer_match(const struct ddsi_domaingv *gv, const ddsi_guid_t *rd_guid, struct ddsi_rd_pwr_match *match);
 
 /**
  * @brief Set the crypto tokens used for the secure communication from the remote writer to the reader.
@@ -721,7 +721,7 @@ void q_omg_security_deregister_remote_writer_match(const struct ddsi_domaingv *g
  * @param[in] pwr_guid  The guid of the remote writer.
  * @param[in] tokens    The crypto token received from the remote writer for the reader.
  */
-void q_omg_security_set_remote_writer_crypto_tokens(struct reader *rd, const ddsi_guid_t *pwr_guid, const nn_dataholderseq_t *tokens);
+void q_omg_security_set_remote_writer_crypto_tokens(struct ddsi_reader *rd, const ddsi_guid_t *pwr_guid, const nn_dataholderseq_t *tokens);
 
 /**
  * @brief Release all the security resources associated with the remote writer.
@@ -730,7 +730,7 @@ void q_omg_security_set_remote_writer_crypto_tokens(struct reader *rd, const dds
  *
  * @param[in] pwr       The remote writer.
  */
-void q_omg_security_deregister_remote_writer(const struct proxy_writer *pwr);
+void q_omg_security_deregister_remote_writer(const struct ddsi_proxy_writer *pwr);
 
 /**
  * @brief Set security information, depending on plist and proxy participant,
@@ -739,7 +739,7 @@ void q_omg_security_deregister_remote_writer(const struct proxy_writer *pwr);
  * @param[in] prd      Proxy reader to set security info on.
  * @param[in] plist    Paramater list, possibly contains security info.
  */
-void set_proxy_reader_security_info(struct proxy_reader *prd, const ddsi_plist_t *plist);
+void set_proxy_reader_security_info(struct ddsi_proxy_reader *prd, const ddsi_plist_t *plist);
 
 /**
  * @brief Determine the security settings associated with the remote reader.
@@ -751,7 +751,7 @@ void set_proxy_reader_security_info(struct proxy_reader *prd, const ddsi_plist_t
  * @param[in] plist     The parameter list from the remote reader.
  * @param[out] info     The security settings associated with the remote reader.
  */
-void q_omg_get_proxy_reader_security_info(struct proxy_reader *prd, const ddsi_plist_t *plist, nn_security_info_t *info);
+void q_omg_get_proxy_reader_security_info(struct ddsi_proxy_reader *prd, const ddsi_plist_t *plist, nn_security_info_t *info);
 
 /**
  * @brief Check if the reader has the is_discovery_protected flag set
@@ -760,7 +760,7 @@ void q_omg_get_proxy_reader_security_info(struct proxy_reader *prd, const ddsi_p
  *
  * @returns bool  True if the reader has the is_discovery_protected flag set
  */
-bool q_omg_reader_is_discovery_protected(const struct reader *rd);
+bool q_omg_reader_is_discovery_protected(const struct ddsi_reader *rd);
 
 /**
  * @brief Check if the reader has the is_submessage_protected flag set
@@ -769,7 +769,7 @@ bool q_omg_reader_is_discovery_protected(const struct reader *rd);
  *
  * @returns bool  True if the reader has the is_submessage_protected flag set
  */
-bool q_omg_reader_is_submessage_protected(const struct reader *rd);
+bool q_omg_reader_is_submessage_protected(const struct ddsi_reader *rd);
 
 /**
  * @brief Check if the remote reader is allowed to communicate with endpoints of the
@@ -788,7 +788,7 @@ bool q_omg_reader_is_submessage_protected(const struct reader *rd);
  * @retval true   The remote reader is allowed to communicate.
  * @retval false  Otherwise; relay_only is unspecified.
  */
-bool q_omg_security_check_remote_reader_permissions(const struct proxy_reader *prd, uint32_t domain_id, struct participant *pp, bool *relay_only);
+bool q_omg_security_check_remote_reader_permissions(const struct ddsi_proxy_reader *prd, uint32_t domain_id, struct ddsi_participant *pp, bool *relay_only);
 
 
 /**
@@ -800,7 +800,7 @@ bool q_omg_security_check_remote_reader_permissions(const struct proxy_reader *p
  * @param[in] plist             Paramater list which may contain security info.
  * @param[in] info              The proxy endpoint security info to be set.
  */
-void q_omg_get_proxy_endpoint_security_info(const struct entity_common *entity, nn_security_info_t *proxypp_sec_info, const ddsi_plist_t *plist, nn_security_info_t *info);
+void q_omg_get_proxy_endpoint_security_info(const struct ddsi_entity_common *entity, nn_security_info_t *proxypp_sec_info, const ddsi_plist_t *plist, nn_security_info_t *info);
 
 /**
  * @brief Check it the local writer is allowed to communicate with the remote reader.
@@ -825,7 +825,7 @@ void q_omg_get_proxy_endpoint_security_info(const struct entity_common *entity, 
  * @retval true   The local writer and remote reader are allowed to communicate.
  * @retval false  Otherwise.
  */
-bool q_omg_security_match_remote_reader_enabled(struct writer *wr, struct proxy_reader *prd, bool relay_only, int64_t *crypto_handle);
+bool q_omg_security_match_remote_reader_enabled(struct ddsi_writer *wr, struct ddsi_proxy_reader *prd, bool relay_only, int64_t *crypto_handle);
 
 /**
  * @brief Release the security information associated with the match between a writer and
@@ -839,7 +839,7 @@ bool q_omg_security_match_remote_reader_enabled(struct writer *wr, struct proxy_
  * @param[in] wr_guid  The guid of the writer.
  * @param[in] match    The writer-proxy_reader match.
  */
-void q_omg_security_deregister_remote_reader_match(const struct ddsi_domaingv *gv, const ddsi_guid_t *wr_guid, struct wr_prd_match *match);
+void q_omg_security_deregister_remote_reader_match(const struct ddsi_domaingv *gv, const ddsi_guid_t *wr_guid, struct ddsi_wr_prd_match *match);
 
 /**
  * @brief Set the crypto tokens used for the secure communication from the remote reader to the writer.
@@ -853,7 +853,7 @@ void q_omg_security_deregister_remote_reader_match(const struct ddsi_domaingv *g
  * @param[in] prd_guid  The guid of the remote reader.
  * @param[in] tokens    The crypto token received from the remote reader for the writer.
  */
-void q_omg_security_set_remote_reader_crypto_tokens(struct writer *wr, const ddsi_guid_t *prd_guid, const nn_dataholderseq_t *tokens);
+void q_omg_security_set_remote_reader_crypto_tokens(struct ddsi_writer *wr, const ddsi_guid_t *prd_guid, const nn_dataholderseq_t *tokens);
 
 /**
  * @brief Release all the security resources associated with the remote reader.
@@ -862,7 +862,7 @@ void q_omg_security_set_remote_reader_crypto_tokens(struct writer *wr, const dds
  *
  * @param[in] prd       The remote reader.
  */
-void q_omg_security_deregister_remote_reader(const struct proxy_reader *prd);
+void q_omg_security_deregister_remote_reader(const struct ddsi_proxy_reader *prd);
 
 /**
  * @brief Encode RTPS message.
@@ -912,7 +912,7 @@ q_omg_security_encode_rtps_message(
  *                contains the payload that should be send.
  * @retval false  Encoding was necessary, but failed.
  */
-bool encode_payload(struct writer *wr, ddsrt_iovec_t *vec, unsigned char **buf);
+bool encode_payload(struct ddsi_writer *wr, ddsrt_iovec_t *vec, unsigned char **buf);
 
 /**
  * @brief Decode the payload of a Data submessage.
@@ -972,7 +972,7 @@ bool decode_DataFrag(const struct ddsi_domaingv *gv, struct nn_rsample_info *sam
  * @param[in]     pwr       Writer for which the message is intended.
  * @param[in]     rd_guid   Origin reader guid.
  */
-void encode_datareader_submsg(struct nn_xmsg *msg, struct nn_xmsg_marker sm_marker, const struct proxy_writer *pwr, const struct ddsi_guid *rd_guid);
+void encode_datareader_submsg(struct nn_xmsg *msg, struct nn_xmsg_marker sm_marker, const struct ddsi_proxy_writer *pwr, const struct ddsi_guid *rd_guid);
 
 /**
  * @brief Encode datawriter submessage when necessary.
@@ -987,7 +987,7 @@ void encode_datareader_submsg(struct nn_xmsg *msg, struct nn_xmsg_marker sm_mark
  * @param[in,out] sm_marker Submessage location within message.
  * @param[in]     wr        Origin writer guid.
  */
-void encode_datawriter_submsg(struct nn_xmsg *msg, struct nn_xmsg_marker sm_marker, struct writer *wr);
+void encode_datawriter_submsg(struct nn_xmsg *msg, struct nn_xmsg_marker sm_marker, struct ddsi_writer *wr);
 
 /**
  * @brief Check if given submessage is properly decoded.
@@ -1008,9 +1008,9 @@ void encode_datawriter_submsg(struct nn_xmsg *msg, struct nn_xmsg_marker sm_mark
  */
 bool
 validate_msg_decoding(
-  const struct entity_common *e,
-  const struct proxy_endpoint_common *c,
-  const struct proxy_participant *proxypp,
+  const struct ddsi_entity_common *e,
+  const struct ddsi_proxy_endpoint_common *c,
+  const struct ddsi_proxy_participant *proxypp,
   const struct receiver_state *rst,
   SubmessageKind_t prev_smid);
 
@@ -1133,48 +1133,48 @@ DDS_INLINE_EXPORT inline bool q_omg_security_enabled(void)
   return false;
 }
 
-DDS_INLINE_EXPORT inline bool q_omg_participant_is_access_protected(UNUSED_ARG(const struct participant *pp))
+DDS_INLINE_EXPORT inline bool q_omg_participant_is_access_protected(UNUSED_ARG(const struct ddsi_participant *pp))
 {
   return false;
 }
 
-DDS_INLINE_EXPORT inline bool q_omg_participant_is_rtps_protected(UNUSED_ARG(const struct participant *pp))
+DDS_INLINE_EXPORT inline bool q_omg_participant_is_rtps_protected(UNUSED_ARG(const struct ddsi_participant *pp))
 {
   return false;
 }
 
-DDS_INLINE_EXPORT inline bool q_omg_participant_is_liveliness_protected(UNUSED_ARG(const struct participant *pp))
+DDS_INLINE_EXPORT inline bool q_omg_participant_is_liveliness_protected(UNUSED_ARG(const struct ddsi_participant *pp))
 {
   return false;
 }
 
-DDS_INLINE_EXPORT inline bool q_omg_participant_is_discovery_protected(UNUSED_ARG(const struct participant *pp))
+DDS_INLINE_EXPORT inline bool q_omg_participant_is_discovery_protected(UNUSED_ARG(const struct ddsi_participant *pp))
 {
   return false;
 }
 
-DDS_INLINE_EXPORT inline bool q_omg_participant_is_secure(UNUSED_ARG(const struct participant *pp))
+DDS_INLINE_EXPORT inline bool q_omg_participant_is_secure(UNUSED_ARG(const struct ddsi_participant *pp))
 {
   return false;
 }
 
-DDS_INLINE_EXPORT inline bool q_omg_proxy_participant_is_secure(UNUSED_ARG(const struct proxy_participant *proxypp))
+DDS_INLINE_EXPORT inline bool q_omg_proxy_participant_is_secure(UNUSED_ARG(const struct ddsi_proxy_participant *proxypp))
 {
   return false;
 }
 
-DDS_INLINE_EXPORT inline unsigned determine_subscription_writer(UNUSED_ARG(const struct reader *rd))
+DDS_INLINE_EXPORT inline unsigned determine_subscription_writer(UNUSED_ARG(const struct ddsi_reader *rd))
 {
   return NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER;
 }
 
-DDS_INLINE_EXPORT inline unsigned determine_publication_writer(UNUSED_ARG(const struct writer *wr))
+DDS_INLINE_EXPORT inline unsigned determine_publication_writer(UNUSED_ARG(const struct ddsi_writer *wr))
 {
   return NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER;
 }
 
 #ifdef DDS_HAS_TOPIC_DISCOVERY
-DDS_INLINE_EXPORT inline unsigned determine_topic_writer(UNUSED_ARG(const struct topic *tp))
+DDS_INLINE_EXPORT inline unsigned determine_topic_writer(UNUSED_ARG(const struct ddsi_topic *tp))
 {
   return NN_ENTITYID_SEDP_BUILTIN_TOPIC_WRITER;
 }
@@ -1185,22 +1185,22 @@ DDS_INLINE_EXPORT inline bool is_proxy_participant_deletion_allowed(UNUSED_ARG(s
   return true;
 }
 
-DDS_INLINE_EXPORT inline bool q_omg_is_similar_participant_security_info(UNUSED_ARG(struct participant *pp), UNUSED_ARG(struct proxy_participant *proxypp))
+DDS_INLINE_EXPORT inline bool q_omg_is_similar_participant_security_info(UNUSED_ARG(struct ddsi_participant *pp), UNUSED_ARG(struct ddsi_proxy_participant *proxypp))
 {
   return true;
 }
 
-DDS_INLINE_EXPORT inline bool q_omg_participant_allow_unauthenticated(UNUSED_ARG(struct participant *pp))
+DDS_INLINE_EXPORT inline bool q_omg_participant_allow_unauthenticated(UNUSED_ARG(struct ddsi_participant *pp))
 {
   return true;
 }
 
-DDS_INLINE_EXPORT inline bool q_omg_security_check_create_participant(UNUSED_ARG(struct participant *pp), UNUSED_ARG(uint32_t domain_id))
+DDS_INLINE_EXPORT inline bool q_omg_security_check_create_participant(UNUSED_ARG(struct ddsi_participant *pp), UNUSED_ARG(uint32_t domain_id))
 {
   return true;
 }
 
-DDS_INLINE_EXPORT inline void q_omg_security_deregister_participant(UNUSED_ARG(struct participant *pp))
+DDS_INLINE_EXPORT inline void q_omg_security_deregister_participant(UNUSED_ARG(struct ddsi_participant *pp))
 {
 }
 
@@ -1209,137 +1209,137 @@ DDS_INLINE_EXPORT inline bool q_omg_security_check_create_topic(UNUSED_ARG(const
   return true;
 }
 
-DDS_INLINE_EXPORT inline int64_t q_omg_security_get_local_participant_handle(UNUSED_ARG(const struct participant *pp))
+DDS_INLINE_EXPORT inline int64_t q_omg_security_get_local_participant_handle(UNUSED_ARG(const struct ddsi_participant *pp))
 {
   return 0;
 }
 
-DDS_INLINE_EXPORT inline bool q_omg_security_check_create_writer(UNUSED_ARG(struct participant *pp), UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(const char *topic_name), UNUSED_ARG(const struct dds_qos *writer_qos))
+DDS_INLINE_EXPORT inline bool q_omg_security_check_create_writer(UNUSED_ARG(struct ddsi_participant *pp), UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(const char *topic_name), UNUSED_ARG(const struct dds_qos *writer_qos))
 {
   return true;
 }
 
-DDS_INLINE_EXPORT inline void q_omg_security_register_writer(UNUSED_ARG(struct writer *wr))
+DDS_INLINE_EXPORT inline void q_omg_security_register_writer(UNUSED_ARG(struct ddsi_writer *wr))
 {
 }
 
-DDS_INLINE_EXPORT inline void q_omg_security_deregister_writer(UNUSED_ARG(struct writer *wr))
+DDS_INLINE_EXPORT inline void q_omg_security_deregister_writer(UNUSED_ARG(struct ddsi_writer *wr))
 {
 }
 
-DDS_INLINE_EXPORT inline bool q_omg_security_check_create_reader(UNUSED_ARG(struct participant *pp), UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(const char *topic_name), UNUSED_ARG(const struct dds_qos *reader_qos))
+DDS_INLINE_EXPORT inline bool q_omg_security_check_create_reader(UNUSED_ARG(struct ddsi_participant *pp), UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(const char *topic_name), UNUSED_ARG(const struct dds_qos *reader_qos))
 {
   return true;
 }
 
-DDS_INLINE_EXPORT inline void q_omg_security_register_reader(UNUSED_ARG(struct reader *rd))
+DDS_INLINE_EXPORT inline void q_omg_security_register_reader(UNUSED_ARG(struct ddsi_reader *rd))
 {
 }
 
-DDS_INLINE_EXPORT inline void q_omg_security_deregister_reader(UNUSED_ARG(struct reader *rd))
+DDS_INLINE_EXPORT inline void q_omg_security_deregister_reader(UNUSED_ARG(struct ddsi_reader *rd))
 {
 }
 
-DDS_INLINE_EXPORT inline bool q_omg_security_is_remote_rtps_protected(UNUSED_ARG(const struct proxy_participant *proxypp), UNUSED_ARG(ddsi_entityid_t entityid))
+DDS_INLINE_EXPORT inline bool q_omg_security_is_remote_rtps_protected(UNUSED_ARG(const struct ddsi_proxy_participant *proxypp), UNUSED_ARG(ddsi_entityid_t entityid))
 {
   return false;
 }
 
-DDS_INLINE_EXPORT inline void q_omg_security_init_remote_participant(UNUSED_ARG(struct proxy_participant *proxypp))
+DDS_INLINE_EXPORT inline void q_omg_security_init_remote_participant(UNUSED_ARG(struct ddsi_proxy_participant *proxypp))
 {
 }
 
-DDS_INLINE_EXPORT inline int64_t q_omg_security_check_remote_participant_permissions(UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(struct participant *pp), UNUSED_ARG(struct proxy_participant *proxypp))
+DDS_INLINE_EXPORT inline int64_t q_omg_security_check_remote_participant_permissions(UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(struct ddsi_participant *pp), UNUSED_ARG(struct ddsi_proxy_participant *proxypp))
 {
   return 0LL;
 }
 
-DDS_INLINE_EXPORT inline bool q_omg_security_register_remote_participant(UNUSED_ARG(struct participant *pp), UNUSED_ARG(struct proxy_participant *proxypp), UNUSED_ARG(int64_t identity_handle), UNUSED_ARG(int64_t shared_secret))
+DDS_INLINE_EXPORT inline bool q_omg_security_register_remote_participant(UNUSED_ARG(struct ddsi_participant *pp), UNUSED_ARG(struct ddsi_proxy_participant *proxypp), UNUSED_ARG(int64_t identity_handle), UNUSED_ARG(int64_t shared_secret))
 {
   return true;
 }
 
-DDS_INLINE_EXPORT inline void q_omg_security_deregister_remote_participant(UNUSED_ARG(struct proxy_participant *proxypp))
+DDS_INLINE_EXPORT inline void q_omg_security_deregister_remote_participant(UNUSED_ARG(struct ddsi_proxy_participant *proxypp))
 {
 }
 
-DDS_INLINE_EXPORT inline void q_omg_security_participant_send_tokens(UNUSED_ARG(struct participant *pp), UNUSED_ARG(struct proxy_participant *proxypp))
+DDS_INLINE_EXPORT inline void q_omg_security_participant_send_tokens(UNUSED_ARG(struct ddsi_participant *pp), UNUSED_ARG(struct ddsi_proxy_participant *proxypp))
 {
 }
 
-DDS_INLINE_EXPORT inline int64_t q_omg_security_get_remote_participant_handle(UNUSED_ARG(struct proxy_participant *proxypp))
+DDS_INLINE_EXPORT inline int64_t q_omg_security_get_remote_participant_handle(UNUSED_ARG(struct ddsi_proxy_participant *proxypp))
 {
   return 0;
 }
 
-DDS_INLINE_EXPORT inline bool q_omg_security_match_remote_writer_enabled(UNUSED_ARG(struct reader *rd), UNUSED_ARG(struct proxy_writer *pwr), UNUSED_ARG(int64_t *crypto_handle))
+DDS_INLINE_EXPORT inline bool q_omg_security_match_remote_writer_enabled(UNUSED_ARG(struct ddsi_reader *rd), UNUSED_ARG(struct ddsi_proxy_writer *pwr), UNUSED_ARG(int64_t *crypto_handle))
 {
   return true;
 }
 
-DDS_INLINE_EXPORT inline bool q_omg_security_match_remote_reader_enabled(UNUSED_ARG(struct writer *wr), UNUSED_ARG(struct proxy_reader *prd), UNUSED_ARG(bool relay_only), UNUSED_ARG(int64_t *crypto_handle))
+DDS_INLINE_EXPORT inline bool q_omg_security_match_remote_reader_enabled(UNUSED_ARG(struct ddsi_writer *wr), UNUSED_ARG(struct ddsi_proxy_reader *prd), UNUSED_ARG(bool relay_only), UNUSED_ARG(int64_t *crypto_handle))
 {
   return true;
 }
 
-DDS_INLINE_EXPORT inline void q_omg_get_proxy_writer_security_info(UNUSED_ARG(struct proxy_writer *pwr), UNUSED_ARG(const ddsi_plist_t *plist), UNUSED_ARG(nn_security_info_t *info))
+DDS_INLINE_EXPORT inline void q_omg_get_proxy_writer_security_info(UNUSED_ARG(struct ddsi_proxy_writer *pwr), UNUSED_ARG(const ddsi_plist_t *plist), UNUSED_ARG(nn_security_info_t *info))
 {
 }
 
-DDS_INLINE_EXPORT inline bool q_omg_writer_is_discovery_protected(UNUSED_ARG(const struct writer *wr))
-{
-  return false;
-}
-
-DDS_INLINE_EXPORT inline bool q_omg_writer_is_submessage_protected(UNUSED_ARG(const struct writer *wr))
+DDS_INLINE_EXPORT inline bool q_omg_writer_is_discovery_protected(UNUSED_ARG(const struct ddsi_writer *wr))
 {
   return false;
 }
 
-DDS_INLINE_EXPORT inline bool q_omg_writer_is_payload_protected(UNUSED_ARG(const struct writer *wr))
+DDS_INLINE_EXPORT inline bool q_omg_writer_is_submessage_protected(UNUSED_ARG(const struct ddsi_writer *wr))
 {
   return false;
 }
 
-DDS_INLINE_EXPORT inline bool q_omg_security_check_remote_writer_permissions(UNUSED_ARG(const struct proxy_writer *pwr), UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(struct participant *pp))
+DDS_INLINE_EXPORT inline bool q_omg_writer_is_payload_protected(UNUSED_ARG(const struct ddsi_writer *wr))
+{
+  return false;
+}
+
+DDS_INLINE_EXPORT inline bool q_omg_security_check_remote_writer_permissions(UNUSED_ARG(const struct ddsi_proxy_writer *pwr), UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(struct ddsi_participant *pp))
 {
   return true;
 }
 
-DDS_INLINE_EXPORT inline void q_omg_security_deregister_remote_writer_match(UNUSED_ARG(const struct proxy_writer *pwr), UNUSED_ARG(const struct reader *rd), UNUSED_ARG(struct rd_pwr_match *match))
+DDS_INLINE_EXPORT inline void q_omg_security_deregister_remote_writer_match(UNUSED_ARG(const struct ddsi_proxy_writer *pwr), UNUSED_ARG(const struct ddsi_reader *rd), UNUSED_ARG(struct ddsi_rd_pwr_match *match))
 {
 }
 
-DDS_INLINE_EXPORT inline void q_omg_get_proxy_reader_security_info(UNUSED_ARG(struct proxy_reader *prd), UNUSED_ARG(const ddsi_plist_t *plist), UNUSED_ARG(nn_security_info_t *info))
+DDS_INLINE_EXPORT inline void q_omg_get_proxy_reader_security_info(UNUSED_ARG(struct ddsi_proxy_reader *prd), UNUSED_ARG(const ddsi_plist_t *plist), UNUSED_ARG(nn_security_info_t *info))
 {
 }
 
-DDS_INLINE_EXPORT inline bool q_omg_reader_is_discovery_protected(UNUSED_ARG(const struct reader *rd))
-{
-  return false;
-}
-
-DDS_INLINE_EXPORT inline bool q_omg_reader_is_submessage_protected(UNUSED_ARG(const struct reader *rd))
+DDS_INLINE_EXPORT inline bool q_omg_reader_is_discovery_protected(UNUSED_ARG(const struct ddsi_reader *rd))
 {
   return false;
 }
 
+DDS_INLINE_EXPORT inline bool q_omg_reader_is_submessage_protected(UNUSED_ARG(const struct ddsi_reader *rd))
+{
+  return false;
+}
 
-DDS_INLINE_EXPORT inline bool q_omg_security_check_remote_reader_permissions(UNUSED_ARG(const struct proxy_reader *prd), UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(struct participant *pp), UNUSED_ARG(bool *relay_only))
+
+DDS_INLINE_EXPORT inline bool q_omg_security_check_remote_reader_permissions(UNUSED_ARG(const struct ddsi_proxy_reader *prd), UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(struct ddsi_participant *pp), UNUSED_ARG(bool *relay_only))
 {
   *relay_only = false;
   return true;
 }
 
-DDS_INLINE_EXPORT inline void set_proxy_participant_security_info(UNUSED_ARG(struct proxy_participant *prd), UNUSED_ARG(const ddsi_plist_t *plist))
+DDS_INLINE_EXPORT inline void set_proxy_participant_security_info(UNUSED_ARG(struct ddsi_proxy_participant *prd), UNUSED_ARG(const ddsi_plist_t *plist))
 {
 }
 
-DDS_INLINE_EXPORT inline void set_proxy_reader_security_info(UNUSED_ARG(struct proxy_reader *prd), UNUSED_ARG(const ddsi_plist_t *plist))
+DDS_INLINE_EXPORT inline void set_proxy_reader_security_info(UNUSED_ARG(struct ddsi_proxy_reader *prd), UNUSED_ARG(const ddsi_plist_t *plist))
 {
 }
 
-DDS_INLINE_EXPORT inline void set_proxy_writer_security_info(UNUSED_ARG(struct proxy_writer *pwr), UNUSED_ARG(const ddsi_plist_t *plist))
+DDS_INLINE_EXPORT inline void set_proxy_writer_security_info(UNUSED_ARG(struct ddsi_proxy_writer *pwr), UNUSED_ARG(const ddsi_plist_t *plist))
 {
 }
 
@@ -1369,7 +1369,7 @@ DDS_INLINE_EXPORT inline void
 encode_datareader_submsg(
   UNUSED_ARG(struct nn_xmsg *msg),
   UNUSED_ARG(struct nn_xmsg_marker sm_marker),
-  UNUSED_ARG(const struct proxy_writer *pwr),
+  UNUSED_ARG(const struct ddsi_proxy_writer *pwr),
   UNUSED_ARG(const struct ddsi_guid *rd_guid))
 {
 }
@@ -1378,15 +1378,15 @@ DDS_INLINE_EXPORT inline void
 encode_datawriter_submsg(
   UNUSED_ARG(struct nn_xmsg *msg),
   UNUSED_ARG(struct nn_xmsg_marker sm_marker),
-  UNUSED_ARG(struct writer *wr))
+  UNUSED_ARG(struct ddsi_writer *wr))
 {
 }
 
 DDS_INLINE_EXPORT inline bool
 validate_msg_decoding(
-  UNUSED_ARG(const struct entity_common *e),
-  UNUSED_ARG(const struct proxy_endpoint_common *c),
-  UNUSED_ARG(struct proxy_participant *proxypp),
+  UNUSED_ARG(const struct ddsi_entity_common *e),
+  UNUSED_ARG(const struct ddsi_proxy_endpoint_common *c),
+  UNUSED_ARG(struct ddsi_proxy_participant *proxypp),
   UNUSED_ARG(struct receiver_state *rst),
   UNUSED_ARG(SubmessageKind_t prev_smid))
 {
@@ -1428,7 +1428,7 @@ DDS_INLINE_EXPORT inline dds_return_t q_omg_security_load( UNUSED_ARG( struct dd
 
 DDS_INLINE_EXPORT inline bool q_omg_is_security_loaded(  UNUSED_ARG( struct dds_security_context *sc )) { return false; }
 
-DDS_INLINE_EXPORT inline void q_omg_security_deregister_remote_reader_match(UNUSED_ARG(const struct proxy_reader *prd), UNUSED_ARG(const struct writer *wr), UNUSED_ARG(struct wr_prd_match *match))
+DDS_INLINE_EXPORT inline void q_omg_security_deregister_remote_reader_match(UNUSED_ARG(const struct ddsi_proxy_reader *prd), UNUSED_ARG(const struct ddsi_writer *wr), UNUSED_ARG(struct ddsi_wr_prd_match *match))
 {
 }
 

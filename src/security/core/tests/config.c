@@ -570,7 +570,7 @@ CU_Test(ddssec_config, config_qos, .init = ddsrt_init, .fini = ddsrt_fini)
   dds_qos_t * qos;
   const char *log_expected[] = {
     /* The security settings from qos properties should have been parsed into the participant QoS. */
-    "new_participant(*): using security settings from QoS*",
+    "ddsi_new_participant(*): using security settings from QoS*",
     PARTICIPANT_QOS ("init_test_authentication_all_ok", "finalize_test_authentication_all_ok", \
                    "init_test_cryptography_all_ok", "finalize_test_cryptography_all_ok", \
                    "init_test_access_control_all_ok", "finalize_test_access_control_all_ok", \
@@ -694,22 +694,22 @@ CU_Test(ddssec_config, qos_invalid, .init = ddsrt_init, .fini = ddsrt_fini)
   dds_qos_t * qos;
   const char *log_expected[] = {
     /* The config should have been parsed into the participant QoS. */
-    "new_participant(*): using security settings from QoS*",
-    "new_participant(*): required security property " DDS_SEC_PROP_AUTH_IDENTITY_CA " missing in Property QoS*",
-    "new_participant(*): required security property " DDS_SEC_PROP_AUTH_PRIV_KEY " missing in Property QoS*",
-    "new_participant(*): required security property " DDS_SEC_PROP_AUTH_IDENTITY_CERT " missing in Property QoS*",
-    "new_participant(*): required security property " DDS_SEC_PROP_ACCESS_PERMISSIONS_CA " missing in Property QoS*",
-    "new_participant(*): required security property " DDS_SEC_PROP_ACCESS_GOVERNANCE " missing in Property QoS*",
-    "new_participant(*): required security property " DDS_SEC_PROP_ACCESS_PERMISSIONS " missing in Property QoS*",
-    "new_participant(*): required security property " DDS_SEC_PROP_AUTH_LIBRARY_PATH " missing in Property QoS*",
-    "new_participant(*): required security property " DDS_SEC_PROP_AUTH_LIBRARY_INIT " missing in Property QoS*",
-    "new_participant(*): required security property " DDS_SEC_PROP_AUTH_LIBRARY_FINALIZE " missing in Property QoS*",
-    "new_participant(*): required security property " DDS_SEC_PROP_CRYPTO_LIBRARY_PATH " missing in Property QoS*",
-    "new_participant(*): required security property " DDS_SEC_PROP_CRYPTO_LIBRARY_INIT " missing in Property QoS*",
-    "new_participant(*): required security property " DDS_SEC_PROP_CRYPTO_LIBRARY_FINALIZE " missing in Property QoS*",
-    "new_participant(*): required security property " DDS_SEC_PROP_ACCESS_LIBRARY_PATH " missing in Property QoS*",
-    "new_participant(*): required security property " DDS_SEC_PROP_ACCESS_LIBRARY_INIT " missing in Property QoS*",
-    "new_participant(*): required security property " DDS_SEC_PROP_ACCESS_LIBRARY_FINALIZE " missing in Property QoS*",
+    "ddsi_new_participant(*): using security settings from QoS*",
+    "ddsi_new_participant(*): required security property " DDS_SEC_PROP_AUTH_IDENTITY_CA " missing in Property QoS*",
+    "ddsi_new_participant(*): required security property " DDS_SEC_PROP_AUTH_PRIV_KEY " missing in Property QoS*",
+    "ddsi_new_participant(*): required security property " DDS_SEC_PROP_AUTH_IDENTITY_CERT " missing in Property QoS*",
+    "ddsi_new_participant(*): required security property " DDS_SEC_PROP_ACCESS_PERMISSIONS_CA " missing in Property QoS*",
+    "ddsi_new_participant(*): required security property " DDS_SEC_PROP_ACCESS_GOVERNANCE " missing in Property QoS*",
+    "ddsi_new_participant(*): required security property " DDS_SEC_PROP_ACCESS_PERMISSIONS " missing in Property QoS*",
+    "ddsi_new_participant(*): required security property " DDS_SEC_PROP_AUTH_LIBRARY_PATH " missing in Property QoS*",
+    "ddsi_new_participant(*): required security property " DDS_SEC_PROP_AUTH_LIBRARY_INIT " missing in Property QoS*",
+    "ddsi_new_participant(*): required security property " DDS_SEC_PROP_AUTH_LIBRARY_FINALIZE " missing in Property QoS*",
+    "ddsi_new_participant(*): required security property " DDS_SEC_PROP_CRYPTO_LIBRARY_PATH " missing in Property QoS*",
+    "ddsi_new_participant(*): required security property " DDS_SEC_PROP_CRYPTO_LIBRARY_INIT " missing in Property QoS*",
+    "ddsi_new_participant(*): required security property " DDS_SEC_PROP_CRYPTO_LIBRARY_FINALIZE " missing in Property QoS*",
+    "ddsi_new_participant(*): required security property " DDS_SEC_PROP_ACCESS_LIBRARY_PATH " missing in Property QoS*",
+    "ddsi_new_participant(*): required security property " DDS_SEC_PROP_ACCESS_LIBRARY_INIT " missing in Property QoS*",
+    "ddsi_new_participant(*): required security property " DDS_SEC_PROP_ACCESS_LIBRARY_FINALIZE " missing in Property QoS*",
     NULL
   };
 
@@ -758,22 +758,22 @@ CU_Test(ddssec_config, qos_invalid_proprietary, .init = ddsrt_init, .fini = ddsr
   dds_qos_t * qos;
   const char *log_expected[] = {
     /* The config should have been parsed into the participant QoS. */
-    "new_participant(*): using security settings from QoS*",
-    "new_participant(*): required security property " DDS_SEC_PROP_AUTH_IDENTITY_CA " missing in Property QoS*",
-    "new_participant(*): required security property " DDS_SEC_PROP_AUTH_PRIV_KEY " missing in Property QoS*",
-    "new_participant(*): required security property " DDS_SEC_PROP_AUTH_IDENTITY_CERT " missing in Property QoS*",
-    "new_participant(*): required security property " DDS_SEC_PROP_ACCESS_PERMISSIONS_CA " missing in Property QoS*",
-    "new_participant(*): required security property " DDS_SEC_PROP_ACCESS_GOVERNANCE " missing in Property QoS*",
-    "new_participant(*): required security property " DDS_SEC_PROP_ACCESS_PERMISSIONS " missing in Property QoS*",
-    "new_participant(*): required security property " DDS_SEC_PROP_AUTH_LIBRARY_PATH " missing in Property QoS*",
-    "new_participant(*): required security property " DDS_SEC_PROP_AUTH_LIBRARY_INIT " missing in Property QoS*",
-    "new_participant(*): required security property " DDS_SEC_PROP_AUTH_LIBRARY_FINALIZE " missing in Property QoS*",
-    "new_participant(*): required security property " DDS_SEC_PROP_CRYPTO_LIBRARY_PATH " missing in Property QoS*",
-    "new_participant(*): required security property " DDS_SEC_PROP_CRYPTO_LIBRARY_INIT " missing in Property QoS*",
-    "new_participant(*): required security property " DDS_SEC_PROP_CRYPTO_LIBRARY_FINALIZE " missing in Property QoS*",
-    "new_participant(*): required security property " DDS_SEC_PROP_ACCESS_LIBRARY_PATH " missing in Property QoS*",
-    "new_participant(*): required security property " DDS_SEC_PROP_ACCESS_LIBRARY_INIT " missing in Property QoS*",
-    "new_participant(*): required security property " DDS_SEC_PROP_ACCESS_LIBRARY_FINALIZE " missing in Property QoS*",
+    "ddsi_new_participant(*): using security settings from QoS*",
+    "ddsi_new_participant(*): required security property " DDS_SEC_PROP_AUTH_IDENTITY_CA " missing in Property QoS*",
+    "ddsi_new_participant(*): required security property " DDS_SEC_PROP_AUTH_PRIV_KEY " missing in Property QoS*",
+    "ddsi_new_participant(*): required security property " DDS_SEC_PROP_AUTH_IDENTITY_CERT " missing in Property QoS*",
+    "ddsi_new_participant(*): required security property " DDS_SEC_PROP_ACCESS_PERMISSIONS_CA " missing in Property QoS*",
+    "ddsi_new_participant(*): required security property " DDS_SEC_PROP_ACCESS_GOVERNANCE " missing in Property QoS*",
+    "ddsi_new_participant(*): required security property " DDS_SEC_PROP_ACCESS_PERMISSIONS " missing in Property QoS*",
+    "ddsi_new_participant(*): required security property " DDS_SEC_PROP_AUTH_LIBRARY_PATH " missing in Property QoS*",
+    "ddsi_new_participant(*): required security property " DDS_SEC_PROP_AUTH_LIBRARY_INIT " missing in Property QoS*",
+    "ddsi_new_participant(*): required security property " DDS_SEC_PROP_AUTH_LIBRARY_FINALIZE " missing in Property QoS*",
+    "ddsi_new_participant(*): required security property " DDS_SEC_PROP_CRYPTO_LIBRARY_PATH " missing in Property QoS*",
+    "ddsi_new_participant(*): required security property " DDS_SEC_PROP_CRYPTO_LIBRARY_INIT " missing in Property QoS*",
+    "ddsi_new_participant(*): required security property " DDS_SEC_PROP_CRYPTO_LIBRARY_FINALIZE " missing in Property QoS*",
+    "ddsi_new_participant(*): required security property " DDS_SEC_PROP_ACCESS_LIBRARY_PATH " missing in Property QoS*",
+    "ddsi_new_participant(*): required security property " DDS_SEC_PROP_ACCESS_LIBRARY_INIT " missing in Property QoS*",
+    "ddsi_new_participant(*): required security property " DDS_SEC_PROP_ACCESS_LIBRARY_FINALIZE " missing in Property QoS*",
     NULL
   };
 

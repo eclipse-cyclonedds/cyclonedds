@@ -126,7 +126,7 @@ static dds_duration_t rand_deadline ()
 }
 #endif
 
-static uint64_t store (struct ddsi_tkmap *tkmap, struct dds_rhc *rhc, struct proxy_writer *wr, struct ddsi_serdata *sd, bool print, bool lifespan_expiry)
+static uint64_t store (struct ddsi_tkmap *tkmap, struct dds_rhc *rhc, struct ddsi_proxy_writer *wr, struct ddsi_serdata *sd, bool print, bool lifespan_expiry)
 {
 #ifndef DDS_HAS_LIFESPAN
   DDSRT_UNUSED_ARG (lifespan_expiry);
@@ -170,9 +170,9 @@ static uint64_t store (struct ddsi_tkmap *tkmap, struct dds_rhc *rhc, struct pro
   return iid;
 }
 
-static struct proxy_writer *mkwr (bool auto_dispose)
+static struct ddsi_proxy_writer *mkwr (bool auto_dispose)
 {
-  struct proxy_writer *pwr;
+  struct ddsi_proxy_writer *pwr;
   struct dds_qos *xqos;
   uint64_t wr_iid;
   pwr = ddsrt_malloc (sizeof (*pwr));
@@ -188,7 +188,7 @@ static struct proxy_writer *mkwr (bool auto_dispose)
   return pwr;
 }
 
-static void fwr (struct proxy_writer *wr)
+static void fwr (struct ddsi_proxy_writer *wr)
 {
 #if defined(__GNUC__) && (__GNUC__ >= 10)
 _Pragma("GCC diagnostic push")
@@ -608,7 +608,7 @@ static void test_conditions (dds_entity_t pp, dds_entity_t tp, const int count, 
 
   const struct ddsi_domaingv *gv = get_gv (pp);
   struct ddsi_tkmap *tkmap = gv->m_tkmap;
-  struct proxy_writer *wr[] = { mkwr (0), mkwr (1), mkwr (1) };
+  struct ddsi_proxy_writer *wr[] = { mkwr (0), mkwr (1), mkwr (1) };
 
   static const uint32_t stab[] = {
     DDS_READ_SAMPLE_STATE, DDS_NOT_READ_SAMPLE_STATE,
@@ -1004,8 +1004,8 @@ int main (int argc, char **argv)
     struct ddsi_tkmap *tkmap = gv->m_tkmap;
     printf ("%"PRId64" ************* 0 *************\n", dds_time ());
     struct dds_rhc *rhc = mkrhc (gv, NULL, DDS_HISTORY_KEEP_LAST, 1, DDS_DESTINATIONORDER_BY_SOURCE_TIMESTAMP);
-    struct proxy_writer *wr0 = mkwr (1);
-    struct proxy_writer *wr1 = mkwr (1);
+    struct ddsi_proxy_writer *wr0 = mkwr (1);
+    struct ddsi_proxy_writer *wr1 = mkwr (1);
     uint64_t iid0, iid1, iid_t;
     iid0 = store (tkmap, rhc, wr0, mksample (0, 0), print, false);
     iid1 = store (tkmap, rhc, wr0, mksample (1, NN_STATUSINFO_DISPOSE), print, false);
@@ -1078,7 +1078,7 @@ int main (int argc, char **argv)
     struct ddsi_tkmap *tkmap = gv->m_tkmap;
     printf ("%"PRId64" ************* 1 *************\n", dds_time ());
     struct dds_rhc *rhc = mkrhc (gv, NULL, DDS_HISTORY_KEEP_LAST, 4, DDS_DESTINATIONORDER_BY_SOURCE_TIMESTAMP);
-    struct proxy_writer *wr[] = { mkwr (0), mkwr (0), mkwr (0) };
+    struct ddsi_proxy_writer *wr[] = { mkwr (0), mkwr (0), mkwr (0) };
     uint64_t iid0, iid_t;
     int nregs = 3, isreg[] = { 1, 1, 1 };
     iid0 = store (tkmap, rhc, wr[0], mksample (0, 0), print, false);

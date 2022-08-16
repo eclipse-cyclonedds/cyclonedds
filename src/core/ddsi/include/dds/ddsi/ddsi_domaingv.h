@@ -172,7 +172,7 @@ struct ddsi_domaingv {
      this participant, which is the first one created with all
      built-in writers present.  It MUST be created before any in need
      of it pops up! */
-  struct participant *privileged_pp;
+  struct ddsi_participant *privileged_pp;
   ddsrt_mutex_t privileged_pp_lock;
 
   /* For tracking (recently) deleted participants */

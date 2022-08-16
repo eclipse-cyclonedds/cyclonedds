@@ -56,7 +56,7 @@ static dds_return_t dds_participant_delete (dds_entity *e)
   assert (ddsrt_avl_is_empty (&((struct dds_participant *) e)->m_ktopics));
 
   thread_state_awake (lookup_thread_state (), &e->m_domain->gv);
-  if ((ret = delete_participant (&e->m_domain->gv, &e->m_guid)) < 0)
+  if ((ret = ddsi_delete_participant (&e->m_domain->gv, &e->m_guid)) < 0)
     DDS_CERROR (&e->m_domain->gv.logconfig, "dds_participant_delete: internal error %"PRId32"\n", ret);
   thread_state_asleep (lookup_thread_state ());
   return DDS_RETCODE_OK;
@@ -67,7 +67,7 @@ static dds_return_t dds_participant_qos_set (dds_entity *e, const dds_qos_t *qos
   /* note: e->m_qos is still the old one to allow for failure here */
   if (enabled)
   {
-    struct participant *pp;
+    struct ddsi_participant *pp;
     thread_state_awake (lookup_thread_state (), &e->m_domain->gv);
     if ((pp = entidx_lookup_participant_guid (e->m_domain->gv.entity_index, &e->m_guid)) != NULL)
     {
@@ -75,7 +75,7 @@ static dds_return_t dds_participant_qos_set (dds_entity *e, const dds_qos_t *qos
       ddsi_plist_init_empty (&plist);
       plist.qos.present = plist.qos.aliased = qos->present;
       plist.qos = *qos;
-      update_participant_plist (pp, &plist);
+      ddsi_update_participant_plist (pp, &plist);
     }
     thread_state_asleep (lookup_thread_state ());
   }
@@ -138,7 +138,7 @@ dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_
   plist.present |= PP_PARTICIPANT_LEASE_DURATION;
 
   thread_state_awake (lookup_thread_state (), &dom->gv);
-  ret = new_participant (&guid, &dom->gv, 0, &plist);
+  ret = ddsi_new_participant (&guid, &dom->gv, 0, &plist);
   thread_state_asleep (lookup_thread_state ());
   ddsi_plist_fini (&plist);
   if (ret < 0)
@@ -152,7 +152,7 @@ dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_
     goto err_entity_init;
 
   pp->m_entity.m_guid = guid;
-  pp->m_entity.m_iid = get_entity_instance_id (&dom->gv, &guid);
+  pp->m_entity.m_iid = ddsi_get_entity_instanceid (&dom->gv, &guid);
   pp->m_entity.m_domain = dom;
   pp->m_builtin_subscriber = 0;
   ddsrt_avl_init (&participant_ktopics_treedef, &pp->m_ktopics);

@@ -345,7 +345,7 @@ while(<>) {
       printf "%9.3f %35s $topfmt SELF node %s (%s; %s) alive\n", $ts, $sysid, "", $ownip, $sx, $sysid{$sysid}->{name};
     }
     printf "%9.3f LOCAL PARTICIPANT %s (%s)\n", $ts, fmtguid($guid), $gid if $shows{localdisc};
-  } elsif (/: unref_participant\(($guidre) .*user 0 builtin 0/o) {
+  } elsif (/: ddsi_unref_participant\(($guidre) .*user 0 builtin 0/o) {
     my $guid = hexify($1);
     (my $gid = $guid) =~ s/:[^:]+$//;
     printf "%9.3f DELETE LOCAL PARTICIPANT %s (%s)\n", $ts, fmtguid($guid), $gid if $shows{localdisc};
@@ -620,7 +620,7 @@ while(<>) {
       $sysid{$sysid}->{tcrash} = $ts;
       $sysid{$sysid}->{tlastpkt} = exists $tlastpkt{$sysid} ? $tlastpkt{$sysid} : $ts;
     }
-  } elsif (/unref_proxy_participant\(($guidre)\).*freeing/o) {
+  } elsif (/ddsi_unref_proxy_participant\(($guidre)\).*freeing/o) {
     my $ppguid = hexify($1);
     die unless exists $proxypp{$ppguid} && ! defined $proxypp{$ppguid}->{tdel};
     delete_proxypp($ts, $ppguid);

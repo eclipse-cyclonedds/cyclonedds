@@ -622,10 +622,10 @@ static void handle_xevk_entityid (struct nn_xpack *xp, struct xevent_nt *ev)
 }
 
 #ifdef DDS_HAS_SECURITY
-static int send_heartbeat_to_all_readers_check_and_sched (struct xevent *ev, struct writer *wr, const struct whc_state *whcst, ddsrt_mtime_t tnow, ddsrt_mtime_t *t_next)
+static int send_heartbeat_to_all_readers_check_and_sched (struct xevent *ev, struct ddsi_writer *wr, const struct whc_state *whcst, ddsrt_mtime_t tnow, ddsrt_mtime_t *t_next)
 {
   int send;
-  if (!writer_must_have_hb_scheduled (wr, whcst))
+  if (!ddsi_writer_must_have_hb_scheduled (wr, whcst))
   {
     wr->hbcontrol.tsched = DDSRT_MTIME_NEVER;
     send = -1;
@@ -647,7 +647,7 @@ static int send_heartbeat_to_all_readers_check_and_sched (struct xevent *ev, str
   return send;
 }
 
-static void send_heartbeat_to_all_readers (struct nn_xpack *xp, struct xevent *ev, struct writer *wr, ddsrt_mtime_t tnow)
+static void send_heartbeat_to_all_readers (struct nn_xpack *xp, struct xevent *ev, struct ddsi_writer *wr, ddsrt_mtime_t tnow)
 {
   struct whc_state whcst;
   ddsrt_mtime_t t_next;
@@ -659,15 +659,15 @@ static void send_heartbeat_to_all_readers (struct nn_xpack *xp, struct xevent *e
   const int hbansreq = send_heartbeat_to_all_readers_check_and_sched (ev, wr, &whcst, tnow, &t_next);
   if (hbansreq >= 0)
   {
-    struct wr_prd_match *m;
+    struct ddsi_wr_prd_match *m;
     struct ddsi_guid last_guid = { .prefix = {.u = {0,0,0}}, .entityid = {0} };
 
-    while ((m = ddsrt_avl_lookup_succ (&wr_readers_treedef, &wr->readers, &last_guid)) != NULL)
+    while ((m = ddsrt_avl_lookup_succ (&ddsi_wr_readers_treedef, &wr->readers, &last_guid)) != NULL)
     {
       last_guid = m->prd_guid;
       if (m->seq < m->last_seq)
       {
-        struct proxy_reader *prd;
+        struct ddsi_proxy_reader *prd;
 
         prd = entidx_lookup_proxy_reader_guid(wr->e.gv->entity_index, &m->prd_guid);
         if (prd)
@@ -701,17 +701,17 @@ static void send_heartbeat_to_all_readers (struct nn_xpack *xp, struct xevent *e
               PGUID (wr->e.guid),
               (t_next.v == DDS_NEVER) ? INFINITY : (double)(t_next.v - tnow.v) / 1e9,
               whcst.max_seq,
-              writer_read_seq_xmit(wr));
+              ddsi_writer_read_seq_xmit(wr));
     }
     else
     {
       ETRACE (wr, "heartbeat(wr "PGUIDFMT") suppressed, resched in %g s (min-ack %"PRIu64"%s, avail-seq %"PRIu64", xmit %"PRIu64")\n",
               PGUID (wr->e.guid),
               (t_next.v == DDS_NEVER) ? INFINITY : (double)(t_next.v - tnow.v) / 1e9,
-              ((struct wr_prd_match *) ddsrt_avl_root (&wr_readers_treedef, &wr->readers))->min_seq,
-              ((struct wr_prd_match *) ddsrt_avl_root (&wr_readers_treedef, &wr->readers))->all_have_replied_to_hb ? "" : "!",
+              ((struct ddsi_wr_prd_match *) ddsrt_avl_root (&ddsi_wr_readers_treedef, &wr->readers))->min_seq,
+              ((struct ddsi_wr_prd_match *) ddsrt_avl_root (&ddsi_wr_readers_treedef, &wr->readers))->all_have_replied_to_hb ? "" : "!",
               whcst.max_seq,
-              writer_read_seq_xmit(wr));
+              ddsi_writer_read_seq_xmit(wr));
     }
   }
 
@@ -723,7 +723,7 @@ static void handle_xevk_heartbeat (struct nn_xpack *xp, struct xevent *ev, ddsrt
 {
   struct ddsi_domaingv const * const gv = ev->evq->gv;
   struct nn_xmsg *msg;
-  struct writer *wr;
+  struct ddsi_writer *wr;
   ddsrt_mtime_t t_next;
   int hbansreq = 0;
   struct whc_state whcst;
@@ -745,7 +745,7 @@ static void handle_xevk_heartbeat (struct nn_xpack *xp, struct xevent *ev, ddsrt
   ddsrt_mutex_lock (&wr->e.lock);
   assert (wr->reliable);
   whc_get_state(wr->whc, &whcst);
-  if (!writer_must_have_hb_scheduled (wr, &whcst))
+  if (!ddsi_writer_must_have_hb_scheduled (wr, &whcst))
   {
     hbansreq = 1; /* just for trace */
     msg = NULL; /* Need not send it now, and no need to schedule it for the future */
@@ -771,7 +771,7 @@ static void handle_xevk_heartbeat (struct nn_xpack *xp, struct xevent *ev, ddsrt
              hbansreq ? "" : " final",
              msg ? "sent" : "suppressed",
              (t_next.v == DDS_NEVER) ? INFINITY : (double)(t_next.v - tnow.v) / 1e9,
-             whcst.max_seq, writer_read_seq_xmit (wr));
+             whcst.max_seq, ddsi_writer_read_seq_xmit (wr));
   }
   else
   {
@@ -780,9 +780,9 @@ static void handle_xevk_heartbeat (struct nn_xpack *xp, struct xevent *ev, ddsrt
              hbansreq ? "" : " final",
              msg ? "sent" : "suppressed",
              (t_next.v == DDS_NEVER) ? INFINITY : (double)(t_next.v - tnow.v) / 1e9,
-             ((struct wr_prd_match *) ddsrt_avl_root_non_empty (&wr_readers_treedef, &wr->readers))->min_seq,
-             ((struct wr_prd_match *) ddsrt_avl_root_non_empty (&wr_readers_treedef, &wr->readers))->all_have_replied_to_hb ? "" : "!",
-             whcst.max_seq, writer_read_seq_xmit (wr));
+             ((struct ddsi_wr_prd_match *) ddsrt_avl_root_non_empty (&ddsi_wr_readers_treedef, &wr->readers))->min_seq,
+             ((struct ddsi_wr_prd_match *) ddsrt_avl_root_non_empty (&ddsi_wr_readers_treedef, &wr->readers))->all_have_replied_to_hb ? "" : "!",
+             whcst.max_seq, ddsi_writer_read_seq_xmit (wr));
   }
   (void) resched_xevent_if_earlier (ev, t_next);
   wr->hbcontrol.tsched = t_next;
@@ -805,7 +805,7 @@ static void handle_xevk_heartbeat (struct nn_xpack *xp, struct xevent *ev, ddsrt
   }
 }
 
-static dds_duration_t preemptive_acknack_interval (const struct pwr_rd_match *rwn)
+static dds_duration_t preemptive_acknack_interval (const struct ddsi_pwr_rd_match *rwn)
 {
   if (rwn->t_last_ack.v < rwn->tcreate.v)
     return 0;
@@ -823,7 +823,7 @@ static dds_duration_t preemptive_acknack_interval (const struct pwr_rd_match *rw
   }
 }
 
-static struct nn_xmsg *make_preemptive_acknack (struct xevent *ev, struct proxy_writer *pwr, struct pwr_rd_match *rwn, ddsrt_mtime_t tnow)
+static struct nn_xmsg *make_preemptive_acknack (struct xevent *ev, struct ddsi_proxy_writer *pwr, struct ddsi_pwr_rd_match *rwn, ddsrt_mtime_t tnow)
 {
   const dds_duration_t intv = preemptive_acknack_interval (rwn);
   if (tnow.v < ddsrt_mtime_add_duration (rwn->t_last_ack, intv).v)
@@ -833,10 +833,10 @@ static struct nn_xmsg *make_preemptive_acknack (struct xevent *ev, struct proxy_
   }
 
   struct ddsi_domaingv * const gv = pwr->e.gv;
-  struct participant *pp = NULL;
+  struct ddsi_participant *pp = NULL;
   if (q_omg_proxy_participant_is_secure (pwr->c.proxypp))
   {
-    struct reader *rd = entidx_lookup_reader_guid (gv->entity_index, &rwn->rd_guid);
+    struct ddsi_reader *rd = entidx_lookup_reader_guid (gv->entity_index, &rwn->rd_guid);
     if (rd)
       pp = rd->c.pp;
   }
@@ -880,9 +880,9 @@ static void handle_xevk_acknack (struct nn_xpack *xp, struct xevent *ev, ddsrt_m
      favour of others, so MUST ensure that the defragmenter won't start
      threshing and fail to make progress! */
   struct ddsi_domaingv *gv = ev->evq->gv;
-  struct proxy_writer *pwr;
+  struct ddsi_proxy_writer *pwr;
   struct nn_xmsg *msg;
-  struct pwr_rd_match *rwn;
+  struct ddsi_pwr_rd_match *rwn;
 
   if ((pwr = entidx_lookup_proxy_writer_guid (gv->entity_index, &ev->u.acknack.pwr_guid)) == NULL)
   {
@@ -890,7 +890,7 @@ static void handle_xevk_acknack (struct nn_xpack *xp, struct xevent *ev, ddsrt_m
   }
 
   ddsrt_mutex_lock (&pwr->e.lock);
-  if ((rwn = ddsrt_avl_lookup (&pwr_readers_treedef, &pwr->readers, &ev->u.acknack.rd_guid)) == NULL)
+  if ((rwn = ddsrt_avl_lookup (&ddsi_pwr_readers_treedef, &pwr->readers, &ev->u.acknack.rd_guid)) == NULL)
   {
     ddsrt_mutex_unlock (&pwr->e.lock);
     return;
@@ -916,7 +916,7 @@ static void handle_xevk_acknack (struct nn_xpack *xp, struct xevent *ev, ddsrt_m
   }
 }
 
-static bool resend_spdp_sample_by_guid_key (struct writer *wr, const ddsi_guid_t *guid, struct proxy_reader *prd)
+static bool resend_spdp_sample_by_guid_key (struct ddsi_writer *wr, const ddsi_guid_t *guid, struct ddsi_proxy_reader *prd)
 {
   /* Look up data in (transient-local) WHC by key value -- FIXME: clearly
    a slightly more efficient and elegant way of looking up the key value
@@ -952,9 +952,9 @@ static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct xevent *e
 {
   /* Like the writer pointer in the heartbeat event, the participant pointer in the spdp event is assumed valid. */
   struct ddsi_domaingv *gv = ev->evq->gv;
-  struct participant *pp;
-  struct proxy_reader *prd;
-  struct writer *spdp_wr;
+  struct ddsi_participant *pp;
+  struct ddsi_proxy_reader *prd;
+  struct ddsi_writer *spdp_wr;
   bool do_write;
 
   if ((pp = entidx_lookup_participant_guid (gv->entity_index, &ev->u.spdp.pp_guid)) == NULL)
@@ -965,7 +965,7 @@ static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct xevent *e
     return;
   }
 
-  if ((spdp_wr = get_builtin_writer (pp, NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER)) == NULL)
+  if ((spdp_wr = ddsi_get_builtin_writer (pp, NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER)) == NULL)
   {
     GVTRACE ("handle_xevk_spdp "PGUIDFMT" - spdp writer of participant not found\n", PGUID (ev->u.spdp.pp_guid));
     if (ev->u.spdp.directed)
@@ -1066,7 +1066,7 @@ static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct xevent *e
 static void handle_xevk_pmd_update (struct thread_state * const thrst, struct nn_xpack *xp, struct xevent *ev, ddsrt_mtime_t tnow)
 {
   struct ddsi_domaingv * const gv = ev->evq->gv;
-  struct participant *pp;
+  struct ddsi_participant *pp;
   dds_duration_t intv;
   ddsrt_mtime_t tnext;
 
@@ -1077,7 +1077,7 @@ static void handle_xevk_pmd_update (struct thread_state * const thrst, struct nn
 
   write_pmd_message (thrst, xp, pp, PARTICIPANT_MESSAGE_DATA_KIND_AUTOMATIC_LIVELINESS_UPDATE);
 
-  intv = pp_get_pmd_interval (pp);
+  intv = ddsi_participant_get_pmd_interval (pp);
   if (intv == DDS_INFINITY)
   {
     tnext.v = DDS_NEVER;
@@ -1102,7 +1102,7 @@ static void handle_xevk_delete_writer (UNUSED_ARG (struct nn_xpack *xp), struct 
   /* don't worry if the writer is already gone by the time we get here, delete_writer_nolinger checks for that. */
   struct ddsi_domaingv * const gv = ev->evq->gv;
   GVTRACE ("handle_xevk_delete_writer: "PGUIDFMT"\n", PGUID (ev->u.delete_writer.guid));
-  delete_writer_nolinger (gv, &ev->u.delete_writer.guid);
+  ddsi_delete_writer_nolinger (gv, &ev->u.delete_writer.guid);
   delete_xevent (ev);
 }
 
@@ -1335,7 +1335,7 @@ void qxev_nt_callback (struct xeventq *evq, void (*cb) (void *arg), void *arg)
   ddsrt_mutex_unlock (&evq->lock);
 }
 
-void qxev_prd_entityid (struct proxy_reader *prd, const ddsi_guid_t *guid)
+void qxev_prd_entityid (struct ddsi_proxy_reader *prd, const ddsi_guid_t *guid)
 {
   struct ddsi_domaingv * const gv = prd->e.gv;
   struct nn_xmsg *msg;
@@ -1357,7 +1357,7 @@ void qxev_prd_entityid (struct proxy_reader *prd, const ddsi_guid_t *guid)
   }
 }
 
-void qxev_pwr_entityid (struct proxy_writer *pwr, const ddsi_guid_t *guid)
+void qxev_pwr_entityid (struct ddsi_proxy_writer *pwr, const ddsi_guid_t *guid)
 {
   struct ddsi_domaingv * const gv = pwr->e.gv;
   struct nn_xmsg *msg;

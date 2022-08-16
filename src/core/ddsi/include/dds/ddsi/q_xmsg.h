@@ -30,10 +30,10 @@ extern "C" {
 
 struct ddsi_serdata;
 struct addrset;
-struct proxy_reader;
-struct proxy_writer;
-struct writer;
-struct participant;
+struct ddsi_proxy_reader;
+struct ddsi_proxy_writer;
+struct ddsi_writer;
+struct ddsi_participant;
 
 struct nn_adlink_participant_version_info;
 struct nn_xmsgpool;
@@ -63,7 +63,7 @@ void nn_xmsgpool_free (struct nn_xmsgpool *pool);
 /* To allocate a new xmsg from the pool; if expected_size is NOT
    exceeded, no reallocs will be performed, else the address of the
    xmsg may change because of reallocing when appending to it. */
-struct nn_xmsg *nn_xmsg_new (struct nn_xmsgpool *pool, const ddsi_guid_t *src_guid, struct participant *pp, size_t expected_size, enum nn_xmsg_kind kind);
+struct nn_xmsg *nn_xmsg_new (struct nn_xmsgpool *pool, const ddsi_guid_t *src_guid, struct ddsi_participant *pp, size_t expected_size, enum nn_xmsg_kind kind);
 
 /* For sending to a particular destination (participant) */
 void nn_xmsg_setdst1 (struct ddsi_domaingv *gv, struct nn_xmsg *m, const ddsi_guid_prefix_t *gp, const ddsi_xlocator_t *addr);
@@ -72,8 +72,8 @@ bool nn_xmsg_getdst1prefix (struct nn_xmsg *m, ddsi_guid_prefix_t *gp);
 /* For sending to a particular proxy reader; this is a convenience
    routine that extracts a suitable address from the proxy reader's
    address sets and calls setdst1. */
-void nn_xmsg_setdstPRD (struct nn_xmsg *m, const struct proxy_reader *prd);
-void nn_xmsg_setdstPWR (struct nn_xmsg *m, const struct proxy_writer *pwr);
+void nn_xmsg_setdstPRD (struct nn_xmsg *m, const struct ddsi_proxy_reader *prd);
+void nn_xmsg_setdstPWR (struct nn_xmsg *m, const struct ddsi_proxy_writer *pwr);
 
 /* For sending to all in the address set AS -- typically, the writer's
    address set to multicast to all matched readers */
@@ -124,7 +124,7 @@ void nn_xmsg_guid_seq_fragid (const struct nn_xmsg *m, ddsi_guid_t *wrguid, seqn
 void *nn_xmsg_submsg_from_marker (struct nn_xmsg *msg, struct nn_xmsg_marker marker);
 void *nn_xmsg_append (struct nn_xmsg *m, struct nn_xmsg_marker *marker, size_t sz);
 void nn_xmsg_shrink (struct nn_xmsg *m, struct nn_xmsg_marker marker, size_t sz);
-void nn_xmsg_serdata (struct nn_xmsg *m, struct ddsi_serdata *serdata, size_t off, size_t len, struct writer *wr);
+void nn_xmsg_serdata (struct nn_xmsg *m, struct ddsi_serdata *serdata, size_t off, size_t len, struct ddsi_writer *wr);
 #ifdef DDS_HAS_SECURITY
 size_t nn_xmsg_submsg_size (struct nn_xmsg *msg, struct nn_xmsg_marker marker);
 void nn_xmsg_submsg_remove (struct nn_xmsg *msg, struct nn_xmsg_marker sm_marker);

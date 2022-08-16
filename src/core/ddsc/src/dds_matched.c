@@ -46,11 +46,11 @@ dds_return_t dds_get_matched_subscriptions (dds_entity_t writer, dds_instance_ha
     /* FIXME: this ought not be so tightly coupled to the lower layer */
     thread_state_awake (lookup_thread_state (), &wr->m_entity.m_domain->gv);
     ddsrt_mutex_lock (&wr->m_wr->e.lock);
-    for (const struct wr_prd_match *m = ddsrt_avl_iter_first (&wr_readers_treedef, &wr->m_wr->readers, &it);
+    for (const struct ddsi_wr_prd_match *m = ddsrt_avl_iter_first (&ddsi_wr_readers_treedef, &wr->m_wr->readers, &it);
          m != NULL;
          m = ddsrt_avl_iter_next (&it))
     {
-      struct proxy_reader *prd;
+      struct ddsi_proxy_reader *prd;
       if ((prd = entidx_lookup_proxy_reader_guid (gh, &m->prd_guid)) != NULL)
       {
         if (nrds_act < nrds)
@@ -58,11 +58,11 @@ dds_return_t dds_get_matched_subscriptions (dds_entity_t writer, dds_instance_ha
         nrds_act++;
       }
     }
-    for (const struct wr_rd_match *m = ddsrt_avl_iter_first (&wr_local_readers_treedef, &wr->m_wr->local_readers, &it);
+    for (const struct ddsi_wr_rd_match *m = ddsrt_avl_iter_first (&ddsi_wr_local_readers_treedef, &wr->m_wr->local_readers, &it);
          m != NULL;
          m = ddsrt_avl_iter_next (&it))
     {
-      struct reader *rd;
+      struct ddsi_reader *rd;
       if ((rd = entidx_lookup_reader_guid (gh, &m->rd_guid)) != NULL)
       {
         if (nrds_act < nrds)
@@ -96,11 +96,11 @@ dds_return_t dds_get_matched_publications (dds_entity_t reader, dds_instance_han
     /* FIXME: this ought not be so tightly coupled to the lower layer */
     thread_state_awake (lookup_thread_state (), &rd->m_entity.m_domain->gv);
     ddsrt_mutex_lock (&rd->m_rd->e.lock);
-    for (const struct rd_pwr_match *m = ddsrt_avl_iter_first (&rd_writers_treedef, &rd->m_rd->writers, &it);
+    for (const struct ddsi_rd_pwr_match *m = ddsrt_avl_iter_first (&ddsi_rd_writers_treedef, &rd->m_rd->writers, &it);
          m != NULL;
          m = ddsrt_avl_iter_next (&it))
     {
-      struct proxy_writer *pwr;
+      struct ddsi_proxy_writer *pwr;
       if ((pwr = entidx_lookup_proxy_writer_guid (gh, &m->pwr_guid)) != NULL)
       {
         if (nwrs_act < nwrs)
@@ -108,11 +108,11 @@ dds_return_t dds_get_matched_publications (dds_entity_t reader, dds_instance_han
         nwrs_act++;
       }
     }
-    for (const struct rd_wr_match *m = ddsrt_avl_iter_first (&rd_local_writers_treedef, &rd->m_rd->local_writers, &it);
+    for (const struct ddsi_rd_wr_match *m = ddsrt_avl_iter_first (&ddsi_rd_local_writers_treedef, &rd->m_rd->local_writers, &it);
          m != NULL;
          m = ddsrt_avl_iter_next (&it))
     {
-      struct writer *wr;
+      struct ddsi_writer *wr;
       if ((wr = entidx_lookup_writer_guid (gh, &m->wr_guid)) != NULL)
       {
         if (nwrs_act < nwrs)
@@ -160,22 +160,22 @@ dds_builtintopic_endpoint_t *dds_get_matched_subscription_data (dds_entity_t wri
     /* FIXME: this ought not be so tightly coupled to the lower layer, and not be so inefficient besides */
     thread_state_awake (lookup_thread_state (), &wr->m_entity.m_domain->gv);
     ddsrt_mutex_lock (&wr->m_wr->e.lock);
-    for (const struct wr_prd_match *m = ddsrt_avl_iter_first (&wr_readers_treedef, &wr->m_wr->readers, &it);
+    for (const struct ddsi_wr_prd_match *m = ddsrt_avl_iter_first (&ddsi_wr_readers_treedef, &wr->m_wr->readers, &it);
          m != NULL && ret == NULL;
          m = ddsrt_avl_iter_next (&it))
     {
-      struct proxy_reader *prd;
+      struct ddsi_proxy_reader *prd;
       if ((prd = entidx_lookup_proxy_reader_guid (gh, &m->prd_guid)) != NULL)
       {
         if (prd->e.iid == ih)
           ret = make_builtintopic_endpoint (&prd->e.guid, &prd->c.proxypp->e.guid, prd->c.proxypp->e.iid, prd->c.xqos);
       }
     }
-    for (const struct wr_rd_match *m = ddsrt_avl_iter_first (&wr_local_readers_treedef, &wr->m_wr->local_readers, &it);
+    for (const struct ddsi_wr_rd_match *m = ddsrt_avl_iter_first (&ddsi_wr_local_readers_treedef, &wr->m_wr->local_readers, &it);
          m != NULL && ret == NULL;
          m = ddsrt_avl_iter_next (&it))
     {
-      struct reader *rd;
+      struct ddsi_reader *rd;
       if ((rd = entidx_lookup_reader_guid (gh, &m->rd_guid)) != NULL)
       {
         if (rd->e.iid == ih)
@@ -203,22 +203,22 @@ dds_builtintopic_endpoint_t *dds_get_matched_publication_data (dds_entity_t read
     /* FIXME: this ought not be so tightly coupled to the lower layer, and not be so inefficient besides */
     thread_state_awake (lookup_thread_state (), &rd->m_entity.m_domain->gv);
     ddsrt_mutex_lock (&rd->m_rd->e.lock);
-    for (const struct rd_pwr_match *m = ddsrt_avl_iter_first (&rd_writers_treedef, &rd->m_rd->writers, &it);
+    for (const struct ddsi_rd_pwr_match *m = ddsrt_avl_iter_first (&ddsi_rd_writers_treedef, &rd->m_rd->writers, &it);
          m != NULL && ret == NULL;
          m = ddsrt_avl_iter_next (&it))
     {
-      struct proxy_writer *pwr;
+      struct ddsi_proxy_writer *pwr;
       if ((pwr = entidx_lookup_proxy_writer_guid (gh, &m->pwr_guid)) != NULL)
       {
         if (pwr->e.iid == ih)
           ret = make_builtintopic_endpoint (&pwr->e.guid, &pwr->c.proxypp->e.guid, pwr->c.proxypp->e.iid, pwr->c.xqos);
       }
     }
-    for (const struct rd_wr_match *m = ddsrt_avl_iter_first (&rd_local_writers_treedef, &rd->m_rd->local_writers, &it);
+    for (const struct ddsi_rd_wr_match *m = ddsrt_avl_iter_first (&ddsi_rd_local_writers_treedef, &rd->m_rd->local_writers, &it);
          m != NULL && ret == NULL;
          m = ddsrt_avl_iter_next (&it))
     {
-      struct writer *wr;
+      struct ddsi_writer *wr;
       if ((wr = entidx_lookup_writer_guid (gh, &m->wr_guid)) != NULL)
       {
         if (wr->e.iid == ih)

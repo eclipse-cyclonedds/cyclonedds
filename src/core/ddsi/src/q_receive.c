@@ -83,7 +83,7 @@ Notes:
 
 static void deliver_user_data_synchronously (struct nn_rsample_chain *sc, const ddsi_guid_t *rdguid);
 
-static void maybe_set_reader_in_sync (struct proxy_writer *pwr, struct pwr_rd_match *wn, seqno_t last_deliv_seq)
+static void maybe_set_reader_in_sync (struct ddsi_proxy_writer *pwr, struct ddsi_pwr_rd_match *wn, seqno_t last_deliv_seq)
 {
   switch (wn->in_sync)
   {
@@ -134,7 +134,7 @@ enum validation_result {
 
 static enum validation_result validate_writer_and_reader_entityid (ddsi_entityid_t wrid, ddsi_entityid_t rdid)
 {
-  if (is_writer_entityid (wrid) && is_reader_entityid (rdid))
+  if (ddsi_is_writer_entityid (wrid) && ddsi_is_reader_entityid (rdid))
     return VR_ACCEPT;
   else // vendor-specific entity kinds means ignoring it is better than saying "malformed"
     return VR_NOT_UNDERSTOOD;
@@ -144,7 +144,7 @@ static enum validation_result validate_writer_and_reader_or_null_entityid (ddsi_
 {
   // the official term is "unknown entity id" but that's too close for comfort
   // to "unknown entity" in the message validation code
-  if (is_writer_entityid (wrid) && (rdid.u == NN_ENTITYID_UNKNOWN || is_reader_entityid (rdid)))
+  if (ddsi_is_writer_entityid (wrid) && (rdid.u == NN_ENTITYID_UNKNOWN || ddsi_is_reader_entityid (rdid)))
     return VR_ACCEPT;
   else // see validate_writer_and_reader_entityid
     return VR_NOT_UNDERSTOOD;
@@ -331,7 +331,7 @@ static enum validation_result validate_NackFrag (NackFrag_t *msg, size_t size, i
 
 static void set_sampleinfo_proxy_writer (struct nn_rsample_info *sampleinfo, ddsi_guid_t *pwr_guid)
 {
-  struct proxy_writer * pwr = entidx_lookup_proxy_writer_guid (sampleinfo->rst->gv->entity_index, pwr_guid);
+  struct ddsi_proxy_writer * pwr = entidx_lookup_proxy_writer_guid (sampleinfo->rst->gv->entity_index, pwr_guid);
   sampleinfo->pwr = pwr;
 }
 
@@ -554,7 +554,7 @@ static enum validation_result validate_DataFrag (const struct receiver_state *rs
   return vr;
 }
 
-int add_Gap (struct nn_xmsg *msg, struct writer *wr, struct proxy_reader *prd, seqno_t start, seqno_t base, uint32_t numbits, const uint32_t *bits)
+int add_Gap (struct nn_xmsg *msg, struct ddsi_writer *wr, struct ddsi_proxy_reader *prd, seqno_t start, seqno_t base, uint32_t numbits, const uint32_t *bits)
 {
   struct nn_xmsg_marker sm_marker;
   Gap_t *gap;
@@ -572,10 +572,10 @@ int add_Gap (struct nn_xmsg *msg, struct writer *wr, struct proxy_reader *prd, s
   return 0;
 }
 
-static seqno_t grow_gap_to_next_seq (const struct writer *wr, seqno_t seq)
+static seqno_t grow_gap_to_next_seq (const struct ddsi_writer *wr, seqno_t seq)
 {
   seqno_t next_seq = whc_next_seq (wr->whc, seq - 1);
-  seqno_t seq_xmit = writer_read_seq_xmit (wr);
+  seqno_t seq_xmit = ddsi_writer_read_seq_xmit (wr);
   if (next_seq == MAX_SEQ_NUMBER) /* no next sample */
     return seq_xmit + 1;
   else if (next_seq > seq_xmit)  /* next is beyond last actually transmitted */
@@ -672,7 +672,7 @@ void nn_gap_info_update(struct ddsi_domaingv *gv, struct nn_gap_info *gi, seqno_
   }
 }
 
-struct nn_xmsg * nn_gap_info_create_gap(struct writer *wr, struct proxy_reader *prd, struct nn_gap_info *gi)
+struct nn_xmsg * nn_gap_info_create_gap(struct ddsi_writer *wr, struct ddsi_proxy_reader *prd, struct nn_gap_info *gi)
 {
   struct nn_xmsg *m;
 
@@ -706,7 +706,7 @@ struct defer_hb_state {
   uint64_t prd_iid;
 };
 
-static void defer_heartbeat_to_peer (struct writer *wr, const struct whc_state *whcst, struct proxy_reader *prd, int hbansreq, struct defer_hb_state *defer_hb_state)
+static void defer_heartbeat_to_peer (struct ddsi_writer *wr, const struct whc_state *whcst, struct ddsi_proxy_reader *prd, int hbansreq, struct defer_hb_state *defer_hb_state)
 {
   ETRACE (wr, "defer_heartbeat_to_peer: "PGUIDFMT" -> "PGUIDFMT" - queue for transmit\n", PGUID (wr->e.guid), PGUID (prd->e.guid));
 
@@ -737,7 +737,7 @@ static void defer_heartbeat_to_peer (struct writer *wr, const struct whc_state *
   defer_hb_state->prd_iid = prd->e.iid;
 }
 
-static void force_heartbeat_to_peer (struct writer *wr, const struct whc_state *whcst, struct proxy_reader *prd, int hbansreq, struct defer_hb_state *defer_hb_state)
+static void force_heartbeat_to_peer (struct ddsi_writer *wr, const struct whc_state *whcst, struct ddsi_proxy_reader *prd, int hbansreq, struct defer_hb_state *defer_hb_state)
 {
   defer_heartbeat_to_peer (wr, whcst, prd, hbansreq, defer_hb_state);
   qxev_msg (wr->evq, defer_hb_state->m);
@@ -761,9 +761,9 @@ static void defer_hb_state_fini (struct ddsi_domaingv * const gv, struct defer_h
 
 static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const AckNack_t *msg, ddsrt_wctime_t timestamp, SubmessageKind_t prev_smid, struct defer_hb_state *defer_hb_state)
 {
-  struct proxy_reader *prd;
-  struct wr_prd_match *rn;
-  struct writer *wr;
+  struct ddsi_proxy_reader *prd;
+  struct ddsi_wr_prd_match *rn;
+  struct ddsi_writer *wr;
   struct lease *lease;
   ddsi_guid_t src, dst;
   seqno_t seqbase;
@@ -836,7 +836,7 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
     goto out;
   }
 
-  if ((rn = ddsrt_avl_lookup (&wr_readers_treedef, &wr->readers, &src)) == NULL)
+  if ((rn = ddsrt_avl_lookup (&ddsi_wr_readers_treedef, &wr->readers, &src)) == NULL)
   {
     RSTTRACE (" "PGUIDFMT" -> "PGUIDFMT" not a connection)", PGUID (src), PGUID (dst));
     goto out;
@@ -890,8 +890,8 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
          that rn->seq <= wr->seq) */
       rn->seq = wr->seq;
     }
-    ddsrt_avl_augment_update (&wr_readers_treedef, rn);
-    const unsigned n = remove_acked_messages (wr, &whcst, &deferred_free_list);
+    ddsrt_avl_augment_update (&ddsi_wr_readers_treedef, rn);
+    const unsigned n = ddsi_remove_acked_messages (wr, &whcst, &deferred_free_list);
     RSTTRACE (" ACK%"PRIu64" RM%u", n_ack, n);
   }
   else
@@ -917,7 +917,7 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
          that rn->seq <= wr->seq) */
       rn->seq = wr->seq;
     }
-    ddsrt_avl_augment_update (&wr_readers_treedef, rn);
+    ddsrt_avl_augment_update (&ddsi_wr_readers_treedef, rn);
     DDS_CLOG (DDS_LC_THROTTLE, &rst->gv->logconfig, "writer "PGUIDFMT" considering reader "PGUIDFMT" responsive again\n", PGUID (wr->e.guid), PGUID (rn->prd_guid));
   }
 
@@ -934,7 +934,7 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
     rn->has_replied_to_hb = 1;
     /* walk the whole tree to ensure all proxy readers for this writer
        have their unack'ed info updated */
-    ddsrt_avl_augment_update (&wr_readers_treedef, rn);
+    ddsrt_avl_augment_update (&ddsi_wr_readers_treedef, rn);
   }
   if (is_preemptive_ack)
   {
@@ -1000,7 +1000,7 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
     numbits = 0;
   }
   enqueued = 1;
-  seq_xmit = writer_read_seq_xmit (wr);
+  seq_xmit = ddsi_writer_read_seq_xmit (wr);
   nn_gap_info_init(&gi);
   const bool gap_for_already_acked = vendor_is_eclipse (rst->vendor) && prd->c.xqos->durability.kind == DDS_DURABILITY_VOLATILE && seqbase <= rn->seq;
   const seqno_t min_seq_to_rexmit = gap_for_already_acked ? rn->seq + 1 : 0;
@@ -1018,7 +1018,7 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
       if (seqbase + i >= min_seq_to_rexmit && whc_borrow_sample (wr->whc, seq, &sample))
       {
         if (!wr->retransmitting && sample.unacked)
-          writer_set_retransmitting (wr);
+          ddsi_writer_set_retransmitting (wr);
 
         if (rst->gv->config.retransmit_merging != DDSI_REXMIT_MERGE_NEVER && rn->assumed_in_sync && !prd->filter)
         {
@@ -1135,7 +1135,7 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
   return 1;
 }
 
-static void handle_forall_destinations (const ddsi_guid_t *dst, struct proxy_writer *pwr, ddsrt_avl_walk_t fun, void *arg)
+static void handle_forall_destinations (const ddsi_guid_t *dst, struct ddsi_proxy_writer *pwr, ddsrt_avl_walk_t fun, void *arg)
 {
   /* prefix:  id:   to:
      0        0     all matched readers
@@ -1153,12 +1153,12 @@ static void handle_forall_destinations (const ddsi_guid_t *dst, struct proxy_wri
   switch ((haveprefix << 1) | haveid)
   {
     case (0 << 1) | 0: /* all: full treewalk */
-      ddsrt_avl_walk (&pwr_readers_treedef, &pwr->readers, fun, arg);
+      ddsrt_avl_walk (&ddsi_pwr_readers_treedef, &pwr->readers, fun, arg);
       break;
     case (0 << 1) | 1: /* all with correct entityid: special filtering treewalk */
       {
-        struct pwr_rd_match *wn;
-        for (wn = ddsrt_avl_find_min (&pwr_readers_treedef, &pwr->readers); wn; wn = ddsrt_avl_find_succ (&pwr_readers_treedef, &pwr->readers, wn))
+        struct ddsi_pwr_rd_match *wn;
+        for (wn = ddsrt_avl_find_min (&ddsi_pwr_readers_treedef, &pwr->readers); wn; wn = ddsrt_avl_find_succ (&ddsi_pwr_readers_treedef, &pwr->readers, wn))
         {
           if (wn->rd_guid.entityid.u == dst->entityid.u)
             fun (wn, arg);
@@ -1170,13 +1170,13 @@ static void handle_forall_destinations (const ddsi_guid_t *dst, struct proxy_wri
         ddsi_guid_t a, b;
         a = *dst; a.entityid.u = 0;
         b = *dst; b.entityid.u = ~0u;
-        ddsrt_avl_walk_range (&pwr_readers_treedef, &pwr->readers, &a, &b, fun, arg);
+        ddsrt_avl_walk_range (&ddsi_pwr_readers_treedef, &pwr->readers, &a, &b, fun, arg);
       }
       break;
     case (1 << 1) | 1: /* fully addressed: dst should exist (but for removal) */
       {
-        struct pwr_rd_match *wn;
-        if ((wn = ddsrt_avl_lookup (&pwr_readers_treedef, &pwr->readers, dst)) != NULL)
+        struct ddsi_pwr_rd_match *wn;
+        if ((wn = ddsrt_avl_lookup (&ddsi_pwr_readers_treedef, &pwr->readers, dst)) != NULL)
           fun (wn, arg);
       }
       break;
@@ -1186,18 +1186,18 @@ static void handle_forall_destinations (const ddsi_guid_t *dst, struct proxy_wri
 struct handle_Heartbeat_helper_arg {
   struct receiver_state *rst;
   const Heartbeat_t *msg;
-  struct proxy_writer *pwr;
+  struct ddsi_proxy_writer *pwr;
   ddsrt_wctime_t timestamp;
   ddsrt_etime_t tnow;
   ddsrt_mtime_t tnow_mt;
   bool directed_heartbeat;
 };
 
-static void handle_Heartbeat_helper (struct pwr_rd_match * const wn, struct handle_Heartbeat_helper_arg * const arg)
+static void handle_Heartbeat_helper (struct ddsi_pwr_rd_match * const wn, struct handle_Heartbeat_helper_arg * const arg)
 {
   struct receiver_state * const rst = arg->rst;
   Heartbeat_t const * const msg = arg->msg;
-  struct proxy_writer * const pwr = arg->pwr;
+  struct ddsi_proxy_writer * const pwr = arg->pwr;
 
   ASSERT_MUTEX_HELD (&pwr->e.lock);
 
@@ -1248,7 +1248,7 @@ static int handle_Heartbeat (struct receiver_state *rst, ddsrt_etime_t tnow, str
   const seqno_t firstseq = fromSN (msg->firstSN);
   const seqno_t lastseq = fromSN (msg->lastSN);
   struct handle_Heartbeat_helper_arg arg;
-  struct proxy_writer *pwr;
+  struct ddsi_proxy_writer *pwr;
   struct lease *lease;
   ddsi_guid_t src, dst;
 
@@ -1334,16 +1334,16 @@ static int handle_Heartbeat (struct receiver_state *rst, ddsrt_etime_t tnow, str
 
   {
     struct nn_rdata *gap;
-    struct pwr_rd_match *wn;
+    struct ddsi_pwr_rd_match *wn;
     struct nn_rsample_chain sc;
     int refc_adjust = 0;
     nn_reorder_result_t res;
     gap = nn_rdata_newgap (rmsg);
     int filtered = 0;
 
-    if (pwr->filtered && !is_null_guid(&dst))
+    if (pwr->filtered && !ddsi_is_null_guid(&dst))
     {
-      for (wn = ddsrt_avl_find_min (&pwr_readers_treedef, &pwr->readers); wn; wn = ddsrt_avl_find_succ (&pwr_readers_treedef, &pwr->readers, wn))
+      for (wn = ddsrt_avl_find_min (&ddsi_pwr_readers_treedef, &pwr->readers); wn; wn = ddsrt_avl_find_succ (&ddsi_pwr_readers_treedef, &pwr->readers, wn))
       {
         if (guid_eq(&wn->rd_guid, &dst))
         {
@@ -1375,7 +1375,7 @@ static int handle_Heartbeat (struct receiver_state *rst, ddsrt_etime_t tnow, str
         else
           nn_dqueue_enqueue (pwr->dqueue, &sc, res);
       }
-      for (wn = ddsrt_avl_find_min (&pwr_readers_treedef, &pwr->readers); wn; wn = ddsrt_avl_find_succ (&pwr_readers_treedef, &pwr->readers, wn))
+      for (wn = ddsrt_avl_find_min (&ddsi_pwr_readers_treedef, &pwr->readers); wn; wn = ddsrt_avl_find_succ (&ddsi_pwr_readers_treedef, &pwr->readers, wn))
       {
         if (wn->in_sync == PRMSS_SYNC)
           continue;
@@ -1433,7 +1433,7 @@ static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(ddsrt_et
   const seqno_t seq = fromSN (msg->writerSN);
   const nn_fragment_number_t fragnum = msg->lastFragmentNum - 1; /* we do 0-based */
   ddsi_guid_t src, dst;
-  struct proxy_writer *pwr;
+  struct ddsi_proxy_writer *pwr;
   struct lease *lease;
 
   src.prefix = rst->src_guid_prefix;
@@ -1492,7 +1492,7 @@ static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(ddsrt_et
     RSTTRACE (" no readers");
   else
   {
-    struct pwr_rd_match *m = NULL;
+    struct ddsi_pwr_rd_match *m = NULL;
 
     if (nn_reorder_wantsample (pwr->reorder, seq))
     {
@@ -1503,7 +1503,7 @@ static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(ddsrt_et
            that reader requested.  So it makes sense to only interpret
            those for that reader, and to suppress the NackDelay in a
            response to it.  But it better be a reliable reader! */
-        m = ddsrt_avl_lookup (&pwr_readers_treedef, &pwr->readers, &dst);
+        m = ddsrt_avl_lookup (&ddsi_pwr_readers_treedef, &pwr->readers, &dst);
         if (m && m->acknack_xevent == NULL)
           m = NULL;
       }
@@ -1513,12 +1513,12 @@ static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(ddsrt_et
            assuming a reliable writer -> unreliable reader is rare, and
            so scanning the readers is acceptable if the first guess
            fails */
-        m = ddsrt_avl_root_non_empty (&pwr_readers_treedef, &pwr->readers);
+        m = ddsrt_avl_root_non_empty (&ddsi_pwr_readers_treedef, &pwr->readers);
         if (m->acknack_xevent == NULL)
         {
-          m = ddsrt_avl_find_min (&pwr_readers_treedef, &pwr->readers);
+          m = ddsrt_avl_find_min (&ddsi_pwr_readers_treedef, &pwr->readers);
           while (m && m->acknack_xevent == NULL)
-            m = ddsrt_avl_find_succ (&pwr_readers_treedef, &pwr->readers, m);
+            m = ddsrt_avl_find_succ (&ddsi_pwr_readers_treedef, &pwr->readers, m);
         }
       }
     }
@@ -1526,7 +1526,7 @@ static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(ddsrt_et
     {
       if (directed_heartbeat)
       {
-        m = ddsrt_avl_lookup (&pwr_readers_treedef, &pwr->readers, &dst);
+        m = ddsrt_avl_lookup (&ddsi_pwr_readers_treedef, &pwr->readers, &dst);
         if (m && !(m->in_sync == PRMSS_OUT_OF_SYNC && m->acknack_xevent != NULL && nn_reorder_wantsample (m->u.not_in_sync.reorder, seq)))
         {
           /* Ignore if reader is happy or not best-effort */
@@ -1537,7 +1537,7 @@ static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(ddsrt_et
       {
         /* Check out-of-sync readers -- should add a bit to cheaply test
          whether there are any (usually there aren't) */
-        m = ddsrt_avl_find_min (&pwr_readers_treedef, &pwr->readers);
+        m = ddsrt_avl_find_min (&ddsi_pwr_readers_treedef, &pwr->readers);
         while (m)
         {
           if (m->in_sync == PRMSS_OUT_OF_SYNC && m->acknack_xevent != NULL && nn_reorder_wantsample (m->u.not_in_sync.reorder, seq))
@@ -1547,7 +1547,7 @@ static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(ddsrt_et
              reader to decide which fragments to nack */
             break;
           }
-          m = ddsrt_avl_find_succ (&pwr_readers_treedef, &pwr->readers, m);
+          m = ddsrt_avl_find_succ (&ddsi_pwr_readers_treedef, &pwr->readers, m);
         }
       }
     }
@@ -1580,9 +1580,9 @@ static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(ddsrt_et
 
 static int handle_NackFrag (struct receiver_state *rst, ddsrt_etime_t tnow, const NackFrag_t *msg, SubmessageKind_t prev_smid, struct defer_hb_state *defer_hb_state)
 {
-  struct proxy_reader *prd;
-  struct wr_prd_match *rn;
-  struct writer *wr;
+  struct ddsi_proxy_reader *prd;
+  struct ddsi_wr_prd_match *rn;
+  struct ddsi_writer *wr;
   struct lease *lease;
   struct whc_borrowed_sample sample;
   ddsi_guid_t src, dst;
@@ -1636,7 +1636,7 @@ static int handle_NackFrag (struct receiver_state *rst, ddsrt_etime_t tnow, cons
   }
 
   ddsrt_mutex_lock (&wr->e.lock);
-  if ((rn = ddsrt_avl_lookup (&wr_readers_treedef, &wr->readers, &src)) == NULL)
+  if ((rn = ddsrt_avl_lookup (&ddsi_wr_readers_treedef, &wr->readers, &src)) == NULL)
   {
     RSTTRACE (" "PGUIDFMT" -> "PGUIDFMT" not a connection", PGUID (src), PGUID (dst));
     goto out;
@@ -1679,7 +1679,7 @@ static int handle_NackFrag (struct receiver_state *rst, ddsrt_etime_t tnow, cons
     if (sent && sample.unacked)
     {
       if (!wr->retransmitting)
-        writer_set_retransmitting (wr);
+        ddsi_writer_set_retransmitting (wr);
     }
     whc_return_sample (wr->whc, &sample, false);
   }
@@ -1694,7 +1694,7 @@ static int handle_NackFrag (struct receiver_state *rst, ddsrt_etime_t tnow, cons
     add_Gap (m, wr, prd, seq, seq+1, 0, &zero);
     qxev_msg (wr->evq, m);
   }
-  if (seq <= writer_read_seq_xmit (wr))
+  if (seq <= ddsi_writer_read_seq_xmit (wr))
   {
     /* Not everything was retransmitted yet, so force a heartbeat out
        to give the reader a chance to nack the rest and make sure
@@ -1725,9 +1725,9 @@ static int handle_InfoDST (struct receiver_state *rst, const InfoDST_t *msg, con
   {
     ddsi_guid_t dst;
     dst.prefix = rst->dst_guid_prefix;
-    dst.entityid = to_entityid(NN_ENTITYID_PARTICIPANT);
+    dst.entityid = ddsi_to_entityid(NN_ENTITYID_PARTICIPANT);
     rst->forme = (entidx_lookup_participant_guid (rst->gv->entity_index, &dst) != NULL ||
-                  is_deleted_participant_guid (rst->gv->deleted_participants, &dst, DPG_LOCAL));
+                  ddsi_is_deleted_participant_guid (rst->gv->deleted_participants, &dst, DPG_LOCAL));
   }
   return 1;
 }
@@ -1760,7 +1760,7 @@ static int handle_InfoTS (const struct receiver_state *rst, const InfoTS_t *msg,
   return 1;
 }
 
-static int handle_one_gap (struct proxy_writer *pwr, struct pwr_rd_match *wn, seqno_t a, seqno_t b, struct nn_rdata *gap, int *refc_adjust)
+static int handle_one_gap (struct ddsi_proxy_writer *pwr, struct ddsi_pwr_rd_match *wn, seqno_t a, seqno_t b, struct nn_rdata *gap, int *refc_adjust)
 {
   struct nn_rsample_chain sc;
   nn_reorder_result_t res = 0;
@@ -1847,8 +1847,8 @@ static int handle_Gap (struct receiver_state *rst, ddsrt_etime_t tnow, struct nn
      Option 1 can be fairly expensive if there are many readers, so we
      do option 2. */
 
-  struct proxy_writer *pwr;
-  struct pwr_rd_match *wn;
+  struct ddsi_proxy_writer *pwr;
+  struct ddsi_pwr_rd_match *wn;
   struct lease *lease;
   ddsi_guid_t src, dst;
   seqno_t gapstart, listbase;
@@ -1897,7 +1897,7 @@ static int handle_Gap (struct receiver_state *rst, ddsrt_etime_t tnow, struct nn
     lease_renew (lease, tnow);
 
   ddsrt_mutex_lock (&pwr->e.lock);
-  if ((wn = ddsrt_avl_lookup (&pwr_readers_treedef, &pwr->readers, &dst)) == NULL)
+  if ((wn = ddsrt_avl_lookup (&ddsi_pwr_readers_treedef, &pwr->readers, &dst)) == NULL)
   {
     RSTTRACE (PGUIDFMT" -> "PGUIDFMT" not a connection)", PGUID (src), PGUID (dst));
     ddsrt_mutex_unlock (&pwr->e.lock);
@@ -2010,7 +2010,7 @@ static struct ddsi_serdata *remote_make_sample (struct ddsi_tkmap_instance **tk,
     /* normal write */
     if (!(data_smhdr_flags & DATA_FLAG_DATAFLAG) || sampleinfo->size == 0)
     {
-      const struct proxy_writer *pwr = sampleinfo->pwr;
+      const struct ddsi_proxy_writer *pwr = sampleinfo->pwr;
       ddsi_guid_t guid;
       /* pwr can't currently be null, but that might change some day, and this being
          an error path, it doesn't hurt to survive that */
@@ -2068,7 +2068,7 @@ static struct ddsi_serdata *remote_make_sample (struct ddsi_tkmap_instance **tk,
   if (sample == NULL)
   {
     /* No message => error out */
-    const struct proxy_writer *pwr = sampleinfo->pwr;
+    const struct ddsi_proxy_writer *pwr = sampleinfo->pwr;
     ddsi_guid_t guid;
     if (pwr) guid = pwr->e.guid; else memset (&guid, 0, sizeof (guid));
     DDS_CWARNING (&gv->logconfig,
@@ -2087,7 +2087,7 @@ static struct ddsi_serdata *remote_make_sample (struct ddsi_tkmap_instance **tk,
     }
     else if (gv->logconfig.c.mask & DDS_LC_TRACE)
     {
-      const struct proxy_writer *pwr = sampleinfo->pwr;
+      const struct ddsi_proxy_writer *pwr = sampleinfo->pwr;
       ddsi_guid_t guid;
       char tmp[1024];
       size_t res = 0;
@@ -2126,29 +2126,29 @@ unsigned char normalize_data_datafrag_flags (const SubmessageHeader_t *smhdr)
   }
 }
 
-static struct reader *proxy_writer_first_in_sync_reader (struct entity_index *entity_index, struct entity_common *pwrcmn, ddsrt_avl_iter_t *it)
+static struct ddsi_reader *proxy_writer_first_in_sync_reader (struct entity_index *entity_index, struct ddsi_entity_common *pwrcmn, ddsrt_avl_iter_t *it)
 {
-  assert (pwrcmn->kind == EK_PROXY_WRITER);
-  struct proxy_writer *pwr = (struct proxy_writer *) pwrcmn;
-  struct pwr_rd_match *m;
-  struct reader *rd;
-  for (m = ddsrt_avl_iter_first (&pwr_readers_treedef, &pwr->readers, it); m != NULL; m = ddsrt_avl_iter_next (it))
+  assert (pwrcmn->kind == DDSI_EK_PROXY_WRITER);
+  struct ddsi_proxy_writer *pwr = (struct ddsi_proxy_writer *) pwrcmn;
+  struct ddsi_pwr_rd_match *m;
+  struct ddsi_reader *rd;
+  for (m = ddsrt_avl_iter_first (&ddsi_pwr_readers_treedef, &pwr->readers, it); m != NULL; m = ddsrt_avl_iter_next (it))
     if (m->in_sync == PRMSS_SYNC && (rd = entidx_lookup_reader_guid (entity_index, &m->rd_guid)) != NULL)
       return rd;
   return NULL;
 }
 
-static struct reader *proxy_writer_next_in_sync_reader (struct entity_index *entity_index, ddsrt_avl_iter_t *it)
+static struct ddsi_reader *proxy_writer_next_in_sync_reader (struct entity_index *entity_index, ddsrt_avl_iter_t *it)
 {
-  struct pwr_rd_match *m;
-  struct reader *rd;
+  struct ddsi_pwr_rd_match *m;
+  struct ddsi_reader *rd;
   for (m = ddsrt_avl_iter_next (it); m != NULL; m = ddsrt_avl_iter_next (it))
     if (m->in_sync == PRMSS_SYNC && (rd = entidx_lookup_reader_guid (entity_index, &m->rd_guid)) != NULL)
       return rd;
   return NULL;
 }
 
-static dds_return_t remote_on_delivery_failure_fastpath (struct entity_common *source_entity, bool source_entity_locked, struct local_reader_ary *fastpath_rdary, void *vsourceinfo)
+static dds_return_t remote_on_delivery_failure_fastpath (struct ddsi_entity_common *source_entity, bool source_entity_locked, struct ddsi_local_reader_ary *fastpath_rdary, void *vsourceinfo)
 {
   (void) vsourceinfo;
   ddsrt_mutex_unlock (&fastpath_rdary->rdary_lock);
@@ -2173,7 +2173,7 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
   };
   struct receiver_state const * const rst = sampleinfo->rst;
   struct ddsi_domaingv * const gv = rst->gv;
-  struct proxy_writer * const pwr = sampleinfo->pwr;
+  struct ddsi_proxy_writer * const pwr = sampleinfo->pwr;
   unsigned statusinfo;
   Data_DataFrag_common_t *msg;
   unsigned char data_smhdr_flags;
@@ -2190,7 +2190,7 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
      freshly malloced memory (see defragment()) ... that'll have to
      change eventually */
   assert (fragchain->min == 0);
-  assert (!is_builtin_entityid (pwr->e.guid.entityid, pwr->c.vendor));
+  assert (!ddsi_is_builtin_entityid (pwr->e.guid.entityid, pwr->c.vendor));
 
   /* Luckily, the Data header (up to inline QoS) is a prefix of the
      DataFrag header, so for the fixed-position things that we're
@@ -2287,13 +2287,13 @@ static void deliver_user_data_synchronously (struct nn_rsample_chain *sc, const 
   }
 }
 
-static void clean_defrag (struct proxy_writer *pwr)
+static void clean_defrag (struct ddsi_proxy_writer *pwr)
 {
   seqno_t seq = nn_reorder_next_seq (pwr->reorder);
   if (pwr->n_readers_out_of_sync > 0)
   {
-    struct pwr_rd_match *wn;
-    for (wn = ddsrt_avl_find_min (&pwr_readers_treedef, &pwr->readers); wn != NULL; wn = ddsrt_avl_find_succ (&pwr_readers_treedef, &pwr->readers, wn))
+    struct ddsi_pwr_rd_match *wn;
+    for (wn = ddsrt_avl_find_min (&ddsi_pwr_readers_treedef, &pwr->readers); wn != NULL; wn = ddsrt_avl_find_succ (&ddsi_pwr_readers_treedef, &pwr->readers, wn))
     {
       if (wn->in_sync == PRMSS_OUT_OF_SYNC)
       {
@@ -2309,7 +2309,7 @@ static void clean_defrag (struct proxy_writer *pwr)
 static void handle_regular (struct receiver_state *rst, ddsrt_etime_t tnow, struct nn_rmsg *rmsg, const Data_DataFrag_common_t *msg, const struct nn_rsample_info *sampleinfo,
     uint32_t max_fragnum_in_msg, struct nn_rdata *rdata, struct nn_dqueue **deferred_wakeup, bool renew_manbypp_lease)
 {
-  struct proxy_writer *pwr;
+  struct ddsi_proxy_writer *pwr;
   struct nn_rsample *rsample;
   ddsi_guid_t dst;
   struct lease *lease;
@@ -2347,7 +2347,7 @@ static void handle_regular (struct receiver_state *rst, ddsrt_etime_t tnow, stru
      (to avoid unnecessarily holding pwr->e.lock while invoking listeners on
      the reader) */
   if (!pwr->alive)
-    proxy_writer_set_alive_may_unlock (pwr, true);
+    ddsi_proxy_writer_set_alive_may_unlock (pwr, true);
 
   /* Don't accept data when reliable readers exist and we haven't yet seen
      a heartbeat telling us what the "current" sequence number of the writer
@@ -2395,12 +2395,12 @@ static void handle_regular (struct receiver_state *rst, ddsrt_etime_t tnow, stru
     struct nn_rsample_chain sc;
     struct nn_rdata *fragchain = nn_rsample_fragchain (rsample);
     nn_reorder_result_t rres, rres2;
-    struct pwr_rd_match *wn;
+    struct ddsi_pwr_rd_match *wn;
     int filtered = 0;
 
-    if (pwr->filtered && !is_null_guid(&dst))
+    if (pwr->filtered && !ddsi_is_null_guid(&dst))
     {
-      for (wn = ddsrt_avl_find_min (&pwr_readers_treedef, &pwr->readers); wn != NULL; wn = ddsrt_avl_find_succ (&pwr_readers_treedef, &pwr->readers, wn))
+      for (wn = ddsrt_avl_find_min (&ddsi_pwr_readers_treedef, &pwr->readers); wn != NULL; wn = ddsrt_avl_find_succ (&ddsi_pwr_readers_treedef, &pwr->readers, wn))
       {
         if (guid_eq(&wn->rd_guid, &dst))
         {
@@ -2479,7 +2479,7 @@ static void handle_regular (struct receiver_state *rst, ddsrt_etime_t tnow, stru
         ddsrt_avl_iter_t it;
         struct nn_rsample *rsample_dup = NULL;
         int reuse_rsample_dup = 0;
-        for (wn = ddsrt_avl_iter_first (&pwr_readers_treedef, &pwr->readers, &it); wn != NULL; wn = ddsrt_avl_iter_next (&it))
+        for (wn = ddsrt_avl_iter_first (&ddsi_pwr_readers_treedef, &pwr->readers, &it); wn != NULL; wn = ddsrt_avl_iter_next (&it))
         {
           if (wn->in_sync == PRMSS_SYNC)
             continue;
@@ -2556,7 +2556,7 @@ static int handle_SPDP (const struct nn_rsample_info *sampleinfo, struct nn_rdat
 
 static void drop_oversize (struct receiver_state *rst, struct nn_rmsg *rmsg, const Data_DataFrag_common_t *msg, struct nn_rsample_info *sampleinfo)
 {
-  struct proxy_writer *pwr = sampleinfo->pwr;
+  struct ddsi_proxy_writer *pwr = sampleinfo->pwr;
   if (pwr == NULL)
   {
     /* No proxy writer means nothing really gets done with, unless it
@@ -2579,14 +2579,14 @@ static void drop_oversize (struct receiver_state *rst, struct nn_rmsg *rmsg, con
     int refc_adjust = 0;
     struct nn_rdata *gap = nn_rdata_newgap (rmsg);
     ddsi_guid_t dst;
-    struct pwr_rd_match *wn;
+    struct ddsi_pwr_rd_match *wn;
     int gap_was_valuable;
 
     dst.prefix = rst->dst_guid_prefix;
     dst.entityid = msg->readerId;
 
     ddsrt_mutex_lock (&pwr->e.lock);
-    wn = ddsrt_avl_lookup (&pwr_readers_treedef, &pwr->readers, &dst);
+    wn = ddsrt_avl_lookup (&ddsi_pwr_readers_treedef, &pwr->readers, &dst);
     gap_was_valuable = handle_one_gap (pwr, wn, sampleinfo->seq, sampleinfo->seq+1, gap, &refc_adjust);
     nn_fragchain_adjust_refcount (gap, refc_adjust);
     ddsrt_mutex_unlock (&pwr->e.lock);
@@ -3376,7 +3376,7 @@ static void local_participant_set_fini (struct local_participant_set *lps)
 static void rebuild_local_participant_set (struct thread_state * const thrst, struct ddsi_domaingv *gv, struct local_participant_set *lps)
 {
   struct entidx_enum_participant est;
-  struct participant *pp;
+  struct ddsi_participant *pp;
   unsigned nps_alloc;
   GVTRACE ("pp set gen changed: local %"PRIu32" global %"PRIu32"\n", lps->gen, ddsrt_atomic_ld32 (&gv->participant_set_generation));
   thread_state_awake_fixed_domain (thrst);

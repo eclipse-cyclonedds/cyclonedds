@@ -117,7 +117,7 @@ static void topic_guid_map_unref (struct ddsi_domaingv * const gv, const struct 
   {
     ddsrt_hh_remove_present (ktp->topic_guid_map, m);
     thread_state_awake (lookup_thread_state (), gv);
-    (void) delete_topic (gv, &m->guid);
+    (void) ddsi_delete_topic (gv, &m->guid);
     thread_state_asleep (lookup_thread_state ());
     ddsi_typeid_fini (m->type_id);
     ddsrt_free (m->type_id);
@@ -254,9 +254,9 @@ static dds_return_t dds_topic_qos_set (dds_entity *e, const dds_qos_t *qos, bool
     /* parent pp is locked and protects ktp->topic_guid_map */
     for (struct ktopic_type_guid *obj = ddsrt_hh_iter_first(ktp->topic_guid_map, &it); obj; obj = ddsrt_hh_iter_next(&it))
     {
-      struct topic *ddsi_tp;
+      struct ddsi_topic *ddsi_tp;
       if ((ddsi_tp = entidx_lookup_topic_guid (e->m_domain->gv.entity_index, &obj->guid)) != NULL)
-        update_topic_qos (ddsi_tp, qos);
+        ddsi_update_topic_qos (ddsi_tp, qos);
     }
     thread_state_asleep (lookup_thread_state ());
   }
@@ -372,7 +372,7 @@ static bool register_topic_type_for_discovery (struct ddsi_domaingv * const gv, 
         key and a reference to a newly create ddsi topic entity */
     thread_state_awake (lookup_thread_state (), gv);
     const struct ddsi_guid * pp_guid = dds_entity_participant_guid (&pp->m_entity);
-    struct participant * pp_ddsi = entidx_lookup_participant_guid (gv->entity_index, pp_guid);
+    struct ddsi_participant * pp_ddsi = entidx_lookup_participant_guid (gv->entity_index, pp_guid);
 
     m = dds_alloc (sizeof (*m));
     m->type_id = type_id;
@@ -882,7 +882,7 @@ static dds_entity_t find_remote_topic_impl (dds_participant *pp_topic, const cha
   const struct ddsi_typeid *type_id = ddsi_typeinfo_complete_typeid (type_info);
   struct ddsi_type *resolved_type = NULL;
 
-  if ((ret = lookup_topic_definition (gv, name, type_id, &tpd)) != DDS_RETCODE_OK)
+  if ((ret = ddsi_lookup_topic_definition (gv, name, type_id, &tpd)) != DDS_RETCODE_OK)
     return ret;
   if (tpd == NULL)
     return DDS_RETCODE_OK;

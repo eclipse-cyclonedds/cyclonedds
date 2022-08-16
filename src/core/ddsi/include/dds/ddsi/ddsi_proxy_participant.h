@@ -28,11 +28,26 @@ extern "C" {
 struct lease;
 struct ddsi_plist;
 struct addrset;
-struct proxy_endpoint_common;
+struct ddsi_proxy_endpoint_common;
 
-struct proxy_participant
+/* Representing proxy subscriber & publishers as "groups": until DDSI2
+   gets a reason to care about these other than for the generation of
+   CM topics, there's little value in distinguishing between the two.
+   In another way, they're secondly-class citizens, too: "real"
+   entities are garbage collected and found using lock-free hash
+   tables, but "groups" only live in the context of a proxy
+   participant. */
+struct proxy_group {
+  ddsrt_avl_node_t avlnode;
+  ddsi_guid_t guid;
+  char *name;
+  struct ddsi_proxy_participant *proxypp; /* uncounted backref to proxy participant */
+  struct dds_qos *xqos; /* publisher/subscriber QoS */
+};
+
+struct ddsi_proxy_participant
 {
-  struct entity_common e;
+  struct ddsi_entity_common e;
   uint32_t refc; /* number of proxy endpoints (both user & built-in; not groups, they don't have a life of their own) */
   nn_vendorid_t vendor; /* vendor code from discovery */
   unsigned bes; /* built-in endpoint set */
@@ -45,7 +60,7 @@ struct proxy_participant
   struct lease *lease; /* lease for this proxypp */
   struct addrset *as_default; /* default address set to use for user data traffic */
   struct addrset *as_meta; /* default address set to use for discovery traffic */
-  struct proxy_endpoint_common *endpoints; /* all proxy endpoints can be reached from here */
+  struct ddsi_proxy_endpoint_common *endpoints; /* all proxy endpoints can be reached from here */
 #ifdef DDS_HAS_TOPIC_DISCOVERY
   proxy_topic_list_t topics;
 #endif
@@ -62,19 +77,9 @@ struct proxy_participant
   unsigned redundant_networking: 1; /* 1 iff requests receiving data on all advertised interfaces */
 #ifdef DDS_HAS_SECURITY
   nn_security_info_t security_info;
-  struct proxy_participant_sec_attributes *sec_attr;
+  struct ddsi_proxy_participant_sec_attributes *sec_attr;
 #endif
 };
-
-/* To create or delete a new proxy participant: "guid" MUST have the
-   pre-defined participant entity id. Unlike delete_participant(),
-   deleting a proxy participant will automatically delete all its
-   readers & writers. Delete removes the participant from a hash table
-   and schedules the actual deletion.
-
-      -- XX what about proxy participants without built-in endpoints?
-      XX --
-*/
 
 /* Set when this proxy participant is created implicitly and has to be deleted upon disappearance
    of its last endpoint.  FIXME: Currently there is a potential race with adding a new endpoint
@@ -88,17 +93,25 @@ struct proxy_participant
 /* Set when this proxy participant is not to be announced on the built-in topics yet */
 #define CF_PROXYPP_NO_SPDP                     (1 << 2)
 
-DDS_EXPORT bool new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, uint32_t bes, const struct ddsi_guid *privileged_pp_guid, struct addrset *as_default, struct addrset *as_meta, const struct ddsi_plist *plist, dds_duration_t tlease_dur, nn_vendorid_t vendor, unsigned custom_flags, ddsrt_wctime_t timestamp, seqno_t seq);
-DDS_EXPORT int delete_proxy_participant_by_guid (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, ddsrt_wctime_t timestamp, int isimplicit);
+int ddsi_update_proxy_participant_plist_locked (struct ddsi_proxy_participant *proxypp, seqno_t seq, const struct ddsi_plist *datap, ddsrt_wctime_t timestamp);
+void ddsi_proxy_participant_reassign_lease (struct ddsi_proxy_participant *proxypp, struct lease *newlease);
+void ddsi_purge_proxy_participants (struct ddsi_domaingv *gv, const ddsi_xlocator_t *loc, bool delete_from_as_disc);
+int ddsi_ref_proxy_participant (struct ddsi_proxy_participant *proxypp, struct ddsi_proxy_endpoint_common *c);
+void ddsi_unref_proxy_participant (struct ddsi_proxy_participant *proxypp, struct ddsi_proxy_endpoint_common *c);
+void ddsi_proxy_participant_add_pwr_lease_locked (struct ddsi_proxy_participant * proxypp, const struct ddsi_proxy_writer * pwr);
+void ddsi_proxy_participant_remove_pwr_lease_locked (struct ddsi_proxy_participant * proxypp, struct ddsi_proxy_writer * pwr);
 
-int update_proxy_participant_plist_locked (struct proxy_participant *proxypp, seqno_t seq, const struct ddsi_plist *datap, ddsrt_wctime_t timestamp);
-int update_proxy_participant_plist (struct proxy_participant *proxypp, seqno_t seq, const struct ddsi_plist *datap, ddsrt_wctime_t timestamp);
-void proxy_participant_reassign_lease (struct proxy_participant *proxypp, struct lease *newlease);
-void purge_proxy_participants (struct ddsi_domaingv *gv, const ddsi_xlocator_t *loc, bool delete_from_as_disc);
-int ref_proxy_participant (struct proxy_participant *proxypp, struct proxy_endpoint_common *c);
-void unref_proxy_participant (struct proxy_participant *proxypp, struct proxy_endpoint_common *c);
-void proxy_participant_add_pwr_lease_locked (struct proxy_participant * proxypp, const struct proxy_writer * pwr);
-void proxy_participant_remove_pwr_lease_locked (struct proxy_participant * proxypp, struct proxy_writer * pwr);
+/* To create or delete a new proxy participant: "guid" MUST have the
+   pre-defined participant entity id. Unlike ddsi_delete_participant (),
+   deleting a proxy participant will automatically delete all its
+   readers & writers. Delete removes the participant from a hash table
+   and schedules the actual deletion.
+
+   TODO: what about proxy participants without built-in endpoints?
+*/
+
+DDS_EXPORT bool ddsi_new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, uint32_t bes, const struct ddsi_guid *privileged_pp_guid, struct addrset *as_default, struct addrset *as_meta, const struct ddsi_plist *plist, dds_duration_t tlease_dur, nn_vendorid_t vendor, unsigned custom_flags, ddsrt_wctime_t timestamp, seqno_t seq);
+DDS_EXPORT int ddsi_delete_proxy_participant_by_guid (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, ddsrt_wctime_t timestamp, int isimplicit);
 
 #if defined (__cplusplus)
 }

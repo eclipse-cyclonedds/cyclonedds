@@ -39,7 +39,7 @@ struct nn_dqueue;
 struct ddsi_guid;
 struct ddsi_tran_conn;
 
-struct proxy_writer;
+struct ddsi_proxy_writer;
 
 struct nn_fragment_number_set;
 struct nn_sequence_number_set;
@@ -128,7 +128,7 @@ struct receiver_state {
 struct nn_rsample_info {
   seqno_t seq;
   struct receiver_state *rst;
-  struct proxy_writer *pwr;
+  struct ddsi_proxy_writer *pwr;
   uint32_t size;
   uint32_t fragsize;
   ddsrt_wctime_t timestamp;

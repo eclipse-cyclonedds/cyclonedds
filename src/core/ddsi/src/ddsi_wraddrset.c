@@ -119,7 +119,7 @@ static cover_info_t cover_get (const struct cover *c, int rdidx, int lidx)
 typedef int32_t cost_t;
 typedef int32_t delta_cost_t;
 
-typedef struct readercount_cost {
+typedef struct ddsi_readercount_cost {
   uint32_t nrds;
   cost_t cost;
 } readercount_cost_t;
@@ -189,15 +189,15 @@ static void locset_free (struct locset *ls)
   ddsrt_free (ls);
 }
 
-static struct addrset *wras_collect_all_locs (const struct writer *wr)
+static struct addrset *wras_collect_all_locs (const struct ddsi_writer *wr)
 {
   struct entity_index * const gh = wr->e.gv->entity_index;
   struct addrset *all_addrs = new_addrset ();
-  struct wr_prd_match *m;
+  struct ddsi_wr_prd_match *m;
   ddsrt_avl_iter_t it;
-  for (m = ddsrt_avl_iter_first (&wr_readers_treedef, &wr->readers, &it); m; m = ddsrt_avl_iter_next (&it))
+  for (m = ddsrt_avl_iter_first (&ddsi_wr_readers_treedef, &wr->readers, &it); m; m = ddsrt_avl_iter_next (&it))
   {
-    struct proxy_reader *prd;
+    struct ddsi_proxy_reader *prd;
     if ((prd = entidx_lookup_proxy_reader_guid (gh, &m->prd_guid)) == NULL)
       continue;
     copy_addrset_into_addrset (wr->e.gv, all_addrs, prd->c.as);
@@ -493,9 +493,9 @@ static bool wras_cover_locatorset (struct ddsi_domaingv const * const gv, struct
   return true;
 }
 
-static bool wras_calc_cover (const struct writer *wr, const struct locset *locs, struct cover **pcov) ddsrt_attribute_warn_unused_result;
+static bool wras_calc_cover (const struct ddsi_writer *wr, const struct locset *locs, struct cover **pcov) ddsrt_attribute_warn_unused_result;
 
-static bool wras_calc_cover (const struct writer *wr, const struct locset *locs, struct cover **pcov)
+static bool wras_calc_cover (const struct ddsi_writer *wr, const struct locset *locs, struct cover **pcov)
 {
   struct ddsi_domaingv * const gv = wr->e.gv;
   struct entity_index * const gh = gv->entity_index;
@@ -507,9 +507,9 @@ static bool wras_calc_cover (const struct writer *wr, const struct locset *locs,
   struct locset *work_locs = locset_new (locs->nlocs);
   int rdidx = 0;
   char rdletter = 'a', rddigit = '0';
-  for (struct wr_prd_match *m = ddsrt_avl_iter_first (&wr_readers_treedef, &wr->readers, &it); m; m = ddsrt_avl_iter_next (&it))
+  for (struct ddsi_wr_prd_match *m = ddsrt_avl_iter_first (&ddsi_wr_readers_treedef, &wr->readers, &it); m; m = ddsrt_avl_iter_next (&it))
   {
-    struct proxy_reader *prd;
+    struct ddsi_proxy_reader *prd;
     struct addrset *ass[] = { NULL, NULL, NULL };
     bool increment_rdidx = true;
     if ((prd = entidx_lookup_proxy_reader_guid (gh, &m->prd_guid)) == NULL)
@@ -742,7 +742,7 @@ static void wras_drop_covered_readers (int locidx, struct costmap *wm, struct co
   }
 }
 
-struct addrset *compute_writer_addrset (const struct writer *wr)
+struct addrset *compute_writer_addrset (const struct ddsi_writer *wr)
 {
   struct ddsi_domaingv * const gv = wr->e.gv;
   struct locset *locs;
