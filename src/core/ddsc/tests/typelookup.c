@@ -18,7 +18,7 @@
 #include "dds/version.h"
 #include "dds__domain.h"
 #include "dds__entity.h"
-#include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/ddsi_typelib.h"
 #include "dds/ddsrt/cdtors.h"

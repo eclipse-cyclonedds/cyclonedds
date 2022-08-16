@@ -22,7 +22,9 @@
 #include "dds/ddsi/q_transmit.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/ddsi_config_impl.h"
-#include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/ddsi_entity.h"
+#include "dds/ddsi/ddsi_entity_match.h"
+#include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_deliver_locally.h"
@@ -371,7 +373,7 @@ static size_t get_required_buffer_size(struct dds_topic *topic, const void *samp
   if (has_fixed_size_type) {
     return topic->m_stype->iox_size;
   }
-  
+
   return ddsi_sertype_get_serialized_size(topic->m_stype, (void*) sample);
 }
 
@@ -624,7 +626,7 @@ dds_return_t dds_writecdr_local_orphan_impl (struct local_orphan_writer *lowr, s
 #ifdef DDS_HAS_SHM
   assert (d->iox_chunk == NULL);
 #endif
-  
+
   // consumes 1 refc from din in all paths (weird, but ... history ...)
   // let refc(din) be r, so upon returning it must be r-1
   struct thread_state * const thrst = lookup_thread_state ();

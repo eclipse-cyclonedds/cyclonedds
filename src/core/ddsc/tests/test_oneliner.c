@@ -32,6 +32,8 @@
 #include "dds/ddsi/q_lease.h"
 #include "dds/ddsi/q_xevent.h"
 #include "dds/ddsi/ddsi_entity_index.h"
+#include "dds/ddsi/ddsi_participant.h"
+#include "dds/ddsi/ddsi_proxy_participant.h"
 
 #include "test_util.h"
 #include "test_oneliner.h"

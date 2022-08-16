@@ -21,7 +21,7 @@
 #include "dds/ddsrt/static_assert.h"
 
 #include "dds/dds.h"
-#include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/q_addrset.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds__entity.h"
@@ -251,11 +251,6 @@ static int get_current_match_count (dds_entity_t rd_or_wr)
     CU_ASSERT_FATAL (rc == 0 || rc == DDS_RETCODE_ILLEGAL_OPERATION);
     return -1;
   }
-}
-
-static int compare_guid (const void *a, const void *b)
-{
-  return memcmp (a, b, sizeof (dds_guid_t));
 }
 
 static bool allmatched (dds_entity_t ws, dds_entity_t wr, int nrds, const dds_entity_t rds[nrds])

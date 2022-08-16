@@ -18,7 +18,8 @@
 #include "dds/ddsrt/avl.h"
 
 #include "dds/ddsi/ddsi_plist.h"
-#include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/ddsi_entity.h"
+#include "dds/ddsi/ddsi_entity_match.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/q_xmsg.h"
@@ -41,14 +42,16 @@ typedef enum {
   NN_RTPS_MSG_STATE_ENCODED
 } nn_rtps_msg_state_t;
 
-#ifdef DDS_HAS_SECURITY
-
 struct ddsi_hsadmin;
 struct participant_sec_attributes;
 struct proxy_participant_sec_attributes;
 struct writer_sec_attributes;
 struct reader_sec_attributes;
 struct dds_security_context;
+struct topic;
+struct proxy_endpoint_common;
+
+#ifdef DDS_HAS_SECURITY
 
 typedef struct nn_msg_sec_info {
   unsigned encoded:1;
@@ -56,11 +59,6 @@ typedef struct nn_msg_sec_info {
   int64_t src_pp_handle;
   int64_t dst_pp_handle;
 } nn_msg_sec_info_t;
-
-
-
-
-
 
 struct pp_proxypp_match {
   ddsrt_avl_node_t avlnode;

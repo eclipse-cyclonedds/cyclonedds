@@ -12,7 +12,9 @@
 #include <assert.h>
 #include <string.h>
 #include "dds/ddsrt/string.h"
-#include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/ddsi_entity.h"
+#include "dds/ddsi/ddsi_topic.h"
+#include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/q_bswap.h"

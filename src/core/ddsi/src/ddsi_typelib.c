@@ -18,7 +18,8 @@
 #include <stdlib.h>
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
-#include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/ddsi_entity.h"
+#include "dds/ddsi/ddsi_entity_match.h"
 #include "dds/ddsi/q_misc.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/ddsi_cdrstream.h"

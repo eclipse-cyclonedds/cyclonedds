@@ -1,0 +1,201 @@
+/*
+ * Copyright(c) 2006 to 2022 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
+#include <assert.h>
+#include <string.h>
+#include <stddef.h>
+
+#include "dds/ddsrt/avl.h"
+#include "dds/ddsrt/string.h"
+
+#include "dds/ddsi/ddsi_entity.h"
+#include "dds/ddsi/ddsi_participant.h"
+#include "dds/ddsi/ddsi_proxy_participant.h"
+#include "dds/ddsi/ddsi_builtin_topic_if.h"
+#include "dds/ddsi/ddsi_domaingv.h"
+#include "dds/ddsi/ddsi_tkmap.h"
+#include "dds/ddsi/ddsi_iid.h"
+#include "dds/ddsi/ddsi_entity_index.h"
+#include "dds/ddsi/q_thread.h"
+
+DDS_EXPORT extern inline bool builtintopic_is_visible (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_guid *guid, nn_vendorid_t vendorid);
+DDS_EXPORT extern inline bool builtintopic_is_builtintopic (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_sertype *type);
+DDS_EXPORT extern inline struct ddsi_tkmap_instance *builtintopic_get_tkmap_entry (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_guid *guid);
+DDS_EXPORT extern inline void builtintopic_write_endpoint (const struct ddsi_builtin_topic_interface *btif, const struct entity_common *e, ddsrt_wctime_t timestamp, bool alive);
+DDS_EXPORT extern inline void builtintopic_write_topic (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_topic_definition *tpd, ddsrt_wctime_t timestamp, bool alive);
+
+DDS_EXPORT extern inline seqno_t writer_read_seq_xmit (const struct writer *wr);
+DDS_EXPORT extern inline void writer_update_seq_xmit (struct writer *wr, seqno_t nv);
+
+int compare_guid (const void *va, const void *vb)
+{
+  return memcmp (va, vb, sizeof (ddsi_guid_t));
+}
+
+bool is_null_guid (const ddsi_guid_t *guid)
+{
+  return guid->prefix.u[0] == 0 && guid->prefix.u[1] == 0 && guid->prefix.u[2] == 0 && guid->entityid.u == 0;
+}
+
+ddsi_entityid_t to_entityid (unsigned u)
+{
+  ddsi_entityid_t e;
+  e.u = u;
+  return e;
+}
+
+void entity_common_init (struct entity_common *e, struct ddsi_domaingv *gv, const struct ddsi_guid *guid, enum entity_kind kind, ddsrt_wctime_t tcreate, nn_vendorid_t vendorid, bool onlylocal)
+{
+  e->guid = *guid;
+  e->kind = kind;
+  e->tupdate = tcreate;
+  e->onlylocal = onlylocal;
+  e->gv = gv;
+  ddsrt_mutex_init (&e->lock);
+  ddsrt_mutex_init (&e->qos_lock);
+  if (builtintopic_is_visible (gv->builtin_topic_interface, guid, vendorid))
+  {
+    e->tk = builtintopic_get_tkmap_entry (gv->builtin_topic_interface, guid);
+    e->iid = e->tk->m_iid;
+  }
+  else
+  {
+    e->tk = NULL;
+    e->iid = ddsi_iid_gen ();
+  }
+}
+
+void entity_common_fini (struct entity_common *e)
+{
+  if (e->tk)
+    ddsi_tkmap_instance_unref (e->gv->m_tkmap, e->tk);
+  ddsrt_mutex_destroy (&e->qos_lock);
+  ddsrt_mutex_destroy (&e->lock);
+}
+
+nn_vendorid_t get_entity_vendorid (const struct entity_common *e)
+{
+  switch (e->kind)
+  {
+    case EK_PARTICIPANT:
+    case EK_TOPIC:
+    case EK_READER:
+    case EK_WRITER:
+      return NN_VENDORID_ECLIPSE;
+    case EK_PROXY_PARTICIPANT:
+      return ((const struct proxy_participant *) e)->vendor;
+    case EK_PROXY_READER:
+      return ((const struct proxy_reader *) e)->c.vendor;
+    case EK_PROXY_WRITER:
+      return ((const struct proxy_writer *) e)->c.vendor;
+  }
+  assert (0);
+  return NN_VENDORID_UNKNOWN;
+}
+
+int is_builtin_entityid (ddsi_entityid_t id, nn_vendorid_t vendorid)
+{
+  if ((id.u & NN_ENTITYID_SOURCE_MASK) == NN_ENTITYID_SOURCE_BUILTIN)
+    return 1;
+  else if ((id.u & NN_ENTITYID_SOURCE_MASK) != NN_ENTITYID_SOURCE_VENDOR)
+    return 0;
+  else if (!vendor_is_eclipse_or_adlink (vendorid))
+    return 0;
+  else
+  {
+    if ((id.u & NN_ENTITYID_KIND_MASK) == NN_ENTITYID_KIND_CYCLONE_TOPIC_USER)
+      return 0;
+    return 1;
+  }
+}
+
+bool update_qos_locked (struct entity_common *e, dds_qos_t *ent_qos, const dds_qos_t *xqos, ddsrt_wctime_t timestamp)
+{
+  uint64_t mask;
+
+  mask = ddsi_xqos_delta (ent_qos, xqos, QP_CHANGEABLE_MASK & ~(QP_RXO_MASK | QP_PARTITION)) & xqos->present;
+#if 0
+  int a = (ent_qos->present & QP_TOPIC_DATA) ? (int) ent_qos->topic_data.length : 6;
+  int b = (xqos->present & QP_TOPIC_DATA) ? (int) xqos->topic_data.length : 6;
+  char *astr = (ent_qos->present & QP_TOPIC_DATA) ? (char *) ent_qos->topic_data.value : "(null)";
+  char *bstr = (xqos->present & QP_TOPIC_DATA) ? (char *) xqos->topic_data.value : "(null)";
+  printf ("%d: "PGUIDFMT" ent_qos %d \"%*.*s\" xqos %d \"%*.*s\" => mask %d\n",
+          (int) getpid (), PGUID (e->guid),
+          !!(ent_qos->present & QP_TOPIC_DATA), a, a, astr,
+          !!(xqos->present & QP_TOPIC_DATA), b, b, bstr,
+          !!(mask & QP_TOPIC_DATA));
+#endif
+  EELOGDISC (e, "update_qos_locked "PGUIDFMT" delta=%"PRIu64" QOS={", PGUID(e->guid), mask);
+  ddsi_xqos_log (DDS_LC_DISCOVERY, &e->gv->logconfig, xqos);
+  EELOGDISC (e, "}\n");
+
+  if (mask == 0)
+    /* no change, or an as-yet unsupported one */
+    return false;
+
+  ddsrt_mutex_lock (&e->qos_lock);
+  ddsi_xqos_fini_mask (ent_qos, mask);
+  ddsi_xqos_mergein_missing (ent_qos, xqos, mask);
+  ddsrt_mutex_unlock (&e->qos_lock);
+  builtintopic_write_endpoint (e->gv->builtin_topic_interface, e, timestamp, true);
+  return true;
+}
+
+struct entity_common * get_entity_parent (struct entity_common *e)
+{
+  switch (e->kind)
+  {
+#ifdef DDS_HAS_TOPIC_DISCOVERY
+    case EK_TOPIC:
+      return &((struct topic *)e)->pp->e;
+#endif
+    case EK_WRITER:
+      return &((struct writer *)e)->c.pp->e;
+    case EK_READER:
+      return &((struct reader *)e)->c.pp->e;
+    case EK_PROXY_WRITER:
+      return &((struct proxy_writer *)e)->c.proxypp->e;
+    case EK_PROXY_READER:
+      return &((struct proxy_reader *)e)->c.proxypp->e;
+    case EK_PARTICIPANT:
+    case EK_PROXY_PARTICIPANT:
+    default:
+      return NULL;
+  }
+  return NULL;
+}
+
+uint64_t get_entity_instance_id (const struct ddsi_domaingv *gv, const struct ddsi_guid *guid)
+{
+  struct thread_state *thrst = lookup_thread_state ();
+  struct entity_common *e;
+  uint64_t iid = 0;
+  thread_state_awake (thrst, gv);
+  if ((e = entidx_lookup_guid_untyped (gv->entity_index, guid)) != NULL)
+    iid = e->iid;
+  thread_state_asleep (thrst);
+  return iid;
+}
+
+int set_topic_type_name (dds_qos_t *xqos, const char * topic_name, const char * type_name)
+{
+  if (!(xqos->present & QP_TYPE_NAME))
+  {
+    xqos->present |= QP_TYPE_NAME;
+    xqos->type_name = ddsrt_strdup (type_name);
+  }
+  if (!(xqos->present & QP_TOPIC_NAME))
+  {
+    xqos->present |= QP_TOPIC_NAME;
+    xqos->topic_name = ddsrt_strdup (topic_name);
+  }
+  return 0;
+}

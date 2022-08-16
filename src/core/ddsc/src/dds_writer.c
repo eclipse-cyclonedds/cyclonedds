@@ -17,7 +17,8 @@
 #include "dds/ddsrt/static_assert.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/ddsi_entity.h"
+#include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/ddsi_entity_index.h"
@@ -476,7 +477,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
     // NB: This may fail due to icoeryx being out of internal resources for publishers
     //     In this case terminate is called by iox_pub_init.
     //     it is currently (iceoryx 2.0 and lower) not possible to change this to
-    //     e.g. return a nullptr and handle the error here.   
+    //     e.g. return a nullptr and handle the error here.
     wr->m_iox_pub = iox_pub_init(&(iox_pub_storage_t){0}, gv->config.iceoryx_service, wr->m_topic->m_stype->type_name, wr->m_topic->m_name, &opts);
     memset(wr->m_iox_pub_loans, 0, sizeof(wr->m_iox_pub_loans));
   }

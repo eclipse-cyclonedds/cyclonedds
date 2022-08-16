@@ -14,7 +14,9 @@
 
 #include "dds/ddsrt/cdtors.h"
 #include "dds/ddsrt/environ.h"
-#include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/ddsi_entity.h"
+#include "dds/ddsi/ddsi_participant.h"
+#include "dds/ddsi/ddsi_proxy_endpoint.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_plist.h"

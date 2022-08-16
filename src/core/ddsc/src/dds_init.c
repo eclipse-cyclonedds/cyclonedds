@@ -27,7 +27,7 @@
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_threadmon.h"
-#include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/q_gc.h"
 #include "dds/ddsi/ddsi_domaingv.h"

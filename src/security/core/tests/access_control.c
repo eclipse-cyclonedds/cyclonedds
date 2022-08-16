@@ -28,6 +28,7 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_misc.h"
 #include "dds/ddsi/ddsi_xqos.h"
+#include "dds/ddsi/ddsi_participant.h"
 #include "dds__entity.h"
 
 #include "dds/security/dds_security_api.h"

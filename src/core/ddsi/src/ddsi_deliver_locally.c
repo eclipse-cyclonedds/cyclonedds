@@ -23,7 +23,7 @@
 #include "dds/ddsi/ddsi_rhc.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/ddsi_entity.h"
 
 #define TYPE_SAMPLE_CACHE_SIZE 4
 

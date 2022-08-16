@@ -17,7 +17,7 @@
 #include "dds/ddsc/dds_rhc.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/ddsi_entity_index.h"
-#include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_sertype.h"
 #include "dds/ddsi/ddsi_sertopic.h" // for extern ddsi_sertopic_serdata_ops_wrap

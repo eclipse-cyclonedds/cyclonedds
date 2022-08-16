@@ -18,7 +18,7 @@
 #include "dds/ddsrt/environ.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsi/ddsi_entity_index.h"
-#include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/q_whc.h"
 #include "dds__entity.h"
 

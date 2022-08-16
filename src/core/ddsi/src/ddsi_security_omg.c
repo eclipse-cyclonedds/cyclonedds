@@ -41,7 +41,11 @@
 #include "dds/security/core/dds_security_plugins.h"
 #include "dds/ddsrt/hopscotch.h"
 
-#include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/ddsi_entity.h"
+#include "dds/ddsi/ddsi_participant.h"
+#include "dds/ddsi/ddsi_proxy_participant.h"
+#include "dds/ddsi/ddsi_endpoint.h"
+#include "dds/ddsi/ddsi_proxy_endpoint.h"
 #include "dds/ddsi/q_xevent.h"
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/sysdeps.h"
@@ -222,7 +226,6 @@ struct dds_security_context {
 
 typedef struct dds_security_context dds_security_context;
 
-static int compare_guid(const void *va, const void *vb);
 static int compare_crypto_handle (const void *va, const void *vb);
 static int compare_guid_pair(const void *va, const void *vb);
 static int compare_pending_match_exptime (const void *va, const void *vb);
@@ -248,27 +251,14 @@ static int compare_crypto_handle (const void *va, const void *vb)
   return ((*ha > *hb) ? 1 : (*ha < *hb) ?  -1 : 0);
 }
 
-static int guid_compare (const ddsi_guid_t *guid1, const ddsi_guid_t *guid2)
-{
-  return memcmp (guid1, guid2, sizeof (ddsi_guid_t));
-}
-
-static int compare_guid(const void *va, const void *vb)
-{
-  const ddsi_guid_t *ga = va;
-  const ddsi_guid_t *gb = vb;
-
-  return guid_compare(ga, gb);
-}
-
 static int compare_guid_pair(const void *va, const void *vb)
 {
   const struct guid_pair *gpa = va;
   const struct guid_pair *gpb = vb;
   int r;
 
-  if ((r = guid_compare(&gpa->remote_guid, &gpb->remote_guid)) == 0)
-    r = guid_compare(&gpa->local_guid, &gpb->local_guid);
+  if ((r = compare_guid(&gpa->remote_guid, &gpb->remote_guid)) == 0)
+    r = compare_guid(&gpa->local_guid, &gpb->local_guid);
   return r;
 }
 
@@ -448,7 +438,7 @@ static void clear_pending_matches_by_local_guid(dds_security_context *sc, struct
   while (match)
   {
     struct pending_match *next = ddsrt_avl_find_succ(&pending_match_index_treedef, &index->pending_matches, match);
-    if (guid_compare(&match->guids.local_guid, local_guid) == 0)
+    if (compare_guid(&match->guids.local_guid, local_guid) == 0)
     {
       ddsrt_avl_delete(&pending_match_index_treedef, &index->pending_matches, match);
       if (match->expiry.v != DDS_NEVER)
@@ -468,7 +458,7 @@ static void clear_pending_matches_by_remote_guid(dds_security_context *sc, struc
 
   ddsrt_mutex_lock(&index->lock);
   match = ddsrt_avl_lookup_succ(&pending_match_index_treedef, &index->pending_matches, &template);
-  while (match && guid_compare(&match->guids.remote_guid, remote_guid) == 0)
+  while (match && compare_guid(&match->guids.remote_guid, remote_guid) == 0)
   {
     struct pending_match *next = ddsrt_avl_lookup_succ(&pending_match_index_treedef, &index->pending_matches, &match->guids);
     ddsrt_avl_delete(&pending_match_index_treedef, &index->pending_matches, match);

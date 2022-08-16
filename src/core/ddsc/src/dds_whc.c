@@ -32,7 +32,7 @@
 #include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/q_freelist.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/ddsi_entity.h"
 #include "dds__whc.h"
 #include "dds__entity.h"
 #include "dds__writer.h"

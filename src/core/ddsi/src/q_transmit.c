@@ -18,7 +18,9 @@
 #include "dds/ddsrt/static_assert.h"
 
 #include "dds/ddsrt/avl.h"
-#include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/ddsi_entity.h"
+#include "dds/ddsi/ddsi_participant.h"
+#include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/q_addrset.h"
 #include "dds/ddsi/q_xmsg.h"
@@ -29,7 +31,6 @@
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_transmit.h"
-#include "dds/ddsi/q_entity.h"
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/q_hbcontrol.h"
 #include "dds/ddsi/q_receive.h"

@@ -17,6 +17,8 @@
 #include "dds__entity.h"
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_lease.h"
+#include "dds/ddsi/ddsi_entity.h"
+#include "dds/ddsi/ddsi_proxy_participant.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 
 #include "test_common.h"

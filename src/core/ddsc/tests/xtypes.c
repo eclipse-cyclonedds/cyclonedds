@@ -17,7 +17,10 @@
 
 #include "dds/version.h"
 #include "dds__entity.h"
-#include "dds/ddsi/q_entity.h"
+#include "dds/ddsi/ddsi_entity.h"
+#include "dds/ddsi/ddsi_entity_match.h"
+#include "dds/ddsi/ddsi_proxy_participant.h"
+#include "dds/ddsi/ddsi_proxy_endpoint.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/ddsi_typelib.h"
 #include "dds/ddsi/ddsi_xt_impl.h"
