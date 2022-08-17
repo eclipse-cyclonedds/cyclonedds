@@ -30,21 +30,6 @@ struct ddsi_plist;
 struct addrset;
 struct ddsi_proxy_endpoint_common;
 
-/* Representing proxy subscriber & publishers as "groups": until DDSI2
-   gets a reason to care about these other than for the generation of
-   CM topics, there's little value in distinguishing between the two.
-   In another way, they're secondly-class citizens, too: "real"
-   entities are garbage collected and found using lock-free hash
-   tables, but "groups" only live in the context of a proxy
-   participant. */
-struct proxy_group {
-  ddsrt_avl_node_t avlnode;
-  ddsi_guid_t guid;
-  char *name;
-  struct ddsi_proxy_participant *proxypp; /* uncounted backref to proxy participant */
-  struct dds_qos *xqos; /* publisher/subscriber QoS */
-};
-
 struct ddsi_proxy_participant
 {
   struct ddsi_entity_common e;
@@ -64,7 +49,6 @@ struct ddsi_proxy_participant
 #ifdef DDS_HAS_TOPIC_DISCOVERY
   proxy_topic_list_t topics;
 #endif
-  ddsrt_avl_tree_t groups; /* table of all groups (publisher, subscriber), see struct proxy_group */
   seqno_t seq; /* sequence number of most recent SPDP message */
   uint32_t receive_buffer_size; /* assumed size of receive buffer, used to limit bursts involving this proxypp */
   unsigned implicitly_created : 1; /* participants are implicitly created for Cloud/Fog discovered endpoints */
