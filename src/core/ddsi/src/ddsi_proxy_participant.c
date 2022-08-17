@@ -34,9 +34,6 @@ typedef struct proxy_purge_data {
   ddsrt_wctime_t timestamp;
 } *proxy_purge_data_t;
 
-const ddsrt_avl_treedef_t proxypp_groups_treedef =
-  DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct proxy_group, avlnode), offsetof (struct proxy_group, guid), ddsi_compare_guid, 0);
-
 static void proxy_participant_replace_minl (struct ddsi_proxy_participant *proxypp, bool manbypp, struct lease *lnew)
 {
   /* By loading/storing the pointer atomically, we ensure we always
@@ -426,7 +423,6 @@ bool ddsi_new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_gui
 #endif
   proxypp->plist = ddsi_plist_dup (plist);
   ddsi_xqos_mergein_missing (&proxypp->plist->qos, &ddsi_default_plist_participant.qos, ~(uint64_t)0);
-  ddsrt_avl_init (&proxypp_groups_treedef, &proxypp->groups);
 
 #ifdef DDS_HAS_SECURITY
   proxypp->sec_attr = NULL;
