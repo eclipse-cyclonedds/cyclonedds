@@ -877,7 +877,10 @@ static dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domai
 
   pp->m_conn = ppconn;
   if (gv->config.many_sockets_mode == DDSI_MSM_MANY_UNICAST)
+  {
+    assert (pp->m_conn);
     ddsi_conn_locator (pp->m_conn, &pp->m_locator);
+  }
 
   ddsrt_fibheap_init (&lease_fhdef_pp, &pp->leaseheap_man);
   ddsrt_atomic_stvoidp (&pp->minl_man, NULL);
