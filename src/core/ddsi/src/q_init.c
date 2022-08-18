@@ -2112,10 +2112,9 @@ void rtps_stop (struct ddsi_domaingv *gv)
   }
 
   /* Once the receive threads have stopped, defragmentation and
-     reorder state can't change anymore, and can be freed safely. */
-  nn_reorder_free (gv->spdp_reorder);
-  nn_defrag_free (gv->spdp_defrag);
-  ddsrt_mutex_destroy (&gv->spdp_lock);
+     reorder state can't change anymore, and can be freed safely.
+     We don't do that here because it means rtps_init/rtps_fini
+     allow will leak it. */
 
   {
     struct entidx_enum_proxy_participant est;
@@ -2208,6 +2207,13 @@ void rtps_stop (struct ddsi_domaingv *gv)
 
 void rtps_fini (struct ddsi_domaingv *gv)
 {
+  /* The receive threads have already been stopped, therefore
+     defragmentation and reorder state can't change anymore and
+     can be freed. */
+  nn_reorder_free (gv->spdp_reorder);
+  nn_defrag_free (gv->spdp_defrag);
+  ddsrt_mutex_destroy (&gv->spdp_lock);
+
   /* Shut down the GC system -- no new requests will be added */
   gcreq_queue_free (gv->gcreq_queue);
 
