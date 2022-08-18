@@ -1860,7 +1860,8 @@ static void delete_last_sample (struct nn_reorder *reorder)
     /* Last sample is in an interval of its own - delete it, and
        recalc max_sampleiv. */
     TRACE (reorder, "  delete_last_sample: in singleton interval\n");
-    reorder->discarded_bytes += last->sc.first->sampleinfo->size;
+    if (last->sc.first->sampleinfo)
+      reorder->discarded_bytes += last->sc.first->sampleinfo->size;
     fragchain = last->sc.first->fragchain;
     ddsrt_avl_delete (&reorder_sampleivtree_treedef, &reorder->sampleivtree, reorder->max_sampleiv);
     reorder->max_sampleiv = ddsrt_avl_find_max (&reorder_sampleivtree_treedef, &reorder->sampleivtree);
@@ -1884,10 +1885,11 @@ static void delete_last_sample (struct nn_reorder *reorder)
       pe = e;
       e = e->next;
     } while (e != last->sc.last);
-    reorder->discarded_bytes += e->sampleinfo->size;
+    if (e->sampleinfo)
+      reorder->discarded_bytes += e->sampleinfo->size;
     fragchain = e->fragchain;
     pe->next = NULL;
-    assert (pe->sampleinfo->seq + 1 < last->maxp1);
+    assert (pe->sampleinfo == NULL || pe->sampleinfo->seq + 1 < last->maxp1);
     last->sc.last = pe;
     last->maxp1--;
     last->n_samples--;
