@@ -126,7 +126,14 @@ struct thread_states {
 };
 
 extern DDS_EXPORT struct thread_states thread_states;
+
+// thread_local cannot (and doesn't need to?) be exported on Windows
+#ifdef _WIN32
 extern ddsrt_thread_local struct thread_state *tsd_thread_state;
+#else
+extern DDS_EXPORT ddsrt_thread_local struct thread_state *tsd_thread_state;
+#endif
+
 
 DDS_EXPORT void thread_states_init (void);
 DDS_EXPORT bool thread_states_fini (void);

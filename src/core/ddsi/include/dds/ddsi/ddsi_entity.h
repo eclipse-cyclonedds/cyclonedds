@@ -120,11 +120,11 @@ struct ddsi_alive_state {
 };
 
 bool ddsi_is_null_guid (const ddsi_guid_t *guid);
-int ddsi_compare_guid (const void *va, const void *vb);
 int ddsi_is_builtin_entityid (ddsi_entityid_t id, nn_vendorid_t vendorid);
 bool ddsi_update_qos_locked (struct ddsi_entity_common *e, dds_qos_t *ent_qos, const dds_qos_t *xqos, ddsrt_wctime_t timestamp);
 int ddsi_set_topic_type_name (dds_qos_t *xqos, const char * topic_name, const char * type_name);
 
+DDS_EXPORT int ddsi_compare_guid (const void *va, const void *vb);
 DDS_EXPORT ddsi_entityid_t ddsi_to_entityid (unsigned u);
 DDS_EXPORT nn_vendorid_t ddsi_get_entity_vendorid (const struct ddsi_entity_common *e);
 DDS_EXPORT uint64_t ddsi_get_entity_instanceid (const struct ddsi_domaingv *gv, const struct ddsi_guid *guid);
