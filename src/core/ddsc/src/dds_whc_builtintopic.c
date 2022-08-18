@@ -46,7 +46,7 @@ struct bwhc_iter {
   struct entidx_enum it;
 #ifdef DDS_HAS_TOPIC_DISCOVERY
   struct ddsi_proxy_participant *cur_proxypp;
-  proxy_topic_list_iter_t proxytp_it;
+  ddsi_entityid_t proxytp_eid;
 #endif
 };
 
@@ -83,7 +83,9 @@ static bool bwhc_sample_iter_borrow_next_proxy_topic (struct bwhc_iter * const i
     ddsrt_mutex_lock (&it->cur_proxypp->e.lock);
     do
     {
-      proxytp = proxy_topic_list_iter_next (&it->proxytp_it);
+      proxytp = ddsrt_avl_lookup_succ (&ddsi_proxypp_proxytp_treedef, &it->cur_proxypp->topics, &it->proxytp_eid);
+      if (proxytp != NULL)
+        it->proxytp_eid = proxytp->entityid;
     } while (proxytp != NULL && proxytp->deleted);
   }
   while (proxytp == NULL)
@@ -98,9 +100,12 @@ static bool bwhc_sample_iter_borrow_next_proxy_topic (struct bwhc_iter * const i
     ddsrt_mutex_lock (&it->cur_proxypp->e.lock);
 
     /* get first (non-deleted) topic for this proxypp */
-    proxytp = proxy_topic_list_iter_first (&it->cur_proxypp->topics, &it->proxytp_it);
+    ddsi_entityid_t eid = { .u = 0 };
+    proxytp = ddsrt_avl_lookup_succ (&ddsi_proxypp_proxytp_treedef, &it->cur_proxypp->topics, &eid);
     while (proxytp != NULL && proxytp->deleted)
-      proxytp = proxy_topic_list_iter_next (&it->proxytp_it);
+      proxytp = ddsrt_avl_lookup_succ (&ddsi_proxypp_proxytp_treedef, &it->cur_proxypp->topics, &proxytp->entityid);
+    if (proxytp != NULL)
+      it->proxytp_eid = proxytp->entityid;
   }
   /* next topic found, make sample and release proxypp lock */
   sample->serdata = dds__builtin_make_sample_proxy_topic (proxytp, proxytp->tupdate, true);

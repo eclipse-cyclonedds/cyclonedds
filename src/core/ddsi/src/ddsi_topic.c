@@ -36,10 +36,6 @@ static void unref_topic_definition (struct ddsi_domaingv *gv, struct ddsi_topic_
 
 static struct ddsi_topic_definition * new_topic_definition (struct ddsi_domaingv *gv, const struct ddsi_sertype *type, const struct dds_qos *qos);
 
-static int proxy_topic_equal (const struct ddsi_proxy_topic *proxy_tp_a, const struct ddsi_proxy_topic *proxy_tp_b);
-DDSI_LIST_GENERIC_PTR_DECL(inline, proxy_topic_list, struct ddsi_proxy_topic *, ddsrt_attribute_unused);
-DDSI_LIST_GENERIC_PTR_CODE(inline, proxy_topic_list, struct ddsi_proxy_topic *, proxy_topic_equal)
-
 #endif /* DDS_HAS_TOPIC_DISCOVERY */
 
 struct gc_proxy_tp {
@@ -420,24 +416,11 @@ dds_return_t ddsi_lookup_topic_definition (struct ddsi_domaingv *gv, const char 
 
 /* PROXY-TOPIC --------------------------------------------------- */
 
-static int proxy_topic_equal (const struct ddsi_proxy_topic *proxy_tp_a, const struct ddsi_proxy_topic *proxy_tp_b)
-{
-  if (proxy_tp_a != NULL && proxy_tp_b != NULL)
-    return ddsi_topic_definition_equal (proxy_tp_a->definition, proxy_tp_b->definition);
-  return proxy_tp_a == proxy_tp_b;
-}
-
 struct ddsi_proxy_topic *ddsi_lookup_proxy_topic (struct ddsi_proxy_participant *proxypp, const ddsi_guid_t *guid)
 {
   assert (proxypp != NULL);
-  proxy_topic_list_iter_t it;
-  struct ddsi_proxy_topic *ptp = NULL;
   ddsrt_mutex_lock (&proxypp->e.lock);
-  for (struct ddsi_proxy_topic *proxytp = proxy_topic_list_iter_first (&proxypp->topics, &it); proxytp != NULL && !ptp; proxytp = proxy_topic_list_iter_next (&it))
-  {
-    if (proxytp->entityid.u == guid->entityid.u)
-      ptp = proxytp;
-  }
+  struct ddsi_proxy_topic *ptp = ddsrt_avl_lookup (&ddsi_proxypp_proxytp_treedef, &proxypp->topics, &guid->entityid);
   ddsrt_mutex_unlock (&proxypp->e.lock);
   return ptp;
 }
@@ -465,7 +448,7 @@ dds_return_t ddsi_new_proxy_topic (struct ddsi_proxy_participant *proxypp, seqno
   proxytp->tupdate = timestamp;
   proxytp->deleted = 0;
   ddsrt_mutex_lock (&proxypp->e.lock);
-  proxy_topic_list_insert (&proxypp->topics, proxytp);
+  ddsrt_avl_insert (&ddsi_proxypp_proxytp_treedef, &proxypp->topics, proxytp);
   ddsrt_mutex_unlock (&proxypp->e.lock);
   if (new_tpd)
   {
@@ -540,7 +523,7 @@ static void gc_delete_proxy_topic (struct gcreq *gcreq)
   ddsrt_mutex_lock (&gv->topic_defs_lock);
   struct ddsi_topic_definition *tpd = gcdata->proxytp->definition;
   GVLOGDISC ("gc_delete_proxy_topic (%p)\n", (void *) gcdata->proxytp);
-  proxy_topic_list_remove (&gcdata->proxypp->topics, gcdata->proxytp);
+  ddsrt_avl_delete (&ddsi_proxypp_proxytp_treedef, &gcdata->proxypp->topics, gcdata->proxytp);
   unref_topic_definition_locked (tpd, gcdata->timestamp);
   ddsrt_free (gcdata->proxytp);
   ddsrt_mutex_unlock (&gv->topic_defs_lock);

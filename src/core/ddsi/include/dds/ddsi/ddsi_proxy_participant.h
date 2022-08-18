@@ -20,6 +20,7 @@
 #include "dds/ddsrt/fibheap.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_entity.h"
+#include "dds/ddsi/ddsi_topic.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -47,7 +48,7 @@ struct ddsi_proxy_participant
   struct addrset *as_meta; /* default address set to use for discovery traffic */
   struct ddsi_proxy_endpoint_common *endpoints; /* all proxy endpoints can be reached from here */
 #ifdef DDS_HAS_TOPIC_DISCOVERY
-  proxy_topic_list_t topics;
+  ddsrt_avl_tree_t topics;
 #endif
   seqno_t seq; /* sequence number of most recent SPDP message */
   uint32_t receive_buffer_size; /* assumed size of receive buffer, used to limit bursts involving this proxypp */
@@ -64,6 +65,10 @@ struct ddsi_proxy_participant
   struct ddsi_proxy_participant_sec_attributes *sec_attr;
 #endif
 };
+
+#ifdef DDS_HAS_TOPIC_DISCOVERY
+extern const ddsrt_avl_treedef_t ddsi_proxypp_proxytp_treedef;
+#endif
 
 /* Set when this proxy participant is created implicitly and has to be deleted upon disappearance
    of its last endpoint.  FIXME: Currently there is a potential race with adding a new endpoint
