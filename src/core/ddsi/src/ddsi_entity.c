@@ -40,6 +40,11 @@ int ddsi_compare_guid (const void *va, const void *vb)
   return memcmp (va, vb, sizeof (ddsi_guid_t));
 }
 
+int ddsi_compare_entityid (const void *va, const void *vb)
+{
+  return memcmp (va, vb, sizeof (ddsi_entityid_t));
+}
+
 bool ddsi_is_null_guid (const ddsi_guid_t *guid)
 {
   return guid->prefix.u[0] == 0 && guid->prefix.u[1] == 0 && guid->prefix.u[2] == 0 && guid->entityid.u == 0;

@@ -78,11 +78,6 @@ typedef struct ddsi_type_pair
 #endif
 ddsi_type_pair_t;
 
-#ifdef DDS_HAS_TOPIC_DISCOVERY
-DDSI_LIST_GENERIC_PTR_TYPES(proxy_topic_list);
-DDSI_LIST_GENERIC_PTR_DECL(extern, proxy_topic_list, struct ddsi_proxy_topic *, ddsrt_attribute_unused);
-#endif
-
 struct ddsi_entity_common {
   enum ddsi_entity_kind kind;
   ddsi_guid_t guid;
@@ -123,6 +118,7 @@ bool ddsi_is_null_guid (const ddsi_guid_t *guid);
 int ddsi_is_builtin_entityid (ddsi_entityid_t id, nn_vendorid_t vendorid);
 bool ddsi_update_qos_locked (struct ddsi_entity_common *e, dds_qos_t *ent_qos, const dds_qos_t *xqos, ddsrt_wctime_t timestamp);
 int ddsi_set_topic_type_name (dds_qos_t *xqos, const char * topic_name, const char * type_name);
+int ddsi_compare_entityid (const void *a, const void *b);
 
 DDS_EXPORT int ddsi_compare_guid (const void *va, const void *vb);
 DDS_EXPORT ddsi_entityid_t ddsi_to_entityid (unsigned u);

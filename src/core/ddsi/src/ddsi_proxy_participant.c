@@ -14,6 +14,7 @@
 #include <stddef.h>
 
 #include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/avl.h"
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_entity_match.h"
 #include "dds/ddsi/ddsi_participant.h"
@@ -33,6 +34,11 @@ typedef struct proxy_purge_data {
   const ddsi_xlocator_t *loc;
   ddsrt_wctime_t timestamp;
 } *proxy_purge_data_t;
+
+#ifdef DDS_HAS_TOPIC_DISCOVERY
+const ddsrt_avl_treedef_t ddsi_proxypp_proxytp_treedef =
+  DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct ddsi_proxy_topic, avlnode), offsetof (struct ddsi_proxy_topic, entityid), ddsi_compare_entityid, 0);
+#endif
 
 static void proxy_participant_replace_minl (struct ddsi_proxy_participant *proxypp, bool manbypp, struct lease *lnew)
 {
@@ -419,7 +425,7 @@ bool ddsi_new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_gui
   proxypp->endpoints = NULL;
 
 #ifdef DDS_HAS_TOPIC_DISCOVERY
-  proxy_topic_list_init (&proxypp->topics);
+  ddsrt_avl_init (&ddsi_proxypp_proxytp_treedef, &proxypp->topics);
 #endif
   proxypp->plist = ddsi_plist_dup (plist);
   ddsi_xqos_mergein_missing (&proxypp->plist->qos, &ddsi_default_plist_participant.qos, ~(uint64_t)0);
@@ -534,7 +540,8 @@ void ddsi_unref_proxy_participant (struct ddsi_proxy_participant *proxypp, struc
 #ifdef DDS_HAS_TOPIC_DISCOVERY
     /* Last unref is called from gc_delete_proxy_participant, which is added to the gc queue after all proxy
        topic gc tasks. So we can safely assert that the proxy topic list is empty at this point */
-    assert (proxy_topic_list_count (&proxypp->topics) == 0);
+    assert (ddsrt_avl_is_empty (&proxypp->topics));
+    ddsrt_avl_free (&ddsi_proxypp_proxytp_treedef, &proxypp->topics, 0);
 #endif
     ddsrt_mutex_unlock (&proxypp->e.lock);
     ELOGDISC (proxypp, "ddsi_unref_proxy_participant("PGUIDFMT"): refc=0, freeing\n", PGUID (proxypp->e.guid));
@@ -544,7 +551,7 @@ void ddsi_unref_proxy_participant (struct ddsi_proxy_participant *proxypp, struc
   else if (
     proxypp->endpoints == NULL
 #ifdef DDS_HAS_TOPIC_DISCOVERY
-    && proxy_topic_list_count (&proxypp->topics) == 0
+    && ddsrt_avl_is_empty (&proxypp->topics)
 #endif
     && proxypp->implicitly_created)
   {
@@ -629,8 +636,8 @@ static void delete_ppt (struct ddsi_proxy_participant *proxypp, ddsrt_wctime_t t
     proxypp->lease_expired = 1;
 
 #ifdef DDS_HAS_TOPIC_DISCOVERY
-  proxy_topic_list_iter_t it;
-  for (struct ddsi_proxy_topic *proxytp = proxy_topic_list_iter_first (&proxypp->topics, &it); proxytp != NULL; proxytp = proxy_topic_list_iter_next (&it))
+  ddsrt_avl_iter_t it;
+  for (struct ddsi_proxy_topic *proxytp = ddsrt_avl_iter_first (&ddsi_proxypp_proxytp_treedef, &proxypp->topics, &it); proxytp != NULL; proxytp = ddsrt_avl_iter_next (&it))
     if (!proxytp->deleted)
       (void) ddsi_delete_proxy_topic_locked (proxypp, proxytp, timestamp);
 #endif
