@@ -85,12 +85,12 @@ typedef uint64_t seqno_t;
 
 struct cfgst;
 struct ddsi_domaingv;
-int rtps_config_prep (struct ddsi_domaingv *gv, struct cfgst *cfgst);
+DDS_EXPORT int rtps_config_prep (struct ddsi_domaingv *gv, struct cfgst *cfgst);
 int rtps_config_open_trace (struct ddsi_domaingv *gv);
-int rtps_init (struct ddsi_domaingv *gv);
+DDS_EXPORT int rtps_init (struct ddsi_domaingv *gv);
 int rtps_start (struct ddsi_domaingv *gv);
 void rtps_stop (struct ddsi_domaingv *gv);
-void rtps_fini (struct ddsi_domaingv *gv);
+DDS_EXPORT void rtps_fini (struct ddsi_domaingv *gv);
 
 DDS_EXPORT void ddsi_set_deafmute (struct ddsi_domaingv *gv, bool deaf, bool mute, int64_t reset_after);
 
