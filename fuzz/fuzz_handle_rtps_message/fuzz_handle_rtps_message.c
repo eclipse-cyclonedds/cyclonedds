@@ -75,10 +75,15 @@ int LLVMFuzzerTestOneInput(
   ddsi_iid_init();
   thread_states_init();
 
-  memset(&dds_global, 0, sizeof(dds_global));
-  memset(&gv, 0, sizeof(gv));
-  ddsrt_mutex_init(&dds_global.m_mutex);
+  // register the main thread, then claim it as spawned by Cyclone because the
+  // internal processing has various asserts that it isn't an application thread
+  // doing the dirty work
+  thrst = lookup_thread_state ();
+  assert (thrst->state == THREAD_STATE_LAZILY_CREATED);
+  thrst->state = THREAD_STATE_ALIVE;
+  ddsrt_atomic_stvoidp (&thrst->gv, &gv);
 
+  memset(&gv, 0, sizeof(gv));
   ddsi_config_init_default(&gv.config);
   gv.config.transport_selector = DDSI_TRANS_NONE;
 
@@ -95,10 +100,6 @@ int LLVMFuzzerTestOneInput(
   fakeconn->m_read_fn = &fakeconn_read;
   fakeconn->m_write_fn = &fakeconn_write;
 
-  thrst = lookup_thread_state();
-  thrst->state = THREAD_STATE_ALIVE;
-  ddsrt_atomic_stvoidp(&thrst->gv, &gv);
-
   rbpool = nn_rbufpool_new(&gv.logconfig, gv.config.rbuf_size, gv.config.rmsg_chunk_size);
   nn_rbufpool_setowner(rbpool, ddsrt_thread_self());
 
@@ -111,11 +112,14 @@ int LLVMFuzzerTestOneInput(
   ddsi_handle_rtps_message (thrst, &gv, fakeconn, &guidprefix, rbpool, rmsg, size, buff, &srcloc);
   nn_rmsg_commit (rmsg);
 
-  nn_reorder_free (gv.spdp_reorder);
-  nn_defrag_free (gv.spdp_defrag);
-
   rtps_fini(&gv);
   nn_rbufpool_free(rbpool);
   free (fakeconn);
+
+  // On shutdown there is an expectation that the thread was discovered dynamically.
+  // We overrode it in the setup code, we undo it now.
+  thrst->state = THREAD_STATE_LAZILY_CREATED;
+  thread_states_fini ();
+  ddsi_iid_fini ();
   return EXIT_SUCCESS;
 }
