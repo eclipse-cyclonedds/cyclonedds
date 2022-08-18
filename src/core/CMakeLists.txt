@@ -17,6 +17,8 @@ else()
   add_library(ddsc)
 endif()
 
+set_property(TARGET ddsc PROPERTY C_VISIBILITY_PRESET hidden)
+
 if("${CMAKE_C_COMPILER_ID}" STREQUAL "MSVC")
   target_link_libraries(ddsc PRIVATE dbghelp)
 endif()
