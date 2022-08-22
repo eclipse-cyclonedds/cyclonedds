@@ -69,7 +69,7 @@ CU_TheoryDataPoints(ddsc_topic_discovery, remote_topics) = {
     CU_DataPoints(bool,     false, false, false, false, false,  true,  true,  true,  true,  true, true, true), /* test live topic discovery */
 };
 
-CU_Theory ((uint32_t num_pp, uint32_t num_tp, bool hist_data, bool live_data), ddsc_topic_discovery, remote_topics, .init = topic_discovery_init, .fini = topic_discovery_fini, .timeout = 60)
+CU_Theory ((uint32_t num_pp, uint32_t num_tp, bool hist_data, bool live_data), ddsc_topic_discovery, remote_topics, .init = topic_discovery_init, .fini = topic_discovery_fini, .timeout = 180)
 {
   tprintf ("ddsc_topic_discovery.remote_topics: %u participants, %u topics,%s%s\n", num_pp, num_tp, hist_data ? " historical-data" : "", live_data ? " live-data" : "");
 
@@ -125,7 +125,7 @@ CU_Theory ((uint32_t num_pp, uint32_t num_tp, bool hist_data, bool live_data), d
   }
 
   /* read DCPSTopic and check if all topics seen */
-  dds_time_t t_exp = dds_time () + DDS_SECS (30);
+  dds_time_t t_exp = dds_time () + DDS_SECS (180);
   do
   {
     void *raw[1] = { 0 };
