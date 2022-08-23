@@ -38,6 +38,7 @@ static void setup (void)
   // internal processing has various asserts that it isn't an application thread
   // doing the dirty work
   thrst = lookup_thread_state ();
+  // coverity[missing_lock:FALSE]
   assert (thrst->state == THREAD_STATE_LAZILY_CREATED);
   thrst->state = THREAD_STATE_ALIVE;
   ddsrt_atomic_stvoidp (&thrst->gv, &gv);
@@ -62,6 +63,7 @@ static void teardown (void)
 
   // On shutdown, there is an expectation that the thread was discovered dynamically.
   // We overrode it in the setup code, we undo it now.
+  // coverity[missing_lock:FALSE]
   thrst->state = THREAD_STATE_LAZILY_CREATED;
   thread_states_fini ();
   ddsi_iid_fini ();
@@ -109,6 +111,8 @@ static void check_reorder (struct nn_reorder *reorder, uint64_t ndiscard, seqno_
 static void insert_sample (struct nn_defrag *defrag, struct nn_reorder *reorder, struct nn_rmsg *rmsg, struct receiver_state *rst, seqno_t seq)
 {
   struct nn_rsample_info *si = nn_rmsg_alloc (rmsg, sizeof (*si));
+  CU_ASSERT_FATAL (si != NULL);
+  assert (si);
   // only "seq" and "size" really matter
   memset (si, 0, sizeof (*si));
   si->rst = rst;
@@ -117,7 +121,7 @@ static void insert_sample (struct nn_defrag *defrag, struct nn_reorder *reorder,
   struct nn_rdata *rdata = nn_rdata_new (rmsg, 0, si->size, 0, 0, 0);
   struct nn_rsample *rsample = nn_defrag_rsample (defrag, rdata, si);
   CU_ASSERT_FATAL (rsample != NULL);
-  
+
   struct nn_rsample_chain sc;
   int refc_adjust = 0;
   struct nn_rdata *fragchain = nn_rsample_fragchain (rsample);

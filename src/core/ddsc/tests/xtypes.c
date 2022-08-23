@@ -626,6 +626,7 @@ CU_Test (ddsc_xtypes, invalid_top_level_local_hash, .init = xtypes_init, .fini =
 
   for (uint32_t n = 0; n < 6; n++)
   {
+    // coverity[store_writes_const_field]
     memcpy (&desc, &XSpace_to_toplevel_desc, sizeof (desc));
     typeinfo_deser (&ti, &desc.type_information);
     if (n % 2)
@@ -656,6 +657,7 @@ CU_Test (ddsc_xtypes, invalid_top_level_local_non_hash, .init = xtypes_init, .fi
   char topic_name[100];
 
   dds_topic_descriptor_t desc;
+  // coverity[store_writes_const_field]
   memcpy (&desc, &XSpace_to_toplevel_desc, sizeof (desc));
 
   DDS_XTypes_TypeInformation *ti;
@@ -720,6 +722,7 @@ static void mod_arraybound (dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectPair
 
 static void modify_type_meta (dds_topic_descriptor_t *dst_desc, const dds_topic_descriptor_t *src_desc, typeobj_modify mod, bool update_typeinfo, uint32_t kind)
 {
+  // coverity[store_writes_const_field]
   memcpy (dst_desc, src_desc, sizeof (*dst_desc));
 
   DDS_XTypes_TypeInformation *ti = NULL;
@@ -844,6 +847,7 @@ CU_Test (ddsc_xtypes, invalid_top_level_remote_hash, .init = xtypes_init, .fini 
   CU_ASSERT_FATAL (topic > 0);
 
   // create type id with invalid top-level
+  // coverity[store_writes_const_field]
   memcpy (&desc, &XSpace_to_toplevel_desc, sizeof (desc));
   typeinfo_deser (&ti, &desc.type_information);
   ddsi_typeid_fini_impl (&ti->minimal.typeid_with_size.type_id);
