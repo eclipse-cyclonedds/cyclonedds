@@ -42,7 +42,8 @@ int ddsi_compare_guid (const void *va, const void *vb)
 
 int ddsi_compare_entityid (const void *va, const void *vb)
 {
-  return memcmp (va, vb, sizeof (ddsi_entityid_t));
+  const ddsi_entityid_t *a = va, *b = vb;
+  return (a->u == b->u) ? 0 : ((a->u < b->u) ? -1 : 1);
 }
 
 bool ddsi_is_null_guid (const ddsi_guid_t *guid)

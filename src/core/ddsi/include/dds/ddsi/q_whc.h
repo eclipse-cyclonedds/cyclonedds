@@ -45,7 +45,7 @@ struct whc_state {
    an iter on the stack without specifying an implementation. If future changes or
    implementations require more, these can be adjusted.  An implementation should check
    things fit at compile time. */
-#define WHC_SAMPLE_ITER_SIZE (7 * sizeof(void *))
+#define WHC_SAMPLE_ITER_SIZE (8 * sizeof(void *))
 struct whc_sample_iter_base {
   struct whc *whc;
 };
