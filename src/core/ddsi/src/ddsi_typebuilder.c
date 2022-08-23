@@ -1816,6 +1816,7 @@ static dds_return_t get_topic_descriptor (dds_topic_descriptor_t *desc, struct t
     ret = DDS_RETCODE_OUT_OF_RESOURCES;
     goto err;
   }
+  // coverity[store_writes_const_field]
   memcpy (desc, &d, sizeof (*desc));
   ret = DDS_RETCODE_OK;
 
