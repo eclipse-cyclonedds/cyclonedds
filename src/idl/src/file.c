@@ -522,7 +522,7 @@ idl_retcode_t idl_generate_out_file(const char *path, const char *output_dir, co
     if (!(dir = idl_strndup(rel_path, print_len))) {
       goto err_rel_path;
     }
-    if (old_dir && old_dir[0] != '\0')
+    if (old_dir != empty)
       free(old_dir);
   }
 
