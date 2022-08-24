@@ -174,7 +174,7 @@ static idl_retcode_t push_line(idl_pstate_t *pstate, struct line *dir)
     pstate->scanner.position.source = src;
     pstate->scanner.position.file = src->path;
   } else {
-    if ((ret = push_file(pstate, dir->path)))
+    if (dir->path && (ret = push_file(pstate, dir->path)))
       return ret;
   }
 

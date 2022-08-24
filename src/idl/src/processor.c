@@ -255,7 +255,7 @@ idl_log(
   if (cnt == -1)
     return;
 
-  off = (size_t)cnt;
+  off = ((size_t)cnt > sizeof(buf)) ? sizeof(buf) : (size_t)cnt;
   cnt = vsnprintf(buf+off, sizeof(buf)-off, fmt, ap);
 
   if (cnt == -1)
