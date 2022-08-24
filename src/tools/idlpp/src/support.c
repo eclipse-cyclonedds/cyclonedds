@@ -1957,7 +1957,7 @@ static char *   get_line(
                 cfatal( "Too long logical line"             /* _F_  */
                         , NULL, 0L, NULL);
         }
-        if (*(ptr + len - 1) != '\n')   /* Unterminated source line */
+        if (len == 0 || *(ptr + len - 1) != '\n')   /* Unterminated source line */
             break;
         if (len >= 2 && *(ptr + len - 2) == '\r') {         /* [CR+LF]      */
             *(ptr + len - 2) = '\n';
@@ -2491,6 +2491,10 @@ static void do_msg(
                     sp += 2;            /* Skip two more bytes      */
                 break;
             case MAC_INF:
+#if COMPILER == IDLC
+                *tp++ = ' ';
+                /* Illegal control character, convert to a space*/
+#else
                 if (mcpp_mode != STD) {
                     *tp++ = ' ';
                     /* Illegal control character, convert to a space*/
@@ -2514,6 +2518,7 @@ static void do_msg(
                         break;
                     }
                 }
+#endif
                 break;
             case '\n':
                 *tp++ = ' ';            /* Convert '\n' to a space  */

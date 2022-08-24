@@ -3216,8 +3216,11 @@ int     do_include(
             if (header + PATHMAX < hp + (int) (workp - work_buf))
                 cfatal( toolong_fname, header, 0L, work_buf);
             hp = stpcpy( hp, work_buf);
-            while (char_type[ c = get_ch()] & HSP)
+            while (char_type[ c = get_ch()] & HSP) {
+                if (header + PATHMAX < hp + (int) (workp - work_buf))
+                    cfatal( toolong_fname, header, 0L, work_buf);
                 *hp++ = (char)c;
+            }
         }
         *hp = EOS;                          /* Ensure to terminate  */
         if (macro_line == MACRO_ERROR)      /* Unterminated macro   */
