@@ -1752,33 +1752,48 @@ generate_type_meta_ser (
   const idl_node_t *node,
   idl_typeinfo_typemap_t *result)
 {
+  if (NULL == result || NULL == pstate || NULL == node)
+    return IDL_RETCODE_BAD_PARAMETER;
+
   struct DDS_XTypes_TypeInformation type_information;
   dds_ostream_t os_typeinfo;
   dds_ostream_t os_typemap;
   idl_retcode_t rc;
+  bool typeinfo_generated = false;
 
-  if ((rc = generate_type_meta_ser_impl (pstate, node, &type_information, &os_typeinfo, &os_typemap)))
-    return rc;
+  if (IDL_RETCODE_OK == (rc = generate_type_meta_ser_impl (pstate, node, &type_information, &os_typeinfo, &os_typemap))) {
+    typeinfo_generated = true;
+    result->typeinfo_size = os_typeinfo.m_index;
+    if ((result->typeinfo = malloc (result->typeinfo_size)) != NULL)
+      memcpy (result->typeinfo, os_typeinfo.m_buffer, result->typeinfo_size);
+    else
+      rc = IDL_RETCODE_NO_MEMORY;
 
-  result->typeinfo = NULL;
-  result->typemap = NULL;
-  result->typeinfo_size = os_typeinfo.m_index;
-  result->typemap_size = os_typemap.m_index;
-  if ((result->typeinfo = malloc (result->typeinfo_size)) == NULL) {
-    rc = IDL_RETCODE_NO_MEMORY;
-    goto err_nomem;
+    result->typemap_size = os_typemap.m_index;
+    if ((result->typemap = malloc (result->typemap_size)) != NULL)
+      memcpy (result->typemap, os_typemap.m_buffer, result->typemap_size);
+    else
+      rc = IDL_RETCODE_NO_MEMORY;
   }
-  memcpy (result->typeinfo, os_typeinfo.m_buffer, result->typeinfo_size);
-  if ((result->typemap = malloc (result->typemap_size)) == NULL) {
-    rc = IDL_RETCODE_NO_MEMORY;
-    goto err_nomem;
-  }
-  memcpy (result->typemap, os_typemap.m_buffer, result->typemap_size);
 
-err_nomem:
-  xtypes_typeinfo_fini (&type_information);
-  dds_ostream_fini (&os_typeinfo);
-  dds_ostream_fini (&os_typemap);
+  if (IDL_RETCODE_OK != rc) {
+    if (result->typeinfo)
+      free (result->typeinfo);
+    result->typeinfo = NULL;
+    result->typeinfo_size = 0;
+
+    if (result->typemap)
+      free (result->typemap);
+    result->typemap = NULL;
+    result->typemap_size = 0;
+  }
+
+  if (typeinfo_generated) {
+    xtypes_typeinfo_fini (&type_information);
+    dds_ostream_fini (&os_typeinfo);
+    dds_ostream_fini (&os_typemap);
+  }
+
   return rc;
 }
 
