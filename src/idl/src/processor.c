@@ -256,6 +256,7 @@ idl_log(
     return;
 
   off = ((size_t)cnt > sizeof(buf)) ? sizeof(buf) : (size_t)cnt;
+  // coverity[overrun-local:FALSE]
   cnt = vsnprintf(buf+off, sizeof(buf)-off, fmt, ap);
 
   if (cnt == -1)
