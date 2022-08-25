@@ -169,7 +169,11 @@ static idl_retcode_t push_line(idl_pstate_t *pstate, struct line *dir)
       return ret;
   } else if (dir->flags & RETURN_TO_FILE) {
     const idl_source_t *src = pstate->scanner.position.source;
-    assert (src && src->parent);
+    assert (src);
+    if (!src->parent) {
+      idl_error(pstate, NULL, "Invalid line marker: cannot return to file '%s'", src->path->name);
+      return IDL_RETCODE_SYNTAX_ERROR;
+    }
     src = src->parent;
     pstate->scanner.position.source = src;
     pstate->scanner.position.file = src->path;
