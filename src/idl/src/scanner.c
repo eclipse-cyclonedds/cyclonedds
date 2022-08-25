@@ -308,7 +308,7 @@ scan_string_literal(idl_pstate_t *pstate, const char *cur, const char **lim)
       break;
   }
 
-  if (cnt < 0) {
+  if (cnt < 0 || need_refill(pstate, cur)) {
     return IDL_RETCODE_NEED_REFILL;
   } else if (cnt > 0) {
     error(pstate, cur, "unterminated string literal");

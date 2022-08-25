@@ -1738,15 +1738,17 @@ not_comment:
             /* Fall through */
         case '\t':                          /* Horizontal space     */
         case ' ':
+#if COMPILER != IDLC
             assert( tp > temp);    /* Loop executed at least 1 time */
+#endif
             if (keep_spaces) {
                 if (c == '\t')
                     *tp++ = '\t';
                 else
                     *tp++ = ' ';            /* Convert to ' '       */
-            } else if (! (char_type[ *(tp - 1) & UCHARMAX] & HSP)) {
+            } else if (tp > temp && ! (char_type[ *(tp - 1) & UCHARMAX] & HSP)) {
                 *tp++ = ' ';                /* Squeeze white spaces */
-            } else if (mcpp_mode == OLD_PREP && *(tp - 1) == COM_SEP) {
+            } else if (tp > temp && mcpp_mode == OLD_PREP && *(tp - 1) == COM_SEP) {
                 *(tp - 1) = ' ';    /* Replace COM_SEP with ' '     */
             }
             break;
