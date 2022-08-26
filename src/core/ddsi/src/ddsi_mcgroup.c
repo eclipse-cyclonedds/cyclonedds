@@ -129,7 +129,7 @@ static int unreg_group_membership (struct nn_group_membership *mship, ddsi_tran_
   return mustdel;
 }
 
-static char *make_joinleave_msg (char *buf, size_t bufsz, ddsi_tran_conn_t conn, int join, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc, const struct nn_interface *interf, int err)
+static char *make_joinleave_msg (char *buf, size_t bufsz, ddsi_tran_conn_t conn, int join, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc, const struct ddsi_network_interface *interf, int err)
 {
   char mcstr[DDSI_LOCSTRLEN], interfstr[DDSI_LOCSTRLEN];
   char srcstr[DDSI_LOCSTRLEN] = { '*', '\0' };
@@ -152,7 +152,7 @@ static char *make_joinleave_msg (char *buf, size_t bufsz, ddsi_tran_conn_t conn,
   return buf;
 }
 
-static int joinleave_mcgroup (ddsi_tran_conn_t conn, int join, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc, const struct nn_interface *interf)
+static int joinleave_mcgroup (ddsi_tran_conn_t conn, int join, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc, const struct ddsi_network_interface *interf)
 {
   if (interf && mcloc->kind != interf->loc.kind)
   {
@@ -177,7 +177,7 @@ static int joinleave_mcgroup (ddsi_tran_conn_t conn, int join, const ddsi_locato
   }
 }
 
-static int interface_in_recvips_p (const struct config_in_addr_node *recvips, const struct nn_interface *interf)
+static int interface_in_recvips_p (const struct config_in_addr_node *recvips, const struct ddsi_network_interface *interf)
 {
   const struct config_in_addr_node *nodeaddr;
   for (nodeaddr = recvips; nodeaddr; nodeaddr = nodeaddr->next)

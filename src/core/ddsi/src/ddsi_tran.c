@@ -167,7 +167,7 @@ void ddsi_conn_add_ref (ddsi_tran_conn_t conn)
   ddsrt_atomic_inc32 (&conn->m_count);
 }
 
-void ddsi_factory_conn_init (const struct ddsi_tran_factory *factory, const struct nn_interface *interf, ddsi_tran_conn_t conn)
+void ddsi_factory_conn_init (const struct ddsi_tran_factory *factory, const struct ddsi_network_interface *interf, ddsi_tran_conn_t conn)
 {
   ddsrt_atomic_st32 (&conn->m_count, 1);
   conn->m_connless = factory->m_connless;
@@ -193,12 +193,12 @@ bool ddsi_conn_peer_locator (ddsi_tran_conn_t conn, ddsi_locator_t * loc)
   return false;
 }
 
-int ddsi_conn_join_mc (ddsi_tran_conn_t conn, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc, const struct nn_interface *interf)
+int ddsi_conn_join_mc (ddsi_tran_conn_t conn, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc, const struct ddsi_network_interface *interf)
 {
   return conn->m_factory->m_join_mc_fn (conn, srcloc, mcloc, interf);
 }
 
-int ddsi_conn_leave_mc (ddsi_tran_conn_t conn, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc, const struct nn_interface *interf)
+int ddsi_conn_leave_mc (ddsi_tran_conn_t conn, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc, const struct ddsi_network_interface *interf)
 {
   return conn->m_factory->m_leave_mc_fn (conn, srcloc, mcloc, interf);
 }
@@ -255,7 +255,7 @@ int ddsi_is_ssm_mcaddr (const struct ddsi_domaingv *gv, const ddsi_locator_t *lo
   return 0;
 }
 
-enum ddsi_nearby_address_result ddsi_is_nearby_address (const struct ddsi_domaingv *gv, const ddsi_locator_t *loc, size_t ninterf, const struct nn_interface interf[], size_t *interf_idx)
+enum ddsi_nearby_address_result ddsi_is_nearby_address (const struct ddsi_domaingv *gv, const ddsi_locator_t *loc, size_t ninterf, const struct ddsi_network_interface interf[], size_t *interf_idx)
 {
   ddsi_tran_factory_t tran = ddsi_factory_find_supported_kind (gv, loc->kind);
   if (tran == NULL)

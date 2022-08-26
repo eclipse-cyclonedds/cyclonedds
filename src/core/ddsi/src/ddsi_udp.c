@@ -356,7 +356,7 @@ static dds_return_t set_sndbuf (struct ddsi_domaingv const * const gv, ddsrt_soc
   return set_socket_buffer (gv, sock, SO_SNDBUF, "SO_SNDBUF", "send", config, 65536);
 }
 
-static dds_return_t set_mc_options_transmit_ipv6 (struct ddsi_domaingv const * const gv, struct nn_interface const * const intf, ddsrt_socket_t sock)
+static dds_return_t set_mc_options_transmit_ipv6 (struct ddsi_domaingv const * const gv, struct ddsi_network_interface const * const intf, ddsrt_socket_t sock)
 {
   /* Function is a never-called no-op if IPv6 is not supported to keep the call-site a bit cleaner  */
 #if DDSRT_HAVE_IPV6
@@ -383,7 +383,7 @@ static dds_return_t set_mc_options_transmit_ipv6 (struct ddsi_domaingv const * c
 #endif
 }
 
-static dds_return_t set_mc_options_transmit_ipv4_if (struct ddsi_domaingv const * const gv, struct nn_interface const * const intf, ddsrt_socket_t sock)
+static dds_return_t set_mc_options_transmit_ipv4_if (struct ddsi_domaingv const * const gv, struct ddsi_network_interface const * const intf, ddsrt_socket_t sock)
 {
 #if (defined(__linux) || defined(__APPLE__)) && !LWIP_SOCKET
   if (gv->config.use_multicast_if_mreqn)
@@ -405,7 +405,7 @@ static dds_return_t set_mc_options_transmit_ipv4_if (struct ddsi_domaingv const 
   return ddsrt_setsockopt (sock, IPPROTO_IP, IP_MULTICAST_IF, intf->loc.address + 12, 4);
 }
 
-static dds_return_t set_mc_options_transmit_ipv4 (struct ddsi_domaingv const * const gv, struct nn_interface const * const intf, ddsrt_socket_t sock)
+static dds_return_t set_mc_options_transmit_ipv4 (struct ddsi_domaingv const * const gv, struct ddsi_network_interface const * const intf, ddsrt_socket_t sock)
 {
   const unsigned char ttl = (unsigned char) gv->config.multicast_ttl;
   const unsigned char loop = (unsigned char) !!gv->config.enableMulticastLoopback;
@@ -429,7 +429,7 @@ static dds_return_t ddsi_udp_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tran_
 {
   struct ddsi_udp_tran_factory *fact = (struct ddsi_udp_tran_factory *) fact_cmn;
   struct ddsi_domaingv const * const gv = fact->fact.gv;
-  struct nn_interface const * const intf = qos->m_interface ? qos->m_interface : &gv->interfaces[0];
+  struct ddsi_network_interface const * const intf = qos->m_interface ? qos->m_interface : &gv->interfaces[0];
 
   dds_return_t rc;
   ddsrt_socket_t sock;
@@ -596,7 +596,7 @@ fail_addrinuse:
   return DDS_RETCODE_PRECONDITION_NOT_MET;
 }
 
-static int joinleave_asm_mcgroup (ddsrt_socket_t socket, int join, const ddsi_locator_t *mcloc, const struct nn_interface *interf)
+static int joinleave_asm_mcgroup (ddsrt_socket_t socket, int join, const ddsi_locator_t *mcloc, const struct ddsi_network_interface *interf)
 {
   dds_return_t rc;
   union addr mcip;
@@ -625,7 +625,7 @@ static int joinleave_asm_mcgroup (ddsrt_socket_t socket, int join, const ddsi_lo
 }
 
 #ifdef DDS_HAS_SSM
-static int joinleave_ssm_mcgroup (ddsrt_socket_t socket, int join, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc, const struct nn_interface *interf)
+static int joinleave_ssm_mcgroup (ddsrt_socket_t socket, int join, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc, const struct ddsi_network_interface *interf)
 {
   dds_return_t rc;
   union addr mcip, srcip;
@@ -658,7 +658,7 @@ static int joinleave_ssm_mcgroup (ddsrt_socket_t socket, int join, const ddsi_lo
 }
 #endif
 
-static int ddsi_udp_join_mc (ddsi_tran_conn_t conn_cmn, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc, const struct nn_interface *interf)
+static int ddsi_udp_join_mc (ddsi_tran_conn_t conn_cmn, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc, const struct ddsi_network_interface *interf)
 {
   ddsi_udp_conn_t conn = (ddsi_udp_conn_t) conn_cmn;
   (void) srcloc;
@@ -670,7 +670,7 @@ static int ddsi_udp_join_mc (ddsi_tran_conn_t conn_cmn, const ddsi_locator_t *sr
     return joinleave_asm_mcgroup (conn->m_sock, 1, mcloc, interf);
 }
 
-static int ddsi_udp_leave_mc (ddsi_tran_conn_t conn_cmn, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc, const struct nn_interface *interf)
+static int ddsi_udp_leave_mc (ddsi_tran_conn_t conn_cmn, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc, const struct ddsi_network_interface *interf)
 {
   ddsi_udp_conn_t conn = (ddsi_udp_conn_t) conn_cmn;
   (void) srcloc;

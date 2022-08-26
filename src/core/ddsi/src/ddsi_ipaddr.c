@@ -55,7 +55,7 @@ int ddsi_ipaddr_compare (const struct sockaddr *const sa1, const struct sockaddr
   return eq;
 }
 
-enum ddsi_nearby_address_result ddsi_ipaddr_is_nearby_address (const ddsi_locator_t *loc, size_t ninterf, const struct nn_interface interf[], size_t *interf_idx)
+enum ddsi_nearby_address_result ddsi_ipaddr_is_nearby_address (const ddsi_locator_t *loc, size_t ninterf, const struct ddsi_network_interface interf[], size_t *interf_idx)
 {
   struct sockaddr_storage tmp, iftmp, xiftmp, nmtmp;
   ddsi_ipaddr_from_loc(&tmp, loc);
@@ -195,7 +195,7 @@ enum ddsi_locator_from_string_result ddsi_ipaddr_from_string (ddsi_locator_t *lo
   DDSRT_WARNING_MSVC_ON(4996);
 }
 
-char *ddsi_ipaddr_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc, int with_port, const struct nn_interface *interf)
+char *ddsi_ipaddr_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc, int with_port, const struct ddsi_network_interface *interf)
 {
   assert (sizeof_dst > 1);
   if (loc->kind == NN_LOCATOR_KIND_INVALID)

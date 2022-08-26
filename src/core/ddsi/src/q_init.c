@@ -1159,7 +1159,7 @@ static int iceoryx_init (struct ddsi_domaingv *gv)
     GVERROR ("maximum number of interfaces reached, can't add virtual one for iceoryx\n");
     return -1;
   }
-  struct nn_interface *intf = &gv->interfaces[gv->n_interfaces];
+  struct ddsi_network_interface *intf = &gv->interfaces[gv->n_interfaces];
   // Pick a (ideally unique, but it isn't actually used) interface index
   // Unix machines tend to use small integers, so this should be easy to recognize
   intf->if_index = 1000;
@@ -1555,7 +1555,7 @@ int rtps_init (struct ddsi_domaingv *gv)
     ddsrt_md5_append (&st, (const ddsrt_md5_byte_t *) &iid, sizeof (iid));
     for (int i = 0; i < gv->n_interfaces; i++)
     {
-      const struct nn_interface *intf = &gv->interfaces[i];
+      const struct ddsi_network_interface *intf = &gv->interfaces[i];
       ddsrt_md5_append (&st, (const ddsrt_md5_byte_t *) &intf->loc.kind, sizeof (intf->loc.kind));
       ddsrt_md5_append (&st, (const ddsrt_md5_byte_t *) intf->loc.address, sizeof (intf->loc.address));
     }

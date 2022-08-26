@@ -23,7 +23,7 @@
 extern "C" {
 #endif
 
-struct nn_interface;
+struct ddsi_network_interface;
 struct ddsi_domaingv;
 
 /* Types supporting handles */
@@ -61,8 +61,8 @@ typedef void (*ddsi_tran_release_conn_fn_t) (ddsi_tran_conn_t);
 typedef void (*ddsi_tran_close_conn_fn_t) (ddsi_tran_conn_t);
 typedef void (*ddsi_tran_unblock_listener_fn_t) (ddsi_tran_listener_t);
 typedef void (*ddsi_tran_release_listener_fn_t) (ddsi_tran_listener_t);
-typedef int (*ddsi_tran_join_mc_fn_t) (ddsi_tran_conn_t, const ddsi_locator_t *srcip, const ddsi_locator_t *mcip, const struct nn_interface *interf);
-typedef int (*ddsi_tran_leave_mc_fn_t) (ddsi_tran_conn_t, const ddsi_locator_t *srcip, const ddsi_locator_t *mcip, const struct nn_interface *interf);
+typedef int (*ddsi_tran_join_mc_fn_t) (ddsi_tran_conn_t, const ddsi_locator_t *srcip, const ddsi_locator_t *mcip, const struct ddsi_network_interface *interf);
+typedef int (*ddsi_tran_leave_mc_fn_t) (ddsi_tran_conn_t, const ddsi_locator_t *srcip, const ddsi_locator_t *mcip, const struct ddsi_network_interface *interf);
 typedef int (*ddsi_is_loopbackaddr_fn_t) (const struct ddsi_tran_factory *tran, const ddsi_locator_t *loc);
 typedef int (*ddsi_is_mcaddr_fn_t) (const struct ddsi_tran_factory *tran, const ddsi_locator_t *loc);
 typedef int (*ddsi_is_ssm_mcaddr_fn_t) (const struct ddsi_tran_factory *tran, const ddsi_locator_t *loc);
@@ -74,7 +74,7 @@ enum ddsi_nearby_address_result {
   DNAR_LOCAL
 };
 
-typedef enum ddsi_nearby_address_result (*ddsi_is_nearby_address_fn_t) (const ddsi_locator_t *loc, size_t ninterf, const struct nn_interface *interf, size_t *interf_idx);
+typedef enum ddsi_nearby_address_result (*ddsi_is_nearby_address_fn_t) (const ddsi_locator_t *loc, size_t ninterf, const struct ddsi_network_interface *interf, size_t *interf_idx);
 
 enum ddsi_locator_from_string_result {
   AFSR_OK,      /* conversion succeeded */
@@ -128,7 +128,7 @@ struct ddsi_tran_conn
 
   /* Relationships */
 
-  const struct nn_interface *m_interf;
+  const struct ddsi_network_interface *m_interf;
   ddsi_tran_factory_t m_factory;
   ddsi_tran_listener_t m_listener;
   ddsi_tran_conn_t m_conn;
@@ -224,7 +224,7 @@ struct ddsi_tran_qos
 {
   enum ddsi_tran_qos_purpose m_purpose;
   int m_diffserv;
-  struct nn_interface *m_interface; // only for purpose = XMIT
+  struct ddsi_network_interface *m_interface; // only for purpose = XMIT
 };
 
 void ddsi_tran_factories_fini (struct ddsi_domaingv *gv);
@@ -232,7 +232,7 @@ void ddsi_factory_add (struct ddsi_domaingv *gv, ddsi_tran_factory_t factory);
 void ddsi_factory_free (ddsi_tran_factory_t factory);
 ddsi_tran_factory_t ddsi_factory_find (const struct ddsi_domaingv *gv, const char * type);
 ddsi_tran_factory_t ddsi_factory_find_supported_kind (const struct ddsi_domaingv *gv, int32_t kind);
-void ddsi_factory_conn_init (const struct ddsi_tran_factory *factory, const struct nn_interface *interf, ddsi_tran_conn_t conn);
+void ddsi_factory_conn_init (const struct ddsi_tran_factory *factory, const struct ddsi_network_interface *interf, ddsi_tran_conn_t conn);
 
 inline bool ddsi_factory_supports (const struct ddsi_tran_factory *factory, int32_t kind) {
   return factory->m_supports_fn (factory, kind);
@@ -284,14 +284,14 @@ bool ddsi_conn_peer_locator (ddsi_tran_conn_t conn, ddsi_locator_t * loc);
 void ddsi_conn_disable_multiplexing (ddsi_tran_conn_t conn);
 void ddsi_conn_add_ref (ddsi_tran_conn_t conn);
 void ddsi_conn_free (ddsi_tran_conn_t conn);
-int ddsi_conn_join_mc (ddsi_tran_conn_t conn, const ddsi_locator_t *srcip, const ddsi_locator_t *mcip, const struct nn_interface *interf);
-int ddsi_conn_leave_mc (ddsi_tran_conn_t conn, const ddsi_locator_t *srcip, const ddsi_locator_t *mcip, const struct nn_interface *interf);
+int ddsi_conn_join_mc (ddsi_tran_conn_t conn, const ddsi_locator_t *srcip, const ddsi_locator_t *mcip, const struct ddsi_network_interface *interf);
+int ddsi_conn_leave_mc (ddsi_tran_conn_t conn, const ddsi_locator_t *srcip, const ddsi_locator_t *mcip, const struct ddsi_network_interface *interf);
 void ddsi_conn_transfer_group_membership (ddsi_tran_conn_t conn, ddsi_tran_conn_t newconn);
 int ddsi_conn_rejoin_transferred_mcgroups (ddsi_tran_conn_t conn);
 int ddsi_is_loopbackaddr (const struct ddsi_domaingv *gv, const ddsi_locator_t *loc);
 int ddsi_is_mcaddr (const struct ddsi_domaingv *gv, const ddsi_locator_t *loc);
 int ddsi_is_ssm_mcaddr (const struct ddsi_domaingv *gv, const ddsi_locator_t *loc);
-enum ddsi_nearby_address_result ddsi_is_nearby_address (const struct ddsi_domaingv *gv, const ddsi_locator_t *loc, size_t ninterf, const struct nn_interface *interf, size_t *interf_idx);
+enum ddsi_nearby_address_result ddsi_is_nearby_address (const struct ddsi_domaingv *gv, const ddsi_locator_t *loc, size_t ninterf, const struct ddsi_network_interface *interf, size_t *interf_idx);
 
 enum ddsi_locator_from_string_result ddsi_locator_from_string (const struct ddsi_domaingv *gv, ddsi_locator_t *loc, const char *str, ddsi_tran_factory_t default_factory);
 

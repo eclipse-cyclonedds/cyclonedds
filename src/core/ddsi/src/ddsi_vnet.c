@@ -72,7 +72,7 @@ static dds_return_t ddsi_vnet_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tran
   struct ddsi_vnet_tran_factory *fact = (struct ddsi_vnet_tran_factory *) fact_cmn;
   struct ddsi_domaingv const * const gv = fact->m_base.gv;
   struct ddsi_vnet_conn *x = ddsrt_malloc (sizeof (*x));
-  struct nn_interface const * const intf = qos->m_interface ? qos->m_interface : &gv->interfaces[0];
+  struct ddsi_network_interface const * const intf = qos->m_interface ? qos->m_interface : &gv->interfaces[0];
   memset (x, 0, sizeof (*x));
   
   ddsi_factory_conn_init (&fact->m_base, intf, &x->m_base);
@@ -103,7 +103,7 @@ static int ddsi_vnet_is_not (const struct ddsi_tran_factory *tran, const ddsi_lo
   return 0;
 }
 
-static enum ddsi_nearby_address_result ddsi_vnet_is_nearby_address (const ddsi_locator_t *loc, size_t ninterf, const struct nn_interface interf[], size_t *interf_idx)
+static enum ddsi_nearby_address_result ddsi_vnet_is_nearby_address (const ddsi_locator_t *loc, size_t ninterf, const struct ddsi_network_interface interf[], size_t *interf_idx)
 {
   for (size_t i = 0; i < ninterf; i++)
   {
