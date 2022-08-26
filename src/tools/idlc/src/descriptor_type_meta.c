@@ -1770,6 +1770,7 @@ generate_type_meta_ser (
   }
   memcpy (result->typeinfo, os_typeinfo.m_buffer, result->typeinfo_size);
   if ((result->typemap = malloc (result->typemap_size)) == NULL) {
+    free (result->typeinfo);
     rc = IDL_RETCODE_NO_MEMORY;
     goto err_nomem;
   }
