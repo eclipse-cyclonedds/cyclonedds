@@ -91,6 +91,7 @@ struct ddsi_config_networkpartition_listelem {
   struct ddsi_config_networkpartition_listelem *next;
   char *name;
   char *address_string;
+  char *interface_names;
   struct ddsi_networkpartition_address *uc_addresses;
   struct ddsi_networkpartition_address *asm_addresses;
 #ifdef DDS_HAS_SSM

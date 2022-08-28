@@ -615,17 +615,37 @@ static struct cfgelem networkpartition_cfgattrs[] = {
     FUNCTIONS(0, uf_string, ff_free, pf_string),
     DESCRIPTION(
       "<p>This attribute specifies the name of this Cyclone DDS network "
-      "partition. Two network partitions cannot have the same name.</p>")),
+      "partition. Two network partitions cannot have the same name. "
+      "Partition mappings (cf. Partitioning/PartitionMappings) refer to "
+      "network partitions using these names.</p>")),
   STRING("Address", NULL, 1, NULL,
     MEMBEROF(ddsi_config_networkpartition_listelem, address_string),
     FUNCTIONS(0, uf_string, ff_free, pf_string),
     DESCRIPTION(
-      "<p>This attribute specifies the multicast addresses associated with "
-      "the network partition as a comma-separated list. Readers matching "
-      "this network partition (cf. Partitioning/PartitionMappings) will "
-      "listen for multicasts on all of these addresses and advertise them "
-      "in the discovery protocol. The writers will select the most suitable "
-      "address from the addresses advertised by the readers.</p>")),
+      "<p>This attribute specifies the addresses associated with "
+      "the network partition as a comma-separated list. The addresses "
+      "are typically multicast addresses. Addresses of the network "
+      "interfaces configured are allowed, provided the \"Interface\" "
+      "attribute is not used.</p>"
+      "<p>Readers matching this network partition (cf. "
+      "Partitioning/PartitionMappings) will advertise all addresses "
+      "listed to the matching writers via the discovery protocol and "
+      "will join the specified multicast groups. The writers will select "
+      "the most suitable address from the addresses advertised by the "
+      "readers.</p>"
+      "<p>The unicast addresses advertised by a reader are the only "
+      "unicast addresses a writer will use to send data to it and are "
+      "used to select the subset of network interfaces to use for "
+      "transmitting multicast data with the intent of reaching it.</p>")),
+  STRING("Interface", NULL, 1, "",
+    MEMBEROF(ddsi_config_networkpartition_listelem, interface_names),
+    FUNCTIONS(0, uf_string, ff_free, pf_string),
+    DESCRIPTION(
+      "<p>This attribute takes a comma-separated list of interface "
+      "name that the reader is willing to receive data on. This is "
+      "implemented by adding the interface addresses to the set address "
+      "set configured using the sibling \"Address\" attribute. See "
+      "there for more details.</p>")),
   END_MARKER
 };
 

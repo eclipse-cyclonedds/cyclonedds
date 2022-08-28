@@ -1093,7 +1093,7 @@ The NetworkPartitions element specifies the Cyclone DDS network partitions.
 
 
 ##### //CycloneDDS/Domain/Partitioning/NetworkPartitions/NetworkPartition
-Attributes: [Address](#cycloneddsdomainpartitioningnetworkpartitionsnetworkpartitionaddress), [Name](#cycloneddsdomainpartitioningnetworkpartitionsnetworkpartitionname)
+Attributes: [Address](#cycloneddsdomainpartitioningnetworkpartitionsnetworkpartitionaddress), [Interface](#cycloneddsdomainpartitioningnetworkpartitionsnetworkpartitioninterface), [Name](#cycloneddsdomainpartitioningnetworkpartitionsnetworkpartitionname)
 
 Text
 
@@ -1105,7 +1105,19 @@ The default value is: "".
 ##### //CycloneDDS/Domain/Partitioning/NetworkPartitions/NetworkPartition[@Address]
 Text
 
-This attribute specifies the multicast addresses associated with the network partition as a comma-separated list. Readers matching this network partition (cf. Partitioning/PartitionMappings) will listen for multicasts on all of these addresses and advertise them in the discovery protocol. The writers will select the most suitable address from the addresses advertised by the readers.
+This attribute specifies the addresses associated with the network partition as a comma-separated list. The addresses are typically multicast addresses. Addresses of the network interfaces configured are allowed, provided the "Interface" attribute is not used.
+
+Readers matching this network partition (cf. Partitioning/PartitionMappings) will advertise all addresses listed to the matching writers via the discovery protocol and will join the specified multicast groups. The writers will select the most suitable address from the addresses advertised by the readers.
+
+The unicast addresses advertised by a reader are the only unicast addresses a writer will use to send data to it and are used to select the subset of network interfaces to use for transmitting multicast data with the intent of reaching it.
+
+The default value is: "".
+
+
+##### //CycloneDDS/Domain/Partitioning/NetworkPartitions/NetworkPartition[@Interface]
+Text
+
+This attribute takes a comma-separated list of interface name that the reader is willing to receive data on. This is implemented by adding the interface addresses to the set address set configured using the sibling "Address" attribute. See there for more details.
 
 The default value is: "".
 
@@ -1113,7 +1125,7 @@ The default value is: "".
 ##### //CycloneDDS/Domain/Partitioning/NetworkPartitions/NetworkPartition[@Name]
 Text
 
-This attribute specifies the name of this Cyclone DDS network partition. Two network partitions cannot have the same name.
+This attribute specifies the name of this Cyclone DDS network partition. Two network partitions cannot have the same name. Partition mappings (cf. Partitioning/PartitionMappings) refer to network partitions using these names.
 
 The default value is: "".
 
@@ -1862,9 +1874,9 @@ While none prevents any message from being written to a DDSI2 log file.
 The categorisation of tracing output is incomplete and hence most of the verbosity levels and categories are not of much use in the current release. This is an ongoing process and here we describe the target situation rather than the current situation. Currently, the most useful verbosity levels are config, fine and finest.
 
 The default value is: "none".
-<!--- generated from ddsi_config.h[d89418dc0b929eaa35c86c6b74c221847781ff4e] -->
+<!--- generated from ddsi_config.h[75edea6617af11bacc46f91e519773f6df580655] -->
 <!--- generated from ddsi_cfgunits.h[fc550f1620aa20dcd9244ef4e24299d5001efbb4] -->
-<!--- generated from ddsi_cfgelems.h[c54fbee60d780fadc6ebc3c738c5d2c5051e689a] -->
+<!--- generated from ddsi_cfgelems.h[93dc7b2f7e5d48ca941e93736ff5617ba339cc1e] -->
 <!--- generated from ddsi_config.c[98486715ac072b7b3cc3a449d55676be1218c98c] -->
 <!--- generated from _confgen.h[01ffa8a2e53b2309451756861466551cfe28c8ce] -->
 <!--- generated from _confgen.c[112cf655ac336075d1b301972ac38840ac2119d6] -->
