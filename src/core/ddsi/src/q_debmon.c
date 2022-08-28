@@ -266,9 +266,9 @@ static void print_nwpart_seq (struct st *st, void *vr)
 {
   struct ddsi_reader * const r = vr;
   char buf[DDSI_LOCSTRLEN];
-  for (const struct networkpartition_address *a = r->uc_as; a != NULL; a = a->next)
+  for (const struct ddsi_networkpartition_address *a = r->uc_as; a != NULL; a = a->next)
     cpfstr (st, ddsi_locator_to_string (buf, sizeof(buf), &a->loc));
-  for (const struct networkpartition_address *a = r->mc_as; a != NULL; a = a->next)
+  for (const struct ddsi_networkpartition_address *a = r->mc_as; a != NULL; a = a->next)
     cpfstr (st, ddsi_locator_to_string (buf, sizeof(buf), &a->loc));
 }
 #endif

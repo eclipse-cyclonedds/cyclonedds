@@ -1184,7 +1184,7 @@ static int iceoryx_init (struct ddsi_domaingv *gv)
 
 static void free_config_networkpartition_addresses (struct ddsi_config_networkpartition_listelem *np)
 {
-  struct networkpartition_address **ps[] = {
+  struct ddsi_networkpartition_address **ps[] = {
     &np->uc_addresses,
     &np->asm_addresses
 #ifdef DDS_HAS_SSM
@@ -1195,7 +1195,7 @@ static void free_config_networkpartition_addresses (struct ddsi_config_networkpa
   {
     while (*ps[i])
     {
-      struct networkpartition_address *x = *ps[i];
+      struct ddsi_networkpartition_address *x = *ps[i];
       *ps[i] = x->next;
       ddsrt_free (x);
     }
@@ -1214,11 +1214,11 @@ static int convert_network_partition_addresses (struct ddsi_domaingv *gv, uint32
     char *msgtag = ddsrt_malloc (slen);
     snprintf (msgtag, slen, "%s%s", np->name, msgtag_fixed);
 
-    struct networkpartition_address **nextp_uc = &np->uc_addresses;
-    struct networkpartition_address **nextp_asm = &np->asm_addresses;
+    struct ddsi_networkpartition_address **nextp_uc = &np->uc_addresses;
+    struct ddsi_networkpartition_address **nextp_asm = &np->asm_addresses;
     assert (*nextp_uc == NULL && *nextp_asm == NULL);
 #ifdef DDS_HAS_SSM
-    struct networkpartition_address **nextp_ssm = &np->ssm_addresses;
+    struct ddsi_networkpartition_address **nextp_ssm = &np->ssm_addresses;
     assert (*nextp_ssm == NULL);
 #endif
     char *copy = ddsrt_strdup (np->address_string), *cursor = copy, *tok;
@@ -1241,7 +1241,7 @@ static int convert_network_partition_addresses (struct ddsi_domaingv *gv, uint32
         rc = -1;
       }
 
-      struct networkpartition_address ***nextpp;
+      struct ddsi_networkpartition_address ***nextpp;
       if (ddsi_is_mcaddr (gv, &loc))
       {
         loc.port = port_mc;

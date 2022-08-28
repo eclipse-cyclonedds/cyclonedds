@@ -1498,7 +1498,7 @@ dds_return_t ddsi_new_reader_guid (struct ddsi_reader **rd_out, const struct dds
        *   - Set the correct portnumbers
        *   - Join the socket if a multicast address
        */
-      for (const struct networkpartition_address *a = rd->mc_as; a != NULL; a = a->next)
+      for (const struct ddsi_networkpartition_address *a = rd->mc_as; a != NULL; a = a->next)
         join_mcast_helper (pp->e.gv, pp->e.gv->data_conn_mc, &a->loc);
     }
 #ifdef DDS_HAS_SSM
@@ -1520,9 +1520,9 @@ dds_return_t ddsi_new_reader_guid (struct ddsi_reader **rd_out, const struct dds
   {
     char buf[DDSI_LOCSTRLEN];
     ELOGDISC (pp, "READER "PGUIDFMT" locators={", PGUID (rd->e.guid));
-    for (const struct networkpartition_address *a = rd->uc_as; a != NULL; a = a->next)
+    for (const struct ddsi_networkpartition_address *a = rd->uc_as; a != NULL; a = a->next)
       ELOGDISC (pp, " %s", ddsi_locator_to_string (buf, sizeof (buf), &a->loc));
-    for (const struct networkpartition_address *a = rd->mc_as; a != NULL; a = a->next)
+    for (const struct ddsi_networkpartition_address *a = rd->mc_as; a != NULL; a = a->next)
       ELOGDISC (pp, " %s", ddsi_locator_to_string (buf, sizeof (buf), &a->loc));
     ELOGDISC (pp, " }\n");
   }
@@ -1585,7 +1585,7 @@ static void gc_delete_reader (struct ddsi_gcreq *gcreq)
 #ifdef DDS_HAS_NETWORK_PARTITIONS
   if (rd->mc_as)
   {
-    for (const struct networkpartition_address *a = rd->mc_as; a != NULL; a = a->next)
+    for (const struct ddsi_networkpartition_address *a = rd->mc_as; a != NULL; a = a->next)
       leave_mcast_helper (rd->e.gv, rd->e.gv->data_conn_mc, &a->loc);
   }
 #endif

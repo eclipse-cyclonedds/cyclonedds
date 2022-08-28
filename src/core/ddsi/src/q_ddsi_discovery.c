@@ -1331,11 +1331,11 @@ int sedp_write_reader (struct ddsi_reader *rd)
     as = new_addrset ();
     // use a placeholder connection to avoid exploding the multicast addreses to multiple
     // interfaces
-    for (const struct networkpartition_address *a = rd->uc_as; a != NULL; a = a->next)
+    for (const struct ddsi_networkpartition_address *a = rd->uc_as; a != NULL; a = a->next)
       add_xlocator_to_addrset(rd->e.gv, as, &(const ddsi_xlocator_t) {
         .c = a->loc,
         .conn = rd->e.gv->xmit_conns[0] });
-    for (const struct networkpartition_address *a = rd->mc_as; a != NULL; a = a->next)
+    for (const struct ddsi_networkpartition_address *a = rd->mc_as; a != NULL; a = a->next)
       add_xlocator_to_addrset(rd->e.gv, as, &(const ddsi_xlocator_t) {
         .c = a->loc,
         .conn = rd->e.gv->xmit_conns[0] });
