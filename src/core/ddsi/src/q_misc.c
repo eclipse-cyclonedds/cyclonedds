@@ -22,29 +22,6 @@ extern inline seqno_t fromSN (const nn_sequence_number_t sn);
 extern inline bool validating_fromSN (const nn_sequence_number_t sn, seqno_t *res);
 extern inline nn_sequence_number_t toSN (seqno_t n);
 
-#ifdef DDS_HAS_NETWORK_PARTITIONS
-int WildcardOverlap(char * p1, char * p2)
-{
-  /* both patterns are empty or contain wildcards => overlap */
-  if ((p1 == NULL || strcmp(p1,"") == 0 || strcmp(p1,"*") == 0) &&
-      (p2 == NULL || strcmp(p2,"") == 0 || strcmp(p2,"*") == 0))
-    return 1;
-
-  /* Either pattern is empty (but the other is not empty or wildcard only) => no overlap */
-  if (p1 == NULL || strcmp(p1,"") == 0 || p2 == NULL || strcmp(p2,"")==0)
-    return 0;
-
-  if ( (p1[0] == '*' || p2[0] == '*') && (WildcardOverlap(p1,p2+1)|| WildcardOverlap(p1+1,p2)))
-    return 1;
-
-  if ( (p1[0] == '?' || p2[0] == '?' || p1[0] == p2[0] ) && WildcardOverlap(p1+1,p2+1))
-    return 1;
-
-  /* else, no match, return false */
-  return 0;
-}
-#endif
-
 const ddsi_guid_t nullguid = { .prefix = { .u = { 0,0,0 } }, .entityid = { .u = 0 } };
 
 bool guid_prefix_zero (const ddsi_guid_prefix_t *a)
@@ -109,38 +86,6 @@ int ddsi2_patmatch (const char *pat, const char *str)
   }
   return *str == 0;
 }
-
-#ifdef DDS_HAS_NETWORK_PARTITIONS
-static char *get_partition_search_pattern (const char *partition, const char *topic)
-{
-  size_t sz = strlen (partition) + strlen (topic) + 2;
-  char *pt = ddsrt_malloc (sz);
-  (void) snprintf (pt, sz, "%s.%s", partition, topic);
-  return pt;
-}
-
-struct ddsi_config_partitionmapping_listelem *find_partitionmapping (const struct ddsi_config *cfg, const char *partition, const char *topic)
-{
-  char *pt = get_partition_search_pattern (partition, topic);
-  struct ddsi_config_partitionmapping_listelem *pm;
-  for (pm = cfg->partitionMappings; pm; pm = pm->next)
-    if (WildcardOverlap (pt, pm->DCPSPartitionTopic))
-      break;
-  ddsrt_free (pt);
-  return pm;
-}
-
-int is_ignored_partition (const struct ddsi_config *cfg, const char *partition, const char *topic)
-{
-  char *pt = get_partition_search_pattern (partition, topic);
-  struct ddsi_config_ignoredpartition_listelem *ip;
-  for (ip = cfg->ignoredPartitions; ip; ip = ip->next)
-    if (WildcardOverlap(pt, ip->DCPSPartitionTopic))
-      break;
-  ddsrt_free (pt);
-  return ip != NULL;
-}
-#endif /* DDS_HAS_NETWORK_PARTITIONS */
 
 #ifdef DDS_HAS_NETWORK_CHANNELS
 struct ddsi_config_channel_listelem *find_channel (const struct config *cfg, nn_transport_priority_qospolicy_t transport_priority)

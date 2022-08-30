@@ -63,6 +63,7 @@
 #include "dds/ddsi/ddsi_raweth.h"
 #include "dds/ddsi/ddsi_vnet.h"
 #include "dds/ddsi/ddsi_mcgroup.h"
+#include "dds/ddsi/ddsi_nwpart.h"
 #include "dds/ddsi/ddsi_serdata_default.h"
 #include "dds/ddsi/ddsi_serdata_pserop.h"
 #include "dds/ddsi/ddsi_serdata_plist.h"
@@ -1182,195 +1183,6 @@ static int iceoryx_init (struct ddsi_domaingv *gv)
 }
 #endif
 
-#ifdef DDS_HAS_NETWORK_PARTITIONS
-static void free_config_networkpartition_addresses (struct ddsi_config_networkpartition_listelem *np)
-{
-  struct ddsi_networkpartition_address **ps[] = {
-    &np->uc_addresses,
-    &np->asm_addresses
-#ifdef DDS_HAS_SSM
-    , &np->ssm_addresses
-#endif
-  };
-  for (size_t i = 0; i < sizeof (ps) / sizeof (ps[0]); i++)
-  {
-    while (*ps[i])
-    {
-      struct ddsi_networkpartition_address *x = *ps[i];
-      *ps[i] = x->next;
-      ddsrt_free (x);
-    }
-  }
-}
-
-struct nwpart_iter {
-  struct ddsi_domaingv *gv;
-  const char *msgtag_fixed;
-  char *msgtag;
-  struct ddsi_config_networkpartition_listelem *next_nwp;
-  bool ok;
-  struct ddsi_networkpartition_address **nextp_uc;
-  struct ddsi_networkpartition_address **nextp_asm;
-#ifdef DDS_HAS_SSM
-  struct ddsi_networkpartition_address **nextp_ssm;
-#endif
-};
-
-static void nwpart_iter_init (struct nwpart_iter *it, struct ddsi_domaingv *gv, const char *msgtag_fixed)
-{
-  it->gv = gv;
-  it->msgtag_fixed = msgtag_fixed;
-  it->msgtag = NULL;
-  it->next_nwp = gv->config.networkPartitions;
-  it->ok = true;
-}
-
-static void nwpart_iter_error (struct nwpart_iter *it, const char *tok, const char *msg)
-{
-  struct ddsi_domaingv * const gv = it->gv;
-  GVERROR ("%s: %s: %s\n", it->msgtag, tok, msg);
-  it->ok = false;
-}
-
-static struct ddsi_config_networkpartition_listelem *nwpart_iter_next (struct nwpart_iter *it)
-{
-  if (it->next_nwp == NULL)
-    return NULL;
-  if (it->msgtag)
-    ddsrt_free (it->msgtag);
-  size_t slen = strlen (it->next_nwp->name) + strlen (it->msgtag_fixed) + 1;
-  it->msgtag = ddsrt_malloc (slen);
-  if (it->msgtag == NULL)
-  {
-    nwpart_iter_error (it, "iterator", "out of memory");
-    return NULL;
-  }
-  snprintf (it->msgtag, slen, "%s%s", it->next_nwp->name, it->msgtag_fixed);
-  struct ddsi_config_networkpartition_listelem *nwp = it->next_nwp;
-  it->next_nwp = nwp->next;
-  it->nextp_uc = &nwp->uc_addresses;
-  it->nextp_asm = &nwp->asm_addresses;
-#ifdef DDS_HAS_SSM
-  it->nextp_ssm = &nwp->ssm_addresses;
-#endif
-  return nwp;
-}
-
-static bool nwpart_iter_ok (const struct nwpart_iter *it)
-{
-  return it->ok;
-}
-
-static void nwpart_iter_append_address (struct nwpart_iter *it, const char *tok, const ddsi_locator_t *loc, uint32_t port)
-{
-  struct ddsi_networkpartition_address ***nextpp;
-  if (ddsi_is_mcaddr (it->gv, loc))
-  {
-#ifdef DDS_HAS_SSM
-    nextpp = ddsi_is_ssm_mcaddr (it->gv, loc) ? &it->nextp_ssm : &it->nextp_asm;
-#else
-    nextpp = &it->nextp_asm;
-#endif
-  }
-  else
-  {
-    nextpp = &it->nextp_uc;
-    switch (ddsi_is_nearby_address (it->gv, loc, (size_t) it->gv->n_interfaces, it->gv->interfaces, NULL))
-    {
-      case DNAR_SELF:
-        break;
-      case DNAR_LOCAL:
-      case DNAR_DISTANT:
-      case DNAR_UNREACHABLE:
-        nwpart_iter_error (it, tok, "address does not match a local interface");
-        break;
-    }
-  }
-
-  if (!nwpart_iter_ok (it))
-    return;
-  else if ((**nextpp = ddsrt_malloc (sizeof (***nextpp))) == NULL)
-    nwpart_iter_error (it, tok, "out of memory");
-  else
-  {
-    (**nextpp)->loc = *loc;
-    (**nextpp)->loc.port = port;
-    (**nextpp)->next = NULL;
-    DDSRT_WARNING_MSVC_OFF(6011);
-    *nextpp = &(**nextpp)->next;
-    DDSRT_WARNING_MSVC_ON(6011);
-  }
-}
-
-static bool nwpart_iter_fini (struct nwpart_iter *it)
-{
-  if (it->msgtag)
-    ddsrt_free (it->msgtag);
-  return it->ok;
-}
-
-static void convert_network_partition_addresses_one (struct nwpart_iter *npit, struct ddsi_config_networkpartition_listelem *np, uint32_t port_mc, uint32_t port_data_uc, const char *tok)
-{
-  // FIXME: it'd be nice if the one could specify a port and additional sockets would be created
-  ddsi_locator_t loc;
-  switch (ddsi_locator_from_string (npit->gv, &loc, tok, npit->gv->m_factory))
-  {
-    case AFSR_OK:       break;
-    case AFSR_INVALID:  nwpart_iter_error (npit, tok, "not a valid address"); return;
-    case AFSR_UNKNOWN:  nwpart_iter_error (npit, tok, "unknown address"); return;
-    case AFSR_MISMATCH: nwpart_iter_error (npit, tok, "address family mismatch"); return;
-  }
-  if (loc.port != 0)
-    nwpart_iter_error (npit, tok, "no port number expected");
-  else if (ddsi_is_mcaddr (npit->gv, &loc))
-    nwpart_iter_append_address (npit, tok, &loc, port_mc);
-  else if (strspn (np->interface_names, ", \t") != strlen (np->interface_names))
-    nwpart_iter_error (npit, tok, "unicast addresses not allowed when interfaces are also specified");
-  else
-    nwpart_iter_append_address (npit, tok, &loc, port_data_uc);
-}
-
-static int convert_network_partition_addresses (struct ddsi_domaingv *gv, uint32_t port_data_uc)
-{
-  const uint32_t port_mc = ddsi_get_port (&gv->config, DDSI_PORT_MULTI_DATA, 0);
-  struct nwpart_iter npit;
-  nwpart_iter_init (&npit, gv, ": partition address");
-  struct ddsi_config_networkpartition_listelem *np;
-  while ((np = nwpart_iter_next (&npit)) != NULL)
-  {
-    char *copy = ddsrt_strdup (np->address_string), *cursor = copy, *tok;
-    while ((tok = ddsrt_strsep (&cursor, ",")) != NULL)
-      convert_network_partition_addresses_one (&npit, np, port_mc, port_data_uc, tok);
-    ddsrt_free (copy);
-  }
-  return nwpart_iter_fini (&npit) ? 0 : -1;
-}
-
-static int convert_network_partition_interfaces (struct ddsi_domaingv *gv, uint32_t port_data_uc)
-{
-  struct nwpart_iter npit;
-  nwpart_iter_init (&npit, gv, ": interface name");
-  struct ddsi_config_networkpartition_listelem *np;
-  while ((np = nwpart_iter_next (&npit)) != NULL)
-  {
-    char *copy = ddsrt_strdup (np->interface_names), *cursor = copy, *tok;
-    while ((tok = ddsrt_strsep (&cursor, ",")) != NULL)
-    {
-      int i;
-      for (i = 0; i < gv->n_interfaces; i++)
-        if (strcmp (tok, gv->interfaces[i].name) == 0)
-          break;
-      if (i == gv->n_interfaces)
-        nwpart_iter_error (&npit, tok, "network partition references non-existent/configured interface\n");
-      else
-        nwpart_iter_append_address (&npit, tok, &gv->interfaces[i].loc, port_data_uc);
-    }
-    ddsrt_free (copy);
-  }
-  return nwpart_iter_fini (&npit) ? 0 : -1;
-}
-#endif // DDS_HAS_NETWORK_PARTITIONS
-
 int rtps_init (struct ddsi_domaingv *gv)
 {
   uint32_t port_disc_uc = 0;
@@ -1822,15 +1634,11 @@ int rtps_init (struct ddsi_domaingv *gv)
     gv->intf_xlocators[i].c = gv->interfaces[i].loc;
   }
 
-#ifdef DDS_HAS_NETWORK_PARTITIONS
   // Now that we know the interfaces and xmit_conns, we can convert the strings in the
   // network partition configuration to something useful.  Addresses must go first to
   // satisfy some assertions
-  if (convert_network_partition_addresses (gv, port_data_uc) < 0)
-    goto err_network_partition_addrset;
-  if (convert_network_partition_interfaces (gv, port_data_uc) < 0)
-    goto err_network_partition_interfaces;
-#endif
+  if (convert_network_partition_config (gv, port_data_uc) < 0)
+    goto err_network_partition_config;
 
   // Join SPDP, default multicast addresses if enabled
   if (gv->m_factory->m_connless && gv->config.allowMulticast)
@@ -1966,12 +1774,8 @@ err_post_omg_security_init:
 #endif
 #endif
 err_joinleave_spdp:
-#ifdef DDS_HAS_NETWORK_PARTITIONS
-err_network_partition_addrset:
-  for (struct ddsi_config_networkpartition_listelem *np = gv->config.networkPartitions; np; np = np->next)
-    free_config_networkpartition_addresses (np);
-err_network_partition_interfaces:
-#endif
+  free_config_networkpartition_addresses (gv);
+err_network_partition_config:
 err_mc_conn:
   for (int i = 0; i < gv->n_interfaces; i++)
     gv->intf_xlocators[i].conn = NULL;
@@ -2364,10 +2168,7 @@ void rtps_fini (struct ddsi_domaingv *gv)
     fclose (gv->pcap_fp);
   }
 
-#ifdef DDS_HAS_NETWORK_PARTITIONS
-  for (struct ddsi_config_networkpartition_listelem *np = gv->config.networkPartitions; np; np = np->next)
-    free_config_networkpartition_addresses (np);
-#endif
+  free_config_networkpartition_addresses (gv);
   unref_addrset (gv->as_disc);
 
   /* Must delay freeing of rbufpools until after *all* references have
