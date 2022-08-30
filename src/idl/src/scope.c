@@ -198,6 +198,8 @@ idl_declare(
              its first occurrence in a scope */
           if (kind == IDL_MODULE_DECLARATION)
             goto exists;
+          if (kind == IDL_USE_DECLARATION)
+            goto exists;
           goto clash;
         case IDL_FORWARD_DECLARATION:
           /* instance declarations cannot occur in the same scope */
