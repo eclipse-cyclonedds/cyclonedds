@@ -259,7 +259,7 @@ enum ddsi_nearby_address_result ddsi_is_nearby_address (const struct ddsi_domain
 {
   ddsi_tran_factory_t tran = ddsi_factory_find_supported_kind (gv, loc->kind);
   if (tran == NULL)
-    return DNAR_DISTANT;
+    return DNAR_UNREACHABLE;
   return tran->m_is_nearby_address_fn (loc, ninterf, interf, interf_idx);
 }
 

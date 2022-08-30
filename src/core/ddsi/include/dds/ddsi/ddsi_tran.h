@@ -70,8 +70,10 @@ typedef int (*ddsi_is_valid_port_fn_t) (const struct ddsi_tran_factory *tran, ui
 typedef uint32_t (*ddsi_receive_buffer_size_fn_t) (const struct ddsi_tran_factory *fact);
 
 enum ddsi_nearby_address_result {
-  DNAR_DISTANT,
-  DNAR_LOCAL
+  DNAR_UNREACHABLE, /**< no way to reach this address */
+  DNAR_DISTANT,     /**< address does not match one of the enabled interfaces */
+  DNAR_LOCAL,       /**< address is of some other host on one of the enabled interfaces */
+  DNAR_SELF         /**< address is of this host */
 };
 
 typedef enum ddsi_nearby_address_result (*ddsi_is_nearby_address_fn_t) (const ddsi_locator_t *loc, size_t ninterf, const struct ddsi_network_interface *interf, size_t *interf_idx);

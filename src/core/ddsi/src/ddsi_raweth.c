@@ -316,11 +316,13 @@ static int ddsi_raweth_is_ssm_mcaddr (const struct ddsi_tran_factory *tran, cons
 
 static enum ddsi_nearby_address_result ddsi_raweth_is_nearby_address (const ddsi_locator_t *loc, size_t ninterf, const struct ddsi_network_interface interf[], size_t *interf_idx)
 {
-  (void) loc;
   (void) ninterf;
-  (void) interf;
-  *interf_idx = 0;
-  return DNAR_LOCAL;
+  if (interf_idx)
+    *interf_idx = 0;
+  if (memcmp (interf[0].loc.address, loc->address, sizeof (loc->address)) == 0)
+    return DNAR_SELF;
+  else
+    return DNAR_LOCAL;
 }
 
 static enum ddsi_locator_from_string_result ddsi_raweth_address_from_string (const struct ddsi_tran_factory *tran, ddsi_locator_t *loc, const char *str)

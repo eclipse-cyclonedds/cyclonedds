@@ -96,6 +96,7 @@ static void addrset_from_locatorlists_add_one (struct ddsi_domaingv const * cons
   size_t interf_idx;
   switch (ddsi_is_nearby_address (gv, loc, (size_t) gv->n_interfaces, gv->interfaces, &interf_idx))
   {
+    case DNAR_SELF:
     case DNAR_LOCAL:
       // if it matches an interface, use that one and record that this is a
       // directly connected interface: those will then all be possibilities
@@ -127,6 +128,8 @@ static void addrset_from_locatorlists_add_one (struct ddsi_domaingv const * cons
           break;
         }
       }
+      break;
+    case DNAR_UNREACHABLE:
       break;
   }
 }
@@ -184,9 +187,7 @@ static struct addrset *addrset_from_locatorlists (const struct ddsi_domaingv *gv
   {
     if (ddsi_is_loopbackaddr (gv, &l->loc))
       continue;
-    for (int i = 0; i < gv->n_interfaces && !allow_loopback; i++)
-      allow_loopback = (memcmp (l->loc.address, gv->interfaces[i].loc.address, sizeof (l->loc.address)) == 0 ||
-                        memcmp (l->loc.address, gv->interfaces[i].extloc.address, sizeof (l->loc.address)) == 0);
+    allow_loopback = (ddsi_is_nearby_address (gv, &l->loc, (size_t) gv->n_interfaces, gv->interfaces, NULL) == DNAR_SELF);
   }
   //GVTRACE(" allow_loopback=%d\n", allow_loopback);
 

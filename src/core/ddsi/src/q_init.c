@@ -1255,9 +1255,11 @@ static int convert_network_partition_addresses (struct ddsi_domaingv *gv, uint32
       {
         switch (ddsi_is_nearby_address (gv, &loc, (size_t) gv->n_interfaces, gv->interfaces, NULL))
         {
-          case DNAR_LOCAL:
+          case DNAR_SELF:
             break;
+          case DNAR_LOCAL:
           case DNAR_DISTANT:
+          case DNAR_UNREACHABLE:
             GVERROR ("%s: %s: address does not match a local interface\n", msgtag, tok);
             rc = -1;
             break;
