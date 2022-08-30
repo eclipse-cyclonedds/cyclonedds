@@ -25,13 +25,13 @@ struct ddsi_domaingv;
 struct dds_rhc_default;
 struct rhc_sample;
 
-DDS_EXPORT struct dds_rhc *dds_rhc_default_new_xchecks (dds_reader *reader, struct ddsi_domaingv *gv, const struct ddsi_sertype *type, bool xchecks);
-DDS_EXPORT struct dds_rhc *dds_rhc_default_new (struct dds_reader *reader, const struct ddsi_sertype *type);
+struct dds_rhc *dds_rhc_default_new_xchecks (dds_reader *reader, struct ddsi_domaingv *gv, const struct ddsi_sertype *type, bool xchecks);
+struct dds_rhc *dds_rhc_default_new (struct dds_reader *reader, const struct ddsi_sertype *type);
 #ifdef DDS_HAS_LIFESPAN
-DDS_EXPORT ddsrt_mtime_t dds_rhc_default_sample_expired_cb(void *hc, ddsrt_mtime_t tnow);
+ddsrt_mtime_t dds_rhc_default_sample_expired_cb(void *hc, ddsrt_mtime_t tnow);
 #endif
 #ifdef DDS_HAS_DEADLINE_MISSED
-DDS_EXPORT ddsrt_mtime_t dds_rhc_default_deadline_missed_cb(void *hc, ddsrt_mtime_t tnow);
+ddsrt_mtime_t dds_rhc_default_deadline_missed_cb(void *hc, ddsrt_mtime_t tnow);
 #endif
 
 #if defined (__cplusplus)

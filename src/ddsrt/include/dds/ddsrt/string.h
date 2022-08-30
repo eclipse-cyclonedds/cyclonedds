@@ -142,8 +142,7 @@ ddsrt_attribute_malloc;
  *          the number of characters that would have been copied if dest is not
  *          sufficiently large enough.
  */
-DDS_EXPORT
-size_t
+DDS_EXPORT size_t
 ddsrt_strlcpy(
   char * __restrict dest,
   const char * __restrict src,
@@ -166,8 +165,7 @@ ddsrt_nonnull((1,2));
  *          the number of characters that would have been copied if dest is not
  *          sufficiently large enough.
  */
-DDS_EXPORT
-size_t
+DDS_EXPORT size_t
 ddsrt_strlcat(
   char * __restrict dest,
   const char * __restrict src,

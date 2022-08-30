@@ -71,28 +71,26 @@ DDS_EXPORT void dds_stream_read_sample (dds_istream_t * __restrict is, void * __
 DDS_EXPORT void dds_stream_free_sample (void * __restrict data, const uint32_t * __restrict ops);
 
 DDS_EXPORT uint32_t dds_stream_countops (const uint32_t * __restrict ops, uint32_t nkeys, const dds_key_descriptor_t * __restrict keys);
-DDS_EXPORT size_t dds_stream_check_optimize (const struct ddsi_sertype_default_desc * __restrict desc, uint32_t xcdr_version);
-DDS_EXPORT void dds_istream_from_serdata_default (dds_istream_t * __restrict s, const struct ddsi_serdata_default * __restrict d);
-DDS_EXPORT void dds_ostream_from_serdata_default (dds_ostream_t * __restrict s, const struct ddsi_serdata_default * __restrict d);
-DDS_EXPORT void dds_ostream_add_to_serdata_default (dds_ostream_t * __restrict s, struct ddsi_serdata_default ** __restrict d);
+size_t dds_stream_check_optimize (const struct ddsi_sertype_default_desc * __restrict desc, uint32_t xcdr_version);
+void dds_istream_from_serdata_default (dds_istream_t * __restrict s, const struct ddsi_serdata_default * __restrict d);
+void dds_ostream_from_serdata_default (dds_ostream_t * __restrict s, const struct ddsi_serdata_default * __restrict d);
+void dds_ostream_add_to_serdata_default (dds_ostream_t * __restrict s, struct ddsi_serdata_default ** __restrict d);
 
-DDS_EXPORT void dds_stream_write_key (dds_ostream_t * __restrict os, const char * __restrict sample, const struct ddsi_sertype_default * __restrict type);
-DDS_EXPORT void dds_stream_write_keyBE (dds_ostreamBE_t * __restrict os, const char * __restrict sample, const struct ddsi_sertype_default * __restrict type);
-DDS_EXPORT bool dds_stream_extract_key_from_data (dds_istream_t * __restrict is, dds_ostream_t * __restrict os, const struct ddsi_sertype_default * __restrict type);
-DDS_EXPORT void dds_stream_extract_key_from_key (dds_istream_t * __restrict is, dds_ostream_t * __restrict os, const struct ddsi_sertype_default * __restrict type);
-DDS_EXPORT bool dds_stream_extract_keyBE_from_data (dds_istream_t * __restrict is, dds_ostreamBE_t * __restrict os, const struct ddsi_sertype_default * __restrict type);
-DDS_EXPORT void dds_stream_extract_keyBE_from_key (dds_istream_t * __restrict is, dds_ostreamBE_t * __restrict os, const struct ddsi_sertype_default * __restrict type);
+void dds_stream_write_key (dds_ostream_t * __restrict os, const char * __restrict sample, const struct ddsi_sertype_default * __restrict type);
+void dds_stream_write_keyBE (dds_ostreamBE_t * __restrict os, const char * __restrict sample, const struct ddsi_sertype_default * __restrict type);
+bool dds_stream_extract_key_from_data (dds_istream_t * __restrict is, dds_ostream_t * __restrict os, const struct ddsi_sertype_default * __restrict type);
+void dds_stream_extract_key_from_key (dds_istream_t * __restrict is, dds_ostream_t * __restrict os, const struct ddsi_sertype_default * __restrict type);
+bool dds_stream_extract_keyBE_from_data (dds_istream_t * __restrict is, dds_ostreamBE_t * __restrict os, const struct ddsi_sertype_default * __restrict type);
+void dds_stream_extract_keyBE_from_key (dds_istream_t * __restrict is, dds_ostreamBE_t * __restrict os, const struct ddsi_sertype_default * __restrict type);
 
 DDS_EXPORT const uint32_t *dds_stream_read (dds_istream_t * __restrict is, char * __restrict data, const uint32_t * __restrict ops);
 DDS_EXPORT void dds_stream_read_key (dds_istream_t * __restrict is, char * __restrict sample, const struct ddsi_sertype_default * __restrict type);
-
 DDS_EXPORT size_t dds_stream_print_key (dds_istream_t * __restrict is, const struct ddsi_sertype_default * __restrict type, char * __restrict buf, size_t size);
-
 DDS_EXPORT size_t dds_stream_print_sample (dds_istream_t * __restrict is, const struct ddsi_sertype_default * __restrict type, char * __restrict buf, size_t size);
 
-DDS_EXPORT uint16_t dds_stream_minimum_xcdr_version (const uint32_t * __restrict ops);
-DDS_EXPORT uint32_t dds_stream_type_nesting_depth (const uint32_t * __restrict ops);
-DDS_EXPORT bool dds_stream_extensibility (const uint32_t * __restrict ops, enum ddsi_sertype_extensibility *ext);
+uint16_t dds_stream_minimum_xcdr_version (const uint32_t * __restrict ops);
+uint32_t dds_stream_type_nesting_depth (const uint32_t * __restrict ops);
+bool dds_stream_extensibility (const uint32_t * __restrict ops, enum ddsi_sertype_extensibility *ext);
 
 
 #if defined (__cplusplus)

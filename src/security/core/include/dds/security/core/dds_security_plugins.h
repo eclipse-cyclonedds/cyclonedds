@@ -48,11 +48,11 @@ typedef struct dds_security_plugin_suite_config{
   dds_security_plugin_config access_control;
 } dds_security_plugin_suite_config;
 
-DDS_EXPORT dds_return_t dds_security_plugin_release(const dds_security_plugin *security_plugin, void *context);
-DDS_EXPORT dds_return_t dds_security_check_plugin_configuration(const dds_security_plugin_suite_config *security_suite_config, struct ddsi_domaingv *gv);
-DDS_EXPORT dds_return_t dds_security_load_security_library(const dds_security_plugin_config *plugin_config, dds_security_plugin *security_plugin,
+dds_return_t dds_security_plugin_release(const dds_security_plugin *security_plugin, void *context);
+dds_return_t dds_security_check_plugin_configuration(const dds_security_plugin_suite_config *security_suite_config, struct ddsi_domaingv *gv);
+dds_return_t dds_security_load_security_library(const dds_security_plugin_config *plugin_config, dds_security_plugin *security_plugin,
     void **security_plugin_context, struct ddsi_domaingv *gv);
-DDS_EXPORT dds_return_t dds_security_verify_plugin_functions(
+dds_return_t dds_security_verify_plugin_functions(
     dds_security_authentication *authentication_context, dds_security_plugin *auth_plugin,
     dds_security_cryptography *crypto_context, dds_security_plugin *crypto_plugin,
     dds_security_access_control *access_control_context, dds_security_plugin *ac_plugin,

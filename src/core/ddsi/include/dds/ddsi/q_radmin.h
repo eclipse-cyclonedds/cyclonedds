@@ -213,24 +213,24 @@ struct ddsrt_log_cfg;
 struct nn_fragment_number_set_header;
 struct nn_sequence_number_set_header;
 
-DDS_EXPORT struct nn_rbufpool *nn_rbufpool_new (const struct ddsrt_log_cfg *logcfg, uint32_t rbuf_size, uint32_t max_rmsg_size);
-DDS_EXPORT void nn_rbufpool_setowner (struct nn_rbufpool *rbp, ddsrt_thread_t tid);
-DDS_EXPORT void nn_rbufpool_free (struct nn_rbufpool *rbp);
+struct nn_rbufpool *nn_rbufpool_new (const struct ddsrt_log_cfg *logcfg, uint32_t rbuf_size, uint32_t max_rmsg_size);
+void nn_rbufpool_setowner (struct nn_rbufpool *rbp, ddsrt_thread_t tid);
+void nn_rbufpool_free (struct nn_rbufpool *rbp);
 
-DDS_EXPORT struct nn_rmsg *nn_rmsg_new (struct nn_rbufpool *rbufpool);
-DDS_EXPORT void nn_rmsg_setsize (struct nn_rmsg *rmsg, uint32_t size);
-DDS_EXPORT void nn_rmsg_commit (struct nn_rmsg *rmsg);
-DDS_EXPORT void nn_rmsg_free (struct nn_rmsg *rmsg);
-DDS_EXPORT void *nn_rmsg_alloc (struct nn_rmsg *rmsg, uint32_t size);
+struct nn_rmsg *nn_rmsg_new (struct nn_rbufpool *rbufpool);
+void nn_rmsg_setsize (struct nn_rmsg *rmsg, uint32_t size);
+void nn_rmsg_commit (struct nn_rmsg *rmsg);
+void nn_rmsg_free (struct nn_rmsg *rmsg);
+void *nn_rmsg_alloc (struct nn_rmsg *rmsg, uint32_t size);
 
-DDS_EXPORT struct nn_rdata *nn_rdata_new (struct nn_rmsg *rmsg, uint32_t start, uint32_t endp1, uint32_t submsg_offset, uint32_t payload_offset, uint32_t keyhash_offset);
-DDS_EXPORT struct nn_rdata *nn_rdata_newgap (struct nn_rmsg *rmsg);
-DDS_EXPORT void nn_fragchain_adjust_refcount (struct nn_rdata *frag, int adjust);
-DDS_EXPORT void nn_fragchain_unref (struct nn_rdata *frag);
+struct nn_rdata *nn_rdata_new (struct nn_rmsg *rmsg, uint32_t start, uint32_t endp1, uint32_t submsg_offset, uint32_t payload_offset, uint32_t keyhash_offset);
+struct nn_rdata *nn_rdata_newgap (struct nn_rmsg *rmsg);
+void nn_fragchain_adjust_refcount (struct nn_rdata *frag, int adjust);
+void nn_fragchain_unref (struct nn_rdata *frag);
 
-DDS_EXPORT struct nn_defrag *nn_defrag_new (const struct ddsrt_log_cfg *logcfg, enum nn_defrag_drop_mode drop_mode, uint32_t max_samples);
-DDS_EXPORT void nn_defrag_free (struct nn_defrag *defrag);
-DDS_EXPORT struct nn_rsample *nn_defrag_rsample (struct nn_defrag *defrag, struct nn_rdata *rdata, const struct nn_rsample_info *sampleinfo);
+struct nn_defrag *nn_defrag_new (const struct ddsrt_log_cfg *logcfg, enum nn_defrag_drop_mode drop_mode, uint32_t max_samples);
+void nn_defrag_free (struct nn_defrag *defrag);
+struct nn_rsample *nn_defrag_rsample (struct nn_defrag *defrag, struct nn_rdata *rdata, const struct nn_rsample_info *sampleinfo);
 void nn_defrag_notegap (struct nn_defrag *defrag, seqno_t min, seqno_t maxp1);
 
 enum nn_defrag_nackmap_result {
@@ -243,16 +243,16 @@ enum nn_defrag_nackmap_result nn_defrag_nackmap (struct nn_defrag *defrag, seqno
 
 void nn_defrag_prune (struct nn_defrag *defrag, ddsi_guid_prefix_t *dst, seqno_t min);
 
-DDS_EXPORT struct nn_reorder *nn_reorder_new (const struct ddsrt_log_cfg *logcfg, enum nn_reorder_mode mode, uint32_t max_samples, bool late_ack_mode);
-DDS_EXPORT void nn_reorder_free (struct nn_reorder *r);
+struct nn_reorder *nn_reorder_new (const struct ddsrt_log_cfg *logcfg, enum nn_reorder_mode mode, uint32_t max_samples, bool late_ack_mode);
+void nn_reorder_free (struct nn_reorder *r);
 struct nn_rsample *nn_reorder_rsample_dup_first (struct nn_rmsg *rmsg, struct nn_rsample *rsampleiv);
-DDS_EXPORT struct nn_rdata *nn_rsample_fragchain (struct nn_rsample *rsample);
-DDS_EXPORT nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_reorder *reorder, struct nn_rsample *rsampleiv, int *refcount_adjust, int delivery_queue_full_p);
-DDS_EXPORT nn_reorder_result_t nn_reorder_gap (struct nn_rsample_chain *sc, struct nn_reorder *reorder, struct nn_rdata *rdata, seqno_t min, seqno_t maxp1, int *refcount_adjust);
+struct nn_rdata *nn_rsample_fragchain (struct nn_rsample *rsample);
+nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_reorder *reorder, struct nn_rsample *rsampleiv, int *refcount_adjust, int delivery_queue_full_p);
+nn_reorder_result_t nn_reorder_gap (struct nn_rsample_chain *sc, struct nn_reorder *reorder, struct nn_rdata *rdata, seqno_t min, seqno_t maxp1, int *refcount_adjust);
 void nn_reorder_drop_upto (struct nn_reorder *reorder, seqno_t maxp1); // drops [1,maxp1); next_seq' = maxp1
-DDS_EXPORT int nn_reorder_wantsample (const struct nn_reorder *reorder, seqno_t seq);
+int nn_reorder_wantsample (const struct nn_reorder *reorder, seqno_t seq);
 unsigned nn_reorder_nackmap (const struct nn_reorder *reorder, seqno_t base, seqno_t maxseq, struct nn_sequence_number_set_header *map, uint32_t *mapbits, uint32_t maxsz, int notail);
-DDS_EXPORT seqno_t nn_reorder_next_seq (const struct nn_reorder *reorder);
+seqno_t nn_reorder_next_seq (const struct nn_reorder *reorder);
 void nn_reorder_set_next_seq (struct nn_reorder *reorder, seqno_t seq);
 
 struct nn_dqueue *nn_dqueue_new (const char *name, const struct ddsi_domaingv *gv, uint32_t max_samples, nn_dqueue_handler_t handler, void *arg);
@@ -266,8 +266,8 @@ void nn_dqueue_enqueue_callback (struct nn_dqueue *q, nn_dqueue_callback_t cb, v
 int  nn_dqueue_is_full (struct nn_dqueue *q);
 void nn_dqueue_wait_until_empty_if_full (struct nn_dqueue *q);
 
-DDS_EXPORT void nn_defrag_stats (struct nn_defrag *defrag, uint64_t *discarded_bytes);
-DDS_EXPORT void nn_reorder_stats (struct nn_reorder *reorder, uint64_t *discarded_bytes);
+void nn_defrag_stats (struct nn_defrag *defrag, uint64_t *discarded_bytes);
+void nn_reorder_stats (struct nn_reorder *reorder, uint64_t *discarded_bytes);
 
 #if defined (__cplusplus)
 }

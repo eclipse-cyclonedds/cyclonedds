@@ -167,17 +167,17 @@ struct ddsi_reader
 #endif
 };
 
-DDS_EXPORT extern const ddsrt_avl_treedef_t ddsi_wr_readers_treedef;
-DDS_EXPORT extern const ddsrt_avl_treedef_t ddsi_wr_local_readers_treedef;
-DDS_EXPORT extern const ddsrt_avl_treedef_t ddsi_rd_writers_treedef;
-DDS_EXPORT extern const ddsrt_avl_treedef_t ddsi_rd_local_writers_treedef;
+extern const ddsrt_avl_treedef_t ddsi_wr_readers_treedef;
+extern const ddsrt_avl_treedef_t ddsi_wr_local_readers_treedef;
+extern const ddsrt_avl_treedef_t ddsi_rd_writers_treedef;
+extern const ddsrt_avl_treedef_t ddsi_rd_local_writers_treedef;
 
-DDS_INLINE_EXPORT inline seqno_t ddsi_writer_read_seq_xmit (const struct ddsi_writer *wr)
+inline seqno_t ddsi_writer_read_seq_xmit (const struct ddsi_writer *wr)
 {
   return ddsrt_atomic_ld64 (&wr->seq_xmit);
 }
 
-DDS_INLINE_EXPORT inline void ddsi_writer_update_seq_xmit (struct ddsi_writer *wr, seqno_t nv)
+inline void ddsi_writer_update_seq_xmit (struct ddsi_writer *wr, seqno_t nv)
 {
   uint64_t ov;
   do {
@@ -191,7 +191,7 @@ bool ddsi_is_local_orphan_endpoint (const struct ddsi_entity_common *e);
 int ddsi_is_keyed_endpoint_entityid (ddsi_entityid_t id);
 int ddsi_is_builtin_volatile_endpoint (ddsi_entityid_t id);
 
-DDS_EXPORT int ddsi_is_builtin_endpoint (ddsi_entityid_t id, nn_vendorid_t vendorid);
+int ddsi_is_builtin_endpoint (ddsi_entityid_t id, nn_vendorid_t vendorid);
 
 // writer
 dds_return_t ddsi_new_writer_guid (struct ddsi_writer **wr_out, const struct ddsi_guid *guid, const struct ddsi_guid *group_guid, struct ddsi_participant *pp, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos, struct whc *whc, ddsi_status_cb_t status_cb, void *status_entity);
@@ -208,14 +208,14 @@ void ddsi_rebuild_writer_addrset (struct ddsi_writer *wr);
 void ddsi_writer_set_alive_may_unlock (struct ddsi_writer *wr, bool notify);
 int ddsi_writer_set_notalive (struct ddsi_writer *wr, bool notify);
 
-DDS_EXPORT struct ddsi_local_orphan_writer *ddsi_new_local_orphan_writer (struct ddsi_domaingv *gv, ddsi_entityid_t entityid, const char *topic_name, struct ddsi_sertype *type, const struct dds_qos *xqos, struct whc *whc);
-DDS_EXPORT void ddsi_delete_local_orphan_writer (struct ddsi_local_orphan_writer *wr);
-DDS_EXPORT dds_return_t ddsi_new_writer (struct ddsi_writer **wr_out, struct ddsi_guid *wrguid, const struct ddsi_guid *group_guid, struct ddsi_participant *pp, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos, struct whc * whc, ddsi_status_cb_t status_cb, void *status_cb_arg);
-DDS_EXPORT void ddsi_update_writer_qos (struct ddsi_writer *wr, const struct dds_qos *xqos);
-DDS_EXPORT void ddsi_make_writer_info(struct ddsi_writer_info *wrinfo, const struct ddsi_entity_common *e, const struct dds_qos *xqos, uint32_t statusinfo);
-DDS_EXPORT dds_return_t ddsi_writer_wait_for_acks (struct ddsi_writer *wr, const ddsi_guid_t *rdguid, dds_time_t abstimeout);
-DDS_EXPORT dds_return_t ddsi_unblock_throttled_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *guid);
-DDS_EXPORT dds_return_t ddsi_delete_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *guid);
+struct ddsi_local_orphan_writer *ddsi_new_local_orphan_writer (struct ddsi_domaingv *gv, ddsi_entityid_t entityid, const char *topic_name, struct ddsi_sertype *type, const struct dds_qos *xqos, struct whc *whc);
+void ddsi_delete_local_orphan_writer (struct ddsi_local_orphan_writer *wr);
+dds_return_t ddsi_new_writer (struct ddsi_writer **wr_out, struct ddsi_guid *wrguid, const struct ddsi_guid *group_guid, struct ddsi_participant *pp, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos, struct whc * whc, ddsi_status_cb_t status_cb, void *status_cb_arg);
+void ddsi_update_writer_qos (struct ddsi_writer *wr, const struct dds_qos *xqos);
+void ddsi_make_writer_info(struct ddsi_writer_info *wrinfo, const struct ddsi_entity_common *e, const struct dds_qos *xqos, uint32_t statusinfo);
+dds_return_t ddsi_writer_wait_for_acks (struct ddsi_writer *wr, const ddsi_guid_t *rdguid, dds_time_t abstimeout);
+dds_return_t ddsi_unblock_throttled_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *guid);
+dds_return_t ddsi_delete_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *guid);
 
 // reader
 dds_return_t ddsi_new_reader_guid (struct ddsi_reader **rd_out, const struct ddsi_guid *guid, const struct ddsi_guid *group_guid, struct ddsi_participant *pp, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos, struct ddsi_rhc *rhc, ddsi_status_cb_t status_cb, void * status_entity);
@@ -225,9 +225,9 @@ void ddsi_reader_update_notify_pwr_alive_state (struct ddsi_reader *rd, const st
 void ddsi_reader_update_notify_pwr_alive_state_guid (const struct ddsi_guid *rd_guid, const struct ddsi_proxy_writer *pwr, const struct ddsi_alive_state *alive_state);
 void ddsi_update_reader_init_acknack_count (const ddsrt_log_cfg_t *logcfg, const struct entity_index *entidx, const struct ddsi_guid *rd_guid, nn_count_t count);
 
-DDS_EXPORT dds_return_t ddsi_new_reader (struct ddsi_reader **rd_out, struct ddsi_guid *rdguid, const struct ddsi_guid *group_guid, struct ddsi_participant *pp, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos, struct ddsi_rhc * rhc, ddsi_status_cb_t status_cb, void *status_cb_arg);
-DDS_EXPORT void ddsi_update_reader_qos (struct ddsi_reader *rd, const struct dds_qos *xqos);
-DDS_EXPORT dds_return_t ddsi_delete_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *guid);
+dds_return_t ddsi_new_reader (struct ddsi_reader **rd_out, struct ddsi_guid *rdguid, const struct ddsi_guid *group_guid, struct ddsi_participant *pp, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos, struct ddsi_rhc * rhc, ddsi_status_cb_t status_cb, void *status_cb_arg);
+void ddsi_update_reader_qos (struct ddsi_reader *rd, const struct dds_qos *xqos);
+dds_return_t ddsi_delete_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *guid);
 
 
 #if defined (__cplusplus)

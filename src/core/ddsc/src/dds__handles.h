@@ -87,7 +87,7 @@ struct dds_handle_link {
 /*
  * Initialize handleserver singleton.
  */
-DDS_EXPORT dds_return_t
+dds_return_t
 dds_handle_server_init(void);
 
 
@@ -95,7 +95,7 @@ dds_handle_server_init(void);
  * Destroy handleserver singleton.
  * The handleserver is destroyed when fini() is called as often as init().
  */
-DDS_EXPORT void
+void
 dds_handle_server_fini(void);
 
 
@@ -117,7 +117,7 @@ dds_handle_server_fini(void);
  * Valid handle when returned value is positive.
  * Otherwise negative handle is returned.
  */
-DDS_EXPORT dds_handle_t
+dds_handle_t
 dds_handle_create(
         struct dds_handle_link *link,
         bool implicit,
@@ -128,11 +128,11 @@ dds_handle_create(
 /*
  * Register a specific handle.
  */
-DDS_EXPORT dds_return_t
+dds_return_t
 dds_handle_register_special (
         struct dds_handle_link *link, bool implicit, bool allow_children, dds_handle_t handle);
 
-DDS_EXPORT void dds_handle_unpend (struct dds_handle_link *link);
+void dds_handle_unpend (struct dds_handle_link *link);
 
 /*
  * This will close the handle. All information remains, only new claims will
@@ -140,7 +140,7 @@ DDS_EXPORT void dds_handle_unpend (struct dds_handle_link *link);
  *
  * This is a noop on an already closed handle.
  */
-DDS_EXPORT void
+void
 dds_handle_close_wait (
         struct dds_handle_link *link);
 
@@ -153,7 +153,7 @@ dds_handle_close_wait (
  * It will delete the information when there are no more active claims. It'll
  * block when necessary to wait for all possible claims to be released.
  */
-DDS_EXPORT int32_t
+int32_t
 dds_handle_delete(
         struct dds_handle_link *link);
 
@@ -164,25 +164,25 @@ dds_handle_delete(
  *
  * Returns OK when succeeded.
  */
-DDS_EXPORT int32_t
+int32_t
 dds_handle_pin(
         dds_handle_t hdl,
         struct dds_handle_link **entity);
 
-DDS_EXPORT int32_t
+int32_t
 dds_handle_pin_with_origin(
         dds_handle_t hdl,
         bool from_user,
         struct dds_handle_link **entity);
 
-DDS_EXPORT int32_t
+int32_t
 dds_handle_pin_and_ref_with_origin(
         dds_handle_t hdl,
         bool from_user,
         struct dds_handle_link **entity);
 
 
-DDS_EXPORT void
+void
 dds_handle_repin(
         struct dds_handle_link *link);
 
@@ -190,7 +190,7 @@ dds_handle_repin(
 /*
  * The active claims count is decreased.
  */
-DDS_EXPORT void
+void
 dds_handle_unpin(
         struct dds_handle_link *link);
 
@@ -208,16 +208,16 @@ bool dds_handle_drop_childref_and_pin (struct dds_handle_link *link, bool may_de
  */
 
 
-DDS_EXPORT void dds_handle_add_ref (struct dds_handle_link *link);
-DDS_EXPORT bool dds_handle_drop_ref (struct dds_handle_link *link);
-DDS_EXPORT bool dds_handle_close (struct dds_handle_link *link);
-DDS_EXPORT bool dds_handle_unpin_and_drop_ref (struct dds_handle_link *link);
+void dds_handle_add_ref (struct dds_handle_link *link);
+bool dds_handle_drop_ref (struct dds_handle_link *link);
+bool dds_handle_close (struct dds_handle_link *link);
+bool dds_handle_unpin_and_drop_ref (struct dds_handle_link *link);
 
-DDS_INLINE_EXPORT inline bool dds_handle_is_closed (struct dds_handle_link *link) {
+inline bool dds_handle_is_closed (struct dds_handle_link *link) {
   return (ddsrt_atomic_ld32 (&link->cnt_flags) & HDL_FLAG_CLOSING) != 0;
 }
 
-DDS_EXPORT bool dds_handle_is_not_refd (struct dds_handle_link *link);
+bool dds_handle_is_not_refd (struct dds_handle_link *link);
 
 #if defined (__cplusplus)
 }

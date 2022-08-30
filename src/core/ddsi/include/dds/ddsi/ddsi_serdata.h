@@ -211,10 +211,10 @@ DDS_EXPORT void ddsi_serdata_init (struct ddsi_serdata *d, const struct ddsi_ser
  * @param[in] fragchain the fragchain argument passed to @ref ddsi_serdata_from_ser (the first one, not any subsequent ones)
  * @returns A pointer to the keyhash in the message if it was present, NULL if not. The lifetime is at least that of the fragchain itself.
  */
-DDS_EXPORT const ddsi_keyhash_t *ddsi_serdata_keyhash_from_fragchain (const struct nn_rdata *fragchain);
+const ddsi_keyhash_t *ddsi_serdata_keyhash_from_fragchain (const struct nn_rdata *fragchain);
 
 /* backwards compatibility: wrap a sertopic-derived serdata so that it may be used as a sertype-derived one; increments refcount */
-DDS_EXPORT struct ddsi_serdata *ddsi_sertopic_wrap_serdata (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, void *old);
+struct ddsi_serdata *ddsi_sertopic_wrap_serdata (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, void *old);
 
 /**
  * @brief Return a reference to a serdata with possible type conversion
@@ -230,7 +230,7 @@ DDS_EXPORT struct ddsi_serdata *ddsi_sertopic_wrap_serdata (const struct ddsi_se
  *   topic, or a null pointer on failure.  The reference must be released with @ref
  *   ddsi_serdata_unref.
  */
-DDS_EXPORT struct ddsi_serdata *ddsi_serdata_ref_as_type (const struct ddsi_sertype *type, struct ddsi_serdata *serdata);
+struct ddsi_serdata *ddsi_serdata_ref_as_type (const struct ddsi_sertype *type, struct ddsi_serdata *serdata);
 
 DDS_INLINE_EXPORT inline struct ddsi_serdata *ddsi_serdata_ref (const struct ddsi_serdata *serdata_const) {
 #if defined (__cplusplus)

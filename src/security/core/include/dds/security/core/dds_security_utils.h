@@ -368,13 +368,13 @@ DDS_Security_parse_xml_date(
 
 
 /* for DEBUG purposes */
-DDS_EXPORT void
+void
 print_binary_debug(
          char* name,
          unsigned char *value,
          uint32_t size);
 
-DDS_EXPORT void
+void
 print_binary_properties_debug(
          const DDS_Security_DataHolder *token);
 

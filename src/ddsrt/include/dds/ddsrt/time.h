@@ -247,7 +247,7 @@ DDS_INLINE_EXPORT inline ddsrt_etime_t ddsrt_etime_add_duration(ddsrt_etime_t ab
  * @returns INFINITE if @reltime was @DDS_INIFINITY, relative time converted to
  *          microseconds otherwise.
  */
-DDS_INLINE_EXPORT inline DWORD
+inline DWORD
 ddsrt_duration_to_msecs_ceil(dds_duration_t reltime)
 {
   if (reltime == DDS_INFINITY) {

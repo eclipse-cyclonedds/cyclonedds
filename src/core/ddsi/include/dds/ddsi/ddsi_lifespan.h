@@ -35,19 +35,19 @@ struct lifespan_fhnode {
   ddsrt_mtime_t t_expire;
 };
 
-DDS_EXPORT void lifespan_init (const struct ddsi_domaingv *gv, struct lifespan_adm *lifespan_adm, size_t fh_offset, size_t fh_node_offset, sample_expired_cb_t sample_expired_cb);
-DDS_EXPORT void lifespan_fini (const struct lifespan_adm *lifespan_adm);
-DDS_EXPORT ddsrt_mtime_t lifespan_next_expired_locked (const struct lifespan_adm *lifespan_adm, ddsrt_mtime_t tnow, void **sample);
-DDS_EXPORT void lifespan_register_sample_real (struct lifespan_adm *lifespan_adm, struct lifespan_fhnode *node);
-DDS_EXPORT void lifespan_unregister_sample_real (struct lifespan_adm *lifespan_adm, struct lifespan_fhnode *node);
+void lifespan_init (const struct ddsi_domaingv *gv, struct lifespan_adm *lifespan_adm, size_t fh_offset, size_t fh_node_offset, sample_expired_cb_t sample_expired_cb);
+void lifespan_fini (const struct lifespan_adm *lifespan_adm);
+ddsrt_mtime_t lifespan_next_expired_locked (const struct lifespan_adm *lifespan_adm, ddsrt_mtime_t tnow, void **sample);
+void lifespan_register_sample_real (struct lifespan_adm *lifespan_adm, struct lifespan_fhnode *node);
+void lifespan_unregister_sample_real (struct lifespan_adm *lifespan_adm, struct lifespan_fhnode *node);
 
-DDS_INLINE_EXPORT inline void lifespan_register_sample_locked (struct lifespan_adm *lifespan_adm, struct lifespan_fhnode *node)
+inline void lifespan_register_sample_locked (struct lifespan_adm *lifespan_adm, struct lifespan_fhnode *node)
 {
   if (node->t_expire.v != DDS_NEVER)
     lifespan_register_sample_real (lifespan_adm, node);
 }
 
-DDS_INLINE_EXPORT inline void lifespan_unregister_sample_locked (struct lifespan_adm *lifespan_adm, struct lifespan_fhnode *node)
+inline void lifespan_unregister_sample_locked (struct lifespan_adm *lifespan_adm, struct lifespan_fhnode *node)
 {
   if (node->t_expire.v != DDS_NEVER)
     lifespan_unregister_sample_real (lifespan_adm, node);

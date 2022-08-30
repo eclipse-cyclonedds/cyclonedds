@@ -19,8 +19,6 @@
 #include "dds/export.h"
 #include "dds/features.h"
 
-/* DDS_EXPORT inline i.c.w. __attributes__((visibility...)) and some compilers: */
-#include "dds/ddsrt/attributes.h"
 #include "dds/ddsrt/time.h"
 #include "dds/ddsi/ddsi_guid.h"
 
@@ -62,19 +60,19 @@ struct ddsi_rhc {
   const struct ddsi_rhc_ops *ops;
 };
 
-DDS_INLINE_EXPORT inline bool ddsi_rhc_store (struct ddsi_rhc * __restrict rhc, const struct ddsi_writer_info * __restrict wrinfo, struct ddsi_serdata * __restrict sample, struct ddsi_tkmap_instance * __restrict tk) {
+inline bool ddsi_rhc_store (struct ddsi_rhc * __restrict rhc, const struct ddsi_writer_info * __restrict wrinfo, struct ddsi_serdata * __restrict sample, struct ddsi_tkmap_instance * __restrict tk) {
   return rhc->ops->store (rhc, wrinfo, sample, tk);
 }
-DDS_INLINE_EXPORT inline void ddsi_rhc_unregister_wr (struct ddsi_rhc * __restrict rhc, const struct ddsi_writer_info * __restrict wrinfo) {
+inline void ddsi_rhc_unregister_wr (struct ddsi_rhc * __restrict rhc, const struct ddsi_writer_info * __restrict wrinfo) {
   rhc->ops->unregister_wr (rhc, wrinfo);
 }
-DDS_INLINE_EXPORT inline void ddsi_rhc_relinquish_ownership (struct ddsi_rhc * __restrict rhc, const uint64_t wr_iid) {
+inline void ddsi_rhc_relinquish_ownership (struct ddsi_rhc * __restrict rhc, const uint64_t wr_iid) {
   rhc->ops->relinquish_ownership (rhc, wr_iid);
 }
-DDS_INLINE_EXPORT inline void ddsi_rhc_set_qos (struct ddsi_rhc *rhc, const struct dds_qos *qos) {
+inline void ddsi_rhc_set_qos (struct ddsi_rhc *rhc, const struct dds_qos *qos) {
   rhc->ops->set_qos (rhc, qos);
 }
-DDS_INLINE_EXPORT inline void ddsi_rhc_free (struct ddsi_rhc *rhc) {
+inline void ddsi_rhc_free (struct ddsi_rhc *rhc) {
   rhc->ops->free (rhc);
 }
 

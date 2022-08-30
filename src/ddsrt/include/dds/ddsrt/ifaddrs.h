@@ -37,16 +37,16 @@ struct ddsrt_ifaddrs {
 
 typedef struct ddsrt_ifaddrs ddsrt_ifaddrs_t;
 
-DDS_EXPORT dds_return_t
+dds_return_t
 ddsrt_getifaddrs(
   ddsrt_ifaddrs_t **ifap,
   const int *afs);
 
-DDS_EXPORT void
+void
 ddsrt_freeifaddrs(
   ddsrt_ifaddrs_t *ifa);
 
-DDS_EXPORT dds_return_t
+dds_return_t
 ddsrt_eth_get_mac_addr(
   char *interface_name,
   unsigned char *mac_addr);

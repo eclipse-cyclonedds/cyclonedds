@@ -269,7 +269,7 @@ typedef struct DDS_Builtin_TypeLookup_Request
   struct DDS_Builtin_TypeLookup_Call data;
 } DDS_Builtin_TypeLookup_Request;
 
-DDS_EXPORT extern const dds_topic_descriptor_t DDS_Builtin_TypeLookup_Request_desc;
+extern const dds_topic_descriptor_t DDS_Builtin_TypeLookup_Request_desc;
 
 #define DDS_Builtin_TypeLookup_Request__alloc() \
 ((DDS_Builtin_TypeLookup_Request*) dds_alloc (sizeof (DDS_Builtin_TypeLookup_Request)));
@@ -293,7 +293,7 @@ typedef struct DDS_Builtin_TypeLookup_Reply
   struct DDS_Builtin_TypeLookup_Return return_data;
 } DDS_Builtin_TypeLookup_Reply;
 
-DDS_EXPORT extern const dds_topic_descriptor_t DDS_Builtin_TypeLookup_Reply_desc;
+extern const dds_topic_descriptor_t DDS_Builtin_TypeLookup_Reply_desc;
 
 #define DDS_Builtin_TypeLookup_Reply__alloc() \
 ((DDS_Builtin_TypeLookup_Reply*) dds_alloc (sizeof (DDS_Builtin_TypeLookup_Reply)));

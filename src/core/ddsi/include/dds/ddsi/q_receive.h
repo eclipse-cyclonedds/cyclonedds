@@ -42,7 +42,7 @@ uint32_t listen_thread (struct ddsi_tran_listener * listener);
 int user_dqueue_handler (const struct nn_rsample_info *sampleinfo, const struct nn_rdata *fragchain, const ddsi_guid_t *rdguid, void *qarg);
 int add_Gap (struct nn_xmsg *msg, struct ddsi_writer *wr, struct ddsi_proxy_reader *prd, seqno_t start, seqno_t base, uint32_t numbits, const uint32_t *bits);
 
-DDS_EXPORT void ddsi_handle_rtps_message (struct thread_state * const thrst, struct ddsi_domaingv *gv, ddsi_tran_conn_t conn, const ddsi_guid_prefix_t *guidprefix, struct nn_rbufpool *rbpool, struct nn_rmsg *rmsg, size_t sz, unsigned char *msg, const ddsi_locator_t *srcloc);
+void ddsi_handle_rtps_message (struct thread_state * const thrst, struct ddsi_domaingv *gv, ddsi_tran_conn_t conn, const ddsi_guid_prefix_t *guidprefix, struct nn_rbufpool *rbpool, struct nn_rmsg *rmsg, size_t sz, unsigned char *msg, const ddsi_locator_t *srcloc);
 
 #if defined (__cplusplus)
 }

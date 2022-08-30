@@ -25,9 +25,9 @@ typedef struct DDS_Security_SharedSecretHandleImpl {
   DDS_Security_octet challenge2[DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE];
 } DDS_Security_SharedSecretHandleImpl;
 
-DDS_EXPORT const DDS_Security_octet* get_challenge1_from_secret_handle (DDS_Security_SharedSecretHandle handle);
-DDS_EXPORT const DDS_Security_octet* get_challenge2_from_secret_handle (DDS_Security_SharedSecretHandle handle);
-DDS_EXPORT const DDS_Security_octet* get_secret_from_secret_handle (DDS_Security_SharedSecretHandle handle);
-DDS_EXPORT size_t get_secret_size_from_secret_handle (DDS_Security_SharedSecretHandle handle);
+ DDS_EXPORT const DDS_Security_octet* get_challenge1_from_secret_handle (DDS_Security_SharedSecretHandle handle);
+ DDS_EXPORT const DDS_Security_octet* get_challenge2_from_secret_handle (DDS_Security_SharedSecretHandle handle);
+ DDS_EXPORT const DDS_Security_octet* get_secret_from_secret_handle (DDS_Security_SharedSecretHandle handle);
+ DDS_EXPORT size_t get_secret_size_from_secret_handle (DDS_Security_SharedSecretHandle handle);
 
 #endif /* SRC_SECURITY_CORE_INCLUDE_SHARED_SECRET_H_ */

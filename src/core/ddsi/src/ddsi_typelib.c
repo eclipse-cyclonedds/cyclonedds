@@ -132,7 +132,6 @@ void ddsi_typeinfo_fini (ddsi_typeinfo_t *typeinfo)
 
 const ddsi_typeid_t *ddsi_typeinfo_minimal_typeid (const ddsi_typeinfo_t *typeinfo)
 {
-  DDSRT_STATIC_ASSERT (offsetof (struct ddsi_typeid, x) == 0);
   if (typeinfo == NULL)
     return NULL;
   return (const ddsi_typeid_t *) &typeinfo->x.minimal.typeid_with_size.type_id;
@@ -140,7 +139,6 @@ const ddsi_typeid_t *ddsi_typeinfo_minimal_typeid (const ddsi_typeinfo_t *typein
 
 const ddsi_typeid_t *ddsi_typeinfo_complete_typeid (const ddsi_typeinfo_t *typeinfo)
 {
-  DDSRT_STATIC_ASSERT (offsetof (struct ddsi_typeid, x) == 0);
   if (typeinfo == NULL)
     return NULL;
   return (const ddsi_typeid_t *) &typeinfo->x.complete.typeid_with_size.type_id;

@@ -26,14 +26,14 @@
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/q_thread.h"
 
-DDS_EXPORT extern inline bool builtintopic_is_visible (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_guid *guid, nn_vendorid_t vendorid);
-DDS_EXPORT extern inline bool builtintopic_is_builtintopic (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_sertype *type);
-DDS_EXPORT extern inline struct ddsi_tkmap_instance *builtintopic_get_tkmap_entry (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_guid *guid);
-DDS_EXPORT extern inline void builtintopic_write_endpoint (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_entity_common *e, ddsrt_wctime_t timestamp, bool alive);
-DDS_EXPORT extern inline void builtintopic_write_topic (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_topic_definition *tpd, ddsrt_wctime_t timestamp, bool alive);
+extern inline bool builtintopic_is_visible (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_guid *guid, nn_vendorid_t vendorid);
+extern inline bool builtintopic_is_builtintopic (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_sertype *type);
+extern inline struct ddsi_tkmap_instance *builtintopic_get_tkmap_entry (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_guid *guid);
+extern inline void builtintopic_write_endpoint (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_entity_common *e, ddsrt_wctime_t timestamp, bool alive);
+extern inline void builtintopic_write_topic (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_topic_definition *tpd, ddsrt_wctime_t timestamp, bool alive);
 
-DDS_EXPORT extern inline seqno_t ddsi_writer_read_seq_xmit (const struct ddsi_writer *wr);
-DDS_EXPORT extern inline void ddsi_writer_update_seq_xmit (struct ddsi_writer *wr, seqno_t nv);
+extern inline seqno_t ddsi_writer_read_seq_xmit (const struct ddsi_writer *wr);
+extern inline void ddsi_writer_update_seq_xmit (struct ddsi_writer *wr, seqno_t nv);
 
 int ddsi_compare_guid (const void *va, const void *vb)
 {

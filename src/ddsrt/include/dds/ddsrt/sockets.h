@@ -37,48 +37,48 @@ ddsrt_gethostname(
   size_t buffersize);
 #endif
 
-DDS_EXPORT dds_return_t
+dds_return_t
 ddsrt_socket(
   ddsrt_socket_t *sockptr,
   int domain,
   int type,
   int protocol);
 
-DDS_EXPORT dds_return_t
+dds_return_t
 ddsrt_close(
   ddsrt_socket_t sock);
 
-DDS_EXPORT dds_return_t
+dds_return_t
 ddsrt_connect(
   ddsrt_socket_t sock,
   const struct sockaddr *addr,
   socklen_t addrlen);
 
-DDS_EXPORT dds_return_t
+dds_return_t
 ddsrt_accept(
   ddsrt_socket_t sock,
   struct sockaddr *addr,
   socklen_t *addrlen,
   ddsrt_socket_t *connptr);
 
-DDS_EXPORT dds_return_t
+dds_return_t
 ddsrt_listen(
   ddsrt_socket_t sock,
   int backlog);
 
-DDS_EXPORT dds_return_t
+dds_return_t
 ddsrt_bind(
   ddsrt_socket_t sock,
   const struct sockaddr *addr,
   socklen_t addrlen);
 
-DDS_EXPORT dds_return_t
+dds_return_t
 ddsrt_getsockname(
   ddsrt_socket_t sock,
   struct sockaddr *addr,
   socklen_t *addrlen);
 
-DDS_EXPORT dds_return_t
+dds_return_t
 ddsrt_send(
   ddsrt_socket_t sock,
   const void *buf,
@@ -86,14 +86,14 @@ ddsrt_send(
   int flags,
   ssize_t *sent);
 
-DDS_EXPORT dds_return_t
+dds_return_t
 ddsrt_sendmsg(
   ddsrt_socket_t sock,
   const ddsrt_msghdr_t *msg,
   int flags,
   ssize_t *sent);
 
-DDS_EXPORT dds_return_t
+dds_return_t
 ddsrt_recv(
   ddsrt_socket_t sock,
   void *buf,
@@ -101,14 +101,14 @@ ddsrt_recv(
   int flags,
   ssize_t *rcvd);
 
-DDS_EXPORT dds_return_t
+dds_return_t
 ddsrt_recvmsg(
   ddsrt_socket_t sock,
   ddsrt_msghdr_t *msg,
   int flags,
   ssize_t *rcvd);
 
-DDS_EXPORT dds_return_t
+dds_return_t
 ddsrt_getsockopt(
   ddsrt_socket_t sock,
   int32_t level, /* SOL_SOCKET */
@@ -116,7 +116,7 @@ ddsrt_getsockopt(
   void *optval,
   socklen_t *optlen);
 
-DDS_EXPORT dds_return_t
+dds_return_t
 ddsrt_setsockopt(
   ddsrt_socket_t sock,
   int32_t level, /* SOL_SOCKET */
@@ -141,7 +141,7 @@ ddsrt_setsockopt(
  * @retval DDS_RETCODE_ERROR
  *             An unknown error error occurred.
  */
-DDS_EXPORT dds_return_t
+dds_return_t
 ddsrt_setsocknonblocking(
   ddsrt_socket_t sock,
   bool nonblock);
@@ -168,7 +168,7 @@ ddsrt_setsocknonblocking(
  * @retval DDS_RETCODE_ERROR
  *             An unknown error occurred.
  */
-DDS_EXPORT dds_return_t
+dds_return_t
 ddsrt_setsockreuse(
   ddsrt_socket_t sock,
   bool reuse);
@@ -184,7 +184,7 @@ ddsrt_setsockreuse(
  *
  * @returns The number of sockets ready in the sets or a return code.
  */
-DDS_EXPORT dds_return_t
+dds_return_t
 ddsrt_select(
   int32_t nfds,
   fd_set *readfds,
@@ -209,7 +209,7 @@ ddsrt_select(
  * @returns Size of the socket address based on the address family, or 0 if
  *          the address family is unknown.
  */
-DDS_EXPORT socklen_t
+socklen_t
 ddsrt_sockaddr_get_size(
   const struct sockaddr *const sa) ddsrt_nonnull_all;
 
@@ -220,7 +220,7 @@ ddsrt_sockaddr_get_size(
  *
  * @return Port number in host order.
  */
-DDS_EXPORT uint16_t
+uint16_t
 ddsrt_sockaddr_get_port(
   const struct sockaddr *const sa) ddsrt_nonnull_all;
 
@@ -231,7 +231,7 @@ ddsrt_sockaddr_get_port(
  *
  * @return true if the address is unspecified, false otherwise.
  */
-DDS_EXPORT bool
+bool
 ddsrt_sockaddr_isunspecified(
   const struct sockaddr *__restrict sa) ddsrt_nonnull_all;
 
@@ -242,7 +242,7 @@ ddsrt_sockaddr_isunspecified(
  *
  * @return true if the address is a loopback address, false otherwise.
  */
-DDS_EXPORT bool
+bool
 ddsrt_sockaddr_isloopback(
   const struct sockaddr *__restrict sa) ddsrt_nonnull_all;
 
@@ -258,18 +258,18 @@ ddsrt_sockaddr_isloopback(
  *
  * @returns true if both addresses reside in the same subnet, false otherwise.
  */
-DDS_EXPORT bool
+bool
 ddsrt_sockaddr_insamesubnet(
   const struct sockaddr *sa1,
   const struct sockaddr *sa2,
   const struct sockaddr *mask)
 ddsrt_nonnull_all;
 
-DDS_EXPORT dds_return_t
+dds_return_t
 ddsrt_sockaddrfromstr(
   int af, const char *str, void *sa);
 
-DDS_EXPORT dds_return_t
+dds_return_t
 ddsrt_sockaddrtostr(
   const void *sa, char *buf, size_t size);
 
@@ -301,7 +301,7 @@ DDSRT_WARNING_MSVC_ON(4200)
  * @retval DDS_RETCODE_TRY_AGAIN
  *             Nonauthoratitative host not found.
  */
-DDS_EXPORT dds_return_t
+dds_return_t
 ddsrt_gethostbyname(
   const char *name,
   int af,

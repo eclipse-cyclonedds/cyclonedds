@@ -60,7 +60,7 @@ typedef struct ddsrt_dynlib *ddsrt_dynlib_t;
  *             Loading failed.
  *             Use ddsrt_dlerror() to diagnose the failure.
  */
-DDS_EXPORT dds_return_t
+dds_return_t
 ddsrt_dlopen(
     const char *name,
     bool translate,
@@ -84,7 +84,7 @@ ddsrt_dlopen(
  *             Library closing failed.
  *             Use ddsrt_dlerror() to diagnose the failure.
  */
-DDS_EXPORT dds_return_t
+dds_return_t
 ddsrt_dlclose(
     ddsrt_dynlib_t handle);
 
@@ -107,7 +107,7 @@ ddsrt_dlclose(
  *             Symbol was not found.
  *             Use ddsrt_dlerror() to diagnose the failure.
  */
-DDS_EXPORT dds_return_t
+dds_return_t
 ddsrt_dlsym(
     ddsrt_dynlib_t handle,
     const char *symbol,
@@ -135,7 +135,7 @@ ddsrt_dlsym(
  * @retval DDS_RETCODE_NOT_ENOUGH_SPACE
  *             Buffer is not large enough to hold the error message
  */
-DDS_EXPORT dds_return_t
+dds_return_t
 ddsrt_dlerror(
     char *buf,
     size_t buflen);

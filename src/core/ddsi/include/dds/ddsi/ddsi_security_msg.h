@@ -67,7 +67,7 @@ typedef struct nn_participant_generic_message {
  * This means that the lifecycle of the arguments should be longer
  * then that of the message.
  */
-DDS_EXPORT void
+void
 nn_participant_generic_message_init(
    nn_participant_generic_message_t *msg,
    const ddsi_guid_t *wrguid,
@@ -82,7 +82,7 @@ nn_participant_generic_message_init(
 /*
  * Aliased struct variables will not be freed.
  */
-DDS_EXPORT void
+void
 nn_participant_generic_message_deinit(
    nn_participant_generic_message_t *msg);
 
@@ -91,14 +91,14 @@ nn_participant_generic_message_deinit(
  * This means that the lifecycle of the data buffer should be
  * longer then that of the message.
  */
-DDS_EXPORT dds_return_t
+dds_return_t
 nn_participant_generic_message_deseralize(
    nn_participant_generic_message_t *msg,
    const unsigned char *data,
    size_t len,
    bool bswap);
 
-DDS_EXPORT dds_return_t
+dds_return_t
 nn_participant_generic_message_serialize(
    const nn_participant_generic_message_t *msg,
    unsigned char **data,
@@ -107,7 +107,7 @@ nn_participant_generic_message_serialize(
 DDS_EXPORT extern const enum pserop pserop_participant_generic_message[];
 DDS_EXPORT extern const size_t pserop_participant_generic_message_nops;
 
-DDS_EXPORT int
+int
 volatile_secure_data_filter(
    struct ddsi_writer *wr,
    struct ddsi_proxy_reader *prd,

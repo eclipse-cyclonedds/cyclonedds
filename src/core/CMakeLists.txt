@@ -17,7 +17,11 @@ else()
   add_library(ddsc)
 endif()
 
-set_property(TARGET ddsc PROPERTY C_VISIBILITY_PRESET hidden)
+if(BUILD_TESTING)
+  set_property(TARGET ddsc PROPERTY WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
+else()
+  set_property(TARGET ddsc PROPERTY C_VISIBILITY_PRESET hidden)
+endif()
 
 if("${CMAKE_C_COMPILER_ID}" STREQUAL "MSVC")
   target_link_libraries(ddsc PRIVATE dbghelp)

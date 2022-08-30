@@ -37,28 +37,28 @@ struct deadline_elem {
   ddsrt_mtime_t t_deadline;
 };
 
-DDS_EXPORT void deadline_init (const struct ddsi_domaingv *gv, struct deadline_adm *deadline_adm, size_t list_offset, size_t elem_offset, deadline_missed_cb_t deadline_missed_cb);
-DDS_EXPORT void deadline_stop (const struct deadline_adm *deadline_adm);
-DDS_EXPORT void deadline_clear (struct deadline_adm *deadline_adm);
-DDS_EXPORT void deadline_fini (const struct deadline_adm *deadline_adm);
-DDS_EXPORT ddsrt_mtime_t deadline_next_missed_locked (struct deadline_adm *deadline_adm, ddsrt_mtime_t tnow, void **instance);
-DDS_EXPORT void deadline_register_instance_real (struct deadline_adm *deadline_adm, struct deadline_elem *elem, ddsrt_mtime_t tprev, ddsrt_mtime_t tnow);
-DDS_EXPORT void deadline_unregister_instance_real (struct deadline_adm *deadline_adm, struct deadline_elem *elem);
-DDS_EXPORT void deadline_renew_instance_real (struct deadline_adm *deadline_adm, struct deadline_elem *elem);
+void deadline_init (const struct ddsi_domaingv *gv, struct deadline_adm *deadline_adm, size_t list_offset, size_t elem_offset, deadline_missed_cb_t deadline_missed_cb);
+void deadline_stop (const struct deadline_adm *deadline_adm);
+void deadline_clear (struct deadline_adm *deadline_adm);
+void deadline_fini (const struct deadline_adm *deadline_adm);
+ddsrt_mtime_t deadline_next_missed_locked (struct deadline_adm *deadline_adm, ddsrt_mtime_t tnow, void **instance);
+void deadline_register_instance_real (struct deadline_adm *deadline_adm, struct deadline_elem *elem, ddsrt_mtime_t tprev, ddsrt_mtime_t tnow);
+void deadline_unregister_instance_real (struct deadline_adm *deadline_adm, struct deadline_elem *elem);
+void deadline_renew_instance_real (struct deadline_adm *deadline_adm, struct deadline_elem *elem);
 
-DDS_INLINE_EXPORT inline void deadline_register_instance_locked (struct deadline_adm *deadline_adm, struct deadline_elem *elem, ddsrt_mtime_t tnow)
+inline void deadline_register_instance_locked (struct deadline_adm *deadline_adm, struct deadline_elem *elem, ddsrt_mtime_t tnow)
 {
   if (deadline_adm->dur != DDS_INFINITY)
     deadline_register_instance_real (deadline_adm, elem, tnow, tnow);
 }
 
-DDS_INLINE_EXPORT inline void deadline_reregister_instance_locked (struct deadline_adm *deadline_adm, struct deadline_elem *elem, ddsrt_mtime_t tnow)
+inline void deadline_reregister_instance_locked (struct deadline_adm *deadline_adm, struct deadline_elem *elem, ddsrt_mtime_t tnow)
 {
   if (deadline_adm->dur != DDS_INFINITY)
     deadline_register_instance_real (deadline_adm, elem, elem->t_deadline, tnow);
 }
 
-DDS_INLINE_EXPORT inline void deadline_unregister_instance_locked (struct deadline_adm *deadline_adm, struct deadline_elem *elem)
+inline void deadline_unregister_instance_locked (struct deadline_adm *deadline_adm, struct deadline_elem *elem)
 {
   if (deadline_adm->dur != DDS_INFINITY)
   {
@@ -67,7 +67,7 @@ DDS_INLINE_EXPORT inline void deadline_unregister_instance_locked (struct deadli
   }
 }
 
-DDS_INLINE_EXPORT inline void deadline_renew_instance_locked (struct deadline_adm *deadline_adm, struct deadline_elem *elem)
+inline void deadline_renew_instance_locked (struct deadline_adm *deadline_adm, struct deadline_elem *elem)
 {
   if (deadline_adm->dur != DDS_INFINITY)
   {

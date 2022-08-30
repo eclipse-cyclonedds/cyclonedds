@@ -32,10 +32,10 @@ typedef ddsi_time_t ddsi_duration_t;
 
 bool ddsi_is_valid_timestamp (ddsi_time_t t);
 
-DDS_EXPORT ddsi_time_t ddsi_wctime_to_ddsi_time (ddsrt_wctime_t t);
-DDS_EXPORT ddsrt_wctime_t ddsi_wctime_from_ddsi_time (ddsi_time_t x);
-DDS_EXPORT ddsi_duration_t ddsi_to_ddsi_duration (dds_duration_t t);
-DDS_EXPORT dds_duration_t ddsi_from_ddsi_duration (ddsi_duration_t x);
+ddsi_time_t ddsi_wctime_to_ddsi_time (ddsrt_wctime_t t);
+ddsrt_wctime_t ddsi_wctime_from_ddsi_time (ddsi_time_t x);
+ddsi_duration_t ddsi_to_ddsi_duration (dds_duration_t t);
+dds_duration_t ddsi_from_ddsi_duration (ddsi_duration_t x);
 
 #if defined (__cplusplus)
 }
