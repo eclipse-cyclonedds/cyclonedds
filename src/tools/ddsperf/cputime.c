@@ -228,10 +228,17 @@ struct record_cputime_state *record_cputime_new (dds_entity_t wr)
   if (ddsrt_gethostname (hostname, sizeof (hostname)) != DDS_RETCODE_OK)
     strcpy (hostname, "?");
   state->s.hostname = strdup (hostname);
+  assert (state->s.hostname);
   state->s.pid = (uint32_t) ddsrt_getpid ();
   state->s.cpu._length = 0;
   state->s.cpu._maximum = (uint32_t) state->nthreads;
-  state->s.cpu._buffer = malloc (state->s.cpu._maximum * sizeof (*state->s.cpu._buffer));
+  if (state->s.cpu._maximum > 0)
+  {
+    state->s.cpu._buffer = malloc (state->s.cpu._maximum * sizeof (*state->s.cpu._buffer));
+    assert (state->s.cpu._buffer);
+  }
+  else
+    state->s.cpu._buffer = NULL;
   state->s.cpu._release = false;
   return state;
 }

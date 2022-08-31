@@ -76,13 +76,16 @@ void record_netload (struct record_netload_state *st, const char *prefix, dds_ti
 
 struct record_netload_state *record_netload_new (const char *dev, double bw)
 {
-  struct record_netload_state *st = malloc (sizeof (*st));
+  struct record_netload_state *st;
+  st = malloc (sizeof (*st));
+  assert (st);
   if (ddsrt_netstat_new (&st->ctrl, dev) != DDS_RETCODE_OK)
   {
     free (st);
     return NULL;
   }
   st->name = strdup (dev);
+  assert (st->name);
   st->bw = bw;
   st->data_valid = false;
   st->errored = false;
