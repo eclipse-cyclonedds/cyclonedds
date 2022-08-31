@@ -83,16 +83,15 @@ if("${CMAKE_C_COMPILER_ID}" STREQUAL "Clang" OR
              "-Wextra"
              "-Wconversion"
              "-Wunused"
-             "-Wmissing-prototypes"
              "-Winfinite-recursion"
              "-Wassign-enum"
              "-Wcomma"
-             "-Wmissing-prototypes"
              "-Wdocumentation"
              "-Wstrict-prototypes"
              "-Wconditional-uninitialized"
              "-Wshadow")
   add_compile_options(${wflags})
+  add_compile_options($<$<COMPILE_LANGUAGE:C>:-Wmissing-prototypes>)
   if(${WERROR})
     add_compile_options(-Werror)
     add_link_options(-Werror)
@@ -104,10 +103,11 @@ elseif("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
   #message(STATUS gcc)
   if(WITH_ZEPHYR)
     # Suppress false warnings from system includes
-    add_compile_options(-Wall -Wextra -Wno-unused-parameter -Wmissing-prototypes)
+    add_compile_options(-Wall -Wextra -Wno-unused-parameter)
   else()
-    add_compile_options(-Wall -Wextra -Wconversion -Wmissing-prototypes)
+    add_compile_options(-Wall -Wextra -Wconversion)
   endif()
+  add_compile_options($<$<COMPILE_LANGUAGE:C>:-Wmissing-prototypes>)
   if(${WERROR})
     add_compile_options(-Werror)
     add_link_options(-Werror)

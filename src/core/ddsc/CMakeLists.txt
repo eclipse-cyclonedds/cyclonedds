@@ -43,18 +43,13 @@ prepend(srcs_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/"
   dds_sertype_builtintopic.c
   dds_serdata_default.c
   dds_sertype_default.c
-  dds_data_allocator.c
   dds_loan.c
+  dds_heap_loan.c
+  dds_psmx.c
 )
 
 if(ENABLE_TYPELIB)
   list(APPEND srcs_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/dds_dynamic_type.c")
-endif()
-
-if(ENABLE_SHM)
-  list(APPEND srcs_ddsc
-    "${CMAKE_CURRENT_LIST_DIR}/src/dds_shm_monitor.c"
-    "${CMAKE_CURRENT_LIST_DIR}/src/dds_shm_qos.c")
 endif()
 
 prepend(hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/"
@@ -83,7 +78,10 @@ prepend(hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/"
   dds__serdata_builtintopic.h
   dds__serdata_default.h
   dds__get_status.h
-  dds__data_allocator.h)
+  dds__loan.h
+  dds__heap_loan.h
+  dds__psmx.h
+)
 
 prepend(hdrs_public_ddsc "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>/dds/"
   dds.h
@@ -97,17 +95,13 @@ prepend(hdrs_public_ddsc "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>$<
   ddsc/dds_rhc.h
   ddsc/dds_internal_api.h
   ddsc/dds_opcodes.h
-  ddsc/dds_data_allocator.h
-  ddsc/dds_loan_api.h)
+  ddsc/dds_loan_api.h
+  ddsc/dds_loan.h
+  ddsc/dds_psmx.h
+)
 
 if(ENABLE_TYPELIB)
   list(APPEND hdrs_public_ddsc "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>/dds/ddsc/dds_public_dynamic_type.h")
-endif()
-
-if(ENABLE_SHM)
-  list(APPEND hdrs_private_ddsc
-    "${CMAKE_CURRENT_LIST_DIR}/src/dds__shm_monitor.h"
-    "${CMAKE_CURRENT_LIST_DIR}/src/dds__shm_qos.h")
 endif()
 
 generate_export_header(

@@ -443,7 +443,9 @@ const struct ddsi_serdata_ops ddsi_serdata_ops_builtintopic = {
   .to_untyped = serdata_builtin_to_untyped,
   .untyped_to_sample = serdata_builtin_untyped_to_sample,
   .print = serdata_builtin_type_print,
-  .get_keyhash =NULL 
+  .get_keyhash = NULL,
+  .from_loaned_sample = NULL,
+  .from_psmx = NULL
 };
 
 #ifdef DDS_HAS_TOPIC_DISCOVERY
@@ -498,7 +500,9 @@ const struct ddsi_serdata_ops ddsi_serdata_ops_builtintopic_topic = {
   .to_untyped = serdata_builtin_to_untyped,
   .untyped_to_sample = serdata_builtin_untyped_to_sample,
   .print = serdata_builtin_type_print,
-  .get_keyhash =NULL 
+  .get_keyhash = NULL,
+  .from_loaned_sample = NULL,
+  .from_psmx = NULL
 };
 
 #endif /* DDS_HAS_TOPIC_DISCOVERY */

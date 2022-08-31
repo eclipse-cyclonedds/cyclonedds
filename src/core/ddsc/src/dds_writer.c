@@ -36,11 +36,7 @@
 #include "dds__qos.h"
 #include "dds__whc.h"
 #include "dds__statistics.h"
-#include "dds__data_allocator.h"
-
-#ifdef DDS_HAS_SHM
-#include "dds__shm_qos.h"
-#endif
+#include "dds__psmx.h"
 
 DECL_ENTITY_LOCK_UNLOCK (dds_writer)
 
@@ -214,21 +210,24 @@ static dds_return_t dds_writer_delete (dds_entity *e) ddsrt_nonnull_all;
 
 static dds_return_t dds_writer_delete (dds_entity *e)
 {
+  dds_return_t ret = DDS_RETCODE_OK;
   dds_writer * const wr = (dds_writer *) e;
-#ifdef DDS_HAS_SHM
-  if (wr->m_iox_pub)
+
+  for (uint32_t i = 0; ret == DDS_RETCODE_OK && i < wr->m_endpoint.psmx_endpoints.length; i++)
   {
-    DDS_CLOG(DDS_LC_SHM, &e->m_domain->gv.logconfig, "Release iceoryx's publisher\n");
-    iox_pub_stop_offer(wr->m_iox_pub);
-    iox_pub_deinit(wr->m_iox_pub);
+    struct dds_psmx_endpoint *psmx_endpoint = wr->m_endpoint.psmx_endpoints.endpoints[i];
+    if (psmx_endpoint == NULL)
+      continue;
+    ret = dds_remove_psmx_endpoint_from_list (psmx_endpoint, &psmx_endpoint->psmx_topic->psmx_endpoints);
   }
-#endif
+
   /* FIXME: not freeing WHC here because it is owned by the DDSI entity */
   ddsi_thread_state_awake (ddsi_lookup_thread_state (), &e->m_domain->gv);
   ddsi_xpack_free (wr->m_xp);
   ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
   dds_entity_drop_ref (&wr->m_topic->m_entity);
-  return DDS_RETCODE_OK;
+  dds_loan_manager_free (wr->m_loans);
+  return ret;
 }
 
 static dds_return_t validate_writer_qos (const dds_qos_t *wqos)
@@ -299,31 +298,9 @@ const struct dds_entity_deriver dds_entity_deriver_writer = {
   .invoke_cbs_for_pending_events = dds_writer_invoke_cbs_for_pending_events
 };
 
-#ifdef DDS_HAS_SHM
-static iox_pub_options_t create_iox_pub_options(const dds_qos_t* qos) {
-
-  iox_pub_options_t opts;
-  iox_pub_options_init(&opts);
-
-  if(qos->durability.kind == DDS_DURABILITY_VOLATILE) {
-    opts.historyCapacity = 0;
-  } else {
-    // Transient Local and stronger
-    if (qos->durability_service.history.kind == DDS_HISTORY_KEEP_LAST) {
-      opts.historyCapacity = (uint64_t)qos->durability_service.history.depth;
-    } else {
-      opts.historyCapacity = 0;
-    }
-  }
-
-  return opts;
-}
-#endif
-
 dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entity_t topic, const dds_qos_t *qos, const dds_listener_t *listener)
 {
   dds_return_t rc;
-  dds_qos_t *wqos;
   dds_publisher *pub = NULL;
   dds_topic *tp;
   dds_entity_t publisher;
@@ -374,7 +351,8 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
 
   /* Merge Topic & Publisher qos */
   struct ddsi_domaingv *gv = &pub->m_entity.m_domain->gv;
-  wqos = dds_create_qos ();
+  dds_qos_t *wqos = dds_create_qos ();
+  bool own_wqos = true;
   if (qos)
     ddsi_xqos_mergein_missing (wqos, qos, DDS_WRITER_QOS_MASK);
   if (pub->m_entity.m_qos)
@@ -386,6 +364,8 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
 
   if ((rc = dds_ensure_valid_data_representation (wqos, tp->m_stype->allowed_data_representation, false)) != 0)
     goto err_data_repr;
+  if ((rc = dds_ensure_valid_psmx_instances (wqos, tp->m_stype->data_type_props, &pub->m_entity.m_domain->psmx_instances)) != 0)
+    goto err_psmx;
 
   if ((rc = ddsi_xqos_valid (&gv->logconfig, wqos)) < 0 || (rc = validate_writer_qos(wqos)) != DDS_RETCODE_OK)
     goto err_bad_qos;
@@ -420,11 +400,17 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   /* Create writer */
   struct dds_writer * const wr = dds_alloc (sizeof (*wr));
   const dds_entity_t writer = dds_entity_init (&wr->m_entity, &pub->m_entity, DDS_KIND_WRITER, false, true, wqos, listener, DDS_WRITER_STATUS_MASK);
+
+  // Ownership of rqos is transferred to reader entity
+  own_wqos = false;
+
   wr->m_topic = tp;
   dds_entity_add_ref_locked (&tp->m_entity);
   wr->m_xp = ddsi_xpack_new (gv, async_mode);
   wrinfo = dds_whc_make_wrinfo (wr, wqos);
   wr->m_whc = dds_whc_new (gv, wrinfo);
+  rc = dds_loan_manager_create (&wr->m_loans, 0);
+  assert(rc == DDS_RETCODE_OK); // FIXME: can be out of resources
   dds_whc_free_wrinfo (wrinfo);
   // We now have the QoS which defaults to "false", but it used to be controlled by a global setting
   // (that most people were sensible enough to leave at false and that this deprecated now).  Or'ing
@@ -433,39 +419,19 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   // we can have another look.
   wr->whc_batch = wqos->writer_batching.batch_updates || gv->config.whc_batch;
 
-#ifdef DDS_HAS_SHM
-  assert(wqos->present & DDSI_QP_LOCATOR_MASK);
-  if (!(gv->config.enable_shm && dds_shm_compatible_qos_and_topic (wqos, tp, true)))
-    wqos->ignore_locator_type |= DDSI_LOCATOR_KIND_SHEM;
-#endif
+  if ((rc = dds_endpoint_add_psmx_endpoint (&wr->m_endpoint, wqos, tp->m_ktopic ? &tp->m_ktopic->psmx_topics : NULL, DDS_PSMX_ENDPOINT_TYPE_WRITER)) != DDS_RETCODE_OK)
+    goto err_pipe_open;
 
   struct ddsi_sertype *sertype = ddsi_sertype_derive_sertype (tp->m_stype, data_representation,
     wqos->present & DDSI_QP_TYPE_CONSISTENCY_ENFORCEMENT ? wqos->type_consistency : ddsi_default_qos_topic.type_consistency);
   if (!sertype)
     sertype = tp->m_stype;
 
-  rc = ddsi_new_writer (&wr->m_wr, &wr->m_entity.m_guid, NULL, pp, tp->m_name, sertype, wqos, wr->m_whc, dds_writer_status_cb, wr);
+  struct ddsi_psmx_locators_set *vl_set = dds_get_psmx_locators_set (wqos, &wr->m_entity.m_domain->psmx_instances);
+  rc = ddsi_new_writer (&wr->m_wr, &wr->m_entity.m_guid, NULL, pp, tp->m_name, sertype, wqos, wr->m_whc, dds_writer_status_cb, wr, vl_set);
   assert(rc == DDS_RETCODE_OK);
+  dds_psmx_locators_set_free (vl_set);
   ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
-
-#ifdef DDS_HAS_SHM
-  if (wr->m_wr->has_iceoryx)
-  {
-    DDS_CLOG (DDS_LC_SHM, &wr->m_entity.m_domain->gv.logconfig, "Writer's topic name will be DDS:Cyclone:%s\n", wr->m_topic->m_name);
-    iox_pub_options_t opts = create_iox_pub_options(wqos);
-
-    // NB: This may fail due to icoeryx being out of internal resources for publishers
-    //     In this case terminate is called by iox_pub_init.
-    //     it is currently (iceoryx 2.0 and lower) not possible to change this to
-    //     e.g. return a nullptr and handle the error here.
-
-    char *part_topic = dds_shm_partition_topic (wqos, wr->m_topic);
-    assert (part_topic != NULL);
-    wr->m_iox_pub = iox_pub_init(&(iox_pub_storage_t){0}, gv->config.iceoryx_service, wr->m_topic->m_stype->type_name, part_topic, &opts);
-    ddsrt_free (part_topic);
-    memset(wr->m_iox_pub_loans, 0, sizeof(wr->m_iox_pub_loans));
-  }
-#endif
 
   wr->m_entity.m_iid = ddsi_get_entity_instanceid (&wr->m_entity.m_domain->gv, &wr->m_entity.m_guid);
   dds_entity_register_child (&pub->m_entity, &wr->m_entity);
@@ -482,16 +448,20 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
     ddsi_xpack_sendq_init(gv);
     ddsi_xpack_sendq_start(gv);
   }
+
   ddsrt_mutex_unlock (&gv->sendq_running_lock);
   return writer;
 
+err_pipe_open:
 #ifdef DDS_HAS_SECURITY
 err_not_allowed:
   ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
 #endif
 err_bad_qos:
 err_data_repr:
-  dds_delete_qos(wqos);
+err_psmx:
+  if (own_wqos)
+    dds_delete_qos(wqos);
   dds_topic_allow_set_qos (tp);
 err_pp_mismatch:
   dds_topic_unpin (tp);
@@ -521,41 +491,6 @@ dds_entity_t dds_get_publisher (dds_entity_t writer)
     dds_entity_unpin (e);
     return pubh;
   }
-}
-
-dds_return_t dds__writer_data_allocator_init (const struct dds_writer *wr, dds_data_allocator_t *data_allocator)
-{
-#ifdef DDS_HAS_SHM
-  dds_iox_allocator_t *d = (dds_iox_allocator_t *) data_allocator->opaque.bytes;
-  ddsrt_mutex_init(&d->mutex);
-  if (NULL != wr->m_iox_pub)
-  {
-    d->kind = DDS_IOX_ALLOCATOR_KIND_PUBLISHER;
-    d->ref.pub = wr->m_iox_pub;
-  }
-  else
-  {
-    d->kind = DDS_IOX_ALLOCATOR_KIND_NONE;
-  }
-  return DDS_RETCODE_OK;
-#else
-  (void) wr;
-  (void) data_allocator;
-  return DDS_RETCODE_OK;
-#endif
-}
-
-dds_return_t dds__writer_data_allocator_fini (const struct dds_writer *wr, dds_data_allocator_t *data_allocator)
-{
-#ifdef DDS_HAS_SHM
-  dds_iox_allocator_t *d = (dds_iox_allocator_t *) data_allocator->opaque.bytes;
-  ddsrt_mutex_destroy(&d->mutex);
-  d->kind = DDS_IOX_ALLOCATOR_KIND_FINI;
-#else
-  (void) data_allocator;
-#endif
-  (void) wr;
-  return DDS_RETCODE_OK;
 }
 
 dds_return_t dds__ddsi_writer_wait_for_acks (struct dds_writer *wr, ddsi_guid_t *rdguid, dds_time_t abstimeout)

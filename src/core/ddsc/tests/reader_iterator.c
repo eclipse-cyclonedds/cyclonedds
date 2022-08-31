@@ -447,7 +447,7 @@ CU_Test(ddsc_read_next_wl, reader, .init=reader_iterator_init, .fini=reader_iter
     CU_ASSERT_EQUAL_FATAL(cntinv, RDR_INV_READ_CNT);
 
     /* return_loan 3rd arg should be in [highest count ever returned, read limit] */
-    ret = dds_return_loan(g_reader, g_loans, 1);
+    ret = dds_return_loan(g_reader, g_loans, ret);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* All samples should still be available. */
@@ -672,7 +672,7 @@ CU_Test(ddsc_take_next_wl, reader, .init=reader_iterator_init, .fini=reader_iter
     CU_ASSERT_EQUAL_FATAL(cntinv, RDR_INV_READ_CNT);
 
     /* return_loan 3rd arg should be in [highest count ever returned, read limit] */
-    ret = dds_return_loan(g_reader, g_loans, 1);
+    ret = dds_return_loan(g_reader, g_loans, ret);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* All samples should still be available. */

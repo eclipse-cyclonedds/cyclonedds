@@ -24,7 +24,7 @@
 #include "dds/ddsrt/random.h"
 
 #include "dds/ddsi/ddsi_plist.h"
-#include "dds/ddsi/ddsi_ownip.h"
+#include "dds/ddsi/ddsi_nwinterfaces.h"
 #include "dds/ddsi/ddsi_protocol.h"
 #include "dds/ddsi/ddsi_sockwaitset.h"
 
@@ -200,9 +200,6 @@ struct ddsi_domaingv {
   ddsi_locator_t loc_meta_uc;
   ddsi_locator_t loc_default_mc;
   ddsi_locator_t loc_default_uc;
-#ifdef DDS_HAS_SHM
-  ddsi_locator_t loc_iceoryx_addr;
-#endif
 
   /*
     Initial discovery address set, and the current discovery address

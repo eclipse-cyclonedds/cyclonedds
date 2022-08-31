@@ -33,10 +33,13 @@ extern "C" {
 #define DDSI_LOCATOR_KIND_UDPv6 2
 #define DDSI_LOCATOR_KIND_TCPv4 4
 #define DDSI_LOCATOR_KIND_TCPv6 8
-#define DDSI_LOCATOR_KIND_SHEM 16
+#define DDSI_LOCATOR_KIND_PSMX 16
 #define DDSI_LOCATOR_KIND_RAWETH 0x02000000
 #define DDSI_LOCATOR_KIND_UDPv4MCGEN 0x4fff0000
 #define DDSI_LOCATOR_PORT_INVALID 0
+
+// The maximum size of the index in a MCGEN locator, so that it can be stored in a cover_info_t
+#define DDSI_LOCATOR_UDPv4MCGEN_INDEX_MASK_BITS 12
 
 typedef uint32_t ddsi_count_t;
 

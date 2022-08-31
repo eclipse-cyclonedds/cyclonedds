@@ -203,9 +203,6 @@ CU_Test(ddsc_write, relwr_unrelrd_network)
   // we depend on best-effort data making it through
   const char *config_override =
   "<Domain id=\"any\">"
-#ifdef DDS_HAS_SHM
-  "  <SharedMemory><Enable>false</Enable></SharedMemory>"
-#endif
   "  <Discovery><Ports><Base>7350</Base></Ports></Discovery>"
   "</Domain>";
 
@@ -218,7 +215,7 @@ CU_Test(ddsc_write, relwr_unrelrd_network)
     // trying again
     if (attempt > 0)
       dds_sleepfor (DDS_MSECS (100));
-    
+
     result = test_oneliner_with_config
       ("pm w(r=r) "
        "dor R' " // subscriber with data-on-readers
@@ -231,7 +228,7 @@ CU_Test(ddsc_write, relwr_unrelrd_network)
        "take{(0,0,0),(3,0,0)} r' take{(3,0,0)} s'", // r' should now have 2 samples, s' one
        config_override);
   }
-  
+
   // It really should have succeeded after several attempts
   CU_ASSERT_FATAL (result > 0);
 }

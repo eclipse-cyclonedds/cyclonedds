@@ -23,6 +23,7 @@ extern "C" {
 #endif
 
 struct ddsi_rdata;
+struct dds_loaned_sample;
 
 enum ddsi_serdata_kind {
   SDK_EMPTY,
@@ -44,10 +45,7 @@ struct ddsi_serdata {
   /* FIXME: can I get rid of this one? */
   ddsrt_mtime_t twrite; /* write time, not source timestamp, set post-throttling */
 
-#ifdef DDS_HAS_SHM
-  void* iox_chunk;
-  void* iox_subscriber; // actually: iox_sub_t *
-#endif
+  struct dds_loaned_sample *loan;
 };
 
 /* Serialised size of sample inclusive of DDSI encoding header
@@ -146,16 +144,15 @@ typedef size_t (*ddsi_serdata_print_t) (const struct ddsi_sertype *type, const s
    - buf needs to be at least 16 bytes large */
 typedef void (*ddsi_serdata_get_keyhash_t) (const struct ddsi_serdata *d, struct ddsi_keyhash *buf, bool force_md5);
 
-#ifdef DDS_HAS_SHM
-typedef uint32_t(*ddsi_serdata_iox_size_t) (const struct ddsi_serdata* d);
+typedef uint32_t(*ddsi_serdata_zerocopy_size_t) (const struct ddsi_serdata* d);
 
-// Used for receiving a sample from a Iceoryx and for constructing a serdata for writing a "loaned sample",
-// that is, for constructing a sample where the data is already in shared memory.  The latter allows one
-// to avoid serializing the data for zero-copy data transfer if all subscribers are reachable via Iceoryx.
-//
-// The first case is when "sub" is not NULL, in which case it is a pointer to the Iceoryx subscriber
-typedef struct ddsi_serdata* (*ddsi_serdata_from_iox_t) (const struct ddsi_sertype* type, enum ddsi_serdata_kind kind, void* sub, void* buffer);
-#endif
+// Used for taking a loaned sample and constructing a serdata around this
+// takes over ownership of loan on success (leaves it unchanged on failure)
+typedef struct ddsi_serdata* (*ddsi_serdata_from_loan_t) (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, const char *sample, struct dds_loaned_sample *loan, bool force_serialization);
+
+// Used for constructing a serdata from data received on a PSMX
+typedef struct ddsi_serdata* (*ddsi_serdata_from_psmx_t) (const struct ddsi_sertype *type, struct dds_loaned_sample *data);
+
 
 struct ddsi_serdata_ops {
   ddsi_serdata_eqkey_t eqkey;
@@ -173,10 +170,8 @@ struct ddsi_serdata_ops {
   ddsi_serdata_free_t free;
   ddsi_serdata_print_t print;
   ddsi_serdata_get_keyhash_t get_keyhash;
-#ifdef DDS_HAS_SHM
-  ddsi_serdata_iox_size_t get_sample_size;
-  ddsi_serdata_from_iox_t from_iox_buffer;
-#endif
+  ddsi_serdata_from_loan_t from_loaned_sample;
+  ddsi_serdata_from_psmx_t from_psmx;
 };
 
 #define DDSI_SERDATA_HAS_PRINT 1
@@ -193,15 +188,32 @@ DDS_EXPORT void ddsi_serdata_init (struct ddsi_serdata *d, const struct ddsi_ser
  * @param[in] fragchain the fragchain argument passed to @ref ddsi_serdata_from_ser (the first one, not any subsequent ones)
  * @returns A pointer to the keyhash in the message if it was present, NULL if not. The lifetime is at least that of the fragchain itself.
  */
-const ddsi_keyhash_t *ddsi_serdata_keyhash_from_fragchain (const struct ddsi_rdata *fragchain);
+const ddsi_keyhash_t *ddsi_serdata_keyhash_from_fragchain (const struct ddsi_rdata *fragchain)
+  ddsrt_nonnull_all;
+
+/**
+ * @brief Return a copy of a serdata with possible type conversion
+ * @component typesupport_if
+ *
+ * This constructs a new one from the serialised representation of `serdata`.
+ * This can fail, in which case it returns NULL.
+ *
+ * @param[in] type    sertype the returned serdata must have
+ * @param[in] serdata  source sample
+ * @returns A reference to a serdata that is equivalent to the input with the correct
+ *   type, or a null pointer on failure.  The reference must be released with @ref
+ *   ddsi_serdata_unref.
+ */
+struct ddsi_serdata *ddsi_serdata_copy_as_type (const struct ddsi_sertype *type, const struct ddsi_serdata *serdata)
+  ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
 
 /**
  * @brief Return a reference to a serdata with possible type conversion
  * @component typesupport_if
  *
  * If `serdata` is of type `type`, this increments the reference count and returns
- * `serdata`.  Otherwise, it constructs a new one from the serialised representation of
- * `serdata`.  This can fail, in which case it returns NULL.
+ * `serdata`.  Otherwise, it constructs a new one as if by @ref ddsi_serdata_copy_as_type.
+ * This can fail, in which case it returns NULL.
  *
  * @param[in] type    sertype the returned serdata must have
  * @param[in] serdata  source sample (untouched except for the reference count and/or
@@ -210,7 +222,8 @@ const ddsi_keyhash_t *ddsi_serdata_keyhash_from_fragchain (const struct ddsi_rda
  *   topic, or a null pointer on failure.  The reference must be released with @ref
  *   ddsi_serdata_unref.
  */
-struct ddsi_serdata *ddsi_serdata_ref_as_type (const struct ddsi_sertype *type, struct ddsi_serdata *serdata);
+struct ddsi_serdata *ddsi_serdata_ref_as_type (const struct ddsi_sertype *type, struct ddsi_serdata *serdata)
+  ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
 
 /** @component typesupport_if */
 DDS_INLINE_EXPORT inline struct ddsi_serdata *ddsi_serdata_ref (const struct ddsi_serdata *serdata_const) {
@@ -260,7 +273,9 @@ DDS_INLINE_EXPORT inline struct ddsi_serdata *ddsi_serdata_from_sample (const st
 
 /** @component typesupport_if */
 DDS_INLINE_EXPORT inline struct ddsi_serdata *ddsi_serdata_to_untyped (const struct ddsi_serdata *d) {
-  return d->ops->to_untyped (d);
+  struct ddsi_serdata * const d1 = d->ops->to_untyped (d);
+  assert (d1->loan == NULL);
+  return d1;
 }
 
 /** @component typesupport_if */
@@ -314,36 +329,32 @@ DDS_INLINE_EXPORT inline void ddsi_serdata_get_keyhash (const struct ddsi_serdat
   d->ops->get_keyhash (d, buf, force_md5);
 }
 
-#ifdef DDS_HAS_SHM
-
 /** @component typesupport_if */
-DDS_INLINE_EXPORT inline uint32_t ddsi_serdata_iox_size(const struct ddsi_serdata* d)
+DDS_INLINE_EXPORT inline uint32_t ddsi_serdata_zerocopy_size(const struct ddsi_serdata* d)
 {
-  return d->type->iox_size;
+  return d->type->zerocopy_size;
 }
 
-inline struct ddsi_serdata* ddsi_serdata_from_iox(const struct ddsi_sertype* type, enum ddsi_serdata_kind kind, void* sub, void* iox_buffer) ddsrt_nonnull_all;
+DDS_INLINE_EXPORT inline struct ddsi_serdata *ddsi_serdata_from_loaned_sample(const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, const char *sample, struct dds_loaned_sample *loan, bool force_serialization) ddsrt_nonnull_all;
 
 /** @component typesupport_if */
-DDS_INLINE_EXPORT inline struct ddsi_serdata* ddsi_serdata_from_iox(const struct ddsi_sertype* type, enum ddsi_serdata_kind kind, void* sub, void* iox_buffer)
+DDS_INLINE_EXPORT inline struct ddsi_serdata *ddsi_serdata_from_loaned_sample(const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, const char *sample, struct dds_loaned_sample *loan, bool force_serialization)
 {
-  return type->serdata_ops->from_iox_buffer(type, kind, sub, iox_buffer);
+  return type->serdata_ops->from_loaned_sample(type, kind, sample, loan, force_serialization);
 }
 
-inline struct ddsi_serdata *ddsi_serdata_from_loaned_sample(const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, const char *sample) ddsrt_nonnull_all;
+DDS_INLINE_EXPORT inline struct ddsi_serdata *ddsi_serdata_from_psmx(const struct ddsi_sertype *type, struct dds_loaned_sample *data) ddsrt_nonnull_all;
 
 /** @component typesupport_if */
-DDS_INLINE_EXPORT inline struct ddsi_serdata *ddsi_serdata_from_loaned_sample(const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, const char *sample)
+DDS_INLINE_EXPORT inline struct ddsi_serdata *ddsi_serdata_from_psmx(const struct ddsi_sertype *type, struct dds_loaned_sample *data)
 {
-  if (type->serdata_ops->from_iox_buffer)
-    return type->serdata_ops->from_iox_buffer (type, kind, NULL, (void *) sample);
-  else
-    return type->serdata_ops->from_sample (type, kind, sample);
+  return type->serdata_ops->from_psmx(type, data);
 }
-#endif
 
 #if defined (__cplusplus)
 }
 #endif
 
-#endif
+#endif //DDSI_SERDATA_H
+
+

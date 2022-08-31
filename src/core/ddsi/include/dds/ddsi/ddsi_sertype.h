@@ -35,6 +35,8 @@ struct ddsi_type_pair;
 #define DDSI_SERTYPE_REGISTERED  0x80000000u // set after setting gv
 #define DDSI_SERTYPE_REFC_MASK   0x0fffffffu
 
+typedef uint64_t ddsi_data_type_properties_t;
+
 struct ddsi_sertype {
   const struct ddsi_sertype_ops *ops;
   const struct ddsi_serdata_ops *serdata_ops;
@@ -48,9 +50,8 @@ struct ddsi_sertype {
   ddsrt_atomic_voidp_t gv; /* set during registration */
   ddsrt_atomic_uint32_t flags_refc; /* counts refs from entities (topic, reader, writer), not from data */
   const struct ddsi_sertype *base_sertype; /* counted ref to sertype used to derive this sertype, used to overwrite the serdata_ops for a specific data representation */
-#ifdef DDS_HAS_SHM
-  uint32_t iox_size;
-#endif
+  uint32_t zerocopy_size;
+  ddsi_data_type_properties_t data_type_props; /* representation of properties of the data type */
 };
 
 /* The old and the new happen to have the same memory layout on a 64-bit machine
@@ -131,6 +132,10 @@ typedef ddsi_typeinfo_t * (*ddsi_sertype_typeinfo_t) (const struct ddsi_sertype 
    serdata_ops for the provided data representation */
 typedef struct ddsi_sertype * (*ddsi_sertype_derive_t) (const struct ddsi_sertype *sertype, dds_data_representation_id_t data_representation, dds_type_consistency_enforcement_qospolicy_t tce_qos);
 
+/* Generate the datatype properties flags for this type
+   Used in the PSMX to determine essential properties of the type*/
+typedef ddsi_data_type_properties_t (* ddsi_sertype_calculate_datatype_properties_t) (const dds_topic_descriptor_t *desc);
+
 struct ddsi_sertype_v0;
 typedef void (*ddsi_sertype_v0_t) (struct ddsi_sertype_v0 *dummy);
 
@@ -158,6 +163,7 @@ struct ddsi_sertype_ops {
   ddsi_sertype_derive_t derive_sertype;
   ddsi_sertype_get_serialized_size_t get_serialized_size;
   ddsi_sertype_serialize_into_t serialize_into;
+  ddsi_sertype_calculate_datatype_properties_t calculate_datatype_props;
 };
 
 /** @component typesupport_if */

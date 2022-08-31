@@ -2107,10 +2107,6 @@ int test_oneliner (const char *ops)
 
 int test_oneliner_no_shm (const char *ops)
 {
-#ifdef DDS_HAS_SHM
-  const char *config_override = "<Domain id=\"any\"><SharedMemory><Enable>false</Enable></SharedMemory></Domain>";
-#else
   const char *config_override = NULL;
-#endif
   return test_oneliner_with_config (ops, config_override);
 }

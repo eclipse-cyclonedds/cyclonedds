@@ -12,7 +12,7 @@
 #define DDSI__IPADDR_H
 
 #include "dds/ddsi/ddsi_tran.h"
-#include "dds/ddsi/ddsi_ownip.h"
+#include "dds/ddsi/ddsi_nwinterfaces.h"
 
 #if defined (__cplusplus)
 extern "C" {

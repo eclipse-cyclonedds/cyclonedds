@@ -17,6 +17,7 @@
 #include "dds/ddsrt/fibheap.h"
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_hbcontrol.h"
+#include "dds/dds.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -42,9 +43,15 @@ enum ddsi_liveliness_changed_data_extra {
   DDSI_LIVELINESS_CHANGED_NOT_ALIVE_TO_ALIVE
 };
 
+struct ddsi_psmx_locators_set {
+  uint32_t length;
+  struct ddsi_locator *locators;
+};
+
 struct ddsi_endpoint_common {
   struct ddsi_participant *pp;
   ddsi_guid_t group_guid;
+  struct ddsi_psmx_locators_set psmx_locators;
 #ifdef DDS_HAS_TYPELIB
   struct ddsi_type_pair *type_pair;
 #endif
@@ -85,9 +92,6 @@ struct ddsi_writer
   unsigned test_suppress_heartbeat : 1; /* iff 1, the writer suppresses all periodic heartbeats */
   unsigned test_suppress_flush_on_sync_heartbeat : 1; /* iff 1, the writer never flushes because of a piggy-backed heartbeat */
   unsigned test_drop_outgoing_data : 1; /* iff 1, the writer drops outgoing data, forcing the readers to request a retransmit */
-#ifdef DDS_HAS_SHM
-  unsigned has_iceoryx : 1;
-#endif
 #ifdef DDS_HAS_SSM
   unsigned supports_ssm: 1;
   struct ddsi_addrset *ssm_as;
@@ -147,9 +151,6 @@ struct ddsi_reader
 #ifdef DDS_HAS_SSM
   unsigned favours_ssm: 1; /* iff 1, this reader favours SSM */
 #endif
-#ifdef DDS_HAS_SHM
-  unsigned has_iceoryx : 1;
-#endif
   ddsi_count_t init_acknack_count; /* initial value for "count" (i.e. ACK seq num) for newly matched proxy writers */
 #ifdef DDS_HAS_NETWORK_PARTITIONS
   struct ddsi_networkpartition_address *uc_as;
@@ -172,6 +173,7 @@ DDS_EXPORT extern const ddsrt_avl_treedef_t ddsi_rd_local_writers_treedef;
 /** @component ddsi_endpoint */
 int ddsi_is_builtin_endpoint (ddsi_entityid_t id, ddsi_vendorid_t vendorid);
 
+struct dds_ktopic;
 
 // writer
 
@@ -182,7 +184,7 @@ struct ddsi_local_orphan_writer *ddsi_new_local_orphan_writer (struct ddsi_domai
 void ddsi_delete_local_orphan_writer (struct ddsi_local_orphan_writer *wr);
 
 /** @component ddsi_endpoint */
-dds_return_t ddsi_new_writer (struct ddsi_writer **wr_out, struct ddsi_guid *wrguid, const struct ddsi_guid *group_guid, struct ddsi_participant *pp, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos, struct ddsi_whc * whc, ddsi_status_cb_t status_cb, void *status_cb_arg);
+dds_return_t ddsi_new_writer (struct ddsi_writer **wr_out, struct ddsi_guid *wrguid, const struct ddsi_guid *group_guid, struct ddsi_participant *pp, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos, struct ddsi_whc * whc, ddsi_status_cb_t status_cb, void *status_cb_arg, struct ddsi_psmx_locators_set *psmx_locators);
 
 /** @component ddsi_endpoint */
 void ddsi_update_writer_qos (struct ddsi_writer *wr, const struct dds_qos *xqos);
@@ -205,11 +207,8 @@ struct ddsi_reader *ddsi_writer_first_in_sync_reader (struct ddsi_entity_index *
 /** @component ddsi_endpoint */
 struct ddsi_reader *ddsi_writer_next_in_sync_reader (struct ddsi_entity_index *entity_index, ddsrt_avl_iter_t *it);
 
-
-// reader
-
 /** @component ddsi_endpoint */
-dds_return_t ddsi_new_reader (struct ddsi_reader **rd_out, struct ddsi_guid *rdguid, const struct ddsi_guid *group_guid, struct ddsi_participant *pp, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos, struct ddsi_rhc * rhc, ddsi_status_cb_t status_cb, void *status_cb_arg);
+dds_return_t ddsi_new_reader (struct ddsi_reader **rd_out, struct ddsi_guid *rdguid, const struct ddsi_guid *group_guid, struct ddsi_participant *pp, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos, struct ddsi_rhc * rhc, ddsi_status_cb_t status_cb, void *status_cb_arg, struct ddsi_psmx_locators_set *psmx_locators);
 
 /** @component ddsi_endpoint */
 void ddsi_update_reader_qos (struct ddsi_reader *rd, const struct dds_qos *xqos);

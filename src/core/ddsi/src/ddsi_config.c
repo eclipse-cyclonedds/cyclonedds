@@ -28,6 +28,7 @@
 #include "dds/ddsrt/environ.h"
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsrt/xmlparser.h"
+#include "dds/ddsrt/io.h"
 #include "dds/ddsi/ddsi_log.h"
 #include "dds/ddsi/ddsi_unused.h"
 #include "ddsi__config_impl.h"
@@ -189,9 +190,7 @@ DU(deaf_mute);
 #ifdef DDS_HAS_SSL
 DUPF(min_tls_version);
 #endif
-#ifdef DDS_HAS_SHM
 DUPF(shm_loglevel);
-#endif
 #undef DUPF
 #undef DU
 #undef PF
@@ -208,6 +207,7 @@ DI(if_ignored_partition);
 DI(if_partition_mapping);
 #endif
 DI(if_network_interfaces);
+DI(if_psmx);
 DI(if_peer);
 DI(if_thread_properties);
 #ifdef DDS_HAS_SECURITY
@@ -649,6 +649,7 @@ static void *if_common (UNUSED_ARG (struct ddsi_cfgst *cfgst), void *parent, str
 {
   struct ddsi_config_listelem **current = (struct ddsi_config_listelem **) ((char *) parent + cfgelem->elem_offset);
   struct ddsi_config_listelem *new = ddsrt_malloc (size);
+  memset (new, 0, size);
   new->next = *current;
   *current = new;
   return new;
@@ -670,6 +671,17 @@ static int if_network_interfaces(struct ddsi_cfgst *cfgst, void *parent, struct 
     return -1;
   new->cfg.name = NULL;
   new->cfg.address = NULL;
+  return 0;
+}
+
+static int if_psmx(struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
+{
+  struct ddsi_config_psmx_listelem *new = if_common (cfgst, parent, cfgelem, sizeof(*new));
+  if (new == NULL)
+    return -1;
+  new->cfg.name = NULL;
+  new->cfg.library = NULL;
+  new->cfg.config = NULL;
   return 0;
 }
 
@@ -988,18 +1000,16 @@ static const char *en_entity_naming_mode_vs[] = { "empty", "fancy", NULL };
 static const enum ddsi_config_entity_naming_mode en_entity_naming_mode_ms[] = { DDSI_ENTITY_NAMING_DEFAULT_EMPTY, DDSI_ENTITY_NAMING_DEFAULT_FANCY, 0 };
 GENERIC_ENUM_CTYPE (entity_naming_mode, enum ddsi_config_entity_naming_mode)
 
-#ifdef DDS_HAS_SHM
 static const char *en_shm_loglevel_vs[] = { "off", "fatal", "error", "warn", "info", "debug", "verbose", NULL };
 static const enum ddsi_shm_loglevel en_shm_loglevel_ms[] = { DDSI_SHM_OFF, DDSI_SHM_FATAL, DDSI_SHM_ERROR, DDSI_SHM_WARN, DDSI_SHM_INFO, DDSI_SHM_DEBUG, DDSI_SHM_VERBOSE, 0 };
 GENERIC_ENUM_CTYPE (shm_loglevel, enum ddsi_shm_loglevel)
-#endif
 
 /* "trace" is special: it enables (nearly) everything */
 static const char *tracemask_names[] = {
-  "fatal", "error", "warning", "info", "config", "discovery", "data", "radmin", "timing", "traffic", "topic", "tcp", "plist", "whc", "throttle", "rhc", "content", "shm", "trace", NULL
+  "fatal", "error", "warning", "info", "config", "discovery", "data", "radmin", "timing", "traffic", "topic", "tcp", "plist", "whc", "throttle", "rhc", "content", "trace", NULL
 };
 static const uint32_t tracemask_codes[] = {
-  DDS_LC_FATAL, DDS_LC_ERROR, DDS_LC_WARNING, DDS_LC_INFO, DDS_LC_CONFIG, DDS_LC_DISCOVERY, DDS_LC_DATA, DDS_LC_RADMIN, DDS_LC_TIMING, DDS_LC_TRAFFIC, DDS_LC_TOPIC, DDS_LC_TCP, DDS_LC_PLIST, DDS_LC_WHC, DDS_LC_THROTTLE, DDS_LC_RHC, DDS_LC_CONTENT, DDS_LC_SHM, DDS_LC_ALL
+  DDS_LC_FATAL, DDS_LC_ERROR, DDS_LC_WARNING, DDS_LC_INFO, DDS_LC_CONFIG, DDS_LC_DISCOVERY, DDS_LC_DATA, DDS_LC_RADMIN, DDS_LC_TIMING, DDS_LC_TRAFFIC, DDS_LC_TOPIC, DDS_LC_TCP, DDS_LC_PLIST, DDS_LC_WHC, DDS_LC_THROTTLE, DDS_LC_RHC, DDS_LC_CONTENT, DDS_LC_ALL
 };
 
 static enum update_result uf_tracemask (struct ddsi_cfgst *cfgst, UNUSED_ARG (void *parent), UNUSED_ARG (struct cfgelem const * const cfgelem), UNUSED_ARG (int first), const char *value)
@@ -2266,6 +2276,28 @@ static struct ddsi_config_network_interface * network_interface_find_or_append(s
   return &iface->cfg;
 }
 
+static struct ddsi_config_psmx * psmx_append(struct ddsi_config *cfg, const char * name, const char * library)
+{
+  struct ddsi_config_psmx_listelem * psmx = cfg->psmx_instances;
+  struct ddsi_config_psmx_listelem ** prev_psmx = &cfg->psmx_instances;
+
+  if (name == NULL || library == NULL)
+    return NULL;
+  while (psmx && psmx->cfg.name && ddsrt_strcasecmp(psmx->cfg.name, name) != 0)
+    return NULL;
+
+  psmx = (struct ddsi_config_psmx_listelem *) malloc(sizeof(*psmx));
+  if (!psmx) return NULL;
+
+  psmx->next = NULL;
+  psmx->cfg.name = ddsrt_strdup(name);
+  psmx->cfg.library = ddsrt_strdup(library);
+
+  *prev_psmx = psmx;
+
+  return &psmx->cfg;
+}
+
 static int setup_network_partitions (struct ddsi_cfgst *cfgst)
 {
   int ok = 1;
@@ -2400,6 +2432,55 @@ static int convert_deprecated_interface_specification (struct ddsi_cfgst *cfgst)
       iface = iface->next;
     }
   }
+  return 1;
+}
+
+#define IOX_CONFIG_SERVICE_NAME "SERVICE_NAME"
+#define IOX_CONFIG_LOG_LEVEL "LOG_LEVEL"
+#define IOX_CONFIG_LOCATOR "LOCATOR"
+#define IOX_CONFIG_LOG_LEVEL_MAX_VALUE_LEN 7
+
+static int convert_deprecated_sharedmemory (struct ddsi_cfgst *cfgst)
+{
+  struct ddsi_config * const cfg = cfgst->cfg;
+
+  if (cfg->enable_shm)
+  {
+    struct ddsi_config_psmx *psmx_cfg = psmx_append(cfg, "iox", "iox_interface");
+    if (!psmx_cfg)
+      return 0;
+
+    size_t config_str_len = 0;
+    if (cfg->iceoryx_service != NULL)
+      config_str_len += strlen (IOX_CONFIG_SERVICE_NAME) + strlen (cfg->iceoryx_service) + 2; // plus 2 for = and ;
+    if (cfg->shm_log_lvl != DDSI_SHM_OFF)
+      config_str_len += strlen (IOX_CONFIG_LOG_LEVEL) + 9; // max length of log level string, plus 2 for = and ;
+    if (cfg->shm_locator != NULL)
+      config_str_len += strlen (IOX_CONFIG_LOCATOR) + strlen (cfg->shm_locator) + 2; // plus 2 for = and ;
+
+    size_t sz = config_str_len + 1;
+    psmx_cfg->config = ddsrt_malloc (sz);
+    if (cfg->iceoryx_service != NULL)
+      (void) snprintf (psmx_cfg->config, sz, "%s=%s;", IOX_CONFIG_SERVICE_NAME, cfg->iceoryx_service);
+    if (cfg->shm_log_lvl != DDSI_SHM_OFF)
+    {
+      char *level_str = "OFF";
+      switch (cfg->shm_log_lvl) {
+        case DDSI_SHM_OFF: break;
+        case DDSI_SHM_FATAL: level_str = "FATAL"; break;
+        case DDSI_SHM_ERROR: level_str = "ERROR"; break;
+        case DDSI_SHM_WARN: level_str = "WARN"; break;
+        case DDSI_SHM_INFO: level_str = "INFO"; break;
+        case DDSI_SHM_DEBUG: level_str = "DEBUG"; break;
+        case DDSI_SHM_VERBOSE: level_str = "VERBOSE"; break;
+      };
+      assert (strlen (level_str) <= IOX_CONFIG_LOG_LEVEL_MAX_VALUE_LEN);
+      (void) snprintf (psmx_cfg->config + strlen (psmx_cfg->config), sz - strlen (psmx_cfg->config), "%s=%s;", IOX_CONFIG_LOG_LEVEL, level_str);
+    }
+    if (cfg->shm_locator != NULL)
+      (void) snprintf (psmx_cfg->config, sz, "%s=%s;", IOX_CONFIG_LOCATOR, cfg->shm_locator);
+  }
+
   return 1;
 }
 
@@ -2547,6 +2628,7 @@ struct ddsi_cfgst *ddsi_config_init (const char *config, struct ddsi_config *cfg
 
   ok = ok && setup_network_partitions (cfgst);
   ok = ok && convert_deprecated_interface_specification (cfgst);
+  ok = ok && convert_deprecated_sharedmemory (cfgst);
 
   if (ok)
   {

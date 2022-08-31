@@ -1,0 +1,366 @@
+// Copyright(c) 2022 to 2023 ZettaScale Technology and others
+//
+// This program and the accompanying materials are made available under the
+// terms of the Eclipse Public License v. 2.0 which is available at
+// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+// v. 1.0 which is available at
+// http://www.eclipse.org/org/documents/edl-v10.php.
+//
+// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+
+#include <string.h>
+
+#include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/dynlib.h"
+#include "dds/ddsrt/mh3.h"
+#include "dds/ddsi/ddsi_locator.h"
+#include "dds/ddsi/ddsi_domaingv.h"
+#include "dds/ddsi/ddsi_endpoint.h"
+#include "dds__types.h"
+#include "dds__psmx.h"
+#include "dds__qos.h"
+
+static struct dds_psmx_endpoint * psmx_create_endpoint (struct dds_psmx_topic *psmx_topic, const struct dds_qos *qos, dds_psmx_endpoint_type_t endpoint_type);
+static dds_return_t psmx_delete_endpoint (struct dds_psmx_endpoint *psmx_endpoint);
+
+dds_return_t dds_add_psmx_topic_to_list (struct dds_psmx_topic *topic, struct dds_psmx_topic_list_elem **list)
+{
+  if (!topic)
+    return DDS_RETCODE_BAD_PARAMETER;
+
+  struct dds_psmx_topic_list_elem *ptr = dds_alloc (sizeof (struct dds_psmx_topic_list_elem));
+  if (!ptr)
+    return DDS_RETCODE_OUT_OF_RESOURCES;
+
+  ptr->topic = topic;
+  ptr->next = NULL;
+
+  if (!*list)
+  {
+    ptr->prev = NULL;
+    *list = ptr;
+  }
+  else
+  {
+    struct dds_psmx_topic_list_elem *ptr2 = *list;
+    while (ptr2->next)
+      ptr2 = ptr2->next;
+    ptr2->next = ptr;
+    ptr->prev = ptr2;
+  }
+
+  return DDS_RETCODE_OK;
+}
+
+dds_return_t dds_remove_psmx_topic_from_list (struct dds_psmx_topic *topic, struct dds_psmx_topic_list_elem **list)
+{
+  if (!topic || !list || !*list)
+    return DDS_RETCODE_BAD_PARAMETER;
+
+  dds_return_t ret = DDS_RETCODE_OK;
+  struct dds_psmx_topic_list_elem *list_entry = *list;
+
+  while (list_entry && list_entry->topic != topic)
+    list_entry = list_entry->next;
+
+  if (list_entry != NULL && (ret = list_entry->topic->psmx_instance->ops.delete_topic (list_entry->topic)) == DDS_RETCODE_OK)
+  {
+    if (list_entry->prev)
+      list_entry->prev->next = list_entry->next;
+
+    if (list_entry->next)
+      list_entry->next->prev = list_entry->prev;
+
+    if (list_entry == *list)
+      *list = list_entry->next;
+
+    dds_free (list_entry);
+  }
+
+  return ret;
+}
+
+dds_return_t dds_add_psmx_endpoint_to_list (struct dds_psmx_endpoint *psmx_endpoint, struct dds_psmx_endpoint_list_elem **list)
+{
+  if (!psmx_endpoint)
+    return DDS_RETCODE_BAD_PARAMETER;
+
+  struct dds_psmx_endpoint_list_elem *ptr = dds_alloc (sizeof (struct dds_psmx_endpoint_list_elem));
+  if (!ptr)
+    return DDS_RETCODE_OUT_OF_RESOURCES;
+
+  ptr->endpoint = psmx_endpoint;
+  ptr->next = NULL;
+
+  if (!*list)
+  {
+    ptr->prev = NULL;
+    *list = ptr;
+  }
+  else
+  {
+    struct dds_psmx_endpoint_list_elem *ptr2 = *list;
+    while (ptr2->next)
+      ptr2 = ptr2->next;
+    ptr2->next = ptr;
+    ptr->prev = ptr2;
+  }
+
+  return DDS_RETCODE_OK;
+}
+
+dds_return_t dds_remove_psmx_endpoint_from_list (struct dds_psmx_endpoint *psmx_endpoint, struct dds_psmx_endpoint_list_elem **list)
+{
+  if (!psmx_endpoint || !list || !*list)
+    return DDS_RETCODE_BAD_PARAMETER;
+
+  dds_return_t ret = DDS_RETCODE_OK;
+  struct dds_psmx_endpoint_list_elem *list_entry = *list;
+
+  while (list_entry && list_entry->endpoint != psmx_endpoint)
+    list_entry = list_entry->next;
+
+  if (list_entry != NULL && (ret = psmx_delete_endpoint (list_entry->endpoint)) == DDS_RETCODE_OK)
+  {
+    if (list_entry->prev)
+      list_entry->prev->next = list_entry->next;
+
+    if (list_entry->next)
+      list_entry->next->prev = list_entry->prev;
+
+    if (list_entry == *list)
+      *list = list_entry->next;
+
+    dds_free (list_entry);
+  }
+
+  return ret;
+}
+
+dds_return_t dds_psmx_init_generic (struct dds_psmx * psmx)
+{
+  struct ddsi_locator *loc = dds_alloc (sizeof (*loc));
+  if (loc == NULL)
+    return DDS_RETCODE_OUT_OF_RESOURCES;
+  memset (loc, 0, sizeof (*loc));
+
+  dds_psmx_node_identifier_t node_id = psmx->ops.get_node_id (psmx);
+  memcpy (loc->address, &node_id, sizeof (node_id));
+  loc->port = psmx->instance_type;
+  loc->kind = DDSI_LOCATOR_KIND_PSMX;
+
+  psmx->locator = loc;
+
+  return DDS_RETCODE_OK;
+}
+
+dds_return_t dds_psmx_cleanup_generic (struct dds_psmx *psmx)
+{
+  dds_return_t ret = DDS_RETCODE_OK;
+  dds_free ((void *) psmx->instance_name);
+  dds_free ((void *) psmx->locator);
+
+  while (ret == DDS_RETCODE_OK && psmx->psmx_topics)
+    ret = dds_remove_psmx_topic_from_list (psmx->psmx_topics->topic, &psmx->psmx_topics);
+
+  return ret;
+}
+
+dds_return_t dds_psmx_topic_init_generic (struct dds_psmx_topic *psmx_topic, const struct dds_psmx * psmx, const char *topic_name)
+{
+  psmx_topic->topic_name = dds_string_dup (topic_name);
+  uint32_t topic_hash = ddsrt_mh3 (psmx_topic->topic_name, strlen (psmx_topic->topic_name), 0);
+  psmx_topic->data_type = ddsrt_mh3 (&psmx->instance_type, sizeof (psmx->instance_type), topic_hash);
+  return DDS_RETCODE_OK;
+}
+
+dds_return_t dds_psmx_topic_cleanup_generic (struct dds_psmx_topic *psmx_topic)
+{
+  dds_return_t ret = DDS_RETCODE_OK;
+  while (ret == DDS_RETCODE_OK && psmx_topic->psmx_endpoints)
+    ret = dds_remove_psmx_endpoint_from_list (psmx_topic->psmx_endpoints->endpoint, &psmx_topic->psmx_endpoints);
+  dds_free (psmx_topic->topic_name);
+  return ret;
+}
+
+dds_loaned_sample_t * dds_psmx_endpoint_request_loan (struct dds_psmx_endpoint *psmx_endpoint, uint32_t sz)
+{
+  assert (psmx_endpoint && psmx_endpoint->ops.request_loan);
+  return psmx_endpoint->ops.request_loan (psmx_endpoint, sz);
+}
+
+bool dds_psmx_endpoint_serialization_required (struct dds_psmx_endpoint *psmx_endpoint)
+{
+  assert (psmx_endpoint && psmx_endpoint->psmx_topic);
+  return psmx_endpoint->psmx_topic->ops.serialization_required (psmx_endpoint->psmx_topic->data_type_props);
+}
+
+static dds_loan_origin_type_t get_loan_origin_type (const struct ddsi_domaingv * gv, const char *config_name)
+{
+  uint32_t ext_domainid = gv->config.extDomainId.value;
+  uint32_t hashed_id = ddsrt_mh3 (&ext_domainid, sizeof (ext_domainid), 0x0);
+  return ddsrt_mh3 (config_name, strlen (config_name), hashed_id);
+}
+
+static dds_return_t psmx_instance_load (const struct ddsi_domaingv *gv, struct ddsi_config_psmx *config, struct dds_psmx **out)
+{
+  dds_psmx_create_fn creator = NULL;
+  const char *lib_name;
+  ddsrt_dynlib_t handle;
+  char load_fn[100];
+  dds_return_t ret;
+  struct dds_psmx *psmx_instance = NULL;
+
+  if (!config->library || config->library[0] == '\0')
+    lib_name = config->name;
+  else
+    lib_name = config->library;
+
+  if ((ret = ddsrt_dlopen (lib_name, true, &handle)) != DDS_RETCODE_OK)
+  {
+    char buf[1024];
+    (void) ddsrt_dlerror (buf, sizeof(buf));
+    GVERROR ("Failed to load PSMX library '%s' with error \"%s\".\n", lib_name, buf);
+    goto err_dlopen;
+  }
+
+  (void) snprintf (load_fn, sizeof (load_fn), "%s_create_psmx", config->name);
+
+  if ((ret = ddsrt_dlsym (handle, load_fn, (void**) &creator)) != DDS_RETCODE_OK)
+  {
+    GVERROR ("Failed to initialize PSMX instance '%s', could not load init function '%s'.\n", config->name, load_fn);
+    goto err_dlsym;
+  }
+
+  if ((ret = creator (&psmx_instance, get_loan_origin_type (gv, config->name), config->config)) != DDS_RETCODE_OK)
+  {
+    GVERROR ("Failed to initialize PSMX instance '%s'.\n", config->name);
+    goto err_init;
+  }
+  psmx_instance->priority = config->priority.value;
+  *out = psmx_instance;
+  return DDS_RETCODE_OK;
+
+err_init:
+err_dlsym:
+  ddsrt_dlclose (handle);
+err_dlopen:
+  return ret;
+}
+
+static int compare_psmx_prio (const void *va, const void *vb)
+{
+  const struct dds_psmx *psmx1 = va;
+  const struct dds_psmx *psmx2 = vb;
+  return (psmx1->priority == psmx2->priority) ? 0 : ((psmx1->priority < psmx2->priority) ? 1 : -1);
+}
+
+dds_return_t dds_pubsub_message_exchange_init (const struct ddsi_domaingv *gv, dds_domain *domain)
+{
+  dds_return_t ret = DDS_RETCODE_OK;
+  if (gv->config.psmx_instances != NULL)
+  {
+    struct ddsi_config_psmx_listelem *iface = gv->config.psmx_instances;
+    while (iface && domain->psmx_instances.length < DDS_MAX_PSMX_INSTANCES)
+    {
+      GVLOG(DDS_LC_INFO, "Loading PSMX instances %s\n", iface->cfg.name);
+      struct dds_psmx *psmx = NULL;
+      if (psmx_instance_load (gv, &iface->cfg, &psmx) == DDS_RETCODE_OK)
+        domain->psmx_instances.instances[domain->psmx_instances.length++] = psmx;
+      else
+      {
+        GVERROR ("error loading PSMX instance \"%s\"\n", iface->cfg.name);
+        ret = DDS_RETCODE_ERROR;
+        break;
+      }
+      iface = iface->next;
+    }
+
+    qsort (domain->psmx_instances.instances, domain->psmx_instances.length, sizeof (*domain->psmx_instances.instances), compare_psmx_prio);
+  }
+  return ret;
+}
+
+dds_return_t dds_pubsub_message_exchange_fini (dds_domain *domain)
+{
+  dds_return_t ret = DDS_RETCODE_OK;
+  for (uint32_t i = 0; ret == DDS_RETCODE_OK && i < domain->psmx_instances.length; i++)
+  {
+    struct dds_psmx *psmx = domain->psmx_instances.instances[i];
+    if ((ret = psmx->ops.deinit (psmx)) == DDS_RETCODE_OK)
+      domain->psmx_instances.instances[i] = NULL;
+  }
+  return ret;
+}
+
+static struct dds_psmx_endpoint * psmx_create_endpoint (struct dds_psmx_topic *psmx_topic, const struct dds_qos *qos, dds_psmx_endpoint_type_t endpoint_type)
+{
+  assert (psmx_topic && psmx_topic->ops.create_endpoint);
+  return psmx_topic->ops.create_endpoint (psmx_topic, qos, endpoint_type);
+}
+
+static dds_return_t psmx_delete_endpoint (struct dds_psmx_endpoint *psmx_endpoint)
+{
+  assert (psmx_endpoint && psmx_endpoint->psmx_topic && psmx_endpoint->psmx_topic->ops.delete_endpoint);
+  return psmx_endpoint->psmx_topic->ops.delete_endpoint (psmx_endpoint);
+}
+
+dds_return_t dds_endpoint_add_psmx_endpoint (struct dds_endpoint *ep, const dds_qos_t *qos, struct dds_psmx_topics_set *psmx_topics, dds_psmx_endpoint_type_t endpoint_type)
+{
+  ep->psmx_endpoints.length = 0;
+  memset (ep->psmx_endpoints.endpoints, 0, sizeof (ep->psmx_endpoints.endpoints));
+  for (uint32_t i = 0; psmx_topics != NULL && i < psmx_topics->length; i++)
+  {
+    struct dds_psmx_topic *psmx_topic = psmx_topics->topics[i];
+    if (!dds_qos_has_psmx_instances (qos, psmx_topic->psmx_instance->instance_name))
+      continue;
+    if (!psmx_topic->psmx_instance->ops.qos_supported (qos))
+      continue;
+    struct dds_psmx_endpoint *psmx_endpoint = psmx_create_endpoint (psmx_topic, qos, endpoint_type);
+    if (psmx_endpoint == NULL)
+      goto err;
+
+    ep->psmx_endpoints.endpoints[ep->psmx_endpoints.length++] = psmx_endpoint;
+  }
+  return DDS_RETCODE_OK;
+
+err:
+  dds_endpoint_remove_psmx_endpoints (ep);
+  return DDS_RETCODE_ERROR;
+}
+
+void dds_endpoint_remove_psmx_endpoints (struct dds_endpoint *ep)
+{
+  for (uint32_t i = 0; i < ep->psmx_endpoints.length; i++)
+  {
+    struct dds_psmx_endpoint *psmx_endpoint = ep->psmx_endpoints.endpoints[i];
+    if (psmx_endpoint == NULL)
+      continue;
+    (void) psmx_delete_endpoint (psmx_endpoint);
+  }
+}
+
+struct ddsi_psmx_locators_set *dds_get_psmx_locators_set (const dds_qos_t *qos, const struct dds_psmx_set *psmx_instances)
+{
+  struct ddsi_psmx_locators_set *psmx_locators_set = dds_alloc (sizeof (*psmx_locators_set));
+  psmx_locators_set->length = 0;
+  psmx_locators_set->locators = NULL;
+
+  for (uint32_t s = 0; s < psmx_instances->length; s++)
+  {
+    if (dds_qos_has_psmx_instances (qos, psmx_instances->instances[s]->instance_name))
+    {
+      psmx_locators_set->length++;
+      psmx_locators_set->locators = dds_realloc (psmx_locators_set->locators, psmx_locators_set->length * sizeof (*psmx_locators_set->locators));
+      psmx_locators_set->locators[psmx_locators_set->length - 1] = *(psmx_instances->instances[s]->locator);
+    }
+  }
+  return psmx_locators_set;
+}
+
+void dds_psmx_locators_set_free (struct ddsi_psmx_locators_set *psmx_locators_set)
+{
+  if (psmx_locators_set->length > 0)
+    dds_free (psmx_locators_set->locators);
+  dds_free (psmx_locators_set);
+}

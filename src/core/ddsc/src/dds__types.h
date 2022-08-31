@@ -22,15 +22,10 @@
 #endif
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsi/ddsi_builtin_topic_if.h"
+#include "dds/ddsc/dds_psmx.h"
 #include "dds__handles.h"
+#include "dds__loan.h"
 
-#ifdef DDS_HAS_SHM
-#include "dds/ddsi/ddsi_shm_transport.h"
-#include "iceoryx_binding_c/publisher.h"
-#include "iceoryx_binding_c/subscriber.h"
-#include "dds__shm_monitor.h"
-#define MAX_PUB_LOANS 8
-#endif
 
 #if defined (__cplusplus)
 extern "C" {
@@ -48,6 +43,7 @@ struct dds_ktopic;
 struct dds_readcond;
 struct dds_guardcond;
 struct dds_statuscond;
+struct dds_loan_manager;
 
 struct ddsi_sertype;
 struct ddsi_rhc;
@@ -274,15 +270,16 @@ typedef struct dds_cyclonedds_entity {
   struct ddsi_threadmon *threadmon;
 } dds_cyclonedds_entity;
 
+struct dds_psmx_set {
+  uint32_t length;
+  struct dds_psmx *instances[DDS_MAX_PSMX_INSTANCES];
+};
+
 typedef struct dds_domain {
   struct dds_entity m_entity;
 
   ddsrt_avl_node_t m_node; /* for dds_global.m_domains */
   dds_domainid_t m_id;
-
-#ifdef DDS_HAS_SHM
-  shm_monitor_t m_shm_monitor;
-#endif
 
   struct ddsi_cfgst *cfgst; // NULL if config initializer provided
 
@@ -305,6 +302,8 @@ typedef struct dds_domain {
 
   /* Transmit side: pool for the serializer & transmit messages */
   struct dds_serdatapool *serpool;
+
+  struct dds_psmx_set psmx_instances;
 } dds_domain;
 
 typedef struct dds_subscriber {
@@ -346,6 +345,11 @@ struct ktopic_type_guid {
 };
 #endif
 
+struct dds_psmx_topics_set {
+  uint32_t length;
+  struct dds_psmx_topic *topics[DDS_MAX_PSMX_INSTANCES];
+};
+
 typedef struct dds_ktopic {
   /* name -> <QoS> mapping for topics, part of the participant
      and protected by the participant's lock (including the actual QoS
@@ -362,6 +366,7 @@ typedef struct dds_ktopic {
 #ifdef DDS_HAS_TOPIC_DISCOVERY
   struct ddsrt_hh *topic_guid_map; /* mapping of this ktopic to ddsi topics */
 #endif
+  struct dds_psmx_topics_set psmx_topics;
 } dds_ktopic;
 
 typedef struct dds_participant {
@@ -370,18 +375,23 @@ typedef struct dds_participant {
   ddsrt_avl_tree_t m_ktopics; /* [m_entity.m_mutex] */
 } dds_participant;
 
+struct dds_psmx_endpoints_set {
+  uint32_t length;
+  struct dds_psmx_endpoint *endpoints[DDS_MAX_PSMX_INSTANCES];
+};
+
+struct dds_endpoint {
+  struct dds_psmx_endpoints_set psmx_endpoints;
+};
+
 typedef struct dds_reader {
   struct dds_entity m_entity;
+  struct dds_endpoint m_endpoint;
   struct dds_topic *m_topic; /* refc'd, constant, lock(rd) -> lock(tp) allowed */
   struct dds_rhc *m_rhc; /* aliases m_rd->rhc with a wider interface, FIXME: but m_rd owns it for resource management */
   struct ddsi_reader *m_rd;
-  bool m_loan_out;
-  void *m_loan;
-  uint32_t m_loan_size;
-#ifdef DDS_HAS_SHM
-  iox_sub_context_t m_iox_sub_context;
-  iox_sub_t m_iox_sub;
-#endif
+  struct dds_loan_manager *m_loan_pool; /*administration of cached loans*/
+  struct dds_loan_manager *m_loans; /*administration of outstanding loans*/
 
   /* Status metrics */
 
@@ -395,15 +405,13 @@ typedef struct dds_reader {
 
 typedef struct dds_writer {
   struct dds_entity m_entity;
+  struct dds_endpoint m_endpoint;
   struct dds_topic *m_topic; /* refc'd, constant, lock(wr) -> lock(tp) allowed */
   struct ddsi_xpack *m_xp;
   struct ddsi_writer *m_wr;
   struct ddsi_whc *m_whc; /* FIXME: ownership still with underlying DDSI writer (cos of DDSI built-in writers )*/
   bool whc_batch; /* FIXME: channels + latency budget */
-#ifdef DDS_HAS_SHM
-  iox_pub_t m_iox_pub;
-  void *m_iox_pub_loans[MAX_PUB_LOANS];
-#endif
+  struct dds_loan_manager *m_loans; /*administration of associated loans*/
 
   /* Status metrics */
 

@@ -62,10 +62,6 @@ if(ENABLE_SECURITY)
     $<BUILD_INTERFACE:$<TARGET_PROPERTY:security_api,INTERFACE_INCLUDE_DIRECTORIES>>)
 endif()
 
-if(ENABLE_SHM)
-  target_link_libraries(ddsc PRIVATE iceoryx_binding_c::iceoryx_binding_c)
-endif()
-
 include(cdr/CMakeLists.txt)
 include(ddsi/CMakeLists.txt)
 include(ddsc/CMakeLists.txt)
@@ -81,17 +77,6 @@ target_include_directories(
 
 # SOVERSION should increase on incompatible ABI change
 set_target_properties(ddsc PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION ${PROJECT_VERSION_MAJOR})
-
-# define target property to indicate if Cyclone DDS is compiled with SHM support
-define_property(TARGET
-    PROPERTY SHM_SUPPORT_IS_AVAILABLE
-    BRIEF_DOCS "Indicator whether SHM support is available with current Cyclone DDS build configuration."
-    FULL_DOCS "Indicator whether SHM support is available with current Cyclone DDS build configuration."
-    )
-set_target_properties(ddsc PROPERTIES
-    SHM_SUPPORT_IS_AVAILABLE "${ENABLE_SHM}")
-set_target_properties(ddsc PROPERTIES EXPORT_PROPERTIES
-    "SHM_SUPPORT_IS_AVAILABLE")
 
 # define target property to indicate if Cyclone DDS is compiled with type library support
 define_property(TARGET

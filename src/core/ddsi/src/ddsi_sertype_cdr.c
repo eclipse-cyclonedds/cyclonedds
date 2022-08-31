@@ -22,11 +22,6 @@
 #include "ddsi__serdata_cdr.h"
 #include "dds/cdr/dds_cdrstream.h"
 
-
-#ifdef DDS_HAS_SHM
-#include "ddsi__xmsg.h"
-#endif
-
 static bool sertype_cdr_equal (const struct ddsi_sertype *acmn, const struct ddsi_sertype *bcmn)
 {
   const struct ddsi_sertype_cdr *a = (struct ddsi_sertype_cdr *) acmn;

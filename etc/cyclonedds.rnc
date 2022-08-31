@@ -256,7 +256,7 @@ CycloneDDS configuration""" ] ]
               text
             }?
             & [ a:documentation [ xml:lang="en" """
-<p>This attribute specifies whether the interface should use multicast. On its default setting, 'default', it will use the value as return by the operating system. If set to 'true', the interface will be assumed to be multicast capable even when the interface flags returned by the operating system state it is not (this provides a workaround for some platforms). If set to 'false', the interface will never be used for multicast.
+<p>This attribute specifies whether the interface should use multicast. On its default setting, 'default', it will use the value as return by the operating system. If set to 'true', the interface will be assumed to be multicast capable even when the interface flags returned by the operating system state it is not (this provides a workaround for some platforms). If set to 'false', the interface will never be used for multicast.</p>
 <p>The default value is: <code>default</code></p>""" ] ]
             attribute multicast {
               text
@@ -281,6 +281,34 @@ CycloneDDS configuration""" ] ]
             }?
             & [ a:documentation [ xml:lang="en" """
 <p>This attribute specifies the interface priority (decimal integer or <i>default</i>). The default value for loopback interfaces is 2, for all other interfaces it is 0.</p>
+<p>The default value is: <code>default</code></p>""" ] ]
+            attribute priority {
+              text
+            }?
+          }*
+          & [ a:documentation [ xml:lang="en" """
+<p>This element defines a PSMX.</p>""" ] ]
+          element PubSubMessageExchange {
+            [ a:documentation [ xml:lang="en" """
+<p>This attribute specifies any configuration data for the PSMX instance.This has no meaning in CycloneDDS itself, and its parsing is deferred to thePSMX implementation.</p>
+<p>The default value is: <code>&lt;empty&gt;</code></p>""" ] ]
+            attribute config {
+              text
+            }?
+            & [ a:documentation [ xml:lang="en" """
+<p>This attribute specifies the filename of the interface library. </p>
+<p>The default value is: <code>&lt;empty&gt;</code></p>""" ] ]
+            attribute library {
+              text
+            }?
+            & [ a:documentation [ xml:lang="en" """
+<p>This attribute specifies the name of the interface. </p>
+<p>The default value is: <code>&lt;empty&gt;</code></p>""" ] ]
+            attribute name {
+              text
+            }?
+            & [ a:documentation [ xml:lang="en" """
+<p>This attribute specifies the interface priority (decimal integer or <i>default</i>). The default value for a PSMX is 0.</p>
 <p>The default value is: <code>default</code></p>""" ] ]
             attribute priority {
               text
@@ -1072,38 +1100,7 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==<br>
       & [ a:documentation [ xml:lang="en" """
 <p>The Shared Memory element allows specifying various parameters related to using shared memory.</p>""" ] ]
       element SharedMemory {
-        [ a:documentation [ xml:lang="en" """
-<p>This element allows for enabling shared memory in Cyclone DDS.</p>
-<p>The default value is: <code>false</code></p>""" ] ]
-        element Enable {
-          xsd:boolean
-        }?
-        & [ a:documentation [ xml:lang="en" """
-<p>Explicitly set the Iceoryx locator used by Cyclone to check whether a pair of processes is attached to the same Iceoryx shared memory.  The default is to use one of the MAC addresses of the machine, which should work well in most cases.</p>
-<p>The default value is: <code>&lt;empty&gt;</code></p>""" ] ]
-        element Locator {
-          text
-        }?
-        & [ a:documentation [ xml:lang="en" """
-<p>This element decides the verbosity level of shared memory message:</p>
-<ul><li><i>off</i>: no log</li>
-<li><i>fatal</i>: show fatal log</li>
-<li><i>error</i>: show error log</li>
-<li><i>warn</i>: show warn log</li>
-<li><i>info</i>: show info log</li>
-<li><i>debug</i>: show debug log</li>
-<li><i>verbose</i>: show verbose log</li>
-<p>If you don't want to see any log from shared memory, use <i>off</i> to disable logging.</p>
-<p>The default value is: <code>info</code></p>""" ] ]
-        element LogLevel {
-          ("off"|"fatal"|"error"|"warn"|"info"|"debug"|"verbose")
-        }?
-        & [ a:documentation [ xml:lang="en" """
-<p>Override the Iceoryx service name used by Cyclone.</p>
-<p>The default value is: <code>DDS_CYCLONE</code></p>""" ] ]
-        element Prefix {
-          text
-        }?
+        empty
       }?
       & [ a:documentation [ xml:lang="en" """
 <p>The Sizing element allows you to specify various configuration settings dealing with expected system sizes, buffer sizes, &c.</p>""" ] ]
@@ -1280,14 +1277,14 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==<br>
   duration_inf = xsd:token { pattern = "inf|0|(\d+(\.\d*)?([Ee][\-+]?\d+)?|\.\d+([Ee][\-+]?\d+)?) *([num]?s|min|hr|day)" }
   memsize = xsd:token { pattern = "0|(\d+(\.\d*)?([Ee][\-+]?\d+)?|\.\d+([Ee][\-+]?\d+)?) *([kMG]i?)?B" }
 }
-# generated from ddsi_config.h[1ab75f267e0a5303400a6bbfc80e02a86b4cbdce] 
+# generated from ddsi_config.h[eae21b4181f3fdd23b2514a089c43b0e36357066] 
 # generated from ddsi__cfgunits.h[bd22f0c0ed210501d0ecd3b07c992eca549ef5aa] 
-# generated from ddsi__cfgelems.h[849a4fe147dfa71c5c3a3a4ccaac458530802c8c] 
-# generated from ddsi_config.c[82930450b615afa033986cf5338869bfdaeaf04d] 
+# generated from ddsi__cfgelems.h[0d5a3d2063031f4b47f53cc007d2703bcdefdfa1] 
+# generated from ddsi_config.c[a9147e09cc621aa579c0b82bce98b728a8dbb1cc] 
 # generated from _confgen.h[e32eabfc35e9f3a7dcb63b19ed148c0d17c6e5fc] 
 # generated from _confgen.c[237308acd53897a34e8c643e16e05a61d73ffd65] 
 # generated from generate_rnc.c[b50e4b7ab1d04b2bc1d361a0811247c337b74934] 
 # generated from generate_md.c[789b92e422631684352909cfb8bf43f6ceb16a01] 
-# generated from generate_rst.c[636ceeed42784e8508dd412b88dfd5f3b44b191b] 
+# generated from generate_rst.c[c35cdcdfc0bd4f10a801204a6cc5d540af696b6e] 
 # generated from generate_xsd.c[6b6818d7f17a35d56c376c04ec1410427f34c0f0] 
 # generated from generate_defconfig.c[63ca9d8ae2f1ce2e761c9d4c0510a45eb062d830] 

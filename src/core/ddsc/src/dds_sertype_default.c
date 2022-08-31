@@ -26,10 +26,7 @@
 #include "dds/ddsi/ddsi_typelib.h"
 #include "dds/cdr/dds_cdrstream.h"
 #include "dds__serdata_default.h"
-
-#ifdef DDS_HAS_SHM
-#include "dds/ddsi/ddsi_xmsg.h"
-#endif
+#include "dds__psmx.h"
 
 static bool sertype_default_equal (const struct ddsi_sertype *acmn, const struct ddsi_sertype *bcmn)
 {
@@ -241,6 +238,8 @@ static size_t sertype_default_get_serialized_size (const struct ddsi_sertype *ty
   //      If the endianness does not change, it appears not to be necessary (maybe for
   //      XTypes)
   struct ddsi_serdata *serdata = ddsi_serdata_from_sample(type, SDK_DATA, sample);
+  if (serdata == NULL)
+    return SIZE_MAX;
   size_t serialized_size = ddsi_serdata_size(serdata) - sizeof(struct dds_cdr_header);
   ddsi_serdata_unref(serdata);
   return serialized_size;
@@ -251,6 +250,11 @@ static bool sertype_default_serialize_into (const struct ddsi_sertype *type, con
   const struct dds_sertype_default *type_default = (const struct dds_sertype_default *)type;
   dds_ostream_t os = ostream_from_buffer(dst_buffer, dst_size, type_default->write_encoding_version);
   return dds_stream_write_sample(&os, &dds_cdrstream_default_allocator, sample, &type_default->type);
+}
+
+static ddsi_data_type_properties_t sertype_default_calculate_datatype_props (const dds_topic_descriptor_t *desc)
+{
+  return (ddsi_data_type_properties_t) dds_stream_data_types (desc->m_ops);
 }
 
 const struct ddsi_sertype_ops dds_sertype_ops_default = {
@@ -273,7 +277,8 @@ const struct ddsi_sertype_ops dds_sertype_ops_default = {
 #endif
   .derive_sertype = sertype_default_derive_sertype,
   .get_serialized_size = sertype_default_get_serialized_size,
-  .serialize_into = sertype_default_serialize_into
+  .serialize_into = sertype_default_serialize_into,
+  .calculate_datatype_props = sertype_default_calculate_datatype_props
 };
 
 dds_return_t dds_sertype_default_init (const struct dds_domain *domain, struct dds_sertype_default *st, const dds_topic_descriptor_t *desc, uint16_t min_xcdrv, dds_data_representation_id_t data_representation)
@@ -301,9 +306,7 @@ dds_return_t dds_sertype_default_init (const struct dds_domain *domain, struct d
     return DDS_RETCODE_BAD_PARAMETER;
 
   ddsi_sertype_init (&st->c, desc->m_typename, &dds_sertype_ops_default, serdata_ops, (desc->m_nkeys == 0));
-#ifdef DDS_HAS_SHM
-  st->c.iox_size = desc->m_size;
-#endif
+  st->c.zerocopy_size = desc->m_size;
   st->c.fixed_size = (st->c.fixed_size || (desc->m_flagset & DDS_TOPIC_FIXED_SIZE)) ? 1u : 0u;
   st->c.allowed_data_representation = desc->m_flagset & DDS_TOPIC_RESTRICT_DATA_REPRESENTATION ?
       desc->restrict_data_representation : DDS_DATA_REPRESENTATION_RESTRICT_DEFAULT;
@@ -316,6 +319,12 @@ dds_return_t dds_sertype_default_init (const struct dds_domain *domain, struct d
   st->serpool = domain->serpool;
 
   dds_cdrstream_desc_init (&st->type, &dds_cdrstream_default_allocator, desc->m_size, desc->m_align, desc->m_flagset, desc->m_ops, desc->m_keys, desc->m_nkeys);
+
+  st->c.data_type_props = 0ull;
+  if (st->c.ops->calculate_datatype_props)
+    st->c.data_type_props |= st->c.ops->calculate_datatype_props (desc);
+  if (st->c.fixed_size)
+    st->c.data_type_props |= DDS_DATA_TYPE_IS_FIXED_SIZE;
 
   if (min_xcdrv == DDSI_RTPS_CDR_ENC_VERSION_2 && dds_stream_type_nesting_depth (desc->m_ops) > DDS_CDRSTREAM_MAX_NESTING_DEPTH)
   {

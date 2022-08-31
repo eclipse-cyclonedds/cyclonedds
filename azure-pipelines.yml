@@ -44,7 +44,7 @@ jobs:
         image: ubuntu-22.04
         #analyzer: on  # disabled for now because of warnings
         sanitizer: address,undefined
-        iceoryx: on
+        psmx_iox: on
         cc: gcc-10
         coverage: on
       'Ubuntu 22.04 LTS with GCC 10 (Release, x86_64)':

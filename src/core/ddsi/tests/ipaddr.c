@@ -9,7 +9,7 @@
 // SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
 #include "CUnit/Theory.h"
-#include "dds/ddsi/ddsi_ownip.h"
+#include "dds/ddsi/ddsi_nwinterfaces.h"
 #include "ddsi__ipaddr.h"
 #include "ddsi__tran.h"
 

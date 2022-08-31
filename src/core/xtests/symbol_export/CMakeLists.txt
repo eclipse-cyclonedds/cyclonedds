@@ -20,11 +20,6 @@ target_include_directories(symbol_export_test PRIVATE
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/include>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../cdr/include>")
 
-if (ENABLE_SHM)
-  target_include_directories(
-    symbol_export_test PRIVATE
-    "$<BUILD_INTERFACE:$<TARGET_PROPERTY:iceoryx_binding_c::iceoryx_binding_c,INTERFACE_INCLUDE_DIRECTORIES>>")
-endif()
 if (ENABLE_SECURITY)
     target_link_libraries(symbol_export_test PRIVATE security_api)
     target_include_directories(symbol_export_test PRIVATE

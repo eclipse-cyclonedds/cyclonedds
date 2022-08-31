@@ -332,24 +332,6 @@ dds_sample_info_t;
 /** @}*/ // end group subdata
 
 /**
- * @brief Structure of a GUID in any builtin topic sample.
- * @ingroup builtintopic
- */
-typedef struct dds_builtintopic_guid
-{
-  uint8_t v[16]; /**< 16-byte unique identifier */
-}
-dds_builtintopic_guid_t;
-
-/**
- * @brief Structure of a GUID in any builtin topic sample.
- * @ingroup builtintopic
- * @ref dds_builtintopic_guid_t is a bit of a weird name for what everyone just calls a GUID,
- * so let us try and switch to using the more logical one.
- */
-typedef struct dds_builtintopic_guid dds_guid_t;
-
-/**
  * @brief Sample structure of the Builtin topic DcpsParticipant.
  * @ingroup builtintopic
  */
@@ -4217,6 +4199,32 @@ dds_take_with_collector (
   uint32_t mask,
   dds_read_with_collector_fn_t collect_sample,
   void *collect_sample_arg);
+
+/**
+ * @brief request loans from an entity.
+ * @ingroup loan
+ *
+ * @param[in] entity The entity to request loans from.
+ * @param[out] buf Pointer to the array to store the pointers to the loaned samples into.
+ * @param[out] bufsz The number of loans to request.
+ *
+ * @returns A dds_return_t indicating success or failure, either the number of loans received,
+ *          or a failure code.
+ *
+ * @retval >= 0
+ *             The operation was successful, returns the number of loans.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             One or more parameters are invalid.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION
+ *             The operation is invoked on an inappropriate object.
+ * @retval DDS_RETCODE_ALREADY_DELETED
+ *             The reader entity has already been deleted.
+ */
+DDS_EXPORT dds_return_t
+dds_request_loan(
+  dds_entity_t entity,
+  void **buf,
+  int32_t bufsz);
 
 /**
  * @defgroup loan (Loans API)

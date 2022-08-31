@@ -19,12 +19,18 @@
 #include "dds/ddsrt/static_assert.h"
 #include "dds/ddsi/ddsi_log.h"
 #include "dds/ddsi/ddsi_domaingv.h"
+#include "dds/ddsi/ddsi_protocol.h"
 #include "ddsi__eth.h"
 #include "ddsi__tran.h"
 #include "ddsi__udp.h"
 #include "ddsi__ipaddr.h"
 #include "ddsi__mcgroup.h"
 #include "ddsi__pcap.h"
+
+// Make sure that the size of the index that can be stored in a cover_info_t fits in the UDP multicast address range
+#define UDP_MC_ADDRESS_PREFIX_BITS 4
+DDSRT_STATIC_ASSERT (DDSI_LOCATOR_UDPv4MCGEN_INDEX_MASK_BITS <= 32 - UDP_MC_ADDRESS_PREFIX_BITS);
+
 
 union addr {
   struct sockaddr_storage x;
@@ -772,7 +778,7 @@ static enum ddsi_locator_from_string_result mcgen_address_from_string (const str
     return AFSR_INVALID;
   else if (str[pos] != 0 && str[pos] != ':')
     return AFSR_INVALID;
-  else if (!(count > 0 && base < 28 && count < 28 && base + count < 28 && idx < count))
+  else if (!(count > 0 && base < (32 - UDP_MC_ADDRESS_PREFIX_BITS) && count < DDSI_LOCATOR_UDPv4MCGEN_INDEX_MASK_BITS && base + count < (32 - UDP_MC_ADDRESS_PREFIX_BITS) && idx < count))
     return AFSR_INVALID;
   if (str[pos] == ':')
   {

@@ -24,7 +24,7 @@
 #include "dds/ddsi/ddsi_log.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_unused.h"
-#include "ddsi__ownip.h"
+#include "ddsi__nwinterfaces.h"
 #include "ddsi__misc.h"
 #include "ddsi__addrset.h" /* unspec locator */
 #include "ddsi__ipaddr.h"
@@ -405,7 +405,7 @@ static void log_arbitrary_selection (struct ddsi_domaingv *gv, const struct ddsi
   GVLOG (DDS_LC_INFO, "\n");
 }
 
-int ddsi_find_own_ip (struct ddsi_domaingv *gv)
+int ddsi_gather_network_interfaces (struct ddsi_domaingv *gv)
 {
   char addrbuf[DDSI_LOCSTRLEN];
 

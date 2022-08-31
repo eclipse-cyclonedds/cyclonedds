@@ -17,7 +17,10 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/ddsi_domaingv.h"
+#include "dds/ddsi/ddsi_sertype.h"
 #include "dds__qos.h"
+#include "dds__topic.h"
+#include "dds__psmx.h"
 
 static void dds_qos_data_copy_in (ddsi_octetseq_t *data, const void * __restrict value, size_t sz, bool overwrite)
 {
@@ -476,6 +479,42 @@ void dds_qset_data_representation (dds_qos_t * __restrict qos, uint32_t n, const
   qos->present |= DDSI_QP_DATA_REPRESENTATION;
 }
 
+void dds_qset_psmx_instances (dds_qos_t * __restrict qos, uint32_t n, const char **values)
+{
+  if (qos == NULL || (n > 0 && values == NULL) || n > DDS_MAX_PSMX_INSTANCES)
+    return;
+
+  // check that names are set
+  for (uint32_t i = 0; i < n; i++)
+  {
+    if (strlen (values[i]) == 0)
+      return;
+  }
+
+  // cleanup old data
+  if ((qos->present & DDSI_QP_PSMX) && qos->psmx.n > 0)
+  {
+    assert (qos->psmx.strs != NULL);
+    for (uint32_t i = 0; i < qos->psmx.n; i++)
+      dds_free (qos->psmx.strs[i]);
+    dds_free (qos->psmx.strs);
+    qos->psmx.strs = NULL;
+  }
+
+  // copy in new data
+  qos->psmx.n = n;
+  if (n > 0)
+  {
+    qos->psmx.strs = dds_alloc (n * sizeof (*qos->psmx.strs));
+    for (uint32_t i = 0; i < n; i++)
+      qos->psmx.strs[i] = dds_string_dup (values[i]);
+  }
+  else
+    qos->psmx.strs = NULL;
+
+  qos->present |= DDSI_QP_PSMX;
+}
+
 bool dds_qget_userdata (const dds_qos_t * __restrict qos, void **value, size_t *sz)
 {
   if (qos == NULL || !(qos->present & DDSI_QP_USER_DATA))
@@ -865,6 +904,87 @@ dds_return_t dds_ensure_valid_data_representation (dds_qos_t *qos, uint32_t allo
   return DDS_RETCODE_OK;
 }
 
+
+bool dds_qget_psmx_instances (const dds_qos_t * __restrict qos, uint32_t *n_out, char ***values)
+{
+  if (qos == NULL || !(qos->present & DDSI_QP_PSMX) || n_out == NULL)
+    return false;
+
+  if (qos->psmx.n > 0)
+    assert (qos->psmx.strs != NULL);
+
+  *n_out = qos->psmx.n;
+  if (values != NULL)
+  {
+    if (*n_out > 0)
+    {
+      *values = dds_alloc ((*n_out) * sizeof (**values));
+      for (uint32_t i = 0; i < *n_out; i++)
+        (*values)[i] = dds_string_dup (qos->psmx.strs[i]);
+    }
+    else
+      *values = NULL;
+  }
+
+  return true;
+}
+
+dds_return_t dds_ensure_valid_psmx_instances (dds_qos_t *qos, ddsi_data_type_properties_t data_type_props, const struct dds_psmx_set *psmx_instances)
+{
+  uint32_t n_supported = 0;
+  const char *supported_psmx[DDS_MAX_PSMX_INSTANCES];
+
+  if (!(qos->present & DDSI_QP_PSMX))
+  {
+    assert (psmx_instances->length <= DDS_MAX_PSMX_INSTANCES);
+    for (uint32_t i = 0; i < psmx_instances->length; i++)
+    {
+      struct dds_psmx *psmx = psmx_instances->instances[i];
+      if (psmx->ops.data_type_supported (data_type_props) && psmx->ops.qos_supported (qos))
+        supported_psmx[n_supported++] = psmx->instance_name;
+    }
+  }
+  else
+  {
+    uint32_t n = 0;
+    char **values;
+    dds_qget_psmx_instances (qos, &n, &values);
+    for (uint32_t i = 0; i < n; i++)
+    {
+      struct dds_psmx *psmx = NULL;
+      for (uint32_t s = 0; psmx == NULL && s < psmx_instances->length; s++)
+      {
+        assert (psmx_instances->instances[s]);
+        if (strcmp (psmx_instances->instances[s]->instance_name, values[i]) == 0)
+          psmx = psmx_instances->instances[i];
+      }
+      if (psmx != NULL && psmx->ops.data_type_supported (data_type_props) && psmx->ops.qos_supported (qos))
+        supported_psmx[n_supported++] = psmx->instance_name;
+    }
+  }
+
+  dds_qset_psmx_instances (qos, n_supported, supported_psmx);
+
+  return DDS_RETCODE_OK;
+}
+
+bool dds_qos_has_psmx_instances (const dds_qos_t *qos, const char *psmx_instance_name)
+{
+  uint32_t n = 0;
+  char **values;
+  bool found = false;
+  dds_qget_psmx_instances (qos, &n, &values);
+  for (uint32_t i = 0; !found && values != NULL && i < n; i++)
+  {
+    if (strcmp (psmx_instance_name, values[i]) == 0)
+      found = true;
+    dds_free (values[i]);
+  }
+  if (n > 0)
+    dds_free (values);
+  return found;
+}
+
 bool dds_qget_entity_name (const dds_qos_t * __restrict qos, char **name)
 {
   if (qos == NULL || name == NULL || !(qos->present & DDSI_QP_ENTITY_NAME))
@@ -874,7 +994,8 @@ bool dds_qget_entity_name (const dds_qos_t * __restrict qos, char **name)
   return *name != NULL;
 }
 
-void dds_apply_entity_naming(dds_qos_t *qos, /* optional */ dds_qos_t *parent_qos, struct ddsi_domaingv *gv) {
+void dds_apply_entity_naming(dds_qos_t *qos, /* optional */ dds_qos_t *parent_qos, struct ddsi_domaingv *gv)
+{
   if (gv->config.entity_naming_mode == DDSI_ENTITY_NAMING_DEFAULT_FANCY && !(qos->present & DDSI_QP_ENTITY_NAME)) {
     char name_buf[16];
     ddsrt_mutex_lock(&gv->naming_lock);

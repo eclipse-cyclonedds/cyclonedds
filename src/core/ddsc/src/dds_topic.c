@@ -39,6 +39,7 @@
 #include "dds/cdr/dds_cdrstream.h"
 #include "dds__serdata_builtintopic.h"
 #include "dds__serdata_default.h"
+#include "dds__psmx.h"
 
 DECL_ENTITY_LOCK_UNLOCK (dds_topic)
 
@@ -520,8 +521,10 @@ dds_entity_t dds_create_topic_impl (
 
   /* Create a ktopic if it doesn't exist yet, else reference existing one and delete the
      unneeded "new_qos". */
+  bool new_ktopic = false;
   if (ktp == NULL)
   {
+    new_ktopic = true;
     ktp = dds_alloc (sizeof (*ktp));
     ktp->refc = 1;
     ktp->defer_set_qos = 0;
@@ -574,6 +577,22 @@ dds_entity_t dds_create_topic_impl (
   ddsi_sertype_unref (*sertype);
   *sertype = sertype_registered;
 
+  dds_domain *dom = pp->m_entity.m_domain;
+  for (uint32_t i = 0; new_ktopic && i < dom->psmx_instances.length; i++)
+  {
+    struct dds_psmx *psmx = dom->psmx_instances.instances[i];
+    if (!psmx->ops.qos_supported (new_qos) ||
+        !psmx->ops.data_type_supported (sertype_registered->data_type_props))
+      continue;
+    struct dds_psmx_topic *psmx_topic = psmx->ops.create_topic (psmx, ktp->name, sertype_registered->data_type_props);
+    if (psmx_topic == NULL)
+    {
+      rc = DDS_RETCODE_ERROR;
+      goto psmx_fail;
+    }
+    ktp->psmx_topics.topics[ktp->psmx_topics.length++] = psmx_topic;
+  }
+
   const bool new_topic_def = register_topic_type_for_discovery (gv, pp, ktp, is_builtin, sertype_registered);
   ddsrt_mutex_unlock (&pp->m_entity.m_mutex);
 
@@ -589,7 +608,15 @@ dds_entity_t dds_create_topic_impl (
   GVTRACE ("dds_create_topic_impl: new topic %"PRId32"\n", hdl);
   return hdl;
 
- error:
+psmx_fail:
+  for (uint32_t i = 0; i < ktp->psmx_topics.length; i++)
+  {
+    dds_return_t rc_destruct = ktp->psmx_topics.topics[i]->psmx_instance->ops.delete_topic (ktp->psmx_topics.topics[i]);
+    assert (rc_destruct == DDS_RETCODE_OK);
+    (void) rc_destruct;
+    ktp->psmx_topics.topics[i] = NULL;
+  }
+error:
   dds_delete_qos (new_qos);
 #ifdef DDS_HAS_TYPELIB
 error_typeref:

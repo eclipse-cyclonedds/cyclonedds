@@ -36,12 +36,34 @@ const ddsrt_avl_treedef_t ddsi_pwr_readers_treedef =
 const ddsrt_avl_treedef_t ddsi_prd_writers_treedef =
   DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct ddsi_prd_wr_match, avlnode), offsetof (struct ddsi_prd_wr_match, wr_guid), ddsi_compare_guid, 0);
 
-#ifdef DDS_HAS_SHM
-struct has_iceoryx_address_helper_arg {
-  const ddsi_locator_t *loc_iceoryx_addr;
-  bool has_iceoryx_address;
-};
-#endif /* DDS_HAS_SHM */
+typedef struct proxy_is_local_psmx_helper {
+  const ddsi_locator_t *loc;
+  int matches_to_loc;
+} proxy_is_local_psmx_helper_t;
+
+static void count_local_psmx (const ddsi_xlocator_t *loc, void * varg)
+{
+  proxy_is_local_psmx_helper_t *hlp = (proxy_is_local_psmx_helper_t *) varg;
+
+  if (memcmp (&loc->c, hlp->loc, sizeof(*hlp->loc)) == 0)
+  {
+    hlp->matches_to_loc++;
+  }
+}
+
+static bool proxy_is_local_psmx (const struct ddsi_domaingv *gv, struct ddsi_addrset *as)
+{
+  proxy_is_local_psmx_helper_t hlp = {.loc = NULL, .matches_to_loc = 0};
+  for (int i = 0; i < gv->n_interfaces; i++)
+  {
+    if (gv->interfaces[i].is_psmx)
+    {
+      hlp.loc = &gv->interfaces[i].loc;
+      ddsi_addrset_forall (as, count_local_psmx, &hlp);
+    }
+  }
+  return hlp.matches_to_loc > 0;
+}
 
 static void proxy_writer_get_alive_state_locked (struct ddsi_proxy_writer *pwr, struct ddsi_alive_state *st)
 {
@@ -137,30 +159,6 @@ static void proxy_endpoint_common_fini (struct ddsi_entity_common *e, struct dds
   ddsi_unref_addrset (c->as);
   ddsi_entity_common_fini (e);
 }
-
-#ifdef DDS_HAS_SHM
-static void has_iceoryx_address_helper (const ddsi_xlocator_t *n, void *varg)
-{
-  struct has_iceoryx_address_helper_arg *arg = varg;
-  if (n->c.kind == DDSI_LOCATOR_KIND_SHEM && memcmp (arg->loc_iceoryx_addr->address, n->c.address, sizeof (arg->loc_iceoryx_addr->address)) == 0)
-    arg->has_iceoryx_address = true;
-}
-
-static bool has_iceoryx_address (struct ddsi_domaingv * const gv, struct ddsi_addrset * const as)
-{
-  if (!gv->config.enable_shm)
-    return false;
-  else
-  {
-    struct has_iceoryx_address_helper_arg arg = {
-      .loc_iceoryx_addr = &gv->loc_iceoryx_addr,
-      .has_iceoryx_address = false
-    };
-    ddsi_addrset_forall (as, has_iceoryx_address_helper, &arg);
-    return arg.has_iceoryx_address;
-  }
-}
-#endif /* DDS_HAS_SHM */
 
 #ifdef DDS_HAS_TYPELIB
 bool ddsi_is_proxy_endpoint (const struct ddsi_entity_common *e)
@@ -267,9 +265,7 @@ int ddsi_new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppg
 #ifdef DDS_HAS_SSM
   pwr->supports_ssm = (ddsi_addrset_contains_ssm (gv, as) && gv->config.allowMulticast & DDSI_AMC_SSM) ? 1 : 0;
 #endif
-#ifdef DDS_HAS_SHM
-  pwr->is_iceoryx = has_iceoryx_address (gv, as) ? 1 : 0;
-#endif
+  pwr->local_psmx = proxy_is_local_psmx(gv, as);
   if (plist->present & PP_CYCLONE_REDUNDANT_NETWORKING)
     pwr->redundant_networking = (plist->cyclone_redundant_networking != 0);
   else
@@ -587,9 +583,7 @@ int ddsi_new_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *ppg
 #ifdef DDS_HAS_SSM
   prd->favours_ssm = (favours_ssm && gv->config.allowMulticast & DDSI_AMC_SSM) ? 1 : 0;
 #endif
-#ifdef DDS_HAS_SHM
-  prd->is_iceoryx = has_iceoryx_address (gv, as) ? 1 : 0;
-#endif
+  prd->local_psmx = proxy_is_local_psmx (gv, as);
   prd->is_fict_trans_reader = 0;
   prd->receive_buffer_size = proxypp->receive_buffer_size;
   prd->requests_keyhash = (plist->present & PP_CYCLONE_REQUESTS_KEYHASH) && plist->cyclone_requests_keyhash;

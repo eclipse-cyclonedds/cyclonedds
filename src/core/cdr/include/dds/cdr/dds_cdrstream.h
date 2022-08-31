@@ -118,6 +118,7 @@ struct dds_cdrstream_desc {
   size_t opt_size_xcdr2;
 };
 
+
 DDSRT_STATIC_ASSERT (offsetof (dds_ostreamLE_t, x) == 0);
 DDSRT_STATIC_ASSERT (offsetof (dds_ostreamBE_t, x) == 0);
 
@@ -245,11 +246,17 @@ uint32_t dds_stream_key_flags (struct dds_cdrstream_desc *desc, uint32_t *keysz_
 bool dds_stream_extensibility (const uint32_t * __restrict ops, enum dds_cdr_type_extensibility *ext);
 
 /** @component cdr_serializer */
+uint64_t dds_stream_data_types (const uint32_t * __restrict ops);
+
+/** @component cdr_serializer */
 DDS_EXPORT void dds_cdrstream_desc_init (struct dds_cdrstream_desc *desc, const struct dds_cdrstream_allocator * __restrict allocator,
     uint32_t size, uint32_t align, uint32_t flagset, const uint32_t *ops, const dds_key_descriptor_t *keys, uint32_t nkeys);
 
 /** @component cdr_serializer */
 DDS_EXPORT void dds_cdrstream_desc_fini (struct dds_cdrstream_desc *desc, const struct dds_cdrstream_allocator * __restrict allocator);
+
+/** @component cdr_serializer */
+DDS_EXPORT void dds_cdrstream_desc_from_topic_desc (struct dds_cdrstream_desc *desc, const dds_topic_descriptor_t *topic_desc);
 
 
 #if defined (__cplusplus)

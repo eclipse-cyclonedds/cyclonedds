@@ -116,11 +116,6 @@ if(ENABLE_SSL AND OPENSSL_FOUND)
       "$<BUILD_INTERFACE:$<TARGET_PROPERTY:security_openssl,INTERFACE_INCLUDE_DIRECTORIES>>"
   )
 endif()
-if(ENABLE_SHM)
-  target_include_directories(
-    cunit_security_core PRIVATE
-    "$<BUILD_INTERFACE:$<TARGET_PROPERTY:iceoryx_binding_c::iceoryx_binding_c,INTERFACE_INCLUDE_DIRECTORIES>>")
-endif()
 
 set(common_etc_dir "${CMAKE_CURRENT_SOURCE_DIR}/common/etc")
 set(plugin_wrapper_lib_dir "${CMAKE_CURRENT_BINARY_DIR}")

@@ -41,11 +41,6 @@ static const char *config =
     "    <ExternalDomainId>0</ExternalDomainId>"
     "    <Tag>\\${CYCLONEDDS_PID}</Tag>"
     "  </Discovery>"
-#ifdef DDS_HAS_SHM
-    "  <SharedMemory>"
-    "    <Enable>false</Enable>"
-    "  </SharedMemory>"
-#endif
     "  <Security>"
     "    <Authentication>"
     "      <Library initFunction=\"${AUTH_INIT}\" finalizeFunction=\"${AUTH_FINI}\" path=\"" WRAPPERLIB_PATH("dds_security_authentication_wrapper") "\"/>"

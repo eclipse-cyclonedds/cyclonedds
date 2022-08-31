@@ -25,6 +25,10 @@ idlc_generate(TARGET CdrStreamSkipDefault FILES CdrStreamSkipDefault.idl)
 idlc_generate(TARGET CdrStreamKeySize FILES CdrStreamKeySize.idl)
 idlc_generate(TARGET CdrStreamKeyExt FILES CdrStreamKeyExt.idl)
 idlc_generate(TARGET SerdataData FILES SerdataData.idl)
+idlc_generate(TARGET PsmxDataModels FILES PsmxDataModels.idl WARNINGS no-implicit-extensibility)
+idlc_generate(TARGET CdrStreamDataTypeInfo FILES CdrStreamDataTypeInfo.idl WARNINGS no-implicit-extensibility)
+idlc_generate(TARGET Array100 FILES Array100.idl WARNINGS no-implicit-extensibility)
+idlc_generate(TARGET DynamicData FILES DynamicData.idl WARNINGS no-implicit-extensibility)
 if(ENABLE_TYPELIB)
   idlc_generate(TARGET XSpace FILES XSpace.idl XSpaceEnum.idl XSpaceMustUnderstand.idl XSpaceTypeConsistencyEnforcement.idl WARNINGS no-implicit-extensibility no-inherit-appendable)
   idlc_generate(TARGET XSpaceNoTypeInfo FILES XSpaceNoTypeInfo.idl NO_TYPE_INFO WARNINGS no-implicit-extensibility)
@@ -95,6 +99,7 @@ set(ddsc_test_sources
     "test_oneliner.h"
     "cdrstream.c"
     "serdata_keys.c"
+    "psmx.c"
   )
 
 if(ENABLE_LIFESPAN)
@@ -137,14 +142,29 @@ target_include_directories(
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/src>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../cdr/include>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../cdr/test>")
-if(ENABLE_SHM)
-  target_include_directories(
-    cunit_ddsc PRIVATE
-    "$<BUILD_INTERFACE:$<TARGET_PROPERTY:iceoryx_binding_c::iceoryx_binding_c,INTERFACE_INCLUDE_DIRECTORIES>>")
-endif()
 
 target_link_libraries(cunit_ddsc PRIVATE
-  RoundTrip Space TypesArrayKey WriteTypes InstanceHandleTypes RWData CreateWriter DataRepresentationTypes MinXcdrVersion CdrStreamOptimize CdrStreamSkipDefault CdrStreamKeySize CdrStreamKeyExt SerdataData ddsc)
+  RoundTrip
+  Space
+  TypesArrayKey
+  WriteTypes
+  InstanceHandleTypes
+  RWData
+  CreateWriter
+  DataRepresentationTypes
+  MinXcdrVersion
+  CdrStreamOptimize
+  CdrStreamSkipDefault
+  CdrStreamDataTypeInfo
+  PsmxDataModels
+  DynamicData
+  Array100
+  CdrStreamKeySize
+  CdrStreamKeyExt
+  SerdataData
+  ddsc
+)
+
 
 if(ENABLE_TYPELIB)
   target_link_libraries(cunit_ddsc PRIVATE
@@ -191,47 +211,31 @@ target_include_directories(
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/src>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../cdr/include>")
 
-if(ENABLE_SHM)
-  target_include_directories(
-    oneliner PRIVATE
-    "$<BUILD_INTERFACE:$<TARGET_PROPERTY:iceoryx_binding_c::iceoryx_binding_c,INTERFACE_INCLUDE_DIRECTORIES>>")
-endif()
-
 target_link_libraries(oneliner PRIVATE RoundTrip Space ddsc)
 
-# Iceoryx itself isn't really supported yet on Windows, so it
-# better not be part of the tests.  That also saves us from
-# having to figure out now how to start/stop RouDi on Windows.
+
+# PSMX implementation with Cyclone as transport, for testing
+
+idlc_generate(TARGET psmx_cdds_data FILES psmx_cdds_data.idl)
+set(psmx_cdds_sources
+  "psmx_cdds_impl.c"
+  "psmx_cdds_impl.h")
+add_library(psmx_cdds SHARED ${psmx_cdds_sources})
+target_include_directories(
+  psmx_cdds PRIVATE
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/include>")
+target_link_libraries(psmx_cdds PRIVATE ddsc psmx_cdds_data)
+
+generate_export_header(psmx_cdds BASE_NAME PSMX_CDDS EXPORT_FILE_NAME "${CMAKE_CURRENT_BINARY_DIR}/include/dds/psmx_cdds/export.h")
+
+install(TARGETS psmx_cdds
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+
+# If Iceoryx is available, then also run all PSMX tests using Iceoryx.  Colcon complicates
+# things too much and it doesn't affect Cyclone's CI run anyway.
 if(ENABLE_SHM AND NOT DEFINED ENV{COLCON})
-  idlc_generate(TARGET Array100 FILES Array100.idl WARNINGS no-implicit-extensibility)
-  idlc_generate(TARGET DynamicData FILES DynamicData.idl WARNINGS no-implicit-extensibility)
-
-  add_cunit_executable(cunit_ddsc_iox
-    "iceoryx.c"
-    "test_util.c"
-    "test_util.h")
-  target_include_directories(
-    cunit_ddsc_iox PRIVATE
-    "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/include/>"
-    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsc/src>"
-    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/include>"
-    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/src>"
-    "$<BUILD_INTERFACE:$<TARGET_PROPERTY:iceoryx_binding_c::iceoryx_binding_c,INTERFACE_INCLUDE_DIRECTORIES>>")
-
-  target_link_libraries(cunit_ddsc_iox PRIVATE RoundTrip Space Array100 DynamicData ddsc)
-
-  add_cunit_executable(cunit_ddsc_shm_serialization
-    "test_shm_serialization.c"
-    "test_util.c"
-    "test_util.h")
-  target_include_directories(
-    cunit_ddsc_shm_serialization PRIVATE
-    "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/include/>"
-    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsc/src>"
-    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/include>"
-    "$<BUILD_INTERFACE:$<TARGET_PROPERTY:iceoryx_binding_c::iceoryx_binding_c,INTERFACE_INCLUDE_DIRECTORIES>>")
-
-  target_link_libraries(cunit_ddsc_shm_serialization PRIVATE RoundTrip Space DynamicData ddsc)
 
   # We need to start RouDi, so we need to find it
   find_program(ICEORYX_ROUDI iox-roudi REQUIRED)
@@ -274,16 +278,14 @@ kill -0 `cat ctest_fixture_iox_roudi.pid`")
   set_tests_properties(stop_roudi PROPERTIES FIXTURES_CLEANUP iox)
   set_tests_properties(start_roudi stop_roudi PROPERTIES RESOURCE_LOCK iox_lock)
 
-  foreach(t
-      iceoryx_one_writer
-      iceoryx_one_writer_dynsize
-      iceoryx_one_writer_dynsize_strkey
-      iceoryx_return_loan
-      iceoryx_partition_xtalk
-      shm_serialization_get_serialized_size
-      shm_serialization_serialize_into
-      shm_serialization_transmit_dynamic_type)
-    set_tests_properties(CUnit_ddsc_${t} PROPERTIES FIXTURES_REQUIRED iox)
-    set_tests_properties(CUnit_ddsc_${t} PROPERTIES RESOURCE_LOCK iox_lock)
+  # Construct Iceoryx-variants of all PSMX tests
+  get_property(test_names DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY TESTS)
+  list(FILTER test_names INCLUDE REGEX "^CUnit_ddsc_psmx_[A-Za-z_0-9]+$")
+  foreach(fullname ${test_names})
+    string(REGEX REPLACE "^CUnit_ddsc_psmx_(.*)" "\\1" shortname "${fullname}")
+    add_test(NAME ${fullname}_iox COMMAND cunit_ddsc -s ddsc_psmx -t ${shortname})
+    set_tests_properties(${fullname}_iox PROPERTIES FIXTURES_REQUIRED iox)
+    set_tests_properties(${fullname}_iox PROPERTIES RESOURCE_LOCK iox_lock)
+    set_tests_properties(${fullname}_iox PROPERTIES ENVIRONMENT "CDDS_PSMX_NAME=iox;LD_LIBRARY_PATH=$<TARGET_FILE_DIR:psmx_iox>:$ENV{LD_LIBRARY_PATH}")
   endforeach()
 endif()

@@ -49,7 +49,7 @@ static void setup (void)
   dds_set_log_sink (null_log_sink, NULL);
   dds_set_trace_sink (null_log_sink, NULL);
 
-  ddsi_init (&gv);
+  ddsi_init (&gv, NULL);
   rbpool = ddsi_rbufpool_new (&gv.logconfig, gv.config.rbuf_size, gv.config.rmsg_chunk_size);
   ddsi_rbufpool_setowner (rbpool, ddsrt_thread_self ());
 }

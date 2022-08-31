@@ -2302,11 +2302,11 @@ int main (int argc, char *argv[])
   dds_delete_qos (qos);
 
   {
-    const char *tp_suf = "";
+    const char *tp_suf = "KS";
     const dds_topic_descriptor_t *tp_desc = NULL;
     switch (topicsel)
     {
-      case KS:     tp_suf = "KS";     tp_desc = &KeyedSeq_desc; break;
+      case KS:                        tp_desc = &KeyedSeq_desc; break;
       case K32:    tp_suf = "K32";    tp_desc = &Keyed32_desc;  break;
       case K256:   tp_suf = "K256";   tp_desc = &Keyed256_desc; break;
       case OU:     tp_suf = "OU";     tp_desc = &OneULong_desc; break;

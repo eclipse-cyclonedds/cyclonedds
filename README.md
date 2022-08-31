@@ -138,7 +138,7 @@ There are some configuration options specified using CMake defines in addition t
 * `-DBUILD_IDLC=NO`: to disable building the IDL compiler (affects building examples, tests and `ddsperf`)
 * `-DBUILD_DDSPERF=NO`: to disable building the [`ddsperf`](https://github.com/eclipse-cyclonedds/cyclonedds/tree/master/src/tools/ddsperf) tool for performance measurement
 * `-DENABLE_SSL=NO`: to not look for OpenSSL, remove TLS/TCP support and avoid building the plugins that implement authentication and encryption (default is `AUTO` to enable them if OpenSSL is found)
-* `-DENABLE_SHM=NO`: to not look for Iceoryx and disabled shared memory support (default is `AUTO` to enable it if Iceoryx is found)
+* `-DENABLE_SHM=NO`: to not look for Iceoryx and disabled shared memory support via the PSMX Iceoryx plugin (default is `AUTO` to enable it if Iceoryx is found)
 * `-DENABLE_SECURITY=NO`: to not build the security interfaces and hooks in the core code, nor the plugins (one can enable security without OpenSSL present, you'll just have to find plugins elsewhere in that case)
 * `-DENABLE_LIFESPAN=NO`: to exclude support for finite lifespans QoS
 * `-DENABLE_DEADLINE_MISSED=NO`: to exclude support for finite deadline QoS settings

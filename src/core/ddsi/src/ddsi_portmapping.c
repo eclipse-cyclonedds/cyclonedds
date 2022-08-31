@@ -84,10 +84,10 @@ static bool get_port_int (uint32_t *port, const struct ddsi_portmapping *map, en
 
 static const char *portname (enum ddsi_port which)
 {
-  const char *n = "?";
+  const char *n = "multicast discovery";
   switch (which)
   {
-    case DDSI_PORT_MULTI_DISC: n = "multicast discovery"; break;
+    case DDSI_PORT_MULTI_DISC: break;
     case DDSI_PORT_MULTI_DATA: n = "multicast data"; break;
     case DDSI_PORT_UNI_DISC: n = "unicast discovery"; break;
     case DDSI_PORT_UNI_DATA: n = "unicast data"; break;

@@ -125,6 +125,14 @@ enum sample_data_state {
   SAMPLE_DATA_UNINITIALIZED
 };
 
+struct dds_cdrstream_ops_info {
+  const uint32_t *toplevel_op;
+  const uint32_t *ops_end;
+  uint16_t min_xcdrv;
+  uint32_t nesting_max;
+  uint64_t data_types;
+};
+
 static const uint32_t *dds_stream_skip_adr (uint32_t insn, const uint32_t * __restrict ops);
 static const uint32_t *dds_stream_skip_default (char * __restrict data, const struct dds_cdrstream_allocator * __restrict allocator, const uint32_t * __restrict ops, enum sample_data_state sample_state);
 static const uint32_t *dds_stream_extract_key_from_data1 (dds_istream_t * __restrict is, dds_ostream_t * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator,
@@ -687,31 +695,40 @@ size_t dds_stream_check_optimize (const struct dds_cdrstream_desc * __restrict d
   return opt_size;
 }
 
-static void dds_stream_countops1 (const uint32_t * __restrict ops, const uint32_t **ops_end, uint16_t *min_xcdrv, uint32_t nestc, uint32_t *nestm);
+static void dds_stream_get_ops_info1 (const uint32_t * __restrict ops, uint32_t nestc, struct dds_cdrstream_ops_info *info);
 
-static const uint32_t *dds_stream_countops_seq (const uint32_t * __restrict ops, uint32_t insn, const uint32_t **ops_end, uint16_t *min_xcdrv, uint32_t nestc, uint32_t *nestm)
+static const uint32_t *dds_stream_get_ops_info_seq (const uint32_t * __restrict ops, uint32_t insn, uint32_t nestc, struct dds_cdrstream_ops_info *info)
 {
   uint32_t bound_op = seq_is_bounded (DDS_OP_TYPE (insn)) ? 1 : 0;
   const enum dds_stream_typecode subtype = DDS_OP_SUBTYPE (insn);
   switch (subtype)
   {
     case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
-    case DDS_OP_VAL_STR:
       ops += 2 + bound_op;
       break;
-    case DDS_OP_VAL_BST: case DDS_OP_VAL_ENU:
+    case DDS_OP_VAL_STR:
+      ops += 2 + bound_op;
+      info->data_types |= DDS_DATA_TYPE_CONTAINS_STRING;
+      break;
+    case DDS_OP_VAL_BST:
       ops += 3 + bound_op;
+      info->data_types |= DDS_DATA_TYPE_CONTAINS_BSTRING;
+      break;
+    case DDS_OP_VAL_ENU:
+      ops += 3 + bound_op;
+      info->data_types |= DDS_DATA_TYPE_CONTAINS_ENUM;
       break;
     case DDS_OP_VAL_BMK:
       ops += 4 + bound_op;
+      info->data_types |= DDS_DATA_TYPE_CONTAINS_BITMASK;
       break;
     case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
       const uint32_t jmp = DDS_OP_ADR_JMP (ops[3 + bound_op]);
       uint32_t const * const jsr_ops = ops + DDS_OP_ADR_JSR (ops[3 + bound_op]);
-      if (ops + 4 + bound_op > *ops_end)
-        *ops_end = ops + 4 + bound_op;
+      if (ops + 4 + bound_op > info->ops_end)
+        info->ops_end = ops + 4 + bound_op;
       if (DDS_OP_ADR_JSR (ops[3 + bound_op]) > 0)
-        dds_stream_countops1 (jsr_ops, ops_end, min_xcdrv, nestc + (subtype == DDS_OP_VAL_UNI || subtype == DDS_OP_VAL_STU ? 1 : 0), nestm);
+        dds_stream_get_ops_info1 (jsr_ops, nestc + (subtype == DDS_OP_VAL_UNI || subtype == DDS_OP_VAL_STU ? 1 : 0), info);
       ops += (jmp ? jmp : (4 + bound_op)); /* FIXME: why would jmp be 0? */
       break;
     }
@@ -719,33 +736,42 @@ static const uint32_t *dds_stream_countops_seq (const uint32_t * __restrict ops,
       abort (); // not allowed
       break;
   }
-  if (ops > *ops_end)
-    *ops_end = ops;
+  if (ops > info->ops_end)
+    info->ops_end = ops;
   return ops;
 }
 
-static const uint32_t *dds_stream_countops_arr (const uint32_t * __restrict ops, uint32_t insn, const uint32_t **ops_end, uint16_t *min_xcdrv, uint32_t nestc, uint32_t *nestm)
+static const uint32_t *dds_stream_get_ops_info_arr (const uint32_t * __restrict ops, uint32_t insn, uint32_t nestc, struct dds_cdrstream_ops_info *info)
 {
   const enum dds_stream_typecode subtype = DDS_OP_SUBTYPE (insn);
   switch (subtype)
   {
     case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
+      ops += 3;
+      break;
     case DDS_OP_VAL_STR:
       ops += 3;
+      info->data_types |= DDS_DATA_TYPE_CONTAINS_STRING;
       break;
     case DDS_OP_VAL_ENU:
       ops += 4;
+      info->data_types |= DDS_DATA_TYPE_CONTAINS_ENUM;
       break;
-    case DDS_OP_VAL_BST: case DDS_OP_VAL_BMK:
+    case DDS_OP_VAL_BST:
       ops += 5;
+      info->data_types |= DDS_DATA_TYPE_CONTAINS_BSTRING;
+      break;
+    case DDS_OP_VAL_BMK:
+      ops += 5;
+      info->data_types |= DDS_DATA_TYPE_CONTAINS_BITMASK;
       break;
     case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
       const uint32_t jmp = DDS_OP_ADR_JMP (ops[3]);
       const uint32_t *jsr_ops = ops + DDS_OP_ADR_JSR (ops[3]);
-      if (ops + 5 > *ops_end)
-        *ops_end = ops + 5;
+      if (ops + 5 > info->ops_end)
+        info->ops_end = ops + 5;
       if (DDS_OP_ADR_JSR (ops[3]) > 0)
-        dds_stream_countops1 (jsr_ops, ops_end, min_xcdrv, nestc + (subtype == DDS_OP_VAL_UNI || subtype == DDS_OP_VAL_STU ? 1 : 0), nestm);
+        dds_stream_get_ops_info1 (jsr_ops, nestc + (subtype == DDS_OP_VAL_UNI || subtype == DDS_OP_VAL_STU ? 1 : 0), info);
       ops += (jmp ? jmp : 5);
       break;
     }
@@ -753,26 +779,40 @@ static const uint32_t *dds_stream_countops_arr (const uint32_t * __restrict ops,
       abort (); // not allowed
       break;
   }
-  if (ops > *ops_end)
-    *ops_end = ops;
+  if (ops > info->ops_end)
+    info->ops_end = ops;
   return ops;
 }
 
-static const uint32_t *dds_stream_countops_uni (const uint32_t * __restrict ops, const uint32_t **ops_end, uint16_t *min_xcdrv, uint32_t nestc, uint32_t *nestm)
+static const uint32_t *dds_stream_get_ops_info_uni (const uint32_t * __restrict ops, uint32_t nestc, struct dds_cdrstream_ops_info *info)
 {
+  enum dds_stream_typecode disc_type = DDS_OP_SUBTYPE (ops[0]);
+  if (disc_type == DDS_OP_VAL_ENU)
+    info->data_types |= DDS_DATA_TYPE_CONTAINS_ENUM;
+
   const uint32_t numcases = ops[2];
   const uint32_t *jeq_op = ops + DDS_OP_ADR_JSR (ops[3]);
   for (uint32_t i = 0; i < numcases; i++)
   {
     const enum dds_stream_typecode valtype = DDS_JEQ_TYPE (jeq_op[0]);
+    if (op_type_external (jeq_op[0]) && valtype != DDS_OP_VAL_STR)
+      info->data_types |= DDS_DATA_TYPE_CONTAINS_EXTERNAL;
     switch (valtype)
     {
       case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
-      case DDS_OP_VAL_STR: case DDS_OP_VAL_ENU:
         break;
-      case DDS_OP_VAL_BST: case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: case DDS_OP_VAL_BMK:
+      case DDS_OP_VAL_STR:
+        info->data_types |= DDS_DATA_TYPE_CONTAINS_STRING;
+        break;
+      case DDS_OP_VAL_ENU:
+        info->data_types |= DDS_DATA_TYPE_CONTAINS_ENUM;
+        break;
+      case DDS_OP_VAL_STU:
+        info->data_types |= DDS_DATA_TYPE_CONTAINS_STRUCT;
+        /* fall-through */
+      case DDS_OP_VAL_BST: case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_BMK:
         if (DDS_OP_ADR_JSR (jeq_op[0]) > 0)
-          dds_stream_countops1 (jeq_op + DDS_OP_ADR_JSR (jeq_op[0]), ops_end, min_xcdrv, nestc + (valtype == DDS_OP_VAL_UNI || valtype == DDS_OP_VAL_STU ? 1 : 0), nestm);
+          dds_stream_get_ops_info1 (jeq_op + DDS_OP_ADR_JSR (jeq_op[0]), nestc + (valtype == DDS_OP_VAL_UNI || valtype == DDS_OP_VAL_STU ? 1 : 0), info);
         break;
       case DDS_OP_VAL_EXT:
         abort (); // not allowed
@@ -780,15 +820,15 @@ static const uint32_t *dds_stream_countops_uni (const uint32_t * __restrict ops,
     }
     jeq_op += (DDS_OP (jeq_op[0]) == DDS_OP_JEQ) ? 3 : 4;
   }
-  if (jeq_op > *ops_end)
-    *ops_end = jeq_op;
+  if (jeq_op > info->ops_end)
+    info->ops_end = jeq_op;
   ops += DDS_OP_ADR_JMP (ops[3]);
-  if (ops > *ops_end)
-    *ops_end = ops;
+  if (ops > info->ops_end)
+    info->ops_end = ops;
   return ops;
 }
 
-static const uint32_t *dds_stream_countops_pl (const uint32_t * __restrict ops, const uint32_t **ops_end, uint16_t *min_xcdrv, uint32_t nestc, uint32_t *nestm)
+static const uint32_t *dds_stream_get_ops_info_pl (const uint32_t * __restrict ops, uint32_t nestc, struct dds_cdrstream_ops_info *info)
 {
   uint32_t insn;
   assert (ops[0] == DDS_OP_PLC);
@@ -801,9 +841,9 @@ static const uint32_t *dds_stream_countops_pl (const uint32_t * __restrict ops, 
         uint32_t flags = DDS_PLM_FLAGS (insn);
         const uint32_t *plm_ops = ops + DDS_OP_ADR_PLM (insn);
         if (flags & DDS_OP_FLAG_BASE)
-          (void) dds_stream_countops_pl (plm_ops, ops_end, min_xcdrv, nestc, nestm);
+          (void) dds_stream_get_ops_info_pl (plm_ops, nestc, info);
         else
-          dds_stream_countops1 (plm_ops, ops_end, min_xcdrv, nestc, nestm);
+          dds_stream_get_ops_info1 (plm_ops, nestc, info);
         ops += 2;
         break;
       }
@@ -812,42 +852,76 @@ static const uint32_t *dds_stream_countops_pl (const uint32_t * __restrict ops, 
         break;
     }
   }
-  if (ops > *ops_end)
-    *ops_end = ops;
+  if (ops > info->ops_end)
+    info->ops_end = ops;
   return ops;
 }
 
-static void dds_stream_countops1 (const uint32_t * __restrict ops, const uint32_t **ops_end, uint16_t *min_xcdrv, uint32_t nestc, uint32_t *nestm)
+static void dds_stream_get_ops_info1 (const uint32_t * __restrict ops, uint32_t nestc, struct dds_cdrstream_ops_info *info)
 {
   uint32_t insn;
-  if (nestm && *nestm < nestc)
-    *nestm = nestc;
+  if (info->nesting_max < nestc)
+    info->nesting_max = nestc;
   while ((insn = *ops) != DDS_OP_RTS)
   {
     switch (DDS_OP (insn))
     {
       case DDS_OP_ADR: {
-        if (op_type_optional (insn) && min_xcdrv)
-          *min_xcdrv = DDSI_RTPS_CDR_ENC_VERSION_2;
+        if (info->toplevel_op == NULL)
+        {
+          info->toplevel_op = ops;
+          if (DDS_OP_TYPE (insn) != DDS_OP_VAL_UNI)
+            info->data_types |= DDS_DATA_TYPE_CONTAINS_STRUCT;
+        }
+        if (op_type_optional (insn))
+        {
+          info->min_xcdrv = DDSI_RTPS_CDR_ENC_VERSION_2;
+          info->data_types |= DDS_DATA_TYPE_CONTAINS_OPTIONAL;
+        }
+        if (op_type_external (insn) && DDS_OP_TYPE (insn) != DDS_OP_VAL_STR)
+          info->data_types |= DDS_DATA_TYPE_CONTAINS_EXTERNAL;
         switch (DDS_OP_TYPE (insn))
         {
-          case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: case DDS_OP_VAL_STR:
+          case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
             ops += 2;
             break;
-          case DDS_OP_VAL_BST: case DDS_OP_VAL_ENU:
+          case DDS_OP_VAL_STR:
+            ops += 2;
+            info->data_types |= DDS_DATA_TYPE_CONTAINS_STRING;
+            break;
+          case DDS_OP_VAL_BST:
             ops += 3;
+            info->data_types |= DDS_DATA_TYPE_CONTAINS_BSTRING;
+            break;
+          case DDS_OP_VAL_ENU:
+            ops += 3;
+            info->data_types |= DDS_DATA_TYPE_CONTAINS_ENUM;
             break;
           case DDS_OP_VAL_BMK:
             ops += 4;
+            info->data_types |= DDS_DATA_TYPE_CONTAINS_BITMASK;
             break;
-          case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: ops = dds_stream_countops_seq (ops, insn, ops_end, min_xcdrv, nestc, nestm); break;
-          case DDS_OP_VAL_ARR: ops = dds_stream_countops_arr (ops, insn, ops_end, min_xcdrv, nestc, nestm); break;
-          case DDS_OP_VAL_UNI: ops = dds_stream_countops_uni (ops, ops_end, min_xcdrv, nestc, nestm); break;
+          case DDS_OP_VAL_SEQ:
+            ops = dds_stream_get_ops_info_seq (ops, insn, nestc, info);
+            info->data_types |= DDS_DATA_TYPE_CONTAINS_SEQUENCE;
+            break;
+          case DDS_OP_VAL_BSQ:
+            ops = dds_stream_get_ops_info_seq (ops, insn, nestc, info);
+            info->data_types |= DDS_DATA_TYPE_CONTAINS_BSEQUENCE;
+            break;
+          case DDS_OP_VAL_ARR:
+            ops = dds_stream_get_ops_info_arr (ops, insn, nestc, info);
+            info->data_types |= DDS_DATA_TYPE_CONTAINS_ARRAY;
+            break;
+          case DDS_OP_VAL_UNI:
+            ops = dds_stream_get_ops_info_uni (ops, nestc, info);
+            info->data_types |= DDS_DATA_TYPE_CONTAINS_UNION;
+            break;
           case DDS_OP_VAL_EXT: {
             const uint32_t *jsr_ops = ops + DDS_OP_ADR_JSR (ops[2]);
             const uint32_t jmp = DDS_OP_ADR_JMP (ops[2]);
             if (DDS_OP_ADR_JSR (ops[2]) > 0)
-              dds_stream_countops1 (jsr_ops, ops_end, min_xcdrv, nestc + 1, nestm);
+              dds_stream_get_ops_info1 (jsr_ops, nestc + 1, info);
             ops += jmp ? jmp : 3;
             break;
           }
@@ -859,7 +933,7 @@ static void dds_stream_countops1 (const uint32_t * __restrict ops, const uint32_
       }
       case DDS_OP_JSR: {
         if (DDS_OP_JUMP (insn) > 0)
-          dds_stream_countops1 (ops + DDS_OP_JUMP (insn), ops_end, min_xcdrv, nestc, nestm);
+          dds_stream_get_ops_info1 (ops + DDS_OP_JUMP (insn), nestc, info);
         ops++;
         break;
       }
@@ -868,22 +942,20 @@ static void dds_stream_countops1 (const uint32_t * __restrict ops, const uint32_
         break;
       }
       case DDS_OP_DLC: {
-        if (min_xcdrv)
-          *min_xcdrv = DDSI_RTPS_CDR_ENC_VERSION_2;
+        info->min_xcdrv = DDSI_RTPS_CDR_ENC_VERSION_2;
         ops++;
         break;
       }
       case DDS_OP_PLC: {
-        if (min_xcdrv)
-          *min_xcdrv = DDSI_RTPS_CDR_ENC_VERSION_2;
-        ops = dds_stream_countops_pl (ops, ops_end, min_xcdrv, nestc, nestm);
+        info->min_xcdrv = DDSI_RTPS_CDR_ENC_VERSION_2;
+        ops = dds_stream_get_ops_info_pl (ops, nestc, info);
         break;
       }
     }
   }
   ++ops; /* skip RTS op */
-  if (ops > *ops_end)
-    *ops_end = ops;
+  if (ops > info->ops_end)
+    info->ops_end = ops;
 }
 
 static void dds_stream_countops_keyoffset (const uint32_t * __restrict ops, const dds_key_descriptor_t * __restrict key, const uint32_t ** __restrict ops_end)
@@ -897,13 +969,14 @@ static void dds_stream_countops_keyoffset (const uint32_t * __restrict ops, cons
   }
 }
 
-uint32_t dds_stream_countops (const uint32_t * __restrict ops, uint32_t nkeys, const dds_key_descriptor_t * __restrict keys)
+static void dds_stream_get_ops_info (const uint32_t * __restrict ops, struct dds_cdrstream_ops_info *info)
 {
-  const uint32_t *ops_end = ops;
-  dds_stream_countops1 (ops, &ops_end, NULL, 0, NULL);
-  for (uint32_t n = 0; n < nkeys; n++)
-    dds_stream_countops_keyoffset (ops, &keys[n], &ops_end);
-  return (uint32_t) (ops_end - ops);
+  info->toplevel_op = NULL;
+  info->ops_end = ops;
+  info->min_xcdrv = DDSI_RTPS_CDR_ENC_VERSION_1;
+  info->nesting_max = 0;
+  info->data_types = 0ull;
+  dds_stream_get_ops_info1 (ops, 0, info);
 }
 
 static char *dds_stream_reuse_string_bound (dds_istream_t * __restrict is, char * __restrict str, const uint32_t size)
@@ -4421,14 +4494,22 @@ size_t dds_stream_print_key (dds_istream_t * __restrict is, const struct dds_cdr
   return size;
 }
 
+uint32_t dds_stream_countops (const uint32_t * __restrict ops, uint32_t nkeys, const dds_key_descriptor_t * __restrict keys)
+{
+  struct dds_cdrstream_ops_info info;
+  dds_stream_get_ops_info (ops, &info);
+  for (uint32_t n = 0; n < nkeys; n++)
+    dds_stream_countops_keyoffset (ops, &keys[n], &info.ops_end);
+  return (uint32_t) (info.ops_end - ops);
+}
+
 /* Gets the (minimum) extensibility of the types used for this topic, and returns the XCDR
    version that is required for (de)serializing the type for this topic descriptor */
 uint16_t dds_stream_minimum_xcdr_version (const uint32_t * __restrict ops)
 {
-  uint16_t min_xcdrv = DDSI_RTPS_CDR_ENC_VERSION_1;
-  const uint32_t *ops_end = ops;
-  dds_stream_countops1 (ops, &ops_end, &min_xcdrv, 0, NULL);
-  return min_xcdrv;
+  struct dds_cdrstream_ops_info info;
+  dds_stream_get_ops_info (ops, &info);
+  return info.min_xcdrv;
 }
 
 /* Gets the extensibility of the top-level type for a topic, by inspecting the serializer ops */
@@ -4464,10 +4545,16 @@ bool dds_stream_extensibility (const uint32_t * __restrict ops, enum dds_cdr_typ
 
 uint32_t dds_stream_type_nesting_depth (const uint32_t * __restrict ops)
 {
-  uint32_t nesting_depth = 0;
-  const uint32_t *ops_end = ops;
-  dds_stream_countops1 (ops, &ops_end, NULL, 0, &nesting_depth);
-  return nesting_depth;
+  struct dds_cdrstream_ops_info info;
+  dds_stream_get_ops_info (ops, &info);
+  return info.nesting_max;
+}
+
+uint64_t dds_stream_data_types (const uint32_t * __restrict ops)
+{
+  struct dds_cdrstream_ops_info info;
+  dds_stream_get_ops_info (ops, &info);
+  return info.data_types;
 }
 
 

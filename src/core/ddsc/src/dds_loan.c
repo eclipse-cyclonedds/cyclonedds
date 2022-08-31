@@ -1,236 +1,245 @@
-#include "dds/ddsc/dds_loan_api.h"
+// Copyright(c) 2022 to 2023 ZettaScale Technology and others
+//
+// This program and the accompanying materials are made available under the
+// terms of the Eclipse Public License v. 2.0 which is available at
+// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+// v. 1.0 which is available at
+// http://www.eclipse.org/org/documents/edl-v10.php.
+//
+// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
-#include "dds__entity.h"
-#include "dds__loan.h"
-#include "dds__reader.h"
-#include "dds__types.h"
-#include "dds__writer.h"
-
+#include <string.h>
+#include "dds/ddsrt/sync.h"
 #include "dds/ddsi/ddsi_sertype.h"
+#include "dds/cdr/dds_cdrstream.h"
+#include "dds__loan.h"
+#include "dds__entity.h"
 
-#ifdef DDS_HAS_SHM
-#include "dds/ddsi/ddsi_shm_transport.h"
-#include "iceoryx_binding_c/chunk.h"
-#endif
+static dds_return_t loan_manager_remove_loan_locked (dds_loaned_sample_t *loaned_sample);
 
-bool dds_is_shared_memory_available(const dds_entity_t entity) {
-  bool ret = false;
-#ifdef DDS_HAS_SHM
-  dds_entity *e;
+static dds_return_t loaned_sample_free_locked (dds_loaned_sample_t *loaned_sample)
+{
+  assert (loaned_sample);
+  assert (ddsrt_atomic_ld32 (&loaned_sample->refc) == 0);
 
-  if (DDS_RETCODE_OK != dds_entity_pin(entity, &e)) {
-    return ret;
-  }
+  if (loaned_sample->ops.free)
+    loaned_sample->ops.free (loaned_sample);
 
-  switch (dds_entity_kind(e)) {
-  case DDS_KIND_READER: {
-    struct dds_reader const *const rd = (struct dds_reader *)e;
-    // only if SHM is enabled correctly (i.e. iox subscriber is initialized)
-    ret = (rd->m_iox_sub != NULL);
-    break;
-  }
-  case DDS_KIND_WRITER: {
-    struct dds_writer const *const wr = (struct dds_writer *)e;
-    // only if SHM is enabled correctly (i.e. iox publisher is initialized)
-    ret = (wr->m_iox_pub != NULL);
-    break;
-  }
-  default:
-    break;
-  }
-
-  dds_entity_unpin(e);
-#endif
-  (void)entity;
-  return ret;
+  return DDS_RETCODE_OK;
 }
 
-bool dds_is_loan_available(const dds_entity_t entity) {
-  bool ret = false;
-#ifdef DDS_HAS_SHM
-  dds_entity *e;
-
-  if (DDS_RETCODE_OK != dds_entity_pin(entity, &e)) {
-    return ret;
-  }
-
-  switch (dds_entity_kind(e)) {
-  case DDS_KIND_READER: {
-    struct dds_reader const *const rd = (struct dds_reader *)e;
-    // only if SHM is enabled correctly (i.e. iox subscriber is initialized) and
-    // the type is fixed
-    ret = (rd->m_iox_sub != NULL) && (rd->m_topic->m_stype->fixed_size);
-    break;
-  }
-  case DDS_KIND_WRITER: {
-    struct dds_writer const *const wr = (struct dds_writer *)e;
-    // only if SHM is enabled correctly (i.e. iox publisher is initialized) and
-    // the type is fixed
-    ret = (wr->m_iox_pub != NULL) && (wr->m_topic->m_stype->fixed_size);
-    break;
-  }
-  default:
-    break;
-  }
-
-  dds_entity_unpin(e);
-#endif
-  (void)entity;
-  return ret;
-}
-
-#ifdef DDS_HAS_SHM
-
-static void release_iox_chunk(dds_writer *wr, void *sample) {
-  iox_pub_release_chunk(wr->m_iox_pub, sample);
-}
-
-void dds_register_pub_loan(dds_writer *wr, void *pub_loan) {
-  for (uint32_t i = 0; i < MAX_PUB_LOANS; ++i) {
-    if (!wr->m_iox_pub_loans[i]) {
-      wr->m_iox_pub_loans[i] = pub_loan;
-      return;
-    }
-  }
-  /* The loan pool should be big enough to store the maximum number of open
-   * IceOryx loans. So if IceOryx grants the loan, we should be able to store
-   * it.
-   */
-  assert(false);
-}
-
-bool dds_deregister_pub_loan(dds_writer *wr, const void *pub_loan) {
-  for (uint32_t i = 0; i < MAX_PUB_LOANS; ++i) {
-    if (wr->m_iox_pub_loans[i] == pub_loan) {
-      wr->m_iox_pub_loans[i] = NULL;
-      return true;
-    }
-  }
-  return false;
-}
-
-static void *dds_writer_loan_chunk(dds_writer *wr, size_t size) {
-  void *chunk = shm_create_chunk(wr->m_iox_pub, size);
-  if (chunk) {
-    dds_register_pub_loan(wr, chunk);
-    // NB: we set this since the user can use this chunk not only with write
-    // where we check whether it was loaned before.
-    // It is only possible to loan for fixed size types as of now.
-
-    // Unfortunate, since the chunk is not actually filled at this point.
-    // We should ensure that we cannot circumvent the write API
-    // (API redesign).
-    shm_set_data_state(chunk, IOX_CHUNK_CONTAINS_RAW_DATA);
-    return chunk;
-  }
-  return NULL;
-}
-
-#endif
-// we do not register this loan (we do not need to for the use with
-// dds_writecdr)
-dds_return_t dds_loan_shared_memory_buffer(dds_entity_t writer, size_t size,
-                                           void **buffer) {
-#ifndef DDS_HAS_SHM
-  (void)writer;
-  (void)size;
-  (void)buffer;
-  return DDS_RETCODE_UNSUPPORTED;
-#else
-  dds_return_t ret;
-  dds_writer *wr;
-
-  if (!buffer)
+dds_return_t dds_loaned_sample_free (dds_loaned_sample_t *loaned_sample)
+{
+  if (loaned_sample == NULL || ddsrt_atomic_ld32 (&loaned_sample->refc) > 0 || loaned_sample->manager == NULL)
     return DDS_RETCODE_BAD_PARAMETER;
 
-  if ((ret = dds_writer_lock(writer, &wr)) != DDS_RETCODE_OK)
-    return ret;
-
-  if (wr->m_iox_pub) {
-    *buffer = shm_create_chunk(wr->m_iox_pub, size);
-    if (*buffer == NULL) {
-      ret = DDS_RETCODE_ERROR; // could not obtain buffer memory
-    }
-    shm_set_data_state(*buffer, IOX_CHUNK_UNINITIALIZED);
-  } else {
-    ret = DDS_RETCODE_UNSUPPORTED;
-  }
-
-  dds_writer_unlock(wr);
+  dds_return_t ret;
+  ddsrt_mutex_lock (&loaned_sample->manager->mutex);
+  ret = loaned_sample_free_locked (loaned_sample);
+  ddsrt_mutex_unlock (&loaned_sample->manager->mutex);
   return ret;
-#endif
 }
 
-dds_return_t dds_loan_sample(dds_entity_t writer, void **sample) {
-#ifndef DDS_HAS_SHM
-  (void)writer;
-  (void)sample;
-  return DDS_RETCODE_UNSUPPORTED;
-#else
+dds_return_t dds_loaned_sample_ref (dds_loaned_sample_t *loaned_sample)
+{
   dds_return_t ret;
-  dds_writer *wr;
-
-  if (!sample)
+  if (loaned_sample == NULL)
     return DDS_RETCODE_BAD_PARAMETER;
 
-  if ((ret = dds_writer_lock(writer, &wr)) != DDS_RETCODE_OK)
+  if (loaned_sample->ops.ref && (ret = loaned_sample->ops.ref (loaned_sample)) != DDS_RETCODE_OK)
     return ret;
 
-  // the loaning is only allowed if SHM is enabled correctly and if the type is
-  // fixed
-  if (wr->m_iox_pub && wr->m_topic->m_stype->fixed_size) {
-    *sample = dds_writer_loan_chunk(wr, wr->m_topic->m_stype->iox_size);
-    if (*sample == NULL) {
-      ret = DDS_RETCODE_ERROR; // could not obtain a sample
-    }
-  } else {
-    ret = DDS_RETCODE_UNSUPPORTED;
-  }
-
-  dds_writer_unlock(wr);
-  return ret;
-#endif
+  ddsrt_atomic_inc32 (&loaned_sample->refc);
+  return DDS_RETCODE_OK;
 }
 
-dds_return_t dds_return_writer_loan(dds_writer *writer, void **buf,
-                                    int32_t bufsz) {
-#ifndef DDS_HAS_SHM
-  (void)writer;
-  (void)buf;
-  (void)bufsz;
-  return DDS_RETCODE_UNSUPPORTED;
-#else
-  // Iceoryx publisher pointer is a constant so we can check outside the locks
-  // returning loan is only valid if SHM is enabled correctly (i.e. iox
-  // publisher is initialized) and the type is fixed
-  if (writer->m_iox_pub == NULL || !writer->m_topic->m_stype->fixed_size)
-    return DDS_RETCODE_UNSUPPORTED;
-  if (bufsz <= 0) {
-    // analogous to long-standing behaviour for the reader case, where it makes
-    // (some) sense as it allows passing in the result of a read/take operation
-    // regardless of whether that operation was successful
+dds_return_t dds_loaned_sample_unref (dds_loaned_sample_t *loaned_sample)
+{
+  if (loaned_sample == NULL || ddsrt_atomic_ld32 (&loaned_sample->refc) == 0)
+    return DDS_RETCODE_BAD_PARAMETER;
+
+  assert (loaned_sample);
+  assert (ddsrt_atomic_ld32 (&loaned_sample->refc) > 0);
+
+  dds_return_t ret = DDS_RETCODE_OK;
+  if (loaned_sample->ops.unref && (ret = loaned_sample->ops.unref (loaned_sample)) != DDS_RETCODE_OK)
+    return ret;
+
+  if (ddsrt_atomic_dec32_nv (&loaned_sample->refc) == 0)
+  {
+    assert (loaned_sample->manager == NULL);
+    ret = loaned_sample_free_locked (loaned_sample);
+  }
+
+  return ret;
+}
+
+dds_return_t dds_loaned_sample_reset_sample (dds_loaned_sample_t *loaned_sample)
+{
+  assert(loaned_sample && ddsrt_atomic_ld32 (&loaned_sample->refc));
+  if (loaned_sample->ops.reset)
+    loaned_sample->ops.reset (loaned_sample);
+  return DDS_RETCODE_OK;
+}
+
+static dds_return_t loan_manager_expand_cap_locked (dds_loan_manager_t *manager, uint32_t n)
+{
+  if (manager == NULL)
+    return DDS_RETCODE_BAD_PARAMETER;
+  if (n > UINT32_MAX - manager->n_samples_cap)
+    return DDS_RETCODE_OUT_OF_RANGE;
+
+  uint32_t newcap = manager->n_samples_cap + n;
+  dds_loaned_sample_t **newarray = NULL;
+  if (newcap > 0)
+  {
+    newarray = dds_realloc (manager->samples, sizeof (**newarray) * newcap);
+    if (newarray == NULL)
+      return DDS_RETCODE_OUT_OF_RESOURCES;
+    memset (newarray + manager->n_samples_cap, 0, sizeof (**newarray) * n);
+  }
+  manager->samples = newarray;
+  manager->n_samples_cap = newcap;
+
+  return DDS_RETCODE_OK;
+}
+
+dds_return_t dds_loan_manager_create (dds_loan_manager_t **manager, uint32_t initial_cap)
+{
+  if (manager == NULL)
+    return DDS_RETCODE_BAD_PARAMETER;
+
+  dds_return_t ret = DDS_RETCODE_OK;
+  if ((*manager = dds_alloc (sizeof (**manager))) == NULL)
+    return DDS_RETCODE_OUT_OF_RESOURCES;
+  memset (*manager, 0, sizeof (**manager));
+  if ((ret = loan_manager_expand_cap_locked (*manager, initial_cap)) != DDS_RETCODE_OK)
+    dds_free (*manager);
+  ddsrt_mutex_init (&(*manager)->mutex);
+  return ret;
+}
+
+dds_return_t dds_loan_manager_free (dds_loan_manager_t *manager)
+{
+  if (manager == NULL)
+    return DDS_RETCODE_BAD_PARAMETER;
+
+  for (uint32_t i = 0; i < manager->n_samples_cap; i++)
+  {
+    dds_loaned_sample_t *s = manager->samples[i];
+    if (s == NULL)
+      continue;
+    (void) dds_loan_manager_remove_loan (s);
+    (void) dds_loaned_sample_unref (s);
+  }
+
+  ddsrt_mutex_destroy (&manager->mutex);
+  dds_free (manager->samples);
+  dds_free (manager);
+  return DDS_RETCODE_OK;
+}
+
+dds_return_t dds_loan_manager_add_loan (dds_loan_manager_t *manager, dds_loaned_sample_t *loaned_sample)
+{
+  dds_return_t ret;
+  if (manager == NULL || loaned_sample == NULL || loaned_sample->manager != NULL)
+    return DDS_RETCODE_BAD_PARAMETER;
+
+  ddsrt_mutex_lock (&manager->mutex);
+  if (manager->n_samples_managed == manager->n_samples_cap)
+  {
+    uint32_t cap = manager->n_samples_cap;
+    uint32_t newcap = cap ? cap * 2 : 1;
+    if ((ret = loan_manager_expand_cap_locked (manager, newcap - cap)) != DDS_RETCODE_OK)
+    {
+      ddsrt_mutex_unlock (&manager->mutex);
+      return ret;
+    }
+  }
+
+  for (uint32_t i = 0; i < manager->n_samples_cap; i++)
+  {
+    if (!manager->samples[i])
+    {
+      loaned_sample->loan_idx = i;
+      manager->samples[i] = loaned_sample;
+      break;
+    }
+  }
+  loaned_sample->manager = manager;
+  manager->n_samples_managed++;
+  ddsrt_mutex_unlock (&manager->mutex);
+
+  return DDS_RETCODE_OK;
+}
+
+static dds_return_t loan_manager_remove_loan_locked (dds_loaned_sample_t *loaned_sample)
+{
+  assert (loaned_sample);
+  assert (loaned_sample->manager);
+  dds_loan_manager_t *mgr = loaned_sample->manager;
+  if (mgr->n_samples_managed == 0 ||
+      loaned_sample->loan_idx >= mgr->n_samples_cap ||
+      loaned_sample != mgr->samples[loaned_sample->loan_idx])
+  {
+    return DDS_RETCODE_BAD_PARAMETER;
+  }
+  else
+  {
+    mgr->samples[loaned_sample->loan_idx] = NULL;
+    mgr->n_samples_managed--;
+    loaned_sample->loan_idx = UINT32_MAX;
+    loaned_sample->manager = NULL;
     return DDS_RETCODE_OK;
   }
+}
 
-  ddsrt_mutex_lock(&writer->m_entity.m_mutex);
-  dds_return_t ret = DDS_RETCODE_OK;
-  for (int32_t i = 0; i < bufsz; i++) {
-    if (buf[i] == NULL) {
-      ret = DDS_RETCODE_BAD_PARAMETER;
-      break;
-    } else if (!dds_deregister_pub_loan(writer, buf[i])) {
-      ret = DDS_RETCODE_PRECONDITION_NOT_MET;
-      break;
-    } else {
-      release_iox_chunk(writer, buf[i]);
-      // return loan on the reader nulls buf[0], but here it makes more sense to
-      // clear all successfully returned ones: then, on failure, the application
-      // can figure out which ones weren't returned by looking for the first
-      // non-null pointer
-      buf[i] = NULL;
-    }
-  }
-  ddsrt_mutex_unlock(&writer->m_entity.m_mutex);
+dds_return_t dds_loan_manager_remove_loan (dds_loaned_sample_t *loaned_sample)
+{
+  if (loaned_sample == NULL)
+    return DDS_RETCODE_BAD_PARAMETER;
+
+  dds_loan_manager_t *mgr = loaned_sample->manager;
+  if (!mgr)
+    return DDS_RETCODE_OK;
+
+  dds_return_t ret;
+  ddsrt_mutex_lock (&mgr->mutex);
+  ret = loan_manager_remove_loan_locked (loaned_sample);
+  ddsrt_mutex_unlock (&mgr->mutex);
   return ret;
-#endif
+}
+
+dds_loaned_sample_t *dds_loan_manager_find_loan (dds_loan_manager_t *manager, const void *sample_ptr)
+{
+  if (manager == NULL)
+    return NULL;
+
+  dds_loaned_sample_t *ls = NULL;
+  ddsrt_mutex_lock (&manager->mutex);
+  for (uint32_t i = 0; ls == NULL && i < manager->n_samples_cap && sample_ptr; i++)
+  {
+    if (manager->samples[i] && manager->samples[i]->sample_ptr == sample_ptr)
+      ls = manager->samples[i];
+  }
+  ddsrt_mutex_unlock (&manager->mutex);
+  return ls;
+}
+
+dds_loaned_sample_t *dds_loan_manager_get_loan (dds_loan_manager_t *manager)
+{
+  if (manager == NULL || manager->samples == NULL)
+    return NULL;
+
+  dds_loaned_sample_t *ls = NULL;
+  ddsrt_mutex_lock (&manager->mutex);
+  for (uint32_t i = 0; i < manager->n_samples_cap && ls == NULL; i++)
+  {
+    if (manager->samples[i])
+      ls = manager->samples[i];
+  }
+  if (ls != NULL)
+    loan_manager_remove_loan_locked (ls);
+  ddsrt_mutex_unlock (&manager->mutex);
+  return ls;
 }

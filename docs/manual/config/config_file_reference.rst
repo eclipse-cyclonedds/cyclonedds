@@ -505,7 +505,7 @@ The default value is: ``1344 B``
 //CycloneDDS/Domain/General/Interfaces
 --------------------------------------
 
-Children: `//CycloneDDS/Domain/General/Interfaces/NetworkInterface`_
+Children: `//CycloneDDS/Domain/General/Interfaces/NetworkInterface`_, `//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange`_
 
 This element specifies the network interfaces for use by Cyclone DDS. Multiple interfaces can be specified with an assigned priority. The list in use will be sorted by priority. If interfaces have an equal priority, the specification order will be preserved.
 
@@ -552,6 +552,7 @@ The default value is: ``false``
 Text
 
 This attribute specifies whether the interface should use multicast. On its default setting, 'default', it will use the value as return by the operating system. If set to 'true', the interface will be assumed to be multicast capable even when the interface flags returned by the operating system state it is not (this provides a workaround for some platforms). If set to 'false', the interface will never be used for multicast.
+
 The default value is: ``default``
 
 
@@ -599,6 +600,64 @@ The default value is: ``true``
 Text
 
 This attribute specifies the interface priority (decimal integer or default). The default value for loopback interfaces is 2, for all other interfaces it is 0.
+
+The default value is: ``default``
+
+
+.. _`//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange`:
+
+//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Attributes: [config](`//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange[@config]`_), [library](`//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange[@library]`_), [name](`//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange[@name]`_), [priority](`//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange[@priority]`_)
+
+This element defines a PSMX.
+
+
+.. _`//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange[@config]`:
+
+//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange[@config]
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Text
+
+This attribute specifies any configuration data for the PSMX instance.This has no meaning in CycloneDDS itself, and its parsing is deferred to thePSMX implementation.
+
+The default value is: ``<empty>``
+
+
+.. _`//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange[@library]`:
+
+//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange[@library]
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Text
+
+This attribute specifies the filename of the interface library. 
+
+The default value is: ``<empty>``
+
+
+.. _`//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange[@name]`:
+
+//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange[@name]
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Text
+
+This attribute specifies the name of the interface. 
+
+The default value is: ``<empty>``
+
+
+.. _`//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange[@priority]`:
+
+//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange[@priority]
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Text
+
+This attribute specifies the interface priority (decimal integer or default). The default value for a PSMX is 0.
 
 The default value is: ``default``
 
@@ -2218,72 +2277,7 @@ The default value is: ``dds\_security\_crypto``
 //CycloneDDS/Domain/SharedMemory
 ================================
 
-Children: `//CycloneDDS/Domain/SharedMemory/Enable`_, `//CycloneDDS/Domain/SharedMemory/Locator`_, `//CycloneDDS/Domain/SharedMemory/LogLevel`_, `//CycloneDDS/Domain/SharedMemory/Prefix`_
-
 The Shared Memory element allows specifying various parameters related to using shared memory.
-
-
-.. _`//CycloneDDS/Domain/SharedMemory/Enable`:
-
-//CycloneDDS/Domain/SharedMemory/Enable
----------------------------------------
-
-Boolean
-
-This element allows for enabling shared memory in Cyclone DDS.
-
-The default value is: ``false``
-
-
-.. _`//CycloneDDS/Domain/SharedMemory/Locator`:
-
-//CycloneDDS/Domain/SharedMemory/Locator
-----------------------------------------
-
-Text
-
-Explicitly set the Iceoryx locator used by Cyclone to check whether a pair of processes is attached to the same Iceoryx shared memory.  The default is to use one of the MAC addresses of the machine, which should work well in most cases.
-
-The default value is: ``<empty>``
-
-
-.. _`//CycloneDDS/Domain/SharedMemory/LogLevel`:
-
-//CycloneDDS/Domain/SharedMemory/LogLevel
------------------------------------------
-
-One of: off, fatal, error, warn, info, debug, verbose
-
-This element decides the verbosity level of shared memory message:
- * off: no log
-
- * fatal: show fatal log
-
- * error: show error log
-
- * warn: show warn log
-
- * info: show info log
-
- * debug: show debug log
-
- * verbose: show verbose log
-
-If you don't want to see any log from shared memory, use off to disable logging.
-
-The default value is: ``info``
-
-
-.. _`//CycloneDDS/Domain/SharedMemory/Prefix`:
-
-//CycloneDDS/Domain/SharedMemory/Prefix
----------------------------------------
-
-Text
-
-Override the Iceoryx service name used by Cyclone.
-
-The default value is: ``DDS\_CYCLONE``
 
 
 .. _`//CycloneDDS/Domain/Sizing`:
@@ -2634,14 +2628,14 @@ The categorisation of tracing output is incomplete and hence most of the verbosi
 The default value is: ``none``
 
 ..
-   generated from ddsi_config.h[1ab75f267e0a5303400a6bbfc80e02a86b4cbdce] 
+   generated from ddsi_config.h[eae21b4181f3fdd23b2514a089c43b0e36357066] 
    generated from ddsi__cfgunits.h[bd22f0c0ed210501d0ecd3b07c992eca549ef5aa] 
-   generated from ddsi__cfgelems.h[849a4fe147dfa71c5c3a3a4ccaac458530802c8c] 
-   generated from ddsi_config.c[82930450b615afa033986cf5338869bfdaeaf04d] 
+   generated from ddsi__cfgelems.h[0d5a3d2063031f4b47f53cc007d2703bcdefdfa1] 
+   generated from ddsi_config.c[a9147e09cc621aa579c0b82bce98b728a8dbb1cc] 
    generated from _confgen.h[e32eabfc35e9f3a7dcb63b19ed148c0d17c6e5fc] 
    generated from _confgen.c[237308acd53897a34e8c643e16e05a61d73ffd65] 
    generated from generate_rnc.c[b50e4b7ab1d04b2bc1d361a0811247c337b74934] 
    generated from generate_md.c[789b92e422631684352909cfb8bf43f6ceb16a01] 
-   generated from generate_rst.c[636ceeed42784e8508dd412b88dfd5f3b44b191b] 
+   generated from generate_rst.c[c35cdcdfc0bd4f10a801204a6cc5d540af696b6e] 
    generated from generate_xsd.c[6b6818d7f17a35d56c376c04ec1410427f34c0f0] 
    generated from generate_defconfig.c[63ca9d8ae2f1ce2e761c9d4c0510a45eb062d830] 

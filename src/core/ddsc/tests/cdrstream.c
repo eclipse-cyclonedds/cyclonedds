@@ -26,6 +26,7 @@
 #include "CdrStreamSkipDefault.h"
 #include "CdrStreamKeySize.h"
 #include "CdrStreamKeyExt.h"
+#include "CdrStreamDataTypeInfo.h"
 
 #define DDS_DOMAINID1 0
 #define DDS_DOMAINID2 1
@@ -1901,6 +1902,44 @@ CU_Test (ddsc_cdrstream, check_optimize)
   }
 }
 #undef D
+
+
+#define D(n) (&CdrStreamDataTypeInfo_ ## n ## _desc)
+CU_Test (ddsc_cdrstream, data_type_info)
+{
+  static const struct {
+    const dds_topic_descriptor_t *desc;
+    uint64_t data_types;
+  } tests[] = {
+    { D(dti_struct),   DDS_DATA_TYPE_CONTAINS_STRUCT },
+    { D(dti_string),   DDS_DATA_TYPE_CONTAINS_STRUCT | DDS_DATA_TYPE_CONTAINS_STRING },
+    { D(dti_bstring),  DDS_DATA_TYPE_CONTAINS_STRUCT | DDS_DATA_TYPE_CONTAINS_BSTRING },
+    { D(dti_seq),      DDS_DATA_TYPE_CONTAINS_STRUCT | DDS_DATA_TYPE_CONTAINS_SEQUENCE },
+    { D(dti_bseq),     DDS_DATA_TYPE_CONTAINS_STRUCT | DDS_DATA_TYPE_CONTAINS_BSEQUENCE },
+    { D(dti_seq_str),  DDS_DATA_TYPE_CONTAINS_STRUCT | DDS_DATA_TYPE_CONTAINS_SEQUENCE | DDS_DATA_TYPE_CONTAINS_STRING },
+    { D(dti_arr),      DDS_DATA_TYPE_CONTAINS_STRUCT | DDS_DATA_TYPE_CONTAINS_ARRAY },
+    { D(dti_arr_bstr), DDS_DATA_TYPE_CONTAINS_STRUCT | DDS_DATA_TYPE_CONTAINS_ARRAY | DDS_DATA_TYPE_CONTAINS_BSTRING },
+    { D(dti_opt),      DDS_DATA_TYPE_CONTAINS_STRUCT | DDS_DATA_TYPE_CONTAINS_OPTIONAL | DDS_DATA_TYPE_CONTAINS_EXTERNAL },
+    { D(dti_ext),      DDS_DATA_TYPE_CONTAINS_STRUCT | DDS_DATA_TYPE_CONTAINS_EXTERNAL },
+    { D(dti_union),    DDS_DATA_TYPE_CONTAINS_UNION },
+    { D(dti_union_string),  DDS_DATA_TYPE_CONTAINS_UNION | DDS_DATA_TYPE_CONTAINS_STRING },
+    { D(dti_union_enum),    DDS_DATA_TYPE_CONTAINS_UNION | DDS_DATA_TYPE_CONTAINS_ENUM },
+    { D(dti_union_seq),     DDS_DATA_TYPE_CONTAINS_UNION | DDS_DATA_TYPE_CONTAINS_SEQUENCE },
+    { D(dti_union_arr),     DDS_DATA_TYPE_CONTAINS_UNION | DDS_DATA_TYPE_CONTAINS_ARRAY },
+    { D(dti_union_struct),  DDS_DATA_TYPE_CONTAINS_UNION | DDS_DATA_TYPE_CONTAINS_STRUCT }
+  };
+
+  for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
+  {
+    printf("running test for desc %s ", tests[i].desc->m_typename);
+    uint64_t data_types = dds_stream_data_types (tests[i].desc->m_ops);
+    printf ("(data types actual %"PRIu64", expected %"PRIu64")\n", data_types, tests[i].data_types);
+    CU_ASSERT_EQUAL_FATAL (data_types, tests[i].data_types);
+  }
+}
+#undef D
+
+
 
 #undef XCDR1
 #undef XCDR2

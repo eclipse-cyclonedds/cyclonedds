@@ -648,6 +648,37 @@ enum dds_stream_typecode_subtype {
  */
 #define DDS_FIXED_KEY_MAX_SIZE (16)
 
+/**
+ * @brief Flags that are used to indicate the types used in a data type
+ */
+#define DDS_DATA_TYPE_CONTAINS_UNION              0x1ull << 0
+#define DDS_DATA_TYPE_CONTAINS_BITMASK            0x1ull << 1
+#define DDS_DATA_TYPE_CONTAINS_ENUM               0x1ull << 2
+#define DDS_DATA_TYPE_CONTAINS_STRUCT             0x1ull << 3
+#define DDS_DATA_TYPE_CONTAINS_STRING             0x1ull << 4
+#define DDS_DATA_TYPE_CONTAINS_BSTRING            0x1ull << 5
+#define DDS_DATA_TYPE_CONTAINS_WSTRING            0x1ull << 6
+#define DDS_DATA_TYPE_CONTAINS_SEQUENCE           0x1ull << 7
+#define DDS_DATA_TYPE_CONTAINS_BSEQUENCE          0x1ull << 8
+#define DDS_DATA_TYPE_CONTAINS_ARRAY              0x1ull << 9
+#define DDS_DATA_TYPE_CONTAINS_OPTIONAL           0x1ull << 10
+#define DDS_DATA_TYPE_CONTAINS_EXTERNAL           0x1ull << 11
+
+#define DDS_DATA_TYPE_IS_FIXED_SIZE               0x1ull << 63
+
+/**
+ * @brief Checks whether a type has indirections (pointers) based on its data-type properties
+ */
+#define DDS_DATA_TYPE_CONTAINS_INDIRECTIONS(t) ((t) & \
+    (DDS_DATA_TYPE_CONTAINS_OPTIONAL \
+    | DDS_DATA_TYPE_CONTAINS_STRING \
+    | DDS_DATA_TYPE_CONTAINS_BSTRING \
+    | DDS_DATA_TYPE_CONTAINS_WSTRING \
+    | DDS_DATA_TYPE_CONTAINS_SEQUENCE \
+    | DDS_DATA_TYPE_CONTAINS_BSEQUENCE \
+    | DDS_DATA_TYPE_CONTAINS_OPTIONAL \
+    | DDS_DATA_TYPE_CONTAINS_EXTERNAL))
+
 #if defined(__cplusplus)
 }
 #endif

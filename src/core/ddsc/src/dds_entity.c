@@ -1576,6 +1576,44 @@ dds_return_t dds_assert_liveliness (dds_entity_t entity)
   return rc;
 }
 
+dds_return_t dds_request_loan (dds_entity_t entity, void **buf, int32_t bufsz)
+{
+  dds_entity *p_entity;
+  dds_return_t ret;
+
+  if (buf == NULL)
+    return DDS_RETCODE_BAD_PARAMETER;
+
+  if ((ret = dds_entity_pin (entity, &p_entity)) < 0)
+    return ret;
+
+  switch (dds_entity_kind (p_entity))
+  {
+    case DDS_KIND_WRITER: {
+      dds_writer *wr = (dds_writer *) p_entity;
+      ret = dds_request_writer_loan (wr, buf, bufsz);
+      break;
+    }
+    case DDS_KIND_DONTCARE:
+    case DDS_KIND_CYCLONEDDS:
+    case DDS_KIND_DOMAIN:
+    case DDS_KIND_WAITSET:
+    case DDS_KIND_COND_GUARD:
+    case DDS_KIND_PARTICIPANT:
+    case DDS_KIND_TOPIC:
+    case DDS_KIND_PUBLISHER:
+    case DDS_KIND_SUBSCRIBER:
+    case DDS_KIND_READER:
+    case DDS_KIND_COND_READ:
+    case DDS_KIND_COND_QUERY: {
+      ret = DDS_RETCODE_ILLEGAL_OPERATION;
+      break;
+    }
+  }
+  dds_entity_unpin (p_entity);
+  return ret;
+}
+
 dds_return_t dds_return_loan (dds_entity_t entity, void **buf, int32_t bufsz)
 {
   dds_entity *p_entity;

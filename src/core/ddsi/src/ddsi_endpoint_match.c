@@ -671,16 +671,10 @@ void ddsi_writer_add_connection (struct ddsi_writer *wr, struct ddsi_proxy_reade
   ddsrt_avl_ipath_t path;
   int pretend_everything_acked;
 
-#ifdef DDS_HAS_SHM
-  const bool use_iceoryx = prd->is_iceoryx && !(wr->xqos->ignore_locator_type & DDSI_LOCATOR_KIND_SHEM);
-#else
-  const bool use_iceoryx = false;
-#endif
-
   m->prd_guid = prd->e.guid;
   m->is_reliable = (prd->c.xqos->reliability.kind > DDS_RELIABILITY_BEST_EFFORT);
   m->assumed_in_sync = (wr->e.gv->config.retransmit_merging == DDSI_REXMIT_MERGE_ALWAYS);
-  m->has_replied_to_hb = !m->is_reliable || use_iceoryx;
+  m->has_replied_to_hb = !m->is_reliable || prd->local_psmx;
   m->all_have_replied_to_hb = 0;
   m->non_responsive_count = 0;
   m->rexmit_requests = 0;
@@ -697,7 +691,7 @@ void ddsi_writer_add_connection (struct ddsi_writer *wr, struct ddsi_proxy_reade
               PGUID (wr->e.guid), PGUID (prd->e.guid));
     pretend_everything_acked = 1;
   }
-  else if (!m->is_reliable || use_iceoryx)
+  else if (!m->is_reliable || prd->local_psmx)
   {
     /* Pretend a best-effort reader has ack'd everything, even waht is
        still to be published. */
@@ -716,11 +710,7 @@ void ddsi_writer_add_connection (struct ddsi_writer *wr, struct ddsi_proxy_reade
   m->t_nackfrag_accepted.v = 0;
 
   ddsrt_mutex_lock (&wr->e.lock);
-#ifdef DDS_HAS_SHM
-  if (pretend_everything_acked || prd->is_iceoryx)
-#else
-  if (pretend_everything_acked)
-#endif
+  if (pretend_everything_acked || prd->local_psmx)
     m->seq = DDSI_MAX_SEQ_NUMBER;
   else
     m->seq = wr->seq;
@@ -799,13 +789,8 @@ void ddsi_writer_add_local_connection (struct ddsi_writer *wr, struct ddsi_reade
             PGUID (wr->e.guid), PGUID (rd->e.guid));
   m->rd_guid = rd->e.guid;
   ddsrt_avl_insert_ipath (&ddsi_wr_local_readers_treedef, &wr->local_readers, m, &path);
-
-#ifdef DDS_HAS_SHM
-  if (!wr->has_iceoryx || !rd->has_iceoryx)
+  if (wr->c.psmx_locators.length == 0 || rd->c.psmx_locators.length == 0)
     ddsi_local_reader_ary_insert(&wr->rdary, rd);
-#else
-  ddsi_local_reader_ary_insert(&wr->rdary, rd);
-#endif
 
   /* Store available data into the late joining reader when it is reliable (we don't do
      historical data for best-effort data over the wire, so also not locally). */
@@ -959,12 +944,6 @@ void ddsi_proxy_writer_add_connection (struct ddsi_proxy_writer *pwr, struct dds
 
   assert (rd->type || ddsi_is_builtin_endpoint (rd->e.guid.entityid, DDSI_VENDORID_ECLIPSE));
 
-#ifdef DDS_HAS_SHM
-  const bool use_iceoryx = pwr->is_iceoryx && !(rd->xqos->ignore_locator_type & DDSI_LOCATOR_KIND_SHEM);
-#else
-  const bool use_iceoryx = false;
-#endif
-
   ELOGDISC (pwr, "  ddsi_proxy_writer_add_connection(pwr "PGUIDFMT" rd "PGUIDFMT")",
             PGUID (pwr->e.guid), PGUID (rd->e.guid));
   m->rd_guid = rd->e.guid;
@@ -1015,7 +994,7 @@ void ddsi_proxy_writer_add_connection (struct ddsi_proxy_writer *pwr, struct dds
     /* builtins really don't care about multiple copies or anything */
     m->in_sync = PRMSS_SYNC;
   }
-  else if (use_iceoryx)
+  else if (pwr->local_psmx)
   {
     m->in_sync = PRMSS_SYNC;
   }
@@ -1077,7 +1056,7 @@ void ddsi_proxy_writer_add_connection (struct ddsi_proxy_writer *pwr, struct dds
       m->filtered = 1;
     }
 
-    const ddsrt_mtime_t tsched = use_iceoryx ? DDSRT_MTIME_NEVER : ddsrt_mtime_add_duration (tnow, pwr->e.gv->config.preemptive_ack_delay);
+    const ddsrt_mtime_t tsched = pwr->local_psmx ? DDSRT_MTIME_NEVER : ddsrt_mtime_add_duration (tnow, pwr->e.gv->config.preemptive_ack_delay);
     {
       struct ddsi_acknack_xevent_cb_arg arg = { .pwr_guid = pwr->e.guid, .rd_guid = rd->e.guid };
       m->acknack_xevent = ddsi_qxev_callback (pwr->evq, tsched, ddsi_acknack_xevent_cb, &arg, sizeof (arg), false);
@@ -1095,12 +1074,7 @@ void ddsi_proxy_writer_add_connection (struct ddsi_proxy_writer *pwr, struct dds
 
   ddsrt_avl_insert_ipath (&ddsi_pwr_readers_treedef, &pwr->readers, m, &path);
 
-#ifdef DDS_HAS_SHM
-  if (!pwr->is_iceoryx || !rd->has_iceoryx)
-    ddsi_local_reader_ary_insert(&pwr->rdary, rd);
-#else
   ddsi_local_reader_ary_insert(&pwr->rdary, rd);
-#endif
 
   ddsrt_mutex_unlock (&pwr->e.lock);
   ddsi_send_entityid_to_pwr (pwr, &rd->e.guid);
