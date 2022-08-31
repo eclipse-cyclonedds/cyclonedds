@@ -61,7 +61,7 @@ static dds_return_t dds_read_impl (bool take, dds_entity_t reader_or_condition, 
     cond = (dds_readcond *) entity;
   }
 
-  struct thread_state * const thrst = lookup_thread_state ();
+  struct thread_state * const thrst = ddsi_lookup_thread_state ();
   thread_state_awake (thrst, &entity->m_domain->gv);
 
   /* Allocate samples if not provided (assuming all or none provided) */
@@ -161,7 +161,7 @@ static dds_return_t dds_readcdr_impl (bool take, dds_entity_t reader_or_conditio
     rd = (dds_reader *) entity->m_parent;
   }
 
-  struct thread_state * const thrst = lookup_thread_state ();
+  struct thread_state * const thrst = ddsi_lookup_thread_state ();
   thread_state_awake (thrst, &entity->m_domain->gv);
 
   /* read/take resets data available status -- must reset before reading because

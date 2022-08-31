@@ -157,7 +157,7 @@ bool ddsi_update_qos_locked (struct ddsi_entity_common *e, dds_qos_t *ent_qos, c
 
 uint64_t ddsi_get_entity_instanceid (const struct ddsi_domaingv *gv, const struct ddsi_guid *guid)
 {
-  struct thread_state *thrst = lookup_thread_state ();
+  struct thread_state *thrst = ddsi_lookup_thread_state ();
   struct ddsi_entity_common *e;
   uint64_t iid = 0;
   thread_state_awake (thrst, gv);

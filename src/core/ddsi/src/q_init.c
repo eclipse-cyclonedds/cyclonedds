@@ -2061,7 +2061,7 @@ static void builtins_dqueue_ready_cb (void *varg)
 
 void rtps_stop (struct ddsi_domaingv *gv)
 {
-  struct thread_state * const thrst = lookup_thread_state ();
+  struct thread_state * const thrst = ddsi_lookup_thread_state ();
 
 #ifdef DDS_HAS_NETWORK_CHANNELS
   struct ddsi_config_channel_listelem * chptr;

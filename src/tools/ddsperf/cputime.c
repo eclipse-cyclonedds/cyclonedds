@@ -23,6 +23,7 @@
 #include "dds/ddsrt/threads.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/rusage.h"
+#include "dds/ddsrt/misc.h"
 
 #include "cputime.h"
 #include "ddsperf_types.h"
@@ -227,7 +228,9 @@ struct record_cputime_state *record_cputime_new (dds_entity_t wr)
   char hostname[128];
   if (ddsrt_gethostname (hostname, sizeof (hostname)) != DDS_RETCODE_OK)
     strcpy (hostname, "?");
+DDSRT_WARNING_MSVC_OFF(4996);
   state->s.hostname = strdup (hostname);
+DDSRT_WARNING_MSVC_ON(4996);
   assert (state->s.hostname);
   state->s.pid = (uint32_t) ddsrt_getpid ();
   state->s.cpu._length = 0;

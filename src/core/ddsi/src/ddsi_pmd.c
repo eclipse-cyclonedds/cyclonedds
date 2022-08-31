@@ -43,7 +43,7 @@ size_t participant_message_data_nops_key = sizeof (participant_message_data_ops_
 
 void write_pmd_message_guid (struct ddsi_domaingv * const gv, struct ddsi_guid *pp_guid, unsigned pmd_kind)
 {
-  struct thread_state * const thrst = lookup_thread_state ();
+  struct thread_state * const thrst = ddsi_lookup_thread_state ();
   struct lease *lease;
   thread_state_awake (thrst, gv);
   struct ddsi_participant *pp = entidx_lookup_participant_guid (gv->entity_index, pp_guid);

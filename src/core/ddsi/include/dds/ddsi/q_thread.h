@@ -131,7 +131,7 @@ extern struct thread_states thread_states;
 #ifdef _WIN32
 extern ddsrt_thread_local struct thread_state *tsd_thread_state;
 #else
-extern ddsrt_thread_local struct thread_state *tsd_thread_state;
+DDS_EXPORT extern ddsrt_thread_local struct thread_state *tsd_thread_state;
 #endif
 
 
@@ -145,6 +145,7 @@ dds_return_t join_thread (struct thread_state *thrst);
 void log_stack_traces (const struct ddsrt_log_cfg *logcfg, const struct ddsi_domaingv *gv);
 
 DDS_EXPORT struct thread_state *ddsi_lookup_thread_state_real (void);
+
 DDS_INLINE_EXPORT inline struct thread_state *ddsi_lookup_thread_state (void) {
   struct thread_state *thrst = tsd_thread_state;
   if (thrst)
@@ -171,14 +172,14 @@ inline bool vtime_gt (vtime_t vtime1, vtime_t vtime0)
 
 inline bool thread_is_awake (void)
 {
-  struct thread_state *thrst = lookup_thread_state ();
+  struct thread_state *thrst = ddsi_lookup_thread_state ();
   vtime_t vt = ddsrt_atomic_ld32 (&thrst->vtime);
   return vtime_awake_p (vt);
 }
 
 inline bool thread_is_asleep (void)
 {
-  struct thread_state *thrst = lookup_thread_state ();
+  struct thread_state *thrst = ddsi_lookup_thread_state ();
   vtime_t vt = ddsrt_atomic_ld32 (&thrst->vtime);
   return vtime_asleep_p (vt);
 }

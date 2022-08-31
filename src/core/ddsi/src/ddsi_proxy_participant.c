@@ -684,7 +684,7 @@ void ddsi_purge_proxy_participants (struct ddsi_domaingv *gv, const ddsi_xlocato
 {
   /* FIXME: check whether addr:port can't be reused for a new connection by the time we get here. */
   /* NOTE: This function exists for the sole purpose of cleaning up after closing a TCP connection in ddsi_tcp_close_conn and the state of the calling thread could be anything at this point. Because of that we do the unspeakable and toggle the thread state conditionally. We can't afford to have it in "asleep", as that causes a race with the garbage collector. */
-  struct thread_state * const thrst = lookup_thread_state ();
+  struct thread_state * const thrst = ddsi_lookup_thread_state ();
   struct entidx_enum_proxy_participant est;
   struct proxy_purge_data data;
 

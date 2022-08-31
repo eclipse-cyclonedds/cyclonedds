@@ -925,12 +925,12 @@ static bool proxypp_expired_by_id (const struct ddsi_proxy_participant * proxypp
 static DDS_Security_boolean on_revoke_permissions_cb(const dds_security_access_control *plugin, const DDS_Security_PermissionsHandle handle)
 {
   struct ddsi_domaingv *gv = plugin->gv;
-  thread_state_awake (lookup_thread_state (), gv);
+  thread_state_awake (ddsi_lookup_thread_state (), gv);
 
   if (!delete_pp_by_handle (handle, pp_expired_by_perm, gv))
     delete_proxypp_by_handle (handle, proxypp_expired_by_perm, gv);
 
-  thread_state_asleep (lookup_thread_state ());
+  thread_state_asleep (ddsi_lookup_thread_state ());
   return true;
 }
 
@@ -938,12 +938,12 @@ static DDS_Security_boolean on_revoke_permissions_cb(const dds_security_access_c
 static DDS_Security_boolean on_revoke_identity_cb(const dds_security_authentication *plugin, const DDS_Security_IdentityHandle handle)
 {
   struct ddsi_domaingv *gv = plugin->gv;
-  thread_state_awake (lookup_thread_state (), gv);
+  thread_state_awake (ddsi_lookup_thread_state (), gv);
 
   if (!delete_pp_by_handle (handle, pp_expired_by_id, gv))
     delete_proxypp_by_handle (handle, proxypp_expired_by_id, gv);
 
-  thread_state_asleep (lookup_thread_state ());
+  thread_state_asleep (ddsi_lookup_thread_state ());
   return true;
 }
 
@@ -1451,7 +1451,7 @@ bool q_omg_security_check_create_topic(const struct ddsi_domaingv *gv, const dds
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_Qos topic_qos;
 
-  thread_state_awake (lookup_thread_state (), gv);
+  thread_state_awake (ddsi_lookup_thread_state (), gv);
   pp = entidx_lookup_participant_guid (gv->entity_index, pp_guid);
 
   if ((sc = q_omg_security_get_secure_context(pp)) != NULL)
@@ -1462,7 +1462,7 @@ bool q_omg_security_check_create_topic(const struct ddsi_domaingv *gv, const dds
       handle_not_allowed(gv, pp->sec_attr->permissions_handle, sc->access_control_context, &exception, topic_name, "Local topic permission denied");
     q_omg_shallow_free_security_qos(&topic_qos);
   }
-  thread_state_asleep (lookup_thread_state ());
+  thread_state_asleep (ddsi_lookup_thread_state ());
 
   return result;
 }

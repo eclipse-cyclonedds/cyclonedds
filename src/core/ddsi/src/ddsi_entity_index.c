@@ -427,7 +427,7 @@ static void entidx_enum_init_minmax_int (struct entidx_enum *st, const struct en
      that additional effort is worth it. */
 #ifndef NDEBUG
   assert (thread_is_awake ());
-  st->vtime = ddsrt_atomic_ld32 (&lookup_thread_state ()->vtime);
+  st->vtime = ddsrt_atomic_ld32 (&ddsi_lookup_thread_state ()->vtime);
 #endif
   st->entidx = (struct entity_index *) ei;
   st->kind = min->entity.e.kind;
@@ -500,7 +500,7 @@ void entidx_enum_proxy_participant_init (struct entidx_enum_proxy_participant *s
 void *entidx_enum_next (struct entidx_enum *st)
 {
   /* st->cur can not have been freed yet, but it may have been removed from the index */
-  assert (ddsrt_atomic_ld32 (&lookup_thread_state ()->vtime) == st->vtime);
+  assert (ddsrt_atomic_ld32 (&ddsi_lookup_thread_state ()->vtime) == st->vtime);
   void *res = st->cur;
   if (st->cur)
   {
@@ -562,7 +562,7 @@ struct ddsi_proxy_participant *entidx_enum_proxy_participant_next (struct entidx
 
 void entidx_enum_fini (struct entidx_enum *st)
 {
-  assert (ddsrt_atomic_ld32 (&lookup_thread_state ()->vtime) == st->vtime);
+  assert (ddsrt_atomic_ld32 (&ddsi_lookup_thread_state ()->vtime) == st->vtime);
   (void) st;
 }
 

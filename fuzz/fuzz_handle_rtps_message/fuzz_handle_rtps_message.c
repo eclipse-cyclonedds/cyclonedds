@@ -78,7 +78,7 @@ int LLVMFuzzerTestOneInput(
   // register the main thread, then claim it as spawned by Cyclone because the
   // internal processing has various asserts that it isn't an application thread
   // doing the dirty work
-  thrst = lookup_thread_state ();
+  thrst = ddsi_lookup_thread_state ();
   assert (thrst->state == THREAD_STATE_LAZILY_CREATED);
   thrst->state = THREAD_STATE_ALIVE;
   ddsrt_atomic_stvoidp (&thrst->gv, &gv);

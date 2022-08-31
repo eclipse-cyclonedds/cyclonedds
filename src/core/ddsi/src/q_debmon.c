@@ -651,7 +651,7 @@ static void debmon_handle_connection (struct debug_monitor *dm, ddsi_tran_conn_t
   const char *http_header = "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n";
   const ddsrt_iovec_t iov = { .iov_base = (void *) http_header, .iov_len = (ddsrt_iov_len_t) strlen (http_header) };
 
-  struct thread_state * const thrst = lookup_thread_state ();
+  struct thread_state * const thrst = ddsi_lookup_thread_state ();
   struct st st = {
     .conn = conn,
     .gv = dm->gv,

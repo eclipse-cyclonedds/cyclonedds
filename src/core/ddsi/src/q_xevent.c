@@ -573,17 +573,17 @@ void xeventq_free (struct xeventq *evq)
 
   {
     struct nn_xpack *xp = nn_xpack_new (evq->gv, evq->auxiliary_bandwidth_limit, false);
-    thread_state_awake (lookup_thread_state (), evq->gv);
+    thread_state_awake (ddsi_lookup_thread_state (), evq->gv);
     ddsrt_mutex_lock (&evq->lock);
     while (!non_timed_xmit_list_is_empty (evq))
     {
-      thread_state_awake_to_awake_no_nest (lookup_thread_state ());
+      thread_state_awake_to_awake_no_nest (ddsi_lookup_thread_state ());
       handle_nontimed_xevent (getnext_from_non_timed_xmit_list (evq), xp);
     }
     ddsrt_mutex_unlock (&evq->lock);
     nn_xpack_send (xp, false);
     nn_xpack_free (xp);
-    thread_state_asleep (lookup_thread_state ());
+    thread_state_asleep (ddsi_lookup_thread_state ());
   }
 
   assert (ddsrt_avl_is_empty (&evq->msg_xevents));
@@ -1257,7 +1257,7 @@ static void handle_xevents (struct thread_state * const thrst, struct xeventq *x
 
 static uint32_t xevent_thread (struct xeventq * xevq)
 {
-  struct thread_state * const thrst = lookup_thread_state ();
+  struct thread_state * const thrst = ddsi_lookup_thread_state ();
   struct nn_xpack *xp;
   ddsrt_mtime_t next_thread_cputime = { 0 };
 

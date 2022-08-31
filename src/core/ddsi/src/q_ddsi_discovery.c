@@ -521,7 +521,7 @@ static int write_and_fini_plist (struct ddsi_writer *wr, ddsi_plist_t *ps, bool 
   ddsi_plist_fini (ps);
   serdata->statusinfo = alive ? 0 : (NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER);
   serdata->timestamp = ddsrt_time_wallclock ();
-  return write_sample_nogc_notk (lookup_thread_state (), NULL, wr, serdata);
+  return write_sample_nogc_notk (ddsi_lookup_thread_state (), NULL, wr, serdata);
 }
 
 int spdp_write (struct ddsi_participant *pp)

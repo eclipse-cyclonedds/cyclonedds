@@ -1065,7 +1065,7 @@ static void ddsi_type_get_gpe_matches_impl (struct ddsi_domaingv *gv, const stru
     return;
 
   uint32_t n = 0;
-  thread_state_awake (lookup_thread_state (), gv);
+  thread_state_awake (ddsi_lookup_thread_state (), gv);
   *gpe_match_upd = ddsrt_realloc (*gpe_match_upd, (*n_match_upd + ddsi_type_proxy_guid_list_count (&type->proxy_guids)) * sizeof (**gpe_match_upd));
   struct ddsi_type_proxy_guid_list_iter it;
   for (ddsi_guid_t guid = ddsi_type_proxy_guid_list_iter_first (&type->proxy_guids, &it); !ddsi_is_null_guid (&guid); guid = ddsi_type_proxy_guid_list_iter_next (&it))
@@ -1081,7 +1081,7 @@ static void ddsi_type_get_gpe_matches_impl (struct ddsi_domaingv *gv, const stru
     }
   }
   *n_match_upd += n;
-  thread_state_asleep (lookup_thread_state ());
+  thread_state_asleep (ddsi_lookup_thread_state ());
 }
 
 void ddsi_type_get_gpe_matches (struct ddsi_domaingv *gv, const struct ddsi_type *type, struct ddsi_generic_proxy_endpoint ***gpe_match_upd, uint32_t *n_match_upd)

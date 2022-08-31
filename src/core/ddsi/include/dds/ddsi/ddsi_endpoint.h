@@ -167,10 +167,10 @@ struct ddsi_reader
 #endif
 };
 
-extern const ddsrt_avl_treedef_t ddsi_wr_readers_treedef;
-extern const ddsrt_avl_treedef_t ddsi_wr_local_readers_treedef;
-extern const ddsrt_avl_treedef_t ddsi_rd_writers_treedef;
-extern const ddsrt_avl_treedef_t ddsi_rd_local_writers_treedef;
+DDS_EXPORT extern const ddsrt_avl_treedef_t ddsi_wr_readers_treedef;
+DDS_EXPORT extern const ddsrt_avl_treedef_t ddsi_wr_local_readers_treedef;
+DDS_EXPORT extern const ddsrt_avl_treedef_t ddsi_rd_writers_treedef;
+DDS_EXPORT extern const ddsrt_avl_treedef_t ddsi_rd_local_writers_treedef;
 
 inline seqno_t ddsi_writer_read_seq_xmit (const struct ddsi_writer *wr)
 {

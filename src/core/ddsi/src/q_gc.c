@@ -92,7 +92,7 @@ static int threads_vtime_check (const struct ddsi_domaingv *gv, uint32_t *nivs, 
 
 static uint32_t gcreq_queue_thread (struct gcreq_queue *q)
 {
-  struct thread_state * const thrst = lookup_thread_state ();
+  struct thread_state * const thrst = ddsi_lookup_thread_state ();
   ddsrt_mtime_t next_thread_cputime = { 0 };
   ddsrt_mtime_t t_trigger_recv_threads = { 0 };
   int64_t shortsleep = DDS_MSECS (1);

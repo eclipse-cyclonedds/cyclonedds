@@ -35,7 +35,7 @@ extern inline bool vtime_awake_p (vtime_t vtime);
 extern inline bool vtime_asleep_p (vtime_t vtime);
 extern inline bool vtime_gt (vtime_t vtime1, vtime_t vtime0);
 
-extern inline struct thread_state *lookup_thread_state (void);
+extern inline struct thread_state *ddsi_lookup_thread_state (void);
 extern inline bool thread_is_asleep (void);
 extern inline bool thread_is_awake (void);
 extern inline void thread_state_asleep (struct thread_state *thrst);
@@ -124,7 +124,7 @@ bool thread_states_fini (void)
   /* Calling thread is the one shutting everything down, so it certainly won't (well, shouldn't)
      need its slot anymore.  Clean it up so that if all other threads happen to have been stopped
      already, we can release all resources. */
-  struct thread_state *thrst = lookup_thread_state ();
+  struct thread_state *thrst = ddsi_lookup_thread_state ();
   assert (vtime_asleep_p (ddsrt_atomic_ld32 (&thrst->vtime)));
   reap_thread_state (thrst, true);
   tsd_thread_state = NULL;
