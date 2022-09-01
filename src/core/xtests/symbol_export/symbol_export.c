@@ -50,7 +50,7 @@
 #include "dds/security/core/dds_security_serialize.h"
 #include "dds/security/core/dds_security_timed_cb.h"
 #include "dds/security/core/dds_security_utils.h"
-#include "dds/security/core/shared_secret.h"
+#include "dds/security/core/dds_security_shared_secret.h"
 #endif
 
 #include "dds/ddsc/dds_data_allocator.h"
@@ -517,10 +517,10 @@ int main (int argc, char **argv)
   DDS_Security_Deserialize_KeyMaterial_AES_GCM_GMAC (ptr, ptr);
 
   // shared_secret.h
-  get_challenge1_from_secret_handle (1);
-  get_challenge2_from_secret_handle (1);
-  get_secret_from_secret_handle (1);
-  get_secret_size_from_secret_handle (1);
+  DDS_Security_get_challenge1_from_secret_handle (1);
+  DDS_Security_get_challenge2_from_secret_handle (1);
+  DDS_Security_get_secret_from_secret_handle (1);
+  DDS_Security_get_secret_size_from_secret_handle (1);
 #endif
 
   // ddsi_sertype.h

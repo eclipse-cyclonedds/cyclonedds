@@ -20,7 +20,7 @@
 #include "dds/security/dds_security_api.h"
 #include "dds/security/core/dds_security_utils.h"
 #include "dds/security/core/dds_security_serialize.h"
-#include "dds/security/core/shared_secret.h"
+#include "dds/security/core/dds_security_shared_secret.h"
 #include "dds/security/openssl_support.h"
 #include "crypto_defs.h"
 #include "crypto_utils.h"
@@ -86,7 +86,7 @@ calculate_kx_keys(
   bool result = false;
   const DDS_Security_octet *challenge1, *challenge2, *shared_secret_key;
   unsigned char *kx_master_salt, *kx_master_sender_key;
-  size_t shared_secret_size = get_secret_size_from_secret_handle(shared_secret);
+  size_t shared_secret_size = DDS_Security_get_secret_size_from_secret_handle(shared_secret);
   unsigned char hash[SHA256_DIGEST_LENGTH];
   size_t concatenated_bytes1_size = DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE * 2 + KXSALTCOOKIE_SIZE;
   size_t concatenated_bytes2_size = DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE * 2 + KXKEYCOOKIE_SIZE;
@@ -101,9 +101,9 @@ calculate_kx_keys(
   }
   concatenated_bytes1 = ddsrt_malloc(concatenated_bytes1_size);
   concatenated_bytes2 = ddsrt_malloc(concatenated_bytes2_size);
-  challenge1 = get_challenge1_from_secret_handle(shared_secret);
-  challenge2 = get_challenge2_from_secret_handle(shared_secret);
-  shared_secret_key = get_secret_from_secret_handle(shared_secret);
+  challenge1 = DDS_Security_get_challenge1_from_secret_handle(shared_secret);
+  challenge2 = DDS_Security_get_challenge2_from_secret_handle(shared_secret);
+  shared_secret_key = DDS_Security_get_secret_from_secret_handle(shared_secret);
 
   /* master_salt */
   memcpy(concatenated_bytes1, challenge1, DDS_SECURITY_AUTHENTICATION_CHALLENGE_SIZE);

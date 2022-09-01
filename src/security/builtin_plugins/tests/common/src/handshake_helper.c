@@ -17,7 +17,7 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/environ.h"
 #include "dds/ddsrt/misc.h"
-#include "dds/security/core/shared_secret.h"
+#include "dds/security/core/dds_security_shared_secret.h"
 #include "dds/security/openssl_support.h"
 #include "dds/security/core/dds_security_serialize.h"
 #include "dds/security/core/dds_security_utils.h"

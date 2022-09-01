@@ -25,7 +25,7 @@
 #include "dds/security/dds_security_api_types.h"
 #include "dds/security/core/dds_security_timed_cb.h"
 #include "dds/security/core/dds_security_utils.h"
-#include "dds/security/core/shared_secret.h"
+#include "dds/security/core/dds_security_shared_secret.h"
 #include "dds/security/core/dds_security_utils.h"
 #include "dds/security/core/dds_security_serialize.h"
 #include "dds/security/openssl_support.h"
@@ -909,7 +909,7 @@ static DDS_Security_ValidationResult_t validate_remote_identity_token(const Loca
     DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "remote identity token: class_id is empty");
     return DDS_SECURITY_VALIDATION_FAILED;
   }
-  
+
   const size_t class_id_base_len = strlen(DDS_SECURITY_AUTH_TOKEN_CLASS_ID_BASE);
   if (strncmp(DDS_SECURITY_AUTH_TOKEN_CLASS_ID_BASE, token->class_id, class_id_base_len) != 0)
   {
