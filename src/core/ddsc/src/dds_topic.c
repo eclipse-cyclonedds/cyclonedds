@@ -1029,26 +1029,6 @@ dds_return_t dds_set_topic_filter_and_arg (dds_entity_t topic, dds_topic_filter_
   return dds_set_topic_filter_extended (topic, &f);
 }
 
-static void dds_set_topic_filter_deprecated (dds_entity_t topic, dds_topic_filter_fn filter)
-{
-  struct dds_topic_filter f = {
-    .mode = filter ? DDS_TOPIC_FILTER_SAMPLE : DDS_TOPIC_FILTER_NONE,
-    .arg = NULL,
-    .f = { .sample = filter }
-  };
-  (void) dds_set_topic_filter_extended (topic, &f);
-}
-
-void dds_set_topic_filter (dds_entity_t topic, dds_topic_filter_fn filter)
-{
-  dds_set_topic_filter_deprecated (topic, filter);
-}
-
-void dds_topic_set_filter (dds_entity_t topic, dds_topic_filter_fn filter)
-{
-  dds_set_topic_filter_deprecated (topic, filter);
-}
-
 dds_return_t dds_get_topic_filter_extended (dds_entity_t topic, struct dds_topic_filter *filter)
 {
   dds_return_t rc;
@@ -1086,24 +1066,6 @@ dds_return_t dds_get_topic_filter_and_arg (dds_entity_t topic, dds_topic_filter_
       break;
   }
   return rc;
-}
-
-static dds_topic_filter_fn dds_get_topic_filter_deprecated (dds_entity_t topic)
-{
-  struct dds_topic_filter f;
-  if (dds_get_topic_filter_extended (topic, &f) != DDS_RETCODE_OK)
-    return 0;
-  return (f.mode == DDS_TOPIC_FILTER_SAMPLE) ? f.f.sample : 0;
-}
-
-dds_topic_filter_fn dds_get_topic_filter (dds_entity_t topic)
-{
-  return dds_get_topic_filter_deprecated (topic);
-}
-
-dds_topic_filter_fn dds_topic_get_filter (dds_entity_t topic)
-{
-  return dds_get_topic_filter_deprecated (topic);
 }
 
 dds_return_t dds_get_name (dds_entity_t topic, char *name, size_t size)

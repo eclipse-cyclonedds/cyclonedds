@@ -419,7 +419,7 @@ void dds__builtin_init (struct dds_domain *dom)
 
   dds_delete_qos (qos);
 
-  /* ddsi_sertype_init initializes the refcount to 1 and dds_sertopic_register_locked increments
+  /* ddsi_sertype_init initializes the refcount to 1 and dds_sertype_register_locked increments
      it.  All "real" references (such as readers and writers) are also accounted for in the
      reference count, so we have an excess reference here. */
   unref_builtin_types (dom);

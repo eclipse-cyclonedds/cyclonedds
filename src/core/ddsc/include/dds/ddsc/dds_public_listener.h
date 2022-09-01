@@ -73,24 +73,12 @@ typedef struct dds_listener dds_listener_t;
 DDS_EXPORT dds_listener_t* dds_create_listener(void* arg);
 
 /**
- * @ingroup deprecated
- * @deprecated use \ref dds_create_listener instead.
- * Allocate memory and initializes to default values (@ref DDS_LUNSET) of a listener
- *
- * @param[in] arg optional pointer that will be passed on to the listener callbacks
- *
- * @return Returns a pointer to the allocated memory for dds_listener_t structure.
- */
-DDS_DEPRECATED_EXPORT dds_listener_t* dds_listener_create (void* arg);
-
-/**
  * @ingroup listener
  * @brief Delete the memory allocated to listener structure
  *
  * @param[in] listener pointer to the listener struct to delete
  */
 DDS_EXPORT void dds_delete_listener (dds_listener_t * __restrict listener);
-DDS_DEPRECATED_EXPORT void dds_listener_delete (dds_listener_t * __restrict listener);
 
 /**
  * @ingroup listener
@@ -99,7 +87,6 @@ DDS_DEPRECATED_EXPORT void dds_listener_delete (dds_listener_t * __restrict list
  * @param[in,out] listener pointer to the listener struct to reset
  */
 DDS_EXPORT void dds_reset_listener (dds_listener_t * __restrict listener);
-DDS_DEPRECATED_EXPORT void dds_listener_reset (dds_listener_t * __restrict listener);
 
 /**
  * @ingroup listener
@@ -109,7 +96,6 @@ DDS_DEPRECATED_EXPORT void dds_listener_reset (dds_listener_t * __restrict liste
  * @param[in] src The pointer to the source listener structure to be copied
  */
 DDS_EXPORT void dds_copy_listener (dds_listener_t * __restrict dst, const dds_listener_t * __restrict src);
-DDS_DEPRECATED_EXPORT void dds_listener_copy (dds_listener_t * __restrict dst, const dds_listener_t * __restrict src);
 
 /**
  * @ingroup listener
@@ -122,7 +108,6 @@ DDS_DEPRECATED_EXPORT void dds_listener_copy (dds_listener_t * __restrict dst, c
  * @param[in] src The pointer to the source listener structure to be copied
  */
 DDS_EXPORT void dds_merge_listener (dds_listener_t * __restrict dst, const dds_listener_t * __restrict src);
-DDS_DEPRECATED_EXPORT void dds_listener_merge (dds_listener_t * __restrict dst, const dds_listener_t * __restrict src);
 
 /************************************************************************************************
  *  Setters

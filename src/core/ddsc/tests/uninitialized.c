@@ -69,12 +69,10 @@ CU_Test (ddsc_uninitialized, various)
   check (dds_get_parent (1));
   check (dds_get_participant (1));
   check (dds_set_status_mask (1, 1));
-  check (dds_set_enabled_status (1, 1));
   uint32_t mask;
   check (dds_get_mask (1, &mask));
   check (dds_get_status_changes (1, &mask));
   check (dds_get_status_mask (1, &mask));
-  check (dds_get_enabled_status (1, &mask));
   check (dds_read_status (1, &mask, 1));
   check (dds_take_status (1, &mask, 1));
   dds_instance_handle_t ih;
@@ -107,8 +105,6 @@ CU_Test (ddsc_uninitialized, various)
   check (dds_get_name (1, buf, sizeof (buf)));
   check (dds_get_type_name (1, buf, sizeof (buf)));
 
-  dds_set_topic_filter (1, filter_fn);
-  dds_topic_set_filter (1, filter_fn);
   struct dds_topic_filter filter = {
     .mode = DDS_TOPIC_FILTER_SAMPLE,
     .f = { .sample = filter_fn },
@@ -117,8 +113,6 @@ CU_Test (ddsc_uninitialized, various)
   check (dds_set_topic_filter_and_arg (1, filter_arg_fn, NULL));
   check (dds_set_topic_filter_extended (1, &filter));
 
-  check_0 (dds_get_topic_filter (1));
-  check_0 (dds_topic_get_filter (1));
   check (dds_get_topic_filter_and_arg (1, NULL, NULL));
   check (dds_get_topic_filter_extended (1, &filter));
 
@@ -198,7 +192,6 @@ CU_Test (ddsc_uninitialized, various)
 
   check (dds_return_loan (1, &raw, 1));
   check_ih (dds_lookup_instance (1, &data));
-  check_ih (dds_instance_lookup (1, &data));
   check (dds_instance_get_key (1, 1, &data));
 
   check (dds_begin_coherent (1));

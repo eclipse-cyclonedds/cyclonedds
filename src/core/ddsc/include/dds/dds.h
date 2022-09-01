@@ -756,17 +756,6 @@ DDS_EXPORT dds_return_t
 dds_get_status_mask(dds_entity_t entity, uint32_t *mask);
 
 /**
- * @deprecated Get enabled status on entity. Use \ref dds_get_status_mask instead.
- * @ingroup deprecated
- *
- * @param[in] entity  Entity to get the status.
- * @param[out] mask   Mask of enabled statuses set on the entity.
- * @returns A dds_return_t indicating success of failure.
- */
-DDS_DEPRECATED_EXPORT dds_return_t
-dds_get_enabled_status(dds_entity_t entity, uint32_t *mask);
-
-/**
  * @anchor dds_set_status_mask
  * @brief Set status enabled on entity
  * @ingroup entity_status
@@ -789,17 +778,6 @@ dds_get_enabled_status(dds_entity_t entity, uint32_t *mask);
  */
 DDS_EXPORT dds_return_t
 dds_set_status_mask(dds_entity_t entity, uint32_t mask);
-
-/**
- * @deprecated Set enabled status on entity. Use \ref dds_set_status_mask instead.
- * @ingroup deprecated
- *
- * @param[in] entity  Entity to enable the status.
- * @param[out] mask   Status value that indicates the status to be enabled.
- * @returns A dds_return_t indicating success of failure.
- */
-DDS_DEPRECATED_EXPORT dds_return_t
-dds_set_enabled_status(dds_entity_t entity, uint32_t mask);
 
 /**
  * @defgroup entity_qos (Entity QoS)
@@ -1731,40 +1709,6 @@ struct dds_topic_filter {
 };
 
 /**
- * @brief Sets a filter on a topic. To be replaced by proper filtering on readers,
- * @ingroup topic_filter
- * @warning Unstable API
- * @deprecated use @ref dds_set_topic_filter_and_arg or @ref dds_set_topic_filter_extended instead
- *
- * Not thread-safe with respect to data being read/written using readers/writers
- * using this topic.  Be sure to create a topic entity specific to the reader you
- * want to filter, then set the filter function, and only then create the reader.
- * And don't change it unless you know there are no concurrent writes.
- *
- * @param[in]  topic   The topic on which the content filter is set.
- * @param[in]  filter  The filter function used to filter topic samples.
- */
-DDS_DEPRECATED_EXPORT void
-dds_set_topic_filter(dds_entity_t topic, dds_topic_filter_fn filter);
-
-/**
- * @brief Sets a filter on a topic. To be replaced by proper filtering on readers,
- * @ingroup topic_filter
- * @warning Unstable API
- * @deprecated use @ref dds_set_topic_filter_and_arg or @ref dds_set_topic_filter_extended instead
- *
- * Not thread-safe with respect to data being read/written using readers/writers
- * using this topic.  Be sure to create a topic entity specific to the reader you
- * want to filter, then set the filter function, and only then create the reader.
- * And don't change it unless you know there are no concurrent writes.
- *
- * @param[in]  topic   The topic on which the content filter is set.
- * @param[in]  filter  The filter function used to filter topic samples.
- */
-DDS_DEPRECATED_EXPORT void
-dds_topic_set_filter(dds_entity_t topic, dds_topic_filter_fn filter);
-
-/**
  * @anchor dds_set_topic_filter_and_arg
  * @brief Sets a filter and filter argument on a topic.
  * @ingroup topic_filter
@@ -1815,36 +1759,6 @@ DDS_EXPORT dds_return_t
 dds_set_topic_filter_extended(
   dds_entity_t topic,
   const struct dds_topic_filter *filter);
-
-/**
- * @brief Gets the filter for a topic.
- * @ingroup topic_filter
- * @deprecated Use dds_get_topic_filter_and_arg() or dds_get_topic_filter_extended() instead.
- * @warning Unstable API
- *
- * To be replaced by proper filtering on readers.
- *
- * @param[in]  topic  The topic from which to get the filter.
- *
- * @returns The topic filter, or 0 when of type other than "sample".
- */
-DDS_DEPRECATED_EXPORT dds_topic_filter_fn
-dds_get_topic_filter(dds_entity_t topic);
-
-/**
- * @brief Gets the filter for a topic.
- * @ingroup topic_filter
- * @deprecated Use dds_get_topic_filter_and_arg() or dds_get_topic_filter_extended() instead.
- * @warning Unstable API
- *
- * To be replaced by proper filtering on readers.
- *
- * @param[in]  topic  The topic from which to get the filter.
- *
- * @returns The topic filter, or 0 when of type other than "sample".
- */
-DDS_DEPRECATED_EXPORT dds_topic_filter_fn
-dds_topic_get_filter(dds_entity_t topic);
 
 /**
  * @brief Gets the filter for a topic.
@@ -4204,18 +4118,6 @@ dds_return_loan(
  */
 DDS_EXPORT dds_instance_handle_t
 dds_lookup_instance(dds_entity_t entity, const void *data);
-
-/**
- * @deprecated Get enabled status on entity. Use \ref dds_lookup_instance instead.
- * @ingroup instance_handle
- *
- * @param[in]  entity Reader or Writer entity.
- * @param[in]  data   Sample with a key fields set.
- *
- * @returns instance handle or DDS_HANDLE_NIL if instance could not be found from key.
- */
-DDS_DEPRECATED_EXPORT dds_instance_handle_t
-dds_instance_lookup(dds_entity_t entity, const void *data);
 
 /**
  * @brief This operation takes an instance handle and return a key-value corresponding to it.

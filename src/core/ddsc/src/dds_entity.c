@@ -1103,11 +1103,6 @@ dds_return_t dds_get_status_mask (dds_entity_t entity, uint32_t *mask)
   return ret;
 }
 
-dds_return_t dds_get_enabled_status (dds_entity_t entity, uint32_t *status)
-{
-  return dds_get_status_mask(entity, status);
-}
-
 dds_return_t dds_set_status_mask (dds_entity_t entity, uint32_t mask)
 {
   dds_entity *e;
@@ -1146,11 +1141,6 @@ dds_return_t dds_set_status_mask (dds_entity_t entity, uint32_t mask)
   }
   dds_entity_unlock (e);
   return ret;
-}
-
-dds_return_t dds_set_enabled_status(dds_entity_t entity, uint32_t mask)
-{
-  return dds_set_status_mask (entity, mask);
 }
 
 static dds_return_t dds_readtake_status (dds_entity_t entity, uint32_t *status, uint32_t mask, bool reset)

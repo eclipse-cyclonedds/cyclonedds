@@ -281,11 +281,6 @@ dds_instance_handle_t dds_lookup_instance (dds_entity_t entity, const void *data
   return ih;
 }
 
-dds_instance_handle_t dds_instance_lookup (dds_entity_t entity, const void *data)
-{
-  return dds_lookup_instance (entity, data);
-}
-
 dds_return_t dds_instance_get_key (dds_entity_t entity, dds_instance_handle_t ih, void *data)
 {
   dds_return_t ret;

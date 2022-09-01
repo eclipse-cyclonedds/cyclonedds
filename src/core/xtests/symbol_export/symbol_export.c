@@ -91,9 +91,7 @@ int main (int argc, char **argv)
   dds_take_status (1, ptr, 0);
   dds_get_status_changes (1, ptr);
   dds_get_status_mask (1, ptr);
-  dds_get_enabled_status (1, ptr);
   dds_set_status_mask (1, 0);
-  dds_set_enabled_status (1, 0);
   dds_get_qos (1, ptr);
   dds_set_qos (1, ptr);
   dds_get_listener (1, ptr);
@@ -116,12 +114,8 @@ int main (int argc, char **argv)
   dds_delete_topic_descriptor (ptr);
   dds_get_name (1, ptr, 0);
   dds_get_type_name (1, ptr, 0);
-  dds_set_topic_filter (1, 0);
-  dds_topic_set_filter (1, 0);
   dds_set_topic_filter_and_arg (1, 0, ptr);
   dds_set_topic_filter_extended (1, ptr);
-  dds_get_topic_filter (1);
-  dds_topic_get_filter (1);
   dds_get_topic_filter_and_arg (1, ptr, ptr);
   dds_get_topic_filter_extended (1, ptr);
   dds_create_subscriber (1, ptr, ptr);
@@ -188,7 +182,6 @@ int main (int argc, char **argv)
   dds_read_next_wl (1, ptr, ptr);
   dds_return_loan (1, ptr, 0);
   dds_lookup_instance (1, ptr);
-  dds_instance_lookup (1, ptr);
   dds_instance_get_key (1, 1, ptr);
   dds_begin_coherent (1);
   dds_end_coherent (1);
@@ -243,15 +236,10 @@ int main (int argc, char **argv)
 
   // dds_public_listener.h
   dds_create_listener (ptr);
-  dds_listener_create (ptr);
   dds_delete_listener (ptr);
-  dds_listener_delete (ptr);
   dds_reset_listener (ptr);
-  dds_listener_reset (ptr);
   dds_copy_listener (ptr, ptr2);
-  dds_listener_copy (ptr, ptr2);
   dds_merge_listener (ptr, ptr2);
-  dds_listener_merge (ptr, ptr2);
   dds_lset_data_available_arg (ptr, 0, ptr2, 0);
   dds_lset_data_on_readers_arg (ptr, 0, ptr2, 0);
   dds_lset_inconsistent_topic_arg (ptr, 0, ptr2, 0);
@@ -307,13 +295,10 @@ int main (int argc, char **argv)
 
   // dds_public_qos
   dds_create_qos ();
-  dds_qos_create ();
   dds_delete_qos (ptr);
   dds_reset_qos (ptr);
   dds_copy_qos (ptr, ptr2);
-  dds_qos_copy (ptr, ptr2);
   dds_merge_qos (ptr, ptr2);
-  dds_qos_merge (ptr, ptr2);
   dds_qos_equal (ptr, ptr2);
   dds_qset_userdata (ptr, ptr2, 0);
   dds_qset_topicdata (ptr, ptr2, 0);

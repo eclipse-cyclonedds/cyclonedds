@@ -79,10 +79,6 @@ bool dds_is_loan_available(const dds_entity_t entity) {
   return ret;
 }
 
-bool is_loan_available(const dds_entity_t entity) {
-  return dds_is_loan_available(entity);
-}
-
 #ifdef DDS_HAS_SHM
 
 static void release_iox_chunk(dds_writer *wr, void *sample) {

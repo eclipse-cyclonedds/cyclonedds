@@ -58,11 +58,6 @@ dds_qos_t *dds_create_qos (void)
   return qos;
 }
 
-dds_qos_t *dds_qos_create (void)
-{
-  return dds_create_qos ();
-}
-
 void dds_reset_qos (dds_qos_t * __restrict qos)
 {
   if (qos)
@@ -70,11 +65,6 @@ void dds_reset_qos (dds_qos_t * __restrict qos)
     ddsi_xqos_fini (qos);
     ddsi_xqos_init_empty (qos);
   }
-}
-
-void dds_qos_reset (dds_qos_t * __restrict qos)
-{
-  dds_reset_qos (qos);
 }
 
 void dds_delete_qos (dds_qos_t * __restrict qos)
@@ -86,11 +76,6 @@ void dds_delete_qos (dds_qos_t * __restrict qos)
   }
 }
 
-void dds_qos_delete (dds_qos_t * __restrict qos)
-{
-  dds_delete_qos (qos);
-}
-
 dds_return_t dds_copy_qos (dds_qos_t * __restrict dst, const dds_qos_t * __restrict src)
 {
   if (src == NULL || dst == NULL)
@@ -99,21 +84,11 @@ dds_return_t dds_copy_qos (dds_qos_t * __restrict dst, const dds_qos_t * __restr
   return DDS_RETCODE_OK;
 }
 
-dds_return_t dds_qos_copy (dds_qos_t * __restrict dst, const dds_qos_t * __restrict src)
-{
-  return dds_copy_qos (dst, src);
-}
-
 void dds_merge_qos (dds_qos_t * __restrict dst, const dds_qos_t * __restrict src)
 {
   /* Copy qos from source to destination unless already set */
   if (src != NULL && dst != NULL)
     ddsi_xqos_mergein_missing (dst, src, ~(uint64_t)0);
-}
-
-void dds_qos_merge (dds_qos_t * __restrict dst, const dds_qos_t * __restrict src)
-{
-  dds_merge_qos (dst, src);
 }
 
 bool dds_qos_equal (const dds_qos_t * __restrict a, const dds_qos_t * __restrict b)
