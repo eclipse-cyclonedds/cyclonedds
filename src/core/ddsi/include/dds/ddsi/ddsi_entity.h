@@ -32,7 +32,7 @@
 #include "dds/ddsi/ddsi_typelookup.h"
 #include "dds/ddsi/ddsi_tran.h"
 #include "dds/ddsi/ddsi_list_genptr.h"
-#include "dds/ddsi/q_gc.h"
+#include "dds/ddsi/ddsi_gc.h"
 #include "dds/ddsi/q_lease.h"
 
 #if defined (__cplusplus)

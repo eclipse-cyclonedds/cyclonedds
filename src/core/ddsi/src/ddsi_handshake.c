@@ -22,7 +22,7 @@
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_participant.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
-#include "dds/ddsi/q_gc.h"
+#include "dds/ddsi/ddsi_gc.h"
 #include "dds/security/dds_security_api_types.h"
 #include "dds/security/dds_security_api.h"
 #include "dds/ddsi/ddsi_security_omg.h"
@@ -1207,12 +1207,12 @@ static struct ddsi_handshake * ddsi_handshake_find_locked(
   return ddsrt_avl_lookup(&handshake_treedef, &hsadmin->handshakes, &handles);
 }
 
-static void gc_delete_handshale (struct gcreq *gcreq)
+static void gc_delete_handshale (struct ddsi_gcreq *gcreq)
 {
   struct ddsi_handshake *handshake = gcreq->arg;
 
   ddsi_handshake_release(handshake);
-  gcreq_free(gcreq);
+  ddsi_gcreq_free (gcreq);
 }
 
 void ddsi_handshake_remove(struct ddsi_participant *pp, struct ddsi_proxy_participant *proxypp)
@@ -1224,12 +1224,12 @@ void ddsi_handshake_remove(struct ddsi_participant *pp, struct ddsi_proxy_partic
   handshake = ddsi_handshake_find_locked(hsadmin, pp, proxypp);
   if (handshake)
   {
-    struct gcreq *gcreq = gcreq_new (pp->e.gv->gcreq_queue, gc_delete_handshale);
+    struct ddsi_gcreq *gcreq = ddsi_gcreq_new (pp->e.gv->gcreq_queue, gc_delete_handshale);
     ddsrt_avl_delete(&handshake_treedef, &hsadmin->handshakes, handshake);
     ddsrt_atomic_st32(&handshake->deleting, 1);
     dds_security_fsm_stop(handshake->fsm);
     gcreq->arg = handshake;
-    gcreq_enqueue (gcreq);
+    ddsi_gcreq_enqueue (gcreq);
   }
   ddsrt_mutex_unlock(&hsadmin->lock);
 }

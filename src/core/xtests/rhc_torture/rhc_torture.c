@@ -30,7 +30,7 @@
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/ddsi_proxy_endpoint.h"
-#include "dds/ddsi/q_gc.h"
+#include "dds/ddsi/ddsi_gc.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds__topic.h"
 #include "dds/ddsc/dds_rhc.h"
@@ -500,25 +500,25 @@ static void tkcond (struct dds_rhc *rhc, dds_readcond *cond, const struct check 
   rdtkcond (rhc, cond, chk, print, max, buf, dds_rhc_take, states_seen);
 }
 
-static void wait_gc_cycle_impl (struct gcreq *gcreq)
+static void wait_gc_cycle_impl (struct ddsi_gcreq *gcreq)
 {
   ddsrt_mutex_lock (&wait_gc_cycle_lock);
   wait_gc_cycle_trig = 1;
   ddsrt_cond_broadcast (&wait_gc_cycle_cond);
   ddsrt_mutex_unlock (&wait_gc_cycle_lock);
-  gcreq_free (gcreq);
+  ddsi_gcreq_free (gcreq);
 }
 
-static void wait_gc_cycle (struct gcreq_queue *gcreq_queue)
+static void wait_gc_cycle (struct ddsi_gcreq_queue *gcreq_queue)
 {
   /* only single-threaded for now */
-  struct gcreq *gcreq = gcreq_new (gcreq_queue, wait_gc_cycle_impl);
+  struct ddsi_gcreq *gcreq = ddsi_gcreq_new (gcreq_queue, wait_gc_cycle_impl);
 #ifndef NDEBUG
   ddsrt_mutex_lock (&wait_gc_cycle_lock);
   assert (wait_gc_cycle_trig == 0);
   ddsrt_mutex_unlock (&wait_gc_cycle_lock);
 #endif
-  gcreq_enqueue (gcreq);
+  ddsi_gcreq_enqueue (gcreq);
   ddsrt_mutex_lock (&wait_gc_cycle_lock);
   while (!wait_gc_cycle_trig)
     ddsrt_cond_wait (&wait_gc_cycle_cond, &wait_gc_cycle_lock);

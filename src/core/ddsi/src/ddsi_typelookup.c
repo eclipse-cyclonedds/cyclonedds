@@ -32,7 +32,7 @@
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_entity_match.h"
 #include "dds/ddsi/ddsi_participant.h"
-#include "dds/ddsi/q_gc.h"
+#include "dds/ddsi/ddsi_gc.h"
 #include "dds/ddsi/q_protocol.h"
 #include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/q_rtps.h"

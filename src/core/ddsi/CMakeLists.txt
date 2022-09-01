@@ -61,12 +61,12 @@ set(srcs_ddsi
   ddsi_topic.c
   ddsi_endpoint.c
   ddsi_proxy_endpoint.c
+  ddsi_gc.c
   q_addrset.c
   q_bitset_inlines.c
   q_bswap.c
   q_ddsi_discovery.c
   q_debmon.c
-  q_gc.c
   q_init.c
   q_lat_estim.c
   q_lease.c
@@ -140,6 +140,7 @@ set(hdrs_private_ddsi
   ddsi_topic.h
   ddsi_endpoint.h
   ddsi_proxy_endpoint.h
+  ddsi_gc.h
   q_addrset.h
   q_bitset.h
   q_bswap.h
@@ -147,7 +148,6 @@ set(hdrs_private_ddsi
   q_debmon.h
   q_feature_check.h
   q_freelist.h
-  q_gc.h
   q_hbcontrol.h
   q_lat_estim.h
   q_lease.h

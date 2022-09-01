@@ -41,7 +41,7 @@ struct nn_reorder;
 struct nn_defrag;
 struct addrset;
 struct xeventq;
-struct gcreq_queue;
+struct ddsi_gcreq_queue;
 struct entity_index;
 struct lease;
 struct ddsi_tran_conn;
@@ -106,7 +106,7 @@ struct ddsi_domaingv {
   struct xeventq *xevents;
 
   /* Queue for garbage collection requests */
-  struct gcreq_queue *gcreq_queue;
+  struct ddsi_gcreq_queue *gcreq_queue;
 
   /* Lease junk */
   ddsrt_mutex_t leaseheap_lock;

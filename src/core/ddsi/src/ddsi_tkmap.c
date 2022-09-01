@@ -17,7 +17,7 @@
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/q_unused.h"
-#include "dds/ddsi/q_gc.h"
+#include "dds/ddsi/ddsi_gc.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_iid.h"
@@ -37,33 +37,33 @@ struct ddsi_tkmap
   ddsrt_cond_t m_cond;
 };
 
-static void gc_buckets_impl (struct gcreq *gcreq)
+static void gc_buckets_impl (struct ddsi_gcreq *gcreq)
 {
   ddsrt_free (gcreq->arg);
-  gcreq_free (gcreq);
+  ddsi_gcreq_free (gcreq);
 }
 
 static void gc_buckets (void *a, void *arg)
 {
   const struct ddsi_tkmap *tkmap = arg;
-  struct gcreq *gcreq = gcreq_new (tkmap->gv->gcreq_queue, gc_buckets_impl);
+  struct ddsi_gcreq *gcreq = ddsi_gcreq_new (tkmap->gv->gcreq_queue, gc_buckets_impl);
   gcreq->arg = a;
-  gcreq_enqueue (gcreq);
+  ddsi_gcreq_enqueue (gcreq);
 }
 
-static void gc_tkmap_instance_impl (struct gcreq *gcreq)
+static void gc_tkmap_instance_impl (struct ddsi_gcreq *gcreq)
 {
   struct ddsi_tkmap_instance *tk = gcreq->arg;
   ddsi_serdata_unref (tk->m_sample);
   dds_free (tk);
-  gcreq_free (gcreq);
+  ddsi_gcreq_free (gcreq);
 }
 
-static void gc_tkmap_instance (struct ddsi_tkmap_instance *tk, struct gcreq_queue *gcreq_queue)
+static void gc_tkmap_instance (struct ddsi_tkmap_instance *tk, struct ddsi_gcreq_queue *gcreq_queue)
 {
-  struct gcreq *gcreq = gcreq_new (gcreq_queue, gc_tkmap_instance_impl);
+  struct ddsi_gcreq *gcreq = ddsi_gcreq_new (gcreq_queue, gc_tkmap_instance_impl);
   gcreq->arg = tk;
-  gcreq_enqueue (gcreq);
+  ddsi_gcreq_enqueue (gcreq);
 }
 
 static uint32_t dds_tk_hash (const struct ddsi_tkmap_instance *inst)

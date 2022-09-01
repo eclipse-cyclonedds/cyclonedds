@@ -38,7 +38,7 @@
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/q_lease.h"
-#include "dds/ddsi/q_gc.h"
+#include "dds/ddsi/ddsi_gc.h"
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_participant.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
@@ -1852,7 +1852,7 @@ int rtps_init (struct ddsi_domaingv *gv)
     add_peer_addresses (gv, gv->as_disc, gv->config.peers);
   }
 
-  gv->gcreq_queue = gcreq_queue_new (gv);
+  gv->gcreq_queue = ddsi_gcreq_queue_new (gv);
 
   ddsrt_atomic_st32 (&gv->rtps_keepgoing, 1);
 
@@ -1976,7 +1976,7 @@ static void stop_all_xeventq_upto (struct ddsi_config_channel_listelem *chptr)
 
 int rtps_start (struct ddsi_domaingv *gv)
 {
-  gcreq_queue_start (gv->gcreq_queue);
+  ddsi_gcreq_queue_start (gv->gcreq_queue);
 
   nn_dqueue_start (gv->builtins_dqueue);
 #ifdef DDS_HAS_NETWORK_CHANNELS
@@ -2197,7 +2197,7 @@ void rtps_stop (struct ddsi_domaingv *gv)
   /* Wait until no more GC requests are outstanding -- not really
      necessary, but it allows us to claim the stack is quiescent
      at this point */
-  gcreq_queue_drain (gv->gcreq_queue);
+  ddsi_gcreq_queue_drain (gv->gcreq_queue);
 
   /* Clean up privileged_pp -- it must be NULL now (all participants
      are gone), but the lock still needs to be destroyed */
@@ -2215,7 +2215,7 @@ void rtps_fini (struct ddsi_domaingv *gv)
   ddsrt_mutex_destroy (&gv->spdp_lock);
 
   /* Shut down the GC system -- no new requests will be added */
-  gcreq_queue_free (gv->gcreq_queue);
+  ddsi_gcreq_queue_free (gv->gcreq_queue);
 
   /* No new data gets added to any admin, all synchronous processing
      has ended, so now we can drain the delivery queues to end up with

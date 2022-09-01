@@ -29,7 +29,7 @@
 #include "dds/ddsi/ddsi_threadmon.h"
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_config_impl.h"
-#include "dds/ddsi/q_gc.h"
+#include "dds/ddsi/ddsi_gc.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/version.h"
 

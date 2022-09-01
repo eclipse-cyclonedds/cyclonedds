@@ -44,7 +44,7 @@
 #include "dds/ddsi/ddsi_config.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/q_thread.h"
-#include "dds/ddsi/q_gc.h"
+#include "dds/ddsi/ddsi_gc.h"
 
 #ifdef DDS_HAS_SECURITY
 #include "dds/security/core/dds_security_serialize.h"
@@ -638,14 +638,14 @@ int main (int argc, char **argv)
   ddsi_lookup_thread_state_real ();
 
   // ddsi/q_gc.h
-  gcreq_queue_new (ptr);
-  gcreq_queue_drain (ptr);
-  gcreq_queue_free (ptr);
-  gcreq_new (ptr, ptr);
-  gcreq_queue_start (ptr);
-  gcreq_free (ptr);
-  gcreq_enqueue (ptr);
-  gcreq_requeue (ptr, ptr);
+  ddsi_gcreq_queue_new (ptr);
+  ddsi_gcreq_queue_drain (ptr);
+  ddsi_gcreq_queue_free (ptr);
+  ddsi_gcreq_new (ptr, ptr);
+  ddsi_gcreq_queue_start (ptr);
+  ddsi_gcreq_free (ptr);
+  ddsi_gcreq_enqueue (ptr);
+  ddsi_gcreq_requeue (ptr, ptr);
 
   // ddsrt/atomics.h
   ddsrt_atomic_ld32 (ptr);

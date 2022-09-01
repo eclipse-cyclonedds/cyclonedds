@@ -40,7 +40,7 @@
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_transmit.h"
 #include "dds/ddsi/q_lease.h"
-#include "dds/ddsi/q_gc.h"
+#include "dds/ddsi/ddsi_gc.h"
 
 /* This is absolute bottom for signed integers, where -x = x and yet x
    != 0 -- and note that it had better be 2's complement machine! */
@@ -48,9 +48,9 @@
 
 const ddsrt_fibheap_def_t lease_fhdef = DDSRT_FIBHEAPDEF_INITIALIZER (offsetof (struct lease, heapnode), compare_lease_tsched);
 
-static void force_lease_check (struct gcreq_queue *gcreq_queue)
+static void force_lease_check (struct ddsi_gcreq_queue *gcreq_queue)
 {
-  gcreq_enqueue (gcreq_new (gcreq_queue, gcreq_free));
+  ddsi_gcreq_enqueue (ddsi_gcreq_new (gcreq_queue, ddsi_gcreq_free));
 }
 
 int compare_lease_tsched (const void *va, const void *vb)

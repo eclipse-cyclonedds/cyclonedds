@@ -16,7 +16,7 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/types.h"
-#include "dds/ddsi/q_gc.h"
+#include "dds/ddsi/ddsi_gc.h"
 #include "dds/security/dds_security_api.h"
 #include "dds/security/core/dds_security_utils.h"
 #include "dds/security/core/dds_security_serialize.h"
@@ -1108,10 +1108,10 @@ err_no_remote:
   return result;
 }
 
-static void gc_remote_key_material (struct gcreq *gcreq)
+static void gc_remote_key_material (struct ddsi_gcreq *gcreq)
 {
   CRYPTO_OBJECT_RELEASE (gcreq->arg);
-  gcreq_free (gcreq);
+  ddsi_gcreq_free (gcreq);
 }
 
 bool
@@ -1158,9 +1158,9 @@ crypto_factory_set_participant_crypto_tokens(
 
     if (remote_key_mat_old != NULL)
     {
-      struct gcreq *gcreq = gcreq_new(impl->crypto->gv->gcreq_queue, gc_remote_key_material);
+      struct ddsi_gcreq *gcreq = ddsi_gcreq_new (impl->crypto->gv->gcreq_queue, gc_remote_key_material);
       gcreq->arg = remote_key_mat_old;
-      gcreq_enqueue(gcreq);
+      ddsi_gcreq_enqueue (gcreq);
     }
 
     uint32_t specific_key = key_material->remote_key_material->receiver_specific_key_id;

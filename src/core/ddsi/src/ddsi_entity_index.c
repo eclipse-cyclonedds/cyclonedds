@@ -26,7 +26,7 @@
 #include "dds/ddsi/ddsi_participant.h"
 #include "dds/ddsi/ddsi_proxy_endpoint.h"
 #include "dds/ddsi/ddsi_endpoint.h"
-#include "dds/ddsi/q_gc.h"
+#include "dds/ddsi/ddsi_gc.h"
 #include "dds/ddsi/q_rtps.h" /* guid_t */
 #include "dds/ddsi/q_thread.h" /* for assert(thread is awake) */
 
@@ -218,19 +218,19 @@ static void match_entity_kind_min (enum ddsi_entity_kind kind, struct match_enti
   }
 }
 
-static void gc_buckets_cb (struct gcreq *gcreq)
+static void gc_buckets_cb (struct ddsi_gcreq *gcreq)
 {
   void *bs = gcreq->arg;
-  gcreq_free (gcreq);
+  ddsi_gcreq_free (gcreq);
   ddsrt_free (bs);
 }
 
 static void gc_buckets (void *bs, void *varg)
 {
   struct ddsi_domaingv *gv = varg;
-  struct gcreq *gcreq = gcreq_new (gv->gcreq_queue, gc_buckets_cb);
+  struct ddsi_gcreq *gcreq = ddsi_gcreq_new (gv->gcreq_queue, gc_buckets_cb);
   gcreq->arg = bs;
-  gcreq_enqueue (gcreq);
+  ddsi_gcreq_enqueue (gcreq);
 }
 
 struct entity_index *entity_index_new (struct ddsi_domaingv *gv)

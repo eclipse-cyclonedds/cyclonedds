@@ -138,7 +138,7 @@ void ddsi_participant_add_wr_lease_locked (struct ddsi_participant * pp, const s
 void ddsi_participant_remove_wr_lease_locked (struct ddsi_participant * pp, struct ddsi_writer * wr);
 dds_return_t ddsi_participant_allocate_entityid (ddsi_entityid_t *id, uint32_t kind, struct ddsi_participant *pp);
 void ddsi_participant_release_entityid (struct ddsi_participant *pp, ddsi_entityid_t id);
-void ddsi_gc_participant_lease (struct gcreq *gcreq);
+void ddsi_gc_participant_lease (struct ddsi_gcreq *gcreq);
 void ddsi_prune_deleted_participant_guids (struct deleted_participants_admin *admin, ddsrt_mtime_t tnow);
 void ddsi_remove_deleted_participant_guid (struct deleted_participants_admin *admin, const struct ddsi_guid *guid, unsigned for_what);
 void ddsi_remember_deleted_participant_guid (struct deleted_participants_admin *admin, const struct ddsi_guid *guid);
