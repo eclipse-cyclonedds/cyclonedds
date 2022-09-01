@@ -104,13 +104,6 @@ struct ddsi_sertype;
 struct ddsi_serdata;
 
 /**
- * @ingroup deprecated
- * @warning The DDSI sertopic functionality was moved to ddsi_sertype.
- * It has been retained as a symbol to ensure binary compatibility.
- */
-struct ddsi_sertopic;
-
-/**
  * @brief DDSI Config
  * @ingroup dds
  * DOC_TODO
@@ -120,8 +113,6 @@ struct ddsi_config;
 /**
  * @brief Indicates that the library uses ddsi_sertype instead of ddsi_sertopic
  * @ingroup dds
- * If sertype is used, the function dds_create_topic_sertype requires a topic name parameter,
- * as this field is not included in ddsi_sertype.
  */
 #define DDS_HAS_DDSI_SERTYPE 1
 
@@ -1367,80 +1358,6 @@ dds_create_topic_sertype (
   dds_entity_t participant,
   const char *name,
   struct ddsi_sertype **sertype,
-  const dds_qos_t *qos,
-  const dds_listener_t *listener,
-  const struct ddsi_plist *sedp_plist);
-
-/**
- * @brief Indicates that the library defines the dds_create_topic_generic function
- * @ingroup topic
- * Introduced to help with the change from sertopic to sertype. You should probably
- * move to using sertype instead of sertopic and ignore this.
- */
-#define DDS_HAS_CREATE_TOPIC_GENERIC 1
-
-/**
- * @anchor dds_create_topic_generic
- * @brief Creates a new topic with provided type handling.
- * @ingroup topic
- *
- * DOC_TODO: this description does not make any sense, this is for the legacy sertopic?
- *           deprecate?
- *
- * The name for the type is taken from the provided "sertype" object. Type
- * matching is done on a combination of topic name and type name. Each successful
- * call to dds_create_topic creates a new topic entity sharing the same QoS
- * settings with all other topics of the same name.
- *
- * In case this function returns a valid handle, the ownership of the provided
- * sertype is handed over to Cyclone. On return, the caller gets in the sertype parameter a
- * pointer to the sertype that is actually used by the topic. This can be the provided sertype
- * (if this sertype was not yet known in the domain), or a sertype thas was
- * already known in the domain.
- *
- * @param[in]     participant  Participant on which to create the topic.
- * @param[in,out] sertopic     Legacy internal description of the type. On return, the sertype parameter is set to the actual sertype that is used by the topic.
- * @param[in]     qos          QoS to set on the new topic (can be NULL).
- * @param[in]     listener     Any listener functions associated with the new topic (can be NULL).
- * @param[in]     sedp_plist   Topic description to be published as part of discovery (if NULL, not published).
- *
- * @returns A valid, unique topic handle or an error code. Iff a valid handle, the domain takes ownership of provided serdata.
- *
- * @retval >=0
- *             A valid unique topic handle.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             Either participant, descriptor, name or qos is invalid.
- * @retval DDS_RETCODE_INCONSISTENT_POLICY
- *             QoS mismatch between qos and an existing topic's QoS.
- * @retval DDS_RETCODE_PRECONDITION_NOT_MET
- *             Mismatch between type name in sertype and pre-existing
- *             topic's type name.
- */
-DDS_EXPORT dds_entity_t
-dds_create_topic_generic (
-  dds_entity_t participant,
-  struct ddsi_sertopic **sertopic,
-  const dds_qos_t *qos,
-  const dds_listener_t *listener,
-  const struct ddsi_plist *sedp_plist);
-
-/**
- * @deprecated Creates a new topic with provided type handling.
- * @ingroup deprecated
- * Use @ref dds_create_topic_sertype instead.
- *
- * @param[in]     participant  Participant on which to create the topic.
- * @param[in,out] sertopic     Legacy internal description of the type. On return, the sertype parameter is set to the actual sertype that is used by the topic.
- * @param[in]     qos          QoS to set on the new topic (can be NULL).
- * @param[in]     listener     Any listener functions associated with the new topic (can be NULL).
- * @param[in]     sedp_plist   Topic description to be published as part of discovery (if NULL, not published).
- *
- * @returns       A valid, unique topic handle or an error code.
- */
-DDS_DEPRECATED_EXPORT dds_entity_t
-dds_create_topic_arbitrary (
-  dds_entity_t participant,
-  struct ddsi_sertopic *sertopic,
   const dds_qos_t *qos,
   const dds_listener_t *listener,
   const struct ddsi_plist *sedp_plist);

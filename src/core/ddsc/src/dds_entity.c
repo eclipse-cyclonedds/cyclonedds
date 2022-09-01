@@ -741,7 +741,7 @@ static dds_return_t dds_set_qos_locked_raw (dds_entity *e, dds_qos_t **e_qos_ptr
 
   /* Any attempt to do this on a topic ends up doing it on the ktopic instead, so that there is
      but a single QoS for a topic in a participant while there can be multiple definitions of it,
-     and hence, multiple sertopics.  Those are needed for multi-language support. */
+     and hence, multiple sertypes.  Those are needed for multi-language support. */
   dds_qos_t *newqos = dds_create_qos ();
   ddsi_xqos_mergein_missing (newqos, qos, mask);
   ddsi_xqos_mergein_missing (newqos, *e_qos_ptr, ~(uint64_t)0);

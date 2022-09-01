@@ -30,7 +30,6 @@
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/ddsi_sertype.h"
-#include "dds/ddsi/ddsi_sertopic.h"
 #include "dds/ddsi/q_ddsi_discovery.h"
 #include "dds/ddsi/ddsi_iid.h"
 #include "dds/ddsi/ddsi_plist.h"
@@ -503,7 +502,7 @@ dds_entity_t dds_create_topic_impl (
 
   /* See if we're allowed to create the topic; ktp is returned pinned & locked (protected by pp's lock)
      so we can be sure it doesn't disappear and its QoS can't change */
-  GVTRACE ("dds_create_topic_generic (pp %p "PGUIDFMT" sertype %p reg?%s refc %"PRIu32" %s/%s)\n",
+  GVTRACE ("dds_create_topic_impl (pp %p "PGUIDFMT" sertype %p reg?%s refc %"PRIu32" %s/%s)\n",
            (void *) pp, PGUID (pp->m_entity.m_guid), (void *) (*sertype),
            (ddsrt_atomic_ld32 (&(*sertype)->flags_refc) & DDSI_SERTYPE_REGISTERED) ? "yes" : "no",
            ddsrt_atomic_ld32 (&(*sertype)->flags_refc) & DDSI_SERTYPE_REFC_MASK,
@@ -512,7 +511,7 @@ dds_entity_t dds_create_topic_impl (
   struct dds_ktopic *ktp;
   if ((rc = lookup_and_check_ktopic (&ktp, pp, name, new_qos)) != DDS_RETCODE_OK)
   {
-    GVTRACE ("dds_create_topic_generic: failed after compatibility check: %s\n", dds_strretcode (rc));
+    GVTRACE ("dds_create_topic_impl: failed after compatibility check: %s\n", dds_strretcode (rc));
     ddsrt_mutex_unlock (&pp->m_entity.m_mutex);
     goto error;
   }
@@ -542,10 +541,10 @@ dds_entity_t dds_create_topic_impl (
   {
     ddsrt_mutex_lock (&gv->sertypes_lock);
     if ((sertype_registered = ddsi_sertype_lookup_locked (gv, *sertype)) != NULL)
-      GVTRACE ("dds_create_topic_generic: reuse sertype %p\n", (void *) sertype_registered);
+      GVTRACE ("dds_create_topic_impl: reuse sertype %p\n", (void *) sertype_registered);
     else
     {
-      GVTRACE ("dds_create_topic_generic: register new sertype %p\n", (void *) (*sertype));
+      GVTRACE ("dds_create_topic_impl: register new sertype %p\n", (void *) (*sertype));
       ddsi_sertype_register_locked (gv, *sertype);
       sertype_registered = *sertype;
     }
@@ -562,7 +561,7 @@ dds_entity_t dds_create_topic_impl (
     ddsi_sertype_unref (*sertype);
     ktopic_unref (pp, ktp);
     ddsrt_mutex_unlock (&pp->m_entity.m_mutex);
-    GVTRACE ("dds_create_topic_generic: invalid type\n");
+    GVTRACE ("dds_create_topic_impl: invalid type\n");
     rc = DDS_RETCODE_BAD_PARAMETER;
     goto error_typeref;
   }
@@ -585,7 +584,7 @@ dds_entity_t dds_create_topic_impl (
   }
 
   dds_entity_unpin (&pp->m_entity);
-  GVTRACE ("dds_create_topic_generic: new topic %"PRId32"\n", hdl);
+  GVTRACE ("dds_create_topic_impl: new topic %"PRId32"\n", hdl);
   return hdl;
 
  error:
@@ -600,46 +599,6 @@ error_typeref:
 dds_entity_t dds_create_topic_sertype (dds_entity_t participant, const char *name, struct ddsi_sertype **sertype, const dds_qos_t *qos, const dds_listener_t *listener, const ddsi_plist_t *sedp_plist)
 {
   return dds_create_topic_impl (participant, name, false, sertype, qos, listener, sedp_plist, false);
-}
-
-dds_entity_t dds_create_topic_generic (dds_entity_t participant, struct ddsi_sertopic **sertopic, const dds_qos_t *qos, const dds_listener_t *listener, const ddsi_plist_t *sedp_plist)
-{
-  if (sertopic == NULL || *sertopic == NULL || (*sertopic)->name == NULL)
-    return DDS_RETCODE_BAD_PARAMETER;
-
-  dds_entity_t ret;
-  struct ddsi_sertype *sertype = ddsi_sertype_from_sertopic (*sertopic);
-  ret = dds_create_topic_impl (participant, (*sertopic)->name, false, &sertype, qos, listener, sedp_plist, false);
-  if (ret < 0)
-  {
-    // sertype_from_sertopic incremented the refcount, so decrementing it on failure will
-    // free sertype but leave *sertopic untouched
-    ddsi_sertype_unref (sertype);
-  }
-  else
-  {
-    // sertype incremented the refcount, we still need to undo it
-    ddsi_sertopic_unref (*sertopic);
-    // we should never have a sertype that doesn't a sertopic if we started with a sertopic
-    // because the vtables are necessarily different; it may but need not be the same as
-    // *sertopic on input
-    assert (sertype->wrapped_sertopic != NULL);
-    *sertopic = sertype->wrapped_sertopic;
-  }
-  return ret;
-}
-
-dds_entity_t dds_create_topic_arbitrary (dds_entity_t participant, struct ddsi_sertopic *sertopic, const dds_qos_t *qos, const dds_listener_t *listener, const ddsi_plist_t *sedp_plist)
-{
-  if (sertopic == NULL)
-    return DDS_RETCODE_BAD_PARAMETER;
-
-  dds_entity_t ret;
-  struct ddsi_sertopic *st = sertopic;
-  ddsi_sertopic_ref (st);
-  if ((ret = dds_create_topic_generic (participant, &st, qos, listener, sedp_plist)) < 0)
-    ddsi_sertopic_unref (st);
-  return ret;
 }
 
 dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descriptor_t *desc, const char *name, const dds_qos_t *qos, const dds_listener_t *listener)

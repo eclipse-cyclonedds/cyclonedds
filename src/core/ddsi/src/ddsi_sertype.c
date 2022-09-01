@@ -182,7 +182,6 @@ void ddsi_sertype_init_flags (struct ddsi_sertype *tp, const char *type_name, co
   tp->fixed_size = (flags & DDSI_SERTYPE_FLAG_FIXED_SIZE) ? 1u : 0u;
   tp->allowed_data_representation = DDS_DATA_REPRESENTATION_RESTRICT_DEFAULT;
   tp->base_sertype = NULL;
-  tp->wrapped_sertopic = NULL;
 #ifdef DDS_HAS_SHM
   tp->iox_size = 0;
 #endif

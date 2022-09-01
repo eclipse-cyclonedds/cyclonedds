@@ -33,19 +33,6 @@ enum ddsi_serdata_kind {
 };
 
 struct ddsi_serdata {
-  // Backwards compatibility support for ddsi_sertopic (which is intended to exist
-  // only for a little while, have to see how that works out ...) relies on reading
-  // and writing the first few fields of ddsi_serdata regardless of whether it is a
-  // new or an old one.
-  //
-  // At a minimum, it needs to look at "ops" for this.  Currently, because the old
-  // serdata is a prefix of the new serdata anyway, it also looks directly at "type"
-  // in dds_writecdr_impl, and elsewhere it simply timestamp and statusinfo.
-  //
-  // So don't change anything of the layout up to and including "twrite" unless
-  // checking the compatibility code in ddsi_sertopic.c, dds_writecdr_impl and
-  // dds_readcdr_impl.
-
   const struct ddsi_serdata_ops *ops; /* cached from type->serdata_ops */
   uint32_t hash;
   ddsrt_atomic_uint32_t refc;
@@ -63,11 +50,6 @@ struct ddsi_serdata {
   void* iox_chunk;
   void* iox_subscriber; // actually: iox_sub_t *
 #endif
-};
-
-struct ddsi_serdata_wrapper {
-  struct ddsi_serdata c;
-  void *compat_wrap;
 };
 
 /* Serialised size of sample inclusive of DDSI encoding header
@@ -212,9 +194,6 @@ DDS_EXPORT void ddsi_serdata_init (struct ddsi_serdata *d, const struct ddsi_ser
  * @returns A pointer to the keyhash in the message if it was present, NULL if not. The lifetime is at least that of the fragchain itself.
  */
 const ddsi_keyhash_t *ddsi_serdata_keyhash_from_fragchain (const struct nn_rdata *fragchain);
-
-/* backwards compatibility: wrap a sertopic-derived serdata so that it may be used as a sertype-derived one; increments refcount */
-struct ddsi_serdata *ddsi_sertopic_wrap_serdata (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, void *old);
 
 /**
  * @brief Return a reference to a serdata with possible type conversion

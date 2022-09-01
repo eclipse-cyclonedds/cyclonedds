@@ -34,7 +34,6 @@ set(srcs_ddsi
   ddsi_sertype_default.c
   ddsi_sertype_pserop.c
   ddsi_sertype_plist.c
-  ddsi_sertopic.c
   ddsi_statistics.c
   ddsi_iid.c
   ddsi_tkmap.c
@@ -105,7 +104,6 @@ set(hdrs_private_ddsi
   ddsi_serdata_default.h
   ddsi_serdata_pserop.h
   ddsi_serdata_plist.h
-  ddsi_sertopic.h
   ddsi_statistics.h
   ddsi_iid.h
   ddsi_tkmap.h

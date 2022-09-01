@@ -106,8 +106,6 @@ int main (int argc, char **argv)
   dds_lookup_participant (0, ptr, 0);
   dds_create_topic (1, ptr, ptr, ptr, ptr);
   dds_create_topic_sertype (1, ptr, ptr, ptr, ptr, ptr);
-  dds_create_topic_generic (1, ptr, ptr, ptr, ptr);
-  dds_create_topic_arbitrary (1, ptr, ptr, ptr, ptr);
   dds_find_topic (0, 1, ptr, ptr, 0);
   dds_find_topic_scoped (0, 1, ptr, 0);
   dds_create_topic_descriptor (0, 1, ptr, 0, ptr);

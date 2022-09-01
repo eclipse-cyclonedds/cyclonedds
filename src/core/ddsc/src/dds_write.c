@@ -229,21 +229,14 @@ static struct ddsi_serdata_any *convert_serdata(struct ddsi_writer *ddsi_wr, str
     // dout refc: must consume 1
     // din refc: must consume 0 (it is an alias of dact)
   }
-  else if (din->a.type->ops->version == ddsi_sertype_v0)
+  else
   {
+    assert (din->a.type->ops->version == ddsi_sertype_v0);
     // deliberately allowing mismatches between d->type and ddsi_wr->type:
     // that way we can allow transferring data from one domain to another
     dout = (struct ddsi_serdata_any *) ddsi_serdata_ref_as_type (ddsi_wr->type, &din->a);
     // dout refc: must consume 1
     // din refc: must consume 1 (independent of dact: types are distinct)
-  }
-  else
-  {
-    // hope for the best (the type checks/conversions were missing in the
-    // sertopic days anyway, so this is simply bug-for-bug compatibility
-    dout = (struct ddsi_serdata_any *) ddsi_sertopic_wrap_serdata (ddsi_wr->type, din->a.kind, &din->a);
-    // dout refc: must consume 1
-    // din refc: must consume 1
   }
   return dout;
 }

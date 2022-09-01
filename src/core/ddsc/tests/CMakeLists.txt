@@ -49,7 +49,7 @@ set(ddsc_test_sources
     "listener.c"
     "liveliness.c"
     "loan.c"
-    "multi_sertopic.c"
+    "multi_sertype.c"
     "participant.c"
     "pp_lease_dur.c"
     "publisher.c"
