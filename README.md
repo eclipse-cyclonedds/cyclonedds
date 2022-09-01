@@ -146,6 +146,7 @@ There are some configuration options specified using CMake defines in addition t
 * `-DENABLE_TOPIC_DISCOVERY=NO`: to exclude support for topic discovery
 * `-DENABLE_SOURCE_SPECIFIC_MULTICAST=NO`: to disable support for source-specific multicast (disabling this and `-DENABLE_IPV6=NO` may be needed for QNX builds)
 * `-DENABLE_IPV6=NO`: to disable ipv6 support (disabling this and `-DENABLE_SOURCE_SPECIFIC_MULTICAST=NO` may be needed for QNX builds)
+* `-DBUILD_IDLC_XTESTS=NO`: Include a set of tests for the IDL compiler that use the C back-end to compile an idl file at (test) runtime, and use the C compiler to build a test application for the generated types, that is executed to do the actual testing (not supported on Windows)
 
 ### For application developers
 
@@ -314,7 +315,7 @@ This example shows a few things:
     The default value (`default`) means priority `0` for normal interfaces and `2` for loopback interfaces.
 * `AllowMulticast` configures the circumstances under which multicast will be used.
   If the selected interface doesn't support it, it obviously won't be used (`false`); but if it does support it, the type of the network adapter determines the default value.
-  For a wired network, it will use multicast for initial discovery as well as for data when there are multiple peers that the data needs to go to (`true`). 
+  For a wired network, it will use multicast for initial discovery as well as for data when there are multiple peers that the data needs to go to (`true`).
   On a WiFi network it will use it only for initial discovery (`spdp`), because multicast on WiFi is very unreliable.
 * `EnableTopicDiscoveryEndpoints` turns on topic discovery (assuming it is enabled at compile time), it is disabled by default because it isn't used in many system and comes with a significant amount of overhead in discovery traffic.
 * `Verbosity` allows control over the tracing, "config" dumps the configuration to the trace output (which defaults to "cyclonedds.log", but here the process id is appended).

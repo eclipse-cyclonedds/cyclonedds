@@ -264,7 +264,7 @@ script:
           -DENABLE_TOPIC_DISCOVERY=${TOPIC_DISCOVERY}
           -DENABLE_COVERAGE=${CODECOV}
           -DBUILD_TESTING=on
-          -DBUILD_IDLC_TESTING=on
+          -DBUILD_IDLC_XTESTS=on
           -DBUILD_EXAMPLES=on
           -DWERROR=on
           -G "${GENERATOR}" ..
