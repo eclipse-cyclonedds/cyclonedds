@@ -57,6 +57,7 @@ jobs:
         cc: gcc-10
         testing: off
         idlc_xtests: off
+        conan_shared_objects: True
       'Ubuntu 18.04 LTS with GCC 7 (Debug, x86_64)':
         image: ubuntu-18.04
         conanfile: conanfile102.txt
