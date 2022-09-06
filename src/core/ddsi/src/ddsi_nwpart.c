@@ -18,6 +18,7 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_domaingv.h"
+#include "dds/ddsi/ddsi_ipaddr.h"
 #include "dds/ddsi/ddsi_tran.h"
 #include "dds/ddsi/ddsi_nwpart.h"
 #include "dds/ddsi/ddsi_xqos.h"
@@ -233,6 +234,19 @@ static void nwpart_iter_append_address (struct nwpart_iter *it, const char *tok,
         loc_to_use = it->gv->interfaces[interf_idx].extloc;
         break;
       case DNAR_LOCAL:
+        // specialised case for IPv4: IPv4 addresses have a network/host split, and we
+        // require that for this match to work, the host part must be all 0.  A sanity
+        // check, if you will.
+        if (loc->kind == NN_LOCATOR_KIND_UDPv4 || loc->kind == NN_LOCATOR_KIND_TCPv4)
+        {
+          union { struct sockaddr_in ip; struct sockaddr_storage x; } ip, nm;
+          ddsi_ipaddr_from_loc (&ip.x, loc);
+          ddsi_ipaddr_from_loc (&nm.x, &it->gv->interfaces[interf_idx].netmask);
+          if ((ip.ip.sin_addr.s_addr & ~nm.ip.sin_addr.s_addr) != 0)
+            nwpart_iter_error (it, tok, "IPv4 address match on network component but host part not 0");
+        }
+        loc_to_use = it->gv->interfaces[interf_idx].extloc;
+        break;
       case DNAR_DISTANT:
       case DNAR_UNREACHABLE:
         nwpart_iter_error (it, tok, "address does not match a local interface");

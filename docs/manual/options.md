@@ -1106,6 +1106,7 @@ The default value is: "".
 Text
 
 This attribute specifies the addresses associated with the network partition as a comma-separated list. The addresses are typically multicast addresses. Non-multicast addresses are allowed, provided the "Interface" attribute is not used: * An address matching the address or the "external address" (see General/ExternalNetworkAddress; default is the actual address) of a configured interface results in adding the corresponding "external" address to the set of advertised unicast addresses.
+ * An address corresponding to the (external) address of a configured interface, but not the address of the host itself, for example, a match when masking the addresses with the netmask for IPv4, results in adding the external address. For IPv4, this requires the host part to be all-zero.
 Readers matching this network partition (cf. Partitioning/PartitionMappings) will advertise all addresses listed to the matching writers via the discovery protocol and will join the specified multicast groups. The writers will select the most suitable address from the addresses advertised by the readers.
 
 The unicast addresses advertised by a reader are the only unicast addresses a writer will use to send data to it and are used to select the subset of network interfaces to use for transmitting multicast data with the intent of reaching it.
@@ -1875,7 +1876,7 @@ The categorisation of tracing output is incomplete and hence most of the verbosi
 The default value is: "none".
 <!--- generated from ddsi_config.h[75edea6617af11bacc46f91e519773f6df580655] -->
 <!--- generated from ddsi_cfgunits.h[fc550f1620aa20dcd9244ef4e24299d5001efbb4] -->
-<!--- generated from ddsi_cfgelems.h[99e656a36c0576b78a1535de54d76a36b9d94927] -->
+<!--- generated from ddsi_cfgelems.h[cd3baa0178cce15e0974acd0a14723100d5308b8] -->
 <!--- generated from ddsi_config.c[98486715ac072b7b3cc3a449d55676be1218c98c] -->
 <!--- generated from _confgen.h[01ffa8a2e53b2309451756861466551cfe28c8ce] -->
 <!--- generated from _confgen.c[112cf655ac336075d1b301972ac38840ac2119d6] -->
