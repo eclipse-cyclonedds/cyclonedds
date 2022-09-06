@@ -213,6 +213,7 @@ static bool nwpart_iter_ok (const struct nwpart_iter *it)
 static void nwpart_iter_append_address (struct nwpart_iter *it, const char *tok, const ddsi_locator_t *loc, uint32_t port)
 {
   struct ddsi_networkpartition_address ***nextpp;
+  ddsi_locator_t loc_to_use = *loc;
   if (ddsi_is_mcaddr (it->gv, loc))
   {
 #ifdef DDS_HAS_SSM
@@ -224,9 +225,12 @@ static void nwpart_iter_append_address (struct nwpart_iter *it, const char *tok,
   else
   {
     nextpp = &it->nextp_uc;
-    switch (ddsi_is_nearby_address (it->gv, loc, (size_t) it->gv->n_interfaces, it->gv->interfaces, NULL))
+    size_t interf_idx;
+    switch (ddsi_is_nearby_address (it->gv, loc, (size_t) it->gv->n_interfaces, it->gv->interfaces, &interf_idx))
     {
       case DNAR_SELF:
+        // always advertise the configured external address
+        loc_to_use = it->gv->interfaces[interf_idx].extloc;
         break;
       case DNAR_LOCAL:
       case DNAR_DISTANT:
@@ -242,7 +246,7 @@ static void nwpart_iter_append_address (struct nwpart_iter *it, const char *tok,
     nwpart_iter_error (it, tok, "out of memory");
   else
   {
-    (**nextpp)->loc = *loc;
+    (**nextpp)->loc = loc_to_use;
     (**nextpp)->loc.port = port;
     (**nextpp)->next = NULL;
     DDSRT_WARNING_MSVC_OFF(6011);
