@@ -137,45 +137,6 @@ Note that the writer linger duration setting is currently not applied when Eclip
 is requested to terminate.
 
 
-.. _`Start-up mode`:
-
-=============
-Start-up Mode
-=============
-
-A similar issue exists when starting Eclipse Cyclone DDS: DDSI discovery takes time, and when
-data is written immediately after the first participant was created, it is likely that
-the discovery process hasn’t completed yet and some remote readers have not yet been
-discovered.  This would cause the writers to throw away samples for lack of interest,
-even though matching readers already existed at the time of starting.  For best-effort
-writers, this is perhaps surprising but still acceptable; for reliable writers, however,
-it would be very counter-intuitive.
-
-Hence the existence of the so-called *start-up mode*, during which all volatile reliable
-writers are treated as-if they are transient-local writers.  Transient-local data is
-meant to ensure samples are available to late-joining readers, the start-up mode uses
-this same mechanism to ensure late-discovered readers will also receive the data.  This
-treatment of volatile data as-if it were transient-local happens internally and is
-invisible to the outside world, other than the availability of some samples that would
-not otherwise be available.
-
-Once initial discovery has been completed, any new local writers can be matched locally
-against already existing readers, and consequently keeps any new samples published in a
-writer history cache because these existing readers have not acknowledged them yet.
-Hence why this mode is tied to the start-up of the DDSI stack, rather than to that of an
-individual writer.
-
-Unfortunately it is impossible to detect with certainty when the initial discovery
-process has been completed and therefore the duration of this start-up mode is
-controlled by an option: ``General/StartupModeDuration``.
-
-While in general this start-up mode is beneficial, it is not always so.  There are two
-downsides: the first is that during the start-up period, the writer history caches can
-grow significantly larger than one would normally expect; the second is that it does
-mean large amounts of historical data may be transferred to readers discovered
-relatively late in the process.
-
-
 .. _`Writer history QoS and throttling`:
 
 =================================
@@ -528,39 +489,6 @@ Although the SEDP protocol never requires any configuration, network partitionin
 interact with it: so-called ‘ignored partitions’ can be used to instruct Eclipse Cyclone DDS to
 completely ignore certain DCPS topic and partition combinations, which will prevent data
 for these topic/partition combinations from being forwarded to and from the network.
-
-
-.. _`Combining multiple participants`:
-
-*******************************
-Combining Multiple Participants
-*******************************
-
-If a single process creates multiple participants, these are faithfully mirrored in DDSI
-participants and so a single process can appear as if it is a large system with many
-participants.  The ``Internal/SquashParticipants`` option can be used to simulate the
-existence of only one participant, which owns all endpoints on that node.  This reduces
-the background messages because far fewer liveliness assertions need to be sent, but
-there are some downsides.
-
-Firstly, the liveliness monitoring features that are related to domain participants will
-be affected if multiple DCPS domain participants are combined into a single DDSI domain
-participant.  For the ‘automatic’ liveliness setting, this is not an issue.
-
-Secondly, this option makes it impossible for tooling to show the actual system
-topology.
-
-Thirdly, the QoS of this sole participant is simply that of the first participant
-created in the process.  In particular, no matter what other participants specify as
-their ‘user data’, it will not be visible on remote nodes.
-
-There is an alternative that sits between squashing participants and normal operation,
-and that is setting ``Internal/BuiltinEndpointSet`` to ``minimal``. In the default
-setting, each DDSI participant handled has its own writers for built-in topics and
-publishes discovery data on its own entities, but when set to ‘minimal’, only the first
-participant has these writers and publishes data on all entities. This is not fully
-compatible with other implementations as it means endpoint discovery data can be
-received for a participant that has not yet been discovered.
 
 
 .. _`Data path configuration`:
