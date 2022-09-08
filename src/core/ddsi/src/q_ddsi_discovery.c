@@ -1556,6 +1556,41 @@ static void addrset_from_locatorlists_collect_interfaces (const ddsi_xlocator_t 
   }
 }
 
+struct addrset *ddsi_get_endpoint_addrset (const struct ddsi_domaingv *gv, const ddsi_plist_t *datap, struct addrset *proxypp_as_default, const ddsi_locator_t *rst_srcloc)
+{
+  const nn_locators_t emptyset = { .n = 0, .first = NULL, .last = NULL };
+  const nn_locators_t *uc = (datap->present & PP_UNICAST_LOCATOR) ? &datap->unicast_locators : &emptyset;
+  const nn_locators_t *mc = (datap->present & PP_MULTICAST_LOCATOR) ? &datap->multicast_locators : &emptyset;
+  ddsi_locator_t srcloc;
+  if (rst_srcloc == NULL)
+    set_unspec_locator (&srcloc);
+  else // force use of source locator
+  {
+    uc = &emptyset;
+    srcloc = *rst_srcloc;
+  }
+
+  // any interface that works for the participant is presumed ok
+  interface_set_t intfs;
+  interface_set_init (&intfs);
+  addrset_forall (proxypp_as_default, addrset_from_locatorlists_collect_interfaces, &(struct addrset_from_locatorlists_collect_interfaces_arg){
+    .gv = gv, .intfs = &intfs
+  });
+  //GVTRACE(" {%d%d%d%d}", intfs.xs[0], intfs.xs[1], intfs.xs[2], intfs.xs[3]);
+  struct addrset *as = addrset_from_locatorlists (gv, uc, mc, &srcloc, &intfs);
+  // if SEDP gives:
+  // - no addresses, use ppant uni- and multicast addresses
+  // - only multicast, use those for multicast and use ppant address for unicast
+  // - only unicast, use only those (i.e., disable multicast for this reader)
+  // - both, use only those
+  // FIXME: then you can't do a specific unicast address + SSM ... oh well
+  if (addrset_empty (as))
+    copy_addrset_into_addrset_mc (gv, as, proxypp_as_default);
+  if (addrset_empty_uc (as))
+    copy_addrset_into_addrset_uc (gv, as, proxypp_as_default);
+  return as;
+}
+
 static void handle_sedp_alive_endpoint (const struct receiver_state *rst, seqno_t seq, ddsi_plist_t *datap /* note: potentially modifies datap */, ddsi_sedp_kind_t sedp_kind, const ddsi_guid_prefix_t *src_guid_prefix, nn_vendorid_t vendorid, ddsrt_wctime_t timestamp)
 {
 #define E(msg, lbl) do { GVLOGDISC (msg); goto lbl; } while (0)
@@ -1643,38 +1678,7 @@ static void handle_sedp_alive_endpoint (const struct receiver_state *rst, seqno_
     GVLOGDISC (" NEW");
   }
 
-  {
-    const nn_locators_t emptyset = { .n = 0, .first = NULL, .last = NULL };
-    const nn_locators_t *uc = (datap->present & PP_UNICAST_LOCATOR) ? &datap->unicast_locators : &emptyset;
-    const nn_locators_t *mc = (datap->present & PP_MULTICAST_LOCATOR) ? &datap->multicast_locators : &emptyset;
-    ddsi_locator_t srcloc;
-    if (!gv->config.tcp_use_peeraddr_for_unicast)
-      set_unspec_locator (&srcloc);
-    else
-    {
-      uc = &emptyset; // force use of source locator
-      srcloc = rst->srcloc;
-    }
-
-    // any interface that works for the participant is presumed ok
-    interface_set_t intfs;
-    interface_set_init (&intfs);
-    addrset_forall (proxypp->as_default, addrset_from_locatorlists_collect_interfaces, &(struct addrset_from_locatorlists_collect_interfaces_arg){
-      .gv = gv, .intfs = &intfs
-    });
-    //GVTRACE(" {%d%d%d%d}", intfs.xs[0], intfs.xs[1], intfs.xs[2], intfs.xs[3]);
-    as = addrset_from_locatorlists (gv, uc, mc, &srcloc, &intfs);
-    // if SEDP gives:
-    // - no addresses, use ppant uni- and multicast addresses
-    // - only multicast, use those for multicast and use ppant address for unicast
-    // - only unicast, use only those (i.e., disable multicast for this reader)
-    // - both, use only those
-    // FIXME: then you can't do a specific unicast address + SSM ... oh well
-    if (addrset_empty (as))
-      copy_addrset_into_addrset_mc (gv, as, proxypp->as_default);
-    if (addrset_empty_uc (as))
-      copy_addrset_into_addrset_uc (gv, as, proxypp->as_default);
-  }
+  as = ddsi_get_endpoint_addrset (gv, datap, proxypp->as_default, gv->config.tcp_use_peeraddr_for_unicast ? &rst->srcloc : NULL);
   if (addrset_empty (as))
   {
     unref_addrset (as);
