@@ -23,6 +23,8 @@ Welcome to Eclipse Cyclone DDS's documentation!
    security
    shared_memory
    ddsc
+   ddscxx
+   api      
 
 Indices and tables
 ==================
