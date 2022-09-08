@@ -10,7 +10,7 @@ Getting Started
 Installing Eclipse Cyclone DDS
 ==============================
 
-Eclipse Cyclone DDS is a very performant and robust OMG compliant Data
+Eclipse Cyclone DDS is a very performant and robust OMG-compliant Data
 Distribution Service (DDS) implementation. Cyclone DDS core is
 implemented in C and provides C-APIs to applications. Through its
 Cyclonedds-cxx package, the ISO/IEC C++ 2003 language binding is
@@ -18,7 +18,7 @@ supported.
 
 The first chapters detail the installation and build process of Cyclone
 Core, including the C-APIs. The remaining chapters details how to
-install the C++ support packages. Short tutorials in C and C++ are
+install the C++ support packages. Short C, C++, and Python tutorials are
 detailed to give the reader examples of how the DDS technology is used
 with Cyclone to share data.
 
@@ -26,8 +26,8 @@ System requirements
 ~~~~~~~~~~~~~~~~~~~
 
 At the time of writing this document, Eclipse Cyclone DDS supports
-Linux, macOS, and Windows and is known to work on FreeRTOS, QNX and the
-solaris-like Openindiana OS.
+Linux, macOS, and Windows and is known to work on FreeRTOS, QNX, and the
+Solaris-like Openindiana OS.
 
 To build the Cyclone DDS implementation, the following software should
 be installed on your machine:
