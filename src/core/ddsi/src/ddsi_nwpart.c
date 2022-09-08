@@ -335,12 +335,85 @@ static int convert_network_partition_interfaces (struct ddsi_domaingv *gv, uint3
   return nwpart_iter_fini (&npit) ? 0 : -1;
 }
 
+static bool nwpart_has_multicast (const struct ddsi_config_networkpartition_listelem *np)
+{
+  if (np->asm_addresses)
+    return true;
+#ifdef DDS_HAS_SSM
+  if (np->ssm_addresses)
+    return true;
+#endif
+  return false;
+}
+
+static bool mc_capable_ifs_exist (const struct ddsi_domaingv *gv)
+{
+  for (int i = 0; i < gv->n_interfaces; i++)
+    if (gv->interfaces[i].mc_capable)
+      return true;
+  return false;
+}
+
+static bool mc_capable_ifs_used_in_nwpart (const struct ddsi_domaingv *gv, const struct ddsi_config_networkpartition_listelem *np)
+{
+  if (np->uc_addresses == NULL)
+  {
+    // No unicast addresses specified for the network partition: inheriting them
+    // from the participant, therefore using all interfaces and we should check
+    // if there is at least one multicast-capable interface
+    return mc_capable_ifs_exist (gv);
+  }
+  else
+  {
+    // Unicast addresses specified: restricting the set of network interfaces used
+    // and we should check whether there is a multicast-capable one among this subset.
+    // Since we're not directly tracking interfaces, we have to look up the interface
+    // addresses.  As long as only a handful of interfaces can be used simultaneously,
+    // a loop that scales badly is ok, especially given that all this is only done at
+    // startup.
+    for (struct ddsi_networkpartition_address *a = np->uc_addresses; a; a = a->next)
+    {
+      int i;
+      for (i = 0; i < gv->n_interfaces; i++)
+      {
+        const struct ddsi_network_interface *intf = &gv->interfaces[i];
+        if (intf->extloc.kind == a->loc.kind && memcmp (intf->extloc.address, a->loc.address, sizeof (a->loc.address)) == 0)
+          break;
+      }
+      assert (i < gv->n_interfaces);
+      if (gv->interfaces[i].mc_capable)
+        return true;
+    }
+    return false;
+  }
+}
+
+static int check_nwpart_address_consistency (struct ddsi_domaingv *gv)
+{
+  // Each network partition needs to define at least some addresses
+  // Any n.p. that specifies multicast addresses must have at least
+  // one mc-capable interface
+  struct nwpart_iter npit;
+  nwpart_iter_init (&npit, gv);
+  struct ddsi_config_networkpartition_listelem *np;
+  while ((np = nwpart_iter_next (&npit)) != NULL)
+  {
+    if (!np->uc_addresses && !nwpart_has_multicast (np))
+      nwpart_iter_error (&npit, "", "network partition has no addresses");
+    else if (nwpart_has_multicast (np) && !mc_capable_ifs_used_in_nwpart (gv, np))
+      nwpart_iter_error (&npit, "", "network partition specifies multicast addresses but no multicast-capable interfaces selected");
+  }
+  return nwpart_iter_fini (&npit) ? 0 : -1;
+}
+
 int convert_network_partition_config (struct ddsi_domaingv *gv, uint32_t port_data_uc)
 {
   int rc;
   if ((rc = convert_network_partition_addresses (gv, port_data_uc)) < 0)
     return rc;
   if ((rc = convert_network_partition_interfaces (gv, port_data_uc)) < 0)
+    return rc;
+  if ((rc = check_nwpart_address_consistency (gv)) < 0)
     return rc;
   return 0;
 }
