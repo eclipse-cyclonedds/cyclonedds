@@ -17,6 +17,7 @@ mkdir build
 cd build
 cmake \
     -DBUILD_IDLC=ON \
+    -DBUILD_TESTING=ON \
     -DBUILD_SHARED_LIBS=OFF \
     -DBUILD_EXAMPLES=NO \
     -DENABLE_SECURITY=NO \
