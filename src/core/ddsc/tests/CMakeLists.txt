@@ -50,6 +50,7 @@ set(ddsc_test_sources
     "liveliness.c"
     "loan.c"
     "multi_sertype.c"
+    "nwpart.c"
     "participant.c"
     "pp_lease_dur.c"
     "publisher.c"
