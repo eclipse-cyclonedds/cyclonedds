@@ -29,8 +29,7 @@ At the time of writing this document, Eclipse Cyclone DDS supports
 Linux, macOS, and Windows and is known to work on FreeRTOS, QNX, and the
 Solaris-like Openindiana OS.
 
-To build the Cyclone DDS implementation, the following software should
-be installed on your machine:
+Before building the Cyclone DDS implementation, make sure you have the following software installed on your machine:
 
 * A C compiler (most commonly GCC or clang on Linux, Visual Studio on Windows, XCode on macOS);
 * `Git <https://git-scm.com/>`__ version control system;
@@ -62,8 +61,8 @@ To obtain the Eclipse Cyclone DDS:
     cd cyclonedds
     mkdir build
 
-Then, depending on whether you like to develop applications using
-Cyclone DDS or contribute to it, you may follow different procedures.
+Please note: Use the appropriate procedure according to your specific needs. 
+For example, a different procedure is required if you develop applications using Cyclone DDS versus contributing to it.
 
 For Application Developers
 ''''''''''''''''''''''''''
@@ -79,7 +78,7 @@ own applications using Cyclone DDS in a few simple steps.
 
 To install it after a successful build:
 
-Depending on the installation location, you may need administrator
+Depending on the installation location, you may need an administrator
 privileges.
 
 .. code-block:: bash
