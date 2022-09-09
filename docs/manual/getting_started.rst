@@ -25,12 +25,25 @@ with Cyclone to share data.
 Before You Get Started with Eclipse Cyclone DDS
 ===============================================
 
+Before building the Cyclone DDS implementation, make sure you meet all the system prerequisites, Failure to meet the prerequisites 
+will cause the build to fail.
+
+System prerequisites
+~~~~~~~~~~~~~~~~~~~~
+Add the system prereqs here
+
+Supported platforms
+~~~~~~~~~~~~~~~~~~~
 At the time of writing this document, Eclipse Cyclone DDS supports
 Linux, macOS, and Windows and is known to work on FreeRTOS, QNX, and the
 Solaris-like Openindiana OS.
 
-System requirements
-~~~~~~~~~~~~~~~~~~~
+Hardware requirements
+~~~~~~~~~~~~~~~~~~~~~
+Add the hardware reqs here
+
+Software requirements
+~~~~~~~~~~~~~~~~~~~~~
 
 Before building the Cyclone DDS implementation, make sure you have the following software installed on your machine:
 
