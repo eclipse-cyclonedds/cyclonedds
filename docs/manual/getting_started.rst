@@ -16,11 +16,14 @@ implemented in C and provides C-APIs to applications. Through its
 Cyclonedds-cxx package, the ISO/IEC C++ 2003 language binding is
 supported.
 
-The first chapters detail the installation and build process of Cyclone
-Core, including the C-APIs. The remaining chapters details how to
-install the C++ support packages. Short C, C++, and Python tutorials are
+This publication provides detailed information about how Install Eclipse Cyclone DDS.
+The chapters will cover:
+
+Chapter 1.  (Add hyperlinks here to these sections) The installation and build process of Cyclone Core including the C-APIs. 
+Chapter 2.  (Add hyperlinks here to these sections) Install the C++ support packages. Short C, C++, and Python tutorials are
 detailed to give the reader examples of how the DDS technology is used
 with Cyclone to share data.
+
 
 Before You Get Started with Eclipse Cyclone DDS
 ===============================================
