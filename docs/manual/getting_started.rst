@@ -22,12 +22,15 @@ install the C++ support packages. Short C, C++, and Python tutorials are
 detailed to give the reader examples of how the DDS technology is used
 with Cyclone to share data.
 
-System requirements
-~~~~~~~~~~~~~~~~~~~
+Before You Get Started with Eclipse Cyclone DDS
+===============================================
 
 At the time of writing this document, Eclipse Cyclone DDS supports
 Linux, macOS, and Windows and is known to work on FreeRTOS, QNX, and the
 Solaris-like Openindiana OS.
+
+System requirements
+~~~~~~~~~~~~~~~~~~~
 
 Before building the Cyclone DDS implementation, make sure you have the following software installed on your machine:
 
