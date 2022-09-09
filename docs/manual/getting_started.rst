@@ -56,6 +56,11 @@ Before building the Cyclone DDS implementation, make sure you have the following
 * Optionally `OpenSSL <https://www.openssl.org/>`__, preferably version 1.1 or
   later to use TLS over TCP. If you need to reduce the footprint or have issues with the FindOpenSSL CMake script, you can explicitly
   disable this by setting ENABLE\_SSL=NO
+  
+Post Installation Requirements
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Add (if any) post installation considerations here
+
 
 On Linux, install these dependencies with a package manager of your choice:
 
