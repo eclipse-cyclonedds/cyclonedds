@@ -160,7 +160,7 @@ dds_get_log_mask(void)
  *
  * @param[in]  cats  Log and trace categories to enable.
  */
-void
+DDS_EXPORT void
 dds_set_log_mask(
     uint32_t cats);
 

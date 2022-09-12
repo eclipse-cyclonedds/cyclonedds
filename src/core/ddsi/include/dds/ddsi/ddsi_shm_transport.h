@@ -68,15 +68,15 @@ void shm_lock_iox_sub(iox_sub_t sub);
 
 void shm_unlock_iox_sub(iox_sub_t sub);
 
-void free_iox_chunk(iox_sub_t *iox_sub, void **iox_chunk);
+DDS_EXPORT void free_iox_chunk(iox_sub_t *iox_sub, void **iox_chunk);
 
-iceoryx_header_t *iceoryx_header_from_chunk(const void *iox_chunk);
+DDS_EXPORT iceoryx_header_t *iceoryx_header_from_chunk(const void *iox_chunk);
 
 void shm_set_loglevel(enum ddsi_shm_loglevel);
 
 void *shm_create_chunk(iox_pub_t iox_pub, size_t size);
 
-void shm_set_data_state(void *iox_chunk,
+DDS_EXPORT void shm_set_data_state(void *iox_chunk,
                                    iox_shm_data_state_t data_state);
 
 iox_shm_data_state_t shm_get_data_state(void *iox_chunk);

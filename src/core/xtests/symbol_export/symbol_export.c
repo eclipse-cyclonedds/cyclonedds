@@ -59,7 +59,29 @@
 #include "dds/ddsc/dds_rhc.h"
 #include "dds/ddsc/dds_statistics.h"
 
+#ifdef DDS_HAS_SHM
+#include "dds/ddsi/ddsi_shm_transport.h"
+#endif
+
 DDSRT_WARNING_DEPRECATED_OFF
+
+#ifdef DDS_HAS_SECURITY
+static void test_DDS_Security_Exception_vset (void *ptr, const char *msg, ...)
+{
+  va_list ap;
+  va_start (ap, msg);
+  DDS_Security_Exception_vset (ptr, ptr, 0, 0, msg, ap);
+  va_end (ap);
+}
+#endif
+
+static void test_ddsrt_vasprintf (char **buf, const char *fmt, ...)
+{
+  va_list ap;
+  va_start (ap, fmt);
+  ddsrt_vasprintf (buf, fmt, ap);
+  va_end (ap);
+}
 
 /* Check that all exported functions are actually exported
    in case of a build that has testing disabled. All newly added
@@ -487,7 +509,7 @@ int main (int argc, char **argv)
   DDS_Security_HandleSeq_freebuf (ptr);
   DDS_Security_HandleSeq_free (ptr);
   DDS_Security_HandleSeq_deinit (ptr);
-  DDS_Security_Exception_vset (ptr, ptr, 0, 0, " ", NULL);
+  test_DDS_Security_Exception_vset (ptr, " ");
   DDS_Security_Exception_set (ptr, ptr, 0, 0, " ");
   DDS_Security_Exception_reset (ptr);
   DDS_Security_Exception_clean (ptr);
@@ -892,6 +914,7 @@ int main (int argc, char **argv)
 
   // ddsrt/log.h
   dds_log (0, ptr, 0, ptr, " ");
+  dds_set_log_mask (0); // ROS 2 rmw_cyclonedds_cpp needs this, probably erroneously
 
   // ddsrt/sockets.h
   ddsrt_gethostname (ptr, 0);
@@ -942,9 +965,18 @@ int main (int argc, char **argv)
   ddsrt_file_sep ();
 
   // ddsrt/io.h
-  ddsrt_vasprintf (ptr, ptr, NULL);
+  test_ddsrt_vasprintf (ptr, " ");
   ddsrt_asprintf (ptr, " ");
 
+#if DDS_HAS_SHM
+  // ddsi/ddsi_shm_transport.h
+  // - ROS 2 rmw_cyclonedds_cpp uses these
+  // - Iceoryx integration in ROS 2 will need rework anyway, so
+  //   best to keep these until we change that
+  free_iox_chunk (ptr, ptr2);
+  iceoryx_header_from_chunk (ptr);
+  shm_set_data_state (ptr, (iox_shm_data_state_t)0);
+#endif
   return 0;
 }
 
