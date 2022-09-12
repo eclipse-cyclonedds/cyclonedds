@@ -24,7 +24,7 @@ extern "C" {
 
 struct ddsi_domaingv;
 
-struct nn_interface {
+struct ddsi_network_interface {
   ddsi_locator_t loc; // actual interface address
   ddsi_locator_t extloc; // interface address to advertise in discovery
   ddsi_locator_t netmask;

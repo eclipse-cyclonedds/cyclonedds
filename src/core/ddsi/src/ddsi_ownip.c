@@ -44,7 +44,7 @@ enum find_interface_result {
   FIR_INVALID
 };
 
-static enum find_interface_result find_interface_by_name (const char *reqname, size_t n_interfaces, const struct nn_interface *interfaces, size_t *match)
+static enum find_interface_result find_interface_by_name (const char *reqname, size_t n_interfaces, const struct ddsi_network_interface *interfaces, size_t *match)
 {
   // see if there's an interface with this name
   for (size_t k = 0; k < n_interfaces; k++)
@@ -58,7 +58,7 @@ static enum find_interface_result find_interface_by_name (const char *reqname, s
   return FIR_NOTFOUND;
 }
 
-static enum find_interface_result find_interface_by_address (const struct ddsi_domaingv *gv, const char *reqip, size_t n_interfaces, const struct nn_interface *interfaces, size_t *match)
+static enum find_interface_result find_interface_by_address (const struct ddsi_domaingv *gv, const char *reqip, size_t n_interfaces, const struct ddsi_network_interface *interfaces, size_t *match)
 {
   // try matching on address
   ddsi_locator_t req;
@@ -123,7 +123,7 @@ enum maybe_add_interface_result {
   MAI_OUT_OF_MEMORY
 };
 
-static enum maybe_add_interface_result maybe_add_interface (struct ddsi_domaingv * const gv, struct nn_interface *dst, const ddsrt_ifaddrs_t *ifa, int *qout)
+static enum maybe_add_interface_result maybe_add_interface (struct ddsi_domaingv * const gv, struct ddsi_network_interface *dst, const ddsrt_ifaddrs_t *ifa, int *qout)
 {
   // returns quality >= 0 if added, < 0 otherwise
   char addrbuf[DDSI_LOCSTRLEN];
@@ -231,7 +231,7 @@ static enum maybe_add_interface_result maybe_add_interface (struct ddsi_domaingv
   return MAI_ADDED;
 }
 
-static bool gather_interfaces (struct ddsi_domaingv * const gv, size_t *n_interfaces, struct nn_interface **interfaces, size_t *maxq_count, size_t **maxq_list)
+static bool gather_interfaces (struct ddsi_domaingv * const gv, size_t *n_interfaces, struct ddsi_network_interface **interfaces, size_t *maxq_count, size_t **maxq_list)
 {
   ddsrt_ifaddrs_t *ifa_root = NULL;
   const int ret = ddsi_enumerate_interfaces(gv->m_factory, gv->config.transport_selector, &ifa_root);
@@ -265,7 +265,7 @@ static bool gather_interfaces (struct ddsi_domaingv * const gv, size_t *n_interf
       if ((new_maxq_list = ddsrt_realloc (*maxq_list, max_interfaces * sizeof (**maxq_list))) == NULL)
         goto fail;
       *maxq_list = new_maxq_list;
-      struct nn_interface *new_interfaces;
+      struct ddsi_network_interface *new_interfaces;
       if ((new_interfaces = ddsrt_realloc (*interfaces, max_interfaces * sizeof (**interfaces))) == NULL)
         goto fail;
       *interfaces = new_interfaces;
@@ -306,7 +306,7 @@ fail:
   return false;
 }
 
-static bool match_config_interface (struct ddsi_domaingv * const gv, size_t n_interfaces, struct nn_interface const * const interfaces, const struct ddsi_config_network_interface_listelem *iface, size_t *match, bool required)
+static bool match_config_interface (struct ddsi_domaingv * const gv, size_t n_interfaces, struct ddsi_network_interface const * const interfaces, const struct ddsi_config_network_interface_listelem *iface, size_t *match, bool required)
 {
   const bool has_name = iface->cfg.name != NULL && iface->cfg.name[0] != '\0';
   const bool has_address = iface->cfg.address != NULL && iface->cfg.address[0] != '\0';
@@ -361,7 +361,7 @@ static bool match_config_interface (struct ddsi_domaingv * const gv, size_t n_in
   return true;
 }
 
-static bool add_matching_interface (struct ddsi_domaingv *gv, struct interface_priority *matches, size_t *num_matches, struct nn_interface *act_iface, size_t xx_idx, const struct ddsi_config_network_interface_listelem *cfg_iface)
+static bool add_matching_interface (struct ddsi_domaingv *gv, struct interface_priority *matches, size_t *num_matches, struct ddsi_network_interface *act_iface, size_t xx_idx, const struct ddsi_config_network_interface_listelem *cfg_iface)
 {
   for (size_t i = 0; i < *num_matches; i++) {
     if (matches[i].match == xx_idx) {
@@ -397,7 +397,7 @@ static bool add_matching_interface (struct ddsi_domaingv *gv, struct interface_p
   return true;
 }
 
-static void log_arbitrary_selection (struct ddsi_domaingv *gv, const struct nn_interface *interfaces, const size_t *maxq_list, size_t maxq_count)
+static void log_arbitrary_selection (struct ddsi_domaingv *gv, const struct ddsi_network_interface *interfaces, const size_t *maxq_list, size_t maxq_count)
 {
   char addrbuf[DDSI_LOCSTRLEN];
   const size_t idx = maxq_list[0];
@@ -415,7 +415,7 @@ int find_own_ip (struct ddsi_domaingv *gv)
   GVLOG (DDS_LC_CONFIG, "interfaces:");
 
   size_t n_interfaces, maxq_count, *maxq_list;
-  struct nn_interface *interfaces;
+  struct ddsi_network_interface *interfaces;
   if (!gather_interfaces (gv, &n_interfaces, &interfaces, &maxq_count, &maxq_list))
     return 0;
 #ifndef NDEBUG

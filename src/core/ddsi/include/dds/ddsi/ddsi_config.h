@@ -82,8 +82,8 @@ struct ddsi_config_listelem {
 };
 
 #ifdef DDS_HAS_NETWORK_PARTITIONS
-struct networkpartition_address {
-  struct networkpartition_address *next;
+struct ddsi_networkpartition_address {
+  struct ddsi_networkpartition_address *next;
   ddsi_locator_t loc;
 };
 
@@ -91,10 +91,11 @@ struct ddsi_config_networkpartition_listelem {
   struct ddsi_config_networkpartition_listelem *next;
   char *name;
   char *address_string;
-  struct networkpartition_address *uc_addresses;
-  struct networkpartition_address *asm_addresses;
+  char *interface_names;
+  struct ddsi_networkpartition_address *uc_addresses;
+  struct ddsi_networkpartition_address *asm_addresses;
 #ifdef DDS_HAS_SSM
-  struct networkpartition_address *ssm_addresses;
+  struct ddsi_networkpartition_address *ssm_addresses;
 #endif
 };
 

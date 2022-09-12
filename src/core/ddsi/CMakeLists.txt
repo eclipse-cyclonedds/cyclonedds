@@ -22,6 +22,7 @@ set(srcs_ddsi
   ddsi_vnet.c
   ddsi_ipaddr.c
   ddsi_mcgroup.c
+  ddsi_nwpart.c
   ddsi_security_util.c
   ddsi_security_omg.c
   ddsi_portmapping.c
@@ -94,6 +95,7 @@ set(hdrs_private_ddsi
   ddsi_ipaddr.h
   ddsi_locator.h
   ddsi_mcgroup.h
+  ddsi_nwpart.h
   ddsi_plist_generic.h
   ddsi_security_util.h
   ddsi_security_omg.h

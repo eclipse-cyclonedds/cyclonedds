@@ -23,6 +23,7 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/ddsi_mcgroup.h"
+#include "dds/ddsi/ddsi_nwpart.h"
 #include "dds/ddsi/ddsi_udp.h"
 #include "dds/ddsi/ddsi_builtin_topic_if.h"
 #include "dds/ddsi/ddsi_wraddrset.h"
@@ -395,25 +396,10 @@ static bool is_onlylocal_endpoint (struct ddsi_participant *pp, const char *topi
 {
   if (builtintopic_is_builtintopic (pp->e.gv->builtin_topic_interface, type))
     return true;
-
 #ifdef DDS_HAS_NETWORK_PARTITIONS
-  char *ps_def = "";
-  char **ps;
-  uint32_t nps;
-  if ((xqos->present & QP_PARTITION) && xqos->partition.n > 0) {
-    ps = xqos->partition.strs;
-    nps = xqos->partition.n;
-  } else {
-    ps = &ps_def;
-    nps = 1;
-  }
-  for (uint32_t i = 0; i < nps; i++)
-  {
-    if (is_ignored_partition (&pp->e.gv->config, ps[i], topic_name))
-      return true;
-  }
+  if (ddsi_is_ignored_partition (pp->e.gv, xqos, topic_name))
+    return true;
 #endif
-
   return false;
 }
 
@@ -468,20 +454,6 @@ static void endpoint_common_fini (struct ddsi_entity_common *e, struct ddsi_endp
   }
   ddsi_entity_common_fini (e);
 }
-
-#ifdef DDS_HAS_NETWORK_PARTITIONS
-static const struct ddsi_config_networkpartition_listelem *get_partition_from_mapping (const struct ddsrt_log_cfg *logcfg, const struct ddsi_config *config, const char *partition, const char *topic)
-{
-  struct ddsi_config_partitionmapping_listelem *pm;
-  if ((pm = find_partitionmapping (config, partition, topic)) == NULL)
-    return 0;
-  else
-  {
-    DDS_CLOG (DDS_LC_DISCOVERY, logcfg, "matched writer for topic \"%s\" in partition \"%s\" to networkPartition \"%s\"\n", topic, partition, pm->networkPartition);
-    return pm->partition;
-  }
-}
-#endif /* DDS_HAS_NETWORK_PARTITIONS */
 
 static void augment_wr_prd_match (void *vnode, const void *vleft, const void *vright)
 {
@@ -830,14 +802,7 @@ static void ddsi_new_writer_guid_common_init (struct ddsi_writer *wr, const char
      partitions that match multiple network partitions.  From a safety
      point of view a wierd configuration. Here we chose the first one
      that we find */
-  {
-    char *ps_def = "";
-    char **ps = (wr->xqos->partition.n > 0) ? wr->xqos->partition.strs : &ps_def;
-    uint32_t nps = (wr->xqos->partition.n > 0) ? wr->xqos->partition.n : 1;
-    wr->network_partition = NULL;
-    for (uint32_t i = 0; i < nps && wr->network_partition == NULL; i++)
-      wr->network_partition = get_partition_from_mapping (&wr->e.gv->logconfig, &wr->e.gv->config, ps[i], wr->xqos->topic_name);
-  }
+  wr->network_partition = ddsi_get_partition_from_mapping (&wr->e.gv->logconfig, &wr->e.gv->config, wr->xqos, wr->xqos->topic_name);
 #endif /* DDS_HAS_NETWORK_PARTITIONS */
 
 #ifdef DDS_HAS_SSM
@@ -1344,18 +1309,6 @@ dds_return_t ddsi_delete_writer (struct ddsi_domaingv *gv, const struct ddsi_gui
 /* READER ----------------------------------------------------------- */
 
 #ifdef DDS_HAS_NETWORK_PARTITIONS
-static const struct ddsi_config_networkpartition_listelem *get_as_from_mapping (const struct ddsi_domaingv *gv, const char *partition, const char *topic)
-{
-  struct ddsi_config_partitionmapping_listelem *pm;
-  if ((pm = find_partitionmapping (&gv->config, partition, topic)) != NULL)
-  {
-    GVLOGDISC ("matched reader for topic \"%s\" in partition \"%s\" to networkPartition \"%s\"\n",
-               topic, partition, pm->networkPartition);
-    return pm->partition;
-  }
-  return NULL;
-}
-
 static void joinleave_mcast_helper (struct ddsi_domaingv *gv, ddsi_tran_conn_t conn, const ddsi_locator_t *n, const char *joinleavestr, int (*joinleave) (const struct ddsi_domaingv *gv, struct nn_group_membership *mship, ddsi_tran_conn_t conn, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc))
 {
   char buf[DDSI_LOCSTRLEN];
@@ -1397,6 +1350,60 @@ static void join_mcast_helper (struct ddsi_domaingv *gv, ddsi_tran_conn_t conn, 
 static void leave_mcast_helper (struct ddsi_domaingv *gv, ddsi_tran_conn_t conn, const ddsi_locator_t *n)
 {
   joinleave_mcast_helper (gv, conn, n, "leave", ddsi_leave_mc);
+}
+
+static void reader_init_network_partition (struct ddsi_reader *rd)
+{
+  struct ddsi_domaingv * const gv = rd->e.gv;
+  rd->uc_as = rd->mc_as = NULL;
+
+  {
+    /* compile address set from the mapped network partitions */
+    const struct ddsi_config_networkpartition_listelem *np;
+    np = ddsi_get_partition_from_mapping (&gv->logconfig, &gv->config, rd->xqos, rd->xqos->topic_name);
+    if (np)
+    {
+      rd->uc_as = np->uc_addresses;
+      rd->mc_as = np->asm_addresses;
+#ifdef DDS_HAS_SSM
+      if (np->ssm_addresses != NULL && (gv->config.allowMulticast & DDSI_AMC_SSM))
+        rd->favours_ssm = 1;
+#endif
+    }
+    if (rd->mc_as)
+    {
+      /* Iterate over all udp addresses:
+       *   - Set the correct portnumbers
+       *   - Join the socket if a multicast address
+       */
+      for (const struct ddsi_networkpartition_address *a = rd->mc_as; a != NULL; a = a->next)
+        join_mcast_helper (gv, gv->data_conn_mc, &a->loc);
+    }
+#ifdef DDS_HAS_SSM
+    else
+    {
+      /* Note: SSM requires NETWORK_PARTITIONS; if network partitions
+         do not override the default, we should check whether the
+         default is an SSM address. */
+      if (ddsi_is_ssm_mcaddr (gv, &gv->loc_default_mc) && (gv->config.allowMulticast & DDSI_AMC_SSM))
+        rd->favours_ssm = 1;
+    }
+#endif
+  }
+#ifdef DDS_HAS_SSM
+  if (rd->favours_ssm)
+    ELOGDISC (rd, "READER "PGUIDFMT" ssm=%d\n", PGUID (rd->e.guid), rd->favours_ssm);
+#endif
+  if ((rd->uc_as || rd->mc_as) && (gv->logconfig.c.mask & DDS_LC_DISCOVERY))
+  {
+    char buf[DDSI_LOCSTRLEN];
+    ELOGDISC (rd, "READER "PGUIDFMT" locators={", PGUID (rd->e.guid));
+    for (const struct ddsi_networkpartition_address *a = rd->uc_as; a != NULL; a = a->next)
+      ELOGDISC (rd, " %s", ddsi_locator_to_string (buf, sizeof (buf), &a->loc));
+    for (const struct ddsi_networkpartition_address *a = rd->mc_as; a != NULL; a = a->next)
+      ELOGDISC (rd, " %s", ddsi_locator_to_string (buf, sizeof (buf), &a->loc));
+    ELOGDISC (rd, " }\n");
+  }
 }
 #endif /* DDS_HAS_NETWORK_PARTITIONS */
 
@@ -1474,58 +1481,7 @@ dds_return_t ddsi_new_reader_guid (struct ddsi_reader **rd_out, const struct dds
 #endif
 
 #ifdef DDS_HAS_NETWORK_PARTITIONS
-  rd->uc_as = rd->mc_as = NULL;
-  {
-    /* compile address set from the mapped network partitions */
-    char *ps_def = "";
-    char **ps = (rd->xqos->partition.n > 0) ? rd->xqos->partition.strs : &ps_def;
-    uint32_t nps = (rd->xqos->partition.n > 0) ? rd->xqos->partition.n : 1;
-    const struct ddsi_config_networkpartition_listelem *np = NULL;
-    for (uint32_t i = 0; i < nps && np == NULL; i++)
-      np = get_as_from_mapping (pp->e.gv, ps[i], rd->xqos->topic_name);
-    if (np)
-    {
-      rd->uc_as = np->uc_addresses;
-      rd->mc_as = np->asm_addresses;
-#ifdef DDS_HAS_SSM
-      if (np->ssm_addresses != NULL && (rd->e.gv->config.allowMulticast & DDSI_AMC_SSM))
-        rd->favours_ssm = 1;
-#endif
-    }
-    if (rd->mc_as)
-    {
-      /* Iterate over all udp addresses:
-       *   - Set the correct portnumbers
-       *   - Join the socket if a multicast address
-       */
-      for (const struct networkpartition_address *a = rd->mc_as; a != NULL; a = a->next)
-        join_mcast_helper (pp->e.gv, pp->e.gv->data_conn_mc, &a->loc);
-    }
-#ifdef DDS_HAS_SSM
-    else
-    {
-      /* Note: SSM requires NETWORK_PARTITIONS; if network partitions
-         do not override the default, we should check whether the
-         default is an SSM address. */
-      if (ddsi_is_ssm_mcaddr (pp->e.gv, &pp->e.gv->loc_default_mc) && pp->e.gv->config.allowMulticast & DDSI_AMC_SSM)
-        rd->favours_ssm = 1;
-    }
-#endif
-  }
-#ifdef DDS_HAS_SSM
-  if (rd->favours_ssm)
-    ELOGDISC (pp, "READER "PGUIDFMT" ssm=%d\n", PGUID (rd->e.guid), rd->favours_ssm);
-#endif
-  if ((rd->uc_as || rd->mc_as) && (pp->e.gv->logconfig.c.mask & DDS_LC_DISCOVERY))
-  {
-    char buf[DDSI_LOCSTRLEN];
-    ELOGDISC (pp, "READER "PGUIDFMT" locators={", PGUID (rd->e.guid));
-    for (const struct networkpartition_address *a = rd->uc_as; a != NULL; a = a->next)
-      ELOGDISC (pp, " %s", ddsi_locator_to_string (buf, sizeof (buf), &a->loc));
-    for (const struct networkpartition_address *a = rd->mc_as; a != NULL; a = a->next)
-      ELOGDISC (pp, " %s", ddsi_locator_to_string (buf, sizeof (buf), &a->loc));
-    ELOGDISC (pp, " }\n");
-  }
+  reader_init_network_partition (rd);
 #endif
 
   ddsrt_avl_init (&ddsi_rd_writers_treedef, &rd->writers);
@@ -1585,7 +1541,7 @@ static void gc_delete_reader (struct ddsi_gcreq *gcreq)
 #ifdef DDS_HAS_NETWORK_PARTITIONS
   if (rd->mc_as)
   {
-    for (const struct networkpartition_address *a = rd->mc_as; a != NULL; a = a->next)
+    for (const struct ddsi_networkpartition_address *a = rd->mc_as; a != NULL; a = a->next)
       leave_mcast_helper (rd->e.gv, rd->e.gv->data_conn_mc, &a->loc);
   }
 #endif

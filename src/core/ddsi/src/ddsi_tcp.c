@@ -110,7 +110,7 @@ static const ddsrt_avl_treedef_t ddsi_tcp_treedef = DDSRT_AVL_TREEDEF_INITIALIZE
   0
 );
 
-static ddsi_tcp_conn_t ddsi_tcp_new_conn (struct ddsi_tran_factory_tcp *fact, const struct nn_interface *interf, ddsrt_socket_t, bool, struct sockaddr *);
+static ddsi_tcp_conn_t ddsi_tcp_new_conn (struct ddsi_tran_factory_tcp *fact, const struct ddsi_network_interface *interf, ddsrt_socket_t, bool, struct sockaddr *);
 
 static char *sockaddr_to_string_with_port (char *dst, size_t sizeof_dst, const struct sockaddr *src)
 {
@@ -808,7 +808,7 @@ static dds_return_t ddsi_tcp_create_conn (ddsi_tran_conn_t *conn_out, struct dds
   (void) qos;
   (void) port;
   struct ddsi_domaingv const * const gv = fact->fact.gv;
-  struct nn_interface const * const intf = qos->m_interface ? qos->m_interface : &gv->interfaces[0];
+  struct ddsi_network_interface const * const intf = qos->m_interface ? qos->m_interface : &gv->interfaces[0];
 
   fact->ddsi_tcp_conn_client.m_base.m_interf = intf;
   *conn_out = &fact->ddsi_tcp_conn_client.m_base;
@@ -932,7 +932,7 @@ static void ddsi_tcp_conn_peer_locator (ddsi_tran_conn_t conn, ddsi_locator_t * 
   GVLOG (DDS_LC_TCP, "(tcp EP:%s)", buff);
 }
 
-static void ddsi_tcp_base_init (const struct ddsi_tran_factory_tcp *fact, const struct nn_interface *interf, struct ddsi_tran_conn *base)
+static void ddsi_tcp_base_init (const struct ddsi_tran_factory_tcp *fact, const struct ddsi_network_interface *interf, struct ddsi_tran_conn *base)
 {
   ddsi_factory_conn_init (&fact->fact, interf, base);
   base->m_base.m_trantype = DDSI_TRAN_CONN;
@@ -944,7 +944,7 @@ static void ddsi_tcp_base_init (const struct ddsi_tran_factory_tcp *fact, const 
   base->m_locator_fn = ddsi_tcp_locator;
 }
 
-static ddsi_tcp_conn_t ddsi_tcp_new_conn (struct ddsi_tran_factory_tcp *fact, const struct nn_interface *interf, ddsrt_socket_t sock, bool server, struct sockaddr * peer)
+static ddsi_tcp_conn_t ddsi_tcp_new_conn (struct ddsi_tran_factory_tcp *fact, const struct ddsi_network_interface *interf, ddsrt_socket_t sock, bool server, struct sockaddr * peer)
 {
   ddsi_tcp_conn_t conn = ddsrt_malloc (sizeof (*conn));
 
@@ -1172,7 +1172,7 @@ static int ddsi_tcp_is_ssm_mcaddr (const struct ddsi_tran_factory *tran, const d
   return 0;
 }
 
-static enum ddsi_nearby_address_result ddsi_tcp_is_nearby_address (const ddsi_locator_t *loc, size_t ninterf, const struct nn_interface interf[], size_t *interf_idx)
+static enum ddsi_nearby_address_result ddsi_tcp_is_nearby_address (const ddsi_locator_t *loc, size_t ninterf, const struct ddsi_network_interface interf[], size_t *interf_idx)
 {
   return ddsi_ipaddr_is_nearby_address(loc, ninterf, interf, interf_idx);
 }

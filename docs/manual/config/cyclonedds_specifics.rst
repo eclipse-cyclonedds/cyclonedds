@@ -137,45 +137,6 @@ Note that the writer linger duration setting is currently not applied when Eclip
 is requested to terminate.
 
 
-.. _`Start-up mode`:
-
-=============
-Start-up Mode
-=============
-
-A similar issue exists when starting Eclipse Cyclone DDS: DDSI discovery takes time, and when
-data is written immediately after the first participant was created, it is likely that
-the discovery process hasn’t completed yet and some remote readers have not yet been
-discovered.  This would cause the writers to throw away samples for lack of interest,
-even though matching readers already existed at the time of starting.  For best-effort
-writers, this is perhaps surprising but still acceptable; for reliable writers, however,
-it would be very counter-intuitive.
-
-Hence the existence of the so-called *start-up mode*, during which all volatile reliable
-writers are treated as-if they are transient-local writers.  Transient-local data is
-meant to ensure samples are available to late-joining readers, the start-up mode uses
-this same mechanism to ensure late-discovered readers will also receive the data.  This
-treatment of volatile data as-if it were transient-local happens internally and is
-invisible to the outside world, other than the availability of some samples that would
-not otherwise be available.
-
-Once initial discovery has been completed, any new local writers can be matched locally
-against already existing readers, and consequently keeps any new samples published in a
-writer history cache because these existing readers have not acknowledged them yet.
-Hence why this mode is tied to the start-up of the DDSI stack, rather than to that of an
-individual writer.
-
-Unfortunately it is impossible to detect with certainty when the initial discovery
-process has been completed and therefore the duration of this start-up mode is
-controlled by an option: ``General/StartupModeDuration``.
-
-While in general this start-up mode is beneficial, it is not always so.  There are two
-downsides: the first is that during the start-up period, the writer history caches can
-grow significantly larger than one would normally expect; the second is that it does
-mean large amounts of historical data may be transferred to readers discovered
-relatively late in the process.
-
-
 .. _`Writer history QoS and throttling`:
 
 =================================
@@ -231,65 +192,82 @@ things can continue at a much lower rate.
 Network and Discovery Configuration
 ***********************************
 
-.. _`Networking interfaces`:
+.. _`Networking interfaces and addresses`:
 
-=====================
-Networking Interfaces
-=====================
+===================================
+Networking interfaces and addresses
+===================================
 
-Eclipse Cyclone DDS uses a single network interface, the *preferred* interface, for transmitting
-its multicast packets and advertises only the address corresponding to this interface in
-the DDSI discovery protocol.
+Cyclone DDS can use multiple network interfaces simultaneously but defaults to using a single network interface.  The set of enabled interfaces determines the addresses that the host advertises in the discovery information.
 
-To determine the default network interface, the eligible interfaces are ranked by
-quality and then selects the interface with the highest quality.  If multiple interfaces
-are of the highest quality, it will select the first enumerated one.  Eligible
-interfaces are those that are up and have the right kind of address family (IPv4 or
-IPv6).  Priority is then determined as follows:
+-----------------
+Default behaviour
+-----------------
+
+To determine the default network interface, the eligible interfaces are ranked by quality and then the interface with the highest quality is selected.  If multiple interfaces are of the highest quality, it will select the first enumerated one.  Eligible interfaces are those that are up and have the right kind of address family (IPv4 or IPv6).  Priority is then determined as follows:
 
 + interfaces with a non-link-local address are preferred over those with
   a link-local one;
 + multicast-capable is preferred (see also ``General/Interfaces/NetworkInterface[@multicast]``), or if
   none is available
-+ non-multicast capable but neither point-to-point, or if none is available
++ non-multicast capable and not point-to-point, or if none is available
 + point-to-point, or if none is available
 + loopback
 
-If this procedure doesn’t select the desired interface automatically, it can be
-overridden by setting ``General/Interfaces`` by adding the interface(s) either by name of the
-interface (``<NetworkInterface name='interface_name' />``), the IP address of the host
-on the desired interface (``<NetworkInterface address='128.129.0.42' />``), or the network portion
-of the IP address of the host on the desired interface (``<NetworkInterface address='128.11.0.0' />``).
-An exact match on the address is always preferred and is the only option that allows selecting
-the desired one when multiple addresses are tied to a single interface.
+If this procedure doesn’t select the desired interface automatically, it can be overridden by setting ``General/Interfaces`` by adding the interface(s) either by name of the interface (``<NetworkInterface name='interface_name' />``), the IP address of the host on the desired interface (``<NetworkInterface address='128.129.0.42' />``), or the network portion of the IP address of the host on the desired interface (``<NetworkInterface address='128.11.0.0' />``). An exact match on the address is always preferred and is the only option that allows selecting the desired one when multiple addresses are tied to a single interface.
 
-The default address family is IPv4, setting General/UseIPv6 will change this to IPv6.
-Currently, Eclipse Cyclone DDS does not mix IPv4 and IPv6 addressing.  Consequently, all DDSI
-participants in the network must use the same addressing mode.  When inter-operating,
-this behaviour is the same, i.e., it will look at either IPv4 or IPv6 addresses in the
-advertised address information in the SPDP and SEDP discovery protocols.
+The default address family is IPv4, setting General/Transport to ``udp6`` or ``tcp6`` will change this to IPv6.  Currently, Cyclone DDS does not mix IPv4 and IPv6 addressing.  Consequently, all DDSI participants in the network must use the same addressing mode.  When inter-operating, this behaviour is the same, i.e., it will look at either IPv4 or IPv6 addresses in the advertised address information in the SPDP and SEDP discovery protocols.
 
-IPv6 link-local addresses are considered undesirable because they need to be published
-and received via the discovery mechanism, but there is in general no way to determine to
-which interface a received link-local address is related.
+IPv6 link-local addresses are considered undesirable because they need to be published and received via the discovery mechanism, but there is in general no way to determine to which interface a received link-local address is related.
 
-If IPv6 is requested and the preferred interface has a non-link-local address, Cyclone
-DDS will operate in a *global addressing* mode and will only consider discovered
-non-link-local addresses.  In this mode, one can select any set of interface for
-listening to multicasts.  Note that this behaviour is essentially identical to that when
-using IPv4, as IPv4 does not have the formal notion of address scopes that IPv6 has.  If
-instead only a link-local address is available, Eclipse Cyclone DDS will run in a *link-local
-addressing* mode.  In this mode it will accept any address in a discovery packet,
-assuming that a link-local address is valid on the preferred interface.  To minimise the
-risk involved in this assumption, it only allows the preferred interface for listening
-to multicasts.
+If IPv6 is requested and the selected interface has a non-link-local address, Cyclone DDS will operate in a *global addressing* mode and will only consider discovered non-link-local addresses.  In this mode, one can select any set of interfaces for listening to multicasts.  Note that this behaviour is essentially identical to that when using IPv4, as IPv4 does not have the formal notion of address scopes that IPv6 has.  If instead only a link-local address is available, Cyclone DDS will run in a *link-local addressing* mode.  In this mode it will accept any address in a discovery packet, assuming that a link-local address is valid on the selected interface.  To minimise the risk involved in this assumption, it only allows the selected interface for listening to multicasts.
 
-When a remote participant publishes multiple addresses in its SPDP message (or in SEDP
-messages, for that matter), it will select a single address to use for communicating
-with that participant. The address chosen is the first eligible one on the same network
-as the locally chosen interface, else one that is on a network corresponding to any of
-the other local interfaces, and finally simply the first one.  Eligibility is determined
-in the same way as for network interfaces.
+---------------------------
+Multiple network interfaces
+---------------------------
+
+Multiple network interfaces can be used simultaneously, by listing multiple ``NetworkInterface`` elements.  In this case, the above still applies, with most things extended in the obvious manner, e.g., the SPDP packets will now advertise multiple addresses and it will send these packets out on all interfaces.  That means the issue with *link-local addressing* discussed gains importance if link-local addresses are used, but they usually aren’t.
+
+In a configuration with just a single network interface, it is obvious which one to use for sending packets to a peer.  When there are multiple network interfaces, it is necessary to establish the set of interfaces via which multicasts can be sent, because these are sent on a specific interface.  This in turn requires determining via which subset of interfaces a peer is reachable.
+
+Cyclone DDS approaches this by checking which interfaces match the addresses advertised by a peer in its SPDP or SEDP messages, under the assumption that in most cases the peer will be attached to at least one of the configured networks and that checking the network parts of the addresses will result in a subset of the interfaces.  The network interfaces in this subset are then the interfaces on which the peer is assumed to be reachable via multicast.
+
+This leaves open two classes of addresses:
+
++ Loopback addresses: these are ignored unless (1) the configuration has enabled only loopback interfaces, (2) no other addresses are advertised in the discovery message, or (3) a non-loopback address matches that of the machine.
+
++ Routable addresses that do not match an interface: these are ignored if the ``General/DontRoute`` option is set, otherwise it is assumed that the network stack knows how to route them and any of the interfaces may be used.
+
+When a message needs to be sent to a set of peers, Cyclone DDS aims use the set of addresses spanning the set of intended recipients with the lowest cost (number of nodes that receive it without having a use for it, unicast vs multicast, loopback vs real network interface, configured priority).  This is a variant of the set cover problem, and so Cyclone DDS uses some heuristics rather than computing the optimal solution.  The address selection can be influenced in two ways:
+
++ By using the ``priority`` attribute, which is used as an offset in the cost calculation.  The default configuration gives loopback interfaces a slightly higher priority than other network types.
+
++ By setting the ``prefer_multicast`` attribute, which raises the assumed cost of a unicast message.
+
+The experimental ``Internal/RedundantNetworking`` setting furthermore forces the address selection code to cover all interfaces advertised by a peer.
+
+---------------------------------------------------
+Overriding addresses/interfaces for readers/writers
+---------------------------------------------------
+
+The ``Partitioning`` element in the configuration allows configuring ``NetworkPartition`` elements and mapping topic/partition names to these “network partitions” using ``PartitionMapping`` elements.
+
+Network partitions introduce alternative multicast addresses for data and/or restrict the set of unicast addresses (i.e., interfaces). In the DDSI discovery protocol, a reader can override the addresses at which it is reachable and this feature of the discovery protocol is used to advertise alternative multicast addresses and/or a subset of the unicast addresses. The writers in the network will use the addresses advertised by the reader rather than the default addresses advertised by the reader’s participant.
+
+Unicast and multicast addresses in a network partition play different roles:
+
++ The multicast addresses specify an alternative set of addresses to be used instead of the participant’s default. This is particularly useful to limit high-bandwidth flows to the parts of a network where the data is needed (for IP/Ethernet, this assumes switches that are configured to do IGMP snooping).
+
++ The unicast addresses not only influence the set of interfaces that will be used for unicast, but thereby also the set of interfaces that will be considered for use by multicast. Thus, specifying a unicast address matching network interface A ensures all traffic to that reader will be using interface A, whether unicast or multicast.
+
+Because the typical use of unicast addresses is to force traffic onto certain interfaces, the configuration also allows specifying interface names (using the ``interface`` attribute).
+
+The mapping of a data reader or writer to a network partition is indirect: first the partition and topic are matched against a table of *partition mappings*, partition/topic combinations to obtain the name of a network partition, then the network partition name is used to find the addressing information. This makes it easier to map many different partition/topic combinations to the same multicast address without having to specify the actual multicast address many times over. If no match is found, the default addresses are used.
+
+Matching proceeds in the order in which the partition mappings are specified in the configuration. The first matching mapping is the one that will be used. The ``*`` and ``?`` wildcards are available for the DCPS partition/topic combination in the partition mapping.
+
+A single reader or writer is associated with a set of partitions, and each partition/topic combination can potentially map to a different network partition. In this case, the first matching network partition will be used. This does not affect what data the reader will receive; it only affects the addressing on the network.
+
 
 .. _`Controlling port numbers`:
 
@@ -530,39 +508,6 @@ completely ignore certain DCPS topic and partition combinations, which will prev
 for these topic/partition combinations from being forwarded to and from the network.
 
 
-.. _`Combining multiple participants`:
-
-*******************************
-Combining Multiple Participants
-*******************************
-
-If a single process creates multiple participants, these are faithfully mirrored in DDSI
-participants and so a single process can appear as if it is a large system with many
-participants.  The ``Internal/SquashParticipants`` option can be used to simulate the
-existence of only one participant, which owns all endpoints on that node.  This reduces
-the background messages because far fewer liveliness assertions need to be sent, but
-there are some downsides.
-
-Firstly, the liveliness monitoring features that are related to domain participants will
-be affected if multiple DCPS domain participants are combined into a single DDSI domain
-participant.  For the ‘automatic’ liveliness setting, this is not an issue.
-
-Secondly, this option makes it impossible for tooling to show the actual system
-topology.
-
-Thirdly, the QoS of this sole participant is simply that of the first participant
-created in the process.  In particular, no matter what other participants specify as
-their ‘user data’, it will not be visible on remote nodes.
-
-There is an alternative that sits between squashing participants and normal operation,
-and that is setting ``Internal/BuiltinEndpointSet`` to ``minimal``. In the default
-setting, each DDSI participant handled has its own writers for built-in topics and
-publishes discovery data on its own entities, but when set to ‘minimal’, only the first
-participant has these writers and publishes data on all entities. This is not fully
-compatible with other implementations as it means endpoint discovery data can be
-received for a participant that has not yet been discovered.
-
-
 .. _`Data path configuration`:
 
 ***********************
@@ -748,63 +693,6 @@ Finally, it is technically allowed to set ``MaxSampleSize`` to very small sizes,
 even to the point that the discovery data can’t be communicated anymore.
 The dropping of the discovery data will be duly reported, but the usefulness
 of such a configuration seems doubtful.
-
-
-.. _`Network partition configuration`:
-
-*******************************
-Network Partition Configuration
-*******************************
-
-.. _`Network partition configuration overview`:
-
-========================================
-Network Partition Configuration Overview
-========================================
-
-Network partitions introduce alternative multicast addresses for data.  In the DDSI
-discovery protocol, a reader can override the default address at which it is reachable,
-and this feature of the discovery protocol is used to advertise alternative multicast
-addresses. The DDSI writers in the network will (also) multicast to such an alternative
-multicast address when multicasting samples or control data.
-
-The mapping of a DCPS data reader to a network partition is indirect: first the DCPS
-partitions and topic are matched against a table of *partition mappings*,
-partition/topic combinations to obtain the name of a network partition, then the network
-partition name is used to find a addressing information..  This makes it easier to map
-many different partition/topic combinations to the same multicast address without having
-to specify the actual multicast address many times over.
-
-If no match is found, the default multicast address is used.
-
-
-.. _`Matching rules`:
-
-==============
-Matching Rules
-==============
-
-Matching of a DCPS partition/topic combination proceeds in the order in which the
-partition mappings are specified in the configuration.  The first matching mapping is
-the one that will be used. The ``*`` and ``?`` wildcards are available for the DCPS
-partition/topic combination in the partition mapping.
-
-As mentioned earlier, Eclipse Cyclone DDS can be instructed to ignore all DCPS data
-readers and writers for certain DCPS partition/topic combinations through the use of
-*IgnoredPartitions*.  The ignored partitions use the same matching rules as normal
-mappings, and take precedence over the normal mappings.
-
-
-.. _`Multiple matching mappings`:
-
-==========================
-Multiple Matching Mappings
-==========================
-
-A single DCPS data reader can be associated with a set of partitions, and each
-partition/topic combination can potentially map to a different network partitions. In
-this case, the first matching network partition will be used. This does not affect what
-data the reader will receive; it only affects the addressing on the network.
 
 
 .. _`Thread configuration`:

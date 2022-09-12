@@ -55,15 +55,36 @@ int ddsi_ipaddr_compare (const struct sockaddr *const sa1, const struct sockaddr
   return eq;
 }
 
-enum ddsi_nearby_address_result ddsi_ipaddr_is_nearby_address (const ddsi_locator_t *loc, size_t ninterf, const struct nn_interface interf[], size_t *interf_idx)
+enum ddsi_nearby_address_result ddsi_ipaddr_is_nearby_address (const ddsi_locator_t *loc, size_t ninterf, const struct ddsi_network_interface interf[], size_t *interf_idx)
 {
-  struct sockaddr_storage tmp, iftmp, xiftmp, nmtmp;
-  ddsi_ipaddr_from_loc(&tmp, loc);
+  enum ddsi_nearby_address_result default_result = DNAR_UNREACHABLE;
+
+  // I'm not sure how common it is for a machine to have two network interfaces on
+  // the same network, but I don't see why it can't happen.  In that configuration
+  // the address might be that of interface k but also match the subnet on
+  // interface j < k.  In that case, it seems better to return SELF than LOCAL,
+  // and so we first check for an exact match.
   for (size_t i = 0; i < ninterf; i++)
   {
     if (interf[i].loc.kind != loc->kind)
       continue;
+    default_result = DNAR_DISTANT;
+    if (memcmp (interf[i].loc.address, loc->address, sizeof (loc->address)) == 0 ||
+        memcmp (interf[i].extloc.address, loc->address, sizeof (loc->address)) == 0)
+    {
+      if (interf_idx)
+        *interf_idx = i;
+      return DNAR_SELF;
+    }
+  }
 
+  struct sockaddr_storage tmp;
+  ddsi_ipaddr_from_loc(&tmp, loc);
+  for (size_t i = 0; i < ninterf; i++)
+  {
+    struct sockaddr_storage iftmp, xiftmp, nmtmp;
+    if (interf[i].loc.kind != loc->kind)
+      continue;
     ddsi_ipaddr_from_loc(&iftmp, &interf[i].loc);
     ddsi_ipaddr_from_loc(&xiftmp, &interf[i].extloc);
     ddsi_ipaddr_from_loc(&nmtmp, &interf[i].netmask);
@@ -75,7 +96,7 @@ enum ddsi_nearby_address_result ddsi_ipaddr_is_nearby_address (const ddsi_locato
       return DNAR_LOCAL;
     }
   }
-  return DNAR_DISTANT;
+  return default_result;
 }
 
 enum ddsi_locator_from_string_result ddsi_ipaddr_from_string (ddsi_locator_t *loc, const char *str, int32_t kind)
@@ -195,7 +216,7 @@ enum ddsi_locator_from_string_result ddsi_ipaddr_from_string (ddsi_locator_t *lo
   DDSRT_WARNING_MSVC_ON(4996);
 }
 
-char *ddsi_ipaddr_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc, int with_port, const struct nn_interface *interf)
+char *ddsi_ipaddr_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc, int with_port, const struct ddsi_network_interface *interf)
 {
   assert (sizeof_dst > 1);
   if (loc->kind == NN_LOCATOR_KIND_INVALID)

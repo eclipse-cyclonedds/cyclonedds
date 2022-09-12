@@ -329,29 +329,31 @@ void add_locator_to_addrset (const struct ddsi_domaingv *gv, struct addrset *as,
   {
     // unicast: assume the kernel knows how to route it from any connection
     // if it doesn't match a local interface
-    for (int i = 0; i < gv->n_interfaces; i++)
+    int interf_idx = -1, fallback_interf_idx = -1;
+    for (int i = 0; i < gv->n_interfaces && interf_idx < 0; i++)
     {
       if (!ddsi_factory_supports (gv->xmit_conns[i]->m_factory, loc->kind))
         continue;
       switch (ddsi_is_nearby_address (gv, loc, (size_t) gv->n_interfaces, gv->interfaces, NULL))
       {
+        case DNAR_SELF:
         case DNAR_LOCAL:
-          add_xlocator_to_addrset_impl (gv, as, &(const ddsi_xlocator_t) {
-            .conn = gv->xmit_conns[i],
-            .c = *loc });
-          return;
+          interf_idx = i;
+          break;
         case DNAR_DISTANT:
+          if (fallback_interf_idx < 0)
+            fallback_interf_idx = i;
+          break;
+        case DNAR_UNREACHABLE:
           break;
       }
     }
-    for (int i = 0; i < gv->n_interfaces; i++)
+    if (interf_idx >= 0 || fallback_interf_idx >= 0)
     {
-      if (!ddsi_factory_supports (gv->xmit_conns[i]->m_factory, loc->kind))
-        continue;
+      const int i = (interf_idx >= 0) ? interf_idx : fallback_interf_idx;
       add_xlocator_to_addrset_impl (gv, as, &(const ddsi_xlocator_t) {
         .conn = gv->xmit_conns[i],
         .c = *loc });
-      break;
     }
   }
 }

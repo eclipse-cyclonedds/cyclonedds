@@ -184,7 +184,7 @@ struct ddsi_domaingv {
 
   /* number of selected interfaces. */
   int n_interfaces;
-  struct nn_interface interfaces[MAX_XMIT_CONNS];
+  struct ddsi_network_interface interfaces[MAX_XMIT_CONNS];
   /* whether we're using a link-local address (and therefore
      only listening to multicasts on that interface) */
   int using_link_local_intf;
