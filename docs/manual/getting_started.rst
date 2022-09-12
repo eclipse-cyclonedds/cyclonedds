@@ -229,7 +229,7 @@ To install the Cyclone DDS from the installer:
 3. Choose whether you want to add Cyclone DDS to the system PATH. We
    recommend adding it to the system PATH so your application can
    use the related libraries directly. Select whether to add it for the
-   current user or all users and click 'Next'.
+   current user or all users and click 'Next.'
 
 .. image:: /_static/gettingstarted-figures/1.5-3.png
    :align: center
@@ -241,7 +241,7 @@ To install the Cyclone DDS from the installer:
 .. image:: /_static/gettingstarted-figures/1.5-4.png
    :align: center
 
-5. You are now ready to install the Cyclone DDS, click 'Install'.
+5. You are now ready to install the Cyclone DDS. Click 'Install.'
 
 .. image:: /_static/gettingstarted-figures/1.5-5.png
    :align: center
@@ -252,8 +252,8 @@ To install the Cyclone DDS from the installer:
    :align: center
 
 
-The installation of Cyclone DDS core, C-APIs and pre-compiler are
-complete. The next section describes how to test it.
+The installation of Cyclone DDS core, C-APIs, and pre-compiler is
+complete. The following section describes how to test it.
 
 Installation Procedure for Eclipse Cyclone DDS Python
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -271,26 +271,26 @@ CycloneDDS Python requires Python version 3.7 or higher, with 3.11 support provi
  * has no support for shared memory via Iceoryx,
  * comes with generic Cyclone DDS binaries that are not optimized per-platform.
 
-If you need these features or cannot use the binaries for other reasons you can install the Cyclone DDS Python library from the source. You will need to set the environment variable ``CYCLONEDDS_HOME`` to allow the installer to locate the CycloneDDS C library if it is on a non-standard path. At runtime, we leverage several mechanisms to locate the appropriate library for the platform. If you get an exception about non-locatable libraries or wish to manage multiple CycloneDDS installations you can use the environment variable ``CYCLONEDDS_HOME`` to override the load location.
+If you need these features or cannot use the binaries for other reasons, you can install the Cyclone DDS Python library from the source. You will need to set the environment variable ``CYCLONEDDS_HOME`` to allow the installer to locate the CycloneDDS C library if it is on a non-standard path. At runtime, we leverage several mechanisms to locate the appropriate library for the platform. If you get an exception about non-locatable libraries or wish to manage multiple CycloneDDS installations, you can use the environment variable ``CYCLONEDDS_HOME`` to override the load location.
 
 Installation
 ------------
 
-Simply install with pip from PyPi.
+Install with pip from PyPi.
 
 .. code-block:: shell
 
     pip install cyclonedds
 
 
-You can install from the github link directly:
+You can install it from the GitHub link directly:
 
 .. code-block:: shell
 
     CYCLONEDDS_HOME="/path/to/cyclonedds" pip install git+https://github.com/eclipse-cyclonedds/cyclonedds-python
 
 
-If you wish to run the testsuite or build the documentation you will need additional dependencies. These can be installed by means of Python installation optional components:
+You will need additional dependencies if you wish to run the test suite or build the documentation. These can be installed using Python installation optional components:
 
 .. code-block:: shell
 
@@ -307,8 +307,9 @@ If you wish to run the testsuite or build the documentation you will need additi
     sphinx-build ./source ./build
     python -m http.server --directory build
 
+Permission denied error occurs when you try to access a file from Python without having the necessary permissions. 
+To fix this error, it is recommended to use `a virtual environment`_, `poetry`_, `pipenv`_ or `pyenv`_. If you *just* want to get going, you can add ``--user`` to your pip command to install for the current user. See the `Installing Python Modules`_ documentation.
 
-If you get permission errors you are using your system python. This is not recommended, we recommend using `a virtual environment`_, `poetry`_, `pipenv`_ or `pyenv`_. If you *just* want to get going, you can add ``--user`` to your pip command to install for the current user. See the `Installing Python Modules`_ documentation.
 
 .. _first_app:
 
