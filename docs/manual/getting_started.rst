@@ -307,7 +307,7 @@ You will need additional dependencies if you wish to run the test suite or build
     sphinx-build ./source ./build
     python -m http.server --directory build
 
-Permission denied error occurs when you try to access a file from Python without having the necessary permissions. 
+Permission denied errors can occur when you try to access a file from Python without having the necessary permissions. 
 To fix this error, it is recommended to use `a virtual environment`_, `poetry`_, `pipenv`_ or `pyenv`_. If you *just* want to get going, you can add ``--user`` to your pip command to install for the current user. See the `Installing Python Modules`_ documentation.
 
 
@@ -316,7 +316,7 @@ To fix this error, it is recommended to use `a virtual environment`_, `poetry`_,
 Your first Python DDS application
 -----------------------------------
 
-Let's make our entry into the world of DDS by making our presence known. We will not worry about configuration or what DDS does under the hood but just write a single message. To publish anything to DDS we need to define the type of message first. If you are worried about talking to other applications that are not necessarily running Python you would use the CycloneDDS IDL compiler, but for now we will just manually define our message type directly in Python using the ``cyclonedds.idl`` tools:
+Let's enter the world of DDS by making our presence known. We will not worry about configuration or what DDS does under the hood but write a single message. To publish anything to DDS we need to define the type of message first. Suppose you are worried about talking to other applications that are not necessarily running Python. In that case, you will use the CycloneDDS IDL compiler, but for now, we will manually define our message type directly in Python using the ``cyclonedds.idl`` tools:
 
 .. code-block:: python3
     :linenos:
@@ -333,18 +333,20 @@ Let's make our entry into the world of DDS by making our presence known. We will
     message = Message(text=f"{name} has started his first DDS Python application!")
 
 
-With ``cyclonedds.idl`` we write typed classes with the standard library module `dataclasses <python:dataclasses>`. For this simple application we just put in a piece of text, but this system has the same expressive power as the OMG IDL specification, allowing you to use almost any complex datastructure you can think of.
+With ``cyclonedds.idl`` write typed classes with the standard library module `dataclasses <python:dataclasses>`. For this simple application, you put in a piece of text, but this system has the same expressive power as the OMG IDL specification, allowing you to use almost any complex datastructure.
 
-Now to send our message over DDS we need to perform a few steps:
-* Join the DDS network using a DomainParticipant
-* Define which datatype and under what name we will publish our message as a Topic
-* Make the DataWriter that publishes that Topic
-* And finally publish the message.
+To send your message over a DDS domain, carry out the following steps:
+
+1. Join the DDS network using a DomainParticipant
+2. Define which data type and under what name you will publish your message as a Topic
+3. Make the DataWriter that publishes that Topic
+4. And finally, publish the message.
+
 
 .. code-block:: python3
     :linenos:
 
-    from cyclonedds.domain import DomainParticipant
+    
     from cyclonedds.topic import Topic
     from cyclonedds.pub import DataWriter
 
