@@ -32,7 +32,8 @@ extern "C" {
  *
  * @returns The integer value for the character, or -1 in case @chr cannot be translated to a numeric value
  */
-DDS_EXPORT int32_t ddsrt_todigit(const int chr);
+DDS_EXPORT int32_t
+ddsrt_todigit(const int chr);
 
 /**
  * @brief Convert a string to a long long integer.

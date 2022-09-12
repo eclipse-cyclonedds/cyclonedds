@@ -16,7 +16,7 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/sync.h"
-#include "dds/ddsi/q_gc.h"
+#include "dds/ddsi/ddsi_gc.h"
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/q_thread.h"
@@ -26,9 +26,9 @@
 #include "dds/ddsi/ddsi_domaingv.h" /* for mattr, cattr */
 #include "dds/ddsi/q_receive.h" /* for trigger_receive_threads */
 
-struct gcreq_queue {
-  struct gcreq *first;
-  struct gcreq *last;
+struct ddsi_gcreq_queue {
+  struct ddsi_gcreq *first;
+  struct ddsi_gcreq *last;
   ddsrt_mutex_t lock;
   ddsrt_cond_t cond;
   int terminate;
@@ -37,7 +37,7 @@ struct gcreq_queue {
   struct thread_state *thrst;
 };
 
-static void threads_vtime_gather_for_wait (const struct ddsi_domaingv *gv, uint32_t *nivs, struct idx_vtime *ivs, struct thread_states_list *cur)
+static void threads_vtime_gather_for_wait (const struct ddsi_domaingv *gv, uint32_t *nivs, struct ddsi_idx_vtime *ivs, struct thread_states_list *cur)
 {
   /* copy vtimes of threads, skipping those that are sleeping */
 #ifndef NDEBUG
@@ -70,7 +70,7 @@ static void threads_vtime_gather_for_wait (const struct ddsi_domaingv *gv, uint3
   *nivs = dstidx;
 }
 
-static int threads_vtime_check (const struct ddsi_domaingv *gv, uint32_t *nivs, struct idx_vtime *ivs)
+static int threads_vtime_check (const struct ddsi_domaingv *gv, uint32_t *nivs, struct ddsi_idx_vtime *ivs)
 {
   /* remove all threads that have moved on from the set, return true when none remain */
   uint32_t i = 0;
@@ -90,14 +90,14 @@ static int threads_vtime_check (const struct ddsi_domaingv *gv, uint32_t *nivs, 
   return *nivs == 0;
 }
 
-static uint32_t gcreq_queue_thread (struct gcreq_queue *q)
+static uint32_t gcreq_queue_thread (struct ddsi_gcreq_queue *q)
 {
-  struct thread_state * const thrst = lookup_thread_state ();
+  struct thread_state * const thrst = ddsi_lookup_thread_state ();
   ddsrt_mtime_t next_thread_cputime = { 0 };
   ddsrt_mtime_t t_trigger_recv_threads = { 0 };
   int64_t shortsleep = DDS_MSECS (1);
   int64_t delay = DDS_MSECS (1); /* force evaluation after startup */
-  struct gcreq *gcreq = NULL;
+  struct ddsi_gcreq *gcreq = NULL;
   int trace_shortsleep = 1;
   ddsrt_mutex_lock (&q->lock);
   while (!(q->terminate && q->count == 0))
@@ -193,9 +193,9 @@ static uint32_t gcreq_queue_thread (struct gcreq_queue *q)
   return 0;
 }
 
-struct gcreq_queue *gcreq_queue_new (struct ddsi_domaingv *gv)
+struct ddsi_gcreq_queue *ddsi_gcreq_queue_new (struct ddsi_domaingv *gv)
 {
-  struct gcreq_queue *q = ddsrt_malloc (sizeof (*q));
+  struct ddsi_gcreq_queue *q = ddsrt_malloc (sizeof (*q));
 
   q->first = q->last = NULL;
   q->terminate = 0;
@@ -207,7 +207,7 @@ struct gcreq_queue *gcreq_queue_new (struct ddsi_domaingv *gv)
   return q;
 }
 
-bool gcreq_queue_start (struct gcreq_queue *q)
+bool ddsi_gcreq_queue_start (struct ddsi_gcreq_queue *q)
 {
   if (create_thread (&q->thrst, q->gv, "gc", (uint32_t (*) (void *)) gcreq_queue_thread, q) == DDS_RETCODE_OK)
     return true;
@@ -220,7 +220,7 @@ bool gcreq_queue_start (struct gcreq_queue *q)
   }
 }
 
-void gcreq_queue_drain (struct gcreq_queue *q)
+void ddsi_gcreq_queue_drain (struct ddsi_gcreq_queue *q)
 {
   ddsrt_mutex_lock (&q->lock);
   while (q->count != 0)
@@ -228,15 +228,15 @@ void gcreq_queue_drain (struct gcreq_queue *q)
   ddsrt_mutex_unlock (&q->lock);
 }
 
-void gcreq_queue_free (struct gcreq_queue *q)
+void ddsi_gcreq_queue_free (struct ddsi_gcreq_queue *q)
 {
-  struct gcreq *gcreq;
+  struct ddsi_gcreq *gcreq;
 
   /* Shutdown is complicated only gcreq_eueu */
   if (q->thrst)
   {
     /* Create a no-op not dependent on any thread */
-    gcreq = gcreq_new (q, gcreq_free);
+  gcreq = ddsi_gcreq_new (q, ddsi_gcreq_free);
     gcreq->nvtimes = 0;
 
     ddsrt_mutex_lock (&q->lock);
@@ -252,7 +252,7 @@ void gcreq_queue_free (struct gcreq_queue *q)
        callback, gcreq_free, will be called immediately, which causes
        q->count to 0 before the loop condition is evaluated again, at
        which point the thread terminates. */
-    gcreq_enqueue (gcreq);
+    ddsi_gcreq_enqueue (gcreq);
 
     join_thread (q->thrst);
     assert (q->first == NULL);
@@ -262,11 +262,11 @@ void gcreq_queue_free (struct gcreq_queue *q)
   ddsrt_free (q);
 }
 
-struct gcreq *gcreq_new (struct gcreq_queue *q, gcreq_cb_t cb)
+struct ddsi_gcreq *ddsi_gcreq_new (struct ddsi_gcreq_queue *q, ddsi_gcreq_cb_t cb)
 {
-  struct gcreq *gcreq;
+  struct ddsi_gcreq *gcreq;
   struct thread_states_list * const tslist = ddsrt_atomic_ldvoidp (&thread_states.thread_states_head);
-  gcreq = ddsrt_malloc (offsetof (struct gcreq, vtimes) + tslist->nthreads * sizeof (*gcreq->vtimes));
+  gcreq = ddsrt_malloc (offsetof (struct ddsi_gcreq, vtimes) + tslist->nthreads * sizeof (*gcreq->vtimes));
   gcreq->cb = cb;
   gcreq->queue = q;
   threads_vtime_gather_for_wait (q->gv, &gcreq->nvtimes, gcreq->vtimes, tslist);
@@ -276,9 +276,9 @@ struct gcreq *gcreq_new (struct gcreq_queue *q, gcreq_cb_t cb)
   return gcreq;
 }
 
-void gcreq_free (struct gcreq *gcreq)
+void ddsi_gcreq_free (struct ddsi_gcreq *gcreq)
 {
-  struct gcreq_queue *gcreq_queue = gcreq->queue;
+  struct ddsi_gcreq_queue *gcreq_queue = gcreq->queue;
   ddsrt_mutex_lock (&gcreq_queue->lock);
   --gcreq_queue->count;
   if (gcreq_queue->count <= 1)
@@ -287,9 +287,9 @@ void gcreq_free (struct gcreq *gcreq)
   ddsrt_free (gcreq);
 }
 
-static int gcreq_enqueue_common (struct gcreq *gcreq)
+static int gcreq_enqueue_common (struct ddsi_gcreq *gcreq)
 {
-  struct gcreq_queue *gcreq_queue = gcreq->queue;
+  struct ddsi_gcreq_queue *gcreq_queue = gcreq->queue;
   int isfirst;
   ddsrt_mutex_lock (&gcreq_queue->lock);
   gcreq->next = NULL;
@@ -310,12 +310,12 @@ static int gcreq_enqueue_common (struct gcreq *gcreq)
   return isfirst;
 }
 
-void gcreq_enqueue (struct gcreq *gcreq)
+void ddsi_gcreq_enqueue (struct ddsi_gcreq *gcreq)
 {
   gcreq_enqueue_common (gcreq);
 }
 
-int gcreq_requeue (struct gcreq *gcreq, gcreq_cb_t cb)
+int ddsi_gcreq_requeue (struct ddsi_gcreq *gcreq, ddsi_gcreq_cb_t cb)
 {
   gcreq->cb = cb;
   return gcreq_enqueue_common (gcreq);

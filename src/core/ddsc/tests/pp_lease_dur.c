@@ -183,7 +183,7 @@ static bool make_pp0_deaf (const dds_entity_t pp[3], const dds_guid_t ppg[3], co
   bool lax_check = false;
   ret = dds_entity_pin (pp[0], &ppe);
   CU_ASSERT_FATAL (ret == 0);
-  thread_state_awake (lookup_thread_state (), &ppe->m_domain->gv);
+  thread_state_awake (ddsi_lookup_thread_state (), &ppe->m_domain->gv);
   for (int i = 1; i < 3; i++)
   {
     DDSRT_STATIC_ASSERT (sizeof (dds_guid_t) == sizeof (ddsi_guid_t));
@@ -209,7 +209,7 @@ static bool make_pp0_deaf (const dds_entity_t pp[3], const dds_guid_t ppg[3], co
       }
     }
   }
-  thread_state_asleep (lookup_thread_state ());
+  thread_state_asleep (ddsi_lookup_thread_state ());
   dds_entity_unpin (ppe);
   // make pp[0] deaf
   tprintf ("making pp0 deaf @ %"PRId64"\n", sub_tref_et (tdeaf_et.v, tref_et));

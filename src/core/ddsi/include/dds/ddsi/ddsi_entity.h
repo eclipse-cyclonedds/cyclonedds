@@ -32,7 +32,7 @@
 #include "dds/ddsi/ddsi_typelookup.h"
 #include "dds/ddsi/ddsi_tran.h"
 #include "dds/ddsi/ddsi_list_genptr.h"
-#include "dds/ddsi/q_gc.h"
+#include "dds/ddsi/ddsi_gc.h"
 #include "dds/ddsi/q_lease.h"
 
 #if defined (__cplusplus)
@@ -120,12 +120,12 @@ bool ddsi_update_qos_locked (struct ddsi_entity_common *e, dds_qos_t *ent_qos, c
 int ddsi_set_topic_type_name (dds_qos_t *xqos, const char * topic_name, const char * type_name);
 int ddsi_compare_entityid (const void *a, const void *b);
 
-DDS_EXPORT int ddsi_compare_guid (const void *va, const void *vb);
-DDS_EXPORT ddsi_entityid_t ddsi_to_entityid (unsigned u);
-DDS_EXPORT nn_vendorid_t ddsi_get_entity_vendorid (const struct ddsi_entity_common *e);
-DDS_EXPORT uint64_t ddsi_get_entity_instanceid (const struct ddsi_domaingv *gv, const struct ddsi_guid *guid);
-DDS_EXPORT void ddsi_entity_common_init (struct ddsi_entity_common *e, struct ddsi_domaingv *gv, const struct ddsi_guid *guid, enum ddsi_entity_kind kind, ddsrt_wctime_t tcreate, nn_vendorid_t vendorid, bool onlylocal);
-DDS_EXPORT void ddsi_entity_common_fini (struct ddsi_entity_common *e);
+int ddsi_compare_guid (const void *va, const void *vb);
+ddsi_entityid_t ddsi_to_entityid (unsigned u);
+nn_vendorid_t ddsi_get_entity_vendorid (const struct ddsi_entity_common *e);
+uint64_t ddsi_get_entity_instanceid (const struct ddsi_domaingv *gv, const struct ddsi_guid *guid);
+void ddsi_entity_common_init (struct ddsi_entity_common *e, struct ddsi_domaingv *gv, const struct ddsi_guid *guid, enum ddsi_entity_kind kind, ddsrt_wctime_t tcreate, nn_vendorid_t vendorid, bool onlylocal);
+void ddsi_entity_common_fini (struct ddsi_entity_common *e);
 
 #if defined (__cplusplus)
 }

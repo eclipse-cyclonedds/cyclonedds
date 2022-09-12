@@ -125,65 +125,66 @@ struct thread_states {
   ddsrt_atomic_voidp_t thread_states_head;
 };
 
-extern DDS_EXPORT struct thread_states thread_states;
+extern struct thread_states thread_states;
 
 // thread_local cannot (and doesn't need to?) be exported on Windows
 #ifdef _WIN32
 extern ddsrt_thread_local struct thread_state *tsd_thread_state;
 #else
-extern DDS_EXPORT ddsrt_thread_local struct thread_state *tsd_thread_state;
+DDS_EXPORT extern ddsrt_thread_local struct thread_state *tsd_thread_state;
 #endif
 
 
-DDS_EXPORT void thread_states_init (void);
-DDS_EXPORT bool thread_states_fini (void);
+void thread_states_init (void);
+bool thread_states_fini (void);
 
-DDS_EXPORT const struct ddsi_config_thread_properties_listelem *lookup_thread_properties (const struct ddsi_config *config, const char *name);
-DDS_EXPORT dds_return_t create_thread_with_properties (struct thread_state **thrst, struct ddsi_config_thread_properties_listelem const * const tprops, const char *name, uint32_t (*f) (void *arg), void *arg);
-DDS_EXPORT dds_return_t create_thread (struct thread_state **thrst, const struct ddsi_domaingv *gv, const char *name, uint32_t (*f) (void *arg), void *arg);
-DDS_EXPORT struct thread_state *lookup_thread_state_real (void);
-DDS_EXPORT dds_return_t join_thread (struct thread_state *thrst);
-DDS_EXPORT void log_stack_traces (const struct ddsrt_log_cfg *logcfg, const struct ddsi_domaingv *gv);
+const struct ddsi_config_thread_properties_listelem *lookup_thread_properties (const struct ddsi_config *config, const char *name);
+dds_return_t create_thread_with_properties (struct thread_state **thrst, struct ddsi_config_thread_properties_listelem const * const tprops, const char *name, uint32_t (*f) (void *arg), void *arg);
+dds_return_t create_thread (struct thread_state **thrst, const struct ddsi_domaingv *gv, const char *name, uint32_t (*f) (void *arg), void *arg);
+dds_return_t join_thread (struct thread_state *thrst);
+void log_stack_traces (const struct ddsrt_log_cfg *logcfg, const struct ddsi_domaingv *gv);
 
-DDS_INLINE_EXPORT inline struct thread_state *lookup_thread_state (void) {
+DDS_EXPORT struct thread_state *ddsi_lookup_thread_state_real (void);
+
+DDS_INLINE_EXPORT inline struct thread_state *ddsi_lookup_thread_state (void) {
   struct thread_state *thrst = tsd_thread_state;
   if (thrst)
     return thrst;
   else
-    return lookup_thread_state_real ();
+    return ddsi_lookup_thread_state_real ();
 }
 
-DDS_INLINE_EXPORT inline bool vtime_awake_p (vtime_t vtime)
+inline bool vtime_awake_p (vtime_t vtime)
 {
   return (vtime & VTIME_NEST_MASK) != 0;
 }
 
-DDS_INLINE_EXPORT inline bool vtime_asleep_p (vtime_t vtime)
+inline bool vtime_asleep_p (vtime_t vtime)
 {
   return (vtime & VTIME_NEST_MASK) == 0;
 }
 
-DDS_INLINE_EXPORT inline bool vtime_gt (vtime_t vtime1, vtime_t vtime0)
+inline bool vtime_gt (vtime_t vtime1, vtime_t vtime0)
 {
   DDSRT_STATIC_ASSERT_CODE (sizeof (vtime_t) == sizeof (svtime_t));
   return (svtime_t) ((vtime1 & VTIME_TIME_MASK) - (vtime0 & VTIME_TIME_MASK)) > 0;
 }
 
-DDS_INLINE_EXPORT inline bool thread_is_awake (void)
+inline bool thread_is_awake (void)
 {
-  struct thread_state *thrst = lookup_thread_state ();
+  struct thread_state *thrst = ddsi_lookup_thread_state ();
   vtime_t vt = ddsrt_atomic_ld32 (&thrst->vtime);
   return vtime_awake_p (vt);
 }
 
-DDS_INLINE_EXPORT inline bool thread_is_asleep (void)
+inline bool thread_is_asleep (void)
 {
-  struct thread_state *thrst = lookup_thread_state ();
+  struct thread_state *thrst = ddsi_lookup_thread_state ();
   vtime_t vt = ddsrt_atomic_ld32 (&thrst->vtime);
   return vtime_asleep_p (vt);
 }
 
-DDS_INLINE_EXPORT inline void thread_state_asleep (struct thread_state *thrst)
+inline void thread_state_asleep (struct thread_state *thrst)
 {
   vtime_t vt = ddsrt_atomic_ld32 (&thrst->vtime);
   assert (vtime_awake_p (vt));
@@ -197,7 +198,7 @@ DDS_INLINE_EXPORT inline void thread_state_asleep (struct thread_state *thrst)
   ddsrt_atomic_st32 (&thrst->vtime, vt);
 }
 
-DDS_INLINE_EXPORT inline void thread_state_awake (struct thread_state *thrst, const struct ddsi_domaingv *gv)
+inline void thread_state_awake (struct thread_state *thrst, const struct ddsi_domaingv *gv)
 {
   vtime_t vt = ddsrt_atomic_ld32 (&thrst->vtime);
   assert ((vt & VTIME_NEST_MASK) < VTIME_NEST_MASK);
@@ -211,7 +212,7 @@ DDS_INLINE_EXPORT inline void thread_state_awake (struct thread_state *thrst, co
   ddsrt_atomic_fence_acq ();
 }
 
-DDS_INLINE_EXPORT inline void thread_state_awake_domain_ok (struct thread_state *thrst)
+inline void thread_state_awake_domain_ok (struct thread_state *thrst)
 {
   vtime_t vt = ddsrt_atomic_ld32 (&thrst->vtime);
   assert ((vt & VTIME_NEST_MASK) < VTIME_NEST_MASK);
@@ -222,14 +223,14 @@ DDS_INLINE_EXPORT inline void thread_state_awake_domain_ok (struct thread_state 
   ddsrt_atomic_fence_acq ();
 }
 
-DDS_INLINE_EXPORT inline void thread_state_awake_fixed_domain (struct thread_state *thrst)
+inline void thread_state_awake_fixed_domain (struct thread_state *thrst)
 {
   /* fixed domain -> must be an internal thread */
   assert (thrst->state == THREAD_STATE_ALIVE);
   thread_state_awake_domain_ok (thrst);
 }
 
-DDS_INLINE_EXPORT inline void thread_state_awake_to_awake_no_nest (struct thread_state *thrst)
+inline void thread_state_awake_to_awake_no_nest (struct thread_state *thrst)
 {
   vtime_t vt = ddsrt_atomic_ld32 (&thrst->vtime);
   assert ((vt & VTIME_NEST_MASK) == 1);

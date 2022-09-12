@@ -20,7 +20,7 @@
 #include "dds/security/dds_security_api.h"
 #include "dds/security/core/dds_security_serialize.h"
 #include "dds/security/core/dds_security_utils.h"
-#include "dds/security/core/shared_secret.h"
+#include "dds/security/core/dds_security_shared_secret.h"
 #include "dds/security/openssl_support.h"
 #include "CUnit/CUnit.h"
 #include "CUnit/Test.h"

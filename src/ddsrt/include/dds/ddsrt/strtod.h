@@ -36,7 +36,7 @@ extern "C" {
  *
  * @returns A dds_return_t indicating success or failure.
  */
-DDS_EXPORT dds_return_t
+dds_return_t
 ddsrt_strtod(const char *nptr, char **endptr, double *dblptr);
 
 /**
@@ -49,7 +49,7 @@ ddsrt_strtod(const char *nptr, char **endptr, double *dblptr);
  *
  * @returns A dds_return_t indicating success or failure.
  */
-DDS_EXPORT dds_return_t
+dds_return_t
 ddsrt_strtof(const char *nptr, char **endptr, float *fltptr);
 
 /**
@@ -61,7 +61,7 @@ ddsrt_strtof(const char *nptr, char **endptr, float *fltptr);
  *
  * @returns The number of bytes written (excluding the null terminating byte).
  */
-DDS_EXPORT int
+int
 ddsrt_dtostr(double src, char *str, size_t size);
 
 /**
@@ -73,7 +73,7 @@ ddsrt_dtostr(double src, char *str, size_t size);
  *
  * @returns The number of bytes written (exluding the null terminating byte).
  */
-DDS_EXPORT int
+int
 ddsrt_ftostr(float src, char *str, size_t size);
 
 #if defined (__cplusplus)

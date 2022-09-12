@@ -23,29 +23,29 @@
 extern "C" {
 #endif
 
-DDS_INLINE_EXPORT inline int nn_bitset_isset (uint32_t numbits, const uint32_t *bits, uint32_t idx)
+inline int nn_bitset_isset (uint32_t numbits, const uint32_t *bits, uint32_t idx)
 {
   return idx < numbits && (bits[idx/32] & (UINT32_C(1) << (31 - (idx%32))));
 }
 
-DDS_INLINE_EXPORT inline void nn_bitset_set (UNUSED_ARG_NDEBUG (uint32_t numbits), uint32_t *bits, uint32_t idx)
+inline void nn_bitset_set (UNUSED_ARG_NDEBUG (uint32_t numbits), uint32_t *bits, uint32_t idx)
 {
   assert (idx < numbits);
   bits[idx/32] |= UINT32_C(1) << (31 - (idx%32));
 }
 
-DDS_INLINE_EXPORT inline void nn_bitset_clear (UNUSED_ARG_NDEBUG (uint32_t numbits), uint32_t *bits, uint32_t idx)
+inline void nn_bitset_clear (UNUSED_ARG_NDEBUG (uint32_t numbits), uint32_t *bits, uint32_t idx)
 {
   assert (idx < numbits);
   bits[idx/32] &= ~(UINT32_C(1) << (31 - (idx%32)));
 }
 
-DDS_INLINE_EXPORT inline void nn_bitset_zero (uint32_t numbits, uint32_t *bits)
+inline void nn_bitset_zero (uint32_t numbits, uint32_t *bits)
 {
   memset (bits, 0, 4 * ((numbits + 31) / 32));
 }
 
-DDS_INLINE_EXPORT inline void nn_bitset_one (uint32_t numbits, uint32_t *bits)
+inline void nn_bitset_one (uint32_t numbits, uint32_t *bits)
 {
   memset (bits, 0xff, 4 * ((numbits + 31) / 32));
 

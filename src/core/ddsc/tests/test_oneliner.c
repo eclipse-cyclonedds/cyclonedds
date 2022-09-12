@@ -1741,9 +1741,9 @@ static void dodeaf_maybe_imm (struct oneliner_ctx *ctx, bool immediate)
         dds_entity_unpin (x);
         error_dds (ctx, ret, "%s: pin counterpart participant failed %"PRId32, mode, ctx->es[9*i]);
       }
-      thread_state_awake (lookup_thread_state (), &x->m_domain->gv);
+      thread_state_awake (ddsi_lookup_thread_state (), &x->m_domain->gv);
       ddsi_delete_proxy_participant_by_guid (&x->m_domain->gv, &xprime->m_guid, ddsrt_time_wallclock (), true);
-      thread_state_asleep (lookup_thread_state ());
+      thread_state_asleep (ddsi_lookup_thread_state ());
       dds_entity_unpin (xprime);
     }
     dds_entity_unpin (x);
@@ -1780,10 +1780,10 @@ static void dohearing_maybe_imm (struct oneliner_ctx *ctx, bool immediate)
       struct ddsi_participant *pp;
       if ((ret = dds_entity_pin (ctx->es[9*i], &xprime)) < 0)
         error_dds (ctx, ret, "%s: pin counterpart participant failed %"PRId32, mode, ctx->es[9*i]);
-      thread_state_awake (lookup_thread_state (), &xprime->m_domain->gv);
+      thread_state_awake (ddsi_lookup_thread_state (), &xprime->m_domain->gv);
       if ((pp = entidx_lookup_participant_guid (xprime->m_domain->gv.entity_index, &xprime->m_guid)) != NULL)
         resched_xevent_if_earlier (pp->spdp_xevent, ddsrt_mtime_add_duration (ddsrt_time_monotonic (), DDS_MSECS (100)));
-      thread_state_asleep (lookup_thread_state ());
+      thread_state_asleep (ddsi_lookup_thread_state ());
       dds_entity_unpin (xprime);
     }
   }

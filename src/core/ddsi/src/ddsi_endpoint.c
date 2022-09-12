@@ -1077,11 +1077,11 @@ void ddsi_update_writer_qos (struct ddsi_writer *wr, const dds_qos_t *xqos)
   ddsrt_mutex_unlock (&wr->e.lock);
 }
 
-static void gc_delete_writer (struct gcreq *gcreq)
+static void gc_delete_writer (struct ddsi_gcreq *gcreq)
 {
   struct ddsi_writer *wr = gcreq->arg;
   ELOGDISC (wr, "gc_delete_writer(%p, "PGUIDFMT")\n", (void *) gcreq, PGUID (wr->e.guid));
-  gcreq_free (gcreq);
+  ddsi_gcreq_free (gcreq);
 
   /* We now allow GC while blocked on a full WHC, but we still don't allow deleting a writer while blocked on it. The writer's state must be DELETING by the time we get here, and that means the transmit path is no longer blocked. It doesn't imply that the write thread is no longer in throttle_writer(), just that if it is, it will soon return from there. Therefore, block until it isn't throttling anymore. We can safely lock the writer, as we're on the separate GC thread. */
   assert (wr->state == WRST_DELETING);
@@ -1144,7 +1144,7 @@ static void gc_delete_writer (struct gcreq *gcreq)
   ddsrt_free (wr);
 }
 
-static void gc_delete_writer_throttlewait (struct gcreq *gcreq)
+static void gc_delete_writer_throttlewait (struct ddsi_gcreq *gcreq)
 {
   struct ddsi_writer *wr = gcreq->arg;
   ELOGDISC (wr, "gc_delete_writer_throttlewait(%p, "PGUIDFMT")\n", (void *) gcreq, PGUID (wr->e.guid));
@@ -1154,14 +1154,14 @@ static void gc_delete_writer_throttlewait (struct gcreq *gcreq)
   while (wr->throttling)
     ddsrt_cond_wait (&wr->throttle_cond, &wr->e.lock);
   ddsrt_mutex_unlock (&wr->e.lock);
-  gcreq_requeue (gcreq, gc_delete_writer);
+  ddsi_gcreq_requeue (gcreq, gc_delete_writer);
 }
 
 static int gcreq_writer (struct ddsi_writer *wr)
 {
-  struct gcreq *gcreq = gcreq_new (wr->e.gv->gcreq_queue, wr->throttling ? gc_delete_writer_throttlewait : gc_delete_writer);
+  struct ddsi_gcreq *gcreq = ddsi_gcreq_new (wr->e.gv->gcreq_queue, wr->throttling ? gc_delete_writer_throttlewait : gc_delete_writer);
   gcreq->arg = wr;
-  gcreq_enqueue (gcreq);
+  ddsi_gcreq_enqueue (gcreq);
   return 0;
 }
 
@@ -1554,12 +1554,12 @@ dds_return_t ddsi_new_reader (struct ddsi_reader **rd_out, struct ddsi_guid *rdg
   return ddsi_new_reader_guid (rd_out, rdguid, group_guid, pp, topic_name, type, xqos, rhc, status_cb, status_cbarg);
 }
 
-static void gc_delete_reader (struct gcreq *gcreq)
+static void gc_delete_reader (struct ddsi_gcreq *gcreq)
 {
   /* see gc_delete_writer for comments */
   struct ddsi_reader *rd = gcreq->arg;
   ELOGDISC (rd, "gc_delete_reader(%p, "PGUIDFMT")\n", (void *) gcreq, PGUID (rd->e.guid));
-  gcreq_free (gcreq);
+  ddsi_gcreq_free (gcreq);
 
   while (!ddsrt_avl_is_empty (&rd->writers))
   {
@@ -1607,9 +1607,9 @@ static void gc_delete_reader (struct gcreq *gcreq)
 
 static int gcreq_reader (struct ddsi_reader *rd)
 {
-  struct gcreq *gcreq = gcreq_new (rd->e.gv->gcreq_queue, gc_delete_reader);
+  struct ddsi_gcreq *gcreq = ddsi_gcreq_new (rd->e.gv->gcreq_queue, gc_delete_reader);
   gcreq->arg = rd;
-  gcreq_enqueue (gcreq);
+  ddsi_gcreq_enqueue (gcreq);
   return 0;
 }
 

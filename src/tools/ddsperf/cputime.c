@@ -23,6 +23,7 @@
 #include "dds/ddsrt/threads.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/rusage.h"
+#include "dds/ddsrt/misc.h"
 
 #include "cputime.h"
 #include "ddsperf_types.h"
@@ -227,11 +228,20 @@ struct record_cputime_state *record_cputime_new (dds_entity_t wr)
   char hostname[128];
   if (ddsrt_gethostname (hostname, sizeof (hostname)) != DDS_RETCODE_OK)
     strcpy (hostname, "?");
-  state->s.hostname = ddsrt_strdup (hostname);
+DDSRT_WARNING_MSVC_OFF(4996);
+  state->s.hostname = strdup (hostname);
+DDSRT_WARNING_MSVC_ON(4996);
+  assert (state->s.hostname);
   state->s.pid = (uint32_t) ddsrt_getpid ();
   state->s.cpu._length = 0;
   state->s.cpu._maximum = (uint32_t) state->nthreads;
-  state->s.cpu._buffer = ddsrt_malloc (state->s.cpu._maximum * sizeof (*state->s.cpu._buffer));
+  if (state->s.cpu._maximum > 0)
+  {
+    state->s.cpu._buffer = malloc (state->s.cpu._maximum * sizeof (*state->s.cpu._buffer));
+    assert (state->s.cpu._buffer);
+  }
+  else
+    state->s.cpu._buffer = NULL;
   state->s.cpu._release = false;
   return state;
 }
@@ -241,9 +251,9 @@ void record_cputime_free (struct record_cputime_state *state)
   if (state)
   {
     free (state->threads);
-    ddsrt_free (state->s.hostname);
+    free (state->s.hostname);
     /* we alias thread names in state->s->cpu._buffer, so no need to free */
-    ddsrt_free (state->s.cpu._buffer);
+    free (state->s.cpu._buffer);
     free (state);
   }
 }

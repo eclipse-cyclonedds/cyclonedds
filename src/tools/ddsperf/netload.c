@@ -19,6 +19,7 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/netstat.h"
+#include "dds/ddsrt/misc.h"
 
 #include "netload.h"
 
@@ -76,18 +77,23 @@ void record_netload (struct record_netload_state *st, const char *prefix, dds_ti
 
 struct record_netload_state *record_netload_new (const char *dev, double bw)
 {
-  struct record_netload_state *st = ddsrt_malloc (sizeof (*st));
+DDSRT_WARNING_MSVC_OFF(4996);
+  struct record_netload_state *st;
+  st = malloc (sizeof (*st));
+  assert (st);
   if (ddsrt_netstat_new (&st->ctrl, dev) != DDS_RETCODE_OK)
   {
-    ddsrt_free (st);
+    free (st);
     return NULL;
   }
-  st->name = ddsrt_strdup (dev);
+  st->name = strdup (dev);
+  assert (st->name);
   st->bw = bw;
   st->data_valid = false;
   st->errored = false;
   record_netload (st, "", dds_time ());
   return st;
+DDSRT_WARNING_MSVC_ON(4996);
 }
 
 void record_netload_free (struct record_netload_state *st)
@@ -95,8 +101,8 @@ void record_netload_free (struct record_netload_state *st)
   if (st)
   {
     ddsrt_netstat_free (st->ctrl);
-    ddsrt_free (st->name);
-    ddsrt_free (st);
+    free (st->name);
+    free (st);
   }
 }
 

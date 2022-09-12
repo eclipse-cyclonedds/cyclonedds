@@ -18,8 +18,8 @@
 extern "C" {
 #endif
 
-DDS_EXPORT dds_entity_t dds_domain_create_internal (dds_domain **domain_out, dds_domainid_t id, bool implicit, const char *config) ddsrt_nonnull((1,4));
-DDS_EXPORT dds_domain *dds_domain_find_locked (dds_domainid_t id);
+dds_entity_t dds_domain_create_internal (dds_domain **domain_out, dds_domainid_t id, bool implicit, const char *config) ddsrt_nonnull((1,4));
+dds_domain *dds_domain_find_locked (dds_domainid_t id);
 
 #if defined (__cplusplus)
 }

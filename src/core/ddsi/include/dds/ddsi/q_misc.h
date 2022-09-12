@@ -18,12 +18,12 @@
 extern "C" {
 #endif
 
-DDS_INLINE_EXPORT inline seqno_t fromSN (const nn_sequence_number_t sn) {
+inline seqno_t fromSN (const nn_sequence_number_t sn) {
   uint64_t sn_high = (uint32_t) sn.high;
   return (sn_high << 32) | sn.low;
 }
 
-DDS_INLINE_EXPORT inline bool validating_fromSN (const nn_sequence_number_t sn, seqno_t *res) {
+inline bool validating_fromSN (const nn_sequence_number_t sn, seqno_t *res) {
   // fromSN does not checks whatsoever (and shouldn't because it is used quite a lot)
   // Valid sequence numbers are in [1 .. 2**63-1] union { SEQUENCE_NUMBER_UNKNOWN }
   // where SEQUENCE_NUMBER_UNKNOWN is the usual abomination: ((2**32-1) << 32)
@@ -39,7 +39,7 @@ DDS_INLINE_EXPORT inline bool validating_fromSN (const nn_sequence_number_t sn, 
   return (tmp - 1) < MAX_SEQ_NUMBER;
 }
 
-DDS_INLINE_EXPORT inline nn_sequence_number_t toSN (seqno_t n) {
+inline nn_sequence_number_t toSN (seqno_t n) {
   nn_sequence_number_t x;
   x.high = (int32_t) (n >> 32);
   x.low = (uint32_t) n;
@@ -53,10 +53,10 @@ int WildcardOverlap(char * p1, char * p2);
 #endif
 
 extern const ddsi_guid_t nullguid;
-DDS_EXPORT bool guid_prefix_zero (const ddsi_guid_prefix_t *a);
-DDS_EXPORT int guid_prefix_eq (const ddsi_guid_prefix_t *a, const ddsi_guid_prefix_t *b);
-DDS_EXPORT int guid_eq (const struct ddsi_guid *a, const struct ddsi_guid *b);
-DDS_EXPORT int ddsi2_patmatch (const char *pat, const char *str);
+bool guid_prefix_zero (const ddsi_guid_prefix_t *a);
+int guid_prefix_eq (const ddsi_guid_prefix_t *a, const ddsi_guid_prefix_t *b);
+int guid_eq (const struct ddsi_guid *a, const struct ddsi_guid *b);
+int ddsi2_patmatch (const char *pat, const char *str);
 
 #ifdef DDS_HAS_NETWORK_PARTITIONS
 struct ddsi_config;

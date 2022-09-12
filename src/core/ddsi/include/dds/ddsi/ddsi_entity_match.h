@@ -194,7 +194,7 @@ void match_volatile_secure_endpoints (struct ddsi_participant *pp, struct ddsi_p
 void update_proxy_participant_endpoint_matching (struct ddsi_proxy_participant *proxypp, struct ddsi_participant *pp);
 #endif
 
-DDS_EXPORT void ddsi_update_proxy_endpoint_matching (const struct ddsi_domaingv *gv, struct ddsi_generic_proxy_endpoint *proxy_ep);
+void ddsi_update_proxy_endpoint_matching (const struct ddsi_domaingv *gv, struct ddsi_generic_proxy_endpoint *proxy_ep);
 
 #if defined (__cplusplus)
 }

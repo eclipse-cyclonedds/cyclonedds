@@ -53,37 +53,37 @@ typedef struct {
 extern "C" {
 #endif
 
-DDS_INLINE_EXPORT inline bool vendor_equals (nn_vendorid_t a, nn_vendorid_t b) {
+inline bool vendor_equals (nn_vendorid_t a, nn_vendorid_t b) {
   return ((a.id[0] << 8) | a.id[1]) == ((b.id[0] << 8) | b.id[1]);
 }
-DDS_INLINE_EXPORT inline bool vendor_is_eclipse (nn_vendorid_t vendor) {
+inline bool vendor_is_eclipse (nn_vendorid_t vendor) {
   const nn_vendorid_t x = NN_VENDORID_INIT (ECLIPSE);
   return vendor_equals (vendor, x);
 }
-DDS_INLINE_EXPORT inline bool vendor_is_rti (nn_vendorid_t vendor) {
+inline bool vendor_is_rti (nn_vendorid_t vendor) {
   const nn_vendorid_t x = NN_VENDORID_INIT (RTI);
   return vendor_equals (vendor, x);
 }
-DDS_INLINE_EXPORT inline bool vendor_is_opensplice (nn_vendorid_t vendor) {
+inline bool vendor_is_opensplice (nn_vendorid_t vendor) {
   const nn_vendorid_t x = NN_VENDORID_INIT (ADLINK_OSPL);
   return vendor_equals (vendor, x);
 }
-DDS_INLINE_EXPORT inline bool vendor_is_twinoaks (nn_vendorid_t vendor) {
+inline bool vendor_is_twinoaks (nn_vendorid_t vendor) {
   const nn_vendorid_t x = NN_VENDORID_INIT (TWINOAKS);
   return vendor_equals (vendor, x);
 }
-DDS_INLINE_EXPORT inline bool vendor_is_eprosima (nn_vendorid_t vendor) {
+inline bool vendor_is_eprosima (nn_vendorid_t vendor) {
   const nn_vendorid_t x = NN_VENDORID_INIT (EPROSIMA);
   return vendor_equals (vendor, x);
 }
-DDS_INLINE_EXPORT inline bool vendor_is_cloud (nn_vendorid_t vendor) {
+inline bool vendor_is_cloud (nn_vendorid_t vendor) {
   const nn_vendorid_t x = NN_VENDORID_INIT (ADLINK_CLOUD);
   return vendor_equals (vendor, x);
 }
-DDS_INLINE_EXPORT inline bool vendor_is_eclipse_or_opensplice (nn_vendorid_t vendor) {
+inline bool vendor_is_eclipse_or_opensplice (nn_vendorid_t vendor) {
   return vendor_is_eclipse (vendor) || vendor_is_opensplice (vendor);
 }
-DDS_INLINE_EXPORT inline bool vendor_is_adlink (nn_vendorid_t vendor) {
+inline bool vendor_is_adlink (nn_vendorid_t vendor) {
   const nn_vendorid_t a = NN_VENDORID_INIT (ADLINK_OSPL);
   const nn_vendorid_t b = NN_VENDORID_INIT (ADLINK_LITE);
   const nn_vendorid_t c = NN_VENDORID_INIT (ADLINK_GATEWAY);
@@ -95,7 +95,7 @@ DDS_INLINE_EXPORT inline bool vendor_is_adlink (nn_vendorid_t vendor) {
           vendor_equals (vendor, d) ||
           vendor_equals (vendor, e));
 }
-DDS_INLINE_EXPORT inline bool vendor_is_eclipse_or_adlink (nn_vendorid_t vendor) {
+inline bool vendor_is_eclipse_or_adlink (nn_vendorid_t vendor) {
   return vendor_is_eclipse (vendor) || vendor_is_adlink (vendor);
 }
 

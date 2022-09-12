@@ -407,7 +407,7 @@ void dds__builtin_init (struct dds_domain *dom)
   ddsi_sertype_register_locked (&dom->gv, dom->builtin_writer_type);
   ddsrt_mutex_unlock (&dom->gv.sertypes_lock);
 
-  thread_state_awake (lookup_thread_state (), &dom->gv);
+  thread_state_awake (ddsi_lookup_thread_state (), &dom->gv);
   const struct entity_index *gh = dom->gv.entity_index;
   dom->builtintopic_writer_participant = ddsi_new_local_orphan_writer (&dom->gv, ddsi_to_entityid (NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER), DDS_BUILTIN_TOPIC_PARTICIPANT_NAME, dom->builtin_participant_type, qos, builtintopic_whc_new (DSBT_PARTICIPANT, gh));
 #ifdef DDS_HAS_TOPIC_DISCOVERY
@@ -415,11 +415,11 @@ void dds__builtin_init (struct dds_domain *dom)
 #endif
   dom->builtintopic_writer_publications = ddsi_new_local_orphan_writer (&dom->gv, ddsi_to_entityid (NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER), DDS_BUILTIN_TOPIC_PUBLICATION_NAME, dom->builtin_writer_type, qos, builtintopic_whc_new (DSBT_WRITER, gh));
   dom->builtintopic_writer_subscriptions = ddsi_new_local_orphan_writer (&dom->gv, ddsi_to_entityid (NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER), DDS_BUILTIN_TOPIC_SUBSCRIPTION_NAME, dom->builtin_reader_type, qos, builtintopic_whc_new (DSBT_READER, gh));
-  thread_state_asleep (lookup_thread_state ());
+  thread_state_asleep (ddsi_lookup_thread_state ());
 
   dds_delete_qos (qos);
 
-  /* ddsi_sertype_init initializes the refcount to 1 and dds_sertopic_register_locked increments
+  /* ddsi_sertype_init initializes the refcount to 1 and dds_sertype_register_locked increments
      it.  All "real" references (such as readers and writers) are also accounted for in the
      reference count, so we have an excess reference here. */
   unref_builtin_types (dom);
@@ -428,13 +428,13 @@ void dds__builtin_init (struct dds_domain *dom)
 void dds__builtin_fini (struct dds_domain *dom)
 {
   /* No more sources for builtin topic samples */
-  thread_state_awake (lookup_thread_state (), &dom->gv);
+  thread_state_awake (ddsi_lookup_thread_state (), &dom->gv);
   ddsi_delete_local_orphan_writer (dom->builtintopic_writer_participant);
 #ifdef DDS_HAS_TOPIC_DISCOVERY
   ddsi_delete_local_orphan_writer (dom->builtintopic_writer_topics);
 #endif
   ddsi_delete_local_orphan_writer (dom->builtintopic_writer_publications);
   ddsi_delete_local_orphan_writer (dom->builtintopic_writer_subscriptions);
-  thread_state_asleep (lookup_thread_state ());
+  thread_state_asleep (ddsi_lookup_thread_state ());
   unref_builtin_types (dom);
 }

@@ -582,8 +582,8 @@ get_check_type_spec_typeid(
     memset (&ti_tmp, 0, sizeof (ti_tmp));
     ret = get_typeid (pstate, dtm, type_spec, alias_related_type, &ti_tmp, kind, false);
     assert (ret == IDL_RETCODE_OK);
-    assert (!ddsi_typeid_compare_impl (ti, &ti_tmp));
-    ddsi_typeid_fini_impl (&ti_tmp);
+    assert (!ddsi_typeid_compare ((struct ddsi_typeid *) ti, (struct ddsi_typeid *) &ti_tmp));
+    ddsi_typeid_fini ((struct ddsi_typeid *) &ti_tmp);
   }
 #endif
   return IDL_RETCODE_OK;
@@ -1528,12 +1528,12 @@ print_typeid_with_deps (
 {
   struct ddsi_typeid_str tidstr;
   const char *fmt = "  %s (#deps: %d)\n";
-  if (idl_fprintf (fp, fmt, ddsi_make_typeid_str_impl (&tidstr, &typeid_with_deps->typeid_with_size.type_id), typeid_with_deps->dependent_typeid_count) < 0)
+  if (idl_fprintf (fp, fmt, ddsi_make_typeid_str (&tidstr, (struct ddsi_typeid *) &typeid_with_deps->typeid_with_size.type_id), typeid_with_deps->dependent_typeid_count) < 0)
     return IDL_RETCODE_NO_MEMORY;
   fmt = "   - %s\n";
   for (uint32_t n = 0; n < typeid_with_deps->dependent_typeids._length; n++)
   {
-    if (idl_fprintf (fp, fmt, ddsi_make_typeid_str_impl(&tidstr, &typeid_with_deps->dependent_typeids._buffer[n].type_id)) < 0)
+    if (idl_fprintf (fp, fmt, ddsi_make_typeid_str (&tidstr, (struct ddsi_typeid *) &typeid_with_deps->dependent_typeids._buffer[n].type_id)) < 0)
       return IDL_RETCODE_NO_MEMORY;
   }
   return IDL_RETCODE_OK;
@@ -1654,7 +1654,7 @@ generate_type_meta_ser_impl (
        so check if the type id is already in the list and don't add duplicates */
     bool found = false;
     for (uint32_t n = 0; !found && n < type_information->minimal.dependent_typeids._length; n++)
-      found = !ddsi_typeid_compare_impl (&type_information->minimal.dependent_typeids._buffer[n].type_id, &tidws.type_id);
+      found = !ddsi_typeid_compare ((struct ddsi_typeid *) &type_information->minimal.dependent_typeids._buffer[n].type_id, (struct ddsi_typeid *) &tidws.type_id);
     if (!found)
     {
       if ((ret = add_to_seq ((dds_sequence_t *) &type_information->minimal.dependent_typeids, &tidws, sizeof (tidws))) < 0)

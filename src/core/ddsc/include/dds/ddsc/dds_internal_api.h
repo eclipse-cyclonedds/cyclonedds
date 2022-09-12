@@ -19,6 +19,8 @@
 #ifndef DDS_INTERNAL_API_H
 #define DDS_INTERNAL_API_H
 
+#include "dds/export.h"
+
 #if defined (__cplusplus)
 extern "C" {
 #endif

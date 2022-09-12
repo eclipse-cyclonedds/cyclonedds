@@ -37,13 +37,13 @@ struct addrset {
 typedef void (*addrset_forall_fun_t) (const ddsi_xlocator_t *loc, void *arg);
 typedef ssize_t (*addrset_forone_fun_t) (const ddsi_xlocator_t *loc, void *arg);
 
-DDS_EXPORT struct addrset *new_addrset (void);
-DDS_EXPORT struct addrset *ref_addrset (struct addrset *as);
-DDS_EXPORT void unref_addrset (struct addrset *as);
-DDS_EXPORT void add_locator_to_addrset (const struct ddsi_domaingv *gv, struct addrset *as, const ddsi_locator_t *loc);
-DDS_EXPORT void add_xlocator_to_addrset (const struct ddsi_domaingv *gv, struct addrset *as, const ddsi_xlocator_t *loc);
-DDS_EXPORT void remove_from_addrset (const struct ddsi_domaingv *gv, struct addrset *as, const ddsi_xlocator_t *loc);
-DDS_EXPORT int addrset_purge (struct addrset *as);
+struct addrset *new_addrset (void);
+struct addrset *ref_addrset (struct addrset *as);
+void unref_addrset (struct addrset *as);
+void add_locator_to_addrset (const struct ddsi_domaingv *gv, struct addrset *as, const ddsi_locator_t *loc);
+void add_xlocator_to_addrset (const struct ddsi_domaingv *gv, struct addrset *as, const ddsi_xlocator_t *loc);
+void remove_from_addrset (const struct ddsi_domaingv *gv, struct addrset *as, const ddsi_xlocator_t *loc);
+int addrset_purge (struct addrset *as);
 int compare_locators (const ddsi_locator_t *a, const ddsi_locator_t *b);
 int compare_xlocators (const ddsi_xlocator_t *a, const ddsi_xlocator_t *b);
 
@@ -65,7 +65,7 @@ void addrset_any_uc_else_mc_nofail (const struct addrset *as, ddsi_xlocator_t *d
 
 /* Keeps AS locked */
 int addrset_forone (struct addrset *as, addrset_forone_fun_t f, void *arg);
-DDS_EXPORT void addrset_forall (struct addrset *as, addrset_forall_fun_t f, void *arg);
+void addrset_forall (struct addrset *as, addrset_forall_fun_t f, void *arg);
 size_t addrset_forall_count (struct addrset *as, addrset_forall_fun_t f, void *arg);
 size_t addrset_forall_uc_else_mc_count (struct addrset *as, addrset_forall_fun_t f, void *arg);
 size_t addrset_forall_mc_count (struct addrset *as, addrset_forall_fun_t f, void *arg);

@@ -78,6 +78,6 @@ if(BUILD_TESTING)
   add_subdirectory(tests)
 endif()
 
-if(BUILD_IDLC_TESTING)
+if(BUILD_IDLC_XTESTS)
   add_subdirectory(xtests)
 endif()

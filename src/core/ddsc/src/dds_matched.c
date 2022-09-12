@@ -44,7 +44,7 @@ dds_return_t dds_get_matched_subscriptions (dds_entity_t writer, dds_instance_ha
     size_t nrds_act = 0;
     ddsrt_avl_iter_t it;
     /* FIXME: this ought not be so tightly coupled to the lower layer */
-    thread_state_awake (lookup_thread_state (), &wr->m_entity.m_domain->gv);
+    thread_state_awake (ddsi_lookup_thread_state (), &wr->m_entity.m_domain->gv);
     ddsrt_mutex_lock (&wr->m_wr->e.lock);
     for (const struct ddsi_wr_prd_match *m = ddsrt_avl_iter_first (&ddsi_wr_readers_treedef, &wr->m_wr->readers, &it);
          m != NULL;
@@ -71,7 +71,7 @@ dds_return_t dds_get_matched_subscriptions (dds_entity_t writer, dds_instance_ha
       }
     }
     ddsrt_mutex_unlock (&wr->m_wr->e.lock);
-    thread_state_asleep (lookup_thread_state ());
+    thread_state_asleep (ddsi_lookup_thread_state ());
     dds_writer_unlock (wr);
     /* FIXME: is it really true that there can not be more than INT32_MAX matching readers?
        (in practice it'll come to a halt long before that) */
@@ -94,7 +94,7 @@ dds_return_t dds_get_matched_publications (dds_entity_t reader, dds_instance_han
     size_t nwrs_act = 0;
     ddsrt_avl_iter_t it;
     /* FIXME: this ought not be so tightly coupled to the lower layer */
-    thread_state_awake (lookup_thread_state (), &rd->m_entity.m_domain->gv);
+    thread_state_awake (ddsi_lookup_thread_state (), &rd->m_entity.m_domain->gv);
     ddsrt_mutex_lock (&rd->m_rd->e.lock);
     for (const struct ddsi_rd_pwr_match *m = ddsrt_avl_iter_first (&ddsi_rd_writers_treedef, &rd->m_rd->writers, &it);
          m != NULL;
@@ -121,7 +121,7 @@ dds_return_t dds_get_matched_publications (dds_entity_t reader, dds_instance_han
       }
     }
     ddsrt_mutex_unlock (&rd->m_rd->e.lock);
-    thread_state_asleep (lookup_thread_state ());
+    thread_state_asleep (ddsi_lookup_thread_state ());
     dds_reader_unlock (rd);
     /* FIXME: is it really true that there can not be more than INT32_MAX matching readers?
      (in practice it'll come to a halt long before that) */
@@ -158,7 +158,7 @@ dds_builtintopic_endpoint_t *dds_get_matched_subscription_data (dds_entity_t wri
     dds_builtintopic_endpoint_t *ret = NULL;
     ddsrt_avl_iter_t it;
     /* FIXME: this ought not be so tightly coupled to the lower layer, and not be so inefficient besides */
-    thread_state_awake (lookup_thread_state (), &wr->m_entity.m_domain->gv);
+    thread_state_awake (ddsi_lookup_thread_state (), &wr->m_entity.m_domain->gv);
     ddsrt_mutex_lock (&wr->m_wr->e.lock);
     for (const struct ddsi_wr_prd_match *m = ddsrt_avl_iter_first (&ddsi_wr_readers_treedef, &wr->m_wr->readers, &it);
          m != NULL && ret == NULL;
@@ -184,7 +184,7 @@ dds_builtintopic_endpoint_t *dds_get_matched_subscription_data (dds_entity_t wri
     }
 
     ddsrt_mutex_unlock (&wr->m_wr->e.lock);
-    thread_state_asleep (lookup_thread_state ());
+    thread_state_asleep (ddsi_lookup_thread_state ());
     dds_writer_unlock (wr);
     return ret;
   }
@@ -201,7 +201,7 @@ dds_builtintopic_endpoint_t *dds_get_matched_publication_data (dds_entity_t read
     dds_builtintopic_endpoint_t *ret = NULL;
     ddsrt_avl_iter_t it;
     /* FIXME: this ought not be so tightly coupled to the lower layer, and not be so inefficient besides */
-    thread_state_awake (lookup_thread_state (), &rd->m_entity.m_domain->gv);
+    thread_state_awake (ddsi_lookup_thread_state (), &rd->m_entity.m_domain->gv);
     ddsrt_mutex_lock (&rd->m_rd->e.lock);
     for (const struct ddsi_rd_pwr_match *m = ddsrt_avl_iter_first (&ddsi_rd_writers_treedef, &rd->m_rd->writers, &it);
          m != NULL && ret == NULL;
@@ -226,7 +226,7 @@ dds_builtintopic_endpoint_t *dds_get_matched_publication_data (dds_entity_t read
       }
     }
     ddsrt_mutex_unlock (&rd->m_rd->e.lock);
-    thread_state_asleep (lookup_thread_state ());
+    thread_state_asleep (ddsi_lookup_thread_state ());
     dds_reader_unlock (rd);
     return ret;
   }

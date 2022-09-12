@@ -41,7 +41,7 @@ DDS_EXPORT uint32_t dds_reader_lock_samples (dds_entity_t entity);
 
 struct nn_rsample_info;
 struct nn_rdata;
-DDS_EXPORT void dds_reader_ddsi2direct (dds_entity_t entity, void (*cb) (const struct nn_rsample_info *sampleinfo, const struct nn_rdata *fragchain, void *arg), void *cbarg);
+void dds_reader_ddsi2direct (dds_entity_t entity, void (*cb) (const struct nn_rsample_info *sampleinfo, const struct nn_rdata *fragchain, void *arg), void *cbarg);
 
 DEFINE_ENTITY_LOCK_UNLOCK(dds_reader, DDS_KIND_READER)
 

@@ -24,8 +24,6 @@
 #include "dds/ddsi/ddsi_typelookup.h"
 #include "dds__serdata_builtintopic.h"
 
-/* FIXME: sertopic /= ddstopic so a lot of stuff needs to be moved here from dds_topic.c and the free function needs to be implemented properly */
-
 static struct ddsi_sertype *new_sertype_builtintopic_impl (
     enum ddsi_sertype_builtintopic_entity_kind entity_kind,
     const char *typename,

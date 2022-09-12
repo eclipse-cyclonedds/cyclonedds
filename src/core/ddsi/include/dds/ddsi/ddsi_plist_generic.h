@@ -47,17 +47,17 @@ enum pserop {
   Xopt, /* remainder is optional on deser, 0-init if not present */
 } ddsrt_attribute_packed;
 
-DDS_EXPORT void plist_fini_generic (void * __restrict dst, const enum pserop *desc, bool aliased);
-DDS_EXPORT void plist_ser_generic_size_embeddable (size_t *dstoff, const void *src, size_t srcoff, const enum pserop * __restrict desc);
-DDS_EXPORT dds_return_t plist_deser_generic (void * __restrict dst, const void * __restrict src, size_t srcsize, bool bswap, const enum pserop * __restrict desc);
-DDS_EXPORT dds_return_t plist_deser_generic_srcoff (void * __restrict dst, const void * __restrict src, size_t srcsize, size_t *srcoff, bool bswap, const enum pserop * __restrict desc);
-DDS_EXPORT dds_return_t plist_ser_generic_embeddable (char * const data, size_t *dstoff, const void *src, size_t srcoff, const enum pserop * __restrict desc, enum ddsrt_byte_order_selector bo);
-DDS_EXPORT dds_return_t plist_ser_generic (void **dst, size_t *dstsize, const void *src, const enum pserop * __restrict desc);
-DDS_EXPORT dds_return_t plist_ser_generic_be (void **dst, size_t *dstsize, const void *src, const enum pserop * __restrict desc);
-DDS_EXPORT dds_return_t plist_unalias_generic (void * __restrict dst, const enum pserop * __restrict desc);
-DDS_EXPORT bool plist_equal_generic (const void *srcx, const void *srcy, const enum pserop * __restrict desc);
-DDS_EXPORT size_t plist_memsize_generic (const enum pserop * __restrict desc);
-DDS_EXPORT size_t plist_print_generic (char * __restrict buf, size_t bufsize, const void * __restrict src, const enum pserop * __restrict desc);
+void plist_fini_generic (void * __restrict dst, const enum pserop *desc, bool aliased);
+void plist_ser_generic_size_embeddable (size_t *dstoff, const void *src, size_t srcoff, const enum pserop * __restrict desc);
+dds_return_t plist_deser_generic (void * __restrict dst, const void * __restrict src, size_t srcsize, bool bswap, const enum pserop * __restrict desc);
+dds_return_t plist_deser_generic_srcoff (void * __restrict dst, const void * __restrict src, size_t srcsize, size_t *srcoff, bool bswap, const enum pserop * __restrict desc);
+dds_return_t plist_ser_generic_embeddable (char * const data, size_t *dstoff, const void *src, size_t srcoff, const enum pserop * __restrict desc, enum ddsrt_byte_order_selector bo);
+dds_return_t plist_ser_generic (void **dst, size_t *dstsize, const void *src, const enum pserop * __restrict desc);
+dds_return_t plist_ser_generic_be (void **dst, size_t *dstsize, const void *src, const enum pserop * __restrict desc);
+dds_return_t plist_unalias_generic (void * __restrict dst, const enum pserop * __restrict desc);
+bool plist_equal_generic (const void *srcx, const void *srcy, const enum pserop * __restrict desc);
+size_t plist_memsize_generic (const enum pserop * __restrict desc);
+size_t plist_print_generic (char * __restrict buf, size_t bufsize, const void * __restrict src, const enum pserop * __restrict desc);
 
 #if defined (__cplusplus)
 }

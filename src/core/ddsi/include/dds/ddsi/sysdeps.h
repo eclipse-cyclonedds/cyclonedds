@@ -24,7 +24,7 @@ extern "C" {
 #define ASSERT_MUTEX_HELD(x) ((void) 0)
 
 struct ddsrt_log_cfg;
-DDS_EXPORT void log_stacktrace (const struct ddsrt_log_cfg *logcfg, const char *name, ddsrt_thread_t tid);
+void log_stacktrace (const struct ddsrt_log_cfg *logcfg, const char *name, ddsrt_thread_t tid);
 
 #if defined (__cplusplus)
 }

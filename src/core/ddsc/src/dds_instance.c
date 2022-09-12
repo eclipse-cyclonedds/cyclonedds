@@ -76,7 +76,7 @@ dds_return_t dds_register_instance (dds_entity_t writer, dds_instance_handle_t *
   if ((ret = dds_writer_lock (writer, &wr)) != DDS_RETCODE_OK)
     return ret;
 
-  struct thread_state * const thrst = lookup_thread_state ();
+  struct thread_state * const thrst = ddsi_lookup_thread_state ();
   thread_state_awake (thrst, &wr->m_entity.m_domain->gv);
   struct ddsi_tkmap_instance * const inst = dds_instance_find (wr, data, true);
   if (inst == NULL)
@@ -117,7 +117,7 @@ dds_return_t dds_unregister_instance_ts (dds_entity_t writer, const void *data, 
   if (wr->m_entity.m_qos)
     (void) dds_qget_writer_data_lifecycle (wr->m_entity.m_qos, &autodispose);
 
-  struct thread_state * const thrst = lookup_thread_state ();
+  struct thread_state * const thrst = ddsi_lookup_thread_state ();
   thread_state_awake (thrst, &wr->m_entity.m_domain->gv);
   if (autodispose)
   {
@@ -144,7 +144,7 @@ dds_return_t dds_unregister_instance_ih_ts (dds_entity_t writer, dds_instance_ha
   if (wr->m_entity.m_qos)
     (void) dds_qget_writer_data_lifecycle (wr->m_entity.m_qos, &autodispose);
 
-  struct thread_state * const thrst = lookup_thread_state ();
+  struct thread_state * const thrst = ddsi_lookup_thread_state ();
   thread_state_awake (thrst, &wr->m_entity.m_domain->gv);
   if (autodispose)
   {
@@ -175,7 +175,7 @@ dds_return_t dds_writedispose_ts (dds_entity_t writer, const void *data, dds_tim
   if ((ret = dds_writer_lock (writer, &wr)) != DDS_RETCODE_OK)
     return ret;
 
-  struct thread_state * const thrst = lookup_thread_state ();
+  struct thread_state * const thrst = ddsi_lookup_thread_state ();
   thread_state_awake (thrst, &wr->m_entity.m_domain->gv);
   if ((ret = dds_write_impl (wr, data, timestamp, DDS_WR_ACTION_WRITE_DISPOSE)) == DDS_RETCODE_OK)
     dds_instance_remove (wr->m_entity.m_domain, wr, data, DDS_HANDLE_NIL);
@@ -206,7 +206,7 @@ dds_return_t dds_dispose_ts (dds_entity_t writer, const void *data, dds_time_t t
   if ((ret = dds_writer_lock (writer, &wr)) != DDS_RETCODE_OK)
     return ret;
 
-  struct thread_state * const thrst = lookup_thread_state ();
+  struct thread_state * const thrst = ddsi_lookup_thread_state ();
   thread_state_awake (thrst, &wr->m_entity.m_domain->gv);
   ret = dds_dispose_impl (wr, data, DDS_HANDLE_NIL, timestamp);
   thread_state_asleep (thrst);
@@ -223,7 +223,7 @@ dds_return_t dds_dispose_ih_ts (dds_entity_t writer, dds_instance_handle_t handl
     return ret;
 
   struct ddsi_tkmap_instance *tk;
-  struct thread_state * const thrst = lookup_thread_state ();
+  struct thread_state * const thrst = ddsi_lookup_thread_state ();
   thread_state_awake (thrst, &wr->m_entity.m_domain->gv);
   if ((tk = ddsi_tkmap_find_by_id (wr->m_entity.m_domain->gv.m_tkmap, handle)) == NULL)
     ret = DDS_RETCODE_PRECONDITION_NOT_MET;
@@ -267,7 +267,7 @@ dds_instance_handle_t dds_lookup_instance (dds_entity_t entity, const void *data
   }
 
   dds_instance_handle_t ih;
-  struct thread_state * const thrst = lookup_thread_state ();
+  struct thread_state * const thrst = ddsi_lookup_thread_state ();
   thread_state_awake (thrst, &w_or_r->m_domain->gv);
   if ((sd = ddsi_serdata_from_sample (sertype, SDK_KEY, data)) == NULL)
     ih = DDS_HANDLE_NIL;
@@ -279,11 +279,6 @@ dds_instance_handle_t dds_lookup_instance (dds_entity_t entity, const void *data
   thread_state_asleep (thrst);
   dds_entity_unlock (w_or_r);
   return ih;
-}
-
-dds_instance_handle_t dds_instance_lookup (dds_entity_t entity, const void *data)
-{
-  return dds_lookup_instance (entity, data);
 }
 
 dds_return_t dds_instance_get_key (dds_entity_t entity, dds_instance_handle_t ih, void *data)
@@ -315,7 +310,7 @@ dds_return_t dds_instance_get_key (dds_entity_t entity, dds_instance_handle_t ih
       return DDS_RETCODE_ILLEGAL_OPERATION;
   }
 
-  struct thread_state * const thrst = lookup_thread_state ();
+  struct thread_state * const thrst = ddsi_lookup_thread_state ();
   thread_state_awake (thrst, &e->m_domain->gv);
   if ((tk = ddsi_tkmap_find_by_id (e->m_domain->gv.m_tkmap, ih)) == NULL)
     ret = DDS_RETCODE_BAD_PARAMETER;

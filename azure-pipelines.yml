@@ -50,8 +50,14 @@ jobs:
         deadline: off
         type_discovery: off
         topic_discovery: off
-        idlc_testing: off # temporary dislabled because of passing -t option to idlc in this test for recursive types
+        idlc_xtests: off # temporary disabled because of passing -t option to idlc in this test for recursive types
         cc: gcc-10
+      'Ubuntu 20.04 LTS with GCC 10 (Debug, x86_64, no tests)':
+        image: ubuntu-20.04
+        cc: gcc-10
+        testing: off
+        idlc_xtests: off
+        conan_shared_objects: True
       'Ubuntu 18.04 LTS with GCC 7 (Debug, x86_64)':
         image: ubuntu-18.04
         conanfile: conanfile102.txt
@@ -71,7 +77,7 @@ jobs:
         build_type: Release
         sanitizer: undefined
         topic_discovery: off
-        idlc_testing: off # temporary dislabled because of passing -t option to idlc in this test for recursive types
+        idlc_xtests: off # temporary disabled because of passing -t option to idlc in this test for recursive types
         cc: clang-10
       'macOS 11 with Clang 12 (Debug, x86_64)':
         image: macOS-11
@@ -91,22 +97,28 @@ jobs:
       'Windows 2019 with Visual Studio 2019 (Visual Studio 2017, Debug, x86)':
         arch: x86
         image: windows-2019
-        idlc_testing: off
+        idlc_xtests: off
         generator: 'Visual Studio 16 2019'
         toolset: v141
       'Windows 2019 with Visual Studio 2019 (Debug, x86_64)':
         image: windows-2019
-        idlc_testing: off
+        idlc_xtests: off
         generator: 'Visual Studio 16 2019'
-      'Windows 2019 with Visual Studio 2019 (Release, x86_64)':
+      'Windows 2019 with Visual Studio 2019 (Release, x86_64, no tests)':
         image: windows-2019
         build_type: Release
-        idlc_testing: off
+        testing: off
+        idlc_xtests: off
+        generator: 'Visual Studio 16 2019'
+      'Windows 2019 with Visual Studio 2019 (RelWithDebInfo, x86_64)':
+        image: windows-2019
+        build_type: RelWithDebInfo
+        idlc_xtests: off
         generator: 'Visual Studio 16 2019'
       #'Windows 2019 with GCC 10 (Debug, x86_64)':
       #  image: windows-2019
       #  build_type: Debug
-      #  idlc_testing: off
+      #  idlc_xtests: off
       #  generator: 'MinGW Makefiles'
       #  cc: 'C:/msys64/mingw64/bin/gcc.exe'
       #  cxx: 'C:/msys64/mingw64/bin/g++.exe'

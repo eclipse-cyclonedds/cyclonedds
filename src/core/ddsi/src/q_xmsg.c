@@ -1082,9 +1082,9 @@ static void nn_bw_limit_sleep_if_needed (struct ddsi_domaingv const * const gv, 
     {
       /* We're over the bandwidth limit far enough, to warrent a sleep. */
       GVTRACE (":%"PRId64":sleep",this->balance/1000);
-      thread_state_blocked (lookup_thread_state ());
+      thread_state_blocked (ddsi_lookup_thread_state ());
       dds_sleepfor (this->balance);
-      thread_state_unblocked (lookup_thread_state ());
+      thread_state_unblocked (ddsi_lookup_thread_state ());
     }
     else
     {
@@ -1330,7 +1330,7 @@ static void nn_xpack_send_real (struct nn_xpack *xp)
 static uint32_t nn_xpack_sendq_thread (void *vgv)
 {
   struct ddsi_domaingv *gv = vgv;
-  struct thread_state * const thrst = lookup_thread_state ();
+  struct thread_state * const thrst = ddsi_lookup_thread_state ();
   thread_state_awake_fixed_domain (thrst);
   ddsrt_mutex_lock (&gv->sendq_lock);
   while (!(gv->sendq_stop && gv->sendq_head == NULL))

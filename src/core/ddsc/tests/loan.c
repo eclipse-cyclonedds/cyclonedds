@@ -155,7 +155,7 @@ CU_Test (ddsc_loan, success, .init = create_entities, .fini = delete_entities)
   CU_ASSERT_FATAL (ptrs[0] == NULL);
 
   /* use "dds_return_loan" to free the second result immediately, there's no
-     easy way to check this happens short of using a custom sertopic */
+     easy way to check this happens short of using a custom sertype */
   ptr0copy = ptrs2[0];
   result = dds_return_loan (read_condition, ptrs2, n2);
   CU_ASSERT_FATAL (result == DDS_RETCODE_OK);

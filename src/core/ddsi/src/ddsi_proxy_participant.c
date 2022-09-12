@@ -25,7 +25,7 @@
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/ddsi_security_omg.h"
 #include "dds/ddsi/ddsi_builtin_topic_if.h"
-#include "dds/ddsi/q_gc.h"
+#include "dds/ddsi/ddsi_gc.h"
 #include "dds/ddsi/q_lease.h"
 #include "dds/ddsi/q_addrset.h"
 
@@ -46,11 +46,11 @@ static void proxy_participant_replace_minl (struct ddsi_proxy_participant *proxy
      read a valid (or once valid) lease. By delaying freeing the lease
      through the garbage collector, we ensure whatever lease update
      occurs in parallel completes before the memory is released. */
-  struct gcreq *gcreq = gcreq_new (proxypp->e.gv->gcreq_queue, ddsi_gc_participant_lease);
+  struct ddsi_gcreq *gcreq = ddsi_gcreq_new (proxypp->e.gv->gcreq_queue, ddsi_gc_participant_lease);
   struct lease *lease_old = ddsrt_atomic_ldvoidp (manbypp ? &proxypp->minl_man : &proxypp->minl_auto);
   lease_unregister (lease_old); /* ensures lease will not expire while it is replaced */
   gcreq->arg = lease_old;
-  gcreq_enqueue (gcreq);
+  ddsi_gcreq_enqueue (gcreq);
   ddsrt_atomic_stvoidp (manbypp ? &proxypp->minl_man : &proxypp->minl_auto, lnew);
 }
 
@@ -90,10 +90,10 @@ void ddsi_proxy_participant_reassign_lease (struct ddsi_proxy_participant *proxy
 
       The lease_unregister call ensures the lease will never expire
       while we are messing with it. */
-    struct gcreq *gcreq = gcreq_new (proxypp->e.gv->gcreq_queue, ddsi_gc_participant_lease);
+    struct ddsi_gcreq *gcreq = ddsi_gcreq_new (proxypp->e.gv->gcreq_queue, ddsi_gc_participant_lease);
     lease_unregister (proxypp->lease);
     gcreq->arg = proxypp->lease;
-    gcreq_enqueue (gcreq);
+    ddsi_gcreq_enqueue (gcreq);
     proxypp->owns_lease = 0;
   }
   proxypp->lease = newlease;
@@ -571,19 +571,19 @@ void ddsi_unref_proxy_participant (struct ddsi_proxy_participant *proxypp, struc
   }
 }
 
-static void gc_delete_proxy_participant (struct gcreq *gcreq)
+static void gc_delete_proxy_participant (struct ddsi_gcreq *gcreq)
 {
   struct ddsi_proxy_participant *proxypp = gcreq->arg;
   ELOGDISC (proxypp, "gc_delete_proxy_participant(%p, "PGUIDFMT")\n", (void *) gcreq, PGUID (proxypp->e.guid));
-  gcreq_free (gcreq);
+  ddsi_gcreq_free (gcreq);
   ddsi_unref_proxy_participant (proxypp, NULL);
 }
 
 static int gcreq_proxy_participant (struct ddsi_proxy_participant *proxypp)
 {
-  struct gcreq *gcreq = gcreq_new (proxypp->e.gv->gcreq_queue, gc_delete_proxy_participant);
+  struct ddsi_gcreq *gcreq = ddsi_gcreq_new (proxypp->e.gv->gcreq_queue, gc_delete_proxy_participant);
   gcreq->arg = proxypp;
-  gcreq_enqueue (gcreq);
+  ddsi_gcreq_enqueue (gcreq);
   return 0;
 }
 
@@ -684,7 +684,7 @@ void ddsi_purge_proxy_participants (struct ddsi_domaingv *gv, const ddsi_xlocato
 {
   /* FIXME: check whether addr:port can't be reused for a new connection by the time we get here. */
   /* NOTE: This function exists for the sole purpose of cleaning up after closing a TCP connection in ddsi_tcp_close_conn and the state of the calling thread could be anything at this point. Because of that we do the unspeakable and toggle the thread state conditionally. We can't afford to have it in "asleep", as that causes a race with the garbage collector. */
-  struct thread_state * const thrst = lookup_thread_state ();
+  struct thread_state * const thrst = ddsi_lookup_thread_state ();
   struct entidx_enum_proxy_participant est;
   struct proxy_purge_data data;
 

@@ -353,7 +353,7 @@ DDS_EXPORT extern const dds_qos_t ddsi_default_qos_publisher_subscriber;
  *
  * @param[out] xqos  qos object to be initialized.
  */
-DDS_EXPORT void ddsi_xqos_init_empty (dds_qos_t *xqos);
+void ddsi_xqos_init_empty (dds_qos_t *xqos);
 
 /**
  * @brief Copy "src" to "dst"
@@ -361,7 +361,7 @@ DDS_EXPORT void ddsi_xqos_init_empty (dds_qos_t *xqos);
  * @param[out]    dst     destination, any contents are overwritten
  * @param[in]     src     source dds_qos_t
  */
-DDS_EXPORT void ddsi_xqos_copy (dds_qos_t *dst, const dds_qos_t *src);
+void ddsi_xqos_copy (dds_qos_t *dst, const dds_qos_t *src);
 
 /**
  * @brief Replace any memory "xqos" aliases by copies it owns
@@ -373,7 +373,7 @@ DDS_EXPORT void ddsi_xqos_copy (dds_qos_t *dst, const dds_qos_t *src);
  * @param[in,out] xqos   qos object for which to replace all aliased memory by owned
  *                       copies
  */
-DDS_EXPORT void ddsi_xqos_unalias (dds_qos_t *xqos);
+void ddsi_xqos_unalias (dds_qos_t *xqos);
 
 /**
  * @brief Free memory owned by "xqos"
@@ -385,7 +385,7 @@ DDS_EXPORT void ddsi_xqos_unalias (dds_qos_t *xqos);
  *
  * @param[in] xqos   dds_qos_t for which to free memory
  */
-DDS_EXPORT void ddsi_xqos_fini (dds_qos_t *xqos);
+void ddsi_xqos_fini (dds_qos_t *xqos);
 
 /**
  * @brief Free memory owned by "xqos" for a subset of the entries
@@ -398,7 +398,7 @@ DDS_EXPORT void ddsi_xqos_fini (dds_qos_t *xqos);
  * @param[in,out] xqos   dds_qos_t for which to free memory
  * @param[in]     mask   entries to free (if QP_X is set, free X if present)
  */
-DDS_EXPORT void ddsi_xqos_fini_mask (dds_qos_t *xqos, uint64_t mask);
+void ddsi_xqos_fini_mask (dds_qos_t *xqos, uint64_t mask);
 
 /**
  * @brief Check whether xqos is valid according to the validation rules in the spec
@@ -416,7 +416,7 @@ DDS_EXPORT void ddsi_xqos_fini_mask (dds_qos_t *xqos, uint64_t mask);
  *
  * @returns DDS_RETCODE_OK or DDS_RETCODE_BAD_PARAMETER
  */
-DDS_EXPORT dds_return_t ddsi_xqos_valid (const struct ddsrt_log_cfg *logcfg, const dds_qos_t *xqos);
+dds_return_t ddsi_xqos_valid (const struct ddsrt_log_cfg *logcfg, const dds_qos_t *xqos);
 
 /**
  * @brief Extend "a" with selected entries present in "b"
@@ -430,7 +430,7 @@ DDS_EXPORT dds_return_t ddsi_xqos_valid (const struct ddsrt_log_cfg *logcfg, con
  * @param[in]     b       dds_qos_t from which to copy entries
  * @param[in]     mask    which to include (if QP_X is set, include X)
  */
-DDS_EXPORT void ddsi_xqos_mergein_missing (dds_qos_t *a, const dds_qos_t *b, uint64_t mask);
+void ddsi_xqos_mergein_missing (dds_qos_t *a, const dds_qos_t *b, uint64_t mask);
 
 /**
  * @brief Determine the set of entries in which "x" differs from "y"
@@ -446,7 +446,7 @@ DDS_EXPORT void ddsi_xqos_mergein_missing (dds_qos_t *a, const dds_qos_t *b, uin
  *
  * @returns Bitmask of differences
  */
-DDS_EXPORT uint64_t ddsi_xqos_delta (const dds_qos_t *a, const dds_qos_t *b, uint64_t mask);
+uint64_t ddsi_xqos_delta (const dds_qos_t *a, const dds_qos_t *b, uint64_t mask);
 
 /**
  * @brief Add selected entries in "xqos" to a message in native endianness.
@@ -461,7 +461,7 @@ DDS_EXPORT uint64_t ddsi_xqos_delta (const dds_qos_t *a, const dds_qos_t *b, uin
  * @param[in]     xqos     source
  * @param[in]     wanted   subset to be added (if QP_X is set, add X if present)
  */
-DDS_EXPORT void ddsi_xqos_addtomsg (struct nn_xmsg *m, const dds_qos_t *xqos, uint64_t wanted);
+void ddsi_xqos_addtomsg (struct nn_xmsg *m, const dds_qos_t *xqos, uint64_t wanted);
 
 /**
  * @brief Formats xqos using `ddsi_xqos_print` and writes it to the trace.
@@ -470,7 +470,7 @@ DDS_EXPORT void ddsi_xqos_addtomsg (struct nn_xmsg *m, const dds_qos_t *xqos, ui
  * @param[in] logcfg     logging configuration
  * @param[in] xqos       qos object to be logged
  */
-DDS_EXPORT void ddsi_xqos_log (uint32_t cat, const struct ddsrt_log_cfg *logcfg, const dds_qos_t *xqos);
+void ddsi_xqos_log (uint32_t cat, const struct ddsrt_log_cfg *logcfg, const dds_qos_t *xqos);
 
 /**
  * @brief Formats xqos into a buffer
@@ -486,7 +486,7 @@ DDS_EXPORT void ddsi_xqos_log (uint32_t cat, const struct ddsrt_log_cfg *logcfg,
  *
  * @returns number of bytes written to buf, excluding a terminating 0.
  */
-DDS_EXPORT size_t ddsi_xqos_print (char * __restrict buf, size_t bufsize, const dds_qos_t *xqos);
+size_t ddsi_xqos_print (char * __restrict buf, size_t bufsize, const dds_qos_t *xqos);
 
 /**
  * @brief Add a property 'name' to the properties of "xqos" if it does not exists
@@ -498,7 +498,7 @@ DDS_EXPORT size_t ddsi_xqos_print (char * __restrict buf, size_t bufsize, const 
  *
  * @returns true iff xqos was modified (property did not exist yet)
  */
-DDS_EXPORT bool ddsi_xqos_add_property_if_unset (dds_qos_t *xqos, bool propagate, const char *name, const char *value);
+bool ddsi_xqos_add_property_if_unset (dds_qos_t *xqos, bool propagate, const char *name, const char *value);
 
 /**
  * @brief Duplicate "src"
@@ -507,7 +507,7 @@ DDS_EXPORT bool ddsi_xqos_add_property_if_unset (dds_qos_t *xqos, bool propagate
  *
  * @returns a new (allocated using ddsrt_malloc) dds_qos_t containing a copy of "src".
  */
-DDS_EXPORT dds_qos_t *ddsi_xqos_dup (const dds_qos_t *src);
+dds_qos_t *ddsi_xqos_dup (const dds_qos_t *src);
 
 /**
  * @brief Check if "xqos" includes properties with a name starting with "nameprefix"
@@ -520,7 +520,7 @@ DDS_EXPORT dds_qos_t *ddsi_xqos_dup (const dds_qos_t *src);
  *
  * @returns true iff xqos contains a matching property
  */
-DDS_EXPORT bool ddsi_xqos_has_prop_prefix (const dds_qos_t *xqos, const char *nameprefix);
+bool ddsi_xqos_has_prop_prefix (const dds_qos_t *xqos, const char *nameprefix);
 
 /**
  * @brief Lookup property "name" in "xqos" and return a pointer to its value
@@ -534,11 +534,11 @@ DDS_EXPORT bool ddsi_xqos_has_prop_prefix (const dds_qos_t *xqos, const char *na
  *
  * @returns true iff xqos contains the property
  */
-DDS_EXPORT bool ddsi_xqos_find_prop (const dds_qos_t *xqos, const char *name, const char **value);
+bool ddsi_xqos_find_prop (const dds_qos_t *xqos, const char *name, const char **value);
 
 #ifdef DDS_HAS_SECURITY
 struct ddsi_config_omg_security;
-DDS_EXPORT void ddsi_xqos_mergein_security_config (dds_qos_t *xqos, const struct ddsi_config_omg_security *cfg);
+void ddsi_xqos_mergein_security_config (dds_qos_t *xqos, const struct ddsi_config_omg_security *cfg);
 #endif
 
 #if defined (__cplusplus)

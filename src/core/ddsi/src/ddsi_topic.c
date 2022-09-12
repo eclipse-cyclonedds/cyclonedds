@@ -157,11 +157,11 @@ void ddsi_update_topic_qos (struct ddsi_topic *tp, const dds_qos_t *xqos)
   dds_delete_qos (newqos);
 }
 
-static void gc_delete_topic (struct gcreq *gcreq)
+static void gc_delete_topic (struct ddsi_gcreq *gcreq)
 {
   struct ddsi_topic *tp = gcreq->arg;
   ELOGDISC (tp, "gc_delete_topic (%p, "PGUIDFMT")\n", (void *) gcreq, PGUID (tp->e.guid));
-  gcreq_free (gcreq);
+  ddsi_gcreq_free (gcreq);
   if (!ddsi_is_builtin_entityid (tp->e.guid.entityid, NN_VENDORID_ECLIPSE))
     (void) sedp_write_topic (tp, false);
   ddsi_entity_common_fini (&tp->e);
@@ -172,9 +172,9 @@ static void gc_delete_topic (struct gcreq *gcreq)
 
 static int gcreq_topic (struct ddsi_topic *tp)
 {
-  struct gcreq *gcreq = gcreq_new (tp->e.gv->gcreq_queue, gc_delete_topic);
+  struct ddsi_gcreq *gcreq = ddsi_gcreq_new (tp->e.gv->gcreq_queue, gc_delete_topic);
   gcreq->arg = tp;
-  gcreq_enqueue (gcreq);
+  ddsi_gcreq_enqueue (gcreq);
   return 0;
 }
 
@@ -195,7 +195,7 @@ dds_return_t ddsi_delete_topic (struct ddsi_domaingv *gv, const struct ddsi_guid
 
 /* TOPIC DEFINITION ---------------------------------------------- */
 
-static void gc_delete_topic_definition (struct gcreq *gcreq)
+static void gc_delete_topic_definition (struct ddsi_gcreq *gcreq)
 {
   struct gc_tpd *gcdata = gcreq->arg;
   struct ddsi_topic_definition *tpd = gcdata->tpd;
@@ -212,17 +212,17 @@ static void gc_delete_topic_definition (struct gcreq *gcreq)
   ddsrt_free (tpd->xqos);
   ddsrt_free (tpd);
   ddsrt_free (gcdata);
-  gcreq_free (gcreq);
+  ddsi_gcreq_free (gcreq);
 }
 
 static int gcreq_topic_definition (struct ddsi_topic_definition *tpd, ddsrt_wctime_t timestamp)
 {
-  struct gcreq *gcreq = gcreq_new (tpd->gv->gcreq_queue, gc_delete_topic_definition);
+  struct ddsi_gcreq *gcreq = ddsi_gcreq_new (tpd->gv->gcreq_queue, gc_delete_topic_definition);
   struct gc_tpd *gcdata = ddsrt_malloc (sizeof (*gcdata));
   gcdata->tpd = tpd;
   gcdata->timestamp = timestamp;
   gcreq->arg = gcdata;
-  gcreq_enqueue (gcreq);
+  ddsi_gcreq_enqueue (gcreq);
   return 0;
 }
 
@@ -514,7 +514,7 @@ void ddsi_update_proxy_topic (struct ddsi_proxy_participant *proxypp, struct dds
   }
 }
 
-static void gc_delete_proxy_topic (struct gcreq *gcreq)
+static void gc_delete_proxy_topic (struct ddsi_gcreq *gcreq)
 {
   struct gc_proxy_tp *gcdata = gcreq->arg;
 
@@ -529,18 +529,18 @@ static void gc_delete_proxy_topic (struct gcreq *gcreq)
   ddsrt_mutex_unlock (&gv->topic_defs_lock);
   ddsrt_mutex_unlock (&gcdata->proxypp->e.lock);
   ddsrt_free (gcdata);
-  gcreq_free (gcreq);
+  ddsi_gcreq_free (gcreq);
 }
 
 static int gcreq_proxy_topic (struct ddsi_proxy_participant *proxypp, struct ddsi_proxy_topic *proxytp, ddsrt_wctime_t timestamp)
 {
-  struct gcreq *gcreq = gcreq_new (proxytp->definition->gv->gcreq_queue, gc_delete_proxy_topic);
+  struct ddsi_gcreq *gcreq = ddsi_gcreq_new (proxytp->definition->gv->gcreq_queue, gc_delete_proxy_topic);
   struct gc_proxy_tp *gcdata = ddsrt_malloc (sizeof (*gcdata));
   gcdata->proxypp = proxypp;
   gcdata->proxytp = proxytp;
   gcdata->timestamp = timestamp;
   gcreq->arg = gcdata;
-  gcreq_enqueue (gcreq);
+  ddsi_gcreq_enqueue (gcreq);
   return 0;
 }
 

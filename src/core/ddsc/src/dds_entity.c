@@ -31,11 +31,11 @@
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_endpoint.h"
 
-DDS_EXPORT extern inline dds_entity *dds_entity_from_handle_link (struct dds_handle_link *hdllink);
-DDS_EXPORT extern inline bool dds_entity_is_enabled (const dds_entity *e);
-DDS_EXPORT extern inline void dds_entity_status_reset (dds_entity *e, status_mask_t t);
-DDS_EXPORT extern inline uint32_t dds_entity_status_reset_ov (dds_entity *e, status_mask_t t);
-DDS_EXPORT extern inline dds_entity_kind_t dds_entity_kind (const dds_entity *e);
+extern inline dds_entity *dds_entity_from_handle_link (struct dds_handle_link *hdllink);
+extern inline bool dds_entity_is_enabled (const dds_entity *e);
+extern inline void dds_entity_status_reset (dds_entity *e, status_mask_t t);
+extern inline uint32_t dds_entity_status_reset_ov (dds_entity *e, status_mask_t t);
+extern inline dds_entity_kind_t dds_entity_kind (const dds_entity *e);
 
 const struct dds_entity_deriver *dds_entity_deriver_table[] = {
   [DDS_KIND_TOPIC] = &dds_entity_deriver_topic,
@@ -74,15 +74,15 @@ void dds_entity_deriver_dummy_refresh_statistics (const struct dds_entity *e, st
   (void) e; (void) s;
 }
 
-DDS_EXPORT extern inline void dds_entity_deriver_interrupt (struct dds_entity *e);
-DDS_EXPORT extern inline void dds_entity_deriver_close (struct dds_entity *e);
-DDS_EXPORT extern inline dds_return_t dds_entity_deriver_delete (struct dds_entity *e);
-DDS_EXPORT extern inline dds_return_t dds_entity_deriver_set_qos (struct dds_entity *e, const dds_qos_t *qos, bool enabled);
-DDS_EXPORT extern inline dds_return_t dds_entity_deriver_validate_status (struct dds_entity *e, uint32_t mask);
-DDS_EXPORT extern inline bool dds_entity_supports_set_qos (struct dds_entity *e);
-DDS_EXPORT extern inline bool dds_entity_supports_validate_status (struct dds_entity *e);
-DDS_EXPORT extern inline struct dds_statistics *dds_entity_deriver_create_statistics (const struct dds_entity *e);
-DDS_EXPORT extern inline void dds_entity_deriver_refresh_statistics (const struct dds_entity *e, struct dds_statistics *s);
+extern inline void dds_entity_deriver_interrupt (struct dds_entity *e);
+extern inline void dds_entity_deriver_close (struct dds_entity *e);
+extern inline dds_return_t dds_entity_deriver_delete (struct dds_entity *e);
+extern inline dds_return_t dds_entity_deriver_set_qos (struct dds_entity *e, const dds_qos_t *qos, bool enabled);
+extern inline dds_return_t dds_entity_deriver_validate_status (struct dds_entity *e, uint32_t mask);
+extern inline bool dds_entity_supports_set_qos (struct dds_entity *e);
+extern inline bool dds_entity_supports_validate_status (struct dds_entity *e);
+extern inline struct dds_statistics *dds_entity_deriver_create_statistics (const struct dds_entity *e);
+extern inline void dds_entity_deriver_refresh_statistics (const struct dds_entity *e, struct dds_statistics *s);
 
 static int compare_instance_handle (const void *va, const void *vb)
 {
@@ -741,7 +741,7 @@ static dds_return_t dds_set_qos_locked_raw (dds_entity *e, dds_qos_t **e_qos_ptr
 
   /* Any attempt to do this on a topic ends up doing it on the ktopic instead, so that there is
      but a single QoS for a topic in a participant while there can be multiple definitions of it,
-     and hence, multiple sertopics.  Those are needed for multi-language support. */
+     and hence, multiple sertypes.  Those are needed for multi-language support. */
   dds_qos_t *newqos = dds_create_qos ();
   ddsi_xqos_mergein_missing (newqos, qos, mask);
   ddsi_xqos_mergein_missing (newqos, *e_qos_ptr, ~(uint64_t)0);
@@ -1103,11 +1103,6 @@ dds_return_t dds_get_status_mask (dds_entity_t entity, uint32_t *mask)
   return ret;
 }
 
-dds_return_t dds_get_enabled_status (dds_entity_t entity, uint32_t *status)
-{
-  return dds_get_status_mask(entity, status);
-}
-
 dds_return_t dds_set_status_mask (dds_entity_t entity, uint32_t mask)
 {
   dds_entity *e;
@@ -1146,11 +1141,6 @@ dds_return_t dds_set_status_mask (dds_entity_t entity, uint32_t mask)
   }
   dds_entity_unlock (e);
   return ret;
-}
-
-dds_return_t dds_set_enabled_status(dds_entity_t entity, uint32_t mask)
-{
-  return dds_set_status_mask (entity, mask);
 }
 
 static dds_return_t dds_readtake_status (dds_entity_t entity, uint32_t *status, uint32_t mask, bool reset)

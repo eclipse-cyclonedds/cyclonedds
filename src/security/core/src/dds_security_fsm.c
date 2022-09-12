@@ -290,7 +290,7 @@ static void fsm_handle_timeout (struct dds_security_fsm_control *control, struct
 
 static uint32_t handle_events (struct dds_security_fsm_control *control)
 {
-  struct thread_state * const thrst = lookup_thread_state ();
+  struct thread_state * const thrst = ddsi_lookup_thread_state ();
   struct fsm_event *event;
 
   thread_state_awake (thrst, control->gv);

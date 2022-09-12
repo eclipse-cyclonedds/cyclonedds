@@ -34,19 +34,9 @@ dds_listener_t *dds_create_listener (void* arg)
   return l;
 }
 
-dds_listener_t *dds_listener_create (void* arg)
-{
-  return dds_create_listener (arg);
-}
-
 void dds_delete_listener (dds_listener_t * __restrict listener)
 {
   dds_free (listener);
-}
-
-void dds_listener_delete (dds_listener_t * __restrict listener)
-{
-  dds_delete_listener (listener);
 }
 
 void dds_reset_listener (dds_listener_t * __restrict listener)
@@ -72,20 +62,10 @@ void dds_reset_listener (dds_listener_t * __restrict listener)
   }
 }
 
-void dds_listener_reset (dds_listener_t * __restrict listener)
-{
-  dds_reset_listener (listener);
-}
-
 void dds_copy_listener (dds_listener_t * __restrict dst, const dds_listener_t * __restrict src)
 {
   if (dst && src)
     *dst = *src;
-}
-
-void dds_listener_copy(dds_listener_t * __restrict dst, const dds_listener_t * __restrict src)
-{
-  dds_copy_listener (dst, src);
 }
 
 static bool dds_combine_listener_merge (uint32_t inherited, void (*dst)(void), void (*src)(void))
@@ -157,11 +137,6 @@ void dds_merge_listener (dds_listener_t * __restrict dst, const dds_listener_t *
     dds_combine_listener (dds_combine_listener_merge, dst, src);
     dst->inherited = inherited;
   }
-}
-
-void dds_listener_merge (dds_listener_t * __restrict dst, const dds_listener_t * __restrict src)
-{
-  dds_merge_listener (dst, src);
 }
 
 #define DDS_SET_LISTENER_ARG(NAME_, name_) \

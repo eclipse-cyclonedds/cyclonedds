@@ -138,7 +138,7 @@ void ddsi_participant_add_wr_lease_locked (struct ddsi_participant * pp, const s
 void ddsi_participant_remove_wr_lease_locked (struct ddsi_participant * pp, struct ddsi_writer * wr);
 dds_return_t ddsi_participant_allocate_entityid (ddsi_entityid_t *id, uint32_t kind, struct ddsi_participant *pp);
 void ddsi_participant_release_entityid (struct ddsi_participant *pp, ddsi_entityid_t id);
-void ddsi_gc_participant_lease (struct gcreq *gcreq);
+void ddsi_gc_participant_lease (struct ddsi_gcreq *gcreq);
 void ddsi_prune_deleted_participant_guids (struct deleted_participants_admin *admin, ddsrt_mtime_t tnow);
 void ddsi_remove_deleted_participant_guid (struct deleted_participants_admin *admin, const struct ddsi_guid *guid, unsigned for_what);
 void ddsi_remember_deleted_participant_guid (struct deleted_participants_admin *admin, const struct ddsi_guid *guid);
@@ -177,7 +177,7 @@ int ddsi_is_deleted_participant_guid (struct deleted_participants_admin *admin, 
  * @retval DDS_RETCODE_OUT_OF_RESOURCES
  *               The configured maximum number of participants has been reached.
 */
-DDS_EXPORT dds_return_t ddsi_new_participant (struct ddsi_guid *ppguid, struct ddsi_domaingv *gv, unsigned flags, const struct ddsi_plist *plist);
+dds_return_t ddsi_new_participant (struct ddsi_guid *ppguid, struct ddsi_domaingv *gv, unsigned flags, const struct ddsi_plist *plist);
 
 /**
  * @brief Initiate the deletion of the participant:
@@ -203,7 +203,7 @@ DDS_EXPORT dds_return_t ddsi_new_participant (struct ddsi_guid *ppguid, struct d
  * @retval DDS_RETCODE_BAD_PARAMETER
  *               ppguid lookup failed.
 */
-DDS_EXPORT dds_return_t ddsi_delete_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid);
+dds_return_t ddsi_delete_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid);
 
 /**
  * @brief Updates the parameters list for this participant and trigger sending
@@ -212,7 +212,7 @@ DDS_EXPORT dds_return_t ddsi_delete_participant (struct ddsi_domaingv *gv, const
  * @param[in] pp The participant
  * @param[in] plist The new parameters
  */
-DDS_EXPORT void ddsi_update_participant_plist (struct ddsi_participant *pp, const struct ddsi_plist *plist);
+void ddsi_update_participant_plist (struct ddsi_participant *pp, const struct ddsi_plist *plist);
 
 /**
  * @brief Gets the interval for PMD messages, which is the minimal lease duration for writers
@@ -221,7 +221,7 @@ DDS_EXPORT void ddsi_update_participant_plist (struct ddsi_participant *pp, cons
  * @param[in] pp The participant
  * @returns The PMD interval of the participant
  */
-DDS_EXPORT dds_duration_t ddsi_participant_get_pmd_interval (struct ddsi_participant *pp);
+dds_duration_t ddsi_participant_get_pmd_interval (struct ddsi_participant *pp);
 
 /**
  * @brief To obtain the builtin writer to be used for publishing SPDP, SEDP, PMD stuff for
@@ -232,7 +232,7 @@ DDS_EXPORT dds_duration_t ddsi_participant_get_pmd_interval (struct ddsi_partici
  * @param[in] entityid The entity ID of the writer
  * @returns The built-in writer
  */
-DDS_EXPORT struct ddsi_writer *ddsi_get_builtin_writer (const struct ddsi_participant *pp, unsigned entityid);
+struct ddsi_writer *ddsi_get_builtin_writer (const struct ddsi_participant *pp, unsigned entityid);
 
 #if defined (__cplusplus)
 }

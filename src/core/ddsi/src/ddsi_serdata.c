@@ -67,25 +67,25 @@ const ddsi_keyhash_t *ddsi_serdata_keyhash_from_fragchain (const struct nn_rdata
     return (const ddsi_keyhash_t *) NN_RMSG_PAYLOADOFF (fragchain->rmsg, NN_RDATA_KEYHASH_OFF (fragchain));
 }
 
-DDS_EXPORT extern inline struct ddsi_serdata *ddsi_serdata_ref (const struct ddsi_serdata *serdata_const);
-DDS_EXPORT extern inline void ddsi_serdata_unref (struct ddsi_serdata *serdata);
-DDS_EXPORT extern inline uint32_t ddsi_serdata_size (const struct ddsi_serdata *d);
-DDS_EXPORT extern inline struct ddsi_serdata *ddsi_serdata_from_ser (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, const struct nn_rdata *fragchain, size_t size);
-DDS_EXPORT extern inline struct ddsi_serdata *ddsi_serdata_from_ser_iov (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, ddsrt_msg_iovlen_t niov, const ddsrt_iovec_t *iov, size_t size);
-DDS_EXPORT extern inline struct ddsi_serdata *ddsi_serdata_from_keyhash (const struct ddsi_sertype *type, const struct ddsi_keyhash *keyhash);
-DDS_EXPORT extern inline struct ddsi_serdata *ddsi_serdata_from_sample (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, const void *sample);
-DDS_EXPORT extern inline struct ddsi_serdata *ddsi_serdata_to_untyped (const struct ddsi_serdata *d);
-DDS_EXPORT extern inline void ddsi_serdata_to_ser (const struct ddsi_serdata *d, size_t off, size_t sz, void *buf);
-DDS_EXPORT extern inline struct ddsi_serdata *ddsi_serdata_to_ser_ref (const struct ddsi_serdata *d, size_t off, size_t sz, ddsrt_iovec_t *ref);
-DDS_EXPORT extern inline void ddsi_serdata_to_ser_unref (struct ddsi_serdata *d, const ddsrt_iovec_t *ref);
-DDS_EXPORT extern inline bool ddsi_serdata_to_sample (const struct ddsi_serdata *d, void *sample, void **bufptr, void *buflim);
-DDS_EXPORT extern inline bool ddsi_serdata_untyped_to_sample (const struct ddsi_sertype *type, const struct ddsi_serdata *d, void *sample, void **bufptr, void *buflim);
-DDS_EXPORT extern inline bool ddsi_serdata_eqkey (const struct ddsi_serdata *a, const struct ddsi_serdata *b);
-DDS_EXPORT extern inline bool ddsi_serdata_print (const struct ddsi_serdata *d, char *buf, size_t size);
-DDS_EXPORT extern inline bool ddsi_serdata_print_untyped (const struct ddsi_sertype *type, const struct ddsi_serdata *d, char *buf, size_t size);
-DDS_EXPORT extern inline void ddsi_serdata_get_keyhash (const struct ddsi_serdata *d, struct ddsi_keyhash *buf, bool force_md5);
+extern inline struct ddsi_serdata *ddsi_serdata_ref (const struct ddsi_serdata *serdata_const);
+extern inline void ddsi_serdata_unref (struct ddsi_serdata *serdata);
+extern inline uint32_t ddsi_serdata_size (const struct ddsi_serdata *d);
+extern inline struct ddsi_serdata *ddsi_serdata_from_ser (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, const struct nn_rdata *fragchain, size_t size);
+extern inline struct ddsi_serdata *ddsi_serdata_from_ser_iov (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, ddsrt_msg_iovlen_t niov, const ddsrt_iovec_t *iov, size_t size);
+extern inline struct ddsi_serdata *ddsi_serdata_from_keyhash (const struct ddsi_sertype *type, const struct ddsi_keyhash *keyhash);
+extern inline struct ddsi_serdata *ddsi_serdata_from_sample (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, const void *sample);
+extern inline struct ddsi_serdata *ddsi_serdata_to_untyped (const struct ddsi_serdata *d);
+extern inline void ddsi_serdata_to_ser (const struct ddsi_serdata *d, size_t off, size_t sz, void *buf);
+extern inline struct ddsi_serdata *ddsi_serdata_to_ser_ref (const struct ddsi_serdata *d, size_t off, size_t sz, ddsrt_iovec_t *ref);
+extern inline void ddsi_serdata_to_ser_unref (struct ddsi_serdata *d, const ddsrt_iovec_t *ref);
+extern inline bool ddsi_serdata_to_sample (const struct ddsi_serdata *d, void *sample, void **bufptr, void *buflim);
+extern inline bool ddsi_serdata_untyped_to_sample (const struct ddsi_sertype *type, const struct ddsi_serdata *d, void *sample, void **bufptr, void *buflim);
+extern inline bool ddsi_serdata_eqkey (const struct ddsi_serdata *a, const struct ddsi_serdata *b);
+extern inline bool ddsi_serdata_print (const struct ddsi_serdata *d, char *buf, size_t size);
+extern inline bool ddsi_serdata_print_untyped (const struct ddsi_sertype *type, const struct ddsi_serdata *d, char *buf, size_t size);
+extern inline void ddsi_serdata_get_keyhash (const struct ddsi_serdata *d, struct ddsi_keyhash *buf, bool force_md5);
 #ifdef DDS_HAS_SHM
-DDS_EXPORT extern inline uint32_t ddsi_serdata_iox_size(const struct ddsi_serdata* d);
-DDS_EXPORT extern inline struct ddsi_serdata* ddsi_serdata_from_iox(const struct ddsi_sertype* type, enum ddsi_serdata_kind kind, void* sub, void* iox_buffer);
-DDS_EXPORT extern inline struct ddsi_serdata* ddsi_serdata_from_loaned_sample(const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, const char *sample);
+extern inline uint32_t ddsi_serdata_iox_size(const struct ddsi_serdata* d);
+extern inline struct ddsi_serdata* ddsi_serdata_from_iox(const struct ddsi_sertype* type, enum ddsi_serdata_kind kind, void* sub, void* iox_buffer);
+extern inline struct ddsi_serdata* ddsi_serdata_from_loaned_sample(const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, const char *sample);
 #endif

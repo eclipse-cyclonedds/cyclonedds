@@ -19,13 +19,13 @@
 extern "C" {
 #endif
 
-DDS_EXPORT void ddsrt_init(void);
+void ddsrt_init(void);
 
-DDS_EXPORT void ddsrt_fini(void);
+void ddsrt_fini(void);
 
-DDS_EXPORT ddsrt_mutex_t *ddsrt_get_singleton_mutex(void);
+ddsrt_mutex_t *ddsrt_get_singleton_mutex(void);
 
-DDS_EXPORT ddsrt_cond_t *ddsrt_get_singleton_cond(void);
+ddsrt_cond_t *ddsrt_get_singleton_cond(void);
 
 #if defined (__cplusplus)
 }

@@ -142,14 +142,14 @@ typedef struct ddsrt_log_cfg {
   } u;
 } ddsrt_log_cfg_t;
 
-DDS_EXPORT extern uint32_t *const dds_log_mask;
+extern uint32_t *const dds_log_mask;
 
 /**
  * @brief Get currently enabled log and trace categories.
  *
  * @returns A uint32_t with enabled categories set.
  */
-DDS_INLINE_EXPORT inline uint32_t
+inline uint32_t
 dds_get_log_mask(void)
 {
     return *dds_log_mask;
@@ -167,14 +167,14 @@ dds_set_log_mask(
 /**
  * @private
  */
-DDS_EXPORT void
+void
 dds_set_log_file(
     FILE *file);
 
 /**
  * @private
  */
-DDS_EXPORT void
+void
 dds_set_trace_file(
     FILE *file);
 
@@ -194,7 +194,7 @@ dds_set_trace_file(
  * @param[in]  userdata  User specified data passed along with each invocation
  *                       of callback.
  */
-DDS_EXPORT void
+void
 dds_set_log_sink(
     dds_log_write_fn_t callback,
     void *userdata);
@@ -215,7 +215,7 @@ dds_set_log_sink(
  * @param[in]  userdata  User specified data passed along with each invocation
  *                       of callback.
  */
-DDS_EXPORT void
+void
 dds_set_trace_sink(
     dds_log_write_fn_t callback,
     void *userdata);
@@ -244,7 +244,7 @@ dds_set_trace_sink(
  * @param[in]  log_fp         File for default sink.
  * @param[in]  trace_fp       File for default sink.
  */
-DDS_EXPORT void
+void
 dds_log_cfg_init(
     struct ddsrt_log_cfg *cfg,
     uint32_t domid,
@@ -259,7 +259,7 @@ dds_log_cfg_init(
  * Direct use of #dds_log is discouraged. Use #DDS_CINFO, #DDS_CWARNING,
  * #DDS_CERROR, #DDS_CTRACE or #DDS_CLOG instead.
  */
-DDS_EXPORT void
+void
 dds_log_cfg(
     const struct ddsrt_log_cfg *cfg,
     uint32_t prio,
@@ -279,7 +279,7 @@ dds_log_cfg(
  *
  * Direct use of #dds_log_id is discouraged. Use #DDS_ILOG instead.
  */
-DDS_EXPORT void
+void
 dds_log_id(
     uint32_t prio,
     uint32_t domid,

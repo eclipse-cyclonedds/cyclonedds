@@ -251,7 +251,7 @@ typedef struct ddsi_plist_src {
   bool strict;                            /**< whether to be strict in checking */
 } ddsi_plist_src_t;
 
-DDS_EXPORT extern const ddsi_plist_t ddsi_default_plist_participant;
+extern const ddsi_plist_t ddsi_default_plist_participant;
 
 /**
  * @brief Initialize global parameter-list parsing indices.
@@ -269,7 +269,7 @@ void ddsi_plist_init_tables (void);
  *
  * @param[out] dest  plist_t to be initialized.
  */
-DDS_EXPORT void ddsi_plist_init_empty (ddsi_plist_t *dest);
+void ddsi_plist_init_empty (ddsi_plist_t *dest);
 
 /**
  * @brief Extend "a" with selected entries present in "b"
@@ -284,7 +284,7 @@ DDS_EXPORT void ddsi_plist_init_empty (ddsi_plist_t *dest);
  * @param[in]     pmask   subset of non-QoS part of b (if PP_X is set, include X)
  * @param[in]     qmask   subset of QoS part of b (if QP_X is set, include X)
  */
-DDS_EXPORT void ddsi_plist_mergein_missing (ddsi_plist_t *a, const ddsi_plist_t *b, uint64_t pmask, uint64_t qmask);
+void ddsi_plist_mergein_missing (ddsi_plist_t *a, const ddsi_plist_t *b, uint64_t pmask, uint64_t qmask);
 
 /**
  * @brief Copy "src" to "dst"
@@ -292,7 +292,7 @@ DDS_EXPORT void ddsi_plist_mergein_missing (ddsi_plist_t *a, const ddsi_plist_t 
  * @param[out]    dst     destination, any contents are overwritten
  * @param[in]     src     source ddsi_plist_t
  */
-DDS_EXPORT void ddsi_plist_copy (ddsi_plist_t *dst, const ddsi_plist_t *src);
+void ddsi_plist_copy (ddsi_plist_t *dst, const ddsi_plist_t *src);
 
 /**
  * @brief Duplicate "src"
@@ -301,7 +301,7 @@ DDS_EXPORT void ddsi_plist_copy (ddsi_plist_t *dst, const ddsi_plist_t *src);
  *
  * @returns a new (allocated using ddsrt_malloc) ddsi_plist_t containing a copy of "src".
  */
-DDS_EXPORT ddsi_plist_t *ddsi_plist_dup (const ddsi_plist_t *src);
+ddsi_plist_t *ddsi_plist_dup (const ddsi_plist_t *src);
 
 /**
  * @brief Initialize an ddsi_plist_t from a PL_CDR_{LE,BE} paylaod.
@@ -351,7 +351,7 @@ DDS_EXPORT ddsi_plist_t *ddsi_plist_dup (const ddsi_plist_t *src);
  *               Input contained an unrecognized parameter with the "incompatible-if-unknown"
  *               flag set; dest is cleared, *nextafterplist is NULL.
  */
-DDS_EXPORT dds_return_t ddsi_plist_init_frommsg (ddsi_plist_t *dest, char **nextafterplist, uint64_t pwanted, uint64_t qwanted, const ddsi_plist_src_t *src, struct ddsi_domaingv const * const gv);
+dds_return_t ddsi_plist_init_frommsg (ddsi_plist_t *dest, char **nextafterplist, uint64_t pwanted, uint64_t qwanted, const ddsi_plist_src_t *src, struct ddsi_domaingv const * const gv);
 
 /**
  * @brief Free memory owned by "ps"
@@ -364,7 +364,7 @@ DDS_EXPORT dds_return_t ddsi_plist_init_frommsg (ddsi_plist_t *dest, char **next
  *
  * @param[in] ps   ddsi_plist_t for which to free memory
  */
-DDS_EXPORT void ddsi_plist_fini (ddsi_plist_t *ps);
+void ddsi_plist_fini (ddsi_plist_t *ps);
 
 /**
  * @brief Free memory owned by "plist" for a subset of the entries
@@ -378,7 +378,7 @@ DDS_EXPORT void ddsi_plist_fini (ddsi_plist_t *ps);
  * @param[in]     pmask  subset of non-QoS part of b (if PP_X is set, free X if present)
  * @param[in]     qmask  subset of QoS part of b (if QP_X is set, free X if present)
  */
-DDS_EXPORT void ddsi_plist_fini_mask (ddsi_plist_t *plist, uint64_t pmask, uint64_t qmask);
+void ddsi_plist_fini_mask (ddsi_plist_t *plist, uint64_t pmask, uint64_t qmask);
 
 /**
  * @brief Replace any memory "plist" aliases by copies it owns
@@ -390,7 +390,7 @@ DDS_EXPORT void ddsi_plist_fini_mask (ddsi_plist_t *plist, uint64_t pmask, uint6
  * @param[in,out] plist  ddsi_plist_t for which to replace all aliased memory by owned
  *                       copies
  */
-DDS_EXPORT void ddsi_plist_unalias (ddsi_plist_t *plist);
+void ddsi_plist_unalias (ddsi_plist_t *plist);
 
 /**
  * @brief Add selected entries in "ps" to a message in native endianness.
@@ -406,7 +406,7 @@ DDS_EXPORT void ddsi_plist_unalias (ddsi_plist_t *plist);
  * @param[in]     pwanted  subset of non-QoS part of ps (if PP_X is set, add X if present)
  * @param[in]     qwanted  subset of QoS part of ps (if QP_X is set, add X if present)
  */
-DDS_EXPORT void ddsi_plist_addtomsg (struct nn_xmsg *m, const ddsi_plist_t *ps, uint64_t pwanted, uint64_t qwanted);
+void ddsi_plist_addtomsg (struct nn_xmsg *m, const ddsi_plist_t *ps, uint64_t pwanted, uint64_t qwanted);
 
 /**
  * @brief Add selected entries in "ps" to a message with selected endianness.
@@ -423,7 +423,7 @@ DDS_EXPORT void ddsi_plist_addtomsg (struct nn_xmsg *m, const ddsi_plist_t *ps, 
  * @param[in]     qwanted  subset of QoS part of ps (if QP_X is set, add X if present)
  * @param[in]     bo       byte order
  */
-DDS_EXPORT void ddsi_plist_addtomsg_bo (struct nn_xmsg *m, const ddsi_plist_t *ps, uint64_t pwanted, uint64_t qwanted, enum ddsrt_byte_order_selector bo);
+void ddsi_plist_addtomsg_bo (struct nn_xmsg *m, const ddsi_plist_t *ps, uint64_t pwanted, uint64_t qwanted, enum ddsrt_byte_order_selector bo);
 
 /**
  * @brief Determine the set of entries in which "x" differs from "y"
@@ -440,7 +440,7 @@ DDS_EXPORT void ddsi_plist_addtomsg_bo (struct nn_xmsg *m, const ddsi_plist_t *p
  * @param[in]  pmask     subset of non-QoS part to be compared
  * @param[in]  qmask     subset of QoS part to be compared
  */
-DDS_EXPORT void ddsi_plist_delta (uint64_t *pdelta, uint64_t *qdelta, const ddsi_plist_t *x, const ddsi_plist_t *y, uint64_t pmask, uint64_t qmask);
+void ddsi_plist_delta (uint64_t *pdelta, uint64_t *qdelta, const ddsi_plist_t *x, const ddsi_plist_t *y, uint64_t pmask, uint64_t qmask);
 
 /**
  * @brief Formats plist using `ddsi_plist_print` and writes it to the trace.
@@ -449,7 +449,7 @@ DDS_EXPORT void ddsi_plist_delta (uint64_t *pdelta, uint64_t *qdelta, const ddsi
  * @param[in] logcfg     logging configuration
  * @param[in] plist      parameter list to be logged
  */
-DDS_EXPORT void ddsi_plist_log (uint32_t cat, const struct ddsrt_log_cfg *logcfg, const ddsi_plist_t *plist);
+void ddsi_plist_log (uint32_t cat, const struct ddsrt_log_cfg *logcfg, const ddsi_plist_t *plist);
 
 /**
  * @brief Formats plist into a buffer
@@ -465,7 +465,7 @@ DDS_EXPORT void ddsi_plist_log (uint32_t cat, const struct ddsrt_log_cfg *logcfg
  *
  * @returns number of bytes written to buf, excluding a terminating 0.
  */
-DDS_EXPORT size_t ddsi_plist_print (char * __restrict buf, size_t bufsize, const ddsi_plist_t *plist);
+size_t ddsi_plist_print (char * __restrict buf, size_t bufsize, const ddsi_plist_t *plist);
 
 struct nn_rsample_info;
 
@@ -492,7 +492,7 @@ struct nn_rsample_info;
  * @return pointer to the first byte following the sentinel if the input is well-formed, a
  * null pointer if it is not.
 */
-DDS_EXPORT unsigned char *ddsi_plist_quickscan (struct nn_rsample_info *dest, const ddsi_keyhash_t **keyhashp, const ddsi_plist_src_t *src, struct ddsi_domaingv const * const gv);
+unsigned char *ddsi_plist_quickscan (struct nn_rsample_info *dest, const ddsi_keyhash_t **keyhashp, const ddsi_plist_src_t *src, struct ddsi_domaingv const * const gv);
 
 /**
  * @brief Locate a specific parameter in a PL_CDR-serialized parameter list
@@ -517,7 +517,7 @@ DDS_EXPORT unsigned char *ddsi_plist_quickscan (struct nn_rsample_info *dest, co
  * @retval DDS_RETCODE_NOT_FOUND      valid input, `needle` not present
  * @retval DDS_RETCODE_OK             valid input, `needle` is present
 */
-DDS_EXPORT dds_return_t ddsi_plist_findparam_checking (const void *buf, size_t bufsz, uint16_t encoding, nn_parameterid_t needle, void **needlep, size_t *needlesz);
+dds_return_t ddsi_plist_findparam_checking (const void *buf, size_t bufsz, uint16_t encoding, nn_parameterid_t needle, void **needlep, size_t *needlesz);
 
 #if defined (__cplusplus)
 }

@@ -52,8 +52,6 @@ DDS_EXPORT bool dds_is_loan_available(const dds_entity_t entity);
  */
 DDS_EXPORT bool dds_is_shared_memory_available(const dds_entity_t entity);
 
-DDS_DEPRECATED_EXPORT bool is_loan_available(const dds_entity_t entity);
-
 /**
  * @ingroup loan
  * @brief Loan a shared memory buffer of a specific size from the writer.

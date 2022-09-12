@@ -89,13 +89,13 @@ static seqno_t get_pmd_seqno(dds_entity_t participant)
   struct ddsi_participant *pp;
   struct ddsi_writer *wr;
   CU_ASSERT_EQUAL_FATAL(dds_entity_pin(participant, &pp_entity), 0);
-  thread_state_awake(lookup_thread_state(), &pp_entity->m_domain->gv);
+  thread_state_awake(ddsi_lookup_thread_state(), &pp_entity->m_domain->gv);
   pp = entidx_lookup_participant_guid(pp_entity->m_domain->gv.entity_index, &pp_entity->m_guid);
   wr = ddsi_get_builtin_writer (pp, NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
   CU_ASSERT_FATAL(wr != NULL);
   assert(wr != NULL); /* for Clang's static analyzer */
   seqno = wr->seq;
-  thread_state_asleep(lookup_thread_state());
+  thread_state_asleep(ddsi_lookup_thread_state());
   dds_entity_unpin(pp_entity);
   return seqno;
 }
@@ -109,10 +109,10 @@ static dds_duration_t get_pmd_interval(dds_entity_t participant)
   struct dds_entity *pp_entity;
   struct ddsi_participant *pp;
   CU_ASSERT_EQUAL_FATAL(dds_entity_pin(participant, &pp_entity), 0);
-  thread_state_awake(lookup_thread_state(), &pp_entity->m_domain->gv);
+  thread_state_awake(ddsi_lookup_thread_state(), &pp_entity->m_domain->gv);
   pp = entidx_lookup_participant_guid(pp_entity->m_domain->gv.entity_index, &pp_entity->m_guid);
   intv = ddsi_participant_get_pmd_interval(pp);
-  thread_state_asleep(lookup_thread_state());
+  thread_state_asleep(ddsi_lookup_thread_state());
   dds_entity_unpin(pp_entity);
   return intv;
 }

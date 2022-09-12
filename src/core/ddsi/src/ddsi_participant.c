@@ -25,7 +25,7 @@
 #include "dds/ddsi/ddsi_handshake.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/q_ddsi_discovery.h"
-#include "dds/ddsi/q_gc.h"
+#include "dds/ddsi/ddsi_gc.h"
 #include "dds/ddsi/q_xevent.h"
 #include "dds/ddsi/q_lease.h"
 #include "dds/ddsi/q_receive.h"
@@ -401,10 +401,10 @@ static void add_builtin_endpoints (struct ddsi_participant *pp, ddsi_guid_t *sub
 #endif
 }
 
-void ddsi_gc_participant_lease (struct gcreq *gcreq)
+void ddsi_gc_participant_lease (struct ddsi_gcreq *gcreq)
 {
   lease_free (gcreq->arg);
-  gcreq_free (gcreq);
+  ddsi_gcreq_free (gcreq);
 }
 
 static void participant_replace_minl (struct ddsi_participant *pp, struct lease *lnew)
@@ -413,12 +413,12 @@ static void participant_replace_minl (struct ddsi_participant *pp, struct lease 
      read a valid (or once valid) lease. By delaying freeing the lease
      through the garbage collector, we ensure whatever lease update
      occurs in parallel completes before the memory is released. */
-  struct gcreq *gcreq = gcreq_new (pp->e.gv->gcreq_queue, ddsi_gc_participant_lease);
+  struct ddsi_gcreq *gcreq = ddsi_gcreq_new (pp->e.gv->gcreq_queue, ddsi_gc_participant_lease);
   struct lease *lease_old = ddsrt_atomic_ldvoidp (&pp->minl_man);
   assert (lease_old != NULL);
   lease_unregister (lease_old); /* ensures lease will not expire while it is replaced */
   gcreq->arg = lease_old;
-  gcreq_enqueue (gcreq);
+  ddsi_gcreq_enqueue (gcreq);
   ddsrt_atomic_stvoidp (&pp->minl_man, lnew);
 }
 
@@ -1028,19 +1028,19 @@ void ddsi_update_participant_plist (struct ddsi_participant *pp, const ddsi_plis
   ddsrt_mutex_unlock (&pp->e.lock);
 }
 
-static void gc_delete_participant (struct gcreq *gcreq)
+static void gc_delete_participant (struct ddsi_gcreq *gcreq)
 {
   struct ddsi_participant *pp = gcreq->arg;
   ELOGDISC (pp, "gc_delete_participant (%p, "PGUIDFMT")\n", (void *) gcreq, PGUID (pp->e.guid));
-  gcreq_free (gcreq);
+  ddsi_gcreq_free (gcreq);
   ddsi_unref_participant (pp, NULL);
 }
 
 static int gcreq_participant (struct ddsi_participant *pp)
 {
-  struct gcreq *gcreq = gcreq_new (pp->e.gv->gcreq_queue, gc_delete_participant);
+  struct ddsi_gcreq *gcreq = ddsi_gcreq_new (pp->e.gv->gcreq_queue, gc_delete_participant);
   gcreq->arg = pp;
-  gcreq_enqueue (gcreq);
+  ddsi_gcreq_enqueue (gcreq);
   return 0;
 }
 

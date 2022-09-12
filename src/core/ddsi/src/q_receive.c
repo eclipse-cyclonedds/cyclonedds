@@ -40,7 +40,7 @@
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/q_lease.h"
-#include "dds/ddsi/q_gc.h"
+#include "dds/ddsi/ddsi_gc.h"
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_participant.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
@@ -3503,7 +3503,7 @@ void trigger_recv_threads (const struct ddsi_domaingv *gv)
 
 uint32_t recv_thread (void *vrecv_thread_arg)
 {
-  struct thread_state * const thrst = lookup_thread_state ();
+  struct thread_state * const thrst = ddsi_lookup_thread_state ();
   struct recv_thread_arg *recv_thread_arg = vrecv_thread_arg;
   struct ddsi_domaingv * const gv = recv_thread_arg->gv;
   struct nn_rbufpool *rbpool = recv_thread_arg->rbpool;

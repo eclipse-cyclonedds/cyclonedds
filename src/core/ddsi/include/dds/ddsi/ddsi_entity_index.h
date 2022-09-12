@@ -88,15 +88,15 @@ void entidx_remove_reader_guid (struct entity_index *ei, struct ddsi_reader *rd)
 void entidx_remove_proxy_writer_guid (struct entity_index *ei, struct ddsi_proxy_writer *pwr) ddsrt_nonnull_all;
 void entidx_remove_proxy_reader_guid (struct entity_index *ei, struct ddsi_proxy_reader *prd) ddsrt_nonnull_all;
 
-DDS_EXPORT void *entidx_lookup_guid_untyped (const struct entity_index *ei, const struct ddsi_guid *guid) ddsrt_nonnull_all;
-DDS_EXPORT void *entidx_lookup_guid (const struct entity_index *ei, const struct ddsi_guid *guid, enum ddsi_entity_kind kind) ddsrt_nonnull_all;
+void *entidx_lookup_guid_untyped (const struct entity_index *ei, const struct ddsi_guid *guid) ddsrt_nonnull_all;
+void *entidx_lookup_guid (const struct entity_index *ei, const struct ddsi_guid *guid, enum ddsi_entity_kind kind) ddsrt_nonnull_all;
 
-DDS_EXPORT struct ddsi_participant *entidx_lookup_participant_guid (const struct entity_index *ei, const struct ddsi_guid *guid) ddsrt_nonnull_all;
-DDS_EXPORT struct ddsi_proxy_participant *entidx_lookup_proxy_participant_guid (const struct entity_index *ei, const struct ddsi_guid *guid) ddsrt_nonnull_all;
-DDS_EXPORT struct ddsi_writer *entidx_lookup_writer_guid (const struct entity_index *ei, const struct ddsi_guid *guid) ddsrt_nonnull_all;
-DDS_EXPORT struct ddsi_reader *entidx_lookup_reader_guid (const struct entity_index *ei, const struct ddsi_guid *guid) ddsrt_nonnull_all;
-DDS_EXPORT struct ddsi_proxy_writer *entidx_lookup_proxy_writer_guid (const struct entity_index *ei, const struct ddsi_guid *guid) ddsrt_nonnull_all;
-DDS_EXPORT struct ddsi_proxy_reader *entidx_lookup_proxy_reader_guid (const struct entity_index *ei, const struct ddsi_guid *guid) ddsrt_nonnull_all;
+struct ddsi_participant *entidx_lookup_participant_guid (const struct entity_index *ei, const struct ddsi_guid *guid) ddsrt_nonnull_all;
+struct ddsi_proxy_participant *entidx_lookup_proxy_participant_guid (const struct entity_index *ei, const struct ddsi_guid *guid) ddsrt_nonnull_all;
+struct ddsi_writer *entidx_lookup_writer_guid (const struct entity_index *ei, const struct ddsi_guid *guid) ddsrt_nonnull_all;
+struct ddsi_reader *entidx_lookup_reader_guid (const struct entity_index *ei, const struct ddsi_guid *guid) ddsrt_nonnull_all;
+struct ddsi_proxy_writer *entidx_lookup_proxy_writer_guid (const struct entity_index *ei, const struct ddsi_guid *guid) ddsrt_nonnull_all;
+struct ddsi_proxy_reader *entidx_lookup_proxy_reader_guid (const struct entity_index *ei, const struct ddsi_guid *guid) ddsrt_nonnull_all;
 
 /* Enumeration of entries in the hash table:
 
@@ -149,7 +149,7 @@ void entidx_enum_proxy_participant_fini (struct entidx_enum_proxy_participant *s
 #ifdef DDS_HAS_TOPIC_DISCOVERY
 void entidx_insert_topic_guid (struct entity_index *ei, struct ddsi_topic *tp) ddsrt_nonnull_all;
 void entidx_remove_topic_guid (struct entity_index *ei, struct ddsi_topic *tp) ddsrt_nonnull_all;
-DDS_EXPORT struct ddsi_topic *entidx_lookup_topic_guid (const struct entity_index *ei, const struct ddsi_guid *guid);
+struct ddsi_topic *entidx_lookup_topic_guid (const struct entity_index *ei, const struct ddsi_guid *guid);
 struct entidx_enum_topic { struct entidx_enum st; };
 void entidx_enum_topic_init (struct entidx_enum_topic *st, const struct entity_index *ei) ddsrt_nonnull_all;
 struct ddsi_topic *entidx_enum_topic_next (struct entidx_enum_topic *st) ddsrt_nonnull_all;

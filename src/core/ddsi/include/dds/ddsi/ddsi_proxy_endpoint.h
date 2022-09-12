@@ -106,8 +106,8 @@ struct ddsi_proxy_reader {
   ddsi_filter_fn_t filter;
 };
 
-DDS_EXPORT extern const ddsrt_avl_treedef_t ddsi_pwr_readers_treedef;
-DDS_EXPORT extern const ddsrt_avl_treedef_t ddsi_prd_writers_treedef;
+extern const ddsrt_avl_treedef_t ddsi_pwr_readers_treedef;
+extern const ddsrt_avl_treedef_t ddsi_prd_writers_treedef;
 
 void ddsi_proxy_writer_set_alive_may_unlock (struct ddsi_proxy_writer *pwr, bool notify);
 int ddsi_proxy_writer_set_notalive (struct ddsi_proxy_writer *pwr, bool notify);
@@ -118,8 +118,8 @@ bool ddsi_is_proxy_endpoint (const struct ddsi_entity_common *e);
 
 /* To create a new proxy writer or reader; the proxy participant is
    determined from the GUID and must exist. */
-DDS_EXPORT int ddsi_new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct addrset *as, const struct ddsi_plist *plist, struct nn_dqueue *dqueue, struct xeventq *evq, ddsrt_wctime_t timestamp, seqno_t seq);
-DDS_EXPORT int ddsi_new_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct addrset *as, const struct ddsi_plist *plist, ddsrt_wctime_t timestamp, seqno_t seq
+int ddsi_new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct addrset *as, const struct ddsi_plist *plist, struct nn_dqueue *dqueue, struct xeventq *evq, ddsrt_wctime_t timestamp, seqno_t seq);
+int ddsi_new_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct addrset *as, const struct ddsi_plist *plist, ddsrt_wctime_t timestamp, seqno_t seq
 #ifdef DDS_HAS_SSM
 , int favours_ssm
 #endif
@@ -130,11 +130,11 @@ DDS_EXPORT int ddsi_new_proxy_reader (struct ddsi_domaingv *gv, const struct dds
    reader or writer. Actual deletion is scheduled in the future, when
    no outstanding references may still exist (determined by checking
    thread progress, &c.). */
-DDS_EXPORT int ddsi_delete_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, ddsrt_wctime_t timestamp, int isimplicit);
-DDS_EXPORT int ddsi_delete_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, ddsrt_wctime_t timestamp, int isimplicit);
+int ddsi_delete_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, ddsrt_wctime_t timestamp, int isimplicit);
+int ddsi_delete_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, ddsrt_wctime_t timestamp, int isimplicit);
 
-DDS_EXPORT void ddsi_update_proxy_reader (struct ddsi_proxy_reader *prd, seqno_t seq, struct addrset *as, const struct dds_qos *xqos, ddsrt_wctime_t timestamp);
-DDS_EXPORT void ddsi_update_proxy_writer (struct ddsi_proxy_writer *pwr, seqno_t seq, struct addrset *as, const struct dds_qos *xqos, ddsrt_wctime_t timestamp);
+void ddsi_update_proxy_reader (struct ddsi_proxy_reader *prd, seqno_t seq, struct addrset *as, const struct dds_qos *xqos, ddsrt_wctime_t timestamp);
+void ddsi_update_proxy_writer (struct ddsi_proxy_writer *pwr, seqno_t seq, struct addrset *as, const struct dds_qos *xqos, ddsrt_wctime_t timestamp);
 
 #if defined (__cplusplus)
 }

@@ -229,21 +229,14 @@ static struct ddsi_serdata_any *convert_serdata(struct ddsi_writer *ddsi_wr, str
     // dout refc: must consume 1
     // din refc: must consume 0 (it is an alias of dact)
   }
-  else if (din->a.type->ops->version == ddsi_sertype_v0)
+  else
   {
+    assert (din->a.type->ops->version == ddsi_sertype_v0);
     // deliberately allowing mismatches between d->type and ddsi_wr->type:
     // that way we can allow transferring data from one domain to another
     dout = (struct ddsi_serdata_any *) ddsi_serdata_ref_as_type (ddsi_wr->type, &din->a);
     // dout refc: must consume 1
     // din refc: must consume 1 (independent of dact: types are distinct)
-  }
-  else
-  {
-    // hope for the best (the type checks/conversions were missing in the
-    // sertopic days anyway, so this is simply bug-for-bug compatibility
-    dout = (struct ddsi_serdata_any *) ddsi_sertopic_wrap_serdata (ddsi_wr->type, din->a.kind, &din->a);
-    // dout refc: must consume 1
-    // din refc: must consume 1
   }
   return dout;
 }
@@ -292,7 +285,7 @@ static dds_return_t dds_writecdr_impl_common (struct ddsi_writer *ddsi_wr, struc
 {
   // consumes 1 refc from din in all paths (weird, but ... history ...)
   // let refc(din) be r, so upon returning it must be r-1
-  struct thread_state * const thrst = lookup_thread_state ();
+  struct thread_state * const thrst = ddsi_lookup_thread_state ();
   int ret = DDS_RETCODE_OK;
   assert (wr != NULL);
 
@@ -577,7 +570,7 @@ static dds_return_t dds_write_impl_plain (dds_writer *wr, struct ddsi_writer *dd
 dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstamp, dds_write_action action)
 {
   // 1. Input validation
-  struct thread_state * const thrst = lookup_thread_state ();
+  struct thread_state * const thrst = ddsi_lookup_thread_state ();
   const bool writekey = action & DDS_WR_KEY_BIT;
   struct ddsi_writer *ddsi_wr = wr->m_wr;
   int ret = DDS_RETCODE_OK;
@@ -612,7 +605,7 @@ void dds_write_flush (dds_entity_t writer)
   dds_writer *wr;
   if (dds_writer_lock (writer, &wr) == DDS_RETCODE_OK)
   {
-    struct thread_state * const thrst = lookup_thread_state ();
+    struct thread_state * const thrst = ddsi_lookup_thread_state ();
     thread_state_awake (thrst, &wr->m_entity.m_domain->gv);
     nn_xpack_send (wr->m_xp, true);
     thread_state_asleep (thrst);
@@ -629,7 +622,7 @@ dds_return_t dds_writecdr_local_orphan_impl (struct ddsi_local_orphan_writer *lo
 
   // consumes 1 refc from din in all paths (weird, but ... history ...)
   // let refc(din) be r, so upon returning it must be r-1
-  struct thread_state * const thrst = lookup_thread_state ();
+  struct thread_state * const thrst = ddsi_lookup_thread_state ();
   int ret = DDS_RETCODE_OK;
   assert (lowr->wr.type == d->type);
 

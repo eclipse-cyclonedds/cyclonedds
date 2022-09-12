@@ -20,7 +20,6 @@
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_sertype.h"
-#include "dds/ddsi/ddsi_sertopic.h" // for extern ddsi_sertopic_serdata_ops_wrap
 
 #include "dds/ddsc/dds_loan_api.h"
 
@@ -61,7 +60,7 @@ static dds_return_t dds_read_impl (bool take, dds_entity_t reader_or_condition, 
     cond = (dds_readcond *) entity;
   }
 
-  struct thread_state * const thrst = lookup_thread_state ();
+  struct thread_state * const thrst = ddsi_lookup_thread_state ();
   thread_state_awake (thrst, &entity->m_domain->gv);
 
   /* Allocate samples if not provided (assuming all or none provided) */
@@ -161,7 +160,7 @@ static dds_return_t dds_readcdr_impl (bool take, dds_entity_t reader_or_conditio
     rd = (dds_reader *) entity->m_parent;
   }
 
-  struct thread_state * const thrst = lookup_thread_state ();
+  struct thread_state * const thrst = ddsi_lookup_thread_state ();
   thread_state_awake (thrst, &entity->m_domain->gv);
 
   /* read/take resets data available status -- must reset before reading because
@@ -175,27 +174,6 @@ static dds_return_t dds_readcdr_impl (bool take, dds_entity_t reader_or_conditio
     ret = dds_rhc_takecdr (rd->m_rhc, lock, buf, si, maxs, mask & DDS_ANY_SAMPLE_STATE, mask & DDS_ANY_VIEW_STATE, mask & DDS_ANY_INSTANCE_STATE, hand);
   else
     ret = dds_rhc_readcdr (rd->m_rhc, lock, buf, si, maxs, mask & DDS_ANY_SAMPLE_STATE, mask & DDS_ANY_VIEW_STATE, mask & DDS_ANY_INSTANCE_STATE, hand);
-
-  if (rd->m_wrapped_sertopic)
-  {
-    for (int32_t i = 0; i < ret; i++)
-    {
-      assert (buf[i]->ops == &ddsi_sertopic_serdata_ops_wrap);
-      struct ddsi_serdata_wrapper *wrapper = (struct ddsi_serdata_wrapper *) buf[i];
-      buf[i] = ddsi_serdata_ref (wrapper->compat_wrap);
-      // Lazily setting statusinfo/timestamp in the wrapped serdata because we don't
-      // propagate it eagerly. This incurs the cost only in the rare case that an
-      // application uses readcdr/takecdr, the other would incur it always.
-      //
-      // It seems a reasonable assumption on common hardware that storing a value
-      // to memory that was there already won't allow observing a different one
-      // temporarily. I don't think C guarantees it, but I do think all modern CPUs
-      // do.
-      buf[i]->statusinfo = wrapper->c.statusinfo;
-      buf[i]->timestamp = wrapper->c.timestamp;
-      ddsi_serdata_unref (&wrapper->c);
-    }
-  }
 
   dds_entity_unpin (entity);
   thread_state_asleep (thrst);

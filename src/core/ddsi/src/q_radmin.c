@@ -2514,7 +2514,7 @@ static enum dqueue_elem_kind dqueue_elem_kind (const struct nn_rsample_chain_ele
 
 static uint32_t dqueue_thread (struct nn_dqueue *q)
 {
-  struct thread_state * const thrst = lookup_thread_state ();
+  struct thread_state * const thrst = ddsi_lookup_thread_state ();
 #if DDSRT_HAVE_RUSAGE
   struct ddsi_domaingv const * const gv = ddsrt_atomic_ldvoidp (&thrst->gv);
 #endif

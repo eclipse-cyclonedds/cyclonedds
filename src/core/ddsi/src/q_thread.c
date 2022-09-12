@@ -31,18 +31,18 @@
 struct thread_states thread_states;
 ddsrt_thread_local struct thread_state *tsd_thread_state;
 
-DDS_EXPORT extern inline bool vtime_awake_p (vtime_t vtime);
-DDS_EXPORT extern inline bool vtime_asleep_p (vtime_t vtime);
-DDS_EXPORT extern inline bool vtime_gt (vtime_t vtime1, vtime_t vtime0);
+extern inline bool vtime_awake_p (vtime_t vtime);
+extern inline bool vtime_asleep_p (vtime_t vtime);
+extern inline bool vtime_gt (vtime_t vtime1, vtime_t vtime0);
 
-DDS_EXPORT extern inline struct thread_state *lookup_thread_state (void);
-DDS_EXPORT extern inline bool thread_is_asleep (void);
-DDS_EXPORT extern inline bool thread_is_awake (void);
-DDS_EXPORT extern inline void thread_state_asleep (struct thread_state *thrst);
-DDS_EXPORT extern inline void thread_state_awake (struct thread_state *thrst, const struct ddsi_domaingv *gv);
-DDS_EXPORT extern inline void thread_state_awake_domain_ok (struct thread_state *thrst);
-DDS_EXPORT extern inline void thread_state_awake_fixed_domain (struct thread_state *thrst);
-DDS_EXPORT extern inline void thread_state_awake_to_awake_no_nest (struct thread_state *thrst);
+extern inline struct thread_state *ddsi_lookup_thread_state (void);
+extern inline bool thread_is_asleep (void);
+extern inline bool thread_is_awake (void);
+extern inline void thread_state_asleep (struct thread_state *thrst);
+extern inline void thread_state_awake (struct thread_state *thrst, const struct ddsi_domaingv *gv);
+extern inline void thread_state_awake_domain_ok (struct thread_state *thrst);
+extern inline void thread_state_awake_fixed_domain (struct thread_state *thrst);
+extern inline void thread_state_awake_to_awake_no_nest (struct thread_state *thrst);
 
 static struct thread_state *init_thread_state (const char *tname, const struct ddsi_domaingv *gv, enum thread_state_kind state);
 static void reap_thread_state (struct thread_state *thrst, bool in_thread_states_fini);
@@ -114,7 +114,7 @@ void thread_states_init (void)
 #ifndef NDEBUG
   struct thread_state * const ts0 = tsd_thread_state;
 #endif
-  struct thread_state * const thrst = lookup_thread_state_real ();
+  struct thread_state * const thrst = ddsi_lookup_thread_state_real ();
   assert (ts0 == NULL || ts0 == thrst);
   (void) thrst;
 }
@@ -124,7 +124,7 @@ bool thread_states_fini (void)
   /* Calling thread is the one shutting everything down, so it certainly won't (well, shouldn't)
      need its slot anymore.  Clean it up so that if all other threads happen to have been stopped
      already, we can release all resources. */
-  struct thread_state *thrst = lookup_thread_state ();
+  struct thread_state *thrst = ddsi_lookup_thread_state ();
   assert (vtime_asleep_p (ddsrt_atomic_ld32 (&thrst->vtime)));
   reap_thread_state (thrst, true);
   tsd_thread_state = NULL;
@@ -229,7 +229,7 @@ static struct thread_state *lazy_create_thread_state (ddsrt_thread_t self)
   return thrst;
 }
 
-struct thread_state *lookup_thread_state_real (void)
+struct thread_state *ddsi_lookup_thread_state_real (void)
 {
   struct thread_state *thrst = tsd_thread_state;
   if (thrst == NULL)

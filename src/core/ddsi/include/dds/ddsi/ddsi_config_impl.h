@@ -28,7 +28,7 @@ struct cfgst *ddsi_config_init (const char *config, struct ddsi_config *cfg, uin
 void ddsi_config_print_cfgst (struct cfgst *cfgst, const struct ddsrt_log_cfg *logcfg);
 void ddsi_config_print_rawconfig (const struct ddsi_config *cfg, const struct ddsrt_log_cfg *logcfg);
 void ddsi_config_free_source_info (struct cfgst *cfgst);
-void ddsi_config_fini (struct cfgst *cfgst);
+DDS_EXPORT void ddsi_config_fini (struct cfgst *cfgst);
 
 #if defined (__cplusplus)
 }

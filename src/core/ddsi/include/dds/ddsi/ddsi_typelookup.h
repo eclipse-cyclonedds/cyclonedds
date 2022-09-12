@@ -46,7 +46,7 @@ struct ddsi_type;
  * Send a type lookup request message in order to request type information for the
  * provided type identifier.
  */
-DDS_EXPORT bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const ddsi_typeid_t *type_id, const ddsi_guid_t *proxypp_guid, ddsi_type_include_deps_t deps);
+bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const ddsi_typeid_t *type_id, const ddsi_guid_t *proxypp_guid, ddsi_type_include_deps_t deps);
 
 /**
  * Handle an incoming type lookup request message. For all types requested
@@ -54,19 +54,19 @@ DDS_EXPORT bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const dds
  * lookup reply message. In case none of the requested types is known,
  * an empty reply message will be sent.
  */
-DDS_EXPORT void ddsi_tl_handle_request (struct ddsi_domaingv *gv, struct ddsi_serdata *sample_common);
+void ddsi_tl_handle_request (struct ddsi_domaingv *gv, struct ddsi_serdata *sample_common);
 
 /**
  * Add type information from a type lookup reply to the type library.
  */
-DDS_EXPORT void ddsi_tl_add_types (struct ddsi_domaingv *gv, const DDS_Builtin_TypeLookup_Reply *reply, struct ddsi_generic_proxy_endpoint ***gpe_match_upd, uint32_t *n_match_upd);
+void ddsi_tl_add_types (struct ddsi_domaingv *gv, const DDS_Builtin_TypeLookup_Reply *reply, struct ddsi_generic_proxy_endpoint ***gpe_match_upd, uint32_t *n_match_upd);
 
 /**
  * Handle an incoming type lookup reply message. The sertypes from this
  * reply are registered in the local type administation and referenced
  * from the corresponding proxy endpoints.
  */
-DDS_EXPORT void ddsi_tl_handle_reply (struct ddsi_domaingv *gv, struct ddsi_serdata *sample_common);
+void ddsi_tl_handle_reply (struct ddsi_domaingv *gv, struct ddsi_serdata *sample_common);
 
 #if defined (__cplusplus)
 }

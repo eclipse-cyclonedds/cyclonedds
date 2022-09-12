@@ -22,7 +22,7 @@
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_participant.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
-#include "dds/ddsi/q_gc.h"
+#include "dds/ddsi/ddsi_gc.h"
 #include "dds/security/dds_security_api_types.h"
 #include "dds/security/dds_security_api.h"
 #include "dds/ddsi/ddsi_security_omg.h"
@@ -1207,12 +1207,12 @@ static struct ddsi_handshake * ddsi_handshake_find_locked(
   return ddsrt_avl_lookup(&handshake_treedef, &hsadmin->handshakes, &handles);
 }
 
-static void gc_delete_handshale (struct gcreq *gcreq)
+static void gc_delete_handshale (struct ddsi_gcreq *gcreq)
 {
   struct ddsi_handshake *handshake = gcreq->arg;
 
   ddsi_handshake_release(handshake);
-  gcreq_free(gcreq);
+  ddsi_gcreq_free (gcreq);
 }
 
 void ddsi_handshake_remove(struct ddsi_participant *pp, struct ddsi_proxy_participant *proxypp)
@@ -1224,12 +1224,12 @@ void ddsi_handshake_remove(struct ddsi_participant *pp, struct ddsi_proxy_partic
   handshake = ddsi_handshake_find_locked(hsadmin, pp, proxypp);
   if (handshake)
   {
-    struct gcreq *gcreq = gcreq_new (pp->e.gv->gcreq_queue, gc_delete_handshale);
+    struct ddsi_gcreq *gcreq = ddsi_gcreq_new (pp->e.gv->gcreq_queue, gc_delete_handshale);
     ddsrt_avl_delete(&handshake_treedef, &hsadmin->handshakes, handshake);
     ddsrt_atomic_st32(&handshake->deleting, 1);
     dds_security_fsm_stop(handshake->fsm);
     gcreq->arg = handshake;
-    gcreq_enqueue (gcreq);
+    ddsi_gcreq_enqueue (gcreq);
   }
   ddsrt_mutex_unlock(&hsadmin->lock);
 }
@@ -1292,12 +1292,12 @@ void ddsi_handshake_admin_stop(struct ddsi_domaingv *gv)
 
 #else
 
-DDS_EXPORT extern inline void ddsi_handshake_release(UNUSED_ARG(struct ddsi_handshake *handshake));
-DDS_EXPORT extern inline void ddsi_handshake_crypto_tokens_received(UNUSED_ARG(struct ddsi_handshake *handshake));
-DDS_EXPORT extern inline int64_t ddsi_handshake_get_shared_secret(UNUSED_ARG(const struct ddsi_handshake *handshake));
-DDS_EXPORT extern inline int64_t ddsi_handshake_get_handle(UNUSED_ARG(const struct ddsi_handshake *handshake));
-DDS_EXPORT extern inline void ddsi_handshake_register(UNUSED_ARG(struct ddsi_participant *pp), UNUSED_ARG(struct ddsi_proxy_participant *proxypp), UNUSED_ARG(ddsi_handshake_end_cb_t callback));
-DDS_EXPORT extern inline void ddsi_handshake_remove(UNUSED_ARG(struct ddsi_participant *pp), UNUSED_ARG(struct ddsi_proxy_participant *proxypp), UNUSED_ARG(struct ddsi_handshake *handshake));
-DDS_EXPORT extern inline struct ddsi_handshake * ddsi_handshake_find(UNUSED_ARG(struct ddsi_participant *pp), UNUSED_ARG(struct ddsi_proxy_participant *proxypp));
+extern inline void ddsi_handshake_release(UNUSED_ARG(struct ddsi_handshake *handshake));
+extern inline void ddsi_handshake_crypto_tokens_received(UNUSED_ARG(struct ddsi_handshake *handshake));
+extern inline int64_t ddsi_handshake_get_shared_secret(UNUSED_ARG(const struct ddsi_handshake *handshake));
+extern inline int64_t ddsi_handshake_get_handle(UNUSED_ARG(const struct ddsi_handshake *handshake));
+extern inline void ddsi_handshake_register(UNUSED_ARG(struct ddsi_participant *pp), UNUSED_ARG(struct ddsi_proxy_participant *proxypp), UNUSED_ARG(ddsi_handshake_end_cb_t callback));
+extern inline void ddsi_handshake_remove(UNUSED_ARG(struct ddsi_participant *pp), UNUSED_ARG(struct ddsi_proxy_participant *proxypp), UNUSED_ARG(struct ddsi_handshake *handshake));
+extern inline struct ddsi_handshake * ddsi_handshake_find(UNUSED_ARG(struct ddsi_participant *pp), UNUSED_ARG(struct ddsi_proxy_participant *proxypp));
 
 #endif /* DDS_HAS_DDS_SECURITY */

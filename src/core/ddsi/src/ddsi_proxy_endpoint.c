@@ -347,11 +347,11 @@ void ddsi_update_proxy_writer (struct ddsi_proxy_writer *pwr, seqno_t seq, struc
   ddsrt_mutex_unlock (&pwr->e.lock);
 }
 
-static void gc_delete_proxy_writer (struct gcreq *gcreq)
+static void gc_delete_proxy_writer (struct ddsi_gcreq *gcreq)
 {
   struct ddsi_proxy_writer *pwr = gcreq->arg;
   ELOGDISC (pwr, "gc_delete_proxy_writer (%p, "PGUIDFMT")\n", (void *) gcreq, PGUID (pwr->e.guid));
-  gcreq_free (gcreq);
+  ddsi_gcreq_free (gcreq);
 
 #ifdef DDS_HAS_TYPE_DISCOVERY
   if (pwr->c.type_pair != NULL)
@@ -382,15 +382,15 @@ static void gc_delete_proxy_writer (struct gcreq *gcreq)
   ddsrt_free (pwr);
 }
 
-static void gc_delete_proxy_writer_dqueue_bubble_cb (struct gcreq *gcreq)
+static void gc_delete_proxy_writer_dqueue_bubble_cb (struct ddsi_gcreq *gcreq)
 {
   /* delete proxy_writer, phase 3 */
   struct ddsi_proxy_writer *pwr = gcreq->arg;
   ELOGDISC (pwr, "gc_delete_proxy_writer_dqueue_bubble(%p, "PGUIDFMT")\n", (void *) gcreq, PGUID (pwr->e.guid));
-  gcreq_requeue (gcreq, gc_delete_proxy_writer);
+  ddsi_gcreq_requeue (gcreq, gc_delete_proxy_writer);
 }
 
-static void gc_delete_proxy_writer_dqueue (struct gcreq *gcreq)
+static void gc_delete_proxy_writer_dqueue (struct ddsi_gcreq *gcreq)
 {
   /* delete proxy_writer, phase 2 */
   struct ddsi_proxy_writer *pwr = gcreq->arg;
@@ -401,9 +401,9 @@ static void gc_delete_proxy_writer_dqueue (struct gcreq *gcreq)
 
 static int gcreq_proxy_writer (struct ddsi_proxy_writer *pwr)
 {
-  struct gcreq *gcreq = gcreq_new (pwr->e.gv->gcreq_queue, gc_delete_proxy_writer_dqueue);
+  struct ddsi_gcreq *gcreq = ddsi_gcreq_new (pwr->e.gv->gcreq_queue, gc_delete_proxy_writer_dqueue);
   gcreq->arg = pwr;
-  gcreq_enqueue (gcreq);
+  ddsi_gcreq_enqueue (gcreq);
   return 0;
 }
 
@@ -696,11 +696,11 @@ static void proxy_reader_set_delete_and_ack_all_messages (struct ddsi_proxy_read
   ddsrt_mutex_unlock (&prd->e.lock);
 }
 
-static void gc_delete_proxy_reader (struct gcreq *gcreq)
+static void gc_delete_proxy_reader (struct ddsi_gcreq *gcreq)
 {
   struct ddsi_proxy_reader *prd = gcreq->arg;
   ELOGDISC (prd, "gc_delete_proxy_reader (%p, "PGUIDFMT")\n", (void *) gcreq, PGUID (prd->e.guid));
-  gcreq_free (gcreq);
+  ddsi_gcreq_free (gcreq);
 
 #ifdef DDS_HAS_TYPE_DISCOVERY
   if (prd->c.type_pair != NULL)
@@ -727,9 +727,9 @@ static void gc_delete_proxy_reader (struct gcreq *gcreq)
 
 static int gcreq_proxy_reader (struct ddsi_proxy_reader *prd)
 {
-  struct gcreq *gcreq = gcreq_new (prd->e.gv->gcreq_queue, gc_delete_proxy_reader);
+  struct ddsi_gcreq *gcreq = ddsi_gcreq_new (prd->e.gv->gcreq_queue, gc_delete_proxy_reader);
   gcreq->arg = prd;
-  gcreq_enqueue (gcreq);
+  ddsi_gcreq_enqueue (gcreq);
   return 0;
 }
 

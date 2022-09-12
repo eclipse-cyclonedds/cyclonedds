@@ -925,12 +925,12 @@ static bool proxypp_expired_by_id (const struct ddsi_proxy_participant * proxypp
 static DDS_Security_boolean on_revoke_permissions_cb(const dds_security_access_control *plugin, const DDS_Security_PermissionsHandle handle)
 {
   struct ddsi_domaingv *gv = plugin->gv;
-  thread_state_awake (lookup_thread_state (), gv);
+  thread_state_awake (ddsi_lookup_thread_state (), gv);
 
   if (!delete_pp_by_handle (handle, pp_expired_by_perm, gv))
     delete_proxypp_by_handle (handle, proxypp_expired_by_perm, gv);
 
-  thread_state_asleep (lookup_thread_state ());
+  thread_state_asleep (ddsi_lookup_thread_state ());
   return true;
 }
 
@@ -938,12 +938,12 @@ static DDS_Security_boolean on_revoke_permissions_cb(const dds_security_access_c
 static DDS_Security_boolean on_revoke_identity_cb(const dds_security_authentication *plugin, const DDS_Security_IdentityHandle handle)
 {
   struct ddsi_domaingv *gv = plugin->gv;
-  thread_state_awake (lookup_thread_state (), gv);
+  thread_state_awake (ddsi_lookup_thread_state (), gv);
 
   if (!delete_pp_by_handle (handle, pp_expired_by_id, gv))
     delete_proxypp_by_handle (handle, proxypp_expired_by_id, gv);
 
-  thread_state_asleep (lookup_thread_state ());
+  thread_state_asleep (ddsi_lookup_thread_state ());
   return true;
 }
 
@@ -1451,7 +1451,7 @@ bool q_omg_security_check_create_topic(const struct ddsi_domaingv *gv, const dds
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_Qos topic_qos;
 
-  thread_state_awake (lookup_thread_state (), gv);
+  thread_state_awake (ddsi_lookup_thread_state (), gv);
   pp = entidx_lookup_participant_guid (gv->entity_index, pp_guid);
 
   if ((sc = q_omg_security_get_secure_context(pp)) != NULL)
@@ -1462,7 +1462,7 @@ bool q_omg_security_check_create_topic(const struct ddsi_domaingv *gv, const dds
       handle_not_allowed(gv, pp->sec_attr->permissions_handle, sc->access_control_context, &exception, topic_name, "Local topic permission denied");
     q_omg_shallow_free_security_qos(&topic_qos);
   }
-  thread_state_asleep (lookup_thread_state ());
+  thread_state_asleep (ddsi_lookup_thread_state ());
 
   return result;
 }
@@ -3919,114 +3919,114 @@ void q_omg_log_endpoint_protection(struct ddsi_domaingv * const gv, const ddsi_p
 
 #include "dds/ddsi/ddsi_security_omg.h"
 
-DDS_EXPORT extern inline bool q_omg_security_enabled(void);
+extern inline bool q_omg_security_enabled(void);
 
-DDS_EXPORT extern inline bool q_omg_participant_is_access_protected(UNUSED_ARG(const struct ddsi_participant *pp));
-DDS_EXPORT extern inline bool q_omg_participant_is_rtps_protected(UNUSED_ARG(const struct ddsi_participant *pp));
-DDS_EXPORT extern inline bool q_omg_participant_is_liveliness_protected(UNUSED_ARG(const struct ddsi_participant *pp));
-DDS_EXPORT extern inline bool q_omg_participant_is_discovery_protected(UNUSED_ARG(const struct ddsi_participant *pp));
-DDS_EXPORT extern inline bool q_omg_participant_is_secure(UNUSED_ARG(const struct ddsi_participant *pp));
-DDS_EXPORT extern inline bool q_omg_proxy_participant_is_secure(UNUSED_ARG(const struct ddsi_proxy_participant *proxypp));
+extern inline bool q_omg_participant_is_access_protected(UNUSED_ARG(const struct ddsi_participant *pp));
+extern inline bool q_omg_participant_is_rtps_protected(UNUSED_ARG(const struct ddsi_participant *pp));
+extern inline bool q_omg_participant_is_liveliness_protected(UNUSED_ARG(const struct ddsi_participant *pp));
+extern inline bool q_omg_participant_is_discovery_protected(UNUSED_ARG(const struct ddsi_participant *pp));
+extern inline bool q_omg_participant_is_secure(UNUSED_ARG(const struct ddsi_participant *pp));
+extern inline bool q_omg_proxy_participant_is_secure(UNUSED_ARG(const struct ddsi_proxy_participant *proxypp));
 
-DDS_EXPORT extern inline bool q_omg_security_match_remote_writer_enabled(UNUSED_ARG(struct ddsi_reader *rd), UNUSED_ARG(struct ddsi_proxy_writer *pwr), UNUSED_ARG(int64_t *crypto_handle));
-DDS_EXPORT extern inline bool q_omg_security_match_remote_reader_enabled(UNUSED_ARG(struct ddsi_writer *wr), UNUSED_ARG(struct ddsi_proxy_reader *prd), UNUSED_ARG(bool relay_only), UNUSED_ARG(int64_t *crypto_handle));
+extern inline bool q_omg_security_match_remote_writer_enabled(UNUSED_ARG(struct ddsi_reader *rd), UNUSED_ARG(struct ddsi_proxy_writer *pwr), UNUSED_ARG(int64_t *crypto_handle));
+extern inline bool q_omg_security_match_remote_reader_enabled(UNUSED_ARG(struct ddsi_writer *wr), UNUSED_ARG(struct ddsi_proxy_reader *prd), UNUSED_ARG(bool relay_only), UNUSED_ARG(int64_t *crypto_handle));
 
-DDS_EXPORT extern inline bool q_omg_writer_is_discovery_protected(UNUSED_ARG(const struct ddsi_writer *wr));
-DDS_EXPORT extern inline bool q_omg_writer_is_submessage_protected(UNUSED_ARG(const struct ddsi_writer *wr));
-DDS_EXPORT extern inline bool q_omg_writer_is_payload_protected(UNUSED_ARG(const struct ddsi_writer *wr));
+extern inline bool q_omg_writer_is_discovery_protected(UNUSED_ARG(const struct ddsi_writer *wr));
+extern inline bool q_omg_writer_is_submessage_protected(UNUSED_ARG(const struct ddsi_writer *wr));
+extern inline bool q_omg_writer_is_payload_protected(UNUSED_ARG(const struct ddsi_writer *wr));
 
-DDS_EXPORT extern inline void q_omg_get_proxy_writer_security_info(UNUSED_ARG(struct ddsi_proxy_writer *pwr), UNUSED_ARG(const ddsi_plist_t *plist), UNUSED_ARG(nn_security_info_t *info));
-DDS_EXPORT extern inline bool q_omg_security_check_remote_writer_permissions(UNUSED_ARG(const struct ddsi_proxy_writer *pwr), UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(struct ddsi_participant *pp));
-DDS_EXPORT extern inline void q_omg_security_deregister_remote_writer_match(UNUSED_ARG(const struct ddsi_proxy_writer *pwr), UNUSED_ARG(const struct ddsi_reader *rd), UNUSED_ARG(struct ddsi_rd_pwr_match *match));
-DDS_EXPORT extern inline void q_omg_get_proxy_reader_security_info(UNUSED_ARG(struct ddsi_proxy_reader *prd), UNUSED_ARG(const ddsi_plist_t *plist), UNUSED_ARG(nn_security_info_t *info));
-DDS_EXPORT extern inline bool q_omg_security_check_remote_reader_permissions(UNUSED_ARG(const struct ddsi_proxy_reader *prd), UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(struct ddsi_participant *par), UNUSED_ARG(bool *relay_only));
-DDS_EXPORT extern inline void q_omg_security_deregister_remote_reader_match(UNUSED_ARG(const struct ddsi_proxy_reader *prd), UNUSED_ARG(const struct ddsi_writer *wr), UNUSED_ARG(struct ddsi_wr_prd_match *match));
+extern inline void q_omg_get_proxy_writer_security_info(UNUSED_ARG(struct ddsi_proxy_writer *pwr), UNUSED_ARG(const ddsi_plist_t *plist), UNUSED_ARG(nn_security_info_t *info));
+extern inline bool q_omg_security_check_remote_writer_permissions(UNUSED_ARG(const struct ddsi_proxy_writer *pwr), UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(struct ddsi_participant *pp));
+extern inline void q_omg_security_deregister_remote_writer_match(UNUSED_ARG(const struct ddsi_proxy_writer *pwr), UNUSED_ARG(const struct ddsi_reader *rd), UNUSED_ARG(struct ddsi_rd_pwr_match *match));
+extern inline void q_omg_get_proxy_reader_security_info(UNUSED_ARG(struct ddsi_proxy_reader *prd), UNUSED_ARG(const ddsi_plist_t *plist), UNUSED_ARG(nn_security_info_t *info));
+extern inline bool q_omg_security_check_remote_reader_permissions(UNUSED_ARG(const struct ddsi_proxy_reader *prd), UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(struct ddsi_participant *par), UNUSED_ARG(bool *relay_only));
+extern inline void q_omg_security_deregister_remote_reader_match(UNUSED_ARG(const struct ddsi_proxy_reader *prd), UNUSED_ARG(const struct ddsi_writer *wr), UNUSED_ARG(struct ddsi_wr_prd_match *match));
 
-DDS_EXPORT extern inline unsigned determine_subscription_writer(UNUSED_ARG(const struct ddsi_reader *rd));
-DDS_EXPORT extern inline unsigned determine_publication_writer(UNUSED_ARG(const struct ddsi_writer *wr));
+extern inline unsigned determine_subscription_writer(UNUSED_ARG(const struct ddsi_reader *rd));
+extern inline unsigned determine_publication_writer(UNUSED_ARG(const struct ddsi_writer *wr));
 #ifdef DDS_HAS_TOPIC_DISCOVERY
-DDS_EXPORT extern inline unsigned determine_topic_writer(UNUSED_ARG(const struct ddsi_topic *tp));
+extern inline unsigned determine_topic_writer(UNUSED_ARG(const struct ddsi_topic *tp));
 #endif
 
-DDS_EXPORT extern inline bool is_proxy_participant_deletion_allowed(UNUSED_ARG(struct ddsi_domaingv * const gv), UNUSED_ARG(const struct ddsi_guid *guid), UNUSED_ARG(const ddsi_entityid_t pwr_entityid));
+extern inline bool is_proxy_participant_deletion_allowed(UNUSED_ARG(struct ddsi_domaingv * const gv), UNUSED_ARG(const struct ddsi_guid *guid), UNUSED_ARG(const ddsi_entityid_t pwr_entityid));
 
-DDS_EXPORT extern inline bool q_omg_is_similar_participant_security_info(UNUSED_ARG(struct ddsi_participant *pp), UNUSED_ARG(struct ddsi_proxy_participant *proxypp));
+extern inline bool q_omg_is_similar_participant_security_info(UNUSED_ARG(struct ddsi_participant *pp), UNUSED_ARG(struct ddsi_proxy_participant *proxypp));
 
-DDS_EXPORT extern inline bool q_omg_participant_allow_unauthenticated(UNUSED_ARG(struct ddsi_participant *pp));
+extern inline bool q_omg_participant_allow_unauthenticated(UNUSED_ARG(struct ddsi_participant *pp));
 
-DDS_EXPORT extern inline bool q_omg_security_check_create_participant(UNUSED_ARG(struct ddsi_participant *pp), UNUSED_ARG(uint32_t domain_id));
+extern inline bool q_omg_security_check_create_participant(UNUSED_ARG(struct ddsi_participant *pp), UNUSED_ARG(uint32_t domain_id));
 
-DDS_EXPORT extern inline void q_omg_security_deregister_participant(UNUSED_ARG(struct ddsi_participant *pp));
+extern inline void q_omg_security_deregister_participant(UNUSED_ARG(struct ddsi_participant *pp));
 
-DDS_EXPORT extern inline bool q_omg_security_check_create_topic(UNUSED_ARG(const struct ddsi_domaingv *gv), UNUSED_ARG(const ddsi_guid_t *pp_guid), UNUSED_ARG(const char *topic_name), UNUSED_ARG(const struct dds_qos *qos));
+extern inline bool q_omg_security_check_create_topic(UNUSED_ARG(const struct ddsi_domaingv *gv), UNUSED_ARG(const ddsi_guid_t *pp_guid), UNUSED_ARG(const char *topic_name), UNUSED_ARG(const struct dds_qos *qos));
 
-DDS_EXPORT extern inline int64_t q_omg_security_get_local_participant_handle(UNUSED_ARG(const struct ddsi_participant *pp));
+extern inline int64_t q_omg_security_get_local_participant_handle(UNUSED_ARG(const struct ddsi_participant *pp));
 
-DDS_EXPORT extern inline bool q_omg_security_check_create_writer(UNUSED_ARG(struct ddsi_participant *pp), UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(const char *topic_name), UNUSED_ARG(const struct dds_qos *writer_qos));
+extern inline bool q_omg_security_check_create_writer(UNUSED_ARG(struct ddsi_participant *pp), UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(const char *topic_name), UNUSED_ARG(const struct dds_qos *writer_qos));
 
-DDS_EXPORT extern inline void q_omg_security_register_writer(UNUSED_ARG(struct ddsi_writer *wr));
+extern inline void q_omg_security_register_writer(UNUSED_ARG(struct ddsi_writer *wr));
 
-DDS_EXPORT extern inline void q_omg_security_deregister_writer(UNUSED_ARG(struct ddsi_writer *wr));
+extern inline void q_omg_security_deregister_writer(UNUSED_ARG(struct ddsi_writer *wr));
 
-DDS_EXPORT extern inline bool q_omg_security_check_create_reader(UNUSED_ARG(struct ddsi_participant *pp), UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(const char *topic_name), UNUSED_ARG(const struct dds_qos *reader_qos));
+extern inline bool q_omg_security_check_create_reader(UNUSED_ARG(struct ddsi_participant *pp), UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(const char *topic_name), UNUSED_ARG(const struct dds_qos *reader_qos));
 
-DDS_EXPORT extern inline void q_omg_security_register_reader(UNUSED_ARG(struct ddsi_reader *rd));
+extern inline void q_omg_security_register_reader(UNUSED_ARG(struct ddsi_reader *rd));
 
-DDS_EXPORT extern inline void q_omg_security_deregister_reader(UNUSED_ARG(struct ddsi_reader *rd));
+extern inline void q_omg_security_deregister_reader(UNUSED_ARG(struct ddsi_reader *rd));
 
-DDS_EXPORT extern inline bool q_omg_security_is_remote_rtps_protected(UNUSED_ARG(const struct ddsi_proxy_participant *proxypp), UNUSED_ARG(ddsi_entityid_t entityid));
+extern inline bool q_omg_security_is_remote_rtps_protected(UNUSED_ARG(const struct ddsi_proxy_participant *proxypp), UNUSED_ARG(ddsi_entityid_t entityid));
 
 /* initialize the proxy participant security attributes */
-DDS_EXPORT extern inline void q_omg_security_init_remote_participant(UNUSED_ARG(struct ddsi_proxy_participant *proxypp));
+extern inline void q_omg_security_init_remote_participant(UNUSED_ARG(struct ddsi_proxy_participant *proxypp));
 
 /* ask to access control security plugin for the remote participant permissions */
-DDS_EXPORT extern inline int64_t q_omg_security_check_remote_participant_permissions(UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(struct ddsi_participant *pp), UNUSED_ARG(struct ddsi_proxy_participant *proxypp));
+extern inline int64_t q_omg_security_check_remote_participant_permissions(UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(struct ddsi_participant *pp), UNUSED_ARG(struct ddsi_proxy_participant *proxypp));
 
-DDS_EXPORT extern inline bool q_omg_security_register_remote_participant(UNUSED_ARG(struct ddsi_participant *pp), UNUSED_ARG(struct ddsi_proxy_participant *proxypp), UNUSED_ARG(int64_t identity_handle), UNUSED_ARG(int64_t shared_secret));
+extern inline bool q_omg_security_register_remote_participant(UNUSED_ARG(struct ddsi_participant *pp), UNUSED_ARG(struct ddsi_proxy_participant *proxypp), UNUSED_ARG(int64_t identity_handle), UNUSED_ARG(int64_t shared_secret));
 
-DDS_EXPORT extern inline void q_omg_security_deregister_remote_participant(UNUSED_ARG(struct ddsi_proxy_participant *proxypp));
+extern inline void q_omg_security_deregister_remote_participant(UNUSED_ARG(struct ddsi_proxy_participant *proxypp));
 
-DDS_EXPORT extern inline void q_omg_security_participant_send_tokens(UNUSED_ARG(struct ddsi_participant *pp), UNUSED_ARG(struct ddsi_proxy_participant *proxypp));
+extern inline void q_omg_security_participant_send_tokens(UNUSED_ARG(struct ddsi_participant *pp), UNUSED_ARG(struct ddsi_proxy_participant *proxypp));
 
-DDS_EXPORT extern inline void set_proxy_participant_security_info(UNUSED_ARG(struct ddsi_proxy_participant *prd), UNUSED_ARG(const ddsi_plist_t *plist));
+extern inline void set_proxy_participant_security_info(UNUSED_ARG(struct ddsi_proxy_participant *prd), UNUSED_ARG(const ddsi_plist_t *plist));
 
-DDS_EXPORT extern inline void set_proxy_reader_security_info(UNUSED_ARG(struct ddsi_proxy_reader *prd), UNUSED_ARG(const ddsi_plist_t *plist));
+extern inline void set_proxy_reader_security_info(UNUSED_ARG(struct ddsi_proxy_reader *prd), UNUSED_ARG(const ddsi_plist_t *plist));
 
-DDS_EXPORT extern inline void set_proxy_writer_security_info(UNUSED_ARG(struct ddsi_proxy_writer *pwr), UNUSED_ARG(const ddsi_plist_t *plist));
+extern inline void set_proxy_writer_security_info(UNUSED_ARG(struct ddsi_proxy_writer *pwr), UNUSED_ARG(const ddsi_plist_t *plist));
 
-DDS_EXPORT extern inline bool decode_Data(
+extern inline bool decode_Data(
   UNUSED_ARG(const struct ddsi_domaingv *gv),
   UNUSED_ARG(struct nn_rsample_info *sampleinfo),
   UNUSED_ARG(unsigned char *payloadp),
   UNUSED_ARG(uint32_t payloadsz),
   UNUSED_ARG(size_t *submsg_len));
 
-DDS_EXPORT extern inline bool decode_DataFrag(
+extern inline bool decode_DataFrag(
   UNUSED_ARG(const struct ddsi_domaingv *gv),
   UNUSED_ARG(struct nn_rsample_info *sampleinfo),
   UNUSED_ARG(unsigned char *payloadp),
   UNUSED_ARG(uint32_t payloadsz),
   UNUSED_ARG(size_t *submsg_len));
 
-DDS_EXPORT extern inline void encode_datareader_submsg(
+extern inline void encode_datareader_submsg(
   UNUSED_ARG(struct nn_xmsg *msg),
   UNUSED_ARG(struct nn_xmsg_marker sm_marker),
   UNUSED_ARG(const struct ddsi_proxy_writer *pwr),
   UNUSED_ARG(const struct ddsi_guid *rd_guid));
 
-DDS_EXPORT extern inline void encode_datawriter_submsg(
+extern inline void encode_datawriter_submsg(
   UNUSED_ARG(struct nn_xmsg *msg),
   UNUSED_ARG(struct nn_xmsg_marker sm_marker),
   UNUSED_ARG(struct ddsi_writer *wr));
 
-DDS_EXPORT extern inline bool validate_msg_decoding(
+extern inline bool validate_msg_decoding(
   UNUSED_ARG(const struct ddsi_entity_common *e),
   UNUSED_ARG(const struct ddsi_proxy_endpoint_common *c),
   UNUSED_ARG(struct ddsi_proxy_participant *proxypp),
   UNUSED_ARG(struct receiver_state *rst),
   UNUSED_ARG(SubmessageKind_t prev_smid));
 
-DDS_EXPORT extern inline int decode_SecPrefix(
+extern inline int decode_SecPrefix(
   UNUSED_ARG(struct receiver_state *rst),
   UNUSED_ARG(unsigned char *submsg),
   UNUSED_ARG(size_t submsg_size),
@@ -4035,7 +4035,7 @@ DDS_EXPORT extern inline int decode_SecPrefix(
   UNUSED_ARG(const ddsi_guid_prefix_t * const dst_prefix),
   UNUSED_ARG(int byteswap));
 
-DDS_EXPORT extern inline nn_rtps_msg_state_t decode_rtps_message(
+extern inline nn_rtps_msg_state_t decode_rtps_message(
   UNUSED_ARG(struct thread_state * const thrst),
   UNUSED_ARG(struct ddsi_domaingv *gv),
   UNUSED_ARG(struct nn_rmsg **rmsg),
@@ -4045,17 +4045,17 @@ DDS_EXPORT extern inline nn_rtps_msg_state_t decode_rtps_message(
   UNUSED_ARG(struct nn_rbufpool *rbpool),
   UNUSED_ARG(bool isstream));
 
-DDS_EXPORT extern inline int64_t q_omg_security_get_remote_participant_handle(UNUSED_ARG(struct ddsi_proxy_participant *proxypp));
+extern inline int64_t q_omg_security_get_remote_participant_handle(UNUSED_ARG(struct ddsi_proxy_participant *proxypp));
 
-DDS_EXPORT extern inline bool q_omg_reader_is_discovery_protected(UNUSED_ARG(const struct ddsi_reader *rd));
+extern inline bool q_omg_reader_is_discovery_protected(UNUSED_ARG(const struct ddsi_reader *rd));
 
-DDS_EXPORT extern inline bool q_omg_reader_is_submessage_protected(UNUSED_ARG(const struct ddsi_reader *rd));
+extern inline bool q_omg_reader_is_submessage_protected(UNUSED_ARG(const struct ddsi_reader *rd));
 
-DDS_EXPORT extern inline bool q_omg_plist_keyhash_is_protected(UNUSED_ARG(const ddsi_plist_t *plist));
+extern inline bool q_omg_plist_keyhash_is_protected(UNUSED_ARG(const ddsi_plist_t *plist));
 
-DDS_EXPORT extern inline bool q_omg_is_endpoint_protected(UNUSED_ARG(const ddsi_plist_t *plist));
+extern inline bool q_omg_is_endpoint_protected(UNUSED_ARG(const ddsi_plist_t *plist));
 
-DDS_EXPORT extern inline void q_omg_log_endpoint_protection(UNUSED_ARG(struct ddsi_domaingv * const gv), UNUSED_ARG(const ddsi_plist_t *plist));
+extern inline void q_omg_log_endpoint_protection(UNUSED_ARG(struct ddsi_domaingv * const gv), UNUSED_ARG(const ddsi_plist_t *plist));
 
 
 #endif /* DDS_HAS_SECURITY */

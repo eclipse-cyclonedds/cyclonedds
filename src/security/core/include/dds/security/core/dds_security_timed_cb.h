@@ -72,7 +72,7 @@ DDS_EXPORT struct dds_security_timed_dispatcher * dds_security_timed_dispatcher_
  * is done whether the dispatcher is enabled or not.
  *
  * @param d             The dispatcher to free.
- * 
+ *
  */
 DDS_EXPORT void dds_security_timed_dispatcher_free(struct dds_security_timed_dispatcher *d);
 

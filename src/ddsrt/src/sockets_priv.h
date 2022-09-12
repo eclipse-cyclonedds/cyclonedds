@@ -38,7 +38,7 @@ typedef time_t ddsrt_tv_sec_t;
  *
  * @returns NULL if @reltime was @DDS_INFINITY, the value of @tv otherwise.
  */
-DDS_INLINE_EXPORT inline struct timeval *
+inline struct timeval *
 ddsrt_duration_to_timeval_ceil(dds_duration_t reltime, struct timeval *tv)
 {
   DDSRT_WARNING_MSVC_OFF(6326)

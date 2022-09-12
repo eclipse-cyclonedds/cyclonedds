@@ -33,11 +33,11 @@ struct ddsrt_circlist_elem {
   struct ddsrt_circlist_elem *prev;
 };
 
-DDS_EXPORT void ddsrt_circlist_init (struct ddsrt_circlist *list);
-DDS_EXPORT bool ddsrt_circlist_isempty (const struct ddsrt_circlist *list);
-DDS_EXPORT void ddsrt_circlist_append (struct ddsrt_circlist *list, struct ddsrt_circlist_elem *elem);
-DDS_EXPORT void ddsrt_circlist_remove (struct ddsrt_circlist *list, struct ddsrt_circlist_elem *elem);
-DDS_EXPORT struct ddsrt_circlist_elem *ddsrt_circlist_oldest (const struct ddsrt_circlist *list);
-DDS_EXPORT struct ddsrt_circlist_elem *ddsrt_circlist_latest (const struct ddsrt_circlist *list);
+void ddsrt_circlist_init (struct ddsrt_circlist *list);
+bool ddsrt_circlist_isempty (const struct ddsrt_circlist *list);
+void ddsrt_circlist_append (struct ddsrt_circlist *list, struct ddsrt_circlist_elem *elem);
+void ddsrt_circlist_remove (struct ddsrt_circlist *list, struct ddsrt_circlist_elem *elem);
+struct ddsrt_circlist_elem *ddsrt_circlist_oldest (const struct ddsrt_circlist *list);
+struct ddsrt_circlist_elem *ddsrt_circlist_latest (const struct ddsrt_circlist *list);
 
 #endif /* DDSRT_CIRCLIST_H */

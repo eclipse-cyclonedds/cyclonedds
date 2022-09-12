@@ -192,31 +192,31 @@ dds_return_t dds_entity_deriver_dummy_validate_status (uint32_t mask);
 struct dds_statistics *dds_entity_deriver_dummy_create_statistics (const struct dds_entity *e);
 void dds_entity_deriver_dummy_refresh_statistics (const struct dds_entity *e, struct dds_statistics *s);
 
-DDS_INLINE_EXPORT inline void dds_entity_deriver_interrupt (struct dds_entity *e) {
+inline void dds_entity_deriver_interrupt (struct dds_entity *e) {
   (dds_entity_deriver_table[e->m_kind]->interrupt) (e);
 }
-DDS_INLINE_EXPORT inline void dds_entity_deriver_close (struct dds_entity *e) {
+inline void dds_entity_deriver_close (struct dds_entity *e) {
   (dds_entity_deriver_table[e->m_kind]->close) (e);
 }
-DDS_INLINE_EXPORT inline dds_return_t dds_entity_deriver_delete (struct dds_entity *e) {
+inline dds_return_t dds_entity_deriver_delete (struct dds_entity *e) {
   return dds_entity_deriver_table[e->m_kind]->delete (e);
 }
-DDS_INLINE_EXPORT inline dds_return_t dds_entity_deriver_set_qos (struct dds_entity *e, const dds_qos_t *qos, bool enabled) {
+inline dds_return_t dds_entity_deriver_set_qos (struct dds_entity *e, const dds_qos_t *qos, bool enabled) {
   return dds_entity_deriver_table[e->m_kind]->set_qos (e, qos, enabled);
 }
-DDS_INLINE_EXPORT inline dds_return_t dds_entity_deriver_validate_status (struct dds_entity *e, uint32_t mask) {
+inline dds_return_t dds_entity_deriver_validate_status (struct dds_entity *e, uint32_t mask) {
   return dds_entity_deriver_table[e->m_kind]->validate_status (mask);
 }
-DDS_INLINE_EXPORT inline bool dds_entity_supports_set_qos (struct dds_entity *e) {
+inline bool dds_entity_supports_set_qos (struct dds_entity *e) {
   return dds_entity_deriver_table[e->m_kind]->set_qos != dds_entity_deriver_dummy_set_qos;
 }
-DDS_INLINE_EXPORT inline bool dds_entity_supports_validate_status (struct dds_entity *e) {
+inline bool dds_entity_supports_validate_status (struct dds_entity *e) {
   return dds_entity_deriver_table[e->m_kind]->validate_status != dds_entity_deriver_dummy_validate_status;
 }
-DDS_INLINE_EXPORT inline struct dds_statistics *dds_entity_deriver_create_statistics (const struct dds_entity *e) {
+inline struct dds_statistics *dds_entity_deriver_create_statistics (const struct dds_entity *e) {
   return dds_entity_deriver_table[e->m_kind]->create_statistics (e);
 }
-DDS_INLINE_EXPORT inline void dds_entity_deriver_refresh_statistics (const struct dds_entity *e, struct dds_statistics *s) {
+inline void dds_entity_deriver_refresh_statistics (const struct dds_entity *e, struct dds_statistics *s) {
   dds_entity_deriver_table[e->m_kind]->refresh_statistics (e, s);
 }
 
@@ -331,7 +331,6 @@ typedef struct dds_reader {
   bool m_loan_out;
   void *m_loan;
   uint32_t m_loan_size;
-  unsigned m_wrapped_sertopic : 1; /* set iff reader's topic is a wrapped ddsi_sertopic for backwards compatibility */
 #ifdef DDS_HAS_SHM
   iox_sub_context_t m_iox_sub_context;
   iox_sub_t m_iox_sub;
@@ -414,7 +413,7 @@ typedef struct dds_waitset {
   dds_attachment *entities; /* [wait_lock] 0 .. ntriggered are triggred, ntriggred .. nentities are not */
 } dds_waitset;
 
-DDS_EXPORT extern dds_cyclonedds_entity dds_global;
+extern dds_cyclonedds_entity dds_global;
 
 #if defined (__cplusplus)
 }

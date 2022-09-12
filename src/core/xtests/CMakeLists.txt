@@ -9,6 +9,10 @@
 #
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
-include(CUnit)
-add_subdirectory(rhc_torture)
-add_subdirectory(initsampledeliv)
+if(BUILD_TESTING AND BUILD_IDLC)
+    include(CUnit)
+    add_subdirectory(rhc_torture)
+    add_subdirectory(initsampledeliv)
+endif()
+
+add_subdirectory(symbol_export)

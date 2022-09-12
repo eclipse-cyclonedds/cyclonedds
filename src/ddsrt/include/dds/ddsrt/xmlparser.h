@@ -40,12 +40,12 @@ extern "C" {
 #define DDSRT_XMLP_REQUIRE_EOF          1u /* set by default; if not set, junk may follow top-level closing tag */
 #define DDSRT_XMLP_ANONYMOUS_CLOSE_TAG  2u /* clear by default; if set allow closing an element with </> instead of </name> */
 #define DDSRT_XMLP_MISSING_CLOSE_AS_EOF 4u /* clear by default; if set, treat missing close tag as EOF */
-    DDS_EXPORT struct ddsrt_xmlp_state *ddsrt_xmlp_new_file (FILE *fp, void *varg, const struct ddsrt_xmlp_callbacks *cb);
-    DDS_EXPORT struct ddsrt_xmlp_state *ddsrt_xmlp_new_string (const char *string, void *varg, const struct ddsrt_xmlp_callbacks *cb);
-    DDS_EXPORT void ddsrt_xmlp_set_options (struct ddsrt_xmlp_state *st, unsigned options);
-    DDS_EXPORT size_t ddsrt_xmlp_get_bufpos (const struct ddsrt_xmlp_state *st);
-    DDS_EXPORT void ddsrt_xmlp_free (struct ddsrt_xmlp_state *st);
-    DDS_EXPORT int ddsrt_xmlp_parse (struct ddsrt_xmlp_state *st);
+DDS_EXPORT struct ddsrt_xmlp_state *ddsrt_xmlp_new_file (FILE *fp, void *varg, const struct ddsrt_xmlp_callbacks *cb);
+DDS_EXPORT struct ddsrt_xmlp_state *ddsrt_xmlp_new_string (const char *string, void *varg, const struct ddsrt_xmlp_callbacks *cb);
+DDS_EXPORT void ddsrt_xmlp_set_options (struct ddsrt_xmlp_state *st, unsigned options);
+DDS_EXPORT size_t ddsrt_xmlp_get_bufpos (const struct ddsrt_xmlp_state *st);
+DDS_EXPORT void ddsrt_xmlp_free (struct ddsrt_xmlp_state *st);
+DDS_EXPORT int ddsrt_xmlp_parse (struct ddsrt_xmlp_state *st);
 
 #if defined (__cplusplus)
 }

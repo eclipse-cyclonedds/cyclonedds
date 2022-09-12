@@ -305,7 +305,7 @@ static int sanitize_names(struct cfgelem *elem)
   if ((end = strchr(elem->name, '|'))) {
     assert(!elem->meta.name);
     size_t len = (uintptr_t)end - (uintptr_t)elem->name;
-    if (!(elem->meta.name = ddsrt_malloc(len + 1)))
+    if (!(elem->meta.name = malloc(len + 1)))
       return -1;
     memcpy(elem->meta.name, elem->name, len);
     elem->meta.name[len] = '\0';
@@ -337,7 +337,7 @@ static int generate_enum_pattern(struct cfgelem *elem)
     size += strlen(*vals) + 2;
   }
   size += (cnt - 1) + 2 + 1;
-  if (!(pat = ddsrt_malloc(size)))
+  if (!(pat = malloc(size)))
     return -1;
   pat[pos++] = '(';
   for (vals = elem->meta.values; *vals; vals++) {
@@ -368,7 +368,7 @@ static int generate_list_pattern(struct cfgelem *elem)
     size += strlen(*vals);
   }
   size += (cnt - 1) + 2 + 1;
-  if (!(lst = ddsrt_malloc(size)))
+  if (!(lst = malloc(size)))
     return -1;
   lst[pos++] = '(';
   for (vals = elem->meta.values; *vals != NULL; vals++) {
@@ -382,10 +382,13 @@ static int generate_list_pattern(struct cfgelem *elem)
   lst[pos++] = ')';
   lst[pos++] = '\0';
   assert(pos == size);
+  size_t patsz = 8 + strlen(val) + 2 * strlen(lst);
+  if ((pat = malloc (patsz)) == NULL)
+    return -1;
   if (strlen(val) != 0)
-    ddsrt_asprintf(&pat, "%s|(%s(,%s)*)", val, lst, lst);
+    snprintf(pat, patsz, "%s|(%s(,%s)*)", val, lst, lst);
   else
-    ddsrt_asprintf(&pat, "(%s(,%s)*)|", lst, lst);
+    snprintf(pat, patsz, "(%s(,%s)*)|", lst, lst);
   free(lst);
   elem->meta.pattern = pat;
   return pat ? 0 : -1;
@@ -503,9 +506,9 @@ format(
       if (pos == *lenp) {
         char *str;
         size_t len = *lenp + BLOCK;
-        if (!(str = ddsrt_realloc(*strp, (len + 1) * sizeof(char)))) {
+        if (!(str = realloc(*strp, (len + 1) * sizeof(char)))) {
           if (*strp)
-            ddsrt_free(*strp);
+            free(*strp);
           return -1;
         }
         *strp = str;
@@ -536,25 +539,31 @@ int makedescription(
     const struct cfgunit *unit = NULL;
 
     if (isgroup(elem)) {
-      src = ddsrt_strdup(elem->description);
+      src = strdup(elem->description);
     } else {
       if (elem->value)
         dflt = elem->value;
       if (elem->meta.unit) {
         unit = findunit(units, elem->meta.unit);
         assert(unit);
-        ddsrt_asprintf(
-          &src, "%s\n%s\n"DFLTFMT, elem->description, unit->description, dflt);
+        size_t srcsz = 3 + strlen(DFLTFMT) + strlen(elem->description) + strlen(unit->description) + strlen(dflt);
+        if ((src = malloc (srcsz)) == NULL)
+          return -1;
+        snprintf(
+          src, srcsz, "%s\n%s\n"DFLTFMT, elem->description, unit->description, dflt);
       } else {
-        ddsrt_asprintf(
-          &src, "%s\n"DFLTFMT, elem->description, dflt);
+        size_t srcsz = 2 + strlen(DFLTFMT) + strlen(elem->description) + strlen(dflt);
+        if ((src = malloc (srcsz)) == NULL)
+          return -1;
+        snprintf(
+          src, srcsz, "%s\n"DFLTFMT, elem->description, dflt);
       }
     }
 
     if (!src)
       return -1;
     format(&dest, &len, &pos, src, xlat);
-    ddsrt_free(src);
+    free(src);
     if (!dest)
       return -1;
     elem->meta.description = dest;
@@ -576,13 +585,13 @@ static void fini(struct cfgelem *elem)
   if (!elem)
     return;
   if (elem->meta.name)
-    ddsrt_free(elem->meta.name);
+    free(elem->meta.name);
   if (elem->meta.title)
-    ddsrt_free(elem->meta.title);
+    free(elem->meta.title);
   if (elem->meta.pattern)
-    ddsrt_free(elem->meta.pattern);
+    free(elem->meta.pattern);
   if (elem->meta.description)
-    ddsrt_free(elem->meta.description);
+    free(elem->meta.description);
   elem->meta.name = NULL;
   elem->meta.title = NULL;
   elem->meta.pattern = NULL;

@@ -25,9 +25,9 @@ struct ddsi_iid {
   uint32_t key[4];
 };
 
-DDS_EXPORT void ddsi_iid_init (void);
-DDS_EXPORT void ddsi_iid_fini (void);
-DDS_EXPORT uint64_t ddsi_iid_gen (void);
+void ddsi_iid_init (void);
+void ddsi_iid_fini (void);
+uint64_t ddsi_iid_gen (void);
 
 #if defined (__cplusplus)
 }

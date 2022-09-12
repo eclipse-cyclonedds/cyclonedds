@@ -46,16 +46,6 @@ DDS_EXPORT
 dds_qos_t * dds_create_qos (void);
 
 /**
- * @ingroup deprecated
- * @deprecated use \ref dds_create_qos instead.
- * Allocate memory and initialize default QoS-policies
- *
- * @returns - Pointer to the initialized dds_qos_t structure, NULL if unsuccessful.
- */
-DDS_DEPRECATED_EXPORT
-dds_qos_t * dds_qos_create (void);
-
-/**
  * @ingroup qos
  * @brief Delete memory allocated to QoS-policies structure
  *
@@ -63,9 +53,6 @@ dds_qos_t * dds_qos_create (void);
  */
 DDS_EXPORT void
 dds_delete_qos (dds_qos_t * __restrict qos);
-
-DDS_DEPRECATED_EXPORT void
-dds_qos_delete (dds_qos_t * __restrict qos);
 
 /**
  * @ingroup qos
@@ -75,10 +62,6 @@ dds_qos_delete (dds_qos_t * __restrict qos);
  */
 DDS_EXPORT void
 dds_reset_qos(dds_qos_t * __restrict qos);
-
-DDS_DEPRECATED_EXPORT
-void dds_qos_reset (dds_qos_t * __restrict qos
-);
 
 /**
  * @ingroup qos
@@ -92,9 +75,6 @@ void dds_qos_reset (dds_qos_t * __restrict qos
 DDS_EXPORT dds_return_t
 dds_copy_qos (dds_qos_t * __restrict dst, const dds_qos_t * __restrict src);
 
-DDS_DEPRECATED_EXPORT dds_return_t
-dds_qos_copy (dds_qos_t * __restrict dst, const dds_qos_t * __restrict src);
-
 /**
  * @ingroup qos
  * @brief Copy all QoS-policies from one structure to another, unless already set
@@ -106,9 +86,6 @@ dds_qos_copy (dds_qos_t * __restrict dst, const dds_qos_t * __restrict src);
  */
 DDS_EXPORT void
 dds_merge_qos (dds_qos_t * __restrict dst, const dds_qos_t * __restrict src);
-
-DDS_DEPRECATED_EXPORT void
-dds_qos_merge (dds_qos_t * __restrict dst, const dds_qos_t * __restrict src);
 
 /**
  * @ingroup qos

@@ -43,7 +43,7 @@ struct lease *lease_clone (const struct lease *l);
 void lease_register (struct lease *l);
 void lease_unregister (struct lease *l);
 void lease_free (struct lease *l);
-DDS_EXPORT void lease_renew (struct lease *l, ddsrt_etime_t tnow);
+void lease_renew (struct lease *l, ddsrt_etime_t tnow);
 void lease_set_expiry (struct lease *l, ddsrt_etime_t when);
 int64_t check_and_handle_lease_expiration (struct ddsi_domaingv *gv, ddsrt_etime_t tnow);
 

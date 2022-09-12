@@ -60,11 +60,6 @@ DDS_Security_Serialize_BinaryPropertySeq(
      const DDS_Security_BinaryPropertySeq *seq);
 
 DDS_EXPORT void
-DDS_Security_Serialize_DataHolderSeq(
-     DDS_Security_Serializer serializer,
-     const DDS_Security_DataHolderSeq *seq);
-
-DDS_EXPORT void
 DDS_Security_Serialize_ParticipantBuiltinTopicData(
      DDS_Security_Serializer ser,
      DDS_Security_ParticipantBuiltinTopicData *pdata);

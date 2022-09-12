@@ -53,7 +53,9 @@ if (ENABLE_TOPIC_DISCOVERY)
     COMPONENT dev)
   install(
     FILES
+      dynsub/variouspub_types.idl
       dynsub/dynsub.c
+      dynsub/variouspub.c
       dynsub/CMakeLists.txt
       dynsub/readme.rst
     DESTINATION "${CMAKE_INSTALL_EXAMPLESDIR}/dynsub"

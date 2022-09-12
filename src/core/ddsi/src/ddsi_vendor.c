@@ -13,13 +13,13 @@
 
 #include "dds/ddsi/ddsi_vendor.h"
 
-DDS_EXPORT extern inline bool vendor_equals (nn_vendorid_t a, nn_vendorid_t b);
-DDS_EXPORT extern inline bool vendor_is_rti (nn_vendorid_t vendor);
-DDS_EXPORT extern inline bool vendor_is_twinoaks (nn_vendorid_t vendor);
-DDS_EXPORT extern inline bool vendor_is_eprosima (nn_vendorid_t vendor);
-DDS_EXPORT extern inline bool vendor_is_adlink (nn_vendorid_t vendor);
-DDS_EXPORT extern inline bool vendor_is_opensplice (nn_vendorid_t vendor);
-DDS_EXPORT extern inline bool vendor_is_cloud (nn_vendorid_t vendor);
-DDS_EXPORT extern inline bool vendor_is_eclipse (nn_vendorid_t vendor);
-DDS_EXPORT extern inline bool vendor_is_eclipse_or_opensplice (nn_vendorid_t vendor);
-DDS_EXPORT extern inline bool vendor_is_eclipse_or_adlink (nn_vendorid_t vendor);
+extern inline bool vendor_equals (nn_vendorid_t a, nn_vendorid_t b);
+extern inline bool vendor_is_rti (nn_vendorid_t vendor);
+extern inline bool vendor_is_twinoaks (nn_vendorid_t vendor);
+extern inline bool vendor_is_eprosima (nn_vendorid_t vendor);
+extern inline bool vendor_is_adlink (nn_vendorid_t vendor);
+extern inline bool vendor_is_opensplice (nn_vendorid_t vendor);
+extern inline bool vendor_is_cloud (nn_vendorid_t vendor);
+extern inline bool vendor_is_eclipse (nn_vendorid_t vendor);
+extern inline bool vendor_is_eclipse_or_opensplice (nn_vendorid_t vendor);
+extern inline bool vendor_is_eclipse_or_adlink (nn_vendorid_t vendor);

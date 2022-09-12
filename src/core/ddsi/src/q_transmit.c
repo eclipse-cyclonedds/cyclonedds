@@ -726,7 +726,7 @@ dds_return_t write_hb_liveliness (struct ddsi_domaingv * const gv, struct ddsi_g
 {
   struct nn_xmsg *msg = NULL;
   struct whc_state whcst;
-  struct thread_state * const thrst = lookup_thread_state ();
+  struct thread_state * const thrst = ddsi_lookup_thread_state ();
   struct lease *lease;
 
   thread_state_awake (thrst, gv);

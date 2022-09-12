@@ -363,113 +363,6 @@ static bool filter_long1_eq_1 (const void *vsample)
   return sample->long_1 == 1;
 }
 
-CU_Test (ddsc_filter, compat)
-{
-  // check that the deprecated interface still works
-  dds_entity_t dp, tp, rd, wr;
-  dds_return_t ret;
-  char topicname[100];
-  create_unique_topic_name ("ddsc_filter", topicname, sizeof (topicname));
-  dds_qos_t *qos = dds_create_qos ();
-  dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_INFINITY);
-  dds_qset_history (qos, DDS_HISTORY_KEEP_ALL, 0);
-  dp = dds_create_participant (0, NULL, NULL);
-  CU_ASSERT_FATAL (dp > 0);
-  tp = dds_create_topic (dp, &Space_Type1_desc, topicname, qos, NULL);
-  CU_ASSERT_FATAL (tp > 0);
-  DDSRT_WARNING_DEPRECATED_OFF;
-  dds_set_topic_filter (tp, filter_long1_eq_1);
-  DDSRT_WARNING_DEPRECATED_ON;
-  rd = dds_create_reader (dp, tp, qos, NULL);
-  CU_ASSERT_FATAL (rd > 0);
-  wr = dds_create_writer (dp, tp, qos, NULL);
-  CU_ASSERT_FATAL (wr > 0);
-  dds_delete_qos (qos);
-
-  ret = dds_write (wr, &(Space_Type1){0,0,0});
-  CU_ASSERT_FATAL (ret == 0);
-  ret = dds_write (wr, &(Space_Type1){1,0,0});
-  CU_ASSERT_FATAL (ret == 0);
-
-  struct exp exp = {
-    .n = 1, .xs = (const Space_Type1[]) {
-      {1,0,0}
-    },
-  };
-  checkdata (rd, &exp, "rd");
-  dds_delete (dp);
-}
-
-CU_Test (ddsc_filter, get)
-{
-  dds_entity_t dp, tp;
-  dds_return_t ret;
-  char topicname[100];
-  create_unique_topic_name ("ddsc_filter", topicname, sizeof (topicname));
-  dp = dds_create_participant (0, NULL, NULL);
-  CU_ASSERT_FATAL (dp > 0);
-  tp = dds_create_topic (dp, &Space_Type1_desc, topicname, NULL, NULL);
-  CU_ASSERT_FATAL (tp > 0);
-
-  dds_topic_filter_arg_fn fn;
-  void *arg;
-  dds_topic_filter_fn fn_depr;
-  struct dds_topic_filter filter;
-
-  ret = dds_get_topic_filter_and_arg (tp, NULL, NULL);
-  CU_ASSERT_FATAL (ret == 0);
-
-  ret = dds_get_topic_filter_and_arg (tp, &fn, &arg);
-  CU_ASSERT_FATAL (ret == 0);
-  CU_ASSERT (fn == 0);
-  CU_ASSERT (arg == 0);
-
-  ret = dds_get_topic_filter_extended (tp, &filter);
-  CU_ASSERT_FATAL (ret == 0);
-  CU_ASSERT (filter.mode == DDS_TOPIC_FILTER_NONE);
-  CU_ASSERT (filter.f.sample == 0);
-  CU_ASSERT (filter.arg == 0);
-
-  ret = dds_set_topic_filter_and_arg (tp, filter_long1_eq, (void *) 1);
-  CU_ASSERT_FATAL (ret == 0);
-
-  ret = dds_get_topic_filter_and_arg (tp, &fn, &arg);
-  CU_ASSERT_FATAL (ret == 0);
-  CU_ASSERT (fn == filter_long1_eq);
-  CU_ASSERT (arg == (void *) 1);
-
-  ret = dds_get_topic_filter_extended (tp, &filter);
-  CU_ASSERT_FATAL (ret == 0);
-  CU_ASSERT (filter.mode == DDS_TOPIC_FILTER_SAMPLE_ARG);
-  CU_ASSERT (filter.f.sample_arg == filter_long1_eq);
-  CU_ASSERT (filter.arg == (void *) 1);
-
-  DDSRT_WARNING_DEPRECATED_OFF;
-  fn_depr = dds_get_topic_filter (tp);
-  DDSRT_WARNING_DEPRECATED_ON;
-  CU_ASSERT_FATAL (fn_depr == 0);
-
-  DDSRT_WARNING_DEPRECATED_OFF;
-  dds_set_topic_filter (tp, filter_long1_eq_1);
-  DDSRT_WARNING_DEPRECATED_ON;
-
-  ret = dds_get_topic_filter_and_arg (tp, &fn, &arg);
-  CU_ASSERT_FATAL (ret == DDS_RETCODE_PRECONDITION_NOT_MET);
-
-  ret = dds_get_topic_filter_extended (tp, &filter);
-  CU_ASSERT_FATAL (ret == 0);
-  CU_ASSERT (filter.mode == DDS_TOPIC_FILTER_SAMPLE);
-  CU_ASSERT (filter.f.sample == filter_long1_eq_1);
-  CU_ASSERT (filter.arg == 0);
-
-  DDSRT_WARNING_DEPRECATED_OFF;
-  fn_depr = dds_get_topic_filter (tp);
-  DDSRT_WARNING_DEPRECATED_ON;
-  CU_ASSERT_FATAL (fn_depr == filter_long1_eq_1);
-
-  dds_delete (dp);
-}
-
 CU_Test (ddsc_filter, getset_extended)
 {
   dds_entity_t dp, tp;
@@ -483,7 +376,6 @@ CU_Test (ddsc_filter, getset_extended)
 
   dds_topic_filter_arg_fn fn;
   void *arg;
-  dds_topic_filter_fn fn_depr;
   struct dds_topic_filter filter;
 
   ret = dds_get_topic_filter_and_arg (tp, NULL, NULL);
@@ -519,11 +411,6 @@ CU_Test (ddsc_filter, getset_extended)
   CU_ASSERT (filter.f.sample == filter_long1_eq_1);
   CU_ASSERT (filter.arg == 0);
 
-  DDSRT_WARNING_DEPRECATED_OFF;
-  fn_depr = dds_get_topic_filter (tp);
-  DDSRT_WARNING_DEPRECATED_ON;
-  CU_ASSERT_FATAL (fn_depr == filter_long1_eq_1);
-
   filter.mode = DDS_TOPIC_FILTER_SAMPLE_ARG;
   filter.f.sample_arg = filter_long1_eq;
   filter.arg = (void *) 1;
@@ -558,10 +445,6 @@ CU_Test (ddsc_filter, getset_extended)
 
   ret = dds_get_topic_filter_and_arg (tp, &fn, &arg);
   CU_ASSERT_FATAL (ret == DDS_RETCODE_PRECONDITION_NOT_MET);
-  DDSRT_WARNING_DEPRECATED_OFF;
-  fn_depr = dds_get_topic_filter (tp);
-  DDSRT_WARNING_DEPRECATED_ON;
-  CU_ASSERT_FATAL (fn_depr == 0);
 
   filter.mode = DDS_TOPIC_FILTER_SAMPLE_SAMPLEINFO_ARG;
   filter.f.sample_sampleinfo_arg = filter_long1_eq_sampleinfo;
@@ -578,10 +461,6 @@ CU_Test (ddsc_filter, getset_extended)
 
   ret = dds_get_topic_filter_and_arg (tp, &fn, &arg);
   CU_ASSERT_FATAL (ret == DDS_RETCODE_PRECONDITION_NOT_MET);
-  DDSRT_WARNING_DEPRECATED_OFF;
-  fn_depr = dds_get_topic_filter (tp);
-  DDSRT_WARNING_DEPRECATED_ON;
-  CU_ASSERT_FATAL (fn_depr == 0);
 
   dds_delete (dp);
 }

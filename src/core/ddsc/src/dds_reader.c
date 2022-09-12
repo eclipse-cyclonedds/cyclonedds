@@ -75,9 +75,9 @@ static void dds_reader_close (dds_entity *e)
   }
 #endif
 
-  thread_state_awake (lookup_thread_state (), &e->m_domain->gv);
+  thread_state_awake (ddsi_lookup_thread_state (), &e->m_domain->gv);
   (void) ddsi_delete_reader (&e->m_domain->gv, &e->m_guid);
-  thread_state_asleep (lookup_thread_state ());
+  thread_state_asleep (ddsi_lookup_thread_state ());
 
   ddsrt_mutex_lock (&e->m_mutex);
   while (rd->m_rd != NULL)
@@ -99,9 +99,9 @@ static dds_return_t dds_reader_delete (dds_entity *e)
     ddsrt_free (ptrs);
   }
 
-  thread_state_awake (lookup_thread_state (), &e->m_domain->gv);
+  thread_state_awake (ddsi_lookup_thread_state (), &e->m_domain->gv);
   dds_rhc_free (rd->m_rhc);
-  thread_state_asleep (lookup_thread_state ());
+  thread_state_asleep (ddsi_lookup_thread_state ());
 
 #ifdef DDS_HAS_SHM
   if (rd->m_iox_sub)
@@ -138,10 +138,10 @@ static dds_return_t dds_reader_qos_set (dds_entity *e, const dds_qos_t *qos, boo
   if (enabled)
   {
     struct ddsi_reader *rd;
-    thread_state_awake (lookup_thread_state (), &e->m_domain->gv);
+    thread_state_awake (ddsi_lookup_thread_state (), &e->m_domain->gv);
     if ((rd = entidx_lookup_reader_guid (e->m_domain->gv.entity_index, &e->m_guid)) != NULL)
       ddsi_update_reader_qos (rd, qos);
-    thread_state_asleep (lookup_thread_state ());
+    thread_state_asleep (ddsi_lookup_thread_state ());
   }
   return DDS_RETCODE_OK;
 }
@@ -643,7 +643,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
     goto err_bad_qos;
   }
 
-  thread_state_awake (lookup_thread_state (), gv);
+  thread_state_awake (ddsi_lookup_thread_state (), gv);
   const struct ddsi_guid * ppguid = dds_entity_participant_guid (&sub->m_entity);
   struct ddsi_participant * pp = entidx_lookup_participant_guid (gv->entity_index, ppguid);
 
@@ -660,7 +660,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
     if (!q_omg_security_check_create_reader (pp, gv->config.domainId, tp->m_name, rqos))
     {
       rc = DDS_RETCODE_NOT_ALLOWED_BY_SECURITY;
-      thread_state_asleep(lookup_thread_state());
+      thread_state_asleep(ddsi_lookup_thread_state());
       goto err_bad_qos;
     }
   }
@@ -676,7 +676,6 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
   ddsrt_atomic_or32 (&rd->m_entity.m_status.m_status_and_mask, DDS_DATA_ON_READERS_STATUS << SAM_ENABLED_SHIFT);
   rd->m_sample_rejected_status.last_reason = DDS_NOT_REJECTED;
   rd->m_topic = tp;
-  rd->m_wrapped_sertopic = (tp->m_stype->wrapped_sertopic != NULL) ? 1 : 0;
   rd->m_rhc = rhc ? rhc : dds_rhc_default_new (rd, tp->m_stype);
   if (dds_rhc_associate (rd->m_rhc, rd, tp->m_stype, rd->m_entity.m_domain->gv.m_tkmap) < 0)
   {
@@ -700,7 +699,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
      not specific for a data representation (the representation can be retrieved from the cdr header) */
   rc = ddsi_new_reader (&rd->m_rd, &rd->m_entity.m_guid, NULL, pp, tp->m_name, tp->m_stype, rqos, &rd->m_rhc->common.rhc, dds_reader_status_cb, rd);
   assert (rc == DDS_RETCODE_OK); /* FIXME: can be out-of-resources at the very least */
-  thread_state_asleep (lookup_thread_state ());
+  thread_state_asleep (ddsi_lookup_thread_state ());
 
 #ifdef DDS_HAS_SHM
   if (rd->m_rd->has_iceoryx)

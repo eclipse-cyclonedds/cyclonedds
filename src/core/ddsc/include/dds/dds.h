@@ -104,13 +104,6 @@ struct ddsi_sertype;
 struct ddsi_serdata;
 
 /**
- * @ingroup deprecated
- * @warning The DDSI sertopic functionality was moved to ddsi_sertype.
- * It has been retained as a symbol to ensure binary compatibility.
- */
-struct ddsi_sertopic;
-
-/**
  * @brief DDSI Config
  * @ingroup dds
  * DOC_TODO
@@ -120,8 +113,6 @@ struct ddsi_config;
 /**
  * @brief Indicates that the library uses ddsi_sertype instead of ddsi_sertopic
  * @ingroup dds
- * If sertype is used, the function dds_create_topic_sertype requires a topic name parameter,
- * as this field is not included in ddsi_sertype.
  */
 #define DDS_HAS_DDSI_SERTYPE 1
 
@@ -756,17 +747,6 @@ DDS_EXPORT dds_return_t
 dds_get_status_mask(dds_entity_t entity, uint32_t *mask);
 
 /**
- * @deprecated Get enabled status on entity. Use \ref dds_get_status_mask instead.
- * @ingroup deprecated
- *
- * @param[in] entity  Entity to get the status.
- * @param[out] mask   Mask of enabled statuses set on the entity.
- * @returns A dds_return_t indicating success of failure.
- */
-DDS_DEPRECATED_EXPORT dds_return_t
-dds_get_enabled_status(dds_entity_t entity, uint32_t *mask);
-
-/**
  * @anchor dds_set_status_mask
  * @brief Set status enabled on entity
  * @ingroup entity_status
@@ -789,17 +769,6 @@ dds_get_enabled_status(dds_entity_t entity, uint32_t *mask);
  */
 DDS_EXPORT dds_return_t
 dds_set_status_mask(dds_entity_t entity, uint32_t mask);
-
-/**
- * @deprecated Set enabled status on entity. Use \ref dds_set_status_mask instead.
- * @ingroup deprecated
- *
- * @param[in] entity  Entity to enable the status.
- * @param[out] mask   Status value that indicates the status to be enabled.
- * @returns A dds_return_t indicating success of failure.
- */
-DDS_DEPRECATED_EXPORT dds_return_t
-dds_set_enabled_status(dds_entity_t entity, uint32_t mask);
 
 /**
  * @defgroup entity_qos (Entity QoS)
@@ -1394,80 +1363,6 @@ dds_create_topic_sertype (
   const struct ddsi_plist *sedp_plist);
 
 /**
- * @brief Indicates that the library defines the dds_create_topic_generic function
- * @ingroup topic
- * Introduced to help with the change from sertopic to sertype. You should probably
- * move to using sertype instead of sertopic and ignore this.
- */
-#define DDS_HAS_CREATE_TOPIC_GENERIC 1
-
-/**
- * @anchor dds_create_topic_generic
- * @brief Creates a new topic with provided type handling.
- * @ingroup topic
- *
- * DOC_TODO: this description does not make any sense, this is for the legacy sertopic?
- *           deprecate?
- *
- * The name for the type is taken from the provided "sertype" object. Type
- * matching is done on a combination of topic name and type name. Each successful
- * call to dds_create_topic creates a new topic entity sharing the same QoS
- * settings with all other topics of the same name.
- *
- * In case this function returns a valid handle, the ownership of the provided
- * sertype is handed over to Cyclone. On return, the caller gets in the sertype parameter a
- * pointer to the sertype that is actually used by the topic. This can be the provided sertype
- * (if this sertype was not yet known in the domain), or a sertype thas was
- * already known in the domain.
- *
- * @param[in]     participant  Participant on which to create the topic.
- * @param[in,out] sertopic     Legacy internal description of the type. On return, the sertype parameter is set to the actual sertype that is used by the topic.
- * @param[in]     qos          QoS to set on the new topic (can be NULL).
- * @param[in]     listener     Any listener functions associated with the new topic (can be NULL).
- * @param[in]     sedp_plist   Topic description to be published as part of discovery (if NULL, not published).
- *
- * @returns A valid, unique topic handle or an error code. Iff a valid handle, the domain takes ownership of provided serdata.
- *
- * @retval >=0
- *             A valid unique topic handle.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             Either participant, descriptor, name or qos is invalid.
- * @retval DDS_RETCODE_INCONSISTENT_POLICY
- *             QoS mismatch between qos and an existing topic's QoS.
- * @retval DDS_RETCODE_PRECONDITION_NOT_MET
- *             Mismatch between type name in sertype and pre-existing
- *             topic's type name.
- */
-DDS_EXPORT dds_entity_t
-dds_create_topic_generic (
-  dds_entity_t participant,
-  struct ddsi_sertopic **sertopic,
-  const dds_qos_t *qos,
-  const dds_listener_t *listener,
-  const struct ddsi_plist *sedp_plist);
-
-/**
- * @deprecated Creates a new topic with provided type handling.
- * @ingroup deprecated
- * Use @ref dds_create_topic_sertype instead.
- *
- * @param[in]     participant  Participant on which to create the topic.
- * @param[in,out] sertopic     Legacy internal description of the type. On return, the sertype parameter is set to the actual sertype that is used by the topic.
- * @param[in]     qos          QoS to set on the new topic (can be NULL).
- * @param[in]     listener     Any listener functions associated with the new topic (can be NULL).
- * @param[in]     sedp_plist   Topic description to be published as part of discovery (if NULL, not published).
- *
- * @returns       A valid, unique topic handle or an error code.
- */
-DDS_DEPRECATED_EXPORT dds_entity_t
-dds_create_topic_arbitrary (
-  dds_entity_t participant,
-  struct ddsi_sertopic *sertopic,
-  const dds_qos_t *qos,
-  const dds_listener_t *listener,
-  const struct ddsi_plist *sedp_plist);
-
-/**
  * @brief Finds a locally created or discovered remote topic by topic name and type information
  * @ingroup topic
  *
@@ -1731,40 +1626,6 @@ struct dds_topic_filter {
 };
 
 /**
- * @brief Sets a filter on a topic. To be replaced by proper filtering on readers,
- * @ingroup topic_filter
- * @warning Unstable API
- * @deprecated use @ref dds_set_topic_filter_and_arg or @ref dds_set_topic_filter_extended instead
- *
- * Not thread-safe with respect to data being read/written using readers/writers
- * using this topic.  Be sure to create a topic entity specific to the reader you
- * want to filter, then set the filter function, and only then create the reader.
- * And don't change it unless you know there are no concurrent writes.
- *
- * @param[in]  topic   The topic on which the content filter is set.
- * @param[in]  filter  The filter function used to filter topic samples.
- */
-DDS_DEPRECATED_EXPORT void
-dds_set_topic_filter(dds_entity_t topic, dds_topic_filter_fn filter);
-
-/**
- * @brief Sets a filter on a topic. To be replaced by proper filtering on readers,
- * @ingroup topic_filter
- * @warning Unstable API
- * @deprecated use @ref dds_set_topic_filter_and_arg or @ref dds_set_topic_filter_extended instead
- *
- * Not thread-safe with respect to data being read/written using readers/writers
- * using this topic.  Be sure to create a topic entity specific to the reader you
- * want to filter, then set the filter function, and only then create the reader.
- * And don't change it unless you know there are no concurrent writes.
- *
- * @param[in]  topic   The topic on which the content filter is set.
- * @param[in]  filter  The filter function used to filter topic samples.
- */
-DDS_DEPRECATED_EXPORT void
-dds_topic_set_filter(dds_entity_t topic, dds_topic_filter_fn filter);
-
-/**
  * @anchor dds_set_topic_filter_and_arg
  * @brief Sets a filter and filter argument on a topic.
  * @ingroup topic_filter
@@ -1815,36 +1676,6 @@ DDS_EXPORT dds_return_t
 dds_set_topic_filter_extended(
   dds_entity_t topic,
   const struct dds_topic_filter *filter);
-
-/**
- * @brief Gets the filter for a topic.
- * @ingroup topic_filter
- * @deprecated Use dds_get_topic_filter_and_arg() or dds_get_topic_filter_extended() instead.
- * @warning Unstable API
- *
- * To be replaced by proper filtering on readers.
- *
- * @param[in]  topic  The topic from which to get the filter.
- *
- * @returns The topic filter, or 0 when of type other than "sample".
- */
-DDS_DEPRECATED_EXPORT dds_topic_filter_fn
-dds_get_topic_filter(dds_entity_t topic);
-
-/**
- * @brief Gets the filter for a topic.
- * @ingroup topic_filter
- * @deprecated Use dds_get_topic_filter_and_arg() or dds_get_topic_filter_extended() instead.
- * @warning Unstable API
- *
- * To be replaced by proper filtering on readers.
- *
- * @param[in]  topic  The topic from which to get the filter.
- *
- * @returns The topic filter, or 0 when of type other than "sample".
- */
-DDS_DEPRECATED_EXPORT dds_topic_filter_fn
-dds_topic_get_filter(dds_entity_t topic);
 
 /**
  * @brief Gets the filter for a topic.
@@ -4204,18 +4035,6 @@ dds_return_loan(
  */
 DDS_EXPORT dds_instance_handle_t
 dds_lookup_instance(dds_entity_t entity, const void *data);
-
-/**
- * @deprecated Get enabled status on entity. Use \ref dds_lookup_instance instead.
- * @ingroup instance_handle
- *
- * @param[in]  entity Reader or Writer entity.
- * @param[in]  data   Sample with a key fields set.
- *
- * @returns instance handle or DDS_HANDLE_NIL if instance could not be found from key.
- */
-DDS_DEPRECATED_EXPORT dds_instance_handle_t
-dds_instance_lookup(dds_entity_t entity, const void *data);
 
 /**
  * @brief This operation takes an instance handle and return a key-value corresponding to it.
