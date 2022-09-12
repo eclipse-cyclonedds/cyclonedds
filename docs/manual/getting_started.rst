@@ -53,8 +53,8 @@ Before building the Cyclone DDS implementation, make sure you have the following
 * A C compiler (most commonly GCC or clang on Linux, Visual Studio on Windows, XCode on macOS);
 * `Git <https://git-scm.com/>`__ version control system;
 * `CMake <https://cmake.org/download/>`__, version 3.10 or later;
-* Optionally `OpenSSL <https://www.openssl.org/>`__, preferably version 1.1 or
-  later to use TLS over TCP. If you need to reduce the footprint or have issues with the FindOpenSSL CMake script, you can explicitly
+* Optionally, `OpenSSL <https://www.openssl.org/>`__, preferably version 1.1 or 
+later to use TLS over TCP. If you need to reduce the footprint or have issues with the FindOpenSSL CMake script, you can explicitly
   disable this by setting ENABLE\_SSL=NO
   
 Post Installation Requirements
@@ -178,14 +178,14 @@ this:
 
 To install it after a successful build:
 
-Depending on the installation location you may need administrator
+Depending on the installation location, you may need administrator
 privileges.
 
 .. code-block:: bash
 
     cmake --build . --target install
 
-This step will copies everything to:
+This step will copy everything to:
 
 -  ``<install-location>/lib``
 -  ``<install-location>/bin``
@@ -195,11 +195,13 @@ This step will copies everything to:
 At this point, you are ready to use Eclipse Cyclone DDS in your
 projects.
 
-**Note:** The default build type is a release build with debug
-information included (RelWithDebInfo). This is a convenient type of
-build to use from applications because of a good mix between performance
-and still being able to debug things. If you'd rather have a Debug or
-pure Release build, set ``CMAKE_BUILD_TYPE`` accordingly.
+**Note:** The default build type is a release build that includes debugging 
+information (RelWithDebInfo). 
+
+This is a convenient type of build to use from applications because 
+of a good mix between performance and still being able to debug things. 
+If you'd rather have a Debug or pure Release build, 
+set ``CMAKE_BUILD_TYPE`` accordingly.
 
 If you want to contribute to Cyclone DDS, please refer to `Appendix I
 Contributing to Eclipse Cyclone DDS for
@@ -208,8 +210,8 @@ Windows. <#appendix-i-contributing-to-eclipse-cyclone-dds>`__
 Installation with product installer for Windows
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The Cyclone DDS also provides a product installer, this may be easier
-than installing it from GitHub.
+The Cyclone DDS also provides a product installer, a more simple method 
+of installation rather than installing it from GitHub.
 
 To install the Cyclone DDS from the installer:
 
@@ -225,7 +227,7 @@ To install the Cyclone DDS from the installer:
    :align: center
 
 3. Choose whether you want to add Cyclone DDS to the system PATH. We
-   recommend to add it to the system PATH so that your application can
+   recommend adding it to the system PATH so your application can
    use the related libraries directly. Select whether to add it for the
    current user or all users and click 'Next'.
 
