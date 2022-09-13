@@ -27,10 +27,8 @@
 #include "dds/ddsrt/hopscotch.h"
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsrt/fibheap.h"
-#include "dds/ddsrt/netstat.h"
 #include "dds/ddsrt/random.h"
 #include "dds/ddsrt/retcode.h"
-#include "dds/ddsrt/rusage.h"
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/sockets.h"
 #include "dds/ddsrt/heap.h"
@@ -39,6 +37,12 @@
 #include "dds/ddsrt/xmlparser.h"
 #include "dds/ddsrt/filesystem.h"
 #include "dds/ddsrt/io.h"
+#if DDSRT_HAVE_NETSTAT
+#include "dds/ddsrt/netstat.h"
+#endif
+#if DDSRT_HAVE_RUSAGE
+#include "dds/ddsrt/rusage.h"
+#endif
 
 #include "dds/ddsi/ddsi_cdrstream.h"
 #include "dds/ddsi/ddsi_config.h"
@@ -762,9 +766,13 @@ int main (int argc, char **argv)
   ddsrt_thread_equal (t, t);
   ddsrt_thread_join (t, ptr);
   ddsrt_thread_getname (ptr, 0);
+#if DDSRT_HAVE_THREAD_SETNAME
   ddsrt_thread_setname (ptr);
+#endif
+#if DDSRT_HAVE_THREAD_LIST
   ddsrt_thread_list (ptr, 0);
   ddsrt_thread_getname_anythread (0, ptr, 0);
+#endif
   ddsrt_thread_cleanup_push (0, ptr);
   ddsrt_thread_cleanup_pop (0);
   ddsrt_thread_init (0);
@@ -891,16 +899,20 @@ int main (int argc, char **argv)
   ddsrt_fibheap_extract_min (ptr, ptr);
   ddsrt_fibheap_decrease_key (ptr, ptr, ptr);
 
+#if DDSRT_HAVE_NETSTAT
   // ddsrt/netstat.h
   ddsrt_netstat_new (ptr, ptr);
   ddsrt_netstat_free (ptr);
   ddsrt_netstat_get (ptr, ptr);
+#endif
 
+#if DDSRT_HAVE_RUSAGE && DDSRT_HAVE_THREAD_LIST
   // ddsrt/rusage.h
   ddsrt_thread_list_id_t tids[1];
   ddsrt_thread_list (tids, 1);
   ddsrt_getrusage (0, ptr);
   ddsrt_getrusage_anythread (tids[0], (ddsrt_rusage_t *) ptr);
+#endif
 
   // ddsrt/environ.h
   ddsrt_getenv (ptr, ptr);
@@ -917,7 +929,9 @@ int main (int argc, char **argv)
   dds_set_log_mask (0); // ROS 2 rmw_cyclonedds_cpp needs this, probably erroneously
 
   // ddsrt/sockets.h
+#if DDSRT_HAVE_GETHOSTNAME
   ddsrt_gethostname (ptr, 0);
+#endif
 
   // ddsrt/heap.h
   ddsrt_malloc (1);
