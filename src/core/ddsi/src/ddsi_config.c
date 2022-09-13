@@ -720,6 +720,7 @@ static int if_network_partition (struct cfgst *cfgst, void *parent, struct cfgel
   if (new == NULL)
     return -1;
   new->address_string = NULL;
+  new->interface_names = NULL;
   new->uc_addresses = NULL;
   new->asm_addresses = NULL;
 #ifdef DDS_HAS_SSM
