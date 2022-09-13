@@ -438,12 +438,14 @@ To run the example application, open two console windows and navigate to
 the appropriate directory in both console windows. Run
 ``HelloworldSubscriber`` in one of the console windows using:
 
+(Tabs plugin for Win and Linux)
  **Windows** ``HelloworldSubscriber.exe``
 
  **Linux** ``./HelloworldSubscriber``
 
 Run ``HelloworldPublisher`` in the other console window using:
 
+(Tabs plugin for Win and Linux)
  **Windows** ``HelloworldPublisher.exe``
 
  **Linux** ``./HelloworldPublisher``
@@ -459,22 +461,21 @@ Run ``HelloworldPublisher`` in the other console window using:
 .. image:: /_static/gettingstarted-figures/1.6.2-2.png
    :align: center
 
-**Note:** Cyclone's default behavior is to automatically detect the
-first network interface card available on your machine and uses it to
-exchange the hello world message. Ensure that your publisher and
-subscriber applications are on the same network, selecting the right
-interface card. This is one of the most common issues on machine
-configurations with multiple network interface cards.
+**Note:** Cyclone's default behavior is automatically detecting the
+first network interface card available on your machine and using it to
+exchange the hello world message. Therefore, selecting the correct interface card is essential to ensure that your publisher 
+and subscriber applications are on the same network. This is a common issue with multiple network interface cards on machine configurations.
 
-This default behavior can be overridden by updating the property
+You can override this default behavior by updating the property
 ``//CycloneDDS/Domain/General/``
 
 ``NetworkInterfaceAddress`` in a deployment file (e.g.
 ``cyclonedds.xml``) that you created to point to it through an OS
-environment variable named CYCLONEDDS\_URI. More information on this
-topic can be found in the `github
+environment variable named CYCLONEDDS\_URI. 
+
+More information on this topic can be found on the `GitHub
 repository <https://github.com/eclipse-cyclonedds/cyclonedds/blob/master/docs/manual/options.md>`__
-and the configuration section on
+and on the configuration section on
 https://github.com/eclipse-cyclonedds/cyclonedds.
 
 Want to know more about DDS?
@@ -485,7 +486,7 @@ The primary source of information is the OMG website at
 Getting <http://www.omg.org/gettingstarted/omg_idl.htm>`__\ Startedpage
 and the `DDS specification <http://www.omg.org/spec/DDS/>`__.
 
-In the future we will provide the following:
+In the future, we will provide the following:
 
  1. Tutorial document
 
@@ -512,10 +513,10 @@ Uninstallation for the product installer
 Windows
 ^^^^^^^
 
-On Windows, to uninstall the Cyclone DDS you can either do it from the
+On Windows, to uninstall the Cyclone DDS, you can either do it from the
 Windows application control panel (Programs and Features in Control
 Panel) or by using the product installer; in this case, start-up the
-Cyclone DDS product installer, and select 'Remove'.
+Cyclone DDS product installer, and select 'Remove.'
 
 .. image:: /_static/gettingstarted-figures/1.8.2.1.png
    :align: center
@@ -531,16 +532,16 @@ Building Cyclone DDS applications
 Building Your First Example
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-To test the complete workflow of building a DDS based application, you
+To test the complete workflow of building a DDS-based application, you
 can use a simple *Hello World!*. Although this application does not
 reveal all the power of building a data-centric application, it has the
-merit to introduce you to the basic steps to build a DDS application.
+merit of introducing you to the basic steps to create a DDS application.
 
-This chapter focuses on building this example, without analyzing the
-source code, which is the subject of the next chapter.
+This chapter will focus on building this example without analyzing the source code.
+In the next chapter, we will analyze the source code.
 
 The procedure used to build the *Hello World!* example can also be used
-for building your own applications.
+for building your applications.
 
 On Linux, if you have not specified an installation directory, it is
 advised to copy the Cyclone DDS examples to your preferred directory.
@@ -560,29 +561,29 @@ Building the *HelloWorld!* application with CMake
 In the previous sections, building the *Hello* *World!* example is done
 by default during the Cyclone build process. However, the *Hello*
 *World!* example can also be built using the `CMake
-tool <http://cmake.org/>`__, although you can obviously build with your
+tool <http://cmake.org/>`__, although you can build with your
 native compilers and preferred toolchains.
 
 `CMake <http://cmake.org/>`__ is an open-source, cross-platform family
 of tools designed to build, test, and package software. It is used to
 control the software compilation process using simple platform and
-compiler independent configuration files. It also generates native
+compiler-independent configuration files. It also generates native
 makefiles, projects, and workspaces of your development environment.
-CMake's main strength is build portability. The same CMake input files
-build with GNU make, Visual studio 6,7,8 IDEs, Borland make, nmake, and
+CMake's main strength is built portability. The same CMake input files
+build with GNU make, Visual Studio 6,7,8 IDEs, Borland make, nmake, and
 XCode, etc...
 
 Another advantage of CMake is building out-of-source. It simply works
-out-of-the-box. There are two important reasons to choose this means:
+out of the box. There are two fundamental reasons to choose this means:
 
--  Easy cleanup (no cluttering the source tree). Simply remove the build
+-  Easy cleanup (no cluttering the source tree). Remove the build
    directory to start from scratch.
 -  Multiple build targets. It's possible to have up-to-date Debug and
-   Release targets, without having to recompile the entire tree. For
-   systems that do cross-platform compilation, it is easy to have
+   Release targets without having to recompile the entire tree. It is easy for
+   systems that do the cross-platform compilation to have
    up-to-date builds for the host and target platform.
 
-In order to use CMake you need to provide a ``CMakeLists.txt``. A sample
+To use CMake, you need to provide a ``CMakeLists.txt``. A sample
 CMakeList file can be found within
 ``<install-location>/share/CycloneDDS/examples/helloworld/``
 
@@ -599,9 +600,9 @@ The content of the ``CMakeLists.txt`` is:
     "${CMAKE_SOURCE_DIR}/../../")
     endif()
 
-    # This is a convenience function, provided by the CycloneDDS package,
-    # that will supply a library target related the the given idl file.
-    # In short, it takes the idl file, generates the source files with
+    # This is a convenience function provided by the CycloneDDS package,
+    # that will supply a library target related to the given idl file.
+    # In short, it takes the idl file, and generates the source files with
     # the proper data types and compiles them into a library.
     idlc_generate(HelloWorldData_lib "HelloWorldData.idl")
 
@@ -614,7 +615,7 @@ The content of the ``CMakeLists.txt`` is:
     target_link_libraries(HelloworldPublisher HelloWorldData_lib CycloneDDS::ddsc)
     target_link_libraries(HelloworldSubscriber HelloWorldData_lib CycloneDDS::ddsc)
 
-To build a Cyclone based application you need to link your business code
+To build a Cyclone-based application you need to link your business code
 with:
 
 -  The ``ddsc`` library that contains the DDS API the application needs.
@@ -641,13 +642,13 @@ code lib.
 
 **Note:** CMake attempts to find the ``CycloneDDS`` CMake package in the
 default location, two levels above the current source directory. Every
-path and dependencies is automatically set. CMake uses the default
+path and dependency is automatically set. CMake uses the default
 locations to locate the code CycloneDDS package.
 
 Building the Hello World! Example
 '''''''''''''''''''''''''''''''''
 
-Now that CMakeLists.txt file is completed the build process can start
+Now that the CMakeLists.txt file is completed, the build process can start.
 
 On Linux
 ^^^^^^^^
@@ -657,7 +658,7 @@ creating a ``build`` directory in the
 ``cyclonedds/build/install/share/CycloneDDS/examples/helloworld``
 directory.
 
-Configure the build environment:
+Configure the built environment:
 
 .. code-block:: bash
 
@@ -665,7 +666,7 @@ Configure the build environment:
     cd build
     cmake ../
 
-CMake uses the CMakeLists.txt in the helloworld directory to create
+CMake uses the CMakeLists.txt in the HelloWorld directory to create
 makefiles that fit the native platform.
 
 The real build process of the applications (``HelloworldPublisher`` and
@@ -680,17 +681,17 @@ The resulting Publisher and Subscriber applications can be found in
 
 The *Hello World!* example can now be executed, as described in `Test
 your installation <#test-your-installation>`__ in the previous
-chapter
+Chapter
 
 on Windows
 ^^^^^^^^^^
 
-CMake usually knows which generator to use, but with Windows you must
+CMake usually knows which generator to use, but with Windows, you must
 supply a specific generator.
 
-For example, only 64-bit libraries are shipped for Windows, by default
+For example, only 64-bit libraries are shipped for Windows. By default
 CMake generates a 32-bit project, resulting in linker errors. When
-generating a Visual Studio project, if you want to generate a b4-bit
+generating a Visual Studio project, if you want to create a b4-bit
 build, append **Win64** to the generator description.
 
 The following example shows how to generate a Visual Studio 2015 project
@@ -702,12 +703,12 @@ with a 64-bit build:
 
 **Note:** CMake generators can also create IDE environments. For
 instance, the "Visual Studio 14 2015 Win64" generates a Visual Studio
-solution file. Other IDE's are also possible, such as Eclipse IDE.
+solution file. Other IDEs are also possible, such as Eclipse IDE.
 
-CMake uses the ``CMakeLists.txt`` in the helloworld directory to create
+CMake uses the ``CMakeLists.txt`` in the HelloWorld directory to create
 makefiles that fit the native platform.
 
-The real build process of the applications can start:
+The actual build process of the applications can start:
 
 .. code-block:: PowerShell
 
@@ -725,12 +726,12 @@ The *Hello World!* example can now be executed, as described in `Test
 your installation <#test-your-installation>`__, using the binaries
 built.
 
-Hello World!, Code anatomy
+Hello World! Code anatomy
 ==========================
 
 The previous chapter described the installation process that built
 implicitly or explicitly the C *Hello World!* Example. This chapter
-introduces the key concept of DDS and details the structural code of a
+introduces the fundamental concept of DDS. It details the structural code of a
 simple system made by an application that publishes keyed messages and
 another one that subscribes and reads such data. Each message represents
 a data object that is uniquely identified with a unique key and a
@@ -740,37 +741,37 @@ Data-Centric Architecture
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 In a service-centric architecture, to interact, applications need to
-know each other's interfaces to share data, share events, share
-commands, or replies. These interfaces are modeled as sets of operations
+know each other's interfaces to share data, share events, and share
+commands or replies. These interfaces are modeled as sets of operations
 and functions that are managed in centralized repositories. This kind of
-architecture creates unnecessary dependencies that end-up creating a
+architecture creates unnecessary dependencies that create a
 tightly coupled system. The centralized interface repositories are
 usually seen as a single point of failure.
 
 In a data-centric architecture, your design focuses on the data each
-application produces and decides to share rather than on the Interfaces'
+the application produces and decides to share rather than on the Interfaces'
 operations and the internal processing that produced them.
 
 A data-centric architecture creates a decoupled system that focuses on
 the data and applications states' that need to be shared rather than the
 applications' details. In a data-centric system, data and their
-associated quality of services are the only contract that bounds the
+associated quality of services are the only contracts that bounds the
 applications together. With DDS, the system decoupling is
-bi-dimensional, in Space and in Time.
+bi-dimensional, in Space and time.
 
 Space-decoupling derives from the fact that applications do not need to,
-either know the identity of the data produced (or consumers) nor their
+either knows the identity of the data produced (or consumers) nor their
 logical or their physical location in the network. Under the hood, DDS
 runs a zero-configuration, interoperable discovery protocol that
-searches matching data readers and data writes that are interested by
+searches matching data readers and data writes that are interested in
 the same data topic.
 
 Time-decoupling derives from the fact that, fundamentally, the nature of
-the communication is asynchronous. Data producers and data consumers,
-known respectively, as Data Writers, and data readers are not forced to
-be active and connected at the same time to share data. In this
+communication is asynchronous. Data producers and consumers,
+known as Data Writers and data readers, are not forced to
+be active and connected simultaneously to share data. In this
 scenario, the DDS middleware can handle and manage data on behalf of the
-late joining data readers applications and delivered to it when they
+late joining data readers applications and deliver to it when they
 join the system.
 
 Time and space decoupling gives applications the freedom to be plugged
@@ -784,7 +785,7 @@ data writers applications.
 Keys steps to build the Hello World! application
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The *Hello World!* example has a very simple 'data layer' with a data
+The *Hello World!* example has an effortless 'data layer' with a data
 model made of one data type ``Msg`` that represents keyed messages (c,f
 next subsection).
 
@@ -793,31 +794,30 @@ to:
 
 1. Declare its participation and involvement in a *DDS domain*. A DDS
    domain is an administrative boundary that defines, scopes, and
-   gathers all the DDS applications, data, and infrastructure that needs
-   to interconnect together by sharing the same data space. Each DDS
+   gathers all the DDS applications, data, and infrastructure that must interconnect by sharing the same data space. Each DDS
    domain has a unique identifier. Applications declare their
    participation within a DDS domain by creating a **Domain Participant
    entity**.
-2. Create a **Data topic** that has the data type described in a data
+2. Create a **Data topic** with the data type described in a data
    model. The data types define the structure of the Topic. The Topic is
-   therefore an association between the topic's name and a datatype.
+   therefore, an association between the topic's name and a datatype.
    QoSs can be optionally added to this association. The concept Topic
    therefore discriminates and categorizes the data in logical classes
    and streams.
-3. Create the **Data Readers** and **Writers** entities that are
+3. Create the **Data Readers** and **Writers** entities 
    specific to the topic. Applications may want to change the default
-   QoSs. In the Hello world! example, the ``ReliabilityQoS`` is changed
+   QoSs. In the Hello world! Example, the ``ReliabilityQoS`` is changed
    from its default value (``Best-effort``) to ``Reliable``.
 4. Once the previous DDS computational entities are in place, the
    application logic can start writing or reading the data.
 
 At the application level, readers and writers do not need to be aware of
-each other. The reading application, hereby called Subscriber polls the
+each other. The reading application, hereby called Subscriber, polls the
 data reader periodically, until a publishing application, hereby called
-Publisher writes the required data into the shared topic, namely
+The publisher writes the required data into the shared topic, namely
 ``HelloWorldData_Msg``.
 
-The data type is described using the OMG `IDL
+The data type is described using the OMG IDL.
 Language <http://www.omg.org/gettingstarted/omg_idl.htm>`__ located in
 ``HelloWorldData.idl`` file. Such IDL file is seen as the data model of
 our example.
@@ -831,7 +831,7 @@ share the *Hello* *World!* Message instance and sample.
 Hello World! IDL
 ''''''''''''''''
 
-The HelloWorld data type is described in a language independent way and
+The HelloWorld data type is described in a language-independent way and
 stored in the HelloWorldData.idl file:
 
 .. code-block:: omg-idl
@@ -845,23 +845,22 @@ stored in the HelloWorldData.idl file:
         };
     };
 
-A subset of the OMG Interface Definition Language (IDL) is used as DDS
+The OMG Interface Definition Language (IDL) subset is used as DDS
 data definition language. In our simple example, the HelloWorld data
 model is made of one module ``HelloWorldData``. A module can be seen as
-a namespace where data with interrelated semantic is represented
+a namespace where data with interrelated semantics is represented
 together in the same logical set.
 
-The ``structMsg`` is the actual data type that shapes the data used to
+The ``structMsg`` is the data type that shapes the data used to
 build topics. As already mentioned, a topic is an association between a
 data type and a string name. The topic name is not defined in the IDL
-file, but it is defined by the application business logic, at runtime.
+file, but the application business logic at runtime determines it.
 
 In our simplistic case, the data type Msg contains two fields:
-``userID`` and ``message`` payload. The ``userID`` is used as a unique
-identification of each message instance. This is done using the
+``userID`` and ``message`` payload. The ``userID`` is used to identify each message instance uniquely. This is done using the
 ``@key`` annotation.
 
-The Cyclone DDS IDL compiler translates the IDL datatype in a C struct
+The Cyclone DDS IDL compiler translates the IDL datatype into a C struct
 with a name made of the\ ``<ModuleName>_<DataTypeName>`` .
 
 .. code-block:: C
@@ -873,17 +872,17 @@ with a name made of the\ ``<ModuleName>_<DataTypeName>`` .
     } HelloWorldData_Msg;
 
 **Note:** When translated into a different programming language, the
-data has a different representation that is specific to the target
-language. For instance, as shown in chapter 7, in C++ the Helloworld
-data type is represented by a C++ class. This is the advantage of using
-a neutral language like IDL to describe the data model.It can be
+data has another representation specific to the target
+language. For instance, as shown in chapter 7, in C++, the Helloworld
+data type is represented by a C++ class. This advantage of using
+a neutral language like IDL to describe the data model. It can be
 translated into different languages that can be shared between different
-applications written in different programming languages.
+applications written in other programming languages.
 
 Generated files with the IDL compiler
 '''''''''''''''''''''''''''''''''''''
 
-In Cyclone DDS the IDL compiler is a C program that processes .idl files.
+In Cyclone DDS, the IDL compiler is a C program that processes .idl files.
 
 .. code-block:: bash
 
@@ -891,17 +890,16 @@ In Cyclone DDS the IDL compiler is a C program that processes .idl files.
 
 
 This results in new ``HelloWorldData.c`` and ``HelloWorldData.h`` files
-that need to be compiled and their associated object file must be linked
+that need to be compiled, and their associated object file must be linked
 with the *Hello World!* publisher and subscriber application business
 logic. When using the Cyclone provided CMake project, this step is done
 automatically.
 
 As described earlier, the IDL compiler generates one source and one
-header files. The header file (``HelloWorldData.h``) contains the data
-type of the messages that are shared. While the source file has no
+header file. The header file (``HelloWorldData.h``) contains the shared messages' data type. While the source file has no
 direct use from the application developer's perspective.
 
-``HelloWorldData.h``\ \* needs to be included by the application code as
+``HelloWorldData.h``\ \* needs to be included in the application code as
 it contains the actual message type and contains helper macros to
 allocate and free memory space for the ``HelloWorldData_Msg`` type.
 
@@ -939,11 +937,11 @@ World!* example also contains two application-level source files
 The ``Subscriber.c`` mainly contains the statements to wait for a *Hello
 World!* message and reads it when it receives it.
 
-**Note:** The Cyclone DDS ``read`` semantics keeps the data sample
+**Note:** The Cyclone DDS ``read`` semantics keep the data sample
 in the data reader cache. It is important to remember to use ``take`` where
-appropriate to prevent resource-exhaustion.
+appropriate to prevent resource exhaustion.
 
-The subscriber application implements the steps defined in :ref:`the Key Steps <key_steps>`.
+The subscriber application implements the steps defined in:ref:`the Key Steps <key_steps>`.
 
 
 .. code-block:: C
@@ -987,7 +985,7 @@ The subscriber application implements the steps defined in :ref:`the Key Steps <
 
       printf ("\n=== [Subscriber] Waiting for a sample ...\n");
 
-      /* Initialize sample buffer, by pointing the void pointer within
+      /* Initialize the sample buffer, by pointing the void pointer within
       * the buffer array to a valid sample memory location. */
       samples[0] = HelloWorldData_Msg alloc ();
 
@@ -995,7 +993,7 @@ The subscriber application implements the steps defined in :ref:`the Key Steps <
       while (true)
       {
         /* Do the actual read.
-        * The return value contains the number of read samples. */
+        * The return value contains the number of reading samples. */
         ret = dds_read (reader, samples, infos, MAX_SAMPLES, MAX_SAMPLES);
         DDS_ERR_CHECK (ret, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
 
@@ -1014,7 +1012,6 @@ The subscriber application implements the steps defined in :ref:`the Key Steps <
             dds_sleepfor (DDS_MSECS (20));
         }
       }
-
       /* Free the data location. */
       HelloWorldData_Msg_free (samples[0], DDS_FREE_ALL);
 
@@ -1356,7 +1353,7 @@ network issues.
 
 If you have installed Cyclone DDS using the product installer, the
 *ddsperf* tool is pre-installed within ``<cyclonedds_dir>/bin``. If you
-have installed Cyclone DDS through the native installation process,
+have installed Cyclone DDS through the process,
 (from GitHub), you can locate the tool within
 ``<cyclonedds_dir>/build/bin``.
 
