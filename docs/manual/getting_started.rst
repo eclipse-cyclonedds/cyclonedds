@@ -9,7 +9,6 @@ Getting Started
 
 Installing Eclipse Cyclone DDS
 ==============================
-add here
 Eclipse Cyclone DDS is a very performant and robust OMG-compliant Data
 Distribution Service (DDS) implementation. Cyclone DDS core is
 implemented in C and provides C-APIs to applications. Through its
