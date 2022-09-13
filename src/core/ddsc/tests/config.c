@@ -481,3 +481,23 @@ CU_Test(ddsc_config, multiple_domains, .init = ddsrt_init, .fini = ddsrt_fini)
   dds_set_log_sink (NULL, NULL);
   dds_set_trace_sink (NULL, NULL);
 }
+
+CU_Test(ddsc_config, bad_configs_listelems)
+{
+  // The first one is thanks to OSS-Fuzz, the fact that it is so easy
+  // to forget an initialisation that can trigger this means it is
+  // worthwhile trying a few more case
+  const char *configs[] = {
+    "<Partitioning><NetworkPartitions><NetworkPartition",
+    "<Partitioning><PartitionMappings><PartitionMapping",
+    "<Partitioning><IgnoredPartitions><IgnoredPartition",
+    "<Threads><Thread",
+    "<NetworkInterfaces><NetworkInterface",
+    "<Discovery><Peers><Peer",
+    NULL
+  };
+  for (int i = 0; configs[i]; i++)
+  {
+    CU_ASSERT_FATAL (dds_create_domain (0, configs[i]) < 0);
+  }
+}
