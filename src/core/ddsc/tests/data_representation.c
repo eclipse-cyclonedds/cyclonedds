@@ -195,9 +195,12 @@ CU_Test (ddsc_data_representation, xcdr1_xcdr2, .init = data_representation_init
     CU_ASSERT_FATAL (wr2 > 0);
     sync_reader_writer (dp2, rd, dp1, wr2);
 
-    dds_set_status_mask (rd, DDS_DATA_AVAILABLE_STATUS);
+    ret = dds_set_status_mask (rd, DDS_DATA_AVAILABLE_STATUS);
+    CU_ASSERT_FATAL (ret == 0);
     dds_entity_t ws = dds_create_waitset (dp2);
-    dds_waitset_attach (ws, rd, rd);
+    CU_ASSERT_FATAL (ws > 0);
+    ret = dds_waitset_attach (ws, rd, rd);
+    CU_ASSERT_FATAL (ret == 0);
 
     void *sample = tests[i].sample_init ();
     dds_instance_handle_t ih1 = write_read_sample (ws, wr1, rd, sample, tests[i].sample_equal);
@@ -267,9 +270,12 @@ CU_Test(ddsc_data_representation, matching, .init = data_representation_init, .f
     {
       sync_reader_writer (dp2, rd, dp1, wr);
 
-      dds_set_status_mask (rd, DDS_DATA_AVAILABLE_STATUS);
+      ret = dds_set_status_mask (rd, DDS_DATA_AVAILABLE_STATUS);
+      CU_ASSERT_FATAL (ret == 0);
       dds_entity_t ws = dds_create_waitset (dp2);
-      dds_waitset_attach (ws, rd, rd);
+      CU_ASSERT_FATAL (ws > 0);
+      ret = dds_waitset_attach (ws, rd, rd);
+      CU_ASSERT_FATAL (ret == 0);
       DataRepresentationTypes_Type1 sample = { { 1, 2, 3 }, "test", 4 };
       (void) write_read_sample (ws, wr, rd, &sample, NULL);
 
@@ -283,7 +289,8 @@ CU_Test(ddsc_data_representation, matching, .init = data_representation_init, .f
       ret = dds_read (rd, rds, si, 1, 1);
       CU_ASSERT_EQUAL_FATAL (ret, 1);
       CU_ASSERT_EQUAL_FATAL (si->instance_state, DDS_IST_NOT_ALIVE_DISPOSED);
-      dds_return_loan (rd, rds, 1);
+      ret = dds_return_loan (rd, rds, 1);
+      CU_ASSERT_FATAL (ret == 0);
     }
     else
       no_sync_reader_writer (dp2, rd, dp1, wr, DDS_MSECS (200));

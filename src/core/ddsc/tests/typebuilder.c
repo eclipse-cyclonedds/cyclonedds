@@ -240,6 +240,7 @@ CU_Test(ddsc_typebuilder, invalid_toplevel, .init = typebuilder_init, .fini = ty
   // generate a topic descriptor
   topic_type_ref (topic, &type);
   generated_desc = dds_alloc (sizeof (*generated_desc));
+  assert (generated_desc);
   for (uint32_t n = 0; n < type->xt._u.structure.members.length; n++)
   {
     ret = ddsi_topic_descriptor_from_type (gv_from_topic (topic), generated_desc, type->xt._u.structure.members.seq[n].type);
