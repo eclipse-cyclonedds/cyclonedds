@@ -253,7 +253,9 @@ To install the Cyclone DDS from the installer:
 
 
 The installation of Cyclone DDS core, C-APIs, and pre-compiler is
-complete. The following section describes how to test it.
+complete. 
+
+The following section describes how to test it.
 
 Installation Procedure for Eclipse Cyclone DDS Python
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -307,7 +309,7 @@ You will need additional dependencies if you wish to run the test suite or build
     sphinx-build ./source ./build
     python -m http.server --directory build
 
-Permission denied errors can occur when you try to access a file from Python without having the necessary permissions. 
+Permission denied errors could occur when you try to access a file from Python without having the necessary permissions. 
 To fix this error, it is recommended to use `a virtual environment`_, `poetry`_, `pipenv`_ or `pyenv`_. If you *just* want to get going, you can add ``--user`` to your pip command to install for the current user. See the `Installing Python Modules`_ documentation.
 
 
@@ -356,7 +358,7 @@ To send your message over a DDS domain, carry out the following steps:
 
     writer.write(message)
 
-Hurray, we have published are first message! However, it is hard to tell if that actually did anything, since we don't have anything set up that is listening. Let's make a second script that takes messages from DDS and prints them to the terminal:
+You have now published you first message successfully! However, it is hard to tell if that actually did anything, since we don't have anything set up that is listening. Let's make a second script that takes messages from DDS and prints them to the terminal:
 
 .. code-block:: python3
     :linenos:
