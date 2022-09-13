@@ -340,7 +340,7 @@ To send your message over a DDS domain, carry out the following steps:
 
 1. Join the DDS network using a DomainParticipant
 2. Define which data type and under what name you will publish your message as a Topic
-3. Make the DataWriter that publishes that Topic
+3. Create the DataWriter that publishes that Topic
 4. And finally, publish the message.
 
 
@@ -357,7 +357,7 @@ To send your message over a DDS domain, carry out the following steps:
 
     writer.write(message)
 
-You have now published you first message successfully! However, it is hard to tell if that actually did anything, since we don't have anything set up that is listening. Let's make a second script that takes messages from DDS and prints them to the terminal:
+You have now published your first message successfully! However, it is hard to tell if that did anything, since we don't have anything set up that is listening. Let's make a second script that takes messages from DDS and prints them to the terminal:
 
 .. code-block:: python3
     :linenos:
@@ -381,7 +381,7 @@ You have now published you first message successfully! However, it is hard to te
     for msg in reader.take_iter(timeout=duration(minutes=5)):
         print(msg.text)
 
-Now with this script running in a secondary terminal you should see the message pop up when you run the first script again.
+Now with this script running in a second terminal, you should see the message pop up when you rerun the first script.
 
 .. _Eclipse Cyclone DDS: https://github.com/eclipse-cyclonedds/cyclonedds/
 .. _a virtual environment: https://docs.python.org/3/tutorial/venv.html
@@ -396,7 +396,7 @@ Test your Installation
 ~~~~~~~~~~~~~~~~~~~~~~
 
 To test if your installation and configuration are working correctly,
-you can use the Cyclone DDS *ddsperf* tool (``ddsperf sanity``) or you
+you can use the Cyclone DDS *ddsperf* tool (``ddsperf sanity``), or you
 can use the Hello World example. To use the ddsperf tool, refer to
 `testing your network
 configuration. <#testing-your-network-configuration>`__ The test
@@ -405,19 +405,19 @@ using the Hello World example is explained in this section.
 Environnement variable updates
 ''''''''''''''''''''''''''''''
 
-On Windows, to run Eclipse Cyclone DDS executables, the required libraries
-(like ``ddsc.dll``) need to be available to the executables. Normally,
-these libraries are installed in system default locations and it works
-out-of-the-box. However, if they are not installed in those locations,
-the library search path must be changed. This can be achieved by
-executing the command:
+To run Eclipse Cyclone DDS executables on Windows, the required libraries
+(like ``ddsc.dll``) must be available to the executables. Typically,
+these libraries are installed in system default locations and work
+out of the box.
+However, the library search path must be changed if they are not installed in those locations. This can be achieved by
+executing the  following command:
 
 .. code-block:: PowerShell
 
     set PATH=<install-location>\bin;%PATH%
 
 **Note:** An alternative to make the required libraries available to the
-executables, is to simply copy the required libraries to the
+executables are to copy the necessary libraries for the
 executables' directory.
 
 Running the pre-built example
