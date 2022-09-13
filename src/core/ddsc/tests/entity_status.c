@@ -623,7 +623,8 @@ CU_Test(ddsc_entity, all_data_available, .init=init_entity_status, .fini=fini_en
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
     /* Force materialized DATA_ON_READERS */
-    dds_waitset_attach(dds_create_waitset(participant), subscriber, 0);
+    ret = dds_waitset_attach(dds_create_waitset(participant), subscriber, 0);
+    CU_ASSERT_FATAL (ret == 0);
 
     /* Get DATA_ON_READERS status*/
     ret = dds_get_status_changes (subscriber, &sta);
