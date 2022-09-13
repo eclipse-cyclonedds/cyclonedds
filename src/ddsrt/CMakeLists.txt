@@ -274,6 +274,8 @@ else()
 
     if(CMAKE_C_COMPILER_ID STREQUAL "SunPro")
       target_link_libraries(ddsrt INTERFACE socket nsl)
+    elseif(CMAKE_SYSTEM_NAME MATCHES QNX)
+      target_link_libraries(ddsrt INTERFACE socket)
     endif()
   endif()
 endif()
