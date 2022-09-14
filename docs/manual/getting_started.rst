@@ -18,8 +18,8 @@ supported.
 This publication provides detailed information about how Install Eclipse Cyclone DDS.
 The chapters will cover:
 
-Chapter 1.  (Add hyperlinks here to these sections) The installation and build process of Cyclone Core including the C-APIs. 
-Chapter 2.  (Add hyperlinks here to these sections) Install the C++ support packages. Short C, C++, and Python tutorials are
+(Add hyperlinks here to these sections) The installation and build process of Cyclone Core including the C-APIs. 
+(Add hyperlinks here to these sections) Install the C++ support packages. Short C, C++, and Python tutorials are
 detailed to give the reader examples of how the DDS technology is used
 with Cyclone to share data.
 
@@ -29,17 +29,17 @@ Before building the Eclipse Cyclone DDS implementation, make sure you meet all t
 Failure to meet the prerequisites will cause the build to fail.
 
 Supported platforms
-
+''''''''''''''''''''
 At the time of writing this document, Eclipse Cyclone DDS supports
 Linux, macOS, and Windows and is known to work on FreeRTOS, QNX, and the
 Solaris-like Openindiana OS.
 
 Hardware requirements
-
+'''''''''''''''''''''
 Add the hardware reqs here
 
 Software requirements
-
+'''''''''''''''''''''
 Make sure you have the following software installed on your machine:
 
 * A C compiler (most commonly GCC or clang on Linux, Visual Studio on Windows, XCode on macOS);
@@ -50,8 +50,12 @@ later to use TLS over TCP. If you need to reduce the footprint or have issues wi
   disable this by setting ENABLE\_SSL=NO
   
 Post Installation Requirements
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+''''''''''''''''''''''''''''''
 Add (if any) post installation considerations here
+
+
+Installing on Linux and Mac
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 On Linux, install these dependencies with a package manager of your choice:
 
@@ -62,11 +66,10 @@ On Linux, install these dependencies with a package manager of your choice:
     aptitude install git cmake gcc
     # or others
 
-On Windows, to install dependencies using chocolatey, use  ``choco install git cmake``.
-On macOS, installing XCode from the App Store should be enough.
+On the Mac OS, installing XCode from the App Store should be adequate.
 
 Native Installation for Linux and macOS
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+'''''''''''''''''''''''''''''''''''''''
 
 To obtain the Eclipse Cyclone DDS:
 
@@ -77,7 +80,8 @@ To obtain the Eclipse Cyclone DDS:
     mkdir build
 
 Please note: Use the appropriate procedure according to your specific needs. 
-For example, a different procedure is required if you develop applications using Cyclone DDS versus contributing to it.
+For example, a different procedure is required if you develop applications using Cyclone DDS versus 
+contributing to it.
 
 For Application Developers
 ''''''''''''''''''''''''''
@@ -125,8 +129,12 @@ Installation with product installer for Linux and macOS
 
 TBD.
 
+Installation on Windows
+~~~~~~~~~~~~~~~~~~~~~~~
+Add a sentence to introduce this section ....
+
 Native Installation for Windows
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+''''''''''''''''''''''''''''''''
 
 To obtain the Eclipse Cyclone DDS:
 
@@ -138,6 +146,8 @@ To obtain the Eclipse Cyclone DDS:
 
 Then, depending on whether you like to develop applications using
 Cyclone DDS or contribute to it, you may follow different procedures.
+
+On Windows, to install dependencies using chocolatey, use  ``choco install git cmake``.
 
 For Application Developers
 ''''''''''''''''''''''''''
@@ -199,7 +209,7 @@ Contributing to Eclipse Cyclone DDS for
 Windows. <#appendix-i-contributing-to-eclipse-cyclone-dds>`__
 
 Installation with product installer for Windows
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+'''''''''''''''''''''''''''''''''''''''''''''''
 
 The Cyclone DDS also provides a product installer, a more simple method 
 of installation rather than installing it from GitHub.
@@ -249,14 +259,14 @@ complete.
 The following section describes how to test it.
 
 Installation Procedure for Eclipse Cyclone DDS Python
-~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 This section shows the installation procedure for Eclipse Cyclone DDS Python, wrapping the `Eclipse Cyclone DDS`_ C-API for easy creation of DDS applications.
 
 .. _installing:
 
 Prerequisites
--------------
+''''''''''''''''''''''''''
 
 CycloneDDS Python requires Python version 3.7 or higher, with 3.11 support provisional. The wheels on PyPi contain a pre-built binary of the CycloneDDS C library and IDL compiler. These have a couple of caveats. The pre-built package:
 
