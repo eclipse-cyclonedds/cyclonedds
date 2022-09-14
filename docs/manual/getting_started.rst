@@ -267,7 +267,7 @@ This section shows the installation procedure for Eclipse Cyclone DDS Python, wr
 .. _installing:
 
 Prerequisites
-''''''''''''''''''''''''''
+''''''''''''''
 
 CycloneDDS Python requires Python version 3.7 or higher, with 3.11 support provisional. The wheels on PyPi contain a pre-built binary of the CycloneDDS C library and IDL compiler. These have a couple of caveats. The pre-built package:
 
@@ -529,7 +529,7 @@ Linux and macOS
 
 TBD.
 
-Building Cyclone DDS Applications
+Building your first Cyclone DDS Applications
 =================================
 
 Building Your First Example
