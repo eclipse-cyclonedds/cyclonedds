@@ -1238,9 +1238,8 @@ did in the subscriber code.
     #include "ddsc/dds.h"
     #include "HelloWorldData.h"
 
-Like with the reader in ``subscriber.c``, we need a participant and a
-topic to create a writer. We also need to use the same topic name as the
-one specified in ``subscriber.c``.
+Like the reader in ``subscriber.c``, we need a participant and a
+topic to create a writer. We must also use the same topic name specified in ``subscriber.c``.
 
 
 .. code-block:: C
@@ -1255,16 +1254,16 @@ one specified in ``subscriber.c``.
     writer = dds_create_writer (participant, topic, NULL, NULL);
 
 When Cyclone DDS discovers readers and writers sharing the same data
-type and topic name, it connects them without the application
-involvement. In order to write data only when a data readers appears, a
-rendez-vous pattern is required. Such pattern can be implemented by
+type and topic name, it connects them without the application's
+involvement. A rendezvous pattern is required to write data only 
+when a DataReader appears. Such a pattern can be implemented by
 either:
 
 *  Waiting for the publication/subscription matched events, where the
-   Publisher waits and blocks the writing-thread until the appropriate
+   Publisher waits and blocks the writing thread until the appropriate
    publication matched event is raised, or
-*  Regularly, polls the publication matching status. This is the
-   preferred option we implement in this example. The following line of
+*  Regularly polls the publication matching status. This is the
+   the preferred option we implement in this example. The following line of
    code instructs Cyclone DDS to listen on the
    DDS\_PUBLICATION\_MATCHED\_STATUS:
 
