@@ -351,7 +351,7 @@ static void print_sample (bool valid_data, const void *sample, const DDS_XTypes_
 }
 
 // Helper function to wait for a DCPSPublication to show up with the desired topic name, then calls
-// dds_find_topic to create a topic for that data writer's type up the retrieves the type object.
+// dds_find_topic to create a topic for that DataWriter's type up the retrieves the type object.
 static dds_return_t get_topic_and_typeobj (const char *topic_name, dds_duration_t timeout, dds_entity_t *topic, DDS_XTypes_TypeObject **xtypeobj)
 {
   const dds_entity_t waitset = dds_create_waitset (participant);

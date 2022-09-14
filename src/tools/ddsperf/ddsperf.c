@@ -976,7 +976,7 @@ static dds_entity_t get_pong_writer_locked (dds_instance_handle_t pubhandle)
   pphandle = get_pphandle_for_pubhandle (pubhandle);
 
   /* This gets called when no writer is associated yet with pubhandle, but it may be that a writer
-     is associated already with pphandle (because there is the data writer and the ping writer) */
+     is associated already with pphandle (because there is the DataWriter and the ping writer) */
   for (uint32_t i = 0; i < npongwr; i++)
   {
     if (pongwr[i].pphandle == pphandle)

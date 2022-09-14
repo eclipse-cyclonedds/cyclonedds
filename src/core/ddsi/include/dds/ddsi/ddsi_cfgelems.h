@@ -794,7 +794,7 @@ static struct cfgelem channel_cfgattrs[] = {
     FUNCTIONS(0, uf_natint, 0, pf_int),
     DESCRIPTION(
       "<p>This attribute sets the transport priority threshold for the "
-      "channel. Each DCPS data writer has a \"transport_priority\" QoS and "
+      "channel. Each DCPS DataWriter has a \"transport_priority\" QoS and "
       "this QoS is used to select a channel for use by this writer. The "
       "selected channel is the one with the largest threshold not greater "
       "than the writer's transport priority, and if no such channel exists, "

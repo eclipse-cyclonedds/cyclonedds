@@ -126,7 +126,7 @@ discovering this new participant or endpoint.
 Lingering Writers
 =================
 
-When an application deletes a reliable DCPS data writer, there is no guarantee that all
+When an application deletes a reliable DCPS , there is no guarantee that all
 its readers have already acknowledged the correct receipt of all samples.  In such a
 case, Eclipse Cyclone DDS lets the writer (and the owning participant if necessary) linger in
 the system for some time, controlled by the ``Internal/WriterLingerDuration`` option.
@@ -1011,14 +1011,14 @@ strict modes, Eclipse Cyclone DDS requires a proper key value to be supplied; in
 mode, it is willing to accept key hash, provided it is of a form that contains the key
 values in an unmangled form.
 
-If an RTI DDS data writer disposes an instance with a key of which the serialised
+If an RTI DDS DataWriter disposes an instance with a key of which the serialised
 representation may be larger than 16 bytes, this problem is likely to occur. In
 practice, the most likely cause is using a key as string, either unbounded, or with a
 maximum length larger than 11 bytes. See the DDSI specification for details.
 
 In *strict* mode, there is interoperation with RTI DDS, but at the cost of incredibly
 high CPU and network load, caused by a Heartbeats and AckNacks going back-and-forth
-between a reliable RTI DDS data writer and a reliable Eclipse Cyclone DDS data reader. The
+between a reliable RTI DDS DataWriter and a reliable Eclipse Cyclone DDS data reader. The
 problem is that once Eclipse Cyclone DDS informs the RTI writer that it has received all data
 (using a valid AckNack message), the RTI writer immediately publishes a message listing
 the range of available sequence numbers and requesting an acknowledgement, which becomes

@@ -44,14 +44,14 @@ These DDSI participants drive the discovery of participants, readers, and writer
 via the discovery protocols.  By default, each DDSI participant has a unique address on
 the network in the form of its own UDP/IP socket with a unique port number.
 
-Any data reader or data writer created by a DCPS domain participant is mirrored in DDSI
+Any data reader or DataWriter created by a DCPS domain participant is mirrored in DDSI
 as a DDSI reader or writer.  In this translation, some of the structure of the DCPS
 domain is obscured because the standardized parts of DDSI have no knowledge of DCPS
 Subscribers and Publishers.  Instead, each DDSI reader is the combination of the
 corresponding DCPS data reader and the DCPS subscriber it belongs to; similarly, each
-DDSI writer is a combination of the corresponding DCPS data writer and DCPS publisher.
+DDSI writer is a combination of the corresponding DCPS DataWriter and DCPS publisher.
 This corresponds to the way the standardized DCPS built-in topics describe the DCPS data
-readers and data writers, as there are no standardized built-in topics for describing
+readers and DataWriters, as there are no standardized built-in topics for describing
 the DCPS subscribers and publishers either.  Implementations can (and do) offer
 additional built-in topics for describing these entities and include them in the
 discovery, but these are non-standard extensions.

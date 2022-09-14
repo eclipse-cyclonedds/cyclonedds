@@ -297,11 +297,11 @@ dds_view_state_t;
 /** Defines the state of the instance */
 typedef enum dds_instance_state
 {
-  /** Samples received for the instance from the live data writers */
+  /** Samples received for the instance from the live DataWriter's */
   DDS_IST_ALIVE = DDS_ALIVE_INSTANCE_STATE,
-  /** Instance was explicitly disposed by the data writer */
+  /** Instance was explicitly disposed by the DataWriter */
   DDS_IST_NOT_ALIVE_DISPOSED = DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE,
-  /** Instance has been declared as not alive by data reader as there are no live data writers writing that instance */
+  /** Instance has been declared as not alive by data reader as there are no live DataWriter's writing that instance */
   DDS_IST_NOT_ALIVE_NO_WRITERS = DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE
 }
 dds_instance_state_t;
@@ -2162,7 +2162,7 @@ dds_create_writer(
  * @brief Registers an instance
  * @ingroup writing
  *
- * This operation registers an instance with a key value to the data writer and
+ * This operation registers an instance with a key value to the DataWriter and
  * returns an instance handle that could be used for successive write & dispose
  * operations. When the handle is not allocated, the function will return an
  * error and the handle will be un-touched.
@@ -2191,7 +2191,7 @@ dds_register_instance(
  * @ingroup writing
  *
  * This operation reverses the action of register instance, removes all information regarding
- * the instance and unregisters an instance with a key value from the data writer.
+ * the instance and unregisters an instance with a key value from the DataWriter.
  *
  * @param[in]  writer  The writer to which instance is associated.
  * @param[in]  data    The instance with the key value.
@@ -2235,7 +2235,7 @@ dds_unregister_instance_ih(dds_entity_t writer, dds_instance_handle_t handle);
  * @ingroup writing
  *
  * This operation reverses the action of register instance, removes all information regarding
- * the instance and unregisters an instance with a key value from the data writer. It also
+ * the instance and unregisters an instance with a key value from the DataWriter. It also
  * provides a value for the timestamp explicitly.
  *
  * @param[in]  writer    The writer to which instance is associated.
@@ -4418,11 +4418,11 @@ dds_get_matched_subscription_data (
   dds_instance_handle_t ih);
 
 /**
- * @brief Get instance handles of the data writers matching a reader
+ * @brief Get instance handles of the DataWriter's matching a reader
  * @ingroup builtintopic
  *
  * This operation fills the provided array with the instance handles
- * of the data writers that match the reader.  On successful output,
+ * of the DataWriter's that match the reader.  On successful output,
  * the number of entries of "wrs" set is the minimum of the return
  * value and the value of "nwrs".
  *
