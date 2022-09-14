@@ -132,7 +132,7 @@ TBD.
 Installation on Windows
 ~~~~~~~~~~~~~~~~~~~~~~~
 There are several different installation types when you install Eclipse Cyclone DDS on Windows. 
-This topic describes how to install React Native and how to install with the product installer for Windows 
+This topic describes how to install React Native and the product installer for Windows.
 
 How to Install React Native on Windows
 '''''''''''''''''''''''''''''''''''''''
