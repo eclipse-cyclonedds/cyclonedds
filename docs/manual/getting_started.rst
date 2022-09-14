@@ -54,8 +54,8 @@ Post Installation Requirements
 Add (if any) post installation considerations here
 
 
-Installing on Linux and Mac
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Installing on Linux and macOS
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 On Linux, install these dependencies with a package manager of your choice:
 
@@ -66,7 +66,7 @@ On Linux, install these dependencies with a package manager of your choice:
     aptitude install git cmake gcc
     # or others
 
-On the Mac OS, installing XCode from the App Store should be adequate.
+On macOS, installing XCode from the App Store should be adequate.
 
 Native Installation for Linux and macOS
 '''''''''''''''''''''''''''''''''''''''
