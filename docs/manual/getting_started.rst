@@ -125,16 +125,17 @@ Contributing to Eclipse Cyclone
 DDS <#appendix-i-contributing-to-eclipse-cyclone-dds>`__.
 
 Installation with product installer for Linux and macOS
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 TBD.
 
 Installation on Windows
 ~~~~~~~~~~~~~~~~~~~~~~~
-Add a sentence to introduce this section ....
+There are several different installation types when you install Eclipse Cyclone DDS on Windows. 
+This topic describes how to install React Native and how to install with the product installer for Windows 
 
-Native Installation for Windows
-''''''''''''''''''''''''''''''''
+How to Install React Native on Windows
+'''''''''''''''''''''''''''''''''''''''
 
 To obtain the Eclipse Cyclone DDS:
 
@@ -258,8 +259,8 @@ complete.
 
 The following section describes how to test it.
 
-Installation Procedure for Eclipse Cyclone DDS Python
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Additional Installation Procedures for Python
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 This section shows the installation procedure for Eclipse Cyclone DDS Python, wrapping the `Eclipse Cyclone DDS`_ C-API for easy creation of DDS applications.
 
@@ -276,8 +277,8 @@ CycloneDDS Python requires Python version 3.7 or higher, with 3.11 support provi
 
 If you need these features or cannot use the binaries for other reasons, you can install the Cyclone DDS Python library from the source. You will need to set the environment variable ``CYCLONEDDS_HOME`` to allow the installer to locate the CycloneDDS C library if it is on a non-standard path. At runtime, we leverage several mechanisms to locate the appropriate library for the platform. If you get an exception about non-locatable libraries or wish to manage multiple CycloneDDS installations, you can use the environment variable ``CYCLONEDDS_HOME`` to override the load location.
 
-Installation
-------------
+How to install pip for Python 3.7
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Install with pip from PyPi.
 
@@ -317,7 +318,7 @@ To fix this error, it is recommended to use `a virtual environment`_, `poetry`_,
 .. _first_app:
 
 Your first Python DDS application
------------------------------------
+''''''''''''''''''''''''''''''''''
 
 Let's enter the world of DDS by making our presence known. We will not worry about configuration or what DDS does under the hood but write a single message. To publish anything to DDS we need to define the type of message first. Suppose you are worried about talking to other applications that are not necessarily running Python. In that case, you will use the CycloneDDS IDL compiler, but for now, we will manually define our message type directly in Python using the ``cyclonedds.idl`` tools:
 
@@ -395,7 +396,7 @@ Now with this script running in a second terminal, you should see the message po
 .. _test_your_installation:
 
 Test your Installation
-~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~
 
 To test if your installation and configuration are working correctly,
 you can use the Cyclone DDS *ddsperf* tool (``ddsperf sanity``), or you
@@ -528,7 +529,7 @@ Linux and macOS
 
 TBD.
 
-Building Cyclone DDS applications
+Building Cyclone DDS Applications
 =================================
 
 Building Your First Example
