@@ -51,7 +51,7 @@ Subscribers and Publishers.  Instead, each DDSI reader is the combination of the
 corresponding DCPS data reader and the DCPS subscriber it belongs to; similarly, each
 DDSI writer is a combination of the corresponding DCPS DataWriter and DCPS publisher.
 This corresponds to the way the standardized DCPS built-in topics describe the DCPS data
-readers and DataWriters, as there are no standardized built-in topics for describing
+readers and DataWriter's, as there are no standardized built-in topics for describing
 the DCPS subscribers and publishers either.  Implementations can (and do) offer
 additional built-in topics for describing these entities and include them in the
 discovery, but these are non-standard extensions.
