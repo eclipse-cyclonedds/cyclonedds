@@ -23,31 +23,24 @@ Chapter 2.  (Add hyperlinks here to these sections) Install the C++ support pack
 detailed to give the reader examples of how the DDS technology is used
 with Cyclone to share data.
 
-
-Before You Get Started with Eclipse Cyclone DDS
-===============================================
-
-Before building the Cyclone DDS implementation, make sure you meet all the system prerequisites, Failure to meet the prerequisites 
-will cause the build to fail.
-
 System prerequisites
 ~~~~~~~~~~~~~~~~~~~~
-Add the system prereqs here
+Before building the Eclipse Cyclone DDS implementation, make sure you meet all the system prerequisites, 
+Failure to meet the prerequisites will cause the build to fail.
 
 Supported platforms
-~~~~~~~~~~~~~~~~~~~
+
 At the time of writing this document, Eclipse Cyclone DDS supports
 Linux, macOS, and Windows and is known to work on FreeRTOS, QNX, and the
 Solaris-like Openindiana OS.
 
 Hardware requirements
-~~~~~~~~~~~~~~~~~~~~~
+
 Add the hardware reqs here
 
 Software requirements
-~~~~~~~~~~~~~~~~~~~~~
 
-Before building the Cyclone DDS implementation, make sure you have the following software installed on your machine:
+Make sure you have the following software installed on your machine:
 
 * A C compiler (most commonly GCC or clang on Linux, Visual Studio on Windows, XCode on macOS);
 * `Git <https://git-scm.com/>`__ version control system;
@@ -59,7 +52,6 @@ later to use TLS over TCP. If you need to reduce the footprint or have issues wi
 Post Installation Requirements
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Add (if any) post installation considerations here
-
 
 On Linux, install these dependencies with a package manager of your choice:
 
