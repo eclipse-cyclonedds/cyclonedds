@@ -128,13 +128,13 @@ foreach(source ${templates})
   set(output "${binary_dir}/${source}")
   # process source file. i.e. replace dds and ddsrt with idl
   add_custom_command(
-    OUTPUT "${output}"
+    OUTPUT ${output}
     COMMAND "${CMAKE_COMMAND}" -DNAMESPACE=idl
-                               -DINPUT_FILE="${input}"
-                               -DOUTPUT_DIRECTORY="${binary_dir}"
-                               -DOUTPUT_FILE="${output}"
-                               -P "${script}"
-    DEPENDS "${input}" "${script}")
+                               -DINPUT_FILE=${input}
+                               -DOUTPUT_DIRECTORY=${binary_dir}
+                               -DOUTPUT_FILE=${output}
+                               -P ${script}
+    DEPENDS ${input} ${script})
   if(source MATCHES "^include/.*\\.h")
     list(APPEND headers ${output})
   else()
