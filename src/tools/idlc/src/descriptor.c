@@ -1560,7 +1560,7 @@ emit_declarator(
       if ((ret = stash_bitmask_bits(pstate, &ctype->instructions, nop, (const idl_bitmask_t *)(type_spec))))
         return ret;
     } else if (idl_is_struct(type_spec) || idl_is_union(type_spec)) {
-      if ((ret = stash_element_offset(pstate, &ctype->instructions, nop, type_spec, 3 + (has_size ? 1 : 0), addr_offs)))
+      if ((ret = stash_element_offset(pstate, &ctype->instructions, nop, type_spec, (uint16_t) 3 + (has_size ? 1 : 0), addr_offs)))
         return ret;
     }
     /* generate data field element size */
