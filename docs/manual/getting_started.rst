@@ -667,8 +667,9 @@ Hello World! Code anatomy in C
 ==============================
 
 The previous chapter described the installation process that built
-implicitly or explicitly the C *Hello World!* Example. This chapter
-introduces the fundamental concept of DDS. It details the structural code of a
+implicitly or explicitly the C *Hello World!* Example. 
+
+This chapter introduces the fundamental concept of DDS. It details the structural code of a
 simple system made by an application that publishes keyed messages and
 another one that subscribes and reads such data. Each message represents
 a data object that is uniquely identified with a unique key and a
@@ -1268,7 +1269,7 @@ directory for both Linux and Windows. This chapter describes the example
 build process using the CMake.
 
 Building Eclipse Cyclone DDS CXX applications with CMake
-'''''''''''''''''''''''''''''''''''''''''''''''''
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 
 The CMake build file for the *DDS CXX Hello World* example is located
 under the ``helloworld`` directory (``CMakeLists.txt``).
@@ -1395,6 +1396,7 @@ the `environment variable <#test-your-cxx-installation-for-native-installation>`
 
 Hello World! Code Anatomy in Python
 ===================================
+This section details how to create your first DDS application in Python API.
 
 Your first Python DDS application
 ''''''''''''''''''''''''''''''''''
