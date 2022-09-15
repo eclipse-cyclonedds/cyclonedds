@@ -530,7 +530,7 @@ Linux and macOS
 TBD.
 
 Building your first Cyclone DDS Applications
-=================================
+=============================================
 
 Building Your First Example
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
