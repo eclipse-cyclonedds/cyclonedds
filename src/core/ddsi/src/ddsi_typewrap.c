@@ -879,7 +879,7 @@ static dds_return_t xt_validate_impl (struct ddsi_domaingv *gv, const struct xt_
         {
           if (has_default)
           {
-            GVTRACE ("multiple default flags in union members (index %u)\n", n);
+            GVTRACE ("multiple default flags in union members (index %"PRIu32")\n", n);
             return DDS_RETCODE_BAD_PARAMETER;
           }
           has_default = true;

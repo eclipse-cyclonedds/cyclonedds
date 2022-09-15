@@ -483,7 +483,7 @@ void ddsi_update_proxy_topic (struct ddsi_proxy_participant *proxypp, struct dds
   proxytp->seq = seq;
   proxytp->tupdate = timestamp;
   uint64_t mask = ddsi_xqos_delta (tpd0->xqos, xqos, QP_CHANGEABLE_MASK & ~(QP_RXO_MASK | QP_PARTITION)) & xqos->present;
-  GVLOGDISC ("ddsi_update_proxy_topic %x delta=%"PRIu64" QOS={", proxytp->entityid.u, mask);
+  GVLOGDISC ("ddsi_update_proxy_topic %"PRIx32" delta=%"PRIu64" QOS={", proxytp->entityid.u, mask);
   ddsi_xqos_log (DDS_LC_DISCOVERY, &gv->logconfig, xqos);
   GVLOGDISC ("}\n");
   if (mask == 0)

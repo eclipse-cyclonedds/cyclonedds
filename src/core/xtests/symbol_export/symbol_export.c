@@ -35,8 +35,10 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/strtol.h"
 #include "dds/ddsrt/xmlparser.h"
-#include "dds/ddsrt/filesystem.h"
 #include "dds/ddsrt/io.h"
+#if DDSRT_HAVE_FILESYSTEM
+#include "dds/ddsrt/filesystem.h"
+#endif
 #if DDSRT_HAVE_NETSTAT
 #include "dds/ddsrt/netstat.h"
 #endif
@@ -975,6 +977,7 @@ int main (int argc, char **argv)
   ddsrt_xmlp_free (ptr);
   ddsrt_xmlp_parse (ptr);
 
+#if DDSRT_HAVE_FILESYSTEM
   // ddsrt/filesystem.h
   ddsrt_opendir (ptr, ptr);
   ddsrt_closedir (ptr);
@@ -982,6 +985,7 @@ int main (int argc, char **argv)
   ddsrt_stat (ptr, ptr);
   ddsrt_file_normalize (ptr);
   ddsrt_file_sep ();
+#endif
 
   // ddsrt/io.h
   test_ddsrt_vasprintf (ptr, " ");

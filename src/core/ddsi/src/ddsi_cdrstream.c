@@ -4064,7 +4064,7 @@ static const uint32_t *prtf_delimited (char * __restrict *buf, size_t *bufsize, 
 {
   uint32_t delimited_sz = dds_is_get4 (is), delimited_offs = is->m_index, insn;
   bool needs_comma = false;
-  if (!prtf (buf, bufsize, "dlh:%u", delimited_sz))
+  if (!prtf (buf, bufsize, "dlh:%"PRIu32, delimited_sz))
     return NULL;
   ops++;
   while ((insn = *ops) != DDS_OP_RTS)
@@ -4128,7 +4128,7 @@ static const uint32_t *prtf_pl (char * __restrict *buf, size_t *bufsize, dds_ist
   ops++;
 
   uint32_t pl_sz = dds_is_get4 (is), pl_offs = is->m_index;
-  if (!prtf (buf, bufsize, "pl:%u", pl_sz))
+  if (!prtf (buf, bufsize, "pl:%"PRIu32, pl_sz))
     return NULL;
 
   while (is->m_index - pl_offs < pl_sz)
@@ -4136,7 +4136,7 @@ static const uint32_t *prtf_pl (char * __restrict *buf, size_t *bufsize, dds_ist
     /* read emheader and next_int */
     uint32_t em_hdr = dds_is_get4 (is);
     uint32_t lc = EMHEADER_LENGTH_CODE (em_hdr), m_id = EMHEADER_MEMBERID (em_hdr), msz;
-    if (!prtf (buf, bufsize, ",lc:%u,m:%u,", lc, m_id))
+    if (!prtf (buf, bufsize, ",lc:%"PRIu32",m:%"PRIu32",", lc, m_id))
       return NULL;
     switch (lc)
     {
