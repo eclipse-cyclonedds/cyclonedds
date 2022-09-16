@@ -1924,7 +1924,7 @@ When installing the product from a (.deb) package on the default location, run t
      then call cmake , > cmake ../
 3. Build the example using > cmake --build 
 
-
+You have successfully installed the product from a (.deb) and built your C or C++ example.
 
 Native Installation for Windows
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
