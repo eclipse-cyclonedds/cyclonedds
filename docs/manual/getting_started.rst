@@ -1942,7 +1942,7 @@ Building
 ^^^^^^^^
 
 To build the Cyclone DDS CXX, browse to the folder directory and create
-a "build" folder to retain all the build files.
+a "build" folder to retain all the build files, run the command below:
 
 .. code-block:: bash
 
