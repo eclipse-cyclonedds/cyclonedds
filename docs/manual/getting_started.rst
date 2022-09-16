@@ -37,7 +37,7 @@ Solaris-like Openindiana OS.
 Hardware and Software requirements
 ''''''''''''''''''''''''''''''''''
 
-Make sure you have the following software installed on your machine:
+Make sure you have the following Hardware and software installed on your machine:
 
 * A C compiler (most commonly GCC or clang on Linux, Visual Studio on Windows, XCode on macOS);
 * `Git <https://git-scm.com/>`__ version control system;
