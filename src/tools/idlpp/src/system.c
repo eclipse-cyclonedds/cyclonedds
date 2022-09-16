@@ -330,7 +330,7 @@ static int      dMflag = FALSE;         /* Flag of -dM option       */
 #if COMPILER == GNUC || COMPILER == MSC
 /*
  * preinclude points to the file specified by -include (-Fl for MSC) option,
- * which is included prior to the main input file.
+ * which is included before the main input file.
  */
 #define         NPREINCLUDE 8
 static char *   preinclude[ NPREINCLUDE];       /* File to pre-include      */
@@ -1505,7 +1505,7 @@ static void usage(
 "            (Don't insert spaces around '=').\n",
 #endif
 #if COMPILER == MSC
-"-Fl <file>  Include the <file> prior to the main input file.\n",
+"-Fl <file>  Include the <file> before the main input file.\n",
 "-G<n>       Define the macro _M_IX86 according to <n>.\n",
 #endif
 #if COMPILER == LCC
@@ -1516,7 +1516,7 @@ static void usage(
 
 #if COMPILER == GNUC
 "-isysroot <dir>     Change root of system header directory to <dir>.\n",
-"-include <file>     Include the <file> prior to the main input file.\n",
+"-include <file>     Include the <file> before the main input file.\n",
 #else
 "-I-         Unset system or site specific include directories.\n",
 #endif
@@ -1763,7 +1763,7 @@ static void def_a_macro(
     if (mcpp_mode == STD && option_flags.trig)
         cnv_trigraph( def);
     if (mcpp_mode == POST_STD && option_flags.dig)
-        cnv_digraph( def);  /* Convert prior to installing macro    */
+        cnv_digraph( def);  /* Convert before installing macro    */
     definition = xmalloc( strlen( def) + 4);
     strcpy( definition, def);
     if ((cp = strchr( definition, '=')) != NULL) {
@@ -2126,7 +2126,7 @@ void    init_sys_macro( void)
 
 void    at_start( void)
 /*
- * Do the commands prior to processing main source file after do_options().
+ * Do the commands before processing main source file after do_options().
  */
 {
     char *  env;

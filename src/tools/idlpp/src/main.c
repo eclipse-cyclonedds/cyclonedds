@@ -376,7 +376,7 @@ int     main
     inc_dirp = &null;   /* Initialize to current (null) directory   */
     cur_fname = cur_fullname = "(predefined)";  /* For predefined macros    */
     init_defines();                         /* Predefine macros     */
-    mb_init();      /* Should be initialized prior to get options   */
+    mb_init();      /* Should be initialized before get options   */
     do_options( argc, argv, &in_file, &out_file);   /* Command line options */
 
     /* Open input file, "-" means stdin.    */
@@ -543,7 +543,7 @@ static PRESET   preset[] = {
 static void init_defines( void)
 /*
  * Initialize the built-in #define's.
- * Called only on cpp startup prior to do_options().
+ * Called only on cpp startup before do_options().
  *
  * Note: the built-in static definitions are removed by the -N option.
  */

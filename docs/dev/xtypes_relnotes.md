@@ -18,7 +18,7 @@
 - The C deserializer does not support explicit defaults for members of an aggregated type (`default` annotation)
 - External (7.3.1.2.1.4) collections element types not supported (e.g. `sequence<@external b>`)
 - Using `default_literal` (7.3.1.2.1.10) to set the default for enumerated types is not supported
-- Default extensibility is `final` rather than `appendable` to maintain backwards compatibility with DDS implementations that do not support XTypes (including Cyclone DDS versions prior to 0.9.0). The IDL compiler has command-line option to select a different default.
+- Default extensibility is `final` rather than `appendable` to maintain backwards compatibility with DDS implementations that do not support XTypes (including Cyclone DDS versions before 0.9.0). The IDL compiler has command-line option to select a different default.
 
 ### Type Representation
 
@@ -35,7 +35,7 @@
 
 ### Data Representation
 
-- Default data representation is XCDR1 for `@final` types without optional members to maintain backwards compatibility with DDS implementations that do not support XTypes (including Cyclone DDS versions prior to 0.9.0).
+- Default data representation is XCDR1 for `@final` types without optional members to maintain backwards compatibility with DDS implementations that do not support XTypes (including Cyclone DDS versions before 0.9.0).
     
     All other types require XCDR2: following 7.6.3.1.1 there is no need to support XCDR1 for interoperating with DDS implementations (ignoring those that only support XTypes 1.0 or 1.1, but not 1.2 or later).
     

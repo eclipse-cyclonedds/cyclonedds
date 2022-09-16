@@ -2619,7 +2619,7 @@ him by the DataReader.
          sample_iter < samples.end();
          ++sample_iter)
 
-For each individual sample, cast and extract its user defined data
+For each sample, cast and extract its user-defined data
 (``Msg``) and metadate (``info``).
 
 .. code-block:: C++
@@ -2629,11 +2629,11 @@ For each individual sample, cast and extract its user defined data
 
 The SampleInfo (``info``) tells us whether the data we are taking is
 *Valid* or *Invalid*. Valid data means that it contains the payload
-provided by the publishing application. Invalid data means, that we are
-reading the DDS state of data Instance. The state of a data instance can
-be ``DISPOSED`` by the writer or it is ``NOT_ALIVE`` anymore, which
+provided by the publishing application. Invalid data means that we are
+reading the DDS state of the data Instance. The state of a data instance can
+be ``DISPOSED`` by the writer, or it is ``NOT_ALIVE`` anymore, which
 could happen if the publisher application terminates while the
-subscriber is still active. In this case the sample is not considered
+subscriber is still active. In this case, the sample is not considered
 Valid, and its sample ``info.valid()`` field is False.
 
 .. code-block:: C++
@@ -2664,7 +2664,7 @@ regular intervals. The discretion of these mechanisms is beyond the
 scope of this document.
 
 All the entities that are created under the participant, such as the
-Data Reader Subscriber and Topic, are automatically deleted by
+Data Reader Subscriber and Topic are automatically deleted by
 middleware through the scoping mechanism.
 
 DDS CXX *Hello World* Publisher Source Code
@@ -2673,10 +2673,10 @@ DDS CXX *Hello World* Publisher Source Code
 The ``Publisher.cpp`` contains the source that writes a *Hello World*
 message. From the DDS perspective, the publisher application code is
 almost symmetrical to the subscriber one, except that you need to create
-a Publisher and DataWriter respectively, instead of a Subscriber and
-Data Reader. To ensure data is only written when Cyclone DDS discovers
-at least a matching reader, a synchronization statement is added to the
-main thread. Synchronizing the main thread until a reader is discovered
+a Publisher and DataWriter, respectively, instead of a Subscriber and
+Data Reader. A synchronization statement is added to the main thread to 
+ensure data is only written when Cyclone DDS discovers at least a matching 
+reader. Synchronizing the main thread until a reader is discovered
 assures we can start the publisher or subscriber program in any order.
 
 .. code-block:: C++
@@ -2857,7 +2857,7 @@ We welcome all contributions to the project, including questions,
 examples, bug fixes, enhancements or improvements to the documentation,
 etc.
 
-If you want to contribute code, it is useful to know that build
+If you want to contribute code, it is helpful to know that build
 configurations for Azure DevOps Pipelines are present in the repositories
 and there is a test suite using CTest and CUnit that can be built
 locally. The following sections explain how to do this for the different
@@ -2886,7 +2886,7 @@ This build requires `CUnit <http://cunit.sourceforge.net/>`__. You can
 install this yourself, or you can choose to instead rely on the
 `Conan <https://conan.io/>`__ packaging system that the CI build
 infrastructure also uses. In that case, install Conan in the build
-directory prior to running CMake:
+directory before running CMake:
 
 .. code-block:: bash
 
@@ -2916,7 +2916,7 @@ This build requires `CUnit <http://cunit.sourceforge.net/>`__. You can
 install this yourself, or you can choose to instead rely on the
 `Conan <https://conan.io/>`__ packaging system that the CI build
 infrastructure also uses. In that case, install Conan in the build
-directory prior to running CMake:
+directory before running CMake:
 
 .. code-block:: bash
 
@@ -2964,13 +2964,13 @@ Test <https://github.com/google/googletest>`__. You can install this
 yourself, or you can choose to instead rely on the
 `Conan <https://conan.io/>`__ package manager that the CI build
 infrastructure also uses. In that case, install Conan in the build
-directory prior to running CMake:
+directory before running CMake:
 
 .. code-block:: bash
 
     conan install .. --build missing
 
-This automatically downloads and/or builds Google Test.
+This automatically downloads and builds Google Test.
 
 Windows
 ~~~~~~~
@@ -3001,7 +3001,7 @@ Test <https://github.com/google/googletest>`__. You can install this
 yourself, or you can choose to instead rely on the
 `Conan <https://conan.io/>`__ package manager that the CI build
 infrastructure also uses. In that case, install Conan in the build
-directory prior to running CMake:
+directory before running CMake:
 
 .. code-block:: bash
 

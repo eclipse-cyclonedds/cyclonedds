@@ -504,7 +504,7 @@ static void     conv_case(
 void    mb_init( void)
 /*
  * Initialize multi-byte character settings.
- * First called prior to setting the 'mcpp_mode'.
+ * First called before setting the 'mcpp_mode'.
  * Will be called again each time the multibyte character encoding is changed.
  */
 {

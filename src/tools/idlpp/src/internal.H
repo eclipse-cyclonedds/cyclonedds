@@ -35,7 +35,7 @@
  */
 
 #ifndef SYSTEM_H
-    #error "system.H" must be included prior to "internal.H"
+    #error "system.H" must be included before "internal.H"
 #endif
 
 #include "mcpp_out.h"
@@ -513,7 +513,7 @@ extern void     do_options( int argc, char ** argv, char ** in_pp
 extern void     init_sys_macro( void);
                 /* Define system-specific macro */
 extern void     at_start( void);
-                /* Commands prior to main input */
+                /* Commands before main input */
 extern void     put_depend( const char * filename);
                 /* Output source dependency line*/
 extern int      do_include( int next);

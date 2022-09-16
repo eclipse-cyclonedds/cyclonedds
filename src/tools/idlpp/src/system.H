@@ -104,7 +104,7 @@
  *      <backslash><newline> sequence is always deleted after trigraph
  *          conversion and before tokenization.
  *      Digraph sequences are recognized as tokens.
- *      Actual arguments of a macro are expanded separately prior to
+ *      Actual arguments of a macro are expanded separately before
  *          re-scanning of the replacement text.
  *      The name in the replacement text once expanded is not re-expanded,
  *          thus preventing recursive death.

@@ -942,7 +942,7 @@ dds_get_listener(dds_entity_t entity, dds_listener_t * listener);
  * Listener callback is invoked and the communication status is reset
  * to FALSE, as the listener implicitly accesses the status which is passed as a
  * parameter to that operation.
- * The status is reset prior to calling the listener, so if the application calls
+ * The status is reset before calling the listener, so if the application calls
  * the get_<status_name> from inside the listener it will see the
  * status already reset.
  *

@@ -203,7 +203,7 @@ In that case, install Conan and do:
 
     $ conan install .. --build missing
 
-in the build directory prior to running cmake.
+in the build directory before running cmake.
 
 For Windows, depending on the generator, you might also need to add switches to select the architecture and build type, e.g., `conan install -s arch=x86_64 -s build_type=Debug ..`
 This will automatically download and/or build CUnit (and, at the moment, OpenSSL).

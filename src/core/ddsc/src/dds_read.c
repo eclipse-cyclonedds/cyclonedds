@@ -514,7 +514,7 @@ dds_return_t dds_return_reader_loan (dds_reader *rd, void **buf, int32_t bufsz)
   if (bufsz <= 0)
   {
     /* No data whatsoever, or an invocation following a failed read/take call.  Read/take
-       already take care of restoring the state prior to their invocation if they return
+       already take care of restoring the state before their invocation if they return
        no data.  Return late so invalid handles can be detected. */
     return DDS_RETCODE_OK;
   }

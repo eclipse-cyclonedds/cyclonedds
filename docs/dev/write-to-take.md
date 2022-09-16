@@ -128,7 +128,7 @@ are transmitted on a separate thread.
       |             |
       |  frees receive buffer claims after having created the "serdata" (5)
       |  typical synchronous delivery path without message loss:
-      |    - resets receive buffer allocator pointer to what it was prior to processing
+      |    - resets receive buffer allocator pointer to what it was before processing
       |      datagram, re-using the memory for the next packet
       |    - (but typical is not so interesting in a worst-case analysis ...)
       |             |

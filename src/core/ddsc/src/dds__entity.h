@@ -117,7 +117,7 @@ union dds_status_union {
 #define DDS_RESET_STATUS_FIELDS_N(n_, ent_, status_, ...) DDS_RESET_STATUS_FIELDS_N1 (n_, ent_, status_, __VA_ARGS__)
 
 // Don't set the status in the mask, not even for a very short while if in spec-compliant
-// mode of resetting the status prior to invoking the listener.  The only reason is so
+// mode of resetting the status before invoking the listener.  The only reason is so
 // that the initial evaluation of the conditions in a waitset has no window to observe the
 // status.  Nowhere does it say that this is required, but it makes writing a test for the
 // listener/waitset-trigger ordering even more problematic.

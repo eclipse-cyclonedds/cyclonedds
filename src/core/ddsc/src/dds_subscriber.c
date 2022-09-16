@@ -162,7 +162,7 @@ void dds_subscriber_adjust_materialize_data_on_readers (dds_subscriber *sub, boo
   if (propagate)
   {
     // propagate into readers and set DATA_ON_READERS if there is any reader with DATA_AVAILABLE set
-    // no need to trigger waitsets, as this gets done prior to attaching
+    // no need to trigger waitsets, as this gets done before attaching
     dds_instance_handle_t last_iid = 0;
     dds_entity *rd;
     while ((rd = ddsrt_avl_lookup_succ (&dds_entity_children_td, &sub->m_entity.m_children, &last_iid)) != NULL)
@@ -190,7 +190,7 @@ void dds_subscriber_adjust_materialize_data_on_readers (dds_subscriber *sub, boo
     }
   }
 
-  /* Set/clear DATA_ON_READERS - no point in triggering waitsets as it becomes materialized prior to
+  /* Set/clear DATA_ON_READERS - no point in triggering waitsets as it becomes materialized before
      attaching it to a waitset. */
   ddsrt_mutex_lock (&sub->m_entity.m_observers_lock);
   if (dds_subscriber_compute_data_on_readers_locked (sub))

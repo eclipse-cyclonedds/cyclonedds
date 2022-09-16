@@ -29,7 +29,7 @@ exchange, this default configuration is usually fine and no further action is re
 
 Configuration parameters for Eclipse CycloneDDS are expressed in XML and grouped together in a
 single XML file.  To use a custom XML configuration in an application, the ``CYCLONEDDS_URI``
-environment variable needs to be set prior to starting the application and pointed to the location
+environment variable needs to be set before starting the application and pointed to the location
 of the configuration file to be used.
 
 | *Example*

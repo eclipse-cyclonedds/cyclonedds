@@ -750,7 +750,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
   // After including the reader amongst the subscriber's children, the subscriber will start
   // propagating whether data_on_readers is materialised or not.  That doesn't cater for the cases
   // where pessimistically set it to materialized here, nor for the race where the it actually was
-  // materialized but no longer so prior to `dds_entity_register_child`.
+  // materialized but no longer so before `dds_entity_register_child`.
   ddsrt_mutex_lock (&rd->m_entity.m_observers_lock);
   ddsrt_mutex_lock (&sub->m_entity.m_observers_lock);
   if (sub->materialize_data_on_readers == 0)

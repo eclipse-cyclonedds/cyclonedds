@@ -1,8 +1,8 @@
 This document is a declaration of software quality for the [Eclipse Cyclone DDS](https://github.com/eclipse-cyclonedds/cyclonedds) (hereafter simply "Cyclone DDS") project, based on the guidelines in [REP-2004](https://www.ros.org/reps/rep-2004.html). This quality declaration is therefore specific to use in [ROS 2](https://docs.ros.org/en/rolling/)-based systems.
 
-# Cyclone DDS Quality Declaration
+# Eclipse Cyclone DDS Quality Declaration
 
-Cyclone DDS meets all the requirements of **Quality Level 2** category.
+Eclipse Cyclone DDS meets all the requirements of **Quality Level 2** category.
 The requirements for the various quality level categories are defined by [REP-2004](https://www.ros.org/reps/rep-2004.html).
 The rationale, notes and caveats for this claim are provided by the remainder of this document.
 
@@ -10,7 +10,7 @@ The rationale, notes and caveats for this claim are provided by the remainder of
 
 ### Version Scheme [1.i]
 
-Cyclone DDS version numbers are organised as MAJOR.MINOR.PATCH where all three components are non-negative decimal numbers.
+Eclipse Cyclone DDS version numbers are organised as MAJOR.MINOR.PATCH where all three components are non-negative decimal numbers.
 Version number policy follows the following rules:
 
 * MAJOR version is incremented when an incompatible API change is made;
@@ -100,7 +100,7 @@ Check [Eclipse Developer Process](https://www.eclipse.org/projects/dev_process/)
 
 ### Continuous Integration [2.iv]
 
-Pull requests are required to pass all tests in the CI system prior to merging, unless Committers consider there is sufficient evidence that a failure is the result of a mishap unrelated to the change.
+Pull requests are required to pass all tests in the CI system before merging, unless Committers consider there is sufficient evidence that a failure is the result of a mishap unrelated to the change.
 Cyclone DDS CI results are [public](https://dev.azure.com/eclipse-cyclonedds/cyclonedds/_build) and cover x64 and x86 platforms running Linux, macOS and Windows:
 
 - Ubuntu 20.04 with gcc 10
