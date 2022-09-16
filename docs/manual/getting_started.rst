@@ -1188,9 +1188,8 @@ topic to create a writer. We must also use the same topic name specified in ``su
 
 When Cyclone DDS discovers readers and writers sharing the same data
 type and topic name, it connects them without the application's
-involvement. A rendezvous pattern is required to write data only 
-when a DataReader appears. Such a pattern can be implemented by
-either:
+involvement. A rendezvous pattern is required to write data only when 
+a data reader appears. Either can implement such a pattern:
 
 *  Waiting for the publication/subscription matched events, where the
    Publisher waits and blocks the writing thread until the appropriate
@@ -2160,29 +2159,29 @@ next subsection).
 To exchange data, applications' business logic with Cyclone DDS must:
 
 1. Declare its subscription and involvement into a **DDS domain**. A
-   DDS domain is an administrative boundary that defines, scopes and
+   DDS domain is an administrative boundary that defines, scopes, and
    gathers all the DDS applications, data, and infrastructure that needs
    to interconnect and share the same data space. Each DDS domain has a
    unique identifier. Applications declare their participation within a
    DDS domain by creating a **Domain Participant entity**.
-2. Create a **Data topic** that has the data type described in the data
-   model. The data types define the structure of the Topic. The Topic is
-   therefore an association between the topic name and datatype. QoSs
-   can be optionally added to this association. A Topic therefore
-   categories the data in logical classes and streams.
-3. Create at least a **Publisher** , a **Subscriber**, and **Data
-   Readers** and **Writers** objects that are specific to the topic
+2. Create a **Data topic** with the data type described in the data
+   model. The data types define the structure of the Topic. The Topic is,
+   therefore, an association between the topic name and datatype. QoSs
+   can be optionally added to this association. A Topic, therefore
+   categorizes the data into logical classes and streams.
+3. Create at least a **Publisher**, a **Subscriber**, and **Data
+   Readers** and **Writers** object specific to the topic
    created earlier. Applications may want to change the default QoSs at
    this stage. In the Hello world! example, the ``ReliabilityQoS`` is
    changed from its default value (Best-effort) to Reliable.
-4. Once the previous DDS computational object s are in place, the
+4. Once the previous DDS computational objects are in place, the
    application logic can start writing or reading the data.
 
-At the application level, readers and writers do not need to be aware of
-each other. The reading application, hereby designated as application
-Subscriber polls the data reader periodically, until a writing
-application, hereby called application Publisher, provides the required
-data into the shared topic, namely ``HelloWorldData_Msg``.
+At the application level, readers and writers need not be aware of
+each other. The reading application, now designated as application
+Subscriber polls the data reader periodically until a writing
+application, as a result of this called application Publisher, 
+provides the required data into the shared Topic, namely ``HelloWorldData_Msg``.
 
 The data type is described using the OMG `IDL
 Language <http://www.omg.org/gettingstarted/omg_idl.htm>`__ located in
@@ -2193,20 +2192,20 @@ This data model is preprocessed and compiled by Cyclone-DDS CXX
 IDL-Compiler to generate a CXX representation of the data as described
 in Chapter 6. These generated source and header files are used by the
 ``HelloworldSubscriber.cpp`` and ``HelloworldPublisher.cpp``
-applicationprograms to share the *Hello World!* Message instance and
+application programs to share the *Hello World!* Message instance and
 sample.
 
 HelloWorld IDL
 ''''''''''''''
 
 As explained in chapter 3, the benefits of using IDL language to define
-data is to have a data model that is independent from the programming
+data is to have a data model that is independent of the programming
 languages. The ``HelloWorld.idl`` IDL file used in chapter 3 can
 therefore be reused, it is compiled to be used within C++ DDS based
 applications.
 
-The HelloWorld data type is described in a language independent way and
-stored in the HelloWorldData.idl file (same as in chapter 3).
+The HelloWorld data type is described in a language-independent way and
+stored in the HelloWorldData.idl file (as in chapter 3).
 
 .. code-block:: omg-idl
 
@@ -2219,24 +2218,23 @@ stored in the HelloWorldData.idl file (same as in chapter 3).
         };
     };
 
-A subset of the OMG Interface Definition Language (IDL) is used as DDS
+The OMG Interface Definition Language (IDL) subset uses a DDS
 data definition language. In our simple example, the HelloWorld data
-model is made of one module ``HelloWorldData``. A module can be seen as
-namespace where data with interrelated semantic is represented together
-in the same logical set.
+model is made of one module ``HelloWorldData``. A module can be seen 
+as a namespace where data with interrelated semantics is represented 
+together in the same logical set.
 
 The struct Msg is the actual data structure that shapes the data used to
-build the Topics. As already mentioned, a topic is basically an
+build the Topics. As already mentioned, a topic is an
 association between a data type and a string name. The topic name is not
-defined in the IDL file, but it is defined by the application business
-logic, at runtime.
+defined in the IDL file but is defined by the application business
+logic at runtime.
 
 In our case, the data type ``Msg`` contains two fields: ``userID`` and
-``message`` payload. The ``userID`` is used as a unique identification
-of each message instance. This is done using the
-``@key`` annotation.
+``message`` payload. The ``userID`` is used to identify each message 
+instance uniquely. This is done using the ``@key`` annotation.
 
-The Cyclone DDS CXX IDL compiler translates the module name into
+The Cyclone DDS CXX IDL compiler translates the module names into
 namespaces and structure name into classes.
 
 It also generates code for public accessor functions for all fields
@@ -2245,14 +2243,14 @@ destructor:
 
 -  A default (empty) constructor that recursively invokes the
    constructors of all fields
--  A copy-constructor that performs a deep-copy from the existing class
+-  A copy-constructor that performs a deep copy from the existing class
 -  A move-constructor that moves all arguments to its members
 
 The destructor recursively releases all fields. It also generates code
 for assignment operators that recursively construct all fields based on
 the parameter class (copy and move versions). The following code snippet is
-provided without warrenty: the internal format can change, but it API it provides
-to your application code is stable.
+provided without warranty: the internal format can change, but the API 
+it provides to your application code is stable.
 
 .. code-block:: C++
 
@@ -2325,19 +2323,19 @@ to your application code is stable.
     }
 
 **Note:** When translated into a different programming language, the
-data has a different representation that is specific to the target
-language. For instance, as shown in chapter 3, in C the Helloworld data
-type is represented by a C structure. This is the advantage of using a
+data has a different representation specific to the target
+language. For instance, as shown in chapter 3, in C, the Helloworld data
+type is represented by a C structure. This advantage of using a
 neutral language like IDL to describe the data model. It can be
-translated into different languages that can be shared between different
-applications written in different programming languages.
+translated into different languages that can be shared between various
+applications written in other programming languages.
 
 The IDL compiler generated files
 ''''''''''''''''''''''''''''''''
 
 The IDL compiler is a bison-based parser written in pure C and should be
 fast and portable. It loads dynamic libraries to support different output
-languages, but this is almost never relevant to you as a user. You can use
+languages, but this is seldom relevant to you as a user. You can use
 ``CMake`` recipes as described above or invoke directly:
 
 .. code-block:: bash
@@ -2351,19 +2349,19 @@ and subscriber application business logic:
 -  ``HelloWorldData.hpp``
 -  ``HelloWorldData.cpp``
 
-When using CMake to build the application, this step is hidden, and is
+When using CMake to build the application, this step is hidden and is
 done automatically. For building with CMake, refer to `building the
-Hello World example. <#build-the-dds-cxx-hello-world-example>`__
+HelloWorld example. <#build-the-dds-cxx-hello-world-example>`__
 
 ``HelloWorldData.hpp`` and ``HelloWorldData.cpp`` files contain the data
-type of the messages that are shared.
+type of messages that are shared.
 
 DDS CXX Hello World Business Logic
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 As well as from the ``HelloWorldData`` data type files that the *DDS CXX
-Hello World* example uses to send messages, the *DDS CXX Hello World!*
-example also contains two application-level source files
+Hello World* example used to send messages, the *DDS CXX Hello World!*
+the example also contains two application-level source files
 (``subscriber.cpp`` and ``publisher.cpp``), containing the business
 logic.
 
@@ -2480,8 +2478,8 @@ be included:
     #include "dds/dds.hpp"
     #include "HelloWorldData.hpp"
 
-At least four DDS entities are needed, the domain participant, the topic
-, the subscriber and the reader.
+At least four DDS entities are needed, the domain participant, 
+the topic, the subscriber, and the reader.
 
 .. code-block:: C++
 
@@ -2491,7 +2489,7 @@ At least four DDS entities are needed, the domain participant, the topic
     dds::sub::DataReader<HelloWorldData::Msg> reader(subscriber,topic);
 
 The Cyclone DDS CXX API simplifies and extends how data can be read or
-taken. To handle the data some ``LoanedSamples`` are declared and
+taken. To handle the data some, ``LoanedSamples`` is declared and
 created which loans samples from the Service pool. Return of the loan is
 implicit and managed by scoping:
 
@@ -2501,7 +2499,7 @@ implicit and managed by scoping:
     dds::sub::LoanedSamples<HelloWorldData::Msg>::const_iterator sample_iter;
 
 As the ``read( )/take()`` operation may return more the one data sample
-(in the event that several publishing applications are started
+(if several publishing applications are started
 simultaneously to write different message instances), an iterator is
 used.
 
@@ -2510,10 +2508,10 @@ used.
     const::HelloWorldData::Msg& msg;
     const dds::sub::SampleInfo& info;
 
-In DDS data and metadata are propagated together. The samples are a set
-of the data-samples ( i.e user defined data) and metadata describing the
-sample state, validity etc ,,, (``info``). To get the data and its
-metadata from each of the samples, we can use iterators.
+In DDS, data and metadata are propagated together. The samples are a 
+set of data samples (i.e., user-defined data) and metadata describing the
+sample state and validity, etc ,,, (``info``). We can use iterators to 
+get the data and metadata from each sample.
 
 
 .. code-block:: C++
@@ -2526,9 +2524,9 @@ metadata from each of the samples, we can use iterators.
         return EXIT_FAILURE;
     }
 
-It is good practice to surround every key verbs of the DDS APIs with
-``try/catch`` block to precisely locate issues when they occur. In this
-example one block is used to facilitate the programming model of the
+It is good practice to surround every key verb of the DDS APIs with
+``try/catch`` block to locate issues precisely when they occur. In this
+example, one block is used to facilitate the programming model of the
 applications and improve their source code readability.
 
 .. code-block:: C++
@@ -2537,8 +2535,8 @@ applications and improve their source code readability.
 
 The DDS participant is always attached to a specific DDS domain. In the
 Hello World! example, it is part of the Default\_Domain, the one
-specified in the xml deployment file that you potentially be created
-(i.e. the one pointing to ``$CYCLONEDDS_URI``), please refer to
+specified in the XML deployment file that you potentially be created
+(i.e., the one pointing to ``$CYCLONEDDS_URI``), please refer to
 :ref:`testing your installation <test_your_installation>` for further details.
 
 Subsequently, create a subscriber attached to your participant.
@@ -2552,7 +2550,7 @@ name(\ ``ddscxx_helloworld_example``)and the predefined data
 type(\ ``HelloWorldData::Msg``). Topics with the same data type
 description and with different names are considered different topics.
 This means that readers or writers created for a given topic do not
-interfere with readers or writers created with another topic even if
+interfere with readers or writers created with another topic, even if
 they are the same data type.
 
 .. code-block:: C++
@@ -2574,18 +2572,19 @@ To modify the Data Reader Default Reliability Qos to Reliable:
     dds::sub::DataReader<HelloWorldData::Msg> dr(subscriber, topic, drqos);
 
 To retrieve data in your application code from the data reader's cache
-you can either use pre-allocated a buffer to store the data or loaned it
+you can either use a pre-allocated buffer to store the data or loan it
 from the middleware.
 
-If you decide to use a pre-allocated buffer, you create an array/vector
+If you use a pre-allocated buffer, you create an array/vector-like 
 like container. If you use the loaned buffer option, you need to be
 aware that these buffers are actually 'owned' by the middleware,
-precisely by the DataReader. The Cyclone DDS CXX API allows you to
-return the loans implicitly through scoping.
+precisely by the DataReader. The Cyclone DDS CXX API implicitly 
+allows you to return the loans through scoping.
 
-In our example we are using the loan samples mode (``LoanedSamples``).
-``Samples`` are an unbounded sequence of samples; the length of the
-sequence depends on the amount of data available in the data reader's
+
+In our example, we use the loan samples mode (``LoanedSamples``).
+``Samples`` are an unbounded sequence of samples; the sequence 
+length depends on the amount of data available in the data reader's
 cache.
 
 .. code-block:: C++
@@ -2632,7 +2631,7 @@ The SampleInfo (``info``) tells us whether the data we are taking is
 provided by the publishing application. Invalid data means that we are
 reading the DDS state of the data Instance. The state of a data instance can
 be ``DISPOSED`` by the writer, or it is ``NOT_ALIVE`` anymore, which
-could happen if the publisher application terminates while the
+could happen when the publisher application terminates while the
 subscriber is still active. In this case, the sample is not considered
 Valid, and its sample ``info.valid()`` field is False.
 
@@ -2712,10 +2711,10 @@ assures we can start the publisher or subscriber program in any order.
             /* Now, the writer can be created to publish a HelloWorld message. */
             dds::pub::DataWriter<HelloWorldData::Msg> writer(publisher, topic);
 
-            /* For this example, we'd like to have a subscriber to actually read
+            /* For this example, we'd like to have a subscriber read
              * our message. This is not always necessary. Also, the way it is
-             * done here is just to illustrate the easiest way to do so. It isn't
-             * really recommended to do a wait in a polling loop, however.
+             * done here is to illustrate the easiest way to do so. It isn't
+             * It is recommended to do a wait in a polling loop, however
              * Please take a look at Listeners and WaitSets for much better
              * solutions, albeit somewhat more elaborate ones. */
             std::cout << "=== [Publisher] Waiting for subscriber." << std::endl;
@@ -2731,8 +2730,8 @@ assures we can start the publisher or subscriber program in any order.
             writer.write(msg);
 
             /* With a normal configuration (see dds::pub::qos::DataWriterQos
-             * for various different writer configurations), deleting a writer will
-             * dispose all its related message.
+             * for various writer configurations), deleting a writer will
+             * dispose of all its related messages.
              * Wait for the subscriber to have stopped to be sure it received the
              * message. Again, not normally necessary and not recommended to do
              * this in a polling loop. */
@@ -2772,8 +2771,9 @@ An exception handling mechanism ``try/catch`` block is used.
     }
 
 AS with the reader in ``subscriber.cpp``, we need a participant, a
-topic, and a publisher to be able to create a writer. We also need to
-use the same topic name as the one specified in the ``subscriber.cpp``.
+topic, and a publisher to create a writer. We must also 
+
+use the same topic name specified in the ``subscriber.cpp``.
 
 .. code-block:: C++
 
@@ -2797,16 +2797,15 @@ To modify the DataWriter Default Reliability Qos to Reliable:
     dds::sub::DataWriter<HelloWorldData::Msg> dr(publisher, topic, dwqos);
 
 When Cyclone DDS discovers readers and writers sharing the same data
-type and topic name, it connects them without the application
-involvement. In order to write data only when a data reader appears, a
-rendez-vous pattern is required. Such pattern can be implemented by
-either:
+type and topic name, it connects them without the application's
+involvement. A rendezvous pattern is required to write data only when 
+a data reader appears. Either can implement such a pattern:
 
 1. Wait for the publication/subscription matched events, where the
-   Publisher waits and blocks the writing-thread until the appropriate
+   Publisher waits and blocks the writing thread until the appropriate
    publication matched event is raised, or
-2. Regularly, poll the publication matching status. This is the
-   preferred option used in this example.The following line of code
+2. Regularly poll the publication matching status. This is the
+   preferred option used in this example. The following line of code
    instructs Cyclone DDS to listen on the
    ``writer.publication_matched_status()``
 
@@ -2823,7 +2822,7 @@ publication. In between, the writing thread sleeps for 20 milliseconds.
           std::this_thread::sleep_for(std::chrono::milliseconds(20));
     }
 
-After this loop, we are certain that a matching reader has been
+After this loop, we are confident that a matching reader has been
 discovered. Now, we can commence the writing of the data instance.
 First, the data must be created and initialized
 
@@ -2838,8 +2837,8 @@ Send the data instance of the keyed message.
     writer.write(msg);
 
 After writing the data to the writer, the *DDS CXX Hello World* example
-checks if there is still a matching subscriber(s) available. If there is
-a matching subscriber(s), the example waits for 50ms and start
+checks if a matching subscriber(s) is still available. If 
+a matching subscriber(s) exists, the example waits for 50ms and starts
 publishing the data again. If no matching subscriber is found, then the
 publisher program is ended.
 
@@ -2847,7 +2846,7 @@ publisher program is ended.
 
     return EXIT_SUCCESS;
 
-Through scoping, all the entities such as topic, writer … etc are
+Through scoping, all the entities such as topic, writer, etc. are
 deleted automatically.
 
 Contributing to Eclipse Cyclone DDS
@@ -2858,9 +2857,11 @@ examples, bug fixes, enhancements or improvements to the documentation,
 etc.
 
 If you want to contribute code, it is helpful to know that build
-configurations for Azure DevOps Pipelines are present in the repositories
-and there is a test suite using CTest and CUnit that can be built
-locally. The following sections explain how to do this for the different
+configurations for Azure DevOps Pipelines are present in the repositories.
+There is a test suite using CTest and CUnit that can be built
+locally. 
+
+The following sections explain how to do this for the different
 operating systems.
 
 Linux and macOS
@@ -2929,7 +2930,7 @@ to select the architecture and build type, e.g.:
 
     conan install -s arch=x86_64 -s build_type=Debug ..
 
-This automatically downloads and/or builds CUnit
+This automatically downloads and builds CUnit
  (and currently OpenSSL for transport security).
 
 Contributing to Eclipse Cyclone DDS CXX
@@ -2961,7 +2962,7 @@ To install the package:
 
 This build requires `Google
 Test <https://github.com/google/googletest>`__. You can install this
-yourself, or you can choose to instead rely on the
+yourself or you can choose to instead rely on the
 `Conan <https://conan.io/>`__ package manager that the CI build
 infrastructure also uses. In that case, install Conan in the build
 directory before running CMake:
@@ -2998,7 +2999,7 @@ To install the package:
 
 This build requires `Google
 Test <https://github.com/google/googletest>`__. You can install this
-yourself, or you can choose to instead rely on the
+yourself or you can choose to instead rely on the
 `Conan <https://conan.io/>`__ package manager that the CI build
 infrastructure also uses. In that case, install Conan in the build
 directory before running CMake:
