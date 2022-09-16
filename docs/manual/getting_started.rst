@@ -121,10 +121,6 @@ If you want to contribute to Cyclone DDS, please refer to `Appendix I
 Contributing to Eclipse Cyclone
 DDS <#appendix-i-contributing-to-eclipse-cyclone-dds>`__.
 
-Installation with product installer for Linux and macOS
-''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-
-TBD.
 
 Installation on Windows
 ~~~~~~~~~~~~~~~~~~~~~~~
