@@ -34,12 +34,9 @@ At the time of writing this document, Eclipse Cyclone DDS supports
 Linux, macOS, and Windows and is known to work on FreeRTOS, QNX, and the
 Solaris-like Openindiana OS.
 
-Hardware requirements
-'''''''''''''''''''''
-Add the hardware reqs here
+Hardware and Software requirements
+''''''''''''''''''''''''''''''''''
 
-Software requirements
-'''''''''''''''''''''
 Make sure you have the following software installed on your machine:
 
 * A C compiler (most commonly GCC or clang on Linux, Visual Studio on Windows, XCode on macOS);
