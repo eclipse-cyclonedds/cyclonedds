@@ -414,13 +414,14 @@ The primary source of information is the OMG website at
 Getting <http://www.omg.org/gettingstarted/omg_idl.htm>`__\ Startedpage
 and the `DDS specification <http://www.omg.org/spec/DDS/>`__.
 
-In the future, we will provide the following:
 
+What's new and planned for Documents and Guides
+'''''''''''''''''''''''''''''''''''''''''''''''
  1. Tutorial document
 
- 2. Deployment Guide, for now, you can refer to https://github.com/eclipse-cyclonedds/cyclonedds/blob/master/docs/manual/options.md
+ 2. Deployment Guide, for the current version you can refer to https://github.com/eclipse-cyclonedds/cyclonedds/blob/master/docs/manual/options.md
 
-You can find the API reference in the sidebar.
+The API reference can be found in the sidebar.
 
 Uninstalling Cyclone DDS
 ~~~~~~~~~~~~~~~~~~~~~~~~
