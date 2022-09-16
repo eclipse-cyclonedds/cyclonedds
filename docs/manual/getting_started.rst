@@ -1914,7 +1914,17 @@ CXX <#appendix-ii-contributing-to-eclipse-cyclone-dds-cxx>`__.
 Installation with product installer for Linux and macOS
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-TBD.
+When installing the product from a (.deb) package on the default location, run the command below to build the C or C++ examples:
+
+.. code-block:: bash
+
+1. Copy the example from /usr/share/CycloneDDSPro to your preferred location (e.g to your <Instal_DIR>) 
+2. Browse to the folder directory and create a "build" directory to retain all the build files: 
+        <Instal_DIR>/CycloneDDSPro/CycloneDDS/examples/helloworld
+     then call cmake , > cmake ../
+3. Build the example using > cmake --build 
+
+
 
 Native Installation for Windows
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
