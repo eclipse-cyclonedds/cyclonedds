@@ -366,14 +366,17 @@ To run the example application, open two console windows and navigate to
 the appropriate directory in both console windows. Run
 ``HelloworldSubscriber`` in one of the console windows using:
 
-(Tabs plugin for Win and Linux)
+(Insert Tabs plugin for Win and Linux here)
+
  **Windows** ``HelloworldSubscriber.exe``
 
  **Linux** ``./HelloworldSubscriber``
 
 Run ``HelloworldPublisher`` in the other console window using:
 
-(Tabs plugin for Win and Linux)
+
+(Insert Tabs plugin for Win and Linux here)
+
  **Windows** ``HelloworldPublisher.exe``
 
  **Linux** ``./HelloworldPublisher``
@@ -450,10 +453,20 @@ Cyclone DDS product installer, and select 'Remove.'
 .. image:: /_static/gettingstarted-figures/1.8.2.1.png
    :align: center
 
-Linux and macOS
-^^^^^^^^^^^^^^^
+Installation with product installer for Linux and macOS
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-TBD.
+When installing the product from a (.deb) package on the default location, run the command below to build the C or C++ examples:
+
+.. code-block:: bash
+
+1. Copy the example from Eclipse Cyclone DDS to your preferred location (e.g to your <Instal_DIR>) 
+2. Browse to the folder directory and create a "build" directory to retain all the build files: 
+        <Instal_DIR>/CycloneDDSPro/CycloneDDS/examples/helloworld
+     then call cmake , > cmake ../
+3. Build the example using > cmake --build 
+
+You have successfully installed the product from a (.deb) and built your C or C++ example.
 
 
 Building your first Cyclone DDS Applications
