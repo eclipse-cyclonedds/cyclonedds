@@ -264,9 +264,9 @@ Prerequisites
 
 CycloneDDS Python requires Python version 3.7 or higher, with 3.11 support provisional. The wheels on PyPi contain a pre-built binary of the CycloneDDS C library and IDL compiler. These have a couple of caveats. The pre-built package:
 
- * has no support for DDS Security,
- * has no support for shared memory via Iceoryx,
- * comes with generic Cyclone DDS binaries that are not optimized per-platform.
+ * Does not provide support for DDS Security,
+ * Does not provide support for shared memory via Iceoryx,
+ * Comes with generic Cyclone DDS binaries that are not optimized per platform.
 
 If you need these features or cannot use the binaries for other reasons, you can install the Cyclone DDS Python library from the source. You will need to set the environment variable ``CYCLONEDDS_HOME`` to allow the installer to locate the CycloneDDS C library if it is on a non-standard path. At runtime, we leverage several mechanisms to locate the appropriate library for the platform. If you get an exception about non-locatable libraries or wish to manage multiple CycloneDDS installations, you can use the environment variable ``CYCLONEDDS_HOME`` to override the load location.
 
