@@ -28,3 +28,67 @@ Users that are already familiar with the concepts of DDS can go directly to the 
 
    config/ddsi_concepts
    config/cyclonedds_specifics
+   
+DDSI Concepts
+=============
+The DDSI standard is intimately related to the DDS 1.2 and 1.4 standards, with a clear correspondence between the entities in DDSI and those in DCPS. However, this correspondence is not one-to-one.
+
+In this section we give a high-level description of the concepts of the DDSI specification, with hardly any reference to the specifics of the Eclipse Cyclone DDS implementation (addressed in Eclipse Cyclone DDS Specifics). This division aids readers interested in interoperability in understanding where the specification ends and the Eclipse Cyclone DDS implementation begins.
+
+Mapping of DCPS Domains to DDSI Domains
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Mapping of DCPS Entities to DDSI Entities
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Reliable Communication
+~~~~~~~~~~~~~~~~~~~~~~
+
+DDSI-Specific Transient-Local Behaviour
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Discovery of Participants & Endpoints
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+
+
+Eclipse Cyclone DDS Specifics
+=============================
+
+Discovery Behaviour
+~~~~~~~~~~~~~~~~~~~
+
+Proxy Participants and Endpoints
+'''''''''''''''''''''''''''''''''
+
+
+Network and Discovery Configuration
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Combining Multiple Participants
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Data Path Configuration
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Network Partition Configuration
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Thread Configuration
+~~~~~~~~~~~~~~~~~~~~
+
+Reporting and Tracing
+~~~~~~~~~~~~~~~~~~~~~
+
+Compatibility and Conformance
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+
+
+
+
+
