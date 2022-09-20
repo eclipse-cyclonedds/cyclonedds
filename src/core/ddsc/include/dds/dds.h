@@ -1339,7 +1339,7 @@ dds_create_topic(
  * @param[in,out] sertype      Internal description of the type . On return, the sertype parameter is set to the actual sertype that is used by the topic.
  * @param[in]     qos          QoS to set on the new topic (can be NULL).
  * @param[in]     listener     Any listener functions associated with the new topic (can be NULL).
- * @param[in]     sedp_plist   Topic description to be published as part of discovery (if NULL, not published).
+ * @param[in]     sedp_plist   Ignored (should be NULL, may be enforced in the future).
  *
  * @returns A valid, unique topic handle or an error code. Iff a valid handle, the domain takes ownership of provided serdata.
  *

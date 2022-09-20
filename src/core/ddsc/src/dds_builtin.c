@@ -142,7 +142,7 @@ dds_entity_t dds__get_builtin_topic (dds_entity_t entity, dds_entity_t topic)
   }
 
   dds_qos_t *qos = dds__create_builtin_qos ();
-  if ((tp = dds_create_topic_impl (par->m_entity.m_hdllink.hdl, topic_name, true, &sertype, qos, NULL, NULL, true)) > 0)
+  if ((tp = dds_create_topic_impl (par->m_entity.m_hdllink.hdl, topic_name, true, &sertype, qos, NULL, true)) > 0)
   {
     /* keep ownership for built-in sertypes because there are re-used, lifetime for these
        sertypes is bound to domain */

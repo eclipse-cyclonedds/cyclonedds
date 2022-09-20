@@ -330,9 +330,8 @@ static dds_return_t lookup_and_check_ktopic (struct dds_ktopic **ktp_out, dds_pa
   }
 }
 
-static dds_entity_t create_topic_pp_locked (struct dds_participant *pp, struct dds_ktopic *ktp, bool builtin, const char *topic_name, struct ddsi_sertype *sertype, const dds_listener_t *listener, const ddsi_plist_t *sedp_plist)
+static dds_entity_t create_topic_pp_locked (struct dds_participant *pp, struct dds_ktopic *ktp, bool builtin, const char *topic_name, struct ddsi_sertype *sertype, const dds_listener_t *listener)
 {
-  (void) sedp_plist;
   dds_entity_t hdl;
   dds_topic *tp = dds_alloc (sizeof (*tp));
   /* builtin topics are created implicitly (and so destroyed on last reference) and may not be deleted by the application */
@@ -426,7 +425,6 @@ dds_entity_t dds_create_topic_impl (
     struct ddsi_sertype **sertype,
     const dds_qos_t *qos,
     const dds_listener_t *listener,
-    const ddsi_plist_t *sedp_plist,
     bool is_builtin)
 {
   dds_return_t rc = 0;
@@ -568,7 +566,7 @@ dds_entity_t dds_create_topic_impl (
 #endif
 
   /* Create topic referencing ktopic & sertype_registered */
-  hdl = create_topic_pp_locked (pp, ktp, (sertype_registered->ops == &ddsi_sertype_ops_builtintopic), name, sertype_registered, listener, sedp_plist);
+  hdl = create_topic_pp_locked (pp, ktp, (sertype_registered->ops == &ddsi_sertype_ops_builtintopic), name, sertype_registered, listener);
   ddsi_sertype_unref (*sertype);
   *sertype = sertype_registered;
 
@@ -598,12 +596,12 @@ error_typeref:
 
 dds_entity_t dds_create_topic_sertype (dds_entity_t participant, const char *name, struct ddsi_sertype **sertype, const dds_qos_t *qos, const dds_listener_t *listener, const ddsi_plist_t *sedp_plist)
 {
-  return dds_create_topic_impl (participant, name, false, sertype, qos, listener, sedp_plist, false);
+  (void) sedp_plist;
+  return dds_create_topic_impl (participant, name, false, sertype, qos, listener, false);
 }
 
 dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descriptor_t *desc, const char *name, const dds_qos_t *qos, const dds_listener_t *listener)
 {
-  ddsi_plist_t plist;
   dds_entity_t hdl;
   struct dds_entity *ppent;
   dds_return_t ret;
@@ -642,31 +640,10 @@ dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descrip
     goto err_st_init;
   }
 
-  ddsi_plist_init_empty (&plist);
-  /* Set Topic meta data (for SEDP publication) */
-  plist.qos.topic_name = ddsrt_strdup (name);
-  plist.qos.type_name = ddsrt_strdup (st->c.type_name);
-  plist.qos.present |= (QP_TOPIC_NAME | QP_TYPE_NAME);
-  if (desc->m_meta)
-  {
-    plist.type_description = dds_string_dup (desc->m_meta);
-    plist.present |= PP_ADLINK_TYPE_DESCRIPTION;
-  }
-  if (desc->m_nkeys)
-  {
-    plist.qos.present |= QP_ADLINK_SUBSCRIPTION_KEYS;
-    plist.qos.subscription_keys.use_key_list = 1;
-    plist.qos.subscription_keys.key_list.n = desc->m_nkeys;
-    plist.qos.subscription_keys.key_list.strs = dds_alloc (desc->m_nkeys * sizeof (char*));
-    for (uint32_t index = 0; index < desc->m_nkeys; index++)
-      plist.qos.subscription_keys.key_list.strs[index] = dds_string_dup (desc->m_keys[index].m_name);
-  }
-
   struct ddsi_sertype *st_tmp = &st->c;
-  hdl = dds_create_topic_sertype (participant, name, &st_tmp, tpqos, listener, &plist);
+  hdl = dds_create_topic_impl (participant, name, false, &st_tmp, tpqos, listener, false);
   if (hdl < 0)
     ddsi_sertype_unref (st_tmp);
-  ddsi_plist_fini (&plist);
 err_data_repr:
 err_st_init:
   dds_delete_qos (tpqos);
