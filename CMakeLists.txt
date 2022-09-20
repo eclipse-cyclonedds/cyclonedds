@@ -118,6 +118,7 @@ if("${CMAKE_C_COMPILER_ID}" STREQUAL "Clang" OR
              "-Wconditional-uninitialized"
              "-Wshadow")
   add_compile_options(${wflags})
+  add_link_options(-undefined error)
   if(${WERROR})
     add_compile_options(-Werror)
   endif()
