@@ -1027,7 +1027,7 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
           if (tstamp.v > sample.last_rexmit_ts.v + rst->gv->config.retransmit_merging_period)
           {
             RSTTRACE (" RX%"PRIu64, seqbase + i);
-            enqueued = (enqueue_sample_wrlock_held (wr, seq, sample.plist, sample.serdata, NULL, 0) >= 0);
+            enqueued = (enqueue_sample_wrlock_held (wr, seq, sample.serdata, NULL, 0) >= 0);
             if (enqueued)
             {
               max_seq_in_reply = seqbase + i;
@@ -1058,7 +1058,7 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
           {
             /* no merging, send directed retransmit */
             RSTTRACE (" RX%"PRIu64"", seqbase + i);
-            enqueued = (enqueue_sample_wrlock_held (wr, seq, sample.plist, sample.serdata, prd, 0) >= 0);
+            enqueued = (enqueue_sample_wrlock_held (wr, seq, sample.serdata, prd, 0) >= 0);
             if (enqueued)
             {
               max_seq_in_reply = seqbase + i;
@@ -1664,7 +1664,7 @@ static int handle_NackFrag (struct receiver_state *rst, ddsrt_etime_t tnow, cons
       if (nn_bitset_isset (msg->fragmentNumberState.numbits, msg->bits, i))
       {
         struct nn_xmsg *reply;
-        if (create_fragment_message (wr, seq, sample.plist, sample.serdata, base + i, 1, prd, &reply, 0, 0) < 0)
+        if (create_fragment_message (wr, seq, sample.serdata, base + i, 1, prd, &reply, 0, 0) < 0)
           nfrags_lim = 0;
         else if (qxev_msg_rexmit_wrlock_held (wr->evq, reply, 0) == QXEV_MSG_REXMIT_DROPPED)
           nfrags_lim = 0;
