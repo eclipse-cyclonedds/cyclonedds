@@ -952,8 +952,6 @@ static int insert_sample_in_whc (struct ddsi_writer *wr, seqno_t seq, struct dds
     if (wr->e.gv->logconfig.c.mask & DDS_LC_CONTENT)
       ddsi_serdata_print (serdata, ppbuf, sizeof (ppbuf));
     ETRACE (wr, "write_sample "PGUIDFMT" #%"PRIu64, PGUID (wr->e.guid), seq);
-    if (plist != 0 && (plist->present & PP_COHERENT_SET))
-      ETRACE (wr, " C#%"PRIu64"", fromSN (plist->coherent_set_seqno));
     ETRACE (wr, ": ST%"PRIu32" %s/%s:%s%s\n", serdata->statusinfo, wr->xqos->topic_name, wr->type->type_name, ppbuf, tmp < (int) sizeof (ppbuf) ? "" : " (trunc)");
   }
 
@@ -1204,7 +1202,7 @@ prd_is_deleting:
   return r;
 }
 
-static int write_sample_eot (struct thread_state * const thrst, struct nn_xpack *xp, struct ddsi_writer *wr, struct ddsi_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk, int end_of_txn, int gc_allowed)
+static int write_sample (struct thread_state * const thrst, struct nn_xpack *xp, struct ddsi_writer *wr, struct ddsi_plist *plist, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk, int gc_allowed)
 {
   struct ddsi_domaingv const * const gv = wr->e.gv;
   int r;
@@ -1239,11 +1237,6 @@ static int write_sample_eot (struct thread_state * const thrst, struct nn_xpack 
 
   if (!wr->alive)
     ddsi_writer_set_alive_may_unlock (wr, true);
-
-  if (end_of_txn)
-  {
-    wr->cs_seq = 0;
-  }
 
   /* If WHC overfull, block. */
   {
@@ -1284,18 +1277,6 @@ static int write_sample_eot (struct thread_state * const thrst, struct nn_xpack 
   serdata->twrite = tnow;
 
   seq = ++wr->seq;
-  if (wr->cs_seq != 0)
-  {
-    if (plist == NULL)
-    {
-      plist = ddsrt_malloc (sizeof (*plist));
-      ddsi_plist_init_empty (plist);
-    }
-    assert (!(plist->present & PP_COHERENT_SET));
-    plist->present |= PP_COHERENT_SET;
-    plist->coherent_set_seqno = toSN (wr->cs_seq);
-  }
-
   if ((r = insert_sample_in_whc (wr, seq, plist, serdata, tk)) < 0)
   {
     /* Failure of some kind */
@@ -1391,12 +1372,12 @@ drop:
 
 int write_sample_gc (struct thread_state * const thrst, struct nn_xpack *xp, struct ddsi_writer *wr, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk)
 {
-  return write_sample_eot (thrst, xp, wr, NULL, serdata, tk, 0, 1);
+  return write_sample (thrst, xp, wr, NULL, serdata, tk, 1);
 }
 
 int write_sample_nogc (struct thread_state * const thrst, struct nn_xpack *xp, struct ddsi_writer *wr, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk)
 {
-  return write_sample_eot (thrst, xp, wr, NULL, serdata, tk, 0, 0);
+  return write_sample (thrst, xp, wr, NULL, serdata, tk, 0);
 }
 
 int write_sample_gc_notk (struct thread_state * const thrst, struct nn_xpack *xp, struct ddsi_writer *wr, struct ddsi_serdata *serdata)
@@ -1405,7 +1386,7 @@ int write_sample_gc_notk (struct thread_state * const thrst, struct nn_xpack *xp
   int res;
   assert (thread_is_awake ());
   tk = ddsi_tkmap_lookup_instance_ref (wr->e.gv->m_tkmap, serdata);
-  res = write_sample_eot (thrst, xp, wr, NULL, serdata, tk, 0, 1);
+  res = write_sample (thrst, xp, wr, NULL, serdata, tk, 1);
   ddsi_tkmap_instance_unref (wr->e.gv->m_tkmap, tk);
   return res;
 }
@@ -1416,7 +1397,7 @@ int write_sample_nogc_notk (struct thread_state * const thrst, struct nn_xpack *
   int res;
   assert (thread_is_awake ());
   tk = ddsi_tkmap_lookup_instance_ref (wr->e.gv->m_tkmap, serdata);
-  res = write_sample_eot (thrst, xp, wr, NULL, serdata, tk, 0, 0);
+  res = write_sample (thrst, xp, wr, NULL, serdata, tk, 0);
   ddsi_tkmap_instance_unref (wr->e.gv->m_tkmap, tk);
   return res;
 }
