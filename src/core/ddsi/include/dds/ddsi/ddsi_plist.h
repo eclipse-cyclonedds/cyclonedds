@@ -50,7 +50,7 @@ extern "C" {
 #define PP_ENDPOINT_GUID                        ((uint64_t)1 << 24)
 #define PP_ADLINK_PARTICIPANT_VERSION_INFO      ((uint64_t)1 << 26)
 #define PP_ADLINK_TYPE_DESCRIPTION              ((uint64_t)1 << 27)
-#define PP_COHERENT_SET                         ((uint64_t)1 << 28)
+// ((uint64_t)1 << 28) is available
 #ifdef DDS_HAS_SSM
 #define PP_READER_FAVOURS_SSM                   ((uint64_t)1 << 29)
 #endif
@@ -220,7 +220,6 @@ typedef struct ddsi_plist {
   uint32_t statusinfo;
   nn_adlink_participant_version_info_t adlink_participant_version_info;
   char *type_description;
-  nn_sequence_number_t coherent_set_seqno;
 #ifdef DDS_HAS_SECURITY
   nn_token_t identity_token;
   nn_token_t permissions_token;

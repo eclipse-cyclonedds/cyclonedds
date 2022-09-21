@@ -380,7 +380,6 @@ static void print_writer (struct st *st, void *varg)
   cpfkobj (st, "whc", print_whc_state, w);
   cpfkseqno (st, "seq", w->seq);
   cpfkseqno (st, "seq_xmit", ddsi_writer_read_seq_xmit (w));
-  cpfkseqno (st, "cs_seq", w->cs_seq);
   cpfkbool (st, "throttling", w->throttling);
   cpfkbool (st, "reliable", w->reliable);
   if (w->reliable)

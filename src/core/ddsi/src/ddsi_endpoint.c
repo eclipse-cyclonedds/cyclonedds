@@ -719,7 +719,6 @@ static void ddsi_new_writer_guid_common_init (struct ddsi_writer *wr, const char
 {
   ddsrt_cond_init (&wr->throttle_cond);
   wr->seq = 0;
-  wr->cs_seq = 0;
   ddsrt_atomic_st64 (&wr->seq_xmit, (uint64_t) 0);
   wr->hbcount = 1;
   wr->state = WRST_OPERATIONAL;
