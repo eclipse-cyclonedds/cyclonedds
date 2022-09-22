@@ -126,7 +126,7 @@ discovering this new participant or endpoint.
 Lingering Writers
 =================
 
-When an application deletes a reliable DCPS , there is no guarantee that all
+When an application deletes a reliable DCPS DataWriter, there is no guarantee that all
 its readers have already acknowledged the correct receipt of all samples.  In such a
 case, Eclipse Cyclone DDS lets the writer (and the owning participant if necessary) linger in
 the system for some time, controlled by the ``Internal/WriterLingerDuration`` option.
