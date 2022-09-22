@@ -716,7 +716,7 @@ communication is asynchronous. Data producers and consumers,
 known as DataWriter's and data readers, are not forced to
 be active and connected simultaneously to share data. In this
 scenario, the DDS middleware can handle and manage data on behalf of the
-late joining data readers applications and deliver to it when they
+late joining ``DataReader`` applications and deliver to them when they
 join the system.
 
 Time and space decoupling gives applications the freedom to be plugged
