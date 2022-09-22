@@ -722,7 +722,7 @@ join the system.
 Time and space decoupling gives applications the freedom to be plugged
 or unplugged in the system at any time, from anywhere, in any order.
 This keeps the complexity and administration of a data-centric
-architecture relatively low when adding more and more data readers and
+architecture relatively low when adding more and more ``DataReader`` and
 DataWriter's applications.
 
 .. _key_steps:
