@@ -2192,8 +2192,8 @@ To exchange data, applications' business logic with Cyclone DDS must:
 
 At the application level, readers and writers need not be aware of
 each other. The reading application, now designated as application
-Subscriber polls the data reader periodically until a writing
-application, as a result of this called application Publisher, 
+Subscriber, polls the data reader periodically until a writing
+application, designated as application Publisher, 
 provides the required data into the shared Topic, namely ``HelloWorldData_Msg``.
 
 The data type is described using the OMG `IDL
