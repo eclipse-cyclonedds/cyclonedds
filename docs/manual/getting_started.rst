@@ -715,7 +715,7 @@ Time-decoupling derives from the fact that, fundamentally, the nature of
 communication is asynchronous. Data producers and consumers,
 known as DataWriter's and data readers, are not forced to
 be active and connected simultaneously to share data. In this
-scenario, the DDS middleware can handle and manage data on behalf of the
+scenario, the DDS middleware can handle and manage data on behalf of
 late joining ``DataReader`` applications and deliver to them when they
 join the system.
 
