@@ -219,7 +219,6 @@ typedef struct ddsi_plist {
   ddsi_keyhash_t keyhash;
   uint32_t statusinfo;
   nn_adlink_participant_version_info_t adlink_participant_version_info;
-  char *type_description;
 #ifdef DDS_HAS_SECURITY
   nn_token_t identity_token;
   nn_token_t permissions_token;

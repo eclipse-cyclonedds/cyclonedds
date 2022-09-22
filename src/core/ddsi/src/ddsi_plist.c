@@ -1995,7 +1995,6 @@ static const struct piddesc piddesc_eclipse[] = {
   PP  (CYCLONE_TOPIC_GUID,               topic_guid, XG),
 #endif
   PP  (ADLINK_PARTICIPANT_VERSION_INFO,  adlink_participant_version_info, Xux5, XS),
-  PP  (ADLINK_TYPE_DESCRIPTION,          type_description, XS),
   PP  (CYCLONE_RECEIVE_BUFFER_SIZE,      cyclone_receive_buffer_size, Xu),
   PP  (CYCLONE_REQUESTS_KEYHASH,         cyclone_requests_keyhash, Xb),
   PP  (CYCLONE_REDUNDANT_NETWORKING,     cyclone_redundant_networking, Xb),
@@ -2010,7 +2009,6 @@ static const struct piddesc piddesc_adlink[] = {
   QP  (ADLINK_READER_DATA_LIFECYCLE,     reader_data_lifecycle, XDx2),
   QP  (ADLINK_SUBSCRIPTION_KEYS,         subscription_keys, XbCOND, XQ, XS, XSTOP),
   PP  (ADLINK_PARTICIPANT_VERSION_INFO,  adlink_participant_version_info, Xux5, XS),
-  PP  (ADLINK_TYPE_DESCRIPTION,          type_description, XS),
   { PID_SENTINEL, 0, 0, NULL, 0, 0, { .desc = { XSTOP } }, 0 }
 };
 
@@ -2074,7 +2072,7 @@ struct piddesc_index {
 
 static const struct piddesc *piddesc_omg_index[DEFAULT_OMG_PIDS_ARRAY_SIZE + SECURITY_OMG_PIDS_ARRAY_SIZE];
 static const struct piddesc *piddesc_eclipse_index[30];
-static const struct piddesc *piddesc_adlink_index[19];
+static const struct piddesc *piddesc_adlink_index[17];
 
 #define INDEX_ANY(vendorid_, tab_) [vendorid_] = { \
     .index_max = sizeof (piddesc_##tab_##_index) / sizeof (piddesc_##tab_##_index[0]) - 1, \
@@ -2099,11 +2097,11 @@ static const struct piddesc_index piddesc_vendor_index[] = {
    initialized by ddsi_plist_init_tables; will assert when
    table too small or too large */
 #ifdef DDS_HAS_TYPE_DISCOVERY
-static const struct piddesc *piddesc_unalias[20 + SECURITY_PROC_ARRAY_SIZE];
-static const struct piddesc *piddesc_fini[20 + SECURITY_PROC_ARRAY_SIZE];
-#else
 static const struct piddesc *piddesc_unalias[19 + SECURITY_PROC_ARRAY_SIZE];
 static const struct piddesc *piddesc_fini[19 + SECURITY_PROC_ARRAY_SIZE];
+#else
+static const struct piddesc *piddesc_unalias[18 + SECURITY_PROC_ARRAY_SIZE];
+static const struct piddesc *piddesc_fini[18 + SECURITY_PROC_ARRAY_SIZE];
 #endif
 static uint64_t plist_fini_mask, qos_fini_mask;
 static ddsrt_once_t table_init_control = DDSRT_ONCE_INIT;
