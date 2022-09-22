@@ -752,7 +752,7 @@ to:
    and streams.
 3. Create the **Data Readers** and **Writers** entities 
    specific to the topic. Applications may want to change the default
-   QoSs. In the Hello world! Example, the ``ReliabilityQoS`` is changed
+   QoSs. In the ``Hello world!`` example, the ``ReliabilityQoS`` is changed
    from its default value (``Best-effort``) to ``Reliable``.
 4. Once the previous DDS computational entities are in place, the
    application logic can start writing or reading the data.
