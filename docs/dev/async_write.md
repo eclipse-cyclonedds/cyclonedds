@@ -5,7 +5,7 @@
 
 ### Asynchronous write behavior
 
-By default Cyclone DDS uses "synchronous write", to use "asynchronous write", the latency budget of a DataWriter should be greater than zero.
+By default Cyclone DDS uses "synchronous write". To use "asynchronous write", the latency budget of a DataWriter should be greater than zero.
 
 ```c
   /* Create a Writer with non-zero latency budget */
