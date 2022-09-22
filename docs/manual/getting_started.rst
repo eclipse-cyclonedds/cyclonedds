@@ -2235,7 +2235,7 @@ The OMG Interface Definition Language (IDL) subset uses a DDS
 data definition language. In our simple example, the HelloWorld data
 model is made of one module ``HelloWorldData``. A module can be seen 
 as a namespace where data with interrelated semantics is represented 
-together in the same logical set.
+together as a logical unit.
 
 The struct Msg is the actual data structure that shapes the data used to
 build the Topics. As already mentioned, a topic is an
