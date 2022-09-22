@@ -2726,8 +2726,8 @@ assures we can start the publisher or subscriber program in any order.
 
             /* For this example, we'd like to have a subscriber read
              * our message. This is not always necessary. Also, the way it is
-             * done here is to illustrate the easiest way to do so. It isn't
-             * It is recommended to do a wait in a polling loop, however
+             * done here is to illustrate the easiest way to do so. However, it is *not*
+             * recommended to do a wait in a polling loop.
              * Please take a look at Listeners and WaitSets for much better
              * solutions, albeit somewhat more elaborate ones. */
             std::cout << "=== [Publisher] Waiting for subscriber." << std::endl;
