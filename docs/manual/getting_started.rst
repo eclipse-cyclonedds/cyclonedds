@@ -330,7 +330,7 @@ can use the Hello World example. To use the ddsperf tool, refer to
 configuration. <#testing-your-network-configuration>`__ The test
 using the Hello World example is explained in this section.
 
-Environnement variable updates
+Environment variable updates
 ''''''''''''''''''''''''''''''
 
 To run Eclipse Cyclone DDS executables on Windows, the required libraries
