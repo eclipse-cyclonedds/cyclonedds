@@ -518,7 +518,7 @@ build with GNU make, Visual Studio 6,7,8 IDEs, Borland make, nmake, and
 XCode, etc...
 
 Another advantage of CMake is building out-of-source. It simply works
-out of the box. There are two fundamental reasons to choose this means:
+out of the box. This facilitates:
 
 -  Easy cleanup (no cluttering the source tree). Remove the build
    directory to start from scratch.
