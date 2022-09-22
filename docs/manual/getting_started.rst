@@ -2240,7 +2240,7 @@ together in the same logical set.
 The struct Msg is the actual data structure that shapes the data used to
 build the Topics. As already mentioned, a topic is an
 association between a data type and a string name. The topic name is not
-defined in the IDL file but is defined by the application business
+defined in the IDL file but is instead defined by the application business
 logic at runtime.
 
 In our case, the data type ``Msg`` contains two fields: ``userID`` and
