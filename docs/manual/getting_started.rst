@@ -2244,8 +2244,8 @@ defined in the IDL file but is defined by the application business
 logic at runtime.
 
 In our case, the data type ``Msg`` contains two fields: ``userID`` and
-``message`` payload. The ``userID`` is used to identify each message 
-instance uniquely. This is done using the ``@key`` annotation.
+``message`` payload. The ``userID`` is used to uniquely identify each message 
+instance. This is done using the ``@key`` annotation.
 
 The Cyclone DDS CXX IDL compiler translates the module names into
 namespaces and structure name into classes.
