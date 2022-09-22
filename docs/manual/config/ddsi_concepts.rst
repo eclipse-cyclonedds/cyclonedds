@@ -48,7 +48,7 @@ Any DataReader or DataWriter created by a DCPS domain participant is mirrored in
 as a DDSI reader or writer.  In this translation, some of the structure of the DCPS
 domain is obscured because the standardized parts of DDSI have no knowledge of DCPS
 Subscribers and Publishers.  Instead, each DDSI reader is the combination of the
-corresponding DCPS data reader and the DCPS subscriber it belongs to; similarly, each
+corresponding DCPS DataReader and the DCPS subscriber it belongs to; similarly, each
 DDSI writer is a combination of the corresponding DCPS DataWriter and DCPS publisher.
 This corresponds to the way the standardized DCPS built-in topics describe the DCPS data
 readers and DataWriter's, as there are no standardized built-in topics for describing
