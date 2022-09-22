@@ -2374,7 +2374,7 @@ DDS CXX Hello World Business Logic
 
 As well as from the ``HelloWorldData`` data type files that the *DDS CXX
 Hello World* example used to send messages, the *DDS CXX Hello World!*
-the example also contains two application-level source files
+example also contains two application-level source files
 (``subscriber.cpp`` and ``publisher.cpp``), containing the business
 logic.
 
