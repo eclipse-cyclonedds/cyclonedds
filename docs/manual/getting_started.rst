@@ -2234,7 +2234,7 @@ stored in the HelloWorldData.idl file (as in chapter 3).
 The OMG Interface Definition Language (IDL) subset uses a DDS
 data definition language. In our simple example, the HelloWorld data
 model is made of one module ``HelloWorldData``. A module can be seen 
-as a namespace where data with interrelated semantics is represented 
+as a namespace where data with interrelated semantics are represented 
 together as a logical unit.
 
 The struct Msg is the actual data structure that shapes the data used to
