@@ -693,7 +693,7 @@ architecture creates unnecessary dependencies that create a
 tightly coupled system. The centralized interface repositories are
 usually seen as a single point of failure.
 
-In a data-centric architecture, your design focuses on the data each
+In a data-centric architecture, your design focusses on the data each
 the application produces and decides to share rather than on the Interfaces'
 operations and the internal processing that produced them.
 
