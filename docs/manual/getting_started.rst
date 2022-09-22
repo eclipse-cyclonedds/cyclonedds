@@ -2338,7 +2338,7 @@ it provides to your application code is stable.
 **Note:** When translated into a different programming language, the
 data has a different representation specific to the target
 language. For instance, as shown in chapter 3, in C, the Helloworld data
-type is represented by a C structure. This advantage of using a
+type is represented by a C structure. This highlights the advantage of using a
 neutral language like IDL to describe the data model. It can be
 translated into different languages that can be shared between various
 applications written in other programming languages.
