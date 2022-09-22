@@ -1984,7 +1984,6 @@ static const struct piddesc piddesc_eclipse[] = {
   QP  (ADLINK_READER_LIFESPAN,           reader_lifespan, Xb, XD),
   QP  (ADLINK_WRITER_DATA_LIFECYCLE,     writer_data_lifecycle, Xb),
   QP  (ADLINK_READER_DATA_LIFECYCLE,     reader_data_lifecycle, XDx2),
-  QP  (ADLINK_SUBSCRIPTION_KEYS,         subscription_keys, XbCOND, XQ, XS, XSTOP),
   { PID_PAD, PDF_QOS, QP_CYCLONE_IGNORELOCAL, "CYCLONE_IGNORELOCAL",
     offsetof (struct ddsi_plist, qos.ignorelocal), membersize (struct ddsi_plist, qos.ignorelocal),
     { .desc = { XE2, XSTOP } }, 0 },
@@ -2007,7 +2006,6 @@ static const struct piddesc piddesc_adlink[] = {
   QP  (ADLINK_READER_LIFESPAN,           reader_lifespan, Xb, XD),
   QP  (ADLINK_WRITER_DATA_LIFECYCLE,     writer_data_lifecycle, Xb),
   QP  (ADLINK_READER_DATA_LIFECYCLE,     reader_data_lifecycle, XDx2),
-  QP  (ADLINK_SUBSCRIPTION_KEYS,         subscription_keys, XbCOND, XQ, XS, XSTOP),
   PP  (ADLINK_PARTICIPANT_VERSION_INFO,  adlink_participant_version_info, Xux5, XS),
   { PID_SENTINEL, 0, 0, NULL, 0, 0, { .desc = { XSTOP } }, 0 }
 };
@@ -2097,11 +2095,11 @@ static const struct piddesc_index piddesc_vendor_index[] = {
    initialized by ddsi_plist_init_tables; will assert when
    table too small or too large */
 #ifdef DDS_HAS_TYPE_DISCOVERY
-static const struct piddesc *piddesc_unalias[19 + SECURITY_PROC_ARRAY_SIZE];
-static const struct piddesc *piddesc_fini[19 + SECURITY_PROC_ARRAY_SIZE];
-#else
 static const struct piddesc *piddesc_unalias[18 + SECURITY_PROC_ARRAY_SIZE];
 static const struct piddesc *piddesc_fini[18 + SECURITY_PROC_ARRAY_SIZE];
+#else
+static const struct piddesc *piddesc_unalias[17 + SECURITY_PROC_ARRAY_SIZE];
+static const struct piddesc *piddesc_fini[17 + SECURITY_PROC_ARRAY_SIZE];
 #endif
 static uint64_t plist_fini_mask, qos_fini_mask;
 static ddsrt_once_t table_init_control = DDSRT_ONCE_INIT;
@@ -3435,7 +3433,7 @@ const ddsi_plist_t ddsi_default_plist_participant = {
 };
 
 const dds_qos_t ddsi_default_qos_reader = {
-  .present = QP_PRESENTATION | QP_DURABILITY | QP_DEADLINE | QP_LATENCY_BUDGET | QP_LIVELINESS | QP_DESTINATION_ORDER | QP_HISTORY | QP_RESOURCE_LIMITS | QP_TRANSPORT_PRIORITY | QP_OWNERSHIP | QP_CYCLONE_IGNORELOCAL | QP_TOPIC_DATA | QP_GROUP_DATA | QP_USER_DATA | QP_PARTITION | QP_RELIABILITY | QP_TIME_BASED_FILTER | QP_ADLINK_READER_DATA_LIFECYCLE | QP_ADLINK_READER_LIFESPAN | QP_ADLINK_SUBSCRIPTION_KEYS | QP_TYPE_CONSISTENCY_ENFORCEMENT | QP_LOCATOR_MASK | QP_DATA_REPRESENTATION,
+  .present = QP_PRESENTATION | QP_DURABILITY | QP_DEADLINE | QP_LATENCY_BUDGET | QP_LIVELINESS | QP_DESTINATION_ORDER | QP_HISTORY | QP_RESOURCE_LIMITS | QP_TRANSPORT_PRIORITY | QP_OWNERSHIP | QP_CYCLONE_IGNORELOCAL | QP_TOPIC_DATA | QP_GROUP_DATA | QP_USER_DATA | QP_PARTITION | QP_RELIABILITY | QP_TIME_BASED_FILTER | QP_ADLINK_READER_DATA_LIFECYCLE | QP_ADLINK_READER_LIFESPAN | QP_TYPE_CONSISTENCY_ENFORCEMENT | QP_LOCATOR_MASK | QP_DATA_REPRESENTATION,
   .aliased = QP_DATA_REPRESENTATION,
   .presentation.access_scope = DDS_PRESENTATION_INSTANCE,
   .presentation.coherent_access = 0,
@@ -3468,9 +3466,6 @@ const dds_qos_t ddsi_default_qos_reader = {
   .reader_data_lifecycle.autopurge_disposed_samples_delay = DDS_INFINITY,
   .reader_lifespan.use_lifespan = 0,
   .reader_lifespan.duration = DDS_INFINITY,
-  .subscription_keys.use_key_list = 0,
-  .subscription_keys.key_list.n = 0,
-  .subscription_keys.key_list.strs = NULL,
   .type_consistency.kind = DDS_TYPE_CONSISTENCY_ALLOW_TYPE_COERCION,
   .type_consistency.ignore_sequence_bounds = true,
   .type_consistency.ignore_string_bounds = true,
@@ -3527,7 +3522,7 @@ const dds_qos_t ddsi_default_qos_writer = {
 };
 
 const dds_qos_t ddsi_default_qos_topic = {
-  .present = QP_PRESENTATION | QP_DURABILITY | QP_DEADLINE | QP_LATENCY_BUDGET | QP_LIVELINESS | QP_DESTINATION_ORDER | QP_HISTORY | QP_RESOURCE_LIMITS | QP_TRANSPORT_PRIORITY | QP_OWNERSHIP | QP_CYCLONE_IGNORELOCAL | QP_DURABILITY_SERVICE | QP_RELIABILITY | QP_ADLINK_SUBSCRIPTION_KEYS | QP_LIFESPAN | QP_DATA_REPRESENTATION,
+  .present = QP_PRESENTATION | QP_DURABILITY | QP_DEADLINE | QP_LATENCY_BUDGET | QP_LIVELINESS | QP_DESTINATION_ORDER | QP_HISTORY | QP_RESOURCE_LIMITS | QP_TRANSPORT_PRIORITY | QP_OWNERSHIP | QP_CYCLONE_IGNORELOCAL | QP_DURABILITY_SERVICE | QP_RELIABILITY | QP_LIFESPAN | QP_DATA_REPRESENTATION,
   .aliased = QP_DATA_REPRESENTATION,
   .presentation.access_scope = DDS_PRESENTATION_INSTANCE,
   .presentation.coherent_access = 0,
@@ -3554,9 +3549,6 @@ const dds_qos_t ddsi_default_qos_topic = {
   .durability_service.resource_limits.max_samples = DDS_LENGTH_UNLIMITED,
   .durability_service.resource_limits.max_instances = DDS_LENGTH_UNLIMITED,
   .durability_service.resource_limits.max_samples_per_instance = DDS_LENGTH_UNLIMITED,
-  .subscription_keys.use_key_list = 0,
-  .subscription_keys.key_list.n = 0,
-  .subscription_keys.key_list.strs = NULL,
   .lifespan.duration = DDS_INFINITY,
   .data_representation.value.n = 1,
   .data_representation.value.ids = (dds_data_representation_id_t []) { DDS_DATA_REPRESENTATION_XCDR1 }

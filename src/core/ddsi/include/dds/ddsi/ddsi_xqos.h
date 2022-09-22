@@ -200,11 +200,6 @@ typedef struct dds_external_reader_data_lifecycle_qospolicy {
   ddsi_duration_t autopurge_disposed_samples_delay;
 } dds_external_reader_data_lifecycle_qospolicy_t;
 
-typedef struct dds_subscription_keys_qospolicy {
-  unsigned char use_key_list;
-  ddsi_stringseq_t key_list;
-} dds_subscription_keys_qospolicy_t;
-
 typedef struct dds_reader_lifespan_qospolicy {
   unsigned char use_lifespan;
   dds_duration_t duration;
@@ -267,7 +262,7 @@ typedef struct dds_data_representation_qospolicy {
 #define QP_ADLINK_WRITER_DATA_LIFECYCLE      ((uint64_t)1 << 21)
 #define QP_ADLINK_READER_DATA_LIFECYCLE      ((uint64_t)1 << 22)
 #define QP_ADLINK_READER_LIFESPAN            ((uint64_t)1 << 24)
-#define QP_ADLINK_SUBSCRIPTION_KEYS          ((uint64_t)1 << 25)
+//available: ((uint64_t)1 << 25)
 #define QP_ADLINK_ENTITY_FACTORY             ((uint64_t)1 << 27)
 #define QP_CYCLONE_IGNORELOCAL               ((uint64_t)1 << 30)
 #define QP_PROPERTY_LIST                     ((uint64_t)1 << 31)
@@ -329,7 +324,6 @@ struct dds_qos {
   /*xxxR*/dds_time_based_filter_qospolicy_t time_based_filter;
   /*x  W*/dds_writer_data_lifecycle_qospolicy_t writer_data_lifecycle;
   /*x xR*/dds_reader_data_lifecycle_qospolicy_t reader_data_lifecycle;
-  /*x xR*/dds_subscription_keys_qospolicy_t subscription_keys;
   /*x xR*/dds_reader_lifespan_qospolicy_t reader_lifespan;
   /* x  */dds_ignorelocal_qospolicy_t ignorelocal;
   /*xxx */dds_property_qospolicy_t property;
