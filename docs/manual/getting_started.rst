@@ -2262,8 +2262,8 @@ destructor:
 The destructor recursively releases all fields. It also generates code
 for assignment operators that recursively construct all fields based on
 the parameter class (copy and move versions). The following code snippet is
-provided without warranty: the internal format can change, but the API 
-it provides to your application code is stable.
+provided without warranty: the internal format may change, but the API 
+provided to your application code is stable.
 
 .. code-block:: C++
 
