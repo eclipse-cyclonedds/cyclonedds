@@ -255,7 +255,7 @@ The following section describes how to test it.
 Additional Installation Procedures for Python
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-This section shows the installation procedure for Eclipse Cyclone DDS Python, wrapping the `Eclipse Cyclone DDS`_ C-API for easy creation of DDS applications.
+This section shows the installation procedure for Eclipse Cyclone DDS Python, wrapping the `Eclipse Cyclone DDS`_ C-API for the usage in Python applications.
 
 .. _installing:
 
