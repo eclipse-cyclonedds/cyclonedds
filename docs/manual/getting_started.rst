@@ -263,13 +263,18 @@ This section shows the installation procedure for Eclipse Cyclone DDS Python, wr
 Prerequisites
 ''''''''''''''
 
-CycloneDDS Python requires Python version 3.7 or higher, with 3.11 support provisional. The wheels on PyPi contain a pre-built binary of the CycloneDDS C library and IDL compiler. These have a couple of caveats. The pre-built package:
+CycloneDDS Python requires Python version 3.7 or higher, with 3.11 support provisional. 
+The wheels on PyPi contain a pre-built binary of the CycloneDDS C library and IDL compiler. These have a couple of caveats. The pre-built package:
 
  * Does not provide support for DDS Security,
  * Does not provide support for shared memory via Iceoryx,
  * Comes with generic Cyclone DDS binaries that are not optimized per platform.
 
-If you need these features or cannot use the binaries for other reasons, you can install the Cyclone DDS Python library from the source. You will need to set the environment variable ``CYCLONEDDS_HOME`` to allow the installer to locate the CycloneDDS C library if it is on a non-standard path. At runtime, we leverage several mechanisms to locate the appropriate library for the platform. If you get an exception about non-locatable libraries or wish to manage multiple CycloneDDS installations, you can use the environment variable ``CYCLONEDDS_HOME`` to override the load location.
+If you need these features or cannot use the binaries for other reasons, you can install the Cyclone DDS Python library from the source. 
+You will need to set the environment variable ``CYCLONEDDS_HOME`` to allow the installer to locate the CycloneDDS C library if it is on a non-standard path. 
+At runtime, we leverage several mechanisms to locate the appropriate library for the platform. 
+If you get an exception about non-locatable libraries or wish to manage multiple CycloneDDS installations, you can use the environment variable 
+``CYCLONEDDS_HOME`` to override the load location.
 
 How to install pip for Python 3.7
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -288,7 +293,8 @@ You can install it from the GitHub link directly:
     CYCLONEDDS_HOME="/path/to/cyclonedds" pip install git+https://github.com/eclipse-cyclonedds/cyclonedds-python
 
 
-You will need additional dependencies if you wish to run the test suite or build the documentation. These can be installed using Python installation optional components:
+You will need additional dependencies if you wish to run the test suite or build the documentation. 
+These can be installed using Python installation optional components:
 
 .. code-block:: shell
 
@@ -306,7 +312,8 @@ You will need additional dependencies if you wish to run the test suite or build
     python -m http.server --directory build
 
 Permission denied errors could occur when you try to access a file from Python without having the necessary permissions. 
-To fix this error, it is recommended to use `a virtual environment`_, `poetry`_, `pipenv`_ or `pyenv`_. If you *just* want to get going, you can add ``--user`` to your pip command to install for the current user. See the `Installing Python Modules`_ documentation.
+To fix this error, it is recommended to use `a virtual environment`_, `poetry`_, `pipenv`_ or `pyenv`_. 
+If you *just* want to get going, you can add ``--user`` to your pip command to install for the current user. See the `Installing Python Modules`_ documentation.
 
 
 .. _first_app:
@@ -1433,7 +1440,7 @@ To send your message over a DDS domain, carry out the following steps:
 
 1. Join the DDS network using a DomainParticipant
 2. Define which data type and under what name you will publish your message as a Topic
-3. Create the DataWriter that publishes that Topic
+3. Create the ``DataWriter`` that publishes that Topic
 4. And finally, publish the message.
 
 
@@ -1442,15 +1449,16 @@ To send your message over a DDS domain, carry out the following steps:
 
     
     from cyclonedds.topic import Topic
-    from cyclonedds.pub import DataWriter
+    from cyclonedds.pub import ``DataWriter``
 
     participant = DomainParticipant()
     topic = Topic(participant, "Announcements", Message)
-    writer = DataWriter(participant, topic)
+    writer = ``DataWriter``(participant, topic)
 
     writer.write(message)
 
-You have now published your first message successfully! However, it is hard to tell if that did anything, since we don't have anything set up that is listening. Let's make a second script that takes messages from DDS and prints them to the terminal:
+You have now published your first message successfully! However, it is hard to tell if that did anything, since we don't have anything set up that is listening. 
+Let's make a second script that takes messages from DDS and prints them to the terminal:
 
 .. code-block:: python3
     :linenos:
@@ -1468,7 +1476,7 @@ You have now published your first message successfully! However, it is hard to t
 
     participant = DomainParticipant()
     topic = Topic(participant, "Announcements", Message)
-    reader = DataReader(participant, topic)
+    reader = ``DataReader``(participant, topic)
 
     # If we don't receive a single announcement for five minutes we want the script to exit.
     for msg in reader.take_iter(timeout=duration(minutes=5)):
@@ -1978,7 +1986,8 @@ generators offer for generating build files. For example, for
 
 .. code-block:: bash
 
-    cmake -G "Visual Studio 16 2019" -DCMAKE_INSTALL_PREFIX=<cyclonedds-cxx-install-location> -DCMAKE_PREFIX_PATH="<cyclonedds-install-location>" -DBUILD_EXAMPLES=ON ..
+    cmake -G "Visual Studio 16 2019" -DCMAKE_INSTALL_PREFIX=<cyclonedds-cxx-install-location> -DCMAKE_PREFIX_PATH="<cyclonedds-install-location>" 
+    -DBUILD_EXAMPLES=ON ..
 
 To install after a successful build:
 
@@ -2138,9 +2147,9 @@ Uninstallation for product installer
 Windows
 ^^^^^^^
 
-To uninstall the Cyclone DDS CXX either remove it from Programs and
-Features in the Control Panel or use the Cyclone DDS CXX installer. In
-the latest case start Cyclone DDS CXX package, and choose 'Remove'.
+To uninstall the Cyclone DDS CXX, either remove it from Programs and
+Features in the Control Panel or use the Cyclone DDS CXX installer. 
+Start the Cyclone DDS CXX package in the latest case, and choose 'Remove.'
 
 .. image:: /_static/gettingstarted-figures/5.7.2.1-1.png
    :align: center
@@ -2592,7 +2601,7 @@ from the middleware.
 If you use a pre-allocated buffer, you create an array/vector-like 
 like container. If you use the loaned buffer option, you need to be
 aware that these buffers are actually 'owned' by the middleware,
-precisely by the DataReader. The Cyclone DDS CXX API implicitly 
+precisely by the ``DataReader``. The Cyclone DDS CXX API implicitly 
 allows you to return the loans through scoping.
 
 
@@ -2623,7 +2632,7 @@ that the data reader cache was not empty.
     if (samples.length() > 0)
 
 As sequences are NOT pre-allocated by the user, buffers are 'loaned' to
-him by the DataReader.
+him by the ``DataReader``.
 
 .. code-block:: C++
 
@@ -2686,7 +2695,7 @@ DDS CXX *Hello World* Publisher Source Code
 The ``Publisher.cpp`` contains the source that writes a *Hello World*
 message. From the DDS perspective, the publisher application code is
 almost symmetrical to the subscriber one, except that you need to create
-a Publisher and DataWriter, respectively, instead of a Subscriber and
+a Publisher and ``DataWriter``, respectively, instead of a Subscriber and
 Data Reader. A synchronization statement is added to the main thread to 
 ensure data is only written when Cyclone DDS discovers at least a matching 
 reader. Synchronizing the main thread until a reader is discovered
@@ -2803,7 +2812,7 @@ default DDS domain.
 
     dds::pub::DataWriter<HelloWorldData::Msg> writer(publisher, topic);
 
-To modify the DataWriter Default Reliability Qos to Reliable:
+To modify the ``DataWriter`` Default Reliability Qos to Reliable:
 
 .. code-block:: C++
 
