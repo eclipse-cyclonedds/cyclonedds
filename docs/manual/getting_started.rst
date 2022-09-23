@@ -6,7 +6,6 @@ Getting Started
    :width: 50%
    :align: center
 
-
 Installing Eclipse Cyclone DDS
 ==============================
 Eclipse Cyclone DDS is a performant and robust OMG-compliant Data
@@ -44,11 +43,12 @@ Make sure you have the following Hardware and software installed on your machine
 * `CMake <https://cmake.org/download/>`__, version 3.10 or later;
 * Optionally, `OpenSSL <https://www.openssl.org/>`__, it is preferable to use TLS over TCP for version 1.1 or 
 later. 
-If you need to reduce the footprint or have issues with the FindOpenSSL CMake script, you can explicitly
+If you need to reduce the footprint, or have issues with the FindOpenSSL CMake script, you can explicitly
   disable this by setting ENABLE\_SSL=NO
   
-.. TODO Post Installation Requirements
-
+Post Installation Requirements
+''''''''''''''''''''''''''''''
+Add (if any) post installation considerations here
 
 
 Installing on Linux and macOS
@@ -193,10 +193,8 @@ projects.
 **Note:** The default build type is a release build that includes debugging 
 information (RelWithDebInfo). 
 
-This is a convenient type of build to use from applications because 
-of a good mix between performance and still being able to debug things. 
-If you'd rather have a Debug or pure Release build, 
-set ``CMAKE_BUILD_TYPE`` accordingly.
+This build is commonly used from applications because of its high performance and debugging capabilities.  
+If you'd rather have a Debug or pure Release build, set ``CMAKE_BUILD_TYPE`` accordingly.
 
 If you want to contribute to Cyclone DDS, please refer to `Appendix I
 Contributing to Eclipse Cyclone DDS for
@@ -269,11 +267,11 @@ The wheels on PyPi contain a pre-built binary of the CycloneDDS C library and ID
  * Does not provide support for shared memory via Iceoryx,
  * Comes with generic Cyclone DDS binaries that are not optimized per platform.
 
-If you need these features or cannot use the binaries for other reasons, you can install the Cyclone DDS Python library from the source. 
-You will need to set the environment variable ``CYCLONEDDS_HOME`` to allow the installer to locate the CycloneDDS C library if it is on a non-standard path. 
+If you need these features, or cannot use the binaries for other reasons, you can install the Cyclone DDS Python library from the source. 
+You will need to set the environment variable ``CYCLONEDDS_HOME`` to allow the installer to locate the CycloneDDS C library if it is on the ``PATH``. 
 At runtime, we leverage several mechanisms to locate the appropriate library for the platform. 
-If you get an exception about non-locatable libraries or wish to manage multiple CycloneDDS installations, you can use the environment variable 
-``CYCLONEDDS_HOME`` to override the load location.
+If you get an exception about non-locatable libraries, or wish to manage multiple CycloneDDS installations, 
+you can use the environment variable ``CYCLONEDDS_HOME`` to override the load location.
 
 How to install pip for Python 3.7
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2140,8 +2138,8 @@ use the following command:
 
     rm -rf *
 
-Uninstallation for product installer
-''''''''''''''''''''''''''''''''''''
+Uninstall Cyclone DDS CXX
+''''''''''''''''''''''''''
 
 Windows
 ^^^^^^^
