@@ -559,8 +559,8 @@ The content of the ``CMakeLists.txt`` is:
 
     # This is a convenience function provided by the CycloneDDS package,
     # that will supply a library target related to the given idl file.
-    # In short, it takes the idl file, and generates the source files with
-    # the proper data types and compiles them into a library.
+    # In short it takes the IDL file, generates the source files with
+    # the proper data types, and then compiles them into a library.
     idlc_generate(HelloWorldData_lib "HelloWorldData.idl")
 
     # Both executables have only one related source file.
@@ -715,7 +715,7 @@ the data and applications states' that need to be shared rather than the
 applications' details. In a data-centric system, data and their
 associated quality of services are the only contracts that bounds the
 applications together. With DDS, the system decoupling is
-bi-dimensional, in Space and time.
+bi-dimensional, in both space and time.
 
 Space-decoupling derives from the fact that applications do not need to,
 either knows the identity of the data produced (or consumers) nor their
