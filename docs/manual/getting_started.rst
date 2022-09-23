@@ -329,7 +329,7 @@ Test your Installation
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 To test if your installation and configuration are working correctly,
-you can use the Cyclone DDS *ddsperf* tool (``ddsperf sanity``), or you
+you can use the Cyclone DDS ``ddsperf`` tool (``ddsperf sanity``), or you
 can use the Hello World example. To use the ddsperf tool, refer to
 `testing your network
 configuration. <#testing-your-network-configuration>`__ The test
@@ -446,7 +446,6 @@ macOS in the install or build directory:
 
 Uninstallation for the product installer
 ''''''''''''''''''''''''''''''''''''''''
-
 Windows
 ^^^^^^^
 
@@ -457,6 +456,15 @@ Cyclone DDS product installer, and select 'Remove.'
 
 .. image:: /_static/gettingstarted-figures/1.8.2.1.png
    :align: center
+   
+   
+Linux and macOS
+^^^^^^^^^^^^^^^
+
+If you installed the product through the Debian package, use sudo agt-get remove or sudo dpgk --remove to uninstall cyclonedds 
+Need more information for the uninstallation procesdure
+
+
 
 Installation with product installer for Linux and macOS
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
