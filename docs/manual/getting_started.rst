@@ -42,8 +42,9 @@ Make sure you have the following Hardware and software installed on your machine
 * A C compiler (most commonly GCC or clang on Linux, Visual Studio on Windows, XCode on macOS);
 * `Git <https://git-scm.com/>`__ version control system;
 * `CMake <https://cmake.org/download/>`__, version 3.10 or later;
-* Optionally, `OpenSSL <https://www.openssl.org/>`__, preferably version 1.1 or 
-later to use TLS over TCP. If you need to reduce the footprint or have issues with the FindOpenSSL CMake script, you can explicitly
+* Optionally, `OpenSSL <https://www.openssl.org/>`__, it is preferable to use TLS over TCP for version 1.1 or 
+later. 
+If you need to reduce the footprint or have issues with the FindOpenSSL CMake script, you can explicitly
   disable this by setting ENABLE\_SSL=NO
   
 Post Installation Requirements
