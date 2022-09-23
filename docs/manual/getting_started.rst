@@ -25,7 +25,7 @@ with Cyclone to share data.
 
 System prerequisites
 ~~~~~~~~~~~~~~~~~~~~
-Before building the Eclipse Cyclone DDS implementation, make sure you meet all the system prerequisites, 
+Before building the Eclipse Cyclone DDS implementation, make sure you meet all the system prerequisites.
 Failure to meet the prerequisites will cause the build to fail.
 
 Supported platforms
