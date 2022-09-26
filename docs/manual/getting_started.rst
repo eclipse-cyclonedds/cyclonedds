@@ -2865,8 +2865,8 @@ Send the data instance of the keyed message.
     writer.write(msg);
 
 After writing the data to the writer, the *DDS CXX Hello World* example
-checks if matching subscribers are still available. If 
-matching subscribers exist, the example waits for 50ms and starts
+checks if a matching subscriber(s) is still available. If 
+a matching subscriber(s) exists, the example waits for 50ms and starts
 publishing the data again. If no matching subscriber is found, then the
 publisher program is ended.
 
