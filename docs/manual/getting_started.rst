@@ -17,8 +17,8 @@ supported.
 This publication provides detailed information about how Install Eclipse Cyclone DDS.
 The chapters will cover:
 
-(Add hyperlinks here to these sections) The installation and build process of Cyclone Core including the C-APIs. 
-(Add hyperlinks here to these sections) Install the C++ support packages. Short C, C++, and Python tutorials are
+Chapter 1.  (Add hyperlinks here to these sections) The installation and build process of Cyclone Core including the C-APIs. 
+Chapter 2.  (Add hyperlinks here to these sections) Install the C++ support packages. Short C, C++, and Python tutorials are
 detailed to give the reader examples of how the DDS technology is used
 with Cyclone to share data.
 
@@ -41,13 +41,11 @@ Make sure you have the following Hardware and software installed on your machine
 * A C compiler (most commonly GCC or clang on Linux, Visual Studio on Windows, XCode on macOS);
 * `Git <https://git-scm.com/>`__ version control system;
 * `CMake <https://cmake.org/download/>`__, version 3.10 or later;
-* Optionally, `OpenSSL <https://www.openssl.org/>`__, it is preferable to use TLS over TCP for version 1.1 or 
-later. 
+* Optionally, `OpenSSL <https://www.openssl.org/>`__, preferably version 1.1 or later to use TLS over TCP. 
 If you need to reduce the footprint, or have issues with the FindOpenSSL CMake script, you can explicitly
-  disable this by setting ENABLE\_SSL=NO
   
 Post Installation Requirements
-''''''''''''''''''''''''''''''
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Add (if any) post installation considerations here
 
 
@@ -138,8 +136,7 @@ To obtain the Eclipse Cyclone DDS:
     cd cyclonedds
     mkdir build
 
-Then, depending on whether you like to develop applications using
-Cyclone DDS or contribute to it, you may follow different procedures.
+Please note: Use the appropriate procedure according to your specific needs. 
 
 On Windows, to install dependencies using chocolatey, use  ``choco install git cmake``.
 
@@ -173,7 +170,7 @@ this:
 
 To install it after a successful build:
 
-Depending on the installation location, you may need administrator
+Depending on the installation location, you may need an administrator
 privileges.
 
 .. code-block:: bash
@@ -222,7 +219,7 @@ To install the Cyclone DDS from the installer:
 3. Choose whether you want to add Cyclone DDS to the system PATH. We
    recommend adding it to the system PATH so your application can
    use the related libraries directly. Select whether to add it for the
-   current user or all users and click 'Next.'
+  current user or all users and click 'Next.'
 
 .. image:: /_static/gettingstarted-figures/1.5-3.png
    :align: center
@@ -246,9 +243,7 @@ To install the Cyclone DDS from the installer:
 
 
 The installation of Cyclone DDS core, C-APIs, and pre-compiler is
-complete. 
-
-The following section describes how to test it.
+complete. The following section describes how to test it.
 
 Additional Installation Procedures for Python
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -268,10 +263,9 @@ The wheels on PyPi contain a pre-built binary of the CycloneDDS C library and ID
  * Comes with generic Cyclone DDS binaries that are not optimized per platform.
 
 If you need these features, or cannot use the binaries for other reasons, you can install the Cyclone DDS Python library from the source. 
-You will need to set the environment variable ``CYCLONEDDS_HOME`` to allow the installer to locate the CycloneDDS C library if it is on the ``PATH``. 
-At runtime, we leverage several mechanisms to locate the appropriate library for the platform. 
-If you get an exception about non-locatable libraries, or wish to manage multiple CycloneDDS installations, 
-you can use the environment variable ``CYCLONEDDS_HOME`` to override the load location.
+You will need to set the environment variable ``CYCLONEDDS_HOME`` to allow the installer to locate the CycloneDDS C library if it is on the ``PATH``.
+At runtime, we leverage several mechanisms to locate the appropriate library for the platform. If you get an exception about non-locatable libraries, 
+or wish to manage multiple CycloneDDS installations, you can use the environment variable ``CYCLONEDDS_HOME`` to override the load location.
 
 How to install pip for Python 3.7
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1848,8 +1842,7 @@ At the time of writing this document, Eclipse Cyclone DDS CXX supports
 Linux, macOS, and Windows. Cyclone DDS CXX is known to work on FreeRTOS
 and the solaris-like Openindiana OS.
 
-To build the Cyclone DDS C++ binding, the following software should be
-installed on your machine.
+Before building the Cyclone DDS implementation, make sure you have the following software installed on your machine:
 
 -  C and C++ compilers (most commonly GCC on Linux, Visual Studio on
    Windows, Xcode on macOS);
