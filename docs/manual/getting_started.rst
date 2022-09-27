@@ -24,7 +24,7 @@ with Cyclone to share data.
 
 System prerequisites
 ~~~~~~~~~~~~~~~~~~~~
-Before building the Eclipse Cyclone DDS implementation, make sure you meet all the system prerequisites.
+Before building the Eclipse Cyclone DDS implementation, ensure you meet all the system prerequisites.
 Failure to meet the prerequisites will cause the build to fail.
 
 Supported platforms
@@ -41,12 +41,9 @@ Make sure you have the following Hardware and software installed on your machine
 * A C compiler (most commonly GCC or clang on Linux, Visual Studio on Windows, XCode on macOS);
 * `Git <https://git-scm.com/>`__ version control system;
 * `CMake <https://cmake.org/download/>`__, version 3.10 or later;
-* Optionally, `OpenSSL <https://www.openssl.org/>`__, preferably version 1.1 or later to use TLS over TCP. 
-If you need to reduce the footprint, or have issues with the FindOpenSSL CMake script, you can explicitly
+* Optionally, `OpenSSL <https://www.openssl.org/>`__, preferably version 1.1 or later to use TLS over TCP. If you need to reduce the footprint or have issues with the FindOpenSSL CMake script, you can explicitly
+  disable this by setting ENABLE_SSL=NO
   
-Post Installation Requirements
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Add (if any) post installation considerations here
 
 
 Installing on Linux and macOS
@@ -77,6 +74,44 @@ To obtain the Eclipse Cyclone DDS:
 Please note: Use the appropriate procedure according to your specific needs. 
 For example, a different procedure is required if you develop applications using Cyclone DDS versus 
 contributing to it.
+
+Installation with product installer for Linux and macOS
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+For Linux, there are two different installers:
+
+- .deb for Debian or Debian-based systems such as Ubuntu.
+- .rpm for Fedora, RHEL, and CentOS
+
+Running these installers will install the library and the development headers.
+
+**Note:** When you install the Debian operating system, it clears all pre-available data; therefore, it is essential to make a backup. 
+
+For Debian operating systems, run the following installation process:
+
+.. code-block:: bash
+
+    sudo apt install path/to/cyclone.deb
+
+For Fedora, RHEL, and CentOS:
+
+.. code-block:: bash
+
+    sudo rpm -i path/to/cyclone.rpm
+
+With these installed, you can now build the included examples. To build these examples for C and C++, run the following commands:
+
+.. code-block:: bash
+
+    1. Copy the example from /usr/share/CycloneDDSPro to your preferred location (e.g to your <Install_DIR>) 
+    2. Browse to the folder directory and create a "build" directory to retain all the build files:
+            <Install_DIR>/CycloneDDSPro/CycloneDDS/examples/helloworld
+         then call cmake , > cmake ../
+    3. Build the example using > cmake --build 
+
+**Note:** If you installed the product through the Debian package, use sudo agt-get remove or sudo dpgk --remove to uninstall cyclonedds.
+
+
 
 For Application Developers
 ''''''''''''''''''''''''''
@@ -110,10 +145,9 @@ At this point, you are ready to use Eclipse Cyclone DDS in your own
 projects.
 
 **Note:** The default build type is a release build with debug
-information included (RelWithDebInfo). This is a convenient type of
-build to use from applications because of a good mix between performance
-and still being able to debug things. If you'd rather have a Debug or
-pure Release build, set ``CMAKE_BUILD_TYPE`` accordingly.
+information included (RelWithDebInfo). 
+This build is suitable for applications because of its high-performance and debugging capabilities.
+If you prefer a Debug or pure Release build, set ``CMAKE_BUILD_TYPE`` accordingly.
 
 If you want to contribute to Cyclone DDS, please refer to `Appendix I
 Contributing to Eclipse Cyclone
@@ -243,7 +277,10 @@ To install the Cyclone DDS from the installer:
 
 
 The installation of Cyclone DDS core, C-APIs, and pre-compiler is
-complete. The following section describes how to test it.
+complete. 
+
+
+The following section describes how to test it.
 
 Additional Installation Procedures for Python
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -302,7 +339,7 @@ These can be installed using Python installation optional components:
     sphinx-build ./source ./build
     python -m http.server --directory build
 
-Permission denied errors could occur when you try to access a file from Python without having the necessary permissions. 
+Permission denied errors can occur when you try to access a file from Python without having the necessary permissions. 
 To fix this error, it is recommended to use `a virtual environment`_, `poetry`_, `pipenv`_ or `pyenv`_. 
 If you *just* want to get going, you can add ``--user`` to your pip command to install for the current user. See the `Installing Python Modules`_ documentation.
 
@@ -451,29 +488,6 @@ Cyclone DDS product installer, and select 'Remove.'
 .. image:: /_static/gettingstarted-figures/1.8.2.1.png
    :align: center
    
-   
-Linux and macOS
-^^^^^^^^^^^^^^^
-
-If you installed the product through the Debian package, use sudo agt-get remove or sudo dpgk --remove to uninstall cyclonedds 
-Need more information for the uninstallation procesdure
-
-
-
-Installation with product installer for Linux and macOS
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-When installing the product from a (.deb) package on the default location, run the command below to build the C or C++ examples:
-
-.. code-block:: bash
-
-1. Copy the example from Eclipse Cyclone DDS to your preferred location (e.g to your <Instal_DIR>) 
-2. Browse to the folder directory and create a "build" directory to retain all the build files: 
-        <Instal_DIR>/CycloneDDSPro/CycloneDDS/examples/helloworld
-     then call cmake , > cmake ../
-3. Build the example using > cmake --build 
-
-You have successfully installed the product from a (.deb) and built your C or C++ example.
 
 
 Building your first Cyclone DDS Applications
@@ -1838,9 +1852,12 @@ when managing data to lower overhead.
 System requirements
 ~~~~~~~~~~~~~~~~~~~
 
+Before You Get Started with Eclipse Cyclone DDS
+===============================================
+
 At the time of writing this document, Eclipse Cyclone DDS CXX supports
 Linux, macOS, and Windows. Cyclone DDS CXX is known to work on FreeRTOS
-and the solaris-like Openindiana OS.
+and the Solaris-like Openindiana OS.
 
 Before building the Cyclone DDS implementation, make sure you have the following software installed on your machine:
 
@@ -1938,6 +1955,8 @@ When installing the product from a (.deb) package on the default location, run t
 3. Build the example using > cmake --build 
 
 You have successfully installed the product from a (.deb) and built your C or C++ example.
+
+**Note:** This is Linux specific and should not refer to MacOS.
 
 Native Installation for Windows
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
