@@ -307,7 +307,7 @@ This example shows a few things:
   Members are
   * `NetworkInterface[@autodetermine]` tells Cyclone DDS to autoselect the interface it deems best.
   * `NetworkInterface[@name]` specifies the name of an interface to select (not shown above, alternative for autodetermine).
-  * `NetworkInterface[@ip]` specifies the ipv4/ipv6 address of an interface to select (not shown above, alternative for autodetermine).
+  * `NetworkInterface[@address]` specifies the ipv4/ipv6 address of an interface to select (not shown above, alternative for autodetermine).
   * `NetworkInterface[@multicast]` specifies whether multicast should be used on this interface.
     The default value 'default' means Cyclone DDS will check the OS reported flags of the interface and enable multicast if it is supported.
     Use 'true' to ignore what the OS reports and enable it anyway and 'false' to always disable multicast on this interface.
