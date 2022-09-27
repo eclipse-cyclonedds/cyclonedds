@@ -725,9 +725,9 @@ associated quality of services are the only contracts that bounds the
 applications together. With DDS, the system decoupling is
 bi-dimensional, in both space and time.
 
-Space-decoupling derives from the fact that applications do not need to,
-either knows the identity of the data produced (or consumers) nor their
-logical or their physical location in the network. Under the hood, DDS
+Space-decoupling derives from the fact that applications do not need to 
+know the identity of the data produced or consumed, nor their logical 
+or a physical location in the network. Under the hood, DDS
 runs a zero-configuration, interoperable discovery protocol that
 searches matching data readers and data writes that are interested in
 the same data topic.
