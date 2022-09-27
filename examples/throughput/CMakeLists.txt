@@ -19,7 +19,7 @@ endif()
 
 # This is a convenience function, provided by the CycloneDDS package,
 # that will supply a library target related the the given idl file.
-# In short, it takes the idl file, generates the source files with
+# In short, it takes the IDL file, generates the source files with
 # the proper data types and compiles them into a library.
 idlc_generate(TARGET Throughput_lib FILES Throughput.idl)
 
