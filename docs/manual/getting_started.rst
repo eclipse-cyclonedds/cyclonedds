@@ -17,8 +17,8 @@ supported.
 This publication provides detailed information about how Install Eclipse Cyclone DDS.
 The chapters will cover:
 
-Chapter 1.  (Add hyperlinks here to these sections) The installation and build process of Cyclone Core including the C-APIs. 
-Chapter 2.  (Add hyperlinks here to these sections) Install the C++ support packages. Short C, C++, and Python tutorials are
+(Add hyperlinks here to these sections) The installation and build process of Cyclone Core including the C-APIs. 
+(Add hyperlinks here to these sections) Install the C++ support packages. Short C, C++, and Python tutorials are
 detailed to give the reader examples of how the DDS technology is used
 with Cyclone to share data.
 
@@ -44,6 +44,10 @@ Make sure you have the following Hardware and software installed on your machine
 * Optionally, `OpenSSL <https://www.openssl.org/>`__, preferably version 1.1 or later to use TLS over TCP. If you need to reduce the footprint or have issues with the FindOpenSSL CMake script, you can explicitly
   disable this by setting ENABLE_SSL=NO
   
+  Post Installation Requirements
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Add (if any) post installation considerations here
 
 
 Installing on Linux and macOS
@@ -58,7 +62,7 @@ On Linux, install these dependencies with a package manager of your choice:
     aptitude install git cmake gcc
     # or others
 
-On macOS, installing XCode from the App Store should be adequate.
+On macOS, installing XCode from the App Store should be sufficient.
 
 Native Installation for Linux and macOS
 '''''''''''''''''''''''''''''''''''''''
@@ -290,7 +294,7 @@ This section shows the installation procedure for Eclipse Cyclone DDS Python, wr
 .. _installing:
 
 Prerequisites
-''''''''''''''
+'''''''''''''
 
 CycloneDDS Python requires Python version 3.7 or higher, with 3.11 support provisional. 
 The wheels on PyPi contain a pre-built binary of the CycloneDDS C library and IDL compiler. These have a couple of caveats. The pre-built package:
@@ -1222,8 +1226,9 @@ topic to create a writer. We must also use the same topic name specified in ``su
 
 When Cyclone DDS discovers readers and writers sharing the same data
 type and topic name, it connects them without the application's
-involvement. A rendezvous pattern is required to write data only when 
-a data reader appears. Either can implement such a pattern:
+involvement. A rendezvous pattern is required to write data only 
+when a DataReader appears. Such a pattern can be implemented by
+either:
 
 *  Waiting for the publication/subscription matched events, where the
    Publisher waits and blocks the writing thread until the appropriate
