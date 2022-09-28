@@ -2263,7 +2263,7 @@ In our case, the data type ``Msg`` contains two fields: ``userID`` and
 instance. This is done using the ``@key`` annotation.
 
 The Cyclone DDS CXX IDL compiler translates the module names into
-namespaces and structure name into classes.
+namespaces and structure names into classes.
 
 It also generates code for public accessor functions for all fields
 mentioned in the IDL struct, separate public constructors, and a
@@ -2278,7 +2278,7 @@ The destructor recursively releases all fields. It also generates code
 for assignment operators that recursively construct all fields based on
 the parameter class (copy and move versions). The following code snippet is
 provided without warranty: the internal format may change, but the API 
-provided to your application code is stable.
+delivered to your application code is stable.
 
 .. code-block:: C++
 
@@ -2353,7 +2353,7 @@ provided to your application code is stable.
 **Note:** When translated into a different programming language, the
 data has a different representation specific to the target
 language. For instance, as shown in chapter 3, in C, the Helloworld data
-type is represented by a C structure. This highlights the advantage of using a
+type is represented by a C structure. This highlights the advantage of using
 neutral language like IDL to describe the data model. It can be
 translated into different languages that can be shared between various
 applications written in other programming languages.
@@ -2798,7 +2798,7 @@ An exception handling mechanism ``try/catch`` block is used.
         return EXIT_FAILURE;
     }
 
-AS with the reader in ``subscriber.cpp``, we need a participant, a
+As with the reader in ``subscriber.cpp``, we need a participant, a
 topic, and a publisher to create a writer. We must also 
 
 use the same topic name specified in the ``subscriber.cpp``.
@@ -2831,7 +2831,7 @@ a data reader appears. Either can implement such a pattern:
 
 1. Wait for the publication/subscription matched events, where the
    Publisher waits and blocks the writing thread until the appropriate
-   publication matched event is raised, or
+   publication-matched event is raised, or
 2. Regularly poll the publication matching status. This is the
    preferred option used in this example. The following line of code
    instructs Cyclone DDS to listen on the
@@ -2852,7 +2852,7 @@ publication. In between, the writing thread sleeps for 20 milliseconds.
 
 After this loop, we are confident that a matching reader has been
 discovered. Now, we can commence the writing of the data instance.
-First, the data must be created and initialized
+First, the data must be created and initialized.
 
 .. code-block:: C++
 
@@ -2866,7 +2866,7 @@ Send the data instance of the keyed message.
 
 After writing the data to the writer, the *DDS CXX Hello World* example
 checks if a matching subscriber(s) is still available. If 
-a matching subscribers exist, the example waits for 50ms and starts
+matching subscribers exist, the example waits for 50ms and starts
 publishing the data again. If no matching subscriber is found, then the
 publisher program is ended.
 
@@ -3036,7 +3036,7 @@ directory before running CMake:
 
     conan install .. --build missing
 
-This automatically downloads and/or builds Google Test.
+This automatically downloads and builds Google Test.
 
 **Note:** Depending on the generator, you may also need to add switches
 to select the architecture and build type, e.g.:
