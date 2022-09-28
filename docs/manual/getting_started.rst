@@ -8,6 +8,7 @@ Getting Started
 
 Installing Eclipse Cyclone DDS
 ==============================
+
 Eclipse Cyclone DDS is a performant and robust OMG-compliant Data
 Distribution Service (DDS) implementation. Cyclone DDS core is
 implemented in C and provides C-APIs to applications. Through its
@@ -126,8 +127,7 @@ own applications using Cyclone DDS in a few simple steps.
 
 To install it after a successful build:
 
-Depending on the installation location, you may need an administrator
-privileges.
+Depending on the installation location, you may need administrator privileges.
 
 .. code-block:: bash
 
@@ -1908,7 +1908,7 @@ Cyclone DDS is installed.
 
 To install the package after a successful build:
 
-Depending on the installation location, you may need administrator
+Depending on the installation location, you may need an administrator
 privileges.
 
 .. code-block:: bash
@@ -2001,7 +2001,7 @@ generators offer for generating build files. For example, for
 
 To install after a successful build:
 
-Depending on the installation location, you may need administrator
+Depending on the installation location, you may need an administrator
 privileges.
 
 .. code-block:: bash
@@ -2211,7 +2211,7 @@ Subscriber polls the data reader periodically until a writing
 application, designated as application Publisher, 
 provides the required data into the shared Topic, namely ``HelloWorldData_Msg``.
 
-The data type is described using the OMG `IDL
+The data type is described using the OMG IDL.
 Language <http://www.omg.org/gettingstarted/omg_idl.htm>`__ located in
 ``HelloWorldData.idl`` file. This IDL file is considered the Data Model
 of our example.
@@ -2518,7 +2518,7 @@ the topic, the subscriber, and the reader.
 
 The Cyclone DDS CXX API simplifies and extends how data can be read or
 taken. To handle the data some, ``LoanedSamples`` is declared and
-created which loans samples from the Service pool. Return of the loan is
+created which loan samples from the Service pool. Return of the loan is
 implicit and managed by scoping:
 
 .. code-block:: C++
