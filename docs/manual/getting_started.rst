@@ -1348,7 +1348,7 @@ the CMake ``target_link_libraries()`` statement which links the ddscxx
 lib, the datatype wrapper classes lib (e.g ``ddscxxHelloWorldData_lib``)
 and the application code lib.
 
-The CMake tries to find the ``CycloneDDS`` and ``CycloneDDSCXX``
+CMake tries to find the ``CycloneDDS`` and ``CycloneDDSCXX``
 CMake packages, the details regarding how to locate those packages are
 described in the next section. When the packages are found, every path
 and dependencies are automatically set.
