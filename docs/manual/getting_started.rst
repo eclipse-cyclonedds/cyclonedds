@@ -627,7 +627,7 @@ Configure the built environment:
     cmake ../
 
 CMake uses the CMakeLists.txt in the HelloWorld directory to create
-makefiles that fit the native platform.
+makefiles that target the native platform.
 
 The real build process of the applications (``HelloworldPublisher`` and
 ``HelloworldSubscriber`` in this case) can start:
@@ -1441,8 +1441,8 @@ To publish anything to DDS we need to define the type of message first. Suppose 
 
 
 With ``cyclonedds.idl`` write typed classes with the standard library module `dataclasses <python:dataclasses>`. 
-If you put in a piece of text for this simple application, this system will still have the same expressive power as the OMG IDL specification. 
-allows you to use almost any complex data structure.
+For this simple application, the data being transmitted only contains a piece of text, but this system has the 
+same expressive power as the OMG IDL specification, allowing you to use almost any complex datastructure.
 
 To send your message over a DDS domain, carry out the following steps:
 
@@ -1465,8 +1465,8 @@ To send your message over a DDS domain, carry out the following steps:
 
     writer.write(message)
 
-You have now published your first message successfully! However, it is hard to tell if that did anything since we don't have anything set up that is listening. 
-Let's make a second script that takes messages from DDS and prints them to the terminal:
+You have now published your first message successfully! However, it is hard to tell if that did anything since we don't have 
+anything set up to listen for incoming messages. Let's make a second script that takes messages from DDS and prints them to the terminal:
 
 .. code-block:: python3
     :linenos:
@@ -2169,12 +2169,12 @@ DDS CXX Hello World Code anatomy
 ================================
 
 The previous chapter described the installation process that built
-implicitly or explicitly the C++ *Hello World!* Example. The key concept
-of DDS was introduced in Chapter 3. This chapter introduces the
-structural code of a simple system made by an application that publishes
-keyed messages and another one that subscribes and reads such data. Each
-message represents a data object that is uniquely identified with a key
-and a payload.
+implicitly or explicitly the C++ *Hello World!* Example. 
+
+This chapter introduces the structural code of a simple system made by an 
+application that publishes keyed messages and another one that subscribes and 
+reads such data. Each message represents a data object that is uniquely identified 
+with a key and a payload.
 
 .. _key_steps_helloworld_cpp:
 
@@ -2196,7 +2196,7 @@ To exchange data, applications' business logic with Cyclone DDS must:
 2. Create a **Data topic** with the data type described in the data
    model. The data types define the structure of the Topic. The Topic is,
    therefore, an association between the topic name and datatype. QoSs
-   can be optionally added to this association. A Topic, therefore
+   can be optionally added to this association. Thus, a topic
    categorizes the data into logical classes and streams.
 3. Create at least a **Publisher**, a **Subscriber**, and **Data
    Readers** and **Writers** object specific to the topic
