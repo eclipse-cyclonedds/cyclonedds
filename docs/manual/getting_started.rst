@@ -2262,7 +2262,7 @@ In our case, the data type ``Msg`` contains two fields: ``userID`` and
 ``message`` payload. The ``userID`` is used to uniquely identify each message 
 instance. This is done using the ``@key`` annotation.
 
-The Cyclone DDS CXX IDL compiler translates the module names into
+The Cyclone DDS CXX IDL compiler translates module names into
 namespaces and structure names into classes.
 
 It also generates code for public accessor functions for all fields
