@@ -1466,7 +1466,7 @@ To send your message over a DDS domain, carry out the following steps:
 
     writer.write(message)
 
-You have now published your first message successfully! However, it is hard to tell if that did anything, since we don't have anything set up that is listening. 
+You have now published your first message successfully! However, it is hard to tell if that did anything since we don't have anything set up that is listening. 
 Let's make a second script that takes messages from DDS and prints them to the terminal:
 
 .. code-block:: python3
@@ -1487,7 +1487,7 @@ Let's make a second script that takes messages from DDS and prints them to the t
     topic = Topic(participant, "Announcements", Message)
     reader = ``DataReader``(participant, topic)
 
-    # If we don't receive a single announcement for five minutes we want the script to exit.
+    # If we don't receive a single announcement for five minutes, we want the script to exit.
     for msg in reader.take_iter(timeout=duration(minutes=5)):
         print(msg.text)
 
@@ -1500,17 +1500,17 @@ Benchmarking Tools for Cyclone
 Introduction
 ~~~~~~~~~~~~
 
-Cyclone DDS provides a tool that measures primarily data *throughput*
+Cyclone DDS provides a tool that primarily measures data *throughput*
 and *latency* of the cyclone-based applications within the network or
-within the same board, namely *ddsperf*. This tool also help to do
+within the same board, namely *ddsperf*. This tool also helps 
 sanity checks to ensure your configuration is correctly set up and
-running. This chapter describes how to use the *ddsperf* tool and how to
+running. This chapter describes how to use the *ddsperf* tool and 
 read and interpret its outputs and results. Using the Cyclone DDS Python
-package you can also run *ddsperf* as a graphical application, by running
+package, you can also run *ddsperf* as a graphical application, by running
 *cyclonedds performance*.
 
-As well as *ddsperf*, you can also find dedicated examples in the
-product distribution that measures the DDS system throughput and the
+As well as *ddsperf*, you can find dedicated examples in the
+product distribution that measure the DDS system throughput and the
 latency with their associated codebase. You can start from the provided
 code and customize it to fit your scenario and exact data types. Both
 *ddsperf*\ tool and the provided examples perform the benchmarking using
@@ -1521,11 +1521,10 @@ Testing your network configuration
 
 Once your Cyclone DDS installation is successfully completed, you may
 want to test if your network environment is correctly set up. This can
-be done either by running the *HelloWorld* example or by using the
-*ddsperf* tool. The Helloworld example sends a message in one shot,
-whereas the ddsperf tool can send a continuous stream of data at a low
-frequency rate for sanity checks and can therefore bypass sporadic
-network issues.
+be done by running the *HelloWorld* example or using the
+*ddsperf* tool. The Helloworld example sends a message in one shot. 
+In contrast, the ddsperf tool can send a continuous stream of data at a 
+low-frequency rate for sanity checks and bypass sporadic network issues.
 
 If you have installed Cyclone DDS using the product installer, the
 *ddsperf* tool is pre-installed within ``<cyclonedds_dir>/bin``. If you
@@ -1540,7 +1539,7 @@ tool as follows:
 
     ddsperf sanity
 
-With the sanity option, only one data sample is sent each second (1Hz).
+The sanity option sends only one data sample each second (1Hz).
 
 In another terminal, start the *ddsperf* with the **Pong** mode to echo
 the data to the first instance of the *ddsperf* started with the
@@ -1555,8 +1554,8 @@ the data to the first instance of the *ddsperf* started with the
 
 If the data is not exchanged on the network between the two ddsperf
 instances, it is likely that Cyclone DDS has not selected the
-appropriate network card on both machines or a firewall in-between is
-preventing the communication.
+the appropriate network card on both machines or a firewall in-between is
+preventing communication.
 
 Cyclone DDS automatically selects the most available network interface.
 This behavior can be overridden by changing the configuration file. (see
@@ -1571,7 +1570,7 @@ Measuring Latency
 To measure latency between two different applications, you need to run
 two instances of the *ddsperf* tool and instruct one of them to endorse
 the role of a *sender* that sends a given amount of data (a sequence of
-octets) at a given rate and the other instance takes the role of
+octets) at a given rate, and the other instance takes the role of
 *receiver* that sends back the same amount of data to the sender in a
 Ping-Pong scenario. The sending action is triggered by the **Ping**
 option. The receiving behavior is triggered by the **Pong** action. The
@@ -1579,16 +1578,16 @@ sender measures the roundtrip time and computes the latency as half of
 the roundtrip time.
 
 The Ping-Pong scenario avoids clock desynchronization issues that might
-occur between two machines that do not share accurately the same
+occur between two machines that do not accurately share the same
 perception of the time in the network.
 
 .. image:: /_static/gettingstarted-figures/4.3-1.png
    :align: center
 
-To differential the two operational modes, the *ddsperf* tool can
+To differentiate  the two operational modes, the *ddsperf* tool can
 operate either in a **Ping mode** or in a **Pong mode**.
 
-To run this scenario, open 2 terminals (e.g on Linux like OSs) and run
+To run this scenario, open two terminals (e.g., on Linux-like OSs) and run
 the following commands in either of the terminals. The graphical
 *python-based* alternative is also noted.
 
@@ -1616,11 +1615,10 @@ options.
     gets a pong
 
   * The **Size** of the data that is exchanged. This is specified
-    through the [Size S] option. Using the default built-in topic, 12
-    bytes (an integer key, an integer sequence number, and an empty
-    sequence of bytes). are sent every time. The size is "as small as
-    possible" by default, depending on the size of the topic it defaults
-    to
+    through the [Size S] option. Using the built-in default topic, 12 bytes 
+    (an integer key, an integer sequence number, and an empty sequence of bytes) 
+    are sent every time. The size is "as small as possible" by default, 
+    depending on the default topic size.
 
   * The **Listening** mode, which can either be ``waitset`` based or
     ``Listener`` Callbacks modes. In the waitset mode the *ddsperf*
@@ -1630,7 +1628,7 @@ options.
     thread is created by the Cyclone DDS middleware. The Listener mode is
     the default.
 
-* In **Pong mode** you can only specify one option:
+* In **Pong mode**,you can only specify one option:
 
   * The **Listening** mode (with two possible values, ``waitset`` or
     ``Listener``)
