@@ -2172,10 +2172,6 @@ Start the Cyclone DDS CXX package in the latest case, and choose 'Remove.'
 .. image:: /_static/gettingstarted-figures/5.7.2.1-1.png
    :align: center
 
-Linux and macOS
-^^^^^^^^^^^^^^^
-
-TBD.
 
 DDS CXX Hello World Code anatomy
 ================================
