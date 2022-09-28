@@ -2081,7 +2081,7 @@ example <#building-your-first-cyclonedds-cxx-example>`__.
 Test your CXX Installation for Native Installation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Environnement Variable Updates
+Environment Variable Updates
 ''''''''''''''''''''''''''''''
 
 To run an Eclipse Cyclone DDSCXX application, the required libraries
