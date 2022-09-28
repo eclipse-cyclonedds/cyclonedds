@@ -17,8 +17,8 @@ if(NOT TARGET CycloneDDS::ddsc)
   find_package(CycloneDDS REQUIRED)
 endif()
 
-# This is a convenience function, provided by the CycloneDDS package,
-# that will supply a library target related the the given idl file.
+# This is a convenience function provided by the CycloneDDS package,
+# that will supply a library target related to the given IDL file.
 # In short, it takes the IDL file, generates the source files with
 # the proper data types and compiles them into a library.
 idlc_generate(TARGET HelloWorldData_lib FILES "HelloWorldData.idl" WARNINGS no-implicit-extensibility)
