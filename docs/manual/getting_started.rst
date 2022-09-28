@@ -1656,7 +1656,7 @@ The output of the *ddsperf* tool is as shown below:
 -  The **minimum latency** (e.g. 78.89 us)
 -  The **maximum latency** (e.g. 544,85 us)
 -  The **mean latency** (e.g. 118.434 us)
--  As well as the latency at 50%, 90% or 99% of the time.
+-  As well as the latency at 50%, 90%, or 99% of the time.
 
 .. image:: /_static/gettingstarted-figures/4.3-2.png
    :align: center
@@ -1671,7 +1671,7 @@ The output of the *ddsperf* tool is as shown below:
    times when the process is pre-empted or blocked by a mutex (e.g. 6
    times);
 -  The percentage of time spent executing user code and the percentage
-   of time spent executing kernel code in a specific thread (e.g. spent
+   of time spent executing the kernel code in a specific thread (e.g. spent
    almost 0% of the time executing the user code and 5% executing kernel
    code in thread "ping").
 
@@ -1697,7 +1697,7 @@ Two additional modes are therefore supported:
 
 The **Pub** mode and the **Sub** mode.
 
-In the Sub mode the subscriber operates either:
+In the Sub mode, the subscriber operates either:
 
 -  Using the **Listener** notification mechanism,
 -  The **WaitSet** notification mechanism, or
@@ -1711,16 +1711,15 @@ individually or by sending them in a *Burst* mode.
 
 -  The **Rate** and frequency at which data is written. This is
    specified through the [R[Hz]] option. The default rate is "as fast as
-   possible". Which means, in **pub** mode, instead of trying to reach a
+   possible". This means, in **pub** mode, instead of trying to reach a
    certain rate, it just pushes data as hard as it can.
 
 -  The **Size** of the data that is exchanged. This is specified through
    the [Size S] option. The size is "as small as possible" by default,
    depending on the size of the topic it defaults to.
--  The **Burst Size** , defines the number of data samples that are
-   issued together in as a batch. This parameter is defined by the
-   [Burst N] option. The default size for burst is 1. It doesn't make
-   much difference when going "as fast as possible", and it only applies
+-  The **Burst Size** , defines the number of data samples issued together as a batch. 
+   This parameter is defined by the [Burst N] option. The default size for burst is 1. 
+   It doesn't make much difference when going "as fast as possible", and it only applies
    to the **pub** mode.
 -  The triggering mode by default is *listener* for the **ping** ,
    **pong** and **sub** mode.
@@ -1747,8 +1746,8 @@ And in the other terminal, type in:
 This measures the throughput of data samples with 1Kbytes written as
 fast as possible.
 
-The ``-Qrss:1`` option in **sub** mode sets the maximum allowed increase
-in RSS as 1MB. When running the test, if the memory occupieds by the
+The ``-Qrss:1`` option in **sub** mode sets the maximum allowed an increase
+in RSS as 1MB. When running the test, if the memory occupied by the
 process increases by less than 1MB, the test can successfully run.
 Otherwise, an error message is printed out at the end of the test.
 
@@ -1794,11 +1793,11 @@ below:
 Measuring Throughput and Latency in a mixed scenario
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-In some scenarios, it might be useful to measure the throughput and
+In some scenarios, it might be helpful to measure the throughput and
 latency at the same time.
 
-The *ddsperf* tool allows you to mix these two scenarios. To address
-such cases the Ping mode can be combined with the Pub mode.
+The *ddsperf* tool allows you to mix these two scenarios. 
+The Ping mode can be combined with the Pub mode to address such cases.
 
 The [Ping x%] switch combined with the Pub mode allows you to send a
 fraction of samples x% as if they were used in the Ping mode.
@@ -1905,11 +1904,11 @@ applications using the C++ binding for Cyclone DDS:
     cmake --build .
 
 The ``<cyclonedds-cxx-install-location>`` is where the C++ binding for
-Cyclone DDS is installed to.
+Cyclone DDS is installed.
 
 To install the package after a successful build:
 
-Depending on the installation location you may need administrator
+Depending on the installation location, you may need administrator
 privileges.
 
 .. code-block:: bash
@@ -1927,10 +1926,9 @@ At this point, you are ready to use Eclipse Cyclone DDS CXX in your
 projects.
 
 **Note:** The default build type is a release build with debug
-information included (``RelWithDebInfo``). This is a convenient type of
-build to use for applications as it provides a good mix between
-performance and the ability to debug things. If you'd rather have a
-Debug or pure Release build, set ``CMAKE_BUILD_TYPE`` accordingly.
+information (``RelWithDebInfo``). This is a convenient build type 
+for applications as it delivers a good mix between performance and debugging capabilities. 
+If you prefer a Debug or a pure Release build, set ``CMAKE_BUILD_TYPE`` accordingly.
 
 If you want to contribute to Cyclone DDS CXX, please refer to `Appendix
 II Contributing to Eclipse Cyclone DDS
@@ -1951,7 +1949,7 @@ When installing the product from a (.deb) package on the default location, run t
 
 You have successfully installed the product from a (.deb) and built your C or C++ example.
 
-**Note:** This is Linux specific and should not refer to MacOS.
+**Note:** This is Linux-specific and should not refer to MacOS.
 
 Native Installation for Windows
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2003,7 +2001,7 @@ generators offer for generating build files. For example, for
 
 To install after a successful build:
 
-Depending on the installation location you may need administrator
+Depending on the installation location, you may need administrator
 privileges.
 
 .. code-block:: bash
@@ -2021,10 +2019,9 @@ At this point, you are ready to use Eclipse Cyclone DDS CXX in your
 projects.
 
 **Note:** The default build type is a release build with debug
-information included (``RelWithDebInfo``). This is a convenient type of
-build to use for applications as it provides a good mix between
-performance and the ability to debug things. If you prefer have a Debug
-or pure Release build, set ``CMAKE_BUILD_TYPE`` accordingly.
+information (``RelWithDebInfo``). This is a convenient build type 
+for applications as it delivers a good mix between performance and debugging capabilities.  
+If you prefer a Debug or a pure Release build, set ``CMAKE_BUILD_TYPE`` accordingly.
 
 If you want to contribute to Cyclone DDS CXX, refer to `Contributing to
 Eclipse Cyclone DDS CXX for Windows in Appendix
@@ -2050,9 +2047,9 @@ steps.
    :align: center
 
 3. Choose whether you would like to add Cyclone DDS CXX to the system
-   PATH. We recommend to add it to the system PATH, so that your
-   application can use the related libraies directly. Select whether you
-   would like to add it for the current user or for all users and click
+   PATH. Adding it to the system PATH is recommended so your
+   application can use the related libraries directly. Select whether you
+   want to add it for the current user or all users, and click
    'Next'.
 
 .. image:: /_static/gettingstarted-figures/5.5-3.png
@@ -2083,14 +2080,14 @@ example <#building-your-first-cyclonedds-cxx-example>`__.
 Test your CXX Installation for Native Installation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Environnement variable updates
+Environnement Variable Updates
 ''''''''''''''''''''''''''''''
 
 To run an Eclipse Cyclone DDSCXX application, the required libraries
 (such as ddsc.dll and ddscxx.dll) must be available in the executable
-path. These libraries should be installed in the system default
+path. These libraries should be installed in the system's default
 location. However, if they are not installed there, the library search
-path must be updated accordingly. On Linux use the command:
+path must be updated accordingly. On Linux, use the command:
 
 .. code-block:: PowerShell
 
@@ -2099,7 +2096,7 @@ path must be updated accordingly. On Linux use the command:
 **Note:** Alternatively, copy the required libraries to the executables'
 directory.
 
-Running the pre-built example
+Running the Pre-Built Example
 '''''''''''''''''''''''''''''
 
 A simple *Hello World* application is included in the Eclipse Cyclone
@@ -2184,7 +2181,7 @@ Keys steps to build the Hello World! application in CXX
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The *Hello World!* example has a very simple 'data layer' with a data
-model made of one data type ``Msg`` who represents keyed messages (c,f
+model made of one data type ``Msg`` which represents keyed messages (c,f
 next subsection).
 
 To exchange data, applications' business logic with Cyclone DDS must:
@@ -2210,7 +2207,7 @@ To exchange data, applications' business logic with Cyclone DDS must:
 
 At the application level, readers and writers need not be aware of
 each other. The reading application, now designated as application
-Subscriber, polls the data reader periodically until a writing
+Subscriber polls the data reader periodically until a writing
 application, designated as application Publisher, 
 provides the required data into the shared Topic, namely ``HelloWorldData_Msg``.
 
