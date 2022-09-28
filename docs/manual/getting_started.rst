@@ -110,8 +110,6 @@ With these installed, you can now build the included examples. To build these ex
 
 **Note:** If you installed the product through the Debian package, use sudo agt-get remove or sudo dpgk --remove to uninstall cyclonedds.
 
-
-
 For Application Developers
 ''''''''''''''''''''''''''
 
@@ -487,7 +485,6 @@ Cyclone DDS product installer, and select 'Remove.'
 
 Building your first Cyclone DDS Applications
 ============================================
-
 
 Building Your First Example
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
