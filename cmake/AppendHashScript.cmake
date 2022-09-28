@@ -4,6 +4,7 @@ include(HashUtilities)
 
 
 append_hashes(
+    BEFORE ${BEFORE}
     PREFIX ${PREFIX}
     POSTFIX ${POSTFIX}
     HASH_FILES ${HASH_FILES}

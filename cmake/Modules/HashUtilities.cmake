@@ -77,9 +77,15 @@ endfunction()
 
 
 function(APPEND_HASHES)
-    set(one_value_keywords PREFIX POSTFIX)
+    set(one_value_keywords PREFIX POSTFIX BEFORE)
     set(multi_value_keywords HASH_FILES APPEND_FILES)
     cmake_parse_arguments(_append_hashes "" "${one_value_keywords}" "${multi_value_keywords}" "" ${ARGN})
+
+    if (NOT "${_append_hashes_BEFORE}" STREQUAL "")
+        foreach(_file ${_append_hashes_APPEND_FILES})
+            file(APPEND "${_file}" "\n${_append_hashes_BEFORE}\n")
+        endforeach()
+    endif()
 
     foreach(_hash_file ${_append_hashes_HASH_FILES})
         generate_hash_text(hash_line "${_hash_file}" "${_append_hashes_PREFIX}" "${_append_hashes_POSTFIX}")
