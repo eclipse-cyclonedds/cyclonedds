@@ -1950,7 +1950,7 @@ When installing the product from a (.deb) package on the default location, run t
 
 You have successfully installed the product from a (.deb) and built your C or C++ example.
 
-**Note:** This is Linux-specific and should not refer to MacOS.
+**Note:** This is Linux-specific and should not refer to macOS.
 
 Native Installation for Windows
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
