@@ -744,7 +744,7 @@ architecture relatively low when adding more and more ``DataReader`` and
 Keys steps to build the Hello World! application
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The *Hello World!* example has an effortless 'data layer' with a data
+The *Hello World!* example has a minimal 'data layer' with a data
 model made of one data type ``Msg`` that represents keyed messages (c,f
 next subsection).
 
@@ -766,7 +766,7 @@ to:
    and streams.
 3. Create the **Data Readers** and **Writers** entities 
    specific to the topic. Applications may want to change the default
-   QoSs. In the ``Hello world!`` example, the ``ReliabilityQoS`` is changed
+   QoSs. In the ``Hello world!`` Example, the ``ReliabilityQoS`` is changed
    from its default value (``Best-effort``) to ``Reliable``.
 4. Once the previous DDS computational entities are in place, the
    application logic can start writing or reading the data.
@@ -808,16 +808,16 @@ stored in the HelloWorldData.idl file:
 The OMG Interface Definition Language (IDL) subset is used as DDS
 data definition language. In our simple example, the HelloWorld data
 model is made of one module ``HelloWorldData``. A module can be seen as
-a namespace where data with interrelated semantics is represented
+a namespace where data with interrelated semantics are represented
 together in the same logical set.
 
 The ``structMsg`` is the data type that shapes the data used to
 build topics. As already mentioned, a topic is an association between a
 data type and a string name. The topic name is not defined in the IDL
-file, but the application business logic at runtime determines it.
+file, but the application business logic determines it at runtime.
 
 In our simplistic case, the data type Msg contains two fields:
-``userID`` and ``message`` payload. The ``userID`` is used to identify each message instance uniquely. This is done using the
+``userID`` and ``message`` payload. The ``userID`` is used to uniquely identify each message instance. This is done using the
 ``@key`` annotation.
 
 The Cyclone DDS IDL compiler translates the IDL datatype into a C struct
@@ -834,7 +834,7 @@ with a name made of the\ ``<ModuleName>_<DataTypeName>`` .
 **Note:** When translated into a different programming language, the
 data has another representation specific to the target
 language. For instance, as shown in chapter 7, in C++, the Helloworld
-data type is represented by a C++ class. This advantage of using
+data type is represented by a C++ class. This highlights the advantage of using
 a neutral language like IDL to describe the data model. It can be
 translated into different languages that can be shared between different
 applications written in other programming languages.
