@@ -807,8 +807,8 @@ stored in the HelloWorldData.idl file:
         };
     };
 
-The OMG Interface Definition Language (IDL) subset is used as DDS
-data definition language. In our simple example, the HelloWorld data
+The data definition language used for DDS corresponds to a subset of 
+the OMG Interface Definition Language (IDL). In our simple example, the HelloWorld data
 model is made of one module ``HelloWorldData``. A module can be seen as
 a namespace where data with interrelated semantics are represented
 together in the same logical set.
@@ -2208,8 +2208,8 @@ To exchange data, applications' business logic with Cyclone DDS must:
 
 At the application level, readers and writers need not be aware of
 each other. The reading application, now designated as application
-Subscriber polls the data reader periodically until a writing
-application, designated as application Publisher, 
+Subscriber, polls the data reader periodically until a writing
+application, designated as application Publisher,  
 provides the required data into the shared Topic, namely ``HelloWorldData_Msg``.
 
 The data type is described using the OMG IDL.
