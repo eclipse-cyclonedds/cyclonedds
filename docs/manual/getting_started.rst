@@ -42,7 +42,7 @@ Make sure you have the following Hardware and software installed on your machine
 * `Git <https://git-scm.com/>`__ version control system;
 * `CMake <https://cmake.org/download/>`__, version 3.10 or later;
 * Optionally, `OpenSSL <https://www.openssl.org/>`__, preferably version 1.1 later to use TLS over TCP. 
-If you need to reduce the footprint or have issues with the FindOpenSSL CMake script, you can explicitly disable this by setting ENABLE\_SSL=NO
+If you need to reduce the footprint, or have issues with the FindOpenSSL CMake script, you can explicitly disable this by setting ENABLE\_SSL=NO
   
 
 Installing on Linux and macOS
