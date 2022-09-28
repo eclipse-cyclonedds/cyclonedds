@@ -165,12 +165,14 @@ To obtain the Eclipse Cyclone DDS:
 .. code-block:: bash
 
     git clone https://github.com/eclipse-cyclonedds/cyclonedds.git
-    cd cyclonedds
+    cd cycloneddsintallation
     mkdir build
 
 **Note:** Use the appropriate procedure according to your specific needs. 
 
-On Windows, to install dependencies using chocolatey, use  ``choco install git cmake``.
+You can install dependencies using scoop. Refer to the scoop website for installation steps here: https://scoop.sh/
+
+You can also install dependencies using chocolatey, use  ``choco install git cmake``.
 
 For Application Developers
 ''''''''''''''''''''''''''
@@ -953,7 +955,7 @@ The subscriber application implements the steps defined in:ref:`the Key Steps <k
       while (true)
       {
         /* Do the actual read.
-        * The return value contains the number of reading samples. */
+        * The return value contains the number of samples read. */
         ret = dds_read (reader, samples, infos, MAX_SAMPLES, MAX_SAMPLES);
         DDS_ERR_CHECK (ret, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
 
@@ -974,7 +976,6 @@ The subscriber application implements the steps defined in:ref:`the Key Steps <k
       }
       /* Free the data location. */
       HelloWorldData_Msg_free (samples[0], DDS_FREE_ALL);
-
       /* Deleting the participant will delete all its children recursively as well. */
       ret = dds_delete (participant);
       DDS_ERR_CHECK (ret, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
@@ -1201,7 +1202,6 @@ did in the subscriber code.
 Like the reader in ``subscriber.c``, we need a participant and a
 topic to create a writer. We must also use the same topic name specified in ``subscriber.c``.
 
-
 .. code-block:: C
 
     dds_entity_t participant; 
@@ -1216,7 +1216,8 @@ topic to create a writer. We must also use the same topic name specified in ``su
 When Cyclone DDS discovers readers and writers sharing the same data
 type and topic name, it connects them without the application's
 involvement. A rendezvous pattern is required to write data only 
-when a DataReader appears. Either can implement such a pattern:
+when a DataReader appears. Such a pattern can be implemented by
+either:
 
 *  Waiting for the publication/subscription matched events, where the
    Publisher waits and blocks the writing thread until the appropriate
