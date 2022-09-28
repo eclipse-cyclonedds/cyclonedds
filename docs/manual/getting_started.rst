@@ -17,9 +17,8 @@ supported.
 This publication provides detailed information about how Install Eclipse Cyclone DDS.
 The chapters will cover:
 
-(Add hyperlinks here to these sections) The installation and build process of Cyclone Core including the C-APIs. 
-(Add hyperlinks here to these sections) Install the C++ support packages. Short C, C++, and Python tutorials are
-detailed to give the reader examples of how the DDS technology is used
+The installation and build process of Cyclone Core including the C-APIs. 
+How to install the C++ support packages. Short C/C++, and Python tutorials are detailed to give you examples of how the DDS technology is used
 with Cyclone to share data.
 
 System prerequisites
@@ -44,10 +43,6 @@ Make sure you have the following Hardware and software installed on your machine
 * Optionally, `OpenSSL <https://www.openssl.org/>`__, preferably version 1.1 or later to use TLS over TCP. If you need to reduce the footprint or have issues with the FindOpenSSL CMake script, you can 
 explicitly disable this by setting ENABLE_SSL=NO
   
-  Post Installation Requirements
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Add (if any) post installation considerations here
 
 
 Installing on Linux and macOS
@@ -75,12 +70,12 @@ To obtain the Eclipse Cyclone DDS:
     cd cyclonedds
     mkdir build
 
-Please note: Use the appropriate procedure according to your specific needs. 
+**Note:** Use the appropriate procedure according to your specific needs. 
 For example, a different procedure is required if you develop applications using Cyclone DDS versus 
 contributing to it.
 
-Installation with product installer for Linux and macOS
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Installation with product installer for Linux 
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 For Linux, there are two different installers:
 
@@ -174,7 +169,7 @@ To obtain the Eclipse Cyclone DDS:
     cd cyclonedds
     mkdir build
 
-Please note: Use the appropriate procedure according to your specific needs. 
+**Note:** Use the appropriate procedure according to your specific needs. 
 
 On Windows, to install dependencies using chocolatey, use  ``choco install git cmake``.
 
@@ -1692,9 +1687,10 @@ To measure throughput between two different applications, you need to
 run at least two instances of the *ddsperf*\ tool and instruct one of
 them to endorse the role of a Publisher that sends a given amount of
 data (a sequence of octets) at a given rate. The other instances take
-the role of Subscriber applications. Please note that when your scenario
-involves only one subscriber, the UDP unicast mode is used. If several
-subscriber instances are running, the multicast is automatically used.
+the role of Subscriber applications. 
+
+**Note:** When your scenario involves only one subscriber, the UDP unicast mode is used. 
+If several subscriber instances are running, the multicast is automatically used.
 
 .. image:: /_static/gettingstarted-figures/4.4-1.png
    :align: center
