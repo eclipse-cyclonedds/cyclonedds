@@ -202,8 +202,7 @@ this:
 
 To install it after a successful build:
 
-Depending on the installation location, you may need an administrator
-privileges.
+Depending on the installation location, you may need administrator privileges.
 
 .. code-block:: bash
 
@@ -1842,8 +1841,6 @@ when managing data to lower overhead.
 .. image:: /_static/gettingstarted-figures/5-1.png
    :align: center
 
-System requirements
-~~~~~~~~~~~~~~~~~~~
 
 Before You Get Started with Eclipse Cyclone DDS
 ===============================================
@@ -1851,6 +1848,10 @@ Before You Get Started with Eclipse Cyclone DDS
 At the time of writing this document, Eclipse Cyclone DDS CXX supports
 Linux, macOS, and Windows. Cyclone DDS CXX is known to work on FreeRTOS
 and the Solaris-like Openindiana OS.
+
+System requirements
+~~~~~~~~~~~~~~~~~~~
+
 
 Before building the Cyclone DDS implementation, make sure you have the following software installed on your machine:
 
