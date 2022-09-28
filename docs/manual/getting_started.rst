@@ -18,7 +18,7 @@ This publication provides detailed information about how Install Eclipse Cyclone
 The chapters will cover:
 
 The installation and build process of Cyclone Core including the C-APIs. 
-How to install the C++ support packages. Short C/C++, and Python tutorials are detailed to give you examples of how the DDS technology is used
+How to install the C++ support packages. Short C/C++, and Python tutorials are detailed to show examples of how the DDS technology is used
 with Cyclone to share data.
 
 System prerequisites
@@ -84,7 +84,7 @@ For Linux, there are two different installers:
 
 Running these installers will install the library and the development headers.
 
-**Note:** When you install the Debian operating system, it clears all pre-available data; therefore, it is essential to make a backup. 
+**Note:** When you install the Debian operating system, it clears all pre-available data; therefore, it is advised to make a backup. 
 
 For Debian operating systems, run the following installation process:
 
@@ -223,8 +223,8 @@ projects.
 **Note:** The default build type is a release build that includes debugging 
 information (RelWithDebInfo). 
 
-This build is commonly used from applications because of its high performance and debugging capabilities.  
-If you'd rather have a Debug or pure Release build, set ``CMAKE_BUILD_TYPE`` accordingly.
+This build is commonly used for applications because of its high performance and debugging capabilities.  
+If you would rather have a Debug or pure Release build, set ``CMAKE_BUILD_TYPE`` accordingly.
 
 If you want to contribute to Cyclone DDS, please refer to `Appendix I
 Contributing to Eclipse Cyclone DDS for
@@ -284,7 +284,7 @@ The following section describes how to test it.
 Additional Installation Procedures for Python
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-This section shows the installation procedure for Eclipse Cyclone DDS Python, wrapping the `Eclipse Cyclone DDS`_ C-API for the usage in Python applications.
+This section shows the installation procedure for Eclipse Cyclone DDS Python, wrapping the `Eclipse Cyclone DDS`_ C-API for usage in Python applications.
 
 .. _installing:
 
@@ -320,7 +320,7 @@ You can install it from the GitHub link directly:
     CYCLONEDDS_HOME="/path/to/cyclonedds" pip install git+https://github.com/eclipse-cyclonedds/cyclonedds-python
 
 
-You will need additional dependencies if you wish to run the test suite or build the documentation. 
+To run the test suite or build the documentation, you will need additional dependencies. 
 These can be installed using Python installation optional components:
 
 .. code-block:: shell
@@ -338,7 +338,7 @@ These can be installed using Python installation optional components:
     sphinx-build ./source ./build
     python -m http.server --directory build
 
-Permission denied errors can occur when you try to access a file from Python without having the necessary permissions. 
+Permission denied errors could occur when you try to access a file from Python without having the necessary permissions. 
 To fix this error, it is recommended to use `a virtual environment`_, `poetry`_, `pipenv`_ or `pyenv`_. 
 If you *just* want to get going, you can add ``--user`` to your pip command to install for the current user. See the `Installing Python Modules`_ documentation.
 
@@ -384,7 +384,7 @@ executables are to copy the necessary libraries for the
 executables' directory.
 
 Running the pre-built example
-''''''''''''''''''''''''''''''
+'''''''''''''''''''''''''''''
 
 Eclipse Cyclone DDS includes a simple *Hello World!* application that
 can be executed to test your installation. The *Hello World!*
@@ -525,8 +525,8 @@ tool <http://cmake.org/>`__, although you can build with your
 native compilers and preferred toolchains.
 
 `CMake <http://cmake.org/>`__ is an open-source, cross-platform family
-of tools designed to build, test, and package software. It is used to
-control the software compilation process using simple platform and
+of tools designed to build, test, and package software. It controls 
+the software compilation process using simple platform and
 compiler-independent configuration files. It also generates native
 makefiles, projects, and workspaces of your development environment.
 CMake's main strength is built portability. The same CMake input files
@@ -562,8 +562,8 @@ The content of the ``CMakeLists.txt`` is:
 
     # This is a convenience function provided by the CycloneDDS package,
     # that will supply a library target related to the given idl file.
-    # In short it takes the IDL file, generates the source files with
-    # the proper data types, and then compiles them into a library.
+    # In summary, it takes the IDL file, and generates the source files with
+    # the proper data types. It then compiles the files into a library.
     idlc_generate(HelloWorldData_lib "HelloWorldData.idl")
 
     # Both executables have only one related source file.
@@ -575,7 +575,7 @@ The content of the ``CMakeLists.txt`` is:
     target_link_libraries(HelloworldPublisher HelloWorldData_lib CycloneDDS::ddsc)
     target_link_libraries(HelloworldSubscriber HelloWorldData_lib CycloneDDS::ddsc)
 
-To build a Cyclone-based application you need to link your business code
+To build a Cyclone-based application, you need to link your business code
 with:
 
 -  The ``ddsc`` library that contains the DDS API the application needs.
@@ -701,11 +701,11 @@ payload.
 Data-Centric Architecture
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-In a service-centric architecture, to interact, applications need to
+In a service-centric architecture, applications need to
 know each other's interfaces to share data, share events, and share
-commands or replies. These interfaces are modeled as sets of operations
-and functions that are managed in centralized repositories. This kind of
-architecture creates unnecessary dependencies that create a
+commands or replies to interact. These interfaces are modeled as sets of 
+operations and functions that are managed in centralized repositories. 
+This type of architecture creates unnecessary dependencies that form a
 tightly coupled system. The centralized interface repositories are
 usually seen as a single point of failure.
 
@@ -716,7 +716,7 @@ operations and the internal processing that produced them.
 A data-centric architecture creates a decoupled system that focuses on
 the data and applications states' that need to be shared rather than the
 applications' details. In a data-centric system, data and their
-associated quality of services are the only contracts that bounds the
+associated quality of services are the only contracts that bound the
 applications together. With DDS, the system decoupling is
 bi-dimensional, in both space and time.
 
@@ -732,7 +732,7 @@ communication is asynchronous. Data producers and consumers,
 known as ``DataWriter``s and ``DataReader``s, are not forced to
 be active and connected simultaneously to share data. In this
 scenario, the DDS middleware can handle and manage data on behalf of
-late joining ``DataReader`` applications and deliver to them when they
+late joining ``DataReader`` applications and deliver it to them when they
 join the system.
 
 Time and space decoupling gives applications the freedom to be plugged
@@ -774,8 +774,8 @@ to:
    application logic can start writing or reading the data.
 
 At the application level, readers and writers do not need to be aware of
-each other. The reading application, hereby called Subscriber, polls the
-data reader periodically, until a publishing application, hereby called
+each other. The reading application, now called Subscriber, polls the
+data reader periodically until a publishing application, now called
 The publisher writes the required data into the shared topic, namely
 ``HelloWorldData_Msg``.
 
@@ -997,7 +997,7 @@ Within the subscriber code, we mainly use the DDS API and the
 
 With Cyclone DDS, at least three DDS entities are needed to build a
 minimalistic application, the domain participant, the topic, and the
-reader. A DDS Subscriber entity is implicitly created by Cyclone DDS. If
+reader. Cyclone DDS implicitly creates a DDS Subscriber entity. If
 required, this behavior can be overridden.
 
 .. code-block:: C
@@ -1024,7 +1024,7 @@ In Cyclone DDS data and metadata are propagated together. The
 
 The DDS participant is always attached to a specific DDS domain. In the
 *Hello World!* example, it is part of the ``Default_Domain``, the one
-specified in the xml deployment file (see :ref:`test your installation <test_your_installation>` for more details).
+specified in the XML deployment file (see :ref:`test your installation <test_your_installation>` for more details).
 
 .. code-block:: C
 
@@ -1032,10 +1032,10 @@ specified in the xml deployment file (see :ref:`test your installation <test_you
 
 The next step is to create the topic with a given name. Topics with the
 same data type description and with different names are considered
-different topics. This means that readers or writers created for a given
+other topics. This means that readers or writers created for a given
 topic do not interfere with readers or writers created with another
 topic even if they have the same data type. Topics with the same name but
-incompatible datatype is considered an error and should be avoided.
+incompatible datatype are considered an error and should be avoided.
 
 .. code-block:: C
 
@@ -1055,7 +1055,7 @@ location. This means the samples array needs initialization by pointing
 the void pointer within the buffer array to a valid sample memory
 location.
 
-In our example, we have an array of one element
+In our example, we have an array of one element;
 (``#define MAX_SAMPLES 1``.) we only need to allocate memory for one
 ``HelloWorldData_Msg``.
 
@@ -1071,18 +1071,18 @@ that regularly scrutinizes and examines the arrival of a message.
     ret = dds_read (reader, samples, info, MAX_SAMPLES, MAX_SAMPLES);
 
 The ``dds_read`` operation returns the number of samples equal to the
-parameter ``MAX_SAMPLE``. If that number exceeds 0 that means data
-arrived in the reader's cache.
+parameter ``MAX_SAMPLE``. If data has arrived in the reader's cache, 
+that number will exceed 0.
 
-The Sample\_info (``info``) structure tells us whether the data we are
-reading is *Valid* or *Invalid*. Valid data means that it contains the
-payload provided by the publishing application. Invalid data means, that
-we are rather reading the DDS state of data Instance. The state of a
-data instance can be for instance *DISPOSED* by the writer or it is
+The Sample\_info (``info``) structure tells us whether the data we read 
+is *Valid* or *Invalid*. Valid data means that it contains the
+payload provided by the publishing application. Invalid data means we 
+are reading the DDS state of the data Instance. The state of a
+data instance can be, for instance, *DISPOSED* by the writer, or it is
 *NOT\_ALIVE* anymore, which could happen if the publisher application
 terminates while the subscriber is still active. In this case, the
-sample is not considered as Valid, and its sample ``info[].Valid_data``
-field is be ``False``.
+sample is not considered Valid, and its sample ``info[].Valid_data``
+the field is ``False``.
 
 
 .. code-block:: C
@@ -1218,13 +1218,12 @@ topic to create a writer. We must also use the same topic name specified in ``su
 When Cyclone DDS discovers readers and writers sharing the same data
 type and topic name, it connects them without the application's
 involvement. A rendezvous pattern is required to write data only 
-when a DataReader appears. Such a pattern can be implemented by
-either:
+when a DataReader appears. Either can implement such a pattern:
 
 *  Waiting for the publication/subscription matched events, where the
    Publisher waits and blocks the writing thread until the appropriate
-   publication matched event is raised, or
-*  Regularly polls the publication matching status. This is the
+   publication-matched event is raised, or
+*  Regularly polls the publication matching status. This is 
    the preferred option we implement in this example. The following line of
    code instructs Cyclone DDS to listen on the
    DDS\_PUBLICATION\_MATCHED\_STATUS:
@@ -1233,7 +1232,7 @@ either:
 
     dds_set_status_mask(writer, DDS_PUBLICATION_MATCHED_STATUS);
 
-At regular intervals we get the status change and a matching
+At regular intervals, we get the status change and a matching
 publication. In between, the writing thread sleeps for a time period
 equal ``DDS\_MSECS`` (in milliseconds).
 
@@ -1254,7 +1253,7 @@ equal ``DDS\_MSECS`` (in milliseconds).
 
 After this loop, we are sure that a matching reader has been discovered.
 Now, we commence the writing of the data instance. First, the data must
-be created and initialized
+be created and initialized.
 
 
 .. code-block:: C
@@ -1277,7 +1276,7 @@ deleting the root entity of all the others: the domain participant.
 
     ret = dds_delete (participant);
 
-All the underlying entities such as topic, writer … etc are deleted.
+All the underlying entities, such as topic, writer, etc., are deleted.
 
 
 Hello World! Code Anatomy in C++
@@ -1289,7 +1288,7 @@ code of this application is detailed in the next chapter.
 The *DDS CXX Hello World* example can be found in the
 ``<cyclonedds-cxx-install-location>/share/CycloneDDS CXX/helloworld``
 directory for both Linux and Windows. This chapter describes the example
-build process using the CMake.
+build process using CMake.
 
 Building Eclipse Cyclone DDS CXX applications with CMake
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''
@@ -1316,7 +1315,7 @@ The content of the ``CMakeLists.txt`` is as follows:
     add_executable(ddscxxHelloworldPublisher publisher.cpp)
     add_executable(ddscxxHelloworldSubscriber subscriber.cpp)
 
-    # Link both executables to idl data type library and ddscxx.
+    # Link both executables to IDL data type library and ddscxx.
     target_link_libraries(ddscxxHelloworldPublisher ddscxxHelloWorldData_lib CycloneDDS CXX::ddscxx)
     target_link_libraries(ddscxxHelloworldSubscriber ddscxxHelloWorldData_lib CycloneDDS CXX::ddscxx)
 
@@ -1336,7 +1335,7 @@ your application business code with:
    IDL compiler and packages the datatype wrapper classes in a library
    (e.g. ``ddscxxHelloWorldData_lib``).
 
-This process is depicted as follows:
+This process is outlined as follows:
 
 .. image:: /_static/gettingstarted-figures/6.1.1-1.png
    :align: center
@@ -1388,8 +1387,8 @@ to check if the application runs successfully.
 Building the DDS CXX Hello World example on Windows
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-To build the *DDS CXX Hello World* example in Windows, it's likely that
-you have to specify the generator for CMake. For example, to generate a
+To build the *DDS CXX Hello World* example in Windows, you will 
+likely have to specify the generator for CMake. For example, to generate a
 Visual Studio 2017 project, use the following command:
 
 .. code-block:: bash
@@ -1398,7 +1397,7 @@ Visual Studio 2017 project, use the following command:
     cd build
     cmake -G “Visual Studio 15 2017 Win64” -DCMAKE_PREFIX_PATH=”<cyclone-install-location>;<cyclonedds-cxx-install-location>” ..
 
-CMake uses the CMakeLists.txt in the helloworld directory to create
+CMake uses the CMakeLists.txt in the Helloworld directory to create
 makefiles that fit the native platform.
 
 Subsequently, build the example. We recommend you provide the config of
