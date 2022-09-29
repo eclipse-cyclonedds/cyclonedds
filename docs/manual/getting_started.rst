@@ -255,8 +255,7 @@ To install the Cyclone DDS from the installer:
 .. image:: /_static/gettingstarted-figures/1.5-3.png
    :align: center
 
-4. Here you can Select the method you want features to be installed. 
-   Click the icons in the tree display to change how features will be installed. 
+4. Click the icons in the tree display to change how features will be installed. 
    Set up the directory to install Cyclone DDS. We recommend that you DO
    NOT install it in the ``Program Files`` directory, as it needs
    administrators' permission to write to the folder. Click 'Next'.
@@ -2027,55 +2026,26 @@ If you want to contribute to Cyclone DDS CXX, refer to `Contributing to
 Eclipse Cyclone DDS CXX for Windows in Appendix
 II. <#appendix-ii-contributing-to-eclipse-cyclone-dds-cxx>`__
 
-Installation with product installer for Windows
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Installing Cyclone DDS CXX from the installer
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Cyclone DDS CXX also provides a product installer, this may be easier
 than installing it from GitHub.
 
-To install the Cyclone DDS CXX from the installer, use the following
-steps.
-
-1. Start up the installer and click 'Next'.
-
-.. image:: /_static/gettingstarted-figures/5.5-1.png
-   :align: center
-
-2. Agree to the terms, and click 'Next'.
-
-.. image:: /_static/gettingstarted-figures/5.5-2.png
-   :align: center
-
-3. Choose whether you would like to add Cyclone DDS CXX to the system
-   PATH. Adding it to the system PATH is recommended so your
-   application can use the related libraries directly. Select whether you
-   want to add it for the current user or all users, and click
-   'Next'.
-
-.. image:: /_static/gettingstarted-figures/5.5-3.png
-   :align: center
-
-4. Select the directory where you would like to install Cyclone DDS CXX.
+   To install the Cyclone DDS CXX from the installer choose whether you 
+   would like to add Cyclone DDS CXX to the system PATH. 
+   Adding it to the system PATH is recommended so your 
+   application can use the related libraries directly. 
+   
+   Select the directory where you would like to install Cyclone DDS CXX.
    Avoid installing it within the ``Program Files`` directory, as it
-   requires administrator privileges. Click 'Next'.
+   requires administrator privileges.
 
-.. image:: /_static/gettingstarted-figures/5.5-4.png
+.. image:: /_static/gettingstarted-figures/1.5-4.png
    :align: center
 
-5. You are now ready to install the Cyclone DDS CXX, click 'Install'.
-
-.. image:: /_static/gettingstarted-figures/5.5-5.png
-   :align: center
-
-6. Click 'Finish'.
-
-.. image:: /_static/gettingstarted-figures/5.5-6.png
-   :align: center
-
-The installation for Cyclone DDS CXX is complete, to build an
-application using Cyclone DDS CXX, refer to `how to build your first
-Cyclone DDS CXX
-example <#building-your-first-cyclonedds-cxx-example>`__.
+To build an application using Cyclone DDS CXX, refer to `how to build your first
+Cyclone DDS CXX example <#building-your-first-cyclonedds-cxx-example>`__.
 
 Test your CXX Native Installation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
