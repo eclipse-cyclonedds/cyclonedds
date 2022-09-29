@@ -165,14 +165,14 @@ Authentication Properties
 =========================
 
 To enable authentication for a node, it has to be configured with an identity certificate
-(``DDSSecurity/Authentication/IdentityCertificate``). This identity certificate is used to
+(:ref:`//CycloneDDS/Domain/Security/Authentication/IdentityCertificate`). This identity certificate is used to
 authenticate all participants of that particular CycloneDDS domain. Associated with the
 identity certificate is the corresponding private key
-(``DDSSecurity/Authentication/PrivateKey``). The private key may either be a 2048-bit RSA
+(:ref:`//CycloneDDS/Domain/Security/Authentication/PrivateKey`). The private key may either be a 2048-bit RSA
 or a 256-bit Elliptic Curve Key with a prime256v1 curve.
 
 The certificate of identity CA, which is the issuer of the node's identity certificate,
-is configured in ``DDSSecurity/Authentication/IdentityCA``. The public key of the
+is configured in :ref:`//CycloneDDS/Domain/Security/Authentication/IdentityCA`. The public key of the
 identity CA (as part of its certificate) shall either be a 2048-bit RSA key or a 256-bit
 Elliptic Curve Key for the prime256v1 curve. The identity CA certificate can be a
 self-signed certificate.
@@ -183,11 +183,11 @@ with ``data:,``) or the configuration file should contain a reference to a corre
 file (prefixed with ``file:``).
 
 Optionally the private key could be protected by a password
-(``DDSSecurity/Authentication/Password``).
+(:ref:`//CycloneDDS/Domain/Security/Authentication/Password`).
 
 Furthermore the CycloneDDS configuration allows configuring a directory containing additional
 identity CA's which are used to verify the identity certificates that are received from remote instances
-(``DDSSecurity/Authentication/TrustedCADirectory``). This option allows multiple identity
+(:ref:`//CycloneDDS/Domain/Security/Authentication/TrustedCADirectory`). This option allows multiple identity
 CAs throughout the system.
 
 .. _`Access Control Properties`:
@@ -196,9 +196,9 @@ CAs throughout the system.
 Access Control Properties
 =========================
 
-A governance document (``DDSSecurity/AccessControl/Governance``), a permissions document
-(``DDSSecurity/AccessControl/Permissions``) and the permissions CA certificate
-(``DDSSecurity/AccessControl/PermissionsCA``) are required for the access control plugin.
+A governance document (:ref:`//CycloneDDS/Domain/Security/AccessControl/Governance`), a permissions document
+(:ref:`//CycloneDDS/Domain/Security/AccessControl/Permissions`) and the permissions CA certificate
+(:ref:`//CycloneDDS/Domain/Security/AccessControl/PermissionsCA`) are required for the access control plugin.
 Similar to the authentication plugin properties, these values can be provided as CDATA or
 by using a path to a file.
 

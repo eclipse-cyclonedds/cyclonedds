@@ -35,7 +35,7 @@ if (NOT ${_confgen_hash_correct})
       "Please rerun CMake in host mode to regenerate the files before attempting a crossbuild"
     )
   else()
-    message(STATUS "Building _confgen and regenerating defconfig.c, options.md, options.rst, cyclonedds.rnc and cyclonedds.xsd.")
+    message(STATUS "Building _confgen because configuration sources were updated.")
   endif()
 
   add_executable(_confgen-exe
@@ -60,6 +60,7 @@ if (NOT ${_confgen_hash_correct})
 
   add_custom_target(
     _confgen
+    COMMENT "Regenerating configuration-dependend files (defconfig.c, cyclonedds.rnc/xsd and markdown/rst documentation)."
     COMMAND _confgen-exe -f defconfig -o "${generated_defconfig_src}"
     COMMAND _confgen-exe -f rnc -o "${generated_cyclonedds_rnc}"
     COMMAND _confgen-exe -f xsd -o "${generated_cyclonedds_xsd}"

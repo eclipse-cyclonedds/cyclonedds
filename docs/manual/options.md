@@ -523,7 +523,7 @@ This element controls which participants will have which built-in endpoints for 
 
  * minimal: only one participant has built-in endpoints.
 
-The default is writers, as this is thought to be compliant and reasonably efficient. Minimal may or may not be compliant but is most efficient, and full is inefficient but certain to be compliant. See also Internal/ConservativeBuiltinReaderStartup.
+The default is writers, as this is thought to be compliant and reasonably efficient. Minimal may or may not be compliant but is most efficient, and full is inefficient but certain to be compliant.
 
 The default value is: "writers".
 
@@ -1876,12 +1876,12 @@ The categorisation of tracing output is incomplete and hence most of the verbosi
 The default value is: "none".
 <!--- generated from ddsi_config.h[75edea6617af11bacc46f91e519773f6df580655] -->
 <!--- generated from ddsi_cfgunits.h[fc550f1620aa20dcd9244ef4e24299d5001efbb4] -->
-<!--- generated from ddsi_cfgelems.h[cd3baa0178cce15e0974acd0a14723100d5308b8] -->
+<!--- generated from ddsi_cfgelems.h[83f48cf89c7ef06097cf29773331d721273eb972] -->
 <!--- generated from ddsi_config.c[ed9898f72f9dbcfa20ce7706835da091efcea0ca] -->
 <!--- generated from _confgen.h[f2d235d5551cbf920a8a2962831dddeabd2856ac] -->
 <!--- generated from _confgen.c[1193219ddb4769b90566cf197e73d22fb6f75835] -->
 <!--- generated from generate_rnc.c[a2ec6e48d33ac14a320c8ec3f320028a737920e0] -->
 <!--- generated from generate_md.c[a61b6a9649d18afeca4c73b5784f36989d7994e0] -->
-<!--- generated from generate_rst.c[9c0846699368e54cb6d8b9c4efb6c065e7f1dc9a] -->
+<!--- generated from generate_rst.c[61b17d289d22675961f8e8b8118d0a1bd04e180c] -->
 <!--- generated from generate_xsd.c[45064e8869b3c00573057d7c8f02d20f04b40e16] -->
 <!--- generated from generate_defconfig.c[eec9ab7b2d053e68500799b693d089e84153a37b] -->

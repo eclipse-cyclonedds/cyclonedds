@@ -36,7 +36,7 @@ repos:
         'etc/cyclonedds.rnc',
         'etc/cyclonedds.xsd',
         'docs/manual/options.md',
-        'docs/manual/options.rst'
+        'docs/manual/config/config_file_reference.rst'
     ]
     pass_filenames: false
   - id: version-check

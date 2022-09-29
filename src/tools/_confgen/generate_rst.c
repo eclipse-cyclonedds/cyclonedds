@@ -64,7 +64,7 @@ static void printhead(
   (void)flags;
   (void)units;
   assert(level < (sizeof(headerchars) - 1));
-  fprintf(out, "%s\n", elem->meta.title);
+  fprintf(out, ".. _`%s`:\n\n%s\n", elem->meta.title, elem->meta.title);
   for(size_t i = strlen(elem->meta.title); i > 0; --i)
     fputc(headerchars[level], out);
   fputs("\n\n", out);
@@ -282,7 +282,9 @@ int printrst(FILE *out, struct cfgelem *elem, const struct cfgunit *units)
   fputs(
     "***********************\n"
     "Configuration Reference\n"
-    "***********************\n\n", out);
+    "***********************\n\n"
+    "Below is the full (generated) reference of the CycloneDDS xml config file. "
+    "The title of each section is the XML XPath notation to the relevant option.\n\n", out);
   printelem(out, 0u, 0u, elem, units);
   return 0;
 }

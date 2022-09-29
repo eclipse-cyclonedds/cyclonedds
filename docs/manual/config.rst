@@ -9,6 +9,8 @@
 
 .. SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
+.. _config-docs:
+
 #########################################
 Eclipse Cyclone DDS Configuration Options
 #########################################
@@ -28,3 +30,4 @@ Users that are already familiar with the concepts of DDS can go directly to the 
 
    config/ddsi_concepts
    config/cyclonedds_specifics
+   config/config_file_reference
