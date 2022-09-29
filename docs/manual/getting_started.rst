@@ -255,7 +255,9 @@ To install the Cyclone DDS from the installer:
 .. image:: /_static/gettingstarted-figures/1.5-3.png
    :align: center
 
-4. Set up the directory to install Cyclone DDS. We recommend that you DO
+4. Here you can Select the method you want features to be installed. 
+   Click the icons in the tree display to change how features will be installed. 
+   Set up the directory to install Cyclone DDS. We recommend that you DO
    NOT install it in the ``Program Files`` directory, as it needs
    administrators' permission to write to the folder. Click 'Next'.
 
