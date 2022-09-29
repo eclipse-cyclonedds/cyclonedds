@@ -459,8 +459,8 @@ The API reference can be found in the sidebar.
 Uninstalling Cyclone DDS
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-Uninstallation for Native Installation
-''''''''''''''''''''''''''''''''''''''
+Uninstall Native 
+''''''''''''''''
 
 You can manually remove the install and build directory. In Linux and
 macOS in the install or build directory:
