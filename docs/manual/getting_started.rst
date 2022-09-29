@@ -2075,7 +2075,7 @@ application using Cyclone DDS CXX, refer to `how to build your first
 Cyclone DDS CXX
 example <#building-your-first-cyclonedds-cxx-example>`__.
 
-Test your CXX Installation for Native Installation
+Test your CXX Native Installation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Environment Variable Updates
