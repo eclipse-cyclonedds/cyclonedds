@@ -469,7 +469,7 @@ macOS in the install or build directory:
 
     rm -rf *
 
-Uninstall product installer
+Uninstall Cyclone DDS product installer
 ''''''''''''''''''''''''''''''''''''''''
 Windows
 ^^^^^^^
