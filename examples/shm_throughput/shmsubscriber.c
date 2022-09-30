@@ -40,7 +40,7 @@ static unsigned long long total_samples = 0;
 
 static dds_time_t startTime = 0;
 
-static int payloadSize = 0;
+static int payloadSize = 8192;
 
 static void * data [MAX_SAMPLES];
 static void * samples[MAX_SAMPLES];
