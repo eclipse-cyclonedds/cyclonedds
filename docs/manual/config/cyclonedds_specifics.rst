@@ -72,7 +72,7 @@ or proxy writer.  In the discovery process, writers are matched with proxy reade
 readers are matched with proxy writers, based on the topic and type names and the QoS
 settings.
 
-Proxies have the same natural hierarchy that "normal" DDSI entities have: each proxy
+Proxies have the same natural hierarchy that 'normal' DDSI entities have: each proxy
 endpoint is owned by some proxy participant, and once the proxy participant is deleted,
 all of its proxy endpoints are deleted as well.  Participants assert their liveliness
 periodically (called *automatic* liveliness in the DCPS specification, and the only mode
@@ -163,8 +163,8 @@ samples can be dropped aggressively, instead of having to deliver them to all re
 the disadvantage is that it is somewhat more resource-intensive.
 
 The WHC distinguishes between history to be retained for existing readers (controlled by
-the writer"s history QoS setting) and the history to be retained for late-joining
-readers for transient-local writers (controlled by the topic"s durability-service
+the writer's history QoS setting) and the history to be retained for late-joining
+readers for transient-local writers (controlled by the topic's durability-service
 history QoS setting).  This makes it possible to create a writer that never overwrites
 samples for live readers while maintaining only the most recent samples for late-joining
 readers.  Moreover, it ensures that the data that is available for late-joining readers
@@ -214,7 +214,7 @@ To determine the default network interface, the eligible interfaces are ranked b
 + point-to-point, or if none is available
 + loopback
 
-If this procedure doesn"t select the desired interface automatically, it can be overridden by setting :ref:`General/Interfaces <//CycloneDDS/Domain/General/Interfaces>` by adding the interface(s) either by name of the interface (``<NetworkInterface name='interface_name' />``), the IP address of the host on the desired interface (``<NetworkInterface address='128.129.0.42' />``), or the network portion of the IP address of the host on the desired interface (``<NetworkInterface address='128.11.0.0' />``). An exact match on the address is always preferred and is the only option that allows selecting the desired one when multiple addresses are tied to a single interface.
+If this procedure doesn't select the desired interface automatically, it can be overridden by setting :ref:`General/Interfaces <//CycloneDDS/Domain/General/Interfaces>` by adding the interface(s) either by name of the interface (``<NetworkInterface name='interface_name' />``), the IP address of the host on the desired interface (``<NetworkInterface address='128.129.0.42' />``), or the network portion of the IP address of the host on the desired interface (``<NetworkInterface address='128.11.0.0' />``). An exact match on the address is always preferred and is the only option that allows selecting the desired one when multiple addresses are tied to a single interface.
 
 The default address family is IPv4, setting General/Transport to ``udp6`` or ``tcp6`` will change this to IPv6.  Currently, Cyclone DDS does not mix IPv4 and IPv6 addressing.  Consequently, all DDSI participants in the network must use the same addressing mode.  When inter-operating, this behaviour is the same, i.e., it will look at either IPv4 or IPv6 addresses in the advertised address information in the SPDP and SEDP discovery protocols.
 
@@ -226,7 +226,7 @@ If IPv6 is requested and the selected interface has a non-link-local address, Cy
 Multiple network interfaces
 ---------------------------
 
-Multiple network interfaces can be used simultaneously, by listing multiple :ref:`NetworkInterface <//CycloneDDS/Domain/General/Interfaces/NetworkInterface>` elements.  In this case, the above still applies, with most things extended in the obvious manner, e.g., the SPDP packets will now advertise multiple addresses and it will send these packets out on all interfaces.  That means the issue with *link-local addressing* discussed gains importance if link-local addresses are used, but they usually aren"t.
+Multiple network interfaces can be used simultaneously, by listing multiple :ref:`NetworkInterface <//CycloneDDS/Domain/General/Interfaces/NetworkInterface>` elements.  In this case, the above still applies, with most things extended in the obvious manner, e.g., the SPDP packets will now advertise multiple addresses and it will send these packets out on all interfaces.  That means the issue with *link-local addressing* discussed gains importance if link-local addresses are used, but they usually aren't.
 
 In a configuration with just a single network interface, it is obvious which one to use for sending packets to a peer.  When there are multiple network interfaces, it is necessary to establish the set of interfaces via which multicasts can be sent, because these are sent on a specific interface.  This in turn requires determining via which subset of interfaces a peer is reachable.
 
@@ -252,11 +252,11 @@ Overriding addresses/interfaces for readers/writers
 
 The :ref:`Partitioning <//CycloneDDS/Domain/Partitioning>` element in the configuration allows configuring :ref:`NetworkPartition <//CycloneDDS/Domain/Partitioning/NetworkPartitions>` elements and mapping topic/partition names to these "network partitions" using :ref:`PartitionMappings <//CycloneDDS/Domain/Partitioning/PartitionMappings>` elements.
 
-Network partitions introduce alternative multicast addresses for data and/or restrict the set of unicast addresses (i.e., interfaces). In the DDSI discovery protocol, a reader can override the addresses at which it is reachable and this feature of the discovery protocol is used to advertise alternative multicast addresses and/or a subset of the unicast addresses. The writers in the network will use the addresses advertised by the reader rather than the default addresses advertised by the reader"s participant.
+Network partitions introduce alternative multicast addresses for data and/or restrict the set of unicast addresses (i.e., interfaces). In the DDSI discovery protocol, a reader can override the addresses at which it is reachable and this feature of the discovery protocol is used to advertise alternative multicast addresses and/or a subset of the unicast addresses. The writers in the network will use the addresses advertised by the reader rather than the default addresses advertised by the reader's participant.
 
 Unicast and multicast addresses in a network partition play different roles:
 
-+ The multicast addresses specify an alternative set of addresses to be used instead of the participant"s default. This is particularly useful to limit high-bandwidth flows to the parts of a network where the data is needed (for IP/Ethernet, this assumes switches that are configured to do IGMP snooping).
++ The multicast addresses specify an alternative set of addresses to be used instead of the participant's default. This is particularly useful to limit high-bandwidth flows to the parts of a network where the data is needed (for IP/Ethernet, this assumes switches that are configured to do IGMP snooping).
 
 + The unicast addresses not only influence the set of interfaces that will be used for unicast, but thereby also the set of interfaces that will be considered for use by multicast. Thus, specifying a unicast address matching network interface A ensures all traffic to that reader will be using interface A, whether unicast or multicast.
 
@@ -479,7 +479,7 @@ On reception of an SPDP packet, the addresses advertised in the packet are added
 set of addresses to which SPDP packets are sent periodically, allowing asymmetrical
 discovery.  In an extreme example, if SPDP multicasting is disabled entirely, host A has
 the address of host B in its peer list and host B has an empty peer list, then B will
-eventually discover A because of an SPDP message sent by A, at which point it adds A"s
+eventually discover A because of an SPDP message sent by A, at which point it adds A's
 address to its own set and starts sending its own SPDP message to A, allowing A to
 discover B.  This takes a bit longer than normal multicast based discovery, though, and
 risks writers being blocked by unresponsive readers.
@@ -691,7 +691,7 @@ operational circumstances, only a single message will be recorded for each sampl
 dropped, but it may on occasion report multiple events for the same sample.
 
 Finally, it is technically allowed to set :ref:`Internal/MaxSampleSize <//CycloneDDS/Domain/Internal/MaxSampleSize>` to very small sizes,
-even to the point that the discovery data can"t be communicated anymore.
+even to the point that the discovery data can't be communicated anymore.
 The dropping of the discovery data will be duly reported, but the usefulness
 of such a configuration seems doubtful.
 
