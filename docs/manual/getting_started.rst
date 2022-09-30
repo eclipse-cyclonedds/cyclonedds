@@ -114,7 +114,7 @@ For Application Developers
 ''''''''''''''''''''''''''
 
 You can build and install the required libraries needed to develop 
-your applications using Cyclone DDS in a few simple steps.
+your applications using Cyclone DDS in a few simple steps, as shown below:
 
 .. code-block:: bash
 
@@ -153,7 +153,7 @@ DDS <#appendix-i-contributing-to-eclipse-cyclone-dds>`__.
 Installation on Windows
 ~~~~~~~~~~~~~~~~~~~~~~~
 There are several installation methods when you install Eclipse Cyclone DDS on Windows. 
-In this topic, we will look at how to install Native and the product installer for Windows.
+This topic will look at how to install Native and the product installer for Windows.
 
 How to Install Native on Windows
 '''''''''''''''''''''''''''''''''''''''
@@ -176,7 +176,7 @@ For Application Developers
 ''''''''''''''''''''''''''
 
 You can build and install the required libraries to develop 
-your applications using Cyclone DDS in a few simple steps.
+your applications using Cyclone DDS in a few simple steps, as shown below:
 
 .. code-block:: bash
 
