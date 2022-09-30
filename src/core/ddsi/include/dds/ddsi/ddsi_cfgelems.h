@@ -1261,7 +1261,7 @@ static struct cfgelem internal_cfgelems[] = {
       "<p>The default is <i>writers</i>, as this is thought to be compliant "
       "and reasonably efficient. <i>Minimal</i> may or may not be compliant "
       "but is most efficient, and <i>full</i> is inefficient but certain to "
-      "be compliant. See also Internal/ConservativeBuiltinReaderStartup.</p>"),
+      "be compliant.</p>"),
     VALUES("full","writers","minimal")),
   BOOL("MeasureHbToAckLatency", NULL, 1, "false",
     MEMBER(meas_hb_to_ack_latency),

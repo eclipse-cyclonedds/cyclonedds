@@ -19,7 +19,8 @@ extensions = [
     'breathe',
     'sphinx.ext.intersphinx',
     "sphinx.ext.viewcode",
-    "sphinx.ext.autosummary"
+    "sphinx.ext.autosummary",
+    "sphinx_tabs.tabs"
 ]
 
 templates_path = ['_templates']

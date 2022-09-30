@@ -21,13 +21,14 @@ be changed via an XML configuration located at a path defined by the variable ``
 
 .. code-block:: xml
    :linenos:
-   :caption: /path/to/dds/configuration.xml
+   :caption: ``/path/to/dds/configuration.xml``
 
    <?xml version="1.0" encoding="utf-8"?>
-   <CycloneDDS xmlns="https://cdds.io/config"
-   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-   xsi:schemaLocation="https://cdds.io/config https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/master/etc/cyclonedds.xsd">
-
+   <CycloneDDS
+     xmlns="https://cdds.io/config"
+     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+     xsi:schemaLocation="https://cdds.io/config https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/master/etc/cyclonedds.xsd"
+   >
      <Domain Id="any">
        <General>
          <Interfaces>
@@ -40,7 +41,8 @@ be changed via an XML configuration located at a path defined by the variable ``
        <Tracing>
          <Verbosity>config</Verbosity>
          <OutputFile>
-         ${HOME}/dds/log/cdds.log.${CYCLONEDDS_PID}</OutputFile>
+           ${HOME}/dds/log/cdds.log.${CYCLONEDDS_PID}
+         </OutputFile>
        </Tracing>
      </Domain>
    </CycloneDDS>
@@ -70,7 +72,7 @@ or proxy writer.  In the discovery process, writers are matched with proxy reade
 readers are matched with proxy writers, based on the topic and type names and the QoS
 settings.
 
-Proxies have the same natural hierarchy that ‘normal’ DDSI entities have: each proxy
+Proxies have the same natural hierarchy that 'normal' DDSI entities have: each proxy
 endpoint is owned by some proxy participant, and once the proxy participant is deleted,
 all of its proxy endpoints are deleted as well.  Participants assert their liveliness
 periodically (called *automatic* liveliness in the DCPS specification, and the only mode
@@ -99,18 +101,17 @@ all discovery activities amongst the participants, allowing one to add participa
 process with only a minimal impact on the system.  It is even possible to have only a
 single DDSI participant in a process regardless of the number of DCPS participants
 created by the application code in that process, which then becomes the virtual owner of
-all the endpoints created in that one process.  (See `Combining multiple
-participants`_.)  In this latter mode, there is no discovery penalty at all for having
+all the endpoints created in that one process.  (See :ref:`Sharing of discovery information`.)
+In this latter mode, there is no discovery penalty at all for having
 many participants, but evidently, any participant-based liveliness monitoring will be
 affected.
 
 Because other implementations of the DDSI specification may be written on the assumption
 that all participants perform their own discovery, it is possible to simulate that with
 Eclipse Cyclone DDS.  It will not actually perform the discovery for each participant
-independently, but it will generate the network traffic *as if* it does.  These are
-controlled by the ``Internal/BuiltinEndpointSet`` and
-``Internal/ConservativeBuiltinReaderStartup`` options.  However, please note that at the
-time of writing, we are not aware of any DDSI implementation requiring the use of these
+independently, but it will generate the network traffic *as if* it does. These are
+controlled by the :ref:`Internal/BuiltinEndpointSet <//CycloneDDS/Domain/Internal/BuiltinEndpointSet>` option.
+However, please note that at the time of writing, we are not aware of any DDSI implementation requiring the use of these
 settings.)
 
 By sharing the discovery information across all participants in a single node, each
@@ -129,7 +130,7 @@ Lingering Writers
 When an application deletes a reliable DCPS data writer, there is no guarantee that all
 its readers have already acknowledged the correct receipt of all samples.  In such a
 case, Eclipse Cyclone DDS lets the writer (and the owning participant if necessary) linger in
-the system for some time, controlled by the ``Internal/WriterLingerDuration`` option.
+the system for some time, controlled by the :ref:`Internal/WriterLingerDuration <//CycloneDDS/Domain/Internal/WriterLingerDuration>` option.
 The writer is deleted when all samples have been acknowledged by all readers or the
 linger duration has elapsed, whichever comes first.
 
@@ -157,14 +158,13 @@ readers have acknowledged a sample.
 The index on sequence number is required for retransmitting old data, and is therefore
 needed for all reliable writers.  The index on key values is always needed for
 transient-local data, and will be default also be used for other writers using a history
-setting of ``KEEP_LAST``.  (The ``Internal/AggressiveKeepLastWhc`` setting controls this
-behaviour.)  The advantage of an index on key value in such a case is that superseded
+setting of ``KEEP_LAST``. The advantage of an index on key value in such a case is that superseded
 samples can be dropped aggressively, instead of having to deliver them to all readers;
 the disadvantage is that it is somewhat more resource-intensive.
 
 The WHC distinguishes between history to be retained for existing readers (controlled by
-the writer’s history QoS setting) and the history to be retained for late-joining
-readers for transient-local writers (controlled by the topic’s durability-service
+the writer's history QoS setting) and the history to be retained for late-joining
+readers for transient-local writers (controlled by the topic's durability-service
 history QoS setting).  This makes it possible to create a writer that never overwrites
 samples for live readers while maintaining only the most recent samples for late-joining
 readers.  Moreover, it ensures that the data that is available for late-joining readers
@@ -172,11 +172,11 @@ is the same for transient-local and for transient data.
 
 Writer throttling is based on the WHC size using a simple controller.  Once the WHC
 contains at least *high* bytes in unacknowledged samples, it stalls the writer until the
-number of bytes in unacknowledged samples drops below ``Internal/Watermarks/WhcLow``.
-The value of *high* is dynamically adjusted between ``Internal/Watermarks/WhcLow`` and
-``Internal/Watermarks/WhcHigh`` based on transmit pressure and receive retransmit
-requests. The initial value of *high* is ``Internal/Watermarks/WhcHighInit`` and the
-adaptive behavior can be disabled by setting ``Internal/Watermarks/WhcAdaptive`` to
+number of bytes in unacknowledged samples drops below :ref:`Internal/Watermarks/WhcLow <//CycloneDDS/Domain/Internal/Watermarks/WhcLow>`.
+The value of *high* is dynamically adjusted between :ref:`Internal/Watermarks/WhcLow <//CycloneDDS/Domain/Internal/Watermarks/WhcLow>` and
+:ref:`Internal/Watermarks/WhcHigh <//CycloneDDS/Domain/Internal/Watermarks/WhcHigh>` based on transmit pressure and receive retransmit
+requests. The initial value of *high* is :ref:`Internal/Watermarks/WhcHighInit <//CycloneDDS/Domain/Internal/Watermarks/WhcHighInit>` and the
+adaptive behavior can be disabled by setting :ref:`Internal/Watermarks/WhcAdaptive <//CycloneDDS/Domain/Internal/Watermarks/WhcAdaptive>` to
 false.
 
 While the adaptive behaviour generally handles a variety of fast and slow writers and
@@ -208,13 +208,13 @@ To determine the default network interface, the eligible interfaces are ranked b
 
 + interfaces with a non-link-local address are preferred over those with
   a link-local one;
-+ multicast-capable is preferred (see also ``General/Interfaces/NetworkInterface[@multicast]``), or if
++ multicast-capable is preferred (see also :ref:`General/Interfaces/NetworkInterface[@multicast] <//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@multicast]>`), or if
   none is available
 + non-multicast capable and not point-to-point, or if none is available
 + point-to-point, or if none is available
 + loopback
 
-If this procedure doesn’t select the desired interface automatically, it can be overridden by setting ``General/Interfaces`` by adding the interface(s) either by name of the interface (``<NetworkInterface name='interface_name' />``), the IP address of the host on the desired interface (``<NetworkInterface address='128.129.0.42' />``), or the network portion of the IP address of the host on the desired interface (``<NetworkInterface address='128.11.0.0' />``). An exact match on the address is always preferred and is the only option that allows selecting the desired one when multiple addresses are tied to a single interface.
+If this procedure doesn't select the desired interface automatically, it can be overridden by setting :ref:`General/Interfaces <//CycloneDDS/Domain/General/Interfaces>` by adding the interface(s) either by name of the interface (``<NetworkInterface name='interface_name' />``), the IP address of the host on the desired interface (``<NetworkInterface address='128.129.0.42' />``), or the network portion of the IP address of the host on the desired interface (``<NetworkInterface address='128.11.0.0' />``). An exact match on the address is always preferred and is the only option that allows selecting the desired one when multiple addresses are tied to a single interface.
 
 The default address family is IPv4, setting General/Transport to ``udp6`` or ``tcp6`` will change this to IPv6.  Currently, Cyclone DDS does not mix IPv4 and IPv6 addressing.  Consequently, all DDSI participants in the network must use the same addressing mode.  When inter-operating, this behaviour is the same, i.e., it will look at either IPv4 or IPv6 addresses in the advertised address information in the SPDP and SEDP discovery protocols.
 
@@ -226,7 +226,7 @@ If IPv6 is requested and the selected interface has a non-link-local address, Cy
 Multiple network interfaces
 ---------------------------
 
-Multiple network interfaces can be used simultaneously, by listing multiple ``NetworkInterface`` elements.  In this case, the above still applies, with most things extended in the obvious manner, e.g., the SPDP packets will now advertise multiple addresses and it will send these packets out on all interfaces.  That means the issue with *link-local addressing* discussed gains importance if link-local addresses are used, but they usually aren’t.
+Multiple network interfaces can be used simultaneously, by listing multiple :ref:`NetworkInterface <//CycloneDDS/Domain/General/Interfaces/NetworkInterface>` elements.  In this case, the above still applies, with most things extended in the obvious manner, e.g., the SPDP packets will now advertise multiple addresses and it will send these packets out on all interfaces.  That means the issue with *link-local addressing* discussed gains importance if link-local addresses are used, but they usually aren't.
 
 In a configuration with just a single network interface, it is obvious which one to use for sending packets to a peer.  When there are multiple network interfaces, it is necessary to establish the set of interfaces via which multicasts can be sent, because these are sent on a specific interface.  This in turn requires determining via which subset of interfaces a peer is reachable.
 
@@ -236,7 +236,7 @@ This leaves open two classes of addresses:
 
 + Loopback addresses: these are ignored unless (1) the configuration has enabled only loopback interfaces, (2) no other addresses are advertised in the discovery message, or (3) a non-loopback address matches that of the machine.
 
-+ Routable addresses that do not match an interface: these are ignored if the ``General/DontRoute`` option is set, otherwise it is assumed that the network stack knows how to route them and any of the interfaces may be used.
++ Routable addresses that do not match an interface: these are ignored if the :ref:`General/DontRoute <//CycloneDDS/Domain/General/DontRoute>` option is set, otherwise it is assumed that the network stack knows how to route them and any of the interfaces may be used.
 
 When a message needs to be sent to a set of peers, Cyclone DDS aims use the set of addresses spanning the set of intended recipients with the lowest cost (number of nodes that receive it without having a use for it, unicast vs multicast, loopback vs real network interface, configured priority).  This is a variant of the set cover problem, and so Cyclone DDS uses some heuristics rather than computing the optimal solution.  The address selection can be influenced in two ways:
 
@@ -244,19 +244,19 @@ When a message needs to be sent to a set of peers, Cyclone DDS aims use the set 
 
 + By setting the ``prefer_multicast`` attribute, which raises the assumed cost of a unicast message.
 
-The experimental ``Internal/RedundantNetworking`` setting furthermore forces the address selection code to cover all interfaces advertised by a peer.
+The :ref:`General/RedundantNetworking <//CycloneDDS/Domain/General/RedundantNetworking>` setting furthermore forces the address selection code to cover all interfaces advertised by a peer.
 
 ---------------------------------------------------
 Overriding addresses/interfaces for readers/writers
 ---------------------------------------------------
 
-The ``Partitioning`` element in the configuration allows configuring ``NetworkPartition`` elements and mapping topic/partition names to these “network partitions” using ``PartitionMapping`` elements.
+The :ref:`Partitioning <//CycloneDDS/Domain/Partitioning>` element in the configuration allows configuring :ref:`NetworkPartition <//CycloneDDS/Domain/Partitioning/NetworkPartitions>` elements and mapping topic/partition names to these "network partitions" using :ref:`PartitionMappings <//CycloneDDS/Domain/Partitioning/PartitionMappings>` elements.
 
-Network partitions introduce alternative multicast addresses for data and/or restrict the set of unicast addresses (i.e., interfaces). In the DDSI discovery protocol, a reader can override the addresses at which it is reachable and this feature of the discovery protocol is used to advertise alternative multicast addresses and/or a subset of the unicast addresses. The writers in the network will use the addresses advertised by the reader rather than the default addresses advertised by the reader’s participant.
+Network partitions introduce alternative multicast addresses for data and/or restrict the set of unicast addresses (i.e., interfaces). In the DDSI discovery protocol, a reader can override the addresses at which it is reachable and this feature of the discovery protocol is used to advertise alternative multicast addresses and/or a subset of the unicast addresses. The writers in the network will use the addresses advertised by the reader rather than the default addresses advertised by the reader's participant.
 
 Unicast and multicast addresses in a network partition play different roles:
 
-+ The multicast addresses specify an alternative set of addresses to be used instead of the participant’s default. This is particularly useful to limit high-bandwidth flows to the parts of a network where the data is needed (for IP/Ethernet, this assumes switches that are configured to do IGMP snooping).
++ The multicast addresses specify an alternative set of addresses to be used instead of the participant's default. This is particularly useful to limit high-bandwidth flows to the parts of a network where the data is needed (for IP/Ethernet, this assumes switches that are configured to do IGMP snooping).
 
 + The unicast addresses not only influence the set of interfaces that will be used for unicast, but thereby also the set of interfaces that will be considered for use by multicast. Thus, specifying a unicast address matching network interface A ensures all traffic to that reader will be using interface A, whether unicast or multicast.
 
@@ -279,7 +279,7 @@ The port numbers used by Eclipse Cyclone DDS are determined as follows, where th
 items are given by the DDSI specification and the third is unique to Eclipse Cyclone DDS as a
 way of serving multiple participants by a single DDSI instance:
 
-+ 2 ‘well-known’ multicast ports: ``B`` and ``B+1``
++ 2 "well-known" multicast ports: ``B`` and ``B+1``
 + 2 unicast ports at which only this instance is listening: ``B+PG*PI+10`` and
   ``B+PG*PI+11``
 + 1 unicast port per domain participant it serves, chosen by the kernel
@@ -287,10 +287,10 @@ way of serving multiple participants by a single DDSI instance:
 
 where:
 
-+ *B* is ``Discovery/Ports/Base`` (``7400``) + ``Discovery/Ports/DomainGain``
-  (``250``) * ``Domain/Id``
-+ *PG* is ``Discovery/Ports/ParticipantGain`` (``2``)
-+ *PI* is ``Discovery/ParticipantIndex``
++ *B* is :ref:`Discovery/Ports/Base <//CycloneDDS/Domain/Discovery/Ports/Base>` (``7400``) + :ref:`Discovery/Ports/DomainGain <//CycloneDDS/Domain/Discovery/Ports/DomainGain>`
+  (``250``) * :ref:`Domain[@Id] <//CycloneDDS/Domain[@Id]>`
++ *PG* is :ref:`Discovery/Ports/ParticipantGain <//CycloneDDS/Domain/Discovery/Ports/ParticipantGain>` (``2``)
++ *PI* is :ref:`Discovery/ParticipantIndex <//CycloneDDS/Domain/Discovery/ParticipantIndex>`
 
 The default values, taken from the DDSI specification, are in parentheses.  There are
 actually even more parameters, here simply turned into constants as there is absolutely
@@ -304,9 +304,9 @@ integer.  This setting matters:
 + When it is *auto*, Eclipse Cyclone DDS probes UDP port numbers on
   start-up, starting with PI = 0, incrementing it by one each time until it finds a pair
   of available port numbers, or it hits the limit.  The maximum PI it will ever choose
-  is ``Discovery/MaxAutoParticipantIndex`` as a way of limiting the cost of unicast
+  is :ref:`Discovery/MaxAutoParticipantIndex <//CycloneDDS/Domain/Discovery/MaxAutoParticipantIndex>` as a way of limiting the cost of unicast
   discovery.
-+ When it is *none* (which is the default) it simply ignores the ‘participant index’
++ When it is *none* (which is the default) it simply ignores the "participant index"
   altogether and asks the kernel to pick random ports (>= 32768).  This eliminates
   the limit on the number of standalone deployments on a single machine and works
   just fine with multicast discovery while complying with all other parts of the
@@ -316,7 +316,7 @@ integer.  This setting matters:
   unique values for PI, and so for standalone deployments this particular alternative is
   hardly useful.
 
-Clearly, to fully control port numbers, setting ``Discovery/ParticipantIndex`` (= PI) to
+Clearly, to fully control port numbers, setting :ref:`Discovery/ParticipantIndex <//CycloneDDS/Domain/Discovery/ParticipantIndex>` (= PI) to
 a hard-coded value is the only possibility.  By fixing PI, the port numbers needed for
 unicast discovery are fixed as well.  This allows listing peers as IP:PORT pairs,
 significantly reducing traffic, as explained in the preceding subsection.
@@ -332,7 +332,7 @@ other implementations, you will need to check.
 
 If all DDSI implementations in the network include full addressing information in the
 messages like Eclipse Cyclone DDS does, then the per-domain participant ports serve no purpose
-at all.  The default ``false`` setting of ``Compatibility/ManySocketsMode`` disables the
+at all.  The default ``false`` setting of :ref:`Compatibility/ManySocketsMode <//CycloneDDS/Domain/Compatibility/ManySocketsMode>` disables the
 creation of these ports.
 
 This setting can have a few other side benefits as well, as there will may be multiple
@@ -355,17 +355,17 @@ multicast as well as source-specific multicast) is to be used:
 It is advised to allow multicasting to be used.  However, if there are restrictions on
 the use of multicasting, or if the network reliability is dramatically different for
 multicast than for unicast, it may be attractive to disable multicast for normal
-communications.  In this case, setting ``General/AllowMulticast`` to ``false`` will
+communications.  In this case, setting :ref:`General/AllowMulticast <//CycloneDDS/Domain/General/AllowMulticast>` to ``false`` will
 force the use of unicast communications for everything.
 
 If at all possible, it is strongly advised to leave multicast-based participant
 discovery enabled, because that avoids having to specify a list of nodes to contact, and
 it furthermore reduces the network load considerably.  Setting
-``General/AllowMulticast`` to ``spdp`` will allow participant discovery via multicast
+:ref:`General/AllowMulticast <//CycloneDDS/Domain/General/AllowMulticast>` to ``spdp`` will allow participant discovery via multicast
 while disabling multicast for everything else.
 
 To disable incoming multicasts, or to control from which interfaces multicasts are to be
-accepted, one can use the ``General/MulticastRecvInterfaceAddresses`` setting.  This
+accepted, one can use the :ref:`General/MulticastRecvNetworkInterfaceAddresses <//CycloneDDS/Domain/General/MulticastRecvNetworkInterfaceAddresses>` setting.  This
 allows listening on no interface, the preferred, all or a specific set of interfaces.
 
 
@@ -382,7 +382,7 @@ Eclipse Cyclone DDS can use TCP instead of UDP.
 
 The differences in the model of operation between DDSI and TCP are quite large: DDSI is
 based on the notion of peers, whereas TCP communication is based on the notion of a
-session that is initiated by a ‘client’ and accepted by a ‘server’; therefore, TCP requires
+session that is initiated by a "client" and accepted by a "server"; therefore, TCP requires
 knowledge of the servers to connect to before the DDSI discovery protocol can exchange
 that information.  The configuration of this is done in the same manner as for
 unicast-based UDP discovery.
@@ -441,15 +441,16 @@ The SPDP protocol periodically sends, for each domain participant, an SPDP sampl
 set of addresses, which by default contains just the multicast address, which is
 standardised for IPv4 (``239.255.0.1``) but not for IPv6 (it uses
 ``ff02::ffff:239.255.0.1``).  The actual address can be overridden using the
-``Discovery/SPDPMulticastAddress`` setting, which requires a valid multicast address.
+:ref:`Discovery/SPDPMulticastAddress <//CycloneDDS/Domain/Discovery/SPDPMulticastAddress>`
+setting, which requires a valid multicast address.
 
 In addition (or as an alternative) to the multicast-based discovery, any number of
 unicast addresses can be configured as addresses to be contacted by specifying peers in
-the ``Discovery/Peers`` section.  Each time an SPDP message is sent, it is sent to all
+the :ref:`Discovery/Peers <//CycloneDDS/Domain/Discovery/Peers>` section.  Each time an SPDP message is sent, it is sent to all
 of these addresses.
 
 Default behaviour is to include each IP address several times in the set (for
-participant indices 0 through ``MaxAutoParticipantIndex``, each time with a different
+participant indices 0 through :ref:`Discovery/MaxAutoParticipantIndex <//CycloneDDS/Domain/Discovery/MaxAutoParticipantIndex>`, each time with a different
 UDP port number (corresponding to another participant index), allowing at least several
 applications to be present on these hosts.
 
@@ -461,7 +462,7 @@ making this rather wasteful behaviour.
 To avoid sending large numbers of packets to each host, differing only in port number,
 it is also possible to add a port number to the IP address, formatted as IP:PORT, but
 this requires manually calculating the port number.  In practice it also requires fixing
-the participant index using ``Discovery/ParticipantIndex`` (see the description of ‘PI’
+the participant index using :ref:`Discovery/ParticipantIndex <//CycloneDDS/Domain/Discovery/ParticipantIndex>` (see the description of "PI"
 in `Controlling port numbers`_) to ensure that the configured port number indeed
 corresponds to the port number the remote DDSI implementation is listening on, and
 therefore is really attractive only when it is known that there is but a single DDSI
@@ -478,7 +479,7 @@ On reception of an SPDP packet, the addresses advertised in the packet are added
 set of addresses to which SPDP packets are sent periodically, allowing asymmetrical
 discovery.  In an extreme example, if SPDP multicasting is disabled entirely, host A has
 the address of host B in its peer list and host B has an empty peer list, then B will
-eventually discover A because of an SPDP message sent by A, at which point it adds A’s
+eventually discover A because of an SPDP message sent by A, at which point it adds A's
 address to its own set and starts sending its own SPDP message to A, allowing A to
 discover B.  This takes a bit longer than normal multicast based discovery, though, and
 risks writers being blocked by unresponsive readers.
@@ -503,7 +504,7 @@ Endpoint Discovery
 ------------------
 
 Although the SEDP protocol never requires any configuration, network partitioning does
-interact with it: so-called ‘ignored partitions’ can be used to instruct Eclipse Cyclone DDS to
+interact with it: so-called "ignored partitions" can be used to instruct Eclipse Cyclone DDS to
 completely ignore certain DCPS topic and partition combinations, which will prevent data
 for these topic/partition combinations from being forwarded to and from the network.
 
@@ -522,7 +523,7 @@ Re-Transmit Merging
 
 A remote reader can request re-transmission whenever it receives a Heartbeat and detects
 samples are missing.  If a sample was lost on the network for many or all readers, the
-next heartbeat is likely to trigger a ‘storm’ of re-transmission requests.  Thus, the
+next heartbeat is likely to trigger a "storm" of re-transmission requests.  Thus, the
 writer should attempt merging these requests into a multicast re-transmission, to avoid
 re-transmitting the same sample over & over again to many different readers.  Similarly,
 while readers should try to avoid requesting re-transmissions too often, in an
@@ -530,7 +531,7 @@ interoperable system the writers should be robust against it.
 
 In Eclipse Cyclone DDS, upon receiving a Heartbeat that indicates samples are missing, a reader
 will schedule the second and following re-transmission requests to be sent after
-``Internal/NackDelay`` or combine it with an already scheduled request if possible.  Any
+:ref:`Internal/NackDelay <//CycloneDDS/Domain/Internal/NackDelay>` or combine it with an already scheduled request if possible.  Any
 samples received in between receipt of the Heartbeat and the sending of the AckNack will
 not need to be re-transmitted.
 
@@ -538,11 +539,11 @@ Secondly, a writer attempts to combine re-transmit requests in two different way
 first is to change messages from unicast to multicast when another re-transmit request
 arrives while the re-transmit has not yet taken place.  This is particularly effective
 when bandwidth limiting causes a backlog of samples to be re-transmitted.  The behaviour
-of the second can be configured using the ``Internal/Re-TransmitMerging`` setting.  Based
+of the second can be configured using the :ref:`Internal/ReTransmitMerging <//CycloneDDS/Domain/Internal/ReTransmitMerging>` setting.  Based
 on this setting, a re-transmit request for a sample is either honoured unconditionally,
-or it may be suppressed (or ‘merged’) if it comes in shortly after a multicasted
+or it may be suppressed (or "merged") if it comes in shortly after a multicasted
 re-transmission of that very sample, on the assumption that the second reader will likely
-receive the re-transmit, too.  The ``Internal/ReTransmitMergingPeriod`` controls the
+receive the re-transmit, too.  The :ref:`Internal/ReTransmitMergingPeriod <//CycloneDDS/Domain/Internal/ReTransmitMergingPeriod>` controls the
 length of this time window.
 
 
@@ -561,10 +562,10 @@ Therefore, Eclipse Cyclone DDS limits the number of samples queued for re-transm
 ignores (those parts of) re-transmission requests that would cause the re-transmit queue
 to contain too many samples or take too much time to process. There are two settings
 governing the size of these queues, and the limits are applied per timed-event thread.
-The first is ``Internal/MaxQueuedRexmitMessages``, which limits the number of re-transmit
-messages, the second ``Internal/MaxQueuedRexmitBytes`` which limits the number of bytes.
+The first is :ref:`Internal/MaxQueuedRexmitMessages <//CycloneDDS/Domain/Internal/MaxQueuedRexmitMessages>`, which limits the number of re-transmit
+messages, the second :ref:`Internal/MaxQueuedRexmitBytes <//CycloneDDS/Domain/Internal/MaxQueuedRexmitBytes>` which limits the number of bytes.
 The latter defaults to a setting based on the combination of the allowed transmit
-bandwidth and the ``Internal/NackDelay`` setting, as an approximation of the likely time
+bandwidth and the :ref:`Internal/NackDelay <//CycloneDDS/Domain/Internal/NackDelay>` setting, as an approximation of the likely time
 until the next potential re-transmit request from the reader.
 
 
@@ -580,14 +581,14 @@ similarly IP has facilities to fragment UDP datagrams to into network packets.  
 specification states that one must not unnecessarily fragment at the DDSI level, but
 Eclipse Cyclone DDS simply provides a fully configurable behaviour.
 
-If the serialised form of a sample is at least ``Internal/FragmentSize``,
+If the serialised form of a sample is at least :ref:`General/FragmentSize <//CycloneDDS/Domain/General/FragmentSize>`,
 it will be fragmented using the DDSI fragmentation. All but the last fragment
 will be exactly this size; the last one may be smaller.
 
 Control messages, non-fragmented samples, and sample fragments are all subject to
 packing into datagrams before sending it out on the network, based on various attributes
 such as the destination address, to reduce the number of network packets.  This packing
-allows datagram payloads of up to ``Internal/MaxMessageSize``, overshooting this size if
+allows datagram payloads of up to :ref:`General/MaxMessageSize <//CycloneDDS/Domain/General/MaxMessageSize>`, overshooting this size if
 the set maximum is too small to contain what must be sent as a single unit.  Note that
 in this case, there is a real problem anyway, and it no longer matters where the data is
 rejected, if it is rejected at all.  UDP/IP header sizes are not taken into account in
@@ -621,16 +622,16 @@ incoming samples.
 
 Fragmented data first enters the defragmentation stage, which is per proxy writer.  The
 number of samples that can be defragmented simultaneously is limited, for reliable data
-to ``Internal/DefragReliableMaxSamples`` and for unreliable data to
-``Internal/DefragUnreliableMaxSamples``.
+to :ref:`Internal/DefragReliableMaxSamples <//CycloneDDS/Domain/Internal/DefragReliableMaxSamples>` and for unreliable data to
+:ref:`Internal/DefragUnreliableMaxSamples <//CycloneDDS/Domain/Internal/DefragUnreliableMaxSamples>`.
 
 Samples (defragmented if necessary) received out of sequence are buffered, primarily per
 proxy writer, but, secondarily, per reader catching up on historical (transient-local)
-data.  The size of the first is limited to ``Internal/PrimaryReorderMaxSamples``, the
-size of the second to ``Internal/SecondaryReorderMaxSamples``.
+data.  The size of the first is limited to :ref:`Internal/PrimaryReorderMaxSamples <//CycloneDDS/Domain/Internal/PrimaryReorderMaxSamples>`, the
+size of the second to :ref:`Internal/SecondaryReorderMaxSamples <//CycloneDDS/Domain/Internal/SecondaryReorderMaxSamples>`.
 
 In between the receive thread and the delivery threads sit queues, of which the maximum
-size is controlled by the ``Internal/DeliveryQueueMaxSamples`` setting.  Generally there
+size is controlled by the :ref:`Internal/DeliveryQueueMaxSamples <//CycloneDDS/Domain/Internal/DeliveryQueueMaxSamples>` setting.  Generally there
 is no need for these queues to be very large (unless one has very small samples in very
 large messages), their primary function is to smooth out the processing when batches of
 samples become available at once, for example following a retransmission.
@@ -662,16 +663,16 @@ priority, effectively enabling synchronous delivery for all data.
 Maximum Sample Size
 ===================
 
-Eclipse Cyclone DDS provides a setting, ``Internal/MaxSampleSize``, to control the maximum size
+Eclipse Cyclone DDS provides a setting, :ref:`Internal/MaxSampleSize <//CycloneDDS/Domain/Internal/MaxSampleSize>`, to control the maximum size
 of samples that the service is willing to process. The size is the size of the (CDR)
 serialised payload, and the limit holds both for built-in data and for application data.
 The (CDR) serialised payload is never larger than the in-memory representation of the
 data.
 
-On the transmitting side, samples larger than ``MaxSampleSize`` are dropped with a
+On the transmitting side, samples larger than :ref:`Internal/MaxSampleSize <//CycloneDDS/Domain/Internal/MaxSampleSize>` are dropped with a
 warning in the.  Eclipse Cyclone DDS behaves as if the sample never existed.
 
-Similarly, on the receiving side, samples large than ``MaxSampleSize`` are dropped as
+Similarly, on the receiving side, samples large than :ref:`Internal/MaxSampleSize <//CycloneDDS/Domain/Internal/MaxSampleSize>` are dropped as
 early as possible, immediately following the reception of a sample or fragment of one,
 to prevent any resources from being claimed for longer than strictly necessary.  Where
 the transmitting side completely ignores the sample, the receiving side pretends the
@@ -689,8 +690,8 @@ not dropping a particular sample has been recorded in the log already.  Under no
 operational circumstances, only a single message will be recorded for each sample
 dropped, but it may on occasion report multiple events for the same sample.
 
-Finally, it is technically allowed to set ``MaxSampleSize`` to very small sizes,
-even to the point that the discovery data can’t be communicated anymore.
+Finally, it is technically allowed to set :ref:`Internal/MaxSampleSize <//CycloneDDS/Domain/Internal/MaxSampleSize>` to very small sizes,
+even to the point that the discovery data can't be communicated anymore.
 The dropping of the discovery data will be duly reported, but the usefulness
 of such a configuration seems doubtful.
 
@@ -709,7 +710,7 @@ are:
 + scheduling class, and
 + scheduling priority.
 
-The threads are named and the attribute ``Threads/Thread[@name]`` is used to set the
+The threads are named and the attribute :ref:`Threads/Thread[@name] <//CycloneDDS/Domain/Threads/Thread[@name]>` is used to set the
 properties by thread name.  Any subset of threads can be given special properties;
 anything not specified explicitly is left at the default value.
 
@@ -738,7 +739,7 @@ and, for each defined channel:
      * - ``dq.channel-name``
        - Deserialisation and asynchronous delivery of all user data.
      * - ``tev.channel-name``
-       - Channel-specific ‘timed-event’ handling transmission of control messages for reliable writers and readers and retransmission of data on request. Channel-specific threads exist only if the configuration includes an element for it or if an auxiliary bandwidth limit is set for the channel.
+       - Channel-specific "timed-event" handling transmission of control messages for reliable writers and readers and retransmission of data on request. Channel-specific threads exist only if the configuration includes an element for it or if an auxiliary bandwidth limit is set for the channel.
 
 When no channels are explicitly defined, there is one channel named *user*.
 
@@ -758,7 +759,7 @@ levels and categories are not of much use in the current release.  This is an on
 process and here we describe the target situation rather than the current situation.
 
 All *fatal* and *error* messages are written both to the trace and to the
-``cyclonedds-error.log`` file; similarly all ‘warning’ messages are written to the trace
+``cyclonedds-error.log`` file; similarly all "warning" messages are written to the trace
 and the ``cyclonedds-info.log`` file.
 
 The Tracing element has the following sub elements:
@@ -828,9 +829,9 @@ In addition, the keyword *trace* enables everything from *fatal* to *throttle*. 
 and *radmin* and *whc* only help in analyzing the detailed behaviour of those two
 components and produce very large amounts of output.
 
-+ *OutputFile*: the file to write the trace to
-+ *AppendToFile*: boolean, set to ``true`` to append to the trace instead of replacing the
-  file.
+ * :ref:`OutputFile <//CycloneDDS/Domain/Tracing/OutputFile>`: the file to write the trace to
+ * :ref:`AppendToFile <//CycloneDDS/Domain/Tracing/AppendToFile>`: boolean, set to ``true`` to append to the trace instead of replacing the
+   file.
 
 Currently, the useful verbosity settings are *config*, *fine* and *finest*.
 
@@ -863,7 +864,7 @@ Conformance Modes
 =================
 
 Eclipse Cyclone DDS operates in one of three modes: *pedantic*, *strict* and *lax*; the mode is
-configured using the ``Compatibility/StandardsConformance`` setting.  The default is
+configured using the :ref:`Compatibility/StandardsConformance <//CycloneDDS/Domain/Compatibility/StandardsConformance>` setting.  The default is
 *lax*.
 
 The first, *pedantic* mode, is of such limited utility that it will be removed.
@@ -913,5 +914,5 @@ the range of available sequence numbers and requesting an acknowledgement, which
 an endless loop.
 
 There is furthermore also a difference of interpretation of the meaning of the
-‘autodispose_unregistered_instances’ QoS on the writer.  Eclipse Cyclone DDS aligns with
+"autodispose_unregistered_instances" QoS on the writer.  Eclipse Cyclone DDS aligns with
 OpenSplice.

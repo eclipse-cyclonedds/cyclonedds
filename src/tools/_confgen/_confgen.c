@@ -156,7 +156,7 @@ usage: %s -f FORMAT\n\
 \n\
 OPTIONS:\n\
     -h           print help message\n\
-    -f FORMAT    output format. one of md, rnc or xsd\n\
+    -f FORMAT    output format. one of md, rnc, rst or xsd\n\
     -o FILENAME  output file. specify - to use stdout\n\
 ";
 
@@ -614,7 +614,7 @@ int main(int argc, char *argv[])
   int code = EXIT_FAILURE;
   FILE *out = NULL;
   const char *file = "-";
-  enum { rnc, xsd, md, defconfig } format = rnc;
+  enum { rnc, xsd, md, rst, defconfig } format = rnc;
 
   while ((opt = getopt(argc, argv, "f:o:h")) != -1) {
     switch (opt) {
@@ -625,6 +625,8 @@ int main(int argc, char *argv[])
           format = xsd;
         } else if (strcmp(optarg, "md") == 0) {
           format = md;
+        } else if (strcmp(optarg, "rst") == 0) {
+          format = rst;
         } else if (strcmp(optarg, "defconfig") == 0) {
           format = defconfig;
         } else {
@@ -673,6 +675,10 @@ int main(int argc, char *argv[])
       break;
     case md:
       if (printmd(out, cyclonedds_root_cfgelems, cfgunits) == 0)
+        code = EXIT_SUCCESS;
+      break;
+    case rst:
+      if (printrst(out, cyclonedds_root_cfgelems, cfgunits) == 0)
         code = EXIT_SUCCESS;
       break;
     case defconfig:

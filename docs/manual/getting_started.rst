@@ -308,15 +308,10 @@ interface card. This is one of the most common issues on machine
 configurations with multiple network interface cards.
 
 This default behavior can be overridden by updating the property
-``//CycloneDDS/Domain/General/``
-
-``NetworkInterfaceAddress`` in a deployment file (e.g.
-``cyclonedds.xml``) that you created to point to it through an OS
-environment variable named CYCLONEDDS\_URI. More information on this
-topic can be found in the `github
-repository <https://github.com/eclipse-cyclonedds/cyclonedds/blob/master/docs/manual/options.md>`__
-and the configuration section on
-https://github.com/eclipse-cyclonedds/cyclonedds.
+:ref:`//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@address]`
+in a deployment file (e.g.``cyclonedds.xml``) that you created to point
+to it through an OS environment variable named ``CYCLONEDDS\_URI``. More information on this
+topic can be found in the :ref:`configuration documentation <config-docs>`.
 
 Want to know more about DDS?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~

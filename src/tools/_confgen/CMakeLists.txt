@@ -17,7 +17,7 @@ set(confgen_hash_files
   ${CMAKE_CURRENT_LIST_DIR}/../../core/ddsi/include/dds/ddsi/ddsi_cfgunits.h
   ${CMAKE_CURRENT_LIST_DIR}/../../core/ddsi/include/dds/ddsi/ddsi_cfgelems.h
   ${CMAKE_CURRENT_LIST_DIR}/../../core/ddsi/src/ddsi_config.c
-  _confgen.h _confgen.c generate_rnc.c generate_md.c generate_xsd.c generate_defconfig.c
+  _confgen.h _confgen.c generate_rnc.c generate_md.c generate_rst.c generate_xsd.c generate_defconfig.c
 )
 
 check_hashes(
@@ -35,11 +35,11 @@ if (NOT ${_confgen_hash_correct})
       "Please rerun CMake in host mode to regenerate the files before attempting a crossbuild"
     )
   else()
-    message(STATUS "Building _confgen and regenerating defconfig.c, options.md, cyclonedds.rnc and cyclonedds.xsd.")
+    message(STATUS "Building _confgen because configuration sources were updated.")
   endif()
 
   add_executable(_confgen-exe
-    _confgen.c generate_rnc.c generate_md.c generate_xsd.c generate_defconfig.c
+    _confgen.c generate_rnc.c generate_rst.c generate_md.c generate_xsd.c generate_defconfig.c
     ${CMAKE_CURRENT_LIST_DIR}/../../core/ddsi/src/ddsi_config.c
   )
 
@@ -60,10 +60,12 @@ if (NOT ${_confgen_hash_correct})
 
   add_custom_target(
     _confgen
+    COMMENT "Regenerating configuration-dependend files (defconfig.c, cyclonedds.rnc/xsd and markdown/rst documentation)."
     COMMAND _confgen-exe -f defconfig -o "${generated_defconfig_src}"
     COMMAND _confgen-exe -f rnc -o "${generated_cyclonedds_rnc}"
     COMMAND _confgen-exe -f xsd -o "${generated_cyclonedds_xsd}"
     COMMAND _confgen-exe -f md -o "${generated_options_md}"
+    COMMAND _confgen-exe -f rst -o "${generated_options_rst}"
     # Append hashes to defconfig.c
     COMMAND ${CMAKE_COMMAND}
       "-DPREFIX=/*"
@@ -91,6 +93,14 @@ if (NOT ${_confgen_hash_correct})
       "-DPOSTFIX=-->"
       -DHASH_FILES=${out_confgen_hash_files}
       -DAPPEND_FILES=${generated_options_md}
+      -P ${CMAKE_SOURCE_DIR}/cmake/AppendHashScript.cmake
+    # Append hashes to rst
+    COMMAND ${CMAKE_COMMAND}
+      "-DBEFORE='..'"
+      "-DPREFIX='  '"
+      "-DPOSTFIX="
+      -DHASH_FILES=${out_confgen_hash_files}
+      -DAPPEND_FILES=${generated_options_rst}
       -P ${CMAKE_SOURCE_DIR}/cmake/AppendHashScript.cmake
     DEPENDS _confgen
     SOURCES ${confgen_hash_files}
