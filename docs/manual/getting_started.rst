@@ -469,7 +469,7 @@ macOS in the install or build directory:
 
     rm -rf *
 
-Uninstallation for the product installer
+Uninstall product installer
 ''''''''''''''''''''''''''''''''''''''''
 Windows
 ^^^^^^^
@@ -479,11 +479,10 @@ Windows application control panel (Programs and Features in Control
 Panel) or by using the product installer; in this case, start-up the
 Cyclone DDS product installer, and select 'Remove.'
 
-.. image:: /_static/gettingstarted-figures/1.8.2.1.png
+.. image:: /_static/gettingstarted-figures/5.7.2.1-1.png
    :align: center
    
-
-
+   
 Building your first Cyclone DDS Applications
 ============================================
 
