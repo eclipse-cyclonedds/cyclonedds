@@ -113,8 +113,8 @@ With these installed, you can now build the included examples. To build these ex
 For Application Developers
 ''''''''''''''''''''''''''
 
-You can build and install the required libraries needed to develop your
-own applications using Cyclone DDS in a few simple steps.
+You can build and install the required libraries needed to develop 
+your applications using Cyclone DDS in a few simple steps.
 
 .. code-block:: bash
 
@@ -137,11 +137,11 @@ This install step copies everything to:
 -  ``<install-location>/include/ddsc``
 -  ``<install-location>/share/CycloneDDS``
 
-At this point, you are ready to use Eclipse Cyclone DDS in your own
+At this point, you are ready to use Eclipse Cyclone DDS in your 
 projects.
 
-**Note:** The default build type is a release build with debug
-information included (RelWithDebInfo). 
+**Note:** The default build type is a release build that includes debugging 
+information (``RelWithDebInfo``).  
 This build is suitable for applications because of its high-performance and debugging capabilities.
 If you prefer a Debug or pure Release build, set ``CMAKE_BUILD_TYPE`` accordingly.
 
@@ -175,8 +175,8 @@ You can also install dependencies using chocolatey, use  ``choco install git cma
 For Application Developers
 ''''''''''''''''''''''''''
 
-You can build and install the required libraries needed to develop your
-own applications using Cyclone DDS in a few simple steps.
+You can build and install the required libraries to develop 
+your applications using Cyclone DDS in a few simple steps.
 
 .. code-block:: bash
 
@@ -219,9 +219,9 @@ At this point, you are ready to use Eclipse Cyclone DDS in your
 projects.
 
 **Note:** The default build type is a release build that includes debugging 
-information (RelWithDebInfo). 
+information (``RelWithDebInfo``).
 
-This build is commonly used for applications because of its high performance and debugging capabilities.  
+This build is suitable for applications because of its high-performance and debugging capabilities.
 If you would rather have a Debug or pure Release build, set ``CMAKE_BUILD_TYPE`` accordingly.
 
 If you want to contribute to Cyclone DDS, please refer to `Appendix I
@@ -1923,9 +1923,8 @@ This copies everything to:
 At this point, you are ready to use Eclipse Cyclone DDS CXX in your
 projects.
 
-**Note:** The default build type is a release build with debug
-information (``RelWithDebInfo``). This is a convenient build type 
-for applications as it delivers a good mix between performance and debugging capabilities. 
+**Note:** The default build type is a release build that includes debugging 
+information (``RelWithDebInfo``). This build is suitable for applications because of its high-performance and debugging capabilities.
 If you prefer a Debug or a pure Release build, set ``CMAKE_BUILD_TYPE`` accordingly.
 
 If you want to contribute to Cyclone DDS CXX, please refer to `Appendix
@@ -2016,9 +2015,8 @@ This copies everything to:
 At this point, you are ready to use Eclipse Cyclone DDS CXX in your
 projects.
 
-**Note:** The default build type is a release build with debug
-information (``RelWithDebInfo``). This is a convenient build type 
-for applications as it delivers a good mix between performance and debugging capabilities.  
+**Note:** The default build type is a release build that includes debugging 
+information (``RelWithDebInfo``). This build is suitable for applications because of its high-performance and debugging capabilities.
 If you prefer a Debug or a pure Release build, set ``CMAKE_BUILD_TYPE`` accordingly.
 
 If you want to contribute to Cyclone DDS CXX, refer to `Contributing to
