@@ -54,20 +54,22 @@ static bool is_valid_name (const char *name) ddsrt_nonnull_all;
 
 static bool is_valid_name (const char *name)
 {
-  /* DDS Spec:
-   *  |  TOPICNAME - A topic name is an identifier for a topic, and is defined as any series of characters
-   *  |     'a', ..., 'z',
-   *  |     'A', ..., 'Z',
-   *  |     '0', ..., '9',
-   *  |     '-' but may not start with a digit.
-   * It is considered that '-' is an error in the spec and should say '_'. So, that's what we'll check for.
-   *  |     '/' got added for ROS2
+  /* DDS Spec does not explicitly specify what constitutes a valid name.
+   * Per https://github.com/eclipse-cyclonedds/cyclonedds/issues/1393#issuecomment-1248936537
+   *  "we require isprint is true and not <space>, " or ' for the time being, then work our way to supporting UTF-8"
    */
-  if (name[0] == '\0' || isdigit ((unsigned char) name[0]))
+  if (name[0] == '\0')
     return false;
+
   for (size_t i = 0; name[i]; i++)
-    if (!(isalnum ((unsigned char) name[i]) || name[i] == '_' || name[i] == '/'))
+    if (
+        (!(isprint((unsigned char) name[i])))
+        || (isspace((unsigned char) name[i]))
+        || (name[i] == '"')
+        || (name[i] == '\'')
+      )
       return false;
+    
   return true;
 }
 

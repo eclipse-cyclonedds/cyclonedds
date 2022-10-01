@@ -59,9 +59,9 @@ ddsc_topic_fini(void)
 
 /* These will check the topic creation in various ways */
 CU_TheoryDataPoints(ddsc_topic_create, valid) = {
-    CU_DataPoints(char *, "valid", "_VALID", "Val1d", "valid_", "vA_1d"),
-    CU_DataPoints(dds_qos_t **, &g_qos_null, &g_qos, &g_qos_null, &g_qos_null, &g_qos_null),
-    CU_DataPoints(dds_listener_t **, &g_list_null, &g_listener, &g_list_null, &g_list_null, &g_list_null),
+    CU_DataPoints(char *, "valid", "_VALID", "Val1d", "valid_", "vA_1d", "1valid#", "valid::topic::name", "val-id", "valid$", "val.id", "val/id" ),
+    CU_DataPoints(dds_qos_t **, &g_qos_null, &g_qos, &g_qos_null, &g_qos_null, &g_qos_null, &g_qos_null, &g_qos_null, &g_qos_null, &g_qos_null, &g_qos_null, &g_qos_null),
+    CU_DataPoints(dds_listener_t **, &g_list_null, &g_listener, &g_list_null, &g_list_null, &g_list_null, &g_list_null, &g_list_null, &g_list_null, &g_list_null, &g_list_null, &g_list_null),
 };
 CU_Theory((char *name, dds_qos_t **qos, dds_listener_t **listener), ddsc_topic_create, valid, .init = ddsc_topic_init, .fini = ddsc_topic_fini)
 {
@@ -129,7 +129,7 @@ CU_Test(ddsc_topic_create, desc_null, .init = ddsc_topic_init, .fini = ddsc_topi
 }
 
 CU_TheoryDataPoints(ddsc_topic_create, invalid_names) = {
-    CU_DataPoints(char *, NULL, "", "mi-dle", "-start", "end-", "1st", "Thus$", "pl+s", "t(4)", "DCPSmytopic"),
+    CU_DataPoints(char *, NULL, "", "sp ace", " space", "space ", "d\"quote", "s\'quote", "DCPSmytopic"),
 };
 CU_Theory((char *name), ddsc_topic_create, invalid_names, .init = ddsc_topic_init, .fini = ddsc_topic_fini)
 {
