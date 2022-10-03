@@ -1929,11 +1929,7 @@ static struct cfgelem discovery_cfgelems[] = {
       "<li>a non-negative integer less than 120, or</li>\n"
       "<li><i>none</i>:, which causes it to use arbitrary port numbers for "
       "unicast sockets which entirely removes the constraints on the "
-      "participant index but makes unicast discovery impossible.</li></ul>\n"
-      "<p>The default is <i>auto</i>. The participant index is part of the "
-      "port number calculation and if predictable port numbers are needed "
-      "and fixing the participant index has no adverse effects, it is "
-      "recommended that the second be option be used.</p>"
+      "participant index but makes unicast discovery impossible.</li></ul>"
     )),
   INT("MaxAutoParticipantIndex", NULL, 1, "9",
     MEMBER(maxAutoParticipantIndex),

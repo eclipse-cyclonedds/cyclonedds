@@ -51,7 +51,7 @@ static const char *xlatmd(const char *str, const char **end)
   return NULL;
 }
 
-static char headerchars[] = {'#', '*', '=', '-', '^', '"'};
+static char headerchars[] = {'#', '*', '=', '-', '^', '"', '_', '+', ':', '~'};
 
 static void printhead(
   FILE *out,
