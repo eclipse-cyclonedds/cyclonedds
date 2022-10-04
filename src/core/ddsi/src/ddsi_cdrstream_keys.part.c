@@ -214,7 +214,7 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_delimited (dds_istream
 {
   uint32_t delimited_sz = dds_is_get4 (is), delimited_offs = is->m_index, insn;
   ops++;
-  while (*keys_remaining > 0 && (insn = *ops) != DDS_OP_RTS)
+  while ((insn = *ops) != DDS_OP_RTS)
   {
     switch (DDS_OP (insn))
     {
@@ -232,9 +232,7 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_delimited (dds_istream
         break;
     }
   }
-  /* Skip remainder of serialized data for this appendable type */
-  if (delimited_sz > is->m_index - delimited_offs)
-    is->m_index += delimited_sz - (is->m_index - delimited_offs);
+  assert (delimited_sz == is->m_index - delimited_offs);
   return ops;
 }
 
@@ -323,7 +321,7 @@ static const uint32_t *dds_stream_extract_keyBO_from_data1 (dds_istream_t * __re
   uint32_t n_keys, uint32_t * __restrict keys_remaining, const ddsi_sertype_default_desc_key_t * __restrict keys, struct key_off_info * __restrict key_offs)
 {
   uint32_t insn;
-  while (*keys_remaining > 0 && (insn = *ops) != DDS_OP_RTS)
+  while ((insn = *ops) != DDS_OP_RTS)
   {
     switch (DDS_OP (insn))
     {
