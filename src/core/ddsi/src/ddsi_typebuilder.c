@@ -1207,6 +1207,12 @@ static dds_return_t get_ops_union (const struct typebuilder_union *tb_union, uin
       if (tb_union->disc_type.args.prim_args.is_signed)
         flags |= DDS_OP_FLAG_SGN;
       break;
+    case DDS_OP_VAL_ENU:
+      flags |= get_bitbound_flags (tb_union->disc_type.args.enum_args.bit_bound);
+      break;
+    case DDS_OP_VAL_BMK:
+      flags |= get_bitbound_flags (tb_union->disc_type.args.bitmask_args.bit_bound);
+      break;
     default:
       break;
   }
