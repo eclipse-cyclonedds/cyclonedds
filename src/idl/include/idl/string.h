@@ -59,4 +59,6 @@ IDL_EXPORT long double idl_strtold(const char *str, char **endptr);
 
 IDL_EXPORT char *idl_strtok_r(char *str, const char *delim, char **saveptr);
 
+IDL_EXPORT void idl_free(void *pt);
+
 #endif /* IDL_STRING_H */

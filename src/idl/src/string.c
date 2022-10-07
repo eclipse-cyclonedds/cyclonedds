@@ -238,6 +238,11 @@ int idl_asprintf(char **strp, const char *fmt, ...)
   return ret;
 }
 
+void idl_free(void *pt)
+{
+  free(pt);
+}
+
 int idl_vasprintf(char **strp, const char *fmt, va_list ap)
 {
   int ret;
@@ -357,6 +362,12 @@ FILE *idl_fopen(const char *pathname, const char *mode)
   return fopen(pathname, mode);
 #endif
 }
+
+int idl_fclose(FILE *fp)
+{
+  return fclose(fp);
+}
+
 
 #if defined _WIN32
 static DWORD locale = TLS_OUT_OF_INDEXES;

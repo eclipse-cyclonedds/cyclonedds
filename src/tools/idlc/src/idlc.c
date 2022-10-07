@@ -268,7 +268,7 @@ err_file:
   return ret;
 }
 
-static idl_retcode_t idlc_parse(void)
+static idl_retcode_t idlc_parse(const idl_builtin_annotation_t ** generator_annotations)
 {
   idl_retcode_t ret = IDL_RETCODE_OK;
   uint32_t flags = IDL_FLAG_EXTENDED_DATA_TYPES |
@@ -280,7 +280,7 @@ static idl_retcode_t idlc_parse(void)
 
   if(config.compile) {
     idl_source_t *source;
-    if ((ret = idl_create_pstate(flags, NULL, &pstate))) {
+    if ((ret = idl_create_pstate(flags, generator_annotations == NULL ? NULL : *generator_annotations, &pstate))) {
       return ret;
     }
     assert(config.file);
@@ -620,6 +620,7 @@ int main(int argc, char *argv[])
   int exit_code = EXIT_FAILURE;
   const char *prog = argv[0];
   const char *lang;
+  const idl_builtin_annotation_t ** generator_annotations;
   idlc_generator_plugin_t gen;
   idlc_option_t **opts = NULL;
   const idlc_option_t **genopts = NULL;
@@ -700,7 +701,14 @@ int main(int argc, char *argv[])
     }
     config.file = argv[optind];
     config.argv[config.argc++] = config.file;
-    if ((ret = idlc_parse())) {
+
+    if (gen.generator_annotations) {
+      generator_annotations = gen.generator_annotations();
+    } else {
+      generator_annotations = NULL;
+    }
+
+    if ((ret = idlc_parse(generator_annotations))) {
       /* assume other errors are reported by processor */
       if (ret == IDL_RETCODE_NO_MEMORY)
         fprintf(stderr, "Out of memory\n");

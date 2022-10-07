@@ -19,6 +19,7 @@
 #include "idl/attributes.h"
 
 IDL_EXPORT FILE *idl_fopen(const char *pathname, const char *mode);
+IDL_EXPORT int   idl_fclose(FILE * file);
 
 IDL_EXPORT int idl_fprintf(FILE *fp, const char *fmt, ...)
 idl_attribute_format_printf(2, 3);
