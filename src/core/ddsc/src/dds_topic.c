@@ -55,9 +55,11 @@ static bool is_valid_name (const char *name) ddsrt_nonnull_all;
 static bool is_valid_name (const char *name)
 {
   /* DDS Spec does not explicitly specify what constitutes a valid name.
-   * Per https://github.com/eclipse-cyclonedds/cyclonedds/issues/1393#issuecomment-1248936537
-   *  "we require isprint is true and not <space>, " or ' for the time being, then work our way to supporting UTF-8"
+   * Per https://github.com/eclipse-cyclonedds/cyclonedds/pull/1426
+   *  Require isprint is true and not <space>*?[]"' for the time being, then work our way to supporting UTF-8
    */
+  const char* invalid = "*?[]\"'#$";
+
   if (name[0] == '\0')
     return false;
 
@@ -65,8 +67,7 @@ static bool is_valid_name (const char *name)
     if (
         (!(isprint((unsigned char) name[i])))
         || (isspace((unsigned char) name[i]))
-        || (name[i] == '"')
-        || (name[i] == '\'')
+        || (strchr(invalid, name[i]) != NULL)
       )
       return false;
     
