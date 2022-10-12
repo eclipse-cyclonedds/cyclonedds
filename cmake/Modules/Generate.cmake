@@ -40,7 +40,7 @@ function(IDLC_GENERATE_GENERIC)
     IDLC "${options}" "${one_value_keywords}" "${multi_value_keywords}" "" ${ARGN})
 
   # find idlc binary
-  if(CMAKE_CROSSCOMPILING)
+  if(CMAKE_CROSSCOMPILING OR NOT BUILD_IDLC)
     find_program(_idlc_executable idlc NO_CMAKE_FIND_ROOT_PATH REQUIRED)
 
     if(_idlc_executable)
@@ -49,8 +49,15 @@ function(IDLC_GENERATE_GENERIC)
       message(FATAL_ERROR "Cannot find idlc executable")
     endif()
   else()
-    set(_idlc_executable CycloneDDS::idlc)
-    set(_idlc_depends CycloneDDS::idlc)
+    if (CMAKE_PROJECT_NAME STREQUAL "CycloneDDS")
+      # By using the internal target when building CycloneDDS itself, prevent using an external idlc
+      # This prevents a problem when an installed cyclone is on your prefix path when building cyclone again
+      set(_idlc_executable idlc)
+      set(_idlc_depends idlc)
+    else()
+      set(_idlc_executable CycloneDDS::idlc)
+      set(_idlc_depends CycloneDDS::idlc)
+    endif()
   endif()
 
   if(NOT IDLC_TARGET AND NOT IDLC_FILES)

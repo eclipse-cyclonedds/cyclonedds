@@ -17,6 +17,7 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include "idl/stdlib.h"
 #include "idl/processor.h"
 #include "idl/string.h"
 #include "scanner.h"
@@ -727,7 +728,7 @@ tokenize(
   }
 
   len = (size_t)((uintptr_t)lex->limit - (uintptr_t)lex->marker);
-  if (len >= sizeof(buf) && !(str = malloc(len + 1)))
+  if (len >= sizeof(buf) && !(str = idl_malloc(len + 1)))
     return IDL_RETCODE_NO_MEMORY;
 
   /* strip line continuation sequences */
@@ -773,7 +774,7 @@ identifier:
       str[len] = '\0';
       if ((ret = unescape(pstate, lex, str, &len)) != IDL_RETCODE_OK) {
         if (str != buf)
-          free(str);
+          idl_free(str);
         return ret;
       }
       break;
@@ -805,14 +806,14 @@ identifier:
       if (len != 1) {
         idl_error(pstate, &lex->location, "invalid character constant");
         if (str != buf)
-          free(str);
+          idl_free(str);
         return IDL_RETCODE_SYNTAX_ERROR;
       }
       tok->value.chr = *str;
       /* fall through */
     default:
       if (str != buf)
-        free(str);
+        idl_free(str);
       break;
   }
 

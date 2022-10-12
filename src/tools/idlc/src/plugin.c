@@ -37,6 +37,7 @@ static const char ext[] = "so";
 #endif
 
 #include "plugin.h"
+#include "idl/stdlib.h"
 #include "idl/string.h"
 #include "idlc/generator.h"
 
@@ -118,7 +119,7 @@ static int run_library_locator(const char *command, char **out_output) {
         break;
       }
 
-      char* new = (char*) realloc(output, output_size);
+      char* new = (char*) idl_realloc(output, output_size);
       if (!new) {
         success = false;
         break;
@@ -141,7 +142,7 @@ static int run_library_locator(const char *command, char **out_output) {
 
   // error
   if (output) {
-    free(output);
+    idl_free(output);
   }
 
   return -1;
@@ -197,7 +198,7 @@ idlc_load_generator(idlc_generator_plugin_t *plugin, const char *lang)
     assert(cnt != -1);
     if ((size_t)cnt < sizeof(buf)) {
       path = (const char *)buf;
-    } else if (!(file = malloc((size_t)cnt+1))) {
+    } else if (!(file = idl_malloc((size_t)cnt+1))) {
       return -1;
     } else {
       cnt = snprintf(file, (size_t)cnt+1, fmt, lib, lang, ext);
@@ -227,7 +228,7 @@ idlc_load_generator(idlc_generator_plugin_t *plugin, const char *lang)
   }
 
   if (file) {
-    free(file);
+    idl_free(file);
   }
 
   return (handle && generate) ? 0 : -1;

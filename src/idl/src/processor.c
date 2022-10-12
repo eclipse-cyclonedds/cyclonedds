@@ -18,6 +18,7 @@
 #include <stdbool.h>
 #include <inttypes.h>
 
+#include "idl/stdlib.h"
 #include "idl/processor.h"
 #include "idl/string.h"
 #include "annotation.h"
@@ -96,7 +97,7 @@ parse_builtin_annotations(
         case IDL_TOKEN_COMMENT:
         case IDL_TOKEN_LINE_COMMENT:
           if (token.value.str && !save) {
-            free(token.value.str);
+            idl_free(token.value.str);
           }
           break;
         default:
@@ -119,7 +120,7 @@ parse_builtin_annotations(
     }
 
     if (name.identifier) {
-      free(name.identifier);
+      idl_free(name.identifier);
     }
 
     /* builtin annotations must not declare more than one annotation per block
@@ -146,7 +147,7 @@ idl_create_pstate(
   idl_pstate_t *pstate;
 
   (void)flags;
-  if (!(pstate = calloc(1, sizeof(*pstate))))
+  if (!(pstate = idl_calloc(1, sizeof(*pstate))))
     goto err_pstate;
   if (!(pstate->parser.yypstate = idl_yypstate_new()))
     goto err_yypstate;
@@ -182,7 +183,7 @@ idl_create_pstate(
 err_scope:
   idl_yypstate_delete(pstate->parser.yypstate);
 err_yypstate:
-  free(pstate);
+  idl_free(pstate);
 err_pstate:
   return IDL_RETCODE_NO_MEMORY;
 }
@@ -194,7 +195,7 @@ static void delete_source(idl_source_t *src)
   for (idl_source_t *n, *s=src; s; s = n) {
     n = s->next;
     delete_source(s->includes);
-    free(s);
+    idl_free(s);
   }
 }
 
@@ -217,20 +218,20 @@ void idl_delete_pstate(idl_pstate_t *pstate)
     for (idl_file_t *n, *f=pstate->files; f; f = n) {
       n = f->next;
       if (f->name)
-        free(f->name);
-      free(f);
+        idl_free(f->name);
+      idl_free(f);
     }
     /* paths */
     for (idl_file_t *n, *f=pstate->paths; f; f = n) {
       n = f->next;
       if (f->name)
-        free(f->name);
-      free(f);
+        idl_free(f->name);
+      idl_free(f);
     }
     /* buffer */
     if (pstate->buffer.data)
-      free(pstate->buffer.data);
-    free(pstate);
+      idl_free(pstate->buffer.data);
+    idl_free(pstate);
   }
 }
 
@@ -536,7 +537,7 @@ grammar:
         ret = parse_grammar(pstate, &tok);
       }
     }
-    /* free memory associated with token value */
+    /* idl_free memory associated with token value */
     switch (tok.code) {
       case '\n':
         pstate->scanner.state = IDL_SCAN;
@@ -547,7 +548,7 @@ grammar:
       case IDL_TOKEN_COMMENT:
       case IDL_TOKEN_LINE_COMMENT:
         if (tok.value.str)
-          free(tok.value.str);
+          idl_free(tok.value.str);
         break;
       default:
         break;

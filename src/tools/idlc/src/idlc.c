@@ -21,6 +21,7 @@
 #include <string.h>
 
 #include "dds/features.h"
+#include "idl/stdlib.h"
 #include "idl/tree.h"
 #include "idl/string.h"
 #include "idl/processor.h"
@@ -105,7 +106,7 @@ static int idlc_putn(const char *str, size_t len)
   /* expand buffer if necessary */
   if (pstate->buffer.data == NULL || (pstate->buffer.size - pstate->buffer.used) <= len) {
     size_t size = pstate->buffer.size + (((len / CHUNK) + 1) * CHUNK);
-    char *buf = realloc(pstate->buffer.data, size + 2 /* '\0' + '\0' */);
+    char *buf = idl_realloc(pstate->buffer.data, size + 2 /* '\0' + '\0' */);
     if (buf == NULL) {
       retcode = IDL_RETCODE_NO_MEMORY;
       return -1;
@@ -228,7 +229,7 @@ static int idlc_printf(OUTDEST od, const char *fmt, ...)
     break;
   }
 
-  free(str);
+  idl_free(str);
 
   return ret < 0 ? -1 : ret;
 }
@@ -239,7 +240,7 @@ static idl_retcode_t figure_file(idl_file_t **filep)
   idl_retcode_t ret = IDL_RETCODE_NO_MEMORY;
   char *dir = NULL, *abs = NULL, *norm = NULL;
 
-  if (!(file = malloc(sizeof(*file))))
+  if (!(file = idl_malloc(sizeof(*file))))
     goto err_file;
   if (idl_isabsolute(config.file)) {
     if ((ret = idl_normalize_path(config.file, &norm)) < 0)
@@ -251,19 +252,19 @@ static idl_retcode_t figure_file(idl_file_t **filep)
       goto err_abs;
     if ((ret = idl_normalize_path(abs, &norm)) < 0)
       goto err_norm;
-    free(abs);
-    free(dir);
+    idl_free(abs);
+    idl_free(dir);
   }
   file->next = NULL;
   file->name = norm;
   *filep = file;
   return IDL_RETCODE_OK;
 err_norm:
-  if (abs) free(abs);
+  if (abs) idl_free(abs);
 err_abs:
-  if (dir) free(dir);
+  if (dir) idl_free(dir);
 err_dir:
-  free(file);
+  idl_free(file);
 err_file:
   return ret;
 }
@@ -290,7 +291,7 @@ static idl_retcode_t idlc_parse(const idl_builtin_annotation_t ** generator_anno
       idl_delete_pstate(pstate);
       return ret;
     }
-    if (!(pstate->files = malloc(sizeof(*pstate->files)))) {
+    if (!(pstate->files = idl_malloc(sizeof(*pstate->files)))) {
       idl_delete_pstate(pstate);
       return IDL_RETCODE_NO_MEMORY;
     }
@@ -299,7 +300,7 @@ static idl_retcode_t idlc_parse(const idl_builtin_annotation_t ** generator_anno
       idl_delete_pstate(pstate);
       return IDL_RETCODE_NO_MEMORY;
     }
-    if (!(source = malloc(sizeof(*source)))) {
+    if (!(source = idl_malloc(sizeof(*source)))) {
       idl_delete_pstate(pstate);
       return IDL_RETCODE_NO_MEMORY;
     }
@@ -462,7 +463,7 @@ static int add_disable_warning(idl_warning_t warning)
 {
   if (config.disable_warnings.count == config.disable_warnings.size) {
     config.disable_warnings.size += DISABLE_WARNING_CHSZ;
-    idl_warning_t *tmp = realloc(config.disable_warnings.list, config.disable_warnings.size * sizeof(*config.disable_warnings.list));
+    idl_warning_t *tmp = idl_realloc(config.disable_warnings.list, config.disable_warnings.size * sizeof(*config.disable_warnings.list));
     if (!tmp)
       return IDLC_NO_MEMORY;
     config.disable_warnings.list = tmp;
@@ -649,7 +650,7 @@ int main(int argc, char *argv[])
     fprintf(stderr, "%s: cannot load generator %s\n", prog, lang);
 
   config.argc = 0;
-  if (!(config.argv = calloc((size_t)argc + 7, sizeof(config.argv[0]))))
+  if (!(config.argv = idl_calloc((size_t)argc + 7, sizeof(config.argv[0]))))
     goto err_argv;
 
   config.argv[config.argc++] = argv[0];
@@ -671,7 +672,7 @@ int main(int argc, char *argv[])
     for (; genopts[ngenopts]; ngenopts++) ;
   }
   nopts = ncompopts + ngenopts;
-  if (!(opts = calloc(nopts + 1, sizeof(opts[0]))))
+  if (!(opts = idl_calloc(nopts + 1, sizeof(opts[0]))))
     goto err_alloc_opts;
   memcpy(opts, compopts, ncompopts * sizeof(opts[0]));
   if (ngenopts)
@@ -738,9 +739,9 @@ int main(int argc, char *argv[])
         ret = gen.generate(pstate, &generator_config);
 
       if(generator_config.output_dir)
-        free(generator_config.output_dir);
+        idl_free(generator_config.output_dir);
       if(generator_config.base_dir)
-        free(generator_config.base_dir);
+        idl_free(generator_config.base_dir);
       idl_delete_pstate(pstate);
       if (ret) {
         fprintf(stderr, "Failed to compile '%s'\n", config.file);
@@ -753,11 +754,11 @@ int main(int argc, char *argv[])
 err_generate:
 err_parse:
 err_parse_opts:
-  free(opts);
+  idl_free(opts);
 err_alloc_opts:
   if (config.disable_warnings.list)
-    free(config.disable_warnings.list);
-  free(config.argv);
+    idl_free(config.disable_warnings.list);
+  idl_free(config.argv);
 err_argv:
   return exit_code;
 }

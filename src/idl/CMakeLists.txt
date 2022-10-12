@@ -74,6 +74,7 @@ set(headers
   include/idl/symbol.h
   include/idl/tree.h
   include/idl/visit.h
+  include/idl/stdlib.h
   ${binary_dir}/include/idl/version.h)
 
 set(sources
@@ -93,6 +94,7 @@ set(sources
   src/keylist.c
   src/hashid.c
   src/parser.c
+  src/stdlib.c
   src/annotation.h
   src/directive.h
   src/expression.h

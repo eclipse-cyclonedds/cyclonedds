@@ -1,8 +1,8 @@
-/* A Bison parser, made by GNU Bison 3.8.2.  */
+/* A Bison parser, made by GNU Bison 3.5.1.  */
 
 /* Bison implementation for Yacc-like parsers in C
 
-   Copyright (C) 1984, 1989-1990, 2000-2015, 2018-2021 Free Software Foundation,
+   Copyright (C) 1984, 1989-1990, 2000-2015, 2018-2020 Free Software Foundation,
    Inc.
 
    This program is free software: you can redistribute it and/or modify
@@ -16,7 +16,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /* As a special exception, you may create a larger work that contains
    part or all of the Bison parser skeleton and distribute that work
@@ -34,10 +34,6 @@
 /* C LALR(1) parser skeleton written by Richard Stallman, by
    simplifying the original so-called "semantic" parser.  */
 
-/* DO NOT RELY ON FEATURES THAT ARE NOT DOCUMENTED in the manual,
-   especially those whose name start with YY_ or yy_.  They are
-   private implementation details that can be changed or removed.  */
-
 /* All symbols defined below should begin with yy or YY, to avoid
    infringing on user name space.  This should be done even for local
    variables, as they might otherwise be expanded by user macros.
@@ -45,11 +41,14 @@
    define necessary library symbols; they are noted "INFRINGES ON
    USER NAME SPACE" below.  */
 
-/* Identify Bison output, and Bison version.  */
-#define YYBISON 30802
+/* Undocumented macros, especially those whose name start with YY_,
+   are private implementation details.  Do not rely on them.  */
 
-/* Bison version string.  */
-#define YYBISON_VERSION "3.8.2"
+/* Identify Bison output.  */
+#define YYBISON 1
+
+/* Bison version.  */
+#define YYBISON_VERSION "3.5.1"
 
 /* Skeleton name.  */
 #define YYSKELETON_NAME "yacc.c"
@@ -69,7 +68,6 @@
 /* Substitute the variable and function names.  */
 #define yypush_parse    idl_yypush_parse
 #define yypstate_new    idl_yypstate_new
-#define yypstate_clear  idl_yypstate_clear
 #define yypstate_delete idl_yypstate_delete
 #define yypstate        idl_yypstate
 #define yylex           idl_yylex
@@ -78,7 +76,7 @@
 #define yynerrs         idl_yynerrs
 
 /* First part of user prologue.  */
-#line 12 "src/parser.y"
+#line 12 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
 
 #include <assert.h>
 #include <math.h>
@@ -89,6 +87,7 @@
 
 #include "idl/string.h"
 #include "idl/processor.h"
+#include "idl/stdlib.h"
 #include "annotation.h"
 #include "expression.h"
 #include "scope.h"
@@ -151,7 +150,7 @@ static void yyerror(idl_location_t *, idl_pstate_t *, idl_retcode_t *, const cha
 #define TRY(action) \
   TRY_EXCEPT((action), 0)
 
-#line 155 "parser.c"
+#line 154 "parser.c"
 
 # ifndef YY_CAST
 #  ifdef __cplusplus
@@ -174,186 +173,202 @@ static void yyerror(idl_location_t *, idl_pstate_t *, idl_retcode_t *, const cha
 #  endif
 # endif
 
-#include "parser.h"
-/* Symbol kind.  */
-enum yysymbol_kind_t
-{
-  YYSYMBOL_YYEMPTY = -2,
-  YYSYMBOL_YYEOF = 0,                      /* "end of file"  */
-  YYSYMBOL_YYerror = 1,                    /* error  */
-  YYSYMBOL_YYUNDEF = 2,                    /* "invalid token"  */
-  YYSYMBOL_IDL_TOKEN_LINE_COMMENT = 3,     /* IDL_TOKEN_LINE_COMMENT  */
-  YYSYMBOL_IDL_TOKEN_COMMENT = 4,          /* IDL_TOKEN_COMMENT  */
-  YYSYMBOL_IDL_TOKEN_PP_NUMBER = 5,        /* IDL_TOKEN_PP_NUMBER  */
-  YYSYMBOL_IDL_TOKEN_IDENTIFIER = 6,       /* IDL_TOKEN_IDENTIFIER  */
-  YYSYMBOL_IDL_TOKEN_CHAR_LITERAL = 7,     /* IDL_TOKEN_CHAR_LITERAL  */
-  YYSYMBOL_IDL_TOKEN_STRING_LITERAL = 8,   /* IDL_TOKEN_STRING_LITERAL  */
-  YYSYMBOL_IDL_TOKEN_INTEGER_LITERAL = 9,  /* IDL_TOKEN_INTEGER_LITERAL  */
-  YYSYMBOL_IDL_TOKEN_FLOATING_PT_LITERAL = 10, /* IDL_TOKEN_FLOATING_PT_LITERAL  */
-  YYSYMBOL_IDL_TOKEN_ANNOTATION_SYMBOL = 11, /* "@"  */
-  YYSYMBOL_IDL_TOKEN_ANNOTATION = 12,      /* "annotation"  */
-  YYSYMBOL_IDL_TOKEN_SCOPE = 13,           /* IDL_TOKEN_SCOPE  */
-  YYSYMBOL_IDL_TOKEN_SCOPE_NO_SPACE = 14,  /* IDL_TOKEN_SCOPE_NO_SPACE  */
-  YYSYMBOL_IDL_TOKEN_MODULE = 15,          /* "module"  */
-  YYSYMBOL_IDL_TOKEN_CONST = 16,           /* "const"  */
-  YYSYMBOL_IDL_TOKEN_NATIVE = 17,          /* "native"  */
-  YYSYMBOL_IDL_TOKEN_STRUCT = 18,          /* "struct"  */
-  YYSYMBOL_IDL_TOKEN_TYPEDEF = 19,         /* "typedef"  */
-  YYSYMBOL_IDL_TOKEN_UNION = 20,           /* "union"  */
-  YYSYMBOL_IDL_TOKEN_SWITCH = 21,          /* "switch"  */
-  YYSYMBOL_IDL_TOKEN_CASE = 22,            /* "case"  */
-  YYSYMBOL_IDL_TOKEN_DEFAULT = 23,         /* "default"  */
-  YYSYMBOL_IDL_TOKEN_ENUM = 24,            /* "enum"  */
-  YYSYMBOL_IDL_TOKEN_UNSIGNED = 25,        /* "unsigned"  */
-  YYSYMBOL_IDL_TOKEN_FIXED = 26,           /* "fixed"  */
-  YYSYMBOL_IDL_TOKEN_SEQUENCE = 27,        /* "sequence"  */
-  YYSYMBOL_IDL_TOKEN_STRING = 28,          /* "string"  */
-  YYSYMBOL_IDL_TOKEN_WSTRING = 29,         /* "wstring"  */
-  YYSYMBOL_IDL_TOKEN_FLOAT = 30,           /* "float"  */
-  YYSYMBOL_IDL_TOKEN_DOUBLE = 31,          /* "double"  */
-  YYSYMBOL_IDL_TOKEN_SHORT = 32,           /* "short"  */
-  YYSYMBOL_IDL_TOKEN_LONG = 33,            /* "long"  */
-  YYSYMBOL_IDL_TOKEN_CHAR = 34,            /* "char"  */
-  YYSYMBOL_IDL_TOKEN_WCHAR = 35,           /* "wchar"  */
-  YYSYMBOL_IDL_TOKEN_BOOLEAN = 36,         /* "boolean"  */
-  YYSYMBOL_IDL_TOKEN_OCTET = 37,           /* "octet"  */
-  YYSYMBOL_IDL_TOKEN_ANY = 38,             /* "any"  */
-  YYSYMBOL_IDL_TOKEN_MAP = 39,             /* "map"  */
-  YYSYMBOL_IDL_TOKEN_BITSET = 40,          /* "bitset"  */
-  YYSYMBOL_IDL_TOKEN_BITFIELD = 41,        /* "bitfield"  */
-  YYSYMBOL_IDL_TOKEN_BITMASK = 42,         /* "bitmask"  */
-  YYSYMBOL_IDL_TOKEN_INT8 = 43,            /* "int8"  */
-  YYSYMBOL_IDL_TOKEN_INT16 = 44,           /* "int16"  */
-  YYSYMBOL_IDL_TOKEN_INT32 = 45,           /* "int32"  */
-  YYSYMBOL_IDL_TOKEN_INT64 = 46,           /* "int64"  */
-  YYSYMBOL_IDL_TOKEN_UINT8 = 47,           /* "uint8"  */
-  YYSYMBOL_IDL_TOKEN_UINT16 = 48,          /* "uint16"  */
-  YYSYMBOL_IDL_TOKEN_UINT32 = 49,          /* "uint32"  */
-  YYSYMBOL_IDL_TOKEN_UINT64 = 50,          /* "uint64"  */
-  YYSYMBOL_IDL_TOKEN_TRUE = 51,            /* "TRUE"  */
-  YYSYMBOL_IDL_TOKEN_FALSE = 52,           /* "FALSE"  */
-  YYSYMBOL_IDL_TOKEN_LSHIFT = 53,          /* "<<"  */
-  YYSYMBOL_IDL_TOKEN_RSHIFT = 54,          /* ">>"  */
-  YYSYMBOL_55_ = 55,                       /* ';'  */
-  YYSYMBOL_56_ = 56,                       /* '{'  */
-  YYSYMBOL_57_ = 57,                       /* '}'  */
-  YYSYMBOL_58_ = 58,                       /* '='  */
-  YYSYMBOL_59_ = 59,                       /* '|'  */
-  YYSYMBOL_60_ = 60,                       /* '^'  */
-  YYSYMBOL_61_ = 61,                       /* '&'  */
-  YYSYMBOL_62_ = 62,                       /* '+'  */
-  YYSYMBOL_63_ = 63,                       /* '-'  */
-  YYSYMBOL_64_ = 64,                       /* '*'  */
-  YYSYMBOL_65_ = 65,                       /* '/'  */
-  YYSYMBOL_66_ = 66,                       /* '%'  */
-  YYSYMBOL_67_ = 67,                       /* '~'  */
-  YYSYMBOL_68_ = 68,                       /* '('  */
-  YYSYMBOL_69_ = 69,                       /* ')'  */
-  YYSYMBOL_70_ = 70,                       /* '<'  */
-  YYSYMBOL_71_ = 71,                       /* ','  */
-  YYSYMBOL_72_ = 72,                       /* '>'  */
-  YYSYMBOL_73_ = 73,                       /* ':'  */
-  YYSYMBOL_74_ = 74,                       /* '['  */
-  YYSYMBOL_75_ = 75,                       /* ']'  */
-  YYSYMBOL_YYACCEPT = 76,                  /* $accept  */
-  YYSYMBOL_specification = 77,             /* specification  */
-  YYSYMBOL_definitions = 78,               /* definitions  */
-  YYSYMBOL_definition = 79,                /* definition  */
-  YYSYMBOL_module_dcl = 80,                /* module_dcl  */
-  YYSYMBOL_module_header = 81,             /* module_header  */
-  YYSYMBOL_scoped_name = 82,               /* scoped_name  */
-  YYSYMBOL_const_dcl = 83,                 /* const_dcl  */
-  YYSYMBOL_const_type = 84,                /* const_type  */
-  YYSYMBOL_const_expr = 85,                /* const_expr  */
-  YYSYMBOL_or_expr = 86,                   /* or_expr  */
-  YYSYMBOL_xor_expr = 87,                  /* xor_expr  */
-  YYSYMBOL_and_expr = 88,                  /* and_expr  */
-  YYSYMBOL_shift_expr = 89,                /* shift_expr  */
-  YYSYMBOL_shift_operator = 90,            /* shift_operator  */
-  YYSYMBOL_add_expr = 91,                  /* add_expr  */
-  YYSYMBOL_add_operator = 92,              /* add_operator  */
-  YYSYMBOL_mult_expr = 93,                 /* mult_expr  */
-  YYSYMBOL_mult_operator = 94,             /* mult_operator  */
-  YYSYMBOL_unary_expr = 95,                /* unary_expr  */
-  YYSYMBOL_unary_operator = 96,            /* unary_operator  */
-  YYSYMBOL_primary_expr = 97,              /* primary_expr  */
-  YYSYMBOL_literal = 98,                   /* literal  */
-  YYSYMBOL_boolean_literal = 99,           /* boolean_literal  */
-  YYSYMBOL_string_literal = 100,           /* string_literal  */
-  YYSYMBOL_positive_int_const = 101,       /* positive_int_const  */
-  YYSYMBOL_type_dcl = 102,                 /* type_dcl  */
-  YYSYMBOL_type_spec = 103,                /* type_spec  */
-  YYSYMBOL_simple_type_spec = 104,         /* simple_type_spec  */
-  YYSYMBOL_base_type_spec = 105,           /* base_type_spec  */
-  YYSYMBOL_floating_pt_type = 106,         /* floating_pt_type  */
-  YYSYMBOL_integer_type = 107,             /* integer_type  */
-  YYSYMBOL_signed_int = 108,               /* signed_int  */
-  YYSYMBOL_unsigned_int = 109,             /* unsigned_int  */
-  YYSYMBOL_char_type = 110,                /* char_type  */
-  YYSYMBOL_wide_char_type = 111,           /* wide_char_type  */
-  YYSYMBOL_boolean_type = 112,             /* boolean_type  */
-  YYSYMBOL_octet_type = 113,               /* octet_type  */
-  YYSYMBOL_template_type_spec = 114,       /* template_type_spec  */
-  YYSYMBOL_sequence_type = 115,            /* sequence_type  */
-  YYSYMBOL_string_type = 116,              /* string_type  */
-  YYSYMBOL_constr_type_dcl = 117,          /* constr_type_dcl  */
-  YYSYMBOL_struct_dcl = 118,               /* struct_dcl  */
-  YYSYMBOL_struct_forward_dcl = 119,       /* struct_forward_dcl  */
-  YYSYMBOL_struct_def = 120,               /* struct_def  */
-  YYSYMBOL_struct_header = 121,            /* struct_header  */
-  YYSYMBOL_struct_inherit_spec = 122,      /* struct_inherit_spec  */
-  YYSYMBOL_struct_body = 123,              /* struct_body  */
-  YYSYMBOL_members = 124,                  /* members  */
-  YYSYMBOL_member = 125,                   /* member  */
-  YYSYMBOL_union_dcl = 126,                /* union_dcl  */
-  YYSYMBOL_union_def = 127,                /* union_def  */
-  YYSYMBOL_union_forward_dcl = 128,        /* union_forward_dcl  */
-  YYSYMBOL_union_header = 129,             /* union_header  */
-  YYSYMBOL_switch_header = 130,            /* switch_header  */
-  YYSYMBOL_switch_type_spec = 131,         /* switch_type_spec  */
-  YYSYMBOL_switch_body = 132,              /* switch_body  */
-  YYSYMBOL_case = 133,                     /* case  */
-  YYSYMBOL_case_labels = 134,              /* case_labels  */
-  YYSYMBOL_case_label = 135,               /* case_label  */
-  YYSYMBOL_element_spec = 136,             /* element_spec  */
-  YYSYMBOL_enum_dcl = 137,                 /* enum_dcl  */
-  YYSYMBOL_enum_def = 138,                 /* enum_def  */
-  YYSYMBOL_enumerators = 139,              /* enumerators  */
-  YYSYMBOL_enumerator = 140,               /* enumerator  */
-  YYSYMBOL_bitmask_dcl = 141,              /* bitmask_dcl  */
-  YYSYMBOL_bitmask_def = 142,              /* bitmask_def  */
-  YYSYMBOL_bit_values = 143,               /* bit_values  */
-  YYSYMBOL_bit_value = 144,                /* bit_value  */
-  YYSYMBOL_array_declarator = 145,         /* array_declarator  */
-  YYSYMBOL_fixed_array_sizes = 146,        /* fixed_array_sizes  */
-  YYSYMBOL_fixed_array_size = 147,         /* fixed_array_size  */
-  YYSYMBOL_simple_declarator = 148,        /* simple_declarator  */
-  YYSYMBOL_complex_declarator = 149,       /* complex_declarator  */
-  YYSYMBOL_typedef_dcl = 150,              /* typedef_dcl  */
-  YYSYMBOL_declarators = 151,              /* declarators  */
-  YYSYMBOL_declarator = 152,               /* declarator  */
-  YYSYMBOL_identifier = 153,               /* identifier  */
-  YYSYMBOL_annotation_dcl = 154,           /* annotation_dcl  */
-  YYSYMBOL_annotation_header = 155,        /* annotation_header  */
-  YYSYMBOL_156_1 = 156,                    /* $@1  */
-  YYSYMBOL_annotation_body = 157,          /* annotation_body  */
-  YYSYMBOL_annotation_member = 158,        /* annotation_member  */
-  YYSYMBOL_annotation_member_type = 159,   /* annotation_member_type  */
-  YYSYMBOL_annotation_member_default = 160, /* annotation_member_default  */
-  YYSYMBOL_any_const_type = 161,           /* any_const_type  */
-  YYSYMBOL_annotations = 162,              /* annotations  */
-  YYSYMBOL_annotation_appls = 163,         /* annotation_appls  */
-  YYSYMBOL_annotation_appl = 164,          /* annotation_appl  */
-  YYSYMBOL_annotation_appl_header = 165,   /* annotation_appl_header  */
-  YYSYMBOL_166_2 = 166,                    /* $@2  */
-  YYSYMBOL_annotation_appl_name = 167,     /* annotation_appl_name  */
-  YYSYMBOL_annotation_appl_params = 168,   /* annotation_appl_params  */
-  YYSYMBOL_annotation_appl_keyword_params = 169, /* annotation_appl_keyword_params  */
-  YYSYMBOL_annotation_appl_keyword_param = 170, /* annotation_appl_keyword_param  */
-  YYSYMBOL_171_3 = 171                     /* @3  */
-};
-typedef enum yysymbol_kind_t yysymbol_kind_t;
+/* Enabling verbose error messages.  */
+#ifdef YYERROR_VERBOSE
+# undef YYERROR_VERBOSE
+# define YYERROR_VERBOSE 1
+#else
+# define YYERROR_VERBOSE 0
+#endif
 
+/* Use api.header.include to #include this header
+   instead of duplicating it here.  */
+#ifndef YY_IDL_YY_PARSER_H_INCLUDED
+# define YY_IDL_YY_PARSER_H_INCLUDED
+/* Debug traces.  */
+#ifndef IDL_YYDEBUG
+# if defined YYDEBUG
+#if YYDEBUG
+#   define IDL_YYDEBUG 1
+#  else
+#   define IDL_YYDEBUG 0
+#  endif
+# else /* ! defined YYDEBUG */
+#  define IDL_YYDEBUG 1
+# endif /* ! defined YYDEBUG */
+#endif  /* ! defined IDL_YYDEBUG */
+#if IDL_YYDEBUG
+extern int idl_yydebug;
+#endif
+/* "%code requires" blocks.  */
+#line 86 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+
+#include "tree.h"
+
+/* make yytoknum available */
+#define YYPRINT(A,B,C) (void)0
+/* use YYLTYPE definition below */
+#define IDL_YYLTYPE_IS_DECLARED
+typedef struct idl_location IDL_YYLTYPE;
+
+#define LOC(first, last) \
+  &(IDL_YYLTYPE){ first, last }
+
+#line 218 "parser.c"
+
+/* Token type.  */
+#ifndef IDL_YYTOKENTYPE
+# define IDL_YYTOKENTYPE
+  enum idl_yytokentype
+  {
+    IDL_TOKEN_LINE_COMMENT = 258,
+    IDL_TOKEN_COMMENT = 259,
+    IDL_TOKEN_PP_NUMBER = 260,
+    IDL_TOKEN_IDENTIFIER = 261,
+    IDL_TOKEN_CHAR_LITERAL = 262,
+    IDL_TOKEN_STRING_LITERAL = 263,
+    IDL_TOKEN_INTEGER_LITERAL = 264,
+    IDL_TOKEN_FLOATING_PT_LITERAL = 265,
+    IDL_TOKEN_ANNOTATION_SYMBOL = 266,
+    IDL_TOKEN_ANNOTATION = 267,
+    IDL_TOKEN_SCOPE = 268,
+    IDL_TOKEN_SCOPE_NO_SPACE = 269,
+    IDL_TOKEN_MODULE = 270,
+    IDL_TOKEN_CONST = 271,
+    IDL_TOKEN_NATIVE = 272,
+    IDL_TOKEN_STRUCT = 273,
+    IDL_TOKEN_TYPEDEF = 274,
+    IDL_TOKEN_UNION = 275,
+    IDL_TOKEN_SWITCH = 276,
+    IDL_TOKEN_CASE = 277,
+    IDL_TOKEN_DEFAULT = 278,
+    IDL_TOKEN_ENUM = 279,
+    IDL_TOKEN_UNSIGNED = 280,
+    IDL_TOKEN_FIXED = 281,
+    IDL_TOKEN_SEQUENCE = 282,
+    IDL_TOKEN_STRING = 283,
+    IDL_TOKEN_WSTRING = 284,
+    IDL_TOKEN_FLOAT = 285,
+    IDL_TOKEN_DOUBLE = 286,
+    IDL_TOKEN_SHORT = 287,
+    IDL_TOKEN_LONG = 288,
+    IDL_TOKEN_CHAR = 289,
+    IDL_TOKEN_WCHAR = 290,
+    IDL_TOKEN_BOOLEAN = 291,
+    IDL_TOKEN_OCTET = 292,
+    IDL_TOKEN_ANY = 293,
+    IDL_TOKEN_MAP = 294,
+    IDL_TOKEN_BITSET = 295,
+    IDL_TOKEN_BITFIELD = 296,
+    IDL_TOKEN_BITMASK = 297,
+    IDL_TOKEN_INT8 = 298,
+    IDL_TOKEN_INT16 = 299,
+    IDL_TOKEN_INT32 = 300,
+    IDL_TOKEN_INT64 = 301,
+    IDL_TOKEN_UINT8 = 302,
+    IDL_TOKEN_UINT16 = 303,
+    IDL_TOKEN_UINT32 = 304,
+    IDL_TOKEN_UINT64 = 305,
+    IDL_TOKEN_TRUE = 306,
+    IDL_TOKEN_FALSE = 307,
+    IDL_TOKEN_LSHIFT = 308,
+    IDL_TOKEN_RSHIFT = 309
+  };
+#endif
+
+/* Value type.  */
+#if ! defined IDL_YYSTYPE && ! defined IDL_YYSTYPE_IS_DECLARED
+union IDL_YYSTYPE
+{
+#line 104 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+
+  void *node;
+  /* expressions */
+  idl_literal_t *literal;
+  idl_const_expr_t *const_expr;
+  /* simple specifications */
+  idl_mask_t kind;
+  idl_name_t *name;
+  idl_scoped_name_t *scoped_name;
+  idl_inherit_spec_t *inherit_spec;
+  char *string_literal;
+  /* specifications */
+  idl_switch_type_spec_t *switch_type_spec;
+  idl_type_spec_t *type_spec;
+  idl_sequence_t *sequence;
+  idl_string_t *string;
+  /* declarations */
+  idl_definition_t *definition;
+  idl_module_t *module_dcl;
+  idl_struct_t *struct_dcl;
+  idl_forward_t *forward;
+  idl_member_t *member;
+  idl_declarator_t *declarator;
+  idl_union_t *union_dcl;
+  idl_case_t *_case;
+  idl_case_label_t *case_label;
+  idl_enum_t *enum_dcl;
+  idl_enumerator_t *enumerator;
+  idl_bitmask_t *bitmask_dcl;
+  idl_bit_value_t *bit_value;
+  idl_typedef_t *typedef_dcl;
+  idl_const_t *const_dcl;
+  /* annotations */
+  idl_annotation_t *annotation;
+  idl_annotation_member_t *annotation_member;
+  idl_annotation_appl_t *annotation_appl;
+  idl_annotation_appl_param_t *annotation_appl_param;
+
+  bool bln;
+  char *str;
+  char chr;
+  unsigned long long ullng;
+  long double ldbl;
+
+#line 329 "parser.c"
+
+};
+typedef union IDL_YYSTYPE IDL_YYSTYPE;
+# define IDL_YYSTYPE_IS_TRIVIAL 1
+# define IDL_YYSTYPE_IS_DECLARED 1
+#endif
+
+/* Location type.  */
+#if ! defined IDL_YYLTYPE && ! defined IDL_YYLTYPE_IS_DECLARED
+typedef struct IDL_YYLTYPE IDL_YYLTYPE;
+struct IDL_YYLTYPE
+{
+  int first_line;
+  int first_column;
+  int last_line;
+  int last_column;
+};
+# define IDL_YYLTYPE_IS_DECLARED 1
+# define IDL_YYLTYPE_IS_TRIVIAL 1
+#endif
+
+
+
+#ifndef YYPUSH_MORE_DEFINED
+# define YYPUSH_MORE_DEFINED
+enum { YYPUSH_MORE = 4 };
+#endif
+
+typedef struct idl_yypstate idl_yypstate;
+
+int idl_yypush_parse (idl_yypstate *ps, int pushed_char, IDL_YYSTYPE const *pushed_val, IDL_YYLTYPE *pushed_loc, idl_pstate_t *pstate, idl_retcode_t *result);
+
+idl_yypstate * idl_yypstate_new (void);
+void idl_yypstate_delete (idl_yypstate *ps);
+/* "%code provides" blocks.  */
+#line 99 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+
+int idl_iskeyword(idl_pstate_t *pstate, const char *str, int nc);
+void idl_yypstate_delete_stack(idl_yypstate *yyps);
+
+#line 370 "parser.c"
+
+#endif /* !YY_IDL_YY_PARSER_H_INCLUDED  */
 
 
 
@@ -392,18 +407,6 @@ typedef __INT_LEAST16_TYPE__ yytype_int16;
 typedef int_least16_t yytype_int16;
 #else
 typedef short yytype_int16;
-#endif
-
-/* Work around bug in HP-UX 11.23, which defines these macros
-   incorrectly for preprocessor constants.  This workaround can likely
-   be removed in 2023, as HPE has promised support for HP-UX 11.23
-   (aka HP-UX 11i v2) only through the end of 2022; see Table 2 of
-   <https://h20195.www2.hpe.com/V2/getpdf.aspx/4AA4-7673ENW.pdf>.  */
-#ifdef __hpux
-# undef UINT_LEAST8_MAX
-# undef UINT_LEAST16_MAX
-# define UINT_LEAST8_MAX 255
-# define UINT_LEAST16_MAX 65535
 #endif
 
 #if defined __UINT_LEAST8_MAX__ && __UINT_LEAST8_MAX__ <= __INT_MAX__
@@ -465,7 +468,6 @@ typedef int yytype_uint16;
 
 #define YYSIZEOF(X) YY_CAST (YYPTRDIFF_T, sizeof (X))
 
-
 /* Stored state numbers (used for stacks). */
 typedef yytype_int16 yy_state_t;
 
@@ -483,7 +485,6 @@ typedef int yy_state_fast_t;
 #  define YY_(Msgid) Msgid
 # endif
 #endif
-
 
 #ifndef YY_ATTRIBUTE_PURE
 # if defined __GNUC__ && 2 < __GNUC__ + (96 <= __GNUC_MINOR__)
@@ -503,23 +504,17 @@ typedef int yy_state_fast_t;
 
 /* Suppress unused-variable warnings by "using" E.  */
 #if ! defined lint || defined __GNUC__
-# define YY_USE(E) ((void) (E))
+# define YYUSE(E) ((void) (E))
 #else
-# define YY_USE(E) /* empty */
+# define YYUSE(E) /* empty */
 #endif
 
+#if defined __GNUC__ && ! defined __ICC && 407 <= __GNUC__ * 100 + __GNUC_MINOR__
 /* Suppress an incorrect diagnostic about yylval being uninitialized.  */
-#if defined __GNUC__ && ! defined __ICC && 406 <= __GNUC__ * 100 + __GNUC_MINOR__
-# if __GNUC__ * 100 + __GNUC_MINOR__ < 407
-#  define YY_IGNORE_MAYBE_UNINITIALIZED_BEGIN                           \
-    _Pragma ("GCC diagnostic push")                                     \
-    _Pragma ("GCC diagnostic ignored \"-Wuninitialized\"")
-# else
-#  define YY_IGNORE_MAYBE_UNINITIALIZED_BEGIN                           \
+# define YY_IGNORE_MAYBE_UNINITIALIZED_BEGIN                            \
     _Pragma ("GCC diagnostic push")                                     \
     _Pragma ("GCC diagnostic ignored \"-Wuninitialized\"")              \
     _Pragma ("GCC diagnostic ignored \"-Wmaybe-uninitialized\"")
-# endif
 # define YY_IGNORE_MAYBE_UNINITIALIZED_END      \
     _Pragma ("GCC diagnostic pop")
 #else
@@ -548,7 +543,7 @@ typedef int yy_state_fast_t;
 
 #define YY_ASSERT(E) ((void) (0 && (E)))
 
-#if !defined yyoverflow
+#if ! defined yyoverflow || YYERROR_VERBOSE
 
 /* The parser invokes alloca or malloc; define the necessary symbols.  */
 
@@ -589,7 +584,8 @@ void free (void *); /* INFRINGES ON USER NAME SPACE */
 #   endif
 #  endif
 # endif
-#endif /* !defined yyoverflow */
+#endif /* ! defined yyoverflow || YYERROR_VERBOSE */
+
 
 #if (! defined yyoverflow \
      && (! defined __cplusplus \
@@ -668,16 +664,14 @@ union yyalloc
 /* YYNSTATES -- Number of states.  */
 #define YYNSTATES  286
 
-/* YYMAXUTOK -- Last valid token kind.  */
+#define YYUNDEFTOK  2
 #define YYMAXUTOK   309
 
 
 /* YYTRANSLATE(TOKEN-NUM) -- Symbol number corresponding to TOKEN-NUM
    as returned by yylex, with out-of-bounds checking.  */
-#define YYTRANSLATE(YYX)                                \
-  (0 <= (YYX) && (YYX) <= YYMAXUTOK                     \
-   ? YY_CAST (yysymbol_kind_t, yytranslate[YYX])        \
-   : YYSYMBOL_YYUNDEF)
+#define YYTRANSLATE(YYX)                                                \
+  (0 <= (YYX) && (YYX) <= YYMAXUTOK ? yytranslate[YYX] : YYUNDEFTOK)
 
 /* YYTRANSLATE[TOKEN-NUM] -- Symbol number corresponding to TOKEN-NUM
    as returned by yylex.  */
@@ -717,64 +711,56 @@ static const yytype_int8 yytranslate[] =
 };
 
 #if IDL_YYDEBUG
-/* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
+  /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_int16 yyrline[] =
 {
-       0,   286,   286,   288,   293,   295,   300,   302,   306,   310,
-     317,   324,   329,   331,   333,   340,   345,   347,   349,   351,
-     353,   355,   357,   371,   374,   375,   383,   384,   392,   393,
-     401,   402,   410,   411,   414,   415,   423,   424,   427,   429,
-     437,   438,   439,   442,   447,   452,   453,   454,   458,   474,
-     476,   481,   503,   526,   533,   540,   550,   552,   557,   564,
-     580,   585,   586,   590,   592,   596,   598,   611,   612,   613,
-     614,   615,   616,   620,   621,   622,   626,   627,   631,   632,
-     633,   635,   636,   637,   638,   642,   643,   644,   646,   647,
-     648,   649,   653,   656,   659,   662,   665,   666,   670,   672,
-     677,   679,   684,   685,   686,   687,   691,   692,   696,   701,
-     708,   713,   716,   731,   735,   740,   742,   747,   754,   755,
-     759,   766,   771,   776,   787,   789,   791,   793,   799,   801,
-     806,   808,   813,   820,   822,   827,   829,   836,   842,   845,
-     850,   852,   857,   863,   866,   871,   873,   878,   885,   890,
-     892,   897,   902,   906,   909,   911,   928,   930,   935,   936,
-     940,   957,   968,   967,   976,   978,   980,   982,   984,   986,
-     991,   996,   998,  1003,  1005,  1010,  1015,  1017,  1022,  1024,
-    1029,  1040,  1039,  1065,  1067,  1069,  1076,  1078,  1080,  1085,
-    1087,  1093,  1092
+       0,   287,   287,   289,   294,   296,   301,   303,   307,   311,
+     318,   325,   330,   332,   334,   341,   346,   348,   350,   352,
+     354,   356,   358,   372,   375,   376,   384,   385,   393,   394,
+     402,   403,   411,   412,   415,   416,   424,   425,   428,   430,
+     438,   439,   440,   443,   448,   453,   454,   455,   459,   475,
+     477,   482,   504,   527,   534,   541,   551,   553,   558,   565,
+     581,   586,   587,   591,   593,   597,   599,   612,   613,   614,
+     615,   616,   617,   621,   622,   623,   627,   628,   632,   633,
+     634,   636,   637,   638,   639,   643,   644,   645,   647,   648,
+     649,   650,   654,   657,   660,   663,   666,   667,   671,   673,
+     678,   680,   685,   686,   687,   688,   692,   693,   697,   702,
+     709,   714,   717,   732,   736,   741,   743,   748,   755,   756,
+     760,   767,   772,   777,   788,   790,   792,   794,   800,   802,
+     807,   809,   814,   821,   823,   828,   830,   837,   843,   846,
+     851,   853,   858,   864,   867,   872,   874,   879,   886,   891,
+     893,   898,   903,   907,   910,   912,   929,   931,   936,   937,
+     941,   958,   969,   968,   977,   979,   981,   983,   985,   987,
+     992,   997,   999,  1004,  1006,  1011,  1016,  1018,  1023,  1025,
+    1030,  1041,  1040,  1066,  1068,  1070,  1077,  1079,  1081,  1086,
+    1088,  1094,  1093
 };
 #endif
 
-/** Accessing symbol of state STATE.  */
-#define YY_ACCESSING_SYMBOL(State) YY_CAST (yysymbol_kind_t, yystos[State])
-
-#if IDL_YYDEBUG || 1
-/* The user-facing name of the symbol whose (internal) number is
-   YYSYMBOL.  No bounds checking.  */
-static const char *yysymbol_name (yysymbol_kind_t yysymbol) YY_ATTRIBUTE_UNUSED;
-
+#if IDL_YYDEBUG || YYERROR_VERBOSE || 1
 /* YYTNAME[SYMBOL-NUM] -- String name of the symbol SYMBOL-NUM.
    First, the terminals, then, starting at YYNTOKENS, nonterminals.  */
 static const char *const yytname[] =
 {
-  "\"end of file\"", "error", "\"invalid token\"",
-  "IDL_TOKEN_LINE_COMMENT", "IDL_TOKEN_COMMENT", "IDL_TOKEN_PP_NUMBER",
-  "IDL_TOKEN_IDENTIFIER", "IDL_TOKEN_CHAR_LITERAL",
-  "IDL_TOKEN_STRING_LITERAL", "IDL_TOKEN_INTEGER_LITERAL",
-  "IDL_TOKEN_FLOATING_PT_LITERAL", "\"@\"", "\"annotation\"",
-  "IDL_TOKEN_SCOPE", "IDL_TOKEN_SCOPE_NO_SPACE", "\"module\"", "\"const\"",
-  "\"native\"", "\"struct\"", "\"typedef\"", "\"union\"", "\"switch\"",
-  "\"case\"", "\"default\"", "\"enum\"", "\"unsigned\"", "\"fixed\"",
-  "\"sequence\"", "\"string\"", "\"wstring\"", "\"float\"", "\"double\"",
-  "\"short\"", "\"long\"", "\"char\"", "\"wchar\"", "\"boolean\"",
-  "\"octet\"", "\"any\"", "\"map\"", "\"bitset\"", "\"bitfield\"",
-  "\"bitmask\"", "\"int8\"", "\"int16\"", "\"int32\"", "\"int64\"",
-  "\"uint8\"", "\"uint16\"", "\"uint32\"", "\"uint64\"", "\"TRUE\"",
-  "\"FALSE\"", "\"<<\"", "\">>\"", "';'", "'{'", "'}'", "'='", "'|'",
-  "'^'", "'&'", "'+'", "'-'", "'*'", "'/'", "'%'", "'~'", "'('", "')'",
-  "'<'", "','", "'>'", "':'", "'['", "']'", "$accept", "specification",
-  "definitions", "definition", "module_dcl", "module_header",
-  "scoped_name", "const_dcl", "const_type", "const_expr", "or_expr",
-  "xor_expr", "and_expr", "shift_expr", "shift_operator", "add_expr",
-  "add_operator", "mult_expr", "mult_operator", "unary_expr",
+  "$end", "error", "$undefined", "IDL_TOKEN_LINE_COMMENT",
+  "IDL_TOKEN_COMMENT", "IDL_TOKEN_PP_NUMBER", "IDL_TOKEN_IDENTIFIER",
+  "IDL_TOKEN_CHAR_LITERAL", "IDL_TOKEN_STRING_LITERAL",
+  "IDL_TOKEN_INTEGER_LITERAL", "IDL_TOKEN_FLOATING_PT_LITERAL", "\"@\"",
+  "\"annotation\"", "IDL_TOKEN_SCOPE", "IDL_TOKEN_SCOPE_NO_SPACE",
+  "\"module\"", "\"const\"", "\"native\"", "\"struct\"", "\"typedef\"",
+  "\"union\"", "\"switch\"", "\"case\"", "\"default\"", "\"enum\"",
+  "\"unsigned\"", "\"fixed\"", "\"sequence\"", "\"string\"", "\"wstring\"",
+  "\"float\"", "\"double\"", "\"short\"", "\"long\"", "\"char\"",
+  "\"wchar\"", "\"boolean\"", "\"octet\"", "\"any\"", "\"map\"",
+  "\"bitset\"", "\"bitfield\"", "\"bitmask\"", "\"int8\"", "\"int16\"",
+  "\"int32\"", "\"int64\"", "\"uint8\"", "\"uint16\"", "\"uint32\"",
+  "\"uint64\"", "\"TRUE\"", "\"FALSE\"", "\"<<\"", "\">>\"", "';'", "'{'",
+  "'}'", "'='", "'|'", "'^'", "'&'", "'+'", "'-'", "'*'", "'/'", "'%'",
+  "'~'", "'('", "')'", "'<'", "','", "'>'", "':'", "'['", "']'", "$accept",
+  "specification", "definitions", "definition", "module_dcl",
+  "module_header", "scoped_name", "const_dcl", "const_type", "const_expr",
+  "or_expr", "xor_expr", "and_expr", "shift_expr", "shift_operator",
+  "add_expr", "add_operator", "mult_expr", "mult_operator", "unary_expr",
   "unary_operator", "primary_expr", "literal", "boolean_literal",
   "string_literal", "positive_int_const", "type_dcl", "type_spec",
   "simple_type_spec", "base_type_spec", "floating_pt_type", "integer_type",
@@ -796,13 +782,23 @@ static const char *const yytname[] =
   "annotation_appl_name", "annotation_appl_params",
   "annotation_appl_keyword_params", "annotation_appl_keyword_param", "@3", YY_NULLPTR
 };
-
-static const char *
-yysymbol_name (yysymbol_kind_t yysymbol)
-{
-  return yytname[yysymbol];
-}
 #endif
+
+# ifdef YYPRINT
+/* YYTOKNUM[NUM] -- (External) token number corresponding to the
+   (internal) symbol number NUM (which must be that of a token).  */
+static const yytype_int16 yytoknum[] =
+{
+       0,   256,   257,   258,   259,   260,   261,   262,   263,   264,
+     265,   266,   267,   268,   269,   270,   271,   272,   273,   274,
+     275,   276,   277,   278,   279,   280,   281,   282,   283,   284,
+     285,   286,   287,   288,   289,   290,   291,   292,   293,   294,
+     295,   296,   297,   298,   299,   300,   301,   302,   303,   304,
+     305,   306,   307,   308,   309,    59,   123,   125,    61,   124,
+      94,    38,    43,    45,    42,    47,    37,   126,    40,    41,
+      60,    44,    62,    58,    91,    93
+};
+# endif
 
 #define YYPACT_NINF (-201)
 
@@ -814,8 +810,8 @@ yysymbol_name (yysymbol_kind_t yysymbol)
 #define yytable_value_is_error(Yyn) \
   0
 
-/* YYPACT[STATE-NUM] -- Index in YYTABLE of the portion describing
-   STATE-NUM.  */
+  /* YYPACT[STATE-NUM] -- Index in YYTABLE of the portion describing
+     STATE-NUM.  */
 static const yytype_int16 yypact[] =
 {
       59,    65,    83,    82,  -201,    42,    45,    84,    96,  -201,
@@ -849,9 +845,9 @@ static const yytype_int16 yypact[] =
     -201,  -201,  -201,  -201,  -201,  -201
 };
 
-/* YYDEFACT[STATE-NUM] -- Default reduction number in state STATE-NUM.
-   Performed when YYTABLE does not specify something else to do.  Zero
-   means the default is an error.  */
+  /* YYDEFACT[STATE-NUM] -- Default reduction number in state STATE-NUM.
+     Performed when YYTABLE does not specify something else to do.  Zero
+     means the default is an error.  */
 static const yytype_uint8 yydefact[] =
 {
      177,   181,     0,   177,     4,     0,     0,     0,   176,   178,
@@ -885,7 +881,7 @@ static const yytype_uint8 yydefact[] =
      141,   146,   117,   137,    98,   123
 };
 
-/* YYPGOTO[NTERM-NUM].  */
+  /* YYPGOTO[NTERM-NUM].  */
 static const yytype_int16 yypgoto[] =
 {
     -201,  -201,   103,     0,  -201,  -201,    -6,   157,   161,   -38,
@@ -900,10 +896,10 @@ static const yytype_int16 yypgoto[] =
     -201,  -201,  -201,  -201,    34,  -201
 };
 
-/* YYDEFGOTO[NTERM-NUM].  */
+  /* YYDEFGOTO[NTERM-NUM].  */
 static const yytype_int16 yydefgoto[] =
 {
-       0,     2,     3,     4,    24,    25,   118,    26,    72,   210,
+      -1,     2,     3,     4,    24,    25,   118,    26,    72,   210,
      120,   121,   122,   123,   188,   124,   191,   125,   195,   126,
      127,   128,   129,   130,   131,   211,    27,    86,    87,    88,
       89,    90,    75,    76,    91,    92,    93,    94,    95,    96,
@@ -915,9 +911,9 @@ static const yytype_int16 yydefgoto[] =
       12,    50,    45,   133,   134,   198
 };
 
-/* YYTABLE[YYPACT[STATE-NUM]] -- What to do in state STATE-NUM.  If
-   positive, shift that token.  If negative, reduce the rule whose
-   number is the opposite.  If YYTABLE_NINF, syntax error.  */
+  /* YYTABLE[YYPACT[STATE-NUM]] -- What to do in state STATE-NUM.  If
+     positive, shift that token.  If negative, reduce the rule whose
+     number is the opposite.  If YYTABLE_NINF, syntax error.  */
 static const yytype_int16 yytable[] =
 {
       49,   165,    74,    14,    77,    52,   119,    82,   215,    99,
@@ -1008,8 +1004,8 @@ static const yytype_int16 yycheck[] =
       -1,    -1,    43,    44,    45,    46,    47,    48,    49,    50
 };
 
-/* YYSTOS[STATE-NUM] -- The symbol kind of the accessing symbol of
-   state STATE-NUM.  */
+  /* YYSTOS[STATE-NUM] -- The (internal number of the) accessing
+     symbol of state STATE-NUM.  */
 static const yytype_uint8 yystos[] =
 {
        0,    11,    77,    78,    79,   154,   155,   162,   163,   164,
@@ -1043,7 +1039,7 @@ static const yytype_uint8 yystos[] =
      140,   144,    55,   152,    72,    69
 };
 
-/* YYR1[RULE-NUM] -- Symbol kind of the left-hand side of rule RULE-NUM.  */
+  /* YYR1[YYN] -- Symbol number of symbol that rule YYN derives.  */
 static const yytype_uint8 yyr1[] =
 {
        0,    76,    77,    77,    78,    78,    79,    79,    79,    79,
@@ -1068,7 +1064,7 @@ static const yytype_uint8 yyr1[] =
      169,   171,   170
 };
 
-/* YYR2[RULE-NUM] -- Number of symbols on the right-hand side of rule RULE-NUM.  */
+  /* YYR2[YYN] -- Number of symbols on the right hand side of rule YYN.  */
 static const yytype_int8 yyr2[] =
 {
        0,     2,     0,     1,     1,     2,     2,     3,     3,     3,
@@ -1094,22 +1090,21 @@ static const yytype_int8 yyr2[] =
 };
 
 
-enum { YYENOMEM = -2 };
-
 #define yyerrok         (yyerrstatus = 0)
-#define yyclearin       (yychar = IDL_YYEMPTY)
+#define yyclearin       (yychar = YYEMPTY)
+#define YYEMPTY         (-2)
+#define YYEOF           0
 
 #define YYACCEPT        goto yyacceptlab
 #define YYABORT         goto yyabortlab
 #define YYERROR         goto yyerrorlab
-#define YYNOMEM         goto yyexhaustedlab
 
 
 #define YYRECOVERING()  (!!yyerrstatus)
 
 #define YYBACKUP(Token, Value)                                    \
   do                                                              \
-    if (yychar == IDL_YYEMPTY)                                        \
+    if (yychar == YYEMPTY)                                        \
       {                                                           \
         yychar = (Token);                                         \
         yylval = (Value);                                         \
@@ -1124,9 +1119,10 @@ enum { YYENOMEM = -2 };
       }                                                           \
   while (0)
 
-/* Backward compatibility with an undocumented macro.
-   Use IDL_YYerror or IDL_YYUNDEF. */
-#define YYERRCODE IDL_YYUNDEF
+/* Error token number */
+#define YYTERROR        1
+#define YYERRCODE       256
+
 
 /* YYLLOC_DEFAULT -- Set CURRENT to span from RHS[1] to RHS[N].
    If N is 0, then set CURRENT to the empty location which ends
@@ -1170,19 +1166,12 @@ do {                                            \
 } while (0)
 
 
-/* YYLOCATION_PRINT -- Print the location on the stream.
+/* YY_LOCATION_PRINT -- Print the location on the stream.
    This macro was not mandated originally: define only if we know
    we won't break user code: when these are the locations we know.  */
 
-# ifndef YYLOCATION_PRINT
-
-#  if defined YY_LOCATION_PRINT
-
-   /* Temporary convenience wrapper in case some people defined the
-      undocumented and private YY_LOCATION_PRINT macros.  */
-#   define YYLOCATION_PRINT(File, Loc)  YY_LOCATION_PRINT(File, *(Loc))
-
-#  elif defined IDL_YYLTYPE_IS_TRIVIAL && IDL_YYLTYPE_IS_TRIVIAL
+#ifndef YY_LOCATION_PRINT
+# if defined IDL_YYLTYPE_IS_TRIVIAL && IDL_YYLTYPE_IS_TRIVIAL
 
 /* Print *YYLOCP on YYO.  Private, do not rely on its existence. */
 
@@ -1210,32 +1199,24 @@ yy_location_print_ (FILE *yyo, YYLTYPE const * const yylocp)
         res += YYFPRINTF (yyo, "-%d", end_col);
     }
   return res;
-}
+ }
 
-#   define YYLOCATION_PRINT  yy_location_print_
+#  define YY_LOCATION_PRINT(File, Loc)          \
+  yy_location_print_ (File, &(Loc))
 
-    /* Temporary convenience wrapper in case some people defined the
-       undocumented and private YY_LOCATION_PRINT macros.  */
-#   define YY_LOCATION_PRINT(File, Loc)  YYLOCATION_PRINT(File, &(Loc))
-
-#  else
-
-#   define YYLOCATION_PRINT(File, Loc) ((void) 0)
-    /* Temporary convenience wrapper in case some people defined the
-       undocumented and private YY_LOCATION_PRINT macros.  */
-#   define YY_LOCATION_PRINT  YYLOCATION_PRINT
-
-#  endif
-# endif /* !defined YYLOCATION_PRINT */
+# else
+#  define YY_LOCATION_PRINT(File, Loc) ((void) 0)
+# endif
+#endif
 
 
-# define YY_SYMBOL_PRINT(Title, Kind, Value, Location)                    \
+# define YY_SYMBOL_PRINT(Title, Type, Value, Location)                    \
 do {                                                                      \
   if (yydebug)                                                            \
     {                                                                     \
       YYFPRINTF (stderr, "%s ", Title);                                   \
       yy_symbol_print (stderr,                                            \
-                  Kind, Value, Location, pstate, result); \
+                  Type, Value, Location, pstate, result); \
       YYFPRINTF (stderr, "\n");                                           \
     }                                                                     \
 } while (0)
@@ -1246,18 +1227,21 @@ do {                                                                      \
 `-----------------------------------*/
 
 static void
-yy_symbol_value_print (FILE *yyo,
-                       yysymbol_kind_t yykind, YYSTYPE const * const yyvaluep, YYLTYPE const * const yylocationp, idl_pstate_t *pstate, idl_retcode_t *result)
+yy_symbol_value_print (FILE *yyo, int yytype, YYSTYPE const * const yyvaluep, YYLTYPE const * const yylocationp, idl_pstate_t *pstate, idl_retcode_t *result)
 {
   FILE *yyoutput = yyo;
-  YY_USE (yyoutput);
-  YY_USE (yylocationp);
-  YY_USE (pstate);
-  YY_USE (result);
+  YYUSE (yyoutput);
+  YYUSE (yylocationp);
+  YYUSE (pstate);
+  YYUSE (result);
   if (!yyvaluep)
     return;
+# ifdef YYPRINT
+  if (yytype < YYNTOKENS)
+    YYPRINT (yyo, yytoknum[yytype], *yyvaluep);
+# endif
   YY_IGNORE_MAYBE_UNINITIALIZED_BEGIN
-  YY_USE (yykind);
+  YYUSE (yytype);
   YY_IGNORE_MAYBE_UNINITIALIZED_END
 }
 
@@ -1267,15 +1251,14 @@ yy_symbol_value_print (FILE *yyo,
 `---------------------------*/
 
 static void
-yy_symbol_print (FILE *yyo,
-                 yysymbol_kind_t yykind, YYSTYPE const * const yyvaluep, YYLTYPE const * const yylocationp, idl_pstate_t *pstate, idl_retcode_t *result)
+yy_symbol_print (FILE *yyo, int yytype, YYSTYPE const * const yyvaluep, YYLTYPE const * const yylocationp, idl_pstate_t *pstate, idl_retcode_t *result)
 {
   YYFPRINTF (yyo, "%s %s (",
-             yykind < YYNTOKENS ? "token" : "nterm", yysymbol_name (yykind));
+             yytype < YYNTOKENS ? "token" : "nterm", yytname[yytype]);
 
-  YYLOCATION_PRINT (yyo, yylocationp);
+  YY_LOCATION_PRINT (yyo, *yylocationp);
   YYFPRINTF (yyo, ": ");
-  yy_symbol_value_print (yyo, yykind, yyvaluep, yylocationp, pstate, result);
+  yy_symbol_value_print (yyo, yytype, yyvaluep, yylocationp, pstate, result);
   YYFPRINTF (yyo, ")");
 }
 
@@ -1308,8 +1291,7 @@ do {                                                            \
 `------------------------------------------------*/
 
 static void
-yy_reduce_print (yy_state_t *yyssp, YYSTYPE *yyvsp, YYLTYPE *yylsp,
-                 int yyrule, idl_pstate_t *pstate, idl_retcode_t *result)
+yy_reduce_print (yy_state_t *yyssp, YYSTYPE *yyvsp, YYLTYPE *yylsp, int yyrule, idl_pstate_t *pstate, idl_retcode_t *result)
 {
   int yylno = yyrline[yyrule];
   int yynrhs = yyr2[yyrule];
@@ -1321,9 +1303,9 @@ yy_reduce_print (yy_state_t *yyssp, YYSTYPE *yyvsp, YYLTYPE *yylsp,
     {
       YYFPRINTF (stderr, "   $%d = ", yyi + 1);
       yy_symbol_print (stderr,
-                       YY_ACCESSING_SYMBOL (+yyssp[yyi + 1 - yynrhs]),
-                       &yyvsp[(yyi + 1) - (yynrhs)],
-                       &(yylsp[(yyi + 1) - (yynrhs)]), pstate, result);
+                       yystos[+yyssp[yyi + 1 - yynrhs]],
+                       &yyvsp[(yyi + 1) - (yynrhs)]
+                       , &(yylsp[(yyi + 1) - (yynrhs)])                       , pstate, result);
       YYFPRINTF (stderr, "\n");
     }
 }
@@ -1338,8 +1320,8 @@ do {                                    \
    multiple parsers can coexist.  */
 int yydebug;
 #else /* !IDL_YYDEBUG */
-# define YYDPRINTF(Args) ((void) 0)
-# define YY_SYMBOL_PRINT(Title, Kind, Value, Location)
+# define YYDPRINTF(Args)
+# define YY_SYMBOL_PRINT(Title, Type, Value, Location)
 # define YY_STACK_PRINT(Bottom, Top)
 # define YY_REDUCE_PRINT(Rule)
 #endif /* !IDL_YYDEBUG */
@@ -1360,525 +1342,718 @@ int yydebug;
 #ifndef YYMAXDEPTH
 # define YYMAXDEPTH 10000
 #endif
-/* Parser data structure.  */
-struct yypstate
+
+
+#if YYERROR_VERBOSE
+
+# ifndef yystrlen
+#  if defined __GLIBC__ && defined _STRING_H
+#   define yystrlen(S) (YY_CAST (YYPTRDIFF_T, strlen (S)))
+#  else
+/* Return the length of YYSTR.  */
+static YYPTRDIFF_T
+yystrlen (const char *yystr)
+{
+  YYPTRDIFF_T yylen;
+  for (yylen = 0; yystr[yylen]; yylen++)
+    continue;
+  return yylen;
+}
+#  endif
+# endif
+
+# ifndef yystpcpy
+#  if defined __GLIBC__ && defined _STRING_H && defined _GNU_SOURCE
+#   define yystpcpy stpcpy
+#  else
+/* Copy YYSRC to YYDEST, returning the address of the terminating '\0' in
+   YYDEST.  */
+static char *
+yystpcpy (char *yydest, const char *yysrc)
+{
+  char *yyd = yydest;
+  const char *yys = yysrc;
+
+  while ((*yyd++ = *yys++) != '\0')
+    continue;
+
+  return yyd - 1;
+}
+#  endif
+# endif
+
+# ifndef yytnamerr
+/* Copy to YYRES the contents of YYSTR after stripping away unnecessary
+   quotes and backslashes, so that it's suitable for yyerror.  The
+   heuristic is that double-quoting is unnecessary unless the string
+   contains an apostrophe, a comma, or backslash (other than
+   backslash-backslash).  YYSTR is taken from yytname.  If YYRES is
+   null, do not copy; instead, return the length of what the result
+   would have been.  */
+static YYPTRDIFF_T
+yytnamerr (char *yyres, const char *yystr)
+{
+  if (*yystr == '"')
+    {
+      YYPTRDIFF_T yyn = 0;
+      char const *yyp = yystr;
+
+      for (;;)
+        switch (*++yyp)
+          {
+          case '\'':
+          case ',':
+            goto do_not_strip_quotes;
+
+          case '\\':
+            if (*++yyp != '\\')
+              goto do_not_strip_quotes;
+            else
+              goto append;
+
+          append:
+          default:
+            if (yyres)
+              yyres[yyn] = *yyp;
+            yyn++;
+            break;
+
+          case '"':
+            if (yyres)
+              yyres[yyn] = '\0';
+            return yyn;
+          }
+    do_not_strip_quotes: ;
+    }
+
+  if (yyres)
+    return yystpcpy (yyres, yystr) - yyres;
+  else
+    return yystrlen (yystr);
+}
+# endif
+
+/* Copy into *YYMSG, which is of size *YYMSG_ALLOC, an error message
+   about the unexpected token YYTOKEN for the state stack whose top is
+   YYSSP.
+
+   Return 0 if *YYMSG was successfully written.  Return 1 if *YYMSG is
+   not large enough to hold the message.  In that case, also set
+   *YYMSG_ALLOC to the required number of bytes.  Return 2 if the
+   required number of bytes is too large to store.  */
+static int
+yysyntax_error (YYPTRDIFF_T *yymsg_alloc, char **yymsg,
+                yy_state_t *yyssp, int yytoken)
+{
+  enum { YYERROR_VERBOSE_ARGS_MAXIMUM = 5 };
+  /* Internationalized format string. */
+  const char *yyformat = YY_NULLPTR;
+  /* Arguments of yyformat: reported tokens (one for the "unexpected",
+     one per "expected"). */
+  char const *yyarg[YYERROR_VERBOSE_ARGS_MAXIMUM];
+  /* Actual size of YYARG. */
+  int yycount = 0;
+  /* Cumulated lengths of YYARG.  */
+  YYPTRDIFF_T yysize = 0;
+
+  /* There are many possibilities here to consider:
+     - If this state is a consistent state with a default action, then
+       the only way this function was invoked is if the default action
+       is an error action.  In that case, don't check for expected
+       tokens because there are none.
+     - The only way there can be no lookahead present (in yychar) is if
+       this state is a consistent state with a default action.  Thus,
+       detecting the absence of a lookahead is sufficient to determine
+       that there is no unexpected or expected token to report.  In that
+       case, just report a simple "syntax error".
+     - Don't assume there isn't a lookahead just because this state is a
+       consistent state with a default action.  There might have been a
+       previous inconsistent state, consistent state with a non-default
+       action, or user semantic action that manipulated yychar.
+     - Of course, the expected token list depends on states to have
+       correct lookahead information, and it depends on the parser not
+       to perform extra reductions after fetching a lookahead from the
+       scanner and before detecting a syntax error.  Thus, state merging
+       (from LALR or IELR) and default reductions corrupt the expected
+       token list.  However, the list is correct for canonical LR with
+       one exception: it will still contain any token that will not be
+       accepted due to an error action in a later state.
+  */
+  if (yytoken != YYEMPTY)
+    {
+      int yyn = yypact[+*yyssp];
+      YYPTRDIFF_T yysize0 = yytnamerr (YY_NULLPTR, yytname[yytoken]);
+      yysize = yysize0;
+      yyarg[yycount++] = yytname[yytoken];
+      if (!yypact_value_is_default (yyn))
+        {
+          /* Start YYX at -YYN if negative to avoid negative indexes in
+             YYCHECK.  In other words, skip the first -YYN actions for
+             this state because they are default actions.  */
+          int yyxbegin = yyn < 0 ? -yyn : 0;
+          /* Stay within bounds of both yycheck and yytname.  */
+          int yychecklim = YYLAST - yyn + 1;
+          int yyxend = yychecklim < YYNTOKENS ? yychecklim : YYNTOKENS;
+          int yyx;
+
+          for (yyx = yyxbegin; yyx < yyxend; ++yyx)
+            if (yycheck[yyx + yyn] == yyx && yyx != YYTERROR
+                && !yytable_value_is_error (yytable[yyx + yyn]))
+              {
+                if (yycount == YYERROR_VERBOSE_ARGS_MAXIMUM)
+                  {
+                    yycount = 1;
+                    yysize = yysize0;
+                    break;
+                  }
+                yyarg[yycount++] = yytname[yyx];
+                {
+                  YYPTRDIFF_T yysize1
+                    = yysize + yytnamerr (YY_NULLPTR, yytname[yyx]);
+                  if (yysize <= yysize1 && yysize1 <= YYSTACK_ALLOC_MAXIMUM)
+                    yysize = yysize1;
+                  else
+                    return 2;
+                }
+              }
+        }
+    }
+
+  switch (yycount)
+    {
+# define YYCASE_(N, S)                      \
+      case N:                               \
+        yyformat = S;                       \
+      break
+    default: /* Avoid compiler warnings. */
+      YYCASE_(0, YY_("syntax error"));
+      YYCASE_(1, YY_("syntax error, unexpected %s"));
+      YYCASE_(2, YY_("syntax error, unexpected %s, expecting %s"));
+      YYCASE_(3, YY_("syntax error, unexpected %s, expecting %s or %s"));
+      YYCASE_(4, YY_("syntax error, unexpected %s, expecting %s or %s or %s"));
+      YYCASE_(5, YY_("syntax error, unexpected %s, expecting %s or %s or %s or %s"));
+# undef YYCASE_
+    }
+
   {
-    /* Number of syntax errors so far.  */
-    int yynerrs;
+    /* Don't count the "%s"s in the final size, but reserve room for
+       the terminator.  */
+    YYPTRDIFF_T yysize1 = yysize + (yystrlen (yyformat) - 2 * yycount) + 1;
+    if (yysize <= yysize1 && yysize1 <= YYSTACK_ALLOC_MAXIMUM)
+      yysize = yysize1;
+    else
+      return 2;
+  }
 
-    yy_state_fast_t yystate;
-    /* Number of tokens to shift before error messages enabled.  */
-    int yyerrstatus;
+  if (*yymsg_alloc < yysize)
+    {
+      *yymsg_alloc = 2 * yysize;
+      if (! (yysize <= *yymsg_alloc
+             && *yymsg_alloc <= YYSTACK_ALLOC_MAXIMUM))
+        *yymsg_alloc = YYSTACK_ALLOC_MAXIMUM;
+      return 1;
+    }
 
-    /* Refer to the stacks through separate pointers, to allow yyoverflow
-       to reallocate them elsewhere.  */
-
-    /* Their size.  */
-    YYPTRDIFF_T yystacksize;
-
-    /* The state stack: array, bottom, top.  */
-    yy_state_t yyssa[YYINITDEPTH];
-    yy_state_t *yyss;
-    yy_state_t *yyssp;
-
-    /* The semantic value stack: array, bottom, top.  */
-    YYSTYPE yyvsa[YYINITDEPTH];
-    YYSTYPE *yyvs;
-    YYSTYPE *yyvsp;
-
-    /* The location stack: array, bottom, top.  */
-    YYLTYPE yylsa[YYINITDEPTH];
-    YYLTYPE *yyls;
-    YYLTYPE *yylsp;
-    /* Whether this instance has not started parsing yet.
-     * If 2, it corresponds to a finished parsing.  */
-    int yynew;
-  };
-
-
-
-
-
+  /* Avoid sprintf, as that infringes on the user's name space.
+     Don't have undefined behavior even if the translation
+     produced a string with the wrong number of "%s"s.  */
+  {
+    char *yyp = *yymsg;
+    int yyi = 0;
+    while ((*yyp = *yyformat) != '\0')
+      if (*yyp == '%' && yyformat[1] == 's' && yyi < yycount)
+        {
+          yyp += yytnamerr (yyp, yyarg[yyi++]);
+          yyformat += 2;
+        }
+      else
+        {
+          ++yyp;
+          ++yyformat;
+        }
+  }
+  return 0;
+}
+#endif /* YYERROR_VERBOSE */
 
 /*-----------------------------------------------.
 | Release the memory associated to this symbol.  |
 `-----------------------------------------------*/
 
 static void
-yydestruct (const char *yymsg,
-            yysymbol_kind_t yykind, YYSTYPE *yyvaluep, YYLTYPE *yylocationp, idl_pstate_t *pstate, idl_retcode_t *result)
+yydestruct (const char *yymsg, int yytype, YYSTYPE *yyvaluep, YYLTYPE *yylocationp, idl_pstate_t *pstate, idl_retcode_t *result)
 {
-  YY_USE (yyvaluep);
-  YY_USE (yylocationp);
-  YY_USE (pstate);
-  YY_USE (result);
+  YYUSE (yyvaluep);
+  YYUSE (yylocationp);
+  YYUSE (pstate);
+  YYUSE (result);
   if (!yymsg)
     yymsg = "Deleting";
-  YY_SYMBOL_PRINT (yymsg, yykind, yyvaluep, yylocationp);
+  YY_SYMBOL_PRINT (yymsg, yytype, yyvaluep, yylocationp);
 
   YY_IGNORE_MAYBE_UNINITIALIZED_BEGIN
-  switch (yykind)
+  switch (yytype)
     {
-    case YYSYMBOL_definitions: /* definitions  */
-#line 214 "src/parser.y"
+    case 78: /* definitions  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep).node)); }
-#line 1426 "parser.c"
+#line 1601 "parser.c"
         break;
 
-    case YYSYMBOL_definition: /* definition  */
-#line 214 "src/parser.y"
+    case 79: /* definition  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep).node)); }
-#line 1432 "parser.c"
+#line 1607 "parser.c"
         break;
 
-    case YYSYMBOL_module_dcl: /* module_dcl  */
-#line 214 "src/parser.y"
+    case 80: /* module_dcl  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep).module_dcl)); }
-#line 1438 "parser.c"
+#line 1613 "parser.c"
         break;
 
-    case YYSYMBOL_module_header: /* module_header  */
-#line 214 "src/parser.y"
+    case 81: /* module_header  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep).module_dcl)); }
-#line 1444 "parser.c"
+#line 1619 "parser.c"
         break;
 
-    case YYSYMBOL_scoped_name: /* scoped_name  */
-#line 208 "src/parser.y"
+    case 82: /* scoped_name  */
+#line 209 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_scoped_name(((*yyvaluep).scoped_name)); }
-#line 1450 "parser.c"
+#line 1625 "parser.c"
         break;
 
-    case YYSYMBOL_const_dcl: /* const_dcl  */
-#line 214 "src/parser.y"
+    case 83: /* const_dcl  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep).const_dcl)); }
-#line 1456 "parser.c"
+#line 1631 "parser.c"
         break;
 
-    case YYSYMBOL_const_type: /* const_type  */
-#line 211 "src/parser.y"
+    case 84: /* const_type  */
+#line 212 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_unreference_node(((*yyvaluep).type_spec)); }
-#line 1462 "parser.c"
+#line 1637 "parser.c"
         break;
 
-    case YYSYMBOL_const_expr: /* const_expr  */
-#line 211 "src/parser.y"
+    case 85: /* const_expr  */
+#line 212 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_unreference_node(((*yyvaluep).const_expr)); }
-#line 1468 "parser.c"
+#line 1643 "parser.c"
         break;
 
-    case YYSYMBOL_or_expr: /* or_expr  */
-#line 211 "src/parser.y"
+    case 86: /* or_expr  */
+#line 212 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_unreference_node(((*yyvaluep).const_expr)); }
-#line 1474 "parser.c"
+#line 1649 "parser.c"
         break;
 
-    case YYSYMBOL_xor_expr: /* xor_expr  */
-#line 211 "src/parser.y"
+    case 87: /* xor_expr  */
+#line 212 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_unreference_node(((*yyvaluep).const_expr)); }
-#line 1480 "parser.c"
+#line 1655 "parser.c"
         break;
 
-    case YYSYMBOL_and_expr: /* and_expr  */
-#line 211 "src/parser.y"
+    case 88: /* and_expr  */
+#line 212 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_unreference_node(((*yyvaluep).const_expr)); }
-#line 1486 "parser.c"
+#line 1661 "parser.c"
         break;
 
-    case YYSYMBOL_shift_expr: /* shift_expr  */
-#line 211 "src/parser.y"
+    case 89: /* shift_expr  */
+#line 212 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_unreference_node(((*yyvaluep).const_expr)); }
-#line 1492 "parser.c"
+#line 1667 "parser.c"
         break;
 
-    case YYSYMBOL_add_expr: /* add_expr  */
-#line 211 "src/parser.y"
+    case 91: /* add_expr  */
+#line 212 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_unreference_node(((*yyvaluep).const_expr)); }
-#line 1498 "parser.c"
+#line 1673 "parser.c"
         break;
 
-    case YYSYMBOL_mult_expr: /* mult_expr  */
-#line 211 "src/parser.y"
+    case 93: /* mult_expr  */
+#line 212 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_unreference_node(((*yyvaluep).const_expr)); }
-#line 1504 "parser.c"
+#line 1679 "parser.c"
         break;
 
-    case YYSYMBOL_unary_expr: /* unary_expr  */
-#line 211 "src/parser.y"
+    case 95: /* unary_expr  */
+#line 212 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_unreference_node(((*yyvaluep).const_expr)); }
-#line 1510 "parser.c"
+#line 1685 "parser.c"
         break;
 
-    case YYSYMBOL_primary_expr: /* primary_expr  */
-#line 211 "src/parser.y"
+    case 97: /* primary_expr  */
+#line 212 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_unreference_node(((*yyvaluep).const_expr)); }
-#line 1516 "parser.c"
+#line 1691 "parser.c"
         break;
 
-    case YYSYMBOL_literal: /* literal  */
-#line 214 "src/parser.y"
+    case 98: /* literal  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep).literal)); }
-#line 1522 "parser.c"
+#line 1697 "parser.c"
         break;
 
-    case YYSYMBOL_string_literal: /* string_literal  */
-#line 203 "src/parser.y"
-            { free(((*yyvaluep).string_literal)); }
-#line 1528 "parser.c"
+    case 100: /* string_literal  */
+#line 204 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+            { idl_free(((*yyvaluep).string_literal)); }
+#line 1703 "parser.c"
         break;
 
-    case YYSYMBOL_positive_int_const: /* positive_int_const  */
-#line 214 "src/parser.y"
+    case 101: /* positive_int_const  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep).literal)); }
-#line 1534 "parser.c"
+#line 1709 "parser.c"
         break;
 
-    case YYSYMBOL_type_dcl: /* type_dcl  */
-#line 214 "src/parser.y"
+    case 102: /* type_dcl  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep).node)); }
-#line 1540 "parser.c"
+#line 1715 "parser.c"
         break;
 
-    case YYSYMBOL_type_spec: /* type_spec  */
-#line 211 "src/parser.y"
+    case 103: /* type_spec  */
+#line 212 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_unreference_node(((*yyvaluep).type_spec)); }
-#line 1546 "parser.c"
+#line 1721 "parser.c"
         break;
 
-    case YYSYMBOL_simple_type_spec: /* simple_type_spec  */
-#line 211 "src/parser.y"
+    case 104: /* simple_type_spec  */
+#line 212 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_unreference_node(((*yyvaluep).type_spec)); }
-#line 1552 "parser.c"
+#line 1727 "parser.c"
         break;
 
-    case YYSYMBOL_template_type_spec: /* template_type_spec  */
-#line 211 "src/parser.y"
+    case 114: /* template_type_spec  */
+#line 212 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_unreference_node(((*yyvaluep).type_spec)); }
-#line 1558 "parser.c"
+#line 1733 "parser.c"
         break;
 
-    case YYSYMBOL_sequence_type: /* sequence_type  */
-#line 214 "src/parser.y"
+    case 115: /* sequence_type  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep).sequence)); }
-#line 1564 "parser.c"
+#line 1739 "parser.c"
         break;
 
-    case YYSYMBOL_string_type: /* string_type  */
-#line 214 "src/parser.y"
+    case 116: /* string_type  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep).string)); }
-#line 1570 "parser.c"
+#line 1745 "parser.c"
         break;
 
-    case YYSYMBOL_constr_type_dcl: /* constr_type_dcl  */
-#line 214 "src/parser.y"
+    case 117: /* constr_type_dcl  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep).node)); }
-#line 1576 "parser.c"
+#line 1751 "parser.c"
         break;
 
-    case YYSYMBOL_struct_dcl: /* struct_dcl  */
-#line 214 "src/parser.y"
+    case 118: /* struct_dcl  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep).node)); }
-#line 1582 "parser.c"
+#line 1757 "parser.c"
         break;
 
-    case YYSYMBOL_struct_forward_dcl: /* struct_forward_dcl  */
-#line 214 "src/parser.y"
+    case 119: /* struct_forward_dcl  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep).forward)); }
-#line 1588 "parser.c"
+#line 1763 "parser.c"
         break;
 
-    case YYSYMBOL_struct_def: /* struct_def  */
-#line 214 "src/parser.y"
+    case 120: /* struct_def  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep).struct_dcl)); }
-#line 1594 "parser.c"
+#line 1769 "parser.c"
         break;
 
-    case YYSYMBOL_struct_header: /* struct_header  */
-#line 214 "src/parser.y"
+    case 121: /* struct_header  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep).struct_dcl)); }
-#line 1600 "parser.c"
+#line 1775 "parser.c"
         break;
 
-    case YYSYMBOL_struct_inherit_spec: /* struct_inherit_spec  */
-#line 211 "src/parser.y"
+    case 122: /* struct_inherit_spec  */
+#line 212 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_unreference_node(((*yyvaluep).type_spec)); }
-#line 1606 "parser.c"
+#line 1781 "parser.c"
         break;
 
-    case YYSYMBOL_struct_body: /* struct_body  */
-#line 214 "src/parser.y"
+    case 123: /* struct_body  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep).member)); }
-#line 1612 "parser.c"
+#line 1787 "parser.c"
         break;
 
-    case YYSYMBOL_members: /* members  */
-#line 214 "src/parser.y"
+    case 124: /* members  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep).member)); }
-#line 1618 "parser.c"
+#line 1793 "parser.c"
         break;
 
-    case YYSYMBOL_member: /* member  */
-#line 214 "src/parser.y"
+    case 125: /* member  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep).member)); }
-#line 1624 "parser.c"
+#line 1799 "parser.c"
         break;
 
-    case YYSYMBOL_union_dcl: /* union_dcl  */
-#line 214 "src/parser.y"
+    case 126: /* union_dcl  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep).node)); }
-#line 1630 "parser.c"
+#line 1805 "parser.c"
         break;
 
-    case YYSYMBOL_union_def: /* union_def  */
-#line 214 "src/parser.y"
+    case 127: /* union_def  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep).union_dcl)); }
-#line 1636 "parser.c"
+#line 1811 "parser.c"
         break;
 
-    case YYSYMBOL_union_forward_dcl: /* union_forward_dcl  */
-#line 214 "src/parser.y"
+    case 128: /* union_forward_dcl  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep).forward)); }
-#line 1642 "parser.c"
+#line 1817 "parser.c"
         break;
 
-    case YYSYMBOL_union_header: /* union_header  */
-#line 214 "src/parser.y"
+    case 129: /* union_header  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep).union_dcl)); }
-#line 1648 "parser.c"
+#line 1823 "parser.c"
         break;
 
-    case YYSYMBOL_switch_header: /* switch_header  */
-#line 214 "src/parser.y"
+    case 130: /* switch_header  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep).switch_type_spec)); }
-#line 1654 "parser.c"
+#line 1829 "parser.c"
         break;
 
-    case YYSYMBOL_switch_type_spec: /* switch_type_spec  */
-#line 211 "src/parser.y"
+    case 131: /* switch_type_spec  */
+#line 212 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_unreference_node(((*yyvaluep).type_spec)); }
-#line 1660 "parser.c"
+#line 1835 "parser.c"
         break;
 
-    case YYSYMBOL_switch_body: /* switch_body  */
-#line 214 "src/parser.y"
+    case 132: /* switch_body  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep)._case)); }
-#line 1666 "parser.c"
+#line 1841 "parser.c"
         break;
 
-    case YYSYMBOL_case: /* case  */
-#line 214 "src/parser.y"
+    case 133: /* case  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep)._case)); }
-#line 1672 "parser.c"
+#line 1847 "parser.c"
         break;
 
-    case YYSYMBOL_case_labels: /* case_labels  */
-#line 214 "src/parser.y"
+    case 134: /* case_labels  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep).case_label)); }
-#line 1678 "parser.c"
+#line 1853 "parser.c"
         break;
 
-    case YYSYMBOL_case_label: /* case_label  */
-#line 214 "src/parser.y"
+    case 135: /* case_label  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep).case_label)); }
-#line 1684 "parser.c"
+#line 1859 "parser.c"
         break;
 
-    case YYSYMBOL_element_spec: /* element_spec  */
-#line 214 "src/parser.y"
+    case 136: /* element_spec  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep)._case)); }
-#line 1690 "parser.c"
+#line 1865 "parser.c"
         break;
 
-    case YYSYMBOL_enum_dcl: /* enum_dcl  */
-#line 214 "src/parser.y"
+    case 137: /* enum_dcl  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep).node)); }
-#line 1696 "parser.c"
+#line 1871 "parser.c"
         break;
 
-    case YYSYMBOL_enum_def: /* enum_def  */
-#line 214 "src/parser.y"
+    case 138: /* enum_def  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep).enum_dcl)); }
-#line 1702 "parser.c"
+#line 1877 "parser.c"
         break;
 
-    case YYSYMBOL_enumerators: /* enumerators  */
-#line 214 "src/parser.y"
+    case 139: /* enumerators  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep).enumerator)); }
-#line 1708 "parser.c"
+#line 1883 "parser.c"
         break;
 
-    case YYSYMBOL_enumerator: /* enumerator  */
-#line 214 "src/parser.y"
+    case 140: /* enumerator  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep).enumerator)); }
-#line 1714 "parser.c"
+#line 1889 "parser.c"
         break;
 
-    case YYSYMBOL_bitmask_dcl: /* bitmask_dcl  */
-#line 214 "src/parser.y"
+    case 141: /* bitmask_dcl  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep).node)); }
-#line 1720 "parser.c"
+#line 1895 "parser.c"
         break;
 
-    case YYSYMBOL_bitmask_def: /* bitmask_def  */
-#line 214 "src/parser.y"
+    case 142: /* bitmask_def  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep).bitmask_dcl)); }
-#line 1726 "parser.c"
+#line 1901 "parser.c"
         break;
 
-    case YYSYMBOL_bit_values: /* bit_values  */
-#line 214 "src/parser.y"
+    case 143: /* bit_values  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep).bit_value)); }
-#line 1732 "parser.c"
+#line 1907 "parser.c"
         break;
 
-    case YYSYMBOL_bit_value: /* bit_value  */
-#line 214 "src/parser.y"
+    case 144: /* bit_value  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep).bit_value)); }
-#line 1738 "parser.c"
+#line 1913 "parser.c"
         break;
 
-    case YYSYMBOL_array_declarator: /* array_declarator  */
-#line 214 "src/parser.y"
+    case 145: /* array_declarator  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep).declarator)); }
-#line 1744 "parser.c"
+#line 1919 "parser.c"
         break;
 
-    case YYSYMBOL_fixed_array_sizes: /* fixed_array_sizes  */
-#line 211 "src/parser.y"
+    case 146: /* fixed_array_sizes  */
+#line 212 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_unreference_node(((*yyvaluep).const_expr)); }
-#line 1750 "parser.c"
+#line 1925 "parser.c"
         break;
 
-    case YYSYMBOL_fixed_array_size: /* fixed_array_size  */
-#line 214 "src/parser.y"
+    case 147: /* fixed_array_size  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep).literal)); }
-#line 1756 "parser.c"
+#line 1931 "parser.c"
         break;
 
-    case YYSYMBOL_simple_declarator: /* simple_declarator  */
-#line 214 "src/parser.y"
+    case 148: /* simple_declarator  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep).declarator)); }
-#line 1762 "parser.c"
+#line 1937 "parser.c"
         break;
 
-    case YYSYMBOL_complex_declarator: /* complex_declarator  */
-#line 214 "src/parser.y"
+    case 149: /* complex_declarator  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep).declarator)); }
-#line 1768 "parser.c"
+#line 1943 "parser.c"
         break;
 
-    case YYSYMBOL_typedef_dcl: /* typedef_dcl  */
-#line 214 "src/parser.y"
+    case 150: /* typedef_dcl  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep).typedef_dcl)); }
-#line 1774 "parser.c"
+#line 1949 "parser.c"
         break;
 
-    case YYSYMBOL_declarators: /* declarators  */
-#line 214 "src/parser.y"
+    case 151: /* declarators  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep).declarator)); }
-#line 1780 "parser.c"
+#line 1955 "parser.c"
         break;
 
-    case YYSYMBOL_declarator: /* declarator  */
-#line 214 "src/parser.y"
+    case 152: /* declarator  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep).declarator)); }
-#line 1786 "parser.c"
+#line 1961 "parser.c"
         break;
 
-    case YYSYMBOL_identifier: /* identifier  */
-#line 205 "src/parser.y"
+    case 153: /* identifier  */
+#line 206 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_name(((*yyvaluep).name)); }
-#line 1792 "parser.c"
+#line 1967 "parser.c"
         break;
 
-    case YYSYMBOL_annotation_dcl: /* annotation_dcl  */
-#line 214 "src/parser.y"
+    case 154: /* annotation_dcl  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep).annotation)); }
-#line 1798 "parser.c"
+#line 1973 "parser.c"
         break;
 
-    case YYSYMBOL_annotation_header: /* annotation_header  */
-#line 214 "src/parser.y"
+    case 155: /* annotation_header  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep).annotation)); }
-#line 1804 "parser.c"
+#line 1979 "parser.c"
         break;
 
-    case YYSYMBOL_annotation_body: /* annotation_body  */
-#line 214 "src/parser.y"
+    case 157: /* annotation_body  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep).annotation_member)); }
-#line 1810 "parser.c"
+#line 1985 "parser.c"
         break;
 
-    case YYSYMBOL_annotation_member: /* annotation_member  */
-#line 214 "src/parser.y"
+    case 158: /* annotation_member  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep).annotation_member)); }
-#line 1816 "parser.c"
+#line 1991 "parser.c"
         break;
 
-    case YYSYMBOL_annotation_member_type: /* annotation_member_type  */
-#line 211 "src/parser.y"
+    case 159: /* annotation_member_type  */
+#line 212 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_unreference_node(((*yyvaluep).type_spec)); }
-#line 1822 "parser.c"
+#line 1997 "parser.c"
         break;
 
-    case YYSYMBOL_annotation_member_default: /* annotation_member_default  */
-#line 211 "src/parser.y"
+    case 160: /* annotation_member_default  */
+#line 212 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_unreference_node(((*yyvaluep).const_expr)); }
-#line 1828 "parser.c"
+#line 2003 "parser.c"
         break;
 
-    case YYSYMBOL_any_const_type: /* any_const_type  */
-#line 211 "src/parser.y"
+    case 161: /* any_const_type  */
+#line 212 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_unreference_node(((*yyvaluep).type_spec)); }
-#line 1834 "parser.c"
+#line 2009 "parser.c"
         break;
 
-    case YYSYMBOL_annotations: /* annotations  */
-#line 214 "src/parser.y"
+    case 162: /* annotations  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep).annotation_appl)); }
-#line 1840 "parser.c"
+#line 2015 "parser.c"
         break;
 
-    case YYSYMBOL_annotation_appls: /* annotation_appls  */
-#line 214 "src/parser.y"
+    case 163: /* annotation_appls  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep).annotation_appl)); }
-#line 1846 "parser.c"
+#line 2021 "parser.c"
         break;
 
-    case YYSYMBOL_annotation_appl: /* annotation_appl  */
-#line 214 "src/parser.y"
+    case 164: /* annotation_appl  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep).annotation_appl)); }
-#line 1852 "parser.c"
+#line 2027 "parser.c"
         break;
 
-    case YYSYMBOL_annotation_appl_header: /* annotation_appl_header  */
-#line 214 "src/parser.y"
+    case 165: /* annotation_appl_header  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep).annotation_appl)); }
-#line 1858 "parser.c"
+#line 2033 "parser.c"
         break;
 
-    case YYSYMBOL_annotation_appl_name: /* annotation_appl_name  */
-#line 208 "src/parser.y"
+    case 167: /* annotation_appl_name  */
+#line 209 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_scoped_name(((*yyvaluep).scoped_name)); }
-#line 1864 "parser.c"
+#line 2039 "parser.c"
         break;
 
-    case YYSYMBOL_annotation_appl_params: /* annotation_appl_params  */
-#line 214 "src/parser.y"
+    case 168: /* annotation_appl_params  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep).annotation_appl_param)); }
-#line 1870 "parser.c"
+#line 2045 "parser.c"
         break;
 
-    case YYSYMBOL_annotation_appl_keyword_params: /* annotation_appl_keyword_params  */
-#line 214 "src/parser.y"
+    case 169: /* annotation_appl_keyword_params  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep).annotation_appl_param)); }
-#line 1876 "parser.c"
+#line 2051 "parser.c"
         break;
 
-    case YYSYMBOL_annotation_appl_keyword_param: /* annotation_appl_keyword_param  */
-#line 214 "src/parser.y"
+    case 170: /* annotation_appl_keyword_param  */
+#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { idl_delete_node(((*yyvaluep).annotation_appl_param)); }
-#line 1882 "parser.c"
+#line 2057 "parser.c"
         break;
 
       default:
@@ -1889,7 +2064,73 @@ yydestruct (const char *yymsg,
 
 
 
+struct yypstate
+  {
+    /* Number of syntax errors so far.  */
+    int yynerrs;
 
+    yy_state_fast_t yystate;
+    /* Number of tokens to shift before error messages enabled.  */
+    int yyerrstatus;
+
+    /* The stacks and their tools:
+       'yyss': related to states.
+       'yyvs': related to semantic values.
+       'yyls': related to locations.
+
+       Refer to the stacks through separate pointers, to allow yyoverflow
+       to reallocate them elsewhere.  */
+
+    /* The state stack.  */
+    yy_state_t yyssa[YYINITDEPTH];
+    yy_state_t *yyss;
+    yy_state_t *yyssp;
+
+    /* The semantic value stack.  */
+    YYSTYPE yyvsa[YYINITDEPTH];
+    YYSTYPE *yyvs;
+    YYSTYPE *yyvsp;
+
+    /* The location stack.  */
+    YYLTYPE yylsa[YYINITDEPTH];
+    YYLTYPE *yyls;
+    YYLTYPE *yylsp;
+
+    /* The locations where the error started and ended.  */
+    YYLTYPE yyerror_range[3];
+
+    YYPTRDIFF_T yystacksize;
+    /* Used to determine if this is the first time this instance has
+       been used.  */
+    int yynew;
+  };
+
+/* Initialize the parser data structure.  */
+yypstate *
+yypstate_new (void)
+{
+  yypstate *yyps;
+  yyps = YY_CAST (yypstate *, malloc (sizeof *yyps));
+  if (!yyps)
+    return YY_NULLPTR;
+  yyps->yynew = 1;
+  return yyps;
+}
+
+void
+yypstate_delete (yypstate *yyps)
+{
+  if (yyps)
+    {
+#ifndef yyoverflow
+      /* If the stack was reallocated but the parse did not complete, then the
+         stack still needs to be freed.  */
+      if (!yyps->yynew && yyps->yyss != yyps->yyssa)
+        YYSTACK_FREE (yyps->yyss);
+#endif
+      free (yyps);
+    }
+}
 
 #define idl_yynerrs yyps->idl_yynerrs
 #define yystate yyps->yystate
@@ -1903,57 +2144,8 @@ yydestruct (const char *yymsg,
 #define yylsa yyps->yylsa
 #define yyls yyps->yyls
 #define yylsp yyps->yylsp
+#define yyerror_range yyps->yyerror_range
 #define yystacksize yyps->yystacksize
-
-/* Initialize the parser data structure.  */
-static void
-yypstate_clear (yypstate *yyps)
-{
-  yynerrs = 0;
-  yystate = 0;
-  yyerrstatus = 0;
-
-  yyssp = yyss;
-  yyvsp = yyvs;
-  yylsp = yyls;
-
-  /* Initialize the state stack, in case yypcontext_expected_tokens is
-     called before the first call to yyparse. */
-  *yyssp = 0;
-  yyps->yynew = 1;
-}
-
-/* Initialize the parser data structure.  */
-yypstate *
-yypstate_new (void)
-{
-  yypstate *yyps;
-  yyps = YY_CAST (yypstate *, YYMALLOC (sizeof *yyps));
-  if (!yyps)
-    return YY_NULLPTR;
-  yystacksize = YYINITDEPTH;
-  yyss = yyssa;
-  yyvs = yyvsa;
-  yyls = yylsa;
-  yypstate_clear (yyps);
-  return yyps;
-}
-
-void
-yypstate_delete (yypstate *yyps)
-{
-  if (yyps)
-    {
-#ifndef yyoverflow
-      /* If the stack was reallocated but the parse did not complete, then the
-         stack still needs to be freed.  */
-      if (yyss != yyssa)
-        YYSTACK_FREE (yyss);
-#endif
-      YYFREE (yyps);
-    }
-}
-
 
 
 /*---------------.
@@ -1961,10 +2153,9 @@ yypstate_delete (yypstate *yyps)
 `---------------*/
 
 int
-yypush_parse (yypstate *yyps,
-              int yypushed_char, YYSTYPE const *yypushed_val, YYLTYPE *yypushed_loc, idl_pstate_t *pstate, idl_retcode_t *result)
+yypush_parse (yypstate *yyps, int yypushed_char, YYSTYPE const *yypushed_val, YYLTYPE *yypushed_loc, idl_pstate_t *pstate, idl_retcode_t *result)
 {
-/* Lookahead token kind.  */
+/* The lookahead symbol.  */
 int yychar;
 
 
@@ -1983,19 +2174,20 @@ static YYLTYPE yyloc_default
 YYLTYPE yylloc = yyloc_default;
 
   int yyn;
-  /* The return value of yyparse.  */
   int yyresult;
-  /* Lookahead symbol kind.  */
-  yysymbol_kind_t yytoken = YYSYMBOL_YYEMPTY;
+  /* Lookahead token as an internal (translated) token number.  */
+  int yytoken = 0;
   /* The variables used to return semantic value and location from the
      action routines.  */
   YYSTYPE yyval;
   YYLTYPE yyloc;
 
-  /* The locations where the error started and ended.  */
-  YYLTYPE yyerror_range[3];
-
-
+#if YYERROR_VERBOSE
+  /* Buffer for error messages, and its allocated size.  */
+  char yymsgbuf[128];
+  char *yymsg = yymsgbuf;
+  YYPTRDIFF_T yymsg_alloc = sizeof yymsgbuf;
+#endif
 
 #define YYPOPSTACK(N)   (yyvsp -= (N), yyssp -= (N), yylsp -= (N))
 
@@ -2003,24 +2195,23 @@ YYLTYPE yylloc = yyloc_default;
      Keep to zero when no symbol should be popped.  */
   int yylen = 0;
 
-  switch (yyps->yynew)
+  if (!yyps->yynew)
     {
-    case 0:
       yyn = yypact[yystate];
       goto yyread_pushed_token;
-
-    case 2:
-      yypstate_clear (yyps);
-      break;
-
-    default:
-      break;
     }
+
+  yyssp = yyss = yyssa;
+  yyvsp = yyvs = yyvsa;
+  yylsp = yyls = yylsa;
+  yystacksize = YYINITDEPTH;
 
   YYDPRINTF ((stderr, "Starting parse\n"));
 
-  yychar = IDL_YYEMPTY; /* Cause a token to be read.  */
-
+  yystate = 0;
+  yyerrstatus = 0;
+  yynerrs = 0;
+  yychar = YYEMPTY; /* Cause a token to be read.  */
   yylsp[0] = *yypushed_loc;
   goto yysetstate;
 
@@ -2043,11 +2234,10 @@ yysetstate:
   YY_IGNORE_USELESS_CAST_BEGIN
   *yyssp = YY_CAST (yy_state_t, yystate);
   YY_IGNORE_USELESS_CAST_END
-  YY_STACK_PRINT (yyss, yyssp);
 
   if (yyss + yystacksize - 1 <= yyssp)
 #if !defined yyoverflow && !defined YYSTACK_RELOCATE
-    YYNOMEM;
+    goto yyexhaustedlab;
 #else
     {
       /* Get the current used size of the three stacks, in elements.  */
@@ -2078,7 +2268,7 @@ yysetstate:
 # else /* defined YYSTACK_RELOCATE */
       /* Extend the stack our own way.  */
       if (YYMAXDEPTH <= yystacksize)
-        YYNOMEM;
+        goto yyexhaustedlab;
       yystacksize *= 2;
       if (YYMAXDEPTH < yystacksize)
         yystacksize = YYMAXDEPTH;
@@ -2089,11 +2279,11 @@ yysetstate:
           YY_CAST (union yyalloc *,
                    YYSTACK_ALLOC (YY_CAST (YYSIZE_T, YYSTACK_BYTES (yystacksize))));
         if (! yyptr)
-          YYNOMEM;
+          goto yyexhaustedlab;
         YYSTACK_RELOCATE (yyss_alloc, yyss);
         YYSTACK_RELOCATE (yyvs_alloc, yyvs);
         YYSTACK_RELOCATE (yyls_alloc, yyls);
-#  undef YYSTACK_RELOCATE
+# undef YYSTACK_RELOCATE
         if (yyss1 != yyssa)
           YYSTACK_FREE (yyss1);
       }
@@ -2112,7 +2302,6 @@ yysetstate:
         YYABORT;
     }
 #endif /* !defined yyoverflow && !defined YYSTACK_RELOCATE */
-
 
   if (yystate == YYFINAL)
     YYACCEPT;
@@ -2134,8 +2323,8 @@ yybackup:
 
   /* Not known => get a lookahead token if don't already have one.  */
 
-  /* YYCHAR is either empty, or end-of-input, or a valid lookahead.  */
-  if (yychar == IDL_YYEMPTY)
+  /* YYCHAR is either YYEMPTY or YYEOF or a valid lookahead symbol.  */
+  if (yychar == YYEMPTY)
     {
       if (!yyps->yynew)
         {
@@ -2145,7 +2334,7 @@ yybackup:
         }
       yyps->yynew = 0;
 yyread_pushed_token:
-      YYDPRINTF ((stderr, "Reading a token\n"));
+      YYDPRINTF ((stderr, "Reading a token: "));
       yychar = yypushed_char;
       if (yypushed_val)
         yylval = *yypushed_val;
@@ -2153,22 +2342,10 @@ yyread_pushed_token:
         yylloc = *yypushed_loc;
     }
 
-  if (yychar <= IDL_YYEOF)
+  if (yychar <= YYEOF)
     {
-      yychar = IDL_YYEOF;
-      yytoken = YYSYMBOL_YYEOF;
+      yychar = yytoken = YYEOF;
       YYDPRINTF ((stderr, "Now at end of input.\n"));
-    }
-  else if (yychar == IDL_YYerror)
-    {
-      /* The scanner already issued an error message, process directly
-         to error recovery.  But do not keep the error token as
-         lookahead, it is too special and may lead us to an endless
-         loop in error recovery. */
-      yychar = IDL_YYUNDEF;
-      yytoken = YYSYMBOL_YYerror;
-      yyerror_range[1] = yylloc;
-      goto yyerrlab1;
     }
   else
     {
@@ -2204,7 +2381,7 @@ yyread_pushed_token:
   *++yylsp = yylloc;
 
   /* Discard the shifted token.  */
-  yychar = IDL_YYEMPTY;
+  yychar = YYEMPTY;
   goto yynewstate;
 
 
@@ -2241,138 +2418,138 @@ yyreduce:
   YY_REDUCE_PRINT (yyn);
   switch (yyn)
     {
-  case 2: /* specification: %empty  */
-#line 287 "src/parser.y"
+  case 2:
+#line 288 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { pstate->root = NULL; }
-#line 2248 "parser.c"
+#line 2425 "parser.c"
     break;
 
-  case 3: /* specification: definitions  */
-#line 289 "src/parser.y"
+  case 3:
+#line 290 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { pstate->root = (yyvsp[0].node); }
-#line 2254 "parser.c"
+#line 2431 "parser.c"
     break;
 
-  case 4: /* definitions: definition  */
-#line 294 "src/parser.y"
+  case 4:
+#line 295 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.node) = (yyvsp[0].node); }
-#line 2260 "parser.c"
+#line 2437 "parser.c"
     break;
 
-  case 5: /* definitions: definitions definition  */
-#line 296 "src/parser.y"
+  case 5:
+#line 297 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.node) = idl_push_node((yyvsp[-1].node), (yyvsp[0].node)); }
-#line 2266 "parser.c"
+#line 2443 "parser.c"
     break;
 
-  case 6: /* definition: annotation_dcl ';'  */
-#line 301 "src/parser.y"
+  case 6:
+#line 302 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.node) = (yyvsp[-1].annotation); }
-#line 2272 "parser.c"
+#line 2449 "parser.c"
     break;
 
-  case 7: /* definition: annotations module_dcl ';'  */
-#line 303 "src/parser.y"
+  case 7:
+#line 304 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { TRY(idl_annotate(pstate, (yyvsp[-1].module_dcl), (yyvsp[-2].annotation_appl)));
         (yyval.node) = (yyvsp[-1].module_dcl);
       }
-#line 2280 "parser.c"
+#line 2457 "parser.c"
     break;
 
-  case 8: /* definition: annotations const_dcl ';'  */
-#line 307 "src/parser.y"
+  case 8:
+#line 308 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { TRY(idl_annotate(pstate, (yyvsp[-1].const_dcl), (yyvsp[-2].annotation_appl)));
         (yyval.node) = (yyvsp[-1].const_dcl);
       }
-#line 2288 "parser.c"
+#line 2465 "parser.c"
     break;
 
-  case 9: /* definition: annotations type_dcl ';'  */
-#line 311 "src/parser.y"
+  case 9:
+#line 312 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { TRY(idl_annotate(pstate, (yyvsp[-1].node), (yyvsp[-2].annotation_appl)));
         (yyval.node) = (yyvsp[-1].node);
       }
-#line 2296 "parser.c"
+#line 2473 "parser.c"
     break;
 
-  case 10: /* module_dcl: module_header '{' definitions '}'  */
-#line 318 "src/parser.y"
+  case 10:
+#line 319 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { TRY(idl_finalize_module(pstate, LOC((yylsp[-3]).first, (yylsp[0]).last), (yyvsp[-3].module_dcl), (yyvsp[-1].node)));
         (yyval.module_dcl) = (yyvsp[-3].module_dcl);
       }
-#line 2304 "parser.c"
+#line 2481 "parser.c"
     break;
 
-  case 11: /* module_header: "module" identifier  */
-#line 325 "src/parser.y"
+  case 11:
+#line 326 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { TRY(idl_create_module(pstate, LOC((yylsp[-1]).first, (yylsp[0]).last), (yyvsp[0].name), &(yyval.module_dcl))); }
-#line 2310 "parser.c"
+#line 2487 "parser.c"
     break;
 
-  case 12: /* scoped_name: identifier  */
-#line 330 "src/parser.y"
+  case 12:
+#line 331 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { TRY(idl_create_scoped_name(pstate, &(yylsp[0]), (yyvsp[0].name), false, &(yyval.scoped_name))); }
-#line 2316 "parser.c"
+#line 2493 "parser.c"
     break;
 
-  case 13: /* scoped_name: IDL_TOKEN_SCOPE identifier  */
-#line 332 "src/parser.y"
+  case 13:
+#line 333 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { TRY(idl_create_scoped_name(pstate, LOC((yylsp[-1]).first, (yylsp[0]).last), (yyvsp[0].name), true, &(yyval.scoped_name))); }
-#line 2322 "parser.c"
+#line 2499 "parser.c"
     break;
 
-  case 14: /* scoped_name: scoped_name IDL_TOKEN_SCOPE identifier  */
-#line 334 "src/parser.y"
+  case 14:
+#line 335 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { TRY(idl_push_scoped_name(pstate, (yyvsp[-2].scoped_name), (yyvsp[0].name)));
         (yyval.scoped_name) = (yyvsp[-2].scoped_name);
       }
-#line 2330 "parser.c"
+#line 2507 "parser.c"
     break;
 
-  case 15: /* const_dcl: "const" const_type identifier '=' const_expr  */
-#line 341 "src/parser.y"
+  case 15:
+#line 342 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { TRY(idl_create_const(pstate, LOC((yylsp[-4]).first, (yylsp[0]).last), (yyvsp[-3].type_spec), (yyvsp[-2].name), (yyvsp[0].const_expr), &(yyval.const_dcl))); }
-#line 2336 "parser.c"
+#line 2513 "parser.c"
     break;
 
-  case 16: /* const_type: integer_type  */
-#line 346 "src/parser.y"
+  case 16:
+#line 347 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { TRY(idl_create_base_type(pstate, &(yylsp[0]), (yyvsp[0].kind), &(yyval.type_spec))); }
-#line 2342 "parser.c"
+#line 2519 "parser.c"
     break;
 
-  case 17: /* const_type: floating_pt_type  */
-#line 348 "src/parser.y"
+  case 17:
+#line 349 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { TRY(idl_create_base_type(pstate, &(yylsp[0]), (yyvsp[0].kind), &(yyval.type_spec))); }
-#line 2348 "parser.c"
+#line 2525 "parser.c"
     break;
 
-  case 18: /* const_type: char_type  */
-#line 350 "src/parser.y"
+  case 18:
+#line 351 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { TRY(idl_create_base_type(pstate, &(yylsp[0]), (yyvsp[0].kind), &(yyval.type_spec))); }
-#line 2354 "parser.c"
+#line 2531 "parser.c"
     break;
 
-  case 19: /* const_type: boolean_type  */
-#line 352 "src/parser.y"
+  case 19:
+#line 353 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { TRY(idl_create_base_type(pstate, &(yylsp[0]), (yyvsp[0].kind), &(yyval.type_spec))); }
-#line 2360 "parser.c"
+#line 2537 "parser.c"
     break;
 
-  case 20: /* const_type: octet_type  */
-#line 354 "src/parser.y"
+  case 20:
+#line 355 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { TRY(idl_create_base_type(pstate, &(yylsp[0]), (yyvsp[0].kind), &(yyval.type_spec))); }
-#line 2366 "parser.c"
+#line 2543 "parser.c"
     break;
 
-  case 21: /* const_type: string_type  */
-#line 356 "src/parser.y"
+  case 21:
+#line 357 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.type_spec) = (idl_type_spec_t *)(yyvsp[0].string); }
-#line 2372 "parser.c"
+#line 2549 "parser.c"
     break;
 
-  case 22: /* const_type: scoped_name  */
-#line 358 "src/parser.y"
+  case 22:
+#line 359 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { idl_node_t *node;
         const idl_declaration_t *declaration;
         static const char fmt[] =
@@ -2384,152 +2561,152 @@ yyreduce:
         (yyval.type_spec) = idl_reference_node((idl_node_t *)declaration->node);
         idl_delete_scoped_name((yyvsp[0].scoped_name));
       }
-#line 2388 "parser.c"
+#line 2565 "parser.c"
     break;
 
-  case 23: /* const_expr: or_expr  */
-#line 371 "src/parser.y"
+  case 23:
+#line 372 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
                     { (yyval.const_expr) = (yyvsp[0].const_expr); }
-#line 2394 "parser.c"
+#line 2571 "parser.c"
     break;
 
-  case 25: /* or_expr: or_expr '|' xor_expr  */
-#line 376 "src/parser.y"
+  case 25:
+#line 377 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.const_expr) = NULL;
         if (pstate->parser.state != IDL_PARSE_UNKNOWN_ANNOTATION_APPL_PARAMS)
           TRY(idl_create_binary_expr(pstate, &(yylsp[-1]), IDL_OR, (yyvsp[-2].const_expr), (yyvsp[0].const_expr), &(yyval.const_expr)));
       }
-#line 2403 "parser.c"
+#line 2580 "parser.c"
     break;
 
-  case 27: /* xor_expr: xor_expr '^' and_expr  */
-#line 385 "src/parser.y"
+  case 27:
+#line 386 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.const_expr) = NULL;
         if (pstate->parser.state != IDL_PARSE_UNKNOWN_ANNOTATION_APPL_PARAMS)
           TRY(idl_create_binary_expr(pstate, &(yylsp[-1]), IDL_XOR, (yyvsp[-2].const_expr), (yyvsp[0].const_expr), &(yyval.const_expr)));
       }
-#line 2412 "parser.c"
+#line 2589 "parser.c"
     break;
 
-  case 29: /* and_expr: and_expr '&' shift_expr  */
-#line 394 "src/parser.y"
+  case 29:
+#line 395 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.const_expr) = NULL;
         if (pstate->parser.state != IDL_PARSE_UNKNOWN_ANNOTATION_APPL_PARAMS)
           TRY(idl_create_binary_expr(pstate, &(yylsp[-1]), IDL_AND, (yyvsp[-2].const_expr), (yyvsp[0].const_expr), &(yyval.const_expr)));
       }
-#line 2421 "parser.c"
+#line 2598 "parser.c"
     break;
 
-  case 31: /* shift_expr: shift_expr shift_operator add_expr  */
-#line 403 "src/parser.y"
+  case 31:
+#line 404 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.const_expr) = NULL;
         if (pstate->parser.state != IDL_PARSE_UNKNOWN_ANNOTATION_APPL_PARAMS)
           TRY(idl_create_binary_expr(pstate, &(yylsp[-1]), (yyvsp[-1].kind), (yyvsp[-2].const_expr), (yyvsp[0].const_expr), &(yyval.const_expr)));
       }
-#line 2430 "parser.c"
+#line 2607 "parser.c"
     break;
 
-  case 32: /* shift_operator: ">>"  */
-#line 410 "src/parser.y"
+  case 32:
+#line 411 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
          { (yyval.kind) = IDL_RSHIFT; }
-#line 2436 "parser.c"
+#line 2613 "parser.c"
     break;
 
-  case 33: /* shift_operator: "<<"  */
-#line 411 "src/parser.y"
+  case 33:
+#line 412 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
          { (yyval.kind) = IDL_LSHIFT; }
-#line 2442 "parser.c"
+#line 2619 "parser.c"
     break;
 
-  case 35: /* add_expr: add_expr add_operator mult_expr  */
-#line 416 "src/parser.y"
+  case 35:
+#line 417 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.const_expr) = NULL;
         if (pstate->parser.state != IDL_PARSE_UNKNOWN_ANNOTATION_APPL_PARAMS)
           TRY(idl_create_binary_expr(pstate, &(yylsp[-1]), (yyvsp[-1].kind), (yyvsp[-2].const_expr), (yyvsp[0].const_expr), &(yyval.const_expr)));
       }
-#line 2451 "parser.c"
+#line 2628 "parser.c"
     break;
 
-  case 36: /* add_operator: '+'  */
-#line 423 "src/parser.y"
+  case 36:
+#line 424 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
         { (yyval.kind) = IDL_ADD; }
-#line 2457 "parser.c"
+#line 2634 "parser.c"
     break;
 
-  case 37: /* add_operator: '-'  */
-#line 424 "src/parser.y"
+  case 37:
+#line 425 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
         { (yyval.kind) = IDL_SUBTRACT; }
-#line 2463 "parser.c"
+#line 2640 "parser.c"
     break;
 
-  case 38: /* mult_expr: unary_expr  */
-#line 428 "src/parser.y"
+  case 38:
+#line 429 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.const_expr) = (yyvsp[0].const_expr); }
-#line 2469 "parser.c"
+#line 2646 "parser.c"
     break;
 
-  case 39: /* mult_expr: mult_expr mult_operator unary_expr  */
-#line 430 "src/parser.y"
+  case 39:
+#line 431 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.const_expr) = NULL;
         if (pstate->parser.state != IDL_PARSE_UNKNOWN_ANNOTATION_APPL_PARAMS)
           TRY(idl_create_binary_expr(pstate, &(yylsp[-1]), (yyvsp[-1].kind), (yyvsp[-2].const_expr), (yyvsp[0].const_expr), &(yyval.const_expr)));
       }
-#line 2478 "parser.c"
+#line 2655 "parser.c"
     break;
 
-  case 40: /* mult_operator: '*'  */
-#line 437 "src/parser.y"
+  case 40:
+#line 438 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
         { (yyval.kind) = IDL_MULTIPLY; }
-#line 2484 "parser.c"
+#line 2661 "parser.c"
     break;
 
-  case 41: /* mult_operator: '/'  */
-#line 438 "src/parser.y"
+  case 41:
+#line 439 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
         { (yyval.kind) = IDL_DIVIDE; }
-#line 2490 "parser.c"
+#line 2667 "parser.c"
     break;
 
-  case 42: /* mult_operator: '%'  */
-#line 439 "src/parser.y"
+  case 42:
+#line 440 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
         { (yyval.kind) = IDL_MODULO; }
-#line 2496 "parser.c"
+#line 2673 "parser.c"
     break;
 
-  case 43: /* unary_expr: unary_operator primary_expr  */
-#line 443 "src/parser.y"
+  case 43:
+#line 444 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.const_expr) = NULL;
         if (pstate->parser.state != IDL_PARSE_UNKNOWN_ANNOTATION_APPL_PARAMS)
           TRY(idl_create_unary_expr(pstate, &(yylsp[-1]), (yyvsp[-1].kind), (yyvsp[0].const_expr), &(yyval.const_expr)));
       }
-#line 2505 "parser.c"
+#line 2682 "parser.c"
     break;
 
-  case 44: /* unary_expr: primary_expr  */
-#line 448 "src/parser.y"
+  case 44:
+#line 449 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.const_expr) = (yyvsp[0].const_expr); }
-#line 2511 "parser.c"
+#line 2688 "parser.c"
     break;
 
-  case 45: /* unary_operator: '-'  */
-#line 452 "src/parser.y"
+  case 45:
+#line 453 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
         { (yyval.kind) = IDL_MINUS; }
-#line 2517 "parser.c"
+#line 2694 "parser.c"
     break;
 
-  case 46: /* unary_operator: '+'  */
-#line 453 "src/parser.y"
+  case 46:
+#line 454 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
         { (yyval.kind) = IDL_PLUS; }
-#line 2523 "parser.c"
+#line 2700 "parser.c"
     break;
 
-  case 47: /* unary_operator: '~'  */
-#line 454 "src/parser.y"
+  case 47:
+#line 455 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
         { (yyval.kind) = IDL_NOT; }
-#line 2529 "parser.c"
+#line 2706 "parser.c"
     break;
 
-  case 48: /* primary_expr: scoped_name  */
-#line 459 "src/parser.y"
+  case 48:
+#line 460 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.const_expr) = NULL;
         if (pstate->parser.state != IDL_PARSE_UNKNOWN_ANNOTATION_APPL_PARAMS) {
           /* disregard scoped names in application of unknown annotations.
@@ -2545,23 +2722,23 @@ yyreduce:
         }
         idl_delete_scoped_name((yyvsp[0].scoped_name));
       }
-#line 2549 "parser.c"
+#line 2726 "parser.c"
     break;
 
-  case 49: /* primary_expr: literal  */
-#line 475 "src/parser.y"
+  case 49:
+#line 476 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.const_expr) = (yyvsp[0].literal); }
-#line 2555 "parser.c"
+#line 2732 "parser.c"
     break;
 
-  case 50: /* primary_expr: '(' const_expr ')'  */
-#line 477 "src/parser.y"
+  case 50:
+#line 478 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.const_expr) = (yyvsp[-1].const_expr); }
-#line 2561 "parser.c"
+#line 2738 "parser.c"
     break;
 
-  case 51: /* literal: IDL_TOKEN_INTEGER_LITERAL  */
-#line 482 "src/parser.y"
+  case 51:
+#line 483 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { idl_type_t type;
         idl_literal_t literal;
         (yyval.literal) = NULL;
@@ -2583,11 +2760,11 @@ yyreduce:
         TRY(idl_create_literal(pstate, &(yylsp[0]), type, &(yyval.literal)));
         (yyval.literal)->value = literal.value;
       }
-#line 2587 "parser.c"
+#line 2764 "parser.c"
     break;
 
-  case 52: /* literal: IDL_TOKEN_FLOATING_PT_LITERAL  */
-#line 504 "src/parser.y"
+  case 52:
+#line 505 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { idl_type_t type;
         idl_literal_t literal;
         (yyval.literal) = NULL;
@@ -2610,67 +2787,67 @@ _Pragma("GCC diagnostic pop")
         TRY(idl_create_literal(pstate, &(yylsp[0]), type, &(yyval.literal)));
         (yyval.literal)->value = literal.value;
       }
-#line 2614 "parser.c"
+#line 2791 "parser.c"
     break;
 
-  case 53: /* literal: IDL_TOKEN_CHAR_LITERAL  */
-#line 527 "src/parser.y"
+  case 53:
+#line 528 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.literal) = NULL;
         if (pstate->parser.state == IDL_PARSE_UNKNOWN_ANNOTATION_APPL_PARAMS)
           break;
         TRY(idl_create_literal(pstate, &(yylsp[0]), IDL_CHAR, &(yyval.literal)));
         (yyval.literal)->value.chr = (yyvsp[0].chr);
       }
-#line 2625 "parser.c"
+#line 2802 "parser.c"
     break;
 
-  case 54: /* literal: boolean_literal  */
-#line 534 "src/parser.y"
+  case 54:
+#line 535 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.literal) = NULL;
         if (pstate->parser.state == IDL_PARSE_UNKNOWN_ANNOTATION_APPL_PARAMS)
           break;
         TRY(idl_create_literal(pstate, &(yylsp[0]), IDL_BOOL, &(yyval.literal)));
         (yyval.literal)->value.bln = (yyvsp[0].bln);
       }
-#line 2636 "parser.c"
+#line 2813 "parser.c"
     break;
 
-  case 55: /* literal: string_literal  */
-#line 541 "src/parser.y"
+  case 55:
+#line 542 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.literal) = NULL;
         if (pstate->parser.state == IDL_PARSE_UNKNOWN_ANNOTATION_APPL_PARAMS)
           break;
         TRY(idl_create_literal(pstate, &(yylsp[0]), IDL_STRING, &(yyval.literal)));
         (yyval.literal)->value.str = (yyvsp[0].string_literal);
       }
-#line 2647 "parser.c"
+#line 2824 "parser.c"
     break;
 
-  case 56: /* boolean_literal: "TRUE"  */
-#line 551 "src/parser.y"
+  case 56:
+#line 552 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.bln) = true; }
-#line 2653 "parser.c"
+#line 2830 "parser.c"
     break;
 
-  case 57: /* boolean_literal: "FALSE"  */
-#line 553 "src/parser.y"
+  case 57:
+#line 554 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.bln) = false; }
-#line 2659 "parser.c"
+#line 2836 "parser.c"
     break;
 
-  case 58: /* string_literal: IDL_TOKEN_STRING_LITERAL  */
-#line 558 "src/parser.y"
+  case 58:
+#line 559 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.string_literal) = NULL;
         if (pstate->parser.state == IDL_PARSE_UNKNOWN_ANNOTATION_APPL_PARAMS)
           break;
         if (!((yyval.string_literal) = idl_strdup((yyvsp[0].str))))
           NO_MEMORY();
       }
-#line 2670 "parser.c"
+#line 2847 "parser.c"
     break;
 
-  case 59: /* string_literal: string_literal IDL_TOKEN_STRING_LITERAL  */
-#line 565 "src/parser.y"
+  case 59:
+#line 566 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { size_t n1, n2;
         (yyval.string_literal) = NULL;
         if (pstate->parser.state == IDL_PARSE_UNKNOWN_ANNOTATION_APPL_PARAMS)
@@ -2678,40 +2855,40 @@ _Pragma("GCC diagnostic pop")
         /* adjacent string literals are concatenated */
         n1 = strlen((yyvsp[-1].string_literal));
         n2 = strlen((yyvsp[0].str));
-        if (!((yyval.string_literal) = realloc((yyvsp[-1].string_literal), n1+n2+1)))
+        if (!((yyval.string_literal) = idl_realloc((yyvsp[-1].string_literal), n1+n2+1)))
           NO_MEMORY();
         memmove((yyval.string_literal)+n1, (yyvsp[0].str), n2);
         (yyval.string_literal)[n1+n2] = '\0';
       }
-#line 2687 "parser.c"
+#line 2864 "parser.c"
     break;
 
-  case 60: /* positive_int_const: const_expr  */
-#line 581 "src/parser.y"
+  case 60:
+#line 582 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { TRY(idl_evaluate(pstate, (yyvsp[0].const_expr), IDL_ULONG, &(yyval.literal))); }
-#line 2693 "parser.c"
+#line 2870 "parser.c"
     break;
 
-  case 61: /* type_dcl: constr_type_dcl  */
-#line 585 "src/parser.y"
+  case 61:
+#line 586 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
                     { (yyval.node) = (yyvsp[0].node); }
-#line 2699 "parser.c"
+#line 2876 "parser.c"
     break;
 
-  case 62: /* type_dcl: typedef_dcl  */
-#line 586 "src/parser.y"
+  case 62:
+#line 587 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
                 { (yyval.node) = (yyvsp[0].typedef_dcl); }
-#line 2705 "parser.c"
+#line 2882 "parser.c"
     break;
 
-  case 65: /* simple_type_spec: base_type_spec  */
-#line 597 "src/parser.y"
+  case 65:
+#line 598 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { TRY(idl_create_base_type(pstate, &(yylsp[0]), (yyvsp[0].kind), &(yyval.type_spec))); }
-#line 2711 "parser.c"
+#line 2888 "parser.c"
     break;
 
-  case 66: /* simple_type_spec: scoped_name  */
-#line 599 "src/parser.y"
+  case 66:
+#line 600 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { const idl_declaration_t *declaration = NULL;
         static const char fmt[] =
           "Scoped name '%s' does not resolve to a type";
@@ -2721,211 +2898,211 @@ _Pragma("GCC diagnostic pop")
         (yyval.type_spec) = idl_reference_node((idl_node_t *)declaration->node);
         idl_delete_scoped_name((yyvsp[0].scoped_name));
       }
-#line 2725 "parser.c"
+#line 2902 "parser.c"
     break;
 
-  case 73: /* floating_pt_type: "float"  */
-#line 620 "src/parser.y"
+  case 73:
+#line 621 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { (yyval.kind) = IDL_FLOAT; }
-#line 2731 "parser.c"
+#line 2908 "parser.c"
     break;
 
-  case 74: /* floating_pt_type: "double"  */
-#line 621 "src/parser.y"
+  case 74:
+#line 622 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
              { (yyval.kind) = IDL_DOUBLE; }
-#line 2737 "parser.c"
+#line 2914 "parser.c"
     break;
 
-  case 75: /* floating_pt_type: "long" "double"  */
-#line 622 "src/parser.y"
+  case 75:
+#line 623 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
                     { (yyval.kind) = IDL_LDOUBLE; }
-#line 2743 "parser.c"
+#line 2920 "parser.c"
     break;
 
-  case 78: /* signed_int: "short"  */
-#line 631 "src/parser.y"
+  case 78:
+#line 632 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { (yyval.kind) = IDL_SHORT; }
-#line 2749 "parser.c"
+#line 2926 "parser.c"
     break;
 
-  case 79: /* signed_int: "long"  */
-#line 632 "src/parser.y"
+  case 79:
+#line 633 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
            { (yyval.kind) = IDL_LONG; }
-#line 2755 "parser.c"
+#line 2932 "parser.c"
     break;
 
-  case 80: /* signed_int: "long" "long"  */
-#line 633 "src/parser.y"
+  case 80:
+#line 634 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
                   { (yyval.kind) = IDL_LLONG; }
-#line 2761 "parser.c"
+#line 2938 "parser.c"
     break;
 
-  case 81: /* signed_int: "int8"  */
-#line 635 "src/parser.y"
+  case 81:
+#line 636 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
            { (yyval.kind) = IDL_INT8; }
-#line 2767 "parser.c"
+#line 2944 "parser.c"
     break;
 
-  case 82: /* signed_int: "int16"  */
-#line 636 "src/parser.y"
+  case 82:
+#line 637 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { (yyval.kind) = IDL_INT16; }
-#line 2773 "parser.c"
+#line 2950 "parser.c"
     break;
 
-  case 83: /* signed_int: "int32"  */
-#line 637 "src/parser.y"
+  case 83:
+#line 638 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { (yyval.kind) = IDL_INT32; }
-#line 2779 "parser.c"
+#line 2956 "parser.c"
     break;
 
-  case 84: /* signed_int: "int64"  */
-#line 638 "src/parser.y"
+  case 84:
+#line 639 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { (yyval.kind) = IDL_INT64; }
-#line 2785 "parser.c"
+#line 2962 "parser.c"
     break;
 
-  case 85: /* unsigned_int: "unsigned" "short"  */
-#line 642 "src/parser.y"
+  case 85:
+#line 643 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
                        { (yyval.kind) = IDL_USHORT; }
-#line 2791 "parser.c"
+#line 2968 "parser.c"
     break;
 
-  case 86: /* unsigned_int: "unsigned" "long"  */
-#line 643 "src/parser.y"
+  case 86:
+#line 644 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
                       { (yyval.kind) = IDL_ULONG; }
-#line 2797 "parser.c"
+#line 2974 "parser.c"
     break;
 
-  case 87: /* unsigned_int: "unsigned" "long" "long"  */
-#line 644 "src/parser.y"
+  case 87:
+#line 645 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
                              { (yyval.kind) = IDL_ULLONG; }
-#line 2803 "parser.c"
+#line 2980 "parser.c"
     break;
 
-  case 88: /* unsigned_int: "uint8"  */
-#line 646 "src/parser.y"
+  case 88:
+#line 647 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { (yyval.kind) = IDL_UINT8; }
-#line 2809 "parser.c"
+#line 2986 "parser.c"
     break;
 
-  case 89: /* unsigned_int: "uint16"  */
-#line 647 "src/parser.y"
+  case 89:
+#line 648 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
              { (yyval.kind) = IDL_UINT16; }
-#line 2815 "parser.c"
+#line 2992 "parser.c"
     break;
 
-  case 90: /* unsigned_int: "uint32"  */
-#line 648 "src/parser.y"
+  case 90:
+#line 649 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
              { (yyval.kind) = IDL_UINT32; }
-#line 2821 "parser.c"
+#line 2998 "parser.c"
     break;
 
-  case 91: /* unsigned_int: "uint64"  */
-#line 649 "src/parser.y"
+  case 91:
+#line 650 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
              { (yyval.kind) = IDL_UINT64; }
-#line 2827 "parser.c"
+#line 3004 "parser.c"
     break;
 
-  case 92: /* char_type: "char"  */
-#line 653 "src/parser.y"
+  case 92:
+#line 654 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
            { (yyval.kind) = IDL_CHAR; }
-#line 2833 "parser.c"
+#line 3010 "parser.c"
     break;
 
-  case 93: /* wide_char_type: "wchar"  */
-#line 656 "src/parser.y"
+  case 93:
+#line 657 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { (yyval.kind) = IDL_WCHAR; }
-#line 2839 "parser.c"
+#line 3016 "parser.c"
     break;
 
-  case 94: /* boolean_type: "boolean"  */
-#line 659 "src/parser.y"
+  case 94:
+#line 660 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
               { (yyval.kind) = IDL_BOOL; }
-#line 2845 "parser.c"
+#line 3022 "parser.c"
     break;
 
-  case 95: /* octet_type: "octet"  */
-#line 662 "src/parser.y"
+  case 95:
+#line 663 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { (yyval.kind) = IDL_OCTET; }
-#line 2851 "parser.c"
+#line 3028 "parser.c"
     break;
 
-  case 96: /* template_type_spec: sequence_type  */
-#line 665 "src/parser.y"
+  case 96:
+#line 666 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
                   { (yyval.type_spec) = (yyvsp[0].sequence); }
-#line 2857 "parser.c"
+#line 3034 "parser.c"
     break;
 
-  case 97: /* template_type_spec: string_type  */
-#line 666 "src/parser.y"
+  case 97:
+#line 667 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
                   { (yyval.type_spec) = (yyvsp[0].string); }
-#line 2863 "parser.c"
+#line 3040 "parser.c"
     break;
 
-  case 98: /* sequence_type: "sequence" '<' type_spec ',' positive_int_const '>'  */
-#line 671 "src/parser.y"
+  case 98:
+#line 672 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { TRY(idl_create_sequence(pstate, LOC((yylsp[-5]).first, (yylsp[0]).last), (yyvsp[-3].type_spec), (yyvsp[-1].literal), &(yyval.sequence))); }
-#line 2869 "parser.c"
+#line 3046 "parser.c"
     break;
 
-  case 99: /* sequence_type: "sequence" '<' type_spec '>'  */
-#line 673 "src/parser.y"
+  case 99:
+#line 674 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { TRY(idl_create_sequence(pstate, LOC((yylsp[-3]).first, (yylsp[0]).last), (yyvsp[-1].type_spec), NULL, &(yyval.sequence))); }
-#line 2875 "parser.c"
+#line 3052 "parser.c"
     break;
 
-  case 100: /* string_type: "string" '<' positive_int_const '>'  */
-#line 678 "src/parser.y"
+  case 100:
+#line 679 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { TRY(idl_create_string(pstate, LOC((yylsp[-3]).first, (yylsp[0]).last), (yyvsp[-1].literal), &(yyval.string))); }
-#line 2881 "parser.c"
+#line 3058 "parser.c"
     break;
 
-  case 101: /* string_type: "string"  */
-#line 680 "src/parser.y"
+  case 101:
+#line 681 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { TRY(idl_create_string(pstate, LOC((yylsp[0]).first, (yylsp[0]).last), NULL, &(yyval.string))); }
-#line 2887 "parser.c"
+#line 3064 "parser.c"
     break;
 
-  case 106: /* struct_dcl: struct_def  */
-#line 691 "src/parser.y"
+  case 106:
+#line 692 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
                { (yyval.node) = (yyvsp[0].struct_dcl); }
-#line 2893 "parser.c"
+#line 3070 "parser.c"
     break;
 
-  case 107: /* struct_dcl: struct_forward_dcl  */
-#line 692 "src/parser.y"
+  case 107:
+#line 693 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
                        { (yyval.node) = (yyvsp[0].forward); }
-#line 2899 "parser.c"
+#line 3076 "parser.c"
     break;
 
-  case 108: /* struct_forward_dcl: "struct" identifier  */
-#line 697 "src/parser.y"
+  case 108:
+#line 698 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { TRY(idl_create_forward(pstate, &(yylsp[-1]), (yyvsp[0].name), IDL_STRUCT, &(yyval.forward))); }
-#line 2905 "parser.c"
+#line 3082 "parser.c"
     break;
 
-  case 109: /* struct_def: struct_header '{' struct_body '}'  */
-#line 702 "src/parser.y"
+  case 109:
+#line 703 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { TRY(idl_finalize_struct(pstate, LOC((yylsp[-3]).first, (yylsp[0]).last), (yyvsp[-3].struct_dcl), (yyvsp[-1].member)));
         (yyval.struct_dcl) = (yyvsp[-3].struct_dcl);
       }
-#line 2913 "parser.c"
+#line 3090 "parser.c"
     break;
 
-  case 110: /* struct_header: "struct" identifier struct_inherit_spec  */
-#line 709 "src/parser.y"
+  case 110:
+#line 710 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { TRY(idl_create_struct(pstate, LOC((yylsp[-2]).first, (yyvsp[0].type_spec) ? (yylsp[0]).last : (yylsp[-1]).last), (yyvsp[-1].name), (yyvsp[0].type_spec), &(yyval.struct_dcl))); }
-#line 2919 "parser.c"
+#line 3096 "parser.c"
     break;
 
-  case 111: /* struct_inherit_spec: %empty  */
-#line 713 "src/parser.y"
+  case 111:
+#line 714 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
             { (yyval.type_spec) = NULL; }
-#line 2925 "parser.c"
+#line 3102 "parser.c"
     break;
 
-  case 112: /* struct_inherit_spec: ':' scoped_name  */
-#line 717 "src/parser.y"
+  case 112:
+#line 718 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { idl_node_t *node;
         const idl_declaration_t *declaration;
         static const char fmt[] =
@@ -2937,75 +3114,75 @@ _Pragma("GCC diagnostic pop")
         TRY(idl_create_inherit_spec(pstate, &(yylsp[0]), idl_reference_node(node), &(yyval.type_spec)));
         idl_delete_scoped_name((yyvsp[0].scoped_name));
       }
-#line 2941 "parser.c"
+#line 3118 "parser.c"
     break;
 
-  case 113: /* struct_body: members  */
-#line 732 "src/parser.y"
+  case 113:
+#line 733 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.member) = (yyvsp[0].member); }
-#line 2947 "parser.c"
+#line 3124 "parser.c"
     break;
 
-  case 114: /* struct_body: %empty  */
-#line 736 "src/parser.y"
+  case 114:
+#line 737 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.member) = NULL; }
-#line 2953 "parser.c"
+#line 3130 "parser.c"
     break;
 
-  case 115: /* members: member  */
-#line 741 "src/parser.y"
+  case 115:
+#line 742 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.member) = (yyvsp[0].member); }
-#line 2959 "parser.c"
+#line 3136 "parser.c"
     break;
 
-  case 116: /* members: members member  */
-#line 743 "src/parser.y"
+  case 116:
+#line 744 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.member) = idl_push_node((yyvsp[-1].member), (yyvsp[0].member)); }
-#line 2965 "parser.c"
+#line 3142 "parser.c"
     break;
 
-  case 117: /* member: annotations type_spec declarators ';'  */
-#line 748 "src/parser.y"
+  case 117:
+#line 749 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { TRY(idl_create_member(pstate, LOC((yylsp[-2]).first, (yylsp[0]).last), (yyvsp[-2].type_spec), (yyvsp[-1].declarator), &(yyval.member)));
-        TRY_EXCEPT(idl_annotate(pstate, (yyval.member), (yyvsp[-3].annotation_appl)), free((yyval.member)));
+        TRY_EXCEPT(idl_annotate(pstate, (yyval.member), (yyvsp[-3].annotation_appl)), idl_free((yyval.member)));
       }
-#line 2973 "parser.c"
+#line 3150 "parser.c"
     break;
 
-  case 118: /* union_dcl: union_def  */
-#line 754 "src/parser.y"
+  case 118:
+#line 755 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
               { (yyval.node) = (yyvsp[0].union_dcl); }
-#line 2979 "parser.c"
+#line 3156 "parser.c"
     break;
 
-  case 119: /* union_dcl: union_forward_dcl  */
-#line 755 "src/parser.y"
+  case 119:
+#line 756 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
                       { (yyval.node) = (yyvsp[0].forward); }
-#line 2985 "parser.c"
+#line 3162 "parser.c"
     break;
 
-  case 120: /* union_def: union_header '{' switch_body '}'  */
-#line 760 "src/parser.y"
+  case 120:
+#line 761 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { TRY(idl_finalize_union(pstate, LOC((yylsp[-3]).first, (yylsp[0]).last), (yyvsp[-3].union_dcl), (yyvsp[-1]._case)));
         (yyval.union_dcl) = (yyvsp[-3].union_dcl);
       }
-#line 2993 "parser.c"
+#line 3170 "parser.c"
     break;
 
-  case 121: /* union_forward_dcl: "union" identifier  */
-#line 767 "src/parser.y"
+  case 121:
+#line 768 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { TRY(idl_create_forward(pstate, &(yylsp[-1]), (yyvsp[0].name), IDL_UNION, &(yyval.forward))); }
-#line 2999 "parser.c"
+#line 3176 "parser.c"
     break;
 
-  case 122: /* union_header: "union" identifier switch_header  */
-#line 772 "src/parser.y"
+  case 122:
+#line 773 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { TRY(idl_create_union(pstate, LOC((yylsp[-2]).first, (yylsp[0]).last), (yyvsp[-1].name), (yyvsp[0].switch_type_spec), &(yyval.union_dcl))); }
-#line 3005 "parser.c"
+#line 3182 "parser.c"
     break;
 
-  case 123: /* switch_header: "switch" '(' annotations switch_type_spec ')'  */
-#line 777 "src/parser.y"
+  case 123:
+#line 778 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { /* switch_header action is a separate non-terminal, as opposed to a
            mid-rule action, to avoid freeing the type specifier twice (once
            through destruction of the type-spec and once through destruction
@@ -3013,203 +3190,203 @@ _Pragma("GCC diagnostic pop")
         TRY(idl_create_switch_type_spec(pstate, &(yylsp[-1]), (yyvsp[-1].type_spec), &(yyval.switch_type_spec)));
         TRY_EXCEPT(idl_annotate(pstate, (yyval.switch_type_spec), (yyvsp[-2].annotation_appl)), idl_delete_node((yyval.switch_type_spec)));
       }
-#line 3017 "parser.c"
+#line 3194 "parser.c"
     break;
 
-  case 124: /* switch_type_spec: integer_type  */
-#line 788 "src/parser.y"
+  case 124:
+#line 789 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { TRY(idl_create_base_type(pstate, &(yylsp[0]), (yyvsp[0].kind), &(yyval.type_spec))); }
-#line 3023 "parser.c"
+#line 3200 "parser.c"
     break;
 
-  case 125: /* switch_type_spec: char_type  */
-#line 790 "src/parser.y"
+  case 125:
+#line 791 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { TRY(idl_create_base_type(pstate, &(yylsp[0]), (yyvsp[0].kind), &(yyval.type_spec))); }
-#line 3029 "parser.c"
+#line 3206 "parser.c"
     break;
 
-  case 126: /* switch_type_spec: boolean_type  */
-#line 792 "src/parser.y"
+  case 126:
+#line 793 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { TRY(idl_create_base_type(pstate, &(yylsp[0]), (yyvsp[0].kind), &(yyval.type_spec))); }
-#line 3035 "parser.c"
+#line 3212 "parser.c"
     break;
 
-  case 127: /* switch_type_spec: scoped_name  */
-#line 794 "src/parser.y"
+  case 127:
+#line 795 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { const idl_declaration_t *declaration;
         TRY(idl_resolve(pstate, 0u, (yyvsp[0].scoped_name), &declaration));
         idl_delete_scoped_name((yyvsp[0].scoped_name));
         (yyval.type_spec) = idl_reference_node((idl_node_t *)declaration->node);
       }
-#line 3045 "parser.c"
+#line 3222 "parser.c"
     break;
 
-  case 128: /* switch_type_spec: wide_char_type  */
-#line 800 "src/parser.y"
+  case 128:
+#line 801 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { TRY(idl_create_base_type(pstate, &(yylsp[0]), (yyvsp[0].kind), &(yyval.type_spec))); }
-#line 3051 "parser.c"
+#line 3228 "parser.c"
     break;
 
-  case 129: /* switch_type_spec: octet_type  */
-#line 802 "src/parser.y"
+  case 129:
+#line 803 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { TRY(idl_create_base_type(pstate, &(yylsp[0]), (yyvsp[0].kind), &(yyval.type_spec))); }
-#line 3057 "parser.c"
+#line 3234 "parser.c"
     break;
 
-  case 130: /* switch_body: case  */
-#line 807 "src/parser.y"
+  case 130:
+#line 808 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval._case) = (yyvsp[0]._case); }
-#line 3063 "parser.c"
+#line 3240 "parser.c"
     break;
 
-  case 131: /* switch_body: switch_body case  */
-#line 809 "src/parser.y"
+  case 131:
+#line 810 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval._case) = idl_push_node((yyvsp[-1]._case), (yyvsp[0]._case)); }
-#line 3069 "parser.c"
+#line 3246 "parser.c"
     break;
 
-  case 132: /* case: case_labels element_spec ';'  */
-#line 814 "src/parser.y"
+  case 132:
+#line 815 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { TRY(idl_finalize_case(pstate, &(yylsp[-1]), (yyvsp[-1]._case), (yyvsp[-2].case_label)));
         (yyval._case) = (yyvsp[-1]._case);
       }
-#line 3077 "parser.c"
+#line 3254 "parser.c"
     break;
 
-  case 133: /* case_labels: case_label  */
-#line 821 "src/parser.y"
+  case 133:
+#line 822 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.case_label) = (yyvsp[0].case_label); }
-#line 3083 "parser.c"
+#line 3260 "parser.c"
     break;
 
-  case 134: /* case_labels: case_labels case_label  */
-#line 823 "src/parser.y"
+  case 134:
+#line 824 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.case_label) = idl_push_node((yyvsp[-1].case_label), (yyvsp[0].case_label)); }
-#line 3089 "parser.c"
+#line 3266 "parser.c"
     break;
 
-  case 135: /* case_label: "case" const_expr ':'  */
-#line 828 "src/parser.y"
+  case 135:
+#line 829 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { TRY(idl_create_case_label(pstate, LOC((yylsp[-2]).first, (yylsp[-1]).last), (yyvsp[-1].const_expr), &(yyval.case_label))); }
-#line 3095 "parser.c"
+#line 3272 "parser.c"
     break;
 
-  case 136: /* case_label: "default" ':'  */
-#line 830 "src/parser.y"
+  case 136:
+#line 831 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { TRY(idl_create_case_label(pstate, &(yylsp[-1]), NULL, &(yyval.case_label))); }
-#line 3101 "parser.c"
+#line 3278 "parser.c"
     break;
 
-  case 137: /* element_spec: annotations type_spec declarator  */
-#line 837 "src/parser.y"
+  case 137:
+#line 838 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { TRY(idl_create_case(pstate, LOC((yylsp[-2]).first, (yylsp[0]).last), (yyvsp[-1].type_spec), (yyvsp[0].declarator), &(yyval._case)));
-        TRY_EXCEPT(idl_annotate(pstate, (yyval._case), (yyvsp[-2].annotation_appl)), free((yyval._case)));
+        TRY_EXCEPT(idl_annotate(pstate, (yyval._case), (yyvsp[-2].annotation_appl)), idl_free((yyval._case)));
       }
-#line 3109 "parser.c"
+#line 3286 "parser.c"
     break;
 
-  case 138: /* enum_dcl: enum_def  */
-#line 842 "src/parser.y"
+  case 138:
+#line 843 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
                    { (yyval.node) = (yyvsp[0].enum_dcl); }
-#line 3115 "parser.c"
+#line 3292 "parser.c"
     break;
 
-  case 139: /* enum_def: "enum" identifier '{' enumerators '}'  */
-#line 846 "src/parser.y"
+  case 139:
+#line 847 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { TRY(idl_create_enum(pstate, LOC((yylsp[-4]).first, (yylsp[0]).last), (yyvsp[-3].name), (yyvsp[-1].enumerator), &(yyval.enum_dcl))); }
-#line 3121 "parser.c"
+#line 3298 "parser.c"
     break;
 
-  case 140: /* enumerators: enumerator  */
-#line 851 "src/parser.y"
+  case 140:
+#line 852 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.enumerator) = (yyvsp[0].enumerator); }
-#line 3127 "parser.c"
+#line 3304 "parser.c"
     break;
 
-  case 141: /* enumerators: enumerators ',' enumerator  */
-#line 853 "src/parser.y"
+  case 141:
+#line 854 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.enumerator) = idl_push_node((yyvsp[-2].enumerator), (yyvsp[0].enumerator)); }
-#line 3133 "parser.c"
+#line 3310 "parser.c"
     break;
 
-  case 142: /* enumerator: annotations identifier  */
-#line 858 "src/parser.y"
+  case 142:
+#line 859 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { TRY(idl_create_enumerator(pstate, &(yylsp[0]), (yyvsp[0].name), &(yyval.enumerator)));
-        TRY_EXCEPT(idl_annotate(pstate, (yyval.enumerator), (yyvsp[-1].annotation_appl)), free((yyval.enumerator)));
+        TRY_EXCEPT(idl_annotate(pstate, (yyval.enumerator), (yyvsp[-1].annotation_appl)), idl_free((yyval.enumerator)));
       }
-#line 3141 "parser.c"
+#line 3318 "parser.c"
     break;
 
-  case 143: /* bitmask_dcl: bitmask_def  */
-#line 863 "src/parser.y"
+  case 143:
+#line 864 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
                          { (yyval.node) = (yyvsp[0].bitmask_dcl); }
-#line 3147 "parser.c"
+#line 3324 "parser.c"
     break;
 
-  case 144: /* bitmask_def: "bitmask" identifier '{' bit_values '}'  */
-#line 867 "src/parser.y"
+  case 144:
+#line 868 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { TRY(idl_create_bitmask(pstate, LOC((yylsp[-4]).first, (yylsp[0]).last), (yyvsp[-3].name), (yyvsp[-1].bit_value), &(yyval.bitmask_dcl))); }
-#line 3153 "parser.c"
+#line 3330 "parser.c"
     break;
 
-  case 145: /* bit_values: bit_value  */
-#line 872 "src/parser.y"
+  case 145:
+#line 873 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.bit_value) = (yyvsp[0].bit_value); }
-#line 3159 "parser.c"
+#line 3336 "parser.c"
     break;
 
-  case 146: /* bit_values: bit_values ',' bit_value  */
-#line 874 "src/parser.y"
+  case 146:
+#line 875 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.bit_value) = idl_push_node((yyvsp[-2].bit_value), (yyvsp[0].bit_value)); }
-#line 3165 "parser.c"
+#line 3342 "parser.c"
     break;
 
-  case 147: /* bit_value: annotations identifier  */
-#line 879 "src/parser.y"
+  case 147:
+#line 880 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { TRY(idl_create_bit_value(pstate, &(yylsp[0]), (yyvsp[0].name), &(yyval.bit_value)));
-        TRY_EXCEPT(idl_annotate(pstate, (yyval.bit_value), (yyvsp[-1].annotation_appl)), free((yyval.bit_value)));
+        TRY_EXCEPT(idl_annotate(pstate, (yyval.bit_value), (yyvsp[-1].annotation_appl)), idl_free((yyval.bit_value)));
       }
-#line 3173 "parser.c"
+#line 3350 "parser.c"
     break;
 
-  case 148: /* array_declarator: identifier fixed_array_sizes  */
-#line 886 "src/parser.y"
+  case 148:
+#line 887 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { TRY(idl_create_declarator(pstate, LOC((yylsp[-1]).first, (yylsp[0]).last), (yyvsp[-1].name), (yyvsp[0].const_expr), &(yyval.declarator))); }
-#line 3179 "parser.c"
+#line 3356 "parser.c"
     break;
 
-  case 149: /* fixed_array_sizes: fixed_array_size  */
-#line 891 "src/parser.y"
+  case 149:
+#line 892 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.const_expr) = (yyvsp[0].literal); }
-#line 3185 "parser.c"
+#line 3362 "parser.c"
     break;
 
-  case 150: /* fixed_array_sizes: fixed_array_sizes fixed_array_size  */
-#line 893 "src/parser.y"
+  case 150:
+#line 894 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.const_expr) = idl_push_node((yyvsp[-1].const_expr), (yyvsp[0].literal)); }
-#line 3191 "parser.c"
+#line 3368 "parser.c"
     break;
 
-  case 151: /* fixed_array_size: '[' positive_int_const ']'  */
-#line 898 "src/parser.y"
+  case 151:
+#line 899 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.literal) = (yyvsp[-1].literal); }
-#line 3197 "parser.c"
+#line 3374 "parser.c"
     break;
 
-  case 152: /* simple_declarator: identifier  */
-#line 903 "src/parser.y"
+  case 152:
+#line 904 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { TRY(idl_create_declarator(pstate, &(yylsp[0]), (yyvsp[0].name), NULL, &(yyval.declarator))); }
-#line 3203 "parser.c"
+#line 3380 "parser.c"
     break;
 
-  case 154: /* typedef_dcl: "typedef" type_spec declarators  */
-#line 910 "src/parser.y"
+  case 154:
+#line 911 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { TRY(idl_create_typedef(pstate, LOC((yylsp[-2]).first, (yylsp[0]).last), (yyvsp[-1].type_spec), (yyvsp[0].declarator), &(yyval.typedef_dcl))); }
-#line 3209 "parser.c"
+#line 3386 "parser.c"
     break;
 
-  case 155: /* typedef_dcl: "typedef" constr_type_dcl declarators  */
-#line 912 "src/parser.y"
+  case 155:
+#line 913 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       {
         idl_typedef_t *node;
         idl_type_spec_t *type_spec;
@@ -3223,23 +3400,23 @@ _Pragma("GCC diagnostic pop")
         idl_reference_node(type_spec);
         (yyval.typedef_dcl) = idl_push_node((yyvsp[-1].node), node);
       }
-#line 3227 "parser.c"
+#line 3404 "parser.c"
     break;
 
-  case 156: /* declarators: declarator  */
-#line 929 "src/parser.y"
+  case 156:
+#line 930 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.declarator) = (yyvsp[0].declarator); }
-#line 3233 "parser.c"
+#line 3410 "parser.c"
     break;
 
-  case 157: /* declarators: declarators ',' declarator  */
-#line 931 "src/parser.y"
+  case 157:
+#line 932 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.declarator) = idl_push_node((yyvsp[-2].declarator), (yyvsp[0].declarator)); }
-#line 3239 "parser.c"
+#line 3416 "parser.c"
     break;
 
-  case 160: /* identifier: IDL_TOKEN_IDENTIFIER  */
-#line 941 "src/parser.y"
+  case 160:
+#line 942 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.name) = NULL;
         size_t n;
         bool nocase = (pstate->config.flags & IDL_FLAG_CASE_SENSITIVE) == 0;
@@ -3253,149 +3430,149 @@ _Pragma("GCC diagnostic pop")
         if (pstate->parser.state != IDL_PARSE_UNKNOWN_ANNOTATION_APPL_PARAMS)
           TRY(idl_create_name(pstate, &(yylsp[0]), idl_strdup((yyvsp[0].str)+n), &(yyval.name)));
       }
-#line 3257 "parser.c"
+#line 3434 "parser.c"
     break;
 
-  case 161: /* annotation_dcl: annotation_header '{' annotation_body '}'  */
-#line 958 "src/parser.y"
+  case 161:
+#line 959 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.annotation) = NULL;
         /* discard annotation in case of redefinition */
         if (pstate->parser.state != IDL_PARSE_EXISTING_ANNOTATION_BODY)
           (yyval.annotation) = (yyvsp[-3].annotation);
         TRY(idl_finalize_annotation(pstate, LOC((yylsp[-3]).first, (yylsp[0]).last), (yyvsp[-3].annotation), (yyvsp[-1].annotation_member)));
       }
-#line 3268 "parser.c"
+#line 3445 "parser.c"
     break;
 
-  case 162: /* $@1: %empty  */
-#line 968 "src/parser.y"
+  case 162:
+#line 969 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { pstate->annotations = true; /* register annotation occurence */
         pstate->parser.state = IDL_PARSE_ANNOTATION;
       }
-#line 3276 "parser.c"
+#line 3453 "parser.c"
     break;
 
-  case 163: /* annotation_header: "@" "annotation" $@1 identifier  */
-#line 972 "src/parser.y"
+  case 163:
+#line 973 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { TRY(idl_create_annotation(pstate, LOC((yylsp[-3]).first, (yylsp[-2]).last), (yyvsp[0].name), &(yyval.annotation))); }
-#line 3282 "parser.c"
+#line 3459 "parser.c"
     break;
 
-  case 164: /* annotation_body: %empty  */
-#line 977 "src/parser.y"
+  case 164:
+#line 978 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.annotation_member) = NULL; }
-#line 3288 "parser.c"
+#line 3465 "parser.c"
     break;
 
-  case 165: /* annotation_body: annotation_body annotation_member ';'  */
-#line 979 "src/parser.y"
+  case 165:
+#line 980 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.annotation_member) = idl_push_node((yyvsp[-2].annotation_member), (yyvsp[-1].annotation_member)); }
-#line 3294 "parser.c"
+#line 3471 "parser.c"
     break;
 
-  case 166: /* annotation_body: annotation_body enum_dcl ';'  */
-#line 981 "src/parser.y"
+  case 166:
+#line 982 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.annotation_member) = idl_push_node((yyvsp[-2].annotation_member), (yyvsp[-1].node)); }
-#line 3300 "parser.c"
+#line 3477 "parser.c"
     break;
 
-  case 167: /* annotation_body: annotation_body bitmask_dcl ';'  */
-#line 983 "src/parser.y"
+  case 167:
+#line 984 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.annotation_member) = idl_push_node((yyvsp[-2].annotation_member), (yyvsp[-1].node)); }
-#line 3306 "parser.c"
+#line 3483 "parser.c"
     break;
 
-  case 168: /* annotation_body: annotation_body const_dcl ';'  */
-#line 985 "src/parser.y"
+  case 168:
+#line 986 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.annotation_member) = idl_push_node((yyvsp[-2].annotation_member), (yyvsp[-1].const_dcl)); }
-#line 3312 "parser.c"
+#line 3489 "parser.c"
     break;
 
-  case 169: /* annotation_body: annotation_body typedef_dcl ';'  */
-#line 987 "src/parser.y"
+  case 169:
+#line 988 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.annotation_member) = idl_push_node((yyvsp[-2].annotation_member), (yyvsp[-1].typedef_dcl)); }
-#line 3318 "parser.c"
+#line 3495 "parser.c"
     break;
 
-  case 170: /* annotation_member: annotation_member_type simple_declarator annotation_member_default  */
-#line 992 "src/parser.y"
+  case 170:
+#line 993 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { TRY(idl_create_annotation_member(pstate, LOC((yylsp[-2]).first, (yylsp[0]).last), (yyvsp[-2].type_spec), (yyvsp[-1].declarator), (yyvsp[0].const_expr), &(yyval.annotation_member))); }
-#line 3324 "parser.c"
+#line 3501 "parser.c"
     break;
 
-  case 171: /* annotation_member_type: const_type  */
-#line 997 "src/parser.y"
+  case 171:
+#line 998 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.type_spec) = (yyvsp[0].type_spec); }
-#line 3330 "parser.c"
+#line 3507 "parser.c"
     break;
 
-  case 172: /* annotation_member_type: any_const_type  */
-#line 999 "src/parser.y"
+  case 172:
+#line 1000 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.type_spec) = (yyvsp[0].type_spec); }
-#line 3336 "parser.c"
+#line 3513 "parser.c"
     break;
 
-  case 173: /* annotation_member_default: %empty  */
-#line 1004 "src/parser.y"
+  case 173:
+#line 1005 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.const_expr) = NULL; }
-#line 3342 "parser.c"
+#line 3519 "parser.c"
     break;
 
-  case 174: /* annotation_member_default: "default" const_expr  */
-#line 1006 "src/parser.y"
+  case 174:
+#line 1007 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.const_expr) = (yyvsp[0].const_expr); }
-#line 3348 "parser.c"
+#line 3525 "parser.c"
     break;
 
-  case 175: /* any_const_type: "any"  */
-#line 1011 "src/parser.y"
+  case 175:
+#line 1012 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { TRY(idl_create_base_type(pstate, &(yylsp[0]), IDL_ANY, &(yyval.type_spec))); }
-#line 3354 "parser.c"
+#line 3531 "parser.c"
     break;
 
-  case 176: /* annotations: annotation_appls  */
-#line 1016 "src/parser.y"
+  case 176:
+#line 1017 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.annotation_appl) = (yyvsp[0].annotation_appl); }
-#line 3360 "parser.c"
+#line 3537 "parser.c"
     break;
 
-  case 177: /* annotations: %empty  */
-#line 1018 "src/parser.y"
+  case 177:
+#line 1019 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.annotation_appl) = NULL; }
-#line 3366 "parser.c"
+#line 3543 "parser.c"
     break;
 
-  case 178: /* annotation_appls: annotation_appl  */
-#line 1023 "src/parser.y"
+  case 178:
+#line 1024 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.annotation_appl) = (yyvsp[0].annotation_appl); }
-#line 3372 "parser.c"
+#line 3549 "parser.c"
     break;
 
-  case 179: /* annotation_appls: annotation_appls annotation_appl  */
-#line 1025 "src/parser.y"
+  case 179:
+#line 1026 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.annotation_appl) = idl_push_node((yyvsp[-1].annotation_appl), (yyvsp[0].annotation_appl)); }
-#line 3378 "parser.c"
+#line 3555 "parser.c"
     break;
 
-  case 180: /* annotation_appl: annotation_appl_header annotation_appl_params  */
-#line 1030 "src/parser.y"
+  case 180:
+#line 1031 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { if (pstate->parser.state != IDL_PARSE_UNKNOWN_ANNOTATION_APPL_PARAMS)
           TRY(idl_finalize_annotation_appl(pstate, LOC((yylsp[-1]).first, (yylsp[0]).last), (yyvsp[-1].annotation_appl), (yyvsp[0].annotation_appl_param)));
         pstate->parser.state = IDL_PARSE;
         pstate->annotation_scope = NULL;
         (yyval.annotation_appl) = (yyvsp[-1].annotation_appl);
       }
-#line 3389 "parser.c"
+#line 3566 "parser.c"
     break;
 
-  case 181: /* $@2: %empty  */
-#line 1040 "src/parser.y"
+  case 181:
+#line 1041 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { pstate->parser.state = IDL_PARSE_ANNOTATION_APPL; }
-#line 3395 "parser.c"
+#line 3572 "parser.c"
     break;
 
-  case 182: /* annotation_appl_header: "@" $@2 annotation_appl_name  */
-#line 1042 "src/parser.y"
+  case 182:
+#line 1043 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { const idl_annotation_t *annotation;
         const idl_declaration_t *declaration =
           idl_find_scoped_name(pstate, NULL, (yyvsp[0].scoped_name), IDL_FIND_ANNOTATION);
@@ -3416,61 +3593,61 @@ _Pragma("GCC diagnostic pop")
 
         idl_delete_scoped_name((yyvsp[0].scoped_name));
       }
-#line 3420 "parser.c"
+#line 3597 "parser.c"
     break;
 
-  case 183: /* annotation_appl_name: identifier  */
-#line 1066 "src/parser.y"
+  case 183:
+#line 1067 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { TRY(idl_create_scoped_name(pstate, &(yylsp[0]), (yyvsp[0].name), false, &(yyval.scoped_name))); }
-#line 3426 "parser.c"
+#line 3603 "parser.c"
     break;
 
-  case 184: /* annotation_appl_name: IDL_TOKEN_SCOPE_NO_SPACE identifier  */
-#line 1068 "src/parser.y"
+  case 184:
+#line 1069 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { TRY(idl_create_scoped_name(pstate, LOC((yylsp[-1]).first, (yylsp[0]).last), (yyvsp[0].name), true, &(yyval.scoped_name))); }
-#line 3432 "parser.c"
+#line 3609 "parser.c"
     break;
 
-  case 185: /* annotation_appl_name: annotation_appl_name IDL_TOKEN_SCOPE_NO_SPACE identifier  */
-#line 1070 "src/parser.y"
+  case 185:
+#line 1071 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { TRY(idl_push_scoped_name(pstate, (yyvsp[-2].scoped_name), (yyvsp[0].name)));
         (yyval.scoped_name) = (yyvsp[-2].scoped_name);
       }
-#line 3440 "parser.c"
+#line 3617 "parser.c"
     break;
 
-  case 186: /* annotation_appl_params: %empty  */
-#line 1077 "src/parser.y"
+  case 186:
+#line 1078 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.annotation_appl_param) = NULL; }
-#line 3446 "parser.c"
+#line 3623 "parser.c"
     break;
 
-  case 187: /* annotation_appl_params: '(' const_expr ')'  */
-#line 1079 "src/parser.y"
+  case 187:
+#line 1080 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.annotation_appl_param) = (yyvsp[-1].const_expr); }
-#line 3452 "parser.c"
+#line 3629 "parser.c"
     break;
 
-  case 188: /* annotation_appl_params: '(' annotation_appl_keyword_params ')'  */
-#line 1081 "src/parser.y"
+  case 188:
+#line 1082 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.annotation_appl_param) = (yyvsp[-1].annotation_appl_param); }
-#line 3458 "parser.c"
+#line 3635 "parser.c"
     break;
 
-  case 189: /* annotation_appl_keyword_params: annotation_appl_keyword_param  */
-#line 1086 "src/parser.y"
+  case 189:
+#line 1087 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.annotation_appl_param) = (yyvsp[0].annotation_appl_param); }
-#line 3464 "parser.c"
+#line 3641 "parser.c"
     break;
 
-  case 190: /* annotation_appl_keyword_params: annotation_appl_keyword_params ',' annotation_appl_keyword_param  */
-#line 1088 "src/parser.y"
+  case 190:
+#line 1089 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.annotation_appl_param) = idl_push_node((yyvsp[-2].annotation_appl_param), (yyvsp[0].annotation_appl_param)); }
-#line 3470 "parser.c"
+#line 3647 "parser.c"
     break;
 
-  case 191: /* @3: %empty  */
-#line 1093 "src/parser.y"
+  case 191:
+#line 1094 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { idl_annotation_member_t *node = NULL;
         if (pstate->parser.state != IDL_PARSE_UNKNOWN_ANNOTATION_APPL_PARAMS) {
           const idl_declaration_t *declaration = NULL;
@@ -3486,21 +3663,21 @@ _Pragma("GCC diagnostic pop")
         (yyval.annotation_member) = node;
         idl_delete_name((yyvsp[0].name));
       }
-#line 3490 "parser.c"
+#line 3667 "parser.c"
     break;
 
-  case 192: /* annotation_appl_keyword_param: identifier @3 '=' const_expr  */
-#line 1109 "src/parser.y"
+  case 192:
+#line 1110 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
       { (yyval.annotation_appl_param) = NULL;
         if (pstate->parser.state != IDL_PARSE_UNKNOWN_ANNOTATION_APPL_PARAMS) {
           TRY(idl_create_annotation_appl_param(pstate, &(yylsp[-3]), (yyvsp[-2].annotation_member), (yyvsp[0].const_expr), &(yyval.annotation_appl_param)));
         }
       }
-#line 3500 "parser.c"
+#line 3677 "parser.c"
     break;
 
 
-#line 3504 "parser.c"
+#line 3681 "parser.c"
 
       default: break;
     }
@@ -3515,10 +3692,11 @@ _Pragma("GCC diagnostic pop")
      case of YYERROR or YYBACKUP, subsequent parser actions might lead
      to an incorrect destructor call or verbose syntax error message
      before the lookahead is translated.  */
-  YY_SYMBOL_PRINT ("-> $$ =", YY_CAST (yysymbol_kind_t, yyr1[yyn]), &yyval, &yyloc);
+  YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
 
   YYPOPSTACK (yylen);
   yylen = 0;
+  YY_STACK_PRINT (yyss, yyssp);
 
   *++yyvsp = yyval;
   *++yylsp = yyloc;
@@ -3543,31 +3721,66 @@ _Pragma("GCC diagnostic pop")
 yyerrlab:
   /* Make sure we have latest lookahead translation.  See comments at
      user semantic actions for why this is necessary.  */
-  yytoken = yychar == IDL_YYEMPTY ? YYSYMBOL_YYEMPTY : YYTRANSLATE (yychar);
+  yytoken = yychar == YYEMPTY ? YYEMPTY : YYTRANSLATE (yychar);
+
   /* If not already recovering from an error, report this error.  */
   if (!yyerrstatus)
     {
       ++yynerrs;
+#if ! YYERROR_VERBOSE
       yyerror (&yylloc, pstate, result, YY_("syntax error"));
+#else
+# define YYSYNTAX_ERROR yysyntax_error (&yymsg_alloc, &yymsg, \
+                                        yyssp, yytoken)
+      {
+        char const *yymsgp = YY_("syntax error");
+        int yysyntax_error_status;
+        yysyntax_error_status = YYSYNTAX_ERROR;
+        if (yysyntax_error_status == 0)
+          yymsgp = yymsg;
+        else if (yysyntax_error_status == 1)
+          {
+            if (yymsg != yymsgbuf)
+              YYSTACK_FREE (yymsg);
+            yymsg = YY_CAST (char *, YYSTACK_ALLOC (YY_CAST (YYSIZE_T, yymsg_alloc)));
+            if (!yymsg)
+              {
+                yymsg = yymsgbuf;
+                yymsg_alloc = sizeof yymsgbuf;
+                yysyntax_error_status = 2;
+              }
+            else
+              {
+                yysyntax_error_status = YYSYNTAX_ERROR;
+                yymsgp = yymsg;
+              }
+          }
+        yyerror (&yylloc, pstate, result, yymsgp);
+        if (yysyntax_error_status == 2)
+          goto yyexhaustedlab;
+      }
+# undef YYSYNTAX_ERROR
+#endif
     }
 
   yyerror_range[1] = yylloc;
+
   if (yyerrstatus == 3)
     {
       /* If just tried and failed to reuse lookahead token after an
          error, discard it.  */
 
-      if (yychar <= IDL_YYEOF)
+      if (yychar <= YYEOF)
         {
           /* Return failure if at end of input.  */
-          if (yychar == IDL_YYEOF)
+          if (yychar == YYEOF)
             YYABORT;
         }
       else
         {
           yydestruct ("Error: discarding",
                       yytoken, &yylval, &yylloc, pstate, result);
-          yychar = IDL_YYEMPTY;
+          yychar = YYEMPTY;
         }
     }
 
@@ -3584,7 +3797,6 @@ yyerrorlab:
      label yyerrorlab therefore never appears in user code.  */
   if (0)
     YYERROR;
-  ++yynerrs;
 
   /* Do not reclaim the symbols of the rule whose action triggered
      this YYERROR.  */
@@ -3601,14 +3813,13 @@ yyerrorlab:
 yyerrlab1:
   yyerrstatus = 3;      /* Each real token shifted decrements this.  */
 
-  /* Pop stack until we find a state that shifts the error token.  */
   for (;;)
     {
       yyn = yypact[yystate];
       if (!yypact_value_is_default (yyn))
         {
-          yyn += YYSYMBOL_YYerror;
-          if (0 <= yyn && yyn <= YYLAST && yycheck[yyn] == YYSYMBOL_YYerror)
+          yyn += YYTERROR;
+          if (0 <= yyn && yyn <= YYLAST && yycheck[yyn] == YYTERROR)
             {
               yyn = yytable[yyn];
               if (0 < yyn)
@@ -3622,7 +3833,7 @@ yyerrlab1:
 
       yyerror_range[1] = *yylsp;
       yydestruct ("Error: popping",
-                  YY_ACCESSING_SYMBOL (yystate), yyvsp, yylsp, pstate, result);
+                  yystos[yystate], yyvsp, yylsp, pstate, result);
       YYPOPSTACK (1);
       yystate = *yyssp;
       YY_STACK_PRINT (yyss, yyssp);
@@ -3633,11 +3844,13 @@ yyerrlab1:
   YY_IGNORE_MAYBE_UNINITIALIZED_END
 
   yyerror_range[2] = yylloc;
-  ++yylsp;
-  YYLLOC_DEFAULT (*yylsp, yyerror_range, 2);
+  /* Using YYLLOC is tempting, but would change the location of
+     the lookahead.  YYLOC is available though.  */
+  YYLLOC_DEFAULT (yyloc, yyerror_range, 2);
+  *++yylsp = yyloc;
 
   /* Shift the error token.  */
-  YY_SYMBOL_PRINT ("Shifting", YY_ACCESSING_SYMBOL (yyn), yyvsp, yylsp);
+  YY_SYMBOL_PRINT ("Shifting", yystos[yyn], yyvsp, yylsp);
 
   yystate = yyn;
   goto yynewstate;
@@ -3648,7 +3861,7 @@ yyerrlab1:
 `-------------------------------------*/
 yyacceptlab:
   yyresult = 0;
-  goto yyreturnlab;
+  goto yyreturn;
 
 
 /*-----------------------------------.
@@ -3656,23 +3869,25 @@ yyacceptlab:
 `-----------------------------------*/
 yyabortlab:
   yyresult = 1;
-  goto yyreturnlab;
+  goto yyreturn;
 
 
-/*-----------------------------------------------------------.
-| yyexhaustedlab -- YYNOMEM (memory exhaustion) comes here.  |
-`-----------------------------------------------------------*/
+#if !defined yyoverflow || YYERROR_VERBOSE
+/*-------------------------------------------------.
+| yyexhaustedlab -- memory exhaustion comes here.  |
+`-------------------------------------------------*/
 yyexhaustedlab:
   yyerror (&yylloc, pstate, result, YY_("memory exhausted"));
   yyresult = 2;
-  goto yyreturnlab;
+  /* Fall through.  */
+#endif
 
 
-/*----------------------------------------------------------.
-| yyreturnlab -- parsing is finished, clean up and return.  |
-`----------------------------------------------------------*/
-yyreturnlab:
-  if (yychar != IDL_YYEMPTY)
+/*-----------------------------------------------------.
+| yyreturn -- parsing is finished, return the result.  |
+`-----------------------------------------------------*/
+yyreturn:
+  if (yychar != YYEMPTY)
     {
       /* Make sure we have latest lookahead translation.  See comments at
          user semantic actions for why this is necessary.  */
@@ -3687,34 +3902,27 @@ yyreturnlab:
   while (yyssp != yyss)
     {
       yydestruct ("Cleanup: popping",
-                  YY_ACCESSING_SYMBOL (+*yyssp), yyvsp, yylsp, pstate, result);
+                  yystos[+*yyssp], yyvsp, yylsp, pstate, result);
       YYPOPSTACK (1);
     }
-  yyps->yynew = 2;
-  goto yypushreturn;
+#ifndef yyoverflow
+  if (yyss != yyssa)
+    YYSTACK_FREE (yyss);
+#endif
+  yyps->yynew = 1;
 
 
-/*-------------------------.
-| yypushreturn -- return.  |
-`-------------------------*/
+/*-----------------------------------------.
+| yypushreturn -- ask for the next token.  |
+`-----------------------------------------*/
 yypushreturn:
-
+#if YYERROR_VERBOSE
+  if (yymsg != yymsgbuf)
+    YYSTACK_FREE (yymsg);
+#endif
   return yyresult;
 }
-#undef idl_yynerrs
-#undef yystate
-#undef yyerrstatus
-#undef yyssa
-#undef yyss
-#undef yyssp
-#undef yyvsa
-#undef yyvs
-#undef yyvsp
-#undef yylsa
-#undef yyls
-#undef yylsp
-#undef yystacksize
-#line 1116 "src/parser.y"
+#line 1117 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
 
 
 #if defined(__GNUC__)
@@ -3804,4 +4012,4 @@ yyerror(idl_location_t *loc, idl_pstate_t *pstate, idl_retcode_t *result, const 
   idl_error(pstate, loc, "%s", str);
   *result = IDL_RETCODE_SYNTAX_ERROR;
 }
-/* generated from parser.y[f06932bc906d64ee91e7e775cb0ec38f2b4438ac] */
+/* generated from parser.y[4ec8b7f09345f68a044cd8623cc4962fdbb2c5d2] */

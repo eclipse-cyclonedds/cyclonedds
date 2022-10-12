@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2021 ZettaScale Technology and others
+ * Copyright(c) 2021 to 2022 ZettaScale Technology and others
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -58,7 +58,5 @@ IDL_EXPORT unsigned long long idl_strtoull(const char *str, char **endptr, int b
 IDL_EXPORT long double idl_strtold(const char *str, char **endptr);
 
 IDL_EXPORT char *idl_strtok_r(char *str, const char *delim, char **saveptr);
-
-IDL_EXPORT void idl_free(void *pt);
 
 #endif /* IDL_STRING_H */

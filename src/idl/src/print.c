@@ -9,6 +9,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
+#include "idl/stdlib.h"
 #include "idl/print.h"
 
 #if defined(_MSC_VER)
@@ -94,11 +95,11 @@ int idl_print__(
 
   if ((len = print(buf, sizeof(buf), object, user_data)) < 0)
     return len;
-  if (!(str = malloc((size_t)len + 1)))
+  if (!(str = idl_malloc((size_t)len + 1)))
     return -1;
   if ((cnt = print(str, (size_t)len + 1, object, user_data)) >= 0)
     *strp = str;
   else
-    free(str);
+    idl_free(str);
   return cnt;
 }

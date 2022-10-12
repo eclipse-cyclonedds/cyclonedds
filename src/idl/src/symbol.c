@@ -14,6 +14,7 @@
 #include <string.h>
 
 #include "idl/processor.h"
+#include "idl/stdlib.h"
 #include "symbol.h"
 
 const idl_location_t *idl_location(const void *symbol)
@@ -25,8 +26,8 @@ void idl_delete_name(idl_name_t *name)
 {
   if (name) {
     if (name->identifier)
-      free(name->identifier);
-    free(name);
+      idl_free(name->identifier);
+    idl_free(name);
   }
 }
 
@@ -40,7 +41,7 @@ idl_create_name(
   idl_name_t *name;
 
   (void)pstate;
-  if (!(name = malloc(sizeof(*name))))
+  if (!(name = idl_malloc(sizeof(*name))))
     return IDL_RETCODE_NO_MEMORY;
   name->symbol.location = *location;
   name->identifier = identifier;
@@ -51,11 +52,11 @@ idl_create_name(
 void idl_delete_scoped_name(idl_scoped_name_t *scoped_name)
 {
   if (scoped_name) {
-    free(scoped_name->identifier);
+    idl_free(scoped_name->identifier);
     for (size_t i=0; i < scoped_name->length; i++)
       idl_delete_name(scoped_name->names[i]);
-    free(scoped_name->names);
-    free(scoped_name);
+    idl_free(scoped_name->names);
+    idl_free(scoped_name);
   }
 }
 
@@ -77,13 +78,13 @@ idl_create_scoped_name(
 
   (void)pstate;
   assert(name->identifier);
-  if (!(scoped_name = calloc(1, sizeof(*scoped_name))))
+  if (!(scoped_name = idl_calloc(1, sizeof(*scoped_name))))
     goto err_alloc;
-  if (!(scoped_name->names = calloc(1, sizeof(idl_name_t *))))
+  if (!(scoped_name->names = idl_calloc(1, sizeof(idl_name_t *))))
     goto err_alloc;
   off = strlen(root);
   len = strlen(name->identifier);
-  if (!(str = malloc(off + len + 1)))
+  if (!(str = idl_malloc(off + len + 1)))
     goto err_alloc;
   memcpy(str, root, off);
   memcpy(str+off, name->identifier, len);
@@ -98,9 +99,9 @@ idl_create_scoped_name(
   return IDL_RETCODE_OK;
 err_alloc:
   if (scoped_name && scoped_name->names)
-    free(scoped_name->names);
+    idl_free(scoped_name->names);
   if (scoped_name)
-    free(scoped_name);
+    idl_free(scoped_name);
   return IDL_RETCODE_NO_MEMORY;
 }
 
@@ -123,7 +124,7 @@ idl_push_scoped_name(
 
   len = strlen(name->identifier);
   off = strlen(scoped_name->identifier);
-  if (!(str = malloc(off + strlen(sep) + len + 1)))
+  if (!(str = idl_malloc(off + strlen(sep) + len + 1)))
     goto err_alloc;
   memcpy(str, scoped_name->identifier, off);
   memcpy(str+off, sep, strlen(sep));
@@ -131,16 +132,16 @@ idl_push_scoped_name(
   memcpy(str+off, name->identifier, len);
   str[off + len] = '\0';
   size = (scoped_name->length + 1) * sizeof(idl_name_t*);
-  if (!(names = realloc(scoped_name->names, size)))
+  if (!(names = idl_realloc(scoped_name->names, size)))
     goto err_alloc;
   scoped_name->symbol.location.last = name->symbol.location.last;
   scoped_name->names = names;
   scoped_name->names[scoped_name->length++] = name;
-  free(scoped_name->identifier);
+  idl_free(scoped_name->identifier);
   scoped_name->identifier = str;
   return IDL_RETCODE_OK;
 err_alloc:
-  if (str) free(str);
+  if (str) idl_free(str);
   return IDL_RETCODE_NO_MEMORY;
 }
 
@@ -148,11 +149,11 @@ void idl_delete_field_name(idl_field_name_t *field_name)
 {
   if (field_name) {
     if (field_name->identifier)
-      free(field_name->identifier);
+      idl_free(field_name->identifier);
     for (size_t i=0; i < field_name->length; i++)
       idl_delete_name(field_name->names[i]);
-    free(field_name->names);
-    free(field_name);
+    idl_free(field_name->names);
+    idl_free(field_name);
   }
 }
 
@@ -170,12 +171,12 @@ idl_create_field_name(
   (void)pstate;
   assert(name);
   assert(name->identifier);
-  if (!(field_name = calloc(1, sizeof(*field_name))))
+  if (!(field_name = idl_calloc(1, sizeof(*field_name))))
     goto err_alloc;
-  if (!(field_name->names = calloc(1, sizeof(idl_name_t*))))
+  if (!(field_name->names = idl_calloc(1, sizeof(idl_name_t*))))
     goto err_alloc;
   len = strlen(name->identifier);
-  if (!(str = malloc(len + 1)))
+  if (!(str = idl_malloc(len + 1)))
     goto err_alloc;
   memcpy(str, name->identifier, len);
   str[len] = '\0';
@@ -188,9 +189,9 @@ idl_create_field_name(
   return IDL_RETCODE_OK;
 err_alloc:
   if (field_name && field_name->names)
-    free(field_name->names);
+    idl_free(field_name->names);
   if (field_name)
-    free(field_name);
+    idl_free(field_name);
   return IDL_RETCODE_NO_MEMORY;
 }
 
@@ -213,7 +214,7 @@ idl_push_field_name(
 
   off = strlen(field_name->identifier);
   len = strlen(name->identifier);
-  if (!(str = malloc(off + strlen(sep) + len + 1)))
+  if (!(str = idl_malloc(off + strlen(sep) + len + 1)))
     goto err_alloc;
   memcpy(str, field_name->identifier, off);
   memcpy(str+off, sep, strlen(sep));
@@ -221,15 +222,15 @@ idl_push_field_name(
   memcpy(str+off, name->identifier, len);
   str[off + len] = '\0';
   size = (field_name->length + 1) * sizeof(idl_name_t*);
-  if (!(names = realloc(field_name->names, size)))
+  if (!(names = idl_realloc(field_name->names, size)))
     goto err_alloc;
   field_name->symbol.location.last = name->symbol.location.last;
   field_name->names = names;
   field_name->names[field_name->length++] = name;
-  free(field_name->identifier);
+  idl_free(field_name->identifier);
   field_name->identifier = str;
   return IDL_RETCODE_OK;
 err_alloc:
-  if (str) free(str);
+  if (str) idl_free(str);
   return IDL_RETCODE_NO_MEMORY;
 }
