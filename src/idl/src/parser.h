@@ -52,7 +52,7 @@
 extern int idl_yydebug;
 #endif
 /* "%code requires" blocks.  */
-#line 86 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 86 "src/parser.y"
 
 #include "tree.h"
 
@@ -131,7 +131,7 @@ typedef struct idl_location IDL_YYLTYPE;
 #if ! defined IDL_YYSTYPE && ! defined IDL_YYSTYPE_IS_DECLARED
 union IDL_YYSTYPE
 {
-#line 104 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 104 "src/parser.y"
 
   void *node;
   /* expressions */
@@ -212,7 +212,7 @@ int idl_yypush_parse (idl_yypstate *ps, int pushed_char, IDL_YYSTYPE const *push
 idl_yypstate * idl_yypstate_new (void);
 void idl_yypstate_delete (idl_yypstate *ps);
 /* "%code provides" blocks.  */
-#line 99 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 99 "src/parser.y"
 
 int idl_iskeyword(idl_pstate_t *pstate, const char *str, int nc);
 void idl_yypstate_delete_stack(idl_yypstate *yyps);
@@ -220,4 +220,12 @@ void idl_yypstate_delete_stack(idl_yypstate *yyps);
 #line 221 "parser.h"
 
 #endif /* !YY_IDL_YY_PARSER_H_INCLUDED  */
-/* generated from parser.y[4ec8b7f09345f68a044cd8623cc4962fdbb2c5d2] */
+/* generated from parser.y[8e05cc2c9b914f6a8e34b59ed29b049718b5a42c] */
+/* generated from parser.y[8e05cc2c9b914f6a8e34b59ed29b049718b5a42c] */
+/* generated from parser.y[8e05cc2c9b914f6a8e34b59ed29b049718b5a42c] */
+/* generated from parser.y[8e05cc2c9b914f6a8e34b59ed29b049718b5a42c] */
+/* generated from parser.y[8e05cc2c9b914f6a8e34b59ed29b049718b5a42c] */
+/* generated from parser.y[8e05cc2c9b914f6a8e34b59ed29b049718b5a42c] */
+/* generated from parser.y[8e05cc2c9b914f6a8e34b59ed29b049718b5a42c] */
+/* generated from parser.y[8e05cc2c9b914f6a8e34b59ed29b049718b5a42c] */
+/* generated from parser.y[8e05cc2c9b914f6a8e34b59ed29b049718b5a42c] */

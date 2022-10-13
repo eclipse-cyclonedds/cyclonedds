@@ -18,7 +18,7 @@
 #include <stdbool.h>
 #include <inttypes.h>
 
-#include "idl/stdlib.h"
+#include "idl/heap.h"
 #include "idl/processor.h"
 #include "idl/string.h"
 #include "annotation.h"

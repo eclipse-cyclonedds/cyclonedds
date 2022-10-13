@@ -25,7 +25,7 @@
 #endif
 
 #include "file.h"
-#include "idl/stdlib.h"
+#include "idl/heap.h"
 #include "idl/string.h"
 
 unsigned int idl_isseparator(int chr)

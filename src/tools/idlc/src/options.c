@@ -15,7 +15,7 @@
 #include <string.h>
 #include <getopt.h>
 
-#include "idl/stdlib.h"
+#include "idl/heap.h"
 #include "idl/string.h"
 
 #include "config.h"

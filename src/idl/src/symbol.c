@@ -14,7 +14,7 @@
 #include <string.h>
 
 #include "idl/processor.h"
-#include "idl/stdlib.h"
+#include "idl/heap.h"
 #include "symbol.h"
 
 const idl_location_t *idl_location(const void *symbol)

@@ -18,7 +18,7 @@
 #include <inttypes.h>
 
 #include "dds/features.h"
-#include "idl/stdlib.h"
+#include "idl/heap.h"
 #include "idl/misc.h"
 #include "idl/print.h"
 #include "idl/processor.h"

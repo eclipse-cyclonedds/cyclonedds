@@ -54,7 +54,7 @@ typedef _locale_t locale_t;
 #endif
 
 #include "idl/stream.h"
-#include "idl/stdlib.h"
+#include "idl/heap.h"
 #include "idl/string.h"
 
 static locale_t posix_locale(void);
@@ -388,7 +388,7 @@ void WINAPI idl_cdtor(PVOID handle, DWORD reason, PVOID reserved)
         return;
       _free_locale(loc);
 err_locale:
-      Tlsidl_free(locale);
+      TlsFree(locale);
 err_alloc:
       abort();
       /* never reached */
@@ -413,7 +413,7 @@ err_alloc:
       if (loc)
         _free_locale(loc);
       TlsSetValue(locale, NULL);
-      Tlsidl_free(locale);
+      TlsFree(locale);
       locale = TLS_OUT_OF_INDEXES;
       break;
     default:

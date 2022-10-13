@@ -21,7 +21,7 @@
 #include <string.h>
 
 #include "dds/features.h"
-#include "idl/stdlib.h"
+#include "idl/heap.h"
 #include "idl/tree.h"
 #include "idl/string.h"
 #include "idl/processor.h"

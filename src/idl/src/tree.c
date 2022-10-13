@@ -15,7 +15,7 @@
 #include <string.h>
 #include <math.h>
 
-#include "idl/stdlib.h"
+#include "idl/heap.h"
 #include "idl/string.h"
 
 #include "expression.h"

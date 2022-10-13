@@ -19,7 +19,7 @@
 #include "generator.h"
 
 #include "idl/file.h"
-#include "idl/stdlib.h"
+#include "idl/heap.h"
 #include "idl/retcode.h"
 #include "idl/stream.h"
 #include "idl/string.h"

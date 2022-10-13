@@ -76,7 +76,7 @@
 #define yynerrs         idl_yynerrs
 
 /* First part of user prologue.  */
-#line 12 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 12 "src/parser.y"
 
 #include <assert.h>
 #include <math.h>
@@ -87,7 +87,7 @@
 
 #include "idl/string.h"
 #include "idl/processor.h"
-#include "idl/stdlib.h"
+#include "idl/heap.h"
 #include "annotation.h"
 #include "expression.h"
 #include "scope.h"
@@ -201,7 +201,7 @@ static void yyerror(idl_location_t *, idl_pstate_t *, idl_retcode_t *, const cha
 extern int idl_yydebug;
 #endif
 /* "%code requires" blocks.  */
-#line 86 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 86 "src/parser.y"
 
 #include "tree.h"
 
@@ -280,7 +280,7 @@ typedef struct idl_location IDL_YYLTYPE;
 #if ! defined IDL_YYSTYPE && ! defined IDL_YYSTYPE_IS_DECLARED
 union IDL_YYSTYPE
 {
-#line 104 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 104 "src/parser.y"
 
   void *node;
   /* expressions */
@@ -361,7 +361,7 @@ int idl_yypush_parse (idl_yypstate *ps, int pushed_char, IDL_YYSTYPE const *push
 idl_yypstate * idl_yypstate_new (void);
 void idl_yypstate_delete (idl_yypstate *ps);
 /* "%code provides" blocks.  */
-#line 99 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 99 "src/parser.y"
 
 int idl_iskeyword(idl_pstate_t *pstate, const char *str, int nc);
 void idl_yypstate_delete_stack(idl_yypstate *yyps);
@@ -1595,463 +1595,463 @@ yydestruct (const char *yymsg, int yytype, YYSTYPE *yyvaluep, YYLTYPE *yylocatio
   switch (yytype)
     {
     case 78: /* definitions  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep).node)); }
 #line 1601 "parser.c"
         break;
 
     case 79: /* definition  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep).node)); }
 #line 1607 "parser.c"
         break;
 
     case 80: /* module_dcl  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep).module_dcl)); }
 #line 1613 "parser.c"
         break;
 
     case 81: /* module_header  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep).module_dcl)); }
 #line 1619 "parser.c"
         break;
 
     case 82: /* scoped_name  */
-#line 209 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 209 "src/parser.y"
             { idl_delete_scoped_name(((*yyvaluep).scoped_name)); }
 #line 1625 "parser.c"
         break;
 
     case 83: /* const_dcl  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep).const_dcl)); }
 #line 1631 "parser.c"
         break;
 
     case 84: /* const_type  */
-#line 212 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 212 "src/parser.y"
             { idl_unreference_node(((*yyvaluep).type_spec)); }
 #line 1637 "parser.c"
         break;
 
     case 85: /* const_expr  */
-#line 212 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 212 "src/parser.y"
             { idl_unreference_node(((*yyvaluep).const_expr)); }
 #line 1643 "parser.c"
         break;
 
     case 86: /* or_expr  */
-#line 212 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 212 "src/parser.y"
             { idl_unreference_node(((*yyvaluep).const_expr)); }
 #line 1649 "parser.c"
         break;
 
     case 87: /* xor_expr  */
-#line 212 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 212 "src/parser.y"
             { idl_unreference_node(((*yyvaluep).const_expr)); }
 #line 1655 "parser.c"
         break;
 
     case 88: /* and_expr  */
-#line 212 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 212 "src/parser.y"
             { idl_unreference_node(((*yyvaluep).const_expr)); }
 #line 1661 "parser.c"
         break;
 
     case 89: /* shift_expr  */
-#line 212 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 212 "src/parser.y"
             { idl_unreference_node(((*yyvaluep).const_expr)); }
 #line 1667 "parser.c"
         break;
 
     case 91: /* add_expr  */
-#line 212 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 212 "src/parser.y"
             { idl_unreference_node(((*yyvaluep).const_expr)); }
 #line 1673 "parser.c"
         break;
 
     case 93: /* mult_expr  */
-#line 212 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 212 "src/parser.y"
             { idl_unreference_node(((*yyvaluep).const_expr)); }
 #line 1679 "parser.c"
         break;
 
     case 95: /* unary_expr  */
-#line 212 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 212 "src/parser.y"
             { idl_unreference_node(((*yyvaluep).const_expr)); }
 #line 1685 "parser.c"
         break;
 
     case 97: /* primary_expr  */
-#line 212 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 212 "src/parser.y"
             { idl_unreference_node(((*yyvaluep).const_expr)); }
 #line 1691 "parser.c"
         break;
 
     case 98: /* literal  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep).literal)); }
 #line 1697 "parser.c"
         break;
 
     case 100: /* string_literal  */
-#line 204 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 204 "src/parser.y"
             { idl_free(((*yyvaluep).string_literal)); }
 #line 1703 "parser.c"
         break;
 
     case 101: /* positive_int_const  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep).literal)); }
 #line 1709 "parser.c"
         break;
 
     case 102: /* type_dcl  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep).node)); }
 #line 1715 "parser.c"
         break;
 
     case 103: /* type_spec  */
-#line 212 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 212 "src/parser.y"
             { idl_unreference_node(((*yyvaluep).type_spec)); }
 #line 1721 "parser.c"
         break;
 
     case 104: /* simple_type_spec  */
-#line 212 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 212 "src/parser.y"
             { idl_unreference_node(((*yyvaluep).type_spec)); }
 #line 1727 "parser.c"
         break;
 
     case 114: /* template_type_spec  */
-#line 212 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 212 "src/parser.y"
             { idl_unreference_node(((*yyvaluep).type_spec)); }
 #line 1733 "parser.c"
         break;
 
     case 115: /* sequence_type  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep).sequence)); }
 #line 1739 "parser.c"
         break;
 
     case 116: /* string_type  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep).string)); }
 #line 1745 "parser.c"
         break;
 
     case 117: /* constr_type_dcl  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep).node)); }
 #line 1751 "parser.c"
         break;
 
     case 118: /* struct_dcl  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep).node)); }
 #line 1757 "parser.c"
         break;
 
     case 119: /* struct_forward_dcl  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep).forward)); }
 #line 1763 "parser.c"
         break;
 
     case 120: /* struct_def  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep).struct_dcl)); }
 #line 1769 "parser.c"
         break;
 
     case 121: /* struct_header  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep).struct_dcl)); }
 #line 1775 "parser.c"
         break;
 
     case 122: /* struct_inherit_spec  */
-#line 212 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 212 "src/parser.y"
             { idl_unreference_node(((*yyvaluep).type_spec)); }
 #line 1781 "parser.c"
         break;
 
     case 123: /* struct_body  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep).member)); }
 #line 1787 "parser.c"
         break;
 
     case 124: /* members  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep).member)); }
 #line 1793 "parser.c"
         break;
 
     case 125: /* member  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep).member)); }
 #line 1799 "parser.c"
         break;
 
     case 126: /* union_dcl  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep).node)); }
 #line 1805 "parser.c"
         break;
 
     case 127: /* union_def  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep).union_dcl)); }
 #line 1811 "parser.c"
         break;
 
     case 128: /* union_forward_dcl  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep).forward)); }
 #line 1817 "parser.c"
         break;
 
     case 129: /* union_header  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep).union_dcl)); }
 #line 1823 "parser.c"
         break;
 
     case 130: /* switch_header  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep).switch_type_spec)); }
 #line 1829 "parser.c"
         break;
 
     case 131: /* switch_type_spec  */
-#line 212 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 212 "src/parser.y"
             { idl_unreference_node(((*yyvaluep).type_spec)); }
 #line 1835 "parser.c"
         break;
 
     case 132: /* switch_body  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep)._case)); }
 #line 1841 "parser.c"
         break;
 
     case 133: /* case  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep)._case)); }
 #line 1847 "parser.c"
         break;
 
     case 134: /* case_labels  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep).case_label)); }
 #line 1853 "parser.c"
         break;
 
     case 135: /* case_label  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep).case_label)); }
 #line 1859 "parser.c"
         break;
 
     case 136: /* element_spec  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep)._case)); }
 #line 1865 "parser.c"
         break;
 
     case 137: /* enum_dcl  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep).node)); }
 #line 1871 "parser.c"
         break;
 
     case 138: /* enum_def  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep).enum_dcl)); }
 #line 1877 "parser.c"
         break;
 
     case 139: /* enumerators  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep).enumerator)); }
 #line 1883 "parser.c"
         break;
 
     case 140: /* enumerator  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep).enumerator)); }
 #line 1889 "parser.c"
         break;
 
     case 141: /* bitmask_dcl  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep).node)); }
 #line 1895 "parser.c"
         break;
 
     case 142: /* bitmask_def  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep).bitmask_dcl)); }
 #line 1901 "parser.c"
         break;
 
     case 143: /* bit_values  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep).bit_value)); }
 #line 1907 "parser.c"
         break;
 
     case 144: /* bit_value  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep).bit_value)); }
 #line 1913 "parser.c"
         break;
 
     case 145: /* array_declarator  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep).declarator)); }
 #line 1919 "parser.c"
         break;
 
     case 146: /* fixed_array_sizes  */
-#line 212 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 212 "src/parser.y"
             { idl_unreference_node(((*yyvaluep).const_expr)); }
 #line 1925 "parser.c"
         break;
 
     case 147: /* fixed_array_size  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep).literal)); }
 #line 1931 "parser.c"
         break;
 
     case 148: /* simple_declarator  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep).declarator)); }
 #line 1937 "parser.c"
         break;
 
     case 149: /* complex_declarator  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep).declarator)); }
 #line 1943 "parser.c"
         break;
 
     case 150: /* typedef_dcl  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep).typedef_dcl)); }
 #line 1949 "parser.c"
         break;
 
     case 151: /* declarators  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep).declarator)); }
 #line 1955 "parser.c"
         break;
 
     case 152: /* declarator  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep).declarator)); }
 #line 1961 "parser.c"
         break;
 
     case 153: /* identifier  */
-#line 206 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 206 "src/parser.y"
             { idl_delete_name(((*yyvaluep).name)); }
 #line 1967 "parser.c"
         break;
 
     case 154: /* annotation_dcl  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep).annotation)); }
 #line 1973 "parser.c"
         break;
 
     case 155: /* annotation_header  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep).annotation)); }
 #line 1979 "parser.c"
         break;
 
     case 157: /* annotation_body  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep).annotation_member)); }
 #line 1985 "parser.c"
         break;
 
     case 158: /* annotation_member  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep).annotation_member)); }
 #line 1991 "parser.c"
         break;
 
     case 159: /* annotation_member_type  */
-#line 212 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 212 "src/parser.y"
             { idl_unreference_node(((*yyvaluep).type_spec)); }
 #line 1997 "parser.c"
         break;
 
     case 160: /* annotation_member_default  */
-#line 212 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 212 "src/parser.y"
             { idl_unreference_node(((*yyvaluep).const_expr)); }
 #line 2003 "parser.c"
         break;
 
     case 161: /* any_const_type  */
-#line 212 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 212 "src/parser.y"
             { idl_unreference_node(((*yyvaluep).type_spec)); }
 #line 2009 "parser.c"
         break;
 
     case 162: /* annotations  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep).annotation_appl)); }
 #line 2015 "parser.c"
         break;
 
     case 163: /* annotation_appls  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep).annotation_appl)); }
 #line 2021 "parser.c"
         break;
 
     case 164: /* annotation_appl  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep).annotation_appl)); }
 #line 2027 "parser.c"
         break;
 
     case 165: /* annotation_appl_header  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep).annotation_appl)); }
 #line 2033 "parser.c"
         break;
 
     case 167: /* annotation_appl_name  */
-#line 209 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 209 "src/parser.y"
             { idl_delete_scoped_name(((*yyvaluep).scoped_name)); }
 #line 2039 "parser.c"
         break;
 
     case 168: /* annotation_appl_params  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep).annotation_appl_param)); }
 #line 2045 "parser.c"
         break;
 
     case 169: /* annotation_appl_keyword_params  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep).annotation_appl_param)); }
 #line 2051 "parser.c"
         break;
 
     case 170: /* annotation_appl_keyword_param  */
-#line 215 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 215 "src/parser.y"
             { idl_delete_node(((*yyvaluep).annotation_appl_param)); }
 #line 2057 "parser.c"
         break;
@@ -2419,37 +2419,37 @@ yyreduce:
   switch (yyn)
     {
   case 2:
-#line 288 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 288 "src/parser.y"
       { pstate->root = NULL; }
 #line 2425 "parser.c"
     break;
 
   case 3:
-#line 290 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 290 "src/parser.y"
       { pstate->root = (yyvsp[0].node); }
 #line 2431 "parser.c"
     break;
 
   case 4:
-#line 295 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 295 "src/parser.y"
       { (yyval.node) = (yyvsp[0].node); }
 #line 2437 "parser.c"
     break;
 
   case 5:
-#line 297 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 297 "src/parser.y"
       { (yyval.node) = idl_push_node((yyvsp[-1].node), (yyvsp[0].node)); }
 #line 2443 "parser.c"
     break;
 
   case 6:
-#line 302 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 302 "src/parser.y"
       { (yyval.node) = (yyvsp[-1].annotation); }
 #line 2449 "parser.c"
     break;
 
   case 7:
-#line 304 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 304 "src/parser.y"
       { TRY(idl_annotate(pstate, (yyvsp[-1].module_dcl), (yyvsp[-2].annotation_appl)));
         (yyval.node) = (yyvsp[-1].module_dcl);
       }
@@ -2457,7 +2457,7 @@ yyreduce:
     break;
 
   case 8:
-#line 308 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 308 "src/parser.y"
       { TRY(idl_annotate(pstate, (yyvsp[-1].const_dcl), (yyvsp[-2].annotation_appl)));
         (yyval.node) = (yyvsp[-1].const_dcl);
       }
@@ -2465,7 +2465,7 @@ yyreduce:
     break;
 
   case 9:
-#line 312 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 312 "src/parser.y"
       { TRY(idl_annotate(pstate, (yyvsp[-1].node), (yyvsp[-2].annotation_appl)));
         (yyval.node) = (yyvsp[-1].node);
       }
@@ -2473,7 +2473,7 @@ yyreduce:
     break;
 
   case 10:
-#line 319 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 319 "src/parser.y"
       { TRY(idl_finalize_module(pstate, LOC((yylsp[-3]).first, (yylsp[0]).last), (yyvsp[-3].module_dcl), (yyvsp[-1].node)));
         (yyval.module_dcl) = (yyvsp[-3].module_dcl);
       }
@@ -2481,25 +2481,25 @@ yyreduce:
     break;
 
   case 11:
-#line 326 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 326 "src/parser.y"
       { TRY(idl_create_module(pstate, LOC((yylsp[-1]).first, (yylsp[0]).last), (yyvsp[0].name), &(yyval.module_dcl))); }
 #line 2487 "parser.c"
     break;
 
   case 12:
-#line 331 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 331 "src/parser.y"
       { TRY(idl_create_scoped_name(pstate, &(yylsp[0]), (yyvsp[0].name), false, &(yyval.scoped_name))); }
 #line 2493 "parser.c"
     break;
 
   case 13:
-#line 333 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 333 "src/parser.y"
       { TRY(idl_create_scoped_name(pstate, LOC((yylsp[-1]).first, (yylsp[0]).last), (yyvsp[0].name), true, &(yyval.scoped_name))); }
 #line 2499 "parser.c"
     break;
 
   case 14:
-#line 335 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 335 "src/parser.y"
       { TRY(idl_push_scoped_name(pstate, (yyvsp[-2].scoped_name), (yyvsp[0].name)));
         (yyval.scoped_name) = (yyvsp[-2].scoped_name);
       }
@@ -2507,49 +2507,49 @@ yyreduce:
     break;
 
   case 15:
-#line 342 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 342 "src/parser.y"
       { TRY(idl_create_const(pstate, LOC((yylsp[-4]).first, (yylsp[0]).last), (yyvsp[-3].type_spec), (yyvsp[-2].name), (yyvsp[0].const_expr), &(yyval.const_dcl))); }
 #line 2513 "parser.c"
     break;
 
   case 16:
-#line 347 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 347 "src/parser.y"
       { TRY(idl_create_base_type(pstate, &(yylsp[0]), (yyvsp[0].kind), &(yyval.type_spec))); }
 #line 2519 "parser.c"
     break;
 
   case 17:
-#line 349 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 349 "src/parser.y"
       { TRY(idl_create_base_type(pstate, &(yylsp[0]), (yyvsp[0].kind), &(yyval.type_spec))); }
 #line 2525 "parser.c"
     break;
 
   case 18:
-#line 351 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 351 "src/parser.y"
       { TRY(idl_create_base_type(pstate, &(yylsp[0]), (yyvsp[0].kind), &(yyval.type_spec))); }
 #line 2531 "parser.c"
     break;
 
   case 19:
-#line 353 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 353 "src/parser.y"
       { TRY(idl_create_base_type(pstate, &(yylsp[0]), (yyvsp[0].kind), &(yyval.type_spec))); }
 #line 2537 "parser.c"
     break;
 
   case 20:
-#line 355 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 355 "src/parser.y"
       { TRY(idl_create_base_type(pstate, &(yylsp[0]), (yyvsp[0].kind), &(yyval.type_spec))); }
 #line 2543 "parser.c"
     break;
 
   case 21:
-#line 357 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 357 "src/parser.y"
       { (yyval.type_spec) = (idl_type_spec_t *)(yyvsp[0].string); }
 #line 2549 "parser.c"
     break;
 
   case 22:
-#line 359 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 359 "src/parser.y"
       { idl_node_t *node;
         const idl_declaration_t *declaration;
         static const char fmt[] =
@@ -2565,13 +2565,13 @@ yyreduce:
     break;
 
   case 23:
-#line 372 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 372 "src/parser.y"
                     { (yyval.const_expr) = (yyvsp[0].const_expr); }
 #line 2571 "parser.c"
     break;
 
   case 25:
-#line 377 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 377 "src/parser.y"
       { (yyval.const_expr) = NULL;
         if (pstate->parser.state != IDL_PARSE_UNKNOWN_ANNOTATION_APPL_PARAMS)
           TRY(idl_create_binary_expr(pstate, &(yylsp[-1]), IDL_OR, (yyvsp[-2].const_expr), (yyvsp[0].const_expr), &(yyval.const_expr)));
@@ -2580,7 +2580,7 @@ yyreduce:
     break;
 
   case 27:
-#line 386 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 386 "src/parser.y"
       { (yyval.const_expr) = NULL;
         if (pstate->parser.state != IDL_PARSE_UNKNOWN_ANNOTATION_APPL_PARAMS)
           TRY(idl_create_binary_expr(pstate, &(yylsp[-1]), IDL_XOR, (yyvsp[-2].const_expr), (yyvsp[0].const_expr), &(yyval.const_expr)));
@@ -2589,7 +2589,7 @@ yyreduce:
     break;
 
   case 29:
-#line 395 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 395 "src/parser.y"
       { (yyval.const_expr) = NULL;
         if (pstate->parser.state != IDL_PARSE_UNKNOWN_ANNOTATION_APPL_PARAMS)
           TRY(idl_create_binary_expr(pstate, &(yylsp[-1]), IDL_AND, (yyvsp[-2].const_expr), (yyvsp[0].const_expr), &(yyval.const_expr)));
@@ -2598,7 +2598,7 @@ yyreduce:
     break;
 
   case 31:
-#line 404 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 404 "src/parser.y"
       { (yyval.const_expr) = NULL;
         if (pstate->parser.state != IDL_PARSE_UNKNOWN_ANNOTATION_APPL_PARAMS)
           TRY(idl_create_binary_expr(pstate, &(yylsp[-1]), (yyvsp[-1].kind), (yyvsp[-2].const_expr), (yyvsp[0].const_expr), &(yyval.const_expr)));
@@ -2607,19 +2607,19 @@ yyreduce:
     break;
 
   case 32:
-#line 411 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 411 "src/parser.y"
          { (yyval.kind) = IDL_RSHIFT; }
 #line 2613 "parser.c"
     break;
 
   case 33:
-#line 412 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 412 "src/parser.y"
          { (yyval.kind) = IDL_LSHIFT; }
 #line 2619 "parser.c"
     break;
 
   case 35:
-#line 417 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 417 "src/parser.y"
       { (yyval.const_expr) = NULL;
         if (pstate->parser.state != IDL_PARSE_UNKNOWN_ANNOTATION_APPL_PARAMS)
           TRY(idl_create_binary_expr(pstate, &(yylsp[-1]), (yyvsp[-1].kind), (yyvsp[-2].const_expr), (yyvsp[0].const_expr), &(yyval.const_expr)));
@@ -2628,25 +2628,25 @@ yyreduce:
     break;
 
   case 36:
-#line 424 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 424 "src/parser.y"
         { (yyval.kind) = IDL_ADD; }
 #line 2634 "parser.c"
     break;
 
   case 37:
-#line 425 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 425 "src/parser.y"
         { (yyval.kind) = IDL_SUBTRACT; }
 #line 2640 "parser.c"
     break;
 
   case 38:
-#line 429 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 429 "src/parser.y"
       { (yyval.const_expr) = (yyvsp[0].const_expr); }
 #line 2646 "parser.c"
     break;
 
   case 39:
-#line 431 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 431 "src/parser.y"
       { (yyval.const_expr) = NULL;
         if (pstate->parser.state != IDL_PARSE_UNKNOWN_ANNOTATION_APPL_PARAMS)
           TRY(idl_create_binary_expr(pstate, &(yylsp[-1]), (yyvsp[-1].kind), (yyvsp[-2].const_expr), (yyvsp[0].const_expr), &(yyval.const_expr)));
@@ -2655,25 +2655,25 @@ yyreduce:
     break;
 
   case 40:
-#line 438 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 438 "src/parser.y"
         { (yyval.kind) = IDL_MULTIPLY; }
 #line 2661 "parser.c"
     break;
 
   case 41:
-#line 439 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 439 "src/parser.y"
         { (yyval.kind) = IDL_DIVIDE; }
 #line 2667 "parser.c"
     break;
 
   case 42:
-#line 440 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 440 "src/parser.y"
         { (yyval.kind) = IDL_MODULO; }
 #line 2673 "parser.c"
     break;
 
   case 43:
-#line 444 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 444 "src/parser.y"
       { (yyval.const_expr) = NULL;
         if (pstate->parser.state != IDL_PARSE_UNKNOWN_ANNOTATION_APPL_PARAMS)
           TRY(idl_create_unary_expr(pstate, &(yylsp[-1]), (yyvsp[-1].kind), (yyvsp[0].const_expr), &(yyval.const_expr)));
@@ -2682,31 +2682,31 @@ yyreduce:
     break;
 
   case 44:
-#line 449 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 449 "src/parser.y"
       { (yyval.const_expr) = (yyvsp[0].const_expr); }
 #line 2688 "parser.c"
     break;
 
   case 45:
-#line 453 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 453 "src/parser.y"
         { (yyval.kind) = IDL_MINUS; }
 #line 2694 "parser.c"
     break;
 
   case 46:
-#line 454 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 454 "src/parser.y"
         { (yyval.kind) = IDL_PLUS; }
 #line 2700 "parser.c"
     break;
 
   case 47:
-#line 455 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 455 "src/parser.y"
         { (yyval.kind) = IDL_NOT; }
 #line 2706 "parser.c"
     break;
 
   case 48:
-#line 460 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 460 "src/parser.y"
       { (yyval.const_expr) = NULL;
         if (pstate->parser.state != IDL_PARSE_UNKNOWN_ANNOTATION_APPL_PARAMS) {
           /* disregard scoped names in application of unknown annotations.
@@ -2726,19 +2726,19 @@ yyreduce:
     break;
 
   case 49:
-#line 476 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 476 "src/parser.y"
       { (yyval.const_expr) = (yyvsp[0].literal); }
 #line 2732 "parser.c"
     break;
 
   case 50:
-#line 478 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 478 "src/parser.y"
       { (yyval.const_expr) = (yyvsp[-1].const_expr); }
 #line 2738 "parser.c"
     break;
 
   case 51:
-#line 483 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 483 "src/parser.y"
       { idl_type_t type;
         idl_literal_t literal;
         (yyval.literal) = NULL;
@@ -2764,7 +2764,7 @@ yyreduce:
     break;
 
   case 52:
-#line 505 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 505 "src/parser.y"
       { idl_type_t type;
         idl_literal_t literal;
         (yyval.literal) = NULL;
@@ -2791,7 +2791,7 @@ _Pragma("GCC diagnostic pop")
     break;
 
   case 53:
-#line 528 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 528 "src/parser.y"
       { (yyval.literal) = NULL;
         if (pstate->parser.state == IDL_PARSE_UNKNOWN_ANNOTATION_APPL_PARAMS)
           break;
@@ -2802,7 +2802,7 @@ _Pragma("GCC diagnostic pop")
     break;
 
   case 54:
-#line 535 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 535 "src/parser.y"
       { (yyval.literal) = NULL;
         if (pstate->parser.state == IDL_PARSE_UNKNOWN_ANNOTATION_APPL_PARAMS)
           break;
@@ -2813,7 +2813,7 @@ _Pragma("GCC diagnostic pop")
     break;
 
   case 55:
-#line 542 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 542 "src/parser.y"
       { (yyval.literal) = NULL;
         if (pstate->parser.state == IDL_PARSE_UNKNOWN_ANNOTATION_APPL_PARAMS)
           break;
@@ -2824,19 +2824,19 @@ _Pragma("GCC diagnostic pop")
     break;
 
   case 56:
-#line 552 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 552 "src/parser.y"
       { (yyval.bln) = true; }
 #line 2830 "parser.c"
     break;
 
   case 57:
-#line 554 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 554 "src/parser.y"
       { (yyval.bln) = false; }
 #line 2836 "parser.c"
     break;
 
   case 58:
-#line 559 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 559 "src/parser.y"
       { (yyval.string_literal) = NULL;
         if (pstate->parser.state == IDL_PARSE_UNKNOWN_ANNOTATION_APPL_PARAMS)
           break;
@@ -2847,7 +2847,7 @@ _Pragma("GCC diagnostic pop")
     break;
 
   case 59:
-#line 566 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 566 "src/parser.y"
       { size_t n1, n2;
         (yyval.string_literal) = NULL;
         if (pstate->parser.state == IDL_PARSE_UNKNOWN_ANNOTATION_APPL_PARAMS)
@@ -2864,31 +2864,31 @@ _Pragma("GCC diagnostic pop")
     break;
 
   case 60:
-#line 582 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 582 "src/parser.y"
       { TRY(idl_evaluate(pstate, (yyvsp[0].const_expr), IDL_ULONG, &(yyval.literal))); }
 #line 2870 "parser.c"
     break;
 
   case 61:
-#line 586 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 586 "src/parser.y"
                     { (yyval.node) = (yyvsp[0].node); }
 #line 2876 "parser.c"
     break;
 
   case 62:
-#line 587 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 587 "src/parser.y"
                 { (yyval.node) = (yyvsp[0].typedef_dcl); }
 #line 2882 "parser.c"
     break;
 
   case 65:
-#line 598 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 598 "src/parser.y"
       { TRY(idl_create_base_type(pstate, &(yylsp[0]), (yyvsp[0].kind), &(yyval.type_spec))); }
 #line 2888 "parser.c"
     break;
 
   case 66:
-#line 600 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 600 "src/parser.y"
       { const idl_declaration_t *declaration = NULL;
         static const char fmt[] =
           "Scoped name '%s' does not resolve to a type";
@@ -2902,187 +2902,187 @@ _Pragma("GCC diagnostic pop")
     break;
 
   case 73:
-#line 621 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 621 "src/parser.y"
             { (yyval.kind) = IDL_FLOAT; }
 #line 2908 "parser.c"
     break;
 
   case 74:
-#line 622 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 622 "src/parser.y"
              { (yyval.kind) = IDL_DOUBLE; }
 #line 2914 "parser.c"
     break;
 
   case 75:
-#line 623 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 623 "src/parser.y"
                     { (yyval.kind) = IDL_LDOUBLE; }
 #line 2920 "parser.c"
     break;
 
   case 78:
-#line 632 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 632 "src/parser.y"
             { (yyval.kind) = IDL_SHORT; }
 #line 2926 "parser.c"
     break;
 
   case 79:
-#line 633 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 633 "src/parser.y"
            { (yyval.kind) = IDL_LONG; }
 #line 2932 "parser.c"
     break;
 
   case 80:
-#line 634 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 634 "src/parser.y"
                   { (yyval.kind) = IDL_LLONG; }
 #line 2938 "parser.c"
     break;
 
   case 81:
-#line 636 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 636 "src/parser.y"
            { (yyval.kind) = IDL_INT8; }
 #line 2944 "parser.c"
     break;
 
   case 82:
-#line 637 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 637 "src/parser.y"
             { (yyval.kind) = IDL_INT16; }
 #line 2950 "parser.c"
     break;
 
   case 83:
-#line 638 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 638 "src/parser.y"
             { (yyval.kind) = IDL_INT32; }
 #line 2956 "parser.c"
     break;
 
   case 84:
-#line 639 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 639 "src/parser.y"
             { (yyval.kind) = IDL_INT64; }
 #line 2962 "parser.c"
     break;
 
   case 85:
-#line 643 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 643 "src/parser.y"
                        { (yyval.kind) = IDL_USHORT; }
 #line 2968 "parser.c"
     break;
 
   case 86:
-#line 644 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 644 "src/parser.y"
                       { (yyval.kind) = IDL_ULONG; }
 #line 2974 "parser.c"
     break;
 
   case 87:
-#line 645 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 645 "src/parser.y"
                              { (yyval.kind) = IDL_ULLONG; }
 #line 2980 "parser.c"
     break;
 
   case 88:
-#line 647 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 647 "src/parser.y"
             { (yyval.kind) = IDL_UINT8; }
 #line 2986 "parser.c"
     break;
 
   case 89:
-#line 648 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 648 "src/parser.y"
              { (yyval.kind) = IDL_UINT16; }
 #line 2992 "parser.c"
     break;
 
   case 90:
-#line 649 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 649 "src/parser.y"
              { (yyval.kind) = IDL_UINT32; }
 #line 2998 "parser.c"
     break;
 
   case 91:
-#line 650 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 650 "src/parser.y"
              { (yyval.kind) = IDL_UINT64; }
 #line 3004 "parser.c"
     break;
 
   case 92:
-#line 654 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 654 "src/parser.y"
            { (yyval.kind) = IDL_CHAR; }
 #line 3010 "parser.c"
     break;
 
   case 93:
-#line 657 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 657 "src/parser.y"
             { (yyval.kind) = IDL_WCHAR; }
 #line 3016 "parser.c"
     break;
 
   case 94:
-#line 660 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 660 "src/parser.y"
               { (yyval.kind) = IDL_BOOL; }
 #line 3022 "parser.c"
     break;
 
   case 95:
-#line 663 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 663 "src/parser.y"
             { (yyval.kind) = IDL_OCTET; }
 #line 3028 "parser.c"
     break;
 
   case 96:
-#line 666 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 666 "src/parser.y"
                   { (yyval.type_spec) = (yyvsp[0].sequence); }
 #line 3034 "parser.c"
     break;
 
   case 97:
-#line 667 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 667 "src/parser.y"
                   { (yyval.type_spec) = (yyvsp[0].string); }
 #line 3040 "parser.c"
     break;
 
   case 98:
-#line 672 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 672 "src/parser.y"
       { TRY(idl_create_sequence(pstate, LOC((yylsp[-5]).first, (yylsp[0]).last), (yyvsp[-3].type_spec), (yyvsp[-1].literal), &(yyval.sequence))); }
 #line 3046 "parser.c"
     break;
 
   case 99:
-#line 674 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 674 "src/parser.y"
       { TRY(idl_create_sequence(pstate, LOC((yylsp[-3]).first, (yylsp[0]).last), (yyvsp[-1].type_spec), NULL, &(yyval.sequence))); }
 #line 3052 "parser.c"
     break;
 
   case 100:
-#line 679 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 679 "src/parser.y"
       { TRY(idl_create_string(pstate, LOC((yylsp[-3]).first, (yylsp[0]).last), (yyvsp[-1].literal), &(yyval.string))); }
 #line 3058 "parser.c"
     break;
 
   case 101:
-#line 681 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 681 "src/parser.y"
       { TRY(idl_create_string(pstate, LOC((yylsp[0]).first, (yylsp[0]).last), NULL, &(yyval.string))); }
 #line 3064 "parser.c"
     break;
 
   case 106:
-#line 692 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 692 "src/parser.y"
                { (yyval.node) = (yyvsp[0].struct_dcl); }
 #line 3070 "parser.c"
     break;
 
   case 107:
-#line 693 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 693 "src/parser.y"
                        { (yyval.node) = (yyvsp[0].forward); }
 #line 3076 "parser.c"
     break;
 
   case 108:
-#line 698 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 698 "src/parser.y"
       { TRY(idl_create_forward(pstate, &(yylsp[-1]), (yyvsp[0].name), IDL_STRUCT, &(yyval.forward))); }
 #line 3082 "parser.c"
     break;
 
   case 109:
-#line 703 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 703 "src/parser.y"
       { TRY(idl_finalize_struct(pstate, LOC((yylsp[-3]).first, (yylsp[0]).last), (yyvsp[-3].struct_dcl), (yyvsp[-1].member)));
         (yyval.struct_dcl) = (yyvsp[-3].struct_dcl);
       }
@@ -3090,19 +3090,19 @@ _Pragma("GCC diagnostic pop")
     break;
 
   case 110:
-#line 710 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 710 "src/parser.y"
       { TRY(idl_create_struct(pstate, LOC((yylsp[-2]).first, (yyvsp[0].type_spec) ? (yylsp[0]).last : (yylsp[-1]).last), (yyvsp[-1].name), (yyvsp[0].type_spec), &(yyval.struct_dcl))); }
 #line 3096 "parser.c"
     break;
 
   case 111:
-#line 714 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 714 "src/parser.y"
             { (yyval.type_spec) = NULL; }
 #line 3102 "parser.c"
     break;
 
   case 112:
-#line 718 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 718 "src/parser.y"
       { idl_node_t *node;
         const idl_declaration_t *declaration;
         static const char fmt[] =
@@ -3118,31 +3118,31 @@ _Pragma("GCC diagnostic pop")
     break;
 
   case 113:
-#line 733 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 733 "src/parser.y"
       { (yyval.member) = (yyvsp[0].member); }
 #line 3124 "parser.c"
     break;
 
   case 114:
-#line 737 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 737 "src/parser.y"
       { (yyval.member) = NULL; }
 #line 3130 "parser.c"
     break;
 
   case 115:
-#line 742 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 742 "src/parser.y"
       { (yyval.member) = (yyvsp[0].member); }
 #line 3136 "parser.c"
     break;
 
   case 116:
-#line 744 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 744 "src/parser.y"
       { (yyval.member) = idl_push_node((yyvsp[-1].member), (yyvsp[0].member)); }
 #line 3142 "parser.c"
     break;
 
   case 117:
-#line 749 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 749 "src/parser.y"
       { TRY(idl_create_member(pstate, LOC((yylsp[-2]).first, (yylsp[0]).last), (yyvsp[-2].type_spec), (yyvsp[-1].declarator), &(yyval.member)));
         TRY_EXCEPT(idl_annotate(pstate, (yyval.member), (yyvsp[-3].annotation_appl)), idl_free((yyval.member)));
       }
@@ -3150,19 +3150,19 @@ _Pragma("GCC diagnostic pop")
     break;
 
   case 118:
-#line 755 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 755 "src/parser.y"
               { (yyval.node) = (yyvsp[0].union_dcl); }
 #line 3156 "parser.c"
     break;
 
   case 119:
-#line 756 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 756 "src/parser.y"
                       { (yyval.node) = (yyvsp[0].forward); }
 #line 3162 "parser.c"
     break;
 
   case 120:
-#line 761 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 761 "src/parser.y"
       { TRY(idl_finalize_union(pstate, LOC((yylsp[-3]).first, (yylsp[0]).last), (yyvsp[-3].union_dcl), (yyvsp[-1]._case)));
         (yyval.union_dcl) = (yyvsp[-3].union_dcl);
       }
@@ -3170,19 +3170,19 @@ _Pragma("GCC diagnostic pop")
     break;
 
   case 121:
-#line 768 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 768 "src/parser.y"
       { TRY(idl_create_forward(pstate, &(yylsp[-1]), (yyvsp[0].name), IDL_UNION, &(yyval.forward))); }
 #line 3176 "parser.c"
     break;
 
   case 122:
-#line 773 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 773 "src/parser.y"
       { TRY(idl_create_union(pstate, LOC((yylsp[-2]).first, (yylsp[0]).last), (yyvsp[-1].name), (yyvsp[0].switch_type_spec), &(yyval.union_dcl))); }
 #line 3182 "parser.c"
     break;
 
   case 123:
-#line 778 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 778 "src/parser.y"
       { /* switch_header action is a separate non-terminal, as opposed to a
            mid-rule action, to avoid freeing the type specifier twice (once
            through destruction of the type-spec and once through destruction
@@ -3194,25 +3194,25 @@ _Pragma("GCC diagnostic pop")
     break;
 
   case 124:
-#line 789 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 789 "src/parser.y"
       { TRY(idl_create_base_type(pstate, &(yylsp[0]), (yyvsp[0].kind), &(yyval.type_spec))); }
 #line 3200 "parser.c"
     break;
 
   case 125:
-#line 791 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 791 "src/parser.y"
       { TRY(idl_create_base_type(pstate, &(yylsp[0]), (yyvsp[0].kind), &(yyval.type_spec))); }
 #line 3206 "parser.c"
     break;
 
   case 126:
-#line 793 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 793 "src/parser.y"
       { TRY(idl_create_base_type(pstate, &(yylsp[0]), (yyvsp[0].kind), &(yyval.type_spec))); }
 #line 3212 "parser.c"
     break;
 
   case 127:
-#line 795 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 795 "src/parser.y"
       { const idl_declaration_t *declaration;
         TRY(idl_resolve(pstate, 0u, (yyvsp[0].scoped_name), &declaration));
         idl_delete_scoped_name((yyvsp[0].scoped_name));
@@ -3222,31 +3222,31 @@ _Pragma("GCC diagnostic pop")
     break;
 
   case 128:
-#line 801 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 801 "src/parser.y"
       { TRY(idl_create_base_type(pstate, &(yylsp[0]), (yyvsp[0].kind), &(yyval.type_spec))); }
 #line 3228 "parser.c"
     break;
 
   case 129:
-#line 803 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 803 "src/parser.y"
       { TRY(idl_create_base_type(pstate, &(yylsp[0]), (yyvsp[0].kind), &(yyval.type_spec))); }
 #line 3234 "parser.c"
     break;
 
   case 130:
-#line 808 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 808 "src/parser.y"
       { (yyval._case) = (yyvsp[0]._case); }
 #line 3240 "parser.c"
     break;
 
   case 131:
-#line 810 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 810 "src/parser.y"
       { (yyval._case) = idl_push_node((yyvsp[-1]._case), (yyvsp[0]._case)); }
 #line 3246 "parser.c"
     break;
 
   case 132:
-#line 815 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 815 "src/parser.y"
       { TRY(idl_finalize_case(pstate, &(yylsp[-1]), (yyvsp[-1]._case), (yyvsp[-2].case_label)));
         (yyval._case) = (yyvsp[-1]._case);
       }
@@ -3254,31 +3254,31 @@ _Pragma("GCC diagnostic pop")
     break;
 
   case 133:
-#line 822 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 822 "src/parser.y"
       { (yyval.case_label) = (yyvsp[0].case_label); }
 #line 3260 "parser.c"
     break;
 
   case 134:
-#line 824 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 824 "src/parser.y"
       { (yyval.case_label) = idl_push_node((yyvsp[-1].case_label), (yyvsp[0].case_label)); }
 #line 3266 "parser.c"
     break;
 
   case 135:
-#line 829 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 829 "src/parser.y"
       { TRY(idl_create_case_label(pstate, LOC((yylsp[-2]).first, (yylsp[-1]).last), (yyvsp[-1].const_expr), &(yyval.case_label))); }
 #line 3272 "parser.c"
     break;
 
   case 136:
-#line 831 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 831 "src/parser.y"
       { TRY(idl_create_case_label(pstate, &(yylsp[-1]), NULL, &(yyval.case_label))); }
 #line 3278 "parser.c"
     break;
 
   case 137:
-#line 838 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 838 "src/parser.y"
       { TRY(idl_create_case(pstate, LOC((yylsp[-2]).first, (yylsp[0]).last), (yyvsp[-1].type_spec), (yyvsp[0].declarator), &(yyval._case)));
         TRY_EXCEPT(idl_annotate(pstate, (yyval._case), (yyvsp[-2].annotation_appl)), idl_free((yyval._case)));
       }
@@ -3286,31 +3286,31 @@ _Pragma("GCC diagnostic pop")
     break;
 
   case 138:
-#line 843 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 843 "src/parser.y"
                    { (yyval.node) = (yyvsp[0].enum_dcl); }
 #line 3292 "parser.c"
     break;
 
   case 139:
-#line 847 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 847 "src/parser.y"
       { TRY(idl_create_enum(pstate, LOC((yylsp[-4]).first, (yylsp[0]).last), (yyvsp[-3].name), (yyvsp[-1].enumerator), &(yyval.enum_dcl))); }
 #line 3298 "parser.c"
     break;
 
   case 140:
-#line 852 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 852 "src/parser.y"
       { (yyval.enumerator) = (yyvsp[0].enumerator); }
 #line 3304 "parser.c"
     break;
 
   case 141:
-#line 854 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 854 "src/parser.y"
       { (yyval.enumerator) = idl_push_node((yyvsp[-2].enumerator), (yyvsp[0].enumerator)); }
 #line 3310 "parser.c"
     break;
 
   case 142:
-#line 859 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 859 "src/parser.y"
       { TRY(idl_create_enumerator(pstate, &(yylsp[0]), (yyvsp[0].name), &(yyval.enumerator)));
         TRY_EXCEPT(idl_annotate(pstate, (yyval.enumerator), (yyvsp[-1].annotation_appl)), idl_free((yyval.enumerator)));
       }
@@ -3318,31 +3318,31 @@ _Pragma("GCC diagnostic pop")
     break;
 
   case 143:
-#line 864 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 864 "src/parser.y"
                          { (yyval.node) = (yyvsp[0].bitmask_dcl); }
 #line 3324 "parser.c"
     break;
 
   case 144:
-#line 868 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 868 "src/parser.y"
       { TRY(idl_create_bitmask(pstate, LOC((yylsp[-4]).first, (yylsp[0]).last), (yyvsp[-3].name), (yyvsp[-1].bit_value), &(yyval.bitmask_dcl))); }
 #line 3330 "parser.c"
     break;
 
   case 145:
-#line 873 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 873 "src/parser.y"
       { (yyval.bit_value) = (yyvsp[0].bit_value); }
 #line 3336 "parser.c"
     break;
 
   case 146:
-#line 875 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 875 "src/parser.y"
       { (yyval.bit_value) = idl_push_node((yyvsp[-2].bit_value), (yyvsp[0].bit_value)); }
 #line 3342 "parser.c"
     break;
 
   case 147:
-#line 880 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 880 "src/parser.y"
       { TRY(idl_create_bit_value(pstate, &(yylsp[0]), (yyvsp[0].name), &(yyval.bit_value)));
         TRY_EXCEPT(idl_annotate(pstate, (yyval.bit_value), (yyvsp[-1].annotation_appl)), idl_free((yyval.bit_value)));
       }
@@ -3350,43 +3350,43 @@ _Pragma("GCC diagnostic pop")
     break;
 
   case 148:
-#line 887 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 887 "src/parser.y"
       { TRY(idl_create_declarator(pstate, LOC((yylsp[-1]).first, (yylsp[0]).last), (yyvsp[-1].name), (yyvsp[0].const_expr), &(yyval.declarator))); }
 #line 3356 "parser.c"
     break;
 
   case 149:
-#line 892 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 892 "src/parser.y"
       { (yyval.const_expr) = (yyvsp[0].literal); }
 #line 3362 "parser.c"
     break;
 
   case 150:
-#line 894 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 894 "src/parser.y"
       { (yyval.const_expr) = idl_push_node((yyvsp[-1].const_expr), (yyvsp[0].literal)); }
 #line 3368 "parser.c"
     break;
 
   case 151:
-#line 899 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 899 "src/parser.y"
       { (yyval.literal) = (yyvsp[-1].literal); }
 #line 3374 "parser.c"
     break;
 
   case 152:
-#line 904 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 904 "src/parser.y"
       { TRY(idl_create_declarator(pstate, &(yylsp[0]), (yyvsp[0].name), NULL, &(yyval.declarator))); }
 #line 3380 "parser.c"
     break;
 
   case 154:
-#line 911 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 911 "src/parser.y"
       { TRY(idl_create_typedef(pstate, LOC((yylsp[-2]).first, (yylsp[0]).last), (yyvsp[-1].type_spec), (yyvsp[0].declarator), &(yyval.typedef_dcl))); }
 #line 3386 "parser.c"
     break;
 
   case 155:
-#line 913 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 913 "src/parser.y"
       {
         idl_typedef_t *node;
         idl_type_spec_t *type_spec;
@@ -3404,19 +3404,19 @@ _Pragma("GCC diagnostic pop")
     break;
 
   case 156:
-#line 930 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 930 "src/parser.y"
       { (yyval.declarator) = (yyvsp[0].declarator); }
 #line 3410 "parser.c"
     break;
 
   case 157:
-#line 932 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 932 "src/parser.y"
       { (yyval.declarator) = idl_push_node((yyvsp[-2].declarator), (yyvsp[0].declarator)); }
 #line 3416 "parser.c"
     break;
 
   case 160:
-#line 942 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 942 "src/parser.y"
       { (yyval.name) = NULL;
         size_t n;
         bool nocase = (pstate->config.flags & IDL_FLAG_CASE_SENSITIVE) == 0;
@@ -3434,7 +3434,7 @@ _Pragma("GCC diagnostic pop")
     break;
 
   case 161:
-#line 959 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 959 "src/parser.y"
       { (yyval.annotation) = NULL;
         /* discard annotation in case of redefinition */
         if (pstate->parser.state != IDL_PARSE_EXISTING_ANNOTATION_BODY)
@@ -3445,7 +3445,7 @@ _Pragma("GCC diagnostic pop")
     break;
 
   case 162:
-#line 969 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 969 "src/parser.y"
       { pstate->annotations = true; /* register annotation occurence */
         pstate->parser.state = IDL_PARSE_ANNOTATION;
       }
@@ -3453,109 +3453,109 @@ _Pragma("GCC diagnostic pop")
     break;
 
   case 163:
-#line 973 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 973 "src/parser.y"
       { TRY(idl_create_annotation(pstate, LOC((yylsp[-3]).first, (yylsp[-2]).last), (yyvsp[0].name), &(yyval.annotation))); }
 #line 3459 "parser.c"
     break;
 
   case 164:
-#line 978 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 978 "src/parser.y"
       { (yyval.annotation_member) = NULL; }
 #line 3465 "parser.c"
     break;
 
   case 165:
-#line 980 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 980 "src/parser.y"
       { (yyval.annotation_member) = idl_push_node((yyvsp[-2].annotation_member), (yyvsp[-1].annotation_member)); }
 #line 3471 "parser.c"
     break;
 
   case 166:
-#line 982 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 982 "src/parser.y"
       { (yyval.annotation_member) = idl_push_node((yyvsp[-2].annotation_member), (yyvsp[-1].node)); }
 #line 3477 "parser.c"
     break;
 
   case 167:
-#line 984 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 984 "src/parser.y"
       { (yyval.annotation_member) = idl_push_node((yyvsp[-2].annotation_member), (yyvsp[-1].node)); }
 #line 3483 "parser.c"
     break;
 
   case 168:
-#line 986 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 986 "src/parser.y"
       { (yyval.annotation_member) = idl_push_node((yyvsp[-2].annotation_member), (yyvsp[-1].const_dcl)); }
 #line 3489 "parser.c"
     break;
 
   case 169:
-#line 988 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 988 "src/parser.y"
       { (yyval.annotation_member) = idl_push_node((yyvsp[-2].annotation_member), (yyvsp[-1].typedef_dcl)); }
 #line 3495 "parser.c"
     break;
 
   case 170:
-#line 993 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 993 "src/parser.y"
       { TRY(idl_create_annotation_member(pstate, LOC((yylsp[-2]).first, (yylsp[0]).last), (yyvsp[-2].type_spec), (yyvsp[-1].declarator), (yyvsp[0].const_expr), &(yyval.annotation_member))); }
 #line 3501 "parser.c"
     break;
 
   case 171:
-#line 998 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 998 "src/parser.y"
       { (yyval.type_spec) = (yyvsp[0].type_spec); }
 #line 3507 "parser.c"
     break;
 
   case 172:
-#line 1000 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 1000 "src/parser.y"
       { (yyval.type_spec) = (yyvsp[0].type_spec); }
 #line 3513 "parser.c"
     break;
 
   case 173:
-#line 1005 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 1005 "src/parser.y"
       { (yyval.const_expr) = NULL; }
 #line 3519 "parser.c"
     break;
 
   case 174:
-#line 1007 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 1007 "src/parser.y"
       { (yyval.const_expr) = (yyvsp[0].const_expr); }
 #line 3525 "parser.c"
     break;
 
   case 175:
-#line 1012 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 1012 "src/parser.y"
       { TRY(idl_create_base_type(pstate, &(yylsp[0]), IDL_ANY, &(yyval.type_spec))); }
 #line 3531 "parser.c"
     break;
 
   case 176:
-#line 1017 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 1017 "src/parser.y"
       { (yyval.annotation_appl) = (yyvsp[0].annotation_appl); }
 #line 3537 "parser.c"
     break;
 
   case 177:
-#line 1019 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 1019 "src/parser.y"
       { (yyval.annotation_appl) = NULL; }
 #line 3543 "parser.c"
     break;
 
   case 178:
-#line 1024 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 1024 "src/parser.y"
       { (yyval.annotation_appl) = (yyvsp[0].annotation_appl); }
 #line 3549 "parser.c"
     break;
 
   case 179:
-#line 1026 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 1026 "src/parser.y"
       { (yyval.annotation_appl) = idl_push_node((yyvsp[-1].annotation_appl), (yyvsp[0].annotation_appl)); }
 #line 3555 "parser.c"
     break;
 
   case 180:
-#line 1031 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 1031 "src/parser.y"
       { if (pstate->parser.state != IDL_PARSE_UNKNOWN_ANNOTATION_APPL_PARAMS)
           TRY(idl_finalize_annotation_appl(pstate, LOC((yylsp[-1]).first, (yylsp[0]).last), (yyvsp[-1].annotation_appl), (yyvsp[0].annotation_appl_param)));
         pstate->parser.state = IDL_PARSE;
@@ -3566,13 +3566,13 @@ _Pragma("GCC diagnostic pop")
     break;
 
   case 181:
-#line 1041 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 1041 "src/parser.y"
       { pstate->parser.state = IDL_PARSE_ANNOTATION_APPL; }
 #line 3572 "parser.c"
     break;
 
   case 182:
-#line 1043 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 1043 "src/parser.y"
       { const idl_annotation_t *annotation;
         const idl_declaration_t *declaration =
           idl_find_scoped_name(pstate, NULL, (yyvsp[0].scoped_name), IDL_FIND_ANNOTATION);
@@ -3597,19 +3597,19 @@ _Pragma("GCC diagnostic pop")
     break;
 
   case 183:
-#line 1067 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 1067 "src/parser.y"
       { TRY(idl_create_scoped_name(pstate, &(yylsp[0]), (yyvsp[0].name), false, &(yyval.scoped_name))); }
 #line 3603 "parser.c"
     break;
 
   case 184:
-#line 1069 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 1069 "src/parser.y"
       { TRY(idl_create_scoped_name(pstate, LOC((yylsp[-1]).first, (yylsp[0]).last), (yyvsp[0].name), true, &(yyval.scoped_name))); }
 #line 3609 "parser.c"
     break;
 
   case 185:
-#line 1071 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 1071 "src/parser.y"
       { TRY(idl_push_scoped_name(pstate, (yyvsp[-2].scoped_name), (yyvsp[0].name)));
         (yyval.scoped_name) = (yyvsp[-2].scoped_name);
       }
@@ -3617,37 +3617,37 @@ _Pragma("GCC diagnostic pop")
     break;
 
   case 186:
-#line 1078 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 1078 "src/parser.y"
       { (yyval.annotation_appl_param) = NULL; }
 #line 3623 "parser.c"
     break;
 
   case 187:
-#line 1080 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 1080 "src/parser.y"
       { (yyval.annotation_appl_param) = (yyvsp[-1].const_expr); }
 #line 3629 "parser.c"
     break;
 
   case 188:
-#line 1082 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 1082 "src/parser.y"
       { (yyval.annotation_appl_param) = (yyvsp[-1].annotation_appl_param); }
 #line 3635 "parser.c"
     break;
 
   case 189:
-#line 1087 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 1087 "src/parser.y"
       { (yyval.annotation_appl_param) = (yyvsp[0].annotation_appl_param); }
 #line 3641 "parser.c"
     break;
 
   case 190:
-#line 1089 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 1089 "src/parser.y"
       { (yyval.annotation_appl_param) = idl_push_node((yyvsp[-2].annotation_appl_param), (yyvsp[0].annotation_appl_param)); }
 #line 3647 "parser.c"
     break;
 
   case 191:
-#line 1094 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 1094 "src/parser.y"
       { idl_annotation_member_t *node = NULL;
         if (pstate->parser.state != IDL_PARSE_UNKNOWN_ANNOTATION_APPL_PARAMS) {
           const idl_declaration_t *declaration = NULL;
@@ -3667,7 +3667,7 @@ _Pragma("GCC diagnostic pop")
     break;
 
   case 192:
-#line 1110 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 1110 "src/parser.y"
       { (yyval.annotation_appl_param) = NULL;
         if (pstate->parser.state != IDL_PARSE_UNKNOWN_ANNOTATION_APPL_PARAMS) {
           TRY(idl_create_annotation_appl_param(pstate, &(yylsp[-3]), (yyvsp[-2].annotation_member), (yyvsp[0].const_expr), &(yyval.annotation_appl_param)));
@@ -3922,7 +3922,7 @@ yypushreturn:
 #endif
   return yyresult;
 }
-#line 1117 "/home/tmiedema/Projects/workspace-cyclonedds/cyclonedds/src/idl/src/parser.y"
+#line 1117 "src/parser.y"
 
 
 #if defined(__GNUC__)
@@ -4012,4 +4012,12 @@ yyerror(idl_location_t *loc, idl_pstate_t *pstate, idl_retcode_t *result, const 
   idl_error(pstate, loc, "%s", str);
   *result = IDL_RETCODE_SYNTAX_ERROR;
 }
-/* generated from parser.y[4ec8b7f09345f68a044cd8623cc4962fdbb2c5d2] */
+/* generated from parser.y[8e05cc2c9b914f6a8e34b59ed29b049718b5a42c] */
+/* generated from parser.y[8e05cc2c9b914f6a8e34b59ed29b049718b5a42c] */
+/* generated from parser.y[8e05cc2c9b914f6a8e34b59ed29b049718b5a42c] */
+/* generated from parser.y[8e05cc2c9b914f6a8e34b59ed29b049718b5a42c] */
+/* generated from parser.y[8e05cc2c9b914f6a8e34b59ed29b049718b5a42c] */
+/* generated from parser.y[8e05cc2c9b914f6a8e34b59ed29b049718b5a42c] */
+/* generated from parser.y[8e05cc2c9b914f6a8e34b59ed29b049718b5a42c] */
+/* generated from parser.y[8e05cc2c9b914f6a8e34b59ed29b049718b5a42c] */
+/* generated from parser.y[8e05cc2c9b914f6a8e34b59ed29b049718b5a42c] */

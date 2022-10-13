@@ -25,7 +25,7 @@
 #include "dds/ddsi/ddsi_xt_typemap.h"
 #include "dds/ddsc/dds_opcodes.h"
 
-#include "idl/stdlib.h"
+#include "idl/heap.h"
 #include "idl/print.h"
 #include "idl/processor.h"
 #include "idl/stream.h"

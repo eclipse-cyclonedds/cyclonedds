@@ -16,7 +16,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "idl/stdlib.h"
+#include "idl/heap.h"
 #include "idl/processor.h"
 #include "idl/string.h"
 #include "idl/misc.h"

@@ -9,23 +9,18 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
+#ifndef IDL_HEAP_H
+#define IDL_HEAP_H
 
-#include <stdlib.h>
-#include <string.h>
-#include "idl/stdlib.h"
+#include <stdarg.h>
+#include <stddef.h>
 
-void* idl_malloc(size_t size) {
-  return malloc(size);
-}
+#include "idl/export.h"
+#include "idl/attributes.h"
 
-void* idl_calloc(size_t num, size_t size) {
-  return calloc(num, size);
-}
+IDL_EXPORT void* idl_malloc  (size_t size);
+IDL_EXPORT void* idl_calloc  (size_t num, size_t size);
+IDL_EXPORT void* idl_realloc (void *ptr, size_t new_size);
+IDL_EXPORT void  idl_free    (void *pt);
 
-void* idl_realloc(void *ptr, size_t new_size) {
-  return realloc(ptr, new_size);
-}
-
-void idl_free(void *pt) {
-  return free(pt);
-}
+#endif /* IDL_HEAP_H */

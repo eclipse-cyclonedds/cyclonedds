@@ -15,7 +15,7 @@
 #include <stdio.h>
 
 #include "idl/retcode.h"
-#include "idl/stdlib.h"
+#include "idl/heap.h"
 #include "idl/string.h"
 #include "symbol.h"
 #include "scope.h"

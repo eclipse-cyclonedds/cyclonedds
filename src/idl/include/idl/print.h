@@ -19,7 +19,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #if defined(_WIN32)
-# include <idl_malloc.h>
+# include <malloc.h>
 #elif defined(__GNUC__) || (defined(__clang__) && __clang_major__ >= 2)
 # if !defined(__FreeBSD__)
 #   include <alloca.h>

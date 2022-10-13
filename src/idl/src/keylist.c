@@ -13,7 +13,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
-#include "idl/stdlib.h"
+#include "idl/heap.h"
 #include "idl/misc.h"
 #include "idl/string.h"
 #include "keylist.h"

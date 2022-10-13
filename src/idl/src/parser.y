@@ -19,7 +19,7 @@
 
 #include "idl/string.h"
 #include "idl/processor.h"
-#include "idl/stdlib.h"
+#include "idl/heap.h"
 #include "annotation.h"
 #include "expression.h"
 #include "scope.h"

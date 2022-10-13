@@ -13,7 +13,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "idl/stdlib.h"
+#include "idl/heap.h"
 #include "idl/processor.h"
 
 static idl_accept_t idl_accept(const void *node)

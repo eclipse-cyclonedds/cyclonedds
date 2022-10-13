@@ -37,7 +37,7 @@ static const char ext[] = "so";
 #endif
 
 #include "plugin.h"
-#include "idl/stdlib.h"
+#include "idl/heap.h"
 #include "idl/string.h"
 #include "idlc/generator.h"
 

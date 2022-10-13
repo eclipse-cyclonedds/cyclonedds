@@ -9,7 +9,7 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "idl/stdlib.h"
+#include "idl/heap.h"
 #include "idl/print.h"
 
 #if defined(_MSC_VER)

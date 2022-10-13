@@ -33,6 +33,7 @@ if(NOT ${_bison_hash_correct})
 
   if(BISON_FOUND)
     message(STATUS "Running Bison, parser.y was updated.")
+    message(STATUS "${source_dir}")
 
     file(REMOVE src/parser.c)
     file(REMOVE src/parser.h)
@@ -46,7 +47,7 @@ if(NOT ${_bison_hash_correct})
         ${binary_dir}/src/parser.c
         ${binary_dir}/src/parser.h
       COMMAND ${CMAKE_COMMAND} ARGS
-        "-Dsource_dir=${CMAKE_CURRENT_LIST_DIR}"
+        "-Dsource_dir=${source_dir}"
         "-Dbinary_dir=${binary_dir}"
         "-DMAIN_PROJECT_DIR=${CMAKE_SOURCE_DIR}"
         -P ${CMAKE_CURRENT_LIST_DIR}/postprocess-parser.cmake
@@ -74,7 +75,7 @@ set(headers
   include/idl/symbol.h
   include/idl/tree.h
   include/idl/visit.h
-  include/idl/stdlib.h
+  include/idl/heap.h
   ${binary_dir}/include/idl/version.h)
 
 set(sources
@@ -94,7 +95,7 @@ set(sources
   src/keylist.c
   src/hashid.c
   src/parser.c
-  src/stdlib.c
+  src/heap.c
   src/annotation.h
   src/directive.h
   src/expression.h
