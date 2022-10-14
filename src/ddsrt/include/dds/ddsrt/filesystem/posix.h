@@ -20,7 +20,11 @@
 typedef DIR *ddsrt_dir_handle_t;
 typedef mode_t ddsrt_mode_t;
 
+#ifdef PATH_MAX
 #define DDSRT_PATH_MAX PATH_MAX
+#else
+#define DDSRT_PATH_MAX FILENAME_MAX
+#endif
 #define DDSRT_FILESEPCHAR '/'
 
 #if defined(__cplusplus)

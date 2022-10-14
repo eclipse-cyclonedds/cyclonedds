@@ -785,8 +785,6 @@ static dds_return_t typebuilder_add_union (struct typebuilder_data *tbd, struct 
       member_sz = sz;
   }
 
-  tb_aggrtype->align = member_align; // FIXME: wrong alignment in idlc, should be: max(member_align, disc_align)
-
   // union size (size of c struct that has discriminator and c union)
   tb_aggrtype->size = disc_sz;
   align_to (&tb_aggrtype->size, member_align);
@@ -794,6 +792,7 @@ static dds_return_t typebuilder_add_union (struct typebuilder_data *tbd, struct 
 
   // padding at end of union
   uint32_t max_align = member_align > disc_align ? member_align : disc_align;
+  tb_aggrtype->align = max_align;
   align_to (&tb_aggrtype->size, max_align);
 
   // offset for union members
@@ -1207,6 +1206,12 @@ static dds_return_t get_ops_union (const struct typebuilder_union *tb_union, uin
     case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY:
       if (tb_union->disc_type.args.prim_args.is_signed)
         flags |= DDS_OP_FLAG_SGN;
+      break;
+    case DDS_OP_VAL_ENU:
+      flags |= get_bitbound_flags (tb_union->disc_type.args.enum_args.bit_bound);
+      break;
+    case DDS_OP_VAL_BMK:
+      flags |= get_bitbound_flags (tb_union->disc_type.args.bitmask_args.bit_bound);
       break;
     default:
       break;
