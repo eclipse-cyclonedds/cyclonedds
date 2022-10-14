@@ -272,9 +272,10 @@ module TypeBuilderTypes {
   };
 
   /* enum with non-default bit-bound as switch type */
-  union t17 switch(en8) {
-    case EN8_1: t14 u1;
-    case EN8_2: t15 u2;
+  @bit_bound(12) enum en16 { EN16_1, EN16_2 };
+  union t17 switch(en16) {
+    case EN16_1: t14 u1;
+    case EN16_2: t15 u2;
   };
 
   /* hash member id */
@@ -365,6 +366,39 @@ module TypeBuilderTypes {
     case 99:
     default:
       sequence<t24_1> u99;
+  };
+
+  union t25_1 switch(long) {
+    default:
+      string<9>  u1;
+  };
+  struct t25 {
+    t25_1 f1;
+  };
+
+  /* default case with non-zero value */
+  @nested union t26_1 switch(octet) {
+    case 0:
+      long u1;
+    default:
+      long u2;
+  };
+  struct t26 {
+    t26_1 f1;
+  };
+
+  /* default case with non-zero enum value */
+  enum en27 { @value(4) E27_3, E27_1, @value(3) E27_2 };
+  @nested union t27_1 switch(en27) {
+    case E27_1:
+      long u1;
+    case E27_3:
+      long u3;
+    default:
+      long ud;
+  };
+  struct t27 {
+    t27_1 f1;
   };
 
 };

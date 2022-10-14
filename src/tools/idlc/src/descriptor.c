@@ -818,8 +818,8 @@ emit_case(
         descriptor->n_opcodes++; /* this stashes an opcode, but is using stash_jeq_offset so we'll increase the opcode count here */
         off++;
       }
-      /* generate union case discriminator */
-      if ((ret = stash_constant(pstate, &ctype->instructions, off++, label->const_expr)))
+      /* generate union case discriminator, use 0 for default case */
+      if ((ret = stash_constant(pstate, &ctype->instructions, off++, idl_is_default_case_label(label) || idl_is_implicit_default_case_label(label) ? 0 : label->const_expr)))
         return ret;
       /* generate union case member (address) offset; use offset 0 for empty types,
          as these members are not generated and no offset can be calculated */

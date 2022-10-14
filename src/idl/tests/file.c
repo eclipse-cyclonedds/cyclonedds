@@ -275,6 +275,7 @@ CU_Test(idl_file, relative_bad_params)
       if (rel)
         free(rel);
       CU_ASSERT_EQUAL_FATAL(ret, bad_param);
+      // coverity[use_after_free:FALSE]
       CU_ASSERT_PTR_NULL(rel);
     }
   }

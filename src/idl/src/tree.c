@@ -2379,6 +2379,26 @@ bool idl_is_case_label(const void *ptr)
   return true;
 }
 
+static bool idl_is_case_label_mask_impl(const void *ptr, const idl_mask_t mask)
+{
+  const idl_case_label_t *node = ptr;
+  if (!(idl_mask(node) & IDL_CASE_LABEL))
+    return false;
+  if ((idl_mask(node) & mask) == mask)
+    return true;
+  return false;
+}
+
+bool idl_is_default_case_label(const void *ptr)
+{
+  return idl_is_case_label_mask_impl (ptr, IDL_DEFAULT_CASE_LABEL);
+}
+
+bool idl_is_implicit_default_case_label(const void *ptr)
+{
+  return idl_is_case_label_mask_impl (ptr, IDL_IMPLICIT_DEFAULT_CASE_LABEL);
+}
+
 static void delete_case_label(void *ptr)
 {
   idl_case_label_t *node = ptr;
