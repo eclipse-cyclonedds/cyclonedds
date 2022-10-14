@@ -461,10 +461,6 @@ static dds_entity_t prepare_dds(dds_entity_t *reader, const char *partitionName)
   if (waitSet < 0)
     DDS_FATAL("dds_create_waitset: %s\n", dds_strretcode(-waitSet));
 
-  status = dds_waitset_attach (waitSet, waitSet, waitSet);
-  if (status < 0)
-    DDS_FATAL("dds_waitset_attach: %s\n", dds_strretcode(-status));
-
   imap = HandleMap__alloc ();
 
   for (unsigned int i = 0; i < MAX_SAMPLES; i++)
