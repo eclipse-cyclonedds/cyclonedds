@@ -467,7 +467,7 @@ The default value is: "".
 
 Text
 
-This element allows explicitly overruling the network address Cyclone DDS advertises in the discovery protocol, which by default is the address of the preferred network interface (General/NetworkInterfaceAddress), to allow Cyclone DDS to communicate across a Network Address Translation (NAT) device.
+This element allows explicitly overruling the network address Cyclone DDS advertises in the discovery protocol, which by default is the address of the preferred network interface (General/Interfaces), to allow Cyclone DDS to communicate across a Network Address Translation (NAT) device.
 
 The default value is: "auto".
 
@@ -2672,7 +2672,7 @@ The default value is: "none".
 ..
    generated from ddsi_config.h[75edea6617af11bacc46f91e519773f6df580655] 
    generated from ddsi_cfgunits.h[fc550f1620aa20dcd9244ef4e24299d5001efbb4] 
-   generated from ddsi_cfgelems.h[3b8f4c3aa5ddf3b67774d3ba46ad63ef34ca8828] 
+   generated from ddsi_cfgelems.h[469dff381526a2c5200608353d9693f53200ef8e] 
    generated from ddsi_config.c[ed9898f72f9dbcfa20ce7706835da091efcea0ca] 
    generated from _confgen.h[f2d235d5551cbf920a8a2962831dddeabd2856ac] 
    generated from _confgen.c[1193219ddb4769b90566cf197e73d22fb6f75835] 

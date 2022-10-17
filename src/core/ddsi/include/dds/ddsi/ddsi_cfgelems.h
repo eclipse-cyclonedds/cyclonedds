@@ -167,7 +167,7 @@ static struct cfgelem general_cfgelems[] = {
       "<p>This element allows explicitly overruling the network address "
       "Cyclone DDS advertises in the discovery protocol, which by default is "
       "the address of the preferred network interface "
-      "(General/NetworkInterfaceAddress), to allow Cyclone DDS to communicate "
+      "(General/Interfaces), to allow Cyclone DDS to communicate "
       "across a Network Address Translation (NAT) device.</p>")),
   STRING("ExternalNetworkMask", NULL, 1, "0.0.0.0",
     MEMBER(externalMaskString),
