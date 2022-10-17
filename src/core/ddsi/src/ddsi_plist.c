@@ -2348,6 +2348,7 @@ static void plist_or_xqos_mergein_missing (void * __restrict dst, const void * _
   /* aliased may never have any bits set that are clear in present */
   assert (pfs_dst.present == NULL || (aliased_dst_inp & ~ *pfs_dst.present) == 0);
   assert ((aliased_dst_inq & ~ *qfs_dst.present) == 0);
+
   for (size_t k = 0; k < sizeof (piddesc_tables_all) / sizeof (piddesc_tables_all[0]); k++)
   {
     struct piddesc const * const table = piddesc_tables_all[k];
@@ -2362,6 +2363,30 @@ static void plist_or_xqos_mergein_missing (void * __restrict dst, const void * _
       struct flagset * const fs_dst = (entry->flags & PDF_QOS) ? &qfs_dst : &pfs_dst;
       struct flagset * const fs_src = (entry->flags & PDF_QOS) ? &qfs_src : &pfs_src;
       uint64_t const mask = (entry->flags & PDF_QOS) ? qmask : pmask;
+
+      /* special case for property list */
+      if(table[i].pid == PID_PROPERTY_LIST)
+      {
+        /* if both have property lists then copy missing properties from src to dst */
+        if ((*fs_src->present & mask & entry->present_flag) && (*fs_dst->present & entry->present_flag)) {
+          /* if dst is aliased we need to unalias it to add properties */
+          if ((*fs_dst->aliased & entry->present_flag)) {
+            unalias_generic(dst, &dstoff, true, entry->op.desc);
+          }
+
+          if (shift > 0) {
+            dds_qos_t *qos_dst = dst;
+            const dds_qos_t *qos_src = src;
+            ddsi_xqos_mergein_missing_props(qos_dst, qos_src);
+          } else {
+            ddsi_plist_t *plist_dst = dst;
+            const ddsi_plist_t *plist_src = src;
+            ddsi_xqos_mergein_missing_props(&plist_dst->qos, &plist_src->qos);
+          }
+          continue;
+        }
+      }
+
       /* skip if already present in dst or absent in src */
       if (!(*fs_dst->present & entry->present_flag) && (*fs_src->present & mask & entry->present_flag))
       {
@@ -3638,6 +3663,44 @@ bool ddsi_xqos_add_property_if_unset (dds_qos_t *q, bool propagate, const char *
   return true;
 }
 
+bool ddsi_xqos_add_binary_property_if_unset (dds_qos_t *q, bool propagate, const char *name, const void *value, uint32_t length)
+{
+  if ((q->present & QP_PROPERTY_LIST) == 0)
+  {
+    // No properties, definitely not set
+    q->present |= QP_PROPERTY_LIST;
+    q->property.binary_value.n = 1;
+    q->property.binary_value.props = ddsrt_malloc(sizeof(dds_property_t));
+    q->property.value.n = 0;
+    q->property.value.props = NULL;
+    q->property.binary_value.props[0].propagate = propagate;
+    q->property.binary_value.props[0].name = ddsrt_strdup(name);
+    q->property.binary_value.props[0].value.value = ddsrt_memdup(value, length);
+    q->property.binary_value.props[0].value.length = length;
+
+    return true;
+  }
+
+  for (size_t i = 0; i < q->property.binary_value.n; i++)
+  {
+    if (strcmp (q->property.binary_value.props[i].name, name) == 0)
+    {
+      // Already exists
+      return false;
+    }
+  }
+
+  // does not exists, append
+  q->property.binary_value.props = dds_realloc (q->property.binary_value.props,
+    (q->property.binary_value.n + 1) * sizeof (*q->property.binary_value.props));
+  q->property.binary_value.props[q->property.binary_value.n].propagate = propagate;
+  q->property.binary_value.props[q->property.binary_value.n].name = ddsrt_strdup (name);
+  q->property.binary_value.props[q->property.binary_value.n].value.value = ddsrt_memdup (value, length);
+  q->property.binary_value.props[q->property.binary_value.n].value.length = length;
+  q->property.binary_value.n++;
+  return true;
+}
+
 bool ddsi_xqos_has_prop_prefix (const dds_qos_t *xqos, const char *nameprefix)
 {
   if (!(xqos->present & QP_PROPERTY_LIST))
@@ -3665,6 +3728,31 @@ bool ddsi_xqos_find_prop (const dds_qos_t *xqos, const char *name, const char **
     }
   }
   return false;
+}
+
+void ddsi_xqos_mergein_missing_props(dds_qos_t* dst, const dds_qos_t* src)
+{
+  if (!(src->present & QP_PROPERTY_LIST))
+    return;
+  for (uint32_t i = 0; i < src->property.value.n; i++)
+  {
+    ddsi_xqos_add_property_if_unset(
+      dst,
+      src->property.value.props[i].propagate,
+      src->property.value.props[i].name,
+      src->property.value.props[i].value
+    );
+  }
+  for (uint32_t i = 0; i < src->property.binary_value.n; i++)
+  {
+    ddsi_xqos_add_binary_property_if_unset(
+      dst,
+      src->property.binary_value.props[i].propagate,
+      src->property.binary_value.props[i].name,
+      src->property.binary_value.props[i].value.value,
+      src->property.binary_value.props[i].value.length
+    );
+  }
 }
 
 #ifdef DDS_HAS_SECURITY

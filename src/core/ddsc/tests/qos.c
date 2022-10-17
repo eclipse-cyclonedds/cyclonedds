@@ -11,6 +11,7 @@
  */
 #include "CUnit/Test.h"
 #include "dds/dds.h"
+#include "dds/ddsi/ddsi_plist.h"
 #include <assert.h>
 
 /****************************************************************************
@@ -895,4 +896,62 @@ CU_Test(ddsc_qos, type_consistency, .init=qos_init, .fini=qos_fini)
     CU_ASSERT_EQUAL_FATAL(p.ignore_member_names, g_pol_type_consistency_enforcement.ignore_member_names);
     CU_ASSERT_EQUAL_FATAL(p.prevent_type_widening, g_pol_type_consistency_enforcement.prevent_type_widening);
     CU_ASSERT_EQUAL_FATAL(p.force_type_validation, g_pol_type_consistency_enforcement.force_type_validation);
+}
+
+
+CU_Test(ddsc_qos, property_list_inheritance)
+{
+    ddsi_plist_init_tables();
+
+    char *qos2_a, *qos3_a, *qos3_b;
+    char *qos2_ba, *qos3_ba, *qos3_bb;
+    size_t _ignore;
+    dds_qos_t *qos1 = dds_create_qos();
+    dds_qos_t *qos2 = dds_create_qos();
+    dds_qos_t *qos3 = dds_create_qos();
+
+
+    dds_qset_prop(qos1, "a", "v1");
+    dds_qset_prop(qos2, "a", "v2");
+    dds_qset_prop(qos3, "b", "v1");
+    dds_qset_bprop(qos1, "a", "v1", 3);
+    dds_qset_bprop(qos2, "a", "v2", 3);
+    dds_qset_bprop(qos3, "b", "v1", 3);
+
+    ddsi_xqos_mergein_missing(qos2, qos1, ~(uint64_t)0);
+    ddsi_xqos_mergein_missing(qos3, qos2, ~(uint64_t)0);
+
+    /* -- props -- */
+    CU_ASSERT_FATAL( dds_qget_prop(qos2, "a", &qos2_a) );
+    CU_ASSERT_FATAL( dds_qget_prop(qos3, "a", &qos3_a) );
+    CU_ASSERT_FATAL( dds_qget_prop(qos3, "b", &qos3_b) );
+
+    /* With qos2 inheriting from qos1, qos2 prop a should override qos1 prop a */
+    CU_ASSERT_STRING_EQUAL_FATAL(qos2_a, "v2");
+
+    /* With qos3 inheriting from qos2, qos3 should set properties a and b */
+    CU_ASSERT_STRING_EQUAL_FATAL(qos3_a, "v2");
+    CU_ASSERT_STRING_EQUAL_FATAL(qos3_b, "v1");
+
+    /* -- binary props -- */
+    CU_ASSERT_FATAL( dds_qget_bprop(qos2, "a", (void**) &qos2_ba, &_ignore) );
+    CU_ASSERT_FATAL( dds_qget_bprop(qos3, "a", (void**) &qos3_ba, &_ignore) );
+    CU_ASSERT_FATAL( dds_qget_bprop(qos3, "b", (void**) &qos3_bb, &_ignore) );
+
+    /* With qos2 inheriting from qos1, qos2 prop a should override qos1 prop a */
+    CU_ASSERT_STRING_EQUAL_FATAL(qos2_ba, "v2");
+
+    /* With qos3 inheriting from qos2, qos3 should set properties a and b */
+    CU_ASSERT_STRING_EQUAL_FATAL(qos3_ba, "v2");
+    CU_ASSERT_STRING_EQUAL_FATAL(qos3_bb, "v1");
+
+    dds_free(qos2_a);
+    dds_free(qos3_a);
+    dds_free(qos3_b);
+    dds_free(qos2_ba);
+    dds_free(qos3_ba);
+    dds_free(qos3_bb);
+    dds_delete_qos(qos1);
+    dds_delete_qos(qos2);
+    dds_delete_qos(qos3);
 }

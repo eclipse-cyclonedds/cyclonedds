@@ -427,6 +427,17 @@ dds_return_t ddsi_xqos_valid (const struct ddsrt_log_cfg *logcfg, const dds_qos_
 void ddsi_xqos_mergein_missing (dds_qos_t *a, const dds_qos_t *b, uint64_t mask);
 
 /**
+ * @brief Extend "a" with (binary) properties present in "b"
+ *
+ * This copies into "a" any (binary) properties present in "b" that are missing
+ * in "a".  It doesn't touch any properties already present in "a".
+ *
+ * @param[in,out] a       dds_qos_t to be extended with properties
+ * @param[in]     b       dds_qos_t from which to copy properties
+ */
+void ddsi_xqos_mergein_missing_props (dds_qos_t *a, const dds_qos_t * b);
+
+/**
  * @brief Determine the set of entries in which "x" differs from "y"
  *
  * This computes the entries set in "x" but not set in "y", not set in "x" but set in "y",
@@ -493,6 +504,19 @@ size_t ddsi_xqos_print (char * __restrict buf, size_t bufsize, const dds_qos_t *
  * @returns true iff xqos was modified (property did not exist yet)
  */
 bool ddsi_xqos_add_property_if_unset (dds_qos_t *xqos, bool propagate, const char *name, const char *value);
+
+/**
+ * @brief Add a property 'name' to the properties of "xqos" if it does not exists
+ *
+ * @param[in]  xqos        qos object to add property to.
+ * @param[in]  propagate   whether to propagate (emit to wire) the property
+ * @param[in]  name        property name
+ * @param[in]  value       property value
+ * @param[in]  length      property length
+ *
+ * @returns true iff xqos was modified (property did not exist yet)
+ */
+bool ddsi_xqos_add_binary_property_if_unset (dds_qos_t *xqos, bool propagate, const char *name, const void *value, uint32_t length);
 
 /**
  * @brief Duplicate "src"

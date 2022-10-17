@@ -372,7 +372,7 @@ void dds_qunset_##prop_type_ (dds_qos_t * __restrict qos, const char * name) \
 DDS_QUNSET_PROP (prop, value, value)
 DDS_QUNSET_PROP (bprop, binary_value, value.value)
 
-void dds_qset_prop (dds_qos_t * __restrict qos, const char * name, const char * value)
+static void qset_prop_impl (dds_qos_t * __restrict qos, const char * name, const char * value, bool propagate)
 {
   uint32_t i;
   if (qos == NULL || name == NULL || value == NULL)
@@ -384,19 +384,20 @@ void dds_qset_prop (dds_qos_t * __restrict qos, const char * name, const char * 
     assert (&qos->property.value.props[i] != NULL); /* for Clang static analyzer */
     dds_free (qos->property.value.props[i].value);
     qos->property.value.props[i].value = dds_string_dup (value);
+    qos->property.value.props[i].propagate = (unsigned char) propagate;
   }
   else
   {
     qos->property.value.props = dds_realloc (qos->property.value.props,
       (qos->property.value.n + 1) * sizeof (*qos->property.value.props));
-    qos->property.value.props[qos->property.value.n].propagate = 0;
+    qos->property.value.props[qos->property.value.n].propagate = (unsigned char) propagate;
     qos->property.value.props[qos->property.value.n].name = dds_string_dup (name);
     qos->property.value.props[qos->property.value.n].value = dds_string_dup (value);
     qos->property.value.n++;
   }
 }
 
-void dds_qset_bprop (dds_qos_t * __restrict qos, const char * name, const void * value, const size_t sz)
+static void qset_bprop_impl (dds_qos_t * __restrict qos, const char * name, const void * value, const size_t sz, bool propagate)
 {
   uint32_t i;
   if (qos == NULL || name == NULL || (value == NULL && sz > 0))
@@ -407,16 +408,37 @@ void dds_qset_bprop (dds_qos_t * __restrict qos, const char * name, const void *
   {
     assert (&qos->property.binary_value.props[i].value != NULL); /* for Clang static analyzer */
     dds_qos_data_copy_in (&qos->property.binary_value.props[i].value, value, sz, true);
+    qos->property.binary_value.props[i].propagate = (unsigned char) propagate;
   }
   else
   {
     qos->property.binary_value.props = dds_realloc (qos->property.binary_value.props,
       (qos->property.binary_value.n + 1) * sizeof (*qos->property.binary_value.props));
-    qos->property.binary_value.props[qos->property.binary_value.n].propagate = 0;
+    qos->property.binary_value.props[qos->property.binary_value.n].propagate = (unsigned char) propagate;
     qos->property.binary_value.props[qos->property.binary_value.n].name = dds_string_dup (name);
     dds_qos_data_copy_in (&qos->property.binary_value.props[qos->property.binary_value.n].value, value, sz, false);
     qos->property.binary_value.n++;
   }
+}
+
+void dds_qset_bprop (dds_qos_t * __restrict qos, const char * name, const void * value, const size_t sz)
+{
+  qset_bprop_impl (qos, name, value, sz, false);
+}
+
+void dds_qset_prop (dds_qos_t * __restrict qos, const char * name, const char * value)
+{
+  qset_prop_impl (qos, name, value, false);
+}
+
+void dds_qset_public_bprop (dds_qos_t * __restrict qos, const char * name, const void * value, const size_t sz)
+{
+  qset_bprop_impl (qos, name, value, sz, true);
+}
+
+void dds_qset_public_prop (dds_qos_t * __restrict qos, const char * name, const char * value)
+{
+  qset_prop_impl (qos, name, value, true);
 }
 
 void dds_qset_entity_name (dds_qos_t * __restrict qos, const char * name)
@@ -760,6 +782,34 @@ bool dds_qget_bprop (const dds_qos_t * __restrict qos, const char * name, void *
     if (sz != NULL)
       *sz = 0;
   }
+  return found;
+}
+
+bool dds_qget_prop_is_public (const dds_qos_t * __restrict qos, const char * name, bool *is_public)
+{
+  uint32_t i;
+  bool found;
+
+  if (qos == NULL || name == NULL)
+    return false;
+
+  found = dds_qprop_get_index (qos, name, &i);
+  if (found && is_public != NULL)
+    *is_public = qos->property.value.props[i].propagate;
+  return found;
+}
+
+bool dds_qget_bprop_is_public (const dds_qos_t * __restrict qos, const char * name, bool *is_public)
+{
+  uint32_t i;
+  bool found;
+
+  if (qos == NULL || name == NULL)
+    return false;
+
+  found = dds_qbprop_get_index (qos, name, &i);
+  if (found && is_public != NULL)
+    *is_public = qos->property.binary_value.props[i].propagate;
   return found;
 }
 

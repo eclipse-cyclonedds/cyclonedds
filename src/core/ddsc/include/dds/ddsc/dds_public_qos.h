@@ -432,6 +432,22 @@ dds_qset_prop (
 
 /**
  * @ingroup qos_setters
+ * @brief Stores a property with the provided name and string value in a qos structure.
+ *
+ * This is identical to dds_qoset_prop() except it is also emitted to the network.
+ *
+ * @param[in,out] qos - Pointer to a dds_qos_t structure that will store the property
+ * @param[in] name - Pointer to name of the property
+ * @param[in] value - Pointer to a (null-terminated) string that will be stored
+ */
+DDS_EXPORT void
+dds_qset_public_prop (
+  dds_qos_t * __restrict qos,
+  const char * name,
+  const char * value);
+
+/**
+ * @ingroup qos_setters
  * @brief Removes the property with the provided name from a qos structure.
  *
  * In case more than one property exists with this name, only the first property
@@ -461,6 +477,24 @@ dds_qunset_prop (
  */
 DDS_EXPORT void
 dds_qset_bprop (
+  dds_qos_t * __restrict qos,
+  const char * name,
+  const void * value,
+  const size_t sz);
+
+/**
+ * @ingroup qos_setters
+ * @brief Stores the provided binary data as a property in a qos structure
+ *
+ * This is identical to dds_qset_bprop() except it is also emitted to the network.
+ *
+ * @param[in,out] qos - Pointer to a dds_qos_t structure that will store the property
+ * @param[in] name - Pointer to name of the property
+ * @param[in] value - Pointer to data to be stored in the property
+ * @param[in] sz - Size of the data
+ */
+DDS_EXPORT void
+dds_qset_public_bprop (
   dds_qos_t * __restrict qos,
   const char * name,
   const void * value,
@@ -899,6 +933,24 @@ dds_qget_prop (
 
 /**
  * @ingroup qos_getters
+ * @brief Determine wether a binary property with the provided name is public in a qos structure.
+ *
+ *
+ * @param[in,out] qos - Pointer to a dds_qos_t structure that contains the property
+ * @param[in]    name - Pointer to name of the binary property
+ * @param[out] is_public - Pointer to a bool that will store wether the property is public.
+ *
+ * @returns - false iff any of the arguments is invalid, the qos is not present in the qos object or there was no binary property found with the provided name
+ */
+DDS_EXPORT bool
+dds_qget_prop_is_public (
+  const dds_qos_t * __restrict qos,
+  const char * name,
+  bool * is_public
+);
+
+/**
+ * @ingroup qos_getters
  * @brief Gets the names of the binary properties from a qos structure.
  *
  * @param[in,out] qos - Pointer to a dds_qos_t structure that contains binary properties
@@ -933,6 +985,24 @@ dds_qget_bprop (
   const char * name,
   void ** value,
   size_t * sz);
+
+/**
+ * @ingroup qos_getters
+ * @brief Determine wether a binary property with the provided name is public in a qos structure.
+ *
+ *
+ * @param[in,out] qos - Pointer to a dds_qos_t structure that contains the property
+ * @param[in]    name - Pointer to name of the binary property
+ * @param[out] is_public - Pointer to a bool that will store wether the property is public.
+ *
+ * @returns - false iff any of the arguments is invalid, the qos is not present in the qos object or there was no binary property found with the provided name
+ */
+DDS_EXPORT bool
+dds_qget_bprop_is_public (
+  const dds_qos_t * __restrict qos,
+  const char * name,
+  bool * is_public
+);
 
 /**
  * @ingroup qos_getters
