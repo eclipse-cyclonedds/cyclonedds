@@ -58,10 +58,10 @@ jobs:
         testing: off
         idlc_xtests: off
         conan_shared_objects: True
-      'Ubuntu 18.04 LTS with GCC 7 (Debug, x86_64)':
-        image: ubuntu-18.04
+      'Ubuntu 22.04 LTS with GCC 11 (Debug, x86_64)':
+        image: ubuntu-22.04
         conanfile: conanfile102.txt
-        cc: gcc-7
+        cc: gcc-11
       'Ubuntu 20.04 LTS with Clang 10 (Debug, x86_64)':
         image: ubuntu-20.04
         analyzer: on
