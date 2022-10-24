@@ -280,10 +280,11 @@ int printrst(FILE *out, struct cfgelem *elem, const struct cfgunit *units)
   if (maketitles(elem, 0, "/", 1) == -1)
     return -1;
   fputs(
-    "***********************\n"
-    "Configuration Reference\n"
-    "***********************\n\n"
-    "Below is the full (generated) reference of the CycloneDDS xml config file. "
+    ".. _`configuration_reference`:\n\n"
+    "****************************\n"
+    "Configuration File Reference\n"
+    "****************************\n\n"
+    "Below is the full (generated) reference of XML you can use to configure |var-project|. "
     "The title of each section is the XML XPath notation to the relevant option.\n\n", out);
   printelem(out, 0u, 0u, elem, units);
   return 0;

@@ -24,6 +24,8 @@ Running the example
 Discovering remote topics is only possible when topic discovery is enabled in the
 configuration using:
 
+.. code-block:: xml
+
     <Discovery>
       <EnableTopicDiscoveryEndpoints>true</EnableTopicDiscoveryEndpoints>
     </Discovery>

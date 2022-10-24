@@ -1,8 +1,10 @@
-***********************
-Configuration Reference
-***********************
+.. _`configuration_reference`:
 
-Below is the full (generated) reference of the CycloneDDS xml config file. The title of each section is the XML XPath notation to the relevant option.
+****************************
+Configuration File Reference
+****************************
+
+Below is the full (generated) reference of XML you can use to configure |var-project|. The title of each section is the XML XPath notation to the relevant option.
 
 .. _`//CycloneDDS`:
 
@@ -44,7 +46,7 @@ The default value is: "any".
 
 Children: `//CycloneDDS/Domain/Compatibility/AssumeRtiHasPmdEndpoints`_, `//CycloneDDS/Domain/Compatibility/ExplicitlyPublishQosSetToDefault`_, `//CycloneDDS/Domain/Compatibility/ManySocketsMode`_, `//CycloneDDS/Domain/Compatibility/StandardsConformance`_
 
-The Compatibility elements allows specifying various settings related to compatibility with standards and with other DDSI implementations.
+The Compatibility element allows you to specify various settings related to compatibility with standards and with other DDSI implementations.
 
 
 .. _`//CycloneDDS/Domain/Compatibility/AssumeRtiHasPmdEndpoints`:
@@ -94,10 +96,10 @@ The default value is: "single".
 
 One of: lax, strict, pedantic
 
-This element sets the level of standards conformance of this instance of the Cyclone DDS Service. Stricter conformance typically means less interoperability with other implementations. Currently three modes are defined:
- * pedantic: very strictly conform to the specification, ultimately for compliancy testing, but currently of little value because it adheres even to what will most likely turn out to be editing errors in the DDSI standard. Arguably, as long as no errata have been published it is the current text that is in effect, and that is what pedantic currently does.
+This element sets the level of standards conformance of this instance of the Cyclone DDS Service. Stricter conformance typically means less interoperability with other implementations. Currently, three modes are defined:
+ * pedantic: very strictly conform to the specification, ultimately for compliance testing, but currently of little value because it adheres even to what will most likely turn out to be editing errors in the DDSI standard. Arguably, as long as no errata have been published, the current text is in effect, and that is what pedantic currently does.
 
- * strict: a slightly less strict view of the standard than does pedantic: it follows the established behaviour where the standard is obviously in error.
+ * strict: a relatively less strict view of the standard than does pedantic: it follows the established behaviour where the standard is obviously in error.
 
  * lax: attempt to provide the smoothest possible interoperability, anticipating future revisions of elements in the standard in areas that other implementations do not adhere to, even though there is no good reason not to.
 
@@ -112,7 +114,7 @@ The default value is: "lax".
 
 Children: `//CycloneDDS/Domain/Discovery/DSGracePeriod`_, `//CycloneDDS/Domain/Discovery/DefaultMulticastAddress`_, `//CycloneDDS/Domain/Discovery/EnableTopicDiscoveryEndpoints`_, `//CycloneDDS/Domain/Discovery/ExternalDomainId`_, `//CycloneDDS/Domain/Discovery/LeaseDuration`_, `//CycloneDDS/Domain/Discovery/MaxAutoParticipantIndex`_, `//CycloneDDS/Domain/Discovery/ParticipantIndex`_, `//CycloneDDS/Domain/Discovery/Peers`_, `//CycloneDDS/Domain/Discovery/Ports`_, `//CycloneDDS/Domain/Discovery/SPDPInterval`_, `//CycloneDDS/Domain/Discovery/SPDPMulticastAddress`_, `//CycloneDDS/Domain/Discovery/Tag`_
 
-The Discovery element allows specifying various parameters related to the discovery of peers.
+The Discovery element allows you to specify various parameters related to the discovery of peers.
 
 
 .. _`//CycloneDDS/Domain/Discovery/DSGracePeriod`:
@@ -122,7 +124,7 @@ The Discovery element allows specifying various parameters related to the discov
 
 Number-with-unit
 
-This setting controls for how long endpoints discovered via a Cloud discovery service will survive after the discovery service disappeared, allowing reconnect without loss of data when the discovery service restarts (or another instance takes over).
+This setting controls for how long endpoints discovered via a Cloud discovery service will survive after the discovery service disappears, allowing reconnection without loss of data when the discovery service restarts (or another instance takes over).
 
 Valid values are finite durations with an explicit unit or the keyword 'inf' for infinity. Recognised units: ns, us, ms, s, min, hr, day.
 
@@ -160,7 +162,7 @@ The default value is: "false".
 
 Text
 
-An override for the domain id, to be used in discovery and for determining the port number mapping. This allows creating multiple domains in a single process while making them appear as a single domain on the network. The value "default" disables the override.
+An override for the domain id is used to discovery and determine the port number mapping. This allows the creating of multiple domains in a single process while making them appear as a single domain on the network. The value "default" disables the override.
 
 The default value is: "default".
 
@@ -225,7 +227,7 @@ This element statically configures addresses for discovery.
 
 Attributes: [Address](`//CycloneDDS/Domain/Discovery/Peers/Peer[@Address]`_)
 
-This element statically configures an addresses for discovery.
+This element statically configures addresses for discovery.
 
 
 .. _`//CycloneDDS/Domain/Discovery/Peers/Peer[@Address]`:
@@ -235,7 +237,7 @@ This element statically configures an addresses for discovery.
 
 Text
 
-This element specifies an IP address to which discovery packets must be sent, in addition to the default multicast address (see also General/AllowMulticast). Both a hostnames and a numerical IP address is accepted; the hostname or IP address may be suffixed with :PORT to explicitly set the port to which it must be sent. Multiple Peers may be specified.
+This element specifies an IP address to which discovery packets must be sent, in addition to the default multicast address (see also General/AllowMulticast). Both hostnames and a numerical IP address are accepted; the hostname or IP address may be suffixed with :PORT to explicitly set the port to which it must be sent. Multiple Peers may be specified.
 
 The default value is: "".
 
@@ -247,7 +249,7 @@ The default value is: "".
 
 Children: `//CycloneDDS/Domain/Discovery/Ports/Base`_, `//CycloneDDS/Domain/Discovery/Ports/DomainGain`_, `//CycloneDDS/Domain/Discovery/Ports/MulticastDataOffset`_, `//CycloneDDS/Domain/Discovery/Ports/MulticastMetaOffset`_, `//CycloneDDS/Domain/Discovery/Ports/ParticipantGain`_, `//CycloneDDS/Domain/Discovery/Ports/UnicastDataOffset`_, `//CycloneDDS/Domain/Discovery/Ports/UnicastMetaOffset`_
 
-The Ports element allows specifying various parameters related to the port numbers used for discovery. These all have default values specified by the DDSI 2.1 specification and rarely need to be changed.
+The Ports element specifies various parameters related to the port numbers used for discovery. These all have default values specified by the DDSI 2.1 specification and rarely need to be changed.
 
 
 .. _`//CycloneDDS/Domain/Discovery/Ports/Base`:
@@ -355,7 +357,7 @@ The default value is: "30 s".
 
 Text
 
-This element specifies the multicast address that is used as the destination for the participant discovery packets. In IPv4 mode the default is the (standardised) 239.255.0.1, in IPv6 mode it becomes ff02::ffff:239.255.0.1, which is a non-standardised link-local multicast address.
+This element specifies the multicast address used as the destination for the participant discovery packets. In IPv4 mode the default is the (standardised) 239.255.0.1, in IPv6 mode it becomes ff02::ffff:239.255.0.1, which is a non-standardised link-local multicast address.
 
 The default value is: "239.255.0.1".
 
@@ -403,7 +405,7 @@ It is a comma-separated list of some of the following keywords: "spdp", "asm", "
 
 
 
-When set to "false" all multicasting is disabled. The default, "true" enables full use of multicasts. Listening for multicasts can be controlled by General/MulticastRecvNetworkInterfaceAddresses.
+When set to "false" all multicasting is disabled. The default, "true" enables the full use of multicasts. Listening for multicasts can be controlled by General/MulticastRecvNetworkInterfaceAddresses.
 
 "default" maps on spdp if the network is a WiFi network, on true if it is a wired network
 
@@ -417,7 +419,7 @@ The default value is: "default".
 
 Boolean
 
-This element allows setting the SO\_DONTROUTE option for outgoing packets, to bypass the local routing tables. This is generally useful only when the routing tables cannot be trusted, which is highly unusual.
+This element allows setting the SO\_DONTROUTE option for outgoing packets to bypass the local routing tables. This is generally useful only when the routing tables cannot be trusted, which is highly unusual.
 
 The default value is: "false".
 
@@ -429,7 +431,7 @@ The default value is: "false".
 
 Boolean
 
-This element specifies whether Cyclone DDS allows IP multicast packets to be visible to all DDSI participants in the same node, including itself. It must be "true" for intra-node multicast communications, but if a node runs only a single Cyclone DDS service and does not host any other DDSI-capable programs, it should be set to "false" for improved performance.
+This element specifies whether Cyclone DDS allows IP multicast packets to be visible to all DDSI participants in the same node, including itself. It must be "true" for intra-node multicast communications. However, if a node runs only a single Cyclone DDS service and does not host any other DDSI-capable programs, it should be set to "false" for improved performance.
 
 The default value is: "true".
 
@@ -443,7 +445,7 @@ Attributes: [seed](`//CycloneDDS/Domain/General/EntityAutoNaming[@seed]`_)
 
 One of: empty, fancy
 
-This element specifies the entity autonaming mode. By default set to 'empty' which means no name will be set (but you can still use dds\_qset\_entity\_name). When set to 'fancy' participants, publishers, subscribers, writers and readers will get randomly generated names. An autonamed entity will share a 3-letter prefix with their parent entity.
+This element specifies the entity autonaming mode. By default set to 'empty' which means no name will be set (but you can still use dds\_qset\_entity\_name). When set to 'fancy' participants, publishers, subscribers, writers, and readers will get randomly generated names. An autonamed entity will share a 3-letter prefix with their parent entity.
 
 The default value is: "empty".
 
@@ -455,7 +457,7 @@ The default value is: "empty".
 
 Text
 
-Provide an initial seed for the entity naming. Your string will be hashed to provided the random state. When provided the same sequence of names is generated every run. If you create your entities in the same order this will ensure they are the same between runs. If you run multiple nodes set this via environment variable to ensure every node generates unique names. When left empty (the default) a random starting seed is chosen.
+Provide an initial seed for the entity naming. Your string will be hashed to provide the random state. When provided, the same sequence of names is generated every run. Creating your entities in the same order will ensure they are the same between runs. If you run multiple nodes, set this via environment variable to ensure every node generates unique names. A random starting seed is chosen when left empty, (the default). 
 
 The default value is: "".
 
@@ -505,7 +507,7 @@ The default value is: "1344 B".
 
 Children: `//CycloneDDS/Domain/General/Interfaces/NetworkInterface`_
 
-This element specifies the network interfaces for use by Cyclone DDS. Multiple interfaces can be specified with an assigned priority. The list in use will be sorted by priority. If interfaces have an equal priority the specification order will be preserved.
+This element specifies the network interfaces for use by Cyclone DDS. Multiple interfaces can be specified with an assigned priority. The list in use will be sorted by priority. If interfaces have an equal priority, the specification order will be preserved.
 
 
 .. _`//CycloneDDS/Domain/General/Interfaces/NetworkInterface`:
@@ -515,7 +517,7 @@ This element specifies the network interfaces for use by Cyclone DDS. Multiple i
 
 Attributes: [address](`//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@address]`_), [autodetermine](`//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@autodetermine]`_), [multicast](`//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@multicast]`_), [name](`//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@name]`_), [prefer_multicast](`//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@prefer_multicast]`_), [presence_required](`//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@presence_required]`_), [priority](`//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@priority]`_)
 
-This element defines a network interface. You can set autodetermine="true" to autoselect the interface CycloneDDS deems to be the highest quality. If autodetermine="false" (the default), you must specify the name and/or address attribute. If you specify both they must match the same interface.
+This element defines a network interface. You can set autodetermine="true" to autoselect the interface CycloneDDS considers the highest quality. If autodetermine="false" (the default), you must specify the name and/or address attribute. If you specify both, they must match the same interface.
 
 
 .. _`//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@address]`:
@@ -525,7 +527,7 @@ This element defines a network interface. You can set autodetermine="true" to au
 
 Text
 
-This attribute specifies the address of the interface. With ipv4 allows  matching on network part if host part is set to zero. 
+This attribute specifies the address of the interface. With ipv4 allows  matching on the network part if the host part is set to zero. 
 
 The default value is: "".
 
@@ -549,7 +551,7 @@ The default value is: "false".
 
 Text
 
-This attribute specifies the whether the interface should use multicast. On its default setting 'default' it will use the value as return by the operating system. If set to 'true' the interface will be assumed to be multicast capable even when the interface flags returned by the operating system state it is not (this provides a workaround for some platforms). If set to 'false' the interface will never be used for multicast.
+This attribute specifies whether the interface should use multicast. On its default setting, 'default', it will use the value as return by the operating system. If set to 'true', the interface will be assumed to be multicast capable even when the interface flags returned by the operating system state it is not (this provides a workaround for some platforms). If set to 'false', the interface will never be used for multicast.
 The default value is: "default".
 
 
@@ -572,7 +574,7 @@ The default value is: "".
 
 Boolean
 
-When false (default) Cyclone DDS uses unicast for data whenever there a single unicast suffices. Setting this to true makes it prefer multicasting data, falling back to unicast only when no multicast is available.
+When false (default), Cyclone DDS uses unicast for data whenever a single unicast suffices. Setting this to true makes it prefer multicasting data, falling back to unicast only when no multicast is available.
 
 The default value is: "false".
 
@@ -584,7 +586,7 @@ The default value is: "false".
 
 Boolean
 
-By default all specified network interfaces must be present, if they are missing Cyclone will refuse to start. By explicitly setting this setting for an interface you can instruct Cyclone to simply ignore that interface if it is not present.
+By default, all specified network interfaces must be present; if they are missing Cyclone will not start. By explicitly setting this setting for an interface, you can instruct Cyclone to ignore that interface if it is not present.
 
 The default value is: "true".
 
@@ -640,17 +642,17 @@ The default value is: "1456 B".
 
 Text
 
-This element specifies on which network interfaces Cyclone DDS listens to multicasts. The following options are available:
+This element specifies which network interfaces Cyclone DDS listens to multicasts. The following options are available:
 
  * all: listen for multicasts on all multicast-capable interfaces; or
 
  * any: listen for multicasts on the operating system default interface; or
 
- * preferred: listen for multicasts on the preferred interface (General/Interface/NetworkInterface with highest priority); or
+ * preferred: listen for multicasts on the preferred interface (General/Interface/NetworkInterface with the highest priority); or
 
  * none: does not listen for multicasts on any interface; or
 
- * a comma-separated list of network addresses: configures Cyclone DDS to listen for multicasts on all of the listed addresses.
+ * a comma-separated list of network addresses: configures Cyclone DDS to listen for multicasts on all listed addresses.
 
 
 
@@ -714,7 +716,7 @@ The default value is: "default".
 
 Children: `//CycloneDDS/Domain/Internal/AccelerateRexmitBlockSize`_, `//CycloneDDS/Domain/Internal/AckDelay`_, `//CycloneDDS/Domain/Internal/AutoReschedNackDelay`_, `//CycloneDDS/Domain/Internal/BuiltinEndpointSet`_, `//CycloneDDS/Domain/Internal/BurstSize`_, `//CycloneDDS/Domain/Internal/ControlTopic`_, `//CycloneDDS/Domain/Internal/DDSI2DirectMaxThreads`_, `//CycloneDDS/Domain/Internal/DefragReliableMaxSamples`_, `//CycloneDDS/Domain/Internal/DefragUnreliableMaxSamples`_, `//CycloneDDS/Domain/Internal/DeliveryQueueMaxSamples`_, `//CycloneDDS/Domain/Internal/EnableExpensiveChecks`_, `//CycloneDDS/Domain/Internal/GenerateKeyhash`_, `//CycloneDDS/Domain/Internal/HeartbeatInterval`_, `//CycloneDDS/Domain/Internal/LateAckMode`_, `//CycloneDDS/Domain/Internal/LivelinessMonitoring`_, `//CycloneDDS/Domain/Internal/MaxParticipants`_, `//CycloneDDS/Domain/Internal/MaxQueuedRexmitBytes`_, `//CycloneDDS/Domain/Internal/MaxQueuedRexmitMessages`_, `//CycloneDDS/Domain/Internal/MaxSampleSize`_, `//CycloneDDS/Domain/Internal/MeasureHbToAckLatency`_, `//CycloneDDS/Domain/Internal/MonitorPort`_, `//CycloneDDS/Domain/Internal/MultipleReceiveThreads`_, `//CycloneDDS/Domain/Internal/NackDelay`_, `//CycloneDDS/Domain/Internal/PreEmptiveAckDelay`_, `//CycloneDDS/Domain/Internal/PrimaryReorderMaxSamples`_, `//CycloneDDS/Domain/Internal/PrioritizeRetransmit`_, `//CycloneDDS/Domain/Internal/RediscoveryBlacklistDuration`_, `//CycloneDDS/Domain/Internal/RetransmitMerging`_, `//CycloneDDS/Domain/Internal/RetransmitMergingPeriod`_, `//CycloneDDS/Domain/Internal/RetryOnRejectBestEffort`_, `//CycloneDDS/Domain/Internal/SPDPResponseMaxDelay`_, `//CycloneDDS/Domain/Internal/ScheduleTimeRounding`_, `//CycloneDDS/Domain/Internal/SecondaryReorderMaxSamples`_, `//CycloneDDS/Domain/Internal/SocketReceiveBufferSize`_, `//CycloneDDS/Domain/Internal/SocketSendBufferSize`_, `//CycloneDDS/Domain/Internal/SquashParticipants`_, `//CycloneDDS/Domain/Internal/SynchronousDeliveryLatencyBound`_, `//CycloneDDS/Domain/Internal/SynchronousDeliveryPriorityThreshold`_, `//CycloneDDS/Domain/Internal/Test`_, `//CycloneDDS/Domain/Internal/UnicastResponseToSPDPMessages`_, `//CycloneDDS/Domain/Internal/UseMulticastIfMreqn`_, `//CycloneDDS/Domain/Internal/Watermarks`_, `//CycloneDDS/Domain/Internal/WriteBatch`_, `//CycloneDDS/Domain/Internal/WriterLingerDuration`_
 
-The Internal elements deal with a variety of settings that evolving and that are not necessarily fully supported. For the vast majority of the Internal settings, the functionality per-se is supported, but the right to change the way the options control the functionality is reserved. This includes renaming or moving options.
+The Internal elements deal with a variety of settings that are evolving and that are not necessarily fully supported. For the majority of the Internal settings the functionality is supported, but the right to change the way the options control the functionality is reserved. This includes renaming or moving options.
 
 
 .. _`//CycloneDDS/Domain/Internal/AccelerateRexmitBlockSize`:
@@ -724,7 +726,7 @@ The Internal elements deal with a variety of settings that evolving and that are
 
 Integer
 
-Proxy readers that are assumed to sill be retrieving historical data get this many samples retransmitted when they NACK something, even if some of these samples have sequence numbers outside the set covered by the NACK.
+Proxy readers that are assumed to still be retrieving historical data get this many samples retransmitted when they NACK something, even if some of these samples have sequence numbers outside the set covered by the NACK.
 
 The default value is: "0".
 
@@ -784,7 +786,7 @@ The default value is: "writers".
 
 Children: `//CycloneDDS/Domain/Internal/BurstSize/MaxInitTransmit`_, `//CycloneDDS/Domain/Internal/BurstSize/MaxRexmit`_
 
-Setting for controlling the size of transmit bursts.
+Setting for controlling the size of transmitting bursts.
 
 
 .. _`//CycloneDDS/Domain/Internal/BurstSize/MaxInitTransmit`:
@@ -794,7 +796,7 @@ Setting for controlling the size of transmit bursts.
 
 Number-with-unit
 
-This element specifies how much more than the (presumed or discovered) receive buffer size may be sent when transmitting a sample for the first time, expressed as a percentage; the remainder will then be handled via retransmits. Usually the receivers can keep up with transmitter, at least on average, and so generally it is better to hope for the best and recover. Besides, the retransmits will be unicast, and so any multicast advantage will be lost as well.
+This element specifies how much more than the (presumed or discovered) receive buffer size may be sent when transmitting a sample for the first time, expressed as a percentage; the remainder will then be handled via retransmits. Usually, the receivers can keep up with the transmitter, at least on average, so generally it is better to hope for the best and recover. Besides, the retransmits will be unicast, and so any multicast advantage will be lost as well.
 
 The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2^10 bytes), MB & MiB (2^20 bytes), GB & GiB (2^30 bytes).
 
@@ -830,7 +832,7 @@ The ControlTopic element allows configured whether Cyclone DDS provides a specia
 
 Integer
 
-This element sets the maximum number of extra threads for an experimental, undocumented and unsupported direct mode.
+This element sets the maximum number of extra threads for an experimental, undocumented, and unsupported direct mode.
 
 The default value is: "1".
 
@@ -854,7 +856,7 @@ The default value is: "16".
 
 Integer
 
-This element sets the maximum number of samples that can be defragmented simultaneously for a best-effort writers.
+This element sets the maximum number of samples that can be defragmented simultaneously for best-effort writers.
 
 The default value is: "4".
 
@@ -996,7 +998,7 @@ The default value is: "false".
 
 Number-with-unit
 
-This element controls the interval at which to check whether threads have been making progress.
+This element controls the interval to check whether threads have been making progress.
 
 The unit must be specified explicitly. Recognised units: ns, us, ms, s, min, hr, day.
 
@@ -1048,7 +1050,7 @@ The default value is: "512 kB".
 
 Integer
 
-This settings limits the maximum number of samples queued for retransmission.
+This setting limits the maximum number of samples queued for retransmission.
 
 The default value is: "200".
 
@@ -1138,7 +1140,7 @@ The default value is: "100 ms".
 
 Number-with-unit
 
-This setting controls the delay between the discovering a remote writer and sending a pre-emptive AckNack to discover the range of data available.
+This setting controls the delay between the discovering a remote writer and sending a pre-emptive AckNack to discover the available range of data.
 
 The unit must be specified explicitly. Recognised units: ns, us, ms, s, min, hr, day.
 
@@ -1152,7 +1154,7 @@ The default value is: "10 ms".
 
 Integer
 
-This element sets the maximum size in samples of a primary re-order administration. Each proxy writer has one primary re-order administration to buffer the packet flow in case some packets arrive out of order. Old samples are forwarded to secondary re-order administrations associated with readers in need of historical data.
+This element sets the maximum size in samples of a primary re-order administration. Each proxy writer has one primary re-order administration to buffer the packet flow in case some packets arrive out of order. Old samples are forwarded to secondary re-order administrations associated with readers needing historical data.
 
 The default value is: "128".
 
@@ -1224,7 +1226,7 @@ The default value is: "never".
 
 Number-with-unit
 
-This setting determines the size of the time window in which a NACK of some sample is ignored because a retransmit of that sample has been multicasted too recently. This setting has no effect on unicasted retransmits.
+This setting determines the time window size in which a NACK of some sample is ignored because a retransmit of that sample has been multicasted too recently. This setting has no effect on unicasted retransmits.
 
 See also Internal/RetransmitMerging.
 
@@ -1280,7 +1282,7 @@ The default value is: "0 ms".
 
 Integer
 
-This element sets the maximum size in samples of a secondary re-order administration. The secondary re-order administration is per reader in need of historical data.
+This element sets the maximum size in samples of a secondary re-order administration. The secondary re-order administration is per reader needing historical data.
 
 The default value is: "128".
 
@@ -1304,7 +1306,7 @@ The default setting requests a buffer size of 1MiB but accepts whatever is avail
 
 Number-with-unit
 
-This sets the size of the socket receive buffer to request, with the special value of "default" indicating that it should try to satisfy the minimum buffer size. If both are at "default", it will request 1MiB and accept anything. If the maximum is set to less than the minimum, it is ignored.
+This sets the size of the socket receive buffer to request, with the special value of "default" indicating that it should try to satisfy the minimum buffer size. If both are at "default", it will request 1MiB and accept anything. It is ignored if the  maximum is set to less than the minimum.
 
 The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2^10 bytes), MB & MiB (2^20 bytes), GB & GiB (2^30 bytes).
 
@@ -1344,7 +1346,7 @@ The default setting requires a buffer of at least 64KiB.
 
 Number-with-unit
 
-This sets the size of the socket send buffer to request, with the special value of "default" indicating that it should try to satisfy the minimum buffer size. If both are at "default", it will use whatever is the system default. If the maximum is set to less than the minimum, it is ignored.
+This sets the size of the socket send buffer to request, with the special value of "default" indicating that it should try to satisfy the minimum buffer size. If both are at "default", it will use whatever is the system default. It is ignored if the maximum is set to less than the minimum.
 
 The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2^10 bytes), MB & MiB (2^20 bytes), GB & GiB (2^30 bytes).
 
@@ -1372,7 +1374,7 @@ The default value is: "64 KiB".
 
 Boolean
 
-This element controls whether Cyclone DDS advertises all the domain participants it serves in DDSI (when set to false), or rather only one domain participant (the one corresponding to the Cyclone DDS process; when set to true). In the latter case Cyclone DDS becomes the virtual owner of all readers and writers of all domain participants, dramatically reducing discovery traffic (a similar effect can be obtained by setting Internal/BuiltinEndpointSet to "minimal" but with less loss of information).
+This element controls whether Cyclone DDS advertises all the domain participants it serves in DDSI (when set to false), or rather only one domain participant (the one corresponding to the Cyclone DDS process; when set to true). In the latter case, Cyclone DDS becomes the virtual owner of all readers and writers of all domain participants, dramatically reducing discovery traffic (a similar effect can be obtained by setting Internal/BuiltinEndpointSet to "minimal" but with less loss of information).
 
 The default value is: "false".
 
@@ -1432,7 +1434,7 @@ The default value is: "0".
 
 Boolean
 
-This element controls whether the response to a newly discovered participant is sent as a unicasted SPDP packet, instead of rescheduling the periodic multicasted one. There is no known benefit to setting this to false.
+This element controls whether the response to a newly discovered participant is sent as a unicasted SPDP packet instead of rescheduling the periodic multicasted one. There is no known benefit to setting this to false.
 
 The default value is: "true".
 
@@ -1466,7 +1468,7 @@ Watermarks for flow-control.
 
 Boolean
 
-This element controls whether Cyclone DDS will adapt the high-water mark to current traffic conditions, based on retransmit requests and transmit pressure.
+This element controls whether Cyclone DDS will adapt the high-water mark to current traffic conditions based on retransmit requests and transmit pressure.
 
 The default value is: "true".
 
@@ -1520,7 +1522,7 @@ The default value is: "1 kB".
 
 Boolean
 
-This element enables the batching of write operations. By default each write operation writes through the write cache and out onto the transport. Enabling write batching causes multiple small write operations to be aggregated within the write cache into a single larger write. This gives greater throughput at the expense of latency. Currently there is no mechanism for the write cache to automatically flush itself, so that if write batching is enabled, the application may have to use the dds\_write\_flush function to ensure that all samples are written.
+This element enables the batching of write operations. By default each write operation writes through the write cache and out onto the transport. Enabling write batching causes multiple small write operations to be aggregated within the write cache into a single larger write. This gives greater throughput at the expense of latency. Currently, there is no mechanism for the write cache to automatically flush itself, so that if write batching is enabled, the application may have to use the dds\_write\_flush function to ensure that all samples are written.
 
 The default value is: "false".
 
@@ -1567,7 +1569,7 @@ Attributes: [DCPSPartitionTopic](`//CycloneDDS/Domain/Partitioning/IgnoredPartit
 
 Text
 
-This element can be used to prevent certain combinations of DCPS partition and topic from being transmitted over the network. Cyclone DDS will complete ignore readers and writers for which all DCPS partitions as well as their topic is ignored, not even creating DDSI readers and writers to mirror the DCPS ones.
+This element can prevent certain combinations of DCPS partition and topic from being transmitted over the network. Cyclone DDS will completely ignore readers and writers for which all DCPS partitions as well as their topic is ignored, not even creating DDSI readers and writers to mirror the DCPS ones.
 
 The default value is: "".
 
@@ -1579,7 +1581,7 @@ The default value is: "".
 
 Text
 
-This attribute specifies a partition and a topic expression, separated by a single '.', that are used to determine if a given partition and topic will be ignored or not. The expressions may use the usual wildcards '\*' and '?'. Cyclone DDS will consider an wildcard DCPS partition to match an expression iff there exists a string that satisfies both expressions.
+This attribute specifies a partition and a topic expression, separated by a single '.', which are used to determine if a given partition and topic will be ignored or not. The expressions may use the usual wildcards '\*' and '?'. Cyclone DDS will consider a wildcard DCPS partition to match an expression if a string that satisfies both expressions exists.
 
 The default value is: "".
 
@@ -1668,7 +1670,7 @@ Attributes: [DCPSPartitionTopic](`//CycloneDDS/Domain/Partitioning/PartitionMapp
 
 Text
 
-This element defines a mapping from a DCPS partition/topic combination to a Cyclone DDS network partition. This allows partitioning data flows by using special multicast addresses for part of the data and possibly also encrypting the data flow.
+This element defines a mapping from a DCPS partition/topic combination to a Cyclone DDS network partition. This allows partitioning data flows by using special multicast addresses for part of the data and possibly encrypting the data flow.
 
 The default value is: "".
 
@@ -1680,7 +1682,7 @@ The default value is: "".
 
 Text
 
-This attribute specifies a partition and a topic expression, separated by a single '.', that are used to determine if a given partition and topic maps to the Cyclone DDS network partition named by the NetworkPartition attribute in this PartitionMapping element. The expressions may use the usual wildcards '\*' and '?'. Cyclone DDS will consider a wildcard DCPS partition to match an expression if there exists a string that satisfies both expressions.
+This attribute specifies a partition and a topic expression, separated by a single '.', which are used to determine if a given partition and topic maps to the Cyclone DDS network partition named by the NetworkPartition attribute in this PartitionMapping element. The expressions may use the usual wildcards '\*' and '?'. Cyclone DDS will consider a wildcard DCPS partition to match an expression if there exists a string that satisfies both expressions.
 
 The default value is: "".
 
@@ -1810,7 +1812,7 @@ The default value is: "false".
 
 Boolean
 
-This enables an SSL server checking the X509 certificate of a connecting client.
+This enables an SSL server to check the X509 certificate of a connecting client.
 
 The default value is: "true".
 
@@ -1922,7 +1924,7 @@ The default value is: "finalize\_access\_control".
 
 Text
 
-This element names the initialization function of Access Control plugin. This function is called after loading the plugin library for instantiation purposes. Init function must return an object that implements DDS Security Access Control interface.
+This element names the initialization function of Access Control plugin. This function is called after loading the plugin library for instantiation purposes. The Init function must return an object that implements the DDS Security Access Control interface.
 
 The default value is: "init\_access\_control".
 
@@ -1938,7 +1940,7 @@ This element points to the path of Access Control plugin library.
 
 It can be either absolute path excluding file extension ( /usr/lib/dds\_security\_ac ) or single file without extension ( dds\_security\_ac ).
 
-If single file is supplied, the library located by way of the current working directory, or LD\_LIBRARY\_PATH for Unix systems, and PATH for Windows systems.
+If a single file is supplied, the library is located by the current working directory, or LD\_LIBRARY\_PATH for Unix systems, and PATH for Windows systems.
 
 The default value is: "dds\_security\_ac".
 
@@ -1973,7 +1975,7 @@ The default value is: "".
 
 Text
 
-URI to a X509 certificate for the PermissionsCA in PEM format.
+URI to an X509 certificate for the PermissionsCA in PEM format.
 
 Supported URI schemes: file, data
 
@@ -2054,7 +2056,7 @@ The default value is: "".
 
 Text
 
-Identity certificate that will be used for identifying all participants in the OSPL instance.<br>The content is URI to a X509 certificate signed by the IdentityCA in PEM format containing the signed public key.
+An identity certificate will identify all participants in the OSPL instance.<br>The content is URI to an X509 certificate signed by the IdentityCA in PEM format containing the signed public key.
 
 Supported URI schemes: file, data
 
@@ -2102,7 +2104,7 @@ The default value is: "".
 
 Text
 
-This element names the finalization function of Authentication plugin. This function is called to let the plugin release its resources.
+This element names the finalization function of the Authentication plugin. This function is called to let the plugin release its resources.
 
 The default value is: "finalize\_authentication".
 
@@ -2114,7 +2116,7 @@ The default value is: "finalize\_authentication".
 
 Text
 
-This element names the initialization function of Authentication plugin. This function is called after loading the plugin library for instantiation purposes. Init function must return an object that implements DDS Security Authentication interface.
+This element names the initialization function of the Authentication plugin. This function is called after loading the plugin library for instantiation purposes. The Init function must return an object that implements the DDS Security Authentication interface.
 
 The default value is: "init\_authentication".
 
@@ -2126,11 +2128,11 @@ The default value is: "init\_authentication".
 
 Text
 
-This element points to the path of Authentication plugin library.
+This element points to the path of the Authentication plugin library.
 
 It can be either absolute path excluding file extension ( /usr/lib/dds\_security\_auth ) or single file without extension ( dds\_security\_auth ).
 
-If single file is supplied, the library located by way of the current working directory, or LD\_LIBRARY\_PATH for Unix systems, and PATH for Windows system.
+If a single file is supplied, the library is located by the current working directory, or LD\_LIBRARY\_PATH for Unix systems, and PATH for Windows systems.
 
 The default value is: "dds\_security\_auth".
 
@@ -2142,7 +2144,7 @@ The default value is: "dds\_security\_auth".
 
 Text
 
-A password used to decrypt the private\_key.
+A password is used to decrypt the private\_key.
 
 The value of the password property shall be interpreted as the Base64 encoding of the AES-128 key that shall be used to decrypt the private\_key using AES128-CBC.
 
@@ -2216,7 +2218,7 @@ The default value is: "".
 
 Text
 
-This element names the finalization function of Cryptographic plugin. This function is called to let the plugin release its resources.
+This element names the finalization function of the Cryptographic plugin. This function is called to let the plugin release its resources.
 
 The default value is: "finalize\_crypto".
 
@@ -2228,7 +2230,7 @@ The default value is: "finalize\_crypto".
 
 Text
 
-This element names the initialization function of Cryptographic plugin. This function is called after loading the plugin library for instantiation purposes. Init function must return an object that implements DDS Security Cryptographic interface.
+This element names the initialization function of the Cryptographic plugin. This function is called after loading the plugin library for instantiation purposes. The Init function must return an object that implements the DDS Security Cryptographic interface.
 
 The default value is: "init\_crypto".
 
@@ -2240,11 +2242,11 @@ The default value is: "init\_crypto".
 
 Text
 
-This element points to the path of Cryptographic plugin library.
+This element points to the path of the Cryptographic plugin library.
 
 It can be either absolute path excluding file extension ( /usr/lib/dds\_security\_crypto ) or single file without extension ( dds\_security\_crypto ).
 
-If single file is supplied, the library located by way of the current working directory, or LD\_LIBRARY\_PATH for Unix systems, and PATH for Windows systems.
+If a single file is supplied, the is library located by the current working directory, or LD\_LIBRARY\_PATH for Unix systems, and PATH for Windows systems.
 
 The default value is: "dds\_security\_crypto".
 
@@ -2266,7 +2268,7 @@ The Shared Memory element allows specifying various parameters related to using 
 
 Boolean
 
-This element allows to enable shared memory in Cyclone DDS.
+This element allows for enabling shared memory in Cyclone DDS.
 
 The default value is: "false".
 
@@ -2305,7 +2307,7 @@ This element decides the verbosity level of shared memory message:
 
  * verbose: show verbose log
 
-If you don't want to see any log from shared memory, use off to disable log message.
+If you don't want to see any log from shared memory, use off to disable logging.
 
 The default value is: "info".
 
@@ -2329,7 +2331,7 @@ The default value is: "DDS\_CYCLONE".
 
 Children: `//CycloneDDS/Domain/Sizing/ReceiveBufferChunkSize`_, `//CycloneDDS/Domain/Sizing/ReceiveBufferSize`_
 
-The Sizing element specifies a variety of configuration settings dealing with expected system sizes, buffer sizes, &c.
+The Sizing element allows you to specify various configuration settings dealing with expected system sizes, buffer sizes, &c.
 
 
 .. _`//CycloneDDS/Domain/Sizing/ReceiveBufferChunkSize`:
@@ -2339,7 +2341,7 @@ The Sizing element specifies a variety of configuration settings dealing with ex
 
 Number-with-unit
 
-This element specifies the size of one allocation unit in the receive buffer. Must be greater than the maximum packet size by a modest amount (too large packets are dropped). Each allocation is shrunk immediately after processing a message, or freed straightaway.
+This element specifies the size of one allocation unit in the receive buffer. It must be greater than the maximum packet size by a modest amount (too large packets are dropped). Each allocation is shrunk immediately after processing a message or freed straightaway.
 
 The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2^10 bytes), MB & MiB (2^20 bytes), GB & GiB (2^30 bytes).
 
@@ -2353,7 +2355,7 @@ The default value is: "128 KiB".
 
 Number-with-unit
 
-This element sets the size of a single receive buffer. Many receive buffers may be needed. The minimum workable size a little bit larger than Sizing/ReceiveBufferChunkSize, and the value used is taken as the configured value and the actual minimum workable size.
+This element sets the size of a single receive buffer. Many receive buffers may be needed. The minimum workable size is a little larger than Sizing/ReceiveBufferChunkSize, and the value used is taken as the configured value and the actual minimum workable size.
 
 The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2^10 bytes), MB & MiB (2^20 bytes), GB & GiB (2^30 bytes).
 
@@ -2367,7 +2369,7 @@ The default value is: "1 MiB".
 
 Children: `//CycloneDDS/Domain/TCP/AlwaysUsePeeraddrForUnicast`_, `//CycloneDDS/Domain/TCP/Enable`_, `//CycloneDDS/Domain/TCP/NoDelay`_, `//CycloneDDS/Domain/TCP/Port`_, `//CycloneDDS/Domain/TCP/ReadTimeout`_, `//CycloneDDS/Domain/TCP/WriteTimeout`_
 
-The TCP element allows specifying various parameters related to running DDSI over TCP.
+The TCP element allows you to specify various parameters related to running DDSI over TCP.
 
 
 .. _`//CycloneDDS/Domain/TCP/AlwaysUsePeeraddrForUnicast`:
@@ -2377,7 +2379,7 @@ The TCP element allows specifying various parameters related to running DDSI ove
 
 Boolean
 
-Setting this to true means the unicast addresses in SPDP packets will be ignored and the peer address from the TCP connection will be used instead. This may help work around incorrectly advertised addresses when using TCP.
+Setting this to true means the unicast addresses in SPDP packets will be ignored, and the peer address from the TCP connection will be used instead. This may help work around incorrectly advertised addresses when using TCP.
 
 The default value is: "false".
 
@@ -2401,7 +2403,7 @@ The default value is: "default".
 
 Boolean
 
-This element enables the TCP\_NODELAY socket option, preventing multiple DDSI messages being sent in the same TCP request. Setting this option typically optimises latency over throughput.
+This element enables the TCP\_NODELAY socket option, preventing multiple DDSI messages from being sent in the same TCP request. Setting this option typically optimises latency over throughput.
 
 The default value is: "true".
 
@@ -2413,7 +2415,7 @@ The default value is: "true".
 
 Integer
 
-This element specifies the TCP port number on which Cyclone DDS accepts connections. If the port is set it is used in entity locators, published with DDSI discovery. Dynamically allocated if zero. Disabled if -1 or not configured. If disabled other DDSI services will not be able to establish connections with the service, the service can only communicate by establishing connections to other services.
+This element specifies the TCP port number on which Cyclone DDS accepts connections. If the port is set, it is used in entity locators, published with DDSI discovery, dynamically allocated if zero, and disabled if -1 or not configured. If disabled other DDSI services will not be able to establish connections with the service, the service can only communicate by establishing connections to other services.
 
 The default value is: "-1".
 
@@ -2527,7 +2529,7 @@ The default value is: "default".
 
 Text
 
-This element specifies the thread priority (decimal integer or default). Only priorities that are supported by the underlying operating system can be assigned to this element. The user may need special privileges from the underlying operating system to be able to assign some of the privileged priorities.
+This element specifies the thread priority (decimal integer or default). Only priorities supported by the underlying operating system can be assigned to this element. The user may need special privileges from the underlying operating system to be able to assign some of the privileged priorities.
 
 The default value is: "default".
 
@@ -2563,7 +2565,7 @@ The Tracing element controls the amount and type of information that is written 
 
 Boolean
 
-This option specifies whether the output is to be appended to an existing log file. The default is to create a new log file each time, which is generally the best option if a detailed log is generated.
+This option specifies whether the output should be appended to an existing log file. The default is to create a new log file each time, which is generally the best option if a detailed log is generated.
 
 The default value is: "false".
 
@@ -2672,12 +2674,12 @@ The default value is: "none".
 ..
    generated from ddsi_config.h[75edea6617af11bacc46f91e519773f6df580655] 
    generated from ddsi_cfgunits.h[fc550f1620aa20dcd9244ef4e24299d5001efbb4] 
-   generated from ddsi_cfgelems.h[3b8f4c3aa5ddf3b67774d3ba46ad63ef34ca8828] 
+   generated from ddsi_cfgelems.h[11913cd398f1cd1b52e06d924718df62a5981beb] 
    generated from ddsi_config.c[ed9898f72f9dbcfa20ce7706835da091efcea0ca] 
    generated from _confgen.h[f2d235d5551cbf920a8a2962831dddeabd2856ac] 
    generated from _confgen.c[1193219ddb4769b90566cf197e73d22fb6f75835] 
    generated from generate_rnc.c[a2ec6e48d33ac14a320c8ec3f320028a737920e0] 
    generated from generate_md.c[a61b6a9649d18afeca4c73b5784f36989d7994e0] 
-   generated from generate_rst.c[549022e42c3e0d4b019d672bb4b94aba1dd4b322] 
+   generated from generate_rst.c[34dcb6b5e2ac2cd15e78497107ce0b6eed6e6e94] 
    generated from generate_xsd.c[45064e8869b3c00573057d7c8f02d20f04b40e16] 
    generated from generate_defconfig.c[eec9ab7b2d053e68500799b693d089e84153a37b] 

@@ -34,7 +34,7 @@ static struct cfgelem network_interface_attributes[] = {
     FUNCTIONS(0, uf_string, ff_free, pf_string),
     DESCRIPTION(
       "<p>This attribute specifies the address of the interface. With ipv4 allows "
-      " matching on network part if host part is set to zero. </p>"
+      " matching on the network part if the host part is set to zero. </p>"
     )),
   STRING("priority", NULL, 1, "default",
     MEMBEROF(ddsi_config_network_interface_listelem, cfg.priority),
@@ -48,8 +48,8 @@ static struct cfgelem network_interface_attributes[] = {
     MEMBEROF(ddsi_config_network_interface_listelem, cfg.prefer_multicast),
     FUNCTIONS(0, uf_boolean, 0, pf_boolean),
     DESCRIPTION(
-      "<p>When false (default) Cyclone DDS uses unicast for data whenever "
-      "there a single unicast suffices. Setting this to true makes it prefer "
+      "<p>When false (default), Cyclone DDS uses unicast for data whenever "
+      "a single unicast suffices. Setting this to true makes it prefer "
       "multicasting data, falling back to unicast only when no multicast "
       "is available.</p>"
     )),
@@ -57,20 +57,20 @@ static struct cfgelem network_interface_attributes[] = {
     MEMBEROF(ddsi_config_network_interface_listelem, cfg.presence_required),
     FUNCTIONS(0, uf_boolean, 0, pf_boolean),
     DESCRIPTION(
-      "<p>By default all specified network interfaces must be present, if they "
-      "are missing Cyclone will refuse to start. By explicitly setting this setting "
-      "for an interface you can instruct Cyclone to simply ignore that interface if "
+      "<p>By default, all specified network interfaces must be present; if they "
+      "are missing Cyclone will not start. By explicitly setting this setting "
+      "for an interface, you can instruct Cyclone to ignore that interface if "
       "it is not present.</p>"
     )),
   STRING("multicast", NULL, 1, "default",
     MEMBEROF(ddsi_config_network_interface_listelem, cfg.multicast),
     FUNCTIONS(0, uf_boolean_default, 0, pf_boolean_default),
     DESCRIPTION(
-      "<p>This attribute specifies the whether the interface should use multicast. "
-      "On its default setting 'default' it will use the value as return by the operating "
-      "system. If set to 'true' the interface will be assumed to be multicast capable "
+      "<p>This attribute specifies whether the interface should use multicast. "
+      "On its default setting, 'default', it will use the value as return by the operating "
+      "system. If set to 'true', the interface will be assumed to be multicast capable "
       "even when the interface flags returned by the operating system state it is not "
-      "(this provides a workaround for some platforms). If set to 'false' the interface "
+      "(this provides a workaround for some platforms). If set to 'false', the interface "
       "will never be used for multicast.")
   ),
   END_MARKER
@@ -83,9 +83,9 @@ static struct cfgelem interfaces_cfgelems[] = {
     FUNCTIONS(if_network_interfaces, 0, 0, 0),
     DESCRIPTION(
       "<p>This element defines a network interface. You can set autodetermine=\"true\" "
-      "to autoselect the interface CycloneDDS deems to be the highest quality. If "
+      "to autoselect the interface CycloneDDS considers the highest quality. If "
       "autodetermine=\"false\" (the default), you must specify the name and/or address "
-      "attribute. If you specify both they must match the same interface.</p>")),
+      "attribute. If you specify both, they must match the same interface.</p>")),
   END_MARKER
 };
 
@@ -95,12 +95,11 @@ static struct cfgelem entity_autonaming_attributes[] = {
     FUNCTIONS(0, uf_random_seed, 0, pf_random_seed),
     DESCRIPTION(
       "<p>Provide an initial seed for the entity naming. Your string will be "
-      "hashed to provided the random state. When provided the same sequence of "
-      "names is generated every run. If you create your entities in the same "
-      "order this will ensure they are the same between runs. If you run multiple "
-      "nodes set this via environment variable to ensure every node generates "
-      "unique names. When left empty (the default) a random starting seed is "
-      "chosen.</p>"
+      "hashed to provide the random state. When provided, the same sequence of "
+      "names is generated every run. Creating your entities in the same "
+      "order will ensure they are the same between runs. If you run multiple "
+      "nodes, set this via environment variable to ensure every node generates "
+      "unique names. A random starting seed is chosen when left empty, (the default). </p>"
     )),
   END_MARKER
 };
@@ -111,7 +110,7 @@ static struct cfgelem general_cfgelems[] = {
     MEMBER(networkRecvAddressStrings),
     FUNCTIONS(0, uf_networkAddresses, ff_networkAddresses, pf_networkAddresses),
     DESCRIPTION(
-      "<p>This element specifies on which network interfaces Cyclone DDS "
+      "<p>This element specifies which network interfaces Cyclone DDS "
       "listens to multicasts. The following options are available:</p>\n"
       "<ul>\n"
       "<li><i>all</i>: "
@@ -122,13 +121,13 @@ static struct cfgelem general_cfgelems[] = {
       "</li>\n"
       "<li><i>preferred</i>: "
       "listen for multicasts on the preferred interface "
-      "(General/Interface/NetworkInterface with highest priority); or"
+      "(General/Interface/NetworkInterface with the highest priority); or"
       "</li>\n"
       "<li><i>none</i>: "
       "does not listen for multicasts on any interface; or"
       "</li>\n"
       "<li>a comma-separated list of network addresses: configures Cyclone DDS to "
-      "listen for multicasts on all of the listed addresses."
+      "listen for multicasts on all listed addresses."
       "</li>\n"
       "</ul>\n"
       "<p>If Cyclone DDS is in IPv6 mode and the address of the preferred network "
@@ -143,7 +142,7 @@ static struct cfgelem general_cfgelems[] = {
       "<p>This element specifies the network interfaces for use by Cyclone "
       "DDS. Multiple interfaces can be specified with an assigned priority. "
       "The list in use will be sorted by priority. If interfaces have an "
-      "equal priority the specification order will be preserved.</p>"
+      "equal priority, the specification order will be preserved.</p>"
     )),
   STRING(DEPRECATED("NetworkInterfaceAddress"), NULL, 1, "auto",
     MEMBER(depr_networkAddressString),
@@ -208,7 +207,7 @@ static struct cfgelem general_cfgelems[] = {
       "</li>\n"
       "</ul>\n"
       "<p>When set to \"false\" all multicasting is disabled. The default, "
-      "\"true\" enables full use of multicasts. Listening for multicasts can "
+      "\"true\" enables the full use of multicasts. Listening for multicasts can "
       "be controlled by General/MulticastRecvNetworkInterfaceAddresses.</p>\n"
       "<p>\"default\" maps on spdp if the network is a WiFi network, on true "
       "if it is a wired network</p>"),
@@ -234,7 +233,7 @@ static struct cfgelem general_cfgelems[] = {
     FUNCTIONS(0, uf_boolean, 0, pf_boolean),
     DESCRIPTION(
       "<p>This element allows setting the SO_DONTROUTE option for outgoing "
-      "packets, to bypass the local routing tables. This is generally useful "
+      "packets to bypass the local routing tables. This is generally useful "
       "only when the routing tables cannot be trusted, which is highly "
       "unusual.</p>")),
   ENUM("UseIPv6", NULL, 1, "default",
@@ -256,7 +255,7 @@ static struct cfgelem general_cfgelems[] = {
       "<p>This element specifies whether Cyclone DDS allows IP multicast "
       "packets to be visible to all DDSI participants in the same node, "
       "including itself. It must be \"true\" for intra-node multicast "
-      "communications, but if a node runs only a single Cyclone DDS service "
+      "communications. However, if a node runs only a single Cyclone DDS service "
       "and does not host any other DDSI-capable programs, it should be set "
       "to \"false\" for improved performance.</p>")),
   STRING("MaxMessageSize", NULL, 1, "14720 B",
@@ -308,7 +307,7 @@ static struct cfgelem general_cfgelems[] = {
       "<p>This element specifies the entity autonaming mode. By default set "
       "to 'empty' which means no name will be set (but you can still use "
       "dds_qset_entity_name). When set to 'fancy' participants, publishers, "
-      "subscribers, writers and readers will get randomly generated names. "
+      "subscribers, writers, and readers will get randomly generated names. "
       "An autonamed entity will share a 3-letter prefix with their parent "
       "entity.</p>"),
     VALUES("empty","fancy")),
@@ -321,28 +320,28 @@ static struct cfgelem authentication_library_attributes[] = {
     MEMBEROF(ddsi_config_omg_security_listelem, cfg.authentication_plugin.library_path),
     FUNCTIONS(0, uf_string, ff_free, pf_string),
     DESCRIPTION(
-      "<p>This element points to the path of Authentication plugin library.</p>\n"
+      "<p>This element points to the path of the Authentication plugin library.</p>\n"
       "<p>It can be either absolute path excluding file extension "
       "( /usr/lib/dds_security_auth ) or single file without extension "
       "( dds_security_auth ).</p>\n"
-      "<p>If single file is supplied, the library located by way of the "
+      "<p>If a single file is supplied, the library is located by the "
       "current working directory, or LD_LIBRARY_PATH for Unix systems, and "
-      "PATH for Windows system.</p>"
+      "PATH for Windows systems.</p>"
     )),
   STRING("initFunction", NULL, 1, "init_authentication",
     MEMBEROF(ddsi_config_omg_security_listelem, cfg.authentication_plugin.library_init),
     FUNCTIONS(0, uf_string, ff_free, pf_string),
     DESCRIPTION(
-      "<p>This element names the initialization function of Authentication "
+      "<p>This element names the initialization function of the Authentication "
       "plugin. This function is called after loading the plugin library for "
-      "instantiation purposes. Init function must return an object that "
-      "implements DDS Security Authentication interface.</p>"
+      "instantiation purposes. The Init function must return an object that "
+      "implements the DDS Security Authentication interface.</p>"
     )),
   STRING("finalizeFunction", NULL, 1, "finalize_authentication",
     MEMBEROF(ddsi_config_omg_security_listelem, cfg.authentication_plugin.library_finalize),
     FUNCTIONS(0, uf_string, ff_free, pf_string),
     DESCRIPTION(
-      "<p>This element names the finalization function of Authentication "
+      "<p>This element names the finalization function of the Authentication "
       "plugin. This function is called to let the plugin release its "
       "resources.</p>"
     )),
@@ -358,7 +357,7 @@ static struct cfgelem access_control_library_attributes[] = {
       "<p>It can be either absolute path excluding file extension "
       "( /usr/lib/dds_security_ac ) or single file without extension "
       "( dds_security_ac ).</p>\n"
-      "<p>If single file is supplied, the library located by way of the "
+      "<p>If a single file is supplied, the library is located by the "
       "current working directory, or LD_LIBRARY_PATH for Unix systems, and "
       "PATH for Windows systems.</p>"
     )),
@@ -368,8 +367,8 @@ static struct cfgelem access_control_library_attributes[] = {
     DESCRIPTION(
       "<p>This element names the initialization function of Access Control "
       "plugin. This function is called after loading the plugin library for "
-      "instantiation purposes. Init function must return an object that "
-      "implements DDS Security Access Control interface.</p>"
+      "instantiation purposes. The Init function must return an object that "
+      "implements the DDS Security Access Control interface.</p>"
     )),
   STRING("finalizeFunction", NULL, 1, "finalize_access_control",
     MEMBEROF(ddsi_config_omg_security_listelem, cfg.access_control_plugin.library_finalize),
@@ -387,11 +386,11 @@ static struct cfgelem cryptography_library_attributes[] = {
     MEMBEROF(ddsi_config_omg_security_listelem, cfg.cryptography_plugin.library_path),
     FUNCTIONS(0, uf_string, ff_free, pf_string),
     DESCRIPTION(
-      "<p>This element points to the path of Cryptographic plugin library.</p>\n"
+      "<p>This element points to the path of the Cryptographic plugin library.</p>\n"
       "<p>It can be either absolute path excluding file extension "
       "( /usr/lib/dds_security_crypto ) or single file without extension "
       "( dds_security_crypto ).</p>\n"
-      "<p>If single file is supplied, the library located by way of the "
+      "<p>If a single file is supplied, the is library located by the "
       "current working directory, or LD_LIBRARY_PATH for Unix systems, and "
       "PATH for Windows systems.</p>"
     )),
@@ -399,16 +398,16 @@ static struct cfgelem cryptography_library_attributes[] = {
     MEMBEROF(ddsi_config_omg_security_listelem, cfg.cryptography_plugin.library_init),
     FUNCTIONS(0, uf_string, ff_free, pf_string),
     DESCRIPTION(
-      "<p>This element names the initialization function of Cryptographic "
+      "<p>This element names the initialization function of the Cryptographic "
       "plugin. This function is called after loading the plugin library for "
-      "instantiation purposes. Init function must return an object that "
-      "implements DDS Security Cryptographic interface.</p>"
+      "instantiation purposes. The Init function must return an object that "
+      "implements the DDS Security Cryptographic interface.</p>"
     )),
   STRING("finalizeFunction", NULL, 1, "finalize_crypto",
     MEMBEROF(ddsi_config_omg_security_listelem, cfg.cryptography_plugin.library_finalize),
     FUNCTIONS(0, uf_string, ff_free, pf_string),
     DESCRIPTION(
-      "<p>This element names the finalization function of Cryptographic "
+      "<p>This element names the finalization function of the Cryptographic "
       "plugin. This function is called to let the plugin release its "
       "resources.</p>"
     )),
@@ -427,8 +426,8 @@ static struct cfgelem authentication_config_elements[] = {
     MEMBEROF(ddsi_config_omg_security_listelem, cfg.authentication_properties.identity_certificate),
     FUNCTIONS(0, uf_string, ff_free, pf_string),
     DESCRIPTION(
-      "<p>Identity certificate that will be used for identifying all "
-      "participants in the OSPL instance.<br>The content is URI to a X509 "
+      "<p>An identity certificate will identify all participants "
+      "in the OSPL instance.<br>The content is URI to an X509 "
       "certificate signed by the IdentityCA in PEM format containing the "
       "signed public key.</p>\n"
       "<p>Supported URI schemes: file, data</p>\n"
@@ -470,7 +469,7 @@ static struct cfgelem authentication_config_elements[] = {
     MEMBEROF(ddsi_config_omg_security_listelem, cfg.authentication_properties.password),
     FUNCTIONS(0, uf_string, ff_free, pf_string),
     DESCRIPTION(
-      "<p>A password used to decrypt the private_key.</p>\n"
+      "<p>A password is used to decrypt the private_key.</p>\n"
       "<p>The value of the password property shall be interpreted as the "
       "Base64 encoding of the AES-128 key that shall be used to decrypt the "
       "private_key using AES128-CBC.</p>\n"
@@ -520,7 +519,7 @@ static struct cfgelem access_control_config_elements[] = {
     MEMBEROF(ddsi_config_omg_security_listelem, cfg.access_control_properties.permissions_ca),
     FUNCTIONS(0, uf_string, ff_free, pf_string),
     DESCRIPTION(
-      "<p>URI to a X509 certificate for the PermissionsCA in PEM format.</p>\n"
+      "<p>URI to an X509 certificate for the PermissionsCA in PEM format.</p>\n"
       "<p>Supported URI schemes: file, data</p>\n"
       "<p>The file and data schemas shall refer to a X.509 v3 certificate "
       "(see X.509 v3 ITU-T Recommendation X.509 (2005) [39]) in PEM format.</p><br>\n"
@@ -676,11 +675,11 @@ static struct cfgelem ignoredpartitions_cfgattrs[] = {
     FUNCTIONS(0, uf_string, ff_free, pf_string),
     DESCRIPTION(
       "<p>This attribute specifies a partition and a topic expression, "
-      "separated by a single '.', that are used to determine if a given "
+      "separated by a single '.', which are used to determine if a given "
       "partition and topic will be ignored or not. The expressions may use "
-      "the usual wildcards '*' and '?'. Cyclone DDS will consider an wildcard "
-      "DCPS partition to match an expression iff there exists a string that "
-      "satisfies both expressions.</p>"
+      "the usual wildcards '*' and '?'. Cyclone DDS will consider a wildcard "
+      "DCPS partition to match an expression if a string that satisfies "
+      "both expressions exists.</p>"
     )),
   END_MARKER
 };
@@ -690,9 +689,9 @@ static struct cfgelem ignoredpartitions_cfgelems[] = {
     MEMBER(ignoredPartitions),
     FUNCTIONS(if_ignored_partition, 0, 0, 0),
     DESCRIPTION(
-      "<p>This element can be used to prevent certain combinations of DCPS "
+      "<p>This element can prevent certain combinations of DCPS "
       "partition and topic from being transmitted over the network. Cyclone DDS "
-      "will complete ignore readers and writers for which all DCPS "
+      "will completely ignore readers and writers for which all DCPS "
       "partitions as well as their topic is ignored, not even creating DDSI "
       "readers and writers to mirror the DCPS ones.</p>"
     )),
@@ -713,7 +712,7 @@ static struct cfgelem partitionmappings_cfgattrs[] = {
     FUNCTIONS(0, uf_string, ff_free, pf_string),
     DESCRIPTION(
       "<p>This attribute specifies a partition and a topic expression, "
-      "separated by a single '.', that are used to determine if a given "
+      "separated by a single '.', which are used to determine if a given "
       "partition and topic maps to the Cyclone DDS network partition named by the "
       "NetworkPartition attribute in this PartitionMapping element. The "
       "expressions may use the usual wildcards '*' and '?'. Cyclone DDS will "
@@ -731,7 +730,7 @@ static struct cfgelem partitionmappings_cfgelems[] = {
       "<p>This element defines a mapping from a DCPS partition/topic "
       "combination to a Cyclone DDS network partition. This allows partitioning "
       "data flows by using special multicast addresses for part of the data "
-      "and possibly also encrypting the data flow.</p>"
+      "and possibly encrypting the data flow.</p>"
     )),
   END_MARKER
 };
@@ -770,7 +769,7 @@ static struct cfgelem channel_cfgelems[] = {
     FUNCTIONS(0, uf_bandwidth, 0, pf_bandwidth),
     DESCRIPTION(
       "<p>This element specifies the maximum transmit rate of new samples "
-      "and directly related data, for this channel. Bandwidth limiting uses "
+      "and directly related data for this channel. Bandwidth limiting uses "
       "a leaky bucket scheme. The default value \"inf\" means Cyclone DDS imposes "
       "no limitation, the underlying operating system and hardware will "
       "likely limit the maximum transmit rate.</p>")
@@ -794,17 +793,17 @@ static struct cfgelem channel_cfgelems[] = {
       "<p>This element describes the DiffServ setting the channel will apply "
       "to the networking messages. This parameter determines the value of "
       "the diffserv field of the IP version 4 packets sent on this channel "
-      "which allows QoS setting to be applied to the network traffic send on "
+      "which allows QoS setting to be applied to the network traffic sent on "
       "this channel.<br/>\n"
       "Windows platform support for setting the diffserv field is dependent "
       "on the OS version.<br/>\n"
-      "For Windows version 7 or higher a new API (qWAVE) has been introduced. "
+      "For Windows version 7 or higher, a new API (qWAVE) has been introduced. "
       "For these platforms the specified diffserv value is mapped to one of "
       "the support traffic types.\n"
       "The mapping is as follows: 1-8 background traffic; 9-40 excellent "
       "traffic; 41-55 audio/video traffic; 56 voice traffic; 57-63 control "
       "traffic.\n"
-      "When an application is run without Administrative priveleges then "
+      "When an application is run without Administrative privileges, then "
       "only the diffserv value of 0, 8, 40 or 56 is allowed.</p>"
     ),
     BEHIND_FLAG("DDS_HAS_NETWORK_CHANNELS")
@@ -817,7 +816,7 @@ static struct cfgelem channel_cfgattrs[] = {
     MEMBEROF(ddsi_config_channel_listelem, name),
     FUNCTIONS(0, uf_string, ff_free, pf_string),
     DESCRIPTION(
-      "<p>This attribute specifies name of this channel. The name should "
+      "<p>This attribute specifies the name of this channel. The name should "
       "uniquely identify the channel.</p>"
     )),
   INT("TransportPriority", NULL, 1, "0",
@@ -858,7 +857,7 @@ static struct cfgelem thread_properties_sched_cfgelems[] = {
     FUNCTIONS(0, uf_maybe_int32, 0, pf_maybe_int32),
     DESCRIPTION(
       "<p>This element specifies the thread priority (decimal integer or "
-      "<i>default</i>). Only priorities that are supported by the underlying "
+      "<i>default</i>). Only priorities supported by the underlying "
       "operating system can be assigned to this element. The user may need "
       "special privileges from the underlying operating system to be able to "
       "assign some of the privileged priorities.</p>"
@@ -930,15 +929,15 @@ static struct cfgelem compatibility_cfgelems[] = {
     DESCRIPTION(
       "<p>This element sets the level of standards conformance of this "
       "instance of the Cyclone DDS Service. Stricter conformance typically means "
-      "less interoperability with other implementations. Currently three "
+      "less interoperability with other implementations. Currently, three "
       "modes are defined:</p>\n"
       "<ul><li><i>pedantic</i>: very strictly conform to the specification, "
-      "ultimately for compliancy testing, but currently of little value "
+      "ultimately for compliance testing, but currently of little value "
       "because it adheres even to what will most likely turn out to be "
       "editing errors in the DDSI standard. Arguably, as long as no errata "
-      "have been published it is the current text that is in effect, and "
+      "have been published, the current text is in effect, and "
       "that is what pedantic currently does.</li>\n"
-      "<li><i>strict</i>: a slightly less strict view of the standard than "
+      "<li><i>strict</i>: a relatively less strict view of the standard than "
       "does pedantic: it follows the established behaviour where the "
       "standard is obviously in error.</li>\n"
       "<li><i>lax</i>: attempt to provide the smoothest possible "
@@ -1025,7 +1024,7 @@ static struct cfgelem internal_watermarks_cfgelems[] = {
     FUNCTIONS(0, uf_boolean, 0, pf_boolean),
     DESCRIPTION(
       "<p>This element controls whether Cyclone DDS will adapt the high-water "
-      "mark to current traffic conditions, based on retransmit requests and "
+      "mark to current traffic conditions based on retransmit requests and "
       "transmit pressure.</p>"
     )),
   END_MARKER
@@ -1046,8 +1045,8 @@ static struct cfgelem internal_burstsize_cfgelems[] = {
       "<p>This element specifies how much more than the (presumed or discovered) "
       "receive buffer size may be sent when transmitting a sample for the first "
       "time, expressed as a percentage; the remainder will then be handled via "
-      "retransmits. Usually the receivers can keep up with transmitter, at least "
-      "on average, and so generally it is better to hope for the best and recover. "
+      "retransmits. Usually, the receivers can keep up with the transmitter, at least "
+      "on average, so generally it is better to hope for the best and recover. "
       "Besides, the retransmits will be unicast, and so any multicast advantage "
       "will be lost as well.</p>"),
     UNIT("memsize")),
@@ -1059,8 +1058,8 @@ static struct cfgelem control_topic_cfgattrs[] = {
     MEMBER(enable_control_topic),
     FUNCTIONS(0, uf_boolean, 0, pf_boolean),
     DESCRIPTION(
-      "<p>This element controls whether Cyclone DDS should create a topic to "
-      "control Cyclone DDS's behaviour dynamically.<p>")),
+      "<p>This element controls whether Cyclone DDS should dynamically "
+      "create a topic to control Cyclone DDS's behaviour.<p>")),
   STRING(DEPRECATED("InitialReset"), NULL, 1, "inf",
     MEMBER(initial_deaf_mute_reset),
     FUNCTIONS(0, uf_duration_inf, 0, pf_duration),
@@ -1076,14 +1075,14 @@ static struct cfgelem control_topic_cfgelems[] = {
     FUNCTIONS(0, uf_deaf_mute, 0, pf_boolean),
     DESCRIPTION(
       "<p>This element controls whether Cyclone DDS defaults to deaf mode or to "
-      "normal mode. This controls both the initial behaviour and what "
+      "normal mode. This controls the initial behaviour and what "
       "behaviour it auto-reverts to.</p>")),
   BOOL(DEPRECATED("Mute"), NULL, 1, "false",
     MEMBER(initial_mute),
     FUNCTIONS(0, uf_deaf_mute, 0, pf_boolean),
     DESCRIPTION(
       "<p>This element controls whether Cyclone DDS defaults to mute mode or to "
-      "normal mode. This controls both the initial behaviour and what "
+      "normal mode. This controls the initial behaviour and what "
       "behaviour it auto-reverts to.</p>")),
   END_MARKER
 };
@@ -1139,7 +1138,7 @@ static struct cfgelem liveliness_monitoring_attrs[] = {
     MEMBER(liveliness_monitoring_interval),
     FUNCTIONS(0, uf_duration_100ms_1hr, 0, pf_duration),
     DESCRIPTION(
-      "<p>This element controls the interval at which to check whether "
+      "<p>This element controls the interval to check whether "
       "threads have been making progress.</p>"),
     UNIT("duration"),
     RANGE("100ms;1hr")),
@@ -1176,8 +1175,8 @@ static struct cfgelem sock_rcvbuf_size_attrs[] = {
       "<p>This sets the size of the socket receive buffer to request, "
       "with the special value of \"default\" indicating that it should "
       "try to satisfy the minimum buffer size. If both are at \"default\", "
-      "it will request 1MiB and accept anything. If the maximum is set "
-      "to less than the minimum, it is ignored.</p>"),
+      "it will request 1MiB and accept anything. It is ignored if the  "
+      "maximum is set to less than the minimum.</p>"),
     UNIT("memsize")),
   END_MARKER
 };
@@ -1198,8 +1197,8 @@ static struct cfgelem sock_sndbuf_size_attrs[] = {
       "<p>This sets the size of the socket send buffer to request, "
       "with the special value of \"default\" indicating that it should "
       "try to satisfy the minimum buffer size. If both are at \"default\", "
-      "it will use whatever is the system default. If the maximum is set "
-      "to less than the minimum, it is ignored.</p>"),
+      "it will use whatever is the system default. It is ignored if the "
+      "maximum is set to less than the minimum.</p>"),
     UNIT("memsize")),
   END_MARKER
 };
@@ -1223,7 +1222,7 @@ static struct cfgelem internal_cfgelems[] = {
       "re-order administration. Each proxy writer has one primary re-order "
       "administration to buffer the packet flow in case some packets arrive "
       "out of order. Old samples are forwarded to secondary re-order "
-      "administrations associated with readers in need of historical "
+      "administrations associated with readers needing historical "
       "data.</p>")),
   INT("SecondaryReorderMaxSamples", NULL, 1, "128",
     MEMBER(secondary_reorder_maxsamples),
@@ -1231,13 +1230,13 @@ static struct cfgelem internal_cfgelems[] = {
     DESCRIPTION(
       "<p>This element sets the maximum size in samples of a secondary "
       "re-order administration. The secondary re-order administration is per "
-      "reader in need of historical data.</p>")),
+      "reader needing historical data.</p>")),
   INT("DefragUnreliableMaxSamples", NULL, 1, "4",
     MEMBER(defrag_unreliable_maxsamples),
     FUNCTIONS(0, uf_uint, 0, pf_uint),
     DESCRIPTION(
       "<p>This element sets the maximum number of samples that can be "
-      "defragmented simultaneously for a best-effort writers.</p>")),
+      "defragmented simultaneously for best-effort writers.</p>")),
   INT("DefragReliableMaxSamples", NULL, 1, "16",
     MEMBER(defrag_reliable_maxsamples),
     FUNCTIONS(0, uf_uint, 0, pf_uint),
@@ -1277,7 +1276,7 @@ static struct cfgelem internal_cfgelems[] = {
     FUNCTIONS(0, uf_boolean, 0, pf_boolean),
     DESCRIPTION(
       "<p>This element controls whether the response to a newly discovered "
-      "participant is sent as a unicasted SPDP packet, instead of "
+      "participant is sent as a unicasted SPDP packet instead of "
       "rescheduling the periodic multicasted one. There is no known benefit "
       "to setting this to <i>false</i>.</p>")),
   INT("SynchronousDeliveryPriorityThreshold", NULL, 1, "0",
@@ -1312,7 +1311,7 @@ static struct cfgelem internal_cfgelems[] = {
     MEMBER(accelerate_rexmit_block_size),
     FUNCTIONS(0, uf_uint, 0, pf_uint),
     DESCRIPTION(
-      "<p>Proxy readers that are assumed to sill be retrieving historical "
+      "<p>Proxy readers that are assumed to still be retrieving historical "
       "data get this many samples retransmitted when they NACK something, "
       "even if some of these samples have sequence numbers outside the set "
       "covered by the NACK.</p>")),
@@ -1335,7 +1334,7 @@ static struct cfgelem internal_cfgelems[] = {
     MEMBER(retransmit_merging_period),
     FUNCTIONS(0, uf_duration_us_1s, 0, pf_duration),
     DESCRIPTION(
-      "<p>This setting determines the size of the time window in which a "
+      "<p>This setting determines the time window size in which a "
       "NACK of some sample is ignored because a retransmit of that sample "
       "has been multicasted too recently. This setting has no effect on "
       "unicasted retransmits.</p>\n"
@@ -1363,7 +1362,7 @@ static struct cfgelem internal_cfgelems[] = {
     MEMBER(max_queued_rexmit_msgs),
     FUNCTIONS(0, uf_uint, 0, pf_uint),
     DESCRIPTION(
-      "<p>This settings limits the maximum number of samples queued for "
+      "<p>This setting limits the maximum number of samples queued for "
       "retransmission.</p>"
     )),
   MOVED("LeaseDuration", "CycloneDDS/Domain/Discovery/LeaseDuration"),
@@ -1431,8 +1430,8 @@ static struct cfgelem internal_cfgelems[] = {
     FUNCTIONS(0, uf_duration_ms_1hr, 0, pf_duration),
     DESCRIPTION(
       "<p>This setting controls the delay between the discovering a remote "
-      "writer and sending a pre-emptive AckNack to discover the range of "
-      "data available.</p>"),
+      "writer and sending a pre-emptive AckNack to discover the available "
+      "range of data.</p>"),
     UNIT("duration")),
   STRING("ScheduleTimeRounding", NULL, 1, "0 ms",
     MEMBER(schedule_time_rounding),
@@ -1465,7 +1464,7 @@ static struct cfgelem internal_cfgelems[] = {
     FUNCTIONS(0, uf_uint, 0, pf_uint),
     DESCRIPTION(
       "<p>This element sets the maximum number of extra threads for an "
-      "experimental, undocumented and unsupported direct mode.</p>")),
+      "experimental, undocumented, and unsupported direct mode.</p>")),
   BOOL("SquashParticipants", NULL, 1, "false",
     MEMBER(squash_participants),
     FUNCTIONS(0, uf_boolean, 0, pf_boolean),
@@ -1473,7 +1472,7 @@ static struct cfgelem internal_cfgelems[] = {
       "<p>This element controls whether Cyclone DDS advertises all the domain "
       "participants it serves in DDSI (when set to <i>false</i>), or rather "
       "only one domain participant (the one corresponding to the Cyclone DDS "
-      "process; when set to <i>true</i>). In the latter case Cyclone DDS becomes "
+      "process; when set to <i>true</i>). In the latter case, Cyclone DDS becomes "
       "the virtual owner of all readers and writers of all domain "
       "participants, dramatically reducing discovery traffic (a similar "
       "effect can be obtained by setting Internal/BuiltinEndpointSet to "
@@ -1522,7 +1521,7 @@ static struct cfgelem internal_cfgelems[] = {
       "transport. Enabling write batching causes multiple small write "
       "operations to be aggregated within the write cache into a single "
       "larger write. This gives greater throughput at the expense of "
-      "latency. Currently there is no mechanism for the write cache to "
+      "latency. Currently, there is no mechanism for the write cache to "
       "automatically flush itself, so that if write batching is enabled, "
       "the application may have to use the dds_write_flush function to "
       "ensure that all samples are written.</p>"
@@ -1553,7 +1552,7 @@ static struct cfgelem internal_cfgelems[] = {
       "This element controls which network interfaces are assumed to be "
       "capable of multicasting even when the interface flags returned by the "
       "operating system state it is not (this provides a workaround for some "
-      "platforms). It is a comma-separated lists of patterns (with ? and * "
+      "platforms). It is a comma-separated list of patterns (with ? and * "
       "wildcards) against which the interface names are matched.</p>"
     )),
   BOOL("PrioritizeRetransmit", NULL, 1, "true",
@@ -1613,7 +1612,7 @@ static struct cfgelem internal_cfgelems[] = {
   GROUP("BurstSize", internal_burstsize_cfgelems, NULL, 1,
     NOMEMBER,
     NOFUNCTIONS,
-    DESCRIPTION("<p>Setting for controlling the size of transmit bursts.</p>")),
+    DESCRIPTION("<p>Setting for controlling the size of transmitting bursts.</p>")),
   LIST("EnableExpensiveChecks", NULL, 1, "",
     MEMBER(enabled_xchecks),
     FUNCTIONS(0, uf_xcheck, 0, pf_xcheck),
@@ -1636,7 +1635,7 @@ static struct cfgelem sizing_cfgelems[] = {
     FUNCTIONS(0, uf_memsize, 0, pf_memsize),
     DESCRIPTION(
       "<p>This element sets the size of a single receive buffer. Many receive "
-      "buffers may be needed. The minimum workable size a little bit larger "
+      "buffers may be needed. The minimum workable size is a little larger "
       "than Sizing/ReceiveBufferChunkSize, and the value used is taken as the "
       "configured value and the actual minimum workable size.</p>"),
     UNIT("memsize")),
@@ -1645,9 +1644,9 @@ static struct cfgelem sizing_cfgelems[] = {
     FUNCTIONS(0, uf_memsize, 0, pf_memsize),
     DESCRIPTION(
       "<p>This element specifies the size of one allocation unit in the "
-      "receive buffer. Must be greater than the maximum packet size by a "
+      "receive buffer. It must be greater than the maximum packet size by a "
       "modest amount (too large packets are dropped). Each allocation is "
-      "shrunk immediately after processing a message, or freed "
+      "shrunk immediately after processing a message or freed "
       "straightaway.</p>"),
     UNIT("memsize")),
   END_MARKER
@@ -1721,7 +1720,7 @@ static struct cfgelem tcp_cfgelems[] = {
     FUNCTIONS(0, uf_boolean, 0, pf_boolean),
     DESCRIPTION(
       "<p>This element enables the TCP_NODELAY socket option, preventing "
-      "multiple DDSI messages being sent in the same TCP request. Setting "
+      "multiple DDSI messages from being sent in the same TCP request. Setting "
       "this option typically optimises latency over throughput.</p>"
     )),
   INT("Port", NULL, 1, "-1",
@@ -1729,8 +1728,8 @@ static struct cfgelem tcp_cfgelems[] = {
     FUNCTIONS(0, uf_dyn_port, 0, pf_int),
     DESCRIPTION(
       "<p>This element specifies the TCP port number on which Cyclone DDS accepts "
-      "connections. If the port is set it is used in entity locators, "
-      "published with DDSI discovery. Dynamically allocated if zero. Disabled "
+      "connections. If the port is set, it is used in entity locators, "
+      "published with DDSI discovery, dynamically allocated if zero, and disabled "
       "if -1 or not configured. If disabled other DDSI services will not be "
       "able to establish connections with the service, the service can only "
       "communicate by establishing connections to other services.</p>"),
@@ -1754,7 +1753,7 @@ static struct cfgelem tcp_cfgelems[] = {
     FUNCTIONS(0, uf_boolean, 0, pf_boolean),
     DESCRIPTION(
       "<p>Setting this to true means the unicast addresses in SPDP packets "
-      "will be ignored and the peer address from the TCP connection will be "
+      "will be ignored, and the peer address from the TCP connection will be "
       "used instead. This may help work around incorrectly advertised "
       "addresses when using TCP.</p>"
     )),
@@ -1778,7 +1777,7 @@ static struct cfgelem ssl_cfgelems[] = {
     MEMBER(ssl_verify_client),
     FUNCTIONS(0, uf_boolean, 0, pf_boolean),
     DESCRIPTION(
-      "<p>This enables an SSL server checking the X509 certificate of a "
+      "<p>This enables an SSL server to check the X509 certificate of a "
       "connecting client.</p>"
     )),
   BOOL("SelfSignedCertificates", NULL, 1, "false",
@@ -1822,7 +1821,7 @@ static struct cfgelem shmem_cfgelems[] = {
   BOOL("Enable", NULL, 1, "false",
     MEMBER(enable_shm),
     FUNCTIONS(0, uf_boolean, 0, pf_boolean),
-    DESCRIPTION("<p>This element allows to enable shared memory in Cyclone DDS.</p>")),
+    DESCRIPTION("<p>This element allows for enabling shared memory in Cyclone DDS.</p>")),
   STRING("Locator", NULL, 1, "",
     MEMBER(shm_locator),
     FUNCTIONS(0, uf_string, ff_free, pf_string),
@@ -1850,7 +1849,7 @@ static struct cfgelem shmem_cfgelems[] = {
       "<li><i>info</i>: show info log</li>\n"
       "<li><i>debug</i>: show debug log</li>\n"
       "<li><i>verbose</i>: show verbose log</li>\n"
-      "<p>If you don't want to see any log from shared memory, use <i>off</i> to disable log message.</p>"),
+      "<p>If you don't want to see any log from shared memory, use <i>off</i> to disable logging.</p>"),
     VALUES(
       "off","fatal","error","warn","info","debug","verbose"
     )),
@@ -1865,8 +1864,8 @@ static struct cfgelem discovery_peer_cfgattrs[] = {
     DESCRIPTION(
       "<p>This element specifies an IP address to which discovery packets "
       "must be sent, in addition to the default multicast address (see also "
-      "General/AllowMulticast). Both a hostnames and a numerical IP address "
-      "is accepted; the hostname or IP address may be suffixed with :PORT to "
+      "General/AllowMulticast). Both hostnames and a numerical IP address "
+      "are accepted; the hostname or IP address may be suffixed with :PORT to "
       "explicitly set the port to which it must be sent. Multiple Peers may "
       "be specified.</p>"
     )),
@@ -1878,7 +1877,7 @@ static struct cfgelem discovery_peers_cfgelems[] = {
     MEMBER(peers),
     FUNCTIONS(if_peer, 0, 0, 0),
     DESCRIPTION(
-      "<p>This element statically configures an addresses for discovery.</p>"
+      "<p>This element statically configures addresses for discovery.</p>"
     )),
   END_MARKER
 };
@@ -1895,8 +1894,8 @@ static struct cfgelem discovery_cfgelems[] = {
     MEMBER(extDomainId),
     FUNCTIONS(0, uf_maybe_int32, 0, pf_maybe_int32),
     DESCRIPTION(
-      "<p>An override for the domain id, to be used in discovery and for "
-      "determining the port number mapping. This allows creating multiple "
+      "<p>An override for the domain id is used to discovery and determine the "
+      "port number mapping. This allows the creating of multiple "
       "domains in a single process while making them appear as a single "
       "domain on the network. The value \"default\" disables the override.</p>"
     )),
@@ -1906,7 +1905,7 @@ static struct cfgelem discovery_cfgelems[] = {
     DESCRIPTION(
       "<p>This setting controls for how long endpoints discovered via a "
       "Cloud discovery service will survive after the discovery service "
-      "disappeared, allowing reconnect without loss of data when the "
+      "disappears, allowing reconnection without loss of data when the "
       "discovery service restarts (or another instance takes over).</p>"),
     UNIT("duration_inf")),
   GROUP("Peers", discovery_peers_cfgelems, NULL, 1,
@@ -1943,7 +1942,7 @@ static struct cfgelem discovery_cfgelems[] = {
     MEMBER(spdpMulticastAddressString),
     FUNCTIONS(0, uf_ipv4, ff_free, pf_string),
     DESCRIPTION(
-      "<p>This element specifies the multicast address that is used as the "
+      "<p>This element specifies the multicast address used as the "
       "destination for the participant discovery packets. In IPv4 mode the "
       "default is the (standardised) 239.255.0.1, in IPv6 mode it becomes "
       "ff02::ffff:239.255.0.1, which is a non-standardised link-local "
@@ -1968,7 +1967,7 @@ static struct cfgelem discovery_cfgelems[] = {
     NOMEMBER,
     NOFUNCTIONS,
     DESCRIPTION(
-      "<p>The Ports element allows specifying various parameters related to "
+      "<p>The Ports element specifies various parameters related to "
       "the port numbers used for discovery. These all have default values "
       "specified by the DDSI 2.1 specification and rarely need to be "
       "changed.</p>"
@@ -2070,7 +2069,7 @@ static struct cfgelem tracing_cfgelems[] = {
     MEMBER(tracingAppendToFile),
     FUNCTIONS(0, uf_boolean, 0, pf_boolean),
     DESCRIPTION(
-      "<p>This option specifies whether the output is to be appended to an "
+      "<p>This option specifies whether the output should be appended to an "
       "existing log file. The default is to create a new log file each time, "
       "which is generally the best option if a detailed log is generated.</p>"
     )),
@@ -2141,7 +2140,7 @@ static struct cfgelem domain_cfgelems[] = {
     DESCRIPTION(
       "<p>This element is used to group a set of channels. The channels are "
       "independent data paths through Cyclone DDS and by using separate threads "
-      "and setting their priorities appropriately, chanenls can be used to "
+      "and setting their priorities appropriately, channels can be used to "
       "map transport priorities to operating system scheduler priorities, "
       "ensuring system-wide end-to-end priority preservation.</p>"
     ),
@@ -2158,14 +2157,14 @@ static struct cfgelem domain_cfgelems[] = {
     NOMEMBER,
     NOFUNCTIONS,
     DESCRIPTION(
-      "<p>The Sizing element specifies a variety of configuration settings "
+      "<p>The Sizing element allows you to specify various configuration settings "
       "dealing with expected system sizes, buffer sizes, &c.</p>"
     )),
   GROUP("Compatibility", compatibility_cfgelems, NULL, 1,
     NOMEMBER,
     NOFUNCTIONS,
     DESCRIPTION(
-      "<p>The Compatibility elements allows specifying various settings "
+      "<p>The Compatibility element allows you to specify various settings "
       "related to compatibility with standards and with other DDSI "
       "implementations.</p>"
     )),
@@ -2173,7 +2172,7 @@ static struct cfgelem domain_cfgelems[] = {
     NOMEMBER,
     NOFUNCTIONS,
     DESCRIPTION(
-      "<p>The Discovery element allows specifying various parameters related "
+      "<p>The Discovery element allows you to specify various parameters related "
       "to the discovery of peers.</p>"
     )),
   GROUP("Tracing", tracing_cfgelems, NULL, 1,
@@ -2188,9 +2187,9 @@ static struct cfgelem domain_cfgelems[] = {
     NOMEMBER,
     NOFUNCTIONS,
     DESCRIPTION(
-      "<p>The Internal elements deal with a variety of settings that "
-      "evolving and that are not necessarily fully supported. For the vast "
-      "majority of the Internal settings, the functionality per-se is "
+      "<p>The Internal elements deal with a variety of settings that are "
+      "evolving and that are not necessarily fully supported. For the "
+      "majority of the Internal settings the functionality is "
       "supported, but the right to change the way the options control the "
       "functionality is reserved. This includes renaming or moving "
       "options.</p>"
@@ -2199,7 +2198,7 @@ static struct cfgelem domain_cfgelems[] = {
     NOMEMBER,
     NOFUNCTIONS,
     DESCRIPTION(
-      "<p>The TCP element allows specifying various parameters related to "
+      "<p>The TCP element allows you to specify various parameters related to "
       "running DDSI over TCP.</p>"
     )),
 #ifdef DDS_HAS_SSL

@@ -1,0 +1,76 @@
+/* Minor style adjustments */
+@import url('https://fonts.googleapis.com/css2?family=Epilogue&display=swap');
+
+body {
+    --codeBlue: #1450FF;
+    --codeGreen: #679436;
+    --mainNavColor: #0A143C;
+    font-family: "Epilogue", "OpenSans", sans-serif;
+}
+
+div.document {
+    margin-left: 30rem;
+    margin-right: 25rem;
+}
+
+div#right_sidebar {
+    width: 25rem;
+    right: 0rem;
+}
+
+div.sphinxsidebar {
+    width: fit-content;
+    max-width: 30rem;
+}
+
+div.document div.documentwrapper {
+    max-width: 60rem;
+}
+
+div.button_nav {
+    max-width: 60rem;
+}
+
+dl:not(.c):not(.cpp):not(.py):not(.simple) > dt {
+    display: none;
+}
+
+dl:not(.c):not(.cpp):not(.py):not(.simple) > dd {
+    margin-inline-start: 0;
+}
+
+@media (max-width: 85rem) {
+    div.document {
+        margin-left: 0px !important;
+        margin-right: 0px !important;
+    }
+
+    div#right_sidebar {
+        display: none;
+    }
+
+    div.sphinxsidebar {
+        display: none;
+    }
+
+    nav#top_nav p.mobile_search_link {
+        display: none;
+    }
+
+    nav#top_nav div.searchbox_wrapper {
+        display: none;
+    }
+
+    nav#top_nav div.searchbox_wrapper {
+        display: none;
+    }
+}
+
+dl:not(.c):not(.cpp):not(.py):not(.simple) > dt {
+    /* Hide group headers */
+    display: none;
+}
+dl:not(.c):not(.cpp):not(.py):not(.simple) > dd {
+    /* Don't indent top-level code */
+    margin-inline-start: 0;
+}

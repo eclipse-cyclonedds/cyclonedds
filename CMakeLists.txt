@@ -241,8 +241,6 @@ option(BUILD_IDLC_XTESTS "Build the idlc compile tests" OFF)
 # Disable building examples by default because it is not strictly required.
 option(BUILD_EXAMPLES "Build examples." OFF)
 
-option(BUILD_DOCS "Build documentation." OFF)
-
 option(ENABLE_LTO "Enable link time optimization." ON)
 
 if(MSVC)
@@ -329,7 +327,7 @@ install(
 set(generated_cyclonedds_rnc "${CMAKE_CURRENT_SOURCE_DIR}/etc/cyclonedds.rnc")
 set(generated_cyclonedds_xsd "${CMAKE_CURRENT_SOURCE_DIR}/etc/cyclonedds.xsd")
 set(generated_options_md     "${CMAKE_CURRENT_SOURCE_DIR}/docs/manual/options.md")
-set(generated_options_rst     "${CMAKE_CURRENT_SOURCE_DIR}/docs/manual/config/config_file_reference.rst")
+set(generated_options_rst    "${CMAKE_CURRENT_SOURCE_DIR}/docs/manual/config/config_file_reference.rst")
 set(generated_defconfig_src  "${CMAKE_CURRENT_SOURCE_DIR}/src/core/ddsi/defconfig.c")
 
 add_subdirectory(compat)
@@ -337,8 +335,6 @@ add_subdirectory(src)
 if(BUILD_EXAMPLES)
   add_subdirectory(examples)
 endif()
-
-add_subdirectory(docs)
 
 if(DEFINED ENV{LIB_FUZZING_ENGINE})
   add_subdirectory(fuzz)
