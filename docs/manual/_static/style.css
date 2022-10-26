@@ -1,8 +1,0 @@
-dl:not(.c):not(.cpp):not(.py):not(.simple) > dt {
-    /* Hide group headers */
-    display: none;
-}
-dl:not(.c):not(.cpp):not(.py):not(.simple) > dd {
-    /* Don't indent top-level code */
-    margin-inline-start: 0;
-}

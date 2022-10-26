@@ -1,0 +1,4 @@
+Sphinx>=4
+breathe>=4
+piccolo-theme>=0
+sphinx-tabs>=3.4

@@ -4,7 +4,7 @@
 DDS Security
 ############
 
-CycloneDDS is compliant with The Object Management Group (OMG) DDS Security specification.
+|var-project-short| is compliant with The Object Management Group (OMG) DDS Security specification.
 
 This specification defines the Security Model and Service Plugin Interface (SPI) architecture for
 compliant DDS implementations. The DDS Security Model is enforced by the invocation of these SPIs
@@ -13,7 +13,7 @@ by the DDS implementation.
 .. image:: ./_static/pictures/dds_security_overview.png
    :width: 1000
 
-The three plugins that comprise the DDS Security Model in CycloneDDS are:
+The three plugins that comprise the DDS Security Model in |var-project-short| are:
 
 
 **Authentication Service Plugin**
@@ -36,13 +36,13 @@ from a shared secret.
 
 ----
 
-CycloneDDS provides built-in implementations of these plugins. Authentication uses PKI
+|var-project-short| provides built-in implementations of these plugins. Authentication uses PKI
 (Public Key Infrastructure) with a pre-configured shared Certificate Authority, RSA is used for
 authentication and Diffie-Hellman is used for key exchange. AccessControl use Permissions document
 signed by shared Certificate Authority. Cryptography uses AES-GCM (AES using Galois Counter Mode)
 for encryption and AES-GMAC for message authentication.
 
-Security plugins are dynamically loaded where the locations are defined in CycloneDDS
+Security plugins are dynamically loaded where the locations are defined in |var-project-short|
 configuration or Participant QoS settings.
 
 
@@ -146,7 +146,7 @@ The configuration of DDS Security is split up into two parts.
 Plugins Configuration
 *********************
 
-CycloneDDS gets the security configuration from XML configuration elements or from
+|var-project-short| gets the security configuration from XML configuration elements or from
 the participant QoS policies as stated in the DDS Security specification.
 
 This behavior allows applications to use DDS Security without recompiling the binaries.
@@ -155,7 +155,7 @@ non-secure to a secure deployment. The configuration is at domain level, which m
 that all participants created for that domain receive the same DDS security settings.
 
 The configuration options for a domain are bundled in the ``DDSSecurity`` configuration
-section in the CycloneDDS configuration. Every DDS Security plugin has its own configuration
+section in the |var-project-short| configuration. Every DDS Security plugin has its own configuration
 sub-section.
 
 .. _`Authentication Properties`:
@@ -166,7 +166,7 @@ Authentication Properties
 
 To enable authentication for a node, it has to be configured with an identity certificate
 (:ref:`//CycloneDDS/Domain/Security/Authentication/IdentityCertificate`). This identity certificate is used to
-authenticate all participants of that particular CycloneDDS domain. Associated with the
+authenticate all participants of that particular |var-project-short| domain. Associated with the
 identity certificate is the corresponding private key
 (:ref:`//CycloneDDS/Domain/Security/Authentication/PrivateKey`). The private key may either be a 2048-bit RSA
 or a 256-bit Elliptic Curve Key with a prime256v1 curve.
@@ -413,7 +413,7 @@ the expressions with the <topics> section).
 Logging and tracing
 *******************
 
-The security implementation uses the standard logging and tracing mechanism in CycloneDDS.
+The security implementation uses the standard logging and tracing mechanism in |var-project-short|.
 The following is written to log and trace:
 
 - Configuration errors such as plugin library files, certificate files, governance and permissions
@@ -623,7 +623,7 @@ when creating a participant:
 Configure security in Cyclone configuration
 ===========================================
 
-As an alternative for using the QoS, security settings can also be applied using the CycloneDDS
+As an alternative for using the QoS, security settings can also be applied using the |var-project-short|
 configuration XML. In case both QoS and the configuration XML contain security settings, the values
 from the QoS will be used and the security settings in the configuration XML are ignored.
 
@@ -649,7 +649,7 @@ External Plugin Development
 ***************************
 
 DDS Security consists of three plugins (authentication, cryptography and access control).
-CycloneDDS comes with built-in security plugins that comply with OMG DDS Security specification.
+|var-project-short| comes with built-in security plugins that comply with OMG DDS Security specification.
 The plugins are loaded in the run-time. However, you can also implement your own custom plugin by
 implementing the given API according to OMG DDS Security specification.
 You can implement all of the plugins or just one of them.

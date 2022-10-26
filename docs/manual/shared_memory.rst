@@ -3,10 +3,10 @@
 Shared Memory
 ==============
 
-This documentation is intended to describe the details of supporting shared memory exchange in Cyclone DDS, which is based on `Eclipse iceoryx <https://projects.eclipse.org/proposals/eclipse-iceoryx>`_.
+This documentation is intended to describe the details of supporting shared memory exchange in |var-project|, which is based on `Eclipse iceoryx <https://projects.eclipse.org/proposals/eclipse-iceoryx>`_.
 
 Build
---------------
+-----
 
 The following steps were done on Ubuntu 20.04.
 
@@ -25,7 +25,7 @@ Next you will need to get and build iceoryx (all of this is assumed to occur in 
   cmake -Bbuild -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=install -DBUILD_SHARED_LIBS=ON -Hiceoryx_meta
   cmake --build build --config Debug --target install
 
-After that, get Cyclone DDS (currently its iceoryx branch) and build it with shared memory support:
+After that, get |var-project-short| and build it with shared memory support:
 
 .. code-block:: bash
 
@@ -34,12 +34,12 @@ After that, get Cyclone DDS (currently its iceoryx branch) and build it with sha
   cmake -Bbuild -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=install -DBUILD_EXAMPLES=On -DCMAKE_PREFIX_PATH=~/iceoryx/install/
   cmake --build build --config Debug --target install
 
-When the compiler has finished, you should have built both iceoryx and Cyclone DDS. Their respective files can be found in the install directories which were created in the directories git has made for you.
+When the compiler has finished, you should have built both iceoryx and |var-project-short|. Their respective files can be found in the install directories which were created in the directories git has made for you.
 
 Configuration
 --------------
 
-There are two levels of configuration for Cyclone DDS with shared memory support, the shared memory service (iceoryx) level, and the Cyclone DDS level.
+There are two levels of configuration for |var-project-short| with shared memory support, the shared memory service (iceoryx) level, and the |var-project-short| level.
 
 The performance of the shared memory service is strongly dependent on how well its configuration matches up with the use cases it will be asked to support, and large gains in performance can be made by configuring it correctly.
 
@@ -65,15 +65,15 @@ Below follows an example of an iceoryx configuration file which has a memory poo
 The configuration file used is supplied to iceoryx using the -c parameter. Please save this file as *iox_config.toml* in your home directory for future use in the `Run`_ section.
 For detailed shared memory service documentation, the user is referred to `the iceoryx website <https://github.com/eclipse-iceoryx/iceoryx>`_.
 
-Cyclone DDS also needs to be configured correctly, to allow it to use shared memory exchange.
+|var-project-short| also needs to be configured correctly, to allow it to use shared memory exchange.
 
-The location where Cyclone DDS looks for the config file is set through the environment variable CYCLONEDDS_URI:
+The location where |var-project-short| looks for the config file is set through the environment variable CYCLONEDDS_URI:
 
 .. code-block:: bash
 
   export CYCLONEDDS_URI=file://cyclonedds.xml
 
-The following optional configuration parameters in SharedMemory govern how Cyclone DDS treats shared memory:
+The following optional configuration parameters in SharedMemory govern how |var-project-short| treats shared memory:
 
 * Enable
 
@@ -99,7 +99,7 @@ The following optional configuration parameters in SharedMemory govern how Cyclo
 
     * *off*
 
-Below follows an example of a Cyclone DDS configuration file supporting shared memory exchange:
+Below follows an example of a |var-project-short| configuration file supporting shared memory exchange:
 
 .. code-block:: xml
 
@@ -109,7 +109,7 @@ Below follows an example of a Cyclone DDS configuration file supporting shared m
               xsi:schemaLocation="https://cdds.io/config https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/iceoryx/etc/cyclonedds.xsd">
       <Domain id="any">
           <SharedMemory>
-              <Enable>true</Enable>              
+              <Enable>true</Enable>
               <LogLevel>info</LogLevel>
           </SharedMemory>
       </Domain>
@@ -122,7 +122,7 @@ Run
 
 The configuration files from `Configuration`_ are a prerequisite for the correct functioning of the below examples.
 
-Now, to start running Cyclone DDS with shared memory exchange.
+Now, to start running |var-project-short| with shared memory exchange.
 
 In the 1st terminal we will start RouDi.
 
@@ -263,7 +263,7 @@ The user is limited in this case by the maximum number of outstanding loans, def
 
 After a loaned sample has been returned to the shared memory pool (at the moment, this can only be done by invoking :c:func:`dds_write()`), dereferencing the pointer is undefined behaviour.
 
-If the user is not able to use the loan mechanism, a :c:func:`dds_write()` will still write to the shared memory service if Cyclone DDS is configured to use shared memory. Though in this case, the overhead of an additional copy step in publication is incurred, since a block for publishing to the shared memory will be requested and the data of the published sample copied into it.
+If the user is not able to use the loan mechanism, a :c:func:`dds_write()` will still write to the shared memory service if |var-project-short| is configured to use shared memory. Though in this case, the overhead of an additional copy step in publication is incurred, since a block for publishing to the shared memory will be requested and the data of the published sample copied into it.
 
 Developer Hints
 ---------------
@@ -282,9 +282,9 @@ Below are some tips for you to get started:
 
     ~/iceoryx/build/iox-introspection-client --all
 
-* CycloneDDS can be configured to show logging information from shared memory.
+* |var-project-short| can be configured to show logging information from shared memory.
 
-  * Setting Tracing::Category to *shm* shows the Cyclone DDS log related to shared memory, while SharedMemory::LogLevel decides which log level iceoryx shows:
+  * Setting Tracing::Category to *shm* shows the |var-project-short| log related to shared memory, while SharedMemory::LogLevel decides which log level iceoryx shows:
 
   .. code-block:: xml
   

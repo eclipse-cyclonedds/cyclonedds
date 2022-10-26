@@ -15,7 +15,7 @@ CycloneDDS configuration""" ] ]
         text
       }?
       & [ a:documentation [ xml:lang="en" """
-<p>The Compatibility elements allows specifying various settings related to compatibility with standards and with other DDSI implementations.</p>""" ] ]
+<p>The Compatibility element allows you to specify various settings related to compatibility with standards and with other DDSI implementations.</p>""" ] ]
       element Compatibility {
         [ a:documentation [ xml:lang="en" """
 <p>This option assumes ParticipantMessageData endpoints required by the liveliness protocol are present in RTI participants even when not properly advertised by the participant discovery protocol.</p>
@@ -38,9 +38,9 @@ CycloneDDS configuration""" ] ]
           ("false"|"true"|"single"|"none"|"many")
         }?
         & [ a:documentation [ xml:lang="en" """
-<p>This element sets the level of standards conformance of this instance of the Cyclone DDS Service. Stricter conformance typically means less interoperability with other implementations. Currently three modes are defined:</p>
-<ul><li><i>pedantic</i>: very strictly conform to the specification, ultimately for compliancy testing, but currently of little value because it adheres even to what will most likely turn out to be editing errors in the DDSI standard. Arguably, as long as no errata have been published it is the current text that is in effect, and that is what pedantic currently does.</li>
-<li><i>strict</i>: a slightly less strict view of the standard than does pedantic: it follows the established behaviour where the standard is obviously in error.</li>
+<p>This element sets the level of standards conformance of this instance of the Cyclone DDS Service. Stricter conformance typically means less interoperability with other implementations. Currently, three modes are defined:</p>
+<ul><li><i>pedantic</i>: very strictly conform to the specification, ultimately for compliance testing, but currently of little value because it adheres even to what will most likely turn out to be editing errors in the DDSI standard. Arguably, as long as no errata have been published, the current text is in effect, and that is what pedantic currently does.</li>
+<li><i>strict</i>: a relatively less strict view of the standard than does pedantic: it follows the established behaviour where the standard is obviously in error.</li>
 <li><i>lax</i>: attempt to provide the smoothest possible interoperability, anticipating future revisions of elements in the standard in areas that other implementations do not adhere to, even though there is no good reason not to.</li></ul>
 <p>The default value is: "lax".</p>""" ] ]
         element StandardsConformance {
@@ -48,10 +48,10 @@ CycloneDDS configuration""" ] ]
         }?
       }?
       & [ a:documentation [ xml:lang="en" """
-<p>The Discovery element allows specifying various parameters related to the discovery of peers.</p>""" ] ]
+<p>The Discovery element allows you to specify various parameters related to the discovery of peers.</p>""" ] ]
       element Discovery {
         [ a:documentation [ xml:lang="en" """
-<p>This setting controls for how long endpoints discovered via a Cloud discovery service will survive after the discovery service disappeared, allowing reconnect without loss of data when the discovery service restarts (or another instance takes over).</p>
+<p>This setting controls for how long endpoints discovered via a Cloud discovery service will survive after the discovery service disappears, allowing reconnection without loss of data when the discovery service restarts (or another instance takes over).</p>
 <p>Valid values are finite durations with an explicit unit or the keyword 'inf' for infinity. Recognised units: ns, us, ms, s, min, hr, day.</p>
 <p>The default value is: "30 s".</p>""" ] ]
         element DSGracePeriod {
@@ -70,7 +70,7 @@ CycloneDDS configuration""" ] ]
           xsd:boolean
         }?
         & [ a:documentation [ xml:lang="en" """
-<p>An override for the domain id, to be used in discovery and for determining the port number mapping. This allows creating multiple domains in a single process while making them appear as a single domain on the network. The value "default" disables the override.</p>
+<p>An override for the domain id is used to discovery and determine the port number mapping. This allows the creating of multiple domains in a single process while making them appear as a single domain on the network. The value "default" disables the override.</p>
 <p>The default value is: "default".</p>""" ] ]
         element ExternalDomainId {
           text
@@ -101,10 +101,10 @@ CycloneDDS configuration""" ] ]
 <p>This element statically configures addresses for discovery.</p>""" ] ]
         element Peers {
           [ a:documentation [ xml:lang="en" """
-<p>This element statically configures an addresses for discovery.</p>""" ] ]
+<p>This element statically configures addresses for discovery.</p>""" ] ]
           element Peer {
             [ a:documentation [ xml:lang="en" """
-<p>This element specifies an IP address to which discovery packets must be sent, in addition to the default multicast address (see also General/AllowMulticast). Both a hostnames and a numerical IP address is accepted; the hostname or IP address may be suffixed with :PORT to explicitly set the port to which it must be sent. Multiple Peers may be specified.</p>
+<p>This element specifies an IP address to which discovery packets must be sent, in addition to the default multicast address (see also General/AllowMulticast). Both hostnames and a numerical IP address are accepted; the hostname or IP address may be suffixed with :PORT to explicitly set the port to which it must be sent. Multiple Peers may be specified.</p>
 <p>The default value is: "".</p>""" ] ]
             attribute Address {
               text
@@ -112,7 +112,7 @@ CycloneDDS configuration""" ] ]
           }*
         }?
         & [ a:documentation [ xml:lang="en" """
-<p>The Ports element allows specifying various parameters related to the port numbers used for discovery. These all have default values specified by the DDSI 2.1 specification and rarely need to be changed.</p>""" ] ]
+<p>The Ports element specifies various parameters related to the port numbers used for discovery. These all have default values specified by the DDSI 2.1 specification and rarely need to be changed.</p>""" ] ]
         element Ports {
           [ a:documentation [ xml:lang="en" """
 <p>This element specifies the base port number (refer to the DDSI 2.1 specification, section 9.6.1, constant PB).</p>
@@ -165,7 +165,7 @@ CycloneDDS configuration""" ] ]
           duration
         }?
         & [ a:documentation [ xml:lang="en" """
-<p>This element specifies the multicast address that is used as the destination for the participant discovery packets. In IPv4 mode the default is the (standardised) 239.255.0.1, in IPv6 mode it becomes ff02::ffff:239.255.0.1, which is a non-standardised link-local multicast address.</p>
+<p>This element specifies the multicast address used as the destination for the participant discovery packets. In IPv4 mode the default is the (standardised) 239.255.0.1, in IPv6 mode it becomes ff02::ffff:239.255.0.1, which is a non-standardised link-local multicast address.</p>
 <p>The default value is: "239.255.0.1".</p>""" ] ]
         element SPDPMulticastAddress {
           text
@@ -188,30 +188,30 @@ CycloneDDS configuration""" ] ]
 <li><i>asm</i>: enables the use of ASM for all traffic, including receiving SPDP but not transmitting SPDP messages via multicast</li>
 <li><i>ssm</i>: enables the use of SSM (source-specific multicast) for all non-SPDP traffic (if supported)</li>
 </ul>
-<p>When set to "false" all multicasting is disabled. The default, "true" enables full use of multicasts. Listening for multicasts can be controlled by General/MulticastRecvNetworkInterfaceAddresses.</p>
+<p>When set to "false" all multicasting is disabled. The default, "true" enables the full use of multicasts. Listening for multicasts can be controlled by General/MulticastRecvNetworkInterfaceAddresses.</p>
 <p>"default" maps on spdp if the network is a WiFi network, on true if it is a wired network</p>
 <p>The default value is: "default".</p>""" ] ]
         element AllowMulticast {
           xsd:token { pattern = "default|((false|spdp|asm|ssm|true)(,(false|spdp|asm|ssm|true))*)" }
         }?
         & [ a:documentation [ xml:lang="en" """
-<p>This element allows setting the SO_DONTROUTE option for outgoing packets, to bypass the local routing tables. This is generally useful only when the routing tables cannot be trusted, which is highly unusual.</p>
+<p>This element allows setting the SO_DONTROUTE option for outgoing packets to bypass the local routing tables. This is generally useful only when the routing tables cannot be trusted, which is highly unusual.</p>
 <p>The default value is: "false".</p>""" ] ]
         element DontRoute {
           xsd:boolean
         }?
         & [ a:documentation [ xml:lang="en" """
-<p>This element specifies whether Cyclone DDS allows IP multicast packets to be visible to all DDSI participants in the same node, including itself. It must be "true" for intra-node multicast communications, but if a node runs only a single Cyclone DDS service and does not host any other DDSI-capable programs, it should be set to "false" for improved performance.</p>
+<p>This element specifies whether Cyclone DDS allows IP multicast packets to be visible to all DDSI participants in the same node, including itself. It must be "true" for intra-node multicast communications. However, if a node runs only a single Cyclone DDS service and does not host any other DDSI-capable programs, it should be set to "false" for improved performance.</p>
 <p>The default value is: "true".</p>""" ] ]
         element EnableMulticastLoopback {
           xsd:boolean
         }?
         & [ a:documentation [ xml:lang="en" """
-<p>This element specifies the entity autonaming mode. By default set to 'empty' which means no name will be set (but you can still use dds_qset_entity_name). When set to 'fancy' participants, publishers, subscribers, writers and readers will get randomly generated names. An autonamed entity will share a 3-letter prefix with their parent entity.</p>
+<p>This element specifies the entity autonaming mode. By default set to 'empty' which means no name will be set (but you can still use dds_qset_entity_name). When set to 'fancy' participants, publishers, subscribers, writers, and readers will get randomly generated names. An autonamed entity will share a 3-letter prefix with their parent entity.</p>
 <p>The default value is: "empty".</p>""" ] ]
         element EntityAutoNaming {
           [ a:documentation [ xml:lang="en" """
-<p>Provide an initial seed for the entity naming. Your string will be hashed to provided the random state. When provided the same sequence of names is generated every run. If you create your entities in the same order this will ensure they are the same between runs. If you run multiple nodes set this via environment variable to ensure every node generates unique names. When left empty (the default) a random starting seed is chosen.</p>
+<p>Provide an initial seed for the entity naming. Your string will be hashed to provide the random state. When provided, the same sequence of names is generated every run. Creating your entities in the same order will ensure they are the same between runs. If you run multiple nodes, set this via environment variable to ensure every node generates unique names. A random starting seed is chosen when left empty, (the default). </p>
 <p>The default value is: "".</p>""" ] ]
           attribute seed {
             text
@@ -238,13 +238,13 @@ CycloneDDS configuration""" ] ]
           memsize
         }?
         & [ a:documentation [ xml:lang="en" """
-<p>This element specifies the network interfaces for use by Cyclone DDS. Multiple interfaces can be specified with an assigned priority. The list in use will be sorted by priority. If interfaces have an equal priority the specification order will be preserved.</p>""" ] ]
+<p>This element specifies the network interfaces for use by Cyclone DDS. Multiple interfaces can be specified with an assigned priority. The list in use will be sorted by priority. If interfaces have an equal priority, the specification order will be preserved.</p>""" ] ]
         element Interfaces {
           [ a:documentation [ xml:lang="en" """
-<p>This element defines a network interface. You can set autodetermine="true" to autoselect the interface CycloneDDS deems to be the highest quality. If autodetermine="false" (the default), you must specify the name and/or address attribute. If you specify both they must match the same interface.</p>""" ] ]
+<p>This element defines a network interface. You can set autodetermine="true" to autoselect the interface CycloneDDS considers the highest quality. If autodetermine="false" (the default), you must specify the name and/or address attribute. If you specify both, they must match the same interface.</p>""" ] ]
           element NetworkInterface {
             [ a:documentation [ xml:lang="en" """
-<p>This attribute specifies the address of the interface. With ipv4 allows  matching on network part if host part is set to zero. </p>
+<p>This attribute specifies the address of the interface. With ipv4 allows  matching on the network part if the host part is set to zero. </p>
 <p>The default value is: "".</p>""" ] ]
             attribute address {
               text
@@ -256,7 +256,7 @@ CycloneDDS configuration""" ] ]
               text
             }?
             & [ a:documentation [ xml:lang="en" """
-<p>This attribute specifies the whether the interface should use multicast. On its default setting 'default' it will use the value as return by the operating system. If set to 'true' the interface will be assumed to be multicast capable even when the interface flags returned by the operating system state it is not (this provides a workaround for some platforms). If set to 'false' the interface will never be used for multicast.
+<p>This attribute specifies whether the interface should use multicast. On its default setting, 'default', it will use the value as return by the operating system. If set to 'true', the interface will be assumed to be multicast capable even when the interface flags returned by the operating system state it is not (this provides a workaround for some platforms). If set to 'false', the interface will never be used for multicast.
 <p>The default value is: "default".</p>""" ] ]
             attribute multicast {
               text
@@ -268,13 +268,13 @@ CycloneDDS configuration""" ] ]
               text
             }?
             & [ a:documentation [ xml:lang="en" """
-<p>When false (default) Cyclone DDS uses unicast for data whenever there a single unicast suffices. Setting this to true makes it prefer multicasting data, falling back to unicast only when no multicast is available.</p>
+<p>When false (default), Cyclone DDS uses unicast for data whenever a single unicast suffices. Setting this to true makes it prefer multicasting data, falling back to unicast only when no multicast is available.</p>
 <p>The default value is: "false".</p>""" ] ]
             attribute prefer_multicast {
               xsd:boolean
             }?
             & [ a:documentation [ xml:lang="en" """
-<p>By default all specified network interfaces must be present, if they are missing Cyclone will refuse to start. By explicitly setting this setting for an interface you can instruct Cyclone to simply ignore that interface if it is not present.</p>
+<p>By default, all specified network interfaces must be present; if they are missing Cyclone will not start. By explicitly setting this setting for an interface, you can instruct Cyclone to ignore that interface if it is not present.</p>
 <p>The default value is: "true".</p>""" ] ]
             attribute presence_required {
               xsd:boolean
@@ -304,13 +304,13 @@ CycloneDDS configuration""" ] ]
           memsize
         }?
         & [ a:documentation [ xml:lang="en" """
-<p>This element specifies on which network interfaces Cyclone DDS listens to multicasts. The following options are available:</p>
+<p>This element specifies which network interfaces Cyclone DDS listens to multicasts. The following options are available:</p>
 <ul>
 <li><i>all</i>: listen for multicasts on all multicast-capable interfaces; or</li>
 <li><i>any</i>: listen for multicasts on the operating system default interface; or</li>
-<li><i>preferred</i>: listen for multicasts on the preferred interface (General/Interface/NetworkInterface with highest priority); or</li>
+<li><i>preferred</i>: listen for multicasts on the preferred interface (General/Interface/NetworkInterface with the highest priority); or</li>
 <li><i>none</i>: does not listen for multicasts on any interface; or</li>
-<li>a comma-separated list of network addresses: configures Cyclone DDS to listen for multicasts on all of the listed addresses.</li>
+<li>a comma-separated list of network addresses: configures Cyclone DDS to listen for multicasts on all listed addresses.</li>
 </ul>
 <p>If Cyclone DDS is in IPv6 mode and the address of the preferred network interface is a link-local address, "all" is treated as a synonym for "preferred" and a comma-separated list is treated as "preferred" if it contains the preferred interface and as "none" if not.</p>
 <p>The default value is: "preferred".</p>""" ] ]
@@ -343,10 +343,10 @@ CycloneDDS configuration""" ] ]
         }?
       }?
       & [ a:documentation [ xml:lang="en" """
-<p>The Internal elements deal with a variety of settings that evolving and that are not necessarily fully supported. For the vast majority of the Internal settings, the functionality per-se is supported, but the right to change the way the options control the functionality is reserved. This includes renaming or moving options.</p>""" ] ]
+<p>The Internal elements deal with a variety of settings that are evolving and that are not necessarily fully supported. For the majority of the Internal settings the functionality is supported, but the right to change the way the options control the functionality is reserved. This includes renaming or moving options.</p>""" ] ]
       element Internal {
         [ a:documentation [ xml:lang="en" """
-<p>Proxy readers that are assumed to sill be retrieving historical data get this many samples retransmitted when they NACK something, even if some of these samples have sequence numbers outside the set covered by the NACK.</p>
+<p>Proxy readers that are assumed to still be retrieving historical data get this many samples retransmitted when they NACK something, even if some of these samples have sequence numbers outside the set covered by the NACK.</p>
 <p>The default value is: "0".</p>""" ] ]
         element AccelerateRexmitBlockSize {
           xsd:integer
@@ -376,10 +376,10 @@ CycloneDDS configuration""" ] ]
           ("full"|"writers"|"minimal")
         }?
         & [ a:documentation [ xml:lang="en" """
-<p>Setting for controlling the size of transmit bursts.</p>""" ] ]
+<p>Setting for controlling the size of transmitting bursts.</p>""" ] ]
         element BurstSize {
           [ a:documentation [ xml:lang="en" """
-<p>This element specifies how much more than the (presumed or discovered) receive buffer size may be sent when transmitting a sample for the first time, expressed as a percentage; the remainder will then be handled via retransmits. Usually the receivers can keep up with transmitter, at least on average, and so generally it is better to hope for the best and recover. Besides, the retransmits will be unicast, and so any multicast advantage will be lost as well.</p>
+<p>This element specifies how much more than the (presumed or discovered) receive buffer size may be sent when transmitting a sample for the first time, expressed as a percentage; the remainder will then be handled via retransmits. Usually, the receivers can keep up with the transmitter, at least on average, so generally it is better to hope for the best and recover. Besides, the retransmits will be unicast, and so any multicast advantage will be lost as well.</p>
 <p>The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2<sup>10</sup> bytes), MB & MiB (2<sup>20</sup> bytes), GB & GiB (2<sup>30</sup> bytes).</p>
 <p>The default value is: "4294967295".</p>""" ] ]
           element MaxInitTransmit {
@@ -399,7 +399,7 @@ CycloneDDS configuration""" ] ]
           empty
         }?
         & [ a:documentation [ xml:lang="en" """
-<p>This element sets the maximum number of extra threads for an experimental, undocumented and unsupported direct mode.</p>
+<p>This element sets the maximum number of extra threads for an experimental, undocumented, and unsupported direct mode.</p>
 <p>The default value is: "1".</p>""" ] ]
         element DDSI2DirectMaxThreads {
           xsd:integer
@@ -411,7 +411,7 @@ CycloneDDS configuration""" ] ]
           xsd:integer
         }?
         & [ a:documentation [ xml:lang="en" """
-<p>This element sets the maximum number of samples that can be defragmented simultaneously for a best-effort writers.</p>
+<p>This element sets the maximum number of samples that can be defragmented simultaneously for best-effort writers.</p>
 <p>The default value is: "4".</p>""" ] ]
         element DefragUnreliableMaxSamples {
           xsd:integer
@@ -478,7 +478,7 @@ CycloneDDS configuration""" ] ]
 <p>The default value is: "false".</p>""" ] ]
         element LivelinessMonitoring {
           [ a:documentation [ xml:lang="en" """
-<p>This element controls the interval at which to check whether threads have been making progress.</p>
+<p>This element controls the interval to check whether threads have been making progress.</p>
 <p>The unit must be specified explicitly. Recognised units: ns, us, ms, s, min, hr, day.</p>
 <p>The default value is: "1s".</p>""" ] ]
           attribute Interval {
@@ -506,7 +506,7 @@ CycloneDDS configuration""" ] ]
           memsize
         }?
         & [ a:documentation [ xml:lang="en" """
-<p>This settings limits the maximum number of samples queued for retransmission.</p>
+<p>This setting limits the maximum number of samples queued for retransmission.</p>
 <p>The default value is: "200".</p>""" ] ]
         element MaxQueuedRexmitMessages {
           xsd:integer
@@ -550,14 +550,14 @@ CycloneDDS configuration""" ] ]
           duration
         }?
         & [ a:documentation [ xml:lang="en" """
-<p>This setting controls the delay between the discovering a remote writer and sending a pre-emptive AckNack to discover the range of data available.</p>
+<p>This setting controls the delay between the discovering a remote writer and sending a pre-emptive AckNack to discover the available range of data.</p>
 <p>The unit must be specified explicitly. Recognised units: ns, us, ms, s, min, hr, day.</p>
 <p>The default value is: "10 ms".</p>""" ] ]
         element PreEmptiveAckDelay {
           duration
         }?
         & [ a:documentation [ xml:lang="en" """
-<p>This element sets the maximum size in samples of a primary re-order administration. Each proxy writer has one primary re-order administration to buffer the packet flow in case some packets arrive out of order. Old samples are forwarded to secondary re-order administrations associated with readers in need of historical data.</p>
+<p>This element sets the maximum size in samples of a primary re-order administration. Each proxy writer has one primary re-order administration to buffer the packet flow in case some packets arrive out of order. Old samples are forwarded to secondary re-order administrations associated with readers needing historical data.</p>
 <p>The default value is: "128".</p>""" ] ]
         element PrimaryReorderMaxSamples {
           xsd:integer
@@ -592,7 +592,7 @@ CycloneDDS configuration""" ] ]
           ("never"|"adaptive"|"always")
         }?
         & [ a:documentation [ xml:lang="en" """
-<p>This setting determines the size of the time window in which a NACK of some sample is ignored because a retransmit of that sample has been multicasted too recently. This setting has no effect on unicasted retransmits.</p>
+<p>This setting determines the time window size in which a NACK of some sample is ignored because a retransmit of that sample has been multicasted too recently. This setting has no effect on unicasted retransmits.</p>
 <p>See also Internal/RetransmitMerging.</p>
 <p>The unit must be specified explicitly. Recognised units: ns, us, ms, s, min, hr, day.</p>
 <p>The default value is: "5 ms".</p>""" ] ]
@@ -620,7 +620,7 @@ CycloneDDS configuration""" ] ]
           duration
         }?
         & [ a:documentation [ xml:lang="en" """
-<p>This element sets the maximum size in samples of a secondary re-order administration. The secondary re-order administration is per reader in need of historical data.</p>
+<p>This element sets the maximum size in samples of a secondary re-order administration. The secondary re-order administration is per reader needing historical data.</p>
 <p>The default value is: "128".</p>""" ] ]
         element SecondaryReorderMaxSamples {
           xsd:integer
@@ -630,7 +630,7 @@ CycloneDDS configuration""" ] ]
 <p>The default setting requests a buffer size of 1MiB but accepts whatever is available after that.</p>""" ] ]
         element SocketReceiveBufferSize {
           [ a:documentation [ xml:lang="en" """
-<p>This sets the size of the socket receive buffer to request, with the special value of "default" indicating that it should try to satisfy the minimum buffer size. If both are at "default", it will request 1MiB and accept anything. If the maximum is set to less than the minimum, it is ignored.</p>
+<p>This sets the size of the socket receive buffer to request, with the special value of "default" indicating that it should try to satisfy the minimum buffer size. If both are at "default", it will request 1MiB and accept anything. It is ignored if the  maximum is set to less than the minimum.</p>
 <p>The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2<sup>10</sup> bytes), MB & MiB (2<sup>20</sup> bytes), GB & GiB (2<sup>30</sup> bytes).</p>
 <p>The default value is: "default".</p>""" ] ]
           attribute max {
@@ -649,7 +649,7 @@ CycloneDDS configuration""" ] ]
 <p>The default setting requires a buffer of at least 64KiB.</p>""" ] ]
         element SocketSendBufferSize {
           [ a:documentation [ xml:lang="en" """
-<p>This sets the size of the socket send buffer to request, with the special value of "default" indicating that it should try to satisfy the minimum buffer size. If both are at "default", it will use whatever is the system default. If the maximum is set to less than the minimum, it is ignored.</p>
+<p>This sets the size of the socket send buffer to request, with the special value of "default" indicating that it should try to satisfy the minimum buffer size. If both are at "default", it will use whatever is the system default. It is ignored if the maximum is set to less than the minimum.</p>
 <p>The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2<sup>10</sup> bytes), MB & MiB (2<sup>20</sup> bytes), GB & GiB (2<sup>30</sup> bytes).</p>
 <p>The default value is: "default".</p>""" ] ]
           attribute max {
@@ -664,7 +664,7 @@ CycloneDDS configuration""" ] ]
           }?
         }?
         & [ a:documentation [ xml:lang="en" """
-<p>This element controls whether Cyclone DDS advertises all the domain participants it serves in DDSI (when set to <i>false</i>), or rather only one domain participant (the one corresponding to the Cyclone DDS process; when set to <i>true</i>). In the latter case Cyclone DDS becomes the virtual owner of all readers and writers of all domain participants, dramatically reducing discovery traffic (a similar effect can be obtained by setting Internal/BuiltinEndpointSet to "minimal" but with less loss of information).</p>
+<p>This element controls whether Cyclone DDS advertises all the domain participants it serves in DDSI (when set to <i>false</i>), or rather only one domain participant (the one corresponding to the Cyclone DDS process; when set to <i>true</i>). In the latter case, Cyclone DDS becomes the virtual owner of all readers and writers of all domain participants, dramatically reducing discovery traffic (a similar effect can be obtained by setting Internal/BuiltinEndpointSet to "minimal" but with less loss of information).</p>
 <p>The default value is: "false".</p>""" ] ]
         element SquashParticipants {
           xsd:boolean
@@ -693,7 +693,7 @@ CycloneDDS configuration""" ] ]
           }?
         }?
         & [ a:documentation [ xml:lang="en" """
-<p>This element controls whether the response to a newly discovered participant is sent as a unicasted SPDP packet, instead of rescheduling the periodic multicasted one. There is no known benefit to setting this to <i>false</i>.</p>
+<p>This element controls whether the response to a newly discovered participant is sent as a unicasted SPDP packet instead of rescheduling the periodic multicasted one. There is no known benefit to setting this to <i>false</i>.</p>
 <p>The default value is: "true".</p>""" ] ]
         element UnicastResponseToSPDPMessages {
           xsd:boolean
@@ -708,7 +708,7 @@ CycloneDDS configuration""" ] ]
 <p>Watermarks for flow-control.</p>""" ] ]
         element Watermarks {
           [ a:documentation [ xml:lang="en" """
-<p>This element controls whether Cyclone DDS will adapt the high-water mark to current traffic conditions, based on retransmit requests and transmit pressure.</p>
+<p>This element controls whether Cyclone DDS will adapt the high-water mark to current traffic conditions based on retransmit requests and transmit pressure.</p>
 <p>The default value is: "true".</p>""" ] ]
           element WhcAdaptive {
             xsd:boolean
@@ -736,7 +736,7 @@ CycloneDDS configuration""" ] ]
           }?
         }?
         & [ a:documentation [ xml:lang="en" """
-<p>This element enables the batching of write operations. By default each write operation writes through the write cache and out onto the transport. Enabling write batching causes multiple small write operations to be aggregated within the write cache into a single larger write. This gives greater throughput at the expense of latency. Currently there is no mechanism for the write cache to automatically flush itself, so that if write batching is enabled, the application may have to use the dds_write_flush function to ensure that all samples are written.</p>
+<p>This element enables the batching of write operations. By default each write operation writes through the write cache and out onto the transport. Enabling write batching causes multiple small write operations to be aggregated within the write cache into a single larger write. This gives greater throughput at the expense of latency. Currently, there is no mechanism for the write cache to automatically flush itself, so that if write batching is enabled, the application may have to use the dds_write_flush function to ensure that all samples are written.</p>
 <p>The default value is: "false".</p>""" ] ]
         element WriteBatch {
           xsd:boolean
@@ -756,11 +756,11 @@ CycloneDDS configuration""" ] ]
 <p>The IgnoredPartitions element specifies DCPS partition/topic combinations that are not distributed over the network.</p>""" ] ]
         element IgnoredPartitions {
           [ a:documentation [ xml:lang="en" """
-<p>This element can be used to prevent certain combinations of DCPS partition and topic from being transmitted over the network. Cyclone DDS will complete ignore readers and writers for which all DCPS partitions as well as their topic is ignored, not even creating DDSI readers and writers to mirror the DCPS ones.</p>
+<p>This element can prevent certain combinations of DCPS partition and topic from being transmitted over the network. Cyclone DDS will completely ignore readers and writers for which all DCPS partitions as well as their topic is ignored, not even creating DDSI readers and writers to mirror the DCPS ones.</p>
 <p>The default value is: "".</p>""" ] ]
           element IgnoredPartition {
             [ a:documentation [ xml:lang="en" """
-<p>This attribute specifies a partition and a topic expression, separated by a single '.', that are used to determine if a given partition and topic will be ignored or not. The expressions may use the usual wildcards '*' and '?'. Cyclone DDS will consider an wildcard DCPS partition to match an expression iff there exists a string that satisfies both expressions.</p>
+<p>This attribute specifies a partition and a topic expression, separated by a single '.', which are used to determine if a given partition and topic will be ignored or not. The expressions may use the usual wildcards '*' and '?'. Cyclone DDS will consider a wildcard DCPS partition to match an expression if a string that satisfies both expressions exists.</p>
 <p>The default value is: "".</p>""" ] ]
             attribute DCPSPartitionTopic {
               text
@@ -798,11 +798,11 @@ CycloneDDS configuration""" ] ]
 <p>The PartitionMappings element specifies the mapping from DCPS partition/topic combinations to Cyclone DDS network partitions.</p>""" ] ]
         element PartitionMappings {
           [ a:documentation [ xml:lang="en" """
-<p>This element defines a mapping from a DCPS partition/topic combination to a Cyclone DDS network partition. This allows partitioning data flows by using special multicast addresses for part of the data and possibly also encrypting the data flow.</p>
+<p>This element defines a mapping from a DCPS partition/topic combination to a Cyclone DDS network partition. This allows partitioning data flows by using special multicast addresses for part of the data and possibly encrypting the data flow.</p>
 <p>The default value is: "".</p>""" ] ]
           element PartitionMapping {
             [ a:documentation [ xml:lang="en" """
-<p>This attribute specifies a partition and a topic expression, separated by a single '.', that are used to determine if a given partition and topic maps to the Cyclone DDS network partition named by the NetworkPartition attribute in this PartitionMapping element. The expressions may use the usual wildcards '*' and '?'. Cyclone DDS will consider a wildcard DCPS partition to match an expression if there exists a string that satisfies both expressions.</p>
+<p>This attribute specifies a partition and a topic expression, separated by a single '.', which are used to determine if a given partition and topic maps to the Cyclone DDS network partition named by the NetworkPartition attribute in this PartitionMapping element. The expressions may use the usual wildcards '*' and '?'. Cyclone DDS will consider a wildcard DCPS partition to match an expression if there exists a string that satisfies both expressions.</p>
 <p>The default value is: "".</p>""" ] ]
             attribute DCPSPartitionTopic {
               text
@@ -868,7 +868,7 @@ CycloneDDS configuration""" ] ]
           xsd:boolean
         }?
         & [ a:documentation [ xml:lang="en" """
-<p>This enables an SSL server checking the X509 certificate of a connecting client.</p>
+<p>This enables an SSL server to check the X509 certificate of a connecting client.</p>
 <p>The default value is: "true".</p>""" ] ]
         element VerifyClient {
           xsd:boolean
@@ -919,7 +919,7 @@ CycloneDDS configuration""" ] ]
               text
             }?
             & [ a:documentation [ xml:lang="en" """
-<p>This element names the initialization function of Access Control plugin. This function is called after loading the plugin library for instantiation purposes. Init function must return an object that implements DDS Security Access Control interface.</p>
+<p>This element names the initialization function of Access Control plugin. This function is called after loading the plugin library for instantiation purposes. The Init function must return an object that implements the DDS Security Access Control interface.</p>
 <p>The default value is: "init_access_control".</p>""" ] ]
             attribute initFunction {
               text
@@ -927,7 +927,7 @@ CycloneDDS configuration""" ] ]
             & [ a:documentation [ xml:lang="en" """
 <p>This element points to the path of Access Control plugin library.</p>
 <p>It can be either absolute path excluding file extension ( /usr/lib/dds_security_ac ) or single file without extension ( dds_security_ac ).</p>
-<p>If single file is supplied, the library located by way of the current working directory, or LD_LIBRARY_PATH for Unix systems, and PATH for Windows systems.</p>
+<p>If a single file is supplied, the library is located by the current working directory, or LD_LIBRARY_PATH for Unix systems, and PATH for Windows systems.</p>
 <p>The default value is: "dds_security_ac".</p>""" ] ]
             attribute path {
               text
@@ -946,7 +946,7 @@ CycloneDDS configuration""" ] ]
             text
           }?
           & [ a:documentation [ xml:lang="en" """
-<p>URI to a X509 certificate for the PermissionsCA in PEM format.</p>
+<p>URI to an X509 certificate for the PermissionsCA in PEM format.</p>
 <p>Supported URI schemes: file, data</p>
 <p>The file and data schemas shall refer to a X.509 v3 certificate (see X.509 v3 ITU-T Recommendation X.509 (2005) [39]) in PEM format.</p><br>
 <p>Examples:</p><br>
@@ -989,7 +989,7 @@ MIIC3DCCAcQCCQCWE5x+Z...PhovK0mp2ohhRLYI0ZiyYQ==<br>
             text
           }
           & [ a:documentation [ xml:lang="en" """
-<p>Identity certificate that will be used for identifying all participants in the OSPL instance.<br>The content is URI to a X509 certificate signed by the IdentityCA in PEM format containing the signed public key.</p>
+<p>An identity certificate will identify all participants in the OSPL instance.<br>The content is URI to an X509 certificate signed by the IdentityCA in PEM format containing the signed public key.</p>
 <p>Supported URI schemes: file, data</p>
 <p>Examples:</p>
 <p><IdentityCertificate>file:participant1_identity_cert.pem</IdentityCertificate></p>
@@ -1011,28 +1011,28 @@ MIIDjjCCAnYCCQDCEu9...6rmT87dhTo=<br>
 <p>The default value is: "".</p>""" ] ]
           element Library {
             [ a:documentation [ xml:lang="en" """
-<p>This element names the finalization function of Authentication plugin. This function is called to let the plugin release its resources.</p>
+<p>This element names the finalization function of the Authentication plugin. This function is called to let the plugin release its resources.</p>
 <p>The default value is: "finalize_authentication".</p>""" ] ]
             attribute finalizeFunction {
               text
             }?
             & [ a:documentation [ xml:lang="en" """
-<p>This element names the initialization function of Authentication plugin. This function is called after loading the plugin library for instantiation purposes. Init function must return an object that implements DDS Security Authentication interface.</p>
+<p>This element names the initialization function of the Authentication plugin. This function is called after loading the plugin library for instantiation purposes. The Init function must return an object that implements the DDS Security Authentication interface.</p>
 <p>The default value is: "init_authentication".</p>""" ] ]
             attribute initFunction {
               text
             }?
             & [ a:documentation [ xml:lang="en" """
-<p>This element points to the path of Authentication plugin library.</p>
+<p>This element points to the path of the Authentication plugin library.</p>
 <p>It can be either absolute path excluding file extension ( /usr/lib/dds_security_auth ) or single file without extension ( dds_security_auth ).</p>
-<p>If single file is supplied, the library located by way of the current working directory, or LD_LIBRARY_PATH for Unix systems, and PATH for Windows system.</p>
+<p>If a single file is supplied, the library is located by the current working directory, or LD_LIBRARY_PATH for Unix systems, and PATH for Windows systems.</p>
 <p>The default value is: "dds_security_auth".</p>""" ] ]
             attribute path {
               text
             }?
           }?
           & [ a:documentation [ xml:lang="en" """
-<p>A password used to decrypt the private_key.</p>
+<p>A password is used to decrypt the private_key.</p>
 <p>The value of the password property shall be interpreted as the Base64 encoding of the AES-128 key that shall be used to decrypt the private_key using AES128-CBC.</p>
 <p>If the password property is not present, then the value supplied in the private_key property must contain the unencrypted private key.</p>
 <p>The default value is: "".</p>""" ] ]
@@ -1066,21 +1066,21 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==<br>
 <p>The default value is: "".</p>""" ] ]
           element Library {
             [ a:documentation [ xml:lang="en" """
-<p>This element names the finalization function of Cryptographic plugin. This function is called to let the plugin release its resources.</p>
+<p>This element names the finalization function of the Cryptographic plugin. This function is called to let the plugin release its resources.</p>
 <p>The default value is: "finalize_crypto".</p>""" ] ]
             attribute finalizeFunction {
               text
             }?
             & [ a:documentation [ xml:lang="en" """
-<p>This element names the initialization function of Cryptographic plugin. This function is called after loading the plugin library for instantiation purposes. Init function must return an object that implements DDS Security Cryptographic interface.</p>
+<p>This element names the initialization function of the Cryptographic plugin. This function is called after loading the plugin library for instantiation purposes. The Init function must return an object that implements the DDS Security Cryptographic interface.</p>
 <p>The default value is: "init_crypto".</p>""" ] ]
             attribute initFunction {
               text
             }?
             & [ a:documentation [ xml:lang="en" """
-<p>This element points to the path of Cryptographic plugin library.</p>
+<p>This element points to the path of the Cryptographic plugin library.</p>
 <p>It can be either absolute path excluding file extension ( /usr/lib/dds_security_crypto ) or single file without extension ( dds_security_crypto ).</p>
-<p>If single file is supplied, the library located by way of the current working directory, or LD_LIBRARY_PATH for Unix systems, and PATH for Windows systems.</p>
+<p>If a single file is supplied, the is library located by the current working directory, or LD_LIBRARY_PATH for Unix systems, and PATH for Windows systems.</p>
 <p>The default value is: "dds_security_crypto".</p>""" ] ]
             attribute path {
               text
@@ -1092,7 +1092,7 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==<br>
 <p>The Shared Memory element allows specifying various parameters related to using shared memory.</p>""" ] ]
       element SharedMemory {
         [ a:documentation [ xml:lang="en" """
-<p>This element allows to enable shared memory in Cyclone DDS.</p>
+<p>This element allows for enabling shared memory in Cyclone DDS.</p>
 <p>The default value is: "false".</p>""" ] ]
         element Enable {
           xsd:boolean
@@ -1112,7 +1112,7 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==<br>
 <li><i>info</i>: show info log</li>
 <li><i>debug</i>: show debug log</li>
 <li><i>verbose</i>: show verbose log</li>
-<p>If you don't want to see any log from shared memory, use <i>off</i> to disable log message.</p>
+<p>If you don't want to see any log from shared memory, use <i>off</i> to disable logging.</p>
 <p>The default value is: "info".</p>""" ] ]
         element LogLevel {
           ("off"|"fatal"|"error"|"warn"|"info"|"debug"|"verbose")
@@ -1125,17 +1125,17 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==<br>
         }?
       }?
       & [ a:documentation [ xml:lang="en" """
-<p>The Sizing element specifies a variety of configuration settings dealing with expected system sizes, buffer sizes, &c.</p>""" ] ]
+<p>The Sizing element allows you to specify various configuration settings dealing with expected system sizes, buffer sizes, &c.</p>""" ] ]
       element Sizing {
         [ a:documentation [ xml:lang="en" """
-<p>This element specifies the size of one allocation unit in the receive buffer. Must be greater than the maximum packet size by a modest amount (too large packets are dropped). Each allocation is shrunk immediately after processing a message, or freed straightaway.</p>
+<p>This element specifies the size of one allocation unit in the receive buffer. It must be greater than the maximum packet size by a modest amount (too large packets are dropped). Each allocation is shrunk immediately after processing a message or freed straightaway.</p>
 <p>The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2<sup>10</sup> bytes), MB & MiB (2<sup>20</sup> bytes), GB & GiB (2<sup>30</sup> bytes).</p>
 <p>The default value is: "128 KiB".</p>""" ] ]
         element ReceiveBufferChunkSize {
           memsize
         }?
         & [ a:documentation [ xml:lang="en" """
-<p>This element sets the size of a single receive buffer. Many receive buffers may be needed. The minimum workable size a little bit larger than Sizing/ReceiveBufferChunkSize, and the value used is taken as the configured value and the actual minimum workable size.</p>
+<p>This element sets the size of a single receive buffer. Many receive buffers may be needed. The minimum workable size is a little larger than Sizing/ReceiveBufferChunkSize, and the value used is taken as the configured value and the actual minimum workable size.</p>
 <p>The unit must be specified explicitly. Recognised units: B (bytes), kB & KiB (2<sup>10</sup> bytes), MB & MiB (2<sup>20</sup> bytes), GB & GiB (2<sup>30</sup> bytes).</p>
 <p>The default value is: "1 MiB".</p>""" ] ]
         element ReceiveBufferSize {
@@ -1143,10 +1143,10 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==<br>
         }?
       }?
       & [ a:documentation [ xml:lang="en" """
-<p>The TCP element allows specifying various parameters related to running DDSI over TCP.</p>""" ] ]
+<p>The TCP element allows you to specify various parameters related to running DDSI over TCP.</p>""" ] ]
       element TCP {
         [ a:documentation [ xml:lang="en" """
-<p>Setting this to true means the unicast addresses in SPDP packets will be ignored and the peer address from the TCP connection will be used instead. This may help work around incorrectly advertised addresses when using TCP.</p>
+<p>Setting this to true means the unicast addresses in SPDP packets will be ignored, and the peer address from the TCP connection will be used instead. This may help work around incorrectly advertised addresses when using TCP.</p>
 <p>The default value is: "false".</p>""" ] ]
         element AlwaysUsePeeraddrForUnicast {
           xsd:boolean
@@ -1158,13 +1158,13 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==<br>
           ("false"|"true"|"default")
         }?
         & [ a:documentation [ xml:lang="en" """
-<p>This element enables the TCP_NODELAY socket option, preventing multiple DDSI messages being sent in the same TCP request. Setting this option typically optimises latency over throughput.</p>
+<p>This element enables the TCP_NODELAY socket option, preventing multiple DDSI messages from being sent in the same TCP request. Setting this option typically optimises latency over throughput.</p>
 <p>The default value is: "true".</p>""" ] ]
         element NoDelay {
           xsd:boolean
         }?
         & [ a:documentation [ xml:lang="en" """
-<p>This element specifies the TCP port number on which Cyclone DDS accepts connections. If the port is set it is used in entity locators, published with DDSI discovery. Dynamically allocated if zero. Disabled if -1 or not configured. If disabled other DDSI services will not be able to establish connections with the service, the service can only communicate by establishing connections to other services.</p>
+<p>This element specifies the TCP port number on which Cyclone DDS accepts connections. If the port is set, it is used in entity locators, published with DDSI discovery, dynamically allocated if zero, and disabled if -1 or not configured. If disabled other DDSI services will not be able to establish connections with the service, the service can only communicate by establishing connections to other services.</p>
 <p>The default value is: "-1".</p>""" ] ]
         element Port {
           xsd:integer
@@ -1216,7 +1216,7 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==<br>
               ("realtime"|"timeshare"|"default")
             }?
             & [ a:documentation [ xml:lang="en" """
-<p>This element specifies the thread priority (decimal integer or <i>default</i>). Only priorities that are supported by the underlying operating system can be assigned to this element. The user may need special privileges from the underlying operating system to be able to assign some of the privileged priorities.</p>
+<p>This element specifies the thread priority (decimal integer or <i>default</i>). Only priorities supported by the underlying operating system can be assigned to this element. The user may need special privileges from the underlying operating system to be able to assign some of the privileged priorities.</p>
 <p>The default value is: "default".</p>""" ] ]
             element Priority {
               text
@@ -1235,7 +1235,7 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==<br>
 <p>The Tracing element controls the amount and type of information that is written into the tracing log by the DDSI service. This is useful to track the DDSI service during application development.</p>""" ] ]
       element Tracing {
         [ a:documentation [ xml:lang="en" """
-<p>This option specifies whether the output is to be appended to an existing log file. The default is to create a new log file each time, which is generally the best option if a detailed log is generated.</p>
+<p>This option specifies whether the output should be appended to an existing log file. The default is to create a new log file each time, which is generally the best option if a detailed log is generated.</p>
 <p>The default value is: "false".</p>""" ] ]
         element AppendToFile {
           xsd:boolean
@@ -1301,12 +1301,12 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==<br>
 }
 # generated from ddsi_config.h[75edea6617af11bacc46f91e519773f6df580655] 
 # generated from ddsi_cfgunits.h[fc550f1620aa20dcd9244ef4e24299d5001efbb4] 
-# generated from ddsi_cfgelems.h[3b8f4c3aa5ddf3b67774d3ba46ad63ef34ca8828] 
+# generated from ddsi_cfgelems.h[11913cd398f1cd1b52e06d924718df62a5981beb] 
 # generated from ddsi_config.c[ed9898f72f9dbcfa20ce7706835da091efcea0ca] 
 # generated from _confgen.h[f2d235d5551cbf920a8a2962831dddeabd2856ac] 
 # generated from _confgen.c[1193219ddb4769b90566cf197e73d22fb6f75835] 
 # generated from generate_rnc.c[a2ec6e48d33ac14a320c8ec3f320028a737920e0] 
 # generated from generate_md.c[a61b6a9649d18afeca4c73b5784f36989d7994e0] 
-# generated from generate_rst.c[549022e42c3e0d4b019d672bb4b94aba1dd4b322] 
+# generated from generate_rst.c[34dcb6b5e2ac2cd15e78497107ce0b6eed6e6e94] 
 # generated from generate_xsd.c[45064e8869b3c00573057d7c8f02d20f04b40e16] 
 # generated from generate_defconfig.c[eec9ab7b2d053e68500799b693d089e84153a37b] 

@@ -15,8 +15,8 @@
 
 import re
 import sys
+import json
 from xml.etree import ElementTree
-import hashlib
 
 
 cmake_version_regex = re.compile(r"project\s*\(\s*CycloneDDS.*VERSION\s+([0-9]+\.[0-9]+\.[0-9]).*\)", re.IGNORECASE)
@@ -36,6 +36,21 @@ def main():
     if not cmake_version == package_version:
         print(f"package.xml version:    {package_version}", file=sys.stderr)
         print(f"CMakeLists.txt version: {cmake_version}", file=sys.stderr)
+        sys.exit(1)
+
+    with open('docs/manual/variables.json') as f:
+        vars = json.load(f)
+        docs_version = vars['version']
+        docs_release = vars['release']
+
+    if not cmake_version == docs_version:
+        print(f"package.xml version:                {package_version}", file=sys.stderr)
+        print(f"docs/manual/variables.json version: {docs_version}", file=sys.stderr)
+        sys.exit(1)
+
+    if not cmake_version.startswith(docs_release):
+        print(f"package.xml version:                {package_version}", file=sys.stderr)
+        print(f"docs/manual/variables.json release: {docs_release}", file=sys.stderr)
         sys.exit(1)
 
 

@@ -1,0 +1,4 @@
+.venv
+output/
+manual/ddsc_api_docs/
+manual/doxygen.conf

@@ -1,0 +1,8 @@
+{
+    "project": "Eclipse Cyclone DDS",
+    "project-short": "CycloneDDS",
+    "copyright": ":year:, Eclipse Cyclone DDS committers",
+    "author": "Eclipse Cyclone DDS committers",
+    "version": "0.11.0",
+    "release": "0.11.0"
+}

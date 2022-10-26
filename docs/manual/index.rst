@@ -9,17 +9,16 @@
 
    SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
-.. Eclipse Cyclone DDS documentation master file
-
-Welcome to Eclipse Cyclone DDS's documentation!
-===============================================
+|var-project| |var-release| documentation
+=========================================
 
 .. toctree::
    :maxdepth: 3
    :caption: Contents
 
-   getting_started
-   config
+   getting_started/index
+   config/index
+   examples/index
    security
    shared_memory
    ddsc
