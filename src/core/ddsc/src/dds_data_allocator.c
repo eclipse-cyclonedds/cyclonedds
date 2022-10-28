@@ -152,7 +152,9 @@ dds_return_t dds_data_allocator_free (dds_data_allocator_t *data_allocator, void
       case DDS_IOX_ALLOCATOR_KIND_SUBSCRIBER:
         if (ptr != NULL) {
           ddsrt_mutex_lock(&d->mutex);
+          shm_lock_iox_sub(d->ref.sub);
           iox_sub_release_chunk(d->ref.sub, ptr);
+          shm_unlock_iox_sub(d->ref.sub);
           ddsrt_mutex_unlock(&d->mutex);
         }
         break;
