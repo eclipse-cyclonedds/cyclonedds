@@ -126,7 +126,7 @@ Permissions files can contain permissions for several identities; so subject nam
 certificate exist in permissions file to establish a binding between identity and its permissions.
 
 There are several ways to set up the certificates and signed configuration files to be used with
-Cyclone DDS Security. One of them is using OpenSSL, which is described in section
+|var-project-short| Security. One of them is using OpenSSL, which is described in section
 `Creating certificates using OpenSSL`_.
 
 *************
@@ -185,7 +185,7 @@ file (prefixed with ``file:``).
 Optionally the private key could be protected by a password
 (:ref:`//CycloneDDS/Domain/Security/Authentication/Password`).
 
-Furthermore the CycloneDDS configuration allows configuring a directory containing additional
+Furthermore the |var-project-short| configuration allows configuring a directory containing additional
 identity CA's which are used to verify the identity certificates that are received from remote instances
 (:ref:`//CycloneDDS/Domain/Security/Authentication/TrustedCADirectory`). This option allows multiple identity
 CAs throughout the system.
@@ -481,7 +481,7 @@ This optional feature is not yet supported.
 Example configuration
 *********************
 
-This sections show an example configuration for DDS Security in Cyclone DDS. First step is
+This sections show an example configuration for DDS Security in |var-project-short|. First step is
 creating the required CA and identity certificates. Then a governance and permissions document
 is created to configure access control. Next an example configuration (XML) that
 is using these assets is shown, and a code fragment that shows how to set the security
@@ -619,9 +619,9 @@ when creating a participant:
     :language: c
 
 
-===========================================
-Configure security in Cyclone configuration
-===========================================
+==================
+Configure security
+==================
 
 As an alternative for using the QoS, security settings can also be applied using the |var-project-short|
 configuration XML. In case both QoS and the configuration XML contain security settings, the values

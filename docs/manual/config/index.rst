@@ -16,7 +16,7 @@ Configuration Guide
 ###################
 
 |var-project| has various configuration parameters and comes with a default built-in
-configuration.  To run an example, or any application that uses Eclipse Cyclone DDS for its data
+configuration.  To run an example, or any application that uses |var-project| for its data
 exchange, this default configuration is usually fine and no further action is required.
 
 This document attempts to provide background information that will help in adjusting the
