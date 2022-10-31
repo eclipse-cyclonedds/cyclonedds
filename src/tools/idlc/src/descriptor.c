@@ -407,7 +407,7 @@ stash_constant(
 
   if (idl_is_enumerator(const_expr)) {
     cnt = IDL_PRINT(strp, print_type, const_expr);
-  } else {
+  } else if (const_expr) {
     const idl_literal_t *literal = const_expr;
 
     switch (idl_type(const_expr)) {
