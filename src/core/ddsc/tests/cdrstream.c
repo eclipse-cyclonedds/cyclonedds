@@ -1755,8 +1755,8 @@ CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc1, const dds_to
   {
     tprintf ("Running test appendable_mutable: %s (run %d/2)\n", descr, t + 1);
 
-    const dds_topic_descriptor_t *desc_wr = t ? desc2 : desc1;
-    const dds_topic_descriptor_t *desc_rd = t ? desc1 : desc2;
+    const dds_topic_descriptor_t *topic_desc_wr = t ? desc2 : desc1;
+    const dds_topic_descriptor_t *topic_desc_rd = t ? desc1 : desc2;
 
     /* Write data */
     dds_ostream_t os;
@@ -1765,20 +1765,20 @@ CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc1, const dds_to
     os.m_size = 0;
     os.m_xcdr_version = CDR_ENC_VERSION_2;
 
-    struct ddsi_sertype_default tp_wr;
-    memset (&tp_wr, 0, sizeof (tp_wr));
-    tp_wr.type = (struct ddsi_sertype_default_desc) {
-      .size = desc_wr->m_size,
-      .align = desc_wr->m_align,
-      .flagset = desc_wr->m_flagset,
+    struct ddsi_cdrstream_desc desc_wr;
+    memset (&desc_wr, 0, sizeof (desc_wr));
+    desc_wr = (struct ddsi_cdrstream_desc) {
+      .size = topic_desc_wr->m_size,
+      .align = topic_desc_wr->m_align,
+      .flagset = topic_desc_wr->m_flagset,
       .keys.nkeys = 0,
       .keys.keys = NULL,
-      .ops.nops = dds_stream_countops (desc_wr->m_ops, desc_wr->m_nkeys, desc_wr->m_keys),
-      .ops.ops = (uint32_t *) desc_wr->m_ops
+      .ops.nops = dds_stream_countops (topic_desc_wr->m_ops, topic_desc_wr->m_nkeys, topic_desc_wr->m_keys),
+      .ops.ops = (uint32_t *) topic_desc_wr->m_ops
     };
 
     void * msg_wr = t ? sample_init_fn2 () : sample_init_fn1 ();
-    bool ret = dds_stream_write_sample (&os, msg_wr, &tp_wr);
+    bool ret = dds_stream_write_sample (&os, msg_wr, &desc_wr);
     CU_ASSERT_FATAL (ret);
 
     /* Read data */
@@ -1788,20 +1788,20 @@ CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc1, const dds_to
     is.m_size = os.m_size;
     is.m_xcdr_version = CDR_ENC_VERSION_2;
 
-    struct ddsi_sertype_default tp_rd;
-    memset (&tp_rd, 0, sizeof (tp_rd));
-    tp_rd.type = (struct ddsi_sertype_default_desc) {
-      .size = desc_rd->m_size,
-      .align = desc_rd->m_align,
-      .flagset = desc_rd->m_flagset,
+    struct ddsi_cdrstream_desc desc_rd;
+    memset (&desc_rd, 0, sizeof (desc_rd));
+    desc_rd = (struct ddsi_cdrstream_desc) {
+      .size = topic_desc_rd->m_size,
+      .align = topic_desc_rd->m_align,
+      .flagset = topic_desc_rd->m_flagset,
       .keys.nkeys = 0,
       .keys.keys = NULL,
-      .ops.nops = dds_stream_countops (desc_rd->m_ops, desc_rd->m_nkeys, desc_rd->m_keys),
-      .ops.ops = (uint32_t *) desc_rd->m_ops
+      .ops.nops = dds_stream_countops (topic_desc_rd->m_ops, topic_desc_rd->m_nkeys, topic_desc_rd->m_keys),
+      .ops.ops = (uint32_t *) topic_desc_rd->m_ops
     };
 
-    void *msg_rd = ddsrt_calloc (1, desc_rd->m_size);
-    dds_stream_read_sample (&is, msg_rd, &tp_rd);
+    void *msg_rd = ddsrt_calloc (1, desc_rd.size);
+    dds_stream_read_sample (&is, msg_rd, &desc_rd);
 
     /* Check for expected result */
     bool eq = t ? sample_equal_fn2 (msg_wr, msg_rd) : sample_equal_fn1 (msg_wr, msg_rd);
@@ -1810,7 +1810,7 @@ CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc1, const dds_to
     /* print result */
     char buf[5000];
     is.m_index = 0;
-    dds_stream_print_sample (&is, &tp_rd, buf, 5000);
+    dds_stream_print_sample (&is, &desc_rd, buf, 5000);
     printf ("read sample: %s\n\n", buf);
 
     // cleanup
@@ -1890,7 +1890,7 @@ CU_Test (ddsc_cdrstream, check_optimize)
   for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
   {
     printf("running test for desc %s: %s ", tests[i].desc->m_typename, tests[i].description);
-    struct ddsi_sertype_default_desc ddsi_desc = { .ops.nops = tests[i].desc->m_nops, .ops.ops = (uint32_t *) tests[i].desc->m_ops, .size = tests[i].desc->m_size };
+    struct ddsi_cdrstream_desc ddsi_desc = { .ops.nops = tests[i].desc->m_nops, .ops.ops = (uint32_t *) tests[i].desc->m_ops, .size = tests[i].desc->m_size };
     size_t opt1 = dds_stream_check_optimize (&ddsi_desc, XCDR1);
     size_t opt2 = dds_stream_check_optimize (&ddsi_desc, XCDR2);
     printf ("(opt cdr1: %zu, cdr2: %zu)\n", opt1, opt2);

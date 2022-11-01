@@ -26,10 +26,10 @@
 #include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/ddsi_cdrstream.h"
 #include "dds/ddsi/ddsi_sertype.h"
-#include "dds/ddsi/ddsi_serdata_default.h"
 #include "dds/ddsi/ddsi_xt_typeinfo.h"
 #include "dds/ddsi/ddsi_typelookup.h"
 #include "dds/ddsi/ddsi_typelib.h"
+#include "dds__serdata_default.h"
 
 
 #ifdef DDS_HAS_SHM
@@ -39,8 +39,8 @@
 
 static bool sertype_default_equal (const struct ddsi_sertype *acmn, const struct ddsi_sertype *bcmn)
 {
-  const struct ddsi_sertype_default *a = (struct ddsi_sertype_default *) acmn;
-  const struct ddsi_sertype_default *b = (struct ddsi_sertype_default *) bcmn;
+  const struct dds_sertype_default *a = (struct dds_sertype_default *) acmn;
+  const struct dds_sertype_default *b = (struct dds_sertype_default *) bcmn;
   if (a->encoding_format != b->encoding_format)
     return false;
   if (a->type.size != b->type.size)
@@ -61,8 +61,8 @@ static bool sertype_default_equal (const struct ddsi_sertype *acmn, const struct
     (a->type.ops.nops > 0) &&
     memcmp (a->type.ops.ops, b->type.ops.ops, a->type.ops.nops * sizeof (*a->type.ops.ops)) != 0)
     return false;
-  assert (a->opt_size_xcdr1 == b->opt_size_xcdr1);
-  assert (a->opt_size_xcdr2 == b->opt_size_xcdr2);
+  assert (a->type.opt_size_xcdr1 == b->type.opt_size_xcdr1);
+  assert (a->type.opt_size_xcdr2 == b->type.opt_size_xcdr2);
   return true;
 }
 
@@ -72,8 +72,8 @@ static ddsi_typeid_t * sertype_default_typeid (const struct ddsi_sertype *tpcmn,
 {
   assert (tpcmn);
   assert (kind == DDSI_TYPEID_KIND_MINIMAL || kind == DDSI_TYPEID_KIND_COMPLETE);
-  const struct ddsi_sertype_default *tp = (struct ddsi_sertype_default *) tpcmn;
-  ddsi_typeinfo_t *type_info = ddsi_typeinfo_deser (&tp->type.typeinfo_ser);
+  const struct dds_sertype_default *tp = (struct dds_sertype_default *) tpcmn;
+  ddsi_typeinfo_t *type_info = ddsi_typeinfo_deser (tp->typeinfo_ser.data, tp->typeinfo_ser.sz);
   if (type_info == NULL)
     return NULL;
   ddsi_typeid_t *type_id = ddsi_typeinfo_typeid (type_info, kind);
@@ -85,15 +85,15 @@ static ddsi_typeid_t * sertype_default_typeid (const struct ddsi_sertype *tpcmn,
 static ddsi_typemap_t * sertype_default_typemap (const struct ddsi_sertype *tpcmn)
 {
   assert (tpcmn);
-  const struct ddsi_sertype_default *tp = (struct ddsi_sertype_default *) tpcmn;
-  return ddsi_typemap_deser (&tp->type.typemap_ser);
+  const struct dds_sertype_default *tp = (struct dds_sertype_default *) tpcmn;
+  return ddsi_typemap_deser (tp->typemap_ser.data, tp->typemap_ser.sz);
 }
 
 static ddsi_typeinfo_t *sertype_default_typeinfo (const struct ddsi_sertype *tpcmn)
 {
   assert (tpcmn);
-  const struct ddsi_sertype_default *tp = (struct ddsi_sertype_default *) tpcmn;
-  return ddsi_typeinfo_deser (&tp->type.typeinfo_ser);
+  const struct dds_sertype_default *tp = (struct dds_sertype_default *) tpcmn;
+  return ddsi_typeinfo_deser (tp->typeinfo_ser.data, tp->typeinfo_ser.sz);
 }
 
 #endif /* DDS_HAS_TYPE_DISCOVERY */
@@ -101,7 +101,7 @@ static ddsi_typeinfo_t *sertype_default_typeinfo (const struct ddsi_sertype *tpc
 static uint32_t sertype_default_hash (const struct ddsi_sertype *tpcmn)
 {
   assert (tpcmn);
-  const struct ddsi_sertype_default *tp = (struct ddsi_sertype_default *) tpcmn;
+  const struct dds_sertype_default *tp = (struct dds_sertype_default *) tpcmn;
   unsigned char buf[16];
   ddsrt_md5_state_t md5st;
   ddsrt_md5_init (&md5st);
@@ -118,26 +118,26 @@ static uint32_t sertype_default_hash (const struct ddsi_sertype *tpcmn)
 
 static void sertype_default_free (struct ddsi_sertype *tpcmn)
 {
-  struct ddsi_sertype_default *tp = (struct ddsi_sertype_default *) tpcmn;
+  struct dds_sertype_default *tp = (struct dds_sertype_default *) tpcmn;
   ddsrt_free (tp->type.keys.keys);
   ddsrt_free (tp->type.ops.ops);
-  if (tp->type.typeinfo_ser.data != NULL)
-    ddsrt_free (tp->type.typeinfo_ser.data);
-  if (tp->type.typemap_ser.data != NULL)
-    ddsrt_free (tp->type.typemap_ser.data);
+  if (tp->typeinfo_ser.data != NULL)
+    ddsrt_free (tp->typeinfo_ser.data);
+  if (tp->typemap_ser.data != NULL)
+    ddsrt_free (tp->typemap_ser.data);
   ddsi_sertype_fini (&tp->c);
   ddsrt_free (tp);
 }
 
 static void sertype_default_zero_samples (const struct ddsi_sertype *sertype_common, void *sample, size_t count)
 {
-  const struct ddsi_sertype_default *tp = (const struct ddsi_sertype_default *)sertype_common;
+  const struct dds_sertype_default *tp = (const struct dds_sertype_default *)sertype_common;
   memset (sample, 0, tp->type.size * count);
 }
 
 static void sertype_default_realloc_samples (void **ptrs, const struct ddsi_sertype *sertype_common, void *old, size_t oldcount, size_t count)
 {
-  const struct ddsi_sertype_default *tp = (const struct ddsi_sertype_default *)sertype_common;
+  const struct dds_sertype_default *tp = (const struct dds_sertype_default *)sertype_common;
   const size_t size = tp->type.size;
   char *new = (oldcount == count) ? old : dds_realloc (old, size * count);
   if (new && count > oldcount)
@@ -149,22 +149,22 @@ static void sertype_default_realloc_samples (void **ptrs, const struct ddsi_sert
   }
 }
 
-static bool type_may_contain_ptr (const struct ddsi_sertype_default *tp)
+static bool type_may_contain_ptr (const struct dds_sertype_default *tp)
 {
   /* In case the optimized size for both XCDR1 and 2 is 0 (not optimized),
      there may be a pointer in the type and free_samples needs to do a full
      dds_stream_free_sample for each sample. */
   /* TODO: improve this check so that it only returns true in case the type
      really contains a pointer, by inspection of the serializer ops */
-  return tp->opt_size_xcdr1 == 0 || tp->opt_size_xcdr2 == 0;
+  return tp->type.opt_size_xcdr1 == 0 || tp->type.opt_size_xcdr2 == 0;
 }
 
 static void sertype_default_free_samples (const struct ddsi_sertype *sertype_common, void **ptrs, size_t count, dds_free_op_t op)
 {
   if (count > 0)
   {
-    const struct ddsi_sertype_default *tp = (const struct ddsi_sertype_default *)sertype_common;
-    const struct ddsi_sertype_default_desc *type = &tp->type;
+    const struct dds_sertype_default *tp = (const struct dds_sertype_default *)sertype_common;
+    const struct ddsi_cdrstream_desc *type = &tp->type;
     const size_t size = type->size;
 #ifndef NDEBUG
     for (size_t i = 0, off = 0; i < count; i++, off += size)
@@ -188,8 +188,8 @@ static void sertype_default_free_samples (const struct ddsi_sertype *sertype_com
 
 static struct ddsi_sertype * sertype_default_derive_sertype (const struct ddsi_sertype *base_sertype, dds_data_representation_id_t data_representation, dds_type_consistency_enforcement_qospolicy_t tce_qos)
 {
-  const struct ddsi_sertype_default *base_sertype_default = (const struct ddsi_sertype_default *) base_sertype;
-  struct ddsi_sertype_default *derived_sertype = NULL;
+  const struct dds_sertype_default *base_sertype_default = (const struct dds_sertype_default *) base_sertype;
+  struct dds_sertype_default *derived_sertype = NULL;
   const struct ddsi_serdata_ops *required_ops;
 
   assert (base_sertype);
@@ -198,14 +198,14 @@ static struct ddsi_sertype * sertype_default_derive_sertype (const struct ddsi_s
   (void) tce_qos;
 
   if (data_representation == DDS_DATA_REPRESENTATION_XCDR1)
-    required_ops = base_sertype->typekind_no_key ? &ddsi_serdata_ops_cdr_nokey : &ddsi_serdata_ops_cdr;
+    required_ops = base_sertype->typekind_no_key ? &dds_serdata_ops_cdr_nokey : &dds_serdata_ops_cdr;
   else if (data_representation == DDS_DATA_REPRESENTATION_XCDR2)
-    required_ops = base_sertype->typekind_no_key ? &ddsi_serdata_ops_xcdr2_nokey : &ddsi_serdata_ops_xcdr2;
+    required_ops = base_sertype->typekind_no_key ? &dds_serdata_ops_xcdr2_nokey : &dds_serdata_ops_xcdr2;
   else
     abort ();
 
   if (base_sertype->serdata_ops == required_ops)
-    derived_sertype = (struct ddsi_sertype_default *) base_sertype_default;
+    derived_sertype = (struct dds_sertype_default *) base_sertype_default;
   else
   {
     derived_sertype = ddsrt_memdup (base_sertype_default, sizeof (*derived_sertype));
@@ -220,7 +220,8 @@ static struct ddsi_sertype * sertype_default_derive_sertype (const struct ddsi_s
 }
 
 // move to cdr_stream?
-static dds_ostream_t ostream_from_buffer(void *buffer, size_t size, uint16_t write_encoding_version) {
+static dds_ostream_t ostream_from_buffer(void *buffer, size_t size, uint16_t write_encoding_version)
+{
   dds_ostream_t os;
   os.m_buffer = buffer;
   os.m_size = (uint32_t) size;
@@ -235,26 +236,26 @@ static dds_ostream_t ostream_from_buffer(void *buffer, size_t size, uint16_t wri
 //       data to a stream.
 //       This should be (almost...) O(1), there may be issues with
 //       sequences of nontrivial types where it will depend on the number of elements.
-static size_t sertype_default_get_serialized_size (
-    const struct ddsi_sertype *type, const void *sample) {
-
+static size_t sertype_default_get_serialized_size (const struct ddsi_sertype *type, const void *sample)
+{
   // We do not count the CDR header here.
   // TODO Do we want to include CDR header into the serialization used by iceoryx?
   //      If the endianness does not change, it appears not to be necessary (maybe for
   //      XTypes)
   struct ddsi_serdata *serdata = ddsi_serdata_from_sample(type, SDK_DATA, sample);
-  size_t serialized_size = ddsi_serdata_size(serdata) - sizeof(struct CDRHeader);
+  size_t serialized_size = ddsi_serdata_size(serdata) - sizeof(struct dds_cdr_header);
   ddsi_serdata_unref(serdata);
   return serialized_size;
 }
 
-static bool sertype_default_serialize_into (const struct ddsi_sertype *type, const void *sample, void* dst_buffer, size_t dst_size) {
-  const struct ddsi_sertype_default *type_default = (const struct ddsi_sertype_default *)type;
+static bool sertype_default_serialize_into (const struct ddsi_sertype *type, const void *sample, void* dst_buffer, size_t dst_size)
+{
+  const struct dds_sertype_default *type_default = (const struct dds_sertype_default *)type;
   dds_ostream_t os = ostream_from_buffer(dst_buffer, dst_size, type_default->write_encoding_version);
-  return dds_stream_write_sample(&os, sample, type_default);
+  return dds_stream_write_sample(&os, sample, &type_default->type);
 }
 
-const struct ddsi_sertype_ops ddsi_sertype_ops_default = {
+const struct ddsi_sertype_ops dds_sertype_ops_default = {
   .version = ddsi_sertype_v0,
   .arg = 0,
   .equal = sertype_default_equal,
@@ -277,16 +278,17 @@ const struct ddsi_sertype_ops ddsi_sertype_ops_default = {
   .serialize_into = sertype_default_serialize_into
 };
 
-dds_return_t ddsi_sertype_default_init (const struct ddsi_domaingv *gv, struct ddsi_sertype_default *st, const dds_topic_descriptor_t *desc, uint16_t min_xcdrv, dds_data_representation_id_t data_representation)
+dds_return_t dds_sertype_default_init (const struct dds_domain *domain, struct dds_sertype_default *st, const dds_topic_descriptor_t *desc, uint16_t min_xcdrv, dds_data_representation_id_t data_representation)
 {
+  const struct ddsi_domaingv *gv = &domain->gv;
   const struct ddsi_serdata_ops *serdata_ops;
   switch (data_representation)
   {
     case DDS_DATA_REPRESENTATION_XCDR1:
-      serdata_ops = desc->m_nkeys ? &ddsi_serdata_ops_cdr : &ddsi_serdata_ops_cdr_nokey;
+      serdata_ops = desc->m_nkeys ? &dds_serdata_ops_cdr : &dds_serdata_ops_cdr_nokey;
       break;
     case DDS_DATA_REPRESENTATION_XCDR2:
-      serdata_ops = desc->m_nkeys ? &ddsi_serdata_ops_xcdr2 : &ddsi_serdata_ops_xcdr2_nokey;
+      serdata_ops = desc->m_nkeys ? &dds_serdata_ops_xcdr2 : &dds_serdata_ops_xcdr2_nokey;
       break;
     default:
       abort ();
@@ -300,7 +302,7 @@ dds_return_t ddsi_sertype_default_init (const struct ddsi_domaingv *gv, struct d
   if (!dds_stream_extensibility (desc->m_ops, &type_ext))
     return DDS_RETCODE_BAD_PARAMETER;
 
-  ddsi_sertype_init (&st->c, desc->m_typename, &ddsi_sertype_ops_default, serdata_ops, (desc->m_nkeys == 0));
+  ddsi_sertype_init (&st->c, desc->m_typename, &dds_sertype_ops_default, serdata_ops, (desc->m_nkeys == 0));
 #ifdef DDS_HAS_SHM
   st->c.iox_size = desc->m_size;
 #endif
@@ -313,7 +315,7 @@ dds_return_t ddsi_sertype_default_init (const struct ddsi_domaingv *gv, struct d
   /* Store the encoding version used for writing data using this sertype. When reading data,
      the encoding version from the encapsulation header in the CDR is used */
   st->write_encoding_version = data_representation == DDS_DATA_REPRESENTATION_XCDR1 ? CDR_ENC_VERSION_1 : CDR_ENC_VERSION_2;
-  st->serpool = gv->serpool;
+  st->serpool = domain->serpool;
   st->type.size = desc->m_size;
   st->type.align = desc->m_align;
   st->type.flagset = desc->m_flagset;
@@ -343,26 +345,26 @@ dds_return_t ddsi_sertype_default_init (const struct ddsi_domaingv *gv, struct d
       GVTRACE ("Flag DDS_TOPIC_XTYPES_METADATA set for type %s but topic descriptor does not contains type information\n", desc->m_typename);
       return DDS_RETCODE_BAD_PARAMETER;
     }
-    st->type.typeinfo_ser.data = ddsrt_memdup (desc->type_information.data, desc->type_information.sz);
-    st->type.typeinfo_ser.sz = desc->type_information.sz;
-    st->type.typemap_ser.data = ddsrt_memdup (desc->type_mapping.data, desc->type_mapping.sz);
-    st->type.typemap_ser.sz = desc->type_mapping.sz;
+    st->typeinfo_ser.data = ddsrt_memdup (desc->type_information.data, desc->type_information.sz);
+    st->typeinfo_ser.sz = desc->type_information.sz;
+    st->typemap_ser.data = ddsrt_memdup (desc->type_mapping.data, desc->type_mapping.sz);
+    st->typemap_ser.sz = desc->type_mapping.sz;
   }
   else
   {
-    st->type.typeinfo_ser.data = NULL;
-    st->type.typeinfo_ser.sz = 0;
-    st->type.typemap_ser.data = NULL;
-    st->type.typemap_ser.sz = 0;
+    st->typeinfo_ser.data = NULL;
+    st->typeinfo_ser.sz = 0;
+    st->typemap_ser.data = NULL;
+    st->typemap_ser.sz = 0;
   }
 
-  st->opt_size_xcdr1 = (st->c.allowed_data_representation & DDS_DATA_REPRESENTATION_FLAG_XCDR1) ? dds_stream_check_optimize (&st->type, CDR_ENC_VERSION_1) : 0;
-  if (st->opt_size_xcdr1 > 0)
-    GVTRACE ("Marshalling XCDR1 for type: %s is %soptimised\n", st->c.type_name, st->opt_size_xcdr1 ? "" : "not ");
+  st->type.opt_size_xcdr1 = (st->c.allowed_data_representation & DDS_DATA_REPRESENTATION_FLAG_XCDR1) ? dds_stream_check_optimize (&st->type, CDR_ENC_VERSION_1) : 0;
+  if (st->type.opt_size_xcdr1 > 0)
+    GVTRACE ("Marshalling XCDR1 for type: %s is %soptimised\n", st->c.type_name, st->type.opt_size_xcdr1 ? "" : "not ");
 
-  st->opt_size_xcdr2 = (st->c.allowed_data_representation & DDS_DATA_REPRESENTATION_FLAG_XCDR2) ? dds_stream_check_optimize (&st->type, CDR_ENC_VERSION_2) : 0;
-  if (st->opt_size_xcdr2 > 0)
-    GVTRACE ("Marshalling XCDR2 for type: %s is %soptimised\n", st->c.type_name, st->opt_size_xcdr2 ? "" : "not ");
+  st->type.opt_size_xcdr2 = (st->c.allowed_data_representation & DDS_DATA_REPRESENTATION_FLAG_XCDR2) ? dds_stream_check_optimize (&st->type, CDR_ENC_VERSION_2) : 0;
+  if (st->type.opt_size_xcdr2 > 0)
+    GVTRACE ("Marshalling XCDR2 for type: %s is %soptimised\n", st->c.type_name, st->type.opt_size_xcdr2 ? "" : "not ");
 
   return DDS_RETCODE_OK;
 }

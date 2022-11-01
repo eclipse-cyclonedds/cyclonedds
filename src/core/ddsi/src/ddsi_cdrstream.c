@@ -96,14 +96,6 @@
 #define dds_stream_extract_keyBO_from_data_pl_member  NAME2_BYTE_ORDER(dds_stream_extract_key, _from_data_pl_member)
 #define dds_stream_extract_keyBO_from_key             NAME2_BYTE_ORDER(dds_stream_extract_key, _from_key)
 
-#ifndef NDEBUG
-typedef struct align { uint32_t a; } align_t;
-#define ALIGN(n) ((n).a)
-#else
-typedef uint32_t align_t;
-#define ALIGN(n) (n)
-#endif
-
 // Type used by ddsi_cdrstream_keys.part.c to temporarily store key field positions in CDR
 // and the instructions needed for handling it
 struct key_off_info {
@@ -115,13 +107,16 @@ static const uint32_t *dds_stream_skip_adr (uint32_t insn, const uint32_t * __re
 static const uint32_t *dds_stream_skip_default (char * __restrict data, const uint32_t * __restrict ops);
 static const uint32_t *dds_stream_extract_key_from_data1 (dds_istream_t * __restrict is, dds_ostream_t * __restrict os,
   uint32_t ops_offs_idx, uint32_t * __restrict ops_offs, const uint32_t * const __restrict op0, const uint32_t * const __restrict op0_type, const uint32_t * __restrict ops, bool mutable_member, bool mutable_member_or_parent,
-  uint32_t n_keys, uint32_t * __restrict keys_remaining, const ddsi_sertype_default_desc_key_t * __restrict key, struct key_off_info * __restrict key_offs);
+  uint32_t n_keys, uint32_t * __restrict keys_remaining, const ddsi_cdrstream_desc_key_t * __restrict key, struct key_off_info * __restrict key_offs);
 static const uint32_t *dds_stream_extract_keyBE_from_data1 (dds_istream_t * __restrict is, dds_ostreamBE_t * __restrict os,
   uint32_t ops_offs_idx, uint32_t * __restrict ops_offs, const uint32_t * const __restrict op0, const uint32_t * const __restrict op0_type, const uint32_t * __restrict ops, bool mutable_member, bool mutable_member_or_parent,
-  uint32_t n_keys, uint32_t * __restrict keys_remaining, const ddsi_sertype_default_desc_key_t * __restrict key, struct key_off_info * __restrict key_offs);
+  uint32_t n_keys, uint32_t * __restrict keys_remaining, const ddsi_cdrstream_desc_key_t * __restrict key, struct key_off_info * __restrict key_offs);
 static const uint32_t *stream_normalize_data_impl (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t xcdr_version, const uint32_t * __restrict ops, bool is_mutable_member) ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 static const uint32_t *dds_stream_read_impl (dds_istream_t * __restrict is, char * __restrict data, const uint32_t * __restrict ops, bool is_mutable_member);
 static const uint32_t *stream_free_sample_adr (uint32_t insn, void * __restrict data, const uint32_t * __restrict ops);
+
+extern inline align_t dds_cdr_get_align (uint32_t xcdr_version, uint32_t size);
+
 
 static void dds_ostream_grow (dds_ostream_t * __restrict st, uint32_t size)
 {
@@ -134,6 +129,16 @@ static void dds_ostream_grow (dds_ostream_t * __restrict st, uint32_t size)
 
   st->m_buffer = ddsrt_realloc (old, newSize);
   st->m_size = newSize;
+}
+
+dds_ostream_t dds_ostream_from_buffer(void *buffer, size_t size, uint16_t write_encoding_version)
+{
+  dds_ostream_t os;
+  os.m_buffer = buffer;
+  os.m_size = (uint32_t) size;
+  os.m_index = 0;
+  os.m_xcdr_version = write_encoding_version;
+  return os;
 }
 
 static void dds_cdr_resize (dds_ostream_t * __restrict s, uint32_t l)
@@ -196,7 +201,7 @@ static void dds_cdr_alignto (dds_istream_t * __restrict s, align_t a)
   assert (s->m_index < s->m_size);
 }
 
-static uint32_t dds_cdr_alignto_clear_and_resize (dds_ostream_t * __restrict s, align_t a, uint32_t extra)
+uint32_t dds_cdr_alignto_clear_and_resize (dds_ostream_t * __restrict s, align_t a, uint32_t extra)
 {
   const uint32_t m = s->m_index % ALIGN(a);
   if (m == 0)
@@ -219,19 +224,6 @@ static uint32_t dds_cdr_alignto_clear_and_resizeBE (dds_ostreamBE_t * __restrict
   return dds_cdr_alignto_clear_and_resize (&s->x, a, extra);
 }
 
-static inline align_t get_align (uint32_t xcdr_version, uint32_t size)
-{
-#ifndef NDEBUG
-#define MK_ALIGN(n) (struct align){(n)}
-#else
-#define MK_ALIGN(n) (n)
-#endif
-  if (size > 4)
-    return xcdr_version == CDR_ENC_VERSION_2 ? MK_ALIGN(4) : MK_ALIGN(8);
-  return MK_ALIGN(size);
-#undef MK_ALIGN
-}
-
 static uint8_t dds_is_get1 (dds_istream_t * __restrict s)
 {
   assert (s->m_index < s->m_size);
@@ -242,7 +234,7 @@ static uint8_t dds_is_get1 (dds_istream_t * __restrict s)
 
 static uint16_t dds_is_get2 (dds_istream_t * __restrict s)
 {
-  dds_cdr_alignto (s, get_align (s->m_xcdr_version, 2));
+  dds_cdr_alignto (s, dds_cdr_get_align (s->m_xcdr_version, 2));
   uint16_t v = * ((uint16_t *) (s->m_buffer + s->m_index));
   s->m_index += 2;
   return v;
@@ -250,7 +242,7 @@ static uint16_t dds_is_get2 (dds_istream_t * __restrict s)
 
 static uint32_t dds_is_get4 (dds_istream_t * __restrict s)
 {
-  dds_cdr_alignto (s, get_align (s->m_xcdr_version, 4));
+  dds_cdr_alignto (s, dds_cdr_get_align (s->m_xcdr_version, 4));
   uint32_t v = * ((uint32_t *) (s->m_buffer + s->m_index));
   s->m_index += 4;
   return v;
@@ -258,14 +250,14 @@ static uint32_t dds_is_get4 (dds_istream_t * __restrict s)
 
 static uint32_t dds_is_peek4 (dds_istream_t * __restrict s)
 {
-  dds_cdr_alignto (s, get_align (s->m_xcdr_version, 4));
+  dds_cdr_alignto (s, dds_cdr_get_align (s->m_xcdr_version, 4));
   uint32_t v = * ((uint32_t *) (s->m_buffer + s->m_index));
   return v;
 }
 
 static uint64_t dds_is_get8 (dds_istream_t * __restrict s)
 {
-  dds_cdr_alignto (s, get_align (s->m_xcdr_version, 8));
+  dds_cdr_alignto (s, dds_cdr_get_align (s->m_xcdr_version, 8));
   size_t off_low = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN) ? 0 : 4, off_high = 4 - off_low;
   uint32_t v_low = * ((uint32_t *) (s->m_buffer + s->m_index + off_low)),
     v_high = * ((uint32_t *) (s->m_buffer + s->m_index + off_high));
@@ -276,7 +268,7 @@ static uint64_t dds_is_get8 (dds_istream_t * __restrict s)
 
 static void dds_is_get_bytes (dds_istream_t * __restrict s, void * __restrict b, uint32_t num, uint32_t elem_size)
 {
-  dds_cdr_alignto (s, get_align (s->m_xcdr_version, elem_size));
+  dds_cdr_alignto (s, dds_cdr_get_align (s->m_xcdr_version, elem_size));
   memcpy (b, s->m_buffer + s->m_index, num * elem_size);
   s->m_index += num * elem_size;
 }
@@ -290,21 +282,21 @@ static void dds_os_put1 (dds_ostream_t * __restrict s, uint8_t v)
 
 static void dds_os_put2 (dds_ostream_t * __restrict s, uint16_t v)
 {
-  dds_cdr_alignto_clear_and_resize (s, get_align (s->m_xcdr_version, 2), 2);
+  dds_cdr_alignto_clear_and_resize (s, dds_cdr_get_align (s->m_xcdr_version, 2), 2);
   *((uint16_t *) (s->m_buffer + s->m_index)) = v;
   s->m_index += 2;
 }
 
 static void dds_os_put4 (dds_ostream_t * __restrict s, uint32_t v)
 {
-  dds_cdr_alignto_clear_and_resize (s, get_align (s->m_xcdr_version, 4), 4);
+  dds_cdr_alignto_clear_and_resize (s, dds_cdr_get_align (s->m_xcdr_version, 4), 4);
   *((uint32_t *) (s->m_buffer + s->m_index)) = v;
   s->m_index += 4;
 }
 
 static void dds_os_put8 (dds_ostream_t * __restrict s, uint64_t v)
 {
-  dds_cdr_alignto_clear_and_resize (s, get_align (s->m_xcdr_version, 8), 8);
+  dds_cdr_alignto_clear_and_resize (s, dds_cdr_get_align (s->m_xcdr_version, 8), 8);
   size_t off_low = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN) ? 0 : 4, off_high = 4 - off_low;
   *((uint32_t *) (s->m_buffer + s->m_index + off_low)) = (uint32_t) v;
   *((uint32_t *) (s->m_buffer + s->m_index + off_high)) = (uint32_t) (v >> 32);
@@ -313,14 +305,14 @@ static void dds_os_put8 (dds_ostream_t * __restrict s, uint64_t v)
 
 static uint32_t dds_os_reserve4 (dds_ostream_t * __restrict s)
 {
-  dds_cdr_alignto_clear_and_resize (s, get_align (s->m_xcdr_version, 4), 4);
+  dds_cdr_alignto_clear_and_resize (s, dds_cdr_get_align (s->m_xcdr_version, 4), 4);
   s->m_index += 4;
   return s->m_index;
 }
 
 static uint32_t dds_os_reserve8 (dds_ostream_t * __restrict s)
 {
-  dds_cdr_alignto_clear_and_resize (s, get_align (s->m_xcdr_version, 8), 8);
+  dds_cdr_alignto_clear_and_resize (s, dds_cdr_get_align (s->m_xcdr_version, 8), 8);
   s->m_index += 8;
   return s->m_index;
 }
@@ -542,7 +534,7 @@ static inline bool op_type_base (const uint32_t insn)
 
 static inline bool check_optimize_impl (uint32_t xcdr_version, const uint32_t *ops, uint32_t size, uint32_t num, uint32_t *off, uint32_t member_offs)
 {
-  align_t align = get_align (xcdr_version, size);
+  align_t align = dds_cdr_get_align (xcdr_version, size);
   if (*off % ALIGN(align))
     *off += ALIGN(align) - (*off % ALIGN(align));
   if (member_offs + ops[1] != *off)
@@ -551,7 +543,7 @@ static inline bool check_optimize_impl (uint32_t xcdr_version, const uint32_t *o
   return true;
 }
 
-static uint32_t dds_stream_check_optimize1 (const struct ddsi_sertype_default_desc * __restrict desc, uint32_t xcdr_version, const uint32_t *ops, uint32_t off, uint32_t member_offs)
+static uint32_t dds_stream_check_optimize1 (const struct ddsi_cdrstream_desc * __restrict desc, uint32_t xcdr_version, const uint32_t *ops, uint32_t off, uint32_t member_offs)
 {
   uint32_t insn;
   while ((insn = *ops) != DDS_OP_RTS)
@@ -626,7 +618,7 @@ static uint32_t dds_stream_check_optimize1 (const struct ddsi_sertype_default_de
 #undef ALLOW_ENUM
 }
 
-size_t dds_stream_check_optimize (const struct ddsi_sertype_default_desc * __restrict desc, uint32_t xcdr_version)
+size_t dds_stream_check_optimize (const struct ddsi_cdrstream_desc * __restrict desc, uint32_t xcdr_version)
 {
   size_t opt_size = dds_stream_check_optimize1 (desc, xcdr_version, desc->ops.ops, 0, 0);
   // off < desc can occur if desc->size includes "trailing" padding
@@ -1287,15 +1279,14 @@ const uint32_t *dds_stream_write (dds_ostream_t * __restrict os, const char * __
   return dds_stream_writeLE ((dds_ostreamLE_t *) os, data, ops);
 }
 
-bool dds_stream_write_sample (dds_ostream_t * __restrict os, const void * __restrict data, const struct ddsi_sertype_default * __restrict type)
+bool dds_stream_write_sample (dds_ostream_t * __restrict os, const void * __restrict data, const struct ddsi_cdrstream_desc * __restrict desc)
 {
-  return dds_stream_write_sampleLE ((dds_ostreamLE_t *) os, data, type);
+  return dds_stream_write_sampleLE ((dds_ostreamLE_t *) os, data, desc);
 }
 
-bool dds_stream_write_sampleLE (dds_ostreamLE_t * __restrict os, const void * __restrict data, const struct ddsi_sertype_default * __restrict type)
+bool dds_stream_write_sampleLE (dds_ostreamLE_t * __restrict os, const void * __restrict data, const struct ddsi_cdrstream_desc * __restrict desc)
 {
-  const struct ddsi_sertype_default_desc *desc = &type->type;
-  size_t opt_size = os->x.m_xcdr_version == CDR_ENC_VERSION_1 ? type->opt_size_xcdr1 : type->opt_size_xcdr2;
+  size_t opt_size = os->x.m_xcdr_version == CDR_ENC_VERSION_1 ? desc->opt_size_xcdr1 : desc->opt_size_xcdr2;
   if (opt_size && desc->align && (((struct dds_ostream *)os)->m_index % desc->align) == 0)
   {
     dds_os_put_bytes ((struct dds_ostream *)os, data, (uint32_t) opt_size);
@@ -1305,9 +1296,8 @@ bool dds_stream_write_sampleLE (dds_ostreamLE_t * __restrict os, const void * __
     return dds_stream_writeLE (os, data, desc->ops.ops) != NULL;
 }
 
-bool dds_stream_write_sampleBE (dds_ostreamBE_t * __restrict os, const void * __restrict data, const struct ddsi_sertype_default * __restrict type)
+bool dds_stream_write_sampleBE (dds_ostreamBE_t * __restrict os, const void * __restrict data, const struct ddsi_cdrstream_desc * __restrict desc)
 {
-  const struct ddsi_sertype_default_desc *desc = &type->type;
   return dds_stream_writeBE (os, data, desc->ops.ops) != NULL;
 }
 
@@ -1343,21 +1333,19 @@ const uint32_t *dds_stream_write (dds_ostream_t * __restrict os, const char * __
   return dds_stream_writeBE ((dds_ostreamBE_t *) os, data, ops);
 }
 
-bool dds_stream_write_sample (dds_ostream_t * __restrict os, const void * __restrict data, const struct ddsi_sertype_default * __restrict type)
+bool dds_stream_write_sample (dds_ostream_t * __restrict os, const void * __restrict data, const struct ddsi_cdrstream_desc * __restrict desc)
 {
-  return dds_stream_write_sampleBE ((dds_ostreamBE_t *) os, data, type);
+  return dds_stream_write_sampleBE ((dds_ostreamBE_t *) os, data, desc);
 }
 
-bool dds_stream_write_sampleLE (dds_ostreamLE_t * __restrict os, const void * __restrict data, const struct ddsi_sertype_default * __restrict type)
+bool dds_stream_write_sampleLE (dds_ostreamLE_t * __restrict os, const void * __restrict data, const struct ddsi_cdrstream_desc * __restrict desc)
 {
-  const struct ddsi_sertype_default_desc *desc = &type->type;
   return dds_stream_writeLE (os, data, desc->ops.ops) != NULL;
 }
 
-bool dds_stream_write_sampleBE (dds_ostreamBE_t * __restrict os, const void * __restrict data, const struct ddsi_sertype_default * __restrict type)
+bool dds_stream_write_sampleBE (dds_ostreamBE_t * __restrict os, const void * __restrict data, const struct ddsi_cdrstream_desc * __restrict desc)
 {
-  const struct ddsi_sertype_default_desc *desc = &type->type;
-  size_t opt_size = os->x.m_xcdr_version == CDR_ENC_VERSION_1 ? type->opt_size_xcdr1 : type->opt_size_xcdr2;
+  size_t opt_size = os->x.m_xcdr_version == CDR_ENC_VERSION_1 ? desc->opt_size_xcdr1 : desc->opt_size_xcdr2;
   if (opt_size && desc->align && (((struct dds_ostream *)os)->m_index % desc->align) == 0)
   {
     dds_os_put_bytes ((struct dds_ostream *)os, data, (uint32_t) opt_size);
@@ -2922,8 +2910,8 @@ static bool stream_normalize_key_impl (void * __restrict data, uint32_t size, ui
   return true;
 }
 
-static bool stream_normalize_key (void * __restrict data, uint32_t size, bool bswap, uint32_t xcdr_version, const struct ddsi_sertype_default_desc * __restrict desc, uint32_t *actual_size) ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
-static bool stream_normalize_key (void * __restrict data, uint32_t size, bool bswap, uint32_t xcdr_version, const struct ddsi_sertype_default_desc * __restrict desc, uint32_t *actual_size)
+static bool stream_normalize_key (void * __restrict data, uint32_t size, bool bswap, uint32_t xcdr_version, const struct ddsi_cdrstream_desc * __restrict desc, uint32_t *actual_size) ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
+static bool stream_normalize_key (void * __restrict data, uint32_t size, bool bswap, uint32_t xcdr_version, const struct ddsi_cdrstream_desc * __restrict desc, uint32_t *actual_size)
 {
   uint32_t offs = 0;
   for (uint32_t i = 0; i < desc->keys.nkeys; i++)
@@ -2951,14 +2939,14 @@ static bool stream_normalize_key (void * __restrict data, uint32_t size, bool bs
   return true;
 }
 
-bool dds_stream_normalize (void * __restrict data, uint32_t size, bool bswap, uint32_t xcdr_version, const struct ddsi_sertype_default * __restrict sertype, bool just_key, uint32_t * __restrict actual_size)
+bool dds_stream_normalize (void * __restrict data, uint32_t size, bool bswap, uint32_t xcdr_version, const struct ddsi_cdrstream_desc * __restrict desc, bool just_key, uint32_t * __restrict actual_size)
 {
   uint32_t off = 0;
   if (size > CDR_SIZE_MAX)
     return normalize_error_bool ();
   else if (just_key)
-    return stream_normalize_key (data, size, bswap, xcdr_version, &sertype->type, actual_size);
-  else if (!stream_normalize_data_impl (data, &off, size, bswap, xcdr_version, sertype->type.ops.ops, false))
+    return stream_normalize_key (data, size, bswap, xcdr_version, desc, actual_size);
+  else if (!stream_normalize_data_impl (data, &off, size, bswap, xcdr_version, desc->ops.ops, false))
     return false;
   else
   {
@@ -3273,7 +3261,7 @@ static void dds_stream_extract_key_from_key_prim_op (dds_istream_t * __restrict 
         elem_size = DDS_OP_TYPE_SZ (insn);
       else
         abort ();
-      const align_t align = get_align (os->m_xcdr_version, elem_size);
+      const align_t align = dds_cdr_get_align (os->m_xcdr_version, elem_size);
       const uint32_t num = ops[2];
       dds_cdr_alignto (is, align);
       dds_cdr_alignto_clear_and_resize (os, align, num * elem_size);
@@ -3380,7 +3368,7 @@ static void dds_stream_extract_keyBE_from_key_prim_op (dds_istream_t * __restric
         elem_size = DDS_OP_TYPE_SZ (insn);
       else
         abort ();
-      const align_t align = get_align (os->x.m_xcdr_version, elem_size);
+      const align_t align = dds_cdr_get_align (os->x.m_xcdr_version, elem_size);
       const uint32_t num = ops[2];
       dds_cdr_alignto (is, align);
       dds_cdr_alignto_clear_and_resizeBE (os, align, num * elem_size);
@@ -3418,7 +3406,7 @@ static void dds_stream_extract_key_from_data_skip_subtype (dds_istream_t * __res
   {
     case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: {
       const uint32_t elem_size = get_primitive_size (subtype);
-      dds_cdr_alignto (is, get_align (is->m_xcdr_version, elem_size));
+      dds_cdr_alignto (is, dds_cdr_get_align (is->m_xcdr_version, elem_size));
       is->m_index += num * elem_size;
       break;
     }
@@ -3428,7 +3416,7 @@ static void dds_stream_extract_key_from_data_skip_subtype (dds_istream_t * __res
          so we need to get the size from subops[0] for a bitmask. Enums are defined inline in
          the union case instructions, so we'll use insn to get the size of an enum type. */
       const uint32_t elem_size = DDS_OP_TYPE_SZ (DDS_OP (insn) == DDS_OP_JEQ4 && subtype == DDS_OP_VAL_BMK ? subops[0] : insn);
-      dds_cdr_alignto (is, get_align (is->m_xcdr_version, elem_size));
+      dds_cdr_alignto (is, dds_cdr_get_align (is->m_xcdr_version, elem_size));
       is->m_index += num * elem_size;
       break;
     }
@@ -3545,10 +3533,9 @@ static const uint32_t *dds_stream_extract_key_from_data_skip_adr (dds_istream_t 
  **
  *******************************************************************************************/
 
-void dds_stream_read_sample (dds_istream_t * __restrict is, void * __restrict data, const struct ddsi_sertype_default * __restrict type)
+void dds_stream_read_sample (dds_istream_t * __restrict is, void * __restrict data, const struct ddsi_cdrstream_desc * __restrict desc)
 {
-  const struct ddsi_sertype_default_desc *desc = &type->type;
-  size_t opt_size = is->m_xcdr_version == CDR_ENC_VERSION_1 ? type->opt_size_xcdr1 : type->opt_size_xcdr2;
+  size_t opt_size = is->m_xcdr_version == CDR_ENC_VERSION_1 ? desc->opt_size_xcdr1 : desc->opt_size_xcdr2;
   if (opt_size)
   {
     /* Layout of struct & CDR is the same, but sizeof(struct) may include padding at
@@ -3658,9 +3645,8 @@ static void dds_stream_read_key_impl (dds_istream_t * __restrict is, char * __re
   }
 }
 
-void dds_stream_read_key (dds_istream_t * __restrict is, char * __restrict sample, const struct ddsi_sertype_default * __restrict type)
+void dds_stream_read_key (dds_istream_t * __restrict is, char * __restrict sample, const struct ddsi_cdrstream_desc * __restrict desc)
 {
-  const struct ddsi_sertype_default_desc *desc = &type->type;
   for (uint32_t i = 0; i < desc->keys.nkeys; i++)
   {
     const uint32_t *op = desc->ops.ops + desc->keys.keys[i].ops_offs;
@@ -3710,9 +3696,9 @@ static void dds_stream_swap_if_needed_insituBE (void * __restrict vbuf, uint32_t
 
 #else /* if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN */
 
-void dds_stream_write_keyBE (dds_ostreamBE_t * __restrict os, const char * __restrict sample, const struct ddsi_sertype_default * __restrict type)
+void dds_stream_write_keyBE (dds_ostreamBE_t * __restrict os, const char * __restrict sample, const struct ddsi_cdrstream_desc * __restrict desc)
 {
-  dds_stream_write_key (&os->x, sample, type);
+  dds_stream_write_key (&os->x, sample, desc);
 }
 
 #endif /* if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN */
@@ -4211,9 +4197,9 @@ static const uint32_t * dds_stream_print_sample1 (char * __restrict *buf, size_t
   return ops;
 }
 
-size_t dds_stream_print_sample (dds_istream_t * __restrict is, const struct ddsi_sertype_default * __restrict type, char * __restrict buf, size_t bufsize)
+size_t dds_stream_print_sample (dds_istream_t * __restrict is, const struct ddsi_cdrstream_desc * __restrict desc, char * __restrict buf, size_t bufsize)
 {
-  (void) dds_stream_print_sample1 (&buf, &bufsize, is, type->type.ops.ops, true, false);
+  (void) dds_stream_print_sample1 (&buf, &bufsize, is, desc->ops.ops, true, false);
   return bufsize;
 }
 
@@ -4243,9 +4229,8 @@ static void dds_stream_print_key_impl (dds_istream_t * __restrict is, const uint
   }
 }
 
-size_t dds_stream_print_key (dds_istream_t * __restrict is, const struct ddsi_sertype_default * __restrict type, char * __restrict buf, size_t bufsize)
+size_t dds_stream_print_key (dds_istream_t * __restrict is, const struct ddsi_cdrstream_desc * __restrict desc, char * __restrict buf, size_t bufsize)
 {
-  const struct ddsi_sertype_default_desc *desc = &type->type;
   bool cont = prtf (&buf, &bufsize, ":k:{");
   bool needs_comma = false;
   for (uint32_t i = 0; cont && i < desc->keys.nkeys; i++)
@@ -4272,53 +4257,6 @@ size_t dds_stream_print_key (dds_istream_t * __restrict is, const struct ddsi_se
   }
   (void) prtf (&buf, &bufsize, "}");
   return bufsize;
-}
-
-/*******************************************************************************************
- **
- **  Stuff to make it possible to treat a ddsi_serdata_default as a stream
- **
- *******************************************************************************************/
-
-DDSRT_STATIC_ASSERT ((offsetof (struct ddsi_serdata_default, data) % 8) == 0);
-
-void dds_istream_from_serdata_default (dds_istream_t * __restrict s, const struct ddsi_serdata_default * __restrict d)
-{
-  s->m_buffer = (const unsigned char *) d;
-  s->m_index = (uint32_t) offsetof (struct ddsi_serdata_default, data);
-  s->m_size = d->size + s->m_index;
-#if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
-  assert (CDR_ENC_LE (d->hdr.identifier));
-#elif DDSRT_ENDIAN == DDSRT_BIG_ENDIAN
-  assert (!CDR_ENC_LE (d->hdr.identifier));
-#endif
-  s->m_xcdr_version = ddsi_sertype_enc_id_xcdr_version (d->hdr.identifier);
-}
-
-void dds_ostream_from_serdata_default (dds_ostream_t * __restrict s, const struct ddsi_serdata_default * __restrict d)
-{
-  s->m_buffer = (unsigned char *) d;
-  s->m_index = (uint32_t) offsetof (struct ddsi_serdata_default, data);
-  s->m_size = d->size + s->m_index;
-#if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
-  assert (CDR_ENC_LE (d->hdr.identifier));
-#elif DDSRT_ENDIAN == DDSRT_BIG_ENDIAN
-  assert (!CDR_ENC_LE (d->hdr.identifier));
-#endif
-  s->m_xcdr_version = ddsi_sertype_enc_id_xcdr_version (d->hdr.identifier);
-}
-
-void dds_ostream_add_to_serdata_default (dds_ostream_t * __restrict s, struct ddsi_serdata_default ** __restrict d)
-{
-  /* DDSI requires 4 byte alignment */
-  const uint32_t pad = dds_cdr_alignto_clear_and_resize (s, get_align (s->m_xcdr_version, 4), 0);
-  assert (pad <= 3);
-
-  /* Reset data pointer as stream may have reallocated */
-  (*d) = (void *) s->m_buffer;
-  (*d)->pos = (s->m_index - (uint32_t) offsetof (struct ddsi_serdata_default, data));
-  (*d)->size = (s->m_size - (uint32_t) offsetof (struct ddsi_serdata_default, data));
-  (*d)->hdr.options = ddsrt_toBE2u ((uint16_t) pad);
 }
 
 /* Gets the (minimum) extensibility of the types used for this topic, and returns the XCDR
@@ -4369,3 +4307,18 @@ uint32_t dds_stream_type_nesting_depth (const uint32_t * __restrict ops)
   dds_stream_countops1 (ops, &ops_end, NULL, 0, &nesting_depth);
   return nesting_depth;
 }
+
+void dds_cdrstream_desc_from_topic_desc (struct ddsi_cdrstream_desc *desc, const dds_topic_descriptor_t *topic_desc)
+{
+  memset (desc, 0, sizeof (*desc));
+  *desc = (struct ddsi_cdrstream_desc) {
+    .size = topic_desc->m_size,
+    .align = topic_desc->m_align,
+    .flagset = topic_desc->m_flagset,
+    .keys.nkeys = 0,
+    .keys.keys = NULL,
+    .ops.nops = dds_stream_countops (topic_desc->m_ops, topic_desc->m_nkeys, topic_desc->m_keys),
+    .ops.ops = (uint32_t *) topic_desc->m_ops
+  };
+}
+

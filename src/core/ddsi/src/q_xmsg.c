@@ -39,8 +39,8 @@
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_entity_index.h"
+#include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/q_freelist.h"
-#include "dds/ddsi/ddsi_serdata_default.h"
 #include "dds/ddsi/ddsi_security_omg.h"
 
 #define NN_XMSG_MAX_ALIGN 8

@@ -38,6 +38,7 @@
 #include "dds/ddsi/ddsi_security_omg.h"
 #include "dds/ddsi/ddsi_typebuilder.h"
 #include "dds__serdata_builtintopic.h"
+#include "dds__serdata_default.h"
 
 DECL_ENTITY_LOCK_UNLOCK (dds_topic)
 
@@ -70,7 +71,6 @@ static bool is_valid_name (const char *name)
         || (strchr(invalid, name[i]) != NULL)
       )
       return false;
-    
   return true;
 }
 
@@ -636,8 +636,8 @@ dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descrip
   assert (tpqos->present & QP_DATA_REPRESENTATION && tpqos->data_representation.value.n > 0);
   dds_data_representation_id_t data_representation = tpqos->data_representation.value.ids[0];
 
-  struct ddsi_sertype_default *st = ddsrt_malloc (sizeof (*st));
-  if ((hdl = ddsi_sertype_default_init (&ppent->m_domain->gv, st, desc, min_xcdrv, data_representation)) < 0)
+  struct dds_sertype_default *st = ddsrt_malloc (sizeof (*st));
+  if ((hdl = dds_sertype_default_init (ppent->m_domain, st, desc, min_xcdrv, data_representation)) < 0)
   {
     ddsrt_free (st);
     goto err_st_init;

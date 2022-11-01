@@ -57,7 +57,6 @@
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/ddsi_mcgroup.h"
 #include "dds/ddsi/ddsi_serdata.h"
-#include "dds/ddsi/ddsi_serdata_default.h" /* FIXME: get rid of this */
 #include "dds/ddsi/ddsi_security_omg.h"
 #include "dds/ddsi/ddsi_acknack.h"
 
@@ -335,7 +334,7 @@ static void set_sampleinfo_proxy_writer (struct nn_rsample_info *sampleinfo, dds
   sampleinfo->pwr = pwr;
 }
 
-static bool set_sampleinfo_bswap (struct nn_rsample_info *sampleinfo, struct CDRHeader *hdr)
+static bool set_sampleinfo_bswap (struct nn_rsample_info *sampleinfo, struct dds_cdr_header *hdr)
 {
   if (hdr)
   {
@@ -3086,7 +3085,7 @@ static int handle_submsg_sequence
         } else if (!decode_DataFrag (rst->gv, &sampleinfo, datap, datasz, &submsg_len)) {
           // payload decryption required but failed
           vr = VR_NOT_UNDERSTOOD;
-        } else if (sm->datafrag.fragmentStartingNum == 1 && !set_sampleinfo_bswap (&sampleinfo, (struct CDRHeader *)datap)) {
+        } else if (sm->datafrag.fragmentStartingNum == 1 && !set_sampleinfo_bswap (&sampleinfo, (struct dds_cdr_header *)datap)) {
           // first fragment has encoding header, tried to use that for setting sample bswap but failed
           vr = VR_MALFORMED;
         } else {
@@ -3108,7 +3107,7 @@ static int handle_submsg_sequence
           // nothing to be done here if not accepted
         } else if (!decode_Data (rst->gv, &sampleinfo, datap, datasz, &submsg_len)) {
           vr = VR_NOT_UNDERSTOOD;
-        } else if (!set_sampleinfo_bswap (&sampleinfo, (struct CDRHeader *)datap)) {
+        } else if (!set_sampleinfo_bswap (&sampleinfo, (struct dds_cdr_header *)datap)) {
           vr = VR_MALFORMED;
         } else {
           sampleinfo.timestamp = timestamp;

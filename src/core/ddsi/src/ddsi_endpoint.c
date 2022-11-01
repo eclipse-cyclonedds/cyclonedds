@@ -29,6 +29,7 @@
 #include "dds/ddsi/ddsi_wraddrset.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/ddsi_security_omg.h"
+#include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/q_ddsi_discovery.h"
 #include "dds/ddsi/q_whc.h"
 #include "dds/ddsi/q_xevent.h"
@@ -36,6 +37,7 @@
 #include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/q_misc.h"
 #include "dds/ddsi/sysdeps.h"
+#include "dds/dds.h"
 
 static dds_return_t delete_writer_nolinger_locked (struct ddsi_writer *wr);
 static void augment_wr_prd_match (void *vnode, const void *vleft, const void *vright);

@@ -28,11 +28,11 @@ set(srcs_ddsi
   ddsi_portmapping.c
   ddsi_handshake.c
   ddsi_serdata.c
-  ddsi_serdata_default.c
+  ddsi_serdata_cdr.c
   ddsi_serdata_pserop.c
   ddsi_serdata_plist.c
   ddsi_sertype.c
-  ddsi_sertype_default.c
+  ddsi_sertype_cdr.c
   ddsi_sertype_pserop.c
   ddsi_sertype_plist.c
   ddsi_statistics.c
@@ -103,7 +103,7 @@ set(hdrs_private_ddsi
   ddsi_handshake.h
   ddsi_serdata.h
   ddsi_sertype.h
-  ddsi_serdata_default.h
+  ddsi_serdata_cdr.h
   ddsi_serdata_pserop.h
   ddsi_serdata_plist.h
   ddsi_statistics.h

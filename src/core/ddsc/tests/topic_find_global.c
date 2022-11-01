@@ -102,8 +102,7 @@ static void wait_for_remote_topic (char * topic_name_remote)
 
 static dds_typeinfo_t *get_desc_typeinfo (const dds_topic_descriptor_t *desc)
 {
-  const struct ddsi_sertype_cdr_data tinfo_ser = { .sz = desc->type_information.sz, .data = desc->type_information.data };
-  ddsi_typeinfo_t *type_info = ddsi_typeinfo_deser (&tinfo_ser);
+  ddsi_typeinfo_t *type_info = ddsi_typeinfo_deser (desc->type_information.data, desc->type_information.sz);
   CU_ASSERT_FATAL (type_info != NULL);
   return (dds_typeinfo_t *) type_info;
 }

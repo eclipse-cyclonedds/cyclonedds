@@ -458,6 +458,7 @@ int main (int argc, char **argv)
   dds_stream_extract_key_from_key (ptr, ptr2, ptr3);
   dds_stream_extract_keyBE_from_data (ptr, ptr2, ptr3);
   dds_stream_extract_keyBE_from_key (ptr, ptr2, ptr3);
+  dds_cdrstream_desc_from_topic_desc (ptr, ptr2);
 
 #ifdef DDS_HAS_SECURITY
   // dds_security_timed_cb.h
@@ -630,12 +631,12 @@ int main (int argc, char **argv)
   // ddsi_typelib.h
   ddsi_typeinfo_equal (ptr, ptr, 0);
   ddsi_typeinfo_typeid (ptr, 0);
-  ddsi_typeinfo_deser (ptr);
+  ddsi_typeinfo_deser (ptr, 0);
   ddsi_typeinfo_fini (ptr);
   ddsi_typeinfo_dup (ptr);
   ddsi_typeinfo_minimal_typeid (ptr);
   ddsi_typeinfo_complete_typeid (ptr);
-  ddsi_typemap_deser (ptr);
+  ddsi_typemap_deser (ptr, 0);
   ddsi_typemap_fini (ptr);
   ddsi_type_lookup (ptr, ptr);
   ddsi_type_compare (ptr, ptr);

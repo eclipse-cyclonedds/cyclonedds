@@ -35,11 +35,6 @@ struct ddsi_type_pair;
 #define DDSI_SERTYPE_REGISTERED  0x80000000u // set after setting gv
 #define DDSI_SERTYPE_REFC_MASK   0x0fffffffu
 
-typedef struct ddsi_sertype_cdr_data {
-  uint32_t sz;
-  uint8_t *data;
-} ddsi_sertype_cdr_data_t;
-
 struct ddsi_sertype {
   const struct ddsi_sertype_ops *ops;
   const struct ddsi_serdata_ops *serdata_ops;
