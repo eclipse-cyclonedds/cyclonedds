@@ -46,7 +46,6 @@
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_transmit.h"
 #include "dds/ddsi/q_lease.h"
-#include "dds/ddsi/ddsi_serdata_default.h"
 #include "dds/ddsi/q_feature_check.h"
 #include "dds/ddsi/ddsi_security_omg.h"
 #include "dds/ddsi/ddsi_pmd.h"

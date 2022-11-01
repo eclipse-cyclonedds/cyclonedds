@@ -249,6 +249,12 @@ typedef struct ddsi_plist_src {
   bool strict;                            /**< whether to be strict in checking */
 } ddsi_plist_src_t;
 
+struct ddsi_plist_sample {
+  void *blob;
+  size_t size;
+  nn_parameterid_t keyparam;
+};
+
 extern const ddsi_plist_t ddsi_default_plist_participant;
 
 /**

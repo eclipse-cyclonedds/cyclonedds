@@ -64,7 +64,7 @@
 #include "dds/ddsi/ddsi_vnet.h"
 #include "dds/ddsi/ddsi_mcgroup.h"
 #include "dds/ddsi/ddsi_nwpart.h"
-#include "dds/ddsi/ddsi_serdata_default.h"
+#include "dds/ddsi/ddsi_serdata_cdr.h"
 #include "dds/ddsi/ddsi_serdata_pserop.h"
 #include "dds/ddsi/ddsi_serdata_plist.h"
 #include "dds/ddsi/ddsi_security_omg.h"
@@ -830,8 +830,8 @@ static struct ddsi_sertype *make_special_type_plist (const char *typename, nn_pa
    because the request/response messages contain mutable and appendable types. */
 static struct ddsi_sertype *make_special_type_cdrstream (const struct ddsi_domaingv *gv, const dds_topic_descriptor_t *desc)
 {
-  struct ddsi_sertype_default *st = ddsrt_malloc (sizeof (*st));
-  dds_return_t ret = ddsi_sertype_default_init (gv, st, desc, CDR_ENC_VERSION_2, DDS_DATA_REPRESENTATION_XCDR2);
+  struct ddsi_sertype_cdr *st = ddsrt_malloc (sizeof (*st));
+  dds_return_t ret = ddsi_sertype_cdr_init (gv, st, desc);
   assert (ret == DDS_RETCODE_OK);
   (void) ret;
   return (struct ddsi_sertype *) st;
@@ -1343,7 +1343,6 @@ int rtps_init (struct ddsi_domaingv *gv)
   }
 
   gv->xmsgpool = nn_xmsgpool_new ();
-  gv->serpool = ddsi_serdatapool_new ();
 
   // copy default participant plist into one that is used for this domain's participants
   // a plain copy is safe because it doesn't alias anything
@@ -1835,7 +1834,6 @@ err_unicast_sockets:
   ddsi_xqos_fini (&gv->spdp_endpoint_xqos);
   ddsi_plist_fini (&gv->default_local_plist_pp);
 
-  ddsi_serdatapool_free (gv->serpool);
   nn_xmsgpool_free (gv->xmsgpool);
 err_set_ext_address:
   while (gv->recvips)
@@ -2255,7 +2253,6 @@ void rtps_fini (struct ddsi_domaingv *gv)
   for (int i = 0; i < (int) gv->n_interfaces; i++)
     ddsrt_free (gv->interfaces[i].name);
 
-  ddsi_serdatapool_free (gv->serpool);
   nn_xmsgpool_free (gv->xmsgpool);
   GVLOG (DDS_LC_CONFIG, "Finis.\n");
 }

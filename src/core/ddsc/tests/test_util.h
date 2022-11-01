@@ -15,6 +15,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include "dds/ddsi/ddsi_domaingv.h"
+#include "dds/dds.h"
 
 /* Get unique g_topic name on each invocation. */
 char *create_unique_topic_name (const char *prefix, char *name, size_t size);

@@ -2,13 +2,13 @@
 #include <limits.h>
 
 #include "dds/ddsi/ddsi_serdata.h"
-#include "dds/ddsi/ddsi_serdata_default.h"
 #include "dds/ddsi/ddsi_sertype.h"
 #include "dds/ddsrt/environ.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/io.h"
 #include "dds__entity.h"
 #include "dds__topic.h"
+#include "dds__serdata_default.h"
 
 #include "test_common.h"
 
@@ -68,12 +68,12 @@ CU_Test(ddsc_shm_serialization, get_serialized_size) {
 
   dds_topic *tp;
   dds_return_t rc = dds_topic_pin(topic, &tp);
-  CU_ASSERT_FATAL(rc == DDS_RETCODE_OK);  
+  CU_ASSERT_FATAL(rc == DDS_RETCODE_OK);
 
   struct ddsi_sertype *stype = tp->m_stype;
 
   DynamicData_Msg sample;
-  sample.message = "test message";  
+  sample.message = "test message";
   sample.scalar = 73;
   int32_t values[] = {11, 13, 17, 19};
   sample.values._buffer = (int32_t*)(&values);
@@ -82,8 +82,8 @@ CU_Test(ddsc_shm_serialization, get_serialized_size) {
 
   size_t required_size = ddsi_sertype_get_serialized_size(stype, &sample);
 
-  struct ddsi_serdata *serdata = ddsi_serdata_from_sample(stype, SDK_DATA, &sample);  
-  size_t serialized_size = ddsi_serdata_size(serdata) - sizeof(struct CDRHeader);
+  struct ddsi_serdata *serdata = ddsi_serdata_from_sample(stype, SDK_DATA, &sample);
+  size_t serialized_size = ddsi_serdata_size(serdata) - sizeof(struct dds_cdr_header);
   ddsi_serdata_unref(serdata);
 
   printf("required size %zu \n", required_size);
@@ -96,7 +96,7 @@ CU_Test(ddsc_shm_serialization, get_serialized_size) {
 
   dds_delete(participant);
   rc = dds_delete(DDS_CYCLONEDDS_HANDLE);
-  CU_ASSERT_FATAL(rc == 0);  
+  CU_ASSERT_FATAL(rc == 0);
 }
 
 // TODO: remove or keep? its is useful for checking the buffer contents in case something goes wrong
@@ -122,7 +122,7 @@ CU_Test(ddsc_shm_serialization, serialize_into) {
 
   dds_topic *tp;
   dds_return_t rc = dds_topic_pin(topic, &tp);
-  CU_ASSERT_FATAL(rc == DDS_RETCODE_OK);  
+  CU_ASSERT_FATAL(rc == DDS_RETCODE_OK);
 
   struct ddsi_sertype *stype = tp->m_stype;
 
@@ -141,13 +141,13 @@ CU_Test(ddsc_shm_serialization, serialize_into) {
   ddsi_sertype_serialize_into(stype, &sample, buffer, buffer_size);
 
   struct ddsi_serdata *serdata = ddsi_serdata_from_sample(stype, SDK_DATA, &sample);
-  size_t serialized_size = ddsi_serdata_size(serdata) - sizeof(struct CDRHeader);
+  size_t serialized_size = ddsi_serdata_size(serdata) - sizeof(struct dds_cdr_header);
 
-  struct ddsi_serdata_default *d = (struct ddsi_serdata_default*) serdata;
+  struct dds_serdata_default *d = (struct dds_serdata_default*) serdata;
   CU_ASSERT(buffer_size >= serialized_size);
 
   CU_ASSERT(memcmp(d->data, buffer, serialized_size) == 0);
- 
+
   printf("buffer  ");
   printbuffer(buffer, serialized_size);
   printf("serdata ");
@@ -163,24 +163,24 @@ CU_Test(ddsc_shm_serialization, serialize_into) {
 
 static bool compare_messages(const DynamicData_Msg* s1, const DynamicData_Msg* s2) {
   size_t l = strlen(s1->message);
-  if(strlen(s2->message) != l) 
+  if(strlen(s2->message) != l)
     return false;
 
   bool result = strncmp(s1->message, s2->message, l) == 0;
   result &= s1->scalar == s2->scalar;
 
   uint32_t n = s1->values._length;
-  if(n != s2->values._length) 
+  if(n != s2->values._length)
     return false;
 
   // no memcmp but logical comparison
   for(uint32_t i=0; i<n; ++i) {
-    result &= s1->values._buffer[i] == s2->values._buffer[i];   
-  }   
+    result &= s1->values._buffer[i] == s2->values._buffer[i];
+  }
   return result;
 }
 
-CU_Test(ddsc_shm_serialization, transmit_dynamic_type, .timeout = 30) {  
+CU_Test(ddsc_shm_serialization, transmit_dynamic_type, .timeout = 30) {
   dds_entity_t participant;
   dds_entity_t topic;
   dds_entity_t writer;
@@ -202,7 +202,7 @@ CU_Test(ddsc_shm_serialization, transmit_dynamic_type, .timeout = 30) {
 
   writer = dds_create_writer(participant, topic, qos, NULL);
   CU_ASSERT_FATAL(writer > 0);
-  
+
   DynamicData_Msg sample;
   sample.message = "test message";
   sample.scalar = 73;
@@ -243,14 +243,14 @@ CU_Test(ddsc_shm_serialization, transmit_dynamic_type, .timeout = 30) {
     goto fail;
   }
 
-  DynamicData_Msg *received_sample = (DynamicData_Msg *)samples[0];  
+  DynamicData_Msg *received_sample = (DynamicData_Msg *)samples[0];
 
   CU_ASSERT(compare_messages(&sample, received_sample));
 
   dds_delete_qos(qos);
   dds_delete(participant);
   rc = dds_delete(DDS_CYCLONEDDS_HANDLE);
-  CU_ASSERT_FATAL(rc == 0);  
+  CU_ASSERT_FATAL(rc == 0);
   return;
 fail:
   dds_delete_qos(qos);

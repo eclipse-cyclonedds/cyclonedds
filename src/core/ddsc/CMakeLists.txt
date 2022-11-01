@@ -41,6 +41,8 @@ prepend(srcs_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/"
   dds_whc_builtintopic.c
   dds_serdata_builtintopic.c
   dds_sertype_builtintopic.c
+  dds_serdata_default.c
+  dds_sertype_default.c
   dds_data_allocator.c
   dds_loan.c)
 
@@ -73,6 +75,7 @@ prepend(hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/"
   dds__whc.h
   dds__whc_builtintopic.h
   dds__serdata_builtintopic.h
+  dds__serdata_default.h
   dds__get_status.h
   dds__data_allocator.h)
 

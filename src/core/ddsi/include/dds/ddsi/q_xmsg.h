@@ -18,6 +18,7 @@
 #include "dds/ddsi/q_protocol.h" /* for, e.g., SubmessageKind_t */
 //#include "dds/ddsi/ddsi_xqos.h" /* for, e.g., octetseq, stringseq */
 #include "dds/ddsi/ddsi_tran.h"
+#include "dds/ddsi/ddsi_plist.h"
 #include "dds/features.h"
 
 #ifdef DDS_HAS_SHM

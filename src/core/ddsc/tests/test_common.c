@@ -80,25 +80,16 @@ void no_sync_reader_writer (dds_entity_t participant_rd, dds_entity_t reader, dd
   sync_reader_writer_impl (participant_rd, reader, participant_wr, writer, false, timeout);
 }
 
-void xcdr2_ser (const void *obj, const dds_topic_descriptor_t *desc, dds_ostream_t *os)
+void xcdr2_ser (const void *obj, const dds_topic_descriptor_t *topic_desc, dds_ostream_t *os)
 {
-  struct ddsi_sertype_default sertype;
-  memset (&sertype, 0, sizeof (sertype));
-  sertype.type = (struct ddsi_sertype_default_desc) {
-    .size = desc->m_size,
-    .align = desc->m_align,
-    .flagset = desc->m_flagset,
-    .keys.nkeys = 0,
-    .keys.keys = NULL,
-    .ops.nops = dds_stream_countops (desc->m_ops, desc->m_nkeys, desc->m_keys),
-    .ops.ops = (uint32_t *) desc->m_ops
-  };
+  struct ddsi_cdrstream_desc desc;
+  dds_cdrstream_desc_from_topic_desc (&desc, topic_desc);
 
   os->m_buffer = NULL;
   os->m_index = 0;
   os->m_size = 0;
   os->m_xcdr_version = CDR_ENC_VERSION_2;
-  bool ret = dds_stream_write_sampleLE ((dds_ostreamLE_t *) os, obj, &sertype);
+  bool ret = dds_stream_write_sampleLE ((dds_ostreamLE_t *) os, obj, &desc);
   CU_ASSERT_FATAL (ret);
 }
 

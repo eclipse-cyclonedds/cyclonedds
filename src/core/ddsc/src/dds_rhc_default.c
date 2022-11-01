@@ -39,7 +39,6 @@
 #include "dds/ddsi/q_radmin.h" /* sampleinfo */
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_serdata.h"
-#include "dds/ddsi/ddsi_serdata_default.h"
 #ifdef DDS_HAS_LIFESPAN
 #include "dds/ddsi/ddsi_lifespan.h"
 #endif

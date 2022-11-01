@@ -25,7 +25,9 @@
 #include "dds/ddsi/ddsi_cdrstream.h"
 #include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/ddsi_serdata_default.h"
+#include "dds/ddsi/ddsi_serdata.h"
+#include "dds__serdata_default.h"
+
 #ifdef DDS_HAS_SHM
 #include "dds/ddsi/ddsi_shm_transport.h"
 #include "dds/ddsi/q_xmsg.h"
@@ -48,26 +50,24 @@ static int ispowerof2_size (size_t x)
 }
 #endif
 
-static size_t alignup_size (size_t x, size_t a);
-
-struct serdatapool * ddsi_serdatapool_new (void)
+struct dds_serdatapool * dds_serdatapool_new (void)
 {
-  struct serdatapool * pool;
+  struct dds_serdatapool * pool;
   pool = ddsrt_malloc (sizeof (*pool));
-  nn_freelist_init (&pool->freelist, MAX_POOL_SIZE, offsetof (struct ddsi_serdata_default, next));
+  nn_freelist_init (&pool->freelist, MAX_POOL_SIZE, offsetof (struct dds_serdata_default, next));
   return pool;
 }
 
 static void serdata_free_wrap (void *elem)
 {
 #ifndef NDEBUG
-  struct ddsi_serdata_default *d = elem;
+  struct dds_serdata_default *d = elem;
   assert(ddsrt_atomic_ld32(&d->c.refc) == 0);
 #endif
   dds_free(elem);
 }
 
-void ddsi_serdatapool_free (struct serdatapool * pool)
+void dds_serdatapool_free (struct dds_serdatapool * pool)
 {
   nn_freelist_fini (&pool->freelist, serdata_free_wrap);
   ddsrt_free (pool);
@@ -80,13 +80,13 @@ static size_t alignup_size (size_t x, size_t a)
   return (x+m) & ~m;
 }
 
-static void *serdata_default_append (struct ddsi_serdata_default **d, size_t n)
+static void *serdata_default_append (struct dds_serdata_default **d, size_t n)
 {
   char *p;
   if ((*d)->pos + n > (*d)->size)
   {
     size_t size1 = alignup_size ((*d)->pos + n, CHUNK_SIZE);
-    *d = ddsrt_realloc (*d, offsetof (struct ddsi_serdata_default, data) + size1);
+    *d = ddsrt_realloc (*d, offsetof (struct dds_serdata_default, data) + size1);
     (*d)->size = (uint32_t)size1;
   }
   assert ((*d)->pos + n <= (*d)->size);
@@ -95,26 +95,26 @@ static void *serdata_default_append (struct ddsi_serdata_default **d, size_t n)
   return p;
 }
 
-static void serdata_default_append_blob (struct ddsi_serdata_default **d, size_t sz, const void *data)
+static void serdata_default_append_blob (struct dds_serdata_default **d, size_t sz, const void *data)
 {
   char *p = serdata_default_append (d, sz);
   memcpy (p, data, sz);
 }
 
-static const unsigned char *serdata_default_keybuf(const struct ddsi_serdata_default *d)
+static const unsigned char *serdata_default_keybuf(const struct dds_serdata_default *d)
 {
   assert(d->key.buftype != KEYBUFTYPE_UNSET);
   return (d->key.buftype == KEYBUFTYPE_STATIC) ? d->key.u.stbuf : d->key.u.dynbuf;
 }
 
-static struct ddsi_serdata *fix_serdata_default(struct ddsi_serdata_default *d, uint32_t basehash)
+static struct ddsi_serdata *fix_serdata_default(struct dds_serdata_default *d, uint32_t basehash)
 {
   assert (d->key.keysize > 0); // we use a different function for implementing the keyless case
   d->c.hash = ddsrt_mh3 (serdata_default_keybuf(d), d->key.keysize, basehash); // FIXME: or the full buffer, regardless of actual size?
   return &d->c;
 }
 
-static struct ddsi_serdata *fix_serdata_default_nokey(struct ddsi_serdata_default *d, uint32_t basehash)
+static struct ddsi_serdata *fix_serdata_default_nokey(struct dds_serdata_default *d, uint32_t basehash)
 {
   d->c.hash = basehash;
   return &d->c;
@@ -122,14 +122,14 @@ static struct ddsi_serdata *fix_serdata_default_nokey(struct ddsi_serdata_defaul
 
 static uint32_t serdata_default_get_size(const struct ddsi_serdata *dcmn)
 {
-  const struct ddsi_serdata_default *d = (const struct ddsi_serdata_default *) dcmn;
-  return d->pos + (uint32_t)sizeof (struct CDRHeader);
+  const struct dds_serdata_default *d = (const struct dds_serdata_default *) dcmn;
+  return d->pos + (uint32_t)sizeof (struct dds_cdr_header);
 }
 
 static bool serdata_default_eqkey(const struct ddsi_serdata *acmn, const struct ddsi_serdata *bcmn)
 {
-  const struct ddsi_serdata_default *a = (const struct ddsi_serdata_default *)acmn;
-  const struct ddsi_serdata_default *b = (const struct ddsi_serdata_default *)bcmn;
+  const struct dds_serdata_default *a = (const struct dds_serdata_default *)acmn;
+  const struct dds_serdata_default *b = (const struct dds_serdata_default *)bcmn;
   assert (a->key.buftype != KEYBUFTYPE_UNSET && b->key.buftype != KEYBUFTYPE_UNSET);
   return a->key.keysize == b->key.keysize && memcmp (serdata_default_keybuf(a), serdata_default_keybuf(b), a->key.keysize) == 0;
 }
@@ -142,7 +142,7 @@ static bool serdata_default_eqkey_nokey (const struct ddsi_serdata *acmn, const 
 
 static void serdata_default_free(struct ddsi_serdata *dcmn)
 {
-  struct ddsi_serdata_default *d = (struct ddsi_serdata_default *)dcmn;
+  struct dds_serdata_default *d = (struct dds_serdata_default *)dcmn;
   assert(ddsrt_atomic_ld32(&d->c.refc) == 0);
 
   if (d->key.buftype == KEYBUFTYPE_DYNALLOC)
@@ -156,7 +156,7 @@ static void serdata_default_free(struct ddsi_serdata *dcmn)
     dds_free (d);
 }
 
-static void serdata_default_init(struct ddsi_serdata_default *d, const struct ddsi_sertype_default *tp, enum ddsi_serdata_kind kind, uint32_t xcdr_version)
+static void serdata_default_init(struct dds_serdata_default *d, const struct dds_sertype_default *tp, enum ddsi_serdata_kind kind, uint32_t xcdr_version)
 {
   ddsi_serdata_init (&d->c, &tp->c, kind);
   d->pos = 0;
@@ -172,17 +172,17 @@ static void serdata_default_init(struct ddsi_serdata_default *d, const struct dd
   d->key.keysize = 0;
 }
 
-static struct ddsi_serdata_default *serdata_default_allocnew (struct serdatapool *serpool, uint32_t init_size)
+static struct dds_serdata_default *serdata_default_allocnew (struct dds_serdatapool *serpool, uint32_t init_size)
 {
-  struct ddsi_serdata_default *d = ddsrt_malloc (offsetof (struct ddsi_serdata_default, data) + init_size);
+  struct dds_serdata_default *d = ddsrt_malloc (offsetof (struct dds_serdata_default, data) + init_size);
   d->size = init_size;
   d->serpool = serpool;
   return d;
 }
 
-static struct ddsi_serdata_default *serdata_default_new_size (const struct ddsi_sertype_default *tp, enum ddsi_serdata_kind kind, uint32_t size, uint32_t xcdr_version)
+static struct dds_serdata_default *serdata_default_new_size (const struct dds_sertype_default *tp, enum ddsi_serdata_kind kind, uint32_t size, uint32_t xcdr_version)
 {
-  struct ddsi_serdata_default *d;
+  struct dds_serdata_default *d;
   if (size <= MAX_SIZE_FOR_POOL && (d = nn_freelist_pop (&tp->serpool->freelist)) != NULL)
     ddsrt_atomic_st32 (&d->c.refc, 1);
   else if ((d = serdata_default_allocnew (tp->serpool, size)) == NULL)
@@ -191,7 +191,7 @@ static struct ddsi_serdata_default *serdata_default_new_size (const struct ddsi_
   return d;
 }
 
-static struct ddsi_serdata_default *serdata_default_new (const struct ddsi_sertype_default *tp, enum ddsi_serdata_kind kind, uint32_t xcdr_version)
+static struct dds_serdata_default *serdata_default_new (const struct dds_sertype_default *tp, enum ddsi_serdata_kind kind, uint32_t xcdr_version)
 {
   return serdata_default_new_size (tp, kind, DEFAULT_NEW_SIZE, xcdr_version);
 }
@@ -221,9 +221,9 @@ static inline bool is_topic_fixed_key(uint32_t flagset, uint32_t xcdrv)
   return false;
 }
 
-static bool gen_serdata_key (const struct ddsi_sertype_default *type, struct ddsi_serdata_default_key *kh, enum gen_serdata_key_input_kind input_kind, void *input)
+static bool gen_serdata_key (const struct dds_sertype_default *type, struct dds_serdata_default_key *kh, enum gen_serdata_key_input_kind input_kind, void *input)
 {
-  const struct ddsi_sertype_default_desc *desc = &type->type;
+  const struct ddsi_cdrstream_desc *desc = &type->type;
   struct dds_istream *is = NULL;
   kh->buftype = KEYBUFTYPE_UNSET;
   if (desc->keys.nkeys == 0)
@@ -257,16 +257,16 @@ static bool gen_serdata_key (const struct ddsi_sertype_default *type, struct dds
     switch (input_kind)
     {
       case GSKIK_SAMPLE:
-        dds_stream_write_key (&os, input, type);
+        dds_stream_write_key (&os, input, &type->type);
         break;
       case GSKIK_CDRSAMPLE:
-        if (!dds_stream_extract_key_from_data (input, &os, type))
+        if (!dds_stream_extract_key_from_data (input, &os, &type->type))
           return false;
         break;
       case GSKIK_CDRKEY:
         assert (is);
         assert (is->m_xcdr_version == CDR_ENC_VERSION_1);
-        dds_stream_extract_key_from_key (is, &os, type);
+        dds_stream_extract_key_from_key (is, &os, &type->type);
         break;
     }
     assert (os.m_index < (1u << 30));
@@ -282,28 +282,28 @@ static bool gen_serdata_key (const struct ddsi_sertype_default *type, struct dds
   return true;
 }
 
-static bool gen_serdata_key_from_sample (const struct ddsi_sertype_default *type, struct ddsi_serdata_default_key *kh, const char *sample)
+static bool gen_serdata_key_from_sample (const struct dds_sertype_default *type, struct dds_serdata_default_key *kh, const char *sample)
 {
   return gen_serdata_key (type, kh, GSKIK_SAMPLE, (void *) sample);
 }
 
-static bool gen_serdata_key_from_cdr (dds_istream_t * __restrict is, struct ddsi_serdata_default_key * __restrict kh, const struct ddsi_sertype_default * __restrict type, const bool just_key)
+static bool gen_serdata_key_from_cdr (dds_istream_t * __restrict is, struct dds_serdata_default_key * __restrict kh, const struct dds_sertype_default * __restrict type, const bool just_key)
 {
   return gen_serdata_key (type, kh, just_key ? GSKIK_CDRKEY : GSKIK_CDRSAMPLE, is);
 }
 
 /* Construct a serdata from a fragchain received over the network */
-static struct ddsi_serdata_default *serdata_default_from_ser_common (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, const struct nn_rdata *fragchain, size_t size)
+static struct dds_serdata_default *serdata_default_from_ser_common (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, const struct nn_rdata *fragchain, size_t size)
 {
-  const struct ddsi_sertype_default *tp = (const struct ddsi_sertype_default *)tpcmn;
+  const struct dds_sertype_default *tp = (const struct dds_sertype_default *)tpcmn;
 
   /* FIXME: check whether this really is the correct maximum: offsets are relative
      to the CDR header, but there are also some places that use a serdata as-if it
      were a stream, and those use offsets (m_index) relative to the start of the
      serdata */
-  if (size > UINT32_MAX - offsetof (struct ddsi_serdata_default, hdr))
+  if (size > UINT32_MAX - offsetof (struct dds_serdata_default, hdr))
     return NULL;
-  struct ddsi_serdata_default *d = serdata_default_new_size (tp, kind, (uint32_t) size, CDR_ENC_VERSION_UNDEF);
+  struct dds_serdata_default *d = serdata_default_new_size (tp, kind, (uint32_t) size, CDR_ENC_VERSION_UNDEF);
   if (d == NULL)
     return NULL;
 
@@ -339,7 +339,7 @@ static struct ddsi_serdata_default *serdata_default_from_ser_common (const struc
     goto err;
 
   uint32_t actual_size;
-  if (d->pos < pad || !dds_stream_normalize (d->data, d->pos - pad, needs_bswap, xcdr_version, tp, kind == SDK_KEY, &actual_size))
+  if (d->pos < pad || !dds_stream_normalize (d->data, d->pos - pad, needs_bswap, xcdr_version, &tp->type, kind == SDK_KEY, &actual_size))
     goto err;
 
   dds_istream_t is;
@@ -360,20 +360,20 @@ err:
   return NULL;
 }
 
-static struct ddsi_serdata_default *serdata_default_from_ser_iov_common (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, ddsrt_msg_iovlen_t niov, const ddsrt_iovec_t *iov, size_t size)
+static struct dds_serdata_default *serdata_default_from_ser_iov_common (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, ddsrt_msg_iovlen_t niov, const ddsrt_iovec_t *iov, size_t size)
 {
-  const struct ddsi_sertype_default *tp = (const struct ddsi_sertype_default *)tpcmn;
+  const struct dds_sertype_default *tp = (const struct dds_sertype_default *)tpcmn;
 
   /* FIXME: check whether this really is the correct maximum: offsets are relative
      to the CDR header, but there are also some places that use a serdata as-if it
      were a stream, and those use offsets (m_index) relative to the start of the
      serdata */
-  if (size > UINT32_MAX - offsetof (struct ddsi_serdata_default, hdr))
+  if (size > UINT32_MAX - offsetof (struct dds_serdata_default, hdr))
     return NULL;
   assert (niov >= 1);
   if (iov[0].iov_len < 4) /* CDR header */
     return NULL;
-  struct ddsi_serdata_default *d = serdata_default_new_size (tp, kind, (uint32_t) size, CDR_ENC_VERSION_UNDEF);
+  struct dds_serdata_default *d = serdata_default_new_size (tp, kind, (uint32_t) size, CDR_ENC_VERSION_UNDEF);
   if (d == NULL)
     return NULL;
 
@@ -393,7 +393,7 @@ static struct ddsi_serdata_default *serdata_default_from_ser_iov_common (const s
     goto err;
 
   uint32_t actual_size;
-  if (d->pos < pad || !dds_stream_normalize (d->data, d->pos - pad, needs_bswap, xcdr_version, tp, kind == SDK_KEY, &actual_size))
+  if (d->pos < pad || !dds_stream_normalize (d->data, d->pos - pad, needs_bswap, xcdr_version, &tp->type, kind == SDK_KEY, &actual_size))
     goto err;
 
   dds_istream_t is;
@@ -409,7 +409,7 @@ err:
 
 static struct ddsi_serdata *serdata_default_from_ser (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, const struct nn_rdata *fragchain, size_t size)
 {
-  struct ddsi_serdata_default *d;
+  struct dds_serdata_default *d;
   if ((d = serdata_default_from_ser_common (tpcmn, kind, fragchain, size)) == NULL)
     return NULL;
   return fix_serdata_default (d, tpcmn->serdata_basehash);
@@ -417,7 +417,7 @@ static struct ddsi_serdata *serdata_default_from_ser (const struct ddsi_sertype 
 
 static struct ddsi_serdata *serdata_default_from_ser_iov (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, ddsrt_msg_iovlen_t niov, const ddsrt_iovec_t *iov, size_t size)
 {
-  struct ddsi_serdata_default *d;
+  struct dds_serdata_default *d;
   if ((d = serdata_default_from_ser_iov_common (tpcmn, kind, niov, iov, size)) == NULL)
     return NULL;
   return fix_serdata_default (d, tpcmn->serdata_basehash);
@@ -425,7 +425,7 @@ static struct ddsi_serdata *serdata_default_from_ser_iov (const struct ddsi_sert
 
 static struct ddsi_serdata *serdata_default_from_ser_nokey (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, const struct nn_rdata *fragchain, size_t size)
 {
-  struct ddsi_serdata_default *d;
+  struct dds_serdata_default *d;
   if ((d = serdata_default_from_ser_common (tpcmn, kind, fragchain, size)) == NULL)
     return NULL;
   return fix_serdata_default_nokey (d, tpcmn->serdata_basehash);
@@ -433,15 +433,15 @@ static struct ddsi_serdata *serdata_default_from_ser_nokey (const struct ddsi_se
 
 static struct ddsi_serdata *serdata_default_from_ser_iov_nokey (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, ddsrt_msg_iovlen_t niov, const ddsrt_iovec_t *iov, size_t size)
 {
-  struct ddsi_serdata_default *d;
+  struct dds_serdata_default *d;
   if ((d = serdata_default_from_ser_iov_common (tpcmn, kind, niov, iov, size)) == NULL)
     return NULL;
   return fix_serdata_default_nokey (d, tpcmn->serdata_basehash);
 }
 
-static struct ddsi_serdata *ddsi_serdata_from_keyhash_cdr (const struct ddsi_sertype *tpcmn, const ddsi_keyhash_t *keyhash)
+static struct ddsi_serdata *serdata_default_from_keyhash_cdr (const struct ddsi_sertype *tpcmn, const ddsi_keyhash_t *keyhash)
 {
-  const struct ddsi_sertype_default *tp = (const struct ddsi_sertype_default *)tpcmn;
+  const struct dds_sertype_default *tp = (const struct dds_sertype_default *)tpcmn;
   if (!is_topic_fixed_key (tp->type.flagset, CDR_ENC_VERSION_2))
   {
     /* keyhash is MD5 of a key value, so impossible to turn into a key value */
@@ -457,11 +457,11 @@ static struct ddsi_serdata *ddsi_serdata_from_keyhash_cdr (const struct ddsi_ser
   }
 }
 
-static struct ddsi_serdata *ddsi_serdata_from_keyhash_cdr_nokey (const struct ddsi_sertype *tpcmn, const ddsi_keyhash_t *keyhash)
+static struct ddsi_serdata *serdata_default_from_keyhash_cdr_nokey (const struct ddsi_sertype *tpcmn, const ddsi_keyhash_t *keyhash)
 {
-  const struct ddsi_sertype_default *tp = (const struct ddsi_sertype_default *)tpcmn;
+  const struct dds_sertype_default *tp = (const struct dds_sertype_default *)tpcmn;
   /* For keyless topic, the CDR encoding version is irrelevant */
-  struct ddsi_serdata_default *d = serdata_default_new(tp, SDK_KEY, CDR_ENC_VERSION_UNDEF);
+  struct dds_serdata_default *d = serdata_default_new(tp, SDK_KEY, CDR_ENC_VERSION_UNDEF);
   if (d == NULL)
     return NULL;
   (void)keyhash;
@@ -473,9 +473,9 @@ static struct ddsi_serdata* serdata_default_from_received_iox_buffer(const struc
 {
   const iceoryx_header_t* ice_hdr = iceoryx_header_from_chunk(iox_buffer);
 
-  const struct ddsi_sertype_default* tp = (const struct ddsi_sertype_default*)tpcmn;
+  const struct dds_sertype_default* tp = (const struct dds_sertype_default*)tpcmn;
 
-  struct ddsi_serdata_default *d = serdata_default_new_size (tp, kind, ice_hdr->data_size, tp->write_encoding_version);
+  struct dds_serdata_default *d = serdata_default_new_size (tp, kind, ice_hdr->data_size, tp->write_encoding_version);
 
   // note: we do not deserialize or memcpy here, just take ownership of the chunk
   d->c.iox_chunk = iox_buffer;
@@ -492,10 +492,10 @@ static struct ddsi_serdata* serdata_default_from_received_iox_buffer(const struc
 // Creates a serdata for the case where only iceoryx is required (i.e. no network).
 // This skips expensive serialization and just takes ownership of the iceoryx buffer.
 // Computing the keyhash is currently still required.
-static struct ddsi_serdata *ddsi_serdata_default_from_loaned_sample (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, const char *sample)
+static struct ddsi_serdata *dds_serdata_default_from_loaned_sample (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, const char *sample)
 {
-  const struct ddsi_sertype_default *t = (const struct ddsi_sertype_default *)type;
-  struct ddsi_serdata_default *d = serdata_default_new (t, kind, t->write_encoding_version);
+  const struct dds_sertype_default *t = (const struct dds_sertype_default *)type;
+  struct dds_serdata_default *d = serdata_default_new (t, kind, t->write_encoding_version);
 
   if(d == NULL)
     return NULL;
@@ -514,30 +514,70 @@ static struct ddsi_serdata *ddsi_serdata_default_from_loaned_sample (const struc
 static struct ddsi_serdata* serdata_default_from_iox(const struct ddsi_sertype* tpcmn, enum ddsi_serdata_kind kind, void* sub, void* buffer)
 {
   if (sub == NULL)
-    return ddsi_serdata_default_from_loaned_sample(tpcmn, kind, buffer);
+    return dds_serdata_default_from_loaned_sample(tpcmn, kind, buffer);
   else
     return serdata_default_from_received_iox_buffer(tpcmn, kind, sub, buffer);
 }
 #endif
 
 
-static struct ddsi_serdata_default *serdata_default_from_sample_cdr_common (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, uint32_t xcdr_version, const void *sample)
+static void istream_from_serdata_default (dds_istream_t * __restrict s, const struct dds_serdata_default * __restrict d)
 {
-  const struct ddsi_sertype_default *tp = (const struct ddsi_sertype_default *)tpcmn;
-  struct ddsi_serdata_default *d = serdata_default_new(tp, kind, xcdr_version);
+  s->m_buffer = (const unsigned char *) d;
+  s->m_index = (uint32_t) offsetof (struct dds_serdata_default, data);
+  s->m_size = d->size + s->m_index;
+#if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
+  assert (CDR_ENC_LE (d->hdr.identifier));
+#elif DDSRT_ENDIAN == DDSRT_BIG_ENDIAN
+  assert (!CDR_ENC_LE (d->hdr.identifier));
+#endif
+  s->m_xcdr_version = ddsi_sertype_enc_id_xcdr_version (d->hdr.identifier);
+}
+
+static void ostream_from_serdata_default (dds_ostream_t * __restrict s, const struct dds_serdata_default * __restrict d)
+{
+  s->m_buffer = (unsigned char *) d;
+  s->m_index = (uint32_t) offsetof (struct dds_serdata_default, data);
+  s->m_size = d->size + s->m_index;
+#if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
+  assert (CDR_ENC_LE (d->hdr.identifier));
+#elif DDSRT_ENDIAN == DDSRT_BIG_ENDIAN
+  assert (!CDR_ENC_LE (d->hdr.identifier));
+#endif
+  s->m_xcdr_version = ddsi_sertype_enc_id_xcdr_version (d->hdr.identifier);
+}
+
+static void ostream_add_to_serdata_default (dds_ostream_t * __restrict s, struct dds_serdata_default ** __restrict d)
+{
+  /* DDSI requires 4 byte alignment */
+  const uint32_t pad = dds_cdr_alignto_clear_and_resize (s, dds_cdr_get_align (s->m_xcdr_version, 4), 0);
+  assert (pad <= 3);
+
+  /* Reset data pointer as stream may have reallocated */
+  (*d) = (void *) s->m_buffer;
+  (*d)->pos = (s->m_index - (uint32_t) offsetof (struct dds_serdata_default, data));
+  (*d)->size = (s->m_size - (uint32_t) offsetof (struct dds_serdata_default, data));
+  (*d)->hdr.options = ddsrt_toBE2u ((uint16_t) pad);
+}
+
+
+static struct dds_serdata_default *serdata_default_from_sample_cdr_common (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, uint32_t xcdr_version, const void *sample)
+{
+  const struct dds_sertype_default *tp = (const struct dds_sertype_default *)tpcmn;
+  struct dds_serdata_default *d = serdata_default_new(tp, kind, xcdr_version);
   if (d == NULL)
     return NULL;
 
   dds_ostream_t os;
-  dds_ostream_from_serdata_default (&os, d);
+  ostream_from_serdata_default (&os, d);
   switch (kind)
   {
     case SDK_EMPTY:
-      dds_ostream_add_to_serdata_default (&os, &d);
+      ostream_add_to_serdata_default (&os, &d);
       break;
     case SDK_KEY:
-      dds_stream_write_key (&os, sample, tp);
-      dds_ostream_add_to_serdata_default (&os, &d);
+      dds_stream_write_key (&os, sample, &tp->type);
+      ostream_add_to_serdata_default (&os, &d);
 
       /* FIXME: detect cases where the XCDR1 and 2 representations are equal,
          so that we could alias the XCDR1 key from d->data */
@@ -565,9 +605,9 @@ static struct ddsi_serdata_default *serdata_default_from_sample_cdr_common (cons
       }
       break;
     case SDK_DATA:
-      if (!dds_stream_write_sample (&os, sample, tp))
+      if (!dds_stream_write_sample (&os, sample, &tp->type))
         return NULL;
-      dds_ostream_add_to_serdata_default (&os, &d);
+      ostream_add_to_serdata_default (&os, &d);
       if (!gen_serdata_key_from_sample (tp, &d->key, sample))
         return NULL;
       break;
@@ -578,7 +618,7 @@ static struct ddsi_serdata_default *serdata_default_from_sample_cdr_common (cons
 static struct ddsi_serdata *serdata_default_from_sample_data_representation (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, dds_data_representation_id_t data_representation, const void *sample, bool key)
 {
   assert (data_representation == DDS_DATA_REPRESENTATION_XCDR1 || data_representation == DDS_DATA_REPRESENTATION_XCDR2);
-  struct ddsi_serdata_default *d;
+  struct dds_serdata_default *d;
   uint32_t xcdr_version = data_representation == DDS_DATA_REPRESENTATION_XCDR1 ? CDR_ENC_VERSION_1 : CDR_ENC_VERSION_2;
   if ((d = serdata_default_from_sample_cdr_common (tpcmn, kind, xcdr_version, sample)) == NULL)
     return NULL;
@@ -608,11 +648,11 @@ static struct ddsi_serdata *serdata_default_from_sample_xcdr2_nokey (const struc
 
 static struct ddsi_serdata *serdata_default_to_untyped (const struct ddsi_serdata *serdata_common)
 {
-  const struct ddsi_serdata_default *d = (const struct ddsi_serdata_default *)serdata_common;
-  const struct ddsi_sertype_default *tp = (const struct ddsi_sertype_default *)d->c.type;
+  const struct dds_serdata_default *d = (const struct dds_serdata_default *)serdata_common;
+  const struct dds_sertype_default *tp = (const struct dds_sertype_default *)d->c.type;
 
   assert (CDR_ENC_IS_NATIVE (d->hdr.identifier));
-  struct ddsi_serdata_default *d_tl = serdata_default_new (tp, SDK_KEY, CDR_ENC_VERSION_2);
+  struct dds_serdata_default *d_tl = serdata_default_new (tp, SDK_KEY, CDR_ENC_VERSION_2);
   if (d_tl == NULL)
     return NULL;
   d_tl->c.type = NULL;
@@ -621,7 +661,7 @@ static struct ddsi_serdata *serdata_default_to_untyped (const struct ddsi_serdat
   /* These things are used for the key-to-instance map and only subject to eq, free and conversion to an invalid
      sample of some type for topics that can end up in a RHC, so, of the four kinds we have, only for CDR-with-key
      the payload is of interest. */
-  if (d->c.ops == &ddsi_serdata_ops_cdr || d->c.ops == &ddsi_serdata_ops_xcdr2)
+  if (d->c.ops == &dds_serdata_ops_cdr || d->c.ops == &dds_serdata_ops_xcdr2)
   {
     serdata_default_append_blob (&d_tl, d->key.keysize, serdata_default_keybuf (d));
     d_tl->key.buftype = KEYBUFTYPE_DYNALIAS;
@@ -630,7 +670,7 @@ static struct ddsi_serdata *serdata_default_to_untyped (const struct ddsi_serdat
   }
   else
   {
-    assert (d->c.ops == &ddsi_serdata_ops_cdr_nokey || d->c.ops == &ddsi_serdata_ops_xcdr2_nokey);
+    assert (d->c.ops == &dds_serdata_ops_cdr_nokey || d->c.ops == &dds_serdata_ops_xcdr2_nokey);
   }
   return (struct ddsi_serdata *)d_tl;
 }
@@ -638,17 +678,17 @@ static struct ddsi_serdata *serdata_default_to_untyped (const struct ddsi_serdat
 /* Fill buffer with 'size' bytes of serialised data, starting from 'off'; 0 <= off < off+sz <= alignup4(size(d)) */
 static void serdata_default_to_ser (const struct ddsi_serdata *serdata_common, size_t off, size_t sz, void *buf)
 {
-  const struct ddsi_serdata_default *d = (const struct ddsi_serdata_default *)serdata_common;
-  assert (off < d->pos + sizeof(struct CDRHeader));
-  assert (sz <= alignup_size (d->pos + sizeof(struct CDRHeader), 4) - off);
+  const struct dds_serdata_default *d = (const struct dds_serdata_default *)serdata_common;
+  assert (off < d->pos + sizeof(struct dds_cdr_header));
+  assert (sz <= alignup_size (d->pos + sizeof(struct dds_cdr_header), 4) - off);
   memcpy (buf, (char *)&d->hdr + off, sz);
 }
 
 static struct ddsi_serdata *serdata_default_to_ser_ref (const struct ddsi_serdata *serdata_common, size_t off, size_t sz, ddsrt_iovec_t *ref)
 {
-  const struct ddsi_serdata_default *d = (const struct ddsi_serdata_default *)serdata_common;
-  assert (off < d->pos + sizeof(struct CDRHeader));
-  assert (sz <= alignup_size (d->pos + sizeof(struct CDRHeader), 4) - off);
+  const struct dds_serdata_default *d = (const struct dds_serdata_default *)serdata_common;
+  assert (off < d->pos + sizeof(struct dds_cdr_header));
+  assert (sz <= alignup_size (d->pos + sizeof(struct dds_cdr_header), 4) - off);
   ref->iov_base = (char *)&d->hdr + off;
   ref->iov_len = (ddsrt_iov_len_t)sz;
   return ddsi_serdata_ref(serdata_common);
@@ -662,8 +702,8 @@ static void serdata_default_to_ser_unref (struct ddsi_serdata *serdata_common, c
 
 static bool serdata_default_to_sample_cdr (const struct ddsi_serdata *serdata_common, void *sample, void **bufptr, void *buflim)
 {
-  const struct ddsi_serdata_default *d = (const struct ddsi_serdata_default *)serdata_common;
-  const struct ddsi_sertype_default *tp = (const struct ddsi_sertype_default *) d->c.type;
+  const struct dds_serdata_default *d = (const struct dds_serdata_default *)serdata_common;
+  const struct dds_sertype_default *tp = (const struct dds_sertype_default *) d->c.type;
   dds_istream_t is;
 #ifdef DDS_HAS_SHM
   if (d->c.iox_chunk)
@@ -674,9 +714,9 @@ static bool serdata_default_to_sample_cdr (const struct ddsi_serdata *serdata_co
       dds_istream_init (&is, hdr->data_size, iox_chunk, ddsi_sertype_enc_id_xcdr_version(d->hdr.identifier));
       assert (CDR_ENC_IS_NATIVE (d->hdr.identifier));
       if (d->c.kind == SDK_KEY)
-        dds_stream_read_key (&is, sample, tp);
+        dds_stream_read_key (&is, sample, &tp->type);
       else
-        dds_stream_read_sample (&is, sample, tp);
+        dds_stream_read_sample (&is, sample, &tp->type);
     } else {
       // should contain raw unserialized data
       // we could check the data_state but should not be needed
@@ -687,26 +727,26 @@ static bool serdata_default_to_sample_cdr (const struct ddsi_serdata *serdata_co
 #endif
   if (bufptr) abort(); else { (void)buflim; } /* FIXME: haven't implemented that bit yet! */
   assert (CDR_ENC_IS_NATIVE (d->hdr.identifier));
-  dds_istream_from_serdata_default(&is, d);
+  istream_from_serdata_default(&is, d);
   if (d->c.kind == SDK_KEY)
-    dds_stream_read_key (&is, sample, tp);
+    dds_stream_read_key (&is, sample, &tp->type);
   else
-    dds_stream_read_sample (&is, sample, tp);
+    dds_stream_read_sample (&is, sample, &tp->type);
   return true; /* FIXME: can't conversion to sample fail? */
 }
 
 static bool serdata_default_untyped_to_sample_cdr (const struct ddsi_sertype *sertype_common, const struct ddsi_serdata *serdata_common, void *sample, void **bufptr, void *buflim)
 {
-  const struct ddsi_serdata_default *d = (const struct ddsi_serdata_default *)serdata_common;
-  const struct ddsi_sertype_default *tp = (const struct ddsi_sertype_default *) sertype_common;
+  const struct dds_serdata_default *d = (const struct dds_serdata_default *)serdata_common;
+  const struct dds_sertype_default *tp = (const struct dds_sertype_default *) sertype_common;
   dds_istream_t is;
   assert (d->c.type == NULL);
   assert (d->c.kind == SDK_KEY);
   assert (d->c.ops == sertype_common->serdata_ops);
   assert (CDR_ENC_IS_NATIVE (d->hdr.identifier));
   if (bufptr) abort(); else { (void)buflim; } /* FIXME: haven't implemented that bit yet! */
-  dds_istream_from_serdata_default(&is, d);
-  dds_stream_read_key (&is, sample, tp);
+  istream_from_serdata_default(&is, d);
+  dds_stream_read_key (&is, sample, &tp->type);
   return true; /* FIXME: can't conversion to sample fail? */
 }
 
@@ -720,20 +760,20 @@ static bool serdata_default_untyped_to_sample_cdr_nokey (const struct ddsi_serty
 
 static size_t serdata_default_print_cdr (const struct ddsi_sertype *sertype_common, const struct ddsi_serdata *serdata_common, char *buf, size_t size)
 {
-  const struct ddsi_serdata_default *d = (const struct ddsi_serdata_default *)serdata_common;
-  const struct ddsi_sertype_default *tp = (const struct ddsi_sertype_default *)sertype_common;
+  const struct dds_serdata_default *d = (const struct dds_serdata_default *)serdata_common;
+  const struct dds_sertype_default *tp = (const struct dds_sertype_default *)sertype_common;
   dds_istream_t is;
-  dds_istream_from_serdata_default (&is, d);
+  istream_from_serdata_default (&is, d);
   if (d->c.kind == SDK_KEY)
-    return dds_stream_print_key (&is, tp, buf, size);
+    return dds_stream_print_key (&is, &tp->type, buf, size);
   else
-    return dds_stream_print_sample (&is, tp, buf, size);
+    return dds_stream_print_sample (&is, &tp->type, buf, size);
 }
 
 static void serdata_default_get_keyhash (const struct ddsi_serdata *serdata_common, struct ddsi_keyhash *buf, bool force_md5)
 {
-  const struct ddsi_serdata_default *d = (const struct ddsi_serdata_default *)serdata_common;
-  const struct ddsi_sertype_default *tp = (const struct ddsi_sertype_default *)d->c.type;
+  const struct dds_serdata_default *d = (const struct dds_serdata_default *)serdata_common;
+  const struct dds_sertype_default *tp = (const struct dds_sertype_default *)d->c.type;
   assert(buf);
   assert(d->key.buftype != KEYBUFTYPE_UNSET);
 
@@ -755,7 +795,7 @@ static void serdata_default_get_keyhash (const struct ddsi_serdata *serdata_comm
      ostream is calculated using this CDR representation (XTypes spec 7.6.8, RTPS spec 9.6.3.8) */
   dds_ostreamBE_t os;
   dds_ostreamBE_init (&os, 0, xcdrv);
-  dds_stream_extract_keyBE_from_key (&is, &os, tp);
+  dds_stream_extract_keyBE_from_key (&is, &os, &tp->type);
   assert (is.m_index == d->key.keysize);
 
   /* We know the key size for XCDR2 encoding, but for XCDR1 there can be additional
@@ -781,13 +821,13 @@ static void serdata_default_get_keyhash (const struct ddsi_serdata *serdata_comm
   dds_ostreamBE_fini (&os);
 }
 
-const struct ddsi_serdata_ops ddsi_serdata_ops_cdr = {
+const struct ddsi_serdata_ops dds_serdata_ops_cdr = {
   .get_size = serdata_default_get_size,
   .eqkey = serdata_default_eqkey,
   .free = serdata_default_free,
   .from_ser = serdata_default_from_ser,
   .from_ser_iov = serdata_default_from_ser_iov,
-  .from_keyhash = ddsi_serdata_from_keyhash_cdr,
+  .from_keyhash = serdata_default_from_keyhash_cdr,
   .from_sample = serdata_default_from_sample_cdr,
   .to_ser = serdata_default_to_ser,
   .to_sample = serdata_default_to_sample_cdr,
@@ -803,13 +843,13 @@ const struct ddsi_serdata_ops ddsi_serdata_ops_cdr = {
 #endif
 };
 
-const struct ddsi_serdata_ops ddsi_serdata_ops_xcdr2 = {
+const struct ddsi_serdata_ops dds_serdata_ops_xcdr2 = {
   .get_size = serdata_default_get_size,
   .eqkey = serdata_default_eqkey,
   .free = serdata_default_free,
   .from_ser = serdata_default_from_ser,
   .from_ser_iov = serdata_default_from_ser_iov,
-  .from_keyhash = ddsi_serdata_from_keyhash_cdr,
+  .from_keyhash = serdata_default_from_keyhash_cdr,
   .from_sample = serdata_default_from_sample_xcdr2,
   .to_ser = serdata_default_to_ser,
   .to_sample = serdata_default_to_sample_cdr,
@@ -825,13 +865,13 @@ const struct ddsi_serdata_ops ddsi_serdata_ops_xcdr2 = {
 #endif
 };
 
-const struct ddsi_serdata_ops ddsi_serdata_ops_cdr_nokey = {
+const struct ddsi_serdata_ops dds_serdata_ops_cdr_nokey = {
   .get_size = serdata_default_get_size,
   .eqkey = serdata_default_eqkey_nokey,
   .free = serdata_default_free,
   .from_ser = serdata_default_from_ser_nokey,
   .from_ser_iov = serdata_default_from_ser_iov_nokey,
-  .from_keyhash = ddsi_serdata_from_keyhash_cdr_nokey,
+  .from_keyhash = serdata_default_from_keyhash_cdr_nokey,
   .from_sample = serdata_default_from_sample_cdr_nokey,
   .to_ser = serdata_default_to_ser,
   .to_sample = serdata_default_to_sample_cdr,
@@ -847,13 +887,13 @@ const struct ddsi_serdata_ops ddsi_serdata_ops_cdr_nokey = {
 #endif
 };
 
-const struct ddsi_serdata_ops ddsi_serdata_ops_xcdr2_nokey = {
+const struct ddsi_serdata_ops dds_serdata_ops_xcdr2_nokey = {
   .get_size = serdata_default_get_size,
   .eqkey = serdata_default_eqkey_nokey,
   .free = serdata_default_free,
   .from_ser = serdata_default_from_ser_nokey,
   .from_ser_iov = serdata_default_from_ser_iov_nokey,
-  .from_keyhash = ddsi_serdata_from_keyhash_cdr_nokey,
+  .from_keyhash = serdata_default_from_keyhash_cdr_nokey,
   .from_sample = serdata_default_from_sample_xcdr2_nokey,
   .to_ser = serdata_default_to_ser,
   .to_sample = serdata_default_to_sample_cdr,

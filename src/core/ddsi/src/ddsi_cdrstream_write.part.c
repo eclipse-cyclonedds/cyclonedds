@@ -224,7 +224,7 @@ static const uint32_t *dds_stream_write_seqBO (DDS_OSTREAM_T * __restrict os, co
         break;
       case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: {
         const uint32_t elem_size = get_primitive_size (subtype);
-        const align_t align = get_align (xcdrv, elem_size);
+        const align_t align = dds_cdr_get_align (xcdrv, elem_size);
         void * dst;
         /* Combining put bytes and swap into a single step would improve the performance
            of writing data in non-native endianess. But in most cases the data will
@@ -305,7 +305,7 @@ static const uint32_t *dds_stream_write_arrBO (DDS_OSTREAM_T * __restrict os, co
       break;
     case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: {
       const uint32_t elem_size = get_primitive_size (subtype);
-      const align_t align = get_align (xcdrv, elem_size);
+      const align_t align = dds_cdr_get_align (xcdrv, elem_size);
       void * dst;
       /* See comment for stream_write_seq, swap is a no-op in most cases */
       dds_os_put_bytes_aligned ((struct dds_ostream *)os, addr, num, elem_size, align, &dst);

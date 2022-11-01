@@ -30,10 +30,10 @@ static void free_sample (void *s)
   dds_free (s);
 }
 
-static void init_sertype (struct ddsi_sertype_default *sertype)
+static void init_desc (struct ddsi_cdrstream_desc *cdrstream_desc)
 {
-  memset (sertype, 0, sizeof (*sertype));
-  sertype->type = (struct ddsi_sertype_default_desc) {
+  memset (cdrstream_desc, 0, sizeof (*cdrstream_desc));
+  *cdrstream_desc = (struct ddsi_cdrstream_desc) {
     .size = desc->m_size,
     .align = desc->m_align,
     .flagset = desc->m_flagset,
@@ -41,14 +41,14 @@ static void init_sertype (struct ddsi_sertype_default *sertype)
     .ops.ops = (uint32_t *) desc->m_ops
   };
 
-  sertype->type.keys.nkeys = desc->m_nkeys;
-  if (sertype->type.keys.nkeys > 0)
+  cdrstream_desc->keys.nkeys = desc->m_nkeys;
+  if (cdrstream_desc->keys.nkeys > 0)
   {
-    sertype->type.keys.keys = dds_alloc (sertype->type.keys.nkeys  * sizeof (*sertype->type.keys.keys));
-    for (uint32_t i = 0; i < sertype->type.keys.nkeys; i++)
+    cdrstream_desc->keys.keys = dds_alloc (cdrstream_desc->keys.nkeys  * sizeof (*cdrstream_desc->keys.keys));
+    for (uint32_t i = 0; i < cdrstream_desc->keys.nkeys; i++)
     {
-      sertype->type.keys.keys[i].ops_offs = desc->m_keys[i].m_offset;
-      sertype->type.keys.keys[i].idx = desc->m_keys[i].m_idx;
+      cdrstream_desc->keys.keys[i].ops_offs = desc->m_keys[i].m_offset;
+      cdrstream_desc->keys.keys[i].idx = desc->m_keys[i].m_idx;
     }
   }
 }
@@ -64,7 +64,7 @@ static void print_raw_cdr (dds_ostream_t *os)
   printf("\n");
 }
 
-int rd_cmp_print_key (dds_ostream_t *os, const void *msg_wr, struct ddsi_sertype_default *sertype)
+int rd_cmp_print_key (dds_ostream_t *os, const void *msg_wr, struct ddsi_cdrstream_desc *cdrstream_desc)
 {
   int res;
   char buf[99999];
@@ -72,7 +72,7 @@ int rd_cmp_print_key (dds_ostream_t *os, const void *msg_wr, struct ddsi_sertype
 
   // read
   void *msg_rd = ddsrt_calloc (1, desc->m_size);
-  dds_stream_read_key (&is, msg_rd, sertype);
+  dds_stream_read_key (&is, msg_rd, cdrstream_desc);
 
   // compare
   res = cmp_key(msg_wr, msg_rd);
@@ -80,7 +80,7 @@ int rd_cmp_print_key (dds_ostream_t *os, const void *msg_wr, struct ddsi_sertype
 
   // print
   is.m_index = 0;
-  (void) dds_stream_print_key (&is, sertype, buf, sizeof (buf));
+  (void) dds_stream_print_key (&is, cdrstream_desc, buf, sizeof (buf));
   printf("key: %s\n", buf);
 
   free_sample(msg_rd);
@@ -96,8 +96,8 @@ int main(int argc, char **argv)
   printf("Running test for type %s\n", desc->m_typename);
 
   // create sertype
-  struct ddsi_sertype_default sertype;
-  init_sertype (&sertype);
+  struct ddsi_cdrstream_desc cdrstream_desc;
+  init_desc (&cdrstream_desc);
 
   enum { LE, BE } tests[2] = { LE, BE };
   for (size_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
@@ -114,9 +114,9 @@ int main(int argc, char **argv)
     dds_ostream_t os = { NULL, 0, 0, CDR_ENC_VERSION_2 };
     bool ret;
     if (tests[i] == BE)
-      ret = dds_stream_write_sampleBE ((dds_ostreamBE_t *)(&os), msg_wr, &sertype);
+      ret = dds_stream_write_sampleBE ((dds_ostreamBE_t *)(&os), msg_wr, &cdrstream_desc);
     else
-      ret = dds_stream_write_sampleLE ((dds_ostreamLE_t *)(&os), msg_wr, &sertype);
+      ret = dds_stream_write_sampleLE ((dds_ostreamLE_t *)(&os), msg_wr, &cdrstream_desc);
     if (!ret)
     {
       printf("cdr write failed\n");
@@ -131,7 +131,7 @@ int main(int argc, char **argv)
     uint32_t actual_size = 0;
     bool swap = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN) ? (tests[i] == BE) : (tests[i] == LE);
     printf("cdr normalize (%sswap)\n", swap ? "" : "no ");
-    if (!dds_stream_normalize ((void *)is.m_buffer, os.m_index, swap, CDR_ENC_VERSION_2, &sertype, false, &actual_size))
+    if (!dds_stream_normalize ((void *)is.m_buffer, os.m_index, swap, CDR_ENC_VERSION_2, &cdrstream_desc, false, &actual_size))
     {
       printf("cdr normalize failed\n");
       return 1;
@@ -145,21 +145,21 @@ int main(int argc, char **argv)
     // read data and check for expected result
     printf("cdr read data\n");
     void *msg_rd = ddsrt_calloc (1, desc->m_size);
-    dds_stream_read_sample (&is, msg_rd, &sertype);
+    dds_stream_read_sample (&is, msg_rd, &cdrstream_desc);
     res = cmp_sample(msg_wr, msg_rd);
     printf("data compare result: %d\n", res);
 
     // print sample
     is.m_index = 0;
-    (void) dds_stream_print_sample (&is, &sertype, buf, sizeof (buf));
+    (void) dds_stream_print_sample (&is, &cdrstream_desc, buf, sizeof (buf));
     printf("sample: %s\n", buf);
 
-    if (res == 0 && sertype.type.keys.nkeys > 0)
+    if (res == 0 && cdrstream_desc.keys.nkeys > 0)
     {
       // extract key from data
       is.m_index = 0;
       dds_ostream_t os_key_from_data = { NULL, 0, 0, CDR_ENC_VERSION_2 };
-      if (!dds_stream_extract_key_from_data (&is, &os_key_from_data, &sertype))
+      if (!dds_stream_extract_key_from_data (&is, &os_key_from_data, &cdrstream_desc))
       {
         printf("extract key from data failed\n");
         return 1;
@@ -167,19 +167,19 @@ int main(int argc, char **argv)
       printf("key cdr:\n");
       print_raw_cdr (&os_key_from_data);
 
-      res = rd_cmp_print_key (&os_key_from_data, msg_wr, &sertype);
+      res = rd_cmp_print_key (&os_key_from_data, msg_wr, &cdrstream_desc);
       if (res != 0)
         break;
 
       // write key
       dds_ostream_t os_wr_key = { NULL, 0, 0, CDR_ENC_VERSION_2 };
-      dds_stream_write_key (&os_wr_key, msg_wr, &sertype);
+      dds_stream_write_key (&os_wr_key, msg_wr, &cdrstream_desc);
 
       // extract key from key
       dds_istream_t is_key_from_key = { os_wr_key.m_buffer, os_wr_key.m_size, 0, CDR_ENC_VERSION_2 };
       dds_ostream_t os_key_from_key = { NULL, 0, 0, CDR_ENC_VERSION_2 };
-      dds_stream_extract_key_from_key (&is_key_from_key, &os_key_from_key, &sertype);
-      res = rd_cmp_print_key (&os_key_from_key, msg_wr, &sertype);
+      dds_stream_extract_key_from_key (&is_key_from_key, &os_key_from_key, &cdrstream_desc);
+      res = rd_cmp_print_key (&os_key_from_key, msg_wr, &cdrstream_desc);
 
       dds_ostream_fini (&os_key_from_data);
       dds_ostream_fini (&os_key_from_key);
@@ -193,8 +193,8 @@ int main(int argc, char **argv)
       break;
   }
 
-  if (sertype.type.keys.nkeys > 0)
-    dds_free (sertype.type.keys.keys);
+  if (cdrstream_desc.keys.nkeys > 0)
+    dds_free (cdrstream_desc.keys.keys);
 
   return res;
 }

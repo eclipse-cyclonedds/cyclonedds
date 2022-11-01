@@ -13,7 +13,6 @@
 #include <string.h>
 #include "dds/ddsi/ddsi_pmd.h"
 #include "dds/ddsi/ddsi_serdata.h"
-#include "dds/ddsi/ddsi_serdata_default.h"
 #include "dds/ddsi/ddsi_serdata_pserop.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/q_bswap.h"

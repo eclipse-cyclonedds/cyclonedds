@@ -16,7 +16,6 @@
 #include "dds/ddsrt/mh3.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsi/ddsi_serdata.h"
-#include "dds/ddsi/ddsi_serdata_default.h"
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/ddsi_plist_generic.h"
 #include "dds/ddsi/ddsi_guid.h"

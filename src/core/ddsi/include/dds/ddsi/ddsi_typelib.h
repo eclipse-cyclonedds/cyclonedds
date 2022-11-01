@@ -36,7 +36,7 @@ extern const ddsrt_avl_treedef_t ddsi_typedeps_reverse_treedef;
 struct ddsi_generic_proxy_endpoint;
 struct ddsi_domaingv;
 struct ddsi_sertype;
-struct ddsi_sertype_cdr_data;
+struct ddsi_cdrstream_cdr_data;
 struct ddsi_type;
 struct ddsi_type_pair;
 
@@ -61,7 +61,7 @@ struct ddsi_typeid_str {
 
 DDS_EXPORT bool ddsi_typeinfo_equal (const ddsi_typeinfo_t *a, const ddsi_typeinfo_t *b, ddsi_type_include_deps_t deps);
 DDS_EXPORT ddsi_typeid_t *ddsi_typeinfo_typeid (const ddsi_typeinfo_t *type_info, ddsi_typeid_kind_t kind);
-DDS_EXPORT ddsi_typeinfo_t *ddsi_typeinfo_deser (const struct ddsi_sertype_cdr_data *ser);
+DDS_EXPORT ddsi_typeinfo_t *ddsi_typeinfo_deser (const unsigned char *data, uint32_t sz);
 DDS_EXPORT void ddsi_typeinfo_fini (ddsi_typeinfo_t *typeinfo);
 DDS_EXPORT ddsi_typeinfo_t * ddsi_typeinfo_dup (const ddsi_typeinfo_t *src);
 DDS_EXPORT const ddsi_typeid_t *ddsi_typeinfo_minimal_typeid (const ddsi_typeinfo_t *typeinfo);
@@ -71,8 +71,8 @@ DDS_EXPORT char *ddsi_make_typeid_str (struct ddsi_typeid_str *buf, const ddsi_t
 bool ddsi_typeinfo_present (const ddsi_typeinfo_t *typeinfo);
 bool ddsi_typeinfo_valid (const ddsi_typeinfo_t *typeinfo);
 
-DDS_EXPORT ddsi_typemap_t *ddsi_typemap_deser (const struct ddsi_sertype_cdr_data *ser);
 DDS_EXPORT void ddsi_typemap_fini (ddsi_typemap_t *typemap);
+DDS_EXPORT ddsi_typemap_t *ddsi_typemap_deser (const unsigned char *data, uint32_t sz);
 
 void ddsi_type_register_dep (struct ddsi_domaingv *gv, const ddsi_typeid_t *src_type_id, struct ddsi_type **dst_dep_type, const struct DDS_XTypes_TypeIdentifier *dep_type_id);
 void ddsi_type_ref_locked (struct ddsi_domaingv *gv, struct ddsi_type **type, const struct ddsi_type *src);

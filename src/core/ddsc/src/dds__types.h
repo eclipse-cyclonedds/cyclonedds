@@ -258,6 +258,9 @@ typedef struct dds_domain {
 
   struct ddsi_builtin_topic_interface btif;
   struct ddsi_domaingv gv;
+
+  /* Transmit side: pool for the serializer & transmit messages */
+  struct dds_serdatapool *serpool;
 } dds_domain;
 
 typedef struct dds_subscriber {

@@ -35,7 +35,6 @@ extern "C" {
 #endif
 
 struct nn_xmsgpool;
-struct serdatapool;
 struct nn_dqueue;
 struct nn_reorder;
 struct nn_defrag;
@@ -279,9 +278,7 @@ struct ddsi_domaingv {
   struct nn_dqueue *user_dqueue;
 #endif
 
-  /* Transmit side: pools for the serializer & transmit messages and a
-     transmit queue*/
-  struct serdatapool *serpool;
+  /* Transmit side: pool for transmit queue*/
   struct nn_xmsgpool *xmsgpool;
   struct ddsi_sertype *spdp_type; /* key = participant GUID */
   struct ddsi_sertype *sedp_reader_type; /* key = endpoint GUID */

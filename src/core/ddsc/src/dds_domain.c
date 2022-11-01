@@ -30,6 +30,7 @@
 #include "dds/ddsi/ddsi_gc.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_typelib.h"
+#include "dds__serdata_default.h"
 
 #ifdef DDS_HAS_SHM
 #include "shm__monitor.h"
@@ -134,6 +135,8 @@ static dds_entity_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
     goto fail_rtps_init;
   }
 
+  domain->serpool = dds_serdatapool_new ();
+
 #ifdef DDS_HAS_SHM
   // if DDS_HAS_SHM is enabled the iceoryx runtime was created in rtps_init and is ready
   // TODO: sufficient if we have multiple domains?
@@ -196,6 +199,7 @@ fail_threadmon_start:
   }
 fail_threadmon_new:
   rtps_fini (&domain->gv);
+  dds_serdatapool_free (domain->serpool);
 fail_rtps_init:
 fail_rtps_config:
   if (domain->cfgst)
@@ -329,6 +333,7 @@ static dds_return_t dds_domain_free (dds_entity *vdomain)
 #endif
 
   rtps_fini (&domain->gv);
+  dds_serdatapool_free (domain->serpool);
 
   /* tearing down the top-level object has more consequences, so it waits until signalled that all
      domains have been removed */
