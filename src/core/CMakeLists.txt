@@ -57,6 +57,7 @@ if(ENABLE_SHM)
   target_link_libraries(ddsc PRIVATE iceoryx_binding_c::iceoryx_binding_c)
 endif()
 
+include(cdr/CMakeLists.txt)
 include(ddsi/CMakeLists.txt)
 include(ddsc/CMakeLists.txt)
 

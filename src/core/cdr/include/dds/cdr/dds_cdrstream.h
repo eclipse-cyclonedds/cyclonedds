@@ -9,22 +9,44 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef DDSI_CDRSTREAM_H
-#define DDSI_CDRSTREAM_H
+#ifndef DDS_CDRSTREAM_H
+#define DDS_CDRSTREAM_H
 
 #include "dds/ddsrt/bswap.h"
 #include "dds/ddsrt/static_assert.h"
-#include "dds/ddsi/ddsi_serdata.h"
+#include "dds/dds.h"
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
 
-#define DDSI_CDRSTREAM_MAX_NESTING_DEPTH 32  /* maximum level of nesting for key extraction */
+#define DDS_CDRSTREAM_MAX_NESTING_DEPTH 32  /* maximum level of nesting for key extraction */
+
+/*
+  Encoding version to be used for serialization. Encoding version 1
+  represents the XCDR1 format as defined in the DDS XTypes specification,
+  with PLAIN_CDR(1) that is backwards compatible with the CDR encoding
+  used by non-XTypes enabled nodes.
+*/
+#define DDS_CDR_ENC_VERSION_UNDEF     0
+#define DDS_CDR_ENC_VERSION_1         1
+#define DDS_CDR_ENC_VERSION_2         2
+
+#define DDS_CDR_ENC_FORMAT_PLAIN      0
+#define DDS_CDR_ENC_FORMAT_DELIMITED  1
+#define DDS_CDR_ENC_FORMAT_PL         2
+
 
 struct dds_cdr_header {
   unsigned short identifier;
   unsigned short options;
+};
+
+enum dds_cdr_type_extensibility
+{
+  DDS_CDR_TYPE_EXT_FINAL = 0,
+  DDS_CDR_TYPE_EXT_APPENDABLE = 1,
+  DDS_CDR_TYPE_EXT_MUTABLE = 2
 };
 
 typedef struct dds_istream {
@@ -49,27 +71,27 @@ typedef struct dds_ostreamLE {
   dds_ostream_t x;
 } dds_ostreamLE_t;
 
-typedef struct ddsi_cdrstream_desc_key {
+typedef struct dds_cdrstream_desc_key {
   uint32_t ops_offs;   /* Offset for key ops */
   uint32_t idx;        /* Key index (used for key order) */
-} ddsi_cdrstream_desc_key_t;
+} dds_cdrstream_desc_key_t;
 
-typedef struct ddsi_cdrstream_desc_key_seq {
+typedef struct dds_cdrstream_desc_key_seq {
   uint32_t nkeys;
-  ddsi_cdrstream_desc_key_t *keys;
-} ddsi_cdrstream_desc_key_seq_t;
+  dds_cdrstream_desc_key_t *keys;
+} dds_cdrstream_desc_key_seq_t;
 
-typedef struct ddsi_cdrstream_desc_op_seq {
+typedef struct dds_cdrstream_desc_op_seq {
   uint32_t nops;    /* Number of words in ops (which >= number of ops stored in preproc output) */
   uint32_t *ops;    /* Marshalling meta data */
-} ddsi_cdrstream_desc_op_seq_t;
+} dds_cdrstream_desc_op_seq_t;
 
-struct ddsi_cdrstream_desc {
+struct dds_cdrstream_desc {
   uint32_t size;    /* Size of type */
   uint32_t align;   /* Alignment of top-level type */
   uint32_t flagset; /* Flags */
-  ddsi_cdrstream_desc_key_seq_t keys;
-  ddsi_cdrstream_desc_op_seq_t ops;
+  dds_cdrstream_desc_key_seq_t keys;
+  dds_cdrstream_desc_op_seq_t ops;
   size_t opt_size_xcdr1;
   size_t opt_size_xcdr2;
 };
@@ -83,6 +105,7 @@ typedef uint32_t align_t;
 #endif
 
 DDSRT_STATIC_ASSERT (offsetof (dds_ostreamLE_t, x) == 0);
+
 DDSRT_STATIC_ASSERT (offsetof (dds_ostreamBE_t, x) == 0);
 
 inline align_t dds_cdr_get_align (uint32_t xcdr_version, uint32_t size)
@@ -93,7 +116,7 @@ inline align_t dds_cdr_get_align (uint32_t xcdr_version, uint32_t size)
 #define MK_ALIGN(n) (n)
 #endif
   if (size > 4)
-    return xcdr_version == CDR_ENC_VERSION_2 ? MK_ALIGN(4) : MK_ALIGN(8);
+    return xcdr_version == DDS_CDR_ENC_VERSION_2 ? MK_ALIGN(4) : MK_ALIGN(8);
   return MK_ALIGN(size);
 #undef MK_ALIGN
 }
@@ -112,38 +135,38 @@ DDS_EXPORT void dds_ostreamBE_fini (dds_ostreamBE_t * __restrict st);
 dds_ostream_t dds_ostream_from_buffer(void *buffer, size_t size, uint16_t write_encoding_version);
 
 // *actual_size is set to the actual size of the data (*actual_size <= size) on successful return
-DDS_EXPORT bool dds_stream_normalize (void * __restrict data, uint32_t size, bool bswap, uint32_t xcdr_version, const struct ddsi_cdrstream_desc * __restrict type, bool just_key, uint32_t * __restrict actual_size) ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
+DDS_EXPORT bool dds_stream_normalize (void * __restrict data, uint32_t size, bool bswap, uint32_t xcdr_version, const struct dds_cdrstream_desc * __restrict type, bool just_key, uint32_t * __restrict actual_size) ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 DDS_EXPORT const uint32_t *dds_stream_normalize_data (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t xcdr_version, const uint32_t * __restrict ops) ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 
 DDS_EXPORT const uint32_t *dds_stream_write (dds_ostream_t * __restrict os, const char * __restrict data, const uint32_t * __restrict ops);
 DDS_EXPORT const uint32_t *dds_stream_writeLE (dds_ostreamLE_t * __restrict os, const char * __restrict data, const uint32_t * __restrict ops);
 DDS_EXPORT const uint32_t *dds_stream_writeBE (dds_ostreamBE_t * __restrict os, const char * __restrict data, const uint32_t * __restrict ops);
 DDS_EXPORT const uint32_t * dds_stream_write_with_byte_order (dds_ostream_t * __restrict os, const char * __restrict data, const uint32_t * __restrict ops, enum ddsrt_byte_order_selector bo);
-DDS_EXPORT bool dds_stream_write_sample (dds_ostream_t * __restrict os, const void * __restrict data, const struct ddsi_cdrstream_desc * __restrict type);
-DDS_EXPORT bool dds_stream_write_sampleLE (dds_ostreamLE_t * __restrict os, const void * __restrict data, const struct ddsi_cdrstream_desc * __restrict type);
-DDS_EXPORT bool dds_stream_write_sampleBE (dds_ostreamBE_t * __restrict os, const void * __restrict data, const struct ddsi_cdrstream_desc * __restrict type);
-DDS_EXPORT void dds_stream_read_sample (dds_istream_t * __restrict is, void * __restrict data, const struct ddsi_cdrstream_desc * __restrict type);
+DDS_EXPORT bool dds_stream_write_sample (dds_ostream_t * __restrict os, const void * __restrict data, const struct dds_cdrstream_desc * __restrict type);
+DDS_EXPORT bool dds_stream_write_sampleLE (dds_ostreamLE_t * __restrict os, const void * __restrict data, const struct dds_cdrstream_desc * __restrict type);
+DDS_EXPORT bool dds_stream_write_sampleBE (dds_ostreamBE_t * __restrict os, const void * __restrict data, const struct dds_cdrstream_desc * __restrict type);
+DDS_EXPORT void dds_stream_read_sample (dds_istream_t * __restrict is, void * __restrict data, const struct dds_cdrstream_desc * __restrict type);
 DDS_EXPORT void dds_stream_free_sample (void * __restrict data, const uint32_t * __restrict ops);
 
 DDS_EXPORT uint32_t dds_stream_countops (const uint32_t * __restrict ops, uint32_t nkeys, const dds_key_descriptor_t * __restrict keys);
-size_t dds_stream_check_optimize (const struct ddsi_cdrstream_desc * __restrict desc, uint32_t xcdr_version);
+size_t dds_stream_check_optimize (const struct dds_cdrstream_desc * __restrict desc, uint32_t xcdr_version);
 
-void dds_stream_write_key (dds_ostream_t * __restrict os, const char * __restrict sample, const struct ddsi_cdrstream_desc * __restrict type);
-void dds_stream_write_keyBE (dds_ostreamBE_t * __restrict os, const char * __restrict sample, const struct ddsi_cdrstream_desc * __restrict type);
-DDS_EXPORT bool dds_stream_extract_key_from_data (dds_istream_t * __restrict is, dds_ostream_t * __restrict os, const struct ddsi_cdrstream_desc * __restrict type);
-DDS_EXPORT void dds_stream_extract_key_from_key (dds_istream_t * __restrict is, dds_ostream_t * __restrict os, const struct ddsi_cdrstream_desc * __restrict type);
-DDS_EXPORT bool dds_stream_extract_keyBE_from_data (dds_istream_t * __restrict is, dds_ostreamBE_t * __restrict os, const struct ddsi_cdrstream_desc * __restrict type);
-DDS_EXPORT void dds_stream_extract_keyBE_from_key (dds_istream_t * __restrict is, dds_ostreamBE_t * __restrict os, const struct ddsi_cdrstream_desc * __restrict type);
+void dds_stream_write_key (dds_ostream_t * __restrict os, const char * __restrict sample, const struct dds_cdrstream_desc * __restrict type);
+void dds_stream_write_keyBE (dds_ostreamBE_t * __restrict os, const char * __restrict sample, const struct dds_cdrstream_desc * __restrict type);
+DDS_EXPORT bool dds_stream_extract_key_from_data (dds_istream_t * __restrict is, dds_ostream_t * __restrict os, const struct dds_cdrstream_desc * __restrict type);
+DDS_EXPORT void dds_stream_extract_key_from_key (dds_istream_t * __restrict is, dds_ostream_t * __restrict os, const struct dds_cdrstream_desc * __restrict type);
+DDS_EXPORT bool dds_stream_extract_keyBE_from_data (dds_istream_t * __restrict is, dds_ostreamBE_t * __restrict os, const struct dds_cdrstream_desc * __restrict type);
+DDS_EXPORT void dds_stream_extract_keyBE_from_key (dds_istream_t * __restrict is, dds_ostreamBE_t * __restrict os, const struct dds_cdrstream_desc * __restrict type);
 
 DDS_EXPORT const uint32_t *dds_stream_read (dds_istream_t * __restrict is, char * __restrict data, const uint32_t * __restrict ops);
-DDS_EXPORT void dds_stream_read_key (dds_istream_t * __restrict is, char * __restrict sample, const struct ddsi_cdrstream_desc * __restrict type);
-DDS_EXPORT size_t dds_stream_print_key (dds_istream_t * __restrict is, const struct ddsi_cdrstream_desc * __restrict type, char * __restrict buf, size_t size);
-DDS_EXPORT size_t dds_stream_print_sample (dds_istream_t * __restrict is, const struct ddsi_cdrstream_desc * __restrict type, char * __restrict buf, size_t size);
+DDS_EXPORT void dds_stream_read_key (dds_istream_t * __restrict is, char * __restrict sample, const struct dds_cdrstream_desc * __restrict type);
+DDS_EXPORT size_t dds_stream_print_key (dds_istream_t * __restrict is, const struct dds_cdrstream_desc * __restrict type, char * __restrict buf, size_t size);
+DDS_EXPORT size_t dds_stream_print_sample (dds_istream_t * __restrict is, const struct dds_cdrstream_desc * __restrict type, char * __restrict buf, size_t size);
 
 uint16_t dds_stream_minimum_xcdr_version (const uint32_t * __restrict ops);
 uint32_t dds_stream_type_nesting_depth (const uint32_t * __restrict ops);
-bool dds_stream_extensibility (const uint32_t * __restrict ops, enum ddsi_sertype_extensibility *ext);
-DDS_EXPORT void dds_cdrstream_desc_from_topic_desc (struct ddsi_cdrstream_desc *desc, const dds_topic_descriptor_t *topic_desc);
+bool dds_stream_extensibility (const uint32_t * __restrict ops, enum dds_cdr_type_extensibility *ext);
+DDS_EXPORT void dds_cdrstream_desc_from_topic_desc (struct dds_cdrstream_desc *desc, const dds_topic_descriptor_t *topic_desc);
 
 
 #if defined (__cplusplus)

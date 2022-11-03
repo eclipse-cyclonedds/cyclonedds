@@ -222,21 +222,6 @@ typedef struct InfoSRC {
 #define CDR_ENC_TO_NATIVE(x) ((x) & ~0x0001)
 #endif
 
-/*
-  Encoding version to be used for serialization. Encoding version 1
-  represents the XCDR1 format as defined in the DDS XTypes specification,
-  with PLAIN_CDR(1) that is backwards compatible with the CDR encoding
-  used by non-XTypes enabled nodes.
-*/
-#define CDR_ENC_VERSION_UNDEF     0
-#define CDR_ENC_VERSION_1         1
-#define CDR_ENC_VERSION_2         2
-
-#define CDR_ENC_FORMAT_PLAIN      0
-#define CDR_ENC_FORMAT_DELIMITED  1
-#define CDR_ENC_FORMAT_PL         2
-
-
 typedef uint16_t nn_parameterid_t; /* spec says short */
 typedef struct nn_parameter {
   nn_parameterid_t parameterid;

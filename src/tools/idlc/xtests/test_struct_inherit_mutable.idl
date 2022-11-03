@@ -37,7 +37,7 @@ module test {
 
 #include <string.h>
 #include "dds/dds.h"
-#include "dds/ddsi/ddsi_cdrstream.h"
+#include "dds/cdr/dds_cdrstream.h"
 #include "test_struct_inherit_mutable.h"
 #include "common.h"
 

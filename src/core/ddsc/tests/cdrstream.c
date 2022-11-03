@@ -20,7 +20,7 @@
 #include "dds/ddsc/dds_public_impl.h"
 #include "dds__topic.h"
 #include "dds/ddsi/ddsi_serdata.h"
-#include "dds/ddsi/ddsi_cdrstream.h"
+#include "dds/cdr/dds_cdrstream.h"
 #include "test_util.h"
 #include "MinXcdrVersion.h"
 #include "CdrStreamOptimize.h"
@@ -39,8 +39,8 @@
 #define RND_STR32 (ddsrt_random () % 2 ? (char []){ 't', RND_CHAR4, 0 } : (char []){ 't', 'e', 's', 't', RND_CHAR8, RND_CHAR8, RND_CHAR8, RND_CHAR4, 0 })
 #define RND_STR5 (ddsrt_random () % 2 ? (char []){ 't', RND_CHAR, 0 } : (char []){ 't', RND_CHAR4, 0 })
 
-#define XCDR1 CDR_ENC_VERSION_1
-#define XCDR2 CDR_ENC_VERSION_2
+#define XCDR1 DDS_CDR_ENC_VERSION_1
+#define XCDR2 DDS_CDR_ENC_VERSION_2
 
 typedef void * (*sample_empty) (void);
 typedef void * (*sample_init) (void);
@@ -1763,11 +1763,11 @@ CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc1, const dds_to
     os.m_buffer = NULL;
     os.m_index = 0;
     os.m_size = 0;
-    os.m_xcdr_version = CDR_ENC_VERSION_2;
+    os.m_xcdr_version = DDS_CDR_ENC_VERSION_2;
 
-    struct ddsi_cdrstream_desc desc_wr;
+    struct dds_cdrstream_desc desc_wr;
     memset (&desc_wr, 0, sizeof (desc_wr));
-    desc_wr = (struct ddsi_cdrstream_desc) {
+    desc_wr = (struct dds_cdrstream_desc) {
       .size = topic_desc_wr->m_size,
       .align = topic_desc_wr->m_align,
       .flagset = topic_desc_wr->m_flagset,
@@ -1786,11 +1786,11 @@ CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc1, const dds_to
     is.m_buffer = os.m_buffer;
     is.m_index = 0;
     is.m_size = os.m_size;
-    is.m_xcdr_version = CDR_ENC_VERSION_2;
+    is.m_xcdr_version = DDS_CDR_ENC_VERSION_2;
 
-    struct ddsi_cdrstream_desc desc_rd;
+    struct dds_cdrstream_desc desc_rd;
     memset (&desc_rd, 0, sizeof (desc_rd));
-    desc_rd = (struct ddsi_cdrstream_desc) {
+    desc_rd = (struct dds_cdrstream_desc) {
       .size = topic_desc_rd->m_size,
       .align = topic_desc_rd->m_align,
       .flagset = topic_desc_rd->m_flagset,
@@ -1890,7 +1890,7 @@ CU_Test (ddsc_cdrstream, check_optimize)
   for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
   {
     printf("running test for desc %s: %s ", tests[i].desc->m_typename, tests[i].description);
-    struct ddsi_cdrstream_desc ddsi_desc = { .ops.nops = tests[i].desc->m_nops, .ops.ops = (uint32_t *) tests[i].desc->m_ops, .size = tests[i].desc->m_size };
+    struct dds_cdrstream_desc ddsi_desc = { .ops.nops = tests[i].desc->m_nops, .ops.ops = (uint32_t *) tests[i].desc->m_ops, .size = tests[i].desc->m_size };
     size_t opt1 = dds_stream_check_optimize (&ddsi_desc, XCDR1);
     size_t opt2 = dds_stream_check_optimize (&ddsi_desc, XCDR2);
     printf ("(opt cdr1: %zu, cdr2: %zu)\n", opt1, opt2);

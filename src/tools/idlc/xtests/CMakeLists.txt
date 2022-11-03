@@ -34,6 +34,7 @@ set(_sources
   test_struct_inherit_mutable_keys.idl
 )
 
+set(_includes "${_includes}\\;${CMAKE_SOURCE_DIR}/src/core/cdr/include")
 set(_includes "${_includes}\\;${CMAKE_SOURCE_DIR}/src/core/ddsc/include")
 set(_includes "${_includes}\\;${CMAKE_SOURCE_DIR}/src/core/ddsi/include")
 set(_includes "${_includes}\\;${CMAKE_SOURCE_DIR}/src/ddsrt/include")

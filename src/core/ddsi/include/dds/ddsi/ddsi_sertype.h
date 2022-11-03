@@ -18,6 +18,7 @@
 #include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/ddsi_typelib.h"
 #include "dds/ddsc/dds_public_alloc.h"
+#include "dds/cdr/dds_cdrstream.h"
 #include "dds/export.h"
 
 #if defined (__cplusplus)
@@ -159,13 +160,6 @@ struct ddsi_sertype_ops {
   ddsi_sertype_serialize_into_t serialize_into;
 };
 
-enum ddsi_sertype_extensibility
-{
-  DDSI_SERTYPE_EXT_FINAL = 0,
-  DDSI_SERTYPE_EXT_APPENDABLE = 1,
-  DDSI_SERTYPE_EXT_MUTABLE = 2
-};
-
 struct ddsi_sertype *ddsi_sertype_lookup_locked (struct ddsi_domaingv *gv, const struct ddsi_sertype *sertype_template);
 void ddsi_sertype_register_locked (struct ddsi_domaingv *gv, struct ddsi_sertype *sertype);
 
@@ -188,7 +182,7 @@ DDS_EXPORT uint32_t ddsi_sertype_compute_serdata_basehash (const struct ddsi_ser
 DDS_EXPORT bool ddsi_sertype_equal (const struct ddsi_sertype *a, const struct ddsi_sertype *b);
 DDS_EXPORT uint32_t ddsi_sertype_hash (const struct ddsi_sertype *tp);
 
-DDS_EXPORT uint16_t ddsi_sertype_extensibility_enc_format (enum ddsi_sertype_extensibility type_extensibility);
+DDS_EXPORT uint16_t ddsi_sertype_extensibility_enc_format (enum dds_cdr_type_extensibility type_extensibility);
 DDS_EXPORT uint16_t ddsi_sertype_get_native_enc_identifier (uint32_t enc_version, uint32_t encoding_format);
 DDS_EXPORT uint32_t ddsi_sertype_enc_id_xcdr_version (uint16_t cdr_identifier);
 DDS_EXPORT uint32_t ddsi_sertype_enc_id_enc_format (uint16_t cdr_identifier);

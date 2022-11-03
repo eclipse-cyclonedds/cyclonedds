@@ -62,7 +62,7 @@ struct ddsi_serdata_plist {
 
 struct ddsi_sertype_plist {
   struct ddsi_sertype c;
-  uint16_t encoding_format; /* CDR_ENC_FORMAT_(PLAIN|DELIMITED|PL) */
+  uint16_t encoding_format; /* DDS_CDR_ENC_FORMAT_(PLAIN|DELIMITED|PL) */
   nn_parameterid_t keyparam;
 };
 

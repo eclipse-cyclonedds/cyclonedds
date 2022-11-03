@@ -61,7 +61,7 @@ print CYC <<EOF;
 #include "dds/dds.h"
 #include "dds/ddsrt/random.h"
 #include "dds/ddsrt/sockets.h"
-#include "dds/ddsi/ddsi_cdrstream.h"
+#include "dds/cdr/dds_cdrstream.h"
 #include "dds/ddsi/ddsi_serdata_cdr.h"
 
 // OpenSplice includes
@@ -141,7 +141,7 @@ EOF
     print CYC gencmp ($t);
     print CYC <<EOF;
     uint32_t actual_sz = 0;
-    ddd.type = (struct ddsi_cdrstream_desc) {
+    ddd.type = (struct dds_cdrstream_desc) {
       .size = $t->[1]_desc.m_size,
       .align = $t->[1]_desc.m_align,
       .flagset = $t->[1]_desc.m_flagset,
@@ -154,7 +154,7 @@ EOF
     for (uint32_t i = 0; i < 1000; i++) {
       for (size_t j = 0; j < sizeof (garbage); j++)
         garbage[j] = (unsigned char) ddsrt_random ();
-      if (dds_stream_normalize (garbage, (uint32_t) sizeof (garbage), false, CDR_ENC_VERSION_1, &ddd.type, false, &actual_sz)) {
+      if (dds_stream_normalize (garbage, (uint32_t) sizeof (garbage), false, DDS_CDR_ENC_VERSION_1, &ddd.type, false, &actual_sz)) {
         is.m_buffer = garbage;
         is.m_size = 1000;
         is.m_index = 0;
@@ -182,7 +182,7 @@ EOF
     const void *blob;
     uint32_t blobsz = sd_cdrSerdataBlob (&blob, sd);
     /* hack alert: modifying read-only blob ...*/
-    if (!dds_stream_normalize ((void *) blob, blobsz, true, CDR_ENC_VERSION_1, &ddd.type, false, &actual_sz)) abort ();
+    if (!dds_stream_normalize ((void *) blob, blobsz, true, DDS_CDR_ENC_VERSION_1, &ddd.type, false, &actual_sz)) abort ();
     is.m_buffer = blob;
     is.m_size = blobsz;
     is.m_index = 0;
@@ -190,9 +190,9 @@ EOF
     sd_cdrSerdataFree (sd);
     sd = sd_cdrSerialize (ci, samplecopy);
     blobsz = sd_cdrSerdataBlob (&blob, sd);
-    if (!dds_stream_normalize ((void *) blob, blobsz, false, CDR_ENC_VERSION_1, &ddd.type, false, &actual_sz)) abort ();
+    if (!dds_stream_normalize ((void *) blob, blobsz, false, DDS_CDR_ENC_VERSION_1, &ddd.type, false, &actual_sz)) abort ();
     for (uint32_t i = 1; i < blobsz && i <= 16; i++) {
-      if (dds_stream_normalize ((void *) blob, blobsz - i, false, CDR_ENC_VERSION_1, &ddd.type, false, &actual_sz)) abort ();
+      if (dds_stream_normalize ((void *) blob, blobsz - i, false, DDS_CDR_ENC_VERSION_1, &ddd.type, false, &actual_sz)) abort ();
     }
     sd_cdrSerdataFree (sd);
 EOF

@@ -17,6 +17,7 @@
 
 #include "dds/version.h"
 #include "dds__entity.h"
+#include "dds/cdr/dds_cdrstream.h"
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_entity_match.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
@@ -25,7 +26,6 @@
 #include "dds/ddsi/ddsi_typelib.h"
 #include "dds/ddsi/ddsi_xt_impl.h"
 #include "dds/ddsi/ddsi_xt_typelookup.h"
-#include "dds/ddsi/ddsi_cdrstream.h"
 #include "dds/ddsi/q_addrset.h"
 #include "dds/ddsrt/cdtors.h"
 #include "dds/ddsrt/misc.h"
@@ -544,7 +544,7 @@ CU_Theory ((const dds_topic_descriptor_t *rd_desc, const dds_topic_descriptor_t 
 
 static void typeinfo_ser (struct dds_type_meta_ser *ser, DDS_XTypes_TypeInformation *ti)
 {
-  dds_ostream_t os = { .m_buffer = NULL, .m_index = 0, .m_size = 0, .m_xcdr_version = CDR_ENC_VERSION_2 };
+  dds_ostream_t os = { .m_buffer = NULL, .m_index = 0, .m_size = 0, .m_xcdr_version = DDS_CDR_ENC_VERSION_2 };
   xcdr2_ser (ti, &DDS_XTypes_TypeInformation_desc, &os);
   ser->data = os.m_buffer;
   ser->sz = os.m_index;
@@ -557,7 +557,7 @@ static void typeinfo_deser (DDS_XTypes_TypeInformation **ti, const struct dds_ty
 
 static void typemap_ser (struct dds_type_meta_ser *ser, DDS_XTypes_TypeMapping *tmap)
 {
-  dds_ostream_t os = { .m_buffer = NULL, .m_index = 0, .m_size = 0, .m_xcdr_version = CDR_ENC_VERSION_2 };
+  dds_ostream_t os = { .m_buffer = NULL, .m_index = 0, .m_size = 0, .m_xcdr_version = DDS_CDR_ENC_VERSION_2 };
   xcdr2_ser (tmap, &DDS_XTypes_TypeMapping_desc, &os);
   ser->data = os.m_buffer;
   ser->sz = os.m_index;

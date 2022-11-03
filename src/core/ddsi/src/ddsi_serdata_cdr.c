@@ -22,7 +22,7 @@
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/q_freelist.h"
 #include "dds/ddsi/ddsi_tkmap.h"
-#include "dds/ddsi/ddsi_cdrstream.h"
+#include "dds/cdr/dds_cdrstream.h"
 #include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_serdata_cdr.h"
@@ -95,7 +95,7 @@ static void serdata_cdr_init (struct ddsi_serdata_cdr *d, const struct ddsi_sert
 {
   ddsi_serdata_init (&d->c, &tp->c, kind);
   d->pos = 0;
-  d->hdr.identifier = ddsi_sertype_get_native_enc_identifier (CDR_ENC_VERSION_2, tp->encoding_format);
+  d->hdr.identifier = ddsi_sertype_get_native_enc_identifier (DDS_CDR_ENC_VERSION_2, tp->encoding_format);
   d->hdr.options = 0;
 }
 
@@ -171,15 +171,15 @@ static struct ddsi_serdata_cdr *serdata_cdr_from_ser_common (const struct ddsi_s
   const uint32_t pad = ddsrt_fromBE2u (d->hdr.options) & 2;
   const uint32_t xcdr_version = ddsi_sertype_enc_id_xcdr_version (d->hdr.identifier);
   const uint32_t encoding_format = ddsi_sertype_enc_id_enc_format (d->hdr.identifier);
-  if (xcdr_version != CDR_ENC_VERSION_2 || encoding_format != tp->encoding_format)
+  if (xcdr_version != DDS_CDR_ENC_VERSION_2 || encoding_format != tp->encoding_format)
     goto err;
 
   uint32_t actual_size;
-  if (d->pos < pad || !dds_stream_normalize (d->data, d->pos - pad, needs_bswap, CDR_ENC_VERSION_2, &tp->type, false, &actual_size))
+  if (d->pos < pad || !dds_stream_normalize (d->data, d->pos - pad, needs_bswap, DDS_CDR_ENC_VERSION_2, &tp->type, false, &actual_size))
     goto err;
 
   dds_istream_t is;
-  dds_istream_init (&is, actual_size, d->data, CDR_ENC_VERSION_2);
+  dds_istream_init (&is, actual_size, d->data, DDS_CDR_ENC_VERSION_2);
   return d;
 
 err:

@@ -15,6 +15,7 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/sync.h"
+#include "dds/ddsrt/hopscotch.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/ddsi_gc.h"
@@ -22,9 +23,8 @@
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_iid.h"
 #include "dds/ddsi/ddsi_tkmap.h"
-#include "dds/ddsi/ddsi_cdrstream.h"
 #include "dds/ddsi/ddsi_serdata.h"
-#include "dds/ddsrt/hopscotch.h"
+#include "dds/cdr/dds_cdrstream.h"
 
 #define REFC_DELETE 0x80000000
 #define REFC_MASK   0x0fffffff

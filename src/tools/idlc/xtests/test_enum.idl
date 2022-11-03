@@ -68,7 +68,7 @@ struct test_enum {
 
 #include <string.h>
 #include "dds/dds.h"
-#include "dds/ddsi/ddsi_cdrstream.h"
+#include "dds/cdr/dds_cdrstream.h"
 #include "test_enum.h"
 #include "common.h"
 

@@ -22,14 +22,14 @@
 #include "dds/ddsi/ddsi_entity_match.h"
 #include "dds/ddsi/q_misc.h"
 #include "dds/ddsi/q_thread.h"
-#include "dds/ddsi/ddsi_cdrstream.h"
+#include "dds/cdr/dds_cdrstream.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/ddsi_sertype.h"
+#include "dds/ddsi/ddsi_typelib.h"
 #include "dds/ddsi/ddsi_xt_impl.h"
 #include "dds/ddsi/ddsi_xt_typemap.h"
 #include "dds/ddsi/ddsi_typelookup.h"
-#include "dds/ddsi/ddsi_typelib.h"
 #include "dds/ddsi/ddsi_serdata_cdr.h"
 #include "dds/ddsc/dds_public_impl.h"
 
@@ -101,14 +101,14 @@ ddsi_typeinfo_t *ddsi_typeinfo_deser (const unsigned char *data, uint32_t sz)
     data_ne = ddsrt_memdup (data, sz);
   else
     data_ne = (unsigned char *) data;
-  if (!dds_stream_normalize_data ((char *) data_ne, &srcoff, sz, bswap, CDR_ENC_VERSION_2, DDS_XTypes_TypeInformation_desc.m_ops))
+  if (!dds_stream_normalize_data ((char *) data_ne, &srcoff, sz, bswap, DDS_CDR_ENC_VERSION_2, DDS_XTypes_TypeInformation_desc.m_ops))
   {
     if (bswap)
       ddsrt_free (data_ne);
     return NULL;
   }
 
-  dds_istream_t is = { .m_buffer = data_ne, .m_index = 0, .m_size = sz, .m_xcdr_version = CDR_ENC_VERSION_2 };
+  dds_istream_t is = { .m_buffer = data_ne, .m_index = 0, .m_size = sz, .m_xcdr_version = DDS_CDR_ENC_VERSION_2 };
   ddsi_typeinfo_t *typeinfo = ddsrt_calloc (1, sizeof (*typeinfo));
   dds_stream_read (&is, (void *) typeinfo, DDS_XTypes_TypeInformation_desc.m_ops);
   if (bswap)
@@ -216,14 +216,14 @@ ddsi_typemap_t *ddsi_typemap_deser (const unsigned char *data, uint32_t sz)
     data_ne = ddsrt_memdup (data, sz);
   else
     data_ne = (unsigned char *) data;
-  if (!dds_stream_normalize_data ((char *) data_ne, &srcoff, sz, bswap, CDR_ENC_VERSION_2, DDS_XTypes_TypeMapping_desc.m_ops))
+  if (!dds_stream_normalize_data ((char *) data_ne, &srcoff, sz, bswap, DDS_CDR_ENC_VERSION_2, DDS_XTypes_TypeMapping_desc.m_ops))
   {
     if (bswap)
       ddsrt_free (data_ne);
     return NULL;
   }
 
-  dds_istream_t is = { .m_buffer = data_ne, .m_index = 0, .m_size = sz, .m_xcdr_version = CDR_ENC_VERSION_2 };
+  dds_istream_t is = { .m_buffer = data_ne, .m_index = 0, .m_size = sz, .m_xcdr_version = DDS_CDR_ENC_VERSION_2 };
   ddsi_typemap_t *typemap = ddsrt_calloc (1, sizeof (*typemap));
   dds_stream_read (&is, (void *) typemap, DDS_XTypes_TypeMapping_desc.m_ops);
   if (bswap)
@@ -663,13 +663,13 @@ err:
 
 static dds_return_t xcdr2_ser (const void *obj, const dds_topic_descriptor_t *topic_desc, dds_ostream_t *os)
 {
-  struct ddsi_cdrstream_desc desc;
+  struct dds_cdrstream_desc desc;
   dds_cdrstream_desc_from_topic_desc (&desc, topic_desc);
 
   os->m_buffer = NULL;
   os->m_index = 0;
   os->m_size = 0;
-  os->m_xcdr_version = CDR_ENC_VERSION_2;
+  os->m_xcdr_version = DDS_CDR_ENC_VERSION_2;
   if (!dds_stream_write_sampleLE ((dds_ostreamLE_t *) os, obj, &desc))
     return DDS_RETCODE_BAD_PARAMETER;
   return DDS_RETCODE_OK;
@@ -856,7 +856,7 @@ dds_return_t ddsi_type_get_typeinfo (struct ddsi_domaingv *gv, const struct ddsi
 dds_return_t ddsi_type_get_typeinfo_ser (struct ddsi_domaingv *gv, const struct ddsi_type *type, unsigned char **data, uint32_t *sz)
 {
   dds_return_t ret;
-  dds_ostream_t os = { NULL, 0, 0, CDR_ENC_VERSION_2 };
+  dds_ostream_t os = { NULL, 0, 0, DDS_CDR_ENC_VERSION_2 };
   struct ddsi_typeinfo type_info;
   if ((ret = ddsi_type_get_typeinfo (gv, type, &type_info)))
     goto err_typeinfo;
@@ -953,7 +953,7 @@ err:
 dds_return_t ddsi_type_get_typemap_ser (struct ddsi_domaingv *gv, const struct ddsi_type *type, unsigned char **data, uint32_t *sz)
 {
   dds_return_t ret;
-  dds_ostream_t os = { NULL, 0, 0, CDR_ENC_VERSION_2 };
+  dds_ostream_t os = { NULL, 0, 0, DDS_CDR_ENC_VERSION_2 };
   struct ddsi_typemap type_map;
   if ((ret = ddsi_type_get_typemap (gv, type, &type_map)))
     goto err_typemap;

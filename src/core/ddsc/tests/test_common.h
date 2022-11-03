@@ -19,7 +19,7 @@
 #include "CUnit/Theory.h"
 
 #include "dds/ddsrt/heap.h"
-#include "dds/ddsi/ddsi_cdrstream.h"
+#include "dds/cdr/dds_cdrstream.h"
 #include "test_util.h"
 
 #include "Space.h"

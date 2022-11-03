@@ -18,7 +18,6 @@
 #include "dds/ddsrt/time.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/sync.h"
-
 #include "dds/ddsrt/avl.h"
 
 #include "dds/ddsi/q_protocol.h"
@@ -55,8 +54,6 @@
 #include "dds/ddsi/ddsi_pmd.h"
 #include "dds/ddsi/ddsi_xt_typelookup.h"
 #include "dds/ddsi/ddsi_typelookup.h"
-#include "dds/ddsi/ddsi_cdrstream.h"
-
 #include "dds/ddsi/ddsi_tran.h"
 #include "dds/ddsi/ddsi_udp.h"
 #include "dds/ddsi/ddsi_tcp.h"
@@ -68,12 +65,12 @@
 #include "dds/ddsi/ddsi_serdata_pserop.h"
 #include "dds/ddsi/ddsi_serdata_plist.h"
 #include "dds/ddsi/ddsi_security_omg.h"
-
 #include "dds/ddsi/ddsi_tkmap.h"
-#include "dds__whc.h"
 #include "dds/ddsi/ddsi_iid.h"
-
 #include "dds/ddsi/ddsi_security_omg.h"
+
+#include "dds__whc.h"
+#include "dds/cdr/dds_cdrstream.h"
 
 #ifdef DDS_HAS_SHM
 #include "dds/ddsi/ddsi_shm_transport.h"
@@ -806,7 +803,7 @@ static struct ddsi_sertype *make_special_type_pserop (const char *typename, size
   struct ddsi_sertype_pserop *st = ddsrt_malloc (sizeof (*st));
   memset (st, 0, sizeof (*st));
   ddsi_sertype_init (&st->c, typename, &ddsi_sertype_ops_pserop, &ddsi_serdata_ops_pserop, nops_key == 0);
-  st->encoding_format = CDR_ENC_FORMAT_PLAIN;
+  st->encoding_format = DDS_CDR_ENC_FORMAT_PLAIN;
   st->memsize = memsize;
   st->nops = nops;
   st->ops = ops;
@@ -820,7 +817,7 @@ static struct ddsi_sertype *make_special_type_plist (const char *typename, nn_pa
   struct ddsi_sertype_plist *st = ddsrt_malloc (sizeof (*st));
   memset (st, 0, sizeof (*st));
   ddsi_sertype_init (&st->c, typename, &ddsi_sertype_ops_plist, &ddsi_serdata_ops_plist, false);
-  st->encoding_format = CDR_ENC_FORMAT_PL;
+  st->encoding_format = DDS_CDR_ENC_FORMAT_PL;
   st->keyparam = keyparam;
   return (struct ddsi_sertype *) st;
 }

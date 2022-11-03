@@ -50,7 +50,7 @@ static void dds_stream_write_keyBO_impl (DDS_OSTREAM_T * __restrict os, const ui
         }
         case DDS_OP_VAL_ENU: case DDS_OP_VAL_BMK: {
           uint32_t offs = 0, xcdrv = ((struct dds_ostream *)os)->m_xcdr_version;
-          if (xcdrv == CDR_ENC_VERSION_2)
+          if (xcdrv == DDS_CDR_ENC_VERSION_2)
           {
             /* reserve space for DHEADER */
             dds_os_reserve4BO (os);
@@ -61,7 +61,7 @@ static void dds_stream_write_keyBO_impl (DDS_OSTREAM_T * __restrict os, const ui
           else
             (void) dds_stream_write_bitmask_arrBO (os, insn, (const uint32_t *) addr, num, ops[3], ops[4]);
           /* write DHEADER */
-          if (xcdrv == CDR_ENC_VERSION_2)
+          if (xcdrv == DDS_CDR_ENC_VERSION_2)
             *((uint32_t *) (((struct dds_ostream *)os)->m_buffer + offs - 4)) = to_BO4u(((struct dds_ostream *)os)->m_index - offs);
           break;
         }
@@ -84,7 +84,7 @@ static void dds_stream_write_keyBO_impl (DDS_OSTREAM_T * __restrict os, const ui
   }
 }
 
-void dds_stream_write_keyBO (DDS_OSTREAM_T * __restrict os, const char * __restrict sample, const struct ddsi_cdrstream_desc * __restrict desc)
+void dds_stream_write_keyBO (DDS_OSTREAM_T * __restrict os, const char * __restrict sample, const struct dds_cdrstream_desc * __restrict desc)
 {
   for (uint32_t i = 0; i < desc->keys.nkeys; i++)
   {
@@ -110,7 +110,7 @@ void dds_stream_write_keyBO (DDS_OSTREAM_T * __restrict os, const char * __restr
 
 static const uint32_t *dds_stream_extract_keyBO_from_data_adr (uint32_t insn, dds_istream_t * __restrict is, DDS_OSTREAM_T * __restrict os,
   uint32_t ops_offs_idx, uint32_t * __restrict ops_offs, const uint32_t * const __restrict op0, const uint32_t * const __restrict op0_type, const uint32_t * __restrict ops, bool mutable_member, bool mutable_member_or_parent,
-  uint32_t n_keys, uint32_t * __restrict keys_remaining, const ddsi_cdrstream_desc_key_t * __restrict keys, struct key_off_info * __restrict key_offs)
+  uint32_t n_keys, uint32_t * __restrict keys_remaining, const dds_cdrstream_desc_key_t * __restrict keys, struct key_off_info * __restrict key_offs)
 {
   assert (DDS_OP (insn) == DDS_OP_ADR);
   const enum dds_stream_typecode type = DDS_OP_TYPE (insn);
@@ -128,7 +128,7 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_adr (uint32_t insn, dd
 
     if (ops_offs)
     {
-      assert (ops_offs_idx < DDSI_CDRSTREAM_MAX_NESTING_DEPTH);
+      assert (ops_offs_idx < DDS_CDRSTREAM_MAX_NESTING_DEPTH);
       ptrdiff_t offs = ops - op0_type;
       assert (offs >= INT32_MIN && offs <= INT32_MAX);
       ops_offs[ops_offs_idx] = (uint32_t) (offs);
@@ -149,7 +149,7 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_adr (uint32_t insn, dd
     {
       assert (*keys_remaining <= n_keys);
       uint32_t idx = n_keys - *keys_remaining; // position (index) of the key in the CDR
-      if (((struct dds_ostream *)os)->m_xcdr_version == CDR_ENC_VERSION_1)
+      if (((struct dds_ostream *)os)->m_xcdr_version == DDS_CDR_ENC_VERSION_1)
       {
         /* Key in CDR encoding version 1 are ordered by their definition order, so we can
            use the key index field from the key descriptors key list */
@@ -161,7 +161,7 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_adr (uint32_t insn, dd
       else
       {
         assert (ops_offs);
-        assert (ops_offs_idx < DDSI_CDRSTREAM_MAX_NESTING_DEPTH);
+        assert (ops_offs_idx < DDS_CDRSTREAM_MAX_NESTING_DEPTH);
         ptrdiff_t offs = ops - op0_type;
         assert (offs >= INT32_MIN && offs <= INT32_MAX);
         ops_offs[ops_offs_idx] = (uint32_t) (offs);
@@ -209,7 +209,7 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_adr (uint32_t insn, dd
 
 static const uint32_t *dds_stream_extract_keyBO_from_data_delimited (dds_istream_t * __restrict is, DDS_OSTREAM_T * __restrict os,
   uint32_t ops_offs_idx, uint32_t * __restrict ops_offs, const uint32_t * const __restrict op0, const uint32_t * const __restrict op0_type, const uint32_t * __restrict ops, bool mutable_member_or_parent,
-  uint32_t n_keys, uint32_t * __restrict keys_remaining, const ddsi_cdrstream_desc_key_t * __restrict keys, struct key_off_info * __restrict key_offs)
+  uint32_t n_keys, uint32_t * __restrict keys_remaining, const dds_cdrstream_desc_key_t * __restrict keys, struct key_off_info * __restrict key_offs)
 {
   uint32_t delimited_sz = dds_is_get4 (is), delimited_offs = is->m_index, insn;
   ops++;
@@ -237,7 +237,7 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_delimited (dds_istream
 
 static bool dds_stream_extract_keyBO_from_data_pl_member (dds_istream_t * __restrict is, DDS_OSTREAM_T * __restrict os, uint32_t m_id,
   uint32_t ops_offs_idx, uint32_t * __restrict ops_offs, const uint32_t * const __restrict op0, const uint32_t * const __restrict op0_type, const uint32_t * __restrict ops,
-  uint32_t n_keys, uint32_t * __restrict keys_remaining, const ddsi_cdrstream_desc_key_t * __restrict keys, struct key_off_info * __restrict key_offs)
+  uint32_t n_keys, uint32_t * __restrict keys_remaining, const dds_cdrstream_desc_key_t * __restrict keys, struct key_off_info * __restrict key_offs)
 {
   uint32_t insn, ops_csr = 0;
   bool found = false;
@@ -266,7 +266,7 @@ static bool dds_stream_extract_keyBO_from_data_pl_member (dds_istream_t * __rest
 
 static const uint32_t *dds_stream_extract_keyBO_from_data_pl (dds_istream_t * __restrict is, DDS_OSTREAM_T * __restrict os,
   uint32_t ops_offs_idx, uint32_t * __restrict ops_offs, const uint32_t * const __restrict op0, const uint32_t * const __restrict op0_type, const uint32_t * __restrict ops,
-  uint32_t n_keys, uint32_t * __restrict keys_remaining, const ddsi_cdrstream_desc_key_t * __restrict keys, struct key_off_info * __restrict key_offs)
+  uint32_t n_keys, uint32_t * __restrict keys_remaining, const dds_cdrstream_desc_key_t * __restrict keys, struct key_off_info * __restrict key_offs)
 {
   /* skip PLC op */
   ops++;
@@ -317,7 +317,7 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_pl (dds_istream_t * __
 
 static const uint32_t *dds_stream_extract_keyBO_from_data1 (dds_istream_t * __restrict is, DDS_OSTREAM_T * __restrict os,
   uint32_t ops_offs_idx, uint32_t * __restrict ops_offs, const uint32_t * const __restrict op0, const uint32_t * const __restrict op0_type, const uint32_t * __restrict ops, bool mutable_member, bool mutable_member_or_parent,
-  uint32_t n_keys, uint32_t * __restrict keys_remaining, const ddsi_cdrstream_desc_key_t * __restrict keys, struct key_off_info * __restrict key_offs)
+  uint32_t n_keys, uint32_t * __restrict keys_remaining, const dds_cdrstream_desc_key_t * __restrict keys, struct key_off_info * __restrict key_offs)
 {
   uint32_t insn;
   while ((insn = *ops) != DDS_OP_RTS)
@@ -345,7 +345,7 @@ static const uint32_t *dds_stream_extract_keyBO_from_data1 (dds_istream_t * __re
   return ops;
 }
 
-bool dds_stream_extract_keyBO_from_data (dds_istream_t * __restrict is, DDS_OSTREAM_T * __restrict os, const struct ddsi_cdrstream_desc * __restrict desc)
+bool dds_stream_extract_keyBO_from_data (dds_istream_t * __restrict is, DDS_OSTREAM_T * __restrict os, const struct dds_cdrstream_desc * __restrict desc)
 {
   bool ret = true;
   uint32_t keys_remaining = desc->keys.nkeys;
@@ -356,7 +356,7 @@ bool dds_stream_extract_keyBO_from_data (dds_istream_t * __restrict is, DDS_OSTR
   struct key_off_info st_key_offs[MAX_ST_KEYS];
   struct key_off_info * const key_offs =
     (desc->keys.nkeys <= MAX_ST_KEYS) ? st_key_offs : ddsrt_malloc (desc->keys.nkeys * sizeof (*key_offs));
-  uint32_t ops_offs[DDSI_CDRSTREAM_MAX_NESTING_DEPTH];
+  uint32_t ops_offs[DDS_CDRSTREAM_MAX_NESTING_DEPTH];
 
   uint32_t *ops = desc->ops.ops, *op0 = ops, *op0_type = ops;
   (void) dds_stream_extract_keyBO_from_data1 (is, os, 0, ops_offs, op0, op0_type, ops, false, false, desc->keys.nkeys, &keys_remaining, desc->keys.keys, key_offs);
@@ -384,7 +384,7 @@ err_missing_key:
    representation (native endianess). The former is not used regularly by Cyclone, and the latter is only used when receiving a key sample,
    e.g. a dispose. For this reason, we use a (performance wise) sub-optimal approach of going through the entire CDR for every key field.
    Optimizations is possible but would result in more complex code. */
-void dds_stream_extract_keyBO_from_key (dds_istream_t * __restrict is, DDS_OSTREAM_T * __restrict os, const struct ddsi_cdrstream_desc * __restrict desc)
+void dds_stream_extract_keyBO_from_key (dds_istream_t * __restrict is, DDS_OSTREAM_T * __restrict os, const struct dds_cdrstream_desc * __restrict desc)
 {
   for (uint32_t i = 0; i < desc->keys.nkeys; i++)
   {
