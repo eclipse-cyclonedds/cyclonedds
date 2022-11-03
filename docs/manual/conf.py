@@ -39,8 +39,8 @@ try:
     import piccolo_theme
     extensions.append('piccolo_theme')
     html_theme = 'piccolo_theme'
-    html_css_files = ['/_static/css/helpers.css']
-    html_js_files = ['/_static/js/helpers.js']
+    html_css_files = ['css/helpers.css']
+    html_js_files = ['js/helpers.js']
 except ImportError:
     import warnings
     warnings.warn("piccolo_theme is not installed. Falling back to alabaster.")
@@ -48,6 +48,8 @@ except ImportError:
 
 
 html_static_path = ['_static']
+html_title = f"{project}, {version}"
+html_short_title = html_title
 
 autosummary_generate = True
 primary_domain = 'c'

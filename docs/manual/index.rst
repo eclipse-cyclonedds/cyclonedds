@@ -13,8 +13,7 @@
 =========================================
 
 .. toctree::
-   :maxdepth: 3
-   :caption: Contents
+   :maxdepth: 2
 
    getting_started/index
    config/index
