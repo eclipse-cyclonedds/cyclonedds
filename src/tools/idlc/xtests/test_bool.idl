@@ -40,7 +40,7 @@ struct test_bool {
 
 #include <string.h>
 #include "dds/dds.h"
-#include "dds/ddsi/ddsi_cdrstream.h"
+#include "dds/cdr/dds_cdrstream.h"
 #include "test_bool.h"
 #include "common.h"
 

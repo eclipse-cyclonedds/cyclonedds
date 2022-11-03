@@ -87,9 +87,9 @@ static bool ti_to_pairs_equal (dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectP
     if (!to_b)
       return false;
 
-    dds_ostream_t to_a_ser = { NULL, 0, 0, CDR_ENC_VERSION_2 };
+    dds_ostream_t to_a_ser = { NULL, 0, 0, DDS_CDR_ENC_VERSION_2 };
     xcdr2_ser (&a->_buffer[n].type_object, &DDS_XTypes_TypeObject_desc, &to_a_ser);
-    dds_ostream_t to_b_ser = { NULL, 0, 0, CDR_ENC_VERSION_2 };
+    dds_ostream_t to_b_ser = { NULL, 0, 0, DDS_CDR_ENC_VERSION_2 };
     xcdr2_ser (to_b, &DDS_XTypes_TypeObject_desc, &to_b_ser);
 
     if (to_a_ser.m_index != to_b_ser.m_index)

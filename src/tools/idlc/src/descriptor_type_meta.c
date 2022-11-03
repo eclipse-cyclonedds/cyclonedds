@@ -18,7 +18,7 @@
 
 #include "dds/ddsrt/md5.h"
 #include "dds/ddsi/ddsi_serdata.h"
-#include "dds/ddsi/ddsi_cdrstream.h"
+#include "dds/cdr/dds_cdrstream.h"
 #include "dds/ddsi/ddsi_typewrap.h"
 #include "dds/ddsi/ddsi_xt_impl.h"
 #include "dds/ddsi/ddsi_xt_typeinfo.h"
@@ -93,14 +93,14 @@ xcdr2_ser (
   const dds_topic_descriptor_t *topic_desc,
   dds_ostream_t *os)
 {
-  struct ddsi_cdrstream_desc desc;
+  struct dds_cdrstream_desc desc;
   dds_cdrstream_desc_from_topic_desc (&desc, topic_desc);
 
   // serialize as XCDR2 LE
   os->m_buffer = NULL;
   os->m_index = 0;
   os->m_size = 0;
-  os->m_xcdr_version = CDR_ENC_VERSION_2;
+  os->m_xcdr_version = DDS_CDR_ENC_VERSION_2;
   if (!dds_stream_write_sampleLE ((dds_ostreamLE_t *) os, obj, &desc))
     return IDL_RETCODE_BAD_PARAMETER;
   return IDL_RETCODE_OK;

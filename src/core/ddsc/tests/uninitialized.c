@@ -14,6 +14,8 @@
 
 #include "dds/dds.h"
 #include "dds/ddsc/dds_rhc.h"
+#include "dds/ddsi/ddsi_serdata.h"
+#include "dds/ddsi/ddsi_sertype.h"
 #include "test_common.h"
 
 // internals, to allow creating all objects we need on the stack

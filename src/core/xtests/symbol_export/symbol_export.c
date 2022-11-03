@@ -46,10 +46,11 @@
 #include "dds/ddsrt/rusage.h"
 #endif
 
-#include "dds/ddsi/ddsi_cdrstream.h"
 #include "dds/ddsi/ddsi_config.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/q_thread.h"
+#include "dds/ddsi/ddsi_xqos.h"
+#include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_gc.h"
 
 #ifdef DDS_HAS_SECURITY
@@ -64,6 +65,8 @@
 #include "dds/ddsc/dds_loan_api.h"
 #include "dds/ddsc/dds_rhc.h"
 #include "dds/ddsc/dds_statistics.h"
+
+#include "dds/cdr/dds_cdrstream.h"
 
 #ifdef DDS_HAS_SHM
 #include "dds/ddsi/ddsi_shm_transport.h"

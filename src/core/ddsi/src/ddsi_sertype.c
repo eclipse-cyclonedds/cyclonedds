@@ -28,6 +28,7 @@
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_serdata_pserop.h"
 #include "dds/ddsi/ddsi_domaingv.h"
+#include "dds/cdr/dds_cdrstream.h"
 
 #ifndef _WIN32
 void ddsi_sertype_v0 (struct ddsi_sertype_v0 *dummy)
@@ -224,14 +225,14 @@ uint16_t ddsi_sertype_get_native_enc_identifier (uint32_t enc_version, uint32_t 
 
   switch (enc_version)
   {
-    case CDR_ENC_VERSION_1:
-      if (enc_format == CDR_ENC_FORMAT_PL)
+    case DDS_CDR_ENC_VERSION_1:
+      if (enc_format == DDS_CDR_ENC_FORMAT_PL)
         return CONCAT(PL_CDR, SUFFIX);
       return CONCAT(CDR, SUFFIX);
-    case CDR_ENC_VERSION_2:
-      if (enc_format == CDR_ENC_FORMAT_PL)
+    case DDS_CDR_ENC_VERSION_2:
+      if (enc_format == DDS_CDR_ENC_FORMAT_PL)
         return CONCAT(PL_CDR2, SUFFIX);
-      if (enc_format == CDR_ENC_FORMAT_DELIMITED)
+      if (enc_format == DDS_CDR_ENC_FORMAT_DELIMITED)
         return CONCAT(D_CDR2, SUFFIX);
       return CONCAT(CDR2, SUFFIX);
     default:
@@ -242,16 +243,16 @@ uint16_t ddsi_sertype_get_native_enc_identifier (uint32_t enc_version, uint32_t 
 #undef CONCAT_
 }
 
-uint16_t ddsi_sertype_extensibility_enc_format (enum ddsi_sertype_extensibility type_extensibility)
+uint16_t ddsi_sertype_extensibility_enc_format (enum dds_cdr_type_extensibility type_extensibility)
 {
   switch (type_extensibility)
   {
-    case DDSI_SERTYPE_EXT_FINAL:
-      return CDR_ENC_FORMAT_PLAIN;
-    case DDSI_SERTYPE_EXT_APPENDABLE:
-      return CDR_ENC_FORMAT_DELIMITED;
-    case DDSI_SERTYPE_EXT_MUTABLE:
-      return CDR_ENC_FORMAT_PL;
+    case DDS_CDR_TYPE_EXT_FINAL:
+      return DDS_CDR_ENC_FORMAT_PLAIN;
+    case DDS_CDR_TYPE_EXT_APPENDABLE:
+      return DDS_CDR_ENC_FORMAT_DELIMITED;
+    case DDS_CDR_TYPE_EXT_MUTABLE:
+      return DDS_CDR_ENC_FORMAT_PL;
     default:
       abort ();
   }
@@ -262,13 +263,13 @@ uint32_t ddsi_sertype_enc_id_xcdr_version (uint16_t cdr_identifier)
   switch (cdr_identifier)
   {
     case CDR_LE: case CDR_BE:
-      return CDR_ENC_VERSION_1;
+      return DDS_CDR_ENC_VERSION_1;
     case CDR2_LE: case CDR2_BE:
     case D_CDR2_LE: case D_CDR2_BE:
     case PL_CDR2_LE: case PL_CDR2_BE:
-      return CDR_ENC_VERSION_2;
+      return DDS_CDR_ENC_VERSION_2;
     default:
-      return CDR_ENC_VERSION_UNDEF;
+      return DDS_CDR_ENC_VERSION_UNDEF;
   }
 }
 
@@ -278,11 +279,11 @@ uint32_t ddsi_sertype_enc_id_enc_format (uint16_t cdr_identifier)
   {
     case CDR_LE: case CDR_BE:
     case CDR2_LE: case CDR2_BE:
-      return CDR_ENC_FORMAT_PLAIN;
+      return DDS_CDR_ENC_FORMAT_PLAIN;
     case D_CDR2_LE: case D_CDR2_BE:
-      return CDR_ENC_FORMAT_DELIMITED;
+      return DDS_CDR_ENC_FORMAT_DELIMITED;
     case PL_CDR2_LE: case PL_CDR2_BE:
-      return CDR_ENC_FORMAT_PL;
+      return DDS_CDR_ENC_FORMAT_PL;
     default:
       abort ();
   }

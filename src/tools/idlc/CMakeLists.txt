@@ -43,7 +43,8 @@ target_include_directories(
     include
     ${CMAKE_CURRENT_BINARY_DIR}
     $<BUILD_INTERFACE:$<TARGET_PROPERTY:ddsc,INTERFACE_INCLUDE_DIRECTORIES>>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../core/ddsi/include>)
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../core/ddsi/include>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../core/cdr/include>)
 
 add_executable(${PROJECT_NAME}::idlc ALIAS idlc)
 

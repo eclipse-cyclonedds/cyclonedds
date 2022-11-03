@@ -22,12 +22,12 @@
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/q_freelist.h"
 #include "dds/ddsi/ddsi_tkmap.h"
-#include "dds/ddsi/ddsi_cdrstream.h"
 #include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_serdata_plist.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/q_misc.h"
+#include "dds/cdr/dds_cdrstream.h"
 
 static uint32_t serdata_plist_get_size (const struct ddsi_serdata *dcmn)
 {
@@ -213,7 +213,7 @@ static void serdata_plist_to_ser_unref (struct ddsi_serdata *serdata_common, con
 static struct ddsi_serdata *serdata_plist_from_sample (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, const void *sample)
 {
   const struct ddsi_sertype_plist *tp = (const struct ddsi_sertype_plist *)tpcmn;
-  const struct { uint16_t identifier, options; } header = { ddsi_sertype_get_native_enc_identifier (CDR_ENC_VERSION_1, tp->encoding_format), 0 };
+  const struct { uint16_t identifier, options; } header = { ddsi_sertype_get_native_enc_identifier (DDS_CDR_ENC_VERSION_1, tp->encoding_format), 0 };
 
   // FIXME: key must not require byteswapping (GUIDs are ok)
   // FIXME: rework plist stuff so it doesn't need an nn_xmsg

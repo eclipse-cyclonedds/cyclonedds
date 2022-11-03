@@ -20,9 +20,8 @@
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/static_assert.h"
-
 #include "dds/ddsrt/avl.h"
-#include "dds/ddsi/ddsi_cdrstream.h"
+
 #include "dds/ddsi/q_protocol.h"
 #include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/q_misc.h"
@@ -50,7 +49,6 @@
 #include "dds/ddsi/q_receive.h"
 #include "dds/ddsi/ddsi_rhc.h"
 #include "dds/ddsi/ddsi_deliver_locally.h"
-
 #include "dds/ddsi/q_transmit.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_init.h"
@@ -59,8 +57,9 @@
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_security_omg.h"
 #include "dds/ddsi/ddsi_acknack.h"
-
 #include "dds/ddsi/sysdeps.h"
+
+#include "dds/cdr/dds_cdrstream.h"
 #include "dds__whc.h"
 
 /*

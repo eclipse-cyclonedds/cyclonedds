@@ -20,7 +20,7 @@
 #include "dds/ddsi/ddsi_plist_generic.h"
 #include "dds/ddsi/ddsi_typelib.h"
 #include "dds/ddsi/ddsi_typelookup.h"
-#include "dds/ddsi/ddsi_cdrstream.h"
+#include "dds/cdr/dds_cdrstream.h"
 #include "dds/dds.h"
 
 #if defined (__cplusplus)
@@ -76,8 +76,8 @@ DDSRT_STATIC_ASSERT ((offsetof (struct ddsi_serdata_cdr, data) % 8) == 0);
 
 struct ddsi_sertype_cdr {
   struct ddsi_sertype c;
-  uint16_t encoding_format; /* CDR_ENC_FORMAT_(PLAIN|DELIMITED|PL) - CDR encoding format for the top-level type in this sertype */
-  struct ddsi_cdrstream_desc type;
+  uint16_t encoding_format; /* DDS_CDR_ENC_FORMAT_(PLAIN|DELIMITED|PL) - CDR encoding format for the top-level type in this sertype */
+  struct dds_cdrstream_desc type;
 };
 
 extern const struct ddsi_serdata_ops ddsi_serdata_ops_cdr;

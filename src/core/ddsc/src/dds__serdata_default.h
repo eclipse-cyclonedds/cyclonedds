@@ -20,7 +20,7 @@
 #include "dds/ddsi/ddsi_plist_generic.h"
 #include "dds/ddsi/ddsi_typelib.h"
 #include "dds/ddsi/ddsi_typelookup.h"
-#include "dds/ddsi/ddsi_cdrstream.h"
+#include "dds/cdr/dds_cdrstream.h"
 #include "dds__types.h"
 #include "dds/dds.h"
 
@@ -119,10 +119,10 @@ struct dds_sertype_default_cdr_data {
 
 struct dds_sertype_default {
   struct ddsi_sertype c;
-  uint16_t encoding_format; /* CDR_ENC_FORMAT_(PLAIN|DELIMITED|PL) - CDR encoding format for the top-level type in this sertype */
-  uint16_t write_encoding_version; /* CDR_ENC_VERSION_(1|2) - CDR encoding version used for writing data using this sertype */
+  uint16_t encoding_format; /* DDS_CDR_ENC_FORMAT_(PLAIN|DELIMITED|PL) - CDR encoding format for the top-level type in this sertype */
+  uint16_t write_encoding_version; /* DDS_CDR_ENC_VERSION_(1|2) - CDR encoding version used for writing data using this sertype */
   struct dds_serdatapool *serpool;
-  struct ddsi_cdrstream_desc type;
+  struct dds_cdrstream_desc type;
   struct dds_sertype_default_cdr_data typeinfo_ser;
   struct dds_sertype_default_cdr_data typemap_ser;
 };

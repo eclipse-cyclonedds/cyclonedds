@@ -15,7 +15,7 @@
 #include "dds__alloc.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsi/ddsi_config_impl.h"
-#include "dds/ddsi/ddsi_cdrstream.h"
+#include "dds/cdr/dds_cdrstream.h"
 
 static dds_allocator_t dds_allocator_fns = { ddsrt_malloc, ddsrt_realloc, ddsrt_free };
 

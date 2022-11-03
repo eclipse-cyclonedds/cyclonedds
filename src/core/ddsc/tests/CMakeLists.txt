@@ -115,7 +115,8 @@ target_include_directories(
   cunit_ddsc PRIVATE
   "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/include/>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsc/src>"
-  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/include>")
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/include>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../cdr/include>")
 if(ENABLE_SHM)
   target_include_directories(
     cunit_ddsc PRIVATE
@@ -154,7 +155,8 @@ target_include_directories(
   oneliner PRIVATE
   "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/include/>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsc/src>"
-  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/include>")
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/include>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../cdr/include>")
 
 if(ENABLE_SHM)
   target_include_directories(

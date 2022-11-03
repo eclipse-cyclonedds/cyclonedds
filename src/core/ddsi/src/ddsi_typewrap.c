@@ -17,7 +17,8 @@
 #include "dds/ddsrt/md5.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/ddsi_cdrstream.h"
+#include "dds/cdr/dds_cdrstream.h"
+#include "dds/ddsi/ddsi_typewrap.h"
 #include "dds/ddsi/ddsi_xt_impl.h"
 #include "dds/ddsi/ddsi_xt_typemap.h"
 #include "dds/ddsi/ddsi_typelookup.h"
@@ -351,7 +352,7 @@ int ddsi_typeid_compare (const ddsi_typeid_t *a, const ddsi_typeid_t *b)
 
 void ddsi_typeid_ser (const ddsi_typeid_t *type_id, unsigned char **buf, uint32_t *sz)
 {
-  dds_ostream_t os = { .m_buffer = NULL, .m_index = 0, .m_size = 0, .m_xcdr_version = CDR_ENC_VERSION_2 };
+  dds_ostream_t os = { .m_buffer = NULL, .m_index = 0, .m_size = 0, .m_xcdr_version = DDS_CDR_ENC_VERSION_2 };
   dds_stream_writeLE ((dds_ostreamLE_t *) &os, (const void *) type_id, DDS_XTypes_TypeIdentifier_desc.m_ops);
   *buf = os.m_buffer;
   *sz = os.m_index;
@@ -423,7 +424,7 @@ void ddsi_typeobj_get_hash_id_impl (const struct DDS_XTypes_TypeObject *type_obj
   assert (type_obj);
   assert (type_id);
   assert (type_obj->_d == DDS_XTypes_EK_MINIMAL || type_obj->_d == DDS_XTypes_EK_COMPLETE);
-  dds_ostream_t os = { .m_buffer = NULL, .m_index = 0, .m_size = 0, .m_xcdr_version = CDR_ENC_VERSION_2 };
+  dds_ostream_t os = { .m_buffer = NULL, .m_index = 0, .m_size = 0, .m_xcdr_version = DDS_CDR_ENC_VERSION_2 };
   dds_stream_writeLE ((dds_ostreamLE_t *) &os, (const void *) type_obj, DDS_XTypes_TypeObject_desc.m_ops);
 
   char buf[16];

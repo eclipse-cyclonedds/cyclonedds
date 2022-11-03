@@ -46,7 +46,6 @@ set(srcs_ddsi
   ddsi_deadline.c
   ddsi_deliver_locally.c
   ddsi_plist.c
-  ddsi_cdrstream.c
   ddsi_config.c
   ddsi_time.c
   ddsi_ownip.c
@@ -121,7 +120,6 @@ set(hdrs_private_ddsi
   ddsi_domaingv.h
   ddsi_plist.h
   ddsi_xqos.h
-  ddsi_cdrstream.h
   ddsi_time.h
   ddsi_ownip.h
   ddsi_cfgunits.h

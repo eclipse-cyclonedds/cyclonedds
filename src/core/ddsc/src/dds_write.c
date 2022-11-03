@@ -18,7 +18,7 @@
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/ddsi_rhc.h"
 #include "dds/ddsi/ddsi_serdata.h"
-#include "dds/ddsi/ddsi_cdrstream.h"
+#include "dds/cdr/dds_cdrstream.h"
 #include "dds/ddsi/q_transmit.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/ddsi_config_impl.h"
@@ -33,7 +33,6 @@
 #include "dds__loan.h"
 
 #ifdef DDS_HAS_SHM
-#include "dds/ddsi/ddsi_cdrstream.h"
 #include "dds/ddsi/ddsi_shm_transport.h"
 #include "dds/ddsi/q_addrset.h"
 #endif

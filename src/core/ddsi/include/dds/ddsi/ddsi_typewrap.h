@@ -17,6 +17,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "dds/ddsrt/static_assert.h"
+#include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/ddsi_xt_typeinfo.h"
 #include "dds/ddsi/ddsi_xt_typemap.h"
 #include "dds/ddsi/ddsi_typelib.h"

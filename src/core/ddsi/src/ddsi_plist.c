@@ -44,7 +44,7 @@
 #include "dds/ddsi/ddsi_plist_generic.h"
 #include "dds/ddsi/ddsi_security_omg.h"
 #include "dds/ddsi/ddsi_typelib.h"
-#include "dds/ddsi/ddsi_cdrstream.h"
+#include "dds/cdr/dds_cdrstream.h"
 
 /* I am tempted to change LENGTH_UNLIMITED to 0 in the API (with -1
    supported for backwards compatibility) ... on the wire however
@@ -695,13 +695,13 @@ static dds_return_t deser_type_information (void * __restrict dst, struct flagse
     buf = ddsrt_memdup (dd->buf, dd->bufsz);
   else
     buf = (unsigned char *) dd->buf;
-  if (!dds_stream_normalize_data ((char *) buf, &srcoff, (uint32_t) dd->bufsz, dd->bswap, CDR_ENC_VERSION_2, DDS_XTypes_TypeInformation_desc.m_ops))
+  if (!dds_stream_normalize_data ((char *) buf, &srcoff, (uint32_t) dd->bufsz, dd->bswap, DDS_CDR_ENC_VERSION_2, DDS_XTypes_TypeInformation_desc.m_ops))
   {
     ret = DDS_RETCODE_BAD_PARAMETER;
     goto err_normalize;
   }
 
-  dds_istream_t is = { .m_buffer = buf, .m_index = 0, .m_size = (uint32_t) dd->bufsz, .m_xcdr_version = CDR_ENC_VERSION_2 };
+  dds_istream_t is = { .m_buffer = buf, .m_index = 0, .m_size = (uint32_t) dd->bufsz, .m_xcdr_version = DDS_CDR_ENC_VERSION_2 };
   ddsi_typeinfo_t const ** x = deser_generic_dst (dst, &dstoff, dds_alignof (ddsi_typeinfo_t *));
   *x = ddsrt_calloc (1, DDS_XTypes_TypeInformation_desc.m_size);
   dds_stream_read (&is, (void *) *x, DDS_XTypes_TypeInformation_desc.m_ops);
@@ -716,7 +716,7 @@ static dds_return_t ser_type_information (struct nn_xmsg *xmsg, nn_parameterid_t
 {
   ddsi_typeinfo_t const * const * x = deser_generic_src (src, &srcoff, dds_alignof (ddsi_typeinfo_t *));
 
-  dds_ostream_t os = { .m_buffer = NULL, .m_index = 0, .m_size = 0, .m_xcdr_version = CDR_ENC_VERSION_2 };
+  dds_ostream_t os = { .m_buffer = NULL, .m_index = 0, .m_size = 0, .m_xcdr_version = DDS_CDR_ENC_VERSION_2 };
   (void) dds_stream_write_with_byte_order (&os, (const void *) *x, DDS_XTypes_TypeInformation_desc.m_ops, bo);
   char * const p = nn_xmsg_addpar_bo (xmsg, pid, os.m_index, bo);
   memcpy (p, os.m_buffer, os.m_index);

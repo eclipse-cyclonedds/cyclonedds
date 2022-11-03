@@ -22,7 +22,7 @@
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/q_freelist.h"
 #include "dds/ddsi/ddsi_tkmap.h"
-#include "dds/ddsi/ddsi_cdrstream.h"
+#include "dds/cdr/dds_cdrstream.h"
 #include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_serdata_pserop.h"
@@ -205,7 +205,7 @@ static void serdata_pserop_to_ser_unref (struct ddsi_serdata *serdata_common, co
 static struct ddsi_serdata *serdata_pserop_from_sample (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, const void *sample)
 {
   const struct ddsi_sertype_pserop *tp = (const struct ddsi_sertype_pserop *)tpcmn;
-  const struct { uint16_t identifier, options; } header = { ddsi_sertype_get_native_enc_identifier (CDR_ENC_VERSION_1, tp->encoding_format), 0 };
+  const struct { uint16_t identifier, options; } header = { ddsi_sertype_get_native_enc_identifier (DDS_CDR_ENC_VERSION_1, tp->encoding_format), 0 };
   struct ddsi_serdata_pserop *d;
   if (kind == SDK_KEY && tp->ops_key == NULL)
   {
