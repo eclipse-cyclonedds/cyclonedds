@@ -265,17 +265,23 @@ static dds_return_t deliver_data_any (struct thread_state * const thrst, struct 
   if ((ret = deliver_data_network (thrst, ddsi_wr, d, xp, flush, tk)) != DDS_RETCODE_OK)
   {
     ddsi_tkmap_instance_unref (ddsi_wr->e.gv->m_tkmap, tk);
+#ifdef DDS_HAS_SHM
+    // post condition (see dds_write_impl_iox): chunk will be published or released
+    if (d->a.iox_chunk)
+      iox_pub_release_chunk (wr->m_iox_pub, d->a.iox_chunk);
+#endif
     return ret;
   }
 #ifdef DDS_HAS_SHM
   if (d->a.iox_chunk != NULL)
   {
-    // delivers to all iceoryx readers, including local ones
+    // delivers to all iceoryx readers, including local ones; always publishes
     deliver_data_via_iceoryx (wr, (struct ddsi_serdata_iox *) d);
   }
 #else
   (void) wr;
 #endif
+  // chunk ownership is now with iceoryx
   ret = deliver_locally (ddsi_wr, &d->a, tk);
   ddsi_tkmap_instance_unref (ddsi_wr->e.gv->m_tkmap, tk);
   return ret;
@@ -292,6 +298,11 @@ static dds_return_t dds_writecdr_impl_common (struct ddsi_writer *ddsi_wr, struc
   struct ddsi_serdata_any * const d = convert_serdata(ddsi_wr, din);
   if (d == NULL)
   {
+#ifdef DDS_HAS_SHM
+    // post condition (see dds_write_impl_iox): chunk will be published or released
+    if (din->a.iox_chunk)
+      iox_pub_release_chunk (wr->m_iox_pub, din->a.iox_chunk);
+#endif
     ddsi_serdata_unref(&din->a); // refc(din) = r - 1 as required
     return DDS_RETCODE_ERROR;
   }
@@ -311,6 +322,8 @@ static dds_return_t dds_writecdr_impl_common (struct ddsi_writer *ddsi_wr, struc
   assert ((wr->m_iox_pub == NULL) == (d->a.iox_chunk == NULL));
 #endif
 
+  // if there is a iceoryx chunk, then that chunk will have been published or released by
+  // deliver_data_any before it returns
   ret = deliver_data_any (thrst, ddsi_wr, wr, d, xp, flush);
 
   if(d != din)
@@ -540,9 +553,10 @@ static dds_return_t dds_write_impl_iox (dds_writer *wr, struct ddsi_writer *ddsi
     // this may convert the input data if needed (convert_serdata) and then deliver it using
     // network and/or iceoryx as required
     // d refc(d) = 1, call will reduce refcount by 1
+    //
+    // if there is a iceoryx chunk, then that chunk will have been published or released by
+    // dds_writecdr_impl_common before it returns
     ret = dds_writecdr_impl_common (ddsi_wr, wr->m_xp, (struct ddsi_serdata_any *) d, !wr->whc_batch, wr);
-    if (ret != DDS_RETCODE_OK)
-      iox_pub_release_chunk (wr->m_iox_pub, d->x.iox_chunk);
   }
   return ret;
 }
