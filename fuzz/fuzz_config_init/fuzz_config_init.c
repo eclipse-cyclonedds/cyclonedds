@@ -43,7 +43,7 @@ int LLVMFuzzerTestOneInput(
     const uint8_t *data,
     size_t size)
 {
-    struct cfgst *cfgst;
+    struct ddsi_cfgst *cfgst;
     struct ddsi_domaingv gv;
 
     if (!size)

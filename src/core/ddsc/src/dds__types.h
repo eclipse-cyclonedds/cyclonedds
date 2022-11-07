@@ -240,7 +240,7 @@ typedef struct dds_domain {
   shm_monitor_t m_shm_monitor;
 #endif
 
-  struct cfgst *cfgst; // NULL if config initializer provided
+  struct ddsi_cfgst *cfgst; // NULL if config initializer provided
 
   struct ddsi_sertype *builtin_participant_type;
 #ifdef DDS_HAS_TOPIC_DISCOVERY

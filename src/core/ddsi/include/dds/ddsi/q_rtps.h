@@ -83,9 +83,9 @@ typedef uint64_t seqno_t;
 
 #define NN_ENTITYID_ALLOCSTEP 0x100
 
-struct cfgst;
+struct ddsi_cfgst;
 struct ddsi_domaingv;
-int rtps_config_prep (struct ddsi_domaingv *gv, struct cfgst *cfgst);
+int rtps_config_prep (struct ddsi_domaingv *gv, struct ddsi_cfgst *cfgst);
 int rtps_config_open_trace (struct ddsi_domaingv *gv);
 int rtps_init (struct ddsi_domaingv *gv);
 int rtps_start (struct ddsi_domaingv *gv);

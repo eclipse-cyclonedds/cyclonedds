@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef DDSI_CONFIG_IMPL_H
-#define DDSI_CONFIG_IMPL_H
+#ifndef DDSI__CONFIG_IMPL_H
+#define DDSI__CONFIG_IMPL_H
 
 #include <stdio.h>
 
@@ -22,12 +22,14 @@ extern "C" {
 #endif
 
 struct ddsi_cfgst;
+struct ddsrt_log_cfg;
 
-struct ddsi_cfgst *ddsi_config_init (const char *config, struct ddsi_config *cfg, uint32_t domid) ddsrt_nonnull((1,2));
-DDS_EXPORT void ddsi_config_fini (struct ddsi_cfgst *cfgst);
+void ddsi_config_print_cfgst (struct ddsi_cfgst *cfgst, const struct ddsrt_log_cfg *logcfg);
+void ddsi_config_print_rawconfig (const struct ddsi_config *cfg, const struct ddsrt_log_cfg *logcfg);
+void ddsi_config_free_source_info (struct ddsi_cfgst *cfgst);
 
 #if defined (__cplusplus)
 }
 #endif
 
-#endif /* DDSI_CONFIG_IMPL_H */
+#endif /* DDSI__CONFIG_IMPL_H */

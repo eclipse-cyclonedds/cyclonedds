@@ -237,7 +237,7 @@ static void gen_defaults (FILE *out, void *parent, struct cfgelem const * const 
 int printdefconfig (FILE *out, struct cfgelem *elem)
 {
   struct ddsi_config cfg;
-  struct cfgst *cfgst;
+  struct ddsi_cfgst *cfgst;
 
   if ((cfgst = ddsi_config_init ("", &cfg, 0)) == NULL)
   {

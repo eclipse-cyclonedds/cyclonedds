@@ -23,7 +23,7 @@
 #include "dds/ddsi/q_protocol.h"
 #include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/q_misc.h"
-#include "dds/ddsi/ddsi_config_impl.h"
+#include "ddsi__config_impl.h"
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/q_unused.h"
@@ -493,7 +493,7 @@ int rtps_config_open_trace (struct ddsi_domaingv *gv)
   DDSRT_WARNING_MSVC_ON(4996);
 }
 
-int rtps_config_prep (struct ddsi_domaingv *gv, struct cfgst *cfgst)
+int rtps_config_prep (struct ddsi_domaingv *gv, struct ddsi_cfgst *cfgst)
 {
 #ifdef DDS_HAS_NETWORK_CHANNELS
   unsigned num_channels = 0;

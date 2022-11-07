@@ -40,7 +40,7 @@
 #include "dds__whc.h"
 #include "dds__types.h"
 
-static struct cfgst *cfgst;
+static struct ddsi_cfgst *cfgst;
 static struct ddsi_domaingv gv;
 static struct ddsi_config cfg;
 static ddsi_tran_conn_t fakeconn;
