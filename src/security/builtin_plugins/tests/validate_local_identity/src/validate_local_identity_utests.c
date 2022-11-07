@@ -488,17 +488,17 @@ print_guid(
 {
     uint32_t i, j;
 
-    printf("%s=", msg);
+    (void) printf("%s=", msg);
     for (i = 0; i < 3; i++) {
         for (j = 0; j < 4; j++) {
-            printf("%02x", guid->prefix[i*4+j]);
+            (void) printf("%02x", guid->prefix[i*4+j]);
         }
-        printf(":");
+        (void) printf(":");
     }
     for (i = 0; i < 3; i++) {
-        printf("%02x", guid->entityId.entityKey[i]);
+        (void) printf("%02x", guid->entityId.entityKey[i]);
     }
-    printf(":%02x\n", guid->entityId.entityKind);
+    (void) printf(":%02x\n", guid->entityId.entityKind);
 }
 
 static void
@@ -654,7 +654,7 @@ CU_Test(ddssec_builtin_validate_local_identity,happy_day)
                             &exception);
 
     if (result != DDS_SECURITY_VALIDATION_OK) {
-        printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     /* We expected the validation to have succeeded. */
@@ -671,7 +671,7 @@ CU_Test(ddssec_builtin_validate_local_identity,happy_day)
     CU_ASSERT_TRUE (success);
 
     if (!success) {
-        printf("return_identity_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("return_identity_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
     reset_exception(&exception);
 
@@ -698,7 +698,7 @@ CU_Test(ddssec_builtin_validate_local_identity,happy_day)
                             &exception);
 
     if (result != DDS_SECURITY_VALIDATION_OK) {
-        printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     /* We expected the validation to have succeeded. */
@@ -715,7 +715,7 @@ CU_Test(ddssec_builtin_validate_local_identity,happy_day)
     CU_ASSERT_TRUE (success);
 
     if (!success) {
-        printf("return_identity_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("return_identity_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
     reset_exception(&exception);
 }
@@ -761,7 +761,7 @@ CU_Test(ddssec_builtin_validate_local_identity,invalid_certificate)
                             &exception);
 
     if (result != DDS_SECURITY_VALIDATION_OK) {
-        printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     /* We expected the validation to have failed. */
@@ -796,7 +796,7 @@ CU_Test(ddssec_builtin_validate_local_identity,invalid_certificate)
                             &exception);
 
     if (result != DDS_SECURITY_VALIDATION_OK) {
-        printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     /* We expected the validation to have failed. */
@@ -848,7 +848,7 @@ CU_Test(ddssec_builtin_validate_local_identity,invalid_root)
                             &exception);
 
     if (result != DDS_SECURITY_VALIDATION_OK) {
-        printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     /* We expected the validation to have failed. */
@@ -881,7 +881,7 @@ CU_Test(ddssec_builtin_validate_local_identity,invalid_root)
                             &exception);
 
     if (result != DDS_SECURITY_VALIDATION_OK) {
-        printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     /* We expected the validation to have failed. */
@@ -933,7 +933,7 @@ CU_Test(ddssec_builtin_validate_local_identity,invalid_chain)
                             &exception);
 
     if (result != DDS_SECURITY_VALIDATION_OK) {
-        printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     /* We expected the validation to have failed. */
@@ -966,7 +966,7 @@ CU_Test(ddssec_builtin_validate_local_identity,invalid_chain)
                             &exception);
 
     if (result != DDS_SECURITY_VALIDATION_OK) {
-        printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     /* We expected the validation to have failed. */
@@ -1020,7 +1020,7 @@ CU_Test(ddssec_builtin_validate_local_identity,certificate_key_too_small)
                             &exception);
 
     if (result != DDS_SECURITY_VALIDATION_OK) {
-        printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     /* We expected the validation to have failed. */
@@ -1072,7 +1072,7 @@ CU_Test(ddssec_builtin_validate_local_identity,invalid_private_key)
                             &exception);
 
     if (result != DDS_SECURITY_VALIDATION_OK) {
-        printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     /* We expected the validation to have failed. */
@@ -1105,7 +1105,7 @@ CU_Test(ddssec_builtin_validate_local_identity,invalid_private_key)
                             &exception);
 
     if (result != DDS_SECURITY_VALIDATION_OK) {
-        printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     /* We expected the validation to have failed. */
@@ -1157,7 +1157,7 @@ CU_Test(ddssec_builtin_validate_local_identity,private_key_too_small)
                             &exception);
 
     if (result != DDS_SECURITY_VALIDATION_OK) {
-        printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     /* We expected the validation to have failed. */
@@ -1212,7 +1212,7 @@ CU_Test(ddssec_builtin_validate_local_identity,missing_certificate_property)
                             &exception);
 
     if (result != DDS_SECURITY_VALIDATION_OK) {
-        printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     /* We expected the validation to have failed. */
@@ -1271,7 +1271,7 @@ CU_Test(ddssec_builtin_validate_local_identity,missing_ca_property)
                             &exception);
 
     if (result != DDS_SECURITY_VALIDATION_OK) {
-        printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     /* We expected the validation to have failed. */
@@ -1325,7 +1325,7 @@ CU_Test(ddssec_builtin_validate_local_identity,missing_private_key_property)
                             &exception);
 
     if (result != DDS_SECURITY_VALIDATION_OK) {
-        printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     /* We expected the validation to have failed. */
@@ -1385,7 +1385,7 @@ CU_Test(ddssec_builtin_validate_local_identity,unsupported_certification_format)
                             &exception);
 
     if (result != DDS_SECURITY_VALIDATION_OK) {
-        printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     /* We expected the validation to have failed. */
@@ -1438,7 +1438,7 @@ CU_Test(ddssec_builtin_validate_local_identity,encrypted_key)
                             &exception);
 
     if (result != DDS_SECURITY_VALIDATION_OK) {
-        printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     /* We expected the validation to have succeeded. */
@@ -1473,7 +1473,7 @@ CU_Test(ddssec_builtin_validate_local_identity,encrypted_key)
                             &exception);
 
     if (result != DDS_SECURITY_VALIDATION_OK) {
-        printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     /* We expected the validation to have succeeded. */
@@ -1603,7 +1603,7 @@ CU_Test(ddssec_builtin_validate_local_identity,encrypted_key_invalid_password)
                             &exception);
 
     if (result != DDS_SECURITY_VALIDATION_OK) {
-        printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     /* We expected the validation to have failed. */
@@ -1638,7 +1638,7 @@ CU_Test(ddssec_builtin_validate_local_identity,encrypted_key_invalid_password)
                             &exception);
 
     if (result != DDS_SECURITY_VALIDATION_OK) {
-        printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     /* We expected the validation to have failed. */
@@ -1690,7 +1690,7 @@ CU_Test(ddssec_builtin_validate_local_identity,happy_day_elliptic)
                             &exception);
 
     if (result != DDS_SECURITY_VALIDATION_OK) {
-        printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     /* We expected the validation to have succeeded. */
@@ -1707,7 +1707,7 @@ CU_Test(ddssec_builtin_validate_local_identity,happy_day_elliptic)
     CU_ASSERT_TRUE (success);
 
     if (!success) {
-        printf("return_identity_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("return_identity_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
     reset_exception(&exception);
 
@@ -1733,7 +1733,7 @@ CU_Test(ddssec_builtin_validate_local_identity,happy_day_elliptic)
                             &exception);
 
     if (result != DDS_SECURITY_VALIDATION_OK) {
-        printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     /* We expected the validation to have succeeded. */
@@ -1750,7 +1750,7 @@ CU_Test(ddssec_builtin_validate_local_identity,happy_day_elliptic)
     CU_ASSERT_TRUE (success);
 
     if (!success) {
-        printf("return_identity_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("return_identity_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
     reset_exception(&exception);
 }
@@ -1795,7 +1795,7 @@ CU_Test(ddssec_builtin_validate_local_identity,encrypted_ec_key)
                             &exception);
 
     if (result != DDS_SECURITY_VALIDATION_OK) {
-        printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     /* We expected the validation to have succeeded. */
@@ -1830,7 +1830,7 @@ CU_Test(ddssec_builtin_validate_local_identity,encrypted_ec_key)
                             &exception);
 
     if (result != DDS_SECURITY_VALIDATION_OK) {
-        printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     /* We expected the validation to have succeeded. */
@@ -1883,7 +1883,7 @@ CU_Test(ddssec_builtin_validate_local_identity,elliptic_unsupported_certificate)
                             &exception);
 
     if (result != DDS_SECURITY_VALIDATION_OK) {
-        printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     /* We expected the validation to have failed. */
@@ -1935,7 +1935,7 @@ CU_Test(ddssec_builtin_validate_local_identity,elliptic_unsupported_private_key)
                             &exception);
 
     if (result != DDS_SECURITY_VALIDATION_OK) {
-        printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     /* We expected the validation to have failed. */
@@ -1988,7 +1988,7 @@ CU_Test(ddssec_builtin_validate_local_identity,return_freed_handle)
                             &exception);
 
     if (result != DDS_SECURITY_VALIDATION_OK) {
-        printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     /* We expected the validation to have succeeded. */
@@ -2005,7 +2005,7 @@ CU_Test(ddssec_builtin_validate_local_identity,return_freed_handle)
     CU_ASSERT_FATAL (success);
 
     if (!success) {
-        printf("return_identity_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("return_identity_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
     reset_exception(&exception);
 
@@ -2015,7 +2015,7 @@ CU_Test(ddssec_builtin_validate_local_identity,return_freed_handle)
     CU_ASSERT (exception.message != NULL);
 
     if (!success) {
-        printf("return_identity_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("return_identity_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
     reset_exception(&exception);
 }
@@ -2062,7 +2062,7 @@ CU_Test(ddssec_builtin_validate_local_identity,no_file)
                             &exception);
 
     if (result != DDS_SECURITY_VALIDATION_OK) {
-        printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     /* We expected the validation to have failed. */
@@ -2094,7 +2094,7 @@ CU_Test(ddssec_builtin_validate_local_identity,no_file)
                             &exception);
 
     if (result != DDS_SECURITY_VALIDATION_OK) {
-        printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     /* We expected the validation to have failed. */
@@ -2127,7 +2127,7 @@ CU_Test(ddssec_builtin_validate_local_identity,no_file)
                             &exception);
 
     if (result != DDS_SECURITY_VALIDATION_OK) {
-        printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     /* We expected the validation to have failed. */
@@ -2178,7 +2178,7 @@ CU_Test(ddssec_builtin_validate_local_identity,with_extended_certificate_check)
                             &exception);
 
     if (result != DDS_SECURITY_VALIDATION_OK) {
-        printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     /* We expected the validation to have succeeded. */
@@ -2267,7 +2267,7 @@ CU_Test(ddssec_builtin_validate_local_identity,crl)
                             &exception);
 
     if (result != DDS_SECURITY_VALIDATION_OK) {
-        printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     /* We expected the validation to have failed. */
@@ -2301,7 +2301,7 @@ CU_Test(ddssec_builtin_validate_local_identity,crl)
                             &exception);
 
     if (result != DDS_SECURITY_VALIDATION_OK) {
-        printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     /* We expected the validation to have failed. */
@@ -2355,7 +2355,7 @@ CU_Test(ddssec_builtin_validate_local_identity,trusted_ca_dir_and_crl)
                             &exception);
 
     if (result != DDS_SECURITY_VALIDATION_OK) {
-        printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     /* We expected the validation to have failed. */

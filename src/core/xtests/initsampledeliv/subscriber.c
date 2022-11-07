@@ -101,13 +101,13 @@ int main (int argc, char ** argv)
 
   if (flag_wait)
   {
-    printf ("waiting for writer ...\n");
+    (void) printf ("waiting for writer ...\n");
     fflush (stdout);
     wait_for_writer (ppant);
-    printf ("writer seen; giving it some time to discover us and publish data ...\n");
+    (void) printf ("writer seen; giving it some time to discover us and publish data ...\n");
     fflush (stdout);
     dds_sleepfor (DDS_SECS (1));
-    printf ("continuing ...\n");
+    (void) printf ("continuing ...\n");
     fflush (stdout);
   }
 
@@ -143,13 +143,13 @@ int main (int argc, char ** argv)
           /* have to postpone first seq# check for transient-local data because the limit
              t-l history means the first sample we read may have an arbitrary sequence
              that antedated the matching */
-          printf ("reader %d: first seq %d\n", i, (int) msg->seq);
+          (void) printf ("reader %d: first seq %d\n", i, (int) msg->seq);
           fflush (stdout);
           firstmsg[i] = msg->seq;
         }
         else if (msg->seq != prevmsg[i] + 1)
         {
-          printf ("reader %d: received %d, previous %d\n", i, (int) msg->seq, (int) prevmsg[i]);
+          (void) printf ("reader %d: received %d, previous %d\n", i, (int) msg->seq, (int) prevmsg[i]);
           oops ();
         }
         prevmsg[i] = msg->seq;
@@ -187,7 +187,7 @@ int main (int argc, char ** argv)
       /* allow the rare cases where an additional sample was received for volatile data
          (for t-l data, the publisher waits to give so the subscriber can get the data
          in time */
-      printf ("reader %"PRId32": first seq %"PRId32" but refseq %"PRId32"\n", i, firstmsg[i], refseq);
+      (void) printf ("reader %"PRId32": first seq %"PRId32" but refseq %"PRId32"\n", i, firstmsg[i], refseq);
       oops ();
     }
   }

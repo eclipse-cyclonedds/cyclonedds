@@ -239,7 +239,7 @@ CU_Test(ddsc_data_representation, matching, .init = data_representation_init, .f
   for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
   {
     dds_return_t ret;
-    printf ("running test %u: %s %u/%u\n", i, tests[i].match ? "true" : "false", tests[i].n_ids_rd, tests[i].n_ids_wr);
+    (void) printf ("running test %u: %s %u/%u\n", i, tests[i].match ? "true" : "false", tests[i].n_ids_rd, tests[i].n_ids_wr);
     dds_qos_t *qos_rd = dds_create_qos (), *qos_wr = dds_create_qos ();
     dds_qset_history(qos_rd, DDS_HISTORY_KEEP_ALL, DDS_LENGTH_UNLIMITED);
     dds_qset_durability(qos_rd, DDS_DURABILITY_TRANSIENT_LOCAL);
@@ -394,11 +394,11 @@ CU_Test(ddsc_data_representation, extensibility, .init = data_representation_ini
 
   for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
   {
-    printf ("running test %u for type %s: ", i, tests[i].desc->m_typename);
+    (void) printf ("running test %u for type %s: ", i, tests[i].desc->m_typename);
 
     create_unique_topic_name ("ddsc_data_representation", topicname, sizeof topicname);
 
-    printf ("tp ");
+    (void) printf ("tp ");
     dds_qos_t *qos_tp = get_qos (&tests[i].tp);
     dds_entity_t tp = dds_create_topic (dp1, tests[i].desc, topicname, qos_tp, NULL);
     CU_ASSERT_EQUAL_FATAL (tp > 0, tests[i].tp.valid);
@@ -408,7 +408,7 @@ CU_Test(ddsc_data_representation, extensibility, .init = data_representation_ini
 
     if (tests[i].tp.valid)
     {
-      printf ("rd ");
+      (void) printf ("rd ");
       dds_qos_t *qos_rd = get_qos (&tests[i].rd);
       dds_entity_t rd = dds_create_reader (dp1, tp, qos_rd, NULL);
       CU_ASSERT_EQUAL_FATAL (rd > 0, tests[i].rd.valid);
@@ -416,7 +416,7 @@ CU_Test(ddsc_data_representation, extensibility, .init = data_representation_ini
         exp_qos (rd, &tests[i].rd);
       dds_delete_qos (qos_rd);
 
-      printf ("wr ");
+      (void) printf ("wr ");
       dds_qos_t *qos_wr = get_qos (&tests[i].wr);
       dds_entity_t wr = dds_create_writer (dp1, tp, qos_wr, NULL);
       CU_ASSERT_EQUAL_FATAL (wr > 0, tests[i].wr.valid);
@@ -424,7 +424,7 @@ CU_Test(ddsc_data_representation, extensibility, .init = data_representation_ini
         exp_qos (wr, &tests[i].wr);
       dds_delete_qos (qos_wr);
     }
-    printf ("\n");
+    (void) printf ("\n");
   }
 }
 
@@ -442,9 +442,9 @@ CU_Test (ddsc_data_representation, update_qos, .init = data_representation_init,
   {
     dds_entity_t ent = 0;
     switch (tests[i]) {
-      case RD: printf("RD\n"); ent = dds_create_reader (dp1, tp1, NULL, NULL); break;
-      case WR: printf("WR\n"); ent = dds_create_writer (dp1, tp1, NULL, NULL); break;
-      case TP: printf("TP\n"); ent = tp1; break;
+      case RD: (void) printf("RD\n"); ent = dds_create_reader (dp1, tp1, NULL, NULL); break;
+      case WR: (void) printf("WR\n"); ent = dds_create_writer (dp1, tp1, NULL, NULL); break;
+      case TP: (void) printf("TP\n"); ent = tp1; break;
     }
     CU_ASSERT_FATAL (ent > 0);
 
@@ -511,7 +511,7 @@ CU_Test(ddsc_data_representation, qos_annotation, .init = data_representation_in
   char topicname[100];
   for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
   {
-    printf ("running tests for type %s \n", tests[i].desc->m_typename);
+    (void) printf ("running tests for type %s \n", tests[i].desc->m_typename);
     for (uint32_t t = 0; t < 4; t++)
     {
       dds_qos_t *qos_tp = get_qos (&tests[i].tp[t]);

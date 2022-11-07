@@ -89,22 +89,22 @@ static void check_reorder (struct nn_reorder *reorder, uint64_t ndiscard, seqno_
   CU_ASSERT_FATAL (discarded_bytes == ndiscard);
   // expect the set of present sequence numbers to match
   int i = 0, err = 0;
-  printf ("check:");
+  (void) printf ("check:");
   for (seqno_t s = next_exp; s <= end; s++)
   {
     if (s < present[i] || present[i] == 0) {
       int w = nn_reorder_wantsample (reorder, s);
-      printf (" -%"PRId64"/%d", s, w);
+      (void) printf (" -%"PRId64"/%d", s, w);
       if (!w) err++;
     } else {
       if (s == present[i])
         i++;
       int w = nn_reorder_wantsample (reorder, s);
       if (w) err++;
-      printf (" +%"PRId64"/%d", s, w);
+      (void) printf (" +%"PRId64"/%d", s, w);
     }
   }
-  printf ("\n");
+  (void) printf ("\n");
   CU_ASSERT_FATAL (err == 0);
 }
 

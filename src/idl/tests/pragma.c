@@ -187,11 +187,11 @@ CU_Test(idl_pragma, keylist_conflicting)
   };
 
   for (size_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++) {
-    printf("Test idl: %s\n", tests[i].idl);
+    (void) printf("Test idl: %s\n", tests[i].idl);
     ret = parse_string(tests[i].idl, &pstate);
     CU_ASSERT_EQUAL_FATAL(ret, tests[i].ret);
     if (ret != tests[i].ret)
-      printf("retcode: %d\n%s\n", ret, tests[i].idl);
+      (void) printf("retcode: %d\n%s\n", ret, tests[i].idl);
     idl_delete_pstate(pstate);
     pstate = NULL;
   }

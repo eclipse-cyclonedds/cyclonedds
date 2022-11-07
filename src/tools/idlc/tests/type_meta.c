@@ -68,7 +68,7 @@ CU_Test(idlc_type_meta, union_max_label_value)
 
     idl_snprintf (idl, sizeof (idl), fmt, tests[i].switch_type, tests[i].label_value);
 
-    printf ("running test for idl: %s\n", idl);
+    (void) printf ("running test for idl: %s\n", idl);
 
     ret = idl_create_pstate (flags, NULL, &pstate);
     CU_ASSERT_EQUAL_FATAL (ret, IDL_RETCODE_OK);
@@ -787,7 +787,7 @@ CU_Test(idlc_type_meta, type_obj_serdes)
     struct descriptor descriptor;
     struct descriptor_type_meta dtm;
 
-    printf ("running test for idl: %s\n", tests[i].idl);
+    (void) printf ("running test for idl: %s\n", tests[i].idl);
 
     ret = idl_create_pstate (flags, NULL, &pstate);
     CU_ASSERT_EQUAL_FATAL (ret, IDL_RETCODE_OK);
@@ -803,7 +803,7 @@ CU_Test(idlc_type_meta, type_obj_serdes)
     {
       struct ddsi_typeid_str tidstr;
       const char *type_name = idl_identifier(tm->node);
-      printf ("test type %s %s\n", type_name ? type_name : "<anonymous>", ddsi_make_typeid_str_impl (&tidstr, tm->ti_complete));
+      (void) printf ("test type %s %s\n", type_name ? type_name : "<anonymous>", ddsi_make_typeid_str_impl (&tidstr, tm->ti_complete));
 
       // serialize the generated type object
       dds_ostream_t os;

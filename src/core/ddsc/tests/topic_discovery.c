@@ -181,8 +181,8 @@ static void check_topic_samples (dds_entity_t topic_rd, char *topic_name, uint32
       bool not_alive = sample_info->instance_state != DDS_IST_ALIVE;
       tprintf ("read topic: %s, key={", sample->topic_name);
       for (uint32_t i = 0; i < sizeof (first_key); i++)
-        printf ("%02x", sample->key.d[i]);
-      printf ("} %sALIVE\n", not_alive ? "NOT_" : "");
+        (void) printf ("%02x", sample->key.d[i]);
+      (void) printf ("} %sALIVE\n", not_alive ? "NOT_" : "");
       if (!not_alive && (topic_name == NULL || !strcmp (sample->topic_name, topic_name)))
       {
         if (topic_seen == 0)

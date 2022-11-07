@@ -194,7 +194,7 @@ static void test_fini(size_t n_sub_domain, size_t n_pub_domain)
     ret = dds_delete (g_sub_domains[d]);
     CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
   }
-  printf("Test finished\n");
+  (void) printf("Test finished\n");
 }
 
 static void create_eps (dds_entity_t **endpoints, dds_entity_t **topics, size_t n_dom, size_t n_pp, size_t n_eps, const char * topic_name, const dds_topic_descriptor_t *topic_descriptor,
@@ -241,7 +241,7 @@ static void test_write_read(struct domain_sec_config *domain_config,
   dds_return_t ret;
   char name[100];
 
-  printf("Testing: %"PRIuSIZE" subscriber domains, %"PRIuSIZE" pp per domain, %"PRIuSIZE" rd per pp; %"PRIuSIZE" publishing domains, %"PRIuSIZE" pp per domain, %"PRIuSIZE" wr per pp\n",
+  (void) printf("Testing: %"PRIuSIZE" subscriber domains, %"PRIuSIZE" pp per domain, %"PRIuSIZE" rd per pp; %"PRIuSIZE" publishing domains, %"PRIuSIZE" pp per domain, %"PRIuSIZE" wr per pp\n",
       n_sub_domains, n_sub_participants, n_readers, n_pub_domains, n_pub_participants, n_writers);
   test_init(domain_config, n_sub_domains, n_sub_participants, n_pub_domains, n_pub_participants, set_crypto_params);
 
@@ -262,7 +262,7 @@ static void test_write_read(struct domain_sec_config *domain_config,
         size_t wr_index = pp_index * n_writers + w;
         sync_writer_to_readers (g_pub_participants[pp_index], writers[wr_index], (uint32_t)(n_sub_domains * n_sub_participants * n_readers), sync_abstimeout);
         sample.id = (int32_t) wr_index;
-        printf("writer %"PRId32" writing sample %d\n", writers[wr_index], sample.id);
+        (void) printf("writer %"PRId32" writing sample %d\n", writers[wr_index], sample.id);
         ret = dds_write (writers[wr_index], &sample);
         CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
       }
@@ -286,7 +286,7 @@ static void test_write_read(struct domain_sec_config *domain_config,
             reader_wait_for_data (g_sub_participants[pp_index], readers[rd_index], DDS_SECS(5));
             continue;
           }
-          printf("reader %"PRId32" received sample %d\n", readers[rd_index], rd_sample.id);
+          (void) printf("reader %"PRId32" received sample %d\n", readers[rd_index], rd_sample.id);
           CU_ASSERT_EQUAL_FATAL (ret, 1);
           CU_ASSERT_EQUAL_FATAL (rd_sample.value, 1);
           n_samples--;

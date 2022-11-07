@@ -99,7 +99,7 @@ for (1 .. 300) {
 }
 print CYC <<EOF;
   dds_delete (dp);
-  printf ("deserialized %"PRIu32" pieces of garbage\\n", deser_garbage);
+  (void) printf ("deserialized %"PRIu32" pieces of garbage\\n", deser_garbage);
   return 0;
 }
 EOF

@@ -1226,10 +1226,10 @@ static char *   str_parm_scan( char * string_end)
  * String parameter scan.
  * This code -- if enabled -- recognizes a formal parameter in a string
  * literal or in a character constant.
- *      #define foo(bar, v) printf("%bar\n", v)
+ *      #define foo(bar, v) (void) printf("%bar\n", v)
  *      foo( d, i)
  * expands to:
- *      printf("%d\n", i)
+ *      (void) printf("%d\n", i)
  * str_parm_scan() return the advanced pointer into the replacement text.
  * This has been superceded by # stringizing and string concatenation.
  * This routine is called only in OLD_PREP mode.

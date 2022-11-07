@@ -292,7 +292,7 @@ CU_Test(ddssec_config, all, .init = ddsrt_init, .fini = ddsrt_fini)
   }
 
   /* All traces should have been provided. */
-  printf("found: %x\n", found);
+  (void) printf("found: %x\n", found);
   CU_ASSERT_FATAL(found == 0x1fffff);
 
   reset_logger();

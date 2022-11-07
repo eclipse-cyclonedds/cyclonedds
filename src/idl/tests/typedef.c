@@ -245,7 +245,7 @@ CU_Test(idl_typedef, forward_declaration)
   for (size_t i = 0; i < sizeof(tests)/sizeof(tests[0]); i++) {
     idl_retcode_t ret;
     idl_pstate_t *pstate = NULL;
-    printf("test idl: %s\n", tests[i].idl);
+    (void) printf("test idl: %s\n", tests[i].idl);
     ret = parse_string(tests[i].idl, &pstate);
     CU_ASSERT_EQUAL_FATAL(ret, tests[i].retcode);
     if (ret == IDL_RETCODE_OK) {
@@ -279,7 +279,7 @@ CU_Test(idl_typedef, backwards_forward_declaration)
   for (size_t i = 0; i < sizeof(tests)/sizeof(tests[0]); i++) {
     idl_retcode_t ret;
     idl_pstate_t *pstate = NULL;
-    printf("test idl: %s\n", tests[i].idl);
+    (void) printf("test idl: %s\n", tests[i].idl);
     ret = parse_string(tests[i].idl, &pstate);
     CU_ASSERT_EQUAL_FATAL(ret, tests[i].retcode);
     if (ret == IDL_RETCODE_OK) {
@@ -315,7 +315,7 @@ CU_Test(idl_typedef, constructed_type)
   for (size_t i = 0; i < sizeof(tests)/sizeof(tests[0]); i++) {
     idl_retcode_t ret;
     idl_pstate_t *pstate = NULL;
-    printf("test idl: %s\n", tests[i].idl);
+    (void) printf("test idl: %s\n", tests[i].idl);
     ret = parse_string(tests[i].idl, &pstate);
     CU_ASSERT_EQUAL_FATAL(ret, tests[i].retcode);
     if (ret == IDL_RETCODE_OK) {
@@ -345,7 +345,7 @@ CU_Test(idl_typedef, scoped_name)
   for (size_t i = 0; i < sizeof(tests)/sizeof(tests[0]); i++) {
     idl_retcode_t ret;
     idl_pstate_t *pstate = NULL;
-    printf("test idl: %s\n", tests[i].idl);
+    (void) printf("test idl: %s\n", tests[i].idl);
     ret = parse_string(tests[i].idl, &pstate);
     CU_ASSERT_EQUAL_FATAL(ret, tests[i].retcode);
     idl_delete_pstate(pstate);

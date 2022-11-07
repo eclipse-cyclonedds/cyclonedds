@@ -119,7 +119,7 @@ my (%psgid, %psguid, %rwgid, %rwguid);
 my %isbuiltin_entitykind = (0xc2 => 1, 0xc3 => 1, 0xc4 => 1, 0xc7 => 1, 0x42 => 1, 0x43 => 1, 0x44 => 1, 0x47 => 1);
 my $prevline = "";
 while(<>) {
-  #printf $_;
+  #(void) printf $_;
   s/[\r\n]+$//; # chomp;
 
   if (defined $t0sec && /\(anon\): config: Domain\/General\/MulticastRecvNetworkInterfaceAddresses/) {
@@ -146,17 +146,17 @@ while(<>) {
   last unless /^(?:\d+-\d+-\d+T\d+:\d+:\d+[+-]\d+\s+)?(\d+)\.(\d+)(\/| \[(\d+)\]) *([^:]+)/;
   unless (defined $t0sec) {
     ($t0sec, $t0usec) = ($1, $2);
-    printf "T0 = %d.%06d\n", $t0sec, $t0usec;
+    (void) printf "T0 = %d.%06d\n", $t0sec, $t0usec;
   }
   $ts = ($1 - $t0sec) + ($2 - $t0usec) / 1e6;
   my $dom = $4;
   my $tid = $5;
   $prevts{$tid} = $ts unless exists $prevts{$tid};
   if ($ts < $prevts{$tid}) {
-    printf "%9.3f %35s $topfmt TJMP time jumped %.3fs (thread %s line $.)\n", $ts, "", "", $ts - $prevts{$tid}, $tid if $ts - $prevtjump > 1;
+    (void) printf "%9.3f %35s $topfmt TJMP time jumped %.3fs (thread %s line $.)\n", $ts, "", "", $ts - $prevts{$tid}, $tid if $ts - $prevtjump > 1;
     $prevtjump = $ts;
   } elsif ($tid eq "lease" && $ts > $prevts{$tid} + 3) {
-    printf "%9.3f %35s $topfmt TJMP possible time jump %.3fs (thread %s line $.)\n", $ts, "", "", $ts - $prevts{$tid}, $tid if $ts - $prevtjump > 1;
+    (void) printf "%9.3f %35s $topfmt TJMP possible time jump %.3fs (thread %s line $.)\n", $ts, "", "", $ts - $prevts{$tid}, $tid if $ts - $prevtjump > 1;
   }
   $prevts{$tid} = $ts;
 
@@ -168,7 +168,7 @@ while(<>) {
     my @stat = ($recv_packet, $xmit_packet, $recv_bytes, $xmit_bytes, $recv_appdata, $xmit_appdata, $rexmit_count_req, $rexmit_frags);
     if ($ts >= $next_stat_print) {
       if ($statintv > 0) {
-        printf "%9.3f %35s $topfmt STAT recv/xmit: pkt %u %u bytes %u %u app %u %u rexmit: req %u frags %u\n", $ts, "", "", @stat;
+        (void) printf "%9.3f %35s $topfmt STAT recv/xmit: pkt %u %u bytes %u %u app %u %u rexmit: req %u frags %u\n", $ts, "", "", @stat;
       } else {
         my $dt = $ts - ($next_stat_print + $statintv);
         for (my $i = 0; $i < @stat; $i++) {
@@ -176,7 +176,7 @@ while(<>) {
           $stat[$i] = ($x - $stat_deltas[$i]) / $dt;
           $stat_deltas[$i] = $x;
         }
-        printf "%9.3f %35s $topfmt STAT recv/xmit: pkt %f %f bytes %f %f app %f %f rexmit: req %f frags %f\n", $ts, "", "", @stat;
+        (void) printf "%9.3f %35s $topfmt STAT recv/xmit: pkt %f %f bytes %f %f app %f %f rexmit: req %f frags %f\n", $ts, "", "", @stat;
       }
       $next_stat_print = $ts + abs($statintv);
     }
@@ -188,7 +188,7 @@ while(<>) {
     if ($nsamp > 0) {
       # note: sample count is against check reqt, not current position
       # of the writer
-      printf "%9.3f %35s $topfmt  ACK lagging by %d samples (last seq from writer: %d)\n",
+      (void) printf "%9.3f %35s $topfmt  ACK lagging by %d samples (last seq from writer: %d)\n",
         $x->{ts}, fmtguid($x->{wrguid}), $wr{$x->{wrguid}}->{stopic}, $nsamp, $wr{$x->{wrguid}}->{seq}
         unless $wr{$x->{wrguid}}->{acklate} || !$shows{ack} || !show_topic($wr{$x->{wrguid}}->{topic});
       $wr{$x->{wrguid}}->{acklate} = $x->{tswrite};
@@ -201,7 +201,7 @@ while(<>) {
   if ($ts - $tlast_non_spdp_check >= 1.0) {
     while (my ($k, $v) = each %proxypp) {
       if (!defined $v->{tdel} && $ts - $v->{tcreate} > 5.0 && $v->{non_spdp_seen} == 0) {
-        printf "%9.3f %35s $topfmt CONN nothing other than SPDP received for %3.fs, possible connectivity issue\n", $ts, fmtguid($k), "", $ts - $v->{tcreate};
+        (void) printf "%9.3f %35s $topfmt CONN nothing other than SPDP received for %3.fs, possible connectivity issue\n", $ts, fmtguid($k), "", $ts - $v->{tcreate};
         $v->{non_spdp_seen} = -1; # flagging it so we don't keep repeating it
       }
     }
@@ -210,7 +210,7 @@ while(<>) {
     if ($hexmode) {
       while (my ($k, $v) = each %proxypp) {
         if (!defined $v->{tdel} && $ts - $v->{tcreate} > 5.0 && !$v->{disccompleteflag} && !$v->{disccompletewarned}) {
-          printf "%9.3f %35s $topfmt DISC discovery not complete yet after %.3fs (%s)\n", $ts, fmtguid($k), "", $ts - $v->{tcreate}, disccomplete_diagstr ($v);
+          (void) printf "%9.3f %35s $topfmt DISC discovery not complete yet after %.3fs (%s)\n", $ts, fmtguid($k), "", $ts - $v->{tcreate}, disccomplete_diagstr ($v);
           $v->{disccompletewarned} = 1;
         }
       }
@@ -221,12 +221,12 @@ while(<>) {
   for my $t (keys %txblock) {
     if ($shows{block} && defined $txblock{$t} && $ts > $txblock{$t} + 1.0 && $txblock{$t} > $tlast_txblock{$t}) {
       my $stopic = (exists $wr{$txblockwr{$t}}) ? $wr{$txblockwr{$t}}->{stopic} : "";
-      printf "%9.3f %35s $topfmt BLCK already blocked for %.3fs\n", $ts, fmtguid($txblockwr{$t}), $stopic, $ts - $txblock{$t};
+      (void) printf "%9.3f %35s $topfmt BLCK already blocked for %.3fs\n", $ts, fmtguid($txblockwr{$t}), $stopic, $ts - $txblock{$t};
       if (exists $wr{$txblockwr{$t}}) {
         my @lates = acklate(1e100, $txblockwr{$t});
         for (@lates) {
           my $cause = ($_->{haveack} ? sprintf "%d behind", $_->{nsamp} : "no ack yet");
-          printf "%9.3f %35s $topfmt BLCK   %s (%s)\n", $ts, fmtguid($txblockwr{$t}), $stopic, fmtguid($_->{guid}), $cause;
+          (void) printf "%9.3f %35s $topfmt BLCK   %s (%s)\n", $ts, fmtguid($txblockwr{$t}), $stopic, fmtguid($_->{guid}), $cause;
         }
       }
       $tlast_txblock{$t} = $txblock{$t};
@@ -295,7 +295,7 @@ while(<>) {
       if ($proxypp{$ppguid}->{disccompleteflag} && $ts > $proxypp{$ppguid}->{tasymdisc} + 5) {
         my $sysid = $proxypp{$ppguid}->{sysid};
         my $sx = decimal_sysid($sysid);
-        printf "%9.3f %35s $topfmt ASYM %s (%s; %s; %s) likely asymmetrical disconnect\n", $ts, $sysid, "", $sysid{$sysid}->{ip}, $sx, $sysid{$sysid}->{name}, vendorstr($spdp_info{$ppguid}->{vendor});
+        (void) printf "%9.3f %35s $topfmt ASYM %s (%s; %s; %s) likely asymmetrical disconnect\n", $ts, $sysid, "", $sysid{$sysid}->{ip}, $sx, $sysid{$sysid}->{name}, vendorstr($spdp_info{$ppguid}->{vendor});
         $proxypp{$ppguid}->{tasymdisc} = $ts;
       }
     }
@@ -310,7 +310,7 @@ while(<>) {
     if (exists $proxypp{$ppguid} && $proxypp{$ppguid}->{disccompleteflag} && $ts > $proxypp{$ppguid}->{tasymdisc} + 1) {
       my $sysid = $proxypp{$ppguid}->{sysid};
       my $sx = decimal_sysid($sysid);
-      printf "%9.3f %35s $topfmt ASYM %s (%s; %s; %s) likely asymmetrical disconnect\n", $ts, $sysid, "", $sysid{$sysid}->{ip}, $sx, $sysid{$sysid}->{name}, vendorstr($spdp_info{$ppguid}->{vendor});
+      (void) printf "%9.3f %35s $topfmt ASYM %s (%s; %s; %s) likely asymmetrical disconnect\n", $ts, $sysid, "", $sysid{$sysid}->{ip}, $sx, $sysid{$sysid}->{name}, vendorstr($spdp_info{$ppguid}->{vendor});
       $proxypp{$ppguid}->{tasymdisc} = $ts;
     }
   }
@@ -342,13 +342,13 @@ while(<>) {
       $self_seen = 1;
       $sysid{$sysid} = { self => 1, ip => $ownip, name => $name, sname => $sname };
       my $sx = decimal_sysid($sysid);
-      printf "%9.3f %35s $topfmt SELF node %s (%s; %s) alive\n", $ts, $sysid, "", $ownip, $sx, $sysid{$sysid}->{name};
+      (void) printf "%9.3f %35s $topfmt SELF node %s (%s; %s) alive\n", $ts, $sysid, "", $ownip, $sx, $sysid{$sysid}->{name};
     }
-    printf "%9.3f LOCAL PARTICIPANT %s (%s)\n", $ts, fmtguid($guid), $gid if $shows{localdisc};
+    (void) printf "%9.3f LOCAL PARTICIPANT %s (%s)\n", $ts, fmtguid($guid), $gid if $shows{localdisc};
   } elsif (/: ddsi_unref_participant\(($guidre) .*user 0 builtin 0/o) {
     my $guid = hexify($1);
     (my $gid = $guid) =~ s/:[^:]+$//;
-    printf "%9.3f DELETE LOCAL PARTICIPANT %s (%s)\n", $ts, fmtguid($guid), $gid if $shows{localdisc};
+    (void) printf "%9.3f DELETE LOCAL PARTICIPANT %s (%s)\n", $ts, fmtguid($guid), $gid if $shows{localdisc};
   } elsif (/: map group ($gidre) -> ($guidre)/o) {
     $psgid{$tid} = hexify($1);
     $psguid{$tid} = hexify($2);
@@ -423,7 +423,7 @@ while(<>) {
     } else {
       $gidstr = sprintf "gid %s ${gk}gid %s", $rwgid{$tid}, $psgid{$tid};
     }
-    printf "%9.3f LOCAL $kind %s %s {%s} (%s)\n", $ts, fmtguid($rwguid{$tid}), $topic, $partitions, $gidstr if $shows{localdisc} && $topic =~ /$topic_filter/o && $topic !~ /$topic_xfilter/o;
+    (void) printf "%9.3f LOCAL $kind %s %s {%s} (%s)\n", $ts, fmtguid($rwguid{$tid}), $topic, $partitions, $gidstr if $shows{localdisc} && $topic =~ /$topic_filter/o && $topic !~ /$topic_xfilter/o;
     check_qos($ts, $kind, fmtguid($rwguid{$tid}), $topic, $partitions, $qos, $g->{$psguid{$tid}});
     $psgid{$tid} = $psguid{$tid} = $rwgid{$tid} = $rwguid{$tid} = undef;
     $ftrflag{$tid} = 0;
@@ -439,7 +439,7 @@ while(<>) {
       die if defined $wr->{cs};
       if ($pub->{txn} == 0) {
         $pub->{txn} = keys %{$pub->{es}};
-        printf "%9.3f %35s $topfmt %16s XMT  BEGIN [%d writers]\n", $ts, fmtguid($pub->{guid}), "", "", $pub->{txn}
+        (void) printf "%9.3f %35s $topfmt %16s XMT  BEGIN [%d writers]\n", $ts, fmtguid($pub->{guid}), "", "", $pub->{txn}
           if $shows{out};
       }
       $wr->{cs} = { seq => undef, ktxn => $ktxnid, kseq => $kseq }; # seq will be filled in with the first sample
@@ -449,7 +449,7 @@ while(<>) {
         my $nd = defined $wr->{cs}->{seq} ? $wr->{seq} - $wr->{cs}->{seq} + 1 : 0;
         if ($nk != $nd) {
           my $keeplastmsg = $wr->{keepall} ? " (weird)" : " - change writer to use a keep-all history";
-          printf "%9.3f %35s $topfmt %s #%-4d %-6s EOTX kernel has %d but DDSI %d samples in txn%s\n", $ts, fmtguid($wrguid), $wr->{stopic}, "", $wr->{seq}, "", $nk, $nd, $keeplastmsg;
+          (void) printf "%9.3f %35s $topfmt %s #%-4d %-6s EOTX kernel has %d but DDSI %d samples in txn%s\n", $ts, fmtguid($wrguid), $wr->{stopic}, "", $wr->{seq}, "", $nk, $nd, $keeplastmsg;
         }
       } else {
         # assume empty transaction
@@ -489,7 +489,7 @@ while(<>) {
       $print = show_topic($wr->{topic}) && $shows{out};
       $print = 0 unless $data =~ /$data_filter/o;
       my $sdata = $printlim ? (sprintf "%-100.100s", $data) : (sprintf "%-100s", $data);
-      printf "%9.3f %35s $topfmt %s #%-4d %-6s XMT  %s -> %s\n", $ts, fmtguid($wrguid), $wr->{stopic}, $op, $seq, $cseq, $sdata, $dest if $print;
+      (void) printf "%9.3f %35s $topfmt %s #%-4d %-6s XMT  %s -> %s\n", $ts, fmtguid($wrguid), $wr->{stopic}, $op, $seq, $cseq, $sdata, $dest if $print;
       if ($data =~ /^:e:/ && defined $wr->{cs}) {
         # assume empty transaction if no $wr->{cs}
         my $pub = $pub{$wr->{psguid}};
@@ -498,10 +498,10 @@ while(<>) {
         if ($pub->{txn} == 0) {
           # presumably an empty transaction
           $pub->{txn} = keys %{$pub->{es}};
-          printf "%9.3f %35s $topfmt %16s XMT  BEGIN [empty, %d writers]\n", $ts, fmtguid($pub->{guid}), "", "", $pub->{txn} if $shows{out};
+          (void) printf "%9.3f %35s $topfmt %16s XMT  BEGIN [empty, %d writers]\n", $ts, fmtguid($pub->{guid}), "", "", $pub->{txn} if $shows{out};
         }
         if (--$pub->{txn} == 0) {
-          printf "%9.3f %35s $topfmt %16s XMT  COMMIT\n", $ts, fmtguid($pub->{guid}), "", ""
+          (void) printf "%9.3f %35s $topfmt %16s XMT  COMMIT\n", $ts, fmtguid($pub->{guid}), "", ""
             if $shows{out};
         }
       }
@@ -546,14 +546,14 @@ while(<>) {
     }
     my $note = "";
     if (exists $sysid{$sysid} && defined $sysid{$sysid}->{tcrash}) {
-      printf "%9.3f %35s $topfmt DISC node %s apparently not disconnected as assumed before\n",
+      (void) printf "%9.3f %35s $topfmt DISC node %s apparently not disconnected as assumed before\n",
         $ts, $sysid, "", $ip;
       $sysid{$sysid}->{tcrash} = undef;
     }
     if ($st != 0) {
       # should know it, but I guess it might not if one were to receive a dispose followed by an unregister
       # actually deleting is deferred
-      #printf "%9.3f LEAVE %s\n", $ts, $ppguid;
+      #(void) printf "%9.3f LEAVE %s\n", $ts, $ppguid;
     } else {
       $sysid{$sysid} = { npp => 0, ip => $ip, name => $name, sname => $sname, tdel => undef, tcrash => undef } unless defined $sysid{$sysid};
       if ($sysid{$sysid}->{npp}++ > 0) {
@@ -561,7 +561,7 @@ while(<>) {
       } elsif (! defined $sysid{$sysid}->{tdel}) {
         my $x = defined $spdp_info{$ppguid}->{ts} ? sprintf " (started at %.3fs)", $spdp_info{$ppguid}->{ts} : "";
         my $sx = decimal_sysid($sysid);
-        printf "%9.3f %35s $topfmt DISC node %s (%s; %s; %s) alive%s%s\n", $ts, $sysid, "", $ip, $sx, $sysid{$sysid}->{name}, vendorstr($spdp_info{$ppguid}->{vendor}), $x, $userdata;
+        (void) printf "%9.3f %35s $topfmt DISC node %s (%s; %s; %s) alive%s%s\n", $ts, $sysid, "", $ip, $sx, $sysid{$sysid}->{name}, vendorstr($spdp_info{$ppguid}->{vendor}), $x, $userdata;
       } else {
         my $dt = $ts - $sysid{$sysid}->{tdel};
         my $dtgapstr;
@@ -574,7 +574,7 @@ while(<>) {
         $sysid{$sysid}->{tdel} = undef;
         delete $sysid{$sysid}->{tlastpkt};
         delete $sysid{$sysid}->{tresumepkt};
-        printf "%9.3f %35s $topfmt DISC node %s (%s; %s; %s) alive again after %.3fs (disconnect estimate %s)\n", $ts, $sysid, "", $ip, $sx, $sysid{$sysid}->{name}, vendorstr($spdp_info{$ppguid}->{vendor}), $dt, $dtgapstr;
+        (void) printf "%9.3f %35s $topfmt DISC node %s (%s; %s; %s) alive again after %.3fs (disconnect estimate %s)\n", $ts, $sysid, "", $ip, $sx, $sysid{$sysid}->{name}, vendorstr($spdp_info{$ppguid}->{vendor}), $dt, $dtgapstr;
       }
       if (! exists $proxypp{$ppguid}) {
         $proxypp{$ppguid} =
@@ -591,7 +591,7 @@ while(<>) {
             disccomplete => init_proxypp_disccomplete($bes),
             disccompleteflag => 0,
             disccompletewarned => 0 };
-        #printf "%9.3f DISCOVER %s @ %s\n", $ts, $ppguid, $ip;
+        #(void) printf "%9.3f DISCOVER %s @ %s\n", $ts, $ppguid, $ip;
       } else {
         die unless defined $proxypp{$ppguid}->{tdel};
         my $dt = $ts - $proxypp{$ppguid}->{tdel};
@@ -601,7 +601,7 @@ while(<>) {
         $proxypp{$ppguid}->{disccomplete} = {};
         $proxypp{$ppguid}->{disccompleteflag} = 0;
         $proxypp{$ppguid}->{disccompletewarned} = 0;
-        #printf "%9.3f REDISCOVER %s @ %s - gone for %.3fs\n", $ts, $ppguid, $ip, $dt;
+        #(void) printf "%9.3f REDISCOVER %s @ %s - gone for %.3fs\n", $ts, $ppguid, $ip, $dt;
       }
     }
   } elsif (/lease expired:.*? guid ($guidre)/o) {
@@ -615,7 +615,7 @@ while(<>) {
     die unless defined $sysid{$sysid};
     if (!defined $sysid{$sysid}->{tcrash}) {
       my $lastpacketmsg = exists $tlastpkt{$sysid} ? sprintf " last packet %.3fs ago", $ts - $tlastpkt{$sysid} : "";
-      printf "%9.3f %35s $topfmt DIED assuming disconnect of node %s (%s; %s)%s\n",
+      (void) printf "%9.3f %35s $topfmt DIED assuming disconnect of node %s (%s; %s)%s\n",
         $ts, fmtguid($ppguid), "", $sysid{$sysid}->{ip}, $sx, $sysid{$sysid}->{name}, $lastpacketmsg;
       $sysid{$sysid}->{tcrash} = $ts;
       $sysid{$sysid}->{tlastpkt} = exists $tlastpkt{$sysid} ? $tlastpkt{$sysid} : $ts;
@@ -631,7 +631,7 @@ while(<>) {
     my $sname = $name;
     $sysid{$sysid} = { npp => 0, ip => $ip, name => $name, sname => $sname, tdel => undef, tcrash => undef } unless defined $sysid{$sysid};
     $sysid{$sysid}->{npp}++;
-    printf "%9.3f %35s $topfmt DISC %s (%s; %s; %s)\n", $ts, $sysid, "", $ip, $sx, $sysid{$sysid}->{name}, vendorstr($spdp_info{$ppguid}->{vendor});
+    (void) printf "%9.3f %35s $topfmt DISC %s (%s; %s; %s)\n", $ts, $sysid, "", $ip, $sx, $sysid{$sysid}->{name}, vendorstr($spdp_info{$ppguid}->{vendor});
     $proxypp{$ppguid} =
       { guid => $ppguid,
         sysid => $sysid,
@@ -664,7 +664,7 @@ while(<>) {
     if (! exists $h->{$prwguid}) {
       $proxypp{$ppguid}->{$hk}->{$prwguid} = $prw;
       $h->{$prwguid} = $prw;
-      printf "%9.3f DISCOVER $kind %s %s {%s}\n", $ts, fmtguid($prwguid), $topic, $partitions
+      (void) printf "%9.3f DISCOVER $kind %s %s {%s}\n", $ts, fmtguid($prwguid), $topic, $partitions
         if $shows{remotedisc} && $topic =~ /$topic_filter/o && $topic !~ /$topic_xfilter/o;
     } else {
       my $x = $h->{$prwguid};
@@ -673,9 +673,9 @@ while(<>) {
       my $dt = $ts - $x->{tdel};
       $x->{tdel} = undef;
       if ($x->{explicitdel}) {
-        printf "%9.3f REDISCOVER ZOMBIE $kind %s %s - gone for %.3fs\n", $ts, fmtguid($prwguid), $stopic, $dt;
+        (void) printf "%9.3f REDISCOVER ZOMBIE $kind %s %s - gone for %.3fs\n", $ts, fmtguid($prwguid), $stopic, $dt;
       } else {
-        printf "%9.3f REDISCOVER $kind %s %s - gone for %.3fs\n", $ts, fmtguid($prwguid), $stopic, $dt
+        (void) printf "%9.3f REDISCOVER $kind %s %s - gone for %.3fs\n", $ts, fmtguid($prwguid), $stopic, $dt
           if $shows{remotedisc} && $topic =~ /$topic_filter/o && $topic !~ /$topic_xfilter/o;
       }
     }
@@ -694,7 +694,7 @@ while(<>) {
     if (! exists $h->{$prwguid}) {
       $proxypp{$ppguid}->{$hk}->{$prwguid} = $prw;
       $h->{$prwguid} = $prw;
-      printf "%9.3f DISCOVER $kind %s %s {%s}\n", $ts, fmtguid($prwguid), $prw->{topic}, $prw->{partitions}
+      (void) printf "%9.3f DISCOVER $kind %s %s {%s}\n", $ts, fmtguid($prwguid), $prw->{topic}, $prw->{partitions}
         if $shows{remotedisc} && $prw->{topic} =~ /$topic_filter/o && $prw->{topic} !~ /$topic_xfilter/o;
     } else {
       my $x = $h->{$prwguid};
@@ -703,13 +703,13 @@ while(<>) {
         my $dt = $ts - $x->{tdel};
         $x->{tdel} = undef;
         if ($x->{explicitdel}) {
-          printf "%9.3f REDISCOVER ZOMBIE $kind %s %s - gone for %.3fs\n", $ts, fmtguid($prwguid), $prw->{stopic}, $dt;
+          (void) printf "%9.3f REDISCOVER ZOMBIE $kind %s %s - gone for %.3fs\n", $ts, fmtguid($prwguid), $prw->{stopic}, $dt;
         } else {
-          printf "%9.3f REDISCOVER $kind %s %s - gone for %.3fs\n", $ts, fmtguid($prwguid), $prw->{stopic}, $dt
+          (void) printf "%9.3f REDISCOVER $kind %s %s - gone for %.3fs\n", $ts, fmtguid($prwguid), $prw->{stopic}, $dt
             if $shows{remotedisc} && $prw->{topic} =~ /$topic_filter/o && $prw->{topic} !~ /$topic_xfilter/o;
         }
       } else {
-        printf "%9.3f RECHECK $kind %s %s {%s}\n", $ts, fmtguid($prwguid), $prw->{stopic}, $prw->{partitions}
+        (void) printf "%9.3f RECHECK $kind %s %s {%s}\n", $ts, fmtguid($prwguid), $prw->{stopic}, $prw->{partitions}
           if $shows{remotedisc} && $prw->{topic} =~ /$topic_filter/o && $prw->{topic} !~ /$topic_xfilter/o;
       }
     }
@@ -731,7 +731,7 @@ while(<>) {
       if exists $x->{tdel};
     my $topic = $x->{topic};
     my $gk = ($kind eq "READER") ? "sub" : "pub";
-    printf "%9.3f DELETE LOCAL $kind %s %s%s\n", $ts, fmtguid($guid), $topic, ($kind eq "WRITER" && $x->{nhappy} < scalar (keys %{$x->{matches}})) ? " (while unhappy)" : "" if $shows{localdisc} && $topic =~ /$topic_filter/o && $topic !~ /$topic_xfilter/o;
+    (void) printf "%9.3f DELETE LOCAL $kind %s %s%s\n", $ts, fmtguid($guid), $topic, ($kind eq "WRITER" && $x->{nhappy} < scalar (keys %{$x->{matches}})) ? " (while unhappy)" : "" if $shows{localdisc} && $topic =~ /$topic_filter/o && $topic !~ /$topic_xfilter/o;
     $x->{tdel} = $ts;
   } elsif (/proxy_writer_add_connection\(pwr ($guidre) rd ($guidre)\)/o) {
     next if /already connected/;
@@ -768,7 +768,7 @@ while(<>) {
       } else {
         $nlost = $wr->{seq} - $prd->{matches}->{$wrguid}->{seqp1del} + 1;
       }
-      printf "%9.3f %35s $topfmt MTCH %s rematch %d lost\n", $ts, fmtguid($wrguid), $wr->{stopic}, $prdguid, $nlost
+      (void) printf "%9.3f %35s $topfmt MTCH %s rematch %d lost\n", $ts, fmtguid($wrguid), $wr->{stopic}, $prdguid, $nlost
         if $nlost > 0 && $shows{rematch};
       delete $prd->{matches}->{$wrguid}->{seqp1del};
     }
@@ -787,10 +787,10 @@ while(<>) {
         # (could take time of discovery of proxy participant into account as well)
         $wr->{zombiewarn}->{$sysid} = 1;
         if ($seqp1 <= 1) {
-          printf "%9.3f %35s $topfmt $op %s pre-emptive but writer deleted %.3fs ago, likely zombie\n",
+          (void) printf "%9.3f %35s $topfmt $op %s pre-emptive but writer deleted %.3fs ago, likely zombie\n",
             $ts, fmtguid($wrguid), $wr->{stopic}, $prdguid, $ts - $wr->{tdel};
         } else {
-          printf "%9.3f %35s $topfmt $op %s writer deleted %.3fs ago, seemingly no progress\n",
+          (void) printf "%9.3f %35s $topfmt $op %s writer deleted %.3fs ago, seemingly no progress\n",
             $ts, fmtguid($wrguid), $wr->{stopic}, $prdguid, $ts - $wr->{tdel};
         }
       }
@@ -799,7 +799,7 @@ while(<>) {
     next unless exists $wr->{matches}->{$prdguid};
     if (defined $prd{$prdguid}->{tdel}) {
       my $dt = $ts - $prd{$prdguid}->{tdel};
-      printf "%9.3f %35s $topfmt $op %s undiscovered %.3fs ago\n", $ts, fmtguid($wrguid), $wr->{stopic}, $prdguid, $dt;
+      (void) printf "%9.3f %35s $topfmt $op %s undiscovered %.3fs ago\n", $ts, fmtguid($wrguid), $wr->{stopic}, $prdguid, $dt;
       next;
     }
     $proxypp{$ppguid}->{non_spdp_seen} = 1;
@@ -813,7 +813,7 @@ while(<>) {
       }
       if (defined $wr->{matches}->{$prdguid}->{tnack}) {
         my $dt = $ts - $wr->{matches}->{$prdguid}->{tnack};
-        printf "%9.3f %35s $topfmt $op %s caught up after %.3fs\n", $ts, fmtguid($wrguid), $wr->{stopic}, fmtguid($prdguid), $dt if $shows{ack} && show_topic($wr->{topic});
+        (void) printf "%9.3f %35s $topfmt $op %s caught up after %.3fs\n", $ts, fmtguid($wrguid), $wr->{stopic}, fmtguid($prdguid), $dt if $shows{ack} && show_topic($wr->{topic});
         $wr->{matches}->{$prdguid}->{tnack} = undef;
       }
     } elsif ($wr->{matches}->{$prdguid}->{happy}) {
@@ -823,7 +823,7 @@ while(<>) {
       # which uses it to classify requests as historical data or
       # recovery from packet loss)
       $wr->{matches}->{$prdguid}->{tnack} = $ts unless defined $wr->{matches}->{$prdguid}->{tnack};
-      printf "%9.3f %35s $topfmt $op %s rexmit request for %d samples starting from %d\n",
+      (void) printf "%9.3f %35s $topfmt $op %s rexmit request for %d samples starting from %d\n",
         $ts, fmtguid($wrguid), $wr->{stopic}, fmtguid($prdguid), $cnt, $seqp1 if $shows{ack} && show_topic($wr->{topic});
       # retransmit count is inexact because it counts requests for retransmission, not actual
       # retransmits -- the latter is possible, but currently doesn't allow distinguishing between a
@@ -832,7 +832,7 @@ while(<>) {
     }
     if ($wr->{acklate} && acklate($ts, $wrguid) == 0) {
       my $dt = $ts - $wr->{acklate};
-      printf "%9.3f %35s $topfmt  ACK caught up after %.3fs since triggering write\n",
+      (void) printf "%9.3f %35s $topfmt  ACK caught up after %.3fs since triggering write\n",
         $ts, fmtguid($wrguid), $wr->{stopic}, $dt if $shows{ack} && show_topic($wr->{topic});
       $wr->{acklate} = 0;
     }
@@ -842,7 +842,7 @@ while(<>) {
     die unless defined $pwr;
     die if ! $pwr->{suppressbegin};
     $pwr->{suppressbegin} = 0;
-    #printf "%9.3f %35s $topfmt %16s  RCV BEGIN txn %d\n", $ts, $1, $pwr->{stopic}, "", $2 if $shows{in};
+    #(void) printf "%9.3f %35s $topfmt %16s  RCV BEGIN txn %d\n", $ts, $1, $pwr->{stopic}, "", $2 if $shows{in};
   } elsif (/\(commit ($guidre) txn (\d+) (\d+) seq_offset (\d+)/o) {
     my $pwrguid = hexify($1); my $txn = $2; my $ktxn = $2;
     my $pwr = $pwr{$pwrguid};
@@ -850,7 +850,7 @@ while(<>) {
     die if $pwr->{suppressbegin};
     my $n = (defined $pwr->{cseq} && defined $pwr->{seq}) ? $pwr->{seq} - $pwr->{cseq} + 1 : 0;
     my $nr = keys %{$pwr->{matches}};
-    printf "%9.3f %35s $topfmt %16s  RCV COMMIT txn %d %d [%d samples %d readers]\n", $ts, fmtguid($pwrguid), $pwr->{stopic}, "", $txn, $ktxn, $n, $nr
+    (void) printf "%9.3f %35s $topfmt %16s  RCV COMMIT txn %d %d [%d samples %d readers]\n", $ts, fmtguid($pwrguid), $pwr->{stopic}, "", $txn, $ktxn, $n, $nr
       if $shows{in} && $pwr->{topic} =~ /$topic_filter/o && $pwr->{topic} !~ /$topic_xfilter/o;
     $pwr->{cseq} = undef;
   } elsif (/data\(application, vendor \d+\.\d+\): ($guidre) #(\d+)((?: C#\d+)?): ST(\d+) [^\{]+?(\{.*|:k:\{.*|:e:\(blob\))/o) {
@@ -877,15 +877,15 @@ while(<>) {
     }
     if (defined $pwr->{cseq}) {
       if (! defined $oldcseq) {
-        printf "%9.3f %35s $topfmt %16s  RCV BEGIN\n", $ts, fmtguid($pwrguid), $pwr->{stopic}, ""
+        (void) printf "%9.3f %35s $topfmt %16s  RCV BEGIN\n", $ts, fmtguid($pwrguid), $pwr->{stopic}, ""
           if $shows{in} && $pwr->{topic} =~ /$topic_filter/o && $pwr->{topic} !~ /$topic_xfilter/o;
         $pwr->{suppressbegin} = 1;
       } elsif ($oldcseq != $pwr->{cseq}) {
-        printf "%9.3f %35s $topfmt %16s  RCV IMPLICIT COMMIT + BEGIN\n", $ts, fmtguid($pwrguid), $pwr->{stopic}, ""
+        (void) printf "%9.3f %35s $topfmt %16s  RCV IMPLICIT COMMIT + BEGIN\n", $ts, fmtguid($pwrguid), $pwr->{stopic}, ""
           if $shows{in} && $pwr->{topic} =~ /$topic_filter/o && $pwr->{topic} !~ /$topic_xfilter/o;
       }
     } elsif (defined $oldcseq) {
-      printf "%9.3f %35s $topfmt %16s  RCV IMPLICIT COMMIT\n", $ts, fmtguid($pwrguid), $pwr->{stopic}, ""
+      (void) printf "%9.3f %35s $topfmt %16s  RCV IMPLICIT COMMIT\n", $ts, fmtguid($pwrguid), $pwr->{stopic}, ""
         if $shows{in} && $pwr->{topic} =~ /$topic_filter/o && $pwr->{topic} !~ /$topic_xfilter/o;
     }
     my $op = ($data =~ /^:e:/) ? "W  " : $opstr{$st.$dflag};
@@ -908,7 +908,7 @@ while(<>) {
         $tstamp = sprintf " (@%.3f?) ", $last_infots;
       }
     }
-    printf "%9.3f %35s $topfmt %s #%-4d %-6s  RCV %s%s [%s]\n", $ts, fmtguid($pwrguid), $pwr->{stopic}, $op, $seq, $cseq, $tstamp, $sdata, $readers_str if $print;
+    (void) printf "%9.3f %35s $topfmt %s #%-4d %-6s  RCV %s%s [%s]\n", $ts, fmtguid($pwrguid), $pwr->{stopic}, $op, $seq, $cseq, $tstamp, $sdata, $readers_str if $print;
   } elsif (/DATA\(($guidre)\s*->\s*$guidre\s+#(\d+)/o) {
     my $pwrguid = hexify($1); my $seq = $2;
     (my $ppguid = $pwrguid) =~ s/:[0-9a-f]+$/:1c1/;
@@ -939,17 +939,17 @@ while(<>) {
     my $topic = $1; my $type = $2; my $qos = $3;
     my $sysid = "0";
     $topic_qos{$topic} = $qos;
-    printf "%9.3f %35s $topfmt %16s  RCV %s (%s)\n", $ts, $sysid, "TOPIC", "", $topic, $type if $shows{topic} && $shows{in};
+    (void) printf "%9.3f %35s $topfmt %16s  RCV %s (%s)\n", $ts, $sysid, "TOPIC", "", $topic, $type if $shows{topic} && $shows{in};
   } elsif (/: sedp: write topic ([^ ]+)/) {
     my $topic = $1;
-    printf "%9.3f %35s $topfmt %16s XMT  %s\n", $ts, "0", "TOPIC", "", $topic if $shows{topic} && $shows{out};
+    (void) printf "%9.3f %35s $topfmt %16s XMT  %s\n", $ts, "0", "TOPIC", "", $topic if $shows{topic} && $shows{out};
   } elsif (/writer ($guidre)(?: topic ([^ ]+))? waiting for whc/o) {
     my $wrguid = hexify($1);
     $tlast_txblock{$tid} = 0 unless exists $tlast_txblock{$tid};
     $txblock{$tid} = $ts;
     $txblockwr{$tid} = $wrguid;
     $txblocktp{$tid} = defined $2 ? $2 : exists $wr{$wrguid} && exists $wr{$wrguid}->{topic} ? $wr{$wrguid}->{topic} : 'unknown';
-    printf "%9.3f %35s $topfmt BLCK\n", $ts, fmtguid($wrguid), $txblocktp{$tid} if $shows{throttle};
+    (void) printf "%9.3f %35s $topfmt BLCK\n", $ts, fmtguid($wrguid), $txblocktp{$tid} if $shows{throttle};
   } elsif (/writer ($guidre) done waiting/o) {
     my $wrguid = hexify($1);
     my $dt = $ts - $txblock{$tid};
@@ -959,24 +959,24 @@ while(<>) {
     delete $txblocktp{$tid};
     if ($shows{throttle} || $mustprint) {
       if (!exists $wr{$wrguid}) {
-        printf "%9.3f %35s $topfmt UNBK after %.3fs\n", $ts, fmtguid($wrguid), "", $dt;
+        (void) printf "%9.3f %35s $topfmt UNBK after %.3fs\n", $ts, fmtguid($wrguid), "", $dt;
       } else {
         my $wr = $wr{$wrguid};
-        printf "%9.3f %35s $topfmt UNBK after %.3fs\n", $ts, fmtguid($wrguid), $wr->{stopic}, $dt;
+        (void) printf "%9.3f %35s $topfmt UNBK after %.3fs\n", $ts, fmtguid($wrguid), $wr->{stopic}, $dt;
       }
     }
   } elsif (/message dropped because sender ($gidre) is unknown/o) {
     my $gid = hexify($1);
     $gid =~ /^([0-9a-f]+):([0-9a-f]+):([0-9a-f]+)/;
     my $decgid = sprintf "{%d,%d,%d}", hex $1, hex $2, hex $3;
-    printf "%9.3f %55s DROP unknown writer %s (a.k.a. %s) \n", $ts, "", $gid, $decgid;
+    (void) printf "%9.3f %55s DROP unknown writer %s (a.k.a. %s) \n", $ts, "", $gid, $decgid;
   } elsif (/writer ($guidre) topic .* considering reader ($guidre) non-responsive/o) {
     my $wrguid = hexify($1); my $prdguid = hexify($2);
     if (! exists $wr{$wrguid}) {
-      printf "%9.3f %35s $topfmt UNRP unknown writer declaring reader %s non-responsive\n", $ts, fmtguid($wrguid), "", fmtguid($prdguid);
+      (void) printf "%9.3f %35s $topfmt UNRP unknown writer declaring reader %s non-responsive\n", $ts, fmtguid($wrguid), "", fmtguid($prdguid);
     } else {
       my $wr = $wr{$wrguid};
-      printf "%9.3f %35s $topfmt UNRP writer declaring reader %s non-responsive\n", $ts, fmtguid($wrguid), $wr->{stopic}, fmtguid($prdguid);
+      (void) printf "%9.3f %35s $topfmt UNRP writer declaring reader %s non-responsive\n", $ts, fmtguid($wrguid), $wr->{stopic}, fmtguid($prdguid);
       my @lates = acklate(1e100, $wrguid);
       my @details = ();
       for (@lates) {
@@ -985,12 +985,12 @@ while(<>) {
       }
       my $details = join '\n', @details;
       if ($details ne $last_nonresponsive_details) {
-        printf "%9.3f %s\n", $ts, $_ for @details;
+        (void) printf "%9.3f %s\n", $ts, $_ for @details;
         $last_nonresponsive_details = $details;
       }
     }
   } elsif (/: update_mtreader: (.*)/) {
-    printf "%9.3f %55s UMTR %s\n", $ts, "", $1 if $shows{mtreader};
+    (void) printf "%9.3f %55s UMTR %s\n", $ts, "", $1 if $shows{mtreader};
   } elsif (!defined($self_fullversion) && /: spdp_write\($guidre\) - internals: [^\/]*\/([^\/]+)\//o) {
     $self_fullversion = $1;
     @self_version = ($self_fullversion =~ /^(\d+)\.(\d+)\.(\d+)(?:p(\d+))?/);
@@ -1009,12 +1009,12 @@ for my $t (keys %txblock) {
   if (defined $txblock{$t} && $shows{block}) {
     my $dt = $ts - $txblock{$t};
     my $wrguid = $txblockwr{$t};
-    printf "%9.3f %35s $topfmt BLCK still blocked at end of log after %.3fs\n", $ts, fmtguid($wrguid), $txblocktp{$t}, $dt;
+    (void) printf "%9.3f %35s $topfmt BLCK still blocked at end of log after %.3fs\n", $ts, fmtguid($wrguid), $txblocktp{$t}, $dt;
     if (exists $wr{$txblockwr{$t}}) {
       my @lates = acklate(1e100, $txblockwr{$t});
       for (@lates) {
         my $cause = ($_->{haveack} ? sprintf "%d behind", $_->{nsamp} : "no ack yet");
-        printf "%9.3f %35s $topfmt BLCK   %s (%s)\n", $ts, fmtguid($txblockwr{$t}), $txblocktp{$t}, fmtguid($_->{guid}), $cause;
+        (void) printf "%9.3f %35s $topfmt BLCK   %s (%s)\n", $ts, fmtguid($txblockwr{$t}), $txblocktp{$t}, fmtguid($_->{guid}), $cause;
       }
     }
   }
@@ -1182,7 +1182,7 @@ sub check_disccomplete {
       my $dt = $ts - $proxypp{$ppguid}->{tcreate};
       (my $ppguidpre = $ppguid) =~ s/:1c1$//;
       my $sx = decimal_sysid($sysid);
-      printf "%9.3f %35s $topfmt DISC node %s (%s; %s) discovery complete after %.3fs\n", $ts, $ppguidpre, "", $sysid{$sysid}->{ip}, $sx, $sysid{$sysid}->{name}, $dt;
+      (void) printf "%9.3f %35s $topfmt DISC node %s (%s; %s) discovery complete after %.3fs\n", $ts, $ppguidpre, "", $sysid{$sysid}->{ip}, $sx, $sysid{$sysid}->{name}, $dt;
     }
   }
 }
@@ -1210,7 +1210,7 @@ sub delete_pwr {
     $pwr{$pwrguid}->{cseq} = undef;
     delete $tstamps{$pwrguid};
     if ($shows{remotedisc} && $pwr{$pwrguid}->{topic} =~ /$topic_filter/o && $pwr{$pwrguid}->{topic} !~ /$topic_xfilter/o) {
-      printf "%9.3f %35s $topfmt  UNDISCOVER %s\n", $ts, $pwrguid, $pwr{$pwrguid}->{stopic}, $isimplicit ? " (implicit)" : "";
+      (void) printf "%9.3f %35s $topfmt  UNDISCOVER %s\n", $ts, $pwrguid, $pwr{$pwrguid}->{stopic}, $isimplicit ? " (implicit)" : "";
     }
   } else {
     delete $proxypp->{pwr}->{$pwrguid};
@@ -1238,16 +1238,16 @@ sub delete_prd {
     if ($x->{seqp1} == 0) {
       # also happens when a writer with an empty WHC has written
       # nothing since the match, hence disabling it for now
-      printf "%9.3f %35s $topfmt  DEL %s no ACKs received, reader matched for %.3fs\n", $ts, $_, $wr{$_}->{stopic}, $prdguid, $dtmatch
+      (void) printf "%9.3f %35s $topfmt  DEL %s no ACKs received, reader matched for %.3fs\n", $ts, $_, $wr{$_}->{stopic}, $prdguid, $dtmatch
         if $shows{ack} && 0;
     } elsif ($wr{$_}->{seq} >= $x->{seqp1}) {
-      printf "%9.3f %35s $topfmt  DEL %s %d samples behind, reader matched for %.3fs\n", $ts, $_, $wr{$_}->{stopic}, $prdguid, $wr{$_}->{seq} - $x->{seqp1} + 1, $dtmatch
+      (void) printf "%9.3f %35s $topfmt  DEL %s %d samples behind, reader matched for %.3fs\n", $ts, $_, $wr{$_}->{stopic}, $prdguid, $wr{$_}->{seq} - $x->{seqp1} + 1, $dtmatch
          if $shows{ack} && show_topic($wr{$_}->{topic});
     }
     $prd->{matches}->{$_}->{seqp1del} = $x->{seqp1};
     delete $wr{$_}->{matches}->{$prdguid};
     if ($wr{$_}->{acklate} && acklate($ts, $_) == 0) {
-      printf "%9.3f %35s $topfmt  ACK caught up because of unmatch\n", $ts, fmtguid($_), $wr{$_}->{stopic} if $shows{ack} && show_topic($wr{$_}->{topic});
+      (void) printf "%9.3f %35s $topfmt  ACK caught up because of unmatch\n", $ts, fmtguid($_), $wr{$_}->{stopic} if $shows{ack} && show_topic($wr{$_}->{topic});
       $wr{$_}->{acklate} = 0;
     }
   }
@@ -1256,7 +1256,7 @@ sub delete_prd {
     $prd{$prdguid}->{tdel} = $ts;
     $prd{$prdguid}->{explicitdel} = 1 unless $isimplicit;
     if ($shows{remotedisc} && $prd{$prdguid}->{topic} =~ /$topic_filter/o && $prd{$prdguid}->{topic} !~ /$topic_xfilter/o) {
-      printf "%9.3f %35s $topfmt  UNDISCOVER %s\n", $ts, $prdguid, $prd{$prdguid}->{stopic}, $isimplicit ? " (implicit)" : "";
+      (void) printf "%9.3f %35s $topfmt  UNDISCOVER %s\n", $ts, $prdguid, $prd{$prdguid}->{stopic}, $isimplicit ? " (implicit)" : "";
     }
   } else {
     delete $proxypp->{prd}->{$prdguid};
@@ -1280,7 +1280,7 @@ sub delete_proxypp {
     my $dt = (defined $sysid{$sysid}->{tcrash}) ? $ts - $sysid{$sysid}->{tcrash} : undef;
     my $dtmsg = (defined $dt) ? sprintf " (cleanup took %.3fs)", $dt : "";
     my $sx = decimal_sysid($sysid);
-    printf "%9.3f %35s $topfmt DISC node %s (%s; %s) no proxy participants left%s\n",
+    (void) printf "%9.3f %35s $topfmt DISC node %s (%s; %s) no proxy participants left%s\n",
       $ts, $sysid, "", $sysid{$sysid}->{ip}, $sx, $sysid{$sysid}->{name}, $dtmsg;
     $sysid{$sysid}->{tdel} = $ts;
     $sysid{$sysid}->{tcrash} = undef;
@@ -1322,13 +1322,13 @@ sub show_topic {
 sub check_qos {
   my ($ts, $kind, $guid, $topic, $partitions, $qos, $pubsub_opt) = @_;
   if ($kind eq 'WRITER' && $qos =~ /,presentation=2:1:/ && $qos =~ /,history=0:/) {
-    printf "%9.3f $kind %s %s {%s} is keep-last and group coherent\n", $ts, $guid, $topic, $partitions if $shows{warn};
+    (void) printf "%9.3f $kind %s %s {%s} is keep-last and group coherent\n", $ts, $guid, $topic, $partitions if $shows{warn};
   }
   #if ($kind eq 'WRITER' && $qos =~ /,durability=3/) {
   #  if (exists $topic_qos{$topic} && $topic_qos{$topic} =~ /,durability=[0-2]/) {
-  #    printf "%9.3f $kind %s %s {%s} is persistent but topic is not\n", $ts, $guid, $topic, $partitions if $shows{warn};
+  #    (void) printf "%9.3f $kind %s %s {%s} is persistent but topic is not\n", $ts, $guid, $topic, $partitions if $shows{warn};
   #  } else {
-  #    printf "%9.3f $kind %s %s {%s} is persistent but topic QoS is not yet known\n", $ts, $guid, $topic, $partitions if $shows{warn};
+  #    (void) printf "%9.3f $kind %s %s {%s} is persistent but topic QoS is not yet known\n", $ts, $guid, $topic, $partitions if $shows{warn};
   #  }
   #}
   if ($qos =~ /,presentation=2:1:/ && defined $pubsub_opt) {
@@ -1336,14 +1336,14 @@ sub check_qos {
     $pubsub_opt->{durqos} = $durqos unless defined $pubsub_opt->{durqos};
     if ($durqos != $pubsub_opt->{durqos}) {
       my @durstr = qw(volatile transient-local transient persistent);
-      printf "%9.3f $kind %s %s {%s} is group coherent with durability %s where group is %s\n", $ts, $guid, $topic, $partitions, $durstr[$durqos], $durstr[$pubsub_opt->{durqos}] if $shows{warn};
+      (void) printf "%9.3f $kind %s %s {%s} is group coherent with durability %s where group is %s\n", $ts, $guid, $topic, $partitions, $durstr[$durqos], $durstr[$pubsub_opt->{durqos}] if $shows{warn};
     }
   }
   #if ($qos =~ /,presentation=2:1:/ && $qos =~ /,history=0:/) {
-  #  printf "%9.3f $kind %s %s {%s} is keep-last and group coherent\n", $ts, $guid, $topic, $partitions;
+  #  (void) printf "%9.3f $kind %s %s {%s} is keep-last and group coherent\n", $ts, $guid, $topic, $partitions;
   #}
   #if ($kind eq 'WRITER' && $qos =~ /,durability=[23]/ && $qos =~ /,writer_data_lifecycle=\{1/) {
-  #  printf "%9.3f $kind %s %s {%s} is transient/persistent and auto-dispose\n", $ts, $guid, $topic, $partitions;
+  #  (void) printf "%9.3f $kind %s %s {%s} is transient/persistent and auto-dispose\n", $ts, $guid, $topic, $partitions;
   #}
 }
 
@@ -1471,7 +1471,7 @@ EOT
                 "compact" => "use a more compact representation in some places (currently only d_sampleChain)",
                 "qos" => "show QoS in some places (currently only d_sampleChain)");
   for (sort (keys %shows)) {
-    printf "* %-14s %-5s %s\n", $_, $shows{$_} ? "yes" : "no", fmtblurb ($blurbs{$_});
+    (void) printf "* %-14s %-5s %s\n", $_, $shows{$_} ? "yes" : "no", fmtblurb ($blurbs{$_});
   }
   print << 'EOT'
 Keywords in the output (in the 4th column, after the topic name, though

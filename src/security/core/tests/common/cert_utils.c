@@ -43,7 +43,7 @@ static char * get_x509_data(X509 * cert)
   // Create BIO for writing output
   BIO *output_bio = BIO_new (BIO_s_mem ());
   if (!PEM_write_bio_X509 (output_bio, cert)) {
-    printf ("Error writing certificate\n");
+    (void) printf ("Error writing certificate\n");
     CU_ASSERT_FATAL (false);
   }
 

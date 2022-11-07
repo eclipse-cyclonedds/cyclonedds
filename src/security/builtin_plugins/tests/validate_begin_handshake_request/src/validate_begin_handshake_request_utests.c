@@ -295,7 +295,7 @@ validate_local_identity(void)
 
     if (result != DDS_SECURITY_VALIDATION_OK) {
         res = -1;
-        printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     dds_security_property_deinit(&participant_qos.property.value);
@@ -313,7 +313,7 @@ release_local_identity(void)
     if (local_identity_handle != DDS_SECURITY_HANDLE_NIL) {
         success = auth->return_identity_handle(auth, local_identity_handle, &exception);
         if (!success) {
-            printf("return_identity_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
+            (void) printf("return_identity_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
         }
         reset_exception(&exception);
     }
@@ -356,7 +356,7 @@ validate_remote_identities (void)
 
     if ((result != DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_REQUEST) &&
         (result != DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_MESSAGE)) {
-        printf("validate_remote_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("validate_remote_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     reset_exception(&exception);
@@ -375,7 +375,7 @@ validate_remote_identities (void)
 
     if ((result != DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_REQUEST) &&
             (result != DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_MESSAGE)) {
-        printf("validate_remote_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("validate_remote_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     reset_exception(&exception);
@@ -398,14 +398,14 @@ release_remote_identities(void)
     if (remote_identity_handle1 != DDS_SECURITY_HANDLE_NIL) {
         success = auth->return_identity_handle(auth, remote_identity_handle1, &exception);
         if (!success) {
-            printf("return_identity_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
+            (void) printf("return_identity_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
         }
         reset_exception(&exception);
     }
     if (remote_identity_handle2 != DDS_SECURITY_HANDLE_NIL) {
         success = auth->return_identity_handle(auth, remote_identity_handle2, &exception);
         if (!success) {
-            printf("return_identity_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
+            (void) printf("return_identity_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
         }
         reset_exception(&exception);
     }
@@ -586,7 +586,7 @@ CU_Test(ddssec_builtin_validate_begin_handshake_request,happy_day_challenge)
                     &exception);
 
     if (result != DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_MESSAGE) {
-        printf("begin_handshake_request failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("begin_handshake_request failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     CU_ASSERT_FATAL(result == DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_MESSAGE);
@@ -601,7 +601,7 @@ CU_Test(ddssec_builtin_validate_begin_handshake_request,happy_day_challenge)
     CU_ASSERT_TRUE (success);
 
     if (!success) {
-        printf("return_handshake_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("return_handshake_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
     reset_exception(&exception);
 
@@ -637,7 +637,7 @@ CU_Test(ddssec_builtin_validate_begin_handshake_request,happy_day_future_challen
                     &exception);
 
     if (result != DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_MESSAGE) {
-        printf("begin_handshake_request failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("begin_handshake_request failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     CU_ASSERT_FATAL(result == DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_MESSAGE);
@@ -652,7 +652,7 @@ CU_Test(ddssec_builtin_validate_begin_handshake_request,happy_day_future_challen
     CU_ASSERT_TRUE (success);
 
     if (!success) {
-        printf("return_handshake_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("return_handshake_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
     reset_exception(&exception);
 
@@ -688,7 +688,7 @@ CU_Test(ddssec_builtin_validate_begin_handshake_request,invalid_arguments)
                     &exception);
 
     if (result != DDS_SECURITY_VALIDATION_OK) {
-        printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
     CU_ASSERT (result == DDS_SECURITY_VALIDATION_FAILED);
     CU_ASSERT (exception.minor_code != 0);
@@ -705,7 +705,7 @@ CU_Test(ddssec_builtin_validate_begin_handshake_request,invalid_arguments)
                     &exception);
 
     if (result != DDS_SECURITY_VALIDATION_OK) {
-        printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
     CU_ASSERT (result == DDS_SECURITY_VALIDATION_FAILED);
     CU_ASSERT (exception.minor_code != 0);
@@ -722,7 +722,7 @@ CU_Test(ddssec_builtin_validate_begin_handshake_request,invalid_arguments)
                     &exception);
 
     if (result != DDS_SECURITY_VALIDATION_OK) {
-        printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
     CU_ASSERT (result == DDS_SECURITY_VALIDATION_FAILED);
     CU_ASSERT (exception.minor_code != 0);
@@ -739,7 +739,7 @@ CU_Test(ddssec_builtin_validate_begin_handshake_request,invalid_arguments)
                      &exception);
 
      if (result != DDS_SECURITY_VALIDATION_OK) {
-         printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+         (void) printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
      }
      CU_ASSERT (result == DDS_SECURITY_VALIDATION_FAILED);
      CU_ASSERT (exception.minor_code != 0);
@@ -756,7 +756,7 @@ CU_Test(ddssec_builtin_validate_begin_handshake_request,invalid_arguments)
                      &exception);
 
      if (result != DDS_SECURITY_VALIDATION_OK) {
-         printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+         (void) printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
      }
      CU_ASSERT (result == DDS_SECURITY_VALIDATION_FAILED);
      CU_ASSERT (exception.minor_code != 0);
@@ -795,7 +795,7 @@ CU_Test(ddssec_builtin_validate_begin_handshake_request,return_handle)
                     &exception);
 
     if (result != DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_MESSAGE) {
-        printf("begin_handshake_request failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("begin_handshake_request failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     CU_ASSERT_FATAL (result == DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_MESSAGE);
@@ -809,7 +809,7 @@ CU_Test(ddssec_builtin_validate_begin_handshake_request,return_handle)
     CU_ASSERT_TRUE (success);
 
     if (!success) {
-        printf("return_handshake_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("return_handshake_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
     reset_exception(&exception);
 
@@ -819,7 +819,7 @@ CU_Test(ddssec_builtin_validate_begin_handshake_request,return_handle)
     CU_ASSERT (exception.message != NULL);
 
     if (!success) {
-        printf("return_handshake_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("return_handshake_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
     reset_exception(&exception);
 

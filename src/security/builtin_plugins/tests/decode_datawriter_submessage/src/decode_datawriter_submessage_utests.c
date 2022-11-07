@@ -134,7 +134,7 @@ static int register_local_participant(void)
 
   if (local_participant_handle == DDS_SECURITY_HANDLE_NIL)
   {
-    printf("register_local_participant: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("register_local_participant: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   return local_participant_handle ? 0 : -1;
@@ -220,7 +220,7 @@ static int register_remote_participant(void)
 
   if (remote_participant_handle == DDS_SECURITY_HANDLE_NIL)
   {
-    printf("register_matched_remote_participant: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("register_matched_remote_participant: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   return remote_participant_handle ? 0 : -1;
@@ -251,7 +251,7 @@ static DDS_Security_DatawriterCryptoHandle register_local_datawriter(DDS_Securit
 
   if (writer_crypto == 0)
   {
-    printf("register_local_datawriter: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("register_local_datawriter: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   return writer_crypto;
@@ -272,7 +272,7 @@ static DDS_Security_DatawriterCryptoHandle register_remote_datawriter(DDS_Securi
 
   if (writer_crypto == 0)
   {
-    printf("register_matched_remote_datareader: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("register_matched_remote_datareader: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   return writer_crypto;
@@ -303,7 +303,7 @@ static DDS_Security_DatareaderCryptoHandle register_local_datareader(DDS_Securit
 
   if (reader_crypto == 0)
   {
-    printf("register_local_datawriter: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("register_local_datawriter: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   return reader_crypto;
@@ -328,7 +328,7 @@ static DDS_Security_DatareaderCryptoHandle register_remote_datareader(DDS_Securi
 
   if (reader_crypto == 0)
   {
-    printf("register_matched_remote_datareader: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("register_matched_remote_datareader: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   return reader_crypto;
@@ -550,7 +550,7 @@ static void decode_datawriter_submessage_not_signed(DDS_Security_CryptoTransform
 
   if (!result)
   {
-    printf("encode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("encode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT_FATAL(result);
@@ -570,7 +570,7 @@ static void decode_datawriter_submessage_not_signed(DDS_Security_CryptoTransform
 
   if (!result)
   {
-    printf("decode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("decode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT_FATAL(result);
@@ -707,7 +707,7 @@ static void decode_datawriter_submessage_signed(DDS_Security_CryptoTransformKind
 
     if (!result)
     {
-      printf("encode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
+      (void) printf("encode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     CU_ASSERT_FATAL(result);
@@ -732,7 +732,7 @@ static void decode_datawriter_submessage_signed(DDS_Security_CryptoTransformKind
 
     if (!result)
     {
-      printf("decode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
+      (void) printf("decode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     CU_ASSERT_FATAL(result);
@@ -858,7 +858,7 @@ CU_Test(ddssec_builtin_decode_datawriter_submessage, invalid_args, .init = suite
 
   if (!result)
   {
-    printf("encode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("encode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT_FATAL(result);
@@ -878,7 +878,7 @@ CU_Test(ddssec_builtin_decode_datawriter_submessage, invalid_args, .init = suite
 
   if (!result)
   {
-    printf("decode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("decode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT(!result);
@@ -898,7 +898,7 @@ CU_Test(ddssec_builtin_decode_datawriter_submessage, invalid_args, .init = suite
 
   if (!result)
   {
-    printf("decode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("decode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT(!result);
@@ -918,7 +918,7 @@ CU_Test(ddssec_builtin_decode_datawriter_submessage, invalid_args, .init = suite
 
   if (!result)
   {
-    printf("decode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("decode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT(!result);
@@ -938,7 +938,7 @@ CU_Test(ddssec_builtin_decode_datawriter_submessage, invalid_args, .init = suite
 
   if (!result)
   {
-    printf("decode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("decode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT(!result);
@@ -1029,7 +1029,7 @@ CU_Test(ddssec_builtin_decode_datawriter_submessage, invalid_data, .init = suite
 
   if (!result)
   {
-    printf("encode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("encode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT_FATAL(result);
@@ -1059,7 +1059,7 @@ CU_Test(ddssec_builtin_decode_datawriter_submessage, invalid_data, .init = suite
 
     if (!result)
     {
-      printf("decode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
+      (void) printf("decode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     CU_ASSERT(!result);
@@ -1092,7 +1092,7 @@ CU_Test(ddssec_builtin_decode_datawriter_submessage, invalid_data, .init = suite
 
     if (!result)
     {
-      printf("decode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
+      (void) printf("decode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     CU_ASSERT(!result);
@@ -1125,7 +1125,7 @@ CU_Test(ddssec_builtin_decode_datawriter_submessage, invalid_data, .init = suite
 
     if (!result)
     {
-      printf("decode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
+      (void) printf("decode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     CU_ASSERT(!result);
@@ -1158,7 +1158,7 @@ CU_Test(ddssec_builtin_decode_datawriter_submessage, invalid_data, .init = suite
 
     if (!result)
     {
-      printf("decode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
+      (void) printf("decode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     CU_ASSERT(!result);
@@ -1191,7 +1191,7 @@ CU_Test(ddssec_builtin_decode_datawriter_submessage, invalid_data, .init = suite
 
     if (!result)
     {
-      printf("decode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
+      (void) printf("decode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     CU_ASSERT(!result);
@@ -1224,7 +1224,7 @@ CU_Test(ddssec_builtin_decode_datawriter_submessage, invalid_data, .init = suite
 
     if (!result)
     {
-      printf("decode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
+      (void) printf("decode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     CU_ASSERT(!result);
@@ -1257,7 +1257,7 @@ CU_Test(ddssec_builtin_decode_datawriter_submessage, invalid_data, .init = suite
 
     if (!result)
     {
-      printf("decode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
+      (void) printf("decode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     CU_ASSERT(!result);
@@ -1289,7 +1289,7 @@ CU_Test(ddssec_builtin_decode_datawriter_submessage, invalid_data, .init = suite
 
     if (!result)
     {
-      printf("decode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
+      (void) printf("decode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     CU_ASSERT(!result);
@@ -1321,7 +1321,7 @@ CU_Test(ddssec_builtin_decode_datawriter_submessage, invalid_data, .init = suite
 
     if (!result)
     {
-      printf("decode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
+      (void) printf("decode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     CU_ASSERT(!result);
@@ -1353,7 +1353,7 @@ CU_Test(ddssec_builtin_decode_datawriter_submessage, invalid_data, .init = suite
 
     if (!result)
     {
-      printf("decode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
+      (void) printf("decode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     CU_ASSERT(!result);
@@ -1387,7 +1387,7 @@ CU_Test(ddssec_builtin_decode_datawriter_submessage, invalid_data, .init = suite
 
     if (!result)
     {
-      printf("decode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
+      (void) printf("decode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     CU_ASSERT(!result);
@@ -1419,7 +1419,7 @@ CU_Test(ddssec_builtin_decode_datawriter_submessage, invalid_data, .init = suite
 
     if (!result)
     {
-      printf("decode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
+      (void) printf("decode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     CU_ASSERT(!result);
@@ -1454,7 +1454,7 @@ CU_Test(ddssec_builtin_decode_datawriter_submessage, invalid_data, .init = suite
 
     if (!result)
     {
-      printf("decode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
+      (void) printf("decode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     CU_ASSERT(!result);
@@ -1492,7 +1492,7 @@ CU_Test(ddssec_builtin_decode_datawriter_submessage, invalid_data, .init = suite
 
     if (!result)
     {
-      printf("decode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
+      (void) printf("decode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     CU_ASSERT(!result);
@@ -1530,7 +1530,7 @@ CU_Test(ddssec_builtin_decode_datawriter_submessage, invalid_data, .init = suite
 
     if (!result)
     {
-      printf("decode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
+      (void) printf("decode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     CU_ASSERT(!result);
@@ -1659,7 +1659,7 @@ CU_Test(ddssec_builtin_decode_datawriter_submessage, volatile_sec, .init = suite
 
   if (!result)
   {
-    printf("encode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("encode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT_FATAL(result);
@@ -1679,7 +1679,7 @@ CU_Test(ddssec_builtin_decode_datawriter_submessage, volatile_sec, .init = suite
 
   if (!result)
   {
-    printf("decode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("decode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT_FATAL(result);

@@ -88,7 +88,7 @@ CU_Test(idlc_descriptor, keys_nested)
     static idl_pstate_t *pstate = NULL;
     struct descriptor descriptor;
 
-    printf ("running test for idl: %s\n", tests[i].idl);
+    (void) printf ("running test for idl: %s\n", tests[i].idl);
 
     ret = idl_create_pstate (flags | (tests[i].keylist ? IDL_FLAG_KEYLIST : 0), NULL, &pstate);
     CU_ASSERT_EQUAL_FATAL (ret, IDL_RETCODE_OK);
@@ -146,7 +146,7 @@ CU_Test(idlc_descriptor, default_extensibility)
     static idl_pstate_t *pstate = NULL;
     struct descriptor descriptor;
 
-    printf ("running test for idl: %s\n", tests[i].idl);
+    (void) printf ("running test for idl: %s\n", tests[i].idl);
     ret = idl_create_pstate (flags, NULL, &pstate);
     pstate->config.default_extensibility = (int) tests[i].default_ext;
     CU_ASSERT_EQUAL_FATAL (ret, IDL_RETCODE_OK);
@@ -244,7 +244,7 @@ CU_Test(idlc_descriptor, key_size)
     static idl_pstate_t *pstate = NULL;
     struct descriptor descriptor;
 
-    printf ("running test for idl: %s\n", tests[i].idl);
+    (void) printf ("running test for idl: %s\n", tests[i].idl);
 
     ret = idl_create_pstate (flags, NULL, &pstate);
     CU_ASSERT_EQUAL_FATAL (ret, IDL_RETCODE_OK);
@@ -297,7 +297,7 @@ CU_Test(idlc_descriptor, key_valid_types)
     static idl_pstate_t *pstate = NULL;
     struct descriptor descriptor;
 
-    printf ("running test for idl: %s\n", tests[i].idl);
+    (void) printf ("running test for idl: %s\n", tests[i].idl);
     ret = idl_create_pstate (flags, NULL, &pstate);
     CU_ASSERT_EQUAL_FATAL (ret, IDL_RETCODE_OK);
     memset (&descriptor, 0, sizeof (descriptor)); /* static analyzer */
@@ -357,7 +357,7 @@ CU_Test(idlc_descriptor, keys_inheritance)
     static idl_pstate_t *pstate = NULL;
     struct descriptor descriptor;
 
-    printf ("running test for idl: %s\n", tests[i].idl);
+    (void) printf ("running test for idl: %s\n", tests[i].idl);
 
     ret = idl_create_pstate (flags, NULL, &pstate);
     CU_ASSERT_EQUAL_FATAL (ret, IDL_RETCODE_OK);

@@ -231,7 +231,7 @@ void lwregs_dump (struct lwregs *rt)
 {
   struct ddsrt_ehh_iter it;
   for (struct lwreg *r = ddsrt_ehh_iter_first(rt->regs, &it); r; r = ddsrt_ehh_iter_next(&it))
-    printf("iid=%"PRIu64" wr_iid=%"PRIu64"\n", r->iid, r->wr_iid);
+    (void) printf("iid=%"PRIu64" wr_iid=%"PRIu64"\n", r->iid, r->wr_iid);
 }
 #endif
 

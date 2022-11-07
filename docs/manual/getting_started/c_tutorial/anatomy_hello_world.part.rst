@@ -262,7 +262,7 @@ The subscriber application implements the steps defined in :ref:`the Key Steps <
       DDS_ERR_CHECK (reader, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
       dds_delete_qos(qos);
 
-      printf ("\n=== [Subscriber] Waiting for a sample ...\n");
+      (void) printf ("\n=== [Subscriber] Waiting for a sample ...\n");
 
       /* Initialize the sample buffer, by pointing the void pointer within
       * the buffer array to a valid sample memory location. */
@@ -281,8 +281,8 @@ The subscriber application implements the steps defined in :ref:`the Key Steps <
         {
             /* Print Message. */
             msg = (HelloWorldData_Msg*) samples[0];
-            printf ("=== [Subscriber] Received : ");
-            printf ("Message (%d, %s)\n", msg->userID, msg->message);
+            (void) printf ("=== [Subscriber] Received : ");
+            (void) printf ("Message (%d, %s)\n", msg->userID, msg->message);
             break;
         }
         else
@@ -412,8 +412,8 @@ data type and display the contents.
 .. code-block:: C
 
     msg = (HelloWorldData_Msg*) samples[0]; 
-    printf ("=== [Subscriber] Received : ");
-    printf ("Message (%d, %s)\n", msg->userID, msg->message);
+    (void) printf ("=== [Subscriber] Received : ");
+    (void) printf ("Message (%d, %s)\n", msg->userID, msg->message);
     break;
 
 When data is received and the polling loop is stopped, we release the
@@ -471,7 +471,7 @@ subscriber program in any order.
         /* Create a Writer. */
         writer = dds_create_writer (participant, topic, NULL, NULL);
 
-        printf("=== [Publisher] Waiting for a reader to be discovered ...\n");
+        (void) printf("=== [Publisher] Waiting for a reader to be discovered ...\n");
 
         ret = dds_set_status_mask(writer, DDS_PUBLICATION_MATCHED_STATUS); 
         DDS_ERR_CHECK (ret, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
@@ -493,8 +493,8 @@ subscriber program in any order.
         msg.userID = 1;
         msg.message = "Hello World";
 
-        printf ("=== [Publisher]    Writing : ");
-        printf ("Message (%d, %s)\n", msg.userID, msg.message);
+        (void) printf ("=== [Publisher]    Writing : ");
+        (void) printf ("Message (%d, %s)\n", msg.userID, msg.message);
 
         ret = dds_write (writer, &msg);
         DDS_ERR_CHECK (ret, DDS_CHECK_REPORT | DDS_CHECK_EXIT);

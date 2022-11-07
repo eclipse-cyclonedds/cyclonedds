@@ -57,11 +57,11 @@ static void print_raw_cdr (dds_ostream_t *os)
 {
   for (uint32_t n = 0; n < os->m_index; n++)
   {
-    printf("%02x ", os->m_buffer[n]);
+    (void) printf("%02x ", os->m_buffer[n]);
     if (!((n + 1) % 16))
-      printf("\n");
+      (void) printf("\n");
   }
-  printf("\n");
+  (void) printf("\n");
 }
 
 int rd_cmp_print_key (dds_ostream_t *os, const void *msg_wr, struct ddsi_sertype_default *sertype)
@@ -76,12 +76,12 @@ int rd_cmp_print_key (dds_ostream_t *os, const void *msg_wr, struct ddsi_sertype
 
   // compare
   res = cmp_key(msg_wr, msg_rd);
-  printf("key compare result: %d\n", res);
+  (void) printf("key compare result: %d\n", res);
 
   // print
   is.m_index = 0;
   (void) dds_stream_print_key (&is, sertype, buf, sizeof (buf));
-  printf("key: %s\n", buf);
+  (void) printf("key: %s\n", buf);
 
   free_sample(msg_rd);
   return res;
@@ -93,7 +93,7 @@ int main(int argc, char **argv)
   (void)argv;
   int res = 0;
 
-  printf("Running test for type %s\n", desc->m_typename);
+  (void) printf("Running test for type %s\n", desc->m_typename);
 
   // create sertype
   struct ddsi_sertype_default sertype;
@@ -110,7 +110,7 @@ int main(int argc, char **argv)
     init_sample(msg_wr);
 
     // write data
-    printf("cdr write %s\n", tests[i] == BE ? "BE" : "LE");
+    (void) printf("cdr write %s\n", tests[i] == BE ? "BE" : "LE");
     dds_ostream_t os = { NULL, 0, 0, CDR_ENC_VERSION_2 };
     bool ret;
     if (tests[i] == BE)
@@ -119,10 +119,10 @@ int main(int argc, char **argv)
       ret = dds_stream_write_sampleLE ((dds_ostreamLE_t *)(&os), msg_wr, &sertype);
     if (!ret)
     {
-      printf("cdr write failed\n");
+      (void) printf("cdr write failed\n");
       return 1;
     }
-    printf("sample data cdr:\n");
+    (void) printf("sample data cdr:\n");
     print_raw_cdr (&os);
 
     dds_istream_t is = { os.m_buffer, os.m_size, 0, CDR_ENC_VERSION_2 };
@@ -130,29 +130,29 @@ int main(int argc, char **argv)
     // normalize sample
     uint32_t actual_size = 0;
     bool swap = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN) ? (tests[i] == BE) : (tests[i] == LE);
-    printf("cdr normalize (%sswap)\n", swap ? "" : "no ");
+    (void) printf("cdr normalize (%sswap)\n", swap ? "" : "no ");
     if (!dds_stream_normalize ((void *)is.m_buffer, os.m_index, swap, CDR_ENC_VERSION_2, &sertype, false, &actual_size))
     {
-      printf("cdr normalize failed\n");
+      (void) printf("cdr normalize failed\n");
       return 1;
     }
     if (actual_size != os.m_index)
     {
-      printf("cdr normalize size invalid (actual: %u, expected: %u)\n", actual_size, os.m_index);
+      (void) printf("cdr normalize size invalid (actual: %u, expected: %u)\n", actual_size, os.m_index);
       return 1;
     }
 
     // read data and check for expected result
-    printf("cdr read data\n");
+    (void) printf("cdr read data\n");
     void *msg_rd = ddsrt_calloc (1, desc->m_size);
     dds_stream_read_sample (&is, msg_rd, &sertype);
     res = cmp_sample(msg_wr, msg_rd);
-    printf("data compare result: %d\n", res);
+    (void) printf("data compare result: %d\n", res);
 
     // print sample
     is.m_index = 0;
     (void) dds_stream_print_sample (&is, &sertype, buf, sizeof (buf));
-    printf("sample: %s\n", buf);
+    (void) printf("sample: %s\n", buf);
 
     if (res == 0 && sertype.type.keys.nkeys > 0)
     {
@@ -161,10 +161,10 @@ int main(int argc, char **argv)
       dds_ostream_t os_key_from_data = { NULL, 0, 0, CDR_ENC_VERSION_2 };
       if (!dds_stream_extract_key_from_data (&is, &os_key_from_data, &sertype))
       {
-        printf("extract key from data failed\n");
+        (void) printf("extract key from data failed\n");
         return 1;
       }
-      printf("key cdr:\n");
+      (void) printf("key cdr:\n");
       print_raw_cdr (&os_key_from_data);
 
       res = rd_cmp_print_key (&os_key_from_data, msg_wr, &sertype);

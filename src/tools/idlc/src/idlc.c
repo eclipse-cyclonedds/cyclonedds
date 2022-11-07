@@ -586,7 +586,7 @@ static const idlc_option_t *compopts[] = {
 
 static void print_version(const char *prog)
 {
-  printf("%s (Eclipse Cyclone DDS) %s\n", prog, IDL_VERSION);
+  (void) printf("%s (Eclipse Cyclone DDS) %s\n", prog, IDL_VERSION);
 }
 
 static const char *figure_language(int argc, char **argv)

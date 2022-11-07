@@ -305,7 +305,7 @@ static uint32_t pub_thread (void *varg)
   CU_ASSERT_FATAL (rc == 0);
 
   /* Wait until subscribers terminate */
-  printf ("wait for subscribers to terminate\n");
+  (void) printf ("wait for subscribers to terminate\n");
   fflush (stdout);
   while (true)
   {
@@ -442,7 +442,7 @@ static uint32_t sub_thread (void *varg)
     dds_sleepfor (DDS_MSECS (100));
   }
 
-  printf ("wait for publisher to have completed its checks\n");
+  (void) printf ("wait for publisher to have completed its checks\n");
   wait_for_done (pprd, UD_QMPUBDONE);
 
   dds_delete_qos (qos);

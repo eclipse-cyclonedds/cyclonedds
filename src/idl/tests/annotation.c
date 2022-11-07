@@ -831,7 +831,7 @@ CU_Test(idl_annotation, extensibility)
   idl_pstate_t *pstate = NULL;
 
   for (size_t i = 0; i < n; i++) {
-    printf("idl: %s\n", tests[i].str);
+    (void) printf("idl: %s\n", tests[i].str);
     pstate = NULL;
     ret = parse_string(IDL_FLAG_ANNOTATIONS, tests[i].str, &pstate);
     CU_ASSERT_EQUAL_FATAL(ret, tests[i].ret);
@@ -978,7 +978,7 @@ CU_Test(idl_annotation, bit_bound)
   idl_pstate_t *pstate;
 
   for (size_t i = 0; i < n; i++) {
-    printf("idl_annotation.bit_bound test: %s\n", tests[i].str);
+    (void) printf("idl_annotation.bit_bound test: %s\n", tests[i].str);
     pstate = NULL;
     ret = parse_string(IDL_FLAG_ANNOTATIONS, tests[i].str, &pstate);
     if (tests[i].valid) {
@@ -1035,7 +1035,7 @@ CU_Test(idl_annotation, position)
   idl_pstate_t *pstate;
 
   for (size_t i = 0; i < n; i++) {
-    printf("idl_annotation.position test: %s\n", tests[i].str);
+    (void) printf("idl_annotation.position test: %s\n", tests[i].str);
     pstate = NULL;
     ret = parse_string(IDL_FLAG_ANNOTATIONS, tests[i].str, &pstate);
     if (tests[i].valid) {

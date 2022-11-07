@@ -272,7 +272,7 @@ static DDS_Security_IdentityHandle create_local_identity(DDS_Security_Qos *parti
 
   if (result != DDS_SECURITY_VALIDATION_OK)
   {
-    printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   reset_exception(&exception);
@@ -292,7 +292,7 @@ static void clear_local_identity(DDS_Security_IdentityHandle local_id_hdl)
     success = g_auth->return_identity_handle(g_auth, local_id_hdl, &exception);
     if (!success)
     {
-      printf("return_identity_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
+      (void) printf("return_identity_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
     reset_exception(&exception);
   }
@@ -487,7 +487,7 @@ static DDS_Security_long test_failure_scenario(DDS_Security_Qos *participant_qos
   {
     code = exception.code;
     CU_ASSERT(exception.message != NULL);
-    printf("validate_local_permissions failed: (%d) %s\n", (int)exception.code, exception.message ? exception.message : "Error message missing");
+    (void) printf("validate_local_permissions failed: (%d) %s\n", (int)exception.code, exception.message ? exception.message : "Error message missing");
   }
   else
   {
@@ -651,7 +651,7 @@ CU_Test(ddssec_builtin_validate_local_permissions, valid_file, .init = suite_val
   CU_ASSERT(result != 0);
   if (result == 0)
   {
-    printf("validate_local_permissions_failed: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("validate_local_permissions_failed: %s\n", exception.message ? exception.message : "Error message missing");
   }
   else
   {
@@ -689,7 +689,7 @@ CU_Test(ddssec_builtin_validate_local_permissions, valid_data, .init = suite_val
   CU_ASSERT(result != 0);
   if (result == 0)
   {
-    printf("validate_local_permissions_failed: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("validate_local_permissions_failed: %s\n", exception.message ? exception.message : "Error message missing");
   }
   else
   {

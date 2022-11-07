@@ -37,7 +37,7 @@ static uint32_t writethread (void *varg)
     ret = dds_write (arg->wr, &data);
   }
   ddsrt_atomic_or32 (&arg->stop, (ret != 0) ? 2 : 0);
-  printf ("nwrites: %d\n", (int) data.long_3);
+  (void) printf ("nwrites: %d\n", (int) data.long_3);
   return 0;
 }
 
@@ -71,7 +71,7 @@ static void data_avail (dds_entity_t rd, void *varg)
       ddsrt_atomic_inc32 (&arg->status->badparam);
     else
     {
-      printf ("data_avail: take failed rc %d\n", (int) rc);
+      (void) printf ("data_avail: take failed rc %d\n", (int) rc);
       ddsrt_atomic_inc32 (&arg->status->error);
     }
   }
@@ -204,12 +204,12 @@ static void stress_data_avail_delete_reader (bool remote, int duration)
   ddsrt_atomic_or32 (&wrarg.stop, 1);
   ddsrt_thread_join (wrtid, NULL);
 
-  printf ("nreaders %"PRIu32"\n", nreaders);
-  printf ("triggered %"PRIx32"\n", ddsrt_atomic_ld32 (&lstatus.triggered));
-  printf ("error %"PRIu32"\n", ddsrt_atomic_ld32 (&lstatus.error));
-  printf ("taken %"PRIu32"\n", ddsrt_atomic_ld32 (&lstatus.taken));
-  printf ("badparam %"PRIu32"\n", ddsrt_atomic_ld32 (&lstatus.badparam));
-  printf ("stop %"PRIu32"\n", ddsrt_atomic_ld32 (&wrarg.stop));
+  (void) printf ("nreaders %"PRIu32"\n", nreaders);
+  (void) printf ("triggered %"PRIx32"\n", ddsrt_atomic_ld32 (&lstatus.triggered));
+  (void) printf ("error %"PRIu32"\n", ddsrt_atomic_ld32 (&lstatus.error));
+  (void) printf ("taken %"PRIu32"\n", ddsrt_atomic_ld32 (&lstatus.taken));
+  (void) printf ("badparam %"PRIu32"\n", ddsrt_atomic_ld32 (&lstatus.badparam));
+  (void) printf ("stop %"PRIu32"\n", ddsrt_atomic_ld32 (&wrarg.stop));
 
   CU_ASSERT_FATAL (nreaders > 10); // sanity check
   CU_ASSERT_FATAL (!ddsrt_atomic_ld32 (&lstatus.error));

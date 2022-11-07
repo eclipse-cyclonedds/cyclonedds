@@ -228,7 +228,7 @@ CU_Test(ddssec_builtin_register_local_datareader, builtin_endpoint, .init = suit
       &exception);
 
   if (exception.code != 0)
-    printf("register_local_datareader: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("register_local_datareader: %s\n", exception.message ? exception.message : "Error message missing");
 
   /* A valid handle to be returned */
   CU_ASSERT(result != 0);
@@ -282,7 +282,7 @@ CU_Test(ddssec_builtin_register_local_datareader, special_endpoint_name, .init =
       &exception);
 
   if (exception.code != 0)
-    printf("register_local_datareader: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("register_local_datareader: %s\n", exception.message ? exception.message : "Error message missing");
 
   /* A valid handle to be returned */
   CU_ASSERT_FATAL(result != 0);

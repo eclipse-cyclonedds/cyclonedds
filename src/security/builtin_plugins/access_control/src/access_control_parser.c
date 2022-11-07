@@ -30,7 +30,7 @@ static void print_tab(int spaces)
 {
   while (spaces > 0)
   {
-    printf(" ");
+    (void) printf(" ");
     spaces--;
   }
 }
@@ -38,20 +38,20 @@ static void print_tab(int spaces)
 static void print_string_value(struct string_value *val, const char *info, int spaces)
 {
   print_tab(spaces);
-  printf("%s", info);
+  (void) printf("%s", info);
   if (val)
-    printf(": %s", val->value ? val->value : "<noval>");
-  printf("\n");
+    (void) printf(": %s", val->value ? val->value : "<noval>");
+  (void) printf("\n");
 }
 
 #define PRINT_VALUE_BASIC(name_, type_) \
   static void print_##name_##_value (type_ *val, const char *info, int spaces) \
   { \
     print_tab(spaces); \
-    printf("%s", info); \
+    (void) printf("%s", info); \
     if (val) \
-      printf(": %d", val->value); \
-    printf("\n"); \
+      (void) printf(": %d", val->value); \
+    (void) printf("\n"); \
   }
 PRINT_VALUE_BASIC(bool, struct boolean_value)
 PRINT_VALUE_BASIC(int, struct integer_value)
@@ -62,7 +62,7 @@ PRINT_VALUE_BASIC(basic_protection, struct basicprotection_kind_value)
 static void print_domains(struct domains *domains, int spaces)
 {
   print_tab(spaces);
-  printf("domains {\n");
+  (void) printf("domains {\n");
   if (domains)
   {
     struct domain_id_set *current = domains->domain_id_set;
@@ -82,16 +82,16 @@ static void print_domains(struct domains *domains, int spaces)
   }
   else
   {
-    printf(" {\n");
+    (void) printf(" {\n");
   }
   print_tab(spaces);
-  printf("}\n");
+  (void) printf("}\n");
 }
 
 static void print_topic_rule(struct topic_rule *rule, int spaces)
 {
   print_tab(spaces);
-  printf("topic_rule {\n");
+  (void) printf("topic_rule {\n");
   if (rule)
   {
     print_string_value(rule->topic_expression, "topic_expression", spaces + 3);
@@ -104,16 +104,16 @@ static void print_topic_rule(struct topic_rule *rule, int spaces)
   }
   else
   {
-    printf(" {\n");
+    (void) printf(" {\n");
   }
   print_tab(spaces);
-  printf("}\n");
+  (void) printf("}\n");
 }
 
 static void print_topic_access_rules(struct topic_access_rules *tar, int spaces)
 {
   print_tab(spaces);
-  printf("topic_access_rules {\n");
+  (void) printf("topic_access_rules {\n");
   if (tar)
   {
     struct topic_rule *current = tar->topic_rule;
@@ -125,16 +125,16 @@ static void print_topic_access_rules(struct topic_access_rules *tar, int spaces)
   }
   else
   {
-    printf(" {\n");
+    (void) printf(" {\n");
   }
   print_tab(spaces);
-  printf("}\n");
+  (void) printf("}\n");
 }
 
 static void print_domain_rule(struct domain_rule *rule, int spaces)
 {
   print_tab(spaces);
-  printf("domain_rule {\n");
+  (void) printf("domain_rule {\n");
   if (rule)
   {
     print_domains(rule->domains, spaces + 3);
@@ -147,16 +147,16 @@ static void print_domain_rule(struct domain_rule *rule, int spaces)
   }
   else
   {
-    printf(" {\n");
+    (void) printf(" {\n");
   }
   print_tab(spaces);
-  printf("}\n");
+  (void) printf("}\n");
 }
 
 static void print_domain_access_rules(struct domain_access_rules *dar, int spaces)
 {
   print_tab(spaces);
-  printf("domain_access_rules {\n");
+  (void) printf("domain_access_rules {\n");
   if (dar)
   {
     struct domain_rule *current = dar->domain_rule;
@@ -168,10 +168,10 @@ static void print_domain_access_rules(struct domain_access_rules *dar, int space
   }
   else
   {
-    printf(" {\n");
+    (void) printf(" {\n");
   }
   print_tab(spaces);
-  printf("}\n");
+  (void) printf("}\n");
 }
 
 static void print_governance_parser_result(struct governance_parser *parser)
@@ -179,9 +179,9 @@ static void print_governance_parser_result(struct governance_parser *parser)
   assert(parser);
   assert(parser->dds);
   assert(parser->dds->domain_access_rules);
-  printf("-----------------------------------------------\n");
+  (void) printf("-----------------------------------------------\n");
   print_domain_access_rules(parser->dds->domain_access_rules, 0);
-  printf("-----------------------------------------------\n");
+  (void) printf("-----------------------------------------------\n");
 }
 
 static void print_topic(struct string_value *topic, int spaces)
@@ -198,10 +198,10 @@ static void print_topics(struct topics *topics, int spaces)
   if (topics)
   {
     print_tab(spaces);
-    printf("topics {\n");
+    (void) printf("topics {\n");
     print_topic(topics->topic, spaces + 3);
     print_tab(spaces);
-    printf("}\n");
+    (void) printf("}\n");
   }
 }
 
@@ -219,10 +219,10 @@ static void print_partitions(struct partitions *partitions, int spaces)
   if (partitions)
   {
     print_tab(spaces);
-    printf("partitions {\n");
+    (void) printf("partitions {\n");
     print_partition(partitions->partition, spaces + 3);
     print_tab(spaces);
-    printf("}\n");
+    (void) printf("}\n");
   }
 }
 
@@ -235,15 +235,15 @@ static void print_criteria(struct criteria *criteria, int spaces)
     {
       print_tab(spaces);
       if (current->criteria_type == SUBSCRIBE_CRITERIA)
-        printf("subscribe {\n");
+        (void) printf("subscribe {\n");
       else if (current->criteria_type == PUBLISH_CRITERIA)
-        printf("publish {\n");
+        (void) printf("publish {\n");
       else
         assert(0);
       print_topics(current->topics, spaces + 3);
       print_partitions(current->partitions, spaces + 3);
       print_tab(spaces);
-      printf("}\n");
+      (void) printf("}\n");
       current = (struct criteria *)current->node.next;
     }
   }
@@ -258,15 +258,15 @@ static void print_allow_deny_rule(struct allow_deny_rule *allow_deny_rule, int s
     {
       print_tab(spaces);
       if (current->rule_type == ALLOW_RULE)
-        printf("allow_rule {\n");
+        (void) printf("allow_rule {\n");
       else if (current->rule_type == DENY_RULE)
-        printf("deny_rule {\n");
+        (void) printf("deny_rule {\n");
       else
         assert(0);
       print_domains(current->domains, spaces + 3);
       print_criteria(current->criteria, spaces + 3);
       print_tab(spaces);
-      printf("}\n");
+      (void) printf("}\n");
       current = (struct allow_deny_rule *)current->node.next;
     }
   }
@@ -276,13 +276,13 @@ static void print_permissions(struct permissions *permissions, int spaces)
 {
   struct grant *current = permissions->grant;
   print_tab(spaces);
-  printf("permissions {\n");
+  (void) printf("permissions {\n");
   while (current != NULL)
   {
     print_tab(spaces + 3);
-    printf("grant {\n");
+    (void) printf("grant {\n");
     print_tab(spaces + 6);
-    printf("name: %s\n", current->name);
+    (void) printf("name: %s\n", current->name);
     print_string_value(current->subject_name, "subject_name", spaces + 6);
     print_string_value(current->validity->not_before, "validity_not_before", spaces + 6);
     print_string_value(current->validity->not_after, "validity_not_after", spaces + 6);
@@ -290,10 +290,10 @@ static void print_permissions(struct permissions *permissions, int spaces)
     print_string_value(current->default_action, "default", spaces + 6);
     current = (struct grant *)current->node.next;
     print_tab(spaces + 3);
-    printf("}\n");
+    (void) printf("}\n");
   }
   print_tab(spaces);
-  printf("}\n");
+  (void) printf("}\n");
 }
 
 static void print_permissions_parser_result(struct permissions_parser *parser)
@@ -301,9 +301,9 @@ static void print_permissions_parser_result(struct permissions_parser *parser)
   assert(parser);
   assert(parser->dds);
   assert(parser->dds->permissions);
-  printf("-----------------------------------------------\n");
+  (void) printf("-----------------------------------------------\n");
   print_permissions(parser->dds->permissions, 0);
-  printf("-----------------------------------------------\n");
+  (void) printf("-----------------------------------------------\n");
 }
 
 #endif /* DEBUG_PARSER */
@@ -589,7 +589,7 @@ static int governance_element_open_cb(void *varg, uintptr_t parentinfo, uintptr_
   }
   else
   {
-    printf("Unknown XML element: %s\n", name);
+    (void) printf("Unknown XML element: %s\n", name);
     return -1;
   }
 
@@ -697,7 +697,7 @@ static int governance_element_close_cb(void *varg, uintptr_t eleminfo, int line)
 static void governance_error_cb(void *varg, const char *msg, int line)
 {
   DDSRT_UNUSED_ARG(varg);
-  printf("Failed to parse configuration file: error %d - %s\n", line, msg);
+  (void) printf("Failed to parse configuration file: error %d - %s\n", line, msg);
 }
 
 static void free_stringvalue(struct string_value *str)
@@ -956,12 +956,12 @@ static int permissions_element_open_cb(void *varg, uintptr_t parentinfo, uintptr
     /*if this is the first element in the IGNORED branch, then give warning for the user*/
 #if 0
     if (parser->current->parent->kind != ELEMENT_KIND_IGNORED)
-      printf("Warning: Unsupported element \"%s\" has been ignored in permissions file.\n", name);
+      (void) printf("Warning: Unsupported element \"%s\" has been ignored in permissions file.\n", name);
 #endif
   }
   else
   {
-    printf("Unknown XML element: %s\n", name);
+    (void) printf("Unknown XML element: %s\n", name);
     return -1;
   }
 
@@ -1045,7 +1045,7 @@ static int permissions_element_close_cb(void *varg, uintptr_t eleminfo, int line
 static void permissions_error_cb(void *varg, const char *msg, int line)
 {
   DDSRT_UNUSED_ARG(varg);
-  printf("Failed to parse configuration file: error %d - %s\n", line, msg);
+  (void) printf("Failed to parse configuration file: error %d - %s\n", line, msg);
 }
 
 bool ac_parse_permissions_xml(const char *xml, struct permissions_parser **permissions_tree, DDS_Security_SecurityException *ex)

@@ -930,12 +930,12 @@ print_binary_debug(
      uint32_t size)
 {
     uint32_t i;
-    printf("%s: ",name );
+    (void) printf("%s: ",name );
     for( i=0; i<  size; i++)
     {
-        printf("%x",value[i]);
+        (void) printf("%x",value[i]);
     }
-    printf("\n");
+    (void) printf("\n");
 }
 
 void

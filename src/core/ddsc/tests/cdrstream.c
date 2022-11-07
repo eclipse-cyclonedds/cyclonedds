@@ -1811,7 +1811,7 @@ CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc1, const dds_to
     char buf[5000];
     is.m_index = 0;
     dds_stream_print_sample (&is, &tp_rd, buf, 5000);
-    printf ("read sample: %s\n\n", buf);
+    (void) printf ("read sample: %s\n\n", buf);
 
     // cleanup
     t ? sample_free_fn2 (msg_wr, msg_rd) : sample_free_fn1 (msg_wr, msg_rd);
@@ -1835,7 +1835,7 @@ CU_TheoryDataPoints (ddsc_cdrstream, min_xcdr_version) = {
 CU_Theory ((const dds_topic_descriptor_t *desc, uint16_t min_xcdrv),
     ddsc_cdrstream, min_xcdr_version, .init = cdrstream_init, .fini = cdrstream_fini)
 {
-  printf("running test for desc: %s\n", desc->m_typename);
+  (void) printf("running test for desc: %s\n", desc->m_typename);
   CU_ASSERT_EQUAL_FATAL (dds_stream_minimum_xcdr_version (desc->m_ops), min_xcdrv);
 
   entity_init (desc, DDS_DATA_REPRESENTATION_XCDR1, min_xcdrv != XCDR1);
@@ -1889,11 +1889,11 @@ CU_Test (ddsc_cdrstream, check_optimize)
 
   for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
   {
-    printf("running test for desc %s: %s ", tests[i].desc->m_typename, tests[i].description);
+    (void) printf("running test for desc %s: %s ", tests[i].desc->m_typename, tests[i].description);
     struct ddsi_sertype_default_desc ddsi_desc = { .ops.nops = tests[i].desc->m_nops, .ops.ops = (uint32_t *) tests[i].desc->m_ops, .size = tests[i].desc->m_size };
     size_t opt1 = dds_stream_check_optimize (&ddsi_desc, XCDR1);
     size_t opt2 = dds_stream_check_optimize (&ddsi_desc, XCDR2);
-    printf ("(opt cdr1: %zu, cdr2: %zu)\n", opt1, opt2);
+    (void) printf ("(opt cdr1: %zu, cdr2: %zu)\n", opt1, opt2);
     CU_ASSERT_EQUAL_FATAL (opt1, tests[i].opt_size_xcdr1);
     CU_ASSERT_EQUAL_FATAL (opt2, tests[i].opt_size_xcdr2);
   }

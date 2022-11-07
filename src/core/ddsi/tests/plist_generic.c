@@ -176,9 +176,9 @@ CU_Test (ddsi_plist_generic, ser_and_deser)
     size_t cmpsize = (sersize < descs[i].exp_sersize) ? sersize : descs[i].exp_sersize;
     if (memcmp (ser, descs[i].exp_ser, cmpsize) != 0)
     {
-      printf ("memcmp i = %zu\n", i);
+      (void) printf ("memcmp i = %zu\n", i);
       for (size_t k = 0; k < cmpsize; k++)
-        printf ("  %3zu  %02x  %02x\n", k, ((unsigned char *)ser)[k], descs[i].exp_ser[k]);
+        (void) printf ("  %3zu  %02x  %02x\n", k, ((unsigned char *)ser)[k], descs[i].exp_ser[k]);
       CU_ASSERT (!(bool)"memcmp");
     }
     /* check */
@@ -320,9 +320,9 @@ CU_Test (ddsi_plist_generic, optional)
   size_t cmpsize = (sersize < exp_sersize) ? sersize : exp_sersize;
   if (memcmp (ser, exp_ser, cmpsize) != 0)
   {
-    printf ("ddsi_plist_generic_optional: memcmp\n");
+    (void) printf ("ddsi_plist_generic_optional: memcmp\n");
     for (size_t k = 0; k < cmpsize; k++)
-      printf ("  %3zu  %02x  %02x\n", k, ((unsigned char *)ser)[k], exp_ser[k]);
+      (void) printf ("  %3zu  %02x  %02x\n", k, ((unsigned char *)ser)[k], exp_ser[k]);
     CU_ASSERT (!(bool)"memcmp");
   }
   /* check */

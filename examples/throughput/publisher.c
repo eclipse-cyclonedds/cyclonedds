@@ -55,7 +55,7 @@ int main (int argc, char **argv)
 
   /* Wait until have a reader */
   if (wait_for_reader(writer, participant) == 0) {
-    printf ("=== [Publisher]  Did not discover a reader.\n");
+    (void) printf ("=== [Publisher]  Did not discover a reader.\n");
     fflush (stdout);
     rc = dds_delete (participant);
     if (rc < 0)
@@ -99,10 +99,10 @@ static int parse_args(
    */
   if (argc == 2 && (strcmp (argv[1], "-h") == 0 || strcmp (argv[1], "--help") == 0))
   {
-    printf ("Usage (parameters must be supplied in order):\n");
-    printf ("./publisher [payloadSize (bytes)] [burstInterval (ms)] [burstSize (samples)] [timeOut (seconds)] [partitionName]\n");
-    printf ("Defaults:\n");
-    printf ("./publisher 8192 0 1 0 \"Throughput example\"\n");
+    (void) printf ("Usage (parameters must be supplied in order):\n");
+    (void) printf ("./publisher [payloadSize (bytes)] [burstInterval (ms)] [burstSize (samples)] [timeOut (seconds)] [partitionName]\n");
+    (void) printf ("Defaults:\n");
+    (void) printf ("./publisher 8192 0 1 0 \"Throughput example\"\n");
     return EXIT_FAILURE;
   }
   if (argc > 1)
@@ -126,7 +126,7 @@ static int parse_args(
     *partitionName = argv[5]; /* The name of the partition */
   }
 
-  printf ("payloadSize: %"PRIu32" bytes burstInterval: %d ms burstSize: %"PRIu32" timeOut: %d seconds partitionName: %s\n",
+  (void) printf ("payloadSize: %"PRIu32" bytes burstInterval: %d ms burstSize: %"PRIu32" timeOut: %d seconds partitionName: %s\n",
     *payloadSize, *burstInterval, *burstSize, *timeOut, *partitionName);
   fflush (stdout);
 
@@ -179,7 +179,7 @@ static dds_entity_t prepare_dds(dds_entity_t *writer, const char *partitionName)
 
 static dds_return_t wait_for_reader(dds_entity_t writer, dds_entity_t participant)
 {
-  printf ("\n=== [Publisher]  Waiting for a reader ...\n");
+  (void) printf ("\n=== [Publisher]  Waiting for a reader ...\n");
   fflush (stdout);
 
   dds_return_t rc;
@@ -222,7 +222,7 @@ static void start_writing(
     dds_time_t burstStart = pubStart;
     unsigned int burstCount = 0;
 
-    printf ("=== [Publisher]  Writing samples...\n");
+    (void) printf ("=== [Publisher]  Writing samples...\n");
     fflush (stdout);
 
     while (!done && !timedOut)
@@ -277,7 +277,7 @@ static void start_writing(
     }
     dds_write_flush (writer);
 
-    printf ("=== [Publisher]  %s, %llu samples written.\n", done ? "Terminated" : "Timed out", (unsigned long long) sample->count);
+    (void) printf ("=== [Publisher]  %s, %llu samples written.\n", done ? "Terminated" : "Timed out", (unsigned long long) sample->count);
     fflush (stdout);
   }
 }

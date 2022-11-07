@@ -131,7 +131,7 @@ static int register_local_participant(void)
 
   if (local_participant_handle == DDS_SECURITY_HANDLE_NIL)
   {
-    printf("register_local_participant: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("register_local_participant: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   return local_participant_handle ? 0 : -1;
@@ -163,7 +163,7 @@ static int register_remote_participant(void)
 
   if (remote_participant_handle == DDS_SECURITY_HANDLE_NIL)
   {
-    printf("register_matched_remote_participant: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("register_matched_remote_participant: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   return remote_participant_handle ? 0 : -1;
@@ -214,7 +214,7 @@ static DDS_Security_DatawriterCryptoHandle register_local_datawriter(bool encryp
 
   if (writer_crypto == 0)
   {
-    printf("register_local_datawriter: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("register_local_datawriter: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   assert (writer_crypto != 0);
@@ -236,7 +236,7 @@ static DDS_Security_DatawriterCryptoHandle register_remote_datawriter(DDS_Securi
 
   if (writer_crypto == 0)
   {
-    printf("register_matched_remote_datareader: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("register_matched_remote_datareader: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   assert (writer_crypto != 0);
@@ -278,7 +278,7 @@ static DDS_Security_DatareaderCryptoHandle register_local_datareader(bool encryp
 
   if (reader_crypto == 0)
   {
-    printf("register_local_datawriter: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("register_local_datawriter: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   return reader_crypto;
@@ -303,7 +303,7 @@ static DDS_Security_DatareaderCryptoHandle register_remote_datareader(DDS_Securi
 
   if (reader_crypto == 0)
   {
-    printf("register_matched_remote_datareader: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("register_matched_remote_datareader: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   return reader_crypto;
@@ -495,7 +495,7 @@ static void decode_serialized_payload_check(uint32_t key_size, bool encrypted)
 
   if (!result)
   {
-    printf("encode_serialized_payload: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("encode_serialized_payload: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT_FATAL(result);
@@ -516,7 +516,7 @@ static void decode_serialized_payload_check(uint32_t key_size, bool encrypted)
 
   if (!result)
   {
-    printf("decode_serialized_payload: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("decode_serialized_payload: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT_FATAL(result);
@@ -616,7 +616,7 @@ CU_Test(ddssec_builtin_decode_serialized_payload, invalid_args, .init = suite_de
 
   if (!result)
   {
-    printf("encode_serialized_payload: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("encode_serialized_payload: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT_FATAL(result);
@@ -637,7 +637,7 @@ CU_Test(ddssec_builtin_decode_serialized_payload, invalid_args, .init = suite_de
 
   if (!result)
   {
-    printf("decode_serialized_payload: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("decode_serialized_payload: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT(!result);
@@ -658,7 +658,7 @@ CU_Test(ddssec_builtin_decode_serialized_payload, invalid_args, .init = suite_de
 
   if (!result)
   {
-    printf("decode_serialized_payload: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("decode_serialized_payload: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT(!result);
@@ -679,7 +679,7 @@ CU_Test(ddssec_builtin_decode_serialized_payload, invalid_args, .init = suite_de
 
   if (!result)
   {
-    printf("decode_serialized_payload: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("decode_serialized_payload: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT(!result);
@@ -700,7 +700,7 @@ CU_Test(ddssec_builtin_decode_serialized_payload, invalid_args, .init = suite_de
 
   if (!result)
   {
-    printf("decode_serialized_payload: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("decode_serialized_payload: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT(!result);
@@ -780,7 +780,7 @@ CU_Test(ddssec_builtin_decode_serialized_payload, invalid_data, .init = suite_de
 
   if (!result)
   {
-    printf("encode_serialized_payload: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("encode_serialized_payload: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT_FATAL(result);
@@ -809,7 +809,7 @@ CU_Test(ddssec_builtin_decode_serialized_payload, invalid_data, .init = suite_de
 
     if (!result)
     {
-      printf("decode_serialized_payload: %s\n", exception.message ? exception.message : "Error message missing");
+      (void) printf("decode_serialized_payload: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     CU_ASSERT(!result);
@@ -840,7 +840,7 @@ CU_Test(ddssec_builtin_decode_serialized_payload, invalid_data, .init = suite_de
 
     if (!result)
     {
-      printf("decode_serialized_payload: %s\n", exception.message ? exception.message : "Error message missing");
+      (void) printf("decode_serialized_payload: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     CU_ASSERT(!result);
@@ -871,7 +871,7 @@ CU_Test(ddssec_builtin_decode_serialized_payload, invalid_data, .init = suite_de
 
     if (!result)
     {
-      printf("decode_serialized_payload: %s\n", exception.message ? exception.message : "Error message missing");
+      (void) printf("decode_serialized_payload: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     CU_ASSERT(!result);
@@ -909,7 +909,7 @@ CU_Test(ddssec_builtin_decode_serialized_payload, invalid_data, .init = suite_de
 
     if (!result)
     {
-      printf("decode_serialized_payload: %s\n", exception.message ? exception.message : "Error message missing");
+      (void) printf("decode_serialized_payload: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     CU_ASSERT(!result);
@@ -947,7 +947,7 @@ CU_Test(ddssec_builtin_decode_serialized_payload, invalid_data, .init = suite_de
 
     if (!result)
     {
-      printf("decode_serialized_payload: %s\n", exception.message ? exception.message : "Error message missing");
+      (void) printf("decode_serialized_payload: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     CU_ASSERT(!result);
@@ -980,7 +980,7 @@ CU_Test(ddssec_builtin_decode_serialized_payload, invalid_data, .init = suite_de
 
     if (!result)
     {
-      printf("decode_serialized_payload: %s\n", exception.message ? exception.message : "Error message missing");
+      (void) printf("decode_serialized_payload: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     CU_ASSERT(!result);
@@ -1016,7 +1016,7 @@ CU_Test(ddssec_builtin_decode_serialized_payload, invalid_data, .init = suite_de
 
     if (!result)
     {
-      printf("decode_serialized_payload: %s\n", exception.message ? exception.message : "Error message missing");
+      (void) printf("decode_serialized_payload: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     CU_ASSERT(!result);
@@ -1043,7 +1043,7 @@ CU_Test(ddssec_builtin_decode_serialized_payload, invalid_data, .init = suite_de
 
     if (!result)
     {
-      printf("decode_serialized_payload: %s\n", exception.message ? exception.message : "Error message missing");
+      (void) printf("decode_serialized_payload: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     CU_ASSERT(!result);

@@ -170,9 +170,9 @@ static void checkdata (dds_entity_t rd, const struct exp *exp, const char *heade
       case DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE: is = 'u'; break;
       case DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE: is = 'd'; break;
     }
-    printf (" %c{%d,%d,%d}", is, data[k].long_1, data[k].long_2, data[k].long_3);
+    (void) printf (" %c{%d,%d,%d}", is, data[k].long_1, data[k].long_2, data[k].long_3);
   }
-  printf ("\n");
+  (void) printf ("\n");
   fflush (stdout);
   CU_ASSERT_FATAL (ret == exp->n);
   // sort because there's no ordering between instances

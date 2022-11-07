@@ -54,10 +54,10 @@ static bool process_topic (dds_entity_t readcond)
   {
     dds_builtintopic_topic_t const * const sample = samples[i];
     struct keystr gs;
-    printf ("%s: %s", instance_state_str (infos[i].instance_state), keystr (&gs, &sample->key));
+    (void) printf ("%s: %s", instance_state_str (infos[i].instance_state), keystr (&gs, &sample->key));
     if (infos[i].valid_data)
     {
-      printf (" %s %s", sample->topic_name, sample->type_name);
+      (void) printf (" %s %s", sample->topic_name, sample->type_name);
       if (strncmp (sample->topic_name, "DCPS", 4) != 0)
       {
         /* Topic names starting with DCPS are guaranteed to be built-in topics, so we
@@ -65,7 +65,7 @@ static bool process_topic (dds_entity_t readcond)
         topics_seen = true;
       }
     }
-    printf ("\n");
+    (void) printf ("\n");
   }
   /* Release memory allocated by dds_take */
   (void) dds_return_loan (readcond, samples, n);

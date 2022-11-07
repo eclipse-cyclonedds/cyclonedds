@@ -32,7 +32,7 @@ static void print_description (const char *desc, int indent, int init_indent, in
       int n = (int)strspn (desc + 1, " ");
       desc += 1 + n;
       cindent = indent + n;
-      printf ("\n%*s", cindent, "");
+      (void) printf ("\n%*s", cindent, "");
       pos = cindent;
     }
     else
@@ -40,10 +40,10 @@ static void print_description (const char *desc, int indent, int init_indent, in
       int n = (int)strcspn (desc, " \t\n");
       if (pos + n > maxwidth)
       {
-  printf ("\n%*s", cindent, "");
+  (void) printf ("\n%*s", cindent, "");
   pos = cindent;
       }
-      printf ("%*s%*.*s", (pos == cindent) ? 0 : 1, "", n, n, desc);
+      (void) printf ("%*s%*.*s", (pos == cindent) ? 0 : 1, "", n, n, desc);
       pos += n + ((pos == cindent) ? 0 : 1);
       desc += n + (int)strspn (desc + n, " ");
     }
@@ -55,7 +55,7 @@ static void print_description (const char *desc, int indent, int init_indent, in
       cindent = pos;
     }
   }
-  printf ("\n");
+  (void) printf ("\n");
 }
 
 static int ascending(const void *va, const void *vb)
@@ -123,18 +123,18 @@ void print_help(
   const char *argv0, const char *rest, idlc_option_t **options)
 {
   idlc_option_t **opts;
-  printf("Usage: %s%s%s\n", argv0, rest ? " " : "", rest ? rest : "");
+  (void) printf("Usage: %s%s%s\n", argv0, rest ? " " : "", rest ? rest : "");
   if (!(opts = sort_options(options, &ascending)))
     return;
-  printf("Options:\n");
+  (void) printf("Options:\n");
   for (size_t i=0; opts[i]; i++) {
     int cnt, off = INDENT;
     char buf[WIDTH + 1];
     cnt = format_option(buf, sizeof(buf), 2, opts[i]);
     if (cnt <= off)
-      printf("%-*s", off, buf);
+      (void) printf("%-*s", off, buf);
     else
-      printf("%s\n%*s", buf, off, "");
+      (void) printf("%s\n%*s", buf, off, "");
     print_description(opts[i]->help, off, off, WIDTH);
   }
   idl_free(opts);

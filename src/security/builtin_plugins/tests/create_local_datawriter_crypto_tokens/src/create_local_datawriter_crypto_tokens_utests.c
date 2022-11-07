@@ -105,7 +105,7 @@ static int register_local_participant(void)
 
   if (local_particpant_crypto == 0)
   {
-    printf("register_local_participant: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("register_local_participant: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   return local_particpant_crypto ? 0 : -1;
@@ -127,7 +127,7 @@ static int register_remote_participant(void)
 
   if (remote_particpant_crypto == 0)
   {
-    printf("register_matched_remote_participant: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("register_matched_remote_participant: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   return remote_particpant_crypto ? 0 : -1;
@@ -163,7 +163,7 @@ static int register_local_datawriter(void)
 
   if (local_writer_crypto == 0)
   {
-    printf("register_local_datawriter: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("register_local_datawriter: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   return local_writer_crypto ? 0 : -1;
@@ -184,7 +184,7 @@ static int register_remote_datareader(void)
 
   if (remote_reader_crypto == 0)
   {
-    printf("register_matched_remote_datareader: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("register_matched_remote_datareader: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   return remote_reader_crypto ? 0 : -1;
@@ -262,42 +262,42 @@ static bool check_key_material(DDS_Security_OctetSeq *data)
   {
     if (CRYPTO_TRANSFORM_KIND(key_mat.transformation_kind) == CRYPTO_TRANSFORMATION_KIND_AES256_GCM)
     {
-      printf("check_key_material: incorrect transformation_kind\n");
+      (void) printf("check_key_material: incorrect transformation_kind\n");
       status = false;
     }
     else if (CRYPTO_TRANSFORM_ID(key_mat.sender_key_id) == 0)
     {
-      printf("check_key_material: incorrect sender_key_id\n");
+      (void) printf("check_key_material: incorrect sender_key_id\n");
       status = false;
     }
     else if (key_mat.master_salt._length != DDS_SECURITY_MASTER_SALT_SIZE_256)
     {
-      printf("check_key_material: incorrect master_salt\n");
+      (void) printf("check_key_material: incorrect master_salt\n");
       status = false;
     }
     else if (!key_mat.master_salt._buffer)
     {
-      printf("check_key_material: incorrect master_salt\n");
+      (void) printf("check_key_material: incorrect master_salt\n");
       status = false;
     }
     else if (!data_not_empty(key_mat.master_salt._buffer, key_mat.master_salt._length))
     {
-      printf("check_key_material: incorrect master_salt\n");
+      (void) printf("check_key_material: incorrect master_salt\n");
       status = false;
     }
     else if (key_mat.master_sender_key._length != DDS_SECURITY_MASTER_SENDER_KEY_SIZE_256)
     {
-      printf("check_key_material: incorrect master_sender_key\n");
+      (void) printf("check_key_material: incorrect master_sender_key\n");
       status = false;
     }
     else if (!key_mat.master_salt._buffer)
     {
-      printf("check_key_material: incorrect master_sender_key\n");
+      (void) printf("check_key_material: incorrect master_sender_key\n");
       status = false;
     }
     else if (!data_not_empty(key_mat.master_sender_key._buffer, key_mat.master_sender_key._length))
     {
-      printf("check_key_material: incorrect master_sender_key\n");
+      (void) printf("check_key_material: incorrect master_sender_key\n");
       status = false;
     }
   }
@@ -367,7 +367,7 @@ CU_Test(ddssec_builtin_create_local_datawriter_crypto_tokens, happy_day, .init =
 
   if (!result)
   {
-    printf("create_local_datawriter_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("create_local_datawriter_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT_FATAL(result);
@@ -382,7 +382,7 @@ CU_Test(ddssec_builtin_create_local_datawriter_crypto_tokens, happy_day, .init =
 
   if (!result)
   {
-    printf("return_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("return_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT_FATAL(result);
@@ -418,7 +418,7 @@ CU_Test(ddssec_builtin_create_local_datawriter_crypto_tokens, invalid_args, .ini
 
   if (!result)
   {
-    printf("create_local_datawriter_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("create_local_datawriter_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT(!result);
@@ -437,7 +437,7 @@ CU_Test(ddssec_builtin_create_local_datawriter_crypto_tokens, invalid_args, .ini
 
   if (!result)
   {
-    printf("create_local_datawriter_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("create_local_datawriter_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT(!result);
@@ -456,7 +456,7 @@ CU_Test(ddssec_builtin_create_local_datawriter_crypto_tokens, invalid_args, .ini
 
   if (!result)
   {
-    printf("create_local_datawriter_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("create_local_datawriter_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT(!result);
@@ -475,7 +475,7 @@ CU_Test(ddssec_builtin_create_local_datawriter_crypto_tokens, invalid_args, .ini
 
   if (!result)
   {
-    printf("create_local_datawriter_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("create_local_datawriter_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT(!result);
@@ -494,7 +494,7 @@ CU_Test(ddssec_builtin_create_local_datawriter_crypto_tokens, invalid_args, .ini
 
   if (!result)
   {
-    printf("create_local_datawriter_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("create_local_datawriter_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT(!result);

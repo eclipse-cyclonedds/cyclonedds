@@ -393,7 +393,7 @@ static void ddsc_multi_sertype_impl (dds_entity_t pp_pub, dds_entity_t pp_sub, e
   dds_qos_t *qos;
   dds_return_t rc;
 
-  printf ("multi_sertype: %s %s\n", (pp_pub == pp_sub) ? "local" : "remote", multi_sertype_modestr (mode));
+  (void) printf ("multi_sertype: %s %s\n", (pp_pub == pp_sub) ? "local" : "remote", multi_sertype_modestr (mode));
 
   /* Transient-local mode is for checking the local historical data delivery path (for remote, there
      is nothing special about it), and knowing it is local means we don't have to wait for historical
@@ -445,7 +445,7 @@ static void ddsc_multi_sertype_impl (dds_entity_t pp_pub, dds_entity_t pp_sub, e
       CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
     }
 
-    printf ("wait for discovery, fastpath_ok; delete & recreate readers\n");
+    (void) printf ("wait for discovery, fastpath_ok; delete & recreate readers\n");
     while (!(get_and_check_writer_status (sizeof (writers) / sizeof (writers[0]), writers, sizeof (readers) / sizeof (readers[0])) &&
              get_and_check_reader_status (sizeof (readers) / sizeof (readers[0]), readers, sizeof (writers) / sizeof (writers[0]))))
     {
@@ -459,7 +459,7 @@ static void ddsc_multi_sertype_impl (dds_entity_t pp_pub, dds_entity_t pp_sub, e
       waitfor_or_reset_fastpath (readers[i], true, sizeof (writers) / sizeof (writers[0]));
     if (mode == MSM_SLOWPATH)
     {
-      printf ("clear fastpath_ok\n");
+      (void) printf ("clear fastpath_ok\n");
       for (size_t i = 0; i < sizeof (readers) / sizeof (readers[0]); i++)
         waitfor_or_reset_fastpath (readers[i], false, sizeof (writers) / sizeof (writers[0]));
     }
@@ -487,7 +487,7 @@ static void ddsc_multi_sertype_impl (dds_entity_t pp_pub, dds_entity_t pp_sub, e
         ._length = 1, ._maximum = 1, ._release = false, ._buffer = (struct two_uint32[]) { { { 4, 2 } } }
       } }
     };
-    printf ("writing ...\n");
+    (void) printf ("writing ...\n");
     rc = dds_write_ts (writers[SEQ_IDX], &s, 1);
     CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
     rc = dds_write_ts (writers[ARY_IDX], &a, 2);
@@ -513,7 +513,7 @@ static void ddsc_multi_sertype_impl (dds_entity_t pp_pub, dds_entity_t pp_sub, e
   /* All readers should have received three samples, and those that are of type seq
      should have received one extra (whereas the others should cause deserialization
      failure warnings) */
-  printf ("reading\n");
+  (void) printf ("reading\n");
   const size_t nexp = ((sizeof (writers) / sizeof (writers[0])) *
                          (sizeof (readers) / sizeof (readers[0])) +
                          ((sizeof (readers) / sizeof (readers[0])) / (sizeof (sub_topics) / sizeof (sub_topics[0]))));
@@ -540,7 +540,7 @@ static void ddsc_multi_sertype_impl (dds_entity_t pp_pub, dds_entity_t pp_sub, e
       {
         if (!si.valid_data)
           continue;
-        printf ("recv: seq %"PRId64"\n", si.source_timestamp);
+        (void) printf ("recv: seq %"PRId64"\n", si.source_timestamp);
         if (si.source_timestamp == 4)
         {
           CU_ASSERT_FATAL (s.x._length == 1);
@@ -566,7 +566,7 @@ static void ddsc_multi_sertype_impl (dds_entity_t pp_pub, dds_entity_t pp_sub, e
       {
         if (!si.valid_data)
           continue;
-        printf ("recv: ary %"PRId64"\n", si.source_timestamp);
+        (void) printf ("recv: ary %"PRId64"\n", si.source_timestamp);
         CU_ASSERT_FATAL (si.source_timestamp >= 1 && si.source_timestamp <= 3);
         CU_ASSERT_FATAL (a.x[0] == 3);
         CU_ASSERT_FATAL (a.x[1] == 1);
@@ -583,7 +583,7 @@ static void ddsc_multi_sertype_impl (dds_entity_t pp_pub, dds_entity_t pp_sub, e
       {
         if (!si.valid_data)
           continue;
-        printf ("recv: uni %"PRId64"\n", si.source_timestamp);
+        (void) printf ("recv: uni %"PRId64"\n", si.source_timestamp);
         CU_ASSERT_FATAL (si.source_timestamp >= 1 && si.source_timestamp <= 3);
         CU_ASSERT_FATAL (u._d == 3);
         CU_ASSERT_FATAL (u._u.a._length == 1);
@@ -604,7 +604,7 @@ static void ddsc_multi_sertype_impl (dds_entity_t pp_pub, dds_entity_t pp_sub, e
       {
         if (!si.valid_data)
           continue;
-        printf ("recv: reader %zu %"PRId64"\n", i, si.source_timestamp);
+        (void) printf ("recv: reader %zu %"PRId64"\n", i, si.source_timestamp);
         CU_ASSERT_FATAL (sample->type == get_sertype_from_reader (readers[i]));
         ddsi_serdata_unref (sample);
         nseen++;

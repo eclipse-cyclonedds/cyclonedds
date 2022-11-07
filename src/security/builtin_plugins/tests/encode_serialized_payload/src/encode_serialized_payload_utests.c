@@ -132,7 +132,7 @@ static int register_local_participant(void)
 
   if (g_local_participant_crypto == 0)
   {
-    printf("[ERROR] register_local_participant: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("[ERROR] register_local_participant: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   return g_local_participant_crypto ? 0 : -1;
@@ -164,7 +164,7 @@ static int register_remote_participant(void)
 
   if (g_remote_participant_crypto == 0)
   {
-    printf("[ERROR] register_matched_remote_participant: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("[ERROR] register_matched_remote_participant: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   return g_remote_participant_crypto ? 0 : -1;
@@ -205,7 +205,7 @@ static DDS_Security_DatawriterCryptoHandle register_local_datawriter(bool encryp
 
   if (writer_crypto == 0)
   {
-    printf("[ERROR] register_local_datawriter: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("[ERROR] register_local_datawriter: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   return writer_crypto;
@@ -240,7 +240,7 @@ static DDS_Security_DatareaderCryptoHandle register_remote_datareader(DDS_Securi
 
   if (reader_crypto == 0)
   {
-    printf("[ERROR] register_matched_remote_datareader: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("[ERROR] register_matched_remote_datareader: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   return reader_crypto;
@@ -319,7 +319,7 @@ static bool crypto_decrypt_data(uint32_t session_id, unsigned char *iv, DDS_Secu
 
   if (!crypto_calculate_session_key_test(&session_key, session_id, key_material->master_salt, key_material->master_sender_key, key_material->transformation_kind))
   {
-    printf("[ERROR] (%d) crypto_decrypt_data: could not calculate session key!\n", __LINE__);
+    (void) printf("[ERROR] (%d) crypto_decrypt_data: could not calculate session key!\n", __LINE__);
     return false;
   }
 
@@ -331,7 +331,7 @@ static bool crypto_decrypt_data(uint32_t session_id, unsigned char *iv, DDS_Secu
     {
       if (!EVP_DecryptInit_ex(ctx, EVP_aes_128_gcm(), NULL, NULL, NULL))
       {
-        printf("[ERROR] (%d) crypto_decrypt_data: could not get init CIPHER_CTX (128)\n", __LINE__);
+        (void) printf("[ERROR] (%d) crypto_decrypt_data: could not get init CIPHER_CTX (128)\n", __LINE__);
         ERR_print_errors_fp(stderr);
         result = false;
       }
@@ -340,20 +340,20 @@ static bool crypto_decrypt_data(uint32_t session_id, unsigned char *iv, DDS_Secu
     {
       if (!EVP_DecryptInit_ex(ctx, EVP_aes_256_gcm(), NULL, NULL, NULL))
       {
-        printf("[ERROR] (%d) crypto_decrypt_data: could not get init CIPHER_CTX (256)\n", __LINE__);
+        (void) printf("[ERROR] (%d) crypto_decrypt_data: could not get init CIPHER_CTX (256)\n", __LINE__);
         ERR_print_errors_fp(stderr);
         result = false;
       }
     }
     else
     {
-      printf("[ERROR] (%d) crypto_decrypt_data: could not determine keysize\n", __LINE__);
+      (void) printf("[ERROR] (%d) crypto_decrypt_data: could not determine keysize\n", __LINE__);
       result = false;
     }
   }
   else
   {
-    printf("[ERROR] (%d) crypto_decrypt_data: could not get new CIPHER_CTX\n", __LINE__);
+    (void) printf("[ERROR] (%d) crypto_decrypt_data: could not get new CIPHER_CTX\n", __LINE__);
     result = false;
   }
 
@@ -361,7 +361,7 @@ static bool crypto_decrypt_data(uint32_t session_id, unsigned char *iv, DDS_Secu
   {
     if (!EVP_DecryptInit_ex(ctx, NULL, NULL, session_key.data, iv))
     {
-      printf("[ERROR] (%d) crypto_decrypt_data: could not init Decrypt\n", __LINE__);
+      (void) printf("[ERROR] (%d) crypto_decrypt_data: could not init Decrypt\n", __LINE__);
       ERR_print_errors_fp(stderr);
       result = false;
     }
@@ -377,7 +377,7 @@ static bool crypto_decrypt_data(uint32_t session_id, unsigned char *iv, DDS_Secu
       }
       else
       {
-        printf("[ERROR] (%d) crypto_decrypt_data: could not update Decrypt (decoded)\n", __LINE__);
+        (void) printf("[ERROR] (%d) crypto_decrypt_data: could not update Decrypt (decoded)\n", __LINE__);
         ERR_print_errors_fp(stderr);
         result = false;
       }
@@ -386,7 +386,7 @@ static bool crypto_decrypt_data(uint32_t session_id, unsigned char *iv, DDS_Secu
     {
       if (!EVP_DecryptUpdate(ctx, NULL, &len, encrypted->_buffer, (int) encrypted->_length))
       {
-        printf("[ERROR] (%d) crypto_decrypt_data: could not update Decrypt (!decoded)\n", __LINE__);
+        (void) printf("[ERROR] (%d) crypto_decrypt_data: could not update Decrypt (!decoded)\n", __LINE__);
         ERR_print_errors_fp(stderr);
         result = false;
       }
@@ -397,7 +397,7 @@ static bool crypto_decrypt_data(uint32_t session_id, unsigned char *iv, DDS_Secu
   {
     if (!EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG, CRYPTO_HMAC_SIZE, tag))
     {
-      printf("[ERROR] (%d) crypto_decrypt_data: could not ctrl CIPHER_CTX\n", __LINE__);
+      (void) printf("[ERROR] (%d) crypto_decrypt_data: could not ctrl CIPHER_CTX\n", __LINE__);
       ERR_print_errors_fp(stderr);
       result = false;
     }
@@ -413,7 +413,7 @@ static bool crypto_decrypt_data(uint32_t session_id, unsigned char *iv, DDS_Secu
       }
       else
       {
-        printf("[ERROR] (%d) crypto_decrypt_data: could not finalize Decrypt (decoded)\n", __LINE__);
+        (void) printf("[ERROR] (%d) crypto_decrypt_data: could not finalize Decrypt (decoded)\n", __LINE__);
         ERR_print_errors_fp(stderr);
         result = false;
       }
@@ -423,7 +423,7 @@ static bool crypto_decrypt_data(uint32_t session_id, unsigned char *iv, DDS_Secu
       unsigned char temp[32];
       if (!EVP_DecryptFinal_ex(ctx, temp, &len))
       {
-        printf("[ERROR] (%d) crypto_decrypt_data: could not finalize Decrypt (!decoded)\n", __LINE__);
+        (void) printf("[ERROR] (%d) crypto_decrypt_data: could not finalize Decrypt (!decoded)\n", __LINE__);
         ERR_print_errors_fp(stderr);
         result = false;
       }
@@ -583,7 +583,7 @@ static void encode_serialized_payload_check(uint32_t key_size, bool encrypted)
 
   if (!result)
   {
-    printf("[ERROR] encode_serialized_payload: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("[ERROR] encode_serialized_payload: %s\n", exception.message ? exception.message : "Error message missing");
   }
   CU_ASSERT_FATAL(result);
   assert(result); // for Clang's static analyzer
@@ -607,7 +607,7 @@ static void encode_serialized_payload_check(uint32_t key_size, bool encrypted)
     result = crypto_decrypt_data(session_id, &header->session_id[0], header->transform_identifier.transformation_kind, session_keys->master_key_material, &encoded_payload, &decoded_buffer, footer->common_mac);
     if (!result)
     {
-      printf("[ERROR] Decryption failed\n");
+      (void) printf("[ERROR] Decryption failed\n");
     }
     CU_ASSERT_FATAL(result);
     CU_ASSERT(check_payload_decoded(&decoded_buffer, &plain_buffer));
@@ -618,7 +618,7 @@ static void encode_serialized_payload_check(uint32_t key_size, bool encrypted)
     result = crypto_decrypt_data(session_id, &header->session_id[0], header->transform_identifier.transformation_kind, session_keys->master_key_material, &encoded_payload, NULL, footer->common_mac);
     if (!result)
     {
-      printf("[ERROR] Signature check failed\n");
+      (void) printf("[ERROR] Signature check failed\n");
     }
     CU_ASSERT_FATAL(result);
   }
@@ -693,7 +693,7 @@ CU_Test(ddssec_builtin_encode_serialized_payload, invalid_args, .init = suite_en
 
   if (!result)
   {
-    printf("encode_serialized_payload: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("encode_serialized_payload: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT(!result);
@@ -713,7 +713,7 @@ CU_Test(ddssec_builtin_encode_serialized_payload, invalid_args, .init = suite_en
 
   if (!result)
   {
-    printf("encode_serialized_payload: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("encode_serialized_payload: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT(!result);

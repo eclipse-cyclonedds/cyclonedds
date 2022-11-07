@@ -160,7 +160,7 @@ static char * smime_sign(char * ca_cert_path, char * ca_priv_key_path, const cha
   BIO *ca_cert_bio = BIO_new (BIO_s_file ());
   if (BIO_read_filename (ca_cert_bio, ca_cert_path) <= 0)
   {
-      printf ("Error reading CA certificate file %s\n", ca_cert_path);
+      (void) printf ("Error reading CA certificate file %s\n", ca_cert_path);
       CU_ASSERT_FATAL (false);
   }
 
@@ -168,7 +168,7 @@ static char * smime_sign(char * ca_cert_path, char * ca_priv_key_path, const cha
   BIO *ca_priv_key_bio = BIO_new (BIO_s_file ());
   if (BIO_read_filename (ca_priv_key_bio, ca_priv_key_path) <= 0)
   {
-      printf ("Error reading CA private key file %s\n", ca_priv_key_path);
+      (void) printf ("Error reading CA private key file %s\n", ca_priv_key_path);
       CU_ASSERT_FATAL (false);
   }
 
@@ -179,21 +179,21 @@ static char * smime_sign(char * ca_cert_path, char * ca_priv_key_path, const cha
   // Read the data
   BIO *data_bio = BIO_new (BIO_s_mem ());
   if (BIO_puts (data_bio, data) <= 0) {
-      printf ("Error getting configuration data for signing\n");
+      (void) printf ("Error getting configuration data for signing\n");
       CU_ASSERT_FATAL (false);
   }
 
   // Create the data signing object
   PKCS7 *signed_data = PKCS7_sign (ca_cert, ca_priv_key, NULL, data_bio, PKCS7_DETACHED | PKCS7_STREAM | PKCS7_TEXT);
   if (!signed_data) {
-      printf ("Error signing configuration data\n");
+      (void) printf ("Error signing configuration data\n");
       CU_ASSERT_FATAL (false);
   }
 
   // Create BIO for writing output
   BIO *output_bio = BIO_new (BIO_s_mem ());
   if (!SMIME_write_PKCS7 (output_bio, signed_data, data_bio, PKCS7_DETACHED | PKCS7_STREAM | PKCS7_TEXT)) {
-      printf ("Error writing signed XML configuration\n");
+      (void) printf ("Error writing signed XML configuration\n");
       CU_ASSERT_FATAL (false);
   }
 
@@ -237,7 +237,7 @@ static char * prefix_data (char * config_signed, bool add_prefix)
 static void print_config_vars(struct kvp *vars)
 {
   for (uint32_t i = 0; vars[i].key != NULL; i++)
-    printf("%s=%s; ", vars[i].key, vars[i].value);
+    (void) printf("%s=%s; ", vars[i].key, vars[i].value);
 }
 
 char * get_governance_topic_rule(const char * topic_expr, bool discovery_protection, bool liveliness_protection,
@@ -274,7 +274,7 @@ char * get_governance_config (bool allow_unauth_pp, bool enable_join_ac, DDS_Sec
 
   print_test_msg ("governance configuration: ");
   print_config_vars (vars);
-  printf("\n");
+  (void) printf("\n");
 
   return prefix_data (config_signed, add_prefix);
 }

@@ -136,11 +136,11 @@ CU_Theory((const char *var, const char *expect), ddsrt_environ, expand)
   /* Expand a string with available environment variables. */
   ptr = ddsrt_expand_envvars(var,UINT32_MAX);
   if (ptr) {
-    /* printf("==== %10s: expand(%s), expect(%s))\n", var, ptr, expect); */
+    /* (void) printf("==== %10s: expand(%s), expect(%s))\n", var, ptr, expect); */
     CU_ASSERT_STRING_EQUAL(ptr, expect);
     ddsrt_free(ptr);
   } else {
-    /* printf("==== %10s: expand(<null>), expect(<null>))\n", var ? var : "<null>"); */
+    /* (void) printf("==== %10s: expand(<null>), expect(<null>))\n", var ? var : "<null>"); */
     CU_ASSERT_PTR_NULL(expect);
   }
 
@@ -188,11 +188,11 @@ CU_Theory((const char *var, const char *expect), ddsrt_environ, expand_sh)
   /* Expand a string with available environment variables. */
   ptr = ddsrt_expand_envvars_sh(var,UINT32_MAX);
   if (ptr) {
-    /* printf("==== %10s: expand(%s), expect(%s))\n", var, ptr, expect); */
+    /* (void) printf("==== %10s: expand(%s), expect(%s))\n", var, ptr, expect); */
     CU_ASSERT_STRING_EQUAL(ptr, expect);
     ddsrt_free(ptr);
   } else {
-    /* printf("==== %10s: expand(<null>), expect(<null>))\n", var ? var : "<null>"); */
+    /* (void) printf("==== %10s: expand(<null>), expect(<null>))\n", var ? var : "<null>"); */
     CU_ASSERT_PTR_NULL(expect);
   }
 

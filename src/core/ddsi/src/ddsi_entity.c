@@ -133,7 +133,7 @@ bool ddsi_update_qos_locked (struct ddsi_entity_common *e, dds_qos_t *ent_qos, c
   int b = (xqos->present & QP_TOPIC_DATA) ? (int) xqos->topic_data.length : 6;
   char *astr = (ent_qos->present & QP_TOPIC_DATA) ? (char *) ent_qos->topic_data.value : "(null)";
   char *bstr = (xqos->present & QP_TOPIC_DATA) ? (char *) xqos->topic_data.value : "(null)";
-  printf ("%d: "PGUIDFMT" ent_qos %d \"%*.*s\" xqos %d \"%*.*s\" => mask %d\n",
+  (void) printf ("%d: "PGUIDFMT" ent_qos %d \"%*.*s\" xqos %d \"%*.*s\" => mask %d\n",
           (int) getpid (), PGUID (e->guid),
           !!(ent_qos->present & QP_TOPIC_DATA), a, a, astr,
           !!(xqos->present & QP_TOPIC_DATA), b, b, bstr,

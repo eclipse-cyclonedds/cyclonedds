@@ -57,13 +57,13 @@ void record_netload (struct record_netload_state *st, const char *prefix, dds_ti
           const double drpct = 100.0 * dr / st->bw;
           if (dxpct >= 0.5 || drpct >= 0.5)
           {
-            printf ("%s %s: xmit %.0f%% recv %.0f%% [%"PRIu64" %"PRIu64"]\n",
+            (void) printf ("%s %s: xmit %.0f%% recv %.0f%% [%"PRIu64" %"PRIu64"]\n",
                     prefix, st->name, dxpct, drpct, x.obytes, x.ibytes);
           }
         }
         else if (dx >= 1e5 || dr >= 1e5) // 100kb/s is arbitrary
         {
-          printf ("%s %s: xmit %.2f Mb/s recv %.2f Mb/s [%"PRIu64" %"PRIu64"]\n",
+          (void) printf ("%s %s: xmit %.2f Mb/s recv %.2f Mb/s [%"PRIu64" %"PRIu64"]\n",
                   prefix, st->name, dx / 1e6, dr / 1e6, x.obytes, x.ibytes);
         }
       }

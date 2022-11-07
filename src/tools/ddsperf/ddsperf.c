@@ -648,7 +648,7 @@ static uint32_t pubthread (void *varg)
         *keyvalptr = k;
       if ((result = dds_register_instance (wr_data, &ihs[k], &data)) != DDS_RETCODE_OK)
       {
-        printf ("dds_register_instance failed: %d\n", result);
+        (void) printf ("dds_register_instance failed: %d\n", result);
         fflush (stdout);
         exit (2);
       }
@@ -668,7 +668,7 @@ static uint32_t pubthread (void *varg)
     bool reqresp = (ping_frac == 0) ? 0 : (ping_frac == UINT32_MAX) ? 1 : (ddsrt_random () <= ping_frac);
     if ((result = dds_write_ts (wr_data, &data, (t_write & ~1) | reqresp)) != DDS_RETCODE_OK)
     {
-      printf ("write error: %d\n", result);
+      (void) printf ("write error: %d\n", result);
       fflush (stdout);
       if (result != DDS_RETCODE_TIMEOUT)
         exit (2);
@@ -797,7 +797,7 @@ static int64_t *latencystat_print (struct latencystat *y, const char *prefix, co
     ddsrt_mutex_unlock (&disc_lock);
 
     qsort (y->raw, rawcnt, sizeof (*y->raw), cmp_int64);
-    printf ("%s%s %s size %"PRIu32" mean %.3fus min %.3fus 50%% %.3fus 90%% %.3fus 99%% %.3fus max %.3fus cnt %"PRIu32"\n",
+    (void) printf ("%s%s %s size %"PRIu32" mean %.3fus min %.3fus 50%% %.3fus 90%% %.3fus 99%% %.3fus max %.3fus cnt %"PRIu32"\n",
             prefix, subprefix, ppinfo, size,
             (double) y->sum / (double) y->cnt / 1e3,
             (double) y->min / 1e3,
@@ -859,7 +859,7 @@ static dds_instance_handle_t get_pphandle_for_pubhandle (dds_instance_handle_t p
     error2 ("dds_read_instance(rd_publications, %"PRIx64") failed: %d\n", pubhandle, (int) n);
   if (n == 0 || !info.valid_data)
   {
-    printf ("get_pong_writer: publication handle %"PRIx64" not found\n", pubhandle);
+    (void) printf ("get_pong_writer: publication handle %"PRIx64" not found\n", pubhandle);
     fflush (stdout);
     return 0;
   }
@@ -878,7 +878,7 @@ static int check_eseq (struct eseq_admin *ea, uint32_t seq, uint32_t keyval, uin
   uint32_t *eseq;
   if (keyval >= ea->nkeys)
   {
-    printf ("received key %"PRIu32" >= nkeys %u\n", keyval, ea->nkeys);
+    (void) printf ("received key %"PRIu32" >= nkeys %u\n", keyval, ea->nkeys);
     exit (3);
   }
   ddsrt_mutex_lock (&ea->lock);
@@ -1001,7 +1001,7 @@ static dds_entity_t get_pong_writer_locked (dds_instance_handle_t pubhandle)
       }
     }
   }
-  printf ("get_pong_writer: participant handle %"PRIx64" not found\n", pphandle);
+  (void) printf ("get_pong_writer: participant handle %"PRIx64" not found\n", pphandle);
   fflush (stdout);
   return 0;
 }
@@ -1146,7 +1146,7 @@ static void maybe_send_new_ping (dds_time_t tnow, dds_time_t *tnextping)
       ping_timeouts++;
       if (tnow > twarn_ping_timeout)
       {
-        printf ("[%"PRIdPID"] ping timed out (total %"PRIu32" times) ... sending new ping\n", ddsrt_getpid (), ping_timeouts);
+        (void) printf ("[%"PRIdPID"] ping timed out (total %"PRIu32" times) ... sending new ping\n", ddsrt_getpid (), ping_timeouts);
         twarn_ping_timeout = tnow + DDS_SECS (1);
         fflush (stdout);
       }
@@ -1271,7 +1271,7 @@ static dds_entity_t create_pong_writer (dds_instance_handle_t pphandle, const st
   dds_entity_t pongpub;
   dds_entity_t wr_pong;
 
-  //printf ("[%"PRIdPID"] create_pong_writer: creating writer in partition %s pubhandle %"PRIx64"\n", ddsrt_getpid (), guidstr->str, pphandle);
+  //(void) printf ("[%"PRIdPID"] create_pong_writer: creating writer in partition %s pubhandle %"PRIx64"\n", ddsrt_getpid (), guidstr->str, pphandle);
   //fflush (stdout);
 
   qos = dds_create_qos ();
@@ -1348,7 +1348,7 @@ static void async_participant_data_listener (dds_entity_t rd, void *arg)
       ddsrt_mutex_lock (&disc_lock);
       if ((pp = ddsrt_avl_lookup_dpath (&ppants_td, &ppants, &info.instance_handle, &dpath)) != NULL)
       {
-        printf ("[%"PRIdPID"] participant %s:%"PRIu32": gone\n", ddsrt_getpid (), pp->hostname, pp->pid);
+        (void) printf ("[%"PRIdPID"] participant %s:%"PRIu32": gone\n", ddsrt_getpid (), pp->hostname, pp->pid);
         fflush (stdout);
 
         if (pp->handle != dp_handle || ignorelocal == DDS_IGNORELOCAL_NONE)
@@ -1389,7 +1389,7 @@ static void async_participant_data_listener (dds_entity_t rd, void *arg)
             free (hostname);
           else
           {
-            printf ("[%"PRIdPID"] participant %s:%"PRIu32": new%s\n", ddsrt_getpid (), hostname, (uint32_t) pid, (info.instance_handle == dp_handle) ? " (self)" : "");
+            (void) printf ("[%"PRIdPID"] participant %s:%"PRIu32": new%s\n", ddsrt_getpid (), hostname, (uint32_t) pid, (info.instance_handle == dp_handle) ? " (self)" : "");
             pp = malloc (sizeof (*pp));
             assert(pp);
             pp->handle = info.instance_handle;
@@ -1433,7 +1433,7 @@ static void async_participant_data_listener (dds_entity_t rd, void *arg)
        the expected number of responses, so allow for a few attempts before starting to
        warn about timeouts */
     twarn_ping_timeout = dds_time () + DDS_MSECS (3333);
-    //printf ("[%"PRIdPID"] n_pong_expected = %u\n", ddsrt_getpid (), n_pong_expected);
+    //(void) printf ("[%"PRIdPID"] n_pong_expected = %u\n", ddsrt_getpid (), n_pong_expected);
     ddsrt_mutex_unlock (&pongwr_lock);
   }
 }
@@ -1452,7 +1452,7 @@ static void async_endpoint_matched_listener (uint32_t match_mask, dds_entity_t r
   if ((n = dds_read_instance (rd_epinfo, &msg, &info, 1, 1, remote_endpoint)) < 0)
     error2 ("dds_read_instance(rd_epinfo, %"PRIx64") failed: %d\n", remote_endpoint, (int) n);
   else if (n == 0)
-    printf ("[%"PRIdPID"] endpoint %"PRIx64" not found\n", ddsrt_getpid (), remote_endpoint);
+    (void) printf ("[%"PRIdPID"] endpoint %"PRIx64" not found\n", ddsrt_getpid (), remote_endpoint);
   else
   {
     if (info.valid_data)
@@ -1461,7 +1461,7 @@ static void async_endpoint_matched_listener (uint32_t match_mask, dds_entity_t r
       struct ppant *pp;
       ddsrt_mutex_lock (&disc_lock);
       if ((pp = ddsrt_avl_lookup (&ppants_td, &ppants, &sample->participant_instance_handle)) == NULL)
-        printf ("[%"PRIdPID"] participant %"PRIx64" no longer exists\n", ddsrt_getpid (), sample->participant_instance_handle);
+        (void) printf ("[%"PRIdPID"] participant %"PRIx64" no longer exists\n", ddsrt_getpid (), sample->participant_instance_handle);
       else
       {
         pp->unmatched &= ~match_mask;
@@ -1512,7 +1512,7 @@ static void async_subscription_matched_listener (dds_entity_t rd, const dds_subs
   if (status.current_count_change > 0)
   {
     uint32_t mask = (uint32_t) (uintptr_t) arg;
-    //printf ("[%"PRIdPID"] subscription match: %s\n", ddsrt_getpid (), match_mask1_to_string (mask));
+    //(void) printf ("[%"PRIdPID"] subscription match: %s\n", ddsrt_getpid (), match_mask1_to_string (mask));
     async_endpoint_matched_listener (mask, rd_publications, status.last_publication_handle);
   }
 }
@@ -1526,7 +1526,7 @@ static void async_publication_matched_listener (dds_entity_t wr, const dds_publi
   if (status.current_count_change > 0)
   {
     uint32_t mask = (uint32_t) (uintptr_t) arg;
-    //printf ("[%"PRIdPID"] publication match: %s\n", ddsrt_getpid (), match_mask1_to_string (mask));
+    //(void) printf ("[%"PRIdPID"] publication match: %s\n", ddsrt_getpid (), match_mask1_to_string (mask));
     async_endpoint_matched_listener (mask, rd_subscriptions, status.last_subscription_handle);
   }
 }
@@ -1617,7 +1617,7 @@ static bool print_stats (dds_time_t tref, dds_time_t tnow, dds_time_t tprev, str
     if (nrecv > 0 || substat_every_second)
     {
       const double dt = (double) (tnow - tprev);
-      printf ("%s size %"PRIu32" total %"PRIu64" lost %"PRIu64" delta %"PRIu64" lost %"PRIu64" rate %.2f kS/s %.2f Mb/s (%.2f kS/s %.2f Mb/s)\n",
+      (void) printf ("%s size %"PRIu32" total %"PRIu64" lost %"PRIu64" delta %"PRIu64" lost %"PRIu64" rate %.2f kS/s %.2f Mb/s (%.2f kS/s %.2f Mb/s)\n",
               prefix, last_size, tot_nrecv, tot_nlost, nrecv, nlost,
               (double) nrecv * 1e6 / dt, (double) nrecv_bytes * 8 * 1e3 / dt,
               (double) nrecv10s * 1e6 / (10 * dt), (double) nrecv10s_bytes * 8 * 1e3 / (10 * dt));
@@ -1701,7 +1701,7 @@ static bool print_stats (dds_time_t tref, dds_time_t tnow, dds_time_t tprev, str
   {
     (void) dds_refresh_statistics (stats->substat);
     (void) dds_refresh_statistics (stats->pubstat);
-    printf ("%s discarded %"PRIu64" rexmit %"PRIu64" Trexmit %"PRIu64" Tthrottle %"PRIu64" Nthrottle %"PRIu32"\n", prefix, stats->discarded_bytes->u.u64, stats->rexmit_bytes->u.u64, stats->time_rexmit->u.u64, stats->time_throttle->u.u64, stats->throttle_count->u.u32);
+    (void) printf ("%s discarded %"PRIu64" rexmit %"PRIu64" Trexmit %"PRIu64" Tthrottle %"PRIu64" Nthrottle %"PRIu32"\n", prefix, stats->discarded_bytes->u.u64, stats->rexmit_bytes->u.u64, stats->time_rexmit->u.u64, stats->time_throttle->u.u64, stats->throttle_count->u.u32);
   }
 
   fflush (stdout);
@@ -1774,7 +1774,7 @@ static void sigxfsz_handler (int sig __attribute__ ((unused)))
 
 static void usage (void)
 {
-  printf ("\
+  (void) printf ("\
 %s help                (this text)\n\
 %s sanity              (ping 1Hz)\n\
 %s [OPTIONS] MODE...\n\
@@ -2585,7 +2585,7 @@ int main (int argc, char *argv[])
         (void) ddsrt_fibheap_extract_min (&ppants_to_match_fhd, &ppants_to_match);
         if (pp->unmatched != 0)
         {
-          printf ("[%"PRIdPID"] participant %s:%"PRIu32": failed to match in %.3fs\n", ddsrt_getpid (), pp->hostname, pp->pid, (double) (pp->tdeadline - pp->tdisc) / 1e9);
+          (void) printf ("[%"PRIdPID"] participant %s:%"PRIu32": failed to match in %.3fs\n", ddsrt_getpid (), pp->hostname, pp->pid, (double) (pp->tdeadline - pp->tdisc) / 1e9);
           fflush (stdout);
           matchtimeout++;
         }
@@ -2741,7 +2741,7 @@ err_minmatch_wait:
       if (pp->unmatched != 0)
       {
         char buf[256];
-        printf ("[%"PRIdPID"] error: %s:%"PRIu32" failed to match %s\n", ddsrt_getpid (), pp->hostname, pp->pid, match_mask_to_string (buf, sizeof (buf), pp->unmatched));
+        (void) printf ("[%"PRIdPID"] error: %s:%"PRIu32" failed to match %s\n", ddsrt_getpid (), pp->hostname, pp->pid, match_mask_to_string (buf, sizeof (buf), pp->unmatched));
         ok = false;
       }
   }
@@ -2750,27 +2750,27 @@ err_minmatch_wait:
 
   if (matchcount < minmatch)
   {
-    printf ("[%"PRIdPID"] error: too few matching participants (%"PRIu32")\n", ddsrt_getpid (), matchcount);
+    (void) printf ("[%"PRIdPID"] error: too few matching participants (%"PRIu32")\n", ddsrt_getpid (), matchcount);
     ok = false;
   }
   if (nlost > 0 && (reliable && histdepth == 0))
   {
-    printf ("[%"PRIdPID"] error: %"PRIu64" samples lost\n", ddsrt_getpid (), nlost);
+    (void) printf ("[%"PRIdPID"] error: %"PRIu64" samples lost\n", ddsrt_getpid (), nlost);
     ok = false;
   }
   if (!roundtrips_ok)
   {
-    printf ("[%"PRIdPID"] error: too few roundtrips for some peers\n", ddsrt_getpid ());
+    (void) printf ("[%"PRIdPID"] error: too few roundtrips for some peers\n", ddsrt_getpid ());
     ok = false;
   }
   if (!received_ok)
   {
-    printf ("[%"PRIdPID"] error: too few samples received from some peers\n", ddsrt_getpid ());
+    (void) printf ("[%"PRIdPID"] error: too few samples received from some peers\n", ddsrt_getpid ());
     ok = false;
   }
   if (rss_check && rss_final >= rss_init * rss_factor + rss_term)
   {
-    printf ("[%"PRIdPID"] error: RSS grew too much (%f -> %f)\n", ddsrt_getpid (), rss_init, rss_final);
+    (void) printf ("[%"PRIdPID"] error: RSS grew too much (%f -> %f)\n", ddsrt_getpid (), rss_init, rss_final);
     ok = false;
   }
   return ok ? 0 : 1;

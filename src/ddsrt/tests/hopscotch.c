@@ -65,7 +65,7 @@ static void init (bool random)
   bool haveseed = ddsrt_prng_makeseed (&prng_seed);
   CU_ASSERT_FATAL (haveseed);
   ddsrt_prng_init (&prng, &prng_seed);
-  printf ("%08"PRIx32".%08"PRIx32".%08"PRIx32".%08"PRIx32".%08"PRIx32".%08"PRIx32".%08"PRIx32".%08"PRIx32"\n",
+  (void) printf ("%08"PRIx32".%08"PRIx32".%08"PRIx32".%08"PRIx32".%08"PRIx32".%08"PRIx32".%08"PRIx32".%08"PRIx32"\n",
           prng_seed.key[0], prng_seed.key[1], prng_seed.key[2], prng_seed.key[3], prng_seed.key[4], prng_seed.key[5], prng_seed.key[6], prng_seed.key[7]);
 
   next_v = MAX_NKEYS;
@@ -172,14 +172,14 @@ CU_TheoryDataPoints (ddsrt_hopscotch, random) = {
 
 CU_Theory ((const struct ops *ops, bool random, adj_fun_t adj, const char *adjname), ddsrt_hopscotch, random, .timeout = 20)
 {
-  printf ("%"PRId64" %s random=%d adj=%s\n", ddsrt_time_monotonic().v, ops->name, random, adjname);
+  (void) printf ("%"PRId64" %s random=%d adj=%s\n", ddsrt_time_monotonic().v, ops->name, random, adjname);
   fflush (stdout);
   init (random);
   void *h = ops->new ();
   uint32_t i, nk = 0;
   uint64_t nn = 0;
   ddsrt_mtime_t t0, t1;
-  printf ("%"PRId64" %s start\n", ddsrt_time_monotonic().v, ops->name);
+  (void) printf ("%"PRId64" %s start\n", ddsrt_time_monotonic().v, ops->name);
   fflush (stdout);
   t0 = ddsrt_time_monotonic ();
   for (uint32_t iter = 0; iter < MAX_ITERS; iter++)
@@ -218,7 +218,7 @@ CU_Theory ((const struct ops *ops, bool random, adj_fun_t adj, const char *adjna
   }
   t1 = ddsrt_time_monotonic ();
   ops->free (h);
-  printf ("%"PRId64" %s done %"PRIu64" %.0f ns/cycle\n", ddsrt_time_monotonic().v, ops->name, nn, (double) (t1.v - t0.v) / (double) nn);
+  (void) printf ("%"PRId64" %s done %"PRIu64" %.0f ns/cycle\n", ddsrt_time_monotonic().v, ops->name, nn, (double) (t1.v - t0.v) / (double) nn);
   fflush (stdout);
 }
 
@@ -264,7 +264,7 @@ static uint32_t chhtest_thread (void *varg)
   bool haveseed = ddsrt_prng_makeseed (&prng_seed);
   CU_ASSERT_FATAL (haveseed);
   ddsrt_prng_init (&local_prng, &prng_seed);
-  printf ("%08"PRIx32".%08"PRIx32".%08"PRIx32".%08"PRIx32".%08"PRIx32".%08"PRIx32".%08"PRIx32".%08"PRIx32"\n",
+  (void) printf ("%08"PRIx32".%08"PRIx32".%08"PRIx32".%08"PRIx32".%08"PRIx32".%08"PRIx32".%08"PRIx32".%08"PRIx32"\n",
           prng_seed.key[0], prng_seed.key[1], prng_seed.key[2], prng_seed.key[3], prng_seed.key[4], prng_seed.key[5], prng_seed.key[6], prng_seed.key[7]);
   while (!ddsrt_atomic_ld32 (arg->stop))
   {
@@ -378,13 +378,13 @@ CU_Test(ddsrt_hopscotch, concurrent, .timeout = 20)
   {
     dds_return_t ret = ddsrt_thread_join (tids[i], NULL);
     CU_ASSERT_FATAL (ret == 0);
-    printf ("args[%"PRIu32"] add %"PRIu32" rm %"PRIu32" lk %"PRIu32" max %"PRIu32"\n",
+    (void) printf ("args[%"PRIu32"] add %"PRIu32" rm %"PRIu32" lk %"PRIu32" max %"PRIu32"\n",
             i, args[i].adds, args[i].removes, args[i].lookups, args[i].maxnkeys);
   }
 
   uint32_t count = 0;
   ddsrt_chh_enum_unsafe (chh, check ? chhtest_check : chhtest_count, &count);
-  printf ("nkeys in hash %"PRIu32"\n", count);
+  (void) printf ("nkeys in hash %"PRIu32"\n", count);
   if (check)
   {
     for (uint32_t i = 0; i < nkeys; i++)

@@ -459,13 +459,13 @@ static void readcondition_readtake (
   if (mask == 0)
   {
     ret = op (condition, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES);
-    printf ("readcondition_readtake: %s: check %s/%s/%s expecting %d samples, got %d\n",
+    (void) printf ("readcondition_readtake: %s: check %s/%s/%s expecting %d samples, got %d\n",
             opname, sst_str (sst), vst_str (vst), ist_str (ist), expn, (int) ret);
   }
   else
   {
     ret = op_mask (condition, g_samples, g_info, MAX_SAMPLES, MAX_SAMPLES, mask);
-    printf ("readcondition_readtake: %s_mask: check %s/%s/%s + %s/%s/%s expecting %d samples, got %d\n",
+    (void) printf ("readcondition_readtake: %s_mask: check %s/%s/%s + %s/%s/%s expecting %d samples, got %d\n",
             opname, sst_str (sst), vst_str (vst), ist_str (ist),
             sst_str (mask & DDS_ANY_SAMPLE_STATE),
             vst_str (mask & DDS_ANY_VIEW_STATE),
@@ -476,7 +476,7 @@ static void readcondition_readtake (
   {
     const Space_Type1 *s = g_samples[i];
     const dds_sample_info_t *si = &g_info[i];
-    printf ("- %d %s/%s/%s\n", (int) s->long_1, sst_str (si->sample_state), vst_str (si->view_state), ist_str (si->instance_state));
+    (void) printf ("- %d %s/%s/%s\n", (int) s->long_1, sst_str (si->sample_state), vst_str (si->view_state), ist_str (si->instance_state));
   }
 
   CU_ASSERT_EQUAL_FATAL (ret, expn);
@@ -528,7 +528,7 @@ static uint32_t writethread (void *varg)
     ret = dds_write (arg->wr, &data);
   }
   ddsrt_atomic_or32 (&arg->stop, (ret != 0) ? 2 : 0);
-  printf ("nwrites: %d\n", (int) data.long_3);
+  (void) printf ("nwrites: %d\n", (int) data.long_3);
   return 0;
 }
 
@@ -610,8 +610,8 @@ CU_Test(ddsc_readcondition, stress)
   ddsrt_atomic_or32 (&wrarg.stop, 1);
   ddsrt_thread_join (wrtid, NULL);
 
-  printf ("nconds %"PRIu32"\n", nconds);
-  printf ("stop %"PRIu32"\n", ddsrt_atomic_ld32 (&wrarg.stop));
+  (void) printf ("nconds %"PRIu32"\n", nconds);
+  (void) printf ("stop %"PRIu32"\n", ddsrt_atomic_ld32 (&wrarg.stop));
 
   CU_ASSERT_FATAL (nconds > 100); // sanity check
   CU_ASSERT_FATAL (!(ddsrt_atomic_ld32 (&wrarg.stop) & 2));

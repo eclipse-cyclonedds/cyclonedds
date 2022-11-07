@@ -256,7 +256,7 @@ static bool create_local_identity(DDS_Security_DomainId domain_id, const char *g
 
   if (result != DDS_SECURITY_VALIDATION_OK)
   {
-    printf("[ERROR] validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("[ERROR] validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
     return false;
   }
 
@@ -270,7 +270,7 @@ static bool create_local_identity(DDS_Security_DomainId domain_id, const char *g
 
   if (local_permissions_handle == DDS_SECURITY_HANDLE_NIL)
   {
-    printf("[ERROR] validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("[ERROR] validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
     return false;
   }
 
@@ -289,7 +289,7 @@ static void clear_local_identity(void)
     success = auth->return_identity_handle(auth, local_identity_handle, &exception);
     if (!success)
     {
-      printf("return_identity_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
+      (void) printf("return_identity_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
     reset_exception(&exception);
   }
@@ -299,7 +299,7 @@ static void clear_local_identity(void)
     success = access_control->return_permissions_handle(access_control, local_permissions_handle, &exception);
     if (!success)
     {
-      printf("return_permissions_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
+      (void) printf("return_permissions_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
     reset_exception(&exception);
   }
@@ -441,8 +441,8 @@ verify_endpoint_attributes(SEC_TOPIC_TYPE topic_type, DDS_Security_EndpointSecur
 
   if (!result)
   {
-    printf("Invalid attribute for Topic: %s\n", TOPIC_NAMES[topic_type]);
-    printf("is_read_protected: EXPECTED: %u ACTUAL: %u\n"
+    (void) printf("Invalid attribute for Topic: %s\n", TOPIC_NAMES[topic_type]);
+    (void) printf("is_read_protected: EXPECTED: %u ACTUAL: %u\n"
            "is_write_protected: EXPECTED: %u ACTUAL: %u\n"
            "is_discovery_protected: EXPECTED: %u ACTUAL: %u\n"
            "is_liveliness_protected: EXPECTED: %u ACTUAL: %u\n"
@@ -474,8 +474,8 @@ static bool verify_topic_attributes(SEC_TOPIC_TYPE topic_type, DDS_Security_Topi
 
   if (!result)
   {
-    printf("Invalid attribute for Topic: %s\n", TOPIC_NAMES[topic_type]);
-    printf("is_read_protected: EXPECTED: %u ACTUAL: %u\n"
+    (void) printf("Invalid attribute for Topic: %s\n", TOPIC_NAMES[topic_type]);
+    (void) printf("is_read_protected: EXPECTED: %u ACTUAL: %u\n"
            "is_write_protected: EXPECTED: %u ACTUAL: %u\n"
            "is_discovery_protected: EXPECTED: %u ACTUAL: %u\n"
            "is_liveliness_protected: EXPECTED: %u ACTUAL: %u\n",

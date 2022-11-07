@@ -136,7 +136,7 @@ static void build_typecache_ti (const DDS_XTypes_TypeIdentifier *typeid, size_t 
       break;
     }
     default:
-      printf ("type id discriminant %u encountered, sorry\n", (unsigned) typeid->_d);
+      (void) printf ("type id discriminant %u encountered, sorry\n", (unsigned) typeid->_d);
       abort ();
   }
 }
@@ -182,7 +182,7 @@ static void build_typecache_to (const DDS_XTypes_CompleteTypeObject *typeobj, si
       break;
     }
     default: {
-      printf ("type object discriminant %u encountered, sorry\n", (unsigned) typeobj->_d);
+      (void) printf ("type object discriminant %u encountered, sorry\n", (unsigned) typeobj->_d);
       abort ();
     }
   }
@@ -232,21 +232,21 @@ static bool print_sample1_simple (const unsigned char *sample, const uint8_t dis
   {
 #define CASE(disc, type, fmt) DDS_XTypes_TK_##disc: { \
     const type *p = (const type *) align (sample, c, _Alignof(type), sizeof(type)); \
-    if (c->key || c->valid_data) { printf ("%s", sep); if (label) printf ("\"%s\":", label); fmt; } \
+    if (c->key || c->valid_data) { (void) printf ("%s", sep); if (label) (void) printf ("\"%s\":", label); fmt; } \
     return true; \
   }
-    case CASE(BOOLEAN, uint8_t, printf ("%s", *p ? "true" : "false"));
-    case CASE(CHAR8, int8_t, printf ("\"%c\"", (char) *p));
-    case CASE(INT16, int16_t, printf ("%"PRId16, *p));
-    case CASE(INT32, int32_t, printf ("%"PRId32, *p));
-    case CASE(INT64, int64_t, printf ("%"PRId64, *p));
-    case CASE(BYTE, uint8_t, printf ("%"PRIu8, *p));
-    case CASE(UINT16, uint16_t, printf ("%"PRIu16, *p));
-    case CASE(UINT32, uint32_t, printf ("%"PRIu32, *p));
-    case CASE(UINT64, uint64_t, printf ("%"PRIu64, *p));
-    case CASE(FLOAT32, float, printf ("%f", *p));
-    case CASE(FLOAT64, double, printf ("%f", *p));
-    case CASE(STRING8, char *, printf ("\"%s\"", *p));
+    case CASE(BOOLEAN, uint8_t, (void) printf ("%s", *p ? "true" : "false"));
+    case CASE(CHAR8, int8_t, (void) printf ("\"%c\"", (char) *p));
+    case CASE(INT16, int16_t, (void) printf ("%"PRId16, *p));
+    case CASE(INT32, int32_t, (void) printf ("%"PRId32, *p));
+    case CASE(INT64, int64_t, (void) printf ("%"PRId64, *p));
+    case CASE(BYTE, uint8_t, (void) printf ("%"PRIu8, *p));
+    case CASE(UINT16, uint16_t, (void) printf ("%"PRIu16, *p));
+    case CASE(UINT32, uint32_t, (void) printf ("%"PRIu32, *p));
+    case CASE(UINT64, uint64_t, (void) printf ("%"PRIu64, *p));
+    case CASE(FLOAT32, float, (void) printf ("%f", *p));
+    case CASE(FLOAT64, double, (void) printf ("%f", *p));
+    case CASE(STRING8, char *, (void) printf ("\"%s\"", *p));
 #undef CASE
   }
   return false;
@@ -263,9 +263,9 @@ static void print_sample1_ti (const unsigned char *sample, const DDS_XTypes_Type
       const char **p = (const char **) align (sample, c, _Alignof (char *), sizeof (char *));
       if (c->key || c->valid_data)
       {
-        printf ("%s", sep);
-        if (label) printf ("\"%s\":", label);
-        printf ("\"%s\"", *p);
+        (void) printf ("%s", sep);
+        if (label) (void) printf ("\"%s\":", label);
+        (void) printf ("\"%s\"", *p);
       }
       break;
     }
@@ -276,16 +276,16 @@ static void print_sample1_ti (const unsigned char *sample, const DDS_XTypes_Type
       if (c->key || c->valid_data)
       {
         struct context c1 = *c; c1.offset = 0; c1.maxalign = 1;
-        printf ("%s", sep);
-        if (label) printf ("\"%s\":", label);
-        printf ("[");
+        (void) printf ("%s", sep);
+        if (label) (void) printf ("\"%s\":", label);
+        (void) printf ("[");
         sep = "";
         for (uint32_t i = 0; i < p->_length; i++)
         {
           print_sample1_ti (p->_buffer, et, &c1, sep, NULL);
           sep = ",";
         }
-        printf ("]");
+        (void) printf ("]");
       }
       break;
     }
@@ -307,9 +307,9 @@ static void print_sample1_to (const unsigned char *sample, const DDS_XTypes_Comp
       const DDS_XTypes_TypeIdentifier *et = &typeobj->_u.sequence_type.element.common.type;
       const dds_sequence_t *p = align (sample, c, _Alignof (dds_sequence_t), sizeof (dds_sequence_t));
       struct context c1 = *c; c1.offset = 0; c1.maxalign = 1;
-      printf ("%s", sep);
-      if (label) printf ("\"%s\":", label);
-      printf ("[");
+      (void) printf ("%s", sep);
+      if (label) (void) printf ("\"%s\":", label);
+      (void) printf ("[");
       sep = "";
       for (uint32_t i = 0; i < p->_length; i++)
       {
@@ -318,16 +318,16 @@ static void print_sample1_to (const unsigned char *sample, const DDS_XTypes_Comp
         if (c1.offset % c1.maxalign)
           c1.offset += c1.maxalign - (c1.offset % c1.maxalign);
       }
-      printf ("]");
+      (void) printf ("]");
       break;
     }
     case DDS_XTypes_TK_STRUCTURE: {
       struct typeinfo templ = { .key = { .key = (uintptr_t) typeobj } }, *info = ddsrt_hh_lookup (typecache, &templ);
       const DDS_XTypes_CompleteStructType *t = &typeobj->_u.struct_type;
       const unsigned char *p = align (sample, c, info->align, info->size);;
-      printf ("%s", sep);
-      if (label) printf ("\"%s\":", label);
-      printf ("{");
+      (void) printf ("%s", sep);
+      if (label) (void) printf ("\"%s\":", label);
+      (void) printf ("{");
       sep = "";
       struct context c1 = *c; c1.offset = 0; c1.maxalign = 1;
       for (uint32_t i = 0; i < t->member_seq._length; i++)
@@ -337,7 +337,7 @@ static void print_sample1_to (const unsigned char *sample, const DDS_XTypes_Comp
         print_sample1_ti (p, &m->common.member_type_id, &c1, sep, *m->detail.name ? m->detail.name : NULL);
         sep = ",";
       }
-      printf ("}");
+      (void) printf ("}");
       break;
     }
   }
@@ -347,7 +347,7 @@ static void print_sample (bool valid_data, const void *sample, const DDS_XTypes_
 {
   struct context c1 = { .valid_data = valid_data, .key = true, .offset = 0, .maxalign = 1 };
   print_sample1_to (sample, typeobj, &c1, "", NULL);
-  printf ("\n");
+  (void) printf ("\n");
 }
 
 // Helper function to wait for a DCPSPublication to show up with the desired topic name, then calls

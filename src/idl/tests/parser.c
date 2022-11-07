@@ -302,7 +302,7 @@ static idl_retcode_t test_req_xcdr2(const idl_pstate_t* pstate, const bool revis
   CU_ASSERT_EQUAL(idl_requires_xcdr2(node), expected);
   if (idl_requires_xcdr2(node) == expected)
     return IDL_RETCODE_OK;
-  printf("required xcdr test failed\n");
+  (void) printf("required xcdr test failed\n");
   return IDL_RETCODE_SEMANTIC_ERROR;
 }
 
@@ -366,7 +366,7 @@ CU_Test(idl_parser, require_xcdr2)
   };
 
   for (size_t i = 0; i < sizeof(tests) / sizeof(tests[0]); i++) {
-    printf("idl_parser_require_xcdr2 for idl: %s\n", tests[i].idl);
+    (void) printf("idl_parser_require_xcdr2 for idl: %s\n", tests[i].idl);
     test_require_xcdr2(&tests[i]);
   }
 }

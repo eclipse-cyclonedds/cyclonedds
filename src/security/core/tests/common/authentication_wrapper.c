@@ -65,7 +65,7 @@ static DDS_Security_ValidationResult_t test_validate_local_identity_all_ok(
   memcpy(adjusted_participant_guid, candidate_participant_guid, sizeof(*adjusted_participant_guid));
   for (unsigned i = 0; i < participant_qos->property.value._length; i++)
   {
-    printf("%s\n", participant_qos->property.value._buffer[i].name);
+    (void) printf("%s\n", participant_qos->property.value._buffer[i].name);
     if (!strcmp(participant_qos->property.value._buffer[i].name, DDS_SEC_PROP_AUTH_PRIV_KEY))
       private_key = participant_qos->property.value._buffer[i].value;
     else if (!strcmp(participant_qos->property.value._buffer[i].name, DDS_SEC_PROP_AUTH_IDENTITY_CA))
@@ -80,25 +80,25 @@ static DDS_Security_ValidationResult_t test_validate_local_identity_all_ok(
 
   if (strcmp(identity_certificate, test_identity_certificate))
   {
-    printf("identity received=%s\n", identity_certificate);
-    printf("identity expected=%s\n", test_identity_certificate);
+    (void) printf("identity received=%s\n", identity_certificate);
+    (void) printf("identity expected=%s\n", test_identity_certificate);
     result = DDS_SECURITY_VALIDATION_FAILED;
-    printf("FAILED: Could not get identity_certificate value properly\n");
+    (void) printf("FAILED: Could not get identity_certificate value properly\n");
   }
   else if (strcmp(identity_ca, test_ca_certificate))
   {
-    printf("ca received=%s\n", identity_ca);
-    printf("ca expected=%s\n", test_ca_certificate);
-    printf("FAILED: Could not get identity_ca value properly\n");
+    (void) printf("ca received=%s\n", identity_ca);
+    (void) printf("ca expected=%s\n", test_ca_certificate);
+    (void) printf("FAILED: Could not get identity_ca value properly\n");
     result = DDS_SECURITY_VALIDATION_FAILED;
   }
   else if (strcmp(private_key, test_private_key))
   {
-    printf("FAILED: Could not get private_key value properly\n");
+    (void) printf("FAILED: Could not get private_key value properly\n");
     result = DDS_SECURITY_VALIDATION_FAILED;
   }
   if (result == DDS_SECURITY_VALIDATION_OK)
-    printf("DDS_SECURITY_VALIDATION_OK\n");
+    (void) printf("DDS_SECURITY_VALIDATION_OK\n");
 
   return result;
 }

@@ -1165,7 +1165,7 @@ CU_Test(ddsc_liveliness, lease_duration_zero_or_one, .init = liveliness_init, .f
           dds_duration_t d = ldur[ldur_idx];
           tprintf ("### lease_duration_zero_or_one: sleep = %"PRId64" lkind = %d ldur = %"PRId64" reader = %s\n", s, (int) k, d, rrd ? "remote" : "local");
           lease_duration_zero_or_one_impl (s, k, d, rrd);
-          printf ("\n");
+          (void) printf ("\n");
         }
       }
     }

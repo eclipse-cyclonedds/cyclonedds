@@ -151,7 +151,7 @@ CU_Theory((const dds_topic_descriptor_t *desc), ddsc_typebuilder, topic_desc, .i
   struct ddsi_type *type;
   dds_topic_descriptor_t *generated_desc;
 
-  printf ("Testing %s\n", desc->m_typename);
+  (void) printf ("Testing %s\n", desc->m_typename);
 
   create_unique_topic_name ("ddsc_typebuilder", topic_name, sizeof (topic_name));
   topic = dds_create_topic (g_participant, desc, topic_name, NULL, NULL);
@@ -164,42 +164,42 @@ CU_Theory((const dds_topic_descriptor_t *desc), ddsc_typebuilder, topic_desc, .i
   CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
 
   // check
-  printf ("size: %u (%u)\n", generated_desc->m_size, desc->m_size);
+  (void) printf ("size: %u (%u)\n", generated_desc->m_size, desc->m_size);
   CU_ASSERT_EQUAL_FATAL (desc->m_size, generated_desc->m_size);
-  printf ("align: %u (%u)\n", generated_desc->m_align, desc->m_align);
+  (void) printf ("align: %u (%u)\n", generated_desc->m_align, desc->m_align);
   CU_ASSERT_EQUAL_FATAL (desc->m_align, generated_desc->m_align);
-  printf ("flagset: %x (%x)\n", generated_desc->m_flagset, desc->m_flagset);
+  (void) printf ("flagset: %x (%x)\n", generated_desc->m_flagset, desc->m_flagset);
   CU_ASSERT_EQUAL_FATAL (desc->m_flagset, generated_desc->m_flagset);
-  printf ("nkeys: %u (%u)\n", generated_desc->m_nkeys, desc->m_nkeys);
+  (void) printf ("nkeys: %u (%u)\n", generated_desc->m_nkeys, desc->m_nkeys);
   CU_ASSERT_EQUAL_FATAL (desc->m_nkeys, generated_desc->m_nkeys);
   for (uint32_t n = 0; n < desc->m_nkeys; n++)
   {
-    printf("key[%u] name: %s (%s)\n", n, generated_desc->m_keys[n].m_name, desc->m_keys[n].m_name);
+    (void) printf("key[%u] name: %s (%s)\n", n, generated_desc->m_keys[n].m_name, desc->m_keys[n].m_name);
     CU_ASSERT_EQUAL_FATAL (strcmp (desc->m_keys[n].m_name, generated_desc->m_keys[n].m_name), 0);
-    printf("  offset: %u (%u)\n", generated_desc->m_keys[n].m_offset, desc->m_keys[n].m_offset);
+    (void) printf("  offset: %u (%u)\n", generated_desc->m_keys[n].m_offset, desc->m_keys[n].m_offset);
     CU_ASSERT_EQUAL_FATAL (desc->m_keys[n].m_offset, generated_desc->m_keys[n].m_offset);
-    printf("  index: %u (%u)\n", generated_desc->m_keys[n].m_idx, desc->m_keys[n].m_idx);
+    (void) printf("  index: %u (%u)\n", generated_desc->m_keys[n].m_idx, desc->m_keys[n].m_idx);
     CU_ASSERT_EQUAL_FATAL (desc->m_keys[n].m_idx, generated_desc->m_keys[n].m_idx);
   }
-  printf ("typename: %s (%s)\n", generated_desc->m_typename, desc->m_typename);
+  (void) printf ("typename: %s (%s)\n", generated_desc->m_typename, desc->m_typename);
   CU_ASSERT_EQUAL_FATAL (strcmp (desc->m_typename, generated_desc->m_typename), 0);
-  printf ("nops: %u (%u)\n", generated_desc->m_nops, desc->m_nops);
+  (void) printf ("nops: %u (%u)\n", generated_desc->m_nops, desc->m_nops);
   CU_ASSERT_EQUAL_FATAL (desc->m_nops, generated_desc->m_nops);
 
   uint32_t ops_cnt_gen = dds_stream_countops (generated_desc->m_ops, generated_desc->m_nkeys, generated_desc->m_keys);
   uint32_t ops_cnt = dds_stream_countops (desc->m_ops, desc->m_nkeys, desc->m_keys);
-  printf ("ops count: %u (%u)\n", ops_cnt_gen, ops_cnt);
+  (void) printf ("ops count: %u (%u)\n", ops_cnt_gen, ops_cnt);
   CU_ASSERT_EQUAL_FATAL (ops_cnt_gen, ops_cnt);
   for (uint32_t n = 0; n < ops_cnt; n++)
   {
     if (desc->m_ops[n] != generated_desc->m_ops[n])
     {
-      printf ("incorrect op at index %u: 0x%08x (0x%08x)\n", n, generated_desc->m_ops[n], desc->m_ops[n]);
+      (void) printf ("incorrect op at index %u: 0x%08x (0x%08x)\n", n, generated_desc->m_ops[n], desc->m_ops[n]);
       CU_FAIL_FATAL ("different ops");
     }
   }
 
-  printf ("typeinfo: %u (%u)\n", generated_desc->type_information.sz, desc->type_information.sz);
+  (void) printf ("typeinfo: %u (%u)\n", generated_desc->type_information.sz, desc->type_information.sz);
   const struct ddsi_sertype_cdr_data tinfo_ser = { .sz = desc->type_information.sz, .data = desc->type_information.data };
   ddsi_typeinfo_t *tinfo = ddsi_typeinfo_deser (&tinfo_ser);
   const struct ddsi_sertype_cdr_data gen_tinfo_ser = { .sz = generated_desc->type_information.sz, .data = generated_desc->type_information.data };
@@ -210,7 +210,7 @@ CU_Theory((const dds_topic_descriptor_t *desc), ddsc_typebuilder, topic_desc, .i
   ddsi_typeinfo_fini (gen_tinfo);
   ddsrt_free (gen_tinfo);
 
-  printf ("typemap: %u (%u)\n", generated_desc->type_mapping.sz, desc->type_mapping.sz);
+  (void) printf ("typemap: %u (%u)\n", generated_desc->type_mapping.sz, desc->type_mapping.sz);
   const struct ddsi_sertype_cdr_data tmap_ser = { .sz = desc->type_mapping.sz, .data = desc->type_mapping.data };
   ddsi_typemap_t *tmap = ddsi_typemap_deser (&tmap_ser);
   const struct ddsi_sertype_cdr_data gen_tmap_ser = { .sz = generated_desc->type_mapping.sz, .data = generated_desc->type_mapping.data };
@@ -227,7 +227,7 @@ CU_Theory((const dds_topic_descriptor_t *desc), ddsc_typebuilder, topic_desc, .i
   ddsi_topic_descriptor_fini (generated_desc);
   ddsrt_free (generated_desc);
   topic_type_unref (topic, type);
-  printf ("\n");
+  (void) printf ("\n");
 }
 
 CU_Test(ddsc_typebuilder, invalid_toplevel, .init = typebuilder_init, .fini = typebuilder_fini)

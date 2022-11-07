@@ -146,9 +146,9 @@ static void get_type (dds_entity_t entity, ddsi_typeid_t **type_id, char **type_
 
 static void print_ep (const dds_guid_t *key)
 {
-  printf ("endpoint ");
+  (void) printf ("endpoint ");
   for (size_t j = 0; j < sizeof (key->v); j++)
-    printf ("%s%02x", (j == 0 || j % 4) ? "" : ":", key->v[j]);
+    (void) printf ("%s%02x", (j == 0 || j % 4) ? "" : ":", key->v[j]);
 }
 
 typedef struct endpoint_info {
@@ -182,10 +182,10 @@ static endpoint_info_t * find_typeid_match (dds_entity_t participant, dds_entity
           struct ddsi_typeid_str tidstr;
           ddsi_typeid_t *tid = ddsi_typeinfo_typeid (t, kind);
           print_ep (&data->key);
-          printf (" type: %s", ddsi_make_typeid_str (&tidstr, tid));
+          (void) printf (" type: %s", ddsi_make_typeid_str (&tidstr, tid));
           if (!ddsi_typeid_compare (tid, type_id) && !strcmp (data->topic_name, match_topic))
           {
-            printf(" match");
+            (void) printf(" match");
             // copy data from sample to our own struct
             result = ddsrt_malloc (sizeof (*result));
             result->type_info = ddsi_typeinfo_dup (t);
@@ -194,12 +194,12 @@ static endpoint_info_t * find_typeid_match (dds_entity_t participant, dds_entity
           }
           ddsi_typeid_fini (tid);
           ddsrt_free (tid);
-          printf("\n");
+          (void) printf("\n");
         }
         else
         {
           print_ep (&data->key);
-          printf (" no type\n");
+          (void) printf (" no type\n");
         }
       }
     }

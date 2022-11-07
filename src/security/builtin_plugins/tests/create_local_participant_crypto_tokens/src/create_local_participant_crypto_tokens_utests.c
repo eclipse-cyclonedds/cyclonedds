@@ -101,7 +101,7 @@ static int register_participants(void)
   if (local_crypto_handle == DDS_SECURITY_HANDLE_NIL)
   {
     r = -1;
-    printf("register_local_participant: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("register_local_participant: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   if (r == 0)
@@ -117,7 +117,7 @@ static int register_participants(void)
     if (remote_crypto_handle == DDS_SECURITY_HANDLE_NIL)
     {
       r = -1;
-      printf("register_matched_remote_participant: %s\n", exception.message ? exception.message : "Error message missing");
+      (void) printf("register_matched_remote_participant: %s\n", exception.message ? exception.message : "Error message missing");
     }
   }
 
@@ -134,7 +134,7 @@ static void unregister_participants(void)
     status = crypto->crypto_key_factory->unregister_participant(crypto->crypto_key_factory, local_crypto_handle, &exception);
     if (!status)
     {
-      printf("unregister_participant: %s\n", exception.message ? exception.message : "Error message missing");
+      (void) printf("unregister_participant: %s\n", exception.message ? exception.message : "Error message missing");
     }
   }
 
@@ -143,7 +143,7 @@ static void unregister_participants(void)
     status = crypto->crypto_key_factory->unregister_participant(crypto->crypto_key_factory, remote_crypto_handle, &exception);
     if (!status)
     {
-      printf("unregister_participant: %s\n", exception.message ? exception.message : "Error message missing");
+      (void) printf("unregister_participant: %s\n", exception.message ? exception.message : "Error message missing");
     }
   }
 }
@@ -227,7 +227,7 @@ CU_Test(ddssec_builtin_create_local_participant_crypto_tokens, happy_day, .init 
       &exception);
   if (!result)
   {
-    printf("create_local_participant_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("create_local_participant_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT_FATAL(result);
@@ -242,7 +242,7 @@ CU_Test(ddssec_builtin_create_local_participant_crypto_tokens, happy_day, .init 
 
   if (!result)
   {
-    printf("return_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("return_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT_FATAL(result);
@@ -280,7 +280,7 @@ CU_Test(ddssec_builtin_create_local_participant_crypto_tokens, invalid_args, .in
       &exception);
   if (!result)
   {
-    printf("create_local_participant_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("create_local_participant_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT(!result);
@@ -298,7 +298,7 @@ CU_Test(ddssec_builtin_create_local_participant_crypto_tokens, invalid_args, .in
       &exception);
   if (!result)
   {
-    printf("create_local_participant_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("create_local_participant_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT(!result);
@@ -316,7 +316,7 @@ CU_Test(ddssec_builtin_create_local_participant_crypto_tokens, invalid_args, .in
       &exception);
   if (!result)
   {
-    printf("create_local_participant_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("create_local_participant_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT(!result);
@@ -334,7 +334,7 @@ CU_Test(ddssec_builtin_create_local_participant_crypto_tokens, invalid_args, .in
       &exception);
   if (!result)
   {
-    printf("create_local_participant_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("create_local_participant_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT(!result);
@@ -352,7 +352,7 @@ CU_Test(ddssec_builtin_create_local_participant_crypto_tokens, invalid_args, .in
       &exception);
   if (!result)
   {
-    printf("create_local_participant_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("create_local_participant_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT(!result);

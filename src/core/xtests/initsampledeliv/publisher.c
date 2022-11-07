@@ -31,7 +31,7 @@ static void on_pub_matched (dds_entity_t wr, const dds_publication_matched_statu
   dds_sample_info_t info;
   void *raw = NULL;
   dds_entity_t rd;
-  printf ("pubmatched\n");
+  (void) printf ("pubmatched\n");
   if ((rd = dds_create_reader (dds_get_participant (wr), DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION, NULL, NULL)) < 0)
     oops ();
   if (dds_read_instance (rd, &raw, &info, 1, 1, st.last_subscription_handle) != 1)
@@ -45,7 +45,7 @@ static void on_pub_matched (dds_entity_t wr, const dds_publication_matched_statu
   int rdid = atoi (ud);
   if (rdid < 0 || rdid > 31)
     oops ();
-  printf ("pubmatched: %d\n", rdid);
+  (void) printf ("pubmatched: %d\n", rdid);
   fflush (stdout);
   ddsrt_atomic_or32 (new_readers, UINT32_C (1) << rdid);
   dds_free (ud);
@@ -130,7 +130,7 @@ int main (int argc, char ** argv)
           oops ();
         sample.seq_at_match[i] = sample.seq;
         tnewrd = dds_time ();
-        printf ("%d.%09d newreader %d: start seq %d\n", (int) (tnewrd / DDS_NSECS_IN_SEC), (int) (tnewrd % DDS_NSECS_IN_SEC), (int) i, (int) sample.seq_at_match[i]);
+        (void) printf ("%d.%09d newreader %d: start seq %d\n", (int) (tnewrd / DDS_NSECS_IN_SEC), (int) (tnewrd % DDS_NSECS_IN_SEC), (int) i, (int) sample.seq_at_match[i]);
         fflush (stdout);
       }
     }
@@ -147,7 +147,7 @@ int main (int argc, char ** argv)
         if (sample.seq > sample.final_seq)
         {
           tnow = dds_time ();
-          printf ("%d.%09d done writing\n", (int) (tnow / DDS_NSECS_IN_SEC), (int) (tnow % DDS_NSECS_IN_SEC));
+          (void) printf ("%d.%09d done writing\n", (int) (tnow / DDS_NSECS_IN_SEC), (int) (tnow % DDS_NSECS_IN_SEC));
           fflush (stdout);
         }
       }
