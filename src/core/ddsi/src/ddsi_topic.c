@@ -109,7 +109,7 @@ dds_return_t ddsi_new_topic (struct ddsi_topic **tp_out, struct ddsi_guid *tpgui
   tp->definition = ref_topic_definition (gv, sertype, ddsi_typeinfo_complete_typeid (tp_qos->type_information), tp_qos, new_topic_def);
   assert (tp->definition);
   if (new_topic_def)
-    builtintopic_write_topic (gv->builtin_topic_interface, tp->definition, timestamp, true);
+    ddsi_builtintopic_write_topic (gv->builtin_topic_interface, tp->definition, timestamp, true);
   ddsi_xqos_fini (tp_qos);
   ddsrt_free (tp_qos);
 
@@ -151,7 +151,7 @@ void ddsi_update_topic_qos (struct ddsi_topic *tp, const dds_qos_t *xqos)
   unref_topic_definition_locked (tpd, ddsrt_time_wallclock());
   ddsrt_mutex_unlock (&gv->topic_defs_lock);
   if (new_tpd)
-    builtintopic_write_topic (gv->builtin_topic_interface, tp->definition, ddsrt_time_wallclock(), true);
+    ddsi_builtintopic_write_topic (gv->builtin_topic_interface, tp->definition, ddsrt_time_wallclock(), true);
   ddsrt_mutex_unlock (&tp->e.qos_lock);
   (void) sedp_write_topic (tp, true);
   ddsrt_mutex_unlock (&tp->e.lock);
@@ -202,7 +202,7 @@ static void gc_delete_topic_definition (struct ddsi_gcreq *gcreq)
   struct ddsi_topic_definition *tpd = gcdata->tpd;
   struct ddsi_domaingv *gv = tpd->gv;
   GVLOGDISC ("gcreq_delete_topic_definition(%p)\n", (void *) gcreq);
-  builtintopic_write_topic (gv->builtin_topic_interface, tpd, gcdata->timestamp, false);
+  ddsi_builtintopic_write_topic (gv->builtin_topic_interface, tpd, gcdata->timestamp, false);
   if (tpd->type_pair)
   {
     ddsi_type_unref (gv, tpd->type_pair->minimal);
@@ -453,7 +453,7 @@ dds_return_t ddsi_new_proxy_topic (struct ddsi_proxy_participant *proxypp, seqno
   ddsrt_mutex_unlock (&proxypp->e.lock);
   if (new_tpd)
   {
-    builtintopic_write_topic (gv->builtin_topic_interface, tpd, timestamp, true);
+    ddsi_builtintopic_write_topic (gv->builtin_topic_interface, tpd, timestamp, true);
     ddsrt_mutex_lock (&gv->new_topic_lock);
     gv->new_topic_version++;
     ddsrt_cond_broadcast (&gv->new_topic_cond);
@@ -506,7 +506,7 @@ void ddsi_update_proxy_topic (struct ddsi_proxy_participant *proxypp, struct dds
   dds_delete_qos (newqos);
   if (new_tpd)
   {
-    builtintopic_write_topic (gv->builtin_topic_interface, tpd1, timestamp, true);
+    ddsi_builtintopic_write_topic (gv->builtin_topic_interface, tpd1, timestamp, true);
 
     ddsrt_mutex_lock (&gv->new_topic_lock);
     gv->new_topic_version++;

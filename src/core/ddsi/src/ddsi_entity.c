@@ -26,11 +26,11 @@
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/q_thread.h"
 
-extern inline bool builtintopic_is_visible (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_guid *guid, nn_vendorid_t vendorid);
-extern inline bool builtintopic_is_builtintopic (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_sertype *type);
-extern inline struct ddsi_tkmap_instance *builtintopic_get_tkmap_entry (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_guid *guid);
-extern inline void builtintopic_write_endpoint (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_entity_common *e, ddsrt_wctime_t timestamp, bool alive);
-extern inline void builtintopic_write_topic (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_topic_definition *tpd, ddsrt_wctime_t timestamp, bool alive);
+extern inline bool ddsi_builtintopic_is_visible (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_guid *guid, nn_vendorid_t vendorid);
+extern inline bool ddsi_builtintopic_is_builtintopic (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_sertype *type);
+extern inline struct ddsi_tkmap_instance *ddsi_builtintopic_get_tkmap_entry (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_guid *guid);
+extern inline void ddsi_builtintopic_write_endpoint (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_entity_common *e, ddsrt_wctime_t timestamp, bool alive);
+extern inline void ddsi_builtintopic_write_topic (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_topic_definition *tpd, ddsrt_wctime_t timestamp, bool alive);
 
 extern inline seqno_t ddsi_writer_read_seq_xmit (const struct ddsi_writer *wr);
 extern inline void ddsi_writer_update_seq_xmit (struct ddsi_writer *wr, seqno_t nv);
@@ -67,9 +67,9 @@ void ddsi_entity_common_init (struct ddsi_entity_common *e, struct ddsi_domaingv
   e->gv = gv;
   ddsrt_mutex_init (&e->lock);
   ddsrt_mutex_init (&e->qos_lock);
-  if (builtintopic_is_visible (gv->builtin_topic_interface, guid, vendorid))
+  if (ddsi_builtintopic_is_visible (gv->builtin_topic_interface, guid, vendorid))
   {
-    e->tk = builtintopic_get_tkmap_entry (gv->builtin_topic_interface, guid);
+    e->tk = ddsi_builtintopic_get_tkmap_entry (gv->builtin_topic_interface, guid);
     e->iid = e->tk->m_iid;
   }
   else
@@ -151,7 +151,7 @@ bool ddsi_update_qos_locked (struct ddsi_entity_common *e, dds_qos_t *ent_qos, c
   ddsi_xqos_fini_mask (ent_qos, mask);
   ddsi_xqos_mergein_missing (ent_qos, xqos, mask);
   ddsrt_mutex_unlock (&e->qos_lock);
-  builtintopic_write_endpoint (e->gv->builtin_topic_interface, e, timestamp, true);
+  ddsi_builtintopic_write_endpoint (e->gv->builtin_topic_interface, e, timestamp, true);
   return true;
 }
 

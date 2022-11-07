@@ -298,7 +298,7 @@ int ddsi_new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppg
   /* locking the entity prevents matching while the built-in topic hasn't been published yet */
   ddsrt_mutex_lock (&pwr->e.lock);
   entidx_insert_proxy_writer_guid (gv->entity_index, pwr);
-  builtintopic_write_endpoint (gv->builtin_topic_interface, &pwr->e, timestamp, true);
+  ddsi_builtintopic_write_endpoint (gv->builtin_topic_interface, &pwr->e, timestamp, true);
   ddsrt_mutex_unlock (&pwr->e.lock);
 
   match_proxy_writer_with_readers (pwr, tnow);
@@ -429,7 +429,7 @@ int ddsi_delete_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *
      from removing themselves from the proxy writer's rdary[]. */
   local_reader_ary_setinvalid (&pwr->rdary);
   GVLOGDISC ("- deleting\n");
-  builtintopic_write_endpoint (gv->builtin_topic_interface, &pwr->e, timestamp, false);
+  ddsi_builtintopic_write_endpoint (gv->builtin_topic_interface, &pwr->e, timestamp, false);
 #ifdef DDS_HAS_TYPE_DISCOVERY
   /* Unregister from type before removing from entity index, because a tl_lookup_reply
      could be pending and will trigger an update of the endpoint matching for all
@@ -583,7 +583,7 @@ int ddsi_new_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *ppg
   /* locking the entity prevents matching while the built-in topic hasn't been published yet */
   ddsrt_mutex_lock (&prd->e.lock);
   entidx_insert_proxy_reader_guid (gv->entity_index, prd);
-  builtintopic_write_endpoint (gv->builtin_topic_interface, &prd->e, timestamp, true);
+  ddsi_builtintopic_write_endpoint (gv->builtin_topic_interface, &prd->e, timestamp, true);
   ddsrt_mutex_unlock (&prd->e.lock);
 
   match_proxy_reader_with_writers (prd, tnow);
@@ -746,7 +746,7 @@ int ddsi_delete_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *
     GVLOGDISC ("- unknown\n");
     return DDS_RETCODE_BAD_PARAMETER;
   }
-  builtintopic_write_endpoint (gv->builtin_topic_interface, &prd->e, timestamp, false);
+  ddsi_builtintopic_write_endpoint (gv->builtin_topic_interface, &prd->e, timestamp, false);
 #ifdef DDS_HAS_TYPE_DISCOVERY
   /* Unregister the proxy guid with the ddsi_type before removing from
      entity index, because a tl_lookup_reply could be pending and will

@@ -105,7 +105,7 @@ static bool entity_is_builtin_topic (const struct dds_entity *entity)
   else
   {
     const dds_topic *tp = (dds_topic *) entity;
-    return builtintopic_is_builtintopic (&tp->m_entity.m_domain->btif, tp->m_stype);
+    return ddsi_builtintopic_is_builtintopic (&tp->m_entity.m_domain->btif, tp->m_stype);
   }
 }
 

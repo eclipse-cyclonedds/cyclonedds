@@ -451,7 +451,7 @@ bool ddsi_new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_gui
   add_proxy_builtin_endpoints(gv, ppguid, proxypp, timestamp);
 
   /* write DCPSParticipant topic before the lease can expire */
-  builtintopic_write_endpoint (gv->builtin_topic_interface, &proxypp->e, timestamp, true);
+  ddsi_builtintopic_write_endpoint (gv->builtin_topic_interface, &proxypp->e, timestamp, true);
 
   /* Register lease for auto liveliness, but be careful not to accidentally re-register
      DDSI2's lease, as we may have become dependent on DDSI2 any time after
@@ -717,7 +717,7 @@ int ddsi_delete_proxy_participant_by_guid (struct ddsi_domaingv *gv, const struc
     return DDS_RETCODE_BAD_PARAMETER;
   }
   GVLOGDISC ("- deleting\n");
-  builtintopic_write_endpoint (gv->builtin_topic_interface, &ppt->e, timestamp, false);
+  ddsi_builtintopic_write_endpoint (gv->builtin_topic_interface, &ppt->e, timestamp, false);
   ddsi_remember_deleted_participant_guid (gv->deleted_participants, &ppt->e.guid);
   entidx_remove_proxy_participant_guid (gv->entity_index, ppt);
   ddsrt_mutex_unlock (&gv->lock);

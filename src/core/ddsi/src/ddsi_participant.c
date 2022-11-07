@@ -855,7 +855,7 @@ static dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domai
   if (pp->e.tk)
   {
     ddsi_tkmap_instance_unref (gv->m_tkmap, pp->e.tk);
-    pp->e.tk = builtintopic_get_tkmap_entry (gv->builtin_topic_interface, &pp->e.guid);
+    pp->e.tk = ddsi_builtintopic_get_tkmap_entry (gv->builtin_topic_interface, &pp->e.guid);
     pp->e.iid = pp->e.tk->m_iid;
  }
 #else
@@ -958,7 +958,7 @@ static dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domai
     trigger_recv_threads (gv);
   }
 
-  builtintopic_write_endpoint (gv->builtin_topic_interface, &pp->e, ddsrt_time_wallclock(), true);
+  ddsi_builtintopic_write_endpoint (gv->builtin_topic_interface, &pp->e, ddsrt_time_wallclock(), true);
 
   /* SPDP periodic broadcast uses the retransmit path, so the initial
      publication must be done differently. Must be later than making
@@ -1054,7 +1054,7 @@ dds_return_t ddsi_delete_participant (struct ddsi_domaingv *gv, const struct dds
     ddsrt_mutex_unlock (&gv->lock);
     return DDS_RETCODE_BAD_PARAMETER;
   }
-  builtintopic_write_endpoint (gv->builtin_topic_interface, &pp->e, ddsrt_time_wallclock(), false);
+  ddsi_builtintopic_write_endpoint (gv->builtin_topic_interface, &pp->e, ddsrt_time_wallclock(), false);
   ddsi_remember_deleted_participant_guid (gv->deleted_participants, &pp->e.guid);
 #ifdef DDS_HAS_SECURITY
   disconnect_participant_secure (pp);

@@ -396,7 +396,7 @@ static void new_reader_writer_common (const struct ddsrt_log_cfg *logcfg, const 
 
 static bool is_onlylocal_endpoint (struct ddsi_participant *pp, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos)
 {
-  if (builtintopic_is_builtintopic (pp->e.gv->builtin_topic_interface, type))
+  if (ddsi_builtintopic_is_builtintopic (pp->e.gv->builtin_topic_interface, type))
     return true;
 #ifdef DDS_HAS_NETWORK_PARTITIONS
   if (ddsi_is_ignored_partition (pp->e.gv, xqos, topic_name))
@@ -941,7 +941,7 @@ dds_return_t ddsi_new_writer_guid (struct ddsi_writer **wr_out, const struct dds
    the other. */
   ddsrt_mutex_lock (&wr->e.lock);
   entidx_insert_writer_guid (pp->e.gv->entity_index, wr);
-  builtintopic_write_endpoint (wr->e.gv->builtin_topic_interface, &wr->e, ddsrt_time_wallclock(), true);
+  ddsi_builtintopic_write_endpoint (wr->e.gv->builtin_topic_interface, &wr->e, ddsrt_time_wallclock(), true);
   ddsrt_mutex_unlock (&wr->e.lock);
 
   /* once it exists, match it with proxy writers and broadcast
@@ -1030,7 +1030,7 @@ struct ddsi_local_orphan_writer *ddsi_new_local_orphan_writer (struct ddsi_domai
 
   ddsi_new_writer_guid_common_init (wr, topic_name, type, xqos, whc, 0, NULL);
   entidx_insert_writer_guid (gv->entity_index, wr);
-  builtintopic_write_endpoint (gv->builtin_topic_interface, &wr->e, ddsrt_time_wallclock(), true);
+  ddsi_builtintopic_write_endpoint (gv->builtin_topic_interface, &wr->e, ddsrt_time_wallclock(), true);
   match_writer_with_local_readers (wr, tnow);
   return lowr;
 }
@@ -1212,7 +1212,7 @@ static dds_return_t delete_writer_nolinger_locked (struct ddsi_writer *wr)
   }
 
   ELOGDISC (wr, "ddsi_delete_writer_nolinger(guid "PGUIDFMT") ...\n", PGUID (wr->e.guid));
-  builtintopic_write_endpoint (wr->e.gv->builtin_topic_interface, &wr->e, ddsrt_time_wallclock(), false);
+  ddsi_builtintopic_write_endpoint (wr->e.gv->builtin_topic_interface, &wr->e, ddsrt_time_wallclock(), false);
   local_reader_ary_setinvalid (&wr->rdary);
   entidx_remove_writer_guid (wr->e.gv->entity_index, wr);
   writer_set_state (wr, WRST_DELETING);
@@ -1490,7 +1490,7 @@ dds_return_t ddsi_new_reader_guid (struct ddsi_reader **rd_out, const struct dds
 
   ddsrt_mutex_lock (&rd->e.lock);
   entidx_insert_reader_guid (pp->e.gv->entity_index, rd);
-  builtintopic_write_endpoint (pp->e.gv->builtin_topic_interface, &rd->e, ddsrt_time_wallclock(), true);
+  ddsi_builtintopic_write_endpoint (pp->e.gv->builtin_topic_interface, &rd->e, ddsrt_time_wallclock(), true);
   ddsrt_mutex_unlock (&rd->e.lock);
 
   match_reader_with_proxy_writers (rd, tnow);
@@ -1580,7 +1580,7 @@ dds_return_t ddsi_delete_reader (struct ddsi_domaingv *gv, const struct ddsi_gui
     return DDS_RETCODE_BAD_PARAMETER;
   }
   GVLOGDISC ("delete_reader_guid(guid "PGUIDFMT") ...\n", PGUID (*guid));
-  builtintopic_write_endpoint (rd->e.gv->builtin_topic_interface, &rd->e, ddsrt_time_wallclock(), false);
+  ddsi_builtintopic_write_endpoint (rd->e.gv->builtin_topic_interface, &rd->e, ddsrt_time_wallclock(), false);
   entidx_remove_reader_guid (gv->entity_index, rd);
   gcreq_reader (rd);
   return 0;
