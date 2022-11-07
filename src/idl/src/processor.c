@@ -263,7 +263,7 @@ idl_log(
   if (cnt == -1)
     return;
 
-  fprintf(stderr, "%s\n", buf);
+  (void) fprintf(stderr, "%s\n", buf);
 }
 
 #define IDL_LC_ERROR 1

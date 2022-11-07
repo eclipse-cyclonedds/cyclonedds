@@ -40,18 +40,18 @@ compare_position(idl_position_t *a, idl_position_t *b)
 static void
 assert_location(idl_location_t *a, idl_location_t *b)
 {
-  fprintf(stderr, "first.line: %"PRIu32", %"PRIu32"\n", a->first.line, b->first.line);
-  fprintf(stderr, "first.column: %"PRIu32", %"PRIu32"\n", a->first.column, b->first.column);
+  (void) fprintf(stderr, "first.line: %"PRIu32", %"PRIu32"\n", a->first.line, b->first.line);
+  (void) fprintf(stderr, "first.column: %"PRIu32", %"PRIu32"\n", a->first.column, b->first.column);
   CU_ASSERT_EQUAL(compare_position(&a->first, &b->first), 0);
-  fprintf(stderr, "last.line: %"PRIu32", %"PRIu32"\n", a->last.line, b->last.line);
-  fprintf(stderr, "last.column: %"PRIu32", %"PRIu32"\n", a->last.column, b->last.column);
+  (void) fprintf(stderr, "last.line: %"PRIu32", %"PRIu32"\n", a->last.line, b->last.line);
+  (void) fprintf(stderr, "last.column: %"PRIu32", %"PRIu32"\n", a->last.column, b->last.column);
   CU_ASSERT_EQUAL(compare_position(&a->last, &b->last), 0);
 }
 
 static void
 assert_token(idl_token_t *tok, idl_token_t *xtok)
 {
-  fprintf(stderr, "code: %"PRId32", %"PRId32"\n", tok->code, xtok->code);
+  (void) fprintf(stderr, "code: %"PRId32", %"PRId32"\n", tok->code, xtok->code);
   CU_ASSERT_EQUAL(tok->code, xtok->code);
   assert_location(&tok->location, &xtok->location);
   if (tok->code != xtok->code)
@@ -64,9 +64,9 @@ assert_token(idl_token_t *tok, idl_token_t *xtok)
         break;
       CU_ASSERT_PTR_NOT_NULL(tok->value.str);
       if (tok->value.str) {
-        fprintf(stderr, "string: '%s', '%s'\n", tok->value.str, xtok->value.str);
+        (void) fprintf(stderr, "string: '%s', '%s'\n", tok->value.str, xtok->value.str);
       } else {
-        fprintf(stderr, "string: null, '%s'\n", xtok->value.str);
+        (void) fprintf(stderr, "string: null, '%s'\n", xtok->value.str);
         break;
       }
       CU_ASSERT_STRING_EQUAL(tok->value.str, xtok->value.str);

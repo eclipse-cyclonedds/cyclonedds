@@ -19,7 +19,7 @@
 static void oops (const char *file, int line)
 {
   fflush (stdout);
-  fprintf (stderr, "%s:%d\n", file, line);
+  (void) fprintf (stderr, "%s:%d\n", file, line);
   abort ();
 }
 
@@ -83,7 +83,7 @@ int main (int argc, char ** argv)
         flag_prewrite = true;
         break;
       default:
-        fprintf (stderr, "usage error: see source code\n");
+        (void) fprintf (stderr, "usage error: see source code\n");
         exit (2);
     }
   }

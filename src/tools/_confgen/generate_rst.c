@@ -64,7 +64,7 @@ static void printhead(
   (void)flags;
   (void)units;
   assert(level < (sizeof(headerchars) - 1));
-  fprintf(out, ".. _`%s`:\n\n%s\n", elem->meta.title, elem->meta.title);
+  (void) fprintf(out, ".. _`%s`:\n\n%s\n", elem->meta.title, elem->meta.title);
   for(size_t i = strlen(elem->meta.title); i > 0; --i)
     fputc(headerchars[level], out);
   fputs("\n\n", out);
@@ -81,7 +81,7 @@ static void printlink(
   (void)flags;
   (void)units;
   assert(elem->meta.title);
-  fprintf(out, "`%s`_", elem->meta.title);
+  (void) fprintf(out, "`%s`_", elem->meta.title);
 }
 
 static void printtype(
@@ -101,10 +101,10 @@ static void printtype(
     assert(elem->meta.values);
     fputs("One of:\n", out);
     if (elem->value && strlen(elem->value))
-      fprintf(out, "* Keyword: %s\n", elem->value);
+      (void) fprintf(out, "* Keyword: %s\n", elem->value);
     fputs("* Comma-separated list of: ", out);
     for (const char **v = elem->meta.values; *v; v++) {
-      fprintf(out, "%s%s", v == elem->meta.values ? "" : ", ", *v);
+      (void) fprintf(out, "%s%s", v == elem->meta.values ? "" : ", ", *v);
     }
     fputs("\n", out);
     if (!elem->value || !strlen(elem->value))
@@ -113,7 +113,7 @@ static void printtype(
     assert(elem->meta.values);
     fputs("One of: ", out);
     for (const char **v = elem->meta.values; *v; v++) {
-      fprintf(out, "%s%s", v == elem->meta.values ? "" : ", ", *v);
+      (void) fprintf(out, "%s%s", v == elem->meta.values ? "" : ", ", *v);
     }
     fputs("\n", out);
   } else if (isint(elem)) {
@@ -162,9 +162,9 @@ static void printelem(
     struct cfgelem *ce = firstelem(elem->attributes);
     while (ce) {
       if (!isnop(ce)) {
-        fprintf(out, "%s[%s](", sep, name(ce));
+        (void) fprintf(out, "%s[%s](", sep, name(ce));
         printlink(out, level, flags, ce, units);
-        fprintf(out, ")");
+        (void) fprintf(out, ")");
         sep = ", ";
         cnt++;
       }

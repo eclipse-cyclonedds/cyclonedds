@@ -386,17 +386,17 @@ static dds_return_t get_topic_and_typeobj (const char *topic_name, dds_duration_
       // as an approximation of the topic QoS.
       if ((*topic = dds_find_topic (DDS_FIND_SCOPE_GLOBAL, participant, ep->topic_name, typeinfo, DDS_SECS (2))) < 0)
       {
-        fprintf (stderr, "dds_find_topic: %s ... continuing on the assumptions that topic discovery is disabled\n", dds_strretcode (*topic));
+        (void) fprintf (stderr, "dds_find_topic: %s ... continuing on the assumptions that topic discovery is disabled\n", dds_strretcode (*topic));
         dds_topic_descriptor_t *descriptor;
         if ((ret = dds_create_topic_descriptor(DDS_FIND_SCOPE_GLOBAL, participant, typeinfo, DDS_SECS (10), &descriptor)) < 0)
         {
-          fprintf (stderr, "dds_create_topic_descriptor: %s\n", dds_strretcode (ret));
+          (void) fprintf (stderr, "dds_create_topic_descriptor: %s\n", dds_strretcode (ret));
           dds_return_loan (dcpspublication_reader, &epraw, 1);
           goto error;
         }
         if ((*topic = dds_create_topic (participant, descriptor, ep->topic_name, ep->qos, NULL)) < 0)
         {
-          fprintf (stderr, "dds_create_topic_descriptor: %s (be sure to enable topic discovery in the configuration)\n", dds_strretcode (*topic));
+          (void) fprintf (stderr, "dds_create_topic_descriptor: %s (be sure to enable topic discovery in the configuration)\n", dds_strretcode (*topic));
           dds_delete_topic_descriptor (descriptor);
           dds_return_loan (dcpspublication_reader, &epraw, 1);
           goto error;
@@ -408,7 +408,7 @@ static dds_return_t get_topic_and_typeobj (const char *topic_name, dds_duration_
       DDS_XTypes_TypeInformation const * const xtypeinfo = (DDS_XTypes_TypeInformation *) typeinfo;
       if ((ret = dds_get_typeobj (participant, (const dds_typeid_t *) &xtypeinfo->complete.typeid_with_size.type_id, 0, &typeobj)) < 0)
       {
-        fprintf (stderr, "dds_get_typeobj: %s\n", dds_strretcode (ret));
+        (void) fprintf (stderr, "dds_get_typeobj: %s\n", dds_strretcode (ret));
         dds_return_loan (dcpspublication_reader, &epraw, 1);
         goto error;
       }
@@ -448,14 +448,14 @@ int main (int argc, char **argv)
   
   if (argc != 2)
   {
-    fprintf (stderr, "usage: %s topicname\n", argv[0]);
+    (void) fprintf (stderr, "usage: %s topicname\n", argv[0]);
     return 2;
   }
 
   participant = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
   if (participant < 0)
   {
-    fprintf (stderr, "dds_create_participant: %s\n", dds_strretcode (participant));
+    (void) fprintf (stderr, "dds_create_participant: %s\n", dds_strretcode (participant));
     return 1;
   }
   
@@ -464,7 +464,7 @@ int main (int argc, char **argv)
   typecache = ddsrt_hh_new (1, typecache_hash, typecache_equal);
   if ((ret = get_topic_and_typeobj (argv[1], DDS_SECS (10), &topic, &xtypeobj)) < 0)
   {
-    fprintf (stderr, "get_topic_and_typeobj: %s\n", dds_strretcode (ret));
+    (void) fprintf (stderr, "get_topic_and_typeobj: %s\n", dds_strretcode (ret));
     goto error;
   }
   // ... given those, we can create a reader just like we do normally ...

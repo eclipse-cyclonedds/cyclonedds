@@ -143,8 +143,8 @@ void print_help(
 void print_usage(
   const char *argv0, const char *rest)
 {
-  fprintf(stderr, "Usage: %s%s%s\n", argv0, rest ? " " : "", rest ? rest : "");
-  fprintf(stderr, "Try '%s -h' for more information.\n", argv0);
+  (void) fprintf(stderr, "Usage: %s%s%s\n", argv0, rest ? " " : "", rest ? rest : "");
+  (void) fprintf(stderr, "Try '%s -h' for more information.\n", argv0);
 }
 
 static void print_error(
@@ -152,9 +152,9 @@ static void print_error(
 {
   if (!isempty(subopt)) {
     int len = (int)strcspn(subopt, "=");
-    fprintf(stderr,"%s%s%c %.*s\n",argv0, errstr, opt, len, subopt);
+    (void) fprintf(stderr,"%s%s%c %.*s\n",argv0, errstr, opt, len, subopt);
   } else {
-    fprintf(stderr,"%s%s%c\n",argv0, errstr, opt);
+    (void) fprintf(stderr,"%s%s%c\n",argv0, errstr, opt);
   }
 }
 

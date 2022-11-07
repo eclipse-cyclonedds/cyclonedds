@@ -133,7 +133,7 @@ static uint32_t guardcond_create_delete_thread (void *varg)
       }
       else if (ent < 0 && idx < N_GUARDCONDS)
       {
-        fprintf (stderr, "dds_create_guardcondition failed: %s\n", dds_strretcode (ent));
+        (void) fprintf (stderr, "dds_create_guardcondition failed: %s\n", dds_strretcode (ent));
         ddsrt_atomic_st32 (&terminate, 1);
         return 1;
       }
@@ -162,7 +162,7 @@ static uint32_t waitset_create_delete_thread (void *varg)
       dds_entity_t ws = dds_create_waitset (DDS_CYCLONEDDS_HANDLE);
       if (ws < 0)
       {
-        fprintf (stderr, "dds_create_waitset failed: %s\n", dds_strretcode (ws));
+        (void) fprintf (stderr, "dds_create_waitset failed: %s\n", dds_strretcode (ws));
         ddsrt_atomic_st32 (&terminate, 1);
         return 1;
       }
@@ -232,7 +232,7 @@ static uint32_t waitset_attach_detach_thread (void *varg)
     {
       /* attempts at attaching a guard condition twice or detaching an unattached
          one are expected, and those result in a PRECONDITION_NOT_MET */
-      fprintf (stderr, "dds_waitset_detach 0x%"PRIx32" 0x%"PRIx32" failed: %s\n", (dds_entity_t) wsh, (dds_entity_t) gch, dds_strretcode (rc));
+      (void) fprintf (stderr, "dds_waitset_detach 0x%"PRIx32" 0x%"PRIx32" failed: %s\n", (dds_entity_t) wsh, (dds_entity_t) gch, dds_strretcode (rc));
       ddsrt_atomic_st32 (&terminate, 1);
       return 1;
     }
@@ -246,7 +246,7 @@ static uint32_t waitset_attach_detach_thread (void *varg)
       }
       else if (rc != DDS_RETCODE_PRECONDITION_NOT_MET && rc != DDS_RETCODE_BAD_PARAMETER)
       {
-        fprintf (stderr, "dds_waitset_attach 0x%"PRIx32" 0x%"PRIx32" failed: %s\n", (dds_entity_t) wsh, (dds_entity_t) gch, dds_strretcode (rc));
+        (void) fprintf (stderr, "dds_waitset_attach 0x%"PRIx32" 0x%"PRIx32" failed: %s\n", (dds_entity_t) wsh, (dds_entity_t) gch, dds_strretcode (rc));
         ddsrt_atomic_st32 (&terminate, 1);
         return 1;
       }
@@ -306,7 +306,7 @@ CU_Test (ddsc_waitset, torture)
       int32_t n = dds_waitset_wait (ws, NULL, 0, DDS_MSECS (10));
       if (!((rc >= 0 && rc <= N_ENTITIES) || rc == DDS_RETCODE_BAD_PARAMETER))
       {
-        fprintf (stderr, "dds_waitset_wait failed: %s\n", dds_strretcode (rc));
+        (void) fprintf (stderr, "dds_waitset_wait failed: %s\n", dds_strretcode (rc));
         ddsrt_atomic_st32 (&terminate, 1);
         rc = DDS_RETCODE_ERROR;
       }

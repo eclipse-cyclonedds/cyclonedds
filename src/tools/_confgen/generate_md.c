@@ -65,7 +65,7 @@ static void printhead(
   (void)units;
   assert(level < (sizeof(hashes) - 1));
   hashes[level+1] = '\0';
-  fprintf(out, "%s %s\n", hashes, elem->meta.title);
+  (void) fprintf(out, "%s %s\n", hashes, elem->meta.title);
   hashes[level+1] = '#';
 }
 
@@ -108,10 +108,10 @@ static void printtype(
     assert(elem->meta.values);
     fputs("One of:\n", out);
     if (elem->value && strlen(elem->value))
-      fprintf(out, "* Keyword: %s\n", elem->value);
+      (void) fprintf(out, "* Keyword: %s\n", elem->value);
     fputs("* Comma-separated list of: ", out);
     for (const char **v = elem->meta.values; *v; v++) {
-      fprintf(out, "%s%s", v == elem->meta.values ? "" : ", ", *v);
+      (void) fprintf(out, "%s%s", v == elem->meta.values ? "" : ", ", *v);
     }
     fputs("\n", out);
     if (!elem->value || !strlen(elem->value))
@@ -120,7 +120,7 @@ static void printtype(
     assert(elem->meta.values);
     fputs("One of: ", out);
     for (const char **v = elem->meta.values; *v; v++) {
-      fprintf(out, "%s%s", v == elem->meta.values ? "" : ", ", *v);
+      (void) fprintf(out, "%s%s", v == elem->meta.values ? "" : ", ", *v);
     }
     fputs("\n", out);
   } else if (isint(elem)) {
@@ -169,9 +169,9 @@ static void printelem(
     struct cfgelem *ce = firstelem(elem->attributes);
     while (ce) {
       if (!isnop(ce)) {
-        fprintf(out, "%s[%s](", sep, name(ce));
+        (void) fprintf(out, "%s[%s](", sep, name(ce));
         printlink(out, level, flags, ce, units);
-        fprintf(out, ")");
+        (void) fprintf(out, ")");
         sep = ", ";
         cnt++;
       }
@@ -186,9 +186,9 @@ static void printelem(
     const char *sep = "Children: ";
     struct cfgelem *ce = firstelem(elem->children);
     while (ce) {
-      fprintf(out, "%s[%s](", sep, name(ce));
+      (void) fprintf(out, "%s[%s](", sep, name(ce));
       printlink(out, level, flags, ce, units);
-      fprintf(out, ")");
+      (void) fprintf(out, ")");
       sep = ", ";
       ce = nextelem(elem->children, ce);
     }

@@ -647,7 +647,7 @@ int main(int argc, char *argv[])
   lang = figure_language(argc, argv);
   memset(&gen, 0, sizeof(gen));
   if (idlc_load_generator(&gen, lang) == -1)
-    fprintf(stderr, "%s: cannot load generator %s\n", prog, lang);
+    (void) fprintf(stderr, "%s: cannot load generator %s\n", prog, lang);
 
   config.argc = 0;
   if (!(config.argv = idl_calloc((size_t)argc + 7, sizeof(config.argv[0]))))
@@ -683,7 +683,7 @@ int main(int argc, char *argv[])
     case 0:
       break;
     case IDLC_BAD_INPUT:
-      fprintf(stderr, "%s: conflicting options in generator %s\n", prog, lang);
+      (void) fprintf(stderr, "%s: conflicting options in generator %s\n", prog, lang);
       /* fall through */
     default:
       print_usage(prog, "[OPTIONS] FILE");
@@ -712,7 +712,7 @@ int main(int argc, char *argv[])
     if ((ret = idlc_parse(generator_annotations))) {
       /* assume other errors are reported by processor */
       if (ret == IDL_RETCODE_NO_MEMORY)
-        fprintf(stderr, "Out of memory\n");
+        (void) fprintf(stderr, "Out of memory\n");
       goto err_parse;
     } else if (config.compile) {
       idlc_generator_config_t generator_config;
@@ -744,7 +744,7 @@ int main(int argc, char *argv[])
         idl_free(generator_config.base_dir);
       idl_delete_pstate(pstate);
       if (ret) {
-        fprintf(stderr, "Failed to compile '%s'\n", config.file);
+        (void) fprintf(stderr, "Failed to compile '%s'\n", config.file);
         goto err_generate;
       }
     }

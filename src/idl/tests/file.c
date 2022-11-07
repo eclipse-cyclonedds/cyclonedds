@@ -135,7 +135,7 @@ CU_Test(idl_file, untaint)
     str = idl_strdup(tests[i].input);
     CU_ASSERT_PTR_NOT_NULL_FATAL(str);
     assert(str);
-    fprintf(stderr, "input: '%s'\n", str);
+    (void) fprintf(stderr, "input: '%s'\n", str);
     len = idl_untaint_path(str);
     if (tests[i].length == -1) {
       CU_ASSERT_EQUAL(len, -1);
@@ -143,7 +143,7 @@ CU_Test(idl_file, untaint)
       CU_ASSERT_EQUAL(len, (ssize_t)strlen(tests[i].output));
     }
     if (len >= 0) {
-      fprintf(stderr, "output: '%s'\n", str);
+      (void) fprintf(stderr, "output: '%s'\n", str);
       CU_ASSERT_STRING_EQUAL(str, tests[i].output);
     }
     free(str);
@@ -159,7 +159,7 @@ CU_Test(idl_file, normalize_empty)
   CU_ASSERT_FATAL(ret >= 0);
   CU_ASSERT_PTR_NOT_NULL_FATAL(norm);
   assert(prefix);
-  fprintf(stderr, "path: %s\nexpect: %s\nnormalized: %s\n", prefix, prefix, norm);
+  (void) fprintf(stderr, "path: %s\nexpect: %s\nnormalized: %s\n", prefix, prefix, norm);
   CU_ASSERT_STRING_EQUAL(norm, prefix);
   free(norm);
 }
@@ -176,7 +176,7 @@ CU_Test(idl_file, normalize_revert)
   CU_ASSERT_FATAL(ret >= 0);
   CU_ASSERT_PTR_NOT_NULL_FATAL(norm);
   assert(norm);
-  fprintf(stderr, "path: %s\n", path);
+  (void) fprintf(stderr, "path: %s\n", path);
   { size_t sep = 0;
     for (size_t i=0,n=strlen(prefix); i < n; i++) {
       if (idl_isseparator(path[i]))
@@ -185,7 +185,7 @@ CU_Test(idl_file, normalize_revert)
     CU_ASSERT_NOT_EQUAL_FATAL(sep, 0);
     path[sep] = '\0';
   }
-  fprintf(stderr, "expect: %s\nnormalized: %s\n", path, norm);
+  (void) fprintf(stderr, "expect: %s\nnormalized: %s\n", path, norm);
   CU_ASSERT_STRING_EQUAL(path, norm);
   free(path);
   free(norm);
@@ -197,7 +197,7 @@ CU_Test(idl_file, normalize_revert_too_many)
   size_t size, step, steps = 1; /* one too many */
   char *revert = NULL, *path = NULL, *norm = NULL;
 
-  fprintf(stderr, "prefix: %s\n", prefix);
+  (void) fprintf(stderr, "prefix: %s\n", prefix);
 
   for (size_t i=0; prefix[i]; i++)
     steps += idl_isseparator(prefix[i]);
@@ -211,13 +211,13 @@ CU_Test(idl_file, normalize_revert_too_many)
     memcpy(revert + (i*step), "/..", step);
   revert[size] = '\0';
 
-  fprintf(stderr, "revert: %s\n", revert);
+  (void) fprintf(stderr, "revert: %s\n", revert);
 
   path = NULL;
   (void) idl_asprintf(&path, "%s%s", prefix, revert);
   CU_ASSERT_PTR_NOT_NULL_FATAL(path);
 
-  fprintf(stderr, "path: %s\n", path);
+  (void) fprintf(stderr, "path: %s\n", path);
 
   norm = NULL;
   ret = idl_normalize_path(path, &norm);
@@ -268,10 +268,10 @@ CU_Test(idl_file, relative_bad_params)
       rel = NULL;
       base = j ? t[i].path : t[i].base;
       path = j ? t[i].base : t[i].path;
-      fprintf(stderr, "base: %s\n", base);
-      fprintf(stderr, "path: %s\n", path);
+      (void) fprintf(stderr, "base: %s\n", base);
+      (void) fprintf(stderr, "path: %s\n", path);
       ret = idl_relative_path(base, path, &rel);
-      fprintf(stderr, "relative: %s\n", rel ? rel : "-");
+      (void) fprintf(stderr, "relative: %s\n", rel ? rel : "-");
       if (rel)
         free(rel);
       CU_ASSERT_EQUAL_FATAL(ret, bad_param);
@@ -309,12 +309,12 @@ CU_Test(idl_file, relative)
 
   for (size_t i=0; i < n; i++) {
     rel = NULL;
-    fprintf(stderr, "base: '%s'\n", t[i].base);
-    fprintf(stderr, "path: '%s'\n", t[i].path);
+    (void) fprintf(stderr, "base: '%s'\n", t[i].base);
+    (void) fprintf(stderr, "path: '%s'\n", t[i].path);
     ret = idl_relative_path(t[i].base, t[i].path, &rel);
     CU_ASSERT_EQUAL(ret, t[i].retcode);
     if (rel)
-      fprintf(stderr, "relative: '%s'\n", rel);
+      (void) fprintf(stderr, "relative: '%s'\n", rel);
     if (t[i].relpath) {
       CU_ASSERT_PTR_NOT_NULL_FATAL(rel);
       CU_ASSERT(rel && strcmp(t[i].relpath, rel) == 0);

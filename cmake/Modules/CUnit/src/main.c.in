@@ -79,8 +79,8 @@ static int patmatch(const char *pat, const char *str)
 
 static void usage(const char *name)
 {
-    fprintf(stderr, "Usage: %s OPTIONS\n", name);
-    fprintf(stderr, "Try '%s -h' for more information\n", name);
+    (void) fprintf(stderr, "Usage: %s OPTIONS\n", name);
+    (void) fprintf(stderr, "Try '%s -h' for more information\n", name);
 }
 
 static void help(const char *name)
@@ -198,7 +198,7 @@ int main(int argc, char *argv[])
         help(argv[0]);
         return ret;
     } else if (CU_initialize_registry() != CUE_SUCCESS) {
-        fprintf(stderr, "CU_initialize_registry: %s\n", CU_get_error_msg());
+        (void) fprintf(stderr, "CU_initialize_registry: %s\n", CU_get_error_msg());
         return EX_SOFTWARE;
     }
 

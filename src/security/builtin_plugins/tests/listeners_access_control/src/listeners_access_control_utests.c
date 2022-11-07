@@ -286,7 +286,7 @@ static int smime_sign(const char *certificate_file, const char *key_file, const 
 err:
   if (ret)
   {
-    fprintf(stderr, "Error Signing Data\n");
+    (void) fprintf(stderr, "Error Signing Data\n");
     ERR_print_errors_fp(stderr);
   }
   if (p7)

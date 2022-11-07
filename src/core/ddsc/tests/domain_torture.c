@@ -36,7 +36,7 @@ static uint32_t create_participants_thread (void *varg)
     dds_entity_t par = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
     if (par < 0)
     {
-      fprintf (stderr, "dds_create_participant failed: %s\n", dds_strretcode (par));
+      (void) fprintf (stderr, "dds_create_participant failed: %s\n", dds_strretcode (par));
       ddsrt_atomic_st32 (&terminate, 1);
       return 1;
     }
@@ -44,7 +44,7 @@ static uint32_t create_participants_thread (void *varg)
     dds_return_t ret = dds_delete(par);
     if (ret != DDS_RETCODE_OK)
     {
-      fprintf (stderr, "dds_delete failed: %s\n", dds_strretcode (ret));
+      (void) fprintf (stderr, "dds_delete failed: %s\n", dds_strretcode (ret));
       ddsrt_atomic_st32 (&terminate, 1);
       return 1;
     }

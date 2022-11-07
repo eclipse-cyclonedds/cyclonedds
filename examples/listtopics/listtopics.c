@@ -102,7 +102,7 @@ int main (int argc, char **argv)
   const dds_entity_t participant = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
   if (participant < 0)
   {
-    fprintf (stderr, "dds_create_participant: %s\n", dds_strretcode (participant));
+    (void) fprintf (stderr, "dds_create_participant: %s\n", dds_strretcode (participant));
     return 1;
   }
 
@@ -117,9 +117,9 @@ int main (int argc, char **argv)
   if (reader < 0)
   {
     if (reader == DDS_RETCODE_UNSUPPORTED)
-      fprintf (stderr, "Topic discovery is not included in the build, rebuild with ENABLE_TOPIC_DISCOVERY=ON\n");
+      (void) fprintf (stderr, "Topic discovery is not included in the build, rebuild with ENABLE_TOPIC_DISCOVERY=ON\n");
     else
-      fprintf (stderr, "dds_create_reader(DCPSTopic): %s\n", dds_strretcode (reader));
+      (void) fprintf (stderr, "dds_create_reader(DCPSTopic): %s\n", dds_strretcode (reader));
     dds_delete (participant);
     return 1;
   }
@@ -173,7 +173,7 @@ int main (int argc, char **argv)
   }
   if (!topics_seen && endpoints_exist)
   {
-    fprintf (stderr, "No topics discovered but remote readers/writers exist. Is topic discovery enabled in the configuration?\n");
+    (void) fprintf (stderr, "No topics discovered but remote readers/writers exist. Is topic discovery enabled in the configuration?\n");
   }
 
   dds_delete (participant);

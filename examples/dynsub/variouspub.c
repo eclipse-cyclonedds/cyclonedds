@@ -98,14 +98,15 @@ static struct tpentry {
 
 static void usage (const char *argv0)
 {
-  fprintf (stderr, "usage: %s {", argv0);
+  (void) fprintf (stderr, "usage: %s {", argv0);
   const char *sep = "";
   for (struct tpentry *tpentry = &tptab[0]; tpentry->name; tpentry++)
   {
-    fprintf (stderr, "%s%s", sep, tpentry->name);
+    if (0 > fprintf (stderr, "%s%s", sep, tpentry->name))
+      break;
     sep = "|";
   }
-  fprintf (stderr, "}\n");
+  (void) fprintf (stderr, "}\n");
   exit (2);
 }
 
@@ -123,7 +124,7 @@ int main (int argc, char **argv)
   const dds_entity_t participant = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
   if (participant < 0)
   {
-    fprintf (stderr, "dds_create_participant: %s\n", dds_strretcode (participant));
+    (void) fprintf (stderr, "dds_create_participant: %s\n", dds_strretcode (participant));
     return 1;
   }
 
@@ -139,7 +140,7 @@ int main (int argc, char **argv)
     *countp = count++;
     if ((ret = dds_write (writer, sample)) < 0)
     {
-      fprintf (stderr, "dds_write: %s\n", dds_strretcode (ret));
+      (void) fprintf (stderr, "dds_write: %s\n", dds_strretcode (ret));
       dds_delete (participant);
       return 1;
     }
