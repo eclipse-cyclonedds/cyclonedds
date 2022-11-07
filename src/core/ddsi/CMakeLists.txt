@@ -84,7 +84,7 @@ set(srcs_ddsi
   q_freelist.c
   sysdeps.c)
 
-set(hdrs_private_ddsi
+set(hdrs_ddsi
   ddsi_ssl.h
   ddsi_tcp.h
   ddsi_tran.h
@@ -126,7 +126,6 @@ set(hdrs_private_ddsi
   ddsi_cfgelems.h
   ddsi_config.h
   ddsi_config_impl.h
-  ddsi_acknack.h
   ddsi_list_tmpl.h
   ddsi_list_genptr.h
   ddsi_wraddrset.h
@@ -167,31 +166,35 @@ set(hdrs_private_ddsi
   q_xmsg.h
   sysdeps.h)
 
+set(hdrs_private_ddsi
+  ddsi__acknack.h)
+
 if(ENABLE_LIFESPAN)
   list(APPEND srcs_ddsi ddsi_lifespan.c)
-  list(APPEND hdrs_private_ddsi ddsi_lifespan.h)
+  list(APPEND hdrs_ddsi ddsi_lifespan.h)
 endif()
 if(ENABLE_DEADLINE_MISSED)
   list(APPEND srcs_ddsi ddsi_deadline.c)
-  list(APPEND hdrs_private_ddsi ddsi_deadline.h)
+  list(APPEND hdrs_ddsi ddsi_deadline.h)
 endif()
 if(ENABLE_TYPE_DISCOVERY)
   list(APPEND srcs_ddsi ddsi_xt_typeinfo.c ddsi_xt_typelookup.c ddsi_xt_typemap.c ddsi_typelookup.c ddsi_typewrap.c ddsi_typebuilder.c)
-  list(APPEND hdrs_private_ddsi ddsi_xt_typeinfo.h ddsi_xt_typelookup.h ddsi_xt_typemap.h ddsi_typelookup.h ddsi_typewrap.h ddsi_typebuilder.h)
+  list(APPEND hdrs_ddsi ddsi_xt_typeinfo.h ddsi_xt_typelookup.h ddsi_xt_typemap.h ddsi_typelookup.h ddsi_typewrap.h ddsi_typebuilder.h)
 endif()
 if(ENABLE_SECURITY)
   list(APPEND srcs_ddsi ddsi_security_msg.c ddsi_security_exchange.c)
-  list(APPEND hdrs_private_ddsi ddsi_security_msg.h ddsi_security_exchange.h)
+  list(APPEND hdrs_ddsi ddsi_security_msg.h ddsi_security_exchange.h)
 endif()
 if(ENABLE_SHM)
   list(APPEND srcs_ddsi ddsi_shm_transport.c)
-  list(APPEND hdrs_private_ddsi ddsi_shm_transport.h)
+  list(APPEND hdrs_ddsi ddsi_shm_transport.h)
 endif()
 
-prepend(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi/" ${hdrs_private_ddsi})
+prepend(hdrs_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi/" ${hdrs_ddsi})
+prepend(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/src/" ${hdrs_private_ddsi})
 prepend(srcs_ddsi "${CMAKE_CURRENT_LIST_DIR}/src/" ${srcs_ddsi})
 
-target_sources(ddsc PRIVATE ${srcs_ddsi} ${generated_defconfig_src} ${hdrs_private_ddsi})
+target_sources(ddsc PRIVATE ${srcs_ddsi} ${generated_defconfig_src} ${hdrs_private_ddsi} ${hdrs_ddsi})
 add_dependencies(ddsc _confgen)
 target_include_directories(ddsc PRIVATE "${CMAKE_CURRENT_LIST_DIR}/include")
 

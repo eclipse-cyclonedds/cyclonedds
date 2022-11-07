@@ -43,7 +43,7 @@
 #include "dds/ddsi/ddsi_security_omg.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/ddsi_pmd.h"
-#include "dds/ddsi/ddsi_acknack.h"
+#include "ddsi__acknack.h"
 #include "dds__whc.h"
 
 #include "dds/ddsi/sysdeps.h"
@@ -904,7 +904,7 @@ static void handle_xevk_acknack (struct nn_xpack *xp, struct xevent *ev, ddsrt_m
   if (!pwr->have_seen_heartbeat)
     msg = make_preemptive_acknack (ev, pwr, rwn, tnow);
   else
-    msg = make_and_resched_acknack (ev, pwr, rwn, tnow, false);
+    msg = ddsi_make_and_resched_acknack (ev, pwr, rwn, tnow, false);
   ddsrt_mutex_unlock (&pwr->e.lock);
 
   /* nn_xpack_addmsg may sleep (for bandwidth-limited channels), so

@@ -56,7 +56,7 @@
 #include "dds/ddsi/ddsi_mcgroup.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_security_omg.h"
-#include "dds/ddsi/ddsi_acknack.h"
+#include "ddsi__acknack.h"
 #include "dds/ddsi/sysdeps.h"
 
 #include "dds/cdr/dds_cdrstream.h"
@@ -1227,7 +1227,7 @@ static void handle_Heartbeat_helper (struct ddsi_pwr_rd_match * const wn, struct
   if (arg->directed_heartbeat)
     wn->directed_heartbeat = 1;
 
-  sched_acknack_if_needed (wn->acknack_xevent, pwr, wn, arg->tnow_mt, true);
+  ddsi_sched_acknack_if_needed (wn->acknack_xevent, pwr, wn, arg->tnow_mt, true);
 }
 
 static int handle_Heartbeat (struct receiver_state *rst, ddsrt_etime_t tnow, struct nn_rmsg *rmsg, const Heartbeat_t *msg, ddsrt_wctime_t timestamp, SubmessageKind_t prev_smid)

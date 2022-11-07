@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef DDSI_ACKNACK_H
-#define DDSI_ACKNACK_H
+#ifndef DDSI__ACKNACK_H
+#define DDSI__ACKNACK_H
 
 #include <stddef.h>
 #include <stdbool.h>
@@ -24,7 +24,7 @@
 extern "C" {
 #endif
 
-enum add_AckNack_result {
+enum ddsi_add_acknack_result {
   AANR_SUPPRESSED_ACK,  //!< sending nothing: too short a time since the last ACK
   AANR_ACK,             //!< sending an ACK and there's nothing to NACK
   AANR_SUPPRESSED_NACK, //!< sending an ACK even though there are things to NACK
@@ -32,12 +32,30 @@ enum add_AckNack_result {
   AANR_NACKFRAG_ONLY    //!< sending only a NACKFRAG
 };
 
-void sched_acknack_if_needed (struct xevent *ev, struct ddsi_proxy_writer *pwr, struct ddsi_pwr_rd_match *rwn, ddsrt_mtime_t tnow, bool avoid_suppressed_nack);
+DDSRT_STATIC_ASSERT ((NN_SEQUENCE_NUMBER_SET_MAX_BITS % 32) == 0 && (NN_FRAGMENT_NUMBER_SET_MAX_BITS % 32) == 0);
+struct ddsi_add_acknack_info {
+  bool nack_sent_on_nackdelay;
+#if ACK_REASON_IN_FLAGS
+  uint8_t flags;
+#endif
+  struct {
+    struct nn_sequence_number_set_header set;
+    uint32_t bits[NN_FRAGMENT_NUMBER_SET_MAX_BITS / 32];
+  } acknack;
+  struct {
+    seqno_t seq;
+    struct nn_fragment_number_set_header set;
+    uint32_t bits[NN_FRAGMENT_NUMBER_SET_MAX_BITS / 32];
+  } nackfrag;
+};
 
-struct nn_xmsg *make_and_resched_acknack (struct xevent *ev, struct ddsi_proxy_writer *pwr, struct ddsi_pwr_rd_match *rwn, ddsrt_mtime_t tnow, bool avoid_suppressed_nack);
+
+void ddsi_sched_acknack_if_needed (struct xevent *ev, struct ddsi_proxy_writer *pwr, struct ddsi_pwr_rd_match *rwn, ddsrt_mtime_t tnow, bool avoid_suppressed_nack);
+
+struct nn_xmsg *ddsi_make_and_resched_acknack (struct xevent *ev, struct ddsi_proxy_writer *pwr, struct ddsi_pwr_rd_match *rwn, ddsrt_mtime_t tnow, bool avoid_suppressed_nack);
 
 #if defined (__cplusplus)
 }
 #endif
 
-#endif /* DDSI_ACKNACK_H */
+#endif /* DDSI__ACKNACK_H */
