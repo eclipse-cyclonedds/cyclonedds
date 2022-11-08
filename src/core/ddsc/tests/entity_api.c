@@ -114,7 +114,7 @@ CU_Test(ddsc_entity, qos, .init = create_entity, .fini = delete_entity)
     {
         dds_entity_t par = dds_create_participant (DDS_DOMAIN_DEFAULT, qos, NULL);
         entity_qos_get_set(par, "{with initial qos}");
-        dds_delete(par);
+        (void) dds_delete(par);
     }
 
     /* Delete qos. */

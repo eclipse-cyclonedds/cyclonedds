@@ -36,7 +36,7 @@ static void typebuilder_init (void)
 
 static void typebuilder_fini (void)
 {
-  dds_delete (g_participant);
+  (void) dds_delete (g_participant);
 }
 
 static void topic_type_ref (dds_entity_t topic, struct ddsi_type **type)

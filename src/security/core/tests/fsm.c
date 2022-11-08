@@ -97,7 +97,7 @@ static void fsm_control_fini (void)
   dds_security_fsm_control_free (g_fsm_control);
   ddsrt_mutex_destroy (&g_lock);
   ddsrt_cond_destroy (&g_cond);
-  dds_delete (g_participant);
+  (void) dds_delete (g_participant);
 }
 
 static void a (struct dds_security_fsm *fsm, void *arg)

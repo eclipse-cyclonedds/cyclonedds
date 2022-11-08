@@ -207,12 +207,12 @@ static void multi_sertype_init (void)
 
 static void multi_sertype_fini (void)
 {
-  dds_delete (g_sub_subscriber);
-  dds_delete (g_pub_publisher);
-  dds_delete (g_sub_participant);
-  dds_delete (g_pub_participant);
-  dds_delete (g_sub_domain);
-  dds_delete (g_pub_domain);
+  (void) dds_delete (g_sub_subscriber);
+  (void) dds_delete (g_pub_publisher);
+  (void) dds_delete (g_sub_participant);
+  (void) dds_delete (g_pub_participant);
+  (void) dds_delete (g_sub_domain);
+  (void) dds_delete (g_pub_domain);
 }
 
 static bool get_and_check_writer_status (size_t nwr, const dds_entity_t *wrs, size_t nrd)

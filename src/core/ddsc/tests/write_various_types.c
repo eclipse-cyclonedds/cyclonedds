@@ -63,12 +63,12 @@ static void writetypes_init(void)
 
 static void writetypes_fini (void)
 {
-  dds_delete (g_sub_subscriber);
-  dds_delete (g_pub_publisher);
-  dds_delete (g_sub_participant);
-  dds_delete (g_pub_participant);
-  dds_delete (g_sub_domain);
-  dds_delete (g_pub_domain);
+  (void) dds_delete (g_sub_subscriber);
+  (void) dds_delete (g_pub_publisher);
+  (void) dds_delete (g_sub_participant);
+  (void) dds_delete (g_pub_participant);
+  (void) dds_delete (g_sub_domain);
+  (void) dds_delete (g_pub_domain);
 }
 
 typedef bool (*compare_fn_t) (const void *a, const void *b);

@@ -108,7 +108,7 @@ int main (int argc, char **argv)
 
   // dds.h
   dds_enable (1);
-  dds_delete (1);
+  (void) dds_delete (1);
   dds_get_publisher (1);
   dds_get_subscriber (1);
   dds_get_datareader (1);

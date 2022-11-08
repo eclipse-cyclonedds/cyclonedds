@@ -158,6 +158,6 @@ int main (int argc, char ** argv)
 
   dds_sleepfor (DDS_MSECS (100));
   dds_wait_for_acks (wr, DDS_INFINITY);
-  dds_delete (ppant);
+  (void) dds_delete (ppant);
   return 0;
 }

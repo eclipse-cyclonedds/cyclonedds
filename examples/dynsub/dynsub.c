@@ -436,8 +436,8 @@ static dds_return_t get_topic_and_typeobj (const char *topic_name, dds_duration_
     }
   }
 error:
-  dds_delete (dcpspublication_reader);
-  dds_delete (waitset);
+  (void) dds_delete (dcpspublication_reader);
+  (void) dds_delete (waitset);
   return (*xtypeobj != NULL) ? DDS_RETCODE_OK : DDS_RETCODE_TIMEOUT;
 }
 
@@ -492,6 +492,6 @@ int main (int argc, char **argv)
  error:
   ddsrt_hh_enum (typecache, free_typeinfo, NULL);
   ddsrt_hh_free (typecache);
-  dds_delete (participant);
+  (void) dds_delete (participant);
   return ret < 0;
 }

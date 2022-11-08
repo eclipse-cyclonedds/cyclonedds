@@ -1363,7 +1363,7 @@ static void async_participant_data_listener (dds_entity_t rd, void *arg)
         free_ppant (pp);
       }
       ddsrt_mutex_unlock (&disc_lock);
-      dds_delete (pong_wr_to_del);
+      (void) dds_delete (pong_wr_to_del);
     }
     else
     {
@@ -2695,7 +2695,7 @@ err_minmatch_wait:
      The fix is to eliminate the waiting and retrying, and instead
      flip the reader's state to out-of-sync and rely on retransmits
      to let it make progress once room is available again.  */
-  dds_delete (rd_data);
+  (void) dds_delete (rd_data);
 
   uint64_t nlost = 0;
   bool received_ok = true;
@@ -2709,7 +2709,7 @@ err_minmatch_wait:
   subthread_arg_fini (&subarg_data);
   subthread_arg_fini (&subarg_ping);
   subthread_arg_fini (&subarg_pong);
-  dds_delete (dp);
+  (void) dds_delete (dp);
 
   // only shutdown async listener once the participant is gone: that's
   // how we get rid of the dynamically created pong writers, and those

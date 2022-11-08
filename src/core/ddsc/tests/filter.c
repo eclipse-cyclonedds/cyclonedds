@@ -277,7 +277,7 @@ CU_Test (ddsc_filter, basic)
     for (int j = 0; j < 2; j++)
       checkdata (rd[i][j], &exp[i][j], "rd[%d][%d]:", i, j);
   for (int i = 0; i < 2; i++)
-    dds_delete (dp[i]);
+    (void) dds_delete (dp[i]);
 }
 
 CU_Test (ddsc_filter, ownership)
@@ -354,7 +354,7 @@ CU_Test (ddsc_filter, ownership)
     }
   };
   checkdata (rd, &exp, "rd");
-  dds_delete (dp);
+  (void) dds_delete (dp);
 }
 
 static bool filter_long1_eq_1 (const void *vsample)
@@ -462,7 +462,7 @@ CU_Test (ddsc_filter, getset_extended)
   ret = dds_get_topic_filter_and_arg (tp, &fn, &arg);
   CU_ASSERT_FATAL (ret == DDS_RETCODE_PRECONDITION_NOT_MET);
 
-  dds_delete (dp);
+  (void) dds_delete (dp);
 }
 
 CU_Test (ddsc_filter, sampleinfo)
@@ -645,6 +645,6 @@ CU_Test (ddsc_filter, sampleinfo)
   };
   checkdata (rd[0], &expX, "rd");
   checkdata (rd[1], &expX, "rd");
-  dds_delete (dp);
+  (void) dds_delete (dp);
 }
 

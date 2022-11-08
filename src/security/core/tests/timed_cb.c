@@ -78,7 +78,7 @@ static void setup(void)
 
 static void teardown(void)
 {
-  dds_delete(pp);
+  (void) dds_delete(pp);
 }
 
 static void simple_callback(dds_security_time_event_handle_t timer, dds_time_t trigger_time, dds_security_timed_cb_kind_t kind, void *arg)

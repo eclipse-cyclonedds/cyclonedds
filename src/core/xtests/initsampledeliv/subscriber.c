@@ -46,7 +46,7 @@ static void wait_for_writer (dds_entity_t ppant)
     }
     if (n < 0) oops ();
   } while (!done);
-  dds_delete (rd);
+  (void) dds_delete (rd);
 }
 
 static uint32_t get_subscription_matched_count (dds_entity_t rd)
@@ -193,6 +193,6 @@ int main (int argc, char ** argv)
   }
 
   dds_delete_qos (qos);
-  dds_delete (ppant);
+  (void) dds_delete (ppant);
   return 0;
 }

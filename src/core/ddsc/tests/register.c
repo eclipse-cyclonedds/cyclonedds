@@ -118,11 +118,11 @@ registering_init(void)
 static void
 registering_fini(void)
 {
-    dds_delete(g_reader);
-    dds_delete(g_writer);
-    dds_delete(g_waitset);
-    dds_delete(g_topic);
-    dds_delete(g_participant);
+    (void) dds_delete(g_reader);
+    (void) dds_delete(g_writer);
+    (void) dds_delete(g_waitset);
+    (void) dds_delete(g_topic);
+    (void) dds_delete(g_participant);
 }
 
 
@@ -136,7 +136,7 @@ CU_Test(ddsc_register_instance, deleted_entity, .init=registering_init, .fini=re
 {
     dds_return_t ret;
     dds_instance_handle_t handle;
-    dds_delete(g_writer);
+    (void) dds_delete(g_writer);
     ret = dds_register_instance(g_writer, &handle, g_data);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
 }

@@ -119,11 +119,11 @@ disposing_init(void)
 static void
 disposing_fini(void)
 {
-    dds_delete(g_reader);
-    dds_delete(g_writer);
-    dds_delete(g_waitset);
-    dds_delete(g_topic);
-    dds_delete(g_participant);
+    (void) dds_delete(g_reader);
+    (void) dds_delete(g_writer);
+    (void) dds_delete(g_waitset);
+    (void) dds_delete(g_topic);
+    (void) dds_delete(g_participant);
 }
 
 
@@ -138,7 +138,7 @@ disposing_fini(void)
 CU_Test(ddsc_writedispose, deleted, .init=disposing_init, .fini=disposing_fini)
 {
     dds_return_t ret;
-    dds_delete(g_writer);
+    (void) dds_delete(g_writer);
     DDSRT_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
     ret = dds_writedispose(g_writer, NULL);
     DDSRT_WARNING_MSVC_ON(6387);
@@ -294,7 +294,7 @@ CU_Test(ddsc_writedispose, timeout, .init=disposing_init, .fini=disposing_fini)
 CU_Test(ddsc_writedispose_ts, deleted, .init=disposing_init, .fini=disposing_fini)
 {
     dds_return_t ret;
-    dds_delete(g_writer);
+    (void) dds_delete(g_writer);
     DDSRT_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
     ret = dds_writedispose_ts(g_writer, NULL, g_present);
     DDSRT_WARNING_MSVC_ON(6387);
@@ -493,7 +493,7 @@ CU_Test(ddsc_writedispose_ts, disposing_past_sample, .init=disposing_init, .fini
 CU_Test(ddsc_dispose, deleted, .init=disposing_init, .fini=disposing_fini)
 {
     dds_return_t ret;
-    dds_delete(g_writer);
+    (void) dds_delete(g_writer);
     DDSRT_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
     ret = dds_dispose(g_writer, NULL);
     DDSRT_WARNING_MSVC_ON(6387);
@@ -648,7 +648,7 @@ CU_Test(ddsc_dispose, disposing_new_instance, .init=disposing_init, .fini=dispos
 CU_Test(ddsc_dispose_ts, deleted, .init=disposing_init, .fini=disposing_fini)
 {
     dds_return_t ret;
-    dds_delete(g_writer);
+    (void) dds_delete(g_writer);
     DDSRT_WARNING_MSVC_OFF(6387); /* Disable SAL warning on intentional misuse of the API */
     ret = dds_dispose_ts(g_writer, NULL, g_present);
     DDSRT_WARNING_MSVC_ON(6387); /* Disable SAL warning on intentional misuse of the API */
@@ -846,7 +846,7 @@ CU_Test(ddsc_dispose_ts, disposing_past_sample, .init=disposing_init, .fini=disp
 CU_Test(ddsc_dispose_ih, deleted, .init=disposing_init, .fini=disposing_fini)
 {
     dds_return_t ret;
-    dds_delete(g_writer);
+    (void) dds_delete(g_writer);
     ret = dds_dispose_ih(g_writer, DDS_HANDLE_NIL);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
 }
@@ -943,7 +943,7 @@ CU_Test(ddsc_dispose_ih, disposing_old_instance, .init=disposing_init, .fini=dis
 CU_Test(ddsc_dispose_ih_ts, deleted, .init=disposing_init, .fini=disposing_fini)
 {
     dds_return_t ret;
-    dds_delete(g_writer);
+    (void) dds_delete(g_writer);
     ret = dds_dispose_ih_ts(g_writer, DDS_HANDLE_NIL, g_present);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
 }

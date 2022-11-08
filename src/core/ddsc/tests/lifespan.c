@@ -92,15 +92,15 @@ static void lifespan_init(void)
 
 static void lifespan_fini(void)
 {
-  dds_delete(g_rcond);
-  dds_delete(g_qcond);
-  dds_delete(g_reader);
-  dds_delete(g_writer);
-  dds_delete(g_subscriber);
-  dds_delete(g_publisher);
-  dds_delete(g_waitset);
-  dds_delete(g_topic);
-  dds_delete(g_participant);
+  (void) dds_delete(g_rcond);
+  (void) dds_delete(g_qcond);
+  (void) dds_delete(g_reader);
+  (void) dds_delete(g_writer);
+  (void) dds_delete(g_subscriber);
+  (void) dds_delete(g_publisher);
+  (void) dds_delete(g_waitset);
+  (void) dds_delete(g_topic);
+  (void) dds_delete(g_participant);
 }
 
 static void check_whc_state(dds_entity_t writer, seqno_t exp_min, seqno_t exp_max)

@@ -63,9 +63,9 @@ static void topic_find_global_init (void)
 
 static void topic_find_global_fini (void)
 {
-  dds_delete (g_domain1);
-  dds_delete (g_domain_remote1);
-  dds_delete (g_domain_remote2);
+  (void) dds_delete (g_domain1);
+  (void) dds_delete (g_domain_remote1);
+  (void) dds_delete (g_domain_remote2);
 }
 
 static void create_remote_topic (char * topic_name_remote)

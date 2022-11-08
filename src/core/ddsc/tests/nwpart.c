@@ -362,7 +362,7 @@ CU_Test (ddsc_nwpart, mapping_multiple)
   // given that:
   CU_ASSERT_FATAL (m0->partition == p0);
   CU_ASSERT_FATAL (m1->partition == p2);
-  dds_delete (eh);
+  (void) dds_delete (eh);
 #endif
 }
 

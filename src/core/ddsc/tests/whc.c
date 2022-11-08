@@ -73,13 +73,13 @@ static void whc_init(void)
 static void whc_fini (void)
 {
   dds_delete_qos(g_qos);
-  dds_delete(g_subscriber);
-  dds_delete(g_remote_subscriber);
-  dds_delete(g_publisher);
-  dds_delete(g_participant);
-  dds_delete(g_remote_participant);
-  dds_delete(g_domain);
-  dds_delete(g_remote_domain);
+  (void) dds_delete(g_subscriber);
+  (void) dds_delete(g_remote_subscriber);
+  (void) dds_delete(g_publisher);
+  (void) dds_delete(g_participant);
+  (void) dds_delete(g_remote_participant);
+  (void) dds_delete(g_domain);
+  (void) dds_delete(g_remote_domain);
 }
 
 static dds_entity_t create_and_sync_reader(dds_entity_t subscriber, dds_entity_t topic, dds_qos_t *qos, dds_entity_t writer)
@@ -244,9 +244,9 @@ static void test_whc_end_state(dds_durability_kind_t d, dds_reliability_kind_t r
   int32_t exp_min = (d == TL) ? ((dh == KA) ? 1 : exp_max - dhd * ni + 1) : 0;
   check_whc_state (writer, (uint32_t)exp_min, (uint32_t)exp_max);
 
-  dds_delete (writer);
-  dds_delete (remote_topic);
-  dds_delete (topic);
+  (void) dds_delete (writer);
+  (void) dds_delete (remote_topic);
+  (void) dds_delete (topic);
 }
 
 #define ARRAY_LEN(A) ((int32_t)(sizeof(A) / sizeof(A[0])))

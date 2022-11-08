@@ -52,9 +52,9 @@ ddsc_topic_fini(void)
 {
   dds_delete_qos(g_qos);
   dds_delete_listener(g_listener);
-  dds_delete(g_topic_rtmdt);
-  dds_delete(g_topic_rtmaddr);
-  dds_delete(g_participant);
+  (void) dds_delete(g_topic_rtmdt);
+  (void) dds_delete(g_topic_rtmaddr);
+  (void) dds_delete(g_participant);
 }
 
 /* These will check the topic creation in various ways */
@@ -181,7 +181,7 @@ CU_Theory((char *name, size_t size), ddsc_topic_get_name, invalid_params, .init 
 CU_Test(ddsc_topic_get_name, deleted, .init = ddsc_topic_init, .fini = ddsc_topic_fini)
 {
   char name[MAX_NAME_SIZE];
-  dds_delete(g_topic_rtmdt);
+  (void) dds_delete(g_topic_rtmdt);
   dds_return_t ret = dds_get_name(g_topic_rtmdt, name, MAX_NAME_SIZE);
   CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
 }
@@ -233,7 +233,7 @@ CU_Theory((char *name, size_t size), ddsc_topic_get_type_name, invalid_params, .
 CU_Test(ddsc_topic_get_type_name, deleted, .init = ddsc_topic_init, .fini = ddsc_topic_fini)
 {
   char name[MAX_NAME_SIZE];
-  dds_delete(g_topic_rtmdt);
+  (void) dds_delete(g_topic_rtmdt);
   dds_return_t ret = dds_get_type_name(g_topic_rtmdt, name, MAX_NAME_SIZE);
   CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
 }

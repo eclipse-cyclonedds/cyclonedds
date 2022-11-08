@@ -52,7 +52,7 @@ CU_Test(ddsc_publisher, create)
   /* Use entity that is not a participant */
   publisher1 = dds_create_publisher(publisher, NULL, NULL);
   CU_ASSERT_EQUAL_FATAL(publisher1, DDS_RETCODE_ILLEGAL_OPERATION);
-  dds_delete(publisher);
+  (void) dds_delete(publisher);
 
   /* Create a non-null qos */
   qos = dds_create_qos();
@@ -61,7 +61,7 @@ CU_Test(ddsc_publisher, create)
   /* Use qos without partition; in that case the default partition should be used */
   publisher = dds_create_publisher(participant, qos, NULL);
   CU_ASSERT_FATAL(publisher > 0);
-  dds_delete(publisher);
+  (void) dds_delete(publisher);
 
 /* Somehow, the compiler thinks the char arrays might not be zero-terminated... */
 #ifdef _MSC_VER
@@ -73,19 +73,19 @@ CU_Test(ddsc_publisher, create)
   dds_qset_partition (qos, 1, singlePartitions);
   publisher = dds_create_publisher(participant, qos, NULL);
   CU_ASSERT_FATAL(publisher > 0);
-  dds_delete(publisher);
+  (void) dds_delete(publisher);
 
   /* Use qos with multiple partitions */
   dds_qset_partition (qos, 2, multiplePartitions);
   publisher = dds_create_publisher(participant, qos, NULL);
   CU_ASSERT_FATAL(publisher > 0);
-  dds_delete(publisher);
+  (void) dds_delete(publisher);
 
   /* Use qos with multiple partitions */
   dds_qset_partition (qos, 2, duplicatePartitions);
   publisher = dds_create_publisher(participant, qos, NULL);
   CU_ASSERT_FATAL(publisher > 0);
-  dds_delete(publisher);
+  (void) dds_delete(publisher);
 
 #ifdef _MSC_VER
 #pragma warning(pop)
@@ -96,7 +96,7 @@ CU_Test(ddsc_publisher, create)
   CU_ASSERT_NOT_EQUAL_FATAL(listener, NULL);
   publisher = dds_create_publisher(participant, NULL, listener);
   CU_ASSERT_FATAL(publisher > 0);
-  dds_delete(publisher);
+  (void) dds_delete(publisher);
 
   dds_reset_listener(listener);
 
@@ -104,7 +104,7 @@ CU_Test(ddsc_publisher, create)
   dds_lset_data_available(listener, NULL);
   publisher = dds_create_publisher(participant, NULL, listener);
   CU_ASSERT_FATAL(publisher > 0);
-  dds_delete(publisher);
+  (void) dds_delete(publisher);
 
   dds_reset_listener(listener);
 
@@ -112,7 +112,7 @@ CU_Test(ddsc_publisher, create)
   dds_lset_data_available(listener, DDS_LUNSET);
   publisher = dds_create_publisher(participant, NULL, listener);
   CU_ASSERT_FATAL(publisher > 0);
-  dds_delete(publisher);
+  (void) dds_delete(publisher);
 
   dds_reset_listener(listener);
 
@@ -120,17 +120,17 @@ CU_Test(ddsc_publisher, create)
   dds_lset_data_available(listener, data_available_cb);
   publisher = dds_create_publisher(participant, NULL, listener);
   CU_ASSERT_FATAL(publisher > 0);
-  dds_delete(publisher);
+  (void) dds_delete(publisher);
 
   /* Use both qos setting and callback listener */
   dds_lset_data_available(listener, data_available_cb);
   publisher = dds_create_publisher(participant, qos, listener);
   CU_ASSERT(publisher > 0);
-  dds_delete(publisher);
+  (void) dds_delete(publisher);
 
   dds_delete_listener(listener);
   dds_delete_qos(qos);
-  dds_delete (participant);
+  (void) dds_delete (participant);
 }
 
 CU_Test(ddsc_publisher, invalid_qos)
@@ -195,8 +195,8 @@ CU_Test(ddsc_publisher, suspend_resume)
   status = dds_resume(publisher);
   CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_UNSUPPORTED);
 
-  dds_delete(publisher);
-  dds_delete(participant);
+  (void) dds_delete(publisher);
+  (void) dds_delete(participant);
 
   return;
 }
@@ -285,8 +285,8 @@ CU_Test(ddsc_publisher, wait_for_acks)
   status = dds_wait_for_acks(publisher, DDS_INFINITY);
   CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_UNSUPPORTED);
 
-  dds_delete(publisher);
-  dds_delete(participant);
+  (void) dds_delete(publisher);
+  (void) dds_delete(participant);
 
   return;
 }

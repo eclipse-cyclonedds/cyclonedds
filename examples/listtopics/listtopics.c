@@ -120,7 +120,7 @@ int main (int argc, char **argv)
       (void) fprintf (stderr, "Topic discovery is not included in the build, rebuild with ENABLE_TOPIC_DISCOVERY=ON\n");
     else
       (void) fprintf (stderr, "dds_create_reader(DCPSTopic): %s\n", dds_strretcode (reader));
-    dds_delete (participant);
+    (void) dds_delete (participant);
     return 1;
   }
 
@@ -176,6 +176,6 @@ int main (int argc, char **argv)
     (void) fprintf (stderr, "No topics discovered but remote readers/writers exist. Is topic discovery enabled in the configuration?\n");
   }
 
-  dds_delete (participant);
+  (void) dds_delete (participant);
   return 0;
 }

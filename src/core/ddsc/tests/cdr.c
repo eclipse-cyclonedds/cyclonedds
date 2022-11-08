@@ -914,7 +914,7 @@ ${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}\
     }
   }
 
-  dds_delete (DDS_CYCLONEDDS_HANDLE);
+  (void) dds_delete (DDS_CYCLONEDDS_HANDLE);
 }
 
 /*----------------------------------------------------------------

@@ -28,13 +28,13 @@ CU_Test(ddsc_participant, create_and_delete) {
   participant2 = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
   CU_ASSERT_FATAL(participant2 > 0);
 
-  dds_delete (participant);
-  dds_delete (participant2);
+  (void) dds_delete (participant);
+  (void) dds_delete (participant2);
 
   participant3 = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
   CU_ASSERT_FATAL(participant3 > 0);
 
-  dds_delete (participant3);
+  (void) dds_delete (participant3);
 
 }
 
@@ -64,8 +64,8 @@ CU_Test(ddsc_participant, create_with_no_conf_no_env)
   CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
   CU_ASSERT_EQUAL_FATAL(domain_id, valid_domain);
 
-  dds_delete(participant2);
-  dds_delete(participant3);
+  (void) dds_delete(participant2);
+  (void) dds_delete(participant3);
 }
 
 
@@ -94,8 +94,8 @@ CU_Test(ddsc_participant, create_multiple_domains)
   CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
   CU_ASSERT_EQUAL_FATAL(domain_id, 2);
 
-  dds_delete(participant1);
-  dds_delete(participant2);
+  (void) dds_delete(participant1);
+  (void) dds_delete(participant2);
 }
 
 
@@ -130,8 +130,8 @@ CU_Test(ddsc_participant, create_with_conf_no_env) {
     CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
     CU_ASSERT_EQUAL_FATAL(domain_id, valid_domain);
 
-    dds_delete(participant2);
-    dds_delete(participant3);
+    (void) dds_delete(participant2);
+    (void) dds_delete(participant3);
 }
 
 CU_Test(ddsc_participant_lookup, one) {
@@ -154,7 +154,7 @@ CU_Test(ddsc_participant_lookup, one) {
   CU_ASSERT_EQUAL_FATAL(num_of_found_pp, 1);
   CU_ASSERT_EQUAL_FATAL(participants[0], participant);
 
-  dds_delete (participant);
+  (void) dds_delete (participant);
 }
 
 CU_Test(ddsc_participant_lookup, multiple) {
@@ -182,8 +182,8 @@ CU_Test(ddsc_participant_lookup, multiple) {
   CU_ASSERT_FATAL(participants[1] == participant || participants[1] == participant2);
   CU_ASSERT_NOT_EQUAL_FATAL(participants[0], participants[1]);
 
-  dds_delete (participant2);
-  dds_delete (participant);
+  (void) dds_delete (participant2);
+  (void) dds_delete (participant);
 }
 
 CU_Test(ddsc_participant_lookup, array_too_small) {
@@ -214,9 +214,9 @@ CU_Test(ddsc_participant_lookup, array_too_small) {
   CU_ASSERT_FATAL(participants[1] == participant || participants[1] == participant2 || participants[1] == participant3);
   CU_ASSERT_NOT_EQUAL_FATAL(participants[0], participants[1]);
 
-  dds_delete (participant3);
-  dds_delete (participant2);
-  dds_delete (participant);
+  (void) dds_delete (participant3);
+  (void) dds_delete (participant2);
+  (void) dds_delete (participant);
 }
 
 CU_Test(ddsc_participant_lookup, null_zero){
@@ -237,7 +237,7 @@ CU_Test(ddsc_participant_lookup, null_zero){
   num_of_found_pp = dds_lookup_participant( domain_id, NULL, size);
   CU_ASSERT_EQUAL_FATAL(num_of_found_pp, 1);
 
-  dds_delete (participant);
+  (void) dds_delete (participant);
 }
 
 CU_Test(ddsc_participant_lookup, null_nonzero){
@@ -258,7 +258,7 @@ CU_Test(ddsc_participant_lookup, null_nonzero){
   num_of_found_pp = dds_lookup_participant( domain_id, NULL, size);
   CU_ASSERT_EQUAL_FATAL(num_of_found_pp, DDS_RETCODE_BAD_PARAMETER);
 
-  dds_delete (participant);
+  (void) dds_delete (participant);
 }
 
 CU_Test(ddsc_participant_lookup, unknown_id) {
@@ -281,7 +281,7 @@ CU_Test(ddsc_participant_lookup, unknown_id) {
   num_of_found_pp = dds_lookup_participant( domain_id, participants, size);
   CU_ASSERT_EQUAL_FATAL(num_of_found_pp, 0);
 
-  dds_delete (participant);
+  (void) dds_delete (participant);
 }
 
 CU_Test(ddsc_participant_lookup, none) {
@@ -310,7 +310,7 @@ CU_Test(ddsc_participant_lookup, no_more) {
   status = dds_get_domainid(participant, &domain_id);
   CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
 
-  dds_delete (participant);
+  (void) dds_delete (participant);
 
   num_of_found_pp = dds_lookup_participant( domain_id, participants, size);
   CU_ASSERT_EQUAL_FATAL(num_of_found_pp, 0);
@@ -335,11 +335,11 @@ CU_Test(ddsc_participant_lookup, deleted) {
   status = dds_get_domainid(participant, &domain_id);
   CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
 
-  dds_delete (participant2);
+  (void) dds_delete (participant2);
 
   num_of_found_pp = dds_lookup_participant( domain_id, participants, size);
   CU_ASSERT_EQUAL_FATAL(num_of_found_pp, 1);
   CU_ASSERT_FATAL(participants[0] == participant);
 
-  dds_delete (participant);
+  (void) dds_delete (participant);
 }

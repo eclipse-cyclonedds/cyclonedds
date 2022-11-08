@@ -202,7 +202,7 @@ CU_Test(ddsc_readcondition_create, deleted_reader, .init=readcondition_init, .fi
 {
   uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
   dds_entity_t cond;
-  dds_delete (g_reader);
+  (void) dds_delete (g_reader);
   cond = dds_create_readcondition (g_reader, mask);
   CU_ASSERT_EQUAL_FATAL (cond, DDS_RETCODE_BAD_PARAMETER);
 }
@@ -236,7 +236,7 @@ CU_Test(ddsc_readcondition_get_mask, deleted, .init=readcondition_init, .fini=re
   dds_return_t ret;
   condition = dds_create_readcondition (g_reader, mask);
   CU_ASSERT_FATAL (condition > 0);
-  dds_delete (condition);
+  (void) dds_delete (condition);
   mask = 0;
   ret = dds_get_mask (condition, &mask);
   CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
@@ -253,7 +253,7 @@ CU_Test(ddsc_readcondition_get_mask, null, .init=readcondition_init, .fini=readc
   ret = dds_get_mask (condition, NULL);
   DDSRT_WARNING_MSVC_ON (6387);
   CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
-  dds_delete (condition);
+  (void) dds_delete (condition);
 }
 
 CU_TheoryDataPoints(ddsc_readcondition_get_mask, invalid_conditions) = {

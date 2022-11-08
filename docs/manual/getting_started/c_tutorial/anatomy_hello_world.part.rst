@@ -422,7 +422,7 @@ allocated memory and delete the domain participant.
 .. code-block:: C
 
     HelloWorldData_Msg_free (samples[0], DDS_FREE_ALL); 
-    dds_delete (participant);
+    (void) dds_delete (participant);
 
 All the entities that are created under the participant, such as the
 data reader and topic, are recursively deleted.

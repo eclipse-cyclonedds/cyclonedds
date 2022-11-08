@@ -96,8 +96,8 @@ CU_Test(ddssec_security_plugin_loading, all_ok, .init = ddsrt_init, .fini = ddsr
   CU_ASSERT_FATAL(domain > 0);
   participant = dds_create_participant(0, NULL, NULL);
   CU_ASSERT_FATAL(participant > 0);
-  dds_delete(participant);
-  dds_delete(domain);
+  (void) dds_delete(participant);
+  (void) dds_delete(domain);
   reset_logger();
 
   CU_ASSERT_FATAL(found == 0x1);
@@ -143,7 +143,7 @@ CU_Test(ddssec_security_plugin_loading, missing_finalize, .init = ddsrt_init, .f
   CU_ASSERT_FATAL(domain > 0);
   participant = dds_create_participant(0, NULL, NULL);
   CU_ASSERT_EQUAL_FATAL(participant, DDS_RETCODE_ERROR);
-  dds_delete(domain);
+  (void) dds_delete(domain);
   reset_logger();
 
   CU_ASSERT_FATAL(found == 0x3);
@@ -189,7 +189,7 @@ CU_Test(ddssec_security_plugin_loading, authentication_missing_function, .init =
   CU_ASSERT_FATAL(domain > 0);
   participant = dds_create_participant(0, NULL, NULL);
   CU_ASSERT_EQUAL_FATAL(participant, DDS_RETCODE_ERROR);
-  dds_delete(domain);
+  (void) dds_delete(domain);
   reset_logger();
 
   CU_ASSERT_FATAL(found == 0x3);
@@ -235,7 +235,7 @@ CU_Test(ddssec_security_plugin_loading, access_control_missing_function, .init =
   CU_ASSERT_FATAL(domain > 0);
   participant = dds_create_participant(0, NULL, NULL);
   CU_ASSERT_EQUAL_FATAL(participant, DDS_RETCODE_ERROR);
-  dds_delete(domain);
+  (void) dds_delete(domain);
   reset_logger();
 
   CU_ASSERT_FATAL(found == 0x3);
@@ -281,7 +281,7 @@ CU_Test(ddssec_security_plugin_loading, cryptography_missing_function, .init = d
   CU_ASSERT_FATAL(domain > 0);
   participant = dds_create_participant(0, NULL, NULL);
   CU_ASSERT_EQUAL_FATAL(participant, DDS_RETCODE_ERROR);
-  dds_delete(domain);
+  (void) dds_delete(domain);
   reset_logger();
 
   CU_ASSERT_FATAL(found == 0x3);
@@ -330,7 +330,7 @@ CU_Test(ddssec_security_plugin_loading, no_library_in_path, .init = ddsrt_init, 
   CU_ASSERT_FATAL(domain > 0);
   participant = dds_create_participant(0, NULL, NULL);
   CU_ASSERT_EQUAL_FATAL(participant, DDS_RETCODE_ERROR);
-  dds_delete(domain);
+  (void) dds_delete(domain);
   reset_logger();
 
   CU_ASSERT_FATAL(found == 0x19 || found == 0x1a || found == 0x1c);
@@ -377,7 +377,7 @@ CU_Test(ddssec_security_plugin_loading, init_error, .init = ddsrt_init, .fini = 
   CU_ASSERT_FATAL(domain > 0);
   participant = dds_create_participant(0, NULL, NULL);
   CU_ASSERT_EQUAL_FATAL(participant, DDS_RETCODE_ERROR);
-  dds_delete(domain);
+  (void) dds_delete(domain);
   reset_logger();
 
   CU_ASSERT_FATAL(found == 0x7);
@@ -422,8 +422,8 @@ CU_Test(ddssec_security_plugin_loading, all_ok_with_props, .init = ddsrt_init, .
   CU_ASSERT_FATAL(domain > 0);
   participant = dds_create_participant(0, qos, NULL);
   CU_ASSERT_FATAL(participant > 0);
-  dds_delete(participant);
-  dds_delete(domain);
+  (void) dds_delete(participant);
+  (void) dds_delete(domain);
   dds_delete_qos(qos);
   reset_logger();
 
@@ -471,7 +471,7 @@ CU_Test(ddssec_security_plugin_loading, missing_plugin_property_with_props, .ini
   participant = dds_create_participant(0, qos, NULL);
   CU_ASSERT_EQUAL_FATAL(participant, DDS_RETCODE_ERROR);
   dds_delete_qos(qos);
-  dds_delete(domain);
+  (void) dds_delete(domain);
   reset_logger();
 
   CU_ASSERT_FATAL(found == 0x3);
@@ -518,7 +518,7 @@ CU_Test(ddssec_security_plugin_loading, empty_plugin_property_with_props, .init 
   participant = dds_create_participant(DDS_DOMAIN_DEFAULT, qos, NULL);
   CU_ASSERT_EQUAL_FATAL(participant, DDS_RETCODE_ERROR);
   dds_delete_qos(qos);
-  dds_delete(domain);
+  (void) dds_delete(domain);
   reset_logger();
 
   CU_ASSERT_FATAL(found == 0x3);
@@ -565,7 +565,7 @@ CU_Test(ddssec_security_plugin_loading, missing_security_property_with_props, .i
   participant = dds_create_participant(DDS_DOMAIN_DEFAULT, qos, NULL);
   CU_ASSERT_EQUAL_FATAL(participant, DDS_RETCODE_ERROR);
   dds_delete_qos(qos);
-  dds_delete(domain);
+  (void) dds_delete(domain);
   reset_logger();
 
   CU_ASSERT_FATAL(found == 0x3);
@@ -670,8 +670,8 @@ CU_Test(ddssec_security_plugin_loading, multiple_domains_different_config, .init
   CU_ASSERT_FATAL(participant2 > 0);
   CU_ASSERT_FATAL(participant3 > 0);
   dds_delete_qos(qos);
-  dds_delete(domain1);
-  dds_delete(domain2);
+  (void) dds_delete(domain1);
+  (void) dds_delete(domain2);
   reset_logger();
 
   CU_ASSERT_FATAL(found == 0xf);

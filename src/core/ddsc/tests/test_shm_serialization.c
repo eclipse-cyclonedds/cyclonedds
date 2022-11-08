@@ -94,7 +94,7 @@ CU_Test(ddsc_shm_serialization, get_serialized_size) {
 
   dds_topic_unpin(tp);
 
-  dds_delete(participant);
+  (void) dds_delete(participant);
   rc = dds_delete(DDS_CYCLONEDDS_HANDLE);
   CU_ASSERT_FATAL(rc == 0);  
 }
@@ -156,7 +156,7 @@ CU_Test(ddsc_shm_serialization, serialize_into) {
   ddsi_serdata_unref(serdata);
   dds_free(buffer);
   dds_topic_unpin(tp);
-  dds_delete(participant);
+  (void) dds_delete(participant);
   rc = dds_delete(DDS_CYCLONEDDS_HANDLE);
   CU_ASSERT_FATAL(rc == 0);
 }
@@ -248,13 +248,13 @@ CU_Test(ddsc_shm_serialization, transmit_dynamic_type, .timeout = 30) {
   CU_ASSERT(compare_messages(&sample, received_sample));
 
   dds_delete_qos(qos);
-  dds_delete(participant);
+  (void) dds_delete(participant);
   rc = dds_delete(DDS_CYCLONEDDS_HANDLE);
   CU_ASSERT_FATAL(rc == 0);  
   return;
 fail:
   dds_delete_qos(qos);
-  dds_delete(participant);
-  dds_delete(DDS_CYCLONEDDS_HANDLE);
+  (void) dds_delete(participant);
+  (void) dds_delete(DDS_CYCLONEDDS_HANDLE);
   CU_FAIL();
 }

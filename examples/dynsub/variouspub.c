@@ -141,7 +141,7 @@ int main (int argc, char **argv)
     if ((ret = dds_write (writer, sample)) < 0)
     {
       (void) fprintf (stderr, "dds_write: %s\n", dds_strretcode (ret));
-      dds_delete (participant);
+      (void) dds_delete (participant);
       return 1;
     }
     if (tpentry->samples[++sample_idx] == NULL)
@@ -151,6 +151,6 @@ int main (int argc, char **argv)
     dds_sleepfor (DDS_SECS (1));
   }
 
-  dds_delete (participant);
+  (void) dds_delete (participant);
   return 0;
 }

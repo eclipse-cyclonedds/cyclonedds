@@ -118,11 +118,11 @@ unregistering_init(void)
 static void
 unregistering_fini(void)
 {
-    dds_delete(g_reader);
-    dds_delete(g_writer);
-    dds_delete(g_waitset);
-    dds_delete(g_topic);
-    dds_delete(g_participant);
+    (void) dds_delete(g_reader);
+    (void) dds_delete(g_writer);
+    (void) dds_delete(g_waitset);
+    (void) dds_delete(g_topic);
+    (void) dds_delete(g_participant);
 }
 
 
@@ -137,7 +137,7 @@ unregistering_fini(void)
 CU_Test(ddsc_unregister_instance, deleted, .init=unregistering_init, .fini=unregistering_fini)
 {
     dds_return_t ret;
-    dds_delete(g_writer);
+    (void) dds_delete(g_writer);
 
     ret = dds_unregister_instance(g_writer, g_data);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
@@ -231,7 +231,7 @@ CU_Test(ddsc_unregister_instance, unregistering_old_instance, .init=unregisterin
 CU_Test(ddsc_unregister_instance_ts, deleted, .init=unregistering_init, .fini=unregistering_fini)
 {
     dds_return_t ret;
-    dds_delete(g_writer);
+    (void) dds_delete(g_writer);
     ret = dds_unregister_instance_ts(g_writer, g_data, g_present);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
 }
@@ -367,7 +367,7 @@ CU_Test(ddsc_unregister_instance_ts, unregistering_past_sample, .init=unregister
 CU_Test(ddsc_unregister_instance_ih, deleted, .init=unregistering_init, .fini=unregistering_fini)
 {
     dds_return_t ret;
-    dds_delete(g_writer);
+    (void) dds_delete(g_writer);
     ret = dds_unregister_instance_ih(g_writer, DDS_HANDLE_NIL);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
 }
@@ -464,7 +464,7 @@ CU_Test(ddsc_unregister_instance_ih, unregistering_old_instance, .init=unregiste
 CU_Test(ddsc_unregister_instance_ih_ts, deleted, .init=unregistering_init, .fini=unregistering_fini)
 {
     dds_return_t ret;
-    dds_delete(g_writer);
+    (void) dds_delete(g_writer);
     ret = dds_unregister_instance_ih_ts(g_writer, DDS_HANDLE_NIL, g_present);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
 }
@@ -618,9 +618,9 @@ CU_Test(ddsc_unregister_instance_ih_ts, unregistering_instance)
     ret = dds_unregister_instance_ih_ts(g_writer, ih, dds_time());
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
-    dds_delete(g_writer);
-    dds_delete(g_topic);
-    dds_delete(g_participant);
+    (void) dds_delete(g_writer);
+    (void) dds_delete(g_topic);
+    (void) dds_delete(g_participant);
 }
 /*************************************************************************************************/
 
@@ -669,7 +669,7 @@ CU_Test(ddsc_unregister_instance, dispose_unregistered_sample, .init=unregisteri
             CU_FAIL_FATAL("Unknown sample read");
         }
     }
-    dds_delete(writer);
+    (void) dds_delete(writer);
 }
 /*************************************************************************************************/
 
@@ -718,7 +718,7 @@ CU_Test(ddsc_unregister_instance_ts, dispose_unregistered_sample, .init=unregist
             CU_FAIL_FATAL("Unknown sample read");
         }
     }
-    dds_delete(writer);
+    (void) dds_delete(writer);
 }
 /*************************************************************************************************/
 

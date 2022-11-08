@@ -70,12 +70,12 @@ static void typelookup_init (void)
 
 static void typelookup_fini (void)
 {
-  dds_delete (g_subscriber2);
-  dds_delete (g_publisher1);
-  dds_delete (g_participant2);
-  dds_delete (g_participant1);
-  dds_delete (g_domain2);
-  dds_delete (g_domain1);
+  (void) dds_delete (g_subscriber2);
+  (void) dds_delete (g_publisher1);
+  (void) dds_delete (g_participant2);
+  (void) dds_delete (g_participant1);
+  (void) dds_delete (g_domain2);
+  (void) dds_delete (g_domain1);
 }
 
 static void get_type (dds_entity_t entity, ddsi_typeid_t **type_id, char **type_name, ddsi_typeid_kind_t kind)
@@ -236,7 +236,7 @@ static bool reader_wait_for_data (dds_entity_t pp, dds_entity_t rd, dds_duration
   ret = dds_waitset_wait (ws, &triggered, 1, dur);
   if (ret > 0)
     CU_ASSERT_EQUAL_FATAL (rd, (dds_entity_t)(intptr_t) triggered);
-  dds_delete (ws);
+  (void) dds_delete (ws);
   return ret > 0;
 }
 

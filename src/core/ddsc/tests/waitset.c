@@ -212,7 +212,7 @@ CU_Theory((dds_entity_t *ws, dds_entity_t *e, dds_attach_t a), ddsc_waitset_atta
 
 CU_Test(ddsc_waitset_attach, deleted_waitset, .init=ddsc_waitset_basic_init, .fini=ddsc_waitset_basic_fini)
 {
-  dds_delete(waitset);
+  (void) dds_delete(waitset);
   dds_return_t ret = dds_waitset_attach(waitset, participant, 0);
   CU_ASSERT_FATAL (ret == DDS_RETCODE_BAD_PARAMETER);
 }
@@ -476,7 +476,7 @@ CU_Test(ddsc_waitset_delete_attached, various, .init=ddsc_waitset_init, .fini=dd
 
 CU_Test(ddsc_waitset_set_trigger, deleted_waitset, .init=ddsc_waitset_basic_init, .fini=ddsc_waitset_basic_fini)
 {
-  dds_delete (waitset);
+  (void) dds_delete (waitset);
   dds_return_t ret = dds_waitset_set_trigger (waitset, true);
   CU_ASSERT_FATAL (ret == DDS_RETCODE_BAD_PARAMETER);
 }
@@ -501,7 +501,7 @@ CU_Theory((dds_entity_t *ws), ddsc_waitset_set_trigger, non_waitsets, .init=ddsc
 
 CU_Test(ddsc_waitset_wait, deleted_waitset, .init=ddsc_waitset_attached_init, .fini=ddsc_waitset_attached_fini)
 {
-  dds_delete (waitset);
+  (void) dds_delete (waitset);
   dds_attach_t triggered;
   dds_return_t ret = dds_waitset_wait (waitset, &triggered, 1, DDS_SECS (1));
   CU_ASSERT_FATAL (ret == DDS_RETCODE_BAD_PARAMETER);
@@ -638,7 +638,7 @@ CU_Test(ddsc_waitset_get_entities, no_array, .init=ddsc_waitset_attached_init, .
 CU_Test(ddsc_waitset_get_entities, deleted_waitset, .init=ddsc_waitset_attached_init, .fini=ddsc_waitset_attached_fini)
 {
   dds_entity_t entities[MAX_ENTITIES_CNT];
-  dds_delete (waitset);
+  (void) dds_delete (waitset);
   dds_return_t ret = dds_waitset_get_entities (waitset, entities, MAX_ENTITIES_CNT);
   CU_ASSERT_FATAL (ret == DDS_RETCODE_BAD_PARAMETER);
 }

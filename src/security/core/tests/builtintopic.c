@@ -112,5 +112,5 @@ CU_Test(ddssec_builtintopic, participant_iid)
     CU_ASSERT_FATAL (n == 0);
   }
   
-  dds_delete (domain);
+  (void) dds_delete (domain);
 }

@@ -889,12 +889,12 @@ static void test_conditions (dds_entity_t pp, dds_entity_t tp, const int count, 
   dds_waitset_detach (waitset, gdcond);
   for (int ci = 0; ci < nconds; ci++)
     dds_waitset_detach (waitset, conds[ci]);
-  dds_delete (waitset);
-  dds_delete (gdcond);
+  (void) dds_delete (waitset);
+  (void) dds_delete (gdcond);
   for (int ci = 0; ci < nconds; ci++)
-    dds_delete (conds[ci]);
+    (void) dds_delete (conds[ci]);
   for (size_t i = 0; i < nrd; i++)
-    dds_delete (rd[i]);
+    (void) dds_delete (rd[i]);
   for (size_t i = 0, n = (sizeof (wr) / sizeof (wr[0])); i < n; i++)
     fwr (wr[i]);
 }
@@ -1166,7 +1166,7 @@ int main (int argc, char **argv)
     RhcTypes_T_free (&rres_mseq[i], DDS_FREE_CONTENTS);
 
   ddsi_sertype_unref (mdtype);
-  dds_delete (pp);
+  (void) dds_delete (pp);
 
   if (sttarg.when)
   {

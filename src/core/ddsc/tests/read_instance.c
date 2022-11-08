@@ -236,15 +236,15 @@ read_instance_init(void)
 static void
 read_instance_fini(void)
 {
-    dds_delete(g_rcond);
-    dds_delete(g_qcond);
-    dds_delete(g_reader);
-    dds_delete(g_writer);
-    dds_delete(g_subscriber);
-    dds_delete(g_publisher);
-    dds_delete(g_waitset);
-    dds_delete(g_topic);
-    dds_delete(g_participant);
+    (void) dds_delete(g_rcond);
+    (void) dds_delete(g_qcond);
+    (void) dds_delete(g_reader);
+    (void) dds_delete(g_writer);
+    (void) dds_delete(g_subscriber);
+    (void) dds_delete(g_publisher);
+    (void) dds_delete(g_waitset);
+    (void) dds_delete(g_topic);
+    (void) dds_delete(g_participant);
 }
 
 static dds_return_t

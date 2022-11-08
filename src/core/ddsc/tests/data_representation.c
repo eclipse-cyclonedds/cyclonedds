@@ -54,8 +54,8 @@ static void data_representation_init (void)
 
 static void data_representation_fini (void)
 {
-  dds_delete (d1);
-  dds_delete (d2);
+  (void) dds_delete (d1);
+  (void) dds_delete (d2);
 }
 
 static void *sample_init_type1 (void)

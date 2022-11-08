@@ -1597,8 +1597,8 @@ static void entity_init (const dds_topic_descriptor_t *desc, dds_data_representa
 
 static void cdrstream_fini (void)
 {
-  dds_delete (d1);
-  dds_delete (d2);
+  (void) dds_delete (d1);
+  (void) dds_delete (d2);
 }
 
 #define D(n) TestIdl_Msg ## n ## _desc
