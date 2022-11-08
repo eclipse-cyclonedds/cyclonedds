@@ -22,7 +22,7 @@
 #include "dds/ddsrt/sockets.h"
 
 #include "dds/ddsi/q_log.h"
-#include "dds/ddsi/ddsi_ownip.h"
+#include "ddsi__ownip.h"
 
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_config_impl.h"
@@ -408,7 +408,7 @@ static void log_arbitrary_selection (struct ddsi_domaingv *gv, const struct ddsi
   GVLOG (DDS_LC_INFO, "\n");
 }
 
-int find_own_ip (struct ddsi_domaingv *gv)
+int ddsi_find_own_ip (struct ddsi_domaingv *gv)
 {
   char addrbuf[DDSI_LOCSTRLEN];
 

@@ -41,7 +41,7 @@
 #include "dds/ddsi/ddsi_participant.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
 #include "dds/ddsi/ddsi_endpoint.h"
-#include "dds/ddsi/ddsi_ownip.h"
+#include "ddsi__ownip.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/q_receive.h"
@@ -1263,11 +1263,11 @@ int rtps_init (struct ddsi_domaingv *gv)
   }
   gv->m_factory->m_enable = true;
 
-  if (!find_own_ip (gv))
+  if (!ddsi_find_own_ip (gv))
   {
-    /* find_own_ip already logs a more informative error message */
+    /* ddsi_find_own_ip already logs a more informative error message */
     GVLOG (DDS_LC_CONFIG, "No network interface selected\n");
-    goto err_find_own_ip;
+    goto err_ddsi_find_own_ip;
   }
 
 #ifdef DDS_HAS_SHM
@@ -1844,7 +1844,7 @@ err_set_recvips:
 #ifdef DDS_HAS_SHM
 err_iceoryx:
 #endif
-err_find_own_ip:
+err_ddsi_find_own_ip:
   for (int i = 0; i < gv->n_interfaces; i++)
     ddsrt_free (gv->interfaces[i].name);
   ddsi_tran_factories_fini (gv);
