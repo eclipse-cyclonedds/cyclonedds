@@ -22,7 +22,7 @@
 #include "ddsi__entity_index.h"
 #include "dds/ddsi/ddsi_builtin_topic_if.h"
 #include "dds/ddsi/ddsi_security_omg.h"
-#include "dds/ddsi/ddsi_handshake.h"
+#include "ddsi__handshake.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/q_ddsi_discovery.h"
 #include "dds/ddsi/q_xevent.h"

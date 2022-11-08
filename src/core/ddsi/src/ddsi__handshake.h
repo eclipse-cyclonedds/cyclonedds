@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef DDSI_HANDSHAKE_H
-#define DDSI_HANDSHAKE_H
+#ifndef DDSI__HANDSHAKE_H
+#define DDSI__HANDSHAKE_H
 
 #include "dds/ddsi/ddsi_participant.h"
 
@@ -149,19 +149,6 @@ void ddsi_handshake_remove(struct ddsi_participant *pp, struct ddsi_proxy_partic
 struct ddsi_handshake * ddsi_handshake_find(struct ddsi_participant *pp, struct ddsi_proxy_participant *proxypp);
 
 /**
- * @brief Searches for the handshake associated with the specified participants
- *
- * This function will search through the handshake administration to find the handshake
- * corresponding the to specified local and remote participant.
- *
- * @param[in] pp         The local participant.
- * @param[in] proxypp    The remote participant.
- *
- * @returns The handshake
- */
-struct ddsi_handshake * ddsi_handshake_find(struct ddsi_participant *pp, struct ddsi_proxy_participant *proxypp);
-
-/**
  * @brief Initialize the handshake administration
  *
  * @param[in] gv         The global parameters
@@ -223,4 +210,4 @@ inline struct ddsi_handshake * ddsi_handshake_find(UNUSED_ARG(struct ddsi_partic
 }
 #endif
 
-#endif /* DDSI_HANDSHAKE_H */
+#endif /* DDSI__HANDSHAKE_H */

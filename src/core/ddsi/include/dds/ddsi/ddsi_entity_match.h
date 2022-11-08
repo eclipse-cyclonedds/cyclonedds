@@ -17,7 +17,6 @@
 
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsi/q_lat_estim.h"
-#include "dds/ddsi/ddsi_handshake.h"
 
 #if defined (__cplusplus)
 extern "C" {

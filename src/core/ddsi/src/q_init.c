@@ -66,7 +66,7 @@
 #include "dds/ddsi/ddsi_security_omg.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/ddsi_iid.h"
-#include "dds/ddsi/ddsi_security_omg.h"
+#include "dds/ddsi/ddsi_security_msg.h"
 #include "ddsi__endpoint.h"
 #include "ddsi__gc.h"
 

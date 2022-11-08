@@ -10,7 +10,7 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include "dds/features.h"
-#include "dds/ddsi/ddsi_handshake.h"
+#include "ddsi__handshake.h"
 
 #ifdef DDS_HAS_SECURITY
 

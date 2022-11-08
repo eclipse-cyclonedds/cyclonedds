@@ -99,7 +99,6 @@ set(hdrs_ddsi
   ddsi_security_util.h
   ddsi_security_omg.h
   ddsi_portmapping.h
-  ddsi_handshake.h
   ddsi_serdata.h
   ddsi_sertype.h
   ddsi_serdata_cdr.h
@@ -174,7 +173,8 @@ set(hdrs_private_ddsi
   ddsi__entity_index.h
   ddsi__entity_match.h
   ddsi__entity.h
-  ddsi__gc.h)
+  ddsi__gc.h
+  ddsi__handshake.h)
 
 if(ENABLE_LIFESPAN)
   list(APPEND srcs_ddsi ddsi_lifespan.c)

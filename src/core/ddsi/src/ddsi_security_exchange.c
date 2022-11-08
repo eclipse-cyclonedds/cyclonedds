@@ -21,7 +21,7 @@
 #include "ddsi__entity_index.h"
 #include "dds/ddsi/ddsi_security_exchange.h"
 #include "dds/ddsi/ddsi_security_omg.h"
-#include "dds/ddsi/ddsi_handshake.h"
+#include "ddsi__handshake.h"
 #include "dds/ddsi/ddsi_serdata_pserop.h"
 #include "dds/ddsi/q_ddsi_discovery.h"
 #include "dds/ddsi/ddsi_tkmap.h"

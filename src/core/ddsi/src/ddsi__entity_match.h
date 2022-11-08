@@ -16,6 +16,7 @@
 #include "dds/features.h"
 
 #include "dds/ddsrt/avl.h"
+#include "ddsi__handshake.h"
 #include "dds/ddsi/q_addrset.h"
 #include "dds/ddsi/ddsi_entity_match.h"
 
