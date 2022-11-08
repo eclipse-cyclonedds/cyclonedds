@@ -96,32 +96,10 @@ struct dds_cdrstream_desc {
   size_t opt_size_xcdr2;
 };
 
-#ifndef NDEBUG
-typedef struct align { uint32_t a; } align_t;
-#define ALIGN(n) ((n).a)
-#else
-typedef uint32_t align_t;
-#define ALIGN(n) (n)
-#endif
-
 DDSRT_STATIC_ASSERT (offsetof (dds_ostreamLE_t, x) == 0);
-
 DDSRT_STATIC_ASSERT (offsetof (dds_ostreamBE_t, x) == 0);
 
-inline align_t dds_cdr_get_align (uint32_t xcdr_version, uint32_t size)
-{
-#ifndef NDEBUG
-#define MK_ALIGN(n) (struct align){(n)}
-#else
-#define MK_ALIGN(n) (n)
-#endif
-  if (size > 4)
-    return xcdr_version == DDS_CDR_ENC_VERSION_2 ? MK_ALIGN(4) : MK_ALIGN(8);
-  return MK_ALIGN(size);
-#undef MK_ALIGN
-}
-
-uint32_t dds_cdr_alignto_clear_and_resize (dds_ostream_t * __restrict s, align_t a, uint32_t extra);
+uint32_t dds_cdr_alignto4_clear_and_resize (dds_ostream_t * __restrict s, uint32_t xcdr_version);
 
 DDS_EXPORT void dds_istream_init (dds_istream_t * __restrict st, uint32_t size, const void * __restrict input, uint32_t xcdr_version);
 DDS_EXPORT void dds_istream_fini (dds_istream_t * __restrict st);
