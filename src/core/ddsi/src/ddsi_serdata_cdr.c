@@ -168,7 +168,7 @@ static struct ddsi_serdata_cdr *serdata_cdr_from_ser_common (const struct ddsi_s
 
   const bool needs_bswap = !CDR_ENC_IS_NATIVE (d->hdr.identifier);
   d->hdr.identifier = CDR_ENC_TO_NATIVE (d->hdr.identifier);
-  const uint32_t pad = ddsrt_fromBE2u (d->hdr.options) & 2;
+  const uint32_t pad = ddsrt_fromBE2u (d->hdr.options) & DDS_CDR_HDR_PADDING_MASK;
   const uint32_t xcdr_version = ddsi_sertype_enc_id_xcdr_version (d->hdr.identifier);
   const uint32_t encoding_format = ddsi_sertype_enc_id_enc_format (d->hdr.identifier);
   if (xcdr_version != DDS_CDR_ENC_VERSION_2 || encoding_format != tp->encoding_format)

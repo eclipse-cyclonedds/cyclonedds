@@ -36,6 +36,11 @@ extern "C" {
 #define DDS_CDR_ENC_FORMAT_DELIMITED  1
 #define DDS_CDR_ENC_FORMAT_PL         2
 
+/* X-Types spec 7.6.3.1.2: Implementations of this specification shall set the
+least significant two bits in the second byte of the options field to a value
+that encodes the number of padding bytes needed after the end of the serialized
+payload in order to reach the next 4-byte aligned offset. */
+#define DDS_CDR_HDR_PADDING_MASK 0x3
 
 struct dds_cdr_header {
   unsigned short identifier;
