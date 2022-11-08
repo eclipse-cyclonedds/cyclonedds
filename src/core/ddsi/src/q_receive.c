@@ -58,6 +58,7 @@
 #include "dds/ddsi/ddsi_security_omg.h"
 #include "ddsi__acknack.h"
 #include "dds/ddsi/sysdeps.h"
+#include "ddsi__deliver_locally.h"
 
 #include "dds/cdr/dds_cdrstream.h"
 #include "dds__whc.h"
@@ -2249,10 +2250,10 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
     .tstamp = tstamp
   };
   if (rdguid)
-    (void) deliver_locally_one (gv, &pwr->e, pwr_locked != 0, rdguid, &wrinfo, &deliver_locally_ops, &sourceinfo);
+    (void) ddsi_deliver_locally_one (gv, &pwr->e, pwr_locked != 0, rdguid, &wrinfo, &deliver_locally_ops, &sourceinfo);
   else
   {
-    (void) deliver_locally_allinsync (gv, &pwr->e, pwr_locked != 0, &pwr->rdary, &wrinfo, &deliver_locally_ops, &sourceinfo);
+    (void) ddsi_deliver_locally_allinsync (gv, &pwr->e, pwr_locked != 0, &pwr->rdary, &wrinfo, &deliver_locally_ops, &sourceinfo);
     ddsrt_atomic_st32 (&pwr->next_deliv_seq_lowword, (uint32_t) (sampleinfo->seq + 1));
   }
 

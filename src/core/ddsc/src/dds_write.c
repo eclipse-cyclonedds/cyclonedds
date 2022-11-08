@@ -190,7 +190,7 @@ static dds_return_t deliver_locally (struct ddsi_writer *wr, struct ddsi_serdata
   dds_return_t rc;
   struct ddsi_writer_info wrinfo;
   ddsi_make_writer_info (&wrinfo, &wr->e, wr->xqos, payload->statusinfo);
-  rc = deliver_locally_allinsync (wr->e.gv, &wr->e, false, &wr->rdary, &wrinfo, &deliver_locally_ops, &sourceinfo);
+  rc = ddsi_deliver_locally_allinsync (wr->e.gv, &wr->e, false, &wr->rdary, &wrinfo, &deliver_locally_ops, &sourceinfo);
   if (rc == DDS_RETCODE_TIMEOUT)
     DDS_CERROR (&wr->e.gv->logconfig, "The writer could not deliver data on time, probably due to a local reader resources being full\n");
   return rc;
