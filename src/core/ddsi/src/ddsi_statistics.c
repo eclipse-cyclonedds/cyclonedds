@@ -14,7 +14,7 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "ddsi__entity_index.h"
 #include "dds/ddsi/ddsi_statistics.h"
-#include "dds/ddsi/ddsi_entity.h"
+#include "ddsi__entity.h"
 #include "ddsi__entity_match.h"
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/ddsi_proxy_endpoint.h"

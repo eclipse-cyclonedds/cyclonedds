@@ -16,7 +16,7 @@
 #include "dds/ddsi/ddsi_serdata_pserop.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/q_bswap.h"
-#include "dds/ddsi/ddsi_entity.h"
+#include "ddsi__entity.h"
 #include "ddsi__entity_index.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_participant.h"

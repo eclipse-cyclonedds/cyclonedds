@@ -22,7 +22,6 @@ extern "C" {
 
 #include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/q_radmin.h"
-#include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_security_msg.h"
 
 

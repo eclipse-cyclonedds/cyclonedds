@@ -16,6 +16,8 @@
 #include "dds/features.h"
 
 #include "dds/ddsrt/fibheap.h"
+#include "dds/ddsi/ddsi_entity.h"
+#include "dds/ddsi/q_hbcontrol.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -23,6 +25,7 @@ extern "C" {
 
 struct ddsi_participant;
 struct ddsi_type_pair;
+struct ddsi_writer_info;
 struct ddsi_entity_common;
 struct ddsi_endpoint_common;
 struct dds_qos;

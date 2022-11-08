@@ -16,6 +16,7 @@
 #include "dds/features.h"
 
 #include "dds/ddsrt/fibheap.h"
+#include "dds/ddsi/q_whc.h"
 
 #if defined (__cplusplus)
 extern "C" {

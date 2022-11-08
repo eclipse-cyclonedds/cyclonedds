@@ -15,7 +15,7 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsi/q_bswap.h"
-#include "dds/ddsi/ddsi_entity.h"
+#include "ddsi__entity.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
 #include "dds/ddsi/q_transmit.h"
 #include "dds/ddsi/q_misc.h"

@@ -17,7 +17,6 @@
 
 #include "dds/ddsrt/time.h"
 #include "dds/ddsi/q_xevent.h"
-#include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/q_protocol.h"
 
 #if defined (__cplusplus)

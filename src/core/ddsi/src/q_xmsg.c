@@ -35,7 +35,7 @@
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/ddsi_config_impl.h"
-#include "dds/ddsi/ddsi_entity.h"
+#include "ddsi__entity.h"
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "ddsi__entity_index.h"

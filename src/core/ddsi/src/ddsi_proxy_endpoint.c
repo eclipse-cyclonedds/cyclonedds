@@ -14,7 +14,7 @@
 #include <stddef.h>
 
 #include "dds/ddsrt/heap.h"
-#include "dds/ddsi/ddsi_entity.h"
+#include "ddsi__entity.h"
 #include "ddsi__entity_match.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
 #include "dds/ddsi/ddsi_endpoint.h"

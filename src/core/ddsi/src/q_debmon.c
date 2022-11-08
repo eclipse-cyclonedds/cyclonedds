@@ -20,7 +20,7 @@
 
 #include "dds/ddsrt/avl.h"
 
-#include "dds/ddsi/ddsi_entity.h"
+#include "ddsi__entity.h"
 #include "ddsi__entity_match.h"
 #include "dds/ddsi/ddsi_participant.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"

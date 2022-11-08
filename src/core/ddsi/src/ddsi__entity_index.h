@@ -14,11 +14,11 @@
 
 #include "dds/ddsrt/hopscotch.h"
 #include "dds/ddsi/q_thread.h"
-#include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_topic.h"
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/ddsi_proxy_endpoint.h"
 #include "dds/ddsi/ddsi_entity_index.h"
+#include "dds/ddsi/ddsi_entity.h"
 
 #if defined (__cplusplus)
 extern "C" {

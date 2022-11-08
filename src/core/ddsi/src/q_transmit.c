@@ -18,7 +18,7 @@
 #include "dds/ddsrt/static_assert.h"
 
 #include "dds/ddsrt/avl.h"
-#include "dds/ddsi/ddsi_entity.h"
+#include "ddsi__entity.h"
 #include "dds/ddsi/ddsi_participant.h"
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "ddsi__entity_index.h"

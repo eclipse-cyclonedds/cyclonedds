@@ -23,7 +23,7 @@
 #include "dds/ddsi/ddsi_rhc.h"
 #include "ddsi__entity_index.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/ddsi_entity.h"
+#include "ddsi__entity.h"
 #include "ddsi__deliver_locally.h"
 #include "ddsi__endpoint.h"
 

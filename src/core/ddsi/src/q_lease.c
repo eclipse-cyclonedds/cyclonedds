@@ -28,7 +28,7 @@
 #include "dds/ddsi/q_ddsi_discovery.h"
 #include "dds/ddsi/q_radmin.h"
 #include "ddsi__entity_index.h"
-#include "dds/ddsi/ddsi_entity.h"
+#include "ddsi__entity.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/ddsi_proxy_endpoint.h"

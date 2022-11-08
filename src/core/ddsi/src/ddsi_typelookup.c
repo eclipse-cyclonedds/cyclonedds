@@ -28,7 +28,7 @@
 #include "dds/ddsi/ddsi_xt_impl.h"
 #include "dds/ddsi/ddsi_typebuilder.h"
 #include "dds/cdr/dds_cdrstream.h"
-#include "dds/ddsi/ddsi_entity.h"
+#include "ddsi__entity.h"
 #include "ddsi__entity_match.h"
 #include "dds/ddsi/ddsi_participant.h"
 #include "dds/ddsi/ddsi_gc.h"

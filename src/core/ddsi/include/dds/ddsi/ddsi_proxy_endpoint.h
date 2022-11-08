@@ -20,12 +20,15 @@
 #include "dds/ddsi/ddsi_guid.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_entity.h"
+#include "dds/ddsi/q_lease.h"
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
 
 struct ddsi_proxy_participant;
+struct ddsi_proxy_reader;
+struct ddsi_alive_state;
 struct dds_qos;
 struct addrset;
 

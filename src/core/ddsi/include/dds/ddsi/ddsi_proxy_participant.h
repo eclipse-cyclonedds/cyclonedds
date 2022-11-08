@@ -19,7 +19,6 @@
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsrt/fibheap.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_topic.h"
 
 #if defined (__cplusplus)
@@ -30,6 +29,7 @@ struct lease;
 struct ddsi_plist;
 struct addrset;
 struct ddsi_proxy_endpoint_common;
+struct ddsi_proxy_writer;
 
 struct ddsi_proxy_participant
 {

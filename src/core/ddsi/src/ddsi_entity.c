@@ -16,7 +16,7 @@
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsrt/string.h"
 
-#include "dds/ddsi/ddsi_entity.h"
+#include "ddsi__entity.h"
 #include "dds/ddsi/ddsi_participant.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
 #include "dds/ddsi/ddsi_builtin_topic_if.h"

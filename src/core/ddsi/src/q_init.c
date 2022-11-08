@@ -38,7 +38,7 @@
 #include "ddsi__entity_index.h"
 #include "dds/ddsi/q_lease.h"
 #include "dds/ddsi/ddsi_gc.h"
-#include "dds/ddsi/ddsi_entity.h"
+#include "ddsi__entity.h"
 #include "dds/ddsi/ddsi_participant.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
 #include "dds/ddsi/ddsi_endpoint.h"

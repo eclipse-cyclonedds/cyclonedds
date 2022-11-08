@@ -18,7 +18,11 @@
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsrt/fibheap.h"
 #include "dds/ddsrt/sync.h"
+#include "dds/ddsrt/log.h"
+#include "dds/ddsi/ddsi_gc.h"
 #include "dds/ddsi/ddsi_entity.h"
+#include "dds/ddsi/q_inverse_uint32_set.h"
+#include "dds/ddsi/ddsi_plist.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -29,6 +33,8 @@ extern "C" {
 
 extern const ddsrt_fibheap_def_t ldur_fhdef;
 extern const ddsrt_fibheap_def_t lease_fhdef_pp;
+
+struct ddsi_writer;
 
 struct deleted_participant {
   ddsrt_avl_node_t avlnode;

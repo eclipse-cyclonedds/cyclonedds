@@ -27,6 +27,7 @@ int ddsi_is_topic_entityid (ddsi_entityid_t id);
 
 #ifdef DDS_HAS_TOPIC_DISCOVERY
 
+struct ddsi_proxy_participant;
 struct ddsi_type_pair;
 struct dds_qos;
 
