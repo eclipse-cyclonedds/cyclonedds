@@ -32,6 +32,7 @@
 #include "dds/ddsi/q_addrset.h"
 #include "dds__whc.h"
 #include "ddsi__endpoint.h"
+#include "ddsi__entity_match.h"
 
 static const unsigned builtin_writers_besmask =
   NN_DISC_BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER |
@@ -274,7 +275,7 @@ static void connect_participant_secure (struct ddsi_domaingv *gv, struct ddsi_pa
     {
       /* Do not start handshaking when security info doesn't match. */
       if (q_omg_security_remote_participant_is_initialized(proxypp) && q_omg_is_similar_participant_security_info(pp, proxypp))
-        ddsi_handshake_register(pp, proxypp, handshake_end_cb);
+        ddsi_handshake_register(pp, proxypp, ddsi_handshake_end_cb);
     }
     ddsi_entidx_enum_proxy_participant_fini (&it);
   }

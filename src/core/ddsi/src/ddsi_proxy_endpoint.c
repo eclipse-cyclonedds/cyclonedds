@@ -15,7 +15,7 @@
 
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsi/ddsi_entity.h"
-#include "dds/ddsi/ddsi_entity_match.h"
+#include "ddsi__entity_match.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/ddsi_proxy_endpoint.h"
@@ -294,7 +294,7 @@ int ddsi_new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppg
   pwr->ddsi2direct_cb = 0;
   pwr->ddsi2direct_cbarg = 0;
 
-  local_reader_ary_init (&pwr->rdary);
+  ddsi_local_reader_ary_init (&pwr->rdary);
 
   /* locking the entity prevents matching while the built-in topic hasn't been published yet */
   ddsrt_mutex_lock (&pwr->e.lock);
@@ -302,7 +302,7 @@ int ddsi_new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppg
   ddsi_builtintopic_write_endpoint (gv->builtin_topic_interface, &pwr->e, timestamp, true);
   ddsrt_mutex_unlock (&pwr->e.lock);
 
-  match_proxy_writer_with_readers (pwr, tnow);
+  ddsi_match_proxy_writer_with_readers (pwr, tnow);
 
   ddsrt_mutex_lock (&pwr->e.lock);
   pwr->local_matching_inprogress = 0;
@@ -367,11 +367,11 @@ static void gc_delete_proxy_writer (struct ddsi_gcreq *gcreq)
   {
     struct ddsi_pwr_rd_match *m = ddsrt_avl_root_non_empty (&ddsi_pwr_readers_treedef, &pwr->readers);
     ddsrt_avl_delete (&ddsi_pwr_readers_treedef, &pwr->readers, m);
-    reader_drop_connection (&m->rd_guid, pwr);
+    ddsi_reader_drop_connection (&m->rd_guid, pwr);
     ddsi_update_reader_init_acknack_count (&pwr->e.gv->logconfig, pwr->e.gv->entity_index, &m->rd_guid, m->count);
-    free_pwr_rd_match (m);
+    ddsi_free_pwr_rd_match (m);
   }
-  local_reader_ary_fini (&pwr->rdary);
+  ddsi_local_reader_ary_fini (&pwr->rdary);
   if (pwr->c.xqos->liveliness.lease_duration != DDS_INFINITY)
     lease_free (pwr->lease);
 #ifdef DDS_HAS_SECURITY
@@ -428,7 +428,7 @@ int ddsi_delete_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *
      trust rdary[] anymore, which is because removing the proxy writer from the hash
      table will prevent the readers from looking up the proxy writer, and consequently
      from removing themselves from the proxy writer's rdary[]. */
-  local_reader_ary_setinvalid (&pwr->rdary);
+  ddsi_local_reader_ary_setinvalid (&pwr->rdary);
   GVLOGDISC ("- deleting\n");
   ddsi_builtintopic_write_endpoint (gv->builtin_topic_interface, &pwr->e, timestamp, false);
 #ifdef DDS_HAS_TYPE_DISCOVERY
@@ -587,7 +587,7 @@ int ddsi_new_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *ppg
   ddsi_builtintopic_write_endpoint (gv->builtin_topic_interface, &prd->e, timestamp, true);
   ddsrt_mutex_unlock (&prd->e.lock);
 
-  match_proxy_reader_with_writers (prd, tnow);
+  ddsi_match_proxy_reader_with_writers (prd, tnow);
   return DDS_RETCODE_OK;
 }
 
@@ -716,8 +716,8 @@ static void gc_delete_proxy_reader (struct ddsi_gcreq *gcreq)
   {
     struct ddsi_prd_wr_match *m = ddsrt_avl_root_non_empty (&ddsi_prd_writers_treedef, &prd->writers);
     ddsrt_avl_delete (&ddsi_prd_writers_treedef, &prd->writers, m);
-    writer_drop_connection (&m->wr_guid, prd);
-    free_prd_wr_match (m);
+    ddsi_writer_drop_connection (&m->wr_guid, prd);
+    ddsi_free_prd_wr_match (m);
   }
 #ifdef DDS_HAS_SECURITY
   q_omg_security_deregister_remote_reader(prd);

@@ -60,6 +60,7 @@
 #include "dds/ddsi/sysdeps.h"
 #include "ddsi__deliver_locally.h"
 #include "ddsi__endpoint.h"
+#include "ddsi__entity_match.h"
 
 #include "dds/cdr/dds_cdrstream.h"
 #include "dds__whc.h"
@@ -95,7 +96,7 @@ static void maybe_set_reader_in_sync (struct ddsi_proxy_writer *pwr, struct ddsi
       {
         wn->in_sync = PRMSS_SYNC;
         if (--pwr->n_readers_out_of_sync == 0)
-          local_reader_ary_setfastpath_ok (&pwr->rdary, true);
+          ddsi_local_reader_ary_setfastpath_ok (&pwr->rdary, true);
       }
       break;
     case PRMSS_OUT_OF_SYNC:

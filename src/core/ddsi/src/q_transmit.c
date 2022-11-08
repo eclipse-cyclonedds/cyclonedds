@@ -41,6 +41,7 @@
 #include "dds/ddsi/ddsi_security_omg.h"
 #include "dds/ddsi/sysdeps.h"
 #include "ddsi__endpoint.h"
+#include "ddsi__entity_match.h"
 
 #include "dds__whc.h"
 

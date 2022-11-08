@@ -29,7 +29,7 @@
 #include "dds/ddsi/ddsi_typebuilder.h"
 #include "dds/cdr/dds_cdrstream.h"
 #include "dds/ddsi/ddsi_entity.h"
-#include "dds/ddsi/ddsi_entity_match.h"
+#include "ddsi__entity_match.h"
 #include "dds/ddsi/ddsi_participant.h"
 #include "dds/ddsi/ddsi_gc.h"
 #include "dds/ddsi/q_protocol.h"

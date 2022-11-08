@@ -16,7 +16,7 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsi/ddsi_entity.h"
-#include "dds/ddsi/ddsi_entity_match.h"
+#include "ddsi__entity_match.h"
 #include "dds/ddsi/ddsi_participant.h"
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/ddsi_rhc.h"
@@ -323,7 +323,7 @@ void ddsi_update_reader_init_acknack_count (const ddsrt_log_cfg_t *logcfg, const
   struct ddsi_reader *rd;
 
   /* Update the initial acknack sequence number for the reader.  See
-     also reader_add_connection(). */
+     also ddsi_reader_add_connection(). */
   DDS_CLOG (DDS_LC_DISCOVERY, logcfg, "ddsi_update_reader_init_acknack_count ("PGUIDFMT", %"PRIu32"): ", PGUID (*rd_guid), count);
   if ((rd = ddsi_entidx_lookup_reader_guid (entidx, rd_guid)) != NULL)
   {
@@ -906,7 +906,7 @@ static void ddsi_new_writer_guid_common_init (struct ddsi_writer *wr, const char
   ddsrt_avl_init (&ddsi_wr_readers_treedef, &wr->readers);
   ddsrt_avl_init (&ddsi_wr_local_readers_treedef, &wr->local_readers);
 
-  local_reader_ary_init (&wr->rdary);
+  ddsi_local_reader_ary_init (&wr->rdary);
 }
 
 dds_return_t ddsi_new_writer_guid (struct ddsi_writer **wr_out, const struct ddsi_guid *guid, const struct ddsi_guid *group_guid, struct ddsi_participant *pp, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos, struct whc *whc, ddsi_status_cb_t status_cb, void *status_entity)
@@ -951,8 +951,8 @@ dds_return_t ddsi_new_writer_guid (struct ddsi_writer **wr_out, const struct dds
    slightly lower likelihood that a response from a proxy reader
    gets dropped) -- but note that without adding a lock it might be
    deleted while we do so */
-  match_writer_with_proxy_readers (wr, tnow);
-  match_writer_with_local_readers (wr, tnow);
+  ddsi_match_writer_with_proxy_readers (wr, tnow);
+  ddsi_match_writer_with_local_readers (wr, tnow);
   sedp_write_writer (wr);
 
   if (wr->lease_duration != NULL)
@@ -1032,7 +1032,7 @@ struct ddsi_local_orphan_writer *ddsi_new_local_orphan_writer (struct ddsi_domai
   ddsi_new_writer_guid_common_init (wr, topic_name, type, xqos, whc, 0, NULL);
   ddsi_entidx_insert_writer_guid (gv->entity_index, wr);
   ddsi_builtintopic_write_endpoint (gv->builtin_topic_interface, &wr->e, ddsrt_time_wallclock(), true);
-  match_writer_with_local_readers (wr, tnow);
+  ddsi_match_writer_with_local_readers (wr, tnow);
   return lowr;
 }
 
@@ -1068,15 +1068,15 @@ static void gc_delete_writer (struct ddsi_gcreq *gcreq)
   {
     struct ddsi_wr_prd_match *m = ddsrt_avl_root_non_empty (&ddsi_wr_readers_treedef, &wr->readers);
     ddsrt_avl_delete (&ddsi_wr_readers_treedef, &wr->readers, m);
-    proxy_reader_drop_connection (&m->prd_guid, wr);
-    free_wr_prd_match (wr->e.gv, &wr->e.guid, m);
+    ddsi_proxy_reader_drop_connection (&m->prd_guid, wr);
+    ddsi_free_wr_prd_match (wr->e.gv, &wr->e.guid, m);
   }
   while (!ddsrt_avl_is_empty (&wr->local_readers))
   {
     struct ddsi_wr_rd_match *m = ddsrt_avl_root_non_empty (&ddsi_wr_local_readers_treedef, &wr->local_readers);
     ddsrt_avl_delete (&ddsi_wr_local_readers_treedef, &wr->local_readers, m);
-    reader_drop_local_connection (&m->rd_guid, wr);
-    free_wr_rd_match (m);
+    ddsi_reader_drop_local_connection (&m->rd_guid, wr);
+    ddsi_free_wr_rd_match (m);
   }
   if (wr->lease_duration != NULL)
   {
@@ -1103,7 +1103,7 @@ static void gc_delete_writer (struct ddsi_gcreq *gcreq)
   unref_addrset (wr->as); /* must remain until readers gone (rebuilding of addrset) */
   ddsi_xqos_fini (wr->xqos);
   ddsrt_free (wr->xqos);
-  local_reader_ary_fini (&wr->rdary);
+  ddsi_local_reader_ary_fini (&wr->rdary);
   ddsrt_cond_destroy (&wr->throttle_cond);
 
   ddsi_sertype_unref ((struct ddsi_sertype *) wr->type);
@@ -1214,7 +1214,7 @@ static dds_return_t delete_writer_nolinger_locked (struct ddsi_writer *wr)
 
   ELOGDISC (wr, "ddsi_delete_writer_nolinger(guid "PGUIDFMT") ...\n", PGUID (wr->e.guid));
   ddsi_builtintopic_write_endpoint (wr->e.gv->builtin_topic_interface, &wr->e, ddsrt_time_wallclock(), false);
-  local_reader_ary_setinvalid (&wr->rdary);
+  ddsi_local_reader_ary_setinvalid (&wr->rdary);
   ddsi_entidx_remove_writer_guid (wr->e.gv->entity_index, wr);
   writer_set_state (wr, WRST_DELETING);
   if (wr->lease_duration != NULL) {
@@ -1494,8 +1494,8 @@ dds_return_t ddsi_new_reader_guid (struct ddsi_reader **rd_out, const struct dds
   ddsi_builtintopic_write_endpoint (pp->e.gv->builtin_topic_interface, &rd->e, ddsrt_time_wallclock(), true);
   ddsrt_mutex_unlock (&rd->e.lock);
 
-  match_reader_with_proxy_writers (rd, tnow);
-  match_reader_with_local_writers (rd, tnow);
+  ddsi_match_reader_with_proxy_writers (rd, tnow);
+  ddsi_match_reader_with_local_writers (rd, tnow);
   sedp_write_reader (rd);
   return 0;
 }
@@ -1523,15 +1523,15 @@ static void gc_delete_reader (struct ddsi_gcreq *gcreq)
   {
     struct ddsi_rd_pwr_match *m = ddsrt_avl_root_non_empty (&ddsi_rd_writers_treedef, &rd->writers);
     ddsrt_avl_delete (&ddsi_rd_writers_treedef, &rd->writers, m);
-    proxy_writer_drop_connection (&m->pwr_guid, rd);
-    free_rd_pwr_match (rd->e.gv, &rd->e.guid, m);
+    ddsi_proxy_writer_drop_connection (&m->pwr_guid, rd);
+    ddsi_free_rd_pwr_match (rd->e.gv, &rd->e.guid, m);
   }
   while (!ddsrt_avl_is_empty (&rd->local_writers))
   {
     struct ddsi_rd_wr_match *m = ddsrt_avl_root_non_empty (&ddsi_rd_local_writers_treedef, &rd->local_writers);
     ddsrt_avl_delete (&ddsi_rd_local_writers_treedef, &rd->local_writers, m);
-    writer_drop_local_connection (&m->wr_guid, rd);
-    free_rd_wr_match (m);
+    ddsi_writer_drop_local_connection (&m->wr_guid, rd);
+    ddsi_free_rd_wr_match (m);
   }
 
 #ifdef DDS_HAS_SECURITY

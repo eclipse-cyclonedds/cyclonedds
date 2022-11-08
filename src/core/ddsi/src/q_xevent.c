@@ -45,6 +45,7 @@
 #include "dds/ddsi/ddsi_pmd.h"
 #include "ddsi__acknack.h"
 #include "ddsi__endpoint.h"
+#include "ddsi__entity_match.h"
 #include "dds__whc.h"
 
 #include "dds/ddsi/sysdeps.h"

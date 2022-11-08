@@ -16,7 +16,7 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsi/ddsi_entity.h"
-#include "dds/ddsi/ddsi_entity_match.h"
+#include "ddsi__entity_match.h"
 #include "dds/ddsi/ddsi_participant.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
 #include "dds/ddsi/ddsi_endpoint.h"
@@ -122,7 +122,7 @@ static void create_proxy_builtin_endpoint_impl (struct ddsi_domaingv *gv, ddsrt_
   }
 }
 
-static void create_proxy_builtin_endpoints (struct ddsi_domaingv *gv, const struct bestab *bestab, int nbes, const struct ddsi_guid *ppguid, struct ddsi_proxy_participant *proxypp, ddsrt_wctime_t timestamp, dds_qos_t *xqos_wr, dds_qos_t *xqos_rd)
+static void create_proxy_builtin_endpoints (struct ddsi_domaingv *gv, const struct ddsi_bestab *bestab, int nbes, const struct ddsi_guid *ppguid, struct ddsi_proxy_participant *proxypp, ddsrt_wctime_t timestamp, dds_qos_t *xqos_wr, dds_qos_t *xqos_rd)
 {
   ddsi_plist_t plist_rd, plist_wr;
   /* Note: no entity name or group GUID supplied, but that shouldn't
@@ -133,7 +133,7 @@ static void create_proxy_builtin_endpoints (struct ddsi_domaingv *gv, const stru
   ddsi_xqos_copy (&plist_rd.qos, xqos_rd);
   for (int i = 0; i < nbes; i++)
   {
-    const struct bestab *te = &bestab[i];
+    const struct ddsi_bestab *te = &bestab[i];
     if (proxypp->bes & te->besflag)
     {
       ddsi_guid_t ep_guid = { .prefix = proxypp->e.guid.prefix, .entityid.u = te->entityid };
@@ -153,7 +153,7 @@ static void add_proxy_builtin_endpoints (struct ddsi_domaingv *gv, const struct 
 #define LTE(a_, bp_, b_, c_) { NN_##BUILTIN_ENDPOINT_##a_, NN_ENTITYID_##bp_##_BUILTIN_##b_, DDS_BUILTIN_TOPIC_##c_##_NAME }
 
   /* 'Default' proxy endpoints. */
-  static const struct bestab bestab_default[] = {
+  static const struct ddsi_bestab bestab_default[] = {
 #if 0
     /* SPDP gets special treatment => no need for proxy
        writers/readers */
@@ -177,7 +177,7 @@ static void add_proxy_builtin_endpoints (struct ddsi_domaingv *gv, const struct 
 
 #ifdef DDS_HAS_TYPE_DISCOVERY
   /* Volatile proxy endpoints. */
-  static const struct bestab bestab_volatile[] = {
+  static const struct ddsi_bestab bestab_volatile[] = {
     LTE (TL_SVC_REQUEST_DATA_WRITER, TL_SVC, REQUEST_WRITER, TYPELOOKUP_REQUEST),
     LTE (TL_SVC_REQUEST_DATA_READER, TL_SVC, REQUEST_READER, TYPELOOKUP_REQUEST),
     LTE (TL_SVC_REPLY_DATA_WRITER, TL_SVC, REPLY_WRITER, TYPELOOKUP_REPLY),
@@ -190,7 +190,7 @@ static void add_proxy_builtin_endpoints (struct ddsi_domaingv *gv, const struct 
 
 #ifdef DDS_HAS_SECURITY
   /* Security 'default' proxy endpoints. */
-  static const struct bestab bestab_security[] = {
+  static const struct ddsi_bestab bestab_security[] = {
     LTE (PUBLICATION_MESSAGE_SECURE_ANNOUNCER, SEDP, PUBLICATIONS_SECURE_WRITER, PUBLICATION_SECURE),
     LTE (PUBLICATION_MESSAGE_SECURE_DETECTOR, SEDP, PUBLICATIONS_SECURE_READER, PUBLICATION_SECURE),
     LTE (SUBSCRIPTION_MESSAGE_SECURE_ANNOUNCER, SEDP, SUBSCRIPTIONS_SECURE_WRITER, SUBSCRIPTION_SECURE),
@@ -205,7 +205,7 @@ static void add_proxy_builtin_endpoints (struct ddsi_domaingv *gv, const struct 
     ppguid, proxypp, timestamp, &gv->builtin_endpoint_xqos_wr, &gv->builtin_endpoint_xqos_rd);
 
   /* Security 'volatile' proxy endpoints. */
-  static const struct bestab bestab_security_volatile[] = {
+  static const struct ddsi_bestab bestab_security_volatile[] = {
     LTE (PARTICIPANT_VOLATILE_SECURE_ANNOUNCER, P2P, PARTICIPANT_VOLATILE_SECURE_WRITER, PARTICIPANT_VOLATILE_MESSAGE_SECURE),
     LTE (PARTICIPANT_VOLATILE_SECURE_DETECTOR, P2P, PARTICIPANT_VOLATILE_SECURE_READER, PARTICIPANT_VOLATILE_MESSAGE_SECURE)
   };
@@ -214,7 +214,7 @@ static void add_proxy_builtin_endpoints (struct ddsi_domaingv *gv, const struct 
     ppguid, proxypp, timestamp, &gv->builtin_secure_volatile_xqos_wr, &gv->builtin_secure_volatile_xqos_rd);
 
   /* Security 'stateless' proxy endpoints. */
-  static const struct bestab bestab_security_stateless[] = {
+  static const struct ddsi_bestab bestab_security_stateless[] = {
     LTE (PARTICIPANT_STATELESS_MESSAGE_ANNOUNCER, P2P, PARTICIPANT_STATELESS_MESSAGE_WRITER, PARTICIPANT_STATELESS_MESSAGE),
     LTE (PARTICIPANT_STATELESS_MESSAGE_DETECTOR, P2P, PARTICIPANT_STATELESS_MESSAGE_READER, PARTICIPANT_STATELESS_MESSAGE)
   };
@@ -309,7 +309,7 @@ static void free_proxy_participant (struct ddsi_proxy_participant *proxypp)
     lease_free (proxypp->lease);
   }
 #ifdef DDS_HAS_SECURITY
-  disconnect_proxy_participant_secure(proxypp);
+  ddsi_disconnect_proxy_participant_secure(proxypp);
   q_omg_security_deregister_remote_participant(proxypp);
 #endif
   unref_addrset (proxypp->as_default);
@@ -438,7 +438,7 @@ bool ddsi_new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_gui
   {
     q_omg_security_init_remote_participant (proxypp);
     /* check if the proxy participant has a match with a local participant */
-    if (!proxy_participant_has_pp_match (gv, proxypp))
+    if (!ddsi_proxy_participant_has_pp_match (gv, proxypp))
     {
       GVWARNING ("Remote secure participant "PGUIDFMT" not allowed\n", PGUID (*ppguid));
       free_proxy_participant (proxypp);
@@ -465,7 +465,7 @@ bool ddsi_new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_gui
 #ifdef DDS_HAS_SECURITY
   if (is_secure)
   {
-    proxy_participant_create_handshakes (gv, proxypp);
+    ddsi_proxy_participant_create_handshakes (gv, proxypp);
   }
 #endif
   return true;

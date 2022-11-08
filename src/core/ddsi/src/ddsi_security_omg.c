@@ -49,6 +49,7 @@
 #include "dds/ddsi/q_xevent.h"
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/sysdeps.h"
+#include "ddsi__entity_match.h"
 
 #define AUTH_NAME "Authentication"
 #define AC_NAME "Access Control"
@@ -2774,7 +2775,7 @@ void q_omg_security_set_remote_writer_crypto_tokens(struct ddsi_reader *rd, cons
   ddsrt_mutex_unlock(&rd->e.lock);
 
   if (crypto_handle != 0)
-    connect_reader_with_proxy_writer_secure(rd, pwr, ddsrt_time_monotonic (), crypto_handle);
+    ddsi_connect_reader_with_proxy_writer_secure(rd, pwr, ddsrt_time_monotonic (), crypto_handle);
 
   if (pwr)
     notify_handshake_recv_token(rd->c.pp, pwr->c.proxypp);
@@ -2813,7 +2814,7 @@ void q_omg_security_set_remote_reader_crypto_tokens(struct ddsi_writer *wr, cons
    ddsrt_mutex_unlock(&wr->e.lock);
 
    if (crypto_handle != 0)
-     connect_writer_with_proxy_reader_secure(wr, prd, ddsrt_time_monotonic (), crypto_handle);
+     ddsi_connect_writer_with_proxy_reader_secure(wr, prd, ddsrt_time_monotonic (), crypto_handle);
 
    if (prd)
      notify_handshake_recv_token(wr->c.pp, prd->c.proxypp);

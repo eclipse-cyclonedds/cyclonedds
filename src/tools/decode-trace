@@ -680,7 +680,7 @@ while(<>) {
       }
     }
     check_qos($ts, $kind, fmtguid($prwguid), $topic, $partitions, $qos, undef);
-  } elsif (/(?:match_proxy_writer_with_readers|match_proxy_reader_with_writers)\((prd|pwr) ($gidre):([0-9a-f]+)(?{ $hexmode ? hex($3)%256 : $3%256 })/ && $isbuiltin_entitykind{$^R}) {
+  } elsif (/(?:ddsi_match_proxy_writer_with_readers|ddsi_match_proxy_reader_with_writers)\((prd|pwr) ($gidre):([0-9a-f]+)(?{ $hexmode ? hex($3)%256 : $3%256 })/ && $isbuiltin_entitykind{$^R}) {
     # this depends on GUIDs in hex ...
     my $kind = $1; my $prwguid = hexify("$2:$3");
     my $h = ($kind eq "prd") ? \%prd : \%pwr;
@@ -733,7 +733,7 @@ while(<>) {
     my $gk = ($kind eq "READER") ? "sub" : "pub";
     printf "%9.3f DELETE LOCAL $kind %s %s%s\n", $ts, fmtguid($guid), $topic, ($kind eq "WRITER" && $x->{nhappy} < scalar (keys %{$x->{matches}})) ? " (while unhappy)" : "" if $shows{localdisc} && $topic =~ /$topic_filter/o && $topic !~ /$topic_xfilter/o;
     $x->{tdel} = $ts;
-  } elsif (/proxy_writer_add_connection\(pwr ($guidre) rd ($guidre)\)/o) {
+  } elsif (/ddsi_proxy_writer_add_connection\(pwr ($guidre) rd ($guidre)\)/o) {
     next if /already connected/;
     my $pwrguid = hexify($1); my $rdguid = hexify($2);
     die unless exists $pwr{$pwrguid} || $pwrguid =~ /[4c][23]$/;
@@ -742,7 +742,7 @@ while(<>) {
     #next if $pwrguid =~ /[4c]2$/;
     $pwr{$pwrguid}->{matches}->{$rdguid} = {};
     $rd{$rdguid}->{matches}->{$pwrguid} = {};
-  } elsif (/writer_add_connection\(wr ($guidre) prd ($guidre)\)((?: - ack seq 9223372036854775807)?)/o) {
+  } elsif (/ddsi_writer_add_connection\(wr ($guidre) prd ($guidre)\)((?: - ack seq 9223372036854775807)?)/o) {
     next if /already connected/;
     my $wrguid = hexify($1); my $prdguid = hexify($2); my $bereader = $3 ne '';
     die unless exists $wr{$wrguid} || $wrguid =~ /[4c][23]$/;

@@ -21,6 +21,7 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "ddsi__acknack.h"
 #include "ddsi__entity_index.h"
+#include "ddsi__entity_match.h"
 #include "dds/ddsi/ddsi_security_omg.h"
 
 #define ACK_REASON_IN_FLAGS 0
@@ -230,7 +231,7 @@ static void add_acknack (struct nn_xmsg *msg, const struct ddsi_proxy_writer *pw
   encode_datareader_submsg (msg, sm_marker, pwr, &rwn->rd_guid);
 }
 
-static enum ddsi_add_acknack_result get_acknack_info (const struct ddsi_proxy_writer *pwr, const struct ddsi_pwr_rd_match *rwn, struct last_nack_summary *nack_summary, struct ddsi_add_acknack_info *info, bool ackdelay_passed, bool nackdelay_passed)
+static enum ddsi_add_acknack_result get_acknack_info (const struct ddsi_proxy_writer *pwr, const struct ddsi_pwr_rd_match *rwn, struct ddsi_last_nack_summary *nack_summary, struct ddsi_add_acknack_info *info, bool ackdelay_passed, bool nackdelay_passed)
 {
   /* If pwr->have_seen_heartbeat == 0, no heartbeat has been received
      by this proxy writer yet, so we'll be sending a pre-emptive
@@ -356,7 +357,7 @@ void ddsi_sched_acknack_if_needed (struct xevent *ev, struct ddsi_proxy_writer *
   const bool ackdelay_passed = (tnow.v >= ddsrt_mtime_add_duration (rwn->t_last_ack, gv->config.ack_delay).v);
   const bool nackdelay_passed = (tnow.v >= ddsrt_mtime_add_duration (rwn->t_last_nack, gv->config.nack_delay).v);
   struct ddsi_add_acknack_info info;
-  struct last_nack_summary nack_summary;
+  struct ddsi_last_nack_summary nack_summary;
   const enum ddsi_add_acknack_result aanr =
     get_acknack_info (pwr, rwn, &nack_summary, &info, ackdelay_passed, nackdelay_passed);
   if (aanr == AANR_SUPPRESSED_ACK)
@@ -373,7 +374,7 @@ struct nn_xmsg *ddsi_make_and_resched_acknack (struct xevent *ev, struct ddsi_pr
   struct nn_xmsg *msg;
   struct ddsi_add_acknack_info info;
 
-  struct last_nack_summary nack_summary;
+  struct ddsi_last_nack_summary nack_summary;
   const enum ddsi_add_acknack_result aanr =
     get_acknack_info (pwr, rwn, &nack_summary, &info,
                       tnow.v >= ddsrt_mtime_add_duration (rwn->t_last_ack, gv->config.ack_delay).v,

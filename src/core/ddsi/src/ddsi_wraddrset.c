@@ -16,7 +16,7 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/static_assert.h"
 #include "dds/ddsi/ddsi_entity.h"
-#include "dds/ddsi/ddsi_entity_match.h"
+#include "ddsi__entity_match.h"
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/q_addrset.h"
 #include "dds/ddsi/q_log.h"
