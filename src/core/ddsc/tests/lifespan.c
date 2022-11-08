@@ -32,7 +32,7 @@ static dds_entity_t g_waitset     = 0;
 static dds_entity_t g_rcond       = 0;
 static dds_entity_t g_qcond       = 0;
 
-static void lifespan_init(void)
+static void ddsi_lifespan_init(void)
 {
   dds_attach_t triggered;
   dds_return_t ret;
@@ -90,7 +90,7 @@ static void lifespan_init(void)
   dds_delete_qos(qos);
 }
 
-static void lifespan_fini(void)
+static void ddsi_lifespan_fini(void)
 {
   dds_delete(g_rcond);
   dds_delete(g_qcond);
@@ -121,7 +121,7 @@ static void check_whc_state(dds_entity_t writer, seqno_t exp_min, seqno_t exp_ma
   CU_ASSERT_EQUAL_FATAL (whcst.max_seq, exp_max);
 }
 
-CU_Test(ddsc_lifespan, basic, .init=lifespan_init, .fini=lifespan_fini)
+CU_Test(ddsc_lifespan, basic, .init=ddsi_lifespan_init, .fini=ddsi_lifespan_fini)
 {
   Space_Type1 sample = { 0, 0, 0 };
   dds_return_t ret;

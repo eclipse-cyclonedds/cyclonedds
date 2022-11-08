@@ -20,37 +20,37 @@
 extern "C" {
 #endif
 
-typedef ddsrt_mtime_t (*sample_expired_cb_t)(void *hc, ddsrt_mtime_t tnow);
+typedef ddsrt_mtime_t (*ddsi_sample_expired_cb_t)(void *hc, ddsrt_mtime_t tnow);
 
-struct lifespan_adm {
+struct ddsi_lifespan_adm {
   ddsrt_fibheap_t ls_exp_heap;              /* heap for sample expiration (lifespan) */
   struct xevent *evt;                       /* xevent that triggers for sample with earliest expiration */
-  sample_expired_cb_t sample_expired_cb;    /* callback for expired sample; this cb can use lifespan_next_expired_locked to get next expired sample */
+  ddsi_sample_expired_cb_t sample_expired_cb;    /* callback for expired sample; this cb can use ddsi_lifespan_next_expired_locked to get next expired sample */
   size_t fh_offset;                         /* offset of lifespan_adm element in whc or rhc */
   size_t fhn_offset;                        /* offset of lifespan_fhnode element in whc or rhc node (sample) */
 };
 
-struct lifespan_fhnode {
+struct ddsi_lifespan_fhnode {
   ddsrt_fibheap_node_t heapnode;
   ddsrt_mtime_t t_expire;
 };
 
-void lifespan_init (const struct ddsi_domaingv *gv, struct lifespan_adm *lifespan_adm, size_t fh_offset, size_t fh_node_offset, sample_expired_cb_t sample_expired_cb);
-void lifespan_fini (const struct lifespan_adm *lifespan_adm);
-ddsrt_mtime_t lifespan_next_expired_locked (const struct lifespan_adm *lifespan_adm, ddsrt_mtime_t tnow, void **sample);
-void lifespan_register_sample_real (struct lifespan_adm *lifespan_adm, struct lifespan_fhnode *node);
-void lifespan_unregister_sample_real (struct lifespan_adm *lifespan_adm, struct lifespan_fhnode *node);
+void ddsi_lifespan_init (const struct ddsi_domaingv *gv, struct ddsi_lifespan_adm *lifespan_adm, size_t fh_offset, size_t fh_node_offset, ddsi_sample_expired_cb_t sample_expired_cb);
+void ddsi_lifespan_fini (const struct ddsi_lifespan_adm *lifespan_adm);
+ddsrt_mtime_t ddsi_lifespan_next_expired_locked (const struct ddsi_lifespan_adm *lifespan_adm, ddsrt_mtime_t tnow, void **sample);
+void ddsi_lifespan_register_sample_real (struct ddsi_lifespan_adm *lifespan_adm, struct ddsi_lifespan_fhnode *node);
+void ddsi_lifespan_unregister_sample_real (struct ddsi_lifespan_adm *lifespan_adm, struct ddsi_lifespan_fhnode *node);
 
-inline void lifespan_register_sample_locked (struct lifespan_adm *lifespan_adm, struct lifespan_fhnode *node)
+inline void ddsi_lifespan_register_sample_locked (struct ddsi_lifespan_adm *lifespan_adm, struct ddsi_lifespan_fhnode *node)
 {
   if (node->t_expire.v != DDS_NEVER)
-    lifespan_register_sample_real (lifespan_adm, node);
+    ddsi_lifespan_register_sample_real (lifespan_adm, node);
 }
 
-inline void lifespan_unregister_sample_locked (struct lifespan_adm *lifespan_adm, struct lifespan_fhnode *node)
+inline void ddsi_lifespan_unregister_sample_locked (struct ddsi_lifespan_adm *lifespan_adm, struct ddsi_lifespan_fhnode *node)
 {
   if (node->t_expire.v != DDS_NEVER)
-    lifespan_unregister_sample_real (lifespan_adm, node);
+    ddsi_lifespan_unregister_sample_real (lifespan_adm, node);
 }
 
 #if defined (__cplusplus)

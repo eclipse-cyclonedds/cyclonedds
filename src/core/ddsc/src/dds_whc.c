@@ -53,7 +53,7 @@ struct whc_node {
   ddsrt_mtime_t last_rexmit_ts;
   uint32_t rexmit_count;
 #ifdef DDS_HAS_LIFESPAN
-  struct lifespan_fhnode lifespan; /* fibheap node for lifespan */
+  struct ddsi_lifespan_fhnode lifespan; /* fibheap node for lifespan */
 #endif
   struct ddsi_serdata *serdata;
 };
@@ -116,7 +116,7 @@ struct whc_impl {
   struct ddsrt_hh *idx_hash;
   ddsrt_avl_tree_t seq;
 #ifdef DDS_HAS_LIFESPAN
-  struct lifespan_adm lifespan; /* Lifespan administration */
+  struct ddsi_lifespan_adm lifespan; /* Lifespan administration */
 #endif
 #ifdef DDS_HAS_DEADLINE_MISSED
   struct ddsi_deadline_adm deadline; /* Deadline missed administration */
@@ -380,7 +380,7 @@ static ddsrt_mtime_t whc_sample_expired_cb(void *hc, ddsrt_mtime_t tnow)
   void *sample;
   ddsrt_mtime_t tnext;
   ddsrt_mutex_lock (&whc->lock);
-  while ((tnext = lifespan_next_expired_locked (&whc->lifespan, tnow, &sample)).v == 0)
+  while ((tnext = ddsi_lifespan_next_expired_locked (&whc->lifespan, tnow, &sample)).v == 0)
     whc_delete_one (whc, sample);
   whc->maxseq_node = whc_findmax_procedurally (whc);
   ddsrt_mutex_unlock (&whc->lock);
@@ -469,7 +469,7 @@ struct whc *whc_new (struct ddsi_domaingv *gv, const struct whc_writer_info *wri
 #endif
 
 #ifdef DDS_HAS_LIFESPAN
-  lifespan_init (gv, &whc->lifespan, offsetof(struct whc_impl, lifespan), offsetof(struct whc_node, lifespan), whc_sample_expired_cb);
+  ddsi_lifespan_init (gv, &whc->lifespan, offsetof(struct whc_impl, lifespan), offsetof(struct whc_node, lifespan), whc_sample_expired_cb);
 #endif
 
 #ifdef DDS_HAS_DEADLINE_MISSED
@@ -508,7 +508,7 @@ void whc_default_free (struct whc *whc_generic)
 
 #ifdef DDS_HAS_LIFESPAN
   whc_sample_expired_cb (whc, DDSRT_MTIME_NEVER);
-  lifespan_fini (&whc->lifespan);
+  ddsi_lifespan_fini (&whc->lifespan);
 #endif
 
 #ifdef DDS_HAS_DEADLINE_MISSED
@@ -781,7 +781,7 @@ static void whc_delete_one_intv (struct whc_impl *whc, struct whc_intvnode **p_i
   }
 
 #ifdef DDS_HAS_LIFESPAN
-  lifespan_unregister_sample_locked (&whc->lifespan, &whcn->lifespan);
+  ddsi_lifespan_unregister_sample_locked (&whc->lifespan, &whcn->lifespan);
 #endif
 
   /* Take it out of seqhash; deleting it from the list ordered on
@@ -968,7 +968,7 @@ static uint32_t whc_default_remove_acked_messages_noidx (struct whc_impl *whc, s
   for (whcn = *deferred_free_list; whcn; whcn = whcn->next_seq)
   {
 #ifdef DDS_HAS_LIFESPAN
-    lifespan_unregister_sample_locked (&whc->lifespan, &whcn->lifespan);
+    ddsi_lifespan_unregister_sample_locked (&whc->lifespan, &whcn->lifespan);
 #endif
     remove_whcn_from_hash (whc, whcn);
     assert (whcn->unacked);
@@ -1218,7 +1218,7 @@ static struct whc_node *whc_default_insert_seq (struct whc_impl *whc, seqno_t ma
 
   whc->seq_size++;
 #ifdef DDS_HAS_LIFESPAN
-  lifespan_register_sample_locked (&whc->lifespan, &newn->lifespan);
+  ddsi_lifespan_register_sample_locked (&whc->lifespan, &newn->lifespan);
 #endif
   return newn;
 }

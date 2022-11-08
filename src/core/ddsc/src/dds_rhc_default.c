@@ -247,7 +247,7 @@ struct rhc_sample {
   uint32_t disposed_gen;       /* snapshot of instance counter at time of insertion */
   uint32_t no_writers_gen;     /* __/ */
 #ifdef DDS_HAS_LIFESPAN
-  struct lifespan_fhnode lifespan;  /* fibheap node for lifespan */
+  struct ddsi_lifespan_fhnode lifespan;  /* fibheap node for lifespan */
   struct rhc_instance *inst;   /* reference to rhc instance */
 #endif
 };
@@ -327,7 +327,7 @@ struct dds_rhc_default {
   dds_querycond_mask_t qconds_samplest;  /* Mask of associated query conditions that check the sample state */
   void *qcond_eval_samplebuf;        /* Temporary storage for evaluating query conditions, NULL if no qconds */
 #ifdef DDS_HAS_LIFESPAN
-  struct lifespan_adm lifespan;      /* Lifespan administration */
+  struct ddsi_lifespan_adm lifespan;      /* Lifespan administration */
 #endif
 #ifdef DDS_HAS_DEADLINE_MISSED
   struct ddsi_deadline_adm deadline; /* Deadline missed administration */
@@ -520,7 +520,7 @@ ddsrt_mtime_t dds_rhc_default_sample_expired_cb(void *hc, ddsrt_mtime_t tnow)
   struct rhc_sample *sample;
   ddsrt_mtime_t tnext;
   ddsrt_mutex_lock (&rhc->lock);
-  while ((tnext = lifespan_next_expired_locked (&rhc->lifespan, tnow, (void **)&sample)).v == 0)
+  while ((tnext = ddsi_lifespan_next_expired_locked (&rhc->lifespan, tnow, (void **)&sample)).v == 0)
     drop_expired_samples (rhc, sample);
   ddsrt_mutex_unlock (&rhc->lock);
   return tnext;
@@ -574,7 +574,7 @@ struct dds_rhc *dds_rhc_default_new_xchecks (dds_reader *reader, struct ddsi_dom
   rhc->xchecks = xchecks;
 
 #ifdef DDS_HAS_LIFESPAN
-  lifespan_init (gv, &rhc->lifespan, offsetof(struct dds_rhc_default, lifespan), offsetof(struct rhc_sample, lifespan), dds_rhc_default_sample_expired_cb);
+  ddsi_lifespan_init (gv, &rhc->lifespan, offsetof(struct dds_rhc_default, lifespan), offsetof(struct rhc_sample, lifespan), dds_rhc_default_sample_expired_cb);
 #endif
 
 #ifdef DDS_HAS_DEADLINE_MISSED
@@ -654,7 +654,7 @@ static void free_sample (struct dds_rhc_default *rhc, struct rhc_instance *inst,
 #endif
   ddsi_serdata_unref (s->sample);
 #ifdef DDS_HAS_LIFESPAN
-  lifespan_unregister_sample_locked (&rhc->lifespan, &s->lifespan);
+  ddsi_lifespan_unregister_sample_locked (&rhc->lifespan, &s->lifespan);
 #endif
   if (s == &inst->a_sample)
   {
@@ -773,7 +773,7 @@ static void dds_rhc_default_free (struct ddsi_rhc *rhc_common)
   struct dds_rhc_default *rhc = (struct dds_rhc_default *) rhc_common;
 #ifdef DDS_HAS_LIFESPAN
   dds_rhc_default_sample_expired_cb (rhc, DDSRT_MTIME_NEVER);
-  lifespan_fini (&rhc->lifespan);
+  ddsi_lifespan_fini (&rhc->lifespan);
 #endif
 #ifdef DDS_HAS_DEADLINE_MISSED
   ddsi_deadline_stop (&rhc->deadline);
@@ -861,7 +861,7 @@ static bool add_sample (struct dds_rhc_default *rhc, struct rhc_instance *inst, 
     ddsi_serdata_unref (s->sample);
 
 #ifdef DDS_HAS_LIFESPAN
-    lifespan_unregister_sample_locked (&rhc->lifespan, &s->lifespan);
+    ddsi_lifespan_unregister_sample_locked (&rhc->lifespan, &s->lifespan);
 #endif
 
     trig_qc->dec_sample_read = s->isread;
@@ -918,7 +918,7 @@ static bool add_sample (struct dds_rhc_default *rhc, struct rhc_instance *inst, 
 #ifdef DDS_HAS_LIFESPAN
   s->inst = inst;
   s->lifespan.t_expire = wrinfo->lifespan_exp;
-  lifespan_register_sample_locked (&rhc->lifespan, &s->lifespan);
+  ddsi_lifespan_register_sample_locked (&rhc->lifespan, &s->lifespan);
 #endif
 
   s->conds = 0;
