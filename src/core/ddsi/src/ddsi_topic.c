@@ -16,7 +16,7 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/md5.h"
 #include "ddsi__entity.h"
-#include "dds/ddsi/ddsi_participant.h"
+#include "ddsi__participant.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
 #include "dds/ddsi/ddsi_topic.h"
 #include "dds/ddsi/ddsi_domaingv.h"

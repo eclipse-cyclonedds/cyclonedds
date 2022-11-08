@@ -58,6 +58,7 @@ function(add_wrapper libname linklibs)
       "$<BUILD_INTERFACE:$<TARGET_PROPERTY:ddsrt,INTERFACE_INCLUDE_DIRECTORIES>>"
       "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
       "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../../core/ddsi/include>"
+      "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../../core/ddsi/src>"
       "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../../core/ddsc/src>")
 endfunction()
 

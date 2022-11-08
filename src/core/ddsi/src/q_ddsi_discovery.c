@@ -37,7 +37,7 @@
 #include "dds/ddsi/q_radmin.h"
 #include "ddsi__entity_index.h"
 #include "ddsi__entity.h"
-#include "dds/ddsi/ddsi_participant.h"
+#include "ddsi__participant.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/ddsi_proxy_endpoint.h"
@@ -782,7 +782,7 @@ static int handle_spdp_alive (const struct receiver_state *rst, seqno_t seq, dds
          happens when deleting a participant is removing it from the hash
          table, and consequently the looped back packet may appear to be
          from an unknown participant.  So we handle that. */
-      if (ddsi_is_deleted_participant_guid (gv->deleted_participants, &datap->participant_guid, DPG_REMOTE))
+      if (ddsi_is_deleted_participant_guid (gv->deleted_participants, &datap->participant_guid, DDSI_DELETED_PPGUID_REMOTE))
       {
         RSTTRACE ("SPDP ST0 "PGUIDFMT" (recently deleted)", PGUID (datap->participant_guid));
         return 0;
@@ -1508,7 +1508,7 @@ static bool handle_sedp_checks (struct ddsi_domaingv * const gv, ddsi_sedp_kind_
   // Accept the presence of a participant GUID, but only if it matches
   if ((datap->present & PP_PARTICIPANT_GUID) && memcmp (&datap->participant_guid, ppguid, sizeof (*ppguid)) != 0)
     E (" endpoint/participant GUID mismatch", err);
-  if (ddsi_is_deleted_participant_guid (gv->deleted_participants, ppguid, DPG_REMOTE))
+  if (ddsi_is_deleted_participant_guid (gv->deleted_participants, ppguid, DDSI_DELETED_PPGUID_REMOTE))
     E (" local dead pp?\n", err);
   if (ddsi_entidx_lookup_participant_guid (gv->entity_index, ppguid) != NULL)
     E (" local pp?\n", err);

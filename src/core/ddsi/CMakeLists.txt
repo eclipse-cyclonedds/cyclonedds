@@ -178,6 +178,7 @@ set(hdrs_private_ddsi
   ddsi__mcgroup.h
   ddsi__nwpart.h
   ddsi__ownip.h
+  ddsi__participant.h
 )
 
 if(ENABLE_LIFESPAN)

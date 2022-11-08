@@ -15,7 +15,7 @@
 
 #include "dds/ddsrt/heap.h"
 #include "ddsi__entity.h"
-#include "dds/ddsi/ddsi_participant.h"
+#include "ddsi__participant.h"
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_iid.h"
@@ -48,12 +48,12 @@ static const unsigned builtin_writers_besmask =
 int compare_ldur (const void *va, const void *vb);
 
 /* used in participant for keeping writer liveliness renewal */
-const ddsrt_fibheap_def_t ldur_fhdef = DDSRT_FIBHEAPDEF_INITIALIZER(offsetof (struct ldur_fhnode, heapnode), compare_ldur);
+const ddsrt_fibheap_def_t ddsi_ldur_fhdef = DDSRT_FIBHEAPDEF_INITIALIZER(offsetof (struct ldur_fhnode, heapnode), compare_ldur);
 /* used in (proxy)participant for writer liveliness monitoring */
-const ddsrt_fibheap_def_t lease_fhdef_pp = DDSRT_FIBHEAPDEF_INITIALIZER(offsetof (struct lease, pp_heapnode), compare_lease_tdur);
+const ddsrt_fibheap_def_t ddsi_lease_fhdef_pp = DDSRT_FIBHEAPDEF_INITIALIZER(offsetof (struct lease, pp_heapnode), compare_lease_tdur);
 
 const ddsrt_avl_treedef_t deleted_participants_treedef =
-  DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct deleted_participant, avlnode), offsetof (struct deleted_participant, guid), ddsi_compare_guid, 0);
+  DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct ddsi_deleted_participant, avlnode), offsetof (struct ddsi_deleted_participant, guid), ddsi_compare_guid, 0);
 
 int compare_ldur (const void *va, const void *vb)
 {
@@ -62,9 +62,9 @@ int compare_ldur (const void *va, const void *vb)
   return (a->ldur == b->ldur) ? 0 : (a->ldur < b->ldur) ? -1 : 1;
 }
 
-struct deleted_participants_admin *ddsi_deleted_participants_admin_new (const ddsrt_log_cfg_t *logcfg, int64_t delay)
+struct ddsi_deleted_participants_admin *ddsi_deleted_participants_admin_new (const ddsrt_log_cfg_t *logcfg, int64_t delay)
 {
-  struct deleted_participants_admin *admin = ddsrt_malloc (sizeof (*admin));
+  struct ddsi_deleted_participants_admin *admin = ddsrt_malloc (sizeof (*admin));
   ddsrt_mutex_init (&admin->deleted_participants_lock);
   ddsrt_avl_init (&deleted_participants_treedef, &admin->deleted_participants);
   admin->logcfg = logcfg;
@@ -72,23 +72,23 @@ struct deleted_participants_admin *ddsi_deleted_participants_admin_new (const dd
   return admin;
 }
 
-void ddsi_deleted_participants_admin_free (struct deleted_participants_admin *admin)
+void ddsi_deleted_participants_admin_free (struct ddsi_deleted_participants_admin *admin)
 {
   ddsrt_avl_free (&deleted_participants_treedef, &admin->deleted_participants, ddsrt_free);
   ddsrt_mutex_destroy (&admin->deleted_participants_lock);
   ddsrt_free (admin);
 }
 
-static void ddsi_prune_deleted_participant_guids_unlocked (struct deleted_participants_admin *admin, ddsrt_mtime_t tnow)
+static void ddsi_prune_deleted_participant_guids_unlocked (struct ddsi_deleted_participants_admin *admin, ddsrt_mtime_t tnow)
 {
   /* Could do a better job of finding prunable ones efficiently under
      all circumstances, but I expect the tree to be very small at all
      times, so a full scan is fine, too ... */
-  struct deleted_participant *dpp;
+  struct ddsi_deleted_participant *dpp;
   dpp = ddsrt_avl_find_min (&deleted_participants_treedef, &admin->deleted_participants);
   while (dpp)
   {
-    struct deleted_participant *dpp1 = ddsrt_avl_find_succ (&deleted_participants_treedef, &admin->deleted_participants, dpp);
+    struct ddsi_deleted_participant *dpp1 = ddsrt_avl_find_succ (&deleted_participants_treedef, &admin->deleted_participants, dpp);
     if (dpp->t_prune.v < tnow.v)
     {
       DDS_CLOG (DDS_LC_DISCOVERY, admin->logcfg, "ddsi_prune_deleted_participant_guid("PGUIDFMT")\n", PGUID (dpp->guid));
@@ -99,16 +99,16 @@ static void ddsi_prune_deleted_participant_guids_unlocked (struct deleted_partic
   }
 }
 
-void ddsi_prune_deleted_participant_guids (struct deleted_participants_admin *admin, ddsrt_mtime_t tnow)
+void ddsi_prune_deleted_participant_guids (struct ddsi_deleted_participants_admin *admin, ddsrt_mtime_t tnow)
 {
   ddsrt_mutex_lock (&admin->deleted_participants_lock);
   ddsi_prune_deleted_participant_guids_unlocked (admin, tnow);
   ddsrt_mutex_unlock (&admin->deleted_participants_lock);
 }
 
-void ddsi_remember_deleted_participant_guid (struct deleted_participants_admin *admin, const struct ddsi_guid *guid)
+void ddsi_remember_deleted_participant_guid (struct ddsi_deleted_participants_admin *admin, const struct ddsi_guid *guid)
 {
-  struct deleted_participant *n;
+  struct ddsi_deleted_participant *n;
   ddsrt_avl_ipath_t path;
   ddsrt_mutex_lock (&admin->deleted_participants_lock);
   if (ddsrt_avl_lookup_ipath (&deleted_participants_treedef, &admin->deleted_participants, guid, &path) == NULL)
@@ -117,16 +117,16 @@ void ddsi_remember_deleted_participant_guid (struct deleted_participants_admin *
     {
       n->guid = *guid;
       n->t_prune = DDSRT_MTIME_NEVER;
-      n->for_what = DPG_LOCAL | DPG_REMOTE;
+      n->for_what = DDSI_DELETED_PPGUID_LOCAL | DDSI_DELETED_PPGUID_REMOTE;
       ddsrt_avl_insert_ipath (&deleted_participants_treedef, &admin->deleted_participants, n, &path);
     }
   }
   ddsrt_mutex_unlock (&admin->deleted_participants_lock);
 }
 
-int ddsi_is_deleted_participant_guid (struct deleted_participants_admin *admin, const struct ddsi_guid *guid, unsigned for_what)
+int ddsi_is_deleted_participant_guid (struct ddsi_deleted_participants_admin *admin, const struct ddsi_guid *guid, unsigned for_what)
 {
-  struct deleted_participant *n;
+  struct ddsi_deleted_participant *n;
   int known;
   ddsrt_mutex_lock (&admin->deleted_participants_lock);
   ddsi_prune_deleted_participant_guids_unlocked (admin, ddsrt_time_monotonic ());
@@ -138,9 +138,9 @@ int ddsi_is_deleted_participant_guid (struct deleted_participants_admin *admin, 
   return known;
 }
 
-void ddsi_remove_deleted_participant_guid (struct deleted_participants_admin *admin, const struct ddsi_guid *guid, unsigned for_what)
+void ddsi_remove_deleted_participant_guid (struct ddsi_deleted_participants_admin *admin, const struct ddsi_guid *guid, unsigned for_what)
 {
-  struct deleted_participant *n;
+  struct ddsi_deleted_participant *n;
   DDS_CLOG (DDS_LC_DISCOVERY, admin->logcfg, "ddsi_remove_deleted_participant_guid("PGUIDFMT" for_what=%x)\n", PGUID (*guid), for_what);
   ddsrt_mutex_lock (&admin->deleted_participants_lock);
   if ((n = ddsrt_avl_lookup (&deleted_participants_treedef, &admin->deleted_participants, guid)) != NULL)
@@ -430,9 +430,9 @@ void ddsi_participant_add_wr_lease_locked (struct ddsi_participant * pp, const s
   struct lease *minl_new;
 
   assert (wr->lease != NULL);
-  minl_prev = ddsrt_fibheap_min (&lease_fhdef_pp, &pp->leaseheap_man);
-  ddsrt_fibheap_insert (&lease_fhdef_pp, &pp->leaseheap_man, wr->lease);
-  minl_new = ddsrt_fibheap_min (&lease_fhdef_pp, &pp->leaseheap_man);
+  minl_prev = ddsrt_fibheap_min (&ddsi_lease_fhdef_pp, &pp->leaseheap_man);
+  ddsrt_fibheap_insert (&ddsi_lease_fhdef_pp, &pp->leaseheap_man, wr->lease);
+  minl_new = ddsrt_fibheap_min (&ddsi_lease_fhdef_pp, &pp->leaseheap_man);
   /* ensure pp->minl_man is equivalent to min(leaseheap_man) */
   if (minl_prev != minl_new)
   {
@@ -458,9 +458,9 @@ void ddsi_participant_remove_wr_lease_locked (struct ddsi_participant * pp, stru
 
   assert (wr->lease != NULL);
   assert (wr->xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_PARTICIPANT);
-  minl_prev = ddsrt_fibheap_min (&lease_fhdef_pp, &pp->leaseheap_man);
-  ddsrt_fibheap_delete (&lease_fhdef_pp, &pp->leaseheap_man, wr->lease);
-  minl_new = ddsrt_fibheap_min (&lease_fhdef_pp, &pp->leaseheap_man);
+  minl_prev = ddsrt_fibheap_min (&ddsi_lease_fhdef_pp, &pp->leaseheap_man);
+  ddsrt_fibheap_delete (&ddsi_lease_fhdef_pp, &pp->leaseheap_man, wr->lease);
+  minl_new = ddsrt_fibheap_min (&ddsi_lease_fhdef_pp, &pp->leaseheap_man);
   /* ensure pp->minl_man is equivalent to min(leaseheap_man) */
   if (minl_prev != minl_new)
   {
@@ -756,7 +756,7 @@ void ddsi_unref_participant (struct ddsi_participant *pp, const struct ddsi_guid
     ddsrt_free (pp->plist);
     ddsrt_mutex_destroy (&pp->refc_lock);
     ddsi_entity_common_fini (&pp->e);
-    ddsi_remove_deleted_participant_guid (pp->e.gv->deleted_participants, &pp->e.guid, DPG_LOCAL);
+    ddsi_remove_deleted_participant_guid (pp->e.gv->deleted_participants, &pp->e.guid, DDSI_DELETED_PPGUID_LOCAL);
     inverse_uint32_set_fini(&pp->avail_entityids.x);
     ddsrt_free (pp);
   }
@@ -841,7 +841,7 @@ static dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domai
     pp->lease_duration = plist->participant_lease_duration;
   else
     pp->lease_duration = gv->config.lease_duration;
-  ddsrt_fibheap_init (&ldur_fhdef, &pp->ldur_auto_wr);
+  ddsrt_fibheap_init (&ddsi_ldur_fhdef, &pp->ldur_auto_wr);
   pp->plist = ddsrt_malloc (sizeof (*pp->plist));
   ddsi_plist_copy (pp->plist, plist);
   ddsi_plist_mergein_missing (pp->plist, &gv->default_local_plist_pp, ~(uint64_t)0, ~(uint64_t)0);
@@ -884,7 +884,7 @@ static dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domai
     ddsi_conn_locator (pp->m_conn, &pp->m_locator);
   }
 
-  ddsrt_fibheap_init (&lease_fhdef_pp, &pp->leaseheap_man);
+  ddsrt_fibheap_init (&ddsi_lease_fhdef_pp, &pp->leaseheap_man);
   ddsrt_atomic_stvoidp (&pp->minl_man, NULL);
 
   /* Before we create endpoints -- and may call ddsi_unref_participant if
@@ -1169,7 +1169,7 @@ dds_duration_t ddsi_participant_get_pmd_interval (struct ddsi_participant *pp)
   struct ldur_fhnode *ldur_node;
   dds_duration_t intv;
   ddsrt_mutex_lock (&pp->e.lock);
-  ldur_node = ddsrt_fibheap_min (&ldur_fhdef, &pp->ldur_auto_wr);
+  ldur_node = ddsrt_fibheap_min (&ddsi_ldur_fhdef, &pp->ldur_auto_wr);
   intv = (ldur_node != NULL) ? ldur_node->ldur : DDS_INFINITY;
   if (pp->lease_duration < intv)
     intv = pp->lease_duration;

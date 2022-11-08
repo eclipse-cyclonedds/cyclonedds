@@ -31,7 +31,7 @@
 #include "dds/ddsi/q_transmit.h"
 #include "dds/ddsi/q_bswap.h"
 #include "ddsi__entity.h"
-#include "dds/ddsi/ddsi_participant.h"
+#include "ddsi__participant.h"
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/ddsi_proxy_endpoint.h"
 #include "dds/ddsi/q_misc.h"

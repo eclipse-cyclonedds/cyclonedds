@@ -28,6 +28,8 @@ extern "C" {
 
 struct ddsi_proxy_participant;
 struct ddsi_proxy_reader;
+struct ddsi_proxy_writer;
+struct ddsi_writer;
 struct ddsi_alive_state;
 struct dds_qos;
 struct addrset;

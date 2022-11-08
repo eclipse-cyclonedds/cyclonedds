@@ -41,7 +41,7 @@
 #include "dds/ddsi/q_lease.h"
 #include "dds/ddsi/ddsi_gc.h"
 #include "ddsi__entity.h"
-#include "dds/ddsi/ddsi_participant.h"
+#include "ddsi__participant.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/ddsi_proxy_endpoint.h"
@@ -1728,7 +1728,7 @@ static int handle_InfoDST (struct receiver_state *rst, const InfoDST_t *msg, con
     dst.prefix = rst->dst_guid_prefix;
     dst.entityid = ddsi_to_entityid(NN_ENTITYID_PARTICIPANT);
     rst->forme = (ddsi_entidx_lookup_participant_guid (rst->gv->entity_index, &dst) != NULL ||
-                  ddsi_is_deleted_participant_guid (rst->gv->deleted_participants, &dst, DPG_LOCAL));
+                  ddsi_is_deleted_participant_guid (rst->gv->deleted_participants, &dst, DDSI_DELETED_PPGUID_LOCAL));
   }
   return 1;
 }

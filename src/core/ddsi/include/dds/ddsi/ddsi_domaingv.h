@@ -85,7 +85,7 @@ struct recv_thread_arg {
   } u;
 };
 
-struct deleted_participants_admin;
+struct ddsi_deleted_participants_admin;
 
 struct ddsi_domaingv {
   volatile int terminate;
@@ -175,7 +175,7 @@ struct ddsi_domaingv {
   ddsrt_mutex_t privileged_pp_lock;
 
   /* For tracking (recently) deleted participants */
-  struct deleted_participants_admin *deleted_participants;
+  struct ddsi_deleted_participants_admin *deleted_participants;
 
   /* GUID to be used in next call to new_participant; also protected
      by privileged_pp_lock */

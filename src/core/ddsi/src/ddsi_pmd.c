@@ -19,7 +19,7 @@
 #include "ddsi__entity.h"
 #include "ddsi__entity_index.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/ddsi_participant.h"
+#include "ddsi__participant.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
 #include "dds/ddsi/q_lease.h"
 #include "dds/ddsi/q_log.h"

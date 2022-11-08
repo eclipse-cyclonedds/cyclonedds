@@ -20,7 +20,7 @@
 #include "ddsi__entity_index.h"
 #include "dds/ddsi/ddsi_plist.h"
 #include "ddsi__entity.h"
-#include "dds/ddsi/ddsi_participant.h"
+#include "ddsi__participant.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
 #include "ddsi__gc.h"
 #include "dds/security/dds_security_api_types.h"

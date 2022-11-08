@@ -22,6 +22,7 @@
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/ddsi_security_omg.h"
 #include "dds/ddsi/ddsi_participant.h"
+#include "ddsi__participant.h"
 #include "dds__entity.h"
 #include "dds/security/dds_security_api.h"
 #include "authentication_wrapper.h"

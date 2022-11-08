@@ -12,7 +12,7 @@
 #ifndef DDSI__HANDSHAKE_H
 #define DDSI__HANDSHAKE_H
 
-#include "dds/ddsi/ddsi_participant.h"
+#include "ddsi__participant.h"
 
 #if defined (__cplusplus)
 extern "C" {

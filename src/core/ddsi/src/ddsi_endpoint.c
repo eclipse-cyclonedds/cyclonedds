@@ -17,7 +17,7 @@
 #include "dds/ddsrt/string.h"
 #include "ddsi__entity.h"
 #include "ddsi__entity_match.h"
-#include "dds/ddsi/ddsi_participant.h"
+#include "ddsi__participant.h"
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/ddsi_rhc.h"
 #include "dds/ddsi/ddsi_domaingv.h"
@@ -964,7 +964,7 @@ dds_return_t ddsi_new_writer_guid (struct ddsi_writer **wr_out, const struct dds
     {
       /* Store writer lease duration in participant's heap in case of automatic liveliness */
       ddsrt_mutex_lock (&pp->e.lock);
-      ddsrt_fibheap_insert (&ldur_fhdef, &pp->ldur_auto_wr, wr->lease_duration);
+      ddsrt_fibheap_insert (&ddsi_ldur_fhdef, &pp->ldur_auto_wr, wr->lease_duration);
       ddsrt_mutex_unlock (&pp->e.lock);
 
       /* Trigger pmd update */
@@ -1223,7 +1223,7 @@ static dds_return_t delete_writer_nolinger_locked (struct ddsi_writer *wr)
     if (wr->xqos->liveliness.kind == DDS_LIVELINESS_AUTOMATIC)
     {
       ddsrt_mutex_lock (&wr->c.pp->e.lock);
-      ddsrt_fibheap_delete (&ldur_fhdef, &wr->c.pp->ldur_auto_wr, wr->lease_duration);
+      ddsrt_fibheap_delete (&ddsi_ldur_fhdef, &wr->c.pp->ldur_auto_wr, wr->lease_duration);
       ddsrt_mutex_unlock (&wr->c.pp->e.lock);
       resched_xevent_if_earlier (wr->c.pp->pmd_update_xevent, ddsrt_time_monotonic ());
     }

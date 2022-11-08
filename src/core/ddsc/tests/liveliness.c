@@ -27,6 +27,7 @@
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/time.h"
 #include "dds/ddsi/ddsi_participant.h"
+#include "ddsi__participant.h"
 
 #include "test_common.h"
 

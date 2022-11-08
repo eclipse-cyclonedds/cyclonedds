@@ -17,7 +17,7 @@
 #include "dds/ddsrt/avl.h"
 #include "ddsi__entity.h"
 #include "ddsi__entity_match.h"
-#include "dds/ddsi/ddsi_participant.h"
+#include "ddsi__participant.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/ddsi_proxy_endpoint.h"
@@ -60,11 +60,11 @@ void ddsi_proxy_participant_reassign_lease (struct ddsi_proxy_participant *proxy
   ddsrt_mutex_lock (&proxypp->e.lock);
   if (proxypp->owns_lease)
   {
-    struct lease *minl = ddsrt_fibheap_min (&lease_fhdef_pp, &proxypp->leaseheap_auto);
-    ddsrt_fibheap_delete (&lease_fhdef_pp, &proxypp->leaseheap_auto, proxypp->lease);
+    struct lease *minl = ddsrt_fibheap_min (&ddsi_lease_fhdef_pp, &proxypp->leaseheap_auto);
+    ddsrt_fibheap_delete (&ddsi_lease_fhdef_pp, &proxypp->leaseheap_auto, proxypp->lease);
     if (minl == proxypp->lease)
     {
-      if ((minl = ddsrt_fibheap_min (&lease_fhdef_pp, &proxypp->leaseheap_auto)) != NULL)
+      if ((minl = ddsrt_fibheap_min (&ddsi_lease_fhdef_pp, &proxypp->leaseheap_auto)) != NULL)
       {
         dds_duration_t trem = minl->tdur - proxypp->lease->tdur;
         assert (trem >= 0);
@@ -237,9 +237,9 @@ void ddsi_proxy_participant_add_pwr_lease_locked (struct ddsi_proxy_participant 
   assert (pwr->lease != NULL);
   manbypp = (pwr->c.xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_PARTICIPANT);
   lh = manbypp ? &proxypp->leaseheap_man : &proxypp->leaseheap_auto;
-  minl_prev = ddsrt_fibheap_min (&lease_fhdef_pp, lh);
-  ddsrt_fibheap_insert (&lease_fhdef_pp, lh, pwr->lease);
-  minl_new = ddsrt_fibheap_min (&lease_fhdef_pp, lh);
+  minl_prev = ddsrt_fibheap_min (&ddsi_lease_fhdef_pp, lh);
+  ddsrt_fibheap_insert (&ddsi_lease_fhdef_pp, lh, pwr->lease);
+  minl_new = ddsrt_fibheap_min (&ddsi_lease_fhdef_pp, lh);
   /* ensure proxypp->minl_man/minl_auto is equivalent to min(leaseheap_man/auto) */
   if (proxypp->owns_lease && minl_prev != minl_new)
   {
@@ -269,9 +269,9 @@ void ddsi_proxy_participant_remove_pwr_lease_locked (struct ddsi_proxy_participa
   assert (pwr->lease != NULL);
   manbypp = (pwr->c.xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_PARTICIPANT);
   lh = manbypp ? &proxypp->leaseheap_man : &proxypp->leaseheap_auto;
-  minl_prev = ddsrt_fibheap_min (&lease_fhdef_pp, lh);
-  ddsrt_fibheap_delete (&lease_fhdef_pp, lh, pwr->lease);
-  minl_new = ddsrt_fibheap_min (&lease_fhdef_pp, lh);
+  minl_prev = ddsrt_fibheap_min (&ddsi_lease_fhdef_pp, lh);
+  ddsrt_fibheap_delete (&ddsi_lease_fhdef_pp, lh, pwr->lease);
+  minl_new = ddsrt_fibheap_min (&ddsi_lease_fhdef_pp, lh);
   /* ensure proxypp->minl_man/minl_auto is equivalent to min(leaseheap_man/auto) */
   if (proxypp->owns_lease && minl_prev != minl_new)
   {
@@ -296,9 +296,9 @@ static void free_proxy_participant (struct ddsi_proxy_participant *proxypp)
   if (proxypp->owns_lease)
   {
     struct lease * minl_auto = ddsrt_atomic_ldvoidp (&proxypp->minl_auto);
-    ddsrt_fibheap_delete (&lease_fhdef_pp, &proxypp->leaseheap_auto, proxypp->lease);
-    assert (ddsrt_fibheap_min (&lease_fhdef_pp, &proxypp->leaseheap_auto) == NULL);
-    assert (ddsrt_fibheap_min (&lease_fhdef_pp, &proxypp->leaseheap_man) == NULL);
+    ddsrt_fibheap_delete (&ddsi_lease_fhdef_pp, &proxypp->leaseheap_auto, proxypp->lease);
+    assert (ddsrt_fibheap_min (&ddsi_lease_fhdef_pp, &proxypp->leaseheap_auto) == NULL);
+    assert (ddsrt_fibheap_min (&ddsi_lease_fhdef_pp, &proxypp->leaseheap_man) == NULL);
     assert (ddsrt_atomic_ldvoidp (&proxypp->minl_man) == NULL);
     assert (!ddsi_compare_guid (&minl_auto->entity->guid, &proxypp->e.guid));
     /* if the lease hasn't been registered yet (which is the case when
@@ -383,8 +383,8 @@ bool ddsi_new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_gui
     struct ddsi_proxy_participant *privpp;
     privpp = ddsi_entidx_lookup_proxy_participant_guid (gv->entity_index, &proxypp->privileged_pp_guid);
 
-    ddsrt_fibheap_init (&lease_fhdef_pp, &proxypp->leaseheap_auto);
-    ddsrt_fibheap_init (&lease_fhdef_pp, &proxypp->leaseheap_man);
+    ddsrt_fibheap_init (&ddsi_lease_fhdef_pp, &proxypp->leaseheap_auto);
+    ddsrt_fibheap_init (&ddsi_lease_fhdef_pp, &proxypp->leaseheap_man);
     ddsrt_atomic_stvoidp (&proxypp->minl_man, NULL);
 
     if (privpp != NULL && privpp->is_ddsi2_pp)
@@ -410,7 +410,7 @@ bool ddsi_new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_gui
 
       /* Add the proxypp lease to heap so that monitoring liveliness will include this lease
          and uses the shortest duration for proxypp and all its pwr's (with automatic liveliness) */
-      ddsrt_fibheap_insert (&lease_fhdef_pp, &proxypp->leaseheap_auto, proxypp->lease);
+      ddsrt_fibheap_insert (&ddsi_lease_fhdef_pp, &proxypp->leaseheap_auto, proxypp->lease);
 
       /* Set the shortest lease for auto liveliness: clone proxypp's lease and store the clone in
          proxypp->minl_auto. As there are no pwr's at this point, the proxy pp's lease is the
@@ -547,7 +547,7 @@ void ddsi_unref_proxy_participant (struct ddsi_proxy_participant *proxypp, struc
     ddsrt_mutex_unlock (&proxypp->e.lock);
     ELOGDISC (proxypp, "ddsi_unref_proxy_participant("PGUIDFMT"): refc=0, freeing\n", PGUID (proxypp->e.guid));
     free_proxy_participant (proxypp);
-    ddsi_remove_deleted_participant_guid (gv->deleted_participants, &pp_guid, DPG_LOCAL | DPG_REMOTE);
+    ddsi_remove_deleted_participant_guid (gv->deleted_participants, &pp_guid, DDSI_DELETED_PPGUID_LOCAL | DDSI_DELETED_PPGUID_REMOTE);
   }
   else if (
     proxypp->endpoints == NULL

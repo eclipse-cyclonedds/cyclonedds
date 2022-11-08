@@ -30,7 +30,7 @@
 #include "dds/cdr/dds_cdrstream.h"
 #include "ddsi__entity.h"
 #include "ddsi__entity_match.h"
-#include "dds/ddsi/ddsi_participant.h"
+#include "ddsi__participant.h"
 #include "dds/ddsi/ddsi_gc.h"
 #include "dds/ddsi/q_protocol.h"
 #include "dds/ddsi/q_radmin.h"
