@@ -469,7 +469,7 @@ static locale_t posix_locale(void)
 #else
   locale = newlocale(LC_ALL, "C", (locale_t)0);
 #endif
-  pthread_setspecific(key, locale);
+  (void)pthread_setspecific(key, locale);
   return locale;
 }
 #endif /* _WIN32 */
