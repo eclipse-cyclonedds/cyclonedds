@@ -53,7 +53,7 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_init.h"
 #include "dds/ddsi/ddsi_tkmap.h"
-#include "dds/ddsi/ddsi_mcgroup.h"
+#include "ddsi__mcgroup.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_security_omg.h"
 #include "ddsi__acknack.h"

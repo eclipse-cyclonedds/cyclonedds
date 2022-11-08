@@ -314,7 +314,7 @@ struct ddsi_domaingv {
 
   struct ddsi_builtin_topic_interface *builtin_topic_interface;
 
-  struct nn_group_membership *mship;
+  struct ddsi_mcgroup_membership *mship;
 
   ddsrt_mutex_t sertypes_lock;
   struct ddsrt_hh *sertypes;

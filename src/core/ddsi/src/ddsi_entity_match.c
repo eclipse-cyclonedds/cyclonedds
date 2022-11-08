@@ -21,7 +21,7 @@
 #include "dds/ddsi/ddsi_proxy_endpoint.h"
 #include "dds/ddsi/ddsi_security_omg.h"
 #include "ddsi__entity_index.h"
-#include "dds/ddsi/ddsi_mcgroup.h"
+#include "ddsi__mcgroup.h"
 #include "dds/ddsi/ddsi_rhc.h"
 #include "dds/ddsi/q_qosmatch.h"
 #include "dds/ddsi/q_addrset.h"

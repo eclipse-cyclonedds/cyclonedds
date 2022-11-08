@@ -17,13 +17,13 @@
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsi/ddsi_tran.h"
-#include "dds/ddsi/ddsi_mcgroup.h"
+#include "ddsi__mcgroup.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsrt/avl.h"
 
-struct nn_group_membership_node {
+struct ddsi_mcgroup_membership_node {
   ddsrt_avl_node_t avlnode;
   ddsi_tran_conn_t conn;
   ddsi_locator_t srcloc;
@@ -31,7 +31,7 @@ struct nn_group_membership_node {
   unsigned count;
 };
 
-struct nn_group_membership {
+struct ddsi_mcgroup_membership {
   ddsrt_mutex_t lock;
   ddsrt_avl_tree_t mships;
 };
@@ -46,8 +46,8 @@ static int locator_compare_no_port (const ddsi_locator_t *as, const ddsi_locator
 
 static int cmp_group_membership (const void *va, const void *vb)
 {
-  const struct nn_group_membership_node *a = va;
-  const struct nn_group_membership_node *b = vb;
+  const struct ddsi_mcgroup_membership_node *a = va;
+  const struct ddsi_mcgroup_membership_node *b = vb;
   int c;
   if (a->conn < b->conn)
     return -1;
@@ -61,26 +61,26 @@ static int cmp_group_membership (const void *va, const void *vb)
     return 0;
 }
 
-static ddsrt_avl_treedef_t mship_td = DDSRT_AVL_TREEDEF_INITIALIZER(offsetof (struct nn_group_membership_node, avlnode), 0, cmp_group_membership, 0);
+static ddsrt_avl_treedef_t mship_td = DDSRT_AVL_TREEDEF_INITIALIZER(offsetof (struct ddsi_mcgroup_membership_node, avlnode), 0, cmp_group_membership, 0);
 
-struct nn_group_membership *new_group_membership (void)
+struct ddsi_mcgroup_membership *ddsi_new_mcgroup_membership (void)
 {
-  struct nn_group_membership *mship = ddsrt_malloc (sizeof (*mship));
+  struct ddsi_mcgroup_membership *mship = ddsrt_malloc (sizeof (*mship));
   ddsrt_mutex_init (&mship->lock);
   ddsrt_avl_init (&mship_td, &mship->mships);
   return mship;
 }
 
-void free_group_membership (struct nn_group_membership *mship)
+void ddsi_free_mcgroup_membership (struct ddsi_mcgroup_membership *mship)
 {
   ddsrt_avl_free (&mship_td, &mship->mships, ddsrt_free);
   ddsrt_mutex_destroy (&mship->lock);
   ddsrt_free (mship);
 }
 
-static int reg_group_membership (struct nn_group_membership *mship, ddsi_tran_conn_t conn, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc)
+static int reg_group_membership (struct ddsi_mcgroup_membership *mship, ddsi_tran_conn_t conn, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc)
 {
-  struct nn_group_membership_node key, *n;
+  struct ddsi_mcgroup_membership_node key, *n;
   ddsrt_avl_ipath_t ip;
   int isnew;
   key.conn = conn;
@@ -104,9 +104,9 @@ static int reg_group_membership (struct nn_group_membership *mship, ddsi_tran_co
   return isnew;
 }
 
-static int unreg_group_membership (struct nn_group_membership *mship, ddsi_tran_conn_t conn, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc)
+static int unreg_group_membership (struct ddsi_mcgroup_membership *mship, ddsi_tran_conn_t conn, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc)
 {
-  struct nn_group_membership_node key, *n;
+  struct ddsi_mcgroup_membership_node key, *n;
   ddsrt_avl_dpath_t dp;
   int mustdel;
   key.conn = conn;
@@ -230,7 +230,7 @@ static int joinleave_mcgroups (const struct ddsi_domaingv *gv, ddsi_tran_conn_t 
   return 0;
 }
 
-int ddsi_join_mc (const struct ddsi_domaingv *gv, struct nn_group_membership *mship, ddsi_tran_conn_t conn, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc)
+int ddsi_join_mc (const struct ddsi_domaingv *gv, struct ddsi_mcgroup_membership *mship, ddsi_tran_conn_t conn, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc)
 {
   /* FIXME: gv to be reduced; perhaps mship, recvips, interfaces, ownloc should be combined into a single struct */
   int ret;
@@ -249,7 +249,7 @@ int ddsi_join_mc (const struct ddsi_domaingv *gv, struct nn_group_membership *ms
   return ret;
 }
 
-int ddsi_leave_mc (const struct ddsi_domaingv *gv, struct nn_group_membership *mship, ddsi_tran_conn_t conn, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc)
+int ddsi_leave_mc (const struct ddsi_domaingv *gv, struct ddsi_mcgroup_membership *mship, ddsi_tran_conn_t conn, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc)
 {
   int ret;
   ddsrt_mutex_lock (&mship->lock);
@@ -267,9 +267,9 @@ int ddsi_leave_mc (const struct ddsi_domaingv *gv, struct nn_group_membership *m
   return ret;
 }
 
-void ddsi_transfer_group_membership (struct nn_group_membership *mship, ddsi_tran_conn_t conn, ddsi_tran_conn_t newconn)
+void ddsi_transfer_mcgroup_membership (struct ddsi_mcgroup_membership *mship, ddsi_tran_conn_t conn, ddsi_tran_conn_t newconn)
 {
-  struct nn_group_membership_node *n, min, max;
+  struct ddsi_mcgroup_membership_node *n, min, max;
   memset(&min, 0, sizeof(min));
   memset(&max, 0xff, sizeof(max));
   min.conn = max.conn = conn;
@@ -280,7 +280,7 @@ void ddsi_transfer_group_membership (struct nn_group_membership *mship, ddsi_tra
   n = ddsrt_avl_lookup_succ_eq (&mship_td, &mship->mships, &min);
   while (n != NULL && cmp_group_membership (n, &max) <= 0)
   {
-    struct nn_group_membership_node * const nn = ddsrt_avl_find_succ (&mship_td, &mship->mships, n);
+    struct ddsi_mcgroup_membership_node * const nn = ddsrt_avl_find_succ (&mship_td, &mship->mships, n);
     ddsrt_avl_delete (&mship_td, &mship->mships, n);
     n->conn = newconn;
     ddsrt_avl_insert (&mship_td, &mship->mships, n);
@@ -289,10 +289,10 @@ void ddsi_transfer_group_membership (struct nn_group_membership *mship, ddsi_tra
   ddsrt_mutex_unlock (&mship->lock);
 }
 
-int ddsi_rejoin_transferred_mcgroups (const struct ddsi_domaingv *gv, struct nn_group_membership *mship, ddsi_tran_conn_t conn)
+int ddsi_rejoin_transferred_mcgroups (const struct ddsi_domaingv *gv, struct ddsi_mcgroup_membership *mship, ddsi_tran_conn_t conn)
 {
   /* FIXME: see gv should be reduced; perhaps recvips, ownloc, mship, interfaces should be a single struct */
-  struct nn_group_membership_node *n, min, max;
+  struct ddsi_mcgroup_membership_node *n, min, max;
   ddsrt_avl_iter_t it;
   int ret = 0;
   memset(&min, 0, sizeof(min));

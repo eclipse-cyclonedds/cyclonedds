@@ -58,7 +58,7 @@
 #include "dds/ddsi/ddsi_tcp.h"
 #include "dds/ddsi/ddsi_raweth.h"
 #include "dds/ddsi/ddsi_vnet.h"
-#include "dds/ddsi/ddsi_mcgroup.h"
+#include "ddsi__mcgroup.h"
 #include "dds/ddsi/ddsi_nwpart.h"
 #include "dds/ddsi/ddsi_serdata_cdr.h"
 #include "dds/ddsi/ddsi_serdata_pserop.h"
@@ -1541,7 +1541,7 @@ int rtps_init (struct ddsi_domaingv *gv)
     gv->pcap_fp = NULL;
   }
 
-  gv->mship = new_group_membership();
+  gv->mship = ddsi_new_mcgroup_membership();
   if (gv->m_factory->m_connless)
   {
     if (!(gv->config.many_sockets_mode == DDSI_MSM_NO_UNICAST && gv->config.allowMulticast))
@@ -1779,7 +1779,7 @@ err_mc_conn:
   free_conns (gv);
   if (gv->pcap_fp)
     ddsrt_mutex_destroy (&gv->pcap_lock);
-  free_group_membership (gv->mship);
+  ddsi_free_mcgroup_membership (gv->mship);
 err_unicast_sockets:
   ddsi_tkmap_free (gv->m_tkmap);
   nn_reorder_free (gv->spdp_reorder);
@@ -2155,7 +2155,7 @@ void rtps_fini (struct ddsi_domaingv *gv)
   for (int i = 0; i < gv->n_interfaces; i++)
     gv->intf_xlocators[i].conn = NULL;
   free_conns (gv);
-  free_group_membership(gv->mship);
+  ddsi_free_mcgroup_membership(gv->mship);
   ddsi_tran_factories_fini (gv);
 
   if (gv->pcap_fp)
