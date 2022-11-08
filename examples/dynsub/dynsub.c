@@ -131,7 +131,7 @@ static void build_typecache_ti (const DDS_XTypes_TypeIdentifier *typeid, size_t 
         build_typecache_to (&xtypeobj->_u.complete, align, size);
         info = malloc (sizeof (*info));
         *info = (struct typeinfo){ .key = { .key = (uintptr_t) typeid }, .typeobj = &xtypeobj->_u.complete, .release = xtypeobj, .align = *align, .size = *size };
-        ddsrt_hh_add (typecache, info);
+        (void)ddsrt_hh_add (typecache, info);
       }
       break;
     }
@@ -177,7 +177,7 @@ static void build_typecache_to (const DDS_XTypes_CompleteTypeObject *typeobj, si
           *size += *align - (*size % *align);
         info = malloc (sizeof (*info));
         *info = (struct typeinfo){ .key = { .key = (uintptr_t) typeobj }, .typeobj = typeobj, .release = NULL, .align = *align, .size = *size };
-        ddsrt_hh_add (typecache, info);
+        (void)ddsrt_hh_add (typecache, info);
       }
       break;
     }
@@ -432,7 +432,7 @@ static dds_return_t get_topic_and_typeobj (const char *topic_name, dds_duration_
       // not sure whether this is at all possible
       info = malloc (sizeof (*info));
       *info = (struct typeinfo){ .key = { .key = (uintptr_t) *xtypeobj }, .typeobj = &(*xtypeobj)->_u.complete, .release = *xtypeobj, .align = align, .size = size };
-      ddsrt_hh_add (typecache, info);
+      (void)ddsrt_hh_add (typecache, info);
     }
   }
 error:
