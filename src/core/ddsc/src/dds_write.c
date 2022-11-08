@@ -113,18 +113,18 @@ dds_return_t dds_write_ts (dds_entity_t writer, const void *data, dds_time_t tim
   return ret;
 }
 
-static struct ddsi_reader *writer_first_in_sync_reader (struct entity_index *entity_index, struct ddsi_entity_common *wrcmn, ddsrt_avl_iter_t *it)
+static struct ddsi_reader *writer_first_in_sync_reader (struct ddsi_entity_index *entity_index, struct ddsi_entity_common *wrcmn, ddsrt_avl_iter_t *it)
 {
   assert (wrcmn->kind == DDSI_EK_WRITER);
   struct ddsi_writer *wr = (struct ddsi_writer *) wrcmn;
   struct ddsi_wr_rd_match *m = ddsrt_avl_iter_first (&ddsi_wr_local_readers_treedef, &wr->local_readers, it);
-  return m ? entidx_lookup_reader_guid (entity_index, &m->rd_guid) : NULL;
+  return m ? ddsi_entidx_lookup_reader_guid (entity_index, &m->rd_guid) : NULL;
 }
 
-static struct ddsi_reader *writer_next_in_sync_reader (struct entity_index *entity_index, ddsrt_avl_iter_t *it)
+static struct ddsi_reader *writer_next_in_sync_reader (struct ddsi_entity_index *entity_index, ddsrt_avl_iter_t *it)
 {
   struct ddsi_wr_rd_match *m = ddsrt_avl_iter_next (it);
-  return m ? entidx_lookup_reader_guid (entity_index, &m->rd_guid) : NULL;
+  return m ? ddsi_entidx_lookup_reader_guid (entity_index, &m->rd_guid) : NULL;
 }
 
 struct local_sourceinfo {

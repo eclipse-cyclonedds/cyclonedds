@@ -21,7 +21,7 @@
 #include "dds/ddsi/q_addrset.h"
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/q_bitset.h"
-#include "dds/ddsi/ddsi_entity_index.h"
+#include "ddsi__entity_index.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_wraddrset.h"
 
@@ -191,14 +191,14 @@ static void locset_free (struct locset *ls)
 
 static struct addrset *wras_collect_all_locs (const struct ddsi_writer *wr)
 {
-  struct entity_index * const gh = wr->e.gv->entity_index;
+  struct ddsi_entity_index * const gh = wr->e.gv->entity_index;
   struct addrset *all_addrs = new_addrset ();
   struct ddsi_wr_prd_match *m;
   ddsrt_avl_iter_t it;
   for (m = ddsrt_avl_iter_first (&ddsi_wr_readers_treedef, &wr->readers, &it); m; m = ddsrt_avl_iter_next (&it))
   {
     struct ddsi_proxy_reader *prd;
-    if ((prd = entidx_lookup_proxy_reader_guid (gh, &m->prd_guid)) == NULL)
+    if ((prd = ddsi_entidx_lookup_proxy_reader_guid (gh, &m->prd_guid)) == NULL)
       continue;
     copy_addrset_into_addrset (wr->e.gv, all_addrs, prd->c.as);
   }
@@ -498,7 +498,7 @@ static bool wras_calc_cover (const struct ddsi_writer *wr, const struct locset *
 static bool wras_calc_cover (const struct ddsi_writer *wr, const struct locset *locs, struct cover **pcov)
 {
   struct ddsi_domaingv * const gv = wr->e.gv;
-  struct entity_index * const gh = gv->entity_index;
+  struct ddsi_entity_index * const gh = gv->entity_index;
   ddsrt_avl_iter_t it;
   const bool want_rdnames = true;
   // allocate cover matrix, it needs to be grow if there are readers requesting redundant delivery
@@ -512,7 +512,7 @@ static bool wras_calc_cover (const struct ddsi_writer *wr, const struct locset *
     struct ddsi_proxy_reader *prd;
     struct addrset *ass[] = { NULL, NULL, NULL };
     bool increment_rdidx = true;
-    if ((prd = entidx_lookup_proxy_reader_guid (gh, &m->prd_guid)) == NULL)
+    if ((prd = ddsi_entidx_lookup_proxy_reader_guid (gh, &m->prd_guid)) == NULL)
       continue;
     ass[0] = prd->c.as;
 #ifdef DDS_HAS_SSM

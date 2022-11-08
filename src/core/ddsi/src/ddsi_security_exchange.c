@@ -18,7 +18,7 @@
 #include "dds/ddsrt/md5.h"
 
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/ddsi_entity_index.h"
+#include "ddsi__entity_index.h"
 #include "dds/ddsi/ddsi_security_exchange.h"
 #include "dds/ddsi/ddsi_security_omg.h"
 #include "dds/ddsi/ddsi_handshake.h"
@@ -51,7 +51,7 @@ bool write_auth_handshake_message(const struct ddsi_participant *pp, const struc
 
   prd_guid.prefix = proxypp->e.guid.prefix;
   prd_guid.entityid.u = NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_READER;
-  if ((prd = entidx_lookup_proxy_reader_guid (gv->entity_index, &prd_guid)) == NULL) {
+  if ((prd = ddsi_entidx_lookup_proxy_reader_guid (gv->entity_index, &prd_guid)) == NULL) {
     GVTRACE ("write_handshake("PGUIDFMT") - builtin stateless message proxy reader not found", PGUID (prd_guid));
     return false;
   }
@@ -122,11 +122,11 @@ void handle_auth_handshake_message(const struct receiver_state *rst, ddsi_entity
     return;
   }
 
-  if ((pp = entidx_lookup_participant_guid(rst->gv->entity_index, &msg->destination_participant_guid)) == NULL)
+  if ((pp = ddsi_entidx_lookup_participant_guid(rst->gv->entity_index, &msg->destination_participant_guid)) == NULL)
   {
     RSTTRACE ("destination participant ("PGUIDFMT") not found\n", PGUID (msg->destination_participant_guid));
   }
-  else if ((pwr = entidx_lookup_proxy_writer_guid(rst->gv->entity_index, pwr_guid)) == NULL)
+  else if ((pwr = ddsi_entidx_lookup_proxy_writer_guid (rst->gv->entity_index, pwr_guid)) == NULL)
   {
     RSTTRACE ("proxy writer ("PGUIDFMT") not found\n", PGUID(*pwr_guid));
   }
@@ -162,7 +162,7 @@ static bool write_crypto_exchange_message(const struct ddsi_participant *pp, con
 
   prd_guid.prefix = dst_pguid->prefix;
   prd_guid.entityid.u = NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_READER;
-  if ((prd = entidx_lookup_proxy_reader_guid (gv->entity_index, &prd_guid)) == NULL)
+  if ((prd = ddsi_entidx_lookup_proxy_reader_guid (gv->entity_index, &prd_guid)) == NULL)
     return false;
 
   GVLOG (DDS_LC_DISCOVERY, "send crypto tokens("PGUIDFMT" --> "PGUIDFMT")\n", PGUID (wr->e.guid), PGUID (prd_guid));
@@ -218,13 +218,13 @@ void handle_crypto_exchange_message(const struct receiver_state *rst, struct dds
 
   if (strcmp(GMCLASSID_SECURITY_PARTICIPANT_CRYPTO_TOKENS, msg->message_class_id) == 0)
   {
-    struct ddsi_participant * const pp = entidx_lookup_participant_guid(gv->entity_index, &msg->destination_participant_guid);
+    struct ddsi_participant * const pp = ddsi_entidx_lookup_participant_guid(gv->entity_index, &msg->destination_participant_guid);
     if (!pp)
     {
       GVWARNING("received a crypto exchange message from "PGUIDFMT" with participant unknown "PGUIDFMT, PGUID(proxypp_guid), PGUID(msg->destination_participant_guid));
       return;
     }
-    struct ddsi_proxy_participant *proxypp = entidx_lookup_proxy_participant_guid(gv->entity_index, &proxypp_guid);
+    struct ddsi_proxy_participant *proxypp = ddsi_entidx_lookup_proxy_participant_guid(gv->entity_index, &proxypp_guid);
     if (!proxypp)
     {
       GVWARNING("received a crypto exchange message from "PGUIDFMT" with proxy participant unknown "PGUIDFMT, PGUID(proxypp_guid), PGUID(msg->destination_participant_guid));
@@ -234,7 +234,7 @@ void handle_crypto_exchange_message(const struct receiver_state *rst, struct dds
   }
   else if (strcmp(GMCLASSID_SECURITY_DATAWRITER_CRYPTO_TOKENS, msg->message_class_id) == 0)
   {
-    struct ddsi_reader * const rd = entidx_lookup_reader_guid(gv->entity_index, &msg->destination_endpoint_guid);
+    struct ddsi_reader * const rd = ddsi_entidx_lookup_reader_guid (gv->entity_index, &msg->destination_endpoint_guid);
     if (!rd)
     {
       GVWARNING("received a crypto exchange message from "PGUIDFMT" with reader unknown "PGUIDFMT, PGUID(proxypp_guid), PGUID(msg->destination_participant_guid));
@@ -244,7 +244,7 @@ void handle_crypto_exchange_message(const struct receiver_state *rst, struct dds
   }
   else if (strcmp(GMCLASSID_SECURITY_DATAREADER_CRYPTO_TOKENS, msg->message_class_id) == 0)
   {
-    struct ddsi_writer * const wr = entidx_lookup_writer_guid(gv->entity_index, &msg->destination_endpoint_guid);
+    struct ddsi_writer * const wr = ddsi_entidx_lookup_writer_guid (gv->entity_index, &msg->destination_endpoint_guid);
     if (!wr)
     {
       GVWARNING("received a crypto exchange message from "PGUIDFMT" with writer unknown "PGUIDFMT, PGUID(proxypp_guid), PGUID(msg->destination_participant_guid));

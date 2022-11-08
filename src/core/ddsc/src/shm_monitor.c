@@ -137,7 +137,7 @@ static void receive_data_wakeup_handler(struct dds_reader* rd)
     const iceoryx_header_t* ice_hdr = iceoryx_header_from_chunk(chunk);
 
     // Get writer or proxy writer
-    struct ddsi_entity_common * e = entidx_lookup_guid_untyped (gv->entity_index, &ice_hdr->guid);
+    struct ddsi_entity_common * e = ddsi_entidx_lookup_guid_untyped (gv->entity_index, &ice_hdr->guid);
     if (e == NULL || (e->kind != DDSI_EK_PROXY_WRITER && e->kind != DDSI_EK_WRITER))
     {
       // Ignore that doesn't match a known writer or proxy writer

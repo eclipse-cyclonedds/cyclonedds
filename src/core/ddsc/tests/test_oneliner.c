@@ -1781,7 +1781,7 @@ static void dohearing_maybe_imm (struct oneliner_ctx *ctx, bool immediate)
       if ((ret = dds_entity_pin (ctx->es[9*i], &xprime)) < 0)
         error_dds (ctx, ret, "%s: pin counterpart participant failed %"PRId32, mode, ctx->es[9*i]);
       thread_state_awake (ddsi_lookup_thread_state (), &xprime->m_domain->gv);
-      if ((pp = entidx_lookup_participant_guid (xprime->m_domain->gv.entity_index, &xprime->m_guid)) != NULL)
+      if ((pp = ddsi_entidx_lookup_participant_guid (xprime->m_domain->gv.entity_index, &xprime->m_guid)) != NULL)
         resched_xevent_if_earlier (pp->spdp_xevent, ddsrt_mtime_add_duration (ddsrt_time_monotonic (), DDS_MSECS (100)));
       thread_state_asleep (ddsi_lookup_thread_state ());
       dds_entity_unpin (xprime);

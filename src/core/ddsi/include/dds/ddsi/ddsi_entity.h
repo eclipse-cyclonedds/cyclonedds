@@ -44,7 +44,7 @@ struct nn_rsample_info;
 struct nn_rdata;
 struct ddsi_tkmap_instance;
 struct ddsi_writer_info;
-struct entity_index;
+struct ddsi_entity_index;
 
 typedef void (*ddsi2direct_directread_cb_t) (const struct nn_rsample_info *sampleinfo, const struct nn_rdata *fragchain, void *arg);
 

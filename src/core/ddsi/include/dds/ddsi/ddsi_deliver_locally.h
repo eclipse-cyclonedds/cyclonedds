@@ -28,15 +28,15 @@ struct ddsi_domaingv;
 struct ddsi_tkmap_instance;
 struct ddsi_sertype;
 struct ddsi_serdata;
-struct entity_index;
+struct ddsi_entity_index;
 struct ddsi_reader;
 struct ddsi_entity_common;
 struct ddsi_writer_info;
 struct ddsi_local_reader_ary;
 
 typedef struct ddsi_serdata * (*deliver_locally_makesample_t) (struct ddsi_tkmap_instance **tk, struct ddsi_domaingv *gv, struct ddsi_sertype const * const type, void *vsourceinfo);
-typedef struct ddsi_reader * (*deliver_locally_first_reader_t) (struct entity_index *entity_index, struct ddsi_entity_common *source_entity, ddsrt_avl_iter_t *it);
-typedef struct ddsi_reader * (*deliver_locally_next_reader_t) (struct entity_index *entity_index, ddsrt_avl_iter_t *it);
+typedef struct ddsi_reader * (*deliver_locally_first_reader_t) (struct ddsi_entity_index *entity_index, struct ddsi_entity_common *source_entity, ddsrt_avl_iter_t *it);
+typedef struct ddsi_reader * (*deliver_locally_next_reader_t) (struct ddsi_entity_index *entity_index, ddsrt_avl_iter_t *it);
 
 /** return:
     - DDS_RETCODE_OK to try again immediately

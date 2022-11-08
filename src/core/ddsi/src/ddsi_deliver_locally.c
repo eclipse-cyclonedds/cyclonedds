@@ -21,7 +21,7 @@
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/ddsi_rhc.h"
-#include "dds/ddsi/ddsi_entity_index.h"
+#include "ddsi__entity_index.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_entity.h"
 #include "ddsi__deliver_locally.h"
@@ -137,7 +137,7 @@ static void type_sample_cache_store (struct type_sample_cache * __restrict tsc, 
 
 dds_return_t ddsi_deliver_locally_one (struct ddsi_domaingv *gv, struct ddsi_entity_common *source_entity, bool source_entity_locked, const ddsi_guid_t *rdguid, const struct ddsi_writer_info *wrinfo, const struct deliver_locally_ops * __restrict ops, void *vsourceinfo)
 {
-  struct ddsi_reader *rd = entidx_lookup_reader_guid (gv->entity_index, rdguid);
+  struct ddsi_reader *rd = ddsi_entidx_lookup_reader_guid (gv->entity_index, rdguid);
   if (rd == NULL)
     return DDS_RETCODE_OK;
 
@@ -156,8 +156,8 @@ dds_return_t ddsi_deliver_locally_one (struct ddsi_domaingv *gv, struct ddsi_ent
       dds_sleepfor (DDS_MSECS (1));
       if (source_entity_locked)
         ddsrt_mutex_lock (&source_entity->lock);
-      if (entidx_lookup_reader_guid (gv->entity_index, rdguid) == NULL ||
-          entidx_lookup_guid_untyped (gv->entity_index, &source_entity->guid) == NULL)
+      if (ddsi_entidx_lookup_reader_guid (gv->entity_index, rdguid) == NULL ||
+          ddsi_entidx_lookup_guid_untyped (gv->entity_index, &source_entity->guid) == NULL)
       {
         /* give up when reader or proxy writer no longer accessible */
         break;

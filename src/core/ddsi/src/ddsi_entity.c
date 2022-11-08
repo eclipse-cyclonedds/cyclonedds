@@ -23,7 +23,7 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/ddsi_iid.h"
-#include "dds/ddsi/ddsi_entity_index.h"
+#include "ddsi__entity_index.h"
 #include "dds/ddsi/q_thread.h"
 #include "ddsi__endpoint.h"
 
@@ -162,7 +162,7 @@ uint64_t ddsi_get_entity_instanceid (const struct ddsi_domaingv *gv, const struc
   struct ddsi_entity_common *e;
   uint64_t iid = 0;
   thread_state_awake (thrst, gv);
-  if ((e = entidx_lookup_guid_untyped (gv->entity_index, guid)) != NULL)
+  if ((e = ddsi_entidx_lookup_guid_untyped (gv->entity_index, guid)) != NULL)
     iid = e->iid;
   thread_state_asleep (thrst);
   return iid;

@@ -303,7 +303,7 @@ static struct ddsi_serdata *ddsi_serdata_builtin_from_sample (const struct ddsi_
   }
   struct ddsi_domaingv * const gv = ddsrt_atomic_ldvoidp (&tp->c.gv);
   x.guid = nn_ntoh_guid (x.guid);
-  struct ddsi_entity_common *entity = entidx_lookup_guid_untyped (gv->entity_index, &x.guid);
+  struct ddsi_entity_common *entity = ddsi_entidx_lookup_guid_untyped (gv->entity_index, &x.guid);
   return dds_serdata_builtin_from_endpoint (tpcmn, &x.guid, entity, kind);
 }
 

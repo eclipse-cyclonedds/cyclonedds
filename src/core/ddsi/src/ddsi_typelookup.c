@@ -21,7 +21,7 @@
 #include "dds/ddsi/ddsi_guid.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_tkmap.h"
-#include "dds/ddsi/ddsi_entity_index.h"
+#include "ddsi__entity_index.h"
 #include "dds/ddsi/ddsi_xt_typelookup.h"
 #include "dds/ddsi/ddsi_typelookup.h"
 #include "dds/ddsi/ddsi_typelib.h"
@@ -55,15 +55,15 @@ static struct ddsi_writer *get_typelookup_writer (const struct ddsi_domaingv *gv
 {
   struct ddsi_participant *pp;
   struct ddsi_writer *wr = NULL;
-  struct entidx_enum_participant est;
+  struct ddsi_entity_enum_participant est;
   thread_state_awake (ddsi_lookup_thread_state (), gv);
-  entidx_enum_participant_init (&est, gv->entity_index);
-  while (wr == NULL && (pp = entidx_enum_participant_next (&est)) != NULL)
+  ddsi_entidx_enum_participant_init (&est, gv->entity_index);
+  while (wr == NULL && (pp = ddsi_entidx_enum_participant_next (&est)) != NULL)
   {
     if (participant_builtin_writers_ready (pp))
       wr = ddsi_get_builtin_writer (pp, wr_eid);
   }
-  entidx_enum_participant_fini (&est);
+  ddsi_entidx_enum_participant_fini (&est);
   thread_state_asleep (ddsi_lookup_thread_state ());
   return wr;
 }

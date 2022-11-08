@@ -22,7 +22,7 @@
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/ddsi_proxy_endpoint.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/ddsi_entity_index.h"
+#include "ddsi__entity_index.h"
 #include "dds/ddsi/ddsi_security_omg.h"
 #include "dds/ddsi/ddsi_builtin_topic_if.h"
 #include "dds/ddsi/ddsi_gc.h"
@@ -332,7 +332,7 @@ bool ddsi_new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_gui
   (void) is_secure;
 
   assert (ppguid->entityid.u == NN_ENTITYID_PARTICIPANT);
-  assert (entidx_lookup_proxy_participant_guid (gv->entity_index, ppguid) == NULL);
+  assert (ddsi_entidx_lookup_proxy_participant_guid (gv->entity_index, ppguid) == NULL);
   assert (privileged_pp_guid == NULL || privileged_pp_guid->entityid.u == NN_ENTITYID_PARTICIPANT);
 
   ddsi_prune_deleted_participant_guids (gv->deleted_participants, ddsrt_time_monotonic ());
@@ -381,7 +381,7 @@ bool ddsi_new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_gui
 
   {
     struct ddsi_proxy_participant *privpp;
-    privpp = entidx_lookup_proxy_participant_guid (gv->entity_index, &proxypp->privileged_pp_guid);
+    privpp = ddsi_entidx_lookup_proxy_participant_guid (gv->entity_index, &proxypp->privileged_pp_guid);
 
     ddsrt_fibheap_init (&lease_fhdef_pp, &proxypp->leaseheap_auto);
     ddsrt_fibheap_init (&lease_fhdef_pp, &proxypp->leaseheap_man);
@@ -448,7 +448,7 @@ bool ddsi_new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_gui
 #endif
 
   /* Proxy participant must be in the hash tables for new_proxy_{writer,reader} to work */
-  entidx_insert_proxy_participant_guid (gv->entity_index, proxypp);
+  ddsi_entidx_insert_proxy_participant_guid (gv->entity_index, proxypp);
   add_proxy_builtin_endpoints(gv, ppguid, proxypp, timestamp);
 
   /* write DCPSParticipant topic before the lease can expire */
@@ -456,7 +456,7 @@ bool ddsi_new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_gui
 
   /* Register lease for auto liveliness, but be careful not to accidentally re-register
      DDSI2's lease, as we may have become dependent on DDSI2 any time after
-     entidx_insert_proxy_participant_guid even if privileged_pp_guid was NULL originally */
+     ddsi_entidx_insert_proxy_participant_guid even if privileged_pp_guid was NULL originally */
   ddsrt_mutex_lock (&proxypp->e.lock);
   if (proxypp->owns_lease)
     lease_register (ddsrt_atomic_ldvoidp (&proxypp->minl_auto));
@@ -623,12 +623,12 @@ static void delete_ppt (struct ddsi_proxy_participant *proxypp, ddsrt_wctime_t t
   /* if any proxy participants depend on this participant, delete them */
   ELOGDISC (proxypp, "delete_ppt("PGUIDFMT") - deleting dependent proxy participants\n", PGUID (proxypp->e.guid));
   {
-    struct entidx_enum_proxy_participant est;
+    struct ddsi_entity_enum_proxy_participant est;
     struct ddsi_proxy_participant *p;
-    entidx_enum_proxy_participant_init (&est, proxypp->e.gv->entity_index);
-    while ((p = entidx_enum_proxy_participant_next (&est)) != NULL)
+    ddsi_entidx_enum_proxy_participant_init (&est, proxypp->e.gv->entity_index);
+    while ((p = ddsi_entidx_enum_proxy_participant_next (&est)) != NULL)
       delete_or_detach_dependent_pp(p, proxypp, timestamp, isimplicit);
-    entidx_enum_proxy_participant_fini (&est);
+    ddsi_entidx_enum_proxy_participant_fini (&est);
   }
 
   ddsrt_mutex_lock (&proxypp->e.lock);
@@ -686,16 +686,16 @@ void ddsi_purge_proxy_participants (struct ddsi_domaingv *gv, const ddsi_xlocato
   /* FIXME: check whether addr:port can't be reused for a new connection by the time we get here. */
   /* NOTE: This function exists for the sole purpose of cleaning up after closing a TCP connection in ddsi_tcp_close_conn and the state of the calling thread could be anything at this point. Because of that we do the unspeakable and toggle the thread state conditionally. We can't afford to have it in "asleep", as that causes a race with the garbage collector. */
   struct thread_state * const thrst = ddsi_lookup_thread_state ();
-  struct entidx_enum_proxy_participant est;
+  struct ddsi_entity_enum_proxy_participant est;
   struct proxy_purge_data data;
 
   thread_state_awake (thrst, gv);
   data.loc = loc;
   data.timestamp = ddsrt_time_wallclock();
-  entidx_enum_proxy_participant_init (&est, gv->entity_index);
-  while ((data.proxypp = entidx_enum_proxy_participant_next (&est)) != NULL)
+  ddsi_entidx_enum_proxy_participant_init (&est, gv->entity_index);
+  while ((data.proxypp = ddsi_entidx_enum_proxy_participant_next (&est)) != NULL)
     addrset_forall (data.proxypp->as_meta, purge_helper, &data);
-  entidx_enum_proxy_participant_fini (&est);
+  ddsi_entidx_enum_proxy_participant_fini (&est);
 
   /* Shouldn't try to keep pinging clients once they're gone */
   if (delete_from_as_disc)
@@ -710,7 +710,7 @@ int ddsi_delete_proxy_participant_by_guid (struct ddsi_domaingv *gv, const struc
 
   GVLOGDISC ("ddsi_delete_proxy_participant_by_guid("PGUIDFMT") ", PGUID (*guid));
   ddsrt_mutex_lock (&gv->lock);
-  ppt = entidx_lookup_proxy_participant_guid (gv->entity_index, guid);
+  ppt = ddsi_entidx_lookup_proxy_participant_guid (gv->entity_index, guid);
   if (ppt == NULL)
   {
     ddsrt_mutex_unlock (&gv->lock);
@@ -720,7 +720,7 @@ int ddsi_delete_proxy_participant_by_guid (struct ddsi_domaingv *gv, const struc
   GVLOGDISC ("- deleting\n");
   ddsi_builtintopic_write_endpoint (gv->builtin_topic_interface, &ppt->e, timestamp, false);
   ddsi_remember_deleted_participant_guid (gv->deleted_participants, &ppt->e.guid);
-  entidx_remove_proxy_participant_guid (gv->entity_index, ppt);
+  ddsi_entidx_remove_proxy_participant_guid (gv->entity_index, ppt);
   ddsrt_mutex_unlock (&gv->lock);
   delete_ppt (ppt, timestamp, isimplicit);
 

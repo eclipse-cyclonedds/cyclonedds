@@ -21,7 +21,7 @@
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/ddsi_rhc.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/ddsi_entity_index.h"
+#include "ddsi__entity_index.h"
 #include "dds/ddsi/ddsi_mcgroup.h"
 #include "dds/ddsi/ddsi_nwpart.h"
 #include "dds/ddsi/ddsi_udp.h"
@@ -143,12 +143,12 @@ void ddsi_make_writer_info(struct ddsi_writer_info *wrinfo, const struct ddsi_en
 static uint32_t get_min_receive_buffer_size (struct ddsi_writer *wr)
 {
   uint32_t min_receive_buffer_size = UINT32_MAX;
-  struct entity_index *gh = wr->e.gv->entity_index;
+  struct ddsi_entity_index *gh = wr->e.gv->entity_index;
   ddsrt_avl_iter_t it;
   for (struct ddsi_wr_prd_match *m = ddsrt_avl_iter_first (&ddsi_wr_readers_treedef, &wr->readers, &it); m; m = ddsrt_avl_iter_next (&it))
   {
     struct ddsi_proxy_reader *prd;
-    if ((prd = entidx_lookup_proxy_reader_guid (gh, &m->prd_guid)) == NULL)
+    if ((prd = ddsi_entidx_lookup_proxy_reader_guid (gh, &m->prd_guid)) == NULL)
       continue;
     if (prd->receive_buffer_size < min_receive_buffer_size)
       min_receive_buffer_size = prd->receive_buffer_size;
@@ -279,7 +279,7 @@ void ddsi_reader_update_notify_wr_alive_state (struct ddsi_reader *rd, const str
 static void ddsi_reader_update_notify_wr_alive_state_guid (const struct ddsi_guid *rd_guid, const struct ddsi_writer *wr, const struct ddsi_alive_state *alive_state)
 {
   struct ddsi_reader *rd;
-  if ((rd = entidx_lookup_reader_guid (wr->e.gv->entity_index, rd_guid)) != NULL)
+  if ((rd = ddsi_entidx_lookup_reader_guid (wr->e.gv->entity_index, rd_guid)) != NULL)
     ddsi_reader_update_notify_wr_alive_state (rd, wr, alive_state);
 }
 
@@ -314,18 +314,18 @@ void ddsi_reader_update_notify_pwr_alive_state (struct ddsi_reader *rd, const st
 void ddsi_reader_update_notify_pwr_alive_state_guid (const struct ddsi_guid *rd_guid, const struct ddsi_proxy_writer *pwr, const struct ddsi_alive_state *alive_state)
 {
   struct ddsi_reader *rd;
-  if ((rd = entidx_lookup_reader_guid (pwr->e.gv->entity_index, rd_guid)) != NULL)
+  if ((rd = ddsi_entidx_lookup_reader_guid (pwr->e.gv->entity_index, rd_guid)) != NULL)
     ddsi_reader_update_notify_pwr_alive_state (rd, pwr, alive_state);
 }
 
-void ddsi_update_reader_init_acknack_count (const ddsrt_log_cfg_t *logcfg, const struct entity_index *entidx, const struct ddsi_guid *rd_guid, nn_count_t count)
+void ddsi_update_reader_init_acknack_count (const ddsrt_log_cfg_t *logcfg, const struct ddsi_entity_index *entidx, const struct ddsi_guid *rd_guid, nn_count_t count)
 {
   struct ddsi_reader *rd;
 
   /* Update the initial acknack sequence number for the reader.  See
      also reader_add_connection(). */
   DDS_CLOG (DDS_LC_DISCOVERY, logcfg, "ddsi_update_reader_init_acknack_count ("PGUIDFMT", %"PRIu32"): ", PGUID (*rd_guid), count);
-  if ((rd = entidx_lookup_reader_guid (entidx, rd_guid)) != NULL)
+  if ((rd = ddsi_entidx_lookup_reader_guid (entidx, rd_guid)) != NULL)
   {
     ddsrt_mutex_lock (&rd->e.lock);
     DDS_CLOG (DDS_LC_DISCOVERY, logcfg, "%"PRIu32" -> ", rd->init_acknack_count);
@@ -660,7 +660,7 @@ void ddsi_writer_set_alive_may_unlock (struct ddsi_writer *wr, bool notify)
   assert (!wr->alive);
 
   /* check that writer still exists (when deleting it is removed from guid hash) */
-  if (entidx_lookup_writer_guid (wr->e.gv->entity_index, &wr->e.guid) == NULL)
+  if (ddsi_entidx_lookup_writer_guid (wr->e.gv->entity_index, &wr->e.guid) == NULL)
   {
     ELOGDISC (wr, "ddsi_writer_set_alive_may_unlock("PGUIDFMT") - not in entity index, wr deleting\n", PGUID (wr->e.guid));
     return;
@@ -915,7 +915,7 @@ dds_return_t ddsi_new_writer_guid (struct ddsi_writer **wr_out, const struct dds
   ddsrt_mtime_t tnow = ddsrt_time_monotonic ();
 
   assert (ddsi_is_writer_entityid (guid->entityid));
-  assert (entidx_lookup_writer_guid (pp->e.gv->entity_index, guid) == NULL);
+  assert (ddsi_entidx_lookup_writer_guid (pp->e.gv->entity_index, guid) == NULL);
   assert (memcmp (&guid->prefix, &pp->e.guid.prefix, sizeof (guid->prefix)) == 0);
 
   new_reader_writer_common (&pp->e.gv->logconfig, guid, topic_name, type->type_name, xqos);
@@ -941,7 +941,7 @@ dds_return_t ddsi_new_writer_guid (struct ddsi_writer **wr_out, const struct dds
    neither of two endpoints being created in parallel can discover
    the other. */
   ddsrt_mutex_lock (&wr->e.lock);
-  entidx_insert_writer_guid (pp->e.gv->entity_index, wr);
+  ddsi_entidx_insert_writer_guid (pp->e.gv->entity_index, wr);
   ddsi_builtintopic_write_endpoint (wr->e.gv->builtin_topic_interface, &wr->e, ddsrt_time_wallclock(), true);
   ddsrt_mutex_unlock (&wr->e.lock);
 
@@ -1030,7 +1030,7 @@ struct ddsi_local_orphan_writer *ddsi_new_local_orphan_writer (struct ddsi_domai
 #endif
 
   ddsi_new_writer_guid_common_init (wr, topic_name, type, xqos, whc, 0, NULL);
-  entidx_insert_writer_guid (gv->entity_index, wr);
+  ddsi_entidx_insert_writer_guid (gv->entity_index, wr);
   ddsi_builtintopic_write_endpoint (gv->builtin_topic_interface, &wr->e, ddsrt_time_wallclock(), true);
   match_writer_with_local_readers (wr, tnow);
   return lowr;
@@ -1154,7 +1154,7 @@ dds_return_t ddsi_unblock_throttled_writer (struct ddsi_domaingv *gv, const stru
 {
   struct ddsi_writer *wr;
   assert (ddsi_is_writer_entityid (guid->entityid));
-  if ((wr = entidx_lookup_writer_guid (gv->entity_index, guid)) == NULL)
+  if ((wr = ddsi_entidx_lookup_writer_guid (gv->entity_index, guid)) == NULL)
   {
     GVLOGDISC ("ddsi_unblock_throttled_writer(guid "PGUIDFMT") - unknown guid\n", PGUID (*guid));
     return DDS_RETCODE_BAD_PARAMETER;
@@ -1215,7 +1215,7 @@ static dds_return_t delete_writer_nolinger_locked (struct ddsi_writer *wr)
   ELOGDISC (wr, "ddsi_delete_writer_nolinger(guid "PGUIDFMT") ...\n", PGUID (wr->e.guid));
   ddsi_builtintopic_write_endpoint (wr->e.gv->builtin_topic_interface, &wr->e, ddsrt_time_wallclock(), false);
   local_reader_ary_setinvalid (&wr->rdary);
-  entidx_remove_writer_guid (wr->e.gv->entity_index, wr);
+  ddsi_entidx_remove_writer_guid (wr->e.gv->entity_index, wr);
   writer_set_state (wr, WRST_DELETING);
   if (wr->lease_duration != NULL) {
     wr->lease_duration->ldur = DDS_DURATION_INVALID;
@@ -1248,7 +1248,7 @@ dds_return_t ddsi_delete_writer_nolinger (struct ddsi_domaingv *gv, const struct
      DDSI participants. But it would be somewhat more elegant to do it
      differently. */
   assert (ddsi_is_writer_entityid (guid->entityid));
-  if ((wr = entidx_lookup_writer_guid (gv->entity_index, guid)) == NULL)
+  if ((wr = ddsi_entidx_lookup_writer_guid (gv->entity_index, guid)) == NULL)
   {
     GVLOGDISC ("ddsi_delete_writer_nolinger(guid "PGUIDFMT") - unknown guid\n", PGUID (*guid));
     return DDS_RETCODE_BAD_PARAMETER;
@@ -1273,7 +1273,7 @@ dds_return_t ddsi_delete_writer (struct ddsi_domaingv *gv, const struct ddsi_gui
 {
   struct ddsi_writer *wr;
   struct whc_state whcst;
-  if ((wr = entidx_lookup_writer_guid (gv->entity_index, guid)) == NULL)
+  if ((wr = ddsi_entidx_lookup_writer_guid (gv->entity_index, guid)) == NULL)
   {
     GVLOGDISC ("delete_writer(guid "PGUIDFMT") - unknown guid\n", PGUID (*guid));
     return DDS_RETCODE_BAD_PARAMETER;
@@ -1417,7 +1417,7 @@ dds_return_t ddsi_new_reader_guid (struct ddsi_reader **rd_out, const struct dds
   ddsrt_mtime_t tnow = ddsrt_time_monotonic ();
 
   assert (!ddsi_is_writer_entityid (guid->entityid));
-  assert (entidx_lookup_reader_guid (pp->e.gv->entity_index, guid) == NULL);
+  assert (ddsi_entidx_lookup_reader_guid (pp->e.gv->entity_index, guid) == NULL);
   assert (memcmp (&guid->prefix, &pp->e.guid.prefix, sizeof (guid->prefix)) == 0);
 
   new_reader_writer_common (&pp->e.gv->logconfig, guid, topic_name, type->type_name, xqos);
@@ -1490,7 +1490,7 @@ dds_return_t ddsi_new_reader_guid (struct ddsi_reader **rd_out, const struct dds
   ddsrt_avl_init (&ddsi_rd_local_writers_treedef, &rd->local_writers);
 
   ddsrt_mutex_lock (&rd->e.lock);
-  entidx_insert_reader_guid (pp->e.gv->entity_index, rd);
+  ddsi_entidx_insert_reader_guid (pp->e.gv->entity_index, rd);
   ddsi_builtintopic_write_endpoint (pp->e.gv->builtin_topic_interface, &rd->e, ddsrt_time_wallclock(), true);
   ddsrt_mutex_unlock (&rd->e.lock);
 
@@ -1575,14 +1575,14 @@ dds_return_t ddsi_delete_reader (struct ddsi_domaingv *gv, const struct ddsi_gui
 {
   struct ddsi_reader *rd;
   assert (!ddsi_is_writer_entityid (guid->entityid));
-  if ((rd = entidx_lookup_reader_guid (gv->entity_index, guid)) == NULL)
+  if ((rd = ddsi_entidx_lookup_reader_guid (gv->entity_index, guid)) == NULL)
   {
     GVLOGDISC ("delete_reader_guid(guid "PGUIDFMT") - unknown guid\n", PGUID (*guid));
     return DDS_RETCODE_BAD_PARAMETER;
   }
   GVLOGDISC ("delete_reader_guid(guid "PGUIDFMT") ...\n", PGUID (*guid));
   ddsi_builtintopic_write_endpoint (rd->e.gv->builtin_topic_interface, &rd->e, ddsrt_time_wallclock(), false);
-  entidx_remove_reader_guid (gv->entity_index, rd);
+  ddsi_entidx_remove_reader_guid (gv->entity_index, rd);
   gcreq_reader (rd);
   return 0;
 }

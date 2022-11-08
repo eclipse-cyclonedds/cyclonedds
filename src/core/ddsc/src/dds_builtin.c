@@ -408,7 +408,7 @@ void dds__builtin_init (struct dds_domain *dom)
   ddsrt_mutex_unlock (&dom->gv.sertypes_lock);
 
   thread_state_awake (ddsi_lookup_thread_state (), &dom->gv);
-  const struct entity_index *gh = dom->gv.entity_index;
+  const struct ddsi_entity_index *gh = dom->gv.entity_index;
   dom->builtintopic_writer_participant = ddsi_new_local_orphan_writer (&dom->gv, ddsi_to_entityid (NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER), DDS_BUILTIN_TOPIC_PARTICIPANT_NAME, dom->builtin_participant_type, qos, builtintopic_whc_new (DSBT_PARTICIPANT, gh));
 #ifdef DDS_HAS_TOPIC_DISCOVERY
   dom->builtintopic_writer_topics = ddsi_new_local_orphan_writer (&dom->gv, ddsi_to_entityid (NN_ENTITYID_SEDP_BUILTIN_TOPIC_WRITER), DDS_BUILTIN_TOPIC_TOPIC_NAME, dom->builtin_topic_type, qos, builtintopic_whc_new (DSBT_TOPIC, gh));

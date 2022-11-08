@@ -19,7 +19,7 @@
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_iid.h"
-#include "dds/ddsi/ddsi_entity_index.h"
+#include "ddsi__entity_index.h"
 #include "dds/ddsi/ddsi_builtin_topic_if.h"
 #include "dds/ddsi/ddsi_security_omg.h"
 #include "dds/ddsi/ddsi_handshake.h"
@@ -175,7 +175,7 @@ void ddsi_participant_release_entityid (struct ddsi_participant *pp, ddsi_entity
 
 static void force_as_disc_address (struct ddsi_domaingv *gv, const ddsi_guid_t *subguid)
 {
-  struct ddsi_writer *wr = entidx_lookup_writer_guid (gv->entity_index, subguid);
+  struct ddsi_writer *wr = ddsi_entidx_lookup_writer_guid (gv->entity_index, subguid);
   assert (wr != NULL);
   ddsrt_mutex_lock (&wr->e.lock);
   unref_addrset (wr->as);
@@ -263,37 +263,37 @@ static void add_security_builtin_endpoints (struct ddsi_participant *pp, ddsi_gu
 static void connect_participant_secure (struct ddsi_domaingv *gv, struct ddsi_participant *pp)
 {
   struct ddsi_proxy_participant *proxypp;
-  struct entidx_enum_proxy_participant it;
+  struct ddsi_entity_enum_proxy_participant it;
 
   if (q_omg_participant_is_secure(pp))
   {
     q_omg_security_participant_set_initialized(pp);
 
-    entidx_enum_proxy_participant_init (&it, gv->entity_index);
-    while ((proxypp = entidx_enum_proxy_participant_next (&it)) != NULL)
+    ddsi_entidx_enum_proxy_participant_init (&it, gv->entity_index);
+    while ((proxypp = ddsi_entidx_enum_proxy_participant_next (&it)) != NULL)
     {
       /* Do not start handshaking when security info doesn't match. */
       if (q_omg_security_remote_participant_is_initialized(proxypp) && q_omg_is_similar_participant_security_info(pp, proxypp))
         ddsi_handshake_register(pp, proxypp, handshake_end_cb);
     }
-    entidx_enum_proxy_participant_fini (&it);
+    ddsi_entidx_enum_proxy_participant_fini (&it);
   }
 }
 
 static void disconnect_participant_secure (struct ddsi_participant *pp)
 {
   struct ddsi_proxy_participant *proxypp;
-  struct entidx_enum_proxy_participant it;
+  struct ddsi_entity_enum_proxy_participant it;
   struct ddsi_domaingv * const gv = pp->e.gv;
 
   if (q_omg_participant_is_secure(pp))
   {
-    entidx_enum_proxy_participant_init (&it, gv->entity_index);
-    while ((proxypp = entidx_enum_proxy_participant_next (&it)) != NULL)
+    ddsi_entidx_enum_proxy_participant_init (&it, gv->entity_index);
+    while ((proxypp = ddsi_entidx_enum_proxy_participant_next (&it)) != NULL)
     {
       ddsi_handshake_remove(pp, proxypp);
     }
-    entidx_enum_proxy_participant_fini (&it);
+    ddsi_entidx_enum_proxy_participant_fini (&it);
   }
 }
 #endif /* DDS_HAS_SECURITY */
@@ -785,7 +785,7 @@ static dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domai
   /* Participant may not exist yet, but this test is imprecise: if it
      used to exist, but is currently being deleted and we're trying to
      recreate it. */
-  if (entidx_lookup_participant_guid (gv->entity_index, ppguid) != NULL)
+  if (ddsi_entidx_lookup_participant_guid (gv->entity_index, ppguid) != NULL)
     return DDS_RETCODE_PRECONDITION_NOT_MET;
 
   if (gv->config.many_sockets_mode != DDSI_MSM_MANY_UNICAST)
@@ -911,7 +911,7 @@ static dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domai
   }
 
   /* Make it globally visible, else the endpoint matching won't work. */
-  entidx_insert_participant_guid (gv->entity_index, pp);
+  ddsi_entidx_insert_participant_guid (gv->entity_index, pp);
 
   /* add all built-in endpoints other than the SPDP writer */
   add_builtin_endpoints (pp, &subguid, &group_guid, gv, !(flags & RTPS_PF_NO_BUILTIN_WRITERS), !(flags & RTPS_PF_NO_BUILTIN_READERS));
@@ -1050,7 +1050,7 @@ dds_return_t ddsi_delete_participant (struct ddsi_domaingv *gv, const struct dds
   struct ddsi_participant *pp;
   GVLOGDISC ("ddsi_delete_participant ("PGUIDFMT")\n", PGUID (*ppguid));
   ddsrt_mutex_lock (&gv->lock);
-  if ((pp = entidx_lookup_participant_guid (gv->entity_index, ppguid)) == NULL)
+  if ((pp = ddsi_entidx_lookup_participant_guid (gv->entity_index, ppguid)) == NULL)
   {
     ddsrt_mutex_unlock (&gv->lock);
     return DDS_RETCODE_BAD_PARAMETER;
@@ -1063,7 +1063,7 @@ dds_return_t ddsi_delete_participant (struct ddsi_domaingv *gv, const struct dds
   ddsrt_mutex_lock (&pp->refc_lock);
   pp->state = DDSI_PARTICIPANT_STATE_DELETE_STARTED;
   ddsrt_mutex_unlock (&pp->refc_lock);
-  entidx_remove_participant_guid (gv->entity_index, pp);
+  ddsi_entidx_remove_participant_guid (gv->entity_index, pp);
   ddsrt_mutex_unlock (&gv->lock);
   gcreq_participant (pp);
   return 0;
@@ -1160,7 +1160,7 @@ struct ddsi_writer *ddsi_get_builtin_writer (const struct ddsi_participant *pp, 
     bwr_guid.entityid.u = entityid;
   }
 
-  return entidx_lookup_writer_guid (pp->e.gv->entity_index, &bwr_guid);
+  return ddsi_entidx_lookup_writer_guid (pp->e.gv->entity_index, &bwr_guid);
 }
 
 dds_duration_t ddsi_participant_get_pmd_interval (struct ddsi_participant *pp)

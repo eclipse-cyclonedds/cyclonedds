@@ -12,7 +12,7 @@
 #include <string.h>
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/ddsi_entity_index.h"
+#include "ddsi__entity_index.h"
 #include "dds/ddsi/ddsi_statistics.h"
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_entity_match.h"
@@ -46,7 +46,7 @@ void ddsi_get_reader_stats (struct ddsi_reader *rd, uint64_t * __restrict discar
     struct ddsi_proxy_writer *pwr;
     pwrguid = m->pwr_guid;
     ddsrt_mutex_unlock (&rd->e.lock);
-    if ((pwr = entidx_lookup_proxy_writer_guid (rd->e.gv->entity_index, &pwrguid)) != NULL)
+    if ((pwr = ddsi_entidx_lookup_proxy_writer_guid (rd->e.gv->entity_index, &pwrguid)) != NULL)
     {
       uint64_t disc_frags, disc_samples;
       ddsrt_mutex_lock (&pwr->e.lock);

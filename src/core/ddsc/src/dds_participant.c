@@ -69,7 +69,7 @@ static dds_return_t dds_participant_qos_set (dds_entity *e, const dds_qos_t *qos
   {
     struct ddsi_participant *pp;
     thread_state_awake (ddsi_lookup_thread_state (), &e->m_domain->gv);
-    if ((pp = entidx_lookup_participant_guid (e->m_domain->gv.entity_index, &e->m_guid)) != NULL)
+    if ((pp = ddsi_entidx_lookup_participant_guid (e->m_domain->gv.entity_index, &e->m_guid)) != NULL)
     {
       ddsi_plist_t plist;
       ddsi_plist_init_empty (&plist);

@@ -19,7 +19,7 @@
 #include "dds/ddsi/ddsi_proxy_participant.h"
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/ddsi_proxy_endpoint.h"
-#include "dds/ddsi/ddsi_entity_index.h"
+#include "ddsi__entity_index.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_builtin_topic_if.h"
 #include "dds/ddsi/ddsi_security_omg.h"
@@ -192,9 +192,9 @@ int ddsi_new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppg
   int ret;
 
   assert (ddsi_is_writer_entityid (guid->entityid));
-  assert (entidx_lookup_proxy_writer_guid (gv->entity_index, guid) == NULL);
+  assert (ddsi_entidx_lookup_proxy_writer_guid (gv->entity_index, guid) == NULL);
 
-  if ((proxypp = entidx_lookup_proxy_participant_guid (gv->entity_index, ppguid)) == NULL)
+  if ((proxypp = ddsi_entidx_lookup_proxy_participant_guid (gv->entity_index, ppguid)) == NULL)
   {
     GVWARNING ("ddsi_new_proxy_writer("PGUIDFMT"): proxy participant unknown\n", PGUID (*guid));
     return DDS_RETCODE_BAD_PARAMETER;
@@ -298,7 +298,7 @@ int ddsi_new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppg
 
   /* locking the entity prevents matching while the built-in topic hasn't been published yet */
   ddsrt_mutex_lock (&pwr->e.lock);
-  entidx_insert_proxy_writer_guid (gv->entity_index, pwr);
+  ddsi_entidx_insert_proxy_writer_guid (gv->entity_index, pwr);
   ddsi_builtintopic_write_endpoint (gv->builtin_topic_interface, &pwr->e, timestamp, true);
   ddsrt_mutex_unlock (&pwr->e.lock);
 
@@ -334,7 +334,7 @@ void ddsi_update_proxy_writer (struct ddsi_proxy_writer *pwr, seqno_t seq, struc
       m = ddsrt_avl_iter_first (&ddsi_pwr_readers_treedef, &pwr->readers, &iter);
       while (m)
       {
-        rd = entidx_lookup_reader_guid (pwr->e.gv->entity_index, &m->rd_guid);
+        rd = ddsi_entidx_lookup_reader_guid (pwr->e.gv->entity_index, &m->rd_guid);
         if (rd)
         {
           qxev_pwr_entityid (pwr, &rd->e.guid);
@@ -417,7 +417,7 @@ int ddsi_delete_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *
   GVLOGDISC ("ddsi_delete_proxy_writer ("PGUIDFMT") ", PGUID (*guid));
 
   ddsrt_mutex_lock (&gv->lock);
-  if ((pwr = entidx_lookup_proxy_writer_guid (gv->entity_index, guid)) == NULL)
+  if ((pwr = ddsi_entidx_lookup_proxy_writer_guid (gv->entity_index, guid)) == NULL)
   {
     ddsrt_mutex_unlock (&gv->lock);
     GVLOGDISC ("- unknown\n");
@@ -442,7 +442,7 @@ int ddsi_delete_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *
     ddsi_type_unreg_proxy (gv, pwr->c.type_pair->complete, &pwr->e.guid);
   }
 #endif
-  entidx_remove_proxy_writer_guid (gv->entity_index, pwr);
+  ddsi_entidx_remove_proxy_writer_guid (gv->entity_index, pwr);
   ddsrt_mutex_unlock (&gv->lock);
   if (pwr->c.xqos->liveliness.lease_duration != DDS_INFINITY && pwr->c.xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_TOPIC)
     lease_unregister (pwr->lease);
@@ -480,7 +480,7 @@ void ddsi_proxy_writer_set_alive_may_unlock (struct ddsi_proxy_writer *pwr, bool
   assert (!pwr->alive);
 
   /* check that proxy writer still exists (when deleting it is removed from guid hash) */
-  if (entidx_lookup_proxy_writer_guid (pwr->e.gv->entity_index, &pwr->e.guid) == NULL)
+  if (ddsi_entidx_lookup_proxy_writer_guid (pwr->e.gv->entity_index, &pwr->e.guid) == NULL)
   {
     ELOGDISC (pwr, "ddsi_proxy_writer_set_alive_may_unlock("PGUIDFMT") - not in entity index, pwr deleting\n", PGUID (pwr->e.guid));
     return;
@@ -540,9 +540,9 @@ int ddsi_new_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *ppg
   int ret;
 
   assert (!ddsi_is_writer_entityid (guid->entityid));
-  assert (entidx_lookup_proxy_reader_guid (gv->entity_index, guid) == NULL);
+  assert (ddsi_entidx_lookup_proxy_reader_guid (gv->entity_index, guid) == NULL);
 
-  if ((proxypp = entidx_lookup_proxy_participant_guid (gv->entity_index, ppguid)) == NULL)
+  if ((proxypp = ddsi_entidx_lookup_proxy_participant_guid (gv->entity_index, ppguid)) == NULL)
   {
     GVWARNING ("ddsi_new_proxy_reader("PGUIDFMT"): proxy participant unknown\n", PGUID (*guid));
     return DDS_RETCODE_BAD_PARAMETER;
@@ -583,7 +583,7 @@ int ddsi_new_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *ppg
 
   /* locking the entity prevents matching while the built-in topic hasn't been published yet */
   ddsrt_mutex_lock (&prd->e.lock);
-  entidx_insert_proxy_reader_guid (gv->entity_index, prd);
+  ddsi_entidx_insert_proxy_reader_guid (gv->entity_index, prd);
   ddsi_builtintopic_write_endpoint (gv->builtin_topic_interface, &prd->e, timestamp, true);
   ddsrt_mutex_unlock (&prd->e.lock);
 
@@ -631,7 +631,7 @@ void ddsi_update_proxy_reader (struct ddsi_proxy_reader *prd, seqno_t seq, struc
         }
 
         ddsrt_mutex_unlock (&prd->e.lock);
-        wr = entidx_lookup_writer_guid (prd->e.gv->entity_index, &wrguid);
+        wr = ddsi_entidx_lookup_writer_guid (prd->e.gv->entity_index, &wrguid);
         if (wr)
         {
           ddsrt_mutex_lock (&wr->e.lock);
@@ -674,7 +674,7 @@ static void proxy_reader_set_delete_and_ack_all_messages (struct ddsi_proxy_read
     }
 
     ddsrt_mutex_unlock (&prd->e.lock);
-    if ((wr = entidx_lookup_writer_guid (prd->e.gv->entity_index, &wrguid)) != NULL)
+    if ((wr = ddsi_entidx_lookup_writer_guid (prd->e.gv->entity_index, &wrguid)) != NULL)
     {
       struct whc_node *deferred_free_list = NULL;
       struct ddsi_wr_prd_match *m_wr;
@@ -741,7 +741,7 @@ int ddsi_delete_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *
   GVLOGDISC ("ddsi_delete_proxy_reader ("PGUIDFMT") ", PGUID (*guid));
 
   ddsrt_mutex_lock (&gv->lock);
-  if ((prd = entidx_lookup_proxy_reader_guid (gv->entity_index, guid)) == NULL)
+  if ((prd = ddsi_entidx_lookup_proxy_reader_guid (gv->entity_index, guid)) == NULL)
   {
     ddsrt_mutex_unlock (&gv->lock);
     GVLOGDISC ("- unknown\n");
@@ -760,7 +760,7 @@ int ddsi_delete_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *
     ddsi_type_unreg_proxy (gv, prd->c.type_pair->complete, &prd->e.guid);
   }
 #endif
-  entidx_remove_proxy_reader_guid (gv->entity_index, prd);
+  ddsi_entidx_remove_proxy_reader_guid (gv->entity_index, prd);
   ddsrt_mutex_unlock (&gv->lock);
   GVLOGDISC ("- deleting\n");
 

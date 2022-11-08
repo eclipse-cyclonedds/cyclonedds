@@ -35,7 +35,7 @@
 #include "dds/ddsi/ddsi_serdata_plist.h"
 
 #include "dds/ddsi/q_radmin.h"
-#include "dds/ddsi/ddsi_entity_index.h"
+#include "ddsi__entity_index.h"
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_participant.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
@@ -614,11 +614,11 @@ static unsigned pseudo_random_delay (const ddsi_guid_t *x, const ddsi_guid_t *y,
 
 static void respond_to_spdp (const struct ddsi_domaingv *gv, const ddsi_guid_t *dest_proxypp_guid)
 {
-  struct entidx_enum_participant est;
+  struct ddsi_entity_enum_participant est;
   struct ddsi_participant *pp;
   ddsrt_mtime_t tnow = ddsrt_time_monotonic ();
-  entidx_enum_participant_init (&est, gv->entity_index);
-  while ((pp = entidx_enum_participant_next (&est)) != NULL)
+  ddsi_entidx_enum_participant_init (&est, gv->entity_index);
+  while ((pp = ddsi_entidx_enum_participant_next (&est)) != NULL)
   {
     /* delay_base has 32 bits, so delay_norm is approximately 1s max;
        delay_max <= 1s by gv.config checks */
@@ -634,7 +634,7 @@ static void respond_to_spdp (const struct ddsi_domaingv *gv, const ddsi_guid_t *
     else
       qxev_spdp (gv->xevents, tsched, &pp->e.guid, dest_proxypp_guid);
   }
-  entidx_enum_participant_fini (&est);
+  ddsi_entidx_enum_participant_fini (&est);
 }
 
 static int handle_spdp_dead (const struct receiver_state *rst, ddsi_entityid_t pwr_entityid, ddsrt_wctime_t timestamp, const ddsi_plist_t *datap, unsigned statusinfo)
@@ -672,28 +672,28 @@ static int handle_spdp_dead (const struct receiver_state *rst, ddsi_entityid_t p
   return 1;
 }
 
-static struct ddsi_proxy_participant *find_ddsi2_proxy_participant (const struct entity_index *entidx, const ddsi_guid_t *ppguid)
+static struct ddsi_proxy_participant *find_ddsi2_proxy_participant (const struct ddsi_entity_index *entidx, const ddsi_guid_t *ppguid)
 {
-  struct entidx_enum_proxy_participant it;
+  struct ddsi_entity_enum_proxy_participant it;
   struct ddsi_proxy_participant *pp;
-  entidx_enum_proxy_participant_init (&it, entidx);
-  while ((pp = entidx_enum_proxy_participant_next (&it)) != NULL)
+  ddsi_entidx_enum_proxy_participant_init (&it, entidx);
+  while ((pp = ddsi_entidx_enum_proxy_participant_next (&it)) != NULL)
   {
     if (vendor_is_eclipse_or_opensplice (pp->vendor) && pp->e.guid.prefix.u[0] == ppguid->prefix.u[0] && pp->is_ddsi2_pp)
       break;
   }
-  entidx_enum_proxy_participant_fini (&it);
+  ddsi_entidx_enum_proxy_participant_fini (&it);
   return pp;
 }
 
 static void make_participants_dependent_on_ddsi2 (struct ddsi_domaingv *gv, const ddsi_guid_t *ddsi2guid, ddsrt_wctime_t timestamp)
 {
-  struct entidx_enum_proxy_participant it;
+  struct ddsi_entity_enum_proxy_participant it;
   struct ddsi_proxy_participant *pp, *d2pp;
-  if ((d2pp = entidx_lookup_proxy_participant_guid (gv->entity_index, ddsi2guid)) == NULL)
+  if ((d2pp = ddsi_entidx_lookup_proxy_participant_guid (gv->entity_index, ddsi2guid)) == NULL)
     return;
-  entidx_enum_proxy_participant_init (&it, gv->entity_index);
-  while ((pp = entidx_enum_proxy_participant_next (&it)) != NULL)
+  ddsi_entidx_enum_proxy_participant_init (&it, gv->entity_index);
+  while ((pp = ddsi_entidx_enum_proxy_participant_next (&it)) != NULL)
   {
     if (vendor_is_eclipse_or_opensplice (pp->vendor) && pp->e.guid.prefix.u[0] == ddsi2guid->prefix.u[0] && !pp->is_ddsi2_pp)
     {
@@ -704,7 +704,7 @@ static void make_participants_dependent_on_ddsi2 (struct ddsi_domaingv *gv, cons
       ddsi_proxy_participant_reassign_lease (pp, d2pp->lease);
       GVTRACE ("\n");
 
-      if (entidx_lookup_proxy_participant_guid (gv->entity_index, ddsi2guid) == NULL)
+      if (ddsi_entidx_lookup_proxy_participant_guid (gv->entity_index, ddsi2guid) == NULL)
       {
         /* If DDSI2 has been deleted here (i.e., very soon after
            having been created), we don't know whether pp will be
@@ -713,7 +713,7 @@ static void make_participants_dependent_on_ddsi2 (struct ddsi_domaingv *gv, cons
       }
     }
   }
-  entidx_enum_proxy_participant_fini (&it);
+  ddsi_entidx_enum_proxy_participant_fini (&it);
 
   if (pp != NULL)
   {
@@ -775,7 +775,7 @@ static int handle_spdp_alive (const struct receiver_state *rst, seqno_t seq, dds
   /* Do we know this GUID already? */
   {
     struct ddsi_entity_common *existing_entity;
-    if ((existing_entity = entidx_lookup_guid_untyped (gv->entity_index, &datap->participant_guid)) == NULL)
+    if ((existing_entity = ddsi_entidx_lookup_guid_untyped (gv->entity_index, &datap->participant_guid)) == NULL)
     {
       /* Local SPDP packets may be looped back, and that can include ones
          for participants currently being deleted.  The first thing that
@@ -973,7 +973,7 @@ static int handle_spdp_alive (const struct receiver_state *rst, seqno_t seq, dds
       /* If we just created a participant dependent on DDSI2, make sure
          DDSI2 still exists.  There is a risk of racing the lease expiry
          of DDSI2. */
-      if (entidx_lookup_proxy_participant_guid (gv->entity_index, &privileged_pp_guid) == NULL)
+      if (ddsi_entidx_lookup_proxy_participant_guid (gv->entity_index, &privileged_pp_guid) == NULL)
       {
         GVLOGDISC ("make_participants_dependent_on_ddsi2: ddsi2 "PGUIDFMT" is no more, delete "PGUIDFMT"\n",
                    PGUID (privileged_pp_guid), PGUID (datap->participant_guid));
@@ -1153,7 +1153,7 @@ static int sedp_write_endpoint_impl
 
     if (!ddsi_is_writer_entityid (guid->entityid))
     {
-      const struct ddsi_reader *rd = entidx_lookup_reader_guid (gv->entity_index, guid);
+      const struct ddsi_reader *rd = ddsi_entidx_lookup_reader_guid (gv->entity_index, guid);
       assert (rd);
       if (rd->request_keyhash)
       {
@@ -1169,7 +1169,7 @@ static int sedp_write_endpoint_impl
     the default. */
     if (ddsi_is_reader_entityid (guid->entityid))
     {
-      const struct ddsi_reader *rd = entidx_lookup_reader_guid (gv->entity_index, guid);
+      const struct ddsi_reader *rd = ddsi_entidx_lookup_reader_guid (gv->entity_index, guid);
       assert (rd);
       if (rd->favours_ssm)
       {
@@ -1446,7 +1446,7 @@ static struct ddsi_proxy_participant *implicitly_create_proxypp (struct ddsi_dom
        readers or writers, only if remote ddsi2 is provably running
        with a minimal built-in endpoint set */
     struct ddsi_proxy_participant *privpp;
-    if ((privpp = entidx_lookup_proxy_participant_guid (gv->entity_index, &privguid)) == NULL) {
+    if ((privpp = ddsi_entidx_lookup_proxy_participant_guid (gv->entity_index, &privguid)) == NULL) {
       GVTRACE (" unknown-src-proxypp?\n");
       goto err;
     } else if (!privpp->is_ddsi2_pp) {
@@ -1478,7 +1478,7 @@ static struct ddsi_proxy_participant *implicitly_create_proxypp (struct ddsi_dom
 
  err:
   ddsi_plist_fini (&pp_plist);
-  return entidx_lookup_proxy_participant_guid (gv->entity_index, ppguid);
+  return ddsi_entidx_lookup_proxy_participant_guid (gv->entity_index, ppguid);
 }
 
 static bool check_sedp_kind_and_guid (ddsi_sedp_kind_t sedp_kind, const ddsi_guid_t *entity_guid)
@@ -1510,7 +1510,7 @@ static bool handle_sedp_checks (struct ddsi_domaingv * const gv, ddsi_sedp_kind_
     E (" endpoint/participant GUID mismatch", err);
   if (ddsi_is_deleted_participant_guid (gv->deleted_participants, ppguid, DPG_REMOTE))
     E (" local dead pp?\n", err);
-  if (entidx_lookup_participant_guid (gv->entity_index, ppguid) != NULL)
+  if (ddsi_entidx_lookup_participant_guid (gv->entity_index, ppguid) != NULL)
     E (" local pp?\n", err);
   if (ddsi_is_builtin_entityid (entity_guid->entityid, vendorid))
     E (" built-in\n", err);
@@ -1518,7 +1518,7 @@ static bool handle_sedp_checks (struct ddsi_domaingv * const gv, ddsi_sedp_kind_
     E (" no topic?\n", err);
   if (!(datap->qos.present & QP_TYPE_NAME))
     E (" no typename?\n", err);
-  if ((*proxypp = entidx_lookup_proxy_participant_guid (gv->entity_index, ppguid)) == NULL)
+  if ((*proxypp = ddsi_entidx_lookup_proxy_participant_guid (gv->entity_index, ppguid)) == NULL)
   {
     GVLOGDISC (" unknown-proxypp");
     if ((*proxypp = implicitly_create_proxypp (gv, ppguid, datap, src_guid_prefix, vendorid, timestamp, 0)) == NULL)
@@ -1655,9 +1655,9 @@ static void handle_sedp_alive_endpoint (const struct receiver_state *rst, seqno_
     E (" remote endpoint is protected while local federation is not secure\n", err);
 
   if (sedp_kind == SEDP_KIND_WRITER)
-    pwr = entidx_lookup_proxy_writer_guid (gv->entity_index, &datap->endpoint_guid);
+    pwr = ddsi_entidx_lookup_proxy_writer_guid (gv->entity_index, &datap->endpoint_guid);
   else
-    prd = entidx_lookup_proxy_reader_guid (gv->entity_index, &datap->endpoint_guid);
+    prd = ddsi_entidx_lookup_proxy_reader_guid (gv->entity_index, &datap->endpoint_guid);
   if (pwr || prd)
   {
     /* Re-bind the proxy participant to the discovery service - and do this if it is currently
@@ -1834,7 +1834,7 @@ static void handle_sedp_dead_topic (const struct receiver_state *rst, ddsi_plist
   if (!check_sedp_kind_and_guid (SEDP_KIND_TOPIC, &datap->topic_guid))
     return;
   ddsi_guid_t ppguid = { .prefix = datap->topic_guid.prefix, .entityid.u = NN_ENTITYID_PARTICIPANT };
-  if ((proxypp = entidx_lookup_proxy_participant_guid (gv->entity_index, &ppguid)) == NULL)
+  if ((proxypp = ddsi_entidx_lookup_proxy_participant_guid (gv->entity_index, &ppguid)) == NULL)
     GVLOGDISC (" unknown proxypp\n");
   else if ((proxytp = ddsi_lookup_proxy_topic (proxypp, &datap->topic_guid)) == NULL)
     GVLOGDISC (" unknown proxy topic\n");

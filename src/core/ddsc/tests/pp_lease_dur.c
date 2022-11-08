@@ -20,6 +20,7 @@
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
 #include "dds/ddsi/ddsi_entity_index.h"
+#include "ddsi__entity_index.h"
 
 #include "test_common.h"
 
@@ -190,7 +191,7 @@ static bool make_pp0_deaf (const dds_entity_t pp[3], const dds_guid_t ppg[3], co
     ddsi_guid_t tmp;
     memcpy (&tmp, &ppg[i], sizeof (tmp));
     tmp = nn_ntoh_guid (tmp);
-    struct ddsi_proxy_participant *proxypp = entidx_lookup_proxy_participant_guid (ppe->m_domain->gv.entity_index, &tmp);
+    struct ddsi_proxy_participant *proxypp = ddsi_entidx_lookup_proxy_participant_guid (ppe->m_domain->gv.entity_index, &tmp);
     if (proxypp == NULL) {
       // there's always the possibility that adverse timing means it expired just now
       lax_check = true;

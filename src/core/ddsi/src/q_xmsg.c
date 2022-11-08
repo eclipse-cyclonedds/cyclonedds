@@ -38,7 +38,7 @@
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/ddsi_entity_index.h"
+#include "ddsi__entity_index.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/q_freelist.h"
 #include "dds/ddsi/ddsi_security_omg.h"
@@ -699,7 +699,7 @@ static void nn_xmsg_setdst1_common (struct ddsi_domaingv *gv, struct nn_xmsg *m,
     guid.prefix = *gp;
     guid.entityid.u = NN_ENTITYID_PARTICIPANT;
 
-    proxypp = entidx_lookup_proxy_participant_guid(gv->entity_index, &guid);
+    proxypp = ddsi_entidx_lookup_proxy_participant_guid(gv->entity_index, &guid);
     if (proxypp)
       m->sec_info.dst_pp_handle = q_omg_security_get_remote_participant_handle(proxypp);
   }
@@ -863,7 +863,7 @@ int nn_xmsg_merge_rexmit_destinations_wrlock_held (struct ddsi_domaingv *gv, str
                an addrset in ddsi_rebuild_writer_addrset: then we don't
                need the lock anymore, and the '_wrlock_held' suffix
                can go and everyone's life will become easier! */
-            if ((wr = entidx_lookup_writer_guid (gv->entity_index, &m->kindspecific.data.wrguid)) == NULL)
+            if ((wr = ddsi_entidx_lookup_writer_guid (gv->entity_index, &m->kindspecific.data.wrguid)) == NULL)
             {
               GVTRACE ("writer-dead)");
               return 0;
@@ -1028,7 +1028,7 @@ static void nn_xmsg_chain_release (struct ddsi_domaingv *gv, struct nn_xmsg_chai
         struct ddsi_writer *wr;
         assert (m->kindspecific.data.wrseq != 0);
         wrguid = m->kindspecific.data.wrguid;
-        if ((wr = entidx_lookup_writer_guid (gv->entity_index, &m->kindspecific.data.wrguid)) != NULL)
+        if ((wr = ddsi_entidx_lookup_writer_guid (gv->entity_index, &m->kindspecific.data.wrguid)) != NULL)
           ddsi_writer_update_seq_xmit (wr, m->kindspecific.data.wrseq);
       }
     }

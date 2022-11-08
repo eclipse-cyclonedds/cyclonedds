@@ -27,7 +27,7 @@
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/ddsi_entity_index.h"
+#include "ddsi__entity_index.h"
 #include "dds/ddsi/q_transmit.h"
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/ddsi_entity.h"
@@ -669,7 +669,7 @@ static void send_heartbeat_to_all_readers (struct nn_xpack *xp, struct xevent *e
       {
         struct ddsi_proxy_reader *prd;
 
-        prd = entidx_lookup_proxy_reader_guid(wr->e.gv->entity_index, &m->prd_guid);
+        prd = ddsi_entidx_lookup_proxy_reader_guid (wr->e.gv->entity_index, &m->prd_guid);
         if (prd)
         {
           ETRACE (wr, " heartbeat(wr "PGUIDFMT" rd "PGUIDFMT" %s) send, resched in %g s (min-ack %"PRIu64", avail-seq %"PRIu64")\n",
@@ -728,7 +728,7 @@ static void handle_xevk_heartbeat (struct nn_xpack *xp, struct xevent *ev, ddsrt
   int hbansreq = 0;
   struct whc_state whcst;
 
-  if ((wr = entidx_lookup_writer_guid (gv->entity_index, &ev->u.heartbeat.wr_guid)) == NULL)
+  if ((wr = ddsi_entidx_lookup_writer_guid (gv->entity_index, &ev->u.heartbeat.wr_guid)) == NULL)
   {
     GVTRACE("heartbeat(wr "PGUIDFMT") writer gone\n", PGUID (ev->u.heartbeat.wr_guid));
     return;
@@ -836,7 +836,7 @@ static struct nn_xmsg *make_preemptive_acknack (struct xevent *ev, struct ddsi_p
   struct ddsi_participant *pp = NULL;
   if (q_omg_proxy_participant_is_secure (pwr->c.proxypp))
   {
-    struct ddsi_reader *rd = entidx_lookup_reader_guid (gv->entity_index, &rwn->rd_guid);
+    struct ddsi_reader *rd = ddsi_entidx_lookup_reader_guid (gv->entity_index, &rwn->rd_guid);
     if (rd)
       pp = rd->c.pp;
   }
@@ -890,7 +890,7 @@ static void handle_xevk_acknack (struct nn_xpack *xp, struct xevent *ev, ddsrt_m
   struct nn_xmsg *msg;
   struct ddsi_pwr_rd_match *rwn;
 
-  if ((pwr = entidx_lookup_proxy_writer_guid (gv->entity_index, &ev->u.acknack.pwr_guid)) == NULL)
+  if ((pwr = ddsi_entidx_lookup_proxy_writer_guid (gv->entity_index, &ev->u.acknack.pwr_guid)) == NULL)
   {
     return;
   }
@@ -963,7 +963,7 @@ static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct xevent *e
   struct ddsi_writer *spdp_wr;
   bool do_write;
 
-  if ((pp = entidx_lookup_participant_guid (gv->entity_index, &ev->u.spdp.pp_guid)) == NULL)
+  if ((pp = ddsi_entidx_lookup_participant_guid (gv->entity_index, &ev->u.spdp.pp_guid)) == NULL)
   {
     GVTRACE ("handle_xevk_spdp "PGUIDFMT" - unknown guid\n", PGUID (ev->u.spdp.pp_guid));
     if (ev->u.spdp.directed)
@@ -991,7 +991,7 @@ static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct xevent *e
     ddsi_guid_t guid;
     guid.prefix = ev->u.spdp.dest_proxypp_guid_prefix;
     guid.entityid.u = NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER;
-    prd = entidx_lookup_proxy_reader_guid (gv->entity_index, &guid);
+    prd = ddsi_entidx_lookup_proxy_reader_guid (gv->entity_index, &guid);
     do_write = (prd != NULL);
     if (!do_write)
       GVTRACE ("xmit spdp: no proxy reader "PGUIDFMT"\n", PGUID (guid));
@@ -1076,7 +1076,7 @@ static void handle_xevk_pmd_update (struct thread_state * const thrst, struct nn
   dds_duration_t intv;
   ddsrt_mtime_t tnext;
 
-  if ((pp = entidx_lookup_participant_guid (gv->entity_index, &ev->u.pmd_update.pp_guid)) == NULL)
+  if ((pp = ddsi_entidx_lookup_participant_guid (gv->entity_index, &ev->u.pmd_update.pp_guid)) == NULL)
   {
     return;
   }

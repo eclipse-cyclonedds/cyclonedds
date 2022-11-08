@@ -29,7 +29,7 @@
 struct bwhc {
   struct whc common;
   enum ddsi_sertype_builtintopic_entity_kind entity_kind;
-  const struct entity_index *entidx;
+  const struct ddsi_entity_index *entidx;
 };
 
 enum bwhc_iter_state {
@@ -43,7 +43,7 @@ struct bwhc_iter {
   struct whc_sample_iter_base c;
   enum bwhc_iter_state st;
   bool have_sample;
-  struct entidx_enum it;
+  struct ddsi_entity_enum it;
 #ifdef DDS_HAS_TOPIC_DISCOVERY
   struct ddsi_proxy_participant *cur_proxypp;
   ddsi_entityid_t proxytp_eid;
@@ -95,7 +95,7 @@ static bool bwhc_sample_iter_borrow_next_proxy_topic (struct bwhc_iter * const i
       ddsrt_mutex_unlock (&it->cur_proxypp->e.lock);
 
     /* enum next proxypp (if available) and get lock */
-    if ((it->cur_proxypp = (struct ddsi_proxy_participant *) entidx_enum_next (&it->it)) == NULL)
+    if ((it->cur_proxypp = (struct ddsi_proxy_participant *) ddsi_entidx_enum_next (&it->it)) == NULL)
       return false;
     ddsrt_mutex_lock (&it->cur_proxypp->e.lock);
 
@@ -124,7 +124,7 @@ static void init_proxy_topic_iteration (struct bwhc_iter * const it)
   /* proxy topics are not stored in entity index as these are not real
      entities. For proxy topics loop over all proxy participants and
      iterate all proxy topics for each proxy participant*/
-  entidx_enum_init (&it->it, whc->entidx, DDSI_EK_PROXY_PARTICIPANT);
+  ddsi_entidx_enum_init (&it->it, whc->entidx, DDSI_EK_PROXY_PARTICIPANT);
   it->cur_proxypp = NULL;
 #else
   (void) it;
@@ -174,11 +174,11 @@ static bool bwhc_sample_iter_borrow_next (struct whc_sample_iter *opaque_it, str
         case DSBT_READER:      kind = DDSI_EK_READER; break;
       }
       assert (whc->entity_kind == DSBT_PARTICIPANT || kind != DDSI_EK_PARTICIPANT);
-      entidx_enum_init (&it->it, whc->entidx, kind);
+      ddsi_entidx_enum_init (&it->it, whc->entidx, kind);
       it->st = BIS_LOCAL;
       /* FALLS THROUGH */
     case BIS_LOCAL:
-      while ((entity = entidx_enum_next (&it->it)) != NULL)
+      while ((entity = ddsi_entidx_enum_next (&it->it)) != NULL)
         if (is_visible (entity))
           break;
       if (entity)
@@ -187,7 +187,7 @@ static bool bwhc_sample_iter_borrow_next (struct whc_sample_iter *opaque_it, str
         it->have_sample = true;
         return true;
       }
-      entidx_enum_fini (&it->it);
+      ddsi_entidx_enum_fini (&it->it);
       it->st = BIS_INIT_PROXY;
       /* FALLS THROUGH */
     case BIS_INIT_PROXY:
@@ -203,7 +203,7 @@ static bool bwhc_sample_iter_borrow_next (struct whc_sample_iter *opaque_it, str
           case DSBT_READER:      kind = DDSI_EK_PROXY_READER; break;
         }
         assert (kind != DDSI_EK_PARTICIPANT);
-        entidx_enum_init (&it->it, whc->entidx, kind);
+        ddsi_entidx_enum_init (&it->it, whc->entidx, kind);
       }
 
       it->st = BIS_PROXY;
@@ -213,12 +213,12 @@ static bool bwhc_sample_iter_borrow_next (struct whc_sample_iter *opaque_it, str
         return bwhc_sample_iter_borrow_next_proxy_topic (it, sample);
       else
       {
-        while ((entity = entidx_enum_next (&it->it)) != NULL)
+        while ((entity = ddsi_entidx_enum_next (&it->it)) != NULL)
           if (is_visible (entity))
             break;
         if (!entity)
         {
-          entidx_enum_fini (&it->it);
+          ddsi_entidx_enum_fini (&it->it);
           return false;
         }
         sample->serdata = dds__builtin_make_sample_endpoint (entity, entity->tupdate, true);
@@ -286,7 +286,7 @@ static const struct whc_ops bwhc_ops = {
   .free = bwhc_free
 };
 
-struct whc *builtintopic_whc_new (enum ddsi_sertype_builtintopic_entity_kind entity_kind, const struct entity_index *entidx)
+struct whc *builtintopic_whc_new (enum ddsi_sertype_builtintopic_entity_kind entity_kind, const struct ddsi_entity_index *entidx)
 {
   struct bwhc *whc = ddsrt_malloc (sizeof (*whc));
   whc->common.ops = &bwhc_ops;

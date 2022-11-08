@@ -17,7 +17,7 @@
 #include <string.h>
 
 #include "dds/ddsi/q_bswap.h"
-#include "dds/ddsi/ddsi_entity_index.h"
+#include "ddsi__entity_index.h"
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_participant.h"
@@ -124,13 +124,13 @@ static bool validate_handshake(struct ddsi_handshake *handshake, struct ddsi_par
 
   if (pp)
   {
-    if ((*pp = entidx_lookup_participant_guid(handshake->gv->entity_index, &handshake->participants.lguid)) == NULL)
+    if ((*pp = ddsi_entidx_lookup_participant_guid(handshake->gv->entity_index, &handshake->participants.lguid)) == NULL)
       return false;
   }
 
   if (proxypp)
   {
-    if ((*proxypp = entidx_lookup_proxy_participant_guid(handshake->gv->entity_index, &handshake->participants.rguid)) == NULL)
+    if ((*proxypp = ddsi_entidx_lookup_proxy_participant_guid(handshake->gv->entity_index, &handshake->participants.rguid)) == NULL)
       return false;
   }
   return true;

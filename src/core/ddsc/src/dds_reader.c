@@ -139,7 +139,7 @@ static dds_return_t dds_reader_qos_set (dds_entity *e, const dds_qos_t *qos, boo
   {
     struct ddsi_reader *rd;
     thread_state_awake (ddsi_lookup_thread_state (), &e->m_domain->gv);
-    if ((rd = entidx_lookup_reader_guid (e->m_domain->gv.entity_index, &e->m_guid)) != NULL)
+    if ((rd = ddsi_entidx_lookup_reader_guid (e->m_domain->gv.entity_index, &e->m_guid)) != NULL)
       ddsi_update_reader_qos (rd, qos);
     thread_state_asleep (ddsi_lookup_thread_state ());
   }
@@ -645,7 +645,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
 
   thread_state_awake (ddsi_lookup_thread_state (), gv);
   const struct ddsi_guid * ppguid = dds_entity_participant_guid (&sub->m_entity);
-  struct ddsi_participant * pp = entidx_lookup_participant_guid (gv->entity_index, ppguid);
+  struct ddsi_participant * pp = ddsi_entidx_lookup_participant_guid (gv->entity_index, ppguid);
 
   /* When deleting a participant, the child handles (that include the subscriber)
      are removed before removing the DDSI participant. So at this point, within
@@ -811,7 +811,7 @@ void dds_reader_ddsi2direct (dds_entity_t entity, ddsi2direct_directread_cb_t cb
       pwrguid_next.entityid.u = (pwrguid_next.entityid.u & ~(uint32_t)0xff) | NN_ENTITYID_KIND_WRITER_NO_KEY;
     }
     ddsrt_mutex_unlock (&rd->e.lock);
-    if ((pwr = entidx_lookup_proxy_writer_guid (dds_entity->m_domain->gv.entity_index, &pwrguid)) != NULL)
+    if ((pwr = ddsi_entidx_lookup_proxy_writer_guid (dds_entity->m_domain->gv.entity_index, &pwrguid)) != NULL)
     {
       ddsrt_mutex_lock (&pwr->e.lock);
       pwr->ddsi2direct_cb = cb;

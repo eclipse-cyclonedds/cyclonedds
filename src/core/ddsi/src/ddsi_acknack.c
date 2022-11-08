@@ -20,7 +20,7 @@
 #include "dds/ddsi/q_bitset.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "ddsi__acknack.h"
-#include "dds/ddsi/ddsi_entity_index.h"
+#include "ddsi__entity_index.h"
 #include "dds/ddsi/ddsi_security_omg.h"
 
 #define ACK_REASON_IN_FLAGS 0
@@ -424,7 +424,7 @@ struct nn_xmsg *ddsi_make_and_resched_acknack (struct xevent *ev, struct ddsi_pr
   struct ddsi_participant *pp = NULL;
   if (q_omg_proxy_participant_is_secure (pwr->c.proxypp))
   {
-    struct ddsi_reader *rd = entidx_lookup_reader_guid (pwr->e.gv->entity_index, &rwn->rd_guid);
+    struct ddsi_reader *rd = ddsi_entidx_lookup_reader_guid (pwr->e.gv->entity_index, &rwn->rd_guid);
     if (rd)
       pp = rd->c.pp;
   }

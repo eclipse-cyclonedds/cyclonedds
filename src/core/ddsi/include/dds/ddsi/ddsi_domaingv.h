@@ -41,7 +41,7 @@ struct nn_defrag;
 struct addrset;
 struct xeventq;
 struct ddsi_gcreq_queue;
-struct entity_index;
+struct ddsi_entity_index;
 struct lease;
 struct ddsi_tran_conn;
 struct ddsi_tran_listener;
@@ -99,7 +99,7 @@ struct ddsi_domaingv {
 
   /* Hash tables for participants, readers, writers, proxy
      participants, proxy readers and proxy writers by GUID. */
-  struct entity_index *entity_index;
+  struct ddsi_entity_index *entity_index;
 
   /* Timed events admin */
   struct xeventq *xevents;

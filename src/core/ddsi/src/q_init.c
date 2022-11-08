@@ -35,7 +35,7 @@
 #include "dds/ddsi/q_ddsi_discovery.h"
 #include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/q_thread.h"
-#include "dds/ddsi/ddsi_entity_index.h"
+#include "ddsi__entity_index.h"
 #include "dds/ddsi/q_lease.h"
 #include "dds/ddsi/ddsi_gc.h"
 #include "dds/ddsi/ddsi_entity.h"
@@ -1418,7 +1418,7 @@ int rtps_init (struct ddsi_domaingv *gv)
   ddsrt_cond_init (&gv->participant_set_cond);
   lease_management_init (gv);
   gv->deleted_participants = ddsi_deleted_participants_admin_new (&gv->logconfig, gv->config.prune_deleted_ppant.delay);
-  gv->entity_index = entity_index_new (gv);
+  gv->entity_index = ddsi_entity_index_new (gv);
 
   ddsrt_mutex_init (&gv->privileged_pp_lock);
   gv->privileged_pp = NULL;
@@ -1789,7 +1789,7 @@ err_unicast_sockets:
   ddsrt_mutex_destroy (&gv->privileged_pp_lock);
   ddsrt_mutex_destroy (&gv->naming_lock);
 
-  entity_index_free (gv->entity_index);
+  ddsi_entity_index_free (gv->entity_index);
   gv->entity_index = NULL;
   ddsi_deleted_participants_admin_free (gv->deleted_participants);
   lease_management_term (gv);
@@ -2004,26 +2004,26 @@ void rtps_stop (struct ddsi_domaingv *gv)
      allow will leak it. */
 
   {
-    struct entidx_enum_proxy_participant est;
+    struct ddsi_entity_enum_proxy_participant est;
     struct ddsi_proxy_participant *proxypp;
     const ddsrt_wctime_t tnow = ddsrt_time_wallclock();
     /* Clean up proxy readers, proxy writers and proxy
        participants. Deleting a proxy participants deletes all its
        readers and writers automatically */
     thread_state_awake (thrst, gv);
-    entidx_enum_proxy_participant_init (&est, gv->entity_index);
-    while ((proxypp = entidx_enum_proxy_participant_next (&est)) != NULL)
+    ddsi_entidx_enum_proxy_participant_init (&est, gv->entity_index);
+    while ((proxypp = ddsi_entidx_enum_proxy_participant_next (&est)) != NULL)
     {
       ddsi_delete_proxy_participant_by_guid (gv, &proxypp->e.guid, tnow, 1);
     }
-    entidx_enum_proxy_participant_fini (&est);
+    ddsi_entidx_enum_proxy_participant_fini (&est);
     thread_state_asleep (thrst);
   }
 
   {
-    struct entidx_enum_writer est_wr;
-    struct entidx_enum_reader est_rd;
-    struct entidx_enum_participant est_pp;
+    struct ddsi_entity_enum_writer est_wr;
+    struct ddsi_entity_enum_reader est_rd;
+    struct ddsi_entity_enum_participant est_pp;
     struct ddsi_participant *pp;
     struct ddsi_writer *wr;
     struct ddsi_reader *rd;
@@ -2033,37 +2033,37 @@ void rtps_stop (struct ddsi_domaingv *gv)
        out. FIXME: need to keep xevent thread alive for a while
        longer. */
     thread_state_awake (thrst, gv);
-    entidx_enum_writer_init (&est_wr, gv->entity_index);
-    while ((wr = entidx_enum_writer_next (&est_wr)) != NULL)
+    ddsi_entidx_enum_writer_init (&est_wr, gv->entity_index);
+    while ((wr = ddsi_entidx_enum_writer_next (&est_wr)) != NULL)
     {
       if (!ddsi_is_builtin_entityid (wr->e.guid.entityid, NN_VENDORID_ECLIPSE))
         ddsi_delete_writer_nolinger (gv, &wr->e.guid);
     }
-    entidx_enum_writer_fini (&est_wr);
+    ddsi_entidx_enum_writer_fini (&est_wr);
     thread_state_awake_to_awake_no_nest (thrst);
-    entidx_enum_reader_init (&est_rd, gv->entity_index);
-    while ((rd = entidx_enum_reader_next (&est_rd)) != NULL)
+    ddsi_entidx_enum_reader_init (&est_rd, gv->entity_index);
+    while ((rd = ddsi_entidx_enum_reader_next (&est_rd)) != NULL)
     {
       if (!ddsi_is_builtin_entityid (rd->e.guid.entityid, NN_VENDORID_ECLIPSE))
         ddsi_delete_reader (gv, &rd->e.guid);
     }
-    entidx_enum_reader_fini (&est_rd);
+    ddsi_entidx_enum_reader_fini (&est_rd);
     thread_state_awake_to_awake_no_nest (thrst);
 #ifdef DDS_HAS_TOPIC_DISCOVERY
-    struct entidx_enum_topic est_tp;
+    struct ddsi_entity_enum_topic est_tp;
     struct ddsi_topic *tp;
-    entidx_enum_topic_init (&est_tp, gv->entity_index);
-    while ((tp = entidx_enum_topic_next (&est_tp)) != NULL)
+    ddsi_entidx_enum_topic_init (&est_tp, gv->entity_index);
+    while ((tp = ddsi_entidx_enum_topic_next (&est_tp)) != NULL)
       ddsi_delete_topic (gv, &tp->e.guid);
-    entidx_enum_topic_fini (&est_tp);
+    ddsi_entidx_enum_topic_fini (&est_tp);
     thread_state_awake_to_awake_no_nest (thrst);
 #endif
-    entidx_enum_participant_init (&est_pp, gv->entity_index);
-    while ((pp = entidx_enum_participant_next (&est_pp)) != NULL)
+    ddsi_entidx_enum_participant_init (&est_pp, gv->entity_index);
+    while ((pp = ddsi_entidx_enum_participant_next (&est_pp)) != NULL)
     {
       ddsi_delete_participant (gv, &pp->e.guid);
     }
-    entidx_enum_participant_fini (&est_pp);
+    ddsi_entidx_enum_participant_fini (&est_pp);
     thread_state_asleep (thrst);
   }
 
@@ -2179,7 +2179,7 @@ void rtps_fini (struct ddsi_domaingv *gv)
   }
 
   ddsi_tkmap_free (gv->m_tkmap);
-  entity_index_free (gv->entity_index);
+  ddsi_entity_index_free (gv->entity_index);
   gv->entity_index = NULL;
   ddsi_deleted_participants_admin_free (gv->deleted_participants);
   lease_management_term (gv);

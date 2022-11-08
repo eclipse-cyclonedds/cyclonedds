@@ -20,7 +20,7 @@
 #include "dds/ddsi/q_transmit.h"
 #include "dds/ddsi/q_misc.h"
 #include "dds/ddsi/ddsi_tkmap.h"
-#include "dds/ddsi/ddsi_entity_index.h"
+#include "ddsi__entity_index.h"
 #include "dds/ddsi/ddsi_security_msg.h"
 #include "dds/ddsi/ddsi_plist_generic.h"
 #include "dds/ddsi/ddsi_plist.h"

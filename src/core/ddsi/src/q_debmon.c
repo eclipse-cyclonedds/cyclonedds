@@ -30,7 +30,7 @@
 #include "dds/ddsi/q_misc.h"
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/ddsi_plist.h"
-#include "dds/ddsi/ddsi_entity_index.h"
+#include "ddsi__entity_index.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_addrset.h"
 #include "dds/ddsi/q_radmin.h"
@@ -401,28 +401,28 @@ static void print_writer (struct st *st, void *varg)
 
 struct print_reader_seq_arg {
   struct ddsi_participant *p;
-  struct entidx_enum_reader *er;
+  struct ddsi_entity_enum_reader *er;
 };
 
 static void print_reader_seq (struct st *st, void *varg)
 {
   struct print_reader_seq_arg * const arg = varg;
   struct ddsi_reader *r;
-  while (!st->error && (r = entidx_enum_reader_next (arg->er)) != NULL)
+  while (!st->error && (r = ddsi_entidx_enum_reader_next (arg->er)) != NULL)
     if (r->c.pp == arg->p)
       cpfobj (st, print_reader, &(struct print_reader_arg){ .p = arg->p, .r = r });
 }
 
 struct print_writer_seq_arg {
   struct ddsi_participant *p;
-  struct entidx_enum_writer *ew;
+  struct ddsi_entity_enum_writer *ew;
 };
 
 static void print_writer_seq (struct st *st, void *varg)
 {
   struct print_writer_seq_arg * const arg = varg;
   struct ddsi_writer *w;
-  while (!st->error && (w = entidx_enum_writer_next (arg->ew)) != NULL)
+  while (!st->error && (w = ddsi_entidx_enum_writer_next (arg->ew)) != NULL)
     if (w->c.pp == arg->p)
       cpfobj (st, print_writer, &(struct print_writer_arg){ .p = arg->p, .w = w });
 }
@@ -445,35 +445,35 @@ static void print_participant (struct st *st, void *vp)
   ddsrt_mutex_unlock (&p->e.lock);
 
   {
-    struct entidx_enum_reader er;
-    entidx_enum_reader_init (&er, st->gv->entity_index);
+    struct ddsi_entity_enum_reader er;
+    ddsi_entidx_enum_reader_init (&er, st->gv->entity_index);
     cpfkseq (st, "readers", print_reader_seq, &(struct print_reader_seq_arg){ .p = p, .er = &er });
-    entidx_enum_reader_fini (&er);
+    ddsi_entidx_enum_reader_fini (&er);
   }
 
   {
-    struct entidx_enum_writer ew;
-    entidx_enum_writer_init (&ew, st->gv->entity_index);
+    struct ddsi_entity_enum_writer ew;
+    ddsi_entidx_enum_writer_init (&ew, st->gv->entity_index);
     cpfkseq (st, "writers", print_writer_seq, &(struct print_writer_seq_arg){ .p = p, .ew = &ew });
-    entidx_enum_writer_fini (&ew);
+    ddsi_entidx_enum_writer_fini (&ew);
   }
 }
 
 static void print_participants_seq (struct st *st, void *ve)
 {
-  struct entidx_enum_participant *e = ve;
+  struct ddsi_entity_enum_participant *e = ve;
   struct ddsi_participant *p;
-  while (!st->error && (p = entidx_enum_participant_next (e)) != NULL)
+  while (!st->error && (p = ddsi_entidx_enum_participant_next (e)) != NULL)
     cpfobj (st, print_participant, p);
 }
 
 static void print_participants (struct st *st)
 {
-  struct entidx_enum_participant e;
+  struct ddsi_entity_enum_participant e;
   thread_state_awake_fixed_domain (st->thrst);
-  entidx_enum_participant_init (&e, st->gv->entity_index);
+  ddsi_entidx_enum_participant_init (&e, st->gv->entity_index);
   cpfkseq (st, "participants", print_participants_seq, &e);
-  entidx_enum_participant_fini (&e);
+  ddsi_entidx_enum_participant_fini (&e);
   thread_state_asleep (st->thrst);
 }
 
@@ -502,14 +502,14 @@ static void print_proxy_reader (struct st *st, void *varg)
 
 struct print_proxy_reader_seq_arg {
   struct ddsi_proxy_participant *p;
-  struct entidx_enum_proxy_reader *er;
+  struct ddsi_entity_enum_proxy_reader *er;
 };
 
 static void print_proxy_reader_seq (struct st *st, void *varg)
 {
   struct print_proxy_reader_seq_arg * const arg = varg;
   struct ddsi_proxy_reader *r;
-  while (!st->error && (r = entidx_enum_proxy_reader_next (arg->er)) != NULL)
+  while (!st->error && (r = ddsi_entidx_enum_proxy_reader_next (arg->er)) != NULL)
     if (r->c.proxypp == arg->p)
       cpfobj (st, print_proxy_reader, &(struct print_proxy_reader_arg){ .p = arg->p, .r = r });
 }
@@ -569,14 +569,14 @@ static void print_proxy_writer (struct st *st, void *varg)
 
 struct print_proxy_writer_seq_arg {
   struct ddsi_proxy_participant *p;
-  struct entidx_enum_proxy_writer *ew;
+  struct ddsi_entity_enum_proxy_writer *ew;
 };
 
 static void print_proxy_writer_seq (struct st *st, void *varg)
 {
   struct print_proxy_writer_seq_arg * const arg = varg;
   struct ddsi_proxy_writer *w;
-  while (!st->error && (w = entidx_enum_proxy_writer_next (arg->ew)) != NULL)
+  while (!st->error && (w = ddsi_entidx_enum_proxy_writer_next (arg->ew)) != NULL)
     if (w->c.proxypp == arg->p)
       cpfobj (st, print_proxy_writer, &(struct print_proxy_writer_arg){ .p = arg->p, .w = w });
 }
@@ -606,35 +606,35 @@ static void print_proxy_participant (struct st *st, void *vp)
   cpfkseq (st, "as_meta", print_addrset, p->as_meta);
 
   {
-    struct entidx_enum_proxy_reader er;
-    entidx_enum_proxy_reader_init (&er, st->gv->entity_index);
+    struct ddsi_entity_enum_proxy_reader er;
+    ddsi_entidx_enum_proxy_reader_init (&er, st->gv->entity_index);
     cpfkseq (st, "proxy_readers", print_proxy_reader_seq, &(struct print_proxy_reader_seq_arg){ .p = p, .er = &er });
-    entidx_enum_proxy_reader_fini (&er);
+    ddsi_entidx_enum_proxy_reader_fini (&er);
   }
 
   {
-    struct entidx_enum_proxy_writer ew;
-    entidx_enum_proxy_writer_init (&ew, st->gv->entity_index);
+    struct ddsi_entity_enum_proxy_writer ew;
+    ddsi_entidx_enum_proxy_writer_init (&ew, st->gv->entity_index);
     cpfkseq (st, "proxy_writers", print_proxy_writer_seq, &(struct print_proxy_writer_seq_arg){ .p = p, .ew = &ew });
-    entidx_enum_proxy_writer_fini (&ew);
+    ddsi_entidx_enum_proxy_writer_fini (&ew);
   }
 }
 
 static void print_proxy_participants_seq (struct st *st, void *ve)
 {
-  struct entidx_enum_proxy_participant *e = ve;
+  struct ddsi_entity_enum_proxy_participant *e = ve;
   struct ddsi_proxy_participant *p;
-  while (!st->error && (p = entidx_enum_proxy_participant_next (e)) != NULL)
+  while (!st->error && (p = ddsi_entidx_enum_proxy_participant_next (e)) != NULL)
     cpfobj (st, print_proxy_participant, p);
 }
 
 static void print_proxy_participants (struct st *st)
 {
-  struct entidx_enum_proxy_participant e;
+  struct ddsi_entity_enum_proxy_participant e;
   thread_state_awake_fixed_domain (st->thrst);
-  entidx_enum_proxy_participant_init (&e, st->gv->entity_index);
+  ddsi_entidx_enum_proxy_participant_init (&e, st->gv->entity_index);
   cpfkseq (st, "proxy_participants", print_proxy_participants_seq, &e);
-  entidx_enum_proxy_participant_fini (&e);
+  ddsi_entidx_enum_proxy_participant_fini (&e);
   thread_state_asleep (st->thrst);
 }
 

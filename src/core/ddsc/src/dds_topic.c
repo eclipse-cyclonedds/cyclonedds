@@ -257,7 +257,7 @@ static dds_return_t dds_topic_qos_set (dds_entity *e, const dds_qos_t *qos, bool
     for (struct ktopic_type_guid *obj = ddsrt_hh_iter_first(ktp->topic_guid_map, &it); obj; obj = ddsrt_hh_iter_next(&it))
     {
       struct ddsi_topic *ddsi_tp;
-      if ((ddsi_tp = entidx_lookup_topic_guid (e->m_domain->gv.entity_index, &obj->guid)) != NULL)
+      if ((ddsi_tp = ddsi_entidx_lookup_topic_guid (e->m_domain->gv.entity_index, &obj->guid)) != NULL)
         ddsi_update_topic_qos (ddsi_tp, qos);
     }
     thread_state_asleep (ddsi_lookup_thread_state ());
@@ -373,7 +373,7 @@ static bool register_topic_type_for_discovery (struct ddsi_domaingv * const gv, 
         key and a reference to a newly create ddsi topic entity */
     thread_state_awake (ddsi_lookup_thread_state (), gv);
     const struct ddsi_guid * pp_guid = dds_entity_participant_guid (&pp->m_entity);
-    struct ddsi_participant * pp_ddsi = entidx_lookup_participant_guid (gv->entity_index, pp_guid);
+    struct ddsi_participant * pp_ddsi = ddsi_entidx_lookup_participant_guid (gv->entity_index, pp_guid);
 
     m = dds_alloc (sizeof (*m));
     m->type_id = type_id;

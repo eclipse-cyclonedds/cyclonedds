@@ -20,7 +20,7 @@
 #include "dds/ddsi/ddsi_proxy_participant.h"
 #include "dds/ddsi/ddsi_topic.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/ddsi_entity_index.h"
+#include "ddsi__entity_index.h"
 #include "dds/ddsi/ddsi_builtin_topic_if.h"
 #include "dds/ddsi/q_ddsi_discovery.h"
 #include "dds/ddsi/q_xmsg.h"
@@ -80,7 +80,7 @@ dds_return_t ddsi_new_topic (struct ddsi_topic **tp_out, struct ddsi_guid *tpgui
   tpguid->prefix = pp->e.guid.prefix;
   if ((rc = ddsi_participant_allocate_entityid (&tpguid->entityid, (is_builtin ? NN_ENTITYID_KIND_CYCLONE_TOPIC_BUILTIN : NN_ENTITYID_KIND_CYCLONE_TOPIC_USER) | NN_ENTITYID_SOURCE_VENDOR, pp)) < 0)
     return rc;
-  assert (entidx_lookup_topic_guid (gv->entity_index, tpguid) == NULL);
+  assert (ddsi_entidx_lookup_topic_guid (gv->entity_index, tpguid) == NULL);
 
   struct ddsi_topic *tp = ddsrt_malloc (sizeof (*tp));
   if (tp_out)
@@ -114,7 +114,7 @@ dds_return_t ddsi_new_topic (struct ddsi_topic **tp_out, struct ddsi_guid *tpgui
   ddsrt_free (tp_qos);
 
   ddsrt_mutex_lock (&tp->e.lock);
-  entidx_insert_topic_guid (gv->entity_index, tp);
+  ddsi_entidx_insert_topic_guid (gv->entity_index, tp);
   (void) sedp_write_topic (tp, true);
   ddsrt_mutex_unlock (&tp->e.lock);
   return 0;
@@ -183,13 +183,13 @@ dds_return_t ddsi_delete_topic (struct ddsi_domaingv *gv, const struct ddsi_guid
 {
   struct ddsi_topic *tp;
   assert (ddsi_is_topic_entityid (guid->entityid));
-  if ((tp = entidx_lookup_topic_guid (gv->entity_index, guid)) == NULL)
+  if ((tp = ddsi_entidx_lookup_topic_guid (gv->entity_index, guid)) == NULL)
   {
     GVLOGDISC ("ddsi_delete_topic (guid "PGUIDFMT") - unknown guid\n", PGUID (*guid));
     return DDS_RETCODE_BAD_PARAMETER;
   }
   GVLOGDISC ("ddsi_delete_topic (guid "PGUIDFMT") ...\n", PGUID (*guid));
-  entidx_remove_topic_guid (gv->entity_index, tp);
+  ddsi_entidx_remove_topic_guid (gv->entity_index, tp);
   gcreq_topic (tp);
   return 0;
 }

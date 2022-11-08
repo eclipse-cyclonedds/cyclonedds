@@ -37,7 +37,7 @@
 #include "dds/ddsi/q_ddsi_discovery.h"
 #include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/q_thread.h"
-#include "dds/ddsi/ddsi_entity_index.h"
+#include "ddsi__entity_index.h"
 #include "dds/ddsi/q_lease.h"
 #include "dds/ddsi/ddsi_gc.h"
 #include "dds/ddsi/ddsi_entity.h"
@@ -331,7 +331,7 @@ static enum validation_result validate_NackFrag (NackFrag_t *msg, size_t size, i
 
 static void set_sampleinfo_proxy_writer (struct nn_rsample_info *sampleinfo, ddsi_guid_t *pwr_guid)
 {
-  struct ddsi_proxy_writer * pwr = entidx_lookup_proxy_writer_guid (sampleinfo->rst->gv->entity_index, pwr_guid);
+  struct ddsi_proxy_writer * pwr = ddsi_entidx_lookup_proxy_writer_guid (sampleinfo->rst->gv->entity_index, pwr_guid);
   sampleinfo->pwr = pwr;
 }
 
@@ -799,7 +799,7 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
     return 1;
   }
 
-  if ((wr = entidx_lookup_writer_guid (rst->gv->entity_index, &dst)) == NULL)
+  if ((wr = ddsi_entidx_lookup_writer_guid (rst->gv->entity_index, &dst)) == NULL)
   {
     RSTTRACE (" "PGUIDFMT" -> "PGUIDFMT"?)", PGUID (src), PGUID (dst));
     return 1;
@@ -808,7 +808,7 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
      the normal pure ack steady state. If (a big "if"!) this shows up
      as a significant portion of the time, we can always rewrite it to
      only retrieve it when needed. */
-  if ((prd = entidx_lookup_proxy_reader_guid (rst->gv->entity_index, &src)) == NULL)
+  if ((prd = ddsi_entidx_lookup_proxy_reader_guid (rst->gv->entity_index, &src)) == NULL)
   {
     RSTTRACE (" "PGUIDFMT"? -> "PGUIDFMT")", PGUID (src), PGUID (dst));
     return 1;
@@ -1266,7 +1266,7 @@ static int handle_Heartbeat (struct receiver_state *rst, ddsrt_etime_t tnow, str
     return 1;
   }
 
-  if ((pwr = entidx_lookup_proxy_writer_guid (rst->gv->entity_index, &src)) == NULL)
+  if ((pwr = ddsi_entidx_lookup_proxy_writer_guid (rst->gv->entity_index, &src)) == NULL)
   {
     RSTTRACE (PGUIDFMT"? -> "PGUIDFMT")", PGUID (src), PGUID (dst));
     return 1;
@@ -1449,7 +1449,7 @@ static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(ddsrt_et
     return 1;
   }
 
-  if ((pwr = entidx_lookup_proxy_writer_guid (rst->gv->entity_index, &src)) == NULL)
+  if ((pwr = ddsi_entidx_lookup_proxy_writer_guid (rst->gv->entity_index, &src)) == NULL)
   {
     RSTTRACE (" "PGUIDFMT"? -> "PGUIDFMT")", PGUID (src), PGUID (dst));
     return 1;
@@ -1605,7 +1605,7 @@ static int handle_NackFrag (struct receiver_state *rst, ddsrt_etime_t tnow, cons
     return 1;
   }
 
-  if ((wr = entidx_lookup_writer_guid (rst->gv->entity_index, &dst)) == NULL)
+  if ((wr = ddsi_entidx_lookup_writer_guid (rst->gv->entity_index, &dst)) == NULL)
   {
     RSTTRACE (" "PGUIDFMT" -> "PGUIDFMT"?)", PGUID (src), PGUID (dst));
     return 1;
@@ -1614,7 +1614,7 @@ static int handle_NackFrag (struct receiver_state *rst, ddsrt_etime_t tnow, cons
      the normal pure ack steady state. If (a big "if"!) this shows up
      as a significant portion of the time, we can always rewrite it to
      only retrieve it when needed. */
-  if ((prd = entidx_lookup_proxy_reader_guid (rst->gv->entity_index, &src)) == NULL)
+  if ((prd = ddsi_entidx_lookup_proxy_reader_guid (rst->gv->entity_index, &src)) == NULL)
   {
     RSTTRACE (" "PGUIDFMT"? -> "PGUIDFMT")", PGUID (src), PGUID (dst));
     return 1;
@@ -1726,7 +1726,7 @@ static int handle_InfoDST (struct receiver_state *rst, const InfoDST_t *msg, con
     ddsi_guid_t dst;
     dst.prefix = rst->dst_guid_prefix;
     dst.entityid = ddsi_to_entityid(NN_ENTITYID_PARTICIPANT);
-    rst->forme = (entidx_lookup_participant_guid (rst->gv->entity_index, &dst) != NULL ||
+    rst->forme = (ddsi_entidx_lookup_participant_guid (rst->gv->entity_index, &dst) != NULL ||
                   ddsi_is_deleted_participant_guid (rst->gv->deleted_participants, &dst, DPG_LOCAL));
   }
   return 1;
@@ -1881,7 +1881,7 @@ static int handle_Gap (struct receiver_state *rst, ddsrt_etime_t tnow, struct nn
     return 1;
   }
 
-  if ((pwr = entidx_lookup_proxy_writer_guid (rst->gv->entity_index, &src)) == NULL)
+  if ((pwr = ddsi_entidx_lookup_proxy_writer_guid (rst->gv->entity_index, &src)) == NULL)
   {
     RSTTRACE (""PGUIDFMT"? -> "PGUIDFMT")", PGUID (src), PGUID (dst));
     return 1;
@@ -2126,24 +2126,24 @@ unsigned char normalize_data_datafrag_flags (const SubmessageHeader_t *smhdr)
   }
 }
 
-static struct ddsi_reader *proxy_writer_first_in_sync_reader (struct entity_index *entity_index, struct ddsi_entity_common *pwrcmn, ddsrt_avl_iter_t *it)
+static struct ddsi_reader *proxy_writer_first_in_sync_reader (struct ddsi_entity_index *entity_index, struct ddsi_entity_common *pwrcmn, ddsrt_avl_iter_t *it)
 {
   assert (pwrcmn->kind == DDSI_EK_PROXY_WRITER);
   struct ddsi_proxy_writer *pwr = (struct ddsi_proxy_writer *) pwrcmn;
   struct ddsi_pwr_rd_match *m;
   struct ddsi_reader *rd;
   for (m = ddsrt_avl_iter_first (&ddsi_pwr_readers_treedef, &pwr->readers, it); m != NULL; m = ddsrt_avl_iter_next (it))
-    if (m->in_sync == PRMSS_SYNC && (rd = entidx_lookup_reader_guid (entity_index, &m->rd_guid)) != NULL)
+    if (m->in_sync == PRMSS_SYNC && (rd = ddsi_entidx_lookup_reader_guid (entity_index, &m->rd_guid)) != NULL)
       return rd;
   return NULL;
 }
 
-static struct ddsi_reader *proxy_writer_next_in_sync_reader (struct entity_index *entity_index, ddsrt_avl_iter_t *it)
+static struct ddsi_reader *proxy_writer_next_in_sync_reader (struct ddsi_entity_index *entity_index, ddsrt_avl_iter_t *it)
 {
   struct ddsi_pwr_rd_match *m;
   struct ddsi_reader *rd;
   for (m = ddsrt_avl_iter_next (it); m != NULL; m = ddsrt_avl_iter_next (it))
-    if (m->in_sync == PRMSS_SYNC && (rd = entidx_lookup_reader_guid (entity_index, &m->rd_guid)) != NULL)
+    if (m->in_sync == PRMSS_SYNC && (rd = ddsi_entidx_lookup_reader_guid (entity_index, &m->rd_guid)) != NULL)
       return rd;
   return NULL;
 }
@@ -2965,7 +2965,7 @@ static int handle_submsg_sequence
   /* "forme" is a whether the current submessage is intended for this
      instance of DDSI2 and is roughly equivalent to
        (dst_prefix == 0) ||
-       (entidx_lookup_participant_guid(dst_prefix:1c1) != 0)
+       (ddsi_entidx_lookup_participant_guid(dst_prefix:1c1) != 0)
      they are only roughly equivalent because the second term can become
      false at any time. That's ok: it's real purpose is to filter out
      discovery data accidentally sent by Cloud */
@@ -3375,7 +3375,7 @@ static void local_participant_set_fini (struct local_participant_set *lps)
 
 static void rebuild_local_participant_set (struct thread_state * const thrst, struct ddsi_domaingv *gv, struct local_participant_set *lps)
 {
-  struct entidx_enum_participant est;
+  struct ddsi_entity_enum_participant est;
   struct ddsi_participant *pp;
   unsigned nps_alloc;
   GVTRACE ("pp set gen changed: local %"PRIu32" global %"PRIu32"\n", lps->gen, ddsrt_atomic_ld32 (&gv->participant_set_generation));
@@ -3389,8 +3389,8 @@ static void rebuild_local_participant_set (struct thread_state * const thrst, st
   ddsrt_free (lps->ps);
   lps->nps = 0;
   lps->ps = (nps_alloc == 0) ? NULL : ddsrt_malloc (nps_alloc * sizeof (*lps->ps));
-  entidx_enum_participant_init (&est, gv->entity_index);
-  while ((pp = entidx_enum_participant_next (&est)) != NULL)
+  ddsi_entidx_enum_participant_init (&est, gv->entity_index);
+  while ((pp = ddsi_entidx_enum_participant_next (&est)) != NULL)
   {
     if (lps->nps == nps_alloc)
     {
@@ -3398,7 +3398,7 @@ static void rebuild_local_participant_set (struct thread_state * const thrst, st
          existing ones removed), so we may have to restart if it
          turns out we didn't allocate enough memory [an
          alternative would be to realloc on the fly]. */
-      entidx_enum_participant_fini (&est);
+      ddsi_entidx_enum_participant_fini (&est);
       GVTRACE ("  need more memory - restarting\n");
       goto restart;
     }
@@ -3410,7 +3410,7 @@ static void rebuild_local_participant_set (struct thread_state * const thrst, st
       lps->nps++;
     }
   }
-  entidx_enum_participant_fini (&est);
+  ddsi_entidx_enum_participant_fini (&est);
 
   /* There is a (very small) probability of a participant
      disappearing and new one appearing with the same socket while

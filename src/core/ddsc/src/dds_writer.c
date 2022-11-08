@@ -242,7 +242,7 @@ static dds_return_t dds_writer_qos_set (dds_entity *e, const dds_qos_t *qos, boo
   {
     struct ddsi_writer *wr;
     thread_state_awake (ddsi_lookup_thread_state (), &e->m_domain->gv);
-    if ((wr = entidx_lookup_writer_guid (e->m_domain->gv.entity_index, &e->m_guid)) != NULL)
+    if ((wr = ddsi_entidx_lookup_writer_guid (e->m_domain->gv.entity_index, &e->m_guid)) != NULL)
       ddsi_update_writer_qos (wr, qos);
     thread_state_asleep (ddsi_lookup_thread_state ());
   }
@@ -420,7 +420,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
 
   thread_state_awake (ddsi_lookup_thread_state (), gv);
   const struct ddsi_guid *ppguid = dds_entity_participant_guid (&pub->m_entity);
-  struct ddsi_participant *pp = entidx_lookup_participant_guid (gv->entity_index, ppguid);
+  struct ddsi_participant *pp = ddsi_entidx_lookup_participant_guid (gv->entity_index, ppguid);
   /* When deleting a participant, the child handles (that include the publisher)
      are removed before removing the DDSI participant. So at this point, within
      the publisher lock, we can assert that the participant exists. */

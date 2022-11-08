@@ -264,7 +264,7 @@ static void waitfor_or_reset_fastpath (dds_entity_t rdhandle, bool fastpath, siz
   {
     cursor = m->pwr_guid;
     ddsrt_mutex_unlock (&rd->e.lock);
-    struct ddsi_proxy_writer * const pwr = entidx_lookup_proxy_writer_guid (rd->e.gv->entity_index, &cursor);
+    struct ddsi_proxy_writer * const pwr = ddsi_entidx_lookup_proxy_writer_guid (rd->e.gv->entity_index, &cursor);
     ddsrt_mutex_lock (&pwr->rdary.rdary_lock);
     if (!fastpath)
       pwr->rdary.fastpath_ok = false;
@@ -287,7 +287,7 @@ static void waitfor_or_reset_fastpath (dds_entity_t rdhandle, bool fastpath, siz
   {
     cursor = m->pwr_guid;
     ddsrt_mutex_unlock (&rd->e.lock);
-    struct ddsi_writer * const wr = entidx_lookup_writer_guid (rd->e.gv->entity_index, &cursor);
+    struct ddsi_writer * const wr = ddsi_entidx_lookup_writer_guid (rd->e.gv->entity_index, &cursor);
     ddsrt_mutex_lock (&wr->rdary.rdary_lock);
     if (!fastpath)
       wr->rdary.fastpath_ok = fastpath;

@@ -170,7 +170,8 @@ set(hdrs_private_ddsi
   ddsi__acknack.h
   ddsi__config_impl.h
   ddsi__deliver_locally.h
-  ddsi__endpoint.h)
+  ddsi__endpoint.h
+  ddsi__entity_index.h)
 
 if(ENABLE_LIFESPAN)
   list(APPEND srcs_ddsi ddsi_lifespan.c)

@@ -27,7 +27,7 @@
 #include "dds/ddsi/q_addrset.h"
 #include "dds/ddsi/q_ddsi_discovery.h"
 #include "dds/ddsi/q_radmin.h"
-#include "dds/ddsi/ddsi_entity_index.h"
+#include "ddsi__entity_index.h"
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
 #include "dds/ddsi/ddsi_endpoint.h"
@@ -270,8 +270,8 @@ int64_t check_and_handle_lease_expiration (struct ddsi_domaingv *gv, ddsrt_etime
     if (k == DDSI_EK_PROXY_PARTICIPANT)
     {
       struct ddsi_proxy_participant *proxypp;
-      if ((proxypp = entidx_lookup_proxy_participant_guid (gv->entity_index, &g)) != NULL &&
-          entidx_lookup_proxy_participant_guid (gv->entity_index, &proxypp->privileged_pp_guid) != NULL)
+      if ((proxypp = ddsi_entidx_lookup_proxy_participant_guid (gv->entity_index, &g)) != NULL &&
+          ddsi_entidx_lookup_proxy_participant_guid (gv->entity_index, &proxypp->privileged_pp_guid) != NULL)
       {
         GVLOGDISC ("but postponing because privileged pp "PGUIDFMT" is still live\n", PGUID (proxypp->privileged_pp_guid));
         l->tsched = ddsrt_etime_add_duration (tnowE, DDS_MSECS (200));

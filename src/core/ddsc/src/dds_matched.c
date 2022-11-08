@@ -40,7 +40,7 @@ dds_return_t dds_get_matched_subscriptions (dds_entity_t writer, dds_instance_ha
     return rc;
   else
   {
-    const struct entity_index *gh = wr->m_entity.m_domain->gv.entity_index;
+    const struct ddsi_entity_index *gh = wr->m_entity.m_domain->gv.entity_index;
     size_t nrds_act = 0;
     ddsrt_avl_iter_t it;
     /* FIXME: this ought not be so tightly coupled to the lower layer */
@@ -51,7 +51,7 @@ dds_return_t dds_get_matched_subscriptions (dds_entity_t writer, dds_instance_ha
          m = ddsrt_avl_iter_next (&it))
     {
       struct ddsi_proxy_reader *prd;
-      if ((prd = entidx_lookup_proxy_reader_guid (gh, &m->prd_guid)) != NULL)
+      if ((prd = ddsi_entidx_lookup_proxy_reader_guid (gh, &m->prd_guid)) != NULL)
       {
         if (nrds_act < nrds)
           rds[nrds_act] = prd->e.iid;
@@ -63,7 +63,7 @@ dds_return_t dds_get_matched_subscriptions (dds_entity_t writer, dds_instance_ha
          m = ddsrt_avl_iter_next (&it))
     {
       struct ddsi_reader *rd;
-      if ((rd = entidx_lookup_reader_guid (gh, &m->rd_guid)) != NULL)
+      if ((rd = ddsi_entidx_lookup_reader_guid (gh, &m->rd_guid)) != NULL)
       {
         if (nrds_act < nrds)
           rds[nrds_act] = rd->e.iid;
@@ -90,7 +90,7 @@ dds_return_t dds_get_matched_publications (dds_entity_t reader, dds_instance_han
     return rc;
   else
   {
-    const struct entity_index *gh = rd->m_entity.m_domain->gv.entity_index;
+    const struct ddsi_entity_index *gh = rd->m_entity.m_domain->gv.entity_index;
     size_t nwrs_act = 0;
     ddsrt_avl_iter_t it;
     /* FIXME: this ought not be so tightly coupled to the lower layer */
@@ -101,7 +101,7 @@ dds_return_t dds_get_matched_publications (dds_entity_t reader, dds_instance_han
          m = ddsrt_avl_iter_next (&it))
     {
       struct ddsi_proxy_writer *pwr;
-      if ((pwr = entidx_lookup_proxy_writer_guid (gh, &m->pwr_guid)) != NULL)
+      if ((pwr = ddsi_entidx_lookup_proxy_writer_guid (gh, &m->pwr_guid)) != NULL)
       {
         if (nwrs_act < nwrs)
           wrs[nwrs_act] = pwr->e.iid;
@@ -113,7 +113,7 @@ dds_return_t dds_get_matched_publications (dds_entity_t reader, dds_instance_han
          m = ddsrt_avl_iter_next (&it))
     {
       struct ddsi_writer *wr;
-      if ((wr = entidx_lookup_writer_guid (gh, &m->wr_guid)) != NULL)
+      if ((wr = ddsi_entidx_lookup_writer_guid (gh, &m->wr_guid)) != NULL)
       {
         if (nwrs_act < nwrs)
           wrs[nwrs_act] = wr->e.iid;
@@ -154,7 +154,7 @@ dds_builtintopic_endpoint_t *dds_get_matched_subscription_data (dds_entity_t wri
     return NULL;
   else
   {
-    const struct entity_index *gh = wr->m_entity.m_domain->gv.entity_index;
+    const struct ddsi_entity_index *gh = wr->m_entity.m_domain->gv.entity_index;
     dds_builtintopic_endpoint_t *ret = NULL;
     ddsrt_avl_iter_t it;
     /* FIXME: this ought not be so tightly coupled to the lower layer, and not be so inefficient besides */
@@ -165,7 +165,7 @@ dds_builtintopic_endpoint_t *dds_get_matched_subscription_data (dds_entity_t wri
          m = ddsrt_avl_iter_next (&it))
     {
       struct ddsi_proxy_reader *prd;
-      if ((prd = entidx_lookup_proxy_reader_guid (gh, &m->prd_guid)) != NULL)
+      if ((prd = ddsi_entidx_lookup_proxy_reader_guid (gh, &m->prd_guid)) != NULL)
       {
         if (prd->e.iid == ih)
           ret = make_builtintopic_endpoint (&prd->e.guid, &prd->c.proxypp->e.guid, prd->c.proxypp->e.iid, prd->c.xqos);
@@ -176,7 +176,7 @@ dds_builtintopic_endpoint_t *dds_get_matched_subscription_data (dds_entity_t wri
          m = ddsrt_avl_iter_next (&it))
     {
       struct ddsi_reader *rd;
-      if ((rd = entidx_lookup_reader_guid (gh, &m->rd_guid)) != NULL)
+      if ((rd = ddsi_entidx_lookup_reader_guid (gh, &m->rd_guid)) != NULL)
       {
         if (rd->e.iid == ih)
           ret = make_builtintopic_endpoint (&rd->e.guid, &rd->c.pp->e.guid, rd->c.pp->e.iid, rd->xqos);
@@ -197,7 +197,7 @@ dds_builtintopic_endpoint_t *dds_get_matched_publication_data (dds_entity_t read
     return NULL;
   else
   {
-    const struct entity_index *gh = rd->m_entity.m_domain->gv.entity_index;
+    const struct ddsi_entity_index *gh = rd->m_entity.m_domain->gv.entity_index;
     dds_builtintopic_endpoint_t *ret = NULL;
     ddsrt_avl_iter_t it;
     /* FIXME: this ought not be so tightly coupled to the lower layer, and not be so inefficient besides */
@@ -208,7 +208,7 @@ dds_builtintopic_endpoint_t *dds_get_matched_publication_data (dds_entity_t read
          m = ddsrt_avl_iter_next (&it))
     {
       struct ddsi_proxy_writer *pwr;
-      if ((pwr = entidx_lookup_proxy_writer_guid (gh, &m->pwr_guid)) != NULL)
+      if ((pwr = ddsi_entidx_lookup_proxy_writer_guid (gh, &m->pwr_guid)) != NULL)
       {
         if (pwr->e.iid == ih)
           ret = make_builtintopic_endpoint (&pwr->e.guid, &pwr->c.proxypp->e.guid, pwr->c.proxypp->e.iid, pwr->c.xqos);
@@ -219,7 +219,7 @@ dds_builtintopic_endpoint_t *dds_get_matched_publication_data (dds_entity_t read
          m = ddsrt_avl_iter_next (&it))
     {
       struct ddsi_writer *wr;
-      if ((wr = entidx_lookup_writer_guid (gh, &m->wr_guid)) != NULL)
+      if ((wr = ddsi_entidx_lookup_writer_guid (gh, &m->wr_guid)) != NULL)
       {
         if (wr->e.iid == ih)
           ret = make_builtintopic_endpoint (&wr->e.guid, &wr->c.pp->e.guid, wr->c.pp->e.iid, wr->xqos);

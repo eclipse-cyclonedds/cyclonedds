@@ -24,7 +24,7 @@
 #include "dds/ddsi/q_thread.h"
 #include "dds/cdr/dds_cdrstream.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/ddsi_entity_index.h"
+#include "ddsi__entity_index.h"
 #include "dds/ddsi/ddsi_sertype.h"
 #include "dds/ddsi/ddsi_typelib.h"
 #include "dds/ddsi/ddsi_xt_impl.h"
@@ -1062,7 +1062,7 @@ static void ddsi_type_get_gpe_matches_impl (struct ddsi_domaingv *gv, const stru
   {
     if (!ddsi_is_topic_entityid (guid.entityid))
     {
-      struct ddsi_entity_common *ec = entidx_lookup_guid_untyped (gv->entity_index, &guid);
+      struct ddsi_entity_common *ec = ddsi_entidx_lookup_guid_untyped (gv->entity_index, &guid);
       if (ec != NULL)
       {
         assert (ec->kind == DDSI_EK_PROXY_READER || ec->kind == DDSI_EK_PROXY_WRITER);

@@ -26,7 +26,7 @@
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/q_misc.h"
-#include "dds/ddsi/ddsi_entity_index.h"
+#include "ddsi__entity_index.h"
 #include "dds/ddsi/ddsi_security_msg.h"
 #include "dds/ddsi/ddsi_security_omg.h"
 #include "dds/ddsi/ddsi_security_util.h"
@@ -837,10 +837,10 @@ typedef bool (*expired_proxypp_check_fn_t)(const struct ddsi_proxy_participant *
 static bool delete_pp_by_handle (DDS_Security_Handle handle, expired_pp_check_fn_t expired_pp_check_fn, struct ddsi_domaingv *gv)
 {
   struct ddsi_participant *pp;
-  struct entidx_enum_participant epp;
+  struct ddsi_entity_enum_participant epp;
   bool result = false;
-  entidx_enum_participant_init (&epp, gv->entity_index);
-  while ((pp = entidx_enum_participant_next (&epp)) != NULL)
+  ddsi_entidx_enum_participant_init (&epp, gv->entity_index);
+  while ((pp = ddsi_entidx_enum_participant_next (&epp)) != NULL)
   {
     if (q_omg_participant_is_secure (pp) && expired_pp_check_fn (pp, handle))
     {
@@ -848,17 +848,17 @@ static bool delete_pp_by_handle (DDS_Security_Handle handle, expired_pp_check_fn
       result = true;
     }
   }
-  entidx_enum_participant_fini (&epp);
+  ddsi_entidx_enum_participant_fini (&epp);
   return result;
 }
 
 static bool delete_proxypp_by_handle (const DDS_Security_Handle handle, expired_proxypp_check_fn_t expired_proxypp_check_fn, struct ddsi_domaingv *gv)
 {
   struct ddsi_proxy_participant *proxypp;
-  struct entidx_enum_proxy_participant eproxypp;
+  struct ddsi_entity_enum_proxy_participant eproxypp;
   bool result = false;
-  entidx_enum_proxy_participant_init (&eproxypp, gv->entity_index);
-  while ((proxypp = entidx_enum_proxy_participant_next (&eproxypp)) != NULL)
+  ddsi_entidx_enum_proxy_participant_init (&eproxypp, gv->entity_index);
+  while ((proxypp = ddsi_entidx_enum_proxy_participant_next (&eproxypp)) != NULL)
   {
     if (q_omg_proxy_participant_is_secure(proxypp) && expired_proxypp_check_fn (proxypp, handle))
     {
@@ -866,7 +866,7 @@ static bool delete_proxypp_by_handle (const DDS_Security_Handle handle, expired_
       result = true;
     }
   }
-  entidx_enum_proxy_participant_fini (&eproxypp);
+  ddsi_entidx_enum_proxy_participant_fini (&eproxypp);
   return result;
 }
 
@@ -1222,7 +1222,7 @@ static void cleanup_participant_sec_attributes(void *arg)
   {
     struct pp_proxypp_match *next = ddsrt_avl_cfind_succ(&pp_proxypp_treedef, &attr->proxy_participants, pm);
     ddsrt_mutex_lock(&gv->lock);
-    struct ddsi_proxy_participant *proxypp = entidx_lookup_proxy_participant_guid(gv->entity_index, &pm->proxypp_guid);
+    struct ddsi_proxy_participant *proxypp = ddsi_entidx_lookup_proxy_participant_guid(gv->entity_index, &pm->proxypp_guid);
     if (proxypp)
       proxypp_pp_unrelate(sc, proxypp, &attr->pp_guid, attr->crypto_handle);
     ddsrt_mutex_unlock(&gv->lock);
@@ -1452,7 +1452,7 @@ bool q_omg_security_check_create_topic(const struct ddsi_domaingv *gv, const dds
   DDS_Security_Qos topic_qos;
 
   thread_state_awake (ddsi_lookup_thread_state (), gv);
-  pp = entidx_lookup_participant_guid (gv->entity_index, pp_guid);
+  pp = ddsi_entidx_lookup_participant_guid (gv->entity_index, pp_guid);
 
   if ((sc = q_omg_security_get_secure_context(pp)) != NULL)
   {
@@ -2016,7 +2016,7 @@ void q_omg_security_deregister_remote_participant(struct ddsi_proxy_participant 
     {
       struct proxypp_pp_match *next = ddsrt_avl_find_succ(&proxypp_pp_treedef, &proxypp->sec_attr->participants, pm);
       ddsrt_avl_delete(&proxypp_pp_treedef, &proxypp->sec_attr->participants, pm);
-      if ((pp = entidx_lookup_participant_guid(gv->entity_index, &pm->pp_guid)) != NULL)
+      if ((pp = ddsi_entidx_lookup_participant_guid(gv->entity_index, &pm->pp_guid)) != NULL)
         pp_proxypp_unrelate(sc, pp, &proxypp->e.guid);
       proxypp_pp_match_free(gv, sc, pm);
       pm = next;
@@ -2058,7 +2058,7 @@ bool is_proxy_participant_deletion_allowed (struct ddsi_domaingv * const gv, con
 
   /* Not from a secure proxy writer.
    * Only allow deletion when proxy participant is not authenticated. */
-  proxypp = entidx_lookup_proxy_participant_guid (gv->entity_index, guid);
+  proxypp = ddsi_entidx_lookup_proxy_participant_guid (gv->entity_index, guid);
   if (!proxypp)
   {
     GVLOGDISC (" unknown");
@@ -2758,7 +2758,7 @@ void q_omg_security_set_remote_writer_crypto_tokens(struct ddsi_reader *rd, cons
 
   ddsrt_mutex_lock(&rd->e.lock);
   match = find_or_create_pending_entity_match(&sc->security_matches, DDSI_EK_PROXY_WRITER, pwr_guid, &rd->e.guid, 0, tseq);
-  if ((pwr = entidx_lookup_proxy_writer_guid(gv->entity_index, pwr_guid)) == NULL || match->crypto_handle == 0)
+  if ((pwr = ddsi_entidx_lookup_proxy_writer_guid (gv->entity_index, pwr_guid)) == NULL || match->crypto_handle == 0)
     GVTRACE("remember writer tokens src("PGUIDFMT") dst("PGUIDFMT")\n", PGUID(*pwr_guid), PGUID(rd->e.guid));
   else
   {
@@ -2797,7 +2797,7 @@ void q_omg_security_set_remote_reader_crypto_tokens(struct ddsi_writer *wr, cons
 
    ddsrt_mutex_lock(&wr->e.lock);
    match = find_or_create_pending_entity_match(&sc->security_matches, DDSI_EK_PROXY_READER, prd_guid, &wr->e.guid, 0, tseq);
-   if (((prd = entidx_lookup_proxy_reader_guid(gv->entity_index, prd_guid)) == NULL) || (match->crypto_handle == 0))
+   if (((prd = ddsi_entidx_lookup_proxy_reader_guid (gv->entity_index, prd_guid)) == NULL) || (match->crypto_handle == 0))
      GVTRACE("remember reader tokens src("PGUIDFMT") dst("PGUIDFMT")\n", PGUID(*prd_guid), PGUID(wr->e.guid));
    else
    {
@@ -3005,7 +3005,7 @@ static bool q_omg_security_decode_submessage (const struct ddsi_domaingv *gv, co
 
   proxypp_guid.prefix = *src_prefix;
   proxypp_guid.entityid.u = NN_ENTITYID_PARTICIPANT;
-  if (!(proxypp = entidx_lookup_proxy_participant_guid (gv->entity_index, &proxypp_guid)))
+  if (!(proxypp = ddsi_entidx_lookup_proxy_participant_guid (gv->entity_index, &proxypp_guid)))
   {
     GVTRACE (" Unknown remote participant "PGUIDFMT" for decoding submsg\n", PGUID (proxypp_guid));
     return false;
@@ -3027,7 +3027,7 @@ static bool q_omg_security_decode_submessage (const struct ddsi_domaingv *gv, co
   {
     pp_guid.prefix = *dst_prefix;
     pp_guid.entityid.u = NN_ENTITYID_PARTICIPANT;
-    if (!(pp = entidx_lookup_participant_guid (gv->entity_index, &pp_guid)))
+    if (!(pp = ddsi_entidx_lookup_participant_guid (gv->entity_index, &pp_guid)))
       return false;
     pp_crypto_hdl = pp->sec_attr->crypto_handle;
   }
@@ -3178,7 +3178,7 @@ static bool q_omg_security_decode_serialized_payload (struct ddsi_proxy_writer *
     GVTRACE (" Payload decoding from datawriter "PGUIDFMT": no crypto handle\n", PGUID (pwr->e.guid));
     return false;
   }
-  if (!(rd = entidx_lookup_reader_guid (gv->entity_index, &pwr_rd_match->rd_guid)))
+  if (!(rd = ddsi_entidx_lookup_reader_guid (gv->entity_index, &pwr_rd_match->rd_guid)))
   {
     GVTRACE (" No datareader "PGUIDFMT" for decoding data from datawriter "PGUIDFMT"", PGUID (pwr_rd_match->rd_guid), PGUID (pwr->e.guid));
     return false;
@@ -3432,7 +3432,7 @@ bool decode_DataFrag (const struct ddsi_domaingv *gv, struct nn_rsample_info *sa
 void encode_datareader_submsg (struct nn_xmsg *msg, struct nn_xmsg_marker sm_marker, const struct ddsi_proxy_writer *pwr, const struct ddsi_guid *rd_guid)
 {
   /* FIXME: avoid this lookup */
-  struct ddsi_reader * const rd = entidx_lookup_reader_guid (pwr->e.gv->entity_index, rd_guid);
+  struct ddsi_reader * const rd = ddsi_entidx_lookup_reader_guid (pwr->e.gv->entity_index, rd_guid);
   /* surely a reader can only be protected if the participant has security enabled? */
   if (rd == NULL || !q_omg_reader_is_submessage_protected (rd))
     return;
@@ -3690,7 +3690,7 @@ static nn_rtps_msg_state_t check_rtps_message_is_secure (struct ddsi_domaingv *g
 
   GVTRACE (" from "PGUIDFMT, PGUID (guid));
 
-  if ((*proxypp = entidx_lookup_proxy_participant_guid (gv->entity_index, &guid)) == NULL)
+  if ((*proxypp = ddsi_entidx_lookup_proxy_participant_guid (gv->entity_index, &guid)) == NULL)
   {
     GVTRACE ("received encoded rtps message from unknown participant\n");
     return NN_RTPS_MSG_STATE_ERROR;

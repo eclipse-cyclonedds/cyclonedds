@@ -20,7 +20,7 @@
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/ddsi_proxy_endpoint.h"
 #include "dds/ddsi/ddsi_security_omg.h"
-#include "dds/ddsi/ddsi_entity_index.h"
+#include "ddsi__entity_index.h"
 #include "dds/ddsi/ddsi_mcgroup.h"
 #include "dds/ddsi/ddsi_rhc.h"
 #include "dds/ddsi/q_qosmatch.h"
@@ -505,8 +505,8 @@ static void generic_do_match (struct ddsi_entity_common *e, ddsrt_mtime_t tnow, 
   };
 
   enum ddsi_entity_kind mkind = generic_do_match_mkind (e->kind, local);
-  struct entity_index const * const entidx = e->gv->entity_index;
-  struct entidx_enum it;
+  struct ddsi_entity_index const * const entidx = e->gv->entity_index;
+  struct ddsi_entity_enum it;
   struct ddsi_entity_common *em;
 
   if (!ddsi_is_builtin_entityid (e->guid.entityid, NN_VENDORID_ECLIPSE) || (local && ddsi_is_local_orphan_endpoint (e)))
@@ -514,7 +514,7 @@ static void generic_do_match (struct ddsi_entity_common *e, ddsrt_mtime_t tnow, 
     /* Non-builtins need matching on topics, the local orphan endpoints
        are a bit weird because they reuse the builtin entityids but
        otherwise need to be treated as normal readers */
-    struct match_entities_range_key max;
+    struct ddsi_match_entities_range_key max;
     const char *tp = entity_topic_name (e);
     EELOGDISC (e, "match_%s_with_%ss(%s "PGUIDFMT") scanning all %ss%s%s\n",
                kindstr[e->kind].full_us, kindstr[mkind].full_us,
@@ -526,10 +526,10 @@ static void generic_do_match (struct ddsi_entity_common *e, ddsrt_mtime_t tnow, 
        deleted between our calling init and our reaching it while
        enumerating), but we may visit a single proxy reader multiple
        times. */
-    entidx_enum_init_topic (&it, entidx, mkind, tp, &max);
-    while ((em = entidx_enum_next_max (&it, &max)) != NULL)
+    ddsi_entidx_enum_init_topic (&it, entidx, mkind, tp, &max);
+    while ((em = ddsi_entidx_enum_next_max (&it, &max)) != NULL)
       generic_do_match_connect (e, em, tnow, local);
-    entidx_enum_fini (&it);
+    ddsi_entidx_enum_fini (&it);
   }
   else if (!local)
   {
@@ -546,15 +546,15 @@ static void generic_do_match (struct ddsi_entity_common *e, ddsrt_mtime_t tnow, 
                isproxy ? "" : "proxy ", tgt_ent.u);
     if (tgt_ent.u != NN_ENTITYID_UNKNOWN)
     {
-      entidx_enum_init (&it, entidx, pkind);
-      while ((em = entidx_enum_next (&it)) != NULL)
+      ddsi_entidx_enum_init (&it, entidx, pkind);
+      while ((em = ddsi_entidx_enum_next (&it)) != NULL)
       {
         const ddsi_guid_t tgt_guid = { em->guid.prefix, tgt_ent };
         struct ddsi_entity_common *ep;
-        if ((ep = entidx_lookup_guid (entidx, &tgt_guid, mkind)) != NULL)
+        if ((ep = ddsi_entidx_lookup_guid (entidx, &tgt_guid, mkind)) != NULL)
           generic_do_match_connect (e, ep, tnow, local);
       }
-      entidx_enum_fini (&it);
+      ddsi_entidx_enum_fini (&it);
     }
   }
 }
@@ -1137,7 +1137,7 @@ void proxy_reader_add_connection (struct ddsi_proxy_reader *prd, struct ddsi_wri
 void writer_drop_connection (const struct ddsi_guid *wr_guid, const struct ddsi_proxy_reader *prd)
 {
   struct ddsi_writer *wr;
-  if ((wr = entidx_lookup_writer_guid (prd->e.gv->entity_index, wr_guid)) != NULL)
+  if ((wr = ddsi_entidx_lookup_writer_guid (prd->e.gv->entity_index, wr_guid)) != NULL)
   {
     struct whc_node *deferred_free_list = NULL;
     struct ddsi_wr_prd_match *m;
@@ -1171,7 +1171,7 @@ void writer_drop_local_connection (const struct ddsi_guid *wr_guid, struct ddsi_
 {
   /* Only called by gc_delete_reader, so we actually have a reader pointer */
   struct ddsi_writer *wr;
-  if ((wr = entidx_lookup_writer_guid (rd->e.gv->entity_index, wr_guid)) != NULL)
+  if ((wr = ddsi_entidx_lookup_writer_guid (rd->e.gv->entity_index, wr_guid)) != NULL)
   {
     struct ddsi_wr_rd_match *m;
 
@@ -1197,7 +1197,7 @@ void writer_drop_local_connection (const struct ddsi_guid *wr_guid, struct ddsi_
 void reader_drop_connection (const struct ddsi_guid *rd_guid, const struct ddsi_proxy_writer *pwr)
 {
   struct ddsi_reader *rd;
-  if ((rd = entidx_lookup_reader_guid (pwr->e.gv->entity_index, rd_guid)) != NULL)
+  if ((rd = ddsi_entidx_lookup_reader_guid (pwr->e.gv->entity_index, rd_guid)) != NULL)
   {
     struct ddsi_rd_pwr_match *m;
     ddsrt_mutex_lock (&rd->e.lock);
@@ -1237,7 +1237,7 @@ void reader_drop_connection (const struct ddsi_guid *rd_guid, const struct ddsi_
 void reader_drop_local_connection (const struct ddsi_guid *rd_guid, const struct ddsi_writer *wr)
 {
   struct ddsi_reader *rd;
-  if ((rd = entidx_lookup_reader_guid (wr->e.gv->entity_index, rd_guid)) != NULL)
+  if ((rd = ddsi_entidx_lookup_reader_guid (wr->e.gv->entity_index, rd_guid)) != NULL)
   {
     struct ddsi_rd_wr_match *m;
     ddsrt_mutex_lock (&rd->e.lock);
@@ -1275,7 +1275,7 @@ void proxy_writer_drop_connection (const struct ddsi_guid *pwr_guid, struct ddsi
 {
   /* Only called by gc_delete_reader, so we actually have a reader pointer */
   struct ddsi_proxy_writer *pwr;
-  if ((pwr = entidx_lookup_proxy_writer_guid (rd->e.gv->entity_index, pwr_guid)) != NULL)
+  if ((pwr = ddsi_entidx_lookup_proxy_writer_guid (rd->e.gv->entity_index, pwr_guid)) != NULL)
   {
     struct ddsi_pwr_rd_match *m;
 
@@ -1316,7 +1316,7 @@ void proxy_writer_drop_connection (const struct ddsi_guid *pwr_guid, struct ddsi
 void proxy_reader_drop_connection (const struct ddsi_guid *prd_guid, struct ddsi_writer *wr)
 {
   struct ddsi_proxy_reader *prd;
-  if ((prd = entidx_lookup_proxy_reader_guid (wr->e.gv->entity_index, prd_guid)) != NULL)
+  if ((prd = ddsi_entidx_lookup_proxy_reader_guid (wr->e.gv->entity_index, prd_guid)) != NULL)
   {
     struct ddsi_prd_wr_match *m;
     ddsrt_mutex_lock (&prd->e.lock);
@@ -1480,20 +1480,20 @@ void match_volatile_secure_endpoints (struct ddsi_participant *pp, struct ddsi_p
 
   guid = pp->e.guid;
   guid.entityid.u = NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_READER;
-  if ((rd = entidx_lookup_reader_guid (pp->e.gv->entity_index, &guid)) == NULL)
+  if ((rd = ddsi_entidx_lookup_reader_guid (pp->e.gv->entity_index, &guid)) == NULL)
     return;
 
   guid.entityid.u = NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER;
-  if ((wr = entidx_lookup_writer_guid (pp->e.gv->entity_index, &guid)) == NULL)
+  if ((wr = ddsi_entidx_lookup_writer_guid (pp->e.gv->entity_index, &guid)) == NULL)
     return;
 
   guid = proxypp->e.guid;
   guid.entityid.u = NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_READER;
-  if ((prd = entidx_lookup_proxy_reader_guid (pp->e.gv->entity_index, &guid)) == NULL)
+  if ((prd = ddsi_entidx_lookup_proxy_reader_guid (pp->e.gv->entity_index, &guid)) == NULL)
     return;
 
   guid.entityid.u = NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER;
-  if ((pwr = entidx_lookup_proxy_writer_guid (pp->e.gv->entity_index, &guid)) == NULL)
+  if ((pwr = ddsi_entidx_lookup_proxy_writer_guid (pp->e.gv->entity_index, &guid)) == NULL)
     return;
 
   connect_proxy_writer_with_reader_wrapper(&pwr->e, &rd->e, tnow);
@@ -1526,7 +1526,7 @@ static struct ddsi_entity_common * get_entity_parent (struct ddsi_entity_common 
 
 void update_proxy_participant_endpoint_matching (struct ddsi_proxy_participant *proxypp, struct ddsi_participant *pp)
 {
-  struct entity_index * const entidx = pp->e.gv->entity_index;
+  struct ddsi_entity_index * const entidx = pp->e.gv->entity_index;
   struct ddsi_proxy_endpoint_common *cep;
   ddsi_guid_t guid;
   ddsi_entityid_t *endpoint_ids;
@@ -1553,24 +1553,24 @@ void update_proxy_participant_endpoint_matching (struct ddsi_proxy_participant *
     enum ddsi_entity_kind mkind;
 
     guid.entityid = endpoint_ids[i];
-    if ((e = entidx_lookup_guid_untyped(entidx, &guid)) == NULL)
+    if ((e = ddsi_entidx_lookup_guid_untyped (entidx, &guid)) == NULL)
       continue;
 
     mkind = generic_do_match_mkind (e->kind, false);
     if (!ddsi_is_builtin_entityid (e->guid.entityid, NN_VENDORID_ECLIPSE))
     {
-      struct entidx_enum it;
+      struct ddsi_entity_enum it;
       struct ddsi_entity_common *em;
-      struct match_entities_range_key max;
+      struct ddsi_match_entities_range_key max;
       const char *tp = entity_topic_name (e);
 
-      entidx_enum_init_topic(&it, entidx, mkind, tp, &max);
-      while ((em = entidx_enum_next_max (&it, &max)) != NULL)
+      ddsi_entidx_enum_init_topic(&it, entidx, mkind, tp, &max);
+      while ((em = ddsi_entidx_enum_next_max (&it, &max)) != NULL)
       {
         if (&pp->e == get_entity_parent(em))
           generic_do_match_connect (e, em, tnow, false);
       }
-      entidx_enum_fini (&it);
+      ddsi_entidx_enum_fini (&it);
     }
     else
     {
@@ -1580,7 +1580,7 @@ void update_proxy_participant_endpoint_matching (struct ddsi_proxy_participant *
       if (!ddsi_is_builtin_volatile_endpoint (tgt_ent))
       {
         struct ddsi_entity_common *ep;
-        if ((ep = entidx_lookup_guid (entidx, &tgt_guid, mkind)) != NULL)
+        if ((ep = ddsi_entidx_lookup_guid (entidx, &tgt_guid, mkind)) != NULL)
           generic_do_match_connect (e, ep, tnow, false);
       }
     }
@@ -1643,48 +1643,48 @@ bool proxy_participant_has_pp_match (struct ddsi_domaingv *gv, struct ddsi_proxy
 {
   bool match = false;
   struct ddsi_participant *pp;
-  struct entidx_enum_participant est;
+  struct ddsi_entity_enum_participant est;
 
-  entidx_enum_participant_init (&est, gv->entity_index);
-  while ((pp = entidx_enum_participant_next (&est)) != NULL && !match)
+  ddsi_entidx_enum_participant_init (&est, gv->entity_index);
+  while ((pp = ddsi_entidx_enum_participant_next (&est)) != NULL && !match)
   {
     /* remote secure pp can possibly match with local non-secured pp in case allow-unauthenticated pp
        is enabled in the remote pp's security settings */
     match = !q_omg_participant_is_secure (pp) || q_omg_is_similar_participant_security_info (pp, proxypp);
   }
-  entidx_enum_participant_fini (&est);
+  ddsi_entidx_enum_participant_fini (&est);
   return match;
 }
 
 void proxy_participant_create_handshakes (struct ddsi_domaingv *gv, struct ddsi_proxy_participant *proxypp)
 {
   struct ddsi_participant *pp;
-  struct entidx_enum_participant est;
+  struct ddsi_entity_enum_participant est;
 
   q_omg_security_remote_participant_set_initialized(proxypp);
 
-  entidx_enum_participant_init (&est, gv->entity_index);
-  while (((pp = entidx_enum_participant_next (&est)) != NULL)) {
+  ddsi_entidx_enum_participant_init (&est, gv->entity_index);
+  while (((pp = ddsi_entidx_enum_participant_next (&est)) != NULL)) {
     if (q_omg_security_participant_is_initialized(pp))
       ddsi_handshake_register(pp, proxypp, handshake_end_cb);
   }
-  entidx_enum_participant_fini(&est);
+  ddsi_entidx_enum_participant_fini(&est);
 }
 
 void disconnect_proxy_participant_secure (struct ddsi_proxy_participant *proxypp)
 {
   struct ddsi_participant *pp;
-  struct entidx_enum_participant it;
+  struct ddsi_entity_enum_participant it;
   struct ddsi_domaingv * const gv = proxypp->e.gv;
 
   if (q_omg_proxy_participant_is_secure(proxypp))
   {
-    entidx_enum_participant_init (&it, gv->entity_index);
-    while ((pp = entidx_enum_participant_next (&it)) != NULL)
+    ddsi_entidx_enum_participant_init (&it, gv->entity_index);
+    while ((pp = ddsi_entidx_enum_participant_next (&it)) != NULL)
     {
       ddsi_handshake_remove(pp, proxypp);
     }
-    entidx_enum_participant_fini (&it);
+    ddsi_entidx_enum_participant_fini (&it);
   }
 }
 
@@ -1695,19 +1695,19 @@ void ddsi_update_proxy_endpoint_matching (const struct ddsi_domaingv *gv, struct
   GVLOGDISC ("ddsi_update_proxy_endpoint_matching (proxy ep "PGUIDFMT")\n", PGUID (proxy_ep->e.guid));
   enum ddsi_entity_kind mkind = generic_do_match_mkind (proxy_ep->e.kind, false);
   assert (!ddsi_is_builtin_entityid (proxy_ep->e.guid.entityid, NN_VENDORID_ECLIPSE));
-  struct entidx_enum it;
+  struct ddsi_entity_enum it;
   struct ddsi_entity_common *em;
-  struct match_entities_range_key max;
+  struct ddsi_match_entities_range_key max;
   const char *tp = entity_topic_name (&proxy_ep->e);
   ddsrt_mtime_t tnow = ddsrt_time_monotonic ();
 
   thread_state_awake (ddsi_lookup_thread_state (), gv);
-  entidx_enum_init_topic (&it, gv->entity_index, mkind, tp, &max);
-  while ((em = entidx_enum_next_max (&it, &max)) != NULL)
+  ddsi_entidx_enum_init_topic (&it, gv->entity_index, mkind, tp, &max);
+  while ((em = ddsi_entidx_enum_next_max (&it, &max)) != NULL)
   {
     GVLOGDISC ("match proxy ep "PGUIDFMT" with "PGUIDFMT"\n", PGUID (proxy_ep->e.guid), PGUID (em->guid));
     generic_do_match_connect (&proxy_ep->e, em, tnow, false);
   }
-  entidx_enum_fini (&it);
+  ddsi_entidx_enum_fini (&it);
   thread_state_asleep (ddsi_lookup_thread_state ());
 }

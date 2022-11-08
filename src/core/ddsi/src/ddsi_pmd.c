@@ -17,7 +17,7 @@
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/ddsi_entity.h"
-#include "dds/ddsi/ddsi_entity_index.h"
+#include "ddsi__entity_index.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_participant.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
@@ -45,7 +45,7 @@ void write_pmd_message_guid (struct ddsi_domaingv * const gv, struct ddsi_guid *
   struct thread_state * const thrst = ddsi_lookup_thread_state ();
   struct lease *lease;
   thread_state_awake (thrst, gv);
-  struct ddsi_participant *pp = entidx_lookup_participant_guid (gv->entity_index, pp_guid);
+  struct ddsi_participant *pp = ddsi_entidx_lookup_participant_guid (gv->entity_index, pp_guid);
   if (pp == NULL)
     GVTRACE ("write_pmd_message("PGUIDFMT") - builtin pmd writer not found\n", PGUID (*pp_guid));
   else
@@ -101,7 +101,7 @@ void handle_pmd_message (const struct receiver_state *rst, struct ddsi_serdata *
       RSTTRACE (" pp %"PRIx32":%"PRIx32":%"PRIx32" kind %"PRIu32" data %"PRIu32, PGUIDPREFIX (pmd->participantGuidPrefix), pmd->kind, pmd->value.length);
       ppguid.prefix = pmd->participantGuidPrefix;
       ppguid.entityid.u = NN_ENTITYID_PARTICIPANT;
-      if ((proxypp = entidx_lookup_proxy_participant_guid (rst->gv->entity_index, &ppguid)) == NULL)
+      if ((proxypp = ddsi_entidx_lookup_proxy_participant_guid (rst->gv->entity_index, &ppguid)) == NULL)
         RSTTRACE (" PPunknown");
       else if (pmd->kind == PARTICIPANT_MESSAGE_DATA_KIND_MANUAL_LIVELINESS_UPDATE &&
                (l = ddsrt_atomic_ldvoidp (&proxypp->minl_man)) != NULL)

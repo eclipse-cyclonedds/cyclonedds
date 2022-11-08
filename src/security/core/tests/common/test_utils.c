@@ -585,7 +585,7 @@ void write_read_for(dds_entity_t wr, dds_entity_t pp_rd, dds_entity_t rd, dds_du
     dds_return_t ret = dds_entity_lock (participant, DDS_KIND_PARTICIPANT, &pp_entity); \
     CU_ASSERT_EQUAL_FATAL (ret, 0); \
     thread_state_awake (ddsi_lookup_thread_state(), &pp_entity->m_domain->gv); \
-    struct ddsi_participant *pp = entidx_lookup_participant_guid (pp_entity->m_domain->gv.entity_index, &pp_entity->m_guid); \
+    struct ddsi_participant *pp = ddsi_entidx_lookup_participant_guid (pp_entity->m_domain->gv.entity_index, &pp_entity->m_guid); \
     CU_ASSERT_FATAL (pp != NULL); \
     struct dds_security_##name_##_impl *context = (struct dds_security_##name_##_impl *) q_omg_participant_get_##name_ (pp); \
     thread_state_asleep (ddsi_lookup_thread_state ()); \
@@ -631,7 +631,7 @@ DDS_Security_DatawriterCryptoHandle get_builtin_writer_crypto_handle(dds_entity_
   struct ddsi_writer *wr;
   CU_ASSERT_EQUAL_FATAL(dds_entity_pin(participant, &pp_entity), 0);
   thread_state_awake(ddsi_lookup_thread_state(), &pp_entity->m_domain->gv);
-  pp = entidx_lookup_participant_guid(pp_entity->m_domain->gv.entity_index, &pp_entity->m_guid);
+  pp = ddsi_entidx_lookup_participant_guid(pp_entity->m_domain->gv.entity_index, &pp_entity->m_guid);
   wr = ddsi_get_builtin_writer (pp, entityid);
   CU_ASSERT_FATAL(wr != NULL);
   assert(wr != NULL); /* for Clang's static analyzer */
@@ -648,7 +648,7 @@ DDS_Security_DatawriterCryptoHandle get_writer_crypto_handle(dds_entity_t writer
   struct ddsi_writer *wr;
   CU_ASSERT_EQUAL_FATAL(dds_entity_pin(writer, &wr_entity), 0);
   thread_state_awake(ddsi_lookup_thread_state(), &wr_entity->m_domain->gv);
-  wr = entidx_lookup_writer_guid(wr_entity->m_domain->gv.entity_index, &wr_entity->m_guid);
+  wr = ddsi_entidx_lookup_writer_guid (wr_entity->m_domain->gv.entity_index, &wr_entity->m_guid);
   CU_ASSERT_FATAL(wr != NULL);
   assert(wr != NULL); /* for Clang's static analyzer */
   crypto_handle = wr->sec_attr->crypto_handle;
