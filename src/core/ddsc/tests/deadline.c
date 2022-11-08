@@ -55,7 +55,7 @@ static dds_entity_t create_and_sync_reader(dds_entity_t participant, dds_entity_
   return reader;
 }
 
-static void deadline_init(void)
+static void ddsi_deadline_init(void)
 {
   char name[100];
 
@@ -98,7 +98,7 @@ static void deadline_init(void)
   dds_qset_writer_data_lifecycle(g_qos, false);
 }
 
-static void deadline_fini(void)
+static void ddsi_deadline_fini(void)
 {
   dds_delete_qos(g_qos);
   dds_delete(g_subscriber);
@@ -135,7 +135,7 @@ static bool check_missed_deadline_writer(dds_entity_t writer, uint32_t exp_misse
   return dstatus.total_count == exp_missed_total && dstatus.total_count_change == exp_missed_change;
 }
 
-CU_Test(ddsc_deadline, basic, .init=deadline_init, .fini=deadline_fini)
+CU_Test(ddsc_deadline, basic, .init=ddsi_deadline_init, .fini=ddsi_deadline_fini)
 {
   Space_Type1 sample = { 0, 0, 0 };
   dds_entity_t reader, reader_remote, reader_dl, reader_dl_remote, writer;
@@ -253,7 +253,7 @@ CU_TheoryDataPoints(ddsc_deadline, writer_types) = {
 #undef BE
 #undef KA
 #undef KL
-CU_Theory((dds_durability_kind_t dur_kind, dds_reliability_kind_t rel_kind, dds_history_kind_t hist_kind), ddsc_deadline, writer_types, .init = deadline_init, .fini = deadline_fini)
+CU_Theory((dds_durability_kind_t dur_kind, dds_reliability_kind_t rel_kind, dds_history_kind_t hist_kind), ddsc_deadline, writer_types, .init = ddsi_deadline_init, .fini = ddsi_deadline_fini)
 {
   Space_Type1 sample = { 0, 0, 0 };
   dds_entity_t reader, writer;
@@ -342,7 +342,7 @@ CU_TheoryDataPoints(ddsc_deadline, instances) = {
     CU_DataPoints(uint8_t, 0,  0,  4,  10), /* unregister every n-th instance */
     CU_DataPoints(uint8_t, 0,  0,  5,  20), /* dispose every n-th instance */
 };
-CU_Theory((int32_t n_inst, uint8_t unreg_nth, uint8_t dispose_nth), ddsc_deadline, instances, .init = deadline_init, .fini = deadline_fini, .timeout = 60)
+CU_Theory((int32_t n_inst, uint8_t unreg_nth, uint8_t dispose_nth), ddsc_deadline, instances, .init = ddsi_deadline_init, .fini = ddsi_deadline_fini, .timeout = 60)
 {
   Space_Type1 sample = { 0, 0, 0 };
   dds_entity_t reader_dl, writer;

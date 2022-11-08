@@ -330,7 +330,7 @@ struct dds_rhc_default {
   struct lifespan_adm lifespan;      /* Lifespan administration */
 #endif
 #ifdef DDS_HAS_DEADLINE_MISSED
-  struct deadline_adm deadline; /* Deadline missed administration */
+  struct ddsi_deadline_adm deadline; /* Deadline missed administration */
 #endif
 };
 
@@ -534,10 +534,10 @@ ddsrt_mtime_t dds_rhc_default_deadline_missed_cb(void *hc, ddsrt_mtime_t tnow)
   void *vinst;
   ddsrt_mtime_t tnext;
   ddsrt_mutex_lock (&rhc->lock);
-  while ((tnext = deadline_next_missed_locked (&rhc->deadline, tnow, &vinst)).v == 0)
+  while ((tnext = ddsi_deadline_next_missed_locked (&rhc->deadline, tnow, &vinst)).v == 0)
   {
     struct rhc_instance *inst = vinst;
-    deadline_reregister_instance_locked (&rhc->deadline, &inst->deadline, tnow);
+    ddsi_deadline_reregister_instance_locked (&rhc->deadline, &inst->deadline, tnow);
 
     inst->wr_iid_islive = 0;
 
@@ -579,7 +579,7 @@ struct dds_rhc *dds_rhc_default_new_xchecks (dds_reader *reader, struct ddsi_dom
 
 #ifdef DDS_HAS_DEADLINE_MISSED
   rhc->deadline.dur = (reader != NULL) ? reader->m_entity.m_qos->deadline.deadline : DDS_INFINITY;
-  deadline_init (gv, &rhc->deadline, offsetof(struct dds_rhc_default, deadline), offsetof(struct rhc_instance, deadline), dds_rhc_default_deadline_missed_cb);
+  ddsi_deadline_init (gv, &rhc->deadline, offsetof(struct dds_rhc_default, deadline), offsetof(struct rhc_instance, deadline), dds_rhc_default_deadline_missed_cb);
 #endif
 
   return &rhc->common;
@@ -716,7 +716,7 @@ static void free_empty_instance (struct rhc_instance *inst, struct dds_rhc_defau
   ddsi_tkmap_instance_unref (rhc->tkmap, inst->tk);
 #ifdef DDS_HAS_DEADLINE_MISSED
   if (inst->deadline_reg)
-    deadline_unregister_instance_locked (&rhc->deadline, &inst->deadline);
+    ddsi_deadline_unregister_instance_locked (&rhc->deadline, &inst->deadline);
 #endif
   ddsrt_free (inst);
 }
@@ -776,12 +776,12 @@ static void dds_rhc_default_free (struct ddsi_rhc *rhc_common)
   lifespan_fini (&rhc->lifespan);
 #endif
 #ifdef DDS_HAS_DEADLINE_MISSED
-  deadline_stop (&rhc->deadline);
+  ddsi_deadline_stop (&rhc->deadline);
 #endif
   ddsrt_hh_enum (rhc->instances, free_instance_rhc_free_wrap, rhc);
   assert (ddsrt_circlist_isempty (&rhc->nonempty_instances));
 #ifdef DDS_HAS_DEADLINE_MISSED
-  deadline_fini (&rhc->deadline);
+  ddsi_deadline_fini (&rhc->deadline);
 #endif
   ddsrt_hh_free (rhc->instances);
   lwregs_fini (&rhc->registrations);
@@ -1488,16 +1488,16 @@ static void postprocess_instance_update (struct dds_rhc_default * __restrict rhc
       if (inst->deadline_reg)
       {
         inst->deadline_reg = 0;
-        deadline_unregister_instance_locked (&rhc->deadline, &inst->deadline);
+        ddsi_deadline_unregister_instance_locked (&rhc->deadline, &inst->deadline);
       }
     }
     else
     {
       if (inst->deadline_reg)
-        deadline_renew_instance_locked (&rhc->deadline, &inst->deadline);
+        ddsi_deadline_renew_instance_locked (&rhc->deadline, &inst->deadline);
       else
       {
-        deadline_register_instance_locked (&rhc->deadline, &inst->deadline, ddsrt_time_monotonic ());
+        ddsi_deadline_register_instance_locked (&rhc->deadline, &inst->deadline, ddsrt_time_monotonic ());
         inst->deadline_reg = 1;
       }
     }

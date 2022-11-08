@@ -23,10 +23,10 @@ extern "C" {
 
 typedef ddsrt_mtime_t (*deadline_missed_cb_t)(void *hc, ddsrt_mtime_t tnow);
 
-struct deadline_adm {
+struct ddsi_deadline_adm {
   struct ddsrt_circlist list;               /* linked list for deadline missed */
   struct xevent *evt;                       /* xevent that triggers when deadline expires for an instance */
-  deadline_missed_cb_t deadline_missed_cb;  /* callback for deadline missed; this cb can use deadline_next_missed_locked to get next instance that has a missed deadline */
+  deadline_missed_cb_t deadline_missed_cb;  /* callback for deadline missed; this cb can use ddsi_deadline_next_missed_locked to get next instance that has a missed deadline */
   size_t list_offset;                       /* offset of deadline_adm element in whc or rhc */
   size_t elem_offset;                       /* offset of deadline_elem element in whc or rhc instance */
   dds_duration_t dur;                       /* deadline duration */
@@ -37,42 +37,42 @@ struct deadline_elem {
   ddsrt_mtime_t t_deadline;
 };
 
-void deadline_init (const struct ddsi_domaingv *gv, struct deadline_adm *deadline_adm, size_t list_offset, size_t elem_offset, deadline_missed_cb_t deadline_missed_cb);
-void deadline_stop (const struct deadline_adm *deadline_adm);
-void deadline_clear (struct deadline_adm *deadline_adm);
-void deadline_fini (const struct deadline_adm *deadline_adm);
-ddsrt_mtime_t deadline_next_missed_locked (struct deadline_adm *deadline_adm, ddsrt_mtime_t tnow, void **instance);
-void deadline_register_instance_real (struct deadline_adm *deadline_adm, struct deadline_elem *elem, ddsrt_mtime_t tprev, ddsrt_mtime_t tnow);
-void deadline_unregister_instance_real (struct deadline_adm *deadline_adm, struct deadline_elem *elem);
-void deadline_renew_instance_real (struct deadline_adm *deadline_adm, struct deadline_elem *elem);
+void ddsi_deadline_init (const struct ddsi_domaingv *gv, struct ddsi_deadline_adm *deadline_adm, size_t list_offset, size_t elem_offset, deadline_missed_cb_t deadline_missed_cb);
+void ddsi_deadline_stop (const struct ddsi_deadline_adm *deadline_adm);
+void ddsi_deadline_clear (struct ddsi_deadline_adm *deadline_adm);
+void ddsi_deadline_fini (const struct ddsi_deadline_adm *deadline_adm);
+ddsrt_mtime_t ddsi_deadline_next_missed_locked (struct ddsi_deadline_adm *deadline_adm, ddsrt_mtime_t tnow, void **instance);
+void ddsi_deadline_register_instance_real (struct ddsi_deadline_adm *deadline_adm, struct deadline_elem *elem, ddsrt_mtime_t tprev, ddsrt_mtime_t tnow);
+void ddsi_deadline_unregister_instance_real (struct ddsi_deadline_adm *deadline_adm, struct deadline_elem *elem);
+void ddsi_deadline_renew_instance_real (struct ddsi_deadline_adm *deadline_adm, struct deadline_elem *elem);
 
-inline void deadline_register_instance_locked (struct deadline_adm *deadline_adm, struct deadline_elem *elem, ddsrt_mtime_t tnow)
+inline void ddsi_deadline_register_instance_locked (struct ddsi_deadline_adm *deadline_adm, struct deadline_elem *elem, ddsrt_mtime_t tnow)
 {
   if (deadline_adm->dur != DDS_INFINITY)
-    deadline_register_instance_real (deadline_adm, elem, tnow, tnow);
+    ddsi_deadline_register_instance_real (deadline_adm, elem, tnow, tnow);
 }
 
-inline void deadline_reregister_instance_locked (struct deadline_adm *deadline_adm, struct deadline_elem *elem, ddsrt_mtime_t tnow)
+inline void ddsi_deadline_reregister_instance_locked (struct ddsi_deadline_adm *deadline_adm, struct deadline_elem *elem, ddsrt_mtime_t tnow)
 {
   if (deadline_adm->dur != DDS_INFINITY)
-    deadline_register_instance_real (deadline_adm, elem, elem->t_deadline, tnow);
+    ddsi_deadline_register_instance_real (deadline_adm, elem, elem->t_deadline, tnow);
 }
 
-inline void deadline_unregister_instance_locked (struct deadline_adm *deadline_adm, struct deadline_elem *elem)
+inline void ddsi_deadline_unregister_instance_locked (struct ddsi_deadline_adm *deadline_adm, struct deadline_elem *elem)
 {
   if (deadline_adm->dur != DDS_INFINITY)
   {
     assert (elem->t_deadline.v != DDS_NEVER);
-    deadline_unregister_instance_real (deadline_adm, elem);
+    ddsi_deadline_unregister_instance_real (deadline_adm, elem);
   }
 }
 
-inline void deadline_renew_instance_locked (struct deadline_adm *deadline_adm, struct deadline_elem *elem)
+inline void ddsi_deadline_renew_instance_locked (struct ddsi_deadline_adm *deadline_adm, struct deadline_elem *elem)
 {
   if (deadline_adm->dur != DDS_INFINITY)
   {
     assert (elem->t_deadline.v != DDS_NEVER);
-    deadline_renew_instance_real (deadline_adm, elem);
+    ddsi_deadline_renew_instance_real (deadline_adm, elem);
   }
 }
 
