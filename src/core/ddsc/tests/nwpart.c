@@ -21,7 +21,7 @@
 #include "dds/ddsi/ddsi_iid.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/ddsi_nwpart.h"
+#include "ddsi__nwpart.h"
 #include "dds/ddsi/ddsi_udp.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/q_misc.h"
@@ -254,7 +254,7 @@ CU_Theory ((struct ddsi_config_networkpartition_listelem ps, bool allow_mc, cons
   config.networkPartitions = &ps;
   errcount = 0;
   setup (&gv, &config, allow_mc, true);
-  int rc = convert_network_partition_config (&gv, 31415);
+  int rc = ddsi_convert_nwpart_config (&gv, 31415);
   if (uc == NULL) {
     CU_ASSERT_FATAL (rc < 0);
     CU_ASSERT_FATAL (errcount > 0);
@@ -264,7 +264,7 @@ CU_Theory ((struct ddsi_config_networkpartition_listelem ps, bool allow_mc, cons
     CU_ASSERT_FATAL (check_address_list (uc, ps.uc_addresses));
     CU_ASSERT_FATAL (check_address_list (mc, ps.asm_addresses));
   }
-  free_config_networkpartition_addresses (&gv);
+  ddsi_free_config_nwpart_addresses (&gv);
   teardown (&gv);
 #endif
 }

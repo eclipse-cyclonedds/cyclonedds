@@ -23,7 +23,7 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "ddsi__entity_index.h"
 #include "ddsi__mcgroup.h"
-#include "dds/ddsi/ddsi_nwpart.h"
+#include "ddsi__nwpart.h"
 #include "dds/ddsi/ddsi_udp.h"
 #include "dds/ddsi/ddsi_builtin_topic_if.h"
 #include "dds/ddsi/ddsi_wraddrset.h"
@@ -401,7 +401,7 @@ static bool is_onlylocal_endpoint (struct ddsi_participant *pp, const char *topi
   if (ddsi_builtintopic_is_builtintopic (pp->e.gv->builtin_topic_interface, type))
     return true;
 #ifdef DDS_HAS_NETWORK_PARTITIONS
-  if (ddsi_is_ignored_partition (pp->e.gv, xqos, topic_name))
+  if (ddsi_is_ignored_nwpart (pp->e.gv, xqos, topic_name))
     return true;
 #endif
   return false;
@@ -805,7 +805,7 @@ static void ddsi_new_writer_guid_common_init (struct ddsi_writer *wr, const char
      partitions that match multiple network partitions.  From a safety
      point of view a wierd configuration. Here we chose the first one
      that we find */
-  wr->network_partition = ddsi_get_partition_from_mapping (&wr->e.gv->logconfig, &wr->e.gv->config, wr->xqos, wr->xqos->topic_name);
+  wr->network_partition = ddsi_get_nwpart_from_mapping (&wr->e.gv->logconfig, &wr->e.gv->config, wr->xqos, wr->xqos->topic_name);
 #endif /* DDS_HAS_NETWORK_PARTITIONS */
 
 #ifdef DDS_HAS_SSM
@@ -1363,7 +1363,7 @@ static void reader_init_network_partition (struct ddsi_reader *rd)
   {
     /* compile address set from the mapped network partitions */
     const struct ddsi_config_networkpartition_listelem *np;
-    np = ddsi_get_partition_from_mapping (&gv->logconfig, &gv->config, rd->xqos, rd->xqos->topic_name);
+    np = ddsi_get_nwpart_from_mapping (&gv->logconfig, &gv->config, rd->xqos, rd->xqos->topic_name);
     if (np)
     {
       rd->uc_as = np->uc_addresses;

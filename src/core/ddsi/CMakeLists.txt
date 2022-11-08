@@ -82,7 +82,8 @@ set(srcs_ddsi
   q_xevent.c
   q_xmsg.c
   q_freelist.c
-  sysdeps.c)
+  sysdeps.c
+)
 
 set(hdrs_ddsi
   ddsi_ssl.h
@@ -92,7 +93,6 @@ set(hdrs_ddsi
   ddsi_raweth.h
   ddsi_vnet.h
   ddsi_locator.h
-  ddsi_nwpart.h
   ddsi_plist_generic.h
   ddsi_security_util.h
   ddsi_security_omg.h
@@ -159,7 +159,8 @@ set(hdrs_ddsi
   q_whc.h
   q_xevent.h
   q_xmsg.h
-  sysdeps.h)
+  sysdeps.h
+)
 
 set(hdrs_private_ddsi
   ddsi__acknack.h
@@ -174,7 +175,9 @@ set(hdrs_private_ddsi
   ddsi__ipaddr.h
   ddsi__list_tmpl.h
   ddsi__list_genptr.h
-  ddsi__mcgroup.h)
+  ddsi__mcgroup.h
+  ddsi__nwpart.h
+)
 
 if(ENABLE_LIFESPAN)
   list(APPEND srcs_ddsi ddsi_lifespan.c)

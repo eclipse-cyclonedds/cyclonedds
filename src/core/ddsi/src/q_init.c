@@ -59,7 +59,7 @@
 #include "dds/ddsi/ddsi_raweth.h"
 #include "dds/ddsi/ddsi_vnet.h"
 #include "ddsi__mcgroup.h"
-#include "dds/ddsi/ddsi_nwpart.h"
+#include "ddsi__nwpart.h"
 #include "dds/ddsi/ddsi_serdata_cdr.h"
 #include "dds/ddsi/ddsi_serdata_pserop.h"
 #include "dds/ddsi/ddsi_serdata_plist.h"
@@ -1634,7 +1634,7 @@ int rtps_init (struct ddsi_domaingv *gv)
   // Now that we know the interfaces and xmit_conns, we can convert the strings in the
   // network partition configuration to something useful.  Addresses must go first to
   // satisfy some assertions
-  if (convert_network_partition_config (gv, port_data_uc) < 0)
+  if (ddsi_convert_nwpart_config (gv, port_data_uc) < 0)
     goto err_network_partition_config;
 
   // Join SPDP, default multicast addresses if enabled
@@ -1771,7 +1771,7 @@ err_post_omg_security_init:
 #endif
 #endif
 err_joinleave_spdp:
-  free_config_networkpartition_addresses (gv);
+  ddsi_free_config_nwpart_addresses (gv);
 err_network_partition_config:
 err_mc_conn:
   for (int i = 0; i < gv->n_interfaces; i++)
@@ -2164,7 +2164,7 @@ void rtps_fini (struct ddsi_domaingv *gv)
     fclose (gv->pcap_fp);
   }
 
-  free_config_networkpartition_addresses (gv);
+  ddsi_free_config_nwpart_addresses (gv);
   unref_addrset (gv->as_disc);
 
   /* Must delay freeing of rbufpools until after *all* references have

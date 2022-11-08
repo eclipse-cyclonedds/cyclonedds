@@ -20,7 +20,7 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "ddsi__ipaddr.h"
 #include "dds/ddsi/ddsi_tran.h"
-#include "dds/ddsi/ddsi_nwpart.h"
+#include "ddsi__nwpart.h"
 #include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/q_misc.h"
 
@@ -39,7 +39,7 @@ struct nwpart_iter {
 
 static int wildcard_wildcard_match (const char * p1, char * p2) ddsrt_nonnull_all;
 static char *get_partition_search_pattern (const char *partition, const char *topic) ddsrt_nonnull_all;
-static void free_config_networkpartition_addresses_one (struct ddsi_config_networkpartition_listelem *np) ddsrt_nonnull_all;
+static void ddsi_free_config_nwpart_addresses_one (struct ddsi_config_networkpartition_listelem *np) ddsrt_nonnull_all;
 static void nwpart_iter_init (struct nwpart_iter *it, struct ddsi_domaingv *gv)
   ddsrt_nonnull_all;
 static void nwpart_iter_error (struct nwpart_iter *it, const char *tok, const char *msg)
@@ -79,7 +79,7 @@ static char *get_partition_search_pattern (const char *partition, const char *to
   return pt;
 }
 
-const struct ddsi_config_partitionmapping_listelem *find_partitionmapping (const struct ddsi_config *cfg, const char *partition, const char *topic)
+const struct ddsi_config_partitionmapping_listelem *ddsi_find_nwpart_mapping (const struct ddsi_config *cfg, const char *partition, const char *topic)
 {
   char *pt = get_partition_search_pattern (partition, topic);
   struct ddsi_config_partitionmapping_listelem *pm;
@@ -90,7 +90,7 @@ const struct ddsi_config_partitionmapping_listelem *find_partitionmapping (const
   return pm;
 }
 
-static int ddsi_is_ignored_partition_one (const struct ddsi_config *cfg, const char *partition, const char *topic)
+static int ddsi_is_ignored_nwpart_one (const struct ddsi_config *cfg, const char *partition, const char *topic)
 {
   char *pt = get_partition_search_pattern (partition, topic);
   struct ddsi_config_ignoredpartition_listelem *ip;
@@ -113,21 +113,21 @@ static void get_partition_set_from_xqos (char const * const * *ps, uint32_t *nps
   }
 }
 
-bool ddsi_is_ignored_partition (const struct ddsi_domaingv *gv, const struct dds_qos *xqos, const char *topic_name)
+bool ddsi_is_ignored_nwpart (const struct ddsi_domaingv *gv, const struct dds_qos *xqos, const char *topic_name)
 {
   char const * const *ps;
   uint32_t nps;
   get_partition_set_from_xqos (&ps, &nps, xqos);
   for (uint32_t i = 0; i < nps; i++)
-    if (ddsi_is_ignored_partition_one (&gv->config, ps[i], topic_name))
+    if (ddsi_is_ignored_nwpart_one (&gv->config, ps[i], topic_name))
       return true;
   return false;
 }
 
-static const struct ddsi_config_networkpartition_listelem *ddsi_get_partition_from_mapping_one (const struct ddsrt_log_cfg *logcfg, const struct ddsi_config *config, const char *partition, const char *topic)
+static const struct ddsi_config_networkpartition_listelem *ddsi_get_nwpart_from_mapping_one (const struct ddsrt_log_cfg *logcfg, const struct ddsi_config *config, const char *partition, const char *topic)
 {
   const struct ddsi_config_partitionmapping_listelem *pm;
-  if ((pm = find_partitionmapping (config, partition, topic)) == NULL)
+  if ((pm = ddsi_find_nwpart_mapping (config, partition, topic)) == NULL)
     return 0;
   else
   {
@@ -136,7 +136,7 @@ static const struct ddsi_config_networkpartition_listelem *ddsi_get_partition_fr
   }
 }
 
-const struct ddsi_config_networkpartition_listelem *ddsi_get_partition_from_mapping (const struct ddsrt_log_cfg *logcfg, const struct ddsi_config *config, const struct dds_qos *xqos, const char *topic_name)
+const struct ddsi_config_networkpartition_listelem *ddsi_get_nwpart_from_mapping (const struct ddsrt_log_cfg *logcfg, const struct ddsi_config *config, const struct dds_qos *xqos, const char *topic_name)
 {
   char const * const *ps;
   uint32_t nps;
@@ -144,13 +144,13 @@ const struct ddsi_config_networkpartition_listelem *ddsi_get_partition_from_mapp
   for (uint32_t i = 0; i < nps; i++)
   {
     const struct ddsi_config_networkpartition_listelem *nwp;
-    if ((nwp = ddsi_get_partition_from_mapping_one (logcfg, config, ps[i], topic_name)) != NULL)
+    if ((nwp = ddsi_get_nwpart_from_mapping_one (logcfg, config, ps[i], topic_name)) != NULL)
       return nwp;
   }
   return NULL;
 }
 
-static void free_config_networkpartition_addresses_one (struct ddsi_config_networkpartition_listelem *np)
+static void ddsi_free_config_nwpart_addresses_one (struct ddsi_config_networkpartition_listelem *np)
 {
   struct ddsi_networkpartition_address **ps[] = {
     &np->uc_addresses,
@@ -170,10 +170,10 @@ static void free_config_networkpartition_addresses_one (struct ddsi_config_netwo
   }
 }
 
-void free_config_networkpartition_addresses (struct ddsi_domaingv *gv)
+void ddsi_free_config_nwpart_addresses (struct ddsi_domaingv *gv)
 {
   for (struct ddsi_config_networkpartition_listelem *np = gv->config.networkPartitions; np; np = np->next)
-    free_config_networkpartition_addresses_one (np);
+    ddsi_free_config_nwpart_addresses_one (np);
 }
 
 static void nwpart_iter_init (struct nwpart_iter *it, struct ddsi_domaingv *gv)
@@ -406,7 +406,7 @@ static int check_nwpart_address_consistency (struct ddsi_domaingv *gv)
   return nwpart_iter_fini (&npit) ? 0 : -1;
 }
 
-int convert_network_partition_config (struct ddsi_domaingv *gv, uint32_t port_data_uc)
+int ddsi_convert_nwpart_config (struct ddsi_domaingv *gv, uint32_t port_data_uc)
 {
   int rc;
   if ((rc = convert_network_partition_addresses (gv, port_data_uc)) < 0)
@@ -420,14 +420,14 @@ int convert_network_partition_config (struct ddsi_domaingv *gv, uint32_t port_da
 
 #else
 
-void free_config_networkpartition_addresses (struct ddsi_domaingv *gv) {
+void ddsi_free_config_nwpart_addresses (struct ddsi_domaingv *gv) {
   (void)gv;
 }
-bool ddsi_is_ignored_partition (const struct ddsi_domaingv *gv, const struct dds_qos *xqos, const char *topic_name) {
+bool ddsi_is_ignored_nwpart (const struct ddsi_domaingv *gv, const struct dds_qos *xqos, const char *topic_name) {
   (void)gv; (void)xqos; (void)topic_name;
   return false;
 }
-int convert_network_partition_config (struct ddsi_domaingv *gv, uint32_t port_data_uc) {
+int ddsi_convert_nwpart_config (struct ddsi_domaingv *gv, uint32_t port_data_uc) {
   (void)gv; (void)port_data_uc;
   return 0;
 }
