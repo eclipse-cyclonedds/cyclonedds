@@ -445,6 +445,9 @@ int main (int argc, char **argv)
 {
   dds_return_t ret = 0;
   dds_entity_t topic = 0;
+  dds_entity_t reader = 0;
+  dds_entity_t waitset = 0;
+  dds_entity_t readcond = 0;
   
   if (argc != 2)
   {
@@ -468,10 +471,10 @@ int main (int argc, char **argv)
     goto error;
   }
   // ... given those, we can create a reader just like we do normally ...
-  const dds_entity_t reader = dds_create_reader (participant, topic, NULL, NULL);
+  reader = dds_create_reader (participant, topic, NULL, NULL);
   // ... and create a waitset that allows us to wait for any incoming data ...
-  const dds_entity_t waitset = dds_create_waitset (participant);
-  const dds_entity_t readcond = dds_create_readcondition (reader, DDS_ANY_STATE);
+  waitset = dds_create_waitset (participant);
+  readcond = dds_create_readcondition (reader, DDS_ANY_STATE);
   (void) dds_waitset_attach (waitset, readcond, 0);
   while (1)
   {
