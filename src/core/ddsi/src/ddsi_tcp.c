@@ -20,7 +20,7 @@
 #include "ddsi_eth.h"
 #include "dds/ddsi/ddsi_tran.h"
 #include "dds/ddsi/ddsi_tcp.h"
-#include "dds/ddsi/ddsi_ipaddr.h"
+#include "ddsi__ipaddr.h"
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/q_log.h"

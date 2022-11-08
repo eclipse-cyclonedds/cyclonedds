@@ -17,7 +17,7 @@
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/sockets.h"
 #include "dds/ddsrt/string.h"
-#include "dds/ddsi/ddsi_ipaddr.h"
+#include "ddsi__ipaddr.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 
@@ -308,13 +308,6 @@ void ddsi_ipaddr_to_loc (ddsi_locator_t *dst, const struct sockaddr *src, int32_
     default:
       DDS_FATAL("nn_address_to_loc: family %d unsupported\n", (int) src->sa_family);
   }
-}
-
-void ddsi_ipaddr_to_xloc (const struct ddsi_tran_factory *tran, ddsi_xlocator_t *dst, const struct sockaddr *src, int32_t kind)
-{
-  (void) tran;
-  dst->conn = NULL;
-  ddsi_ipaddr_to_loc(&dst->c, src, kind);
 }
 
 void ddsi_ipaddr_from_loc (struct sockaddr_storage *dst, const ddsi_locator_t *src)

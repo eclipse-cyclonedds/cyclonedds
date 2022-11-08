@@ -30,7 +30,7 @@
 #include "dds/ddsi/q_misc.h"
 #include "dds/ddsi/q_addrset.h" /* unspec locator */
 #include "dds/ddsi/q_feature_check.h"
-#include "dds/ddsi/ddsi_ipaddr.h"
+#include "ddsi__ipaddr.h"
 #include "dds/ddsrt/avl.h"
 
 #ifdef __linux

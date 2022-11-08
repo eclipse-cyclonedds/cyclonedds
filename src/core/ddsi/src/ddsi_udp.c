@@ -21,7 +21,7 @@
 #include "ddsi_eth.h"
 #include "dds/ddsi/ddsi_tran.h"
 #include "dds/ddsi/ddsi_udp.h"
-#include "dds/ddsi/ddsi_ipaddr.h"
+#include "ddsi__ipaddr.h"
 #include "dds/ddsi/ddsi_mcgroup.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/q_log.h"

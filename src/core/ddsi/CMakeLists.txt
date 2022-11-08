@@ -91,7 +91,6 @@ set(hdrs_ddsi
   ddsi_udp.h
   ddsi_raweth.h
   ddsi_vnet.h
-  ddsi_ipaddr.h
   ddsi_locator.h
   ddsi_mcgroup.h
   ddsi_nwpart.h
@@ -174,7 +173,8 @@ set(hdrs_private_ddsi
   ddsi__entity_match.h
   ddsi__entity.h
   ddsi__gc.h
-  ddsi__handshake.h)
+  ddsi__handshake.h
+  ddsi__ipaddr.h)
 
 if(ENABLE_LIFESPAN)
   list(APPEND srcs_ddsi ddsi_lifespan.c)
