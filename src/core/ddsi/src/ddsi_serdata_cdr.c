@@ -81,6 +81,9 @@ static bool serdata_cdr_eqkey (const struct ddsi_serdata *acmn, const struct dds
 {
   (void) acmn;
   (void) bcmn;
+  /* Sertype_cdr is only used for types that have no keys, but this function must be implemented
+     because it is used by tkmap as the equal function for the hash table, so simply returning
+     true here. */
   return true;
 }
 

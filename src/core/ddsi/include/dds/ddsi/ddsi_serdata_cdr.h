@@ -74,6 +74,16 @@ DDSRT_STATIC_ASSERT ((offsetof (struct ddsi_serdata_cdr, data) % 8) == 0);
 #undef DDSI_SERDATA_CDR_PREPAD
 #undef DDSI_SERDATA_CDR_FIXED_FIELD
 
+/**
+ * @brief Sertype used for built-in type look service
+ *
+ * This sertype is used for the built-in type lookup service endpoints,
+ * which require mutable and appendable types for exchanging XTypes
+ * type information. The serdata_cdr implementation uses the CDR stream
+ * serializer.
+ *
+ * @note: This type is specialized for types that have no key fields
+ */
 struct ddsi_sertype_cdr {
   struct ddsi_sertype c;
   uint16_t encoding_format; /* DDS_CDR_ENC_FORMAT_(PLAIN|DELIMITED|PL) - CDR encoding format for the top-level type in this sertype */
