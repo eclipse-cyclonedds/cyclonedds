@@ -25,10 +25,10 @@
 #include "ddsi__entity_index.h"
 #include "dds/ddsi/ddsi_security_omg.h"
 #include "dds/ddsi/ddsi_builtin_topic_if.h"
-#include "dds/ddsi/ddsi_gc.h"
 #include "dds/ddsi/q_lease.h"
 #include "dds/ddsi/q_addrset.h"
 #include "ddsi__endpoint.h"
+#include "ddsi__gc.h"
 
 typedef struct proxy_purge_data {
   struct ddsi_proxy_participant *proxypp;

@@ -18,13 +18,13 @@
 #include "dds/ddsrt/hopscotch.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/q_unused.h"
-#include "dds/ddsi/ddsi_gc.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_iid.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/cdr/dds_cdrstream.h"
+#include "ddsi__gc.h"
 
 #define REFC_DELETE 0x80000000
 #define REFC_MASK   0x0fffffff

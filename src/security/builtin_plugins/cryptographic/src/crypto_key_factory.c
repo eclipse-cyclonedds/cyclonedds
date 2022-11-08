@@ -1110,7 +1110,7 @@ err_no_remote:
 
 static void gc_remote_key_material (struct ddsi_gcreq *gcreq)
 {
-  CRYPTO_OBJECT_RELEASE (gcreq->arg);
+  CRYPTO_OBJECT_RELEASE (ddsi_gcreq_get_arg (gcreq));
   ddsi_gcreq_free (gcreq);
 }
 
@@ -1159,7 +1159,7 @@ crypto_factory_set_participant_crypto_tokens(
     if (remote_key_mat_old != NULL)
     {
       struct ddsi_gcreq *gcreq = ddsi_gcreq_new (impl->crypto->gv->gcreq_queue, gc_remote_key_material);
-      gcreq->arg = remote_key_mat_old;
+      ddsi_gcreq_set_arg (gcreq, remote_key_mat_old);
       ddsi_gcreq_enqueue (gcreq);
     }
 

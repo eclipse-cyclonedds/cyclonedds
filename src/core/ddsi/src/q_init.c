@@ -37,7 +37,6 @@
 #include "dds/ddsi/q_thread.h"
 #include "ddsi__entity_index.h"
 #include "dds/ddsi/q_lease.h"
-#include "dds/ddsi/ddsi_gc.h"
 #include "ddsi__entity.h"
 #include "dds/ddsi/ddsi_participant.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
@@ -69,6 +68,7 @@
 #include "dds/ddsi/ddsi_iid.h"
 #include "dds/ddsi/ddsi_security_omg.h"
 #include "ddsi__endpoint.h"
+#include "ddsi__gc.h"
 
 #include "dds__whc.h"
 #include "dds/cdr/dds_cdrstream.h"

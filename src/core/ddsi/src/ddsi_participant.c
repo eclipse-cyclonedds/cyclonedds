@@ -25,7 +25,6 @@
 #include "dds/ddsi/ddsi_handshake.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/q_ddsi_discovery.h"
-#include "dds/ddsi/ddsi_gc.h"
 #include "dds/ddsi/q_xevent.h"
 #include "dds/ddsi/q_lease.h"
 #include "dds/ddsi/q_receive.h"
@@ -33,6 +32,7 @@
 #include "dds__whc.h"
 #include "ddsi__endpoint.h"
 #include "ddsi__entity_match.h"
+#include "ddsi__gc.h"
 
 static const unsigned builtin_writers_besmask =
   NN_DISC_BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER |

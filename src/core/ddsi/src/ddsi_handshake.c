@@ -22,7 +22,7 @@
 #include "ddsi__entity.h"
 #include "dds/ddsi/ddsi_participant.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
-#include "dds/ddsi/ddsi_gc.h"
+#include "ddsi__gc.h"
 #include "dds/security/dds_security_api_types.h"
 #include "dds/security/dds_security_api.h"
 #include "dds/ddsi/ddsi_security_omg.h"

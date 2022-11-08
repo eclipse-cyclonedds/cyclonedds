@@ -659,14 +659,11 @@ int main (int argc, char **argv)
   ddsi_lookup_thread_state_real ();
 
   // ddsi/q_gc.h
-  ddsi_gcreq_queue_new (ptr);
-  ddsi_gcreq_queue_drain (ptr);
-  ddsi_gcreq_queue_free (ptr);
   ddsi_gcreq_new (ptr, ptr);
-  ddsi_gcreq_queue_start (ptr);
   ddsi_gcreq_free (ptr);
   ddsi_gcreq_enqueue (ptr);
-  ddsi_gcreq_requeue (ptr, ptr);
+  ddsi_gcreq_get_arg (ptr);
+  ddsi_gcreq_set_arg (ptr, ptr2);
 
   // ddsrt/atomics.h
   ddsrt_atomic_ld32 (ptr);

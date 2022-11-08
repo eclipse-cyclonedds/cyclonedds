@@ -25,6 +25,7 @@
 #include "dds/ddsi/q_lease.h"
 #include "dds/ddsi/ddsi_domaingv.h" /* for mattr, cattr */
 #include "dds/ddsi/q_receive.h" /* for trigger_receive_threads */
+#include "ddsi__gc.h"
 
 struct ddsi_gcreq_queue {
   struct ddsi_gcreq *first;
@@ -319,4 +320,16 @@ int ddsi_gcreq_requeue (struct ddsi_gcreq *gcreq, ddsi_gcreq_cb_t cb)
 {
   gcreq->cb = cb;
   return gcreq_enqueue_common (gcreq);
+}
+
+void * ddsi_gcreq_get_arg (struct ddsi_gcreq *gcreq)
+{
+  assert (gcreq);
+  return gcreq->arg;
+}
+
+void ddsi_gcreq_set_arg (struct ddsi_gcreq *gcreq, void *arg)
+{
+  assert (gcreq);
+  gcreq->arg = arg;
 }
