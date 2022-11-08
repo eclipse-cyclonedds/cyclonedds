@@ -593,7 +593,7 @@ static long do_line( void)
         unget_ch();
     } else {
         if (warn_level & 1) {
-            scan_token( c, ((void)(workp = work_buf), &workp), work_end);
+            (void) scan_token( c, ((void)(workp = work_buf), &workp), work_end);
             cwarn( excess, work_buf, 0, NULL);
         }
         skip_nl();

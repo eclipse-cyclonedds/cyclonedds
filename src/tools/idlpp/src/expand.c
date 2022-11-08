@@ -1080,7 +1080,7 @@ static int  prescan(
             break;
         default:
             prev_token = out;
-            scan_token( c, &out, out_end);  /* Ordinary token       */
+            (void) scan_token( c, &out, out_end);  /* Ordinary token       */
             break;
         }
 
@@ -1135,7 +1135,7 @@ static char *   catenate(
                 file = unget_string( argp, NULL);
                 while ((void)(c = get_ch()), file == infile) {
                     prev_token = out;   /* Remember the last token  */
-                    scan_token( c, &out, out_end);
+                    (void) scan_token( c, &out, out_end);
                 }       /* Copy actual argument without expansion   */
                 unget_ch();
             } else {
@@ -1143,7 +1143,7 @@ static char *   catenate(
                 while ((c = get_ch()) != RT_END) {
                     prev_prev_token = prev_token;
                     prev_token = out;   /* Remember the last token  */
-                    scan_token( c, &out, out_end);
+                    (void) scan_token( c, &out, out_end);
                 }       /* Copy actual argument without expansion   */
                 if (*prev_token == TOK_SEP) {
                     out = prev_token;
@@ -1197,7 +1197,7 @@ static char *   catenate(
                 }
                 c = get_ch();
             }
-            scan_token( c, &out, out_end);  /* The first token      */
+            (void) scan_token( c, &out, out_end);  /* The first token      */
             if (*infile->bptr)              /* There are more tokens*/
                 in_arg = TRUE;
         }
@@ -1214,7 +1214,7 @@ static char *   catenate(
         c = get_ch();                   /* Skip DEF_MAGIC, IN_SRC   */
         /* Fall through */
     default:
-        scan_token( c, &out, out_end);      /* Copy the token       */
+        (void) scan_token( c, &out, out_end);      /* Copy the token       */
         break;
     }
 
@@ -1225,7 +1225,7 @@ static char *   catenate(
         infile->fp = (FILE *)-1;            /* To check token length*/
         if (mcpp_debug & EXPAND)
             dump_string( "checking generated token", infile->buffer);
-        scan_token( c, ((void)(workp = work_buf), &workp), work_end);
+        (void) scan_token( c, ((void)(workp = work_buf), &workp), work_end);
         infile->fp = NULL;
         if (*infile->bptr != EOS) {         /* More than a token    */
             if (option_flags.lang_asm) {    /* Assembler source     */
@@ -1251,7 +1251,7 @@ static char *   catenate(
             file = infile;
             while ((void)(c = get_ch()), file == infile) {
                 prev_token = out;       /* Remember the last token  */
-                scan_token( c, &out, out_end);
+                (void) scan_token( c, &out, out_end);
             }           /* Copy rest of argument without expansion  */
             unget_ch();
         } else {
@@ -1259,7 +1259,7 @@ static char *   catenate(
                 if (c == TOK_SEP)
                     continue;           /* Skip separator           */
                 prev_token = out;       /* Remember the last token  */
-                scan_token( c, &out, out_end);
+                (void) scan_token( c, &out, out_end);
             }           /* Copy rest of argument without expansion  */
         }
     }
@@ -1392,7 +1392,7 @@ static char *     remove_magics(
             first = ap;
         if (char_type[ c & UCHARMAX] & HSP)
             space = ap;         /* Remember the last white space    */
-        scan_token( c, &ap, ep);
+        (void) scan_token( c, &ap, ep);
     }
     if (file == infile)
         get_ch();                               /* Clear the "file" */
@@ -1500,7 +1500,7 @@ static char *     remove_magics(
         size_t  len = 0;
 
         if (c != MAC_INF) {
-            scan_token( c, ((void)(--tp), &tp), ep);
+            (void) scan_token( c, ((void)(--tp), &tp), ep);
             continue;
         }
         unget_ch();                             /* Pushback MAC_INF */
@@ -2512,7 +2512,7 @@ static int  collect_args(
             /* Skip MAC_INF seqs and white spaces, still remember   */
             /* the sequence in buffer, if necessary.                */
         if (c == ')' || c == ',')
-            scan_token( c, &seq, seq_end);  /* Ensure token parsing */
+            (void) scan_token( c, &seq, seq_end);  /* Ensure token parsing */
         else
             *seq = EOS;
 

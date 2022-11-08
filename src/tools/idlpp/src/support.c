@@ -438,7 +438,7 @@ int     get_unexpandable(
         unget_ch();
         if (token_type == OPE) {
             unget_string( work_buf, NULL);  /* Set again 'openum'   */
-            scan_token( get_ch(), ((void)(workp = work_buf), &workp), work_end);
+            (void) scan_token( get_ch(), ((void)(workp = work_buf), &workp), work_end);
         }
     }
 
