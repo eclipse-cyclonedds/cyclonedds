@@ -112,8 +112,26 @@ static const uint32_t *stream_normalize_data_impl (char * __restrict data, uint3
 static const uint32_t *dds_stream_read_impl (dds_istream_t * __restrict is, char * __restrict data, const uint32_t * __restrict ops, bool is_mutable_member);
 static const uint32_t *stream_free_sample_adr (uint32_t insn, void * __restrict data, const uint32_t * __restrict ops);
 
-extern inline align_t dds_cdr_get_align (uint32_t xcdr_version, uint32_t size);
+#ifndef NDEBUG
+typedef struct align { uint32_t a; } align_t;
+#define ALIGN(n) ((n).a)
+#else
+typedef uint32_t align_t;
+#define ALIGN(n) (n)
+#endif
 
+static inline align_t dds_cdr_get_align (uint32_t xcdr_version, uint32_t size)
+{
+#ifndef NDEBUG
+#define MK_ALIGN(n) (struct align){(n)}
+#else
+#define MK_ALIGN(n) (n)
+#endif
+  if (size > 4)
+    return xcdr_version == DDS_CDR_ENC_VERSION_2 ? MK_ALIGN(4) : MK_ALIGN(8);
+  return MK_ALIGN(size);
+#undef MK_ALIGN
+}
 
 static void dds_ostream_grow (dds_ostream_t * __restrict st, uint32_t size)
 {
@@ -198,7 +216,7 @@ static void dds_cdr_alignto (dds_istream_t * __restrict s, align_t a)
   assert (s->m_index < s->m_size);
 }
 
-uint32_t dds_cdr_alignto_clear_and_resize (dds_ostream_t * __restrict s, align_t a, uint32_t extra)
+static uint32_t dds_cdr_alignto_clear_and_resize (dds_ostream_t * __restrict s, align_t a, uint32_t extra)
 {
   const uint32_t m = s->m_index % ALIGN(a);
   if (m == 0)
@@ -219,6 +237,11 @@ uint32_t dds_cdr_alignto_clear_and_resize (dds_ostream_t * __restrict s, align_t
 static uint32_t dds_cdr_alignto_clear_and_resizeBE (dds_ostreamBE_t * __restrict s, align_t a, uint32_t extra)
 {
   return dds_cdr_alignto_clear_and_resize (&s->x, a, extra);
+}
+
+uint32_t dds_cdr_alignto4_clear_and_resize (dds_ostream_t * __restrict s, uint32_t xcdr_version)
+{
+  return dds_cdr_alignto_clear_and_resize (s, dds_cdr_get_align (xcdr_version, 4), 0);
 }
 
 static uint8_t dds_is_get1 (dds_istream_t * __restrict s)

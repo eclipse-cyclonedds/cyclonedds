@@ -550,7 +550,7 @@ static void ostream_from_serdata_default (dds_ostream_t * __restrict s, const st
 static void ostream_add_to_serdata_default (dds_ostream_t * __restrict s, struct dds_serdata_default ** __restrict d)
 {
   /* DDSI requires 4 byte alignment */
-  const uint32_t pad = dds_cdr_alignto_clear_and_resize (s, dds_cdr_get_align (s->m_xcdr_version, 4), 0);
+  const uint32_t pad = dds_cdr_alignto4_clear_and_resize (s, s->m_xcdr_version);
   assert (pad <= 3);
 
   /* Reset data pointer as stream may have reallocated */
