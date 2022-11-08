@@ -44,6 +44,7 @@
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/ddsi_pmd.h"
 #include "ddsi__acknack.h"
+#include "ddsi__endpoint.h"
 #include "dds__whc.h"
 
 #include "dds/ddsi/sysdeps.h"

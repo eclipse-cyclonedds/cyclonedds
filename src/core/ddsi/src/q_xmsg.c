@@ -42,6 +42,7 @@
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/q_freelist.h"
 #include "dds/ddsi/ddsi_security_omg.h"
+#include "ddsi__endpoint.h"
 
 #define NN_XMSG_MAX_ALIGN 8
 #define NN_XMSG_CHUNK_SIZE 128

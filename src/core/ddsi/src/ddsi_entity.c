@@ -25,6 +25,7 @@
 #include "dds/ddsi/ddsi_iid.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/q_thread.h"
+#include "ddsi__endpoint.h"
 
 extern inline bool ddsi_builtintopic_is_visible (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_guid *guid, nn_vendorid_t vendorid);
 extern inline bool ddsi_builtintopic_is_builtintopic (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_sertype *type);

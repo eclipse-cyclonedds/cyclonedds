@@ -27,6 +27,7 @@
 #include "dds/ddsi/q_addrset.h"
 #include "dds/ddsi/q_xevent.h"
 #include "dds/ddsi/q_whc.h"
+#include "ddsi__endpoint.h"
 #include "dds/dds.h"
 
 static ddsi_entityid_t builtin_entityid_match (ddsi_entityid_t x)

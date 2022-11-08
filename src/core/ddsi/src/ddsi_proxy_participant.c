@@ -28,6 +28,7 @@
 #include "dds/ddsi/ddsi_gc.h"
 #include "dds/ddsi/q_lease.h"
 #include "dds/ddsi/q_addrset.h"
+#include "ddsi__endpoint.h"
 
 typedef struct proxy_purge_data {
   struct ddsi_proxy_participant *proxypp;

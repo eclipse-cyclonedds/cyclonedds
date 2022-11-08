@@ -41,6 +41,7 @@
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_tran.h"
 #include "dds/ddsi/ddsi_tcp.h"
+#include "ddsi__endpoint.h"
 
 #include "dds__whc.h"
 

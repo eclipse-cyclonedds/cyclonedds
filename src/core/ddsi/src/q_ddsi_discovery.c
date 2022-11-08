@@ -50,6 +50,8 @@
 #include "dds/ddsi/ddsi_security_omg.h"
 #include "dds/ddsi/ddsi_pmd.h"
 #include "dds/ddsi/ddsi_typelib.h"
+#include "ddsi__endpoint.h"
+
 #ifdef DDS_HAS_SECURITY
 #include "dds/ddsi/ddsi_security_exchange.h"
 #endif

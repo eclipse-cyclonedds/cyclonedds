@@ -27,6 +27,7 @@
 #include "dds/ddsi/q_whc.h"
 #include "dds/ddsi/q_xevent.h"
 #include "dds/ddsi/q_radmin.h"
+#include "ddsi__endpoint.h"
 
 const ddsrt_avl_treedef_t ddsi_pwr_readers_treedef =
   DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct ddsi_pwr_rd_match, avlnode), offsetof (struct ddsi_pwr_rd_match, rd_guid), ddsi_compare_guid, 0);

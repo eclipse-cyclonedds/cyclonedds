@@ -31,6 +31,7 @@
 #include "dds/ddsi/q_receive.h"
 #include "dds/ddsi/q_addrset.h"
 #include "dds__whc.h"
+#include "ddsi__endpoint.h"
 
 static const unsigned builtin_writers_besmask =
   NN_DISC_BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER |

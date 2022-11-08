@@ -59,6 +59,7 @@
 #include "ddsi__acknack.h"
 #include "dds/ddsi/sysdeps.h"
 #include "ddsi__deliver_locally.h"
+#include "ddsi__endpoint.h"
 
 #include "dds/cdr/dds_cdrstream.h"
 #include "dds__whc.h"

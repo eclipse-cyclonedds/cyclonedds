@@ -25,6 +25,7 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_entity.h"
 #include "ddsi__deliver_locally.h"
+#include "ddsi__endpoint.h"
 
 #define TYPE_SAMPLE_CACHE_SIZE 4
 

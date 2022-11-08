@@ -39,8 +39,9 @@
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_sertype.h"
 #include "dds/ddsi/ddsi_security_omg.h"
-
 #include "dds/ddsi/sysdeps.h"
+#include "ddsi__endpoint.h"
+
 #include "dds__whc.h"
 
 static const struct ddsi_wr_prd_match *root_rdmatch (const struct ddsi_writer *wr)

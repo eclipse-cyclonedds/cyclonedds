@@ -68,6 +68,7 @@
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/ddsi_iid.h"
 #include "dds/ddsi/ddsi_security_omg.h"
+#include "ddsi__endpoint.h"
 
 #include "dds__whc.h"
 #include "dds/cdr/dds_cdrstream.h"

@@ -29,6 +29,7 @@
 #include "dds/ddsi/ddsi_gc.h"
 #include "dds/ddsi/q_rtps.h" /* guid_t */
 #include "dds/ddsi/q_thread.h" /* for assert(thread is awake) */
+#include "ddsi__endpoint.h"
 
 struct entity_index {
   struct ddsrt_chh *guid_hash;
