@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef DDSI_XT_IMPL_H
-#define DDSI_XT_IMPL_H
+#ifndef DDSI__XT_IMPL_H
+#define DDSI__XT_IMPL_H
 
 #include "dds/features.h"
 
@@ -20,6 +20,7 @@
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsi/ddsi_xt_typeinfo.h"
 #include "dds/ddsi/ddsi_xt_typemap.h"
+#include "ddsi__list_tmpl.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -292,8 +293,6 @@ DDSRT_STATIC_ASSERT (offsetof (struct ddsi_typeobj, x) == 0);
 DDSRT_STATIC_ASSERT (offsetof (struct ddsi_typeinfo, x) == 0);
 DDSRT_STATIC_ASSERT (offsetof (struct ddsi_typemap, x) == 0);
 
-char *ddsi_make_typeid_str_impl (struct ddsi_typeid_str *buf, const DDS_XTypes_TypeIdentifier *type_id);
-
 int ddsi_typeid_compare_impl (const struct DDS_XTypes_TypeIdentifier *a, const struct DDS_XTypes_TypeIdentifier *b);
 void ddsi_typeid_copy_impl (struct DDS_XTypes_TypeIdentifier *dst, const struct DDS_XTypes_TypeIdentifier *src);
 void ddsi_typeid_copy_to_impl (struct DDS_XTypes_TypeIdentifier *dst, const ddsi_typeid_t *src);
@@ -317,4 +316,4 @@ dds_return_t ddsi_xt_type_init_impl (struct ddsi_domaingv *gv, struct xt_type *x
 }
 #endif
 
-#endif /* DDSI_XT_IMPL_H */
+#endif /* DDSI__XT_IMPL_H */

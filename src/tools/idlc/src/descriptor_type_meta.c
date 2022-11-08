@@ -20,7 +20,6 @@
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/cdr/dds_cdrstream.h"
 #include "dds/ddsi/ddsi_typewrap.h"
-#include "dds/ddsi/ddsi_xt_impl.h"
 #include "dds/ddsi/ddsi_xt_typeinfo.h"
 #include "dds/ddsi/ddsi_xt_typemap.h"
 #include "dds/ddsc/dds_opcodes.h"

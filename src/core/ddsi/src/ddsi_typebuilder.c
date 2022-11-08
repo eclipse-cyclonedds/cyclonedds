@@ -20,10 +20,10 @@
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_sertype.h"
 #include "dds/ddsi/ddsi_typelib.h"
-#include "dds/ddsi/ddsi_xt_impl.h"
+#include "ddsi__xt_impl.h"
 #include "dds/ddsi/ddsi_xt_typemap.h"
 #include "dds/ddsi/ddsi_typebuilder.h"
-#include "dds/ddsi/ddsi_list_tmpl.h"
+#include "ddsi__list_tmpl.h"
 
 #define OPS_CHUNK_SZ 100u
 #define XCDR1_MAX_ALIGN 8

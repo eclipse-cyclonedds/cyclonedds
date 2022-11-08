@@ -364,7 +364,7 @@ CU_Test(ddsc_typelookup, api_resolve, .init = typelookup_init, .fini = typelooku
 // the definition of `ddsi_typeid_t` is well hidden, but we need it if we want to
 // have a static assertion that an intentional but weird memset doesn't go out of
 // bounds
-#include "dds/ddsi/ddsi_xt_impl.h"
+#include "ddsi__xt_impl.h"
 
 CU_Test(ddsc_typelookup, api_resolve_invalid, .init = typelookup_init, .fini = typelookup_fini)
 {

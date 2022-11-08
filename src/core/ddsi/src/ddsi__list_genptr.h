@@ -9,13 +9,13 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef DDSI_LIST_GENPTR_H
-#define DDSI_LIST_GENPTR_H
+#ifndef DDSI__LIST_GENPTR_H
+#define DDSI__LIST_GENPTR_H
 
 #include <assert.h>
 #include "dds/export.h"
 #include "dds/ddsrt/types.h"
-#include "dds/ddsi/ddsi_list_tmpl.h"
+#include "ddsi__list_tmpl.h"
 
 #define NOARG
 DDSI_LIST_TYPES_TMPL(generic_ptr_list, void *, NOARG, 32)
@@ -100,4 +100,4 @@ linkage_ elemT_ prefix_##_index (prefix_##_t *list, uint32_t index) {           
   return (elemT_) generic_ptr_list_index ((struct generic_ptr_list *) list, index);  \
 }
 
-#endif /* DDSI_LIST_GENPTR_H */
+#endif /* DDSI__LIST_GENPTR_H */

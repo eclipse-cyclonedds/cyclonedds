@@ -19,7 +19,6 @@
 #include "dds/ddsrt/static_assert.h"
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsi/ddsi_guid.h"
-#include "dds/ddsi/ddsi_list_tmpl.h"
 #include "dds/ddsi/ddsi_typewrap.h"
 #include "dds/ddsi/ddsi_sertype.h"
 
@@ -66,6 +65,7 @@ DDS_EXPORT ddsi_typeinfo_t * ddsi_typeinfo_dup (const ddsi_typeinfo_t *src);
 DDS_EXPORT const ddsi_typeid_t *ddsi_typeinfo_minimal_typeid (const ddsi_typeinfo_t *typeinfo);
 DDS_EXPORT const ddsi_typeid_t *ddsi_typeinfo_complete_typeid (const ddsi_typeinfo_t *typeinfo);
 DDS_EXPORT char *ddsi_make_typeid_str (struct ddsi_typeid_str *buf, const ddsi_typeid_t *type_id);
+char *ddsi_make_typeid_str_impl (struct ddsi_typeid_str *buf, const DDS_XTypes_TypeIdentifier *type_id);
 
 bool ddsi_typeinfo_present (const ddsi_typeinfo_t *typeinfo);
 bool ddsi_typeinfo_valid (const ddsi_typeinfo_t *typeinfo);

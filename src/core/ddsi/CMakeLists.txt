@@ -124,8 +124,6 @@ set(hdrs_ddsi
   ddsi_cfgelems.h
   ddsi_config.h
   ddsi_config_impl.h
-  ddsi_list_tmpl.h
-  ddsi_list_genptr.h
   ddsi_wraddrset.h
   ddsi_typelib.h
   ddsi_entity.h
@@ -174,7 +172,9 @@ set(hdrs_private_ddsi
   ddsi__entity.h
   ddsi__gc.h
   ddsi__handshake.h
-  ddsi__ipaddr.h)
+  ddsi__ipaddr.h
+  ddsi__list_tmpl.h
+  ddsi__list_genptr.h)
 
 if(ENABLE_LIFESPAN)
   list(APPEND srcs_ddsi ddsi_lifespan.c)
@@ -187,6 +187,7 @@ endif()
 if(ENABLE_TYPE_DISCOVERY)
   list(APPEND srcs_ddsi ddsi_xt_typeinfo.c ddsi_xt_typelookup.c ddsi_xt_typemap.c ddsi_typelookup.c ddsi_typewrap.c ddsi_typebuilder.c)
   list(APPEND hdrs_ddsi ddsi_xt_typeinfo.h ddsi_xt_typelookup.h ddsi_xt_typemap.h ddsi_typelookup.h ddsi_typewrap.h ddsi_typebuilder.h)
+  list(APPEND hdrs_private_ddsi ddsi__xt_impl.h)
 endif()
 if(ENABLE_SECURITY)
   list(APPEND srcs_ddsi ddsi_security_msg.c ddsi_security_exchange.c)

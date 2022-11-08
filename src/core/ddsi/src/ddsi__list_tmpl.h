@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef DDSI_LIST_TMPL_H
-#define DDSI_LIST_TMPL_H
+#ifndef DDSI__LIST_TMPL_H
+#define DDSI__LIST_TMPL_H
 
 #define DDSI_LIST_TYPES_TMPL(prefix_, elemT_, extension_, batch_) \
 struct prefix_##_node {                                           \
@@ -315,4 +315,4 @@ linkage_ elemT_ prefix_##_index (struct prefix_ *list, uint32_t index) \
   return *p;                                                          \
 }
 
-#endif /* DDSI_LIST_TMPL_H */
+#endif /* DDSI__LIST_TMPL_H */

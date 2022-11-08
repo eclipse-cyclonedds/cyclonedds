@@ -22,7 +22,7 @@
 #include "dds__qos.h"
 #include "dds__listener.h"
 #ifdef DDS_HAS_TYPE_DISCOVERY
-#include "dds/ddsi/ddsi_xt_impl.h"
+#include "ddsi__xt_impl.h"
 #endif
 
 /* Calling API functions on an uninitialized library should fail with
