@@ -36,7 +36,6 @@ extern const ddsrt_avl_treedef_t ddsi_typedeps_reverse_treedef;
 struct ddsi_generic_proxy_endpoint;
 struct ddsi_domaingv;
 struct ddsi_sertype;
-struct ddsi_cdrstream_cdr_data;
 struct ddsi_type;
 struct ddsi_type_pair;
 
