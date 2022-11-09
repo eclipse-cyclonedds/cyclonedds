@@ -31,9 +31,10 @@
 #include "dds/ddsi/q_bswap.h"
 #include "ddsi__entity.h"
 #include "ddsi__participant.h"
+#include "ddsi__plist.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
 
-bool write_auth_handshake_message(const struct ddsi_participant *pp, const struct ddsi_proxy_participant *proxypp, nn_dataholderseq_t *mdata, bool request, const nn_message_identity_t *related_message_id)
+bool write_auth_handshake_message(const struct ddsi_participant *pp, const struct ddsi_proxy_participant *proxypp, ddsi_dataholderseq_t *mdata, bool request, const nn_message_identity_t *related_message_id)
 {
   struct ddsi_domaingv *gv = pp->e.gv;
   struct nn_participant_generic_message pmg;
@@ -142,7 +143,7 @@ void handle_auth_handshake_message(const struct receiver_state *rst, ddsi_entity
   }
 }
 
-static bool write_crypto_exchange_message(const struct ddsi_participant *pp, const ddsi_guid_t *dst_pguid, const ddsi_guid_t *src_eguid, const ddsi_guid_t *dst_eguid, const char *classid, const nn_dataholderseq_t *tokens)
+static bool write_crypto_exchange_message(const struct ddsi_participant *pp, const ddsi_guid_t *dst_pguid, const ddsi_guid_t *src_eguid, const ddsi_guid_t *dst_eguid, const char *classid, const ddsi_dataholderseq_t *tokens)
 {
   struct ddsi_domaingv * const gv = pp->e.gv;
   struct nn_participant_generic_message pmg;
@@ -185,12 +186,12 @@ static bool write_crypto_exchange_message(const struct ddsi_participant *pp, con
   return (r < 0 ? false : true);
 }
 
-bool write_crypto_participant_tokens(const struct ddsi_participant *pp, const struct ddsi_proxy_participant *proxypp, const nn_dataholderseq_t *tokens)
+bool write_crypto_participant_tokens(const struct ddsi_participant *pp, const struct ddsi_proxy_participant *proxypp, const ddsi_dataholderseq_t *tokens)
 {
   return write_crypto_exchange_message(pp, &proxypp->e.guid, NULL, NULL, GMCLASSID_SECURITY_PARTICIPANT_CRYPTO_TOKENS, tokens);
 }
 
-bool write_crypto_writer_tokens(const struct ddsi_writer *wr, const struct ddsi_proxy_reader *prd, const nn_dataholderseq_t *tokens)
+bool write_crypto_writer_tokens(const struct ddsi_writer *wr, const struct ddsi_proxy_reader *prd, const ddsi_dataholderseq_t *tokens)
 {
   struct ddsi_participant *pp = wr->c.pp;
   struct ddsi_proxy_participant *proxypp = prd->c.proxypp;
@@ -198,7 +199,7 @@ bool write_crypto_writer_tokens(const struct ddsi_writer *wr, const struct ddsi_
   return write_crypto_exchange_message(pp, &proxypp->e.guid, &wr->e.guid, &prd->e.guid, GMCLASSID_SECURITY_DATAWRITER_CRYPTO_TOKENS, tokens);
 }
 
-bool write_crypto_reader_tokens(const struct ddsi_reader *rd, const struct ddsi_proxy_writer *pwr, const nn_dataholderseq_t *tokens)
+bool write_crypto_reader_tokens(const struct ddsi_reader *rd, const struct ddsi_proxy_writer *pwr, const ddsi_dataholderseq_t *tokens)
 {
   struct ddsi_participant *pp = rd->c.pp;
   struct ddsi_proxy_participant *proxypp = pwr->c.proxypp;

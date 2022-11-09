@@ -16,6 +16,7 @@
 #include "dds/ddsrt/endian.h"
 #include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/ddsi_plist.h"
+#include "ddsi__plist.h"
 #include "dds/features.h"
 
 CU_Test (ddsi_plist, unalias_copy_merge)

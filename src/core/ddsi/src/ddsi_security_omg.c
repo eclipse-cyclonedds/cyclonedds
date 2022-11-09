@@ -51,6 +51,7 @@
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/sysdeps.h"
 #include "ddsi__entity_match.h"
+#include "ddsi__plist.h"
 
 #define AUTH_NAME "Authentication"
 #define AC_NAME "Access Control"
@@ -71,7 +72,7 @@
 
 
 #define SECURITY_ATTR_IS_VALID(attr)                                      \
-    ((attr) & NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_VALID)
+    ((attr) & DDSI_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_VALID)
 
 /* Security attributes are compatible ... */
 #define SECURITY_ATTR_COMPATIBLE(attr_a, attr_b, is_valid_flag)           \
@@ -106,26 +107,26 @@
 
 #define SECURITY_INFO_IS_RTPS_PROTECTED(info)                                                 \
 (                                                                                             \
-    (info.security_attributes & NN_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_VALID         ) && \
-    (info.security_attributes & NN_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_RTPS_PROTECTED)    \
+    (info.security_attributes & DDSI_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_VALID         ) && \
+    (info.security_attributes & DDSI_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_RTPS_PROTECTED)    \
 )
 
 #define SECURITY_INFO_IS_WRITE_PROTECTED(info)                                              \
 (                                                                                           \
-    (info.security_attributes & NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_VALID          ) && \
-    (info.security_attributes & NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_WRITE_PROTECTED)    \
+    (info.security_attributes & DDSI_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_VALID          ) && \
+    (info.security_attributes & DDSI_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_WRITE_PROTECTED)    \
 )
 
 #define SECURITY_INFO_IS_READ_PROTECTED(info)                                               \
 (                                                                                           \
-    (info.security_attributes & NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_VALID          ) && \
-    (info.security_attributes & NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_READ_PROTECTED )    \
+    (info.security_attributes & DDSI_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_VALID          ) && \
+    (info.security_attributes & DDSI_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_READ_PROTECTED )    \
 )
 
 #define SECURITY_INFO_IS_RTPS_PROTECTED(info)                                                 \
 (                                                                                             \
-    (info.security_attributes & NN_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_VALID         ) && \
-    (info.security_attributes & NN_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_RTPS_PROTECTED)    \
+    (info.security_attributes & DDSI_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_VALID         ) && \
+    (info.security_attributes & DDSI_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_RTPS_PROTECTED)    \
 )
 
 #define SECURITY_INFO_USE_RTPS_AUTHENTICATION(info) \
@@ -1348,7 +1349,7 @@ bool q_omg_security_is_local_rtps_protected(const struct ddsi_participant *pp, d
   return q_omg_participant_is_rtps_protected(pp) && maybe_rtps_protected(entityid);
 }
 
-bool q_omg_get_participant_security_info(const struct ddsi_participant *pp, nn_security_info_t *info)
+bool q_omg_get_participant_security_info(const struct ddsi_participant *pp, ddsi_security_info_t *info)
 {
   assert(pp);
   assert(info);
@@ -1356,17 +1357,17 @@ bool q_omg_get_participant_security_info(const struct ddsi_participant *pp, nn_s
   if (q_omg_participant_is_secure(pp)) {
     const DDS_Security_ParticipantSecurityAttributes *attr = &(pp->sec_attr->attr);
 
-    info->security_attributes = NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_VALID;
+    info->security_attributes = DDSI_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_VALID;
     info->plugin_security_attributes = attr->plugin_participant_attributes;
 
     if (attr->is_discovery_protected)
-      info->security_attributes |= NN_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_DISCOVERY_PROTECTED;
+      info->security_attributes |= DDSI_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_DISCOVERY_PROTECTED;
 
     if (attr->is_liveliness_protected)
-      info->security_attributes |= NN_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_LIVELINESS_PROTECTED;
+      info->security_attributes |= DDSI_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_LIVELINESS_PROTECTED;
 
     if (attr->is_rtps_protected)
-      info->security_attributes |= NN_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_RTPS_PROTECTED;
+      info->security_attributes |= DDSI_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_RTPS_PROTECTED;
 
     return true;
   }
@@ -1377,31 +1378,31 @@ bool q_omg_get_participant_security_info(const struct ddsi_participant *pp, nn_s
   return false;
 }
 
-static void q_omg_get_endpoint_security_info(DDS_Security_EndpointSecurityAttributes *attr, nn_security_info_t *info)
+static void q_omg_get_endpoint_security_info(DDS_Security_EndpointSecurityAttributes *attr, ddsi_security_info_t *info)
 {
-    info->security_attributes = NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_VALID;
+    info->security_attributes = DDSI_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_VALID;
     info->plugin_security_attributes = attr->plugin_endpoint_attributes;
 
     if (attr->is_read_protected)
-        info->security_attributes |= NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_READ_PROTECTED;
+        info->security_attributes |= DDSI_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_READ_PROTECTED;
 
     if (attr->is_write_protected)
-        info->security_attributes |= NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_WRITE_PROTECTED;
+        info->security_attributes |= DDSI_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_WRITE_PROTECTED;
 
     if (attr->is_discovery_protected)
-        info->security_attributes |= NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_DISCOVERY_PROTECTED;
+        info->security_attributes |= DDSI_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_DISCOVERY_PROTECTED;
 
     if (attr->is_liveliness_protected)
-        info->security_attributes |= NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_LIVELINESS_PROTECTED;
+        info->security_attributes |= DDSI_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_LIVELINESS_PROTECTED;
 
     if (attr->is_submessage_protected)
-        info->security_attributes |= NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_SUBMESSAGE_PROTECTED;
+        info->security_attributes |= DDSI_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_SUBMESSAGE_PROTECTED;
 
     if (attr->is_payload_protected)
-        info->security_attributes |= NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_PAYLOAD_PROTECTED;
+        info->security_attributes |= DDSI_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_PAYLOAD_PROTECTED;
 
     if (attr->is_key_protected)
-        info->security_attributes |= NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_KEY_PROTECTED;
+        info->security_attributes |= DDSI_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_KEY_PROTECTED;
 }
 
 static bool is_topic_discovery_protected(DDS_Security_PermissionsHandle permission_handle, dds_security_access_control *access_control, const char *topic_name)
@@ -1574,7 +1575,7 @@ void q_omg_security_deregister_writer(struct ddsi_writer *wr)
   }
 }
 
-bool q_omg_get_writer_security_info(const struct ddsi_writer *wr, nn_security_info_t *info)
+bool q_omg_get_writer_security_info(const struct ddsi_writer *wr, ddsi_security_info_t *info)
 {
   assert(wr);
   assert(info);
@@ -1693,7 +1694,7 @@ void q_omg_security_deregister_reader(struct ddsi_reader *rd)
   }
 }
 
-bool q_omg_get_reader_security_info(const struct ddsi_reader *rd, nn_security_info_t *info)
+bool q_omg_get_reader_security_info(const struct ddsi_reader *rd, ddsi_security_info_t *info)
 {
   assert(rd);
   assert(info);
@@ -1821,11 +1822,11 @@ static void send_participant_crypto_tokens(struct ddsi_participant *pp, struct d
     EXCEPTION_ERROR(pp->e.gv, &exception, "Failed to create local participant crypto tokens "PGUIDFMT" for remote participant "PGUIDFMT,  PGUID(pp->e.guid), PGUID(proxypp->e.guid));
   else if (tokens._length > 0)
   {
-    nn_dataholderseq_t tholder;
+    ddsi_dataholderseq_t tholder;
 
     q_omg_shallow_copyout_DataHolderSeq(&tholder, &tokens);
     write_crypto_participant_tokens(pp, proxypp, &tholder);
-    q_omg_shallow_free_nn_dataholderseq(&tholder);
+    q_omg_shallow_free_ddsi_dataholderseq(&tholder);
 
     if (!sc->crypto_context->crypto_key_exchange->return_crypto_tokens(sc->crypto_context->crypto_key_exchange, &tokens, &exception))
       EXCEPTION_ERROR(pp->e.gv, &exception, "Failed to return local participant crypto tokens "PGUIDFMT" for remote participant "PGUIDFMT, PGUID(pp->e.guid), PGUID(proxypp->e.guid));
@@ -2073,12 +2074,12 @@ bool is_proxy_participant_deletion_allowed (struct ddsi_domaingv * const gv, con
 bool q_omg_is_similar_participant_security_info(struct ddsi_participant *pp, struct ddsi_proxy_participant *proxypp)
 {
   bool matching;
-  nn_security_info_t pp_security_info;
+  ddsi_security_info_t pp_security_info;
 
   if (!q_omg_get_participant_security_info(pp, &pp_security_info))
     return false;
 
-  matching = SECURITY_INFO_COMPATIBLE(pp_security_info, proxypp->security_info, NN_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_VALID);
+  matching = SECURITY_INFO_COMPATIBLE(pp_security_info, proxypp->security_info, DDSI_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_VALID);
   if (!matching) {
     DDS_CLOG (DDS_LC_WARNING, &pp->e.gv->logconfig, "match remote_participant "PGUIDFMT" with participant "PGUIDFMT" security_attributes mismatch: 0x%08x.0x%08x - 0x%08x.0x%08x\n",
         PGUID(proxypp->e.guid), PGUID(pp->e.guid),
@@ -2101,7 +2102,7 @@ bool q_omg_is_similar_participant_security_info(struct ddsi_participant *pp, str
   return matching;
 }
 
-void q_omg_security_set_participant_crypto_tokens(struct ddsi_participant *pp, struct ddsi_proxy_participant *proxypp, const nn_dataholderseq_t *tokens)
+void q_omg_security_set_participant_crypto_tokens(struct ddsi_participant *pp, struct ddsi_proxy_participant *proxypp, const ddsi_dataholderseq_t *tokens)
 {
   struct ddsi_domaingv *gv = pp->e.gv;
   struct dds_security_context *sc = q_omg_security_get_secure_context(pp);
@@ -2257,11 +2258,11 @@ static void send_reader_crypto_tokens(struct ddsi_reader *rd, struct ddsi_proxy_
     EXCEPTION_ERROR(gv, &exception,"Failed to create local reader crypto tokens "PGUIDFMT" for remote writer "PGUIDFMT, PGUID(rd->e.guid), PGUID(pwr->e.guid));
   else if (tokens._length > 0)
   {
-    nn_dataholderseq_t tholder;
+    ddsi_dataholderseq_t tholder;
 
     q_omg_shallow_copyout_DataHolderSeq(&tholder, &tokens);
     write_crypto_reader_tokens(rd, pwr, &tholder);
-    q_omg_shallow_free_nn_dataholderseq(&tholder);
+    q_omg_shallow_free_ddsi_dataholderseq(&tholder);
 
     if (!sc->crypto_context->crypto_key_exchange->return_crypto_tokens(sc->crypto_context->crypto_key_exchange, &tokens, &exception))
       EXCEPTION_ERROR(gv, &exception, "Failed to return local reader crypto tokens "PGUIDFMT" for remote writer "PGUIDFMT, PGUID(rd->e.guid), PGUID(pwr->e.guid));
@@ -2344,7 +2345,7 @@ static bool q_omg_security_register_remote_writer_match(struct ddsi_proxy_writer
 bool q_omg_security_match_remote_writer_enabled(struct ddsi_reader *rd, struct ddsi_proxy_writer *pwr, int64_t *crypto_handle)
 {
   struct ddsi_domaingv *gv = rd->e.gv;
-  nn_security_info_t info;
+  ddsi_security_info_t info;
 
   *crypto_handle = 0;
 
@@ -2364,7 +2365,7 @@ bool q_omg_security_match_remote_writer_enabled(struct ddsi_reader *rd, struct d
    * q_omg_participant_allow_unauthenticated() returns FALSE there.
    */
   (void)q_omg_get_reader_security_info(rd, &info);
-  if (!SECURITY_INFO_COMPATIBLE(pwr->c.security_info, info, NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_VALID))
+  if (!SECURITY_INFO_COMPATIBLE(pwr->c.security_info, info, DDSI_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_VALID))
   {
     GVWARNING("match_remote_writer "PGUIDFMT" with reader "PGUIDFMT" security_attributes mismatch: 0x%08x.0x%08x - 0x%08x.0x%08x\n",
                 PGUID(pwr->e.guid), PGUID(rd->e.guid),
@@ -2485,7 +2486,7 @@ bool q_omg_security_check_remote_reader_permissions(const struct ddsi_proxy_read
   return result;
 }
 
-void q_omg_get_proxy_endpoint_security_info(const struct ddsi_entity_common *entity, nn_security_info_t *proxypp_sec_info, const ddsi_plist_t *plist, nn_security_info_t *info)
+void q_omg_get_proxy_endpoint_security_info(const struct ddsi_entity_common *entity, ddsi_security_info_t *proxypp_sec_info, const ddsi_plist_t *plist, ddsi_security_info_t *info)
 {
   const bool proxypp_info_available =
     (proxypp_sec_info->security_attributes != 0 || proxypp_sec_info->plugin_security_attributes != 0);
@@ -2509,54 +2510,54 @@ void q_omg_get_proxy_endpoint_security_info(const struct ddsi_entity_common *ent
            endpoint_is_DCPSSubscriptionsSecure (&entity->guid))
   {
     /* Discovery protection flags */
-    info->plugin_security_attributes = NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_VALID;
-    info->security_attributes = NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_VALID;
+    info->plugin_security_attributes = DDSI_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_VALID;
+    info->security_attributes = DDSI_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_VALID;
     if (proxypp_info_available)
     {
-      if (proxypp_sec_info->security_attributes & NN_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_DISCOVERY_PROTECTED)
-        info->security_attributes |= NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_SUBMESSAGE_PROTECTED;
-      if (proxypp_sec_info->plugin_security_attributes & NN_PLUGIN_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_DISCOVERY_ENCRYPTED)
-        info->plugin_security_attributes |= NN_PLUGIN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_SUBMESSAGE_ENCRYPTED;
-      if (proxypp_sec_info->plugin_security_attributes & NN_PLUGIN_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_DISCOVERY_AUTHENTICATED)
-        info->plugin_security_attributes |= NN_PLUGIN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_SUBMESSAGE_ORIGIN_AUTHENTICATED;
+      if (proxypp_sec_info->security_attributes & DDSI_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_DISCOVERY_PROTECTED)
+        info->security_attributes |= DDSI_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_SUBMESSAGE_PROTECTED;
+      if (proxypp_sec_info->plugin_security_attributes & DDSI_PLUGIN_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_DISCOVERY_ENCRYPTED)
+        info->plugin_security_attributes |= DDSI_PLUGIN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_SUBMESSAGE_ENCRYPTED;
+      if (proxypp_sec_info->plugin_security_attributes & DDSI_PLUGIN_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_DISCOVERY_AUTHENTICATED)
+        info->plugin_security_attributes |= DDSI_PLUGIN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_SUBMESSAGE_ORIGIN_AUTHENTICATED;
     }
     else
     {
       /* No participant info: assume hardcoded OpenSplice V6.10.0 values. */
-      info->security_attributes |= NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_SUBMESSAGE_PROTECTED;
-      info->plugin_security_attributes |= NN_PLUGIN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_SUBMESSAGE_ENCRYPTED;
+      info->security_attributes |= DDSI_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_SUBMESSAGE_PROTECTED;
+      info->plugin_security_attributes |= DDSI_PLUGIN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_SUBMESSAGE_ENCRYPTED;
     }
   }
   else if (endpoint_is_DCPSParticipantMessageSecure (&entity->guid))
   {
     /* Liveliness protection flags */
-    info->plugin_security_attributes = NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_VALID;
-    info->security_attributes = NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_VALID;
+    info->plugin_security_attributes = DDSI_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_VALID;
+    info->security_attributes = DDSI_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_VALID;
     if (proxypp_info_available)
     {
-      if (proxypp_sec_info->security_attributes & NN_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_LIVELINESS_PROTECTED)
-        info->security_attributes |= NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_SUBMESSAGE_PROTECTED;
-      if (proxypp_sec_info->plugin_security_attributes & NN_PLUGIN_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_LIVELINESS_ENCRYPTED)
-        info->plugin_security_attributes |= NN_PLUGIN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_SUBMESSAGE_ENCRYPTED;
-      if (proxypp_sec_info->plugin_security_attributes & NN_PLUGIN_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_LIVELINESS_AUTHENTICATED)
-        info->plugin_security_attributes |= NN_PLUGIN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_SUBMESSAGE_ORIGIN_AUTHENTICATED;
+      if (proxypp_sec_info->security_attributes & DDSI_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_LIVELINESS_PROTECTED)
+        info->security_attributes |= DDSI_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_SUBMESSAGE_PROTECTED;
+      if (proxypp_sec_info->plugin_security_attributes & DDSI_PLUGIN_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_LIVELINESS_ENCRYPTED)
+        info->plugin_security_attributes |= DDSI_PLUGIN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_SUBMESSAGE_ENCRYPTED;
+      if (proxypp_sec_info->plugin_security_attributes & DDSI_PLUGIN_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_LIVELINESS_AUTHENTICATED)
+        info->plugin_security_attributes |= DDSI_PLUGIN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_SUBMESSAGE_ORIGIN_AUTHENTICATED;
     }
     else
     {
       /* No participant info: assume hardcoded OpenSplice V6.10.0 values. */
-      info->security_attributes |= NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_SUBMESSAGE_PROTECTED;
-      info->plugin_security_attributes |= NN_PLUGIN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_SUBMESSAGE_ENCRYPTED;
+      info->security_attributes |= DDSI_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_SUBMESSAGE_PROTECTED;
+      info->plugin_security_attributes |= DDSI_PLUGIN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_SUBMESSAGE_ENCRYPTED;
     }
   }
   else if (endpoint_is_DCPSParticipantStatelessMessage (&entity->guid))
   {
-    info->security_attributes = NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_VALID;
+    info->security_attributes = DDSI_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_VALID;
     info->plugin_security_attributes = 0;
   }
   else if (endpoint_is_DCPSParticipantVolatileMessageSecure (&entity->guid))
   {
     info->security_attributes =
-      NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_VALID | NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_SUBMESSAGE_PROTECTED;
+      DDSI_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_VALID | DDSI_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_SUBMESSAGE_PROTECTED;
     info->plugin_security_attributes = 0;
   }
 }
@@ -2601,11 +2602,11 @@ static void send_writer_crypto_tokens(struct ddsi_writer *wr, struct ddsi_proxy_
     EXCEPTION_ERROR(gv, &exception,"Failed to create local writer crypto tokens "PGUIDFMT" for remote reader "PGUIDFMT, PGUID(wr->e.guid), PGUID(prd->e.guid));
   else if (tokens._length > 0)
   {
-    nn_dataholderseq_t tholder;
+    ddsi_dataholderseq_t tholder;
 
     q_omg_shallow_copyout_DataHolderSeq(&tholder, &tokens);
     write_crypto_writer_tokens(wr, prd, &tholder);
-    q_omg_shallow_free_nn_dataholderseq(&tholder);
+    q_omg_shallow_free_ddsi_dataholderseq(&tholder);
 
     if (!sc->crypto_context->crypto_key_exchange->return_crypto_tokens(sc->crypto_context->crypto_key_exchange, &tokens, &exception))
       EXCEPTION_ERROR(gv, &exception, "Failed to return local writer crypto tokens "PGUIDFMT" for remote reader "PGUIDFMT, PGUID(wr->e.guid), PGUID(prd->e.guid));
@@ -2688,7 +2689,7 @@ static bool q_omg_security_register_remote_reader_match(struct ddsi_proxy_reader
 bool q_omg_security_match_remote_reader_enabled(struct ddsi_writer *wr, struct ddsi_proxy_reader *prd, bool relay_only, int64_t *crypto_handle)
 {
   struct ddsi_domaingv *gv = wr->e.gv;
-  nn_security_info_t info;
+  ddsi_security_info_t info;
 
   *crypto_handle = 0;
 
@@ -2708,7 +2709,7 @@ bool q_omg_security_match_remote_reader_enabled(struct ddsi_writer *wr, struct d
    * q_omg_participant_allow_unauthenticated() returns FALSE there.
    */
   (void)q_omg_get_writer_security_info(wr, &info);
-  if (!SECURITY_INFO_COMPATIBLE(prd->c.security_info, info, NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_VALID))
+  if (!SECURITY_INFO_COMPATIBLE(prd->c.security_info, info, DDSI_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_VALID))
   {
     GVWARNING("match_remote_reader "PGUIDFMT" with writer "PGUIDFMT" security_attributes mismatch: 0x%08x.0x%08x - 0x%08x.0x%08x\n",
         PGUID(prd->e.guid), PGUID(wr->e.guid),
@@ -2743,7 +2744,7 @@ bool q_omg_security_match_remote_reader_enabled(struct ddsi_writer *wr, struct d
   return q_omg_security_register_remote_reader_match(prd, wr, crypto_handle, relay_only);
 }
 
-void q_omg_security_set_remote_writer_crypto_tokens(struct ddsi_reader *rd, const ddsi_guid_t *pwr_guid, const nn_dataholderseq_t *tokens)
+void q_omg_security_set_remote_writer_crypto_tokens(struct ddsi_reader *rd, const ddsi_guid_t *pwr_guid, const ddsi_dataholderseq_t *tokens)
 {
   struct dds_security_context *sc = q_omg_security_get_secure_context(rd->c.pp);
   struct ddsi_domaingv *gv = rd->e.gv;
@@ -2782,7 +2783,7 @@ void q_omg_security_set_remote_writer_crypto_tokens(struct ddsi_reader *rd, cons
     notify_handshake_recv_token(rd->c.pp, pwr->c.proxypp);
 }
 
-void q_omg_security_set_remote_reader_crypto_tokens(struct ddsi_writer *wr, const ddsi_guid_t *prd_guid, const nn_dataholderseq_t *tokens)
+void q_omg_security_set_remote_reader_crypto_tokens(struct ddsi_writer *wr, const ddsi_guid_t *prd_guid, const ddsi_dataholderseq_t *tokens)
 {
   struct dds_security_context *sc = q_omg_security_get_secure_context(wr->c.pp);
   struct ddsi_domaingv *gv = wr->e.gv;
@@ -3382,8 +3383,8 @@ static bool decode_payload (const struct ddsi_domaingv *gv, struct nn_rsample_in
     return true;
 
   /* Only decode when the attributes tell us so. */
-  if ((sampleinfo->pwr->c.security_info.security_attributes & NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_PAYLOAD_PROTECTED)
-      != NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_PAYLOAD_PROTECTED)
+  if ((sampleinfo->pwr->c.security_info.security_attributes & DDSI_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_PAYLOAD_PROTECTED)
+      != DDSI_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_PAYLOAD_PROTECTED)
     return true;
 
   unsigned char *dst_buf = NULL;
@@ -3514,8 +3515,8 @@ bool validate_msg_decoding (const struct ddsi_entity_common *e, const struct dds
    * submessage, which we are currently handling.
    * However, we have to check if the prev_smid is actually SMID_SEC_PREFIX, otherwise
    * a rascal can inject data as just a clear submessage. */
-  if ((c->security_info.security_attributes & NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_SUBMESSAGE_PROTECTED)
-      == NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_SUBMESSAGE_PROTECTED)
+  if ((c->security_info.security_attributes & DDSI_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_SUBMESSAGE_PROTECTED)
+      == DDSI_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_SUBMESSAGE_PROTECTED)
   {
     if (prev_smid != SMID_SEC_PREFIX)
       return false;
@@ -3894,8 +3895,8 @@ bool q_omg_plist_keyhash_is_protected(const ddsi_plist_t *plist)
   if (plist->present & PP_ENDPOINT_SECURITY_INFO)
   {
     unsigned attr = plist->endpoint_security_info.security_attributes;
-    return attr & NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_VALID &&
-           attr & NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_KEY_PROTECTED;
+    return attr & DDSI_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_VALID &&
+           attr & DDSI_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_KEY_PROTECTED;
   }
   return false;
 }
@@ -3904,7 +3905,7 @@ bool q_omg_is_endpoint_protected(const ddsi_plist_t *plist)
 {
   assert(plist);
   return plist->present & PP_ENDPOINT_SECURITY_INFO &&
-         !SECURITY_INFO_CLEAR(plist->endpoint_security_info, NN_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_VALID);
+         !SECURITY_INFO_CLEAR(plist->endpoint_security_info, DDSI_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_VALID);
 }
 
 void q_omg_log_endpoint_protection(struct ddsi_domaingv * const gv, const ddsi_plist_t *plist)
@@ -3937,10 +3938,10 @@ extern inline bool q_omg_writer_is_discovery_protected(UNUSED_ARG(const struct d
 extern inline bool q_omg_writer_is_submessage_protected(UNUSED_ARG(const struct ddsi_writer *wr));
 extern inline bool q_omg_writer_is_payload_protected(UNUSED_ARG(const struct ddsi_writer *wr));
 
-extern inline void q_omg_get_proxy_writer_security_info(UNUSED_ARG(struct ddsi_proxy_writer *pwr), UNUSED_ARG(const ddsi_plist_t *plist), UNUSED_ARG(nn_security_info_t *info));
+extern inline void q_omg_get_proxy_writer_security_info(UNUSED_ARG(struct ddsi_proxy_writer *pwr), UNUSED_ARG(const ddsi_plist_t *plist), UNUSED_ARG(ddsi_security_info_t *info));
 extern inline bool q_omg_security_check_remote_writer_permissions(UNUSED_ARG(const struct ddsi_proxy_writer *pwr), UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(struct ddsi_participant *pp));
 extern inline void q_omg_security_deregister_remote_writer_match(UNUSED_ARG(const struct ddsi_proxy_writer *pwr), UNUSED_ARG(const struct ddsi_reader *rd), UNUSED_ARG(struct ddsi_rd_pwr_match *match));
-extern inline void q_omg_get_proxy_reader_security_info(UNUSED_ARG(struct ddsi_proxy_reader *prd), UNUSED_ARG(const ddsi_plist_t *plist), UNUSED_ARG(nn_security_info_t *info));
+extern inline void q_omg_get_proxy_reader_security_info(UNUSED_ARG(struct ddsi_proxy_reader *prd), UNUSED_ARG(const ddsi_plist_t *plist), UNUSED_ARG(ddsi_security_info_t *info));
 extern inline bool q_omg_security_check_remote_reader_permissions(UNUSED_ARG(const struct ddsi_proxy_reader *prd), UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(struct ddsi_participant *par), UNUSED_ARG(bool *relay_only));
 extern inline void q_omg_security_deregister_remote_reader_match(UNUSED_ARG(const struct ddsi_proxy_reader *prd), UNUSED_ARG(const struct ddsi_writer *wr), UNUSED_ARG(struct ddsi_wr_prd_match *match));
 

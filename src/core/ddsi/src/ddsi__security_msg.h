@@ -58,7 +58,7 @@ typedef struct nn_participant_generic_message {
   ddsi_guid_t destination_endpoint_guid;
   ddsi_guid_t source_endpoint_guid;
   const char *message_class_id;
-  nn_dataholderseq_t message_data;
+  ddsi_dataholderseq_t message_data;
 } nn_participant_generic_message_t;
 
 
@@ -76,7 +76,7 @@ nn_participant_generic_message_init(
    const ddsi_guid_t *dsteguid,
    const ddsi_guid_t *srceguid,
    const char *classid,
-   const nn_dataholderseq_t *mdata,
+   const ddsi_dataholderseq_t *mdata,
    const nn_message_identity_t *rmid);
 
 /*

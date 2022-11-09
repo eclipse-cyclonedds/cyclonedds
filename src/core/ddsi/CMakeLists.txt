@@ -179,6 +179,7 @@ set(hdrs_private_ddsi
   ddsi__plist_generic.h
   ddsi__serdata_pserop.h
   ddsi__pmd.h
+  ddsi__plist.h
 )
 
 if(ENABLE_LIFESPAN)

@@ -61,7 +61,7 @@ struct ddsi_proxy_participant
   unsigned owns_lease: 1;
   unsigned redundant_networking: 1; /* 1 iff requests receiving data on all advertised interfaces */
 #ifdef DDS_HAS_SECURITY
-  nn_security_info_t security_info;
+  ddsi_security_info_t security_info;
   struct ddsi_proxy_participant_sec_attributes *sec_attr;
 #endif
 };

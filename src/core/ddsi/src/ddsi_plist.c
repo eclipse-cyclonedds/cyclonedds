@@ -27,6 +27,7 @@
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/ddsi_plist.h"
+#include "ddsi__plist.h"
 #include "dds/ddsi/ddsi_time.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/ddsi_xqos.h"
@@ -68,13 +69,13 @@ DDSRT_STATIC_ASSERT(DDS_LENGTH_UNLIMITED == -1);
 typedef struct nn_ipaddress_params_tmp {
   uint32_t present;
 
-  nn_ipv4address_t multicast_ipaddress;
-  nn_ipv4address_t default_unicast_ipaddress;
-  nn_port_t default_unicast_port;
-  nn_ipv4address_t metatraffic_unicast_ipaddress;
-  nn_port_t metatraffic_unicast_port;
-  nn_ipv4address_t metatraffic_multicast_ipaddress;
-  nn_port_t metatraffic_multicast_port;
+  ddsi_ipv4address_t multicast_ipaddress;
+  ddsi_ipv4address_t default_unicast_ipaddress;
+  ddsi_port_t default_unicast_port;
+  ddsi_ipv4address_t metatraffic_unicast_ipaddress;
+  ddsi_port_t metatraffic_unicast_port;
+  ddsi_ipv4address_t metatraffic_multicast_ipaddress;
+  ddsi_port_t metatraffic_multicast_port;
 } nn_ipaddress_params_tmp_t;
 
 struct dd {
@@ -131,7 +132,7 @@ static dds_return_t validate_resource_limits_qospolicy (const dds_resource_limit
 static dds_return_t validate_history_and_resource_limits (const dds_history_qospolicy_t *qh, const dds_resource_limits_qospolicy_t *qr);
 static dds_return_t validate_external_duration (const ddsi_duration_t *d);
 static dds_return_t validate_durability_service_qospolicy_acceptzero (const dds_durability_service_qospolicy_t *q, bool acceptzero);
-static enum do_locator_result do_locator (nn_locators_t *ls, uint64_t present, uint64_t wanted, uint64_t fl, const struct dd *dd, struct ddsi_domaingv const * const gv);
+static enum do_locator_result do_locator (ddsi_locators_t *ls, uint64_t present, uint64_t wanted, uint64_t fl, const struct dd *dd, struct ddsi_domaingv const * const gv);
 static dds_return_t final_validation_qos (const dds_qos_t *dest, nn_protocol_version_t protocol_version, nn_vendorid_t vendorid, bool *dursvc_accepted_allzero, bool strict);
 static int partitions_equal (const void *srca, const void *srcb, size_t off);
 static dds_return_t ddsi_xqos_valid_strictness (const struct ddsrt_log_cfg *logcfg, const dds_qos_t *xqos, bool strict);
@@ -413,7 +414,7 @@ static bool print_statusinfo (char * __restrict *buf, size_t * __restrict bufsiz
 static dds_return_t deser_locator (void * __restrict dst, struct flagset *flagset, uint64_t flag, const struct dd * __restrict dd, struct ddsi_domaingv const * const gv)
 {
   size_t srcoff = 0, dstoff = 0;
-  nn_locators_t * const x = deser_generic_dst (dst, &dstoff, dds_alignof (nn_locators_t));
+  ddsi_locators_t * const x = deser_generic_dst (dst, &dstoff, dds_alignof (ddsi_locators_t));
   /* FIXME: don't want to modify do_locator just yet, and don't want to require that a
      locator is the only thing in the descriptor string (even though it actually always is),
      so do alignment explicitly, fake a temporary input buffer and advance the source buffer */
@@ -438,8 +439,8 @@ static dds_return_t deser_locator (void * __restrict dst, struct flagset *flagse
 
 static dds_return_t ser_locator (struct nn_xmsg *xmsg, nn_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo)
 {
-  nn_locators_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (nn_locators_t));
-  for (const struct nn_locators_one *l = x->first; l != NULL; l = l->next)
+  ddsi_locators_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (ddsi_locators_t));
+  for (const struct ddsi_locators_one *l = x->first; l != NULL; l = l->next)
   {
     char * const p = nn_xmsg_addpar_bo (xmsg, pid, 24, bo);
     const int32_t kind = ddsrt_toBO4 (bo, l->loc.kind);
@@ -453,13 +454,13 @@ static dds_return_t ser_locator (struct nn_xmsg *xmsg, nn_parameterid_t pid, con
 
 static dds_return_t unalias_locator (void * __restrict dst, size_t * __restrict dstoff, bool gen_seq_aliased)
 {
-  nn_locators_t * const x = deser_generic_dst (dst, dstoff, dds_alignof (nn_locators_t));
-  nn_locators_t newlocs = { .n = x->n, .first = NULL, .last = NULL };
-  struct nn_locators_one **pnext = &newlocs.first;
+  ddsi_locators_t * const x = deser_generic_dst (dst, dstoff, dds_alignof (ddsi_locators_t));
+  ddsi_locators_t newlocs = { .n = x->n, .first = NULL, .last = NULL };
+  struct ddsi_locators_one **pnext = &newlocs.first;
   (void) gen_seq_aliased;
-  for (const struct nn_locators_one *lold = x->first; lold != NULL; lold = lold->next)
+  for (const struct ddsi_locators_one *lold = x->first; lold != NULL; lold = lold->next)
   {
-    struct nn_locators_one *n = ddsrt_memdup (lold, sizeof (*n));
+    struct ddsi_locators_one *n = ddsrt_memdup (lold, sizeof (*n));
     *pnext = n;
     pnext = &n->next;
   }
@@ -472,12 +473,12 @@ static dds_return_t unalias_locator (void * __restrict dst, size_t * __restrict 
 
 static dds_return_t fini_locator (void * __restrict dst, size_t * __restrict dstoff, struct flagset *flagset, uint64_t flag)
 {
-  nn_locators_t * const x = deser_generic_dst (dst, dstoff, dds_alignof (nn_locators_t));
+  ddsi_locators_t * const x = deser_generic_dst (dst, dstoff, dds_alignof (ddsi_locators_t));
   if (!(*flagset->aliased & flag))
   {
     while (x->first)
     {
-      struct nn_locators_one *l = x->first;
+      struct ddsi_locators_one *l = x->first;
       x->first = l->next;
       ddsrt_free (l);
     }
@@ -509,10 +510,10 @@ static const enum ddsi_pserop* pserop_advance (const enum ddsi_pserop * __restri
 
 static bool print_locator (char * __restrict *buf, size_t * __restrict bufsize, const void *src, size_t srcoff)
 {
-  nn_locators_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (nn_locators_t));
+  ddsi_locators_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (ddsi_locators_t));
   const char *sep = "";
   prtf (buf, bufsize, "{");
-  for (const struct nn_locators_one *l = x->first; l != NULL; l = l->next)
+  for (const struct ddsi_locators_one *l = x->first; l != NULL; l = l->next)
   {
     char tmp[DDSI_LOCSTRLEN];
     ddsi_locator_to_string (tmp, sizeof (tmp), &l->loc);
@@ -2553,11 +2554,6 @@ uint64_t ddsi_xqos_delta (const dds_qos_t *x, const dds_qos_t *y, uint64_t mask)
   return qdelta;
 }
 
-void ddsi_plist_delta (uint64_t *pdelta, uint64_t *qdelta, const ddsi_plist_t *x, const ddsi_plist_t *y, uint64_t pmask, uint64_t qmask)
-{
-  plist_or_xqos_delta (pdelta, qdelta, x, y, 0, pmask, qmask);
-}
-
 static dds_return_t validate_external_duration (const ddsi_duration_t *d)
 {
   /* Accepted are zero, positive, infinite or invalid as defined in
@@ -2666,11 +2662,11 @@ static dds_return_t validate_durability_service_qospolicy_acceptzero (const dds_
   return 0;
 }
 
-static void add_locator (nn_locators_t *ls, uint64_t present, uint64_t wanted, uint64_t fl, const ddsi_locator_t *loc)
+static void add_locator (ddsi_locators_t *ls, uint64_t present, uint64_t wanted, uint64_t fl, const ddsi_locator_t *loc)
 {
   if (wanted & fl)
   {
-    struct nn_locators_one *nloc;
+    struct ddsi_locators_one *nloc;
     if (!(present & fl))
     {
       ls->n = 0;
@@ -2706,7 +2702,7 @@ static bool locator_address_zero (const ddsi_locator_t *loc)
   return locator_address_prefix_zero (loc, sizeof (loc->address));
 }
 
-static enum do_locator_result do_locator (nn_locators_t *ls, uint64_t present, uint64_t wanted, uint64_t fl, const struct dd *dd, struct ddsi_domaingv const * const gv)
+static enum do_locator_result do_locator (ddsi_locators_t *ls, uint64_t present, uint64_t wanted, uint64_t fl, const struct dd *dd, struct ddsi_domaingv const * const gv)
 {
   ddsi_locator_t loc;
 
@@ -2796,7 +2792,7 @@ static enum do_locator_result do_locator (nn_locators_t *ls, uint64_t present, u
   return DOLOC_ACCEPTED;
 }
 
-static void locator_from_ipv4address_port (ddsi_locator_t *loc, const nn_ipv4address_t *a, const nn_port_t *p)
+static void locator_from_ipv4address_port (ddsi_locator_t *loc, const ddsi_ipv4address_t *a, const ddsi_port_t *p)
 {
   loc->kind = NN_LOCATOR_KIND_UDPv4;
   loc->port = *p;
@@ -2806,9 +2802,9 @@ static void locator_from_ipv4address_port (ddsi_locator_t *loc, const nn_ipv4add
 
 static dds_return_t do_ipv4address (ddsi_plist_t *dest, nn_ipaddress_params_tmp_t *dest_tmp, uint64_t wanted, uint32_t fl_tmp, const struct dd *dd)
 {
-  nn_ipv4address_t *a;
-  nn_port_t *p;
-  nn_locators_t *ls;
+  ddsi_ipv4address_t *a;
+  ddsi_port_t *p;
+  ddsi_locators_t *ls;
   uint32_t fl1_tmp;
   uint64_t fldest;
   if (dd->bufsz < sizeof (*a))
@@ -2870,9 +2866,9 @@ static dds_return_t do_ipv4address (ddsi_plist_t *dest, nn_ipaddress_params_tmp_
 
 static dds_return_t do_port (ddsi_plist_t *dest, nn_ipaddress_params_tmp_t *dest_tmp, uint64_t wanted, uint32_t fl_tmp, const struct dd *dd)
 {
-  nn_ipv4address_t *a;
-  nn_port_t *p;
-  nn_locators_t *ls;
+  ddsi_ipv4address_t *a;
+  ddsi_port_t *p;
+  ddsi_locators_t *ls;
   uint64_t fldest;
   uint32_t fl1_tmp;
   if (dd->bufsz < sizeof (*p))
@@ -3922,11 +3918,6 @@ size_t ddsi_plist_print (char * __restrict buf, size_t bufsize, const ddsi_plist
 void ddsi_xqos_log (uint32_t cat, const struct ddsrt_log_cfg *logcfg, const dds_qos_t *xqos)
 {
   plist_or_xqos_log (cat, logcfg, xqos, offsetof (ddsi_plist_t, qos), 0, ~(uint64_t)0);
-}
-
-void ddsi_plist_log (uint32_t cat, const struct ddsrt_log_cfg *logcfg, const ddsi_plist_t *plist)
-{
-  plist_or_xqos_log (cat, logcfg, plist, 0, ~(uint64_t)0, ~(uint64_t)0);
 }
 
 size_t ddsi_plist_print_generic (char * __restrict buf, size_t bufsize, const void * __restrict src, const enum ddsi_pserop * __restrict desc)

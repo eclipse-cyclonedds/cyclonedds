@@ -18,7 +18,7 @@
 
 #include "dds/ddsi/q_bswap.h"
 #include "ddsi__entity_index.h"
-#include "dds/ddsi/ddsi_plist.h"
+#include "ddsi__plist.h"
 #include "ddsi__entity.h"
 #include "ddsi__participant.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
@@ -516,7 +516,7 @@ static const dds_security_fsm_transition handshake_transistions [] =
 static bool send_handshake_message(const struct ddsi_handshake *handshake, DDS_Security_DataHolder *token, struct ddsi_participant *pp, struct ddsi_proxy_participant *proxypp, int request)
 {
   bool ret = false;
-  nn_dataholderseq_t mdata;
+  ddsi_dataholderseq_t mdata;
   DDS_Security_DataHolderSeq tseq;
 
   tseq._length = tseq._maximum = 1;
@@ -529,7 +529,7 @@ static bool send_handshake_message(const struct ddsi_handshake *handshake, DDS_S
     HSWARNING("Send handshake: failed to send message (lguid="PGUIDFMT" rguid="PGUIDFMT")", PGUID (pp->e.guid), PGUID (proxypp->e.guid));
   }
 
-  q_omg_shallow_free_nn_dataholderseq(&mdata);
+  q_omg_shallow_free_ddsi_dataholderseq(&mdata);
 
   return ret;
 }

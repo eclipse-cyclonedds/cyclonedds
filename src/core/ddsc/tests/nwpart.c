@@ -27,6 +27,7 @@
 #include "dds/ddsi/q_misc.h"
 #include "dds/ddsi/q_addrset.h"
 #include "dds/ddsi/q_ddsi_discovery.h"
+#include "ddsi__plist.h"
 
 #include "test_util.h"
 
@@ -551,7 +552,7 @@ CU_Theory ((bool same_machine, bool proxypp_has_defmc, int n_ep_uc, int n_ep_mc,
   // (interfaces are: lo, nomc, eth0, eth1)
   ddsi_plist_t plist;
   ddsi_plist_init_empty (&plist);
-  struct nn_locators_one uc[MAX_XMIT_CONNS];
+  struct ddsi_locators_one uc[MAX_XMIT_CONNS];
   assert (n_ep_uc <= gv.n_interfaces);
   for (int i = 0; i < n_ep_uc; i++)
   {
@@ -563,11 +564,11 @@ CU_Theory ((bool same_machine, bool proxypp_has_defmc, int n_ep_uc, int n_ep_mc,
   }
   if (n_ep_uc > 0)
     uc[n_ep_uc-1].next = NULL;
-  plist.unicast_locators = (nn_locators_t){ .n = (uint32_t)n_ep_uc, .first = &uc[0], .last = &uc[n_ep_uc-1] };
+  plist.unicast_locators = (ddsi_locators_t){ .n = (uint32_t)n_ep_uc, .first = &uc[0], .last = &uc[n_ep_uc-1] };
   if (plist.unicast_locators.n > 0)
     plist.present |= PP_UNICAST_LOCATOR;
 
-  struct nn_locators_one mc[2] = {
+  struct ddsi_locators_one mc[2] = {
     { .next = &mc[1],
       .loc = {
         .kind = NN_LOCATOR_KIND_UDPv4,
@@ -586,7 +587,7 @@ CU_Theory ((bool same_machine, bool proxypp_has_defmc, int n_ep_uc, int n_ep_mc,
   assert (n_ep_mc <= (int) (sizeof (mc) / sizeof (mc[0])));
   if (n_ep_mc > 0)
     mc[n_ep_mc-1].next = NULL;
-  plist.multicast_locators = (nn_locators_t){ .n = (uint32_t)n_ep_mc, .first = &mc[0], .last = &mc[n_ep_mc-1] };
+  plist.multicast_locators = (ddsi_locators_t){ .n = (uint32_t)n_ep_mc, .first = &mc[0], .last = &mc[n_ep_mc-1] };
   if (plist.multicast_locators.n > 0)
     plist.present |= PP_MULTICAST_LOCATOR;
 

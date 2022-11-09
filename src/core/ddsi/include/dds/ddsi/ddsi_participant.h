@@ -59,7 +59,7 @@ struct ddsi_participant
   ddsrt_fibheap_t leaseheap_man; /* keeps leases for this participant's writers (with liveliness manual-by-participant) */
 #ifdef DDS_HAS_SECURITY
   struct participant_sec_attributes *sec_attr;
-  nn_security_info_t security_info;
+  ddsi_security_info_t security_info;
 #endif
 };
 

@@ -69,6 +69,7 @@
 #include "ddsi__security_msg.h"
 #include "ddsi__endpoint.h"
 #include "ddsi__gc.h"
+#include "ddsi__plist.h"
 
 #include "dds__whc.h"
 #include "dds/cdr/dds_cdrstream.h"

@@ -231,7 +231,7 @@ int64_t q_omg_security_get_local_participant_handle(const struct ddsi_participan
  * @retval true   Security info set.
  * @retval false  Security info not set.
  */
-bool q_omg_get_participant_security_info(const struct ddsi_participant *pp, nn_security_info_t *info);
+bool q_omg_get_participant_security_info(const struct ddsi_participant *pp, ddsi_security_info_t *info);
 
 /**
  * @brief Get the is_rtps_protected flag of the given remote participant.
@@ -323,7 +323,7 @@ bool q_omg_security_check_create_topic(const struct ddsi_domaingv *gv, const dds
  * @retval true   Security info set.
  * @retval false  Security info not set (probably unsecure writer).
  */
-bool q_omg_get_writer_security_info(const struct ddsi_writer *wr, nn_security_info_t *info);
+bool q_omg_get_writer_security_info(const struct ddsi_writer *wr, ddsi_security_info_t *info);
 
 /**
  * @brief Return the builtin writer id for this writers' discovery.
@@ -394,7 +394,7 @@ void q_omg_security_deregister_writer(struct ddsi_writer *wr);
  * @retval true   Security info set.
  * @retval false  Security info not set (probably unsecure reader).
  */
-bool q_omg_get_reader_security_info(const struct ddsi_reader *rd, nn_security_info_t *info);
+bool q_omg_get_reader_security_info(const struct ddsi_reader *rd, ddsi_security_info_t *info);
 
 /**
  * @brief Return the builtin writer id for this readers' discovery.
@@ -628,7 +628,7 @@ int64_t q_omg_security_get_remote_participant_handle(struct ddsi_proxy_participa
  * @param[in] proxypp   The remote participant.
  * @param[in] tokens    The crypto token received from the remote participant for the local participant.
  */
-void q_omg_security_set_participant_crypto_tokens(struct ddsi_participant *pp, struct ddsi_proxy_participant *proxypp, const nn_dataholderseq_t *tokens);
+void q_omg_security_set_participant_crypto_tokens(struct ddsi_participant *pp, struct ddsi_proxy_participant *proxypp, const ddsi_dataholderseq_t *tokens);
 
 /**
  * @brief Check if the writer has the is_discovery_protected flag set
@@ -722,7 +722,7 @@ void q_omg_security_deregister_remote_writer_match(const struct ddsi_domaingv *g
  * @param[in] pwr_guid  The guid of the remote writer.
  * @param[in] tokens    The crypto token received from the remote writer for the reader.
  */
-void q_omg_security_set_remote_writer_crypto_tokens(struct ddsi_reader *rd, const ddsi_guid_t *pwr_guid, const nn_dataholderseq_t *tokens);
+void q_omg_security_set_remote_writer_crypto_tokens(struct ddsi_reader *rd, const ddsi_guid_t *pwr_guid, const ddsi_dataholderseq_t *tokens);
 
 /**
  * @brief Release all the security resources associated with the remote writer.
@@ -752,7 +752,7 @@ void set_proxy_reader_security_info(struct ddsi_proxy_reader *prd, const ddsi_pl
  * @param[in] plist     The parameter list from the remote reader.
  * @param[out] info     The security settings associated with the remote reader.
  */
-void q_omg_get_proxy_reader_security_info(struct ddsi_proxy_reader *prd, const ddsi_plist_t *plist, nn_security_info_t *info);
+void q_omg_get_proxy_reader_security_info(struct ddsi_proxy_reader *prd, const ddsi_plist_t *plist, ddsi_security_info_t *info);
 
 /**
  * @brief Check if the reader has the is_discovery_protected flag set
@@ -801,7 +801,7 @@ bool q_omg_security_check_remote_reader_permissions(const struct ddsi_proxy_read
  * @param[in] plist             Paramater list which may contain security info.
  * @param[in] info              The proxy endpoint security info to be set.
  */
-void q_omg_get_proxy_endpoint_security_info(const struct ddsi_entity_common *entity, nn_security_info_t *proxypp_sec_info, const ddsi_plist_t *plist, nn_security_info_t *info);
+void q_omg_get_proxy_endpoint_security_info(const struct ddsi_entity_common *entity, ddsi_security_info_t *proxypp_sec_info, const ddsi_plist_t *plist, ddsi_security_info_t *info);
 
 /**
  * @brief Check it the local writer is allowed to communicate with the remote reader.
@@ -854,7 +854,7 @@ void q_omg_security_deregister_remote_reader_match(const struct ddsi_domaingv *g
  * @param[in] prd_guid  The guid of the remote reader.
  * @param[in] tokens    The crypto token received from the remote reader for the writer.
  */
-void q_omg_security_set_remote_reader_crypto_tokens(struct ddsi_writer *wr, const ddsi_guid_t *prd_guid, const nn_dataholderseq_t *tokens);
+void q_omg_security_set_remote_reader_crypto_tokens(struct ddsi_writer *wr, const ddsi_guid_t *prd_guid, const ddsi_dataholderseq_t *tokens);
 
 /**
  * @brief Release all the security resources associated with the remote reader.
@@ -1283,7 +1283,7 @@ inline bool q_omg_security_match_remote_reader_enabled(UNUSED_ARG(struct ddsi_wr
   return true;
 }
 
-inline void q_omg_get_proxy_writer_security_info(UNUSED_ARG(struct ddsi_proxy_writer *pwr), UNUSED_ARG(const ddsi_plist_t *plist), UNUSED_ARG(nn_security_info_t *info))
+inline void q_omg_get_proxy_writer_security_info(UNUSED_ARG(struct ddsi_proxy_writer *pwr), UNUSED_ARG(const ddsi_plist_t *plist), UNUSED_ARG(ddsi_security_info_t *info))
 {
 }
 
@@ -1311,7 +1311,7 @@ inline void q_omg_security_deregister_remote_writer_match(UNUSED_ARG(const struc
 {
 }
 
-inline void q_omg_get_proxy_reader_security_info(UNUSED_ARG(struct ddsi_proxy_reader *prd), UNUSED_ARG(const ddsi_plist_t *plist), UNUSED_ARG(nn_security_info_t *info))
+inline void q_omg_get_proxy_reader_security_info(UNUSED_ARG(struct ddsi_proxy_reader *prd), UNUSED_ARG(const ddsi_plist_t *plist), UNUSED_ARG(ddsi_security_info_t *info))
 {
 }
 

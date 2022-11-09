@@ -36,8 +36,8 @@ const enum ddsi_pserop pserop_participant_generic_message[] =
   XG,                  /* ddsi_guid_t destination_endpoint_guid          */
   XG,                  /* ddsi_guid_t source_endpoint_guid               */
   XS,                  /* char* message_class_id                         */
-  XQ,                  /* nn_dataholderseq_t message_data                */
-    /* nn_dataholder_t */
+  XQ,                  /* ddsi_dataholderseq_t message_data                */
+    /* ddsi_dataholder_t */
     XS,                  /* char* class_id                               */
     XQ,                  /* dds_propertyseq_t properties                 */
       XbPROP, XS, XS,      /* dds_property_t                             */
@@ -64,7 +64,7 @@ alias_simple_sequence(ddsi_octetseq_t *dst, const ddsi_octetseq_t *src, size_t e
 }
 
 static void
-alias_dataholder(nn_dataholder_t *dst, const nn_dataholder_t *src)
+alias_dataholder(ddsi_dataholder_t *dst, const ddsi_dataholder_t *src)
 {
   dst->class_id = src->class_id;
   alias_simple_sequence((ddsi_octetseq_t*)&dst->properties,
@@ -76,13 +76,13 @@ alias_dataholder(nn_dataholder_t *dst, const nn_dataholder_t *src)
 }
 
 static void
-alias_dataholderseq(nn_dataholderseq_t *dst, const nn_dataholderseq_t *src)
+alias_dataholderseq(ddsi_dataholderseq_t *dst, const ddsi_dataholderseq_t *src)
 {
   dst->n = src->n;
   if (src->n > 0)
   {
     /* Even when aliased, sequence buffers are not shared. */
-    dst->tags = ddsrt_malloc(src->n * sizeof(nn_dataholder_t));
+    dst->tags = ddsrt_malloc(src->n * sizeof(ddsi_dataholder_t));
     for (uint32_t i = 0; i < src->n; i++)
     {
       alias_dataholder(&(dst->tags[i]), &(src->tags[i]));
@@ -101,7 +101,7 @@ nn_participant_generic_message_init(
    const ddsi_guid_t *dsteguid,
    const ddsi_guid_t *srceguid,
    const char *classid,
-   const nn_dataholderseq_t *mdata,
+   const ddsi_dataholderseq_t *mdata,
    const nn_message_identity_t *rmid)
 {
   assert(msg);

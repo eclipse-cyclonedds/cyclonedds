@@ -33,6 +33,7 @@
 #include "ddsi__endpoint.h"
 #include "ddsi__entity_match.h"
 #include "ddsi__gc.h"
+#include "ddsi__plist.h"
 
 static const unsigned builtin_writers_besmask =
   NN_DISC_BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER |

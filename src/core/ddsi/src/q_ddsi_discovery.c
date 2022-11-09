@@ -51,6 +51,7 @@
 #include "ddsi__pmd.h"
 #include "dds/ddsi/ddsi_typelib.h"
 #include "ddsi__endpoint.h"
+#include "ddsi__plist.h"
 
 #ifdef DDS_HAS_SECURITY
 #include "ddsi__security_exchange.h"
@@ -162,7 +163,7 @@ static void addrset_from_locatorlists_add_one (struct ddsi_domaingv const * cons
  * @param[in,out] inherited_intfs set of applicable interfaces, may be NULL
  *
  * @return new addrset, possibly empty */
-static struct addrset *addrset_from_locatorlists (const struct ddsi_domaingv *gv, const nn_locators_t *uc, const nn_locators_t *mc, const ddsi_locator_t *srcloc, const interface_set_t *inherited_intfs)
+static struct addrset *addrset_from_locatorlists (const struct ddsi_domaingv *gv, const ddsi_locators_t *uc, const ddsi_locators_t *mc, const ddsi_locator_t *srcloc, const interface_set_t *inherited_intfs)
 {
   struct addrset *as = new_addrset ();
   interface_set_t intfs;
@@ -177,14 +178,14 @@ static struct addrset *addrset_from_locatorlists (const struct ddsi_domaingv *gv
         a = false;
     bool b = true;
     // FIXME: what about the cases where SEDP gives just a loopback address, but the proxypp is known to be on a remote node?
-    for (struct nn_locators_one *l = uc->first; l != NULL && b; l = l->next)
+    for (struct ddsi_locators_one *l = uc->first; l != NULL && b; l = l->next)
       b = ddsi_is_loopbackaddr (gv, &l->loc);
     allow_loopback = (a || b);
   }
 
   // if any non-loopback address is identical to one of our own addresses (actual or advertised),
   // assume it is the same machine, in which case loopback addresses may be picked up
-  for (struct nn_locators_one *l = uc->first; l != NULL && !allow_loopback; l = l->next)
+  for (struct ddsi_locators_one *l = uc->first; l != NULL && !allow_loopback; l = l->next)
   {
     if (ddsi_is_loopbackaddr (gv, &l->loc))
       continue;
@@ -193,7 +194,7 @@ static struct addrset *addrset_from_locatorlists (const struct ddsi_domaingv *gv
   //GVTRACE(" allow_loopback=%d\n", allow_loopback);
 
   bool direct = false;
-  for (struct nn_locators_one *l = uc->first; l != NULL; l = l->next)
+  for (struct ddsi_locators_one *l = uc->first; l != NULL; l = l->next)
   {
 #if 0
     {
@@ -286,7 +287,7 @@ static struct addrset *addrset_from_locatorlists (const struct ddsi_domaingv *gv
   GVTRACE("\n");
 #endif
 
-  for (struct nn_locators_one *l = mc->first; l != NULL; l = l->next)
+  for (struct ddsi_locators_one *l = mc->first; l != NULL; l = l->next)
   {
     for (int i = 0; i < gv->n_interfaces; i++)
     {
@@ -324,12 +325,12 @@ static void maybe_add_pp_as_meta_to_as_disc (struct ddsi_domaingv *gv, const str
 }
 
 struct locators_builder {
-  nn_locators_t *dst;
-  struct nn_locators_one *storage;
+  ddsi_locators_t *dst;
+  struct ddsi_locators_one *storage;
   size_t storage_n;
 };
 
-static struct locators_builder locators_builder_init (nn_locators_t *dst, struct nn_locators_one *storage, size_t storage_n)
+static struct locators_builder locators_builder_init (ddsi_locators_t *dst, struct ddsi_locators_one *storage, size_t storage_n)
 {
   dst->n = 0;
   dst->first = NULL;
@@ -461,14 +462,14 @@ void get_participant_builtin_topic_data (const struct ddsi_participant *pp, ddsi
     memset (&dst->adlink_participant_version_info, 0, sizeof (dst->adlink_participant_version_info));
     dst->adlink_participant_version_info.version = 0;
     dst->adlink_participant_version_info.flags =
-      NN_ADLINK_FL_DDSI2_PARTICIPANT_FLAG |
-      NN_ADLINK_FL_PTBES_FIXED_0 |
-      NN_ADLINK_FL_SUPPORTS_STATUSINFOX;
+      DDSI_ADLINK_FL_DDSI2_PARTICIPANT_FLAG |
+      DDSI_ADLINK_FL_PTBES_FIXED_0 |
+      DDSI_ADLINK_FL_SUPPORTS_STATUSINFOX;
     if (pp->e.gv->config.besmode == DDSI_BESMODE_MINIMAL)
-      dst->adlink_participant_version_info.flags |= NN_ADLINK_FL_MINIMAL_BES_MODE;
+      dst->adlink_participant_version_info.flags |= DDSI_ADLINK_FL_MINIMAL_BES_MODE;
     ddsrt_mutex_lock (&pp->e.gv->privileged_pp_lock);
     if (pp->is_ddsi2_pp)
-      dst->adlink_participant_version_info.flags |= NN_ADLINK_FL_PARTICIPANT_IS_DDSI2;
+      dst->adlink_participant_version_info.flags |= DDSI_ADLINK_FL_PARTICIPANT_IS_DDSI2;
     ddsrt_mutex_unlock (&pp->e.gv->privileged_pp_lock);
 
 #if DDSRT_HAVE_GETHOSTNAME
@@ -845,8 +846,8 @@ static int handle_spdp_alive (const struct receiver_state *rst, seqno_t seq, dds
   }
 
   if (datap->present & PP_ADLINK_PARTICIPANT_VERSION_INFO) {
-    if ((datap->adlink_participant_version_info.flags & NN_ADLINK_FL_DDSI2_PARTICIPANT_FLAG) &&
-        (datap->adlink_participant_version_info.flags & NN_ADLINK_FL_PARTICIPANT_IS_DDSI2))
+    if ((datap->adlink_participant_version_info.flags & DDSI_ADLINK_FL_DDSI2_PARTICIPANT_FLAG) &&
+        (datap->adlink_participant_version_info.flags & DDSI_ADLINK_FL_PARTICIPANT_IS_DDSI2))
       custom_flags |= CF_PARTICIPANT_IS_DDSI2;
 
     GVLOGDISC (" (0x%08"PRIx32"-0x%08"PRIx32"-0x%08"PRIx32"-0x%08"PRIx32"-0x%08"PRIx32" %s)",
@@ -895,9 +896,9 @@ static int handle_spdp_alive (const struct receiver_state *rst, seqno_t seq, dds
 
   /* Choose locators */
   {
-    const nn_locators_t emptyset = { .n = 0, .first = NULL, .last = NULL };
-    const nn_locators_t *uc;
-    const nn_locators_t *mc;
+    const ddsi_locators_t emptyset = { .n = 0, .first = NULL, .last = NULL };
+    const ddsi_locators_t *uc;
+    const ddsi_locators_t *mc;
     ddsi_locator_t srcloc;
     interface_set_t intfs;
 
@@ -1017,8 +1018,8 @@ struct add_locator_to_ps_arg {
 static void add_locator_to_ps (const ddsi_locator_t *loc, void *varg)
 {
   struct add_locator_to_ps_arg *arg = varg;
-  struct nn_locators_one *elem = ddsrt_malloc (sizeof (struct nn_locators_one));
-  struct nn_locators *locs;
+  struct ddsi_locators_one *elem = ddsrt_malloc (sizeof (struct ddsi_locators_one));
+  struct ddsi_locators *locs;
   unsigned present_flag;
 
   elem->loc = *loc;
@@ -1054,8 +1055,8 @@ static void add_xlocator_to_ps (const ddsi_xlocator_t *loc, void *varg)
 #ifdef DDS_HAS_SHM
 static void add_iox_locator_to_ps(const ddsi_locator_t* loc, struct add_locator_to_ps_arg *arg)
 {
-  struct nn_locators_one* elem = ddsrt_malloc(sizeof(struct nn_locators_one));
-  struct nn_locators* locs = &arg->ps->unicast_locators;
+  struct ddsi_locators_one* elem = ddsrt_malloc(sizeof(struct ddsi_locators_one));
+  struct ddsi_locators* locs = &arg->ps->unicast_locators;
   unsigned present_flag = PP_UNICAST_LOCATOR;
 
   elem->loc = *loc;
@@ -1096,7 +1097,7 @@ static int sedp_write_endpoint_impl
 (
    struct ddsi_writer *wr, int alive, const ddsi_guid_t *guid,
    const struct ddsi_endpoint_common *epcommon,
-   const dds_qos_t *xqos, struct addrset *as, nn_security_info_t *security
+   const dds_qos_t *xqos, struct addrset *as, ddsi_security_info_t *security
 #ifdef DDS_HAS_TYPE_DISCOVERY
    , const struct ddsi_sertype *sertype
 #endif
@@ -1122,7 +1123,7 @@ static int sedp_write_endpoint_impl
   if (security)
   {
     ps.present |= PP_ENDPOINT_SECURITY_INFO;
-    memcpy(&ps.endpoint_security_info, security, sizeof(nn_security_info_t));
+    memcpy(&ps.endpoint_security_info, security, sizeof(ddsi_security_info_t));
   }
 #else
   (void)security;
@@ -1295,14 +1296,14 @@ int sedp_write_writer (struct ddsi_writer *wr)
   {
     unsigned entityid = determine_publication_writer(wr);
     struct ddsi_writer *sedp_wr = get_sedp_writer (wr->c.pp, entityid);
-    nn_security_info_t *security = NULL;
+    ddsi_security_info_t *security = NULL;
 #ifdef DDS_HAS_SSM
     struct addrset *as = wr->ssm_as;
 #else
     struct addrset *as = NULL;
 #endif
 #ifdef DDS_HAS_SECURITY
-    nn_security_info_t tmp;
+    ddsi_security_info_t tmp;
     if (q_omg_get_writer_security_info(wr, &tmp))
     {
       security = &tmp;
@@ -1324,7 +1325,7 @@ int sedp_write_reader (struct ddsi_reader *rd)
 
   unsigned entityid = determine_subscription_writer(rd);
   struct ddsi_writer *sedp_wr = get_sedp_writer (rd->c.pp, entityid);
-  nn_security_info_t *security = NULL;
+  ddsi_security_info_t *security = NULL;
   struct addrset *as = NULL;
 #ifdef DDS_HAS_NETWORK_PARTITIONS
   if (rd->uc_as != NULL || rd->mc_as != NULL)
@@ -1344,7 +1345,7 @@ int sedp_write_reader (struct ddsi_reader *rd)
   }
 #endif
 #ifdef DDS_HAS_SECURITY
-  nn_security_info_t tmp;
+  ddsi_security_info_t tmp;
   if (q_omg_get_reader_security_info(rd, &tmp))
   {
     security = &tmp;
@@ -1471,7 +1472,7 @@ static struct ddsi_proxy_participant *implicitly_create_proxypp (struct ddsi_dom
       ddsi_plist_mergein_missing (&pp_plist, &tmp_plist, ~(uint64_t)0, ~(uint64_t)0);
       ddsrt_mutex_unlock (&privpp->e.lock);
 
-      pp_plist.adlink_participant_version_info.flags &= ~NN_ADLINK_FL_PARTICIPANT_IS_DDSI2;
+      pp_plist.adlink_participant_version_info.flags &= ~DDSI_ADLINK_FL_PARTICIPANT_IS_DDSI2;
       ddsi_new_proxy_participant (gv, ppguid, 0, &privguid, as_default, as_meta, &pp_plist, DDS_INFINITY, vendorid, CF_IMPLICITLY_CREATED_PROXYPP | CF_PROXYPP_NO_SPDP, timestamp, seq);
     }
   }
@@ -1559,9 +1560,9 @@ static void addrset_from_locatorlists_collect_interfaces (const ddsi_xlocator_t 
 
 struct addrset *ddsi_get_endpoint_addrset (const struct ddsi_domaingv *gv, const ddsi_plist_t *datap, struct addrset *proxypp_as_default, const ddsi_locator_t *rst_srcloc)
 {
-  const nn_locators_t emptyset = { .n = 0, .first = NULL, .last = NULL };
-  const nn_locators_t *uc = (datap->present & PP_UNICAST_LOCATOR) ? &datap->unicast_locators : &emptyset;
-  const nn_locators_t *mc = (datap->present & PP_MULTICAST_LOCATOR) ? &datap->multicast_locators : &emptyset;
+  const ddsi_locators_t emptyset = { .n = 0, .first = NULL, .last = NULL };
+  const ddsi_locators_t *uc = (datap->present & PP_UNICAST_LOCATOR) ? &datap->unicast_locators : &emptyset;
+  const ddsi_locators_t *mc = (datap->present & PP_MULTICAST_LOCATOR) ? &datap->multicast_locators : &emptyset;
   ddsi_locator_t srcloc;
   if (rst_srcloc == NULL)
     set_unspec_locator (&srcloc);

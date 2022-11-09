@@ -20,6 +20,7 @@
 #include "dds/ddsrt/bswap.h"
 
 #include "dds/ddsi/ddsi_security_util.h"
+#include "ddsi__plist.h"
 
 void
 g_omg_shallow_copy_StringSeq(
@@ -261,7 +262,7 @@ q_omg_shallow_free_security_qos(
 
 void
 q_omg_security_dataholder_copyin(
-    nn_dataholder_t *dh,
+    ddsi_dataholder_t *dh,
     const DDS_Security_DataHolder *holder)
 {
   uint32_t i;
@@ -299,7 +300,7 @@ q_omg_security_dataholder_copyin(
 void
 q_omg_security_dataholder_copyout(
     DDS_Security_DataHolder *holder,
-    const nn_dataholder_t *dh)
+    const ddsi_dataholder_t *dh)
 {
   uint32_t i;
 
@@ -336,7 +337,7 @@ q_omg_security_dataholder_copyout(
 void
 q_omg_shallow_copyin_DataHolder(
     DDS_Security_DataHolder *dst,
-    const nn_dataholder_t *src)
+    const ddsi_dataholder_t *src)
 {
     assert(dst);
     assert(src);
@@ -347,7 +348,7 @@ q_omg_shallow_copyin_DataHolder(
 
 void
 q_omg_shallow_copyout_DataHolder(
-    nn_dataholder_t *dst,
+    ddsi_dataholder_t *dst,
     const DDS_Security_DataHolder *src)
 {
     assert(dst);
@@ -366,8 +367,8 @@ q_omg_shallow_free_DataHolder(
 }
 
 void
-q_omg_shallow_free_nn_dataholder(
-    nn_dataholder_t *holder)
+q_omg_shallow_free_ddsi_dataholder(
+    ddsi_dataholder_t *holder)
 {
   q_omg_shallow_free_dds_propertyseq(&holder->properties);
   q_omg_shallow_free_dds_binarypropertyseq(&holder->binary_properties);
@@ -376,7 +377,7 @@ q_omg_shallow_free_nn_dataholder(
 void
 q_omg_shallow_copyin_DataHolderSeq(
     DDS_Security_DataHolderSeq *dst,
-    const nn_dataholderseq_t *src)
+    const ddsi_dataholderseq_t *src)
 {
   unsigned i;
 
@@ -397,7 +398,7 @@ q_omg_shallow_copyin_DataHolderSeq(
 void
 q_omg_copyin_DataHolderSeq(
     DDS_Security_DataHolderSeq *dst,
-    const nn_dataholderseq_t *src)
+    const ddsi_dataholderseq_t *src)
 {
   unsigned i;
 
@@ -419,7 +420,7 @@ q_omg_copyin_DataHolderSeq(
 
 void
 q_omg_shallow_copyout_DataHolderSeq(
-    nn_dataholderseq_t  *dst,
+    ddsi_dataholderseq_t  *dst,
     const DDS_Security_DataHolderSeq *src)
 {
   unsigned i;
@@ -429,7 +430,7 @@ q_omg_shallow_copyout_DataHolderSeq(
 
   if (src->_length > 0)
   {
-    dst->tags = ddsrt_malloc(src->_length * sizeof(nn_dataholder_t));
+    dst->tags = ddsrt_malloc(src->_length * sizeof(ddsi_dataholder_t));
     for (i = 0; i < src->_length; i++)
     {
       q_omg_shallow_copyout_DataHolder(&dst->tags[i], &src->_buffer[i]);
@@ -450,14 +451,14 @@ q_omg_shallow_free_DataHolderSeq(
 }
 
 void
-q_omg_shallow_free_nn_dataholderseq(
-    nn_dataholderseq_t *obj)
+q_omg_shallow_free_ddsi_dataholderseq(
+    ddsi_dataholderseq_t *obj)
 {
   unsigned i;
 
   for (i = 0; i  < obj->n; i++)
   {
-    q_omg_shallow_free_nn_dataholder(&(obj->tags[i]));
+    q_omg_shallow_free_ddsi_dataholder(&(obj->tags[i]));
   }
   if (obj->n > 0)
     ddsrt_free(obj->tags);
@@ -550,7 +551,7 @@ q_omg_shallow_copy_SubscriptionBuiltinTopicDataSecure(
     DDS_Security_SubscriptionBuiltinTopicDataSecure *dst,
     const ddsi_guid_t *guid,
     const struct dds_qos *qos,
-    const nn_security_info_t *secinfo)
+    const ddsi_security_info_t *secinfo)
 {
   memset(dst, 0, sizeof(DDS_Security_SubscriptionBuiltinTopicDataSecure));
 
@@ -627,7 +628,7 @@ q_omg_shallow_copy_PublicationBuiltinTopicDataSecure(
     DDS_Security_PublicationBuiltinTopicDataSecure *dst,
     const ddsi_guid_t *guid,
     const struct dds_qos *qos,
-    const nn_security_info_t *secinfo)
+    const ddsi_security_info_t *secinfo)
 {
 
   memset(dst, 0, sizeof(DDS_Security_PublicationBuiltinTopicDataSecure));

@@ -27,7 +27,7 @@ static nn_participant_generic_message_t test_msg_in =
   .message_class_id             = "testing message",
   .message_data                 = {
      .n = 4,
-     .tags = (nn_dataholder_t[]) {
+     .tags = (ddsi_dataholder_t[]) {
        {
          .class_id = "holder0",
          .properties = {
@@ -155,7 +155,7 @@ static nn_participant_generic_message_t test_msg_out =
   .message_class_id             = "testing message",
   .message_data                 = {
      .n = 4,
-     .tags = (nn_dataholder_t[]) {
+     .tags = (ddsi_dataholder_t[]) {
        {
          .class_id = "holder0",
          .properties = {

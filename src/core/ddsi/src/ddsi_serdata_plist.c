@@ -27,6 +27,7 @@
 #include "dds/ddsi/ddsi_serdata_plist.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/q_misc.h"
+#include "ddsi__plist.h"
 #include "dds/cdr/dds_cdrstream.h"
 
 static uint32_t serdata_plist_get_size (const struct ddsi_serdata *dcmn)

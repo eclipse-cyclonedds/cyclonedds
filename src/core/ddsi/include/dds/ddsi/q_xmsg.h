@@ -36,7 +36,7 @@ struct ddsi_proxy_writer;
 struct ddsi_writer;
 struct ddsi_participant;
 
-struct nn_adlink_participant_version_info;
+struct ddsi_adlink_participant_version_info;
 struct nn_xmsgpool;
 struct nn_xmsg_data;
 struct nn_xmsg;

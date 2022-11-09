@@ -48,7 +48,7 @@ struct ddsi_proxy_endpoint_common
   struct ddsi_type_pair *type_pair;
 #endif
 #ifdef DDS_HAS_SECURITY
-  nn_security_info_t security_info;
+  ddsi_security_info_t security_info;
 #endif
 };
 

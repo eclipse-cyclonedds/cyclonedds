@@ -29,6 +29,7 @@
 #include "dds/ddsi/q_addrset.h"
 #include "ddsi__endpoint.h"
 #include "ddsi__gc.h"
+#include "ddsi__plist.h"
 
 typedef struct proxy_purge_data {
   struct ddsi_proxy_participant *proxypp;
@@ -353,13 +354,13 @@ bool ddsi_new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_gui
     proxypp->privileged_pp_guid.entityid.u = NN_ENTITYID_PARTICIPANT;
   }
   if ((plist->present & PP_ADLINK_PARTICIPANT_VERSION_INFO) &&
-      (plist->adlink_participant_version_info.flags & NN_ADLINK_FL_DDSI2_PARTICIPANT_FLAG) &&
-      (plist->adlink_participant_version_info.flags & NN_ADLINK_FL_PARTICIPANT_IS_DDSI2))
+      (plist->adlink_participant_version_info.flags & DDSI_ADLINK_FL_DDSI2_PARTICIPANT_FLAG) &&
+      (plist->adlink_participant_version_info.flags & DDSI_ADLINK_FL_PARTICIPANT_IS_DDSI2))
     proxypp->is_ddsi2_pp = 1;
   else
     proxypp->is_ddsi2_pp = 0;
   if ((plist->present & PP_ADLINK_PARTICIPANT_VERSION_INFO) &&
-      (plist->adlink_participant_version_info.flags & NN_ADLINK_FL_MINIMAL_BES_MODE))
+      (plist->adlink_participant_version_info.flags & DDSI_ADLINK_FL_MINIMAL_BES_MODE))
     proxypp->minimal_bes_mode = 1;
   else
     proxypp->minimal_bes_mode = 0;
