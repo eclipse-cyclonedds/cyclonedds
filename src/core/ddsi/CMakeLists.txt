@@ -180,6 +180,7 @@ set(hdrs_private_ddsi
   ddsi__serdata_pserop.h
   ddsi__pmd.h
   ddsi__plist.h
+  ddsi__portmapping.h
 )
 
 if(ENABLE_LIFESPAN)
