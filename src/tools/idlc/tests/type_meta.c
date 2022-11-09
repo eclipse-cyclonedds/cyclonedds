@@ -104,6 +104,7 @@ static void xcdr2_ser (const void *obj, const dds_topic_descriptor_t *topic_desc
   os->m_size = 0;
   os->m_xcdr_version = DDS_CDR_ENC_VERSION_2;
   bool ret = dds_stream_write_sampleLE ((dds_ostreamLE_t *) os, obj, &desc);
+  dds_cdrstream_desc_fini (&desc);
   CU_ASSERT_FATAL (ret);
 }
 
