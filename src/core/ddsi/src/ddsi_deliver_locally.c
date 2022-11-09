@@ -20,12 +20,12 @@
 #include "dds/ddsi/ddsi_sertype.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_tkmap.h"
-#include "dds/ddsi/ddsi_rhc.h"
 #include "ddsi__entity_index.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "ddsi__entity.h"
 #include "ddsi__deliver_locally.h"
 #include "ddsi__endpoint.h"
+#include "ddsi__rhc.h"
 
 #define TYPE_SAMPLE_CACHE_SIZE 4
 

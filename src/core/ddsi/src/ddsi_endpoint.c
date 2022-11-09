@@ -19,7 +19,7 @@
 #include "ddsi__entity_match.h"
 #include "ddsi__participant.h"
 #include "dds/ddsi/ddsi_endpoint.h"
-#include "dds/ddsi/ddsi_rhc.h"
+#include "ddsi__rhc.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "ddsi__entity_index.h"
 #include "ddsi__mcgroup.h"

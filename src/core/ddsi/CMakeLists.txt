@@ -183,6 +183,7 @@ set(hdrs_private_ddsi
   ddsi__proxy_endpoint.h
   ddsi__proxy_participant.h
   ddsi__raweth.h
+  ddsi__rhc.h
 )
 
 if(ENABLE_LIFESPAN)

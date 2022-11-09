@@ -47,7 +47,7 @@
 #include "dds/ddsi/ddsi_proxy_endpoint.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/q_receive.h"
-#include "dds/ddsi/ddsi_rhc.h"
+#include "ddsi__rhc.h"
 #include "dds/ddsi/ddsi_deliver_locally.h"
 #include "dds/ddsi/q_transmit.h"
 #include "dds/ddsi/ddsi_domaingv.h"
