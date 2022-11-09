@@ -1761,7 +1761,7 @@ static void def_a_macro(
 
     /* Convert trigraphs for the environment which need trigraphs   */
     if (mcpp_mode == STD && option_flags.trig)
-        cnv_trigraph( def);
+        (void) cnv_trigraph( def);
     if (mcpp_mode == POST_STD && option_flags.dig)
         cnv_digraph( def);  /* Convert prior to installing macro    */
     definition = xmalloc( strlen( def) + 4);
