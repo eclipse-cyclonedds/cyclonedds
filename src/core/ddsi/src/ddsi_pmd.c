@@ -11,9 +11,9 @@
  */
 #include <stdlib.h>
 #include <string.h>
-#include "dds/ddsi/ddsi_pmd.h"
+#include "ddsi__pmd.h"
 #include "dds/ddsi/ddsi_serdata.h"
-#include "dds/ddsi/ddsi_serdata_pserop.h"
+#include "ddsi__serdata_pserop.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/q_bswap.h"
 #include "ddsi__entity.h"
@@ -29,15 +29,16 @@
 #include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/q_transmit.h"
 #include "dds/ddsi/q_xmsg.h"
+#include "dds/ddsi/ddsi_pmd.h"
 
 #include "dds/ddsi/sysdeps.h"
 
 /* note: treating guid prefix + kind as if it were a GUID because that matches
    the octet-sequence/sequence-of-uint32 distinction between the specified wire
    representation and the internal representation */
-const enum pserop participant_message_data_ops[] = { XG, XO, XSTOP };
+const enum ddsi_pserop participant_message_data_ops[] = { XG, XO, XSTOP };
 size_t participant_message_data_nops = sizeof (participant_message_data_ops) / sizeof (participant_message_data_ops[0]);
-const enum pserop participant_message_data_ops_key[] = { XG, XSTOP };
+const enum ddsi_pserop participant_message_data_ops_key[] = { XG, XSTOP };
 size_t participant_message_data_nops_key = sizeof (participant_message_data_ops_key) / sizeof (participant_message_data_ops_key[0]);
 
 void write_pmd_message_guid (struct ddsi_domaingv * const gv, struct ddsi_guid *pp_guid, unsigned pmd_kind)

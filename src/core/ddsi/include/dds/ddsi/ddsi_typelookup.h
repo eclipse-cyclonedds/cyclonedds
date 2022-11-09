@@ -22,7 +22,6 @@
 #include "dds/ddsrt/mh3.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_sertype.h"
-#include "dds/ddsi/ddsi_plist_generic.h"
 #include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/ddsi_xt_typeinfo.h"
 #include "dds/ddsi/ddsi_xt_typelookup.h"

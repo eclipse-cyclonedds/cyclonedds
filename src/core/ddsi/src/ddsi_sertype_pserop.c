@@ -20,9 +20,9 @@
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/q_freelist.h"
-#include "dds/ddsi/ddsi_plist_generic.h"
+#include "ddsi__plist_generic.h"
 #include "dds/ddsi/ddsi_sertype.h"
-#include "dds/ddsi/ddsi_serdata_pserop.h"
+#include "ddsi__serdata_pserop.h"
 #include "dds/ddsi/ddsi_typelookup.h"
 
 static bool sertype_pserop_equal (const struct ddsi_sertype *acmn, const struct ddsi_sertype *bcmn)
@@ -104,7 +104,7 @@ static void sertype_pserop_free_samples (const struct ddsi_sertype *sertype_comm
     char *ptr = ptrs[0];
     for (size_t i = 0; i < count; i++)
     {
-      plist_fini_generic (ptr, tp->ops, false);
+      ddsi_plist_fini_generic (ptr, tp->ops, false);
       ptr += size;
     }
     if (op & DDS_FREE_ALL_BIT)

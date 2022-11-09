@@ -13,7 +13,7 @@
 #include "CUnit/Theory.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
-#include "dds/ddsi/ddsi_security_msg.h"
+#include "ddsi__security_msg.h"
 #include "mem_ser.h"
 #include <assert.h>
 
@@ -292,7 +292,7 @@ CU_Test (ddsi_security_msg, serializer)
               &test_msg_in.related_message_identity);
 
   /* Check creation result. */
-  equal = plist_equal_generic(&msg_in, &test_msg_in, pserop_participant_generic_message);
+  equal = ddsi_plist_equal_generic (&msg_in, &test_msg_in, pserop_participant_generic_message);
   CU_ASSERT_FATAL(equal == true);
 
   /* Serialize the message. */
@@ -320,7 +320,7 @@ CU_Test (ddsi_security_msg, serializer)
   CU_ASSERT_FATAL (ret == DDS_RETCODE_OK);
 
   /* Check deserialization result. */
-  equal = plist_equal_generic(&msg_ser, &test_msg_out, pserop_participant_generic_message);
+  equal = ddsi_plist_equal_generic (&msg_ser, &test_msg_out, pserop_participant_generic_message);
   CU_ASSERT_FATAL(equal == true);
 
   /* Cleanup. */

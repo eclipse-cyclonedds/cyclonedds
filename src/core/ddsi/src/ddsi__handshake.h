@@ -42,7 +42,7 @@ typedef void (*ddsi_handshake_end_cb_t)(
 
 #ifdef DDS_HAS_SECURITY
 
-#include "dds/ddsi/ddsi_security_msg.h"
+#include "ddsi__security_msg.h"
 
 /**
  * @brief Release the handshake.

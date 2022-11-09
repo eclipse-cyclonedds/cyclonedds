@@ -9,12 +9,12 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef DDSI_SERDATA_PSEROP_H
-#define DDSI_SERDATA_PSEROP_H
+#ifndef DDSI__SERDATA_PSEROP_H
+#define DDSI__SERDATA_PSEROP_H
 
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_sertype.h"
-#include "dds/ddsi/ddsi_plist_generic.h"
+#include "ddsi__plist_generic.h"
 
 #include "dds/dds.h"
 
@@ -63,9 +63,9 @@ struct ddsi_sertype_pserop {
   uint16_t encoding_format; /* DDS_CDR_ENC_FORMAT_(PLAIN|DELIMITED|PL) */
   size_t memsize;
   size_t nops;
-  const enum pserop *ops;
+  const enum ddsi_pserop *ops;
   size_t nops_key;
-  const enum pserop *ops_key; /* NULL <=> no key; != NULL <=> 16-byte key at offset 0 */
+  const enum ddsi_pserop *ops_key; /* NULL <=> no key; != NULL <=> 16-byte key at offset 0 */
 };
 
 extern const struct ddsi_sertype_ops ddsi_sertype_ops_pserop;
@@ -75,4 +75,4 @@ extern const struct ddsi_serdata_ops ddsi_serdata_ops_pserop;
 }
 #endif
 
-#endif
+#endif /* DDSI__SERDATA_PSEROP_H */

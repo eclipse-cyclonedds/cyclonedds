@@ -48,12 +48,12 @@
 #include "dds/ddsi/q_lease.h"
 #include "dds/ddsi/q_feature_check.h"
 #include "dds/ddsi/ddsi_security_omg.h"
-#include "dds/ddsi/ddsi_pmd.h"
+#include "ddsi__pmd.h"
 #include "dds/ddsi/ddsi_typelib.h"
 #include "ddsi__endpoint.h"
 
 #ifdef DDS_HAS_SECURITY
-#include "dds/ddsi/ddsi_security_exchange.h"
+#include "ddsi__security_exchange.h"
 #endif
 
 typedef enum ddsi_sedp_kind {

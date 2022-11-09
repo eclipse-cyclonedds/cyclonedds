@@ -17,7 +17,6 @@
 #include "dds/ddsi/q_protocol.h"
 #include "dds/ddsi/q_freelist.h"
 #include "dds/ddsi/ddsi_serdata.h"
-#include "dds/ddsi/ddsi_plist_generic.h"
 #include "dds/ddsi/ddsi_typelib.h"
 #include "dds/ddsi/ddsi_typelookup.h"
 #include "dds/cdr/dds_cdrstream.h"

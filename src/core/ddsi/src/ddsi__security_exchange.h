@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef DDSI_SECURITY_EXCHANGE_H
-#define DDSI_SECURITY_EXCHANGE_H
+#ifndef DDSI__SECURITY_EXCHANGE_H
+#define DDSI__SECURITY_EXCHANGE_H
 
 #include "dds/features.h"
 
@@ -22,7 +22,7 @@ extern "C" {
 
 #include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/q_radmin.h"
-#include "dds/ddsi/ddsi_security_msg.h"
+#include "ddsi__security_msg.h"
 
 
 #define GMCLASSID_SECURITY_PARTICIPANT_CRYPTO_TOKENS    "dds.sec.participant_crypto_tokens"
@@ -47,4 +47,4 @@ bool write_crypto_reader_tokens(const struct ddsi_reader *rd, const struct ddsi_
 
 #endif /* DDS_HAS_SECURITY */
 
-#endif /* DDSI_SECURITY_EXCHANGE_H */
+#endif /* DDSI__SECURITY_EXCHANGE_H */

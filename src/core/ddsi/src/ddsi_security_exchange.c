@@ -19,10 +19,10 @@
 
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "ddsi__entity_index.h"
-#include "dds/ddsi/ddsi_security_exchange.h"
+#include "ddsi__security_exchange.h"
 #include "dds/ddsi/ddsi_security_omg.h"
 #include "ddsi__handshake.h"
-#include "dds/ddsi/ddsi_serdata_pserop.h"
+#include "ddsi__serdata_pserop.h"
 #include "dds/ddsi/q_ddsi_discovery.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/q_xmsg.h"

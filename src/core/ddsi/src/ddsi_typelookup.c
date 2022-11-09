@@ -17,7 +17,7 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_plist.h"
-#include "dds/ddsi/ddsi_plist_generic.h"
+#include "ddsi__plist_generic.h"
 #include "dds/ddsi/ddsi_guid.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_tkmap.h"

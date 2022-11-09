@@ -25,7 +25,7 @@
 #include "dds/cdr/dds_cdrstream.h"
 #include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/ddsi_serdata_pserop.h"
+#include "ddsi__serdata_pserop.h"
 
 static uint32_t serdata_pserop_get_size (const struct ddsi_serdata *dcmn)
 {
@@ -50,7 +50,7 @@ static void serdata_pserop_free (struct ddsi_serdata *dcmn)
   struct ddsi_serdata_pserop *d = (struct ddsi_serdata_pserop *) dcmn;
   const struct ddsi_sertype_pserop *tp = (const struct ddsi_sertype_pserop *) d->c.type;
   if (d->c.kind == SDK_DATA)
-    plist_fini_generic (d->sample, tp->ops, true);
+    ddsi_plist_fini_generic (d->sample, tp->ops, true);
   if (d->sample)
     ddsrt_free (d->sample);
   ddsrt_free (d);
@@ -89,12 +89,12 @@ static struct ddsi_serdata_pserop *serdata_pserop_new (const struct ddsi_sertype
 static struct ddsi_serdata *serdata_pserop_fix (const struct ddsi_sertype_pserop *tp, struct ddsi_serdata_pserop *d)
 {
   const bool needs_bswap = !CDR_ENC_IS_NATIVE (d->identifier);
-  const enum pserop *ops = (d->c.kind == SDK_DATA) ? tp->ops : tp->ops_key;
+  const enum ddsi_pserop *ops = (d->c.kind == SDK_DATA) ? tp->ops : tp->ops_key;
   d->c.hash = tp->c.serdata_basehash;
   if (ops != NULL)
   {
     assert (d->pos >= 16 && tp->memsize >= 16);
-    if (plist_deser_generic (d->sample, d->data, d->pos, needs_bswap, (d->c.kind == SDK_DATA) ? tp->ops : tp->ops_key) < 0)
+    if (ddsi_plist_deser_generic (d->sample, d->data, d->pos, needs_bswap, (d->c.kind == SDK_DATA) ? tp->ops : tp->ops_key) < 0)
     {
       ddsrt_free (d->sample);
       ddsrt_free (d);
@@ -174,8 +174,8 @@ static bool serdata_pserop_to_sample (const struct ddsi_serdata *serdata_common,
   else
   {
     const bool needs_bswap = !CDR_ENC_IS_NATIVE (d->identifier);
-    dds_return_t ret = plist_deser_generic (sample, d->data, d->pos, needs_bswap, tp->ops);
-    plist_unalias_generic (sample, tp->ops);
+    dds_return_t ret = ddsi_plist_deser_generic (sample, d->data, d->pos, needs_bswap, tp->ops);
+    ddsi_plist_unalias_generic (sample, tp->ops);
     assert (ret >= 0);
     (void) ret;
   }
@@ -216,7 +216,7 @@ static struct ddsi_serdata *serdata_pserop_from_sample (const struct ddsi_sertyp
   {
     void *data;
     size_t size;
-    if (plist_ser_generic (&data, &size, sample, (kind == SDK_DATA) ? tp->ops : tp->ops_key) < 0)
+    if (ddsi_plist_ser_generic (&data, &size, sample, (kind == SDK_DATA) ? tp->ops : tp->ops_key) < 0)
       return NULL;
     const size_t size4 = (size + 3) & ~(size_t)3;
     if ((d = serdata_pserop_new (tp, kind, size4, &header)) == NULL)
@@ -269,7 +269,7 @@ static void serdata_pserop_get_keyhash (const struct ddsi_serdata *serdata_commo
        ops_key is a prefix of ops */
     void *be;
     size_t besize;
-    (void) plist_ser_generic_be (&be, &besize, d->sample, tp->ops_key);
+    (void) ddsi_plist_ser_generic_be (&be, &besize, d->sample, tp->ops_key);
     assert (besize == 16); /* that's the deal with keys for now */
     if (!force_md5)
       memcpy (buf, be, 16);
@@ -288,7 +288,7 @@ static size_t serdata_pserop_print_pserop (const struct ddsi_sertype *sertype_co
 {
   const struct ddsi_serdata_pserop *d = (const struct ddsi_serdata_pserop *)serdata_common;
   const struct ddsi_sertype_pserop *tp = (const struct ddsi_sertype_pserop *)sertype_common;
-  return plist_print_generic (buf, size, d->sample, tp->ops);
+  return ddsi_plist_print_generic (buf, size, d->sample, tp->ops);
 }
 
 const struct ddsi_serdata_ops ddsi_serdata_ops_pserop = {

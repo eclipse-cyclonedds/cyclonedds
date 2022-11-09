@@ -28,7 +28,7 @@
 #include "dds/ddsi/ddsi_security_omg.h"
 #include "dds/security/core/dds_security_fsm.h"
 #include "dds/ddsi/ddsi_security_util.h"
-#include "dds/ddsi/ddsi_security_exchange.h"
+#include "ddsi__security_exchange.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/avl.h"
 

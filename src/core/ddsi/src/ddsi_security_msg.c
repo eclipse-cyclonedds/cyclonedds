@@ -21,13 +21,13 @@
 #include "dds/ddsi/q_misc.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "ddsi__entity_index.h"
-#include "dds/ddsi/ddsi_security_msg.h"
-#include "dds/ddsi/ddsi_plist_generic.h"
+#include "ddsi__security_msg.h"
+#include "ddsi__plist_generic.h"
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/security/core/dds_security_utils.h"
 
-const enum pserop pserop_participant_generic_message[] =
+const enum ddsi_pserop pserop_participant_generic_message[] =
 {
   /* nn_participant_generic_message */
   XG, Xl,              /* nn_message_identity_t message_identity         */
@@ -139,7 +139,7 @@ nn_participant_generic_message_deinit(
    nn_participant_generic_message_t *msg)
 {
   assert(msg);
-  plist_fini_generic(msg, pserop_participant_generic_message, true);
+  ddsi_plist_fini_generic (msg, pserop_participant_generic_message, true);
 }
 
 dds_return_t
@@ -148,7 +148,7 @@ nn_participant_generic_message_serialize(
    unsigned char **data,
    size_t *len)
 {
-  return plist_ser_generic ((void**)data, len, (void*)msg, pserop_participant_generic_message);
+  return ddsi_plist_ser_generic ((void**)data, len, (void*)msg, pserop_participant_generic_message);
 }
 
 dds_return_t
@@ -158,8 +158,8 @@ nn_participant_generic_message_deseralize(
    size_t len,
    bool bswap)
 {
-  assert(sizeof(nn_participant_generic_message_t) == plist_memsize_generic(pserop_participant_generic_message));
-  return plist_deser_generic (msg, data, len, bswap, pserop_participant_generic_message);
+  assert(sizeof(nn_participant_generic_message_t) == ddsi_plist_memsize_generic (pserop_participant_generic_message));
+  return ddsi_plist_deser_generic (msg, data, len, bswap, pserop_participant_generic_message);
 }
 
 int volatile_secure_data_filter(struct ddsi_writer *wr, struct ddsi_proxy_reader *prd, struct ddsi_serdata *serdata)

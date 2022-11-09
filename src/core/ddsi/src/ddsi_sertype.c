@@ -23,10 +23,10 @@
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/q_freelist.h"
 #include "dds/ddsi/ddsi_iid.h"
-#include "dds/ddsi/ddsi_plist_generic.h"
+#include "ddsi__plist_generic.h"
 #include "dds/ddsi/ddsi_sertype.h"
 #include "dds/ddsi/ddsi_serdata.h"
-#include "dds/ddsi/ddsi_serdata_pserop.h"
+#include "ddsi__serdata_pserop.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/cdr/dds_cdrstream.h"
 

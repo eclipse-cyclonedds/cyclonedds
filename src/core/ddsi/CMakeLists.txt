@@ -10,8 +10,6 @@
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
 
-
-
 set(srcs_ddsi
   ddsi_eth.c
   ddsi_ssl.c
@@ -93,14 +91,12 @@ set(hdrs_ddsi
   ddsi_raweth.h
   ddsi_vnet.h
   ddsi_locator.h
-  ddsi_plist_generic.h
   ddsi_security_util.h
   ddsi_security_omg.h
   ddsi_portmapping.h
   ddsi_serdata.h
   ddsi_sertype.h
   ddsi_serdata_cdr.h
-  ddsi_serdata_pserop.h
   ddsi_serdata_plist.h
   ddsi_statistics.h
   ddsi_iid.h
@@ -133,6 +129,7 @@ set(hdrs_ddsi
   ddsi_endpoint.h
   ddsi_proxy_endpoint.h
   ddsi_gc.h
+  ddsi_pmd.h
   q_addrset.h
   q_bitset.h
   q_bswap.h
@@ -179,28 +176,68 @@ set(hdrs_private_ddsi
   ddsi__nwpart.h
   ddsi__ownip.h
   ddsi__participant.h
+  ddsi__plist_generic.h
+  ddsi__serdata_pserop.h
+  ddsi__pmd.h
 )
 
 if(ENABLE_LIFESPAN)
-  list(APPEND srcs_ddsi ddsi_lifespan.c)
-  list(APPEND hdrs_ddsi ddsi_lifespan.h)
+  list(APPEND srcs_ddsi
+    ddsi_lifespan.c
+  )
+  list(APPEND hdrs_ddsi
+    ddsi_lifespan.h
+  )
 endif()
 if(ENABLE_DEADLINE_MISSED)
-  list(APPEND srcs_ddsi ddsi_deadline.c)
-  list(APPEND hdrs_ddsi ddsi_deadline.h)
+  list(APPEND srcs_ddsi
+    ddsi_deadline.c
+  )
+  list(APPEND hdrs_ddsi
+    ddsi_deadline.h
+  )
 endif()
 if(ENABLE_TYPE_DISCOVERY)
-  list(APPEND srcs_ddsi ddsi_xt_typeinfo.c ddsi_xt_typelookup.c ddsi_xt_typemap.c ddsi_typelookup.c ddsi_typewrap.c ddsi_typebuilder.c)
-  list(APPEND hdrs_ddsi ddsi_xt_typeinfo.h ddsi_xt_typelookup.h ddsi_xt_typemap.h ddsi_typelookup.h ddsi_typewrap.h ddsi_typebuilder.h)
-  list(APPEND hdrs_private_ddsi ddsi__xt_impl.h)
+  list(APPEND srcs_ddsi
+    ddsi_xt_typeinfo.c
+    ddsi_xt_typelookup.c
+    ddsi_xt_typemap.c
+    ddsi_typelookup.c
+    ddsi_typewrap.c
+    ddsi_typebuilder.c
+  )
+  list(APPEND hdrs_ddsi
+    ddsi_xt_typeinfo.h
+    ddsi_xt_typelookup.h
+    ddsi_xt_typemap.h
+    ddsi_typelookup.h
+    ddsi_typewrap.h
+    ddsi_typebuilder.h
+  )
+  list(APPEND hdrs_private_ddsi
+    ddsi__xt_impl.h
+  )
 endif()
 if(ENABLE_SECURITY)
-  list(APPEND srcs_ddsi ddsi_security_msg.c ddsi_security_exchange.c)
-  list(APPEND hdrs_ddsi ddsi_security_msg.h ddsi_security_exchange.h)
+  list(APPEND srcs_ddsi
+    ddsi_security_msg.c
+    ddsi_security_exchange.c
+  )
+  list(APPEND hdrs_ddsi
+    ddsi_security_msg.h
+  )
+  list(APPEND hdrs_private_ddsi
+    ddsi__security_msg.h
+    ddsi__security_exchange.h
+  )
 endif()
 if(ENABLE_SHM)
-  list(APPEND srcs_ddsi ddsi_shm_transport.c)
-  list(APPEND hdrs_ddsi ddsi_shm_transport.h)
+  list(APPEND srcs_ddsi
+    ddsi_shm_transport.c
+  )
+  list(APPEND hdrs_ddsi
+    ddsi_shm_transport.h
+  )
 endif()
 
 prepend(hdrs_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi/" ${hdrs_ddsi})

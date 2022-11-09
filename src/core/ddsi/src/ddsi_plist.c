@@ -41,7 +41,7 @@
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsi/q_misc.h" /* for vendor_is_... */
 
-#include "dds/ddsi/ddsi_plist_generic.h"
+#include "ddsi__plist_generic.h"
 #include "dds/ddsi/ddsi_security_omg.h"
 #include "dds/ddsi/ddsi_typelib.h"
 #include "dds/cdr/dds_cdrstream.h"
@@ -106,7 +106,7 @@ struct piddesc {
     /* descriptor for generic code: 12 is enough for the current set of
        parameters, compiler will warn if one ever tries to use more than
        will fit */
-    const enum pserop desc[12];
+    const enum ddsi_pserop desc[12];
     struct {
 dds_return_t (*deser) (void * __restrict dst, struct flagset *flagset, uint64_t flag, const struct dd * __restrict dd, struct ddsi_domaingv const * const gv);
       dds_return_t (*ser) (struct nn_xmsg *xmsg, nn_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo);
@@ -135,13 +135,13 @@ static enum do_locator_result do_locator (nn_locators_t *ls, uint64_t present, u
 static dds_return_t final_validation_qos (const dds_qos_t *dest, nn_protocol_version_t protocol_version, nn_vendorid_t vendorid, bool *dursvc_accepted_allzero, bool strict);
 static int partitions_equal (const void *srca, const void *srcb, size_t off);
 static dds_return_t ddsi_xqos_valid_strictness (const struct ddsrt_log_cfg *logcfg, const dds_qos_t *xqos, bool strict);
-static dds_return_t unalias_generic (void * __restrict dst, size_t * __restrict dstoff, bool gen_seq_aliased, const enum pserop * __restrict desc);
-static dds_return_t ser_generic (struct nn_xmsg *xmsg, nn_parameterid_t pid, const void *src, size_t srcoff, const enum pserop * __restrict desc, enum ddsrt_byte_order_selector bo);
-static bool equal_generic (const void *srcx, const void *srcy, size_t srcoff, const enum pserop * __restrict desc);
-static dds_return_t fini_generic (void * __restrict dst, size_t * __restrict dstoff, struct flagset *flagset, uint64_t flag, const enum pserop * __restrict desc);
-static dds_return_t valid_generic (const void *src, size_t srcoff, const enum pserop * __restrict desc);
+static dds_return_t unalias_generic (void * __restrict dst, size_t * __restrict dstoff, bool gen_seq_aliased, const enum ddsi_pserop * __restrict desc);
+static dds_return_t ser_generic (struct nn_xmsg *xmsg, nn_parameterid_t pid, const void *src, size_t srcoff, const enum ddsi_pserop * __restrict desc, enum ddsrt_byte_order_selector bo);
+static bool equal_generic (const void *srcx, const void *srcy, size_t srcoff, const enum ddsi_pserop * __restrict desc);
+static dds_return_t fini_generic (void * __restrict dst, size_t * __restrict dstoff, struct flagset *flagset, uint64_t flag, const enum ddsi_pserop * __restrict desc);
+static dds_return_t valid_generic (const void *src, size_t srcoff, const enum ddsi_pserop * __restrict desc);
 
-static size_t pserop_seralign(enum pserop op)
+static size_t pserop_seralign(enum ddsi_pserop op)
 {
   switch(op)
   {
@@ -485,7 +485,7 @@ static dds_return_t fini_locator (void * __restrict dst, size_t * __restrict dst
   return 0;
 }
 
-static const enum pserop* pserop_advance (const enum pserop * __restrict desc)
+static const enum ddsi_pserop* pserop_advance (const enum ddsi_pserop * __restrict desc)
 {
   /* Should not start on an end. */
   assert(*desc != XSTOP);
@@ -612,7 +612,7 @@ static bool print_type_consistency (char * __restrict *buf, size_t * __restrict 
   return prtf (buf, bufsize, "%d:%d%d%d%d%d", (int) x->kind, x->ignore_sequence_bounds, x->ignore_string_bounds, x->ignore_member_names, x->prevent_type_widening, x->force_type_validation);
 }
 
-const enum pserop desc_data_representation[] =  { XQ, Xs, XSTOP, XSTOP };
+const enum ddsi_pserop desc_data_representation[] =  { XQ, Xs, XSTOP, XSTOP };
 
 static dds_return_t deser_data_representation (void * __restrict dst, struct flagset *flagset, uint64_t flag, const struct dd * __restrict dd, struct ddsi_domaingv const * const gv)
 {
@@ -769,7 +769,7 @@ static bool print_type_information (char * __restrict *buf, size_t * __restrict 
 
 #endif /* DDS_HAS_TYPE_DISCOVERY */
 
-static size_t ser_generic_srcsize (const enum pserop * __restrict desc)
+static size_t ser_generic_srcsize (const enum ddsi_pserop * __restrict desc)
 {
   size_t srcoff = 0, srcalign = 0;
 #define SIMPLE(basecase_, type_) do {                          \
@@ -806,12 +806,12 @@ static size_t ser_generic_srcsize (const enum pserop * __restrict desc)
 #undef SIMPLE
 }
 
-size_t plist_memsize_generic (const enum pserop * __restrict desc)
+size_t ddsi_plist_memsize_generic (const enum ddsi_pserop * __restrict desc)
 {
   return ser_generic_srcsize (desc);
 }
 
-static bool fini_generic_embeddable (void * __restrict dst, size_t * __restrict dstoff, const enum pserop *desc, const enum pserop * const desc_end, bool aliased)
+static bool fini_generic_embeddable (void * __restrict dst, size_t * __restrict dstoff, const enum ddsi_pserop *desc, const enum ddsi_pserop * const desc_end, bool aliased)
 {
   bool freed = false;
 #define COMPLEX(basecase_, type_, cleanup_unaliased_, cleanup_always_) do { \
@@ -867,7 +867,7 @@ static bool fini_generic_embeddable (void * __restrict dst, size_t * __restrict 
   return freed;
 }
 
-static size_t pserop_memalign (enum pserop op)
+static size_t pserop_memalign (enum ddsi_pserop op)
 {
   switch (op)
   {
@@ -889,9 +889,9 @@ static size_t pserop_memalign (enum pserop op)
   return 0;
 }
 
-static dds_return_t deser_generic_r (void * __restrict dst, size_t * __restrict dstoff, struct flagset *flagset, uint64_t flag, const struct dd * __restrict dd, size_t * __restrict srcoff, const enum pserop * __restrict desc)
+static dds_return_t deser_generic_r (void * __restrict dst, size_t * __restrict dstoff, struct flagset *flagset, uint64_t flag, const struct dd * __restrict dd, size_t * __restrict srcoff, const enum ddsi_pserop * __restrict desc)
 {
-  enum pserop const * const desc_in = desc;
+  enum ddsi_pserop const * const desc_in = desc;
   size_t dstoff_in = *dstoff;
   /* very large buffers run a risk with alignment calculations; such buffers basically
      do not occur for discovery data, so checking makes sense */
@@ -918,7 +918,7 @@ static dds_return_t deser_generic_r (void * __restrict dst, size_t * __restrict 
         char ** const x = deser_generic_dst (dst, dstoff, dds_alignof (char *));
         ddsi_octetseq_t tmp;
         size_t tmpoff = 0;
-        if (deser_generic_r (&tmp, &tmpoff, flagset, flag, dd, srcoff, (enum pserop []) { XO, XSTOP }) < 0)
+        if (deser_generic_r (&tmp, &tmpoff, flagset, flag, dd, srcoff, (enum ddsi_pserop []) { XO, XSTOP }) < 0)
           goto fail;
         if (tmp.length < 1 || tmp.value[tmp.length - 1] != 0)
           goto fail;
@@ -1080,7 +1080,7 @@ fail:
   return DDS_RETCODE_BAD_PARAMETER;
 }
 
-static dds_return_t deser_generic (void * __restrict dst, struct flagset *flagset, uint64_t flag, const struct dd * __restrict dd, const enum pserop * __restrict desc)
+static dds_return_t deser_generic (void * __restrict dst, struct flagset *flagset, uint64_t flag, const struct dd * __restrict dd, const enum ddsi_pserop * __restrict desc)
 {
   size_t srcoff = 0, dstoff = 0;
   dds_return_t ret;
@@ -1093,7 +1093,7 @@ static dds_return_t deser_generic (void * __restrict dst, struct flagset *flagse
   return ret;
 }
 
-dds_return_t plist_deser_generic_srcoff (void * __restrict dst, const void * __restrict src, size_t srcsize, size_t *srcoff, bool bswap, const enum pserop * __restrict desc)
+dds_return_t ddsi_plist_deser_generic_srcoff (void * __restrict dst, const void * __restrict src, size_t srcsize, size_t *srcoff, bool bswap, const enum ddsi_pserop * __restrict desc)
 {
   struct dd dd = {
     .buf = src,
@@ -1108,13 +1108,13 @@ dds_return_t plist_deser_generic_srcoff (void * __restrict dst, const void * __r
   return deser_generic_r (dst, &dstoff, &fs, 1, &dd, srcoff, desc);
 }
 
-dds_return_t plist_deser_generic (void * __restrict dst, const void * __restrict src, size_t srcsize, bool bswap, const enum pserop * __restrict desc)
+dds_return_t ddsi_plist_deser_generic (void * __restrict dst, const void * __restrict src, size_t srcsize, bool bswap, const enum ddsi_pserop * __restrict desc)
 {
   size_t srcoff = 0;
-  return plist_deser_generic_srcoff (dst, src, srcsize, &srcoff, bswap, desc);
+  return ddsi_plist_deser_generic_srcoff (dst, src, srcsize, &srcoff, bswap, desc);
 }
 
-void plist_ser_generic_size_embeddable (size_t *dstoff, const void *src, size_t srcoff, const enum pserop * __restrict desc)
+void ddsi_plist_ser_generic_size_embeddable (size_t *dstoff, const void *src, size_t srcoff, const enum ddsi_pserop * __restrict desc)
 {
 #define COMPLEX(basecase_, type_, dstoff_update_) do {                  \
     type_ const *x = deser_generic_src (src, &srcoff, dds_alignof (type_)); \
@@ -1150,7 +1150,7 @@ void plist_ser_generic_size_embeddable (size_t *dstoff, const void *src, size_t 
         const size_t elem_size = ser_generic_srcsize (desc + 1);
         *dstoff = align4 (*dstoff) + 4;
         for (uint32_t i = 0; i < x->length; i++)
-          plist_ser_generic_size_embeddable (dstoff, x->value, i * elem_size, desc + 1);
+          ddsi_plist_ser_generic_size_embeddable (dstoff, x->value, i * elem_size, desc + 1);
       }); break;
       case Xopt: break;
     }
@@ -1162,14 +1162,14 @@ void plist_ser_generic_size_embeddable (size_t *dstoff, const void *src, size_t 
 #undef COMPLEX
 }
 
-static size_t ser_generic_size (const void *src, size_t srcoff, const enum pserop * __restrict desc)
+static size_t ser_generic_size (const void *src, size_t srcoff, const enum ddsi_pserop * __restrict desc)
 {
   size_t dstoff = 0;
-  plist_ser_generic_size_embeddable (&dstoff, src, srcoff, desc);
+  ddsi_plist_ser_generic_size_embeddable (&dstoff, src, srcoff, desc);
   return dstoff;
 }
 
-static uint32_t ser_generic_count (const ddsi_octetseq_t *src, size_t elem_size, const enum pserop * __restrict desc)
+static uint32_t ser_generic_count (const ddsi_octetseq_t *src, size_t elem_size, const enum ddsi_pserop * __restrict desc)
 {
   /* This whole thing exists solely for dealing with the vile "propagate" boolean, which must come first in an
      element, or one can't deserialize it at all.  Therefore, if desc doesn't start with XbPROP, all "length"
@@ -1184,7 +1184,7 @@ static uint32_t ser_generic_count (const ddsi_octetseq_t *src, size_t elem_size,
   return count;
 }
 
-dds_return_t plist_ser_generic_embeddable (char * const data, size_t *dstoff, const void *src, size_t srcoff, const enum pserop * __restrict desc, enum ddsrt_byte_order_selector bo)
+dds_return_t ddsi_plist_ser_generic_embeddable (char * const data, size_t *dstoff, const void *src, size_t srcoff, const enum ddsi_pserop * __restrict desc, enum ddsrt_byte_order_selector bo)
 {
   while (true)
   {
@@ -1321,7 +1321,7 @@ dds_return_t plist_ser_generic_embeddable (char * const data, size_t *dstoff, co
           const size_t elem_size = ser_generic_srcsize (desc + 1);
           *((uint32_t *) p) = ddsrt_toBO4u(bo, ser_generic_count (x, elem_size, desc + 1));
           for (uint32_t i = 0; i < x->length; i++)
-            plist_ser_generic_embeddable (data, dstoff, x->value, i * elem_size, desc + 1, bo);
+            ddsi_plist_ser_generic_embeddable (data, dstoff, x->value, i * elem_size, desc + 1, bo);
         }
         srcoff += sizeof (*x);
         break;
@@ -1335,14 +1335,14 @@ dds_return_t plist_ser_generic_embeddable (char * const data, size_t *dstoff, co
 
 
 
-static dds_return_t ser_generic (struct nn_xmsg *xmsg, nn_parameterid_t pid, const void *src, size_t srcoff, const enum pserop * __restrict desc, enum ddsrt_byte_order_selector bo)
+static dds_return_t ser_generic (struct nn_xmsg *xmsg, nn_parameterid_t pid, const void *src, size_t srcoff, const enum ddsi_pserop * __restrict desc, enum ddsrt_byte_order_selector bo)
 {
   char * const data = nn_xmsg_addpar_bo (xmsg, pid, ser_generic_size (src, srcoff, desc), bo);
   size_t dstoff = 0;
-  return plist_ser_generic_embeddable (data, &dstoff, src, srcoff, desc, bo);
+  return ddsi_plist_ser_generic_embeddable (data, &dstoff, src, srcoff, desc, bo);
 }
 
-dds_return_t plist_ser_generic (void **dst, size_t *dstsize, const void *src, const enum pserop * __restrict desc)
+dds_return_t ddsi_plist_ser_generic (void **dst, size_t *dstsize, const void *src, const enum ddsi_pserop * __restrict desc)
 {
   const size_t srcoff = 0;
   size_t dstoff = 0;
@@ -1350,12 +1350,12 @@ dds_return_t plist_ser_generic (void **dst, size_t *dstsize, const void *src, co
   *dstsize = ser_generic_size (src, srcoff, desc);
   if ((*dst = ddsrt_malloc (*dstsize == 0 ? 1 : *dstsize)) == NULL)
     return DDS_RETCODE_OUT_OF_RESOURCES;
-  ret = plist_ser_generic_embeddable (*dst, &dstoff, src, srcoff, desc, DDSRT_BOSEL_NATIVE);
+  ret = ddsi_plist_ser_generic_embeddable (*dst, &dstoff, src, srcoff, desc, DDSRT_BOSEL_NATIVE);
   assert (dstoff == *dstsize);
   return ret;
 }
 
-dds_return_t plist_ser_generic_be (void **dst, size_t *dstsize, const void *src, const enum pserop * __restrict desc)
+dds_return_t ddsi_plist_ser_generic_be (void **dst, size_t *dstsize, const void *src, const enum ddsi_pserop * __restrict desc)
 {
   const size_t srcoff = 0;
   size_t dstoff = 0;
@@ -1363,12 +1363,12 @@ dds_return_t plist_ser_generic_be (void **dst, size_t *dstsize, const void *src,
   *dstsize = ser_generic_size (src, srcoff, desc);
   if ((*dst = ddsrt_malloc (*dstsize == 0 ? 1 : *dstsize)) == NULL)
     return DDS_RETCODE_OUT_OF_RESOURCES;
-  ret = plist_ser_generic_embeddable (*dst, &dstoff, src, srcoff, desc, DDSRT_BOSEL_BE);
+  ret = ddsi_plist_ser_generic_embeddable (*dst, &dstoff, src, srcoff, desc, DDSRT_BOSEL_BE);
   assert (dstoff == *dstsize);
   return ret;
 }
 
-static dds_return_t unalias_generic (void * __restrict dst, size_t * __restrict dstoff, bool gen_seq_aliased, const enum pserop * __restrict desc)
+static dds_return_t unalias_generic (void * __restrict dst, size_t * __restrict dstoff, bool gen_seq_aliased, const enum ddsi_pserop * __restrict desc)
 {
 #define COMPLEX(basecase_, type_, ...) do {                      \
     type_ *x = deser_generic_dst (dst, dstoff, dds_alignof (type_)); \
@@ -1424,13 +1424,13 @@ static dds_return_t unalias_generic (void * __restrict dst, size_t * __restrict 
 #undef COMPLEX
 }
 
-dds_return_t plist_unalias_generic (void * __restrict dst, const enum pserop * __restrict desc)
+dds_return_t ddsi_plist_unalias_generic (void * __restrict dst, const enum ddsi_pserop * __restrict desc)
 {
   size_t dstoff = 0;
   return unalias_generic (dst, &dstoff, false, desc);
 }
 
-static bool unalias_generic_required (const enum pserop * __restrict desc)
+static bool unalias_generic_required (const enum ddsi_pserop * __restrict desc)
 {
   while (*desc != XSTOP)
   {
@@ -1445,25 +1445,25 @@ static bool unalias_generic_required (const enum pserop * __restrict desc)
   return false;
 }
 
-static bool fini_generic_required (const enum pserop * __restrict desc)
+static bool fini_generic_required (const enum ddsi_pserop * __restrict desc)
 {
   /* the two happen to be the same */
   return unalias_generic_required (desc);
 }
 
-static dds_return_t fini_generic (void * __restrict dst, size_t * __restrict dstoff, struct flagset *flagset, uint64_t flag, const enum pserop * __restrict desc)
+static dds_return_t fini_generic (void * __restrict dst, size_t * __restrict dstoff, struct flagset *flagset, uint64_t flag, const enum ddsi_pserop * __restrict desc)
 {
   (void)fini_generic_embeddable (dst, dstoff, desc, NULL, *flagset->aliased & flag);
   return 0;
 }
 
-void plist_fini_generic (void * __restrict dst, const enum pserop *desc, bool aliased)
+void ddsi_plist_fini_generic (void * __restrict dst, const enum ddsi_pserop *desc, bool aliased)
 {
   size_t dstoff = 0;
   (void)fini_generic_embeddable (dst, &dstoff, desc, NULL, aliased);
 }
 
-static dds_return_t valid_generic (const void *src, size_t srcoff, const enum pserop * __restrict desc)
+static dds_return_t valid_generic (const void *src, size_t srcoff, const enum ddsi_pserop * __restrict desc)
 {
 #define COMPLEX(basecase_, type_, cond_stmts_) do {                     \
     type_ const *x = deser_generic_src (src, &srcoff, dds_alignof (type_)); \
@@ -1513,7 +1513,7 @@ static dds_return_t valid_generic (const void *src, size_t srcoff, const enum ps
 #undef COMPLEX
 }
 
-static bool equal_generic (const void *srcx, const void *srcy, size_t srcoff, const enum pserop * __restrict desc)
+static bool equal_generic (const void *srcx, const void *srcy, size_t srcoff, const enum ddsi_pserop * __restrict desc)
 {
 #define COMPLEX(basecase_, type_, cond_stmts_) do {                      \
     type_ const *x = deser_generic_src (srcx, &srcoff, dds_alignof (type_)); \
@@ -1577,7 +1577,7 @@ static bool equal_generic (const void *srcx, const void *srcy, size_t srcoff, co
 #undef COMPLEX
 }
 
-bool plist_equal_generic (const void *srcx, const void *srcy, const enum pserop * __restrict desc)
+bool ddsi_plist_equal_generic (const void *srcx, const void *srcy, const enum ddsi_pserop * __restrict desc)
 {
   return equal_generic (srcx, srcy, 0, desc);
 }
@@ -1626,7 +1626,7 @@ static bool prtf_octetseq (char * __restrict *buf, size_t * __restrict bufsize, 
   return trunc ? prtf (buf, bufsize, "...") : true;
 }
 
-static bool print_generic1 (char * __restrict *buf, size_t * __restrict bufsize, const void *src, size_t srcoff, const enum pserop * __restrict desc, const char *sep)
+static bool print_generic1 (char * __restrict *buf, size_t * __restrict bufsize, const void *src, size_t srcoff, const enum ddsi_pserop * __restrict desc, const char *sep)
 {
   while (true)
   {
@@ -1783,7 +1783,7 @@ static bool print_generic1 (char * __restrict *buf, size_t * __restrict bufsize,
   }
 }
 
-static bool print_generic (char * __restrict *buf, size_t * __restrict bufsize, const void *src, size_t srcoff, const enum pserop * __restrict desc)
+static bool print_generic (char * __restrict *buf, size_t * __restrict bufsize, const void *src, size_t srcoff, const enum ddsi_pserop * __restrict desc)
 {
   return print_generic1 (buf, bufsize, src, srcoff, desc, "");
 }
@@ -3929,7 +3929,7 @@ void ddsi_plist_log (uint32_t cat, const struct ddsrt_log_cfg *logcfg, const dds
   plist_or_xqos_log (cat, logcfg, plist, 0, ~(uint64_t)0, ~(uint64_t)0);
 }
 
-size_t plist_print_generic (char * __restrict buf, size_t bufsize, const void * __restrict src, const enum pserop * __restrict desc)
+size_t ddsi_plist_print_generic (char * __restrict buf, size_t bufsize, const void * __restrict src, const enum ddsi_pserop * __restrict desc)
 {
   const size_t bufsize_in = bufsize;
   (void) print_generic (&buf, &bufsize, src, 0, desc);

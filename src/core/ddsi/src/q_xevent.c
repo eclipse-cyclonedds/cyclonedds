@@ -42,7 +42,7 @@
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_security_omg.h"
 #include "dds/ddsi/ddsi_tkmap.h"
-#include "dds/ddsi/ddsi_pmd.h"
+#include "ddsi__pmd.h"
 #include "ddsi__acknack.h"
 #include "ddsi__endpoint.h"
 #include "ddsi__entity_match.h"

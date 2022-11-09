@@ -50,7 +50,7 @@
 #include "dds/ddsi/q_debmon.h"
 #include "dds/ddsi/q_init.h"
 #include "dds/ddsi/ddsi_threadmon.h"
-#include "dds/ddsi/ddsi_pmd.h"
+#include "ddsi__pmd.h"
 #include "dds/ddsi/ddsi_xt_typelookup.h"
 #include "dds/ddsi/ddsi_typelookup.h"
 #include "dds/ddsi/ddsi_tran.h"
@@ -61,12 +61,12 @@
 #include "ddsi__mcgroup.h"
 #include "ddsi__nwpart.h"
 #include "dds/ddsi/ddsi_serdata_cdr.h"
-#include "dds/ddsi/ddsi_serdata_pserop.h"
+#include "ddsi__serdata_pserop.h"
 #include "dds/ddsi/ddsi_serdata_plist.h"
 #include "dds/ddsi/ddsi_security_omg.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/ddsi_iid.h"
-#include "dds/ddsi/ddsi_security_msg.h"
+#include "ddsi__security_msg.h"
 #include "ddsi__endpoint.h"
 #include "ddsi__gc.h"
 
@@ -799,7 +799,7 @@ static void wait_for_receive_threads (struct ddsi_domaingv *gv)
   }
 }
 
-static struct ddsi_sertype *make_special_type_pserop (const char *typename, size_t memsize, size_t nops, const enum pserop *ops, size_t nops_key, const enum pserop *ops_key)
+static struct ddsi_sertype *make_special_type_pserop (const char *typename, size_t memsize, size_t nops, const enum ddsi_pserop *ops, size_t nops_key, const enum ddsi_pserop *ops_key)
 {
   struct ddsi_sertype_pserop *st = ddsrt_malloc (sizeof (*st));
   memset (st, 0, sizeof (*st));
