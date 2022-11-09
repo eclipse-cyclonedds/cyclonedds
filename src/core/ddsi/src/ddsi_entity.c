@@ -72,6 +72,7 @@ void ddsi_entity_common_init (struct ddsi_entity_common *e, struct ddsi_domaingv
   if (ddsi_builtintopic_is_visible (gv->builtin_topic_interface, guid, vendorid))
   {
     e->tk = ddsi_builtintopic_get_tkmap_entry (gv->builtin_topic_interface, guid);
+    assert (e->tk != NULL); // analyzer doesn't see correlation between is_visible and get_tkmap_entry
     e->iid = e->tk->m_iid;
   }
   else
