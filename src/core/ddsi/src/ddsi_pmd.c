@@ -30,6 +30,7 @@
 #include "dds/ddsi/q_transmit.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/ddsi_pmd.h"
+#include "ddsi__proxy_participant.h"
 
 #include "dds/ddsi/sysdeps.h"
 

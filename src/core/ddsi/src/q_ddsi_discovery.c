@@ -53,6 +53,7 @@
 #include "ddsi__endpoint.h"
 #include "ddsi__plist.h"
 #include "ddsi__proxy_endpoint.h"
+#include "ddsi__proxy_participant.h"
 
 #ifdef DDS_HAS_SECURITY
 #include "ddsi__security_exchange.h"
@@ -849,7 +850,7 @@ static int handle_spdp_alive (const struct receiver_state *rst, seqno_t seq, dds
   if (datap->present & PP_ADLINK_PARTICIPANT_VERSION_INFO) {
     if ((datap->adlink_participant_version_info.flags & DDSI_ADLINK_FL_DDSI2_PARTICIPANT_FLAG) &&
         (datap->adlink_participant_version_info.flags & DDSI_ADLINK_FL_PARTICIPANT_IS_DDSI2))
-      custom_flags |= CF_PARTICIPANT_IS_DDSI2;
+      custom_flags |= DDSI_CF_PARTICIPANT_IS_DDSI2;
 
     GVLOGDISC (" (0x%08"PRIx32"-0x%08"PRIx32"-0x%08"PRIx32"-0x%08"PRIx32"-0x%08"PRIx32" %s)",
                datap->adlink_participant_version_info.version,
@@ -876,7 +877,7 @@ static int handle_spdp_alive (const struct receiver_state *rst, seqno_t seq, dds
        until the "privileged" one expires anyway */
     lease_duration = DDS_INFINITY;
   }
-  else if (vendor_is_eclipse_or_opensplice (rst->vendor) && !(custom_flags & CF_PARTICIPANT_IS_DDSI2))
+  else if (vendor_is_eclipse_or_opensplice (rst->vendor) && !(custom_flags & DDSI_CF_PARTICIPANT_IS_DDSI2))
   {
     /* Non-DDSI2 participants are made dependent on DDSI2 (but DDSI2
        itself need not be discovered yet) */
@@ -964,7 +965,7 @@ static int handle_spdp_alive (const struct receiver_state *rst, seqno_t seq, dds
       GVLOGDISC ("directed SPDP packet -> not responding\n");
     }
 
-    if (custom_flags & CF_PARTICIPANT_IS_DDSI2)
+    if (custom_flags & DDSI_CF_PARTICIPANT_IS_DDSI2)
     {
       /* If we just discovered DDSI2, make sure any existing
          participants served by it are made dependent on it */
@@ -1440,7 +1441,7 @@ static struct ddsi_proxy_participant *implicitly_create_proxypp (struct ddsi_dom
        doing anything about (1).  That means we fall back to the legacy mode of locally generating
        GIDs but leaving the system id unchanged if the remote is OSPL.  */
     actual_vendorid = (datap->present & PP_VENDORID) ?  datap->vendorid : vendorid;
-    (void) ddsi_new_proxy_participant (gv, ppguid, 0, &privguid, new_addrset(), new_addrset(), &pp_plist, DDS_INFINITY, actual_vendorid, CF_IMPLICITLY_CREATED_PROXYPP, timestamp, seq);
+    (void) ddsi_new_proxy_participant (gv, ppguid, 0, &privguid, new_addrset(), new_addrset(), &pp_plist, DDS_INFINITY, actual_vendorid, DDSI_CF_IMPLICITLY_CREATED_PROXYPP, timestamp, seq);
   }
   else if (ppguid->prefix.u[0] == src_guid_prefix->u[0] && vendor_is_eclipse_or_opensplice (vendorid))
   {
@@ -1474,7 +1475,7 @@ static struct ddsi_proxy_participant *implicitly_create_proxypp (struct ddsi_dom
       ddsrt_mutex_unlock (&privpp->e.lock);
 
       pp_plist.adlink_participant_version_info.flags &= ~DDSI_ADLINK_FL_PARTICIPANT_IS_DDSI2;
-      ddsi_new_proxy_participant (gv, ppguid, 0, &privguid, as_default, as_meta, &pp_plist, DDS_INFINITY, vendorid, CF_IMPLICITLY_CREATED_PROXYPP | CF_PROXYPP_NO_SPDP, timestamp, seq);
+      ddsi_new_proxy_participant (gv, ppguid, 0, &privguid, as_default, as_meta, &pp_plist, DDS_INFINITY, vendorid, DDSI_CF_IMPLICITLY_CREATED_PROXYPP | DDSI_CF_PROXYPP_NO_SPDP, timestamp, seq);
     }
   }
 

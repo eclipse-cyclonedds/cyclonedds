@@ -71,6 +71,7 @@
 #include "ddsi__gc.h"
 #include "ddsi__plist.h"
 #include "ddsi__portmapping.h"
+#include "ddsi__proxy_participant.h"
 
 #include "dds__whc.h"
 #include "dds/cdr/dds_cdrstream.h"

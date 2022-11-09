@@ -29,6 +29,7 @@
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_ssl.h"
+#include "ddsi__proxy_participant.h"
 
 #define INVALID_PORT (~0u)
 

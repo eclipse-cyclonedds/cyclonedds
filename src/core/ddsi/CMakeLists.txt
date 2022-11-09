@@ -182,6 +182,7 @@ set(hdrs_private_ddsi
   ddsi__plist.h
   ddsi__portmapping.h
   ddsi__proxy_endpoint.h
+  ddsi__proxy_participant.h
 )
 
 if(ENABLE_LIFESPAN)

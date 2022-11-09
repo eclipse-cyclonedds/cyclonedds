@@ -31,6 +31,7 @@
 #include "ddsi__gc.h"
 #include "ddsi__plist.h"
 #include "ddsi__proxy_endpoint.h"
+#include "ddsi__proxy_participant.h"
 
 typedef struct proxy_purge_data {
   struct ddsi_proxy_participant *proxypp;
@@ -365,8 +366,8 @@ bool ddsi_new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_gui
     proxypp->minimal_bes_mode = 1;
   else
     proxypp->minimal_bes_mode = 0;
-  proxypp->implicitly_created = ((custom_flags & CF_IMPLICITLY_CREATED_PROXYPP) != 0);
-  proxypp->proxypp_have_spdp = ((custom_flags & CF_PROXYPP_NO_SPDP) == 0);
+  proxypp->implicitly_created = ((custom_flags & DDSI_CF_IMPLICITLY_CREATED_PROXYPP) != 0);
+  proxypp->proxypp_have_spdp = ((custom_flags & DDSI_CF_PROXYPP_NO_SPDP) == 0);
   if (plist->present & PP_CYCLONE_RECEIVE_BUFFER_SIZE)
     proxypp->receive_buffer_size = plist->cyclone_receive_buffer_size;
   else /* default to what we use */

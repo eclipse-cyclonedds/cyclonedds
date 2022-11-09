@@ -40,6 +40,7 @@
 #include "dds/ddsi/ddsi_gc.h"
 #include "ddsi__endpoint.h"
 #include "ddsi__proxy_endpoint.h"
+#include "ddsi__proxy_participant.h"
 
 /* This is absolute bottom for signed integers, where -x = x and yet x
    != 0 -- and note that it had better be 2's complement machine! */
