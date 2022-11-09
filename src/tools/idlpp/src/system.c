@@ -1763,7 +1763,7 @@ static void def_a_macro(
     if (mcpp_mode == STD && option_flags.trig)
         (void) cnv_trigraph( def);
     if (mcpp_mode == POST_STD && option_flags.dig)
-        cnv_digraph( def);  /* Convert prior to installing macro    */
+        (void) cnv_digraph( def);  /* Convert prior to installing macro    */
     definition = xmalloc( strlen( def) + 4);
     strcpy( definition, def);
     if ((cp = strchr( definition, '=')) != NULL) {
