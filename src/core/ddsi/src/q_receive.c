@@ -62,6 +62,7 @@
 #include "ddsi__endpoint.h"
 #include "ddsi__entity_match.h"
 #include "ddsi__plist.h"
+#include "ddsi__proxy_endpoint.h"
 
 #include "dds/cdr/dds_cdrstream.h"
 #include "dds__whc.h"

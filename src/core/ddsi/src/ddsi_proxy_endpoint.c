@@ -30,6 +30,7 @@
 #include "ddsi__endpoint.h"
 #include "ddsi__gc.h"
 #include "ddsi__plist.h"
+#include "ddsi__proxy_endpoint.h"
 
 const ddsrt_avl_treedef_t ddsi_pwr_readers_treedef =
   DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct ddsi_pwr_rd_match, avlnode), offsetof (struct ddsi_pwr_rd_match, rd_guid), ddsi_compare_guid, 0);

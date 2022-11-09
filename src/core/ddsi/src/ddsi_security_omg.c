@@ -52,6 +52,7 @@
 #include "dds/ddsi/sysdeps.h"
 #include "ddsi__entity_match.h"
 #include "ddsi__plist.h"
+#include "ddsi__proxy_endpoint.h"
 
 #define AUTH_NAME "Authentication"
 #define AC_NAME "Access Control"

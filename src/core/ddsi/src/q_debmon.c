@@ -42,6 +42,7 @@
 #include "dds/ddsi/ddsi_tran.h"
 #include "dds/ddsi/ddsi_tcp.h"
 #include "ddsi__endpoint.h"
+#include "ddsi__proxy_endpoint.h"
 
 #include "dds__whc.h"
 

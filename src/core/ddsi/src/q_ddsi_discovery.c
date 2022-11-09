@@ -52,6 +52,7 @@
 #include "dds/ddsi/ddsi_typelib.h"
 #include "ddsi__endpoint.h"
 #include "ddsi__plist.h"
+#include "ddsi__proxy_endpoint.h"
 
 #ifdef DDS_HAS_SECURITY
 #include "ddsi__security_exchange.h"

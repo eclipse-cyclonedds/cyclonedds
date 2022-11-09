@@ -28,6 +28,7 @@
 #include "dds/ddsi/ddsi_xt_typelookup.h"
 #include "dds/ddsi/q_addrset.h"
 #include "ddsi__entity_match.h"
+#include "ddsi__proxy_endpoint.h"
 #include "dds/ddsrt/cdtors.h"
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/process.h"

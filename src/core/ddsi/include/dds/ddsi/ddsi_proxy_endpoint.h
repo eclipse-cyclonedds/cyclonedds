@@ -15,8 +15,6 @@
 #include "dds/export.h"
 #include "dds/features.h"
 
-#include "dds/ddsrt/avl.h"
-#include "dds/ddsrt/atomics.h"
 #include "dds/ddsi/ddsi_guid.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_entity.h"
@@ -28,9 +26,7 @@ extern "C" {
 
 struct ddsi_proxy_participant;
 struct ddsi_proxy_reader;
-struct ddsi_proxy_writer;
 struct ddsi_writer;
-struct ddsi_alive_state;
 struct dds_qos;
 struct addrset;
 
@@ -110,36 +106,6 @@ struct ddsi_proxy_reader {
   uint32_t receive_buffer_size; /* assumed receive buffer size inherited from proxypp */
   ddsi_filter_fn_t filter;
 };
-
-extern const ddsrt_avl_treedef_t ddsi_pwr_readers_treedef;
-extern const ddsrt_avl_treedef_t ddsi_prd_writers_treedef;
-
-void ddsi_proxy_writer_set_alive_may_unlock (struct ddsi_proxy_writer *pwr, bool notify);
-int ddsi_proxy_writer_set_notalive (struct ddsi_proxy_writer *pwr, bool notify);
-void ddsi_proxy_writer_get_alive_state (struct ddsi_proxy_writer *pwr, struct ddsi_alive_state *st);
-struct ddsi_entity_common *ddsi_entity_common_from_proxy_endpoint_common (const struct ddsi_proxy_endpoint_common *c);
-bool ddsi_is_proxy_endpoint (const struct ddsi_entity_common *e);
-
-
-/* To create a new proxy writer or reader; the proxy participant is
-   determined from the GUID and must exist. */
-int ddsi_new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct addrset *as, const struct ddsi_plist *plist, struct nn_dqueue *dqueue, struct xeventq *evq, ddsrt_wctime_t timestamp, seqno_t seq);
-int ddsi_new_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct addrset *as, const struct ddsi_plist *plist, ddsrt_wctime_t timestamp, seqno_t seq
-#ifdef DDS_HAS_SSM
-, int favours_ssm
-#endif
-);
-
-/* To delete a proxy writer or reader; these synchronously hide it
-   from the outside world, preventing it from being matched to a
-   reader or writer. Actual deletion is scheduled in the future, when
-   no outstanding references may still exist (determined by checking
-   thread progress, &c.). */
-int ddsi_delete_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, ddsrt_wctime_t timestamp, int isimplicit);
-int ddsi_delete_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, ddsrt_wctime_t timestamp, int isimplicit);
-
-void ddsi_update_proxy_reader (struct ddsi_proxy_reader *prd, seqno_t seq, struct addrset *as, const struct dds_qos *xqos, ddsrt_wctime_t timestamp);
-void ddsi_update_proxy_writer (struct ddsi_proxy_writer *pwr, seqno_t seq, struct addrset *as, const struct dds_qos *xqos, ddsrt_wctime_t timestamp);
 
 #if defined (__cplusplus)
 }
