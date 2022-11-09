@@ -4741,8 +4741,8 @@ static void do_preprocessed( void)
         strcpy( comment - 2, "\n");         /* Remove the comment   */
         unget_string( lbuf + 8, NULL);
         do_define( FALSE, 0);
-        get_ch();                               /* '\n' */
-        get_ch();                               /* Clear the "file" */
+        (void) get_ch();                               /* '\n' */
+        (void) get_ch();                               /* Clear the "file" */
         unget_ch();                             /* infile == file   */
     }
     file->bptr = file->buffer + strlen( file->buffer);

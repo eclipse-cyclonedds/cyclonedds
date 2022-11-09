@@ -910,7 +910,7 @@ static char *   close_macro_inf(
         *out_p++ = (char)((m_num % UCHARMAX) + 1);
     }
     *out_p = EOS;
-    get_ch();                               /* Clear the garbage    */
+    (void) get_ch();                               /* Clear the garbage    */
     unget_ch();
     if (infile->fp || in_src_n) {
         if (infile->fp) {           /* Macro call on source file    */
@@ -1192,8 +1192,8 @@ static char *   catenate(
                 c = get_ch();               /*  enabling to replace */
             } else if (c == IN_SRC) {       /* Remove IN_SRC        */
                 if (trace_macro) {
-                    get_ch();               /* Also its number      */
-                    get_ch();
+                    (void) get_ch();               /* Also its number      */
+                    (void) get_ch();
                 }
                 c = get_ch();
             }
@@ -1206,8 +1206,8 @@ static char *   catenate(
         break;
     case IN_SRC:
         if (trace_macro) {
-            get_ch();
-            get_ch();
+            (void) get_ch();
+            (void) get_ch();
         }
         /* Fall through */
     case DEF_MAGIC:
@@ -1238,7 +1238,7 @@ static char *   catenate(
             }
             infile->bptr += strlen( infile->bptr);
         }
-        get_ch();                           /* To the parent "file" */
+        (void) get_ch();                           /* To the parent "file" */
         unget_ch();
     }
 
@@ -1395,7 +1395,7 @@ static char *     remove_magics(
         (void) scan_token( c, &ap, ep);
     }
     if (file == infile)
-        get_ch();                               /* Clear the "file" */
+        (void) get_ch();                               /* Clear the "file" */
     unget_ch();
     if (space == ep - 1)
         ep--;                       /* Remove trailing white space  */
@@ -1550,7 +1550,7 @@ static char *     remove_magics(
         tp--;
     *tp = EOS;
     if (file == infile)
-        get_ch();                               /* Clear the "file" */
+        (void) get_ch();                               /* Clear the "file" */
     unget_ch();
 
 done:
@@ -1679,8 +1679,8 @@ static char *   stringize(
             continue;                   /* Skip inserted separator  */
         } else if (c == IN_SRC) {           /* Skip magics          */
             if (trace_macro) {
-                get_ch();
-                get_ch();
+                (void) get_ch();
+                (void) get_ch();
             }
             continue;
         } else if (c == '\\') {
@@ -1688,21 +1688,21 @@ static char *   stringize(
         } else if (c == MAC_INF) {  /* Remove intervening magics    */
             switch (c = get_ch()) {
             case MAC_ARG_START  :
-                get_ch();
+                (void) get_ch();
                 /* Fall through */
             case MAC_CALL_START :
-                get_ch();
-                get_ch();
+                (void) get_ch();
+                (void) get_ch();
                 break;
             }
             if (option_flags.v) {
                 switch (c) {
                 case MAC_ARG_END    :
-                    get_ch();
+                    (void) get_ch();
                     /* Fall through */
                 case MAC_CALL_END   :
-                    get_ch();
-                    get_ch();
+                    (void) get_ch();
+                    (void) get_ch();
                     break;
                 }
             }
@@ -1764,7 +1764,7 @@ static char *   stringize(
         if (*infile->bptr != EOS)           /* More than a token    */
             invalid = TRUE; /* Diagnose after clearing the "file"   */
         infile->bptr += strlen( infile->bptr);
-        get_ch();                           /* Clear the "file"     */
+        (void) get_ch();                           /* Clear the "file"     */
         unget_ch();
         if (invalid)
             diag_macro( CERROR
@@ -1905,7 +1905,7 @@ static char *   rescan(
     if (! disable_repl( outer)) /* Don't re-replace replacing macro */
         return  NULL;               /* Too deeply nested macro call */
     if (mcpp_mode == STD) {
-        get_ch();                   /* Clear empty "file"s          */
+        (void) get_ch();                   /* Clear empty "file"s          */
         unget_ch();                 /*      for diagnostic          */
         cur_cp = infile->bptr;      /* Remember current location    */
     }
@@ -2987,7 +2987,7 @@ static void skip_macro( void)
         return;
     while (infile->fp == NULL) {            /* Stacked stuff        */
         infile->bptr += strlen( infile->bptr);
-        get_ch();                           /* To the parent "file" */
+        (void) get_ch();                           /* To the parent "file" */
     }
     unget_ch();
 }
