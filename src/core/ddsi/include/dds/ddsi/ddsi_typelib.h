@@ -72,6 +72,7 @@ bool ddsi_typeinfo_valid (const ddsi_typeinfo_t *typeinfo);
 
 DDS_EXPORT ddsi_typemap_t *ddsi_typemap_deser (const unsigned char *data, uint32_t sz);
 DDS_EXPORT void ddsi_typemap_fini (ddsi_typemap_t *typemap);
+DDS_EXPORT bool ddsi_typemap_equal (const ddsi_typemap_t *a, const ddsi_typemap_t *b);
 
 void ddsi_type_register_dep (struct ddsi_domaingv *gv, const ddsi_typeid_t *src_type_id, struct ddsi_type **dst_dep_type, const struct DDS_XTypes_TypeIdentifier *dep_type_id);
 void ddsi_type_ref_locked (struct ddsi_domaingv *gv, struct ddsi_type **type, const struct ddsi_type *src);

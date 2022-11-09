@@ -237,6 +237,70 @@ void ddsi_typemap_fini (ddsi_typemap_t *typemap)
   dds_stream_free_sample (typemap, DDS_XTypes_TypeMapping_desc.m_ops);
 }
 
+static bool ti_to_pairs_equal (const dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectPair *a, const dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectPair *b)
+{
+  if (a->_length != b->_length)
+    return false;
+
+  struct dds_cdrstream_desc desc;
+  dds_cdrstream_desc_from_topic_desc (&desc, &DDS_XTypes_TypeObject_desc);
+
+  for (uint32_t n = 0; n < a->_length; n++)
+  {
+    struct DDS_XTypes_TypeObject *to_b = NULL;
+    for (uint32_t m = 0; !to_b && m < b->_length; m++)
+    {
+      if (!ddsi_typeid_compare_impl (&a->_buffer[n].type_identifier, &b->_buffer[m].type_identifier))
+        to_b = &b->_buffer[m].type_object;
+    }
+    if (to_b == NULL)
+      return false;
+
+    dds_ostream_t to_a_ser = { NULL, 0, 0, DDS_CDR_ENC_VERSION_2 };
+    dds_ostream_t to_b_ser = { NULL, 0, 0, DDS_CDR_ENC_VERSION_2 };
+    dds_stream_write_sample (&to_a_ser, &a->_buffer[n].type_object, &desc);
+    dds_stream_write_sample (&to_b_ser, &b->_buffer[n].type_object, &desc);
+    if (to_a_ser.m_index != to_b_ser.m_index)
+      return false;
+    if (memcmp (to_a_ser.m_buffer, to_b_ser.m_buffer, to_a_ser.m_index))
+      return false;
+    dds_ostream_fini (&to_a_ser);
+    dds_ostream_fini (&to_b_ser);
+  }
+  return true;
+}
+
+static bool ti_pairs_equal (const dds_sequence_DDS_XTypes_TypeIdentifierPair *a, const dds_sequence_DDS_XTypes_TypeIdentifierPair *b)
+{
+  if (a->_length != b->_length)
+    return false;
+  for (uint32_t n = 0; n < a->_length; n++)
+  {
+    bool found = false;
+    for (uint32_t m = 0; !found && m < b->_length; m++)
+    {
+      if (!ddsi_typeid_compare_impl (&a->_buffer[n].type_identifier1, &b->_buffer[m].type_identifier1))
+      {
+        if (ddsi_typeid_compare_impl (&a->_buffer[n].type_identifier2, &b->_buffer[m].type_identifier2))
+          return false;
+        found = true;
+      }
+    }
+    if (!found)
+      return false;
+  }
+  return true;
+}
+
+bool ddsi_typemap_equal (const ddsi_typemap_t *a, const ddsi_typemap_t *b)
+{
+  if (a == NULL || b == NULL)
+    return a == b;
+  return ti_to_pairs_equal (&a->x.identifier_object_pair_minimal, &b->x.identifier_object_pair_minimal)
+      && ti_to_pairs_equal (&a->x.identifier_object_pair_complete, &b->x.identifier_object_pair_complete)
+      && ti_pairs_equal (&a->x.identifier_complete_minimal, &b->x.identifier_complete_minimal);
+}
+
 static bool ddsi_type_proxy_guid_exists (struct ddsi_type *type, const ddsi_guid_t *proxy_guid)
 {
   struct ddsi_type_proxy_guid_list_iter it;

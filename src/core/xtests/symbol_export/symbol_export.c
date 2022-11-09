@@ -642,6 +642,7 @@ int main (int argc, char **argv)
   ddsi_typeinfo_complete_typeid (ptr);
   ddsi_typemap_deser (ptr, 0);
   ddsi_typemap_fini (ptr);
+  ddsi_typemap_equal (ptr, ptr);
   ddsi_type_lookup (ptr, ptr);
   ddsi_type_compare (ptr, ptr);
 
