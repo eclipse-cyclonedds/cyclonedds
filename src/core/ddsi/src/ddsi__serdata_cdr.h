@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef DDSI_SERDATA_CDR_H
-#define DDSI_SERDATA_CDR_H
+#ifndef DDSI__SERDATA_CDR_H
+#define DDSI__SERDATA_CDR_H
 
 #include "dds/ddsrt/endian.h"
 #include "dds/ddsrt/avl.h"
@@ -97,4 +97,4 @@ dds_return_t ddsi_sertype_cdr_init (const struct ddsi_domaingv *gv, struct ddsi_
 }
 #endif
 
-#endif
+#endif /* DDSI__SERDATA_CDR_H */

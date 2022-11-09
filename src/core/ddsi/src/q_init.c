@@ -60,7 +60,7 @@
 #include "dds/ddsi/ddsi_vnet.h"
 #include "ddsi__mcgroup.h"
 #include "ddsi__nwpart.h"
-#include "dds/ddsi/ddsi_serdata_cdr.h"
+#include "ddsi__serdata_cdr.h"
 #include "ddsi__serdata_pserop.h"
 #include "dds/ddsi/ddsi_serdata_plist.h"
 #include "ddsi__security_omg.h"

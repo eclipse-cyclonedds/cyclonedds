@@ -30,7 +30,7 @@
 #include "ddsi__xt_impl.h"
 #include "dds/ddsi/ddsi_xt_typemap.h"
 #include "dds/ddsi/ddsi_typelookup.h"
-#include "dds/ddsi/ddsi_serdata_cdr.h"
+#include "ddsi__serdata_cdr.h"
 #include "dds/ddsc/dds_public_impl.h"
 #include "ddsi__list_tmpl.h"
 

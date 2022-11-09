@@ -20,7 +20,7 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_sertype.h"
-#include "dds/ddsi/ddsi_serdata_cdr.h"
+#include "ddsi__serdata_cdr.h"
 #include "dds/cdr/dds_cdrstream.h"
 
 

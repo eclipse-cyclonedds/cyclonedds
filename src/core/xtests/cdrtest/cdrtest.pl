@@ -62,7 +62,7 @@ print CYC <<EOF;
 #include "dds/ddsrt/random.h"
 #include "dds/ddsrt/sockets.h"
 #include "dds/cdr/dds_cdrstream.h"
-#include "dds/ddsi/ddsi_serdata_cdr.h"
+#include "ddsi__serdata_cdr.h"
 
 // OpenSplice includes
 #include "c_base.h"

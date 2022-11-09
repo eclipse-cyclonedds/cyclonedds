@@ -25,7 +25,7 @@
 #include "dds/cdr/dds_cdrstream.h"
 #include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/ddsi_serdata_cdr.h"
+#include "ddsi__serdata_cdr.h"
 
 #define DEFAULT_NEW_SIZE 128
 #define CHUNK_SIZE 128
