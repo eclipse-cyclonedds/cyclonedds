@@ -670,9 +670,9 @@ static dds_return_t xcdr2_ser (const void *obj, const dds_topic_descriptor_t *to
   os->m_index = 0;
   os->m_size = 0;
   os->m_xcdr_version = DDS_CDR_ENC_VERSION_2;
-  if (!dds_stream_write_sampleLE ((dds_ostreamLE_t *) os, obj, &desc))
-    return DDS_RETCODE_BAD_PARAMETER;
-  return DDS_RETCODE_OK;
+  dds_return_t ret = dds_stream_write_sampleLE ((dds_ostreamLE_t *) os, obj, &desc) ? DDS_RETCODE_OK : DDS_RETCODE_BAD_PARAMETER;
+  dds_cdrstream_desc_fini (&desc);
+  return ret;
 }
 
 static dds_return_t get_typeid_with_size (DDS_XTypes_TypeIdentifierWithSize *typeid_with_size, const DDS_XTypes_TypeIdentifier *ti, const DDS_XTypes_TypeObject *to)

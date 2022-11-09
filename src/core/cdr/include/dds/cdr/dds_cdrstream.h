@@ -150,6 +150,7 @@ uint16_t dds_stream_minimum_xcdr_version (const uint32_t * __restrict ops);
 uint32_t dds_stream_type_nesting_depth (const uint32_t * __restrict ops);
 bool dds_stream_extensibility (const uint32_t * __restrict ops, enum dds_cdr_type_extensibility *ext);
 DDS_EXPORT void dds_cdrstream_desc_from_topic_desc (struct dds_cdrstream_desc *desc, const dds_topic_descriptor_t *topic_desc);
+DDS_EXPORT void dds_cdrstream_desc_fini (struct dds_cdrstream_desc *desc);
 
 
 #if defined (__cplusplus)

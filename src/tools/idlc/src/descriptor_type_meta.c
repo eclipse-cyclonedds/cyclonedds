@@ -101,9 +101,9 @@ xcdr2_ser (
   os->m_index = 0;
   os->m_size = 0;
   os->m_xcdr_version = DDS_CDR_ENC_VERSION_2;
-  if (!dds_stream_write_sampleLE ((dds_ostreamLE_t *) os, obj, &desc))
-    return IDL_RETCODE_BAD_PARAMETER;
-  return IDL_RETCODE_OK;
+  dds_return_t ret = dds_stream_write_sampleLE ((dds_ostreamLE_t *) os, obj, &desc) ? IDL_RETCODE_OK : IDL_RETCODE_BAD_PARAMETER;
+  dds_cdrstream_desc_fini (&desc);
+  return ret;
 }
 
 static idl_retcode_t
