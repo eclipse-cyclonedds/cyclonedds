@@ -3499,7 +3499,7 @@ static int  open_file(
     size_t      len;
     FILEINFO *  file = infile;
     FILE *      fp;
-    char *      fullname;
+    char *      fullname = NULL;
     const char *    fname;
 
     (void)local;
@@ -3598,9 +3598,12 @@ search:
         put_depend( fullname);          /* Output dependency line   */
 
 true:
+    if (fullname)
+      free( fullname);
     return  TRUE;
 false:
-    free( fullname);
+    if (fullname)
+      free( fullname);
     return  FALSE;
 }
 
