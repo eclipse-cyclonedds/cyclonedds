@@ -1029,7 +1029,7 @@ static int  prescan(
         switch (c) {
         case ST_QUOTE:
             assert( arglist != NULL);
-            skip_ws();      /* Skip spaces and the returned MAC_PARM*/
+            (void) skip_ws();      /* Skip spaces and the returned MAC_PARM*/
             c = get_ch() - 1;               /* Parameter number     */
             prev_token = out;               /* Remember the token   */
             out = stringize( defp, arglist[ c], out);
@@ -1171,7 +1171,7 @@ static char *   catenate(
     switch (c) {
     case ST_QUOTE:          /* First stringize and then catenate    */
         assert( arglist != NULL);
-        skip_ws();                  /* Skip MAC_PARM, ST_QUOTE      */
+        (void) skip_ws();                  /* Skip MAC_PARM, ST_QUOTE      */
         c = get_ch() - 1;
         out = stringize( defp, arglist[ c], out);
         break;
