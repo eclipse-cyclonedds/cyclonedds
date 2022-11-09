@@ -66,7 +66,7 @@ void ddsi_handshake_release(struct ddsi_handshake *handshake);
  * @param[in] proxypp    The remote participant.
  * @param[in] msg        The handshake message received.
  */
-void ddsi_handshake_handle_message(struct ddsi_handshake *handshake, const struct ddsi_participant *pp, const struct ddsi_proxy_participant *proxypp, const struct nn_participant_generic_message *msg);
+void ddsi_handshake_handle_message(struct ddsi_handshake *handshake, const struct ddsi_participant *pp, const struct ddsi_proxy_participant *proxypp, const struct ddsi_participant_generic_message *msg);
 
 /**
  * @brief Notify the handshake that crypto tokens have been received.

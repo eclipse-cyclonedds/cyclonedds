@@ -86,7 +86,7 @@ struct ddsi_handshake
   dds_security_authentication *auth;
 
   DDS_Security_HandshakeMessageToken handshake_message_in_token;
-  nn_message_identity_t handshake_message_in_id;
+  ddsi_message_identity_t handshake_message_in_id;
   DDS_Security_HandshakeMessageToken *handshake_message_out;
   DDS_Security_AuthRequestMessageToken local_auth_request_token;
   DDS_Security_AuthRequestMessageToken *remote_auth_request_token;
@@ -1073,7 +1073,7 @@ void ddsi_handshake_release(struct ddsi_handshake *handshake)
   }
 }
 
-void ddsi_handshake_handle_message(struct ddsi_handshake *handshake, const struct ddsi_participant *pp, const struct ddsi_proxy_participant *proxypp, const struct nn_participant_generic_message *msg)
+void ddsi_handshake_handle_message(struct ddsi_handshake *handshake, const struct ddsi_participant *pp, const struct ddsi_proxy_participant *proxypp, const struct ddsi_participant_generic_message *msg)
 {
   handshake_event_t event = EVENT_VALIDATION_FAILED;
 

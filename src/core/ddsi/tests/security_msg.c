@@ -17,7 +17,7 @@
 #include "mem_ser.h"
 #include <assert.h>
 
-static nn_participant_generic_message_t test_msg_in =
+static ddsi_participant_generic_message_t test_msg_in =
 {
   .message_identity             = { {{.u={1,2,3}},{4}}, 5 },
   .related_message_identity     = { {{.u={5,4,3}},{2}}, 1 },
@@ -145,7 +145,7 @@ static nn_participant_generic_message_t test_msg_in =
 };
 
 /* Same as test_msg_in, excluding the non-propagated properties. */
-static nn_participant_generic_message_t test_msg_out =
+static ddsi_participant_generic_message_t test_msg_out =
 {
   .message_identity             = { {{.u={1,2,3}},{4}}, 5 },
   .related_message_identity     = { {{.u={5,4,3}},{2}}, 1 },
@@ -272,15 +272,15 @@ static unsigned char test_msg_ser[] = {
 
 CU_Test (ddsi_security_msg, serializer)
 {
-  nn_participant_generic_message_t msg_in;
-  nn_participant_generic_message_t msg_ser;
+  ddsi_participant_generic_message_t msg_in;
+  ddsi_participant_generic_message_t msg_ser;
   unsigned char *data = NULL;
   dds_return_t ret;
   size_t len;
   bool equal;
 
   /* Create the message (normally with various arguments). */
-  nn_participant_generic_message_init(
+  ddsi_participant_generic_message_init(
               &msg_in,
               &test_msg_in.message_identity.source_guid,
                test_msg_in.message_identity.sequence_number,
@@ -292,11 +292,11 @@ CU_Test (ddsi_security_msg, serializer)
               &test_msg_in.related_message_identity);
 
   /* Check creation result. */
-  equal = ddsi_plist_equal_generic (&msg_in, &test_msg_in, pserop_participant_generic_message);
+  equal = ddsi_plist_equal_generic (&msg_in, &test_msg_in, ddsi_pserop_participant_generic_message);
   CU_ASSERT_FATAL(equal == true);
 
   /* Serialize the message. */
-  ret = nn_participant_generic_message_serialize(&msg_in, &data, &len);
+  ret = ddsi_participant_generic_message_serialize(&msg_in, &data, &len);
   CU_ASSERT_FATAL (ret == DDS_RETCODE_OK);
   CU_ASSERT_PTR_NOT_NULL_FATAL(data);
   CU_ASSERT(len > 0);
@@ -316,15 +316,15 @@ CU_Test (ddsi_security_msg, serializer)
   CU_ASSERT_FATAL (len == sizeof(test_msg_ser));
 
   /* Deserialize the message. */
-  ret = nn_participant_generic_message_deseralize(&msg_ser, data, len, false);
+  ret = ddsi_participant_generic_message_deseralize(&msg_ser, data, len, false);
   CU_ASSERT_FATAL (ret == DDS_RETCODE_OK);
 
   /* Check deserialization result. */
-  equal = ddsi_plist_equal_generic (&msg_ser, &test_msg_out, pserop_participant_generic_message);
+  equal = ddsi_plist_equal_generic (&msg_ser, &test_msg_out, ddsi_pserop_participant_generic_message);
   CU_ASSERT_FATAL(equal == true);
 
   /* Cleanup. */
-  nn_participant_generic_message_deinit(&msg_in);
-  nn_participant_generic_message_deinit(&msg_ser);
+  ddsi_participant_generic_message_deinit(&msg_in);
+  ddsi_participant_generic_message_deinit(&msg_ser);
   ddsrt_free(data);
 }

@@ -578,7 +578,7 @@ int ddsi_new_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *ppg
 
 #ifdef DDS_HAS_SECURITY
   if (prd->e.guid.entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_READER)
-    prd->filter = volatile_secure_data_filter;
+    prd->filter = ddsi_volatile_secure_data_filter;
   else
     prd->filter = NULL;
 #else

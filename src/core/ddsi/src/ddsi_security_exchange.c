@@ -34,10 +34,10 @@
 #include "ddsi__plist.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
 
-bool write_auth_handshake_message(const struct ddsi_participant *pp, const struct ddsi_proxy_participant *proxypp, ddsi_dataholderseq_t *mdata, bool request, const nn_message_identity_t *related_message_id)
+bool write_auth_handshake_message(const struct ddsi_participant *pp, const struct ddsi_proxy_participant *proxypp, ddsi_dataholderseq_t *mdata, bool request, const ddsi_message_identity_t *related_message_id)
 {
   struct ddsi_domaingv *gv = pp->e.gv;
-  struct nn_participant_generic_message pmg;
+  struct ddsi_participant_generic_message pmg;
   struct ddsi_serdata *serdata;
   struct ddsi_writer *wr;
   seqno_t seq;
@@ -61,9 +61,9 @@ bool write_auth_handshake_message(const struct ddsi_participant *pp, const struc
   seq = ++wr->seq;
 
   if (request) {
-    nn_participant_generic_message_init(&pmg, &wr->e.guid, seq, &proxypp->e.guid, NULL, NULL, DDS_SECURITY_AUTH_REQUEST, mdata, NULL);
+    ddsi_participant_generic_message_init(&pmg, &wr->e.guid, seq, &proxypp->e.guid, NULL, NULL, DDS_SECURITY_AUTH_REQUEST, mdata, NULL);
   } else {
-    nn_participant_generic_message_init(&pmg, &wr->e.guid, seq, &proxypp->e.guid, NULL, NULL, DDS_SECURITY_AUTH_HANDSHAKE, mdata, related_message_id);
+    ddsi_participant_generic_message_init(&pmg, &wr->e.guid, seq, &proxypp->e.guid, NULL, NULL, DDS_SECURITY_AUTH_HANDSHAKE, mdata, related_message_id);
   }
 
   serdata = ddsi_serdata_from_sample (wr->type, SDK_DATA, &pmg);
@@ -71,7 +71,7 @@ bool write_auth_handshake_message(const struct ddsi_participant *pp, const struc
   result = enqueue_sample_wrlock_held (wr, seq, serdata, prd, 1) == 0;
   ddsi_serdata_unref (serdata);
   ddsrt_mutex_unlock (&wr->e.lock);
-  nn_participant_generic_message_deinit(&pmg);
+  ddsi_participant_generic_message_deinit(&pmg);
 
   return result;
 }
@@ -98,7 +98,7 @@ void auth_get_serialized_participant_data(struct ddsi_participant *pp, ddsi_octe
 void handle_auth_handshake_message(const struct receiver_state *rst, ddsi_entityid_t wr_entity_id, struct ddsi_serdata *sample_common)
 {
   const struct ddsi_serdata_pserop *sample = (const struct ddsi_serdata_pserop *) sample_common;
-  const struct nn_participant_generic_message *msg = sample->sample;
+  const struct ddsi_participant_generic_message *msg = sample->sample;
   struct ddsi_participant *pp = NULL;
   struct ddsi_proxy_writer *pwr = NULL;
   ddsi_guid_t guid;
@@ -146,7 +146,7 @@ void handle_auth_handshake_message(const struct receiver_state *rst, ddsi_entity
 static bool write_crypto_exchange_message(const struct ddsi_participant *pp, const ddsi_guid_t *dst_pguid, const ddsi_guid_t *src_eguid, const ddsi_guid_t *dst_eguid, const char *classid, const ddsi_dataholderseq_t *tokens)
 {
   struct ddsi_domaingv * const gv = pp->e.gv;
-  struct nn_participant_generic_message pmg;
+  struct ddsi_participant_generic_message pmg;
   struct ddsi_tkmap_instance *tk;
   struct ddsi_serdata *serdata;
   struct ddsi_proxy_reader *prd;
@@ -172,7 +172,7 @@ static bool write_crypto_exchange_message(const struct ddsi_participant *pp, con
   seq = ++wr->seq;
 
   /* Get serialized message. */
-  nn_participant_generic_message_init(&pmg, &wr->e.guid, seq, dst_pguid, dst_eguid, src_eguid, classid, tokens, NULL);
+  ddsi_participant_generic_message_init(&pmg, &wr->e.guid, seq, dst_pguid, dst_eguid, src_eguid, classid, tokens, NULL);
   serdata = ddsi_serdata_from_sample (wr->type, SDK_DATA, &pmg);
   serdata->timestamp = ddsrt_time_wallclock ();
   tk = ddsi_tkmap_lookup_instance_ref (gv->m_tkmap, serdata);
@@ -181,7 +181,7 @@ static bool write_crypto_exchange_message(const struct ddsi_participant *pp, con
   ddsi_tkmap_instance_unref (gv->m_tkmap, tk);
   ddsi_serdata_unref (serdata);
 
-  nn_participant_generic_message_deinit(&pmg);
+  ddsi_participant_generic_message_deinit(&pmg);
 
   return (r < 0 ? false : true);
 }
@@ -211,7 +211,7 @@ void handle_crypto_exchange_message(const struct receiver_state *rst, struct dds
 {
   struct ddsi_domaingv * const gv = rst->gv;
   const struct ddsi_serdata_pserop *sample = (const struct ddsi_serdata_pserop *) sample_common;
-  const struct nn_participant_generic_message *msg = sample->sample;
+  const struct ddsi_participant_generic_message *msg = sample->sample;
   ddsi_guid_t proxypp_guid;
 
   proxypp_guid.prefix = msg->message_identity.source_guid.prefix;

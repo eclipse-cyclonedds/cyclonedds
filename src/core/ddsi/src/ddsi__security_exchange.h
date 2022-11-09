@@ -29,7 +29,7 @@ extern "C" {
 #define GMCLASSID_SECURITY_DATAWRITER_CRYPTO_TOKENS     "dds.sec.datawriter_crypto_tokens"
 #define GMCLASSID_SECURITY_DATAREADER_CRYPTO_TOKENS     "dds.sec.datareader_crypto_tokens"
 
-bool write_auth_handshake_message(const struct ddsi_participant *pp, const struct ddsi_proxy_participant *proxypp, ddsi_dataholderseq_t *mdata, bool request, const nn_message_identity_t *related_message_id);
+bool write_auth_handshake_message(const struct ddsi_participant *pp, const struct ddsi_proxy_participant *proxypp, ddsi_dataholderseq_t *mdata, bool request, const ddsi_message_identity_t *related_message_id);
 void handle_auth_handshake_message(const struct receiver_state *rst, ddsi_entityid_t wr_entity_id, struct ddsi_serdata *sample);
 void handle_crypto_exchange_message(const struct receiver_state *rst, struct ddsi_serdata *sample);
 void auth_get_serialized_participant_data(struct ddsi_participant *pp, ddsi_octetseq_t *seq);
@@ -43,7 +43,7 @@ bool write_crypto_reader_tokens(const struct ddsi_reader *rd, const struct ddsi_
 
 #else /* DDS_HAS_SECURITY */
 
-#define volatile_secure_data_filter NULL
+#define ddsi_volatile_secure_data_filter NULL
 
 #endif /* DDS_HAS_SECURITY */
 

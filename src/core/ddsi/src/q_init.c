@@ -883,8 +883,8 @@ static void make_special_types (struct ddsi_domaingv *gv)
   gv->sedp_reader_secure_type = make_special_type_plist ("SubscriptionBuiltinTopicDataSecure", PID_ENDPOINT_GUID);
   gv->sedp_writer_secure_type = make_special_type_plist ("PublicationBuiltinTopicDataSecure", PID_ENDPOINT_GUID);
   gv->pmd_secure_type = make_special_type_pserop ("ddsi_participant_message_dataSecure", sizeof (ddsi_participant_message_data_t), ddsi_participant_message_data_nops, ddsi_participant_message_data_ops, ddsi_participant_message_data_nops_key, ddsi_participant_message_data_ops_key);
-  gv->pgm_stateless_type = make_special_type_pserop ("ParticipantStatelessMessage", sizeof (nn_participant_generic_message_t), pserop_participant_generic_message_nops, pserop_participant_generic_message, 0, NULL);
-  gv->pgm_volatile_type = make_special_type_pserop ("ParticipantVolatileMessageSecure", sizeof (nn_participant_generic_message_t), pserop_participant_generic_message_nops, pserop_participant_generic_message, 0, NULL);
+  gv->pgm_stateless_type = make_special_type_pserop ("ParticipantStatelessMessage", sizeof (ddsi_participant_generic_message_t), ddsi_pserop_participant_generic_message_nops, ddsi_pserop_participant_generic_message, 0, NULL);
+  gv->pgm_volatile_type = make_special_type_pserop ("ParticipantVolatileMessageSecure", sizeof (ddsi_participant_generic_message_t), ddsi_pserop_participant_generic_message_nops, ddsi_pserop_participant_generic_message, 0, NULL);
 #endif
 
   ddsrt_mutex_lock (&gv->sertypes_lock);
