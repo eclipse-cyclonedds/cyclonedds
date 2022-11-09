@@ -1319,7 +1319,7 @@ static VAL_SIGN *   eval_eval(
             expr_t  v3;
 
             v3 = (sign1 == SIGNED ? v1 : v2);
-            snprintf( negate, sizeof(negate), neg_format, v3, v3);
+            (void) snprintf( negate, sizeof(negate), neg_format, v3, v3);
             cwarn( negate, skip ? non_eval : NULL, 0L, NULL);
         }
         valp->sign = sign1 = UNSIGNED;

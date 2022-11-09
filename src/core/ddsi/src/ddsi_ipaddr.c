@@ -258,7 +258,7 @@ char *ddsi_ipaddr_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t 
     if (cnt >= 0)
       pos += (size_t) cnt;
     if (interf && pos < sizeof_dst)
-      snprintf (dst + pos, sizeof_dst - pos, "@%"PRIu32, interf->if_index);
+      (void) snprintf (dst + pos, sizeof_dst - pos, "@%"PRIu32, interf->if_index);
   }
   return dst;
 }

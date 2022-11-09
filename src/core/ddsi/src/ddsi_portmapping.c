@@ -74,7 +74,7 @@ static bool get_port_int (uint32_t *port, const struct ddsi_portmapping *map, en
     const uint32_t billion = 1000000000;
     const uint32_t y = (uint32_t) (a % billion) + (uint32_t) (b % billion);
     const uint64_t x = (a / billion) + (b / billion) + (y / billion);
-    snprintf (str_if_overflow, strsize, "%"PRIu64"%09"PRIu32, x, y % billion);
+    (void) snprintf (str_if_overflow, strsize, "%"PRIu64"%09"PRIu32, x, y % billion);
     return false;
   }
 }

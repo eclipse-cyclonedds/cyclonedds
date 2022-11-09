@@ -398,7 +398,7 @@ static void error3 (const char *fmt, ...)
 
 static char *make_guidstr (struct guidstr *buf, const dds_guid_t *guid)
 {
-  snprintf (buf->str, sizeof (buf->str), "%02x%02x%02x%02x_%02x%02x%02x%02x_%02x%02x%02x%02x_%02x%02x%02x%02x",
+  (void) snprintf (buf->str, sizeof (buf->str), "%02x%02x%02x%02x_%02x%02x%02x%02x_%02x%02x%02x%02x_%02x%02x%02x%02x",
             guid->v[0], guid->v[1], guid->v[2], guid->v[3],
             guid->v[4], guid->v[5], guid->v[6], guid->v[7],
             guid->v[8], guid->v[9], guid->v[10], guid->v[11],
@@ -791,9 +791,9 @@ static int64_t *latencystat_print (struct latencystat *y, const char *prefix, co
     struct ppant *pp;
     ddsrt_mutex_lock (&disc_lock);
     if ((pp = ddsrt_avl_lookup (&ppants_td, &ppants, &pphandle)) == NULL)
-      snprintf (ppinfo, sizeof (ppinfo), "%"PRIx64, pubhandle);
+      (void) snprintf (ppinfo, sizeof (ppinfo), "%"PRIx64, pubhandle);
     else
-      snprintf (ppinfo, sizeof (ppinfo), "%s:%"PRIu32, pp->hostname, pp->pid);
+      (void) snprintf (ppinfo, sizeof (ppinfo), "%s:%"PRIu32, pp->hostname, pp->pid);
     ddsrt_mutex_unlock (&disc_lock);
 
     qsort (y->raw, rawcnt, sizeof (*y->raw), cmp_int64);
@@ -1574,7 +1574,7 @@ static bool print_stats (dds_time_t tref, dds_time_t tnow, dds_time_t tprev, str
   char prefix[128];
   const double ts = (double) (tnow - tref) / 1e9;
   bool output = false;
-  snprintf (prefix, sizeof (prefix), "[%"PRIdPID"] %.3f ", ddsrt_getpid (), ts);
+  (void) snprintf (prefix, sizeof (prefix), "[%"PRIdPID"] %.3f ", ddsrt_getpid (), ts);
 
   if (pub_rate > 0)
   {
@@ -2295,9 +2295,9 @@ int main (int argc, char *argv[])
       case S4k:    tp_suf = "S4k";    tp_desc = &Struct4k_desc; break;
       case S32k:   tp_suf = "S32k";   tp_desc = &Struct32k_desc; break;
     }
-    snprintf (tpname_data, sizeof (tpname_data), "DDSPerf%cData%s", reliable ? 'R' : 'U', tp_suf);
-    snprintf (tpname_ping, sizeof (tpname_ping), "DDSPerf%cPing%s", reliable ? 'R' : 'U', tp_suf);
-    snprintf (tpname_pong, sizeof (tpname_pong), "DDSPerf%cPong%s", reliable ? 'R' : 'U', tp_suf);
+    (void) snprintf (tpname_data, sizeof (tpname_data), "DDSPerf%cData%s", reliable ? 'R' : 'U', tp_suf);
+    (void) snprintf (tpname_ping, sizeof (tpname_ping), "DDSPerf%cPing%s", reliable ? 'R' : 'U', tp_suf);
+    (void) snprintf (tpname_pong, sizeof (tpname_pong), "DDSPerf%cPong%s", reliable ? 'R' : 'U', tp_suf);
     qos = dds_create_qos ();
     dds_qset_reliability (qos, reliable ? DDS_RELIABILITY_RELIABLE : DDS_RELIABILITY_BEST_EFFORT, DDS_SECS (10));
     if ((tp_data = dds_create_topic (dp, tp_desc, tpname_data, qos, NULL)) < 0)

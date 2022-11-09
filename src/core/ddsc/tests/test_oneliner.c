@@ -325,7 +325,7 @@ static void error_dds (struct oneliner_ctx *ctx, dds_return_t ret, const char *m
   va_end (ap);
   size_t n = strlen (ctx->msg);
   if (n < sizeof (ctx->msg))
-    snprintf (ctx->msg + n, sizeof (ctx->msg) - n, " (%s)", dds_strretcode (ret));
+    (void) snprintf (ctx->msg + n, sizeof (ctx->msg) - n, " (%s)", dds_strretcode (ret));
   longjmp (ctx->jb, 1);
 }
 

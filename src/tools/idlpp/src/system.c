@@ -469,7 +469,7 @@ void    do_options(
     bsl2sl( cwd);
 #endif
     cwd_len = strlen( cwd);
-    snprintf( cwd + cwd_len, cwd_sz - cwd_len, "%c%c", PATH_DELIM, EOS);
+    (void) snprintf( cwd + cwd_len, cwd_sz - cwd_len, "%c%c", PATH_DELIM, EOS);
         /* Append trailing path-delimiter   */
 
 #if COMPILER == GNUC
@@ -1974,7 +1974,7 @@ static void init_predefines( void)
         un_predefine( FALSE);           /* Undefine "unix" or so    */
 #endif
     }
-    snprintf( tmp, sizeof(tmp), "%ldL", cplus_val ? cplus_val : stdc_ver);
+    (void) snprintf( tmp, sizeof(tmp), "%ldL", cplus_val ? cplus_val : stdc_ver);
     if (cplus_val) {
         look_and_install( "__cplusplus", DEF_NOARGS_STANDARD, null, tmp);
     } else {
@@ -2019,13 +2019,13 @@ static void init_std_defines( void)
     /* Define __DATE__, __TIME__ as present date and time.          */
     time( &tvec);
     tstring = ctime( &tvec);
-    snprintf( timestr, sizeof(timestr), "\"%.3s %c%c %.4s\"",
+    (void) snprintf( timestr, sizeof(timestr), "\"%.3s %c%c %.4s\"",
         tstring + 4,
         *(tstring + 8) == '0' ? ' ' : *(tstring + 8),
         *(tstring + 9),
         tstring + 20);
     look_and_install( "__DATE__", DEF_NOARGS_DYNAMIC, null, timestr);
-    snprintf( timestr, sizeof(timestr), "\"%.8s\"", tstring + 11);
+    (void) snprintf( timestr, sizeof(timestr), "\"%.8s\"", tstring + 11);
     look_and_install( "__TIME__", DEF_NOARGS_DYNAMIC, null, timestr);
 
     if (! look_id( "__STDC_HOSTED__")) {
@@ -2033,7 +2033,7 @@ static void init_std_defines( void)
          * Some compilers, e.g. GCC older than 3.3, define this macro by
          * -D option.
          */
-        snprintf( tmp, sizeof(tmp), "%d", STDC_HOSTED);
+        (void) snprintf( tmp, sizeof(tmp), "%d", STDC_HOSTED);
         look_and_install( "__STDC_HOSTED__", DEF_NOARGS_PREDEF, null, tmp);
     }
 #if COMPILER != GNUC        /* GCC do not undefine __STDC__ on C++  */
@@ -2042,7 +2042,7 @@ static void init_std_defines( void)
 #endif
     /* Define __STDC__ as 1 or such for Standard conforming compiler.   */
     if (! look_id( "__STDC__")) {
-        snprintf( tmp, sizeof(tmp), "%d", stdc_val);
+        (void) snprintf( tmp, sizeof(tmp), "%d", stdc_val);
         look_and_install( "__STDC__", DEF_NOARGS_STANDARD, null, tmp);
     }
 }
@@ -2097,7 +2097,7 @@ static void set_pragma_op( void)
     char *  name = "_Pragma";
     char    tmp[ 16];
 
-    snprintf( tmp, sizeof(tmp), "%c%s ( %c%c )", DEF_MAGIC, name, MAC_PARM, 1);
+    (void) snprintf( tmp, sizeof(tmp), "%c%s ( %c%c )", DEF_MAGIC, name, MAC_PARM, 1);
                                                 /* Replacement text */
     look_and_install( name, DEF_PRAGMA, "a", tmp);
 }

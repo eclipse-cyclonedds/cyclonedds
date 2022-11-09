@@ -127,13 +127,13 @@ printattr(
 
   type[0] = '\0';
   if (elem->meta.unit)
-    snprintf(type, sizeof(type), " type=\"config:%s\"", elem->meta.unit);
+    (void) snprintf(type, sizeof(type), " type=\"config:%s\"", elem->meta.unit);
   else if (!isstring(elem))
-    snprintf(type, sizeof(type), " type=\"xs:%s\"", isbuiltintopic(elem));
+    (void) snprintf(type, sizeof(type), " type=\"xs:%s\"", isbuiltintopic(elem));
 
   required[0] = '\0';
   if (minimum(elem))
-    snprintf(type, sizeof(type), " use=\"required\"");
+    (void) snprintf(type, sizeof(type), " use=\"required\"");
 
   printspc(out, cols, fmt, name(elem), type, required);
   printdesc(out, cols+2, flags, elem, units);
@@ -162,11 +162,11 @@ printref(
     char maxattr[32] = "";
     const char fmt[] = "<xs:element %s%sref=\"%s:%s\"/>\n";
     if (!(flags & FLAG_NOMIN) && minimum(elem) != 1)
-      snprintf(minattr, sizeof(minattr), "minOccurs=\"%d\" ", minimum(elem));
+      (void) snprintf(minattr, sizeof(minattr), "minOccurs=\"%d\" ", minimum(elem));
     if (!(flags & FLAG_NOMAX) && maximum(elem) == 0)
-      snprintf(maxattr, sizeof(maxattr), "maxOccurs=\"unbounded\" ");
+      (void) snprintf(maxattr, sizeof(maxattr), "maxOccurs=\"unbounded\" ");
     else if (!(flags & FLAG_NOMAX) && maximum(elem) != 1)
-      snprintf(maxattr, sizeof(maxattr), "maxOccurs=\"%d\" ", maximum(elem));
+      (void) snprintf(maxattr, sizeof(maxattr), "maxOccurs=\"%d\" ", maximum(elem));
     printspc(out, cols, fmt, minattr, maxattr, schema(), name(elem));
   }
 }
@@ -186,11 +186,11 @@ printcomplextype(
 
   if (flags & FLAG_REFERENCE) {
     if (!(flags & FLAG_NOMIN) && minimum(elem) != 1)
-      snprintf(minattr, sizeof(minattr), "minOccurs=\"%d\" ", minimum(elem));
+      (void) snprintf(minattr, sizeof(minattr), "minOccurs=\"%d\" ", minimum(elem));
     if (!(flags & FLAG_NOMAX) && maximum(elem) == 0)
-      snprintf(maxattr, sizeof(maxattr), "maxOccurs=\"unbounded\" ");
+      (void) snprintf(maxattr, sizeof(maxattr), "maxOccurs=\"unbounded\" ");
     else if (!(flags & FLAG_NOMAX) && maximum(elem) != 1)
-      snprintf(maxattr, sizeof(maxattr), "maxOccurs=\"%d\" ", maximum(elem));
+      (void) snprintf(maxattr, sizeof(maxattr), "maxOccurs=\"%d\" ", maximum(elem));
   }
 
   printspc(out, cols, "<xs:element %s%sname=\"%s\">\n", minattr, maxattr, name(elem));
@@ -255,13 +255,13 @@ printcomplextype(
         } else {
           cont = "choice";
           if (min[0] == 0)
-            snprintf(minattr, sizeof(minattr), " minOccurs=\"0\"");
+            (void) snprintf(minattr, sizeof(minattr), " minOccurs=\"0\"");
           else if (min[0] != 1) /* incorrect, but make the most of it */
-            snprintf(minattr, sizeof(minattr), " minOccurs=\"%d\"", min[2]);
+            (void) snprintf(minattr, sizeof(minattr), " minOccurs=\"%d\"", min[2]);
           if (max[0] == 0)
-            snprintf(maxattr, sizeof(maxattr), " maxOccurs=\"unbounded\"");
+            (void) snprintf(maxattr, sizeof(maxattr), " maxOccurs=\"unbounded\"");
           else if (max[0] != 1)
-            snprintf(maxattr, sizeof(maxattr), " maxOccurs=\"%d\"", max[2]);
+            (void) snprintf(maxattr, sizeof(maxattr), " maxOccurs=\"%d\"", max[2]);
           if (mineq)
             flags |= FLAG_NOMIN;
           if (maxeq)
@@ -332,11 +332,11 @@ printsimpletype(
 
   if (flags & FLAG_REFERENCE) {
     if (minimum(elem) != 1)
-      snprintf(min, sizeof(min), "minOccurs=\"%d\" ", minimum(elem));
+      (void) snprintf(min, sizeof(min), "minOccurs=\"%d\" ", minimum(elem));
     if (maximum(elem) == 0)
-      snprintf(max, sizeof(max), "maxOccurs=\"unbounded\" ");
+      (void) snprintf(max, sizeof(max), "maxOccurs=\"unbounded\" ");
     else if (maximum(elem) != 1)
-      snprintf(max, sizeof(max), "maxOccurs=\"%d\" ", maximum(elem));
+      (void) snprintf(max, sizeof(max), "maxOccurs=\"%d\" ", maximum(elem));
   }
 
   if (!(type = isbuiltintopic(elem)))

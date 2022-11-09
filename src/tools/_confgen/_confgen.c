@@ -549,13 +549,13 @@ int makedescription(
         size_t srcsz = 3 + strlen(DFLTFMT) + strlen(elem->description) + strlen(unit->description) + strlen(dflt);
         if ((src = malloc (srcsz)) == NULL)
           return -1;
-        snprintf(
+        (void) snprintf(
           src, srcsz, "%s\n%s\n"DFLTFMT, elem->description, unit->description, dflt);
       } else {
         size_t srcsz = 2 + strlen(DFLTFMT) + strlen(elem->description) + strlen(dflt);
         if ((src = malloc (srcsz)) == NULL)
           return -1;
-        snprintf(
+        (void) snprintf(
           src, srcsz, "%s\n"DFLTFMT, elem->description, dflt);
       }
     }

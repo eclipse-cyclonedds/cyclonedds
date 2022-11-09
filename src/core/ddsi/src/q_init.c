@@ -1388,7 +1388,7 @@ int rtps_init (struct ddsi_domaingv *gv)
       ddsrt_free(procname);
     }
 
-    snprintf(namebuf, sizeof(namebuf), "%" PRIdPID, ddsrt_getpid());
+    (void) snprintf(namebuf, sizeof(namebuf), "%" PRIdPID, ddsrt_getpid());
     ddsi_xqos_add_property_if_unset(&gv->default_local_plist_pp.qos, true, DDS_BUILTIN_TOPIC_PARTICIPANT_PROPERTY_PID, namebuf);
 
 #if DDSRT_HAVE_GETHOSTNAME

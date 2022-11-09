@@ -150,7 +150,7 @@ struct create_topic_thread_arg
 
 static void set_topic_name (char *name, const char *prefix, uint32_t index)
 {
-  snprintf (name, MAX_NAME_SIZE + 10, "%s_%u", prefix, index);
+  (void) snprintf (name, MAX_NAME_SIZE + 10, "%s_%u", prefix, index);
 }
 
 static uint32_t topics_thread (void *a)

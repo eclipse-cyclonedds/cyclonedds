@@ -789,7 +789,7 @@ set_path_to_etc_dir(void)
 
     len = 1024;
     path_to_etc_dir = ddsrt_malloc(len);
-    snprintf(path_to_etc_dir, 1024, "%s/listeners_authentication/etc/", CONFIG_ENV_TESTS_DIR);
+    (void) snprintf(path_to_etc_dir, 1024, "%s/listeners_authentication/etc/", CONFIG_ENV_TESTS_DIR);
 
     return res;
 }

@@ -81,7 +81,7 @@ char * generate_ca(const char *ca_name, const char * ca_priv_key_str, int not_va
   EVP_PKEY *ca_priv_key = get_priv_key (ca_priv_key_str);
 
   char * email = malloc (MAX_EMAIL);
-  snprintf(email, MAX_EMAIL, "%s@%s" , ca_name, EMAIL_HOST);
+  (void) snprintf(email, MAX_EMAIL, "%s@%s" , ca_name, EMAIL_HOST);
   X509 * ca_cert = get_x509 (not_valid_before, not_valid_after, ca_name, email);
   ddsrt_free (email);
 
@@ -107,7 +107,7 @@ char * generate_identity(const char * ca_cert_str, const char * ca_priv_key_str,
   X509_REQ_sign (csr, id_pkey, EVP_sha256 ());
 
   char * email = malloc (MAX_EMAIL);
-  snprintf(email, MAX_EMAIL, "%s@%s" , name, EMAIL_HOST);
+  (void) snprintf(email, MAX_EMAIL, "%s@%s" , name, EMAIL_HOST);
   X509 * cert = get_x509 (not_valid_before, not_valid_after, name, email);
   ddsrt_free (email);
 

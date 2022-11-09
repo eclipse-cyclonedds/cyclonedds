@@ -541,9 +541,9 @@ fill_participant_qos(
     valbuf->name = ddsrt_strdup(DDS_SEC_PROP_AUTH_IDENTITY_CERT);
     if (is_file_certificate) {
 #ifdef WIN32
-        snprintf(identity_cert_path, 1024, "file:%s\\validate_local_identity\\etc\\%s", CONFIG_ENV_TESTS_DIR, certificate);
+        (void) snprintf(identity_cert_path, 1024, "file:%s\\validate_local_identity\\etc\\%s", CONFIG_ENV_TESTS_DIR, certificate);
 #else
-        snprintf(identity_cert_path, 1024, "file:%s/validate_local_identity/etc/%s", CONFIG_ENV_TESTS_DIR, certificate);
+        (void) snprintf(identity_cert_path, 1024, "file:%s/validate_local_identity/etc/%s", CONFIG_ENV_TESTS_DIR, certificate);
 #endif
         valbuf->value = ddsrt_strdup(identity_cert_path);
     }
@@ -555,9 +555,9 @@ fill_participant_qos(
     valbuf->name = ddsrt_strdup(DDS_SEC_PROP_AUTH_IDENTITY_CA);
     if (is_file_ca) {
 #ifdef WIN32
-        snprintf(identity_CA_path, 1024, "file:%s\\validate_local_identity\\etc\\%s", CONFIG_ENV_TESTS_DIR, ca);
+        (void) snprintf(identity_CA_path, 1024, "file:%s\\validate_local_identity\\etc\\%s", CONFIG_ENV_TESTS_DIR, ca);
 #else
-        snprintf(identity_CA_path, 1024, "file:%s/validate_local_identity/etc/%s", CONFIG_ENV_TESTS_DIR, ca);
+        (void) snprintf(identity_CA_path, 1024, "file:%s/validate_local_identity/etc/%s", CONFIG_ENV_TESTS_DIR, ca);
 #endif
         valbuf->value = ddsrt_strdup(identity_CA_path);
     }
@@ -569,9 +569,9 @@ fill_participant_qos(
     valbuf->name = ddsrt_strdup(DDS_SEC_PROP_AUTH_PRIV_KEY);
     if (is_file_private_key) {
 #ifdef WIN32
-        snprintf(private_key_path, 1024, "file:%s\\validate_local_identity\\etc\\%s", CONFIG_ENV_TESTS_DIR, private_key_data);
+        (void) snprintf(private_key_path, 1024, "file:%s\\validate_local_identity\\etc\\%s", CONFIG_ENV_TESTS_DIR, private_key_data);
 #else
-        snprintf(private_key_path, 1024, "file:%s/validate_local_identity/etc/%s", CONFIG_ENV_TESTS_DIR, private_key_data);
+        (void) snprintf(private_key_path, 1024, "file:%s/validate_local_identity/etc/%s", CONFIG_ENV_TESTS_DIR, private_key_data);
 #endif
         valbuf->value = ddsrt_strdup(private_key_path);
     }
@@ -590,9 +590,9 @@ fill_participant_qos(
       valbuf->name = ddsrt_strdup(ORG_ECLIPSE_CYCLONEDDS_SEC_AUTH_CRL);
       if (is_file_crl) {
 #ifdef WIN32
-          snprintf(crl_path, 1024, "file:%s\\validate_local_identity\\etc\\%s", CONFIG_ENV_TESTS_DIR, crl_data);
+          (void) snprintf(crl_path, 1024, "file:%s\\validate_local_identity\\etc\\%s", CONFIG_ENV_TESTS_DIR, crl_data);
 #else
-          snprintf(crl_path, 1024, "file:%s/validate_local_identity/etc/%s", CONFIG_ENV_TESTS_DIR, crl_data);
+          (void) snprintf(crl_path, 1024, "file:%s/validate_local_identity/etc/%s", CONFIG_ENV_TESTS_DIR, crl_data);
 #endif
           valbuf->value = ddsrt_strdup(crl_path);
       }
@@ -604,9 +604,9 @@ fill_participant_qos(
     if (trusted_ca_dir) {
         valbuf = &participant_qos->property.value._buffer[offset++];
 #ifdef WIN32
-        snprintf(trusted_ca_dir_path, 1024, "%s\\validate_local_identity\\etc\\%s", CONFIG_ENV_TESTS_DIR, trusted_ca_dir);
+        (void) snprintf(trusted_ca_dir_path, 1024, "%s\\validate_local_identity\\etc\\%s", CONFIG_ENV_TESTS_DIR, trusted_ca_dir);
 #else
-        snprintf(trusted_ca_dir_path, 1024, "%s/validate_local_identity/etc/%s", CONFIG_ENV_TESTS_DIR, trusted_ca_dir);
+        (void) snprintf(trusted_ca_dir_path, 1024, "%s/validate_local_identity/etc/%s", CONFIG_ENV_TESTS_DIR, trusted_ca_dir);
 #endif
         valbuf->name = ddsrt_strdup(DDS_SEC_PROP_ACCESS_TRUSTED_CA_DIR);
         valbuf->value = ddsrt_strdup(trusted_ca_dir_path);
@@ -1362,7 +1362,7 @@ CU_Test(ddssec_builtin_validate_local_identity,unsupported_certification_format)
     len = strlen("uri:") + strlen(&identity_certificate[6]) + 1;
     cert = ddsrt_malloc(len);
 
-    snprintf(cert, len, "uri:%s", &identity_certificate[6]);
+    (void) snprintf(cert, len, "uri:%s", &identity_certificate[6]);
 
     memset(&adjusted_participant_guid, 0, sizeof(adjusted_participant_guid));
     memcpy(&candidate_participant_guid.prefix, &prefix, sizeof(prefix));

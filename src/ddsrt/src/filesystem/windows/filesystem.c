@@ -27,7 +27,7 @@ dds_return_t ddsrt_opendir(const char *name, ddsrt_dir_handle_t *dir)
 
     result = DDS_RETCODE_ERROR;
     if (dir) {
-        snprintf(szDir, DDSRT_PATH_MAX, "%s\\*", name);
+        (void) snprintf(szDir, DDSRT_PATH_MAX, "%s\\*", name);
         hList = FindFirstFile(szDir, &FileData);
 
         if (hList != INVALID_HANDLE_VALUE) {

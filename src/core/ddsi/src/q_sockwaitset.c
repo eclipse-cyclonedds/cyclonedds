@@ -588,7 +588,7 @@ static int make_pipe (int pfd[2])
   char pipename[OSPL_PIPENAMESIZE];
   int pipecount = 0;
   do {
-    snprintf ((char*)&pipename, sizeof (pipename), "/pipe/ospl%d", pipecount++);
+    (void) snprintf ((char*)&pipename, sizeof (pipename), "/pipe/ospl%d", pipecount++);
   } while ((result = pipeDevCreate ((char*)&pipename, 1, 1)) == -1 && os_getErrno() == EINVAL);
   if (result == -1)
     goto fail_pipedev;
