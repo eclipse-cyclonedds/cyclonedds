@@ -21,6 +21,13 @@ filter_files(
     ${binary_dir}/parser.c
     ${binary_dir}/parser.h
 )
+filter_files(
+  FIND "${source_dir}/"
+  REPLACE ""
+  FILES
+    ${binary_dir}/parser.c
+    ${binary_dir}/parser.h
+)
 
 append_hashes(
     PREFIX "/*"

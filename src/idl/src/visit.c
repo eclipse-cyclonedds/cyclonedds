@@ -13,6 +13,7 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include "idl/heap.h"
 #include "idl/processor.h"
 
 static idl_accept_t idl_accept(const void *node)
@@ -91,14 +92,14 @@ static const idl_node_t *push(struct stack *stack, const idl_node_t *node)
     size_t size = stack->size + 10;
     uint32_t *flags = NULL;
     const idl_node_t **nodes = NULL;
-    if (!(flags = realloc(stack->flags, size*sizeof(*flags))))
+    if (!(flags = idl_realloc(stack->flags, size*sizeof(*flags))))
       return NULL;
     stack->flags = flags;
 #if _MSC_VER
 __pragma(warning(push))
 __pragma(warning(disable: 4090))
 #endif
-    if (!(nodes = realloc(stack->path.nodes, size*sizeof(*nodes))))
+    if (!(nodes = idl_realloc(stack->path.nodes, size*sizeof(*nodes))))
       return NULL;
 #if _MSC_VER
 __pragma(warning(pop))
@@ -254,15 +255,15 @@ idl_visit(
 __pragma(warning(push))
 __pragma(warning(disable: 4090))
 #endif
-  if (stack.flags)      free(stack.flags);
-  if (stack.path.nodes) free(stack.path.nodes);
+  if (stack.flags)      idl_free(stack.flags);
+  if (stack.path.nodes) idl_free(stack.path.nodes);
   return IDL_RETCODE_OK;
 err_push:
   ret = IDL_RETCODE_NO_MEMORY;
 err_visit:
 err_revisit:
-  if (stack.flags)      free(stack.flags);
-  if (stack.path.nodes) free(stack.path.nodes);
+  if (stack.flags)      idl_free(stack.flags);
+  if (stack.path.nodes) idl_free(stack.path.nodes);
   return ret;
 #if _MSC_VER
 __pragma(warning(pop))

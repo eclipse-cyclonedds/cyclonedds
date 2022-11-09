@@ -16,6 +16,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "idl/heap.h"
 #include "idl/processor.h"
 #include "idl/string.h"
 #include "idl/misc.h"
@@ -59,7 +60,7 @@ push_file(idl_pstate_t *pstate, const char *inc)
   idl_file_t *file = pstate->files;
   for (; file && strcmp(file->name, inc); file = file->next) ;
   if (!file) {
-    if (!(file = calloc(1, sizeof(*file))))
+    if (!(file = idl_calloc(1, sizeof(*file))))
       return IDL_RETCODE_NO_MEMORY;
     file->next = pstate->files;
     pstate->files = file;
@@ -77,7 +78,7 @@ push_source(idl_pstate_t *pstate, const char *inc, const char *abs, uint32_t fla
   idl_source_t *src, *last;
   for (; path && strcmp(path->name, abs); path = path->next) ;
   if (!path) {
-    if (!(path = calloc(1, sizeof(*path))))
+    if (!(path = idl_calloc(1, sizeof(*path))))
       return IDL_RETCODE_NO_MEMORY;
     path->next = pstate->paths;
     pstate->paths = path;
@@ -86,7 +87,7 @@ push_source(idl_pstate_t *pstate, const char *inc, const char *abs, uint32_t fla
   }
   if (push_file(pstate, inc))
     return IDL_RETCODE_NO_MEMORY;
-  if (!(src = calloc(1, sizeof(*src))))
+  if (!(src = idl_calloc(1, sizeof(*src))))
     return IDL_RETCODE_NO_MEMORY;
   src->file = pstate->scanner.position.file;
   src->path = path;
@@ -112,10 +113,10 @@ static void delete_line(void *ptr)
   struct line *dir = (struct line *)ptr;
   assert(dir);
   if (dir->path)
-    free(dir->path);
+    idl_free(dir->path);
   if (dir->file)
-    free(dir->file);
-  free(dir);
+    idl_free(dir->file);
+  idl_free(dir);
 }
 
 static idl_retcode_t push_line(idl_pstate_t *pstate, struct line *dir)
@@ -142,7 +143,7 @@ static idl_retcode_t push_line(idl_pstate_t *pstate, struct line *dir)
         assert(!len || idl_isseparator(cwd[len]));
         if (idl_asprintf(&abs, "%.*s/%s", len, cwd, dir->path) < 0)
           return IDL_RETCODE_NO_MEMORY;
-        free(dir->path);
+        idl_free(dir->path);
         dir->path = abs;
       }
     }
@@ -151,13 +152,13 @@ static idl_retcode_t push_line(idl_pstate_t *pstate, struct line *dir)
       idl_error(pstate, NULL, "Invalid line marker: path '%s' not found", dir->path);
       return ret;
     }
-    free(dir->path);
+    idl_free(dir->path);
     dir->path = norm;
     assert(dir->file);
 
     if (idl_isabsolute(dir->file)) {
       /* reuse normalized filename if include is absolute */
-      free(dir->file);
+      idl_free(dir->file);
       if (!(dir->file = idl_strdup(dir->path)))
         return IDL_RETCODE_NO_MEMORY;
     } else {
@@ -220,7 +221,7 @@ parse_line(idl_pstate_t *pstate, idl_token_t *tok)
         return IDL_RETCODE_SYNTAX_ERROR;
       }
       dir->path = tok->value.str;
-      tok->value.str = NULL; /* dont free */
+      tok->value.str = NULL; /* dont idl_free */
       pstate->scanner.state = IDL_SCAN_FLAGS;
       break;
     case IDL_SCAN_FLAGS:
@@ -256,7 +257,7 @@ extra_tokens:
     case IDL_SCAN_FILE: /* scan original filename */
       if (tok->code == IDL_TOKEN_STRING_LITERAL) {
         dir->file = tok->value.str;
-        tok->value.str = NULL; /* dont free */
+        tok->value.str = NULL; /* dont idl_free */
         pstate->scanner.state = IDL_SCAN_EXTRA_TOKENS;
       } else {
         const char *reason;
@@ -285,9 +286,9 @@ static void delete_keylist(void *ptr)
   if (dir->keys) {
     for (size_t i=0; dir->keys[i]; i++)
       idl_delete_field_name(dir->keys[i]);
-    free(dir->keys);
+    idl_free(dir->keys);
   }
-  free(dir);
+  idl_free(dir);
 }
 
 static idl_retcode_t
@@ -388,7 +389,7 @@ push_keylist(idl_pstate_t *pstate, struct keylist *dir)
     key->node.parent = (idl_node_t *)keylist;
     key->field_name = dir->keys[i];
     keylist->keys = idl_push_node(keylist->keys, key);
-    dir->keys[i] = NULL; /* do not free */
+    dir->keys[i] = NULL; /* do not idl_free */
   }
   ret = IDL_RETCODE_OK;
 
@@ -412,7 +413,7 @@ static int stash_name(idl_pstate_t *pstate, idl_location_t *loc, char *str)
   return 0;
 err_alloc:
   if (name)
-    free(name);
+    idl_free(name);
   return -1;
 }
 
@@ -428,7 +429,7 @@ static int stash_data_type(idl_pstate_t *pstate, idl_location_t *loc, char *str)
   return 0;
 err_alloc:
   if (name)
-    free(name);
+    idl_free(name);
   return -1;
 }
 
@@ -449,7 +450,7 @@ static int stash_field(idl_pstate_t *pstate, idl_location_t *loc, char *str)
   return 0;
 err_alloc:
   if (name)
-    free(name);
+    idl_free(name);
   return -1;
 }
 
@@ -461,7 +462,7 @@ static int stash_key(idl_pstate_t *pstate, idl_location_t *loc, char *str)
   size_t n;
 
   for (n=0; dir->keys && dir->keys[n]; n++) ;
-  if (!(keys = realloc(dir->keys, (n + 2) * sizeof(*keys))))
+  if (!(keys = idl_realloc(dir->keys, (n + 2) * sizeof(*keys))))
     goto err_alloc;
   dir->keys = keys;
   keys[n+0] = NULL;
@@ -473,7 +474,7 @@ static int stash_key(idl_pstate_t *pstate, idl_location_t *loc, char *str)
   return 0;
 err_alloc:
   if (name)
-    free(name);
+    idl_free(name);
   return -1;
 }
 
@@ -617,7 +618,7 @@ idl_retcode_t idl_parse_directive(idl_pstate_t *pstate, idl_token_t *tok)
     if (tok->code == IDL_TOKEN_IDENTIFIER) {
       if (strcmp(tok->value.str, "keylist") == 0) {
         struct keylist *dir;
-        if (!(dir = calloc(1, sizeof(*dir))))
+        if (!(dir = idl_calloc(1, sizeof(*dir))))
           return IDL_RETCODE_NO_MEMORY;
         dir->directive.type = KEYLIST;
         pstate->keylists = true; /* register keylist occurence */
@@ -632,7 +633,7 @@ idl_retcode_t idl_parse_directive(idl_pstate_t *pstate, idl_token_t *tok)
     if (tok->code == IDL_TOKEN_PP_NUMBER) {
       /* expect linemarker */
       struct line *dir;
-      if (!(dir = calloc(1, sizeof(*dir))))
+      if (!(dir = idl_calloc(1, sizeof(*dir))))
         return IDL_RETCODE_NO_MEMORY;
       dir->directive.type = LINEMARKER;
       pstate->directive = dir;
@@ -642,7 +643,7 @@ idl_retcode_t idl_parse_directive(idl_pstate_t *pstate, idl_token_t *tok)
       /* expect line or pragma */
       if (strcmp(tok->value.str, "line") == 0) {
         struct line *dir;
-        if (!(dir = calloc(1, sizeof(*dir))))
+        if (!(dir = idl_calloc(1, sizeof(*dir))))
           return IDL_RETCODE_NO_MEMORY;
         dir->directive.type = LINE;
         pstate->directive = dir;

@@ -19,6 +19,7 @@
 
 #include "idl/string.h"
 #include "idl/processor.h"
+#include "idl/heap.h"
 #include "annotation.h"
 #include "expression.h"
 #include "scope.h"
@@ -200,7 +201,7 @@ void idl_yypstate_delete_stack(idl_yypstate *yyps);
                               annotation_appl_keyword_param
                               annotation_appl_keyword_params
 
-%destructor { free($$); } <string_literal>
+%destructor { idl_free($$); } <string_literal>
 
 %destructor { idl_delete_name($$); }
   <name>
@@ -569,7 +570,7 @@ string_literal:
         /* adjacent string literals are concatenated */
         n1 = strlen($1);
         n2 = strlen($2);
-        if (!($$ = realloc($1, n1+n2+1)))
+        if (!($$ = idl_realloc($1, n1+n2+1)))
           NO_MEMORY();
         memmove($$+n1, $2, n2);
         $$[n1+n2] = '\0';
@@ -746,7 +747,7 @@ members:
 member:
     annotations type_spec declarators ';'
       { TRY(idl_create_member(pstate, LOC(@2.first, @4.last), $2, $3, &$$));
-        TRY_EXCEPT(idl_annotate(pstate, $$, $1), free($$));
+        TRY_EXCEPT(idl_annotate(pstate, $$, $1), idl_free($$));
       }
   ;
 
@@ -835,7 +836,7 @@ element_spec:
        as defined in [XTypes v1.3] Table 21 */
     annotations type_spec declarator
       { TRY(idl_create_case(pstate, LOC(@1.first, @3.last), $2, $3, &$$));
-        TRY_EXCEPT(idl_annotate(pstate, $$, $1), free($$));
+        TRY_EXCEPT(idl_annotate(pstate, $$, $1), idl_free($$));
       }
   ;
 
@@ -856,7 +857,7 @@ enumerators:
 enumerator:
     annotations identifier
       { TRY(idl_create_enumerator(pstate, &@2, $2, &$$));
-        TRY_EXCEPT(idl_annotate(pstate, $$, $1), free($$));
+        TRY_EXCEPT(idl_annotate(pstate, $$, $1), idl_free($$));
       }
   ;
 
@@ -877,7 +878,7 @@ bit_values:
 bit_value:
     annotations identifier
       { TRY(idl_create_bit_value(pstate, &@2, $2, &$$));
-        TRY_EXCEPT(idl_annotate(pstate, $$, $1), free($$));
+        TRY_EXCEPT(idl_annotate(pstate, $$, $1), idl_free($$));
       }
   ;
 

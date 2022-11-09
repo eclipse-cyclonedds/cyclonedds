@@ -15,6 +15,7 @@
 #include <string.h>
 #include <getopt.h>
 
+#include "idl/heap.h"
 #include "idl/string.h"
 
 #include "config.h"
@@ -86,7 +87,7 @@ static idlc_option_t **sort_options(
   idlc_option_t **vec;
 
   for (len=0; options[len]; len++) ;
-  if (!(vec = malloc((len+1) * sizeof(*vec))))
+  if (!(vec = idl_malloc((len+1) * sizeof(*vec))))
     return NULL;
   memcpy(vec, options, len * sizeof(*vec));
   vec[len] = NULL;
@@ -136,7 +137,7 @@ void print_help(
       printf("%s\n%*s", buf, off, "");
     print_description(opts[i]->help, off, off, WIDTH);
   }
-  free(opts);
+  idl_free(opts);
 }
 
 void print_usage(
@@ -245,7 +246,7 @@ static int make_optstring(idlc_option_t **options, char **optstrp)
   }
   if (seen['h'] != 1) /* -h is required and cannot have suboptions */
     return IDLC_BAD_INPUT;
-  if (!(str = calloc(len + 1, sizeof(*str))))
+  if (!(str = idl_calloc(len + 1, sizeof(*str))))
     return IDLC_NO_MEMORY;
   memset(seen, 0, sizeof(seen));
   for (size_t i=0; options[i]; i++) {
@@ -280,9 +281,9 @@ int parse_options(
   if (!(opts = sort_options(options, &descending)))
     goto err_sort;
   ret = handle_options(argc, argv, optstr, opts);
-  free(opts);
+  idl_free(opts);
 err_sort:
-  free(optstr);
+  idl_free(optstr);
 err_optstr:
   return ret;
 }

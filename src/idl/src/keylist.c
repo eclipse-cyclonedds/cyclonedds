@@ -13,6 +13,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include "idl/heap.h"
 #include "idl/misc.h"
 #include "idl/string.h"
 #include "keylist.h"
@@ -94,9 +95,9 @@ static struct key_container *get_key_container(const idl_node_t *key_type_node, 
 
   // not found => add it
   (*n_key_containers)++;
-  struct key_container *tmp = realloc(*key_containers, *n_key_containers * sizeof(**key_containers));
+  struct key_container *tmp = idl_realloc(*key_containers, *n_key_containers * sizeof(**key_containers));
   if (tmp == NULL) {
-    free (*key_containers);
+    idl_free (*key_containers);
     *key_containers = NULL;
     return NULL;
   }
@@ -114,9 +115,9 @@ static struct key_field *get_key_field(const idl_declarator_t *declarator, struc
 
   // not found => add it
   key_container->n_key_fields++;
-  struct key_field *tmp = realloc(key_container->key_fields, key_container->n_key_fields * sizeof(*key_container->key_fields));
+  struct key_field *tmp = idl_realloc(key_container->key_fields, key_container->n_key_fields * sizeof(*key_container->key_fields));
   if (tmp == NULL) {
-    free (key_container->key_fields);
+    idl_free (key_container->key_fields);
     key_container->key_fields = NULL;
     return NULL;
   }
@@ -132,9 +133,9 @@ static idl_retcode_t add_parent_path(struct key_field *key_field, idl_field_name
     return IDL_RETCODE_OK;
   key_field->n_parent_paths++;
   char **tmp;
-  if (!(tmp = realloc(key_field->parent_paths, key_field->n_parent_paths * sizeof(*key_field->parent_paths))))
+  if (!(tmp = idl_realloc(key_field->parent_paths, key_field->n_parent_paths * sizeof(*key_field->parent_paths))))
   {
-    free (key_field->parent_paths);
+    idl_free (key_field->parent_paths);
     key_field->parent_paths = NULL;
     return IDL_RETCODE_NO_MEMORY;
   }
@@ -142,7 +143,7 @@ static idl_retcode_t add_parent_path(struct key_field *key_field, idl_field_name
 
   size_t parent_path_len = strlen(key->identifier) - strlen(key->names[key->length - 1]->identifier) - 1;
   assert(parent_path_len > 0);
-  if (!(key_field->parent_paths[key_field->n_parent_paths - 1] = malloc(parent_path_len + 1)))
+  if (!(key_field->parent_paths[key_field->n_parent_paths - 1] = idl_malloc(parent_path_len + 1)))
     return IDL_RETCODE_NO_MEMORY;
   memcpy(key_field->parent_paths[key_field->n_parent_paths - 1], key->identifier, parent_path_len);
   key_field->parent_paths[key_field->n_parent_paths - 1][parent_path_len] = '\0';
@@ -163,16 +164,16 @@ static void key_containers_fini(struct key_container *key_containers, size_t n_k
       for (size_t p = 0; p < key_containers[c].key_fields[f].n_parent_paths; p++) {
         if (!key_containers[c].key_fields[f].parent_paths)
           continue;
-        free(key_containers[c].key_fields[f].parent_paths[p]);
+        idl_free(key_containers[c].key_fields[f].parent_paths[p]);
         key_containers[c].key_fields[f].parent_paths[p] = NULL;
       }
-      free(key_containers[c].key_fields[f].parent_paths);
+      idl_free(key_containers[c].key_fields[f].parent_paths);
       key_containers[c].key_fields[f].parent_paths = NULL;
     }
-    free(key_containers[c].key_fields);
+    idl_free(key_containers[c].key_fields);
     key_containers[c].key_fields = NULL;
   }
-  free(key_containers);
+  idl_free(key_containers);
   IDL_WARNING_MSVC_ON (6001);
 }
 
@@ -219,7 +220,7 @@ static idl_retcode_t get_keylist_key_paths_struct_key(idl_pstate_t *pstate, idl_
     }
   }
   assert(key_names.length == 0 || ret != IDL_RETCODE_OK);
-  free(key_names.identifier);
+  idl_free(key_names.identifier);
   return ret;
 }
 

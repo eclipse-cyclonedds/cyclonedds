@@ -18,7 +18,7 @@
  * defined. strtoull_l and strtold_l are exported from stdlib.h, again if
  * _GNU_SOURCE is defined.
  *
- * FreeBSD and macOS export newlocale and freelocale from xlocale.h and
+ * freeBSD and macOS export newlocale and freelocale from xlocale.h and
  * export strtoull_l and strtold_l from xlocale.h if stdlib.h is included
  * before.
  *
@@ -54,6 +54,7 @@ typedef _locale_t locale_t;
 #endif
 
 #include "idl/stream.h"
+#include "idl/heap.h"
 #include "idl/string.h"
 
 static locale_t posix_locale(void);
@@ -136,7 +137,7 @@ char *idl_strndup(const char *str, size_t len)
   size_t n;
   for (n=0; n < len && str[n]; n++) ;
   assert(n <= len);
-  if (!(s = malloc(n + 1)))
+  if (!(s = idl_malloc(n + 1)))
     return NULL;
   memmove(s, str, n);
   s[n] = '\0';
@@ -222,13 +223,13 @@ int idl_asprintf(char **strp, const char *fmt, ...)
 
   if ((ret = idl_vsnprintf(buf, sizeof(buf), fmt, ap1)) >= 0) {
     len = (unsigned int)ret; /* +1 for null byte */
-    if ((str = malloc(len + 1)) == NULL) {
+    if ((str = idl_malloc(len + 1)) == NULL) {
       ret = -1;
     } else if ((ret = idl_vsnprintf(str, len + 1, fmt, ap2)) >= 0) {
       assert(((unsigned int)ret) == len);
       *strp = str;
     } else {
-      free(str);
+      idl_free(str);
     }
   }
 
@@ -237,7 +238,6 @@ int idl_asprintf(char **strp, const char *fmt, ...)
 
   return ret;
 }
-
 int idl_vasprintf(char **strp, const char *fmt, va_list ap)
 {
   int ret;
@@ -253,13 +253,13 @@ int idl_vasprintf(char **strp, const char *fmt, va_list ap)
 
   if ((ret = idl_vsnprintf(buf, sizeof(buf), fmt, ap)) >= 0) {
     len = (unsigned int)ret;
-    if ((str = malloc(len + 1)) == NULL) {
+    if ((str = idl_malloc(len + 1)) == NULL) {
       ret = -1;
     } else if ((ret = idl_vsnprintf(str, len + 1, fmt, ap2)) >= 0) {
       assert(((unsigned int)ret) == len);
       *strp = str;
     } else {
-      free(str);
+      idl_free(str);
     }
   }
 
@@ -357,6 +357,12 @@ FILE *idl_fopen(const char *pathname, const char *mode)
   return fopen(pathname, mode);
 #endif
 }
+
+int idl_fclose(FILE *fp)
+{
+  return fclose(fp);
+}
+
 
 #if defined _WIN32
 static DWORD locale = TLS_OUT_OF_INDEXES;

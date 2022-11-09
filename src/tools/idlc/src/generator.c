@@ -19,6 +19,7 @@
 #include "generator.h"
 
 #include "idl/file.h"
+#include "idl/heap.h"
 #include "idl/retcode.h"
 #include "idl/stream.h"
 #include "idl/string.h"
@@ -148,7 +149,7 @@ static int print_templ_type(
   len += cnt;
   str[ (size > len ? len : size - 1) ] = '\0';
   if (name)
-    free(name);
+    idl_free(name);
   return (int)len;
 }
 
@@ -388,16 +389,16 @@ idlc_generate(const idl_pstate_t *pstate, const idlc_generator_config_t *config)
 
 err_options:
   if (generator.config.export_macro)
-    free(generator.config.export_macro);
+    idl_free(generator.config.export_macro);
 err_source:
   if (generator.source.handle)
     fclose(generator.source.handle);
   if (generator.source.path)
-    free(generator.source.path);
+    idl_free(generator.source.path);
 err_header:
   if (generator.header.handle)
     fclose(generator.header.handle);
   if (generator.header.path)
-    free(generator.header.path);
+    idl_free(generator.header.path);
   return ret;
 }

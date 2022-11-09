@@ -15,6 +15,7 @@
 #include <stdio.h>
 
 #include "idl/retcode.h"
+#include "idl/heap.h"
 #include "idl/string.h"
 #include "symbol.h"
 #include "scope.h"
@@ -30,7 +31,7 @@ create_declaration(
   char *identifier;
   idl_declaration_t *declaration;
 
-  if (!(declaration = calloc(1, sizeof(*declaration))))
+  if (!(declaration = idl_calloc(1, sizeof(*declaration))))
     goto err_declaration;
   declaration->kind = kind;
   if (!(identifier = idl_strdup(name->identifier)))
@@ -40,9 +41,9 @@ create_declaration(
   *declarationp = declaration;
   return IDL_RETCODE_OK;
 err_name:
-  free(identifier);
+  idl_free(identifier);
 err_identifier:
-  free(declaration);
+  idl_free(declaration);
 err_declaration:
   return IDL_RETCODE_NO_MEMORY;
 }
@@ -54,12 +55,12 @@ static void delete_declaration(idl_declaration_t *declaration)
       idl_delete_name(declaration->name);
     if (declaration->scoped_name) {
       if (declaration->scoped_name->identifier)
-        free(declaration->scoped_name->identifier);
+        idl_free(declaration->scoped_name->identifier);
       if (declaration->scoped_name->names)
-        free(declaration->scoped_name->names);
-      free(declaration->scoped_name);
+        idl_free(declaration->scoped_name->names);
+      idl_free(declaration->scoped_name);
     }
-    free(declaration);
+    idl_free(declaration);
   }
 }
 
@@ -80,7 +81,7 @@ idl_create_scope(
   if (create_declaration(pstate, IDL_SCOPE_DECLARATION, name, &entry))
     goto err_declaration;
   entry->node = node;
-  if (!(scope = malloc(sizeof(*scope))))
+  if (!(scope = idl_malloc(sizeof(*scope))))
     goto err_scope;
   scope->parent = pstate->scope;
   scope->kind = kind;
@@ -95,7 +96,7 @@ err_declaration:
   return IDL_RETCODE_NO_MEMORY;
 }
 
-/* free scopes, not nodes */
+/* idl_free scopes, not nodes */
 void idl_delete_scope(idl_scope_t *scope)
 {
   if (scope) {
@@ -107,9 +108,9 @@ void idl_delete_scope(idl_scope_t *scope)
     }
     for (idl_import_t *q, *p = scope->imports.first; p; p = q) {
       q = p->next;
-      free(p);
+      idl_free(p);
     }
-    free(scope);
+    idl_free(scope);
   }
 }
 
@@ -128,7 +129,7 @@ idl_import(
       return IDL_RETCODE_OK;
   }
 
-  if (!(entry = malloc(sizeof(*entry))))
+  if (!(entry = idl_malloc(sizeof(*entry))))
     return IDL_RETCODE_NO_MEMORY;
   entry->next = NULL;
   entry->scope = imported_scope;
@@ -298,14 +299,14 @@ clash:
         len += strlen(sep) + strlen(s->name->identifier);
       }
 
-      if (!(scoped_name = calloc(1, sizeof(*scoped_name))) ||
-          !(scoped_name->names = calloc(cnt, sizeof(*scoped_name->names))) ||
-          !(scoped_name->identifier = malloc(len + 1)))
+      if (!(scoped_name = idl_calloc(1, sizeof(*scoped_name))) ||
+          !(scoped_name->names = idl_calloc(cnt, sizeof(*scoped_name->names))) ||
+          !(scoped_name->identifier = idl_malloc(len + 1)))
       {
         if (scoped_name && scoped_name->names)
-          free(scoped_name->names);
+          idl_free(scoped_name->names);
         if (scoped_name)
-          free(scoped_name);
+          idl_free(scoped_name);
         return IDL_RETCODE_NO_MEMORY;
       }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2021 ZettaScale Technology and others
+ * Copyright(c) 2022 ZettaScale Technology and others
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -9,21 +9,18 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef IDL_STREAM_H
-#define IDL_STREAM_H
+#ifndef IDL_HEAP_H
+#define IDL_HEAP_H
 
 #include <stdarg.h>
-#include <stdio.h>
+#include <stddef.h>
 
 #include "idl/export.h"
 #include "idl/attributes.h"
 
-IDL_EXPORT FILE *idl_fopen(const char *pathname, const char *mode);
-IDL_EXPORT int   idl_fclose(FILE * file);
+IDL_EXPORT void* idl_malloc  (size_t size);
+IDL_EXPORT void* idl_calloc  (size_t num, size_t size);
+IDL_EXPORT void* idl_realloc (void *ptr, size_t new_size);
+IDL_EXPORT void  idl_free    (void *pt);
 
-IDL_EXPORT int idl_fprintf(FILE *fp, const char *fmt, ...)
-idl_attribute_format_printf(2, 3);
-
-IDL_EXPORT int idl_vfprintf(FILE *fp, const char *fmt, va_list ap);
-
-#endif /* IDL_STREAM_H */
+#endif /* IDL_HEAP_H */

@@ -18,6 +18,7 @@
 #include <inttypes.h>
 
 #include "dds/features.h"
+#include "idl/heap.h"
 #include "idl/misc.h"
 #include "idl/print.h"
 #include "idl/processor.h"
@@ -50,7 +51,7 @@ static idl_retcode_t push_field(
          idl_is_inherit_spec(node));
   stype = descriptor->type_stack;
   assert(stype);
-  if (!(field = calloc(1, sizeof(*field))))
+  if (!(field = idl_calloc(1, sizeof(*field))))
     return IDL_RETCODE_NO_MEMORY;
   field->previous = stype->fields;
   field->node = node;
@@ -70,7 +71,7 @@ static void pop_field(struct descriptor *descriptor)
   field = stype->fields;
   assert(field);
   stype->fields = field->previous;
-  free(field);
+ idl_free (field);
 }
 
 static idl_retcode_t push_type(
@@ -83,7 +84,7 @@ static idl_retcode_t push_type(
          idl_is_union(node) ||
          idl_is_sequence(node) ||
          idl_is_declarator(node));
-  if (!(stype = calloc(1, sizeof(*stype))))
+  if (!(stype = idl_calloc(1, sizeof(*stype))))
     return IDL_RETCODE_NO_MEMORY;
   stype->previous = descriptor->type_stack;
   stype->node = node;
@@ -102,7 +103,7 @@ static void pop_type(struct descriptor *descriptor)
   stype = descriptor->type_stack;
   descriptor->type_stack = stype->previous;
   assert(!stype->fields || (stype->previous && stype->fields == stype->previous->fields));
-  free(stype);
+ idl_free (stype);
 }
 
 static idl_retcode_t
@@ -119,7 +120,7 @@ stash_instruction(
   if (instructions->count == instructions->size) {
     uint32_t size = instructions->size + 100;
     struct instruction *table = instructions->table;
-    if (!(table = realloc(table, size * sizeof(*table))))
+    if (!(table = idl_realloc(table, size * sizeof(*table))))
       return IDL_RETCODE_NO_MEMORY;
     instructions->size = size;
     instructions->table = table;
@@ -192,7 +193,7 @@ stash_offset(
   }
 
   pos = len;
-  if (!(inst.data.offset.member = malloc(len + 1)))
+  if (!(inst.data.offset.member = idl_malloc(len + 1)))
     goto err_member;
 
   inst.data.offset.member[pos] = '\0';
@@ -226,9 +227,9 @@ stash_offset(
 
   return IDL_RETCODE_OK;
 err_stash:
-  free(inst.data.offset.type);
+ idl_free (inst.data.offset.type);
 err_type:
-  free(inst.data.offset.member);
+ idl_free (inst.data.offset.member);
 err_member:
   return IDL_RETCODE_NO_MEMORY;
 }
@@ -352,12 +353,12 @@ stash_member_size(
            use sizeof (struct decl) to get size of the array elements. */
         const char * _struct = "struct ";
         size_t sz = strlen(typestr) + strlen(_struct) + 1;
-        inst.data.size.type = malloc(sz);
+        inst.data.size.type = idl_malloc(sz);
         if (inst.data.size.type) {
           idl_strlcpy(inst.data.size.type, _struct, sz);
           idl_strlcpy(inst.data.size.type + strlen(_struct), typestr, sz - strlen(_struct));
         }
-        free(typestr);
+       idl_free (typestr);
         if (!inst.data.size.type)
           goto err_type;
       } else {
@@ -367,10 +368,10 @@ stash_member_size(
         for (; const_expr; const_expr = idl_next(const_expr), len += 3)
           /* do nothing */;
 
-        inst.data.size.type = malloc(len + 1);
+        inst.data.size.type = idl_malloc(len + 1);
         if (inst.data.size.type)
           memcpy(inst.data.size.type, typestr, pos);
-        free(typestr);
+       idl_free (typestr);
         if (!inst.data.size.type)
           goto err_type;
 
@@ -391,7 +392,7 @@ stash_member_size(
 
   return IDL_RETCODE_OK;
 err_stash:
-  free(inst.data.size.type);
+ idl_free (inst.data.size.type);
 err_type:
   return IDL_RETCODE_NO_MEMORY;
 }
@@ -462,7 +463,7 @@ stash_constant(
     goto err_stash;
   return IDL_RETCODE_OK;
 err_stash:
-  free(inst.data.constant.value);
+ idl_free (inst.data.constant.value);
 err_value:
   return IDL_RETCODE_NO_MEMORY;
 }
@@ -625,7 +626,7 @@ add_ctype(struct descriptor *descriptor, const idl_scope_t *scope, const void *n
 {
   struct constructed_type *ctype1;
 
-  if (!(ctype1 = calloc(1, sizeof (*ctype1))))
+  if (!(ctype1 = idl_calloc(1, sizeof (*ctype1))))
     goto err_ctype;
   ctype1->node = node;
   ctype1->name = idl_name(node);
@@ -1922,12 +1923,12 @@ static void free_ctype_keys(struct constructed_type_key *key)
   struct constructed_type_key *tmp = key, *tmp1;
   while (tmp) {
     if (tmp->name)
-      free(tmp->name);
+     idl_free (tmp->name);
     if (tmp->sub)
       free_ctype_keys(tmp->sub);
     tmp1 = tmp;
     tmp = tmp->next;
-    free(tmp1);
+   idl_free (tmp1);
   }
 }
 
@@ -1964,7 +1965,7 @@ static idl_retcode_t get_ctype_keys_adr(
 {
   idl_retcode_t ret;
 
-  struct constructed_type_key *key = calloc (1, sizeof(*key));
+  struct constructed_type_key *key = idl_calloc (1, sizeof(*key));
   if (!key)
     return IDL_RETCODE_NO_MEMORY;
 
@@ -2164,12 +2165,12 @@ static idl_retcode_t descriptor_add_key_recursive(const idl_pstate_t *pstate, st
       descriptor->n_keys++;
     }
     offs->n--;
-    free(name1);
+   idl_free (name1);
     key = key->next;
   }
   return IDL_RETCODE_OK;
 err_stash:
-  free(name1);
+ idl_free (name1);
 err:
   return ret;
 }
@@ -2207,11 +2208,11 @@ static idl_retcode_t descriptor_init_keys(const idl_pstate_t *pstate, struct con
   assert(ctype);
   if (n_keys == 0)
     return IDL_RETCODE_OK;
-  if (!(descriptor->keys = calloc(n_keys, sizeof(*descriptor->keys))))
+  if (!(descriptor->keys = idl_calloc(n_keys, sizeof(*descriptor->keys))))
     return IDL_RETCODE_NO_MEMORY;
 
   if ((ret = descriptor_add_keys(pstate, ctype, ctype_keys, descriptor, n_keys, keylist)) < 0) {
-    free(descriptor->keys);
+   idl_free (descriptor->keys);
     return ret;
   }
 
@@ -2223,7 +2224,7 @@ static idl_retcode_t descriptor_init_keys(const idl_pstate_t *pstate, struct con
       assert(descriptor->keys[key_index].name);
       assert(!strcmp(descriptor->keys[key_index].name, inst->data.key_offset.key_name));
       descriptor->keys[key_index].inst_offs = i;
-      descriptor->keys[key_index].order = calloc(offs_len, sizeof (*descriptor->keys[key_index].order));
+      descriptor->keys[key_index].order = idl_calloc(offs_len, sizeof (*descriptor->keys[key_index].order));
       descriptor->keys[key_index].n_order = offs_len;
       descriptor->keys[key_index].key_idx = key_index;
       key_index++;
@@ -2256,12 +2257,12 @@ static void descriptor_keys_free(struct key_meta_data *keys, uint32_t n_keys)
 {
   for (uint32_t k = 0; k < n_keys; k++) {
     if (keys[k].order) {
-      free(keys[k].name);
-      free(keys[k].order);
+     idl_free (keys[k].name);
+     idl_free (keys[k].order);
       keys[k].order = NULL;
     }
   }
-  free(keys);
+ idl_free (keys);
 }
 
 static int print_keys(FILE *fp, struct descriptor *descriptor, uint32_t offset)
@@ -2286,11 +2287,11 @@ static int print_keys(FILE *fp, struct descriptor *descriptor, uint32_t offset)
   }
   if (fputs("\n};\n\n", fp) < 0)
     goto err_print;
-  free(typestr);
+ idl_free (typestr);
   return 0;
 
 err_print:
-  free(typestr);
+ idl_free (typestr);
 err_type:
   return -1;
 }
@@ -2465,21 +2466,21 @@ instructions_fini(struct instructions *instructions)
     switch (inst->type) {
       case OFFSET:
         if (inst->data.offset.member)
-          free(inst->data.offset.member);
+         idl_free (inst->data.offset.member);
         if (inst->data.offset.type)
-          free(inst->data.offset.type);
+         idl_free (inst->data.offset.type);
         break;
       case MEMBER_SIZE:
         if (inst->data.size.type)
-          free(inst->data.size.type);
+         idl_free (inst->data.size.type);
         break;
       case CONSTANT:
         if (inst->data.constant.value)
-          free(inst->data.constant.value);
+         idl_free (inst->data.constant.value);
         break;
       case KEY_OFFSET:
         if (inst->data.key_offset.key_name)
-          free(inst->data.key_offset.key_name);
+         idl_free (inst->data.key_offset.key_name);
       default:
         break;
     }
@@ -2492,7 +2493,7 @@ ctype_fini(struct constructed_type *ctype)
 {
   instructions_fini(&ctype->instructions);
   if (ctype->instructions.table)
-    free(ctype->instructions.table);
+   idl_free (ctype->instructions.table);
 }
 
 idl_retcode_t generate_descriptor(const idl_pstate_t *pstate, struct generator *generator, const idl_node_t *node);
@@ -2508,12 +2509,12 @@ descriptor_fini(struct descriptor *descriptor)
   while (ctype) {
     ctype_fini(ctype);
     ctype1 = ctype->next;
-    free(ctype);
+   idl_free (ctype);
     ctype = ctype1;
   }
   instructions_fini(&descriptor->key_offsets);
   descriptor_keys_free(descriptor->keys, descriptor->n_keys);
-  free(descriptor->key_offsets.table);
+ idl_free (descriptor->key_offsets.table);
   assert(!descriptor->type_stack);
 #if defined(_MSC_VER)
 #pragma warning(pop)

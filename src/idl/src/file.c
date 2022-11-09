@@ -25,6 +25,7 @@
 #endif
 
 #include "file.h"
+#include "idl/heap.h"
 #include "idl/string.h"
 
 unsigned int idl_isseparator(int chr)
@@ -147,14 +148,14 @@ static char *absolute_path(const char *path)
     if (dirlen + 2 >= (SIZE_MAX - pathlen))
       goto err_abs;
     len = dirlen + 1 /* separator */ + pathlen;
-    if (!(abspath = malloc(len + 1)))
+    if (!(abspath = idl_malloc(len + 1)))
       goto err_abs;
     memcpy(abspath, dir, dirlen);
     abspath[dirlen] = sep;
     memcpy(abspath + dirlen + 1, path, pathlen);
     abspath[len] = '\0';
 err_abs:
-    free(dir);
+    idl_free(dir);
 err_cwd:
     return abspath;
   }
@@ -199,7 +200,7 @@ idl_retcode_t idl_normalize_path(const char *path, char **normpathp)
     { ret = IDL_RETCODE_NO_MEMORY; goto err_abs; }
   if ((len = idl_untaint_path(abspath)) < 0)
     { ret = IDL_RETCODE_BAD_PARAMETER; goto err_norm; }
-  if (!(normpath = malloc((size_t)len + 1)))
+  if (!(normpath = idl_malloc((size_t)len + 1)))
     { ret = IDL_RETCODE_NO_MEMORY; goto err_norm; }
 
   /* ensure Windows drive letters are capitals */
@@ -237,13 +238,13 @@ idl_retcode_t idl_normalize_path(const char *path, char **normpathp)
     assert(pos == (size_t)len);
   }
 
-  free(abspath);
+  idl_free(abspath);
   *normpathp = normpath;
   return IDL_RETCODE_OK;
 err_seg:
-  free(normpath);
+  idl_free(normpath);
 err_norm:
-  free(abspath);
+  idl_free(abspath);
 err_abs:
   return ret;
 }
@@ -346,7 +347,7 @@ idl_retcode_t idl_relative_path(const char *base, const char *path, char **relpa
     for (size_t i=0; rew[i]; i++)
       cnt += (isseparator(rew[i]) && !isdelimiter(rew[i+1]));
     len = cnt*3;
-    if (!(rev = malloc(len+1)))
+    if (!(rev = idl_malloc(len+1)))
       return IDL_RETCODE_NO_MEMORY;
     memset(rev, '.', len);
     rev[len] = '\0';
@@ -356,7 +357,7 @@ idl_retcode_t idl_relative_path(const char *base, const char *path, char **relpa
 
   (void) idl_asprintf(&rel, "%s%s", rev ? rev : "", fwd);
   if (rev)
-    free(rev);
+    idl_free(rev);
   if (!rel)
     return IDL_RETCODE_NO_MEMORY;
   idl_untaint_path(rel);
@@ -410,7 +411,7 @@ idl_retcode_t idl_mkpath(const char *path)
 
   err_mkdir:
   err_untaint:
-  free(full_path);
+  idl_free(full_path);
   err_full_path:
   return ret;
 }
@@ -512,7 +513,7 @@ idl_retcode_t idl_generate_out_file(const char *path, const char *output_dir, co
       goto err_rel_path;
     }
 
-    // Extract the common directory to dir, free the old_dir pointer
+    // Extract the common directory to dir, idl_free the old_dir pointer
     dir = NULL;
     size_t print_len = rel_path == NULL ? 0 : strlen(rel_path);
     if (file) {
@@ -523,7 +524,7 @@ idl_retcode_t idl_generate_out_file(const char *path, const char *output_dir, co
       goto err_rel_path;
     }
     if (old_dir != empty)
-      free(old_dir);
+      idl_free(old_dir);
   }
 
   sepr = dir[0] == '\0' ? "" : "/";
@@ -556,16 +557,16 @@ idl_retcode_t idl_generate_out_file(const char *path, const char *output_dir, co
 err_outpath:
 err_mkpath:
   if(output_path)
-    free(output_path);
+    idl_free(output_path);
 err_rel_path:
   if(rel_path)
-    free(rel_path);
+    idl_free(rel_path);
   if(abs_file_path)
-    free(abs_file_path);
-  free(basename);
+    idl_free(abs_file_path);
+  idl_free(basename);
 err_basename:
   if (dir && dir != empty)
-    free(dir);
+    idl_free(dir);
 err_dir:
   return ret;
 }

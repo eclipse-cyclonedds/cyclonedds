@@ -25,6 +25,7 @@
 #include "dds/ddsi/ddsi_xt_typemap.h"
 #include "dds/ddsc/dds_opcodes.h"
 
+#include "idl/heap.h"
 #include "idl/print.h"
 #include "idl/processor.h"
 #include "idl/stream.h"
@@ -42,20 +43,20 @@ push_type (struct descriptor_type_meta *dtm, const void *node)
   while (tm && tm->node != node)
     tm = tm->admin_next;
   if (!tm) {
-    tm = calloc (1, sizeof (*tm));
+    tm = idl_calloc (1, sizeof (*tm));
     if (!tm)
       return IDL_RETCODE_NO_MEMORY;
     tm->node = node;
-    if (!(tm->ti_minimal = calloc (1, sizeof (*tm->ti_minimal))) ||
-        !(tm->to_minimal = calloc (1, sizeof (*tm->to_minimal))) ||
-        !(tm->ti_complete = calloc (1, sizeof (*tm->ti_complete))) ||
-        !(tm->to_complete = calloc (1, sizeof (*tm->to_complete))))
+    if (!(tm->ti_minimal = idl_calloc (1, sizeof (*tm->ti_minimal))) ||
+        !(tm->to_minimal = idl_calloc (1, sizeof (*tm->to_minimal))) ||
+        !(tm->ti_complete = idl_calloc (1, sizeof (*tm->ti_complete))) ||
+        !(tm->to_complete = idl_calloc (1, sizeof (*tm->to_complete))))
     {
-      if (tm->ti_minimal) free (tm->ti_minimal);
-      if (tm->to_minimal) free (tm->to_minimal);
-      if (tm->ti_complete) free (tm->ti_complete);
-      if (tm->to_complete) free (tm->to_complete);
-      free (tm);
+      if (tm->ti_minimal) idl_free (tm->ti_minimal);
+      if (tm->to_minimal) idl_free (tm->to_minimal);
+      if (tm->ti_complete) idl_free (tm->ti_complete);
+      if (tm->to_complete) idl_free (tm->to_complete);
+      idl_free (tm);
       return IDL_RETCODE_NO_MEMORY;
     }
 
@@ -119,9 +120,9 @@ xcdr2_ser (
 static idl_retcode_t
 add_to_seq (dds_sequence_t *seq, const void *obj, size_t sz)
 {
-  uint8_t *buf = realloc (seq->_buffer, (seq->_length + 1) * sz);
+  uint8_t *buf = idl_realloc (seq->_buffer, (seq->_length + 1) * sz);
   if (buf == NULL) {
-    free (seq->_buffer);
+    idl_free (seq->_buffer);
     seq->_buffer = NULL;
     seq->_release = false;
     return IDL_RETCODE_NO_MEMORY;
@@ -223,7 +224,7 @@ get_plain_typeid (const idl_pstate_t *pstate, struct descriptor_type_meta *dtm, 
         if ((ret = add_to_seq ((dds_sequence_t *) &ti->_u.array_sdefn.array_bound_seq, &val, sizeof (*ti->_u.array_sdefn.array_bound_seq._buffer))) < 0)
           return ret;
       }
-      ti->_u.array_sdefn.element_identifier = calloc (1, sizeof (*ti->_u.array_sdefn.element_identifier));
+      ti->_u.array_sdefn.element_identifier = idl_calloc (1, sizeof (*ti->_u.array_sdefn.element_identifier));
       if ((ret = get_typeid (pstate, dtm, type_spec, false, ti->_u.array_sdefn.element_identifier, kind, true)) < 0)
         return ret;
       ti->_u.array_sdefn.header.element_flags = get_array_element_flags (type_spec);
@@ -233,7 +234,7 @@ get_plain_typeid (const idl_pstate_t *pstate, struct descriptor_type_meta *dtm, 
         ti->_u.array_sdefn.header.equiv_kind = kind;
     } else {
       ti->_d = DDS_XTypes_TI_PLAIN_ARRAY_LARGE;
-      ti->_u.array_ldefn.element_identifier = calloc (1, sizeof (*ti->_u.array_ldefn.element_identifier));
+      ti->_u.array_ldefn.element_identifier = idl_calloc (1, sizeof (*ti->_u.array_ldefn.element_identifier));
       ti->_u.array_ldefn.header.element_flags = get_array_element_flags (type_spec);
       for (; literal; literal = idl_next (literal)) {
         assert (literal->value.uint64 < UINT32_MAX);
@@ -284,7 +285,7 @@ get_plain_typeid (const idl_pstate_t *pstate, struct descriptor_type_meta *dtm, 
           ti->_d = DDS_XTypes_TI_PLAIN_SEQUENCE_SMALL;
           ti->_u.seq_sdefn.bound = (uint8_t) seq->maximum;
           ti->_u.seq_sdefn.header.element_flags = get_sequence_element_flags (seq);
-          ti->_u.seq_sdefn.element_identifier = calloc (1, sizeof (*ti->_u.seq_sdefn.element_identifier));
+          ti->_u.seq_sdefn.element_identifier = idl_calloc (1, sizeof (*ti->_u.seq_sdefn.element_identifier));
           if ((ret = get_typeid (pstate, dtm, idl_type_spec (type_spec), false, ti->_u.seq_sdefn.element_identifier, kind, false)) < 0)
             return ret;
           if (has_fully_descriptive_typeid (type_spec))
@@ -295,7 +296,7 @@ get_plain_typeid (const idl_pstate_t *pstate, struct descriptor_type_meta *dtm, 
           ti->_d = DDS_XTypes_TI_PLAIN_SEQUENCE_LARGE;
           ti->_u.seq_ldefn.bound = seq->maximum;
           ti->_u.seq_ldefn.header.element_flags = get_sequence_element_flags (seq);
-          ti->_u.seq_ldefn.element_identifier = calloc (1, sizeof (*ti->_u.seq_ldefn.element_identifier));
+          ti->_u.seq_ldefn.element_identifier = idl_calloc (1, sizeof (*ti->_u.seq_ldefn.element_identifier));
           if ((ret = get_typeid (pstate, dtm, idl_type_spec (type_spec), false, ti->_u.seq_ldefn.element_identifier, kind, false)) < 0)
             return ret;
           if (has_fully_descriptive_typeid (type_spec))
@@ -684,7 +685,7 @@ get_builtin_member_ann(
   idl_retcode_t ret = IDL_RETCODE_OK;
   *ann_builtin = NULL;
   bool set = false;
-  DDS_XTypes_AppliedBuiltinMemberAnnotations *ptr = calloc (1, sizeof (**ann_builtin));
+  DDS_XTypes_AppliedBuiltinMemberAnnotations *ptr = idl_calloc (1, sizeof (**ann_builtin));
   if (ptr == NULL) {
     ret = IDL_RETCODE_NO_MEMORY;
     goto cleanup;
@@ -723,7 +724,7 @@ get_builtin_member_ann(
       set = true;
     }
     if (min) {
-      if (!(ptr->min = calloc(1, sizeof(*(ptr->min))))) {
+      if (!(ptr->min = idl_calloc(1, sizeof(*(ptr->min))))) {
         ret = IDL_RETCODE_NO_MEMORY;
         goto cleanup;
       }
@@ -732,7 +733,7 @@ get_builtin_member_ann(
       set = true;
     }
     if (max) {
-      if (!(ptr->max = calloc(1, sizeof(*(ptr->max))))) {
+      if (!(ptr->max = idl_calloc(1, sizeof(*(ptr->max))))) {
         ret = IDL_RETCODE_NO_MEMORY;
         goto cleanup;
       }
@@ -750,14 +751,14 @@ get_builtin_member_ann(
 cleanup:
   if (ptr) {
     if (ptr->hash_id)
-      free (ptr->hash_id);
+      idl_free (ptr->hash_id);
     if (ptr->unit)
-      free (ptr->unit);
+      idl_free (ptr->unit);
     if (ptr->min)
-      free (ptr->min);
+      idl_free (ptr->min);
     if (ptr->max)
-      free (ptr->max);
-    free (ptr);
+      idl_free (ptr->max);
+    idl_free (ptr);
   }
   return ret;
 }
@@ -878,8 +879,8 @@ add_union_case(const idl_pstate_t *pstate, struct descriptor_type_meta *dtm, DDS
   m.common.label_seq._length = c.common.label_seq._length = cnt;
   m.common.label_seq._release = c.common.label_seq._release = true;
   if (cnt) {
-    m.common.label_seq._buffer = calloc (cnt, sizeof (*m.common.label_seq._buffer));
-    c.common.label_seq._buffer = calloc (cnt, sizeof (*c.common.label_seq._buffer));
+    m.common.label_seq._buffer = idl_calloc (cnt, sizeof (*m.common.label_seq._buffer));
+    c.common.label_seq._buffer = idl_calloc (cnt, sizeof (*c.common.label_seq._buffer));
     for (cl = case_node->labels, n = 0; cl; cl = idl_next (cl)) {
       if ((idl_mask(cl) & mask) != mask) {
         int64_t val = idl_case_label_intvalue (cl);
@@ -904,17 +905,17 @@ add_union_case(const idl_pstate_t *pstate, struct descriptor_type_meta *dtm, DDS
 
 err:
   if (c.detail.ann_builtin)
-    free (c.detail.ann_builtin);
+    idl_free (c.detail.ann_builtin);
   if (c.detail.ann_custom)
-    free (c.detail.ann_custom);
+    idl_free (c.detail.ann_custom);
   if (m.common.label_seq._buffer)
-    free (m.common.label_seq._buffer);
+    idl_free (m.common.label_seq._buffer);
   if (c.common.label_seq._buffer)
-    free (c.common.label_seq._buffer);
+    idl_free (c.common.label_seq._buffer);
   if (to_minimal->_u.minimal._u.union_type.member_seq._buffer)
-    free (to_minimal->_u.minimal._u.union_type.member_seq._buffer);
+    idl_free (to_minimal->_u.minimal._u.union_type.member_seq._buffer);
   if (to_complete->_u.complete._u.union_type.member_seq._buffer)
-    free (to_complete->_u.complete._u.union_type.member_seq._buffer);
+    idl_free (to_complete->_u.complete._u.union_type.member_seq._buffer);
   return ret;
 }
 
@@ -1406,13 +1407,13 @@ emit_bit_value (
 err:
   if (c.detail.ann_builtin != NULL) {
     if (c.detail.ann_builtin->hash_id != NULL)
-      free (c.detail.ann_builtin->hash_id);
-    free (c.detail.ann_builtin);
+      idl_free (c.detail.ann_builtin->hash_id);
+    idl_free (c.detail.ann_builtin);
   }
   if (tm->to_minimal->_u.minimal._u.bitmask_type.flag_seq._release)
-    free (tm->to_minimal->_u.minimal._u.bitmask_type.flag_seq._buffer);
+    idl_free (tm->to_minimal->_u.minimal._u.bitmask_type.flag_seq._buffer);
   if (tm->to_complete->_u.complete._u.bitmask_type.flag_seq._release)
-    free (tm->to_complete->_u.complete._u.bitmask_type.flag_seq._buffer);
+    idl_free (tm->to_complete->_u.complete._u.bitmask_type.flag_seq._buffer);
   return ret;
 }
 
@@ -1598,18 +1599,18 @@ descriptor_type_meta_fini (struct descriptor_type_meta *dtm)
   struct type_meta *tm = dtm->admin;
   while (tm) {
     type_id_fini (tm->ti_minimal);
-    free (tm->ti_minimal);
+    idl_free (tm->ti_minimal);
     type_obj_fini (tm->to_minimal);
-    free (tm->to_minimal);
+    idl_free (tm->to_minimal);
 
     type_id_fini (tm->ti_complete);
-    free (tm->ti_complete);
+    idl_free (tm->ti_complete);
     type_obj_fini (tm->to_complete);
-    free (tm->to_complete);
+    idl_free (tm->to_complete);
 
     struct type_meta *tmp = tm;
     tm = tm->admin_next;
-    free (tmp);
+    idl_free (tmp);
   }
 }
 
@@ -1617,9 +1618,9 @@ static void
 xtypes_typeinfo_fini (struct DDS_XTypes_TypeInformation *type_information)
 {
   if (type_information->minimal.dependent_typeids._buffer)
-    free (type_information->minimal.dependent_typeids._buffer);
+    idl_free (type_information->minimal.dependent_typeids._buffer);
   if (type_information->complete.dependent_typeids._buffer)
-    free (type_information->complete.dependent_typeids._buffer);
+    idl_free (type_information->complete.dependent_typeids._buffer);
 }
 
 static idl_retcode_t
@@ -1702,11 +1703,11 @@ generate_type_meta_ser_impl (
 err_map_ser:
 err_map:
   if (mapping.identifier_complete_minimal._buffer)
-    free (mapping.identifier_complete_minimal._buffer);
+    idl_free (mapping.identifier_complete_minimal._buffer);
   if (mapping.identifier_object_pair_complete._buffer)
-    free (mapping.identifier_object_pair_complete._buffer);
+    idl_free (mapping.identifier_object_pair_complete._buffer);
   if (mapping.identifier_object_pair_minimal._buffer)
-    free (mapping.identifier_object_pair_minimal._buffer);
+    idl_free (mapping.identifier_object_pair_minimal._buffer);
 err_dep_ser:
 err_dep:
   if (ret)
@@ -1764,13 +1765,13 @@ generate_type_meta_ser (
   result->typemap = NULL;
   result->typeinfo_size = os_typeinfo.m_index;
   result->typemap_size = os_typemap.m_index;
-  if ((result->typeinfo = malloc (result->typeinfo_size)) == NULL) {
+  if ((result->typeinfo = idl_malloc (result->typeinfo_size)) == NULL) {
     rc = IDL_RETCODE_NO_MEMORY;
     goto err_nomem;
   }
   memcpy (result->typeinfo, os_typeinfo.m_buffer, result->typeinfo_size);
-  if ((result->typemap = malloc (result->typemap_size)) == NULL) {
-    free (result->typeinfo);
+  if ((result->typemap = idl_malloc (result->typemap_size)) == NULL) {
+    idl_free (result->typeinfo);
     rc = IDL_RETCODE_NO_MEMORY;
     goto err_nomem;
   }
