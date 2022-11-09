@@ -28,8 +28,8 @@
 #include "dds/ddsi/q_misc.h"
 #include "ddsi__entity_index.h"
 #include "ddsi__security_msg.h"
-#include "dds/ddsi/ddsi_security_omg.h"
-#include "dds/ddsi/ddsi_security_util.h"
+#include "ddsi__security_omg.h"
+#include "ddsi__security_util.h"
 #include "ddsi__security_exchange.h"
 #include "ddsi__handshake.h"
 #include "dds/ddsi/ddsi_sertype.h"
@@ -65,9 +65,9 @@
 #define PENDING_MATCH_EXPIRY_TIME 300
 
 #define EXCEPTION_LOG(gv,e,cat,...) \
-  q_omg_log_exception(&gv->logconfig, cat, e, __FILE__, __LINE__, DDS_FUNCTION, __VA_ARGS__)
+  ddsi_omg_log_exception(&gv->logconfig, cat, e, __FILE__, __LINE__, DDS_FUNCTION, __VA_ARGS__)
 #define EXCEPTION_VLOG(gv,e,cat,fmt,ap) \
-  q_omg_vlog_exception(&gv->logconfig, cat, e, __FILE__, __LINE__, DDS_FUNCTION, fmt, ap)
+  ddsi_omg_vlog_exception(&gv->logconfig, cat, e, __FILE__, __LINE__, DDS_FUNCTION, fmt, ap)
 
 #define EXCEPTION_ERROR(gv,e,...)     EXCEPTION_LOG(gv, e, DDS_LC_ERROR, __VA_ARGS__)
 #define EXCEPTION_WARNING(gv,e,...)   EXCEPTION_LOG(gv, e, DDS_LC_WARNING, __VA_ARGS__)
@@ -237,11 +237,11 @@ static int compare_pending_match_exptime (const void *va, const void *vb);
 
 
 const ddsrt_avl_ctreedef_t pp_proxypp_treedef =
-    DDSRT_AVL_CTREEDEF_INITIALIZER (offsetof (struct pp_proxypp_match, avlnode), offsetof (struct pp_proxypp_match, proxypp_guid), ddsi_compare_guid, 0);
+    DDSRT_AVL_CTREEDEF_INITIALIZER (offsetof (struct ddsi_pp_proxypp_match, avlnode), offsetof (struct ddsi_pp_proxypp_match, proxypp_guid), ddsi_compare_guid, 0);
 const ddsrt_avl_treedef_t proxypp_pp_treedef =
-  DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct proxypp_pp_match, avlnode), offsetof (struct proxypp_pp_match, pp_crypto_handle), compare_crypto_handle, 0);
+  DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct ddsi_proxypp_pp_match, avlnode), offsetof (struct ddsi_proxypp_pp_match, pp_crypto_handle), compare_crypto_handle, 0);
 const ddsrt_avl_ctreedef_t participant_index_treedef =
-    DDSRT_AVL_CTREEDEF_INITIALIZER (offsetof (struct participant_sec_attributes, avlnode), offsetof (struct participant_sec_attributes, crypto_handle), compare_crypto_handle, 0);
+    DDSRT_AVL_CTREEDEF_INITIALIZER (offsetof (struct ddsi_participant_sec_attributes, avlnode), offsetof (struct ddsi_participant_sec_attributes, crypto_handle), compare_crypto_handle, 0);
 const ddsrt_avl_treedef_t pending_match_index_treedef =
   DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct pending_match, avlnode), offsetof (struct pending_match, guids), compare_guid_pair, 0);
 
@@ -274,42 +274,42 @@ static int compare_pending_match_exptime (const void *va, const void *vb)
   return (ma->expiry.v == mb->expiry.v) ? 0 : (ma->expiry.v < mb->expiry.v) ? -1 : 1;
 }
 
-static struct dds_security_context * q_omg_security_get_secure_context(const struct ddsi_participant *pp)
+static struct dds_security_context * ddsi_omg_security_get_secure_context (const struct ddsi_participant *pp)
 {
-  if (pp && pp->e.gv->security_context && q_omg_is_security_loaded(pp->e.gv->security_context))
+  if (pp && pp->e.gv->security_context && ddsi_omg_is_security_loaded (pp->e.gv->security_context))
     return pp->e.gv->security_context;
   return NULL;
 }
 
-struct dds_security_access_control *q_omg_participant_get_access_control(const struct ddsi_participant *pp)
+struct dds_security_access_control *ddsi_omg_participant_get_access_control(const struct ddsi_participant *pp)
 {
-  if (pp && pp->e.gv->security_context && q_omg_is_security_loaded(pp->e.gv->security_context))
+  if (pp && pp->e.gv->security_context && ddsi_omg_is_security_loaded (pp->e.gv->security_context))
     return pp->e.gv->security_context->access_control_context;
   return NULL;
 }
 
-struct dds_security_authentication *q_omg_participant_get_authentication(const struct ddsi_participant *pp)
+struct dds_security_authentication *ddsi_omg_participant_get_authentication(const struct ddsi_participant *pp)
 {
-  if (pp && pp->e.gv->security_context && q_omg_is_security_loaded(pp->e.gv->security_context))
+  if (pp && pp->e.gv->security_context && ddsi_omg_is_security_loaded (pp->e.gv->security_context))
     return pp->e.gv->security_context->authentication_context;
   return NULL;
 }
 
-struct dds_security_cryptography *q_omg_participant_get_cryptography(const struct ddsi_participant *pp)
+struct dds_security_cryptography *ddsi_omg_participant_get_cryptography(const struct ddsi_participant *pp)
 {
-  if (pp && pp->e.gv->security_context && q_omg_is_security_loaded(pp->e.gv->security_context))
+  if (pp && pp->e.gv->security_context && ddsi_omg_is_security_loaded (pp->e.gv->security_context))
     return pp->e.gv->security_context->crypto_context;
   return NULL;
 }
 
-static struct dds_security_context * q_omg_security_get_secure_context_from_proxypp(const struct ddsi_proxy_participant *proxypp)
+static struct dds_security_context * ddsi_omg_security_get_secure_context_from_proxypp (const struct ddsi_proxy_participant *proxypp)
 {
-  if (proxypp && proxypp->e.gv->security_context && q_omg_is_security_loaded(proxypp->e.gv->security_context))
+  if (proxypp && proxypp->e.gv->security_context && ddsi_omg_is_security_loaded (proxypp->e.gv->security_context))
     return proxypp->e.gv->security_context;
   return NULL;
 }
 
-void q_omg_vlog_exception(const struct ddsrt_log_cfg *lc, uint32_t cat, DDS_Security_SecurityException *exception, const char *file, uint32_t line, const char *func, const char *fmt, va_list ap)
+void ddsi_omg_vlog_exception(const struct ddsrt_log_cfg *lc, uint32_t cat, DDS_Security_SecurityException *exception, const char *file, uint32_t line, const char *func, const char *fmt, va_list ap)
 {
   char logbuffer[512];
   int l;
@@ -323,11 +323,11 @@ void q_omg_vlog_exception(const struct ddsrt_log_cfg *lc, uint32_t cat, DDS_Secu
   DDS_Security_Exception_reset(exception);
 }
 
-void q_omg_log_exception(const struct ddsrt_log_cfg *lc, uint32_t cat, DDS_Security_SecurityException *exception, const char *file, uint32_t line, const char *func, const char *fmt, ...)
+void ddsi_omg_log_exception(const struct ddsrt_log_cfg *lc, uint32_t cat, DDS_Security_SecurityException *exception, const char *file, uint32_t line, const char *func, const char *fmt, ...)
 {
   va_list ap;
   va_start (ap, fmt);
-  q_omg_vlog_exception(lc, cat, exception, file, line, func, fmt, ap);
+  ddsi_omg_vlog_exception(lc, cat, exception, file, line, func, fmt, ap);
   va_end (ap);
 }
 
@@ -492,9 +492,9 @@ static void pending_match_index_deinit(struct pending_match_index *index)
   ddsrt_avl_free(&pending_match_index_treedef, &index->pending_matches, 0);
 }
 
-static struct pp_proxypp_match * pp_proxypp_match_new(struct ddsi_proxy_participant *proxypp, DDS_Security_ParticipantCryptoHandle proxypp_crypto_handle)
+static struct ddsi_pp_proxypp_match * ddsi_pp_proxypp_match_new(struct ddsi_proxy_participant *proxypp, DDS_Security_ParticipantCryptoHandle proxypp_crypto_handle)
 {
-  struct pp_proxypp_match *pm;
+  struct ddsi_pp_proxypp_match *pm;
 
   pm = ddsrt_malloc(sizeof(*pm));
   pm->proxypp_guid = proxypp->e.guid;
@@ -503,16 +503,16 @@ static struct pp_proxypp_match * pp_proxypp_match_new(struct ddsi_proxy_particip
   return pm;
 }
 
-static void pp_proxypp_match_free(struct dds_security_context *sc, struct pp_proxypp_match *pm)
+static void ddsi_pp_proxypp_match_free(struct dds_security_context *sc, struct ddsi_pp_proxypp_match *pm)
 {
   DDSRT_UNUSED_ARG(sc);
 
   ddsrt_free(pm);
 }
 
-static struct proxypp_pp_match * proxypp_pp_match_new(struct ddsi_participant *pp, DDS_Security_PermissionsHandle permissions_hdl, DDS_Security_SharedSecretHandle shared_secret)
+static struct ddsi_proxypp_pp_match * ddsi_proxypp_pp_match_new(struct ddsi_participant *pp, DDS_Security_PermissionsHandle permissions_hdl, DDS_Security_SharedSecretHandle shared_secret)
 {
-  struct proxypp_pp_match *pm;
+  struct ddsi_proxypp_pp_match *pm;
 
   pm = ddsrt_malloc(sizeof(*pm));
   pm->pp_guid = pp->e.guid;
@@ -524,7 +524,7 @@ static struct proxypp_pp_match * proxypp_pp_match_new(struct ddsi_participant *p
   return pm;
 }
 
-static void proxypp_pp_match_free(struct ddsi_domaingv *gv, struct dds_security_context *sc, struct proxypp_pp_match *pm)
+static void ddsi_proxypp_pp_match_free(struct ddsi_domaingv *gv, struct dds_security_context *sc, struct ddsi_proxypp_pp_match *pm)
 {
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
 
@@ -548,13 +548,13 @@ static void proxypp_pp_match_free(struct ddsi_domaingv *gv, struct dds_security_
 
 static void pp_proxypp_unrelate_locked(struct dds_security_context *sc, struct ddsi_participant *pp, const ddsi_guid_t *proxypp_guid)
 {
-  struct pp_proxypp_match *pm;
+  struct ddsi_pp_proxypp_match *pm;
   ddsrt_avl_dpath_t dpath;
 
   if ((pm = ddsrt_avl_clookup_dpath(&pp_proxypp_treedef, &pp->sec_attr->proxy_participants, proxypp_guid, &dpath)) != NULL)
   {
     ddsrt_avl_cdelete_dpath(&pp_proxypp_treedef, &pp->sec_attr->proxy_participants, pm, &dpath);
-    pp_proxypp_match_free(sc, pm);
+    ddsi_pp_proxypp_match_free(sc, pm);
   }
 }
 
@@ -568,13 +568,13 @@ static void pp_proxypp_unrelate(struct dds_security_context *sc, struct ddsi_par
 static void proxypp_pp_unrelate_locked(struct dds_security_context *sc, struct ddsi_proxy_participant *proxypp, const ddsi_guid_t *pp_guid, int64_t pp_crypto_handle)
 {
   DDSRT_UNUSED_ARG(pp_guid);
-  struct proxypp_pp_match *pm;
+  struct ddsi_proxypp_pp_match *pm;
   ddsrt_avl_dpath_t dpath;
 
   if ((pm = ddsrt_avl_lookup_dpath(&proxypp_pp_treedef, &proxypp->sec_attr->participants, &pp_crypto_handle, &dpath)) != NULL)
   {
     ddsrt_avl_delete_dpath(&proxypp_pp_treedef, &proxypp->sec_attr->participants, pm, &dpath);
-    proxypp_pp_match_free(proxypp->e.gv, sc, pm);
+    ddsi_proxypp_pp_match_free(proxypp->e.gv, sc, pm);
   }
 }
 
@@ -588,9 +588,9 @@ static void proxypp_pp_unrelate(struct dds_security_context *sc, struct ddsi_pro
   }
 }
 
-static struct participant_sec_attributes * participant_sec_attributes_new(ddsi_guid_t *guid)
+static struct ddsi_participant_sec_attributes * participant_sec_attributes_new(ddsi_guid_t *guid)
 {
-  struct participant_sec_attributes *attr;
+  struct ddsi_participant_sec_attributes *attr;
 
   attr = ddsrt_malloc(sizeof(*attr));
   ddsrt_mutex_init(&attr->lock);
@@ -602,7 +602,7 @@ static struct participant_sec_attributes * participant_sec_attributes_new(ddsi_g
   return attr;
 }
 
-static void participant_sec_attributes_free(struct participant_sec_attributes *attr)
+static void participant_sec_attributes_free(struct ddsi_participant_sec_attributes *attr)
 {
   if (attr)
   {
@@ -646,17 +646,17 @@ static void reader_sec_attributes_free(struct ddsi_reader_sec_attributes *attr)
 }
 
 static void
-participant_index_add(dds_security_context *sc, struct participant_sec_attributes *attr)
+participant_index_add(dds_security_context *sc, struct ddsi_participant_sec_attributes *attr)
 {
   ddsrt_mutex_lock(&sc->partiticpant_index.lock);
   ddsrt_avl_cinsert(&participant_index_treedef, &sc->partiticpant_index.participants, attr);
   ddsrt_mutex_unlock(&sc->partiticpant_index.lock);
 }
 
-static struct participant_sec_attributes *
+static struct ddsi_participant_sec_attributes *
 participant_index_find(dds_security_context *sc, int64_t crypto_handle)
 {
-  struct participant_sec_attributes *attr;
+  struct ddsi_participant_sec_attributes *attr;
 
   ddsrt_mutex_lock(&sc->partiticpant_index.lock);
   attr = ddsrt_avl_clookup(&participant_index_treedef, &sc->partiticpant_index.participants, &crypto_handle);
@@ -665,10 +665,10 @@ participant_index_find(dds_security_context *sc, int64_t crypto_handle)
   return attr;
 }
 
-static struct participant_sec_attributes *
+static struct ddsi_participant_sec_attributes *
 participant_index_remove(dds_security_context *sc, int64_t crypto_handle)
 {
-  struct participant_sec_attributes *attr;
+  struct ddsi_participant_sec_attributes *attr;
   ddsrt_avl_dpath_t dpath;
 
   ddsrt_mutex_lock(&sc->partiticpant_index.lock);
@@ -681,10 +681,10 @@ participant_index_remove(dds_security_context *sc, int64_t crypto_handle)
 }
 
 static uint32_t
-get_matched_proxypp_crypto_handles(struct participant_sec_attributes *attr, DDS_Security_ParticipantCryptoHandleSeq *hdls)
+get_matched_proxypp_crypto_handles(struct ddsi_participant_sec_attributes *attr, DDS_Security_ParticipantCryptoHandleSeq *hdls)
 {
   uint32_t i;
-  struct pp_proxypp_match *pm;
+  struct ddsi_pp_proxypp_match *pm;
   ddsrt_avl_citer_t it;
 
   ddsrt_mutex_lock(&attr->lock);
@@ -703,10 +703,10 @@ get_matched_proxypp_crypto_handles(struct participant_sec_attributes *attr, DDS_
 }
 
 static int64_t
-get_first_matched_proxypp_crypto_handle(struct participant_sec_attributes *attr)
+get_first_matched_proxypp_crypto_handle(struct ddsi_participant_sec_attributes *attr)
 {
   int64_t handle = 0;
-  struct pp_proxypp_match *pm;
+  struct ddsi_pp_proxypp_match *pm;
 
   ddsrt_mutex_lock(&attr->lock);
   pm = ddsrt_avl_croot(&pp_proxypp_treedef, &attr->proxy_participants);
@@ -717,12 +717,12 @@ get_first_matched_proxypp_crypto_handle(struct participant_sec_attributes *attr)
   return handle;
 }
 
-bool q_omg_is_security_loaded (dds_security_context *sc)
+bool ddsi_omg_is_security_loaded (dds_security_context *sc)
 {
   return (sc->crypto_context != NULL || sc->authentication_context != NULL || sc->access_control_context != NULL);
 }
 
-void q_omg_security_init (struct ddsi_domaingv *gv)
+void ddsi_omg_security_init (struct ddsi_domaingv *gv)
 {
   dds_security_context *sc;
 
@@ -767,7 +767,7 @@ static void release_plugins (struct ddsi_domaingv *gv, dds_security_context *sc)
   sc->crypto_context = NULL;
 }
 
-void q_omg_security_stop (struct ddsi_domaingv *gv)
+void ddsi_omg_security_stop (struct ddsi_domaingv *gv)
 {
   dds_security_context *sc = gv->security_context;
   assert(sc);
@@ -780,12 +780,12 @@ void q_omg_security_stop (struct ddsi_domaingv *gv)
     sc->access_control_context->set_listener (sc->access_control_context, NULL, NULL);
 }
 
-void q_omg_security_deinit (struct dds_security_context *sc)
+void ddsi_omg_security_deinit (struct dds_security_context *sc)
 {
   pending_match_index_deinit(&sc->security_matches);
 }
 
-void q_omg_security_free (struct ddsi_domaingv *gv)
+void ddsi_omg_security_free (struct ddsi_domaingv *gv)
 {
   dds_security_context *sc = gv->security_context;
   assert(sc);
@@ -847,7 +847,7 @@ static bool delete_pp_by_handle (DDS_Security_Handle handle, expired_pp_check_fn
   ddsi_entidx_enum_participant_init (&epp, gv->entity_index);
   while ((pp = ddsi_entidx_enum_participant_next (&epp)) != NULL)
   {
-    if (q_omg_participant_is_secure (pp) && expired_pp_check_fn (pp, handle))
+    if (ddsi_omg_participant_is_secure (pp) && expired_pp_check_fn (pp, handle))
     {
       (void) ddsi_delete_participant (gv, &pp->e.guid);
       result = true;
@@ -865,7 +865,7 @@ static bool delete_proxypp_by_handle (const DDS_Security_Handle handle, expired_
   ddsi_entidx_enum_proxy_participant_init (&eproxypp, gv->entity_index);
   while ((proxypp = ddsi_entidx_enum_proxy_participant_next (&eproxypp)) != NULL)
   {
-    if (q_omg_proxy_participant_is_secure(proxypp) && expired_proxypp_check_fn (proxypp, handle))
+    if (ddsi_omg_proxy_participant_is_secure (proxypp) && expired_proxypp_check_fn (proxypp, handle))
     {
       (void) ddsi_delete_proxy_participant_by_guid (gv, &proxypp->e.guid, ddsrt_time_wallclock (), true);
       result = true;
@@ -886,7 +886,7 @@ static bool proxypp_expired_by_perm (const struct ddsi_proxy_participant * proxy
   uint32_t i = 0;
   ddsrt_avl_iter_t it;
   ddsrt_mutex_lock (&proxypp->sec_attr->lock);
-  for (struct proxypp_pp_match *ppm = ddsrt_avl_iter_first (&proxypp_pp_treedef, &proxypp->sec_attr->participants, &it); ppm; ppm = ddsrt_avl_iter_next (&it), i++)
+  for (struct ddsi_proxypp_pp_match *ppm = ddsrt_avl_iter_first (&proxypp_pp_treedef, &proxypp->sec_attr->participants, &it); ppm; ppm = ddsrt_avl_iter_next (&it), i++)
   {
     if (ppm->permissions_handle == handle)
     {
@@ -952,7 +952,7 @@ static DDS_Security_boolean on_revoke_identity_cb(const dds_security_authenticat
   return true;
 }
 
-dds_return_t q_omg_security_load (dds_security_context *sc, const dds_qos_t *qos, struct ddsi_domaingv *gv)
+dds_return_t ddsi_omg_security_load (dds_security_context *sc, const dds_qos_t *qos, struct ddsi_domaingv *gv)
 {
   dds_security_plugin_suite_config psc;
   memset (&psc, 0, sizeof (psc));
@@ -1035,25 +1035,25 @@ static void notify_handshake_recv_token(struct ddsi_participant *pp, struct ddsi
   }
 }
 
-bool q_omg_participant_is_secure(const struct ddsi_participant *pp)
+bool ddsi_omg_participant_is_secure(const struct ddsi_participant *pp)
 {
   return ((pp->sec_attr != NULL) && (pp->sec_attr->crypto_handle != DDS_SECURITY_HANDLE_NIL));
 }
 
-bool q_omg_proxy_participant_is_secure (const struct ddsi_proxy_participant *proxypp)
+bool ddsi_omg_proxy_participant_is_secure (const struct ddsi_proxy_participant *proxypp)
 {
   return (proxypp->sec_attr != NULL);
 }
 
-bool q_omg_participant_allow_unauthenticated(struct ddsi_participant *pp)
+bool ddsi_omg_participant_allow_unauthenticated(struct ddsi_participant *pp)
 {
   return ((pp->sec_attr != NULL) && pp->sec_attr->attr.allow_unauthenticated_participants);
 }
 
-dds_return_t q_omg_security_check_create_participant(struct ddsi_participant *pp, uint32_t domain_id)
+dds_return_t ddsi_omg_security_check_create_participant (struct ddsi_participant *pp, uint32_t domain_id)
 {
   dds_return_t ret = DDS_RETCODE_NOT_ALLOWED_BY_SECURITY;
-  struct dds_security_context *sc = q_omg_security_get_secure_context(pp);
+  struct dds_security_context *sc = ddsi_omg_security_get_secure_context (pp);
   struct ddsi_domaingv *gv = pp->e.gv;
   DDS_Security_IdentityHandle identity_handle = DDS_SECURITY_HANDLE_NIL;
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
@@ -1061,7 +1061,7 @@ dds_return_t q_omg_security_check_create_participant(struct ddsi_participant *pp
   DDS_Security_IdentityToken identity_token;
   DDS_Security_PermissionsToken permissions_token = DDS_SECURITY_TOKEN_INIT;
   DDS_Security_PermissionsCredentialToken credential_token = DDS_SECURITY_TOKEN_INIT;
-  struct participant_sec_attributes *sec_attr = NULL;
+  struct ddsi_participant_sec_attributes *sec_attr = NULL;
   DDS_Security_Qos par_qos;
   ddsi_guid_t candidate_guid;
   ddsi_guid_t adjusted_guid;
@@ -1074,7 +1074,7 @@ dds_return_t q_omg_security_check_create_participant(struct ddsi_participant *pp
   ETRACE (pp, "validate_local_identity: candidate_guid: "PGUIDFMT" ", PGUID (pp->e.guid));
 
   candidate_guid = nn_hton_guid(pp->e.guid);
-  q_omg_shallow_copy_security_qos(&par_qos, &(pp->plist->qos));
+  ddsi_omg_shallow_copy_security_qos (&par_qos, &(pp->plist->qos));
 
   result = sc->authentication_context->validate_local_identity(
       sc->authentication_context, &identity_handle,
@@ -1100,7 +1100,7 @@ dds_return_t q_omg_security_check_create_participant(struct ddsi_participant *pp
   }
   assert(exception.code == 0);
 
-  q_omg_security_dataholder_copyin(&pp->plist->identity_token, &identity_token);
+  ddsi_omg_security_dataholder_copyin (&pp->plist->identity_token, &identity_token);
   DDS_Security_DataHolder_deinit(&identity_token);
   pp->plist->present |= PP_IDENTITY_TOKEN;
 
@@ -1128,7 +1128,7 @@ dds_return_t q_omg_security_check_create_participant(struct ddsi_participant *pp
     goto not_allowed;
   }
 
-  q_omg_security_dataholder_copyin(&pp->plist->permissions_token, &permissions_token);
+  ddsi_omg_security_dataholder_copyin (&pp->plist->permissions_token, &permissions_token);
   pp->plist->present |= PP_PERMISSIONS_TOKEN;
 
   if (!sc->access_control_context->get_permissions_credential_token(sc->access_control_context, &credential_token, sec_attr->permissions_handle, &exception))
@@ -1175,11 +1175,11 @@ not_allowed:
   if (ret != DDS_RETCODE_OK)
     participant_sec_attributes_free(sec_attr);
 validation_failed:
-  q_omg_shallow_free_security_qos(&par_qos);
+  ddsi_omg_shallow_free_security_qos (&par_qos);
   return ret;
 }
 
-void q_omg_security_participant_set_initialized(struct ddsi_participant *pp)
+void ddsi_omg_security_participant_set_initialized (struct ddsi_participant *pp)
 {
   if (pp->sec_attr)
   {
@@ -1189,7 +1189,7 @@ void q_omg_security_participant_set_initialized(struct ddsi_participant *pp)
   }
 }
 
-bool q_omg_security_participant_is_initialized(struct ddsi_participant *pp)
+bool ddsi_omg_security_participant_is_initialized (struct ddsi_participant *pp)
 {
   bool initialized = false;
 
@@ -1213,8 +1213,8 @@ static void cleanup_participant_sec_attributes(void *arg)
   struct cleanup_participant_sec_attributes_arg *info = arg;
   struct ddsi_domaingv * gv = info->gv;
   dds_security_context *sc = gv->security_context;
-  struct participant_sec_attributes *attr;
-  struct pp_proxypp_match *pm;
+  struct ddsi_participant_sec_attributes *attr;
+  struct ddsi_pp_proxypp_match *pm;
 
   assert(sc);
   if ((attr = participant_index_remove(sc, info->crypto_handle)) == NULL)
@@ -1225,7 +1225,7 @@ static void cleanup_participant_sec_attributes(void *arg)
   pm = ddsrt_avl_cfind_min(&pp_proxypp_treedef, &attr->proxy_participants);
   while (pm)
   {
-    struct pp_proxypp_match *next = ddsrt_avl_cfind_succ(&pp_proxypp_treedef, &attr->proxy_participants, pm);
+    struct ddsi_pp_proxypp_match *next = ddsrt_avl_cfind_succ(&pp_proxypp_treedef, &attr->proxy_participants, pm);
     ddsrt_mutex_lock(&gv->lock);
     struct ddsi_proxy_participant *proxypp = ddsi_entidx_lookup_proxy_participant_guid(gv->entity_index, &pm->proxypp_guid);
     if (proxypp)
@@ -1259,10 +1259,10 @@ static void cleanup_participant_sec_attributes(void *arg)
   ddsrt_free(arg);
 }
 
-void q_omg_security_deregister_participant(struct ddsi_participant *pp)
+void ddsi_omg_security_deregister_participant (struct ddsi_participant *pp)
 {
 //  DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
-  struct dds_security_context *sc = q_omg_security_get_secure_context(pp);
+  struct dds_security_context *sc = ddsi_omg_security_get_secure_context (pp);
 
   if (!sc)
     return;
@@ -1286,29 +1286,29 @@ void q_omg_security_deregister_participant(struct ddsi_participant *pp)
   pp->sec_attr = NULL;
 }
 
-int64_t q_omg_security_get_local_participant_handle(const struct ddsi_participant *pp)
+int64_t ddsi_omg_security_get_local_participant_handle (const struct ddsi_participant *pp)
 {
   if (pp->sec_attr)
     return pp->sec_attr->crypto_handle;
   return 0;
 }
 
-bool q_omg_participant_is_access_protected(const struct ddsi_participant *pp)
+bool ddsi_omg_participant_is_access_protected(const struct ddsi_participant *pp)
 {
   return ((pp->sec_attr != NULL) && pp->sec_attr->attr.is_access_protected);
 }
 
-bool q_omg_participant_is_rtps_protected(const struct ddsi_participant *pp)
+bool ddsi_omg_participant_is_rtps_protected(const struct ddsi_participant *pp)
 {
   return ((pp->sec_attr != NULL) && pp->sec_attr->attr.is_rtps_protected);
 }
 
-bool q_omg_participant_is_liveliness_protected(const struct ddsi_participant *pp)
+bool ddsi_omg_participant_is_liveliness_protected(const struct ddsi_participant *pp)
 {
   return ((pp->sec_attr != NULL) && pp->sec_attr->attr.is_liveliness_protected);
 }
 
-bool q_omg_participant_is_discovery_protected(const struct ddsi_participant *pp)
+bool ddsi_omg_participant_is_discovery_protected(const struct ddsi_participant *pp)
 {
   return ((pp->sec_attr != NULL) && pp->sec_attr->attr.is_discovery_protected);
 }
@@ -1339,24 +1339,24 @@ static bool proxypp_is_rtps_protected(const struct ddsi_proxy_participant *proxy
   return (proxypp->sec_attr != NULL && SECURITY_INFO_IS_RTPS_PROTECTED(proxypp->security_info));
 }
 
-bool q_omg_security_is_remote_rtps_protected(const struct ddsi_proxy_participant *proxypp, ddsi_entityid_t entityid)
+bool ddsi_omg_security_is_remote_rtps_protected (const struct ddsi_proxy_participant *proxypp, ddsi_entityid_t entityid)
 {
-  return q_omg_proxy_participant_is_secure(proxypp) &&
+  return ddsi_omg_proxy_participant_is_secure (proxypp) &&
     SECURITY_INFO_IS_RTPS_PROTECTED(proxypp->security_info) &&
     maybe_rtps_protected(entityid);
 }
 
-bool q_omg_security_is_local_rtps_protected(const struct ddsi_participant *pp, ddsi_entityid_t entityid)
+bool ddsi_omg_security_is_local_rtps_protected (const struct ddsi_participant *pp, ddsi_entityid_t entityid)
 {
-  return q_omg_participant_is_rtps_protected(pp) && maybe_rtps_protected(entityid);
+  return ddsi_omg_participant_is_rtps_protected(pp) && maybe_rtps_protected(entityid);
 }
 
-bool q_omg_get_participant_security_info(const struct ddsi_participant *pp, ddsi_security_info_t *info)
+bool ddsi_omg_get_participant_security_info (const struct ddsi_participant *pp, ddsi_security_info_t *info)
 {
   assert(pp);
   assert(info);
 
-  if (q_omg_participant_is_secure(pp)) {
+  if (ddsi_omg_participant_is_secure(pp)) {
     const DDS_Security_ParticipantSecurityAttributes *attr = &(pp->sec_attr->attr);
 
     info->security_attributes = DDSI_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_VALID;
@@ -1380,7 +1380,7 @@ bool q_omg_get_participant_security_info(const struct ddsi_participant *pp, ddsi
   return false;
 }
 
-static void q_omg_get_endpoint_security_info(DDS_Security_EndpointSecurityAttributes *attr, ddsi_security_info_t *info)
+static void ddsi_omg_get_endpoint_security_info (DDS_Security_EndpointSecurityAttributes *attr, ddsi_security_info_t *info)
 {
     info->security_attributes = DDSI_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_VALID;
     info->plugin_security_attributes = attr->plugin_endpoint_attributes;
@@ -1448,7 +1448,7 @@ static void handle_not_allowed(const struct ddsi_domaingv *gv, DDS_Security_Perm
     DDS_Security_Exception_reset(exception);
 }
 
-bool q_omg_security_check_create_topic(const struct ddsi_domaingv *gv, const ddsi_guid_t *pp_guid, const char *topic_name, const struct dds_qos *qos)
+bool ddsi_omg_security_check_create_topic (const struct ddsi_domaingv *gv, const ddsi_guid_t *pp_guid, const char *topic_name, const struct dds_qos *qos)
 {
   bool result = true;
   struct ddsi_participant *pp;
@@ -1459,22 +1459,22 @@ bool q_omg_security_check_create_topic(const struct ddsi_domaingv *gv, const dds
   thread_state_awake (ddsi_lookup_thread_state (), gv);
   pp = ddsi_entidx_lookup_participant_guid (gv->entity_index, pp_guid);
 
-  if ((sc = q_omg_security_get_secure_context(pp)) != NULL)
+  if ((sc = ddsi_omg_security_get_secure_context (pp)) != NULL)
   {
-    q_omg_shallow_copy_security_qos(&topic_qos, qos);
+    ddsi_omg_shallow_copy_security_qos (&topic_qos, qos);
     result = sc->access_control_context->check_create_topic(sc->access_control_context, pp->sec_attr->permissions_handle, (DDS_Security_DomainId)gv->config.domainId, topic_name, &topic_qos, &exception);
     if (!result)
       handle_not_allowed(gv, pp->sec_attr->permissions_handle, sc->access_control_context, &exception, topic_name, "Local topic permission denied");
-    q_omg_shallow_free_security_qos(&topic_qos);
+    ddsi_omg_shallow_free_security_qos (&topic_qos);
   }
   thread_state_asleep (ddsi_lookup_thread_state ());
 
   return result;
 }
 
-bool q_omg_security_check_create_writer(struct ddsi_participant *pp, uint32_t domain_id, const char *topic_name, const struct dds_qos *writer_qos)
+bool ddsi_omg_security_check_create_writer (struct ddsi_participant *pp, uint32_t domain_id, const char *topic_name, const struct dds_qos *writer_qos)
 {
-  struct dds_security_context *sc = q_omg_security_get_secure_context(pp) ;
+  struct dds_security_context *sc = ddsi_omg_security_get_secure_context (pp) ;
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_PartitionQosPolicy partitions;
   DDS_Security_Qos security_qos;
@@ -1484,26 +1484,26 @@ bool q_omg_security_check_create_writer(struct ddsi_participant *pp, uint32_t do
     return true;
 
   if (writer_qos->present & QP_PARTITION)
-    g_omg_shallow_copy_StringSeq(&partitions.name, &(writer_qos->partition));
+    ddsi_omg_shallow_copy_StringSeq(&partitions.name, &(writer_qos->partition));
   else
     memset(&(partitions), 0, sizeof(DDS_Security_PartitionQosPolicy));
 
-  q_omg_shallow_copy_security_qos(&security_qos, writer_qos);
+  ddsi_omg_shallow_copy_security_qos (&security_qos, writer_qos);
 
   result = sc->access_control_context->check_create_datawriter(sc->access_control_context, pp->sec_attr->permissions_handle, (DDS_Security_DomainId)domain_id, topic_name, &security_qos, &partitions, NULL, &exception);
   if (!result)
     handle_not_allowed(pp->e.gv, pp->sec_attr->permissions_handle, sc->access_control_context, &exception, topic_name, "Writer is not permitted");
 
-  q_omg_shallow_free_security_qos(&security_qos);
-  g_omg_shallow_free_StringSeq(&partitions.name);
+  ddsi_omg_shallow_free_security_qos (&security_qos);
+  ddsi_omg_shallow_free_StringSeq(&partitions.name);
 
   return result;
 }
 
-void q_omg_security_register_writer(struct ddsi_writer *wr)
+void ddsi_omg_security_register_writer (struct ddsi_writer *wr)
 {
   struct ddsi_participant *pp = wr->c.pp;
-  struct dds_security_context *sc = q_omg_security_get_secure_context(pp);
+  struct dds_security_context *sc = ddsi_omg_security_get_secure_context (pp);
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_PartitionQosPolicy partitions;
   DDS_Security_PropertySeq properties;
@@ -1512,7 +1512,7 @@ void q_omg_security_register_writer(struct ddsi_writer *wr)
     return;
 
   if (wr->xqos->present & QP_PARTITION)
-    g_omg_shallow_copy_StringSeq(&partitions.name, &(wr->xqos->partition));
+    ddsi_omg_shallow_copy_StringSeq(&partitions.name, &(wr->xqos->partition));
   else
     memset(&(partitions), 0, sizeof(DDS_Security_PartitionQosPolicy));
 
@@ -1527,7 +1527,7 @@ void q_omg_security_register_writer(struct ddsi_writer *wr)
   if (wr->sec_attr->attr.is_payload_protected || wr->sec_attr->attr.is_submessage_protected)
   {
     if (wr->xqos->present & QP_PROPERTY_LIST)
-      q_omg_copy_PropertySeq(&properties, &wr->xqos->property.value);
+      ddsi_omg_copy_PropertySeq (&properties, &wr->xqos->property.value);
     else
       memset(&properties, 0, sizeof(DDS_Security_PropertySeq));
 
@@ -1549,12 +1549,12 @@ void q_omg_security_register_writer(struct ddsi_writer *wr)
 
 not_registered:
 no_attr:
-  g_omg_shallow_free_StringSeq(&partitions.name);
+  ddsi_omg_shallow_free_StringSeq(&partitions.name);
 }
 
-void q_omg_security_deregister_writer(struct ddsi_writer *wr)
+void ddsi_omg_security_deregister_writer (struct ddsi_writer *wr)
 {
-  struct dds_security_context *sc = q_omg_security_get_secure_context(wr->c.pp);
+  struct dds_security_context *sc = ddsi_omg_security_get_secure_context (wr->c.pp);
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
 
   if (wr->sec_attr)
@@ -1577,13 +1577,13 @@ void q_omg_security_deregister_writer(struct ddsi_writer *wr)
   }
 }
 
-bool q_omg_get_writer_security_info(const struct ddsi_writer *wr, ddsi_security_info_t *info)
+bool ddsi_omg_get_writer_security_info (const struct ddsi_writer *wr, ddsi_security_info_t *info)
 {
   assert(wr);
   assert(info);
 
   if (wr->sec_attr) {
-      q_omg_get_endpoint_security_info(&wr->sec_attr->attr, info);
+      ddsi_omg_get_endpoint_security_info (&wr->sec_attr->attr, info);
       return true;
   }
   info->plugin_security_attributes = 0;
@@ -1591,9 +1591,9 @@ bool q_omg_get_writer_security_info(const struct ddsi_writer *wr, ddsi_security_
   return false;
 }
 
-bool q_omg_security_check_create_reader(struct ddsi_participant *pp, uint32_t domain_id, const char *topic_name, const struct dds_qos *reader_qos)
+bool ddsi_omg_security_check_create_reader (struct ddsi_participant *pp, uint32_t domain_id, const char *topic_name, const struct dds_qos *reader_qos)
 {
-  struct dds_security_context *sc = q_omg_security_get_secure_context(pp);
+  struct dds_security_context *sc = ddsi_omg_security_get_secure_context (pp);
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_PartitionQosPolicy partitions;
   DDS_Security_Qos security_qos;
@@ -1603,26 +1603,26 @@ bool q_omg_security_check_create_reader(struct ddsi_participant *pp, uint32_t do
     return true;
 
   if (reader_qos->present & QP_PARTITION)
-    g_omg_shallow_copy_StringSeq(&partitions.name, &(reader_qos->partition));
+    ddsi_omg_shallow_copy_StringSeq(&partitions.name, &(reader_qos->partition));
   else
     memset(&(partitions), 0, sizeof(DDS_Security_PartitionQosPolicy));
 
-  q_omg_shallow_copy_security_qos(&security_qos, reader_qos);
+  ddsi_omg_shallow_copy_security_qos (&security_qos, reader_qos);
 
   result = sc->access_control_context->check_create_datareader(sc->access_control_context, pp->sec_attr->permissions_handle, (DDS_Security_DomainId)domain_id, topic_name, &security_qos, &partitions, NULL, &exception);
   if (!result)
     handle_not_allowed(pp->e.gv, pp->sec_attr->permissions_handle, sc->access_control_context, &exception, topic_name, "Reader is not permitted");
 
-  q_omg_shallow_free_security_qos(&security_qos);
-  g_omg_shallow_free_StringSeq(&partitions.name);
+  ddsi_omg_shallow_free_security_qos (&security_qos);
+  ddsi_omg_shallow_free_StringSeq(&partitions.name);
 
   return result;
 }
 
-void q_omg_security_register_reader(struct ddsi_reader *rd)
+void ddsi_omg_security_register_reader (struct ddsi_reader *rd)
 {
   struct ddsi_participant *pp = rd->c.pp;
-  struct dds_security_context *sc = q_omg_security_get_secure_context(pp);
+  struct dds_security_context *sc = ddsi_omg_security_get_secure_context (pp);
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_PartitionQosPolicy partitions;
   DDS_Security_PropertySeq properties;
@@ -1631,7 +1631,7 @@ void q_omg_security_register_reader(struct ddsi_reader *rd)
     return;
 
   if (rd->xqos->present & QP_PARTITION)
-    g_omg_shallow_copy_StringSeq(&partitions.name, &(rd->xqos->partition));
+    ddsi_omg_shallow_copy_StringSeq(&partitions.name, &(rd->xqos->partition));
   else
     memset(&(partitions), 0, sizeof(DDS_Security_PartitionQosPolicy));
 
@@ -1647,7 +1647,7 @@ void q_omg_security_register_reader(struct ddsi_reader *rd)
   if (rd->sec_attr->attr.is_payload_protected || rd->sec_attr->attr.is_submessage_protected)
   {
     if (rd->xqos->present & QP_PROPERTY_LIST)
-      q_omg_copy_PropertySeq(&properties, &rd->xqos->property.value);
+      ddsi_omg_copy_PropertySeq (&properties, &rd->xqos->property.value);
     else
       memset(&properties, 0, sizeof(DDS_Security_PropertySeq));
 
@@ -1663,12 +1663,12 @@ void q_omg_security_register_reader(struct ddsi_reader *rd)
 
 not_registered:
 no_attr:
-  g_omg_shallow_free_StringSeq(&partitions.name);
+  ddsi_omg_shallow_free_StringSeq(&partitions.name);
 }
 
-void q_omg_security_deregister_reader(struct ddsi_reader *rd)
+void ddsi_omg_security_deregister_reader (struct ddsi_reader *rd)
 {
-  struct dds_security_context *sc = q_omg_security_get_secure_context(rd->c.pp);
+  struct dds_security_context *sc = ddsi_omg_security_get_secure_context (rd->c.pp);
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
 
   if (rd->sec_attr)
@@ -1696,13 +1696,13 @@ void q_omg_security_deregister_reader(struct ddsi_reader *rd)
   }
 }
 
-bool q_omg_get_reader_security_info(const struct ddsi_reader *rd, ddsi_security_info_t *info)
+bool ddsi_omg_get_reader_security_info (const struct ddsi_reader *rd, ddsi_security_info_t *info)
 {
   assert(rd);
   assert(info);
 
   if (rd->sec_attr) {
-    q_omg_get_endpoint_security_info(&rd->sec_attr->attr, info);
+    ddsi_omg_get_endpoint_security_info (&rd->sec_attr->attr, info);
     return true;
   }
   info->plugin_security_attributes = 0;
@@ -1710,26 +1710,26 @@ bool q_omg_get_reader_security_info(const struct ddsi_reader *rd, ddsi_security_
   return false;
 }
 
-unsigned determine_subscription_writer(const struct ddsi_reader *rd)
+unsigned ddsi_determine_subscription_writer(const struct ddsi_reader *rd)
 {
-  if (q_omg_reader_is_discovery_protected (rd))
+  if (ddsi_omg_reader_is_discovery_protected (rd))
     return NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_WRITER;
   else
     return NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER;
 }
 
-unsigned determine_publication_writer (const struct ddsi_writer *wr)
+unsigned ddsi_determine_publication_writer (const struct ddsi_writer *wr)
 {
-  if (q_omg_writer_is_discovery_protected (wr))
+  if (ddsi_omg_writer_is_discovery_protected (wr))
     return NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER;
   else
     return NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER;
 }
 
 #ifdef DDS_HAS_TOPIC_DISCOVERY
-unsigned determine_topic_writer (const struct ddsi_topic *tp)
+unsigned ddsi_determine_topic_writer (const struct ddsi_topic *tp)
 {
-  if (q_omg_participant_is_discovery_protected (tp->pp))
+  if (ddsi_omg_participant_is_discovery_protected (tp->pp))
     abort (); /* FIXME: not implemented */
   return NN_ENTITYID_SEDP_BUILTIN_TOPIC_WRITER;
 }
@@ -1737,7 +1737,7 @@ unsigned determine_topic_writer (const struct ddsi_topic *tp)
 
 static int64_t check_remote_participant_permissions(uint32_t domain_id, struct ddsi_participant *pp, struct ddsi_proxy_participant *proxypp, int64_t remote_identity_handle)
 {
-  struct dds_security_context *sc = q_omg_security_get_secure_context(pp);
+  struct dds_security_context *sc = ddsi_omg_security_get_secure_context (pp);
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   struct ddsi_handshake *handshake;
   DDS_Security_PermissionsToken permissions_token = DDS_SECURITY_TOKEN_INIT;
@@ -1747,7 +1747,7 @@ static int64_t check_remote_participant_permissions(uint32_t domain_id, struct d
 
   assert (sc);
   if (proxypp->plist->present & PP_PERMISSIONS_TOKEN)
-      q_omg_shallow_copyin_DataHolder(&permissions_token, &proxypp->plist->permissions_token);
+      ddsi_omg_shallow_copyin_DataHolder (&permissions_token, &proxypp->plist->permissions_token);
   else
       memset(&permissions_token, 0, sizeof(DDS_Security_PermissionsToken));
 
@@ -1760,7 +1760,7 @@ static int64_t check_remote_participant_permissions(uint32_t domain_id, struct d
 
   if (!sc->authentication_context->get_authenticated_peer_credential_token(sc->authentication_context, &peer_credential_token, ddsi_handshake_get_handle(handshake), &exception))
   {
-    if (q_omg_participant_is_access_protected(pp))
+    if (ddsi_omg_participant_is_access_protected(pp))
     {
       EXCEPTION_ERROR(gv, &exception, "Could not authenticate_peer_credential_token for local participan1152t "PGUIDFMT" and remote participant "PGUIDFMT,
           PGUID(pp->e.guid), PGUID(proxypp->e.guid));
@@ -1775,7 +1775,7 @@ static int64_t check_remote_participant_permissions(uint32_t domain_id, struct d
       sc->access_control_context, sc->authentication_context, pp->sec_attr->local_identity_handle, remote_identity_handle, &permissions_token, &peer_credential_token, &exception);
   if (permissions_hdl == DDS_SECURITY_HANDLE_NIL)
   {
-    if (q_omg_participant_is_access_protected(pp))
+    if (ddsi_omg_participant_is_access_protected(pp))
     {
       EXCEPTION_ERROR(gv, &exception, "Could not get remote participant "PGUIDFMT" permissions from plugin", PGUID(proxypp->e.guid));
       goto no_permissions;
@@ -1785,11 +1785,11 @@ static int64_t check_remote_participant_permissions(uint32_t domain_id, struct d
   }
 
   /* Only check remote participant if joining access is protected. */
-  if (q_omg_participant_is_access_protected(pp))
+  if (ddsi_omg_participant_is_access_protected(pp))
   {
     DDS_Security_ParticipantBuiltinTopicDataSecure participant_data;
 
-    q_omg_shallow_copy_ParticipantBuiltinTopicDataSecure(&participant_data, &(proxypp->e.guid), proxypp->plist);
+    ddsi_omg_shallow_copy_ParticipantBuiltinTopicDataSecure (&participant_data, &(proxypp->e.guid), proxypp->plist);
     if (!sc->access_control_context->check_remote_participant(sc->access_control_context, permissions_hdl, (DDS_Security_DomainId)domain_id, &participant_data, &exception))
     {
       EXCEPTION_WARNING(gv, &exception, "Plugin does not allow remote participant "PGUIDFMT,  PGUID(proxypp->e.guid));
@@ -1797,7 +1797,7 @@ static int64_t check_remote_participant_permissions(uint32_t domain_id, struct d
         EXCEPTION_ERROR(gv, &exception, "Failed to return remote permissions handle");
       permissions_hdl = DDS_SECURITY_HANDLE_NIL;
     }
-    q_omg_shallow_free_ParticipantBuiltinTopicDataSecure(&participant_data);
+    ddsi_omg_shallow_free_ParticipantBuiltinTopicDataSecure (&participant_data);
   }
 
 no_permissions:
@@ -1806,13 +1806,13 @@ no_permissions:
 no_credentials:
   ddsi_handshake_release(handshake);
 no_handshake:
-  q_omg_shallow_free_DataHolder(&permissions_token);
+  ddsi_omg_shallow_free_DataHolder (&permissions_token);
   return permissions_hdl;
 }
 
 static void send_participant_crypto_tokens(struct ddsi_participant *pp, struct ddsi_proxy_participant *proxypp, DDS_Security_ParticipantCryptoHandle local_crypto, DDS_Security_ParticipantCryptoHandle remote_crypto)
 {
-  struct dds_security_context *sc = q_omg_security_get_secure_context(pp);
+  struct dds_security_context *sc = ddsi_omg_security_get_secure_context (pp);
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_ParticipantCryptoTokenSeq tokens = DDS_SECURITY_SEQUENCE_INIT;
   bool r;
@@ -1826,9 +1826,9 @@ static void send_participant_crypto_tokens(struct ddsi_participant *pp, struct d
   {
     ddsi_dataholderseq_t tholder;
 
-    q_omg_shallow_copyout_DataHolderSeq(&tholder, &tokens);
+    ddsi_omg_shallow_copyout_DataHolderSeq (&tholder, &tokens);
     write_crypto_participant_tokens(pp, proxypp, &tholder);
-    q_omg_shallow_free_ddsi_dataholderseq(&tholder);
+    ddsi_omg_shallow_free_ddsi_dataholderseq (&tholder);
 
     if (!sc->crypto_context->crypto_key_exchange->return_crypto_tokens(sc->crypto_context->crypto_key_exchange, &tokens, &exception))
       EXCEPTION_ERROR(pp->e.gv, &exception, "Failed to return local participant crypto tokens "PGUIDFMT" for remote participant "PGUIDFMT, PGUID(pp->e.guid), PGUID(proxypp->e.guid));
@@ -1838,7 +1838,7 @@ static void send_participant_crypto_tokens(struct ddsi_participant *pp, struct d
 static int64_t get_permissions_handle(struct ddsi_participant *pp, struct ddsi_proxy_participant *proxypp)
 {
   int64_t hdl = 0;
-  struct proxypp_pp_match *pm;
+  struct ddsi_proxypp_pp_match *pm;
 
   ddsrt_mutex_lock(&proxypp->sec_attr->lock);
   pm = ddsrt_avl_lookup(&proxypp_pp_treedef, &proxypp->sec_attr->participants, &pp->sec_attr->crypto_handle);
@@ -1849,7 +1849,7 @@ static int64_t get_permissions_handle(struct ddsi_participant *pp, struct ddsi_p
   return hdl;
 }
 
-void q_omg_security_init_remote_participant(struct ddsi_proxy_participant *proxypp)
+void ddsi_omg_security_init_remote_participant (struct ddsi_proxy_participant *proxypp)
 {
   proxypp->sec_attr = ddsrt_malloc(sizeof(*proxypp->sec_attr));
   ddsrt_mutex_init(&proxypp->sec_attr->lock);
@@ -1860,7 +1860,7 @@ void q_omg_security_init_remote_participant(struct ddsi_proxy_participant *proxy
   proxypp->sec_attr->initialized = false;
 }
 
-void q_omg_security_remote_participant_set_initialized(struct ddsi_proxy_participant *proxypp)
+void ddsi_omg_security_remote_participant_set_initialized (struct ddsi_proxy_participant *proxypp)
 {
   if (proxypp->sec_attr)
   {
@@ -1870,7 +1870,7 @@ void q_omg_security_remote_participant_set_initialized(struct ddsi_proxy_partici
   }
 }
 
-bool q_omg_security_remote_participant_is_initialized(struct ddsi_proxy_participant *proxypp)
+bool ddsi_omg_security_remote_participant_is_initialized (struct ddsi_proxy_participant *proxypp)
 {
   bool initialized = false;
 
@@ -1898,26 +1898,26 @@ static bool proxypp_is_authenticated(const struct ddsi_proxy_participant *proxyp
 
 static void match_proxypp_pp(struct ddsi_participant *pp, struct ddsi_proxy_participant *proxypp, DDS_Security_PermissionsHandle permissions_handle, DDS_Security_SharedSecretHandle shared_secret_handle)
 {
-  struct proxypp_pp_match *pm;
-  struct pp_proxypp_match *pc;
+  struct ddsi_proxypp_pp_match *pm;
+  struct ddsi_pp_proxypp_match *pc;
 
-  pm = proxypp_pp_match_new(pp, permissions_handle, shared_secret_handle);
+  pm = ddsi_proxypp_pp_match_new(pp, permissions_handle, shared_secret_handle);
   ddsrt_mutex_lock(&proxypp->sec_attr->lock);
   ddsrt_avl_insert(&proxypp_pp_treedef, &proxypp->sec_attr->participants, pm);
   ddsrt_mutex_unlock(&proxypp->sec_attr->lock);
 
-  pc = pp_proxypp_match_new(proxypp, proxypp->sec_attr->crypto_handle);
+  pc = ddsi_pp_proxypp_match_new(proxypp, proxypp->sec_attr->crypto_handle);
 
   ddsrt_mutex_lock(&pp->sec_attr->lock);
   ddsrt_avl_cinsert(&pp_proxypp_treedef, &pp->sec_attr->proxy_participants, pc);
   ddsrt_mutex_unlock(&pp->sec_attr->lock);
 }
 
-bool q_omg_security_register_remote_participant(struct ddsi_participant *pp, struct ddsi_proxy_participant *proxypp, int64_t shared_secret)
+bool ddsi_omg_security_register_remote_participant (struct ddsi_participant *pp, struct ddsi_proxy_participant *proxypp, int64_t shared_secret)
 {
   bool ret = true;
   struct ddsi_domaingv *gv = pp->e.gv;
-  struct dds_security_context *sc = q_omg_security_get_secure_context(pp);
+  struct dds_security_context *sc = ddsi_omg_security_get_secure_context (pp);
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_ParticipantCryptoHandle crypto_handle;
   int64_t permissions_handle;
@@ -1974,9 +1974,9 @@ register_failed:
   return ret;
 }
 
-void q_omg_security_set_remote_participant_authenticated(struct ddsi_participant *pp, struct ddsi_proxy_participant *proxypp)
+void ddsi_omg_security_set_remote_participant_authenticated (struct ddsi_participant *pp, struct ddsi_proxy_participant *proxypp)
 {
-  struct proxypp_pp_match *pm;
+  struct ddsi_proxypp_pp_match *pm;
 
   ddsrt_mutex_lock(&proxypp->sec_attr->lock);
   pm = ddsrt_avl_lookup(&proxypp_pp_treedef, &proxypp->sec_attr->participants, &pp->sec_attr->crypto_handle);
@@ -1990,9 +1990,9 @@ static bool is_volatile_secure_endpoint(ddsi_entityid_t entityid)
   return ((entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER) || (entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_READER));
 }
 
-static struct proxypp_pp_match * get_pp_proxypp_match_if_authenticated(struct ddsi_participant *pp, struct ddsi_proxy_participant *proxypp, ddsi_entityid_t entityid)
+static struct ddsi_proxypp_pp_match * get_ddsi_pp_proxypp_match_if_authenticated(struct ddsi_participant *pp, struct ddsi_proxy_participant *proxypp, ddsi_entityid_t entityid)
 {
-  struct proxypp_pp_match *pm;
+  struct ddsi_proxypp_pp_match *pm;
 
   ddsrt_mutex_lock(&proxypp->sec_attr->lock);
   pm = ddsrt_avl_lookup(&proxypp_pp_treedef, &proxypp->sec_attr->participants, &pp->sec_attr->crypto_handle);
@@ -2005,7 +2005,7 @@ static struct proxypp_pp_match * get_pp_proxypp_match_if_authenticated(struct dd
   return pm;
 }
 
-void q_omg_security_deregister_remote_participant(struct ddsi_proxy_participant *proxypp)
+void ddsi_omg_security_deregister_remote_participant (struct ddsi_proxy_participant *proxypp)
 {
   struct ddsi_domaingv *gv = proxypp->e.gv;
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
@@ -2013,17 +2013,17 @@ void q_omg_security_deregister_remote_participant(struct ddsi_proxy_participant 
   if (proxypp->sec_attr)
   {
     dds_security_context *sc = proxypp->sec_attr->sc;
-    struct proxypp_pp_match *pm;
+    struct ddsi_proxypp_pp_match *pm;
     struct ddsi_participant *pp;
 
     pm = ddsrt_avl_find_min(&proxypp_pp_treedef, &proxypp->sec_attr->participants);
     while (pm)
     {
-      struct proxypp_pp_match *next = ddsrt_avl_find_succ(&proxypp_pp_treedef, &proxypp->sec_attr->participants, pm);
+      struct ddsi_proxypp_pp_match *next = ddsrt_avl_find_succ(&proxypp_pp_treedef, &proxypp->sec_attr->participants, pm);
       ddsrt_avl_delete(&proxypp_pp_treedef, &proxypp->sec_attr->participants, pm);
       if ((pp = ddsi_entidx_lookup_participant_guid(gv->entity_index, &pm->pp_guid)) != NULL)
         pp_proxypp_unrelate(sc, pp, &proxypp->e.guid);
-      proxypp_pp_match_free(gv, sc, pm);
+      ddsi_proxypp_pp_match_free(gv, sc, pm);
       pm = next;
     }
 
@@ -2047,7 +2047,7 @@ void q_omg_security_deregister_remote_participant(struct ddsi_proxy_participant 
   }
 }
 
-bool is_proxy_participant_deletion_allowed (struct ddsi_domaingv * const gv, const struct ddsi_guid *guid, const ddsi_entityid_t pwr_entityid)
+bool ddsi_is_proxy_participant_deletion_allowed (struct ddsi_domaingv * const gv, const struct ddsi_guid *guid, const ddsi_entityid_t pwr_entityid)
 {
   struct ddsi_proxy_participant *proxypp;
 
@@ -2073,12 +2073,12 @@ bool is_proxy_participant_deletion_allowed (struct ddsi_domaingv * const gv, con
   return (!proxypp_is_authenticated(proxypp));
 }
 
-bool q_omg_is_similar_participant_security_info(struct ddsi_participant *pp, struct ddsi_proxy_participant *proxypp)
+bool ddsi_omg_is_similar_participant_security_info (struct ddsi_participant *pp, struct ddsi_proxy_participant *proxypp)
 {
   bool matching;
   ddsi_security_info_t pp_security_info;
 
-  if (!q_omg_get_participant_security_info(pp, &pp_security_info))
+  if (!ddsi_omg_get_participant_security_info (pp, &pp_security_info))
     return false;
 
   matching = SECURITY_INFO_COMPATIBLE(pp_security_info, proxypp->security_info, DDSI_PARTICIPANT_SECURITY_ATTRIBUTES_FLAG_IS_VALID);
@@ -2104,19 +2104,19 @@ bool q_omg_is_similar_participant_security_info(struct ddsi_participant *pp, str
   return matching;
 }
 
-void q_omg_security_set_participant_crypto_tokens(struct ddsi_participant *pp, struct ddsi_proxy_participant *proxypp, const ddsi_dataholderseq_t *tokens)
+void ddsi_omg_security_set_participant_crypto_tokens (struct ddsi_participant *pp, struct ddsi_proxy_participant *proxypp, const ddsi_dataholderseq_t *tokens)
 {
   struct ddsi_domaingv *gv = pp->e.gv;
-  struct dds_security_context *sc = q_omg_security_get_secure_context(pp);
+  struct dds_security_context *sc = ddsi_omg_security_get_secure_context (pp);
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
-  struct proxypp_pp_match *pm;
+  struct ddsi_proxypp_pp_match *pm;
   DDS_Security_DatawriterCryptoTokenSeq *tseq;
 
   if (!sc)
     return;
 
   tseq = DDS_Security_DataHolderSeq_alloc();
-  q_omg_copyin_DataHolderSeq(tseq, tokens);
+  ddsi_omg_copyin_DataHolderSeq (tseq, tokens);
 
   ddsrt_mutex_lock(&proxypp->sec_attr->lock);
   pm = ddsrt_avl_lookup (&proxypp_pp_treedef, &proxypp->sec_attr->participants, &pp->sec_attr->crypto_handle);
@@ -2144,13 +2144,13 @@ void q_omg_security_set_participant_crypto_tokens(struct ddsi_participant *pp, s
   notify_handshake_recv_token(pp, proxypp);
 }
 
-void q_omg_security_participant_send_tokens(struct ddsi_participant *pp, struct ddsi_proxy_participant *proxypp)
+void ddsi_omg_security_participant_send_tokens (struct ddsi_participant *pp, struct ddsi_proxy_participant *proxypp)
 {
   if (proxypp->sec_attr->crypto_handle != 0)
     send_participant_crypto_tokens(pp, proxypp, pp->sec_attr->crypto_handle, proxypp->sec_attr->crypto_handle);
 }
 
-int64_t q_omg_security_get_remote_participant_handle(struct ddsi_proxy_participant *proxypp)
+int64_t ddsi_omg_security_get_remote_participant_handle (struct ddsi_proxy_participant *proxypp)
 {
   if (proxypp->sec_attr)
     return proxypp->sec_attr->crypto_handle;
@@ -2158,7 +2158,7 @@ int64_t q_omg_security_get_remote_participant_handle(struct ddsi_proxy_participa
   return 0;
 }
 
-void set_proxy_participant_security_info(struct ddsi_proxy_participant *proxypp, const ddsi_plist_t *plist)
+void ddsi_set_proxy_participant_security_info(struct ddsi_proxy_participant *proxypp, const ddsi_plist_t *plist)
 {
   assert(proxypp);
   assert(plist);
@@ -2171,28 +2171,28 @@ void set_proxy_participant_security_info(struct ddsi_proxy_participant *proxypp,
   }
 }
 
-bool q_omg_writer_is_discovery_protected(const struct ddsi_writer *wr)
+bool ddsi_omg_writer_is_discovery_protected (const struct ddsi_writer *wr)
 {
   assert (wr != NULL);
   return wr->sec_attr != NULL && wr->sec_attr->attr.is_discovery_protected;
 }
 
-bool q_omg_writer_is_submessage_protected(const struct ddsi_writer *wr)
+bool ddsi_omg_writer_is_submessage_protected (const struct ddsi_writer *wr)
 {
   assert (wr != NULL);
   return wr->sec_attr != NULL && wr->sec_attr->attr.is_submessage_protected;
 }
 
-bool q_omg_writer_is_payload_protected(const struct ddsi_writer *wr)
+bool ddsi_omg_writer_is_payload_protected (const struct ddsi_writer *wr)
 {
   assert (wr != NULL);
   return wr->sec_attr != NULL && wr->sec_attr->attr.is_payload_protected;
 }
 
-bool q_omg_security_check_remote_writer_permissions(const struct ddsi_proxy_writer *pwr, uint32_t domain_id, struct ddsi_participant *pp)
+bool ddsi_omg_security_check_remote_writer_permissions (const struct ddsi_proxy_writer *pwr, uint32_t domain_id, struct ddsi_participant *pp)
 {
   struct ddsi_domaingv *gv = pp->e.gv;
-  struct dds_security_context *sc = q_omg_security_get_secure_context(pp);
+  struct dds_security_context *sc = ddsi_omg_security_get_secure_context (pp);
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_PublicationBuiltinTopicDataSecure publication_data;
   DDS_Security_TopicBuiltinTopicData topic_data;
@@ -2200,9 +2200,9 @@ bool q_omg_security_check_remote_writer_permissions(const struct ddsi_proxy_writ
   if (!sc)
     return true;
 
-  if (!q_omg_proxy_participant_is_secure(pwr->c.proxypp))
+  if (!ddsi_omg_proxy_participant_is_secure (pwr->c.proxypp))
   {
-    if (q_omg_participant_allow_unauthenticated(pp))
+    if (ddsi_omg_participant_allow_unauthenticated(pp))
     {
       GVTRACE(" allow non-secure remote writer "PGUIDFMT, PGUID(pwr->e.guid));
       return true;
@@ -2224,7 +2224,7 @@ bool q_omg_security_check_remote_writer_permissions(const struct ddsi_proxy_writ
     return false;
   }
 
-  q_omg_shallow_copy_PublicationBuiltinTopicDataSecure(&publication_data, &pwr->e.guid, pwr->c.xqos, &pwr->c.security_info);
+  ddsi_omg_shallow_copy_PublicationBuiltinTopicDataSecure (&publication_data, &pwr->e.guid, pwr->c.xqos, &pwr->c.security_info);
   bool result = sc->access_control_context->check_remote_datawriter(sc->access_control_context, permissions_handle, (int)domain_id, &publication_data, &exception);
   if (!result)
   {
@@ -2233,21 +2233,21 @@ bool q_omg_security_check_remote_writer_permissions(const struct ddsi_proxy_writ
   }
   else
   {
-    q_omg_shallow_copy_TopicBuiltinTopicData(&topic_data, publication_data.topic_name, publication_data.type_name);
+    ddsi_omg_shallow_copy_TopicBuiltinTopicData (&topic_data, publication_data.topic_name, publication_data.type_name);
     result = sc->access_control_context->check_remote_topic(sc->access_control_context, permissions_handle, (int)domain_id, &topic_data, &exception);
-    q_omg_shallow_free_TopicBuiltinTopicData(&topic_data);
+    ddsi_omg_shallow_free_TopicBuiltinTopicData (&topic_data);
     if (!result)
       handle_not_allowed(gv, pp->sec_attr->permissions_handle, sc->access_control_context, &exception, publication_data.topic_name,
         "Access control does not allow remote topic %s", publication_data.topic_name);
   }
-  q_omg_shallow_free_PublicationBuiltinTopicDataSecure(&publication_data);
+  ddsi_omg_shallow_free_PublicationBuiltinTopicDataSecure (&publication_data);
 
   return result;
 }
 
 static void send_reader_crypto_tokens(struct ddsi_reader *rd, struct ddsi_proxy_writer *pwr, DDS_Security_DatareaderCryptoHandle local_crypto, DDS_Security_DatawriterCryptoHandle remote_crypto)
 {
-  struct dds_security_context *sc = q_omg_security_get_secure_context(rd->c.pp);
+  struct dds_security_context *sc = ddsi_omg_security_get_secure_context (rd->c.pp);
   struct ddsi_domaingv *gv = rd->e.gv;
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_DatawriterCryptoTokenSeq tokens = {0, 0, NULL};
@@ -2262,30 +2262,30 @@ static void send_reader_crypto_tokens(struct ddsi_reader *rd, struct ddsi_proxy_
   {
     ddsi_dataholderseq_t tholder;
 
-    q_omg_shallow_copyout_DataHolderSeq(&tholder, &tokens);
+    ddsi_omg_shallow_copyout_DataHolderSeq (&tholder, &tokens);
     write_crypto_reader_tokens(rd, pwr, &tholder);
-    q_omg_shallow_free_ddsi_dataholderseq(&tholder);
+    ddsi_omg_shallow_free_ddsi_dataholderseq (&tholder);
 
     if (!sc->crypto_context->crypto_key_exchange->return_crypto_tokens(sc->crypto_context->crypto_key_exchange, &tokens, &exception))
       EXCEPTION_ERROR(gv, &exception, "Failed to return local reader crypto tokens "PGUIDFMT" for remote writer "PGUIDFMT, PGUID(rd->e.guid), PGUID(pwr->e.guid));
   }
 }
 
-static bool q_omg_security_register_remote_writer_match(struct ddsi_proxy_writer *pwr, struct ddsi_reader *rd, int64_t *crypto_handle)
+static bool ddsi_omg_security_register_remote_writer_match (struct ddsi_proxy_writer *pwr, struct ddsi_reader *rd, int64_t *crypto_handle)
 {
   struct ddsi_participant *pp = rd->c.pp;
   struct ddsi_proxy_participant *proxypp = pwr->c.proxypp;
   struct ddsi_domaingv *gv = pp->e.gv;
-  struct dds_security_context *sc = q_omg_security_get_secure_context(pp);
+  struct dds_security_context *sc = ddsi_omg_security_get_secure_context (pp);
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
-  struct proxypp_pp_match *proxypp_match;
+  struct ddsi_proxypp_pp_match *proxypp_match;
   bool send_tokens = false;
   bool allowed = false;
 
   if (!sc)
     return false;
 
-  if ((proxypp_match = get_pp_proxypp_match_if_authenticated(pp, proxypp, pwr->e.guid.entityid)) == NULL)
+  if ((proxypp_match = get_ddsi_pp_proxypp_match_if_authenticated(pp, proxypp, pwr->e.guid.entityid)) == NULL)
     return false;
 
   ddsrt_mutex_lock(&rd->e.lock);
@@ -2344,7 +2344,7 @@ static bool q_omg_security_register_remote_writer_match(struct ddsi_proxy_writer
   return allowed;
 }
 
-bool q_omg_security_match_remote_writer_enabled(struct ddsi_reader *rd, struct ddsi_proxy_writer *pwr, int64_t *crypto_handle)
+bool ddsi_omg_security_match_remote_writer_enabled (struct ddsi_reader *rd, struct ddsi_proxy_writer *pwr, int64_t *crypto_handle)
 {
   struct ddsi_domaingv *gv = rd->e.gv;
   ddsi_security_info_t info;
@@ -2363,10 +2363,10 @@ bool q_omg_security_match_remote_writer_enabled(struct ddsi_reader *rd, struct d
    *
    * This can mean that an unprotected endpoint of a secure federation can
    * connect to an endpoint of a non-secure federation. However, that will
-   * be blocked by q_omg_security_check_remote_writer_permissions() if
-   * q_omg_participant_allow_unauthenticated() returns FALSE there.
+   * be blocked by ddsi_omg_security_check_remote_writer_permissions () if
+   * ddsi_omg_participant_allow_unauthenticated() returns FALSE there.
    */
-  (void)q_omg_get_reader_security_info(rd, &info);
+  (void)ddsi_omg_get_reader_security_info (rd, &info);
   if (!SECURITY_INFO_COMPATIBLE(pwr->c.security_info, info, DDSI_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_VALID))
   {
     GVWARNING("match_remote_writer "PGUIDFMT" with reader "PGUIDFMT" security_attributes mismatch: 0x%08x.0x%08x - 0x%08x.0x%08x\n",
@@ -2379,7 +2379,7 @@ bool q_omg_security_match_remote_writer_enabled(struct ddsi_reader *rd, struct d
   if ((!rd->sec_attr->attr.is_payload_protected ) && (!rd->sec_attr->attr.is_submessage_protected))
     return true;
 
-  if (!q_omg_proxy_participant_is_secure(pwr->c.proxypp))
+  if (!ddsi_omg_proxy_participant_is_secure (pwr->c.proxypp))
   {
     /* Remote proxy was downgraded to a non-secure participant,
      * but the local endpoint is protected. */
@@ -2399,10 +2399,10 @@ bool q_omg_security_match_remote_writer_enabled(struct ddsi_reader *rd, struct d
     pwr->c.security_info.plugin_security_attributes = info.plugin_security_attributes;
   }
 
-  return q_omg_security_register_remote_writer_match(pwr, rd, crypto_handle);
+  return ddsi_omg_security_register_remote_writer_match (pwr, rd, crypto_handle);
 }
 
-void q_omg_security_deregister_remote_writer_match(const struct ddsi_domaingv *gv, const ddsi_guid_t *rd_guid, struct ddsi_rd_pwr_match *m)
+void ddsi_omg_security_deregister_remote_writer_match (const struct ddsi_domaingv *gv, const ddsi_guid_t *rd_guid, struct ddsi_rd_pwr_match *m)
 {
   struct dds_security_context *sc = gv->security_context;
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
@@ -2415,22 +2415,22 @@ void q_omg_security_deregister_remote_writer_match(const struct ddsi_domaingv *g
   }
 }
 
-void q_omg_security_deregister_remote_writer(const struct ddsi_proxy_writer *pwr)
+void ddsi_omg_security_deregister_remote_writer (const struct ddsi_proxy_writer *pwr)
 {
   struct ddsi_domaingv *gv = pwr->e.gv;
   struct dds_security_context *sc = gv->security_context;
 
-  if (q_omg_proxy_participant_is_secure(pwr->c.proxypp))
+  if (ddsi_omg_proxy_participant_is_secure (pwr->c.proxypp))
   {
     assert(sc);
     clear_pending_matches_by_remote_guid(sc, &sc->security_matches, &pwr->e.guid);
   }
 }
 
-bool q_omg_security_check_remote_reader_permissions(const struct ddsi_proxy_reader *prd, uint32_t domain_id, struct ddsi_participant *pp, bool *relay_only)
+bool ddsi_omg_security_check_remote_reader_permissions (const struct ddsi_proxy_reader *prd, uint32_t domain_id, struct ddsi_participant *pp, bool *relay_only)
 {
   struct ddsi_domaingv *gv = pp->e.gv;
-  struct dds_security_context *sc = q_omg_security_get_secure_context(pp);
+  struct dds_security_context *sc = ddsi_omg_security_get_secure_context (pp);
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_SubscriptionBuiltinTopicDataSecure subscription_data;
   DDS_Security_TopicBuiltinTopicData topic_data;
@@ -2442,9 +2442,9 @@ bool q_omg_security_check_remote_reader_permissions(const struct ddsi_proxy_read
   if (!sc)
     return true;
 
-  if (!q_omg_proxy_participant_is_secure(prd->c.proxypp))
+  if (!ddsi_omg_proxy_participant_is_secure (prd->c.proxypp))
   {
-    if (q_omg_participant_allow_unauthenticated(pp))
+    if (ddsi_omg_participant_allow_unauthenticated(pp))
     {
       GVTRACE(" allow non-secure remote reader "PGUIDFMT, PGUID(prd->e.guid));
       return true;
@@ -2466,7 +2466,7 @@ bool q_omg_security_check_remote_reader_permissions(const struct ddsi_proxy_read
     return false;
   }
 
-  q_omg_shallow_copy_SubscriptionBuiltinTopicDataSecure(&subscription_data, &prd->e.guid, prd->c.xqos, &prd->c.security_info);
+  ddsi_omg_shallow_copy_SubscriptionBuiltinTopicDataSecure (&subscription_data, &prd->e.guid, prd->c.xqos, &prd->c.security_info);
   bool result = sc->access_control_context->check_remote_datareader(sc->access_control_context, permissions_handle, (int)domain_id, &subscription_data, &sec_relay_only, &exception);
   if (!result)
   {
@@ -2476,19 +2476,19 @@ bool q_omg_security_check_remote_reader_permissions(const struct ddsi_proxy_read
   else
   {
     *relay_only = !!sec_relay_only;
-    q_omg_shallow_copy_TopicBuiltinTopicData(&topic_data, subscription_data.topic_name, subscription_data.type_name);
+    ddsi_omg_shallow_copy_TopicBuiltinTopicData (&topic_data, subscription_data.topic_name, subscription_data.type_name);
     result = sc->access_control_context->check_remote_topic(sc->access_control_context, permissions_handle, (int)domain_id, &topic_data, &exception);
-    q_omg_shallow_free_TopicBuiltinTopicData(&topic_data);
+    ddsi_omg_shallow_free_TopicBuiltinTopicData (&topic_data);
     if (!result)
       handle_not_allowed(gv, pp->sec_attr->permissions_handle, sc->access_control_context, &exception, subscription_data.topic_name,
         "Access control does not allow remote topic %s", subscription_data.topic_name);
   }
-  q_omg_shallow_free_SubscriptionBuiltinTopicDataSecure(&subscription_data);
+  ddsi_omg_shallow_free_SubscriptionBuiltinTopicDataSecure (&subscription_data);
 
   return result;
 }
 
-void q_omg_get_proxy_endpoint_security_info(const struct ddsi_entity_common *entity, ddsi_security_info_t *proxypp_sec_info, const ddsi_plist_t *plist, ddsi_security_info_t *info)
+void ddsi_omg_get_proxy_endpoint_security_info (const struct ddsi_entity_common *entity, ddsi_security_info_t *proxypp_sec_info, const ddsi_plist_t *plist, ddsi_security_info_t *info)
 {
   const bool proxypp_info_available =
     (proxypp_sec_info->security_attributes != 0 || proxypp_sec_info->plugin_security_attributes != 0);
@@ -2564,7 +2564,7 @@ void q_omg_get_proxy_endpoint_security_info(const struct ddsi_entity_common *ent
   }
 }
 
-void q_omg_security_deregister_remote_reader_match(const struct ddsi_domaingv *gv, const ddsi_guid_t *wr_guid, struct ddsi_wr_prd_match *m)
+void ddsi_omg_security_deregister_remote_reader_match (const struct ddsi_domaingv *gv, const ddsi_guid_t *wr_guid, struct ddsi_wr_prd_match *m)
 {
   struct dds_security_context *sc = gv->security_context;
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
@@ -2577,12 +2577,12 @@ void q_omg_security_deregister_remote_reader_match(const struct ddsi_domaingv *g
   }
 }
 
-void q_omg_security_deregister_remote_reader(const struct ddsi_proxy_reader *prd)
+void ddsi_omg_security_deregister_remote_reader (const struct ddsi_proxy_reader *prd)
 {
   struct ddsi_domaingv *gv = prd->e.gv;
   struct dds_security_context *sc = gv->security_context;
 
-  if (q_omg_proxy_participant_is_secure(prd->c.proxypp))
+  if (ddsi_omg_proxy_participant_is_secure (prd->c.proxypp))
   {
     assert(sc);
     clear_pending_matches_by_remote_guid(sc, &sc->security_matches, &prd->e.guid);
@@ -2591,7 +2591,7 @@ void q_omg_security_deregister_remote_reader(const struct ddsi_proxy_reader *prd
 
 static void send_writer_crypto_tokens(struct ddsi_writer *wr, struct ddsi_proxy_reader *prd, DDS_Security_DatawriterCryptoHandle local_crypto, DDS_Security_DatareaderCryptoHandle remote_crypto)
 {
-  struct dds_security_context *sc = q_omg_security_get_secure_context(wr->c.pp);
+  struct dds_security_context *sc = ddsi_omg_security_get_secure_context (wr->c.pp);
   struct ddsi_domaingv *gv = wr->e.gv;
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_DatawriterCryptoTokenSeq tokens = {0, 0, NULL};
@@ -2606,27 +2606,27 @@ static void send_writer_crypto_tokens(struct ddsi_writer *wr, struct ddsi_proxy_
   {
     ddsi_dataholderseq_t tholder;
 
-    q_omg_shallow_copyout_DataHolderSeq(&tholder, &tokens);
+    ddsi_omg_shallow_copyout_DataHolderSeq (&tholder, &tokens);
     write_crypto_writer_tokens(wr, prd, &tholder);
-    q_omg_shallow_free_ddsi_dataholderseq(&tholder);
+    ddsi_omg_shallow_free_ddsi_dataholderseq (&tholder);
 
     if (!sc->crypto_context->crypto_key_exchange->return_crypto_tokens(sc->crypto_context->crypto_key_exchange, &tokens, &exception))
       EXCEPTION_ERROR(gv, &exception, "Failed to return local writer crypto tokens "PGUIDFMT" for remote reader "PGUIDFMT, PGUID(wr->e.guid), PGUID(prd->e.guid));
   }
 }
 
-static bool q_omg_security_register_remote_reader_match(struct ddsi_proxy_reader *prd, struct ddsi_writer *wr, int64_t *crypto_handle, bool relay_only)
+static bool ddsi_omg_security_register_remote_reader_match (struct ddsi_proxy_reader *prd, struct ddsi_writer *wr, int64_t *crypto_handle, bool relay_only)
 {
   struct ddsi_participant *pp = wr->c.pp;
   struct ddsi_proxy_participant *proxypp = prd->c.proxypp;
   struct ddsi_domaingv *gv = pp->e.gv;
-  struct dds_security_context *sc = q_omg_security_get_secure_context(pp);
+  struct dds_security_context *sc = ddsi_omg_security_get_secure_context (pp);
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
-  struct proxypp_pp_match *proxypp_match;
+  struct ddsi_proxypp_pp_match *proxypp_match;
   bool send_tokens = false;
   bool allowed = false;
 
-  if ((proxypp_match = get_pp_proxypp_match_if_authenticated(pp, proxypp, prd->e.guid.entityid)) == NULL)
+  if ((proxypp_match = get_ddsi_pp_proxypp_match_if_authenticated(pp, proxypp, prd->e.guid.entityid)) == NULL)
     return false;
 
   ddsrt_mutex_lock(&wr->e.lock);
@@ -2688,7 +2688,7 @@ static bool q_omg_security_register_remote_reader_match(struct ddsi_proxy_reader
   return allowed;
 }
 
-bool q_omg_security_match_remote_reader_enabled(struct ddsi_writer *wr, struct ddsi_proxy_reader *prd, bool relay_only, int64_t *crypto_handle)
+bool ddsi_omg_security_match_remote_reader_enabled (struct ddsi_writer *wr, struct ddsi_proxy_reader *prd, bool relay_only, int64_t *crypto_handle)
 {
   struct ddsi_domaingv *gv = wr->e.gv;
   ddsi_security_info_t info;
@@ -2707,10 +2707,10 @@ bool q_omg_security_match_remote_reader_enabled(struct ddsi_writer *wr, struct d
    *
    * This can mean that an unprotected endpoint of a secure federation can
    * connect to an endpoint of a non-secure federation. However, that will
-   * be blocked by q_omg_security_check_remote_reader_permissions() if
-   * q_omg_participant_allow_unauthenticated() returns FALSE there.
+   * be blocked by ddsi_omg_security_check_remote_reader_permissions () if
+   * ddsi_omg_participant_allow_unauthenticated() returns FALSE there.
    */
-  (void)q_omg_get_writer_security_info(wr, &info);
+  (void)ddsi_omg_get_writer_security_info (wr, &info);
   if (!SECURITY_INFO_COMPATIBLE(prd->c.security_info, info, DDSI_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_VALID))
   {
     GVWARNING("match_remote_reader "PGUIDFMT" with writer "PGUIDFMT" security_attributes mismatch: 0x%08x.0x%08x - 0x%08x.0x%08x\n",
@@ -2723,7 +2723,7 @@ bool q_omg_security_match_remote_reader_enabled(struct ddsi_writer *wr, struct d
   if (!wr->sec_attr->attr.is_submessage_protected  && !wr->sec_attr->attr.is_payload_protected)
     return true;
 
-  if (!q_omg_proxy_participant_is_secure(prd->c.proxypp))
+  if (!ddsi_omg_proxy_participant_is_secure (prd->c.proxypp))
   {
     /* Remote proxy was downgraded to a non-secure participant,
      * but the local endpoint is protected. */
@@ -2743,12 +2743,12 @@ bool q_omg_security_match_remote_reader_enabled(struct ddsi_writer *wr, struct d
     prd->c.security_info.plugin_security_attributes = info.plugin_security_attributes;
   }
 
-  return q_omg_security_register_remote_reader_match(prd, wr, crypto_handle, relay_only);
+  return ddsi_omg_security_register_remote_reader_match (prd, wr, crypto_handle, relay_only);
 }
 
-void q_omg_security_set_remote_writer_crypto_tokens(struct ddsi_reader *rd, const ddsi_guid_t *pwr_guid, const ddsi_dataholderseq_t *tokens)
+void ddsi_omg_security_set_remote_writer_crypto_tokens (struct ddsi_reader *rd, const ddsi_guid_t *pwr_guid, const ddsi_dataholderseq_t *tokens)
 {
-  struct dds_security_context *sc = q_omg_security_get_secure_context(rd->c.pp);
+  struct dds_security_context *sc = ddsi_omg_security_get_secure_context (rd->c.pp);
   struct ddsi_domaingv *gv = rd->e.gv;
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   struct pending_match *match;
@@ -2759,7 +2759,7 @@ void q_omg_security_set_remote_writer_crypto_tokens(struct ddsi_reader *rd, cons
      return;
 
   DDS_Security_DatawriterCryptoTokenSeq * tseq = DDS_Security_DataHolderSeq_alloc();
-  q_omg_copyin_DataHolderSeq(tseq, tokens);
+  ddsi_omg_copyin_DataHolderSeq (tseq, tokens);
 
   ddsrt_mutex_lock(&rd->e.lock);
   match = find_or_create_pending_entity_match(&sc->security_matches, DDSI_EK_PROXY_WRITER, pwr_guid, &rd->e.guid, 0, tseq);
@@ -2785,9 +2785,9 @@ void q_omg_security_set_remote_writer_crypto_tokens(struct ddsi_reader *rd, cons
     notify_handshake_recv_token(rd->c.pp, pwr->c.proxypp);
 }
 
-void q_omg_security_set_remote_reader_crypto_tokens(struct ddsi_writer *wr, const ddsi_guid_t *prd_guid, const ddsi_dataholderseq_t *tokens)
+void ddsi_omg_security_set_remote_reader_crypto_tokens (struct ddsi_writer *wr, const ddsi_guid_t *prd_guid, const ddsi_dataholderseq_t *tokens)
 {
-  struct dds_security_context *sc = q_omg_security_get_secure_context(wr->c.pp);
+  struct dds_security_context *sc = ddsi_omg_security_get_secure_context (wr->c.pp);
   struct ddsi_domaingv *gv = wr->e.gv;
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   struct pending_match *match;
@@ -2798,7 +2798,7 @@ void q_omg_security_set_remote_reader_crypto_tokens(struct ddsi_writer *wr, cons
     return;
 
    DDS_Security_DatawriterCryptoTokenSeq *tseq = DDS_Security_DataHolderSeq_alloc();
-   q_omg_copyin_DataHolderSeq(tseq, tokens);
+   ddsi_omg_copyin_DataHolderSeq (tseq, tokens);
 
    ddsrt_mutex_lock(&wr->e.lock);
    match = find_or_create_pending_entity_match(&sc->security_matches, DDSI_EK_PROXY_READER, prd_guid, &wr->e.guid, 0, tseq);
@@ -2824,13 +2824,13 @@ void q_omg_security_set_remote_reader_crypto_tokens(struct ddsi_writer *wr, cons
      notify_handshake_recv_token(wr->c.pp, prd->c.proxypp);
 }
 
-bool q_omg_reader_is_discovery_protected(const struct ddsi_reader *rd)
+bool ddsi_omg_reader_is_discovery_protected (const struct ddsi_reader *rd)
 {
   assert (rd != NULL);
   return rd->sec_attr != NULL && rd->sec_attr->attr.is_discovery_protected;
 }
 
-static bool q_omg_security_encode_datareader_submessage(struct ddsi_reader *rd, const ddsi_guid_prefix_t *dst_prefix, const unsigned char *src_buf, size_t src_len, unsigned char **dst_buf, size_t *dst_len)
+static bool ddsi_omg_security_encode_datareader_submessage (struct ddsi_reader *rd, const ddsi_guid_prefix_t *dst_prefix, const unsigned char *src_buf, size_t src_len, unsigned char **dst_buf, size_t *dst_len)
 {
   DDS_Security_SecurityException ex = DDS_SECURITY_EXCEPTION_INIT;
   struct ddsi_rd_pwr_match *m;
@@ -2847,14 +2847,14 @@ static bool q_omg_security_encode_datareader_submessage(struct ddsi_reader *rd, 
   assert (dst_len);
   assert (dst_buf);
   assert (rd->sec_attr);
-  assert (q_omg_reader_is_submessage_protected (rd));
+  assert (ddsi_omg_reader_is_submessage_protected (rd));
 
   const struct ddsi_domaingv *gv = rd->e.gv;
-  const struct dds_security_context *sc = q_omg_security_get_secure_context (rd->c.pp);
+  const struct dds_security_context *sc = ddsi_omg_security_get_secure_context (rd->c.pp);
   assert (sc);
 
   GVTRACE (" encode_datareader_submessage "PGUIDFMT" %s/%s", PGUID (rd->e.guid), rd->xqos->topic_name, rd->type->type_name);
-  // FIXME: print_buf(src_buf, src_len, "q_omg_security_encode_datareader_submessage(SOURCE)");
+  // FIXME: print_buf(src_buf, src_len, "ddsi_omg_security_encode_datareader_submessage (SOURCE)");
 
   ddsrt_mutex_lock (&rd->e.lock);
   hdls._buffer = DDS_Security_DatawriterCryptoHandleSeq_allocbuf (rd->num_writers);
@@ -2889,7 +2889,7 @@ static bool q_omg_security_encode_datareader_submessage(struct ddsi_reader *rd, 
   assert (encoded_buffer._buffer);
   *dst_buf = encoded_buffer._buffer;
   *dst_len = encoded_buffer._length;
-  // FIXME: print_buf (*dst_buf, *dst_len, "q_omg_security_encode_datareader_submessage(DEST)");
+  // FIXME: print_buf (*dst_buf, *dst_len, "ddsi_omg_security_encode_datareader_submessage (DEST)");
   goto end_enc_drd_subm;
 
 err_enc_drd_subm:
@@ -2901,7 +2901,7 @@ end_enc_drd_subm:
   return result;
 }
 
-static bool q_omg_security_encode_datawriter_submessage (struct ddsi_writer *wr, const ddsi_guid_prefix_t *dst_prefix, const unsigned char *src_buf, size_t src_len, unsigned char **dst_buf, size_t *dst_len)
+static bool ddsi_omg_security_encode_datawriter_submessage (struct ddsi_writer *wr, const ddsi_guid_prefix_t *dst_prefix, const unsigned char *src_buf, size_t src_len, unsigned char **dst_buf, size_t *dst_len)
 {
   DDS_Security_SecurityException ex = DDS_SECURITY_EXCEPTION_INIT;
   struct ddsi_wr_prd_match *m;
@@ -2918,16 +2918,16 @@ static bool q_omg_security_encode_datawriter_submessage (struct ddsi_writer *wr,
   assert (dst_len);
   assert (dst_buf);
   assert (wr->sec_attr);
-  assert (q_omg_writer_is_submessage_protected (wr));
+  assert (ddsi_omg_writer_is_submessage_protected (wr));
   ASSERT_MUTEX_HELD (wr->e.lock);
 
   const struct ddsi_domaingv *gv = wr->e.gv;
-  const struct dds_security_context *sc = q_omg_security_get_secure_context (wr->c.pp);
+  const struct dds_security_context *sc = ddsi_omg_security_get_secure_context (wr->c.pp);
   assert (sc);
 
   GVTRACE (" encode_datawriter_submessage "PGUIDFMT" %s/%s", PGUID (wr->e.guid), wr->xqos->topic_name, wr->type->type_name);
 
-  // FIXME: print_buf(src_buf, src_len, "q_omg_security_encode_datawriter_submessage(SOURCE)");
+  // FIXME: print_buf(src_buf, src_len, "ddsi_omg_security_encode_datawriter_submessage (SOURCE)");
 
   hdls._buffer = DDS_Security_DatareaderCryptoHandleSeq_allocbuf (wr->num_readers);
   hdls._maximum = wr->num_readers;
@@ -2973,7 +2973,7 @@ static bool q_omg_security_encode_datawriter_submessage (struct ddsi_writer *wr,
   assert (encoded_buffer._buffer);
   *dst_buf = encoded_buffer._buffer;
   *dst_len = encoded_buffer._length;
-  // FIXME: print_buf (*dst_buf, *dst_len, "q_omg_security_encode_datawriter_submessage(DEST)");
+  // FIXME: print_buf (*dst_buf, *dst_len, "ddsi_omg_security_encode_datawriter_submessage (DEST)");
   goto end_enc_dwr_subm;
 
 err_enc_dwr_subm:
@@ -2985,7 +2985,7 @@ end_enc_dwr_subm:
   return result;
 }
 
-static bool q_omg_security_decode_submessage (const struct ddsi_domaingv *gv, const ddsi_guid_prefix_t * const src_prefix, const ddsi_guid_prefix_t * const dst_prefix, const unsigned char *src_buf, size_t src_len, unsigned char **dst_buf, size_t *dst_len)
+static bool ddsi_omg_security_decode_submessage (const struct ddsi_domaingv *gv, const ddsi_guid_prefix_t * const src_prefix, const ddsi_guid_prefix_t * const dst_prefix, const unsigned char *src_buf, size_t src_len, unsigned char **dst_buf, size_t *dst_len)
 {
   DDS_Security_SecurityException ex = DDS_SECURITY_EXCEPTION_INIT;
   struct dds_security_context *sc = gv->security_context;
@@ -3006,7 +3006,7 @@ static bool q_omg_security_decode_submessage (const struct ddsi_domaingv *gv, co
   assert (dst_len);
   assert (dst_buf);
 
-  // FIXME: print_buf(src_buf, src_len, "q_omg_security_decode_submessage(SOURCE)");
+  // FIXME: print_buf(src_buf, src_len, "ddsi_omg_security_decode_submessage (SOURCE)");
 
   proxypp_guid.prefix = *src_prefix;
   proxypp_guid.entityid.u = NN_ENTITYID_PARTICIPANT;
@@ -3092,11 +3092,11 @@ static bool q_omg_security_decode_submessage (const struct ddsi_domaingv *gv, co
   assert (plain_buffer._buffer);
   *dst_buf = plain_buffer._buffer;
   *dst_len = plain_buffer._length;
-  // FIXME: print_buf(*dst_buf, *dst_len, "q_omg_security_decode_submessage(DEST-DATAWRITER)");
+  // FIXME: print_buf(*dst_buf, *dst_len, "ddsi_omg_security_decode_submessage (DEST-DATAWRITER)");
   return true;
 }
 
-static bool q_omg_security_encode_serialized_payload (const struct ddsi_writer *wr, const unsigned char *src_buf, size_t src_len, unsigned char **dst_buf, size_t *dst_len)
+static bool ddsi_omg_security_encode_serialized_payload (const struct ddsi_writer *wr, const unsigned char *src_buf, size_t src_len, unsigned char **dst_buf, size_t *dst_len)
 {
   DDS_Security_SecurityException ex = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_OctetSeq extra_inline_qos;
@@ -3109,15 +3109,15 @@ static bool q_omg_security_encode_serialized_payload (const struct ddsi_writer *
   assert (dst_buf);
   assert (dst_len);
   assert (wr->sec_attr);
-  assert (q_omg_writer_is_payload_protected (wr));
+  assert (ddsi_omg_writer_is_payload_protected (wr));
 
   const struct ddsi_domaingv *gv = wr->e.gv;
-  const struct dds_security_context *sc = q_omg_security_get_secure_context (wr->c.pp);
+  const struct dds_security_context *sc = ddsi_omg_security_get_secure_context (wr->c.pp);
   assert (sc);
 
-  // FIXME: print_buf(src_buf, src_len, "q_omg_security_encode_serialized_payload(SOURCE)");
+  // FIXME: print_buf(src_buf, src_len, "ddsi_omg_security_encode_serialized_payload (SOURCE)");
 
-  GVTRACE (" encode_payload "PGUIDFMT" %s/%s\n", PGUID (wr->e.guid), wr->xqos->topic_name, wr->type->type_name);
+  GVTRACE (" ddsi_security_encode_payload "PGUIDFMT" %s/%s\n", PGUID (wr->e.guid), wr->xqos->topic_name, wr->type->type_name);
 
   memset (&extra_inline_qos, 0, sizeof (extra_inline_qos));
   memset (&encoded_buffer, 0, sizeof (encoded_buffer));
@@ -3137,12 +3137,12 @@ static bool q_omg_security_encode_serialized_payload (const struct ddsi_writer *
 
   *dst_buf = encoded_buffer._buffer;
   *dst_len = encoded_buffer._length;
-  // FIXME: print_buf(*dst_buf, *dst_len, "q_omg_security_encode_serialized_payload(DEST)");
+  // FIXME: print_buf(*dst_buf, *dst_len, "ddsi_omg_security_encode_serialized_payload (DEST)");
 
   return true;
 }
 
-static bool q_omg_security_decode_serialized_payload (struct ddsi_proxy_writer *pwr, const unsigned char *src_buf, size_t src_len, unsigned char **dst_buf, size_t *dst_len)
+static bool ddsi_omg_security_decode_serialized_payload (struct ddsi_proxy_writer *pwr, const unsigned char *src_buf, size_t src_len, unsigned char **dst_buf, size_t *dst_len)
 {
   DDS_Security_SecurityException ex = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_OctetSeq extra_inline_qos;
@@ -3159,11 +3159,11 @@ static bool q_omg_security_decode_serialized_payload (struct ddsi_proxy_writer *
   assert (dst_len);
 
   const struct ddsi_domaingv *gv = pwr->e.gv;
-  const struct dds_security_context *sc = q_omg_security_get_secure_context_from_proxypp (pwr->c.proxypp);
+  const struct dds_security_context *sc = ddsi_omg_security_get_secure_context_from_proxypp (pwr->c.proxypp);
   assert (gv);
   assert (sc);
 
-  // FIXME: print_buf(src_buf, src_len, "q_omg_security_decode_serialized_payload(SOURCE)");
+  // FIXME: print_buf(src_buf, src_len, "ddsi_omg_security_decode_serialized_payload (SOURCE)");
 
   *dst_buf = NULL;
   *dst_len = 0;
@@ -3203,18 +3203,18 @@ static bool q_omg_security_decode_serialized_payload (struct ddsi_proxy_writer *
   }
   *dst_buf = plain_buffer._buffer;
   *dst_len = plain_buffer._length;
-  // FIXME: print_buf(*dst_buf, *dst_len, "q_omg_security_decode_serialized_payload(DEST)");
+  // FIXME: print_buf(*dst_buf, *dst_len, "ddsi_omg_security_decode_serialized_payload (DEST)");
   return true;
 }
 
-bool q_omg_security_encode_rtps_message (const struct ddsi_domaingv *gv, int64_t src_handle, const ddsi_guid_t *src_guid, const unsigned char *src_buf, size_t src_len, unsigned char **dst_buf, size_t *dst_len, int64_t dst_handle)
+bool ddsi_omg_security_encode_rtps_message (const struct ddsi_domaingv *gv, int64_t src_handle, const ddsi_guid_t *src_guid, const unsigned char *src_buf, size_t src_len, unsigned char **dst_buf, size_t *dst_len, int64_t dst_handle)
 {
   struct dds_security_context *sc = gv->security_context;
   DDS_Security_SecurityException ex = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_ParticipantCryptoHandleSeq hdls = { 0, 0, NULL };
   DDS_Security_OctetSeq encoded_buffer;
   DDS_Security_OctetSeq plain_buffer;
-  struct participant_sec_attributes *pp_attr = NULL;
+  struct ddsi_participant_sec_attributes *pp_attr = NULL;
   bool result = false;
   int32_t idx = 0;
 
@@ -3294,7 +3294,7 @@ bool q_omg_security_encode_rtps_message (const struct ddsi_domaingv *gv, int64_t
   return result;
 }
 
-static bool q_omg_security_decode_rtps_message (struct ddsi_proxy_participant *proxypp, const unsigned char *src_buf, size_t src_len, unsigned char **dst_buf, size_t *dst_len)
+static bool ddsi_omg_security_decode_rtps_message (struct ddsi_proxy_participant *proxypp, const unsigned char *src_buf, size_t src_len, unsigned char **dst_buf, size_t *dst_len)
 {
   DDS_Security_SecurityException ex = DDS_SECURITY_EXCEPTION_INIT;
   struct dds_security_context *sc;
@@ -3318,9 +3318,9 @@ static bool q_omg_security_decode_rtps_message (struct ddsi_proxy_participant *p
   encoded_buffer._maximum = (uint32_t) src_len;
 
   ddsrt_mutex_lock (&proxypp->sec_attr->lock);
-  for (struct proxypp_pp_match *pm = ddsrt_avl_iter_first (&proxypp_pp_treedef, &proxypp->sec_attr->participants, &it); pm; pm = ddsrt_avl_iter_next (&it))
+  for (struct ddsi_proxypp_pp_match *pm = ddsrt_avl_iter_first (&proxypp_pp_treedef, &proxypp->sec_attr->participants, &it); pm; pm = ddsrt_avl_iter_next (&it))
   {
-    sc = q_omg_security_get_secure_context_from_proxypp(proxypp);
+    sc = ddsi_omg_security_get_secure_context_from_proxypp (proxypp);
     assert (sc);
     if (!sc->crypto_context->crypto_transform->decode_rtps_message (sc->crypto_context->crypto_transform, &plain_buffer, &encoded_buffer, pm->pp_crypto_handle, proxypp->sec_attr->crypto_handle, &ex))
     {
@@ -3347,21 +3347,21 @@ static bool q_omg_security_decode_rtps_message (struct ddsi_proxy_participant *p
   return true;
 }
 
-bool q_omg_reader_is_submessage_protected(const struct ddsi_reader *rd)
+bool ddsi_omg_reader_is_submessage_protected (const struct ddsi_reader *rd)
 {
   assert (rd != NULL);
   return rd->sec_attr != NULL && rd->sec_attr->attr.is_submessage_protected;
 }
 
-bool encode_payload (struct ddsi_writer *wr, ddsrt_iovec_t *vec, unsigned char **buf)
+bool ddsi_security_encode_payload (struct ddsi_writer *wr, ddsrt_iovec_t *vec, unsigned char **buf)
 {
   *buf = NULL;
-  if (!q_omg_writer_is_payload_protected (wr))
+  if (!ddsi_omg_writer_is_payload_protected (wr))
     return true;
 
   unsigned char *enc_buf;
   size_t enc_len;
-  if (!q_omg_security_encode_serialized_payload (wr, vec->iov_base, vec->iov_len, &enc_buf, &enc_len))
+  if (!ddsi_omg_security_encode_serialized_payload (wr, vec->iov_base, vec->iov_len, &enc_buf, &enc_len))
     return false;
 
   /* Replace the iov buffer, which should always be aliased. */
@@ -3391,7 +3391,7 @@ static bool decode_payload (const struct ddsi_domaingv *gv, struct nn_rsample_in
 
   unsigned char *dst_buf = NULL;
   size_t dst_len = 0;
-  if (!q_omg_security_decode_serialized_payload (sampleinfo->pwr, payloadp, *payloadsz, &dst_buf, &dst_len))
+  if (!ddsi_omg_security_decode_serialized_payload (sampleinfo->pwr, payloadp, *payloadsz, &dst_buf, &dst_len))
   {
     GVTRACE ("decode_payload: failed to decrypt data from "PGUIDFMT"\n", PGUID (sampleinfo->pwr->e.guid));
     return false;
@@ -3409,7 +3409,7 @@ static bool decode_payload (const struct ddsi_domaingv *gv, struct nn_rsample_in
   return true;
 }
 
-bool decode_Data (const struct ddsi_domaingv *gv, struct nn_rsample_info *sampleinfo, unsigned char *payloadp, uint32_t payloadsz, size_t *submsg_len)
+bool ddsi_security_decode_data (const struct ddsi_domaingv *gv, struct nn_rsample_info *sampleinfo, unsigned char *payloadp, uint32_t payloadsz, size_t *submsg_len)
 {
   /* Only decode when there's actual data. */
   if (payloadp == NULL || payloadsz == 0)
@@ -3424,24 +3424,24 @@ bool decode_Data (const struct ddsi_domaingv *gv, struct nn_rsample_info *sample
   }
 }
 
-bool decode_DataFrag (const struct ddsi_domaingv *gv, struct nn_rsample_info *sampleinfo, unsigned char *payloadp, uint32_t payloadsz, size_t *submsg_len)
+bool ddsi_security_decode_datafrag (const struct ddsi_domaingv *gv, struct nn_rsample_info *sampleinfo, unsigned char *payloadp, uint32_t payloadsz, size_t *submsg_len)
 {
   /* Only decode when there's actual data; do not touch the sampleinfo->size in
-     contradiction to decode_Data() (it has been calculated differently). */
+     contradiction to ddsi_security_decode_data() (it has been calculated differently). */
   if (payloadp == NULL || payloadsz == 0)
     return true;
   else
     return decode_payload (gv, sampleinfo, payloadp, &payloadsz, submsg_len);
 }
 
-void encode_datareader_submsg (struct nn_xmsg *msg, struct nn_xmsg_marker sm_marker, const struct ddsi_proxy_writer *pwr, const struct ddsi_guid *rd_guid)
+void ddsi_security_encode_datareader_submsg (struct nn_xmsg *msg, struct nn_xmsg_marker sm_marker, const struct ddsi_proxy_writer *pwr, const struct ddsi_guid *rd_guid)
 {
   /* FIXME: avoid this lookup */
   struct ddsi_reader * const rd = ddsi_entidx_lookup_reader_guid (pwr->e.gv->entity_index, rd_guid);
   /* surely a reader can only be protected if the participant has security enabled? */
-  if (rd == NULL || !q_omg_reader_is_submessage_protected (rd))
+  if (rd == NULL || !ddsi_omg_reader_is_submessage_protected (rd))
     return;
-  assert (q_omg_participant_is_secure (rd->c.pp));
+  assert (ddsi_omg_participant_is_secure (rd->c.pp));
 
   unsigned char *src_buf;
   size_t src_len;
@@ -3455,7 +3455,7 @@ void encode_datareader_submsg (struct nn_xmsg *msg, struct nn_xmsg_marker sm_mar
   src_buf = nn_xmsg_submsg_from_marker (msg, sm_marker);
   src_len = nn_xmsg_submsg_size (msg, sm_marker);
 
-  if (q_omg_security_encode_datareader_submessage (rd, &pwr->e.guid.prefix, src_buf, src_len, &dst_buf, &dst_len))
+  if (ddsi_omg_security_encode_datareader_submessage (rd, &pwr->e.guid.prefix, src_buf, src_len, &dst_buf, &dst_len))
   {
     nn_xmsg_submsg_replace (msg, sm_marker, dst_buf, dst_len);
     ddsrt_free (dst_buf);
@@ -3467,13 +3467,13 @@ void encode_datareader_submsg (struct nn_xmsg *msg, struct nn_xmsg_marker sm_mar
   }
 }
 
-void encode_datawriter_submsg (struct nn_xmsg *msg, struct nn_xmsg_marker sm_marker, struct ddsi_writer *wr)
+void ddsi_security_encode_datawriter_submsg (struct nn_xmsg *msg, struct nn_xmsg_marker sm_marker, struct ddsi_writer *wr)
 {
-  if (!q_omg_writer_is_submessage_protected (wr))
+  if (!ddsi_omg_writer_is_submessage_protected (wr))
     return;
 
   /* Only encode when needed.  Surely a writer can only be protected if the participant has security enabled? */
-  assert (q_omg_participant_is_secure (wr->c.pp));
+  assert (ddsi_omg_participant_is_secure (wr->c.pp));
 
   unsigned char *src_buf;
   size_t src_len;
@@ -3492,7 +3492,7 @@ void encode_datawriter_submsg (struct nn_xmsg *msg, struct nn_xmsg_marker sm_mar
   if (nn_xmsg_getdst1prefix (msg, &dst_guid_prefix))
     dst = &dst_guid_prefix;
 
-  if (q_omg_security_encode_datawriter_submessage (wr, dst, src_buf, src_len, &dst_buf, &dst_len))
+  if (ddsi_omg_security_encode_datawriter_submessage (wr, dst, src_buf, src_len, &dst_buf, &dst_len))
   {
     nn_xmsg_submsg_replace (msg, sm_marker, dst_buf, dst_len);
     ddsrt_free (dst_buf);
@@ -3504,7 +3504,7 @@ void encode_datawriter_submsg (struct nn_xmsg *msg, struct nn_xmsg_marker sm_mar
   }
 }
 
-bool validate_msg_decoding (const struct ddsi_entity_common *e, const struct ddsi_proxy_endpoint_common *c, const struct ddsi_proxy_participant *proxypp, const struct receiver_state *rst, SubmessageKind_t prev_smid)
+bool ddsi_security_validate_msg_decoding (const struct ddsi_entity_common *e, const struct ddsi_proxy_endpoint_common *c, const struct ddsi_proxy_participant *proxypp, const struct receiver_state *rst, SubmessageKind_t prev_smid)
 {
   assert (e);
   assert (c);
@@ -3526,7 +3526,7 @@ bool validate_msg_decoding (const struct ddsi_entity_common *e, const struct dds
 
   /* At this point, we should also check if the complete RTPS message was encoded when
    * that is expected. */
-  if (q_omg_security_is_remote_rtps_protected (proxypp, e->guid.entityid) && !rst->rtps_encoded)
+  if (ddsi_omg_security_is_remote_rtps_protected (proxypp, e->guid.entityid) && !rst->rtps_encoded)
   {
     return false;
   }
@@ -3585,7 +3585,7 @@ static int32_t padding_submsg (struct ddsi_domaingv *gv, unsigned char *start, u
   return (int32_t) size;
 }
 
-static bool decode_SecPrefix_patched_hdr_flags (const struct receiver_state *rst, unsigned char *submsg, size_t submsg_size, unsigned char * const msg_end, const ddsi_guid_prefix_t * const src_prefix, const ddsi_guid_prefix_t * const dst_prefix, int byteswap)
+static bool ddsi_security_decode_sec_prefix_patched_hdr_flags (const struct receiver_state *rst, unsigned char *submsg, size_t submsg_size, unsigned char * const msg_end, const ddsi_guid_prefix_t * const src_prefix, const ddsi_guid_prefix_t * const dst_prefix, int byteswap)
 {
   int smsize = -1;
   size_t totalsize = submsg_size;
@@ -3615,7 +3615,7 @@ static bool decode_SecPrefix_patched_hdr_flags (const struct receiver_state *rst
   /* Decode all three submessages. */
   unsigned char *dst_buf;
   size_t dst_len;
-  const bool decoded = q_omg_security_decode_submessage (rst->gv, src_prefix, dst_prefix, submsg, totalsize, &dst_buf, &dst_len);
+  const bool decoded = ddsi_omg_security_decode_submessage (rst->gv, src_prefix, dst_prefix, submsg, totalsize, &dst_buf, &dst_len);
   if (decoded && dst_buf)
   {
     /*
@@ -3663,7 +3663,7 @@ static bool decode_SecPrefix_patched_hdr_flags (const struct receiver_state *rst
   return (smsize > 0);
 }
 
-bool decode_SecPrefix (const struct receiver_state *rst, unsigned char *submsg, size_t submsg_size, unsigned char * const msg_end, const ddsi_guid_prefix_t * const src_prefix, const ddsi_guid_prefix_t * const dst_prefix, int byteswap)
+bool ddsi_security_decode_sec_prefix (const struct receiver_state *rst, unsigned char *submsg, size_t submsg_size, unsigned char * const msg_end, const ddsi_guid_prefix_t * const src_prefix, const ddsi_guid_prefix_t * const dst_prefix, int byteswap)
 {
   /* FIXME: eliminate the patching of hdr->flags if possible */
   SubmessageHeader_t *hdr = (SubmessageHeader_t *) submsg;
@@ -3677,17 +3677,17 @@ bool decode_SecPrefix (const struct receiver_state *rst, unsigned char *submsg, 
       hdr->flags &= 0xFE;
     DDSRT_WARNING_MSVC_ON(6326)
   }
-  bool result = decode_SecPrefix_patched_hdr_flags (rst, submsg, submsg_size, msg_end, src_prefix, dst_prefix, byteswap);
+  bool result = ddsi_security_decode_sec_prefix_patched_hdr_flags (rst, submsg, submsg_size, msg_end, src_prefix, dst_prefix, byteswap);
   hdr->flags = saved_flags;
   return result;
 }
 
-static nn_rtps_msg_state_t check_rtps_message_is_secure (struct ddsi_domaingv *gv, Header_t *hdr, const unsigned char *buff, bool isstream, struct ddsi_proxy_participant **proxypp)
+static ddsi_rtps_msg_state_t check_rtps_message_is_secure (struct ddsi_domaingv *gv, Header_t *hdr, const unsigned char *buff, bool isstream, struct ddsi_proxy_participant **proxypp)
 {
   const uint32_t offset = RTPS_MESSAGE_HEADER_SIZE + (isstream ? sizeof (MsgLen_t) : 0);
   const SubmessageHeader_t *submsg = (const SubmessageHeader_t *) (buff + offset);
   if (submsg->submessageId != SMID_SRTPS_PREFIX)
-    return NN_RTPS_MSG_STATE_PLAIN;
+    return DDSI_RTPS_MSG_STATE_PLAIN;
 
   ddsi_guid_t guid;
   guid.prefix = hdr->guid_prefix;
@@ -3698,20 +3698,20 @@ static nn_rtps_msg_state_t check_rtps_message_is_secure (struct ddsi_domaingv *g
   if ((*proxypp = ddsi_entidx_lookup_proxy_participant_guid (gv->entity_index, &guid)) == NULL)
   {
     GVTRACE ("received encoded rtps message from unknown participant\n");
-    return NN_RTPS_MSG_STATE_ERROR;
+    return DDSI_RTPS_MSG_STATE_ERROR;
   }
   else if (!proxypp_is_authenticated (*proxypp))
   {
     GVTRACE ("received encoded rtps message from unauthenticated participant\n");
-    return NN_RTPS_MSG_STATE_ERROR;
+    return DDSI_RTPS_MSG_STATE_ERROR;
   }
   else
   {
-    return NN_RTPS_MSG_STATE_ENCODED;
+    return DDSI_RTPS_MSG_STATE_ENCODED;
   }
 }
 
-static nn_rtps_msg_state_t
+static ddsi_rtps_msg_state_t
 decode_rtps_message_awake (
   struct nn_rmsg **rmsg,
   Header_t **hdr,
@@ -3737,15 +3737,15 @@ decode_rtps_message_awake (
     srclen = *sz - sizeof (MsgLen_t);
     memmove (srcbuf, *buff, RTPS_MESSAGE_HEADER_SIZE);
   }
-  else
+else
   {
     assert (*sz > 0);
     srcbuf = *buff;
     srclen = *sz;
   }
 
-  if (!q_omg_security_decode_rtps_message (proxypp, srcbuf, srclen, &dstbuf, &dstlen))
-    return NN_RTPS_MSG_STATE_ERROR;
+  if (!ddsi_omg_security_decode_rtps_message (proxypp, srcbuf, srclen, &dstbuf, &dstlen))
+    return DDSI_RTPS_MSG_STATE_ERROR;
   assert (dstbuf);
   assert (dstlen <= UINT32_MAX);
 
@@ -3761,11 +3761,11 @@ decode_rtps_message_awake (
   *hdr = (Header_t *) *buff;
   (*hdr)->guid_prefix = nn_ntoh_guid_prefix ((*hdr)->guid_prefix);
   *sz = dstlen;
-  return NN_RTPS_MSG_STATE_ENCODED;
+  return DDSI_RTPS_MSG_STATE_ENCODED;
 }
 
-nn_rtps_msg_state_t
-decode_rtps_message (
+ddsi_rtps_msg_state_t
+ddsi_security_decode_rtps_message (
   struct thread_state * const thrst,
   struct ddsi_domaingv *gv,
   struct nn_rmsg **rmsg,
@@ -3776,17 +3776,17 @@ decode_rtps_message (
   bool isstream)
 {
   struct ddsi_proxy_participant *proxypp;
-  nn_rtps_msg_state_t ret;
+  ddsi_rtps_msg_state_t ret;
   thread_state_awake_fixed_domain (thrst);
   ret = check_rtps_message_is_secure (gv, *hdr, *buff, isstream, &proxypp);
-  if (ret == NN_RTPS_MSG_STATE_ENCODED)
+  if (ret == DDSI_RTPS_MSG_STATE_ENCODED)
     ret = decode_rtps_message_awake (rmsg, hdr, buff, sz, rbpool, isstream, proxypp);
   thread_state_asleep (thrst);
   return ret;
 }
 
 ssize_t
-secure_conn_write(
+ddsi_security_secure_conn_write(
     const struct ddsi_domaingv *gv,
     ddsi_tran_conn_t conn,
     const ddsi_locator_t *dst,
@@ -3795,7 +3795,7 @@ secure_conn_write(
     uint32_t flags,
     MsgLen_t *msg_len,
     bool dst_one,
-    nn_msg_sec_info_t *sec_info,
+    ddsi_msg_sec_info_t *sec_info,
     ddsi_tran_write_fn_t conn_write_cb)
 {
   Header_t *hdr;
@@ -3852,7 +3852,7 @@ secure_conn_write(
   }
 
   ssize_t ret = -1;
-  if (!q_omg_security_encode_rtps_message (gv, sec_info->src_pp_handle, &guid, srcbuf, srclen, &dstbuf, &dstlen, dst_handle))
+  if (!ddsi_omg_security_encode_rtps_message (gv, sec_info->src_pp_handle, &guid, srcbuf, srclen, &dstbuf, &dstlen, dst_handle))
     ret = -1;
   else
   {
@@ -3891,7 +3891,7 @@ secure_conn_write(
   return ret;
 }
 
-bool q_omg_plist_keyhash_is_protected(const ddsi_plist_t *plist)
+bool ddsi_omg_plist_keyhash_is_protected (const ddsi_plist_t *plist)
 {
   assert(plist);
   if (plist->present & PP_ENDPOINT_SECURITY_INFO)
@@ -3903,14 +3903,14 @@ bool q_omg_plist_keyhash_is_protected(const ddsi_plist_t *plist)
   return false;
 }
 
-bool q_omg_is_endpoint_protected(const ddsi_plist_t *plist)
+bool ddsi_omg_is_endpoint_protected (const ddsi_plist_t *plist)
 {
   assert(plist);
   return plist->present & PP_ENDPOINT_SECURITY_INFO &&
          !SECURITY_INFO_CLEAR(plist->endpoint_security_info, DDSI_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_VALID);
 }
 
-void q_omg_log_endpoint_protection(struct ddsi_domaingv * const gv, const ddsi_plist_t *plist)
+void ddsi_omg_log_endpoint_protection (struct ddsi_domaingv * const gv, const ddsi_plist_t *plist)
 {
   GVLOGDISC (" p(");
   if (plist->present & PP_ENDPOINT_SECURITY_INFO)
@@ -3922,116 +3922,116 @@ void q_omg_log_endpoint_protection(struct ddsi_domaingv * const gv, const ddsi_p
 
 #else /* DDS_HAS_SECURITY */
 
-#include "dds/ddsi/ddsi_security_omg.h"
+#include "ddsi__security_omg.h"
 
-extern inline bool q_omg_security_enabled(void);
+extern inline bool ddsi_omg_security_enabled (void);
 
-extern inline bool q_omg_participant_is_access_protected(UNUSED_ARG(const struct ddsi_participant *pp));
-extern inline bool q_omg_participant_is_rtps_protected(UNUSED_ARG(const struct ddsi_participant *pp));
-extern inline bool q_omg_participant_is_liveliness_protected(UNUSED_ARG(const struct ddsi_participant *pp));
-extern inline bool q_omg_participant_is_discovery_protected(UNUSED_ARG(const struct ddsi_participant *pp));
-extern inline bool q_omg_participant_is_secure(UNUSED_ARG(const struct ddsi_participant *pp));
-extern inline bool q_omg_proxy_participant_is_secure(UNUSED_ARG(const struct ddsi_proxy_participant *proxypp));
+extern inline bool ddsi_omg_participant_is_access_protected(UNUSED_ARG(const struct ddsi_participant *pp));
+extern inline bool ddsi_omg_participant_is_rtps_protected(UNUSED_ARG(const struct ddsi_participant *pp));
+extern inline bool ddsi_omg_participant_is_liveliness_protected(UNUSED_ARG(const struct ddsi_participant *pp));
+extern inline bool ddsi_omg_participant_is_discovery_protected(UNUSED_ARG(const struct ddsi_participant *pp));
+extern inline bool ddsi_omg_participant_is_secure(UNUSED_ARG(const struct ddsi_participant *pp));
+extern inline bool ddsi_omg_proxy_participant_is_secure (UNUSED_ARG(const struct ddsi_proxy_participant *proxypp));
 
-extern inline bool q_omg_security_match_remote_writer_enabled(UNUSED_ARG(struct ddsi_reader *rd), UNUSED_ARG(struct ddsi_proxy_writer *pwr), UNUSED_ARG(int64_t *crypto_handle));
-extern inline bool q_omg_security_match_remote_reader_enabled(UNUSED_ARG(struct ddsi_writer *wr), UNUSED_ARG(struct ddsi_proxy_reader *prd), UNUSED_ARG(bool relay_only), UNUSED_ARG(int64_t *crypto_handle));
+extern inline bool ddsi_omg_security_match_remote_writer_enabled (UNUSED_ARG(struct ddsi_reader *rd), UNUSED_ARG(struct ddsi_proxy_writer *pwr), UNUSED_ARG(int64_t *crypto_handle));
+extern inline bool ddsi_omg_security_match_remote_reader_enabled (UNUSED_ARG(struct ddsi_writer *wr), UNUSED_ARG(struct ddsi_proxy_reader *prd), UNUSED_ARG(bool relay_only), UNUSED_ARG(int64_t *crypto_handle));
 
-extern inline bool q_omg_writer_is_discovery_protected(UNUSED_ARG(const struct ddsi_writer *wr));
-extern inline bool q_omg_writer_is_submessage_protected(UNUSED_ARG(const struct ddsi_writer *wr));
-extern inline bool q_omg_writer_is_payload_protected(UNUSED_ARG(const struct ddsi_writer *wr));
+extern inline bool ddsi_omg_writer_is_discovery_protected (UNUSED_ARG(const struct ddsi_writer *wr));
+extern inline bool ddsi_omg_writer_is_submessage_protected (UNUSED_ARG(const struct ddsi_writer *wr));
+extern inline bool ddsi_omg_writer_is_payload_protected (UNUSED_ARG(const struct ddsi_writer *wr));
 
-extern inline void q_omg_get_proxy_writer_security_info(UNUSED_ARG(struct ddsi_proxy_writer *pwr), UNUSED_ARG(const ddsi_plist_t *plist), UNUSED_ARG(ddsi_security_info_t *info));
-extern inline bool q_omg_security_check_remote_writer_permissions(UNUSED_ARG(const struct ddsi_proxy_writer *pwr), UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(struct ddsi_participant *pp));
-extern inline void q_omg_security_deregister_remote_writer_match(UNUSED_ARG(const struct ddsi_proxy_writer *pwr), UNUSED_ARG(const struct ddsi_reader *rd), UNUSED_ARG(struct ddsi_rd_pwr_match *match));
-extern inline void q_omg_get_proxy_reader_security_info(UNUSED_ARG(struct ddsi_proxy_reader *prd), UNUSED_ARG(const ddsi_plist_t *plist), UNUSED_ARG(ddsi_security_info_t *info));
-extern inline bool q_omg_security_check_remote_reader_permissions(UNUSED_ARG(const struct ddsi_proxy_reader *prd), UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(struct ddsi_participant *par), UNUSED_ARG(bool *relay_only));
-extern inline void q_omg_security_deregister_remote_reader_match(UNUSED_ARG(const struct ddsi_proxy_reader *prd), UNUSED_ARG(const struct ddsi_writer *wr), UNUSED_ARG(struct ddsi_wr_prd_match *match));
+extern inline void ddsi_omg_get_proxy_writer_security_info (UNUSED_ARG(struct ddsi_proxy_writer *pwr), UNUSED_ARG(const ddsi_plist_t *plist), UNUSED_ARG(ddsi_security_info_t *info));
+extern inline bool ddsi_omg_security_check_remote_writer_permissions (UNUSED_ARG(const struct ddsi_proxy_writer *pwr), UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(struct ddsi_participant *pp));
+extern inline void ddsi_omg_security_deregister_remote_writer_match (UNUSED_ARG(const struct ddsi_proxy_writer *pwr), UNUSED_ARG(const struct ddsi_reader *rd), UNUSED_ARG(struct ddsi_rd_pwr_match *match));
+extern inline void ddsi_omg_get_proxy_reader_security_info (UNUSED_ARG(struct ddsi_proxy_reader *prd), UNUSED_ARG(const ddsi_plist_t *plist), UNUSED_ARG(ddsi_security_info_t *info));
+extern inline bool ddsi_omg_security_check_remote_reader_permissions (UNUSED_ARG(const struct ddsi_proxy_reader *prd), UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(struct ddsi_participant *par), UNUSED_ARG(bool *relay_only));
+extern inline void ddsi_omg_security_deregister_remote_reader_match (UNUSED_ARG(const struct ddsi_proxy_reader *prd), UNUSED_ARG(const struct ddsi_writer *wr), UNUSED_ARG(struct ddsi_wr_prd_match *match));
 
-extern inline unsigned determine_subscription_writer(UNUSED_ARG(const struct ddsi_reader *rd));
-extern inline unsigned determine_publication_writer(UNUSED_ARG(const struct ddsi_writer *wr));
+extern inline unsigned ddsi_determine_subscription_writer(UNUSED_ARG(const struct ddsi_reader *rd));
+extern inline unsigned ddsi_determine_publication_writer(UNUSED_ARG(const struct ddsi_writer *wr));
 #ifdef DDS_HAS_TOPIC_DISCOVERY
-extern inline unsigned determine_topic_writer(UNUSED_ARG(const struct ddsi_topic *tp));
+extern inline unsigned ddsi_determine_topic_writer(UNUSED_ARG(const struct ddsi_topic *tp));
 #endif
 
-extern inline bool is_proxy_participant_deletion_allowed(UNUSED_ARG(struct ddsi_domaingv * const gv), UNUSED_ARG(const struct ddsi_guid *guid), UNUSED_ARG(const ddsi_entityid_t pwr_entityid));
+extern inline bool ddsi_is_proxy_participant_deletion_allowed(UNUSED_ARG(struct ddsi_domaingv * const gv), UNUSED_ARG(const struct ddsi_guid *guid), UNUSED_ARG(const ddsi_entityid_t pwr_entityid));
 
-extern inline bool q_omg_is_similar_participant_security_info(UNUSED_ARG(struct ddsi_participant *pp), UNUSED_ARG(struct ddsi_proxy_participant *proxypp));
+extern inline bool ddsi_omg_is_similar_participant_security_info (UNUSED_ARG(struct ddsi_participant *pp), UNUSED_ARG(struct ddsi_proxy_participant *proxypp));
 
-extern inline bool q_omg_participant_allow_unauthenticated(UNUSED_ARG(struct ddsi_participant *pp));
+extern inline bool ddsi_omg_participant_allow_unauthenticated(UNUSED_ARG(struct ddsi_participant *pp));
 
-extern inline bool q_omg_security_check_create_participant(UNUSED_ARG(struct ddsi_participant *pp), UNUSED_ARG(uint32_t domain_id));
+extern inline bool ddsi_omg_security_check_create_participant (UNUSED_ARG(struct ddsi_participant *pp), UNUSED_ARG(uint32_t domain_id));
 
-extern inline void q_omg_security_deregister_participant(UNUSED_ARG(struct ddsi_participant *pp));
+extern inline void ddsi_omg_security_deregister_participant (UNUSED_ARG(struct ddsi_participant *pp));
 
-extern inline bool q_omg_security_check_create_topic(UNUSED_ARG(const struct ddsi_domaingv *gv), UNUSED_ARG(const ddsi_guid_t *pp_guid), UNUSED_ARG(const char *topic_name), UNUSED_ARG(const struct dds_qos *qos));
+extern inline bool ddsi_omg_security_check_create_topic (UNUSED_ARG(const struct ddsi_domaingv *gv), UNUSED_ARG(const ddsi_guid_t *pp_guid), UNUSED_ARG(const char *topic_name), UNUSED_ARG(const struct dds_qos *qos));
 
-extern inline int64_t q_omg_security_get_local_participant_handle(UNUSED_ARG(const struct ddsi_participant *pp));
+extern inline int64_t ddsi_omg_security_get_local_participant_handle (UNUSED_ARG(const struct ddsi_participant *pp));
 
-extern inline bool q_omg_security_check_create_writer(UNUSED_ARG(struct ddsi_participant *pp), UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(const char *topic_name), UNUSED_ARG(const struct dds_qos *writer_qos));
+extern inline bool ddsi_omg_security_check_create_writer (UNUSED_ARG(struct ddsi_participant *pp), UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(const char *topic_name), UNUSED_ARG(const struct dds_qos *writer_qos));
 
-extern inline void q_omg_security_register_writer(UNUSED_ARG(struct ddsi_writer *wr));
+extern inline void ddsi_omg_security_register_writer (UNUSED_ARG(struct ddsi_writer *wr));
 
-extern inline void q_omg_security_deregister_writer(UNUSED_ARG(struct ddsi_writer *wr));
+extern inline void ddsi_omg_security_deregister_writer (UNUSED_ARG(struct ddsi_writer *wr));
 
-extern inline bool q_omg_security_check_create_reader(UNUSED_ARG(struct ddsi_participant *pp), UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(const char *topic_name), UNUSED_ARG(const struct dds_qos *reader_qos));
+extern inline bool ddsi_omg_security_check_create_reader (UNUSED_ARG(struct ddsi_participant *pp), UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(const char *topic_name), UNUSED_ARG(const struct dds_qos *reader_qos));
 
-extern inline void q_omg_security_register_reader(UNUSED_ARG(struct ddsi_reader *rd));
+extern inline void ddsi_omg_security_register_reader (UNUSED_ARG(struct ddsi_reader *rd));
 
-extern inline void q_omg_security_deregister_reader(UNUSED_ARG(struct ddsi_reader *rd));
+extern inline void ddsi_omg_security_deregister_reader (UNUSED_ARG(struct ddsi_reader *rd));
 
-extern inline bool q_omg_security_is_remote_rtps_protected(UNUSED_ARG(const struct ddsi_proxy_participant *proxypp), UNUSED_ARG(ddsi_entityid_t entityid));
+extern inline bool ddsi_omg_security_is_remote_rtps_protected (UNUSED_ARG(const struct ddsi_proxy_participant *proxypp), UNUSED_ARG(ddsi_entityid_t entityid));
 
 /* initialize the proxy participant security attributes */
-extern inline void q_omg_security_init_remote_participant(UNUSED_ARG(struct ddsi_proxy_participant *proxypp));
+extern inline void ddsi_omg_security_init_remote_participant (UNUSED_ARG(struct ddsi_proxy_participant *proxypp));
 
 /* ask to access control security plugin for the remote participant permissions */
-extern inline int64_t q_omg_security_check_remote_participant_permissions(UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(struct ddsi_participant *pp), UNUSED_ARG(struct ddsi_proxy_participant *proxypp));
+extern inline int64_t ddsi_omg_security_check_remote_participant_permissions (UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(struct ddsi_participant *pp), UNUSED_ARG(struct ddsi_proxy_participant *proxypp));
 
-extern inline bool q_omg_security_register_remote_participant(UNUSED_ARG(struct ddsi_participant *pp), UNUSED_ARG(struct ddsi_proxy_participant *proxypp), UNUSED_ARG(int64_t identity_handle), UNUSED_ARG(int64_t shared_secret));
+extern inline bool ddsi_omg_security_register_remote_participant (UNUSED_ARG(struct ddsi_participant *pp), UNUSED_ARG(struct ddsi_proxy_participant *proxypp), UNUSED_ARG(int64_t identity_handle), UNUSED_ARG(int64_t shared_secret));
 
-extern inline void q_omg_security_deregister_remote_participant(UNUSED_ARG(struct ddsi_proxy_participant *proxypp));
+extern inline void ddsi_omg_security_deregister_remote_participant (UNUSED_ARG(struct ddsi_proxy_participant *proxypp));
 
-extern inline void q_omg_security_participant_send_tokens(UNUSED_ARG(struct ddsi_participant *pp), UNUSED_ARG(struct ddsi_proxy_participant *proxypp));
+extern inline void ddsi_omg_security_participant_send_tokens (UNUSED_ARG(struct ddsi_participant *pp), UNUSED_ARG(struct ddsi_proxy_participant *proxypp));
 
-extern inline void set_proxy_participant_security_info(UNUSED_ARG(struct ddsi_proxy_participant *prd), UNUSED_ARG(const ddsi_plist_t *plist));
+extern inline void ddsi_set_proxy_participant_security_info(UNUSED_ARG(struct ddsi_proxy_participant *prd), UNUSED_ARG(const ddsi_plist_t *plist));
 
-extern inline void set_proxy_reader_security_info(UNUSED_ARG(struct ddsi_proxy_reader *prd), UNUSED_ARG(const ddsi_plist_t *plist));
+extern inline void ddsi_set_proxy_reader_security_info(UNUSED_ARG(struct ddsi_proxy_reader *prd), UNUSED_ARG(const ddsi_plist_t *plist));
 
-extern inline void set_proxy_writer_security_info(UNUSED_ARG(struct ddsi_proxy_writer *pwr), UNUSED_ARG(const ddsi_plist_t *plist));
+extern inline void ddsi_set_proxy_writer_security_info(UNUSED_ARG(struct ddsi_proxy_writer *pwr), UNUSED_ARG(const ddsi_plist_t *plist));
 
-extern inline bool decode_Data(
+extern inline bool ddsi_security_decode_data(
   UNUSED_ARG(const struct ddsi_domaingv *gv),
   UNUSED_ARG(struct nn_rsample_info *sampleinfo),
   UNUSED_ARG(unsigned char *payloadp),
   UNUSED_ARG(uint32_t payloadsz),
   UNUSED_ARG(size_t *submsg_len));
 
-extern inline bool decode_DataFrag(
+extern inline bool ddsi_security_decode_datafrag(
   UNUSED_ARG(const struct ddsi_domaingv *gv),
   UNUSED_ARG(struct nn_rsample_info *sampleinfo),
   UNUSED_ARG(unsigned char *payloadp),
   UNUSED_ARG(uint32_t payloadsz),
   UNUSED_ARG(size_t *submsg_len));
 
-extern inline void encode_datareader_submsg(
+extern inline void ddsi_security_encode_datareader_submsg(
   UNUSED_ARG(struct nn_xmsg *msg),
   UNUSED_ARG(struct nn_xmsg_marker sm_marker),
   UNUSED_ARG(const struct ddsi_proxy_writer *pwr),
   UNUSED_ARG(const struct ddsi_guid *rd_guid));
 
-extern inline void encode_datawriter_submsg(
+extern inline void ddsi_security_encode_datawriter_submsg(
   UNUSED_ARG(struct nn_xmsg *msg),
   UNUSED_ARG(struct nn_xmsg_marker sm_marker),
   UNUSED_ARG(struct ddsi_writer *wr));
 
-extern inline bool validate_msg_decoding(
+extern inline bool ddsi_security_validate_msg_decoding(
   UNUSED_ARG(const struct ddsi_entity_common *e),
   UNUSED_ARG(const struct ddsi_proxy_endpoint_common *c),
   UNUSED_ARG(struct ddsi_proxy_participant *proxypp),
   UNUSED_ARG(struct receiver_state *rst),
   UNUSED_ARG(SubmessageKind_t prev_smid));
 
-extern inline int decode_SecPrefix(
+extern inline int ddsi_security_decode_sec_prefix(
   UNUSED_ARG(struct receiver_state *rst),
   UNUSED_ARG(unsigned char *submsg),
   UNUSED_ARG(size_t submsg_size),
@@ -4040,7 +4040,7 @@ extern inline int decode_SecPrefix(
   UNUSED_ARG(const ddsi_guid_prefix_t * const dst_prefix),
   UNUSED_ARG(int byteswap));
 
-extern inline nn_rtps_msg_state_t decode_rtps_message(
+extern inline ddsi_rtps_msg_state_t ddsi_security_decode_rtps_message (
   UNUSED_ARG(struct thread_state * const thrst),
   UNUSED_ARG(struct ddsi_domaingv *gv),
   UNUSED_ARG(struct nn_rmsg **rmsg),
@@ -4050,17 +4050,17 @@ extern inline nn_rtps_msg_state_t decode_rtps_message(
   UNUSED_ARG(struct nn_rbufpool *rbpool),
   UNUSED_ARG(bool isstream));
 
-extern inline int64_t q_omg_security_get_remote_participant_handle(UNUSED_ARG(struct ddsi_proxy_participant *proxypp));
+extern inline int64_t ddsi_omg_security_get_remote_participant_handle (UNUSED_ARG(struct ddsi_proxy_participant *proxypp));
 
-extern inline bool q_omg_reader_is_discovery_protected(UNUSED_ARG(const struct ddsi_reader *rd));
+extern inline bool ddsi_omg_reader_is_discovery_protected (UNUSED_ARG(const struct ddsi_reader *rd));
 
-extern inline bool q_omg_reader_is_submessage_protected(UNUSED_ARG(const struct ddsi_reader *rd));
+extern inline bool ddsi_omg_reader_is_submessage_protected (UNUSED_ARG(const struct ddsi_reader *rd));
 
-extern inline bool q_omg_plist_keyhash_is_protected(UNUSED_ARG(const ddsi_plist_t *plist));
+extern inline bool ddsi_omg_plist_keyhash_is_protected (UNUSED_ARG(const ddsi_plist_t *plist));
 
-extern inline bool q_omg_is_endpoint_protected(UNUSED_ARG(const ddsi_plist_t *plist));
+extern inline bool ddsi_omg_is_endpoint_protected (UNUSED_ARG(const ddsi_plist_t *plist));
 
-extern inline void q_omg_log_endpoint_protection(UNUSED_ARG(struct ddsi_domaingv * const gv), UNUSED_ARG(const ddsi_plist_t *plist));
+extern inline void ddsi_omg_log_endpoint_protection (UNUSED_ARG(struct ddsi_domaingv * const gv), UNUSED_ARG(const ddsi_plist_t *plist));
 
 
 #endif /* DDS_HAS_SECURITY */

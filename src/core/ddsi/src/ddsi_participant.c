@@ -21,7 +21,7 @@
 #include "dds/ddsi/ddsi_iid.h"
 #include "ddsi__entity_index.h"
 #include "dds/ddsi/ddsi_builtin_topic_if.h"
-#include "dds/ddsi/ddsi_security_omg.h"
+#include "ddsi__security_omg.h"
 #include "ddsi__handshake.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/q_ddsi_discovery.h"
@@ -267,15 +267,15 @@ static void connect_participant_secure (struct ddsi_domaingv *gv, struct ddsi_pa
   struct ddsi_proxy_participant *proxypp;
   struct ddsi_entity_enum_proxy_participant it;
 
-  if (q_omg_participant_is_secure(pp))
+  if (ddsi_omg_participant_is_secure(pp))
   {
-    q_omg_security_participant_set_initialized(pp);
+    ddsi_omg_security_participant_set_initialized (pp);
 
     ddsi_entidx_enum_proxy_participant_init (&it, gv->entity_index);
     while ((proxypp = ddsi_entidx_enum_proxy_participant_next (&it)) != NULL)
     {
       /* Do not start handshaking when security info doesn't match. */
-      if (q_omg_security_remote_participant_is_initialized(proxypp) && q_omg_is_similar_participant_security_info(pp, proxypp))
+      if (ddsi_omg_security_remote_participant_is_initialized (proxypp) && ddsi_omg_is_similar_participant_security_info (pp, proxypp))
         ddsi_handshake_register(pp, proxypp, ddsi_handshake_end_cb);
     }
     ddsi_entidx_enum_proxy_participant_fini (&it);
@@ -288,7 +288,7 @@ static void disconnect_participant_secure (struct ddsi_participant *pp)
   struct ddsi_entity_enum_proxy_participant it;
   struct ddsi_domaingv * const gv = pp->e.gv;
 
-  if (q_omg_participant_is_secure(pp))
+  if (ddsi_omg_participant_is_secure(pp))
   {
     ddsi_entidx_enum_proxy_participant_init (&it, gv->entity_index);
     while ((proxypp = ddsi_entidx_enum_proxy_participant_next (&it)) != NULL)
@@ -399,7 +399,7 @@ static void add_builtin_endpoints (struct ddsi_participant *pp, ddsi_guid_t *sub
   }
 
 #ifdef DDS_HAS_SECURITY
-  if (q_omg_participant_is_secure (pp))
+  if (ddsi_omg_participant_is_secure (pp))
     add_security_builtin_endpoints (pp, subguid, group_guid, gv, add_writers, add_readers);
 #endif
 }
@@ -559,12 +559,12 @@ static dds_return_t check_and_load_security_config (struct ddsi_domaingv * const
     return DDS_RETCODE_OK;
   }
 
-  if (q_omg_is_security_loaded (gv->security_context))
+  if (ddsi_omg_is_security_loaded (gv->security_context))
   {
     GVLOGDISC ("ddsi_new_participant("PGUIDFMT"): security is already loaded for this domain\n", PGUID (*ppguid));
     return DDS_RETCODE_OK;
   }
-  else if (q_omg_security_load (gv->security_context, qos, gv) < 0)
+  else if (ddsi_omg_security_load (gv->security_context, qos, gv) < 0)
   {
     GVERROR ("Could not load security\n");
     return DDS_RETCODE_NOT_ALLOWED_BY_SECURITY;
@@ -751,7 +751,7 @@ void ddsi_unref_participant (struct ddsi_participant *pp, const struct ddsi_guid
       ddsi_conn_free (pp->m_conn);
     }
 #ifdef DDS_HAS_SECURITY
-    q_omg_security_deregister_participant(pp);
+    ddsi_omg_security_deregister_participant (pp);
 #endif
     ddsi_plist_fini (pp->plist);
     ddsrt_free (pp->plist);
@@ -851,7 +851,7 @@ static dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domai
   pp->sec_attr = NULL;
   if ((ret = check_and_load_security_config (gv, ppguid, &pp->plist->qos)) != DDS_RETCODE_OK)
     goto not_allowed;
-  if ((ret = q_omg_security_check_create_participant (pp, gv->config.domainId)) != DDS_RETCODE_OK)
+  if ((ret = ddsi_omg_security_check_create_participant (pp, gv->config.domainId)) != DDS_RETCODE_OK)
     goto not_allowed;
   *ppguid = pp->e.guid;
   // FIXME: Adjusting the GUID and then fixing up the GUID -> iid mapping here is an ugly hack
@@ -987,7 +987,7 @@ static dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domai
   }
 
 #ifdef DDS_HAS_SECURITY
-  if (q_omg_participant_is_secure (pp))
+  if (ddsi_omg_participant_is_secure (pp))
   {
     connect_participant_secure (gv, pp);
   }

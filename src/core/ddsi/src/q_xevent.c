@@ -40,7 +40,7 @@
 #include "dds/ddsi/q_lease.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/ddsi_serdata.h"
-#include "dds/ddsi/ddsi_security_omg.h"
+#include "ddsi__security_omg.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "ddsi__pmd.h"
 #include "ddsi__acknack.h"
@@ -837,7 +837,7 @@ static struct nn_xmsg *make_preemptive_acknack (struct xevent *ev, struct ddsi_p
 
   struct ddsi_domaingv * const gv = pwr->e.gv;
   struct ddsi_participant *pp = NULL;
-  if (q_omg_proxy_participant_is_secure (pwr->c.proxypp))
+  if (ddsi_omg_proxy_participant_is_secure (pwr->c.proxypp))
   {
     struct ddsi_reader *rd = ddsi_entidx_lookup_reader_guid (gv->entity_index, &rwn->rd_guid);
     if (rd)
@@ -864,7 +864,7 @@ static struct nn_xmsg *make_preemptive_acknack (struct xevent *ev, struct ddsi_p
     (nn_count_t *) ((char *) an + offsetof (AckNack_t, bits) + NN_SEQUENCE_NUMBER_SET_BITS_SIZE (0));
   *countp = 0;
   nn_xmsg_submsg_setnext (msg, sm_marker);
-  encode_datareader_submsg (msg, sm_marker, pwr, &rwn->rd_guid);
+  ddsi_security_encode_datareader_submsg (msg, sm_marker, pwr, &rwn->rd_guid);
 
   rwn->t_last_ack = tnow;
   const dds_duration_t new_intv = preemptive_acknack_interval (rwn);
@@ -917,7 +917,7 @@ static void handle_xevk_acknack (struct nn_xpack *xp, struct xevent *ev, ddsrt_m
   {
     // a possible result of trying to encode a submessage is that it is removed,
     // in which case we may end up with an empty one.
-    // FIXME: change encode_datareader_submsg so that it returns this and make it warn_unused_result
+    // FIXME: change ddsi_security_encode_datareader_submsg so that it returns this and make it warn_unused_result
     if (nn_xmsg_size (msg) == 0)
       nn_xmsg_free (msg);
     else

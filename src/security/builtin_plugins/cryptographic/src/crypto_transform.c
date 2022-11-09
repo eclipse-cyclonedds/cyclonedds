@@ -1397,7 +1397,7 @@ encode_rtps_message(dds_security_crypto_transform *instance,
 }
 
 static DDS_Security_boolean
-decode_rtps_message(dds_security_crypto_transform *instance,
+ddsi_security_decode_rtps_message (dds_security_crypto_transform *instance,
                     DDS_Security_OctetSeq *plain_buffer,
                     const DDS_Security_OctetSeq *encoded_buffer,
                     const DDS_Security_ParticipantCryptoHandle receiving_crypto,
@@ -1828,7 +1828,7 @@ dds_security_crypto_transform__alloc(
   instance->base.encode_datareader_submessage = &encode_datareader_submessage;
   instance->base.encode_rtps_message = &encode_rtps_message;
   instance->base.encode_serialized_payload = &encode_serialized_payload;
-  instance->base.decode_rtps_message = &decode_rtps_message;
+  instance->base.decode_rtps_message = &ddsi_security_decode_rtps_message;
   instance->base.preprocess_secure_submsg = &preprocess_secure_submsg;
   instance->base.decode_datawriter_submessage = &decode_datawriter_submessage;
   instance->base.decode_datareader_submessage = &decode_datareader_submessage;

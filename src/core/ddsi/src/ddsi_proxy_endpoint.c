@@ -22,7 +22,7 @@
 #include "ddsi__entity_index.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_builtin_topic_if.h"
-#include "dds/ddsi/ddsi_security_omg.h"
+#include "ddsi__security_omg.h"
 #include "dds/ddsi/q_addrset.h"
 #include "dds/ddsi/q_whc.h"
 #include "dds/ddsi/q_xevent.h"
@@ -96,7 +96,7 @@ static int proxy_endpoint_common_init (struct ddsi_entity_common *e, struct ddsi
     memset (&c->group_guid, 0, sizeof (c->group_guid));
 
 #ifdef DDS_HAS_SECURITY
-  q_omg_get_proxy_endpoint_security_info(e, &proxypp->security_info, plist, &c->security_info);
+  ddsi_omg_get_proxy_endpoint_security_info (e, &proxypp->security_info, plist, &c->security_info);
 #endif
 
   ret = ddsi_ref_proxy_participant (proxypp, c);
@@ -379,7 +379,7 @@ static void gc_delete_proxy_writer (struct ddsi_gcreq *gcreq)
   if (pwr->c.xqos->liveliness.lease_duration != DDS_INFINITY)
     lease_free (pwr->lease);
 #ifdef DDS_HAS_SECURITY
-  q_omg_security_deregister_remote_writer(pwr);
+  ddsi_omg_security_deregister_remote_writer (pwr);
 #endif
   proxy_endpoint_common_fini (&pwr->e, &pwr->c);
   nn_defrag_free (pwr->defrag);
@@ -724,7 +724,7 @@ static void gc_delete_proxy_reader (struct ddsi_gcreq *gcreq)
     ddsi_free_prd_wr_match (m);
   }
 #ifdef DDS_HAS_SECURITY
-  q_omg_security_deregister_remote_reader(prd);
+  ddsi_omg_security_deregister_remote_reader (prd);
 #endif
   proxy_endpoint_common_fini (&prd->e, &prd->c);
   ddsrt_free (prd);

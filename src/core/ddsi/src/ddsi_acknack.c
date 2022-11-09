@@ -22,7 +22,7 @@
 #include "ddsi__acknack.h"
 #include "ddsi__entity_index.h"
 #include "ddsi__entity_match.h"
-#include "dds/ddsi/ddsi_security_omg.h"
+#include "ddsi__security_omg.h"
 
 #define ACK_REASON_IN_FLAGS 0
 
@@ -183,7 +183,7 @@ static void add_NackFrag (struct nn_xmsg *msg, const struct ddsi_proxy_writer *p
   }
 
   // Encode the sub-message when needed
-  encode_datareader_submsg (msg, sm_marker, pwr, &rwn->rd_guid);
+  ddsi_security_encode_datareader_submsg (msg, sm_marker, pwr, &rwn->rd_guid);
 }
 
 static void add_acknack (struct nn_xmsg *msg, const struct ddsi_proxy_writer *pwr, const struct ddsi_pwr_rd_match *rwn, const struct ddsi_add_acknack_info *info)
@@ -228,7 +228,7 @@ static void add_acknack (struct nn_xmsg *msg, const struct ddsi_proxy_writer *pw
   }
 
   // Encode the sub-message when needed
-  encode_datareader_submsg (msg, sm_marker, pwr, &rwn->rd_guid);
+  ddsi_security_encode_datareader_submsg (msg, sm_marker, pwr, &rwn->rd_guid);
 }
 
 static enum ddsi_add_acknack_result get_acknack_info (const struct ddsi_proxy_writer *pwr, const struct ddsi_pwr_rd_match *rwn, struct ddsi_last_nack_summary *nack_summary, struct ddsi_add_acknack_info *info, bool ackdelay_passed, bool nackdelay_passed)
@@ -423,7 +423,7 @@ struct nn_xmsg *ddsi_make_and_resched_acknack (struct xevent *ev, struct ddsi_pr
   rwn->nack_sent_on_nackdelay = (info.nack_sent_on_nackdelay ? 1 : 0);
 
   struct ddsi_participant *pp = NULL;
-  if (q_omg_proxy_participant_is_secure (pwr->c.proxypp))
+  if (ddsi_omg_proxy_participant_is_secure (pwr->c.proxypp))
   {
     struct ddsi_reader *rd = ddsi_entidx_lookup_reader_guid (pwr->e.gv->entity_index, &rwn->rd_guid);
     if (rd)

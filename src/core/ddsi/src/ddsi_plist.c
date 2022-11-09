@@ -43,7 +43,7 @@
 #include "dds/ddsi/q_misc.h" /* for vendor_is_... */
 
 #include "ddsi__plist_generic.h"
-#include "dds/ddsi/ddsi_security_omg.h"
+#include "ddsi__security_omg.h"
 #include "dds/ddsi/ddsi_typelib.h"
 #include "dds/cdr/dds_cdrstream.h"
 

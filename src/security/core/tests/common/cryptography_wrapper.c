@@ -934,7 +934,7 @@ static DDS_Security_boolean encode_rtps_message(
   }
 }
 
-static DDS_Security_boolean decode_rtps_message(
+static DDS_Security_boolean decode_rtps_message (
     dds_security_crypto_transform *instance,
     DDS_Security_OctetSeq *plain_buffer,
     const DDS_Security_OctetSeq *encoded_buffer,

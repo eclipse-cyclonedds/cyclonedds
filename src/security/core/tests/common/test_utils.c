@@ -21,6 +21,7 @@
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/ddsi_security_omg.h"
+#include "ddsi__security_omg.h"
 #include "dds/ddsi/ddsi_participant.h"
 #include "ddsi__participant.h"
 #include "dds__entity.h"
@@ -588,7 +589,7 @@ void write_read_for(dds_entity_t wr, dds_entity_t pp_rd, dds_entity_t rd, dds_du
     thread_state_awake (ddsi_lookup_thread_state(), &pp_entity->m_domain->gv); \
     struct ddsi_participant *pp = ddsi_entidx_lookup_participant_guid (pp_entity->m_domain->gv.entity_index, &pp_entity->m_guid); \
     CU_ASSERT_FATAL (pp != NULL); \
-    struct dds_security_##name_##_impl *context = (struct dds_security_##name_##_impl *) q_omg_participant_get_##name_ (pp); \
+    struct dds_security_##name_##_impl *context = (struct dds_security_##name_##_impl *) ddsi_omg_participant_get_##name_ (pp); \
     thread_state_asleep (ddsi_lookup_thread_state ()); \
     dds_entity_unlock (pp_entity); \
     return context; \

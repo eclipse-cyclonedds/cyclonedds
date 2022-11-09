@@ -38,7 +38,7 @@
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_sertype.h"
-#include "dds/ddsi/ddsi_security_omg.h"
+#include "ddsi__security_omg.h"
 #include "dds/ddsi/sysdeps.h"
 #include "ddsi__endpoint.h"
 #include "ddsi__entity_match.h"
@@ -453,7 +453,7 @@ void add_Heartbeat (struct nn_xmsg *msg, struct ddsi_writer *wr, const struct wh
   hb->count = wr->hbcount++;
 
   nn_xmsg_submsg_setnext (msg, sm_marker);
-  encode_datawriter_submsg(msg, sm_marker, wr);
+  ddsi_security_encode_datawriter_submsg(msg, sm_marker, wr);
 }
 
 static dds_return_t create_fragment_message_simple (struct ddsi_writer *wr, seqno_t seq, struct ddsi_serdata *serdata, struct nn_xmsg **pmsg)
@@ -678,7 +678,7 @@ dds_return_t create_fragment_message (struct ddsi_writer *wr, seqno_t seq, struc
            seq, fragnum+1, fragstart, fragstart + fraglen);
 #endif
 
-  encode_datawriter_submsg(*pmsg, sm_marker, wr);
+  ddsi_security_encode_datawriter_submsg(*pmsg, sm_marker, wr);
 
   /* It is possible that the encoding removed the submessage.
    * If there is no content, free the message. */
@@ -712,7 +712,7 @@ static void create_HeartbeatFrag (struct ddsi_writer *wr, seqno_t seq, unsigned 
   hbf->count = wr->hbfragcount++;
 
   nn_xmsg_submsg_setnext (*pmsg, sm_marker);
-  encode_datawriter_submsg(*pmsg, sm_marker, wr);
+  ddsi_security_encode_datawriter_submsg(*pmsg, sm_marker, wr);
 
   /* It is possible that the encoding removed the submessage.
    * If there is no content, free the message. */
@@ -834,7 +834,7 @@ static void transmit_sample_unlocks_wr (struct nn_xpack *xp, struct ddsi_writer 
   assert((wr->heartbeat_xevent != NULL) == (whcst != NULL));
 
   sz = ddsi_serdata_size (serdata);
-  if (sz > gv->config.fragment_size || !isnew || prd != NULL || q_omg_writer_is_submessage_protected(wr))
+  if (sz > gv->config.fragment_size || !isnew || prd != NULL || ddsi_omg_writer_is_submessage_protected (wr))
   {
     assert (wr->init_burst_size_limit <= UINT32_MAX - UINT16_MAX);
     assert (wr->rexmit_burst_size_limit <= UINT32_MAX - UINT16_MAX);

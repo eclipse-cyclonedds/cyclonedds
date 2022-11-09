@@ -36,6 +36,7 @@
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/ddsi_security_omg.h"
 #include "dds/ddsi/ddsi_statistics.h"
+#include "dds/ddsi/ddsi_entity_match.h"
 
 #ifdef DDS_HAS_SHM
 #include "dds/ddsi/ddsi_shm_transport.h"
@@ -654,10 +655,10 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
 
 #ifdef DDS_HAS_SECURITY
   /* Check if DDS Security is enabled */
-  if (q_omg_participant_is_secure (pp))
+  if (ddsi_omg_participant_is_secure (pp))
   {
     /* ask to access control security plugin for create reader permissions */
-    if (!q_omg_security_check_create_reader (pp, gv->config.domainId, tp->m_name, rqos))
+    if (!ddsi_omg_security_check_create_reader (pp, gv->config.domainId, tp->m_name, rqos))
     {
       rc = DDS_RETCODE_NOT_ALLOWED_BY_SECURITY;
       thread_state_asleep(ddsi_lookup_thread_state());

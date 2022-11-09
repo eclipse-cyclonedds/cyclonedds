@@ -47,7 +47,7 @@
 #include "dds/ddsi/q_transmit.h"
 #include "dds/ddsi/q_lease.h"
 #include "dds/ddsi/q_feature_check.h"
-#include "dds/ddsi/ddsi_security_omg.h"
+#include "ddsi__security_omg.h"
 #include "ddsi__pmd.h"
 #include "dds/ddsi/ddsi_typelib.h"
 #include "ddsi__endpoint.h"
@@ -501,7 +501,7 @@ void get_participant_builtin_topic_data (const struct ddsi_participant *pp, ddsi
 
 #ifdef DDS_HAS_SECURITY
   /* Add Security specific information. */
-  if (q_omg_get_participant_security_info(pp, &(dst->participant_security_info))) {
+  if (ddsi_omg_get_participant_security_info (pp, &(dst->participant_security_info))) {
     dst->present |= PP_PARTICIPANT_SECURITY_INFO;
     dst->aliased |= PP_PARTICIPANT_SECURITY_INFO;
   }
@@ -515,7 +515,7 @@ void get_participant_builtin_topic_data (const struct ddsi_participant *pp, ddsi
   assert (dst->qos.present == 0);
   ddsi_plist_mergein_missing (dst, pp->plist, 0, qosdiff);
 #ifdef DDS_HAS_SECURITY
-  if (q_omg_participant_is_secure(pp))
+  if (ddsi_omg_participant_is_secure(pp))
     ddsi_plist_mergein_missing (dst, pp->plist, PP_IDENTITY_TOKEN | PP_PERMISSIONS_TOKEN, 0);
 #endif
 }
@@ -579,7 +579,7 @@ int spdp_dispose_unregister (struct ddsi_participant *pp)
    * The receiver will decide from which writer it accepts the dispose.
    */
   int ret = spdp_dispose_unregister_with_wr(pp, NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
-  if ((ret > 0) && q_omg_participant_is_secure(pp))
+  if ((ret > 0) && ddsi_omg_participant_is_secure(pp))
   {
     ret = spdp_dispose_unregister_with_wr(pp, NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER);
   }
@@ -652,7 +652,7 @@ static int handle_spdp_dead (const struct receiver_state *rst, ddsi_entityid_t p
     guid = datap->participant_guid;
     GVLOGDISC (" %"PRIx32":%"PRIx32":%"PRIx32":%"PRIx32, PGUID (guid));
     assert (guid.entityid.u == NN_ENTITYID_PARTICIPANT);
-    if (is_proxy_participant_deletion_allowed(gv, &guid, pwr_entityid))
+    if (ddsi_is_proxy_participant_deletion_allowed(gv, &guid, pwr_entityid))
     {
       if (ddsi_delete_proxy_participant_by_guid (gv, &guid, timestamp, 0) < 0)
       {
@@ -1280,7 +1280,7 @@ int sedp_write_topic (struct ddsi_topic *tp, bool alive)
     return res;
   if (!ddsi_is_builtin_entityid (tp->e.guid.entityid, NN_VENDORID_ECLIPSE) && !tp->e.onlylocal)
   {
-    unsigned entityid = determine_topic_writer (tp);
+    unsigned entityid = ddsi_determine_topic_writer (tp);
     struct ddsi_writer *sedp_wr = get_sedp_writer (tp->pp, entityid);
     ddsrt_mutex_lock (&tp->e.qos_lock);
     // the allocation type info object is freed with the plist
@@ -1296,7 +1296,7 @@ int sedp_write_writer (struct ddsi_writer *wr)
 {
   if ((!ddsi_is_builtin_entityid(wr->e.guid.entityid, NN_VENDORID_ECLIPSE)) && (!wr->e.onlylocal))
   {
-    unsigned entityid = determine_publication_writer(wr);
+    unsigned entityid = ddsi_determine_publication_writer(wr);
     struct ddsi_writer *sedp_wr = get_sedp_writer (wr->c.pp, entityid);
     ddsi_security_info_t *security = NULL;
 #ifdef DDS_HAS_SSM
@@ -1306,7 +1306,7 @@ int sedp_write_writer (struct ddsi_writer *wr)
 #endif
 #ifdef DDS_HAS_SECURITY
     ddsi_security_info_t tmp;
-    if (q_omg_get_writer_security_info(wr, &tmp))
+    if (ddsi_omg_get_writer_security_info (wr, &tmp))
     {
       security = &tmp;
     }
@@ -1325,7 +1325,7 @@ int sedp_write_reader (struct ddsi_reader *rd)
   if (ddsi_is_builtin_entityid (rd->e.guid.entityid, NN_VENDORID_ECLIPSE) || rd->e.onlylocal)
     return 0;
 
-  unsigned entityid = determine_subscription_writer(rd);
+  unsigned entityid = ddsi_determine_subscription_writer(rd);
   struct ddsi_writer *sedp_wr = get_sedp_writer (rd->c.pp, entityid);
   ddsi_security_info_t *security = NULL;
   struct addrset *as = NULL;
@@ -1348,7 +1348,7 @@ int sedp_write_reader (struct ddsi_reader *rd)
 #endif
 #ifdef DDS_HAS_SECURITY
   ddsi_security_info_t tmp;
-  if (q_omg_get_reader_security_info(rd, &tmp))
+  if (ddsi_omg_get_reader_security_info (rd, &tmp))
   {
     security = &tmp;
   }
@@ -1366,7 +1366,7 @@ int sedp_dispose_unregister_writer (struct ddsi_writer *wr)
 {
   if ((!ddsi_is_builtin_entityid(wr->e.guid.entityid, NN_VENDORID_ECLIPSE)) && (!wr->e.onlylocal))
   {
-    unsigned entityid = determine_publication_writer(wr);
+    unsigned entityid = ddsi_determine_publication_writer(wr);
     struct ddsi_writer *sedp_wr = get_sedp_writer (wr->c.pp, entityid);
 #ifdef DDS_HAS_TYPE_DISCOVERY
     return sedp_write_endpoint_impl (sedp_wr, 0, &wr->e.guid, NULL, NULL, NULL, NULL, NULL);
@@ -1381,7 +1381,7 @@ int sedp_dispose_unregister_reader (struct ddsi_reader *rd)
 {
   if ((!ddsi_is_builtin_entityid(rd->e.guid.entityid, NN_VENDORID_ECLIPSE)) && (!rd->e.onlylocal))
   {
-    unsigned entityid = determine_subscription_writer(rd);
+    unsigned entityid = ddsi_determine_subscription_writer(rd);
     struct ddsi_writer *sedp_wr = get_sedp_writer (rd->c.pp, entityid);
 #ifdef DDS_HAS_TYPE_DISCOVERY
     return sedp_write_endpoint_impl (sedp_wr, 0, &rd->e.guid, NULL, NULL, NULL, NULL, NULL);
@@ -1653,8 +1653,8 @@ static void handle_sedp_alive_endpoint (const struct receiver_state *rst, seqno_
   if (sedp_kind == SEDP_KIND_READER && (datap->present & PP_EXPECTS_INLINE_QOS) && datap->expects_inline_qos)
     E ("******* AARGH - it expects inline QoS ********\n", err);
 
-  q_omg_log_endpoint_protection (gv, datap);
-  if (q_omg_is_endpoint_protected (datap) && !q_omg_proxy_participant_is_secure (proxypp))
+  ddsi_omg_log_endpoint_protection (gv, datap);
+  if (ddsi_omg_is_endpoint_protected (datap) && !ddsi_omg_proxy_participant_is_secure (proxypp))
     E (" remote endpoint is protected while local federation is not secure\n", err);
 
   if (sedp_kind == SEDP_KIND_WRITER)

@@ -55,7 +55,7 @@
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "ddsi__mcgroup.h"
 #include "dds/ddsi/ddsi_serdata.h"
-#include "dds/ddsi/ddsi_security_omg.h"
+#include "ddsi__security_omg.h"
 #include "ddsi__acknack.h"
 #include "dds/ddsi/sysdeps.h"
 #include "ddsi__deliver_locally.h"
@@ -571,7 +571,7 @@ int add_Gap (struct nn_xmsg *msg, struct ddsi_writer *wr, struct ddsi_proxy_read
   gap->gapList.numbits = numbits;
   memcpy (gap->bits, bits, NN_SEQUENCE_NUMBER_SET_BITS_SIZE (numbits));
   nn_xmsg_submsg_setnext (msg, sm_marker);
-  encode_datawriter_submsg(msg, sm_marker, wr);
+  ddsi_security_encode_datawriter_submsg(msg, sm_marker, wr);
   return 0;
 }
 
@@ -817,7 +817,7 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
     return 1;
   }
 
-  if (!validate_msg_decoding(&(prd->e), &(prd->c), prd->c.proxypp, rst, prev_smid))
+  if (!ddsi_security_validate_msg_decoding(&(prd->e), &(prd->c), prd->c.proxypp, rst, prev_smid))
   {
     RSTTRACE (" "PGUIDFMT" -> "PGUIDFMT" clear submsg from protected src)", PGUID (src), PGUID (dst));
     return 1;
@@ -1275,7 +1275,7 @@ static int handle_Heartbeat (struct receiver_state *rst, ddsrt_etime_t tnow, str
     return 1;
   }
 
-  if (!validate_msg_decoding(&(pwr->e), &(pwr->c), pwr->c.proxypp, rst, prev_smid))
+  if (!ddsi_security_validate_msg_decoding(&(pwr->e), &(pwr->c), pwr->c.proxypp, rst, prev_smid))
   {
     RSTTRACE (" "PGUIDFMT" -> "PGUIDFMT" clear submsg from protected src)", PGUID (src), PGUID (dst));
     return 1;
@@ -1458,7 +1458,7 @@ static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(ddsrt_et
     return 1;
   }
 
-  if (!validate_msg_decoding(&(pwr->e), &(pwr->c), pwr->c.proxypp, rst, prev_smid))
+  if (!ddsi_security_validate_msg_decoding(&(pwr->e), &(pwr->c), pwr->c.proxypp, rst, prev_smid))
   {
     RSTTRACE (" "PGUIDFMT" -> "PGUIDFMT" clear submsg from protected src)", PGUID (src), PGUID (dst));
     return 1;
@@ -1623,7 +1623,7 @@ static int handle_NackFrag (struct receiver_state *rst, ddsrt_etime_t tnow, cons
     return 1;
   }
 
-  if (!validate_msg_decoding(&(prd->e), &(prd->c), prd->c.proxypp, rst, prev_smid))
+  if (!ddsi_security_validate_msg_decoding(&(prd->e), &(prd->c), prd->c.proxypp, rst, prev_smid))
   {
     RSTTRACE (" "PGUIDFMT" -> "PGUIDFMT" clear submsg from protected src)", PGUID (src), PGUID (dst));
     return 1;
@@ -1890,7 +1890,7 @@ static int handle_Gap (struct receiver_state *rst, ddsrt_etime_t tnow, struct nn
     return 1;
   }
 
-  if (!validate_msg_decoding(&(pwr->e), &(pwr->c), pwr->c.proxypp, rst, prev_smid))
+  if (!ddsi_security_validate_msg_decoding(&(pwr->e), &(pwr->c), pwr->c.proxypp, rst, prev_smid))
   {
     RSTTRACE (" "PGUIDFMT" -> "PGUIDFMT" clear submsg from protected src)", PGUID (src), PGUID (dst));
     return 1;
@@ -2050,7 +2050,7 @@ static struct ddsi_serdata *remote_make_sample (struct ddsi_tkmap_instance **tk,
       failmsg = "no content";
     else if (!(qos->present & PP_KEYHASH))
       failmsg = "qos present but without keyhash";
-    else if (q_omg_plist_keyhash_is_protected(qos))
+    else if (ddsi_omg_plist_keyhash_is_protected (qos))
     {
       /* If the keyhash is protected, then it is forced to be an actual MD5
        * hash. This means the keyhash can't be decoded into a sample. */
@@ -2620,7 +2620,7 @@ static int handle_Data (struct receiver_state *rst, ddsrt_etime_t tnow, struct n
 
   if (sampleinfo->pwr)
   {
-    if (!validate_msg_decoding(&(sampleinfo->pwr->e), &(sampleinfo->pwr->c), sampleinfo->pwr->c.proxypp, rst, prev_smid))
+    if (!ddsi_security_validate_msg_decoding(&(sampleinfo->pwr->e), &(sampleinfo->pwr->c), sampleinfo->pwr->c.proxypp, rst, prev_smid))
     {
       RSTTRACE (" clear submsg from protected src "PGUIDFMT")", PGUID (sampleinfo->pwr->e.guid));
       return 1;
@@ -2690,7 +2690,7 @@ static int handle_DataFrag (struct receiver_state *rst, ddsrt_etime_t tnow, stru
 
   if (sampleinfo->pwr)
   {
-    if (!validate_msg_decoding(&(sampleinfo->pwr->e), &(sampleinfo->pwr->c), sampleinfo->pwr->c.proxypp, rst, prev_smid))
+    if (!ddsi_security_validate_msg_decoding(&(sampleinfo->pwr->e), &(sampleinfo->pwr->c), sampleinfo->pwr->c.proxypp, rst, prev_smid))
     {
       RSTTRACE (" clear submsg from protected src "PGUIDFMT")", PGUID (sampleinfo->pwr->e.guid));
       return 1;
@@ -3086,7 +3086,7 @@ static int handle_submsg_sequence
         size_t submsg_len = submsg_size;
         if ((vr = validate_DataFrag (rst, &sm->datafrag, submsg_size, byteswap, &sampleinfo, &keyhash, &datap, &datasz)) != VR_ACCEPT) {
           // nothing to be done here if not accepted
-        } else if (!decode_DataFrag (rst->gv, &sampleinfo, datap, datasz, &submsg_len)) {
+        } else if (!ddsi_security_decode_datafrag (rst->gv, &sampleinfo, datap, datasz, &submsg_len)) {
           // payload decryption required but failed
           vr = VR_NOT_UNDERSTOOD;
         } else if (sm->datafrag.fragmentStartingNum == 1 && !set_sampleinfo_bswap (&sampleinfo, (struct dds_cdr_header *)datap)) {
@@ -3109,7 +3109,7 @@ static int handle_submsg_sequence
         size_t submsg_len = submsg_size;
         if ((vr = validate_Data (rst, &sm->data, submsg_size, byteswap, &sampleinfo, &keyhash, &datap, &datasz)) != VR_ACCEPT) {
           // nothing to be done here if not accepted
-        } else if (!decode_Data (rst->gv, &sampleinfo, datap, datasz, &submsg_len)) {
+        } else if (!ddsi_security_decode_data (rst->gv, &sampleinfo, datap, datasz, &submsg_len)) {
           vr = VR_NOT_UNDERSTOOD;
         } else if (!set_sampleinfo_bswap (&sampleinfo, (struct dds_cdr_header *)datap)) {
           vr = VR_MALFORMED;
@@ -3124,7 +3124,7 @@ static int handle_submsg_sequence
       }
       case SMID_SEC_PREFIX: {
         GVTRACE ("SEC_PREFIX ");
-        if (!decode_SecPrefix(rst, submsg, submsg_size, end, &rst->src_guid_prefix, &rst->dst_guid_prefix, byteswap))
+        if (!ddsi_security_decode_sec_prefix(rst, submsg, submsg_size, end, &rst->src_guid_prefix, &rst->dst_guid_prefix, byteswap))
           vr = VR_MALFORMED;
         break;
       }
@@ -3211,10 +3211,10 @@ static void handle_rtps_message (struct thread_state * const thrst, struct ddsi_
       GVTRACE ("HDR(%"PRIx32":%"PRIx32":%"PRIx32" vendor %d.%d) len %lu from %s\n",
                PGUIDPREFIX (hdr->guid_prefix), hdr->vendorid.id[0], hdr->vendorid.id[1], (unsigned long) sz, addrstr);
     }
-    nn_rtps_msg_state_t res = decode_rtps_message (thrst, gv, &rmsg, &hdr, &msg, &sz, rbpool, conn->m_stream);
-    if (res != NN_RTPS_MSG_STATE_ERROR)
+    ddsi_rtps_msg_state_t res = ddsi_security_decode_rtps_message (thrst, gv, &rmsg, &hdr, &msg, &sz, rbpool, conn->m_stream);
+    if (res != DDSI_RTPS_MSG_STATE_ERROR)
     {
-      handle_submsg_sequence (thrst, gv, conn, srcloc, ddsrt_time_wallclock (), ddsrt_time_elapsed (), &hdr->guid_prefix, guidprefix, msg, (size_t) sz, msg + RTPS_MESSAGE_HEADER_SIZE, rmsg, res == NN_RTPS_MSG_STATE_ENCODED);
+      handle_submsg_sequence (thrst, gv, conn, srcloc, ddsrt_time_wallclock (), ddsrt_time_elapsed (), &hdr->guid_prefix, guidprefix, msg, (size_t) sz, msg + RTPS_MESSAGE_HEADER_SIZE, rmsg, res == DDSI_RTPS_MSG_STATE_ENCODED);
     }
   }
 }

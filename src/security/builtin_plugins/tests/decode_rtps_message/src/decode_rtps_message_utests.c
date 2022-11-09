@@ -562,7 +562,7 @@ static void decode_rtps_message_not_authenticated(DDS_Security_CryptoTransformKi
   reset_exception(&exception);
 
   /* Decrypt the datawriter submessage */
-  result = crypto->crypto_transform->decode_rtps_message(
+  result = crypto->crypto_transform->decode_rtps_message (
       crypto->crypto_transform,
       &decoded_buffer,
       &encoded_buffer,
@@ -698,7 +698,7 @@ static void decode_rtps_message_authenticated(DDS_Security_CryptoTransformKind_E
 
   for (i = 0; i < 4; i++)
   {
-    result = crypto->crypto_transform->decode_rtps_message(
+    result = crypto->crypto_transform->decode_rtps_message (
         crypto->crypto_transform,
         &decoded_buffer,
         &encoded_buffer,
@@ -814,7 +814,7 @@ CU_Test(ddssec_builtin_decode_rtps_message, invalid_args, .init = suite_decode_r
   reset_exception(&exception);
 
   /* local reader crypto 0 */
-  result = crypto->crypto_transform->decode_rtps_message(
+  result = crypto->crypto_transform->decode_rtps_message (
       crypto->crypto_transform,
       &decoded_buffer,
       &encoded_buffer,
@@ -834,7 +834,7 @@ CU_Test(ddssec_builtin_decode_rtps_message, invalid_args, .init = suite_decode_r
   reset_exception(&exception);
 
   /* local reader crypto unknown */
-  result = crypto->crypto_transform->decode_rtps_message(
+  result = crypto->crypto_transform->decode_rtps_message (
       crypto->crypto_transform,
       &decoded_buffer,
       &encoded_buffer,
@@ -854,7 +854,7 @@ CU_Test(ddssec_builtin_decode_rtps_message, invalid_args, .init = suite_decode_r
   reset_exception(&exception);
 
   /* remote writer crypto 0 */
-  result = crypto->crypto_transform->decode_rtps_message(
+  result = crypto->crypto_transform->decode_rtps_message (
       crypto->crypto_transform,
       &decoded_buffer,
       &encoded_buffer,
@@ -874,7 +874,7 @@ CU_Test(ddssec_builtin_decode_rtps_message, invalid_args, .init = suite_decode_r
   reset_exception(&exception);
 
   /* remote writer crypto unknown */
-  result = crypto->crypto_transform->decode_rtps_message(
+  result = crypto->crypto_transform->decode_rtps_message (
       crypto->crypto_transform,
       &decoded_buffer,
       &encoded_buffer,
@@ -981,7 +981,7 @@ CU_Test(ddssec_builtin_decode_rtps_message, invalid_data, .init = suite_decode_r
 
     set_submsg_header(prefix, 0x15, prefix->flags, prefix->length);
 
-    result = crypto->crypto_transform->decode_rtps_message(
+    result = crypto->crypto_transform->decode_rtps_message (
         crypto->crypto_transform,
         &decoded_buffer,
         &corrupt_buffer,
@@ -1014,7 +1014,7 @@ CU_Test(ddssec_builtin_decode_rtps_message, invalid_data, .init = suite_decode_r
 
     set_submsg_header(prefix, prefix->id, 0, prefix->length);
 
-    result = crypto->crypto_transform->decode_rtps_message(
+    result = crypto->crypto_transform->decode_rtps_message (
         crypto->crypto_transform,
         &decoded_buffer,
         &corrupt_buffer,
@@ -1047,7 +1047,7 @@ CU_Test(ddssec_builtin_decode_rtps_message, invalid_data, .init = suite_decode_r
 
     set_submsg_header(body, 0x15, body->flags, body->length);
 
-    result = crypto->crypto_transform->decode_rtps_message(
+    result = crypto->crypto_transform->decode_rtps_message (
         crypto->crypto_transform,
         &decoded_buffer,
         &corrupt_buffer,
@@ -1080,7 +1080,7 @@ CU_Test(ddssec_builtin_decode_rtps_message, invalid_data, .init = suite_decode_r
 
     set_submsg_header(body, body->id, body->flags, 1000);
 
-    result = crypto->crypto_transform->decode_rtps_message(
+    result = crypto->crypto_transform->decode_rtps_message (
         crypto->crypto_transform,
         &decoded_buffer,
         &corrupt_buffer,
@@ -1113,7 +1113,7 @@ CU_Test(ddssec_builtin_decode_rtps_message, invalid_data, .init = suite_decode_r
 
     set_submsg_header(postfix, 0x15, postfix->flags, postfix->length);
 
-    result = crypto->crypto_transform->decode_rtps_message(
+    result = crypto->crypto_transform->decode_rtps_message (
         crypto->crypto_transform,
         &decoded_buffer,
         &corrupt_buffer,
@@ -1146,7 +1146,7 @@ CU_Test(ddssec_builtin_decode_rtps_message, invalid_data, .init = suite_decode_r
 
     set_submsg_header(postfix, postfix->id, postfix->flags, 1000);
 
-    result = crypto->crypto_transform->decode_rtps_message(
+    result = crypto->crypto_transform->decode_rtps_message (
         crypto->crypto_transform,
         &decoded_buffer,
         &corrupt_buffer,
@@ -1179,7 +1179,7 @@ CU_Test(ddssec_builtin_decode_rtps_message, invalid_data, .init = suite_decode_r
 
     set_submsg_header(postfix, postfix->id, postfix->flags, (uint16_t)(postfix->length - 20));
 
-    result = crypto->crypto_transform->decode_rtps_message(
+    result = crypto->crypto_transform->decode_rtps_message (
         crypto->crypto_transform,
         &decoded_buffer,
         &corrupt_buffer,
@@ -1211,7 +1211,7 @@ CU_Test(ddssec_builtin_decode_rtps_message, invalid_data, .init = suite_decode_r
     header = get_crypto_header(corrupt_buffer._buffer + 20);
     header->transform_identifier.transformation_kind[3] = CRYPTO_TRANSFORMATION_KIND_AES256_GMAC;
 
-    result = crypto->crypto_transform->decode_rtps_message(
+    result = crypto->crypto_transform->decode_rtps_message (
         crypto->crypto_transform,
         &decoded_buffer,
         &corrupt_buffer,
@@ -1243,7 +1243,7 @@ CU_Test(ddssec_builtin_decode_rtps_message, invalid_data, .init = suite_decode_r
     header = get_crypto_header(corrupt_buffer._buffer + 20);
     header->session_id[0] = (unsigned char)(header->session_id[0] + 1);
 
-    result = crypto->crypto_transform->decode_rtps_message(
+    result = crypto->crypto_transform->decode_rtps_message (
         crypto->crypto_transform,
         &decoded_buffer,
         &corrupt_buffer,
@@ -1275,7 +1275,7 @@ CU_Test(ddssec_builtin_decode_rtps_message, invalid_data, .init = suite_decode_r
     header = get_crypto_header(corrupt_buffer._buffer + 20);
     header->init_vector_suffix[0] = (unsigned char)(header->init_vector_suffix[0] + 1);
 
-    result = crypto->crypto_transform->decode_rtps_message(
+    result = crypto->crypto_transform->decode_rtps_message (
         crypto->crypto_transform,
         &decoded_buffer,
         &corrupt_buffer,
@@ -1309,7 +1309,7 @@ CU_Test(ddssec_builtin_decode_rtps_message, invalid_data, .init = suite_decode_r
     data = (unsigned char *)(body + 1);
     data[0] = (unsigned char)(data[0] + 1);
 
-    result = crypto->crypto_transform->decode_rtps_message(
+    result = crypto->crypto_transform->decode_rtps_message (
         crypto->crypto_transform,
         &decoded_buffer,
         &corrupt_buffer,
@@ -1341,7 +1341,7 @@ CU_Test(ddssec_builtin_decode_rtps_message, invalid_data, .init = suite_decode_r
     footer = get_crypto_footer(corrupt_buffer._buffer);
     footer->common_mac[0] = (unsigned char)(footer->common_mac[0] + 1);
 
-    result = crypto->crypto_transform->decode_rtps_message(
+    result = crypto->crypto_transform->decode_rtps_message (
         crypto->crypto_transform,
         &decoded_buffer,
         &corrupt_buffer,
@@ -1376,7 +1376,7 @@ CU_Test(ddssec_builtin_decode_rtps_message, invalid_data, .init = suite_decode_r
     CU_ASSERT(len == 1);
     memset(footer->length, 0, 4);
 
-    result = crypto->crypto_transform->decode_rtps_message(
+    result = crypto->crypto_transform->decode_rtps_message (
         crypto->crypto_transform,
         &decoded_buffer,
         &corrupt_buffer,
@@ -1415,7 +1415,7 @@ CU_Test(ddssec_builtin_decode_rtps_message, invalid_data, .init = suite_decode_r
         rmac = (struct receiver_specific_mac *)(footer + 1);
         rmac->receiver_mac_key_id[0] += 1;
 
-        result = crypto->crypto_transform->decode_rtps_message(
+        result = crypto->crypto_transform->decode_rtps_message (
                 crypto->crypto_transform,
                 &decoded_buffer,
                 &corrupt_buffer,
@@ -1452,7 +1452,7 @@ CU_Test(ddssec_builtin_decode_rtps_message, invalid_data, .init = suite_decode_r
         rmac = (struct receiver_specific_mac *)(footer + 1);
         rmac->receiver_mac[0] += 1;
 
-        result = crypto->crypto_transform->decode_rtps_message(
+        result = crypto->crypto_transform->decode_rtps_message (
                 crypto->crypto_transform,
                 &decoded_buffer,
                 &corrupt_buffer,

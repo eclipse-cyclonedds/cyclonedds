@@ -41,7 +41,7 @@
 #include "ddsi__entity_index.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/q_freelist.h"
-#include "dds/ddsi/ddsi_security_omg.h"
+#include "ddsi__security_omg.h"
 #include "ddsi__endpoint.h"
 #include "ddsi__plist.h"
 
@@ -79,7 +79,7 @@ struct nn_xmsg {
 #ifdef DDS_HAS_SECURITY
   /* Used as pointer to contain encoded payload to which iov can alias. */
   unsigned char *refd_payload_encoded;
-  nn_msg_sec_info_t sec_info;
+  ddsi_msg_sec_info_t sec_info;
 #endif
   int64_t maxdelay;
 
@@ -189,7 +189,7 @@ struct nn_xpack
   uint32_t encoderId;
 #endif /* DDS_HAS_NETWORK_PARTITIONS */
 #ifdef DDS_HAS_SECURITY
-  nn_msg_sec_info_t sec_info;
+  ddsi_msg_sec_info_t sec_info;
 #endif
 };
 
@@ -304,12 +304,12 @@ struct nn_xmsg *nn_xmsg_new (struct nn_xmsgpool *pool, const ddsi_guid_t *src_gu
 
 #ifdef DDS_HAS_SECURITY
   m->sec_info.use_rtps_encoding = 0;
-  if (pp && q_omg_participant_is_secure(pp))
+  if (pp && ddsi_omg_participant_is_secure(pp))
   {
-    if (q_omg_security_is_local_rtps_protected(pp, src_guid->entityid))
+    if (ddsi_omg_security_is_local_rtps_protected (pp, src_guid->entityid))
     {
       m->sec_info.use_rtps_encoding = 1;
-      m->sec_info.src_pp_handle = q_omg_security_get_local_participant_handle(pp);
+      m->sec_info.src_pp_handle = ddsi_omg_security_get_local_participant_handle (pp);
     }
   }
 #else
@@ -673,7 +673,7 @@ void nn_xmsg_serdata (struct nn_xmsg *m, struct ddsi_serdata *serdata, size_t of
     /* When encoding is necessary, m->refd_payload_encoded will be allocated
      * and m->refd_payload_iov contents will change to point to that buffer.
      * If no encoding is necessary, nothing changes. */
-    if (!encode_payload(wr, &(m->refd_payload_iov), &(m->refd_payload_encoded)))
+    if (!ddsi_security_encode_payload(wr, &(m->refd_payload_iov), &(m->refd_payload_encoded)))
     {
       DDS_CWARNING (&wr->e.gv->logconfig, "nn_xmsg_serdata: failed to encrypt data for "PGUIDFMT"", PGUID (wr->e.guid));
       ddsi_serdata_to_ser_unref (m->refd_payload, &m->refd_payload_iov);
@@ -702,7 +702,7 @@ static void nn_xmsg_setdst1_common (struct ddsi_domaingv *gv, struct nn_xmsg *m,
 
     proxypp = ddsi_entidx_lookup_proxy_participant_guid(gv->entity_index, &guid);
     if (proxypp)
-      m->sec_info.dst_pp_handle = q_omg_security_get_remote_participant_handle(proxypp);
+      m->sec_info.dst_pp_handle = ddsi_omg_security_get_remote_participant_handle (proxypp);
   }
 #else
   DDSRT_UNUSED_ARG(gv);
@@ -1183,7 +1183,7 @@ static ssize_t nn_xpack_send_rtps(struct nn_xpack * xp, const ddsi_xlocator_t *l
   /* Only encode when needed. */
   if (xp->sec_info.use_rtps_encoding)
   {
-    ret = secure_conn_write(
+    ret = ddsi_security_secure_conn_write(
                       xp->gv,
                       loc->conn,
                       &loc->c,

@@ -428,10 +428,10 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
 
 #ifdef DDS_HAS_SECURITY
   /* Check if DDS Security is enabled */
-  if (q_omg_participant_is_secure (pp))
+  if (ddsi_omg_participant_is_secure (pp))
   {
     /* ask to access control security plugin for create writer permissions */
-    if (!q_omg_security_check_create_writer (pp, gv->config.domainId, tp->m_name, wqos))
+    if (!ddsi_omg_security_check_create_writer (pp, gv->config.domainId, tp->m_name, wqos))
     {
       rc = DDS_RETCODE_NOT_ALLOWED_BY_SECURITY;
       goto err_not_allowed;

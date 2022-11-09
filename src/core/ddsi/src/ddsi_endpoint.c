@@ -28,7 +28,7 @@
 #include "dds/ddsi/ddsi_builtin_topic_if.h"
 #include "dds/ddsi/ddsi_wraddrset.h"
 #include "dds/ddsi/ddsi_tkmap.h"
-#include "dds/ddsi/ddsi_security_omg.h"
+#include "ddsi__security_omg.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/q_ddsi_discovery.h"
 #include "dds/ddsi/q_whc.h"
@@ -933,7 +933,7 @@ dds_return_t ddsi_new_writer_guid (struct ddsi_writer **wr_out, const struct dds
   ddsi_new_writer_guid_common_init(wr, topic_name, type, xqos, whc, status_cb, status_entity);
 
 #ifdef DDS_HAS_SECURITY
-  q_omg_security_register_writer(wr);
+  ddsi_omg_security_register_writer (wr);
 #endif
 
   /* entity_index needed for protocol handling, so add it before we send
@@ -1095,7 +1095,7 @@ static void gc_delete_writer (struct ddsi_gcreq *gcreq)
     (wr->status_cb) (wr->status_cb_entity, NULL);
 
 #ifdef DDS_HAS_SECURITY
-  q_omg_security_deregister_writer(wr);
+  ddsi_omg_security_deregister_writer (wr);
 #endif
 #ifdef DDS_HAS_SSM
   if (wr->ssm_as)
@@ -1480,7 +1480,7 @@ dds_return_t ddsi_new_reader_guid (struct ddsi_reader **rd_out, const struct dds
   assert (rd->xqos->present & QP_LIVELINESS);
 
 #ifdef DDS_HAS_SECURITY
-  q_omg_security_register_reader(rd);
+  ddsi_omg_security_register_reader (rd);
 #endif
 
 #ifdef DDS_HAS_NETWORK_PARTITIONS
@@ -1536,7 +1536,7 @@ static void gc_delete_reader (struct ddsi_gcreq *gcreq)
   }
 
 #ifdef DDS_HAS_SECURITY
-  q_omg_security_deregister_reader(rd);
+  ddsi_omg_security_deregister_reader (rd);
 #endif
 
   if (!ddsi_is_builtin_entityid (rd->e.guid.entityid, NN_VENDORID_ECLIPSE))

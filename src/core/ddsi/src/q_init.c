@@ -63,7 +63,7 @@
 #include "dds/ddsi/ddsi_serdata_cdr.h"
 #include "ddsi__serdata_pserop.h"
 #include "dds/ddsi/ddsi_serdata_plist.h"
-#include "dds/ddsi/ddsi_security_omg.h"
+#include "ddsi__security_omg.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/ddsi_iid.h"
 #include "ddsi__security_msg.h"
@@ -1719,7 +1719,7 @@ int rtps_init (struct ddsi_domaingv *gv)
   );
 
 #ifdef DDS_HAS_SECURITY
-  q_omg_security_init(gv);
+  ddsi_omg_security_init (gv);
 #endif
 
   gv->as_disc = new_addrset ();
@@ -1768,9 +1768,9 @@ int rtps_init (struct ddsi_domaingv *gv)
 #if 0
 #ifdef DDS_HAS_SECURITY
 err_post_omg_security_init:
-  q_omg_security_stop (gv); // should be a no-op as it starts lazily
-  q_omg_security_deinit(gv->security_context);
-  q_omg_security_free (gv);
+  ddsi_omg_security_stop (gv); // should be a no-op as it starts lazily
+  ddsi_omg_security_deinit (gv->security_context);
+  ddsi_omg_security_free (gv);
 #endif
 #endif
 err_joinleave_spdp:
@@ -2073,7 +2073,7 @@ void rtps_stop (struct ddsi_domaingv *gv)
   /* Stop background (handshake) processing in security implementation,
      do this only once we know no new events will be coming in. */
 #if DDS_HAS_SECURITY
-  q_omg_security_stop (gv);
+  ddsi_omg_security_stop (gv);
 #endif
 
   /* Wait until all participants are really gone => by then we can be
@@ -2124,7 +2124,7 @@ void rtps_fini (struct ddsi_domaingv *gv)
 #endif
 
 #ifdef DDS_HAS_SECURITY
-  q_omg_security_deinit (gv->security_context);
+  ddsi_omg_security_deinit (gv->security_context);
 #endif
 
   xeventq_free (gv->xevents);
@@ -2224,7 +2224,7 @@ void rtps_fini (struct ddsi_domaingv *gv)
   ddsrt_hh_free (gv->sertypes);
   ddsrt_mutex_destroy (&gv->sertypes_lock);
 #ifdef DDS_HAS_SECURITY
-  q_omg_security_free (gv);
+  ddsi_omg_security_free (gv);
   ddsi_xqos_fini (&gv->builtin_stateless_xqos_wr);
   ddsi_xqos_fini (&gv->builtin_stateless_xqos_rd);
   ddsi_xqos_fini (&gv->builtin_secure_volatile_xqos_wr);

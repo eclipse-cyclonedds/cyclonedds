@@ -20,7 +20,7 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "ddsi__entity_index.h"
 #include "ddsi__security_exchange.h"
-#include "dds/ddsi/ddsi_security_omg.h"
+#include "ddsi__security_omg.h"
 #include "ddsi__handshake.h"
 #include "ddsi__serdata_pserop.h"
 #include "dds/ddsi/q_ddsi_discovery.h"
@@ -231,7 +231,7 @@ void handle_crypto_exchange_message(const struct receiver_state *rst, struct dds
       GVWARNING("received a crypto exchange message from "PGUIDFMT" with proxy participant unknown "PGUIDFMT, PGUID(proxypp_guid), PGUID(msg->destination_participant_guid));
       return;
     }
-    q_omg_security_set_participant_crypto_tokens(pp, proxypp, &msg->message_data);
+    ddsi_omg_security_set_participant_crypto_tokens (pp, proxypp, &msg->message_data);
   }
   else if (strcmp(GMCLASSID_SECURITY_DATAWRITER_CRYPTO_TOKENS, msg->message_class_id) == 0)
   {
@@ -241,7 +241,7 @@ void handle_crypto_exchange_message(const struct receiver_state *rst, struct dds
       GVWARNING("received a crypto exchange message from "PGUIDFMT" with reader unknown "PGUIDFMT, PGUID(proxypp_guid), PGUID(msg->destination_participant_guid));
       return;
     }
-    q_omg_security_set_remote_writer_crypto_tokens(rd, &msg->source_endpoint_guid, &msg->message_data);
+    ddsi_omg_security_set_remote_writer_crypto_tokens (rd, &msg->source_endpoint_guid, &msg->message_data);
   }
   else if (strcmp(GMCLASSID_SECURITY_DATAREADER_CRYPTO_TOKENS, msg->message_class_id) == 0)
   {
@@ -251,7 +251,7 @@ void handle_crypto_exchange_message(const struct receiver_state *rst, struct dds
       GVWARNING("received a crypto exchange message from "PGUIDFMT" with writer unknown "PGUIDFMT, PGUID(proxypp_guid), PGUID(msg->destination_participant_guid));
       return;
     }
-    q_omg_security_set_remote_reader_crypto_tokens(wr, &msg->source_endpoint_guid, &msg->message_data);
+    ddsi_omg_security_set_remote_reader_crypto_tokens (wr, &msg->source_endpoint_guid, &msg->message_data);
   }
   else
   {

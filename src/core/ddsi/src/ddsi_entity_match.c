@@ -19,7 +19,7 @@
 #include "dds/ddsi/ddsi_proxy_participant.h"
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/ddsi_proxy_endpoint.h"
-#include "dds/ddsi/ddsi_security_omg.h"
+#include "ddsi__security_omg.h"
 #include "ddsi__entity_index.h"
 #include "ddsi__mcgroup.h"
 #include "ddsi__rhc.h"
@@ -264,7 +264,7 @@ static void connect_writer_with_proxy_reader (struct ddsi_writer *wr, struct dds
     return;
   }
 
-  if (!q_omg_security_check_remote_reader_permissions (prd, wr->e.gv->config.domainId, wr->c.pp, &relay_only))
+  if (!ddsi_omg_security_check_remote_reader_permissions (prd, wr->e.gv->config.domainId, wr->c.pp, &relay_only))
   {
     GVLOGDISC ("connect_writer_with_proxy_reader (wr "PGUIDFMT") with (prd "PGUIDFMT") not allowed by security\n", PGUID (wr->e.guid), PGUID (prd->e.guid));
   }
@@ -272,7 +272,7 @@ static void connect_writer_with_proxy_reader (struct ddsi_writer *wr, struct dds
   {
     GVWARNING ("connect_writer_with_proxy_reader (wr "PGUIDFMT") with (prd "PGUIDFMT") relay_only not supported\n", PGUID (wr->e.guid), PGUID (prd->e.guid));
   }
-  else if (!q_omg_security_match_remote_reader_enabled (wr, prd, relay_only, &crypto_handle))
+  else if (!ddsi_omg_security_match_remote_reader_enabled (wr, prd, relay_only, &crypto_handle))
   {
     GVLOGDISC ("connect_writer_with_proxy_reader (wr "PGUIDFMT") with (prd "PGUIDFMT") waiting for approval by security\n", PGUID (wr->e.guid), PGUID (prd->e.guid));
   }
@@ -306,12 +306,12 @@ static void connect_proxy_writer_with_reader (struct ddsi_proxy_writer *pwr, str
     return;
   }
 
-  if (!q_omg_security_check_remote_writer_permissions(pwr, rd->e.gv->config.domainId, rd->c.pp))
+  if (!ddsi_omg_security_check_remote_writer_permissions (pwr, rd->e.gv->config.domainId, rd->c.pp))
   {
     EELOGDISC (&rd->e, "connect_proxy_writer_with_reader (pwr "PGUIDFMT") with (rd "PGUIDFMT") not allowed by security\n",
         PGUID (pwr->e.guid), PGUID (rd->e.guid));
   }
-  else if (!q_omg_security_match_remote_writer_enabled(rd, pwr, &crypto_handle))
+  else if (!ddsi_omg_security_match_remote_writer_enabled (rd, pwr, &crypto_handle))
   {
     EELOGDISC (&rd->e, "connect_proxy_writer_with_reader (pwr "PGUIDFMT") with  (rd "PGUIDFMT") waiting for approval by security\n",
         PGUID (pwr->e.guid), PGUID (rd->e.guid));
@@ -596,7 +596,7 @@ void ddsi_free_wr_prd_match (const struct ddsi_domaingv *gv, const ddsi_guid_t *
   if (m)
   {
 #ifdef DDS_HAS_SECURITY
-    q_omg_security_deregister_remote_reader_match (gv, wr_guid, m);
+    ddsi_omg_security_deregister_remote_reader_match (gv, wr_guid, m);
 #else
     (void) gv;
     (void) wr_guid;
@@ -611,7 +611,7 @@ void ddsi_free_rd_pwr_match (struct ddsi_domaingv *gv, const ddsi_guid_t *rd_gui
   if (m)
   {
 #ifdef DDS_HAS_SECURITY
-    q_omg_security_deregister_remote_writer_match (gv, rd_guid, m);
+    ddsi_omg_security_deregister_remote_writer_match (gv, rd_guid, m);
 #else
     (void) rd_guid;
 #endif
@@ -1464,7 +1464,7 @@ static void downgrade_to_nonsecure (struct ddsi_proxy_participant *proxypp)
   }
 
   /* Cleanup all kinds of related security information. */
-  q_omg_security_deregister_remote_participant(proxypp);
+  ddsi_omg_security_deregister_remote_participant (proxypp);
   proxypp->bes &= NN_BES_MASK_NON_SECURITY;
 }
 
@@ -1601,15 +1601,15 @@ void ddsi_handshake_end_cb (struct ddsi_handshake *handshake, struct ddsi_partic
   case STATE_HANDSHAKE_PROCESSED:
     shared_secret = ddsi_handshake_get_shared_secret(handshake);
     DDS_CLOG (DDS_LC_DISCOVERY, &gv->logconfig, "handshake (lguid="PGUIDFMT" rguid="PGUIDFMT") processed\n", PGUID (pp->e.guid), PGUID (proxypp->e.guid));
-    if (q_omg_security_register_remote_participant(pp, proxypp, shared_secret)) {
+    if (ddsi_omg_security_register_remote_participant (pp, proxypp, shared_secret)) {
       ddsi_match_volatile_secure_endpoints(pp, proxypp);
-      q_omg_security_set_remote_participant_authenticated(pp, proxypp);
+      ddsi_omg_security_set_remote_participant_authenticated (pp, proxypp);
     }
     break;
 
   case STATE_HANDSHAKE_SEND_TOKENS:
     DDS_CLOG (DDS_LC_DISCOVERY, &gv->logconfig, "handshake (lguid="PGUIDFMT" rguid="PGUIDFMT") send tokens\n", PGUID (pp->e.guid), PGUID (proxypp->e.guid));
-    q_omg_security_participant_send_tokens(pp, proxypp);
+    ddsi_omg_security_participant_send_tokens (pp, proxypp);
     break;
 
   case STATE_HANDSHAKE_OK:
@@ -1620,7 +1620,7 @@ void ddsi_handshake_end_cb (struct ddsi_handshake *handshake, struct ddsi_partic
 
   case STATE_HANDSHAKE_TIMED_OUT:
     DDS_CERROR (&gv->logconfig, "handshake (lguid="PGUIDFMT" rguid="PGUIDFMT") failed: (%d) Timed out\n", PGUID (pp->e.guid), PGUID (proxypp->e.guid), (int)result);
-    if (q_omg_participant_allow_unauthenticated(pp)) {
+    if (ddsi_omg_participant_allow_unauthenticated(pp)) {
       downgrade_to_nonsecure(proxypp);
       ddsi_update_proxy_participant_endpoint_matching(proxypp, pp);
     }
@@ -1628,7 +1628,7 @@ void ddsi_handshake_end_cb (struct ddsi_handshake *handshake, struct ddsi_partic
     break;
   case STATE_HANDSHAKE_FAILED:
     DDS_CERROR (&gv->logconfig, "handshake (lguid="PGUIDFMT" rguid="PGUIDFMT") failed: (%d) Failed\n", PGUID (pp->e.guid), PGUID (proxypp->e.guid), (int)result);
-    if (q_omg_participant_allow_unauthenticated(pp)) {
+    if (ddsi_omg_participant_allow_unauthenticated(pp)) {
       downgrade_to_nonsecure(proxypp);
       ddsi_update_proxy_participant_endpoint_matching(proxypp, pp);
     }
@@ -1652,7 +1652,7 @@ bool ddsi_proxy_participant_has_pp_match (struct ddsi_domaingv *gv, struct ddsi_
   {
     /* remote secure pp can possibly match with local non-secured pp in case allow-unauthenticated pp
        is enabled in the remote pp's security settings */
-    match = !q_omg_participant_is_secure (pp) || q_omg_is_similar_participant_security_info (pp, proxypp);
+    match = !ddsi_omg_participant_is_secure (pp) || ddsi_omg_is_similar_participant_security_info (pp, proxypp);
   }
   ddsi_entidx_enum_participant_fini (&est);
   return match;
@@ -1663,11 +1663,11 @@ void ddsi_proxy_participant_create_handshakes (struct ddsi_domaingv *gv, struct 
   struct ddsi_participant *pp;
   struct ddsi_entity_enum_participant est;
 
-  q_omg_security_remote_participant_set_initialized(proxypp);
+  ddsi_omg_security_remote_participant_set_initialized (proxypp);
 
   ddsi_entidx_enum_participant_init (&est, gv->entity_index);
   while (((pp = ddsi_entidx_enum_participant_next (&est)) != NULL)) {
-    if (q_omg_security_participant_is_initialized(pp))
+    if (ddsi_omg_security_participant_is_initialized (pp))
       ddsi_handshake_register(pp, proxypp, ddsi_handshake_end_cb);
   }
   ddsi_entidx_enum_participant_fini(&est);
@@ -1679,7 +1679,7 @@ void ddsi_disconnect_proxy_participant_secure (struct ddsi_proxy_participant *pr
   struct ddsi_entity_enum_participant it;
   struct ddsi_domaingv * const gv = proxypp->e.gv;
 
-  if (q_omg_proxy_participant_is_secure(proxypp))
+  if (ddsi_omg_proxy_participant_is_secure (proxypp))
   {
     ddsi_entidx_enum_participant_init (&it, gv->entity_index);
     while ((pp = ddsi_entidx_enum_participant_next (&it)) != NULL)

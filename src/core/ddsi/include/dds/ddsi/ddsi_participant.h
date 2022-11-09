@@ -58,7 +58,7 @@ struct ddsi_participant
   ddsrt_atomic_voidp_t minl_man; /* clone of min(leaseheap_man) */
   ddsrt_fibheap_t leaseheap_man; /* keeps leases for this participant's writers (with liveliness manual-by-participant) */
 #ifdef DDS_HAS_SECURITY
-  struct participant_sec_attributes *sec_attr;
+  struct ddsi_participant_sec_attributes *sec_attr;
   ddsi_security_info_t security_info;
 #endif
 };

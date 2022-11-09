@@ -25,9 +25,9 @@
 #include "ddsi__gc.h"
 #include "dds/security/dds_security_api_types.h"
 #include "dds/security/dds_security_api.h"
-#include "dds/ddsi/ddsi_security_omg.h"
+#include "ddsi__security_omg.h"
 #include "dds/security/core/dds_security_fsm.h"
-#include "dds/ddsi/ddsi_security_util.h"
+#include "ddsi__security_util.h"
 #include "ddsi__security_exchange.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/avl.h"
@@ -37,7 +37,7 @@
 #define HSERROR(...)    DDS_CLOG (DDS_LC_ERROR, &handshake->gv->logconfig, __VA_ARGS__)
 
 #define HSEXCEPTION(e, ...) \
-  q_omg_log_exception(&handshake->gv->logconfig, DDS_LC_WARNING, e, __FILE__, __LINE__, DDS_FUNCTION, __VA_ARGS__)
+  ddsi_omg_log_exception(&handshake->gv->logconfig, DDS_LC_WARNING, e, __FILE__, __LINE__, DDS_FUNCTION, __VA_ARGS__)
 
 
 #define VERBOSE_HANDSHAKE_DEBUG
@@ -522,14 +522,14 @@ static bool send_handshake_message(const struct ddsi_handshake *handshake, DDS_S
   tseq._length = tseq._maximum = 1;
   tseq._buffer = token;
 
-  q_omg_shallow_copyout_DataHolderSeq(&mdata, &tseq);
+  ddsi_omg_shallow_copyout_DataHolderSeq (&mdata, &tseq);
 
   if (!(ret = write_auth_handshake_message(pp, proxypp, &mdata, request, &handshake->handshake_message_in_id)))
   {
     HSWARNING("Send handshake: failed to send message (lguid="PGUIDFMT" rguid="PGUIDFMT")", PGUID (pp->e.guid), PGUID (proxypp->e.guid));
   }
 
-  q_omg_shallow_free_ddsi_dataholderseq(&mdata);
+  ddsi_omg_shallow_free_ddsi_dataholderseq (&mdata);
 
   return ret;
 }
@@ -551,7 +551,7 @@ static DDS_Security_ValidationResult_t validate_remote_identity_impl(struct ddsi
   }
 
   remote_guid = nn_hton_guid(proxypp->e.guid);
-  q_omg_security_dataholder_copyout(&remote_identity_token, &proxypp->plist->identity_token);
+  ddsi_omg_security_dataholder_copyout (&remote_identity_token, &proxypp->plist->identity_token);
 
   ddsrt_mutex_lock(&handshake->lock);
   ret = auth->validate_remote_identity(
@@ -1007,7 +1007,7 @@ static struct ddsi_handshake * ddsi_handshake_create(struct ddsi_participant *pp
   memset(handshake, 0, sizeof(struct ddsi_handshake));
 
   ddsrt_mutex_init(&handshake->lock);
-  handshake->auth = q_omg_participant_get_authentication(pp);
+  handshake->auth = ddsi_omg_participant_get_authentication(pp);
   ddsrt_atomic_st32(&handshake->refc, 1);
   ddsrt_atomic_st32(&handshake->deleting, 0);
   handshake->participants.lguid = pp->e.guid;
@@ -1111,7 +1111,7 @@ void ddsi_handshake_handle_message(struct ddsi_handshake *handshake, const struc
       if (handshake->remote_auth_request_token)
         DDS_Security_DataHolder_free(handshake->remote_auth_request_token);
       handshake->remote_auth_request_token = DDS_Security_DataHolder_alloc();
-      q_omg_security_dataholder_copyout(handshake->remote_auth_request_token, &msg->message_data.tags[0]);
+      ddsi_omg_security_dataholder_copyout (handshake->remote_auth_request_token, &msg->message_data.tags[0]);
       ddsrt_mutex_unlock(&handshake->lock);
     }
     else
@@ -1137,7 +1137,7 @@ void ddsi_handshake_handle_message(struct ddsi_handshake *handshake, const struc
 
     ddsrt_mutex_lock(&handshake->lock);
     DDS_Security_DataHolder_deinit(&handshake->handshake_message_in_token);
-    q_omg_security_dataholder_copyout(&handshake->handshake_message_in_token, &msg->message_data.tags[0]);
+    ddsi_omg_security_dataholder_copyout (&handshake->handshake_message_in_token, &msg->message_data.tags[0]);
     memcpy(&handshake->handshake_message_in_id, &msg->message_identity, sizeof(handshake->handshake_message_in_id));
     dds_security_fsm_dispatch(handshake->fsm, event, false);
     ddsrt_mutex_unlock(&handshake->lock);

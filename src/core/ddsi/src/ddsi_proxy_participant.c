@@ -23,7 +23,7 @@
 #include "dds/ddsi/ddsi_proxy_endpoint.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "ddsi__entity_index.h"
-#include "dds/ddsi/ddsi_security_omg.h"
+#include "ddsi__security_omg.h"
 #include "dds/ddsi/ddsi_builtin_topic_if.h"
 #include "dds/ddsi/q_lease.h"
 #include "dds/ddsi/q_addrset.h"
@@ -313,7 +313,7 @@ static void free_proxy_participant (struct ddsi_proxy_participant *proxypp)
   }
 #ifdef DDS_HAS_SECURITY
   ddsi_disconnect_proxy_participant_secure(proxypp);
-  q_omg_security_deregister_remote_participant(proxypp);
+  ddsi_omg_security_deregister_remote_participant (proxypp);
 #endif
   unref_addrset (proxypp->as_default);
   unref_addrset (proxypp->as_meta);
@@ -436,10 +436,10 @@ bool ddsi_new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_gui
 
 #ifdef DDS_HAS_SECURITY
   proxypp->sec_attr = NULL;
-  set_proxy_participant_security_info (proxypp, plist);
+  ddsi_set_proxy_participant_security_info (proxypp, plist);
   if (is_secure)
   {
-    q_omg_security_init_remote_participant (proxypp);
+    ddsi_omg_security_init_remote_participant (proxypp);
     /* check if the proxy participant has a match with a local participant */
     if (!ddsi_proxy_participant_has_pp_match (gv, proxypp))
     {
