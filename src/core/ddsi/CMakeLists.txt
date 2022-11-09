@@ -88,7 +88,6 @@ set(hdrs_ddsi
   ddsi_tcp.h
   ddsi_tran.h
   ddsi_udp.h
-  ddsi_raweth.h
   ddsi_vnet.h
   ddsi_locator.h
   ddsi_security_util.h
@@ -183,6 +182,7 @@ set(hdrs_private_ddsi
   ddsi__portmapping.h
   ddsi__proxy_endpoint.h
   ddsi__proxy_participant.h
+  ddsi__raweth.h
 )
 
 if(ENABLE_LIFESPAN)

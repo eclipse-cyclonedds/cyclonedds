@@ -9,12 +9,14 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef DDSI_RAWETH_H
-#define DDSI_RAWETH_H
+#ifndef DDSI__RAWETH_H
+#define DDSI__RAWETH_H
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
+
+struct ddsi_domaingv;
 
 int ddsi_raweth_init (struct ddsi_domaingv *gv);
 
@@ -22,4 +24,4 @@ int ddsi_raweth_init (struct ddsi_domaingv *gv);
 }
 #endif
 
-#endif
+#endif /* DDSI__RAWETH_H */

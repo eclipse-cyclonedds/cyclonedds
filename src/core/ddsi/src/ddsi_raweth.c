@@ -10,7 +10,7 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include "dds/ddsi/ddsi_tran.h"
-#include "dds/ddsi/ddsi_raweth.h"
+#include "ddsi__raweth.h"
 #include "ddsi__ipaddr.h"
 #include "ddsi__mcgroup.h"
 #include "dds/ddsi/ddsi_config_impl.h"
