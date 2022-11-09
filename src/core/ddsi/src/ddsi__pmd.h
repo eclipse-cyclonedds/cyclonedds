@@ -30,19 +30,19 @@ struct nn_xpack;
 struct ddsi_participant;
 struct receiver_state;
 
-typedef struct ParticipantMessageData {
+typedef struct ddsi_participant_message_data {
   ddsi_guid_prefix_t participantGuidPrefix;
   uint32_t kind; /* really 4 octets */
   ddsi_octetseq_t value;
-} ParticipantMessageData_t;
+} ddsi_participant_message_data_t;
 
-extern const enum ddsi_pserop participant_message_data_ops[];
-extern size_t participant_message_data_nops;
-extern const enum ddsi_pserop participant_message_data_ops_key[];
-extern size_t participant_message_data_nops_key;
+extern const enum ddsi_pserop ddsi_participant_message_data_ops[];
+extern size_t ddsi_participant_message_data_nops;
+extern const enum ddsi_pserop ddsi_participant_message_data_ops_key[];
+extern size_t ddsi_participant_message_data_nops_key;
 
-void write_pmd_message (struct thread_state * const ts1, struct nn_xpack *xp, struct ddsi_participant *pp, unsigned pmd_kind);
-void handle_pmd_message (const struct receiver_state *rst, struct ddsi_serdata *sample_common);
+void ddsi_write_pmd_message (struct thread_state * const ts1, struct nn_xpack *xp, struct ddsi_participant *pp, unsigned pmd_kind);
+void ddsi_handle_pmd_message (const struct receiver_state *rst, struct ddsi_serdata *sample_common);
 
 #if defined (__cplusplus)
 }

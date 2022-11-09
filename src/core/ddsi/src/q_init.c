@@ -867,7 +867,7 @@ static void make_special_types (struct ddsi_domaingv *gv)
   gv->spdp_type = make_special_type_plist ("ParticipantBuiltinTopicData", PID_PARTICIPANT_GUID);
   gv->sedp_reader_type = make_special_type_plist ("SubscriptionBuiltinTopicData", PID_ENDPOINT_GUID);
   gv->sedp_writer_type = make_special_type_plist ("PublicationBuiltinTopicData", PID_ENDPOINT_GUID);
-  gv->pmd_type = make_special_type_pserop ("ParticipantMessageData", sizeof (ParticipantMessageData_t), participant_message_data_nops, participant_message_data_ops, participant_message_data_nops_key, participant_message_data_ops_key);
+  gv->pmd_type = make_special_type_pserop ("ddsi_participant_message_data", sizeof (ddsi_participant_message_data_t), ddsi_participant_message_data_nops, ddsi_participant_message_data_ops, ddsi_participant_message_data_nops_key, ddsi_participant_message_data_ops_key);
 #ifdef DDS_HAS_TYPE_DISCOVERY
   gv->tl_svc_request_type = make_special_type_cdrstream (gv, &DDS_Builtin_TypeLookup_Request_desc);
   gv->tl_svc_reply_type = make_special_type_cdrstream (gv, &DDS_Builtin_TypeLookup_Reply_desc);
@@ -880,7 +880,7 @@ static void make_special_types (struct ddsi_domaingv *gv)
   gv->spdp_secure_type = make_special_type_plist ("ParticipantBuiltinTopicDataSecure", PID_PARTICIPANT_GUID);
   gv->sedp_reader_secure_type = make_special_type_plist ("SubscriptionBuiltinTopicDataSecure", PID_ENDPOINT_GUID);
   gv->sedp_writer_secure_type = make_special_type_plist ("PublicationBuiltinTopicDataSecure", PID_ENDPOINT_GUID);
-  gv->pmd_secure_type = make_special_type_pserop ("ParticipantMessageDataSecure", sizeof (ParticipantMessageData_t), participant_message_data_nops, participant_message_data_ops, participant_message_data_nops_key, participant_message_data_ops_key);
+  gv->pmd_secure_type = make_special_type_pserop ("ddsi_participant_message_dataSecure", sizeof (ddsi_participant_message_data_t), ddsi_participant_message_data_nops, ddsi_participant_message_data_ops, ddsi_participant_message_data_nops_key, ddsi_participant_message_data_ops_key);
   gv->pgm_stateless_type = make_special_type_pserop ("ParticipantStatelessMessage", sizeof (nn_participant_generic_message_t), pserop_participant_generic_message_nops, pserop_participant_generic_message, 0, NULL);
   gv->pgm_volatile_type = make_special_type_pserop ("ParticipantVolatileMessageSecure", sizeof (nn_participant_generic_message_t), pserop_participant_generic_message_nops, pserop_participant_generic_message, 0, NULL);
 #endif

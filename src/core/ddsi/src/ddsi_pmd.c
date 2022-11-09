@@ -36,41 +36,41 @@
 /* note: treating guid prefix + kind as if it were a GUID because that matches
    the octet-sequence/sequence-of-uint32 distinction between the specified wire
    representation and the internal representation */
-const enum ddsi_pserop participant_message_data_ops[] = { XG, XO, XSTOP };
-size_t participant_message_data_nops = sizeof (participant_message_data_ops) / sizeof (participant_message_data_ops[0]);
-const enum ddsi_pserop participant_message_data_ops_key[] = { XG, XSTOP };
-size_t participant_message_data_nops_key = sizeof (participant_message_data_ops_key) / sizeof (participant_message_data_ops_key[0]);
+const enum ddsi_pserop ddsi_participant_message_data_ops[] = { XG, XO, XSTOP };
+size_t ddsi_participant_message_data_nops = sizeof (ddsi_participant_message_data_ops) / sizeof (ddsi_participant_message_data_ops[0]);
+const enum ddsi_pserop ddsi_participant_message_data_ops_key[] = { XG, XSTOP };
+size_t ddsi_participant_message_data_nops_key = sizeof (ddsi_participant_message_data_ops_key) / sizeof (ddsi_participant_message_data_ops_key[0]);
 
-void write_pmd_message_guid (struct ddsi_domaingv * const gv, struct ddsi_guid *pp_guid, unsigned pmd_kind)
+void ddsi_write_pmd_message_guid (struct ddsi_domaingv * const gv, struct ddsi_guid *pp_guid, unsigned pmd_kind)
 {
   struct thread_state * const thrst = ddsi_lookup_thread_state ();
   struct lease *lease;
   thread_state_awake (thrst, gv);
   struct ddsi_participant *pp = ddsi_entidx_lookup_participant_guid (gv->entity_index, pp_guid);
   if (pp == NULL)
-    GVTRACE ("write_pmd_message("PGUIDFMT") - builtin pmd writer not found\n", PGUID (*pp_guid));
+    GVTRACE ("ddsi_write_pmd_message ("PGUIDFMT") - builtin pmd writer not found\n", PGUID (*pp_guid));
   else
   {
     if ((lease = ddsrt_atomic_ldvoidp (&pp->minl_man)) != NULL)
       lease_renew (lease, ddsrt_time_elapsed());
-    write_pmd_message (thrst, NULL, pp, pmd_kind);
+    ddsi_write_pmd_message (thrst, NULL, pp, pmd_kind);
   }
   thread_state_asleep (thrst);
 }
 
-void write_pmd_message (struct thread_state * const thrst, struct nn_xpack *xp, struct ddsi_participant *pp, unsigned pmd_kind)
+void ddsi_write_pmd_message (struct thread_state * const thrst, struct nn_xpack *xp, struct ddsi_participant *pp, unsigned pmd_kind)
 {
 #define PMD_DATA_LENGTH 1
   struct ddsi_domaingv * const gv = pp->e.gv;
   struct ddsi_writer *wr;
   unsigned char data[PMD_DATA_LENGTH] = { 0 };
-  ParticipantMessageData_t pmd;
+  ddsi_participant_message_data_t pmd;
   struct ddsi_serdata *serdata;
   struct ddsi_tkmap_instance *tk;
 
   if ((wr = ddsi_get_builtin_writer (pp, NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER)) == NULL)
   {
-    GVTRACE ("write_pmd_message("PGUIDFMT") - builtin pmd writer not found\n", PGUID (pp->e.guid));
+    GVTRACE ("ddsi_write_pmd_message ("PGUIDFMT") - builtin pmd writer not found\n", PGUID (pp->e.guid));
     return;
   }
 
@@ -87,7 +87,7 @@ void write_pmd_message (struct thread_state * const thrst, struct nn_xpack *xp, 
 #undef PMD_DATA_LENGTH
 }
 
-void handle_pmd_message (const struct receiver_state *rst, struct ddsi_serdata *sample_common)
+void ddsi_handle_pmd_message (const struct receiver_state *rst, struct ddsi_serdata *sample_common)
 {
   /* use sample with knowledge of internal representation: there's a deserialized sample inside already */
   const struct ddsi_serdata_pserop *sample = (const struct ddsi_serdata_pserop *) sample_common;
@@ -98,7 +98,7 @@ void handle_pmd_message (const struct receiver_state *rst, struct ddsi_serdata *
   switch (sample->c.statusinfo & (NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER))
   {
     case 0: {
-      const ParticipantMessageData_t *pmd = sample->sample;
+      const ddsi_participant_message_data_t *pmd = sample->sample;
       RSTTRACE (" pp %"PRIx32":%"PRIx32":%"PRIx32" kind %"PRIu32" data %"PRIu32, PGUIDPREFIX (pmd->participantGuidPrefix), pmd->kind, pmd->value.length);
       ppguid.prefix = pmd->participantGuidPrefix;
       ppguid.entityid.u = NN_ENTITYID_PARTICIPANT;
@@ -116,7 +116,7 @@ void handle_pmd_message (const struct receiver_state *rst, struct ddsi_serdata *
     case NN_STATUSINFO_DISPOSE:
     case NN_STATUSINFO_UNREGISTER:
     case NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER: {
-      const ParticipantMessageData_t *pmd = sample->sample;
+      const ddsi_participant_message_data_t *pmd = sample->sample;
       ppguid.prefix = pmd->participantGuidPrefix;
       ppguid.entityid.u = NN_ENTITYID_PARTICIPANT;
       if (ddsi_delete_proxy_participant_by_guid (rst->gv, &ppguid, sample->c.timestamp, 0) < 0)

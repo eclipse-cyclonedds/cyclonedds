@@ -2122,7 +2122,7 @@ int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const str
       break;
     case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER:
     case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_WRITER:
-      handle_pmd_message (sampleinfo->rst, d);
+      ddsi_handle_pmd_message (sampleinfo->rst, d);
       break;
 #ifdef DDS_HAS_TYPE_DISCOVERY
     case NN_ENTITYID_TL_SVC_BUILTIN_REQUEST_WRITER:

@@ -1083,7 +1083,7 @@ static void handle_xevk_pmd_update (struct thread_state * const thrst, struct nn
     return;
   }
 
-  write_pmd_message (thrst, xp, pp, PARTICIPANT_MESSAGE_DATA_KIND_AUTOMATIC_LIVELINESS_UPDATE);
+  ddsi_write_pmd_message (thrst, xp, pp, PARTICIPANT_MESSAGE_DATA_KIND_AUTOMATIC_LIVELINESS_UPDATE);
 
   intv = ddsi_participant_get_pmd_interval (pp);
   if (intv == DDS_INFINITY)
