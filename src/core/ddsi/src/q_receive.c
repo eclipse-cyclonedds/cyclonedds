@@ -65,6 +65,7 @@
 #include "ddsi__proxy_endpoint.h"
 #include "ddsi__tran.h"
 #include "ddsi__vendor.h"
+#include "ddsi__hbcontrol.h"
 
 #include "dds/cdr/dds_cdrstream.h"
 #include "dds__whc.h"
@@ -1125,7 +1126,7 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
        gradually lowering rate.  If we just got a request for a
        retransmit, and there is more to be retransmitted, surely the
        rate should be kept up for now */
-    writer_hbcontrol_note_asyncwrite (wr, ddsrt_time_monotonic ());
+    ddsi_writer_hbcontrol_note_asyncwrite (wr, ddsrt_time_monotonic ());
   }
   /* If "final" flag not set, we must respond with a heartbeat. Do it
      now if we haven't done so already */
@@ -1707,7 +1708,7 @@ static int handle_NackFrag (struct receiver_state *rst, ddsrt_etime_t tnow, cons
     struct whc_state whcst;
     whc_get_state(wr->whc, &whcst);
     defer_heartbeat_to_peer (wr, &whcst, prd, 1, defer_hb_state);
-    writer_hbcontrol_note_asyncwrite (wr, ddsrt_time_monotonic ());
+    ddsi_writer_hbcontrol_note_asyncwrite (wr, ddsrt_time_monotonic ());
   }
 
  out:

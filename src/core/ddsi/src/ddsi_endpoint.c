@@ -44,6 +44,7 @@
 #include "ddsi__typelib.h"
 #include "ddsi__vendor.h"
 #include "ddsi__xqos.h"
+#include "ddsi__hbcontrol.h"
 #include "dds/dds.h"
 
 static dds_return_t delete_writer_nolinger_locked (struct ddsi_writer *wr);
@@ -732,7 +733,7 @@ static void ddsi_new_writer_guid_common_init (struct ddsi_writer *wr, const char
   wr->hbcount = 1;
   wr->state = WRST_OPERATIONAL;
   wr->hbfragcount = 1;
-  writer_hbcontrol_init (&wr->hbcontrol);
+  ddsi_writer_hbcontrol_init (&wr->hbcontrol);
   wr->throttling = 0;
   wr->retransmitting = 0;
   wr->t_rexmit_end.v = 0;

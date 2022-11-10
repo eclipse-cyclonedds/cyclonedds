@@ -48,6 +48,7 @@
 #include "ddsi__plist.h"
 #include "ddsi__proxy_endpoint.h"
 #include "ddsi__tran.h"
+#include "ddsi__hbcontrol.h"
 #include "dds__whc.h"
 
 #include "dds/ddsi/sysdeps.h"
@@ -633,15 +634,15 @@ static int send_heartbeat_to_all_readers_check_and_sched (struct xevent *ev, str
     wr->hbcontrol.tsched = DDSRT_MTIME_NEVER;
     send = -1;
   }
-  else if (!writer_hbcontrol_must_send (wr, whcst, tnow))
+  else if (!ddsi_writer_hbcontrol_must_send (wr, whcst, tnow))
   {
-    wr->hbcontrol.tsched = ddsrt_mtime_add_duration (tnow, writer_hbcontrol_intv (wr, whcst, tnow));
+    wr->hbcontrol.tsched = ddsrt_mtime_add_duration (tnow, ddsi_writer_hbcontrol_intv (wr, whcst, tnow));
     send = -1;
   }
   else
   {
-    const int hbansreq = writer_hbcontrol_ack_required (wr, whcst, tnow);
-    wr->hbcontrol.tsched = ddsrt_mtime_add_duration (tnow, writer_hbcontrol_intv (wr, whcst, tnow));
+    const int hbansreq = ddsi_writer_hbcontrol_ack_required (wr, whcst, tnow);
+    wr->hbcontrol.tsched = ddsrt_mtime_add_duration (tnow, ddsi_writer_hbcontrol_intv (wr, whcst, tnow));
     send = hbansreq;
   }
 
@@ -754,17 +755,17 @@ static void handle_xevk_heartbeat (struct nn_xpack *xp, struct xevent *ev, ddsrt
     msg = NULL; /* Need not send it now, and no need to schedule it for the future */
     t_next.v = DDS_NEVER;
   }
-  else if (!writer_hbcontrol_must_send (wr, &whcst, tnow))
+  else if (!ddsi_writer_hbcontrol_must_send (wr, &whcst, tnow))
   {
     hbansreq = 1; /* just for trace */
     msg = NULL;
-    t_next.v = tnow.v + writer_hbcontrol_intv (wr, &whcst, tnow);
+    t_next.v = tnow.v + ddsi_writer_hbcontrol_intv (wr, &whcst, tnow);
   }
   else
   {
-    hbansreq = writer_hbcontrol_ack_required (wr, &whcst, tnow);
-    msg = writer_hbcontrol_create_heartbeat (wr, &whcst, tnow, hbansreq, 0);
-    t_next.v = tnow.v + writer_hbcontrol_intv (wr, &whcst, tnow);
+    hbansreq = ddsi_writer_hbcontrol_ack_required (wr, &whcst, tnow);
+    msg = ddsi_writer_hbcontrol_create_heartbeat (wr, &whcst, tnow, hbansreq, 0);
+    t_next.v = tnow.v + ddsi_writer_hbcontrol_intv (wr, &whcst, tnow);
   }
 
   if (ddsrt_avl_is_empty (&wr->readers))

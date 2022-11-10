@@ -1,0 +1,43 @@
+/*
+ * Copyright(c) 2006 to 2020 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
+#ifndef DDSI__HBCONTROL_H
+#define DDSI__HBCONTROL_H
+
+#include "dds/features.h"
+#include "dds/ddsi/ddsi_hbcontrol.h"
+
+#if defined (__cplusplus)
+extern "C" {
+#endif
+
+struct ddsi_writer;
+struct whc_state;
+struct ddsi_proxy_reader;
+
+void ddsi_writer_hbcontrol_init (struct ddsi_hbcontrol *hbc);
+int64_t ddsi_writer_hbcontrol_intv (const struct ddsi_writer *wr, const struct whc_state *whcst, ddsrt_mtime_t tnow);
+void ddsi_writer_hbcontrol_note_asyncwrite (struct ddsi_writer *wr, ddsrt_mtime_t tnow);
+int ddsi_writer_hbcontrol_ack_required (const struct ddsi_writer *wr, const struct whc_state *whcst, ddsrt_mtime_t tnow);
+struct nn_xmsg *ddsi_writer_hbcontrol_piggyback (struct ddsi_writer *wr, const struct whc_state *whcst, ddsrt_mtime_t tnow, uint32_t packetid, int *hbansreq);
+int ddsi_writer_hbcontrol_must_send (const struct ddsi_writer *wr, const struct whc_state *whcst, ddsrt_mtime_t tnow);
+struct nn_xmsg *ddsi_writer_hbcontrol_create_heartbeat (struct ddsi_writer *wr, const struct whc_state *whcst, ddsrt_mtime_t tnow, int hbansreq, int issync);
+
+#ifdef DDS_HAS_SECURITY
+struct nn_xmsg *writer_hbcontrol_p2p(struct ddsi_writer *wr, const struct whc_state *whcst, int hbansreq, struct ddsi_proxy_reader *prd);
+#endif
+
+
+#if defined (__cplusplus)
+}
+#endif
+
+#endif /* DDSI__HBCONTROL_H */

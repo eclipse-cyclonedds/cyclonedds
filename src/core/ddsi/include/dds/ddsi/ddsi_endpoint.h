@@ -17,7 +17,7 @@
 
 #include "dds/ddsrt/fibheap.h"
 #include "dds/ddsi/ddsi_entity.h"
-#include "dds/ddsi/q_hbcontrol.h"
+#include "dds/ddsi/ddsi_hbcontrol.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -76,7 +76,7 @@ struct ddsi_writer
   ddsi_count_t hbcount; /* last hb seq number */
   ddsi_count_t hbfragcount; /* last hb frag seq number */
   int throttling; /* non-zero when some thread is waiting for the WHC to shrink */
-  struct hbcontrol hbcontrol; /* controls heartbeat timing, piggybacking */
+  struct ddsi_hbcontrol hbcontrol; /* controls heartbeat timing, piggybacking */
   struct dds_qos *xqos;
   enum ddsi_writer_state state;
   unsigned reliable: 1; /* iff 1, writer is reliable <=> heartbeat_xevent != NULL */

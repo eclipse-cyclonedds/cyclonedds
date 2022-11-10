@@ -31,7 +31,7 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_transmit.h"
 #include "dds/ddsi/q_unused.h"
-#include "dds/ddsi/q_hbcontrol.h"
+#include "ddsi__hbcontrol.h"
 #include "dds/ddsi/q_receive.h"
 #include "dds/ddsi/q_lease.h"
 #include "dds/ddsi/ddsi_tkmap.h"
@@ -59,7 +59,7 @@ static int have_reliable_subs (const struct ddsi_writer *wr)
     return 1;
 }
 
-void writer_hbcontrol_init (struct hbcontrol *hbc)
+void ddsi_writer_hbcontrol_init (struct ddsi_hbcontrol *hbc)
 {
   hbc->t_of_last_write.v = 0;
   hbc->t_of_last_hb.v = 0;
@@ -71,7 +71,7 @@ void writer_hbcontrol_init (struct hbcontrol *hbc)
 
 static void writer_hbcontrol_note_hb (struct ddsi_writer *wr, ddsrt_mtime_t tnow, int ansreq)
 {
-  struct hbcontrol * const hbc = &wr->hbcontrol;
+  struct ddsi_hbcontrol * const hbc = &wr->hbcontrol;
 
   if (ansreq)
     hbc->t_of_last_ackhb = tnow;
@@ -83,10 +83,10 @@ static void writer_hbcontrol_note_hb (struct ddsi_writer *wr, ddsrt_mtime_t tnow
   hbc->hbs_since_last_write++;
 }
 
-int64_t writer_hbcontrol_intv (const struct ddsi_writer *wr, const struct whc_state *whcst, UNUSED_ARG (ddsrt_mtime_t tnow))
+int64_t ddsi_writer_hbcontrol_intv (const struct ddsi_writer *wr, const struct whc_state *whcst, UNUSED_ARG (ddsrt_mtime_t tnow))
 {
   struct ddsi_domaingv const * const gv = wr->e.gv;
-  struct hbcontrol const * const hbc = &wr->hbcontrol;
+  struct ddsi_hbcontrol const * const hbc = &wr->hbcontrol;
   int64_t ret = gv->config.const_hb_intv_sched;
   size_t n_unacked;
 
@@ -109,10 +109,10 @@ int64_t writer_hbcontrol_intv (const struct ddsi_writer *wr, const struct whc_st
   return ret;
 }
 
-void writer_hbcontrol_note_asyncwrite (struct ddsi_writer *wr, ddsrt_mtime_t tnow)
+void ddsi_writer_hbcontrol_note_asyncwrite (struct ddsi_writer *wr, ddsrt_mtime_t tnow)
 {
   struct ddsi_domaingv const * const gv = wr->e.gv;
-  struct hbcontrol * const hbc = &wr->hbcontrol;
+  struct ddsi_hbcontrol * const hbc = &wr->hbcontrol;
   ddsrt_mtime_t tnext;
 
   /* Reset number of heartbeats since last write: that means the
@@ -132,13 +132,13 @@ void writer_hbcontrol_note_asyncwrite (struct ddsi_writer *wr, ddsrt_mtime_t tno
   }
 }
 
-int writer_hbcontrol_must_send (const struct ddsi_writer *wr, const struct whc_state *whcst, ddsrt_mtime_t tnow /* monotonic */)
+int ddsi_writer_hbcontrol_must_send (const struct ddsi_writer *wr, const struct whc_state *whcst, ddsrt_mtime_t tnow /* monotonic */)
 {
-  struct hbcontrol const * const hbc = &wr->hbcontrol;
-  return (tnow.v >= hbc->t_of_last_hb.v + writer_hbcontrol_intv (wr, whcst, tnow));
+  struct ddsi_hbcontrol const * const hbc = &wr->hbcontrol;
+  return (tnow.v >= hbc->t_of_last_hb.v + ddsi_writer_hbcontrol_intv (wr, whcst, tnow));
 }
 
-struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct ddsi_writer *wr, const struct whc_state *whcst, ddsrt_mtime_t tnow, int hbansreq, int issync)
+struct nn_xmsg *ddsi_writer_hbcontrol_create_heartbeat (struct ddsi_writer *wr, const struct whc_state *whcst, ddsrt_mtime_t tnow, int hbansreq, int issync)
 {
   struct ddsi_domaingv const * const gv = wr->e.gv;
   struct nn_xmsg *msg;
@@ -241,7 +241,7 @@ struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct ddsi_writer *wr, const
 static int writer_hbcontrol_ack_required_generic (const struct ddsi_writer *wr, const struct whc_state *whcst, ddsrt_mtime_t tlast, ddsrt_mtime_t tnow, int piggyback)
 {
   struct ddsi_domaingv const * const gv = wr->e.gv;
-  struct hbcontrol const * const hbc = &wr->hbcontrol;
+  struct ddsi_hbcontrol const * const hbc = &wr->hbcontrol;
   const int64_t hb_intv_ack = gv->config.const_hb_intv_sched;
   assert(wr->heartbeat_xevent != NULL && whcst != NULL);
 
@@ -274,15 +274,15 @@ static int writer_hbcontrol_ack_required_generic (const struct ddsi_writer *wr, 
   return 0;
 }
 
-int writer_hbcontrol_ack_required (const struct ddsi_writer *wr, const struct whc_state *whcst, ddsrt_mtime_t tnow)
+int ddsi_writer_hbcontrol_ack_required (const struct ddsi_writer *wr, const struct whc_state *whcst, ddsrt_mtime_t tnow)
 {
-  struct hbcontrol const * const hbc = &wr->hbcontrol;
+  struct ddsi_hbcontrol const * const hbc = &wr->hbcontrol;
   return writer_hbcontrol_ack_required_generic (wr, whcst, hbc->t_of_last_write, tnow, 0);
 }
 
-struct nn_xmsg *writer_hbcontrol_piggyback (struct ddsi_writer *wr, const struct whc_state *whcst, ddsrt_mtime_t tnow, uint32_t packetid, int *hbansreq)
+struct nn_xmsg *ddsi_writer_hbcontrol_piggyback (struct ddsi_writer *wr, const struct whc_state *whcst, ddsrt_mtime_t tnow, uint32_t packetid, int *hbansreq)
 {
-  struct hbcontrol * const hbc = &wr->hbcontrol;
+  struct ddsi_hbcontrol * const hbc = &wr->hbcontrol;
   uint32_t last_packetid;
   ddsrt_mtime_t tlast;
   ddsrt_mtime_t t_of_last_hb;
@@ -298,13 +298,13 @@ struct nn_xmsg *writer_hbcontrol_piggyback (struct ddsi_writer *wr, const struct
   /* Update statistics, intervals, scheduling of heartbeat event,
      &c. -- there's no real difference between async and sync so we
      reuse the async version. */
-  writer_hbcontrol_note_asyncwrite (wr, tnow);
+  ddsi_writer_hbcontrol_note_asyncwrite (wr, tnow);
 
   *hbansreq = writer_hbcontrol_ack_required_generic (wr, whcst, tlast, tnow, 1);
   if (*hbansreq >= 2) {
     /* So we force a heartbeat in - but we also rely on our caller to
        send the packet out */
-    msg = writer_hbcontrol_create_heartbeat (wr, whcst, tnow, *hbansreq, 1);
+    msg = ddsi_writer_hbcontrol_create_heartbeat (wr, whcst, tnow, *hbansreq, 1);
   } else if (last_packetid != packetid && tnow.v - t_of_last_hb.v > DDS_USECS (100)) {
     /* If we crossed a packet boundary since the previous write,
        piggyback a heartbeat, with *hbansreq determining whether or
@@ -317,7 +317,7 @@ struct nn_xmsg *writer_hbcontrol_piggyback (struct ddsi_writer *wr, const struct
        storm if writing at a high rate without batching which eats up
        a *large* amount of time because there are out-of-order readers
        present. */
-    msg = writer_hbcontrol_create_heartbeat (wr, whcst, tnow, *hbansreq, 1);
+    msg = ddsi_writer_hbcontrol_create_heartbeat (wr, whcst, tnow, *hbansreq, 1);
   } else {
     *hbansreq = 0;
     msg = NULL;
@@ -857,7 +857,7 @@ static void transmit_sample_unlocks_wr (struct nn_xpack *xp, struct ddsi_writer 
   }
 
   if (wr->heartbeat_xevent)
-    hmsg = writer_hbcontrol_piggyback (wr, whcst, serdata->twrite, nn_xpack_packetid (xp), &hbansreq);
+    hmsg = ddsi_writer_hbcontrol_piggyback (wr, whcst, serdata->twrite, nn_xpack_packetid (xp), &hbansreq);
   ddsrt_mutex_unlock (&wr->e.lock);
 
   if(hmsg)
@@ -1073,7 +1073,7 @@ static dds_return_t throttle_writer (struct thread_state * const thrst, struct n
      things the wrong way round ... */
   if (xp)
   {
-    struct nn_xmsg *hbmsg = writer_hbcontrol_create_heartbeat (wr, &whcst, tnow, 1, 1);
+    struct nn_xmsg *hbmsg = ddsi_writer_hbcontrol_create_heartbeat (wr, &whcst, tnow, 1, 1);
     ddsrt_mutex_unlock (&wr->e.lock);
     if (hbmsg)
     {
@@ -1193,7 +1193,7 @@ int write_sample_p2p_wrlock_held(struct ddsi_writer *wr, seqno_t seq, struct dds
       qxev_msg (wr->evq, gap);
 
     if (wr->heartbeat_xevent)
-      writer_hbcontrol_note_asyncwrite(wr, tnow);
+      ddsi_writer_hbcontrol_note_asyncwrite(wr, tnow);
   }
   else if (gap)
   {
@@ -1321,7 +1321,7 @@ static int write_sample (struct thread_state * const thrst, struct nn_xpack *xp,
     else
     {
       if (wr->heartbeat_xevent)
-        writer_hbcontrol_note_asyncwrite (wr, tnow);
+        ddsi_writer_hbcontrol_note_asyncwrite (wr, tnow);
       if (wr->e.guid.entityid.u == NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER)
         enqueue_spdp_sample_wrlock_held(wr, seq, serdata, NULL);
       else

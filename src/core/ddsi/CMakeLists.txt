@@ -124,7 +124,7 @@ set(hdrs_ddsi
   ddsi_addrset.h
   ddsi_feature_check.h
   ddsi_freelist.h
-  q_hbcontrol.h
+  ddsi_hbcontrol.h
   q_lat_estim.h
   q_lease.h
   q_log.h
@@ -192,6 +192,7 @@ set(hdrs_private_ddsi
   ddsi__bswap.h
   ddsi__discovery.h
   ddsi__debmon.h
+  ddsi__hbcontrol.h
 )
 
 if(ENABLE_LIFESPAN)
