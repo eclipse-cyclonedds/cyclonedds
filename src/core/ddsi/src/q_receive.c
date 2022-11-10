@@ -29,7 +29,7 @@
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/q_unused.h"
-#include "dds/ddsi/q_bswap.h"
+#include "ddsi__bswap.h"
 #include "dds/ddsi/q_lat_estim.h"
 #include "ddsi__bitset.h"
 #include "dds/ddsi/q_xevent.h"
@@ -162,11 +162,11 @@ static enum validation_result validate_AckNack (const struct receiver_state *rst
     return VR_MALFORMED;
   if (byteswap)
   {
-    bswap_sequence_number_set_hdr (&msg->readerSNState);
+    ddsi_bswap_sequence_number_set_hdr (&msg->readerSNState);
     /* bits[], count deferred until validation of fixed part */
   }
-  msg->readerId = nn_ntoh_entityid (msg->readerId);
-  msg->writerId = nn_ntoh_entityid (msg->writerId);
+  msg->readerId = ddsi_ntoh_entityid (msg->readerId);
+  msg->writerId = ddsi_ntoh_entityid (msg->writerId);
   /* Validation following 8.3.7.1.3 + 8.3.5.5 */
   seqno_t ackseq;
   if (!valid_sequence_number_set (&msg->readerSNState, &ackseq))
@@ -187,7 +187,7 @@ static enum validation_result validate_AckNack (const struct receiver_state *rst
   count = (ddsi_count_t *) ((char *) &msg->bits + DDSI_SEQUENCE_NUMBER_SET_BITS_SIZE (msg->readerSNState.numbits));
   if (byteswap)
   {
-    bswap_sequence_number_set_bitmap (&msg->readerSNState, msg->bits);
+    ddsi_bswap_sequence_number_set_bitmap (&msg->readerSNState, msg->bits);
     *count = ddsrt_bswap4u (*count);
   }
   // do reader/writer entity id validation last: if it returns "NOT_UNDERSTOOD" for an
@@ -203,11 +203,11 @@ static enum validation_result validate_Gap (ddsi_rtps_gap_t *msg, size_t size, i
     return VR_MALFORMED;
   if (byteswap)
   {
-    bswapSN (&msg->gapStart);
-    bswap_sequence_number_set_hdr (&msg->gapList);
+    ddsi_bswap_sequence_number (&msg->gapStart);
+    ddsi_bswap_sequence_number_set_hdr (&msg->gapList);
   }
-  msg->readerId = nn_ntoh_entityid (msg->readerId);
-  msg->writerId = nn_ntoh_entityid (msg->writerId);
+  msg->readerId = ddsi_ntoh_entityid (msg->readerId);
+  msg->writerId = ddsi_ntoh_entityid (msg->writerId);
   seqno_t gapstart;
   if (!validating_fromSN (msg->gapStart, &gapstart))
     return VR_MALFORMED;
@@ -223,7 +223,7 @@ static enum validation_result validate_Gap (ddsi_rtps_gap_t *msg, size_t size, i
   if (size < DDSI_GAP_SIZE (msg->gapList.numbits))
     return VR_MALFORMED;
   if (byteswap)
-    bswap_sequence_number_set_bitmap (&msg->gapList, msg->bits);
+    ddsi_bswap_sequence_number_set_bitmap (&msg->gapList, msg->bits);
   // do reader/writer entity id validation last: if it returns "NOT_UNDERSTOOD" for an
   // otherwise malformed message, we still need to discard the message in its entirety
   return validate_writer_and_reader_or_null_entityid (msg->writerId, msg->readerId);
@@ -267,12 +267,12 @@ static enum validation_result validate_Heartbeat (ddsi_rtps_heartbeat_t *msg, si
     return VR_MALFORMED;
   if (byteswap)
   {
-    bswapSN (&msg->firstSN);
-    bswapSN (&msg->lastSN);
+    ddsi_bswap_sequence_number (&msg->firstSN);
+    ddsi_bswap_sequence_number (&msg->lastSN);
     msg->count = ddsrt_bswap4u (msg->count);
   }
-  msg->readerId = nn_ntoh_entityid (msg->readerId);
-  msg->writerId = nn_ntoh_entityid (msg->writerId);
+  msg->readerId = ddsi_ntoh_entityid (msg->readerId);
+  msg->writerId = ddsi_ntoh_entityid (msg->writerId);
   /* Validation following 8.3.7.5.3; lastSN + 1 == firstSN: no data; test using
      firstSN-1 because lastSN+1 can overflow and we already know firstSN-1 >= 0 */
   if (fromSN (msg->firstSN) <= 0 || fromSN (msg->lastSN) < fromSN (msg->firstSN) - 1)
@@ -288,12 +288,12 @@ static enum validation_result validate_HeartbeatFrag (ddsi_rtps_heartbeatfrag_t 
     return VR_MALFORMED;
   if (byteswap)
   {
-    bswapSN (&msg->writerSN);
+    ddsi_bswap_sequence_number (&msg->writerSN);
     msg->lastFragmentNum = ddsrt_bswap4u (msg->lastFragmentNum);
     msg->count = ddsrt_bswap4u (msg->count);
   }
-  msg->readerId = nn_ntoh_entityid (msg->readerId);
-  msg->writerId = nn_ntoh_entityid (msg->writerId);
+  msg->readerId = ddsi_ntoh_entityid (msg->readerId);
+  msg->writerId = ddsi_ntoh_entityid (msg->writerId);
   if (fromSN (msg->writerSN) <= 0 || msg->lastFragmentNum == 0)
     return VR_MALFORMED;
   // do reader/writer entity id validation last: if it returns "NOT_UNDERSTOOD" for an
@@ -308,12 +308,12 @@ static enum validation_result validate_NackFrag (ddsi_rtps_nackfrag_t *msg, size
     return VR_MALFORMED;
   if (byteswap)
   {
-    bswapSN (&msg->writerSN);
-    bswap_fragment_number_set_hdr (&msg->fragmentNumberState);
+    ddsi_bswap_sequence_number (&msg->writerSN);
+    ddsi_bswap_fragment_number_set_hdr (&msg->fragmentNumberState);
     /* bits[], count deferred until validation of fixed part */
   }
-  msg->readerId = nn_ntoh_entityid (msg->readerId);
-  msg->writerId = nn_ntoh_entityid (msg->writerId);
+  msg->readerId = ddsi_ntoh_entityid (msg->readerId);
+  msg->writerId = ddsi_ntoh_entityid (msg->writerId);
   /* Validation following 8.3.7.1.3 + 8.3.5.5 */
   if (!valid_fragment_number_set (&msg->fragmentNumberState))
     return VR_MALFORMED;
@@ -324,7 +324,7 @@ static enum validation_result validate_NackFrag (ddsi_rtps_nackfrag_t *msg, size
   count = (ddsi_count_t *) ((char *) &msg->bits + DDSI_FRAGMENT_NUMBER_SET_BITS_SIZE (msg->fragmentNumberState.numbits));
   if (byteswap)
   {
-    bswap_fragment_number_set_bitmap (&msg->fragmentNumberState, msg->bits);
+    ddsi_bswap_fragment_number_set_bitmap (&msg->fragmentNumberState, msg->bits);
     *count = ddsrt_bswap4u (*count);
   }
   // do reader/writer entity id validation last: if it returns "NOT_UNDERSTOOD" for an
@@ -367,14 +367,14 @@ static enum validation_result validate_Data (const struct receiver_state *rst, d
   {
     msg->x.extraFlags = ddsrt_bswap2u (msg->x.extraFlags);
     msg->x.octetsToInlineQos = ddsrt_bswap2u (msg->x.octetsToInlineQos);
-    bswapSN (&msg->x.writerSN);
+    ddsi_bswap_sequence_number (&msg->x.writerSN);
   }
   if ((msg->x.octetsToInlineQos % 4) != 0) {
     // Not quite clear whether this is actually required
     return VR_MALFORMED;
   }
-  msg->x.readerId = nn_ntoh_entityid (msg->x.readerId);
-  msg->x.writerId = nn_ntoh_entityid (msg->x.writerId);
+  msg->x.readerId = ddsi_ntoh_entityid (msg->x.readerId);
+  msg->x.writerId = ddsi_ntoh_entityid (msg->x.writerId);
   pwr_guid.prefix = rst->src_guid_prefix;
   pwr_guid.entityid = msg->x.writerId;
 
@@ -462,7 +462,7 @@ static enum validation_result validate_DataFrag (const struct receiver_state *rs
   {
     msg->x.extraFlags = ddsrt_bswap2u (msg->x.extraFlags);
     msg->x.octetsToInlineQos = ddsrt_bswap2u (msg->x.octetsToInlineQos);
-    bswapSN (&msg->x.writerSN);
+    ddsi_bswap_sequence_number (&msg->x.writerSN);
     msg->fragmentStartingNum = ddsrt_bswap4u (msg->fragmentStartingNum);
     msg->fragmentsInSubmessage = ddsrt_bswap2u (msg->fragmentsInSubmessage);
     msg->fragmentSize = ddsrt_bswap2u (msg->fragmentSize);
@@ -472,8 +472,8 @@ static enum validation_result validate_DataFrag (const struct receiver_state *rs
     // Not quite clear whether this is actually required
     return VR_MALFORMED;
   }
-  msg->x.readerId = nn_ntoh_entityid (msg->x.readerId);
-  msg->x.writerId = nn_ntoh_entityid (msg->x.writerId);
+  msg->x.readerId = ddsi_ntoh_entityid (msg->x.readerId);
+  msg->x.writerId = ddsi_ntoh_entityid (msg->x.writerId);
   pwr_guid.prefix = rst->src_guid_prefix;
   pwr_guid.entityid = msg->x.writerId;
 
@@ -566,8 +566,8 @@ int add_Gap (struct nn_xmsg *msg, struct ddsi_writer *wr, struct ddsi_proxy_read
   ASSERT_MUTEX_HELD (wr->e.lock);
   gap = nn_xmsg_append (msg, &sm_marker, DDSI_GAP_SIZE (numbits));
   nn_xmsg_submsg_init (msg, sm_marker, DDSI_RTPS_SMID_GAP);
-  gap->readerId = nn_hton_entityid (prd->e.guid.entityid);
-  gap->writerId = nn_hton_entityid (wr->e.guid.entityid);
+  gap->readerId = ddsi_hton_entityid (prd->e.guid.entityid);
+  gap->writerId = ddsi_hton_entityid (wr->e.guid.entityid);
   gap->gapStart = toSN (start);
   gap->gapList.bitmap_base = toSN (base);
   gap->gapList.numbits = numbits;
@@ -1718,7 +1718,7 @@ static int handle_NackFrag (struct receiver_state *rst, ddsrt_etime_t tnow, cons
 
 static int handle_InfoDST (struct receiver_state *rst, const ddsi_rtps_info_dst_t *msg, const ddsi_guid_prefix_t *dst_prefix)
 {
-  rst->dst_guid_prefix = nn_ntoh_guid_prefix (msg->guid_prefix);
+  rst->dst_guid_prefix = ddsi_ntoh_guid_prefix (msg->guid_prefix);
   RSTTRACE ("INFODST(%"PRIx32":%"PRIx32":%"PRIx32")", PGUIDPREFIX (rst->dst_guid_prefix));
   if (rst->dst_guid_prefix.u[0] == 0 && rst->dst_guid_prefix.u[1] == 0 && rst->dst_guid_prefix.u[2] == 0)
   {
@@ -1739,7 +1739,7 @@ static int handle_InfoDST (struct receiver_state *rst, const ddsi_rtps_info_dst_
 
 static int handle_InfoSRC (struct receiver_state *rst, const ddsi_rtps_info_src_t *msg)
 {
-  rst->src_guid_prefix = nn_ntoh_guid_prefix (msg->guid_prefix);
+  rst->src_guid_prefix = ddsi_ntoh_guid_prefix (msg->guid_prefix);
   rst->protocol_version = msg->version;
   rst->vendor = msg->vendorid;
   RSTTRACE ("INFOSRC(%"PRIx32":%"PRIx32":%"PRIx32" vendor %u.%u)",
@@ -3204,7 +3204,7 @@ static void handle_rtps_message (struct thread_state * const thrst, struct ddsi_
   }
   else
   {
-    hdr->guid_prefix = nn_ntoh_guid_prefix (hdr->guid_prefix);
+    hdr->guid_prefix = ddsi_ntoh_guid_prefix (hdr->guid_prefix);
 
     if (gv->logconfig.c.mask & DDS_LC_TRACE)
     {

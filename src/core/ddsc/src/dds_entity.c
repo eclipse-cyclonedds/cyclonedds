@@ -27,7 +27,6 @@
 #include "dds/ddsi/ddsi_pmd.h"
 #include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/q_transmit.h"
-#include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/ddsi_sertype.h"
@@ -1252,7 +1251,7 @@ dds_return_t dds_get_guid (dds_entity_t entity, dds_guid_t *guid)
     case DDS_KIND_WRITER:
     case DDS_KIND_TOPIC: {
       DDSRT_STATIC_ASSERT (sizeof (dds_guid_t) == sizeof (ddsi_guid_t));
-      ddsi_guid_t tmp = nn_ntoh_guid (e->m_guid);
+      ddsi_guid_t tmp = ddsi_ntoh_guid (e->m_guid);
       memcpy (guid, &tmp, sizeof (*guid));
       ret = DDS_RETCODE_OK;
       break;

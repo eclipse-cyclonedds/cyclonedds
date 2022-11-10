@@ -24,7 +24,6 @@
 
 #include "dds/ddsi/q_log.h"
 
-#include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/ddsi_plist.h"
 #include "ddsi__plist.h"
@@ -1020,7 +1019,7 @@ static dds_return_t deser_generic_r (void * __restrict dst, size_t * __restrict 
         if (dd->bufsz - *srcoff < sizeof (*x))
           goto fail;
         memcpy (x, dd->buf + *srcoff, sizeof (*x));
-        *x = nn_ntoh_guid (*x);
+        *x = ddsi_ntoh_guid (*x);
         *srcoff += sizeof (*x);
         *dstoff += sizeof (*x);
         break;
@@ -1298,7 +1297,7 @@ dds_return_t ddsi_plist_ser_generic_embeddable (char * const data, size_t *dstof
       }
       case XG: { /* GUID */
         ddsi_guid_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (ddsi_guid_t));
-        const ddsi_guid_t xn = nn_hton_guid (*x);
+        const ddsi_guid_t xn = ddsi_hton_guid (*x);
         char * const p = data + *dstoff;
         memcpy (p, &xn, sizeof (xn));
         *dstoff += sizeof (xn);

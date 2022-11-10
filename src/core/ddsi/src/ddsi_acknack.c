@@ -14,7 +14,6 @@
 #include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/q_misc.h"
-#include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/q_log.h"
 #include "ddsi__bitset.h"
@@ -156,8 +155,8 @@ static void add_NackFrag (struct nn_xmsg *msg, const struct ddsi_proxy_writer *p
   nf = nn_xmsg_append (msg, &sm_marker, DDSI_NACKFRAG_SIZE (info->nackfrag.set.numbits));
 
   nn_xmsg_submsg_init (msg, sm_marker, DDSI_RTPS_SMID_NACK_FRAG);
-  nf->readerId = nn_hton_entityid (rwn->rd_guid.entityid);
-  nf->writerId = nn_hton_entityid (pwr->e.guid.entityid);
+  nf->readerId = ddsi_hton_entityid (rwn->rd_guid.entityid);
+  nf->writerId = ddsi_hton_entityid (pwr->e.guid.entityid);
   nf->writerSN = toSN (info->nackfrag.seq);
 #if ACK_REASON_IN_FLAGS
   nf->smhdr.flags |= info->flags;
@@ -199,8 +198,8 @@ static void add_acknack (struct nn_xmsg *msg, const struct ddsi_proxy_writer *pw
 
   an = nn_xmsg_append (msg, &sm_marker, DDSI_ACKNACK_SIZE_MAX);
   nn_xmsg_submsg_init (msg, sm_marker, DDSI_RTPS_SMID_ACKNACK);
-  an->readerId = nn_hton_entityid (rwn->rd_guid.entityid);
-  an->writerId = nn_hton_entityid (pwr->e.guid.entityid);
+  an->readerId = ddsi_hton_entityid (rwn->rd_guid.entityid);
+  an->writerId = ddsi_hton_entityid (pwr->e.guid.entityid);
 
   // set FINAL flag late, in case it is decided that the "response_required" flag
   // should be set depending on the exact AckNack/NackFrag generated

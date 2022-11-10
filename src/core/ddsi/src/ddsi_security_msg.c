@@ -14,7 +14,6 @@
 #include "dds/ddsrt/md5.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
-#include "dds/ddsi/q_bswap.h"
 #include "ddsi__entity.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
 #include "dds/ddsi/q_transmit.h"
@@ -185,7 +184,7 @@ int ddsi_volatile_secure_data_filter(struct ddsi_writer *wr, struct ddsi_proxy_r
   pass = ddsi_is_null_guid(msg_guid);
   if (!pass)
   {
-    pp_guid = nn_hton_guid(prd->c.proxypp->e.guid);
+    pp_guid = ddsi_hton_guid(prd->c.proxypp->e.guid);
     pass = guid_eq(msg_guid, &pp_guid);
   }
 

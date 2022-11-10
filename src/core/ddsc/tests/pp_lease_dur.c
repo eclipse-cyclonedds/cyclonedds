@@ -15,7 +15,7 @@
 #include "dds/dds.h"
 
 #include "dds__entity.h"
-#include "dds/ddsi/q_bswap.h"
+#include "dds/ddsi/ddsi_guid.h"
 #include "dds/ddsi/q_lease.h"
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
@@ -190,7 +190,7 @@ static bool make_pp0_deaf (const dds_entity_t pp[3], const dds_guid_t ppg[3], co
     DDSRT_STATIC_ASSERT (sizeof (dds_guid_t) == sizeof (ddsi_guid_t));
     ddsi_guid_t tmp;
     memcpy (&tmp, &ppg[i], sizeof (tmp));
-    tmp = nn_ntoh_guid (tmp);
+    tmp = ddsi_ntoh_guid (tmp);
     struct ddsi_proxy_participant *proxypp = ddsi_entidx_lookup_proxy_participant_guid (ppe->m_domain->gv.entity_index, &tmp);
     if (proxypp == NULL) {
       // there's always the possibility that adverse timing means it expired just now

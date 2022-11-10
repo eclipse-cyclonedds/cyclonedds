@@ -26,7 +26,6 @@
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 
-#include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_participant.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
@@ -303,7 +302,7 @@ static struct ddsi_serdata *ddsi_serdata_builtin_from_sample (const struct ddsi_
       break;
   }
   struct ddsi_domaingv * const gv = ddsrt_atomic_ldvoidp (&tp->c.gv);
-  x.guid = nn_ntoh_guid (x.guid);
+  x.guid = ddsi_ntoh_guid (x.guid);
   struct ddsi_entity_common *entity = ddsi_entidx_lookup_guid_untyped (gv->entity_index, &x.guid);
   return dds_serdata_builtin_from_endpoint (tpcmn, &x.guid, entity, kind);
 }
@@ -317,7 +316,7 @@ static struct ddsi_serdata *serdata_builtin_to_untyped (const struct ddsi_serdat
 static void convkey (dds_guid_t *key, const ddsi_guid_t *guid)
 {
   ddsi_guid_t tmp;
-  tmp = nn_hton_guid (*guid);
+  tmp = ddsi_hton_guid (*guid);
   memcpy (key, &tmp, sizeof (*key));
 }
 
@@ -485,7 +484,7 @@ static struct ddsi_serdata *ddsi_serdata_builtin_from_sample_topic (const struct
   const dds_builtintopic_topic_t *s = sample;
   union { ddsi_guid_t guid; dds_builtintopic_topic_key_t key; } x;
   x.key = s->key;
-  x.guid = nn_ntoh_guid (x.guid);
+  x.guid = ddsi_ntoh_guid (x.guid);
   struct ddsi_topic_definition templ;
   memset (&templ, 0, sizeof (templ));
   memcpy (&templ.key, &x.key, sizeof (templ.key));

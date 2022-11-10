@@ -23,23 +23,16 @@
 extern "C" {
 #endif
 
-inline void bswapSN (ddsi_sequence_number_t *sn)
+inline void ddsi_bswap_sequence_number (ddsi_sequence_number_t *sn)
 {
   sn->high = ddsrt_bswap4 (sn->high);
   sn->low = ddsrt_bswap4u (sn->low);
 }
 
-ddsi_guid_prefix_t nn_hton_guid_prefix (ddsi_guid_prefix_t p);
-ddsi_guid_prefix_t nn_ntoh_guid_prefix (ddsi_guid_prefix_t p);
-ddsi_entityid_t nn_hton_entityid (ddsi_entityid_t e);
-ddsi_entityid_t nn_ntoh_entityid (ddsi_entityid_t e);
-ddsi_guid_t nn_hton_guid (ddsi_guid_t g);
-ddsi_guid_t nn_ntoh_guid (ddsi_guid_t g);
-
-void bswap_sequence_number_set_hdr (ddsi_sequence_number_set_header_t *snset);
-void bswap_sequence_number_set_bitmap (ddsi_sequence_number_set_header_t *snset, uint32_t *bits);
-void bswap_fragment_number_set_hdr (ddsi_fragment_number_set_header_t *fnset);
-void bswap_fragment_number_set_bitmap (ddsi_fragment_number_set_header_t *fnset, uint32_t *bits);
+void ddsi_bswap_sequence_number_set_hdr (ddsi_sequence_number_set_header_t *snset);
+void ddsi_bswap_sequence_number_set_bitmap (ddsi_sequence_number_set_header_t *snset, uint32_t *bits);
+void ddsi_bswap_fragment_number_set_hdr (ddsi_fragment_number_set_header_t *fnset);
+void ddsi_bswap_fragment_number_set_bitmap (ddsi_fragment_number_set_header_t *fnset, uint32_t *bits);
 
 #if defined (__cplusplus)
 }

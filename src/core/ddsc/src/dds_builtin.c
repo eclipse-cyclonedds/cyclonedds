@@ -17,7 +17,6 @@
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/ddsi_config_impl.h"
-#include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds__init.h"

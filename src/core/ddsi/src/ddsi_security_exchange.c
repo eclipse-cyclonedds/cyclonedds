@@ -28,7 +28,6 @@
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/q_transmit.h"
 #include "dds/ddsi/q_log.h"
-#include "dds/ddsi/q_bswap.h"
 #include "ddsi__entity.h"
 #include "ddsi__participant.h"
 #include "ddsi__plist.h"

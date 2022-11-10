@@ -24,7 +24,6 @@
 #include "ddsi__entity_index.h"
 #include "ddsi__addrset.h"
 #include "dds/ddsi/q_xmsg.h"
-#include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_misc.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/q_xevent.h"
@@ -418,8 +417,8 @@ void add_Heartbeat (struct nn_xmsg *msg, struct ddsi_writer *wr, const struct wh
   if (hbliveliness)
     hb->smhdr.flags |= DDSI_HEARTBEAT_FLAG_LIVELINESS;
 
-  hb->readerId = nn_hton_entityid (dst);
-  hb->writerId = nn_hton_entityid (wr->e.guid.entityid);
+  hb->readerId = ddsi_hton_entityid (dst);
+  hb->writerId = ddsi_hton_entityid (wr->e.guid.entityid);
   if (WHCST_ISEMPTY(whcst))
   {
     max = wr->seq;
@@ -500,7 +499,7 @@ static dds_return_t create_fragment_message_simple (struct ddsi_writer *wr, seqn
   data->x.smhdr.flags = (unsigned char) (data->x.smhdr.flags | contentflag);
   data->x.extraFlags = 0;
   data->x.readerId = ddsi_to_entityid (NN_ENTITYID_UNKNOWN);
-  data->x.writerId = nn_hton_entityid (wr->e.guid.entityid);
+  data->x.writerId = ddsi_hton_entityid (wr->e.guid.entityid);
   data->x.writerSN = toSN (seq);
   data->x.octetsToInlineQos = (unsigned short) ((char*) (data+1) - ((char*) &data->x.octetsToInlineQos + 2));
 
@@ -642,8 +641,8 @@ dds_return_t create_fragment_message (struct ddsi_writer *wr, seqno_t seq, struc
   }
 
   ddcmn->extraFlags = 0;
-  ddcmn->readerId = nn_hton_entityid (prd ? prd->e.guid.entityid : ddsi_to_entityid (NN_ENTITYID_UNKNOWN));
-  ddcmn->writerId = nn_hton_entityid (wr->e.guid.entityid);
+  ddcmn->readerId = ddsi_hton_entityid (prd ? prd->e.guid.entityid : ddsi_to_entityid (NN_ENTITYID_UNKNOWN));
+  ddcmn->writerId = ddsi_hton_entityid (wr->e.guid.entityid);
   ddcmn->writerSN = toSN (seq);
 
   if (xmsg_kind == NN_XMSG_KIND_DATA_REXMIT)
@@ -706,8 +705,8 @@ static void create_HeartbeatFrag (struct ddsi_writer *wr, seqno_t seq, unsigned 
     nn_xmsg_setdstN (*pmsg, wr->as);
   hbf = nn_xmsg_append (*pmsg, &sm_marker, sizeof (ddsi_rtps_heartbeatfrag_t));
   nn_xmsg_submsg_init (*pmsg, sm_marker, DDSI_RTPS_SMID_HEARTBEAT_FRAG);
-  hbf->readerId = nn_hton_entityid (prd ? prd->e.guid.entityid : ddsi_to_entityid (NN_ENTITYID_UNKNOWN));
-  hbf->writerId = nn_hton_entityid (wr->e.guid.entityid);
+  hbf->readerId = ddsi_hton_entityid (prd ? prd->e.guid.entityid : ddsi_to_entityid (NN_ENTITYID_UNKNOWN));
+  hbf->writerId = ddsi_hton_entityid (wr->e.guid.entityid);
   hbf->writerSN = toSN (seq);
   hbf->lastFragmentNum = fragnum + 1; /* network format is 1 based */
 

@@ -16,7 +16,6 @@
 
 #include <string.h>
 
-#include "dds/ddsi/q_bswap.h"
 #include "ddsi__entity_index.h"
 #include "ddsi__plist.h"
 #include "ddsi__entity.h"
@@ -550,7 +549,7 @@ static DDS_Security_ValidationResult_t validate_remote_identity_impl(struct ddsi
     goto ident_token_missing;
   }
 
-  remote_guid = nn_hton_guid(proxypp->e.guid);
+  remote_guid = ddsi_hton_guid(proxypp->e.guid);
   ddsi_omg_security_dataholder_copyout (&remote_identity_token, &proxypp->plist->identity_token);
 
   ddsrt_mutex_lock(&handshake->lock);

@@ -19,7 +19,6 @@
 #include "dds/ddsrt/mh3.h"
 #include "dds/ddsrt/hopscotch.h"
 #include "dds/ddsrt/string.h"
-#include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/q_freelist.h"
 #include "dds/ddsi/ddsi_iid.h"

@@ -22,13 +22,20 @@ typedef union ddsi_guid_prefix {
   unsigned char s[12];
   uint32_t u[3];
 } ddsi_guid_prefix_t;
+
 typedef union ddsi_entityid {
   uint32_t u;
 } ddsi_entityid_t;
+
 typedef struct ddsi_guid {
   ddsi_guid_prefix_t prefix;
   ddsi_entityid_t entityid;
 } ddsi_guid_t;
+
+ddsi_guid_prefix_t ddsi_hton_guid_prefix (ddsi_guid_prefix_t p);
+ddsi_guid_prefix_t ddsi_ntoh_guid_prefix (ddsi_guid_prefix_t p);
+ddsi_guid_t ddsi_hton_guid (ddsi_guid_t g);
+ddsi_guid_t ddsi_ntoh_guid (ddsi_guid_t g);
 
 #if defined (__cplusplus)
 }

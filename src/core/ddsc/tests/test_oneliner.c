@@ -28,7 +28,7 @@
 #include "dds__types.h"
 #include "dds__entity.h"
 #include "dds__writer.h"
-#include "dds/ddsi/q_bswap.h"
+#include "dds/ddsi/ddsi_guid.h"
 #include "dds/ddsi/q_lease.h"
 #include "dds/ddsi/q_xevent.h"
 #include "dds/ddsi/ddsi_entity_index.h"
@@ -1596,7 +1596,7 @@ static void dowaitforack (struct oneliner_ctx *ctx)
       error (ctx, "wait for ack: expecting existing reader as argument");
     if ((ret = dds_get_guid (ctx->es[ent1], &rdguid.x)) != 0)
       error_dds (ctx, ret, "wait for ack: failed to get GUID for reader %"PRId32, ctx->es[ent1]);
-    rdguid.i = nn_ntoh_guid (rdguid.i);
+    rdguid.i = ddsi_ntoh_guid (rdguid.i);
     if (!nexttok_if (&ctx->l, ')'))
       error (ctx, "wait for ack: expecting ')'");
   }

@@ -96,6 +96,9 @@ ddsi_entityid_t ddsi_to_entityid (unsigned u);
 ddsi_vendorid_t ddsi_get_entity_vendorid (const struct ddsi_entity_common *e);
 uint64_t ddsi_get_entity_instanceid (const struct ddsi_domaingv *gv, const struct ddsi_guid *guid);
 
+ddsi_entityid_t ddsi_hton_entityid (ddsi_entityid_t e);
+ddsi_entityid_t ddsi_ntoh_entityid (ddsi_entityid_t e);
+
 #if defined (__cplusplus)
 }
 #endif

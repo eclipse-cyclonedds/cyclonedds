@@ -184,3 +184,15 @@ int ddsi_set_topic_type_name (dds_qos_t *xqos, const char * topic_name, const ch
   }
   return 0;
 }
+
+ddsi_entityid_t ddsi_hton_entityid (ddsi_entityid_t e)
+{
+  e.u = ddsrt_toBE4u (e.u);
+  return e;
+}
+
+ddsi_entityid_t ddsi_ntoh_entityid (ddsi_entityid_t e)
+{
+  e.u = ddsrt_fromBE4u (e.u);
+  return e;
+}

@@ -25,7 +25,6 @@
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/q_thread.h"
-#include "dds/ddsi/q_bswap.h"
 #include "dds__writer.h"
 #include "dds__reader.h"
 #include "dds__topic.h"
@@ -135,10 +134,10 @@ static dds_builtintopic_endpoint_t *make_builtintopic_endpoint (const ddsi_guid_
   dds_builtintopic_endpoint_t *ep;
   ddsi_guid_t tmp;
   ep = dds_alloc (sizeof (*ep));
-  tmp = nn_hton_guid (*guid);
+  tmp = ddsi_hton_guid (*guid);
   memcpy (&ep->key, &tmp, sizeof (ep->key));
   ep->participant_instance_handle = ppiid;
-  tmp = nn_hton_guid (*ppguid);
+  tmp = ddsi_hton_guid (*ppguid);
   memcpy (&ep->participant_key, &tmp, sizeof (ep->participant_key));
   ep->qos = dds_create_qos ();
   ddsi_xqos_mergein_missing (ep->qos, qos, ~(DDSI_QP_TOPIC_NAME | DDSI_QP_TYPE_NAME));

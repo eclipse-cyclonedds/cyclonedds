@@ -17,7 +17,6 @@
 #include "dds/ddsrt/md5.h"
 #include "dds/ddsrt/mh3.h"
 #include "dds/ddsrt/heap.h"
-#include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/q_freelist.h"
 #include "ddsi__plist_generic.h"

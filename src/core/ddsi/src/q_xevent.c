@@ -29,7 +29,6 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "ddsi__entity_index.h"
 #include "dds/ddsi/q_transmit.h"
-#include "dds/ddsi/q_bswap.h"
 #include "ddsi__entity.h"
 #include "ddsi__participant.h"
 #include "dds/ddsi/ddsi_endpoint.h"
@@ -857,8 +856,8 @@ static struct nn_xmsg *make_preemptive_acknack (struct xevent *ev, struct ddsi_p
   struct nn_xmsg_marker sm_marker;
   ddsi_rtps_acknack_t *an = nn_xmsg_append (msg, &sm_marker, DDSI_ACKNACK_SIZE (0));
   nn_xmsg_submsg_init (msg, sm_marker, DDSI_RTPS_SMID_ACKNACK);
-  an->readerId = nn_hton_entityid (rwn->rd_guid.entityid);
-  an->writerId = nn_hton_entityid (pwr->e.guid.entityid);
+  an->readerId = ddsi_hton_entityid (rwn->rd_guid.entityid);
+  an->writerId = ddsi_hton_entityid (pwr->e.guid.entityid);
   an->readerSNState.bitmap_base = toSN (1);
   an->readerSNState.numbits = 0;
   ddsi_count_t * const countp =

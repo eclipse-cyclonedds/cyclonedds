@@ -34,7 +34,6 @@
 #include "ddsi__vnet.h"
 #include "ddsi__tran.h"
 #include "dds/ddsi/ddsi_entity_index.h"
-#include "dds/ddsi/q_bswap.h"
 #include "dds__whc.h"
 #include "dds__types.h"
 

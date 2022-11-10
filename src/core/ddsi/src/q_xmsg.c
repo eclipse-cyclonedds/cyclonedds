@@ -27,7 +27,6 @@
 
 #include "ddsi__protocol.h"
 #include "dds/ddsi/ddsi_xqos.h"
-#include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_rtps.h"
 #include "ddsi__addrset.h"
 #include "dds/ddsi/q_misc.h"
@@ -302,7 +301,7 @@ struct nn_xmsg *nn_xmsg_new (struct nn_xmsgpool *pool, const ddsi_guid_t *src_gu
     nn_xmsg_reinit (m, kind);
   else if ((m = nn_xmsg_allocnew (pool, expected_size, kind)) == NULL)
     return NULL;
-  m->data->src.guid_prefix = nn_hton_guid_prefix (src_guid->prefix);
+  m->data->src.guid_prefix = ddsi_hton_guid_prefix (src_guid->prefix);
 
 #ifdef DDS_HAS_SECURITY
   m->sec_info.use_rtps_encoding = 0;
@@ -692,7 +691,7 @@ void nn_xmsg_serdata (struct nn_xmsg *m, struct ddsi_serdata *serdata, size_t of
 
 static void nn_xmsg_setdst1_common (struct ddsi_domaingv *gv, struct nn_xmsg *m, const ddsi_guid_prefix_t *gp)
 {
-  m->data->dst.guid_prefix = nn_hton_guid_prefix (*gp);
+  m->data->dst.guid_prefix = ddsi_hton_guid_prefix (*gp);
 #ifdef DDS_HAS_SECURITY
   if (m->sec_info.use_rtps_encoding && !m->sec_info.dst_pp_handle)
   {
@@ -723,7 +722,7 @@ bool nn_xmsg_getdst1prefix (struct nn_xmsg *m, ddsi_guid_prefix_t *gp)
 {
   if (m->dstmode == NN_XMSG_DST_ONE)
   {
-    *gp = nn_hton_guid_prefix(m->data->dst.guid_prefix);
+    *gp = ddsi_hton_guid_prefix(m->data->dst.guid_prefix);
     return true;
   }
   return false;
@@ -792,14 +791,14 @@ static void clear_readerId (struct nn_xmsg *m)
   assert (m->kind == NN_XMSG_KIND_DATA_REXMIT || m->kind == NN_XMSG_KIND_DATA_REXMIT_NOMERGE);
   assert (m->kindspecific.data.readerId_off != 0);
   *((ddsi_entityid_t *) (m->data->payload + m->kindspecific.data.readerId_off)) =
-    nn_hton_entityid (ddsi_to_entityid (NN_ENTITYID_UNKNOWN));
+    ddsi_hton_entityid (ddsi_to_entityid (NN_ENTITYID_UNKNOWN));
 }
 
 static ddsi_entityid_t load_readerId (const struct nn_xmsg *m)
 {
   assert (m->kind == NN_XMSG_KIND_DATA_REXMIT || m->kind == NN_XMSG_KIND_DATA_REXMIT_NOMERGE);
   assert (m->kindspecific.data.readerId_off != 0);
-  return nn_ntoh_entityid (*((ddsi_entityid_t *) (m->data->payload + m->kindspecific.data.readerId_off)));
+  return ddsi_ntoh_entityid (*((ddsi_entityid_t *) (m->data->payload + m->kindspecific.data.readerId_off)));
 }
 
 static int readerId_compatible (const struct nn_xmsg *m, const struct nn_xmsg *madd)

@@ -27,7 +27,6 @@
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/q_unused.h"
-#include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_lat_estim.h"
 #include "ddsi__bitset.h"
 #include "dds/ddsi/q_xevent.h"
@@ -1463,7 +1462,7 @@ int rtps_init (struct ddsi_domaingv *gv)
     gv->ppguid_base.prefix.s[1] = DDSI_VENDORID_ECLIPSE.id[1];
     DDSRT_STATIC_ASSERT (sizeof (gv->ppguid_base.prefix.s) > 2 && sizeof (gv->ppguid_base.prefix.s) - 2 <= sizeof (digest));
     memcpy (&gv->ppguid_base.prefix.s[2], digest, sizeof (gv->ppguid_base.prefix.s) - 2);
-    gv->ppguid_base.prefix = nn_ntoh_guid_prefix (gv->ppguid_base.prefix);
+    gv->ppguid_base.prefix = ddsi_ntoh_guid_prefix (gv->ppguid_base.prefix);
     gv->ppguid_base.entityid.u = NN_ENTITYID_PARTICIPANT;
   }
 

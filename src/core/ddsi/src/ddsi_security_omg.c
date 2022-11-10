@@ -23,7 +23,6 @@
 
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_unused.h"
-#include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/q_misc.h"
 #include "ddsi__entity_index.h"
@@ -1075,7 +1074,7 @@ dds_return_t ddsi_omg_security_check_create_participant (struct ddsi_participant
   /* Validate local identity */
   ETRACE (pp, "validate_local_identity: candidate_guid: "PGUIDFMT" ", PGUID (pp->e.guid));
 
-  candidate_guid = nn_hton_guid(pp->e.guid);
+  candidate_guid = ddsi_hton_guid(pp->e.guid);
   ddsi_omg_shallow_copy_security_qos (&par_qos, &(pp->plist->qos));
 
   result = sc->authentication_context->validate_local_identity(
@@ -1087,7 +1086,7 @@ dds_return_t ddsi_omg_security_check_create_participant (struct ddsi_participant
     EXCEPTION_ERROR(gv, &exception, "Error occurred while validating local permission");
     goto validation_failed;
   }
-  pp->e.guid = nn_ntoh_guid(adjusted_guid);
+  pp->e.guid = ddsi_ntoh_guid(adjusted_guid);
 
   sec_attr = participant_sec_attributes_new(&pp->e.guid);
   sec_attr->local_identity_handle = identity_handle;
@@ -3761,7 +3760,7 @@ else
   ddsrt_free (dstbuf);
 
   *hdr = (ddsi_rtps_header_t *) *buff;
-  (*hdr)->guid_prefix = nn_ntoh_guid_prefix ((*hdr)->guid_prefix);
+  (*hdr)->guid_prefix = ddsi_ntoh_guid_prefix ((*hdr)->guid_prefix);
   *sz = dstlen;
   return DDSI_RTPS_MSG_STATE_ENCODED;
 }
@@ -3824,7 +3823,7 @@ ddsi_security_secure_conn_write(
   }
 
   hdr = (ddsi_rtps_header_t *) iov[0].iov_base;
-  guid.prefix = nn_ntoh_guid_prefix (hdr->guid_prefix);
+  guid.prefix = ddsi_ntoh_guid_prefix (hdr->guid_prefix);
   guid.entityid.u = NN_ENTITYID_PARTICIPANT;
 
   /* first determine the size of the message, then select the
