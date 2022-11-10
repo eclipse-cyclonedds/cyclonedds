@@ -31,7 +31,7 @@
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_lat_estim.h"
-#include "dds/ddsi/q_bitset.h"
+#include "ddsi__bitset.h"
 #include "dds/ddsi/q_xevent.h"
 #include "ddsi__addrset.h"
 #include "dds/ddsi/q_ddsi_discovery.h"
@@ -673,7 +673,7 @@ void nn_gap_info_update(struct ddsi_domaingv *gv, struct nn_gap_info *gi, seqno_
     uint32_t idx = (uint32_t) (seqnr - gi->gapend);
     GVTRACE (" M%"PRIu64, seqnr);
     gi->gapnumbits = idx + 1;
-    nn_bitset_set (gi->gapnumbits, gi->gapbits, idx);
+    ddsi_bitset_set (gi->gapnumbits, gi->gapbits, idx);
   }
 }
 
@@ -697,7 +697,7 @@ struct nn_xmsg * nn_gap_info_create_gap(struct ddsi_writer *wr, struct ddsi_prox
   {
     ETRACE (wr, " FXGAP%"PRIu64"..%"PRIu64"/%"PRIu32":", gi->gapstart, gi->gapend, gi->gapnumbits);
     for (uint32_t i = 0; i < gi->gapnumbits; i++)
-      ETRACE (wr, "%c", nn_bitset_isset (gi->gapnumbits, gi->gapbits, i) ? '1' : '0');
+      ETRACE (wr, "%c", ddsi_bitset_isset (gi->gapnumbits, gi->gapbits, i) ? '1' : '0');
   }
 
   return m;
@@ -794,7 +794,7 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
   RSTTRACE ("ACKNACK(%s#%"PRId32":%"PRIu64"/%"PRIu32":", msg->smhdr.flags & DDSI_ACKNACK_FLAG_FINAL ? "F" : "",
             *countp, fromSN (msg->readerSNState.bitmap_base), msg->readerSNState.numbits);
   for (uint32_t i = 0; i < msg->readerSNState.numbits; i++)
-    RSTTRACE ("%c", nn_bitset_isset (msg->readerSNState.numbits, msg->bits, i) ? '1' : '0');
+    RSTTRACE ("%c", ddsi_bitset_isset (msg->readerSNState.numbits, msg->bits, i) ? '1' : '0');
   seqbase = fromSN (msg->readerSNState.bitmap_base);
   assert (seqbase > 0); // documentation, really, to make it obvious that subtracting 1 is ok
 
@@ -1016,7 +1016,7 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
        contained in the acknack, and assumes all messages beyond the
        set are NACK'd -- don't feel like tracking where exactly we
        left off ... */
-    if (i >= msg->readerSNState.numbits || nn_bitset_isset (numbits, msg->bits, i))
+    if (i >= msg->readerSNState.numbits || ddsi_bitset_isset (numbits, msg->bits, i))
     {
       seqno_t seq = seqbase + i;
       struct whc_borrowed_sample sample;
@@ -1602,7 +1602,7 @@ static int handle_NackFrag (struct receiver_state *rst, ddsrt_etime_t tnow, cons
 
   RSTTRACE ("NACKFRAG(#%"PRId32":%"PRIu64"/%"PRIu32"/%"PRIu32":", *countp, seq, msg->fragmentNumberState.bitmap_base, msg->fragmentNumberState.numbits);
   for (uint32_t i = 0; i < msg->fragmentNumberState.numbits; i++)
-    RSTTRACE ("%c", nn_bitset_isset (msg->fragmentNumberState.numbits, msg->bits, i) ? '1' : '0');
+    RSTTRACE ("%c", ddsi_bitset_isset (msg->fragmentNumberState.numbits, msg->bits, i) ? '1' : '0');
 
   if (!rst->forme)
   {
@@ -1666,7 +1666,7 @@ static int handle_NackFrag (struct receiver_state *rst, ddsrt_etime_t tnow, cons
     RSTTRACE (" scheduling requested frags ...\n");
     for (uint32_t i = 0; i < msg->fragmentNumberState.numbits && nfrags_lim > 0; i++)
     {
-      if (nn_bitset_isset (msg->fragmentNumberState.numbits, msg->bits, i))
+      if (ddsi_bitset_isset (msg->fragmentNumberState.numbits, msg->bits, i))
       {
         struct nn_xmsg *reply;
         if (create_fragment_message (wr, seq, sample.serdata, base + i, 1, prd, &reply, 0, 0) < 0)
@@ -1876,7 +1876,7 @@ static int handle_Gap (struct receiver_state *rst, ddsrt_etime_t tnow, struct nn
      1 bit, but check for it just in case, to reduce the number of
      sequence number gaps to be processed. */
   for (listidx = 0; listidx < msg->gapList.numbits; listidx++)
-    if (!nn_bitset_isset (msg->gapList.numbits, msg->bits, listidx))
+    if (!ddsi_bitset_isset (msg->gapList.numbits, msg->bits, listidx))
       break;
   first_excluded_rel = listidx;
 
@@ -1933,13 +1933,13 @@ static int handle_Gap (struct receiver_state *rst, ddsrt_etime_t tnow, struct nn
     }
     while (listidx < msg->gapList.numbits)
     {
-      if (!nn_bitset_isset (msg->gapList.numbits, msg->bits, listidx))
+      if (!ddsi_bitset_isset (msg->gapList.numbits, msg->bits, listidx))
         listidx++;
       else
       {
         uint32_t j;
         for (j = listidx + 1; j < msg->gapList.numbits; j++)
-          if (!nn_bitset_isset (msg->gapList.numbits, msg->bits, j))
+          if (!ddsi_bitset_isset (msg->gapList.numbits, msg->bits, j))
             break;
         /* spec says gapList (2) identifies an additional list of sequence numbers that
            are invalid (8.3.7.4.2), so by that rule an insane start would simply mean the

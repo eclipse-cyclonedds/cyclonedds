@@ -29,7 +29,7 @@
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_lat_estim.h"
-#include "dds/ddsi/q_bitset.h"
+#include "ddsi__bitset.h"
 #include "dds/ddsi/q_xevent.h"
 #include "ddsi__addrset.h"
 #include "dds/ddsi/q_ddsi_discovery.h"

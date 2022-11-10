@@ -17,7 +17,7 @@
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/q_log.h"
-#include "dds/ddsi/q_bitset.h"
+#include "ddsi__bitset.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "ddsi__acknack.h"
 #include "ddsi__entity_index.h"
@@ -123,7 +123,7 @@ static bool add_acknack_makebitmaps (const struct ddsi_proxy_writer *pwr, const 
   const seqno_t base = fromSN (info->acknack.set.bitmap_base);
   for (uint32_t i = 0; i < numbits; i++)
   {
-    if (!nn_bitset_isset (numbits, info->acknack.bits, i))
+    if (!ddsi_bitset_isset (numbits, info->acknack.bits, i))
       continue;
 
     const seqno_t seq = base + i;
@@ -180,7 +180,7 @@ static void add_NackFrag (struct nn_xmsg *msg, const struct ddsi_proxy_writer *p
             pwr->nackfragcount, fromSN (nf->writerSN),
             nf->fragmentNumberState.bitmap_base, nf->fragmentNumberState.numbits);
     for (uint32_t ui = 0; ui != nf->fragmentNumberState.numbits; ui++)
-      ETRACE (pwr, "%c", nn_bitset_isset (nf->fragmentNumberState.numbits, nf->bits, ui) ? '1' : '0');
+      ETRACE (pwr, "%c", ddsi_bitset_isset (nf->fragmentNumberState.numbits, nf->bits, ui) ? '1' : '0');
   }
 
   // Encode the sub-message when needed
@@ -225,7 +225,7 @@ static void add_acknack (struct nn_xmsg *msg, const struct ddsi_proxy_writer *pw
             PGUID (rwn->rd_guid), PGUID (pwr->e.guid), rwn->count,
             fromSN (an->readerSNState.bitmap_base), an->readerSNState.numbits);
     for (uint32_t ui = 0; ui != an->readerSNState.numbits; ui++)
-      ETRACE (pwr, "%c", nn_bitset_isset (an->readerSNState.numbits, an->bits, ui) ? '1' : '0');
+      ETRACE (pwr, "%c", ddsi_bitset_isset (an->readerSNState.numbits, an->bits, ui) ? '1' : '0');
   }
 
   // Encode the sub-message when needed

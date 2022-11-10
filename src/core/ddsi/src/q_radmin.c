@@ -39,7 +39,7 @@
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/q_radmin.h"
-#include "dds/ddsi/q_bitset.h"
+#include "ddsi__bitset.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/ddsi_domaingv.h" /* for mattr, cattr */
 
@@ -1476,7 +1476,7 @@ enum nn_defrag_nackmap_result nn_defrag_nackmap (struct nn_defrag *defrag, seqno
       else
         map->numbits = maxfragnum + 1;
       map->bitmap_base = 0;
-      nn_bitset_one (map->numbits, mapbits);
+      ddsi_bitset_one (map->numbits, mapbits);
       return DEFRAG_NACKMAP_FRAGMENTS_MISSING;
     }
   }
@@ -1523,7 +1523,7 @@ enum nn_defrag_nackmap_result nn_defrag_nackmap (struct nn_defrag *defrag, seqno
   /* Clear bitmap, then set bits for gaps in available fragments */
   if (map->numbits > maxsz)
     map->numbits = maxsz;
-  nn_bitset_zero (map->numbits, mapbits);
+  ddsi_bitset_zero (map->numbits, mapbits);
   i = map->bitmap_base;
   while (iv && i < map->bitmap_base + map->numbits)
   {
@@ -1541,7 +1541,7 @@ enum nn_defrag_nackmap_result nn_defrag_nackmap (struct nn_defrag *defrag, seqno
     for (; i < map->bitmap_base + map->numbits && i < bound; i++)
     {
       unsigned x = (unsigned) (i - map->bitmap_base);
-      nn_bitset_set (map->numbits, mapbits, x);
+      ddsi_bitset_set (map->numbits, mapbits, x);
     }
     /* next sequence of fragments to request retranmsission of starts
        at fragment containing maxp1 (because we don't have that byte
@@ -1553,7 +1553,7 @@ enum nn_defrag_nackmap_result nn_defrag_nackmap (struct nn_defrag *defrag, seqno
   for (; i < map->bitmap_base + map->numbits; i++)
   {
     unsigned x = (unsigned) (i - map->bitmap_base);
-    nn_bitset_set (map->numbits, mapbits, x);
+    ddsi_bitset_set (map->numbits, mapbits, x);
   }
   return DEFRAG_NACKMAP_FRAGMENTS_MISSING;
 }
@@ -2416,7 +2416,7 @@ unsigned nn_reorder_nackmap (const struct nn_reorder *reorder, seqno_t base, seq
     map->numbits = maxsz;
   else
     map->numbits = (uint32_t) (maxseq + 1 - base);
-  nn_bitset_zero (map->numbits, mapbits);
+  ddsi_bitset_zero (map->numbits, mapbits);
 
   struct nn_rsample *iv = ddsrt_avl_find_min (&reorder_sampleivtree_treedef, &reorder->sampleivtree);
   assert (iv == NULL || iv->u.reorder.min > base);
@@ -2426,7 +2426,7 @@ unsigned nn_reorder_nackmap (const struct nn_reorder *reorder, seqno_t base, seq
     for (; i < base + map->numbits && i < iv->u.reorder.min; i++)
     {
       uint32_t x = (uint32_t) (i - base);
-      nn_bitset_set (map->numbits, mapbits, x);
+      ddsi_bitset_set (map->numbits, mapbits, x);
     }
     i = iv->u.reorder.maxp1;
     iv = ddsrt_avl_find_succ (&reorder_sampleivtree_treedef, &reorder->sampleivtree, iv);
@@ -2438,7 +2438,7 @@ unsigned nn_reorder_nackmap (const struct nn_reorder *reorder, seqno_t base, seq
     for (; i < base + map->numbits; i++)
     {
       uint32_t x = (uint32_t) (i - base);
-      nn_bitset_set (map->numbits, mapbits, x);
+      ddsi_bitset_set (map->numbits, mapbits, x);
     }
   }
   return map->numbits;

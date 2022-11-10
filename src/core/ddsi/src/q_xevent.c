@@ -36,7 +36,7 @@
 #include "dds/ddsi/ddsi_proxy_endpoint.h"
 #include "dds/ddsi/q_misc.h"
 #include "dds/ddsi/q_radmin.h"
-#include "dds/ddsi/q_bitset.h"
+#include "ddsi__bitset.h"
 #include "dds/ddsi/q_lease.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/ddsi_serdata.h"

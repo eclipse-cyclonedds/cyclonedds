@@ -20,7 +20,7 @@
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "ddsi__addrset.h"
 #include "dds/ddsi/q_log.h"
-#include "dds/ddsi/q_bitset.h"
+#include "ddsi__bitset.h"
 #include "ddsi__entity_index.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "ddsi__wraddrset.h"
