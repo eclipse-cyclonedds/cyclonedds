@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef NN_UNUSED_H
-#define NN_UNUSED_H
+#ifndef DDSI_UNUSED_H
+#define DDSI_UNUSED_H
 
 #ifdef __GNUC__
 #define UNUSED_ARG(x) x __attribute__ ((unused))
@@ -24,4 +24,4 @@
 #define UNUSED_ARG_NDEBUG(x) UNUSED_ARG (x)
 #endif
 
-#endif /* NN_UNUSED_H */
+#endif /* DDSI_UNUSED_H */

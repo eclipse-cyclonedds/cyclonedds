@@ -37,7 +37,7 @@
 #include "dds/ddsi/ddsi_log.h"
 
 #include "dds/ddsi/ddsi_plist.h"
-#include "dds/ddsi/q_unused.h"
+#include "dds/ddsi/ddsi_unused.h"
 #include "dds/ddsi/q_radmin.h"
 #include "ddsi__bitset.h"
 #include "dds/ddsi/q_thread.h"

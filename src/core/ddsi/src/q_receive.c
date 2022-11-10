@@ -28,7 +28,7 @@
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_log.h"
 #include "dds/ddsi/ddsi_plist.h"
-#include "dds/ddsi/q_unused.h"
+#include "dds/ddsi/ddsi_unused.h"
 #include "ddsi__bswap.h"
 #include "ddsi__lat_estim.h"
 #include "ddsi__bitset.h"

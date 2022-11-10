@@ -24,7 +24,7 @@
 
 #include "dds/ddsi/ddsi_log.h"
 
-#include "dds/ddsi/q_unused.h"
+#include "dds/ddsi/ddsi_unused.h"
 #include "dds/ddsi/ddsi_plist.h"
 #include "ddsi__plist.h"
 #include "ddsi__time.h"

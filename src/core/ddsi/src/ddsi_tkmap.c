@@ -17,7 +17,7 @@
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/hopscotch.h"
 #include "dds/ddsi/q_thread.h"
-#include "dds/ddsi/q_unused.h"
+#include "dds/ddsi/ddsi_unused.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_iid.h"

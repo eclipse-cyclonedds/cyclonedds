@@ -26,7 +26,7 @@
 
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_config_impl.h"
-#include "dds/ddsi/q_unused.h"
+#include "dds/ddsi/ddsi_unused.h"
 #include "ddsi__misc.h"
 #include "ddsi__addrset.h" /* unspec locator */
 #include "dds/ddsi/ddsi_feature_check.h"

@@ -12,7 +12,7 @@
 #ifndef DDSI__DISCOVERY_H
 #define DDSI__DISCOVERY_H
 
-#include "dds/ddsi/q_unused.h"
+#include "dds/ddsi/ddsi_unused.h"
 #include "dds/ddsi/ddsi_domaingv.h" // FIXME: MAX_XMIT_CONNS
 
 #if defined (__cplusplus)

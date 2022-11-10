@@ -36,7 +36,7 @@
 #include "dds/ddsi/q_radmin.h"
 #include "ddsi__discovery.h"
 #include "ddsi__protocol.h"
-#include "dds/ddsi/q_unused.h"
+#include "dds/ddsi/ddsi_unused.h"
 #include "ddsi__debmon.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "ddsi__tran.h"

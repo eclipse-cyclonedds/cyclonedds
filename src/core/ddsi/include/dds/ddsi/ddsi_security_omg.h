@@ -89,7 +89,7 @@ bool ddsi_omg_security_check_create_writer (struct ddsi_participant *pp, uint32_
 
 #else /* DDS_HAS_SECURITY */
 
-#include "dds/ddsi/q_unused.h"
+#include "dds/ddsi/ddsi_unused.h"
 
 inline bool ddsi_omg_participant_is_secure(UNUSED_ARG(const struct ddsi_participant *pp))
 {

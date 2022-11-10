@@ -1060,7 +1060,7 @@ bool ddsi_omg_is_security_loaded (  struct dds_security_context *sc );
 
 #else /* DDS_HAS_SECURITY */
 
-#include "dds/ddsi/q_unused.h"
+#include "dds/ddsi/ddsi_unused.h"
 
 inline bool ddsi_omg_security_enabled (void)
 {

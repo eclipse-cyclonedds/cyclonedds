@@ -31,7 +31,7 @@
 #include "ddsi__addrset.h"
 #include "ddsi__misc.h"
 #include "dds/ddsi/ddsi_log.h"
-#include "dds/ddsi/q_unused.h"
+#include "dds/ddsi/ddsi_unused.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "ddsi__entity.h"

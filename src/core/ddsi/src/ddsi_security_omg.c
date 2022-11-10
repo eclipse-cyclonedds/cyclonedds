@@ -22,7 +22,7 @@
 #include "dds/ddsrt/avl.h"
 
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/q_unused.h"
+#include "dds/ddsi/ddsi_unused.h"
 #include "dds/ddsi/q_radmin.h"
 #include "ddsi__misc.h"
 #include "ddsi__entity_index.h"

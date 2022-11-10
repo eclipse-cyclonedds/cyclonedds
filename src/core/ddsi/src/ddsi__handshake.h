@@ -171,7 +171,7 @@ void ddsi_handshake_admin_deinit(struct ddsi_domaingv *gv);
 
 #else /* DDS_HAS_SECURITY */
 
-#include "dds/ddsi/q_unused.h"
+#include "dds/ddsi/ddsi_unused.h"
 
 inline void ddsi_handshake_register(UNUSED_ARG(struct ddsi_participant *pp), UNUSED_ARG(struct ddsi_proxy_participant *proxypp), UNUSED_ARG(ddsi_handshake_end_cb_t callback))
 {

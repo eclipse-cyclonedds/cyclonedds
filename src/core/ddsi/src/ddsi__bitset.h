@@ -17,7 +17,7 @@
 #include <string.h>
 
 #include "dds/export.h"
-#include "dds/ddsi/q_unused.h"
+#include "dds/ddsi/ddsi_unused.h"
 
 #if defined (__cplusplus)
 extern "C" {

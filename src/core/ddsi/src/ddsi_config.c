@@ -29,7 +29,7 @@
 #include "ddsi__config_impl.h"
 #include "dds/ddsi/ddsi_log.h"
 #include "dds/ddsrt/avl.h"
-#include "dds/ddsi/q_unused.h"
+#include "dds/ddsi/ddsi_unused.h"
 #include "ddsi__misc.h"
 #include "ddsi__addrset.h"
 

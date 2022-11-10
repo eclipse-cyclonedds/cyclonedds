@@ -136,7 +136,7 @@ set(hdrs_ddsi
   q_sockwaitset.h
   q_thread.h
   q_transmit.h
-  q_unused.h
+  ddsi_unused.h
   q_whc.h
   q_xevent.h
   q_xmsg.h
