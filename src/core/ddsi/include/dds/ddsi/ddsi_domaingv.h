@@ -46,7 +46,7 @@ struct lease;
 struct ddsi_tran_conn;
 struct ddsi_tran_listener;
 struct ddsi_tran_factory;
-struct debug_monitor;
+struct ddsi_debug_monitor;
 struct ddsi_tkmap;
 struct dds_security_context;
 struct dds_security_match_index;
@@ -268,7 +268,7 @@ struct ddsi_domaingv {
      delivery queue; currently just SEDP and PMD */
   struct nn_dqueue *builtins_dqueue;
 
-  struct debug_monitor *debmon;
+  struct ddsi_debug_monitor *debmon;
 
 #ifndef DDS_HAS_NETWORK_CHANNELS
   uint32_t networkQueueId;

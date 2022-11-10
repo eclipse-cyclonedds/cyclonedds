@@ -37,7 +37,7 @@
 #include "ddsi__discovery.h"
 #include "ddsi__protocol.h"
 #include "dds/ddsi/q_unused.h"
-#include "dds/ddsi/q_debmon.h"
+#include "ddsi__debmon.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "ddsi__tran.h"
 #include "ddsi__tcp.h"
@@ -47,12 +47,12 @@
 #include "dds__whc.h"
 
 struct plugin {
-  debug_monitor_plugin_t fn;
+  ddsi_debug_monitor_plugin_t fn;
   void *arg;
   struct plugin *next;
 };
 
-struct debug_monitor {
+struct ddsi_debug_monitor {
   struct thread_state *servts;
   ddsi_tran_factory_t tran_factory;
   ddsi_tran_listener_t servsock;
@@ -646,7 +646,7 @@ static void print_domain (struct st *st, void *varg)
   print_proxy_participants (st);
 }
 
-static void debmon_handle_connection (struct debug_monitor *dm, ddsi_tran_conn_t conn)
+static void debmon_handle_connection (struct ddsi_debug_monitor *dm, ddsi_tran_conn_t conn)
 {
   ddsi_locator_t loc;
   const char *http_header = "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n";
@@ -684,7 +684,7 @@ static void debmon_handle_connection (struct debug_monitor *dm, ddsi_tran_conn_t
 
 static uint32_t debmon_main (void *vdm)
 {
-  struct debug_monitor *dm = vdm;
+  struct ddsi_debug_monitor *dm = vdm;
   ddsrt_mutex_lock (&dm->lock);
   while (!dm->stop)
   {
@@ -706,9 +706,9 @@ static uint32_t debmon_main (void *vdm)
   return 0;
 }
 
-struct debug_monitor *new_debug_monitor (struct ddsi_domaingv *gv, int32_t port)
+struct ddsi_debug_monitor *ddsi_new_debug_monitor (struct ddsi_domaingv *gv, int32_t port)
 {
-  struct debug_monitor *dm;
+  struct ddsi_debug_monitor *dm;
 
   /* negative port number means the feature is disabled */
   if (gv->config.monitor_port < 0)
@@ -760,13 +760,13 @@ err_invalid_port:
   return NULL;
 }
 
-bool get_debug_monitor_locator (struct debug_monitor *dm, ddsi_locator_t *locator) {
+bool ddsi_get_debug_monitor_locator (struct ddsi_debug_monitor *dm, ddsi_locator_t *locator) {
   if (!dm || dm->stop) return false;
   memcpy(locator, &dm->servlocator, sizeof(ddsi_locator_t));
   return true;
 }
 
-void free_debug_monitor (struct debug_monitor *dm)
+void ddsi_free_debug_monitor (struct ddsi_debug_monitor *dm)
 {
   if (dm == NULL)
     return;

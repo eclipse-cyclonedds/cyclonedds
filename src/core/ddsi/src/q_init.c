@@ -46,7 +46,7 @@
 #include "dds/ddsi/q_receive.h"
 #include "dds/ddsi/q_pcap.h"
 #include "dds/ddsi/q_feature_check.h"
-#include "dds/ddsi/q_debmon.h"
+#include "ddsi__debmon.h"
 #include "dds/ddsi/q_init.h"
 #include "dds/ddsi/ddsi_threadmon.h"
 #include "ddsi__pmd.h"
@@ -1916,7 +1916,7 @@ int rtps_start (struct ddsi_domaingv *gv)
   }
   if (gv->config.monitor_port >= 0)
   {
-    if ((gv->debmon = new_debug_monitor (gv, gv->config.monitor_port)) == NULL)
+    if ((gv->debmon = ddsi_new_debug_monitor (gv, gv->config.monitor_port)) == NULL)
     {
       GVERROR ("failed to create debug monitor thread\n");
       rtps_stop (gv);
@@ -1926,7 +1926,7 @@ int rtps_start (struct ddsi_domaingv *gv)
       ddsi_locator_t loc;
       char buf[DDSI_LOCSTRLEN];
 
-      if (get_debug_monitor_locator(gv->debmon, &loc)) {
+      if (ddsi_get_debug_monitor_locator(gv->debmon, &loc)) {
         ddsi_xqos_add_property_if_unset(&gv->default_local_plist_pp.qos, true, DDS_BUILTIN_TOPIC_PARTICIPANT_DEBUG_MONITOR,
           ddsi_locator_to_string (buf, sizeof(buf), &loc));
       }
@@ -1961,7 +1961,7 @@ void rtps_stop (struct ddsi_domaingv *gv)
 
   if (gv->debmon)
   {
-    free_debug_monitor (gv->debmon);
+    ddsi_free_debug_monitor (gv->debmon);
     gv->debmon = NULL;
   }
 

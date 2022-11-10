@@ -64,7 +64,7 @@ set(srcs_ddsi
   ddsi_guid.c
   ddsi_bswap.c
   ddsi_discovery.c
-  q_debmon.c
+  ddsi_debmon.c
   q_init.c
   q_lat_estim.c
   q_lease.c
@@ -122,7 +122,6 @@ set(hdrs_ddsi
   ddsi_pmd.h
   ddsi_protocol.h
   ddsi_addrset.h
-  q_debmon.h
   q_feature_check.h
   q_freelist.h
   q_hbcontrol.h
@@ -192,6 +191,7 @@ set(hdrs_private_ddsi
   ddsi__bitset.h
   ddsi__bswap.h
   ddsi__discovery.h
+  ddsi__debmon.h
 )
 
 if(ENABLE_LIFESPAN)
