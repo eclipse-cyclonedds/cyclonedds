@@ -29,6 +29,7 @@ struct ddsi_proxy_reader;
 struct ddsi_writer;
 struct dds_qos;
 struct addrset;
+struct ddsi_serdata;
 
 struct ddsi_proxy_endpoint_common
 {

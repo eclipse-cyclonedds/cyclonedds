@@ -52,7 +52,7 @@
 #include "dds/ddsi/ddsi_threadmon.h"
 #include "ddsi__pmd.h"
 #include "dds/ddsi/ddsi_xt_typelookup.h"
-#include "dds/ddsi/ddsi_typelookup.h"
+#include "ddsi__typelookup.h"
 #include "ddsi__tran.h"
 #include "dds/ddsi/ddsi_udp.h"
 #include "ddsi__tcp.h"

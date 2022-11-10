@@ -18,7 +18,6 @@
 #include "dds/ddsi/q_freelist.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_typelib.h"
-#include "dds/ddsi/ddsi_typelookup.h"
 #include "dds/cdr/dds_cdrstream.h"
 #include "dds__types.h"
 #include "dds/dds.h"

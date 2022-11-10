@@ -57,6 +57,9 @@
 #include "ddsi__topic.h"
 #include "ddsi__tran.h"
 #include "ddsi__typelib.h"
+#ifdef DDS_HAS_TYPE_DISCOVERY
+#include "ddsi__typelookup.h"
+#endif
 
 #ifdef DDS_HAS_SECURITY
 #include "ddsi__security_exchange.h"

@@ -21,7 +21,6 @@
 #include "dds/ddsi/q_freelist.h"
 #include "dds/ddsi/ddsi_sertype.h"
 #include "dds/ddsi/ddsi_iid.h"
-#include "dds/ddsi/ddsi_typelookup.h"
 #include "dds__serdata_builtintopic.h"
 
 static struct ddsi_sertype *new_sertype_builtintopic_impl (

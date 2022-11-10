@@ -23,7 +23,7 @@
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "ddsi__entity_index.h"
 #include "dds/ddsi/ddsi_xt_typelookup.h"
-#include "dds/ddsi/ddsi_typelookup.h"
+#include "ddsi__typelookup.h"
 #include "ddsi__xt_impl.h"
 #include "dds/ddsi/ddsi_typebuilder.h"
 #include "dds/cdr/dds_cdrstream.h"

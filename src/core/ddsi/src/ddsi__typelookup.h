@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef DDSI_TYPELOOKUP_H
-#define DDSI_TYPELOOKUP_H
+#ifndef DDSI__TYPELOOKUP_H
+#define DDSI__TYPELOOKUP_H
 
 #include "dds/features.h"
 
@@ -72,4 +72,4 @@ void ddsi_tl_handle_reply (struct ddsi_domaingv *gv, struct ddsi_serdata *sample
 }
 #endif
 #endif /* DDS_HAS_TYPE_DISCOVERY */
-#endif /* DDSI_TYPELOOKUP_H */
+#endif /* DDSI__TYPELOOKUP_H */

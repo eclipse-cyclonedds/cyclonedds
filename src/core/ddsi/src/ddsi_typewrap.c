@@ -21,7 +21,7 @@
 #include "dds/ddsi/ddsi_typewrap.h"
 #include "ddsi__xt_impl.h"
 #include "dds/ddsi/ddsi_xt_typemap.h"
-#include "dds/ddsi/ddsi_typelookup.h"
+#include "ddsi__typelookup.h"
 #include "ddsi__typelib.h"
 #include "dds/ddsc/dds_public_impl.h"
 

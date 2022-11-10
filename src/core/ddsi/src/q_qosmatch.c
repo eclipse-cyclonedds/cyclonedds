@@ -15,7 +15,7 @@
 #include "dds/features.h"
 #include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/ddsi_typelib.h"
-#include "dds/ddsi/ddsi_typelookup.h"
+#include "ddsi__typelookup.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/q_misc.h"

@@ -29,7 +29,7 @@
 #include "dds/ddsi/ddsi_typelib.h"
 #include "ddsi__xt_impl.h"
 #include "dds/ddsi/ddsi_xt_typemap.h"
-#include "dds/ddsi/ddsi_typelookup.h"
+#include "ddsi__typelookup.h"
 #include "ddsi__serdata_cdr.h"
 #include "dds/ddsc/dds_public_impl.h"
 #include "ddsi__list_tmpl.h"

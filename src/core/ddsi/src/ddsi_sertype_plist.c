@@ -20,7 +20,7 @@
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/ddsi_sertype.h"
 #include "ddsi__serdata_plist.h"
-#include "dds/ddsi/ddsi_typelookup.h"
+#include "ddsi__typelookup.h"
 
 static bool sertype_plist_equal (const struct ddsi_sertype *acmn, const struct ddsi_sertype *bcmn)
 {

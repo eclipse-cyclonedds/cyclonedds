@@ -18,6 +18,9 @@
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/ddsi_domaingv.h"
+#ifdef DDS_HAS_TOPIC_DISCOVERY
+#include "dds/ddsi/ddsi_typewrap.h"
+#endif
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsi/ddsi_builtin_topic_if.h"
 #include "dds__handles.h"

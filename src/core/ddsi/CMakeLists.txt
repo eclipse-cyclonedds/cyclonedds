@@ -220,12 +220,12 @@ if(ENABLE_TYPE_DISCOVERY)
     ddsi_xt_typeinfo.h
     ddsi_xt_typelookup.h
     ddsi_xt_typemap.h
-    ddsi_typelookup.h
     ddsi_typewrap.h
     ddsi_typebuilder.h
   )
   list(APPEND hdrs_private_ddsi
     ddsi__xt_impl.h
+    ddsi__typelookup.h
   )
 endif()
 if(ENABLE_SECURITY)

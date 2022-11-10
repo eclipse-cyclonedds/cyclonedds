@@ -17,6 +17,7 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/md5.h"
+#include "dds/ddsrt/hopscotch.h"
 
 #include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/ddsi_plist.h"

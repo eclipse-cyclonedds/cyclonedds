@@ -17,6 +17,7 @@
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
+#include "dds/ddsrt/hopscotch.h"
 #include "dds__topic.h"
 #include "dds__listener.h"
 #include "dds__participant.h"

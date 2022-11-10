@@ -30,6 +30,7 @@
 #include "ddsi__entity_match.h"
 #include "ddsi__proxy_endpoint.h"
 #include "ddsi__proxy_participant.h"
+#include "ddsi__typelookup.h"
 #include "dds/ddsrt/cdtors.h"
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/process.h"
