@@ -22,7 +22,7 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/static_assert.h"
 
-#include "dds/ddsi/q_log.h"
+#include "dds/ddsi/ddsi_log.h"
 
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/ddsi_plist.h"

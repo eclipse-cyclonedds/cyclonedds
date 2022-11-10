@@ -17,7 +17,7 @@
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsi/ddsi_gc.h"
-#include "dds/ddsi/q_log.h"
+#include "dds/ddsi/ddsi_log.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/q_thread.h"
 #include "ddsi__entity_index.h"

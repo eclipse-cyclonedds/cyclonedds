@@ -14,7 +14,7 @@
 
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/avl.h"
-#include "dds/ddsi/q_log.h"
+#include "dds/ddsi/ddsi_log.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/ddsi_protocol.h"
 #include "dds/ddsi/ddsi_feature_check.h"

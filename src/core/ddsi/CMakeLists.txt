@@ -128,7 +128,7 @@ set(hdrs_ddsi
   ddsi_inverse_uint32_set.h
   ddsi_lat_estim.h
   ddsi_lease.h
-  q_log.h
+  ddsi_log.h
   q_misc.h
   q_pcap.h
   q_qosmatch.h

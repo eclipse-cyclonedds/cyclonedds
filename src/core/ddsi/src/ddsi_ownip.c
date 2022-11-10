@@ -21,7 +21,7 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/sockets.h"
 
-#include "dds/ddsi/q_log.h"
+#include "dds/ddsi/ddsi_log.h"
 #include "ddsi__ownip.h"
 
 #include "dds/ddsi/ddsi_domaingv.h"

@@ -20,7 +20,7 @@
 #include "ddsi__tran.h"
 #include "ddsi__ipaddr.h"
 #include "dds/ddsi/ddsi_config_impl.h"
-#include "dds/ddsi/q_log.h"
+#include "dds/ddsi/ddsi_log.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 
 extern inline uint32_t ddsi_conn_type (const struct ddsi_tran_conn *conn);

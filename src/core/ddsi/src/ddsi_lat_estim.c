@@ -12,7 +12,7 @@
 #include <ctype.h>
 #include <stddef.h>
 
-#include "dds/ddsi/q_log.h"
+#include "dds/ddsi/ddsi_log.h"
 #include "dds/ddsi/q_unused.h"
 #include "ddsi__lat_estim.h"
 #include <stdlib.h>

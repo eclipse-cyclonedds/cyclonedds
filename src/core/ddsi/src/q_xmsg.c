@@ -30,7 +30,7 @@
 #include "dds/ddsi/q_rtps.h"
 #include "ddsi__addrset.h"
 #include "dds/ddsi/q_misc.h"
-#include "dds/ddsi/q_log.h"
+#include "dds/ddsi/ddsi_log.h"
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/ddsi_config_impl.h"

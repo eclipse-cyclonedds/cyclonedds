@@ -19,7 +19,7 @@
 #include "ddsi__tran.h"
 #include "ddsi__mcgroup.h"
 #include "dds/ddsi/ddsi_config_impl.h"
-#include "dds/ddsi/q_log.h"
+#include "dds/ddsi/ddsi_log.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsrt/avl.h"
 

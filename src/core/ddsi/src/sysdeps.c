@@ -15,7 +15,7 @@
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/misc.h"
 
-#include "dds/ddsi/q_log.h"
+#include "dds/ddsi/ddsi_log.h"
 #include "dds/ddsi/sysdeps.h"
 
 #if (defined __APPLE__ || (defined __linux && (defined __GLIBC__ || defined __UCLIBC__))) || (__GNUC__ > 0 && (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__) < 40100) && ! DDSRT_WITH_FREERTOS

@@ -27,7 +27,7 @@
 #include "dds/ddsrt/environ.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "ddsi__config_impl.h"
-#include "dds/ddsi/q_log.h"
+#include "dds/ddsi/ddsi_log.h"
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/q_misc.h"

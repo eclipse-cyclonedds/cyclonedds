@@ -21,7 +21,7 @@
 #include "ddsi__participant.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
 #include "ddsi__lease.h"
-#include "dds/ddsi/q_log.h"
+#include "dds/ddsi/ddsi_log.h"
 #include "dds/ddsi/q_misc.h"
 #include "ddsi__protocol.h"
 #include "dds/ddsi/q_radmin.h"

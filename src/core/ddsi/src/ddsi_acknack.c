@@ -15,7 +15,7 @@
 #include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/q_misc.h"
 #include "dds/ddsi/q_xmsg.h"
-#include "dds/ddsi/q_log.h"
+#include "dds/ddsi/ddsi_log.h"
 #include "ddsi__bitset.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "ddsi__acknack.h"

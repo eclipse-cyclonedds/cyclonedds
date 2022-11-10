@@ -12,7 +12,7 @@
 #ifndef DDSI__LAT_ESTIM_H
 #define DDSI__LAT_ESTIM_H
 
-#include "dds/ddsi/q_log.h"
+#include "dds/ddsi/ddsi_log.h"
 #include "dds/ddsi/ddsi_lat_estim.h"
 
 #if defined (__cplusplus)

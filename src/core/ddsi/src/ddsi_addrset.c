@@ -19,7 +19,7 @@
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/avl.h"
 #include "ddsi__tran.h"
-#include "dds/ddsi/q_log.h"
+#include "dds/ddsi/ddsi_log.h"
 #include "dds/ddsi/q_misc.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "ddsi__addrset.h"

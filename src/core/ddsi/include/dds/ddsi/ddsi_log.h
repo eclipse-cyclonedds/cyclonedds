@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef NN_LOG_H
-#define NN_LOG_H
+#ifndef DDSI_LOG_H
+#define DDSI_LOG_H
 
 #include <stdarg.h>
 
@@ -67,4 +67,4 @@ extern "C" {
 }
 #endif
 
-#endif /* NN_LOG_H */
+#endif /* DDSI_LOG_H */

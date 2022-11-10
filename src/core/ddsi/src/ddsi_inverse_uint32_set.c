@@ -14,7 +14,7 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsi/ddsi_config_impl.h"
-#include "dds/ddsi/q_log.h"
+#include "dds/ddsi/ddsi_log.h"
 #include "ddsi__inverse_uint32_set.h"
 
 static int uint32_t_cmp(const void *va, const void *vb);
