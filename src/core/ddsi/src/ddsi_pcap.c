@@ -16,7 +16,7 @@
 #include "dds/ddsi/ddsi_log.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/q_pcap.h"
+#include "ddsi__pcap.h"
 
 /* pcap format info taken from http://wiki.wireshark.org/Development/LibpcapFileFormat */
 
@@ -75,7 +75,7 @@ static const ipv4_hdr_t ipv4_hdr_template = {
 #define IPV4_HDR_SIZE 20
 #define UDP_HDR_SIZE 8
 
-FILE *new_pcap_file (struct ddsi_domaingv *gv, const char *name)
+FILE *ddsi_new_pcap_file (struct ddsi_domaingv *gv, const char *name)
 {
   DDSRT_WARNING_MSVC_OFF(4996);
   FILE *fp;
@@ -125,7 +125,7 @@ static uint16_t calc_ipv4_checksum (const uint16_t *x)
   return (uint16_t) ~s;
 }
 
-void write_pcap_received (struct ddsi_domaingv *gv, ddsrt_wctime_t tstamp, const struct sockaddr_storage *src, const struct sockaddr_storage *dst, unsigned char *buf, size_t sz)
+void ddsi_write_pcap_received (struct ddsi_domaingv *gv, ddsrt_wctime_t tstamp, const struct sockaddr_storage *src, const struct sockaddr_storage *dst, unsigned char *buf, size_t sz)
 {
   if (gv->config.transport_selector == DDSI_TRANS_UDP)
   {
@@ -158,7 +158,7 @@ void write_pcap_received (struct ddsi_domaingv *gv, ddsrt_wctime_t tstamp, const
   }
 }
 
-void write_pcap_sent (struct ddsi_domaingv *gv, ddsrt_wctime_t tstamp, const struct sockaddr_storage *src, const ddsrt_msghdr_t *hdr, size_t sz)
+void ddsi_write_pcap_sent (struct ddsi_domaingv *gv, ddsrt_wctime_t tstamp, const struct sockaddr_storage *src, const ddsrt_msghdr_t *hdr, size_t sz)
 {
   if (gv->config.transport_selector == DDSI_TRANS_UDP)
   {

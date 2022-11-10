@@ -43,7 +43,7 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/q_receive.h"
-#include "dds/ddsi/q_pcap.h"
+#include "ddsi__pcap.h"
 #include "dds/ddsi/ddsi_feature_check.h"
 #include "ddsi__debmon.h"
 #include "dds/ddsi/ddsi_threadmon.h"
@@ -1533,7 +1533,7 @@ int rtps_init (struct ddsi_domaingv *gv)
 
   if (gv->config.pcap_file && *gv->config.pcap_file)
   {
-    gv->pcap_fp = new_pcap_file (gv, gv->config.pcap_file);
+    gv->pcap_fp = ddsi_new_pcap_file (gv, gv->config.pcap_file);
     if (gv->pcap_fp)
     {
       ddsrt_mutex_init (&gv->pcap_lock);

@@ -69,7 +69,7 @@ set(srcs_ddsi
   ddsi_lat_estim.c
   ddsi_lease.c
   ddsi_misc.c
-  q_pcap.c
+  ddsi_pcap.c
   q_qosmatch.c
   q_radmin.c
   q_receive.c
@@ -129,7 +129,6 @@ set(hdrs_ddsi
   ddsi_lat_estim.h
   ddsi_lease.h
   ddsi_log.h
-  q_pcap.h
   q_qosmatch.h
   q_radmin.h
   q_receive.h
@@ -196,6 +195,7 @@ set(hdrs_private_ddsi
   ddsi__lat_estim.h
   ddsi__lease.h
   ddsi__misc.h
+  ddsi__pcap.h
 )
 
 if(ENABLE_LIFESPAN)

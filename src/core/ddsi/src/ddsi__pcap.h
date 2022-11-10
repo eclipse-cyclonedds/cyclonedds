@@ -9,11 +9,12 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef Q_PCAP_H
-#define Q_PCAP_H
+#ifndef DDSI__PCAP_H
+#define DDSI__PCAP_H
 
 #include <stdio.h>
 #include "dds/ddsrt/time.h"
+#include "dds/ddsrt/sockets.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -21,14 +22,12 @@ extern "C" {
 
 struct msghdr;
 
-FILE * new_pcap_file (struct ddsi_domaingv *gv, const char *name);
-
-void write_pcap_received (struct ddsi_domaingv *gv, ddsrt_wctime_t tstamp, const struct sockaddr_storage *src, const struct sockaddr_storage *dst, unsigned char *buf, size_t sz);
-void write_pcap_sent (struct ddsi_domaingv *gv, ddsrt_wctime_t tstamp, const struct sockaddr_storage *src,
-  const ddsrt_msghdr_t *hdr, size_t sz);
+FILE * ddsi_new_pcap_file (struct ddsi_domaingv *gv, const char *name);
+void ddsi_write_pcap_received (struct ddsi_domaingv *gv, ddsrt_wctime_t tstamp, const struct sockaddr_storage *src, const struct sockaddr_storage *dst, unsigned char *buf, size_t sz);
+void ddsi_write_pcap_sent (struct ddsi_domaingv *gv, ddsrt_wctime_t tstamp, const struct sockaddr_storage *src, const ddsrt_msghdr_t *hdr, size_t sz);
 
 #if defined (__cplusplus)
 }
 #endif
 
-#endif /* Q_PCAP_H */
+#endif /* DDSI__PCAP_H */
