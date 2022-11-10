@@ -33,6 +33,7 @@
 #include "dds/ddsi/ddsi_builtin_topic_if.h"
 #include "ddsi__vnet.h"
 #include "ddsi__tran.h"
+#include "dds/ddsi/ddsi_init.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds__whc.h"
 #include "dds__types.h"

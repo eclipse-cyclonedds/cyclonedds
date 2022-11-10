@@ -47,7 +47,6 @@
 #include "dds/ddsi/q_pcap.h"
 #include "dds/ddsi/ddsi_feature_check.h"
 #include "ddsi__debmon.h"
-#include "dds/ddsi/q_init.h"
 #include "dds/ddsi/ddsi_threadmon.h"
 #include "ddsi__pmd.h"
 #include "dds/ddsi/ddsi_xt_typelookup.h"
@@ -681,7 +680,7 @@ static void joinleave_spdp_defmcip_helper (const ddsi_xlocator_t *loc, void *var
   }
 }
 
-int joinleave_spdp_defmcip (struct ddsi_domaingv *gv, int dojoin)
+static int joinleave_spdp_defmcip (struct ddsi_domaingv *gv, int dojoin)
 {
   /* Addrset provides an easy way to filter out duplicates */
   struct joinleave_spdp_defmcip_helper_arg arg;
@@ -703,7 +702,7 @@ int joinleave_spdp_defmcip (struct ddsi_domaingv *gv, int dojoin)
   return 0;
 }
 
-int create_multicast_sockets (struct ddsi_domaingv *gv)
+static int create_multicast_sockets (struct ddsi_domaingv *gv)
 {
   const ddsi_tran_qos_t qos = { .m_purpose = DDSI_TRAN_QOS_RECV_MC, .m_diffserv = 0, .m_interface = NULL };
   ddsi_tran_conn_t disc, data;

@@ -65,7 +65,7 @@ set(srcs_ddsi
   ddsi_bswap.c
   ddsi_discovery.c
   ddsi_debmon.c
-  q_init.c
+  ddsi_init.c
   q_lat_estim.c
   q_lease.c
   q_misc.c

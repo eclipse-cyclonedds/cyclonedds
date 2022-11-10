@@ -51,7 +51,6 @@
 #include "dds/ddsi/ddsi_deliver_locally.h"
 #include "dds/ddsi/q_transmit.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/q_init.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "ddsi__mcgroup.h"
 #include "dds/ddsi/ddsi_serdata.h"
