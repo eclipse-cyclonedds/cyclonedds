@@ -19,6 +19,7 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/cdr/dds_cdrstream.h"
 #include "dds/ddsi/ddsi_typewrap.h"
+#include "ddsi__typewrap.h"
 #include "ddsi__xt_impl.h"
 #include "dds/ddsi/ddsi_xt_typemap.h"
 #include "ddsi__typelookup.h"

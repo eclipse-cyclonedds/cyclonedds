@@ -35,6 +35,7 @@
 #include "ddsi__list_tmpl.h"
 #include "ddsi__topic.h"
 #include "ddsi__typelib.h"
+#include "ddsi__typewrap.h"
 
 DDSI_LIST_DECLS_TMPL(static, ddsi_type_proxy_guid_list, ddsi_guid_t, ddsrt_attribute_unused)
 DDSI_LIST_CODE_TMPL(static, ddsi_type_proxy_guid_list, ddsi_guid_t, nullguid, ddsrt_malloc, ddsrt_free)
