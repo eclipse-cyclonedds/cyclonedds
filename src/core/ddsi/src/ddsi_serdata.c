@@ -18,7 +18,7 @@
 #include "dds/ddsrt/md5.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/q_radmin.h"
-#include "dds/ddsi/q_freelist.h"
+#include "dds/ddsi/ddsi_freelist.h"
 #include "dds/ddsi/ddsi_serdata.h"
 
 void ddsi_serdata_init (struct ddsi_serdata *d, const struct ddsi_sertype *tp, enum ddsi_serdata_kind kind)

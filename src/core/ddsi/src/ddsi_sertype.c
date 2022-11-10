@@ -20,7 +20,7 @@
 #include "dds/ddsrt/hopscotch.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsi/ddsi_config_impl.h"
-#include "dds/ddsi/q_freelist.h"
+#include "dds/ddsi/ddsi_freelist.h"
 #include "dds/ddsi/ddsi_iid.h"
 #include "ddsi__plist_generic.h"
 #include "dds/ddsi/ddsi_sertype.h"

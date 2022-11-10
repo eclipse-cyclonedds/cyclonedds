@@ -15,7 +15,7 @@
 #include "dds/ddsrt/endian.h"
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsi/ddsi_protocol.h"
-#include "dds/ddsi/q_freelist.h"
+#include "dds/ddsi/ddsi_freelist.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_typelib.h"
 #include "dds/cdr/dds_cdrstream.h"
@@ -43,7 +43,7 @@ struct dds_serdata_default_key {
 };
 
 struct dds_serdatapool {
-  struct nn_freelist freelist;
+  struct ddsi_freelist freelist;
 };
 
 /* Debug builds may want to keep some additional state */

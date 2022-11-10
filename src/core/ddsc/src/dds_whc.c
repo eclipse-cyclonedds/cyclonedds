@@ -30,7 +30,7 @@
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/q_rtps.h"
-#include "dds/ddsi/q_freelist.h"
+#include "dds/ddsi/ddsi_freelist.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds__whc.h"
@@ -193,7 +193,7 @@ static const struct whc_ops whc_ops = {
  maximum message size and a short round-trip time */
 #define MAX_FREELIST_SIZE 8192
 static uint32_t whc_count;
-static struct nn_freelist whc_node_freelist;
+static struct ddsi_freelist whc_node_freelist;
 
 #if USE_EHH
 static uint32_t whc_seq_entry_hash (const void *vn)
@@ -488,7 +488,7 @@ struct whc *whc_new (struct ddsi_domaingv *gv, const struct whc_writer_info *wri
 
   ddsrt_mutex_lock (&dds_global.m_mutex);
   if (whc_count++ == 0)
-    nn_freelist_init (&whc_node_freelist, MAX_FREELIST_SIZE, offsetof (struct whc_node, next_seq));
+    ddsi_freelist_init (&whc_node_freelist, MAX_FREELIST_SIZE, offsetof (struct whc_node, next_seq));
   ddsrt_mutex_unlock (&dds_global.m_mutex);
 
   check_whc (whc);
@@ -543,7 +543,7 @@ void whc_default_free (struct whc *whc_generic)
 
   ddsrt_mutex_lock (&dds_global.m_mutex);
   if (--whc_count == 0)
-    nn_freelist_fini (&whc_node_freelist, ddsrt_free);
+    ddsi_freelist_fini (&whc_node_freelist, ddsrt_free);
   ddsrt_mutex_unlock (&dds_global.m_mutex);
 
 #if USE_EHH
@@ -885,7 +885,7 @@ static void free_deferred_free_list (struct whc_node *deferred_free_list)
       if (!cur->borrowed)
         free_whc_node_contents (cur);
     }
-    cur = nn_freelist_pushmany (&whc_node_freelist, deferred_free_list, last, n);
+    cur = ddsi_freelist_pushmany (&whc_node_freelist, deferred_free_list, last, n);
     while (cur)
     {
       struct whc_node *tmp = cur;
@@ -1160,7 +1160,7 @@ static struct whc_node *whc_default_insert_seq (struct whc_impl *whc, seqno_t ma
   DDSRT_UNUSED_ARG (exp);
 #endif
 
-  if ((newn = nn_freelist_pop (&whc_node_freelist)) == NULL)
+  if ((newn = ddsi_freelist_pop (&whc_node_freelist)) == NULL)
     newn = ddsrt_malloc (sizeof (*newn));
   newn->seq = seq;
   newn->unacked = (seq > max_drop_seq);

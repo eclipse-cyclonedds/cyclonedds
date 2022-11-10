@@ -16,41 +16,41 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/threads.h"
-#include "dds/ddsi/q_freelist.h"
+#include "dds/ddsi/ddsi_freelist.h"
 
-#if FREELIST_TYPE == FREELIST_NONE
+#if DDSI_FREELIST_TYPE == DDSI_FREELIST_NONE
 
-void nn_freelist_init (struct nn_freelist *fl, uint32_t max, size_t linkoff)
+void ddsi_freelist_init (struct ddsi_freelist *fl, uint32_t max, size_t linkoff)
 {
   (void) fl; (void) max; (void) linkoff;
 }
 
-void nn_freelist_fini (struct nn_freelist *fl, void (*free) (void *elem))
+void ddsi_freelist_fini (struct ddsi_freelist *fl, void (*free) (void *elem))
 {
   (void) fl; (void) free;
 }
 
-bool nn_freelist_push (struct nn_freelist *fl, void *elem)
+bool ddsi_freelist_push (struct ddsi_freelist *fl, void *elem)
 {
   (void) fl; (void) elem;
   return false;
 }
 
-void *nn_freelist_pushmany (struct nn_freelist *fl, void *first, void *last, uint32_t n)
+void *ddsi_freelist_pushmany (struct ddsi_freelist *fl, void *first, void *last, uint32_t n)
 {
   (void) fl; (void) first; (void) last; (void) n;
   return first;
 }
 
-void *nn_freelist_pop (struct nn_freelist *fl)
+void *ddsi_freelist_pop (struct ddsi_freelist *fl)
 {
   (void) fl;
   return NULL;
 }
 
-#elif FREELIST_TYPE == FREELIST_ATOMIC_LIFO
+#elif DDSI_FREELIST_TYPE == DDSI_FREELIST_ATOMIC_LIFO
 
-void nn_freelist_init (struct nn_freelist *fl, uint32_t max, size_t linkoff)
+void ddsi_freelist_init (struct ddsi_freelist *fl, uint32_t max, size_t linkoff)
 {
   ddsrt_atomic_lifo_init (&fl->x);
   ddsrt_atomic_st32(&fl->count, 0);
@@ -58,14 +58,14 @@ void nn_freelist_init (struct nn_freelist *fl, uint32_t max, size_t linkoff)
   fl->linkoff = linkoff;
 }
 
-void nn_freelist_fini (struct nn_freelist *fl, void (*free) (void *elem))
+void ddsi_freelist_fini (struct ddsi_freelist *fl, void (*free) (void *elem))
 {
   void *e;
   while ((e = ddsrt_atomic_lifo_pop (&fl->x, fl->linkoff)) != NULL)
     free (e);
 }
 
-bool nn_freelist_push (struct nn_freelist *fl, void *elem)
+bool ddsi_freelist_push (struct ddsi_freelist *fl, void *elem)
 {
   if (ddsrt_atomic_inc32_nv (&fl->count) <= fl->max)
   {
@@ -79,14 +79,14 @@ bool nn_freelist_push (struct nn_freelist *fl, void *elem)
   }
 }
 
-void *nn_freelist_pushmany (struct nn_freelist *fl, void *first, void *last, uint32_t n)
+void *ddsi_freelist_pushmany (struct ddsi_freelist *fl, void *first, void *last, uint32_t n)
 {
   ddsrt_atomic_add32 (&fl->count, n);
   ddsrt_atomic_lifo_pushmany (&fl->x, first, last, fl->linkoff);
   return NULL;
 }
 
-void *nn_freelist_pop (struct nn_freelist *fl)
+void *ddsi_freelist_pop (struct ddsi_freelist *fl)
 {
   void *e;
   if ((e = ddsrt_atomic_lifo_pop (&fl->x, fl->linkoff)) != NULL)
@@ -100,11 +100,11 @@ void *nn_freelist_pop (struct nn_freelist *fl)
   }
 }
 
-#elif FREELIST_TYPE == FREELIST_DOUBLE
+#elif DDSI_FREELIST_TYPE == DDSI_FREELIST_DOUBLE
 
 static ddsrt_thread_local int freelist_inner_idx = -1;
 
-void nn_freelist_init (struct nn_freelist *fl, uint32_t max, size_t linkoff)
+void ddsi_freelist_init (struct ddsi_freelist *fl, uint32_t max, size_t linkoff)
 {
   int i;
   ddsrt_mutex_init (&fl->lock);
@@ -122,16 +122,16 @@ void nn_freelist_init (struct nn_freelist *fl, uint32_t max, size_t linkoff)
   fl->linkoff = linkoff;
 }
 
-static void *get_next (const struct nn_freelist *fl, const void *e)
+static void *get_next (const struct ddsi_freelist *fl, const void *e)
 {
   return *((void **) ((char *)e + fl->linkoff));
 }
 
-void nn_freelist_fini (struct nn_freelist *fl, void (*xfree) (void *))
+void ddsi_freelist_fini (struct ddsi_freelist *fl, void (*xfree) (void *))
 {
   int i;
   uint32_t j;
-  struct nn_freelistM *m;
+  struct ddsi_freelist_m *m;
   ddsrt_mutex_destroy (&fl->lock);
   for (i = 0; i < NN_FREELIST_NPAR; i++)
   {
@@ -175,7 +175,7 @@ static int get_freelist_inner_idx (void)
   return freelist_inner_idx;
 }
 
-static int lock_inner (struct nn_freelist *fl)
+static int lock_inner (struct ddsi_freelist *fl)
 {
   int k = get_freelist_inner_idx();
   if (!ddsrt_mutex_trylock (&fl->inner[k].lock))
@@ -191,7 +191,7 @@ static int lock_inner (struct nn_freelist *fl)
   return k;
 }
 
-bool nn_freelist_push (struct nn_freelist *fl, void *elem)
+bool ddsi_freelist_push (struct ddsi_freelist *fl, void *elem)
 {
   int k = lock_inner (fl);
   if (fl->inner[k].count < NN_FREELIST_MAGSIZE)
@@ -202,7 +202,7 @@ bool nn_freelist_push (struct nn_freelist *fl, void *elem)
   }
   else
   {
-    struct nn_freelistM *m;
+    struct ddsi_freelist_m *m;
     ddsrt_mutex_lock (&fl->lock);
     if (fl->count + NN_FREELIST_MAGSIZE >= fl->max)
     {
@@ -229,7 +229,7 @@ bool nn_freelist_push (struct nn_freelist *fl, void *elem)
   }
 }
 
-void *nn_freelist_pushmany (struct nn_freelist *fl, void *first, void *last, uint32_t n)
+void *ddsi_freelist_pushmany (struct ddsi_freelist *fl, void *first, void *last, uint32_t n)
 {
   void *m = first;
   (void)last;
@@ -237,7 +237,7 @@ void *nn_freelist_pushmany (struct nn_freelist *fl, void *first, void *last, uin
   while (m)
   {
     void *mnext = get_next (fl, m);
-    if (!nn_freelist_push (fl, m)) {
+    if (!ddsi_freelist_push (fl, m)) {
       return m;
     }
     m = mnext;
@@ -245,7 +245,7 @@ void *nn_freelist_pushmany (struct nn_freelist *fl, void *first, void *last, uin
   return NULL;
 }
 
-void *nn_freelist_pop (struct nn_freelist *fl)
+void *ddsi_freelist_pop (struct ddsi_freelist *fl)
 {
   int k = lock_inner (fl);
   if (fl->inner[k].count > 0)
@@ -280,4 +280,4 @@ void *nn_freelist_pop (struct nn_freelist *fl)
   }
 }
 
-#endif
+#endif /* DDSI_FREELIST_TYPE */

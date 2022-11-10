@@ -80,7 +80,7 @@ set(srcs_ddsi
   q_whc.c
   q_xevent.c
   q_xmsg.c
-  q_freelist.c
+  ddsi_freelist.c
   sysdeps.c
 )
 
@@ -123,7 +123,7 @@ set(hdrs_ddsi
   ddsi_protocol.h
   ddsi_addrset.h
   ddsi_feature_check.h
-  q_freelist.h
+  ddsi_freelist.h
   q_hbcontrol.h
   q_lat_estim.h
   q_lease.h

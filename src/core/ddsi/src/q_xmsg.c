@@ -39,7 +39,7 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "ddsi__entity_index.h"
 #include "dds/ddsi/ddsi_serdata.h"
-#include "dds/ddsi/q_freelist.h"
+#include "dds/ddsi/ddsi_freelist.h"
 #include "ddsi__security_omg.h"
 #include "ddsi__endpoint.h"
 #include "ddsi__plist.h"
@@ -50,7 +50,7 @@
 #define NN_XMSG_CHUNK_SIZE 128
 
 struct nn_xmsgpool {
-  struct nn_freelist freelist;
+  struct ddsi_freelist freelist;
 };
 
 struct nn_xmsg_data {
@@ -214,7 +214,7 @@ struct nn_xmsgpool *nn_xmsgpool_new (void)
 {
   struct nn_xmsgpool *pool;
   pool = ddsrt_malloc (sizeof (*pool));
-  nn_freelist_init (&pool->freelist, MAX_FREELIST_SIZE, offsetof (struct nn_xmsg, link.older));
+  ddsi_freelist_init (&pool->freelist, MAX_FREELIST_SIZE, offsetof (struct nn_xmsg, link.older));
   return pool;
 }
 
@@ -225,7 +225,7 @@ static void nn_xmsg_realfree_wrap (void *elem)
 
 void nn_xmsgpool_free (struct nn_xmsgpool *pool)
 {
-  nn_freelist_fini (&pool->freelist, nn_xmsg_realfree_wrap);
+  ddsi_freelist_fini (&pool->freelist, nn_xmsg_realfree_wrap);
   ddsrt_free (pool);
 }
 
@@ -297,7 +297,7 @@ static struct nn_xmsg *nn_xmsg_allocnew (struct nn_xmsgpool *pool, size_t expect
 struct nn_xmsg *nn_xmsg_new (struct nn_xmsgpool *pool, const ddsi_guid_t *src_guid, struct ddsi_participant *pp, size_t expected_size, enum nn_xmsg_kind kind)
 {
   struct nn_xmsg *m;
-  if ((m = nn_freelist_pop (&pool->freelist)) != NULL)
+  if ((m = ddsi_freelist_pop (&pool->freelist)) != NULL)
     nn_xmsg_reinit (m, kind);
   else if ((m = nn_xmsg_allocnew (pool, expected_size, kind)) == NULL)
     return NULL;
@@ -347,7 +347,7 @@ void nn_xmsg_free (struct nn_xmsg *m)
       break;
   }
   /* Only cache the smallest xmsgs; data messages store the payload by reference and are small */
-  if (m->maxsz > NN_XMSG_CHUNK_SIZE || !nn_freelist_push (&pool->freelist, m))
+  if (m->maxsz > NN_XMSG_CHUNK_SIZE || !ddsi_freelist_push (&pool->freelist, m))
   {
     nn_xmsg_realfree (m);
   }

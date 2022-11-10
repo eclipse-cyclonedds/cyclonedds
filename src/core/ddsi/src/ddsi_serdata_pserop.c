@@ -19,7 +19,7 @@
 #include "dds/ddsrt/md5.h"
 #include "dds/ddsrt/mh3.h"
 #include "dds/ddsi/ddsi_config_impl.h"
-#include "dds/ddsi/q_freelist.h"
+#include "dds/ddsi/ddsi_freelist.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/cdr/dds_cdrstream.h"
 #include "dds/ddsi/q_radmin.h"

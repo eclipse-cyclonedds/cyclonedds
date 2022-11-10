@@ -19,7 +19,7 @@
 #include "dds/ddsrt/md5.h"
 #include "dds/ddsrt/mh3.h"
 #include "dds/ddsi/ddsi_config_impl.h"
-#include "dds/ddsi/q_freelist.h"
+#include "dds/ddsi/ddsi_freelist.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/cdr/dds_cdrstream.h"
 #include "dds/ddsi/q_radmin.h"
@@ -53,7 +53,7 @@ struct dds_serdatapool * dds_serdatapool_new (void)
 {
   struct dds_serdatapool * pool;
   pool = ddsrt_malloc (sizeof (*pool));
-  nn_freelist_init (&pool->freelist, MAX_POOL_SIZE, offsetof (struct dds_serdata_default, next));
+  ddsi_freelist_init (&pool->freelist, MAX_POOL_SIZE, offsetof (struct dds_serdata_default, next));
   return pool;
 }
 
@@ -68,7 +68,7 @@ static void serdata_free_wrap (void *elem)
 
 void dds_serdatapool_free (struct dds_serdatapool * pool)
 {
-  nn_freelist_fini (&pool->freelist, serdata_free_wrap);
+  ddsi_freelist_fini (&pool->freelist, serdata_free_wrap);
   ddsrt_free (pool);
 }
 
@@ -151,7 +151,7 @@ static void serdata_default_free(struct ddsi_serdata *dcmn)
   free_iox_chunk(d->c.iox_subscriber, &d->c.iox_chunk);
 #endif
 
-  if (d->size > MAX_SIZE_FOR_POOL || !nn_freelist_push (&d->serpool->freelist, d))
+  if (d->size > MAX_SIZE_FOR_POOL || !ddsi_freelist_push (&d->serpool->freelist, d))
     dds_free (d);
 }
 
@@ -182,7 +182,7 @@ static struct dds_serdata_default *serdata_default_allocnew (struct dds_serdatap
 static struct dds_serdata_default *serdata_default_new_size (const struct dds_sertype_default *tp, enum ddsi_serdata_kind kind, uint32_t size, uint32_t xcdr_version)
 {
   struct dds_serdata_default *d;
-  if (size <= MAX_SIZE_FOR_POOL && (d = nn_freelist_pop (&tp->serpool->freelist)) != NULL)
+  if (size <= MAX_SIZE_FOR_POOL && (d = ddsi_freelist_pop (&tp->serpool->freelist)) != NULL)
     ddsrt_atomic_st32 (&d->c.refc, 1);
   else if ((d = serdata_default_allocnew (tp->serpool, size)) == NULL)
     return NULL;
