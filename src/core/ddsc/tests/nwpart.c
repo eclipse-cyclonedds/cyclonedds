@@ -26,7 +26,7 @@
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/q_misc.h"
 #include "ddsi__addrset.h"
-#include "dds/ddsi/q_ddsi_discovery.h"
+#include "ddsi__discovery.h"
 #include "ddsi__plist.h"
 #include "ddsi__tran.h"
 

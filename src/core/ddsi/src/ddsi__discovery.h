@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef NN_DDSI_DISCOVERY_H
-#define NN_DDSI_DISCOVERY_H
+#ifndef DDSI__DISCOVERY_H
+#define DDSI__DISCOVERY_H
 
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/ddsi_domaingv.h" // FIXME: MAX_XMIT_CONNS
@@ -27,27 +27,27 @@ struct nn_rsample_info;
 struct nn_rdata;
 struct ddsi_plist;
 
-struct participant_builtin_topic_data_locators {
+struct ddsi_participant_builtin_topic_data_locators {
   struct ddsi_locators_one def_uni[MAX_XMIT_CONNS], meta_uni[MAX_XMIT_CONNS];
   struct ddsi_locators_one def_multi, meta_multi;
 };
 
-void get_participant_builtin_topic_data (const struct ddsi_participant *pp, ddsi_plist_t *dst, struct participant_builtin_topic_data_locators *locs);
+void ddsi_get_participant_builtin_topic_data (const struct ddsi_participant *pp, ddsi_plist_t *dst, struct ddsi_participant_builtin_topic_data_locators *locs);
 struct ddsi_addrset *ddsi_get_endpoint_addrset (const struct ddsi_domaingv *gv, const ddsi_plist_t *datap, struct ddsi_addrset *proxypp_as_default, const ddsi_locator_t *rst_srcloc);
 
-int spdp_write (struct ddsi_participant *pp);
-int spdp_dispose_unregister (struct ddsi_participant *pp);
+int ddsi_spdp_write (struct ddsi_participant *pp);
+int ddsi_spdp_dispose_unregister (struct ddsi_participant *pp);
 
-int sedp_write_topic (struct ddsi_topic *tp, bool alive);
-int sedp_write_writer (struct ddsi_writer *wr);
-int sedp_write_reader (struct ddsi_reader *rd);
-int sedp_dispose_unregister_writer (struct ddsi_writer *wr);
-int sedp_dispose_unregister_reader (struct ddsi_reader *rd);
+int ddsi_sedp_write_topic (struct ddsi_topic *tp, bool alive);
+int ddsi_sedp_write_writer (struct ddsi_writer *wr);
+int ddsi_sedp_write_reader (struct ddsi_reader *rd);
+int ddsi_sedp_dispose_unregister_writer (struct ddsi_writer *wr);
+int ddsi_sedp_dispose_unregister_reader (struct ddsi_reader *rd);
 
-int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const struct nn_rdata *fragchain, const ddsi_guid_t *rdguid, void *qarg);
+int ddsi_builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const struct nn_rdata *fragchain, const ddsi_guid_t *rdguid, void *qarg);
 
 #if defined (__cplusplus)
 }
 #endif
 
-#endif /* NN_DDSI_DISCOVERY_H */
+#endif /* DDSI__DISCOVERY_H */

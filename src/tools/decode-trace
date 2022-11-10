@@ -991,7 +991,7 @@ while(<>) {
     }
   } elsif (/: update_mtreader: (.*)/) {
     printf "%9.3f %55s UMTR %s\n", $ts, "", $1 if $shows{mtreader};
-  } elsif (!defined($self_fullversion) && /: spdp_write\($guidre\) - internals: [^\/]*\/([^\/]+)\//o) {
+  } elsif (!defined($self_fullversion) && /: ddsi_spdp_write\($guidre\) - internals: [^\/]*\/([^\/]+)\//o) {
     $self_fullversion = $1;
     @self_version = ($self_fullversion =~ /^(\d+)\.(\d+)\.(\d+)(?:p(\d+))?/);
   } elsif (/-----BEGIN CERTIFICATE-----|-----BEGIN RSA PRIVATE KEY-----/) {

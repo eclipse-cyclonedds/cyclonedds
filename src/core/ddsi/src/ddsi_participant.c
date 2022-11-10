@@ -24,7 +24,7 @@
 #include "ddsi__security_omg.h"
 #include "ddsi__handshake.h"
 #include "dds/ddsi/ddsi_tkmap.h"
-#include "dds/ddsi/q_ddsi_discovery.h"
+#include "ddsi__discovery.h"
 #include "dds/ddsi/q_xevent.h"
 #include "dds/ddsi/q_lease.h"
 #include "dds/ddsi/q_receive.h"
@@ -700,7 +700,7 @@ void ddsi_unref_participant (struct ddsi_participant *pp, const struct ddsi_guid
     /* SPDP relies on the WHC, but dispose-unregister will empty
        it. The event handler verifies the event has already been
        scheduled for deletion when it runs into an empty WHC */
-    spdp_dispose_unregister (pp);
+    ddsi_spdp_dispose_unregister (pp);
 
     /* If this happens to be the privileged_pp, clear it */
     ddsrt_mutex_lock (&pp->e.gv->privileged_pp_lock);
@@ -971,7 +971,7 @@ static dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domai
      publication must be done differently. Must be later than making
      the participant globally visible, or the SPDP processing won't
      recognise the participant as a local one. */
-  if (spdp_write (pp) >= 0)
+  if (ddsi_spdp_write (pp) >= 0)
   {
     /* Once the initial sample has been written, the automatic and
        asynchronous broadcasting required by SPDP can start. Also,
@@ -1031,7 +1031,7 @@ void ddsi_update_participant_plist (struct ddsi_participant *pp, const ddsi_plis
 {
   ddsrt_mutex_lock (&pp->e.lock);
   if (ddsi_update_qos_locked (&pp->e, &pp->plist->qos, &plist->qos, ddsrt_time_wallclock ()))
-    spdp_write (pp);
+    ddsi_spdp_write (pp);
   ddsrt_mutex_unlock (&pp->e.lock);
 }
 

@@ -23,7 +23,7 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "ddsi__entity_index.h"
 #include "dds/ddsi/ddsi_builtin_topic_if.h"
-#include "dds/ddsi/q_ddsi_discovery.h"
+#include "ddsi__discovery.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/q_misc.h"
 #include "ddsi__gc.h"
@@ -120,7 +120,7 @@ dds_return_t ddsi_new_topic (struct ddsi_topic **tp_out, struct ddsi_guid *tpgui
 
   ddsrt_mutex_lock (&tp->e.lock);
   ddsi_entidx_insert_topic_guid (gv->entity_index, tp);
-  (void) sedp_write_topic (tp, true);
+  (void) ddsi_sedp_write_topic (tp, true);
   ddsrt_mutex_unlock (&tp->e.lock);
   return 0;
 }
@@ -158,7 +158,7 @@ void ddsi_update_topic_qos (struct ddsi_topic *tp, const dds_qos_t *xqos)
   if (new_tpd)
     ddsi_builtintopic_write_topic (gv->builtin_topic_interface, tp->definition, ddsrt_time_wallclock(), true);
   ddsrt_mutex_unlock (&tp->e.qos_lock);
-  (void) sedp_write_topic (tp, true);
+  (void) ddsi_sedp_write_topic (tp, true);
   ddsrt_mutex_unlock (&tp->e.lock);
   dds_delete_qos (newqos);
 }
@@ -169,7 +169,7 @@ static void gc_delete_topic (struct ddsi_gcreq *gcreq)
   ELOGDISC (tp, "gc_delete_topic (%p, "PGUIDFMT")\n", (void *) gcreq, PGUID (tp->e.guid));
   ddsi_gcreq_free (gcreq);
   if (!ddsi_is_builtin_entityid (tp->e.guid.entityid, DDSI_VENDORID_ECLIPSE))
-    (void) sedp_write_topic (tp, false);
+    (void) ddsi_sedp_write_topic (tp, false);
   ddsi_entity_common_fini (&tp->e);
   unref_topic_definition (tp->e.gv, tp->definition, ddsrt_time_wallclock());
   ddsi_unref_participant (tp->pp, &tp->e.guid);

@@ -23,7 +23,7 @@
 #include "ddsi__security_omg.h"
 #include "ddsi__handshake.h"
 #include "ddsi__serdata_pserop.h"
-#include "dds/ddsi/q_ddsi_discovery.h"
+#include "ddsi__discovery.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/q_transmit.h"
@@ -79,11 +79,11 @@ void auth_get_serialized_participant_data(struct ddsi_participant *pp, ddsi_octe
 {
   struct nn_xmsg *mpayload;
   ddsi_plist_t ps;
-  struct participant_builtin_topic_data_locators locs;
+  struct ddsi_participant_builtin_topic_data_locators locs;
   size_t sz;
   char *payload;
   mpayload = nn_xmsg_new (pp->e.gv->xmsgpool, &pp->e.guid, pp, 0, NN_XMSG_KIND_DATA);
-  get_participant_builtin_topic_data (pp, &ps, &locs);
+  ddsi_get_participant_builtin_topic_data (pp, &ps, &locs);
   ddsi_plist_addtomsg_bo (mpayload, &ps, ~(uint64_t)0, ~(uint64_t)0, DDSRT_BOSEL_BE);
   nn_xmsg_addpar_sentinel_bo (mpayload, DDSRT_BOSEL_BE);
   ddsi_plist_fini (&ps);

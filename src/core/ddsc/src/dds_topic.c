@@ -31,7 +31,6 @@
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/ddsi_sertype.h"
-#include "dds/ddsi/q_ddsi_discovery.h"
 #include "dds/ddsi/ddsi_iid.h"
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/ddsi_domaingv.h"

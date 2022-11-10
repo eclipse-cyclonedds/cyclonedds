@@ -31,7 +31,7 @@
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/q_xevent.h"
 #include "dds/ddsi/ddsi_addrset.h"
-#include "dds/ddsi/q_ddsi_discovery.h"
+#include "ddsi__discovery.h"
 #include "ddsi__serdata_plist.h"
 
 #include "dds/ddsi/q_radmin.h"
@@ -384,7 +384,7 @@ static bool include_multicast_locator_in_discovery (const struct ddsi_participan
 #endif
 }
 
-void get_participant_builtin_topic_data (const struct ddsi_participant *pp, ddsi_plist_t *dst, struct participant_builtin_topic_data_locators *locs)
+void ddsi_get_participant_builtin_topic_data (const struct ddsi_participant *pp, ddsi_plist_t *dst, struct ddsi_participant_builtin_topic_data_locators *locs)
 {
   size_t size;
   char node[64];
@@ -489,7 +489,7 @@ void get_participant_builtin_topic_data (const struct ddsi_participant *pp, ddsi
     size = strlen(node) + strlen(DDS_VERSION) + strlen(DDS_HOST_NAME) + strlen(DDS_TARGET_NAME) + 4; /* + ///'\0' */
     dst->adlink_participant_version_info.internals = ddsrt_malloc(size);
     (void) snprintf(dst->adlink_participant_version_info.internals, size, "%s/%s/%s/%s", node, DDS_VERSION, DDS_HOST_NAME, DDS_TARGET_NAME);
-    ETRACE (pp, "spdp_write("PGUIDFMT") - internals: %s\n", PGUID (pp->e.guid), dst->adlink_participant_version_info.internals);
+    ETRACE (pp, "ddsi_spdp_write("PGUIDFMT") - internals: %s\n", PGUID (pp->e.guid), dst->adlink_participant_version_info.internals);
   }
 
   /* Add Cyclone specific information */
@@ -537,37 +537,37 @@ static int write_and_fini_plist (struct ddsi_writer *wr, ddsi_plist_t *ps, bool 
   return write_sample_nogc_notk (ddsi_lookup_thread_state (), NULL, wr, serdata);
 }
 
-int spdp_write (struct ddsi_participant *pp)
+int ddsi_spdp_write (struct ddsi_participant *pp)
 {
   struct ddsi_writer *wr;
   ddsi_plist_t ps;
-  struct participant_builtin_topic_data_locators locs;
+  struct ddsi_participant_builtin_topic_data_locators locs;
 
   if (pp->e.onlylocal) {
       /* This topic is only locally available. */
       return 0;
   }
 
-  ETRACE (pp, "spdp_write("PGUIDFMT")\n", PGUID (pp->e.guid));
+  ETRACE (pp, "ddsi_spdp_write("PGUIDFMT")\n", PGUID (pp->e.guid));
 
   if ((wr = ddsi_get_builtin_writer (pp, NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER)) == NULL)
   {
-    ETRACE (pp, "spdp_write("PGUIDFMT") - builtin participant writer not found\n", PGUID (pp->e.guid));
+    ETRACE (pp, "ddsi_spdp_write("PGUIDFMT") - builtin participant writer not found\n", PGUID (pp->e.guid));
     return 0;
   }
 
-  get_participant_builtin_topic_data (pp, &ps, &locs);
+  ddsi_get_participant_builtin_topic_data (pp, &ps, &locs);
   return write_and_fini_plist (wr, &ps, true);
 }
 
-static int spdp_dispose_unregister_with_wr (struct ddsi_participant *pp, unsigned entityid)
+static int ddsi_spdp_dispose_unregister_with_wr (struct ddsi_participant *pp, unsigned entityid)
 {
   ddsi_plist_t ps;
   struct ddsi_writer *wr;
 
   if ((wr = ddsi_get_builtin_writer (pp, entityid)) == NULL)
   {
-    ETRACE (pp, "spdp_dispose_unregister("PGUIDFMT") - builtin participant %s writer not found\n",
+    ETRACE (pp, "ddsi_spdp_dispose_unregister("PGUIDFMT") - builtin participant %s writer not found\n",
             PGUID (pp->e.guid),
             entityid == NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER ? "secure" : "");
     return 0;
@@ -579,17 +579,17 @@ static int spdp_dispose_unregister_with_wr (struct ddsi_participant *pp, unsigne
   return write_and_fini_plist (wr, &ps, false);
 }
 
-int spdp_dispose_unregister (struct ddsi_participant *pp)
+int ddsi_spdp_dispose_unregister (struct ddsi_participant *pp)
 {
   /*
    * When disposing a participant, it should be announced on both the
    * non-secure and secure writers.
    * The receiver will decide from which writer it accepts the dispose.
    */
-  int ret = spdp_dispose_unregister_with_wr(pp, NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
+  int ret = ddsi_spdp_dispose_unregister_with_wr(pp, NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
   if ((ret > 0) && ddsi_omg_participant_is_secure(pp))
   {
-    ret = spdp_dispose_unregister_with_wr(pp, NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER);
+    ret = ddsi_spdp_dispose_unregister_with_wr(pp, NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER);
   }
   return ret;
 }
@@ -1251,7 +1251,7 @@ static int sedp_write_endpoint_impl
 
 #ifdef DDS_HAS_TOPIC_DISCOVERY
 
-static int sedp_write_topic_impl (struct ddsi_writer *wr, int alive, const ddsi_guid_t *guid, const dds_qos_t *xqos, ddsi_typeinfo_t *type_info)
+static int ddsi_sedp_write_topic_impl (struct ddsi_writer *wr, int alive, const ddsi_guid_t *guid, const dds_qos_t *xqos, ddsi_typeinfo_t *type_info)
 {
   struct ddsi_domaingv * const gv = wr->e.gv;
   const dds_qos_t *defqos = &ddsi_default_qos_topic;
@@ -1281,7 +1281,7 @@ static int sedp_write_topic_impl (struct ddsi_writer *wr, int alive, const ddsi_
   return write_and_fini_plist (wr, &ps, alive);
 }
 
-int sedp_write_topic (struct ddsi_topic *tp, bool alive)
+int ddsi_sedp_write_topic (struct ddsi_topic *tp, bool alive)
 {
   int res = 0;
   if (!(tp->pp->bes & DDSI_DISC_BUILTIN_ENDPOINT_TOPICS_ANNOUNCER))
@@ -1292,7 +1292,7 @@ int sedp_write_topic (struct ddsi_topic *tp, bool alive)
     struct ddsi_writer *sedp_wr = get_sedp_writer (tp->pp, entityid);
     ddsrt_mutex_lock (&tp->e.qos_lock);
     // the allocation type info object is freed with the plist
-    res = sedp_write_topic_impl (sedp_wr, alive, &tp->e.guid, tp->definition->xqos, ddsi_type_pair_complete_info (tp->e.gv, tp->definition->type_pair));
+    res = ddsi_sedp_write_topic_impl (sedp_wr, alive, &tp->e.guid, tp->definition->xqos, ddsi_type_pair_complete_info (tp->e.gv, tp->definition->type_pair));
     ddsrt_mutex_unlock (&tp->e.qos_lock);
   }
   return res;
@@ -1300,7 +1300,7 @@ int sedp_write_topic (struct ddsi_topic *tp, bool alive)
 
 #endif /* DDS_HAS_TOPIC_DISCOVERY */
 
-int sedp_write_writer (struct ddsi_writer *wr)
+int ddsi_sedp_write_writer (struct ddsi_writer *wr)
 {
   if ((!ddsi_is_builtin_entityid(wr->e.guid.entityid, DDSI_VENDORID_ECLIPSE)) && (!wr->e.onlylocal))
   {
@@ -1328,7 +1328,7 @@ int sedp_write_writer (struct ddsi_writer *wr)
   return 0;
 }
 
-int sedp_write_reader (struct ddsi_reader *rd)
+int ddsi_sedp_write_reader (struct ddsi_reader *rd)
 {
   if (ddsi_is_builtin_entityid (rd->e.guid.entityid, DDSI_VENDORID_ECLIPSE) || rd->e.onlylocal)
     return 0;
@@ -1370,7 +1370,7 @@ int sedp_write_reader (struct ddsi_reader *rd)
   return ret;
 }
 
-int sedp_dispose_unregister_writer (struct ddsi_writer *wr)
+int ddsi_sedp_dispose_unregister_writer (struct ddsi_writer *wr)
 {
   if ((!ddsi_is_builtin_entityid(wr->e.guid.entityid, DDSI_VENDORID_ECLIPSE)) && (!wr->e.onlylocal))
   {
@@ -1385,7 +1385,7 @@ int sedp_dispose_unregister_writer (struct ddsi_writer *wr)
   return 0;
 }
 
-int sedp_dispose_unregister_reader (struct ddsi_reader *rd)
+int ddsi_sedp_dispose_unregister_reader (struct ddsi_reader *rd)
 {
   if ((!ddsi_is_builtin_entityid(rd->e.guid.entityid, DDSI_VENDORID_ECLIPSE)) && (!rd->e.onlylocal))
   {
@@ -1923,7 +1923,7 @@ static void handle_typelookup (const struct receiver_state *rst, ddsi_entityid_t
 /******************************************************************************
  *****************************************************************************/
 
-int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const struct nn_rdata *fragchain, UNUSED_ARG (const ddsi_guid_t *rdguid), UNUSED_ARG (void *qarg))
+int ddsi_builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const struct nn_rdata *fragchain, UNUSED_ARG (const ddsi_guid_t *rdguid), UNUSED_ARG (void *qarg))
 {
   struct ddsi_domaingv * const gv = sampleinfo->rst->gv;
   struct ddsi_proxy_writer *pwr;

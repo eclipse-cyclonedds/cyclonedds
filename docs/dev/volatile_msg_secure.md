@@ -71,7 +71,7 @@ Just before the submessage is added to the rtps message and send, it is encoded 
 
 First things first, the submessage is decoded when the rtps message is received (todo).
 
-It is received on a builtin reader, so the builtin queue is used and ```builtins_dqueue_handler()``` is called. That will forward the sample to the token exchange functionality, ignoring every sample that isn't related to the related participant (todo).
+It is received on a builtin reader, so the builtin queue is used and ```ddsi_builtins_dqueue_handler()``` is called. That will forward the sample to the token exchange functionality, ignoring every sample that isn't related to the related participant (todo).
 
 
 ### Gaps on reader side

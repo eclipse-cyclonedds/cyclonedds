@@ -34,7 +34,7 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "ddsi__addrset.h"
 #include "dds/ddsi/q_radmin.h"
-#include "dds/ddsi/q_ddsi_discovery.h"
+#include "ddsi__discovery.h"
 #include "ddsi__protocol.h"
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/q_debmon.h"

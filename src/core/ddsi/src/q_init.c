@@ -31,7 +31,7 @@
 #include "ddsi__bitset.h"
 #include "dds/ddsi/q_xevent.h"
 #include "ddsi__addrset.h"
-#include "dds/ddsi/q_ddsi_discovery.h"
+#include "ddsi__discovery.h"
 #include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/q_thread.h"
 #include "ddsi__entity_index.h"
@@ -1755,7 +1755,7 @@ int rtps_init (struct ddsi_domaingv *gv)
   gv->sendq_running = false;
   ddsrt_mutex_init (&gv->sendq_running_lock);
 
-  gv->builtins_dqueue = nn_dqueue_new ("builtins", gv, gv->config.delivery_queue_maxsamples, builtins_dqueue_handler, NULL);
+  gv->builtins_dqueue = nn_dqueue_new ("builtins", gv, gv->config.delivery_queue_maxsamples, ddsi_builtins_dqueue_handler, NULL);
 #ifdef DDS_HAS_NETWORK_CHANNELS
   for (struct ddsi_config_channel_listelem *chptr = gv->config.channels; chptr; chptr = chptr->next)
     chptr->dqueue = nn_dqueue_new (chptr->name, &gv->config, gv->config.delivery_queue_maxsamples, user_dqueue_handler, NULL);

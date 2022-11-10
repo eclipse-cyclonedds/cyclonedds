@@ -30,7 +30,7 @@
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "ddsi__security_omg.h"
 #include "dds/ddsi/ddsi_serdata.h"
-#include "dds/ddsi/q_ddsi_discovery.h"
+#include "ddsi__discovery.h"
 #include "dds/ddsi/q_whc.h"
 #include "dds/ddsi/q_xevent.h"
 #include "ddsi__addrset.h"
@@ -959,7 +959,7 @@ dds_return_t ddsi_new_writer_guid (struct ddsi_writer **wr_out, const struct dds
    deleted while we do so */
   ddsi_match_writer_with_proxy_readers (wr, tnow);
   ddsi_match_writer_with_local_readers (wr, tnow);
-  sedp_write_writer (wr);
+  ddsi_sedp_write_writer (wr);
 
   if (wr->lease_duration != NULL)
   {
@@ -1046,7 +1046,7 @@ void ddsi_update_writer_qos (struct ddsi_writer *wr, const dds_qos_t *xqos)
 {
   ddsrt_mutex_lock (&wr->e.lock);
   if (ddsi_update_qos_locked (&wr->e, wr->xqos, xqos, ddsrt_time_wallclock ()))
-    sedp_write_writer (wr);
+    ddsi_sedp_write_writer (wr);
   ddsrt_mutex_unlock (&wr->e.lock);
 }
 
@@ -1094,7 +1094,7 @@ static void gc_delete_writer (struct ddsi_gcreq *gcreq)
 
   /* Do last gasp on SEDP and free writer. */
   if (!ddsi_is_builtin_entityid (wr->e.guid.entityid, DDSI_VENDORID_ECLIPSE))
-    sedp_dispose_unregister_writer (wr);
+    ddsi_sedp_dispose_unregister_writer (wr);
   whc_free (wr->whc);
   if (wr->status_cb)
     (wr->status_cb) (wr->status_cb_entity, NULL);
@@ -1502,7 +1502,7 @@ dds_return_t ddsi_new_reader_guid (struct ddsi_reader **rd_out, const struct dds
 
   ddsi_match_reader_with_proxy_writers (rd, tnow);
   ddsi_match_reader_with_local_writers (rd, tnow);
-  sedp_write_reader (rd);
+  ddsi_sedp_write_reader (rd);
   return 0;
 }
 
@@ -1545,7 +1545,7 @@ static void gc_delete_reader (struct ddsi_gcreq *gcreq)
 #endif
 
   if (!ddsi_is_builtin_entityid (rd->e.guid.entityid, DDSI_VENDORID_ECLIPSE))
-    sedp_dispose_unregister_reader (rd);
+    ddsi_sedp_dispose_unregister_reader (rd);
 #ifdef DDS_HAS_NETWORK_PARTITIONS
   if (rd->mc_as)
   {
@@ -1597,7 +1597,7 @@ void ddsi_update_reader_qos (struct ddsi_reader *rd, const dds_qos_t *xqos)
 {
   ddsrt_mutex_lock (&rd->e.lock);
   if (ddsi_update_qos_locked (&rd->e, rd->xqos, xqos, ddsrt_time_wallclock ()))
-    sedp_write_reader (rd);
+    ddsi_sedp_write_reader (rd);
   ddsrt_mutex_unlock (&rd->e.lock);
 }
 

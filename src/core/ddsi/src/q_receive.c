@@ -34,7 +34,7 @@
 #include "ddsi__bitset.h"
 #include "dds/ddsi/q_xevent.h"
 #include "ddsi__addrset.h"
-#include "dds/ddsi/q_ddsi_discovery.h"
+#include "ddsi__discovery.h"
 #include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/q_thread.h"
 #include "ddsi__entity_index.h"
