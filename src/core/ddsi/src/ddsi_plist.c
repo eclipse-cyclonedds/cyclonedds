@@ -28,7 +28,7 @@
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/ddsi_plist.h"
 #include "ddsi__plist.h"
-#include "dds/ddsi/ddsi_time.h"
+#include "ddsi__time.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/ddsi_vendor.h"
@@ -341,7 +341,7 @@ static dds_return_t deser_reliability (void * __restrict dst, struct flagset *fl
   if (validate_external_duration (&mbt) < 0)
     return DDS_RETCODE_BAD_PARAMETER;
   x->kind = (enum dds_reliability_kind) (kind - 1);
-  x->max_blocking_time = ddsi_from_ddsi_duration (mbt);
+  x->max_blocking_time = ddsi_duration_to_dds (mbt);
   *flagset->present |= flag;
   return 0;
 }
@@ -351,7 +351,7 @@ static dds_return_t ser_reliability (struct nn_xmsg *xmsg, ddsi_parameterid_t pi
   DDSRT_STATIC_ASSERT (DDS_EXTERNAL_RELIABILITY_BEST_EFFORT == 1 && DDS_EXTERNAL_RELIABILITY_RELIABLE == 2 &&
                        DDS_RELIABILITY_BEST_EFFORT == 0 && DDS_RELIABILITY_RELIABLE == 1);
   dds_reliability_qospolicy_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (dds_reliability_qospolicy_t));
-  ddsi_duration_t mbt = ddsi_to_ddsi_duration (x->max_blocking_time);
+  ddsi_duration_t mbt = ddsi_duration_from_dds (x->max_blocking_time);
   uint32_t * const p = nn_xmsg_addpar_bo (xmsg, pid, 3 * sizeof (uint32_t), bo);
   p[0] = ddsrt_toBO4u(bo, 1 + (uint32_t) x->kind);
   p[1] = ddsrt_toBO4u(bo, (uint32_t) mbt.seconds);
@@ -979,7 +979,7 @@ static dds_return_t deser_generic_r (void * __restrict dst, size_t * __restrict 
             goto fail;
           if (validate_external_duration (&tmp))
             goto fail;
-          x[i] = ddsi_from_ddsi_duration (tmp);
+          x[i] = ddsi_duration_to_dds (tmp);
         }
         *dstoff += cnt * sizeof (*x);
         break;
@@ -1262,7 +1262,7 @@ dds_return_t ddsi_plist_ser_generic_embeddable (char * const data, size_t *dstof
         uint32_t * const p = ser_generic_align4 (data, dstoff);
         for (uint32_t i = 0; i < cnt; i++)
         {
-          ddsi_duration_t tmp = ddsi_to_ddsi_duration (x[i]);
+          ddsi_duration_t tmp = ddsi_duration_from_dds (x[i]);
           p[2 * i + 0] = ddsrt_toBO4u(bo, (uint32_t) tmp.seconds);
           p[2 * i + 1] = ddsrt_toBO4u(bo, tmp.fraction);
         }

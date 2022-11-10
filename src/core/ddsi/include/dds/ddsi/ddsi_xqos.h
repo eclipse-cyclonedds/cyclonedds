@@ -90,12 +90,6 @@ typedef struct dds_durability_service_qospolicy {
   dds_resource_limits_qospolicy_t resource_limits;
 } dds_durability_service_qospolicy_t;
 
-typedef struct dds_external_durability_service_qospolicy {
-  ddsi_duration_t service_cleanup_delay;
-  dds_history_qospolicy_t history;
-  dds_resource_limits_qospolicy_t resource_limits;
-} dds_external_durability_service_qospolicy_t;
-
 typedef struct dds_presentation_qospolicy {
   dds_presentation_access_scope_kind_t access_scope;
   unsigned char coherent_access;
@@ -106,17 +100,9 @@ typedef struct dds_deadline_qospolicy {
   dds_duration_t deadline;
 } dds_deadline_qospolicy_t;
 
-typedef struct dds_external_deadline_qospolicy {
-  ddsi_duration_t deadline;
-} dds_external_deadline_qospolicy_t;
-
 typedef struct dds_latency_budget_qospolicy {
   dds_duration_t duration;
 } dds_latency_budget_qospolicy_t;
-
-typedef struct dds_external_latency_budget_qospolicy {
-  ddsi_duration_t duration;
-} dds_external_latency_budget_qospolicy_t;
 
 typedef struct dds_ownership_qospolicy {
   dds_ownership_kind_t kind;
@@ -131,18 +117,9 @@ typedef struct dds_liveliness_qospolicy {
   dds_duration_t lease_duration;
 } dds_liveliness_qospolicy_t;
 
-typedef struct dds_external_liveliness_qospolicy {
-  dds_liveliness_kind_t kind;
-  ddsi_duration_t lease_duration;
-} dds_external_liveliness_qospolicy_t;
-
 typedef struct dds_time_based_filter_qospolicy {
   dds_duration_t minimum_separation;
 } dds_time_based_filter_qospolicy_t;
-
-typedef struct dds_external_time_based_filter_qospolicy {
-  ddsi_duration_t minimum_separation;
-} dds_external_time_based_filter_qospolicy_t;
 
 typedef struct ddsi_stringseq {
   uint32_t n;
@@ -161,11 +138,6 @@ typedef enum dds_external_reliability_kind {
   DDS_EXTERNAL_RELIABILITY_RELIABLE = 2
 } dds_external_reliability_kind_t;
 
-typedef struct dds_external_reliability_qospolicy {
-  dds_external_reliability_kind_t kind;
-  ddsi_duration_t max_blocking_time;
-} dds_external_reliability_qospolicy_t;
-
 typedef struct dds_transport_priority_qospolicy {
   int32_t value;
 } dds_transport_priority_qospolicy_t;
@@ -173,10 +145,6 @@ typedef struct dds_transport_priority_qospolicy {
 typedef struct dds_lifespan_qospolicy {
   dds_duration_t duration;
 } dds_lifespan_qospolicy_t;
-
-typedef struct dds_external_lifespan_qospolicy {
-  ddsi_duration_t duration;
-} dds_external_lifespan_qospolicy_t;
 
 typedef struct dds_destination_order_qospolicy {
   dds_destination_order_kind_t kind;
@@ -195,20 +163,10 @@ typedef struct dds_reader_data_lifecycle_qospolicy {
   dds_duration_t autopurge_disposed_samples_delay;
 } dds_reader_data_lifecycle_qospolicy_t;
 
-typedef struct dds_external_reader_data_lifecycle_qospolicy {
-  ddsi_duration_t autopurge_nowriter_samples_delay;
-  ddsi_duration_t autopurge_disposed_samples_delay;
-} dds_external_reader_data_lifecycle_qospolicy_t;
-
 typedef struct dds_reader_lifespan_qospolicy {
   unsigned char use_lifespan;
   dds_duration_t duration;
 } dds_reader_lifespan_qospolicy_t;
-
-typedef struct dds_external_reader_lifespan_qospolicy {
-  unsigned char use_lifespan;
-  ddsi_duration_t duration;
-} dds_external_reader_lifespan_qospolicy_t;
 
 typedef struct dds_ignorelocal_qospolicy {
   dds_ignorelocal_kind_t value;

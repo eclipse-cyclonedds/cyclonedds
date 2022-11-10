@@ -107,7 +107,6 @@ set(hdrs_ddsi
   ddsi_domaingv.h
   ddsi_plist.h
   ddsi_xqos.h
-  ddsi_time.h
   ddsi_ownip.h
   ddsi_cfgunits.h
   ddsi_cfgelems.h
@@ -186,6 +185,7 @@ set(hdrs_private_ddsi
   ddsi__ssl.h
   ddsi__tcp.h
   ddsi__protocol.h
+  ddsi__time.h
 )
 
 if(ENABLE_LIFESPAN)

@@ -12,7 +12,7 @@
 #include <assert.h>
 
 #include "dds/ddsrt/time.h"
-#include "dds/ddsi/ddsi_time.h"
+#include "ddsi__time.h"
 
 bool ddsi_is_valid_timestamp (ddsi_time_t t)
 {
@@ -58,12 +58,12 @@ ddsrt_wctime_t ddsi_wctime_from_ddsi_time (ddsi_time_t x)
   return (ddsrt_wctime_t) { from_ddsi_time (x) };
 }
 
-ddsi_duration_t ddsi_to_ddsi_duration (dds_duration_t x)
+ddsi_duration_t ddsi_duration_from_dds (dds_duration_t x)
 {
   return to_ddsi_time (x);
 }
 
-dds_duration_t ddsi_from_ddsi_duration (ddsi_duration_t x)
+dds_duration_t ddsi_duration_to_dds (ddsi_duration_t x)
 {
   return from_ddsi_time (x);
 }

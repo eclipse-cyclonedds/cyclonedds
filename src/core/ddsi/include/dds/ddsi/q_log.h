@@ -15,7 +15,6 @@
 #include <stdarg.h>
 
 #include "dds/ddsrt/log.h"
-#include "dds/ddsi/ddsi_time.h"
 #include "dds/ddsrt/rusage.h"
 
 #if defined (__cplusplus)

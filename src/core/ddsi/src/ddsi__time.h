@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef DDSI_TIME_H
-#define DDSI_TIME_H
+#ifndef DDSI__TIME_H
+#define DDSI__TIME_H
 
 #include <stdint.h>
 
@@ -34,11 +34,11 @@ bool ddsi_is_valid_timestamp (ddsi_time_t t);
 
 ddsi_time_t ddsi_wctime_to_ddsi_time (ddsrt_wctime_t t);
 ddsrt_wctime_t ddsi_wctime_from_ddsi_time (ddsi_time_t x);
-ddsi_duration_t ddsi_to_ddsi_duration (dds_duration_t t);
-dds_duration_t ddsi_from_ddsi_duration (ddsi_duration_t x);
+ddsi_duration_t ddsi_duration_from_dds (dds_duration_t t);
+dds_duration_t ddsi_duration_to_dds (ddsi_duration_t x);
 
 #if defined (__cplusplus)
 }
 #endif
 
-#endif /* DDSI_TIME_H */
+#endif /* DDSI__TIME_H */
