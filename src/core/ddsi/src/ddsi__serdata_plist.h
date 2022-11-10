@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef DDSI_SERDATA_PLIST_H
-#define DDSI_SERDATA_PLIST_H
+#ifndef DDSI__SERDATA_PLIST_H
+#define DDSI__SERDATA_PLIST_H
 
 #include "dds/ddsi/q_protocol.h" /* for nn_parameterid_t */
 #include "dds/ddsi/ddsi_keyhash.h"
@@ -73,4 +73,4 @@ extern const struct ddsi_serdata_ops ddsi_serdata_ops_plist;
 }
 #endif
 
-#endif
+#endif /* DDSI__SERDATA_PLIST_H */

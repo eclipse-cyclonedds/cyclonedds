@@ -32,7 +32,7 @@
 #include "dds/ddsi/q_xevent.h"
 #include "dds/ddsi/q_addrset.h"
 #include "dds/ddsi/q_ddsi_discovery.h"
-#include "dds/ddsi/ddsi_serdata_plist.h"
+#include "ddsi__serdata_plist.h"
 
 #include "dds/ddsi/q_radmin.h"
 #include "ddsi__entity_index.h"

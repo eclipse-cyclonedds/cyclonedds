@@ -24,7 +24,7 @@
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/ddsi_serdata_plist.h"
+#include "ddsi__serdata_plist.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/q_misc.h"
 #include "ddsi__plist.h"

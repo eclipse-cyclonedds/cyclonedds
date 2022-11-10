@@ -62,7 +62,7 @@
 #include "ddsi__nwpart.h"
 #include "ddsi__serdata_cdr.h"
 #include "ddsi__serdata_pserop.h"
-#include "dds/ddsi/ddsi_serdata_plist.h"
+#include "ddsi__serdata_plist.h"
 #include "ddsi__security_omg.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/ddsi_iid.h"

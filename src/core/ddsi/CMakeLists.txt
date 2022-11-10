@@ -94,7 +94,6 @@ set(hdrs_ddsi
   ddsi_portmapping.h
   ddsi_serdata.h
   ddsi_sertype.h
-  ddsi_serdata_plist.h
   ddsi_statistics.h
   ddsi_iid.h
   ddsi_tkmap.h
@@ -185,6 +184,7 @@ set(hdrs_private_ddsi
   ddsi__security_omg.h
   ddsi__security_util.h
   ddsi__serdata_cdr.h
+  ddsi__serdata_plist.h
 )
 
 if(ENABLE_LIFESPAN)
