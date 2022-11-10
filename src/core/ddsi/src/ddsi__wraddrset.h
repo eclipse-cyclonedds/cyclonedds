@@ -14,15 +14,15 @@
 
 #include <stddef.h>
 #include <stdbool.h>
+#include "dds/ddsi/ddsi_addrset.h"
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
 
-struct addrset;
 struct ddsi_writer;
 
-struct addrset *ddsi_compute_writer_addrset (const struct ddsi_writer *wr);
+struct ddsi_addrset *ddsi_compute_writer_addrset (const struct ddsi_writer *wr);
 
 #if defined (__cplusplus)
 }

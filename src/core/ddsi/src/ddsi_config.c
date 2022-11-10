@@ -31,7 +31,7 @@
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/q_misc.h"
-#include "dds/ddsi/q_addrset.h"
+#include "ddsi__addrset.h"
 
 #include "dds/ddsrt/xmlparser.h"
 

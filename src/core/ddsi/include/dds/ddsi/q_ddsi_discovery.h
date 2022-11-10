@@ -33,7 +33,7 @@ struct participant_builtin_topic_data_locators {
 };
 
 void get_participant_builtin_topic_data (const struct ddsi_participant *pp, ddsi_plist_t *dst, struct participant_builtin_topic_data_locators *locs);
-struct addrset *ddsi_get_endpoint_addrset (const struct ddsi_domaingv *gv, const ddsi_plist_t *datap, struct addrset *proxypp_as_default, const ddsi_locator_t *rst_srcloc);
+struct ddsi_addrset *ddsi_get_endpoint_addrset (const struct ddsi_domaingv *gv, const ddsi_plist_t *datap, struct ddsi_addrset *proxypp_as_default, const ddsi_locator_t *rst_srcloc);
 
 int spdp_write (struct ddsi_participant *pp);
 int spdp_dispose_unregister (struct ddsi_participant *pp);

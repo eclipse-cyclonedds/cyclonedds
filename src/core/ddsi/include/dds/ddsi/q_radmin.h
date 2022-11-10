@@ -116,7 +116,7 @@ DDSRT_STATIC_ASSERT (sizeof (struct nn_rmsg) == offsetof (struct nn_rmsg, chunk)
 struct receiver_state {
   ddsi_guid_prefix_t src_guid_prefix;     /* 12 */
   ddsi_guid_prefix_t dst_guid_prefix;     /* 12 */
-  struct addrset *reply_locators;         /* 4/8 */
+  struct ddsi_addrset *reply_locators;         /* 4/8 */
   uint32_t forme:1;                       /* 4 */
   uint32_t rtps_encoded:1;                /* - */
   ddsi_vendorid_t vendor;                   /* 2 */

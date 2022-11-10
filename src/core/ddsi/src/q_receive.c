@@ -33,7 +33,7 @@
 #include "dds/ddsi/q_lat_estim.h"
 #include "dds/ddsi/q_bitset.h"
 #include "dds/ddsi/q_xevent.h"
-#include "dds/ddsi/q_addrset.h"
+#include "ddsi__addrset.h"
 #include "dds/ddsi/q_ddsi_discovery.h"
 #include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/q_thread.h"

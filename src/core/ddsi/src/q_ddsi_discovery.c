@@ -30,7 +30,7 @@
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/q_xevent.h"
-#include "dds/ddsi/q_addrset.h"
+#include "dds/ddsi/ddsi_addrset.h"
 #include "dds/ddsi/q_ddsi_discovery.h"
 #include "ddsi__serdata_plist.h"
 
@@ -59,6 +59,7 @@
 #include "ddsi__typelib.h"
 #include "ddsi__vendor.h"
 #include "ddsi__xqos.h"
+#include "ddsi__addrset.h"
 #ifdef DDS_HAS_TYPE_DISCOVERY
 #include "ddsi__typelookup.h"
 #endif
@@ -73,7 +74,7 @@ typedef enum ddsi_sedp_kind {
   SEDP_KIND_TOPIC
 } ddsi_sedp_kind_t;
 
-static void allowmulticast_aware_add_to_addrset (const struct ddsi_domaingv *gv, uint32_t allow_multicast, struct addrset *as, const ddsi_xlocator_t *loc)
+static void allowmulticast_aware_add_to_addrset (const struct ddsi_domaingv *gv, uint32_t allow_multicast, struct ddsi_addrset *as, const ddsi_xlocator_t *loc)
 {
 #ifdef DDS_HAS_SSM
   if (ddsi_is_ssm_mcaddr (gv, &loc->c))
@@ -90,7 +91,7 @@ static void allowmulticast_aware_add_to_addrset (const struct ddsi_domaingv *gv,
   if (ddsi_is_mcaddr (gv, &loc->c) && !(allow_multicast & DDSI_AMC_ASM))
     return;
 #endif
-  add_xlocator_to_addrset (gv, as, loc);
+  ddsi_add_xlocator_to_addrset (gv, as, loc);
 }
 
 typedef struct interface_set {
@@ -103,7 +104,7 @@ static void interface_set_init (interface_set_t *intfs)
     intfs->xs[i] = false;
 }
 
-static void addrset_from_locatorlists_add_one (struct ddsi_domaingv const * const gv, const ddsi_locator_t *loc, struct addrset *as, interface_set_t *intfs, bool *direct)
+static void addrset_from_locatorlists_add_one (struct ddsi_domaingv const * const gv, const ddsi_locator_t *loc, struct ddsi_addrset *as, interface_set_t *intfs, bool *direct)
 {
   size_t interf_idx;
   switch (ddsi_is_nearby_address (gv, loc, (size_t) gv->n_interfaces, gv->interfaces, &interf_idx))
@@ -114,7 +115,7 @@ static void addrset_from_locatorlists_add_one (struct ddsi_domaingv const * cons
       // directly connected interface: those will then all be possibilities
       // for transmitting multicasts (assuming capable, allowed, &c.)
       assert (interf_idx < MAX_XMIT_CONNS);
-      add_xlocator_to_addrset (gv, as, &(const ddsi_xlocator_t) {
+      ddsi_add_xlocator_to_addrset (gv, as, &(const ddsi_xlocator_t) {
         .conn = gv->xmit_conns[interf_idx],
         .c = *loc });
       intfs->xs[interf_idx] = true;
@@ -134,7 +135,7 @@ static void addrset_from_locatorlists_add_one (struct ddsi_domaingv const * cons
           // do not use link-local or loopback interfaces transmit conn for distant nodes
           if (gv->interfaces[i].link_local || gv->interfaces[i].loopback)
             continue;
-          add_xlocator_to_addrset (gv, as, &(const ddsi_xlocator_t) {
+          ddsi_add_xlocator_to_addrset (gv, as, &(const ddsi_xlocator_t) {
             .conn = gv->xmit_conns[i],
             .c = *loc });
           break;
@@ -173,9 +174,9 @@ static void addrset_from_locatorlists_add_one (struct ddsi_domaingv const * cons
  * @param[in,out] inherited_intfs set of applicable interfaces, may be NULL
  *
  * @return new addrset, possibly empty */
-static struct addrset *addrset_from_locatorlists (const struct ddsi_domaingv *gv, const ddsi_locators_t *uc, const ddsi_locators_t *mc, const ddsi_locator_t *srcloc, const interface_set_t *inherited_intfs)
+static struct ddsi_addrset *addrset_from_locatorlists (const struct ddsi_domaingv *gv, const ddsi_locators_t *uc, const ddsi_locators_t *mc, const ddsi_locator_t *srcloc, const interface_set_t *inherited_intfs)
 {
-  struct addrset *as = new_addrset ();
+  struct ddsi_addrset *as = ddsi_new_addrset ();
   interface_set_t intfs;
   interface_set_init (&intfs);
 
@@ -256,7 +257,7 @@ static struct addrset *addrset_from_locatorlists (const struct ddsi_domaingv *gv
     addrset_from_locatorlists_add_one (gv, &loc, as, &intfs, &direct);
   }
 
-  if (addrset_empty (as) && !is_unspec_locator (srcloc))
+  if (ddsi_addrset_empty (as) && !ddsi_is_unspec_locator (srcloc))
   {
     //GVTRACE("add srcloc\n");
     // FIXME: conn_read should provide interface information in source address
@@ -264,7 +265,7 @@ static struct addrset *addrset_from_locatorlists (const struct ddsi_domaingv *gv
     addrset_from_locatorlists_add_one (gv, srcloc, as, &intfs, &direct);
   }
 
-  if (addrset_empty (as) && inherited_intfs)
+  if (ddsi_addrset_empty (as) && inherited_intfs)
   {
     // implies no interfaces enabled in "intfs" yet -- just use whatever
     // we inherited for the purposes of selecting multicast addresses
@@ -322,14 +323,14 @@ static struct addrset *addrset_from_locatorlists (const struct ddsi_domaingv *gv
  ***
  *****************************************************************************/
 
-static void maybe_add_pp_as_meta_to_as_disc (struct ddsi_domaingv *gv, const struct addrset *as_meta)
+static void maybe_add_pp_as_meta_to_as_disc (struct ddsi_domaingv *gv, const struct ddsi_addrset *as_meta)
 {
-  if (addrset_empty_mc (as_meta) || !(gv->config.allowMulticast & DDSI_AMC_SPDP))
+  if (ddsi_addrset_empty_mc (as_meta) || !(gv->config.allowMulticast & DDSI_AMC_SPDP))
   {
     ddsi_xlocator_t loc;
-    if (addrset_any_uc (as_meta, &loc))
+    if (ddsi_addrset_any_uc (as_meta, &loc))
     {
-      add_xlocator_to_addrset (gv, gv->as_disc, &loc);
+      ddsi_add_xlocator_to_addrset (gv, gv->as_disc, &loc);
     }
   }
 }
@@ -739,7 +740,7 @@ static int handle_spdp_alive (const struct receiver_state *rst, seqno_t seq, dds
   const unsigned bes_sedp_announcer_mask =
     DDSI_DISC_BUILTIN_ENDPOINT_SUBSCRIPTION_ANNOUNCER |
     DDSI_DISC_BUILTIN_ENDPOINT_PUBLICATION_ANNOUNCER;
-  struct addrset *as_meta, *as_default;
+  struct ddsi_addrset *as_meta, *as_default;
   uint32_t builtin_endpoint_set;
   ddsi_guid_t privileged_pp_guid;
   dds_duration_t lease_duration;
@@ -918,7 +919,7 @@ static int handle_spdp_alive (const struct receiver_state *rst, seqno_t seq, dds
     if (gv->config.tcp_use_peeraddr_for_unicast)
       uc = &emptyset; // force use of source locator
     else if (uc != &emptyset)
-      set_unspec_locator (&srcloc); // can't always use the source address
+      ddsi_set_unspec_locator (&srcloc); // can't always use the source address
 
     interface_set_init (&intfs);
     as_default = addrset_from_locatorlists (gv, uc, mc, &srcloc, &intfs);
@@ -929,20 +930,20 @@ static int handle_spdp_alive (const struct receiver_state *rst, seqno_t seq, dds
     if (gv->config.tcp_use_peeraddr_for_unicast)
       uc = &emptyset; // force use of source locator
     else if (uc != &emptyset)
-      set_unspec_locator (&srcloc); // can't always use the source address
+      ddsi_set_unspec_locator (&srcloc); // can't always use the source address
     interface_set_init (&intfs);
     as_meta = addrset_from_locatorlists (gv, uc, mc, &srcloc, &intfs);
 
-    nn_log_addrset (gv, DDS_LC_DISCOVERY, " (data", as_default);
-    nn_log_addrset (gv, DDS_LC_DISCOVERY, " meta", as_meta);
+    ddsi_log_addrset (gv, DDS_LC_DISCOVERY, " (data", as_default);
+    ddsi_log_addrset (gv, DDS_LC_DISCOVERY, " meta", as_meta);
     GVLOGDISC (")");
   }
 
-  if (addrset_empty_uc (as_default) || addrset_empty_uc (as_meta))
+  if (ddsi_addrset_empty_uc (as_default) || ddsi_addrset_empty_uc (as_meta))
   {
     GVLOGDISC (" (no unicast address");
-    unref_addrset (as_default);
-    unref_addrset (as_meta);
+    ddsi_unref_addrset (as_default);
+    ddsi_unref_addrset (as_meta);
     return 1;
   }
 
@@ -1107,7 +1108,7 @@ static int sedp_write_endpoint_impl
 (
    struct ddsi_writer *wr, int alive, const ddsi_guid_t *guid,
    const struct ddsi_endpoint_common *epcommon,
-   const dds_qos_t *xqos, struct addrset *as, ddsi_security_info_t *security
+   const dds_qos_t *xqos, struct ddsi_addrset *as, ddsi_security_info_t *security
 #ifdef DDS_HAS_TYPE_DISCOVERY
    , const struct ddsi_sertype *sertype
 #endif
@@ -1198,7 +1199,7 @@ static int sedp_write_endpoint_impl
     arg.gv = gv;
     arg.ps = &ps;
     if (as)
-      addrset_forall (as, add_xlocator_to_ps, &arg);
+      ddsi_addrset_forall (as, add_xlocator_to_ps, &arg);
 
 #ifdef DDS_HAS_SHM
     assert(wr->xqos->present & DDSI_QP_LOCATOR_MASK);
@@ -1308,9 +1309,9 @@ int sedp_write_writer (struct ddsi_writer *wr)
     struct ddsi_writer *sedp_wr = get_sedp_writer (wr->c.pp, entityid);
     ddsi_security_info_t *security = NULL;
 #ifdef DDS_HAS_SSM
-    struct addrset *as = wr->ssm_as;
+    struct ddsi_addrset *as = wr->ssm_as;
 #else
-    struct addrset *as = NULL;
+    struct ddsi_addrset *as = NULL;
 #endif
 #ifdef DDS_HAS_SECURITY
     ddsi_security_info_t tmp;
@@ -1336,20 +1337,20 @@ int sedp_write_reader (struct ddsi_reader *rd)
   unsigned entityid = ddsi_determine_subscription_writer(rd);
   struct ddsi_writer *sedp_wr = get_sedp_writer (rd->c.pp, entityid);
   ddsi_security_info_t *security = NULL;
-  struct addrset *as = NULL;
+  struct ddsi_addrset *as = NULL;
 #ifdef DDS_HAS_NETWORK_PARTITIONS
   if (rd->uc_as != NULL || rd->mc_as != NULL)
   {
     // FIXME: do this without first creating a temporary addrset
-    as = new_addrset ();
+    as = ddsi_new_addrset ();
     // use a placeholder connection to avoid exploding the multicast addreses to multiple
     // interfaces
     for (const struct ddsi_networkpartition_address *a = rd->uc_as; a != NULL; a = a->next)
-      add_xlocator_to_addrset(rd->e.gv, as, &(const ddsi_xlocator_t) {
+      ddsi_add_xlocator_to_addrset(rd->e.gv, as, &(const ddsi_xlocator_t) {
         .c = a->loc,
         .conn = rd->e.gv->xmit_conns[0] });
     for (const struct ddsi_networkpartition_address *a = rd->mc_as; a != NULL; a = a->next)
-      add_xlocator_to_addrset(rd->e.gv, as, &(const ddsi_xlocator_t) {
+      ddsi_add_xlocator_to_addrset(rd->e.gv, as, &(const ddsi_xlocator_t) {
         .c = a->loc,
         .conn = rd->e.gv->xmit_conns[0] });
   }
@@ -1366,7 +1367,7 @@ int sedp_write_reader (struct ddsi_reader *rd)
 #else
   const int ret = sedp_write_endpoint_impl (sedp_wr, 1, &rd->e.guid, &rd->c, rd->xqos, as, security);
 #endif
-  unref_addrset (as);
+  ddsi_unref_addrset (as);
   return ret;
 }
 
@@ -1449,7 +1450,7 @@ static struct ddsi_proxy_participant *implicitly_create_proxypp (struct ddsi_dom
        doing anything about (1).  That means we fall back to the legacy mode of locally generating
        GIDs but leaving the system id unchanged if the remote is OSPL.  */
     actual_vendorid = (datap->present & PP_VENDORID) ?  datap->vendorid : vendorid;
-    (void) ddsi_new_proxy_participant (gv, ppguid, 0, &privguid, new_addrset(), new_addrset(), &pp_plist, DDS_INFINITY, actual_vendorid, DDSI_CF_IMPLICITLY_CREATED_PROXYPP, timestamp, seq);
+    (void) ddsi_new_proxy_participant (gv, ppguid, 0, &privguid, ddsi_new_addrset(), ddsi_new_addrset(), &pp_plist, DDS_INFINITY, actual_vendorid, DDSI_CF_IMPLICITLY_CREATED_PROXYPP, timestamp, seq);
   }
   else if (ppguid->prefix.u[0] == src_guid_prefix->u[0] && ddsi_vendor_is_eclipse_or_opensplice (vendorid))
   {
@@ -1467,14 +1468,14 @@ static struct ddsi_proxy_participant *implicitly_create_proxypp (struct ddsi_dom
       GVTRACE (" src-ddsi2-not-minimal-bes-mode?\n");
       goto err;
     } else {
-      struct addrset *as_default, *as_meta;
+      struct ddsi_addrset *as_default, *as_meta;
       ddsi_plist_t tmp_plist;
       GVTRACE (" from-ddsi2 "PGUIDFMT, PGUID (privguid));
       ddsi_plist_init_empty (&pp_plist);
 
       ddsrt_mutex_lock (&privpp->e.lock);
-      as_default = ref_addrset(privpp->as_default);
-      as_meta = ref_addrset(privpp->as_meta);
+      as_default = ddsi_ref_addrset(privpp->as_default);
+      as_meta = ddsi_ref_addrset(privpp->as_meta);
       /* copy just what we need */
       tmp_plist = *privpp->plist;
       tmp_plist.present = PP_PARTICIPANT_GUID | PP_ADLINK_PARTICIPANT_VERSION_INFO;
@@ -1541,7 +1542,7 @@ static bool handle_sedp_checks (struct ddsi_domaingv * const gv, ddsi_sedp_kind_
 #undef E
 }
 
-struct addrset_from_locatorlists_collect_interfaces_arg {
+struct ddsi_addrset_from_locatorlists_collect_interfaces_arg {
   const struct ddsi_domaingv *gv;
   interface_set_t *intfs;
 };
@@ -1551,11 +1552,11 @@ struct addrset_from_locatorlists_collect_interfaces_arg {
  * Does this by looking up the connection in @p loc in the set of transmit connections. (There's plenty of room for optimisation here.)
  *
  * @param[in] loc locator
- * @param[in] varg argument pointer, must point to a struct addrset_from_locatorlists_collect_interfaces_arg
+ * @param[in] varg argument pointer, must point to a struct ddsi_addrset_from_locatorlists_collect_interfaces_arg
  */
 static void addrset_from_locatorlists_collect_interfaces (const ddsi_xlocator_t *loc, void *varg)
 {
-  struct addrset_from_locatorlists_collect_interfaces_arg *arg = varg;
+  struct ddsi_addrset_from_locatorlists_collect_interfaces_arg *arg = varg;
   struct ddsi_domaingv const * const gv = arg->gv;
   for (int i = 0; i < gv->n_interfaces; i++)
   {
@@ -1568,14 +1569,14 @@ static void addrset_from_locatorlists_collect_interfaces (const ddsi_xlocator_t 
   }
 }
 
-struct addrset *ddsi_get_endpoint_addrset (const struct ddsi_domaingv *gv, const ddsi_plist_t *datap, struct addrset *proxypp_as_default, const ddsi_locator_t *rst_srcloc)
+struct ddsi_addrset *ddsi_get_endpoint_addrset (const struct ddsi_domaingv *gv, const ddsi_plist_t *datap, struct ddsi_addrset *proxypp_as_default, const ddsi_locator_t *rst_srcloc)
 {
   const ddsi_locators_t emptyset = { .n = 0, .first = NULL, .last = NULL };
   const ddsi_locators_t *uc = (datap->present & PP_UNICAST_LOCATOR) ? &datap->unicast_locators : &emptyset;
   const ddsi_locators_t *mc = (datap->present & PP_MULTICAST_LOCATOR) ? &datap->multicast_locators : &emptyset;
   ddsi_locator_t srcloc;
   if (rst_srcloc == NULL)
-    set_unspec_locator (&srcloc);
+    ddsi_set_unspec_locator (&srcloc);
   else // force use of source locator
   {
     uc = &emptyset;
@@ -1585,21 +1586,21 @@ struct addrset *ddsi_get_endpoint_addrset (const struct ddsi_domaingv *gv, const
   // any interface that works for the participant is presumed ok
   interface_set_t intfs;
   interface_set_init (&intfs);
-  addrset_forall (proxypp_as_default, addrset_from_locatorlists_collect_interfaces, &(struct addrset_from_locatorlists_collect_interfaces_arg){
+  ddsi_addrset_forall (proxypp_as_default, addrset_from_locatorlists_collect_interfaces, &(struct ddsi_addrset_from_locatorlists_collect_interfaces_arg){
     .gv = gv, .intfs = &intfs
   });
   //GVTRACE(" {%d%d%d%d}", intfs.xs[0], intfs.xs[1], intfs.xs[2], intfs.xs[3]);
-  struct addrset *as = addrset_from_locatorlists (gv, uc, mc, &srcloc, &intfs);
+  struct ddsi_addrset *as = addrset_from_locatorlists (gv, uc, mc, &srcloc, &intfs);
   // if SEDP gives:
   // - no addresses, use ppant uni- and multicast addresses
   // - only multicast, use those for multicast and use ppant address for unicast
   // - only unicast, use only those (i.e., disable multicast for this reader)
   // - both, use only those
   // FIXME: then you can't do a specific unicast address + SSM ... oh well
-  if (addrset_empty (as))
-    copy_addrset_into_addrset_mc (gv, as, proxypp_as_default);
-  if (addrset_empty_uc (as))
-    copy_addrset_into_addrset_uc (gv, as, proxypp_as_default);
+  if (ddsi_addrset_empty (as))
+    ddsi_copy_addrset_into_addrset_mc (gv, as, proxypp_as_default);
+  if (ddsi_addrset_empty_uc (as))
+    ddsi_copy_addrset_into_addrset_uc (gv, as, proxypp_as_default);
   return as;
 }
 
@@ -1613,7 +1614,7 @@ static void handle_sedp_alive_endpoint (const struct receiver_state *rst, seqno_
   ddsi_guid_t ppguid;
   dds_qos_t *xqos;
   int reliable;
-  struct addrset *as;
+  struct ddsi_addrset *as;
 #ifdef DDS_HAS_SSM
   int ssm;
 #endif
@@ -1691,17 +1692,17 @@ static void handle_sedp_alive_endpoint (const struct receiver_state *rst, seqno_
   }
 
   as = ddsi_get_endpoint_addrset (gv, datap, proxypp->as_default, gv->config.tcp_use_peeraddr_for_unicast ? &rst->srcloc : NULL);
-  if (addrset_empty (as))
+  if (ddsi_addrset_empty (as))
   {
-    unref_addrset (as);
+    ddsi_unref_addrset (as);
     E (" no address", err);
   }
 
-  nn_log_addrset(gv, DDS_LC_DISCOVERY, " (as", as);
+  ddsi_log_addrset(gv, DDS_LC_DISCOVERY, " (as", as);
 #ifdef DDS_HAS_SSM
   ssm = 0;
   if (sedp_kind == SEDP_KIND_WRITER)
-    ssm = addrset_contains_ssm (gv, as);
+    ssm = ddsi_addrset_contains_ssm (gv, as);
   else if (datap->present & PP_READER_FAVOURS_SSM)
     ssm = (datap->reader_favours_ssm.state != 0);
   GVLOGDISC (" ssm=%u", ssm);
@@ -1748,7 +1749,7 @@ static void handle_sedp_alive_endpoint (const struct receiver_state *rst, seqno_
       }
     }
   }
-  unref_addrset (as);
+  ddsi_unref_addrset (as);
 
 err:
   return;

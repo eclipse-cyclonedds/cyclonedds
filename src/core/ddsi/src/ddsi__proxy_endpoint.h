@@ -29,7 +29,7 @@ extern "C" {
 
 struct ddsi_alive_state;
 struct dds_qos;
-struct addrset;
+struct ddsi_addrset;
 
 extern const ddsrt_avl_treedef_t ddsi_pwr_readers_treedef;
 extern const ddsrt_avl_treedef_t ddsi_prd_writers_treedef;
@@ -43,8 +43,8 @@ bool ddsi_is_proxy_endpoint (const struct ddsi_entity_common *e);
 
 /* To create a new proxy writer or reader; the proxy participant is
    determined from the GUID and must exist. */
-int ddsi_new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct addrset *as, const struct ddsi_plist *plist, struct nn_dqueue *dqueue, struct xeventq *evq, ddsrt_wctime_t timestamp, seqno_t seq);
-int ddsi_new_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct addrset *as, const struct ddsi_plist *plist, ddsrt_wctime_t timestamp, seqno_t seq
+int ddsi_new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct ddsi_addrset *as, const struct ddsi_plist *plist, struct nn_dqueue *dqueue, struct xeventq *evq, ddsrt_wctime_t timestamp, seqno_t seq);
+int ddsi_new_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct ddsi_addrset *as, const struct ddsi_plist *plist, ddsrt_wctime_t timestamp, seqno_t seq
 #ifdef DDS_HAS_SSM
 , int favours_ssm
 #endif
@@ -58,8 +58,8 @@ int ddsi_new_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *ppg
 int ddsi_delete_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, ddsrt_wctime_t timestamp, int isimplicit);
 int ddsi_delete_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, ddsrt_wctime_t timestamp, int isimplicit);
 
-void ddsi_update_proxy_reader (struct ddsi_proxy_reader *prd, seqno_t seq, struct addrset *as, const struct dds_qos *xqos, ddsrt_wctime_t timestamp);
-void ddsi_update_proxy_writer (struct ddsi_proxy_writer *pwr, seqno_t seq, struct addrset *as, const struct dds_qos *xqos, ddsrt_wctime_t timestamp);
+void ddsi_update_proxy_reader (struct ddsi_proxy_reader *prd, seqno_t seq, struct ddsi_addrset *as, const struct dds_qos *xqos, ddsrt_wctime_t timestamp);
+void ddsi_update_proxy_writer (struct ddsi_proxy_writer *pwr, seqno_t seq, struct ddsi_addrset *as, const struct dds_qos *xqos, ddsrt_wctime_t timestamp);
 
 #if defined (__cplusplus)
 }

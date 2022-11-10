@@ -22,7 +22,7 @@
 #include "ddsi__participant.h"
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "ddsi__entity_index.h"
-#include "dds/ddsi/q_addrset.h"
+#include "ddsi__addrset.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_misc.h"
@@ -1291,7 +1291,7 @@ static int write_sample (struct thread_state * const thrst, struct nn_xpack *xp,
     ddsi_writer_update_seq_xmit (wr, seq);
     ddsrt_mutex_unlock (&wr->e.lock);
   }
-  else if (addrset_empty (wr->as))
+  else if (ddsi_addrset_empty (wr->as))
   {
     /* No network destination, so no point in doing all the work involved
        in going all the way.  We do have to record that we "transmitted"

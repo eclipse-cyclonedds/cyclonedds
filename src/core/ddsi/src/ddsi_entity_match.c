@@ -24,7 +24,7 @@
 #include "ddsi__mcgroup.h"
 #include "ddsi__rhc.h"
 #include "dds/ddsi/q_qosmatch.h"
-#include "dds/ddsi/q_addrset.h"
+#include "ddsi__addrset.h"
 #include "dds/ddsi/q_xevent.h"
 #include "dds/ddsi/q_whc.h"
 #include "ddsi__endpoint.h"
@@ -623,10 +623,10 @@ void ddsi_free_rd_pwr_match (struct ddsi_domaingv *gv, const ddsi_guid_t *rd_gui
     (void) rd_guid;
 #endif
 #ifdef DDS_HAS_SSM
-    if (!is_unspec_xlocator (&m->ssm_mc_loc))
+    if (!ddsi_is_unspec_xlocator (&m->ssm_mc_loc))
     {
       assert (ddsi_is_mcaddr (gv, &m->ssm_mc_loc.c));
-      assert (!is_unspec_xlocator (&m->ssm_src_loc));
+      assert (!ddsi_is_unspec_xlocator (&m->ssm_src_loc));
       if (ddsi_leave_mc (gv, gv->mship, gv->data_conn_mc, &m->ssm_src_loc.c, &m->ssm_mc_loc.c) < 0)
         GVWARNING ("failed to leave network partition ssm group\n");
     }
@@ -870,11 +870,11 @@ void ddsi_reader_add_connection (struct ddsi_reader *rd, struct ddsi_proxy_write
 #ifdef DDS_HAS_SSM
     if (rd->favours_ssm && pwr->supports_ssm)
     {
-      /* pwr->supports_ssm is set if addrset_contains_ssm(pwr->ssm), so
+      /* pwr->supports_ssm is set if ddsi_addrset_contains_ssm(pwr->ssm), so
        any_ssm must succeed. */
-      if (!addrset_any_uc (pwr->c.as, &m->ssm_src_loc))
+      if (!ddsi_addrset_any_uc (pwr->c.as, &m->ssm_src_loc))
         assert (0);
-      if (!addrset_any_ssm (rd->e.gv, pwr->c.as, &m->ssm_mc_loc))
+      if (!ddsi_addrset_any_ssm (rd->e.gv, pwr->c.as, &m->ssm_mc_loc))
         assert (0);
       /* FIXME: for now, assume that the ports match for datasock_mc --
        't would be better to dynamically create and destroy sockets on
@@ -885,8 +885,8 @@ void ddsi_reader_add_connection (struct ddsi_reader *rd, struct ddsi_proxy_write
     }
     else
     {
-      set_unspec_xlocator (&m->ssm_src_loc);
-      set_unspec_xlocator (&m->ssm_mc_loc);
+      ddsi_set_unspec_xlocator (&m->ssm_src_loc);
+      ddsi_set_unspec_xlocator (&m->ssm_mc_loc);
     }
 #endif
 

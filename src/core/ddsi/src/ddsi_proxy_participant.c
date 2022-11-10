@@ -26,7 +26,7 @@
 #include "ddsi__security_omg.h"
 #include "dds/ddsi/ddsi_builtin_topic_if.h"
 #include "dds/ddsi/q_lease.h"
-#include "dds/ddsi/q_addrset.h"
+#include "ddsi__addrset.h"
 #include "ddsi__endpoint.h"
 #include "ddsi__gc.h"
 #include "ddsi__plist.h"
@@ -36,6 +36,7 @@
 #include "ddsi__topic.h"
 #include "ddsi__tran.h"
 #include "ddsi__vendor.h"
+#include "ddsi__addrset.h"
 
 typedef struct proxy_purge_data {
   struct ddsi_proxy_participant *proxypp;
@@ -121,7 +122,7 @@ static void create_proxy_builtin_endpoint_impl (struct ddsi_domaingv *gv, ddsrt_
   else
   {
 #ifdef DDS_HAS_SSM
-    const int ssm = addrset_contains_ssm (gv, proxypp->as_meta);
+    const int ssm = ddsi_addrset_contains_ssm (gv, proxypp->as_meta);
     ddsi_new_proxy_reader (gv, ppguid, ep_guid, proxypp->as_meta, plist, timestamp, 0, ssm);
 #else
     ddsi_new_proxy_reader (gv, ppguid, ep_guid, proxypp->as_meta, plist, timestamp, 0);
@@ -319,15 +320,15 @@ static void free_proxy_participant (struct ddsi_proxy_participant *proxypp)
   ddsi_disconnect_proxy_participant_secure(proxypp);
   ddsi_omg_security_deregister_remote_participant (proxypp);
 #endif
-  unref_addrset (proxypp->as_default);
-  unref_addrset (proxypp->as_meta);
+  ddsi_unref_addrset (proxypp->as_default);
+  ddsi_unref_addrset (proxypp->as_meta);
   ddsi_plist_fini (proxypp->plist);
   ddsrt_free (proxypp->plist);
   ddsi_entity_common_fini (&proxypp->e);
   ddsrt_free (proxypp);
 }
 
-bool ddsi_new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, uint32_t bes, const struct ddsi_guid *privileged_pp_guid, struct addrset *as_default, struct addrset *as_meta, const ddsi_plist_t *plist, dds_duration_t tlease_dur, ddsi_vendorid_t vendor, unsigned custom_flags, ddsrt_wctime_t timestamp, seqno_t seq)
+bool ddsi_new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, uint32_t bes, const struct ddsi_guid *privileged_pp_guid, struct ddsi_addrset *as_default, struct ddsi_addrset *as_meta, const ddsi_plist_t *plist, dds_duration_t tlease_dur, ddsi_vendorid_t vendor, unsigned custom_flags, ddsrt_wctime_t timestamp, seqno_t seq)
 {
   /* No locking => iff all participants use unique guids, and sedp
      runs on a single thread, it can't go wrong. FIXME, maybe? The
@@ -684,7 +685,7 @@ static void delete_ppt (struct ddsi_proxy_participant *proxypp, ddsrt_wctime_t t
 static void purge_helper (const ddsi_xlocator_t *n, void * varg)
 {
   proxy_purge_data_t data = (proxy_purge_data_t) varg;
-  if (compare_xlocators (n, data->loc) == 0)
+  if (ddsi_compare_xlocators (n, data->loc) == 0)
     ddsi_delete_proxy_participant_by_guid (data->proxypp->e.gv, &data->proxypp->e.guid, data->timestamp, 1);
 }
 
@@ -701,12 +702,12 @@ void ddsi_purge_proxy_participants (struct ddsi_domaingv *gv, const ddsi_xlocato
   data.timestamp = ddsrt_time_wallclock();
   ddsi_entidx_enum_proxy_participant_init (&est, gv->entity_index);
   while ((data.proxypp = ddsi_entidx_enum_proxy_participant_next (&est)) != NULL)
-    addrset_forall (data.proxypp->as_meta, purge_helper, &data);
+    ddsi_addrset_forall (data.proxypp->as_meta, purge_helper, &data);
   ddsi_entidx_enum_proxy_participant_fini (&est);
 
   /* Shouldn't try to keep pinging clients once they're gone */
   if (delete_from_as_disc)
-    remove_from_addrset (gv, gv->as_disc, loc);
+    ddsi_remove_from_addrset (gv, gv->as_disc, loc);
 
   thread_state_asleep (thrst);
 }

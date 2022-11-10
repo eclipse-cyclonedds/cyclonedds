@@ -184,6 +184,7 @@ if(ENABLE_SHM AND NOT DEFINED ENV{COLCON})
     "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/include/>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsc/src>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/include>"
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/src>"
     "$<BUILD_INTERFACE:$<TARGET_PROPERTY:iceoryx_binding_c::iceoryx_binding_c,INTERFACE_INCLUDE_DIRECTORIES>>")
 
   target_link_libraries(cunit_ddsc_iox PRIVATE RoundTrip Space Array100 DynamicData ddsc)

@@ -32,7 +32,7 @@
 #include "dds/ddsi/ddsi_plist.h"
 #include "ddsi__entity_index.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/q_addrset.h"
+#include "ddsi__addrset.h"
 #include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/q_ddsi_discovery.h"
 #include "ddsi__protocol.h"
@@ -220,10 +220,10 @@ static void print_address (const ddsi_xlocator_t *n, void *varg)
 
 static void print_addrset (struct st *st, void *vas)
 {
-  struct addrset * const as = vas;
+  struct ddsi_addrset * const as = vas;
   struct print_address_arg pa_arg;
   pa_arg.st = st;
-  addrset_forall (as, print_address, &pa_arg);
+  ddsi_addrset_forall (as, print_address, &pa_arg);
 }
 
 static void print_partition_seq (struct st *st, void *vxqos)

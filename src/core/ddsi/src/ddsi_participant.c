@@ -28,7 +28,7 @@
 #include "dds/ddsi/q_xevent.h"
 #include "dds/ddsi/q_lease.h"
 #include "dds/ddsi/q_receive.h"
-#include "dds/ddsi/q_addrset.h"
+#include "ddsi__addrset.h"
 #include "dds__whc.h"
 #include "ddsi__endpoint.h"
 #include "ddsi__entity_match.h"
@@ -184,8 +184,8 @@ static void force_as_disc_address (struct ddsi_domaingv *gv, const ddsi_guid_t *
   struct ddsi_writer *wr = ddsi_entidx_lookup_writer_guid (gv->entity_index, subguid);
   assert (wr != NULL);
   ddsrt_mutex_lock (&wr->e.lock);
-  unref_addrset (wr->as);
-  wr->as = ref_addrset (gv->as_disc);
+  ddsi_unref_addrset (wr->as);
+  wr->as = ddsi_ref_addrset (gv->as_disc);
   ddsrt_mutex_unlock (&wr->e.lock);
 }
 

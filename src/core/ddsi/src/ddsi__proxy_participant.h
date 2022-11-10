@@ -27,7 +27,7 @@ extern "C" {
 
 struct lease;
 struct ddsi_plist;
-struct addrset;
+struct ddsi_addrset;
 struct ddsi_proxy_endpoint_common;
 struct ddsi_proxy_writer;
 
@@ -60,7 +60,7 @@ void ddsi_proxy_participant_remove_pwr_lease_locked (struct ddsi_proxy_participa
    TODO: what about proxy participants without built-in endpoints?
 */
 
-bool ddsi_new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, uint32_t bes, const struct ddsi_guid *privileged_pp_guid, struct addrset *as_default, struct addrset *as_meta, const struct ddsi_plist *plist, dds_duration_t tlease_dur, ddsi_vendorid_t vendor, unsigned custom_flags, ddsrt_wctime_t timestamp, seqno_t seq);
+bool ddsi_new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, uint32_t bes, const struct ddsi_guid *privileged_pp_guid, struct ddsi_addrset *as_default, struct ddsi_addrset *as_meta, const struct ddsi_plist *plist, dds_duration_t tlease_dur, ddsi_vendorid_t vendor, unsigned custom_flags, ddsrt_wctime_t timestamp, seqno_t seq);
 int ddsi_delete_proxy_participant_by_guid (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, ddsrt_wctime_t timestamp, int isimplicit);
 
 #if defined (__cplusplus)

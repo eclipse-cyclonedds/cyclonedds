@@ -23,7 +23,7 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_builtin_topic_if.h"
 #include "ddsi__security_omg.h"
-#include "dds/ddsi/q_addrset.h"
+#include "ddsi__addrset.h"
 #include "dds/ddsi/q_whc.h"
 #include "dds/ddsi/q_xevent.h"
 #include "dds/ddsi/q_radmin.h"
@@ -59,7 +59,7 @@ void ddsi_proxy_writer_get_alive_state (struct ddsi_proxy_writer *pwr, struct dd
   ddsrt_mutex_unlock (&pwr->e.lock);
 }
 
-static int proxy_endpoint_common_init (struct ddsi_entity_common *e, struct ddsi_proxy_endpoint_common *c, enum ddsi_entity_kind kind, const struct ddsi_guid *guid, ddsrt_wctime_t tcreate, seqno_t seq, struct ddsi_proxy_participant *proxypp, struct addrset *as, const ddsi_plist_t *plist)
+static int proxy_endpoint_common_init (struct ddsi_entity_common *e, struct ddsi_proxy_endpoint_common *c, enum ddsi_entity_kind kind, const struct ddsi_guid *guid, ddsrt_wctime_t tcreate, seqno_t seq, struct ddsi_proxy_participant *proxypp, struct ddsi_addrset *as, const ddsi_plist_t *plist)
 {
   int ret;
 
@@ -70,7 +70,7 @@ static int proxy_endpoint_common_init (struct ddsi_entity_common *e, struct ddsi
 
   ddsi_entity_common_init (e, proxypp->e.gv, guid, kind, tcreate, proxypp->vendor, false);
   c->xqos = ddsi_xqos_dup (&plist->qos);
-  c->as = ref_addrset (as);
+  c->as = ddsi_ref_addrset (as);
   c->vendor = proxypp->vendor;
   c->seq = seq;
 #ifdef DDS_HAS_TYPE_DISCOVERY
@@ -125,7 +125,7 @@ err:
 #endif
     ddsi_xqos_fini (c->xqos);
     ddsrt_free (c->xqos);
-    unref_addrset (c->as);
+    ddsi_unref_addrset (c->as);
     ddsi_entity_common_fini (e);
   }
 
@@ -137,7 +137,7 @@ static void proxy_endpoint_common_fini (struct ddsi_entity_common *e, struct dds
   ddsi_unref_proxy_participant (c->proxypp, c);
   ddsi_xqos_fini (c->xqos);
   ddsrt_free (c->xqos);
-  unref_addrset (c->as);
+  ddsi_unref_addrset (c->as);
   ddsi_entity_common_fini (e);
 }
 
@@ -149,7 +149,7 @@ static void has_iceoryx_address_helper (const ddsi_xlocator_t *n, void *varg)
     arg->has_iceoryx_address = true;
 }
 
-static bool has_iceoryx_address (struct ddsi_domaingv * const gv, struct addrset * const as)
+static bool has_iceoryx_address (struct ddsi_domaingv * const gv, struct ddsi_addrset * const as)
 {
   if (!gv->config.enable_shm)
     return false;
@@ -159,7 +159,7 @@ static bool has_iceoryx_address (struct ddsi_domaingv * const gv, struct addrset
       .loc_iceoryx_addr = &gv->loc_iceoryx_addr,
       .has_iceoryx_address = false
     };
-    addrset_forall (as, has_iceoryx_address_helper, &arg);
+    ddsi_addrset_forall (as, has_iceoryx_address_helper, &arg);
     return arg.has_iceoryx_address;
   }
 }
@@ -187,7 +187,7 @@ static enum nn_reorder_mode get_proxy_writer_reorder_mode(const ddsi_entityid_t 
   return NN_REORDER_MODE_MONOTONICALLY_INCREASING;
 }
 
-int ddsi_new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct addrset *as, const ddsi_plist_t *plist, struct nn_dqueue *dqueue, struct xeventq *evq, ddsrt_wctime_t timestamp, seqno_t seq)
+int ddsi_new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct ddsi_addrset *as, const ddsi_plist_t *plist, struct nn_dqueue *dqueue, struct xeventq *evq, ddsrt_wctime_t timestamp, seqno_t seq)
 {
   struct ddsi_proxy_participant *proxypp;
   struct ddsi_proxy_writer *pwr;
@@ -240,7 +240,7 @@ int ddsi_new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppg
   pwr->have_seen_heartbeat = !isreliable;
   pwr->local_matching_inprogress = 1;
 #ifdef DDS_HAS_SSM
-  pwr->supports_ssm = (addrset_contains_ssm (gv, as) && gv->config.allowMulticast & DDSI_AMC_SSM) ? 1 : 0;
+  pwr->supports_ssm = (ddsi_addrset_contains_ssm (gv, as) && gv->config.allowMulticast & DDSI_AMC_SSM) ? 1 : 0;
 #endif
 #ifdef DDS_HAS_SHM
   pwr->is_iceoryx = has_iceoryx_address (gv, as) ? 1 : 0;
@@ -316,7 +316,7 @@ int ddsi_new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppg
   return 0;
 }
 
-void ddsi_update_proxy_writer (struct ddsi_proxy_writer *pwr, seqno_t seq, struct addrset *as, const struct dds_qos *xqos, ddsrt_wctime_t timestamp)
+void ddsi_update_proxy_writer (struct ddsi_proxy_writer *pwr, seqno_t seq, struct ddsi_addrset *as, const struct dds_qos *xqos, ddsrt_wctime_t timestamp)
 {
   struct ddsi_reader * rd;
   struct ddsi_pwr_rd_match * m;
@@ -328,13 +328,13 @@ void ddsi_update_proxy_writer (struct ddsi_proxy_writer *pwr, seqno_t seq, struc
   if (seq > pwr->c.seq)
   {
     pwr->c.seq = seq;
-    if (! addrset_eq_onesidederr (pwr->c.as, as))
+    if (! ddsi_addrset_eq_onesidederr (pwr->c.as, as))
     {
 #ifdef DDS_HAS_SSM
-      pwr->supports_ssm = (addrset_contains_ssm (pwr->e.gv, as) && pwr->e.gv->config.allowMulticast & DDSI_AMC_SSM) ? 1 : 0;
+      pwr->supports_ssm = (ddsi_addrset_contains_ssm (pwr->e.gv, as) && pwr->e.gv->config.allowMulticast & DDSI_AMC_SSM) ? 1 : 0;
 #endif
-      unref_addrset (pwr->c.as);
-      ref_addrset (as);
+      ddsi_unref_addrset (pwr->c.as);
+      ddsi_ref_addrset (as);
       pwr->c.as = as;
       m = ddsrt_avl_iter_first (&ddsi_pwr_readers_treedef, &pwr->readers, &iter);
       while (m)
@@ -533,7 +533,7 @@ int ddsi_proxy_writer_set_notalive (struct ddsi_proxy_writer *pwr, bool notify)
 
 /* PROXY-READER ----------------------------------------------------- */
 
-int ddsi_new_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct addrset *as, const ddsi_plist_t *plist, ddsrt_wctime_t timestamp, seqno_t seq
+int ddsi_new_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct ddsi_addrset *as, const ddsi_plist_t *plist, ddsrt_wctime_t timestamp, seqno_t seq
 #ifdef DDS_HAS_SSM
 , int favours_ssm
 #endif
@@ -596,7 +596,7 @@ int ddsi_new_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *ppg
   return DDS_RETCODE_OK;
 }
 
-void ddsi_update_proxy_reader (struct ddsi_proxy_reader *prd, seqno_t seq, struct addrset *as, const struct dds_qos *xqos, ddsrt_wctime_t timestamp)
+void ddsi_update_proxy_reader (struct ddsi_proxy_reader *prd, seqno_t seq, struct ddsi_addrset *as, const struct dds_qos *xqos, ddsrt_wctime_t timestamp)
 {
   struct ddsi_prd_wr_match * m;
   ddsi_guid_t wrguid;
@@ -607,12 +607,12 @@ void ddsi_update_proxy_reader (struct ddsi_proxy_reader *prd, seqno_t seq, struc
   if (seq > prd->c.seq)
   {
     prd->c.seq = seq;
-    if (! addrset_eq_onesidederr (prd->c.as, as))
+    if (! ddsi_addrset_eq_onesidederr (prd->c.as, as))
     {
       /* Update proxy reader endpoints (from SEDP alive) */
 
-      unref_addrset (prd->c.as);
-      ref_addrset (as);
+      ddsi_unref_addrset (prd->c.as);
+      ddsi_ref_addrset (as);
       prd->c.as = as;
 
       /* Rebuild writer endpoints */

@@ -28,7 +28,7 @@ struct ddsi_proxy_participant;
 struct ddsi_proxy_reader;
 struct ddsi_writer;
 struct dds_qos;
-struct addrset;
+struct ddsi_addrset;
 struct ddsi_serdata;
 
 struct ddsi_proxy_endpoint_common
@@ -37,7 +37,7 @@ struct ddsi_proxy_endpoint_common
   struct ddsi_proxy_endpoint_common *next_ep; /* next \ endpoint belonging to this proxy participant */
   struct ddsi_proxy_endpoint_common *prev_ep; /* prev / -- this is in arbitrary ordering */
   struct dds_qos *xqos; /* proxy endpoint QoS lives here; FIXME: local ones should have it moved to common as well */
-  struct addrset *as; /* address set to use for communicating with this endpoint */
+  struct ddsi_addrset *as; /* address set to use for communicating with this endpoint */
   ddsi_guid_t group_guid; /* 0:0:0:0 if not available */
   ddsi_vendorid_t vendor; /* cached from proxypp->vendor */
   seqno_t seq; /* sequence number of most recent SEDP message */

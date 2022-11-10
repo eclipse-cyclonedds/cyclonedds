@@ -93,11 +93,11 @@ struct ddsi_writer
 #endif
 #ifdef DDS_HAS_SSM
   unsigned supports_ssm: 1;
-  struct addrset *ssm_as;
+  struct ddsi_addrset *ssm_as;
 #endif
   uint32_t alive_vclock; /* virtual clock counting transitions between alive/not-alive */
   const struct ddsi_sertype * type; /* type of the data written by this writer */
-  struct addrset *as; /* set of addresses to publish to */
+  struct ddsi_addrset *as; /* set of addresses to publish to */
   struct xevent *heartbeat_xevent; /* timed event for "periodically" publishing heartbeats when unack'd data present, NULL <=> unreliable */
   struct ldur_fhnode *lease_duration; /* fibheap node to keep lease duration for this writer, NULL in case of automatic liveliness with inifite duration  */
   struct whc *whc; /* WHC tracking history, T-L durability service history + samples by sequence number for retransmit */

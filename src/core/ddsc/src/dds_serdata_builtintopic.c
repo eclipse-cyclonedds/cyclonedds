@@ -30,7 +30,7 @@
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_participant.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
-#include "dds/ddsi/q_addrset.h"
+#include "dds/ddsi/ddsi_addrset.h"
 #include "dds/ddsi/q_freelist.h"
 
 #include "dds__serdata_builtintopic.h"
@@ -139,7 +139,7 @@ static void format_address (const ddsi_xlocator_t *n, void *varg)
     arg->first = false;
 }
 
-static char * format_addrset (struct addrset *as)
+static char * ddsi_format_addrset (struct ddsi_addrset *as)
 {
   struct format_address_arg pa_arg;
   pa_arg.buf = (char*) ddsrt_malloc(DDSI_LOCSTRLEN * 3 + 4);
@@ -147,13 +147,13 @@ static char * format_addrset (struct addrset *as)
   pa_arg.buf_size = DDSI_LOCSTRLEN * 3 + 4;
   pa_arg.first = true;
 
-  addrset_forall(as, format_address, &pa_arg);
+  ddsi_addrset_forall(as, format_address, &pa_arg);
   return pa_arg.buf;
 }
 
 static void add_pp_addresses_to_xqos(dds_qos_t *q, const struct ddsi_proxy_participant *proxypp)
 {
-  char * addresses = format_addrset(proxypp->as_meta);
+  char * addresses = ddsi_format_addrset(proxypp->as_meta);
   if (addresses) {
     ddsi_xqos_add_property_if_unset(q, true, DDS_BUILTIN_TOPIC_PARTICIPANT_PROPERTY_NETWORKADDRESSES, addresses);
     ddsrt_free(addresses);

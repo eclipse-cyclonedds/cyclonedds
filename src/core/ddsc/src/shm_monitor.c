@@ -22,6 +22,7 @@
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/ddsi_rhc.h"
+#include "dds/ddsi/ddsi_serdata.h"
 #include "iceoryx_binding_c/chunk.h"
 
 #if defined (__cplusplus)

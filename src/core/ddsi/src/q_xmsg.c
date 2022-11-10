@@ -29,7 +29,7 @@
 #include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_rtps.h"
-#include "dds/ddsi/q_addrset.h"
+#include "ddsi__addrset.h"
 #include "dds/ddsi/q_misc.h"
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/q_unused.h"
@@ -107,10 +107,10 @@ struct nn_xmsg {
       ddsi_xlocator_t loc;  /* send just to this locator */
     } one;
     struct {
-      struct addrset *as;       /* send to all addresses in set */
+      struct ddsi_addrset *as;       /* send to all addresses in set */
     } all;
     struct {
-      struct addrset *as;       /* send to all unicast addresses in set */
+      struct ddsi_addrset *as;       /* send to all unicast addresses in set */
     } all_uc;
   } dstaddr;
 
@@ -172,11 +172,11 @@ struct nn_xpack
     ddsi_xlocator_t loc; /* send just to this locator */
     struct
     {
-      struct addrset *as;        /* send to all addresses in set */
+      struct ddsi_addrset *as;        /* send to all addresses in set */
     } all;
     struct
     {
-      struct addrset *as;        /* send to all unicast addresses in set */
+      struct ddsi_addrset *as;        /* send to all unicast addresses in set */
     } all_uc;
   } dstaddr;
 
@@ -341,10 +341,10 @@ void nn_xmsg_free (struct nn_xmsg *m)
     case NN_XMSG_DST_ONE:
       break;
     case NN_XMSG_DST_ALL:
-      unref_addrset (m->dstaddr.all.as);
+      ddsi_unref_addrset (m->dstaddr.all.as);
       break;
     case NN_XMSG_DST_ALL_UC:
-      unref_addrset (m->dstaddr.all_uc.as);
+      ddsi_unref_addrset (m->dstaddr.all_uc.as);
       break;
   }
   /* Only cache the smallest xmsgs; data messages store the payload by reference and are small */
@@ -736,7 +736,7 @@ void nn_xmsg_setdstPRD (struct nn_xmsg *m, const struct ddsi_proxy_reader *prd)
   if (!prd->redundant_networking)
   {
     ddsi_xlocator_t loc;
-    addrset_any_uc_else_mc_nofail (prd->c.as, &loc);
+    ddsi_addrset_any_uc_else_mc_nofail (prd->c.as, &loc);
     nn_xmsg_setdst1 (prd->e.gv, m, &prd->e.guid.prefix, &loc);
   }
   else
@@ -745,7 +745,7 @@ void nn_xmsg_setdstPRD (struct nn_xmsg *m, const struct ddsi_proxy_reader *prd)
     if (m->kind == NN_XMSG_KIND_DATA_REXMIT)
       m->kind = NN_XMSG_KIND_DATA_REXMIT_NOMERGE;
     m->dstmode = NN_XMSG_DST_ALL_UC;
-    m->dstaddr.all_uc.as = ref_addrset (prd->c.as);
+    m->dstaddr.all_uc.as = ddsi_ref_addrset (prd->c.as);
     nn_xmsg_setdst1_common (prd->e.gv, m, &prd->e.guid.prefix);
   }
 }
@@ -757,7 +757,7 @@ void nn_xmsg_setdstPWR (struct nn_xmsg *m, const struct ddsi_proxy_writer *pwr)
   if (!pwr->redundant_networking)
   {
     ddsi_xlocator_t loc;
-    addrset_any_uc_else_mc_nofail (pwr->c.as, &loc);
+    ddsi_addrset_any_uc_else_mc_nofail (pwr->c.as, &loc);
     nn_xmsg_setdst1 (pwr->e.gv, m, &pwr->e.guid.prefix, &loc);
   }
   else
@@ -766,16 +766,16 @@ void nn_xmsg_setdstPWR (struct nn_xmsg *m, const struct ddsi_proxy_writer *pwr)
     if (m->kind == NN_XMSG_KIND_DATA_REXMIT)
       m->kind = NN_XMSG_KIND_DATA_REXMIT_NOMERGE;
     m->dstmode = NN_XMSG_DST_ALL_UC;
-    m->dstaddr.all_uc.as = ref_addrset (pwr->c.as);
+    m->dstaddr.all_uc.as = ddsi_ref_addrset (pwr->c.as);
     nn_xmsg_setdst1_common (pwr->e.gv, m, &pwr->e.guid.prefix);
   }
 }
 
-void nn_xmsg_setdstN (struct nn_xmsg *m, struct addrset *as)
+void nn_xmsg_setdstN (struct nn_xmsg *m, struct ddsi_addrset *as)
 {
   assert (m->dstmode == NN_XMSG_DST_UNSET || m->dstmode == NN_XMSG_DST_ONE);
   m->dstmode = NN_XMSG_DST_ALL;
-  m->dstaddr.all.as = ref_addrset (as);
+  m->dstaddr.all.as = ddsi_ref_addrset (as);
 }
 
 void nn_xmsg_set_data_readerId (struct nn_xmsg *m, ddsi_entityid_t *readerId)
@@ -853,7 +853,7 @@ int nn_xmsg_merge_rexmit_destinations_wrlock_held (struct ddsi_domaingv *gv, str
           GVTRACE ("1+*->*)");
           clear_readerId (m);
           m->dstmode = NN_XMSG_DST_ALL;
-          m->dstaddr.all.as = ref_addrset (madd->dstaddr.all.as);
+          m->dstaddr.all.as = ddsi_ref_addrset (madd->dstaddr.all.as);
           return 1;
 
         case NN_XMSG_DST_ONE:
@@ -876,7 +876,7 @@ int nn_xmsg_merge_rexmit_destinations_wrlock_held (struct ddsi_domaingv *gv, str
               GVTRACE ("1+1->*)");
               clear_readerId (m);
               m->dstmode = NN_XMSG_DST_ALL;
-              m->dstaddr.all.as = ref_addrset (wr->as);
+              m->dstaddr.all.as = ddsi_ref_addrset (wr->as);
               return 1;
             }
           }
@@ -1314,8 +1314,8 @@ static void nn_xpack_send_real (struct nn_xpack *xp)
     calls = 0;
     if (xp->dstaddr.all.as)
     {
-      calls = addrset_forall_count (xp->dstaddr.all.as, nn_xpack_send1v, xp);
-      unref_addrset (xp->dstaddr.all.as);
+      calls = ddsi_addrset_forall_count (xp->dstaddr.all.as, nn_xpack_send1v, xp);
+      ddsi_unref_addrset (xp->dstaddr.all.as);
     }
   }
   GVTRACE (" ]\n");
@@ -1444,10 +1444,10 @@ static void copy_addressing_info (struct nn_xpack *xp, const struct nn_xmsg *m)
       xp->dstaddr.loc = m->dstaddr.one.loc;
       break;
     case NN_XMSG_DST_ALL:
-      xp->dstaddr.all.as = ref_addrset (m->dstaddr.all.as);
+      xp->dstaddr.all.as = ddsi_ref_addrset (m->dstaddr.all.as);
       break;
     case NN_XMSG_DST_ALL_UC:
-      xp->dstaddr.all_uc.as = ref_addrset (m->dstaddr.all_uc.as);
+      xp->dstaddr.all_uc.as = ddsi_ref_addrset (m->dstaddr.all_uc.as);
       break;
   }
 }
@@ -1463,9 +1463,9 @@ static int addressing_info_eq_onesidederr (const struct nn_xpack *xp, const stru
     case NN_XMSG_DST_ONE:
       return (memcmp (&xp->dstaddr.loc, &m->dstaddr.one.loc, sizeof (xp->dstaddr.loc)) == 0);
     case NN_XMSG_DST_ALL:
-      return addrset_eq_onesidederr (xp->dstaddr.all.as, m->dstaddr.all.as);
+      return ddsi_addrset_eq_onesidederr (xp->dstaddr.all.as, m->dstaddr.all.as);
     case NN_XMSG_DST_ALL_UC:
-      return addrset_eq_onesidederr (xp->dstaddr.all_uc.as, m->dstaddr.all_uc.as);
+      return ddsi_addrset_eq_onesidederr (xp->dstaddr.all_uc.as, m->dstaddr.all_uc.as);
   }
   assert (0);
   return 0;

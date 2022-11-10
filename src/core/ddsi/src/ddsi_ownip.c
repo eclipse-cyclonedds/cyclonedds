@@ -28,7 +28,7 @@
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/q_misc.h"
-#include "dds/ddsi/q_addrset.h" /* unspec locator */
+#include "ddsi__addrset.h" /* unspec locator */
 #include "dds/ddsi/q_feature_check.h"
 #include "ddsi__ipaddr.h"
 #include "dds/ddsrt/avl.h"
@@ -70,7 +70,7 @@ static enum find_interface_result find_interface_by_address (const struct ddsi_d
   /* Try an exact match on the address */
   for (size_t k = 0; k < n_interfaces; k++)
   {
-    if (compare_locators (&interfaces[k].loc, &req) == 0)
+    if (ddsi_compare_locators (&interfaces[k].loc, &req) == 0)
     {
       *match = k;
       return FIR_OK;

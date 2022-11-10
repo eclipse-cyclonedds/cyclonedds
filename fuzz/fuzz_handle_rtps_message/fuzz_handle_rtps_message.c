@@ -26,7 +26,7 @@
 #include "dds/ddsi/q_transmit.h"
 #include "dds/ddsi/q_receive.h"
 #include "dds/ddsi/q_xmsg.h"
-#include "dds/ddsi/q_addrset.h"
+#include "ddsi__addrset.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/ddsi_sertype.h"
 #include "dds/ddsi/ddsi_serdata.h"

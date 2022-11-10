@@ -21,8 +21,8 @@
 #include "dds/ddsrt/static_assert.h"
 
 #include "dds/dds.h"
-#include "dds/ddsi/ddsi_entity.h"
-#include "dds/ddsi/q_addrset.h"
+#include "ddsi__addrset.h"
+#include "ddsi__entity.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds__entity.h"
 
@@ -45,7 +45,7 @@ static bool failed;
 
 static void fail (void) { failed = true; }
 static void fail_match (void) { fail (); }
-static void fail_addrset (void) { fail (); }
+static void ddsi_fail_addrset (void) { fail (); }
 static void fail_instance_state (void) { fail (); }
 static void fail_no_data (void) { fail (); }
 
@@ -161,7 +161,7 @@ static void check_writer_addrset_helper (const ddsi_xlocator_t *loc, void *varg)
   CU_ASSERT_FATAL (i < arg->nports);
 }
 
-static bool check_writer_addrset (dds_entity_t wrhandle, int nports, const uint32_t ports[nports])
+static bool ddsi_check_writer_addrset (dds_entity_t wrhandle, int nports, const uint32_t ports[nports])
 {
   dds_return_t rc;
   struct dds_entity *x;
@@ -176,7 +176,7 @@ static bool check_writer_addrset (dds_entity_t wrhandle, int nports, const uint3
     .ports = ports
   };
   ddsrt_mutex_lock (&wr->e.lock);
-  addrset_forall (wr->as, check_writer_addrset_helper, &arg);
+  ddsi_addrset_forall (wr->as, check_writer_addrset_helper, &arg);
   ddsrt_mutex_unlock (&wr->e.lock);
   dds_entity_unpin (x);
   return (arg.ports_seen == (1u << nports) - 1);
@@ -568,9 +568,9 @@ static void dotest (const dds_topic_descriptor_t *tpdesc, const void *sample)
         nports = j + 1;
       }
       print (&tb, "{"); for (int i = 0; i < nports; i++) print (&tb, " %u", ports[i]); print (&tb, " }");
-      if (!check_writer_addrset (wr, nports, ports))
+      if (!ddsi_check_writer_addrset (wr, nports, ports))
       {
-        fail_addrset ();
+        ddsi_fail_addrset ();
         fail_one = true;
         goto next;
       }

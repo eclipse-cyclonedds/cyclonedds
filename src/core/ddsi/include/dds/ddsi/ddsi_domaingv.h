@@ -38,7 +38,7 @@ struct nn_xmsgpool;
 struct nn_dqueue;
 struct nn_reorder;
 struct nn_defrag;
-struct addrset;
+struct ddsi_addrset;
 struct xeventq;
 struct ddsi_gcreq_queue;
 struct ddsi_entity_index;
@@ -210,7 +210,7 @@ struct ddsi_domaingv {
     Initial discovery address set, and the current discovery address
     set. These are the addresses that SPDP pings get sent to.
   */
-  struct addrset *as_disc;
+  struct ddsi_addrset *as_disc;
 
   ddsrt_mutex_t lock;
 

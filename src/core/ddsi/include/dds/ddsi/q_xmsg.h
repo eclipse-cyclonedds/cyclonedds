@@ -29,7 +29,7 @@ extern "C" {
 #endif
 
 struct ddsi_serdata;
-struct addrset;
+struct ddsi_addrset;
 struct ddsi_proxy_reader;
 struct ddsi_proxy_writer;
 struct ddsi_writer;
@@ -77,7 +77,7 @@ void nn_xmsg_setdstPWR (struct nn_xmsg *m, const struct ddsi_proxy_writer *pwr);
 
 /* For sending to all in the address set AS -- typically, the writer's
    address set to multicast to all matched readers */
-void nn_xmsg_setdstN (struct nn_xmsg *msg, struct addrset *as);
+void nn_xmsg_setdstN (struct nn_xmsg *msg, struct ddsi_addrset *as);
 
 int nn_xmsg_setmaxdelay (struct nn_xmsg *msg, int64_t maxdelay);
 

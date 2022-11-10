@@ -26,7 +26,7 @@
 #include "dds/ddsi/ddsi_typelib.h"
 #include "ddsi__xt_impl.h"
 #include "dds/ddsi/ddsi_xt_typelookup.h"
-#include "dds/ddsi/q_addrset.h"
+#include "ddsi__addrset.h"
 #include "ddsi__entity_match.h"
 #include "ddsi__proxy_endpoint.h"
 #include "ddsi__proxy_participant.h"
@@ -589,9 +589,9 @@ static void test_proxy_rd_create (struct ddsi_domaingv *gv, const char *topic_na
 
   struct thread_state * const thrst = ddsi_lookup_thread_state ();
   thread_state_awake (thrst, gv);
-  struct addrset *as = new_addrset ();
-  add_locator_to_addrset (gv, as, &gv->loc_default_uc);
-  ref_addrset (as); // increase refc to 2, new_proxy_participant does not add a ref
+  struct ddsi_addrset *as = ddsi_new_addrset ();
+  ddsi_add_locator_to_addrset (gv, as, &gv->loc_default_uc);
+  ddsi_ref_addrset (as); // increase refc to 2, new_proxy_participant does not add a ref
   int rc = ddsi_new_proxy_participant (gv, pp_guid, 0, NULL, as, as, plist, DDS_INFINITY, DDSI_VENDORID_ECLIPSE, 0, ddsrt_time_wallclock (), 1);
   CU_ASSERT_FATAL (rc);
 

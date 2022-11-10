@@ -31,7 +31,7 @@
 #include "dds/ddsi/q_lat_estim.h"
 #include "dds/ddsi/q_bitset.h"
 #include "dds/ddsi/q_xevent.h"
-#include "dds/ddsi/q_addrset.h"
+#include "ddsi__addrset.h"
 #include "dds/ddsi/q_ddsi_discovery.h"
 #include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/q_thread.h"
@@ -85,11 +85,11 @@
 #include "iceoryx_binding_c/runtime.h"
 #endif
 
-static void add_peer_addresses (const struct ddsi_domaingv *gv, struct addrset *as, const struct ddsi_config_peer_listelem *list)
+static void add_peer_addresses (const struct ddsi_domaingv *gv, struct ddsi_addrset *as, const struct ddsi_config_peer_listelem *list)
 {
   while (list)
   {
-    add_addresses_to_addrset (gv, as, list->peer, -1, "add_peer_addresses", 0);
+    ddsi_add_addresses_to_addrset (gv, as, list->peer, -1, "add_peer_addresses", 0);
     list = list->next;
   }
 }
@@ -217,7 +217,7 @@ static int set_recvips (struct ddsi_domaingv *gv)
           GVERROR ("%s: not a valid address in DDSI2EService/General/MulticastRecvNetworkInterfaceAddresses\n", gv->config.networkRecvAddressStrings[i]);
           return -1;
         }
-        if (compare_locators(&loc, &gv->interfaces[0].loc) == 0)
+        if (ddsi_compare_locators(&loc, &gv->interfaces[0].loc) == 0)
           have_selected = 1;
         else
           have_others = 1;
@@ -243,7 +243,7 @@ static int set_recvips (struct ddsi_domaingv *gv)
         }
         for (j = 0; j < gv->n_interfaces; j++)
         {
-          if (compare_locators(&loc, &gv->interfaces[j].loc) == 0)
+          if (ddsi_compare_locators(&loc, &gv->interfaces[j].loc) == 0)
             break;
         }
         if (j == gv->n_interfaces)
@@ -288,7 +288,7 @@ static int string_to_default_locator (const struct ddsi_domaingv *gv, ddsi_locat
       GVERROR ("%s: invalid address kind (%s)\n", string, tag);
       return -1;
   }
-  if (port != 0 && !is_unspec_locator(loc))
+  if (port != 0 && !ddsi_is_unspec_locator(loc))
     loc->port = port;
   else
     loc->port = DDSI_LOCATOR_PORT_INVALID;
@@ -296,7 +296,7 @@ static int string_to_default_locator (const struct ddsi_domaingv *gv, ddsi_locat
   if (mc >= 0)
   {
     const char *rel = mc ? "must" : "may not";
-    const int ismc = is_unspec_locator (loc) || ddsi_is_mcaddr (gv, loc);
+    const int ismc = ddsi_is_unspec_locator (loc) || ddsi_is_mcaddr (gv, loc);
     if (mc != ismc)
     {
       GVERROR ("%s: %s %s be the unspecified address or a multicast address\n", string, tag, rel);
@@ -352,13 +352,13 @@ static int set_ext_address_and_mask (struct ddsi_domaingv *gv)
   int rc;
 
   if (!gv->config.externalAddressString)
-    set_unspec_locator (&loc);
+    ddsi_set_unspec_locator (&loc);
   else if ((rc = string_to_default_locator (gv, &loc, gv->config.externalAddressString, 0, 0, "external address")) < 0)
     return rc;
   else if (rc == 0)
   {
     GVWARNING ("Ignoring ExternalNetworkAddress %s\n", gv->config.externalAddressString);
-    set_unspec_locator (&loc);
+    ddsi_set_unspec_locator (&loc);
   }
 
   if (!gv->config.externalMaskString || strcmp (gv->config.externalMaskString, "0.0.0.0") == 0)
@@ -383,7 +383,7 @@ static int set_ext_address_and_mask (struct ddsi_domaingv *gv)
       return rc;
   }
 
-  if (!is_unspec_locator (&loc))
+  if (!ddsi_is_unspec_locator (&loc))
   {
     int non_loopback_intf = -1;
     for (int i = 0; i < gv->n_interfaces; i++)
@@ -686,16 +686,16 @@ int joinleave_spdp_defmcip (struct ddsi_domaingv *gv, int dojoin)
 {
   /* Addrset provides an easy way to filter out duplicates */
   struct joinleave_spdp_defmcip_helper_arg arg;
-  struct addrset *as = new_addrset ();
+  struct ddsi_addrset *as = ddsi_new_addrset ();
   arg.gv = gv;
   arg.errcount = 0;
   arg.dojoin = dojoin;
   if (gv->config.allowMulticast & DDSI_AMC_SPDP)
-    add_locator_to_addrset (gv, as, &gv->loc_spdp_mc);
+    ddsi_add_locator_to_addrset (gv, as, &gv->loc_spdp_mc);
   if (gv->config.allowMulticast & ~DDSI_AMC_SPDP)
-    add_locator_to_addrset (gv, as, &gv->loc_default_mc);
-  addrset_forall (as, joinleave_spdp_defmcip_helper, &arg);
-  unref_addrset (as);
+    ddsi_add_locator_to_addrset (gv, as, &gv->loc_default_mc);
+  ddsi_addrset_forall (as, joinleave_spdp_defmcip_helper, &arg);
+  ddsi_unref_addrset (as);
   if (arg.errcount)
   {
     GVERROR ("rtps_init: failed to join multicast groups for domain %"PRIu32" participant %d\n", gv->config.domainId, gv->config.participantIndex);
@@ -1332,7 +1332,7 @@ int rtps_init (struct ddsi_domaingv *gv)
     GVLOG (DDS_LC_CONFIG, "ownip: ");
     for (int i = 0; i < gv->n_interfaces; i++)
     {
-      if (compare_locators(&gv->interfaces[i].loc, &gv->interfaces[i].extloc) == 0)
+      if (ddsi_compare_locators(&gv->interfaces[i].loc, &gv->interfaces[i].extloc) == 0)
         GVLOG (DDS_LC_CONFIG, "%s%s", (i == 0) ? "" : ", ", ddsi_locator_to_string_no_port (buf, sizeof(buf), &gv->interfaces[i].loc));
       else
         GVLOG (DDS_LC_CONFIG, "%s%s (ext: %s)", (i == 0) ? "" : ", ", ddsi_locator_to_string_no_port (buf, sizeof(buf), &gv->interfaces[i].loc), ddsi_locator_to_string_no_port (buf2, sizeof(buf2), &gv->interfaces[i].extloc));
@@ -1568,11 +1568,11 @@ int rtps_init (struct ddsi_domaingv *gv)
       }
 
       /* Set multicast locators */
-      if (!is_unspec_locator(&gv->loc_spdp_mc))
+      if (!ddsi_is_unspec_locator(&gv->loc_spdp_mc))
         gv->loc_spdp_mc.port = ddsi_conn_port (gv->disc_conn_mc);
-      if (!is_unspec_locator(&gv->loc_meta_mc))
+      if (!ddsi_is_unspec_locator(&gv->loc_meta_mc))
         gv->loc_meta_mc.port = ddsi_conn_port (gv->disc_conn_mc);
-      if (!is_unspec_locator(&gv->loc_default_mc))
+      if (!ddsi_is_unspec_locator(&gv->loc_default_mc))
         gv->loc_default_mc.port = ddsi_conn_port (gv->data_conn_mc);
     }
   }
@@ -1597,9 +1597,9 @@ int rtps_init (struct ddsi_domaingv *gv)
       }
 
       /* Set unicast locators from listener */
-      set_unspec_locator (&gv->loc_spdp_mc);
-      set_unspec_locator (&gv->loc_meta_mc);
-      set_unspec_locator (&gv->loc_default_mc);
+      ddsi_set_unspec_locator (&gv->loc_spdp_mc);
+      ddsi_set_unspec_locator (&gv->loc_meta_mc);
+      ddsi_set_unspec_locator (&gv->loc_default_mc);
 
       ddsi_listener_locator (gv->listener, &gv->loc_meta_uc);
       ddsi_listener_locator (gv->listener, &gv->loc_default_uc);
@@ -1725,9 +1725,9 @@ int rtps_init (struct ddsi_domaingv *gv)
   ddsi_omg_security_init (gv);
 #endif
 
-  gv->as_disc = new_addrset ();
+  gv->as_disc = ddsi_new_addrset ();
   if (gv->config.allowMulticast & DDSI_AMC_SPDP)
-    add_locator_to_addrset (gv, gv->as_disc, &gv->loc_spdp_mc);
+    ddsi_add_locator_to_addrset (gv, gv->as_disc, &gv->loc_spdp_mc);
   /* If multicast was enabled but not available, always add the local interface to the discovery address set.
      Conversion via string and add_peer_addresses has the benefit that the port number expansion happens
      automatically. */
@@ -2171,7 +2171,7 @@ void rtps_fini (struct ddsi_domaingv *gv)
   }
 
   ddsi_free_config_nwpart_addresses (gv);
-  unref_addrset (gv->as_disc);
+  ddsi_unref_addrset (gv->as_disc);
 
   /* Must delay freeing of rbufpools until after *all* references have
      been dropped, which only happens once all receive threads have

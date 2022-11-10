@@ -25,7 +25,7 @@
 #include "ddsi__udp.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/q_misc.h"
-#include "dds/ddsi/q_addrset.h"
+#include "ddsi__addrset.h"
 #include "dds/ddsi/q_ddsi_discovery.h"
 #include "ddsi__plist.h"
 #include "ddsi__tran.h"
@@ -515,7 +515,7 @@ CU_Theory ((bool same_machine, bool proxypp_has_defmc, int n_ep_uc, int n_ep_mc,
 
   // pretend the remote one is on another machine but on the same networks
   printf ("as_default =\n");
-  struct addrset *as_default = new_addrset ();
+  struct ddsi_addrset *as_default = ddsi_new_addrset ();
   for (int i = (same_machine ? 0 : 1); i < gv.n_interfaces; i++)
   {
     ddsi_xlocator_t xloc = {
@@ -527,7 +527,7 @@ CU_Theory ((bool same_machine, bool proxypp_has_defmc, int n_ep_uc, int n_ep_mc,
       xloc.c.address[15]++;
     char buf[DDSI_LOCSTRLEN];
     printf ("  %s\n", ddsi_xlocator_to_string (buf, sizeof (buf), &xloc));
-    add_xlocator_to_addrset (&gv, as_default, &xloc);
+    ddsi_add_xlocator_to_addrset (&gv, as_default, &xloc);
   }
 
   const ddsi_locator_t defmcloc = {
@@ -544,7 +544,7 @@ CU_Theory ((bool same_machine, bool proxypp_has_defmc, int n_ep_uc, int n_ep_mc,
         ddsi_xlocator_t xloc = { .conn = gv.xmit_conns[i], .c = defmcloc };
         char buf[DDSI_LOCSTRLEN];
         printf ("  %s\n", ddsi_xlocator_to_string (buf, sizeof (buf), &xloc));
-        add_xlocator_to_addrset (&gv, as_default, &xloc);
+        ddsi_add_xlocator_to_addrset (&gv, as_default, &xloc);
       }
     }
   }
@@ -598,17 +598,17 @@ CU_Theory ((bool same_machine, bool proxypp_has_defmc, int n_ep_uc, int n_ep_mc,
     printf ("advertised plist: %s\n", buf);
   }
 
-  struct addrset *as = ddsi_get_endpoint_addrset (&gv, &plist, as_default, NULL);
+  struct ddsi_addrset *as = ddsi_get_endpoint_addrset (&gv, &plist, as_default, NULL);
 
   int n = 0;
   while (expected[n])
     n++;
   struct check_address_present_arg arg = {
     .expected = expected,
-    .ok = (addrset_count (as) == (size_t) n)
+    .ok = (ddsi_addrset_count (as) == (size_t) n)
   };
   printf ("addrset =");
-  addrset_forall (as, check_address_present, &arg);
+  ddsi_addrset_forall (as, check_address_present, &arg);
   if (arg.ok)
     printf ("\nOK\n");
   else
@@ -619,8 +619,8 @@ CU_Theory ((bool same_machine, bool proxypp_has_defmc, int n_ep_uc, int n_ep_mc,
     printf ("\n(in any order)\n");
   }
   CU_ASSERT (arg.ok);
-  unref_addrset (as);
+  ddsi_unref_addrset (as);
   // not calling plist_fini: we didn't allocate anything
-  unref_addrset (as_default);
+  ddsi_unref_addrset (as_default);
   teardown (&gv);
 }

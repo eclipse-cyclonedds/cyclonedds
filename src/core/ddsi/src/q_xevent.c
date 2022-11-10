@@ -20,7 +20,7 @@
 #include "dds/ddsrt/fibheap.h"
 
 #include "dds/ddsi/q_log.h"
-#include "dds/ddsi/q_addrset.h"
+#include "ddsi__addrset.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/q_xevent.h"
 #include "dds/ddsi/q_thread.h"

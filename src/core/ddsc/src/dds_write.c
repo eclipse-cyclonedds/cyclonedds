@@ -34,7 +34,7 @@
 
 #ifdef DDS_HAS_SHM
 #include "dds/ddsi/ddsi_shm_transport.h"
-#include "dds/ddsi/q_addrset.h"
+#include "dds/ddsi/ddsi_addrset.h"
 #endif
 
 struct ddsi_serdata_plain { struct ddsi_serdata p; };
@@ -463,7 +463,7 @@ static dds_return_t dds_write_impl_iox (dds_writer *wr, struct ddsi_writer *ddsi
   // it is rather unfortunate that this then means we have to lock here to check, then lock again to
   // actually distribute the data, so some further refactoring is needed.
   ddsrt_mutex_lock (&ddsi_wr->e.lock);
-  const bool no_network_readers = addrset_empty (ddsi_wr->as);
+  const bool no_network_readers = ddsi_addrset_empty (ddsi_wr->as);
   ddsrt_mutex_unlock (&ddsi_wr->e.lock);
 
   // NB: local readers are not in L := ddsi_wr->rdary if they use iceoryx.

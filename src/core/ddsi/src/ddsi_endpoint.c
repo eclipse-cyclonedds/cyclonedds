@@ -33,7 +33,7 @@
 #include "dds/ddsi/q_ddsi_discovery.h"
 #include "dds/ddsi/q_whc.h"
 #include "dds/ddsi/q_xevent.h"
-#include "dds/ddsi/q_addrset.h"
+#include "ddsi__addrset.h"
 #include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/q_misc.h"
 #include "dds/ddsi/sysdeps.h"
@@ -174,9 +174,9 @@ void ddsi_rebuild_writer_addrset (struct ddsi_writer *wr)
 
   /* swap in new address set; this simple procedure is ok as long as
      wr->as is never accessed without the wr->e.lock held */
-  struct addrset * const oldas = wr->as;
+  struct ddsi_addrset * const oldas = wr->as;
   wr->as = ddsi_compute_writer_addrset (wr);
-  unref_addrset (oldas);
+  ddsi_unref_addrset (oldas);
 
   /* Computing burst size limit here is a bit of a hack; but anyway ...
      try to limit bursts of retransmits to 67% of the smallest receive
@@ -206,7 +206,7 @@ void ddsi_rebuild_writer_addrset (struct ddsi_writer *wr)
     wr->init_burst_size_limit = (uint32_t) limit64;
 
   ELOGDISC (wr, "ddsi_rebuild_writer_addrset("PGUIDFMT"):", PGUID (wr->e.guid));
-  nn_log_addrset(wr->e.gv, DDS_LC_DISCOVERY, "", wr->as);
+  ddsi_log_addrset(wr->e.gv, DDS_LC_DISCOVERY, "", wr->as);
   ELOGDISC (wr, " (burst size %"PRIu32" rexmit %"PRIu32")\n", wr->init_burst_size_limit, wr->rexmit_burst_size_limit);
 }
 
@@ -803,7 +803,7 @@ static void ddsi_new_writer_guid_common_init (struct ddsi_writer *wr, const char
     wr->e.gv->config.generate_keyhash &&
     ((wr->e.guid.entityid.u & NN_ENTITYID_KIND_MASK) == NN_ENTITYID_KIND_WRITER_WITH_KEY);
   wr->type = ddsi_sertype_ref (type);
-  wr->as = new_addrset ();
+  wr->as = ddsi_new_addrset ();
 
 #ifdef DDS_HAS_NETWORK_PARTITIONS
   /* This is an open issue how to encrypt mesages send for various
@@ -846,10 +846,10 @@ static void ddsi_new_writer_guid_common_init (struct ddsi_writer *wr, const char
     if (have_loc)
     {
       wr->supports_ssm = 1;
-      wr->ssm_as = new_addrset ();
-      add_xlocator_to_addrset (wr->e.gv, wr->ssm_as, &loc);
+      wr->ssm_as = ddsi_new_addrset ();
+      ddsi_add_xlocator_to_addrset (wr->e.gv, wr->ssm_as, &loc);
       ELOGDISC (wr, "writer "PGUIDFMT": ssm=%d", PGUID (wr->e.guid), wr->supports_ssm);
-      nn_log_addrset (wr->e.gv, DDS_LC_DISCOVERY, "", wr->ssm_as);
+      ddsi_log_addrset (wr->e.gv, DDS_LC_DISCOVERY, "", wr->ssm_as);
       ELOGDISC (wr, "\n");
     }
   }
@@ -1104,9 +1104,9 @@ static void gc_delete_writer (struct ddsi_gcreq *gcreq)
 #endif
 #ifdef DDS_HAS_SSM
   if (wr->ssm_as)
-    unref_addrset (wr->ssm_as);
+    ddsi_unref_addrset (wr->ssm_as);
 #endif
-  unref_addrset (wr->as); /* must remain until readers gone (rebuilding of addrset) */
+  ddsi_unref_addrset (wr->as); /* must remain until readers gone (rebuilding of addrset) */
   ddsi_xqos_fini (wr->xqos);
   ddsrt_free (wr->xqos);
   ddsi_local_reader_ary_fini (&wr->rdary);
