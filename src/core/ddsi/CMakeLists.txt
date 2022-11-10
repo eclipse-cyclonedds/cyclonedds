@@ -70,7 +70,7 @@ set(srcs_ddsi
   ddsi_lease.c
   ddsi_misc.c
   ddsi_pcap.c
-  q_qosmatch.c
+  ddsi_qosmatch.c
   q_radmin.c
   q_receive.c
   q_sockwaitset.c
@@ -129,7 +129,7 @@ set(hdrs_ddsi
   ddsi_lat_estim.h
   ddsi_lease.h
   ddsi_log.h
-  q_qosmatch.h
+  ddsi_qosmatch.h
   q_radmin.h
   q_receive.h
   q_rtps.h

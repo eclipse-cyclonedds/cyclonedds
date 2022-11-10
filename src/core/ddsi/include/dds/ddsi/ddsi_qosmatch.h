@@ -9,16 +9,17 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef Q_QOSMATCH_H
-#define Q_QOSMATCH_H
+#ifndef DDSI_QOSMATCH_H
+#define DDSI_QOSMATCH_H
 
 #include "dds/features.h"
 #include "dds/ddsi/ddsi_typelib.h"
+#include "dds/ddsi/ddsi_xqos.h"
 #if defined (__cplusplus)
 extern "C" {
 #endif
 
-struct dds_qos;
+struct ddsi_domaingv;
 
 /* perform reader/writer QoS (and topic name, type name, partition) matching;
    mask can be used to exclude some of these (including topic name and type
@@ -31,7 +32,7 @@ struct dds_qos;
    rd/wr_type_unknown is set to true in case the matching cannot be completed
    because of missing type information. A type-lookup request is required to get the
    details of the type to do the qos matching (e.g. check assignability) */
-bool qos_match_mask_p (
+bool ddsi_qos_match_mask_p (
     struct ddsi_domaingv *gv,
     const dds_qos_t *rd_qos,
     const dds_qos_t *wr_qos,
@@ -45,7 +46,7 @@ bool qos_match_mask_p (
 #endif
 );
 
-bool qos_match_p (
+bool ddsi_qos_match_p (
     struct ddsi_domaingv *gv,
     const dds_qos_t *rd_qos,
     const dds_qos_t *wr_qos,
@@ -62,4 +63,4 @@ bool qos_match_p (
 }
 #endif
 
-#endif /* Q_QOSMATCH_H */
+#endif /* DDSI_QOSMATCH_H */

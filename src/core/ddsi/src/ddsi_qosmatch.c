@@ -19,7 +19,7 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_entity.h"
 #include "ddsi__misc.h"
-#include "dds/ddsi/q_qosmatch.h"
+#include "dds/ddsi/ddsi_qosmatch.h"
 #include "ddsi__typelib.h"
 #include "dds/dds.h"
 
@@ -130,7 +130,7 @@ static bool type_pair_has_id (const ddsi_type_pair_t *pair)
 }
 #endif
 
-bool qos_match_mask_p (
+bool ddsi_qos_match_mask_p (
     struct ddsi_domaingv *gv,
     const dds_qos_t *rd_qos,
     const dds_qos_t *wr_qos,
@@ -274,7 +274,7 @@ bool qos_match_mask_p (
   return true;
 }
 
-bool qos_match_p (
+bool ddsi_qos_match_p (
     struct ddsi_domaingv *gv,
     const dds_qos_t *rd_qos,
     const dds_qos_t *wr_qos,
@@ -289,8 +289,8 @@ bool qos_match_p (
 {
   dds_qos_policy_id_t dummy;
 #ifdef DDS_HAS_TYPE_DISCOVERY
-  return qos_match_mask_p (gv, rd_qos, wr_qos, ~(uint64_t)0, reason ? reason : &dummy, rd_type_pair, wr_type_pair, rd_typeid_req_lookup, wr_typeid_req_lookup);
+  return ddsi_qos_match_mask_p (gv, rd_qos, wr_qos, ~(uint64_t)0, reason ? reason : &dummy, rd_type_pair, wr_type_pair, rd_typeid_req_lookup, wr_typeid_req_lookup);
 #else
-  return qos_match_mask_p (gv, rd_qos, wr_qos, ~(uint64_t)0, reason ? reason : &dummy);
+  return ddsi_qos_match_mask_p (gv, rd_qos, wr_qos, ~(uint64_t)0, reason ? reason : &dummy);
 #endif
 }

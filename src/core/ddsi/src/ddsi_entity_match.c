@@ -23,7 +23,7 @@
 #include "ddsi__entity_index.h"
 #include "ddsi__mcgroup.h"
 #include "ddsi__rhc.h"
-#include "dds/ddsi/q_qosmatch.h"
+#include "dds/ddsi/ddsi_qosmatch.h"
 #include "ddsi__addrset.h"
 #include "dds/ddsi/q_xevent.h"
 #include "dds/ddsi/q_whc.h"
@@ -188,7 +188,7 @@ static bool topickind_qos_match_p_lock (struct ddsi_domaingv *gv, struct ddsi_en
   bool rd_type_lookup, wr_type_lookup;
   const ddsi_typeid_t *req_type_id = NULL;
   ddsi_guid_t *proxypp_guid = NULL;
-  bool ret = qos_match_p (gv, rdqos, wrqos, reason, rd_type_pair, wr_type_pair, &rd_type_lookup, &wr_type_lookup);
+  bool ret = ddsi_qos_match_p (gv, rdqos, wrqos, reason, rd_type_pair, wr_type_pair, &rd_type_lookup, &wr_type_lookup);
   if (!ret)
   {
     /* In case qos_match_p returns false, one of rd_type_look and wr_type_lookup could
@@ -207,7 +207,7 @@ static bool topickind_qos_match_p_lock (struct ddsi_domaingv *gv, struct ddsi_en
     }
   }
 #else
-  bool ret = qos_match_p (gv, rdqos, wrqos, reason);
+  bool ret = ddsi_qos_match_p (gv, rdqos, wrqos, reason);
 #endif
   for (int i = 0; i < 2; i++)
     ddsrt_mutex_unlock (locks[i + shift]);

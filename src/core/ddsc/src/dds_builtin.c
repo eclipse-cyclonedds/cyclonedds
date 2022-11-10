@@ -32,7 +32,7 @@
 #include "dds__writer.h"
 #include "dds__whc_builtintopic.h"
 #include "dds__serdata_builtintopic.h"
-#include "dds/ddsi/q_qosmatch.h"
+#include "dds/ddsi/ddsi_qosmatch.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 
 dds_qos_t *dds__create_builtin_qos (void)
@@ -200,9 +200,9 @@ bool dds__validate_builtin_reader_qos (const dds_domain *dom, dds_entity_t topic
     const uint64_t qmask = ~(DDSI_QP_TOPIC_NAME | DDSI_QP_TYPE_NAME | DDSI_QP_TYPE_INFORMATION);
     dds_qos_policy_id_t dummy;
 #ifdef DDS_HAS_TYPE_DISCOVERY
-    return qos_match_mask_p (bwr->wr.e.gv, qos, bwr->wr.xqos, qmask, &dummy, NULL, NULL, NULL, NULL) && !qos_has_resource_limits (qos);
+    return ddsi_qos_match_mask_p (bwr->wr.e.gv, qos, bwr->wr.xqos, qmask, &dummy, NULL, NULL, NULL, NULL) && !qos_has_resource_limits (qos);
 #else
-    return qos_match_mask_p (bwr->wr.e.gv, qos, bwr->wr.xqos, qmask, &dummy) && !qos_has_resource_limits (qos);
+    return ddsi_qos_match_mask_p (bwr->wr.e.gv, qos, bwr->wr.xqos, qmask, &dummy) && !qos_has_resource_limits (qos);
 #endif
   }
 }
