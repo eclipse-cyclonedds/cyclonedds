@@ -10,7 +10,7 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include "dds/ddsi/ddsi_tcp.h"
-#include "dds/ddsi/ddsi_ssl.h"
+#include "ddsi__ssl.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/misc.h"

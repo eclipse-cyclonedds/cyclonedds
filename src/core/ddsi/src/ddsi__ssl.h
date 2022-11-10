@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef _DDSI_SSL_H_
-#define _DDSI_SSL_H_
+#ifndef DDSI__SSL_H
+#define DDSI__SSL_H
 
 #include "dds/features.h"
 
@@ -45,5 +45,5 @@ void ddsi_ssl_config_plugin (struct ddsi_ssl_plugins *plugin);
 }
 #endif
 
-#endif
-#endif
+#endif /* DDS_HAS_SSL */
+#endif /* DDSI__SSL_H */

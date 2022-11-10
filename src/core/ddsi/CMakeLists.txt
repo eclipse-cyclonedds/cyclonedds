@@ -84,7 +84,6 @@ set(srcs_ddsi
 )
 
 set(hdrs_ddsi
-  ddsi_ssl.h
   ddsi_tcp.h
   ddsi_tran.h
   ddsi_udp.h
@@ -185,6 +184,7 @@ set(hdrs_private_ddsi
   ddsi__security_util.h
   ddsi__serdata_cdr.h
   ddsi__serdata_plist.h
+  ddsi__ssl.h
 )
 
 if(ENABLE_LIFESPAN)
