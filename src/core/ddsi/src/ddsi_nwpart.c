@@ -22,7 +22,7 @@
 #include "ddsi__tran.h"
 #include "ddsi__nwpart.h"
 #include "dds/ddsi/ddsi_xqos.h"
-#include "dds/ddsi/q_misc.h"
+#include "ddsi__misc.h"
 #include "ddsi__portmapping.h"
 
 #ifdef DDS_HAS_NETWORK_PARTITIONS

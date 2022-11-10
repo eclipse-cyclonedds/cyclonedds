@@ -24,7 +24,7 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/q_radmin.h"
-#include "dds/ddsi/q_misc.h"
+#include "ddsi__misc.h"
 #include "ddsi__entity_index.h"
 #include "ddsi__security_msg.h"
 #include "ddsi__security_omg.h"
@@ -2862,7 +2862,7 @@ static bool ddsi_omg_security_encode_datareader_submessage (struct ddsi_reader *
   hdls._maximum = rd->num_writers;
   for (m = ddsrt_avl_iter_first (&ddsi_rd_writers_treedef, &rd->writers, &it); m; m = ddsrt_avl_iter_next (&it))
   {
-    if (m->crypto_handle && (!dst_prefix || guid_prefix_eq (&m->pwr_guid.prefix, dst_prefix)))
+    if (m->crypto_handle && (!dst_prefix || ddsi_guid_prefix_eq (&m->pwr_guid.prefix, dst_prefix)))
       hdls._buffer[idx++] = m->crypto_handle;
   }
   ddsrt_mutex_unlock (&rd->e.lock);
@@ -2934,7 +2934,7 @@ static bool ddsi_omg_security_encode_datawriter_submessage (struct ddsi_writer *
   hdls._maximum = wr->num_readers;
   for (m = ddsrt_avl_iter_first (&ddsi_wr_readers_treedef, &wr->readers, &it); m; m = ddsrt_avl_iter_next (&it))
   {
-    if (m->crypto_handle && (!dst_prefix || guid_prefix_eq (&m->prd_guid.prefix, dst_prefix)))
+    if (m->crypto_handle && (!dst_prefix || ddsi_guid_prefix_eq (&m->prd_guid.prefix, dst_prefix)))
       hdls._buffer[idx++] = m->crypto_handle;
   }
 
@@ -3029,7 +3029,7 @@ static bool ddsi_omg_security_decode_submessage (const struct ddsi_domaingv *gv,
     return false;
   }
 
-  if (dst_prefix && !guid_prefix_zero (dst_prefix))
+  if (dst_prefix && !ddsi_guid_prefix_zero (dst_prefix))
   {
     pp_guid.prefix = *dst_prefix;
     pp_guid.entityid.u = NN_ENTITYID_PARTICIPANT;

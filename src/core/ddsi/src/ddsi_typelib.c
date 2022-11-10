@@ -20,7 +20,7 @@
 #include "dds/ddsrt/string.h"
 #include "ddsi__entity.h"
 #include "ddsi__entity_match.h"
-#include "dds/ddsi/q_misc.h"
+#include "ddsi__misc.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/cdr/dds_cdrstream.h"
 #include "dds/ddsi/ddsi_domaingv.h"
@@ -38,7 +38,7 @@
 #include "ddsi__typewrap.h"
 
 DDSI_LIST_DECLS_TMPL(static, ddsi_type_proxy_guid_list, ddsi_guid_t, ddsrt_attribute_unused)
-DDSI_LIST_CODE_TMPL(static, ddsi_type_proxy_guid_list, ddsi_guid_t, nullguid, ddsrt_malloc, ddsrt_free)
+DDSI_LIST_CODE_TMPL(static, ddsi_type_proxy_guid_list, ddsi_guid_t, ddsi_nullguid, ddsrt_malloc, ddsrt_free)
 
 static int ddsi_type_compare_wrap (const void *type_a, const void *type_b);
 const ddsrt_avl_treedef_t ddsi_typelib_treedef = DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct ddsi_type, avl_node), 0, ddsi_type_compare_wrap, 0);
@@ -309,7 +309,7 @@ static bool ddsi_type_proxy_guid_exists (struct ddsi_type *type, const ddsi_guid
   struct ddsi_type_proxy_guid_list_iter it;
   for (ddsi_guid_t guid = ddsi_type_proxy_guid_list_iter_first (&type->proxy_guids, &it); !ddsi_is_null_guid (&guid); guid = ddsi_type_proxy_guid_list_iter_next (&it))
   {
-    if (guid_eq (&guid, proxy_guid))
+    if (ddsi_guid_eq (&guid, proxy_guid))
       return true;
   }
   return false;
@@ -317,7 +317,7 @@ static bool ddsi_type_proxy_guid_exists (struct ddsi_type *type, const ddsi_guid
 
 static int ddsi_type_proxy_guids_eq (const struct ddsi_guid a, const struct ddsi_guid b)
 {
-  return guid_eq (&a, &b);
+  return ddsi_guid_eq (&a, &b);
 }
 
 int ddsi_type_compare (const struct ddsi_type *a, const struct ddsi_type *b)

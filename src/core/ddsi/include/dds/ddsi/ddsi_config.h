@@ -20,6 +20,7 @@
 #include "dds/ddsrt/random.h"
 #include "dds/ddsi/ddsi_portmapping.h"
 #include "dds/ddsi/ddsi_locator.h"
+#include "dds/ddsi/ddsi_xqos.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -448,6 +449,10 @@ public:
   }
 #endif
 };
+
+#ifdef DDS_HAS_NETWORK_CHANNELS
+struct ddsi_config_channel_listelem *ddsi_find_network_channel (const struct config *cfg, ddsi_transport_priority_qospolicy_t transport_priority);
+#endif
 
 #if defined (__cplusplus)
 }

@@ -13,7 +13,7 @@
 #include "dds/ddsrt/static_assert.h"
 #include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/q_radmin.h"
-#include "dds/ddsi/q_misc.h"
+#include "ddsi__misc.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/ddsi_log.h"
 #include "ddsi__bitset.h"
@@ -119,7 +119,7 @@ static bool add_acknack_makebitmaps (const struct ddsi_proxy_writer *pwr, const 
   /* Scan through bitmap, cutting it off at the first missing sample that the defragmenter
      knows about. Then note the sequence number & add a NACKFRAG for that sample */
   info->nackfrag.seq = 0;
-  const seqno_t base = fromSN (info->acknack.set.bitmap_base);
+  const seqno_t base = ddsi_from_seqno (info->acknack.set.bitmap_base);
   for (uint32_t i = 0; i < numbits; i++)
   {
     if (!ddsi_bitset_isset (numbits, info->acknack.bits, i))
@@ -157,7 +157,7 @@ static void add_NackFrag (struct nn_xmsg *msg, const struct ddsi_proxy_writer *p
   nn_xmsg_submsg_init (msg, sm_marker, DDSI_RTPS_SMID_NACK_FRAG);
   nf->readerId = ddsi_hton_entityid (rwn->rd_guid.entityid);
   nf->writerId = ddsi_hton_entityid (pwr->e.guid.entityid);
-  nf->writerSN = toSN (info->nackfrag.seq);
+  nf->writerSN = ddsi_to_seqno (info->nackfrag.seq);
 #if ACK_REASON_IN_FLAGS
   nf->smhdr.flags |= info->flags;
 #endif
@@ -176,7 +176,7 @@ static void add_NackFrag (struct nn_xmsg *msg, const struct ddsi_proxy_writer *p
   if (pwr->e.gv->logconfig.c.mask & DDS_LC_TRACE)
   {
     ETRACE (pwr, "nackfrag #%"PRIu32":%"PRIu64"/%"PRIu32"/%"PRIu32":",
-            pwr->nackfragcount, fromSN (nf->writerSN),
+            pwr->nackfragcount, ddsi_from_seqno (nf->writerSN),
             nf->fragmentNumberState.bitmap_base, nf->fragmentNumberState.numbits);
     for (uint32_t ui = 0; ui != nf->fragmentNumberState.numbits; ui++)
       ETRACE (pwr, "%c", ddsi_bitset_isset (nf->fragmentNumberState.numbits, nf->bits, ui) ? '1' : '0');
@@ -222,7 +222,7 @@ static void add_acknack (struct nn_xmsg *msg, const struct ddsi_proxy_writer *pw
   {
     ETRACE (pwr, "acknack "PGUIDFMT" -> "PGUIDFMT": F#%"PRIu32":%"PRIu64"/%"PRIu32":",
             PGUID (rwn->rd_guid), PGUID (pwr->e.guid), rwn->count,
-            fromSN (an->readerSNState.bitmap_base), an->readerSNState.numbits);
+            ddsi_from_seqno (an->readerSNState.bitmap_base), an->readerSNState.numbits);
     for (uint32_t ui = 0; ui != an->readerSNState.numbits; ui++)
       ETRACE (pwr, "%c", ddsi_bitset_isset (an->readerSNState.numbits, an->bits, ui) ? '1' : '0');
   }
@@ -246,7 +246,7 @@ static enum ddsi_add_acknack_result get_acknack_info (const struct ddsi_proxy_wr
   if (!add_acknack_makebitmaps (pwr, rwn, info))
   {
     info->nack_sent_on_nackdelay = rwn->nack_sent_on_nackdelay;
-    nack_summary->seq_base = fromSN (info->acknack.set.bitmap_base);
+    nack_summary->seq_base = ddsi_from_seqno (info->acknack.set.bitmap_base);
     nack_summary->seq_end_p1 = 0;
     nack_summary->frag_base = 0;
     nack_summary->frag_end_p1 = 0;
@@ -255,7 +255,7 @@ static enum ddsi_add_acknack_result get_acknack_info (const struct ddsi_proxy_wr
   else
   {
     // [seq_base:0 .. seq_end_p1:0) + [seq_end_p1:frag_base .. seq_end_p1:frag_end_p1) if frag_end_p1 > 0
-    const seqno_t seq_base = fromSN (info->acknack.set.bitmap_base);
+    const seqno_t seq_base = ddsi_from_seqno (info->acknack.set.bitmap_base);
     assert (seq_base >= 1 && (info->acknack.set.numbits > 0 || info->nackfrag.seq > 0));
     assert (info->nackfrag.seq == 0 || info->nackfrag.set.numbits > 0);
     const seqno_t seq_end_p1 = seq_base + info->acknack.set.numbits;

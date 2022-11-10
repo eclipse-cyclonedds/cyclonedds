@@ -30,7 +30,7 @@
 #include "dds/ddsi/ddsi_log.h"
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsi/q_unused.h"
-#include "dds/ddsi/q_misc.h"
+#include "ddsi__misc.h"
 #include "ddsi__addrset.h"
 
 #include "dds/ddsrt/xmlparser.h"
@@ -2713,3 +2713,25 @@ void ddsi_config_fini (struct ddsi_cfgst *cfgst)
   ddsrt_avl_free (&cfgst_found_treedef, &cfgst->found, ddsrt_free);
   ddsrt_free (cfgst);
 }
+
+
+#ifdef DDS_HAS_NETWORK_CHANNELS
+
+struct ddsi_config_channel_listelem *ddsi_find_network_channel (const struct config *cfg, nn_transport_priority_qospolicy_t transport_priority)
+{
+  struct ddsi_config_channel_listelem *c;
+  /* Channel selection is to use the channel with the lowest priority
+     not less than transport_priority, or else the one with the
+     highest priority. */
+  assert(cfg->channels != NULL);
+  assert(cfg->max_channel != NULL);
+  for (c = cfg->channels; c; c = c->next)
+  {
+    assert(c->next == NULL || c->next->priority > c->priority);
+    if (transport_priority.value <= c->priority)
+      return c;
+  }
+  return cfg->max_channel;
+}
+
+#endif /* DDS_HAS_NETWORK_CHANNELS */

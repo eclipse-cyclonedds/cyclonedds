@@ -25,7 +25,7 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "ddsi__serdata_plist.h"
 #include "dds/ddsi/q_xmsg.h"
-#include "dds/ddsi/q_misc.h"
+#include "ddsi__misc.h"
 #include "ddsi__plist.h"
 #include "dds/cdr/dds_cdrstream.h"
 #include "ddsi__protocol.h"
@@ -220,7 +220,7 @@ static struct ddsi_serdata *serdata_plist_from_sample (const struct ddsi_sertype
   // FIXME: key must not require byteswapping (GUIDs are ok)
   // FIXME: rework plist stuff so it doesn't need an nn_xmsg
   struct ddsi_domaingv * const gv = ddsrt_atomic_ldvoidp (&tp->c.gv);
-  struct nn_xmsg *mpayload = nn_xmsg_new (gv->xmsgpool, &nullguid, NULL, 0, NN_XMSG_KIND_DATA);
+  struct nn_xmsg *mpayload = nn_xmsg_new (gv->xmsgpool, &ddsi_nullguid, NULL, 0, NN_XMSG_KIND_DATA);
   memcpy (nn_xmsg_append (mpayload, NULL, 4), &header, 4);
   ddsi_plist_addtomsg (mpayload, sample, ~(uint64_t)0, ~(uint64_t)0);
   nn_xmsg_addpar_sentinel (mpayload);

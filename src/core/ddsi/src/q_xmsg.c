@@ -29,7 +29,7 @@
 #include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/q_rtps.h"
 #include "ddsi__addrset.h"
-#include "dds/ddsi/q_misc.h"
+#include "ddsi__misc.h"
 #include "dds/ddsi/ddsi_log.h"
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/q_xmsg.h"
@@ -1617,7 +1617,7 @@ int nn_xpack_addmsg (struct nn_xpack *xp, struct nn_xmsg *m, const uint32_t flag
   {
     xpo_niov = xp->niov;
     xpo_sz = xp->msg_len.length;
-    if (!guid_prefix_eq (xp->last_src, &m->data->src.guid_prefix))
+    if (!ddsi_guid_prefix_eq (xp->last_src, &m->data->src.guid_prefix))
     {
       /* If m's source participant differs from that of the source
          currently set in the packed message, add an InfoSRC note. */
@@ -1647,7 +1647,7 @@ int nn_xpack_addmsg (struct nn_xpack *xp, struct nn_xmsg *m, const uint32_t flag
   else if (m->dstmode != NN_XMSG_DST_ONE && m->dstmode != NN_XMSG_DST_ALL_UC)
     dst = &static_zero_dst;
   else
-    dst = guid_prefix_eq (&xp->last_dst->guid_prefix, &m->data->dst.guid_prefix) ? NULL : &m->data->dst;
+    dst = ddsi_guid_prefix_eq (&xp->last_dst->guid_prefix, &m->data->dst.guid_prefix) ? NULL : &m->data->dst;
 
   if (dst)
   {

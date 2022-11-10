@@ -1872,10 +1872,10 @@ While none prevents any message from being written to a DDSI2 log file.
 The categorisation of tracing output is incomplete and hence most of the verbosity levels and categories are not of much use in the current release. This is an ongoing process and here we describe the target situation rather than the current situation. Currently, the most useful verbosity levels are config, fine and finest.
 
 The default value is: `none`
-<!--- generated from ddsi_config.h[75edea6617af11bacc46f91e519773f6df580655] -->
+<!--- generated from ddsi_config.h[50a662737a9c61771193139c7d256a3c3537fdf7] -->
 <!--- generated from ddsi_cfgunits.h[fc550f1620aa20dcd9244ef4e24299d5001efbb4] -->
 <!--- generated from ddsi_cfgelems.h[a632149e8f68e76d13bf22e670e910975c77fa38] -->
-<!--- generated from ddsi_config.c[070e9d53a12c9bc2c12d25311b8757f0e9a9833a] -->
+<!--- generated from ddsi_config.c[248f6d3bd3642239067a0a3fae943bcb941ddd96] -->
 <!--- generated from _confgen.h[f2d235d5551cbf920a8a2962831dddeabd2856ac] -->
 <!--- generated from _confgen.c[ba2e8c0cfd41039421548fdb03bcd2db8f8b172e] -->
 <!--- generated from generate_rnc.c[a2ec6e48d33ac14a320c8ec3f320028a737920e0] -->

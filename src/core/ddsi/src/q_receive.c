@@ -24,7 +24,7 @@
 
 #include "ddsi__protocol.h"
 #include "dds/ddsi/q_rtps.h"
-#include "dds/ddsi/q_misc.h"
+#include "ddsi__misc.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_log.h"
 #include "dds/ddsi/ddsi_plist.h"
@@ -121,7 +121,7 @@ static bool valid_sequence_number_set (const ddsi_sequence_number_set_header_t *
 {
   // reject sets that imply sequence numbers beyond the range of valid sequence numbers
   // (not a spec'd requirement)
-  return (validating_fromSN (snset->bitmap_base, start) && snset->numbits <= 256 && snset->numbits <= MAX_SEQ_NUMBER - *start);
+  return (ddsi_validating_from_seqno (snset->bitmap_base, start) && snset->numbits <= 256 && snset->numbits <= MAX_SEQ_NUMBER - *start);
 }
 
 static bool valid_fragment_number_set (const ddsi_fragment_number_set_header_t *fnset)
@@ -176,7 +176,7 @@ static enum validation_result validate_AckNack (const struct receiver_state *rst
     if (! DDSI_SC_STRICT_P (rst->gv->config) &&
         (ackseq == 0 && msg->readerSNState.numbits == 0) &&
         (ddsi_vendor_is_eprosima (rst->vendor) || ddsi_vendor_is_rti (rst->vendor)))
-      msg->readerSNState.bitmap_base = toSN (1);
+      msg->readerSNState.bitmap_base = ddsi_to_seqno (1);
     else
       return VR_MALFORMED;
   }
@@ -209,7 +209,7 @@ static enum validation_result validate_Gap (ddsi_rtps_gap_t *msg, size_t size, i
   msg->readerId = ddsi_ntoh_entityid (msg->readerId);
   msg->writerId = ddsi_ntoh_entityid (msg->writerId);
   seqno_t gapstart;
-  if (!validating_fromSN (msg->gapStart, &gapstart))
+  if (!ddsi_validating_from_seqno (msg->gapStart, &gapstart))
     return VR_MALFORMED;
   seqno_t gapend;
   if (!valid_sequence_number_set (&msg->gapList, &gapend))
@@ -275,7 +275,7 @@ static enum validation_result validate_Heartbeat (ddsi_rtps_heartbeat_t *msg, si
   msg->writerId = ddsi_ntoh_entityid (msg->writerId);
   /* Validation following 8.3.7.5.3; lastSN + 1 == firstSN: no data; test using
      firstSN-1 because lastSN+1 can overflow and we already know firstSN-1 >= 0 */
-  if (fromSN (msg->firstSN) <= 0 || fromSN (msg->lastSN) < fromSN (msg->firstSN) - 1)
+  if (ddsi_from_seqno (msg->firstSN) <= 0 || ddsi_from_seqno (msg->lastSN) < ddsi_from_seqno (msg->firstSN) - 1)
     return VR_MALFORMED;
   // do reader/writer entity id validation last: if it returns "NOT_UNDERSTOOD" for an
   // otherwise malformed message, we still need to discard the message in its entirety
@@ -294,7 +294,7 @@ static enum validation_result validate_HeartbeatFrag (ddsi_rtps_heartbeatfrag_t 
   }
   msg->readerId = ddsi_ntoh_entityid (msg->readerId);
   msg->writerId = ddsi_ntoh_entityid (msg->writerId);
-  if (fromSN (msg->writerSN) <= 0 || msg->lastFragmentNum == 0)
+  if (ddsi_from_seqno (msg->writerSN) <= 0 || msg->lastFragmentNum == 0)
     return VR_MALFORMED;
   // do reader/writer entity id validation last: if it returns "NOT_UNDERSTOOD" for an
   // otherwise malformed message, we still need to discard the message in its entirety
@@ -379,7 +379,7 @@ static enum validation_result validate_Data (const struct receiver_state *rst, d
   pwr_guid.entityid = msg->x.writerId;
 
   sampleinfo->rst = (struct receiver_state *) rst; /* drop const */
-  if (!validating_fromSN (msg->x.writerSN, &sampleinfo->seq))
+  if (!ddsi_validating_from_seqno (msg->x.writerSN, &sampleinfo->seq))
     return VR_MALFORMED;
   sampleinfo->fragsize = 0; /* for unfragmented data, fragsize = 0 works swell */
 
@@ -499,7 +499,7 @@ static enum validation_result validate_DataFrag (const struct receiver_state *rs
     return VR_MALFORMED;
 
   sampleinfo->rst = (struct receiver_state *) rst; /* drop const */
-  if (!validating_fromSN (msg->x.writerSN, &sampleinfo->seq))
+  if (!ddsi_validating_from_seqno (msg->x.writerSN, &sampleinfo->seq))
     return VR_MALFORMED;
   sampleinfo->fragsize = msg->fragmentSize;
   sampleinfo->size = msg->sampleSize;
@@ -568,8 +568,8 @@ int add_Gap (struct nn_xmsg *msg, struct ddsi_writer *wr, struct ddsi_proxy_read
   nn_xmsg_submsg_init (msg, sm_marker, DDSI_RTPS_SMID_GAP);
   gap->readerId = ddsi_hton_entityid (prd->e.guid.entityid);
   gap->writerId = ddsi_hton_entityid (wr->e.guid.entityid);
-  gap->gapStart = toSN (start);
-  gap->gapList.bitmap_base = toSN (base);
+  gap->gapStart = ddsi_to_seqno (start);
+  gap->gapList.bitmap_base = ddsi_to_seqno (base);
   gap->gapList.numbits = numbits;
   memcpy (gap->bits, bits, DDSI_SEQUENCE_NUMBER_SET_BITS_SIZE (numbits));
   nn_xmsg_submsg_setnext (msg, sm_marker);
@@ -792,10 +792,10 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
   dst.prefix = rst->dst_guid_prefix;
   dst.entityid = msg->writerId;
   RSTTRACE ("ACKNACK(%s#%"PRId32":%"PRIu64"/%"PRIu32":", msg->smhdr.flags & DDSI_ACKNACK_FLAG_FINAL ? "F" : "",
-            *countp, fromSN (msg->readerSNState.bitmap_base), msg->readerSNState.numbits);
+            *countp, ddsi_from_seqno (msg->readerSNState.bitmap_base), msg->readerSNState.numbits);
   for (uint32_t i = 0; i < msg->readerSNState.numbits; i++)
     RSTTRACE ("%c", ddsi_bitset_isset (msg->readerSNState.numbits, msg->bits, i) ? '1' : '0');
-  seqbase = fromSN (msg->readerSNState.bitmap_base);
+  seqbase = ddsi_from_seqno (msg->readerSNState.bitmap_base);
   assert (seqbase > 0); // documentation, really, to make it obvious that subtracting 1 is ok
 
   if (!rst->forme)
@@ -1250,8 +1250,8 @@ static int handle_Heartbeat (struct receiver_state *rst, ddsrt_etime_t tnow, str
      A heartbeat that states [a,b] is the smallest interval in which
      the range of available sequence numbers is is interpreted here as
      a gap [1,a). See also handle_Gap.  */
-  const seqno_t firstseq = fromSN (msg->firstSN);
-  const seqno_t lastseq = fromSN (msg->lastSN);
+  const seqno_t firstseq = ddsi_from_seqno (msg->firstSN);
+  const seqno_t lastseq = ddsi_from_seqno (msg->lastSN);
   struct handle_Heartbeat_helper_arg arg;
   struct ddsi_proxy_writer *pwr;
   struct ddsi_lease *lease;
@@ -1350,7 +1350,7 @@ static int handle_Heartbeat (struct receiver_state *rst, ddsrt_etime_t tnow, str
     {
       for (wn = ddsrt_avl_find_min (&ddsi_pwr_readers_treedef, &pwr->readers); wn; wn = ddsrt_avl_find_succ (&ddsi_pwr_readers_treedef, &pwr->readers, wn))
       {
-        if (guid_eq(&wn->rd_guid, &dst))
+        if (ddsi_guid_eq(&wn->rd_guid, &dst))
         {
           if (wn->filtered)
           {
@@ -1360,9 +1360,9 @@ static int handle_Heartbeat (struct receiver_state *rst, ddsrt_etime_t tnow, str
             struct nn_reorder *ro = wn->u.not_in_sync.reorder;
             if ((res = nn_reorder_gap (&sc, ro, gap, 1, firstseq, &refc_adjust)) > 0)
               nn_dqueue_enqueue1 (pwr->dqueue, &wn->rd_guid, &sc, res);
-            if (fromSN (msg->lastSN) > wn->last_seq)
+            if (ddsi_from_seqno (msg->lastSN) > wn->last_seq)
             {
-              wn->last_seq = fromSN (msg->lastSN);
+              wn->last_seq = ddsi_from_seqno (msg->lastSN);
             }
             filtered = 1;
           }
@@ -1386,7 +1386,7 @@ static int handle_Heartbeat (struct receiver_state *rst, ddsrt_etime_t tnow, str
           continue;
         if (wn->u.not_in_sync.end_of_tl_seq == MAX_SEQ_NUMBER)
         {
-          wn->u.not_in_sync.end_of_tl_seq = fromSN (msg->lastSN);
+          wn->u.not_in_sync.end_of_tl_seq = ddsi_from_seqno (msg->lastSN);
           RSTTRACE (" end-of-tl-seq(rd "PGUIDFMT" #%"PRIu64")", PGUID(wn->rd_guid), wn->u.not_in_sync.end_of_tl_seq);
         }
         switch (wn->in_sync)
@@ -1435,7 +1435,7 @@ static int handle_Heartbeat (struct receiver_state *rst, ddsrt_etime_t tnow, str
 
 static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(ddsrt_etime_t tnow), const ddsi_rtps_heartbeatfrag_t *msg, ddsi_rtps_submessage_kind_t prev_smid)
 {
-  const seqno_t seq = fromSN (msg->writerSN);
+  const seqno_t seq = ddsi_from_seqno (msg->writerSN);
   const ddsi_fragment_number_t fragnum = msg->lastFragmentNum - 1; /* we do 0-based */
   ddsi_guid_t src, dst;
   struct ddsi_proxy_writer *pwr;
@@ -1592,7 +1592,7 @@ static int handle_NackFrag (struct receiver_state *rst, ddsrt_etime_t tnow, cons
   struct whc_borrowed_sample sample;
   ddsi_guid_t src, dst;
   ddsi_count_t *countp;
-  seqno_t seq = fromSN (msg->writerSN);
+  seqno_t seq = ddsi_from_seqno (msg->writerSN);
 
   countp = (ddsi_count_t *) ((char *) msg + offsetof (ddsi_rtps_nackfrag_t, bits) + DDSI_FRAGMENT_NUMBER_SET_BITS_SIZE (msg->fragmentNumberState.numbits));
   src.prefix = rst->src_guid_prefix;
@@ -1864,8 +1864,8 @@ static int handle_Gap (struct receiver_state *rst, ddsrt_etime_t tnow, struct nn
   src.entityid = msg->writerId;
   dst.prefix = rst->dst_guid_prefix;
   dst.entityid = msg->readerId;
-  gapstart = fromSN (msg->gapStart);
-  listbase = fromSN (msg->gapList.bitmap_base);
+  gapstart = ddsi_from_seqno (msg->gapStart);
+  listbase = ddsi_from_seqno (msg->gapList.bitmap_base);
   RSTTRACE ("GAP(%"PRIu64"..%"PRIu64"/%"PRIu32" ", gapstart, listbase, msg->gapList.numbits);
 
   // valid_Gap guarantees this, but as we are doing sequence number
@@ -2110,7 +2110,7 @@ static struct ddsi_serdata *remote_make_sample (struct ddsi_tkmap_instance **tk,
   return sample;
 }
 
-unsigned char normalize_data_datafrag_flags (const ddsi_rtps_submessage_header_t *smhdr)
+unsigned char ddsi_normalize_data_datafrag_flags (const ddsi_rtps_submessage_header_t *smhdr)
 {
   switch ((ddsi_rtps_submessage_kind_t) smhdr->submessageId)
   {
@@ -2201,7 +2201,7 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
      DataFrag header, so for the fixed-position things that we're
      interested in here, both can be treated as Data submessages. */
   msg = (ddsi_rtps_data_datafrag_common_t *) NN_RMSG_PAYLOADOFF (fragchain->rmsg, NN_RDATA_SUBMSG_OFF (fragchain));
-  data_smhdr_flags = normalize_data_datafrag_flags (&msg->smhdr);
+  data_smhdr_flags = ddsi_normalize_data_datafrag_flags (&msg->smhdr);
 
   /* Extract QoS's to the extent necessary.  The expected case has all
      we need predecoded into a few bits in the sample info.
@@ -2407,7 +2407,7 @@ static void handle_regular (struct receiver_state *rst, ddsrt_etime_t tnow, stru
     {
       for (wn = ddsrt_avl_find_min (&ddsi_pwr_readers_treedef, &pwr->readers); wn != NULL; wn = ddsrt_avl_find_succ (&ddsi_pwr_readers_treedef, &pwr->readers, wn))
       {
-        if (guid_eq(&wn->rd_guid, &dst))
+        if (ddsi_guid_eq(&wn->rd_guid, &dst))
         {
           if (wn->filtered)
           {
@@ -2613,7 +2613,7 @@ static int handle_Data (struct receiver_state *rst, ddsrt_etime_t tnow, struct n
   RSTTRACE ("DATA("PGUIDFMT" -> "PGUIDFMT" #%"PRIu64,
             PGUIDPREFIX (rst->src_guid_prefix), msg->x.writerId.u,
             PGUIDPREFIX (rst->dst_guid_prefix), msg->x.readerId.u,
-            fromSN (msg->x.writerSN));
+            ddsi_from_seqno (msg->x.writerSN));
   if (!rst->forme)
   {
     RSTTRACE (" not-for-me)");
@@ -2682,7 +2682,7 @@ static int handle_DataFrag (struct receiver_state *rst, ddsrt_etime_t tnow, stru
   RSTTRACE ("DATAFRAG("PGUIDFMT" -> "PGUIDFMT" #%"PRIu64"/[%"PRIu32"..%"PRIu32"]",
             PGUIDPREFIX (rst->src_guid_prefix), msg->x.writerId.u,
             PGUIDPREFIX (rst->dst_guid_prefix), msg->x.readerId.u,
-            fromSN (msg->x.writerSN),
+            ddsi_from_seqno (msg->x.writerSN),
             msg->fragmentStartingNum, (ddsi_fragment_number_t) (msg->fragmentStartingNum + msg->fragmentsInSubmessage - 1));
   if (!rst->forme)
   {
@@ -2715,7 +2715,7 @@ static int handle_DataFrag (struct receiver_state *rst, ddsrt_etime_t tnow, stru
         /* fall through */
         case NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER:
           DDS_CWARNING (&rst->gv->logconfig, "DATAFRAG("PGUIDFMT" #%"PRIu64" -> "PGUIDFMT") - fragmented builtin data not yet supported\n",
-                        PGUIDPREFIX (rst->src_guid_prefix), msg->x.writerId.u, fromSN (msg->x.writerSN),
+                        PGUIDPREFIX (rst->src_guid_prefix), msg->x.writerId.u, ddsi_from_seqno (msg->x.writerSN),
                         PGUIDPREFIX (rst->dst_guid_prefix), msg->x.readerId.u);
           return 1;
         case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER:
@@ -2856,7 +2856,7 @@ static void malformed_packet_received (const struct ddsi_domaingv *gv, const uns
         if (smsize >= sizeof (ddsi_rtps_acknack_t)) {
           const ddsi_rtps_acknack_t *x = (const ddsi_rtps_acknack_t *) submsg;
           (void) snprintf (tmp + pos, sizeof (tmp) - pos, " rid 0x%"PRIx32" wid 0x%"PRIx32" base %"PRIu64" numbits %"PRIu32,
-                           x->readerId.u, x->writerId.u, fromSN (x->readerSNState.bitmap_base),
+                           x->readerId.u, x->writerId.u, ddsi_from_seqno (x->readerSNState.bitmap_base),
                            x->readerSNState.numbits);
         }
         break;
@@ -2864,22 +2864,22 @@ static void malformed_packet_received (const struct ddsi_domaingv *gv, const uns
         if (smsize >= sizeof (ddsi_rtps_heartbeat_t)) {
           const ddsi_rtps_heartbeat_t *x = (const ddsi_rtps_heartbeat_t *) submsg;
           (void) snprintf (tmp + pos, sizeof (tmp) - pos, " rid 0x%"PRIx32" wid 0x%"PRIx32" first %"PRIu64" last %"PRIu64,
-                           x->readerId.u, x->writerId.u, fromSN (x->firstSN), fromSN (x->lastSN));
+                           x->readerId.u, x->writerId.u, ddsi_from_seqno (x->firstSN), ddsi_from_seqno (x->lastSN));
         }
         break;
       case DDSI_RTPS_SMID_GAP:
         if (smsize >= sizeof (ddsi_rtps_gap_t)) {
           const ddsi_rtps_gap_t *x = (const ddsi_rtps_gap_t *) submsg;
           (void) snprintf (tmp + pos, sizeof (tmp) - pos, " rid 0x%"PRIx32" wid 0x%"PRIx32" gapstart %"PRIu64" base %"PRIu64" numbits %"PRIu32,
-                           x->readerId.u, x->writerId.u, fromSN (x->gapStart),
-                           fromSN (x->gapList.bitmap_base), x->gapList.numbits);
+                           x->readerId.u, x->writerId.u, ddsi_from_seqno (x->gapStart),
+                           ddsi_from_seqno (x->gapList.bitmap_base), x->gapList.numbits);
         }
         break;
       case DDSI_RTPS_SMID_NACK_FRAG:
         if (smsize >= sizeof (ddsi_rtps_nackfrag_t)) {
           const ddsi_rtps_nackfrag_t *x = (const ddsi_rtps_nackfrag_t *) submsg;
           (void) snprintf (tmp + pos, sizeof (tmp) - pos, " rid 0x%"PRIx32" wid 0x%"PRIx32" seq# %"PRIu64" base %"PRIu32" numbits %"PRIu32,
-                           x->readerId.u, x->writerId.u, fromSN (x->writerSN),
+                           x->readerId.u, x->writerId.u, ddsi_from_seqno (x->writerSN),
                            x->fragmentNumberState.bitmap_base, x->fragmentNumberState.numbits);
         }
         break;
@@ -2887,7 +2887,7 @@ static void malformed_packet_received (const struct ddsi_domaingv *gv, const uns
         if (smsize >= sizeof (ddsi_rtps_heartbeatfrag_t)) {
           const ddsi_rtps_heartbeatfrag_t *x = (const ddsi_rtps_heartbeatfrag_t *) submsg;
           (void) snprintf (tmp + pos, sizeof (tmp) - pos, " rid 0x%"PRIx32" wid 0x%"PRIx32" seq %"PRIu64" frag %"PRIu32,
-                           x->readerId.u, x->writerId.u, fromSN (x->writerSN),
+                           x->readerId.u, x->writerId.u, ddsi_from_seqno (x->writerSN),
                            x->lastFragmentNum);
         }
         break;
@@ -2896,7 +2896,7 @@ static void malformed_packet_received (const struct ddsi_domaingv *gv, const uns
           const ddsi_rtps_data_t *x = (const ddsi_rtps_data_t *) submsg;
           (void) snprintf (tmp + pos, sizeof (tmp) - pos, " xflags %x otiq %u rid 0x%"PRIx32" wid 0x%"PRIx32" seq %"PRIu64,
                            x->x.extraFlags, x->x.octetsToInlineQos,
-                           x->x.readerId.u, x->x.writerId.u, fromSN (x->x.writerSN));
+                           x->x.readerId.u, x->x.writerId.u, ddsi_from_seqno (x->x.writerSN));
         }
         break;
       case DDSI_RTPS_SMID_DATA_FRAG:
@@ -2904,7 +2904,7 @@ static void malformed_packet_received (const struct ddsi_domaingv *gv, const uns
           const ddsi_rtps_datafrag_t *x = (const ddsi_rtps_datafrag_t *) submsg;
           (void) snprintf (tmp + pos, sizeof (tmp) - pos, " xflags %x otiq %u rid 0x%"PRIx32" wid 0x%"PRIx32" seq %"PRIu64" frag %"PRIu32"  fragsinmsg %"PRIu16" fragsize %"PRIu16" samplesize %"PRIu32,
                            x->x.extraFlags, x->x.octetsToInlineQos,
-                           x->x.readerId.u, x->x.writerId.u, fromSN (x->x.writerSN),
+                           x->x.readerId.u, x->x.writerId.u, ddsi_from_seqno (x->x.writerSN),
                            x->fragmentStartingNum, x->fragmentsInSubmessage, x->fragmentSize, x->sampleSize);
         }
         break;

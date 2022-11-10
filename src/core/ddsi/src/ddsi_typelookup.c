@@ -36,7 +36,7 @@
 #include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/q_transmit.h"
 #include "dds/ddsi/q_xmsg.h"
-#include "dds/ddsi/q_misc.h"
+#include "ddsi__misc.h"
 #include "ddsi__typelib.h"
 
 static bool participant_builtin_writers_ready (struct ddsi_participant *pp)
@@ -121,7 +121,7 @@ static dds_return_t create_tl_request_msg (struct ddsi_domaingv * const gv, DDS_
      is (currently) no need to correlate the reply message to a specific request. */
   request->header.requestId.sequence_number.high = (int32_t) (type->request_seqno >> 32);
   request->header.requestId.sequence_number.low = (uint32_t) type->request_seqno;
-  const ddsi_guid_t *instance_name_guid = proxypp_guid ? proxypp_guid : &nullguid;
+  const ddsi_guid_t *instance_name_guid = proxypp_guid ? proxypp_guid : &ddsi_nullguid;
   (void) snprintf (request->header.instanceName, sizeof (request->header.instanceName), "dds.builtin.TOS.%08"PRIx32 "%08"PRIx32 "%08"PRIx32 "%08"PRIx32,
     instance_name_guid->prefix.u[0], instance_name_guid->prefix.u[1], instance_name_guid->prefix.u[2], instance_name_guid->entityid.u);
   request->data._d = DDS_Builtin_TypeLookup_getTypes_HashId;
@@ -269,7 +269,7 @@ static ddsi_guid_t from_guid (const DDS_GUID_t *guid)
 
 static seqno_t from_seqno (const DDS_SequenceNumber *seqno)
 {
-  return fromSN((ddsi_sequence_number_t){ .high = seqno->high, .low = seqno->low });
+  return ddsi_from_seqno((ddsi_sequence_number_t){ .high = seqno->high, .low = seqno->low });
 }
 
 void ddsi_tl_handle_request (struct ddsi_domaingv *gv, struct ddsi_serdata *d)

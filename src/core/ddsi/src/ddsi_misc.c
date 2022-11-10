@@ -15,30 +15,30 @@
 #include "dds/ddsrt/heap.h"
 
 #include "dds/ddsi/ddsi_config_impl.h"
-#include "dds/ddsi/q_misc.h"
+#include "ddsi__misc.h"
 
-extern inline seqno_t fromSN (const ddsi_sequence_number_t sn);
-extern inline bool validating_fromSN (const ddsi_sequence_number_t sn, seqno_t *res);
-extern inline ddsi_sequence_number_t toSN (seqno_t n);
+extern inline seqno_t ddsi_from_seqno (const ddsi_sequence_number_t sn);
+extern inline bool ddsi_validating_from_seqno (const ddsi_sequence_number_t sn, seqno_t *res);
+extern inline ddsi_sequence_number_t ddsi_to_seqno (seqno_t n);
 
-const ddsi_guid_t nullguid = { .prefix = { .u = { 0,0,0 } }, .entityid = { .u = 0 } };
+const ddsi_guid_t ddsi_nullguid = { .prefix = { .u = { 0,0,0 } }, .entityid = { .u = 0 } };
 
-bool guid_prefix_zero (const ddsi_guid_prefix_t *a)
+bool ddsi_guid_prefix_zero (const ddsi_guid_prefix_t *a)
 {
   return a->u[0] == 0 && a->u[1] == 0 && a->u[2] == 0;
 }
 
-int guid_prefix_eq (const ddsi_guid_prefix_t *a, const ddsi_guid_prefix_t *b)
+int ddsi_guid_prefix_eq (const ddsi_guid_prefix_t *a, const ddsi_guid_prefix_t *b)
 {
   return a->u[0] == b->u[0] && a->u[1] == b->u[1] && a->u[2] == b->u[2];
 }
 
-int guid_eq (const struct ddsi_guid *a, const struct ddsi_guid *b)
+int ddsi_guid_eq (const struct ddsi_guid *a, const struct ddsi_guid *b)
 {
-  return guid_prefix_eq(&a->prefix, &b->prefix) && (a->entityid.u == b->entityid.u);
+  return ddsi_guid_prefix_eq(&a->prefix, &b->prefix) && (a->entityid.u == b->entityid.u);
 }
 
-int ddsi2_patmatch (const char *pat, const char *str)
+int ddsi_patmatch (const char *pat, const char *str)
 {
   while (*pat)
   {
@@ -66,7 +66,7 @@ int ddsi2_patmatch (const char *pat, const char *str)
       /* try matching on all positions where str matches pat */
       while (*str)
       {
-        if (*str == *pat && ddsi2_patmatch (pat+1, str+1))
+        if (*str == *pat && ddsi_patmatch (pat+1, str+1))
         {
           return 1;
         }
@@ -86,21 +86,3 @@ int ddsi2_patmatch (const char *pat, const char *str)
   return *str == 0;
 }
 
-#ifdef DDS_HAS_NETWORK_CHANNELS
-struct ddsi_config_channel_listelem *find_channel (const struct config *cfg, nn_transport_priority_qospolicy_t transport_priority)
-{
-  struct ddsi_config_channel_listelem *c;
-  /* Channel selection is to use the channel with the lowest priority
-     not less than transport_priority, or else the one with the
-     highest priority. */
-  assert(cfg->channels != NULL);
-  assert(cfg->max_channel != NULL);
-  for (c = cfg->channels; c; c = c->next)
-  {
-    assert(c->next == NULL || c->next->priority > c->priority);
-    if (transport_priority.value <= c->priority)
-      return c;
-  }
-  return cfg->max_channel;
-}
-#endif /* DDS_HAS_NETWORK_CHANNELS */

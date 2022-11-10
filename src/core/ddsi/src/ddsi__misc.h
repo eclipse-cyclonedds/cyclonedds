@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef NN_MISC_H
-#define NN_MISC_H
+#ifndef DDSI__MISC_H
+#define DDSI__MISC_H
 
 #include "dds/ddsi/ddsi_protocol.h"
 
@@ -18,13 +18,15 @@
 extern "C" {
 #endif
 
-inline seqno_t fromSN (const ddsi_sequence_number_t sn) {
+inline seqno_t ddsi_from_seqno (const ddsi_sequence_number_t sn)
+{
   uint64_t sn_high = (uint32_t) sn.high;
   return (sn_high << 32) | sn.low;
 }
 
-inline bool validating_fromSN (const ddsi_sequence_number_t sn, seqno_t *res) {
-  // fromSN does not checks whatsoever (and shouldn't because it is used quite a lot)
+inline bool ddsi_validating_from_seqno (const ddsi_sequence_number_t sn, seqno_t *res)
+{
+  // ddsi_from_seqno does not checks whatsoever (and shouldn't because it is used quite a lot)
   // Valid sequence numbers are in [1 .. 2**63-1] union { SEQUENCE_NUMBER_UNKNOWN }
   // where SEQUENCE_NUMBER_UNKNOWN is the usual abomination: ((2**32-1) << 32)
   //
@@ -34,34 +36,30 @@ inline bool validating_fromSN (const ddsi_sequence_number_t sn, seqno_t *res) {
   // to do differently.  That leaves [1 .. 2**63-1]
   //
   // Since we use uint64_t, we can easily test by checking whether (s-1) is in [0 .. 2**63-1)
-  const seqno_t tmp = fromSN (sn);
+  const seqno_t tmp = ddsi_from_seqno (sn);
   *res = tmp;
   return (tmp - 1) < MAX_SEQ_NUMBER;
 }
 
-inline ddsi_sequence_number_t toSN (seqno_t n) {
+inline ddsi_sequence_number_t ddsi_to_seqno (seqno_t n)
+{
   ddsi_sequence_number_t x;
   x.high = (int32_t) (n >> 32);
   x.low = (uint32_t) n;
   return x;
 }
 
-unsigned char normalize_data_datafrag_flags (const ddsi_rtps_submessage_header_t *smhdr);
+unsigned char ddsi_normalize_data_datafrag_flags (const ddsi_rtps_submessage_header_t *smhdr);
 
-extern const ddsi_guid_t nullguid;
-bool guid_prefix_zero (const ddsi_guid_prefix_t *a);
-int guid_prefix_eq (const ddsi_guid_prefix_t *a, const ddsi_guid_prefix_t *b);
-int guid_eq (const struct ddsi_guid *a, const struct ddsi_guid *b);
-int ddsi2_patmatch (const char *pat, const char *str);
+extern const ddsi_guid_t ddsi_nullguid;
+bool ddsi_guid_prefix_zero (const ddsi_guid_prefix_t *a);
+int ddsi_guid_prefix_eq (const ddsi_guid_prefix_t *a, const ddsi_guid_prefix_t *b);
+int ddsi_guid_eq (const struct ddsi_guid *a, const struct ddsi_guid *b);
 
-#ifdef DDS_HAS_NETWORK_CHANNELS
-struct ddsi_config;
-struct ddsi_config_channel_listelem;
-struct ddsi_config_channel_listelem *find_channel (const struct config *cfg, nn_transport_priority_qospolicy_t transport_priority);
-#endif
+int ddsi_patmatch (const char *pat, const char *str);
 
 #if defined (__cplusplus)
 }
 #endif
 
-#endif /* NN_MISC_H */
+#endif /* DDSI__MISC_H */

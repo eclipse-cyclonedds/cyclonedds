@@ -39,7 +39,6 @@
 #include "dds/ddsi/q_radmin.h" /* for ddsi_plist_quickscan */
 
 #include "dds/ddsrt/avl.h"
-#include "dds/ddsi/q_misc.h" /* for vendor_is_... */
 
 #include "ddsi__plist_generic.h"
 #include "ddsi__security_omg.h"

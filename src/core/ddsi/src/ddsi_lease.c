@@ -18,7 +18,7 @@
 #include "dds/ddsrt/fibheap.h"
 #include "ddsi__protocol.h"
 #include "dds/ddsi/q_rtps.h"
-#include "dds/ddsi/q_misc.h"
+#include "ddsi__misc.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_log.h"
 #include "dds/ddsi/ddsi_plist.h"

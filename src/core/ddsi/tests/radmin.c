@@ -18,7 +18,7 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/q_thread.h"
-#include "dds/ddsi/q_misc.h"
+#include "ddsi__misc.h"
 
 static struct ddsi_domaingv gv;
 static struct thread_state *thrst;

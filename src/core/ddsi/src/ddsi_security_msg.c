@@ -17,7 +17,7 @@
 #include "ddsi__entity.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
 #include "dds/ddsi/q_transmit.h"
-#include "dds/ddsi/q_misc.h"
+#include "ddsi__misc.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "ddsi__entity_index.h"
 #include "ddsi__security_msg.h"
@@ -185,7 +185,7 @@ int ddsi_volatile_secure_data_filter(struct ddsi_writer *wr, struct ddsi_proxy_r
   if (!pass)
   {
     pp_guid = ddsi_hton_guid(prd->c.proxypp->e.guid);
-    pass = guid_eq(msg_guid, &pp_guid);
+    pass = ddsi_guid_eq(msg_guid, &pp_guid);
   }
 
   ddsi_serdata_to_ser_unref(serdata, &guid_ref);

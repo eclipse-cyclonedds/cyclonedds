@@ -35,7 +35,7 @@
 #include "dds/ddsi/q_xevent.h"
 #include "ddsi__addrset.h"
 #include "dds/ddsi/q_radmin.h"
-#include "dds/ddsi/q_misc.h"
+#include "ddsi__misc.h"
 #include "dds/ddsi/sysdeps.h"
 #include "ddsi__endpoint.h"
 #include "ddsi__gc.h"
@@ -862,7 +862,7 @@ static void ddsi_new_writer_guid_common_init (struct ddsi_writer *wr, const char
 #ifdef DDS_HAS_NETWORK_CHANNELS
   if (!ddsi_is_builtin_entityid (wr->e.guid.entityid, ownvendorid))
   {
-    struct ddsi_config_channel_listelem *channel = find_channel (&wr->e.gv->config, wr->xqos->transport_priority);
+    struct ddsi_config_channel_listelem *channel = ddsi_find_network_channel (&wr->e.gv->config, wr->xqos->transport_priority);
     ELOGDISC (wr, "writer "PGUIDFMT": transport priority %d => channel '%s' priority %d\n",
               PGUID (wr->e.guid), wr->xqos->transport_priority.value, channel->name, channel->priority);
     wr->evq = channel->evq ? channel->evq : wr->e.gv->xevents;

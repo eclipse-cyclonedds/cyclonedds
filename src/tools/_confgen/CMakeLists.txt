@@ -54,6 +54,7 @@ if (NOT ${_confgen_hash_correct})
   target_include_directories(_confgen-exe
     PRIVATE
     "${CMAKE_CURRENT_BINARY_DIR}/include"
+    "${CMAKE_CURRENT_LIST_DIR}/../../core/ddsc/include"
     "${CMAKE_CURRENT_LIST_DIR}/../../core/ddsi/include")
 
   list(JOIN confgen_hash_files "\;" out_confgen_hash_files)

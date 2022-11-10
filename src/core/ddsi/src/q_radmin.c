@@ -31,7 +31,7 @@
 #include "dds/ddsrt/avl.h"
 #include "ddsi__protocol.h"
 #include "dds/ddsi/q_rtps.h"
-#include "dds/ddsi/q_misc.h"
+#include "ddsi__misc.h"
 
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_log.h"
@@ -1571,7 +1571,7 @@ void nn_defrag_prune (struct nn_defrag *defrag, ddsi_guid_prefix_t *dst, seqno_t
   while (s)
   {
     struct nn_rsample *s1 = ddsrt_avl_find_succ (&defrag_sampletree_treedef, &defrag->sampletree, s);
-    if (guid_prefix_eq(&s->u.defrag.sampleinfo->rst->dst_guid_prefix, dst))
+    if (ddsi_guid_prefix_eq(&s->u.defrag.sampleinfo->rst->dst_guid_prefix, dst))
     {
       defrag_rsample_drop (defrag, s);
     }
@@ -2411,7 +2411,7 @@ unsigned nn_reorder_nackmap (const struct nn_reorder *reorder, seqno_t base, seq
     maxseq = base - 1;
   }
 
-  map->bitmap_base = toSN (base);
+  map->bitmap_base = ddsi_to_seqno (base);
   if (maxseq + 1 - base > maxsz)
     map->numbits = maxsz;
   else

@@ -18,7 +18,7 @@
 #include "ddsi__typelookup.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_entity.h"
-#include "dds/ddsi/q_misc.h"
+#include "ddsi__misc.h"
 #include "dds/ddsi/q_qosmatch.h"
 #include "ddsi__typelib.h"
 #include "dds/dds.h"
@@ -38,7 +38,7 @@ static int partition_patmatch_p (const char *pat, const char *name)
     /* (we know: wildcard in pat) => wildcard in name => no match */
     return 0;
   else
-    return ddsi2_patmatch (pat, name);
+    return ddsi_patmatch (pat, name);
 }
 
 static int partitions_match_default (const dds_qos_t *x)

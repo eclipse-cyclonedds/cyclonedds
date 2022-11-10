@@ -33,7 +33,7 @@
 #include "ddsi__participant.h"
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/ddsi_proxy_endpoint.h"
-#include "dds/ddsi/q_misc.h"
+#include "ddsi__misc.h"
 #include "dds/ddsi/q_radmin.h"
 #include "ddsi__bitset.h"
 #include "ddsi__lease.h"
@@ -859,7 +859,7 @@ static struct nn_xmsg *make_preemptive_acknack (struct xevent *ev, struct ddsi_p
   nn_xmsg_submsg_init (msg, sm_marker, DDSI_RTPS_SMID_ACKNACK);
   an->readerId = ddsi_hton_entityid (rwn->rd_guid.entityid);
   an->writerId = ddsi_hton_entityid (pwr->e.guid.entityid);
-  an->readerSNState.bitmap_base = toSN (1);
+  an->readerSNState.bitmap_base = ddsi_to_seqno (1);
   an->readerSNState.numbits = 0;
   ddsi_count_t * const countp =
     (ddsi_count_t *) ((char *) an + offsetof (ddsi_rtps_acknack_t, bits) + DDSI_SEQUENCE_NUMBER_SET_BITS_SIZE (0));
@@ -874,7 +874,7 @@ static struct nn_xmsg *make_preemptive_acknack (struct xevent *ev, struct ddsi_p
   // numbits is always 0 here, so need to print the bitmap
   ETRACE (pwr, "acknack "PGUIDFMT" -> "PGUIDFMT": #%"PRIu32":%"PRId64"/%"PRIu32":\n",
           PGUID (rwn->rd_guid), PGUID (pwr->e.guid), *countp,
-          fromSN (an->readerSNState.bitmap_base), an->readerSNState.numbits);
+          ddsi_from_seqno (an->readerSNState.bitmap_base), an->readerSNState.numbits);
   return msg;
 }
 

@@ -24,7 +24,7 @@
 #include "dds/ddsrt/string.h"
 #include "ddsi__protocol.h"
 #include "dds/ddsi/q_rtps.h"
-#include "dds/ddsi/q_misc.h"
+#include "ddsi__misc.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_log.h"
 #include "dds/ddsi/ddsi_plist.h"
@@ -1726,7 +1726,7 @@ static void handle_sedp_alive_endpoint (const struct receiver_state *rst, seqno_
         assert (!ddsi_is_builtin_entityid (datap->endpoint_guid.entityid, vendorid));
 #ifdef DDS_HAS_NETWORK_CHANNELS
         {
-          struct ddsi_config_channel_listelem *channel = find_channel (&gv->config, xqos->transport_priority);
+          struct ddsi_config_channel_listelem *channel = ddsi_find_network_channel (&gv->config, xqos->transport_priority);
           ddsi_new_proxy_writer (gv, &ppguid, &datap->endpoint_guid, as, datap, channel->dqueue, channel->evq ? channel->evq : gv->xevents, timestamp, seq);
         }
 #else
@@ -1942,7 +1942,7 @@ int ddsi_builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, cons
      from the submsg to always conform to that of the "Data"
      submessage regardless of the input. */
   msg = (ddsi_rtps_data_datafrag_common_t *) NN_RMSG_PAYLOADOFF (fragchain->rmsg, NN_RDATA_SUBMSG_OFF (fragchain));
-  data_smhdr_flags = normalize_data_datafrag_flags (&msg->smhdr);
+  data_smhdr_flags = ddsi_normalize_data_datafrag_flags (&msg->smhdr);
   srcguid.prefix = sampleinfo->rst->src_guid_prefix;
   srcguid.entityid = msg->writerId;
 

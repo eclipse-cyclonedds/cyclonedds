@@ -24,7 +24,7 @@
 #include "ddsi__nwpart.h"
 #include "ddsi__udp.h"
 #include "dds/ddsi/q_thread.h"
-#include "dds/ddsi/q_misc.h"
+#include "ddsi__misc.h"
 #include "ddsi__addrset.h"
 #include "ddsi__discovery.h"
 #include "ddsi__plist.h"

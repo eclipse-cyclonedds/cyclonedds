@@ -24,7 +24,7 @@
 #include "ddsi__entity_index.h"
 #include "ddsi__addrset.h"
 #include "dds/ddsi/q_xmsg.h"
-#include "dds/ddsi/q_misc.h"
+#include "ddsi__misc.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/q_xevent.h"
 #include "dds/ddsi/ddsi_config_impl.h"
@@ -448,8 +448,8 @@ void add_Heartbeat (struct nn_xmsg *msg, struct ddsi_writer *wr, const struct wh
       }
     }
   }
-  hb->firstSN = toSN (min);
-  hb->lastSN = toSN (max);
+  hb->firstSN = ddsi_to_seqno (min);
+  hb->lastSN = ddsi_to_seqno (max);
 
   hb->count = wr->hbcount++;
 
@@ -500,7 +500,7 @@ static dds_return_t create_fragment_message_simple (struct ddsi_writer *wr, seqn
   data->x.extraFlags = 0;
   data->x.readerId = ddsi_to_entityid (NN_ENTITYID_UNKNOWN);
   data->x.writerId = ddsi_hton_entityid (wr->e.guid.entityid);
-  data->x.writerSN = toSN (seq);
+  data->x.writerSN = ddsi_to_seqno (seq);
   data->x.octetsToInlineQos = (unsigned short) ((char*) (data+1) - ((char*) &data->x.octetsToInlineQos + 2));
 
   if (wr->reliable)
@@ -643,7 +643,7 @@ dds_return_t create_fragment_message (struct ddsi_writer *wr, seqno_t seq, struc
   ddcmn->extraFlags = 0;
   ddcmn->readerId = ddsi_hton_entityid (prd ? prd->e.guid.entityid : ddsi_to_entityid (NN_ENTITYID_UNKNOWN));
   ddcmn->writerId = ddsi_hton_entityid (wr->e.guid.entityid);
-  ddcmn->writerSN = toSN (seq);
+  ddcmn->writerSN = ddsi_to_seqno (seq);
 
   if (xmsg_kind == NN_XMSG_KIND_DATA_REXMIT)
     nn_xmsg_set_data_readerId (*pmsg, &ddcmn->readerId);
@@ -707,7 +707,7 @@ static void create_HeartbeatFrag (struct ddsi_writer *wr, seqno_t seq, unsigned 
   nn_xmsg_submsg_init (*pmsg, sm_marker, DDSI_RTPS_SMID_HEARTBEAT_FRAG);
   hbf->readerId = ddsi_hton_entityid (prd ? prd->e.guid.entityid : ddsi_to_entityid (NN_ENTITYID_UNKNOWN));
   hbf->writerId = ddsi_hton_entityid (wr->e.guid.entityid);
-  hbf->writerSN = toSN (seq);
+  hbf->writerSN = ddsi_to_seqno (seq);
   hbf->lastFragmentNum = fragnum + 1; /* network format is 1 based */
 
   hbf->count = wr->hbfragcount++;

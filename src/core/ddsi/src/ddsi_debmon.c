@@ -27,7 +27,7 @@
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/ddsi_proxy_endpoint.h"
 #include "dds/ddsi/ddsi_config_impl.h"
-#include "dds/ddsi/q_misc.h"
+#include "ddsi__misc.h"
 #include "dds/ddsi/ddsi_log.h"
 #include "dds/ddsi/ddsi_plist.h"
 #include "ddsi__entity_index.h"

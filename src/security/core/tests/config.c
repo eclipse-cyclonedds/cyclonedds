@@ -17,7 +17,7 @@
 #include "dds/ddsrt/cdtors.h"
 #include "dds/ddsrt/environ.h"
 #include "dds/ddsrt/heap.h"
-#include "dds/ddsi/q_misc.h"
+#include "ddsi__misc.h"
 #include "dds/ddsi/ddsi_xqos.h"
 #include "dds/security/dds_security_api_defs.h"
 #include "common/config_env.h"
@@ -94,7 +94,7 @@ static void logger(void *ptr, const dds_log_data_t *data)
   char **expected = (char**)ptr;
   fputs (data->message, stdout);
   for (uint32_t i = 0; expected[i] != NULL; i++) {
-    if (ddsi2_patmatch(expected[i], data->message)) {
+    if (ddsi_patmatch(expected[i], data->message)) {
       found |= (uint32_t)(1 << i);
     }
   }
