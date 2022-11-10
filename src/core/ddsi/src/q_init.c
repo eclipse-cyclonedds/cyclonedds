@@ -55,7 +55,7 @@
 #include "dds/ddsi/ddsi_typelookup.h"
 #include "dds/ddsi/ddsi_tran.h"
 #include "dds/ddsi/ddsi_udp.h"
-#include "dds/ddsi/ddsi_tcp.h"
+#include "ddsi__tcp.h"
 #include "ddsi__raweth.h"
 #include "dds/ddsi/ddsi_vnet.h"
 #include "ddsi__mcgroup.h"

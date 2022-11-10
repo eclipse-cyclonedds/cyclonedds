@@ -19,7 +19,7 @@
 #include "dds/ddsrt/sockets.h"
 #include "ddsi_eth.h"
 #include "dds/ddsi/ddsi_tran.h"
-#include "dds/ddsi/ddsi_tcp.h"
+#include "ddsi__tcp.h"
 #include "ddsi__ipaddr.h"
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsi/ddsi_config_impl.h"

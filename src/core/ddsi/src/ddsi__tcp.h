@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef _DDSI_TCP_H_
-#define _DDSI_TCP_H_
+#ifndef DDSI__TCP_H
+#define DDSI__TCP_H
 
 #include "dds/ddsi/ddsi_tran.h"
 
@@ -18,10 +18,12 @@
 extern "C" {
 #endif
 
+struct ddsi_domaingv;
+
 int ddsi_tcp_init (struct ddsi_domaingv *gv);
 
 #if defined (__cplusplus)
 }
 #endif
 
-#endif
+#endif /* DDSI__TCP_H */
