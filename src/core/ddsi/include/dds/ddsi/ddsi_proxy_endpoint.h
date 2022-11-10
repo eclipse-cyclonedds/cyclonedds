@@ -18,7 +18,7 @@
 #include "dds/ddsi/ddsi_guid.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_entity.h"
-#include "dds/ddsi/q_lease.h"
+#include "dds/ddsi/ddsi_lease.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -84,7 +84,7 @@ struct ddsi_proxy_writer {
   struct ddsi_local_reader_ary rdary; /* LOCAL readers for fast-pathing; if not fast-pathed, fall back to scanning local_readers */
   ddsi2direct_directread_cb_t ddsi2direct_cb;
   void *ddsi2direct_cbarg;
-  struct lease *lease;
+  struct ddsi_lease *lease;
 };
 
 

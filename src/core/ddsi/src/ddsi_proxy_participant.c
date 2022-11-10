@@ -25,7 +25,7 @@
 #include "ddsi__entity_index.h"
 #include "ddsi__security_omg.h"
 #include "dds/ddsi/ddsi_builtin_topic_if.h"
-#include "dds/ddsi/q_lease.h"
+#include "ddsi__lease.h"
 #include "ddsi__addrset.h"
 #include "ddsi__endpoint.h"
 #include "ddsi__gc.h"
@@ -49,26 +49,26 @@ const ddsrt_avl_treedef_t ddsi_proxypp_proxytp_treedef =
   DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct ddsi_proxy_topic, avlnode), offsetof (struct ddsi_proxy_topic, entityid), ddsi_compare_entityid, 0);
 #endif
 
-static void proxy_participant_replace_minl (struct ddsi_proxy_participant *proxypp, bool manbypp, struct lease *lnew)
+static void proxy_participant_replace_minl (struct ddsi_proxy_participant *proxypp, bool manbypp, struct ddsi_lease *lnew)
 {
   /* By loading/storing the pointer atomically, we ensure we always
      read a valid (or once valid) lease. By delaying freeing the lease
      through the garbage collector, we ensure whatever lease update
      occurs in parallel completes before the memory is released. */
   struct ddsi_gcreq *gcreq = ddsi_gcreq_new (proxypp->e.gv->gcreq_queue, ddsi_gc_participant_lease);
-  struct lease *lease_old = ddsrt_atomic_ldvoidp (manbypp ? &proxypp->minl_man : &proxypp->minl_auto);
-  lease_unregister (lease_old); /* ensures lease will not expire while it is replaced */
+  struct ddsi_lease *lease_old = ddsrt_atomic_ldvoidp (manbypp ? &proxypp->minl_man : &proxypp->minl_auto);
+  ddsi_lease_unregister (lease_old); /* ensures lease will not expire while it is replaced */
   gcreq->arg = lease_old;
   ddsi_gcreq_enqueue (gcreq);
   ddsrt_atomic_stvoidp (manbypp ? &proxypp->minl_man : &proxypp->minl_auto, lnew);
 }
 
-void ddsi_proxy_participant_reassign_lease (struct ddsi_proxy_participant *proxypp, struct lease *newlease)
+void ddsi_proxy_participant_reassign_lease (struct ddsi_proxy_participant *proxypp, struct ddsi_lease *newlease)
 {
   ddsrt_mutex_lock (&proxypp->e.lock);
   if (proxypp->owns_lease)
   {
-    struct lease *minl = ddsrt_fibheap_min (&ddsi_lease_fhdef_pp, &proxypp->leaseheap_auto);
+    struct ddsi_lease *minl = ddsrt_fibheap_min (&ddsi_lease_fhdef_pp, &proxypp->leaseheap_auto);
     ddsrt_fibheap_delete (&ddsi_lease_fhdef_pp, &proxypp->leaseheap_auto, proxypp->lease);
     if (minl == proxypp->lease)
     {
@@ -77,9 +77,9 @@ void ddsi_proxy_participant_reassign_lease (struct ddsi_proxy_participant *proxy
         dds_duration_t trem = minl->tdur - proxypp->lease->tdur;
         assert (trem >= 0);
         ddsrt_etime_t texp = ddsrt_etime_add_duration (ddsrt_time_elapsed(), trem);
-        struct lease *lnew = lease_new (texp, minl->tdur, minl->entity);
+        struct ddsi_lease *lnew = ddsi_lease_new (texp, minl->tdur, minl->entity);
         proxy_participant_replace_minl (proxypp, false, lnew);
-        lease_register (lnew);
+        ddsi_lease_register (lnew);
       }
       else
       {
@@ -97,10 +97,10 @@ void ddsi_proxy_participant_reassign_lease (struct ddsi_proxy_participant *proxy
       through the garbage collector, we ensure whatever lease update
       occurs in parallel completes before the memory is released.
 
-      The lease_unregister call ensures the lease will never expire
+      The ddsi_lease_unregister call ensures the lease will never expire
       while we are messing with it. */
     struct ddsi_gcreq *gcreq = ddsi_gcreq_new (proxypp->e.gv->gcreq_queue, ddsi_gc_participant_lease);
-    lease_unregister (proxypp->lease);
+    ddsi_lease_unregister (proxypp->lease);
     gcreq->arg = proxypp->lease;
     ddsi_gcreq_enqueue (gcreq);
     proxypp->owns_lease = 0;
@@ -237,8 +237,8 @@ static void add_proxy_builtin_endpoints (struct ddsi_domaingv *gv, const struct 
 
 void ddsi_proxy_participant_add_pwr_lease_locked (struct ddsi_proxy_participant * proxypp, const struct ddsi_proxy_writer * pwr)
 {
-  struct lease *minl_prev;
-  struct lease *minl_new;
+  struct ddsi_lease *minl_prev;
+  struct ddsi_lease *minl_new;
   ddsrt_fibheap_t *lh;
   bool manbypp;
 
@@ -252,7 +252,7 @@ void ddsi_proxy_participant_add_pwr_lease_locked (struct ddsi_proxy_participant 
   if (proxypp->owns_lease && minl_prev != minl_new)
   {
     ddsrt_etime_t texp = ddsrt_etime_add_duration (ddsrt_time_elapsed (), minl_new->tdur);
-    struct lease *lnew = lease_new (texp, minl_new->tdur, minl_new->entity);
+    struct ddsi_lease *lnew = ddsi_lease_new (texp, minl_new->tdur, minl_new->entity);
     if (minl_prev == NULL)
     {
       assert (manbypp);
@@ -263,14 +263,14 @@ void ddsi_proxy_participant_add_pwr_lease_locked (struct ddsi_proxy_participant 
     {
       proxy_participant_replace_minl (proxypp, manbypp, lnew);
     }
-    lease_register (lnew);
+    ddsi_lease_register (lnew);
   }
 }
 
 void ddsi_proxy_participant_remove_pwr_lease_locked (struct ddsi_proxy_participant * proxypp, struct ddsi_proxy_writer * pwr)
 {
-  struct lease *minl_prev;
-  struct lease *minl_new;
+  struct ddsi_lease *minl_prev;
+  struct ddsi_lease *minl_new;
   bool manbypp;
   ddsrt_fibheap_t *lh;
 
@@ -288,9 +288,9 @@ void ddsi_proxy_participant_remove_pwr_lease_locked (struct ddsi_proxy_participa
       dds_duration_t trem = minl_new->tdur - minl_prev->tdur;
       assert (trem >= 0);
       ddsrt_etime_t texp = ddsrt_etime_add_duration (ddsrt_time_elapsed(), trem);
-      struct lease *lnew = lease_new (texp, minl_new->tdur, minl_new->entity);
+      struct ddsi_lease *lnew = ddsi_lease_new (texp, minl_new->tdur, minl_new->entity);
       proxy_participant_replace_minl (proxypp, manbypp, lnew);
-      lease_register (lnew);
+      ddsi_lease_register (lnew);
     }
     else
     {
@@ -303,7 +303,7 @@ static void free_proxy_participant (struct ddsi_proxy_participant *proxypp)
 {
   if (proxypp->owns_lease)
   {
-    struct lease * minl_auto = ddsrt_atomic_ldvoidp (&proxypp->minl_auto);
+    struct ddsi_lease * minl_auto = ddsrt_atomic_ldvoidp (&proxypp->minl_auto);
     ddsrt_fibheap_delete (&ddsi_lease_fhdef_pp, &proxypp->leaseheap_auto, proxypp->lease);
     assert (ddsrt_fibheap_min (&ddsi_lease_fhdef_pp, &proxypp->leaseheap_auto) == NULL);
     assert (ddsrt_fibheap_min (&ddsi_lease_fhdef_pp, &proxypp->leaseheap_man) == NULL);
@@ -311,10 +311,10 @@ static void free_proxy_participant (struct ddsi_proxy_participant *proxypp)
     assert (!ddsi_compare_guid (&minl_auto->entity->guid, &proxypp->e.guid));
     /* if the lease hasn't been registered yet (which is the case when
        new_proxy_participant calls this, it is marked as such and calling
-       lease_unregister is ok */
-    lease_unregister (minl_auto);
-    lease_free (minl_auto);
-    lease_free (proxypp->lease);
+       ddsi_lease_unregister is ok */
+    ddsi_lease_unregister (minl_auto);
+    ddsi_lease_free (minl_auto);
+    ddsi_lease_free (proxypp->lease);
   }
 #ifdef DDS_HAS_SECURITY
   ddsi_disconnect_proxy_participant_secure(proxypp);
@@ -413,7 +413,7 @@ bool ddsi_new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_gui
         the data path is fine, and we only need to do something special in SEDP handling. */
       ddsrt_etime_t texp = ddsrt_etime_add_duration (ddsrt_time_elapsed(), tlease_dur);
       dds_duration_t dur = (tlease_dur == DDS_INFINITY) ? gv->config.lease_duration : tlease_dur;
-      proxypp->lease = lease_new (texp, dur, &proxypp->e);
+      proxypp->lease = ddsi_lease_new (texp, dur, &proxypp->e);
       proxypp->owns_lease = 1;
 
       /* Add the proxypp lease to heap so that monitoring liveliness will include this lease
@@ -425,7 +425,7 @@ bool ddsi_new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_gui
          shortest lease. When a pwr with a shorter is added, the lease in minl_auto is replaced
          by the lease from the proxy writer in ddsi_proxy_participant_add_pwr_lease_locked. This old shortest
          lease is freed, so that's why we need a clone and not the proxypp's lease in the heap.  */
-      ddsrt_atomic_stvoidp (&proxypp->minl_auto, (void *) lease_clone (proxypp->lease));
+      ddsrt_atomic_stvoidp (&proxypp->minl_auto, (void *) ddsi_lease_clone (proxypp->lease));
     }
   }
 
@@ -467,7 +467,7 @@ bool ddsi_new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_gui
      ddsi_entidx_insert_proxy_participant_guid even if privileged_pp_guid was NULL originally */
   ddsrt_mutex_lock (&proxypp->e.lock);
   if (proxypp->owns_lease)
-    lease_register (ddsrt_atomic_ldvoidp (&proxypp->minl_auto));
+    ddsi_lease_register (ddsrt_atomic_ldvoidp (&proxypp->minl_auto));
   ddsrt_mutex_unlock (&proxypp->e.lock);
 
 #ifdef DDS_HAS_SECURITY
@@ -617,7 +617,7 @@ static void delete_or_detach_dependent_pp (struct ddsi_proxy_participant *p, str
     /* Clear dependency (but don't touch entity id, which must be 0x1c1) and set the lease ticking */
     ELOGDISC (p, PGUIDFMT" detach-from-DS "PGUIDFMT"\n", PGUID(p->e.guid), PGUID(proxypp->e.guid));
     memset (&p->privileged_pp_guid.prefix, 0, sizeof (p->privileged_pp_guid.prefix));
-    lease_set_expiry (p->lease, texp);
+    ddsi_lease_set_expiry (p->lease, texp);
     /* FIXME: replace in p->leaseheap_auto and get new minl_auto */
     ddsrt_mutex_unlock (&p->e.lock);
   }

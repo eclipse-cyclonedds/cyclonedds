@@ -20,7 +20,7 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "ddsi__participant.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
-#include "dds/ddsi/q_lease.h"
+#include "ddsi__lease.h"
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/q_misc.h"
 #include "ddsi__protocol.h"
@@ -44,7 +44,7 @@ size_t ddsi_participant_message_data_nops_key = sizeof (ddsi_participant_message
 void ddsi_write_pmd_message_guid (struct ddsi_domaingv * const gv, struct ddsi_guid *pp_guid, unsigned pmd_kind)
 {
   struct thread_state * const thrst = ddsi_lookup_thread_state ();
-  struct lease *lease;
+  struct ddsi_lease *lease;
   thread_state_awake (thrst, gv);
   struct ddsi_participant *pp = ddsi_entidx_lookup_participant_guid (gv->entity_index, pp_guid);
   if (pp == NULL)
@@ -52,7 +52,7 @@ void ddsi_write_pmd_message_guid (struct ddsi_domaingv * const gv, struct ddsi_g
   else
   {
     if ((lease = ddsrt_atomic_ldvoidp (&pp->minl_man)) != NULL)
-      lease_renew (lease, ddsrt_time_elapsed());
+      ddsi_lease_renew (lease, ddsrt_time_elapsed());
     ddsi_write_pmd_message (thrst, NULL, pp, pmd_kind);
   }
   thread_state_asleep (thrst);
@@ -93,7 +93,7 @@ void ddsi_handle_pmd_message (const struct receiver_state *rst, struct ddsi_serd
   const struct ddsi_serdata_pserop *sample = (const struct ddsi_serdata_pserop *) sample_common;
   struct ddsi_proxy_participant *proxypp;
   ddsi_guid_t ppguid;
-  struct lease *l;
+  struct ddsi_lease *l;
   RSTTRACE (" PMD ST%"PRIx32, sample->c.statusinfo);
   switch (sample->c.statusinfo & (DDSI_STATUSINFO_DISPOSE | DDSI_STATUSINFO_UNREGISTER))
   {
@@ -108,7 +108,7 @@ void ddsi_handle_pmd_message (const struct receiver_state *rst, struct ddsi_serd
                (l = ddsrt_atomic_ldvoidp (&proxypp->minl_man)) != NULL)
       {
         /* Renew lease for entity with shortest manual-by-participant lease */
-        lease_renew (l, ddsrt_time_elapsed ());
+        ddsi_lease_renew (l, ddsrt_time_elapsed ());
       }
       break;
     }

@@ -22,7 +22,7 @@
 #include "dds/ddsi/q_thread.h"
 #include "ddsi__entity_index.h"
 #include "dds/ddsi/q_unused.h"
-#include "dds/ddsi/q_lease.h"
+#include "ddsi__lease.h"
 #include "dds/ddsi/ddsi_domaingv.h" /* for mattr, cattr */
 #include "dds/ddsi/q_receive.h" /* for trigger_receive_threads */
 #include "ddsi__gc.h"
@@ -154,7 +154,7 @@ static uint32_t gcreq_queue_thread (struct ddsi_gcreq_queue *q)
        burden on the system than having a separate thread or adding it
        to the workload of the data handling threads. */
     thread_state_awake_fixed_domain (thrst);
-    delay = check_and_handle_lease_expiration (q->gv, ddsrt_time_elapsed ());
+    delay = ddsi_check_and_handle_lease_expiration (q->gv, ddsrt_time_elapsed ());
     thread_state_asleep (thrst);
 
     if (gcreq)

@@ -26,7 +26,7 @@
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "ddsi__discovery.h"
 #include "dds/ddsi/q_xevent.h"
-#include "dds/ddsi/q_lease.h"
+#include "ddsi__lease.h"
 #include "dds/ddsi/q_receive.h"
 #include "ddsi__addrset.h"
 #include "dds__whc.h"
@@ -56,7 +56,7 @@ int compare_ldur (const void *va, const void *vb);
 /* used in participant for keeping writer liveliness renewal */
 const ddsrt_fibheap_def_t ddsi_ldur_fhdef = DDSRT_FIBHEAPDEF_INITIALIZER(offsetof (struct ldur_fhnode, heapnode), compare_ldur);
 /* used in (proxy)participant for writer liveliness monitoring */
-const ddsrt_fibheap_def_t ddsi_lease_fhdef_pp = DDSRT_FIBHEAPDEF_INITIALIZER(offsetof (struct lease, pp_heapnode), compare_lease_tdur);
+const ddsrt_fibheap_def_t ddsi_lease_fhdef_pp = DDSRT_FIBHEAPDEF_INITIALIZER(offsetof (struct ddsi_lease, pp_heapnode), ddsi_compare_lease_tdur);
 
 const ddsrt_avl_treedef_t deleted_participants_treedef =
   DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct ddsi_deleted_participant, avlnode), offsetof (struct ddsi_deleted_participant, guid), ddsi_compare_guid, 0);
@@ -411,20 +411,20 @@ static void add_builtin_endpoints (struct ddsi_participant *pp, ddsi_guid_t *sub
 
 void ddsi_gc_participant_lease (struct ddsi_gcreq *gcreq)
 {
-  lease_free (gcreq->arg);
+  ddsi_lease_free (gcreq->arg);
   ddsi_gcreq_free (gcreq);
 }
 
-static void participant_replace_minl (struct ddsi_participant *pp, struct lease *lnew)
+static void participant_replace_minl (struct ddsi_participant *pp, struct ddsi_lease *lnew)
 {
   /* By loading/storing the pointer atomically, we ensure we always
      read a valid (or once valid) lease. By delaying freeing the lease
      through the garbage collector, we ensure whatever lease update
      occurs in parallel completes before the memory is released. */
   struct ddsi_gcreq *gcreq = ddsi_gcreq_new (pp->e.gv->gcreq_queue, ddsi_gc_participant_lease);
-  struct lease *lease_old = ddsrt_atomic_ldvoidp (&pp->minl_man);
+  struct ddsi_lease *lease_old = ddsrt_atomic_ldvoidp (&pp->minl_man);
   assert (lease_old != NULL);
-  lease_unregister (lease_old); /* ensures lease will not expire while it is replaced */
+  ddsi_lease_unregister (lease_old); /* ensures lease will not expire while it is replaced */
   gcreq->arg = lease_old;
   ddsi_gcreq_enqueue (gcreq);
   ddsrt_atomic_stvoidp (&pp->minl_man, lnew);
@@ -432,8 +432,8 @@ static void participant_replace_minl (struct ddsi_participant *pp, struct lease 
 
 void ddsi_participant_add_wr_lease_locked (struct ddsi_participant * pp, const struct ddsi_writer * wr)
 {
-  struct lease *minl_prev;
-  struct lease *minl_new;
+  struct ddsi_lease *minl_prev;
+  struct ddsi_lease *minl_new;
 
   assert (wr->lease != NULL);
   minl_prev = ddsrt_fibheap_min (&ddsi_lease_fhdef_pp, &pp->leaseheap_man);
@@ -443,7 +443,7 @@ void ddsi_participant_add_wr_lease_locked (struct ddsi_participant * pp, const s
   if (minl_prev != minl_new)
   {
     ddsrt_etime_t texp = ddsrt_etime_add_duration (ddsrt_time_elapsed (), minl_new->tdur);
-    struct lease *lnew = lease_new (texp, minl_new->tdur, minl_new->entity);
+    struct ddsi_lease *lnew = ddsi_lease_new (texp, minl_new->tdur, minl_new->entity);
     if (minl_prev == NULL)
     {
       assert (ddsrt_atomic_ldvoidp (&pp->minl_man) == NULL);
@@ -453,14 +453,14 @@ void ddsi_participant_add_wr_lease_locked (struct ddsi_participant * pp, const s
     {
       participant_replace_minl (pp, lnew);
     }
-    lease_register (lnew);
+    ddsi_lease_register (lnew);
   }
 }
 
 void ddsi_participant_remove_wr_lease_locked (struct ddsi_participant * pp, struct ddsi_writer * wr)
 {
-  struct lease *minl_prev;
-  struct lease *minl_new;
+  struct ddsi_lease *minl_prev;
+  struct ddsi_lease *minl_new;
 
   assert (wr->lease != NULL);
   assert (wr->xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_PARTICIPANT);
@@ -475,9 +475,9 @@ void ddsi_participant_remove_wr_lease_locked (struct ddsi_participant * pp, stru
       dds_duration_t trem = minl_new->tdur - minl_prev->tdur;
       assert (trem >= 0);
       ddsrt_etime_t texp = ddsrt_etime_add_duration (ddsrt_time_elapsed(), trem);
-      struct lease *lnew = lease_new (texp, minl_new->tdur, minl_new->entity);
+      struct ddsi_lease *lnew = ddsi_lease_new (texp, minl_new->tdur, minl_new->entity);
       participant_replace_minl (pp, lnew);
-      lease_register (lnew);
+      ddsi_lease_register (lnew);
     }
     else
     {

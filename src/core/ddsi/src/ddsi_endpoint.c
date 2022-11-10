@@ -45,6 +45,7 @@
 #include "ddsi__vendor.h"
 #include "ddsi__xqos.h"
 #include "ddsi__hbcontrol.h"
+#include "ddsi__lease.h"
 #include "dds/dds.h"
 
 static dds_return_t delete_writer_nolinger_locked (struct ddsi_writer *wr);
@@ -681,7 +682,7 @@ void ddsi_writer_set_alive_may_unlock (struct ddsi_writer *wr, bool notify)
     if (wr->xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_PARTICIPANT)
       ddsi_participant_add_wr_lease_locked (wr->c.pp, wr);
     else if (wr->xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_TOPIC)
-      lease_set_expiry (wr->lease, ddsrt_etime_add_duration (ddsrt_time_elapsed (), wr->lease->tdur));
+      ddsi_lease_set_expiry (wr->lease, ddsrt_etime_add_duration (ddsrt_time_elapsed (), wr->lease->tdur));
   }
   ddsrt_mutex_unlock (&wr->c.pp->e.lock);
 
@@ -979,7 +980,7 @@ dds_return_t ddsi_new_writer_guid (struct ddsi_writer **wr_out, const struct dds
     else
     {
       ddsrt_etime_t texpire = ddsrt_etime_add_duration (ddsrt_time_elapsed (), wr->lease_duration->ldur);
-      wr->lease = lease_new (texpire, wr->lease_duration->ldur, &wr->e);
+      wr->lease = ddsi_lease_new (texpire, wr->lease_duration->ldur, &wr->e);
       if (wr->xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_PARTICIPANT)
       {
         ddsrt_mutex_lock (&pp->e.lock);
@@ -988,7 +989,7 @@ dds_return_t ddsi_new_writer_guid (struct ddsi_writer **wr_out, const struct dds
       }
       else
       {
-        lease_register (wr->lease);
+        ddsi_lease_register (wr->lease);
       }
     }
   }
@@ -1090,7 +1091,7 @@ static void gc_delete_writer (struct ddsi_gcreq *gcreq)
     assert (wr->lease_duration->ldur == DDS_DURATION_INVALID);
     ddsrt_free (wr->lease_duration);
     if (wr->xqos->liveliness.kind != DDS_LIVELINESS_AUTOMATIC)
-      lease_free (wr->lease);
+      ddsi_lease_free (wr->lease);
   }
 
   /* Do last gasp on SEDP and free writer. */
@@ -1236,7 +1237,7 @@ static dds_return_t delete_writer_nolinger_locked (struct ddsi_writer *wr)
     else
     {
       if (wr->xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_TOPIC)
-        lease_unregister (wr->lease);
+        ddsi_lease_unregister (wr->lease);
       if (writer_set_notalive_locked (wr, false) != DDS_RETCODE_OK)
         ELOGDISC (wr, "writer_set_notalive failed for "PGUIDFMT"\n", PGUID (wr->e.guid));
     }

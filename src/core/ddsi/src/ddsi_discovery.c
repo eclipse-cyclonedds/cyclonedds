@@ -44,7 +44,7 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/q_transmit.h"
-#include "dds/ddsi/q_lease.h"
+#include "ddsi__lease.h"
 #include "dds/ddsi/ddsi_feature_check.h"
 #include "ddsi__security_omg.h"
 #include "ddsi__pmd.h"
@@ -807,7 +807,7 @@ static int handle_spdp_alive (const struct receiver_state *rst, seqno_t seq, dds
     else if (existing_entity->kind == DDSI_EK_PROXY_PARTICIPANT)
     {
       struct ddsi_proxy_participant *proxypp = (struct ddsi_proxy_participant *) existing_entity;
-      struct lease *lease;
+      struct ddsi_lease *lease;
       int interesting = 0;
       RSTTRACE ("SPDP ST0 "PGUIDFMT" (known)", PGUID (datap->participant_guid));
       /* SPDP processing is so different from normal processing that we are
@@ -815,7 +815,7 @@ static int handle_spdp_alive (const struct receiver_state *rst, seqno_t seq, dds
          that are not alive are not set alive here. This is done only when
          data is received from a particular pwr (in handle_regular) */
       if ((lease = ddsrt_atomic_ldvoidp (&proxypp->minl_auto)) != NULL)
-        lease_renew (lease, ddsrt_time_elapsed ());
+        ddsi_lease_renew (lease, ddsrt_time_elapsed ());
       ddsrt_mutex_lock (&proxypp->e.lock);
       if (proxypp->implicitly_created || seq > proxypp->seq)
       {
@@ -1680,7 +1680,7 @@ static void handle_sedp_alive_endpoint (const struct receiver_state *rst, seqno_
       GVLOGDISC (" "PGUIDFMT" attach-to-DS "PGUIDFMT, PGUID(proxypp->e.guid), PGUIDPREFIX(*src_guid_prefix), proxypp->privileged_pp_guid.entityid.u);
       ddsrt_mutex_lock (&proxypp->e.lock);
       proxypp->privileged_pp_guid.prefix = *src_guid_prefix;
-      lease_set_expiry (proxypp->lease, DDSRT_ETIME_NEVER);
+      ddsi_lease_set_expiry (proxypp->lease, DDSRT_ETIME_NEVER);
       ddsrt_mutex_unlock (&proxypp->e.lock);
     }
     GVLOGDISC ("\n");

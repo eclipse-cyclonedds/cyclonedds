@@ -42,7 +42,7 @@ struct ddsi_addrset;
 struct xeventq;
 struct ddsi_gcreq_queue;
 struct ddsi_entity_index;
-struct lease;
+struct ddsi_lease;
 struct ddsi_tran_conn;
 struct ddsi_tran_listener;
 struct ddsi_tran_factory;

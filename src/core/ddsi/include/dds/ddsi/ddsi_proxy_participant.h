@@ -25,7 +25,7 @@
 extern "C" {
 #endif
 
-struct lease;
+struct ddsi_lease;
 struct ddsi_plist;
 struct ddsi_addrset;
 struct ddsi_proxy_endpoint_common;
@@ -42,7 +42,7 @@ struct ddsi_proxy_participant
   ddsrt_fibheap_t leaseheap_auto; /* keeps leases for this proxypp and leases for pwrs (with liveliness automatic) */
   ddsrt_atomic_voidp_t minl_man; /* clone of min(leaseheap_man) */
   ddsrt_fibheap_t leaseheap_man; /* keeps leases for this proxypp and leases for pwrs (with liveliness manual-by-participant) */
-  struct lease *lease; /* lease for this proxypp */
+  struct ddsi_lease *lease; /* lease for this proxypp */
   struct ddsi_addrset *as_default; /* default address set to use for user data traffic */
   struct ddsi_addrset *as_meta; /* default address set to use for discovery traffic */
   struct ddsi_proxy_endpoint_common *endpoints; /* all proxy endpoints can be reached from here */

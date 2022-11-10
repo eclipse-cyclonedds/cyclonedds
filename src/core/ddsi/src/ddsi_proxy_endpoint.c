@@ -33,6 +33,7 @@
 #include "ddsi__proxy_endpoint.h"
 #include "ddsi__proxy_participant.h"
 #include "ddsi__typelib.h"
+#include "ddsi__lease.h"
 
 const ddsrt_avl_treedef_t ddsi_pwr_readers_treedef =
   DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct ddsi_pwr_rd_match, avlnode), offsetof (struct ddsi_pwr_rd_match, rd_guid), ddsi_compare_guid, 0);
@@ -254,7 +255,7 @@ int ddsi_new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppg
   if (pwr->c.xqos->liveliness.lease_duration != DDS_INFINITY)
   {
     ddsrt_etime_t texpire = ddsrt_etime_add_duration (ddsrt_time_elapsed (), pwr->c.xqos->liveliness.lease_duration);
-    pwr->lease = lease_new (texpire, pwr->c.xqos->liveliness.lease_duration, &pwr->e);
+    pwr->lease = ddsi_lease_new (texpire, pwr->c.xqos->liveliness.lease_duration, &pwr->e);
     if (pwr->c.xqos->liveliness.kind != DDS_LIVELINESS_MANUAL_BY_TOPIC)
     {
       ddsrt_mutex_lock (&proxypp->e.lock);
@@ -263,7 +264,7 @@ int ddsi_new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppg
     }
     else
     {
-      lease_register (pwr->lease);
+      ddsi_lease_register (pwr->lease);
     }
   }
   else
@@ -378,7 +379,7 @@ static void gc_delete_proxy_writer (struct ddsi_gcreq *gcreq)
   }
   ddsi_local_reader_ary_fini (&pwr->rdary);
   if (pwr->c.xqos->liveliness.lease_duration != DDS_INFINITY)
-    lease_free (pwr->lease);
+    ddsi_lease_free (pwr->lease);
 #ifdef DDS_HAS_SECURITY
   ddsi_omg_security_deregister_remote_writer (pwr);
 #endif
@@ -450,7 +451,7 @@ int ddsi_delete_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *
   ddsi_entidx_remove_proxy_writer_guid (gv->entity_index, pwr);
   ddsrt_mutex_unlock (&gv->lock);
   if (pwr->c.xqos->liveliness.lease_duration != DDS_INFINITY && pwr->c.xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_TOPIC)
-    lease_unregister (pwr->lease);
+    ddsi_lease_unregister (pwr->lease);
   if (ddsi_proxy_writer_set_notalive (pwr, false) != DDS_RETCODE_OK)
     GVLOGDISC ("ddsi_proxy_writer_set_notalive failed for "PGUIDFMT"\n", PGUID(*guid));
   gcreq_proxy_writer (pwr);
@@ -499,7 +500,7 @@ void ddsi_proxy_writer_set_alive_may_unlock (struct ddsi_proxy_writer *pwr, bool
     if (pwr->c.xqos->liveliness.kind != DDS_LIVELINESS_MANUAL_BY_TOPIC)
       ddsi_proxy_participant_add_pwr_lease_locked (pwr->c.proxypp, pwr);
     else
-      lease_set_expiry (pwr->lease, ddsrt_etime_add_duration (ddsrt_time_elapsed (), pwr->lease->tdur));
+      ddsi_lease_set_expiry (pwr->lease, ddsrt_etime_add_duration (ddsrt_time_elapsed (), pwr->lease->tdur));
   }
   ddsrt_mutex_unlock (&pwr->c.proxypp->e.lock);
 

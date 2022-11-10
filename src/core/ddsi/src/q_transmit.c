@@ -33,7 +33,7 @@
 #include "dds/ddsi/q_unused.h"
 #include "ddsi__hbcontrol.h"
 #include "dds/ddsi/q_receive.h"
-#include "dds/ddsi/q_lease.h"
+#include "ddsi__lease.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_sertype.h"
@@ -729,7 +729,7 @@ dds_return_t write_hb_liveliness (struct ddsi_domaingv * const gv, struct ddsi_g
   struct nn_xmsg *msg = NULL;
   struct whc_state whcst;
   struct thread_state * const thrst = ddsi_lookup_thread_state ();
-  struct lease *lease;
+  struct ddsi_lease *lease;
 
   thread_state_awake (thrst, gv);
   struct ddsi_writer *wr = ddsi_entidx_lookup_writer_guid (gv->entity_index, wr_guid);
@@ -740,9 +740,9 @@ dds_return_t write_hb_liveliness (struct ddsi_domaingv * const gv, struct ddsi_g
   }
 
   if (wr->xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_PARTICIPANT && ((lease = ddsrt_atomic_ldvoidp (&wr->c.pp->minl_man)) != NULL))
-    lease_renew (lease, ddsrt_time_elapsed());
+    ddsi_lease_renew (lease, ddsrt_time_elapsed());
   else if (wr->xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_TOPIC && wr->lease != NULL)
-    lease_renew (wr->lease, ddsrt_time_elapsed());
+    ddsi_lease_renew (wr->lease, ddsrt_time_elapsed());
 
   if ((msg = nn_xmsg_new (gv->xmsgpool, &wr->e.guid, wr->c.pp, sizeof (ddsi_rtps_info_ts_t) + sizeof (ddsi_rtps_heartbeat_t), NN_XMSG_KIND_CONTROL)) == NULL)
     return DDS_RETCODE_OUT_OF_RESOURCES;
@@ -1210,7 +1210,7 @@ static int write_sample (struct thread_state * const thrst, struct nn_xpack *xp,
   int r;
   seqno_t seq;
   ddsrt_mtime_t tnow;
-  struct lease *lease;
+  struct ddsi_lease *lease;
 
   /* If GC not allowed, we must be sure to never block when writing.  That is only the case for (true, aggressive) KEEP_LAST writers, and also only if there is no limit to how much unacknowledged data the WHC may contain. */
   assert (gc_allowed || (wr->xqos->history.kind == DDS_HISTORY_KEEP_LAST && wr->whc_low == INT32_MAX));
@@ -1231,9 +1231,9 @@ static int write_sample (struct thread_state * const thrst, struct nn_xpack *xp,
   }
 
   if (wr->xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_PARTICIPANT && ((lease = ddsrt_atomic_ldvoidp (&wr->c.pp->minl_man)) != NULL))
-    lease_renew (lease, ddsrt_time_elapsed());
+    ddsi_lease_renew (lease, ddsrt_time_elapsed());
   else if (wr->xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_TOPIC && wr->lease != NULL)
-    lease_renew (wr->lease, ddsrt_time_elapsed());
+    ddsi_lease_renew (wr->lease, ddsrt_time_elapsed());
 
   ddsrt_mutex_lock (&wr->e.lock);
 

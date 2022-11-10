@@ -126,7 +126,7 @@ struct ddsi_writer
   uint64_t time_retransmit; /* cum time in retransmitting state */
   struct xeventq *evq; /* timed event queue to be used by this writer */
   struct ddsi_local_reader_ary rdary; /* LOCAL readers for fast-pathing; if not fast-pathed, fall back to scanning local_readers */
-  struct lease *lease; /* for liveliness administration (writer can only become inactive when using manual liveliness) */
+  struct ddsi_lease *lease; /* for liveliness administration (writer can only become inactive when using manual liveliness) */
 #ifdef DDS_HAS_SECURITY
   struct ddsi_writer_sec_attributes *sec_attr;
 #endif

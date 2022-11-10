@@ -34,7 +34,7 @@
 #include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/q_thread.h"
 #include "ddsi__entity_index.h"
-#include "dds/ddsi/q_lease.h"
+#include "ddsi__lease.h"
 #include "ddsi__entity.h"
 #include "ddsi__participant.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
@@ -1419,7 +1419,7 @@ int rtps_init (struct ddsi_domaingv *gv)
 
   ddsrt_mutex_init (&gv->participant_set_lock);
   ddsrt_cond_init (&gv->participant_set_cond);
-  lease_management_init (gv);
+  ddsi_lease_management_init (gv);
   gv->deleted_participants = ddsi_deleted_participants_admin_new (&gv->logconfig, gv->config.prune_deleted_ppant.delay);
   gv->entity_index = ddsi_entity_index_new (gv);
 
@@ -1795,7 +1795,7 @@ err_unicast_sockets:
   ddsi_entity_index_free (gv->entity_index);
   gv->entity_index = NULL;
   ddsi_deleted_participants_admin_free (gv->deleted_participants);
-  lease_management_term (gv);
+  ddsi_lease_management_term (gv);
   ddsrt_cond_destroy (&gv->participant_set_cond);
   ddsrt_mutex_destroy (&gv->participant_set_lock);
   free_special_types (gv);
@@ -2185,7 +2185,7 @@ void rtps_fini (struct ddsi_domaingv *gv)
   ddsi_entity_index_free (gv->entity_index);
   gv->entity_index = NULL;
   ddsi_deleted_participants_admin_free (gv->deleted_participants);
-  lease_management_term (gv);
+  ddsi_lease_management_term (gv);
   ddsrt_mutex_destroy (&gv->participant_set_lock);
   ddsrt_cond_destroy (&gv->participant_set_cond);
   free_special_types (gv);

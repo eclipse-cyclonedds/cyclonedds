@@ -25,7 +25,7 @@
 extern "C" {
 #endif
 
-struct lease;
+struct ddsi_lease;
 struct ddsi_plist;
 struct ddsi_addrset;
 struct ddsi_proxy_endpoint_common;
@@ -44,7 +44,7 @@ struct ddsi_proxy_writer;
 #define DDSI_CF_PROXYPP_NO_SPDP                     (1 << 2)
 
 int ddsi_update_proxy_participant_plist_locked (struct ddsi_proxy_participant *proxypp, seqno_t seq, const struct ddsi_plist *datap, ddsrt_wctime_t timestamp);
-void ddsi_proxy_participant_reassign_lease (struct ddsi_proxy_participant *proxypp, struct lease *newlease);
+void ddsi_proxy_participant_reassign_lease (struct ddsi_proxy_participant *proxypp, struct ddsi_lease *newlease);
 void ddsi_purge_proxy_participants (struct ddsi_domaingv *gv, const ddsi_xlocator_t *loc, bool delete_from_as_disc);
 int ddsi_ref_proxy_participant (struct ddsi_proxy_participant *proxypp, struct ddsi_proxy_endpoint_common *c);
 void ddsi_unref_proxy_participant (struct ddsi_proxy_participant *proxypp, struct ddsi_proxy_endpoint_common *c);

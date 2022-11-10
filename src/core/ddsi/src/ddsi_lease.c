@@ -35,7 +35,7 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/q_transmit.h"
-#include "dds/ddsi/q_lease.h"
+#include "ddsi__lease.h"
 #include "dds/ddsi/ddsi_gc.h"
 #include "ddsi__endpoint.h"
 #include "ddsi__proxy_endpoint.h"
@@ -45,45 +45,45 @@
    != 0 -- and note that it had better be 2's complement machine! */
 #define TSCHED_NOT_ON_HEAP INT64_MIN
 
-const ddsrt_fibheap_def_t lease_fhdef = DDSRT_FIBHEAPDEF_INITIALIZER (offsetof (struct lease, heapnode), compare_lease_tsched);
+const ddsrt_fibheap_def_t lease_fhdef = DDSRT_FIBHEAPDEF_INITIALIZER (offsetof (struct ddsi_lease, heapnode), ddsi_compare_lease_tsched);
 
 static void force_lease_check (struct ddsi_gcreq_queue *gcreq_queue)
 {
   ddsi_gcreq_enqueue (ddsi_gcreq_new (gcreq_queue, ddsi_gcreq_free));
 }
 
-int compare_lease_tsched (const void *va, const void *vb)
+int ddsi_compare_lease_tsched (const void *va, const void *vb)
 {
-  const struct lease *a = va;
-  const struct lease *b = vb;
+  const struct ddsi_lease *a = va;
+  const struct ddsi_lease *b = vb;
   return (a->tsched.v == b->tsched.v) ? 0 : (a->tsched.v < b->tsched.v) ? -1 : 1;
 }
 
-int compare_lease_tdur (const void *va, const void *vb)
+int ddsi_compare_lease_tdur (const void *va, const void *vb)
 {
-  const struct lease *a = va;
-  const struct lease *b = vb;
+  const struct ddsi_lease *a = va;
+  const struct ddsi_lease *b = vb;
   return (a->tdur == b->tdur) ? 0 : (a->tdur < b->tdur) ? -1 : 1;
 }
 
-void lease_management_init (struct ddsi_domaingv *gv)
+void ddsi_lease_management_init (struct ddsi_domaingv *gv)
 {
   ddsrt_mutex_init (&gv->leaseheap_lock);
   ddsrt_fibheap_init (&lease_fhdef, &gv->leaseheap);
 }
 
-void lease_management_term (struct ddsi_domaingv *gv)
+void ddsi_lease_management_term (struct ddsi_domaingv *gv)
 {
   assert (ddsrt_fibheap_min (&lease_fhdef, &gv->leaseheap) == NULL);
   ddsrt_mutex_destroy (&gv->leaseheap_lock);
 }
 
-struct lease *lease_new (ddsrt_etime_t texpire, dds_duration_t tdur, struct ddsi_entity_common *e)
+struct ddsi_lease *ddsi_lease_new (ddsrt_etime_t texpire, dds_duration_t tdur, struct ddsi_entity_common *e)
 {
-  struct lease *l;
+  struct ddsi_lease *l;
   if ((l = ddsrt_malloc (sizeof (*l))) == NULL)
     return NULL;
-  EETRACE (e, "lease_new(tdur %"PRId64" guid "PGUIDFMT") @ %p\n", tdur, PGUID (e->guid), (void *) l);
+  EETRACE (e, "ddsi_lease_new(tdur %"PRId64" guid "PGUIDFMT") @ %p\n", tdur, PGUID (e->guid), (void *) l);
   l->tdur = tdur;
   ddsrt_atomic_st64 (&l->tend, (uint64_t) texpire.v);
   l->tsched.v = TSCHED_NOT_ON_HEAP;
@@ -96,19 +96,19 @@ struct lease *lease_new (ddsrt_etime_t texpire, dds_duration_t tdur, struct ddsi
  * locking and should therefore only be called from a context where lease 'l'
  * cannot be changed by another thread during the function call.
  */
-struct lease *lease_clone (const struct lease *l)
+struct ddsi_lease *ddsi_lease_clone (const struct ddsi_lease *l)
 {
   ddsrt_etime_t texp;
   dds_duration_t tdur;
   texp.v = (int64_t) ddsrt_atomic_ld64 (&l->tend);
   tdur = l->tdur;
-  return lease_new (texp, tdur, l->entity);
+  return ddsi_lease_new (texp, tdur, l->entity);
 }
 
-void lease_register (struct lease *l) /* FIXME: make lease admin struct */
+void ddsi_lease_register (struct ddsi_lease *l) /* FIXME: make lease admin struct */
 {
   struct ddsi_domaingv * const gv = l->entity->gv;
-  GVTRACE ("lease_register(l %p guid "PGUIDFMT")\n", (void *) l, PGUID (l->entity->guid));
+  GVTRACE ("ddsi_lease_register(l %p guid "PGUIDFMT")\n", (void *) l, PGUID (l->entity->guid));
   ddsrt_mutex_lock (&gv->leaseheap_lock);
   assert (l->tsched.v == TSCHED_NOT_ON_HEAP);
   int64_t tend = (int64_t) ddsrt_atomic_ld64 (&l->tend);
@@ -119,14 +119,14 @@ void lease_register (struct lease *l) /* FIXME: make lease admin struct */
   }
   ddsrt_mutex_unlock (&gv->leaseheap_lock);
 
-  /* check_and_handle_lease_expiration runs on GC thread and the only way to be sure that it wakes up in time is by forcing re-evaluation (strictly speaking only needed if this is the first lease to expire, but this operation is quite rare anyway) */
+  /* ddsi_check_and_handle_lease_expiration runs on GC thread and the only way to be sure that it wakes up in time is by forcing re-evaluation (strictly speaking only needed if this is the first lease to expire, but this operation is quite rare anyway) */
   force_lease_check (gv->gcreq_queue);
 }
 
-void lease_unregister (struct lease *l)
+void ddsi_lease_unregister (struct ddsi_lease *l)
 {
   struct ddsi_domaingv * const gv = l->entity->gv;
-  GVTRACE ("lease_unregister(l %p guid "PGUIDFMT")\n", (void *) l, PGUID (l->entity->guid));
+  GVTRACE ("ddsi_lease_unregister(l %p guid "PGUIDFMT")\n", (void *) l, PGUID (l->entity->guid));
   ddsrt_mutex_lock (&gv->leaseheap_lock);
   if (l->tsched.v != TSCHED_NOT_ON_HEAP)
   {
@@ -135,18 +135,18 @@ void lease_unregister (struct lease *l)
   }
   ddsrt_mutex_unlock (&gv->leaseheap_lock);
 
-  /* see lease_register() */
+  /* see ddsi_lease_register() */
   force_lease_check (gv->gcreq_queue);
 }
 
-void lease_free (struct lease *l)
+void ddsi_lease_free (struct ddsi_lease *l)
 {
   struct ddsi_domaingv * const gv = l->entity->gv;
-  GVTRACE ("lease_free(l %p guid "PGUIDFMT")\n", (void *) l, PGUID (l->entity->guid));
+  GVTRACE ("ddsi_lease_free(l %p guid "PGUIDFMT")\n", (void *) l, PGUID (l->entity->guid));
   ddsrt_free (l);
 }
 
-static void trace_lease_renew (const struct lease *l, const char *tag, ddsrt_etime_t tend_new)
+static void trace_lease_renew (const struct ddsi_lease *l, const char *tag, ddsrt_etime_t tend_new)
 {
   struct ddsi_domaingv const * gv = l->entity->gv;
   if (gv->logconfig.c.mask & DDS_LC_TRACE)
@@ -162,7 +162,7 @@ static void trace_lease_renew (const struct lease *l, const char *tag, ddsrt_eti
   }
 }
 
-void lease_renew (struct lease *l, ddsrt_etime_t tnowE)
+void ddsi_lease_renew (struct ddsi_lease *l, ddsrt_etime_t tnowE)
 {
   ddsrt_etime_t tend_new = ddsrt_etime_add_duration (tnowE, l->tdur);
 
@@ -181,7 +181,7 @@ void lease_renew (struct lease *l, ddsrt_etime_t tnowE)
   trace_lease_renew (l, "", tend_new);
 }
 
-void lease_set_expiry (struct lease *l, ddsrt_etime_t when)
+void ddsi_lease_set_expiry (struct ddsi_lease *l, ddsrt_etime_t when)
 {
   struct ddsi_domaingv * const gv = l->entity->gv;
   bool trigger = false;
@@ -209,14 +209,14 @@ void lease_set_expiry (struct lease *l, ddsrt_etime_t when)
   }
   ddsrt_mutex_unlock (&gv->leaseheap_lock);
 
-  /* see lease_register() */
+  /* see ddsi_lease_register() */
   if (trigger)
     force_lease_check (gv->gcreq_queue);
 }
 
-int64_t check_and_handle_lease_expiration (struct ddsi_domaingv *gv, ddsrt_etime_t tnowE)
+int64_t ddsi_check_and_handle_lease_expiration (struct ddsi_domaingv *gv, ddsrt_etime_t tnowE)
 {
-  struct lease *l;
+  struct ddsi_lease *l;
   int64_t delay;
   ddsrt_mutex_lock (&gv->leaseheap_lock);
   while ((l = ddsrt_fibheap_min (&lease_fhdef, &gv->leaseheap)) != NULL && l->tsched.v <= tnowE.v)

@@ -29,7 +29,7 @@
 #include "dds__entity.h"
 #include "dds__writer.h"
 #include "dds/ddsi/ddsi_guid.h"
-#include "dds/ddsi/q_lease.h"
+#include "ddsi__lease.h"
 #include "dds/ddsi/q_xevent.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/ddsi_participant.h"

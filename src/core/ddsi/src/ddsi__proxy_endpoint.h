@@ -20,7 +20,7 @@
 #include "dds/ddsi/ddsi_guid.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_entity.h"
-#include "dds/ddsi/q_lease.h"
+#include "dds/ddsi/ddsi_lease.h"
 #include "dds/ddsi/ddsi_proxy_endpoint.h"
 
 #if defined (__cplusplus)

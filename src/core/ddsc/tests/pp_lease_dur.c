@@ -16,7 +16,7 @@
 
 #include "dds__entity.h"
 #include "dds/ddsi/ddsi_guid.h"
-#include "dds/ddsi/q_lease.h"
+#include "ddsi__lease.h"
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
 #include "dds/ddsi/ddsi_entity_index.h"
@@ -196,12 +196,12 @@ static bool make_pp0_deaf (const dds_entity_t pp[3], const dds_guid_t ppg[3], co
       // there's always the possibility that adverse timing means it expired just now
       lax_check = true;
     } else {
-      struct lease *lease;
+      struct ddsi_lease *lease;
       if ((lease = ddsrt_atomic_ldvoidp (&proxypp->minl_auto)) != NULL)
       {
         const int64_t old_tend = sub_tref_et ((int64_t) ddsrt_atomic_ld64 (&lease->tend), tref_et);
         const int64_t old_tsched_unsafe = sub_tref_et (((volatile ddsrt_etime_t *) &lease->tsched)->v, tref_et);
-        lease_renew (lease, tdeaf_et);
+        ddsi_lease_renew (lease, tdeaf_et);
         const int64_t new_tend = sub_tref_et ((int64_t) ddsrt_atomic_ld64 (&lease->tend), tref_et);
         const int64_t new_tsched_unsafe = sub_tref_et (((volatile ddsrt_etime_t *) &lease->tsched)->v, tref_et);
         struct guidstr gs;
