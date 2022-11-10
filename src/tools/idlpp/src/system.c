@@ -2753,7 +2753,7 @@ static char *   norm_path(
 #endif
     if (inf) {
         char    debug_buf[ PATHMAX+1];
-        strlcpy( debug_buf, dir, sizeof(debug_buf));
+        (void) strlcpy( debug_buf, dir, sizeof(debug_buf));
         strlcat( debug_buf, fname ? fname : null, sizeof(debug_buf));
 #if SYS_FAMILY == SYS_WIN
         bsl2sl( debug_buf);
@@ -3527,7 +3527,7 @@ static int  open_file(
     /* src_dir is usually NULL.  This is specified to   */
     /* search the source directory of the includer.     */
     if (src_dir && *src_dir != EOS) {
-        strlcpy( dir_fname, src_dir, sizeof(dir_fname));
+        (void) strlcpy( dir_fname, src_dir, sizeof(dir_fname));
         strlcat( dir_fname, filename, sizeof(dir_fname));
         fname = dir_fname;
     } else {

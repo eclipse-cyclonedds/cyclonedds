@@ -762,7 +762,8 @@ DEFBUF *    do_define(
             }
         }
     }
-    strlcpy( macroname, identifier, sizeof(macroname)); /* Remember the name    */
+
+    (void) strlcpy( macroname, identifier, sizeof(macroname)); /* Remember the name    */
 
     in_define = TRUE;                               /* Recognize '#', '##'  */
     if (get_parm() == FALSE) {                      /* Get parameter list   */
