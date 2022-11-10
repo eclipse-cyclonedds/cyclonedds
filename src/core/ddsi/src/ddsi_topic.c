@@ -19,6 +19,7 @@
 #include "ddsi__participant.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
 #include "dds/ddsi/ddsi_topic.h"
+#include "ddsi__topic.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "ddsi__entity_index.h"
 #include "dds/ddsi/ddsi_builtin_topic_if.h"

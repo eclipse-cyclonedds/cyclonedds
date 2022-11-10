@@ -30,6 +30,7 @@
 #include "dds/ddsi/q_thread.h" /* for assert(thread is awake) */
 #include "ddsi__endpoint.h"
 #include "ddsi__gc.h"
+#include "ddsi__topic.h"
 
 struct ddsi_entity_index {
   struct ddsrt_chh *guid_hash;
