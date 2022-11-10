@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef DDSI_WRADDRSET_H
-#define DDSI_WRADDRSET_H
+#ifndef DDSI__WRADDRSET_H
+#define DDSI__WRADDRSET_H
 
 #include <stddef.h>
 #include <stdbool.h>
@@ -22,10 +22,10 @@ extern "C" {
 struct addrset;
 struct ddsi_writer;
 
-struct addrset *compute_writer_addrset (const struct ddsi_writer *wr);
+struct addrset *ddsi_compute_writer_addrset (const struct ddsi_writer *wr);
 
 #if defined (__cplusplus)
 }
 #endif
 
-#endif /* DDSI_WRADDRSET_H */
+#endif /* DDSI__WRADDRSET_H */

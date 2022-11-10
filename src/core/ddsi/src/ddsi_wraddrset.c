@@ -23,7 +23,7 @@
 #include "dds/ddsi/q_bitset.h"
 #include "ddsi__entity_index.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/ddsi_wraddrset.h"
+#include "ddsi__wraddrset.h"
 #include "ddsi__tran.h"
 
 #include "ddsi__udp.h" /* nn_mc4gen_address_t */
@@ -743,7 +743,7 @@ static void wras_drop_covered_readers (int locidx, struct costmap *wm, struct co
   }
 }
 
-struct addrset *compute_writer_addrset (const struct ddsi_writer *wr)
+struct addrset *ddsi_compute_writer_addrset (const struct ddsi_writer *wr)
 {
   struct ddsi_domaingv * const gv = wr->e.gv;
   struct locset *locs;

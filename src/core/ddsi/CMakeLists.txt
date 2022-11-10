@@ -109,7 +109,6 @@ set(hdrs_ddsi
   ddsi_cfgelems.h
   ddsi_config.h
   ddsi_config_impl.h
-  ddsi_wraddrset.h
   ddsi_typelib.h
   ddsi_entity.h
   ddsi_entity_match.h
@@ -189,6 +188,7 @@ set(hdrs_private_ddsi
   ddsi__udp.h
   ddsi__vendor.h
   ddsi__vnet.h
+  ddsi__wraddrset.h
 )
 
 if(ENABLE_LIFESPAN)

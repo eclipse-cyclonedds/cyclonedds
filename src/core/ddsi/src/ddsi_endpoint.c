@@ -26,7 +26,7 @@
 #include "ddsi__nwpart.h"
 #include "ddsi__udp.h"
 #include "dds/ddsi/ddsi_builtin_topic_if.h"
-#include "dds/ddsi/ddsi_wraddrset.h"
+#include "ddsi__wraddrset.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "ddsi__security_omg.h"
 #include "dds/ddsi/ddsi_serdata.h"
@@ -174,7 +174,7 @@ void ddsi_rebuild_writer_addrset (struct ddsi_writer *wr)
   /* swap in new address set; this simple procedure is ok as long as
      wr->as is never accessed without the wr->e.lock held */
   struct addrset * const oldas = wr->as;
-  wr->as = compute_writer_addrset (wr);
+  wr->as = ddsi_compute_writer_addrset (wr);
   unref_addrset (oldas);
 
   /* Computing burst size limit here is a bit of a hack; but anyway ...
