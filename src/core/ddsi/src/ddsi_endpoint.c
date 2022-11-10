@@ -24,7 +24,7 @@
 #include "ddsi__entity_index.h"
 #include "ddsi__mcgroup.h"
 #include "ddsi__nwpart.h"
-#include "dds/ddsi/ddsi_udp.h"
+#include "ddsi__udp.h"
 #include "dds/ddsi/ddsi_builtin_topic_if.h"
 #include "dds/ddsi/ddsi_wraddrset.h"
 #include "dds/ddsi/ddsi_tkmap.h"
@@ -1327,7 +1327,7 @@ static void joinleave_mcast_helper (struct ddsi_domaingv *gv, ddsi_tran_conn_t c
   else /* join all addresses that include this node */
   {
     ddsi_locator_t l = *n;
-    nn_udpv4mcgen_address_t l1;
+    ddsi_udpv4mcgen_address_t l1;
     uint32_t iph;
     memcpy (&l1, l.address, sizeof (l1));
     l.kind = DDSI_LOCATOR_KIND_UDPv4;

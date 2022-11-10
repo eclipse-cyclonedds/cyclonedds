@@ -85,7 +85,6 @@ set(srcs_ddsi
 
 set(hdrs_ddsi
   ddsi_tran.h
-  ddsi_udp.h
   ddsi_vnet.h
   ddsi_locator.h
   ddsi_security_omg.h
@@ -189,6 +188,7 @@ set(hdrs_private_ddsi
   ddsi__topic.h
   ddsi__tran.h
   ddsi__typelib.h
+  ddsi__udp.h
 )
 
 if(ENABLE_LIFESPAN)

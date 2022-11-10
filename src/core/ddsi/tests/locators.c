@@ -16,7 +16,7 @@
 #include "dds/ddsrt/sockets.h"
 #include "ddsi__tran.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/ddsi_udp.h"
+#include "ddsi__udp.h"
 #include "ddsi__tcp.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/q_rtps.h"

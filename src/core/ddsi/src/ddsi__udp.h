@@ -9,20 +9,23 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef _DDSI_UDP_H_
-#define _DDSI_UDP_H_
+#ifndef DDSI__UDP_H
+#define DDSI__UDP_H
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
 
-typedef struct nn_udpv4mcgen_address {
+struct in_addr;
+struct ddsi_domaingv;
+
+typedef struct ddsi_udpv4mcgen_address {
   /* base IPv4 MC address is ipv4, host bits are bits base .. base+count-1, this machine is bit idx */
   struct in_addr ipv4;
   uint8_t base;
   uint8_t count;
   uint8_t idx; /* must be last: then sorting will put them consecutively */
-} nn_udpv4mcgen_address_t;
+} ddsi_udpv4mcgen_address_t;
 
 int ddsi_udp_init (struct ddsi_domaingv *gv);
 
@@ -30,4 +33,4 @@ int ddsi_udp_init (struct ddsi_domaingv *gv);
 }
 #endif
 
-#endif
+#endif /* DDSI__UDP_H */

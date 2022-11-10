@@ -26,7 +26,7 @@
 #include "dds/ddsi/ddsi_wraddrset.h"
 #include "ddsi__tran.h"
 
-#include "dds/ddsi/ddsi_udp.h" /* nn_mc4gen_address_t */
+#include "ddsi__udp.h" /* nn_mc4gen_address_t */
 
 // For each (reader, locator) pair, the coverage map gives:
 // INT32_MIN if the reader isn't covered by this locator, >= INT32_MIN+1 if it is
@@ -263,8 +263,8 @@ static int wras_compare_locs (const void *va, const void *vb)
   else
   {
     ddsi_xlocator_t u = *a, v = *b;
-    nn_udpv4mcgen_address_t *u1 = (nn_udpv4mcgen_address_t *) u.c.address;
-    nn_udpv4mcgen_address_t *v1 = (nn_udpv4mcgen_address_t *) v.c.address;
+    ddsi_udpv4mcgen_address_t *u1 = (ddsi_udpv4mcgen_address_t *) u.c.address;
+    ddsi_udpv4mcgen_address_t *v1 = (ddsi_udpv4mcgen_address_t *) v.c.address;
     u1->idx = v1->idx = 0;
     return compare_xlocators (&u, &v);
   }
@@ -474,7 +474,7 @@ static bool wras_cover_locatorset (struct ddsi_domaingv const * const gv, struct
     }
     else if (l->c.kind == DDSI_LOCATOR_KIND_UDPv4MCGEN)
     {
-      const nn_udpv4mcgen_address_t *l1 = (const nn_udpv4mcgen_address_t *) l->c.address;
+      const ddsi_udpv4mcgen_address_t *l1 = (const ddsi_udpv4mcgen_address_t *) l->c.address;
       assert (l1->base + l1->idx <= 31 - CI_MULTICAST_MCGEN_OFFSET);
       x = (cover_info_t) ((CI_MULTICAST_MCGEN_OFFSET + l1->base + l1->idx) << CI_MULTICAST_SHIFT);
     }
@@ -687,7 +687,7 @@ static void wras_add_locator (const struct ddsi_domaingv *gv, struct addrset *ne
   else /* convert MC gen to the correct multicast address */
   {
     const int nreaders = cover_get_nreaders (covered);
-    nn_udpv4mcgen_address_t l1;
+    ddsi_udpv4mcgen_address_t l1;
     uint32_t iph, ipn;
     int i;
     tmploc = locs->locs[locidx];

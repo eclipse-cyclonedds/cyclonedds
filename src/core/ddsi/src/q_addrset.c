@@ -24,7 +24,7 @@
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/q_addrset.h"
 #include "dds/ddsi/ddsi_domaingv.h" /* gv.mattr */
-#include "dds/ddsi/ddsi_udp.h" /* nn_mc4gen_address_t */
+#include "ddsi__udp.h" /* nn_mc4gen_address_t */
 #include "ddsi__portmapping.h"
 
 /* So what does one do with const & mutexes? I need to take lock in a

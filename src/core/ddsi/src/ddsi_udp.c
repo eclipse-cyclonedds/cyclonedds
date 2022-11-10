@@ -20,7 +20,7 @@
 #include "dds/ddsrt/static_assert.h"
 #include "ddsi_eth.h"
 #include "ddsi__tran.h"
-#include "dds/ddsi/ddsi_udp.h"
+#include "ddsi__udp.h"
 #include "ddsi__ipaddr.h"
 #include "ddsi__mcgroup.h"
 #include "dds/ddsi/ddsi_config_impl.h"
@@ -731,7 +731,7 @@ static int ddsi_udp_is_mcaddr (const struct ddsi_tran_factory *tran, const ddsi_
       DDSRT_WARNING_GNUC_ON(sign-conversion)
     }
     case DDSI_LOCATOR_KIND_UDPv4MCGEN: {
-      const nn_udpv4mcgen_address_t *mcgen = (const nn_udpv4mcgen_address_t *) loc->address;
+      const ddsi_udpv4mcgen_address_t *mcgen = (const ddsi_udpv4mcgen_address_t *) loc->address;
       DDSRT_WARNING_GNUC_OFF(sign-conversion)
       return IN_MULTICAST (ntohl (mcgen->ipv4.s_addr));
       DDSRT_WARNING_GNUC_ON(sign-conversion)
@@ -807,7 +807,7 @@ static enum ddsi_locator_from_string_result mcgen_address_from_string (const str
   if (!ddsi_udp_is_mcaddr (tran_cmn, loc))
     return AFSR_INVALID;
 
-  nn_udpv4mcgen_address_t x;
+  ddsi_udpv4mcgen_address_t x;
   DDSRT_STATIC_ASSERT (sizeof (x) <= sizeof (loc->address));
   memset (&x, 0, sizeof(x));
   memcpy (&x.ipv4, loc->address + 12, 4);
@@ -836,7 +836,7 @@ static char *ddsi_udp_locator_to_string (char *dst, size_t sizeof_dst, const dds
     return ddsi_ipaddr_to_string(dst, sizeof_dst, loc, with_port, conn ? conn->m_interf : NULL);
   } else {
     struct sockaddr_in src;
-    nn_udpv4mcgen_address_t mcgen;
+    ddsi_udpv4mcgen_address_t mcgen;
     size_t pos;
     int cnt;
     assert(sizeof_dst > 1);

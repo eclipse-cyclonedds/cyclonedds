@@ -32,7 +32,7 @@
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/ddsi_vendor.h"
-#include "dds/ddsi/ddsi_udp.h" /* nn_mc4gen_address_t */
+#include "ddsi__udp.h" /* nn_mc4gen_address_t */
 
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_domaingv.h"
@@ -2742,7 +2742,7 @@ static enum do_locator_result do_locator (ddsi_locators_t *ls, uint64_t present,
         return DOLOC_IGNORED;
       else
       {
-        const nn_udpv4mcgen_address_t *x = (const nn_udpv4mcgen_address_t *) loc.address;
+        const ddsi_udpv4mcgen_address_t *x = (const ddsi_udpv4mcgen_address_t *) loc.address;
         if (!ddsi_is_valid_port (fact, loc.port))
           return DOLOC_INVALID;
         if (!ddsi_factory_supports (fact, DDSI_LOCATOR_KIND_UDPv4))

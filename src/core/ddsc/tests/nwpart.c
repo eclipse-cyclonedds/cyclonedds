@@ -22,7 +22,7 @@
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "ddsi__nwpart.h"
-#include "dds/ddsi/ddsi_udp.h"
+#include "ddsi__udp.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/q_misc.h"
 #include "dds/ddsi/q_addrset.h"
