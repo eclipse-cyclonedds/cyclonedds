@@ -32,6 +32,7 @@
 #include "ddsi__proxy_endpoint.h"
 #include "ddsi__protocol.h"
 #include "ddsi__tran.h"
+#include "ddsi__typelib.h"
 #include "dds/dds.h"
 
 static ddsi_entityid_t builtin_entityid_match (ddsi_entityid_t x)

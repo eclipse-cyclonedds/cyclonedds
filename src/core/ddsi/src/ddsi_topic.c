@@ -27,6 +27,7 @@
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/q_misc.h"
 #include "ddsi__gc.h"
+#include "ddsi__typelib.h"
 #include "dds/dds.h"
 
 #ifdef DDS_HAS_TOPIC_DISCOVERY

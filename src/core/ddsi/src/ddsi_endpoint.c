@@ -41,6 +41,7 @@
 #include "ddsi__gc.h"
 #include "ddsi__topic.h"
 #include "ddsi__tran.h"
+#include "ddsi__typelib.h"
 #include "dds/dds.h"
 
 static dds_return_t delete_writer_nolinger_locked (struct ddsi_writer *wr);

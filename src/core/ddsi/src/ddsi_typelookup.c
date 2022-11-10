@@ -24,7 +24,6 @@
 #include "ddsi__entity_index.h"
 #include "dds/ddsi/ddsi_xt_typelookup.h"
 #include "dds/ddsi/ddsi_typelookup.h"
-#include "dds/ddsi/ddsi_typelib.h"
 #include "ddsi__xt_impl.h"
 #include "dds/ddsi/ddsi_typebuilder.h"
 #include "dds/cdr/dds_cdrstream.h"
@@ -38,6 +37,7 @@
 #include "dds/ddsi/q_transmit.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/q_misc.h"
+#include "ddsi__typelib.h"
 
 static bool participant_builtin_writers_ready (struct ddsi_participant *pp)
 {

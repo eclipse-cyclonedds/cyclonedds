@@ -20,6 +20,7 @@
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/q_misc.h"
 #include "dds/ddsi/q_qosmatch.h"
+#include "ddsi__typelib.h"
 #include "dds/dds.h"
 
 static int is_wildcard_partition (const char *str)

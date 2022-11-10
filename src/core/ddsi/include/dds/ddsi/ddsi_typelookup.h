@@ -40,6 +40,7 @@ struct receiver_state;
 struct ddsi_serdata;
 struct ddsi_sertype;
 struct ddsi_type;
+struct ddsi_generic_proxy_endpoint;
 
 /**
  * Send a type lookup request message in order to request type information for the

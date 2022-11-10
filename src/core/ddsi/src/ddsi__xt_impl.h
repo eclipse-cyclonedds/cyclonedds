@@ -21,6 +21,7 @@
 #include "dds/ddsi/ddsi_xt_typeinfo.h"
 #include "dds/ddsi/ddsi_xt_typemap.h"
 #include "ddsi__list_tmpl.h"
+#include "ddsi__typelib.h"
 
 #if defined (__cplusplus)
 extern "C" {

@@ -24,6 +24,7 @@
 #include "dds/ddsi/ddsi_xt_typemap.h"
 #include "dds/ddsi/ddsi_typebuilder.h"
 #include "ddsi__list_tmpl.h"
+#include "ddsi__typelib.h"
 
 #define OPS_CHUNK_SZ 100u
 #define XCDR1_MAX_ALIGN 8

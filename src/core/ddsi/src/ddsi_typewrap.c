@@ -22,7 +22,7 @@
 #include "ddsi__xt_impl.h"
 #include "dds/ddsi/ddsi_xt_typemap.h"
 #include "dds/ddsi/ddsi_typelookup.h"
-#include "dds/ddsi/ddsi_typelib.h"
+#include "ddsi__typelib.h"
 #include "dds/ddsc/dds_public_impl.h"
 
 #define MEMBER_FLAG_COLLECTION_ELEMENT 1u
