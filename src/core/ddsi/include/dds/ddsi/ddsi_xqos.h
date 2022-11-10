@@ -15,7 +15,7 @@
 #include "dds/features.h"
 
 #include "dds/ddsc/dds_public_qosdefs.h"
-#include "dds/ddsi/q_protocol.h"
+#include "dds/ddsi/ddsi_protocol.h"
 #include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/q_log.h"
 

@@ -384,9 +384,9 @@ static void suite_decode_rtps_message_fini(void)
 static unsigned char submsg_header_endianness_flag (enum ddsrt_byte_order_selector bo)
 {
 #if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
-  return (unsigned char) ((bo == DDSRT_BOSEL_BE) ? 0 : SMFLAG_ENDIANNESS);
+  return (unsigned char) ((bo == DDSRT_BOSEL_BE) ? 0 : DDSI_RTPS_SUBMESSAGE_FLAG_ENDIANNESS);
 #else
-  return (unsigned char) ((bo == DDSRT_BO_LE) ? SMFLAG_ENDIANNESS : 0);
+  return (unsigned char) ((bo == DDSRT_BO_LE) ? DDSI_RTPS_SUBMESSAGE_FLAG_ENDIANNESS : 0);
 #endif
 }
 
@@ -451,33 +451,33 @@ static bool check_decoded_rtps_message(const DDS_Security_OctetSeq *decoded, con
   unsigned char *d_ptr, *o_ptr;
   size_t d_len = decoded->_length;
   size_t o_len = orig->_length;
-  InfoSRC_t *info_src;
+  ddsi_rtps_info_src_t *info_src;
 
-  if (d_len < RTPS_MESSAGE_HEADER_SIZE)
+  if (d_len < DDSI_RTPS_MESSAGE_HEADER_SIZE)
   {
     CU_FAIL("decoded message does not start with an RTPS header");
     return false;
   }
 
-  if (memcmp(decoded->_buffer, orig->_buffer, RTPS_MESSAGE_HEADER_SIZE) != 0)
+  if (memcmp(decoded->_buffer, orig->_buffer, DDSI_RTPS_MESSAGE_HEADER_SIZE) != 0)
   {
     CU_FAIL("decoded message does not start with an RTPS header");
     return false;
   }
-  d_ptr = decoded->_buffer + RTPS_MESSAGE_HEADER_SIZE;
-  o_ptr = orig->_buffer + RTPS_MESSAGE_HEADER_SIZE;
-  d_len -= RTPS_MESSAGE_HEADER_SIZE;
-  o_len -= RTPS_MESSAGE_HEADER_SIZE;
+  d_ptr = decoded->_buffer + DDSI_RTPS_MESSAGE_HEADER_SIZE;
+  o_ptr = orig->_buffer + DDSI_RTPS_MESSAGE_HEADER_SIZE;
+  d_len -= DDSI_RTPS_MESSAGE_HEADER_SIZE;
+  o_len -= DDSI_RTPS_MESSAGE_HEADER_SIZE;
 
-  if (d_len < sizeof(InfoSRC_t))
+  if (d_len < sizeof(ddsi_rtps_info_src_t))
   {
     CU_FAIL("decoded message does not start with an InfoSRC submessage");
     return false;
   }
 
-  info_src = (InfoSRC_t *)d_ptr;
-  d_ptr += info_src->smhdr.octetsToNextHeader + RTPS_SUBMESSAGE_HEADER_SIZE;
-  d_len -= info_src->smhdr.octetsToNextHeader + RTPS_SUBMESSAGE_HEADER_SIZE;
+  info_src = (ddsi_rtps_info_src_t *)d_ptr;
+  d_ptr += info_src->smhdr.octetsToNextHeader + DDSI_RTPS_SUBMESSAGE_HEADER_SIZE;
+  d_len -= info_src->smhdr.octetsToNextHeader + DDSI_RTPS_SUBMESSAGE_HEADER_SIZE;
 
   if (d_len != o_len)
   {

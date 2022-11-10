@@ -225,16 +225,16 @@ uint16_t ddsi_sertype_get_native_enc_identifier (uint32_t enc_version, uint32_t 
 
   switch (enc_version)
   {
-    case DDS_CDR_ENC_VERSION_1:
-      if (enc_format == DDS_CDR_ENC_FORMAT_PL)
-        return CONCAT(PL_CDR, SUFFIX);
-      return CONCAT(CDR, SUFFIX);
-    case DDS_CDR_ENC_VERSION_2:
-      if (enc_format == DDS_CDR_ENC_FORMAT_PL)
-        return CONCAT(PL_CDR2, SUFFIX);
-      if (enc_format == DDS_CDR_ENC_FORMAT_DELIMITED)
-        return CONCAT(D_CDR2, SUFFIX);
-      return CONCAT(CDR2, SUFFIX);
+    case DDSI_RTPS_CDR_ENC_VERSION_1:
+      if (enc_format == DDSI_RTPS_CDR_ENC_FORMAT_PL)
+        return CONCAT(DDSI_RTPS_PL_CDR, SUFFIX);
+      return CONCAT(DDSI_RTPS_CDR, SUFFIX);
+    case DDSI_RTPS_CDR_ENC_VERSION_2:
+      if (enc_format == DDSI_RTPS_CDR_ENC_FORMAT_PL)
+        return CONCAT(DDSI_RTPS_PL_CDR2, SUFFIX);
+      if (enc_format == DDSI_RTPS_CDR_ENC_FORMAT_DELIMITED)
+        return CONCAT(DDSI_RTPS_D_CDR2, SUFFIX);
+      return CONCAT(DDSI_RTPS_CDR2, SUFFIX);
     default:
       abort (); /* unsupported */
   }
@@ -248,11 +248,11 @@ uint16_t ddsi_sertype_extensibility_enc_format (enum dds_cdr_type_extensibility 
   switch (type_extensibility)
   {
     case DDS_CDR_TYPE_EXT_FINAL:
-      return DDS_CDR_ENC_FORMAT_PLAIN;
+      return DDSI_RTPS_CDR_ENC_FORMAT_PLAIN;
     case DDS_CDR_TYPE_EXT_APPENDABLE:
-      return DDS_CDR_ENC_FORMAT_DELIMITED;
+      return DDSI_RTPS_CDR_ENC_FORMAT_DELIMITED;
     case DDS_CDR_TYPE_EXT_MUTABLE:
-      return DDS_CDR_ENC_FORMAT_PL;
+      return DDSI_RTPS_CDR_ENC_FORMAT_PL;
     default:
       abort ();
   }
@@ -262,14 +262,14 @@ uint32_t ddsi_sertype_enc_id_xcdr_version (uint16_t cdr_identifier)
 {
   switch (cdr_identifier)
   {
-    case CDR_LE: case CDR_BE:
-      return DDS_CDR_ENC_VERSION_1;
-    case CDR2_LE: case CDR2_BE:
-    case D_CDR2_LE: case D_CDR2_BE:
-    case PL_CDR2_LE: case PL_CDR2_BE:
-      return DDS_CDR_ENC_VERSION_2;
+    case DDSI_RTPS_CDR_LE: case DDSI_RTPS_CDR_BE:
+      return DDSI_RTPS_CDR_ENC_VERSION_1;
+    case DDSI_RTPS_CDR2_LE: case DDSI_RTPS_CDR2_BE:
+    case DDSI_RTPS_D_CDR2_LE: case DDSI_RTPS_D_CDR2_BE:
+    case DDSI_RTPS_PL_CDR2_LE: case DDSI_RTPS_PL_CDR2_BE:
+      return DDSI_RTPS_CDR_ENC_VERSION_2;
     default:
-      return DDS_CDR_ENC_VERSION_UNDEF;
+      return DDSI_RTPS_CDR_ENC_VERSION_UNDEF;
   }
 }
 
@@ -277,13 +277,13 @@ uint32_t ddsi_sertype_enc_id_enc_format (uint16_t cdr_identifier)
 {
   switch (cdr_identifier)
   {
-    case CDR_LE: case CDR_BE:
-    case CDR2_LE: case CDR2_BE:
-      return DDS_CDR_ENC_FORMAT_PLAIN;
-    case D_CDR2_LE: case D_CDR2_BE:
-      return DDS_CDR_ENC_FORMAT_DELIMITED;
-    case PL_CDR2_LE: case PL_CDR2_BE:
-      return DDS_CDR_ENC_FORMAT_PL;
+    case DDSI_RTPS_CDR_LE: case DDSI_RTPS_CDR_BE:
+    case DDSI_RTPS_CDR2_LE: case DDSI_RTPS_CDR2_BE:
+      return DDSI_RTPS_CDR_ENC_FORMAT_PLAIN;
+    case DDSI_RTPS_D_CDR2_LE: case DDSI_RTPS_D_CDR2_BE:
+      return DDSI_RTPS_CDR_ENC_FORMAT_DELIMITED;
+    case DDSI_RTPS_PL_CDR2_LE: case DDSI_RTPS_PL_CDR2_BE:
+      return DDSI_RTPS_CDR_ENC_FORMAT_PL;
     default:
       abort ();
   }

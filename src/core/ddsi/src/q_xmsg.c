@@ -25,7 +25,7 @@
 
 #include "dds/ddsrt/avl.h"
 
-#include "dds/ddsi/q_protocol.h"
+#include "ddsi__protocol.h"
 #include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/q_rtps.h"
@@ -53,8 +53,8 @@ struct nn_xmsgpool {
 };
 
 struct nn_xmsg_data {
-  InfoSRC_t src;
-  InfoDST_t dst;
+  ddsi_rtps_info_src_t src;
+  ddsi_rtps_info_dst_t dst;
   char payload[]; /* of size maxsz */
 };
 
@@ -91,7 +91,7 @@ struct nn_xmsg {
     struct {
       ddsi_guid_t wrguid;
       seqno_t wrseq;
-      nn_fragment_number_t wrfragid;
+      ddsi_fragment_number_t wrfragid;
       /* readerId encodes offset to destination readerId or 0 -- used
          only for rexmits, but more convenient to combine both into
          one struct in the union */
@@ -152,10 +152,10 @@ struct nn_xpack
 {
   struct nn_xpack *sendq_next;
   bool async_mode;
-  Header_t hdr;
-  MsgLen_t msg_len;
+  ddsi_rtps_header_t hdr;
+  ddsi_rtps_msg_len_t msg_len;
   ddsi_guid_prefix_t *last_src;
-  InfoDST_t *last_dst;
+  ddsi_rtps_info_dst_t *last_dst;
   int64_t maxdelay;
   unsigned packetid;
   ddsrt_atomic_uint32_t calls;
@@ -279,15 +279,15 @@ static struct nn_xmsg *nn_xmsg_allocnew (struct nn_xmsgpool *pool, size_t expect
     ddsrt_free (m);
     return NULL;
   }
-  d->src.smhdr.submessageId = SMID_INFO_SRC;
-  d->src.smhdr.flags = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? SMFLAG_ENDIANNESS : 0);
-  d->src.smhdr.octetsToNextHeader = sizeof (d->src) - (offsetof (InfoSRC_t, smhdr.octetsToNextHeader) + 2);
+  d->src.smhdr.submessageId = DDSI_RTPS_SMID_INFO_SRC;
+  d->src.smhdr.flags = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? DDSI_RTPS_SUBMESSAGE_FLAG_ENDIANNESS : 0);
+  d->src.smhdr.octetsToNextHeader = sizeof (d->src) - (offsetof (ddsi_rtps_info_src_t, smhdr.octetsToNextHeader) + 2);
   d->src.unused = 0;
-  d->src.version.major = RTPS_MAJOR;
-  d->src.version.minor = RTPS_MINOR;
+  d->src.version.major = DDSI_RTPS_MAJOR;
+  d->src.version.minor = DDSI_RTPS_MINOR;
   d->src.vendorid = NN_VENDORID_ECLIPSE;
-  d->dst.smhdr.submessageId = SMID_INFO_DST;
-  d->dst.smhdr.flags = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? SMFLAG_ENDIANNESS : 0);
+  d->dst.smhdr.submessageId = DDSI_RTPS_SMID_INFO_DST;
+  d->dst.smhdr.flags = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? DDSI_RTPS_SUBMESSAGE_FLAG_ENDIANNESS : 0);
   d->dst.smhdr.octetsToNextHeader = sizeof (d->dst.guid_prefix);
   nn_xmsg_reinit (m, kind);
   return m;
@@ -355,36 +355,36 @@ void nn_xmsg_free (struct nn_xmsg *m)
 /************************************************/
 
 #ifndef NDEBUG
-static int submsg_is_compatible (const struct nn_xmsg *msg, SubmessageKind_t smkind)
+static int submsg_is_compatible (const struct nn_xmsg *msg, ddsi_rtps_submessage_kind_t smkind)
 {
   switch (msg->kind)
   {
     case NN_XMSG_KIND_CONTROL:
       switch (smkind)
       {
-        case SMID_PAD:
+        case DDSI_RTPS_SMID_PAD:
           /* never use this one -- so let's crash when we do :) */
           return 0;
-        case SMID_INFO_SRC: case SMID_INFO_REPLY_IP4:
-        case SMID_INFO_DST: case SMID_INFO_REPLY:
+        case DDSI_RTPS_SMID_INFO_SRC: case DDSI_RTPS_SMID_INFO_REPLY_IP4:
+        case DDSI_RTPS_SMID_INFO_DST: case DDSI_RTPS_SMID_INFO_REPLY:
           /* we never generate these directly */
           return 0;
-        case SMID_INFO_TS:
-        case SMID_ACKNACK: case SMID_HEARTBEAT:
-        case SMID_GAP: case SMID_NACK_FRAG:
-        case SMID_HEARTBEAT_FRAG:
-        case SMID_ADLINK_MSG_LEN:
-        case SMID_ADLINK_ENTITY_ID:
+        case DDSI_RTPS_SMID_INFO_TS:
+        case DDSI_RTPS_SMID_ACKNACK: case DDSI_RTPS_SMID_HEARTBEAT:
+        case DDSI_RTPS_SMID_GAP: case DDSI_RTPS_SMID_NACK_FRAG:
+        case DDSI_RTPS_SMID_HEARTBEAT_FRAG:
+        case DDSI_RTPS_SMID_ADLINK_MSG_LEN:
+        case DDSI_RTPS_SMID_ADLINK_ENTITY_ID:
           /* normal control stuff is ok */
           return 1;
-        case SMID_DATA: case SMID_DATA_FRAG:
+        case DDSI_RTPS_SMID_DATA: case DDSI_RTPS_SMID_DATA_FRAG:
           /* but data is strictly verboten */
           return 0;
-        case SMID_SEC_BODY:
-        case SMID_SEC_PREFIX:
-        case SMID_SEC_POSTFIX:
-        case SMID_SRTPS_PREFIX:
-        case SMID_SRTPS_POSTFIX:
+        case DDSI_RTPS_SMID_SEC_BODY:
+        case DDSI_RTPS_SMID_SEC_PREFIX:
+        case DDSI_RTPS_SMID_SEC_POSTFIX:
+        case DDSI_RTPS_SMID_SRTPS_PREFIX:
+        case DDSI_RTPS_SMID_SRTPS_POSTFIX:
           /* and the security sm are basically data. */
           return 0;
       }
@@ -395,34 +395,34 @@ static int submsg_is_compatible (const struct nn_xmsg *msg, SubmessageKind_t smk
     case NN_XMSG_KIND_DATA_REXMIT_NOMERGE:
       switch (smkind)
       {
-        case SMID_PAD:
+        case DDSI_RTPS_SMID_PAD:
           /* never use this one -- so let's crash when we do :) */
           return 0;
-        case SMID_INFO_SRC: case SMID_INFO_REPLY_IP4:
-        case SMID_INFO_DST: case SMID_INFO_REPLY:
+        case DDSI_RTPS_SMID_INFO_SRC: case DDSI_RTPS_SMID_INFO_REPLY_IP4:
+        case DDSI_RTPS_SMID_INFO_DST: case DDSI_RTPS_SMID_INFO_REPLY:
           /* we never generate these directly */
           return 0;
-        case SMID_INFO_TS: case SMID_DATA: case SMID_DATA_FRAG:
+        case DDSI_RTPS_SMID_INFO_TS: case DDSI_RTPS_SMID_DATA: case DDSI_RTPS_SMID_DATA_FRAG:
           /* Timestamp only preceding data; data may be present just
              once for rexmits.  The readerId offset can be used to
              ensure rexmits have only one data submessages -- the test
              won't work for initial transmits, but those currently
              don't allow a readerId */
           return msg->kindspecific.data.readerId_off == 0;
-        case SMID_SEC_BODY:
-        case SMID_SEC_PREFIX:
-        case SMID_SEC_POSTFIX:
-        case SMID_SRTPS_PREFIX:
-        case SMID_SRTPS_POSTFIX:
+        case DDSI_RTPS_SMID_SEC_BODY:
+        case DDSI_RTPS_SMID_SEC_PREFIX:
+        case DDSI_RTPS_SMID_SEC_POSTFIX:
+        case DDSI_RTPS_SMID_SRTPS_PREFIX:
+        case DDSI_RTPS_SMID_SRTPS_POSTFIX:
           /* Just do the same as 'normal' data sm. */
           return msg->kindspecific.data.readerId_off == 0;
-        case SMID_ACKNACK:
-        case SMID_HEARTBEAT:
-        case SMID_GAP:
-        case SMID_NACK_FRAG:
-        case SMID_HEARTBEAT_FRAG:
-        case SMID_ADLINK_MSG_LEN:
-        case SMID_ADLINK_ENTITY_ID:
+        case DDSI_RTPS_SMID_ACKNACK:
+        case DDSI_RTPS_SMID_HEARTBEAT:
+        case DDSI_RTPS_SMID_GAP:
+        case DDSI_RTPS_SMID_NACK_FRAG:
+        case DDSI_RTPS_SMID_HEARTBEAT_FRAG:
+        case DDSI_RTPS_SMID_ADLINK_MSG_LEN:
+        case DDSI_RTPS_SMID_ADLINK_ENTITY_ID:
           /* anything else is strictly verboten */
           return 0;
       }
@@ -462,7 +462,7 @@ enum nn_xmsg_kind nn_xmsg_kind (const struct nn_xmsg *m)
   return m->kind;
 }
 
-void nn_xmsg_guid_seq_fragid (const struct nn_xmsg *m, ddsi_guid_t *wrguid, seqno_t *wrseq, nn_fragment_number_t *wrfragid)
+void nn_xmsg_guid_seq_fragid (const struct nn_xmsg *m, ddsi_guid_t *wrguid, seqno_t *wrseq, ddsi_fragment_number_t *wrfragid)
 {
   assert (m->kind != NN_XMSG_KIND_CONTROL);
   *wrguid = m->kindspecific.data.wrguid;
@@ -476,39 +476,39 @@ void *nn_xmsg_payload (size_t *sz, struct nn_xmsg *m)
   return m->data->payload;
 }
 
-void nn_xmsg_payload_to_plistsample (struct ddsi_plist_sample *dst, nn_parameterid_t keyparam, const struct nn_xmsg *m)
+void nn_xmsg_payload_to_plistsample (struct ddsi_plist_sample *dst, ddsi_parameterid_t keyparam, const struct nn_xmsg *m)
 {
   dst->blob = m->data->payload;
   dst->size = m->sz;
   dst->keyparam = keyparam;
 }
 
-void nn_xmsg_submsg_init (struct nn_xmsg *msg, struct nn_xmsg_marker marker, SubmessageKind_t smkind)
+void nn_xmsg_submsg_init (struct nn_xmsg *msg, struct nn_xmsg_marker marker, ddsi_rtps_submessage_kind_t smkind)
 {
-  SubmessageHeader_t *hdr = (SubmessageHeader_t *) (msg->data->payload + marker.offset);
+  ddsi_rtps_submessage_header_t *hdr = (ddsi_rtps_submessage_header_t *) (msg->data->payload + marker.offset);
   assert (submsg_is_compatible (msg, smkind));
   hdr->submessageId = (unsigned char)smkind;
-  hdr->flags = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? SMFLAG_ENDIANNESS : 0);
+  hdr->flags = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? DDSI_RTPS_SUBMESSAGE_FLAG_ENDIANNESS : 0);
   hdr->octetsToNextHeader = 0;
 }
 
 void nn_xmsg_submsg_setnext (struct nn_xmsg *msg, struct nn_xmsg_marker marker)
 {
-  SubmessageHeader_t *hdr = (SubmessageHeader_t *) (msg->data->payload + marker.offset);
+  ddsi_rtps_submessage_header_t *hdr = (ddsi_rtps_submessage_header_t *) (msg->data->payload + marker.offset);
   unsigned plsize = msg->refd_payload ? (unsigned) msg->refd_payload_iov.iov_len : 0;
   assert ((msg->sz % 4) == 0);
   assert ((plsize % 4) == 0);
-  assert ((unsigned) (msg->data->payload + msg->sz + plsize - (char *) hdr) >= RTPS_SUBMESSAGE_HEADER_SIZE);
+  assert ((unsigned) (msg->data->payload + msg->sz + plsize - (char *) hdr) >= DDSI_RTPS_SUBMESSAGE_HEADER_SIZE);
   hdr->octetsToNextHeader = (unsigned short)
-    ((unsigned)(msg->data->payload + msg->sz + plsize - (char *) hdr) - RTPS_SUBMESSAGE_HEADER_SIZE);
+    ((unsigned)(msg->data->payload + msg->sz + plsize - (char *) hdr) - DDSI_RTPS_SUBMESSAGE_HEADER_SIZE);
 }
 
 #ifdef DDS_HAS_SECURITY
 
 size_t nn_xmsg_submsg_size (struct nn_xmsg *msg, struct nn_xmsg_marker marker)
 {
-  SubmessageHeader_t *hdr = (SubmessageHeader_t*)nn_xmsg_submsg_from_marker(msg, marker);
-  return align4u(hdr->octetsToNextHeader + sizeof(SubmessageHeader_t));
+  ddsi_rtps_submessage_header_t *hdr = (ddsi_rtps_submessage_header_t*)nn_xmsg_submsg_from_marker(msg, marker);
+  return align4u(hdr->octetsToNextHeader + sizeof(ddsi_rtps_submessage_header_t));
 }
 
 void nn_xmsg_submsg_remove(struct nn_xmsg *msg, struct nn_xmsg_marker sm_marker)
@@ -640,22 +640,22 @@ void nn_xmsg_shrink (struct nn_xmsg *m, struct nn_xmsg_marker marker, size_t sz)
 
 void nn_xmsg_add_timestamp (struct nn_xmsg *m, ddsrt_wctime_t t)
 {
-  InfoTimestamp_t * ts;
+  ddsi_rtps_info_ts_t * ts;
   struct nn_xmsg_marker sm;
 
-  ts = (InfoTimestamp_t*) nn_xmsg_append (m, &sm, sizeof (InfoTimestamp_t));
-  nn_xmsg_submsg_init (m, sm, SMID_INFO_TS);
+  ts = (ddsi_rtps_info_ts_t*) nn_xmsg_append (m, &sm, sizeof (ddsi_rtps_info_ts_t));
+  nn_xmsg_submsg_init (m, sm, DDSI_RTPS_SMID_INFO_TS);
   ts->time = ddsi_wctime_to_ddsi_time (t);
   nn_xmsg_submsg_setnext (m, sm);
 }
 
 void nn_xmsg_add_entityid (struct nn_xmsg * m)
 {
-  EntityId_t * eid;
+  ddsi_rtps_entityid_t * eid;
   struct nn_xmsg_marker sm;
 
-  eid = (EntityId_t*) nn_xmsg_append (m, &sm, sizeof (EntityId_t));
-  nn_xmsg_submsg_init (m, sm, SMID_ADLINK_ENTITY_ID);
+  eid = (ddsi_rtps_entityid_t*) nn_xmsg_append (m, &sm, sizeof (ddsi_rtps_entityid_t));
+  nn_xmsg_submsg_init (m, sm, DDSI_RTPS_SMID_ADLINK_ENTITY_ID);
   eid->entityid.u = NN_ENTITYID_PARTICIPANT;
   nn_xmsg_submsg_setnext (m, sm);
 }
@@ -909,20 +909,20 @@ void nn_xmsg_setwriterseq (struct nn_xmsg *msg, const ddsi_guid_t *wrguid, seqno
   msg->kindspecific.data.wrseq = wrseq;
 }
 
-void nn_xmsg_setwriterseq_fragid (struct nn_xmsg *msg, const ddsi_guid_t *wrguid, seqno_t wrseq, nn_fragment_number_t wrfragid)
+void nn_xmsg_setwriterseq_fragid (struct nn_xmsg *msg, const ddsi_guid_t *wrguid, seqno_t wrseq, ddsi_fragment_number_t wrfragid)
 {
   nn_xmsg_setwriterseq (msg, wrguid, wrseq);
   msg->kindspecific.data.wrfragid = wrfragid;
 }
 
-void *nn_xmsg_addpar_bo (struct nn_xmsg *m, nn_parameterid_t pid, size_t len, enum ddsrt_byte_order_selector bo)
+void *nn_xmsg_addpar_bo (struct nn_xmsg *m, ddsi_parameterid_t pid, size_t len, enum ddsrt_byte_order_selector bo)
 {
   const size_t len4 = (len + 3) & ~(size_t)3; /* must alloc a multiple of 4 */
-  nn_parameter_t *phdr;
+  ddsi_parameter_t *phdr;
   char *p;
   assert (len4 < UINT16_MAX); /* FIXME: return error */
   m->have_params = 1;
-  phdr = nn_xmsg_append (m, NULL, sizeof (nn_parameter_t) + len4);
+  phdr = nn_xmsg_append (m, NULL, sizeof (ddsi_parameter_t) + len4);
   phdr->parameterid = ddsrt_toBO2u(bo, pid);
   phdr->length = ddsrt_toBO2u(bo, (uint16_t) len4);
   p = (char *) (phdr + 1);
@@ -933,7 +933,7 @@ void *nn_xmsg_addpar_bo (struct nn_xmsg *m, nn_parameterid_t pid, size_t len, en
   return p;
 }
 
-void *nn_xmsg_addpar (struct nn_xmsg *m, nn_parameterid_t pid, size_t len)
+void *nn_xmsg_addpar (struct nn_xmsg *m, ddsi_parameterid_t pid, size_t len)
 {
   return nn_xmsg_addpar_bo(m, pid, len, DDSRT_BOSEL_NATIVE);
 }
@@ -942,12 +942,12 @@ void nn_xmsg_addpar_keyhash (struct nn_xmsg *m, const struct ddsi_serdata *serda
 {
   if (serdata->kind != SDK_EMPTY)
   {
-    char *p = nn_xmsg_addpar (m, PID_KEYHASH, 16);
+    char *p = nn_xmsg_addpar (m, DDSI_PID_KEYHASH, 16);
     ddsi_serdata_get_keyhash(serdata, (struct ddsi_keyhash*)p, force_md5);
   }
 }
 
-static void nn_xmsg_addpar_BE4u (struct nn_xmsg *m, nn_parameterid_t pid, uint32_t x)
+static void nn_xmsg_addpar_BE4u (struct nn_xmsg *m, ddsi_parameterid_t pid, uint32_t x)
 {
   unsigned *p = nn_xmsg_addpar (m, pid, sizeof (x));
   *p = ddsrt_toBE4u (x);
@@ -955,28 +955,28 @@ static void nn_xmsg_addpar_BE4u (struct nn_xmsg *m, nn_parameterid_t pid, uint32
 
 void nn_xmsg_addpar_statusinfo (struct nn_xmsg *m, unsigned statusinfo)
 {
-  if ((statusinfo & ~NN_STATUSINFO_STANDARDIZED) == 0)
-    nn_xmsg_addpar_BE4u (m, PID_STATUSINFO, statusinfo);
+  if ((statusinfo & ~DDSI_STATUSINFO_STANDARDIZED) == 0)
+    nn_xmsg_addpar_BE4u (m, DDSI_PID_STATUSINFO, statusinfo);
   else
   {
-    unsigned *p = nn_xmsg_addpar (m, PID_STATUSINFO, 8);
+    unsigned *p = nn_xmsg_addpar (m, DDSI_PID_STATUSINFO, 8);
     unsigned statusinfox = 0;
-    assert ((statusinfo & ~NN_STATUSINFO_STANDARDIZED) == NN_STATUSINFO_OSPL_AUTO);
-    if (statusinfo & NN_STATUSINFO_OSPL_AUTO)
-      statusinfox |= NN_STATUSINFOX_OSPL_AUTO;
-    p[0] = ddsrt_toBE4u (statusinfo & NN_STATUSINFO_STANDARDIZED);
+    assert ((statusinfo & ~DDSI_STATUSINFO_STANDARDIZED) == DDSI_STATUSINFO_OSPL_AUTO);
+    if (statusinfo & DDSI_STATUSINFO_OSPL_AUTO)
+      statusinfox |= DDSI_STATUSINFOX_OSPL_AUTO;
+    p[0] = ddsrt_toBE4u (statusinfo & DDSI_STATUSINFO_STANDARDIZED);
     p[1] = ddsrt_toBE4u (statusinfox);
   }
 }
 
 void nn_xmsg_addpar_sentinel (struct nn_xmsg * m)
 {
-  nn_xmsg_addpar (m, PID_SENTINEL, 0);
+  nn_xmsg_addpar (m, DDSI_PID_SENTINEL, 0);
 }
 
 void nn_xmsg_addpar_sentinel_bo (struct nn_xmsg * m, enum ddsrt_byte_order_selector bo)
 {
-  nn_xmsg_addpar_bo (m, PID_SENTINEL, 0, bo);
+  nn_xmsg_addpar_bo (m, DDSI_PID_SENTINEL, 0, bo);
 }
 
 int nn_xmsg_addpar_sentinel_ifparam (struct nn_xmsg * m)
@@ -1147,14 +1147,14 @@ struct nn_xpack * nn_xpack_new (struct ddsi_domaingv *gv, uint32_t bw_limit, boo
   xp->hdr.protocol.id[1] = 'T';
   xp->hdr.protocol.id[2] = 'P';
   xp->hdr.protocol.id[3] = 'S';
-  xp->hdr.version.major = RTPS_MAJOR;
-  xp->hdr.version.minor = RTPS_MINOR;
+  xp->hdr.version.major = DDSI_RTPS_MAJOR;
+  xp->hdr.version.minor = DDSI_RTPS_MINOR;
   xp->hdr.vendorid = NN_VENDORID_ECLIPSE;
 
   /* MSG_LEN first sub message for stream based connections */
 
-  xp->msg_len.smhdr.submessageId = SMID_ADLINK_MSG_LEN;
-  xp->msg_len.smhdr.flags = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? SMFLAG_ENDIANNESS : 0);
+  xp->msg_len.smhdr.submessageId = DDSI_RTPS_SMID_ADLINK_MSG_LEN;
+  xp->msg_len.smhdr.flags = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? DDSI_RTPS_SUBMESSAGE_FLAG_ENDIANNESS : 0);
   xp->msg_len.smhdr.octetsToNextHeader = 4;
 
   nn_xpack_reinit (xp);
@@ -1230,7 +1230,7 @@ static ssize_t nn_xpack_send1 (const ddsi_xlocator_t *loc, void * varg)
 #ifdef DDS_HAS_SHM
   // SHM_TODO: We avoid sending packet while data is SHMEM.
   //           I'm not sure whether this is correct or not.
-  if (!gv->mute && loc->c.kind != NN_LOCATOR_KIND_SHEM)
+  if (!gv->mute && loc->c.kind != DDSI_LOCATOR_KIND_SHEM)
 #else
   if (!gv->mute)
 #endif
@@ -1524,11 +1524,11 @@ int nn_xpack_addmsg (struct nn_xpack *xp, struct nn_xmsg *m, const uint32_t flag
 {
   /* Returns > 0 if pack got sent out before adding m */
   struct ddsi_domaingv const * const gv = xp->gv;
-  static InfoDST_t static_zero_dst = {
-    { SMID_INFO_DST, (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? SMFLAG_ENDIANNESS : 0), sizeof (ddsi_guid_prefix_t) },
+  static ddsi_rtps_info_dst_t static_zero_dst = {
+    { DDSI_RTPS_SMID_INFO_DST, (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? DDSI_RTPS_SUBMESSAGE_FLAG_ENDIANNESS : 0), sizeof (ddsi_guid_prefix_t) },
     { { 0,0,0,0, 0,0,0,0, 0,0,0,0 } }
   };
-  InfoDST_t *dst;
+  ddsi_rtps_info_dst_t *dst;
   size_t niov;
   size_t sz;
   int result = 0;

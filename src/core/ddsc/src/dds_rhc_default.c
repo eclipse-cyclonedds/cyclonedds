@@ -1391,7 +1391,7 @@ static struct rhc_instance *alloc_new_instance (struct dds_rhc_default *rhc, con
   inst->iid = tk->m_iid;
   inst->tk = tk;
   inst->wrcount = 1;
-  inst->isdisposed = (serdata->statusinfo & NN_STATUSINFO_DISPOSE) != 0;
+  inst->isdisposed = (serdata->statusinfo & DDSI_STATUSINFO_DISPOSE) != 0;
   inst->autodispose = wrinfo->auto_dispose;
   inst->deadline_reg = 0;
   inst->isnew = 1;
@@ -1563,7 +1563,7 @@ static bool dds_rhc_default_store (struct ddsi_rhc * __restrict rhc_common, cons
   const uint64_t wr_iid = wrinfo->iid;
   const uint32_t statusinfo = sample->statusinfo;
   const bool has_data = (sample->kind == SDK_DATA);
-  const int is_dispose = (statusinfo & NN_STATUSINFO_DISPOSE) != 0;
+  const int is_dispose = (statusinfo & DDSI_STATUSINFO_DISPOSE) != 0;
   struct rhc_instance dummy_instance;
   struct rhc_instance *inst;
   struct trigger_info_pre pre;
@@ -1721,7 +1721,7 @@ static bool dds_rhc_default_store (struct ddsi_rhc * __restrict rhc_common, cons
     assert (rhc_check_counts_locked (rhc, false, false));
   }
 
-  if (statusinfo & NN_STATUSINFO_UNREGISTER)
+  if (statusinfo & DDSI_STATUSINFO_UNREGISTER)
   {
     /* Either a pure unregister, or the instance rejected the sample
        because of time stamps, content filter, or something else.  If

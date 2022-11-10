@@ -693,7 +693,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
 #ifdef DDS_HAS_SHM
   assert(rqos->present & QP_LOCATOR_MASK);
   if (!dds_reader_support_shm(&gv->config, rqos, tp))
-    rqos->ignore_locator_type |= NN_LOCATOR_KIND_SHEM;
+    rqos->ignore_locator_type |= DDSI_LOCATOR_KIND_SHEM;
 #endif
 
   /* Reader gets the sertype from the topic, as the serdata functions the reader uses are

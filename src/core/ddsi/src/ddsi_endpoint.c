@@ -134,7 +134,7 @@ void ddsi_make_writer_info(struct ddsi_writer_info *wrinfo, const struct ddsi_en
   wrinfo->auto_dispose = xqos->writer_data_lifecycle.autodispose_unregistered_instances;
   wrinfo->iid = e->iid;
 #ifdef DDS_HAS_LIFESPAN
-  if (xqos->lifespan.duration != DDS_INFINITY && (statusinfo & (NN_STATUSINFO_UNREGISTER | NN_STATUSINFO_DISPOSE)) == 0)
+  if (xqos->lifespan.duration != DDS_INFINITY && (statusinfo & (DDSI_STATUSINFO_UNREGISTER | DDSI_STATUSINFO_DISPOSE)) == 0)
     wrinfo->lifespan_exp = ddsrt_mtime_add_duration(ddsrt_time_monotonic(), xqos->lifespan.duration);
   else
     wrinfo->lifespan_exp = DDSRT_MTIME_NEVER;
@@ -270,7 +270,7 @@ void ddsi_reader_update_notify_wr_alive_state (struct ddsi_reader *rd, const str
   if (delta < 0 && rd->rhc)
   {
     struct ddsi_writer_info wrinfo;
-    ddsi_make_writer_info (&wrinfo, &wr->e, wr->xqos, NN_STATUSINFO_UNREGISTER);
+    ddsi_make_writer_info (&wrinfo, &wr->e, wr->xqos, DDSI_STATUSINFO_UNREGISTER);
     ddsi_rhc_unregister_wr (rd->rhc, &wrinfo);
   }
 
@@ -305,7 +305,7 @@ void ddsi_reader_update_notify_pwr_alive_state (struct ddsi_reader *rd, const st
   if (delta < 0 && rd->rhc)
   {
     struct ddsi_writer_info wrinfo;
-    ddsi_make_writer_info (&wrinfo, &pwr->e, pwr->c.xqos, NN_STATUSINFO_UNREGISTER);
+    ddsi_make_writer_info (&wrinfo, &pwr->e, pwr->c.xqos, DDSI_STATUSINFO_UNREGISTER);
     ddsi_rhc_unregister_wr (rd->rhc, &wrinfo);
   }
 
@@ -319,7 +319,7 @@ void ddsi_reader_update_notify_pwr_alive_state_guid (const struct ddsi_guid *rd_
     ddsi_reader_update_notify_pwr_alive_state (rd, pwr, alive_state);
 }
 
-void ddsi_update_reader_init_acknack_count (const ddsrt_log_cfg_t *logcfg, const struct ddsi_entity_index *entidx, const struct ddsi_guid *rd_guid, nn_count_t count)
+void ddsi_update_reader_init_acknack_count (const ddsrt_log_cfg_t *logcfg, const struct ddsi_entity_index *entidx, const struct ddsi_guid *rd_guid, ddsi_count_t count)
 {
   struct ddsi_reader *rd;
 
@@ -752,7 +752,7 @@ static void ddsi_new_writer_guid_common_init (struct ddsi_writer *wr, const char
   wr->test_suppress_heartbeat = 0;
   wr->test_drop_outgoing_data = 0;
 #ifdef DDS_HAS_SHM
-  wr->has_iceoryx = (0x0 == (xqos->ignore_locator_type & NN_LOCATOR_KIND_SHEM));
+  wr->has_iceoryx = (0x0 == (xqos->ignore_locator_type & DDSI_LOCATOR_KIND_SHEM));
 #endif
   wr->alive_vclock = 0;
   wr->init_burst_size_limit = UINT32_MAX - UINT16_MAX;
@@ -1316,7 +1316,7 @@ static void joinleave_mcast_helper (struct ddsi_domaingv *gv, ddsi_tran_conn_t c
 {
   char buf[DDSI_LOCSTRLEN];
   assert (ddsi_is_mcaddr (gv, n));
-  if (n->kind != NN_LOCATOR_KIND_UDPv4MCGEN)
+  if (n->kind != DDSI_LOCATOR_KIND_UDPv4MCGEN)
   {
     if (joinleave (gv, gv->mship, conn, NULL, n) < 0)
       GVWARNING ("failed to %s network partition multicast group %s\n", joinleavestr, ddsi_locator_to_string (buf, sizeof (buf), n));
@@ -1327,7 +1327,7 @@ static void joinleave_mcast_helper (struct ddsi_domaingv *gv, ddsi_tran_conn_t c
     nn_udpv4mcgen_address_t l1;
     uint32_t iph;
     memcpy (&l1, l.address, sizeof (l1));
-    l.kind = NN_LOCATOR_KIND_UDPv4;
+    l.kind = DDSI_LOCATOR_KIND_UDPv4;
     memset (l.address, 0, 12);
     iph = ntohl (l1.ipv4.s_addr);
     for (uint32_t i = 1; i < ((uint32_t)1 << l1.count); i++)
@@ -1459,7 +1459,7 @@ dds_return_t ddsi_new_reader_guid (struct ddsi_reader **rd_out, const struct dds
   rd->ddsi2direct_cb = 0;
   rd->ddsi2direct_cbarg = 0;
 #ifdef DDS_HAS_SHM
-  rd->has_iceoryx = (0x0 == (xqos->ignore_locator_type & NN_LOCATOR_KIND_SHEM));
+  rd->has_iceoryx = (0x0 == (xqos->ignore_locator_type & DDSI_LOCATOR_KIND_SHEM));
 #endif
   rd->init_acknack_count = 1;
   rd->num_writers = 0;

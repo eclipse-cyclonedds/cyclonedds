@@ -61,7 +61,7 @@ struct ddsi_proxy_writer {
   int32_t n_readers_out_of_sync; /* number of those that require special handling (accepting historical data, waiting for historical data set to become complete) */
   seqno_t last_seq; /* highest known seq published by the writer, not last delivered */
   uint32_t last_fragnum; /* last known frag for last_seq, or UINT32_MAX if last_seq not partial */
-  nn_count_t nackfragcount; /* last nackfrag seq number */
+  ddsi_count_t nackfragcount; /* last nackfrag seq number */
   ddsrt_atomic_uint32_t next_deliv_seq_lowword; /* lower 32-bits for next sequence number that will be delivered; for generating acks; 32-bit so atomic reads on all supported platforms */
   unsigned deliver_synchronously: 1; /* iff 1, delivery happens straight from receive thread for non-historical data; else through delivery queue "dqueue" */
   unsigned have_seen_heartbeat: 1; /* iff 1, we have received at least on heartbeat from this proxy writer */

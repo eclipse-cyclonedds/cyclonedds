@@ -15,7 +15,7 @@
 #include <stddef.h>
 
 #include "dds/ddsrt/bswap.h"
-#include "dds/ddsi/q_protocol.h" /* for, e.g., SubmessageKind_t */
+#include "dds/ddsi/ddsi_protocol.h" /* for, e.g., ddsi_rtps_submessage_kind_t */
 //#include "dds/ddsi/ddsi_xqos.h" /* for, e.g., octetseq, stringseq */
 #include "dds/ddsi/ddsi_tran.h"
 #include "dds/ddsi/ddsi_plist.h"
@@ -109,7 +109,7 @@ int nn_xmsg_merge_rexmit_destinations_wrlock_held (struct ddsi_domaingv *gv, str
    wrfragid is 0 based, unlike DDSI but like other places where
    fragment numbers are handled internally. */
 void nn_xmsg_setwriterseq (struct nn_xmsg *msg, const ddsi_guid_t *wrguid, seqno_t wrseq);
-void nn_xmsg_setwriterseq_fragid (struct nn_xmsg *msg, const ddsi_guid_t *wrguid, seqno_t wrseq, nn_fragment_number_t wrfragid);
+void nn_xmsg_setwriterseq_fragid (struct nn_xmsg *msg, const ddsi_guid_t *wrguid, seqno_t wrseq, ddsi_fragment_number_t wrfragid);
 
 /* Comparison function for retransmits: orders messages on writer
    guid, sequence number and fragment id */
@@ -118,9 +118,9 @@ int nn_xmsg_compare_fragid (const struct nn_xmsg *a, const struct nn_xmsg *b);
 void nn_xmsg_free (struct nn_xmsg *msg);
 size_t nn_xmsg_size (const struct nn_xmsg *m);
 void *nn_xmsg_payload (size_t *sz, struct nn_xmsg *m);
-void nn_xmsg_payload_to_plistsample (struct ddsi_plist_sample *dst, nn_parameterid_t keyparam, const struct nn_xmsg *m);
+void nn_xmsg_payload_to_plistsample (struct ddsi_plist_sample *dst, ddsi_parameterid_t keyparam, const struct nn_xmsg *m);
 enum nn_xmsg_kind nn_xmsg_kind (const struct nn_xmsg *m);
-void nn_xmsg_guid_seq_fragid (const struct nn_xmsg *m, ddsi_guid_t *wrguid, seqno_t *wrseq, nn_fragment_number_t *wrfragid);
+void nn_xmsg_guid_seq_fragid (const struct nn_xmsg *m, ddsi_guid_t *wrguid, seqno_t *wrseq, ddsi_fragment_number_t *wrfragid);
 
 void *nn_xmsg_submsg_from_marker (struct nn_xmsg *msg, struct nn_xmsg_marker marker);
 void *nn_xmsg_append (struct nn_xmsg *m, struct nn_xmsg_marker *marker, size_t sz);
@@ -133,11 +133,11 @@ void nn_xmsg_submsg_replace (struct nn_xmsg *msg, struct nn_xmsg_marker sm_marke
 void nn_xmsg_submsg_append_refd_payload (struct nn_xmsg *msg, struct nn_xmsg_marker sm_marker);
 #endif
 void nn_xmsg_submsg_setnext (struct nn_xmsg *msg, struct nn_xmsg_marker marker);
-void nn_xmsg_submsg_init (struct nn_xmsg *msg, struct nn_xmsg_marker marker, SubmessageKind_t smkind);
+void nn_xmsg_submsg_init (struct nn_xmsg *msg, struct nn_xmsg_marker marker, ddsi_rtps_submessage_kind_t smkind);
 void nn_xmsg_add_timestamp (struct nn_xmsg *m, ddsrt_wctime_t t);
 void nn_xmsg_add_entityid (struct nn_xmsg * m);
-void *nn_xmsg_addpar_bo (struct nn_xmsg *m, nn_parameterid_t pid, size_t len, enum ddsrt_byte_order_selector bo);
-void *nn_xmsg_addpar (struct nn_xmsg *m, nn_parameterid_t pid, size_t len);
+void *nn_xmsg_addpar_bo (struct nn_xmsg *m, ddsi_parameterid_t pid, size_t len, enum ddsrt_byte_order_selector bo);
+void *nn_xmsg_addpar (struct nn_xmsg *m, ddsi_parameterid_t pid, size_t len);
 void nn_xmsg_addpar_keyhash (struct nn_xmsg *m, const struct ddsi_serdata *serdata, bool force_md5);
 void nn_xmsg_addpar_statusinfo (struct nn_xmsg *m, unsigned statusinfo);
 void nn_xmsg_addpar_sentinel (struct nn_xmsg *m);

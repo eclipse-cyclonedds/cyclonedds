@@ -11,7 +11,7 @@
  */
 #include "dds/ddsi/q_bswap.h"
 
-extern inline void bswapSN (nn_sequence_number_t *sn);
+extern inline void bswapSN (ddsi_sequence_number_t *sn);
 
 ddsi_guid_prefix_t nn_hton_guid_prefix (ddsi_guid_prefix_t p)
 {
@@ -55,26 +55,26 @@ ddsi_guid_t nn_ntoh_guid (ddsi_guid_t g)
   return g;
 }
 
-void bswap_sequence_number_set_hdr (nn_sequence_number_set_header_t *snset)
+void bswap_sequence_number_set_hdr (ddsi_sequence_number_set_header_t *snset)
 {
   bswapSN (&snset->bitmap_base);
   snset->numbits = ddsrt_bswap4u (snset->numbits);
 }
 
-void bswap_sequence_number_set_bitmap (nn_sequence_number_set_header_t *snset, uint32_t *bits)
+void bswap_sequence_number_set_bitmap (ddsi_sequence_number_set_header_t *snset, uint32_t *bits)
 {
   const uint32_t n = (snset->numbits + 31) / 32;
   for (uint32_t i = 0; i < n; i++)
     bits[i] = ddsrt_bswap4u (bits[i]);
 }
 
-void bswap_fragment_number_set_hdr (nn_fragment_number_set_header_t *fnset)
+void bswap_fragment_number_set_hdr (ddsi_fragment_number_set_header_t *fnset)
 {
   fnset->bitmap_base = ddsrt_bswap4u (fnset->bitmap_base);
   fnset->numbits = ddsrt_bswap4u (fnset->numbits);
 }
 
-void bswap_fragment_number_set_bitmap (nn_fragment_number_set_header_t *fnset, uint32_t *bits)
+void bswap_fragment_number_set_bitmap (ddsi_fragment_number_set_header_t *fnset, uint32_t *bits)
 {
   const uint32_t n = (fnset->numbits + 31) / 32;
   for (uint32_t i = 0; i < n; i++)

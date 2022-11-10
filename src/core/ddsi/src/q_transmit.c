@@ -42,6 +42,7 @@
 #include "dds/ddsi/sysdeps.h"
 #include "ddsi__endpoint.h"
 #include "ddsi__entity_match.h"
+#include "ddsi__protocol.h"
 
 #include "dds__whc.h"
 
@@ -147,7 +148,7 @@ struct nn_xmsg *writer_hbcontrol_create_heartbeat (struct ddsi_writer *wr, const
   assert (wr->reliable);
   assert (hbansreq >= 0);
 
-  if ((msg = nn_xmsg_new (gv->xmsgpool, &wr->e.guid, wr->c.pp, sizeof (InfoTS_t) + sizeof (Heartbeat_t), NN_XMSG_KIND_CONTROL)) == NULL)
+  if ((msg = nn_xmsg_new (gv->xmsgpool, &wr->e.guid, wr->c.pp, sizeof (ddsi_rtps_info_ts_t) + sizeof (ddsi_rtps_heartbeat_t), NN_XMSG_KIND_CONTROL)) == NULL)
     /* out of memory at worst slows down traffic */
     return NULL;
 
@@ -356,7 +357,7 @@ struct nn_xmsg *writer_hbcontrol_p2p(struct ddsi_writer *wr, const struct whc_st
   ASSERT_MUTEX_HELD (&wr->e.lock);
   assert (wr->reliable);
 
-  if ((msg = nn_xmsg_new (gv->xmsgpool, &wr->e.guid, wr->c.pp, sizeof (InfoTS_t) + sizeof (Heartbeat_t), NN_XMSG_KIND_CONTROL)) == NULL)
+  if ((msg = nn_xmsg_new (gv->xmsgpool, &wr->e.guid, wr->c.pp, sizeof (ddsi_rtps_info_ts_t) + sizeof (ddsi_rtps_heartbeat_t), NN_XMSG_KIND_CONTROL)) == NULL)
     return NULL;
 
   ETRACE (wr, "writer_hbcontrol_p2p: wr "PGUIDFMT" unicasting to prd "PGUIDFMT" ", PGUID (wr->e.guid), PGUID (prd->e.guid));
@@ -392,7 +393,7 @@ void add_Heartbeat (struct nn_xmsg *msg, struct ddsi_writer *wr, const struct wh
 {
   struct ddsi_domaingv const * const gv = wr->e.gv;
   struct nn_xmsg_marker sm_marker;
-  Heartbeat_t * hb;
+  ddsi_rtps_heartbeat_t * hb;
   seqno_t max, min;
 
   ASSERT_MUTEX_HELD (&wr->e.lock);
@@ -408,13 +409,13 @@ void add_Heartbeat (struct nn_xmsg *msg, struct ddsi_writer *wr, const struct wh
     nn_xmsg_add_timestamp (msg, ddsrt_time_wallclock ());
   }
 
-  hb = nn_xmsg_append (msg, &sm_marker, sizeof (Heartbeat_t));
-  nn_xmsg_submsg_init (msg, sm_marker, SMID_HEARTBEAT);
+  hb = nn_xmsg_append (msg, &sm_marker, sizeof (ddsi_rtps_heartbeat_t));
+  nn_xmsg_submsg_init (msg, sm_marker, DDSI_RTPS_SMID_HEARTBEAT);
 
   if (!hbansreq)
-    hb->smhdr.flags |= HEARTBEAT_FLAG_FINAL;
+    hb->smhdr.flags |= DDSI_HEARTBEAT_FLAG_FINAL;
   if (hbliveliness)
-    hb->smhdr.flags |= HEARTBEAT_FLAG_LIVELINESS;
+    hb->smhdr.flags |= DDSI_HEARTBEAT_FLAG_LIVELINESS;
 
   hb->readerId = nn_hton_entityid (dst);
   hb->writerId = nn_hton_entityid (wr->e.guid.entityid);
@@ -465,7 +466,7 @@ static dds_return_t create_fragment_message_simple (struct ddsi_writer *wr, seqn
   struct ddsi_domaingv const * const gv = wr->e.gv;
   struct nn_xmsg_marker sm_marker;
   unsigned char contentflag = 0;
-  Data_t *data;
+  ddsi_rtps_data_t *data;
 
   switch (serdata->kind)
   {
@@ -473,28 +474,28 @@ static dds_return_t create_fragment_message_simple (struct ddsi_writer *wr, seqn
       break;
     case SDK_KEY:
 #if TEST_KEYHASH
-      contentflag = wr->include_keyhash ? 0 : DATA_FLAG_KEYFLAG;
+      contentflag = wr->include_keyhash ? 0 : DDSI_DATA_FLAG_KEYFLAG;
 #else
-      contentflag = DATA_FLAG_KEYFLAG;
+      contentflag = DDSI_DATA_FLAG_KEYFLAG;
 #endif
       break;
     case SDK_DATA:
-      contentflag = DATA_FLAG_DATAFLAG;
+      contentflag = DDSI_DATA_FLAG_DATAFLAG;
       break;
   }
 
   ASSERT_MUTEX_HELD (&wr->e.lock);
 
-  /* INFO_TS: 12 bytes, Data_t: 24 bytes, expected inline QoS: 32 => should be single chunk */
-  if ((*pmsg = nn_xmsg_new (gv->xmsgpool, &wr->e.guid, wr->c.pp, sizeof (InfoTimestamp_t) + sizeof (Data_t) + expected_inline_qos_size, NN_XMSG_KIND_DATA)) == NULL)
+  /* INFO_TS: 12 bytes, ddsi_rtps_data_t: 24 bytes, expected inline QoS: 32 => should be single chunk */
+  if ((*pmsg = nn_xmsg_new (gv->xmsgpool, &wr->e.guid, wr->c.pp, sizeof (ddsi_rtps_info_ts_t) + sizeof (ddsi_rtps_data_t) + expected_inline_qos_size, NN_XMSG_KIND_DATA)) == NULL)
     return DDS_RETCODE_OUT_OF_RESOURCES;
 
   nn_xmsg_setdstN (*pmsg, wr->as);
   nn_xmsg_setmaxdelay (*pmsg, wr->xqos->latency_budget.duration);
   nn_xmsg_add_timestamp (*pmsg, serdata->timestamp);
-  data = nn_xmsg_append (*pmsg, &sm_marker, sizeof (Data_t));
+  data = nn_xmsg_append (*pmsg, &sm_marker, sizeof (ddsi_rtps_data_t));
 
-  nn_xmsg_submsg_init (*pmsg, sm_marker, SMID_DATA);
+  nn_xmsg_submsg_init (*pmsg, sm_marker, DDSI_RTPS_SMID_DATA);
   data->x.smhdr.flags = (unsigned char) (data->x.smhdr.flags | contentflag);
   data->x.extraFlags = 0;
   data->x.readerId = ddsi_to_entityid (NN_ENTITYID_UNKNOWN);
@@ -513,7 +514,7 @@ static dds_return_t create_fragment_message_simple (struct ddsi_writer *wr, seqn
   if (nn_xmsg_addpar_sentinel_ifparam (*pmsg) > 0)
   {
     data = nn_xmsg_submsg_from_marker (*pmsg, sm_marker);
-    data->x.smhdr.flags |= DATAFRAG_FLAG_INLINE_QOS;
+    data->x.smhdr.flags |= DDSI_DATAFRAG_FLAG_INLINE_QOS;
   }
 
 #if TEST_KEYHASH
@@ -545,7 +546,7 @@ dds_return_t create_fragment_message (struct ddsi_writer *wr, seqno_t seq, struc
   struct ddsi_domaingv const * const gv = wr->e.gv;
   struct nn_xmsg_marker sm_marker;
   void *sm;
-  Data_DataFrag_common_t *ddcmn;
+  ddsi_rtps_data_datafrag_common_t *ddcmn;
   int fragging;
   uint32_t fragstart, fraglen;
   enum nn_xmsg_kind xmsg_kind = isnew ? NN_XMSG_KIND_DATA : NN_XMSG_KIND_DATA_REXMIT;
@@ -565,8 +566,8 @@ dds_return_t create_fragment_message (struct ddsi_writer *wr, seqno_t seq, struc
 
   fragging = (nfrags * (uint32_t) gv->config.fragment_size < size);
 
-  /* INFO_TS: 12 bytes, DataFrag_t: 36 bytes, expected inline QoS: 32 => should be single chunk */
-  if ((*pmsg = nn_xmsg_new (gv->xmsgpool, &wr->e.guid, wr->c.pp, sizeof (InfoTimestamp_t) + sizeof (DataFrag_t) + expected_inline_qos_size, xmsg_kind)) == NULL)
+  /* INFO_TS: 12 bytes, ddsi_rtps_datafrag_t: 36 bytes, expected inline QoS: 32 => should be single chunk */
+  if ((*pmsg = nn_xmsg_new (gv->xmsgpool, &wr->e.guid, wr->c.pp, sizeof (ddsi_rtps_info_ts_t) + sizeof (ddsi_rtps_datafrag_t) + expected_inline_qos_size, xmsg_kind)) == NULL)
     return DDS_RETCODE_OUT_OF_RESOURCES;
 
   if (prd)
@@ -586,20 +587,20 @@ dds_return_t create_fragment_message (struct ddsi_writer *wr, seqno_t seq, struc
     nn_xmsg_add_timestamp (*pmsg, serdata->timestamp);
   }
 
-  sm = nn_xmsg_append (*pmsg, &sm_marker, fragging ? sizeof (DataFrag_t) : sizeof (Data_t));
+  sm = nn_xmsg_append (*pmsg, &sm_marker, fragging ? sizeof (ddsi_rtps_datafrag_t) : sizeof (ddsi_rtps_data_t));
   ddcmn = sm;
 
   if (!fragging)
   {
     unsigned char contentflag = 0;
-    Data_t *data = sm;
+    ddsi_rtps_data_t *data = sm;
     switch (serdata->kind)
     {
       case SDK_EMPTY: contentflag = 0; break;
-      case SDK_KEY:   contentflag = DATA_FLAG_KEYFLAG; break;
-      case SDK_DATA:  contentflag = DATA_FLAG_DATAFLAG; break;
+      case SDK_KEY:   contentflag = DDSI_DATA_FLAG_KEYFLAG; break;
+      case SDK_DATA:  contentflag = DDSI_DATA_FLAG_DATAFLAG; break;
     }
-    nn_xmsg_submsg_init (*pmsg, sm_marker, SMID_DATA);
+    nn_xmsg_submsg_init (*pmsg, sm_marker, DDSI_RTPS_SMID_DATA);
     ddcmn->smhdr.flags = (unsigned char) (ddcmn->smhdr.flags | contentflag);
 
     fragstart = 0;
@@ -611,11 +612,11 @@ dds_return_t create_fragment_message (struct ddsi_writer *wr, seqno_t seq, struc
   }
   else
   {
-    const unsigned char contentflag = (serdata->kind == SDK_KEY ? DATAFRAG_FLAG_KEYFLAG : 0);
-    DataFrag_t *frag = sm;
+    const unsigned char contentflag = (serdata->kind == SDK_KEY ? DDSI_DATAFRAG_FLAG_KEYFLAG : 0);
+    ddsi_rtps_datafrag_t *frag = sm;
     /* empty means size = 0, which means it never needs fragmenting */
     assert (serdata->kind != SDK_EMPTY);
-    nn_xmsg_submsg_init (*pmsg, sm_marker, SMID_DATA_FRAG);
+    nn_xmsg_submsg_init (*pmsg, sm_marker, DDSI_RTPS_SMID_DATA_FRAG);
     ddcmn->smhdr.flags = (unsigned char) (ddcmn->smhdr.flags | contentflag);
 
     frag->fragmentStartingNum = fragnum + 1;
@@ -647,8 +648,8 @@ dds_return_t create_fragment_message (struct ddsi_writer *wr, seqno_t seq, struc
   if (xmsg_kind == NN_XMSG_KIND_DATA_REXMIT)
     nn_xmsg_set_data_readerId (*pmsg, &ddcmn->readerId);
 
-  DDSRT_STATIC_ASSERT_CODE (DATA_FLAG_INLINE_QOS == DATAFRAG_FLAG_INLINE_QOS);
-  assert (!(ddcmn->smhdr.flags & DATAFRAG_FLAG_INLINE_QOS));
+  DDSRT_STATIC_ASSERT_CODE (DDSI_DATA_FLAG_INLINE_QOS == DDSI_DATAFRAG_FLAG_INLINE_QOS);
+  assert (!(ddcmn->smhdr.flags & DDSI_DATAFRAG_FLAG_INLINE_QOS));
 
   if (fragnum == 0)
   {
@@ -666,7 +667,7 @@ dds_return_t create_fragment_message (struct ddsi_writer *wr, seqno_t seq, struc
     if (rc > 0)
     {
       ddcmn = nn_xmsg_submsg_from_marker (*pmsg, sm_marker);
-      ddcmn->smhdr.flags |= DATAFRAG_FLAG_INLINE_QOS;
+      ddcmn->smhdr.flags |= DDSI_DATAFRAG_FLAG_INLINE_QOS;
     }
   }
 
@@ -694,16 +695,16 @@ static void create_HeartbeatFrag (struct ddsi_writer *wr, seqno_t seq, unsigned 
 {
   struct ddsi_domaingv const * const gv = wr->e.gv;
   struct nn_xmsg_marker sm_marker;
-  HeartbeatFrag_t *hbf;
+  ddsi_rtps_heartbeatfrag_t *hbf;
   ASSERT_MUTEX_HELD (&wr->e.lock);
-  if ((*pmsg = nn_xmsg_new (gv->xmsgpool, &wr->e.guid, wr->c.pp, sizeof (HeartbeatFrag_t), NN_XMSG_KIND_CONTROL)) == NULL)
+  if ((*pmsg = nn_xmsg_new (gv->xmsgpool, &wr->e.guid, wr->c.pp, sizeof (ddsi_rtps_heartbeatfrag_t), NN_XMSG_KIND_CONTROL)) == NULL)
     return; /* ignore out-of-memory: HeartbeatFrag is only advisory anyway */
   if (prd)
     nn_xmsg_setdstPRD (*pmsg, prd);
   else
     nn_xmsg_setdstN (*pmsg, wr->as);
-  hbf = nn_xmsg_append (*pmsg, &sm_marker, sizeof (HeartbeatFrag_t));
-  nn_xmsg_submsg_init (*pmsg, sm_marker, SMID_HEARTBEAT_FRAG);
+  hbf = nn_xmsg_append (*pmsg, &sm_marker, sizeof (ddsi_rtps_heartbeatfrag_t));
+  nn_xmsg_submsg_init (*pmsg, sm_marker, DDSI_RTPS_SMID_HEARTBEAT_FRAG);
   hbf->readerId = nn_hton_entityid (prd ? prd->e.guid.entityid : ddsi_to_entityid (NN_ENTITYID_UNKNOWN));
   hbf->writerId = nn_hton_entityid (wr->e.guid.entityid);
   hbf->writerSN = toSN (seq);
@@ -743,7 +744,7 @@ dds_return_t write_hb_liveliness (struct ddsi_domaingv * const gv, struct ddsi_g
   else if (wr->xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_TOPIC && wr->lease != NULL)
     lease_renew (wr->lease, ddsrt_time_elapsed());
 
-  if ((msg = nn_xmsg_new (gv->xmsgpool, &wr->e.guid, wr->c.pp, sizeof (InfoTS_t) + sizeof (Heartbeat_t), NN_XMSG_KIND_CONTROL)) == NULL)
+  if ((msg = nn_xmsg_new (gv->xmsgpool, &wr->e.guid, wr->c.pp, sizeof (ddsi_rtps_info_ts_t) + sizeof (ddsi_rtps_heartbeat_t), NN_XMSG_KIND_CONTROL)) == NULL)
     return DDS_RETCODE_OUT_OF_RESOURCES;
   ddsrt_mutex_lock (&wr->e.lock);
   nn_xmsg_setdstN (msg, wr->as);
@@ -972,7 +973,7 @@ static int insert_sample_in_whc (struct ddsi_writer *wr, seqno_t seq, struct dds
     /* Don't set expiry for samples with flags unregister or dispose, because these are required
      * for sample lifecycle and should always be delivered to the reader so that is can clean up
      * its history cache. */
-    if (wr->xqos->lifespan.duration != DDS_INFINITY && (serdata->statusinfo & (NN_STATUSINFO_UNREGISTER | NN_STATUSINFO_DISPOSE)) == 0)
+    if (wr->xqos->lifespan.duration != DDS_INFINITY && (serdata->statusinfo & (DDSI_STATUSINFO_UNREGISTER | DDSI_STATUSINFO_DISPOSE)) == 0)
       exp = ddsrt_mtime_add_duration(serdata->twrite, wr->xqos->lifespan.duration);
 #endif
     res = ((insres = whc_insert (wr->whc, ddsi_writer_max_drop_seq (wr), seq, exp, serdata, tk)) < 0) ? insres : 1;

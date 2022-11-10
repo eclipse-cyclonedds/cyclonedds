@@ -26,7 +26,7 @@
 
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/ddsi_ownip.h"
-#include "dds/ddsi/q_protocol.h"
+#include "dds/ddsi/ddsi_protocol.h"
 #include "dds/ddsi/q_sockwaitset.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 

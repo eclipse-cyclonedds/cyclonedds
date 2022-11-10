@@ -39,8 +39,8 @@
 #define RND_STR32 (ddsrt_random () % 2 ? (char []){ 't', RND_CHAR4, 0 } : (char []){ 't', 'e', 's', 't', RND_CHAR8, RND_CHAR8, RND_CHAR8, RND_CHAR4, 0 })
 #define RND_STR5 (ddsrt_random () % 2 ? (char []){ 't', RND_CHAR, 0 } : (char []){ 't', RND_CHAR4, 0 })
 
-#define XCDR1 DDS_CDR_ENC_VERSION_1
-#define XCDR2 DDS_CDR_ENC_VERSION_2
+#define XCDR1 DDSI_RTPS_CDR_ENC_VERSION_1
+#define XCDR2 DDSI_RTPS_CDR_ENC_VERSION_2
 
 typedef void * (*sample_empty) (void);
 typedef void * (*sample_init) (void);
@@ -1763,7 +1763,7 @@ CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc1, const dds_to
     os.m_buffer = NULL;
     os.m_index = 0;
     os.m_size = 0;
-    os.m_xcdr_version = DDS_CDR_ENC_VERSION_2;
+    os.m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2;
 
     struct dds_cdrstream_desc desc_wr;
     memset (&desc_wr, 0, sizeof (desc_wr));
@@ -1786,7 +1786,7 @@ CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc1, const dds_to
     is.m_buffer = os.m_buffer;
     is.m_index = 0;
     is.m_size = os.m_size;
-    is.m_xcdr_version = DDS_CDR_ENC_VERSION_2;
+    is.m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2;
 
     struct dds_cdrstream_desc desc_rd;
     memset (&desc_rd, 0, sizeof (desc_rd));

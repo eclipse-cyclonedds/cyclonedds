@@ -47,7 +47,7 @@ static void null_log_sink (void *vcount, const dds_log_data_t *msg)
 static void intf_init (struct ddsi_network_interface *intf, int index, bool allow_mc, bool weird_extloc)
 {
   memset (intf, 0, sizeof (*intf));
-  intf->loc.kind = NN_LOCATOR_KIND_UDPv4;
+  intf->loc.kind = DDSI_LOCATOR_KIND_UDPv4;
   intf->loc.port = 0;
   // IPv4 locator address format: 12 leading 0s
   // - index 0 is loopback, indices > 0 are regular networks
@@ -82,7 +82,7 @@ static void intf_init (struct ddsi_network_interface *intf, int index, bool allo
     if (weird_extloc)
       intf->extloc.address[13]++;
   }
-  intf->netmask.kind = NN_LOCATOR_KIND_UDPv4;
+  intf->netmask.kind = DDSI_LOCATOR_KIND_UDPv4;
   // if_index is whatever index the operating system assigned to it, we just put
   // something in that would (probably) lead to disaster if used as an index in
   // gv->interfaces
@@ -128,7 +128,7 @@ static void setup (struct ddsi_domaingv *gv, const struct ddsi_config *config, b
   assert (gv->m_factory != NULL);
 
   DDSRT_STATIC_ASSERT (4 <= MAX_XMIT_CONNS);
-  gv->extmask.kind = NN_LOCATOR_KIND_INVALID;
+  gv->extmask.kind = DDSI_LOCATOR_KIND_INVALID;
   gv->n_interfaces = 4;
   for (int i = 0; i < gv->n_interfaces; i++)
   {
@@ -530,7 +530,7 @@ CU_Theory ((bool same_machine, bool proxypp_has_defmc, int n_ep_uc, int n_ep_mc,
   }
 
   const ddsi_locator_t defmcloc = {
-    .kind = NN_LOCATOR_KIND_UDPv4,
+    .kind = DDSI_LOCATOR_KIND_UDPv4,
     .port = 7401,
     .address = { 0,0,0,0, 0,0,0,0, 0,0,0,0, 239,255,0,1 }
   };
@@ -571,14 +571,14 @@ CU_Theory ((bool same_machine, bool proxypp_has_defmc, int n_ep_uc, int n_ep_mc,
   struct ddsi_locators_one mc[2] = {
     { .next = &mc[1],
       .loc = {
-        .kind = NN_LOCATOR_KIND_UDPv4,
+        .kind = DDSI_LOCATOR_KIND_UDPv4,
         .port = 7401,
         .address = { 0,0,0,0, 0,0,0,0, 0,0,0,0, 239,255,0,2 }
       }
     },
     { .next = NULL,
       .loc = {
-        .kind = NN_LOCATOR_KIND_UDPv4,
+        .kind = DDSI_LOCATOR_KIND_UDPv4,
         .port = 7401,
         .address = { 0,0,0,0, 0,0,0,0, 0,0,0,0, 239,255,0,3 }
       }

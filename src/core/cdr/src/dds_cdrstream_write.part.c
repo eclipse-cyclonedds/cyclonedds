@@ -613,11 +613,11 @@ static const uint32_t *dds_stream_write_implBO (DDS_OSTREAM_T * __restrict os, c
         abort ();
         break;
       case DDS_OP_DLC:
-        assert (((struct dds_ostream *)os)->m_xcdr_version == DDS_CDR_ENC_VERSION_2);
+        assert (((struct dds_ostream *)os)->m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_2);
         ops = dds_stream_write_delimitedBO (os, data, ops);
         break;
       case DDS_OP_PLC:
-        assert (((struct dds_ostream *)os)->m_xcdr_version == DDS_CDR_ENC_VERSION_2);
+        assert (((struct dds_ostream *)os)->m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_2);
         ops = dds_stream_write_plBO (os, data, ops);
         break;
     }

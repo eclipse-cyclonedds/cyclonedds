@@ -17,7 +17,7 @@
 
 #include "dds/ddsrt/time.h"
 #include "dds/ddsi/q_xevent.h"
-#include "dds/ddsi/q_protocol.h"
+#include "ddsi__protocol.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -31,20 +31,20 @@ enum ddsi_add_acknack_result {
   AANR_NACKFRAG_ONLY    //!< sending only a NACKFRAG
 };
 
-DDSRT_STATIC_ASSERT ((NN_SEQUENCE_NUMBER_SET_MAX_BITS % 32) == 0 && (NN_FRAGMENT_NUMBER_SET_MAX_BITS % 32) == 0);
+DDSRT_STATIC_ASSERT ((DDSI_SEQUENCE_NUMBER_SET_MAX_BITS % 32) == 0 && (DDSI_FRAGMENT_NUMBER_SET_MAX_BITS % 32) == 0);
 struct ddsi_add_acknack_info {
   bool nack_sent_on_nackdelay;
 #if ACK_REASON_IN_FLAGS
   uint8_t flags;
 #endif
   struct {
-    struct nn_sequence_number_set_header set;
-    uint32_t bits[NN_FRAGMENT_NUMBER_SET_MAX_BITS / 32];
+    struct ddsi_sequence_number_set_header set;
+    uint32_t bits[DDSI_FRAGMENT_NUMBER_SET_MAX_BITS / 32];
   } acknack;
   struct {
     seqno_t seq;
-    struct nn_fragment_number_set_header set;
-    uint32_t bits[NN_FRAGMENT_NUMBER_SET_MAX_BITS / 32];
+    struct ddsi_fragment_number_set_header set;
+    uint32_t bits[DDSI_FRAGMENT_NUMBER_SET_MAX_BITS / 32];
   } nackfrag;
 };
 

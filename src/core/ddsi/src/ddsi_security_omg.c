@@ -3066,7 +3066,7 @@ static bool ddsi_omg_security_decode_submessage (const struct ddsi_domaingv *gv,
     break;
   case DDS_SECURITY_INFO_SUBMESSAGE:
     /* No decoding needed.
-     * TODO: Is DDS_SECURITY_INFO_SUBMESSAGE even possible when there's a SMID_SEC_PREFIX?
+     * TODO: Is DDS_SECURITY_INFO_SUBMESSAGE even possible when there's a DDSI_RTPS_SMID_SEC_PREFIX?
      *
      * This function is only called when there is a prefix. If it is possible,
      * then I might have a problem because the further parsing expects a new
@@ -3504,7 +3504,7 @@ void ddsi_security_encode_datawriter_submsg (struct nn_xmsg *msg, struct nn_xmsg
   }
 }
 
-bool ddsi_security_validate_msg_decoding (const struct ddsi_entity_common *e, const struct ddsi_proxy_endpoint_common *c, const struct ddsi_proxy_participant *proxypp, const struct receiver_state *rst, SubmessageKind_t prev_smid)
+bool ddsi_security_validate_msg_decoding (const struct ddsi_entity_common *e, const struct ddsi_proxy_endpoint_common *c, const struct ddsi_proxy_participant *proxypp, const struct receiver_state *rst, ddsi_rtps_submessage_kind_t prev_smid)
 {
   assert (e);
   assert (c);
@@ -3512,15 +3512,15 @@ bool ddsi_security_validate_msg_decoding (const struct ddsi_entity_common *e, co
   assert (rst);
 
   /* If this endpoint is expected to have submessages protected, it means that the
-   * previous submessage id (prev_smid) has to be SMID_SEC_PREFIX. That caused the
+   * previous submessage id (prev_smid) has to be DDSI_RTPS_SMID_SEC_PREFIX. That caused the
    * protected submessage to be copied into the current RTPS message as a clear
    * submessage, which we are currently handling.
-   * However, we have to check if the prev_smid is actually SMID_SEC_PREFIX, otherwise
+   * However, we have to check if the prev_smid is actually DDSI_RTPS_SMID_SEC_PREFIX, otherwise
    * a rascal can inject data as just a clear submessage. */
   if ((c->security_info.security_attributes & DDSI_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_SUBMESSAGE_PROTECTED)
       == DDSI_ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_SUBMESSAGE_PROTECTED)
   {
-    if (prev_smid != SMID_SEC_PREFIX)
+    if (prev_smid != DDSI_RTPS_SMID_SEC_PREFIX)
       return false;
   }
 
@@ -3534,17 +3534,17 @@ bool ddsi_security_validate_msg_decoding (const struct ddsi_entity_common *e, co
   return true;
 }
 
-static int32_t validate_submsg (struct ddsi_domaingv *gv, SubmessageKind_t smid, const unsigned char *submsg, unsigned char const * const end, int byteswap)
+static int32_t validate_submsg (struct ddsi_domaingv *gv, ddsi_rtps_submessage_kind_t smid, const unsigned char *submsg, unsigned char const * const end, int byteswap)
 {
   assert (end >= submsg);
-  if ((size_t) (end - submsg) < RTPS_SUBMESSAGE_HEADER_SIZE)
+  if ((size_t) (end - submsg) < DDSI_RTPS_SUBMESSAGE_HEADER_SIZE)
   {
     GVWARNING ("Submsg 0x%02x does not fit message", smid);
     return -1;
   }
 
-  SubmessageHeader_t const * const hdr = (SubmessageHeader_t *) submsg;
-  if (hdr->submessageId != smid && smid != SMID_PAD)
+  ddsi_rtps_submessage_header_t const * const hdr = (ddsi_rtps_submessage_header_t *) submsg;
+  if (hdr->submessageId != smid && smid != DDSI_RTPS_SMID_PAD)
   {
     GVWARNING("Unexpected submsg 0x%02x (0x%02x expected)", hdr->submessageId, smid);
     return -1;
@@ -3553,7 +3553,7 @@ static int32_t validate_submsg (struct ddsi_domaingv *gv, SubmessageKind_t smid,
   uint16_t size = hdr->octetsToNextHeader;
   if (byteswap)
     size = ddsrt_bswap2u (size);
-  const int32_t result = (int32_t) size + (int32_t) RTPS_SUBMESSAGE_HEADER_SIZE;
+  const int32_t result = (int32_t) size + (int32_t) DDSI_RTPS_SUBMESSAGE_HEADER_SIZE;
   if (end - submsg < result)
   {
     GVWARNING ("Submsg 0x%02x does not fit message", smid);
@@ -3566,20 +3566,20 @@ static int32_t padding_submsg (struct ddsi_domaingv *gv, unsigned char *start, u
 {
   assert (end >= start);
   const size_t size = (size_t) (end - start);
-  if (size < RTPS_SUBMESSAGE_HEADER_SIZE)
+  if (size < DDSI_RTPS_SUBMESSAGE_HEADER_SIZE)
   {
     GVWARNING("Padding submessage doesn't fit");
     return -1;
   }
 
-  assert (size <= UINT16_MAX + RTPS_SUBMESSAGE_HEADER_SIZE);
-  SubmessageHeader_t * const padding = (SubmessageHeader_t *) start;
-  padding->submessageId = SMID_PAD;
-  DDSRT_STATIC_ASSERT (SMFLAG_ENDIANNESS == 1);
+  assert (size <= UINT16_MAX + DDSI_RTPS_SUBMESSAGE_HEADER_SIZE);
+  ddsi_rtps_submessage_header_t * const padding = (ddsi_rtps_submessage_header_t *) start;
+  padding->submessageId = DDSI_RTPS_SMID_PAD;
+  DDSRT_STATIC_ASSERT (DDSI_RTPS_SUBMESSAGE_FLAG_ENDIANNESS == 1);
   DDSRT_WARNING_MSVC_OFF(6326)
   padding->flags = (byteswap ? !(DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN) : (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN));
   DDSRT_WARNING_MSVC_ON(6326)
-  padding->octetsToNextHeader = (uint16_t) (size - RTPS_SUBMESSAGE_HEADER_SIZE);
+  padding->octetsToNextHeader = (uint16_t) (size - DDSI_RTPS_SUBMESSAGE_HEADER_SIZE);
   if (byteswap)
     padding->octetsToNextHeader = ddsrt_bswap2u (padding->octetsToNextHeader);
   return (int32_t) size;
@@ -3600,7 +3600,7 @@ static bool ddsi_security_decode_sec_prefix_patched_hdr_flags (const struct rece
   if ((submsg_size % 4) != 0)
     return false;
   body_submsg = submsg + submsg_size;
-  if ((smsize = validate_submsg (rst->gv, SMID_PAD, body_submsg, msg_end, byteswap)) <= 0)
+  if ((smsize = validate_submsg (rst->gv, DDSI_RTPS_SMID_PAD, body_submsg, msg_end, byteswap)) <= 0)
     return false;
   if ((smsize % 4) != 0)
     return false;
@@ -3608,7 +3608,7 @@ static bool ddsi_security_decode_sec_prefix_patched_hdr_flags (const struct rece
 
   /* Third sub-message should be the SEC_POSTFIX. */
   postfix_submsg = submsg + totalsize;
-  if ((smsize = validate_submsg (rst->gv, SMID_SEC_POSTFIX, postfix_submsg, msg_end, byteswap)) <= 0)
+  if ((smsize = validate_submsg (rst->gv, DDSI_RTPS_SMID_SEC_POSTFIX, postfix_submsg, msg_end, byteswap)) <= 0)
     return false;
   totalsize += (size_t) smsize;
 
@@ -3622,8 +3622,8 @@ static bool ddsi_security_decode_sec_prefix_patched_hdr_flags (const struct rece
      * The 'normal' submessage sequence handling will continue after the
      * given security SEC_PREFIX.
      */
-    SubmessageHeader_t const * const body_submsg_hdr = (SubmessageHeader_t const *) body_submsg;
-    if (body_submsg_hdr->submessageId == SMID_SEC_BODY)
+    ddsi_rtps_submessage_header_t const * const body_submsg_hdr = (ddsi_rtps_submessage_header_t const *) body_submsg;
+    if (body_submsg_hdr->submessageId == DDSI_RTPS_SMID_SEC_BODY)
     {
       /*
        * Copy the decoded buffer into the original message, replacing (part
@@ -3643,7 +3643,7 @@ static bool ddsi_security_decode_sec_prefix_patched_hdr_flags (const struct rece
     {
       /*
        * When only signed, then the submessage is already available and
-       * SMID_SEC_POSTFIX will be ignored.
+       * DDSI_RTPS_SMID_SEC_POSTFIX will be ignored.
        * So, we don't really have to do anything.
        */
     }
@@ -3666,7 +3666,7 @@ static bool ddsi_security_decode_sec_prefix_patched_hdr_flags (const struct rece
 bool ddsi_security_decode_sec_prefix (const struct receiver_state *rst, unsigned char *submsg, size_t submsg_size, unsigned char * const msg_end, const ddsi_guid_prefix_t * const src_prefix, const ddsi_guid_prefix_t * const dst_prefix, int byteswap)
 {
   /* FIXME: eliminate the patching of hdr->flags if possible */
-  SubmessageHeader_t *hdr = (SubmessageHeader_t *) submsg;
+  ddsi_rtps_submessage_header_t *hdr = (ddsi_rtps_submessage_header_t *) submsg;
   const uint8_t saved_flags = hdr->flags;
   if (byteswap)
   {
@@ -3682,11 +3682,11 @@ bool ddsi_security_decode_sec_prefix (const struct receiver_state *rst, unsigned
   return result;
 }
 
-static ddsi_rtps_msg_state_t check_rtps_message_is_secure (struct ddsi_domaingv *gv, Header_t *hdr, const unsigned char *buff, bool isstream, struct ddsi_proxy_participant **proxypp)
+static ddsi_rtps_msg_state_t check_rtps_message_is_secure (struct ddsi_domaingv *gv, ddsi_rtps_header_t *hdr, const unsigned char *buff, bool isstream, struct ddsi_proxy_participant **proxypp)
 {
-  const uint32_t offset = RTPS_MESSAGE_HEADER_SIZE + (isstream ? sizeof (MsgLen_t) : 0);
-  const SubmessageHeader_t *submsg = (const SubmessageHeader_t *) (buff + offset);
-  if (submsg->submessageId != SMID_SRTPS_PREFIX)
+  const uint32_t offset = DDSI_RTPS_MESSAGE_HEADER_SIZE + (isstream ? sizeof (ddsi_rtps_msg_len_t) : 0);
+  const ddsi_rtps_submessage_header_t *submsg = (const ddsi_rtps_submessage_header_t *) (buff + offset);
+  if (submsg->submessageId != DDSI_RTPS_SMID_SRTPS_PREFIX)
     return DDSI_RTPS_MSG_STATE_PLAIN;
 
   ddsi_guid_t guid;
@@ -3714,7 +3714,7 @@ static ddsi_rtps_msg_state_t check_rtps_message_is_secure (struct ddsi_domaingv 
 static ddsi_rtps_msg_state_t
 decode_rtps_message_awake (
   struct nn_rmsg **rmsg,
-  Header_t **hdr,
+  ddsi_rtps_header_t **hdr,
   unsigned char **buff,
   size_t *sz,
   struct nn_rbufpool *rbpool,
@@ -3732,10 +3732,10 @@ decode_rtps_message_awake (
   if (isstream)
   {
     /* Remove MsgLen Submessage which was only needed for a stream to determine the end of the message */
-    assert (*sz > sizeof (MsgLen_t));
-    srcbuf = *buff + sizeof (MsgLen_t);
-    srclen = *sz - sizeof (MsgLen_t);
-    memmove (srcbuf, *buff, RTPS_MESSAGE_HEADER_SIZE);
+    assert (*sz > sizeof (ddsi_rtps_msg_len_t));
+    srcbuf = *buff + sizeof (ddsi_rtps_msg_len_t);
+    srclen = *sz - sizeof (ddsi_rtps_msg_len_t);
+    memmove (srcbuf, *buff, DDSI_RTPS_MESSAGE_HEADER_SIZE);
   }
 else
   {
@@ -3758,7 +3758,7 @@ else
 
   ddsrt_free (dstbuf);
 
-  *hdr = (Header_t *) *buff;
+  *hdr = (ddsi_rtps_header_t *) *buff;
   (*hdr)->guid_prefix = nn_ntoh_guid_prefix ((*hdr)->guid_prefix);
   *sz = dstlen;
   return DDSI_RTPS_MSG_STATE_ENCODED;
@@ -3769,7 +3769,7 @@ ddsi_security_decode_rtps_message (
   struct thread_state * const thrst,
   struct ddsi_domaingv *gv,
   struct nn_rmsg **rmsg,
-  Header_t **hdr,
+  ddsi_rtps_header_t **hdr,
   unsigned char **buff,
   size_t *sz,
   struct nn_rbufpool *rbpool,
@@ -3793,12 +3793,12 @@ ddsi_security_secure_conn_write(
     size_t niov,
     const ddsrt_iovec_t *iov,
     uint32_t flags,
-    MsgLen_t *msg_len,
+    ddsi_rtps_msg_len_t *msg_len,
     bool dst_one,
     ddsi_msg_sec_info_t *sec_info,
     ddsi_tran_write_fn_t conn_write_cb)
 {
-  Header_t *hdr;
+  ddsi_rtps_header_t *hdr;
   ddsi_guid_t guid;
   unsigned char stbuf[2048];
   unsigned char *srcbuf;
@@ -3821,7 +3821,7 @@ ddsi_security_secure_conn_write(
     }
   }
 
-  hdr = (Header_t *) iov[0].iov_base;
+  hdr = (ddsi_rtps_header_t *) iov[0].iov_base;
   guid.prefix = nn_ntoh_guid_prefix (hdr->guid_prefix);
   guid.entityid.u = NN_ENTITYID_PARTICIPANT;
 
@@ -3866,11 +3866,11 @@ ddsi_security_secure_conn_write(
       msg_len->length = (uint32_t) (dstlen + sizeof (*msg_len));
 
       tmp_iov[0].iov_base = dstbuf;
-      tmp_iov[0].iov_len = RTPS_MESSAGE_HEADER_SIZE;
+      tmp_iov[0].iov_len = DDSI_RTPS_MESSAGE_HEADER_SIZE;
       tmp_iov[1].iov_base = (void *) msg_len;
       tmp_iov[1].iov_len = sizeof (*msg_len);
-      tmp_iov[2].iov_base = dstbuf + RTPS_MESSAGE_HEADER_SIZE;
-      tmp_iov[2].iov_len = (ddsrt_iov_len_t) (dstlen - RTPS_MESSAGE_HEADER_SIZE);
+      tmp_iov[2].iov_base = dstbuf + DDSI_RTPS_MESSAGE_HEADER_SIZE;
+      tmp_iov[2].iov_len = (ddsrt_iov_len_t) (dstlen - DDSI_RTPS_MESSAGE_HEADER_SIZE);
       tmp_niov = 3;
     }
     else
@@ -4029,7 +4029,7 @@ extern inline bool ddsi_security_validate_msg_decoding(
   UNUSED_ARG(const struct ddsi_proxy_endpoint_common *c),
   UNUSED_ARG(struct ddsi_proxy_participant *proxypp),
   UNUSED_ARG(struct receiver_state *rst),
-  UNUSED_ARG(SubmessageKind_t prev_smid));
+  UNUSED_ARG(ddsi_rtps_submessage_kind_t prev_smid));
 
 extern inline int ddsi_security_decode_sec_prefix(
   UNUSED_ARG(struct receiver_state *rst),
@@ -4044,7 +4044,7 @@ extern inline ddsi_rtps_msg_state_t ddsi_security_decode_rtps_message (
   UNUSED_ARG(struct thread_state * const thrst),
   UNUSED_ARG(struct ddsi_domaingv *gv),
   UNUSED_ARG(struct nn_rmsg **rmsg),
-  UNUSED_ARG(Header_t **hdr),
+  UNUSED_ARG(ddsi_rtps_header_t **hdr),
   UNUSED_ARG(unsigned char **buff),
   UNUSED_ARG(size_t *sz),
   UNUSED_ARG(struct nn_rbufpool *rbpool),

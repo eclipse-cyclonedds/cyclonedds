@@ -211,7 +211,7 @@ static struct ddsi_sertype * sertype_default_derive_sertype (const struct ddsi_s
     ddsrt_atomic_st32 (&derived_sertype->c.flags_refc, refc & ~DDSI_SERTYPE_REFC_MASK);
     derived_sertype->c.base_sertype = ddsi_sertype_ref (base_sertype);
     derived_sertype->c.serdata_ops = required_ops;
-    derived_sertype->write_encoding_version = data_representation == DDS_DATA_REPRESENTATION_XCDR1 ? DDS_CDR_ENC_VERSION_1 : DDS_CDR_ENC_VERSION_2;
+    derived_sertype->write_encoding_version = data_representation == DDS_DATA_REPRESENTATION_XCDR1 ? DDSI_RTPS_CDR_ENC_VERSION_1 : DDSI_RTPS_CDR_ENC_VERSION_2;
   }
 
   return (struct ddsi_sertype *) derived_sertype;
@@ -307,12 +307,12 @@ dds_return_t dds_sertype_default_init (const struct dds_domain *domain, struct d
   st->c.fixed_size = (st->c.fixed_size || (desc->m_flagset & DDS_TOPIC_FIXED_SIZE)) ? 1u : 0u;
   st->c.allowed_data_representation = desc->m_flagset & DDS_TOPIC_RESTRICT_DATA_REPRESENTATION ?
       desc->restrict_data_representation : DDS_DATA_REPRESENTATION_RESTRICT_DEFAULT;
-  if (min_xcdrv == DDS_CDR_ENC_VERSION_2)
+  if (min_xcdrv == DDSI_RTPS_CDR_ENC_VERSION_2)
     st->c.allowed_data_representation &= ~DDS_DATA_REPRESENTATION_FLAG_XCDR1;
   st->encoding_format = ddsi_sertype_extensibility_enc_format (type_ext);
   /* Store the encoding version used for writing data using this sertype. When reading data,
      the encoding version from the encapsulation header in the CDR is used */
-  st->write_encoding_version = data_representation == DDS_DATA_REPRESENTATION_XCDR1 ? DDS_CDR_ENC_VERSION_1 : DDS_CDR_ENC_VERSION_2;
+  st->write_encoding_version = data_representation == DDS_DATA_REPRESENTATION_XCDR1 ? DDSI_RTPS_CDR_ENC_VERSION_1 : DDSI_RTPS_CDR_ENC_VERSION_2;
   st->serpool = domain->serpool;
   st->type.size = desc->m_size;
   st->type.align = desc->m_align;
@@ -327,7 +327,7 @@ dds_return_t dds_sertype_default_init (const struct dds_domain *domain, struct d
   st->type.ops.nops = dds_stream_countops (desc->m_ops, desc->m_nkeys, desc->m_keys);
   st->type.ops.ops = ddsrt_memdup (desc->m_ops, st->type.ops.nops * sizeof (*st->type.ops.ops));
 
-  if (min_xcdrv == DDS_CDR_ENC_VERSION_2 && dds_stream_type_nesting_depth (desc->m_ops) > DDS_CDRSTREAM_MAX_NESTING_DEPTH)
+  if (min_xcdrv == DDSI_RTPS_CDR_ENC_VERSION_2 && dds_stream_type_nesting_depth (desc->m_ops) > DDS_CDRSTREAM_MAX_NESTING_DEPTH)
   {
     ddsi_sertype_unref (&st->c);
     GVTRACE ("Serializer ops for type %s has unsupported nesting depth (max %u)\n", desc->m_typename, DDS_CDRSTREAM_MAX_NESTING_DEPTH);
@@ -356,11 +356,11 @@ dds_return_t dds_sertype_default_init (const struct dds_domain *domain, struct d
     st->typemap_ser.sz = 0;
   }
 
-  st->type.opt_size_xcdr1 = (st->c.allowed_data_representation & DDS_DATA_REPRESENTATION_FLAG_XCDR1) ? dds_stream_check_optimize (&st->type, DDS_CDR_ENC_VERSION_1) : 0;
+  st->type.opt_size_xcdr1 = (st->c.allowed_data_representation & DDS_DATA_REPRESENTATION_FLAG_XCDR1) ? dds_stream_check_optimize (&st->type, DDSI_RTPS_CDR_ENC_VERSION_1) : 0;
   if (st->type.opt_size_xcdr1 > 0)
     GVTRACE ("Marshalling XCDR1 for type: %s is %soptimised\n", st->c.type_name, st->type.opt_size_xcdr1 ? "" : "not ");
 
-  st->type.opt_size_xcdr2 = (st->c.allowed_data_representation & DDS_DATA_REPRESENTATION_FLAG_XCDR2) ? dds_stream_check_optimize (&st->type, DDS_CDR_ENC_VERSION_2) : 0;
+  st->type.opt_size_xcdr2 = (st->c.allowed_data_representation & DDS_DATA_REPRESENTATION_FLAG_XCDR2) ? dds_stream_check_optimize (&st->type, DDSI_RTPS_CDR_ENC_VERSION_2) : 0;
   if (st->type.opt_size_xcdr2 > 0)
     GVTRACE ("Marshalling XCDR2 for type: %s is %soptimised\n", st->c.type_name, st->type.opt_size_xcdr2 ? "" : "not ");
 

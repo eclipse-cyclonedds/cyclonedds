@@ -1525,7 +1525,7 @@ dds_return_t dds_assert_liveliness (dds_entity_t entity)
   switch (dds_entity_kind (e))
   {
     case DDS_KIND_PARTICIPANT: {
-      ddsi_write_pmd_message_guid (&e->m_domain->gv, &e->m_guid, PARTICIPANT_MESSAGE_DATA_KIND_MANUAL_LIVELINESS_UPDATE);
+      ddsi_write_pmd_message_guid (&e->m_domain->gv, &e->m_guid, DDSI_PARTICIPANT_MESSAGE_DATA_KIND_MANUAL_LIVELINESS_UPDATE);
       break;
     }
     case DDS_KIND_WRITER: {

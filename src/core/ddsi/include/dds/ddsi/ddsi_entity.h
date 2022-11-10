@@ -19,7 +19,7 @@
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsi/q_rtps.h"
-#include "dds/ddsi/q_protocol.h"
+#include "dds/ddsi/ddsi_protocol.h"
 
 #if defined (__cplusplus)
 extern "C" {

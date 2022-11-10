@@ -628,7 +628,7 @@ dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descrip
   uint32_t allowed_repr = desc->m_flagset & DDS_TOPIC_RESTRICT_DATA_REPRESENTATION ?
       desc->restrict_data_representation : DDS_DATA_REPRESENTATION_RESTRICT_DEFAULT;
   uint16_t min_xcdrv = dds_stream_minimum_xcdr_version (desc->m_ops);
-  if (min_xcdrv == DDS_CDR_ENC_VERSION_2)
+  if (min_xcdrv == DDSI_RTPS_CDR_ENC_VERSION_2)
     allowed_repr &= ~DDS_DATA_REPRESENTATION_FLAG_XCDR1;
   if ((hdl = dds_ensure_valid_data_representation (tpqos, allowed_repr, true)) != 0)
     goto err_data_repr;

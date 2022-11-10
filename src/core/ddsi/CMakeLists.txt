@@ -124,6 +124,7 @@ set(hdrs_ddsi
   ddsi_proxy_endpoint.h
   ddsi_gc.h
   ddsi_pmd.h
+  ddsi_protocol.h
   q_addrset.h
   q_bitset.h
   q_bswap.h
@@ -137,7 +138,6 @@ set(hdrs_ddsi
   q_log.h
   q_misc.h
   q_pcap.h
-  q_protocol.h
   q_qosmatch.h
   q_radmin.h
   q_receive.h
@@ -185,6 +185,7 @@ set(hdrs_private_ddsi
   ddsi__serdata_plist.h
   ddsi__ssl.h
   ddsi__tcp.h
+  ddsi__protocol.h
 )
 
 if(ENABLE_LIFESPAN)

@@ -78,11 +78,11 @@ static enum find_interface_result find_interface_by_address (const struct ddsi_d
 
   /* For IPv4, try matching on network portion only, where the network portion
      is based on the netmask of the interface under consideration */
-  if (req.kind == NN_LOCATOR_KIND_UDPv4)
+  if (req.kind == DDSI_LOCATOR_KIND_UDPv4)
   {
     for (size_t k = 0; k < n_interfaces; k++)
     {
-      if (interfaces[k].loc.kind != NN_LOCATOR_KIND_UDPv4)
+      if (interfaces[k].loc.kind != DDSI_LOCATOR_KIND_UDPv4)
         continue;
       uint32_t req1, ip1, nm1;
       memcpy (&req1, req.address + 12, sizeof (req1));
@@ -211,7 +211,7 @@ static enum maybe_add_interface_result maybe_add_interface (struct ddsi_domaingv
   else
   {
     dst->netmask.kind = dst->loc.kind;
-    dst->netmask.port = NN_LOCATOR_PORT_INVALID;
+    dst->netmask.port = DDSI_LOCATOR_PORT_INVALID;
     memset(&dst->netmask.address, 0, sizeof(dst->netmask.address));
   }
   // Default external (i.e., advertised in discovery) address to the actual interface

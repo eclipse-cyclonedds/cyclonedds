@@ -68,7 +68,7 @@ int rd_cmp_print_key (dds_ostream_t *os, const void *msg_wr, struct dds_cdrstrea
 {
   int res;
   char buf[99999];
-  dds_istream_t is = { os->m_buffer, os->m_size, 0, DDS_CDR_ENC_VERSION_2 };
+  dds_istream_t is = { os->m_buffer, os->m_size, 0, DDSI_RTPS_CDR_ENC_VERSION_2 };
 
   // read
   void *msg_rd = ddsrt_calloc (1, desc->m_size);
@@ -111,7 +111,7 @@ int main(int argc, char **argv)
 
     // write data
     printf("cdr write %s\n", tests[i] == BE ? "BE" : "LE");
-    dds_ostream_t os = { NULL, 0, 0, DDS_CDR_ENC_VERSION_2 };
+    dds_ostream_t os = { NULL, 0, 0, DDSI_RTPS_CDR_ENC_VERSION_2 };
     bool ret;
     if (tests[i] == BE)
       ret = dds_stream_write_sampleBE ((dds_ostreamBE_t *)(&os), msg_wr, &cdrstream_desc);
@@ -125,13 +125,13 @@ int main(int argc, char **argv)
     printf("sample data cdr:\n");
     print_raw_cdr (&os);
 
-    dds_istream_t is = { os.m_buffer, os.m_size, 0, DDS_CDR_ENC_VERSION_2 };
+    dds_istream_t is = { os.m_buffer, os.m_size, 0, DDSI_RTPS_CDR_ENC_VERSION_2 };
 
     // normalize sample
     uint32_t actual_size = 0;
     bool swap = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN) ? (tests[i] == BE) : (tests[i] == LE);
     printf("cdr normalize (%sswap)\n", swap ? "" : "no ");
-    if (!dds_stream_normalize ((void *)is.m_buffer, os.m_index, swap, DDS_CDR_ENC_VERSION_2, &cdrstream_desc, false, &actual_size))
+    if (!dds_stream_normalize ((void *)is.m_buffer, os.m_index, swap, DDSI_RTPS_CDR_ENC_VERSION_2, &cdrstream_desc, false, &actual_size))
     {
       printf("cdr normalize failed\n");
       return 1;
@@ -158,7 +158,7 @@ int main(int argc, char **argv)
     {
       // extract key from data
       is.m_index = 0;
-      dds_ostream_t os_key_from_data = { NULL, 0, 0, DDS_CDR_ENC_VERSION_2 };
+      dds_ostream_t os_key_from_data = { NULL, 0, 0, DDSI_RTPS_CDR_ENC_VERSION_2 };
       if (!dds_stream_extract_key_from_data (&is, &os_key_from_data, &cdrstream_desc))
       {
         printf("extract key from data failed\n");
@@ -172,12 +172,12 @@ int main(int argc, char **argv)
         break;
 
       // write key
-      dds_ostream_t os_wr_key = { NULL, 0, 0, DDS_CDR_ENC_VERSION_2 };
+      dds_ostream_t os_wr_key = { NULL, 0, 0, DDSI_RTPS_CDR_ENC_VERSION_2 };
       dds_stream_write_key (&os_wr_key, msg_wr, &cdrstream_desc);
 
       // extract key from key
-      dds_istream_t is_key_from_key = { os_wr_key.m_buffer, os_wr_key.m_size, 0, DDS_CDR_ENC_VERSION_2 };
-      dds_ostream_t os_key_from_key = { NULL, 0, 0, DDS_CDR_ENC_VERSION_2 };
+      dds_istream_t is_key_from_key = { os_wr_key.m_buffer, os_wr_key.m_size, 0, DDSI_RTPS_CDR_ENC_VERSION_2 };
+      dds_ostream_t os_key_from_key = { NULL, 0, 0, DDSI_RTPS_CDR_ENC_VERSION_2 };
       dds_stream_extract_key_from_key (&is_key_from_key, &os_key_from_key, &cdrstream_desc);
       res = rd_cmp_print_key (&os_key_from_key, msg_wr, &cdrstream_desc);
 

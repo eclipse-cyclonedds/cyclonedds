@@ -10,7 +10,6 @@
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
 #include "ddsi_eth.h"
-#include "dds/ddsi/q_protocol.h" // for NN_LOCATOR_KIND_...
 #include "dds/ddsi/ddsi_config_impl.h" // for transport_selector
 
 int ddsi_eth_enumerate_interfaces (ddsi_tran_factory_t fact, enum ddsi_transport_selector transport_selector, ddsrt_ifaddrs_t **ifs)

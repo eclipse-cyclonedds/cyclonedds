@@ -32,6 +32,7 @@
 #include "ddsi__plist.h"
 #include "ddsi__proxy_endpoint.h"
 #include "ddsi__proxy_participant.h"
+#include "ddsi__protocol.h"
 
 typedef struct proxy_purge_data {
   struct ddsi_proxy_participant *proxypp;
@@ -152,8 +153,8 @@ static void add_proxy_builtin_endpoints (struct ddsi_domaingv *gv, const struct 
 {
   /* Add proxy endpoints based on the advertised (& possibly augmented
      ...) built-in endpoint set. */
-#define TE(ap_, a_, bp_, b_, c_) { NN_##ap_##BUILTIN_ENDPOINT_##a_, NN_ENTITYID_##bp_##_BUILTIN_##b_, DDS_BUILTIN_TOPIC_##c_##_NAME }
-#define LTE(a_, bp_, b_, c_) { NN_##BUILTIN_ENDPOINT_##a_, NN_ENTITYID_##bp_##_BUILTIN_##b_, DDS_BUILTIN_TOPIC_##c_##_NAME }
+#define TE(ap_, a_, bp_, b_, c_) { DDSI_##ap_##BUILTIN_ENDPOINT_##a_, NN_ENTITYID_##bp_##_BUILTIN_##b_, DDS_BUILTIN_TOPIC_##c_##_NAME }
+#define LTE(a_, bp_, b_, c_) { DDSI_##BUILTIN_ENDPOINT_##a_, NN_ENTITYID_##bp_##_BUILTIN_##b_, DDS_BUILTIN_TOPIC_##c_##_NAME }
 
   /* 'Default' proxy endpoints. */
   static const struct ddsi_bestab bestab_default[] = {
@@ -329,9 +330,9 @@ bool ddsi_new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_gui
      runs on a single thread, it can't go wrong. FIXME, maybe? The
      same holds for the other functions for creating entities. */
   struct ddsi_proxy_participant *proxypp;
-  const bool is_secure = ((bes & NN_DISC_BUILTIN_ENDPOINT_PARTICIPANT_SECURE_ANNOUNCER) != 0);
+  const bool is_secure = ((bes & DDSI_DISC_BUILTIN_ENDPOINT_PARTICIPANT_SECURE_ANNOUNCER) != 0);
   assert (!is_secure || (plist->present & PP_IDENTITY_TOKEN));
-  assert (is_secure || (bes & ~NN_BES_MASK_NON_SECURITY) == 0);
+  assert (is_secure || (bes & ~DDSI_BES_MASK_NON_SECURITY) == 0);
   (void) is_secure;
 
   assert (ppguid->entityid.u == NN_ENTITYID_PARTICIPANT);

@@ -319,7 +319,7 @@ static bool read_prefix(unsigned char **ptr, uint32_t *remain)
 
   prefix = (struct submsg_header *)(*ptr);
 
-  if (prefix->id != SMID_SEC_PREFIX)
+  if (prefix->id != DDSI_RTPS_SMID_SEC_PREFIX)
   {
     printf("check_encoded_data: prefix incorrect smid 0x%x02\n", prefix->id);
     return false;
@@ -389,7 +389,7 @@ static bool read_body(DDS_Security_OctetSeq *contents, bool encrypted, unsigned 
   {
     struct encrypted_data *enc;
 
-    if (body->id != SMID_SEC_BODY)
+    if (body->id != DDSI_RTPS_SMID_SEC_BODY)
     {
       printf("check_encoded_data: submessage SEC_BODY missing\n");
       return false;
@@ -402,7 +402,7 @@ static bool read_body(DDS_Security_OctetSeq *contents, bool encrypted, unsigned 
   }
   else
   {
-    if (body->id == SMID_SEC_BODY)
+    if (body->id == DDSI_RTPS_SMID_SEC_BODY)
     {
       printf("check_encoded_data: submessage SEC_BODY not expected\n");
       return false;
@@ -431,7 +431,7 @@ static bool read_postfix(unsigned char **ptr,uint32_t *remain)
 
   postfix = (struct submsg_header *)(*ptr);
 
-  if (postfix->id != SMID_SEC_POSTFIX)
+  if (postfix->id != DDSI_RTPS_SMID_SEC_POSTFIX)
   {
     printf("check_encoded_data: postfix invalid smid\n");
     return false;
@@ -648,9 +648,9 @@ static master_key_material * get_datareader_key_material(DDS_Security_Datareader
 static unsigned char submsg_header_endianness_flag (enum ddsrt_byte_order_selector bo)
 {
 #if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
-  return (unsigned char) ((bo == DDSRT_BOSEL_BE) ? 0 : SMFLAG_ENDIANNESS);
+  return (unsigned char) ((bo == DDSRT_BOSEL_BE) ? 0 : DDSI_RTPS_SUBMESSAGE_FLAG_ENDIANNESS);
 #else
-  return (unsigned char) ((bo == DDSRT_BO_LE) ? SMFLAG_ENDIANNESS : 0);
+  return (unsigned char) ((bo == DDSRT_BO_LE) ? DDSI_RTPS_SUBMESSAGE_FLAG_ENDIANNESS : 0);
 #endif
 }
 

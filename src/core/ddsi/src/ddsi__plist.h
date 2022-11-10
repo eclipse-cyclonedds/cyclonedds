@@ -71,7 +71,7 @@ typedef uint32_t ddsi_port_t;
 typedef struct ddsi_plist_src {
   nn_protocol_version_t protocol_version; /**< input protocol version */
   nn_vendorid_t vendorid;                 /**< vendor code for input */
-  int encoding;                           /**< PL_CDR_LE or PL_CDR_BE */
+  int encoding;                           /**< DDSI_RTPS_PL_CDR_LE or DDSI_RTPS_PL_CDR_BE */
   const unsigned char *buf;               /**< input buffer */
   size_t bufsz;                           /**< size of input buffer */
   bool strict;                            /**< whether to be strict in checking */
@@ -80,7 +80,7 @@ typedef struct ddsi_plist_src {
 struct ddsi_plist_sample {
   void *blob;
   size_t size;
-  nn_parameterid_t keyparam;
+  ddsi_parameterid_t keyparam;
 };
 
 extern const ddsi_plist_t ddsi_default_plist_participant;
@@ -142,7 +142,7 @@ ddsi_plist_t *ddsi_plist_dup (const ddsi_plist_t *src);
  *                 should be parsed
  *               - vendorid is the vendor id code for the source of the parameter list (for
  *                 handling vendor-specific parameters and compatibility workarounds)
- *               - encoding is PL_CDR_LE or PL_CDR_BE
+ *               - encoding is DDSI_RTPS_PL_CDR_LE or DDSI_RTPS_PL_CDR_BE
  *               - buf is a pointer to the first parameter header
  *               - bufsz is the size in bytes of the input buffer
  * @param[in]  gv
@@ -283,13 +283,13 @@ unsigned char *ddsi_plist_quickscan (struct nn_rsample_info *dest, const ddsi_ke
  * This scans the serialized data until it encounters the sentinel, recording whether the
  * specified parameter occurs and returning the size and address of it in `buf`.
  *
- * If `needle` is PID_SENTINEL, it will simply check well-formedness of the input and
- * `needlep` and `needlesz` must both be null pointers.  If `needle` is not PID_SENTINEL,
+ * If `needle` is DDSI_PID_SENTINEL, it will simply check well-formedness of the input and
+ * `needlep` and `needlesz` must both be null pointers.  If `needle` is not DDSI_PID_SENTINEL,
  * `needlep` and `needlesz` may not be null pointers.
  *
  * @param[in]  buf       serialized parameter list to scan
  * @param[in]  bufsz     length of serialized form
- * @param[in]  encoding  encoding of `buf`, either PL_CDR_LE or PL_CDR_BE
+ * @param[in]  encoding  encoding of `buf`, either DDSI_RTPS_PL_CDR_LE or DDSI_RTPS_PL_CDR_BE
  * @param[in]  needle    parameter id to look for
  * @param[out] needlep   where to store the address of the `needle` value
  * @param[out] needlesz  where to store the size of the `needle` value
@@ -300,7 +300,7 @@ unsigned char *ddsi_plist_quickscan (struct nn_rsample_info *dest, const ddsi_ke
  * @retval DDS_RETCODE_NOT_FOUND      valid input, `needle` not present
  * @retval DDS_RETCODE_OK             valid input, `needle` is present
 */
-dds_return_t ddsi_plist_findparam_checking (const void *buf, size_t bufsz, uint16_t encoding, nn_parameterid_t needle, void **needlep, size_t *needlesz);
+dds_return_t ddsi_plist_findparam_checking (const void *buf, size_t bufsz, uint16_t encoding, ddsi_parameterid_t needle, void **needlep, size_t *needlesz);
 
 #if defined (__cplusplus)
 }

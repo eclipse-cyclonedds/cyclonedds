@@ -145,7 +145,7 @@ static void check_writer_addrset_helper (const ddsi_xlocator_t *loc, void *varg)
 {
   struct check_writer_addrset_helper_arg * const arg = varg;
   // Iceoryx locators are not allowed in writer's address set because that causes it to go through the transmit path
-  CU_ASSERT_FATAL (loc->c.kind != NN_LOCATOR_KIND_SHEM);
+  CU_ASSERT_FATAL (loc->c.kind != DDSI_LOCATOR_KIND_SHEM);
   CU_ASSERT_FATAL (loc->c.port != 0);
   int i;
   for (i = 0; i < arg->nports; i++)

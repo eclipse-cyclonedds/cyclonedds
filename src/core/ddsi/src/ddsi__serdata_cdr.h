@@ -14,7 +14,7 @@
 
 #include "dds/ddsrt/endian.h"
 #include "dds/ddsrt/avl.h"
-#include "dds/ddsi/q_protocol.h"
+#include "ddsi__protocol.h"
 #include "dds/ddsi/q_freelist.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_typelib.h"
@@ -85,7 +85,7 @@ DDSRT_STATIC_ASSERT ((offsetof (struct ddsi_serdata_cdr, data) % 8) == 0);
  */
 struct ddsi_sertype_cdr {
   struct ddsi_sertype c;
-  uint16_t encoding_format; /* DDS_CDR_ENC_FORMAT_(PLAIN|DELIMITED|PL) - CDR encoding format for the top-level type in this sertype */
+  uint16_t encoding_format; /* DDSI_RTPS_CDR_ENC_FORMAT_(PLAIN|DELIMITED|PL) - CDR encoding format for the top-level type in this sertype */
   struct dds_cdrstream_desc type;
 };
 

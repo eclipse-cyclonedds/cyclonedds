@@ -32,7 +32,7 @@
 #include "ddsi__entity_match.h"
 #include "ddsi__participant.h"
 #include "dds/ddsi/ddsi_gc.h"
-#include "dds/ddsi/q_protocol.h"
+#include "ddsi__protocol.h"
 #include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/q_transmit.h"
@@ -269,12 +269,12 @@ static ddsi_guid_t from_guid (const DDS_GUID_t *guid)
 
 static seqno_t from_seqno (const DDS_SequenceNumber *seqno)
 {
-  return fromSN((nn_sequence_number_t){ .high = seqno->high, .low = seqno->low });
+  return fromSN((ddsi_sequence_number_t){ .high = seqno->high, .low = seqno->low });
 }
 
 void ddsi_tl_handle_request (struct ddsi_domaingv *gv, struct ddsi_serdata *d)
 {
-  assert (!(d->statusinfo & (NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER)));
+  assert (!(d->statusinfo & (DDSI_STATUSINFO_DISPOSE | DDSI_STATUSINFO_UNREGISTER)));
 
   DDS_Builtin_TypeLookup_Request req;
   memset (&req, 0, sizeof (req));
@@ -382,7 +382,7 @@ void ddsi_tl_handle_reply (struct ddsi_domaingv *gv, struct ddsi_serdata *d)
 {
   struct ddsi_generic_proxy_endpoint **gpe_match_upd = NULL;
   uint32_t n_match_upd = 0;
-  assert (!(d->statusinfo & (NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER)));
+  assert (!(d->statusinfo & (DDSI_STATUSINFO_DISPOSE | DDSI_STATUSINFO_UNREGISTER)));
 
   DDS_Builtin_TypeLookup_Reply reply;
   memset (&reply, 0, sizeof (reply));

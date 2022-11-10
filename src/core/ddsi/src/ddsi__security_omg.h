@@ -945,7 +945,7 @@ ddsi_security_validate_msg_decoding(
   const struct ddsi_proxy_endpoint_common *c,
   const struct ddsi_proxy_participant *proxypp,
   const struct receiver_state *rst,
-  SubmessageKind_t prev_smid);
+  ddsi_rtps_submessage_kind_t prev_smid);
 
 /**
  * @brief Decode not only SecPrefix, but also the SecBody and SecPostfix
@@ -998,7 +998,7 @@ ddsi_security_decode_sec_prefix(
  * @retval DDSI_RTPS_MSG_STATE_ENCODED  Decoding succeeded.
  * @retval DDSI_RTPS_MSG_STATE_ERROR    Decoding failed.
  */
-ddsi_rtps_msg_state_t ddsi_security_decode_rtps_message (struct thread_state * const thrst, struct ddsi_domaingv *gv, struct nn_rmsg **rmsg, Header_t **hdr, unsigned char **buff, size_t *sz, struct nn_rbufpool *rbpool, bool isstream);
+ddsi_rtps_msg_state_t ddsi_security_decode_rtps_message (struct thread_state * const thrst, struct ddsi_domaingv *gv, struct nn_rmsg **rmsg, ddsi_rtps_header_t **hdr, unsigned char **buff, size_t *sz, struct nn_rbufpool *rbpool, bool isstream);
 
 /**
  * @brief Send the RTPS message securely.
@@ -1025,7 +1025,7 @@ ddsi_security_secure_conn_write(
     size_t niov,
     const ddsrt_iovec_t *iov,
     uint32_t flags,
-    MsgLen_t *msg_len,
+    ddsi_rtps_msg_len_t *msg_len,
     bool dst_one,
     ddsi_msg_sec_info_t *sec_info,
     ddsi_tran_write_fn_t conn_write_cb);
@@ -1301,7 +1301,7 @@ ddsi_security_validate_msg_decoding(
   UNUSED_ARG(const struct ddsi_proxy_endpoint_common *c),
   UNUSED_ARG(struct ddsi_proxy_participant *proxypp),
   UNUSED_ARG(struct receiver_state *rst),
-  UNUSED_ARG(SubmessageKind_t prev_smid))
+  UNUSED_ARG(ddsi_rtps_submessage_kind_t prev_smid))
 {
   return true;
 }
@@ -1325,7 +1325,7 @@ ddsi_security_decode_rtps_message (
   UNUSED_ARG(struct thread_state * const thrst),
   UNUSED_ARG(struct ddsi_domaingv *gv),
   UNUSED_ARG(struct nn_rmsg **rmsg),
-  UNUSED_ARG(Header_t **hdr),
+  UNUSED_ARG(ddsi_rtps_header_t **hdr),
   UNUSED_ARG(unsigned char **buff),
   UNUSED_ARG(size_t *sz),
   UNUSED_ARG(struct nn_rbufpool *rbpool),

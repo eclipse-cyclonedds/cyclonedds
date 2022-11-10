@@ -70,7 +70,7 @@ extern "C" {
 
 /* Set for unrecognized parameters that are in the reserved space or
    in our own vendor-specific space that have the
-   PID_UNRECOGNIZED_INCOMPATIBLE_FLAG set (see DDSI 2.1 9.6.2.2.1) */
+   DDSI_PID_UNRECOGNIZED_INCOMPATIBLE_FLAG set (see DDSI 2.1 9.6.2.2.1) */
 #define PP_INCOMPATIBLE                         ((uint64_t)1 << 63)
 
 
@@ -168,7 +168,7 @@ typedef struct ddsi_plist {
   ddsi_locators_t metatraffic_multicast_locators;
 
   unsigned char expects_inline_qos;
-  nn_count_t participant_manual_liveliness_count;
+  ddsi_count_t participant_manual_liveliness_count;
   uint32_t participant_builtin_endpoints;
   dds_duration_t participant_lease_duration;
   /* nn_content_filter_property_t content_filter_property; */

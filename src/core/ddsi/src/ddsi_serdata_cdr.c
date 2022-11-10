@@ -98,7 +98,7 @@ static void serdata_cdr_init (struct ddsi_serdata_cdr *d, const struct ddsi_sert
 {
   ddsi_serdata_init (&d->c, &tp->c, kind);
   d->pos = 0;
-  d->hdr.identifier = ddsi_sertype_get_native_enc_identifier (DDS_CDR_ENC_VERSION_2, tp->encoding_format);
+  d->hdr.identifier = ddsi_sertype_get_native_enc_identifier (DDSI_RTPS_CDR_ENC_VERSION_2, tp->encoding_format);
   d->hdr.options = 0;
 }
 
@@ -125,9 +125,9 @@ static struct ddsi_serdata_cdr *serdata_cdr_new (const struct ddsi_sertype_cdr *
 
 static inline bool is_valid_xcdr_id (unsigned short cdr_identifier)
 {
-  return (cdr_identifier == CDR2_LE || cdr_identifier == CDR2_BE
-    || cdr_identifier == D_CDR2_LE || cdr_identifier == D_CDR2_BE
-    || cdr_identifier == PL_CDR2_LE || cdr_identifier == PL_CDR2_BE);
+  return (cdr_identifier == DDSI_RTPS_CDR2_LE || cdr_identifier == DDSI_RTPS_CDR2_BE
+    || cdr_identifier == DDSI_RTPS_D_CDR2_LE || cdr_identifier == DDSI_RTPS_D_CDR2_BE
+    || cdr_identifier == DDSI_RTPS_PL_CDR2_LE || cdr_identifier == DDSI_RTPS_PL_CDR2_BE);
 }
 
 /* Construct a serdata from a fragchain received over the network */
@@ -169,20 +169,20 @@ static struct ddsi_serdata_cdr *serdata_cdr_from_ser_common (const struct ddsi_s
     fragchain = fragchain->nextfrag;
   }
 
-  const bool needs_bswap = !CDR_ENC_IS_NATIVE (d->hdr.identifier);
-  d->hdr.identifier = CDR_ENC_TO_NATIVE (d->hdr.identifier);
+  const bool needs_bswap = !DDSI_RTPS_CDR_ENC_IS_NATIVE (d->hdr.identifier);
+  d->hdr.identifier = DDSI_RTPS_CDR_ENC_TO_NATIVE (d->hdr.identifier);
   const uint32_t pad = ddsrt_fromBE2u (d->hdr.options) & DDS_CDR_HDR_PADDING_MASK;
   const uint32_t xcdr_version = ddsi_sertype_enc_id_xcdr_version (d->hdr.identifier);
   const uint32_t encoding_format = ddsi_sertype_enc_id_enc_format (d->hdr.identifier);
-  if (xcdr_version != DDS_CDR_ENC_VERSION_2 || encoding_format != tp->encoding_format)
+  if (xcdr_version != DDSI_RTPS_CDR_ENC_VERSION_2 || encoding_format != tp->encoding_format)
     goto err;
 
   uint32_t actual_size;
-  if (d->pos < pad || !dds_stream_normalize (d->data, d->pos - pad, needs_bswap, DDS_CDR_ENC_VERSION_2, &tp->type, false, &actual_size))
+  if (d->pos < pad || !dds_stream_normalize (d->data, d->pos - pad, needs_bswap, DDSI_RTPS_CDR_ENC_VERSION_2, &tp->type, false, &actual_size))
     goto err;
 
   dds_istream_t is;
-  dds_istream_init (&is, actual_size, d->data, DDS_CDR_ENC_VERSION_2);
+  dds_istream_init (&is, actual_size, d->data, DDSI_RTPS_CDR_ENC_VERSION_2);
   return d;
 
 err:
@@ -204,9 +204,9 @@ static void istream_from_serdata_cdr (dds_istream_t * __restrict s, const struct
   s->m_index = (uint32_t) offsetof (struct ddsi_serdata_cdr, data);
   s->m_size = d->size + s->m_index;
 #if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
-  assert (CDR_ENC_LE (d->hdr.identifier));
+  assert (DDSI_RTPS_CDR_ENC_LE (d->hdr.identifier));
 #elif DDSRT_ENDIAN == DDSRT_BIG_ENDIAN
-  assert (!CDR_ENC_LE (d->hdr.identifier));
+  assert (!DDSI_RTPS_CDR_ENC_LE (d->hdr.identifier));
 #endif
   s->m_xcdr_version = ddsi_sertype_enc_id_xcdr_version (d->hdr.identifier);
 }
@@ -217,9 +217,9 @@ static void ostream_from_serdata_cdr (dds_ostream_t * __restrict s, const struct
   s->m_index = (uint32_t) offsetof (struct ddsi_serdata_cdr, data);
   s->m_size = d->size + s->m_index;
 #if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
-  assert (CDR_ENC_LE (d->hdr.identifier));
+  assert (DDSI_RTPS_CDR_ENC_LE (d->hdr.identifier));
 #elif DDSRT_ENDIAN == DDSRT_BIG_ENDIAN
-  assert (!CDR_ENC_LE (d->hdr.identifier));
+  assert (!DDSI_RTPS_CDR_ENC_LE (d->hdr.identifier));
 #endif
   s->m_xcdr_version = ddsi_sertype_enc_id_xcdr_version (d->hdr.identifier);
 }
@@ -277,7 +277,7 @@ static struct ddsi_serdata *serdata_cdr_to_untyped (const struct ddsi_serdata *s
   const struct ddsi_serdata_cdr *d = (const struct ddsi_serdata_cdr *)serdata_common;
   const struct ddsi_sertype_cdr *tp = (const struct ddsi_sertype_cdr *)d->c.type;
 
-  assert (CDR_ENC_IS_NATIVE (d->hdr.identifier));
+  assert (DDSI_RTPS_CDR_ENC_IS_NATIVE (d->hdr.identifier));
   struct ddsi_serdata_cdr *d_tl = serdata_cdr_new (tp, SDK_KEY);
   if (d_tl == NULL)
     return NULL;
@@ -318,7 +318,7 @@ static bool serdata_cdr_to_sample_cdr (const struct ddsi_serdata *serdata_common
   const struct ddsi_sertype_cdr *tp = (const struct ddsi_sertype_cdr *) d->c.type;
   dds_istream_t is;
   if (bufptr) abort(); else { (void)buflim; } /* FIXME: haven't implemented that bit yet! */
-  assert (CDR_ENC_IS_NATIVE (d->hdr.identifier));
+  assert (DDSI_RTPS_CDR_ENC_IS_NATIVE (d->hdr.identifier));
   istream_from_serdata_cdr(&is, d);
   dds_stream_read_sample (&is, sample, &tp->type);
   return true; /* FIXME: can't conversion to sample fail? */

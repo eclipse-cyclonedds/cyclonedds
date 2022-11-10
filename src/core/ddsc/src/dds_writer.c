@@ -456,7 +456,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
 #ifdef DDS_HAS_SHM
   assert(wqos->present & QP_LOCATOR_MASK);
   if (!dds_writer_support_shm(&gv->config, wqos, tp))
-    wqos->ignore_locator_type |= NN_LOCATOR_KIND_SHEM;
+    wqos->ignore_locator_type |= DDSI_LOCATOR_KIND_SHEM;
 #endif
 
   struct ddsi_sertype *sertype = ddsi_sertype_derive_sertype (tp->m_stype, data_representation,

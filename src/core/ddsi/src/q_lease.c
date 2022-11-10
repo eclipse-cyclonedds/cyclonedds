@@ -16,7 +16,7 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/fibheap.h"
-#include "dds/ddsi/q_protocol.h"
+#include "ddsi__protocol.h"
 #include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/q_misc.h"
 #include "dds/ddsi/ddsi_config_impl.h"

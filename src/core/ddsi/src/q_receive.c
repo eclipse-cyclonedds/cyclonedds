@@ -22,7 +22,7 @@
 #include "dds/ddsrt/static_assert.h"
 #include "dds/ddsrt/avl.h"
 
-#include "dds/ddsi/q_protocol.h"
+#include "ddsi__protocol.h"
 #include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/q_misc.h"
 #include "dds/ddsi/ddsi_config_impl.h"
@@ -115,14 +115,14 @@ static void maybe_set_reader_in_sync (struct ddsi_proxy_writer *pwr, struct ddsi
   }
 }
 
-static bool valid_sequence_number_set (const nn_sequence_number_set_header_t *snset, seqno_t *start)
+static bool valid_sequence_number_set (const ddsi_sequence_number_set_header_t *snset, seqno_t *start)
 {
   // reject sets that imply sequence numbers beyond the range of valid sequence numbers
   // (not a spec'd requirement)
   return (validating_fromSN (snset->bitmap_base, start) && snset->numbits <= 256 && snset->numbits <= MAX_SEQ_NUMBER - *start);
 }
 
-static bool valid_fragment_number_set (const nn_fragment_number_set_header_t *fnset)
+static bool valid_fragment_number_set (const ddsi_fragment_number_set_header_t *fnset)
 {
   // reject sets that imply fragment numbers beyond the range of valid fragment numbers
   // (not a spec'd requirement)
@@ -153,10 +153,10 @@ static enum validation_result validate_writer_and_reader_or_null_entityid (ddsi_
     return VR_NOT_UNDERSTOOD;
 }
 
-static enum validation_result validate_AckNack (const struct receiver_state *rst, AckNack_t *msg, size_t size, int byteswap)
+static enum validation_result validate_AckNack (const struct receiver_state *rst, ddsi_rtps_acknack_t *msg, size_t size, int byteswap)
 {
-  nn_count_t *count; /* this should've preceded the bitmap */
-  if (size < ACKNACK_SIZE (0))
+  ddsi_count_t *count; /* this should've preceded the bitmap */
+  if (size < DDSI_ACKNACK_SIZE (0))
     return VR_MALFORMED;
   if (byteswap)
   {
@@ -180,9 +180,9 @@ static enum validation_result validate_AckNack (const struct receiver_state *rst
   }
   /* Given the number of bits, we can compute the size of the AckNack
      submessage, and verify that the submessage is large enough */
-  if (size < ACKNACK_SIZE (msg->readerSNState.numbits))
+  if (size < DDSI_ACKNACK_SIZE (msg->readerSNState.numbits))
     return VR_MALFORMED;
-  count = (nn_count_t *) ((char *) &msg->bits + NN_SEQUENCE_NUMBER_SET_BITS_SIZE (msg->readerSNState.numbits));
+  count = (ddsi_count_t *) ((char *) &msg->bits + DDSI_SEQUENCE_NUMBER_SET_BITS_SIZE (msg->readerSNState.numbits));
   if (byteswap)
   {
     bswap_sequence_number_set_bitmap (&msg->readerSNState, msg->bits);
@@ -195,9 +195,9 @@ static enum validation_result validate_AckNack (const struct receiver_state *rst
   return validate_writer_and_reader_entityid (msg->writerId, msg->readerId);
 }
 
-static enum validation_result validate_Gap (Gap_t *msg, size_t size, int byteswap)
+static enum validation_result validate_Gap (ddsi_rtps_gap_t *msg, size_t size, int byteswap)
 {
-  if (size < GAP_SIZE (0))
+  if (size < DDSI_GAP_SIZE (0))
     return VR_MALFORMED;
   if (byteswap)
   {
@@ -218,7 +218,7 @@ static enum validation_result validate_Gap (Gap_t *msg, size_t size, int byteswa
   // equivalent to a heartbeat that says 1 .. N ...  Rewrite so at least end >= start
   if (gapend < gapstart)
     msg->gapStart = msg->gapList.bitmap_base;
-  if (size < GAP_SIZE (msg->gapList.numbits))
+  if (size < DDSI_GAP_SIZE (msg->gapList.numbits))
     return VR_MALFORMED;
   if (byteswap)
     bswap_sequence_number_set_bitmap (&msg->gapList, msg->bits);
@@ -227,26 +227,26 @@ static enum validation_result validate_Gap (Gap_t *msg, size_t size, int byteswa
   return validate_writer_and_reader_or_null_entityid (msg->writerId, msg->readerId);
 }
 
-static enum validation_result validate_InfoDST (InfoDST_t *msg, size_t size, UNUSED_ARG (int byteswap))
+static enum validation_result validate_InfoDST (ddsi_rtps_info_dst_t *msg, size_t size, UNUSED_ARG (int byteswap))
 {
   if (size < sizeof (*msg))
     return VR_MALFORMED;
   return VR_ACCEPT;
 }
 
-static enum validation_result validate_InfoSRC (InfoSRC_t *msg, size_t size, UNUSED_ARG (int byteswap))
+static enum validation_result validate_InfoSRC (ddsi_rtps_info_src_t *msg, size_t size, UNUSED_ARG (int byteswap))
 {
   if (size < sizeof (*msg))
     return VR_MALFORMED;
   return VR_ACCEPT;
 }
 
-static enum validation_result validate_InfoTS (InfoTS_t *msg, size_t size, int byteswap)
+static enum validation_result validate_InfoTS (ddsi_rtps_info_ts_t *msg, size_t size, int byteswap)
 {
-  assert (sizeof (SubmessageHeader_t) <= size);
-  if (msg->smhdr.flags & INFOTS_INVALIDATE_FLAG)
+  assert (sizeof (ddsi_rtps_submessage_header_t) <= size);
+  if (msg->smhdr.flags & DDSI_INFOTS_INVALIDATE_FLAG)
     return VR_ACCEPT;
-  else if (size < sizeof (InfoTS_t))
+  else if (size < sizeof (ddsi_rtps_info_ts_t))
     return VR_MALFORMED;
   else
   {
@@ -259,7 +259,7 @@ static enum validation_result validate_InfoTS (InfoTS_t *msg, size_t size, int b
   }
 }
 
-static enum validation_result validate_Heartbeat (Heartbeat_t *msg, size_t size, int byteswap)
+static enum validation_result validate_Heartbeat (ddsi_rtps_heartbeat_t *msg, size_t size, int byteswap)
 {
   if (size < sizeof (*msg))
     return VR_MALFORMED;
@@ -280,7 +280,7 @@ static enum validation_result validate_Heartbeat (Heartbeat_t *msg, size_t size,
   return validate_writer_and_reader_or_null_entityid (msg->writerId, msg->readerId);
 }
 
-static enum validation_result validate_HeartbeatFrag (HeartbeatFrag_t *msg, size_t size, int byteswap)
+static enum validation_result validate_HeartbeatFrag (ddsi_rtps_heartbeatfrag_t *msg, size_t size, int byteswap)
 {
   if (size < sizeof (*msg))
     return VR_MALFORMED;
@@ -299,10 +299,10 @@ static enum validation_result validate_HeartbeatFrag (HeartbeatFrag_t *msg, size
   return validate_writer_and_reader_or_null_entityid (msg->writerId, msg->readerId);
 }
 
-static enum validation_result validate_NackFrag (NackFrag_t *msg, size_t size, int byteswap)
+static enum validation_result validate_NackFrag (ddsi_rtps_nackfrag_t *msg, size_t size, int byteswap)
 {
-  nn_count_t *count; /* this should've preceded the bitmap */
-  if (size < NACKFRAG_SIZE (0))
+  ddsi_count_t *count; /* this should've preceded the bitmap */
+  if (size < DDSI_NACKFRAG_SIZE (0))
     return VR_MALFORMED;
   if (byteswap)
   {
@@ -317,9 +317,9 @@ static enum validation_result validate_NackFrag (NackFrag_t *msg, size_t size, i
     return VR_MALFORMED;
   /* Given the number of bits, we can compute the size of the Nackfrag
      submessage, and verify that the submessage is large enough */
-  if (size < NACKFRAG_SIZE (msg->fragmentNumberState.numbits))
+  if (size < DDSI_NACKFRAG_SIZE (msg->fragmentNumberState.numbits))
     return VR_MALFORMED;
-  count = (nn_count_t *) ((char *) &msg->bits + NN_FRAGMENT_NUMBER_SET_BITS_SIZE (msg->fragmentNumberState.numbits));
+  count = (ddsi_count_t *) ((char *) &msg->bits + DDSI_FRAGMENT_NUMBER_SET_BITS_SIZE (msg->fragmentNumberState.numbits));
   if (byteswap)
   {
     bswap_fragment_number_set_bitmap (&msg->fragmentNumberState, msg->bits);
@@ -342,14 +342,14 @@ static bool set_sampleinfo_bswap (struct nn_rsample_info *sampleinfo, struct dds
 {
   if (hdr)
   {
-    if (!CDR_ENC_IS_VALID(hdr->identifier))
+    if (!DDSI_RTPS_CDR_ENC_IS_VALID(hdr->identifier))
       return false;
-    sampleinfo->bswap = !CDR_ENC_IS_NATIVE(hdr->identifier);
+    sampleinfo->bswap = !DDSI_RTPS_CDR_ENC_IS_NATIVE(hdr->identifier);
   }
   return true;
 }
 
-static enum validation_result validate_Data (const struct receiver_state *rst, Data_t *msg, size_t size, int byteswap, struct nn_rsample_info *sampleinfo, const ddsi_keyhash_t **keyhashp, unsigned char **payloadp, uint32_t *payloadsz)
+static enum validation_result validate_Data (const struct receiver_state *rst, ddsi_rtps_data_t *msg, size_t size, int byteswap, struct nn_rsample_info *sampleinfo, const ddsi_keyhash_t **keyhashp, unsigned char **payloadp, uint32_t *payloadsz)
 {
   /* on success: sampleinfo->{seq,rst,statusinfo,bswap,complex_qos} all set */
   ddsi_guid_t pwr_guid;
@@ -358,8 +358,8 @@ static enum validation_result validate_Data (const struct receiver_state *rst, D
   if (size < sizeof (*msg))
     return VR_MALFORMED; /* too small even for fixed fields */
   /* D=1 && K=1 is invalid in this version of the protocol */
-  if ((msg->x.smhdr.flags & (DATA_FLAG_DATAFLAG | DATA_FLAG_KEYFLAG)) ==
-      (DATA_FLAG_DATAFLAG | DATA_FLAG_KEYFLAG))
+  if ((msg->x.smhdr.flags & (DDSI_DATA_FLAG_DATAFLAG | DDSI_DATA_FLAG_KEYFLAG)) ==
+      (DDSI_DATA_FLAG_DATAFLAG | DDSI_DATA_FLAG_KEYFLAG))
     return VR_MALFORMED;
   if (byteswap)
   {
@@ -381,7 +381,7 @@ static enum validation_result validate_Data (const struct receiver_state *rst, D
     return VR_MALFORMED;
   sampleinfo->fragsize = 0; /* for unfragmented data, fragsize = 0 works swell */
 
-  if ((msg->x.smhdr.flags & (DATA_FLAG_INLINE_QOS | DATA_FLAG_DATAFLAG | DATA_FLAG_KEYFLAG)) == 0)
+  if ((msg->x.smhdr.flags & (DDSI_DATA_FLAG_INLINE_QOS | DDSI_DATA_FLAG_DATAFLAG | DDSI_DATA_FLAG_KEYFLAG)) == 0)
   {
     /* no QoS, no payload, so octetsToInlineQos will never be used
        though one would expect octetsToInlineQos and size to be in
@@ -397,16 +397,16 @@ static enum validation_result validate_Data (const struct receiver_state *rst, D
   /* QoS and/or payload, so octetsToInlineQos must be within the
      msg; since the serialized data and serialized parameter lists
      have a 4 byte header, that one, too must fit */
-  if (offsetof (Data_DataFrag_common_t, octetsToInlineQos) + sizeof (msg->x.octetsToInlineQos) + msg->x.octetsToInlineQos + 4 > size)
+  if (offsetof (ddsi_rtps_data_datafrag_common_t, octetsToInlineQos) + sizeof (msg->x.octetsToInlineQos) + msg->x.octetsToInlineQos + 4 > size)
     return VR_MALFORMED;
 
-  ptr = (unsigned char *) msg + offsetof (Data_DataFrag_common_t, octetsToInlineQos) + sizeof (msg->x.octetsToInlineQos) + msg->x.octetsToInlineQos;
-  if (msg->x.smhdr.flags & DATA_FLAG_INLINE_QOS)
+  ptr = (unsigned char *) msg + offsetof (ddsi_rtps_data_datafrag_common_t, octetsToInlineQos) + sizeof (msg->x.octetsToInlineQos) + msg->x.octetsToInlineQos;
+  if (msg->x.smhdr.flags & DDSI_DATA_FLAG_INLINE_QOS)
   {
     ddsi_plist_src_t src;
     src.protocol_version = rst->protocol_version;
     src.vendorid = rst->vendor;
-    src.encoding = (msg->x.smhdr.flags & SMFLAG_ENDIANNESS) ? PL_CDR_LE : PL_CDR_BE;
+    src.encoding = (msg->x.smhdr.flags & DDSI_RTPS_SUBMESSAGE_FLAG_ENDIANNESS) ? DDSI_RTPS_PL_CDR_LE : DDSI_RTPS_PL_CDR_BE;
     src.buf = ptr;
     src.bufsz = (unsigned) ((unsigned char *) msg + size - src.buf); /* end of message, that's all we know */
     /* just a quick scan, gathering only what we _really_ need */
@@ -420,7 +420,7 @@ static enum validation_result validate_Data (const struct receiver_state *rst, D
     *keyhashp = NULL;
   }
 
-  if (!(msg->x.smhdr.flags & (DATA_FLAG_DATAFLAG | DATA_FLAG_KEYFLAG)))
+  if (!(msg->x.smhdr.flags & (DDSI_DATA_FLAG_DATAFLAG | DDSI_DATA_FLAG_KEYFLAG)))
   {
     /*TRACE (("no payload\n"));*/
     *payloadp = NULL;
@@ -448,7 +448,7 @@ accept:
   return vr;
 }
 
-static enum validation_result validate_DataFrag (const struct receiver_state *rst, DataFrag_t *msg, size_t size, int byteswap, struct nn_rsample_info *sampleinfo, const ddsi_keyhash_t **keyhashp, unsigned char **payloadp, uint32_t *payloadsz)
+static enum validation_result validate_DataFrag (const struct receiver_state *rst, ddsi_rtps_datafrag_t *msg, size_t size, int byteswap, struct nn_rsample_info *sampleinfo, const ddsi_keyhash_t **keyhashp, unsigned char **payloadp, uint32_t *payloadsz)
 {
   ddsi_guid_t pwr_guid;
   unsigned char *ptr;
@@ -505,19 +505,19 @@ static enum validation_result validate_DataFrag (const struct receiver_state *rs
   /* QoS and/or payload, so octetsToInlineQos must be within the msg;
      since the serialized data and serialized parameter lists have a 4
      byte header, that one, too must fit */
-  if (offsetof (Data_DataFrag_common_t, octetsToInlineQos) + sizeof (msg->x.octetsToInlineQos) + msg->x.octetsToInlineQos + 4 > size)
+  if (offsetof (ddsi_rtps_data_datafrag_common_t, octetsToInlineQos) + sizeof (msg->x.octetsToInlineQos) + msg->x.octetsToInlineQos + 4 > size)
     return VR_MALFORMED;
 
   /* Quick check inline QoS if present, collecting a little bit of
      information on it.  The only way to find the payload offset if
      inline QoSs are present. */
-  ptr = (unsigned char *) msg + offsetof (Data_DataFrag_common_t, octetsToInlineQos) + sizeof (msg->x.octetsToInlineQos) + msg->x.octetsToInlineQos;
-  if (msg->x.smhdr.flags & DATAFRAG_FLAG_INLINE_QOS)
+  ptr = (unsigned char *) msg + offsetof (ddsi_rtps_data_datafrag_common_t, octetsToInlineQos) + sizeof (msg->x.octetsToInlineQos) + msg->x.octetsToInlineQos;
+  if (msg->x.smhdr.flags & DDSI_DATAFRAG_FLAG_INLINE_QOS)
   {
     ddsi_plist_src_t src;
     src.protocol_version = rst->protocol_version;
     src.vendorid = rst->vendor;
-    src.encoding = (msg->x.smhdr.flags & SMFLAG_ENDIANNESS) ? PL_CDR_LE : PL_CDR_BE;
+    src.encoding = (msg->x.smhdr.flags & DDSI_RTPS_SUBMESSAGE_FLAG_ENDIANNESS) ? DDSI_RTPS_PL_CDR_LE : DDSI_RTPS_PL_CDR_BE;
     src.buf = ptr;
     src.bufsz = (unsigned) ((unsigned char *) msg + size - src.buf); /* end of message, that's all we know */
     /* just a quick scan, gathering only what we _really_ need */
@@ -560,16 +560,16 @@ static enum validation_result validate_DataFrag (const struct receiver_state *rs
 int add_Gap (struct nn_xmsg *msg, struct ddsi_writer *wr, struct ddsi_proxy_reader *prd, seqno_t start, seqno_t base, uint32_t numbits, const uint32_t *bits)
 {
   struct nn_xmsg_marker sm_marker;
-  Gap_t *gap;
+  ddsi_rtps_gap_t *gap;
   ASSERT_MUTEX_HELD (wr->e.lock);
-  gap = nn_xmsg_append (msg, &sm_marker, GAP_SIZE (numbits));
-  nn_xmsg_submsg_init (msg, sm_marker, SMID_GAP);
+  gap = nn_xmsg_append (msg, &sm_marker, DDSI_GAP_SIZE (numbits));
+  nn_xmsg_submsg_init (msg, sm_marker, DDSI_RTPS_SMID_GAP);
   gap->readerId = nn_hton_entityid (prd->e.guid.entityid);
   gap->writerId = nn_hton_entityid (wr->e.guid.entityid);
   gap->gapStart = toSN (start);
   gap->gapList.bitmap_base = toSN (base);
   gap->gapList.numbits = numbits;
-  memcpy (gap->bits, bits, NN_SEQUENCE_NUMBER_SET_BITS_SIZE (numbits));
+  memcpy (gap->bits, bits, DDSI_SEQUENCE_NUMBER_SET_BITS_SIZE (numbits));
   nn_xmsg_submsg_setnext (msg, sm_marker);
   ddsi_security_encode_datawriter_submsg(msg, sm_marker, wr);
   return 0;
@@ -587,7 +587,7 @@ static seqno_t grow_gap_to_next_seq (const struct ddsi_writer *wr, seqno_t seq)
     return next_seq;
 }
 
-static int acknack_is_nack (const AckNack_t *msg)
+static int acknack_is_nack (const ddsi_rtps_acknack_t *msg)
 {
   unsigned x = 0, mask;
   int i;
@@ -595,7 +595,7 @@ static int acknack_is_nack (const AckNack_t *msg)
     /* Disallowed by the spec, but RTI appears to require them (and so
        even we generate them) */
     return 0;
-  for (i = 0; i < (int) NN_SEQUENCE_NUMBER_SET_BITS_SIZE (msg->readerSNState.numbits) / 4 - 1; i++)
+  for (i = 0; i < (int) DDSI_SEQUENCE_NUMBER_SET_BITS_SIZE (msg->readerSNState.numbits) / 4 - 1; i++)
     x |= msg->bits[i];
   if ((msg->readerSNState.numbits % 32) == 0)
     mask = ~0u;
@@ -605,7 +605,7 @@ static int acknack_is_nack (const AckNack_t *msg)
   return x != 0;
 }
 
-static int accept_ack_or_hb_w_timeout (nn_count_t new_count, nn_count_t *prev_count, ddsrt_etime_t tnow, ddsrt_etime_t *t_last_accepted, int force_accept)
+static int accept_ack_or_hb_w_timeout (ddsi_count_t new_count, ddsi_count_t *prev_count, ddsrt_etime_t tnow, ddsrt_etime_t *t_last_accepted, int force_accept)
 {
   /* AckNacks and Heartbeats with a sequence number (called "count"
      for some reason) equal to or less than the highest one received
@@ -762,7 +762,7 @@ static void defer_hb_state_fini (struct ddsi_domaingv * const gv, struct defer_h
   }
 }
 
-static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const AckNack_t *msg, ddsrt_wctime_t timestamp, SubmessageKind_t prev_smid, struct defer_hb_state *defer_hb_state)
+static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const ddsi_rtps_acknack_t *msg, ddsrt_wctime_t timestamp, ddsi_rtps_submessage_kind_t prev_smid, struct defer_hb_state *defer_hb_state)
 {
   struct ddsi_proxy_reader *prd;
   struct ddsi_wr_prd_match *rn;
@@ -771,7 +771,7 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
   ddsi_guid_t src, dst;
   seqno_t seqbase;
   seqno_t seq_xmit;
-  nn_count_t *countp;
+  ddsi_count_t *countp;
   struct nn_gap_info gi;
   int accelerate_rexmit = 0;
   int is_pure_ack;
@@ -784,12 +784,12 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
   struct whc_node *deferred_free_list = NULL;
   struct whc_state whcst;
   int hb_sent_in_response = 0;
-  countp = (nn_count_t *) ((char *) msg + offsetof (AckNack_t, bits) + NN_SEQUENCE_NUMBER_SET_BITS_SIZE (msg->readerSNState.numbits));
+  countp = (ddsi_count_t *) ((char *) msg + offsetof (ddsi_rtps_acknack_t, bits) + DDSI_SEQUENCE_NUMBER_SET_BITS_SIZE (msg->readerSNState.numbits));
   src.prefix = rst->src_guid_prefix;
   src.entityid = msg->readerId;
   dst.prefix = rst->dst_guid_prefix;
   dst.entityid = msg->writerId;
-  RSTTRACE ("ACKNACK(%s#%"PRId32":%"PRIu64"/%"PRIu32":", msg->smhdr.flags & ACKNACK_FLAG_FINAL ? "F" : "",
+  RSTTRACE ("ACKNACK(%s#%"PRId32":%"PRIu64"/%"PRIu32":", msg->smhdr.flags & DDSI_ACKNACK_FLAG_FINAL ? "F" : "",
             *countp, fromSN (msg->readerSNState.bitmap_base), msg->readerSNState.numbits);
   for (uint32_t i = 0; i < msg->readerSNState.numbits; i++)
     RSTTRACE ("%c", nn_bitset_isset (msg->readerSNState.numbits, msg->bits, i) ? '1' : '0');
@@ -1127,7 +1127,7 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
   }
   /* If "final" flag not set, we must respond with a heartbeat. Do it
      now if we haven't done so already */
-  if (!(msg->smhdr.flags & ACKNACK_FLAG_FINAL) && !hb_sent_in_response)
+  if (!(msg->smhdr.flags & DDSI_ACKNACK_FLAG_FINAL) && !hb_sent_in_response)
   {
     defer_heartbeat_to_peer (wr, &whcst, prd, 0, defer_hb_state);
   }
@@ -1188,7 +1188,7 @@ static void handle_forall_destinations (const ddsi_guid_t *dst, struct ddsi_prox
 
 struct handle_Heartbeat_helper_arg {
   struct receiver_state *rst;
-  const Heartbeat_t *msg;
+  const ddsi_rtps_heartbeat_t *msg;
   struct ddsi_proxy_writer *pwr;
   ddsrt_wctime_t timestamp;
   ddsrt_etime_t tnow;
@@ -1199,7 +1199,7 @@ struct handle_Heartbeat_helper_arg {
 static void handle_Heartbeat_helper (struct ddsi_pwr_rd_match * const wn, struct handle_Heartbeat_helper_arg * const arg)
 {
   struct receiver_state * const rst = arg->rst;
-  Heartbeat_t const * const msg = arg->msg;
+  ddsi_rtps_heartbeat_t const * const msg = arg->msg;
   struct ddsi_proxy_writer * const pwr = arg->pwr;
 
   ASSERT_MUTEX_HELD (&pwr->e.lock);
@@ -1227,7 +1227,7 @@ static void handle_Heartbeat_helper (struct ddsi_pwr_rd_match * const wn, struct
   }
 
   wn->heartbeat_since_ack = 1;
-  if (!(msg->smhdr.flags & HEARTBEAT_FLAG_FINAL))
+  if (!(msg->smhdr.flags & DDSI_HEARTBEAT_FLAG_FINAL))
     wn->ack_requested = 1;
   if (arg->directed_heartbeat)
     wn->directed_heartbeat = 1;
@@ -1235,7 +1235,7 @@ static void handle_Heartbeat_helper (struct ddsi_pwr_rd_match * const wn, struct
   ddsi_sched_acknack_if_needed (wn->acknack_xevent, pwr, wn, arg->tnow_mt, true);
 }
 
-static int handle_Heartbeat (struct receiver_state *rst, ddsrt_etime_t tnow, struct nn_rmsg *rmsg, const Heartbeat_t *msg, ddsrt_wctime_t timestamp, SubmessageKind_t prev_smid)
+static int handle_Heartbeat (struct receiver_state *rst, ddsrt_etime_t tnow, struct nn_rmsg *rmsg, const ddsi_rtps_heartbeat_t *msg, ddsrt_wctime_t timestamp, ddsi_rtps_submessage_kind_t prev_smid)
 {
   /* We now cheat: and process the heartbeat for _all_ readers,
      always, regardless of the destination address in the Heartbeat
@@ -1260,8 +1260,8 @@ static int handle_Heartbeat (struct receiver_state *rst, ddsrt_etime_t tnow, str
   dst.prefix = rst->dst_guid_prefix;
   dst.entityid = msg->readerId;
 
-  RSTTRACE ("HEARTBEAT(%s%s#%"PRId32":%"PRIu64"..%"PRIu64" ", msg->smhdr.flags & HEARTBEAT_FLAG_FINAL ? "F" : "",
-    msg->smhdr.flags & HEARTBEAT_FLAG_LIVELINESS ? "L" : "", msg->count, firstseq, lastseq);
+  RSTTRACE ("HEARTBEAT(%s%s#%"PRId32":%"PRIu64"..%"PRIu64" ", msg->smhdr.flags & DDSI_HEARTBEAT_FLAG_FINAL ? "F" : "",
+    msg->smhdr.flags & DDSI_HEARTBEAT_FLAG_LIVELINESS ? "L" : "", msg->count, firstseq, lastseq);
 
   if (!rst->forme)
   {
@@ -1286,7 +1286,7 @@ static int handle_Heartbeat (struct receiver_state *rst, ddsrt_etime_t tnow, str
 
   RSTTRACE (PGUIDFMT" -> "PGUIDFMT":", PGUID (src), PGUID (dst));
   ddsrt_mutex_lock (&pwr->e.lock);
-  if (msg->smhdr.flags & HEARTBEAT_FLAG_LIVELINESS &&
+  if (msg->smhdr.flags & DDSI_HEARTBEAT_FLAG_LIVELINESS &&
       pwr->c.xqos->liveliness.kind != DDS_LIVELINESS_AUTOMATIC &&
       pwr->c.xqos->liveliness.lease_duration != DDS_INFINITY)
   {
@@ -1431,10 +1431,10 @@ static int handle_Heartbeat (struct receiver_state *rst, ddsrt_etime_t tnow, str
   return 1;
 }
 
-static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(ddsrt_etime_t tnow), const HeartbeatFrag_t *msg, SubmessageKind_t prev_smid)
+static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(ddsrt_etime_t tnow), const ddsi_rtps_heartbeatfrag_t *msg, ddsi_rtps_submessage_kind_t prev_smid)
 {
   const seqno_t seq = fromSN (msg->writerSN);
-  const nn_fragment_number_t fragnum = msg->lastFragmentNum - 1; /* we do 0-based */
+  const ddsi_fragment_number_t fragnum = msg->lastFragmentNum - 1; /* we do 0-based */
   ddsi_guid_t src, dst;
   struct ddsi_proxy_writer *pwr;
   struct lease *lease;
@@ -1563,13 +1563,13 @@ static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(ddsrt_et
         m->directed_heartbeat = 1;
       m->heartbeatfrag_since_ack = 1;
 
-      DDSRT_STATIC_ASSERT ((NN_FRAGMENT_NUMBER_SET_MAX_BITS % 32) == 0);
+      DDSRT_STATIC_ASSERT ((DDSI_FRAGMENT_NUMBER_SET_MAX_BITS % 32) == 0);
       struct {
-        struct nn_fragment_number_set_header set;
-        uint32_t bits[NN_FRAGMENT_NUMBER_SET_MAX_BITS / 32];
+        struct ddsi_fragment_number_set_header set;
+        uint32_t bits[DDSI_FRAGMENT_NUMBER_SET_MAX_BITS / 32];
       } nackfrag;
       const seqno_t last_seq = m->filtered ? m->last_seq : pwr->last_seq;
-      if (seq == last_seq && nn_defrag_nackmap (pwr->defrag, seq, fragnum, &nackfrag.set, nackfrag.bits, NN_FRAGMENT_NUMBER_SET_MAX_BITS) == DEFRAG_NACKMAP_FRAGMENTS_MISSING)
+      if (seq == last_seq && nn_defrag_nackmap (pwr->defrag, seq, fragnum, &nackfrag.set, nackfrag.bits, DDSI_FRAGMENT_NUMBER_SET_MAX_BITS) == DEFRAG_NACKMAP_FRAGMENTS_MISSING)
       {
         // don't rush it ...
         resched_xevent_if_earlier (m->acknack_xevent, ddsrt_mtime_add_duration (ddsrt_time_monotonic (), pwr->e.gv->config.nack_delay));
@@ -1581,7 +1581,7 @@ static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(ddsrt_et
   return 1;
 }
 
-static int handle_NackFrag (struct receiver_state *rst, ddsrt_etime_t tnow, const NackFrag_t *msg, SubmessageKind_t prev_smid, struct defer_hb_state *defer_hb_state)
+static int handle_NackFrag (struct receiver_state *rst, ddsrt_etime_t tnow, const ddsi_rtps_nackfrag_t *msg, ddsi_rtps_submessage_kind_t prev_smid, struct defer_hb_state *defer_hb_state)
 {
   struct ddsi_proxy_reader *prd;
   struct ddsi_wr_prd_match *rn;
@@ -1589,10 +1589,10 @@ static int handle_NackFrag (struct receiver_state *rst, ddsrt_etime_t tnow, cons
   struct lease *lease;
   struct whc_borrowed_sample sample;
   ddsi_guid_t src, dst;
-  nn_count_t *countp;
+  ddsi_count_t *countp;
   seqno_t seq = fromSN (msg->writerSN);
 
-  countp = (nn_count_t *) ((char *) msg + offsetof (NackFrag_t, bits) + NN_FRAGMENT_NUMBER_SET_BITS_SIZE (msg->fragmentNumberState.numbits));
+  countp = (ddsi_count_t *) ((char *) msg + offsetof (ddsi_rtps_nackfrag_t, bits) + DDSI_FRAGMENT_NUMBER_SET_BITS_SIZE (msg->fragmentNumberState.numbits));
   src.prefix = rst->src_guid_prefix;
   src.entityid = msg->readerId;
   dst.prefix = rst->dst_guid_prefix;
@@ -1714,7 +1714,7 @@ static int handle_NackFrag (struct receiver_state *rst, ddsrt_etime_t tnow, cons
   return 1;
 }
 
-static int handle_InfoDST (struct receiver_state *rst, const InfoDST_t *msg, const ddsi_guid_prefix_t *dst_prefix)
+static int handle_InfoDST (struct receiver_state *rst, const ddsi_rtps_info_dst_t *msg, const ddsi_guid_prefix_t *dst_prefix)
 {
   rst->dst_guid_prefix = nn_ntoh_guid_prefix (msg->guid_prefix);
   RSTTRACE ("INFODST(%"PRIx32":%"PRIx32":%"PRIx32")", PGUIDPREFIX (rst->dst_guid_prefix));
@@ -1735,7 +1735,7 @@ static int handle_InfoDST (struct receiver_state *rst, const InfoDST_t *msg, con
   return 1;
 }
 
-static int handle_InfoSRC (struct receiver_state *rst, const InfoSRC_t *msg)
+static int handle_InfoSRC (struct receiver_state *rst, const ddsi_rtps_info_src_t *msg)
 {
   rst->src_guid_prefix = nn_ntoh_guid_prefix (msg->guid_prefix);
   rst->protocol_version = msg->version;
@@ -1745,10 +1745,10 @@ static int handle_InfoSRC (struct receiver_state *rst, const InfoSRC_t *msg)
   return 1;
 }
 
-static int handle_InfoTS (const struct receiver_state *rst, const InfoTS_t *msg, ddsrt_wctime_t *timestamp)
+static int handle_InfoTS (const struct receiver_state *rst, const ddsi_rtps_info_ts_t *msg, ddsrt_wctime_t *timestamp)
 {
   RSTTRACE ("INFOTS(");
-  if (msg->smhdr.flags & INFOTS_INVALIDATE_FLAG)
+  if (msg->smhdr.flags & DDSI_INFOTS_INVALIDATE_FLAG)
   {
     *timestamp = DDSRT_WCTIME_INVALID;
     RSTTRACE ("invalidate");
@@ -1832,7 +1832,7 @@ static int handle_one_gap (struct ddsi_proxy_writer *pwr, struct ddsi_pwr_rd_mat
   return gap_was_valuable;
 }
 
-static int handle_Gap (struct receiver_state *rst, ddsrt_etime_t tnow, struct nn_rmsg *rmsg, const Gap_t *msg, SubmessageKind_t prev_smid)
+static int handle_Gap (struct receiver_state *rst, ddsrt_etime_t tnow, struct nn_rmsg *rmsg, const ddsi_rtps_gap_t *msg, ddsi_rtps_submessage_kind_t prev_smid)
 {
   /* Option 1: Process the Gap for the proxy writer and all
      out-of-sync readers: what do I care which reader is being
@@ -2011,7 +2011,7 @@ static struct ddsi_serdata *remote_make_sample (struct ddsi_tkmap_instance **tk,
   if (si->statusinfo == 0)
   {
     /* normal write */
-    if (!(data_smhdr_flags & DATA_FLAG_DATAFLAG) || sampleinfo->size == 0)
+    if (!(data_smhdr_flags & DDSI_DATA_FLAG_DATAFLAG) || sampleinfo->size == 0)
     {
       const struct ddsi_proxy_writer *pwr = sampleinfo->pwr;
       ddsi_guid_t guid;
@@ -2032,17 +2032,17 @@ static struct ddsi_serdata *remote_make_sample (struct ddsi_tkmap_instance **tk,
     /* dispose or unregister with included serialized key or data
        (data is a Adlink extension) -- i.e., dispose or unregister
        as one would expect to receive */
-    if (data_smhdr_flags & DATA_FLAG_KEYFLAG)
+    if (data_smhdr_flags & DDSI_DATA_FLAG_KEYFLAG)
     {
       sample = get_serdata (type, fragchain, sampleinfo->size, 1, statusinfo, tstamp);
     }
     else
     {
-      assert (data_smhdr_flags & DATA_FLAG_DATAFLAG);
+      assert (data_smhdr_flags & DDSI_DATA_FLAG_DATAFLAG);
       sample = get_serdata (type, fragchain, sampleinfo->size, 0, statusinfo, tstamp);
     }
   }
-  else if (data_smhdr_flags & DATA_FLAG_INLINE_QOS)
+  else if (data_smhdr_flags & DDSI_DATA_FLAG_INLINE_QOS)
   {
     /* RTI always tries to make us survive on the keyhash. RTI must
        mend its ways. */
@@ -2108,20 +2108,20 @@ static struct ddsi_serdata *remote_make_sample (struct ddsi_tkmap_instance **tk,
   return sample;
 }
 
-unsigned char normalize_data_datafrag_flags (const SubmessageHeader_t *smhdr)
+unsigned char normalize_data_datafrag_flags (const ddsi_rtps_submessage_header_t *smhdr)
 {
-  switch ((SubmessageKind_t) smhdr->submessageId)
+  switch ((ddsi_rtps_submessage_kind_t) smhdr->submessageId)
   {
-    case SMID_DATA:
+    case DDSI_RTPS_SMID_DATA:
       return smhdr->flags;
-    case SMID_DATA_FRAG:
+    case DDSI_RTPS_SMID_DATA_FRAG:
       {
-        unsigned char common = smhdr->flags & DATA_FLAG_INLINE_QOS;
-        DDSRT_STATIC_ASSERT_CODE (DATA_FLAG_INLINE_QOS == DATAFRAG_FLAG_INLINE_QOS);
-        if (smhdr->flags & DATAFRAG_FLAG_KEYFLAG)
-          return common | DATA_FLAG_KEYFLAG;
+        unsigned char common = smhdr->flags & DDSI_DATA_FLAG_INLINE_QOS;
+        DDSRT_STATIC_ASSERT_CODE (DDSI_DATA_FLAG_INLINE_QOS == DDSI_DATAFRAG_FLAG_INLINE_QOS);
+        if (smhdr->flags & DDSI_DATAFRAG_FLAG_KEYFLAG)
+          return common | DDSI_DATA_FLAG_KEYFLAG;
         else
-          return common | DATA_FLAG_DATAFLAG;
+          return common | DDSI_DATA_FLAG_DATAFLAG;
       }
     default:
       assert (0);
@@ -2178,7 +2178,7 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
   struct ddsi_domaingv * const gv = rst->gv;
   struct ddsi_proxy_writer * const pwr = sampleinfo->pwr;
   unsigned statusinfo;
-  Data_DataFrag_common_t *msg;
+  ddsi_rtps_data_datafrag_common_t *msg;
   unsigned char data_smhdr_flags;
   ddsi_plist_t qos;
   int need_keyhash;
@@ -2198,7 +2198,7 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
   /* Luckily, the Data header (up to inline QoS) is a prefix of the
      DataFrag header, so for the fixed-position things that we're
      interested in here, both can be treated as Data submessages. */
-  msg = (Data_DataFrag_common_t *) NN_RMSG_PAYLOADOFF (fragchain->rmsg, NN_RDATA_SUBMSG_OFF (fragchain));
+  msg = (ddsi_rtps_data_datafrag_common_t *) NN_RMSG_PAYLOADOFF (fragchain->rmsg, NN_RDATA_SUBMSG_OFF (fragchain));
   data_smhdr_flags = normalize_data_datafrag_flags (&msg->smhdr);
 
   /* Extract QoS's to the extent necessary.  The expected case has all
@@ -2213,8 +2213,8 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
      Complex qos bit also gets set when statusinfo bits other than
      dispose/unregister are set.  They are not currently defined, but
      this may save us if they do get defined one day.  */
-  need_keyhash = (sampleinfo->size == 0 || (data_smhdr_flags & (DATA_FLAG_KEYFLAG | DATA_FLAG_DATAFLAG)) == 0);
-  if (!(sampleinfo->complex_qos || need_keyhash) || !(data_smhdr_flags & DATA_FLAG_INLINE_QOS))
+  need_keyhash = (sampleinfo->size == 0 || (data_smhdr_flags & (DDSI_DATA_FLAG_KEYFLAG | DDSI_DATA_FLAG_DATAFLAG)) == 0);
+  if (!(sampleinfo->complex_qos || need_keyhash) || !(data_smhdr_flags & DDSI_DATA_FLAG_INLINE_QOS))
   {
     ddsi_plist_init_empty (&qos);
     statusinfo = sampleinfo->statusinfo;
@@ -2222,11 +2222,11 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
   else
   {
     ddsi_plist_src_t src;
-    size_t qos_offset = NN_RDATA_SUBMSG_OFF (fragchain) + offsetof (Data_DataFrag_common_t, octetsToInlineQos) + sizeof (msg->octetsToInlineQos) + msg->octetsToInlineQos;
+    size_t qos_offset = NN_RDATA_SUBMSG_OFF (fragchain) + offsetof (ddsi_rtps_data_datafrag_common_t, octetsToInlineQos) + sizeof (msg->octetsToInlineQos) + msg->octetsToInlineQos;
     dds_return_t plist_ret;
     src.protocol_version = rst->protocol_version;
     src.vendorid = rst->vendor;
-    src.encoding = (msg->smhdr.flags & SMFLAG_ENDIANNESS) ? PL_CDR_LE : PL_CDR_BE;
+    src.encoding = (msg->smhdr.flags & DDSI_RTPS_SUBMESSAGE_FLAG_ENDIANNESS) ? DDSI_RTPS_PL_CDR_LE : DDSI_RTPS_PL_CDR_BE;
     src.buf = NN_RMSG_PAYLOADOFF (fragchain->rmsg, qos_offset);
     src.bufsz = NN_RDATA_PAYLOAD_OFF (fragchain) - qos_offset;
     src.strict = DDSI_SC_STRICT_P (gv->config);
@@ -2309,7 +2309,7 @@ static void clean_defrag (struct ddsi_proxy_writer *pwr)
   nn_defrag_notegap (pwr->defrag, 1, seq);
 }
 
-static void handle_regular (struct receiver_state *rst, ddsrt_etime_t tnow, struct nn_rmsg *rmsg, const Data_DataFrag_common_t *msg, const struct nn_rsample_info *sampleinfo,
+static void handle_regular (struct receiver_state *rst, ddsrt_etime_t tnow, struct nn_rmsg *rmsg, const ddsi_rtps_data_datafrag_common_t *msg, const struct nn_rsample_info *sampleinfo,
     uint32_t max_fragnum_in_msg, struct nn_rdata *rdata, struct nn_dqueue **deferred_wakeup, bool renew_manbypp_lease)
 {
   struct ddsi_proxy_writer *pwr;
@@ -2557,7 +2557,7 @@ static int handle_SPDP (const struct nn_rsample_info *sampleinfo, struct nn_rdat
   return 0;
 }
 
-static void drop_oversize (struct receiver_state *rst, struct nn_rmsg *rmsg, const Data_DataFrag_common_t *msg, struct nn_rsample_info *sampleinfo)
+static void drop_oversize (struct receiver_state *rst, struct nn_rmsg *rmsg, const ddsi_rtps_data_datafrag_common_t *msg, struct nn_rsample_info *sampleinfo)
 {
   struct ddsi_proxy_writer *pwr = sampleinfo->pwr;
   if (pwr == NULL)
@@ -2606,7 +2606,7 @@ static void drop_oversize (struct receiver_state *rst, struct nn_rmsg *rmsg, con
   }
 }
 
-static int handle_Data (struct receiver_state *rst, ddsrt_etime_t tnow, struct nn_rmsg *rmsg, const Data_t *msg, size_t size, struct nn_rsample_info *sampleinfo, const ddsi_keyhash_t *keyhash, unsigned char *datap, struct nn_dqueue **deferred_wakeup, SubmessageKind_t prev_smid)
+static int handle_Data (struct receiver_state *rst, ddsrt_etime_t tnow, struct nn_rmsg *rmsg, const ddsi_rtps_data_t *msg, size_t size, struct nn_rsample_info *sampleinfo, const ddsi_keyhash_t *keyhash, unsigned char *datap, struct nn_dqueue **deferred_wakeup, ddsi_rtps_submessage_kind_t prev_smid)
 {
   RSTTRACE ("DATA("PGUIDFMT" -> "PGUIDFMT" #%"PRIu64,
             PGUIDPREFIX (rst->src_guid_prefix), msg->x.writerId.u,
@@ -2675,13 +2675,13 @@ static int handle_Data (struct receiver_state *rst, ddsrt_etime_t tnow, struct n
   return 1;
 }
 
-static int handle_DataFrag (struct receiver_state *rst, ddsrt_etime_t tnow, struct nn_rmsg *rmsg, const DataFrag_t *msg, size_t size, struct nn_rsample_info *sampleinfo, const ddsi_keyhash_t *keyhash, unsigned char *datap, struct nn_dqueue **deferred_wakeup, SubmessageKind_t prev_smid)
+static int handle_DataFrag (struct receiver_state *rst, ddsrt_etime_t tnow, struct nn_rmsg *rmsg, const ddsi_rtps_datafrag_t *msg, size_t size, struct nn_rsample_info *sampleinfo, const ddsi_keyhash_t *keyhash, unsigned char *datap, struct nn_dqueue **deferred_wakeup, ddsi_rtps_submessage_kind_t prev_smid)
 {
   RSTTRACE ("DATAFRAG("PGUIDFMT" -> "PGUIDFMT" #%"PRIu64"/[%"PRIu32"..%"PRIu32"]",
             PGUIDPREFIX (rst->src_guid_prefix), msg->x.writerId.u,
             PGUIDPREFIX (rst->dst_guid_prefix), msg->x.readerId.u,
             fromSN (msg->x.writerSN),
-            msg->fragmentStartingNum, (nn_fragment_number_t) (msg->fragmentStartingNum + msg->fragmentsInSubmessage - 1));
+            msg->fragmentStartingNum, (ddsi_fragment_number_t) (msg->fragmentStartingNum + msg->fragmentsInSubmessage - 1));
   if (!rst->forme)
   {
     RSTTRACE (" not-for-me)");
@@ -2775,30 +2775,30 @@ struct submsg_name {
   char x[32];
 };
 
-static const char *submsg_name (SubmessageKind_t id, struct submsg_name *buffer)
+static const char *submsg_name (ddsi_rtps_submessage_kind_t id, struct submsg_name *buffer)
 {
   switch (id)
   {
-    case SMID_PAD: return "PAD";
-    case SMID_ACKNACK: return "ACKNACK";
-    case SMID_HEARTBEAT: return "HEARTBEAT";
-    case SMID_GAP: return "GAP";
-    case SMID_INFO_TS: return "INFO_TS";
-    case SMID_INFO_SRC: return "INFO_SRC";
-    case SMID_INFO_REPLY_IP4: return "REPLY_IP4";
-    case SMID_INFO_DST: return "INFO_DST";
-    case SMID_INFO_REPLY: return "INFO_REPLY";
-    case SMID_NACK_FRAG: return "NACK_FRAG";
-    case SMID_HEARTBEAT_FRAG: return "HEARTBEAT_FRAG";
-    case SMID_DATA_FRAG: return "DATA_FRAG";
-    case SMID_DATA: return "DATA";
-    case SMID_ADLINK_MSG_LEN: return "ADLINK_MSG_LEN";
-    case SMID_ADLINK_ENTITY_ID: return "ADLINK_ENTITY_ID";
-    case SMID_SEC_PREFIX: return "SEC_PREFIX";
-    case SMID_SEC_BODY: return "SEC_BODY";
-    case SMID_SEC_POSTFIX: return "SEC_POSTFIX";
-    case SMID_SRTPS_PREFIX: return "SRTPS_PREFIX";
-    case SMID_SRTPS_POSTFIX: return "SRTPS_POSTFIX";
+    case DDSI_RTPS_SMID_PAD: return "PAD";
+    case DDSI_RTPS_SMID_ACKNACK: return "ACKNACK";
+    case DDSI_RTPS_SMID_HEARTBEAT: return "HEARTBEAT";
+    case DDSI_RTPS_SMID_GAP: return "GAP";
+    case DDSI_RTPS_SMID_INFO_TS: return "INFO_TS";
+    case DDSI_RTPS_SMID_INFO_SRC: return "INFO_SRC";
+    case DDSI_RTPS_SMID_INFO_REPLY_IP4: return "REPLY_IP4";
+    case DDSI_RTPS_SMID_INFO_DST: return "INFO_DST";
+    case DDSI_RTPS_SMID_INFO_REPLY: return "INFO_REPLY";
+    case DDSI_RTPS_SMID_NACK_FRAG: return "NACK_FRAG";
+    case DDSI_RTPS_SMID_HEARTBEAT_FRAG: return "HEARTBEAT_FRAG";
+    case DDSI_RTPS_SMID_DATA_FRAG: return "DATA_FRAG";
+    case DDSI_RTPS_SMID_DATA: return "DATA";
+    case DDSI_RTPS_SMID_ADLINK_MSG_LEN: return "ADLINK_MSG_LEN";
+    case DDSI_RTPS_SMID_ADLINK_ENTITY_ID: return "ADLINK_ENTITY_ID";
+    case DDSI_RTPS_SMID_SEC_PREFIX: return "SEC_PREFIX";
+    case DDSI_RTPS_SMID_SEC_BODY: return "SEC_BODY";
+    case DDSI_RTPS_SMID_SEC_POSTFIX: return "SEC_POSTFIX";
+    case DDSI_RTPS_SMID_SRTPS_PREFIX: return "SRTPS_PREFIX";
+    case DDSI_RTPS_SMID_SRTPS_POSTFIX: return "SRTPS_POSTFIX";
   }
   (void) snprintf (buffer->x, sizeof (buffer->x), "UNKNOWN(%x)", (unsigned) id);
   return buffer->x;
@@ -2810,21 +2810,21 @@ static void malformed_packet_received (const struct ddsi_domaingv *gv, const uns
   size_t i, pos, smsize;
 
   struct submsg_name submsg_name_buffer;
-  SubmessageKind_t smkind;
+  ddsi_rtps_submessage_kind_t smkind;
   const char *state0;
   const char *state1;
   if (submsg == NULL || (submsg < msg || submsg >= msg + len)) {
     // outside buffer shouldn't happen, but this is for dealing with junk, so better be careful
-    smkind = SMID_PAD;
+    smkind = DDSI_RTPS_SMID_PAD;
     state0 = "";
     state1 = "header";
     submsg = msg;
-  } else if ((size_t) (msg + len - submsg) < RTPS_SUBMESSAGE_HEADER_SIZE) {
-    smkind = SMID_PAD;
+  } else if ((size_t) (msg + len - submsg) < DDSI_RTPS_SUBMESSAGE_HEADER_SIZE) {
+    smkind = DDSI_RTPS_SMID_PAD;
     state0 = "parse:";
     state1 = (submsg == msg) ? "init" : "shortmsg";
   } else {
-    smkind = (SubmessageKind_t) *submsg;
+    smkind = (ddsi_rtps_submessage_kind_t) *submsg;
     state0 = "parse:";
     state1 = submsg_name (smkind, &submsg_name_buffer);
   }
@@ -2844,62 +2844,62 @@ static void malformed_packet_received (const struct ddsi_domaingv *gv, const uns
 
   /* Partially decode header if we have enough bytes available */
   smsize = len - (size_t) (submsg - msg);
-  if (smsize >= RTPS_SUBMESSAGE_HEADER_SIZE && pos < sizeof (tmp)) {
-    const SubmessageHeader_t *x = (const SubmessageHeader_t *) submsg;
+  if (smsize >= DDSI_RTPS_SUBMESSAGE_HEADER_SIZE && pos < sizeof (tmp)) {
+    const ddsi_rtps_submessage_header_t *x = (const ddsi_rtps_submessage_header_t *) submsg;
     pos += (size_t) snprintf (tmp + pos, sizeof (tmp) - pos, " smid 0x%x flags 0x%x otnh %u", x->submessageId, x->flags, x->octetsToNextHeader);
   }
   if (pos < sizeof (tmp)) {
     switch (smkind) {
-      case SMID_ACKNACK:
-        if (smsize >= sizeof (AckNack_t)) {
-          const AckNack_t *x = (const AckNack_t *) submsg;
+      case DDSI_RTPS_SMID_ACKNACK:
+        if (smsize >= sizeof (ddsi_rtps_acknack_t)) {
+          const ddsi_rtps_acknack_t *x = (const ddsi_rtps_acknack_t *) submsg;
           (void) snprintf (tmp + pos, sizeof (tmp) - pos, " rid 0x%"PRIx32" wid 0x%"PRIx32" base %"PRIu64" numbits %"PRIu32,
                            x->readerId.u, x->writerId.u, fromSN (x->readerSNState.bitmap_base),
                            x->readerSNState.numbits);
         }
         break;
-      case SMID_HEARTBEAT:
-        if (smsize >= sizeof (Heartbeat_t)) {
-          const Heartbeat_t *x = (const Heartbeat_t *) submsg;
+      case DDSI_RTPS_SMID_HEARTBEAT:
+        if (smsize >= sizeof (ddsi_rtps_heartbeat_t)) {
+          const ddsi_rtps_heartbeat_t *x = (const ddsi_rtps_heartbeat_t *) submsg;
           (void) snprintf (tmp + pos, sizeof (tmp) - pos, " rid 0x%"PRIx32" wid 0x%"PRIx32" first %"PRIu64" last %"PRIu64,
                            x->readerId.u, x->writerId.u, fromSN (x->firstSN), fromSN (x->lastSN));
         }
         break;
-      case SMID_GAP:
-        if (smsize >= sizeof (Gap_t)) {
-          const Gap_t *x = (const Gap_t *) submsg;
+      case DDSI_RTPS_SMID_GAP:
+        if (smsize >= sizeof (ddsi_rtps_gap_t)) {
+          const ddsi_rtps_gap_t *x = (const ddsi_rtps_gap_t *) submsg;
           (void) snprintf (tmp + pos, sizeof (tmp) - pos, " rid 0x%"PRIx32" wid 0x%"PRIx32" gapstart %"PRIu64" base %"PRIu64" numbits %"PRIu32,
                            x->readerId.u, x->writerId.u, fromSN (x->gapStart),
                            fromSN (x->gapList.bitmap_base), x->gapList.numbits);
         }
         break;
-      case SMID_NACK_FRAG:
-        if (smsize >= sizeof (NackFrag_t)) {
-          const NackFrag_t *x = (const NackFrag_t *) submsg;
+      case DDSI_RTPS_SMID_NACK_FRAG:
+        if (smsize >= sizeof (ddsi_rtps_nackfrag_t)) {
+          const ddsi_rtps_nackfrag_t *x = (const ddsi_rtps_nackfrag_t *) submsg;
           (void) snprintf (tmp + pos, sizeof (tmp) - pos, " rid 0x%"PRIx32" wid 0x%"PRIx32" seq# %"PRIu64" base %"PRIu32" numbits %"PRIu32,
                            x->readerId.u, x->writerId.u, fromSN (x->writerSN),
                            x->fragmentNumberState.bitmap_base, x->fragmentNumberState.numbits);
         }
         break;
-      case SMID_HEARTBEAT_FRAG:
-        if (smsize >= sizeof (HeartbeatFrag_t)) {
-          const HeartbeatFrag_t *x = (const HeartbeatFrag_t *) submsg;
+      case DDSI_RTPS_SMID_HEARTBEAT_FRAG:
+        if (smsize >= sizeof (ddsi_rtps_heartbeatfrag_t)) {
+          const ddsi_rtps_heartbeatfrag_t *x = (const ddsi_rtps_heartbeatfrag_t *) submsg;
           (void) snprintf (tmp + pos, sizeof (tmp) - pos, " rid 0x%"PRIx32" wid 0x%"PRIx32" seq %"PRIu64" frag %"PRIu32,
                            x->readerId.u, x->writerId.u, fromSN (x->writerSN),
                            x->lastFragmentNum);
         }
         break;
-      case SMID_DATA:
-        if (smsize >= sizeof (Data_t)) {
-          const Data_t *x = (const Data_t *) submsg;
+      case DDSI_RTPS_SMID_DATA:
+        if (smsize >= sizeof (ddsi_rtps_data_t)) {
+          const ddsi_rtps_data_t *x = (const ddsi_rtps_data_t *) submsg;
           (void) snprintf (tmp + pos, sizeof (tmp) - pos, " xflags %x otiq %u rid 0x%"PRIx32" wid 0x%"PRIx32" seq %"PRIu64,
                            x->x.extraFlags, x->x.octetsToInlineQos,
                            x->x.readerId.u, x->x.writerId.u, fromSN (x->x.writerSN));
         }
         break;
-      case SMID_DATA_FRAG:
-        if (smsize >= sizeof (DataFrag_t)) {
-          const DataFrag_t *x = (const DataFrag_t *) submsg;
+      case DDSI_RTPS_SMID_DATA_FRAG:
+        if (smsize >= sizeof (ddsi_rtps_datafrag_t)) {
+          const ddsi_rtps_datafrag_t *x = (const ddsi_rtps_datafrag_t *) submsg;
           (void) snprintf (tmp + pos, sizeof (tmp) - pos, " xflags %x otiq %u rid 0x%"PRIx32" wid 0x%"PRIx32" seq %"PRIu64" frag %"PRIu32"  fragsinmsg %"PRIu16" fragsize %"PRIu16" samplesize %"PRIu32,
                            x->x.extraFlags, x->x.octetsToInlineQos,
                            x->x.readerId.u, x->x.writerId.u, fromSN (x->x.writerSN),
@@ -2943,14 +2943,14 @@ static int handle_submsg_sequence
   bool rtps_encoded /* indicate if the message was rtps encoded */
 )
 {
-  Header_t * hdr = (Header_t *) msg;
+  ddsi_rtps_header_t * hdr = (ddsi_rtps_header_t *) msg;
   struct receiver_state *rst;
   int rst_live, ts_for_latmeas;
   ddsrt_wctime_t timestamp;
   size_t submsg_size = 0;
   unsigned char * end = msg + len;
   struct nn_dqueue *deferred_wakeup = NULL;
-  SubmessageKind_t prev_smid = SMID_PAD;
+  ddsi_rtps_submessage_kind_t prev_smid = DDSI_RTPS_SMID_PAD;
   struct defer_hb_state defer_hb_state;
 
   /* Receiver state is dynamically allocated with lifetime bound to
@@ -2984,14 +2984,14 @@ static int handle_submsg_sequence
   defer_hb_state_init (&defer_hb_state);
   assert (thread_is_asleep ());
   thread_state_awake_fixed_domain (thrst);
-  enum validation_result vr = (len >= sizeof (SubmessageHeader_t)) ? VR_NOT_UNDERSTOOD : VR_MALFORMED;
-  while (vr != VR_MALFORMED && submsg <= (end - sizeof (SubmessageHeader_t)))
+  enum validation_result vr = (len >= sizeof (ddsi_rtps_submessage_header_t)) ? VR_NOT_UNDERSTOOD : VR_MALFORMED;
+  while (vr != VR_MALFORMED && submsg <= (end - sizeof (ddsi_rtps_submessage_header_t)))
   {
-    Submessage_t * const sm = (Submessage_t *) submsg;
+    ddsi_rtps_submessage_t * const sm = (ddsi_rtps_submessage_t *) submsg;
     bool byteswap;
 
     DDSRT_WARNING_MSVC_OFF(6326)
-    if (sm->smhdr.flags & SMFLAG_ENDIANNESS)
+    if (sm->smhdr.flags & DDSI_RTPS_SUBMESSAGE_FLAG_ENDIANNESS)
       byteswap = !(DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN);
     else
       byteswap =  (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN);
@@ -3004,13 +3004,13 @@ static int handle_submsg_sequence
       // DDSI 2.5 9.4.1: The PSM aligns each Submessage on a 32-bit boundary
       // with respect to the start of the Message
       if ((octetsToNextHeader % 4) == 0) {
-        submsg_size = RTPS_SUBMESSAGE_HEADER_SIZE + octetsToNextHeader;
+        submsg_size = DDSI_RTPS_SUBMESSAGE_HEADER_SIZE + octetsToNextHeader;
       } else {
         vr = VR_MALFORMED;
         break;
       }
-    } else if (sm->smhdr.submessageId == SMID_PAD || sm->smhdr.submessageId == SMID_INFO_TS) {
-      submsg_size = RTPS_SUBMESSAGE_HEADER_SIZE;
+    } else if (sm->smhdr.submessageId == DDSI_RTPS_SMID_PAD || sm->smhdr.submessageId == DDSI_RTPS_SMID_INFO_TS) {
+      submsg_size = DDSI_RTPS_SUBMESSAGE_HEADER_SIZE;
     } else {
       submsg_size = (size_t) (end - submsg);
     }
@@ -3025,32 +3025,32 @@ static int handle_submsg_sequence
     thread_state_awake_to_awake_no_nest (thrst);
     switch (sm->smhdr.submessageId)
     {
-      case SMID_ACKNACK: {
+      case DDSI_RTPS_SMID_ACKNACK: {
         if ((vr = validate_AckNack (rst, &sm->acknack, submsg_size, byteswap)) == VR_ACCEPT)
           handle_AckNack (rst, tnowE, &sm->acknack, ts_for_latmeas ? timestamp : DDSRT_WCTIME_INVALID, prev_smid, &defer_hb_state);
         ts_for_latmeas = 0;
         break;
       }
-      case SMID_HEARTBEAT: {
+      case DDSI_RTPS_SMID_HEARTBEAT: {
         if ((vr = validate_Heartbeat (&sm->heartbeat, submsg_size, byteswap)) == VR_ACCEPT)
           handle_Heartbeat (rst, tnowE, rmsg, &sm->heartbeat, ts_for_latmeas ? timestamp : DDSRT_WCTIME_INVALID, prev_smid);
         ts_for_latmeas = 0;
         break;
       }
-      case SMID_GAP: {
+      case DDSI_RTPS_SMID_GAP: {
         if ((vr = validate_Gap (&sm->gap, submsg_size, byteswap)) == VR_ACCEPT)
           handle_Gap (rst, tnowE, rmsg, &sm->gap, prev_smid);
         ts_for_latmeas = 0;
         break;
       }
-      case SMID_INFO_TS: {
+      case DDSI_RTPS_SMID_INFO_TS: {
         if ((vr = validate_InfoTS (&sm->infots, submsg_size, byteswap)) == VR_ACCEPT) {
           handle_InfoTS (rst, &sm->infots, &timestamp);
           ts_for_latmeas = 1;
         }
         break;
       }
-      case SMID_INFO_SRC: {
+      case DDSI_RTPS_SMID_INFO_SRC: {
         if ((vr = validate_InfoSRC (&sm->infosrc, submsg_size, byteswap)) == VR_ACCEPT) {
           rst = rst_cow_if_needed (&rst_live, rmsg, rst);
           handle_InfoSRC (rst, &sm->infosrc);
@@ -3058,7 +3058,7 @@ static int handle_submsg_sequence
         /* no effect on ts_for_latmeas */
         break;
       }
-      case SMID_INFO_DST: {
+      case DDSI_RTPS_SMID_INFO_DST: {
         if ((vr = validate_InfoDST (&sm->infodst, submsg_size, byteswap)) == VR_ACCEPT) {
           rst = rst_cow_if_needed (&rst_live, rmsg, rst);
           handle_InfoDST (rst, &sm->infodst, dst_prefix);
@@ -3066,19 +3066,19 @@ static int handle_submsg_sequence
         /* no effect on ts_for_latmeas */
         break;
       }
-      case SMID_NACK_FRAG: {
+      case DDSI_RTPS_SMID_NACK_FRAG: {
         if ((vr = validate_NackFrag (&sm->nackfrag, submsg_size, byteswap)) == VR_ACCEPT)
           handle_NackFrag (rst, tnowE, &sm->nackfrag, prev_smid, &defer_hb_state);
         ts_for_latmeas = 0;
         break;
       }
-      case SMID_HEARTBEAT_FRAG: {
+      case DDSI_RTPS_SMID_HEARTBEAT_FRAG: {
         if ((vr = validate_HeartbeatFrag (&sm->heartbeatfrag, submsg_size, byteswap)) == VR_ACCEPT)
           handle_HeartbeatFrag (rst, tnowE, &sm->heartbeatfrag, prev_smid);
         ts_for_latmeas = 0;
         break;
       }
-      case SMID_DATA_FRAG: {
+      case DDSI_RTPS_SMID_DATA_FRAG: {
         struct nn_rsample_info sampleinfo;
         uint32_t datasz = 0;
         unsigned char *datap;
@@ -3101,7 +3101,7 @@ static int handle_submsg_sequence
         ts_for_latmeas = 0;
         break;
       }
-      case SMID_DATA: {
+      case DDSI_RTPS_SMID_DATA: {
         struct nn_rsample_info sampleinfo;
         unsigned char *datap;
         const ddsi_keyhash_t *keyhash;
@@ -3122,21 +3122,21 @@ static int handle_submsg_sequence
         ts_for_latmeas = 0;
         break;
       }
-      case SMID_SEC_PREFIX: {
+      case DDSI_RTPS_SMID_SEC_PREFIX: {
         GVTRACE ("SEC_PREFIX ");
         if (!ddsi_security_decode_sec_prefix(rst, submsg, submsg_size, end, &rst->src_guid_prefix, &rst->dst_guid_prefix, byteswap))
           vr = VR_MALFORMED;
         break;
       }
-      case SMID_PAD:
-      case SMID_INFO_REPLY:
-      case SMID_INFO_REPLY_IP4:
-      case SMID_ADLINK_MSG_LEN:
-      case SMID_ADLINK_ENTITY_ID:
-      case SMID_SEC_BODY:
-      case SMID_SEC_POSTFIX:
-      case SMID_SRTPS_PREFIX:
-      case SMID_SRTPS_POSTFIX: {
+      case DDSI_RTPS_SMID_PAD:
+      case DDSI_RTPS_SMID_INFO_REPLY:
+      case DDSI_RTPS_SMID_INFO_REPLY_IP4:
+      case DDSI_RTPS_SMID_ADLINK_MSG_LEN:
+      case DDSI_RTPS_SMID_ADLINK_ENTITY_ID:
+      case DDSI_RTPS_SMID_SEC_BODY:
+      case DDSI_RTPS_SMID_SEC_POSTFIX:
+      case DDSI_RTPS_SMID_SRTPS_PREFIX:
+      case DDSI_RTPS_SMID_SRTPS_POSTFIX: {
         struct submsg_name buffer;
         GVTRACE ("%s", submsg_name (sm->smhdr.submessageId, &buffer));
         break;
@@ -3148,9 +3148,9 @@ static int handle_submsg_sequence
              future version of the protocol -- so an undefined code
              for the implemented version of the protocol indicates a
              malformed message. */
-          if (rst->protocol_version.major < RTPS_MAJOR ||
-              (rst->protocol_version.major == RTPS_MAJOR &&
-               rst->protocol_version.minor < RTPS_MINOR_MINIMUM))
+          if (rst->protocol_version.major < DDSI_RTPS_MAJOR ||
+              (rst->protocol_version.major == DDSI_RTPS_MAJOR &&
+               rst->protocol_version.minor < DDSI_RTPS_MINOR_MINIMUM))
             vr = VR_MALFORMED;
         } else {
           // Ignore vendor-specific messages, including our own ones
@@ -3186,15 +3186,15 @@ static int handle_submsg_sequence
 
 static void handle_rtps_message (struct thread_state * const thrst, struct ddsi_domaingv *gv, ddsi_tran_conn_t conn, const ddsi_guid_prefix_t *guidprefix, struct nn_rbufpool *rbpool, struct nn_rmsg *rmsg, size_t sz, unsigned char *msg, const ddsi_locator_t *srcloc)
 {
-  Header_t *hdr = (Header_t *) msg;
+  ddsi_rtps_header_t *hdr = (ddsi_rtps_header_t *) msg;
   assert (thread_is_asleep ());
-  if (sz < RTPS_MESSAGE_HEADER_SIZE || *(uint32_t *)msg != NN_PROTOCOLID_AS_UINT32)
+  if (sz < DDSI_RTPS_MESSAGE_HEADER_SIZE || *(uint32_t *)msg != DDSI_PROTOCOLID_AS_UINT32)
   {
     /* discard packets that are really too small or don't have magic cookie */
   }
-  else if (hdr->version.major != RTPS_MAJOR || (hdr->version.major == RTPS_MAJOR && hdr->version.minor < RTPS_MINOR_MINIMUM))
+  else if (hdr->version.major != DDSI_RTPS_MAJOR || (hdr->version.major == DDSI_RTPS_MAJOR && hdr->version.minor < DDSI_RTPS_MINOR_MINIMUM))
   {
-    if ((hdr->version.major == RTPS_MAJOR && hdr->version.minor < RTPS_MINOR_MINIMUM))
+    if ((hdr->version.major == DDSI_RTPS_MAJOR && hdr->version.minor < DDSI_RTPS_MINOR_MINIMUM))
       GVTRACE ("HDR(%"PRIx32":%"PRIx32":%"PRIx32" vendor %d.%d) len %lu\n, version mismatch: %d.%d\n",
                PGUIDPREFIX (hdr->guid_prefix), hdr->vendorid.id[0], hdr->vendorid.id[1], (unsigned long) sz, hdr->version.major, hdr->version.minor);
     if (DDSI_SC_PEDANTIC_P (gv->config))
@@ -3214,7 +3214,7 @@ static void handle_rtps_message (struct thread_state * const thrst, struct ddsi_
     ddsi_rtps_msg_state_t res = ddsi_security_decode_rtps_message (thrst, gv, &rmsg, &hdr, &msg, &sz, rbpool, conn->m_stream);
     if (res != DDSI_RTPS_MSG_STATE_ERROR)
     {
-      handle_submsg_sequence (thrst, gv, conn, srcloc, ddsrt_time_wallclock (), ddsrt_time_elapsed (), &hdr->guid_prefix, guidprefix, msg, (size_t) sz, msg + RTPS_MESSAGE_HEADER_SIZE, rmsg, res == DDSI_RTPS_MSG_STATE_ENCODED);
+      handle_submsg_sequence (thrst, gv, conn, srcloc, ddsrt_time_wallclock (), ddsrt_time_elapsed (), &hdr->guid_prefix, guidprefix, msg, (size_t) sz, msg + DDSI_RTPS_MESSAGE_HEADER_SIZE, rmsg, res == DDSI_RTPS_MSG_STATE_ENCODED);
     }
   }
 }
@@ -3230,12 +3230,12 @@ static bool do_packet (struct thread_state * const thrst, struct ddsi_domaingv *
 
   const size_t maxsz = gv->config.rmsg_chunk_size < 65536 ? gv->config.rmsg_chunk_size : 65536;
   const size_t ddsi_msg_len_size = 8;
-  const size_t stream_hdr_size = RTPS_MESSAGE_HEADER_SIZE + ddsi_msg_len_size;
+  const size_t stream_hdr_size = DDSI_RTPS_MESSAGE_HEADER_SIZE + ddsi_msg_len_size;
   ssize_t sz;
   struct nn_rmsg * rmsg = nn_rmsg_new (rbpool);
   unsigned char * buff;
   size_t buff_len = maxsz;
-  Header_t * hdr;
+  ddsi_rtps_header_t * hdr;
   ddsi_locator_t srcloc;
 
   if (rmsg == NULL)
@@ -3245,14 +3245,14 @@ static bool do_packet (struct thread_state * const thrst, struct ddsi_domaingv *
 
   DDSRT_STATIC_ASSERT (sizeof (struct nn_rmsg) == offsetof (struct nn_rmsg, chunk) + sizeof (struct nn_rmsg_chunk));
   buff = (unsigned char *) NN_RMSG_PAYLOAD (rmsg);
-  hdr = (Header_t*) buff;
+  hdr = (ddsi_rtps_header_t*) buff;
 
   if (conn->m_stream)
   {
-    MsgLen_t * ml = (MsgLen_t*) (hdr + 1);
+    ddsi_rtps_msg_len_t * ml = (ddsi_rtps_msg_len_t*) (hdr + 1);
 
     /*
-      Read in packet header to get size of packet in MsgLen_t, then read in
+      Read in packet header to get size of packet in ddsi_rtps_msg_len_t, then read in
       remainder of packet.
     */
 
@@ -3273,7 +3273,7 @@ static bool do_packet (struct thread_state * const thrst, struct ddsi_domaingv *
       int swap;
 
       DDSRT_WARNING_MSVC_OFF(6326)
-      if (ml->smhdr.flags & SMFLAG_ENDIANNESS)
+      if (ml->smhdr.flags & DDSI_RTPS_SUBMESSAGE_FLAG_ENDIANNESS)
       {
         swap = !(DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN);
       }
@@ -3287,7 +3287,7 @@ static bool do_packet (struct thread_state * const thrst, struct ddsi_domaingv *
         ml->length = ddsrt_bswap4u (ml->length);
       }
 
-      if (ml->smhdr.submessageId != SMID_ADLINK_MSG_LEN)
+      if (ml->smhdr.submessageId != DDSI_RTPS_SMID_ADLINK_MSG_LEN)
       {
         malformed_packet_received (gv, buff, NULL, (size_t) sz, hdr->vendorid);
         sz = -1;

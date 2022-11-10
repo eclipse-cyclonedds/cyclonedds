@@ -238,7 +238,7 @@ static bool check_encoded_data(DDS_Security_OctetSeq *data, bool encrypted, stru
 
   prefix = (struct submsg_header *)ptr;
 
-  if (prefix->id != SMID_SRTPS_PREFIX)
+  if (prefix->id != DDSI_RTPS_SMID_SRTPS_PREFIX)
   {
     printf("check_encoded_data: prefix incorrect smid 0x%x02\n", prefix->id);
     goto fail_prefix;
@@ -282,7 +282,7 @@ static bool check_encoded_data(DDS_Security_OctetSeq *data, bool encrypted, stru
   if (encrypted)
   {
     body = (struct submsg_header *)ptr;
-    if (body->id != SMID_SEC_BODY)
+    if (body->id != DDSI_RTPS_SMID_SEC_BODY)
     {
       printf("check_encoded_data: submessage SEC_BODY missing\n");
       goto fail_body;
@@ -310,7 +310,7 @@ static bool check_encoded_data(DDS_Security_OctetSeq *data, bool encrypted, stru
   else
   {
     body = (struct submsg_header *)(ptr + 24); /* header after info_src */
-    if (body->id == SMID_SEC_BODY)
+    if (body->id == DDSI_RTPS_SMID_SEC_BODY)
     {
       printf("check_encoded_data: submessage SEC_BODY not expected\n");
       goto fail_body;
@@ -340,7 +340,7 @@ static bool check_encoded_data(DDS_Security_OctetSeq *data, bool encrypted, stru
 
   postfix = (struct submsg_header *)ptr;
 
-  if (postfix->id != SMID_SRTPS_POSTFIX)
+  if (postfix->id != DDSI_RTPS_SMID_SRTPS_POSTFIX)
   {
     printf("check_encoded_data: postfix invalid smid\n");
     goto fail_postfix;
@@ -605,9 +605,9 @@ static void set_remote_participant_protection_kind(DDS_Security_ParticipantCrypt
 static unsigned char submsg_header_endianness_flag (enum ddsrt_byte_order_selector bo)
 {
 #if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
-  return (unsigned char) ((bo == DDSRT_BOSEL_BE) ? 0 : SMFLAG_ENDIANNESS);
+  return (unsigned char) ((bo == DDSRT_BOSEL_BE) ? 0 : DDSI_RTPS_SUBMESSAGE_FLAG_ENDIANNESS);
 #else
-  return (unsigned char) ((bo == DDSRT_BO_LE) ? SMFLAG_ENDIANNESS : 0);
+  return (unsigned char) ((bo == DDSRT_BO_LE) ? DDSI_RTPS_SUBMESSAGE_FLAG_ENDIANNESS : 0);
 #endif
 }
 

@@ -24,7 +24,7 @@
 #include "dds/ddsi/q_lease.h"
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/q_misc.h"
-#include "dds/ddsi/q_protocol.h"
+#include "ddsi__protocol.h"
 #include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/q_transmit.h"
@@ -96,7 +96,7 @@ void ddsi_handle_pmd_message (const struct receiver_state *rst, struct ddsi_serd
   ddsi_guid_t ppguid;
   struct lease *l;
   RSTTRACE (" PMD ST%"PRIx32, sample->c.statusinfo);
-  switch (sample->c.statusinfo & (NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER))
+  switch (sample->c.statusinfo & (DDSI_STATUSINFO_DISPOSE | DDSI_STATUSINFO_UNREGISTER))
   {
     case 0: {
       const ddsi_participant_message_data_t *pmd = sample->sample;
@@ -105,7 +105,7 @@ void ddsi_handle_pmd_message (const struct receiver_state *rst, struct ddsi_serd
       ppguid.entityid.u = NN_ENTITYID_PARTICIPANT;
       if ((proxypp = ddsi_entidx_lookup_proxy_participant_guid (rst->gv->entity_index, &ppguid)) == NULL)
         RSTTRACE (" PPunknown");
-      else if (pmd->kind == PARTICIPANT_MESSAGE_DATA_KIND_MANUAL_LIVELINESS_UPDATE &&
+      else if (pmd->kind == DDSI_PARTICIPANT_MESSAGE_DATA_KIND_MANUAL_LIVELINESS_UPDATE &&
                (l = ddsrt_atomic_ldvoidp (&proxypp->minl_man)) != NULL)
       {
         /* Renew lease for entity with shortest manual-by-participant lease */
@@ -114,9 +114,9 @@ void ddsi_handle_pmd_message (const struct receiver_state *rst, struct ddsi_serd
       break;
     }
 
-    case NN_STATUSINFO_DISPOSE:
-    case NN_STATUSINFO_UNREGISTER:
-    case NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER: {
+    case DDSI_STATUSINFO_DISPOSE:
+    case DDSI_STATUSINFO_UNREGISTER:
+    case DDSI_STATUSINFO_DISPOSE | DDSI_STATUSINFO_UNREGISTER: {
       const ddsi_participant_message_data_t *pmd = sample->sample;
       ppguid.prefix = pmd->participantGuidPrefix;
       ppguid.entityid.u = NN_ENTITYID_PARTICIPANT;

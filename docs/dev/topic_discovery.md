@@ -40,7 +40,7 @@ Proxy topic GUIDs are added in the proxy GUID list in the type lookup meta-data 
 
 ## SEDP for topic discovery
 
-Topic discovery in Cyclone is implemented by SEDP writers and readers that exchange the topic information. The key for the SEDP samples is the topic definition hash that is described above. This key is sent in a vendor specific plist parameter `PID_CYCLONE_TOPIC_GUID` (vendor specific parameter 0x1b). The endpoint GUID parameter (as used for endpoint discovery) is not used here, because the value is a (16 bytes) hash value and not a GUID.
+Topic discovery in Cyclone is implemented by SEDP writers and readers that exchange the topic information. The key for the SEDP samples is the topic definition hash that is described above. This key is sent in a vendor specific plist parameter `DDSI_PID_CYCLONE_TOPIC_GUID` (vendor specific parameter 0x1b). The endpoint GUID parameter (as used for endpoint discovery) is not used here, because the value is a (16 bytes) hash value and not a GUID.
 
 Introducing a new DDSI topic triggers writing a SEDP (topic) sample. As DDSI topics can be shared over multiple dds_topics, this does not necessarily mean that for every dds_topic that is created in a node an SEDP sample will be written. E.g. when introducing a new dds_topic by calling the dds_find_topic function, this topic will be re-using an existing DDSI topic (as the topic is already known in the node).
 The built-in endpoints for exchanging topic discovery information can be enabled/disabled via the configuration option `//CycloneDDS/Domain/Discovery/EnableTopicDiscoveryEndpoints`. The default value of this setting is _disabled_, so there will be no overhead of topic discovery data exchange unless this option is explicitly enabled.

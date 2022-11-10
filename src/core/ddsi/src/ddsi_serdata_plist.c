@@ -29,6 +29,7 @@
 #include "dds/ddsi/q_misc.h"
 #include "ddsi__plist.h"
 #include "dds/cdr/dds_cdrstream.h"
+#include "ddsi__protocol.h"
 
 static uint32_t serdata_plist_get_size (const struct ddsi_serdata *dcmn)
 {
@@ -66,12 +67,12 @@ static struct ddsi_serdata_plist *serdata_plist_new (const struct ddsi_sertype_p
   // FIXME: vendorid/protoversion are not available when creating a serdata
   // these should be overruled by the one creating the serdata
   d->vendorid = NN_VENDORID_UNKNOWN;
-  d->protoversion.major = RTPS_MAJOR;
-  d->protoversion.minor = RTPS_MINOR;
+  d->protoversion.major = DDSI_RTPS_MAJOR;
+  d->protoversion.minor = DDSI_RTPS_MINOR;
   const uint16_t *hdrsrc = cdr_header;
   d->identifier = hdrsrc[0];
   d->options = hdrsrc[1];
-  if (d->identifier != PL_CDR_LE && d->identifier != PL_CDR_BE)
+  if (d->identifier != DDSI_RTPS_PL_CDR_LE && d->identifier != DDSI_RTPS_PL_CDR_BE)
   {
     ddsrt_free (d);
     return NULL;
@@ -81,7 +82,7 @@ static struct ddsi_serdata_plist *serdata_plist_new (const struct ddsi_sertype_p
 
 static struct ddsi_serdata *serdata_plist_fix (const struct ddsi_sertype_plist *tp, struct ddsi_serdata_plist *d)
 {
-  assert (tp->keyparam != PID_SENTINEL);
+  assert (tp->keyparam != DDSI_PID_SENTINEL);
   void *needlep;
   size_t needlesz;
   if (ddsi_plist_findparam_checking (d->data, d->pos, d->identifier, tp->keyparam, &needlep, &needlesz) != DDS_RETCODE_OK)
@@ -147,8 +148,8 @@ static struct ddsi_serdata *serdata_plist_from_ser_iov (const struct ddsi_sertyp
 static struct ddsi_serdata *serdata_plist_from_keyhash (const struct ddsi_sertype *tpcmn, const ddsi_keyhash_t *keyhash)
 {
   const struct ddsi_sertype_plist *tp = (const struct ddsi_sertype_plist *) tpcmn;
-  const struct { uint16_t identifier, options; nn_parameter_t par; ddsi_keyhash_t kh; nn_parameter_t sentinel; } in = {
-    .identifier = PL_CDR_BE,
+  const struct { uint16_t identifier, options; ddsi_parameter_t par; ddsi_keyhash_t kh; ddsi_parameter_t sentinel; } in = {
+    .identifier = DDSI_RTPS_PL_CDR_BE,
     .options = 0,
     .par = {
       .parameterid = ddsrt_toBE2u (tp->keyparam),
@@ -156,7 +157,7 @@ static struct ddsi_serdata *serdata_plist_from_keyhash (const struct ddsi_sertyp
     },
     .kh = *keyhash,
     .sentinel = {
-      .parameterid = ddsrt_toBE2u (PID_SENTINEL),
+      .parameterid = ddsrt_toBE2u (DDSI_PID_SENTINEL),
       .length = 0
     }
   };
@@ -214,7 +215,7 @@ static void serdata_plist_to_ser_unref (struct ddsi_serdata *serdata_common, con
 static struct ddsi_serdata *serdata_plist_from_sample (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, const void *sample)
 {
   const struct ddsi_sertype_plist *tp = (const struct ddsi_sertype_plist *)tpcmn;
-  const struct { uint16_t identifier, options; } header = { ddsi_sertype_get_native_enc_identifier (DDS_CDR_ENC_VERSION_1, tp->encoding_format), 0 };
+  const struct { uint16_t identifier, options; } header = { ddsi_sertype_get_native_enc_identifier (DDSI_RTPS_CDR_ENC_VERSION_1, tp->encoding_format), 0 };
 
   // FIXME: key must not require byteswapping (GUIDs are ok)
   // FIXME: rework plist stuff so it doesn't need an nn_xmsg

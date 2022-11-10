@@ -22,7 +22,7 @@
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsrt/string.h"
-#include "dds/ddsi/q_protocol.h"
+#include "ddsi__protocol.h"
 #include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/q_misc.h"
 #include "dds/ddsi/ddsi_config_impl.h"
@@ -225,7 +225,7 @@ static struct addrset *addrset_from_locatorlists (const struct ddsi_domaingv *gv
       }
     }
 
-    if (!extloc_of_self && loc.kind == NN_LOCATOR_KIND_UDPv4 && gv->extmask.kind != NN_LOCATOR_KIND_INVALID)
+    if (!extloc_of_self && loc.kind == DDSI_LOCATOR_KIND_UDPv4 && gv->extmask.kind != DDSI_LOCATOR_KIND_INVALID)
     {
       /* If the examined locator is in the same subnet as our own
          external IP address, this locator will be translated into one
@@ -354,7 +354,7 @@ static bool locators_add_one (struct locators_builder *b, const ddsi_locator_t *
     b->dst->last->next = &b->storage[b->dst->n];
   b->dst->last = &b->storage[b->dst->n++];
   b->dst->last->loc = *loc;
-  if (port_override != NN_LOCATOR_PORT_INVALID)
+  if (port_override != DDSI_LOCATOR_PORT_INVALID)
     b->dst->last->loc.port = port_override;
   b->dst->last->next = NULL;
   return true;
@@ -388,8 +388,8 @@ void get_participant_builtin_topic_data (const struct ddsi_participant *pp, ddsi
     PP_DOMAIN_ID;
   dst->participant_guid = pp->e.guid;
   dst->builtin_endpoint_set = pp->bes;
-  dst->protocol_version.major = RTPS_MAJOR;
-  dst->protocol_version.minor = RTPS_MINOR;
+  dst->protocol_version.major = DDSI_RTPS_MAJOR;
+  dst->protocol_version.minor = DDSI_RTPS_MINOR;
   dst->vendorid = NN_VENDORID_ECLIPSE;
   dst->domain_id = pp->e.gv->config.extDomainId.value;
   /* Be sure not to send a DOMAIN_TAG when it is the default (an empty)
@@ -453,8 +453,8 @@ void get_participant_builtin_topic_data (const struct ddsi_participant *pp, ddsi
     dst->aliased |= PP_DEFAULT_MULTICAST_LOCATOR | PP_METATRAFFIC_MULTICAST_LOCATOR;
     struct locators_builder def_mc = locators_builder_init (&dst->default_multicast_locators, &locs->def_multi, 1);
     struct locators_builder meta_mc = locators_builder_init (&dst->metatraffic_multicast_locators, &locs->meta_multi, 1);
-    locators_add_one (&def_mc, &pp->e.gv->loc_default_mc, NN_LOCATOR_PORT_INVALID);
-    locators_add_one (&meta_mc, &pp->e.gv->loc_meta_mc, NN_LOCATOR_PORT_INVALID);
+    locators_add_one (&def_mc, &pp->e.gv->loc_default_mc, DDSI_LOCATOR_PORT_INVALID);
+    locators_add_one (&meta_mc, &pp->e.gv->loc_meta_mc, DDSI_LOCATOR_PORT_INVALID);
   }
   dst->participant_lease_duration = pp->lease_duration;
 
@@ -524,7 +524,7 @@ static int write_and_fini_plist (struct ddsi_writer *wr, ddsi_plist_t *ps, bool 
 {
   struct ddsi_serdata *serdata = ddsi_serdata_from_sample (wr->type, alive ? SDK_DATA : SDK_KEY, ps);
   ddsi_plist_fini (ps);
-  serdata->statusinfo = alive ? 0 : (NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER);
+  serdata->statusinfo = alive ? 0 : (DDSI_STATUSINFO_DISPOSE | DDSI_STATUSINFO_UNREGISTER);
   serdata->timestamp = ddsrt_time_wallclock ();
   return write_sample_nogc_notk (ddsi_lookup_thread_state (), NULL, wr, serdata);
 }
@@ -729,8 +729,8 @@ static int handle_spdp_alive (const struct receiver_state *rst, seqno_t seq, dds
 {
   struct ddsi_domaingv * const gv = rst->gv;
   const unsigned bes_sedp_announcer_mask =
-    NN_DISC_BUILTIN_ENDPOINT_SUBSCRIPTION_ANNOUNCER |
-    NN_DISC_BUILTIN_ENDPOINT_PUBLICATION_ANNOUNCER;
+    DDSI_DISC_BUILTIN_ENDPOINT_SUBSCRIPTION_ANNOUNCER |
+    DDSI_DISC_BUILTIN_ENDPOINT_PUBLICATION_ANNOUNCER;
   struct addrset *as_meta, *as_default;
   uint32_t builtin_endpoint_set;
   ddsi_guid_t privileged_pp_guid;
@@ -756,23 +756,23 @@ static int handle_spdp_alive (const struct receiver_state *rst, seqno_t seq, dds
   }
 
   /* At some point the RTI implementation didn't mention
-     BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_READER & ...WRITER, or
+     BUILTIN_ENDPOINT_DDSI_PARTICIPANT_MESSAGE_DATA_READER & ...WRITER, or
      so it seemed; and yet they are necessary for correct operation,
      so add them. */
   builtin_endpoint_set = datap->builtin_endpoint_set;
   if (vendor_is_rti (rst->vendor) &&
       ((builtin_endpoint_set &
-        (NN_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_READER |
-         NN_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_WRITER))
-       != (NN_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_READER |
-           NN_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_WRITER)) &&
+        (DDSI_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_READER |
+         DDSI_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_WRITER))
+       != (DDSI_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_READER |
+           DDSI_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_WRITER)) &&
       gv->config.assume_rti_has_pmd_endpoints)
   {
     GVLOGDISC ("data (SPDP, vendor %u.%u): assuming unadvertised PMD endpoints do exist\n",
              rst->vendor.id[0], rst->vendor.id[1]);
     builtin_endpoint_set |=
-      NN_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_READER |
-      NN_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_WRITER;
+      DDSI_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_READER |
+      DDSI_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_WRITER;
   }
 
   /* Do we know this GUID already? */
@@ -830,11 +830,11 @@ static int handle_spdp_alive (const struct receiver_state *rst, seqno_t seq, dds
     }
   }
 
-  const bool is_secure = ((datap->builtin_endpoint_set & NN_DISC_BUILTIN_ENDPOINT_PARTICIPANT_SECURE_ANNOUNCER) != 0 &&
+  const bool is_secure = ((datap->builtin_endpoint_set & DDSI_DISC_BUILTIN_ENDPOINT_PARTICIPANT_SECURE_ANNOUNCER) != 0 &&
                           (datap->present & PP_IDENTITY_TOKEN));
   /* Make sure we don't create any security builtin endpoint when it's considered unsecure. */
   if (!is_secure)
-    builtin_endpoint_set &= NN_BES_MASK_NON_SECURITY;
+    builtin_endpoint_set &= DDSI_BES_MASK_NON_SECURITY;
   GVLOGDISC ("SPDP ST0 "PGUIDFMT" bes %"PRIx32"%s NEW", PGUID (datap->participant_guid), builtin_endpoint_set, is_secure ? " (secure)" : "");
 
   if (datap->present & PP_PARTICIPANT_LEASE_DURATION)
@@ -994,15 +994,15 @@ static void handle_spdp (const struct receiver_state *rst, ddsi_entityid_t pwr_e
   if (ddsi_serdata_to_sample (serdata, &decoded_data, NULL, NULL))
   {
     int interesting = 0;
-    switch (serdata->statusinfo & (NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER))
+    switch (serdata->statusinfo & (DDSI_STATUSINFO_DISPOSE | DDSI_STATUSINFO_UNREGISTER))
     {
       case 0:
         interesting = handle_spdp_alive (rst, seq, serdata->timestamp, &decoded_data);
         break;
 
-      case NN_STATUSINFO_DISPOSE:
-      case NN_STATUSINFO_UNREGISTER:
-      case (NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER):
+      case DDSI_STATUSINFO_DISPOSE:
+      case DDSI_STATUSINFO_UNREGISTER:
+      case (DDSI_STATUSINFO_DISPOSE | DDSI_STATUSINFO_UNREGISTER):
         interesting = handle_spdp_dead (rst, pwr_entityid, serdata->timestamp, &decoded_data, serdata->statusinfo);
         break;
     }
@@ -1142,8 +1142,8 @@ static int sedp_write_endpoint_impl
   {
     assert (xqos != NULL);
     ps.present |= PP_PROTOCOL_VERSION | PP_VENDORID;
-    ps.protocol_version.major = RTPS_MAJOR;
-    ps.protocol_version.minor = RTPS_MINOR;
+    ps.protocol_version.major = DDSI_RTPS_MAJOR;
+    ps.protocol_version.minor = DDSI_RTPS_MINOR;
     ps.vendorid = NN_VENDORID_ECLIPSE;
 
     assert (epcommon != NULL);
@@ -1194,7 +1194,7 @@ static int sedp_write_endpoint_impl
 
 #ifdef DDS_HAS_SHM
     assert(wr->xqos->present & QP_LOCATOR_MASK);
-    if (!(xqos->ignore_locator_type & NN_LOCATOR_KIND_SHEM))
+    if (!(xqos->ignore_locator_type & DDSI_LOCATOR_KIND_SHEM))
     {
       if (!(arg.ps->present & PP_UNICAST_LOCATOR) || 0 == arg.ps->unicast_locators.n)
       {
@@ -1255,8 +1255,8 @@ static int sedp_write_topic_impl (struct ddsi_writer *wr, int alive, const ddsi_
 
   assert (xqos != NULL);
   ps.present |= PP_PROTOCOL_VERSION | PP_VENDORID;
-  ps.protocol_version.major = RTPS_MAJOR;
-  ps.protocol_version.minor = RTPS_MINOR;
+  ps.protocol_version.major = DDSI_RTPS_MAJOR;
+  ps.protocol_version.minor = DDSI_RTPS_MINOR;
   ps.vendorid = NN_VENDORID_ECLIPSE;
 
   uint64_t qosdiff = ddsi_xqos_delta (xqos, defqos, ~(uint64_t)0);
@@ -1276,7 +1276,7 @@ static int sedp_write_topic_impl (struct ddsi_writer *wr, int alive, const ddsi_
 int sedp_write_topic (struct ddsi_topic *tp, bool alive)
 {
   int res = 0;
-  if (!(tp->pp->bes & NN_DISC_BUILTIN_ENDPOINT_TOPICS_ANNOUNCER))
+  if (!(tp->pp->bes & DDSI_DISC_BUILTIN_ENDPOINT_TOPICS_ANNOUNCER))
     return res;
   if (!ddsi_is_builtin_entityid (tp->e.guid.entityid, NN_VENDORID_ECLIPSE) && !tp->e.onlylocal)
   {
@@ -1859,7 +1859,7 @@ static void handle_sedp (const struct receiver_state *rst, seqno_t seq, struct d
   {
     struct ddsi_domaingv * const gv = rst->gv;
     GVLOGDISC ("SEDP ST%"PRIx32, serdata->statusinfo);
-    switch (serdata->statusinfo & (NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER))
+    switch (serdata->statusinfo & (DDSI_STATUSINFO_DISPOSE | DDSI_STATUSINFO_UNREGISTER))
     {
       case 0:
         switch (sedp_kind)
@@ -1875,9 +1875,9 @@ static void handle_sedp (const struct receiver_state *rst, seqno_t seq, struct d
             break;
         }
         break;
-      case NN_STATUSINFO_DISPOSE:
-      case NN_STATUSINFO_UNREGISTER:
-      case (NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER):
+      case DDSI_STATUSINFO_DISPOSE:
+      case DDSI_STATUSINFO_UNREGISTER:
+      case (DDSI_STATUSINFO_DISPOSE | DDSI_STATUSINFO_UNREGISTER):
         switch (sedp_kind)
         {
           case SEDP_KIND_TOPIC:
@@ -1899,7 +1899,7 @@ static void handle_sedp (const struct receiver_state *rst, seqno_t seq, struct d
 #ifdef DDS_HAS_TYPE_DISCOVERY
 static void handle_typelookup (const struct receiver_state *rst, ddsi_entityid_t wr_entity_id, struct ddsi_serdata *serdata)
 {
-  if (!(serdata->statusinfo & (NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER)))
+  if (!(serdata->statusinfo & (DDSI_STATUSINFO_DISPOSE | DDSI_STATUSINFO_UNREGISTER)))
   {
     struct ddsi_domaingv * const gv = rst->gv;
     if (wr_entity_id.u == NN_ENTITYID_TL_SVC_BUILTIN_REQUEST_WRITER)
@@ -1922,7 +1922,7 @@ int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const str
   unsigned statusinfo;
   int need_keyhash;
   ddsi_guid_t srcguid;
-  Data_DataFrag_common_t *msg;
+  ddsi_rtps_data_datafrag_common_t *msg;
   unsigned char data_smhdr_flags;
   ddsi_plist_t qos;
 
@@ -1933,7 +1933,7 @@ int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const str
      instead of splitting out all the code, we reformat these flags
      from the submsg to always conform to that of the "Data"
      submessage regardless of the input. */
-  msg = (Data_DataFrag_common_t *) NN_RMSG_PAYLOADOFF (fragchain->rmsg, NN_RDATA_SUBMSG_OFF (fragchain));
+  msg = (ddsi_rtps_data_datafrag_common_t *) NN_RMSG_PAYLOADOFF (fragchain->rmsg, NN_RDATA_SUBMSG_OFF (fragchain));
   data_smhdr_flags = normalize_data_datafrag_flags (&msg->smhdr);
   srcguid.prefix = sampleinfo->rst->src_guid_prefix;
   srcguid.entityid = msg->writerId;
@@ -1959,7 +1959,7 @@ int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const str
      consequently expect to need the keyhash.  Then, if sampleinfo
      says it is a complex qos, or the keyhash is required, extract all
      we need from the inline qos. */
-  need_keyhash = (sampleinfo->size == 0 || (data_smhdr_flags & (DATA_FLAG_KEYFLAG | DATA_FLAG_DATAFLAG)) == 0);
+  need_keyhash = (sampleinfo->size == 0 || (data_smhdr_flags & (DDSI_DATA_FLAG_KEYFLAG | DDSI_DATA_FLAG_DATAFLAG)) == 0);
   if (!(sampleinfo->complex_qos || need_keyhash))
   {
     ddsi_plist_init_empty (&qos);
@@ -1968,11 +1968,11 @@ int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const str
   else
   {
     ddsi_plist_src_t src;
-    size_t qos_offset = NN_RDATA_SUBMSG_OFF (fragchain) + offsetof (Data_DataFrag_common_t, octetsToInlineQos) + sizeof (msg->octetsToInlineQos) + msg->octetsToInlineQos;
+    size_t qos_offset = NN_RDATA_SUBMSG_OFF (fragchain) + offsetof (ddsi_rtps_data_datafrag_common_t, octetsToInlineQos) + sizeof (msg->octetsToInlineQos) + msg->octetsToInlineQos;
     dds_return_t plist_ret;
     src.protocol_version = sampleinfo->rst->protocol_version;
     src.vendorid = sampleinfo->rst->vendor;
-    src.encoding = (msg->smhdr.flags & SMFLAG_ENDIANNESS) ? PL_CDR_LE : PL_CDR_BE;
+    src.encoding = (msg->smhdr.flags & DDSI_RTPS_SUBMESSAGE_FLAG_ENDIANNESS) ? DDSI_RTPS_PL_CDR_LE : DDSI_RTPS_PL_CDR_BE;
     src.buf = NN_RMSG_PAYLOADOFF (fragchain->rmsg, qos_offset);
     src.bufsz = NN_RDATA_PAYLOAD_OFF (fragchain) - qos_offset;
     src.strict = DDSI_SC_STRICT_P (gv->config);
@@ -2057,9 +2057,9 @@ int builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const str
   }
 
   struct ddsi_serdata *d;
-  if (data_smhdr_flags & DATA_FLAG_DATAFLAG)
+  if (data_smhdr_flags & DDSI_DATA_FLAG_DATAFLAG)
     d = ddsi_serdata_from_ser (type, SDK_DATA, fragchain, sampleinfo->size);
-  else if (data_smhdr_flags & DATA_FLAG_KEYFLAG)
+  else if (data_smhdr_flags & DDSI_DATA_FLAG_KEYFLAG)
     d = ddsi_serdata_from_ser (type, SDK_KEY, fragchain, sampleinfo->size);
   else if ((qos.present & PP_KEYHASH) && !DDSI_SC_STRICT_P(gv->config))
     d = ddsi_serdata_from_keyhash (type, &qos.keyhash);

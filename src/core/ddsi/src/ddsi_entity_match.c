@@ -30,6 +30,7 @@
 #include "ddsi__endpoint.h"
 #include "ddsi__entity_match.h"
 #include "ddsi__proxy_endpoint.h"
+#include "ddsi__protocol.h"
 #include "dds/dds.h"
 
 static ddsi_entityid_t builtin_entityid_match (ddsi_entityid_t x)
@@ -224,7 +225,7 @@ void ddsi_connect_writer_with_proxy_reader_secure (struct ddsi_writer *wr, struc
 
 void ddsi_connect_reader_with_proxy_writer_secure (struct ddsi_reader *rd, struct ddsi_proxy_writer *pwr, ddsrt_mtime_t tnow, int64_t crypto_handle)
 {
-  nn_count_t init_count;
+  ddsi_count_t init_count;
   struct ddsi_alive_state alive_state;
 
   /* Initialize the reader's tracking information for the writer liveliness state to something
@@ -288,7 +289,7 @@ static void connect_proxy_writer_with_reader (struct ddsi_proxy_writer *pwr, str
   const int isb0 = (ddsi_is_builtin_entityid (pwr->e.guid.entityid, pwr->c.vendor) != 0);
   const int isb1 = (ddsi_is_builtin_entityid (rd->e.guid.entityid, NN_VENDORID_ECLIPSE) != 0);
   dds_qos_policy_id_t reason;
-  nn_count_t init_count;
+  ddsi_count_t init_count;
   struct ddsi_alive_state alive_state;
   int64_t crypto_handle;
 
@@ -664,7 +665,7 @@ void ddsi_writer_add_connection (struct ddsi_writer *wr, struct ddsi_proxy_reade
   int pretend_everything_acked;
 
 #ifdef DDS_HAS_SHM
-  const bool use_iceoryx = prd->is_iceoryx && !(wr->xqos->ignore_locator_type & NN_LOCATOR_KIND_SHEM);
+  const bool use_iceoryx = prd->is_iceoryx && !(wr->xqos->ignore_locator_type & DDSI_LOCATOR_KIND_SHEM);
 #else
   const bool use_iceoryx = false;
 #endif
@@ -818,7 +819,7 @@ void ddsi_writer_add_local_connection (struct ddsi_writer *wr, struct ddsi_reade
   }
 }
 
-void ddsi_reader_add_connection (struct ddsi_reader *rd, struct ddsi_proxy_writer *pwr, nn_count_t *init_count, const struct ddsi_alive_state *alive_state, int64_t crypto_handle)
+void ddsi_reader_add_connection (struct ddsi_reader *rd, struct ddsi_proxy_writer *pwr, ddsi_count_t *init_count, const struct ddsi_alive_state *alive_state, int64_t crypto_handle)
 {
   struct ddsi_rd_pwr_match *m = ddsrt_malloc (sizeof (*m));
   ddsrt_avl_ipath_t path;
@@ -940,7 +941,7 @@ void ddsi_reader_add_local_connection (struct ddsi_reader *rd, struct ddsi_write
   }
 }
 
-void ddsi_proxy_writer_add_connection (struct ddsi_proxy_writer *pwr, struct ddsi_reader *rd, ddsrt_mtime_t tnow, nn_count_t init_count, int64_t crypto_handle)
+void ddsi_proxy_writer_add_connection (struct ddsi_proxy_writer *pwr, struct ddsi_reader *rd, ddsrt_mtime_t tnow, ddsi_count_t init_count, int64_t crypto_handle)
 {
   struct ddsi_pwr_rd_match *m = ddsrt_malloc (sizeof (*m));
   ddsrt_avl_ipath_t path;
@@ -957,7 +958,7 @@ void ddsi_proxy_writer_add_connection (struct ddsi_proxy_writer *pwr, struct dds
   }
 
 #ifdef DDS_HAS_SHM
-  const bool use_iceoryx = pwr->is_iceoryx && !(rd->xqos->ignore_locator_type & NN_LOCATOR_KIND_SHEM);
+  const bool use_iceoryx = pwr->is_iceoryx && !(rd->xqos->ignore_locator_type & DDSI_LOCATOR_KIND_SHEM);
 #else
   const bool use_iceoryx = false;
 #endif
@@ -1215,7 +1216,7 @@ void ddsi_reader_drop_connection (const struct ddsi_guid *rd_guid, const struct 
       if (rd->rhc)
       {
         struct ddsi_writer_info wrinfo;
-        ddsi_make_writer_info (&wrinfo, &pwr->e, pwr->c.xqos, NN_STATUSINFO_UNREGISTER);
+        ddsi_make_writer_info (&wrinfo, &pwr->e, pwr->c.xqos, DDSI_STATUSINFO_UNREGISTER);
         ddsi_rhc_unregister_wr (rd->rhc, &wrinfo);
       }
       if (rd->status_cb)
@@ -1252,7 +1253,7 @@ void ddsi_reader_drop_local_connection (const struct ddsi_guid *rd_guid, const s
       {
         /* FIXME: */
         struct ddsi_writer_info wrinfo;
-        ddsi_make_writer_info (&wrinfo, &wr->e, wr->xqos, NN_STATUSINFO_UNREGISTER);
+        ddsi_make_writer_info (&wrinfo, &wr->e, wr->xqos, DDSI_STATUSINFO_UNREGISTER);
         ddsi_rhc_unregister_wr (rd->rhc, &wrinfo);
       }
       if (rd->status_cb)
@@ -1465,7 +1466,7 @@ static void downgrade_to_nonsecure (struct ddsi_proxy_participant *proxypp)
 
   /* Cleanup all kinds of related security information. */
   ddsi_omg_security_deregister_remote_participant (proxypp);
-  proxypp->bes &= NN_BES_MASK_NON_SECURITY;
+  proxypp->bes &= DDSI_BES_MASK_NON_SECURITY;
 }
 
 void ddsi_match_volatile_secure_endpoints (struct ddsi_participant *pp, struct ddsi_proxy_participant *proxypp)

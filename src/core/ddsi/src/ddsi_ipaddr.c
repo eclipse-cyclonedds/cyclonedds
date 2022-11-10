@@ -107,12 +107,12 @@ enum ddsi_locator_from_string_result ddsi_ipaddr_from_string (ddsi_locator_t *lo
   struct sockaddr_storage tmpaddr;
 
   switch (kind) {
-    case NN_LOCATOR_KIND_UDPv4:
-    case NN_LOCATOR_KIND_TCPv4:
+    case DDSI_LOCATOR_KIND_UDPv4:
+    case DDSI_LOCATOR_KIND_TCPv4:
       break;
 #if DDSRT_HAVE_IPV6
-    case NN_LOCATOR_KIND_UDPv6:
-    case NN_LOCATOR_KIND_TCPv6:
+    case DDSI_LOCATOR_KIND_UDPv6:
+    case DDSI_LOCATOR_KIND_TCPv6:
       af = AF_INET6;
       break;
 #endif
@@ -219,7 +219,7 @@ enum ddsi_locator_from_string_result ddsi_ipaddr_from_string (ddsi_locator_t *lo
 char *ddsi_ipaddr_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc, int with_port, const struct ddsi_network_interface *interf)
 {
   assert (sizeof_dst > 1);
-  if (loc->kind == NN_LOCATOR_KIND_INVALID)
+  if (loc->kind == DDSI_LOCATOR_KIND_INVALID)
     (void) snprintf (dst, sizeof_dst, "(invalid)");
   else
   {
@@ -271,16 +271,16 @@ void ddsi_ipaddr_to_loc (ddsi_locator_t *dst, const struct sockaddr *src, int32_
     case AF_INET:
     {
       const struct sockaddr_in *x = (const struct sockaddr_in *) src;
-      assert (kind == NN_LOCATOR_KIND_UDPv4 || kind == NN_LOCATOR_KIND_TCPv4);
+      assert (kind == DDSI_LOCATOR_KIND_UDPv4 || kind == DDSI_LOCATOR_KIND_TCPv4);
       if (x->sin_addr.s_addr == htonl (INADDR_ANY))
       {
-        dst->kind = NN_LOCATOR_KIND_INVALID;
-        dst->port = NN_LOCATOR_PORT_INVALID;
+        dst->kind = DDSI_LOCATOR_KIND_INVALID;
+        dst->port = DDSI_LOCATOR_PORT_INVALID;
         memset (dst->address, 0, sizeof (dst->address));
       }
       else
       {
-        dst->port = (x->sin_port == 0) ? NN_LOCATOR_PORT_INVALID : ntohs (x->sin_port);
+        dst->port = (x->sin_port == 0) ? DDSI_LOCATOR_PORT_INVALID : ntohs (x->sin_port);
         memset (dst->address, 0, 12);
         memcpy (dst->address + 12, &x->sin_addr.s_addr, 4);
       }
@@ -290,16 +290,16 @@ void ddsi_ipaddr_to_loc (ddsi_locator_t *dst, const struct sockaddr *src, int32_
     case AF_INET6:
     {
       const struct sockaddr_in6 *x = (const struct sockaddr_in6 *) src;
-      assert (kind == NN_LOCATOR_KIND_UDPv6 || kind == NN_LOCATOR_KIND_TCPv6);
+      assert (kind == DDSI_LOCATOR_KIND_UDPv6 || kind == DDSI_LOCATOR_KIND_TCPv6);
       if (IN6_IS_ADDR_UNSPECIFIED (&x->sin6_addr))
       {
-        dst->kind = NN_LOCATOR_KIND_INVALID;
-        dst->port = NN_LOCATOR_PORT_INVALID;
+        dst->kind = DDSI_LOCATOR_KIND_INVALID;
+        dst->port = DDSI_LOCATOR_PORT_INVALID;
         memset (dst->address, 0, sizeof (dst->address));
       }
       else
       {
-        dst->port = (x->sin6_port == 0) ? NN_LOCATOR_PORT_INVALID : ntohs (x->sin6_port);
+        dst->port = (x->sin6_port == 0) ? DDSI_LOCATOR_PORT_INVALID : ntohs (x->sin6_port);
         memcpy (dst->address, &x->sin6_addr.s6_addr, 16);
       }
       break;
@@ -315,25 +315,25 @@ void ddsi_ipaddr_from_loc (struct sockaddr_storage *dst, const ddsi_locator_t *s
   memset (dst, 0, sizeof (*dst));
   switch (src->kind)
   {
-    case NN_LOCATOR_KIND_INVALID:
+    case DDSI_LOCATOR_KIND_INVALID:
       assert (0);
       break;
-    case NN_LOCATOR_KIND_UDPv4:
-    case NN_LOCATOR_KIND_TCPv4:
+    case DDSI_LOCATOR_KIND_UDPv4:
+    case DDSI_LOCATOR_KIND_TCPv4:
     {
       struct sockaddr_in *x = (struct sockaddr_in *) dst;
       x->sin_family = AF_INET;
-      x->sin_port = (src->port == NN_LOCATOR_PORT_INVALID) ? 0 : htons ((unsigned short) src->port);
+      x->sin_port = (src->port == DDSI_LOCATOR_PORT_INVALID) ? 0 : htons ((unsigned short) src->port);
       memcpy (&x->sin_addr.s_addr, src->address + 12, 4);
       break;
     }
 #if DDSRT_HAVE_IPV6
-    case NN_LOCATOR_KIND_UDPv6:
-    case NN_LOCATOR_KIND_TCPv6:
+    case DDSI_LOCATOR_KIND_UDPv6:
+    case DDSI_LOCATOR_KIND_TCPv6:
     {
       struct sockaddr_in6 *x = (struct sockaddr_in6 *) dst;
       x->sin6_family = AF_INET6;
-      x->sin6_port = (src->port == NN_LOCATOR_PORT_INVALID) ? 0 : htons ((unsigned short) src->port);
+      x->sin6_port = (src->port == DDSI_LOCATOR_PORT_INVALID) ? 0 : htons ((unsigned short) src->port);
       memcpy (&x->sin6_addr.s6_addr, src->address, 16);
       if (IN6_IS_ADDR_LINKLOCAL (&x->sin6_addr))
       {

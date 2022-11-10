@@ -20,7 +20,7 @@
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/avl.h"
 
-#include "dds/ddsi/q_protocol.h"
+#include "ddsi__protocol.h"
 #include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/q_misc.h"
 #include "ddsi__config_impl.h"
@@ -288,7 +288,7 @@ static int string_to_default_locator (const struct ddsi_domaingv *gv, ddsi_locat
   if (port != 0 && !is_unspec_locator(loc))
     loc->port = port;
   else
-    loc->port = NN_LOCATOR_PORT_INVALID;
+    loc->port = DDSI_LOCATOR_PORT_INVALID;
   assert (mc == -1 || mc == 0 || mc == 1);
   if (mc >= 0)
   {
@@ -308,7 +308,7 @@ static int set_spdp_address (struct ddsi_domaingv *gv)
   const uint32_t port = ddsi_get_port (&gv->config, DDSI_PORT_MULTI_DISC, 0);
   int rc = 0;
   /* FIXME: FIXME: FIXME: */
-  gv->loc_spdp_mc.kind = NN_LOCATOR_KIND_INVALID;
+  gv->loc_spdp_mc.kind = DDSI_LOCATOR_KIND_INVALID;
   if (strcmp (gv->config.spdpMulticastAddressString, "239.255.0.1") != 0)
   {
     if ((rc = string_to_default_locator (gv, &gv->loc_spdp_mc, gv->config.spdpMulticastAddressString, port, 1, "SPDP address")) < 0)
@@ -320,7 +320,7 @@ static int set_spdp_address (struct ddsi_domaingv *gv)
     assert (rc > 0);
   }
 #ifdef DDS_HAS_SSM
-  if (gv->loc_spdp_mc.kind != NN_LOCATOR_KIND_INVALID && ddsi_is_ssm_mcaddr (gv, &gv->loc_spdp_mc))
+  if (gv->loc_spdp_mc.kind != DDSI_LOCATOR_KIND_INVALID && ddsi_is_ssm_mcaddr (gv, &gv->loc_spdp_mc))
   {
     GVERROR ("%s: SPDP address may not be an SSM address\n", gv->config.spdpMulticastAddressString);
     return -1;
@@ -361,8 +361,8 @@ static int set_ext_address_and_mask (struct ddsi_domaingv *gv)
   if (!gv->config.externalMaskString || strcmp (gv->config.externalMaskString, "0.0.0.0") == 0)
   {
     memset(&gv->extmask.address, 0, sizeof(gv->extmask.address));
-    gv->extmask.kind = NN_LOCATOR_KIND_INVALID;
-    gv->extmask.port = NN_LOCATOR_PORT_INVALID;
+    gv->extmask.kind = DDSI_LOCATOR_KIND_INVALID;
+    gv->extmask.port = DDSI_LOCATOR_PORT_INVALID;
   }
   else if (gv->config.transport_selector != DDSI_TRANS_UDP)
   {
@@ -807,7 +807,7 @@ static struct ddsi_sertype *make_special_type_pserop (const char *typename, size
   struct ddsi_sertype_pserop *st = ddsrt_malloc (sizeof (*st));
   memset (st, 0, sizeof (*st));
   ddsi_sertype_init (&st->c, typename, &ddsi_sertype_ops_pserop, &ddsi_serdata_ops_pserop, nops_key == 0);
-  st->encoding_format = DDS_CDR_ENC_FORMAT_PLAIN;
+  st->encoding_format = DDSI_RTPS_CDR_ENC_FORMAT_PLAIN;
   st->memsize = memsize;
   st->nops = nops;
   st->ops = ops;
@@ -816,12 +816,12 @@ static struct ddsi_sertype *make_special_type_pserop (const char *typename, size
   return (struct ddsi_sertype *) st;
 }
 
-static struct ddsi_sertype *make_special_type_plist (const char *typename, nn_parameterid_t keyparam)
+static struct ddsi_sertype *make_special_type_plist (const char *typename, ddsi_parameterid_t keyparam)
 {
   struct ddsi_sertype_plist *st = ddsrt_malloc (sizeof (*st));
   memset (st, 0, sizeof (*st));
   ddsi_sertype_init (&st->c, typename, &ddsi_sertype_ops_plist, &ddsi_serdata_ops_plist, false);
-  st->encoding_format = DDS_CDR_ENC_FORMAT_PL;
+  st->encoding_format = DDSI_RTPS_CDR_ENC_FORMAT_PL;
   st->keyparam = keyparam;
   return (struct ddsi_sertype *) st;
 }
@@ -866,9 +866,9 @@ static void free_special_types (struct ddsi_domaingv *gv)
 
 static void make_special_types (struct ddsi_domaingv *gv)
 {
-  gv->spdp_type = make_special_type_plist ("ParticipantBuiltinTopicData", PID_PARTICIPANT_GUID);
-  gv->sedp_reader_type = make_special_type_plist ("SubscriptionBuiltinTopicData", PID_ENDPOINT_GUID);
-  gv->sedp_writer_type = make_special_type_plist ("PublicationBuiltinTopicData", PID_ENDPOINT_GUID);
+  gv->spdp_type = make_special_type_plist ("ParticipantBuiltinTopicData", DDSI_PID_PARTICIPANT_GUID);
+  gv->sedp_reader_type = make_special_type_plist ("SubscriptionBuiltinTopicData", DDSI_PID_ENDPOINT_GUID);
+  gv->sedp_writer_type = make_special_type_plist ("PublicationBuiltinTopicData", DDSI_PID_ENDPOINT_GUID);
   gv->pmd_type = make_special_type_pserop ("ddsi_participant_message_data", sizeof (ddsi_participant_message_data_t), ddsi_participant_message_data_nops, ddsi_participant_message_data_ops, ddsi_participant_message_data_nops_key, ddsi_participant_message_data_ops_key);
 #ifdef DDS_HAS_TYPE_DISCOVERY
   gv->tl_svc_request_type = make_special_type_cdrstream (gv, &DDS_Builtin_TypeLookup_Request_desc);
@@ -876,12 +876,12 @@ static void make_special_types (struct ddsi_domaingv *gv)
 #endif
 #ifdef DDS_HAS_TOPIC_DISCOVERY
   if (gv->config.enable_topic_discovery_endpoints)
-    gv->sedp_topic_type = make_special_type_plist ("TopicBuiltinTopicData", PID_CYCLONE_TOPIC_GUID);
+    gv->sedp_topic_type = make_special_type_plist ("TopicBuiltinTopicData", DDSI_PID_CYCLONE_TOPIC_GUID);
 #endif
 #ifdef DDS_HAS_SECURITY
-  gv->spdp_secure_type = make_special_type_plist ("ParticipantBuiltinTopicDataSecure", PID_PARTICIPANT_GUID);
-  gv->sedp_reader_secure_type = make_special_type_plist ("SubscriptionBuiltinTopicDataSecure", PID_ENDPOINT_GUID);
-  gv->sedp_writer_secure_type = make_special_type_plist ("PublicationBuiltinTopicDataSecure", PID_ENDPOINT_GUID);
+  gv->spdp_secure_type = make_special_type_plist ("ParticipantBuiltinTopicDataSecure", DDSI_PID_PARTICIPANT_GUID);
+  gv->sedp_reader_secure_type = make_special_type_plist ("SubscriptionBuiltinTopicDataSecure", DDSI_PID_ENDPOINT_GUID);
+  gv->sedp_writer_secure_type = make_special_type_plist ("PublicationBuiltinTopicDataSecure", DDSI_PID_ENDPOINT_GUID);
   gv->pmd_secure_type = make_special_type_pserop ("ddsi_participant_message_dataSecure", sizeof (ddsi_participant_message_data_t), ddsi_participant_message_data_nops, ddsi_participant_message_data_ops, ddsi_participant_message_data_nops_key, ddsi_participant_message_data_ops_key);
   gv->pgm_stateless_type = make_special_type_pserop ("ParticipantStatelessMessage", sizeof (ddsi_participant_generic_message_t), ddsi_pserop_participant_generic_message_nops, ddsi_pserop_participant_generic_message, 0, NULL);
   gv->pgm_volatile_type = make_special_type_pserop ("ParticipantVolatileMessageSecure", sizeof (ddsi_participant_generic_message_t), ddsi_pserop_participant_generic_message_nops, ddsi_pserop_participant_generic_message, 0, NULL);
@@ -1099,7 +1099,7 @@ static int iceoryx_init (struct ddsi_domaingv *gv)
   free(sptr);
 
   // FIXME: this can be done more elegantly when properly supporting multiple transports
-  if (ddsi_vnet_init (gv, "iceoryx", NN_LOCATOR_KIND_SHEM) < 0)
+  if (ddsi_vnet_init (gv, "iceoryx", DDSI_LOCATOR_KIND_SHEM) < 0)
     return -1;
   ddsi_factory_find (gv, "iceoryx")->m_enable = true;
 
@@ -1110,13 +1110,13 @@ static int iceoryx_init (struct ddsi_domaingv *gv)
     switch (res)
     {
       case AFSR_OK:
-        if (gv->loc_iceoryx_addr.kind != NN_LOCATOR_KIND_SHEM)
+        if (gv->loc_iceoryx_addr.kind != DDSI_LOCATOR_KIND_SHEM)
         {
           GVERROR ("invalid or unsupported SharedMemory/Locator: %s\n", gv->config.shm_locator);
           return -1;
         }
-        DDSRT_STATIC_ASSERT (NN_LOCATOR_PORT_INVALID == 0);
-        assert (gv->loc_iceoryx_addr.port == NN_LOCATOR_PORT_INVALID);
+        DDSRT_STATIC_ASSERT (DDSI_LOCATOR_PORT_INVALID == 0);
+        assert (gv->loc_iceoryx_addr.port == DDSI_LOCATOR_PORT_INVALID);
         break;
       case AFSR_INVALID:
       case AFSR_UNKNOWN:
@@ -1147,7 +1147,7 @@ static int iceoryx_init (struct ddsi_domaingv *gv)
       GVERROR ("Unable to get MAC address for iceoryx\n");
       return -1;
     }
-    gv->loc_iceoryx_addr.kind = NN_LOCATOR_KIND_SHEM;
+    gv->loc_iceoryx_addr.kind = DDSI_LOCATOR_KIND_SHEM;
     gv->loc_iceoryx_addr.port = 0;
   }
 
@@ -1176,8 +1176,8 @@ static int iceoryx_init (struct ddsi_domaingv *gv)
   intf->mc_flaky = false;
   intf->name = ddsrt_strdup ("iceoryx");
   intf->point_to_point = false;
-  intf->netmask.kind = NN_LOCATOR_KIND_INVALID;
-  intf->netmask.port = NN_LOCATOR_PORT_INVALID;
+  intf->netmask.kind = DDSI_LOCATOR_KIND_INVALID;
+  intf->netmask.port = DDSI_LOCATOR_PORT_INVALID;
   memset (intf->netmask.address, 0, sizeof (intf->netmask.address) - 6);
   gv->n_interfaces++;
   return 0;
@@ -1335,7 +1335,7 @@ int rtps_init (struct ddsi_domaingv *gv)
         GVLOG (DDS_LC_CONFIG, "%s%s (ext: %s)", (i == 0) ? "" : ", ", ddsi_locator_to_string_no_port (buf, sizeof(buf), &gv->interfaces[i].loc), ddsi_locator_to_string_no_port (buf2, sizeof(buf2), &gv->interfaces[i].extloc));
     }
     GVLOG (DDS_LC_CONFIG, "\n");
-    GVLOG (DDS_LC_CONFIG, "extmask: %s%s\n", ddsi_locator_to_string_no_port (buf, sizeof(buf), &gv->extmask), gv->extmask.kind != NN_LOCATOR_KIND_UDPv4 ? " (not applicable)" : "");
+    GVLOG (DDS_LC_CONFIG, "extmask: %s%s\n", ddsi_locator_to_string_no_port (buf, sizeof(buf), &gv->extmask), gv->extmask.kind != DDSI_LOCATOR_KIND_UDPv4 ? " (not applicable)" : "");
     GVLOG (DDS_LC_CONFIG, "SPDP MC: %s\n", ddsi_locator_to_string_no_port (buf, sizeof(buf), &gv->loc_spdp_mc));
     GVLOG (DDS_LC_CONFIG, "default MC: %s\n", ddsi_locator_to_string_no_port (buf, sizeof(buf), &gv->loc_default_mc));
 #ifdef DDS_HAS_SSM

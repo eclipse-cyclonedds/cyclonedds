@@ -18,7 +18,7 @@
 #include "dds/ddsi/ddsi_config.h"
 #include "dds/ddsi/ddsi_keyhash.h"
 #include "dds/ddsi/ddsi_tran.h"
-#include "dds/ddsi/q_protocol.h" /* for, e.g., SubmessageKind_t */
+#include "dds/ddsi/ddsi_protocol.h" /* for, e.g., ddsi_rtps_submessage_kind_t */
 #include "dds/ddsrt/sync.h"
 
 #include "iceoryx_binding_c/chunk.h"

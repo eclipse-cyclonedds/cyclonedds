@@ -52,7 +52,7 @@ static int add_addresses_to_addrset_1 (const struct ddsi_domaingv *gv, struct ad
 
   // check whether port number, address type and mode make sense, and prepare the
   // locator by patching the first port number to use if none is given
-  if (loc->port != NN_LOCATOR_PORT_INVALID)
+  if (loc->port != DDSI_LOCATOR_PORT_INVALID)
   {
     if (port_mode >= 0 && loc->port != (uint32_t) port_mode)
     {
@@ -200,8 +200,8 @@ void unref_addrset (struct addrset *as)
 
 void set_unspec_locator (ddsi_locator_t *loc)
 {
-  loc->kind = NN_LOCATOR_KIND_INVALID;
-  loc->port = NN_LOCATOR_PORT_INVALID;
+  loc->kind = DDSI_LOCATOR_KIND_INVALID;
+  loc->port = DDSI_LOCATOR_PORT_INVALID;
   memset (loc->address, 0, sizeof (loc->address));
 }
 
@@ -214,8 +214,8 @@ void set_unspec_xlocator (ddsi_xlocator_t *loc)
 int is_unspec_locator (const ddsi_locator_t *loc)
 {
   static const ddsi_locator_t zloc = { .kind = 0 };
-  return (loc->kind == NN_LOCATOR_KIND_INVALID &&
-          loc->port == NN_LOCATOR_PORT_INVALID &&
+  return (loc->kind == DDSI_LOCATOR_KIND_INVALID &&
+          loc->port == DDSI_LOCATOR_PORT_INVALID &&
           memcmp (&zloc.address, loc->address, sizeof (zloc.address)) == 0);
 }
 

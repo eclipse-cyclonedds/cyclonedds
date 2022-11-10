@@ -21,7 +21,7 @@
 #include "dds/security/dds_security_api.h"
 #include "dds/security/core/dds_security_utils.h"
 #include "dds/security/openssl_support.h"
-#include "dds/ddsi/q_protocol.h"
+#include "dds/ddsi/ddsi_protocol.h"
 #include "cryptography.h"
 #include "crypto_cipher.h"
 #include "crypto_defs.h"
@@ -32,7 +32,7 @@
 
 #define CRYPTO_ENCRYPTION_MAX_PADDING 32
 
-#define INFO_SRC_SIZE sizeof (InfoSRC_t)
+#define INFO_SRC_SIZE sizeof (ddsi_rtps_info_src_t)
 
 struct receiver_specific_mac_seq
 {
@@ -59,19 +59,19 @@ struct trusted_crypto_postfix {
 
 struct trusted_crypto_header
 {
-  SubmessageHeader_t header;
+  ddsi_rtps_submessage_header_t header;
   struct trusted_crypto_prefix prefix;
 };
 
 struct trusted_crypto_body
 {
-  SubmessageHeader_t header;
+  ddsi_rtps_submessage_header_t header;
   struct trusted_crypto_content content;
 };
 
 struct trusted_crypto_footer
 {
-  SubmessageHeader_t header;
+  ddsi_rtps_submessage_header_t header;
   struct trusted_crypto_postfix postfix;
 };
 #define CRYPTO_FOOTER_BASIC_SIZE (CRYPTO_HMAC_SIZE + sizeof (uint32_t))
@@ -184,10 +184,10 @@ static void *trusted_crypto_buffer_append (trusted_crypto_buffer_t *buffer, size
 static void *add_submessage (trusted_crypto_buffer_t *buffer, uint8_t submessageId, size_t size)
 {
   assert (size <= UINT16_MAX);
-  const size_t len = sizeof (SubmessageHeader_t) + size;
-  SubmessageHeader_t * const smhdr = trusted_crypto_buffer_append (buffer, len);
+  const size_t len = sizeof (ddsi_rtps_submessage_header_t) + size;
+  ddsi_rtps_submessage_header_t * const smhdr = trusted_crypto_buffer_append (buffer, len);
   smhdr->submessageId = submessageId;
-  smhdr->flags = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN) ? SMFLAG_ENDIANNESS : 0;
+  smhdr->flags = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN) ? DDSI_RTPS_SUBMESSAGE_FLAG_ENDIANNESS : 0;
   smhdr->octetsToNextHeader = (uint16_t) size;
   return smhdr;
 }
@@ -238,7 +238,7 @@ static struct trusted_crypto_header *add_crypto_header (trusted_crypto_buffer_t 
 
 static struct trusted_crypto_body *add_crypto_body (trusted_crypto_buffer_t *buffer, size_t size)
 {
-  return add_submessage (buffer, SMID_SEC_BODY, size + sizeof (uint32_t));
+  return add_submessage (buffer, DDSI_RTPS_SMID_SEC_BODY, size + sizeof (uint32_t));
 }
 
 static struct trusted_crypto_footer *add_crypto_footer (trusted_crypto_buffer_t *buffer, uint8_t submessageId)
@@ -246,9 +246,9 @@ static struct trusted_crypto_footer *add_crypto_footer (trusted_crypto_buffer_t 
   return add_submessage (buffer, submessageId, CRYPTO_FOOTER_BASIC_SIZE);
 }
 
-static Header_t *add_rtps_header (trusted_crypto_buffer_t *buffer, const Header_t *src)
+static ddsi_rtps_header_t *add_rtps_header (trusted_crypto_buffer_t *buffer, const ddsi_rtps_header_t *src)
 {
-  Header_t *dst = trusted_crypto_buffer_append (buffer, RTPS_MESSAGE_HEADER_SIZE);
+  ddsi_rtps_header_t *dst = trusted_crypto_buffer_append (buffer, DDSI_RTPS_MESSAGE_HEADER_SIZE);
   *dst = *src;
   return dst;
 }
@@ -299,14 +299,14 @@ static bool initialize_remote_session_info (remote_session_info *info, const str
   return crypto_calculate_session_key (&info->key, info->id, master_salt, master_key, transformation_kind, ex);
 }
 
-static bool read_submsg_header (tainted_input_buffer_t *input, uint8_t smid, SubmessageHeader_t *hdr, bool *bswap, tainted_input_buffer_t *submsg_view)
+static bool read_submsg_header (tainted_input_buffer_t *input, uint8_t smid, ddsi_rtps_submessage_header_t *hdr, bool *bswap, tainted_input_buffer_t *submsg_view)
 {
   assert (input->ptr <= input->endp);
-  if (RTPS_SUBMESSAGE_HEADER_SIZE > (size_t) (input->endp - input->ptr))
+  if (DDSI_RTPS_SUBMESSAGE_HEADER_SIZE > (size_t) (input->endp - input->ptr))
     return false;
 
-  SubmessageHeader_t const * const smhdr = (SubmessageHeader_t *) input->ptr;
-  input->ptr += RTPS_SUBMESSAGE_HEADER_SIZE;
+  ddsi_rtps_submessage_header_t const * const smhdr = (ddsi_rtps_submessage_header_t *) input->ptr;
+  input->ptr += DDSI_RTPS_SUBMESSAGE_HEADER_SIZE;
 
   if (smid != 0 && smid != smhdr->submessageId)
     return false;
@@ -315,7 +315,7 @@ static bool read_submsg_header (tainted_input_buffer_t *input, uint8_t smid, Sub
   hdr->flags = smhdr->flags;
 
   DDSRT_WARNING_MSVC_OFF(6326)
-  if (smhdr->flags & SMFLAG_ENDIANNESS)
+  if (smhdr->flags & DDSI_RTPS_SUBMESSAGE_FLAG_ENDIANNESS)
     *bswap = !(DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN);
   else
     *bswap =  (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN);
@@ -383,7 +383,7 @@ static bool read_secure_prefix_content (tainted_input_buffer_t *input, struct co
 
 static bool read_secure_prefix (tainted_input_buffer_t *input, uint8_t smid, struct const_tainted_secure_prefix *prefix)
 {
-  SubmessageHeader_t smhdr;
+  ddsi_rtps_submessage_header_t smhdr;
   tainted_input_buffer_t submsg_view;
   bool bswap;
 
@@ -424,7 +424,7 @@ static bool read_secure_prefix (tainted_input_buffer_t *input, uint8_t smid, str
 static bool read_secure_body (tainted_input_buffer_t *input, uint8_t smid, struct const_tainted_secure_body *body)
 {
   tainted_input_buffer_t submsg_view;
-  SubmessageHeader_t smhdr;
+  ddsi_rtps_submessage_header_t smhdr;
   bool bswap;
 
   unsigned char const * const base_on_input = input->ptr;
@@ -432,7 +432,7 @@ static bool read_secure_body (tainted_input_buffer_t *input, uint8_t smid, struc
     return false;
 
   body->id = smhdr.submessageId;
-  if (smhdr.submessageId == SMID_SEC_BODY)
+  if (smhdr.submessageId == DDSI_RTPS_SMID_SEC_BODY)
   {
     if (smhdr.octetsToNextHeader < sizeof (uint32_t))
       return false;
@@ -446,7 +446,7 @@ static bool read_secure_body (tainted_input_buffer_t *input, uint8_t smid, struc
   else
   {
     /* set the length of the body contents to the complete submessage including the header */
-    body->data.length = smhdr.octetsToNextHeader + (uint32_t) RTPS_SUBMESSAGE_HEADER_SIZE;
+    body->data.length = smhdr.octetsToNextHeader + (uint32_t) DDSI_RTPS_SUBMESSAGE_HEADER_SIZE;
     body->data.base = base_on_input;
   }
   return true;
@@ -456,7 +456,7 @@ static bool read_secure_postfix (tainted_input_buffer_t *input, uint8_t smid, st
 {
   const size_t postfix_min_size = sizeof (postfix->common_mac) + sizeof (postfix->length);
   tainted_input_buffer_t submsg_view;
-  SubmessageHeader_t smhdr;
+  ddsi_rtps_submessage_header_t smhdr;
   bool bswap;
 
   if (!read_submsg_header (input, smid, &smhdr, &bswap, &submsg_view))
@@ -523,37 +523,37 @@ static bool split_encoded_serialized_payload (tainted_input_buffer_t *payload, s
 static bool split_encoded_submessage (const tainted_input_buffer_t *input, struct const_tainted_encrypted_state *estate)
 {
   tainted_input_buffer_t input1 = *input;
-  if (!read_secure_prefix (&input1, SMID_SEC_PREFIX, &estate->prefix))
+  if (!read_secure_prefix (&input1, DDSI_RTPS_SMID_SEC_PREFIX, &estate->prefix))
     return false;
   if (!read_secure_body (&input1, 0, &estate->body))
     return false;
-  return read_secure_postfix (&input1, SMID_SEC_POSTFIX, &estate->postfix);
+  return read_secure_postfix (&input1, DDSI_RTPS_SMID_SEC_POSTFIX, &estate->postfix);
 }
 
 static bool read_secure_rtps_body (tainted_input_buffer_t *input, DDS_Security_CryptoTransformKind_Enum transformation_kind, struct const_tainted_secure_body *body)
 {
   if (is_encryption_required (transformation_kind))
-    return read_secure_body (input, SMID_SEC_BODY, body);
+    return read_secure_body (input, DDSI_RTPS_SMID_SEC_BODY, body);
   else
   {
     tainted_input_buffer_t submsg_view;
-    SubmessageHeader_t smhdr;
+    ddsi_rtps_submessage_header_t smhdr;
     bool bswap;
 
     body->data.base = input->ptr;
 
-    if (!read_submsg_header (input, SMID_INFO_SRC, &smhdr, &bswap, &submsg_view))
+    if (!read_submsg_header (input, DDSI_RTPS_SMID_INFO_SRC, &smhdr, &bswap, &submsg_view))
       return false;
 
     while (sizeof (smhdr) <= (size_t) (input->endp - input->ptr))
     {
       if (!read_submsg_header (input, 0, &smhdr, &bswap, &submsg_view))
         return false;
-      if (smhdr.submessageId == SMID_SRTPS_POSTFIX)
+      if (smhdr.submessageId == DDSI_RTPS_SMID_SRTPS_POSTFIX)
       {
         /* callers expect input to be positioned at the postfix, not beyond it;
            submsg_view points to the beginning of the postfix body */
-        input->ptr = submsg_view.ptr - RTPS_SUBMESSAGE_HEADER_SIZE;
+        input->ptr = submsg_view.ptr - DDSI_RTPS_SUBMESSAGE_HEADER_SIZE;
         body->data.length = (uint32_t) (input->ptr - body->data.base);
         return true;
       }
@@ -569,14 +569,14 @@ static bool split_encoded_rtps_message(const tainted_crypto_data_t *data, struct
     .endp = data->base + data->length
   };
 
-  if (RTPS_MESSAGE_HEADER_SIZE > data->length)
+  if (DDSI_RTPS_MESSAGE_HEADER_SIZE > data->length)
     return false;
-  input.ptr += RTPS_MESSAGE_HEADER_SIZE;
-  if (!read_secure_prefix (&input, SMID_SRTPS_PREFIX, &estate->prefix))
+  input.ptr += DDSI_RTPS_MESSAGE_HEADER_SIZE;
+  if (!read_secure_prefix (&input, DDSI_RTPS_SMID_SRTPS_PREFIX, &estate->prefix))
     return false;
   if (!read_secure_rtps_body (&input, estate->prefix.transform_kind, &estate->body))
     return false;
-  return read_secure_postfix (&input, SMID_SRTPS_POSTFIX, &estate->postfix);
+  return read_secure_postfix (&input, DDSI_RTPS_SMID_SRTPS_POSTFIX, &estate->postfix);
 }
 
 /**************************************************************************************/
@@ -712,32 +712,32 @@ fail_inv_arg:
   return false;
 }
 
-static bool trusted_crypto_buffer_find_submessage_offset (const trusted_crypto_buffer_t *buffer, enum SubmessageKind submessageId, size_t *offset)
+static bool trusted_crypto_buffer_find_submessage_offset (const trusted_crypto_buffer_t *buffer, enum ddsi_rtps_submessage_kind submessageId, size_t *offset)
 {
   assert (*offset <= buffer->length);
   const unsigned char *ptr = buffer->contents + *offset;
   unsigned char const * const endp = buffer->contents + buffer->length;
-  while (sizeof (SubmessageHeader_t) <= (size_t) (endp - ptr))
+  while (sizeof (ddsi_rtps_submessage_header_t) <= (size_t) (endp - ptr))
   {
-    SubmessageHeader_t * const smhdr = (SubmessageHeader_t *) ptr;
+    ddsi_rtps_submessage_header_t * const smhdr = (ddsi_rtps_submessage_header_t *) ptr;
     if (smhdr->submessageId == (uint8_t) submessageId)
     {
       *offset = (size_t) (ptr - buffer->contents);
       return true;
     }
-    assert ((size_t) (endp - ptr) >= sizeof (SubmessageHeader_t) + smhdr->octetsToNextHeader);
-    ptr += sizeof (SubmessageHeader_t) + smhdr->octetsToNextHeader;
+    assert ((size_t) (endp - ptr) >= sizeof (ddsi_rtps_submessage_header_t) + smhdr->octetsToNextHeader);
+    ptr += sizeof (ddsi_rtps_submessage_header_t) + smhdr->octetsToNextHeader;
   }
   return false;
 }
 
 static bool add_specific_mac_find_offsets (trusted_crypto_buffer_t *buffer, bool is_rtps, size_t *header_offset, size_t *footer_offset)
 {
-  *header_offset = is_rtps ? RTPS_MESSAGE_HEADER_SIZE : 0;
-  if (!trusted_crypto_buffer_find_submessage_offset (buffer, is_rtps ? SMID_SRTPS_PREFIX : SMID_SEC_PREFIX, header_offset))
+  *header_offset = is_rtps ? DDSI_RTPS_MESSAGE_HEADER_SIZE : 0;
+  if (!trusted_crypto_buffer_find_submessage_offset (buffer, is_rtps ? DDSI_RTPS_SMID_SRTPS_PREFIX : DDSI_RTPS_SMID_SEC_PREFIX, header_offset))
     return false;
   *footer_offset = *header_offset;
-  if (!trusted_crypto_buffer_find_submessage_offset (buffer, is_rtps ? SMID_SRTPS_POSTFIX : SMID_SEC_POSTFIX, footer_offset))
+  if (!trusted_crypto_buffer_find_submessage_offset (buffer, is_rtps ? DDSI_RTPS_SMID_SRTPS_POSTFIX : DDSI_RTPS_SMID_SEC_POSTFIX, footer_offset))
     return false;
   assert (*header_offset < *footer_offset && *footer_offset < buffer->length);
   return true;
@@ -781,7 +781,7 @@ add_specific_mac(
     return false; // no worries that we already reallocated: this can't happen and it'll be freed if it does happen anyway
 
   // there must now be room to append another MAC
-  assert (buffer->length - footer_offset >= sizeof (SubmessageHeader_t) + footer->header.octetsToNextHeader + sizeof (struct receiver_specific_mac));
+  assert (buffer->length - footer_offset >= sizeof (ddsi_rtps_submessage_header_t) + footer->header.octetsToNextHeader + sizeof (struct receiver_specific_mac));
   DDSRT_STATIC_ASSERT (sizeof (struct receiver_specific_mac) <= UINT16_MAX);
   // octetsToNextHeader += (uint16_t) sizeof ... triggers a conversion warning for int to uint16_t from gcc
   footer->header.octetsToNextHeader = (uint16_t) (footer->header.octetsToNextHeader + sizeof (struct receiver_specific_mac));
@@ -938,7 +938,7 @@ encode_submmessage_encrypt(
   /* allocate a buffer to store the encoded submessage */
   trusted_crypto_buffer_init(&buffer, size);
   /* Add the SEC_PREFIX and associated CryptoHeader */
-  header = add_crypto_header(&buffer, SMID_SEC_PREFIX, transform_kind, transform_id, session->id, session->init_vector_suffix);
+  header = add_crypto_header(&buffer, DDSI_RTPS_SMID_SEC_PREFIX, transform_kind, transform_id, session->id, session->init_vector_suffix);
 
   plain_data.x.base = plain_submsg->_buffer;
   plain_data.x.length = plain_submsg->_length;
@@ -979,7 +979,7 @@ encode_submmessage_encrypt(
   /* Set initial SEC_POSTFIX and CryptoFooter containing the common_mac
    * Note that the length of the postfix may increase when reader specific macs are added
    */
-  footer = add_crypto_footer(&buffer, SMID_SEC_POSTFIX);
+  footer = add_crypto_footer(&buffer, DDSI_RTPS_SMID_SEC_POSTFIX);
   footer->postfix.common_mac = hmac;
   footer->postfix.receiver_specific_macs._length = 0;
 
@@ -1181,10 +1181,10 @@ check_failed:
   return false;
 }
 
-static void init_info_src (InfoSRC_t *info_src, Header_t *rtps_hdr)
+static void init_info_src (ddsi_rtps_info_src_t *info_src, ddsi_rtps_header_t *rtps_hdr)
 {
-  info_src->smhdr.submessageId = (uint8_t) SMID_INFO_SRC;
-  info_src->smhdr.flags = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN) ? SMFLAG_ENDIANNESS : 0;
+  info_src->smhdr.submessageId = (uint8_t) DDSI_RTPS_SMID_INFO_SRC;
+  info_src->smhdr.flags = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN) ? DDSI_RTPS_SUBMESSAGE_FLAG_ENDIANNESS : 0;
   info_src->smhdr.octetsToNextHeader = sizeof (*rtps_hdr);
   info_src->unused = 0;
   info_src->version = rtps_hdr->version;
@@ -1211,13 +1211,13 @@ static DDS_Security_boolean encode_rtps_message_encrypt (
   const size_t num_segs = sizeof(plain_data)/sizeof(plain_data[0]);
   struct trusted_crypto_header *header;
   struct trusted_crypto_footer *footer;
-  Header_t *rtps_header;
-  InfoSRC_t info_src;;
+  ddsi_rtps_header_t *rtps_header;
+  ddsi_rtps_info_src_t info_src;;
   crypto_hmac_t hmac;
   size_t size;
   uint32_t transform_kind, transform_id;
 
-  size_t rtps_body_size = plain_rtps_message->_length - RTPS_MESSAGE_HEADER_SIZE;
+  size_t rtps_body_size = plain_rtps_message->_length - DDSI_RTPS_MESSAGE_HEADER_SIZE;
   size_t secure_body_plain_size = rtps_body_size + INFO_SRC_SIZE;
 
   if (secure_body_plain_size > INT_MAX)
@@ -1231,7 +1231,7 @@ static DDS_Security_boolean encode_rtps_message_encrypt (
     goto enc_rtps_inv_keymat;
 
   /* info_src and body */
-  rtps_header = (Header_t *) plain_rtps_message->_buffer;
+  rtps_header = (ddsi_rtps_header_t *) plain_rtps_message->_buffer;
   init_info_src(&info_src, rtps_header);
 
   /* update sessionKey when needed */
@@ -1258,7 +1258,7 @@ static DDS_Security_boolean encode_rtps_message_encrypt (
         * - crypto footer based on the size of the receiving_participant_crypto_list
         */
 
-  size = RTPS_MESSAGE_HEADER_SIZE; /* RTPS Header */
+  size = DDSI_RTPS_MESSAGE_HEADER_SIZE; /* RTPS Header */
   size += sizeof(struct trusted_crypto_header) + sizeof(struct trusted_crypto_footer) + ALIGN4(plain_rtps_message->_length);
   size += receiving_participant_crypto_list->_length * sizeof(struct receiver_specific_mac);
   size += sizeof(info_src); /* INFO_SRC */
@@ -1272,7 +1272,7 @@ static DDS_Security_boolean encode_rtps_message_encrypt (
   plain_data[0].x.base = (unsigned char *) &info_src;
   plain_data[0].x.length = sizeof (info_src);
   plain_data[1].x.base = (unsigned char *) (rtps_header + 1);
-  plain_data[1].x.length = plain_rtps_message->_length - RTPS_MESSAGE_HEADER_SIZE;
+  plain_data[1].x.length = plain_rtps_message->_length - DDSI_RTPS_MESSAGE_HEADER_SIZE;
 
   /* increment init_vector_suffix */
   session->init_vector_suffix++;
@@ -1283,7 +1283,7 @@ static DDS_Security_boolean encode_rtps_message_encrypt (
   /* copy the rtps header to the encryption buffer */
   (void)add_rtps_header(&buffer, rtps_header);
 
-  header = add_crypto_header(&buffer, SMID_SRTPS_PREFIX, transform_kind, transform_id, session->id, session->init_vector_suffix);
+  header = add_crypto_header(&buffer, DDSI_RTPS_SMID_SRTPS_PREFIX, transform_kind, transform_id, session->id, session->init_vector_suffix);
 
   if (is_encryption_required(transform_kind))
   {
@@ -1320,7 +1320,7 @@ static DDS_Security_boolean encode_rtps_message_encrypt (
     goto enc_rtps_fail_data;
   }
 
-  footer = add_crypto_footer(&buffer, SMID_SRTPS_POSTFIX);
+  footer = add_crypto_footer(&buffer, DDSI_RTPS_SMID_SRTPS_POSTFIX);
 
   /* Set initial SEC_POSTFIX and CryptoFooter containing the common_mac
     * Note that the length of the postfix may increase when reader specific macs are added */
@@ -1457,11 +1457,11 @@ ddsi_security_decode_rtps_message (dds_security_crypto_transform *instance,
     goto fail_reader_mac;
   }
 
-  buflen = estate.body.data.length + RTPS_MESSAGE_HEADER_SIZE;
+  buflen = estate.body.data.length + DDSI_RTPS_MESSAGE_HEADER_SIZE;
   buffer = ddsrt_malloc(buflen);
-  memcpy(buffer, encoded_data.base, RTPS_MESSAGE_HEADER_SIZE);
+  memcpy(buffer, encoded_data.base, DDSI_RTPS_MESSAGE_HEADER_SIZE);
 
-  decoded_body.base = buffer + RTPS_MESSAGE_HEADER_SIZE;
+  decoded_body.base = buffer + DDSI_RTPS_MESSAGE_HEADER_SIZE;
   decoded_body.length = estate.body.data.length;
 
   if (is_encryption_required(estate.prefix.transform_kind))
@@ -1475,7 +1475,7 @@ ddsi_security_decode_rtps_message (dds_security_crypto_transform *instance,
 
     /* When the CryptoHeader indicates that encryption is performed then decrypt the submessage body */
     /* check if the body is a SEC_BODY submessage */
-    if (estate.body.id != SMID_SEC_BODY)
+    if (estate.body.id != DDSI_RTPS_SMID_SEC_BODY)
     {
       DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_CODE, 0,
           "%s: " DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_MESSAGE, context);
@@ -1539,7 +1539,7 @@ preprocess_secure_submsg(
   assert(encoded_submessage && encoded_submessage->_length > 0);
 
   tainted_input_buffer_t input = tainted_input_buffer_from_OctetSeq (encoded_submessage);
-  if (!read_secure_prefix (&input, SMID_SEC_PREFIX, &prefix))
+  if (!read_secure_prefix (&input, DDSI_RTPS_SMID_SEC_PREFIX, &prefix))
   {
     DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_CODE, 0,
         "preprocess_secure_submsg: " DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_MESSAGE);
@@ -1635,7 +1635,7 @@ decode_submessage(
     }
     /* When the CryptoHeader indicates that encryption is performed then decrypt the submessage body */
     /* check if the body is a SEC_BODY submessage */
-    if (est.body.id!= SMID_SEC_BODY)
+    if (est.body.id!= DDSI_RTPS_SMID_SEC_BODY)
     {
       DDS_Security_Exception_set(ex, DDS_CRYPTO_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_CODE, 0,
           "%s: " DDS_SECURITY_ERR_INVALID_CRYPTO_ARGUMENT_MESSAGE, context);

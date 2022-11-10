@@ -35,7 +35,7 @@
 #include "dds/ddsi/q_addrset.h"
 #include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/q_ddsi_discovery.h"
-#include "dds/ddsi/q_protocol.h" /* NN_ENTITYID_... */
+#include "ddsi__protocol.h"
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/q_debmon.h"
 #include "dds/ddsi/ddsi_serdata.h"

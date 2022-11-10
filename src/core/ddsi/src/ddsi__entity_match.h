@@ -71,8 +71,8 @@ struct ddsi_pwr_rd_match {
   ddsrt_avl_node_t avlnode;
   ddsi_guid_t rd_guid;
   ddsrt_mtime_t tcreate;
-  nn_count_t count; /* most recent acknack sequence number */
-  nn_count_t prev_heartbeat; /* latest accepted heartbeat (see also add_proxy_writer_to_reader) */
+  ddsi_count_t count; /* most recent acknack sequence number */
+  ddsi_count_t prev_heartbeat; /* latest accepted heartbeat (see also add_proxy_writer_to_reader) */
   ddsrt_wctime_t hb_timestamp; /* time of most recent heartbeat that rescheduled the ack event */
   ddsrt_etime_t t_heartbeat_accepted; /* (local) time a heartbeat was last accepted */
   ddsrt_mtime_t t_last_nack; /* (local) time we last sent a NACK */
@@ -115,9 +115,9 @@ void ddsi_free_wr_rd_match (struct ddsi_wr_rd_match *m);
 
 void ddsi_writer_add_connection (struct ddsi_writer *wr, struct ddsi_proxy_reader *prd, int64_t crypto_handle);
 void ddsi_writer_add_local_connection (struct ddsi_writer *wr, struct ddsi_reader *rd);
-void ddsi_reader_add_connection (struct ddsi_reader *rd, struct ddsi_proxy_writer *pwr, nn_count_t *init_count, const struct ddsi_alive_state *alive_state, int64_t crypto_handle);
+void ddsi_reader_add_connection (struct ddsi_reader *rd, struct ddsi_proxy_writer *pwr, ddsi_count_t *init_count, const struct ddsi_alive_state *alive_state, int64_t crypto_handle);
 void ddsi_reader_add_local_connection (struct ddsi_reader *rd, struct ddsi_writer *wr, const struct ddsi_alive_state *alive_state);
-void ddsi_proxy_writer_add_connection (struct ddsi_proxy_writer *pwr, struct ddsi_reader *rd, ddsrt_mtime_t tnow, nn_count_t init_count, int64_t crypto_handle);
+void ddsi_proxy_writer_add_connection (struct ddsi_proxy_writer *pwr, struct ddsi_reader *rd, ddsrt_mtime_t tnow, ddsi_count_t init_count, int64_t crypto_handle);
 void ddsi_proxy_reader_add_connection (struct ddsi_proxy_reader *prd, struct ddsi_writer *wr, int64_t crypto_handle);
 
 void ddsi_writer_drop_connection (const struct ddsi_guid *wr_guid, const struct ddsi_proxy_reader *prd);

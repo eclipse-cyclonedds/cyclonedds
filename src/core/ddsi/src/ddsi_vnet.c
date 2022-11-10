@@ -74,7 +74,7 @@ static dds_return_t ddsi_vnet_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tran
   struct ddsi_vnet_conn *x = ddsrt_malloc (sizeof (*x));
   struct ddsi_network_interface const * const intf = qos->m_interface ? qos->m_interface : &gv->interfaces[0];
   memset (x, 0, sizeof (*x));
-  
+
   ddsi_factory_conn_init (&fact->m_base, intf, &x->m_base);
   x->m_base.m_base.m_trantype = DDSI_TRAN_CONN;
   x->m_base.m_base.m_multicast = false;
@@ -127,7 +127,7 @@ static enum ddsi_locator_from_string_result ddsi_vnet_address_from_string (const
   bool bracketed = false;
   int i = 0;
   loc->kind = tran->m_kind;
-  loc->port = NN_LOCATOR_PORT_INVALID;
+  loc->port = DDSI_LOCATOR_PORT_INVALID;
   memset (loc->address, 0, sizeof (loc->address));
   if (*str == '[')
   {

@@ -15,7 +15,7 @@
 #include <stdbool.h>
 
 #include "dds/ddsc/dds_opcodes.h"
-#include "dds/ddsi/q_protocol.h"
+#include "dds/ddsi/ddsi_protocol.h"
 #include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/ddsi_typelib.h"
 #include "dds/ddsi/ddsi_typewrap.h"
@@ -101,7 +101,7 @@ static void xcdr2_ser (const void *obj, const dds_topic_descriptor_t *topic_desc
   os->m_buffer = NULL;
   os->m_index = 0;
   os->m_size = 0;
-  os->m_xcdr_version = DDS_CDR_ENC_VERSION_2;
+  os->m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2;
   bool ret = dds_stream_write_sampleLE ((dds_ostreamLE_t *) os, obj, &desc);
   dds_cdrstream_desc_fini (&desc);
   CU_ASSERT_FATAL (ret);
@@ -118,13 +118,13 @@ static void xcdr2_deser (unsigned char *buf, uint32_t sz, void **obj, const dds_
   {
     data = malloc (sz);
     memcpy (data, buf, sz);
-    const uint32_t *ret = dds_stream_normalize_data ((char *) data, &srcoff, sz, bswap, DDS_CDR_ENC_VERSION_2, desc->m_ops);
+    const uint32_t *ret = dds_stream_normalize_data ((char *) data, &srcoff, sz, bswap, DDSI_RTPS_CDR_ENC_VERSION_2, desc->m_ops);
     CU_ASSERT_NOT_EQUAL_FATAL (ret, NULL);
   }
   else
     data = buf;
 
-  dds_istream_t is = { .m_buffer = data, .m_index = 0, .m_size = sz, .m_xcdr_version = DDS_CDR_ENC_VERSION_2 };
+  dds_istream_t is = { .m_buffer = data, .m_index = 0, .m_size = sz, .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
   *obj = calloc (1, desc->m_size);
   dds_stream_read (&is, (void *) *obj, desc->m_ops);
   if (bswap)

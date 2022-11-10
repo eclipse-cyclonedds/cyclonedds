@@ -61,8 +61,8 @@ struct ddsi_wr_prd_match {
   seqno_t last_seq; /* highest seq send to this reader used when filter is applied */
   uint32_t num_reliable_readers_where_seq_equals_max;
   ddsi_guid_t arbitrary_unacked_reader;
-  nn_count_t prev_acknack; /* latest accepted acknack sequence number */
-  nn_count_t prev_nackfrag; /* latest accepted nackfrag sequence number */
+  ddsi_count_t prev_acknack; /* latest accepted acknack sequence number */
+  ddsi_count_t prev_nackfrag; /* latest accepted nackfrag sequence number */
   ddsrt_etime_t t_acknack_accepted; /* (local) time an acknack was last accepted */
   ddsrt_etime_t t_nackfrag_accepted; /* (local) time a nackfrag was last accepted */
   struct nn_lat_estim hb_to_ack_latency;

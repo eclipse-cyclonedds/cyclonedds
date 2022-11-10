@@ -29,7 +29,7 @@
 #include "dds/ddsrt/log.h"
 
 #include "dds/ddsrt/avl.h"
-#include "dds/ddsi/q_protocol.h"
+#include "ddsi__protocol.h"
 #include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/q_misc.h"
 
@@ -1452,7 +1452,7 @@ void nn_defrag_notegap (struct nn_defrag *defrag, seqno_t min, seqno_t maxp1)
   defrag->max_sample = ddsrt_avl_find_max (&defrag_sampletree_treedef, &defrag->sampletree);
 }
 
-enum nn_defrag_nackmap_result nn_defrag_nackmap (struct nn_defrag *defrag, seqno_t seq, uint32_t maxfragnum, struct nn_fragment_number_set_header *map, uint32_t *mapbits, uint32_t maxsz)
+enum nn_defrag_nackmap_result nn_defrag_nackmap (struct nn_defrag *defrag, seqno_t seq, uint32_t maxfragnum, struct ddsi_fragment_number_set_header *map, uint32_t *mapbits, uint32_t maxsz)
 {
   struct nn_rsample *s;
   struct nn_defrag_iv *iv;
@@ -1494,7 +1494,7 @@ enum nn_defrag_nackmap_result nn_defrag_nackmap (struct nn_defrag *defrag, seqno
     /* We always have an interval starting at 0, which is empty if we
        are missing the first fragment. */
     struct nn_defrag_iv *liv = s->u.defrag.lastfrag;
-    nn_fragment_number_t map_end;
+    ddsi_fragment_number_t map_end;
     iv = ddsrt_avl_find_min (&rsample_defrag_fragtree_treedef, &s->u.defrag.fragtree);
     assert (iv != NULL);
     /* iv is first interval, iv->maxp1 is first byte beyond that =>
@@ -2382,7 +2382,7 @@ int nn_reorder_wantsample (const struct nn_reorder *reorder, seqno_t seq)
   return (s == NULL || s->u.reorder.maxp1 <= seq);
 }
 
-unsigned nn_reorder_nackmap (const struct nn_reorder *reorder, seqno_t base, seqno_t maxseq, struct nn_sequence_number_set_header *map, uint32_t *mapbits, uint32_t maxsz, int notail)
+unsigned nn_reorder_nackmap (const struct nn_reorder *reorder, seqno_t base, seqno_t maxseq, struct ddsi_sequence_number_set_header *map, uint32_t *mapbits, uint32_t maxsz, int notail)
 {
   /* reorder->next_seq-1 is the last one we delivered, so the last one
      we ack; maxseq is the latest sample we know exists.  Valid bitmap

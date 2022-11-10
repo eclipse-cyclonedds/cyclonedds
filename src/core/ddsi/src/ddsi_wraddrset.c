@@ -257,7 +257,7 @@ static int wras_compare_locs (const void *va, const void *vb)
   // index component before comparing.
   const ddsi_xlocator_t *a = va;
   const ddsi_xlocator_t *b = vb;
-  if (a->c.kind != b->c.kind || a->c.kind != NN_LOCATOR_KIND_UDPv4MCGEN)
+  if (a->c.kind != b->c.kind || a->c.kind != DDSI_LOCATOR_KIND_UDPv4MCGEN)
     return compare_xlocators (a, b);
   else
   {
@@ -348,7 +348,7 @@ static readercount_cost_t calc_locator_cost (const struct locset *locs, const st
 
   if ((ci & ~CI_STATUS_MASK) == CI_ICEORYX)
   {
-    if (0 == (ignore & NN_LOCATOR_KIND_SHEM))
+    if (0 == (ignore & DDSI_LOCATOR_KIND_SHEM))
       x.cost = INT32_MIN;
     else
       goto no_readers;
@@ -447,7 +447,7 @@ static unsigned multicast_indicator (struct ddsi_domaingv const * const gv, cons
 static bool locator_is_iceoryx (const ddsi_xlocator_t *l)
 {
 #ifdef DDS_HAS_SHM
-  return l->c.kind == NN_LOCATOR_KIND_SHEM;
+  return l->c.kind == DDSI_LOCATOR_KIND_SHEM;
 #else
   (void) l;
   return false;
@@ -471,7 +471,7 @@ static bool wras_cover_locatorset (struct ddsi_domaingv const * const gv, struct
     {
       x = CI_ICEORYX;
     }
-    else if (l->c.kind == NN_LOCATOR_KIND_UDPv4MCGEN)
+    else if (l->c.kind == DDSI_LOCATOR_KIND_UDPv4MCGEN)
     {
       const nn_udpv4mcgen_address_t *l1 = (const nn_udpv4mcgen_address_t *) l->c.address;
       assert (l1->base + l1->idx <= 31 - CI_MULTICAST_MCGEN_OFFSET);
@@ -678,7 +678,7 @@ static void wras_add_locator (const struct ddsi_domaingv *gv, struct addrset *ne
   const char *kindstr;
   const ddsi_xlocator_t *locp;
 
-  if (locs->locs[locidx].c.kind != NN_LOCATOR_KIND_UDPv4MCGEN)
+  if (locs->locs[locidx].c.kind != DDSI_LOCATOR_KIND_UDPv4MCGEN)
   {
     locp = &locs->locs[locidx];
     kindstr = "simple";
@@ -691,7 +691,7 @@ static void wras_add_locator (const struct ddsi_domaingv *gv, struct addrset *ne
     int i;
     tmploc = locs->locs[locidx];
     memcpy (&l1, tmploc.c.address, sizeof (l1));
-    tmploc.c.kind = NN_LOCATOR_KIND_UDPv4;
+    tmploc.c.kind = DDSI_LOCATOR_KIND_UDPv4;
     memset (tmploc.c.address, 0, 12);
     iph = ntohl (l1.ipv4.s_addr);
     for (i = 0; i < nreaders; i++)
@@ -707,7 +707,7 @@ static void wras_add_locator (const struct ddsi_domaingv *gv, struct addrset *ne
   }
 
   GVLOGDISC ("  %s %s\n", kindstr, ddsi_xlocator_to_string (str, sizeof(str), locp));
-  if (locp->c.kind != NN_LOCATOR_KIND_SHEM)
+  if (locp->c.kind != DDSI_LOCATOR_KIND_SHEM)
   {
     // Iceoryx offload occurs above the RTPS stack, adding it to the address only means
     // samples get packed into RTPS messages and the transmit path is traversed without

@@ -144,7 +144,7 @@ static void proxy_endpoint_common_fini (struct ddsi_entity_common *e, struct dds
 static void has_iceoryx_address_helper (const ddsi_xlocator_t *n, void *varg)
 {
   struct has_iceoryx_address_helper_arg *arg = varg;
-  if (n->c.kind == NN_LOCATOR_KIND_SHEM && memcmp (arg->loc_iceoryx_addr->address, n->c.address, sizeof (arg->loc_iceoryx_addr->address)) == 0)
+  if (n->c.kind == DDSI_LOCATOR_KIND_SHEM && memcmp (arg->loc_iceoryx_addr->address, n->c.address, sizeof (arg->loc_iceoryx_addr->address)) == 0)
     arg->has_iceoryx_address = true;
 }
 

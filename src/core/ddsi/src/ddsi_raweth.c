@@ -79,7 +79,7 @@ static ssize_t ddsi_raweth_conn_read (ddsi_tran_conn_t conn, unsigned char * buf
   {
     if (srcloc)
     {
-      srcloc->kind = NN_LOCATOR_KIND_RAWETH;
+      srcloc->kind = DDSI_LOCATOR_KIND_RAWETH;
       srcloc->port = ntohs (src.sll_protocol);
       memset(srcloc->address, 0, 10);
       memcpy(srcloc->address + 10, src.sll_addr, 6);
@@ -156,7 +156,7 @@ static ddsrt_socket_t ddsi_raweth_conn_handle (ddsi_tran_base_t base)
 static bool ddsi_raweth_supports (const struct ddsi_tran_factory *fact, int32_t kind)
 {
   (void) fact;
-  return (kind == NN_LOCATOR_KIND_RAWETH);
+  return (kind == DDSI_LOCATOR_KIND_RAWETH);
 }
 
 static int ddsi_raweth_conn_locator (ddsi_tran_factory_t fact, ddsi_tran_base_t base, ddsi_locator_t *loc)
@@ -166,7 +166,7 @@ static int ddsi_raweth_conn_locator (ddsi_tran_factory_t fact, ddsi_tran_base_t 
   (void) fact;
   if (uc->m_sock != DDSRT_INVALID_SOCKET)
   {
-    loc->kind = NN_LOCATOR_KIND_RAWETH;
+    loc->kind = DDSI_LOCATOR_KIND_RAWETH;
     loc->port = uc->m_base.m_base.m_port;
     memcpy(loc->address, uc->m_base.m_base.gv->interfaces[0].loc.address, sizeof (loc->address));
     ret = 0;
@@ -303,7 +303,7 @@ static int ddsi_raweth_is_loopbackaddr (const struct ddsi_tran_factory *tran, co
 static int ddsi_raweth_is_mcaddr (const struct ddsi_tran_factory *tran, const ddsi_locator_t *loc)
 {
   (void) tran;
-  assert (loc->kind == NN_LOCATOR_KIND_RAWETH);
+  assert (loc->kind == DDSI_LOCATOR_KIND_RAWETH);
   return (loc->address[10] & 1);
 }
 
@@ -329,8 +329,8 @@ static enum ddsi_locator_from_string_result ddsi_raweth_address_from_string (con
 {
   int i = 0;
   (void)tran;
-  loc->kind = NN_LOCATOR_KIND_RAWETH;
-  loc->port = NN_LOCATOR_PORT_INVALID;
+  loc->kind = DDSI_LOCATOR_KIND_RAWETH;
+  loc->port = DDSI_LOCATOR_PORT_INVALID;
   memset (loc->address, 0, sizeof (loc->address));
   while (i < 6 && *str != 0)
   {
@@ -385,8 +385,8 @@ static int ddsi_raweth_locator_from_sockaddr (const struct ddsi_tran_factory *tr
   if (sockaddr->sa_family != AF_PACKET)
     return -1;
 
-  loc->kind = NN_LOCATOR_KIND_RAWETH;
-  loc->port = NN_LOCATOR_PORT_INVALID;
+  loc->kind = DDSI_LOCATOR_KIND_RAWETH;
+  loc->port = DDSI_LOCATOR_PORT_INVALID;
   memset (loc->address, 0, 10);
   memcpy (loc->address + 10, ((struct sockaddr_ll *) sockaddr)->sll_addr, 6);
   return 0;

@@ -109,7 +109,7 @@ static bool add_acknack_makebitmaps (const struct ddsi_proxy_writer *pwr, const 
 
   /* Make bitmap; note that we've made sure to have room for the maximum bitmap size. */
   const seqno_t last_seq = rwn->filtered ? rwn->last_seq : pwr->last_seq;
-  const uint32_t numbits = nn_reorder_nackmap (reorder, bitmap_base, last_seq, &info->acknack.set, info->acknack.bits, NN_SEQUENCE_NUMBER_SET_MAX_BITS, notail);
+  const uint32_t numbits = nn_reorder_nackmap (reorder, bitmap_base, last_seq, &info->acknack.set, info->acknack.bits, DDSI_SEQUENCE_NUMBER_SET_MAX_BITS, notail);
   if (numbits == 0)
   {
     info->nackfrag.seq = 0;
@@ -127,7 +127,7 @@ static bool add_acknack_makebitmaps (const struct ddsi_proxy_writer *pwr, const 
 
     const seqno_t seq = base + i;
     const uint32_t fragnum = (seq == pwr->last_seq) ? pwr->last_fragnum : UINT32_MAX;
-    switch (nn_defrag_nackmap (pwr->defrag, seq, fragnum, &info->nackfrag.set, info->nackfrag.bits, NN_FRAGMENT_NUMBER_SET_MAX_BITS))
+    switch (nn_defrag_nackmap (pwr->defrag, seq, fragnum, &info->nackfrag.set, info->nackfrag.bits, DDSI_FRAGMENT_NUMBER_SET_MAX_BITS))
     {
       case DEFRAG_NACKMAP_UNKNOWN_SAMPLE:
         break;
@@ -149,12 +149,12 @@ static bool add_acknack_makebitmaps (const struct ddsi_proxy_writer *pwr, const 
 static void add_NackFrag (struct nn_xmsg *msg, const struct ddsi_proxy_writer *pwr, const struct ddsi_pwr_rd_match *rwn, const struct ddsi_add_acknack_info *info)
 {
   struct nn_xmsg_marker sm_marker;
-  NackFrag_t *nf;
+  ddsi_rtps_nackfrag_t *nf;
 
-  assert (info->nackfrag.set.numbits > 0 && info->nackfrag.set.numbits <= NN_FRAGMENT_NUMBER_SET_MAX_BITS);
-  nf = nn_xmsg_append (msg, &sm_marker, NACKFRAG_SIZE (info->nackfrag.set.numbits));
+  assert (info->nackfrag.set.numbits > 0 && info->nackfrag.set.numbits <= DDSI_FRAGMENT_NUMBER_SET_MAX_BITS);
+  nf = nn_xmsg_append (msg, &sm_marker, DDSI_NACKFRAG_SIZE (info->nackfrag.set.numbits));
 
-  nn_xmsg_submsg_init (msg, sm_marker, SMID_NACK_FRAG);
+  nn_xmsg_submsg_init (msg, sm_marker, DDSI_RTPS_SMID_NACK_FRAG);
   nf->readerId = nn_hton_entityid (rwn->rd_guid.entityid);
   nf->writerId = nn_hton_entityid (pwr->e.guid.entityid);
   nf->writerSN = toSN (info->nackfrag.seq);
@@ -164,11 +164,11 @@ static void add_NackFrag (struct nn_xmsg *msg, const struct ddsi_proxy_writer *p
   // We use 0-based fragment numbers, but externally have to provide 1-based fragment numbers */
   nf->fragmentNumberState.bitmap_base = info->nackfrag.set.bitmap_base + 1;
   nf->fragmentNumberState.numbits = info->nackfrag.set.numbits;
-  memcpy (nf->bits, info->nackfrag.bits, NN_FRAGMENT_NUMBER_SET_BITS_SIZE (info->nackfrag.set.numbits));
+  memcpy (nf->bits, info->nackfrag.bits, DDSI_FRAGMENT_NUMBER_SET_BITS_SIZE (info->nackfrag.set.numbits));
 
   // Count field is at a variable offset ... silly DDSI spec
-  nn_count_t * const countp =
-    (nn_count_t *) ((char *) nf + offsetof (NackFrag_t, bits) + NN_FRAGMENT_NUMBER_SET_BITS_SIZE (nf->fragmentNumberState.numbits));
+  ddsi_count_t * const countp =
+    (ddsi_count_t *) ((char *) nf + offsetof (ddsi_rtps_nackfrag_t, bits) + DDSI_FRAGMENT_NUMBER_SET_BITS_SIZE (nf->fragmentNumberState.numbits));
   *countp = pwr->nackfragcount;
 
   nn_xmsg_submsg_setnext (msg, sm_marker);
@@ -193,29 +193,29 @@ static void add_acknack (struct nn_xmsg *msg, const struct ddsi_proxy_writer *pw
      AckNack.  NACKing data now will most likely cause another NACK
      upon reception of the first heartbeat, and so cause the data to
      be resent twice. */
-  AckNack_t *an;
+  ddsi_rtps_acknack_t *an;
   struct nn_xmsg_marker sm_marker;
 
-  an = nn_xmsg_append (msg, &sm_marker, ACKNACK_SIZE_MAX);
-  nn_xmsg_submsg_init (msg, sm_marker, SMID_ACKNACK);
+  an = nn_xmsg_append (msg, &sm_marker, DDSI_ACKNACK_SIZE_MAX);
+  nn_xmsg_submsg_init (msg, sm_marker, DDSI_RTPS_SMID_ACKNACK);
   an->readerId = nn_hton_entityid (rwn->rd_guid.entityid);
   an->writerId = nn_hton_entityid (pwr->e.guid.entityid);
 
   // set FINAL flag late, in case it is decided that the "response_required" flag
   // should be set depending on the exact AckNack/NackFrag generated
-  an->smhdr.flags |= ACKNACK_FLAG_FINAL;
+  an->smhdr.flags |= DDSI_ACKNACK_FLAG_FINAL;
 #if ACK_REASON_IN_FLAGS
   an->smhdr.flags |= info->flags;
 #endif
   an->readerSNState = info->acknack.set;
-  memcpy (an->bits, info->acknack.bits, NN_SEQUENCE_NUMBER_SET_BITS_SIZE (an->readerSNState.numbits));
+  memcpy (an->bits, info->acknack.bits, DDSI_SEQUENCE_NUMBER_SET_BITS_SIZE (an->readerSNState.numbits));
 
   // Count field is at a variable offset ... silly DDSI spec
-  nn_count_t * const countp =
-    (nn_count_t *) ((char *) an + offsetof (AckNack_t, bits) + NN_SEQUENCE_NUMBER_SET_BITS_SIZE (an->readerSNState.numbits));
+  ddsi_count_t * const countp =
+    (ddsi_count_t *) ((char *) an + offsetof (ddsi_rtps_acknack_t, bits) + DDSI_SEQUENCE_NUMBER_SET_BITS_SIZE (an->readerSNState.numbits));
   *countp = rwn->count;
   // Reset submessage size, now that we know the real size, and update the offset to the next submessage.
-  nn_xmsg_shrink (msg, sm_marker, ACKNACK_SIZE (an->readerSNState.numbits));
+  nn_xmsg_shrink (msg, sm_marker, DDSI_ACKNACK_SIZE (an->readerSNState.numbits));
   nn_xmsg_submsg_setnext (msg, sm_marker);
 
   if (pwr->e.gv->logconfig.c.mask & DDS_LC_TRACE)
@@ -430,7 +430,7 @@ struct nn_xmsg *ddsi_make_and_resched_acknack (struct xevent *ev, struct ddsi_pr
       pp = rd->c.pp;
   }
 
-  if ((msg = nn_xmsg_new (gv->xmsgpool, &rwn->rd_guid, pp, ACKNACK_SIZE_MAX, NN_XMSG_KIND_CONTROL)) == NULL)
+  if ((msg = nn_xmsg_new (gv->xmsgpool, &rwn->rd_guid, pp, DDSI_ACKNACK_SIZE_MAX, NN_XMSG_KIND_CONTROL)) == NULL)
   {
     return NULL;
   }

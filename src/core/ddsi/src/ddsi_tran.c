@@ -294,10 +294,10 @@ static size_t kindstr (char *dst, size_t sizeof_dst, int32_t kind)
   char *wellknown;
   switch (kind)
   {
-    case NN_LOCATOR_KIND_TCPv4: wellknown = "tcp/"; break;
-    case NN_LOCATOR_KIND_TCPv6: wellknown = "tcp6/"; break;
-    case NN_LOCATOR_KIND_UDPv4: wellknown = "udp/"; break;
-    case NN_LOCATOR_KIND_UDPv6: wellknown = "udp6/"; break;
+    case DDSI_LOCATOR_KIND_TCPv4: wellknown = "tcp/"; break;
+    case DDSI_LOCATOR_KIND_TCPv6: wellknown = "tcp6/"; break;
+    case DDSI_LOCATOR_KIND_UDPv4: wellknown = "udp/"; break;
+    case DDSI_LOCATOR_KIND_UDPv6: wellknown = "udp6/"; break;
     default: wellknown = NULL; break;
   };
   if (wellknown)
@@ -312,7 +312,7 @@ static size_t kindstr (char *dst, size_t sizeof_dst, int32_t kind)
 static char *ddsi_xlocator_to_string_impl (char *dst, size_t sizeof_dst, const ddsi_xlocator_t *loc)
 {
   /* FIXME: should add a "factory" for INVALID locators */
-  if (loc->c.kind == NN_LOCATOR_KIND_INVALID) {
+  if (loc->c.kind == DDSI_LOCATOR_KIND_INVALID) {
     (void) snprintf (dst, sizeof_dst, "invalid/0:0");
   } else if (loc->conn != NULL) {
     struct ddsi_tran_factory const * const tran = loc->conn->m_factory;
@@ -325,10 +325,10 @@ static char *ddsi_xlocator_to_string_impl (char *dst, size_t sizeof_dst, const d
        the kind is still printed as a number, not as (udp|tcp)6? */
     switch (loc->c.kind)
     {
-      case NN_LOCATOR_KIND_TCPv4:
-      case NN_LOCATOR_KIND_TCPv6:
-      case NN_LOCATOR_KIND_UDPv4:
-      case NN_LOCATOR_KIND_UDPv6: {
+      case DDSI_LOCATOR_KIND_TCPv4:
+      case DDSI_LOCATOR_KIND_TCPv6:
+      case DDSI_LOCATOR_KIND_UDPv4:
+      case DDSI_LOCATOR_KIND_UDPv6: {
         size_t pos = kindstr (dst, sizeof_dst, loc->c.kind);
         if ((size_t)pos < sizeof_dst)
           (void) ddsi_ipaddr_to_string (dst + (size_t)pos, sizeof_dst - (size_t)pos, &loc->c, 1, NULL);
@@ -347,7 +347,7 @@ static char *ddsi_xlocator_to_string_impl (char *dst, size_t sizeof_dst, const d
 
 static char *ddsi_xlocator_to_string_no_port_impl (char *dst, size_t sizeof_dst, const ddsi_xlocator_t *loc)
 {
-  if (loc->c.kind == NN_LOCATOR_KIND_INVALID) {
+  if (loc->c.kind == DDSI_LOCATOR_KIND_INVALID) {
     (void) snprintf (dst, sizeof_dst, "invalid/0");
   } else if (loc->conn != NULL) {
     struct ddsi_tran_factory const * const tran = loc->conn->m_factory;
@@ -357,10 +357,10 @@ static char *ddsi_xlocator_to_string_no_port_impl (char *dst, size_t sizeof_dst,
   } else {
     switch (loc->c.kind)
     {
-      case NN_LOCATOR_KIND_TCPv4:
-      case NN_LOCATOR_KIND_TCPv6:
-      case NN_LOCATOR_KIND_UDPv4:
-      case NN_LOCATOR_KIND_UDPv6: {
+      case DDSI_LOCATOR_KIND_TCPv4:
+      case DDSI_LOCATOR_KIND_TCPv6:
+      case DDSI_LOCATOR_KIND_UDPv4:
+      case DDSI_LOCATOR_KIND_UDPv6: {
         size_t pos = kindstr (dst, sizeof_dst, loc->c.kind);
         if ((size_t)pos < sizeof_dst)
           (void) ddsi_ipaddr_to_string (dst + (size_t)pos, sizeof_dst - (size_t)pos, &loc->c, 0, NULL);

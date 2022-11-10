@@ -129,7 +129,7 @@ static inline align_t dds_cdr_get_align (uint32_t xcdr_version, uint32_t size)
 #define MK_ALIGN(n) (n)
 #endif
   if (size > 4)
-    return xcdr_version == DDS_CDR_ENC_VERSION_2 ? MK_ALIGN(4) : MK_ALIGN(8);
+    return xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_2 ? MK_ALIGN(4) : MK_ALIGN(8);
   return MK_ALIGN(size);
 #undef MK_ALIGN
 }
@@ -411,7 +411,7 @@ static inline bool is_primitive_or_enum_type (enum dds_stream_typecode type)
 
 static inline bool is_dheader_needed (enum dds_stream_typecode type, uint32_t xcdrv)
 {
-  return !is_primitive_type (type) && xcdrv == DDS_CDR_ENC_VERSION_2;
+  return !is_primitive_type (type) && xcdrv == DDSI_RTPS_CDR_ENC_VERSION_2;
 }
 
 static uint32_t get_primitive_size (enum dds_stream_typecode type)
@@ -601,14 +601,14 @@ static uint32_t dds_stream_check_optimize1 (const struct dds_cdrstream_desc * __
             ops += 3;
             break;
           case DDS_OP_VAL_ENU:
-            if (xcdr_version == DDS_CDR_ENC_VERSION_2) /* xcdr2 arrays have a dheader for non-primitive types */
+            if (xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_2) /* xcdr2 arrays have a dheader for non-primitive types */
               return 0;
             if (DDS_OP_TYPE_SZ (insn) != 4 || !check_optimize_impl (xcdr_version, ops, sizeof (uint32_t), ops[2], &off, member_offs))
               return 0;
             ops += 4;
             break;
           case DDS_OP_VAL_BMK:
-            if (xcdr_version == DDS_CDR_ENC_VERSION_2) /* xcdr2 arrays have a dheader for non-primitive types */
+            if (xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_2) /* xcdr2 arrays have a dheader for non-primitive types */
               return 0;
             if (!check_optimize_impl (xcdr_version, ops, DDS_OP_TYPE_SZ (insn), ops[2], &off, member_offs))
               return 0;
@@ -788,7 +788,7 @@ static void dds_stream_countops1 (const uint32_t * __restrict ops, const uint32_
     {
       case DDS_OP_ADR: {
         if (op_type_optional (insn) && min_xcdrv)
-          *min_xcdrv = DDS_CDR_ENC_VERSION_2;
+          *min_xcdrv = DDSI_RTPS_CDR_ENC_VERSION_2;
         switch (DDS_OP_TYPE (insn))
         {
           case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: case DDS_OP_VAL_STR:
@@ -829,13 +829,13 @@ static void dds_stream_countops1 (const uint32_t * __restrict ops, const uint32_
       }
       case DDS_OP_DLC: {
         if (min_xcdrv)
-          *min_xcdrv = DDS_CDR_ENC_VERSION_2;
+          *min_xcdrv = DDSI_RTPS_CDR_ENC_VERSION_2;
         ops++;
         break;
       }
       case DDS_OP_PLC: {
         if (min_xcdrv)
-          *min_xcdrv = DDS_CDR_ENC_VERSION_2;
+          *min_xcdrv = DDSI_RTPS_CDR_ENC_VERSION_2;
         ops = dds_stream_countops_pl (ops, ops_end, min_xcdrv, nestc, nestm);
         break;
       }
@@ -1307,7 +1307,7 @@ bool dds_stream_write_sample (dds_ostream_t * __restrict os, const void * __rest
 
 bool dds_stream_write_sampleLE (dds_ostreamLE_t * __restrict os, const void * __restrict data, const struct dds_cdrstream_desc * __restrict desc)
 {
-  size_t opt_size = os->x.m_xcdr_version == DDS_CDR_ENC_VERSION_1 ? desc->opt_size_xcdr1 : desc->opt_size_xcdr2;
+  size_t opt_size = os->x.m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_1 ? desc->opt_size_xcdr1 : desc->opt_size_xcdr2;
   if (opt_size && desc->align && (((struct dds_ostream *)os)->m_index % desc->align) == 0)
   {
     dds_os_put_bytes ((struct dds_ostream *)os, data, (uint32_t) opt_size);
@@ -1366,7 +1366,7 @@ bool dds_stream_write_sampleLE (dds_ostreamLE_t * __restrict os, const void * __
 
 bool dds_stream_write_sampleBE (dds_ostreamBE_t * __restrict os, const void * __restrict data, const struct dds_cdrstream_desc * __restrict desc)
 {
-  size_t opt_size = os->x.m_xcdr_version == DDS_CDR_ENC_VERSION_1 ? desc->opt_size_xcdr1 : desc->opt_size_xcdr2;
+  size_t opt_size = os->x.m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_1 ? desc->opt_size_xcdr1 : desc->opt_size_xcdr2;
   if (opt_size && desc->align && (((struct dds_ostream *)os)->m_index % desc->align) == 0)
   {
     dds_os_put_bytes ((struct dds_ostream *)os, data, (uint32_t) opt_size);
@@ -1963,11 +1963,11 @@ static const uint32_t *dds_stream_read_impl (dds_istream_t * __restrict is, char
         abort ();
         break;
       case DDS_OP_DLC:
-        assert (is->m_xcdr_version == DDS_CDR_ENC_VERSION_2);
+        assert (is->m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_2);
         ops = dds_stream_read_delimited (is, data, ops);
         break;
       case DDS_OP_PLC:
-        assert (is->m_xcdr_version == DDS_CDR_ENC_VERSION_2);
+        assert (is->m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_2);
         ops = dds_stream_read_pl (is, data, ops);
         break;
     }
@@ -2055,7 +2055,7 @@ static bool normalize_uint32 (char * __restrict data, uint32_t * __restrict off,
 static bool normalize_uint64 (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t xcdr_version) ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 static bool normalize_uint64 (char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t xcdr_version)
 {
-  if ((*off = check_align_prim (*off, size, xcdr_version == DDS_CDR_ENC_VERSION_2 ? 2 : 3)) == UINT32_MAX)
+  if ((*off = check_align_prim (*off, size, xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_2 ? 2 : 3)) == UINT32_MAX)
     return false;
   if (bswap)
   {
@@ -2129,7 +2129,7 @@ static inline bool read_and_normalize_uint32 (uint32_t * __restrict val, char * 
 static inline bool read_and_normalize_uint64 (uint64_t * __restrict val, char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t xcdr_version) ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 static inline bool read_and_normalize_uint64 (uint64_t * __restrict val, char * __restrict data, uint32_t * __restrict off, uint32_t size, bool bswap, uint32_t xcdr_version)
 {
-  if ((*off = check_align_prim (*off, size, xcdr_version == DDS_CDR_ENC_VERSION_2 ? 2 : 3)) == UINT32_MAX)
+  if ((*off = check_align_prim (*off, size, xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_2 ? 2 : 3)) == UINT32_MAX)
     return false;
   if (bswap)
   {
@@ -2284,7 +2284,7 @@ static bool normalize_primarray (char * __restrict data, uint32_t * __restrict o
       *off += 4 * num;
       return true;
     case DDS_OP_VAL_8BY:
-      if ((*off = check_align_prim_many (*off, size, xcdr_version == DDS_CDR_ENC_VERSION_2 ? 2 : 3, num)) == UINT32_MAX)
+      if ((*off = check_align_prim_many (*off, size, xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_2 ? 2 : 3, num)) == UINT32_MAX)
         return false;
       if (bswap)
       {
@@ -2382,7 +2382,7 @@ static bool normalize_bitmaskarray (char * __restrict data, uint32_t * __restric
       break;
     }
     case 8: {
-      if ((*off = check_align_prim_many (*off, size, xcdr_version == DDS_CDR_ENC_VERSION_2 ? 2 : 3, num)) == UINT32_MAX)
+      if ((*off = check_align_prim_many (*off, size, xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_2 ? 2 : 3, num)) == UINT32_MAX)
         return false;
       uint64_t * const xs = (uint64_t *) (data + *off);
       for (uint32_t i = 0; i < num; i++)
@@ -2877,14 +2877,14 @@ static const uint32_t *stream_normalize_data_impl (char * __restrict data, uint3
         break;
       }
       case DDS_OP_DLC: {
-        if (xcdr_version != DDS_CDR_ENC_VERSION_2)
+        if (xcdr_version != DDSI_RTPS_CDR_ENC_VERSION_2)
           return normalize_error_ops ();
         if ((ops = stream_normalize_delimited (data, off, size, bswap, xcdr_version, ops)) == NULL)
           return NULL;
         break;
       }
       case DDS_OP_PLC: {
-        if (xcdr_version != DDS_CDR_ENC_VERSION_2)
+        if (xcdr_version != DDSI_RTPS_CDR_ENC_VERSION_2)
           return normalize_error_ops ();
         if ((ops = stream_normalize_pl (data, off, size, bswap, xcdr_version, ops)) == NULL)
           return NULL;
@@ -3556,7 +3556,7 @@ static const uint32_t *dds_stream_extract_key_from_data_skip_adr (dds_istream_t 
 
 void dds_stream_read_sample (dds_istream_t * __restrict is, void * __restrict data, const struct dds_cdrstream_desc * __restrict desc)
 {
-  size_t opt_size = is->m_xcdr_version == DDS_CDR_ENC_VERSION_1 ? desc->opt_size_xcdr1 : desc->opt_size_xcdr2;
+  size_t opt_size = is->m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_1 ? desc->opt_size_xcdr1 : desc->opt_size_xcdr2;
   if (opt_size)
   {
     /* Layout of struct & CDR is the same, but sizeof(struct) may include padding at
@@ -4204,11 +4204,11 @@ static const uint32_t * dds_stream_print_sample1 (char * __restrict *buf, size_t
         abort ();
         break;
       case DDS_OP_DLC:
-        assert (is->m_xcdr_version == DDS_CDR_ENC_VERSION_2);
+        assert (is->m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_2);
         ops = prtf_delimited (buf, bufsize, is, ops);
         break;
       case DDS_OP_PLC:
-        assert (is->m_xcdr_version == DDS_CDR_ENC_VERSION_2);
+        assert (is->m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_2);
         ops = prtf_pl (buf, bufsize, is, ops);
         break;
     }
@@ -4284,7 +4284,7 @@ size_t dds_stream_print_key (dds_istream_t * __restrict is, const struct dds_cdr
    version that is required for (de)serializing the type for this topic descriptor */
 uint16_t dds_stream_minimum_xcdr_version (const uint32_t * __restrict ops)
 {
-  uint16_t min_xcdrv = DDS_CDR_ENC_VERSION_1;
+  uint16_t min_xcdrv = DDSI_RTPS_CDR_ENC_VERSION_1;
   const uint32_t *ops_end = ops;
   dds_stream_countops1 (ops, &ops_end, &min_xcdrv, 0, NULL);
   return min_xcdrv;

@@ -36,7 +36,7 @@
 
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/q_protocol.h" /* for NN_STATUSINFO_... */
+#include "ddsi__protocol.h"
 #include "dds/ddsi/q_radmin.h" /* for ddsi_plist_quickscan */
 
 #include "dds/ddsrt/avl.h"
@@ -97,7 +97,7 @@ struct flagset {
 };
 
 struct piddesc {
-  nn_parameterid_t pid;  /* parameter id or PID_PAD if strictly local */
+  ddsi_parameterid_t pid;  /* parameter id or DDSI_PID_PAD if strictly local */
   uint16_t flags;        /* see PDF_xxx flags */
   uint64_t present_flag; /* flag in plist.present / plist.qos.present */
   const char *name;      /* name for reporting invalid input */
@@ -110,7 +110,7 @@ struct piddesc {
     const enum ddsi_pserop desc[12];
     struct {
 dds_return_t (*deser) (void * __restrict dst, struct flagset *flagset, uint64_t flag, const struct dd * __restrict dd, struct ddsi_domaingv const * const gv);
-      dds_return_t (*ser) (struct nn_xmsg *xmsg, nn_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo);
+      dds_return_t (*ser) (struct nn_xmsg *xmsg, ddsi_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo);
       dds_return_t (*unalias) (void * __restrict dst, size_t * __restrict dstoff, bool gen_seq_aliased);
       dds_return_t (*fini) (void * __restrict dst, size_t * __restrict dstoff, struct flagset *flagset, uint64_t flag);
       dds_return_t (*valid) (const void *src, size_t srcoff);
@@ -137,7 +137,7 @@ static dds_return_t final_validation_qos (const dds_qos_t *dest, nn_protocol_ver
 static int partitions_equal (const void *srca, const void *srcb, size_t off);
 static dds_return_t ddsi_xqos_valid_strictness (const struct ddsrt_log_cfg *logcfg, const dds_qos_t *xqos, bool strict);
 static dds_return_t unalias_generic (void * __restrict dst, size_t * __restrict dstoff, bool gen_seq_aliased, const enum ddsi_pserop * __restrict desc);
-static dds_return_t ser_generic (struct nn_xmsg *xmsg, nn_parameterid_t pid, const void *src, size_t srcoff, const enum ddsi_pserop * __restrict desc, enum ddsrt_byte_order_selector bo);
+static dds_return_t ser_generic (struct nn_xmsg *xmsg, ddsi_parameterid_t pid, const void *src, size_t srcoff, const enum ddsi_pserop * __restrict desc, enum ddsrt_byte_order_selector bo);
 static bool equal_generic (const void *srcx, const void *srcy, size_t srcoff, const enum ddsi_pserop * __restrict desc);
 static dds_return_t fini_generic (void * __restrict dst, size_t * __restrict dstoff, struct flagset *flagset, uint64_t flag, const enum ddsi_pserop * __restrict desc);
 static dds_return_t valid_generic (const void *src, size_t srcoff, const enum ddsi_pserop * __restrict desc);
@@ -346,7 +346,7 @@ static dds_return_t deser_reliability (void * __restrict dst, struct flagset *fl
   return 0;
 }
 
-static dds_return_t ser_reliability (struct nn_xmsg *xmsg, nn_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo)
+static dds_return_t ser_reliability (struct nn_xmsg *xmsg, ddsi_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo)
 {
   DDSRT_STATIC_ASSERT (DDS_EXTERNAL_RELIABILITY_BEST_EFFORT == 1 && DDS_EXTERNAL_RELIABILITY_RELIABLE == 2 &&
                        DDS_RELIABILITY_BEST_EFFORT == 0 && DDS_RELIABILITY_RELIABLE == 1);
@@ -392,12 +392,12 @@ static dds_return_t deser_statusinfo (void * __restrict dst, struct flagset *fla
   /* status info is always in BE format (it is an array of 4 octets according to the spec) --
      fortunately we have 4 byte alignment anyway -- and can have bits set we don't grok
      (which we discard) */
-  *x = ddsrt_fromBE4u (*((uint32_t *) (dd->buf + srcoff1))) & NN_STATUSINFO_STANDARDIZED;
+  *x = ddsrt_fromBE4u (*((uint32_t *) (dd->buf + srcoff1))) & DDSI_STATUSINFO_STANDARDIZED;
   *flagset->present |= flag;
   return 0;
 }
 
-static dds_return_t ser_statusinfo (struct nn_xmsg *xmsg, nn_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo)
+static dds_return_t ser_statusinfo (struct nn_xmsg *xmsg, ddsi_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo)
 {
   uint32_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (uint32_t));
   uint32_t * const p = nn_xmsg_addpar_bo (xmsg, pid, sizeof (uint32_t), bo);
@@ -437,7 +437,7 @@ static dds_return_t deser_locator (void * __restrict dst, struct flagset *flagse
   return 0;
 }
 
-static dds_return_t ser_locator (struct nn_xmsg *xmsg, nn_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo)
+static dds_return_t ser_locator (struct nn_xmsg *xmsg, ddsi_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo)
 {
   ddsi_locators_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (ddsi_locators_t));
   for (const struct ddsi_locators_one *l = x->first; l != NULL; l = l->next)
@@ -571,7 +571,7 @@ static dds_return_t deser_type_consistency (void * __restrict dst, struct flagse
   return 0;
 }
 
-static dds_return_t ser_type_consistency (struct nn_xmsg *xmsg, nn_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo)
+static dds_return_t ser_type_consistency (struct nn_xmsg *xmsg, ddsi_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo)
 {
   dds_type_consistency_enforcement_qospolicy_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (dds_type_consistency_enforcement_qospolicy_t));
   char * const p = nn_xmsg_addpar_bo (xmsg, pid, 8, bo);
@@ -644,7 +644,7 @@ static dds_return_t deser_data_representation (void * __restrict dst, struct fla
   return 0;
 }
 
-static dds_return_t ser_data_representation (struct nn_xmsg *xmsg, nn_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo)
+static dds_return_t ser_data_representation (struct nn_xmsg *xmsg, ddsi_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo)
 {
   return ser_generic (xmsg, pid, src, srcoff, desc_data_representation, bo);
 }
@@ -696,13 +696,13 @@ static dds_return_t deser_type_information (void * __restrict dst, struct flagse
     buf = ddsrt_memdup (dd->buf, dd->bufsz);
   else
     buf = (unsigned char *) dd->buf;
-  if (!dds_stream_normalize_data ((char *) buf, &srcoff, (uint32_t) dd->bufsz, dd->bswap, DDS_CDR_ENC_VERSION_2, DDS_XTypes_TypeInformation_desc.m_ops))
+  if (!dds_stream_normalize_data ((char *) buf, &srcoff, (uint32_t) dd->bufsz, dd->bswap, DDSI_RTPS_CDR_ENC_VERSION_2, DDS_XTypes_TypeInformation_desc.m_ops))
   {
     ret = DDS_RETCODE_BAD_PARAMETER;
     goto err_normalize;
   }
 
-  dds_istream_t is = { .m_buffer = buf, .m_index = 0, .m_size = (uint32_t) dd->bufsz, .m_xcdr_version = DDS_CDR_ENC_VERSION_2 };
+  dds_istream_t is = { .m_buffer = buf, .m_index = 0, .m_size = (uint32_t) dd->bufsz, .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
   ddsi_typeinfo_t const ** x = deser_generic_dst (dst, &dstoff, dds_alignof (ddsi_typeinfo_t *));
   *x = ddsrt_calloc (1, DDS_XTypes_TypeInformation_desc.m_size);
   dds_stream_read (&is, (void *) *x, DDS_XTypes_TypeInformation_desc.m_ops);
@@ -713,11 +713,11 @@ err_normalize:
   return ret;
 }
 
-static dds_return_t ser_type_information (struct nn_xmsg *xmsg, nn_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo)
+static dds_return_t ser_type_information (struct nn_xmsg *xmsg, ddsi_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo)
 {
   ddsi_typeinfo_t const * const * x = deser_generic_src (src, &srcoff, dds_alignof (ddsi_typeinfo_t *));
 
-  dds_ostream_t os = { .m_buffer = NULL, .m_index = 0, .m_size = 0, .m_xcdr_version = DDS_CDR_ENC_VERSION_2 };
+  dds_ostream_t os = { .m_buffer = NULL, .m_index = 0, .m_size = 0, .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
   (void) dds_stream_write_with_byte_order (&os, (const void *) *x, DDS_XTypes_TypeInformation_desc.m_ops, bo);
   char * const p = nn_xmsg_addpar_bo (xmsg, pid, os.m_index, bo);
   memcpy (p, os.m_buffer, os.m_index);
@@ -1336,7 +1336,7 @@ dds_return_t ddsi_plist_ser_generic_embeddable (char * const data, size_t *dstof
 
 
 
-static dds_return_t ser_generic (struct nn_xmsg *xmsg, nn_parameterid_t pid, const void *src, size_t srcoff, const enum ddsi_pserop * __restrict desc, enum ddsrt_byte_order_selector bo)
+static dds_return_t ser_generic (struct nn_xmsg *xmsg, ddsi_parameterid_t pid, const void *src, size_t srcoff, const enum ddsi_pserop * __restrict desc, enum ddsrt_byte_order_selector bo)
 {
   char * const data = nn_xmsg_addpar_bo (xmsg, pid, ser_generic_size (src, srcoff, desc), bo);
   size_t dstoff = 0;
@@ -1791,7 +1791,7 @@ static bool print_generic (char * __restrict *buf, size_t * __restrict bufsize, 
 
 #define membersize(type, member) sizeof (((type *) 0)->member)
 #define ENTRY(PFX_, NAME_, member_, flag_, validate_, ...)                                 \
-  { PID_##NAME_, flag_, PFX_##_##NAME_, #NAME_, offsetof (struct ddsi_plist, member_),     \
+  { DDSI_PID_##NAME_, flag_, PFX_##_##NAME_, #NAME_, offsetof (struct ddsi_plist, member_),     \
     membersize (struct ddsi_plist, member_), { .desc = { __VA_ARGS__, XSTOP } }, validate_ \
   }
 #define QPV(NAME_, name_, ...) ENTRY(QP, NAME_, qos.name_, PDF_QOS, dvx_##name_, __VA_ARGS__)
@@ -1802,7 +1802,7 @@ static bool print_generic (char * __restrict *buf, size_t * __restrict bufsize, 
 
 static int protocol_version_is_newer (nn_protocol_version_t pv)
 {
-  return (pv.major < RTPS_MAJOR) ? 0 : (pv.major > RTPS_MAJOR) ? 1 : (pv.minor > RTPS_MINOR);
+  return (pv.major < DDSI_RTPS_MAJOR) ? 0 : (pv.major > DDSI_RTPS_MAJOR) ? 1 : (pv.minor > DDSI_RTPS_MINOR);
 }
 
 static dds_return_t dvx_durability_service (void * __restrict dst, const struct dd * __restrict dd)
@@ -1892,7 +1892,7 @@ static const struct piddesc piddesc_omg[] = {
      the "Xopt" here is to allow both forms on input, with an assumed empty second sequence if the old form was received */
   QP  (PROPERTY_LIST,                       property, XQ, XbPROP, XS, XS, XSTOP, Xopt, XQ, XbPROP, XS, XO, XSTOP),
   /* Reliability encoding does not follow the rules (best-effort/reliable map to 1/2 instead of 0/1 */
-  { PID_RELIABILITY, PDF_QOS | PDF_FUNCTION, QP_RELIABILITY, "RELIABILITY",
+  { DDSI_PID_RELIABILITY, PDF_QOS | PDF_FUNCTION, QP_RELIABILITY, "RELIABILITY",
     offsetof (struct ddsi_plist, qos.reliability), membersize (struct ddsi_plist, qos.reliability),
     { .f = { .deser = deser_reliability, .ser = ser_reliability, .valid = valid_reliability, .equal = equal_reliability, .print = print_reliability } }, 0 },
   QP  (LIFESPAN,                            lifespan, XD),
@@ -1908,14 +1908,14 @@ static const struct piddesc piddesc_omg[] = {
   QP  (TRANSPORT_PRIORITY,                  transport_priority, Xi),
   QP  (ENTITY_NAME,                         entity_name, XS),
   /* Type consistency enforcement has some custom validations and uses a bitbound(16) enum */
-  { PID_TYPE_CONSISTENCY_ENFORCEMENT, PDF_QOS | PDF_FUNCTION, QP_TYPE_CONSISTENCY_ENFORCEMENT, "TYPE_CONSISTENCY_ENFORCEMENT",
+  { DDSI_PID_TYPE_CONSISTENCY_ENFORCEMENT, PDF_QOS | PDF_FUNCTION, QP_TYPE_CONSISTENCY_ENFORCEMENT, "TYPE_CONSISTENCY_ENFORCEMENT",
     offsetof (struct ddsi_plist, qos.type_consistency), membersize (struct ddsi_plist, qos.type_consistency),
     { .f = { .deser = deser_type_consistency, .ser = ser_type_consistency, .valid = valid_type_consistency, .equal = equal_type_consistency, .print = print_type_consistency } }, 0 },
-  { PID_DATA_REPRESENTATION, PDF_QOS | PDF_FUNCTION, QP_DATA_REPRESENTATION, "DATA_REPRESENTATION",
+  { DDSI_PID_DATA_REPRESENTATION, PDF_QOS | PDF_FUNCTION, QP_DATA_REPRESENTATION, "DATA_REPRESENTATION",
     offsetof (struct ddsi_plist, qos.data_representation), membersize (struct ddsi_plist, qos.data_representation),
     { .f = { .deser = deser_data_representation, .ser = ser_data_representation, .valid = valid_data_representation, .equal = equal_data_representation, .unalias = unalias_data_representation, .fini = fini_data_representation, .print = print_data_representation } }, 0 },
 #ifdef DDS_HAS_TYPE_DISCOVERY
-  { PID_TYPE_INFORMATION, PDF_QOS | PDF_FUNCTION, QP_TYPE_INFORMATION, "TYPE_INFORMATION",
+  { DDSI_PID_TYPE_INFORMATION, PDF_QOS | PDF_FUNCTION, QP_TYPE_INFORMATION, "TYPE_INFORMATION",
     offsetof (struct ddsi_plist, qos.type_information), membersize (struct ddsi_plist, qos.type_information),
     { .f = { .deser = deser_type_information, .ser = ser_type_information, .valid = valid_type_information, .unalias = unalias_type_information, .fini = fini_type_information, .equal = equal_type_information, .print = print_type_information } }, 0 },
 #endif
@@ -1943,40 +1943,40 @@ static const struct piddesc piddesc_omg[] = {
 #endif
   PP  (DOMAIN_ID,                           domain_id, Xu),
   PP  (DOMAIN_TAG,                          domain_tag, XS),
-  { PID_STATUSINFO, PDF_FUNCTION, PP_STATUSINFO, "STATUSINFO",
+  { DDSI_PID_STATUSINFO, PDF_FUNCTION, PP_STATUSINFO, "STATUSINFO",
     offsetof (struct ddsi_plist, statusinfo), membersize (struct ddsi_plist, statusinfo),
     { .f = { .deser = deser_statusinfo, .ser = ser_statusinfo, .print = print_statusinfo } }, 0 },
   /* Locators are difficult to deal with because they can occur multi times to represent a set;
      that is manageable for deser, unalias and fini, but it breaks ser because that one only
      generates a single parameter header */
-  { PID_UNICAST_LOCATOR, PDF_FUNCTION | PDF_ALLOWMULTI,
+  { DDSI_PID_UNICAST_LOCATOR, PDF_FUNCTION | PDF_ALLOWMULTI,
     PP_UNICAST_LOCATOR, "UNICAST_LOCATOR",
     offsetof (struct ddsi_plist, unicast_locators), membersize (struct ddsi_plist, unicast_locators),
     { .f = { .deser = deser_locator, .ser = ser_locator, .unalias = unalias_locator, .fini = fini_locator, .print = print_locator } }, 0 },
-  { PID_MULTICAST_LOCATOR, PDF_FUNCTION | PDF_ALLOWMULTI,
+  { DDSI_PID_MULTICAST_LOCATOR, PDF_FUNCTION | PDF_ALLOWMULTI,
     PP_MULTICAST_LOCATOR, "MULTICAST_LOCATOR",
     offsetof (struct ddsi_plist, multicast_locators), membersize (struct ddsi_plist, multicast_locators),
     { .f = { .deser = deser_locator, .ser = ser_locator, .unalias = unalias_locator, .fini = fini_locator, .print = print_locator } }, 0 },
-  { PID_DEFAULT_UNICAST_LOCATOR, PDF_FUNCTION | PDF_ALLOWMULTI,
+  { DDSI_PID_DEFAULT_UNICAST_LOCATOR, PDF_FUNCTION | PDF_ALLOWMULTI,
     PP_DEFAULT_UNICAST_LOCATOR, "DEFAULT_UNICAST_LOCATOR",
     offsetof (struct ddsi_plist, default_unicast_locators), membersize (struct ddsi_plist, default_unicast_locators),
     { .f = { .deser = deser_locator, .ser = ser_locator, .unalias = unalias_locator, .fini = fini_locator, .print = print_locator } }, 0 },
-  { PID_DEFAULT_MULTICAST_LOCATOR, PDF_FUNCTION | PDF_ALLOWMULTI,
+  { DDSI_PID_DEFAULT_MULTICAST_LOCATOR, PDF_FUNCTION | PDF_ALLOWMULTI,
     PP_DEFAULT_MULTICAST_LOCATOR, "DEFAULT_MULTICAST_LOCATOR",
     offsetof (struct ddsi_plist, default_multicast_locators), membersize (struct ddsi_plist, default_multicast_locators),
     { .f = { .deser = deser_locator, .ser = ser_locator, .unalias = unalias_locator, .fini = fini_locator, .print = print_locator } }, 0 },
-  { PID_METATRAFFIC_UNICAST_LOCATOR, PDF_FUNCTION | PDF_ALLOWMULTI,
+  { DDSI_PID_METATRAFFIC_UNICAST_LOCATOR, PDF_FUNCTION | PDF_ALLOWMULTI,
     PP_METATRAFFIC_UNICAST_LOCATOR, "METATRAFFIC_UNICAST_LOCATOR",
     offsetof (struct ddsi_plist, metatraffic_unicast_locators), membersize (struct ddsi_plist, metatraffic_unicast_locators),
     { .f = { .deser = deser_locator, .ser = ser_locator, .unalias = unalias_locator, .fini = fini_locator, .print = print_locator } }, 0 },
-  { PID_METATRAFFIC_MULTICAST_LOCATOR, PDF_FUNCTION | PDF_ALLOWMULTI,
+  { DDSI_PID_METATRAFFIC_MULTICAST_LOCATOR, PDF_FUNCTION | PDF_ALLOWMULTI,
     PP_METATRAFFIC_MULTICAST_LOCATOR, "METATRAFFIC_MULTICAST_LOCATOR",
     offsetof (struct ddsi_plist, metatraffic_multicast_locators), membersize (struct ddsi_plist, metatraffic_multicast_locators),
     { .f = { .deser = deser_locator, .ser = ser_locator, .unalias = unalias_locator, .fini = fini_locator, .print = print_locator } }, 0 },
   /* PID_..._{IPADDRESS,PORT} is impossible to deal with and are never generated, only accepted.
      The problem is that there one needs additional state (and even then there is no clear
      interpretation) ... So they'll have to be special-cased */
-  { PID_SENTINEL, 0, 0, NULL, 0, 0, { .desc = { XSTOP } }, 0 }
+  { DDSI_PID_SENTINEL, 0, 0, NULL, 0, 0, { .desc = { XSTOP } }, 0 }
 };
 
 /* Understood parameters for Eclipse Foundation (Cyclone DDS) vendor code */
@@ -1985,10 +1985,10 @@ static const struct piddesc piddesc_eclipse[] = {
   QP  (ADLINK_READER_LIFESPAN,           reader_lifespan, Xb, XD),
   QP  (ADLINK_WRITER_DATA_LIFECYCLE,     writer_data_lifecycle, Xb),
   QP  (ADLINK_READER_DATA_LIFECYCLE,     reader_data_lifecycle, XDx2),
-  { PID_PAD, PDF_QOS, QP_CYCLONE_IGNORELOCAL, "CYCLONE_IGNORELOCAL",
+  { DDSI_PID_PAD, PDF_QOS, QP_CYCLONE_IGNORELOCAL, "CYCLONE_IGNORELOCAL",
     offsetof (struct ddsi_plist, qos.ignorelocal), membersize (struct ddsi_plist, qos.ignorelocal),
     { .desc = { XE2, XSTOP } }, 0 },
-  { PID_PAD, PDF_QOS, QP_LOCATOR_MASK, "CYCLONE_LOCATOR_MASK",
+  { DDSI_PID_PAD, PDF_QOS, QP_LOCATOR_MASK, "CYCLONE_LOCATOR_MASK",
     offsetof(struct ddsi_plist, qos.ignore_locator_type), membersize(struct ddsi_plist, qos.ignore_locator_type),
     {.desc = { Xu, XSTOP } }, 0 },
 #ifdef DDS_HAS_TOPIC_DISCOVERY
@@ -1998,7 +1998,7 @@ static const struct piddesc piddesc_eclipse[] = {
   PP  (CYCLONE_RECEIVE_BUFFER_SIZE,      cyclone_receive_buffer_size, Xu),
   PP  (CYCLONE_REQUESTS_KEYHASH,         cyclone_requests_keyhash, Xb),
   PP  (CYCLONE_REDUNDANT_NETWORKING,     cyclone_redundant_networking, Xb),
-  { PID_SENTINEL, 0, 0, NULL, 0, 0, { .desc = { XSTOP } }, 0 }
+  { DDSI_PID_SENTINEL, 0, 0, NULL, 0, 0, { .desc = { XSTOP } }, 0 }
 };
 
 /* Understood parameters for Adlink vendor code */
@@ -2008,7 +2008,7 @@ static const struct piddesc piddesc_adlink[] = {
   QP  (ADLINK_WRITER_DATA_LIFECYCLE,     writer_data_lifecycle, Xb),
   QP  (ADLINK_READER_DATA_LIFECYCLE,     reader_data_lifecycle, XDx2),
   PP  (ADLINK_PARTICIPANT_VERSION_INFO,  adlink_participant_version_info, Xux5, XS),
-  { PID_SENTINEL, 0, 0, NULL, 0, 0, { .desc = { XSTOP } }, 0 }
+  { DDSI_PID_SENTINEL, 0, 0, NULL, 0, 0, { .desc = { XSTOP } }, 0 }
 };
 
 #undef PPM
@@ -2057,12 +2057,12 @@ struct piddesc_index {
    FIXME: should compute them at build-time */
 #define DEFAULT_PROC_ARRAY_SIZE                20
 #ifdef DDS_HAS_TYPE_DISCOVERY
-#define DEFAULT_OMG_PIDS_ARRAY_SIZE            (PID_TYPE_INFORMATION + 1)
+#define DEFAULT_OMG_PIDS_ARRAY_SIZE            (DDSI_PID_TYPE_INFORMATION + 1)
 #else
-#define DEFAULT_OMG_PIDS_ARRAY_SIZE            (PID_TYPE_CONSISTENCY_ENFORCEMENT + 1)
+#define DEFAULT_OMG_PIDS_ARRAY_SIZE            (DDSI_PID_TYPE_CONSISTENCY_ENFORCEMENT + 1)
 #endif
 #ifdef DDS_HAS_SECURITY
-#define SECURITY_OMG_PIDS_ARRAY_SIZE           (PID_IDENTITY_STATUS_TOKEN - PID_IDENTITY_TOKEN + 1)
+#define SECURITY_OMG_PIDS_ARRAY_SIZE           (DDSI_PID_IDENTITY_STATUS_TOKEN - DDSI_PID_IDENTITY_TOKEN + 1)
 #define SECURITY_PROC_ARRAY_SIZE               4
 #else
 #define SECURITY_OMG_PIDS_ARRAY_SIZE           0
@@ -2105,15 +2105,15 @@ static const struct piddesc *piddesc_fini[17 + SECURITY_PROC_ARRAY_SIZE];
 static uint64_t plist_fini_mask, qos_fini_mask;
 static ddsrt_once_t table_init_control = DDSRT_ONCE_INIT;
 
-static size_t pid_to_index (nn_parameterid_t pid)
+static size_t pid_to_index (ddsi_parameterid_t pid)
 {
   /* pid without flags. */
-  size_t idx = (size_t)(pid & ~(PID_VENDORSPECIFIC_FLAG | PID_UNRECOGNIZED_INCOMPATIBLE_FLAG));
+  size_t idx = (size_t)(pid & ~(DDSI_PID_VENDORSPECIFIC_FLAG | DDSI_PID_UNRECOGNIZED_INCOMPATIBLE_FLAG));
 #ifdef DDS_HAS_SECURITY
-  if ((idx >= PID_IDENTITY_TOKEN) && (idx <= PID_IDENTITY_STATUS_TOKEN))
+  if ((idx >= DDSI_PID_IDENTITY_TOKEN) && (idx <= DDSI_PID_IDENTITY_STATUS_TOKEN))
   {
     /* Security PIDs start after the 'normal' PIDs. */
-    idx = (idx - PID_IDENTITY_TOKEN) + DEFAULT_OMG_PIDS_ARRAY_SIZE;
+    idx = (idx - DDSI_PID_IDENTITY_TOKEN) + DEFAULT_OMG_PIDS_ARRAY_SIZE;
   }
 #endif
   return idx;
@@ -2143,9 +2143,9 @@ static void ddsi_plist_init_tables_real (void)
     size_t maxpididx = 0;
     bool only_qos_seen = true;
 #endif
-    for (size_t j = 0; table[j].pid != PID_SENTINEL; j++)
+    for (size_t j = 0; table[j].pid != DDSI_PID_SENTINEL; j++)
     {
-      nn_parameterid_t pid = table[j].pid;
+      ddsi_parameterid_t pid = table[j].pid;
       size_t pididx = pid_to_index(pid);
 #ifndef NDEBUG
       /* Table must first list QoS, then other parameters */
@@ -2160,7 +2160,7 @@ static void ddsi_plist_init_tables_real (void)
       /* PAD is used for entries that are never visible on the wire
          and the decoder assumes the PAD entries will be skipped
          because they don't map to an entry */
-      if (pid == PID_PAD)
+      if (pid == DDSI_PID_PAD)
         continue;
       assert (pididx <= piddesc_vendor_index[i].index_max);
       assert (index[pididx] == NULL || index[pididx] == &table[j]);
@@ -2181,7 +2181,7 @@ static void ddsi_plist_init_tables_real (void)
     const struct piddesc *table = piddesc_vendor_index[i].table;
     if (table == NULL)
       continue;
-    for (size_t j = 0; table[j].pid != PID_SENTINEL; j++)
+    for (size_t j = 0; table[j].pid != DDSI_PID_SENTINEL; j++)
     {
       uint64_t * const f = (table[j].flags & PDF_QOS) ? &qf : &pf;
       if (*f & table[j].present_flag)
@@ -2352,7 +2352,7 @@ static void plist_or_xqos_mergein_missing (void * __restrict dst, const void * _
   for (size_t k = 0; k < sizeof (piddesc_tables_all) / sizeof (piddesc_tables_all[0]); k++)
   {
     struct piddesc const * const table = piddesc_tables_all[k];
-    for (uint32_t i = 0; table[i].pid != PID_SENTINEL; i++)
+    for (uint32_t i = 0; table[i].pid != DDSI_PID_SENTINEL; i++)
     {
       struct piddesc const * const entry = &table[i];
       if (shift > 0 && !(entry->flags & PDF_QOS))
@@ -2408,10 +2408,10 @@ static void plist_or_xqos_addtomsg (struct nn_xmsg *xmsg, const void * __restric
   for (size_t k = 0; k < sizeof (piddesc_tables_output) / sizeof (piddesc_tables_output[0]); k++)
   {
     struct piddesc const * const table = piddesc_tables_output[k];
-    for (uint32_t i = 0; table[i].pid != PID_SENTINEL; i++)
+    for (uint32_t i = 0; table[i].pid != DDSI_PID_SENTINEL; i++)
     {
       struct piddesc const * const entry = &table[i];
-      if (entry->pid == PID_PAD)
+      if (entry->pid == DDSI_PID_PAD)
         continue;
       if (((entry->flags & PDF_QOS) ? qw : pw) & entry->present_flag)
       {
@@ -2459,7 +2459,7 @@ static dds_return_t ddsi_xqos_valid_strictness (const struct ddsrt_log_cfg *logc
   for (size_t k = 0; k < sizeof (piddesc_tables_all) / sizeof (piddesc_tables_all[0]); k++)
   {
     struct piddesc const * const table = piddesc_tables_all[k];
-    for (uint32_t i = 0; table[i].pid != PID_SENTINEL; i++)
+    for (uint32_t i = 0; table[i].pid != DDSI_PID_SENTINEL; i++)
     {
       struct piddesc const * const entry = &table[i];
       if (!(entry->flags & PDF_QOS))
@@ -2479,7 +2479,7 @@ static dds_return_t ddsi_xqos_valid_strictness (const struct ddsrt_log_cfg *logc
       }
     }
   }
-  if ((ret = final_validation_qos (xqos, (nn_protocol_version_t) { RTPS_MAJOR, RTPS_MINOR }, NN_VENDORID_ECLIPSE, NULL, strict)) < 0)
+  if ((ret = final_validation_qos (xqos, (nn_protocol_version_t) { DDSI_RTPS_MAJOR, DDSI_RTPS_MINOR }, NN_VENDORID_ECLIPSE, NULL, strict)) < 0)
   {
     DDS_CLOG (DDS_LC_PLIST, logcfg, "ddsi_xqos_valid: final validation failed\n");
   }
@@ -2518,7 +2518,7 @@ static void plist_or_xqos_delta (uint64_t *pdelta, uint64_t *qdelta, const void 
   for (size_t k = 0; k < sizeof (piddesc_tables_all) / sizeof (piddesc_tables_all[0]); k++)
   {
     struct piddesc const * const table = piddesc_tables_all[k];
-    for (uint32_t i = 0; table[i].pid != PID_SENTINEL; i++)
+    for (uint32_t i = 0; table[i].pid != DDSI_PID_SENTINEL; i++)
     {
       struct piddesc const * const entry = &table[i];
       if (shift > 0 && !(entry->flags & PDF_QOS))
@@ -2534,7 +2534,7 @@ static void plist_or_xqos_delta (uint64_t *pdelta, uint64_t *qdelta, const void 
         /* Partition is special-cased because it is a set (with a special rules
            for empty sets and empty strings to boot), and normal string sequence
            comparison requires the ordering to be the same */
-        if (entry->pid == PID_PARTITION)
+        if (entry->pid == DDSI_PID_PARTITION)
           equal = partitions_equal (srcx, srcy, off);
         else if (!(entry->flags & PDF_FUNCTION))
           equal = equal_generic (srcx, srcy, off, entry->op.desc);
@@ -2724,19 +2724,19 @@ static enum do_locator_result do_locator (ddsi_locators_t *ls, uint64_t present,
 
   switch (loc.kind)
   {
-    case NN_LOCATOR_KIND_UDPv4:
-    case NN_LOCATOR_KIND_TCPv4:
+    case DDSI_LOCATOR_KIND_UDPv4:
+    case DDSI_LOCATOR_KIND_TCPv4:
       if (!ddsi_is_valid_port (fact, loc.port))
         return DOLOC_INVALID;
       if (!locator_address_prefix_zero (&loc, 12))
         return DOLOC_INVALID;
       break;
-    case NN_LOCATOR_KIND_UDPv6:
-    case NN_LOCATOR_KIND_TCPv6:
+    case DDSI_LOCATOR_KIND_UDPv6:
+    case DDSI_LOCATOR_KIND_TCPv6:
       if (!ddsi_is_valid_port (fact, loc.port))
         return DOLOC_INVALID;
       break;
-    case NN_LOCATOR_KIND_UDPv4MCGEN:
+    case DDSI_LOCATOR_KIND_UDPv4MCGEN:
       if (!vendor_is_eclipse (dd->vendorid))
         return DOLOC_IGNORED;
       else
@@ -2744,14 +2744,14 @@ static enum do_locator_result do_locator (ddsi_locators_t *ls, uint64_t present,
         const nn_udpv4mcgen_address_t *x = (const nn_udpv4mcgen_address_t *) loc.address;
         if (!ddsi_is_valid_port (fact, loc.port))
           return DOLOC_INVALID;
-        if (!ddsi_factory_supports (fact, NN_LOCATOR_KIND_UDPv4))
+        if (!ddsi_factory_supports (fact, DDSI_LOCATOR_KIND_UDPv4))
           return DOLOC_IGNORED;
         if ((uint32_t) x->base + x->count >= 28 || x->count == 0 || x->idx >= x->count)
           return DOLOC_INVALID;
       }
       break;
 #ifdef DDS_HAS_SHM
-    case NN_LOCATOR_KIND_SHEM:
+    case DDSI_LOCATOR_KIND_SHEM:
       if (!vendor_is_eclipse (dd->vendorid))
         return DOLOC_IGNORED;
       else
@@ -2763,17 +2763,17 @@ static enum do_locator_result do_locator (ddsi_locators_t *ls, uint64_t present,
       }
       break;
 #endif
-    case NN_LOCATOR_KIND_INVALID:
+    case DDSI_LOCATOR_KIND_INVALID:
       if (!locator_address_zero (&loc))
         return DOLOC_INVALID;
       if (loc.port != 0)
         return DOLOC_INVALID;
       /* silently drop correctly formatted "invalid" locators. */
       return DOLOC_IGNORED;
-    case NN_LOCATOR_KIND_RESERVED:
+    case DDSI_LOCATOR_KIND_RESERVED:
       /* silently drop "reserved" locators. */
       return DOLOC_IGNORED;
-    case NN_LOCATOR_KIND_RAWETH:
+    case DDSI_LOCATOR_KIND_RAWETH:
       if (!vendor_is_eclipse (dd->vendorid))
         return DOLOC_IGNORED;
       else
@@ -2794,7 +2794,7 @@ static enum do_locator_result do_locator (ddsi_locators_t *ls, uint64_t present,
 
 static void locator_from_ipv4address_port (ddsi_locator_t *loc, const ddsi_ipv4address_t *a, const ddsi_port_t *p)
 {
-  loc->kind = NN_LOCATOR_KIND_UDPv4;
+  loc->kind = DDSI_LOCATOR_KIND_UDPv4;
   loc->port = *p;
   memset (loc->address, 0, 12);
   memcpy (loc->address + 12, a, 4);
@@ -2919,9 +2919,9 @@ static dds_return_t do_port (ddsi_plist_t *dest, nn_ipaddress_params_tmp_t *dest
   return 0;
 }
 
-static dds_return_t return_unrecognized_pid (ddsi_plist_t *plist, nn_parameterid_t pid)
+static dds_return_t return_unrecognized_pid (ddsi_plist_t *plist, ddsi_parameterid_t pid)
 {
-  if (!(pid & PID_UNRECOGNIZED_INCOMPATIBLE_FLAG))
+  if (!(pid & DDSI_PID_UNRECOGNIZED_INCOMPATIBLE_FLAG))
     return 0;
   else
   {
@@ -2936,8 +2936,8 @@ static dds_return_t init_one_parameter (ddsi_plist_t *plist, nn_ipaddress_params
      passed into the generic code */
   switch (pid)
   {
-#define XA(NAME_) case PID_##NAME_##_IPADDRESS: return do_ipv4address (plist, dest_tmp, pwanted, PPTMP_##NAME_##_IPADDRESS, dd)
-#define XP(NAME_) case PID_##NAME_##_PORT: return do_port (plist, dest_tmp, pwanted, PPTMP_##NAME_##_PORT, dd)
+#define XA(NAME_) case DDSI_PID_##NAME_##_IPADDRESS: return do_ipv4address (plist, dest_tmp, pwanted, PPTMP_##NAME_##_IPADDRESS, dd)
+#define XP(NAME_) case DDSI_PID_##NAME_##_PORT: return do_port (plist, dest_tmp, pwanted, PPTMP_##NAME_##_PORT, dd)
     XA (MULTICAST);
     XA (DEFAULT_UNICAST);
     XP (DEFAULT_UNICAST);
@@ -2950,7 +2950,7 @@ static dds_return_t init_one_parameter (ddsi_plist_t *plist, nn_ipaddress_params
   }
 
   const struct piddesc_index *index;
-  if (!(pid & PID_VENDORSPECIFIC_FLAG))
+  if (!(pid & DDSI_PID_VENDORSPECIFIC_FLAG))
     index = &piddesc_vendor_index[0];
   else if (dd->vendorid.id[0] != 1 || dd->vendorid.id[1] < 1)
     return return_unrecognized_pid (plist, pid);
@@ -2968,7 +2968,7 @@ static dds_return_t init_one_parameter (ddsi_plist_t *plist, nn_ipaddress_params
   assert (pid_to_index (pid) == pid_to_index (entry->pid));
   if (pid != entry->pid)
     return return_unrecognized_pid (plist, pid);
-  assert (pid != PID_PAD);
+  assert (pid != DDSI_PID_PAD);
 
   struct flagset flagset;
   if (entry->flags & PDF_QOS)
@@ -3162,14 +3162,14 @@ dds_return_t ddsi_plist_init_frommsg (ddsi_plist_t *dest, char **nextafterplist,
   dd.vendorid = src->vendorid;
   switch (src->encoding)
   {
-    case PL_CDR_LE:
+    case DDSI_RTPS_PL_CDR_LE:
 #if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
       dd.bswap = 0;
 #else
       dd.bswap = 1;
 #endif
       break;
-    case PL_CDR_BE:
+    case DDSI_RTPS_PL_CDR_BE:
 #if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
       dd.bswap = 1;
 #else
@@ -3187,18 +3187,18 @@ dds_return_t ddsi_plist_init_frommsg (ddsi_plist_t *dest, char **nextafterplist,
   GVLOG (DDS_LC_PLIST, "DDSI_PLIST_INIT (bswap %d)\n", dd.bswap);
 
   pl = src->buf;
-  while (pl + sizeof (nn_parameter_t) <= src->buf + src->bufsz)
+  while (pl + sizeof (ddsi_parameter_t) <= src->buf + src->bufsz)
   {
-    nn_parameter_t *par = (nn_parameter_t *) pl;
-    nn_parameterid_t pid;
+    ddsi_parameter_t *par = (ddsi_parameter_t *) pl;
+    ddsi_parameterid_t pid;
     uint16_t length;
     dds_return_t res;
     /* swapping header partially based on wireshark dissector
        output, partially on intuition, and in a small part based on
        the spec */
-    pid = (nn_parameterid_t) (dd.bswap ? ddsrt_bswap2u (par->parameterid) : par->parameterid);
+    pid = (ddsi_parameterid_t) (dd.bswap ? ddsrt_bswap2u (par->parameterid) : par->parameterid);
     length = (uint16_t) (dd.bswap ? ddsrt_bswap2u (par->length) : par->length);
-    if (pid == PID_SENTINEL)
+    if (pid == DDSI_PID_SENTINEL)
     {
       /* Sentinel terminates list, the length is ignored, DDSI 9.4.2.11. */
       bool dursvc_accepted_allzero;
@@ -3262,20 +3262,20 @@ dds_return_t ddsi_plist_init_frommsg (ddsi_plist_t *dest, char **nextafterplist,
   return DDS_RETCODE_BAD_PARAMETER;
 }
 
-dds_return_t ddsi_plist_findparam_checking (const void *buf, size_t bufsz, uint16_t encoding, nn_parameterid_t needle, void **needlep, size_t *needlesz)
+dds_return_t ddsi_plist_findparam_checking (const void *buf, size_t bufsz, uint16_t encoding, ddsi_parameterid_t needle, void **needlep, size_t *needlesz)
 {
-  /* set needle to PID_SENTINEL if all you want to do is scan the structure */
-  assert (needle == PID_SENTINEL || (needlep != NULL && needlesz != NULL));
+  /* set needle to DDSI_PID_SENTINEL if all you want to do is scan the structure */
+  assert (needle == DDSI_PID_SENTINEL || (needlep != NULL && needlesz != NULL));
   bool bswap;
   if (needlep)
     *needlep = NULL;
   DDSRT_WARNING_MSVC_OFF(6326)
   switch (encoding)
   {
-    case PL_CDR_LE:
+    case DDSI_RTPS_PL_CDR_LE:
       bswap = (DDSRT_ENDIAN != DDSRT_LITTLE_ENDIAN);
       break;
-    case PL_CDR_BE:
+    case DDSI_RTPS_PL_CDR_BE:
       bswap = (DDSRT_ENDIAN != DDSRT_BIG_ENDIAN);
       break;
     default:
@@ -3284,16 +3284,16 @@ dds_return_t ddsi_plist_findparam_checking (const void *buf, size_t bufsz, uint1
   DDSRT_WARNING_MSVC_ON(6326)
   const unsigned char *pl = buf;
   const unsigned char *endp = pl + bufsz;
-  while (pl + sizeof (nn_parameter_t) <= endp)
+  while (pl + sizeof (ddsi_parameter_t) <= endp)
   {
-    const nn_parameter_t *par = (const nn_parameter_t *) pl;
-    nn_parameterid_t pid;
+    const ddsi_parameter_t *par = (const ddsi_parameter_t *) pl;
+    ddsi_parameterid_t pid;
     uint16_t length;
-    pid = (nn_parameterid_t) (bswap ? ddsrt_bswap2u (par->parameterid) : par->parameterid);
+    pid = (ddsi_parameterid_t) (bswap ? ddsrt_bswap2u (par->parameterid) : par->parameterid);
     length = (uint16_t) (bswap ? ddsrt_bswap2u (par->length) : par->length);
     pl += sizeof (*par);
 
-    if (pid == PID_SENTINEL)
+    if (pid == DDSI_PID_SENTINEL)
       return (needlep && *needlep == NULL) ? DDS_RETCODE_NOT_FOUND : DDS_RETCODE_OK;
     else if (length > (size_t) (endp - pl) || (length % 4) != 0 /* DDSI 9.4.2.11 */)
       return DDS_RETCODE_BAD_PARAMETER;
@@ -3318,14 +3318,14 @@ unsigned char *ddsi_plist_quickscan (struct nn_rsample_info *dest, const ddsi_ke
   *keyhashp = NULL;
   switch (src->encoding)
   {
-    case PL_CDR_LE:
+    case DDSI_RTPS_PL_CDR_LE:
 #if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
       dest->bswap = 0;
 #else
       dest->bswap = 1;
 #endif
       break;
-    case PL_CDR_BE:
+    case DDSI_RTPS_PL_CDR_BE:
 #if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
       dest->bswap = 1;
 #else
@@ -3339,15 +3339,15 @@ unsigned char *ddsi_plist_quickscan (struct nn_rsample_info *dest, const ddsi_ke
   }
   GVLOG (DDS_LC_PLIST, "DDSI_PLIST_QUICKSCAN (bswap %d)\n", dest->bswap);
   pl = src->buf;
-  while (pl + sizeof (nn_parameter_t) <= src->buf + src->bufsz)
+  while (pl + sizeof (ddsi_parameter_t) <= src->buf + src->bufsz)
   {
-    nn_parameter_t *par = (nn_parameter_t *) pl;
-    nn_parameterid_t pid;
+    ddsi_parameter_t *par = (ddsi_parameter_t *) pl;
+    ddsi_parameterid_t pid;
     uint16_t length;
-    pid = (nn_parameterid_t) (dest->bswap ? ddsrt_bswap2u (par->parameterid) : par->parameterid);
+    pid = (ddsi_parameterid_t) (dest->bswap ? ddsrt_bswap2u (par->parameterid) : par->parameterid);
     length = (uint16_t) (dest->bswap ? ddsrt_bswap2u (par->length) : par->length);
     pl += sizeof (*par);
-    if (pid == PID_SENTINEL)
+    if (pid == DDSI_PID_SENTINEL)
       return (unsigned char *) pl;
     if (length > src->bufsz - (size_t)(pl - src->buf))
     {
@@ -3363,12 +3363,12 @@ unsigned char *ddsi_plist_quickscan (struct nn_rsample_info *dest, const ddsi_ke
     }
     switch (pid)
     {
-      case PID_PAD:
+      case DDSI_PID_PAD:
         break;
-      case PID_STATUSINFO:
+      case DDSI_PID_STATUSINFO:
         if (length < 4)
         {
-          GVTRACE ("plist(vendor %u.%u): quickscan(PID_STATUSINFO): buffer too small\n",
+          GVTRACE ("plist(vendor %u.%u): quickscan(DDSI_PID_STATUSINFO): buffer too small\n",
                    src->vendorid.id[0], src->vendorid.id[1]);
           return NULL;
         }
@@ -3382,10 +3382,10 @@ unsigned char *ddsi_plist_quickscan (struct nn_rsample_info *dest, const ddsi_ke
             dest->complex_qos = 1;
         }
         break;
-      case PID_KEYHASH:
+      case DDSI_PID_KEYHASH:
         if (length < sizeof (ddsi_keyhash_t))
         {
-          GVTRACE ("plist(vendor %u.%u): quickscan(PID_KEYHASH): buffer too small\n",
+          GVTRACE ("plist(vendor %u.%u): quickscan(DDSI_PID_KEYHASH): buffer too small\n",
                    src->vendorid.id[0], src->vendorid.id[1]);
           return NULL;
         }
@@ -3854,10 +3854,10 @@ static void plist_or_xqos_print (char * __restrict *buf, size_t * __restrict buf
   for (size_t k = 0; k < sizeof (piddesc_tables_output) / sizeof (piddesc_tables_output[0]); k++)
   {
     struct piddesc const * const table = piddesc_tables_output[k];
-    for (uint32_t i = 0; table[i].pid != PID_SENTINEL; i++)
+    for (uint32_t i = 0; table[i].pid != DDSI_PID_SENTINEL; i++)
     {
       struct piddesc const * const entry = &table[i];
-      if (entry->pid == PID_PAD)
+      if (entry->pid == DDSI_PID_PAD)
         continue;
       if (((entry->flags & PDF_QOS) ? qw : pw) & entry->present_flag)
       {

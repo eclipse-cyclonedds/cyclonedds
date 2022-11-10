@@ -353,8 +353,8 @@ static bool evalute_topic_filter (const dds_writer *wr, const void *data, bool w
 
 static void set_statusinfo_timestamp (struct ddsi_serdata_any *d, dds_time_t tstamp, dds_write_action action)
 {
-  d->a.statusinfo = (((action & DDS_WR_DISPOSE_BIT) ? NN_STATUSINFO_DISPOSE : 0) |
-                     ((action & DDS_WR_UNREGISTER_BIT) ? NN_STATUSINFO_UNREGISTER : 0));
+  d->a.statusinfo = (((action & DDS_WR_DISPOSE_BIT) ? DDSI_STATUSINFO_DISPOSE : 0) |
+                     ((action & DDS_WR_UNREGISTER_BIT) ? DDSI_STATUSINFO_UNREGISTER : 0));
   d->a.timestamp.v = tstamp;
 }
 

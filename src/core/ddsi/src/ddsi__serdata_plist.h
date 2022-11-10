@@ -12,7 +12,7 @@
 #ifndef DDSI__SERDATA_PLIST_H
 #define DDSI__SERDATA_PLIST_H
 
-#include "dds/ddsi/q_protocol.h" /* for nn_parameterid_t */
+#include "dds/ddsi/ddsi_protocol.h" /* for ddsi_parameterid_t */
 #include "dds/ddsi/ddsi_keyhash.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_sertype.h"
@@ -62,8 +62,8 @@ struct ddsi_serdata_plist {
 
 struct ddsi_sertype_plist {
   struct ddsi_sertype c;
-  uint16_t encoding_format; /* DDS_CDR_ENC_FORMAT_(PLAIN|DELIMITED|PL) */
-  nn_parameterid_t keyparam;
+  uint16_t encoding_format; /* DDSI_RTPS_CDR_ENC_FORMAT_(PLAIN|DELIMITED|PL) */
+  ddsi_parameterid_t keyparam;
 };
 
 extern const struct ddsi_sertype_ops ddsi_sertype_ops_plist;

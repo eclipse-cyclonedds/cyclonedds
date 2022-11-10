@@ -17,7 +17,7 @@
 
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsi/q_rtps.h"
-#include "dds/ddsi/q_protocol.h"
+#include "dds/ddsi/ddsi_protocol.h"
 #include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/ddsi_entity.h"
 

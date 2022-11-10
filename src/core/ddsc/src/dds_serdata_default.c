@@ -163,7 +163,7 @@ static void serdata_default_init(struct dds_serdata_default *d, const struct dds
 #ifndef NDEBUG
   d->fixed = false;
 #endif
-  if (xcdr_version != DDS_CDR_ENC_VERSION_UNDEF)
+  if (xcdr_version != DDSI_RTPS_CDR_ENC_VERSION_UNDEF)
     d->hdr.identifier = ddsi_sertype_get_native_enc_identifier (xcdr_version, tp->encoding_format);
   else
     d->hdr.identifier = 0;
@@ -199,10 +199,10 @@ static struct dds_serdata_default *serdata_default_new (const struct dds_sertype
 static inline bool is_valid_xcdr_id (unsigned short cdr_identifier)
 {
   /* PL_CDR_(L|B)E version 1 only supported for discovery data, using ddsi_serdata_plist */
-  return (cdr_identifier == CDR_LE || cdr_identifier == CDR_BE
-    || cdr_identifier == CDR2_LE || cdr_identifier == CDR2_BE
-    || cdr_identifier == D_CDR2_LE || cdr_identifier == D_CDR2_BE
-    || cdr_identifier == PL_CDR2_LE || cdr_identifier == PL_CDR2_BE);
+  return (cdr_identifier == DDSI_RTPS_CDR_LE || cdr_identifier == DDSI_RTPS_CDR_BE
+    || cdr_identifier == DDSI_RTPS_CDR2_LE || cdr_identifier == DDSI_RTPS_CDR2_BE
+    || cdr_identifier == DDSI_RTPS_D_CDR2_LE || cdr_identifier == DDSI_RTPS_D_CDR2_BE
+    || cdr_identifier == DDSI_RTPS_PL_CDR2_LE || cdr_identifier == DDSI_RTPS_PL_CDR2_BE);
 }
 
 enum gen_serdata_key_input_kind {
@@ -213,9 +213,9 @@ enum gen_serdata_key_input_kind {
 
 static inline bool is_topic_fixed_key(uint32_t flagset, uint32_t xcdrv)
 {
-  if (xcdrv == DDS_CDR_ENC_VERSION_1)
+  if (xcdrv == DDSI_RTPS_CDR_ENC_VERSION_1)
     return flagset & DDS_TOPIC_FIXED_KEY;
-  else if (xcdrv == DDS_CDR_ENC_VERSION_2)
+  else if (xcdrv == DDSI_RTPS_CDR_ENC_VERSION_2)
     return flagset & DDS_TOPIC_FIXED_KEY_XCDR2;
   assert (0);
   return false;
@@ -234,7 +234,7 @@ static bool gen_serdata_key (const struct dds_sertype_default *type, struct dds_
   else if (input_kind == GSKIK_CDRKEY)
   {
     is = input;
-    if (is->m_xcdr_version == DDS_CDR_ENC_VERSION_2)
+    if (is->m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_2)
     {
       kh->buftype = KEYBUFTYPE_DYNALIAS;
       assert (is->m_size < (1u << 30));
@@ -247,8 +247,8 @@ static bool gen_serdata_key (const struct dds_sertype_default *type, struct dds_
   {
     // Force the key in the serdata object to be serialized in XCDR2 format
     dds_ostream_t os;
-    dds_ostream_init (&os, 0, DDS_CDR_ENC_VERSION_2);
-    if (is_topic_fixed_key(desc->flagset, DDS_CDR_ENC_VERSION_2))
+    dds_ostream_init (&os, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
+    if (is_topic_fixed_key(desc->flagset, DDSI_RTPS_CDR_ENC_VERSION_2))
     {
       // FIXME: there are more cases where we don't have to allocate memory
       os.m_buffer = kh->u.stbuf;
@@ -265,13 +265,13 @@ static bool gen_serdata_key (const struct dds_sertype_default *type, struct dds_
         break;
       case GSKIK_CDRKEY:
         assert (is);
-        assert (is->m_xcdr_version == DDS_CDR_ENC_VERSION_1);
+        assert (is->m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_1);
         dds_stream_extract_key_from_key (is, &os, &type->type);
         break;
     }
     assert (os.m_index < (1u << 30));
     kh->keysize = os.m_index & SERDATA_DEFAULT_KEYSIZE_MASK;
-    if (is_topic_fixed_key (desc->flagset, DDS_CDR_ENC_VERSION_2))
+    if (is_topic_fixed_key (desc->flagset, DDSI_RTPS_CDR_ENC_VERSION_2))
       kh->buftype = KEYBUFTYPE_STATIC;
     else
     {
@@ -303,7 +303,7 @@ static struct dds_serdata_default *serdata_default_from_ser_common (const struct
      serdata */
   if (size > UINT32_MAX - offsetof (struct dds_serdata_default, hdr))
     return NULL;
-  struct dds_serdata_default *d = serdata_default_new_size (tp, kind, (uint32_t) size, DDS_CDR_ENC_VERSION_UNDEF);
+  struct dds_serdata_default *d = serdata_default_new_size (tp, kind, (uint32_t) size, DDSI_RTPS_CDR_ENC_VERSION_UNDEF);
   if (d == NULL)
     return NULL;
 
@@ -330,8 +330,8 @@ static struct dds_serdata_default *serdata_default_from_ser_common (const struct
     fragchain = fragchain->nextfrag;
   }
 
-  const bool needs_bswap = !CDR_ENC_IS_NATIVE (d->hdr.identifier);
-  d->hdr.identifier = CDR_ENC_TO_NATIVE (d->hdr.identifier);
+  const bool needs_bswap = !DDSI_RTPS_CDR_ENC_IS_NATIVE (d->hdr.identifier);
+  d->hdr.identifier = DDSI_RTPS_CDR_ENC_TO_NATIVE (d->hdr.identifier);
   const uint32_t pad = ddsrt_fromBE2u (d->hdr.options) & DDS_CDR_HDR_PADDING_MASK;
   const uint32_t xcdr_version = ddsi_sertype_enc_id_xcdr_version (d->hdr.identifier);
   const uint32_t encoding_format = ddsi_sertype_enc_id_enc_format (d->hdr.identifier);
@@ -373,7 +373,7 @@ static struct dds_serdata_default *serdata_default_from_ser_iov_common (const st
   assert (niov >= 1);
   if (iov[0].iov_len < 4) /* CDR header */
     return NULL;
-  struct dds_serdata_default *d = serdata_default_new_size (tp, kind, (uint32_t) size, DDS_CDR_ENC_VERSION_UNDEF);
+  struct dds_serdata_default *d = serdata_default_new_size (tp, kind, (uint32_t) size, DDSI_RTPS_CDR_ENC_VERSION_UNDEF);
   if (d == NULL)
     return NULL;
 
@@ -384,8 +384,8 @@ static struct dds_serdata_default *serdata_default_from_ser_iov_common (const st
   for (ddsrt_msg_iovlen_t i = 1; i < niov; i++)
     serdata_default_append_blob (&d, iov[i].iov_len, iov[i].iov_base);
 
-  const bool needs_bswap = !CDR_ENC_IS_NATIVE (d->hdr.identifier);
-  d->hdr.identifier = CDR_ENC_TO_NATIVE (d->hdr.identifier);
+  const bool needs_bswap = !DDSI_RTPS_CDR_ENC_IS_NATIVE (d->hdr.identifier);
+  d->hdr.identifier = DDSI_RTPS_CDR_ENC_TO_NATIVE (d->hdr.identifier);
   const uint32_t pad = ddsrt_fromBE2u (d->hdr.options) & 2;
   const uint32_t xcdr_version = ddsi_sertype_enc_id_xcdr_version (d->hdr.identifier);
   const uint32_t encoding_format = ddsi_sertype_enc_id_enc_format (d->hdr.identifier);
@@ -442,7 +442,7 @@ static struct ddsi_serdata *serdata_default_from_ser_iov_nokey (const struct dds
 static struct ddsi_serdata *serdata_default_from_keyhash_cdr (const struct ddsi_sertype *tpcmn, const ddsi_keyhash_t *keyhash)
 {
   const struct dds_sertype_default *tp = (const struct dds_sertype_default *)tpcmn;
-  if (!is_topic_fixed_key (tp->type.flagset, DDS_CDR_ENC_VERSION_2))
+  if (!is_topic_fixed_key (tp->type.flagset, DDSI_RTPS_CDR_ENC_VERSION_2))
   {
     /* keyhash is MD5 of a key value, so impossible to turn into a key value */
     return NULL;
@@ -461,7 +461,7 @@ static struct ddsi_serdata *serdata_default_from_keyhash_cdr_nokey (const struct
 {
   const struct dds_sertype_default *tp = (const struct dds_sertype_default *)tpcmn;
   /* For keyless topic, the CDR encoding version is irrelevant */
-  struct dds_serdata_default *d = serdata_default_new(tp, SDK_KEY, DDS_CDR_ENC_VERSION_UNDEF);
+  struct dds_serdata_default *d = serdata_default_new(tp, SDK_KEY, DDSI_RTPS_CDR_ENC_VERSION_UNDEF);
   if (d == NULL)
     return NULL;
   (void)keyhash;
@@ -527,9 +527,9 @@ static void istream_from_serdata_default (dds_istream_t * __restrict s, const st
   s->m_index = (uint32_t) offsetof (struct dds_serdata_default, data);
   s->m_size = d->size + s->m_index;
 #if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
-  assert (CDR_ENC_LE (d->hdr.identifier));
+  assert (DDSI_RTPS_CDR_ENC_LE (d->hdr.identifier));
 #elif DDSRT_ENDIAN == DDSRT_BIG_ENDIAN
-  assert (!CDR_ENC_LE (d->hdr.identifier));
+  assert (!DDSI_RTPS_CDR_ENC_LE (d->hdr.identifier));
 #endif
   s->m_xcdr_version = ddsi_sertype_enc_id_xcdr_version (d->hdr.identifier);
 }
@@ -540,9 +540,9 @@ static void ostream_from_serdata_default (dds_ostream_t * __restrict s, const st
   s->m_index = (uint32_t) offsetof (struct dds_serdata_default, data);
   s->m_size = d->size + s->m_index;
 #if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
-  assert (CDR_ENC_LE (d->hdr.identifier));
+  assert (DDSI_RTPS_CDR_ENC_LE (d->hdr.identifier));
 #elif DDSRT_ENDIAN == DDSRT_BIG_ENDIAN
-  assert (!CDR_ENC_LE (d->hdr.identifier));
+  assert (!DDSI_RTPS_CDR_ENC_LE (d->hdr.identifier));
 #endif
   s->m_xcdr_version = ddsi_sertype_enc_id_xcdr_version (d->hdr.identifier);
 }
@@ -583,7 +583,7 @@ static struct dds_serdata_default *serdata_default_from_sample_cdr_common (const
          so that we could alias the XCDR1 key from d->data */
       /* FIXME: use CDR encoding version used by the writer, not the write encoding
          of the sertype */
-      if (tp->write_encoding_version == DDS_CDR_ENC_VERSION_2)
+      if (tp->write_encoding_version == DDSI_RTPS_CDR_ENC_VERSION_2)
       {
         d->key.buftype = KEYBUFTYPE_DYNALIAS;
         // dds_ostream_add_to_serdata_default pads the size to a multiple of 4,
@@ -619,7 +619,7 @@ static struct ddsi_serdata *serdata_default_from_sample_data_representation (con
 {
   assert (data_representation == DDS_DATA_REPRESENTATION_XCDR1 || data_representation == DDS_DATA_REPRESENTATION_XCDR2);
   struct dds_serdata_default *d;
-  uint32_t xcdr_version = data_representation == DDS_DATA_REPRESENTATION_XCDR1 ? DDS_CDR_ENC_VERSION_1 : DDS_CDR_ENC_VERSION_2;
+  uint32_t xcdr_version = data_representation == DDS_DATA_REPRESENTATION_XCDR1 ? DDSI_RTPS_CDR_ENC_VERSION_1 : DDSI_RTPS_CDR_ENC_VERSION_2;
   if ((d = serdata_default_from_sample_cdr_common (tpcmn, kind, xcdr_version, sample)) == NULL)
     return NULL;
   return key ? fix_serdata_default (d, tpcmn->serdata_basehash) : fix_serdata_default_nokey (d, tpcmn->serdata_basehash);
@@ -651,8 +651,8 @@ static struct ddsi_serdata *serdata_default_to_untyped (const struct ddsi_serdat
   const struct dds_serdata_default *d = (const struct dds_serdata_default *)serdata_common;
   const struct dds_sertype_default *tp = (const struct dds_sertype_default *)d->c.type;
 
-  assert (CDR_ENC_IS_NATIVE (d->hdr.identifier));
-  struct dds_serdata_default *d_tl = serdata_default_new (tp, SDK_KEY, DDS_CDR_ENC_VERSION_2);
+  assert (DDSI_RTPS_CDR_ENC_IS_NATIVE (d->hdr.identifier));
+  struct dds_serdata_default *d_tl = serdata_default_new (tp, SDK_KEY, DDSI_RTPS_CDR_ENC_VERSION_2);
   if (d_tl == NULL)
     return NULL;
   d_tl->c.type = NULL;
@@ -712,7 +712,7 @@ static bool serdata_default_to_sample_cdr (const struct ddsi_serdata *serdata_co
     iceoryx_header_t* hdr = iceoryx_header_from_chunk(iox_chunk);
     if(hdr->shm_data_state == IOX_CHUNK_CONTAINS_SERIALIZED_DATA) {
       dds_istream_init (&is, hdr->data_size, iox_chunk, ddsi_sertype_enc_id_xcdr_version(d->hdr.identifier));
-      assert (CDR_ENC_IS_NATIVE (d->hdr.identifier));
+      assert (DDSI_RTPS_CDR_ENC_IS_NATIVE (d->hdr.identifier));
       if (d->c.kind == SDK_KEY)
         dds_stream_read_key (&is, sample, &tp->type);
       else
@@ -726,7 +726,7 @@ static bool serdata_default_to_sample_cdr (const struct ddsi_serdata *serdata_co
   }
 #endif
   if (bufptr) abort(); else { (void)buflim; } /* FIXME: haven't implemented that bit yet! */
-  assert (CDR_ENC_IS_NATIVE (d->hdr.identifier));
+  assert (DDSI_RTPS_CDR_ENC_IS_NATIVE (d->hdr.identifier));
   istream_from_serdata_default(&is, d);
   if (d->c.kind == SDK_KEY)
     dds_stream_read_key (&is, sample, &tp->type);
@@ -743,7 +743,7 @@ static bool serdata_default_untyped_to_sample_cdr (const struct ddsi_sertype *se
   assert (d->c.type == NULL);
   assert (d->c.kind == SDK_KEY);
   assert (d->c.ops == sertype_common->serdata_ops);
-  assert (CDR_ENC_IS_NATIVE (d->hdr.identifier));
+  assert (DDSI_RTPS_CDR_ENC_IS_NATIVE (d->hdr.identifier));
   if (bufptr) abort(); else { (void)buflim; } /* FIXME: haven't implemented that bit yet! */
   istream_from_serdata_default(&is, d);
   dds_stream_read_key (&is, sample, &tp->type);
@@ -789,7 +789,7 @@ static void serdata_default_get_keyhash (const struct ddsi_serdata *serdata_comm
   /* serdata has a XCDR2 serialized key, so initializer the istream with this version
      and with the size of that key (d->key.keysize) */
   dds_istream_t is;
-  dds_istream_init (&is, d->key.keysize, serdata_default_keybuf(d), DDS_CDR_ENC_VERSION_2);
+  dds_istream_init (&is, d->key.keysize, serdata_default_keybuf(d), DDSI_RTPS_CDR_ENC_VERSION_2);
 
   /* The output stream uses the XCDR version from the serdata, so that the keyhash in
      ostream is calculated using this CDR representation (XTypes spec 7.6.8, RTPS spec 9.6.3.8) */
@@ -800,7 +800,7 @@ static void serdata_default_get_keyhash (const struct ddsi_serdata *serdata_comm
 
   /* We know the key size for XCDR2 encoding, but for XCDR1 there can be additional
      padding because of 8-byte alignment of key fields */
-  if (xcdrv == DDS_CDR_ENC_VERSION_2)
+  if (xcdrv == DDSI_RTPS_CDR_ENC_VERSION_2)
     assert (os.x.m_index == d->key.keysize);
 
   /* Cannot use is_topic_fixed_key here, because in case there is a bounded string

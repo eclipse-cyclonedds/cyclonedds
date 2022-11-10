@@ -116,7 +116,7 @@ static ddsi_tcp_conn_t ddsi_tcp_new_conn (struct ddsi_tran_factory_tcp *fact, co
 static char *sockaddr_to_string_with_port (char *dst, size_t sizeof_dst, const struct sockaddr *src)
 {
   ddsi_locator_t loc;
-  ddsi_ipaddr_to_loc(&loc, src, src->sa_family == AF_INET ? NN_LOCATOR_KIND_TCPv4 : NN_LOCATOR_KIND_TCPv6);
+  ddsi_ipaddr_to_loc(&loc, src, src->sa_family == AF_INET ? DDSI_LOCATOR_KIND_TCPv4 : DDSI_LOCATOR_KIND_TCPv6);
   ddsi_locator_to_string(dst, sizeof_dst, &loc);
   return dst;
 }
@@ -189,13 +189,13 @@ static dds_return_t ddsi_tcp_sock_new (struct ddsi_tran_factory_tcp * const fact
   memset (&socketname, 0, sizeof (socketname));
   switch (fact->m_kind)
   {
-    case NN_LOCATOR_KIND_TCPv4:
+    case DDSI_LOCATOR_KIND_TCPv4:
       socketname.a4.sin_family = AF_INET;
       socketname.a4.sin_addr.s_addr = htonl (INADDR_ANY);
       socketname.a4.sin_port = htons (port);
       break;
 #if DDSRT_HAVE_IPV6
-    case NN_LOCATOR_KIND_TCPv6:
+    case DDSI_LOCATOR_KIND_TCPv6:
       socketname.a6.sin6_family = AF_INET6;
       socketname.a6.sin6_addr = ddsrt_in6addr_any;
       socketname.a6.sin6_port = htons (port);
@@ -463,7 +463,7 @@ static bool ddsi_tcp_select (struct ddsi_domaingv const * const gv, ddsrt_socket
 static int32_t addrfam_to_locator_kind (int af)
 {
   assert (af == AF_INET || af == AF_INET6);
-  return (af == AF_INET) ? NN_LOCATOR_KIND_TCPv4 : NN_LOCATOR_KIND_TCPv6;
+  return (af == AF_INET) ? DDSI_LOCATOR_KIND_TCPv4 : DDSI_LOCATOR_KIND_TCPv6;
 }
 
 static ssize_t ddsi_tcp_conn_read (ddsi_tran_conn_t conn, unsigned char *buf, size_t len, bool allow_spurious, ddsi_locator_t *srcloc)
@@ -1144,11 +1144,11 @@ static int ddsi_tcp_is_loopbackaddr (const struct ddsi_tran_factory *tran, const
   (void) tran;
   switch (loc->kind)
   {
-    case NN_LOCATOR_KIND_UDPv4: {
+    case DDSI_LOCATOR_KIND_UDPv4: {
       return loc->address[12] == 127;
     }
 #if DDSRT_HAVE_IPV6
-    case NN_LOCATOR_KIND_UDPv6: {
+    case DDSI_LOCATOR_KIND_UDPv6: {
       const struct in6_addr *ipv6 = (const struct in6_addr *) loc->address;
       return IN6_IS_ADDR_LOOPBACK (ipv6);
     }
@@ -1202,11 +1202,11 @@ static int ddsi_tcp_locator_from_sockaddr (const struct ddsi_tran_factory *tran_
   switch (sockaddr->sa_family)
   {
     case AF_INET:
-      if (tran->m_kind != NN_LOCATOR_KIND_TCPv4)
+      if (tran->m_kind != DDSI_LOCATOR_KIND_TCPv4)
         return -1;
       break;
     case AF_INET6:
-      if (tran->m_kind != NN_LOCATOR_KIND_TCPv6)
+      if (tran->m_kind != DDSI_LOCATOR_KIND_TCPv6)
         return -1;
       break;
   }
@@ -1219,7 +1219,7 @@ int ddsi_tcp_init (struct ddsi_domaingv *gv)
   struct ddsi_tran_factory_tcp *fact = ddsrt_malloc (sizeof (*fact));
 
   memset (fact, 0, sizeof (*fact));
-  fact->m_kind = NN_LOCATOR_KIND_TCPv4;
+  fact->m_kind = DDSI_LOCATOR_KIND_TCPv4;
   fact->fact.gv = gv;
   fact->fact.m_typename = "tcp";
   fact->fact.m_default_spdp_address = NULL;
@@ -1248,7 +1248,7 @@ int ddsi_tcp_init (struct ddsi_domaingv *gv)
 #if DDSRT_HAVE_IPV6
   if (gv->config.transport_selector == DDSI_TRANS_TCP6)
   {
-    fact->m_kind = NN_LOCATOR_KIND_TCPv6;
+    fact->m_kind = DDSI_LOCATOR_KIND_TCPv6;
     fact->fact.m_typename = "tcp6";
   }
 #endif

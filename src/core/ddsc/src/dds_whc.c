@@ -1275,7 +1275,7 @@ static int whc_default_insert (struct whc *whc_generic, seqno_t max_drop_seq, se
   {
     /* Unregisters cause deleting of index entry, non-unregister of adding/overwriting in history */
     TRACE (" idxn %p", (void *)idxn);
-    if (serdata->statusinfo & NN_STATUSINFO_UNREGISTER)
+    if (serdata->statusinfo & DDSI_STATUSINFO_UNREGISTER)
     {
       TRACE (" unreg:delete\n");
       delete_one_instance_from_idx (whc, max_drop_seq, idxn);
@@ -1339,7 +1339,7 @@ static int whc_default_insert (struct whc *whc_generic, seqno_t max_drop_seq, se
   {
     TRACE (" newkey");
     /* Ignore unregisters, but insert everything else */
-    if (!(serdata->statusinfo & NN_STATUSINFO_UNREGISTER))
+    if (!(serdata->statusinfo & DDSI_STATUSINFO_UNREGISTER))
     {
       idxn = ddsrt_malloc (sizeof (*idxn) + whc->wrinfo.idxdepth * sizeof (idxn->hist[0]));
       TRACE (" idxn %p", (void *)idxn);

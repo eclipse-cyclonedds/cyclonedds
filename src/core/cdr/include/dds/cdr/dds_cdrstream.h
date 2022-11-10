@@ -28,13 +28,13 @@ extern "C" {
   with PLAIN_CDR(1) that is backwards compatible with the CDR encoding
   used by non-XTypes enabled nodes.
 */
-#define DDS_CDR_ENC_VERSION_UNDEF     0
-#define DDS_CDR_ENC_VERSION_1         1
-#define DDS_CDR_ENC_VERSION_2         2
+#define DDSI_RTPS_CDR_ENC_VERSION_UNDEF     0
+#define DDSI_RTPS_CDR_ENC_VERSION_1         1
+#define DDSI_RTPS_CDR_ENC_VERSION_2         2
 
-#define DDS_CDR_ENC_FORMAT_PLAIN      0
-#define DDS_CDR_ENC_FORMAT_DELIMITED  1
-#define DDS_CDR_ENC_FORMAT_PL         2
+#define DDSI_RTPS_CDR_ENC_FORMAT_PLAIN      0
+#define DDSI_RTPS_CDR_ENC_FORMAT_DELIMITED  1
+#define DDSI_RTPS_CDR_ENC_FORMAT_PL         2
 
 /* X-Types spec 7.6.3.1.2: Implementations of this specification shall set the
 least significant two bits in the second byte of the options field to a value

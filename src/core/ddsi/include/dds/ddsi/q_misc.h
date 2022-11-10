@@ -12,18 +12,18 @@
 #ifndef NN_MISC_H
 #define NN_MISC_H
 
-#include "dds/ddsi/q_protocol.h"
+#include "dds/ddsi/ddsi_protocol.h"
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
 
-inline seqno_t fromSN (const nn_sequence_number_t sn) {
+inline seqno_t fromSN (const ddsi_sequence_number_t sn) {
   uint64_t sn_high = (uint32_t) sn.high;
   return (sn_high << 32) | sn.low;
 }
 
-inline bool validating_fromSN (const nn_sequence_number_t sn, seqno_t *res) {
+inline bool validating_fromSN (const ddsi_sequence_number_t sn, seqno_t *res) {
   // fromSN does not checks whatsoever (and shouldn't because it is used quite a lot)
   // Valid sequence numbers are in [1 .. 2**63-1] union { SEQUENCE_NUMBER_UNKNOWN }
   // where SEQUENCE_NUMBER_UNKNOWN is the usual abomination: ((2**32-1) << 32)
@@ -39,14 +39,14 @@ inline bool validating_fromSN (const nn_sequence_number_t sn, seqno_t *res) {
   return (tmp - 1) < MAX_SEQ_NUMBER;
 }
 
-inline nn_sequence_number_t toSN (seqno_t n) {
-  nn_sequence_number_t x;
+inline ddsi_sequence_number_t toSN (seqno_t n) {
+  ddsi_sequence_number_t x;
   x.high = (int32_t) (n >> 32);
   x.low = (uint32_t) n;
   return x;
 }
 
-unsigned char normalize_data_datafrag_flags (const SubmessageHeader_t *smhdr);
+unsigned char normalize_data_datafrag_flags (const ddsi_rtps_submessage_header_t *smhdr);
 
 extern const ddsi_guid_t nullguid;
 bool guid_prefix_zero (const ddsi_guid_prefix_t *a);

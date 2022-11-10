@@ -73,8 +73,8 @@ struct ddsi_writer
   seqno_t seq; /* last sequence number (transmitted seqs are 1 ... seq, 0 when nothing published yet) */
   seq_xmit_t seq_xmit; /* last sequence number actually transmitted */
   seqno_t min_local_readers_reject_seq; /* mimum of local_readers->last_deliv_seq */
-  nn_count_t hbcount; /* last hb seq number */
-  nn_count_t hbfragcount; /* last hb frag seq number */
+  ddsi_count_t hbcount; /* last hb seq number */
+  ddsi_count_t hbfragcount; /* last hb frag seq number */
   int throttling; /* non-zero when some thread is waiting for the WHC to shrink */
   struct hbcontrol hbcontrol; /* controls heartbeat timing, piggybacking */
   struct dds_qos *xqos;
@@ -153,7 +153,7 @@ struct ddsi_reader
 #ifdef DDS_HAS_SHM
   unsigned has_iceoryx : 1;
 #endif
-  nn_count_t init_acknack_count; /* initial value for "count" (i.e. ACK seq num) for newly matched proxy writers */
+  ddsi_count_t init_acknack_count; /* initial value for "count" (i.e. ACK seq num) for newly matched proxy writers */
 #ifdef DDS_HAS_NETWORK_PARTITIONS
   struct ddsi_networkpartition_address *uc_as;
   struct ddsi_networkpartition_address *mc_as;

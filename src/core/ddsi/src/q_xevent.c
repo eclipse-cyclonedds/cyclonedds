@@ -201,7 +201,7 @@ static void trace_msg (struct xeventq *evq, const char *func, const struct nn_xm
   {
     ddsi_guid_t wrguid;
     seqno_t wrseq;
-    nn_fragment_number_t wrfragid;
+    ddsi_fragment_number_t wrfragid;
     nn_xmsg_guid_seq_fragid (m, &wrguid, &wrseq, &wrfragid);
     EVQTRACE(" %s("PGUIDFMT"/%"PRId64"/%"PRIu32")", func, PGUID (wrguid), wrseq, wrfragid);
   }
@@ -845,7 +845,7 @@ static struct nn_xmsg *make_preemptive_acknack (struct xevent *ev, struct ddsi_p
   }
 
   struct nn_xmsg *msg;
-  if ((msg = nn_xmsg_new (gv->xmsgpool, &rwn->rd_guid, pp, ACKNACK_SIZE_MAX, NN_XMSG_KIND_CONTROL)) == NULL)
+  if ((msg = nn_xmsg_new (gv->xmsgpool, &rwn->rd_guid, pp, DDSI_ACKNACK_SIZE_MAX, NN_XMSG_KIND_CONTROL)) == NULL)
   {
     // if out of memory, try again later
     (void) resched_xevent_if_earlier (ev, ddsrt_mtime_add_duration (tnow, old_intv));
@@ -854,14 +854,14 @@ static struct nn_xmsg *make_preemptive_acknack (struct xevent *ev, struct ddsi_p
 
   nn_xmsg_setdstPWR (msg, pwr);
   struct nn_xmsg_marker sm_marker;
-  AckNack_t *an = nn_xmsg_append (msg, &sm_marker, ACKNACK_SIZE (0));
-  nn_xmsg_submsg_init (msg, sm_marker, SMID_ACKNACK);
+  ddsi_rtps_acknack_t *an = nn_xmsg_append (msg, &sm_marker, DDSI_ACKNACK_SIZE (0));
+  nn_xmsg_submsg_init (msg, sm_marker, DDSI_RTPS_SMID_ACKNACK);
   an->readerId = nn_hton_entityid (rwn->rd_guid.entityid);
   an->writerId = nn_hton_entityid (pwr->e.guid.entityid);
   an->readerSNState.bitmap_base = toSN (1);
   an->readerSNState.numbits = 0;
-  nn_count_t * const countp =
-    (nn_count_t *) ((char *) an + offsetof (AckNack_t, bits) + NN_SEQUENCE_NUMBER_SET_BITS_SIZE (0));
+  ddsi_count_t * const countp =
+    (ddsi_count_t *) ((char *) an + offsetof (ddsi_rtps_acknack_t, bits) + DDSI_SEQUENCE_NUMBER_SET_BITS_SIZE (0));
   *countp = 0;
   nn_xmsg_submsg_setnext (msg, sm_marker);
   ddsi_security_encode_datareader_submsg (msg, sm_marker, pwr, &rwn->rd_guid);
@@ -1084,7 +1084,7 @@ static void handle_xevk_pmd_update (struct thread_state * const thrst, struct nn
     return;
   }
 
-  ddsi_write_pmd_message (thrst, xp, pp, PARTICIPANT_MESSAGE_DATA_KIND_AUTOMATIC_LIVELINESS_UPDATE);
+  ddsi_write_pmd_message (thrst, xp, pp, DDSI_PARTICIPANT_MESSAGE_DATA_KIND_AUTOMATIC_LIVELINESS_UPDATE);
 
   intv = ddsi_participant_get_pmd_interval (pp);
   if (intv == DDS_INFINITY)
@@ -1354,7 +1354,7 @@ void qxev_prd_entityid (struct ddsi_proxy_reader *prd, const ddsi_guid_t *guid)
 
   if (! gv->m_factory->m_connless)
   {
-    msg = nn_xmsg_new (gv->xmsgpool, guid, NULL, sizeof (EntityId_t), NN_XMSG_KIND_CONTROL);
+    msg = nn_xmsg_new (gv->xmsgpool, guid, NULL, sizeof (ddsi_rtps_entityid_t), NN_XMSG_KIND_CONTROL);
     nn_xmsg_setdstPRD (msg, prd);
     GVTRACE ("  qxev_prd_entityid (%"PRIx32":%"PRIx32":%"PRIx32")\n", PGUIDPREFIX (guid->prefix));
     nn_xmsg_add_entityid (msg);
@@ -1376,7 +1376,7 @@ void qxev_pwr_entityid (struct ddsi_proxy_writer *pwr, const ddsi_guid_t *guid)
 
   if (! gv->m_factory->m_connless)
   {
-    msg = nn_xmsg_new (gv->xmsgpool, guid, NULL, sizeof (EntityId_t), NN_XMSG_KIND_CONTROL);
+    msg = nn_xmsg_new (gv->xmsgpool, guid, NULL, sizeof (ddsi_rtps_entityid_t), NN_XMSG_KIND_CONTROL);
     nn_xmsg_setdstPWR (msg, pwr);
     GVTRACE ("  qxev_pwr_entityid (%"PRIx32":%"PRIx32":%"PRIx32")\n", PGUIDPREFIX (guid->prefix));
     nn_xmsg_add_entityid (msg);

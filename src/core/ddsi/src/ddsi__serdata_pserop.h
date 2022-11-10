@@ -60,7 +60,7 @@ struct ddsi_serdata_pserop {
 
 struct ddsi_sertype_pserop {
   struct ddsi_sertype c;
-  uint16_t encoding_format; /* DDS_CDR_ENC_FORMAT_(PLAIN|DELIMITED|PL) */
+  uint16_t encoding_format; /* DDSI_RTPS_CDR_ENC_FORMAT_(PLAIN|DELIMITED|PL) */
   size_t memsize;
   size_t nops;
   const enum ddsi_pserop *ops;

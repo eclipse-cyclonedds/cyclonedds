@@ -142,8 +142,8 @@ static uint64_t store (struct ddsi_tkmap *tkmap, struct dds_rhc *rhc, struct dds
   {
     RhcTypes_T d;
     char buf[64];
-    char si_d = (sd->statusinfo & NN_STATUSINFO_DISPOSE) ? 'D' : '.';
-    char si_u = (sd->statusinfo & NN_STATUSINFO_UNREGISTER) ? 'U' : '.';
+    char si_d = (sd->statusinfo & DDSI_STATUSINFO_DISPOSE) ? 'D' : '.';
+    char si_u = (sd->statusinfo & DDSI_STATUSINFO_UNREGISTER) ? 'U' : '.';
     memset (&d, 0, sizeof (d));
     ddsi_serdata_to_sample (sd, &d, NULL, NULL);
     (void) print_tstamp (buf, sizeof (buf), sd->timestamp.v);
@@ -158,7 +158,7 @@ static uint64_t store (struct ddsi_tkmap *tkmap, struct dds_rhc *rhc, struct dds
   pwr_info.iid = wr->e.iid;
   pwr_info.ownership_strength = wr->c.xqos->ownership_strength.value;
 #ifdef DDS_HAS_LIFESPAN
-  if (lifespan_expiry && (sd->statusinfo & (NN_STATUSINFO_UNREGISTER | NN_STATUSINFO_DISPOSE)) == 0)
+  if (lifespan_expiry && (sd->statusinfo & (DDSI_STATUSINFO_UNREGISTER | DDSI_STATUSINFO_DISPOSE)) == 0)
     pwr_info.lifespan_exp = rand_texp();
   else
     pwr_info.lifespan_exp = DDSRT_MTIME_NEVER;
@@ -775,35 +775,35 @@ static void test_conditions (dds_entity_t pp, dds_entity_t tp, const int count, 
         break;
       }
       case 1: { /* wr disp */
-        struct ddsi_serdata *s = mksample (keyval, NN_STATUSINFO_DISPOSE);
+        struct ddsi_serdata *s = mksample (keyval, DDSI_STATUSINFO_DISPOSE);
         for (size_t k = 0; k < nrd; k++)
           store (tkmap, rhc[k], wr[which], ddsi_serdata_ref (s), print && k == 0, true);
         ddsi_serdata_unref (s);
         break;
       }
       case 2: { /* disp */
-        struct ddsi_serdata *s = mkkeysample (keyval, NN_STATUSINFO_DISPOSE);
+        struct ddsi_serdata *s = mkkeysample (keyval, DDSI_STATUSINFO_DISPOSE);
         for (size_t k = 0; k < nrd; k++)
           store (tkmap, rhc[k], wr[which], ddsi_serdata_ref (s), print && k == 0, true);
         ddsi_serdata_unref (s);
         break;
       }
       case 3: { /* unreg */
-        struct ddsi_serdata *s = mkkeysample (keyval, NN_STATUSINFO_UNREGISTER);
+        struct ddsi_serdata *s = mkkeysample (keyval, DDSI_STATUSINFO_UNREGISTER);
         for (size_t k = 0; k < nrd; k++)
           store (tkmap, rhc[k], wr[which], ddsi_serdata_ref (s), print && k == 0, true);
         ddsi_serdata_unref (s);
         break;
       }
       case 4: { /* disp unreg */
-        struct ddsi_serdata *s = mkkeysample (keyval, NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER);
+        struct ddsi_serdata *s = mkkeysample (keyval, DDSI_STATUSINFO_DISPOSE | DDSI_STATUSINFO_UNREGISTER);
         for (size_t k = 0; k < nrd; k++)
           store (tkmap, rhc[k], wr[which], ddsi_serdata_ref (s), print && k == 0, true);
         ddsi_serdata_unref (s);
         break;
       }
       case 5: { /* wr disp unreg */
-        struct ddsi_serdata *s = mksample (keyval, NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER);
+        struct ddsi_serdata *s = mksample (keyval, DDSI_STATUSINFO_DISPOSE | DDSI_STATUSINFO_UNREGISTER);
         for (size_t k = 0; k < nrd; k++)
           store (tkmap, rhc[k], wr[which], ddsi_serdata_ref (s), print && k == 0, true);
         ddsi_serdata_unref (s);
@@ -1008,7 +1008,7 @@ int main (int argc, char **argv)
     struct ddsi_proxy_writer *wr1 = mkwr (1);
     uint64_t iid0, iid1, iid_t;
     iid0 = store (tkmap, rhc, wr0, mksample (0, 0), print, false);
-    iid1 = store (tkmap, rhc, wr0, mksample (1, NN_STATUSINFO_DISPOSE), print, false);
+    iid1 = store (tkmap, rhc, wr0, mksample (1, DDSI_STATUSINFO_DISPOSE), print, false);
     const struct check c0[] = {
       { "NNA", iid0, wr0->e.iid, 0,0, 1, 0,1 },
       { "NND", iid1, wr0->e.iid, 0,0, 1, 1,2 },
@@ -1025,7 +1025,7 @@ int main (int argc, char **argv)
     };
     rdall (rhc, c1, print, states_seen);
     /* unregister instance 0 with wr0 - autodispose, but 2nd writer keeps it alive, no visible change */
-    iid_t = store (tkmap, rhc, wr0, mkkeysample (0, NN_STATUSINFO_UNREGISTER), print, false);
+    iid_t = store (tkmap, rhc, wr0, mkkeysample (0, DDSI_STATUSINFO_UNREGISTER), print, false);
     assert (iid_t == iid0);
     const struct check c2[] = {
       { "ROA", iid0, wr1->e.iid, 0,0, 1, 0,3 },
@@ -1034,11 +1034,11 @@ int main (int argc, char **argv)
     };
     rdall (rhc, c2, print, states_seen);
     /* unregistering instance 0 again should be a no-op because wr0 no longer has it registered */
-    iid_t = store (tkmap, rhc, wr0, mkkeysample (0, NN_STATUSINFO_UNREGISTER), print, false);
+    iid_t = store (tkmap, rhc, wr0, mkkeysample (0, DDSI_STATUSINFO_UNREGISTER), print, false);
     assert (iid_t == iid0);
     rdall (rhc, c2, print, states_seen);
     /* unregistering instance 0 with wr1 - autodispose, no live writers -> dispose */
-    iid_t = store (tkmap, rhc, wr1, mkkeysample (0, NN_STATUSINFO_UNREGISTER), print, false);
+    iid_t = store (tkmap, rhc, wr1, mkkeysample (0, DDSI_STATUSINFO_UNREGISTER), print, false);
     assert (iid_t == iid0);
     const struct check c3[] = {
       { "ROD", iid0, wr1->e.iid, 0,0, 1, 0,3 },
@@ -1099,13 +1099,13 @@ int main (int argc, char **argv)
             if (!isreg[which]) { nregs++; isreg[which] = 1; }
             break;
           case 1:
-            iid_t = store (tkmap, rhc, wr[which], mkkeysample (0, NN_STATUSINFO_DISPOSE), print, false);
+            iid_t = store (tkmap, rhc, wr[which], mkkeysample (0, DDSI_STATUSINFO_DISPOSE), print, false);
             if (!isreg[which]) { nregs++; isreg[which] = 1; }
             break;
           case 2:
             if (nregs > 1 || !isreg[which])
             {
-              iid_t = store (tkmap, rhc, wr[which], mkkeysample (0, NN_STATUSINFO_UNREGISTER), print, false);
+              iid_t = store (tkmap, rhc, wr[which], mkkeysample (0, DDSI_STATUSINFO_UNREGISTER), print, false);
               if (isreg[which]) { isreg[which] = 0; nregs--; }
             }
             break;
@@ -1120,7 +1120,7 @@ int main (int argc, char **argv)
     {
       if (isreg[i])
       {
-        iid_t = store (tkmap, rhc, wr[i], mkkeysample (0, NN_STATUSINFO_UNREGISTER), print, false);
+        iid_t = store (tkmap, rhc, wr[i], mkkeysample (0, DDSI_STATUSINFO_UNREGISTER), print, false);
         assert (iid_t == iid0);
         isreg[i] = 0;
         nregs--;
@@ -1132,7 +1132,7 @@ int main (int argc, char **argv)
     iid_t = store (tkmap, rhc, wr[0], mksample (0, 0), print, false);
     assert (iid_t != iid0);
     iid0 = iid_t;
-    iid_t = store (tkmap, rhc, wr[0], mkkeysample (0, NN_STATUSINFO_UNREGISTER), print, false);
+    iid_t = store (tkmap, rhc, wr[0], mkkeysample (0, DDSI_STATUSINFO_UNREGISTER), print, false);
     assert (iid_t == iid0);
     frhc (rhc);
 

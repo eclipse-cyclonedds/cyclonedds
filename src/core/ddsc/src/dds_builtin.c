@@ -289,7 +289,7 @@ struct ddsi_serdata *dds__builtin_make_sample_endpoint (const struct ddsi_entity
   assert (type != NULL);
   struct ddsi_serdata *serdata = dds_serdata_builtin_from_endpoint (type, &e->guid, (struct ddsi_entity_common *) e, alive ? SDK_DATA : SDK_KEY);
   serdata->timestamp = timestamp;
-  serdata->statusinfo = alive ? 0 : NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER;
+  serdata->statusinfo = alive ? 0 : DDSI_STATUSINFO_DISPOSE | DDSI_STATUSINFO_UNREGISTER;
   return serdata;
 }
 
@@ -301,7 +301,7 @@ static struct ddsi_serdata *dds__builtin_make_sample_topic_impl (const struct dd
   struct ddsi_sertype *type = dom->builtin_topic_type;
   struct ddsi_serdata *serdata = dds_serdata_builtin_from_topic_definition (type, (dds_builtintopic_topic_key_t *) &tpd->key, tpd, alive ? SDK_DATA : SDK_KEY);
   serdata->timestamp = timestamp;
-  serdata->statusinfo = alive ? 0 : NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER;
+  serdata->statusinfo = alive ? 0 : DDSI_STATUSINFO_DISPOSE | DDSI_STATUSINFO_UNREGISTER;
   return serdata;
 }
 

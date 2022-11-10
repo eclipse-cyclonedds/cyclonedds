@@ -238,7 +238,7 @@ static void nwpart_iter_append_address (struct nwpart_iter *it, const char *tok,
         // specialised case for IPv4: IPv4 addresses have a network/host split, and we
         // require that for this match to work, the host part must be all 0.  A sanity
         // check, if you will.
-        if (loc->kind == NN_LOCATOR_KIND_UDPv4 || loc->kind == NN_LOCATOR_KIND_TCPv4)
+        if (loc->kind == DDSI_LOCATOR_KIND_UDPv4 || loc->kind == DDSI_LOCATOR_KIND_TCPv4)
         {
           union { struct sockaddr_in ip; struct sockaddr_storage x; } ip, nm;
           ddsi_ipaddr_from_loc (&ip.x, loc);

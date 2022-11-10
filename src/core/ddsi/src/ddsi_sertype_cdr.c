@@ -176,7 +176,7 @@ dds_return_t ddsi_sertype_cdr_init (const struct ddsi_domaingv *gv, struct ddsi_
     return DDS_RETCODE_BAD_PARAMETER;
   }
 
-  st->type.opt_size_xcdr2 = dds_stream_check_optimize (&st->type, DDS_CDR_ENC_VERSION_2);
+  st->type.opt_size_xcdr2 = dds_stream_check_optimize (&st->type, DDSI_RTPS_CDR_ENC_VERSION_2);
   if (st->type.opt_size_xcdr2 > 0)
     GVTRACE ("Marshalling XCDR2 for type: %s is %soptimised\n", st->c.type_name, st->type.opt_size_xcdr2 ? "" : "not ");
 
