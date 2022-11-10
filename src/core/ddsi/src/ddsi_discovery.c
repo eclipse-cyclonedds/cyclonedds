@@ -45,7 +45,7 @@
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/q_transmit.h"
 #include "dds/ddsi/q_lease.h"
-#include "dds/ddsi/q_feature_check.h"
+#include "dds/ddsi/ddsi_feature_check.h"
 #include "ddsi__security_omg.h"
 #include "ddsi__pmd.h"
 #include "dds/ddsi/ddsi_typelib.h"

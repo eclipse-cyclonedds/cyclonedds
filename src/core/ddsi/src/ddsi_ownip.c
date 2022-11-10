@@ -29,7 +29,7 @@
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/q_misc.h"
 #include "ddsi__addrset.h" /* unspec locator */
-#include "dds/ddsi/q_feature_check.h"
+#include "dds/ddsi/ddsi_feature_check.h"
 #include "ddsi__ipaddr.h"
 #include "dds/ddsrt/avl.h"
 #include "ddsi__tran.h"

@@ -45,7 +45,7 @@
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/q_receive.h"
 #include "dds/ddsi/q_pcap.h"
-#include "dds/ddsi/q_feature_check.h"
+#include "dds/ddsi/ddsi_feature_check.h"
 #include "ddsi__debmon.h"
 #include "dds/ddsi/q_init.h"
 #include "dds/ddsi/ddsi_threadmon.h"

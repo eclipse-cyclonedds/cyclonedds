@@ -17,7 +17,7 @@
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/ddsi_protocol.h"
-#include "dds/ddsi/q_feature_check.h"
+#include "dds/ddsi/ddsi_feature_check.h"
 #include "dds/ddsi/ddsi_addrset.h"
 #include "dds/ddsi/ddsi_locator.h"
 

@@ -13,7 +13,7 @@
 #define DDSI__PLIST_H
 
 #include "dds/ddsrt/bswap.h"
-#include "dds/ddsi/q_feature_check.h"
+#include "dds/ddsi/ddsi_feature_check.h"
 #include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/ddsi_keyhash.h"
 #include "dds/ddsi/ddsi_plist.h"

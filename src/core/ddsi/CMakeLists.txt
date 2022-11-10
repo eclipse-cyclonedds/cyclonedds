@@ -122,7 +122,7 @@ set(hdrs_ddsi
   ddsi_pmd.h
   ddsi_protocol.h
   ddsi_addrset.h
-  q_feature_check.h
+  ddsi_feature_check.h
   q_freelist.h
   q_hbcontrol.h
   q_lat_estim.h
