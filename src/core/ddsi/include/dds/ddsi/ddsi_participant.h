@@ -20,7 +20,7 @@
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/log.h"
 #include "dds/ddsi/ddsi_entity.h"
-#include "dds/ddsi/q_inverse_uint32_set.h"
+#include "dds/ddsi/ddsi_inverse_uint32_set.h"
 #include "dds/ddsi/ddsi_plist.h"
 
 #if defined (__cplusplus)
@@ -28,7 +28,7 @@ extern "C" {
 #endif
 
 struct ddsi_avail_entityid_set {
-  struct inverse_uint32_set x;
+  struct ddsi_inverse_uint32_set x;
 };
 
 enum ddsi_participant_state {

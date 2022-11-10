@@ -15,11 +15,11 @@
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/q_log.h"
-#include "dds/ddsi/q_inverse_uint32_set.h"
+#include "ddsi__inverse_uint32_set.h"
 
 static int uint32_t_cmp(const void *va, const void *vb);
 
-static ddsrt_avl_treedef_t inverse_uint32_set_td = DDSRT_AVL_TREEDEF_INITIALIZER(offsetof(struct inverse_uint32_set_node, avlnode), offsetof(struct inverse_uint32_set_node, min), uint32_t_cmp, 0);
+static ddsrt_avl_treedef_t inverse_uint32_set_td = DDSRT_AVL_TREEDEF_INITIALIZER(offsetof(struct ddsi_inverse_uint32_set_node, avlnode), offsetof(struct ddsi_inverse_uint32_set_node, min), uint32_t_cmp, 0);
 
 static int uint32_t_cmp(const void *va, const void *vb)
 {
@@ -28,11 +28,11 @@ static int uint32_t_cmp(const void *va, const void *vb)
   return (*a == *b) ? 0 : (*a < *b) ? -1 : 1;
 }
 
-static void check(const struct inverse_uint32_set *set)
+static void check(const struct ddsi_inverse_uint32_set *set)
 {
 #ifndef NDEBUG
   ddsrt_avl_iter_t it;
-  struct inverse_uint32_set_node *pn = NULL, *n;
+  struct ddsi_inverse_uint32_set_node *pn = NULL, *n;
   assert(set->min <= set->max);
   assert(set->cursor >= set->min);
   assert(set->cursor <= set->max);
@@ -48,9 +48,9 @@ static void check(const struct inverse_uint32_set *set)
 #endif
 }
 
-void inverse_uint32_set_init(struct inverse_uint32_set *set, uint32_t min, uint32_t max)
+void ddsi_inverse_uint32_set_init(struct ddsi_inverse_uint32_set *set, uint32_t min, uint32_t max)
 {
-  struct inverse_uint32_set_node *n;
+  struct ddsi_inverse_uint32_set_node *n;
   ddsrt_avl_init(&inverse_uint32_set_td, &set->ids);
   set->cursor = min;
   set->min = min;
@@ -62,12 +62,12 @@ void inverse_uint32_set_init(struct inverse_uint32_set *set, uint32_t min, uint3
   check(set);
 }
 
-void inverse_uint32_set_fini(struct inverse_uint32_set *set)
+void ddsi_inverse_uint32_set_fini(struct ddsi_inverse_uint32_set *set)
 {
   ddsrt_avl_free(&inverse_uint32_set_td, &set->ids, ddsrt_free);
 }
 
-static uint32_t inverse_uint32_set_alloc_use_min(struct inverse_uint32_set *set, struct inverse_uint32_set_node *n)
+static uint32_t inverse_uint32_set_alloc_use_min(struct ddsi_inverse_uint32_set *set, struct ddsi_inverse_uint32_set_node *n)
 {
   const uint32_t id = n->min;
   if (n->min == n->max)
@@ -83,9 +83,9 @@ static uint32_t inverse_uint32_set_alloc_use_min(struct inverse_uint32_set *set,
   return id;
 }
 
-int inverse_uint32_set_alloc(uint32_t * const id, struct inverse_uint32_set *set)
+int ddsi_inverse_uint32_set_alloc(uint32_t * const id, struct ddsi_inverse_uint32_set *set)
 {
-  struct inverse_uint32_set_node *n;
+  struct ddsi_inverse_uint32_set_node *n;
   if ((n = ddsrt_avl_lookup_pred_eq(&inverse_uint32_set_td, &set->ids, &set->cursor)) != NULL && set->cursor <= n->max) {
     /* n is [a,b] s.t. a <= C <= b, so C is available */
     *id = set->cursor;
@@ -100,7 +100,7 @@ int inverse_uint32_set_alloc(uint32_t * const id, struct inverse_uint32_set *set
     }
     else
     {
-      struct inverse_uint32_set_node *n1 = ddsrt_malloc(sizeof(*n1));
+      struct ddsi_inverse_uint32_set_node *n1 = ddsrt_malloc(sizeof(*n1));
       assert(n->min < set->cursor && set->cursor < n->max);
       n1->min = set->cursor + 1;
       n1->max = n->max;
@@ -129,9 +129,9 @@ int inverse_uint32_set_alloc(uint32_t * const id, struct inverse_uint32_set *set
   return 1;
 }
 
-void inverse_uint32_set_free(struct inverse_uint32_set *set, uint32_t id)
+void ddsi_inverse_uint32_set_free(struct ddsi_inverse_uint32_set *set, uint32_t id)
 {
-  struct inverse_uint32_set_node *n;
+  struct ddsi_inverse_uint32_set_node *n;
   const uint32_t idp1 = id + 1;
   ddsrt_avl_ipath_t ip;
   if ((n = ddsrt_avl_lookup_pred_eq(&inverse_uint32_set_td, &set->ids, &id)) != NULL && id <= n->max + 1) {
@@ -142,7 +142,7 @@ void inverse_uint32_set_free(struct inverse_uint32_set *set, uint32_t id)
     }
     else
     {
-      struct inverse_uint32_set_node *n1;
+      struct ddsi_inverse_uint32_set_node *n1;
       ddsrt_avl_dpath_t dp;
       /* grow the interval, possibly coalesce with next */
       if ((n1 = ddsrt_avl_lookup_dpath(&inverse_uint32_set_td, &set->ids, &idp1, &dp)) == NULL) {

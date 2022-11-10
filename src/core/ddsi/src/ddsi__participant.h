@@ -21,7 +21,6 @@
 #include "dds/ddsrt/log.h"
 #include "dds/ddsi/ddsi_gc.h"
 #include "dds/ddsi/ddsi_entity.h"
-#include "dds/ddsi/q_inverse_uint32_set.h"
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/ddsi_participant.h"
 

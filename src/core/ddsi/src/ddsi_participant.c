@@ -38,6 +38,7 @@
 #include "ddsi__tran.h"
 #include "ddsi__vendor.h"
 #include "ddsi__xqos.h"
+#include "ddsi__inverse_uint32_set.h"
 
 static const unsigned builtin_writers_besmask =
   DDSI_DISC_BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER |
@@ -158,7 +159,7 @@ dds_return_t ddsi_participant_allocate_entityid (ddsi_entityid_t *id, uint32_t k
   uint32_t id1;
   int ret = 0;
   ddsrt_mutex_lock (&pp->e.lock);
-  if (inverse_uint32_set_alloc(&id1, &pp->avail_entityids.x))
+  if (ddsi_inverse_uint32_set_alloc(&id1, &pp->avail_entityids.x))
   {
     *id = ddsi_to_entityid (id1 * NN_ENTITYID_ALLOCSTEP + kind);
     ret = 0;
@@ -175,7 +176,7 @@ dds_return_t ddsi_participant_allocate_entityid (ddsi_entityid_t *id, uint32_t k
 void ddsi_participant_release_entityid (struct ddsi_participant *pp, ddsi_entityid_t id)
 {
   ddsrt_mutex_lock (&pp->e.lock);
-  inverse_uint32_set_free(&pp->avail_entityids.x, id.u / NN_ENTITYID_ALLOCSTEP);
+  ddsi_inverse_uint32_set_free(&pp->avail_entityids.x, id.u / NN_ENTITYID_ALLOCSTEP);
   ddsrt_mutex_unlock (&pp->e.lock);
 }
 
@@ -762,7 +763,7 @@ void ddsi_unref_participant (struct ddsi_participant *pp, const struct ddsi_guid
     ddsrt_mutex_destroy (&pp->refc_lock);
     ddsi_entity_common_fini (&pp->e);
     ddsi_remove_deleted_participant_guid (pp->e.gv->deleted_participants, &pp->e.guid, DDSI_DELETED_PPGUID_LOCAL);
-    inverse_uint32_set_fini(&pp->avail_entityids.x);
+    ddsi_inverse_uint32_set_fini(&pp->avail_entityids.x);
     ddsrt_free (pp);
   }
   else
@@ -841,7 +842,7 @@ static dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domai
   pp->state = DDSI_PARTICIPANT_STATE_INITIALIZING;
   pp->is_ddsi2_pp = (flags & (RTPS_PF_PRIVILEGED_PP | RTPS_PF_IS_DDSI2_PP)) ? 1 : 0;
   ddsrt_mutex_init (&pp->refc_lock);
-  inverse_uint32_set_init(&pp->avail_entityids.x, 1, UINT32_MAX / NN_ENTITYID_ALLOCSTEP);
+  ddsi_inverse_uint32_set_init(&pp->avail_entityids.x, 1, UINT32_MAX / NN_ENTITYID_ALLOCSTEP);
   if (plist->present & PP_PARTICIPANT_LEASE_DURATION)
     pp->lease_duration = plist->participant_lease_duration;
   else
@@ -1003,7 +1004,7 @@ not_allowed:
     ddsi_conn_free (ppconn);
   ddsi_plist_fini (pp->plist);
   ddsrt_free (pp->plist);
-  inverse_uint32_set_fini (&pp->avail_entityids.x);
+  ddsi_inverse_uint32_set_fini (&pp->avail_entityids.x);
   ddsrt_mutex_destroy (&pp->refc_lock);
   ddsi_entity_common_fini (&pp->e);
   ddsrt_free (pp);

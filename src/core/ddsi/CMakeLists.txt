@@ -76,7 +76,7 @@ set(srcs_ddsi
   q_sockwaitset.c
   q_thread.c
   q_transmit.c
-  q_inverse_uint32_set.c
+  ddsi_inverse_uint32_set.c
   q_whc.c
   q_xevent.c
   q_xmsg.c
@@ -125,6 +125,7 @@ set(hdrs_ddsi
   ddsi_feature_check.h
   ddsi_freelist.h
   ddsi_hbcontrol.h
+  ddsi_inverse_uint32_set.h
   q_lat_estim.h
   q_lease.h
   q_log.h
@@ -137,7 +138,6 @@ set(hdrs_ddsi
   q_sockwaitset.h
   q_thread.h
   q_transmit.h
-  q_inverse_uint32_set.h
   q_unused.h
   q_whc.h
   q_xevent.h
@@ -193,6 +193,7 @@ set(hdrs_private_ddsi
   ddsi__discovery.h
   ddsi__debmon.h
   ddsi__hbcontrol.h
+  ddsi__inverse_uint32_set.h
 )
 
 if(ENABLE_LIFESPAN)
