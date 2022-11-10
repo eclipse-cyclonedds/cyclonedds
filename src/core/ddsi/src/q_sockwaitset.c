@@ -20,7 +20,7 @@
 #include "dds/ddsi/q_sockwaitset.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/q_log.h"
-#include "dds/ddsi/ddsi_tran.h"
+#include "ddsi__tran.h"
 
 #define WAITSET_DELTA 8
 

@@ -32,7 +32,7 @@
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_builtin_topic_if.h"
 #include "dds/ddsi/ddsi_vnet.h"
-#include "dds/ddsi/ddsi_tran.h"
+#include "ddsi__tran.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/q_bswap.h"
 #include "dds__whc.h"

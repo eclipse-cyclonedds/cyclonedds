@@ -24,6 +24,7 @@
 #include "ddsi__entity_index.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_wraddrset.h"
+#include "ddsi__tran.h"
 
 #include "dds/ddsi/ddsi_udp.h" /* nn_mc4gen_address_t */
 

@@ -22,6 +22,7 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_xevent.h"
 #include "dds/ddsi/q_thread.h"
+#include "ddsi__tran.h"
 #include "dds/security/core/dds_security_utils.h"
 #include "loader.h"
 

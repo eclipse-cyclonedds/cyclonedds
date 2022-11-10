@@ -17,7 +17,7 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/ifaddrs.h"
-#include "dds/ddsi/ddsi_tran.h"
+#include "ddsi__tran.h"
 #include "ddsi__ipaddr.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/q_log.h"

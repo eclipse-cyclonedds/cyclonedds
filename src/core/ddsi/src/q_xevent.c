@@ -48,6 +48,7 @@
 #include "ddsi__entity_match.h"
 #include "ddsi__plist.h"
 #include "ddsi__proxy_endpoint.h"
+#include "ddsi__tran.h"
 #include "dds__whc.h"
 
 #include "dds/ddsi/sysdeps.h"

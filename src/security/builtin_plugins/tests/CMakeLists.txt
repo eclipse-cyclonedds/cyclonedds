@@ -75,6 +75,7 @@ target_include_directories(
   cunit_security_plugins PRIVATE
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/../access_control/src/>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/../cryptographic/src/>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/../../../core/ddsi/src>"
   "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/include/>"
   "$<BUILD_INTERFACE:$<TARGET_PROPERTY:security_api,INTERFACE_INCLUDE_DIRECTORIES>>"
   "$<BUILD_INTERFACE:$<TARGET_PROPERTY:security_core,INTERFACE_INCLUDE_DIRECTORIES>>"

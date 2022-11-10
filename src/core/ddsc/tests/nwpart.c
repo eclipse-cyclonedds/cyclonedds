@@ -28,6 +28,7 @@
 #include "dds/ddsi/q_addrset.h"
 #include "dds/ddsi/q_ddsi_discovery.h"
 #include "ddsi__plist.h"
+#include "ddsi__tran.h"
 
 #include "test_util.h"
 

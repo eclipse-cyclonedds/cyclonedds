@@ -35,6 +35,7 @@
 #include "ddsi__gc.h"
 #include "ddsi__plist.h"
 #include "ddsi__protocol.h"
+#include "ddsi__tran.h"
 
 static const unsigned builtin_writers_besmask =
   DDSI_DISC_BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER |

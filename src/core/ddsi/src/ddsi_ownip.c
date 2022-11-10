@@ -32,6 +32,7 @@
 #include "dds/ddsi/q_feature_check.h"
 #include "ddsi__ipaddr.h"
 #include "dds/ddsrt/avl.h"
+#include "ddsi__tran.h"
 
 #ifdef __linux
 /* FIMXE: HACK HACK */

@@ -39,7 +39,7 @@
 #include "dds/ddsi/q_unused.h"
 #include "dds/ddsi/q_debmon.h"
 #include "dds/ddsi/ddsi_serdata.h"
-#include "dds/ddsi/ddsi_tran.h"
+#include "ddsi__tran.h"
 #include "ddsi__tcp.h"
 #include "ddsi__endpoint.h"
 #include "ddsi__proxy_endpoint.h"

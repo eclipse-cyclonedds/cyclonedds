@@ -18,7 +18,7 @@
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/sockets.h"
 #include "ddsi_eth.h"
-#include "dds/ddsi/ddsi_tran.h"
+#include "ddsi__tran.h"
 #include "ddsi__tcp.h"
 #include "ddsi__ipaddr.h"
 #include "dds/ddsrt/avl.h"

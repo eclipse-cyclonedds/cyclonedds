@@ -34,6 +34,7 @@
 #include "ddsi__proxy_participant.h"
 #include "ddsi__protocol.h"
 #include "ddsi__topic.h"
+#include "ddsi__tran.h"
 
 typedef struct proxy_purge_data {
   struct ddsi_proxy_participant *proxypp;

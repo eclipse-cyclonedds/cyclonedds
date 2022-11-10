@@ -55,6 +55,7 @@
 #include "ddsi__proxy_endpoint.h"
 #include "ddsi__proxy_participant.h"
 #include "ddsi__topic.h"
+#include "ddsi__tran.h"
 
 #ifdef DDS_HAS_SECURITY
 #include "ddsi__security_exchange.h"

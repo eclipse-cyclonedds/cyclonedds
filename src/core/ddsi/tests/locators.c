@@ -14,7 +14,7 @@
 
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/sockets.h"
-#include "dds/ddsi/ddsi_tran.h"
+#include "ddsi__tran.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_udp.h"
 #include "ddsi__tcp.h"

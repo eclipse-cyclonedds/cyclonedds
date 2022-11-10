@@ -29,6 +29,7 @@
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/ddsi_security_omg.h"
+#include "ddsi__tran.h"
 
 #ifdef DDS_HAS_SECURITY
 #include "dds/security/dds_security_api.h"

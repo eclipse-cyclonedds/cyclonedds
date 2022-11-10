@@ -187,6 +187,7 @@ set(hdrs_private_ddsi
   ddsi__protocol.h
   ddsi__time.h
   ddsi__topic.h
+  ddsi__tran.h
 )
 
 if(ENABLE_LIFESPAN)

@@ -13,7 +13,7 @@
 #include <assert.h>
 #include <stdlib.h>
 
-#include "dds/ddsi/ddsi_tran.h"
+#include "ddsi__tran.h"
 #include "dds/ddsi/ddsi_vnet.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/q_log.h"

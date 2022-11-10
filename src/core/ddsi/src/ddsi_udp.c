@@ -19,7 +19,7 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/static_assert.h"
 #include "ddsi_eth.h"
-#include "dds/ddsi/ddsi_tran.h"
+#include "ddsi__tran.h"
 #include "dds/ddsi/ddsi_udp.h"
 #include "ddsi__ipaddr.h"
 #include "ddsi__mcgroup.h"

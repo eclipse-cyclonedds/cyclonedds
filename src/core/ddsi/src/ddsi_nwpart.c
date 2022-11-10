@@ -19,7 +19,7 @@
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "ddsi__ipaddr.h"
-#include "dds/ddsi/ddsi_tran.h"
+#include "ddsi__tran.h"
 #include "ddsi__nwpart.h"
 #include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/q_misc.h"
