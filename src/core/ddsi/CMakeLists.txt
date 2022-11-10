@@ -94,7 +94,6 @@ set(hdrs_ddsi
   ddsi_statistics.h
   ddsi_iid.h
   ddsi_tkmap.h
-  ddsi_vendor.h
   ddsi_threadmon.h
   ddsi_builtin_topic_if.h
   ddsi_rhc.h
@@ -189,6 +188,7 @@ set(hdrs_private_ddsi
   ddsi__tran.h
   ddsi__typelib.h
   ddsi__udp.h
+  ddsi__vendor.h
 )
 
 if(ENABLE_LIFESPAN)

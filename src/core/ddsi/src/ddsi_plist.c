@@ -31,7 +31,7 @@
 #include "ddsi__time.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/ddsi_xqos.h"
-#include "dds/ddsi/ddsi_vendor.h"
+#include "ddsi__vendor.h"
 #include "ddsi__udp.h" /* nn_mc4gen_address_t */
 
 #include "dds/ddsi/ddsi_config_impl.h"
@@ -84,7 +84,7 @@ struct dd {
   size_t bufsz;
   unsigned bswap: 1;
   nn_protocol_version_t protocol_version;
-  nn_vendorid_t vendorid;
+  ddsi_vendorid_t vendorid;
 };
 
 #define PDF_QOS        1 /* part of dds_qos_t */
@@ -134,7 +134,7 @@ static dds_return_t validate_history_and_resource_limits (const dds_history_qosp
 static dds_return_t validate_external_duration (const ddsi_duration_t *d);
 static dds_return_t validate_durability_service_qospolicy_acceptzero (const dds_durability_service_qospolicy_t *q, bool acceptzero);
 static enum do_locator_result do_locator (ddsi_locators_t *ls, uint64_t present, uint64_t wanted, uint64_t fl, const struct dd *dd, struct ddsi_domaingv const * const gv);
-static dds_return_t final_validation_qos (const dds_qos_t *dest, nn_protocol_version_t protocol_version, nn_vendorid_t vendorid, bool *dursvc_accepted_allzero, bool strict);
+static dds_return_t final_validation_qos (const dds_qos_t *dest, nn_protocol_version_t protocol_version, ddsi_vendorid_t vendorid, bool *dursvc_accepted_allzero, bool strict);
 static int partitions_equal (const void *srca, const void *srcb, size_t off);
 static dds_return_t ddsi_xqos_valid_strictness (const struct ddsrt_log_cfg *logcfg, const dds_qos_t *xqos, bool strict);
 static dds_return_t unalias_generic (void * __restrict dst, size_t * __restrict dstoff, bool gen_seq_aliased, const enum ddsi_pserop * __restrict desc);
@@ -1102,7 +1102,7 @@ dds_return_t ddsi_plist_deser_generic_srcoff (void * __restrict dst, const void 
     .bufsz = srcsize,
     .bswap = bswap,
     .protocol_version = {0,0},
-    .vendorid = NN_VENDORID_ECLIPSE,
+    .vendorid = DDSI_VENDORID_ECLIPSE,
   };
   uint64_t present = 0, aliased = 0;
   struct flagset fs = { .present = &present, .aliased = &aliased, .wanted = 1 };
@@ -2078,7 +2078,7 @@ static const struct piddesc *piddesc_adlink_index[17];
     .index_max = sizeof (piddesc_##tab_##_index) / sizeof (piddesc_##tab_##_index[0]) - 1, \
     .index = (const struct piddesc **) piddesc_##tab_##_index, \
     .table = piddesc_##tab_ }
-#define INDEX(VENDOR_, tab_) INDEX_ANY (NN_VENDORID_MINOR_##VENDOR_, tab_)
+#define INDEX(VENDOR_, tab_) INDEX_ANY (DDSI_VENDORID_MINOR_##VENDOR_, tab_)
 
 static const struct piddesc_index piddesc_vendor_index[] = {
   INDEX_ANY (0, omg),
@@ -2480,7 +2480,7 @@ static dds_return_t ddsi_xqos_valid_strictness (const struct ddsrt_log_cfg *logc
       }
     }
   }
-  if ((ret = final_validation_qos (xqos, (nn_protocol_version_t) { DDSI_RTPS_MAJOR, DDSI_RTPS_MINOR }, NN_VENDORID_ECLIPSE, NULL, strict)) < 0)
+  if ((ret = final_validation_qos (xqos, (nn_protocol_version_t) { DDSI_RTPS_MAJOR, DDSI_RTPS_MINOR }, DDSI_VENDORID_ECLIPSE, NULL, strict)) < 0)
   {
     DDS_CLOG (DDS_LC_PLIST, logcfg, "ddsi_xqos_valid: final validation failed\n");
   }
@@ -2738,7 +2738,7 @@ static enum do_locator_result do_locator (ddsi_locators_t *ls, uint64_t present,
         return DOLOC_INVALID;
       break;
     case DDSI_LOCATOR_KIND_UDPv4MCGEN:
-      if (!vendor_is_eclipse (dd->vendorid))
+      if (!ddsi_vendor_is_eclipse (dd->vendorid))
         return DOLOC_IGNORED;
       else
       {
@@ -2753,7 +2753,7 @@ static enum do_locator_result do_locator (ddsi_locators_t *ls, uint64_t present,
       break;
 #ifdef DDS_HAS_SHM
     case DDSI_LOCATOR_KIND_SHEM:
-      if (!vendor_is_eclipse (dd->vendorid))
+      if (!ddsi_vendor_is_eclipse (dd->vendorid))
         return DOLOC_IGNORED;
       else
       {
@@ -2775,7 +2775,7 @@ static enum do_locator_result do_locator (ddsi_locators_t *ls, uint64_t present,
       /* silently drop "reserved" locators. */
       return DOLOC_IGNORED;
     case DDSI_LOCATOR_KIND_RAWETH:
-      if (!vendor_is_eclipse (dd->vendorid))
+      if (!ddsi_vendor_is_eclipse (dd->vendorid))
         return DOLOC_IGNORED;
       else
       {
@@ -3065,7 +3065,7 @@ void ddsi_plist_init_empty (ddsi_plist_t *dest)
   ddsi_xqos_init_empty (&dest->qos);
 }
 
-static dds_return_t final_validation_qos (const dds_qos_t *dest, nn_protocol_version_t protocol_version, nn_vendorid_t vendorid, bool *dursvc_accepted_allzero, bool strict)
+static dds_return_t final_validation_qos (const dds_qos_t *dest, nn_protocol_version_t protocol_version, ddsi_vendorid_t vendorid, bool *dursvc_accepted_allzero, bool strict)
 {
   /* input is const, but we need to validate the combination of
      history & resource limits: so use a copy of those two policies */
@@ -3118,9 +3118,9 @@ static dds_return_t final_validation_qos (const dds_qos_t *dest, nn_protocol_ver
     else if (protocol_version_is_newer (protocol_version))
       acceptzero = true;
     else if (strict)
-      acceptzero = vendor_is_twinoaks (vendorid);
+      acceptzero = ddsi_vendor_is_twinoaks (vendorid);
     else
-      acceptzero = !vendor_is_eclipse (vendorid);
+      acceptzero = !ddsi_vendor_is_eclipse (vendorid);
     switch (durkind)
     {
       case DDS_DURABILITY_VOLATILE:
@@ -3142,7 +3142,7 @@ static dds_return_t final_validation_qos (const dds_qos_t *dest, nn_protocol_ver
   return 0;
 }
 
-static dds_return_t final_validation (ddsi_plist_t *dest, nn_protocol_version_t protocol_version, nn_vendorid_t vendorid, bool *dursvc_accepted_allzero, bool strict)
+static dds_return_t final_validation (ddsi_plist_t *dest, nn_protocol_version_t protocol_version, ddsi_vendorid_t vendorid, bool *dursvc_accepted_allzero, bool strict)
 {
   return final_validation_qos (&dest->qos, protocol_version, vendorid, dursvc_accepted_allzero, strict);
 }

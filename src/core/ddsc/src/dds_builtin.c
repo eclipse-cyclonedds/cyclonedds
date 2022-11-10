@@ -242,7 +242,7 @@ static bool dds__builtin_is_builtintopic (const struct ddsi_sertype *tp, void *v
   return tp->ops == &ddsi_sertype_ops_builtintopic;
 }
 
-static bool dds__builtin_is_visible (const ddsi_guid_t *guid, nn_vendorid_t vendorid, void *vdomain)
+static bool dds__builtin_is_visible (const ddsi_guid_t *guid, ddsi_vendorid_t vendorid, void *vdomain)
 {
   (void) vdomain;
   if (ddsi_is_builtin_endpoint (guid->entityid, vendorid) || ddsi_is_builtin_topic (guid->entityid, vendorid))

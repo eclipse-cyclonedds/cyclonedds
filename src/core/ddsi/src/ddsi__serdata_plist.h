@@ -31,7 +31,7 @@ extern "C" {
   struct ddsi_serdata c;              \
   uint32_t pos;                       \
   uint32_t size;                      \
-  nn_vendorid_t vendorid;             \
+  ddsi_vendorid_t vendorid;             \
   nn_protocol_version_t protoversion; \
   ddsi_keyhash_t keyhash
 #define DDSI_SERDATA_PLIST_POSTPAD    \

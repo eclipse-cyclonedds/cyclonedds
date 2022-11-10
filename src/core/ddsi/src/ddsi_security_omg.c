@@ -55,6 +55,7 @@
 #include "ddsi__proxy_endpoint.h"
 #include "ddsi__proxy_participant.h"
 #include "ddsi__tran.h"
+#include "ddsi__vendor.h"
 
 #define AUTH_NAME "Authentication"
 #define AC_NAME "Access Control"
@@ -1316,7 +1317,7 @@ bool ddsi_omg_participant_is_discovery_protected(const struct ddsi_participant *
 
 static bool maybe_rtps_protected(ddsi_entityid_t entityid)
 {
-  if (!ddsi_is_builtin_entityid(entityid, NN_VENDORID_ECLIPSE))
+  if (!ddsi_is_builtin_entityid(entityid, DDSI_VENDORID_ECLIPSE))
     return true;
 
   switch (entityid.u)

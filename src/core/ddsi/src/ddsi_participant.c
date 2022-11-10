@@ -36,6 +36,7 @@
 #include "ddsi__plist.h"
 #include "ddsi__protocol.h"
 #include "ddsi__tran.h"
+#include "ddsi__vendor.h"
 
 static const unsigned builtin_writers_besmask =
   DDSI_DISC_BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER |
@@ -582,7 +583,7 @@ static void update_pp_refc (struct ddsi_participant *pp, const struct ddsi_guid 
 {
   assert (n == -1 || n == 1);
   if (guid_of_refing_entity
-      && ddsi_is_builtin_entityid (guid_of_refing_entity->entityid, NN_VENDORID_ECLIPSE)
+      && ddsi_is_builtin_entityid (guid_of_refing_entity->entityid, DDSI_VENDORID_ECLIPSE)
       && guid_of_refing_entity->entityid.u != NN_ENTITYID_PARTICIPANT)
     pp->builtin_refc += n;
   else
@@ -596,7 +597,7 @@ static void delete_builtin_endpoint (struct ddsi_domaingv *gv, const struct ddsi
   ddsi_guid_t guid;
   guid.prefix = ppguid->prefix;
   guid.entityid.u = entityid;
-  assert (ddsi_is_builtin_entityid (ddsi_to_entityid (entityid), NN_VENDORID_ECLIPSE));
+  assert (ddsi_is_builtin_entityid (ddsi_to_entityid (entityid), DDSI_VENDORID_ECLIPSE));
   if (ddsi_is_writer_entityid (ddsi_to_entityid (entityid)))
     ddsi_delete_writer_nolinger (gv, &guid);
   else
@@ -833,7 +834,7 @@ static dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domai
 
   pp = ddsrt_malloc (sizeof (*pp));
 
-  ddsi_entity_common_init (&pp->e, gv, ppguid, DDSI_EK_PARTICIPANT, ddsrt_time_wallclock (), NN_VENDORID_ECLIPSE, ((flags & RTPS_PF_ONLY_LOCAL) != 0));
+  ddsi_entity_common_init (&pp->e, gv, ppguid, DDSI_EK_PARTICIPANT, ddsrt_time_wallclock (), DDSI_VENDORID_ECLIPSE, ((flags & RTPS_PF_ONLY_LOCAL) != 0));
   pp->user_refc = 1;
   pp->builtin_refc = 0;
   pp->state = DDSI_PARTICIPANT_STATE_INITIALIZING;

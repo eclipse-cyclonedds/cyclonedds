@@ -32,6 +32,7 @@
 #include "ddsi__proxy_participant.h"
 #include "ddsi__typelookup.h"
 #include "ddsi__typewrap.h"
+#include "ddsi__vendor.h"
 #include "dds/ddsrt/cdtors.h"
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/process.h"
@@ -591,7 +592,7 @@ static void test_proxy_rd_create (struct ddsi_domaingv *gv, const char *topic_na
   struct addrset *as = new_addrset ();
   add_locator_to_addrset (gv, as, &gv->loc_default_uc);
   ref_addrset (as); // increase refc to 2, new_proxy_participant does not add a ref
-  int rc = ddsi_new_proxy_participant (gv, pp_guid, 0, NULL, as, as, plist, DDS_INFINITY, NN_VENDORID_ECLIPSE, 0, ddsrt_time_wallclock (), 1);
+  int rc = ddsi_new_proxy_participant (gv, pp_guid, 0, NULL, as, as, plist, DDS_INFINITY, DDSI_VENDORID_ECLIPSE, 0, ddsrt_time_wallclock (), 1);
   CU_ASSERT_FATAL (rc);
 
   ddsi_xqos_mergein_missing (&plist->qos, &ddsi_default_qos_reader, ~(uint64_t)0);

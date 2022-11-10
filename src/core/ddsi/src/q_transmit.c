@@ -43,6 +43,7 @@
 #include "ddsi__endpoint.h"
 #include "ddsi__entity_match.h"
 #include "ddsi__protocol.h"
+#include "ddsi__vendor.h"
 
 #include "dds__whc.h"
 
@@ -1059,7 +1060,7 @@ static dds_return_t throttle_writer (struct thread_state * const thrst, struct n
     ASSERT_MUTEX_HELD (&wr->e.lock);
     assert (wr->throttling == 0);
     assert (thread_is_awake ());
-    assert (!ddsi_is_builtin_entityid(wr->e.guid.entityid, NN_VENDORID_ECLIPSE));
+    assert (!ddsi_is_builtin_entityid(wr->e.guid.entityid, DDSI_VENDORID_ECLIPSE));
   }
 
   GVLOG (DDS_LC_THROTTLE,

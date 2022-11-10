@@ -68,7 +68,7 @@ static void bwhc_sample_iter_init (const struct whc *whc_generic, struct whc_sam
 
 static bool is_visible (const struct ddsi_entity_common *e)
 {
-  const nn_vendorid_t vendorid = ddsi_get_entity_vendorid (e);
+  const ddsi_vendorid_t vendorid = ddsi_get_entity_vendorid (e);
   return ddsi_builtintopic_is_visible (e->gv->builtin_topic_interface, &e->guid, vendorid);
 }
 

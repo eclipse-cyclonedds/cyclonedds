@@ -45,6 +45,7 @@
 #include "ddsi__endpoint.h"
 #include "ddsi__plist.h"
 #include "ddsi__tran.h"
+#include "ddsi__vendor.h"
 
 #define NN_XMSG_MAX_ALIGN 8
 #define NN_XMSG_CHUNK_SIZE 128
@@ -286,7 +287,7 @@ static struct nn_xmsg *nn_xmsg_allocnew (struct nn_xmsgpool *pool, size_t expect
   d->src.unused = 0;
   d->src.version.major = DDSI_RTPS_MAJOR;
   d->src.version.minor = DDSI_RTPS_MINOR;
-  d->src.vendorid = NN_VENDORID_ECLIPSE;
+  d->src.vendorid = DDSI_VENDORID_ECLIPSE;
   d->dst.smhdr.submessageId = DDSI_RTPS_SMID_INFO_DST;
   d->dst.smhdr.flags = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? DDSI_RTPS_SUBMESSAGE_FLAG_ENDIANNESS : 0);
   d->dst.smhdr.octetsToNextHeader = sizeof (d->dst.guid_prefix);
@@ -1150,7 +1151,7 @@ struct nn_xpack * nn_xpack_new (struct ddsi_domaingv *gv, uint32_t bw_limit, boo
   xp->hdr.protocol.id[3] = 'S';
   xp->hdr.version.major = DDSI_RTPS_MAJOR;
   xp->hdr.version.minor = DDSI_RTPS_MINOR;
-  xp->hdr.vendorid = NN_VENDORID_ECLIPSE;
+  xp->hdr.vendorid = DDSI_VENDORID_ECLIPSE;
 
   /* MSG_LEN first sub message for stream based connections */
 

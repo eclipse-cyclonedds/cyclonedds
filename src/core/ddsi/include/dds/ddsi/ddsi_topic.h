@@ -23,7 +23,7 @@
 extern "C" {
 #endif
 
-int ddsi_is_builtin_topic (ddsi_entityid_t id, nn_vendorid_t vendorid);
+int ddsi_is_builtin_topic (ddsi_entityid_t id, ddsi_vendorid_t vendorid);
 
 #ifdef DDS_HAS_TOPIC_DISCOVERY
 

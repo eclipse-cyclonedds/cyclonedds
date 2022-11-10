@@ -39,7 +39,7 @@ struct ddsi_proxy_endpoint_common
   struct dds_qos *xqos; /* proxy endpoint QoS lives here; FIXME: local ones should have it moved to common as well */
   struct addrset *as; /* address set to use for communicating with this endpoint */
   ddsi_guid_t group_guid; /* 0:0:0:0 if not available */
-  nn_vendorid_t vendor; /* cached from proxypp->vendor */
+  ddsi_vendorid_t vendor; /* cached from proxypp->vendor */
   seqno_t seq; /* sequence number of most recent SEDP message */
 #ifdef DDS_HAS_TYPE_DISCOVERY
   struct ddsi_type_pair *type_pair;

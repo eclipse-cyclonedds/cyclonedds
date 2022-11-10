@@ -175,7 +175,7 @@ DDS_EXPORT extern const ddsrt_avl_treedef_t ddsi_rd_writers_treedef;
 DDS_EXPORT extern const ddsrt_avl_treedef_t ddsi_rd_local_writers_treedef;
 
 // generic
-int ddsi_is_builtin_endpoint (ddsi_entityid_t id, nn_vendorid_t vendorid);
+int ddsi_is_builtin_endpoint (ddsi_entityid_t id, ddsi_vendorid_t vendorid);
 
 // writer
 struct ddsi_local_orphan_writer *ddsi_new_local_orphan_writer (struct ddsi_domaingv *gv, ddsi_entityid_t entityid, const char *topic_name, struct ddsi_sertype *type, const struct dds_qos *xqos, struct whc *whc);

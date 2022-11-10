@@ -35,6 +35,7 @@
 #include "ddsi__protocol.h"
 #include "ddsi__topic.h"
 #include "ddsi__tran.h"
+#include "ddsi__vendor.h"
 
 typedef struct proxy_purge_data {
   struct ddsi_proxy_participant *proxypp;
@@ -326,7 +327,7 @@ static void free_proxy_participant (struct ddsi_proxy_participant *proxypp)
   ddsrt_free (proxypp);
 }
 
-bool ddsi_new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, uint32_t bes, const struct ddsi_guid *privileged_pp_guid, struct addrset *as_default, struct addrset *as_meta, const ddsi_plist_t *plist, dds_duration_t tlease_dur, nn_vendorid_t vendor, unsigned custom_flags, ddsrt_wctime_t timestamp, seqno_t seq)
+bool ddsi_new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, uint32_t bes, const struct ddsi_guid *privileged_pp_guid, struct addrset *as_default, struct addrset *as_meta, const ddsi_plist_t *plist, dds_duration_t tlease_dur, ddsi_vendorid_t vendor, unsigned custom_flags, ddsrt_wctime_t timestamp, seqno_t seq)
 {
   /* No locking => iff all participants use unique guids, and sedp
      runs on a single thread, it can't go wrong. FIXME, maybe? The
@@ -603,7 +604,7 @@ static void delete_or_detach_dependent_pp (struct ddsi_proxy_participant *p, str
     ddsrt_mutex_unlock (&p->e.lock);
     return;
   }
-  else if (!(vendor_is_cloud(p->vendor) && p->implicitly_created))
+  else if (!(ddsi_vendor_is_cloud (p->vendor) && p->implicitly_created))
   {
     /* DDSI2 minimal participant mode -- but really, anything not discovered via Cloud gets deleted */
     ddsrt_mutex_unlock (&p->e.lock);

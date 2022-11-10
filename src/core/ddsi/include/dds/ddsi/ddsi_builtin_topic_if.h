@@ -12,8 +12,6 @@
 #ifndef DDSI_BUILTIN_TOPIC_IF_H
 #define DDSI_BUILTIN_TOPIC_IF_H
 
-#include "dds/ddsi/ddsi_vendor.h"
-
 #if defined (__cplusplus)
 extern "C" {
 #endif
@@ -28,13 +26,13 @@ struct ddsi_builtin_topic_interface {
   void *arg;
 
   bool (*builtintopic_is_builtintopic) (const struct ddsi_sertype *type, void *arg);
-  bool (*builtintopic_is_visible) (const struct ddsi_guid *guid, nn_vendorid_t vendorid, void *arg);
+  bool (*builtintopic_is_visible) (const struct ddsi_guid *guid, ddsi_vendorid_t vendorid, void *arg);
   struct ddsi_tkmap_instance * (*builtintopic_get_tkmap_entry) (const struct ddsi_guid *guid, void *arg);
   void (*builtintopic_write_endpoint) (const struct ddsi_entity_common *e, ddsrt_wctime_t timestamp, bool alive, void *arg);
   void (*builtintopic_write_topic) (const struct ddsi_topic_definition *tpd, ddsrt_wctime_t timestamp, bool alive, void *arg);
 };
 
-inline bool ddsi_builtintopic_is_visible (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_guid *guid, nn_vendorid_t vendorid) {
+inline bool ddsi_builtintopic_is_visible (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_guid *guid, ddsi_vendorid_t vendorid) {
   return btif ? btif->builtintopic_is_visible (guid, vendorid, btif->arg) : false;
 }
 inline bool ddsi_builtintopic_is_builtintopic (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_sertype *type) {

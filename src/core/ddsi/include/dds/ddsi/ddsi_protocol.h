@@ -42,6 +42,10 @@ extern "C" {
 
 typedef uint32_t ddsi_count_t;
 
+typedef struct {
+  uint8_t id[2];
+} ddsi_vendorid_t;
+
 typedef struct ddsi_sequence_number {
   int32_t high;
   uint32_t low;
@@ -85,7 +89,7 @@ typedef struct ddsi_protocolid {
 typedef struct ddsi_rtps_header {
   ddsi_protocolid_t protocol;
   nn_protocol_version_t version;
-  nn_vendorid_t vendorid;
+  ddsi_vendorid_t vendorid;
   ddsi_guid_prefix_t guid_prefix;
 } ddsi_rtps_header_t;
 #define DDSI_RTPS_MESSAGE_HEADER_SIZE (sizeof (ddsi_rtps_header_t))
@@ -127,7 +131,7 @@ typedef struct ddsi_rtps_info_src {
   ddsi_rtps_submessage_header_t smhdr;
   unsigned unused;
   nn_protocol_version_t version;
-  nn_vendorid_t vendorid;
+  ddsi_vendorid_t vendorid;
   ddsi_guid_prefix_t guid_prefix;
 } ddsi_rtps_info_src_t;
 

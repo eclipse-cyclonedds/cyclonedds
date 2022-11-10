@@ -21,6 +21,7 @@
 #include "dds/ddsrt/static_assert.h"
 #include "dds/ddsi/ddsi_locator.h"
 #include "dds/ddsi/q_rtps.h"
+#include "dds/ddsi/ddsi_protocol.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -118,7 +119,7 @@ struct receiver_state {
   struct addrset *reply_locators;         /* 4/8 */
   uint32_t forme:1;                       /* 4 */
   uint32_t rtps_encoded:1;                /* - */
-  nn_vendorid_t vendor;                   /* 2 */
+  ddsi_vendorid_t vendor;                   /* 2 */
   nn_protocol_version_t protocol_version; /* 2 => 44/48 */
   struct ddsi_tran_conn *conn;            /* Connection for request */
   ddsi_locator_t srcloc;

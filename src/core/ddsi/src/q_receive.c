@@ -64,6 +64,7 @@
 #include "ddsi__plist.h"
 #include "ddsi__proxy_endpoint.h"
 #include "ddsi__tran.h"
+#include "ddsi__vendor.h"
 
 #include "dds/cdr/dds_cdrstream.h"
 #include "dds__whc.h"
@@ -174,7 +175,7 @@ static enum validation_result validate_AckNack (const struct receiver_state *rst
        make it well-formed and process it as normal */
     if (! DDSI_SC_STRICT_P (rst->gv->config) &&
         (ackseq == 0 && msg->readerSNState.numbits == 0) &&
-        (vendor_is_eprosima (rst->vendor) || vendor_is_rti (rst->vendor)))
+        (ddsi_vendor_is_eprosima (rst->vendor) || ddsi_vendor_is_rti (rst->vendor)))
       msg->readerSNState.bitmap_base = toSN (1);
     else
       return VR_MALFORMED;
@@ -1006,7 +1007,7 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
   enqueued = 1;
   seq_xmit = ddsi_writer_read_seq_xmit (wr);
   nn_gap_info_init(&gi);
-  const bool gap_for_already_acked = vendor_is_eclipse (rst->vendor) && prd->c.xqos->durability.kind == DDS_DURABILITY_VOLATILE && seqbase <= rn->seq;
+  const bool gap_for_already_acked = ddsi_vendor_is_eclipse (rst->vendor) && prd->c.xqos->durability.kind == DDS_DURABILITY_VOLATILE && seqbase <= rn->seq;
   const seqno_t min_seq_to_rexmit = gap_for_already_acked ? rn->seq + 1 : 0;
   uint32_t limit = wr->rexmit_burst_size_limit;
   for (uint32_t i = 0; i < numbits && seqbase + i <= seq_xmit && enqueued && limit > 0; i++)
@@ -1424,7 +1425,7 @@ static int handle_Heartbeat (struct receiver_state *rst, ddsrt_etime_t tnow, str
   arg.timestamp = timestamp;
   arg.tnow = tnow;
   arg.tnow_mt = ddsrt_time_monotonic ();
-  arg.directed_heartbeat = (dst.entityid.u != NN_ENTITYID_UNKNOWN && vendor_is_eclipse (rst->vendor));
+  arg.directed_heartbeat = (dst.entityid.u != NN_ENTITYID_UNKNOWN && ddsi_vendor_is_eclipse (rst->vendor));
   handle_forall_destinations (&dst, pwr, (ddsrt_avl_walk_t) handle_Heartbeat_helper, &arg);
   RSTTRACE (")");
 
@@ -1444,7 +1445,7 @@ static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(ddsrt_et
   src.entityid = msg->writerId;
   dst.prefix = rst->dst_guid_prefix;
   dst.entityid = msg->readerId;
-  const bool directed_heartbeat = (dst.entityid.u != NN_ENTITYID_UNKNOWN && vendor_is_eclipse (rst->vendor));
+  const bool directed_heartbeat = (dst.entityid.u != NN_ENTITYID_UNKNOWN && ddsi_vendor_is_eclipse (rst->vendor));
 
   RSTTRACE ("HEARTBEATFRAG(#%"PRId32":%"PRIu64"/[1,%"PRIu32"]", msg->count, seq, fragnum+1);
   if (!rst->forme)
@@ -1909,7 +1910,7 @@ static int handle_Gap (struct receiver_state *rst, ddsrt_etime_t tnow, struct nn
   }
   RSTTRACE (PGUIDFMT" -> "PGUIDFMT, PGUID (src), PGUID (dst));
 
-  if (!pwr->have_seen_heartbeat && pwr->n_reliable_readers > 0 && vendor_is_eclipse (rst->vendor))
+  if (!pwr->have_seen_heartbeat && pwr->n_reliable_readers > 0 && ddsi_vendor_is_eclipse (rst->vendor))
   {
     RSTTRACE (": no heartbeat seen yet");
     ddsrt_mutex_unlock (&pwr->e.lock);
@@ -2364,7 +2365,7 @@ static void handle_regular (struct receiver_state *rst, ddsrt_etime_t tnow, stru
      been seen could potentially result in a disruption of the data flow to
      the best-effort readers.  That state should last only for a very short
      time, but it is rather inelegant.  */
-  if (!pwr->have_seen_heartbeat && pwr->n_reliable_readers > 0 && vendor_is_eclipse (rst->vendor))
+  if (!pwr->have_seen_heartbeat && pwr->n_reliable_readers > 0 && ddsi_vendor_is_eclipse (rst->vendor))
   {
     ddsrt_mutex_unlock (&pwr->e.lock);
     RSTTRACE (" "PGUIDFMT" -> "PGUIDFMT": no heartbeat seen yet", PGUID (pwr->e.guid), PGUID (dst));
@@ -2805,7 +2806,7 @@ static const char *submsg_name (ddsi_rtps_submessage_kind_t id, struct submsg_na
   return buffer->x;
 }
 
-static void malformed_packet_received (const struct ddsi_domaingv *gv, const unsigned char *msg, const unsigned char *submsg, size_t len, nn_vendorid_t vendorid)
+static void malformed_packet_received (const struct ddsi_domaingv *gv, const unsigned char *msg, const unsigned char *submsg, size_t len, ddsi_vendorid_t vendorid)
 {
   char tmp[1024];
   size_t i, pos, smsize;

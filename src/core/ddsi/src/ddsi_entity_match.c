@@ -33,6 +33,7 @@
 #include "ddsi__protocol.h"
 #include "ddsi__tran.h"
 #include "ddsi__typelib.h"
+#include "ddsi__vendor.h"
 #ifdef DDS_HAS_TYPE_DISCOVERY
 #include "ddsi__typelookup.h"
 #endif
@@ -249,7 +250,7 @@ void ddsi_connect_reader_with_proxy_writer_secure (struct ddsi_reader *rd, struc
 static void connect_writer_with_proxy_reader (struct ddsi_writer *wr, struct ddsi_proxy_reader *prd, ddsrt_mtime_t tnow)
 {
   struct ddsi_domaingv *gv = wr->e.gv;
-  const int isb0 = (ddsi_is_builtin_entityid (wr->e.guid.entityid, NN_VENDORID_ECLIPSE) != 0);
+  const int isb0 = (ddsi_is_builtin_entityid (wr->e.guid.entityid, DDSI_VENDORID_ECLIPSE) != 0);
   const int isb1 = (ddsi_is_builtin_entityid (prd->e.guid.entityid, prd->c.vendor) != 0);
   dds_qos_policy_id_t reason;
   int64_t crypto_handle;
@@ -292,7 +293,7 @@ static void connect_writer_with_proxy_reader (struct ddsi_writer *wr, struct dds
 static void connect_proxy_writer_with_reader (struct ddsi_proxy_writer *pwr, struct ddsi_reader *rd, ddsrt_mtime_t tnow)
 {
   const int isb0 = (ddsi_is_builtin_entityid (pwr->e.guid.entityid, pwr->c.vendor) != 0);
-  const int isb1 = (ddsi_is_builtin_entityid (rd->e.guid.entityid, NN_VENDORID_ECLIPSE) != 0);
+  const int isb1 = (ddsi_is_builtin_entityid (rd->e.guid.entityid, DDSI_VENDORID_ECLIPSE) != 0);
   dds_qos_policy_id_t reason;
   ddsi_count_t init_count;
   struct ddsi_alive_state alive_state;
@@ -368,7 +369,7 @@ static void connect_writer_with_reader (struct ddsi_writer *wr, struct ddsi_read
   dds_qos_policy_id_t reason;
   struct ddsi_alive_state alive_state;
   (void)tnow;
-  if (!ddsi_is_local_orphan_endpoint (&wr->e) && (ddsi_is_builtin_entityid (wr->e.guid.entityid, NN_VENDORID_ECLIPSE) || ddsi_is_builtin_entityid (rd->e.guid.entityid, NN_VENDORID_ECLIPSE)))
+  if (!ddsi_is_local_orphan_endpoint (&wr->e) && (ddsi_is_builtin_entityid (wr->e.guid.entityid, DDSI_VENDORID_ECLIPSE) || ddsi_is_builtin_entityid (rd->e.guid.entityid, DDSI_VENDORID_ECLIPSE)))
     return;
   if (ignore_local_p (&wr->e.guid, &rd->e.guid, wr->xqos, rd->xqos))
     return;
@@ -517,7 +518,7 @@ static void generic_do_match (struct ddsi_entity_common *e, ddsrt_mtime_t tnow, 
   struct ddsi_entity_enum it;
   struct ddsi_entity_common *em;
 
-  if (!ddsi_is_builtin_entityid (e->guid.entityid, NN_VENDORID_ECLIPSE) || (local && ddsi_is_local_orphan_endpoint (e)))
+  if (!ddsi_is_builtin_entityid (e->guid.entityid, DDSI_VENDORID_ECLIPSE) || (local && ddsi_is_local_orphan_endpoint (e)))
   {
     /* Non-builtins need matching on topics, the local orphan endpoints
        are a bit weird because they reuse the builtin entityids but
@@ -955,7 +956,7 @@ void ddsi_proxy_writer_add_connection (struct ddsi_proxy_writer *pwr, struct dds
   if (ddsrt_avl_lookup_ipath (&ddsi_pwr_readers_treedef, &pwr->readers, &rd->e.guid, &path))
     goto already_matched;
 
-  assert (rd->type || ddsi_is_builtin_endpoint (rd->e.guid.entityid, NN_VENDORID_ECLIPSE));
+  assert (rd->type || ddsi_is_builtin_endpoint (rd->e.guid.entityid, DDSI_VENDORID_ECLIPSE));
   if (pwr->ddsi2direct_cb == 0 && rd->ddsi2direct_cb != 0)
   {
     pwr->ddsi2direct_cb = rd->ddsi2direct_cb;
@@ -1008,7 +1009,7 @@ void ddsi_proxy_writer_add_connection (struct ddsi_proxy_writer *pwr, struct dds
   /* These can change as a consequence of handling data and/or
      discovery activities. The safe way of dealing with them is to
      lock the proxy writer */
-  if (ddsi_is_builtin_entityid (rd->e.guid.entityid, NN_VENDORID_ECLIPSE) && !ddsrt_avl_is_empty (&pwr->readers) && !pwr->filtered)
+  if (ddsi_is_builtin_entityid (rd->e.guid.entityid, DDSI_VENDORID_ECLIPSE) && !ddsrt_avl_is_empty (&pwr->readers) && !pwr->filtered)
   {
     /* builtins really don't care about multiple copies or anything */
     m->in_sync = PRMSS_SYNC;
@@ -1040,7 +1041,7 @@ void ddsi_proxy_writer_add_connection (struct ddsi_proxy_writer *pwr, struct dds
        using KEEP_ALL and the connection doesn't fail ... */
     if (rd->handle_as_transient_local)
       m->in_sync = PRMSS_OUT_OF_SYNC;
-    else if (vendor_is_eclipse (pwr->c.vendor))
+    else if (ddsi_vendor_is_eclipse (pwr->c.vendor))
       m->in_sync = PRMSS_OUT_OF_SYNC;
     else
       m->in_sync = PRMSS_SYNC;
@@ -1565,7 +1566,7 @@ void ddsi_update_proxy_participant_endpoint_matching (struct ddsi_proxy_particip
       continue;
 
     mkind = generic_do_match_mkind (e->kind, false);
-    if (!ddsi_is_builtin_entityid (e->guid.entityid, NN_VENDORID_ECLIPSE))
+    if (!ddsi_is_builtin_entityid (e->guid.entityid, DDSI_VENDORID_ECLIPSE))
     {
       struct ddsi_entity_enum it;
       struct ddsi_entity_common *em;
@@ -1702,7 +1703,7 @@ void ddsi_update_proxy_endpoint_matching (const struct ddsi_domaingv *gv, struct
 {
   GVLOGDISC ("ddsi_update_proxy_endpoint_matching (proxy ep "PGUIDFMT")\n", PGUID (proxy_ep->e.guid));
   enum ddsi_entity_kind mkind = generic_do_match_mkind (proxy_ep->e.kind, false);
-  assert (!ddsi_is_builtin_entityid (proxy_ep->e.guid.entityid, NN_VENDORID_ECLIPSE));
+  assert (!ddsi_is_builtin_entityid (proxy_ep->e.guid.entityid, DDSI_VENDORID_ECLIPSE));
   struct ddsi_entity_enum it;
   struct ddsi_entity_common *em;
   struct ddsi_match_entities_range_key max;

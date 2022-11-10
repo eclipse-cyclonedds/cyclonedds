@@ -31,6 +31,7 @@
 #include "ddsi__endpoint.h"
 #include "ddsi__gc.h"
 #include "ddsi__topic.h"
+#include "ddsi__vendor.h"
 
 struct ddsi_entity_index {
   struct ddsrt_chh *guid_hash;
@@ -176,7 +177,7 @@ static void match_endpoint_range (enum ddsi_entity_kind kind, const char *tp, st
       break;
     case DDSI_EK_PROXY_WRITER:
     case DDSI_EK_PROXY_READER:
-      min->entity.gpe.c.vendor = max->entity.gpe.c.vendor = NN_VENDORID_ECLIPSE;
+      min->entity.gpe.c.vendor = max->entity.gpe.c.vendor = DDSI_VENDORID_ECLIPSE;
       min->entity.gpe.c.xqos = &min->xqos;
       max->entity.gpe.c.xqos = &max->xqos;
       break;
@@ -211,7 +212,7 @@ static void match_entity_kind_min (enum ddsi_entity_kind kind, struct ddsi_match
       break;
     case DDSI_EK_PROXY_WRITER:
     case DDSI_EK_PROXY_READER:
-      min->entity.gpe.c.vendor = NN_VENDORID_ECLIPSE;
+      min->entity.gpe.c.vendor = DDSI_VENDORID_ECLIPSE;
       min->entity.gpe.c.xqos = &min->xqos;
       break;
     default:

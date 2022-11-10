@@ -34,7 +34,7 @@ struct ddsi_proxy_participant
 {
   struct ddsi_entity_common e;
   uint32_t refc; /* number of proxy endpoints (both user & built-in; not groups, they don't have a life of their own) */
-  nn_vendorid_t vendor; /* vendor code from discovery */
+  ddsi_vendorid_t vendor; /* vendor code from discovery */
   unsigned bes; /* built-in endpoint set */
   ddsi_guid_t privileged_pp_guid; /* if this PP depends on another PP for its SEDP writing */
   struct ddsi_plist *plist; /* settings/QoS for this participant */

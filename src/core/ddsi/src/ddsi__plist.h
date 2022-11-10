@@ -70,7 +70,7 @@ typedef uint32_t ddsi_port_t;
 
 typedef struct ddsi_plist_src {
   nn_protocol_version_t protocol_version; /**< input protocol version */
-  nn_vendorid_t vendorid;                 /**< vendor code for input */
+  ddsi_vendorid_t vendorid;                 /**< vendor code for input */
   int encoding;                           /**< DDSI_RTPS_PL_CDR_LE or DDSI_RTPS_PL_CDR_BE */
   const unsigned char *buf;               /**< input buffer */
   size_t bufsz;                           /**< size of input buffer */

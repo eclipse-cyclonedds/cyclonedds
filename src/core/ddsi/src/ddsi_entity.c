@@ -26,8 +26,9 @@
 #include "ddsi__entity_index.h"
 #include "dds/ddsi/q_thread.h"
 #include "ddsi__endpoint.h"
+#include "ddsi__vendor.h"
 
-extern inline bool ddsi_builtintopic_is_visible (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_guid *guid, nn_vendorid_t vendorid);
+extern inline bool ddsi_builtintopic_is_visible (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_guid *guid, ddsi_vendorid_t vendorid);
 extern inline bool ddsi_builtintopic_is_builtintopic (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_sertype *type);
 extern inline struct ddsi_tkmap_instance *ddsi_builtintopic_get_tkmap_entry (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_guid *guid);
 extern inline void ddsi_builtintopic_write_endpoint (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_entity_common *e, ddsrt_wctime_t timestamp, bool alive);
@@ -59,7 +60,7 @@ ddsi_entityid_t ddsi_to_entityid (unsigned u)
   return e;
 }
 
-void ddsi_entity_common_init (struct ddsi_entity_common *e, struct ddsi_domaingv *gv, const struct ddsi_guid *guid, enum ddsi_entity_kind kind, ddsrt_wctime_t tcreate, nn_vendorid_t vendorid, bool onlylocal)
+void ddsi_entity_common_init (struct ddsi_entity_common *e, struct ddsi_domaingv *gv, const struct ddsi_guid *guid, enum ddsi_entity_kind kind, ddsrt_wctime_t tcreate, ddsi_vendorid_t vendorid, bool onlylocal)
 {
   e->guid = *guid;
   e->kind = kind;
@@ -88,7 +89,7 @@ void ddsi_entity_common_fini (struct ddsi_entity_common *e)
   ddsrt_mutex_destroy (&e->lock);
 }
 
-nn_vendorid_t ddsi_get_entity_vendorid (const struct ddsi_entity_common *e)
+ddsi_vendorid_t ddsi_get_entity_vendorid (const struct ddsi_entity_common *e)
 {
   switch (e->kind)
   {
@@ -96,7 +97,7 @@ nn_vendorid_t ddsi_get_entity_vendorid (const struct ddsi_entity_common *e)
     case DDSI_EK_TOPIC:
     case DDSI_EK_READER:
     case DDSI_EK_WRITER:
-      return NN_VENDORID_ECLIPSE;
+      return DDSI_VENDORID_ECLIPSE;
     case DDSI_EK_PROXY_PARTICIPANT:
       return ((const struct ddsi_proxy_participant *) e)->vendor;
     case DDSI_EK_PROXY_READER:
@@ -105,16 +106,16 @@ nn_vendorid_t ddsi_get_entity_vendorid (const struct ddsi_entity_common *e)
       return ((const struct ddsi_proxy_writer *) e)->c.vendor;
   }
   assert (0);
-  return NN_VENDORID_UNKNOWN;
+  return DDSI_VENDORID_UNKNOWN;
 }
 
-int ddsi_is_builtin_entityid (ddsi_entityid_t id, nn_vendorid_t vendorid)
+int ddsi_is_builtin_entityid (ddsi_entityid_t id, ddsi_vendorid_t vendorid)
 {
   if ((id.u & NN_ENTITYID_SOURCE_MASK) == NN_ENTITYID_SOURCE_BUILTIN)
     return 1;
   else if ((id.u & NN_ENTITYID_SOURCE_MASK) != NN_ENTITYID_SOURCE_VENDOR)
     return 0;
-  else if (!vendor_is_eclipse_or_adlink (vendorid))
+  else if (!ddsi_vendor_is_eclipse_or_adlink (vendorid))
     return 0;
   else
   {

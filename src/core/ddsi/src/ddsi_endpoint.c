@@ -42,6 +42,7 @@
 #include "ddsi__topic.h"
 #include "ddsi__tran.h"
 #include "ddsi__typelib.h"
+#include "ddsi__vendor.h"
 #include "dds/dds.h"
 
 static dds_return_t delete_writer_nolinger_locked (struct ddsi_writer *wr);
@@ -77,7 +78,7 @@ int ddsi_is_builtin_volatile_endpoint (ddsi_entityid_t id)
   return 0;
 }
 
-int ddsi_is_builtin_endpoint (ddsi_entityid_t id, nn_vendorid_t vendorid)
+int ddsi_is_builtin_endpoint (ddsi_entityid_t id, ddsi_vendorid_t vendorid)
 {
   return ddsi_is_builtin_entityid (id, vendorid) && id.u != NN_ENTITYID_PARTICIPANT && !ddsi_is_topic_entityid (id);
 }
@@ -85,7 +86,7 @@ int ddsi_is_builtin_endpoint (ddsi_entityid_t id, nn_vendorid_t vendorid)
 bool ddsi_is_local_orphan_endpoint (const struct ddsi_entity_common *e)
 {
   return (e->guid.prefix.u[0] == 0 && e->guid.prefix.u[1] == 0 && e->guid.prefix.u[2] == 0 &&
-          ddsi_is_builtin_endpoint (e->guid.entityid, NN_VENDORID_ECLIPSE));
+          ddsi_is_builtin_endpoint (e->guid.entityid, DDSI_VENDORID_ECLIPSE));
 }
 
 int ddsi_is_writer_entityid (ddsi_entityid_t id)
@@ -378,7 +379,7 @@ static void new_reader_writer_common (const struct ddsrt_log_cfg *logcfg, const 
   const char *partition_suffix = "";
   assert (topic_name != NULL);
   assert (type_name != NULL);
-  if (ddsi_is_builtin_entityid (guid->entityid, NN_VENDORID_ECLIPSE))
+  if (ddsi_is_builtin_entityid (guid->entityid, DDSI_VENDORID_ECLIPSE))
   {
     /* continue printing it as not being in a partition, the actual
        value doesn't matter because it is never matched based on QoS
@@ -415,7 +416,7 @@ static void endpoint_common_init (struct ddsi_entity_common *e, struct ddsi_endp
 #ifndef DDS_HAS_TYPE_DISCOVERY
   DDSRT_UNUSED_ARG (sertype);
 #endif
-  ddsi_entity_common_init (e, gv, guid, kind, ddsrt_time_wallclock (), NN_VENDORID_ECLIPSE, pp->e.onlylocal || onlylocal);
+  ddsi_entity_common_init (e, gv, guid, kind, ddsrt_time_wallclock (), DDSI_VENDORID_ECLIPSE, pp->e.onlylocal || onlylocal);
   c->pp = ddsi_ref_participant (pp, &e->guid);
   if (group_guid)
     c->group_guid = *group_guid;
@@ -440,7 +441,7 @@ static void endpoint_common_init (struct ddsi_entity_common *e, struct ddsi_endp
 
 static void endpoint_common_fini (struct ddsi_entity_common *e, struct ddsi_endpoint_common *c)
 {
-  if (!ddsi_is_builtin_entityid(e->guid.entityid, NN_VENDORID_ECLIPSE))
+  if (!ddsi_is_builtin_entityid(e->guid.entityid, DDSI_VENDORID_ECLIPSE))
     ddsi_participant_release_entityid(c->pp, e->guid.entityid);
   if (c->pp)
   {
@@ -783,12 +784,12 @@ static void ddsi_new_writer_guid_common_init (struct ddsi_writer *wr, const char
   wr->reliable = (wr->xqos->reliability.kind != DDS_RELIABILITY_BEST_EFFORT);
   assert (wr->xqos->present & QP_DURABILITY);
 #ifdef DDS_HAS_TYPE_DISCOVERY
-  if (ddsi_is_builtin_entityid (wr->e.guid.entityid, NN_VENDORID_ECLIPSE) &&
+  if (ddsi_is_builtin_entityid (wr->e.guid.entityid, DDSI_VENDORID_ECLIPSE) &&
       wr->e.guid.entityid.u != NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER
       && wr->e.guid.entityid.u != NN_ENTITYID_TL_SVC_BUILTIN_REQUEST_WRITER
       && wr->e.guid.entityid.u != NN_ENTITYID_TL_SVC_BUILTIN_REPLY_WRITER)
 #else
-  if (ddsi_is_builtin_entityid (wr->e.guid.entityid, NN_VENDORID_ECLIPSE) &&
+  if (ddsi_is_builtin_entityid (wr->e.guid.entityid, DDSI_VENDORID_ECLIPSE) &&
       wr->e.guid.entityid.u != NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER)
 #endif
   {
@@ -903,7 +904,7 @@ static void ddsi_new_writer_guid_common_init (struct ddsi_writer *wr, const char
     wr->whc_low = wr->e.gv->config.whc_lowwater_mark;
     wr->whc_high = wr->e.gv->config.whc_init_highwater_mark.value;
   }
-  assert (!(ddsi_is_builtin_entityid(wr->e.guid.entityid, NN_VENDORID_ECLIPSE) && !ddsi_is_builtin_volatile_endpoint(wr->e.guid.entityid)) ||
+  assert (!(ddsi_is_builtin_entityid(wr->e.guid.entityid, DDSI_VENDORID_ECLIPSE) && !ddsi_is_builtin_volatile_endpoint(wr->e.guid.entityid)) ||
            (wr->whc_low == wr->whc_high && wr->whc_low == INT32_MAX));
 
   /* Connection admin */
@@ -962,7 +963,7 @@ dds_return_t ddsi_new_writer_guid (struct ddsi_writer **wr_out, const struct dds
   if (wr->lease_duration != NULL)
   {
     assert (wr->lease_duration->ldur != DDS_INFINITY);
-    assert (!ddsi_is_builtin_entityid (wr->e.guid.entityid, NN_VENDORID_ECLIPSE));
+    assert (!ddsi_is_builtin_entityid (wr->e.guid.entityid, DDSI_VENDORID_ECLIPSE));
     if (wr->xqos->liveliness.kind == DDS_LIVELINESS_AUTOMATIC)
     {
       /* Store writer lease duration in participant's heap in case of automatic liveliness */
@@ -1025,7 +1026,7 @@ struct ddsi_local_orphan_writer *ddsi_new_local_orphan_writer (struct ddsi_domai
 
   memset (&guid.prefix, 0, sizeof (guid.prefix));
   guid.entityid = entityid;
-  ddsi_entity_common_init (&wr->e, gv, &guid, DDSI_EK_WRITER, ddsrt_time_wallclock (), NN_VENDORID_ECLIPSE, true);
+  ddsi_entity_common_init (&wr->e, gv, &guid, DDSI_EK_WRITER, ddsrt_time_wallclock (), DDSI_VENDORID_ECLIPSE, true);
   wr->c.pp = NULL;
   memset (&wr->c.group_guid, 0, sizeof (wr->c.group_guid));
 
@@ -1091,7 +1092,7 @@ static void gc_delete_writer (struct ddsi_gcreq *gcreq)
   }
 
   /* Do last gasp on SEDP and free writer. */
-  if (!ddsi_is_builtin_entityid (wr->e.guid.entityid, NN_VENDORID_ECLIPSE))
+  if (!ddsi_is_builtin_entityid (wr->e.guid.entityid, DDSI_VENDORID_ECLIPSE))
     sedp_dispose_unregister_writer (wr);
   whc_free (wr->whc);
   if (wr->status_cb)
@@ -1542,7 +1543,7 @@ static void gc_delete_reader (struct ddsi_gcreq *gcreq)
   ddsi_omg_security_deregister_reader (rd);
 #endif
 
-  if (!ddsi_is_builtin_entityid (rd->e.guid.entityid, NN_VENDORID_ECLIPSE))
+  if (!ddsi_is_builtin_entityid (rd->e.guid.entityid, DDSI_VENDORID_ECLIPSE))
     sedp_dispose_unregister_reader (rd);
 #ifdef DDS_HAS_NETWORK_PARTITIONS
   if (rd->mc_as)
@@ -1551,7 +1552,7 @@ static void gc_delete_reader (struct ddsi_gcreq *gcreq)
       leave_mcast_helper (rd->e.gv, rd->e.gv->data_conn_mc, &a->loc);
   }
 #endif
-  if (rd->rhc && ddsi_is_builtin_entityid (rd->e.guid.entityid, NN_VENDORID_ECLIPSE))
+  if (rd->rhc && ddsi_is_builtin_entityid (rd->e.guid.entityid, DDSI_VENDORID_ECLIPSE))
   {
     ddsi_rhc_free (rd->rhc);
   }

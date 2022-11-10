@@ -74,6 +74,7 @@
 #include "ddsi__proxy_participant.h"
 #include "ddsi__topic.h"
 #include "ddsi__typelib.h"
+#include "ddsi__vendor.h"
 
 #include "dds__whc.h"
 #include "dds/cdr/dds_cdrstream.h"
@@ -1458,8 +1459,8 @@ int rtps_init (struct ddsi_domaingv *gv)
     ddsrt_md5_finish (&st, digest);
     /* DDSI 2.2 requires the first two bytes of the GUID to be set to the vendor
        code -- a terrible waste of entropy ... */
-    gv->ppguid_base.prefix.s[0] = NN_VENDORID_ECLIPSE.id[0];
-    gv->ppguid_base.prefix.s[1] = NN_VENDORID_ECLIPSE.id[1];
+    gv->ppguid_base.prefix.s[0] = DDSI_VENDORID_ECLIPSE.id[0];
+    gv->ppguid_base.prefix.s[1] = DDSI_VENDORID_ECLIPSE.id[1];
     DDSRT_STATIC_ASSERT (sizeof (gv->ppguid_base.prefix.s) > 2 && sizeof (gv->ppguid_base.prefix.s) - 2 <= sizeof (digest));
     memcpy (&gv->ppguid_base.prefix.s[2], digest, sizeof (gv->ppguid_base.prefix.s) - 2);
     gv->ppguid_base.prefix = nn_ntoh_guid_prefix (gv->ppguid_base.prefix);
@@ -2041,7 +2042,7 @@ void rtps_stop (struct ddsi_domaingv *gv)
     ddsi_entidx_enum_writer_init (&est_wr, gv->entity_index);
     while ((wr = ddsi_entidx_enum_writer_next (&est_wr)) != NULL)
     {
-      if (!ddsi_is_builtin_entityid (wr->e.guid.entityid, NN_VENDORID_ECLIPSE))
+      if (!ddsi_is_builtin_entityid (wr->e.guid.entityid, DDSI_VENDORID_ECLIPSE))
         ddsi_delete_writer_nolinger (gv, &wr->e.guid);
     }
     ddsi_entidx_enum_writer_fini (&est_wr);
@@ -2049,7 +2050,7 @@ void rtps_stop (struct ddsi_domaingv *gv)
     ddsi_entidx_enum_reader_init (&est_rd, gv->entity_index);
     while ((rd = ddsi_entidx_enum_reader_next (&est_rd)) != NULL)
     {
-      if (!ddsi_is_builtin_entityid (rd->e.guid.entityid, NN_VENDORID_ECLIPSE))
+      if (!ddsi_is_builtin_entityid (rd->e.guid.entityid, DDSI_VENDORID_ECLIPSE))
         ddsi_delete_reader (gv, &rd->e.guid);
     }
     ddsi_entidx_enum_reader_fini (&est_rd);

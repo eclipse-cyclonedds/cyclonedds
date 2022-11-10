@@ -30,6 +30,7 @@
 #include "ddsi__plist.h"
 #include "dds/cdr/dds_cdrstream.h"
 #include "ddsi__protocol.h"
+#include "ddsi__vendor.h"
 
 static uint32_t serdata_plist_get_size (const struct ddsi_serdata *dcmn)
 {
@@ -66,7 +67,7 @@ static struct ddsi_serdata_plist *serdata_plist_new (const struct ddsi_sertype_p
   d->size = (uint32_t) size;
   // FIXME: vendorid/protoversion are not available when creating a serdata
   // these should be overruled by the one creating the serdata
-  d->vendorid = NN_VENDORID_UNKNOWN;
+  d->vendorid = DDSI_VENDORID_UNKNOWN;
   d->protoversion.major = DDSI_RTPS_MAJOR;
   d->protoversion.minor = DDSI_RTPS_MINOR;
   const uint16_t *hdrsrc = cdr_header;
@@ -239,7 +240,7 @@ static struct ddsi_serdata *serdata_plist_from_sample (const struct ddsi_sertype
 
   /* we know the vendor when we construct a serdata from a sample */
   struct ddsi_serdata_plist *d_plist = (struct ddsi_serdata_plist *) d;
-  d_plist->vendorid = NN_VENDORID_ECLIPSE;
+  d_plist->vendorid = DDSI_VENDORID_ECLIPSE;
   return d;
 }
 

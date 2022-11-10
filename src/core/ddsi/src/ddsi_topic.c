@@ -28,6 +28,7 @@
 #include "dds/ddsi/q_misc.h"
 #include "ddsi__gc.h"
 #include "ddsi__typelib.h"
+#include "ddsi__vendor.h"
 #include "dds/dds.h"
 
 #ifdef DDS_HAS_TOPIC_DISCOVERY
@@ -53,7 +54,7 @@ struct gc_tpd {
   ddsrt_wctime_t timestamp;
 };
 
-int ddsi_is_builtin_topic (ddsi_entityid_t id, nn_vendorid_t vendorid)
+int ddsi_is_builtin_topic (ddsi_entityid_t id, ddsi_vendorid_t vendorid)
 {
   return ddsi_is_builtin_entityid (id, vendorid) && ddsi_is_topic_entityid (id);
 }
@@ -88,7 +89,7 @@ dds_return_t ddsi_new_topic (struct ddsi_topic **tp_out, struct ddsi_guid *tpgui
   struct ddsi_topic *tp = ddsrt_malloc (sizeof (*tp));
   if (tp_out)
     *tp_out = tp;
-  ddsi_entity_common_init (&tp->e, gv, tpguid, DDSI_EK_TOPIC, timestamp, NN_VENDORID_ECLIPSE, pp->e.onlylocal);
+  ddsi_entity_common_init (&tp->e, gv, tpguid, DDSI_EK_TOPIC, timestamp, DDSI_VENDORID_ECLIPSE, pp->e.onlylocal);
   tp->pp = ddsi_ref_participant (pp, &tp->e.guid);
 
   /* Copy QoS, merging in defaults */
@@ -166,7 +167,7 @@ static void gc_delete_topic (struct ddsi_gcreq *gcreq)
   struct ddsi_topic *tp = gcreq->arg;
   ELOGDISC (tp, "gc_delete_topic (%p, "PGUIDFMT")\n", (void *) gcreq, PGUID (tp->e.guid));
   ddsi_gcreq_free (gcreq);
-  if (!ddsi_is_builtin_entityid (tp->e.guid.entityid, NN_VENDORID_ECLIPSE))
+  if (!ddsi_is_builtin_entityid (tp->e.guid.entityid, DDSI_VENDORID_ECLIPSE))
     (void) sedp_write_topic (tp, false);
   ddsi_entity_common_fini (&tp->e);
   unref_topic_definition (tp->e.gv, tp->definition, ddsrt_time_wallclock());

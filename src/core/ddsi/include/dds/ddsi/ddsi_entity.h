@@ -93,7 +93,7 @@ struct ddsi_local_reader_ary {
 };
 
 ddsi_entityid_t ddsi_to_entityid (unsigned u);
-nn_vendorid_t ddsi_get_entity_vendorid (const struct ddsi_entity_common *e);
+ddsi_vendorid_t ddsi_get_entity_vendorid (const struct ddsi_entity_common *e);
 uint64_t ddsi_get_entity_instanceid (const struct ddsi_domaingv *gv, const struct ddsi_guid *guid);
 
 #if defined (__cplusplus)

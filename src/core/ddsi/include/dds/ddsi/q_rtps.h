@@ -12,8 +12,8 @@
 #ifndef NN_RTPS_H
 #define NN_RTPS_H
 
+#include <stdbool.h>
 #include "dds/export.h"
-#include "dds/ddsi/ddsi_vendor.h"
 #include "dds/ddsi/ddsi_guid.h"
 
 #if defined (__cplusplus)

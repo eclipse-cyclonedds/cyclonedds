@@ -57,6 +57,7 @@
 #include "ddsi__topic.h"
 #include "ddsi__tran.h"
 #include "ddsi__typelib.h"
+#include "ddsi__vendor.h"
 #ifdef DDS_HAS_TYPE_DISCOVERY
 #include "ddsi__typelookup.h"
 #endif
@@ -396,7 +397,7 @@ void get_participant_builtin_topic_data (const struct ddsi_participant *pp, ddsi
   dst->builtin_endpoint_set = pp->bes;
   dst->protocol_version.major = DDSI_RTPS_MAJOR;
   dst->protocol_version.minor = DDSI_RTPS_MINOR;
-  dst->vendorid = NN_VENDORID_ECLIPSE;
+  dst->vendorid = DDSI_VENDORID_ECLIPSE;
   dst->domain_id = pp->e.gv->config.extDomainId.value;
   /* Be sure not to send a DOMAIN_TAG when it is the default (an empty)
      string: it is an "incompatible-if-unrecognized" parameter, and so
@@ -688,7 +689,7 @@ static struct ddsi_proxy_participant *find_ddsi2_proxy_participant (const struct
   ddsi_entidx_enum_proxy_participant_init (&it, entidx);
   while ((pp = ddsi_entidx_enum_proxy_participant_next (&it)) != NULL)
   {
-    if (vendor_is_eclipse_or_opensplice (pp->vendor) && pp->e.guid.prefix.u[0] == ppguid->prefix.u[0] && pp->is_ddsi2_pp)
+    if (ddsi_vendor_is_eclipse_or_opensplice (pp->vendor) && pp->e.guid.prefix.u[0] == ppguid->prefix.u[0] && pp->is_ddsi2_pp)
       break;
   }
   ddsi_entidx_enum_proxy_participant_fini (&it);
@@ -704,7 +705,7 @@ static void make_participants_dependent_on_ddsi2 (struct ddsi_domaingv *gv, cons
   ddsi_entidx_enum_proxy_participant_init (&it, gv->entity_index);
   while ((pp = ddsi_entidx_enum_proxy_participant_next (&it)) != NULL)
   {
-    if (vendor_is_eclipse_or_opensplice (pp->vendor) && pp->e.guid.prefix.u[0] == ddsi2guid->prefix.u[0] && !pp->is_ddsi2_pp)
+    if (ddsi_vendor_is_eclipse_or_opensplice (pp->vendor) && pp->e.guid.prefix.u[0] == ddsi2guid->prefix.u[0] && !pp->is_ddsi2_pp)
     {
       GVTRACE ("proxy participant "PGUIDFMT" depends on ddsi2 "PGUIDFMT, PGUID (pp->e.guid), PGUID (*ddsi2guid));
       ddsrt_mutex_lock (&pp->e.lock);
@@ -766,7 +767,7 @@ static int handle_spdp_alive (const struct receiver_state *rst, seqno_t seq, dds
      so it seemed; and yet they are necessary for correct operation,
      so add them. */
   builtin_endpoint_set = datap->builtin_endpoint_set;
-  if (vendor_is_rti (rst->vendor) &&
+  if (ddsi_vendor_is_rti (rst->vendor) &&
       ((builtin_endpoint_set &
         (DDSI_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_READER |
          DDSI_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_WRITER))
@@ -883,7 +884,7 @@ static int handle_spdp_alive (const struct receiver_state *rst, seqno_t seq, dds
        until the "privileged" one expires anyway */
     lease_duration = DDS_INFINITY;
   }
-  else if (vendor_is_eclipse_or_opensplice (rst->vendor) && !(custom_flags & DDSI_CF_PARTICIPANT_IS_DDSI2))
+  else if (ddsi_vendor_is_eclipse_or_opensplice (rst->vendor) && !(custom_flags & DDSI_CF_PARTICIPANT_IS_DDSI2))
   {
     /* Non-DDSI2 participants are made dependent on DDSI2 (but DDSI2
        itself need not be discovered yet) */
@@ -1150,7 +1151,7 @@ static int sedp_write_endpoint_impl
     ps.present |= PP_PROTOCOL_VERSION | PP_VENDORID;
     ps.protocol_version.major = DDSI_RTPS_MAJOR;
     ps.protocol_version.minor = DDSI_RTPS_MINOR;
-    ps.vendorid = NN_VENDORID_ECLIPSE;
+    ps.vendorid = DDSI_VENDORID_ECLIPSE;
 
     assert (epcommon != NULL);
 
@@ -1263,7 +1264,7 @@ static int sedp_write_topic_impl (struct ddsi_writer *wr, int alive, const ddsi_
   ps.present |= PP_PROTOCOL_VERSION | PP_VENDORID;
   ps.protocol_version.major = DDSI_RTPS_MAJOR;
   ps.protocol_version.minor = DDSI_RTPS_MINOR;
-  ps.vendorid = NN_VENDORID_ECLIPSE;
+  ps.vendorid = DDSI_VENDORID_ECLIPSE;
 
   uint64_t qosdiff = ddsi_xqos_delta (xqos, defqos, ~(uint64_t)0);
   if (gv->config.explicitly_publish_qos_set_to_default)
@@ -1284,7 +1285,7 @@ int sedp_write_topic (struct ddsi_topic *tp, bool alive)
   int res = 0;
   if (!(tp->pp->bes & DDSI_DISC_BUILTIN_ENDPOINT_TOPICS_ANNOUNCER))
     return res;
-  if (!ddsi_is_builtin_entityid (tp->e.guid.entityid, NN_VENDORID_ECLIPSE) && !tp->e.onlylocal)
+  if (!ddsi_is_builtin_entityid (tp->e.guid.entityid, DDSI_VENDORID_ECLIPSE) && !tp->e.onlylocal)
   {
     unsigned entityid = ddsi_determine_topic_writer (tp);
     struct ddsi_writer *sedp_wr = get_sedp_writer (tp->pp, entityid);
@@ -1300,7 +1301,7 @@ int sedp_write_topic (struct ddsi_topic *tp, bool alive)
 
 int sedp_write_writer (struct ddsi_writer *wr)
 {
-  if ((!ddsi_is_builtin_entityid(wr->e.guid.entityid, NN_VENDORID_ECLIPSE)) && (!wr->e.onlylocal))
+  if ((!ddsi_is_builtin_entityid(wr->e.guid.entityid, DDSI_VENDORID_ECLIPSE)) && (!wr->e.onlylocal))
   {
     unsigned entityid = ddsi_determine_publication_writer(wr);
     struct ddsi_writer *sedp_wr = get_sedp_writer (wr->c.pp, entityid);
@@ -1328,7 +1329,7 @@ int sedp_write_writer (struct ddsi_writer *wr)
 
 int sedp_write_reader (struct ddsi_reader *rd)
 {
-  if (ddsi_is_builtin_entityid (rd->e.guid.entityid, NN_VENDORID_ECLIPSE) || rd->e.onlylocal)
+  if (ddsi_is_builtin_entityid (rd->e.guid.entityid, DDSI_VENDORID_ECLIPSE) || rd->e.onlylocal)
     return 0;
 
   unsigned entityid = ddsi_determine_subscription_writer(rd);
@@ -1370,7 +1371,7 @@ int sedp_write_reader (struct ddsi_reader *rd)
 
 int sedp_dispose_unregister_writer (struct ddsi_writer *wr)
 {
-  if ((!ddsi_is_builtin_entityid(wr->e.guid.entityid, NN_VENDORID_ECLIPSE)) && (!wr->e.onlylocal))
+  if ((!ddsi_is_builtin_entityid(wr->e.guid.entityid, DDSI_VENDORID_ECLIPSE)) && (!wr->e.onlylocal))
   {
     unsigned entityid = ddsi_determine_publication_writer(wr);
     struct ddsi_writer *sedp_wr = get_sedp_writer (wr->c.pp, entityid);
@@ -1385,7 +1386,7 @@ int sedp_dispose_unregister_writer (struct ddsi_writer *wr)
 
 int sedp_dispose_unregister_reader (struct ddsi_reader *rd)
 {
-  if ((!ddsi_is_builtin_entityid(rd->e.guid.entityid, NN_VENDORID_ECLIPSE)) && (!rd->e.onlylocal))
+  if ((!ddsi_is_builtin_entityid(rd->e.guid.entityid, DDSI_VENDORID_ECLIPSE)) && (!rd->e.onlylocal))
   {
     unsigned entityid = ddsi_determine_subscription_writer(rd);
     struct ddsi_writer *sedp_wr = get_sedp_writer (rd->c.pp, entityid);
@@ -1410,7 +1411,7 @@ static const char *durability_to_string (dds_durability_kind_t k)
   return "undefined-durability";
 }
 
-static struct ddsi_proxy_participant *implicitly_create_proxypp (struct ddsi_domaingv *gv, const ddsi_guid_t *ppguid, ddsi_plist_t *datap /* note: potentially modifies datap */, const ddsi_guid_prefix_t *src_guid_prefix, nn_vendorid_t vendorid, ddsrt_wctime_t timestamp, seqno_t seq)
+static struct ddsi_proxy_participant *implicitly_create_proxypp (struct ddsi_domaingv *gv, const ddsi_guid_t *ppguid, ddsi_plist_t *datap /* note: potentially modifies datap */, const ddsi_guid_prefix_t *src_guid_prefix, ddsi_vendorid_t vendorid, ddsrt_wctime_t timestamp, seqno_t seq)
 {
   ddsi_guid_t privguid;
   ddsi_plist_t pp_plist;
@@ -1423,9 +1424,9 @@ static struct ddsi_proxy_participant *implicitly_create_proxypp (struct ddsi_dom
   privguid.entityid = ddsi_to_entityid (NN_ENTITYID_PARTICIPANT);
   ddsi_plist_init_empty(&pp_plist);
 
-  if (vendor_is_cloud (vendorid))
+  if (ddsi_vendor_is_cloud (vendorid))
   {
-    nn_vendorid_t actual_vendorid;
+    ddsi_vendorid_t actual_vendorid;
     /* Some endpoint that we discovered through the DS, but then it must have at least some locators */
     GVTRACE (" from-DS %"PRIx32":%"PRIx32":%"PRIx32":%"PRIx32, PGUID (privguid));
     /* avoid "no address" case, so we never create the proxy participant for nothing (FIXME: rework some of this) */
@@ -1449,7 +1450,7 @@ static struct ddsi_proxy_participant *implicitly_create_proxypp (struct ddsi_dom
     actual_vendorid = (datap->present & PP_VENDORID) ?  datap->vendorid : vendorid;
     (void) ddsi_new_proxy_participant (gv, ppguid, 0, &privguid, new_addrset(), new_addrset(), &pp_plist, DDS_INFINITY, actual_vendorid, DDSI_CF_IMPLICITLY_CREATED_PROXYPP, timestamp, seq);
   }
-  else if (ppguid->prefix.u[0] == src_guid_prefix->u[0] && vendor_is_eclipse_or_opensplice (vendorid))
+  else if (ppguid->prefix.u[0] == src_guid_prefix->u[0] && ddsi_vendor_is_eclipse_or_opensplice (vendorid))
   {
     /* FIXME: requires address sets to be those of ddsi2, no built-in
        readers or writers, only if remote ddsi2 is provably running
@@ -1506,7 +1507,7 @@ static bool check_sedp_kind_and_guid (ddsi_sedp_kind_t sedp_kind, const ddsi_gui
 }
 
 static bool handle_sedp_checks (struct ddsi_domaingv * const gv, ddsi_sedp_kind_t sedp_kind, ddsi_guid_t *entity_guid, ddsi_plist_t *datap,
-    const ddsi_guid_prefix_t *src_guid_prefix, nn_vendorid_t vendorid, ddsrt_wctime_t timestamp,
+    const ddsi_guid_prefix_t *src_guid_prefix, ddsi_vendorid_t vendorid, ddsrt_wctime_t timestamp,
     struct ddsi_proxy_participant **proxypp, ddsi_guid_t *ppguid)
 {
 #define E(msg, lbl) do { GVLOGDISC (msg); return false; } while (0)
@@ -1601,7 +1602,7 @@ struct addrset *ddsi_get_endpoint_addrset (const struct ddsi_domaingv *gv, const
   return as;
 }
 
-static void handle_sedp_alive_endpoint (const struct receiver_state *rst, seqno_t seq, ddsi_plist_t *datap /* note: potentially modifies datap */, ddsi_sedp_kind_t sedp_kind, const ddsi_guid_prefix_t *src_guid_prefix, nn_vendorid_t vendorid, ddsrt_wctime_t timestamp)
+static void handle_sedp_alive_endpoint (const struct receiver_state *rst, seqno_t seq, ddsi_plist_t *datap /* note: potentially modifies datap */, ddsi_sedp_kind_t sedp_kind, const ddsi_guid_prefix_t *src_guid_prefix, ddsi_vendorid_t vendorid, ddsrt_wctime_t timestamp)
 {
 #define E(msg, lbl) do { GVLOGDISC (msg); goto lbl; } while (0)
   struct ddsi_domaingv * const gv = rst->gv;
@@ -1629,7 +1630,7 @@ static void handle_sedp_alive_endpoint (const struct receiver_state *rst, seqno_
   else if (sedp_kind == SEDP_KIND_WRITER)
   {
     ddsi_xqos_mergein_missing (xqos, &ddsi_default_qos_writer, ~(uint64_t)0);
-    if (!vendor_is_eclipse_or_adlink (vendorid))
+    if (!ddsi_vendor_is_eclipse_or_adlink (vendorid))
     {
       // there is a difference in interpretation of autodispose between vendors
       xqos->writer_data_lifecycle.autodispose_unregistered_instances = 0;
@@ -1672,8 +1673,8 @@ static void handle_sedp_alive_endpoint (const struct receiver_state *rst, seqno_
     /* Re-bind the proxy participant to the discovery service - and do this if it is currently
        bound to another DS instance, because that other DS instance may have already failed and
        with a new one taking over, without our noticing it. */
-    GVLOGDISC (" known%s", vendor_is_cloud (vendorid) ? "-DS" : "");
-    if (vendor_is_cloud (vendorid) && proxypp->implicitly_created && memcmp (&proxypp->privileged_pp_guid.prefix, src_guid_prefix, sizeof(proxypp->privileged_pp_guid.prefix)) != 0)
+    GVLOGDISC (" known%s", ddsi_vendor_is_cloud (vendorid) ? "-DS" : "");
+    if (ddsi_vendor_is_cloud (vendorid) && proxypp->implicitly_created && memcmp (&proxypp->privileged_pp_guid.prefix, src_guid_prefix, sizeof(proxypp->privileged_pp_guid.prefix)) != 0)
     {
       GVLOGDISC (" "PGUIDFMT" attach-to-DS "PGUIDFMT, PGUID(proxypp->e.guid), PGUIDPREFIX(*src_guid_prefix), proxypp->privileged_pp_guid.entityid.u);
       ddsrt_mutex_lock (&proxypp->e.lock);
@@ -1708,7 +1709,7 @@ static void handle_sedp_alive_endpoint (const struct receiver_state *rst, seqno_
   ddsi_xqos_log (DDS_LC_DISCOVERY, &gv->logconfig, xqos);
   GVLOGDISC ("}\n");
 
-  if ((datap->endpoint_guid.entityid.u & NN_ENTITYID_SOURCE_MASK) == NN_ENTITYID_SOURCE_VENDOR && !vendor_is_eclipse_or_adlink (vendorid))
+  if ((datap->endpoint_guid.entityid.u & NN_ENTITYID_SOURCE_MASK) == NN_ENTITYID_SOURCE_VENDOR && !ddsi_vendor_is_eclipse_or_adlink (vendorid))
   {
     GVLOGDISC ("ignoring vendor-specific endpoint "PGUIDFMT"\n", PGUID (datap->endpoint_guid));
   }
@@ -1770,7 +1771,7 @@ static void handle_sedp_dead_endpoint (const struct receiver_state *rst, ddsi_pl
 
 #ifdef DDS_HAS_TOPIC_DISCOVERY
 
-static void handle_sedp_alive_topic (const struct receiver_state *rst, seqno_t seq, ddsi_plist_t *datap /* note: potentially modifies datap */, const ddsi_guid_prefix_t *src_guid_prefix, nn_vendorid_t vendorid, ddsrt_wctime_t timestamp)
+static void handle_sedp_alive_topic (const struct receiver_state *rst, seqno_t seq, ddsi_plist_t *datap /* note: potentially modifies datap */, const ddsi_guid_prefix_t *src_guid_prefix, ddsi_vendorid_t vendorid, ddsrt_wctime_t timestamp)
 {
   struct ddsi_domaingv * const gv = rst->gv;
   struct ddsi_proxy_participant *proxypp;
@@ -1811,7 +1812,7 @@ static void handle_sedp_alive_topic (const struct receiver_state *rst, seqno_t s
   ddsi_xqos_log (DDS_LC_DISCOVERY, &gv->logconfig, xqos);
   GVLOGDISC ("}\n");
 
-  if ((datap->topic_guid.entityid.u & NN_ENTITYID_SOURCE_MASK) == NN_ENTITYID_SOURCE_VENDOR && !vendor_is_eclipse_or_adlink (vendorid))
+  if ((datap->topic_guid.entityid.u & NN_ENTITYID_SOURCE_MASK) == NN_ENTITYID_SOURCE_VENDOR && !ddsi_vendor_is_eclipse_or_adlink (vendorid))
   {
     GVLOGDISC ("ignoring vendor-specific topic "PGUIDFMT"\n", PGUID (datap->topic_guid));
   }
@@ -1821,7 +1822,7 @@ static void handle_sedp_alive_topic (const struct receiver_state *rst, seqno_t s
     struct ddsi_proxy_topic *ptp = ddsi_lookup_proxy_topic (proxypp, &datap->topic_guid);
     if (ptp)
     {
-      GVLOGDISC (" update known proxy-topic%s\n", vendor_is_cloud (vendorid) ? "-DS" : "");
+      GVLOGDISC (" update known proxy-topic%s\n", ddsi_vendor_is_cloud (vendorid) ? "-DS" : "");
       ddsi_update_proxy_topic (proxypp, ptp, seq, xqos, timestamp);
     }
     else
