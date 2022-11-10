@@ -207,7 +207,7 @@ static struct dds_rhc *mkrhc (struct ddsi_domaingv *gv, dds_reader *rd, dds_hist
   struct dds_rhc *rhc;
   dds_qos_t rqos;
   ddsi_xqos_init_empty (&rqos);
-  rqos.present |= QP_HISTORY | QP_DESTINATION_ORDER;
+  rqos.present |= DDSI_QP_HISTORY | DDSI_QP_DESTINATION_ORDER;
   rqos.history.kind = hk;
   rqos.history.depth = hdepth;
   rqos.destination_order.kind = dok;

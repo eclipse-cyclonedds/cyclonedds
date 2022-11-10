@@ -105,7 +105,7 @@ static int ddsi_is_ignored_nwpart_one (const struct ddsi_config *cfg, const char
 static void get_partition_set_from_xqos (char const * const * *ps, uint32_t *nps, const struct dds_qos *xqos)
 {
   static const char *ps_def = "";
-  if ((xqos->present & QP_PARTITION) && xqos->partition.n > 0) {
+  if ((xqos->present & DDSI_QP_PARTITION) && xqos->partition.n > 0) {
     *ps = (char const * const *) xqos->partition.strs;
     *nps = xqos->partition.n;
   } else {

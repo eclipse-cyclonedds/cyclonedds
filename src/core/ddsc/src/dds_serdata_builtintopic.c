@@ -165,7 +165,7 @@ static void translate_pp_lease_duration (dds_qos_t *qos, const ddsi_plist_t *pli
   // Participant lease duration doesn't play by the rules because it doesn't officially exist as a QoS
   // and we make it available via the liveliness QoS setting
   assert (plist->present & PP_PARTICIPANT_LEASE_DURATION);
-  qos->present |= QP_LIVELINESS;
+  qos->present |= DDSI_QP_LIVELINESS;
   qos->liveliness.kind = DDS_LIVELINESS_AUTOMATIC;
   qos->liveliness.lease_duration = plist->participant_lease_duration;
 }
@@ -189,8 +189,8 @@ static void from_entity_proxypp (struct ddsi_serdata_builtintopic_participant *d
 static void from_qos (struct ddsi_serdata_builtintopic *d, const dds_qos_t *xqos)
 {
   ddsi_xqos_copy (&d->xqos, xqos);
-  assert (d->xqos.present & QP_TOPIC_NAME);
-  assert (d->xqos.present & QP_TYPE_NAME);
+  assert (d->xqos.present & DDSI_QP_TOPIC_NAME);
+  assert (d->xqos.present & DDSI_QP_TYPE_NAME);
 }
 
 static void from_entity_rd (struct ddsi_serdata_builtintopic_endpoint *d, const struct ddsi_reader *rd)
@@ -337,7 +337,7 @@ static dds_qos_t *dds_qos_from_xqos_reuse (dds_qos_t *old, const dds_qos_t *src)
     ddsi_xqos_fini (old);
   }
   ddsi_xqos_init_empty (old);
-  ddsi_xqos_mergein_missing (old, src, ~(QP_TOPIC_NAME | QP_TYPE_NAME));
+  ddsi_xqos_mergein_missing (old, src, ~(DDSI_QP_TOPIC_NAME | DDSI_QP_TYPE_NAME));
   return old;
 }
 
@@ -359,8 +359,8 @@ static bool to_sample_endpoint (const struct ddsi_serdata_builtintopic_endpoint 
   sample->participant_instance_handle = dep->pphandle;
   if (dep->common.c.kind == SDK_DATA)
   {
-    assert (dep->common.xqos.present & QP_TOPIC_NAME);
-    assert (dep->common.xqos.present & QP_TYPE_NAME);
+    assert (dep->common.xqos.present & DDSI_QP_TOPIC_NAME);
+    assert (dep->common.xqos.present & DDSI_QP_TYPE_NAME);
     sample->topic_name = dds_string_dup_reuse (sample->topic_name, dep->common.xqos.topic_name);
     sample->type_name = dds_string_dup_reuse (sample->type_name, dep->common.xqos.type_name);
     sample->qos = dds_qos_from_xqos_reuse (sample->qos, &dep->common.xqos);
@@ -374,8 +374,8 @@ static bool to_sample_topic (const struct ddsi_serdata_builtintopic_topic *dtp, 
   memcpy (&sample->key, &dtp->common.key.raw, sizeof (sample->key));
   if (dtp->common.c.kind == SDK_DATA)
   {
-    assert (dtp->common.xqos.present & QP_TOPIC_NAME);
-    assert (dtp->common.xqos.present & QP_TYPE_NAME);
+    assert (dtp->common.xqos.present & DDSI_QP_TOPIC_NAME);
+    assert (dtp->common.xqos.present & DDSI_QP_TYPE_NAME);
     sample->topic_name = dds_string_dup_reuse (sample->topic_name, dtp->common.xqos.topic_name);
     sample->type_name = dds_string_dup_reuse (sample->type_name, dtp->common.xqos.type_name);
     sample->qos = dds_qos_from_xqos_reuse (sample->qos, &dtp->common.xqos);

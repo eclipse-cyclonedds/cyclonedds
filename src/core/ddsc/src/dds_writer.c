@@ -219,11 +219,11 @@ static dds_return_t dds_writer_delete (dds_entity *e)
 static dds_return_t validate_writer_qos (const dds_qos_t *wqos)
 {
 #ifndef DDS_HAS_LIFESPAN
-  if (wqos != NULL && (wqos->present & QP_LIFESPAN) && wqos->lifespan.duration != DDS_INFINITY)
+  if (wqos != NULL && (wqos->present & DDSI_QP_LIFESPAN) && wqos->lifespan.duration != DDS_INFINITY)
     return DDS_RETCODE_BAD_PARAMETER;
 #endif
 #ifndef DDS_HAS_DEADLINE_MISSED
-  if (wqos != NULL && (wqos->present & QP_DEADLINE) && wqos->deadline.deadline != DDS_INFINITY)
+  if (wqos != NULL && (wqos->present & DDSI_QP_DEADLINE) && wqos->deadline.deadline != DDS_INFINITY)
     return DDS_RETCODE_BAD_PARAMETER;
 #endif
 #if defined(DDS_HAS_LIFESPAN) && defined(DDS_HAS_DEADLINE_MISSED)
@@ -284,7 +284,7 @@ const struct dds_entity_deriver dds_entity_deriver_writer = {
 };
 
 #ifdef DDS_HAS_SHM
-#define DDS_WRITER_QOS_CHECK_FIELDS (QP_LIVELINESS|QP_DEADLINE|QP_RELIABILITY|QP_DURABILITY|QP_HISTORY)
+#define DDS_WRITER_QOS_CHECK_FIELDS (DDSI_QP_LIVELINESS|DDSI_QP_DEADLINE|DDSI_QP_RELIABILITY|DDSI_QP_DURABILITY|DDSI_QP_HISTORY)
 static bool dds_writer_support_shm(const struct ddsi_config* cfg, const dds_qos_t* qos, const struct dds_topic *tp)
 {
   if (NULL == cfg ||
@@ -403,10 +403,10 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   if (qos)
     ddsi_xqos_mergein_missing (wqos, qos, DDS_WRITER_QOS_MASK);
   if (pub->m_entity.m_qos)
-    ddsi_xqos_mergein_missing (wqos, pub->m_entity.m_qos, ~QP_ENTITY_NAME);
+    ddsi_xqos_mergein_missing (wqos, pub->m_entity.m_qos, ~DDSI_QP_ENTITY_NAME);
   if (tp->m_ktopic->qos)
-    ddsi_xqos_mergein_missing (wqos, tp->m_ktopic->qos, ~QP_ENTITY_NAME);
-  ddsi_xqos_mergein_missing (wqos, &ddsi_default_qos_writer, ~QP_DATA_REPRESENTATION);
+    ddsi_xqos_mergein_missing (wqos, tp->m_ktopic->qos, ~DDSI_QP_ENTITY_NAME);
+  ddsi_xqos_mergein_missing (wqos, &ddsi_default_qos_writer, ~DDSI_QP_DATA_REPRESENTATION);
   dds_apply_entity_naming(wqos, pub->m_entity.m_qos, gv);
 
   if ((rc = dds_ensure_valid_data_representation (wqos, tp->m_stype->allowed_data_representation, false)) != 0)
@@ -415,7 +415,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   if ((rc = ddsi_xqos_valid (&gv->logconfig, wqos)) < 0 || (rc = validate_writer_qos(wqos)) != DDS_RETCODE_OK)
     goto err_bad_qos;
 
-  assert (wqos->present & QP_DATA_REPRESENTATION && wqos->data_representation.value.n > 0);
+  assert (wqos->present & DDSI_QP_DATA_REPRESENTATION && wqos->data_representation.value.n > 0);
   dds_data_representation_id_t data_representation = wqos->data_representation.value.ids[0];
 
   thread_state_awake (ddsi_lookup_thread_state (), gv);
@@ -454,13 +454,13 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   wr->whc_batch = gv->config.whc_batch;
 
 #ifdef DDS_HAS_SHM
-  assert(wqos->present & QP_LOCATOR_MASK);
+  assert(wqos->present & DDSI_QP_LOCATOR_MASK);
   if (!dds_writer_support_shm(&gv->config, wqos, tp))
     wqos->ignore_locator_type |= DDSI_LOCATOR_KIND_SHEM;
 #endif
 
   struct ddsi_sertype *sertype = ddsi_sertype_derive_sertype (tp->m_stype, data_representation,
-    wqos->present & QP_TYPE_CONSISTENCY_ENFORCEMENT ? wqos->type_consistency : ddsi_default_qos_topic.type_consistency);
+    wqos->present & DDSI_QP_TYPE_CONSISTENCY_ENFORCEMENT ? wqos->type_consistency : ddsi_default_qos_topic.type_consistency);
   if (!sertype)
     sertype = tp->m_stype;
 

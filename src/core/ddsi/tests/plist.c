@@ -25,8 +25,8 @@ CU_Test (ddsi_plist, unalias_copy_merge)
   ddsi_plist_t p0, p0memcpy;
   char *p0strs[7];
   ddsi_plist_init_empty (&p0);
-  p0.qos.present = QP_PARTITION;
-  p0.qos.aliased = QP_PARTITION;
+  p0.qos.present = DDSI_QP_PARTITION;
+  p0.qos.aliased = DDSI_QP_PARTITION;
   p0.qos.partition.n = 3;
   p0.qos.partition.strs = ddsrt_malloc (p0.qos.partition.n * sizeof (*p0.qos.partition.strs));
   p0strs[0] = p0.qos.partition.strs[0] = "aap";

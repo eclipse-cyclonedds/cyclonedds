@@ -634,7 +634,7 @@ dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descrip
   if ((hdl = dds_ensure_valid_data_representation (tpqos, allowed_repr, true)) != 0)
     goto err_data_repr;
 
-  assert (tpqos->present & QP_DATA_REPRESENTATION && tpqos->data_representation.value.n > 0);
+  assert (tpqos->present & DDSI_QP_DATA_REPRESENTATION && tpqos->data_representation.value.n > 0);
   dds_data_representation_id_t data_representation = tpqos->data_representation.value.ids[0];
 
   struct dds_sertype_default *st = ddsrt_malloc (sizeof (*st));

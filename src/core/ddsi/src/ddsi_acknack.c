@@ -23,6 +23,7 @@
 #include "ddsi__entity_index.h"
 #include "ddsi__entity_match.h"
 #include "ddsi__security_omg.h"
+#include "ddsi__xqos.h"
 
 #define ACK_REASON_IN_FLAGS 0
 

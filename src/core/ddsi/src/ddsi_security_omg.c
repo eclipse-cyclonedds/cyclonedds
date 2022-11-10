@@ -1485,7 +1485,7 @@ bool ddsi_omg_security_check_create_writer (struct ddsi_participant *pp, uint32_
   if (!sc)
     return true;
 
-  if (writer_qos->present & QP_PARTITION)
+  if (writer_qos->present & DDSI_QP_PARTITION)
     ddsi_omg_shallow_copy_StringSeq(&partitions.name, &(writer_qos->partition));
   else
     memset(&(partitions), 0, sizeof(DDS_Security_PartitionQosPolicy));
@@ -1513,7 +1513,7 @@ void ddsi_omg_security_register_writer (struct ddsi_writer *wr)
   if (!sc)
     return;
 
-  if (wr->xqos->present & QP_PARTITION)
+  if (wr->xqos->present & DDSI_QP_PARTITION)
     ddsi_omg_shallow_copy_StringSeq(&partitions.name, &(wr->xqos->partition));
   else
     memset(&(partitions), 0, sizeof(DDS_Security_PartitionQosPolicy));
@@ -1528,7 +1528,7 @@ void ddsi_omg_security_register_writer (struct ddsi_writer *wr)
 
   if (wr->sec_attr->attr.is_payload_protected || wr->sec_attr->attr.is_submessage_protected)
   {
-    if (wr->xqos->present & QP_PROPERTY_LIST)
+    if (wr->xqos->present & DDSI_QP_PROPERTY_LIST)
       ddsi_omg_copy_PropertySeq (&properties, &wr->xqos->property.value);
     else
       memset(&properties, 0, sizeof(DDS_Security_PropertySeq));
@@ -1604,7 +1604,7 @@ bool ddsi_omg_security_check_create_reader (struct ddsi_participant *pp, uint32_
   if (!sc)
     return true;
 
-  if (reader_qos->present & QP_PARTITION)
+  if (reader_qos->present & DDSI_QP_PARTITION)
     ddsi_omg_shallow_copy_StringSeq(&partitions.name, &(reader_qos->partition));
   else
     memset(&(partitions), 0, sizeof(DDS_Security_PartitionQosPolicy));
@@ -1632,7 +1632,7 @@ void ddsi_omg_security_register_reader (struct ddsi_reader *rd)
   if (!sc)
     return;
 
-  if (rd->xqos->present & QP_PARTITION)
+  if (rd->xqos->present & DDSI_QP_PARTITION)
     ddsi_omg_shallow_copy_StringSeq(&partitions.name, &(rd->xqos->partition));
   else
     memset(&(partitions), 0, sizeof(DDS_Security_PartitionQosPolicy));
@@ -1648,7 +1648,7 @@ void ddsi_omg_security_register_reader (struct ddsi_reader *rd)
 
   if (rd->sec_attr->attr.is_payload_protected || rd->sec_attr->attr.is_submessage_protected)
   {
-    if (rd->xqos->present & QP_PROPERTY_LIST)
+    if (rd->xqos->present & DDSI_QP_PROPERTY_LIST)
       ddsi_omg_copy_PropertySeq (&properties, &rd->xqos->property.value);
     else
       memset(&properties, 0, sizeof(DDS_Security_PropertySeq));

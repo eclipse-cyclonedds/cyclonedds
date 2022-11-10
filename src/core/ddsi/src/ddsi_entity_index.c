@@ -98,8 +98,8 @@ static int all_entities_compare (const void *va, const void *vb)
 #ifdef DDS_HAS_TOPIC_DISCOVERY
       const struct ddsi_topic *tpa = va;
       const struct ddsi_topic *tpb = vb;
-      assert ((tpa->definition->xqos->present & QP_TOPIC_NAME) && tpa->definition->xqos->topic_name);
-      assert ((tpb->definition->xqos->present & QP_TOPIC_NAME) && tpb->definition->xqos->topic_name);
+      assert ((tpa->definition->xqos->present & DDSI_QP_TOPIC_NAME) && tpa->definition->xqos->topic_name);
+      assert ((tpb->definition->xqos->present & DDSI_QP_TOPIC_NAME) && tpb->definition->xqos->topic_name);
       tp_a = tpa->definition->xqos->topic_name;
       tp_b = tpb->definition->xqos->topic_name;
       break;
@@ -109,8 +109,8 @@ static int all_entities_compare (const void *va, const void *vb)
     case DDSI_EK_WRITER: {
       const struct ddsi_writer *wra = va;
       const struct ddsi_writer *wrb = vb;
-      assert ((wra->xqos->present & QP_TOPIC_NAME) && wra->xqos->topic_name);
-      assert ((wrb->xqos->present & QP_TOPIC_NAME) && wrb->xqos->topic_name);
+      assert ((wra->xqos->present & DDSI_QP_TOPIC_NAME) && wra->xqos->topic_name);
+      assert ((wrb->xqos->present & DDSI_QP_TOPIC_NAME) && wrb->xqos->topic_name);
       tp_a = wra->xqos->topic_name;
       tp_b = wrb->xqos->topic_name;
       break;
@@ -119,8 +119,8 @@ static int all_entities_compare (const void *va, const void *vb)
     case DDSI_EK_READER: {
       const struct ddsi_reader *rda = va;
       const struct ddsi_reader *rdb = vb;
-      assert ((rda->xqos->present & QP_TOPIC_NAME) && rda->xqos->topic_name);
-      assert ((rdb->xqos->present & QP_TOPIC_NAME) && rdb->xqos->topic_name);
+      assert ((rda->xqos->present & DDSI_QP_TOPIC_NAME) && rda->xqos->topic_name);
+      assert ((rdb->xqos->present & DDSI_QP_TOPIC_NAME) && rdb->xqos->topic_name);
       tp_a = rda->xqos->topic_name;
       tp_b = rdb->xqos->topic_name;
       break;
@@ -130,8 +130,8 @@ static int all_entities_compare (const void *va, const void *vb)
     case DDSI_EK_PROXY_READER: {
       const struct ddsi_generic_proxy_endpoint *ga = va;
       const struct ddsi_generic_proxy_endpoint *gb = vb;
-      assert ((ga->c.xqos->present & QP_TOPIC_NAME) && ga->c.xqos->topic_name);
-      assert ((gb->c.xqos->present & QP_TOPIC_NAME) && gb->c.xqos->topic_name);
+      assert ((ga->c.xqos->present & DDSI_QP_TOPIC_NAME) && ga->c.xqos->topic_name);
+      assert ((gb->c.xqos->present & DDSI_QP_TOPIC_NAME) && gb->c.xqos->topic_name);
       tp_a = ga->c.xqos->topic_name;
       tp_b = gb->c.xqos->topic_name;
       break;
@@ -152,7 +152,7 @@ static void match_endpoint_range (enum ddsi_entity_kind kind, const char *tp, st
   min->entity.e.kind = max->entity.e.kind = kind;
   memset (&min->entity.e.guid, 0x00, sizeof (min->entity.e.guid));
   memset (&max->entity.e.guid, 0xff, sizeof (max->entity.e.guid));
-  min->xqos.present = max->xqos.present = QP_TOPIC_NAME;
+  min->xqos.present = max->xqos.present = DDSI_QP_TOPIC_NAME;
   min->xqos.topic_name = max->xqos.topic_name = (char *) tp;
   switch (kind)
   {
@@ -191,7 +191,7 @@ static void match_entity_kind_min (enum ddsi_entity_kind kind, struct ddsi_match
      matching endpoints. */
   min->entity.e.kind = kind;
   memset (&min->entity.e.guid, 0x00, sizeof (min->entity.e.guid));
-  min->xqos.present = QP_TOPIC_NAME;
+  min->xqos.present = DDSI_QP_TOPIC_NAME;
   min->xqos.topic_name = "";
   switch (kind)
   {

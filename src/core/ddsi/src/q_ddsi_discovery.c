@@ -58,6 +58,7 @@
 #include "ddsi__tran.h"
 #include "ddsi__typelib.h"
 #include "ddsi__vendor.h"
+#include "ddsi__xqos.h"
 #ifdef DDS_HAS_TYPE_DISCOVERY
 #include "ddsi__typelookup.h"
 #endif
@@ -515,9 +516,9 @@ void get_participant_builtin_topic_data (const struct ddsi_participant *pp, ddsi
 #endif
 
   /* Participant QoS's insofar as they are set, different from the default, and mapped to the SPDP data, rather than to the Adlink-specific CMParticipant endpoint. */
-  qosdiff = ddsi_xqos_delta (&pp->plist->qos, &ddsi_default_plist_participant.qos, QP_USER_DATA | QP_ENTITY_NAME | QP_PROPERTY_LIST);
+  qosdiff = ddsi_xqos_delta (&pp->plist->qos, &ddsi_default_plist_participant.qos, DDSI_QP_USER_DATA | DDSI_QP_ENTITY_NAME | DDSI_QP_PROPERTY_LIST);
   if (pp->e.gv->config.explicitly_publish_qos_set_to_default)
-    qosdiff |= ~(QP_UNRECOGNIZED_INCOMPATIBLE_MASK | QP_LIVELINESS);
+    qosdiff |= ~(DDSI_QP_UNRECOGNIZED_INCOMPATIBLE_MASK | DDSI_QP_LIVELINESS);
 
   assert (dst->qos.present == 0);
   ddsi_plist_mergein_missing (dst, pp->plist, 0, qosdiff);
@@ -1191,7 +1192,7 @@ static int sedp_write_endpoint_impl
 
     qosdiff = ddsi_xqos_delta (xqos, defqos, ~(uint64_t)0);
     if (gv->config.explicitly_publish_qos_set_to_default)
-      qosdiff |= ~QP_UNRECOGNIZED_INCOMPATIBLE_MASK;
+      qosdiff |= ~DDSI_QP_UNRECOGNIZED_INCOMPATIBLE_MASK;
 
     struct add_locator_to_ps_arg arg;
     arg.gv = gv;
@@ -1200,7 +1201,7 @@ static int sedp_write_endpoint_impl
       addrset_forall (as, add_xlocator_to_ps, &arg);
 
 #ifdef DDS_HAS_SHM
-    assert(wr->xqos->present & QP_LOCATOR_MASK);
+    assert(wr->xqos->present & DDSI_QP_LOCATOR_MASK);
     if (!(xqos->ignore_locator_type & DDSI_LOCATOR_KIND_SHEM))
     {
       if (!(arg.ps->present & PP_UNICAST_LOCATOR) || 0 == arg.ps->unicast_locators.n)
@@ -1239,7 +1240,7 @@ static int sedp_write_endpoint_impl
 #ifdef DDS_HAS_TYPE_DISCOVERY
     assert (sertype);
     if ((ps.qos.type_information = ddsi_sertype_typeinfo (sertype)))
-      ps.qos.present |= QP_TYPE_INFORMATION;
+      ps.qos.present |= DDSI_QP_TYPE_INFORMATION;
 #endif
   }
 
@@ -1268,12 +1269,12 @@ static int sedp_write_topic_impl (struct ddsi_writer *wr, int alive, const ddsi_
 
   uint64_t qosdiff = ddsi_xqos_delta (xqos, defqos, ~(uint64_t)0);
   if (gv->config.explicitly_publish_qos_set_to_default)
-    qosdiff |= ~QP_UNRECOGNIZED_INCOMPATIBLE_MASK;
+    qosdiff |= ~DDSI_QP_UNRECOGNIZED_INCOMPATIBLE_MASK;
 
   if (type_info)
   {
     ps.qos.type_information = type_info;
-    ps.qos.present |= QP_TYPE_INFORMATION;
+    ps.qos.present |= DDSI_QP_TYPE_INFORMATION;
   }
   if (xqos)
     ddsi_xqos_mergein_missing (&ps.qos, xqos, qosdiff);
@@ -1524,9 +1525,9 @@ static bool handle_sedp_checks (struct ddsi_domaingv * const gv, ddsi_sedp_kind_
     E (" local pp?\n", err);
   if (ddsi_is_builtin_entityid (entity_guid->entityid, vendorid))
     E (" built-in\n", err);
-  if (!(datap->qos.present & QP_TOPIC_NAME))
+  if (!(datap->qos.present & DDSI_QP_TOPIC_NAME))
     E (" no topic?\n", err);
-  if (!(datap->qos.present & QP_TYPE_NAME))
+  if (!(datap->qos.present & DDSI_QP_TYPE_NAME))
     E (" no typename?\n", err);
   if ((*proxypp = ddsi_entidx_lookup_proxy_participant_guid (gv->entity_index, ppguid)) == NULL)
   {
@@ -1643,18 +1644,18 @@ static void handle_sedp_alive_endpoint (const struct receiver_state *rst, seqno_
      input.  Also verify reliability and durability are present,
      because we explicitly read those. */
   assert ((xqos->present & datap->qos.present) == datap->qos.present);
-  assert (xqos->present & QP_RELIABILITY);
-  assert (xqos->present & QP_DURABILITY);
+  assert (xqos->present & DDSI_QP_RELIABILITY);
+  assert (xqos->present & DDSI_QP_DURABILITY);
   reliable = (xqos->reliability.kind == DDS_RELIABILITY_RELIABLE);
 
   GVLOGDISC (" %s %s %s %s: %s%s.%s/%s",
              reliable ? "reliable" : "best-effort",
              durability_to_string (xqos->durability.kind),
              sedp_kind == SEDP_KIND_WRITER ? "writer" : "reader",
-             (xqos->present & QP_ENTITY_NAME) ? xqos->entity_name : "unnamed",
-             ((!(xqos->present & QP_PARTITION) || xqos->partition.n == 0 || *xqos->partition.strs[0] == '\0')
+             (xqos->present & DDSI_QP_ENTITY_NAME) ? xqos->entity_name : "unnamed",
+             ((!(xqos->present & DDSI_QP_PARTITION) || xqos->partition.n == 0 || *xqos->partition.strs[0] == '\0')
               ? "(default)" : xqos->partition.strs[0]),
-             ((xqos->present & QP_PARTITION) && xqos->partition.n > 1) ? "+" : "",
+             ((xqos->present & DDSI_QP_PARTITION) && xqos->partition.n > 1) ? "+" : "",
              xqos->topic_name, xqos->type_name);
 
   if (sedp_kind == SEDP_KIND_READER && (datap->present & PP_EXPECTS_INLINE_QOS) && datap->expects_inline_qos)
@@ -1793,15 +1794,15 @@ static void handle_sedp_alive_topic (const struct receiver_state *rst, seqno_t s
      input. Also verify reliability and durability are present,
      because we explicitly read those. */
   assert ((xqos->present & datap->qos.present) == datap->qos.present);
-  assert (xqos->present & QP_RELIABILITY);
-  assert (xqos->present & QP_DURABILITY);
+  assert (xqos->present & DDSI_QP_RELIABILITY);
+  assert (xqos->present & DDSI_QP_DURABILITY);
   reliable = (xqos->reliability.kind == DDS_RELIABILITY_RELIABLE);
 
   GVLOGDISC (" %s %s %s: %s/%s",
              reliable ? "reliable" : "best-effort",
              durability_to_string (xqos->durability.kind),
              "topic", xqos->topic_name, xqos->type_name);
-  if (xqos->present & QP_TYPE_INFORMATION)
+  if (xqos->present & DDSI_QP_TYPE_INFORMATION)
   {
     struct ddsi_typeid_str strm, strc;
     type_id_minimal = ddsi_typeinfo_minimal_typeid (xqos->type_information);

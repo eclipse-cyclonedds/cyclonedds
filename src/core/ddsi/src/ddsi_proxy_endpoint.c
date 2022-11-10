@@ -64,9 +64,9 @@ static int proxy_endpoint_common_init (struct ddsi_entity_common *e, struct ddsi
   int ret;
 
   if (ddsi_is_builtin_entityid (guid->entityid, proxypp->vendor))
-    assert ((plist->qos.present & QP_TYPE_NAME) == 0);
+    assert ((plist->qos.present & DDSI_QP_TYPE_NAME) == 0);
   else
-    assert ((plist->qos.present & (QP_TOPIC_NAME | QP_TYPE_NAME)) == (QP_TOPIC_NAME | QP_TYPE_NAME));
+    assert ((plist->qos.present & (DDSI_QP_TOPIC_NAME | DDSI_QP_TYPE_NAME)) == (DDSI_QP_TOPIC_NAME | DDSI_QP_TYPE_NAME));
 
   ddsi_entity_common_init (e, proxypp->e.gv, guid, kind, tcreate, proxypp->vendor, false);
   c->xqos = ddsi_xqos_dup (&plist->qos);
@@ -74,7 +74,7 @@ static int proxy_endpoint_common_init (struct ddsi_entity_common *e, struct ddsi
   c->vendor = proxypp->vendor;
   c->seq = seq;
 #ifdef DDS_HAS_TYPE_DISCOVERY
-  if (plist->qos.present & QP_TYPE_INFORMATION)
+  if (plist->qos.present & DDSI_QP_TYPE_INFORMATION)
   {
     if ((c->type_pair = ddsrt_calloc (1, sizeof (*c->type_pair))) == NULL)
     {
@@ -250,7 +250,7 @@ int ddsi_new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppg
   else
     pwr->redundant_networking = proxypp->redundant_networking;
 
-  assert (pwr->c.xqos->present & QP_LIVELINESS);
+  assert (pwr->c.xqos->present & DDSI_QP_LIVELINESS);
   if (pwr->c.xqos->liveliness.lease_duration != DDS_INFINITY)
   {
     ddsrt_etime_t texpire = ddsrt_etime_add_duration (ddsrt_time_elapsed (), pwr->c.xqos->liveliness.lease_duration);

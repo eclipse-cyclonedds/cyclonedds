@@ -341,8 +341,8 @@ static void connect_proxy_writer_with_reader (struct ddsi_proxy_writer *pwr, str
 
 static bool ignore_local_p (const ddsi_guid_t *guid1, const ddsi_guid_t *guid2, const struct dds_qos *xqos1, const struct dds_qos *xqos2)
 {
-  assert (xqos1->present & QP_CYCLONE_IGNORELOCAL);
-  assert (xqos2->present & QP_CYCLONE_IGNORELOCAL);
+  assert (xqos1->present & DDSI_QP_CYCLONE_IGNORELOCAL);
+  assert (xqos2->present & DDSI_QP_CYCLONE_IGNORELOCAL);
   switch (xqos1->ignorelocal.value)
   {
     case DDS_IGNORELOCAL_NONE:

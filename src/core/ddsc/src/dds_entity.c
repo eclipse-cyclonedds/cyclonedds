@@ -728,7 +728,7 @@ dds_return_t dds_get_qos (dds_entity_t entity, dds_qos_t *qos)
     }
 
     dds_reset_qos (qos);
-    ddsi_xqos_mergein_missing (qos, entity_qos, ~(QP_TOPIC_NAME | QP_TYPE_NAME | QP_TYPE_INFORMATION));
+    ddsi_xqos_mergein_missing (qos, entity_qos, ~(DDSI_QP_TOPIC_NAME | DDSI_QP_TYPE_NAME | DDSI_QP_TYPE_INFORMATION));
     ret = DDS_RETCODE_OK;
   }
   dds_entity_unlock(e);
@@ -763,13 +763,13 @@ static dds_return_t dds_set_qos_locked_raw (dds_entity *e, dds_qos_t **e_qos_ptr
       /* new settings are identical to the old */
       goto error_or_nochange;
     }
-    else if (delta & ~QP_CHANGEABLE_MASK)
+    else if (delta & ~DDSI_QP_CHANGEABLE_MASK)
     {
       /* not all QoS may be changed according to the spec */
       ret = DDS_RETCODE_IMMUTABLE_POLICY;
       goto error_or_nochange;
     }
-    else if (delta & (QP_RXO_MASK | QP_PARTITION))
+    else if (delta & (DDSI_QP_RXO_MASK | DDSI_QP_PARTITION))
     {
       /* Cyclone doesn't (yet) support changing QoS that affect matching.  Simply re-doing the
          matching is easy enough, but the consequences are very weird.  E.g., what is the
@@ -852,7 +852,7 @@ static void pushdown_pubsub_qos (dds_entity *e)
 
       ddsrt_mutex_lock (&c->m_mutex);
       ddsrt_mutex_lock (&e->m_mutex);
-      dds_set_qos_locked_impl (c, e->m_qos, QP_GROUP_DATA | QP_PARTITION);
+      dds_set_qos_locked_impl (c, e->m_qos, DDSI_QP_GROUP_DATA | DDSI_QP_PARTITION);
       ddsrt_mutex_unlock (&c->m_mutex);
       dds_entity_unpin (c);
     }
@@ -890,7 +890,7 @@ static void pushdown_topic_qos (dds_entity *e, struct dds_ktopic *ktp)
       struct dds_participant * const pp = dds_entity_participant (e);
       ddsrt_mutex_lock (&e->m_mutex);
       ddsrt_mutex_lock (&pp->m_entity.m_mutex);
-      dds_set_qos_locked_impl (e, ktp->qos, QP_TOPIC_DATA);
+      dds_set_qos_locked_impl (e, ktp->qos, DDSI_QP_TOPIC_DATA);
       ddsrt_mutex_unlock (&pp->m_entity.m_mutex);
       ddsrt_mutex_unlock (&e->m_mutex);
       break;

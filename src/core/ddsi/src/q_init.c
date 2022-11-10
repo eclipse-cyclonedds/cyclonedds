@@ -1352,8 +1352,8 @@ int rtps_init (struct ddsi_domaingv *gv)
   // a plain copy is safe because it doesn't alias anything
   gv->default_local_plist_pp = ddsi_default_plist_participant;
   assert (gv->default_local_plist_pp.aliased == 0 && gv->default_local_plist_pp.qos.aliased == 0);
-  assert (!(gv->default_local_plist_pp.qos.present & QP_LIVELINESS));
-  gv->default_local_plist_pp.qos.present |= QP_LIVELINESS;
+  assert (!(gv->default_local_plist_pp.qos.present & DDSI_QP_LIVELINESS));
+  gv->default_local_plist_pp.qos.present |= DDSI_QP_LIVELINESS;
   gv->default_local_plist_pp.qos.liveliness.kind = DDS_LIVELINESS_AUTOMATIC;
   gv->default_local_plist_pp.qos.liveliness.lease_duration = gv->config.lease_duration;
 

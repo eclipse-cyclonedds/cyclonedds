@@ -43,7 +43,7 @@ static int partition_patmatch_p (const char *pat, const char *name)
 
 static int partitions_match_default (const dds_qos_t *x)
 {
-  if (!(x->present & QP_PARTITION) || x->partition.n == 0)
+  if (!(x->present & DDSI_QP_PARTITION) || x->partition.n == 0)
     return 1;
   for (uint32_t i = 0; i < x->partition.n; i++)
     if (partition_patmatch_p (x->partition.strs[i], ""))
@@ -53,9 +53,9 @@ static int partitions_match_default (const dds_qos_t *x)
 
 static int partitions_match_p (const dds_qos_t *a, const dds_qos_t *b)
 {
-  if (!(a->present & QP_PARTITION) || a->partition.n == 0)
+  if (!(a->present & DDSI_QP_PARTITION) || a->partition.n == 0)
     return partitions_match_default (b);
-  else if (!(b->present & QP_PARTITION) || b->partition.n == 0)
+  else if (!(b->present & DDSI_QP_PARTITION) || b->partition.n == 0)
     return partitions_match_default (a);
   else
   {
@@ -111,9 +111,9 @@ static uint32_t is_endpoint_type_resolved (struct ddsi_domaingv *gv, char *type_
 
 static int data_representation_match_p (const dds_qos_t *rd_qos, const dds_qos_t *wr_qos)
 {
-  assert (rd_qos->present & QP_DATA_REPRESENTATION);
+  assert (rd_qos->present & DDSI_QP_DATA_REPRESENTATION);
   assert (rd_qos->data_representation.value.n > 0);
-  assert (wr_qos->present & QP_DATA_REPRESENTATION);
+  assert (wr_qos->present & DDSI_QP_DATA_REPRESENTATION);
   assert (wr_qos->data_representation.value.n > 0);
 
   /* For the writer only use the first representation identifier and ignore 1..n (spec 7.6.3.1.1) */
@@ -146,7 +146,7 @@ bool qos_match_mask_p (
 {
   DDSRT_UNUSED_ARG (gv);
 #ifndef NDEBUG
-  uint64_t musthave = (QP_RXO_MASK | QP_PARTITION | QP_TOPIC_NAME | QP_TYPE_NAME | QP_DATA_REPRESENTATION) & mask;
+  uint64_t musthave = (DDSI_QP_RXO_MASK | DDSI_QP_PARTITION | DDSI_QP_TOPIC_NAME | DDSI_QP_TYPE_NAME | DDSI_QP_DATA_REPRESENTATION) & mask;
   assert ((rd_qos->present & musthave) == musthave);
   assert ((wr_qos->present & musthave) == musthave);
 #endif
@@ -160,58 +160,58 @@ bool qos_match_mask_p (
 
   mask &= rd_qos->present & wr_qos->present;
   *reason = DDS_INVALID_QOS_POLICY_ID;
-  if ((mask & QP_TOPIC_NAME) && strcmp (rd_qos->topic_name, wr_qos->topic_name) != 0)
+  if ((mask & DDSI_QP_TOPIC_NAME) && strcmp (rd_qos->topic_name, wr_qos->topic_name) != 0)
     return false;
 
-  if ((mask & QP_RELIABILITY) && rd_qos->reliability.kind > wr_qos->reliability.kind) {
+  if ((mask & DDSI_QP_RELIABILITY) && rd_qos->reliability.kind > wr_qos->reliability.kind) {
     *reason = DDS_RELIABILITY_QOS_POLICY_ID;
     return false;
   }
-  if ((mask & QP_DURABILITY) && rd_qos->durability.kind > wr_qos->durability.kind) {
+  if ((mask & DDSI_QP_DURABILITY) && rd_qos->durability.kind > wr_qos->durability.kind) {
     *reason = DDS_DURABILITY_QOS_POLICY_ID;
     return false;
   }
-  if ((mask & QP_PRESENTATION) && rd_qos->presentation.access_scope > wr_qos->presentation.access_scope) {
+  if ((mask & DDSI_QP_PRESENTATION) && rd_qos->presentation.access_scope > wr_qos->presentation.access_scope) {
     *reason = DDS_PRESENTATION_QOS_POLICY_ID;
     return false;
   }
-  if ((mask & QP_PRESENTATION) && rd_qos->presentation.coherent_access > wr_qos->presentation.coherent_access) {
+  if ((mask & DDSI_QP_PRESENTATION) && rd_qos->presentation.coherent_access > wr_qos->presentation.coherent_access) {
     *reason = DDS_PRESENTATION_QOS_POLICY_ID;
     return false;
   }
-  if ((mask & QP_PRESENTATION) && rd_qos->presentation.ordered_access > wr_qos->presentation.ordered_access) {
+  if ((mask & DDSI_QP_PRESENTATION) && rd_qos->presentation.ordered_access > wr_qos->presentation.ordered_access) {
     *reason = DDS_PRESENTATION_QOS_POLICY_ID;
     return false;
   }
-  if ((mask & QP_DEADLINE) && rd_qos->deadline.deadline < wr_qos->deadline.deadline) {
+  if ((mask & DDSI_QP_DEADLINE) && rd_qos->deadline.deadline < wr_qos->deadline.deadline) {
     *reason = DDS_DEADLINE_QOS_POLICY_ID;
     return false;
   }
-  if ((mask & QP_LATENCY_BUDGET) && rd_qos->latency_budget.duration < wr_qos->latency_budget.duration) {
+  if ((mask & DDSI_QP_LATENCY_BUDGET) && rd_qos->latency_budget.duration < wr_qos->latency_budget.duration) {
     *reason = DDS_LATENCYBUDGET_QOS_POLICY_ID;
     return false;
   }
-  if ((mask & QP_OWNERSHIP) && rd_qos->ownership.kind != wr_qos->ownership.kind) {
+  if ((mask & DDSI_QP_OWNERSHIP) && rd_qos->ownership.kind != wr_qos->ownership.kind) {
     *reason = DDS_OWNERSHIP_QOS_POLICY_ID;
     return false;
   }
-  if ((mask & QP_LIVELINESS) && rd_qos->liveliness.kind > wr_qos->liveliness.kind) {
+  if ((mask & DDSI_QP_LIVELINESS) && rd_qos->liveliness.kind > wr_qos->liveliness.kind) {
     *reason = DDS_LIVELINESS_QOS_POLICY_ID;
     return false;
   }
-  if ((mask & QP_LIVELINESS) && rd_qos->liveliness.lease_duration < wr_qos->liveliness.lease_duration) {
+  if ((mask & DDSI_QP_LIVELINESS) && rd_qos->liveliness.lease_duration < wr_qos->liveliness.lease_duration) {
     *reason = DDS_LIVELINESS_QOS_POLICY_ID;
     return false;
   }
-  if ((mask & QP_DESTINATION_ORDER) && rd_qos->destination_order.kind > wr_qos->destination_order.kind) {
+  if ((mask & DDSI_QP_DESTINATION_ORDER) && rd_qos->destination_order.kind > wr_qos->destination_order.kind) {
     *reason = DDS_DESTINATIONORDER_QOS_POLICY_ID;
     return false;
   }
-  if ((mask & QP_PARTITION) && !partitions_match_p (rd_qos, wr_qos)) {
+  if ((mask & DDSI_QP_PARTITION) && !partitions_match_p (rd_qos, wr_qos)) {
     *reason = DDS_PARTITION_QOS_POLICY_ID;
     return false;
   }
-  if ((mask & QP_DATA_REPRESENTATION) && !data_representation_match_p (rd_qos, wr_qos)) {
+  if ((mask & DDSI_QP_DATA_REPRESENTATION) && !data_representation_match_p (rd_qos, wr_qos)) {
     *reason = DDS_DATA_REPRESENTATION_QOS_POLICY_ID;
     return false;
   }
@@ -229,7 +229,7 @@ bool qos_match_mask_p (
     }
     // If either the reader or writer does not provide a type id, the type names are consulted
     // (XTypes spec 7.6.3.4.2)
-    if ((mask & QP_TYPE_NAME) && strcmp (rd_qos->type_name, wr_qos->type_name) != 0)
+    if ((mask & DDSI_QP_TYPE_NAME) && strcmp (rd_qos->type_name, wr_qos->type_name) != 0)
       return false;
   }
   else
@@ -267,7 +267,7 @@ bool qos_match_mask_p (
     }
   }
 #else
-  if ((mask & QP_TYPE_NAME) && strcmp (rd_qos->type_name, wr_qos->type_name) != 0)
+  if ((mask & DDSI_QP_TYPE_NAME) && strcmp (rd_qos->type_name, wr_qos->type_name) != 0)
     return false;
 #endif
 

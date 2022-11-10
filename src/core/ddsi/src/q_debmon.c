@@ -229,7 +229,7 @@ static void print_addrset (struct st *st, void *vas)
 static void print_partition_seq (struct st *st, void *vxqos)
 {
   dds_qos_t * const xqos = vxqos;
-  if (xqos->present & QP_PARTITION)
+  if (xqos->present & DDSI_QP_PARTITION)
     for (uint32_t i = 0; i < xqos->partition.n; i++)
       cpfstr (st, xqos->partition.strs[i]);
 }
@@ -237,12 +237,12 @@ static void print_partition_seq (struct st *st, void *vxqos)
 static void print_any_endpoint_common (struct st *st, const struct ddsi_entity_common *e, const struct dds_qos *xqos)
 {
   cpfkguid (st, "guid", &e->guid);
-  if (xqos->present & QP_ENTITY_NAME)
+  if (xqos->present & DDSI_QP_ENTITY_NAME)
     cpfkstr (st, "name", xqos->entity_name);
   cpfkseq (st, "partitions", print_partition_seq, (struct dds_qos *) xqos);
-  if (xqos->present & QP_TOPIC_NAME)
+  if (xqos->present & DDSI_QP_TOPIC_NAME)
     cpfkstr (st, "topic", xqos->topic_name);
-  if (xqos->present & QP_TYPE_NAME)
+  if (xqos->present & DDSI_QP_TYPE_NAME)
     cpfkstr (st, "type", xqos->type_name);
 }
 
@@ -441,7 +441,7 @@ static void print_participant (struct st *st, void *vp)
 
   ddsrt_mutex_lock (&p->e.lock);
   cpfkguid (st, "guid", &p->e.guid);
-  cpfkstr (st, "name", (p->plist->qos.present & QP_ENTITY_NAME) ? p->plist->qos.entity_name : "");
+  cpfkstr (st, "name", (p->plist->qos.present & DDSI_QP_ENTITY_NAME) ? p->plist->qos.entity_name : "");
   cpfkseq (st, "flags", print_participant_flags, p);
   ddsrt_mutex_unlock (&p->e.lock);
 

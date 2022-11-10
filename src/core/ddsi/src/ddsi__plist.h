@@ -104,7 +104,7 @@ void ddsi_plist_init_tables (void);
  * @param[in,out] a       ddsi_plist_t to be extended
  * @param[in]     b       ddsi_plist_t from which to copy entries
  * @param[in]     pmask   subset of non-QoS part of b (if PP_X is set, include X)
- * @param[in]     qmask   subset of QoS part of b (if QP_X is set, include X)
+ * @param[in]     qmask   subset of QoS part of b (if DDSI_QP_X is set, include X)
  */
 void ddsi_plist_mergein_missing (ddsi_plist_t *a, const ddsi_plist_t *b, uint64_t pmask, uint64_t qmask);
 
@@ -185,7 +185,7 @@ dds_return_t ddsi_plist_init_frommsg (ddsi_plist_t *dest, char **nextafterplist,
  *
  * @param[in,out] plist  ddsi_plist_t for which to free memory
  * @param[in]     pmask  subset of non-QoS part of b (if PP_X is set, free X if present)
- * @param[in]     qmask  subset of QoS part of b (if QP_X is set, free X if present)
+ * @param[in]     qmask  subset of QoS part of b (if DDSI_QP_X is set, free X if present)
  */
 void ddsi_plist_fini_mask (ddsi_plist_t *plist, uint64_t pmask, uint64_t qmask);
 
@@ -213,7 +213,7 @@ void ddsi_plist_unalias (ddsi_plist_t *plist);
  * @param[in,out] m        message to append the parameters to
  * @param[in]     ps       source
  * @param[in]     pwanted  subset of non-QoS part of ps (if PP_X is set, add X if present)
- * @param[in]     qwanted  subset of QoS part of ps (if QP_X is set, add X if present)
+ * @param[in]     qwanted  subset of QoS part of ps (if DDSI_QP_X is set, add X if present)
  */
 void ddsi_plist_addtomsg (struct nn_xmsg *m, const ddsi_plist_t *ps, uint64_t pwanted, uint64_t qwanted);
 
@@ -229,7 +229,7 @@ void ddsi_plist_addtomsg (struct nn_xmsg *m, const ddsi_plist_t *ps, uint64_t pw
  * @param[in,out] m        message to append the parameters to
  * @param[in]     ps       source
  * @param[in]     pwanted  subset of non-QoS part of ps (if PP_X is set, add X if present)
- * @param[in]     qwanted  subset of QoS part of ps (if QP_X is set, add X if present)
+ * @param[in]     qwanted  subset of QoS part of ps (if DDSI_QP_X is set, add X if present)
  * @param[in]     bo       byte order
  */
 void ddsi_plist_addtomsg_bo (struct nn_xmsg *m, const ddsi_plist_t *ps, uint64_t pwanted, uint64_t qwanted, enum ddsrt_byte_order_selector bo);

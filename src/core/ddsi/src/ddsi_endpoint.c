@@ -43,6 +43,7 @@
 #include "ddsi__tran.h"
 #include "ddsi__typelib.h"
 #include "ddsi__vendor.h"
+#include "ddsi__xqos.h"
 #include "dds/dds.h"
 
 static dds_return_t delete_writer_nolinger_locked (struct ddsi_writer *wr);
@@ -386,7 +387,7 @@ static void new_reader_writer_common (const struct ddsrt_log_cfg *logcfg, const 
        settings */
     partition = "(null)";
   }
-  else if ((xqos->present & QP_PARTITION) && xqos->partition.n > 0 && strcmp (xqos->partition.strs[0], "") != 0)
+  else if ((xqos->present & DDSI_QP_PARTITION) && xqos->partition.n > 0 && strcmp (xqos->partition.strs[0], "") != 0)
   {
     partition = xqos->partition.strs[0];
     if (xqos->partition.n > 1)
@@ -780,9 +781,9 @@ static void ddsi_new_writer_guid_common_init (struct ddsi_writer *wr, const char
   ddsi_xqos_log (DDS_LC_DISCOVERY, &wr->e.gv->logconfig, wr->xqos);
   ELOGDISC (wr, "}\n");
 
-  assert (wr->xqos->present & QP_RELIABILITY);
+  assert (wr->xqos->present & DDSI_QP_RELIABILITY);
   wr->reliable = (wr->xqos->reliability.kind != DDS_RELIABILITY_BEST_EFFORT);
-  assert (wr->xqos->present & QP_DURABILITY);
+  assert (wr->xqos->present & DDSI_QP_DURABILITY);
 #ifdef DDS_HAS_TYPE_DISCOVERY
   if (ddsi_is_builtin_entityid (wr->e.guid.entityid, DDSI_VENDORID_ECLIPSE) &&
       wr->e.guid.entityid.u != NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER
@@ -879,7 +880,7 @@ static void ddsi_new_writer_guid_common_init (struct ddsi_writer *wr, const char
   else
     wr->heartbeat_xevent = NULL;
 
-  assert (wr->xqos->present & QP_LIVELINESS);
+  assert (wr->xqos->present & DDSI_QP_LIVELINESS);
   if (wr->xqos->liveliness.lease_duration != DDS_INFINITY)
   {
     wr->lease_duration = ddsrt_malloc (sizeof(*wr->lease_duration));
@@ -1446,9 +1447,9 @@ dds_return_t ddsi_new_reader_guid (struct ddsi_reader **rd_out, const struct dds
     ddsi_xqos_log (DDS_LC_DISCOVERY, &rd->e.gv->logconfig, rd->xqos);
     ELOGDISC (rd, "}\n");
   }
-  assert (rd->xqos->present & QP_RELIABILITY);
+  assert (rd->xqos->present & DDSI_QP_RELIABILITY);
   rd->reliable = (rd->xqos->reliability.kind != DDS_RELIABILITY_BEST_EFFORT);
-  assert (rd->xqos->present & QP_DURABILITY);
+  assert (rd->xqos->present & DDSI_QP_DURABILITY);
   /* The builtin volatile secure writer applies a filter which is used to send the secure
    * crypto token only to the destination reader for which the crypto tokens are applicable.
    * Thus the builtin volatile secure reader will receive gaps in the sequence numbers of
@@ -1481,7 +1482,7 @@ dds_return_t ddsi_new_reader_guid (struct ddsi_reader **rd_out, const struct dds
   {
     ddsi_rhc_set_qos (rd->rhc, rd->xqos);
   }
-  assert (rd->xqos->present & QP_LIVELINESS);
+  assert (rd->xqos->present & DDSI_QP_LIVELINESS);
 
 #ifdef DDS_HAS_SECURITY
   ddsi_omg_security_register_reader (rd);

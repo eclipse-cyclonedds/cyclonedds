@@ -579,7 +579,7 @@ static void test_proxy_rd_create (struct ddsi_domaingv *gv, const char *topic_na
   ddsi_plist_t *plist = ddsrt_calloc (1, sizeof (*plist));
   plist->present |= PP_PARTICIPANT_LEASE_DURATION;
   plist->participant_lease_duration = DDS_INFINITY;
-  plist->qos.present |= QP_TOPIC_NAME | QP_TYPE_NAME | QP_TYPE_INFORMATION | QP_DATA_REPRESENTATION;
+  plist->qos.present |= DDSI_QP_TOPIC_NAME | DDSI_QP_TYPE_NAME | DDSI_QP_TYPE_INFORMATION | DDSI_QP_DATA_REPRESENTATION;
   plist->qos.topic_name = ddsrt_strdup (topic_name);
   plist->qos.type_name = ddsrt_strdup ("dummy");
   plist->qos.type_information = ddsi_typeinfo_dup ((struct ddsi_typeinfo *) ti);

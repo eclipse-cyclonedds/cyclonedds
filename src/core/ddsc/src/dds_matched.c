@@ -141,7 +141,7 @@ static dds_builtintopic_endpoint_t *make_builtintopic_endpoint (const ddsi_guid_
   tmp = nn_hton_guid (*ppguid);
   memcpy (&ep->participant_key, &tmp, sizeof (ep->participant_key));
   ep->qos = dds_create_qos ();
-  ddsi_xqos_mergein_missing (ep->qos, qos, ~(QP_TOPIC_NAME | QP_TYPE_NAME));
+  ddsi_xqos_mergein_missing (ep->qos, qos, ~(DDSI_QP_TOPIC_NAME | DDSI_QP_TYPE_NAME));
   ep->topic_name = dds_string_dup (qos->topic_name);
   ep->type_name = dds_string_dup (qos->type_name);
   return ep;
@@ -238,7 +238,7 @@ dds_return_t dds_builtintopic_get_endpoint_type_info (dds_builtintopic_endpoint_
   if (builtintopic_endpoint == NULL || type_info == NULL)
     return DDS_RETCODE_BAD_PARAMETER;
 
-  if (builtintopic_endpoint->qos && builtintopic_endpoint->qos->present & QP_TYPE_INFORMATION)
+  if (builtintopic_endpoint->qos && builtintopic_endpoint->qos->present & DDSI_QP_TYPE_INFORMATION)
     *type_info = builtintopic_endpoint->qos->type_information;
   else
     *type_info = NULL;

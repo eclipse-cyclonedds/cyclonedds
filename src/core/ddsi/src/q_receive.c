@@ -2080,7 +2080,7 @@ static struct ddsi_serdata *remote_make_sample (struct ddsi_tkmap_instance **tk,
                   "data(application, vendor %u.%u): "PGUIDFMT" #%"PRIu64": deserialization %s/%s failed (%s)\n",
                   sampleinfo->rst->vendor.id[0], sampleinfo->rst->vendor.id[1],
                   PGUID (guid), sampleinfo->seq,
-                  pwr && (pwr->c.xqos->present & QP_TOPIC_NAME) ? pwr->c.xqos->topic_name : "", type->type_name,
+                  pwr && (pwr->c.xqos->present & DDSI_QP_TOPIC_NAME) ? pwr->c.xqos->topic_name : "", type->type_name,
                   failmsg ? failmsg : "for reasons unknown");
   }
   else
@@ -2103,7 +2103,7 @@ static struct ddsi_serdata *remote_make_sample (struct ddsi_tkmap_instance **tk,
       GVTRACE ("data(application, vendor %u.%u): "PGUIDFMT" #%"PRIu64": ST%"PRIx32" %s/%s:%s%s",
                sampleinfo->rst->vendor.id[0], sampleinfo->rst->vendor.id[1],
                PGUID (guid), sampleinfo->seq, statusinfo,
-               pwr && (pwr->c.xqos->present & QP_TOPIC_NAME) ? pwr->c.xqos->topic_name : "", type->type_name,
+               pwr && (pwr->c.xqos->present & DDSI_QP_TOPIC_NAME) ? pwr->c.xqos->topic_name : "", type->type_name,
                tmp, res < sizeof (tmp) - 1 ? "" : "(trunc)");
     }
   }
@@ -2598,8 +2598,8 @@ static void drop_oversize (struct receiver_state *rst, struct nn_rmsg *rmsg, con
 
     if (gap_was_valuable)
     {
-      const char *tname = (pwr->c.xqos->present & QP_TOPIC_NAME) ? pwr->c.xqos->topic_name : "(null)";
-      const char *ttname = (pwr->c.xqos->present & QP_TYPE_NAME) ? pwr->c.xqos->type_name : "(null)";
+      const char *tname = (pwr->c.xqos->present & DDSI_QP_TOPIC_NAME) ? pwr->c.xqos->topic_name : "(null)";
+      const char *ttname = (pwr->c.xqos->present & DDSI_QP_TYPE_NAME) ? pwr->c.xqos->type_name : "(null)";
       DDS_CWARNING (&rst->gv->logconfig, "dropping oversize (%"PRIu32" > %"PRIu32") sample %"PRIu64" from remote writer "PGUIDFMT" %s/%s\n",
                     sampleinfo->size, rst->gv->config.max_sample_size, sampleinfo->seq,
                     PGUIDPREFIX (rst->src_guid_prefix), msg->writerId.u,

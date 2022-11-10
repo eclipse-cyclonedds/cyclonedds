@@ -29,6 +29,7 @@
 #include "ddsi__gc.h"
 #include "ddsi__typelib.h"
 #include "ddsi__vendor.h"
+#include "ddsi__xqos.h"
 #include "dds/dds.h"
 
 #ifdef DDS_HAS_TOPIC_DISCOVERY
@@ -99,7 +100,7 @@ dds_return_t ddsi_new_topic (struct ddsi_topic **tp_out, struct ddsi_guid *tpgui
   assert (tp_qos->aliased == 0);
 
   /* Set topic name, type name and type information in qos */
-  tp_qos->present |= QP_TYPE_INFORMATION;
+  tp_qos->present |= DDSI_QP_TYPE_INFORMATION;
   tp_qos->type_information = ddsi_sertype_typeinfo (sertype);
   assert (tp_qos->type_information);
   ddsi_set_topic_type_name (tp_qos, topic_name, sertype->type_name);
@@ -134,7 +135,7 @@ void ddsi_update_topic_qos (struct ddsi_topic *tp, const dds_qos_t *xqos)
   ddsrt_mutex_lock (&tp->e.lock);
   ddsrt_mutex_lock (&tp->e.qos_lock);
   struct ddsi_topic_definition *tpd = tp->definition;
-  uint64_t mask = ddsi_xqos_delta (tpd->xqos, xqos, QP_CHANGEABLE_MASK & ~(QP_RXO_MASK | QP_PARTITION)) & xqos->present;
+  uint64_t mask = ddsi_xqos_delta (tpd->xqos, xqos, DDSI_QP_CHANGEABLE_MASK & ~(DDSI_QP_RXO_MASK | DDSI_QP_PARTITION)) & xqos->present;
   GVLOGDISC ("ddsi_update_topic_qos "PGUIDFMT" delta=%"PRIu64" QOS={", PGUID(tp->e.guid), mask);
   ddsi_xqos_log (DDS_LC_DISCOVERY, &gv->logconfig, xqos);
   GVLOGDISC ("}\n");
@@ -268,7 +269,7 @@ static void set_ddsi_topic_definition_hash (struct ddsi_topic_definition *tpd)
      dependent type ids and therefore may be different for equal
      type definitions */
   struct nn_xmsg *mqos = nn_xmsg_new (tpd->gv->xmsgpool, &nullguid, NULL, 0, NN_XMSG_KIND_DATA);
-  ddsi_xqos_addtomsg (mqos, tpd->xqos, ~(QP_TYPE_INFORMATION));
+  ddsi_xqos_addtomsg (mqos, tpd->xqos, ~(DDSI_QP_TYPE_INFORMATION));
   size_t sqos_sz;
   void * sqos = nn_xmsg_payload (&sqos_sz, mqos);
   assert (sqos_sz <= UINT32_MAX);
@@ -334,7 +335,7 @@ int ddsi_topic_definition_equal (const struct ddsi_topic_definition *tpd_a, cons
     const ddsi_typeid_t *tid_a = ddsi_type_pair_complete_id (tpd_a->type_pair),
       *tid_b = ddsi_type_pair_complete_id (tpd_b->type_pair);
     return !ddsi_typeid_compare (tid_a, tid_b)
-        && !ddsi_xqos_delta (tpd_a->xqos, tpd_b->xqos, ~(QP_TYPE_INFORMATION));
+        && !ddsi_xqos_delta (tpd_a->xqos, tpd_b->xqos, ~(DDSI_QP_TYPE_INFORMATION));
   }
   return tpd_a == tpd_b;
 }
@@ -342,7 +343,7 @@ int ddsi_topic_definition_equal (const struct ddsi_topic_definition *tpd_a, cons
 static struct ddsi_topic_definition * new_topic_definition (struct ddsi_domaingv *gv, const struct ddsi_sertype *type, const struct dds_qos *qos)
 {
   dds_return_t ret;
-  assert ((qos->present & (QP_TOPIC_NAME | QP_TYPE_NAME)) == (QP_TOPIC_NAME | QP_TYPE_NAME));
+  assert ((qos->present & (DDSI_QP_TOPIC_NAME | DDSI_QP_TYPE_NAME)) == (DDSI_QP_TOPIC_NAME | DDSI_QP_TYPE_NAME));
   struct ddsi_topic_definition *tpd = ddsrt_malloc (sizeof (*tpd));
   if (!tpd)
     goto err;
@@ -369,7 +370,7 @@ static struct ddsi_topic_definition * new_topic_definition (struct ddsi_domaingv
   }
   else
   {
-    assert (qos->present & QP_TYPE_INFORMATION);
+    assert (qos->present & DDSI_QP_TYPE_INFORMATION);
     if ((ret = ddsi_type_ref_proxy (gv, &tpd->type_pair->minimal, qos->type_information, DDSI_TYPEID_KIND_MINIMAL, NULL)) != DDS_RETCODE_OK
         || ddsi_type_ref_proxy (gv, &tpd->type_pair->complete, qos->type_information, DDSI_TYPEID_KIND_COMPLETE, NULL) != DDS_RETCODE_OK)
     {
@@ -409,7 +410,7 @@ dds_return_t ddsi_lookup_topic_definition (struct ddsi_domaingv *gv, const char 
   for (struct ddsi_topic_definition *tpd1 = ddsrt_hh_iter_first (gv->topic_defs, &it); tpd1; tpd1 = ddsrt_hh_iter_next (&it))
   {
     if (!strcmp (tpd1->xqos->topic_name, topic_name) &&
-        (ddsi_typeid_is_none (type_id) || ((tpd1->xqos->present & QP_TYPE_INFORMATION) && !ddsi_typeid_compare (type_id, ddsi_typeinfo_complete_typeid (tpd1->xqos->type_information)))))
+        (ddsi_typeid_is_none (type_id) || ((tpd1->xqos->present & DDSI_QP_TYPE_INFORMATION) && !ddsi_typeid_compare (type_id, ddsi_typeinfo_complete_typeid (tpd1->xqos->type_information)))))
     {
       *tpd = tpd1;
       break;
@@ -487,7 +488,7 @@ void ddsi_update_proxy_topic (struct ddsi_proxy_participant *proxypp, struct dds
   struct ddsi_topic_definition *tpd0 = proxytp->definition;
   proxytp->seq = seq;
   proxytp->tupdate = timestamp;
-  uint64_t mask = ddsi_xqos_delta (tpd0->xqos, xqos, QP_CHANGEABLE_MASK & ~(QP_RXO_MASK | QP_PARTITION)) & xqos->present;
+  uint64_t mask = ddsi_xqos_delta (tpd0->xqos, xqos, DDSI_QP_CHANGEABLE_MASK & ~(DDSI_QP_RXO_MASK | DDSI_QP_PARTITION)) & xqos->present;
   GVLOGDISC ("ddsi_update_proxy_topic %"PRIx32" delta=%"PRIu64" QOS={", proxytp->entityid.u, mask);
   ddsi_xqos_log (DDS_LC_DISCOVERY, &gv->logconfig, xqos);
   GVLOGDISC ("}\n");

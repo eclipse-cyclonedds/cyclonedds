@@ -112,10 +112,10 @@ void ddsi_proxy_participant_reassign_lease (struct ddsi_proxy_participant *proxy
 static void create_proxy_builtin_endpoint_impl (struct ddsi_domaingv *gv, ddsrt_wctime_t timestamp, const struct ddsi_guid *ppguid,
     struct ddsi_proxy_participant *proxypp, const struct ddsi_guid *ep_guid, ddsi_plist_t *plist, const char *topic_name)
 {
-  if ((plist->qos.present & QP_TOPIC_NAME) == QP_TOPIC_NAME)
-    ddsi_plist_fini_mask (plist, 0, QP_TOPIC_NAME);
+  if ((plist->qos.present & DDSI_QP_TOPIC_NAME) == DDSI_QP_TOPIC_NAME)
+    ddsi_plist_fini_mask (plist, 0, DDSI_QP_TOPIC_NAME);
   plist->qos.topic_name = dds_string_dup (topic_name);
-  plist->qos.present |= QP_TOPIC_NAME;
+  plist->qos.present |= DDSI_QP_TOPIC_NAME;
   if (ddsi_is_writer_entityid (ep_guid->entityid))
     ddsi_new_proxy_writer (gv, ppguid, ep_guid, proxypp->as_meta, plist, gv->builtins_dqueue, gv->xevents, timestamp, 0);
   else
@@ -485,7 +485,7 @@ int ddsi_update_proxy_participant_plist_locked (struct ddsi_proxy_participant *p
     proxypp->seq = seq;
 
     const uint64_t pmask = 0;
-    const uint64_t qmask = QP_USER_DATA;
+    const uint64_t qmask = DDSI_QP_USER_DATA;
     ddsi_plist_t *new_plist = ddsrt_malloc (sizeof (*new_plist));
     ddsi_plist_init_empty (new_plist);
     ddsi_plist_mergein_missing (new_plist, datap, pmask, qmask);

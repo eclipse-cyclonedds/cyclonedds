@@ -419,10 +419,10 @@ static ddsrt_mtime_t whc_deadline_missed_cb(void *hc, ddsrt_mtime_t tnow)
 struct whc_writer_info *whc_make_wrinfo (struct dds_writer *wr, const dds_qos_t *qos)
 {
   struct whc_writer_info *wrinfo = ddsrt_malloc (sizeof (*wrinfo));
-  assert (qos->present & QP_HISTORY);
-  assert (qos->present & QP_DEADLINE);
-  assert (qos->present & QP_DURABILITY);
-  assert (qos->present & QP_DURABILITY_SERVICE);
+  assert (qos->present & DDSI_QP_HISTORY);
+  assert (qos->present & DDSI_QP_DEADLINE);
+  assert (qos->present & DDSI_QP_DURABILITY);
+  assert (qos->present & DDSI_QP_DURABILITY_SERVICE);
   wrinfo->writer = wr;
   wrinfo->is_transient_local = (qos->durability.kind == DDS_DURABILITY_TRANSIENT_LOCAL);
   wrinfo->has_deadline = (qos->deadline.deadline != DDS_INFINITY);

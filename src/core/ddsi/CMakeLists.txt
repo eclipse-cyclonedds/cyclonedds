@@ -189,6 +189,7 @@ set(hdrs_private_ddsi
   ddsi__vendor.h
   ddsi__vnet.h
   ddsi__wraddrset.h
+  ddsi__xqos.h
 )
 
 if(ENABLE_LIFESPAN)

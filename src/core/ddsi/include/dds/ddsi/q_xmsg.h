@@ -16,7 +16,6 @@
 
 #include "dds/ddsrt/bswap.h"
 #include "dds/ddsi/ddsi_protocol.h" /* for, e.g., ddsi_rtps_submessage_kind_t */
-//#include "dds/ddsi/ddsi_xqos.h" /* for, e.g., octetseq, stringseq */
 #include "dds/ddsi/ddsi_tran.h"
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/features.h"

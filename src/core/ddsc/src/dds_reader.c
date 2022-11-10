@@ -122,7 +122,7 @@ static dds_return_t dds_reader_delete (dds_entity *e)
 static dds_return_t validate_reader_qos (const dds_qos_t *rqos)
 {
 #ifndef DDS_HAS_DEADLINE_MISSED
-  if (rqos != NULL && (rqos->present & QP_DEADLINE) && rqos->deadline.deadline != DDS_INFINITY)
+  if (rqos != NULL && (rqos->present & DDSI_QP_DEADLINE) && rqos->deadline.deadline != DDS_INFINITY)
     return DDS_RETCODE_BAD_PARAMETER;
 #else
   DDSRT_UNUSED_ARG (rqos);
@@ -470,7 +470,7 @@ const struct dds_entity_deriver dds_entity_deriver_reader = {
 };
 
 #ifdef DDS_HAS_SHM
-#define DDS_READER_QOS_CHECK_FIELDS (QP_LIVELINESS|QP_DEADLINE|QP_RELIABILITY|QP_DURABILITY|QP_HISTORY)
+#define DDS_READER_QOS_CHECK_FIELDS (DDSI_QP_LIVELINESS|DDSI_QP_DEADLINE|DDSI_QP_RELIABILITY|DDSI_QP_DURABILITY|DDSI_QP_HISTORY)
 static bool dds_reader_support_shm(const struct ddsi_config* cfg, const dds_qos_t *qos, const struct dds_topic *tp)
 {
   if (NULL == cfg ||
@@ -623,10 +623,10 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
   if (qos)
     ddsi_xqos_mergein_missing (rqos, qos, DDS_READER_QOS_MASK);
   if (sub->m_entity.m_qos)
-    ddsi_xqos_mergein_missing (rqos, sub->m_entity.m_qos, ~QP_ENTITY_NAME);
+    ddsi_xqos_mergein_missing (rqos, sub->m_entity.m_qos, ~DDSI_QP_ENTITY_NAME);
   if (tp->m_ktopic->qos)
-    ddsi_xqos_mergein_missing (rqos, tp->m_ktopic->qos, ~QP_ENTITY_NAME);
-  ddsi_xqos_mergein_missing (rqos, &ddsi_default_qos_reader, ~QP_DATA_REPRESENTATION);
+    ddsi_xqos_mergein_missing (rqos, tp->m_ktopic->qos, ~DDSI_QP_ENTITY_NAME);
+  ddsi_xqos_mergein_missing (rqos, &ddsi_default_qos_reader, ~DDSI_QP_DATA_REPRESENTATION);
   dds_apply_entity_naming(rqos, sub->m_entity.m_qos, gv);
 
   if ((rc = dds_ensure_valid_data_representation (rqos, tp->m_stype->allowed_data_representation, false)) != 0)
@@ -691,7 +691,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
   dds_entity_init_complete (&rd->m_entity);
 
 #ifdef DDS_HAS_SHM
-  assert(rqos->present & QP_LOCATOR_MASK);
+  assert(rqos->present & DDSI_QP_LOCATOR_MASK);
   if (!dds_reader_support_shm(&gv->config, rqos, tp))
     rqos->ignore_locator_type |= DDSI_LOCATOR_KIND_SHEM;
 #endif

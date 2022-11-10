@@ -47,6 +47,7 @@
 #include "dds/ddsi/ddsi_typelib.h"
 #include "dds/cdr/dds_cdrstream.h"
 #include "ddsi__tran.h"
+#include "ddsi__xqos.h"
 
 /* I am tempted to change LENGTH_UNLIMITED to 0 in the API (with -1
    supported for backwards compatibility) ... on the wire however
@@ -1795,9 +1796,9 @@ static bool print_generic (char * __restrict *buf, size_t * __restrict bufsize, 
   { DDSI_PID_##NAME_, flag_, PFX_##_##NAME_, #NAME_, offsetof (struct ddsi_plist, member_),     \
     membersize (struct ddsi_plist, member_), { .desc = { __VA_ARGS__, XSTOP } }, validate_ \
   }
-#define QPV(NAME_, name_, ...) ENTRY(QP, NAME_, qos.name_, PDF_QOS, dvx_##name_, __VA_ARGS__)
+#define QPV(NAME_, name_, ...) ENTRY(DDSI_QP, NAME_, qos.name_, PDF_QOS, dvx_##name_, __VA_ARGS__)
 #define PPV(NAME_, name_, ...) ENTRY(PP, NAME_, name_, 0, dvx_##name_, __VA_ARGS__)
-#define QP(NAME_, name_, ...) ENTRY(QP, NAME_, qos.name_, PDF_QOS, 0, __VA_ARGS__)
+#define QP(NAME_, name_, ...) ENTRY(DDSI_QP, NAME_, qos.name_, PDF_QOS, 0, __VA_ARGS__)
 #define PP(NAME_, name_, ...) ENTRY(PP, NAME_, name_, 0, 0, __VA_ARGS__)
 #define PPM(NAME_, name_, ...) ENTRY(PP, NAME_, name_, PDF_ALLOWMULTI, 0, __VA_ARGS__)
 
@@ -1893,7 +1894,7 @@ static const struct piddesc piddesc_omg[] = {
      the "Xopt" here is to allow both forms on input, with an assumed empty second sequence if the old form was received */
   QP  (PROPERTY_LIST,                       property, XQ, XbPROP, XS, XS, XSTOP, Xopt, XQ, XbPROP, XS, XO, XSTOP),
   /* Reliability encoding does not follow the rules (best-effort/reliable map to 1/2 instead of 0/1 */
-  { DDSI_PID_RELIABILITY, PDF_QOS | PDF_FUNCTION, QP_RELIABILITY, "RELIABILITY",
+  { DDSI_PID_RELIABILITY, PDF_QOS | PDF_FUNCTION, DDSI_QP_RELIABILITY, "RELIABILITY",
     offsetof (struct ddsi_plist, qos.reliability), membersize (struct ddsi_plist, qos.reliability),
     { .f = { .deser = deser_reliability, .ser = ser_reliability, .valid = valid_reliability, .equal = equal_reliability, .print = print_reliability } }, 0 },
   QP  (LIFESPAN,                            lifespan, XD),
@@ -1909,14 +1910,14 @@ static const struct piddesc piddesc_omg[] = {
   QP  (TRANSPORT_PRIORITY,                  transport_priority, Xi),
   QP  (ENTITY_NAME,                         entity_name, XS),
   /* Type consistency enforcement has some custom validations and uses a bitbound(16) enum */
-  { DDSI_PID_TYPE_CONSISTENCY_ENFORCEMENT, PDF_QOS | PDF_FUNCTION, QP_TYPE_CONSISTENCY_ENFORCEMENT, "TYPE_CONSISTENCY_ENFORCEMENT",
+  { DDSI_PID_TYPE_CONSISTENCY_ENFORCEMENT, PDF_QOS | PDF_FUNCTION, DDSI_QP_TYPE_CONSISTENCY_ENFORCEMENT, "TYPE_CONSISTENCY_ENFORCEMENT",
     offsetof (struct ddsi_plist, qos.type_consistency), membersize (struct ddsi_plist, qos.type_consistency),
     { .f = { .deser = deser_type_consistency, .ser = ser_type_consistency, .valid = valid_type_consistency, .equal = equal_type_consistency, .print = print_type_consistency } }, 0 },
-  { DDSI_PID_DATA_REPRESENTATION, PDF_QOS | PDF_FUNCTION, QP_DATA_REPRESENTATION, "DATA_REPRESENTATION",
+  { DDSI_PID_DATA_REPRESENTATION, PDF_QOS | PDF_FUNCTION, DDSI_QP_DATA_REPRESENTATION, "DATA_REPRESENTATION",
     offsetof (struct ddsi_plist, qos.data_representation), membersize (struct ddsi_plist, qos.data_representation),
     { .f = { .deser = deser_data_representation, .ser = ser_data_representation, .valid = valid_data_representation, .equal = equal_data_representation, .unalias = unalias_data_representation, .fini = fini_data_representation, .print = print_data_representation } }, 0 },
 #ifdef DDS_HAS_TYPE_DISCOVERY
-  { DDSI_PID_TYPE_INFORMATION, PDF_QOS | PDF_FUNCTION, QP_TYPE_INFORMATION, "TYPE_INFORMATION",
+  { DDSI_PID_TYPE_INFORMATION, PDF_QOS | PDF_FUNCTION, DDSI_QP_TYPE_INFORMATION, "TYPE_INFORMATION",
     offsetof (struct ddsi_plist, qos.type_information), membersize (struct ddsi_plist, qos.type_information),
     { .f = { .deser = deser_type_information, .ser = ser_type_information, .valid = valid_type_information, .unalias = unalias_type_information, .fini = fini_type_information, .equal = equal_type_information, .print = print_type_information } }, 0 },
 #endif
@@ -1986,10 +1987,10 @@ static const struct piddesc piddesc_eclipse[] = {
   QP  (ADLINK_READER_LIFESPAN,           reader_lifespan, Xb, XD),
   QP  (ADLINK_WRITER_DATA_LIFECYCLE,     writer_data_lifecycle, Xb),
   QP  (ADLINK_READER_DATA_LIFECYCLE,     reader_data_lifecycle, XDx2),
-  { DDSI_PID_PAD, PDF_QOS, QP_CYCLONE_IGNORELOCAL, "CYCLONE_IGNORELOCAL",
+  { DDSI_PID_PAD, PDF_QOS, DDSI_QP_CYCLONE_IGNORELOCAL, "CYCLONE_IGNORELOCAL",
     offsetof (struct ddsi_plist, qos.ignorelocal), membersize (struct ddsi_plist, qos.ignorelocal),
     { .desc = { XE2, XSTOP } }, 0 },
-  { DDSI_PID_PAD, PDF_QOS, QP_LOCATOR_MASK, "CYCLONE_LOCATOR_MASK",
+  { DDSI_PID_PAD, PDF_QOS, DDSI_QP_LOCATOR_MASK, "CYCLONE_LOCATOR_MASK",
     offsetof(struct ddsi_plist, qos.ignore_locator_type), membersize(struct ddsi_plist, qos.ignore_locator_type),
     {.desc = { Xu, XSTOP } }, 0 },
 #ifdef DDS_HAS_TOPIC_DISCOVERY
@@ -3084,14 +3085,14 @@ static dds_return_t final_validation_qos (const dds_qos_t *dest, nn_protocol_ver
      set the other to the default, claim it has been provided &
      validate the combination. They can't be changed afterward, so
      this is a reasonable interpretation. */
-  if (dest->present & QP_HISTORY)
+  if (dest->present & DDSI_QP_HISTORY)
     tmphist = dest->history;
-  if (dest->present & QP_RESOURCE_LIMITS)
+  if (dest->present & DDSI_QP_RESOURCE_LIMITS)
     tmpreslim = dest->resource_limits;
   if ((res = validate_history_and_resource_limits (&tmphist, &tmpreslim)) < 0)
     return res;
 
-  if ((dest->present & QP_DEADLINE) && (dest->present & QP_TIME_BASED_FILTER))
+  if ((dest->present & DDSI_QP_DEADLINE) && (dest->present & DDSI_QP_TIME_BASED_FILTER))
   {
     if (dest->deadline.deadline < dest->time_based_filter.minimum_separation)
       return DDS_RETCODE_INCONSISTENT_POLICY;
@@ -3105,9 +3106,9 @@ static dds_return_t final_validation_qos (const dds_qos_t *dest, nn_protocol_ver
      is valid or delete it if irrelevant. */
   if (dursvc_accepted_allzero)
     *dursvc_accepted_allzero = false;
-  if (dest->present & QP_DURABILITY_SERVICE)
+  if (dest->present & DDSI_QP_DURABILITY_SERVICE)
   {
-    const dds_durability_kind_t durkind = (dest->present & QP_DURABILITY) ? dest->durability.kind : DDS_DURABILITY_VOLATILE;
+    const dds_durability_kind_t durkind = (dest->present & DDSI_QP_DURABILITY) ? dest->durability.kind : DDS_DURABILITY_VOLATILE;
     bool acceptzero;
     bool check_dursvc = true;
     /* Use a somewhat convoluted rule to decide whether or not to
@@ -3214,7 +3215,7 @@ dds_return_t ddsi_plist_init_frommsg (ddsi_plist_t *dest, char **nextafterplist,
         /* If we accepted an all-zero durability service, that's awfully friendly of ours,
            but we'll pretend we never saw it */
         if (dursvc_accepted_allzero)
-          dest->qos.present &= ~QP_DURABILITY_SERVICE;
+          dest->qos.present &= ~DDSI_QP_DURABILITY_SERVICE;
         pl += sizeof (*par);
         if (nextafterplist)
           *nextafterplist = (char *) pl;
@@ -3421,7 +3422,7 @@ const ddsi_plist_t ddsi_default_plist_participant = {
   .present = 0,
   .aliased = 0,
   .qos = {
-    .present = QP_ADLINK_ENTITY_FACTORY | QP_USER_DATA,
+    .present = DDSI_QP_ADLINK_ENTITY_FACTORY | DDSI_QP_USER_DATA,
     .aliased = 0,
     .entity_factory.autoenable_created_entities = 0,
     .user_data.length = 0,
@@ -3430,8 +3431,8 @@ const ddsi_plist_t ddsi_default_plist_participant = {
 };
 
 const dds_qos_t ddsi_default_qos_reader = {
-  .present = QP_PRESENTATION | QP_DURABILITY | QP_DEADLINE | QP_LATENCY_BUDGET | QP_LIVELINESS | QP_DESTINATION_ORDER | QP_HISTORY | QP_RESOURCE_LIMITS | QP_TRANSPORT_PRIORITY | QP_OWNERSHIP | QP_CYCLONE_IGNORELOCAL | QP_TOPIC_DATA | QP_GROUP_DATA | QP_USER_DATA | QP_PARTITION | QP_RELIABILITY | QP_TIME_BASED_FILTER | QP_ADLINK_READER_DATA_LIFECYCLE | QP_ADLINK_READER_LIFESPAN | QP_TYPE_CONSISTENCY_ENFORCEMENT | QP_LOCATOR_MASK | QP_DATA_REPRESENTATION,
-  .aliased = QP_DATA_REPRESENTATION,
+  .present = DDSI_QP_PRESENTATION | DDSI_QP_DURABILITY | DDSI_QP_DEADLINE | DDSI_QP_LATENCY_BUDGET | DDSI_QP_LIVELINESS | DDSI_QP_DESTINATION_ORDER | DDSI_QP_HISTORY | DDSI_QP_RESOURCE_LIMITS | DDSI_QP_TRANSPORT_PRIORITY | DDSI_QP_OWNERSHIP | DDSI_QP_CYCLONE_IGNORELOCAL | DDSI_QP_TOPIC_DATA | DDSI_QP_GROUP_DATA | DDSI_QP_USER_DATA | DDSI_QP_PARTITION | DDSI_QP_RELIABILITY | DDSI_QP_TIME_BASED_FILTER | DDSI_QP_ADLINK_READER_DATA_LIFECYCLE | DDSI_QP_ADLINK_READER_LIFESPAN | DDSI_QP_TYPE_CONSISTENCY_ENFORCEMENT | DDSI_QP_LOCATOR_MASK | DDSI_QP_DATA_REPRESENTATION,
+  .aliased = DDSI_QP_DATA_REPRESENTATION,
   .presentation.access_scope = DDS_PRESENTATION_INSTANCE,
   .presentation.coherent_access = 0,
   .presentation.ordered_access = 0,
@@ -3475,8 +3476,8 @@ const dds_qos_t ddsi_default_qos_reader = {
 };
 
 const dds_qos_t ddsi_default_qos_writer = {
-  .present = QP_PRESENTATION | QP_DURABILITY | QP_DEADLINE | QP_LATENCY_BUDGET | QP_LIVELINESS | QP_DESTINATION_ORDER | QP_HISTORY | QP_RESOURCE_LIMITS | QP_OWNERSHIP | QP_CYCLONE_IGNORELOCAL | QP_TOPIC_DATA | QP_GROUP_DATA | QP_USER_DATA | QP_PARTITION | QP_DURABILITY_SERVICE | QP_RELIABILITY | QP_OWNERSHIP_STRENGTH | QP_TRANSPORT_PRIORITY | QP_LIFESPAN | QP_ADLINK_WRITER_DATA_LIFECYCLE | QP_LOCATOR_MASK | QP_DATA_REPRESENTATION,
-  .aliased = QP_DATA_REPRESENTATION,
+  .present = DDSI_QP_PRESENTATION | DDSI_QP_DURABILITY | DDSI_QP_DEADLINE | DDSI_QP_LATENCY_BUDGET | DDSI_QP_LIVELINESS | DDSI_QP_DESTINATION_ORDER | DDSI_QP_HISTORY | DDSI_QP_RESOURCE_LIMITS | DDSI_QP_OWNERSHIP | DDSI_QP_CYCLONE_IGNORELOCAL | DDSI_QP_TOPIC_DATA | DDSI_QP_GROUP_DATA | DDSI_QP_USER_DATA | DDSI_QP_PARTITION | DDSI_QP_DURABILITY_SERVICE | DDSI_QP_RELIABILITY | DDSI_QP_OWNERSHIP_STRENGTH | DDSI_QP_TRANSPORT_PRIORITY | DDSI_QP_LIFESPAN | DDSI_QP_ADLINK_WRITER_DATA_LIFECYCLE | DDSI_QP_LOCATOR_MASK | DDSI_QP_DATA_REPRESENTATION,
+  .aliased = DDSI_QP_DATA_REPRESENTATION,
   .presentation.access_scope = DDS_PRESENTATION_INSTANCE,
   .presentation.coherent_access = 0,
   .presentation.ordered_access = 0,
@@ -3519,8 +3520,8 @@ const dds_qos_t ddsi_default_qos_writer = {
 };
 
 const dds_qos_t ddsi_default_qos_topic = {
-  .present = QP_PRESENTATION | QP_DURABILITY | QP_DEADLINE | QP_LATENCY_BUDGET | QP_LIVELINESS | QP_DESTINATION_ORDER | QP_HISTORY | QP_RESOURCE_LIMITS | QP_TRANSPORT_PRIORITY | QP_OWNERSHIP | QP_CYCLONE_IGNORELOCAL | QP_DURABILITY_SERVICE | QP_RELIABILITY | QP_LIFESPAN | QP_DATA_REPRESENTATION,
-  .aliased = QP_DATA_REPRESENTATION,
+  .present = DDSI_QP_PRESENTATION | DDSI_QP_DURABILITY | DDSI_QP_DEADLINE | DDSI_QP_LATENCY_BUDGET | DDSI_QP_LIVELINESS | DDSI_QP_DESTINATION_ORDER | DDSI_QP_HISTORY | DDSI_QP_RESOURCE_LIMITS | DDSI_QP_TRANSPORT_PRIORITY | DDSI_QP_OWNERSHIP | DDSI_QP_CYCLONE_IGNORELOCAL | DDSI_QP_DURABILITY_SERVICE | DDSI_QP_RELIABILITY | DDSI_QP_LIFESPAN | DDSI_QP_DATA_REPRESENTATION,
+  .aliased = DDSI_QP_DATA_REPRESENTATION,
   .presentation.access_scope = DDS_PRESENTATION_INSTANCE,
   .presentation.coherent_access = 0,
   .presentation.ordered_access = 0,
@@ -3552,7 +3553,7 @@ const dds_qos_t ddsi_default_qos_topic = {
 };
 
 const dds_qos_t ddsi_default_qos_publisher_subscriber = {
-  .present = QP_GROUP_DATA | QP_PARTITION | QP_ADLINK_ENTITY_FACTORY,
+  .present = DDSI_QP_GROUP_DATA | DDSI_QP_PARTITION | DDSI_QP_ADLINK_ENTITY_FACTORY,
   .aliased = 0,
   .presentation.access_scope = DDS_PRESENTATION_INSTANCE,
   .presentation.coherent_access = 0,
@@ -3601,10 +3602,10 @@ dds_qos_t * ddsi_xqos_dup (const dds_qos_t *src)
 
 bool ddsi_xqos_add_property_if_unset (dds_qos_t *q, bool propagate, const char *name, const char *value)
 {
-  if ((q->present & QP_PROPERTY_LIST) == 0)
+  if ((q->present & DDSI_QP_PROPERTY_LIST) == 0)
   {
     // No properties, definitely not set
-    q->present |= QP_PROPERTY_LIST;
+    q->present |= DDSI_QP_PROPERTY_LIST;
     q->property.value.n = 1;
     q->property.value.props = ddsrt_malloc(sizeof(dds_property_t));
     q->property.binary_value.n = 0;
@@ -3637,7 +3638,7 @@ bool ddsi_xqos_add_property_if_unset (dds_qos_t *q, bool propagate, const char *
 
 bool ddsi_xqos_has_prop_prefix (const dds_qos_t *xqos, const char *nameprefix)
 {
-  if (!(xqos->present & QP_PROPERTY_LIST))
+  if (!(xqos->present & DDSI_QP_PROPERTY_LIST))
     return false;
   const size_t len = strlen (nameprefix);
   for (uint32_t i = 0; i < xqos->property.value.n; i++)
@@ -3650,7 +3651,7 @@ bool ddsi_xqos_has_prop_prefix (const dds_qos_t *xqos, const char *nameprefix)
 
 bool ddsi_xqos_find_prop (const dds_qos_t *xqos, const char *name, const char **value)
 {
-  if (!(xqos->present & QP_PROPERTY_LIST))
+  if (!(xqos->present & DDSI_QP_PROPERTY_LIST))
     return false;
   for (uint32_t i = 0; i < xqos->property.value.n; i++)
   {
@@ -3681,13 +3682,13 @@ void ddsi_xqos_mergein_security_config (dds_qos_t *xqos, const struct ddsi_confi
 {
   assert(cfg != NULL);
 
-  if (!(xqos->present & QP_PROPERTY_LIST))
+  if (!(xqos->present & DDSI_QP_PROPERTY_LIST))
   {
     xqos->property.value.n = 0;
     xqos->property.value.props = NULL;
     xqos->property.binary_value.n = 0;
     xqos->property.binary_value.props = NULL;
-    xqos->present |= QP_PROPERTY_LIST;
+    xqos->present |= DDSI_QP_PROPERTY_LIST;
   }
 
   /* assume that no security properties exist in qos: fill QoS properties with values from configuration */

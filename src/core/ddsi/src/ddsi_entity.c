@@ -27,6 +27,7 @@
 #include "dds/ddsi/q_thread.h"
 #include "ddsi__endpoint.h"
 #include "ddsi__vendor.h"
+#include "ddsi__xqos.h"
 
 extern inline bool ddsi_builtintopic_is_visible (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_guid *guid, ddsi_vendorid_t vendorid);
 extern inline bool ddsi_builtintopic_is_builtintopic (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_sertype *type);
@@ -129,17 +130,17 @@ bool ddsi_update_qos_locked (struct ddsi_entity_common *e, dds_qos_t *ent_qos, c
 {
   uint64_t mask;
 
-  mask = ddsi_xqos_delta (ent_qos, xqos, QP_CHANGEABLE_MASK & ~(QP_RXO_MASK | QP_PARTITION)) & xqos->present;
+  mask = ddsi_xqos_delta (ent_qos, xqos, DDSI_QP_CHANGEABLE_MASK & ~(DDSI_QP_RXO_MASK | DDSI_QP_PARTITION)) & xqos->present;
 #if 0
-  int a = (ent_qos->present & QP_TOPIC_DATA) ? (int) ent_qos->topic_data.length : 6;
-  int b = (xqos->present & QP_TOPIC_DATA) ? (int) xqos->topic_data.length : 6;
-  char *astr = (ent_qos->present & QP_TOPIC_DATA) ? (char *) ent_qos->topic_data.value : "(null)";
-  char *bstr = (xqos->present & QP_TOPIC_DATA) ? (char *) xqos->topic_data.value : "(null)";
+  int a = (ent_qos->present & DDSI_QP_TOPIC_DATA) ? (int) ent_qos->topic_data.length : 6;
+  int b = (xqos->present & DDSI_QP_TOPIC_DATA) ? (int) xqos->topic_data.length : 6;
+  char *astr = (ent_qos->present & DDSI_QP_TOPIC_DATA) ? (char *) ent_qos->topic_data.value : "(null)";
+  char *bstr = (xqos->present & DDSI_QP_TOPIC_DATA) ? (char *) xqos->topic_data.value : "(null)";
   printf ("%d: "PGUIDFMT" ent_qos %d \"%*.*s\" xqos %d \"%*.*s\" => mask %d\n",
           (int) getpid (), PGUID (e->guid),
-          !!(ent_qos->present & QP_TOPIC_DATA), a, a, astr,
-          !!(xqos->present & QP_TOPIC_DATA), b, b, bstr,
-          !!(mask & QP_TOPIC_DATA));
+          !!(ent_qos->present & DDSI_QP_TOPIC_DATA), a, a, astr,
+          !!(xqos->present & DDSI_QP_TOPIC_DATA), b, b, bstr,
+          !!(mask & DDSI_QP_TOPIC_DATA));
 #endif
   EELOGDISC (e, "ddsi_update_qos_locked "PGUIDFMT" delta=%"PRIu64" QOS={", PGUID(e->guid), mask);
   ddsi_xqos_log (DDS_LC_DISCOVERY, &e->gv->logconfig, xqos);
@@ -171,14 +172,14 @@ uint64_t ddsi_get_entity_instanceid (const struct ddsi_domaingv *gv, const struc
 
 int ddsi_set_topic_type_name (dds_qos_t *xqos, const char * topic_name, const char * type_name)
 {
-  if (!(xqos->present & QP_TYPE_NAME))
+  if (!(xqos->present & DDSI_QP_TYPE_NAME))
   {
-    xqos->present |= QP_TYPE_NAME;
+    xqos->present |= DDSI_QP_TYPE_NAME;
     xqos->type_name = ddsrt_strdup (type_name);
   }
-  if (!(xqos->present & QP_TOPIC_NAME))
+  if (!(xqos->present & DDSI_QP_TOPIC_NAME))
   {
-    xqos->present |= QP_TOPIC_NAME;
+    xqos->present |= DDSI_QP_TOPIC_NAME;
     xqos->topic_name = ddsrt_strdup (topic_name);
   }
   return 0;

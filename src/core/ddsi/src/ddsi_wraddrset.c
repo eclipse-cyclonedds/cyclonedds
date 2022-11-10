@@ -778,7 +778,7 @@ struct addrset *ddsi_compute_writer_addrset (const struct ddsi_writer *wr)
   }
   else
   {
-    assert(wr->xqos->present & QP_LOCATOR_MASK);
+    assert(wr->xqos->present & DDSI_QP_LOCATOR_MASK);
     struct costmap *wm = wras_calc_costmap (locs, covered, wr->xqos->ignore_locator_type);
     int best;
     newas = new_addrset ();

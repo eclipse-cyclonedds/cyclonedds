@@ -23,6 +23,7 @@
 #include "dds/ddsrt/log.h"
 
 #include "dds/ddsi/ddsi_xqos.h"
+#include "ddsi__xqos.h"
 
 #include "test_common.h"
 #include "RWData.h"
@@ -144,7 +145,7 @@ static bool pubsub_qos_eq_h (const dds_qos_t *a, dds_entity_t ent)
   {
     /* internal interface is more luxurious that a simple compare for equality, and
        using that here saves us a ton of code */
-    delta = ddsi_xqos_delta (a, b, QP_GROUP_DATA | QP_PRESENTATION | QP_PARTITION);
+    delta = ddsi_xqos_delta (a, b, DDSI_QP_GROUP_DATA | DDSI_QP_PRESENTATION | DDSI_QP_PARTITION);
     if (delta)
     {
       DDS_CLOG (DDS_LC_ERROR, &logcfg, "pub/sub: delta = %"PRIx64"\n", delta);
@@ -158,7 +159,7 @@ static bool pubsub_qos_eq_h (const dds_qos_t *a, dds_entity_t ent)
 
 static uint64_t reader_qos_delta (const dds_qos_t *a, const dds_qos_t *b)
 {
-  return ddsi_xqos_delta (a, b, QP_USER_DATA | QP_TOPIC_DATA | QP_GROUP_DATA | QP_DURABILITY | QP_HISTORY | QP_RESOURCE_LIMITS | QP_PRESENTATION | QP_DEADLINE | QP_LATENCY_BUDGET | QP_OWNERSHIP | QP_LIVELINESS | QP_TIME_BASED_FILTER | QP_PARTITION | QP_RELIABILITY | QP_DESTINATION_ORDER | QP_ADLINK_READER_DATA_LIFECYCLE);
+  return ddsi_xqos_delta (a, b, DDSI_QP_USER_DATA | DDSI_QP_TOPIC_DATA | DDSI_QP_GROUP_DATA | DDSI_QP_DURABILITY | DDSI_QP_HISTORY | DDSI_QP_RESOURCE_LIMITS | DDSI_QP_PRESENTATION | DDSI_QP_DEADLINE | DDSI_QP_LATENCY_BUDGET | DDSI_QP_OWNERSHIP | DDSI_QP_LIVELINESS | DDSI_QP_TIME_BASED_FILTER | DDSI_QP_PARTITION | DDSI_QP_RELIABILITY | DDSI_QP_DESTINATION_ORDER | DDSI_QP_ADLINK_READER_DATA_LIFECYCLE);
 }
 
 static bool reader_qos_eq_h (const dds_qos_t *a, dds_entity_t ent)
@@ -187,7 +188,7 @@ static bool reader_qos_eq_h (const dds_qos_t *a, dds_entity_t ent)
 
 static uint64_t writer_qos_delta (const dds_qos_t *a, const dds_qos_t *b)
 {
-  return ddsi_xqos_delta (a, b, QP_USER_DATA | QP_TOPIC_DATA | QP_GROUP_DATA | QP_DURABILITY | QP_HISTORY | QP_RESOURCE_LIMITS | QP_PRESENTATION | QP_LIFESPAN | QP_DEADLINE | QP_LATENCY_BUDGET | QP_OWNERSHIP | QP_OWNERSHIP_STRENGTH | QP_LIVELINESS | QP_PARTITION | QP_RELIABILITY | QP_DESTINATION_ORDER | QP_ADLINK_WRITER_DATA_LIFECYCLE);
+  return ddsi_xqos_delta (a, b, DDSI_QP_USER_DATA | DDSI_QP_TOPIC_DATA | DDSI_QP_GROUP_DATA | DDSI_QP_DURABILITY | DDSI_QP_HISTORY | DDSI_QP_RESOURCE_LIMITS | DDSI_QP_PRESENTATION | DDSI_QP_LIFESPAN | DDSI_QP_DEADLINE | DDSI_QP_LATENCY_BUDGET | DDSI_QP_OWNERSHIP | DDSI_QP_OWNERSHIP_STRENGTH | DDSI_QP_LIVELINESS | DDSI_QP_PARTITION | DDSI_QP_RELIABILITY | DDSI_QP_DESTINATION_ORDER | DDSI_QP_ADLINK_WRITER_DATA_LIFECYCLE);
 }
 
 static bool writer_qos_eq_h (const dds_qos_t *a, dds_entity_t ent)
