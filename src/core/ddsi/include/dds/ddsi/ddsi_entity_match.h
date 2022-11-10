@@ -16,7 +16,7 @@
 #include "dds/features.h"
 
 #include "dds/ddsrt/avl.h"
-#include "dds/ddsi/q_lat_estim.h"
+#include "dds/ddsi/ddsi_lat_estim.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -65,7 +65,7 @@ struct ddsi_wr_prd_match {
   ddsi_count_t prev_nackfrag; /* latest accepted nackfrag sequence number */
   ddsrt_etime_t t_acknack_accepted; /* (local) time an acknack was last accepted */
   ddsrt_etime_t t_nackfrag_accepted; /* (local) time a nackfrag was last accepted */
-  struct nn_lat_estim hb_to_ack_latency;
+  struct ddsi_lat_estim hb_to_ack_latency;
   ddsrt_wctime_t hb_to_ack_latency_tlastlog;
   uint32_t non_responsive_count;
   uint32_t rexmit_requests;

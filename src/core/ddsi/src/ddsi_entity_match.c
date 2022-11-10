@@ -34,6 +34,7 @@
 #include "ddsi__tran.h"
 #include "ddsi__typelib.h"
 #include "ddsi__vendor.h"
+#include "ddsi__lat_estim.h"
 #ifdef DDS_HAS_TYPE_DISCOVERY
 #include "ddsi__typelookup.h"
 #endif
@@ -608,7 +609,7 @@ void ddsi_free_wr_prd_match (const struct ddsi_domaingv *gv, const ddsi_guid_t *
     (void) gv;
     (void) wr_guid;
 #endif
-    nn_lat_estim_fini (&m->hb_to_ack_latency);
+    ddsi_lat_estim_fini (&m->hb_to_ack_latency);
     ddsrt_free (m);
   }
 }
@@ -709,7 +710,7 @@ void ddsi_writer_add_connection (struct ddsi_writer *wr, struct ddsi_proxy_reade
   ddsrt_mutex_unlock (&prd->e.lock);
   m->prev_acknack = 0;
   m->prev_nackfrag = 0;
-  nn_lat_estim_init (&m->hb_to_ack_latency);
+  ddsi_lat_estim_init (&m->hb_to_ack_latency);
   m->hb_to_ack_latency_tlastlog = ddsrt_time_wallclock ();
   m->t_acknack_accepted.v = 0;
   m->t_nackfrag_accepted.v = 0;
@@ -729,7 +730,7 @@ void ddsi_writer_add_connection (struct ddsi_writer *wr, struct ddsi_proxy_reade
     ELOGDISC (wr, "  ddsi_writer_add_connection(wr "PGUIDFMT" prd "PGUIDFMT") - already connected\n",
               PGUID (wr->e.guid), PGUID (prd->e.guid));
     ddsrt_mutex_unlock (&wr->e.lock);
-    nn_lat_estim_fini (&m->hb_to_ack_latency);
+    ddsi_lat_estim_fini (&m->hb_to_ack_latency);
     ddsrt_free (m);
   }
   else

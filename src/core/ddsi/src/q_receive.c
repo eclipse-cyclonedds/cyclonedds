@@ -30,7 +30,7 @@
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/q_unused.h"
 #include "ddsi__bswap.h"
-#include "dds/ddsi/q_lat_estim.h"
+#include "ddsi__lat_estim.h"
 #include "ddsi__bitset.h"
 #include "dds/ddsi/q_xevent.h"
 #include "ddsi__addrset.h"
@@ -875,10 +875,10 @@ static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const
   if (rst->gv->config.meas_hb_to_ack_latency && timestamp.v)
   {
     ddsrt_wctime_t tstamp_now = ddsrt_time_wallclock ();
-    nn_lat_estim_update (&rn->hb_to_ack_latency, tstamp_now.v - timestamp.v);
+    ddsi_lat_estim_update (&rn->hb_to_ack_latency, tstamp_now.v - timestamp.v);
     if ((rst->gv->logconfig.c.mask & DDS_LC_TRACE) && tstamp_now.v > rn->hb_to_ack_latency_tlastlog.v + DDS_SECS (10))
     {
-      nn_lat_estim_log (DDS_LC_TRACE, &rst->gv->logconfig, NULL, &rn->hb_to_ack_latency);
+      ddsi_lat_estim_log (DDS_LC_TRACE, &rst->gv->logconfig, NULL, &rn->hb_to_ack_latency);
       rn->hb_to_ack_latency_tlastlog = tstamp_now;
     }
   }

@@ -27,7 +27,6 @@
 #include "dds/ddsi/q_log.h"
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/q_unused.h"
-#include "dds/ddsi/q_lat_estim.h"
 #include "ddsi__bitset.h"
 #include "dds/ddsi/q_xevent.h"
 #include "ddsi__addrset.h"
