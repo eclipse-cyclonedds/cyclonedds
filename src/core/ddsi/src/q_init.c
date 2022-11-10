@@ -57,7 +57,7 @@
 #include "ddsi__udp.h"
 #include "ddsi__tcp.h"
 #include "ddsi__raweth.h"
-#include "dds/ddsi/ddsi_vnet.h"
+#include "ddsi__vnet.h"
 #include "ddsi__mcgroup.h"
 #include "ddsi__nwpart.h"
 #include "ddsi__serdata_cdr.h"

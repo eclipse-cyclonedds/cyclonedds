@@ -30,7 +30,7 @@
 #include "dds/ddsi/ddsi_sertype.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_builtin_topic_if.h"
-#include "dds/ddsi/ddsi_vnet.h"
+#include "ddsi__vnet.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/q_bswap.h"
 #include "dds__whc.h"

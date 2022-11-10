@@ -9,12 +9,14 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef DDSI_VNET_H
-#define DDSI_VNET_H
+#ifndef DDSI__VNET_H
+#define DDSI__VNET_H
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
+
+struct ddsi_domaingv;
 
 int ddsi_vnet_init (struct ddsi_domaingv *gv, const char *name, int32_t locator_kind);
 
@@ -22,4 +24,4 @@ int ddsi_vnet_init (struct ddsi_domaingv *gv, const char *name, int32_t locator_
 }
 #endif
 
-#endif
+#endif /* DDSI__VNET_H */
