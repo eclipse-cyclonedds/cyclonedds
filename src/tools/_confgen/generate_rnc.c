@@ -75,7 +75,7 @@ printattr(
   assert(!ismoved(elem) && !isdeprecated(elem));
   if (elem->description != NULL) {
     printspc(out, cols, docfmt, amp[(flags & FLAG_AMP)]);
-    fputs(elem->meta.description, out);
+    (void) fputs(elem->meta.description, out);
     printspc(out, 0, "\"\"\" ] ]\n");
     flags &= ~FLAG_AMP;
   }
@@ -97,7 +97,7 @@ static void printelem(
 
   if (elem->description != NULL) {
     printspc(out, cols, docfmt, amp[(flags & FLAG_AMP)]);
-    fputs(elem->meta.description, out);
+    (void) fputs(elem->meta.description, out);
     printspc(out, 0, "\"\"\" ] ]\n");
     flags &= ~FLAG_AMP;
   }

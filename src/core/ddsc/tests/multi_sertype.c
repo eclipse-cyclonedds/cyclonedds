@@ -330,7 +330,7 @@ static const struct ddsi_sertype *get_sertype_from_reader (dds_entity_t reader)
 static void logsink (void *arg, const dds_log_data_t *msg)
 {
   ddsrt_atomic_uint32_t *deser_fail = arg;
-  fputs (msg->message - msg->hdrsize, stderr);
+  (void) fputs (msg->message - msg->hdrsize, stderr);
   if (strstr (msg->message, "deserialization") && strstr (msg->message, "failed"))
     ddsrt_atomic_inc32 (deser_fail);
 }

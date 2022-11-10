@@ -179,9 +179,9 @@ static void dumplog (char logbuf[LOGDEPTH][LOGLINE], int *logidx)
 {
   if (logbuf[*logidx][0])
     for (int i = *logidx; i < LOGDEPTH; i++)
-      fputs (logbuf[i], stdout);
+      (void) fputs (logbuf[i], stdout);
   for (int i = 0; i < *logidx; i++)
-    fputs (logbuf[i], stdout);
+    (void) fputs (logbuf[i], stdout);
   for (int i = 0; i < LOGDEPTH; i++)
     logbuf[i][0] = 0;
   *logidx = 0;

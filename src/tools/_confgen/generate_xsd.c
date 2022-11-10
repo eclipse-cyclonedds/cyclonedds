@@ -66,8 +66,8 @@ printdesc(
   assert(elem->meta.description);
   printspc(out, cols+0, "<xs:annotation>\n");
   printspc(out, cols+2, "<xs:documentation>\n");
-  fputs(elem->meta.description, out);
-  fputs("</xs:documentation>\n", out);
+  (void) fputs(elem->meta.description, out);
+  (void) fputs("</xs:documentation>\n", out);
   printspc(out, cols+0, "</xs:annotation>\n");
 }
 

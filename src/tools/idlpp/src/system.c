@@ -3011,7 +3011,7 @@ void    put_depend(
                 if (fp == fp_out)
                     mcpp_fputs( output, OUT);
                 else
-                    fputs( output, fp);
+                    (void) fputs( output, fp);
                 return;
             } else if (strlen( output) * 2 + (pos_num * 2) >= mkdep_len) {
                 /* Enlarge the buffer   */
@@ -3040,7 +3040,7 @@ void    put_depend(
         if (fp == fp_out) { /* To the same path with normal preprocessing   */
             mcpp_fputs( output, OUT);
         } else {        /* To the file specified by -MF, -MD, -MMD options  */
-            fputs( output, fp);
+            (void) fputs( output, fp);
             fclose( fp);
         }
         fp = NULL;      /* Clear for the next call in MCPP_LIB build        */

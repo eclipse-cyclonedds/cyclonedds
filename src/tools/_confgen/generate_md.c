@@ -103,32 +103,32 @@ static void printtype(
   (void)units;
   assert(!isgroup(elem));
   if (isbool(elem)) {
-    fputs("Boolean\n", out);
+    (void) fputs("Boolean\n", out);
   } else if (islist(elem)) {
     assert(elem->meta.values);
-    fputs("One of:\n", out);
+    (void) fputs("One of:\n", out);
     if (elem->value && strlen(elem->value))
       (void) fprintf(out, "* Keyword: %s\n", elem->value);
-    fputs("* Comma-separated list of: ", out);
+    (void) fputs("* Comma-separated list of: ", out);
     for (const char **v = elem->meta.values; *v; v++) {
       (void) fprintf(out, "%s%s", v == elem->meta.values ? "" : ", ", *v);
     }
-    fputs("\n", out);
+    (void) fputs("\n", out);
     if (!elem->value || !strlen(elem->value))
-      fputs("* Or empty\n", out);
+      (void) fputs("* Or empty\n", out);
   } else if (isenum(elem)) {
     assert(elem->meta.values);
-    fputs("One of: ", out);
+    (void) fputs("One of: ", out);
     for (const char **v = elem->meta.values; *v; v++) {
       (void) fprintf(out, "%s%s", v == elem->meta.values ? "" : ", ", *v);
     }
-    fputs("\n", out);
+    (void) fputs("\n", out);
   } else if (isint(elem)) {
-    fputs("Integer\n", out);
+    (void) fputs("Integer\n", out);
   } else if (elem->meta.unit) {
-    fputs("Number-with-unit\n", out);
+    (void) fputs("Number-with-unit\n", out);
   } else if (isstring(elem)) {
-    fputs("Text\n", out);
+    (void) fputs("Text\n", out);
   }
 }
 
@@ -142,13 +142,13 @@ static void printattr(
   const struct cfgunit *units)
 {
   if (flags & FLAG_LF)
-    fputs("\n\n", out);
+    (void) fputs("\n\n", out);
   printhead(out, level, flags, elem, units);
   printtype(out, level, flags, elem, units);
-  fputs("\n", out);
+  (void) fputs("\n", out);
   if (elem->description) {
-    fputs(elem->meta.description, out);
-    fputs("\n", out);
+    (void) fputs(elem->meta.description, out);
+    (void) fputs("\n", out);
   }
 }
 
@@ -160,7 +160,7 @@ static void printelem(
   const struct cfgunit *units)
 {
   if (flags & FLAG_LF)
-    fputs("\n\n", out);
+    (void) fputs("\n\n", out);
   printhead(out, level, flags, elem, units);
   flags &= ~FLAG_LF;
   if (hasattributes(elem)) {
@@ -178,7 +178,7 @@ static void printelem(
       ce = nextelem(elem->attributes, ce);
     }
     if (cnt != 0) {
-      fputs("\n", out);
+      (void) fputs("\n", out);
       flags |= FLAG_LF;
     }
   }
@@ -192,19 +192,19 @@ static void printelem(
       sep = ", ";
       ce = nextelem(elem->children, ce);
     }
-    fputs("\n", out);
+    (void) fputs("\n", out);
     flags |= FLAG_LF;
   } else if (!isgroup(elem)) {
     if (flags & FLAG_LF)
-      fputs("\n", out);
+      (void) fputs("\n", out);
     printtype(out, level+1, flags, elem, units);
     flags |= FLAG_LF;
   }
   if (elem->description) {
     if (flags & FLAG_LF)
-      fputs("\n", out);
-    fputs(elem->meta.description, out);
-    fputs("\n", out);
+      (void) fputs("\n", out);
+    (void) fputs(elem->meta.description, out);
+    (void) fputs("\n", out);
   }
   if (hasattributes(elem)) {
     struct cfgelem *ce = firstelem(elem->attributes);

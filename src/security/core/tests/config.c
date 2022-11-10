@@ -92,7 +92,7 @@ static char * extracted_line;
 static void logger(void *ptr, const dds_log_data_t *data)
 {
   char **expected = (char**)ptr;
-  fputs (data->message, stdout);
+  (void) fputs (data->message, stdout);
   for (uint32_t i = 0; expected[i] != NULL; i++) {
     if (ddsi2_patmatch(expected[i], data->message)) {
       found |= (uint32_t)(1 << i);

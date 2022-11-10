@@ -227,7 +227,7 @@ static void print (struct tracebuf *tb, const char *fmt, ...)
   if (pos < 0)
     pos = 0;
 
-  fputs (tb->buf + tb->pos, stdout); fflush (stdout);
+  (void) fputs (tb->buf + tb->pos, stdout); fflush (stdout);
   tb->pos += (size_t) pos;
 }
 
@@ -617,7 +617,7 @@ static void dotest (const dds_topic_descriptor_t *tpdesc, const void *sample)
         struct ddsi_domaingv *gv = gvs[i];
         GVTRACE ("#### %s ####\n", tb.buf);
       }
-      fputs (fail_one ? "\n" : " $$\r", stdout);
+      (void) fputs (fail_one ? "\n" : " $$\r", stdout);
       fflush (stdout);
       CU_ASSERT_FATAL (!fatal);
 
