@@ -703,7 +703,7 @@ validate_local_identity_and_permissions( uint32_t identity_expiry_duration, dds_
 
     if (result != DDS_SECURITY_VALIDATION_OK) {
         res = DDS_SECURITY_ERR_UNDEFINED_CODE;
-        printf("validate_local_identity_failed: (%d) %s\n", (int)exception.code, exception.message ? exception.message : "Error message missing");
+        (void) printf("validate_local_identity_failed: (%d) %s\n", (int)exception.code, exception.message ? exception.message : "Error message missing");
     }
 
     reset_exception(&exception);
@@ -718,7 +718,7 @@ validate_local_identity_and_permissions( uint32_t identity_expiry_duration, dds_
                 &exception);
 
         if (local_permissions_handle == DDS_SECURITY_HANDLE_NIL) {
-            printf("validate_local_permissions_failed: (%d) %s\n", (int)exception.code, exception.message ? exception.message : "Error message missing");
+            (void) printf("validate_local_permissions_failed: (%d) %s\n", (int)exception.code, exception.message ? exception.message : "Error message missing");
             if (exception.code == DDS_SECURITY_ERR_VALIDITY_PERIOD_EXPIRED_CODE) {
                 /* This can happen on very slow platforms or when doing a valgrind run. */
                 res = DDS_SECURITY_ERR_VALIDITY_PERIOD_EXPIRED_CODE;
@@ -765,7 +765,7 @@ clear_local_identity_and_permissions(void)
     if (local_permissions_handle != DDS_SECURITY_HANDLE_NIL) {
         success = access_control->return_permissions_handle(access_control, local_permissions_handle, &exception);
         if (!success) {
-            printf("return_permission_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
+            (void) printf("return_permission_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
         }
         reset_exception(&exception);
     }
@@ -773,7 +773,7 @@ clear_local_identity_and_permissions(void)
     if (local_identity_handle != DDS_SECURITY_HANDLE_NIL) {
         success = auth->return_identity_handle(auth, local_identity_handle, &exception);
         if (!success) {
-            printf("return_identity_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
+            (void) printf("return_identity_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
         }
         reset_exception(&exception);
     }
@@ -789,7 +789,7 @@ set_path_to_etc_dir(void)
 
     len = 1024;
     path_to_etc_dir = ddsrt_malloc(len);
-    snprintf(path_to_etc_dir, 1024, "%s/listeners_authentication/etc/", CONFIG_ENV_TESTS_DIR);
+    (void) snprintf(path_to_etc_dir, 1024, "%s/listeners_authentication/etc/", CONFIG_ENV_TESTS_DIR);
 
     return res;
 }
@@ -891,32 +891,32 @@ create_dh_key_modp_2048(
 
     if ((params = EVP_PKEY_new()) == NULL) {
         char *msg = get_openssl_error_message_for_test();
-        printf("Failed to allocate EVP_PKEY: %s", msg);
+        (void) printf("Failed to allocate EVP_PKEY: %s", msg);
         ddsrt_free(msg);
         r = -1;
     } else if ((dh = DH_get_2048_256()) == NULL) {
         char *msg = get_openssl_error_message_for_test();
-        printf("Failed to allocate DH parameter: %s", msg);
+        (void) printf("Failed to allocate DH parameter: %s", msg);
         ddsrt_free(msg);
         r = -1;
     } else if (EVP_PKEY_set1_DH(params, dh) <= 0) {
         char *msg = get_openssl_error_message_for_test();
-        printf("Failed to set DH parameter to MODP_2048_256: %s", msg);
+        (void) printf("Failed to set DH parameter to MODP_2048_256: %s", msg);
         ddsrt_free(msg);
         r = -1;
     } else if ((kctx = EVP_PKEY_CTX_new(params, NULL)) == NULL) {
         char *msg = get_openssl_error_message_for_test();
-        printf("Failed to allocate KEY context %s", msg);
+        (void) printf("Failed to allocate KEY context %s", msg);
         ddsrt_free(msg);
         r = -1;
     } else if (EVP_PKEY_keygen_init(kctx) <= 0) {
         char *msg = get_openssl_error_message_for_test();
-        printf("Failed to initialize KEY context: %s", msg);
+        (void) printf("Failed to initialize KEY context: %s", msg);
         ddsrt_free(msg);
         r = -1;
     } else if (EVP_PKEY_keygen(kctx, pkey) <= 0) {
         char *msg = get_openssl_error_message_for_test();
-        printf("Failed to generate :MODP_2048_256 keys %s", msg);
+        (void) printf("Failed to generate :MODP_2048_256 keys %s", msg);
         ddsrt_free(msg);
         r = -1;
     }
@@ -942,7 +942,7 @@ get_dh_public_key_modp_2048(
     dhkey = EVP_PKEY_get1_DH(pkey);
     if (!dhkey) {
         char *msg = get_openssl_error_message_for_test();
-        printf("Failed to get DH key from PKEY: %s", msg);
+        (void) printf("Failed to get DH key from PKEY: %s", msg);
         ddsrt_free(msg);
         r = -1;
         goto fail_get_dhkey;
@@ -951,7 +951,7 @@ get_dh_public_key_modp_2048(
     asn1int = BN_to_ASN1_INTEGER( dh_get_public_key(dhkey) , NULL);
     if (!asn1int) {
         char *msg = get_openssl_error_message_for_test();
-        printf("Failed to convert DH key to ASN1 integer: %s", msg);
+        (void) printf("Failed to convert DH key to ASN1 integer: %s", msg);
         ddsrt_free(msg);
         r = -1;
         goto fail_get_pubkey;
@@ -982,37 +982,37 @@ create_dh_key_ecdh(
 
     if ((pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_EC, NULL)) == NULL) {
         char *msg = get_openssl_error_message_for_test();
-        printf("Failed to allocate DH parameter context: %s", msg);
+        (void) printf("Failed to allocate DH parameter context: %s", msg);
         ddsrt_free(msg);
         r = -1;
     } else if (EVP_PKEY_paramgen_init(pctx) <= 0) {
         char *msg = get_openssl_error_message_for_test();
-        printf("Failed to initialize DH generation context: %s", msg);
+        (void) printf("Failed to initialize DH generation context: %s", msg);
         ddsrt_free(msg);
         r = -1;
     } else if (EVP_PKEY_CTX_set_ec_paramgen_curve_nid(pctx, NID_X9_62_prime256v1) <= 0) {
         char *msg = get_openssl_error_message_for_test();
-        printf("Failed to set DH generation parameter generation method: %s", msg);
+        (void) printf("Failed to set DH generation parameter generation method: %s", msg);
         ddsrt_free(msg);
         r = -1;
     } else if (EVP_PKEY_paramgen(pctx, &params) <= 0) {
         char *msg = get_openssl_error_message_for_test();
-        printf("Failed to generate DH parameters: %s", msg);
+        (void) printf("Failed to generate DH parameters: %s", msg);
         ddsrt_free(msg);
         r = -1;
     } else if ((kctx = EVP_PKEY_CTX_new(params, NULL)) == NULL) {
         char *msg = get_openssl_error_message_for_test();
-        printf("Failed to allocate KEY context %s", msg);
+        (void) printf("Failed to allocate KEY context %s", msg);
         ddsrt_free(msg);
         r = -1;
     } else if (EVP_PKEY_keygen_init(kctx) <= 0) {
         char *msg = get_openssl_error_message_for_test();
-        printf("Failed to initialize KEY context: %s", msg);
+        (void) printf("Failed to initialize KEY context: %s", msg);
         ddsrt_free(msg);
         r = -1;
     } else if (EVP_PKEY_keygen(kctx, pkey) <= 0) {
         char *msg = get_openssl_error_message_for_test();
-        printf("Failed to generate :MODP_2048_256 keys %s", msg);
+        (void) printf("Failed to generate :MODP_2048_256 keys %s", msg);
         ddsrt_free(msg);
         r = -1;
     }
@@ -1037,17 +1037,17 @@ get_dh_public_key_ecdh(
 
     if (!(eckey = EVP_PKEY_get1_EC_KEY(pkey))) {
         char *msg = get_openssl_error_message_for_test();
-        printf("Failed to get EC key from PKEY: %s", msg);
+        (void) printf("Failed to get EC key from PKEY: %s", msg);
         ddsrt_free(msg);
         r = -1;
     } else if (!(point = EC_KEY_get0_public_key(eckey))) {
         char *msg = get_openssl_error_message_for_test();
-        printf("Failed to get public key from ECKEY: %s", msg);
+        (void) printf("Failed to get public key from ECKEY: %s", msg);
         ddsrt_free(msg);
         r = -1;
     } else if (!(group = EC_KEY_get0_group(eckey))) {
         char *msg = get_openssl_error_message_for_test();
-        printf("Failed to get group from ECKEY: %s", msg);
+        (void) printf("Failed to get group from ECKEY: %s", msg);
         ddsrt_free(msg);
         r = -1;
     } else if ((sz = EC_POINT_point2oct(group, point, POINT_CONVERSION_COMPRESSED, NULL, 0, NULL)) != 0) {
@@ -1055,14 +1055,14 @@ get_dh_public_key_ecdh(
         pubkey->length = (uint32_t)EC_POINT_point2oct(group, point, POINT_CONVERSION_COMPRESSED, pubkey->data, sz, NULL);
         if (pubkey->length == 0) {
             char *msg = get_openssl_error_message_for_test();
-            printf("Failed to serialize public EC key: %s", msg);
+            (void) printf("Failed to serialize public EC key: %s", msg);
             ddsrt_free(msg);
             octet_seq_deinit(pubkey);
             r = -1;
         }
     } else {
         char *msg = get_openssl_error_message_for_test();
-        printf("Failed to serialize public EC key: %s", msg);
+        (void) printf("Failed to serialize public EC key: %s", msg);
         ddsrt_free(msg);
         r = -1;
     }
@@ -1414,7 +1414,7 @@ validate_remote_identity (const char *remote_id_certificate)
 
     if ((result != DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_REQUEST) &&
         (result != DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_MESSAGE)) {
-        printf("validate_remote_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("validate_remote_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     reset_exception(&exception);
@@ -1432,7 +1432,7 @@ validate_remote_identity (const char *remote_id_certificate)
 
     if ((result != DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_REQUEST) &&
             (result != DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_MESSAGE)) {
-        printf("validate_remote_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("validate_remote_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     reset_exception(&exception);
@@ -1487,7 +1487,7 @@ release_remote_identities(void)
     if (remote_identity_handle != DDS_SECURITY_HANDLE_NIL) {
         success = auth->return_identity_handle(auth, remote_identity_handle, &exception);
         if (!success) {
-            printf("return_identity_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
+            (void) printf("return_identity_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
         }
         reset_exception(&exception);
     }
@@ -1495,7 +1495,7 @@ release_remote_identities(void)
     if (remote_identity_handle2 != DDS_SECURITY_HANDLE_NIL) {
         success = auth->return_identity_handle(auth, remote_identity_handle2, &exception);
         if (!success) {
-            printf("return_identity_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
+            (void) printf("return_identity_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
         }
         reset_exception(&exception);
     }
@@ -1759,7 +1759,7 @@ fill_handshake_message_token(
             rc = create_signature_for_test(private_key_x509, binary_properties, HANDSHAKE_SIGNATURE_SIZE , &sign, &signlen, &exception);
             if (rc != DDS_SECURITY_VALIDATION_OK)
             {
-                printf("Exception: %s\n", exception.message);
+                (void) printf("Exception: %s\n", exception.message);
             }
             else
             {
@@ -1794,7 +1794,7 @@ fill_handshake_message_token(
         set_binary_property_value(hash_c1, DDS_AUTHTOKEN_PROP_HASH_C1, hash1_from_request->value._buffer, hash1_from_request->value._length);
         set_binary_property_value(hash_c2, DDS_AUTHTOKEN_PROP_HASH_C2, hash2_from_reply->value._buffer, hash2_from_reply->value._length);
 
-        printf("process: %s\n", hash_c1->name);
+        (void) printf("process: %s\n", hash_c1->name);
 
         /* Set the challenge in challenge1 property */
         if (challengeData) {
@@ -1848,7 +1848,7 @@ fill_handshake_message_token(
 
             if (create_signature_for_test(private_key_x509, binary_properties, HANDSHAKE_SIGNATURE_SIZE, &sign, &signlen, &exception) != DDS_SECURITY_VALIDATION_OK)
             {
-                printf("Exception: %s\n", exception.message);
+                (void) printf("Exception: %s\n", exception.message);
             }
             else
             {
@@ -1873,7 +1873,7 @@ static DDS_Security_boolean on_revoke_identity_cb(const dds_security_authenticat
         identity_handle_for_callback1 = handle;
     else if (identity_handle_for_callback2 == DDS_SECURITY_HANDLE_NIL)
         identity_handle_for_callback2 = handle;
-    printf( "Listener called for handle: %lld  Local:%lld Remote:%lld\n", (long long) handle, (long long) local_identity_handle, (long long) remote_identity_handle2);
+    (void) printf( "Listener called for handle: %lld  Local:%lld Remote:%lld\n", (long long) handle, (long long) local_identity_handle, (long long) remote_identity_handle2);
 
     return true;
 }
@@ -1955,7 +1955,7 @@ CU_Test(ddssec_builtin_listeners_auth, local_remote_set_before_validation)
                     &exception);
 
     if (result != DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_MESSAGE) {
-        printf("begin_handshake_request failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("begin_handshake_request failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     /* get challenge 1 from the message */
@@ -2004,7 +2004,7 @@ CU_Test(ddssec_builtin_listeners_auth, local_remote_set_before_validation)
                 &exception);
 
     if (result == 0) {
-        printf("validate_remote_permissions_failed: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("validate_remote_permissions_failed: %s\n", exception.message ? exception.message : "Error message missing");
         //TODO: Clean-up before failing
         CU_ASSERT_FATAL (exception.code == DDS_SECURITY_ERR_VALIDITY_PERIOD_EXPIRED_CODE);
 //        goto end;

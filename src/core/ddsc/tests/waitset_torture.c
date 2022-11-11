@@ -133,7 +133,7 @@ static uint32_t guardcond_create_delete_thread (void *varg)
       }
       else if (ent < 0 && idx < N_GUARDCONDS)
       {
-        fprintf (stderr, "dds_create_guardcondition failed: %s\n", dds_strretcode (ent));
+        (void) fprintf (stderr, "dds_create_guardcondition failed: %s\n", dds_strretcode (ent));
         ddsrt_atomic_st32 (&terminate, 1);
         return 1;
       }
@@ -162,7 +162,7 @@ static uint32_t waitset_create_delete_thread (void *varg)
       dds_entity_t ws = dds_create_waitset (DDS_CYCLONEDDS_HANDLE);
       if (ws < 0)
       {
-        fprintf (stderr, "dds_create_waitset failed: %s\n", dds_strretcode (ws));
+        (void) fprintf (stderr, "dds_create_waitset failed: %s\n", dds_strretcode (ws));
         ddsrt_atomic_st32 (&terminate, 1);
         return 1;
       }
@@ -232,7 +232,7 @@ static uint32_t waitset_attach_detach_thread (void *varg)
     {
       /* attempts at attaching a guard condition twice or detaching an unattached
          one are expected, and those result in a PRECONDITION_NOT_MET */
-      fprintf (stderr, "dds_waitset_detach 0x%"PRIx32" 0x%"PRIx32" failed: %s\n", (dds_entity_t) wsh, (dds_entity_t) gch, dds_strretcode (rc));
+      (void) fprintf (stderr, "dds_waitset_detach 0x%"PRIx32" 0x%"PRIx32" failed: %s\n", (dds_entity_t) wsh, (dds_entity_t) gch, dds_strretcode (rc));
       ddsrt_atomic_st32 (&terminate, 1);
       return 1;
     }
@@ -246,7 +246,7 @@ static uint32_t waitset_attach_detach_thread (void *varg)
       }
       else if (rc != DDS_RETCODE_PRECONDITION_NOT_MET && rc != DDS_RETCODE_BAD_PARAMETER)
       {
-        fprintf (stderr, "dds_waitset_attach 0x%"PRIx32" 0x%"PRIx32" failed: %s\n", (dds_entity_t) wsh, (dds_entity_t) gch, dds_strretcode (rc));
+        (void) fprintf (stderr, "dds_waitset_attach 0x%"PRIx32" 0x%"PRIx32" failed: %s\n", (dds_entity_t) wsh, (dds_entity_t) gch, dds_strretcode (rc));
         ddsrt_atomic_st32 (&terminate, 1);
         return 1;
       }
@@ -306,7 +306,7 @@ CU_Test (ddsc_waitset, torture)
       int32_t n = dds_waitset_wait (ws, NULL, 0, DDS_MSECS (10));
       if (!((rc >= 0 && rc <= N_ENTITIES) || rc == DDS_RETCODE_BAD_PARAMETER))
       {
-        fprintf (stderr, "dds_waitset_wait failed: %s\n", dds_strretcode (rc));
+        (void) fprintf (stderr, "dds_waitset_wait failed: %s\n", dds_strretcode (rc));
         ddsrt_atomic_st32 (&terminate, 1);
         rc = DDS_RETCODE_ERROR;
       }
@@ -352,16 +352,16 @@ CU_Test (ddsc_waitset, torture)
   rc = dds_delete (ppant);
   CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
 
-  printf ("attach %"PRIu32" detach %"PRIu32" settrig %"PRIu32"\n", ddsrt_atomic_ld32 (&attach_ok), ddsrt_atomic_ld32 (&detach_ok), ddsrt_atomic_ld32 (&settrig_ok));
-  printf ("create/delete ent");
+  (void) printf ("attach %"PRIu32" detach %"PRIu32" settrig %"PRIu32"\n", ddsrt_atomic_ld32 (&attach_ok), ddsrt_atomic_ld32 (&detach_ok), ddsrt_atomic_ld32 (&settrig_ok));
+  (void) printf ("create/delete ent");
   uint32_t create_ent_ok_sum = 0;
   for (size_t i = 0; i < sizeof (create_ent_ok) / sizeof (create_ent_ok[0]); i++)
   {
     uint32_t c = ddsrt_atomic_ld32 (&create_ent_ok[i]);
     create_ent_ok_sum += c;
-    printf (" %"PRIu32"/%"PRIu32, c, ddsrt_atomic_ld32 (&delete_ent_ok[i]));
+    (void) printf (" %"PRIu32"/%"PRIu32, c, ddsrt_atomic_ld32 (&delete_ent_ok[i]));
   }
-  printf ("\n");
+  (void) printf ("\n");
 
   {
     uint32_t rd_cr_sub = ddsrt_atomic_ld32 (&create_ent_ok[2]);
@@ -373,15 +373,15 @@ CU_Test (ddsc_waitset, torture)
     CU_ASSERT (rd_del - rd_cr_ppant <= sub_del); /* other readers may have been deleted by deleting a sub */
   }
 
-  printf ("create/delete ws %"PRIu32"/%"PRIu32"\n", ddsrt_atomic_ld32 (&create_ws_ok), ddsrt_atomic_ld32 (&delete_ws_ok));
-  printf ("wait {err %"PRIu32"}", wait_err);
+  (void) printf ("create/delete ws %"PRIu32"/%"PRIu32"\n", ddsrt_atomic_ld32 (&create_ws_ok), ddsrt_atomic_ld32 (&delete_ws_ok));
+  (void) printf ("wait {err %"PRIu32"}", wait_err);
   uint32_t wait_ok_sum = 0;
   for (size_t i = 0; i < sizeof (wait_ok) / sizeof (wait_ok[0]); i++)
   {
     wait_ok_sum += wait_ok[i];
-    printf (" %"PRIu32, wait_ok[i]);
+    (void) printf (" %"PRIu32, wait_ok[i]);
   }
-  printf ("\n");
+  (void) printf ("\n");
 
   /* Running on Windows on the CI infrastructure has very little concurrency, but Linux
      and macOS seem ok.  The thresholds here appear to be sufficiently low to not give

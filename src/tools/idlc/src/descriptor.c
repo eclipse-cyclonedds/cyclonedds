@@ -2529,6 +2529,10 @@ generate_descriptor_impl(
 {
   idl_retcode_t ret;
   idl_visitor_t visitor;
+  struct constructed_type_key *ctype_keys = NULL;
+  struct constructed_type *ctype = NULL;
+  uint32_t n_keys = 0;
+  allowable_data_representations_t dr = IDL_ALLOWABLE_DATAREPRESENTATION_DEFAULT;
 
   /* must be invoked for topics only, so structs and unions */
   assert(idl_is_struct(topic_node) || idl_is_union(topic_node));
@@ -2563,10 +2567,8 @@ generate_descriptor_impl(
   if ((ret = resolve_offsets(descriptor)) < 0)
     goto err;
 
-  struct constructed_type_key *ctype_keys;
-  struct constructed_type *ctype = find_ctype(descriptor, descriptor->topic);
+  ctype = find_ctype(descriptor, descriptor->topic);
   assert(ctype);
-  uint32_t n_keys = 0;
   if ((ret = get_ctype_keys(pstate, descriptor, ctype, &ctype_keys, &n_keys, false, 0)) != IDL_RETCODE_OK)
     goto err;
   if ((ret = descriptor_init_keys(pstate, ctype, ctype_keys, descriptor, n_keys, (pstate->config.flags & IDL_FLAG_KEYLIST) != 0)) < 0)
@@ -2580,7 +2582,7 @@ generate_descriptor_impl(
     descriptor->flags |= DDS_TOPIC_FIXED_KEY_XCDR2;
 
   /* set data representation restriction flag and mask (ignore unsupported data representations) */
-  allowable_data_representations_t dr = idl_allowable_data_representations(descriptor->topic);
+  dr = idl_allowable_data_representations(descriptor->topic);
   if (dr != IDL_ALLOWABLE_DATAREPRESENTATION_DEFAULT && (dr & (IDL_DATAREPRESENTATION_FLAG_XCDR1 | IDL_DATAREPRESENTATION_FLAG_XCDR2))) {
     descriptor->flags |= DDS_TOPIC_RESTRICT_DATA_REPRESENTATION;
     descriptor->data_representations = dr;

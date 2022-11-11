@@ -371,7 +371,7 @@ static void print_delete (const dds_entity *e, enum delete_impl_state delstate ,
   if (e)
   {
     unsigned cm = ddsrt_atomic_ld32 (&e->m_hdllink.cnt_flags);
-    printf ("delete(%p, delstate %s, iid %"PRIx64"): %s%s %d pin %u refc %u %s %s\n",
+    (void) printf ("delete(%p, delstate %s, iid %"PRIx64"): %s%s %d pin %u refc %u %s %s\n",
             (void *) e, (delstate == DIS_IMPLICIT) ? "implicit" : (delstate == DIS_EXPLICIT) ? "explicit" : "from_parent", iid,
             entity_kindstr (e->m_kind), (e->m_flags & DDS_ENTITY_IMPLICIT) ? " [implicit]" : "",
             e->m_hdllink.hdl, cm & 0xfff, (cm >> 12) & 0x7fff, (cm & 0x80000000) ? "closed" : "open",
@@ -379,7 +379,7 @@ static void print_delete (const dds_entity *e, enum delete_impl_state delstate ,
   }
   else
   {
-    printf ("delete(%p, delstate %s, handle %"PRId64"): pin failed\n",
+    (void) printf ("delete(%p, delstate %s, handle %"PRId64"): pin failed\n",
             (void *) e, (delstate == DIS_IMPLICIT) ? "implicit" : (delstate == DIS_EXPLICIT) ? "explicit" : "from_parent", iid);
   }
 }

@@ -96,27 +96,27 @@ CU_Theory ((enum ddsi_transport_selector tr), ddsi_locator_from_string, ipv4_inv
   enum ddsi_locator_from_string_result res;
   char astr[40];
   assert(fact);
-  snprintf (astr, sizeof (astr), "%s/", fact->m_typename);
+  (void) snprintf (astr, sizeof (astr), "%s/", fact->m_typename);
   res = ddsi_locator_from_string (&gv, &loc, astr, fact);
   CU_ASSERT_FATAL (res == AFSR_INVALID);
-  snprintf (astr, sizeof (astr), "%s/:", fact->m_typename);
+  (void) snprintf (astr, sizeof (astr), "%s/:", fact->m_typename);
   res = ddsi_locator_from_string (&gv, &loc, astr, fact);
   CU_ASSERT_FATAL (res == AFSR_INVALID);
-  snprintf (astr, sizeof (astr), "%s/1.2:", fact->m_typename);
+  (void) snprintf (astr, sizeof (astr), "%s/1.2:", fact->m_typename);
   res = ddsi_locator_from_string (&gv, &loc, astr, fact);
   CU_ASSERT_FATAL (res == AFSR_INVALID);
-  snprintf (astr, sizeof (astr), "%s/1.2:99999", fact->m_typename);
+  (void) snprintf (astr, sizeof (astr), "%s/1.2:99999", fact->m_typename);
   res = ddsi_locator_from_string (&gv, &loc, astr, fact);
   CU_ASSERT_FATAL (res == AFSR_INVALID);
   // if DNS is supported, a hostname lookup is tried whenever parsing as a numerical address fails
   // which means we may get UNKNOWN
-  snprintf (astr, sizeof (astr), "%s/:1234", fact->m_typename);
+  (void) snprintf (astr, sizeof (astr), "%s/:1234", fact->m_typename);
   res = ddsi_locator_from_string (&gv, &loc, astr, fact);
   CU_ASSERT_FATAL (res == AFSR_INVALID || res == AFSR_UNKNOWN);
-  snprintf (astr, sizeof (astr), "%s/[192.0.2.0]", fact->m_typename);
+  (void) snprintf (astr, sizeof (astr), "%s/[192.0.2.0]", fact->m_typename);
   res = ddsi_locator_from_string (&gv, &loc, astr, fact);
   CU_ASSERT_FATAL (res == AFSR_INVALID || res == AFSR_UNKNOWN);
-  snprintf (astr, sizeof (astr), "%s/[192.0.2.0]:1234", fact->m_typename);
+  (void) snprintf (astr, sizeof (astr), "%s/[192.0.2.0]:1234", fact->m_typename);
   res = ddsi_locator_from_string (&gv, &loc, astr, fact);
   CU_ASSERT_FATAL (res == AFSR_INVALID || res == AFSR_UNKNOWN);
   fini (&gv);
@@ -182,14 +182,14 @@ CU_Theory ((enum ddsi_transport_selector tr, int32_t loc_kind), ddsi_locator_fro
   CU_ASSERT_FATAL (loc.port == NN_LOCATOR_PORT_INVALID);
   CU_ASSERT_FATAL (check_ipv4_address (&loc, (uint8_t[]){192,0,2,0}));
 
-  snprintf (astr, sizeof (astr), "%s/192.0.2.0", fact->m_typename);
+  (void) snprintf (astr, sizeof (astr), "%s/192.0.2.0", fact->m_typename);
   res = ddsi_locator_from_string (&gv, &loc, astr, fact);
   CU_ASSERT_FATAL (res == AFSR_OK);
   CU_ASSERT_FATAL (loc.kind == loc_kind);
   CU_ASSERT_FATAL (loc.port == NN_LOCATOR_PORT_INVALID);
   CU_ASSERT_FATAL (check_ipv4_address (&loc, (uint8_t[]){192,0,2,0}));
 
-  snprintf (astr, sizeof (astr), "%s/192.0.2.0:1234", fact->m_typename);
+  (void) snprintf (astr, sizeof (astr), "%s/192.0.2.0:1234", fact->m_typename);
   res = ddsi_locator_from_string (&gv, &loc, astr, fact);
   CU_ASSERT_FATAL (res == AFSR_OK);
   CU_ASSERT_FATAL (loc.kind == loc_kind);
@@ -268,30 +268,30 @@ CU_Theory ((enum ddsi_transport_selector tr), ddsi_locator_from_string, ipv6_inv
   enum ddsi_locator_from_string_result res;
   char astr[40];
   assert(fact);
-  snprintf (astr, sizeof (astr), "%s/", fact->m_typename);
+  (void) snprintf (astr, sizeof (astr), "%s/", fact->m_typename);
   res = ddsi_locator_from_string (&gv, &loc, astr, fact);
   CU_ASSERT_FATAL (res == AFSR_INVALID);
   // if DNS is supported, a hostname lookup is tried whenever parsing as a numerical address fails
   // which means we may get UNKNOWN
-  snprintf (astr, sizeof (astr), "%s/::1:31415", fact->m_typename);
+  (void) snprintf (astr, sizeof (astr), "%s/::1:31415", fact->m_typename);
   res = ddsi_locator_from_string (&gv, &loc, astr, fact);
   CU_ASSERT_FATAL (res == AFSR_INVALID || res == AFSR_UNKNOWN);
-  snprintf (astr, sizeof (astr), "%s/:", fact->m_typename);
+  (void) snprintf (astr, sizeof (astr), "%s/:", fact->m_typename);
   res = ddsi_locator_from_string (&gv, &loc, astr, fact);
   CU_ASSERT_FATAL (res == AFSR_INVALID || res == AFSR_UNKNOWN);
-  snprintf (astr, sizeof (astr), "%s/1.2:", fact->m_typename);
+  (void) snprintf (astr, sizeof (astr), "%s/1.2:", fact->m_typename);
   res = ddsi_locator_from_string (&gv, &loc, astr, fact);
   CU_ASSERT_FATAL (res == AFSR_INVALID || res == AFSR_UNKNOWN);
-  snprintf (astr, sizeof (astr), "%s/]:", fact->m_typename);
+  (void) snprintf (astr, sizeof (astr), "%s/]:", fact->m_typename);
   res = ddsi_locator_from_string (&gv, &loc, astr, fact);
   CU_ASSERT_FATAL (res == AFSR_INVALID || res == AFSR_UNKNOWN);
-  snprintf (astr, sizeof (astr), "%s/[", fact->m_typename);
+  (void) snprintf (astr, sizeof (astr), "%s/[", fact->m_typename);
   res = ddsi_locator_from_string (&gv, &loc, astr, fact);
   CU_ASSERT_FATAL (res == AFSR_INVALID || res == AFSR_UNKNOWN);
-  snprintf (astr, sizeof (astr), "%s/[]", fact->m_typename);
+  (void) snprintf (astr, sizeof (astr), "%s/[]", fact->m_typename);
   res = ddsi_locator_from_string (&gv, &loc, astr, fact);
   CU_ASSERT_FATAL (res == AFSR_INVALID || res == AFSR_UNKNOWN);
-  snprintf (astr, sizeof (astr), "%s/:1234", fact->m_typename);
+  (void) snprintf (astr, sizeof (astr), "%s/:1234", fact->m_typename);
   res = ddsi_locator_from_string (&gv, &loc, astr, fact);
   CU_ASSERT_FATAL (res == AFSR_INVALID || res == AFSR_UNKNOWN);
   fini (&gv);
@@ -390,7 +390,7 @@ CU_Theory ((enum ddsi_transport_selector tr, int32_t loc_kind), ddsi_locator_fro
     CU_ASSERT_FATAL (check_ipv64_address (&loc, (uint8_t[]){192,0,2,0}));
   }
 
-  snprintf (astr, sizeof (astr), "%s/192.0.2.0", fact->m_typename);
+  (void) snprintf (astr, sizeof (astr), "%s/192.0.2.0", fact->m_typename);
   res = ddsi_locator_from_string (&gv, &loc, astr, fact);
   CU_ASSERT_FATAL (res == AFSR_OK || res == AFSR_UNKNOWN);  if (res == AFSR_OK)
   {
@@ -399,7 +399,7 @@ CU_Theory ((enum ddsi_transport_selector tr, int32_t loc_kind), ddsi_locator_fro
     CU_ASSERT_FATAL (check_ipv64_address (&loc, (uint8_t[]){192,0,2,0}));
   }
 
-  snprintf (astr, sizeof (astr), "%s/192.0.2.0:6789", fact->m_typename);
+  (void) snprintf (astr, sizeof (astr), "%s/192.0.2.0:6789", fact->m_typename);
   res = ddsi_locator_from_string (&gv, &loc, astr, fact);
   CU_ASSERT_FATAL (res == AFSR_OK || res == AFSR_UNKNOWN);
   if (res == AFSR_OK)
@@ -409,7 +409,7 @@ CU_Theory ((enum ddsi_transport_selector tr, int32_t loc_kind), ddsi_locator_fro
     CU_ASSERT_FATAL (check_ipv64_address (&loc, (uint8_t[]){192,0,2,0}));
   }
 
-  snprintf (astr, sizeof (astr), "%s/[192.0.2.0]:7890", fact->m_typename);
+  (void) snprintf (astr, sizeof (astr), "%s/[192.0.2.0]:7890", fact->m_typename);
   res = ddsi_locator_from_string (&gv, &loc, astr, fact);
   if (res == AFSR_OK)
   {
@@ -419,7 +419,7 @@ CU_Theory ((enum ddsi_transport_selector tr, int32_t loc_kind), ddsi_locator_fro
     CU_ASSERT_FATAL (check_ipv64_address (&loc, (uint8_t[]){192,0,2,0}));
   }
 
-  snprintf (astr, sizeof (astr), "%s/[::1]:8901", fact->m_typename);
+  (void) snprintf (astr, sizeof (astr), "%s/[::1]:8901", fact->m_typename);
   res = ddsi_locator_from_string (&gv, &loc, astr, fact);
   CU_ASSERT_FATAL (res == AFSR_OK);
   CU_ASSERT_FATAL (loc.kind == loc_kind);

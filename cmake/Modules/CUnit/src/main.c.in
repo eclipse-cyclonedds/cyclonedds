@@ -79,28 +79,28 @@ static int patmatch(const char *pat, const char *str)
 
 static void usage(const char *name)
 {
-    fprintf(stderr, "Usage: %s OPTIONS\n", name);
-    fprintf(stderr, "Try '%s -h' for more information\n", name);
+    (void) fprintf(stderr, "Usage: %s OPTIONS\n", name);
+    (void) fprintf(stderr, "Try '%s -h' for more information\n", name);
 }
 
 static void help(const char *name)
 {
-    printf("Usage: %s [OPTIONS]\n", name);
-    printf("\n");
-    printf("Possible options:\n");
-    printf("  -a           run in automated mode\n");
-    printf("  -f           fail fast\n");
-    printf("  -h           display this help and exit\n");
-    printf("  -j           junit format results \n");
-    printf("  -r FILENAME  results file for automated run\n");
-    printf("  -s PATTERN   run only tests in suites matching pattern\n");
-    printf("  -t PATTERN   run only test matching pattern\n");
-    printf("\n");
-    printf("Exit codes:\n");
-    printf("  %-2d  Successful termination\n", EXIT_SUCCESS);
-    printf("  %-2d  One or more failing test cases\n", EXIT_FAILURE);
-    printf("  %-2d  Command line usage error\n", EX_USAGE);
-    printf("  %-2d  Internal software error\n", EX_SOFTWARE);
+    (void) printf("Usage: %s [OPTIONS]\n", name);
+    (void) printf("\n");
+    (void) printf("Possible options:\n");
+    (void) printf("  -a           run in automated mode\n");
+    (void) printf("  -f           fail fast\n");
+    (void) printf("  -h           display this help and exit\n");
+    (void) printf("  -j           junit format results \n");
+    (void) printf("  -r FILENAME  results file for automated run\n");
+    (void) printf("  -s PATTERN   run only tests in suites matching pattern\n");
+    (void) printf("  -t PATTERN   run only test matching pattern\n");
+    (void) printf("\n");
+    (void) printf("Exit codes:\n");
+    (void) printf("  %-2d  Successful termination\n", EXIT_SUCCESS);
+    (void) printf("  %-2d  One or more failing test cases\n", EXIT_FAILURE);
+    (void) printf("  %-2d  Command line usage error\n", EX_USAGE);
+    (void) printf("  %-2d  Internal software error\n", EX_SOFTWARE);
 }
 
 static int parse_options(int argc, char *argv[])
@@ -198,7 +198,7 @@ int main(int argc, char *argv[])
         help(argv[0]);
         return ret;
     } else if (CU_initialize_registry() != CUE_SUCCESS) {
-        fprintf(stderr, "CU_initialize_registry: %s\n", CU_get_error_msg());
+        (void) fprintf(stderr, "CU_initialize_registry: %s\n", CU_get_error_msg());
         return EX_SOFTWARE;
     }
 

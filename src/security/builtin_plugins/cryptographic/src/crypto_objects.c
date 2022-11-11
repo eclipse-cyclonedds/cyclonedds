@@ -183,7 +183,7 @@ CryptoObject * crypto_object_table_insert(struct CryptoObjectTable *table, Crypt
 
   ddsrt_mutex_lock(&table->lock);
   if (!(cur = crypto_object_keep (table->findfnc(table, &object->handle))))
-    ddsrt_hh_add(table->htab, crypto_object_keep(object));
+    (void)ddsrt_hh_add(table->htab, crypto_object_keep(object));
   else
     crypto_object_release(cur);
   ddsrt_mutex_unlock(&table->lock);

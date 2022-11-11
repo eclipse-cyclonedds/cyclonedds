@@ -131,12 +131,12 @@ static void build_typecache_ti (const DDS_XTypes_TypeIdentifier *typeid, size_t 
         build_typecache_to (&xtypeobj->_u.complete, align, size);
         info = malloc (sizeof (*info));
         *info = (struct typeinfo){ .key = { .key = (uintptr_t) typeid }, .typeobj = &xtypeobj->_u.complete, .release = xtypeobj, .align = *align, .size = *size };
-        ddsrt_hh_add (typecache, info);
+        (void)ddsrt_hh_add (typecache, info);
       }
       break;
     }
     default:
-      printf ("type id discriminant %u encountered, sorry\n", (unsigned) typeid->_d);
+      (void) printf ("type id discriminant %u encountered, sorry\n", (unsigned) typeid->_d);
       abort ();
   }
 }
@@ -177,12 +177,12 @@ static void build_typecache_to (const DDS_XTypes_CompleteTypeObject *typeobj, si
           *size += *align - (*size % *align);
         info = malloc (sizeof (*info));
         *info = (struct typeinfo){ .key = { .key = (uintptr_t) typeobj }, .typeobj = typeobj, .release = NULL, .align = *align, .size = *size };
-        ddsrt_hh_add (typecache, info);
+        (void)ddsrt_hh_add (typecache, info);
       }
       break;
     }
     default: {
-      printf ("type object discriminant %u encountered, sorry\n", (unsigned) typeobj->_d);
+      (void) printf ("type object discriminant %u encountered, sorry\n", (unsigned) typeobj->_d);
       abort ();
     }
   }
@@ -232,21 +232,21 @@ static bool print_sample1_simple (const unsigned char *sample, const uint8_t dis
   {
 #define CASE(disc, type, fmt) DDS_XTypes_TK_##disc: { \
     const type *p = (const type *) align (sample, c, _Alignof(type), sizeof(type)); \
-    if (c->key || c->valid_data) { printf ("%s", sep); if (label) printf ("\"%s\":", label); fmt; } \
+    if (c->key || c->valid_data) { (void) printf ("%s", sep); if (label) (void) printf ("\"%s\":", label); fmt; } \
     return true; \
   }
-    case CASE(BOOLEAN, uint8_t, printf ("%s", *p ? "true" : "false"));
-    case CASE(CHAR8, int8_t, printf ("\"%c\"", (char) *p));
-    case CASE(INT16, int16_t, printf ("%"PRId16, *p));
-    case CASE(INT32, int32_t, printf ("%"PRId32, *p));
-    case CASE(INT64, int64_t, printf ("%"PRId64, *p));
-    case CASE(BYTE, uint8_t, printf ("%"PRIu8, *p));
-    case CASE(UINT16, uint16_t, printf ("%"PRIu16, *p));
-    case CASE(UINT32, uint32_t, printf ("%"PRIu32, *p));
-    case CASE(UINT64, uint64_t, printf ("%"PRIu64, *p));
-    case CASE(FLOAT32, float, printf ("%f", *p));
-    case CASE(FLOAT64, double, printf ("%f", *p));
-    case CASE(STRING8, char *, printf ("\"%s\"", *p));
+    case CASE(BOOLEAN, uint8_t, (void) printf ("%s", *p ? "true" : "false"));
+    case CASE(CHAR8, int8_t, (void) printf ("\"%c\"", (char) *p));
+    case CASE(INT16, int16_t, (void) printf ("%"PRId16, *p));
+    case CASE(INT32, int32_t, (void) printf ("%"PRId32, *p));
+    case CASE(INT64, int64_t, (void) printf ("%"PRId64, *p));
+    case CASE(BYTE, uint8_t, (void) printf ("%"PRIu8, *p));
+    case CASE(UINT16, uint16_t, (void) printf ("%"PRIu16, *p));
+    case CASE(UINT32, uint32_t, (void) printf ("%"PRIu32, *p));
+    case CASE(UINT64, uint64_t, (void) printf ("%"PRIu64, *p));
+    case CASE(FLOAT32, float, (void) printf ("%f", *p));
+    case CASE(FLOAT64, double, (void) printf ("%f", *p));
+    case CASE(STRING8, char *, (void) printf ("\"%s\"", *p));
 #undef CASE
   }
   return false;
@@ -263,9 +263,9 @@ static void print_sample1_ti (const unsigned char *sample, const DDS_XTypes_Type
       const char **p = (const char **) align (sample, c, _Alignof (char *), sizeof (char *));
       if (c->key || c->valid_data)
       {
-        printf ("%s", sep);
-        if (label) printf ("\"%s\":", label);
-        printf ("\"%s\"", *p);
+        (void) printf ("%s", sep);
+        if (label) (void) printf ("\"%s\":", label);
+        (void) printf ("\"%s\"", *p);
       }
       break;
     }
@@ -276,16 +276,16 @@ static void print_sample1_ti (const unsigned char *sample, const DDS_XTypes_Type
       if (c->key || c->valid_data)
       {
         struct context c1 = *c; c1.offset = 0; c1.maxalign = 1;
-        printf ("%s", sep);
-        if (label) printf ("\"%s\":", label);
-        printf ("[");
+        (void) printf ("%s", sep);
+        if (label) (void) printf ("\"%s\":", label);
+        (void) printf ("[");
         sep = "";
         for (uint32_t i = 0; i < p->_length; i++)
         {
           print_sample1_ti (p->_buffer, et, &c1, sep, NULL);
           sep = ",";
         }
-        printf ("]");
+        (void) printf ("]");
       }
       break;
     }
@@ -307,9 +307,9 @@ static void print_sample1_to (const unsigned char *sample, const DDS_XTypes_Comp
       const DDS_XTypes_TypeIdentifier *et = &typeobj->_u.sequence_type.element.common.type;
       const dds_sequence_t *p = align (sample, c, _Alignof (dds_sequence_t), sizeof (dds_sequence_t));
       struct context c1 = *c; c1.offset = 0; c1.maxalign = 1;
-      printf ("%s", sep);
-      if (label) printf ("\"%s\":", label);
-      printf ("[");
+      (void) printf ("%s", sep);
+      if (label) (void) printf ("\"%s\":", label);
+      (void) printf ("[");
       sep = "";
       for (uint32_t i = 0; i < p->_length; i++)
       {
@@ -318,16 +318,16 @@ static void print_sample1_to (const unsigned char *sample, const DDS_XTypes_Comp
         if (c1.offset % c1.maxalign)
           c1.offset += c1.maxalign - (c1.offset % c1.maxalign);
       }
-      printf ("]");
+      (void) printf ("]");
       break;
     }
     case DDS_XTypes_TK_STRUCTURE: {
       struct typeinfo templ = { .key = { .key = (uintptr_t) typeobj } }, *info = ddsrt_hh_lookup (typecache, &templ);
       const DDS_XTypes_CompleteStructType *t = &typeobj->_u.struct_type;
       const unsigned char *p = align (sample, c, info->align, info->size);;
-      printf ("%s", sep);
-      if (label) printf ("\"%s\":", label);
-      printf ("{");
+      (void) printf ("%s", sep);
+      if (label) (void) printf ("\"%s\":", label);
+      (void) printf ("{");
       sep = "";
       struct context c1 = *c; c1.offset = 0; c1.maxalign = 1;
       for (uint32_t i = 0; i < t->member_seq._length; i++)
@@ -337,7 +337,7 @@ static void print_sample1_to (const unsigned char *sample, const DDS_XTypes_Comp
         print_sample1_ti (p, &m->common.member_type_id, &c1, sep, *m->detail.name ? m->detail.name : NULL);
         sep = ",";
       }
-      printf ("}");
+      (void) printf ("}");
       break;
     }
   }
@@ -347,7 +347,7 @@ static void print_sample (bool valid_data, const void *sample, const DDS_XTypes_
 {
   struct context c1 = { .valid_data = valid_data, .key = true, .offset = 0, .maxalign = 1 };
   print_sample1_to (sample, typeobj, &c1, "", NULL);
-  printf ("\n");
+  (void) printf ("\n");
 }
 
 // Helper function to wait for a DCPSPublication to show up with the desired topic name, then calls
@@ -386,17 +386,17 @@ static dds_return_t get_topic_and_typeobj (const char *topic_name, dds_duration_
       // as an approximation of the topic QoS.
       if ((*topic = dds_find_topic (DDS_FIND_SCOPE_GLOBAL, participant, ep->topic_name, typeinfo, DDS_SECS (2))) < 0)
       {
-        fprintf (stderr, "dds_find_topic: %s ... continuing on the assumptions that topic discovery is disabled\n", dds_strretcode (*topic));
+        (void) fprintf (stderr, "dds_find_topic: %s ... continuing on the assumptions that topic discovery is disabled\n", dds_strretcode (*topic));
         dds_topic_descriptor_t *descriptor;
         if ((ret = dds_create_topic_descriptor(DDS_FIND_SCOPE_GLOBAL, participant, typeinfo, DDS_SECS (10), &descriptor)) < 0)
         {
-          fprintf (stderr, "dds_create_topic_descriptor: %s\n", dds_strretcode (ret));
+          (void) fprintf (stderr, "dds_create_topic_descriptor: %s\n", dds_strretcode (ret));
           dds_return_loan (dcpspublication_reader, &epraw, 1);
           goto error;
         }
         if ((*topic = dds_create_topic (participant, descriptor, ep->topic_name, ep->qos, NULL)) < 0)
         {
-          fprintf (stderr, "dds_create_topic_descriptor: %s (be sure to enable topic discovery in the configuration)\n", dds_strretcode (*topic));
+          (void) fprintf (stderr, "dds_create_topic_descriptor: %s (be sure to enable topic discovery in the configuration)\n", dds_strretcode (*topic));
           dds_delete_topic_descriptor (descriptor);
           dds_return_loan (dcpspublication_reader, &epraw, 1);
           goto error;
@@ -408,7 +408,7 @@ static dds_return_t get_topic_and_typeobj (const char *topic_name, dds_duration_
       DDS_XTypes_TypeInformation const * const xtypeinfo = (DDS_XTypes_TypeInformation *) typeinfo;
       if ((ret = dds_get_typeobj (participant, (const dds_typeid_t *) &xtypeinfo->complete.typeid_with_size.type_id, 0, &typeobj)) < 0)
       {
-        fprintf (stderr, "dds_get_typeobj: %s\n", dds_strretcode (ret));
+        (void) fprintf (stderr, "dds_get_typeobj: %s\n", dds_strretcode (ret));
         dds_return_loan (dcpspublication_reader, &epraw, 1);
         goto error;
       }
@@ -432,12 +432,12 @@ static dds_return_t get_topic_and_typeobj (const char *topic_name, dds_duration_
       // not sure whether this is at all possible
       info = malloc (sizeof (*info));
       *info = (struct typeinfo){ .key = { .key = (uintptr_t) *xtypeobj }, .typeobj = &(*xtypeobj)->_u.complete, .release = *xtypeobj, .align = align, .size = size };
-      ddsrt_hh_add (typecache, info);
+      (void)ddsrt_hh_add (typecache, info);
     }
   }
 error:
-  dds_delete (dcpspublication_reader);
-  dds_delete (waitset);
+  (void) dds_delete (dcpspublication_reader);
+  (void) dds_delete (waitset);
   return (*xtypeobj != NULL) ? DDS_RETCODE_OK : DDS_RETCODE_TIMEOUT;
 }
 
@@ -445,17 +445,20 @@ int main (int argc, char **argv)
 {
   dds_return_t ret = 0;
   dds_entity_t topic = 0;
+  dds_entity_t reader = 0;
+  dds_entity_t waitset = 0;
+  dds_entity_t readcond = 0;
   
   if (argc != 2)
   {
-    fprintf (stderr, "usage: %s topicname\n", argv[0]);
+    (void) fprintf (stderr, "usage: %s topicname\n", argv[0]);
     return 2;
   }
 
   participant = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
   if (participant < 0)
   {
-    fprintf (stderr, "dds_create_participant: %s\n", dds_strretcode (participant));
+    (void) fprintf (stderr, "dds_create_participant: %s\n", dds_strretcode (participant));
     return 1;
   }
   
@@ -464,14 +467,14 @@ int main (int argc, char **argv)
   typecache = ddsrt_hh_new (1, typecache_hash, typecache_equal);
   if ((ret = get_topic_and_typeobj (argv[1], DDS_SECS (10), &topic, &xtypeobj)) < 0)
   {
-    fprintf (stderr, "get_topic_and_typeobj: %s\n", dds_strretcode (ret));
+    (void) fprintf (stderr, "get_topic_and_typeobj: %s\n", dds_strretcode (ret));
     goto error;
   }
   // ... given those, we can create a reader just like we do normally ...
-  const dds_entity_t reader = dds_create_reader (participant, topic, NULL, NULL);
+  reader = dds_create_reader (participant, topic, NULL, NULL);
   // ... and create a waitset that allows us to wait for any incoming data ...
-  const dds_entity_t waitset = dds_create_waitset (participant);
-  const dds_entity_t readcond = dds_create_readcondition (reader, DDS_ANY_STATE);
+  waitset = dds_create_waitset (participant);
+  readcond = dds_create_readcondition (reader, DDS_ANY_STATE);
   (void) dds_waitset_attach (waitset, readcond, 0);
   while (1)
   {
@@ -492,6 +495,6 @@ int main (int argc, char **argv)
  error:
   ddsrt_hh_enum (typecache, free_typeinfo, NULL);
   ddsrt_hh_free (typecache);
-  dds_delete (participant);
+  (void) dds_delete (participant);
   return ret < 0;
 }

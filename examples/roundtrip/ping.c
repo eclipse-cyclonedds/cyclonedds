@@ -182,7 +182,7 @@ static void data_available(dds_entity_t rd, void *arg)
     difference = (postTakeTime - startTime)/DDS_NSECS_IN_USEC;
     if (difference > US_IN_ONE_SEC)
     {
-      printf("%9" PRIi64 " %9lu %8.0f %8" PRIi64 " %8" PRIi64 " %8" PRIi64 " %10lu %8.0f %8" PRIi64 " %10lu %8.0f %8" PRIi64 "\n",
+      (void) printf("%9" PRIi64 " %9lu %8.0f %8" PRIi64 " %8" PRIi64 " %8" PRIi64 " %10lu %8.0f %8" PRIi64 " %10lu %8.0f %8" PRIi64 "\n",
              elapsed + 1,
              roundTrip.count,
              exampleGetMedianFromTimeStats (&roundTrip) / 2,
@@ -214,7 +214,7 @@ static void data_available(dds_entity_t rd, void *arg)
 
 static void usage(void)
 {
-  printf ("Usage (parameters must be supplied in order):\n"
+  (void) printf ("Usage (parameters must be supplied in order):\n"
           "./ping [-l] [payloadSize (bytes, 0 - 100M)] [numSamples (0 = infinite)] [timeOut (seconds, 0 = infinite)]\n"
           "./ping quit - ping sends a quit signal to pong.\n"
           "Defaults:\n"
@@ -289,7 +289,7 @@ int main (int argc, char *argv[])
 
   if (argc - argidx == 1 && strcmp (argv[argidx], "quit") == 0)
   {
-    printf ("Sending termination request.\n");
+    (void) printf ("Sending termination request.\n");
     fflush (stdout);
     /* pong uses a waitset which is triggered by instance disposal, and
       quits when it fires. */
@@ -328,7 +328,7 @@ int main (int argc, char *argv[])
   }
   if (invalidargs || (argc - argidx == 1 && (strcmp (argv[argidx], "-h") == 0 || strcmp (argv[argidx], "--help") == 0)))
     usage();
-  printf ("# payloadSize: %" PRIu32 " | numSamples: %" PRIu64 " | timeOut: %" PRIi64 "\n\n", payloadSize, numSamples, timeOut);
+  (void) printf ("# payloadSize: %" PRIu32 " | numSamples: %" PRIu64 " | timeOut: %" PRIi64 "\n\n", payloadSize, numSamples, timeOut);
   fflush (stdout);
 
   pub_data.payload._length = payloadSize;
@@ -341,7 +341,7 @@ int main (int argc, char *argv[])
   }
 
   startTime = dds_time ();
-  printf ("# Waiting for startup jitter to stabilise\n");
+  (void) printf ("# Waiting for startup jitter to stabilise\n");
   fflush (stdout);
   /* Write a sample that pong can send back */
   while (!dds_triggered (waitSet) && difference < DDS_SECS(5))
@@ -363,10 +363,10 @@ int main (int argc, char *argv[])
   if (!dds_triggered (waitSet))
   {
     warmUp = false;
-    printf("# Warm up complete.\n\n");
-    printf("# Latency measurements (in us)\n");
-    printf("#             Latency [us]                                   Write-access time [us]       Read-access time [us]\n");
-    printf("# Seconds     Count   median      min      99%%      max      Count   median      min      Count   median      min\n");
+    (void) printf("# Warm up complete.\n\n");
+    (void) printf("# Latency measurements (in us)\n");
+    (void) printf("#             Latency [us]                                   Write-access time [us]       Read-access time [us]\n");
+    (void) printf("# Seconds     Count   median      min      99%%      max      Count   median      min      Count   median      min\n");
     fflush (stdout);
   }
 
@@ -392,7 +392,7 @@ int main (int argc, char *argv[])
 
   if (!warmUp)
   {
-    printf
+    (void) printf
     (
       "\n%9s %9lu %8.0f %8" PRIi64 " %8" PRIi64 " %8" PRIi64 " %10lu %8.0f %8" PRIi64 " %10lu %8.0f %8" PRIi64 "\n",
       "# Overall",

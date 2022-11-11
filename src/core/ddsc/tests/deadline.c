@@ -101,14 +101,14 @@ static void deadline_init(void)
 static void deadline_fini(void)
 {
   dds_delete_qos(g_qos);
-  dds_delete(g_subscriber);
-  dds_delete(g_remote_subscriber);
-  dds_delete(g_publisher);
-  dds_delete(g_topic);
-  dds_delete(g_participant);
-  dds_delete(g_remote_participant);
-  dds_delete(g_domain);
-  dds_delete(g_remote_domain);
+  (void) dds_delete(g_subscriber);
+  (void) dds_delete(g_remote_subscriber);
+  (void) dds_delete(g_publisher);
+  (void) dds_delete(g_topic);
+  (void) dds_delete(g_participant);
+  (void) dds_delete(g_remote_participant);
+  (void) dds_delete(g_domain);
+  (void) dds_delete(g_remote_domain);
 }
 
 static void sleepfor(dds_duration_t sleep_dur)
@@ -216,8 +216,8 @@ CU_Test(ddsc_deadline, basic, .init=deadline_init, .fini=deadline_fini)
       }
     }
 
-    dds_delete(reader);
-    dds_delete(writer);
+    (void) dds_delete(reader);
+    (void) dds_delete(writer);
 
     if (!test_finished)
     {
@@ -317,8 +317,8 @@ CU_Theory((dds_durability_kind_t dur_kind, dds_reliability_kind_t rel_kind, dds_
     }
 
     dds_delete_qos(qos);
-    dds_delete(reader);
-    dds_delete(writer);
+    (void) dds_delete(reader);
+    (void) dds_delete(writer);
 
     if (!test_finished)
     {
@@ -415,8 +415,8 @@ CU_Theory((int32_t n_inst, uint8_t unreg_nth, uint8_t dispose_nth), ddsc_deadlin
       }
     }
 
-    dds_delete(reader_dl);
-    dds_delete(writer);
+    (void) dds_delete(reader_dl);
+    (void) dds_delete(writer);
 
     if (!test_finished)
     {

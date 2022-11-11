@@ -593,7 +593,7 @@ static long do_line( void)
         unget_ch();
     } else {
         if (warn_level & 1) {
-            scan_token( c, ((void)(workp = work_buf), &workp), work_end);
+            (void) scan_token( c, ((void)(workp = work_buf), &workp), work_end);
             cwarn( excess, work_buf, 0, NULL);
         }
         skip_nl();
@@ -762,7 +762,8 @@ DEFBUF *    do_define(
             }
         }
     }
-    strlcpy( macroname, identifier, sizeof(macroname)); /* Remember the name    */
+
+    (void) strlcpy( macroname, identifier, sizeof(macroname)); /* Remember the name    */
 
     in_define = TRUE;                               /* Recognize '#', '##'  */
     if (get_parm() == FALSE) {                      /* Get parameter list   */
@@ -1226,10 +1227,10 @@ static char *   str_parm_scan( char * string_end)
  * String parameter scan.
  * This code -- if enabled -- recognizes a formal parameter in a string
  * literal or in a character constant.
- *      #define foo(bar, v) printf("%bar\n", v)
+ *      #define foo(bar, v) (void) printf("%bar\n", v)
  *      foo( d, i)
  * expands to:
- *      printf("%d\n", i)
+ *      (void) printf("%d\n", i)
  * str_parm_scan() return the advanced pointer into the replacement text.
  * This has been superceded by # stringizing and string concatenation.
  * This routine is called only in OLD_PREP mode.

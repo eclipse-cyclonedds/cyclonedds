@@ -197,7 +197,7 @@ struct record_cputime_state *record_cputime_new (dds_entity_t wr)
     return NULL;
   else if (n > (dds_return_t) (sizeof (tids) / sizeof (tids[0])))
   {
-    fprintf (stderr, "way more threads than expected\n");
+    (void) fprintf (stderr, "way more threads than expected\n");
     return NULL;
   }
 

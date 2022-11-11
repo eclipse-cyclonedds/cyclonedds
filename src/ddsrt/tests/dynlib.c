@@ -30,7 +30,7 @@ do { \
     char err[256]; \
     r = ddsrt_dlerror(err, sizeof(err)); \
     CU_ASSERT_FATAL(r > 0 || r == DDS_RETCODE_NOT_ENOUGH_SPACE); \
-    printf("\n%s", err); \
+    (void) printf("\n%s", err); \
     CU_FAIL_FATAL(msg); \
   } \
 } while(0)
@@ -44,7 +44,7 @@ CU_Test(ddsrt_library, dlopen_path)
   dds_return_t r;
   ddsrt_dynlib_t  l;
 
-  printf("Absolute lib: %s\n", TEST_LIB_ABSOLUTE);
+  (void) printf("Absolute lib: %s\n", TEST_LIB_ABSOLUTE);
   r = ddsrt_dlopen(TEST_LIB_ABSOLUTE, false, &l);
   CU_ASSERT_EQUAL(r, DDS_RETCODE_OK);
   CU_ASSERT_PTR_NOT_NULL(l);
@@ -94,7 +94,7 @@ CU_Test(ddsrt_library, dlopen_unknown)
 
   r = ddsrt_dlerror(buffer, sizeof(buffer));
   CU_ASSERT_FATAL(r > 0 || r == DDS_RETCODE_NOT_ENOUGH_SPACE);
-  printf("\n%s", buffer);
+  (void) printf("\n%s", buffer);
 }
 
 CU_Test(ddsrt_library, dlsym)
@@ -135,7 +135,7 @@ CU_Test(ddsrt_library, dlsym_unknown)
 
   r = ddsrt_dlerror(buffer, sizeof(buffer));
   CU_ASSERT_FATAL(r > 0 || r == DDS_RETCODE_NOT_ENOUGH_SPACE);
-  printf("\n%s", buffer);
+  (void) printf("\n%s", buffer);
 
   r = ddsrt_dlclose(l);
   CU_ASSERT_EQUAL(r, DDS_RETCODE_OK);

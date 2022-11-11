@@ -39,7 +39,7 @@ static int errcount;
 static void null_log_sink (void *vcount, const dds_log_data_t *msg)
 {
   int *count = vcount;
-  printf ("%s", msg->message);
+  (void) printf ("%s", msg->message);
   (*count)++;
 }
 
@@ -175,19 +175,19 @@ static bool check_address_list (const char *expected, struct ddsi_networkpartiti
   while ((tok = ddsrt_strsep (&cursor, ",")) != NULL)
   {
     if (as == NULL) {
-      printf ("check_address_list: too few addresses\n");
+      (void) printf ("check_address_list: too few addresses\n");
       goto err;
     }
     char buf[DDSI_LOCSTRLEN];
     ddsi_locator_to_string (buf, sizeof (buf), &as->loc);
     if (strcmp (tok, buf) != 0) {
-      printf ("check_address_list: expected %s, got %s\n", tok, buf);
+      (void) printf ("check_address_list: expected %s, got %s\n", tok, buf);
       goto err;
     }
     as = as->next;
   }
   if (as != NULL) {
-    printf ("check_address_list: too many addresses\n");
+    (void) printf ("check_address_list: too many addresses\n");
     goto err;
   }
   ddsrt_free (copy);
@@ -247,7 +247,7 @@ CU_Theory ((struct ddsi_config_networkpartition_listelem ps, bool allow_mc, cons
   // Low-level trickery so we can control the addresses/network interfaces without
   // having any system dependency
   assert ((uc == NULL) == (mc == NULL));
-  printf ("test: %s\n", ps.name);
+  (void) printf ("test: %s\n", ps.name);
   struct ddsi_domaingv gv;
   struct ddsi_config config;
   ddsi_config_init_default (&config);
@@ -362,7 +362,7 @@ CU_Test (ddsc_nwpart, mapping_multiple)
   // given that:
   CU_ASSERT_FATAL (m0->partition == p0);
   CU_ASSERT_FATAL (m1->partition == p2);
-  dds_delete (eh);
+  (void) dds_delete (eh);
 #endif
 }
 
@@ -376,7 +376,7 @@ static void check_address_present (const ddsi_xlocator_t *loc, void *varg)
   struct check_address_present_arg *arg = varg;
   char buf[DDSI_LOCSTRLEN];
   ddsi_xlocator_to_string (buf, sizeof (buf), loc);
-  printf (" %s", buf);
+  (void) printf (" %s", buf);
   int i = 0;
   while (arg->expected[i] && strcmp (arg->expected[i], buf) != 0)
     i++;
@@ -493,8 +493,8 @@ CU_Theory ((bool same_machine, bool proxypp_has_defmc, int n_ep_uc, int n_ep_mc,
   // network partitions and in interpreting the lists of discovery addresses.
   //
   // So as long as this is the only test for this, it might as well be here.
-  printf ("---------------\n");
-  printf ("same_machine %d proxypp_has_defmc %d n_ep_uc %d n_ep_mc %d\n", same_machine, proxypp_has_defmc, n_ep_uc, n_ep_mc);
+  (void) printf ("---------------\n");
+  (void) printf ("same_machine %d proxypp_has_defmc %d n_ep_uc %d n_ep_mc %d\n", same_machine, proxypp_has_defmc, n_ep_uc, n_ep_mc);
   struct ddsi_domaingv gv;
   struct ddsi_config config;
   ddsi_config_init_default (&config);
@@ -502,17 +502,17 @@ CU_Theory ((bool same_machine, bool proxypp_has_defmc, int n_ep_uc, int n_ep_mc,
   config.allowMulticast = DDSI_AMC_TRUE;
   errcount = 0;
   setup (&gv, &config, true, false);
-  printf ("interfaces =\n");
+  (void) printf ("interfaces =\n");
   for (int i = 0; i < gv.n_interfaces; i++)
   {
     char buf[DDSI_LOCSTRLEN];
-    printf ("  %s", ddsi_locator_to_string_no_port (buf, sizeof (buf), &gv.interfaces[i].loc));
-    printf (" extern: %s", ddsi_locator_to_string_no_port (buf, sizeof (buf), &gv.interfaces[i].extloc));
-    printf (" (%smc)\n", gv.interfaces[i].mc_capable ? "" : "no-");
+    (void) printf ("  %s", ddsi_locator_to_string_no_port (buf, sizeof (buf), &gv.interfaces[i].loc));
+    (void) printf (" extern: %s", ddsi_locator_to_string_no_port (buf, sizeof (buf), &gv.interfaces[i].extloc));
+    (void) printf (" (%smc)\n", gv.interfaces[i].mc_capable ? "" : "no-");
   }
 
   // pretend the remote one is on another machine but on the same networks
-  printf ("as_default =\n");
+  (void) printf ("as_default =\n");
   struct addrset *as_default = new_addrset ();
   for (int i = (same_machine ? 0 : 1); i < gv.n_interfaces; i++)
   {
@@ -524,7 +524,7 @@ CU_Theory ((bool same_machine, bool proxypp_has_defmc, int n_ep_uc, int n_ep_mc,
     if (!same_machine && i > 0) // i = 0 => loopback => no change
       xloc.c.address[15]++;
     char buf[DDSI_LOCSTRLEN];
-    printf ("  %s\n", ddsi_xlocator_to_string (buf, sizeof (buf), &xloc));
+    (void) printf ("  %s\n", ddsi_xlocator_to_string (buf, sizeof (buf), &xloc));
     add_xlocator_to_addrset (&gv, as_default, &xloc);
   }
 
@@ -541,7 +541,7 @@ CU_Theory ((bool same_machine, bool proxypp_has_defmc, int n_ep_uc, int n_ep_mc,
       {
         ddsi_xlocator_t xloc = { .conn = gv.xmit_conns[i], .c = defmcloc };
         char buf[DDSI_LOCSTRLEN];
-        printf ("  %s\n", ddsi_xlocator_to_string (buf, sizeof (buf), &xloc));
+        (void) printf ("  %s\n", ddsi_xlocator_to_string (buf, sizeof (buf), &xloc));
         add_xlocator_to_addrset (&gv, as_default, &xloc);
       }
     }
@@ -593,7 +593,7 @@ CU_Theory ((bool same_machine, bool proxypp_has_defmc, int n_ep_uc, int n_ep_mc,
   {
     char buf[1024];
     ddsi_plist_print (buf, sizeof (buf), &plist);
-    printf ("advertised plist: %s\n", buf);
+    (void) printf ("advertised plist: %s\n", buf);
   }
 
   struct addrset *as = ddsi_get_endpoint_addrset (&gv, &plist, as_default, NULL);
@@ -605,16 +605,16 @@ CU_Theory ((bool same_machine, bool proxypp_has_defmc, int n_ep_uc, int n_ep_mc,
     .expected = expected,
     .ok = (addrset_count (as) == (size_t) n)
   };
-  printf ("addrset =");
+  (void) printf ("addrset =");
   addrset_forall (as, check_address_present, &arg);
   if (arg.ok)
-    printf ("\nOK\n");
+    (void) printf ("\nOK\n");
   else
   {
-    printf ("\nexpected =");
+    (void) printf ("\nexpected =");
     for (int i = 0; expected[i]; i++)
-      printf (" %s", expected[i]);
-    printf ("\n(in any order)\n");
+      (void) printf (" %s", expected[i]);
+    (void) printf ("\n(in any order)\n");
   }
   CU_ASSERT (arg.ok);
   unref_addrset (as);

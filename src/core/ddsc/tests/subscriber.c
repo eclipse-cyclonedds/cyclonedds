@@ -51,8 +51,8 @@ CU_Test(ddsc_subscriber, notify_readers) {
   ret = dds_notify_readers(subscriber);
   CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_UNSUPPORTED);
 
-  dds_delete(subscriber);
-  dds_delete(participant);
+  (void) dds_delete(subscriber);
+  (void) dds_delete(participant);
 }
 
 CU_Test(ddsc_subscriber, create) {
@@ -72,14 +72,14 @@ CU_Test(ddsc_subscriber, create) {
 
   subscriber = dds_create_subscriber(participant, NULL, NULL);
   CU_ASSERT_FATAL(subscriber > 0);
-  dds_delete(subscriber);
+  (void) dds_delete(subscriber);
 
   /*** Verify qos parameter ***/
 
   sqos = dds_create_qos(); /* Use defaults (no user-defined policies) */
   subscriber = dds_create_subscriber(participant, sqos, NULL);
   CU_ASSERT_FATAL(subscriber > 0);
-  dds_delete(subscriber);
+  (void) dds_delete(subscriber);
   dds_delete_qos(sqos);
 
   sqos = dds_create_qos();
@@ -88,7 +88,7 @@ CU_Test(ddsc_subscriber, create) {
   DDSRT_WARNING_CLANG_ON(assign-enum);
   subscriber = dds_create_subscriber(participant, sqos, NULL);
   CU_ASSERT_FATAL(subscriber > 0);
-  dds_delete(subscriber);
+  (void) dds_delete(subscriber);
   dds_delete_qos(sqos);
 
   sqos = dds_create_qos();
@@ -104,24 +104,24 @@ CU_Test(ddsc_subscriber, create) {
   listener = dds_create_listener(NULL); /* Use defaults (all listeners unset) */
   subscriber = dds_create_subscriber(participant, NULL, listener);
   CU_ASSERT_FATAL(subscriber > 0);
-  dds_delete(subscriber);
+  (void) dds_delete(subscriber);
   dds_delete_listener(listener);
 
   listener = dds_create_listener(NULL);
   dds_lset_data_available(listener, &on_data_available); /* Set on_data_available listener */
   subscriber = dds_create_subscriber(participant, NULL, listener);
   CU_ASSERT_FATAL(subscriber > 0);
-  dds_delete(subscriber);
+  (void) dds_delete(subscriber);
   dds_delete_listener(listener);
 
   listener = dds_create_listener(NULL);
   dds_lset_publication_matched(listener, &on_publication_matched); /* Set on_publication_matched listener (ignored, not applicable for subscriber) */
   subscriber = dds_create_subscriber(participant, NULL, listener);
   CU_ASSERT_FATAL(subscriber > 0);
-  dds_delete(subscriber);
+  (void) dds_delete(subscriber);
   dds_delete_listener(listener);
 
-  dds_delete(participant);
+  (void) dds_delete(participant);
 }
 
 #ifdef _MSC_VER

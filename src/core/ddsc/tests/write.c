@@ -54,10 +54,10 @@ teardown(void)
     RoundTripModule_DataType_free (&data, DDS_FREE_CONTENTS);
     memset(&data, 0, sizeof(data));
 
-    dds_delete(writer);
-    dds_delete(publisher);
-    dds_delete(topic);
-    dds_delete(participant);
+    (void) dds_delete(writer);
+    (void) dds_delete(publisher);
+    (void) dds_delete(topic);
+    (void) dds_delete(participant);
 }
 
 CU_Test(ddsc_write, basic, .init = setup, .fini = teardown)
@@ -154,7 +154,7 @@ CU_Test(ddsc_write, simpletypes)
     status = dds_write(wri, &st_data);
     CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
 
-    dds_delete(wri);
-    dds_delete(top);
-    dds_delete(par);
+    (void) dds_delete(wri);
+    (void) dds_delete(top);
+    (void) dds_delete(par);
 }

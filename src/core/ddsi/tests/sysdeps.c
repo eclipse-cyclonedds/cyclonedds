@@ -45,10 +45,10 @@ static bool looks_like_stackframe (const char *msg)
   enum state { WS_OR_PUNCT, WS_ZERO, WS_WORD, WS_HEX, WS_WORD_OR_HEX, WS_MESSY } state = WS_OR_PUNCT;
   unsigned char c;
   int nnum = 0, nword = 0;
-  printf ("%-8s", "");
+  (void) printf ("%-8s", "");
   while ((c = (unsigned char) *msg++) != 0)
   {
-    printf ("%d", (int) state);
+    (void) printf ("%d", (int) state);
     switch (state)
     {
       case WS_OR_PUNCT:
@@ -80,7 +80,7 @@ static bool looks_like_stackframe (const char *msg)
         break;
     }
   }
-  printf("\n");
+  (void) printf("\n");
   // want at least a name and an offset or just an address in a not-too-messy string
   return (state != WS_MESSY) && ((nword + nnum) >= 2 || (nword == 0 && nnum == 1));
 }
@@ -88,7 +88,7 @@ static bool looks_like_stackframe (const char *msg)
 static void logger (void *ptr, const dds_log_data_t *data)
 {
   (void) ptr;
-  printf ("%-7s %s", loggerstatestr[loggerstate], data->message);
+  (void) printf ("%-7s %s", loggerstatestr[loggerstate], data->message);
   switch (loggerstate)
   {
     case STL_INIT:

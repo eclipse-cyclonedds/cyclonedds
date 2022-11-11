@@ -98,6 +98,7 @@ parse_builtin_annotations(
         case IDL_TOKEN_LINE_COMMENT:
           if (token.value.str && !save) {
             idl_free(token.value.str);
+            token.value.str = NULL;
           }
           break;
         default:
@@ -121,6 +122,7 @@ parse_builtin_annotations(
 
     if (name.identifier) {
       idl_free(name.identifier);
+      name.identifier = NULL;
     }
 
     /* builtin annotations must not declare more than one annotation per block
@@ -263,7 +265,7 @@ idl_log(
   if (cnt == -1)
     return;
 
-  fprintf(stderr, "%s\n", buf);
+  (void) fprintf(stderr, "%s\n", buf);
 }
 
 #define IDL_LC_ERROR 1
@@ -547,8 +549,10 @@ grammar:
       case IDL_TOKEN_PP_NUMBER:
       case IDL_TOKEN_COMMENT:
       case IDL_TOKEN_LINE_COMMENT:
-        if (tok.value.str)
+        if (tok.value.str) {
           idl_free(tok.value.str);
+          tok.value.str = NULL;
+        }
         break;
       default:
         break;

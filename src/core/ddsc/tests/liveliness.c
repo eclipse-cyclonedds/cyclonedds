@@ -73,8 +73,8 @@ static void liveliness_init(void)
 
 static void liveliness_fini(void)
 {
-  dds_delete(g_sub_domain);
-  dds_delete(g_pub_domain);
+  (void) dds_delete(g_sub_domain);
+  (void) dds_delete(g_pub_domain);
 }
 
 /**
@@ -576,7 +576,7 @@ static void test_create_delete_writer_stress(bool remote_reader)
     CU_ASSERT_FATAL((writers[n] = dds_create_writer(g_pub_participant, pub_topic, wqos, NULL)) > 0);
     CU_ASSERT_EQUAL_FATAL(dds_write(writers[n], &sample), DDS_RETCODE_OK);
     if (n % 3 == 2)
-      dds_delete(writers[n]);
+      (void) dds_delete(writers[n]);
     else if (n % 2)
       alive_writers_auto++;
     else
@@ -1165,7 +1165,7 @@ CU_Test(ddsc_liveliness, lease_duration_zero_or_one, .init = liveliness_init, .f
           dds_duration_t d = ldur[ldur_idx];
           tprintf ("### lease_duration_zero_or_one: sleep = %"PRId64" lkind = %d ldur = %"PRId64" reader = %s\n", s, (int) k, d, rrd ? "remote" : "local");
           lease_duration_zero_or_one_impl (s, k, d, rrd);
-          printf ("\n");
+          (void) printf ("\n");
         }
       }
     }

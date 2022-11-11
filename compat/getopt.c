@@ -27,7 +27,7 @@ static const char Id[] = "$Id: os_stdlib_getopt.c,v 1.2 2008-11-17 09:53:45 hans
  * However, I am not about to post a copy of anything licensed by AT&T.
  */
 
-#define ERR(szz,czz) if(opterr){fprintf(stderr,"%s%s%c\n",argv[0],szz,czz);}
+#define ERR(szz,czz) if(opterr){(void) fprintf(stderr,"%s%s%c\n",argv[0],szz,czz);}
 
 int opterr = 1;
 int optind = 1;

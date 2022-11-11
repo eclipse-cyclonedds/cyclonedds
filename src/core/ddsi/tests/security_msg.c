@@ -306,9 +306,9 @@ CU_Test (ddsi_security_msg, serializer)
   assert(data != NULL); /* for Clang static analyzer */
   if (memcmp (data, test_msg_ser, cmpsize) != 0)
   {
-    printf ("memcmp(%d)\n", (int)cmpsize);
+    (void) printf ("memcmp(%d)\n", (int)cmpsize);
     for (size_t k = 0; k < cmpsize; k++)
-      printf ("  %3zu  %02x  %02x (%c) %s\n", k, data[k], test_msg_ser[k],
+      (void) printf ("  %3zu  %02x  %02x (%c) %s\n", k, data[k], test_msg_ser[k],
               ((test_msg_ser[k] >= '0') && (test_msg_ser[k] <= 'z')) ? test_msg_ser[k] : ' ',
               (data[k] == test_msg_ser[k]) ? "" : "<--");
     CU_ASSERT (!(bool)"memcmp");

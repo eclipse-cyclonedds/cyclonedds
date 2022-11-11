@@ -297,7 +297,7 @@ CU_Test(ddssec_builtin_register_remote_datawriter, with_origin_authentication, .
       &exception);
 
   if (exception.code != 0)
-    printf("register_remote_datawriter: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("register_remote_datawriter: %s\n", exception.message ? exception.message : "Error message missing");
 
   /* A valid handle to be returned */
   CU_ASSERT_FATAL(result != 0);

@@ -286,7 +286,7 @@ static int smime_sign(const char *certificate_file, const char *key_file, const 
 err:
   if (ret)
   {
-    fprintf(stderr, "Error Signing Data\n");
+    (void) fprintf(stderr, "Error Signing Data\n");
     ERR_print_errors_fp(stderr);
   }
   if (p7)
@@ -453,7 +453,7 @@ validate_local_identity_and_permissions(int32_t permission_expiry)
   if (result != DDS_SECURITY_VALIDATION_OK)
   {
     res = DDS_SECURITY_ERR_UNDEFINED_CODE;
-    printf("validate_local_identity_failed: (%d) %s\n", (int)exception.code, exception.message ? exception.message : "Error message missing");
+    (void) printf("validate_local_identity_failed: (%d) %s\n", (int)exception.code, exception.message ? exception.message : "Error message missing");
   }
 
   reset_exception(&exception);
@@ -470,7 +470,7 @@ validate_local_identity_and_permissions(int32_t permission_expiry)
 
     if (local_permissions_handle == DDS_SECURITY_HANDLE_NIL)
     {
-      printf("validate_local_permissions_failed: (%d) %s\n", (int)exception.code, exception.message ? exception.message : "Error message missing");
+      (void) printf("validate_local_permissions_failed: (%d) %s\n", (int)exception.code, exception.message ? exception.message : "Error message missing");
       if (exception.code == DDS_SECURITY_ERR_VALIDITY_PERIOD_EXPIRED_CODE)
         /* This can happen on very slow platforms or when doing a valgrind run. */
         res = DDS_SECURITY_ERR_VALIDITY_PERIOD_EXPIRED_CODE;
@@ -494,7 +494,7 @@ static void clear_local_identity_and_permissions(void)
   {
     success = access_control->return_permissions_handle(access_control, local_permissions_handle, &exception);
     if (!success)
-      printf("return_permission_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
+      (void) printf("return_permission_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
     reset_exception(&exception);
   }
 
@@ -502,7 +502,7 @@ static void clear_local_identity_and_permissions(void)
   {
     success = auth->return_identity_handle(auth, local_identity_handle, &exception);
     if (!success)
-      printf("return_identity_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
+      (void) printf("return_identity_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
     reset_exception(&exception);
   }
 }
@@ -546,7 +546,7 @@ static DDS_Security_boolean on_revoke_permissions_cb(const dds_security_access_c
     permission_handle_for_callback1 = handle;
   else if (permission_handle_for_callback2 == DDS_SECURITY_HANDLE_NIL)
     permission_handle_for_callback2 = handle;
-  printf("Listener called for handle: %lld  Local:%lld Remote:%lld\n", (long long)handle, (long long)local_permissions_handle, (long long)remote_permissions_handle);
+  (void) printf("Listener called for handle: %lld  Local:%lld Remote:%lld\n", (long long)handle, (long long)local_permissions_handle, (long long)remote_permissions_handle);
   return true;
 }
 
@@ -604,7 +604,7 @@ CU_Test(ddssec_builtin_listeners_access_control, local_2secs)
 
   if (result == 0)
   {
-    printf("validate_remote_permissions_failed: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("validate_remote_permissions_failed: %s\n", exception.message ? exception.message : "Error message missing");
     /* Expiry can happen on very slow platforms or when doing a valgrind run.
          * Just take our losses and quit, simulating a success. */
     CU_ASSERT(exception.code == DDS_SECURITY_ERR_VALIDITY_PERIOD_EXPIRED_CODE);

@@ -922,7 +922,7 @@ static void devide_line(
             }
             continue;
         }
-        scan_token( c, &wp, out_wend);          /* Read a token     */
+        (void) scan_token( c, &wp, out_wend);          /* Read a token     */
         if (NWORK-2 < wp - out_ptr) {           /* Too long a token */
             cfatal( "Too long token %s", out_ptr, 0L, NULL);        /* _F_  */
         } else if (out_end <= wp) {             /* Too long line    */

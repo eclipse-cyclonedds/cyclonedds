@@ -260,7 +260,7 @@ static int local_permissions_init(DDS_Security_DomainId domain_id)
   if (result != DDS_SECURITY_VALIDATION_OK)
   {
     res = -1;
-    printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   reset_exception(&exception);
@@ -278,7 +278,7 @@ static int local_permissions_init(DDS_Security_DomainId domain_id)
     if (local_permissions_handle == DDS_SECURITY_HANDLE_NIL)
     {
       res = -1;
-      printf("validate_local_permissions_failed: %s\n", exception.message ? exception.message : "Error message missing");
+      (void) printf("validate_local_permissions_failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
   }
 
@@ -299,7 +299,7 @@ static void local_permissions_clean(void)
     success = access_control->return_permissions_handle(access_control, local_permissions_handle, &exception);
     if (!success)
     {
-      printf("return_permission_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
+      (void) printf("return_permission_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
     reset_exception(&exception);
   }
@@ -309,7 +309,7 @@ static void local_permissions_clean(void)
     success = auth->return_identity_handle(auth, local_identity_handle, &exception);
     if (!success)
     {
-      printf("return_identity_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
+      (void) printf("return_identity_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
     reset_exception(&exception);
   }
@@ -390,7 +390,7 @@ CU_Test(ddssec_builtin_get_permissions_credential_token, happy_day, .init = suit
       &exception);
   if (!result)
   {
-    printf("get_permissions_credential_token: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("get_permissions_credential_token: %s\n", exception.message ? exception.message : "Error message missing");
   }
   CU_ASSERT_FATAL(result);
   CU_ASSERT(exception.code == 0);
@@ -426,7 +426,7 @@ CU_Test(ddssec_builtin_get_permissions_credential_token, invalid_args, .init = s
       &exception);
   if (!result)
   {
-    printf("get_permissions_token: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("get_permissions_token: %s\n", exception.message ? exception.message : "Error message missing");
   }
   CU_ASSERT(!result);
   CU_ASSERT(exception.code == DDS_SECURITY_ERR_INVALID_PARAMETER_CODE);
@@ -440,7 +440,7 @@ CU_Test(ddssec_builtin_get_permissions_credential_token, invalid_args, .init = s
       &exception);
   if (!result)
   {
-    printf("get_permissions_credential_token: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("get_permissions_credential_token: %s\n", exception.message ? exception.message : "Error message missing");
   }
   CU_ASSERT(!result);
   CU_ASSERT(exception.code == DDS_SECURITY_ERR_INVALID_PARAMETER_CODE);
@@ -454,7 +454,7 @@ CU_Test(ddssec_builtin_get_permissions_credential_token, invalid_args, .init = s
       &exception);
   if (!result)
   {
-    printf("get_permissions_credential_token: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("get_permissions_credential_token: %s\n", exception.message ? exception.message : "Error message missing");
   }
   CU_ASSERT(!result);
   CU_ASSERT(exception.code == DDS_SECURITY_ERR_INVALID_PARAMETER_CODE);
@@ -468,7 +468,7 @@ CU_Test(ddssec_builtin_get_permissions_credential_token, invalid_args, .init = s
       NULL);
   if (!result)
   {
-    printf("get_permissions_credential_token: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("get_permissions_credential_token: %s\n", exception.message ? exception.message : "Error message missing");
   }
   CU_ASSERT(!result);
   CU_ASSERT(exception.code == 0);
@@ -482,7 +482,7 @@ CU_Test(ddssec_builtin_get_permissions_credential_token, invalid_args, .init = s
       &exception);
   if (!result)
   {
-    printf("get_permissions_credential_token: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("get_permissions_credential_token: %s\n", exception.message ? exception.message : "Error message missing");
   }
   CU_ASSERT(!result);
   CU_ASSERT(exception.code == DDS_SECURITY_ERR_INVALID_PARAMETER_CODE);

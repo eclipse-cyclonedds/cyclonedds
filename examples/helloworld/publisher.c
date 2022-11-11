@@ -30,7 +30,7 @@ int main (int argc, char ** argv)
   if (writer < 0)
     DDS_FATAL("dds_create_writer: %s\n", dds_strretcode(-writer));
 
-  printf("=== [Publisher]  Waiting for a reader to be discovered ...\n");
+  (void) printf("=== [Publisher]  Waiting for a reader to be discovered ...\n");
   fflush (stdout);
 
   rc = dds_set_status_mask(writer, DDS_PUBLICATION_MATCHED_STATUS);
@@ -51,8 +51,8 @@ int main (int argc, char ** argv)
   msg.userID = 1;
   msg.message = "Hello World";
 
-  printf ("=== [Publisher]  Writing : ");
-  printf ("Message (%"PRId32", %s)\n", msg.userID, msg.message);
+  (void) printf ("=== [Publisher]  Writing : ");
+  (void) printf ("Message (%"PRId32", %s)\n", msg.userID, msg.message);
   fflush (stdout);
 
   rc = dds_write (writer, &msg);

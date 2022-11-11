@@ -63,7 +63,7 @@ static void topic_find_local_fini (void)
 #ifdef DDS_HAS_TOPIC_DISCOVERY
   dds_free_typeinfo (g_type_info);
 #endif
-  dds_delete (g_domain1);
+  (void) dds_delete (g_domain1);
 }
 
 enum topic_find_local_domain_impl_delete_what {
@@ -151,7 +151,7 @@ CU_Test(ddsc_topic_find_local, unknown, .init = topic_find_local_init, .fini = t
 
 CU_Test(ddsc_topic_find_local, deleted, .init = topic_find_local_init, .fini = topic_find_local_fini)
 {
-  dds_delete (g_topic1);
+  (void) dds_delete (g_topic1);
   dds_entity_t topic = dds_find_topic (DDS_FIND_SCOPE_PARTICIPANT, g_participant1, g_topic_name_local, g_type_info, 0);
   CU_ASSERT_EQUAL_FATAL (topic, 0);
 }

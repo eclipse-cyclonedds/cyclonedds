@@ -141,7 +141,7 @@ static int register_local_participant(void)
 
   if (local_particpant_crypto == 0)
   {
-    printf("register_local_participant: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("register_local_participant: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   return local_particpant_crypto ? 0 : -1;
@@ -173,7 +173,7 @@ static int register_remote_participant(void)
 
   if (remote_particpant_crypto == 0)
   {
-    printf("register_matched_remote_participant: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("register_matched_remote_participant: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   return remote_particpant_crypto ? 0 : -1;
@@ -254,7 +254,7 @@ static DDS_Security_DatawriterCryptoHandle register_local_datawriter(DDS_Securit
 
   if (writer_crypto == 0)
   {
-    printf("register_local_datawriter: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("register_local_datawriter: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   return writer_crypto;
@@ -289,7 +289,7 @@ static DDS_Security_DatareaderCryptoHandle register_remote_datareader(DDS_Securi
 
   if (reader_crypto == 0)
   {
-    printf("register_matched_remote_datareader: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("register_matched_remote_datareader: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   return reader_crypto;
@@ -313,7 +313,7 @@ static bool read_prefix(unsigned char **ptr, uint32_t *remain)
 
   if (*remain < sizeof(struct submsg_header))
   {
-    printf("check_encoded_data: prefix missing\n");
+    (void) printf("check_encoded_data: prefix missing\n");
     return false;
   }
 
@@ -321,7 +321,7 @@ static bool read_prefix(unsigned char **ptr, uint32_t *remain)
 
   if (prefix->id != SMID_SEC_PREFIX)
   {
-    printf("check_encoded_data: prefix incorrect smid 0x%x02\n", prefix->id);
+    (void) printf("check_encoded_data: prefix incorrect smid 0x%x02\n", prefix->id);
     return false;
   }
 
@@ -336,7 +336,7 @@ static bool read_prefix(unsigned char **ptr, uint32_t *remain)
 
   if (hlen != sizeof(struct crypto_header))
   {
-    printf("check_encoded_data: crypto_header missing\n");
+    (void) printf("check_encoded_data: crypto_header missing\n");
     return false;
   }
 
@@ -350,7 +350,7 @@ static bool read_header(struct crypto_header **header, unsigned char **ptr, uint
 {
   if (*remain < sizeof(struct crypto_header))
   {
-    printf("check_encoded_data: crypto_header too short\n");
+    (void) printf("check_encoded_data: crypto_header too short\n");
     return false;
   }
 
@@ -391,7 +391,7 @@ static bool read_body(DDS_Security_OctetSeq *contents, bool encrypted, unsigned 
 
     if (body->id != SMID_SEC_BODY)
     {
-      printf("check_encoded_data: submessage SEC_BODY missing\n");
+      (void) printf("check_encoded_data: submessage SEC_BODY missing\n");
       return false;
     }
     enc = (struct encrypted_data *)(body + 1);
@@ -404,7 +404,7 @@ static bool read_body(DDS_Security_OctetSeq *contents, bool encrypted, unsigned 
   {
     if (body->id == SMID_SEC_BODY)
     {
-      printf("check_encoded_data: submessage SEC_BODY not expected\n");
+      (void) printf("check_encoded_data: submessage SEC_BODY not expected\n");
       return false;
     }
     clen = swap ? ddsrt_bswap2u(body->length) : body->length;
@@ -425,7 +425,7 @@ static bool read_postfix(unsigned char **ptr,uint32_t *remain)
 
   if (*remain < sizeof(struct submsg_header))
   {
-    printf("check_encoded_data: postfix missing\n");
+    (void) printf("check_encoded_data: postfix missing\n");
     return false;
   }
 
@@ -433,7 +433,7 @@ static bool read_postfix(unsigned char **ptr,uint32_t *remain)
 
   if (postfix->id != SMID_SEC_POSTFIX)
   {
-    printf("check_encoded_data: postfix invalid smid\n");
+    (void) printf("check_encoded_data: postfix invalid smid\n");
     return false;
   }
 
@@ -447,7 +447,7 @@ static bool read_footer(struct crypto_footer **footer, unsigned char **ptr, uint
 {
   if (*remain < CRYPTO_HMAC_SIZE + sizeof(uint32_t))
   {
-    printf("check_encoded_data: crypto_footer incorrect size\n");
+    (void) printf("check_encoded_data: crypto_footer incorrect size\n");
     return false;
   }
 
@@ -690,12 +690,12 @@ static bool check_reader_sign(
 
   if (key_id != keymat->receiver_specific_key_id)
   {
-    printf("check_reader_sign: key_id does not match\n");
+    (void) printf("check_reader_sign: key_id does not match\n");
     return false;
   }
   else if (!calculate_receiver_specific_key_test(&key, session_id, keymat->master_salt, keymat->master_receiver_specific_key, keymat->transformation_kind))
   {
-    printf("check_reader_sign: calculate key failed\n");
+    (void) printf("check_reader_sign: calculate key failed\n");
     return false;
   }
   else if (!cipher_sign_data(key.data, key_size, init_vector, common_mac, CRYPTO_HMAC_SIZE, md))
@@ -704,7 +704,7 @@ static bool check_reader_sign(
   }
   else if (memcmp(hmac, md, CRYPTO_HMAC_SIZE) != 0)
   {
-    printf("check_reader_sign: hmac incorrect\n");
+    (void) printf("check_reader_sign: hmac incorrect\n");
     return false;
   }
 
@@ -824,7 +824,7 @@ static void encode_datawriter_submessage_not_signed(DDS_Security_CryptoTransform
 
   if (!result)
   {
-    printf("encode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("encode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT_FATAL(result);
@@ -854,7 +854,7 @@ static void encode_datawriter_submessage_not_signed(DDS_Security_CryptoTransform
 
     if (!result)
     {
-      printf("Decode failed\n");
+      (void) printf("Decode failed\n");
     }
 
     CU_ASSERT_FATAL(result);
@@ -869,7 +869,7 @@ static void encode_datawriter_submessage_not_signed(DDS_Security_CryptoTransform
                                  session_keys->master_key_material, &data, NULL, footer->common_mac);
     if (!result)
     {
-      printf("Decode failed\n");
+      (void) printf("Decode failed\n");
     }
 
     CU_ASSERT_FATAL(result);
@@ -989,7 +989,7 @@ static void encode_datawriter_submessage_sign(DDS_Security_CryptoTransformKind_E
 
     if (!result)
     {
-      printf("encode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
+      (void) printf("encode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     CU_ASSERT_FATAL(result);
@@ -1019,7 +1019,7 @@ static void encode_datawriter_submessage_sign(DDS_Security_CryptoTransformKind_E
                                  session_keys->master_key_material, &data, &decoded_buffer, footer->common_mac);
     if (!result)
     {
-      printf("Decode failed\n");
+      (void) printf("Decode failed\n");
     }
 
     CU_ASSERT_FATAL(result);
@@ -1035,14 +1035,14 @@ static void encode_datawriter_submessage_sign(DDS_Security_CryptoTransformKind_E
 
     if (!result)
     {
-      printf("Decode failed\n");
+      (void) printf("Decode failed\n");
     }
 
     CU_ASSERT_FATAL(result);
     CU_ASSERT(memcmp(plain_buffer._buffer, data._buffer, plain_buffer._length) == 0);
   }
 
-  printf("num hmacs = %u\n", footer->length);
+  (void) printf("num hmacs = %u\n", footer->length);
 
   CU_ASSERT(check_reader_signing(&reader_list, footer, session_id, header->session_id, session_keys->key_size));
 
@@ -1136,7 +1136,7 @@ CU_Test(ddssec_builtin_encode_datawriter_submessage, invalid_args, .init = suite
 
   if (!result)
   {
-    printf("encode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("encode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT(!result);
@@ -1158,7 +1158,7 @@ CU_Test(ddssec_builtin_encode_datawriter_submessage, invalid_args, .init = suite
 
   if (!result)
   {
-    printf("encode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("encode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT(!result);
@@ -1180,7 +1180,7 @@ CU_Test(ddssec_builtin_encode_datawriter_submessage, invalid_args, .init = suite
 
   if (!result)
   {
-    printf("encode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("encode_datawriter_submessage: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT(!result);

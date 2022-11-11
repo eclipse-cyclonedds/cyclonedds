@@ -190,11 +190,11 @@ querycondition_init_deephist(void)
 static void
 querycondition_fini(void)
 {
-    dds_delete(g_reader);
-    dds_delete(g_writer);
-    dds_delete(g_waitset);
-    dds_delete(g_topic);
-    dds_delete(g_participant);
+    (void) dds_delete(g_reader);
+    (void) dds_delete(g_writer);
+    (void) dds_delete(g_waitset);
+    (void) dds_delete(g_topic);
+    (void) dds_delete(g_participant);
 }
 
 
@@ -232,7 +232,7 @@ CU_Test(ddsc_querycondition_create, deleted_reader, .init=querycondition_init, .
 {
     uint32_t mask = DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
     dds_entity_t cond;
-    dds_delete(g_reader);
+    (void) dds_delete(g_reader);
     cond = dds_create_querycondition(g_reader, mask, filter_mod2);
     CU_ASSERT_EQUAL_FATAL(cond, DDS_RETCODE_BAD_PARAMETER);
 }
@@ -282,7 +282,7 @@ CU_Test(ddsc_querycondition_get_mask, deleted, .init=querycondition_init, .fini=
     dds_return_t ret;
     condition = dds_create_querycondition(g_reader, mask, filter_mod2);
     CU_ASSERT_FATAL(condition > 0);
-    dds_delete(condition);
+    (void) dds_delete(condition);
     mask = 0;
     ret = dds_get_mask(condition, &mask);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
@@ -301,7 +301,7 @@ CU_Test(ddsc_querycondition_get_mask, null, .init=querycondition_init, .fini=que
     ret = dds_get_mask(condition, NULL);
     DDSRT_WARNING_MSVC_ON(6387);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
-    dds_delete(condition);
+    (void) dds_delete(condition);
 }
 /*************************************************************************************************/
 
@@ -352,7 +352,7 @@ CU_Theory((uint32_t ss, uint32_t vs, uint32_t is), ddsc_querycondition_get_mask,
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     CU_ASSERT_EQUAL_FATAL(maskIn, maskOut);
 
-    dds_delete(condition);
+    (void) dds_delete(condition);
 }
 /*************************************************************************************************/
 
@@ -410,7 +410,7 @@ CU_Test(ddsc_querycondition_read, any, .init=querycondition_init, .fini=querycon
         CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
-    dds_delete(condition);
+    (void) dds_delete(condition);
 }
 /*************************************************************************************************/
 
@@ -460,7 +460,7 @@ CU_Test(ddsc_querycondition_read, not_read_sample_state, .init=querycondition_in
         CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
-    dds_delete(condition);
+    (void) dds_delete(condition);
 }
 /*************************************************************************************************/
 
@@ -510,7 +510,7 @@ CU_Test(ddsc_querycondition_read, read_sample_state, .init=querycondition_init, 
         CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
-    dds_delete(condition);
+    (void) dds_delete(condition);
 }
 /*************************************************************************************************/
 
@@ -560,7 +560,7 @@ CU_Test(ddsc_querycondition_read, new_view_state, .init=querycondition_init, .fi
         CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
-    dds_delete(condition);
+    (void) dds_delete(condition);
 }
 /*************************************************************************************************/
 
@@ -610,7 +610,7 @@ CU_Test(ddsc_querycondition_read, not_new_view_state, .init=querycondition_init,
         CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
-    dds_delete(condition);
+    (void) dds_delete(condition);
 }
 /*************************************************************************************************/
 
@@ -660,7 +660,7 @@ CU_Test(ddsc_querycondition_read, alive_instance_state, .init=querycondition_ini
         CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
-    dds_delete(condition);
+    (void) dds_delete(condition);
 }
 /*************************************************************************************************/
 
@@ -710,7 +710,7 @@ CU_Test(ddsc_querycondition_read, disposed_instance_state, .init=querycondition_
         CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
-    dds_delete(condition);
+    (void) dds_delete(condition);
 }
 /*************************************************************************************************/
 
@@ -760,7 +760,7 @@ CU_Test(ddsc_querycondition_read, no_writers_instance_state, .init=queryconditio
         CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
-    dds_delete(condition);
+    (void) dds_delete(condition);
 }
 /*************************************************************************************************/
 
@@ -810,7 +810,7 @@ CU_Test(ddsc_querycondition_read, combination_of_states, .init=querycondition_in
         CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
-    dds_delete(condition);
+    (void) dds_delete(condition);
 }
 /*************************************************************************************************/
 
@@ -840,7 +840,7 @@ CU_Test(ddsc_querycondition_read, none, .init=querycondition_init, .fini=queryco
      * |    6   |    3   |    2   | not_read | new | alive      |
      */
 
-    dds_delete(condition);
+    (void) dds_delete(condition);
 }
 /*************************************************************************************************/
 
@@ -891,7 +891,7 @@ CU_Test(ddsc_querycondition_read, with_mask, .init=querycondition_init, .fini=qu
         CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
-    dds_delete(condition);
+    (void) dds_delete(condition);
 }
 /*************************************************************************************************/
 
@@ -973,7 +973,7 @@ CU_Test(ddsc_querycondition_take, any, .init=querycondition_init, .fini=querycon
         CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
-    dds_delete(condition);
+    (void) dds_delete(condition);
 }
 /*************************************************************************************************/
 
@@ -1023,7 +1023,7 @@ CU_Test(ddsc_querycondition_take, not_read_sample_state, .init=querycondition_in
         CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
-    dds_delete(condition);
+    (void) dds_delete(condition);
 }
 /*************************************************************************************************/
 
@@ -1073,7 +1073,7 @@ CU_Test(ddsc_querycondition_take, read_sample_state, .init=querycondition_init, 
         CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
-    dds_delete(condition);
+    (void) dds_delete(condition);
 }
 /*************************************************************************************************/
 
@@ -1123,7 +1123,7 @@ CU_Test(ddsc_querycondition_take, new_view_state, .init=querycondition_init, .fi
         CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
-    dds_delete(condition);
+    (void) dds_delete(condition);
 }
 /*************************************************************************************************/
 
@@ -1173,7 +1173,7 @@ CU_Test(ddsc_querycondition_take, not_new_view_state, .init=querycondition_init,
         CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
-    dds_delete(condition);
+    (void) dds_delete(condition);
 }
 /*************************************************************************************************/
 
@@ -1223,7 +1223,7 @@ CU_Test(ddsc_querycondition_take, alive_instance_state, .init=querycondition_ini
         CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
-    dds_delete(condition);
+    (void) dds_delete(condition);
 }
 /*************************************************************************************************/
 
@@ -1273,7 +1273,7 @@ CU_Test(ddsc_querycondition_take, disposed_instance_state, .init=querycondition_
         CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
-    dds_delete(condition);
+    (void) dds_delete(condition);
 }
 /*************************************************************************************************/
 
@@ -1323,7 +1323,7 @@ CU_Test(ddsc_querycondition_take, no_writers_instance_state, .init=queryconditio
         CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
-    dds_delete(condition);
+    (void) dds_delete(condition);
 }
 /*************************************************************************************************/
 
@@ -1373,7 +1373,7 @@ CU_Test(ddsc_querycondition_take, combination_of_states, .init=querycondition_in
         CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
-    dds_delete(condition);
+    (void) dds_delete(condition);
 }
 /*************************************************************************************************/
 
@@ -1403,7 +1403,7 @@ CU_Test(ddsc_querycondition_take, none, .init=querycondition_init, .fini=queryco
      * |    6   |    3   |    2   | not_read | new | alive      |
      */
 
-    dds_delete(condition);
+    (void) dds_delete(condition);
 }
 /*************************************************************************************************/
 
@@ -1454,7 +1454,7 @@ CU_Test(ddsc_querycondition_take, with_mask, .init=querycondition_init, .fini=qu
         CU_ASSERT_EQUAL_FATAL(g_info[i].instance_state, expected_ist);
     }
 
-    dds_delete(condition);
+    (void) dds_delete(condition);
 }
 /*************************************************************************************************/
 

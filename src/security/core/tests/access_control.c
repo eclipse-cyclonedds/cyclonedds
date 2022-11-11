@@ -991,16 +991,16 @@ CU_Test(ddssec_access_control, partition)
   // then the deny rule and finally a default of allow
   for (size_t i = 0; i < sizeof (parts) / sizeof (parts[0]); i++)
   {
-    printf ("======== ALLOW:{");
+    (void) printf ("======== ALLOW:{");
     for (int j = 0; parts[i].allow && parts[i].allow[j]; j++)
-      printf (" \"%s\"", parts[i].allow[j]);
-    printf (" } DENY:{");
+      (void) printf (" \"%s\"", parts[i].allow[j]);
+    (void) printf (" } DENY:{");
     for (int j = 0; parts[i].deny && parts[i].deny[j]; j++)
-      printf (" \"%s\"", parts[i].deny[j]);
-    printf (" } USE:{");
+      (void) printf (" \"%s\"", parts[i].deny[j]);
+    (void) printf (" } USE:{");
     for (int j = 0; parts[i].use && parts[i].use[j]; j++)
-      printf (" \"%s\"", parts[i].use[j]);
-    printf (" } EXP_DENY: %s\n", parts[i].exp_deny ? "true" : "false");
+      (void) printf (" \"%s\"", parts[i].use[j]);
+    (void) printf (" } EXP_DENY: %s\n", parts[i].exp_deny ? "true" : "false");
     partition_test (parts[i].allow, parts[i].deny, parts[i].use, parts[i].exp_deny);
   }
 }

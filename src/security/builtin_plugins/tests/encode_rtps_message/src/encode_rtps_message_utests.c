@@ -119,12 +119,12 @@ static void deallocate_shared_secret(void)
 static void print_octets(const char *msg, const unsigned char *data, uint32_t sz)
 {
   uint32_t i;
-  printf("%s: ", msg);
+  (void) printf("%s: ", msg);
   for (i = 0; i < sz; i++)
   {
-    printf("%02x", data[i]);
+    (void) printf("%02x", data[i]);
   }
-  printf("\n");
+  (void) printf("\n");
 }
 
 static int register_local_participant(DDS_Security_ParticipantSecurityAttributes *participant_security_attributes, DDS_Security_PropertySeq *participant_properties)
@@ -143,7 +143,7 @@ static int register_local_participant(DDS_Security_ParticipantSecurityAttributes
 
   if (local_particpant_crypto == 0)
   {
-    printf("register_local_participant: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("register_local_participant: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   return local_particpant_crypto ? 0 : -1;
@@ -180,7 +180,7 @@ static int register_remote_participants(void)
 
     if (remote_particpant_cryptos[i] == 0)
     {
-      printf("register_matched_remote_participant: %s\n", exception.message ? exception.message : "Error message missing");
+      (void) printf("register_matched_remote_participant: %s\n", exception.message ? exception.message : "Error message missing");
       result = 1;
       break;
     }
@@ -216,20 +216,20 @@ static bool check_encoded_data(DDS_Security_OctetSeq *data, bool encrypted, stru
 
   if (remain < 20)
   {
-    printf("check_encoded_data: RTPS header missing\n");
+    (void) printf("check_encoded_data: RTPS header missing\n");
     goto fail_prefix;
   }
 
   /* rtps header first */
   if (memcmp(ptr, RTPS_HEADER, strlen(RTPS_HEADER)) != 0)
   {
-    printf("check_encoded_data: RTPS header invalid\n");
+    (void) printf("check_encoded_data: RTPS header invalid\n");
     goto fail_prefix;
   }
 
   if (remain < sizeof(struct submsg_header))
   {
-    printf("check_encoded_data: prefix missing\n");
+    (void) printf("check_encoded_data: prefix missing\n");
     goto fail_prefix;
   }
 
@@ -240,7 +240,7 @@ static bool check_encoded_data(DDS_Security_OctetSeq *data, bool encrypted, stru
 
   if (prefix->id != SMID_SRTPS_PREFIX)
   {
-    printf("check_encoded_data: prefix incorrect smid 0x%x02\n", prefix->id);
+    (void) printf("check_encoded_data: prefix incorrect smid 0x%x02\n", prefix->id);
     goto fail_prefix;
   }
 
@@ -255,7 +255,7 @@ static bool check_encoded_data(DDS_Security_OctetSeq *data, bool encrypted, stru
 
   if (hlen != sizeof(struct crypto_header))
   {
-    printf("check_encoded_data: crypto_header missing\n");
+    (void) printf("check_encoded_data: crypto_header missing\n");
     goto fail_prefix;
   }
 
@@ -264,7 +264,7 @@ static bool check_encoded_data(DDS_Security_OctetSeq *data, bool encrypted, stru
 
   if (remain < sizeof(struct crypto_header))
   {
-    printf("check_encoded_data: crypto_header too short\n");
+    (void) printf("check_encoded_data: crypto_header too short\n");
     goto fail_prefix;
   }
 
@@ -284,7 +284,7 @@ static bool check_encoded_data(DDS_Security_OctetSeq *data, bool encrypted, stru
     body = (struct submsg_header *)ptr;
     if (body->id != SMID_SEC_BODY)
     {
-      printf("check_encoded_data: submessage SEC_BODY missing\n");
+      (void) printf("check_encoded_data: submessage SEC_BODY missing\n");
       goto fail_body;
     }
     ptr += sizeof(struct submsg_header);
@@ -295,7 +295,7 @@ static bool check_encoded_data(DDS_Security_OctetSeq *data, bool encrypted, stru
     clen = swap ? ddsrt_bswap2u(body->length) : body->length;
     if (dlen > clen)
     {
-      printf("check_encoded_data: encrypted body length incorrect\n");
+      (void) printf("check_encoded_data: encrypted body length incorrect\n");
       goto fail_body;
     }
 
@@ -312,7 +312,7 @@ static bool check_encoded_data(DDS_Security_OctetSeq *data, bool encrypted, stru
     body = (struct submsg_header *)(ptr + 24); /* header after info_src */
     if (body->id == SMID_SEC_BODY)
     {
-      printf("check_encoded_data: submessage SEC_BODY not expected\n");
+      (void) printf("check_encoded_data: submessage SEC_BODY not expected\n");
       goto fail_body;
     }
     clen = swap ? ddsrt_bswap2u(body->length) : body->length;
@@ -326,7 +326,7 @@ static bool check_encoded_data(DDS_Security_OctetSeq *data, bool encrypted, stru
 
   if (clen > remain)
   {
-    printf("check_encoded_data: payload invalid size\n");
+    (void) printf("check_encoded_data: payload invalid size\n");
     goto fail_body;
   }
 
@@ -334,7 +334,7 @@ static bool check_encoded_data(DDS_Security_OctetSeq *data, bool encrypted, stru
 
   if (remain < sizeof(struct submsg_header))
   {
-    printf("check_encoded_data: postfix missing\n");
+    (void) printf("check_encoded_data: postfix missing\n");
     goto fail_postfix;
   }
 
@@ -342,7 +342,7 @@ static bool check_encoded_data(DDS_Security_OctetSeq *data, bool encrypted, stru
 
   if (postfix->id != SMID_SRTPS_POSTFIX)
   {
-    printf("check_encoded_data: postfix invalid smid\n");
+    (void) printf("check_encoded_data: postfix invalid smid\n");
     goto fail_postfix;
   }
 
@@ -351,7 +351,7 @@ static bool check_encoded_data(DDS_Security_OctetSeq *data, bool encrypted, stru
 
   if (remain < CRYPTO_HMAC_SIZE + sizeof(uint32_t))
   {
-    printf("check_encoded_data: crypto_footer incorrect size\n");
+    (void) printf("check_encoded_data: crypto_footer incorrect size\n");
     goto fail_postfix;
   }
 
@@ -471,7 +471,7 @@ crypto_decrypt_data(
   if (!crypto_calculate_session_key_test(&session_key, session_id, key_material->master_salt, key_material->master_sender_key, key_material->transformation_kind))
     return false;
 
-  printf("SessionId: %08x\n", session_id);
+  (void) printf("SessionId: %08x\n", session_id);
   print_octets("SessionKey", (const unsigned char *)session_key.data, key_size >> 3);
 
   /* create the cipher context */
@@ -643,12 +643,12 @@ static bool check_sign(DDS_Security_ParticipantCryptoHandle participant_crypto, 
   keymat = get_remote_participant_key_material(participant_crypto);
   if (key_id != keymat->receiver_specific_key_id)
   {
-    printf("check_sign: key_id(%d) does not match key_mat(%d)\n", (int)key_id, (int)keymat->receiver_specific_key_id);
+    (void) printf("check_sign: key_id(%d) does not match key_mat(%d)\n", (int)key_id, (int)keymat->receiver_specific_key_id);
     return false;
   }
   else if (!calculate_receiver_specific_key_test(&key, session_id, keymat->master_salt, keymat->master_receiver_specific_key, keymat->transformation_kind))
   {
-    printf("check_sign: calculate key failed\n");
+    (void) printf("check_sign: calculate key failed\n");
     return false;
   }
   else if (!cipher_sign_data(key.data, key_size, init_vector, common_mac, CRYPTO_HMAC_SIZE, md))
@@ -657,7 +657,7 @@ static bool check_sign(DDS_Security_ParticipantCryptoHandle participant_crypto, 
   }
   else if (memcmp(hmac, md, CRYPTO_HMAC_SIZE) != 0)
   {
-    printf("check_sign: hmac incorrect\n");
+    (void) printf("check_sign: hmac incorrect\n");
 
     //print_octets("Reader Specific Key:", key, CRYPTO_KEY_SIZE);
     //print_octets("Common:", common_mac, CRYPTO_HMAC_SIZE);
@@ -823,7 +823,7 @@ static void encode_rtps_message_not_authenticated(DDS_Security_CryptoTransformKi
 
   if (!result)
   {
-    printf("encode_rtps_message: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("encode_rtps_message: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT_FATAL(result);
@@ -852,7 +852,7 @@ static void encode_rtps_message_not_authenticated(DDS_Security_CryptoTransformKi
 
     if (!result)
     {
-      printf("Decode failed\n");
+      (void) printf("Decode failed\n");
     }
 
     CU_ASSERT_FATAL(result);
@@ -870,7 +870,7 @@ static void encode_rtps_message_not_authenticated(DDS_Security_CryptoTransformKi
                                  session_keys->master_key_material, &data, NULL, footer->common_mac);
     if (!result)
     {
-      printf("Decode failed\n");
+      (void) printf("Decode failed\n");
     }
 
     CU_ASSERT_FATAL(result);
@@ -975,7 +975,7 @@ static void encode_rtps_message_sign(DDS_Security_CryptoTransformKind_Enum trans
 
     if (!result)
     {
-      printf("encode_rtps_message: %s\n", exception.message ? exception.message : "Error message missing");
+      (void) printf("encode_rtps_message: %s\n", exception.message ? exception.message : "Error message missing");
     }
 
     CU_ASSERT_FATAL(result);
@@ -1004,7 +1004,7 @@ static void encode_rtps_message_sign(DDS_Security_CryptoTransformKind_Enum trans
                                  session_keys->master_key_material, &data, &decoded_buffer, footer->common_mac);
     if (!result)
     {
-      printf("Decode failed\n");
+      (void) printf("Decode failed\n");
     }
 
     CU_ASSERT_FATAL(result);
@@ -1021,14 +1021,14 @@ static void encode_rtps_message_sign(DDS_Security_CryptoTransformKind_Enum trans
 
     if (!result)
     {
-      printf("Decode failed\n");
+      (void) printf("Decode failed\n");
     }
 
     CU_ASSERT_FATAL(result);
     CU_ASSERT(memcmp(plain_buffer._buffer + 4, data._buffer + 8, plain_buffer._length - 4) == 0);
   }
 
-  printf("num hmacs = %u\n", footer->length);
+  (void) printf("num hmacs = %u\n", footer->length);
 
   CU_ASSERT(check_signing(&reader_list, footer, session_id, header->session_id, session_keys->key_size));
 
@@ -1119,7 +1119,7 @@ CU_Test(ddssec_builtin_encode_rtps_message, invalid_args, .init = suite_encode_r
 
   if (!result)
   {
-    printf("encode_rtps_message: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("encode_rtps_message: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT(!result);
@@ -1140,7 +1140,7 @@ CU_Test(ddssec_builtin_encode_rtps_message, invalid_args, .init = suite_encode_r
 
   if (!result)
   {
-    printf("encode_rtps_message: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("encode_rtps_message: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT(!result);
@@ -1162,7 +1162,7 @@ CU_Test(ddssec_builtin_encode_rtps_message, invalid_args, .init = suite_encode_r
 
   if (!result)
   {
-    printf("encode_rtps_message: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("encode_rtps_message: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT(!result);
@@ -1184,7 +1184,7 @@ CU_Test(ddssec_builtin_encode_rtps_message, invalid_args, .init = suite_encode_r
 
   if (!result)
   {
-    printf("encode_rtps_message: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("encode_rtps_message: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT(!result);

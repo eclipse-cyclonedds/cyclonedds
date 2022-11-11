@@ -79,7 +79,7 @@ static void cpemitchunk(struct st *st, ddsi_locator_t loc)
   // 'chunk header' 2* '\r\n' + 4 hex digits = 8 bytes
   // use buf+memcpy to avoid null terminator
   char header[11];
-  snprintf(header, sizeof (header), "\r\n%04"PRIX16"\r\n\r\n", (uint16_t)(st->pos - 8));
+  (void) snprintf(header, sizeof (header), "\r\n%04"PRIX16"\r\n\r\n", (uint16_t)(st->pos - 8));
   memcpy(st->chunkbuf, header, (st->pos > 8) ? 8 : 10);
 
   ddsrt_iovec_t iov;

@@ -148,9 +148,9 @@ static uint64_t store (struct ddsi_tkmap *tkmap, struct dds_rhc *rhc, struct dds
     ddsi_serdata_to_sample (sd, &d, NULL, NULL);
     (void) print_tstamp (buf, sizeof (buf), sd->timestamp.v);
     if (sd->kind == SDK_KEY)
-      printf ("STORE %c%c %16"PRIx64" %16"PRIx64" %2"PRId32" %6s %s\n", si_u, si_d, iid, wr->e.iid, d.k, "_", buf);
+      (void) printf ("STORE %c%c %16"PRIx64" %16"PRIx64" %2"PRId32" %6s %s\n", si_u, si_d, iid, wr->e.iid, d.k, "_", buf);
     else
-      printf ("STORE %c%c %16"PRIx64" %16"PRIx64" %2"PRId32" %6"PRId32" %s\n", si_u, si_d, iid, wr->e.iid, d.k, d.x, buf);
+      (void) printf ("STORE %c%c %16"PRIx64" %16"PRIx64" %2"PRId32" %6"PRId32" %s\n", si_u, si_d, iid, wr->e.iid, d.k, d.x, buf);
     ddsi_sertype_free_sample (sd->type, &d, DDS_FREE_CONTENTS);
   }
   pwr_info.auto_dispose = wr->c.xqos->writer_data_lifecycle.autodispose_unregistered_instances;
@@ -301,7 +301,7 @@ static void docheck (int n, const dds_sample_info_t *iseq, const RhcTypes_T *mse
 static void print_seq (int n, const dds_sample_info_t *iseq, const RhcTypes_T *mseq)
 {
   int i;
-  printf ("INDX SVI %-16s %-16s DGEN NWRG SR GR AR KV    SEQ %s\n", "INSTHANDLE", "PUBHANDLE", "TSTAMP");
+  (void) printf ("INDX SVI %-16s %-16s DGEN NWRG SR GR AR KV    SEQ %s\n", "INSTHANDLE", "PUBHANDLE", "TSTAMP");
   for (i = 0; i < n; i++)
   {
     dds_sample_info_t const * const si = &iseq[i];
@@ -309,17 +309,17 @@ static void print_seq (int n, const dds_sample_info_t *iseq, const RhcTypes_T *m
     char buf[64];
     assert(si->instance_handle);
     assert(si->publication_handle);
-    printf ("[%2d] %c%c%c %16"PRIx64" %16"PRIx64" %4"PRIu32" %4"PRIu32" %2"PRIu32" %2"PRIu32" %2"PRIu32" %2"PRId32,
+    (void) printf ("[%2d] %c%c%c %16"PRIx64" %16"PRIx64" %4"PRIu32" %4"PRIu32" %2"PRIu32" %2"PRIu32" %2"PRIu32" %2"PRId32,
             i, si2ss(si), si2vs(si), si2is(si),
             si->instance_handle, si->publication_handle,
             si->disposed_generation_count, si->no_writers_generation_count,
             si->sample_rank, si->generation_rank, si->absolute_generation_rank,
             d->k);
     if (si->valid_data)
-      printf (" %6"PRId32, d->x);
+      (void) printf (" %6"PRId32, d->x);
     else
-      printf (" %6s", "_");
-    printf (" %s\n", print_tstamp (buf, sizeof (buf), si->source_timestamp));
+      (void) printf (" %6s", "_");
+    (void) printf (" %s\n", print_tstamp (buf, sizeof (buf), si->source_timestamp));
   }
 }
 
@@ -328,20 +328,20 @@ static void rdtkcond (struct dds_rhc *rhc, dds_readcond *cond, const struct chec
   int cnt;
 
   if (print)
-    printf ("%s:\n", opname);
+    (void) printf ("%s:\n", opname);
 
   thread_state_awake_domain_ok (ddsi_lookup_thread_state ());
   cnt = op (rhc, true, rres_ptrs, rres_iseq, (max <= 0) ? (uint32_t) (sizeof (rres_iseq) / sizeof (rres_iseq[0])) : (uint32_t) max, cond ? NO_STATE_MASK_SET : (DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE), 0, cond);
   thread_state_asleep (ddsi_lookup_thread_state ());
   if (max > 0 && cnt > max) {
-    printf ("%s TOO MUCH DATA (%d > %d)\n", opname, cnt, max);
+    (void) printf ("%s TOO MUCH DATA (%d > %d)\n", opname, cnt, max);
     abort ();
   } else if (cnt > 0) {
     if (print) print_seq (cnt, rres_iseq, rres_mseq);
   } else if (cnt == 0) {
-    if (print) printf ("(no data)\n");
+    if (print) (void) printf ("(no data)\n");
   } else {
-    printf ("%s ERROR %d\n", opname, cnt);
+    (void) printf ("%s ERROR %d\n", opname, cnt);
     abort ();
   }
 
@@ -562,7 +562,7 @@ static void print_cond_w_addr (const char *label, dds_entity_t x)
     abort();
   assert (dds_entity_kind (e) == DDS_KIND_COND_READ || dds_entity_kind (e) == DDS_KIND_COND_QUERY);
   print_condmask (buf, sizeof (buf), (dds_readcond *) e);
-  printf ("%s: %"PRId32" => %p %s\n", label, x, (void *) e, buf);
+  (void) printf ("%s: %"PRId32" => %p %s\n", label, x, (void *) e, buf);
   dds_entity_unlock (e);
 }
 
@@ -650,7 +650,7 @@ static void test_conditions (dds_entity_t pp, dds_entity_t tp, const int count, 
           rhcconds[ci] = get_condaddr (conds[ci]);
           if (print) {
             char buf[18];
-            snprintf (buf, sizeof (buf), "conds[%d]", ci);
+            (void) snprintf (buf, sizeof (buf), "conds[%d]", ci);
             print_cond_w_addr (buf, conds[ci]);
           }
           dds_waitset_attach(waitset, conds[ci], ci);
@@ -761,7 +761,7 @@ static void test_conditions (dds_entity_t pp, dds_entity_t tp, const int count, 
     if (100 * i / count > lastprint_pct)
     {
       lastprint_pct = 100 * i / count;
-      printf ("%d%%%c", lastprint_pct, print ? '\n' : '\r');
+      (void) printf ("%d%%%c", lastprint_pct, print ? '\n' : '\r');
       fflush (stdout);
     }
 
@@ -877,24 +877,24 @@ static void test_conditions (dds_entity_t pp, dds_entity_t tp, const int count, 
   }
 
   for (size_t oper = 0; oper < sizeof (opcount) / sizeof (opcount[0]); oper++)
-    printf ("%5s: %8"PRIu32"\n", operstr[oper], opcount[oper]);
+    (void) printf ("%5s: %8"PRIu32"\n", operstr[oper], opcount[oper]);
   for (int i = 0; i < (int) (sizeof (states_seen) / sizeof (states_seen[0])); i++)
   {
     const char sst = (i & 1) ? 'N' : 'R';
     const char vst = (i & 2) ? 'N' : 'O';
     const char ist = (i >> 2) == 2 ? 'A' : (i >> 2) == 1 ? 'D' : 'U';
-    printf ("%c%c%c: invalid %8"PRIu32" valid %8"PRIu32"\n", sst, vst, ist, states_seen[i][0], states_seen[i][1]);
+    (void) printf ("%c%c%c: invalid %8"PRIu32" valid %8"PRIu32"\n", sst, vst, ist, states_seen[i][0], states_seen[i][1]);
   }
 
   dds_waitset_detach (waitset, gdcond);
   for (int ci = 0; ci < nconds; ci++)
     dds_waitset_detach (waitset, conds[ci]);
-  dds_delete (waitset);
-  dds_delete (gdcond);
+  (void) dds_delete (waitset);
+  (void) dds_delete (gdcond);
   for (int ci = 0; ci < nconds; ci++)
-    dds_delete (conds[ci]);
+    (void) dds_delete (conds[ci]);
   for (size_t i = 0; i < nrd; i++)
-    dds_delete (rd[i]);
+    (void) dds_delete (rd[i]);
   for (size_t i = 0, n = (sizeof (wr) / sizeof (wr[0])); i < n; i++)
     fwr (wr[i]);
 }
@@ -972,7 +972,7 @@ int main (int argc, char **argv)
       abort ();
   }
 
-  printf ("%"PRId64" prng seed %u first %d count %d print %d xchecks %d\n", dds_time (), seed, first, count, print, xchecks);
+  (void) printf ("%"PRId64" prng seed %u first %d count %d print %d xchecks %d\n", dds_time (), seed, first, count, print, xchecks);
   ddsrt_prng_init_simple (&prng, seed);
 
   if (xchecks != 0)
@@ -1002,7 +1002,7 @@ int main (int argc, char **argv)
   {
     struct ddsi_domaingv *gv = get_gv (pp);
     struct ddsi_tkmap *tkmap = gv->m_tkmap;
-    printf ("%"PRId64" ************* 0 *************\n", dds_time ());
+    (void) printf ("%"PRId64" ************* 0 *************\n", dds_time ());
     struct dds_rhc *rhc = mkrhc (gv, NULL, DDS_HISTORY_KEEP_LAST, 1, DDS_DESTINATIONORDER_BY_SOURCE_TIMESTAMP);
     struct ddsi_proxy_writer *wr0 = mkwr (1);
     struct ddsi_proxy_writer *wr1 = mkwr (1);
@@ -1076,7 +1076,7 @@ int main (int argc, char **argv)
   {
     struct ddsi_domaingv *gv = get_gv (pp);
     struct ddsi_tkmap *tkmap = gv->m_tkmap;
-    printf ("%"PRId64" ************* 1 *************\n", dds_time ());
+    (void) printf ("%"PRId64" ************* 1 *************\n", dds_time ());
     struct dds_rhc *rhc = mkrhc (gv, NULL, DDS_HISTORY_KEEP_LAST, 4, DDS_DESTINATIONORDER_BY_SOURCE_TIMESTAMP);
     struct ddsi_proxy_writer *wr[] = { mkwr (0), mkwr (0), mkwr (0) };
     uint64_t iid0, iid_t;
@@ -1153,11 +1153,11 @@ int main (int argc, char **argv)
     for (int zz = 0; zz < (int) (sizeof (zztab) / sizeof (zztab[0])); zz++)
       if (zz + 2 >= first)
       {
-        printf ("%"PRId64" ************* %d *************\n", dds_time (), zz + 2);
+        (void) printf ("%"PRId64" ************* %d *************\n", dds_time (), zz + 2);
         test_conditions (pp, tp, count, zztab[zz].create, zztab[zz].filter0, zztab[zz].filter1, print);
       }
   }
-  printf ("%"PRId64" cleaning up\n", dds_time ());
+  (void) printf ("%"PRId64" cleaning up\n", dds_time ());
 
   ddsrt_cond_destroy (&wait_gc_cycle_cond);
   ddsrt_mutex_destroy (&wait_gc_cycle_lock);
@@ -1166,7 +1166,7 @@ int main (int argc, char **argv)
     RhcTypes_T_free (&rres_mseq[i], DDS_FREE_CONTENTS);
 
   ddsi_sertype_unref (mdtype);
-  dds_delete (pp);
+  (void) dds_delete (pp);
 
   if (sttarg.when)
   {

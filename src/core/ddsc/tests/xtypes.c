@@ -85,8 +85,8 @@ static void xtypes_init (void)
 
 static void xtypes_fini (void)
 {
-  dds_delete (g_domain2);
-  dds_delete (g_domain1);
+  (void) dds_delete (g_domain2);
+  (void) dds_delete (g_domain1);
 }
 
 static bool reader_wait_for_data (dds_entity_t pp, dds_entity_t rd, dds_duration_t dur)
@@ -99,7 +99,7 @@ static bool reader_wait_for_data (dds_entity_t pp, dds_entity_t rd, dds_duration
   ret = dds_waitset_wait (ws, &triggered, 1, dur);
   if (ret > 0)
     CU_ASSERT_EQUAL_FATAL (rd, (dds_entity_t)(intptr_t) triggered);
-  dds_delete (ws);
+  (void) dds_delete (ws);
   return ret > 0;
 }
 
@@ -335,7 +335,7 @@ CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc1, const dds_to
 {
   for (int t = 0; t <= 1; t++)
   {
-    printf ("Running test xtypes_basic: %s (run %d/2)\n", descr, t + 1);
+    (void) printf ("Running test xtypes_basic: %s (run %d/2)\n", descr, t + 1);
     sample_init i = t ? fn_init2 : fn_init1;
     sample_check c = t ? fn_check2 : fn_check1;
     do_test (t ? desc1 : desc2, NULL, t ? desc2 : desc1, NULL, i != NULL, i, c != NULL, c);
@@ -404,7 +404,7 @@ CU_TheoryDataPoints (ddsc_xtypes, must_understand) = {
 CU_Theory ((const dds_topic_descriptor_t *rd_desc, const dds_topic_descriptor_t *wr_desc, bool assignable, sample_init fn_init, bool read_sample),
     ddsc_xtypes, must_understand, .init = xtypes_init, .fini = xtypes_fini)
 {
-  printf ("Running test xtypes_must_understand: %s %s\n", wr_desc->m_typename, rd_desc->m_typename);
+  (void) printf ("Running test xtypes_must_understand: %s %s\n", wr_desc->m_typename, rd_desc->m_typename);
   do_test (rd_desc, NULL, wr_desc, NULL, assignable, fn_init, read_sample, 0);
 }
 #undef D
@@ -462,7 +462,7 @@ CU_Theory ((const char *test, const dds_topic_descriptor_t *rd_desc, const dds_t
     bool prevent_type_widening, bool ignore_seq_bounds, bool ignore_str_bounds, bool ignore_member_names, bool force_type_validation, bool assignable),
   ddsc_xtypes, type_consistency_enforcement, .init = xtypes_init, .fini = xtypes_fini)
 {
-  printf ("Running test xtypes_type_consistency_enforcement: %s wr %s rd %s\n", test, wr_desc->m_typename, rd_desc->m_typename);
+  (void) printf ("Running test xtypes_type_consistency_enforcement: %s wr %s rd %s\n", test, wr_desc->m_typename, rd_desc->m_typename);
   dds_qos_t *rd_qos = dds_create_qos ();
   dds_qset_type_consistency (rd_qos, kind, ignore_seq_bounds, ignore_str_bounds, ignore_member_names, prevent_type_widening, force_type_validation);
   do_test (rd_desc, rd_qos, wr_desc, NULL, assignable, 0, false, 0);
@@ -484,7 +484,7 @@ CU_Test (ddsc_xtypes, type_consistency_enforcement_force_validation, .init = xty
   for (uint32_t n = 0; n <= 1; n++)
   {
     bool force_type_validation = (n == 1);
-    printf ("Running test type_consistency_enforcement_force_validation: force_type_validation = %s\n", force_type_validation ? "true" : "false");
+    (void) printf ("Running test type_consistency_enforcement_force_validation: force_type_validation = %s\n", force_type_validation ? "true" : "false");
     dds_qos_t *rd_qos = dds_create_qos ();
     dds_qset_type_consistency (rd_qos, DDS_TYPE_CONSISTENCY_ALLOW_TYPE_COERCION, true, true, false, false, force_type_validation);
     do_test (&XSpaceNoTypeInfo_t1_desc, rd_qos, &XSpaceNoTypeInfo_t1_desc, NULL, !force_type_validation, 0, false, 0);
@@ -531,7 +531,7 @@ CU_TheoryDataPoints (ddsc_xtypes, enum_extensibility) = {
 CU_Theory ((const dds_topic_descriptor_t *rd_desc, const dds_topic_descriptor_t *wr_desc, bool assignable, sample_init fn_init, bool read_sample),
     ddsc_xtypes, enum_extensibility, .init = xtypes_init, .fini = xtypes_fini)
 {
-  printf ("Running test xtypes_enum: %s %s\n", wr_desc->m_typename, rd_desc->m_typename);
+  (void) printf ("Running test xtypes_enum: %s %s\n", wr_desc->m_typename, rd_desc->m_typename);
   do_test (rd_desc, NULL, wr_desc, NULL, assignable, fn_init, read_sample, 0);
 }
 
@@ -818,7 +818,7 @@ CU_TheoryDataPoints (ddsc_xtypes, invalid_type_object_local) = {
 CU_Theory ((const char *test_descr, const dds_topic_descriptor_t *topic_desc, typeobj_modify mod, bool matching_typeinfo), ddsc_xtypes, invalid_type_object_local, .init = xtypes_init, .fini = xtypes_fini)
 {
   char topic_name[100];
-  printf("Test invalid_type_object_local: %s\n", test_descr);
+  (void) printf("Test invalid_type_object_local: %s\n", test_descr);
 
   dds_topic_descriptor_t desc;
   modify_type_meta (&desc, topic_desc, mod, matching_typeinfo, DDS_XTypes_EK_MINIMAL);
@@ -881,7 +881,7 @@ CU_TheoryDataPoints (ddsc_xtypes, invalid_type_object_remote) = {
 CU_Theory ((const char *test_descr, const dds_topic_descriptor_t *topic_desc, typeobj_modify mod), ddsc_xtypes, invalid_type_object_remote, .init = xtypes_init, .fini = xtypes_fini)
 {
   struct ddsi_domaingv *gv = get_domaingv (g_participant1);
-  printf("Test invalid_type_object_remote: %s\n", test_descr);
+  (void) printf("Test invalid_type_object_remote: %s\n", test_descr);
 
   char topic_name[100];
   create_unique_topic_name ("ddsc_xtypes", topic_name, sizeof (topic_name));

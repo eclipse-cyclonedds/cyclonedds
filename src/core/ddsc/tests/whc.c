@@ -73,13 +73,13 @@ static void whc_init(void)
 static void whc_fini (void)
 {
   dds_delete_qos(g_qos);
-  dds_delete(g_subscriber);
-  dds_delete(g_remote_subscriber);
-  dds_delete(g_publisher);
-  dds_delete(g_participant);
-  dds_delete(g_remote_participant);
-  dds_delete(g_domain);
-  dds_delete(g_remote_domain);
+  (void) dds_delete(g_subscriber);
+  (void) dds_delete(g_remote_subscriber);
+  (void) dds_delete(g_publisher);
+  (void) dds_delete(g_participant);
+  (void) dds_delete(g_remote_participant);
+  (void) dds_delete(g_domain);
+  (void) dds_delete(g_remote_domain);
 }
 
 static dds_entity_t create_and_sync_reader(dds_entity_t subscriber, dds_entity_t topic, dds_qos_t *qos, dds_entity_t writer)
@@ -119,7 +119,7 @@ static void check_intermediate_whc_state(dds_entity_t writer, seqno_t exp_min, s
   get_writer_whc_state (writer, &whcst);
   /* WHC must not contain any samples < exp_min and must contain at least exp_max if it
      contains at least one sample.  (We never know for certain when ACKs arrive.) */
-  printf(" -- intermediate state: unacked: %zu; min %"PRIu64" (exp %"PRIu64"); max %"PRIu64" (exp %"PRIu64")\n", whcst.unacked_bytes, whcst.min_seq, exp_min, whcst.max_seq, exp_max);
+  (void) printf(" -- intermediate state: unacked: %zu; min %"PRIu64" (exp %"PRIu64"); max %"PRIu64" (exp %"PRIu64")\n", whcst.unacked_bytes, whcst.min_seq, exp_min, whcst.max_seq, exp_max);
   CU_ASSERT_FATAL (whcst.min_seq >= exp_min || (whcst.min_seq == 0 && whcst.max_seq == 0));
   CU_ASSERT_FATAL (whcst.max_seq == exp_max || (whcst.min_seq == 0 && whcst.max_seq == 0));
 }
@@ -128,7 +128,7 @@ static void check_whc_state(dds_entity_t writer, seqno_t exp_min, seqno_t exp_ma
 {
   struct whc_state whcst;
   get_writer_whc_state (writer, &whcst);
-  printf(" -- final state: unacked: %zu; min %"PRIu64" (exp %"PRIu64"); max %"PRIu64" (exp %"PRIu64")\n", whcst.unacked_bytes, whcst.min_seq, exp_min, whcst.max_seq, exp_max);
+  (void) printf(" -- final state: unacked: %zu; min %"PRIu64" (exp %"PRIu64"); max %"PRIu64" (exp %"PRIu64")\n", whcst.unacked_bytes, whcst.min_seq, exp_min, whcst.max_seq, exp_max);
   CU_ASSERT_EQUAL_FATAL (whcst.unacked_bytes, 0);
   CU_ASSERT_EQUAL_FATAL (whcst.min_seq, exp_min);
   CU_ASSERT_EQUAL_FATAL (whcst.max_seq, exp_max);
@@ -152,7 +152,7 @@ static void test_whc_end_state(dds_durability_kind_t d, dds_reliability_kind_t r
   dds_return_t ret;
   int32_t s, i;
 
-  printf ("test_whc_end_state: %s, %s, %s(%d), durability %s(%d), readers: %u local, %u remote, instances: %"PRId32", key %u, deadline %"PRId64"\n",
+  (void) printf ("test_whc_end_state: %s, %s, %s(%d), durability %s(%d), readers: %u local, %u remote, instances: %"PRId32", key %u, deadline %"PRId64"\n",
       d == V ? "volatile" : "TL",
       r == BE ? "best-effort" : "reliable",
       h == KA ? "keep-all" : "keep-last", h == KA ? 0 : hd,
@@ -244,9 +244,9 @@ static void test_whc_end_state(dds_durability_kind_t d, dds_reliability_kind_t r
   int32_t exp_min = (d == TL) ? ((dh == KA) ? 1 : exp_max - dhd * ni + 1) : 0;
   check_whc_state (writer, (uint32_t)exp_min, (uint32_t)exp_max);
 
-  dds_delete (writer);
-  dds_delete (remote_topic);
-  dds_delete (topic);
+  (void) dds_delete (writer);
+  (void) dds_delete (remote_topic);
+  (void) dds_delete (topic);
 }
 
 #define ARRAY_LEN(A) ((int32_t)(sizeof(A) / sizeof(A[0])))

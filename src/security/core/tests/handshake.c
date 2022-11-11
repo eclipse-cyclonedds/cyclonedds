@@ -179,7 +179,7 @@ CU_Test(ddssec_handshake, check_tokens)
         case REMOTE_READER_TOKENS: exp_type = LOCAL_READER_TOKENS; break;
         default: CU_FAIL ("Unexpected token type");
       }
-      printf("- find token %s #%"PRIuSIZE", len %"PRIuSIZE"\n", get_crypto_token_type_str (token_data->type), n, token_data->data_len[n]);
+      (void) printf("- find token %s #%"PRIuSIZE", len %"PRIuSIZE"\n", get_crypto_token_type_str (token_data->type), n, token_data->data_len[n]);
       struct crypto_token_data *st = find_crypto_token (crypto_context_sub, exp_type, token_data->data[n], token_data->data_len[n]);
       CU_ASSERT_FATAL (st != NULL);
     }

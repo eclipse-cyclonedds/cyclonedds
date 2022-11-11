@@ -248,7 +248,7 @@ DDSRT_WARNING_GNUC_OFF(sign-conversion)
 #else
       {
           in_addr_t x = ntohl(((struct sockaddr_in *)sa)->sin_addr.s_addr);
-          snprintf(buf,size,"%u.%u.%u.%u",(x>>24),(x>>16)&0xff,(x>>8)&0xff,x&0xff);
+          (void) snprintf(buf,size,"%u.%u.%u.%u",(x>>24),(x>>16)&0xff,(x>>8)&0xff,x&0xff);
           ptr = buf;
       }
 #endif

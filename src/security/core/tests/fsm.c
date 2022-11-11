@@ -32,7 +32,7 @@ static struct dds_security_fsm_control *g_fsm_control = NULL;
 #define DO_SIMPLE(name, var, bit) static void name(struct dds_security_fsm *fsm, void *arg) { \
   DDSRT_UNUSED_ARG(fsm); \
   DDSRT_UNUSED_ARG(arg); \
-  printf("Transition %s\n", __FUNCTION__); \
+  (void) printf("Transition %s\n", __FUNCTION__); \
   ddsrt_mutex_lock(&g_lock); \
   visited_##var |= 1u << (bit); \
   ddsrt_cond_broadcast(&g_cond); \
@@ -97,12 +97,12 @@ static void fsm_control_fini (void)
   dds_security_fsm_control_free (g_fsm_control);
   ddsrt_mutex_destroy (&g_lock);
   ddsrt_cond_destroy (&g_cond);
-  dds_delete (g_participant);
+  (void) dds_delete (g_participant);
 }
 
 static void a (struct dds_security_fsm *fsm, void *arg)
 {
-  printf ("[%p] Transition %s\n", fsm, __FUNCTION__);
+  (void) printf ("[%p] Transition %s\n", fsm, __FUNCTION__);
   ddsrt_mutex_lock (&g_lock);
   if (arg != NULL)
     correct_arg = *((int *) arg) == FSM_AUTH_ARG ? 1 : 0;
@@ -133,7 +133,7 @@ typedef enum {
 
 static plugin_ret validate_remote_identity (void)
 {
-  printf ("validate_remote_identity - %d\n", validate_remote_identity_first);
+  (void) printf ("validate_remote_identity - %d\n", validate_remote_identity_first);
   if (validate_remote_identity_first)
   {
     validate_remote_identity_first = 0;
@@ -144,7 +144,7 @@ static plugin_ret validate_remote_identity (void)
 
 static plugin_ret begin_handshake_reply (void)
 {
-  printf ("begin_handshake_reply - %d\n", begin_handshake_reply_first);
+  (void) printf ("begin_handshake_reply - %d\n", begin_handshake_reply_first);
   if (begin_handshake_reply_first)
   {
     begin_handshake_reply_first = 0;
@@ -163,7 +163,7 @@ static void fsm_validate_remote_identity (struct dds_security_fsm *fsm, void *ar
 {
   DDSRT_UNUSED_ARG(arg);
   plugin_ret ret = validate_remote_identity ();
-  printf ("[%p] State %s (ret %d)\n", fsm, __FUNCTION__, (int) ret);
+  (void) printf ("[%p] State %s (ret %d)\n", fsm, __FUNCTION__, (int) ret);
   dds_security_fsm_dispatch (fsm, (int32_t) ret, false);
 }
 
@@ -173,7 +173,7 @@ static void fsm_begin_handshake_reply (struct dds_security_fsm *fsm, void *arg)
   plugin_ret ret = begin_handshake_reply ();
   if (ret == VALIDATION_OK_FINAL_MESSAGE)
     ret = get_shared_secret ();
-  printf ("[%p] State %s (ret %d)\n", fsm, __FUNCTION__, (int) ret);
+  (void) printf ("[%p] State %s (ret %d)\n", fsm, __FUNCTION__, (int) ret);
   dds_security_fsm_dispatch (fsm, (int32_t) ret, false);
 }
 
@@ -250,7 +250,7 @@ static void do_stuff (struct dds_security_fsm *fsm, void *arg)
 {
   DDSRT_UNUSED_ARG (fsm);
   DDSRT_UNUSED_ARG (arg);
-  printf ("Transition %s - %d\n", __FUNCTION__, do_stuff_counter);
+  (void) printf ("Transition %s - %d\n", __FUNCTION__, do_stuff_counter);
   ddsrt_mutex_lock (&g_lock);
   visited_test |= 1u << 2;
   ddsrt_cond_broadcast (&g_cond);
@@ -266,7 +266,7 @@ static void do_other_stuff (struct dds_security_fsm *fsm, void *arg)
 {
   DDSRT_UNUSED_ARG (fsm);
   DDSRT_UNUSED_ARG (arg);
-  printf ("Transition %s - %d\n", __FUNCTION__, do_other_stuff_counter);
+  (void) printf ("Transition %s - %d\n", __FUNCTION__, do_other_stuff_counter);
   ddsrt_mutex_lock (&g_lock);
   visited_test |= 1u << 3;
   ddsrt_cond_broadcast (&g_cond);
@@ -313,19 +313,19 @@ DO_SIMPLE (timeout_cb2, timeout, 3)
 static void do_timeout (struct dds_security_fsm *fsm, void *arg)
 {
   DDSRT_UNUSED_ARG (arg);
-  printf ("Transition >>>> %s\n", __FUNCTION__);
+  (void) printf ("Transition >>>> %s\n", __FUNCTION__);
   ddsrt_mutex_lock (&g_lock);
   visited_timeout |= 1u << 1;
   ddsrt_cond_broadcast (&g_cond);
   ddsrt_mutex_unlock (&g_lock);
-  printf ("Transition <<<< %s\n", __FUNCTION__);
+  (void) printf ("Transition <<<< %s\n", __FUNCTION__);
   dds_security_fsm_dispatch (fsm, event_to_timeout, false);
 }
 
 static void timeout_cb (struct dds_security_fsm *fsm, void *arg)
 {
   struct fsm_timeout_arg *farg = arg;
-  printf ("timeout_cb\n");
+  (void) printf ("timeout_cb\n");
   ddsrt_mutex_lock (&g_lock);
   visited_timeout |= 1u << 2;
   if (farg != NULL)
@@ -413,7 +413,7 @@ CU_Test(ddssec_fsm, create, .init = fsm_control_init, .fini = fsm_control_fini)
   ddsrt_mutex_lock (&g_lock);
   while (!in_handshake_init_message_wait)
   {
-    printf ("waiting until handshake_init_message_wait state reached\n");
+    (void) printf ("waiting until handshake_init_message_wait state reached\n");
     ddsrt_cond_wait (&g_cond, &g_lock);
   }
   ddsrt_mutex_unlock (&g_lock);
@@ -421,7 +421,7 @@ CU_Test(ddssec_fsm, create, .init = fsm_control_init, .fini = fsm_control_fini)
   while (dds_security_fsm_running (fsm_auth))
     dds_sleepfor (DDS_MSECS (10));
   ddsrt_mutex_lock (&g_lock);
-  printf ("visited_auth == 0x%x\n", visited_auth);
+  (void) printf ("visited_auth == 0x%x\n", visited_auth);
   CU_ASSERT (visited_auth == 0xff);
   ddsrt_mutex_unlock (&g_lock);
 
@@ -454,7 +454,7 @@ CU_Test(ddssec_fsm, multiple, .init = fsm_control_init, .fini = fsm_control_fini
   ddsrt_mutex_lock (&g_lock);
   while (!in_handshake_init_message_wait)
   {
-    printf ("waiting until handshake_init_message_wait state reached\n");
+    (void) printf ("waiting until handshake_init_message_wait state reached\n");
     ddsrt_cond_wait (&g_cond, &g_lock);
   }
   ddsrt_mutex_unlock (&g_lock);
@@ -462,7 +462,7 @@ CU_Test(ddssec_fsm, multiple, .init = fsm_control_init, .fini = fsm_control_fini
   while (dds_security_fsm_running (fsm_auth))
     dds_sleepfor (DDS_MSECS (10));
   ddsrt_mutex_lock (&g_lock);
-  printf ("visited_auth == 0x%x\n", visited_auth);
+  (void) printf ("visited_auth == 0x%x\n", visited_auth);
   CU_ASSERT (visited_auth == 0x55);
   ddsrt_mutex_unlock (&g_lock);
 
@@ -470,7 +470,7 @@ CU_Test(ddssec_fsm, multiple, .init = fsm_control_init, .fini = fsm_control_fini
   while (dds_security_fsm_running (fsm_auth))
     dds_sleepfor (DDS_MSECS (10));
   ddsrt_mutex_lock (&g_lock);
-  printf ("visited_test == 0x%x\n", visited_test);
+  (void) printf ("visited_test == 0x%x\n", visited_test);
   CU_ASSERT (visited_test == 0x1f);
   ddsrt_mutex_unlock (&g_lock);
 
@@ -540,10 +540,10 @@ CU_Test(ddssec_fsm, parallel_timeout, .init = fsm_control_init, .fini = fsm_cont
   dds_duration_t delta1 = time1 - time0;
   dds_duration_t delta2 = time2 - time0;
   dds_duration_t delta3 = time3 - time0;
-  printf ("time0 %"PRId64"\n", time0);
-  printf ("time1 %"PRId64", delta1 %"PRId64"\n", time1, delta1);
-  printf ("time2 %"PRId64", delta2 %"PRId64"\n", time2, delta2);
-  printf ("time3 %"PRId64", delta3 %"PRId64"\n", time3, delta3);
+  (void) printf ("time0 %"PRId64"\n", time0);
+  (void) printf ("time1 %"PRId64", delta1 %"PRId64"\n", time1, delta1);
+  (void) printf ("time2 %"PRId64", delta2 %"PRId64"\n", time2, delta2);
+  (void) printf ("time3 %"PRId64", delta3 %"PRId64"\n", time3, delta3);
   CU_ASSERT (delta1 > DDS_MSECS (750));
   CU_ASSERT (delta1 < DDS_MSECS (1250));
   CU_ASSERT (delta2 > DDS_MSECS (1750));

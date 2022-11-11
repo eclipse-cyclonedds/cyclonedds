@@ -1147,7 +1147,7 @@ bool ddsi_is_assignable_from (struct ddsi_domaingv *gv, const struct ddsi_type_p
 
 char *ddsi_make_typeid_str_impl (struct ddsi_typeid_str *buf, const DDS_XTypes_TypeIdentifier *type_id)
 {
-  snprintf (buf->str, sizeof (buf->str), PTYPEIDFMT, PTYPEID (*type_id));
+  (void) snprintf (buf->str, sizeof (buf->str), PTYPEIDFMT, PTYPEID (*type_id));
   return buf->str;
 }
 

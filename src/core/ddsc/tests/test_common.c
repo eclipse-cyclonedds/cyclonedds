@@ -39,7 +39,7 @@ static void sync_reader_writer_impl (dds_entity_t participant_rd, dds_entity_t r
     CU_ASSERT_EQUAL_FATAL (ret, 0);
   ret = dds_waitset_detach (waitset_rd, reader);
   CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
-  dds_delete (waitset_rd);
+  (void) dds_delete (waitset_rd);
 
   /* Sync writer to reader. */
   ret = dds_set_status_mask (writer, DDS_PUBLICATION_MATCHED_STATUS);
@@ -56,7 +56,7 @@ static void sync_reader_writer_impl (dds_entity_t participant_rd, dds_entity_t r
     CU_ASSERT_EQUAL_FATAL (ret, 0);
   ret = dds_waitset_detach (waitset_wr, writer);
   CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
-  dds_delete (waitset_wr);
+  (void) dds_delete (waitset_wr);
 }
 
 void sync_reader_writer (dds_entity_t participant_rd, dds_entity_t reader, dds_entity_t participant_wr, dds_entity_t writer)

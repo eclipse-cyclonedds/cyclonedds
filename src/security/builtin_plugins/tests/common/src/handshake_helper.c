@@ -55,12 +55,12 @@ dh_set_public_key(
 /* for DEBUG purposes */
 void print_binary_test( char* name, unsigned char *value, uint32_t size){
     uint32_t i;
-    printf("%s: ",name );
+    (void) printf("%s: ",name );
     for( i=0; i<  size; i++)
     {
-        printf("%x",value[i]);
+        (void) printf("%x",value[i]);
     }
-    printf("\n");
+    (void) printf("\n");
 }
 
 DDS_Security_BinaryProperty_t *
@@ -298,21 +298,21 @@ modp_data_to_pubkey(
 
     if (!(asni = d2i_ASN1_INTEGER(NULL, &data, (long)size))) {
         char *msg = get_openssl_error_message_for_test();
-        printf("Failed to decode DH public key: %s", msg);
+        (void) printf("Failed to decode DH public key: %s", msg);
         ddsrt_free(msg);
         goto fail_asni;
     }
 
     if (!(bn = ASN1_INTEGER_to_BN(asni, NULL))) {
         char *msg = get_openssl_error_message_for_test();
-        printf("Failed to convert to BIGNU<: %s", msg);
+        (void) printf("Failed to convert to BIGNU<: %s", msg);
         ddsrt_free(msg);
         goto fail_bn;
     }
 
     if (!(dhkey = DH_get_2048_256())) {
         char *msg = get_openssl_error_message_for_test();
-        printf("Failed to allocate dhkey: %s", msg);
+        (void) printf("Failed to allocate dhkey: %s", msg);
         ddsrt_free(msg);
         goto fail_dhkey;
     }
@@ -321,14 +321,14 @@ modp_data_to_pubkey(
 
     if (!(pkey = EVP_PKEY_new())) {
         char *msg = get_openssl_error_message_for_test();
-        printf("Failed to allocate pkey: %s", msg);
+        (void) printf("Failed to allocate pkey: %s", msg);
         ddsrt_free(msg);
         goto fail_pkey;
     }
 
     if (!EVP_PKEY_set1_DH(pkey, dhkey)) {
         char *msg = get_openssl_error_message_for_test();
-        printf("Failed to set public key: %s", msg);
+        (void) printf("Failed to set public key: %s", msg);
         ddsrt_free(msg);
         EVP_PKEY_free(pkey);
         pkey = NULL;
@@ -361,35 +361,35 @@ ecdh_data_to_pubkey(
 
     if (!(group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1))) {
         char *msg = get_openssl_error_message_for_test();
-        printf("Failed to allocate EC group: %s", msg);
+        (void) printf("Failed to allocate EC group: %s", msg);
         ddsrt_free(msg);
     } else if (!(point = EC_POINT_new(group))) {
         char *msg = get_openssl_error_message_for_test();
-        printf("Failed to allocate EC point: %s", msg);
+        (void) printf("Failed to allocate EC point: %s", msg);
         ddsrt_free(msg);
     } else if (EC_POINT_oct2point(group, point, data, size, NULL) != 1) {
         char *msg = get_openssl_error_message_for_test();
-        printf("Failed to deserialize EC public key to EC point: %s", msg);
+        (void) printf("Failed to deserialize EC public key to EC point: %s", msg);
         ddsrt_free(msg);
     } else if (!(eckey = EC_KEY_new())) {
         char *msg = get_openssl_error_message_for_test();
-        printf("Failed to allocate EC KEY: %s", msg);
+        (void) printf("Failed to allocate EC KEY: %s", msg);
         ddsrt_free(msg);
     } else if (EC_KEY_set_group(eckey, group) != 1) {
         char *msg = get_openssl_error_message_for_test();
-        printf("Failed to convert octet sequence to ASN1 integer: %s", msg);
+        (void) printf("Failed to convert octet sequence to ASN1 integer: %s", msg);
         ddsrt_free(msg);
     } else if (EC_KEY_set_public_key(eckey, point) != 1) {
         char *msg = get_openssl_error_message_for_test();
-        printf("Failed to set EC public key: %s", msg);
+        (void) printf("Failed to set EC public key: %s", msg);
         ddsrt_free(msg);
     } else if (!(pkey = EVP_PKEY_new())) {
         char *msg = get_openssl_error_message_for_test();
-        printf("Failed to allocate EVP key: %s", msg);
+        (void) printf("Failed to allocate EVP key: %s", msg);
         ddsrt_free(msg);
     } else if (EVP_PKEY_set1_EC_KEY(pkey, eckey) != 1) {
         char *msg = get_openssl_error_message_for_test();
-        printf("Failed to set EVP key to EC public key: %s", msg);
+        (void) printf("Failed to set EVP key to EC public key: %s", msg);
         ddsrt_free(msg);
         EVP_PKEY_free(pkey);
         pkey = NULL;
@@ -450,8 +450,8 @@ check_shared_secret(
     {
            /* Error */
         char *msg = get_openssl_error_message_for_test();
-        printf("DH remote public: %s\n",dh_remote->value._buffer);
-        printf("SSL Error: %s\n", msg);
+        (void) printf("DH remote public: %s\n",dh_remote->value._buffer);
+        (void) printf("SSL Error: %s\n", msg);
         ddsrt_free(msg);
         CU_FAIL("Could not set peer");
     }

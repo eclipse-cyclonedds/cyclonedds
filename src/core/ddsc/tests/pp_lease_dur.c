@@ -28,7 +28,7 @@ struct guidstr { char s[4*8+4]; };
 static char *guidstr (struct guidstr *dst, const dds_guid_t *g)
 {
   const uint8_t *v = g->v;
-  snprintf (dst->s, sizeof (dst->s), "%02x%02x%02x%02x:%02x%02x%02x%02x:%02x%02x%02x%02x:%02x%02x%02x%02x",
+  (void) snprintf (dst->s, sizeof (dst->s), "%02x%02x%02x%02x:%02x%02x%02x%02x:%02x%02x%02x%02x:%02x%02x%02x%02x",
             v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11], v[12], v[13], v[14], v[15]);
   return dst->s;
 }

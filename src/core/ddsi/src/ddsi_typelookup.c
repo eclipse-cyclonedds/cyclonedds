@@ -83,7 +83,7 @@ static int32_t tl_request_get_deps (struct ddsi_domaingv * const gv, struct ddsr
     if (!ddsi_type_resolved_locked (gv, dep_type, DDSI_TYPE_IGNORE_DEPS))
     {
       assert (ddsi_typeid_is_hash (&dep_type->xt.id));
-      ddsrt_hh_add (deps, &dep_type->xt.id);
+      (void)ddsrt_hh_add (deps, &dep_type->xt.id);
       cnt++;
       dep_type->state = DDSI_TYPE_REQUESTED;
     }

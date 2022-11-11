@@ -112,7 +112,7 @@ static int register_local_participant(void)
                     &exception);
 
      if (local_participant_handle == DDS_SECURITY_HANDLE_NIL) {
-         printf("register_local_participant: %s\n", exception.message ? exception.message : "Error message missing");
+         (void) printf("register_local_participant: %s\n", exception.message ? exception.message : "Error message missing");
      }
 
      return local_participant_handle ? 0 : -1;
@@ -133,7 +133,7 @@ static int register_remote_participant(void)
                     &exception);
 
      if (remote_participant_handle == DDS_SECURITY_HANDLE_NIL) {
-         printf("register_matched_remote_participant: %s\n", exception.message ? exception.message : "Error message missing");
+         (void) printf("register_matched_remote_participant: %s\n", exception.message ? exception.message : "Error message missing");
      }
 
      return remote_participant_handle ? 0 : -1;
@@ -167,7 +167,7 @@ static int register_local_datareader(void)
 
 
     if (local_reader_crypto == 0)
-        printf("register_local_datawriter: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("register_local_datawriter: %s\n", exception.message ? exception.message : "Error message missing");
 
     return local_reader_crypto ? 0 : -1;
 }
@@ -188,7 +188,7 @@ static int register_remote_datareader(void)
                     &exception);
 
     if (remote_reader_crypto == 0)
-        printf("register_matched_remote_datareader: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("register_matched_remote_datareader: %s\n", exception.message ? exception.message : "Error message missing");
 
     return remote_reader_crypto ? 0 : -1;
 }
@@ -212,7 +212,7 @@ static int register_local_datawriter(void)
 
 
     if (local_writer_crypto == 0)
-        printf("register_local_datawriter: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("register_local_datawriter: %s\n", exception.message ? exception.message : "Error message missing");
 
     return local_writer_crypto ? 0 : -1;
 }
@@ -230,7 +230,7 @@ static int register_remote_datawriter(void)
                                         &exception);
 
     if (remote_writer_crypto == 0)
-        printf("register_matched_remote_datareader: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("register_matched_remote_datareader: %s\n", exception.message ? exception.message : "Error message missing");
 
     return remote_writer_crypto ? 0 : -1;
 }
@@ -477,7 +477,7 @@ CU_Test(ddssec_builtin_preprocess_secure_submsg, writer_happy_day, .init = suite
                 &exception);
 
     if (!result)
-        printf("preprocess_secure_submsg: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("preprocess_secure_submsg: %s\n", exception.message ? exception.message : "Error message missing");
 
     CU_ASSERT_FATAL(result);
     CU_ASSERT(exception.code == 0);
@@ -503,7 +503,7 @@ CU_Test(ddssec_builtin_preprocess_secure_submsg, writer_happy_day, .init = suite
                 &exception);
 
     if (!result)
-        printf("preprocess_secure_submsg: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("preprocess_secure_submsg: %s\n", exception.message ? exception.message : "Error message missing");
 
     CU_ASSERT_FATAL(result);
     CU_ASSERT(exception.code == 0);
@@ -546,7 +546,7 @@ CU_Test(ddssec_builtin_preprocess_secure_submsg, reader_happy_day, .init = suite
                 &exception);
 
     if (!result)
-        printf("preprocess_secure_submsg: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("preprocess_secure_submsg: %s\n", exception.message ? exception.message : "Error message missing");
 
     CU_ASSERT_FATAL(result);
     CU_ASSERT(exception.code == 0);
@@ -569,7 +569,7 @@ CU_Test(ddssec_builtin_preprocess_secure_submsg, reader_happy_day, .init = suite
                 &exception);
 
     if (!result)
-        printf("preprocess_secure_submsg: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("preprocess_secure_submsg: %s\n", exception.message ? exception.message : "Error message missing");
 
     CU_ASSERT_FATAL(result);
     CU_ASSERT(exception.code == 0);
@@ -613,7 +613,7 @@ CU_Test(ddssec_builtin_preprocess_secure_submsg, invalid_args, .init = suite_pre
             &exception);
 
     if (!result)
-        printf("preprocess_secure_submsg: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("preprocess_secure_submsg: %s\n", exception.message ? exception.message : "Error message missing");
 
     CU_ASSERT(!result);
     CU_ASSERT(exception.code != 0);
@@ -632,7 +632,7 @@ CU_Test(ddssec_builtin_preprocess_secure_submsg, invalid_args, .init = suite_pre
             &exception);
 
     if (!result)
-        printf("preprocess_secure_submsg: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("preprocess_secure_submsg: %s\n", exception.message ? exception.message : "Error message missing");
 
     CU_ASSERT(!result);
     CU_ASSERT(exception.code != 0);
@@ -671,7 +671,7 @@ CU_Test(ddssec_builtin_preprocess_secure_submsg, invalid_message, .init = suite_
             &exception);
 
     if (!result)
-        printf("preprocess_secure_submsg: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("preprocess_secure_submsg: %s\n", exception.message ? exception.message : "Error message missing");
 
     CU_ASSERT(!result);
     CU_ASSERT(exception.code != 0);
@@ -696,7 +696,7 @@ CU_Test(ddssec_builtin_preprocess_secure_submsg, invalid_message, .init = suite_
                 &exception);
 
         if (!result)
-            printf("preprocess_secure_submsg: %s\n", exception.message ? exception.message : "Error message missing");
+            (void) printf("preprocess_secure_submsg: %s\n", exception.message ? exception.message : "Error message missing");
 
         CU_ASSERT(!result);
         CU_ASSERT(exception.code != 0);
@@ -720,7 +720,7 @@ CU_Test(ddssec_builtin_preprocess_secure_submsg, invalid_message, .init = suite_
                 &exception);
 
         if (!result)
-            printf("preprocess_secure_submsg: %s\n", exception.message ? exception.message : "Error message missing");
+            (void) printf("preprocess_secure_submsg: %s\n", exception.message ? exception.message : "Error message missing");
 
         CU_ASSERT(!result);
         CU_ASSERT(exception.code != 0);
@@ -821,7 +821,7 @@ CU_Test(ddssec_builtin_preprocess_secure_submsg, volatile_secure, .init = suite_
                 &exception);
 
     if (!result)
-        printf("preprocess_secure_submsg: %s\n", exception.message ? exception.message : "Error message missing");
+        (void) printf("preprocess_secure_submsg: %s\n", exception.message ? exception.message : "Error message missing");
 
     CU_ASSERT_FATAL(result);
     CU_ASSERT(exception.code == 0);

@@ -348,11 +348,11 @@ static struct ddsi_serdata_default *serdata_default_from_ser_common (const struc
     goto err;
   // for (int n = 0; n < d->key.keysize; n++) {
   //   if (d->key.buftype == KEYBUFTYPE_DYNALLOC || d->key.buftype == KEYBUFTYPE_DYNALIAS)
-  //     printf("%02x ", d->key.u.dynbuf[n]);
+  //     (void) printf("%02x ", d->key.u.dynbuf[n]);
   //   else
-  //     printf("%02x ", d->key.u.stbuf[n]);
+  //     (void) printf("%02x ", d->key.u.stbuf[n]);
   // }
-  // printf("\n");
+  // (void) printf("\n");
   return d;
 
 err:

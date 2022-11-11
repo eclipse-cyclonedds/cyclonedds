@@ -452,8 +452,8 @@ EOF
             # col 1: appl receive bandwidth, 1s trailing average (Mb/s)
             # col 2: appl receive bandwidth, 10s trailing average (Mb/s)
             # (this assumes the network interface name is eth, en, or lo, optionally followed by a 0)
-            perl -ne 'if(/size \d+ total.* (\d+\.\d+) Mb\/s.* (\d+\.\d+) Mb\/s/){$r=$1;$r10=$2;}if(/(?:eth|en|lo)0?: xmit.*? recv (\d+\.\d+)/){$rnet=$1;}if(/discarded\s+(\d+)/){printf "%f %f %f %u\n", $rnet, $r, $r10, $1;}' $outdir/sub-$1.log > $resultdir/summary-$async_mode-$sub_mode.txt
-            perl -ne 'if(/(?:eth|en|lo)0?: xmit (\d+\.\d+) Mb\/s/){printf "%f\n", $1}' $outdir/pub.log > $resultdir/net-xmit-bytes.txt
+            perl -ne 'if(/size \d+ total.* (\d+\.\d+) Mb\/s.* (\d+\.\d+) Mb\/s/){$r=$1;$r10=$2;}if(/(?:eth|en|lo)0?: xmit.*? recv (\d+\.\d+)/){$rnet=$1;}if(/discarded\s+(\d+)/){(void) printf "%f %f %f %u\n", $rnet, $r, $r10, $1;}' $outdir/sub-$1.log > $resultdir/summary-$async_mode-$sub_mode.txt
+            perl -ne 'if(/(?:eth|en|lo)0?: xmit (\d+\.\d+) Mb\/s/){(void) printf "%f\n", $1}' $outdir/pub.log > $resultdir/net-xmit-bytes.txt
             perl -ne 'print "$1 $2 $3 $4 $5\n" if /^(\d+)\s+(\d+)(\s+\d+)$/ || /^\[\d+\]\s+(\d+\.\d+)\s+discarded\s+\d+\s+rexmit\s+(\d+)\s+[A-Za-z_ ]+(\d+)[A-Za-z_ ]+(\d+)[A-Za-z_ ]+(\d+)$/' $outdir/pub.log > $resultdir/rexmit-bytes.txt
             if $netstats ; then
                 perl -ne 'print "$1\n" if /time=([0-9.]+)/' $outdir/icmpping.log > $resultdir/lat.log

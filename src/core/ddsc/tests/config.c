@@ -60,7 +60,7 @@ CU_Test (ddsc_config, simple_udp, .init = ddsrt_init, .fini = ddsrt_fini)
   config__check_env ("MAX_PARTICIPANTS", CONFIG_ENV_MAX_PARTICIPANTS);
   participant = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
   CU_ASSERT_FATAL (participant> 0);
-  dds_delete (participant);
+  (void) dds_delete (participant);
 }
 
 CU_Test (ddsc_config, user_config, .init = ddsrt_init, .fini = ddsrt_fini)
@@ -81,7 +81,7 @@ CU_Test (ddsc_config, user_config, .init = ddsrt_init, .fini = ddsrt_fini)
   dds_entity_t participant_3 = dds_create_participant (1, NULL, NULL);
   CU_ASSERT(participant_3 < 0);
 
-  dds_delete (domain);
+  (void) dds_delete (domain);
 }
 
 CU_Test (ddsc_config, ignoredpartition, .init = ddsrt_init, .fini = ddsrt_fini)
@@ -253,7 +253,7 @@ CU_Test (ddsc_config, ignoredpartition, .init = ddsrt_init, .fini = ddsrt_fini)
   CU_ASSERT_FATAL (sample.long_3 == s_i.long_3);
 
   dds_delete_qos (qos);
-  dds_delete (DDS_CYCLONEDDS_HANDLE);
+  (void) dds_delete (DDS_CYCLONEDDS_HANDLE);
 #endif
 }
 
@@ -453,7 +453,7 @@ CU_Test(ddsc_config, multiple_domains, .init = ddsrt_init, .fini = ddsrt_fini)
   found = 0;
   doms[0] = dds_create_domain (53, config);
   CU_ASSERT_FATAL (doms[0] > 0);
-  printf ("found = %d\n", found);
+  (void) printf ("found = %d\n", found);
   CU_ASSERT_FATAL (found == 7);
 
   dds_set_log_sink (&logger, (void *) exp[1]);
@@ -461,7 +461,7 @@ CU_Test(ddsc_config, multiple_domains, .init = ddsrt_init, .fini = ddsrt_fini)
   found = 0;
   doms[1] = dds_create_domain (54, config);
   CU_ASSERT_FATAL (doms[1] > 0 && doms[1] != doms[0]);
-  printf ("found = %d\n", found);
+  (void) printf ("found = %d\n", found);
   CU_ASSERT_FATAL (found == 7);
 
   dds_set_log_sink (&logger, (void *) exp[2]);
@@ -469,7 +469,7 @@ CU_Test(ddsc_config, multiple_domains, .init = ddsrt_init, .fini = ddsrt_fini)
   found = 0;
   doms[2] = dds_create_domain (57, config);
   CU_ASSERT_FATAL (doms[2] > 0 && doms[2] != doms[1] && doms[2] != doms[0]);
-  printf ("found = %d\n", found);
+  (void) printf ("found = %d\n", found);
   CU_ASSERT_FATAL (found == 7);
 
   for (int i = 0; i < 3; i++)

@@ -138,7 +138,7 @@ static void unregister_return_obj (struct dds_security_access_control_impl * imp
   else
   {
     impl->invalid_return = true;
-    printf ("invalid return %p\n", obj);
+    (void) printf ("invalid return %p\n", obj);
   }
   ddsrt_mutex_unlock (&impl->returns_log_lock);
 }
@@ -932,7 +932,7 @@ int finalize_test_access_control_wrapped(void *context)
   assert (impl->mode == PLUGIN_MODE_WRAPPED);
   bool returns_valid = all_returns_valid (impl);
   fini_returns_log (impl);
-  printf("returns result (impl %p): %s\n", impl, returns_valid ? "all valid" : "invalid");
+  (void) printf("returns result (impl %p): %s\n", impl, returns_valid ? "all valid" : "invalid");
   CU_ASSERT_FATAL (returns_valid);
   return finalize_test_access_control_common (impl, true);
 }

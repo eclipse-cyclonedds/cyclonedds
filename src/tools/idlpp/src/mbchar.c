@@ -786,7 +786,7 @@ static size_t   mb_read_utf8(
                 /* Illegal  */
             error = TRUE;
 #if 0
-        printf( "codepoint:0x%x\n", codepoint);
+        (void) printf( "codepoint:0x%x\n", codepoint);
 #endif
         if (error)
             break;

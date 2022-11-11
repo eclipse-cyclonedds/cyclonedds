@@ -39,7 +39,7 @@ int main (int argc, char ** argv)
     DDS_FATAL("dds_create_reader: %s\n", dds_strretcode(-reader));
   dds_delete_qos(qos);
 
-  printf ("\n=== [Subscriber] Waiting for a sample ...\n");
+  (void) printf ("\n=== [Subscriber] Waiting for a sample ...\n");
   fflush (stdout);
 
   /* Initialize sample buffer, by pointing the void pointer within
@@ -60,8 +60,8 @@ int main (int argc, char ** argv)
     {
       /* Print Message. */
       msg = (HelloWorldData_Msg*) samples[0];
-      printf ("=== [Subscriber] Received : ");
-      printf ("Message (%"PRId32", %s)\n", msg->userID, msg->message);
+      (void) printf ("=== [Subscriber] Received : ");
+      (void) printf ("Message (%"PRId32", %s)\n", msg->userID, msg->message);
       fflush (stdout);
       break;
     }

@@ -78,7 +78,7 @@ static void setup(void)
 
 static void teardown(void)
 {
-  dds_delete(pp);
+  (void) dds_delete(pp);
 }
 
 static void simple_callback(dds_security_time_event_handle_t timer, dds_time_t trigger_time, dds_security_timed_cb_kind_t kind, void *arg)
@@ -106,7 +106,7 @@ static void test_callback(dds_security_time_event_handle_t timer, dds_time_t tri
 
   DDSRT_UNUSED_ARG(timer);
 
-  printf("event %"PRIu64" triggered\n", timer);
+  (void) printf("event %"PRIu64" triggered\n", timer);
 
   if (test_seq->index < test_seq->size)
   {
@@ -242,7 +242,7 @@ CU_Test(ddssec_timed_cb, test_create_dispatcher, .init = setup, .fini = teardown
   }
 
   /* The sleeps are added to get the timing between 'present' and 'past' callbacks right. */
-  printf("before enable\n");
+  (void) printf("before enable\n");
   dds_sleepfor(DDS_MSECS(300));
   dds_security_timed_dispatcher_enable(d);
   dds_sleepfor(DDS_MSECS(900));
@@ -250,7 +250,7 @@ CU_Test(ddssec_timed_cb, test_create_dispatcher, .init = setup, .fini = teardown
 
   if (test_seq_data.index >= test_seq_data.size)
   {
-    printf("Unexpected number of triggers: %u vs %u\n", test_seq_data.index, test_seq_data.size);
+    (void) printf("Unexpected number of triggers: %u vs %u\n", test_seq_data.index, test_seq_data.size);
     CU_FAIL_FATAL("Unexpected number of triggers");
   }
 
@@ -258,25 +258,25 @@ CU_Test(ddssec_timed_cb, test_create_dispatcher, .init = setup, .fini = teardown
   {
     if (expected[i].kind != received[i].kind)
     {
-      printf("Unexpected kind at %u: %d vs %d\n", i, received[i].kind, expected[i].kind);
+      (void) printf("Unexpected kind at %u: %d vs %d\n", i, received[i].kind, expected[i].kind);
       CU_FAIL_FATAL("Unexpected kind");
     }
     if (expected[i].kind == EVENT_TRIGGERED)
     {
       if (expected[i].timer != received[i].timer)
       {
-        printf("Unexpected ordering at %u: %"PRIu64" vs %"PRIu64"\n", i, received[i].timer, expected[i].timer);
+        (void) printf("Unexpected ordering at %u: %"PRIu64" vs %"PRIu64"\n", i, received[i].timer, expected[i].timer);
         CU_FAIL_FATAL("Unexpected ordering");
       }
       if (expected[i].trigger_time != received[i].trigger_time)
       {
-        printf("Unexpected trigger_time at %u: %"PRId64" vs %"PRId64"\n", i, received[i].trigger_time, expected[i].trigger_time);
+        (void) printf("Unexpected trigger_time at %u: %"PRId64" vs %"PRId64"\n", i, received[i].trigger_time, expected[i].trigger_time);
         CU_FAIL_FATAL("Unexpected trigger_time");
       }
     }
   }
 
-  printf("before disable\n");
+  (void) printf("before disable\n");
   dds_security_timed_dispatcher_free(d);
   dds_sleepfor(DDS_MSECS(200));
 
@@ -285,19 +285,19 @@ CU_Test(ddssec_timed_cb, test_create_dispatcher, .init = setup, .fini = teardown
 
   if (expected[i].kind != received[i].kind)
   {
-    printf("Unexpected kind at %u: %d vs %d\n", i, received[i].kind, expected[i].kind);
+    (void) printf("Unexpected kind at %u: %d vs %d\n", i, received[i].kind, expected[i].kind);
     CU_FAIL_FATAL("Unexpected kind");
   }
   if (expected[i].kind == EVENT_DELETED)
   {
     if (expected[i].timer != received[i].timer)
     {
-      printf("Unexpected ordering at %u: %"PRIu64" vs %"PRIu64"\n", i, received[i].timer, expected[i].timer);
+      (void) printf("Unexpected ordering at %u: %"PRIu64" vs %"PRIu64"\n", i, received[i].timer, expected[i].timer);
       CU_FAIL_FATAL("Unexpected ordering");
     }
     if (expected[i].trigger_time != received[i].trigger_time)
     {
-      printf("Unexpected trigger_time at %u: %"PRId64" vs %"PRId64"\n", i, received[i].trigger_time, expected[i].trigger_time);
+      (void) printf("Unexpected trigger_time at %u: %"PRId64" vs %"PRId64"\n", i, received[i].trigger_time, expected[i].trigger_time);
       CU_FAIL_FATAL("Unexpected trigger_time");
     }
   }
@@ -351,19 +351,19 @@ CU_Test(ddssec_timed_cb, test_remove_timer, .init = setup, .fini = teardown)
   {
     if (expected[i].kind != received[i].kind)
     {
-      printf("Unexpected kind at %u: %d vs %d\n", i, received[i].kind, expected[i].kind);
+      (void) printf("Unexpected kind at %u: %d vs %d\n", i, received[i].kind, expected[i].kind);
       CU_FAIL_FATAL("Unexpected kind");
     }
     if (expected[i].kind == EVENT_TRIGGERED)
     {
       if (expected[i].timer != received[i].timer)
       {
-        printf("Unexpected ordering at %u: %"PRIu64" vs %"PRIu64"\n", i, received[i].timer, expected[i].timer);
+        (void) printf("Unexpected ordering at %u: %"PRIu64" vs %"PRIu64"\n", i, received[i].timer, expected[i].timer);
         CU_FAIL_FATAL("Unexpected ordering");
       }
       if (expected[i].trigger_time != received[i].trigger_time)
       {
-        printf("Unexpected trigger_time at %u: %"PRId64" vs %"PRId64"\n", i, received[i].trigger_time, expected[i].trigger_time);
+        (void) printf("Unexpected trigger_time at %u: %"PRId64" vs %"PRId64"\n", i, received[i].trigger_time, expected[i].trigger_time);
         CU_FAIL_FATAL("Unexpected trigger_time");
       }
     }

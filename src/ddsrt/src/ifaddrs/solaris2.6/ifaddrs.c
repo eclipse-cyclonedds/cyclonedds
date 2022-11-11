@@ -59,7 +59,7 @@ ddsrt_getifaddrs(
       continue; /* Forget about anonymous network devices */
 
     if (ifr->ifr_addr.sa_family != AF_INET) {
-      printf ("%s: not INET\n", ifr->ifr_name);
+      (void) printf ("%s: not INET\n", ifr->ifr_name);
       continue;
     }
 

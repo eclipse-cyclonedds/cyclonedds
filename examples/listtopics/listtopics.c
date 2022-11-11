@@ -54,10 +54,10 @@ static bool process_topic (dds_entity_t readcond)
   {
     dds_builtintopic_topic_t const * const sample = samples[i];
     struct keystr gs;
-    printf ("%s: %s", instance_state_str (infos[i].instance_state), keystr (&gs, &sample->key));
+    (void) printf ("%s: %s", instance_state_str (infos[i].instance_state), keystr (&gs, &sample->key));
     if (infos[i].valid_data)
     {
-      printf (" %s %s", sample->topic_name, sample->type_name);
+      (void) printf (" %s %s", sample->topic_name, sample->type_name);
       if (strncmp (sample->topic_name, "DCPS", 4) != 0)
       {
         /* Topic names starting with DCPS are guaranteed to be built-in topics, so we
@@ -65,7 +65,7 @@ static bool process_topic (dds_entity_t readcond)
         topics_seen = true;
       }
     }
-    printf ("\n");
+    (void) printf ("\n");
   }
   /* Release memory allocated by dds_take */
   (void) dds_return_loan (readcond, samples, n);
@@ -102,7 +102,7 @@ int main (int argc, char **argv)
   const dds_entity_t participant = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
   if (participant < 0)
   {
-    fprintf (stderr, "dds_create_participant: %s\n", dds_strretcode (participant));
+    (void) fprintf (stderr, "dds_create_participant: %s\n", dds_strretcode (participant));
     return 1;
   }
 
@@ -117,10 +117,10 @@ int main (int argc, char **argv)
   if (reader < 0)
   {
     if (reader == DDS_RETCODE_UNSUPPORTED)
-      fprintf (stderr, "Topic discovery is not included in the build, rebuild with ENABLE_TOPIC_DISCOVERY=ON\n");
+      (void) fprintf (stderr, "Topic discovery is not included in the build, rebuild with ENABLE_TOPIC_DISCOVERY=ON\n");
     else
-      fprintf (stderr, "dds_create_reader(DCPSTopic): %s\n", dds_strretcode (reader));
-    dds_delete (participant);
+      (void) fprintf (stderr, "dds_create_reader(DCPSTopic): %s\n", dds_strretcode (reader));
+    (void) dds_delete (participant);
     return 1;
   }
 
@@ -173,9 +173,9 @@ int main (int argc, char **argv)
   }
   if (!topics_seen && endpoints_exist)
   {
-    fprintf (stderr, "No topics discovered but remote readers/writers exist. Is topic discovery enabled in the configuration?\n");
+    (void) fprintf (stderr, "No topics discovered but remote readers/writers exist. Is topic discovery enabled in the configuration?\n");
   }
 
-  dds_delete (participant);
+  (void) dds_delete (participant);
   return 0;
 }

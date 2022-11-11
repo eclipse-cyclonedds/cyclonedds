@@ -52,7 +52,7 @@ ${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}\
 
 static void teardown (void)
 {
-  dds_delete (g_domain);
+  (void) dds_delete (g_domain);
 }
 
 enum cdqobe_kind {

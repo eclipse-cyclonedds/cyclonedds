@@ -217,14 +217,14 @@ idlc_load_generator(idlc_generator_plugin_t *plugin, const char *lang)
       plugin->generator_options = loadsym(handle, "generator_options");
       plugin->generator_annotations = loadsym(handle, "generator_annotations");
     } else {
-      fprintf(stderr, "Symbol 'generate' not found in %s\n", path);
+      (void) fprintf(stderr, "Symbol 'generate' not found in %s\n", path);
       closelib(handle);
     }
   }
   else {
     char errmsg[300];
     liberror(errmsg, sizeof(errmsg));
-    fprintf(stderr, "Cannot load generator %s: %s\n", path, errmsg);
+    (void) fprintf(stderr, "Cannot load generator %s: %s\n", path, errmsg);
   }
 
   if (file) {

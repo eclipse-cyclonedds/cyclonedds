@@ -881,6 +881,10 @@ add_union_case(const idl_pstate_t *pstate, struct descriptor_type_meta *dtm, DDS
   if (cnt) {
     m.common.label_seq._buffer = idl_calloc (cnt, sizeof (*m.common.label_seq._buffer));
     c.common.label_seq._buffer = idl_calloc (cnt, sizeof (*c.common.label_seq._buffer));
+    if (NULL == m.common.label_seq._buffer || NULL == c.common.label_seq._buffer) {
+      ret = IDL_RETCODE_NO_MEMORY;
+      goto err;
+    }
     for (cl = case_node->labels, n = 0; cl; cl = idl_next (cl)) {
       if ((idl_mask(cl) & mask) != mask) {
         int64_t val = idl_case_label_intvalue (cl);

@@ -86,15 +86,15 @@ CU_Test(ddsc_shm_serialization, get_serialized_size) {
   size_t serialized_size = ddsi_serdata_size(serdata) - sizeof(struct CDRHeader);
   ddsi_serdata_unref(serdata);
 
-  printf("required size %zu \n", required_size);
-  printf("actual_serialized_size %zu \n", serialized_size);
+  (void) printf("required size %zu \n", required_size);
+  (void) printf("actual_serialized_size %zu \n", serialized_size);
   // serialized size is always a multiple of 4 (padding is added to ensure this)
   CU_ASSERT(required_size == serialized_size);
   CU_ASSERT(required_size % 4 == 0);
 
   dds_topic_unpin(tp);
 
-  dds_delete(participant);
+  (void) dds_delete(participant);
   rc = dds_delete(DDS_CYCLONEDDS_HANDLE);
   CU_ASSERT_FATAL(rc == 0);  
 }
@@ -104,9 +104,9 @@ CU_Test(ddsc_shm_serialization, get_serialized_size) {
 static void printbuffer(void* buffer, size_t n) {
   char* buf = (char*) buffer;
   for (size_t i = 0; i < n; i++) {
-    printf("%02x ", buf[i] & 0xff);
+    (void) printf("%02x ", buf[i] & 0xff);
   }
-  printf("\n");
+  (void) printf("\n");
 }
 
 CU_Test(ddsc_shm_serialization, serialize_into) {
@@ -148,15 +148,15 @@ CU_Test(ddsc_shm_serialization, serialize_into) {
 
   CU_ASSERT(memcmp(d->data, buffer, serialized_size) == 0);
  
-  printf("buffer  ");
+  (void) printf("buffer  ");
   printbuffer(buffer, serialized_size);
-  printf("serdata ");
+  (void) printf("serdata ");
   printbuffer(d->data, serialized_size);
 
   ddsi_serdata_unref(serdata);
   dds_free(buffer);
   dds_topic_unpin(tp);
-  dds_delete(participant);
+  (void) dds_delete(participant);
   rc = dds_delete(DDS_CYCLONEDDS_HANDLE);
   CU_ASSERT_FATAL(rc == 0);
 }
@@ -239,7 +239,7 @@ CU_Test(ddsc_shm_serialization, transmit_dynamic_type, .timeout = 30) {
   }
 
   if (received != 1 || !infos[0].valid_data) {
-    printf("Failure - nothing received\n");
+    (void) printf("Failure - nothing received\n");
     goto fail;
   }
 
@@ -248,13 +248,13 @@ CU_Test(ddsc_shm_serialization, transmit_dynamic_type, .timeout = 30) {
   CU_ASSERT(compare_messages(&sample, received_sample));
 
   dds_delete_qos(qos);
-  dds_delete(participant);
+  (void) dds_delete(participant);
   rc = dds_delete(DDS_CYCLONEDDS_HANDLE);
   CU_ASSERT_FATAL(rc == 0);  
   return;
 fail:
   dds_delete_qos(qos);
-  dds_delete(participant);
-  dds_delete(DDS_CYCLONEDDS_HANDLE);
+  (void) dds_delete(participant);
+  (void) dds_delete(DDS_CYCLONEDDS_HANDLE);
   CU_FAIL();
 }

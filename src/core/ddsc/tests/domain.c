@@ -228,7 +228,7 @@ CU_Test(ddsc_domain_create, after_domain)
   domain2 = dds_create_domain(4, "<CycloneDDS><Domain><Id>any</Id></Domain></CycloneDDS>");
   CU_ASSERT_FATAL(domain2 == DDS_RETCODE_PRECONDITION_NOT_MET);
 
-  dds_delete(domain1);
+  (void) dds_delete(domain1);
 }
 
 CU_Test(ddsc_domain_create, after_participant)
@@ -242,7 +242,7 @@ CU_Test(ddsc_domain_create, after_participant)
   domain = dds_create_domain(5, "<CycloneDDS><Domain><Id>any</Id></Domain></CycloneDDS>");
   CU_ASSERT_FATAL(domain == DDS_RETCODE_PRECONDITION_NOT_MET);
 
-  dds_delete(participant);
+  (void) dds_delete(participant);
 }
 
 CU_Test(ddsc_domain_create, diff)
@@ -351,7 +351,7 @@ CU_Test(ddsc_domain_create, raw_config)
   dds_set_trace_sink (logsink, &arg_xml);
   domain = dds_create_domain (1, "<Tracing><Category>config</Category></Tracing>");
   CU_ASSERT_FATAL(domain > 0);
-  dds_delete (domain);
+  (void) dds_delete (domain);
 
   struct ddsi_config config;
   ddsi_config_init_default (&config);
@@ -362,7 +362,7 @@ CU_Test(ddsc_domain_create, raw_config)
   dds_set_trace_sink (logsink, &arg_raw);
   domain = dds_create_domain_with_rawconfig (1, &config);
   CU_ASSERT_FATAL(domain > 0);
-  dds_delete (domain);
+  (void) dds_delete (domain);
 
   dds_set_trace_sink (0, NULL);
 
@@ -382,9 +382,9 @@ CU_Test(ddsc_domain_create, raw_config)
     CU_ASSERT (i == arg_xml.size);
     CU_ASSERT (j == arg_raw.size);
     for (; i < arg_xml.size; i++)
-      printf ("XML: %s", arg_xml.buf[i]);
+      (void) printf ("XML: %s", arg_xml.buf[i]);
     for (; j < arg_raw.size; j++)
-      printf ("RAW: %s", arg_raw.buf[j]);
+      (void) printf ("RAW: %s", arg_raw.buf[j]);
   }
 
   for (size_t i = 0; i < arg_xml.size; i++)

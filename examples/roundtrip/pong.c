@@ -52,7 +52,7 @@ static void data_available(dds_entity_t rd, void *arg)
 
     if (info[j].instance_state == DDS_IST_NOT_ALIVE_DISPOSED)
     {
-      printf ("Received termination request. Terminating.\n");
+      (void) printf ("Received termination request. Terminating.\n");
       dds_waitset_set_trigger (waitSet, true);
       break;
     }
@@ -224,7 +224,7 @@ static dds_entity_t prepare_dds(dds_entity_t *wr, dds_entity_t *rd, dds_entity_t
   if (status < 0)
     DDS_FATAL("dds_waitset_attach: %s\n", dds_strretcode(-status));
 
-  printf ("Waiting for samples from ping to send back...\n");
+  (void) printf ("Waiting for samples from ping to send back...\n");
   fflush (stdout);
 
   return participant;

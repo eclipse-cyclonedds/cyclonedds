@@ -105,15 +105,15 @@ fini_entity_status(void)
     dds_waitset_detach(waitSetrd, rea);
     dds_waitset_detach(waitSetwr, wri);
 
-    dds_delete(waitSetrd);
-    dds_delete(waitSetwr);
-    dds_delete(wri);
-    dds_delete(publisher);
-    dds_delete(rea);
+    (void) dds_delete(waitSetrd);
+    (void) dds_delete(waitSetwr);
+    (void) dds_delete(wri);
+    (void) dds_delete(publisher);
+    (void) dds_delete(rea);
     dds_delete_qos(qos);
-    dds_delete(top);
-    dds_delete(subscriber);
-    dds_delete(participant);
+    (void) dds_delete(top);
+    (void) dds_delete(subscriber);
+    (void) dds_delete(participant);
 }
 
 /****************************************************************************
@@ -151,7 +151,7 @@ CU_Test(ddsc_entity_status, publication_matched, .init=init_entity_status, .fini
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     /* Un-match the publication by deleting the reader. */
-    dds_delete(rea);
+    (void) dds_delete(rea);
 
     /* Wait for publication matched status */
     ret = dds_waitset_wait(waitSetwr, wsresults, wsresultsize, waitTimeout);
@@ -206,7 +206,7 @@ CU_Test(ddsc_entity_status, subscription_matched, .init=init_entity_status, .fin
     CU_ASSERT_EQUAL_FATAL(ret, 0);
 
     /* Un-match the subscription by deleting the writer. */
-    dds_delete(wri);
+    (void) dds_delete(wri);
 
     /* Wait for subscription  matched status */
     ret = dds_waitset_wait(waitSetrd, wsresults, wsresultsize, waitTimeout);
@@ -299,7 +299,7 @@ CU_Test(ddsc_entity, incompatible_qos, .init=init_entity_status, .fini=fini_enti
     ret = dds_waitset_detach(waitSetrd, reader2);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
-    dds_delete(reader2);
+    (void) dds_delete(reader2);
 }
 
 CU_Test(ddsc_entity, liveliness_changed, .init=init_entity_status, .fini=fini_entity_status)
@@ -343,7 +343,7 @@ CU_Test(ddsc_entity, liveliness_changed, .init=init_entity_status, .fini=fini_en
     /* Reset writer */
     ret = dds_waitset_detach(waitSetwr, wri);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
-    dds_delete(wri);
+    (void) dds_delete(wri);
 
     /* wait for LIVELINESS_CHANGED when a writer is deleted */
     ret = dds_waitset_wait(waitSetrd, wsresults, wsresultsize, waitTimeout);
@@ -457,7 +457,7 @@ Test(ddsc_entity, inconsistent_topic)
     status = dds_waitset_wait(waitSetrd, wsresults, wsresultsize, shortTimeout);
     CU_ASSERT_EQUAL_FATAL(status, 0);
 
-    dds_delete(top);
+    (void) dds_delete(top);
 }
 #endif
 
@@ -549,7 +549,7 @@ CU_Test(ddsc_entity, data_available, .init=init_entity_status, .fini=fini_entity
     ret = dds_waitset_detach(waitSetrd, rea);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 
-    dds_delete(rea);
+    (void) dds_delete(rea);
 
     /* Wait for reader to be deleted */
     ret = dds_waitset_wait(waitSetwr, wsresults, wsresultsize, waitTimeout);
@@ -662,7 +662,7 @@ CU_Test(ddsc_entity, all_data_available, .init=init_entity_status, .fini=fini_en
 
     RoundTripModule_DataType_free (&s_sample, DDS_FREE_CONTENTS);
 
-    dds_delete(reader2);
+    (void) dds_delete(reader2);
 
     /* Wait for reader to be deleted */
     ret = dds_waitset_wait(waitSetwr, wsresults, wsresultsize, waitTimeout);
@@ -686,7 +686,7 @@ CU_Theory((dds_entity_t e), ddsc_get_enabled_status, bad_param, .init=init_entit
 CU_Test(ddsc_get_enabled_status, deleted_reader, .init=init_entity_status, .fini=fini_entity_status)
 {
     uint32_t mask;
-    dds_delete(rea);
+    (void) dds_delete(rea);
     ret = dds_get_status_mask(rea, &mask);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
 }
@@ -721,7 +721,7 @@ CU_Theory((dds_entity_t e), ddsc_set_enabled_status, bad_param, .init=init_entit
 
 CU_Test(ddsc_set_enabled_status, deleted_reader, .init=init_entity_status, .fini=fini_entity_status)
 {
-    dds_delete(rea);
+    (void) dds_delete(rea);
     ret = dds_set_status_mask(rea, 0 /*mask*/);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
 }
@@ -757,7 +757,7 @@ CU_Theory((dds_entity_t e), ddsc_read_status, bad_param, .init=init_entity_statu
 CU_Test(ddsc_read_status, deleted_reader, .init=init_entity_status, .fini=fini_entity_status)
 {
     uint32_t status;
-    dds_delete(rea);
+    (void) dds_delete(rea);
     ret = dds_read_status(rea, &status, 0 /*mask*/);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
 }
@@ -808,7 +808,7 @@ CU_Theory((dds_entity_t e), ddsc_take_status, bad_param, .init=init_entity_statu
 CU_Test(ddsc_take_status, deleted_reader, .init=init_entity_status, .fini=fini_entity_status)
 {
     uint32_t status;
-    dds_delete(rea);
+    (void) dds_delete(rea);
     ret = dds_take_status(rea, &status, 0 /*mask*/);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
 }
@@ -846,7 +846,7 @@ CU_Theory((dds_entity_t e), ddsc_get_status_changes, bad_param, .init=init_entit
 CU_Test(ddsc_get_status_changes, deleted_reader, .init=init_entity_status, .fini=fini_entity_status)
 {
     uint32_t status;
-    dds_delete(rea);
+    (void) dds_delete(rea);
     ret = dds_get_status_changes(rea, &status);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
 }
@@ -881,7 +881,7 @@ CU_Theory((dds_entity_t e), ddsc_triggered, bad_param, .init=init_entity_status,
 
 CU_Test(ddsc_triggered, deleted_reader, .init=init_entity_status, .fini=fini_entity_status)
 {
-    dds_delete(rea);
+    (void) dds_delete(rea);
     ret = dds_triggered(rea);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
 }
@@ -943,7 +943,7 @@ CU_Theory((dds_entity_t *topic), ddsc_get_inconsistent_topic_status, non_topics,
 /*************************************************************************************************/
 CU_Test(ddsc_get_inconsistent_topic_status, deleted_topic, .init=init_entity_status, .fini=fini_entity_status)
 {
-    dds_delete(top);
+    (void) dds_delete(top);
     ret = dds_get_inconsistent_topic_status(top, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
 }
@@ -985,7 +985,7 @@ CU_Theory((dds_entity_t *writer), ddsc_get_publication_matched_status, non_write
 /*************************************************************************************************/
 CU_Test(ddsc_get_publication_matched_status, deleted_writer, .init=init_entity_status, .fini=fini_entity_status)
 {
-    dds_delete(wri);
+    (void) dds_delete(wri);
     ret = dds_get_publication_matched_status(wri, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
 }
@@ -1038,7 +1038,7 @@ CU_Theory((dds_entity_t *writer), ddsc_get_liveliness_lost_status, non_writers, 
 /*************************************************************************************************/
 CU_Test(ddsc_get_liveliness_lost_status, deleted_writer, .init=init_entity_status, .fini=fini_entity_status)
 {
-    dds_delete(wri);
+    (void) dds_delete(wri);
     ret = dds_get_liveliness_lost_status(wri, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
 }
@@ -1092,7 +1092,7 @@ CU_Theory((dds_entity_t *writer), ddsc_get_offered_deadline_missed_status, non_w
 /*************************************************************************************************/
 CU_Test(ddsc_get_offered_deadline_missed_status, deleted_writer, .init=init_entity_status, .fini=fini_entity_status)
 {
-    dds_delete(wri);
+    (void) dds_delete(wri);
     ret = dds_get_offered_deadline_missed_status(wri, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
 }
@@ -1134,7 +1134,7 @@ CU_Theory((dds_entity_t *writer), ddsc_get_offered_incompatible_qos_status, non_
 /*************************************************************************************************/
 CU_Test(ddsc_get_offered_incompatible_qos_status, deleted_writer, .init=init_entity_status, .fini=fini_entity_status)
 {
-    dds_delete(wri);
+    (void) dds_delete(wri);
     ret = dds_get_offered_incompatible_qos_status(wri, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
 }
@@ -1176,7 +1176,7 @@ CU_Theory((dds_entity_t *reader), ddsc_get_subscription_matched_status, non_read
 /*************************************************************************************************/
 CU_Test(ddsc_get_subscription_matched_status, deleted_reader, .init=init_entity_status, .fini=fini_entity_status)
 {
-    dds_delete(rea);
+    (void) dds_delete(rea);
     ret = dds_get_subscription_matched_status(rea, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
 }
@@ -1218,7 +1218,7 @@ CU_Theory((dds_entity_t *reader), ddsc_get_liveliness_changed_status, non_reader
 /*************************************************************************************************/
 CU_Test(ddsc_get_liveliness_changed_status, deleted_reader, .init=init_entity_status, .fini=fini_entity_status)
 {
-    dds_delete(rea);
+    (void) dds_delete(rea);
     ret = dds_get_liveliness_changed_status(rea, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
 }
@@ -1260,7 +1260,7 @@ CU_Theory((dds_entity_t *reader), ddsc_get_sample_rejected_status, non_readers, 
 /*************************************************************************************************/
 CU_Test(ddsc_get_sample_rejected_status, deleted_reader, .init=init_entity_status, .fini=fini_entity_status)
 {
-    dds_delete(rea);
+    (void) dds_delete(rea);
     ret = dds_get_sample_rejected_status(rea, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
 }
@@ -1302,7 +1302,7 @@ CU_Theory((dds_entity_t *reader), ddsc_get_sample_lost_status, non_readers, .ini
 /*************************************************************************************************/
 CU_Test(ddsc_get_sample_lost_status, deleted_reader, .init=init_entity_status, .fini=fini_entity_status)
 {
-    dds_delete(rea);
+    (void) dds_delete(rea);
     ret = dds_get_sample_lost_status(rea, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
 }
@@ -1356,7 +1356,7 @@ CU_Theory((dds_entity_t *reader), ddsc_get_requested_deadline_missed_status, non
 /*************************************************************************************************/
 CU_Test(ddsc_get_requested_deadline_missed_status, deleted_reader, .init=init_entity_status, .fini=fini_entity_status)
 {
-    dds_delete(rea);
+    (void) dds_delete(rea);
     ret = dds_get_requested_deadline_missed_status(rea, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
 }
@@ -1398,7 +1398,7 @@ CU_Theory((dds_entity_t *reader), ddsc_get_requested_incompatible_qos_status, no
 /*************************************************************************************************/
 CU_Test(ddsc_get_requested_incompatible_qos_status, deleted_reader, .init=init_entity_status, .fini=fini_entity_status)
 {
-    dds_delete(rea);
+    (void) dds_delete(rea);
     ret = dds_get_requested_incompatible_qos_status(rea, NULL);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
 }

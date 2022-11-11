@@ -100,7 +100,7 @@ CU_Test(ddssec_builtin_register_local_participant, happy_day, .init = suite_regi
       &exception);
 
   if (exception.code != 0)
-    printf("register_local_participant: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("register_local_participant: %s\n", exception.message ? exception.message : "Error message missing");
 
   /* A valid handle to be returned */
   CU_ASSERT(hdl != DDS_SECURITY_HANDLE_NIL);
@@ -148,7 +148,7 @@ CU_Test(ddssec_builtin_register_local_participant, empty_identity, .init = suite
       &participant_security_attributes,
       &exception);
   if (exception.code != 0)
-    printf("register_local_participant: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("register_local_participant: %s\n", exception.message ? exception.message : "Error message missing");
 
   CU_ASSERT(exception.code == DDS_SECURITY_ERR_IDENTITY_EMPTY_CODE);
   CU_ASSERT_FATAL(exception.message != NULL);

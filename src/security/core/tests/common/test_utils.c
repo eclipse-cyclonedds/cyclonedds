@@ -74,7 +74,7 @@ void print_test_msg (const char *msg, ...)
 {
   va_list args;
   dds_time_t t = dds_time ();
-  printf ("%d.%06d ", (int32_t) (t / DDS_NSECS_IN_SEC), (int32_t) (t % DDS_NSECS_IN_SEC) / 1000);
+  (void) printf ("%d.%06d ", (int32_t) (t / DDS_NSECS_IN_SEC), (int32_t) (t % DDS_NSECS_IN_SEC) / 1000);
   va_start (args, msg);
   vprintf (msg, args);
   va_end (args);
@@ -408,7 +408,7 @@ void sync_writer_to_readers (dds_entity_t pp_wr, dds_entity_t wr, uint32_t exp_c
     if (pub_matched.total_count >= exp_count)
       break;
   };
-  dds_delete (ws);
+  (void) dds_delete (ws);
   CU_ASSERT_EQUAL_FATAL (pub_matched.total_count, exp_count);
 }
 
@@ -432,7 +432,7 @@ void sync_reader_to_writers (dds_entity_t pp_rd, dds_entity_t rd, uint32_t exp_c
     if (sub_matched.total_count >= exp_count)
       break;
   };
-  dds_delete (ws);
+  (void) dds_delete (ws);
   CU_ASSERT_EQUAL_FATAL (sub_matched.total_count, exp_count);
 }
 
@@ -454,7 +454,7 @@ bool reader_wait_for_data (dds_entity_t pp, dds_entity_t rd, dds_duration_t dur)
   ret = dds_waitset_wait (ws, &triggered, 1, dur);
   if (ret > 0)
     CU_ASSERT_EQUAL_FATAL (rd, (dds_entity_t)(intptr_t)triggered);
-  dds_delete (ws);
+  (void) dds_delete (ws);
   return ret > 0;
 }
 

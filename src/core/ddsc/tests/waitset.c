@@ -212,7 +212,7 @@ CU_Theory((dds_entity_t *ws, dds_entity_t *e, dds_attach_t a), ddsc_waitset_atta
 
 CU_Test(ddsc_waitset_attach, deleted_waitset, .init=ddsc_waitset_basic_init, .fini=ddsc_waitset_basic_fini)
 {
-  dds_delete(waitset);
+  (void) dds_delete(waitset);
   dds_return_t ret = dds_waitset_attach(waitset, participant, 0);
   CU_ASSERT_FATAL (ret == DDS_RETCODE_BAD_PARAMETER);
 }
@@ -242,7 +242,7 @@ CU_Theory ((int owner, int ok1, int ok2, int fail), ddsc_waitset_attach, scoping
   } else {
     ownh = par[owner];
   }
-  printf ("%d %d %d %d | %"PRId32"\n", owner, ok1, ok2, fail, ownh);
+  (void) printf ("%d %d %d %d | %"PRId32"\n", owner, ok1, ok2, fail, ownh);
   ws = dds_create_waitset (ownh);
   CU_ASSERT_FATAL (ws > 0);
   rc = dds_waitset_attach (ws, par[ok1], 0);
@@ -376,7 +376,7 @@ CU_Test(ddsc_waitset_attach_detach, combinations, .init=ddsc_waitset_init, .fini
       flipidx++;
     assert (flipidx < count);
 
-    //printf ("%zu %zu %02zx -> %02zx : %02zx %"PRIu32" %s\n", round, i, prevset, set, flipped, flipidx, (prevset & flipped) ? "detach" : "attach");
+    //(void) printf ("%zu %zu %02zx -> %02zx : %02zx %"PRIu32" %s\n", round, i, prevset, set, flipped, flipidx, (prevset & flipped) ? "detach" : "attach");
     if (prevset & flipped)
     {
       ret = dds_waitset_detach (waitset, entities[flipidx]);
@@ -476,7 +476,7 @@ CU_Test(ddsc_waitset_delete_attached, various, .init=ddsc_waitset_init, .fini=dd
 
 CU_Test(ddsc_waitset_set_trigger, deleted_waitset, .init=ddsc_waitset_basic_init, .fini=ddsc_waitset_basic_fini)
 {
-  dds_delete (waitset);
+  (void) dds_delete (waitset);
   dds_return_t ret = dds_waitset_set_trigger (waitset, true);
   CU_ASSERT_FATAL (ret == DDS_RETCODE_BAD_PARAMETER);
 }
@@ -501,7 +501,7 @@ CU_Theory((dds_entity_t *ws), ddsc_waitset_set_trigger, non_waitsets, .init=ddsc
 
 CU_Test(ddsc_waitset_wait, deleted_waitset, .init=ddsc_waitset_attached_init, .fini=ddsc_waitset_attached_fini)
 {
-  dds_delete (waitset);
+  (void) dds_delete (waitset);
   dds_attach_t triggered;
   dds_return_t ret = dds_waitset_wait (waitset, &triggered, 1, DDS_SECS (1));
   CU_ASSERT_FATAL (ret == DDS_RETCODE_BAD_PARAMETER);
@@ -638,7 +638,7 @@ CU_Test(ddsc_waitset_get_entities, no_array, .init=ddsc_waitset_attached_init, .
 CU_Test(ddsc_waitset_get_entities, deleted_waitset, .init=ddsc_waitset_attached_init, .fini=ddsc_waitset_attached_fini)
 {
   dds_entity_t entities[MAX_ENTITIES_CNT];
-  dds_delete (waitset);
+  (void) dds_delete (waitset);
   dds_return_t ret = dds_waitset_get_entities (waitset, entities, MAX_ENTITIES_CNT);
   CU_ASSERT_FATAL (ret == DDS_RETCODE_BAD_PARAMETER);
 }
@@ -846,8 +846,8 @@ CU_Theory((bool use_nop_listener), ddsc_waitset_triggering, after_listener, .ini
 
   // nop listeners mean we operate without a timeout and can repeat the experiment more often
   // repeating makes sense because it improves our chances of catching an ordering problem
-  printf ("ddsc_waitset_triggering after_listener - reader %d\n", reader);
-  printf ("ddsc_waitset_triggering after_listener - use_nop_listener = %d\n", use_nop_listener);
+  (void) printf ("ddsc_waitset_triggering after_listener - reader %d\n", reader);
+  (void) printf ("ddsc_waitset_triggering after_listener - use_nop_listener = %d\n", use_nop_listener);
   unsigned flags_counts[8] = { 0 };
   const unsigned rounds = (use_nop_listener ? 100 : 10);
   for (unsigned i = 0; i < rounds; i++)
@@ -910,7 +910,7 @@ CU_Theory((bool use_nop_listener), ddsc_waitset_triggering, after_listener, .ini
     CU_ASSERT_FATAL (cur <= sizeof (flags_counts) / sizeof (flags_counts[0]));
     flags_counts[cur]++;
     if (cur != exp)
-      printf ("current flags: 0x%"PRIx32", expected: 0x%"PRIx32"\n", cur, exp);
+      (void) printf ("current flags: 0x%"PRIx32", expected: 0x%"PRIx32"\n", cur, exp);
   }
 
   // something must have happened

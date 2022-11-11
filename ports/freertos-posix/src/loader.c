@@ -46,7 +46,7 @@ void vAssertCalled(unsigned long ulLine, const char * const pcFileName)
 {
   taskENTER_CRITICAL();
   {
-    fprintf(stderr, "[ASSERT] %s:%lu"LF, pcFileName, ulLine);
+    (void) fprintf(stderr, "[ASSERT] %s:%lu"LF, pcFileName, ulLine);
   }
   taskEXIT_CRITICAL();
   abort();
@@ -67,7 +67,7 @@ static void usage(const char *name)
     "Usage: %s LAUNCHER_OPTIONS -- PROGRAM_OPTIONS"LF
     "Try '%s -h' for more information"LF;
 
-  fprintf(stderr, fmt, name, name);
+  (void) fprintf(stderr, fmt, name, name);
 }
 
 static void help(const char *name)
@@ -78,7 +78,7 @@ static void help(const char *name)
     "Launcher options:"LF
     " -h            Show this help message and exit"LF;
 
-  fprintf(stdout, fmt, name);
+  (void) fprintf(stdout, fmt, name);
 }
 
 typedef struct {
@@ -130,13 +130,13 @@ main(int argc, char *argv[])
         help(name);
         exit(EX_OK);
       case '?':
-        fprintf(stderr, "Unknown option '%c'"LF, opt);
+        (void) fprintf(stderr, "Unknown option '%c'"LF, opt);
         usage(name);
         exit(EX_USAGE);
       case ':':
       /* fall through */
       default:
-        fprintf(stderr, "Option '%c' requires an argument"LF, opt);
+        (void) fprintf(stderr, "Option '%c' requires an argument"LF, opt);
         usage(name);
         exit(EX_USAGE);
     }

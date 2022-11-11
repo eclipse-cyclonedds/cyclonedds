@@ -136,7 +136,7 @@ void printspc(FILE *out, unsigned int cols, const char *fmt, ...)
   va_list ap;
   assert((size_t)cols < sizeof(spaces));
   spaces[cols] = '\0';
-  fprintf(out, "%s", spaces);
+  (void) fprintf(out, "%s", spaces);
   spaces[cols] = ' ';
   va_start(ap, fmt);
   vfprintf(out, fmt, ap);
@@ -146,7 +146,7 @@ void printspc(FILE *out, unsigned int cols, const char *fmt, ...)
 static void usage(const char *prog)
 {
   static const char fmt[] = "usage: %s [OPTIONS] -f FORMAT\n";
-  fprintf(stderr, fmt, prog);
+  (void) fprintf(stderr, fmt, prog);
 }
 
 static void help(const char *prog)
@@ -160,7 +160,7 @@ OPTIONS:\n\
     -o FILENAME  output file. specify - to use stdout\n\
 ";
 
-  fprintf(stdout, fmt, prog);
+  (void) fprintf(stdout, fmt, prog);
 }
 
 struct cfgelem *nextelem(const struct cfgelem *list, const struct cfgelem *elem)
@@ -549,13 +549,13 @@ int makedescription(
         size_t srcsz = 3 + strlen(DFLTFMT) + strlen(elem->description) + strlen(unit->description) + strlen(dflt);
         if ((src = malloc (srcsz)) == NULL)
           return -1;
-        snprintf(
+        (void) snprintf(
           src, srcsz, "%s\n%s\n"DFLTFMT, elem->description, unit->description, dflt);
       } else {
         size_t srcsz = 2 + strlen(DFLTFMT) + strlen(elem->description) + strlen(dflt);
         if ((src = malloc (srcsz)) == NULL)
           return -1;
-        snprintf(
+        (void) snprintf(
           src, srcsz, "%s\n"DFLTFMT, elem->description, dflt);
       }
     }
@@ -630,7 +630,7 @@ int main(int argc, char *argv[])
         } else if (strcmp(optarg, "defconfig") == 0) {
           format = defconfig;
         } else {
-          fprintf(stderr, "illegal output format: %s\n", optarg);
+          (void) fprintf(stderr, "illegal output format: %s\n", optarg);
           usage(argv[0]);
           exit(EXIT_FAILURE);
         }
@@ -649,7 +649,7 @@ int main(int argc, char *argv[])
   }
 
   if (init(cyclonedds_root_cfgelems) == -1) {
-    fprintf(stderr, "out of memory\n");
+    (void) fprintf(stderr, "out of memory\n");
     goto exit_failure;
   }
 
@@ -657,7 +657,7 @@ int main(int argc, char *argv[])
   if (strcmp(file, "-") == 0) {
     out = stdout;
   } else if ((out = fopen(file, "wb")) == NULL) {
-    fprintf(stderr, "cannot open %s for writing\n", file);
+    (void) fprintf(stderr, "cannot open %s for writing\n", file);
     goto exit_failure;
   }
   DDSRT_WARNING_MSVC_ON(4996)

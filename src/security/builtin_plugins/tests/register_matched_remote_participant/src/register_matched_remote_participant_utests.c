@@ -125,7 +125,7 @@ CU_Test(ddssec_builtin_register_remote_participant, happy_day, .init = suite_reg
       &exception);
 
   if (exception.code != 0)
-    printf("register_matched_remote_participant: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("register_matched_remote_participant: %s\n", exception.message ? exception.message : "Error message missing");
 
   /* A valid handle to be returned */
   CU_ASSERT(remote_crypto_handle != DDS_SECURITY_HANDLE_NIL);
@@ -207,7 +207,7 @@ CU_Test(ddssec_builtin_register_remote_participant, empty_identity, .init = suit
       &exception);
 
   if (exception.code != 0)
-    printf("register_matched_remote_participant: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("register_matched_remote_participant: %s\n", exception.message ? exception.message : "Error message missing");
 
   CU_ASSERT(remote_crypto_handle == DDS_SECURITY_HANDLE_NIL);
   CU_ASSERT(exception.code == DDS_SECURITY_ERR_IDENTITY_EMPTY_CODE);

@@ -97,7 +97,7 @@ static int register_local_participant(void)
           &exception);
 
   if (local_crypto_handle == DDS_SECURITY_HANDLE_NIL)
-    printf("register_local_participant: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("register_local_participant: %s\n", exception.message ? exception.message : "Error message missing");
 
   return local_crypto_handle ? 0 : -1;
 }
@@ -117,7 +117,7 @@ static int register_remote_participant(void)
           &exception);
 
   if (remote_crypto_handle == DDS_SECURITY_HANDLE_NIL)
-    printf("register_matched_remote_participant: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("register_matched_remote_participant: %s\n", exception.message ? exception.message : "Error message missing");
 
   return remote_crypto_handle ? 0 : -1;
 }
@@ -133,7 +133,7 @@ static int create_crypto_tokens(void)
       remote_crypto_handle,
       &exception);
   if (!status)
-    printf("register_matched_remote_participant: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("register_matched_remote_participant: %s\n", exception.message ? exception.message : "Error message missing");
 
   return status ? 0 : -1;
 }
@@ -147,21 +147,21 @@ static void unregister_participants(void)
   {
     status = crypto->crypto_key_exchange->return_crypto_tokens(crypto->crypto_key_exchange, &tokens, &exception);
     if (!status)
-      printf("return_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
+      (void) printf("return_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   if (local_crypto_handle)
   {
     status = crypto->crypto_key_factory->unregister_participant(crypto->crypto_key_factory, local_crypto_handle, &exception);
     if (!status)
-      printf("unregister_participant: %s\n", exception.message ? exception.message : "Error message missing");
+      (void) printf("unregister_participant: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   if (remote_crypto_handle)
   {
     status = crypto->crypto_key_factory->unregister_participant(crypto->crypto_key_factory, remote_crypto_handle, &exception);
     if (!status)
-      printf("unregister_participant: %s\n", exception.message ? exception.message : "Error message missing");
+      (void) printf("unregister_participant: %s\n", exception.message ? exception.message : "Error message missing");
   }
 }
 
@@ -219,7 +219,7 @@ CU_Test(ddssec_builtin_set_remote_participant_crypto_tokens, happy_day, .init = 
       &tokens,
       &exception);
   if (!result)
-    printf("set_local_participant_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("set_local_participant_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
 
   CU_ASSERT_FATAL(result);
   CU_ASSERT(exception.code == 0);
@@ -254,7 +254,7 @@ CU_Test(ddssec_builtin_set_remote_participant_crypto_tokens, invalid_args, .init
       NULL,
       &exception);
   if (!result)
-    printf("set_local_participant_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("set_local_participant_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
 
   CU_ASSERT(!result);
   CU_ASSERT(exception.code != 0);
@@ -269,7 +269,7 @@ CU_Test(ddssec_builtin_set_remote_participant_crypto_tokens, invalid_args, .init
       &tokens,
       &exception);
   if (!result)
-    printf("set_remote_participant_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("set_remote_participant_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
 
   CU_ASSERT(!result);
   CU_ASSERT(exception.code != 0);
@@ -284,7 +284,7 @@ CU_Test(ddssec_builtin_set_remote_participant_crypto_tokens, invalid_args, .init
       &tokens,
       &exception);
   if (!result)
-    printf("set_remote_participant_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("set_remote_participant_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
 
   CU_ASSERT(!result);
   CU_ASSERT(exception.code != 0);
@@ -299,7 +299,7 @@ CU_Test(ddssec_builtin_set_remote_participant_crypto_tokens, invalid_args, .init
       &tokens,
       &exception);
   if (!result)
-    printf("set_remote_participant_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("set_remote_participant_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
 
   CU_ASSERT(!result);
   CU_ASSERT(exception.code != 0);
@@ -314,7 +314,7 @@ CU_Test(ddssec_builtin_set_remote_participant_crypto_tokens, invalid_args, .init
       &tokens,
       &exception);
   if (!result)
-    printf("set_remote_participant_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("set_remote_participant_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
 
   CU_ASSERT(!result);
   CU_ASSERT(exception.code != 0);
@@ -354,7 +354,7 @@ CU_Test(ddssec_builtin_set_remote_participant_crypto_tokens, invalid_tokens, .in
       &invalid_tokens,
       &exception);
   if (!result)
-    printf("set_local_participant_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("set_local_participant_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
 
   CU_ASSERT(!result);
   CU_ASSERT(exception.code != 0);
@@ -371,7 +371,7 @@ CU_Test(ddssec_builtin_set_remote_participant_crypto_tokens, invalid_tokens, .in
       &invalid_tokens,
       &exception);
   if (!result)
-    printf("set_local_participant_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("set_local_participant_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
 
   CU_ASSERT(!result);
   CU_ASSERT(exception.code != 0);
@@ -387,7 +387,7 @@ CU_Test(ddssec_builtin_set_remote_participant_crypto_tokens, invalid_tokens, .in
       &invalid_tokens,
       &exception);
   if (!result)
-    printf("set_local_participant_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("set_local_participant_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
 
   CU_ASSERT(!result);
   CU_ASSERT(exception.code != 0);
@@ -404,7 +404,7 @@ CU_Test(ddssec_builtin_set_remote_participant_crypto_tokens, invalid_tokens, .in
       &invalid_tokens,
       &exception);
   if (!result)
-    printf("set_local_participant_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("set_local_participant_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
 
   CU_ASSERT(!result);
   CU_ASSERT(exception.code != 0);
@@ -421,7 +421,7 @@ CU_Test(ddssec_builtin_set_remote_participant_crypto_tokens, invalid_tokens, .in
       &invalid_tokens,
       &exception);
   if (!result)
-    printf("set_local_participant_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("set_local_participant_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
 
   CU_ASSERT(!result);
   CU_ASSERT(exception.code != 0);
@@ -437,7 +437,7 @@ CU_Test(ddssec_builtin_set_remote_participant_crypto_tokens, invalid_tokens, .in
       &invalid_tokens,
       &exception);
   if (!result)
-    printf("set_local_participant_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("set_local_participant_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
 
   CU_ASSERT(!result);
   CU_ASSERT(exception.code != 0);
@@ -454,7 +454,7 @@ CU_Test(ddssec_builtin_set_remote_participant_crypto_tokens, invalid_tokens, .in
       &invalid_tokens,
       &exception);
   if (!result)
-    printf("set_local_participant_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("set_local_participant_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
 
   CU_ASSERT(!result);
   CU_ASSERT(exception.code != 0);
@@ -472,7 +472,7 @@ CU_Test(ddssec_builtin_set_remote_participant_crypto_tokens, invalid_tokens, .in
       &invalid_tokens,
       &exception);
   if (!result)
-    printf("set_local_participant_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("set_local_participant_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
 
   CU_ASSERT(!result);
   CU_ASSERT(exception.code != 0);
@@ -492,7 +492,7 @@ CU_Test(ddssec_builtin_set_remote_participant_crypto_tokens, invalid_tokens, .in
       &invalid_tokens,
       &exception);
   if (!result)
-    printf("set_local_participant_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("set_local_participant_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
 
   CU_ASSERT(!result);
   CU_ASSERT(exception.code != 0);
@@ -514,7 +514,7 @@ CU_Test(ddssec_builtin_set_remote_participant_crypto_tokens, invalid_tokens, .in
       &invalid_tokens,
       &exception);
   if (!result)
-    printf("set_local_participant_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("set_local_participant_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
 
   CU_ASSERT(!result);
   CU_ASSERT(exception.code != 0);
@@ -534,7 +534,7 @@ CU_Test(ddssec_builtin_set_remote_participant_crypto_tokens, invalid_tokens, .in
       &invalid_tokens,
       &exception);
   if (!result)
-    printf("set_local_participant_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("set_local_participant_crypto_tokens: %s\n", exception.message ? exception.message : "Error message missing");
 
   CU_ASSERT(!result);
   CU_ASSERT(exception.code != 0);

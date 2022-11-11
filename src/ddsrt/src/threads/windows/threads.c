@@ -389,7 +389,7 @@ ddsrt_thread_getname_anythread (
     }
     if (name[0] == 0)
     {
-      snprintf (name, sizeof (name), "%"PRIdTID, (ddsrt_tid_t)GetThreadId (tid));
+      (void) snprintf (name, sizeof (name), "%"PRIdTID, (ddsrt_tid_t)GetThreadId (tid));
     }
   }
   return DDS_RETCODE_OK;

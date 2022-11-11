@@ -32,51 +32,51 @@ void gendef_pf_uint16 (FILE *out, void *parent, struct cfgelem const * const cfg
 {
   const uint16_t *p = cfg_address (parent, cfgelem);
   if (*p != 0)
-    fprintf (out, "  cfg->%s = UINT16_C (%"PRIu16");\n", cfgelem->membername, *p);
+    (void) fprintf (out, "  cfg->%s = UINT16_C (%"PRIu16");\n", cfgelem->membername, *p);
 }
 
 void gendef_pf_int32 (FILE *out, void *parent, struct cfgelem const * const cfgelem)
 {
   const int32_t *p = cfg_address (parent, cfgelem);
   if (*p != 0)
-    fprintf (out, "  cfg->%s = INT32_C (%"PRId32");\n", cfgelem->membername, *p);
+    (void) fprintf (out, "  cfg->%s = INT32_C (%"PRId32");\n", cfgelem->membername, *p);
 }
 
 void gendef_pf_uint32 (FILE *out, void *parent, struct cfgelem const * const cfgelem)
 {
   const uint32_t *p = cfg_address (parent, cfgelem);
   if (*p != 0)
-    fprintf (out, "  cfg->%s = UINT32_C (%"PRIu32");\n", cfgelem->membername, *p);
+    (void) fprintf (out, "  cfg->%s = UINT32_C (%"PRIu32");\n", cfgelem->membername, *p);
 }
 
 void gendef_pf_int64 (FILE *out, void *parent, struct cfgelem const * const cfgelem)
 {
   const int64_t *p = cfg_address (parent, cfgelem);
   if (*p != 0)
-    fprintf (out, "  cfg->%s = INT64_C (%"PRId64");\n", cfgelem->membername, *p);
+    (void) fprintf (out, "  cfg->%s = INT64_C (%"PRId64");\n", cfgelem->membername, *p);
 }
 
 void gendef_pf_maybe_int32 (FILE *out, void *parent, struct cfgelem const * const cfgelem)
 {
   struct ddsi_config_maybe_int32 const * const p = cfg_address (parent, cfgelem);
-  fprintf (out, "  cfg->%s.isdefault = %d;\n", cfgelem->membername, p->isdefault);
+  (void) fprintf (out, "  cfg->%s.isdefault = %d;\n", cfgelem->membername, p->isdefault);
   if (!p->isdefault)
-    fprintf (out, "  cfg->%s.value = INT32_C (%"PRId32");\n", cfgelem->membername, p->value);
+    (void) fprintf (out, "  cfg->%s.value = INT32_C (%"PRId32");\n", cfgelem->membername, p->value);
 }
 
 void gendef_pf_maybe_uint32 (FILE *out, void *parent, struct cfgelem const * const cfgelem)
 {
   struct ddsi_config_maybe_uint32 const * const p = cfg_address (parent, cfgelem);
-  fprintf (out, "  cfg->%s.isdefault = %d;\n", cfgelem->membername, p->isdefault);
+  (void) fprintf (out, "  cfg->%s.isdefault = %d;\n", cfgelem->membername, p->isdefault);
   if (!p->isdefault)
-    fprintf (out, "  cfg->%s.value = UINT32_C (%"PRIu32");\n", cfgelem->membername, p->value);
+    (void) fprintf (out, "  cfg->%s.value = UINT32_C (%"PRIu32");\n", cfgelem->membername, p->value);
 }
 
 void gendef_pf_min_tls_version (FILE *out, void *parent, struct cfgelem const * const cfgelem)
 {
   struct ddsi_config_ssl_min_version * const p = cfg_address (parent, cfgelem);
   if (p->major != 0 || p->minor != 0)
-    fprintf (out, "\
+    (void) fprintf (out, "\
   cfg->%s.major = %d;\n\
   cfg->%s.minor = %d;\n",
              cfgelem->membername, p->major, cfgelem->membername, p->minor);
@@ -86,7 +86,7 @@ void gendef_pf_string (FILE *out, void *parent, struct cfgelem const * const cfg
 {
   const char **p = cfg_address (parent, cfgelem);
   if (*p != 0)
-    fprintf (out, "  cfg->%s = \"%s\";\n", cfgelem->membername, *p);
+    (void) fprintf (out, "  cfg->%s = \"%s\";\n", cfgelem->membername, *p);
 }
 
 void gendef_pf_networkAddresses (FILE *out, void *parent, struct cfgelem const * const cfgelem)
@@ -97,11 +97,11 @@ void gendef_pf_networkAddresses (FILE *out, void *parent, struct cfgelem const *
     int n = 0;
     for (int i = 0; (*p)[i] != NULL; i++)
       n++;
-    fprintf (out, "  static char *%s_init_[] = {\n", cfgelem->membername);
+    (void) fprintf (out, "  static char *%s_init_[] = {\n", cfgelem->membername);
     for (int i = 0; (*p)[i] != NULL; i++)
-      fprintf (out, "    \"%s\",\n", (*p)[i]);
-    fprintf (out, "    NULL\n  };\n");
-    fprintf (out, "  cfg->%s = %s_init_;\n", cfgelem->membername, cfgelem->membername);
+      (void) fprintf (out, "    \"%s\",\n", (*p)[i]);
+    (void) fprintf (out, "    NULL\n  };\n");
+    (void) fprintf (out, "  cfg->%s = %s_init_;\n", cfgelem->membername, cfgelem->membername);
   }
 }
 
@@ -114,7 +114,7 @@ void gendef_pf_tracemask (FILE *out, void *parent, struct cfgelem const * const 
   (void) cfgelem;
   const struct ddsi_config *cfg = parent;
   if (cfg->tracemask != 0)
-    fprintf (out, "  cfg->tracemask = UINT32_C (%"PRIu32");\n", cfg->tracemask);
+    (void) fprintf (out, "  cfg->tracemask = UINT32_C (%"PRIu32");\n", cfg->tracemask);
 }
 
 void gendef_pf_xcheck (FILE *out, void *parent, struct cfgelem const * const cfgelem) {
@@ -199,7 +199,7 @@ static void gen_defaults (FILE *out, void *parent, struct cfgelem const * const 
       continue;
 
     if (ce->meta.flag)
-      fprintf(out, "#ifdef %s\n", ce->meta.flag);
+      (void) fprintf(out, "#ifdef %s\n", ce->meta.flag);
 
     if (ce->multiplicity <= 1)
     {
@@ -230,7 +230,7 @@ static void gen_defaults (FILE *out, void *parent, struct cfgelem const * const 
 #endif
     }
     if (ce->meta.flag)
-      fprintf(out, "#endif /* %s */\n", ce->meta.flag);
+      (void) fprintf(out, "#endif /* %s */\n", ce->meta.flag);
   }
 }
 
@@ -241,11 +241,11 @@ int printdefconfig (FILE *out, struct cfgelem *elem)
 
   if ((cfgst = ddsi_config_init ("", &cfg, 0)) == NULL)
   {
-    fprintf (stderr, "Failed to initialize default configuration\n");
+    (void) fprintf (stderr, "Failed to initialize default configuration\n");
     return -1;
   }
 
-  fprintf (out, "\
+  (void) fprintf (out, "\
 #include <string.h>\n\
 #include <stdint.h>\n\
 #include <inttypes.h>\n\
@@ -255,7 +255,7 @@ void ddsi_config_init_default (struct ddsi_config *cfg)\n\
 {\n\
   memset (cfg, 0, sizeof (*cfg));\n");
   gen_defaults (out, &cfg, elem);
-  fprintf (out, "}\n");
+  (void) fprintf (out, "}\n");
 
   ddsi_config_fini (cfgst);
   return 0;

@@ -57,7 +57,7 @@ static void
 teardown(void)
 {
     for(unsigned i = (sizeof e / sizeof *e); i > 0; i--) {
-        dds_delete(e[i - 1]);
+        (void) dds_delete(e[i - 1]);
     }
 }
 

@@ -172,15 +172,15 @@ static void print_tokens (enum crypto_tokens_type type, const DDS_Security_Parti
     const DDS_Security_ParticipantCryptoTokenSeq *tokens)
 {
   ddsrt_mutex_lock (&g_print_token_lock);
-  printf ("Token type %s, local %"PRIx64" / remote %"PRIx64", count: %u\n", get_crypto_token_type_str (type), lch, rch, tokens->_length);
+  (void) printf ("Token type %s, local %"PRIx64" / remote %"PRIx64", count: %u\n", get_crypto_token_type_str (type), lch, rch, tokens->_length);
   for (uint32_t i = 0; i < tokens->_length; i++)
   {
-    printf ("- token: ");
+    (void) printf ("- token: ");
     for (uint32_t j = 0; j < tokens->_buffer[i].binary_properties._buffer[0].value._length && j < 32; j++)
-      printf ("%02x", tokens->_buffer[i].binary_properties._buffer[0].value._buffer[j]);
-    printf ("\n");
+      (void) printf ("%02x", tokens->_buffer[i].binary_properties._buffer[0].value._buffer[j]);
+    (void) printf ("\n");
   }
-  printf ("\n");
+  (void) printf ("\n");
   ddsrt_mutex_unlock (&g_print_token_lock);
 }
 
@@ -209,7 +209,7 @@ static void store_tokens (struct dds_security_crypto_key_exchange_impl *impl, en
 {
   if (!check_crypto_tokens ((const DDS_Security_DataHolderSeq *) tokens))
   {
-    printf ("%d ERROR\n", type);
+    (void) printf ("%d ERROR\n", type);
     return;
   }
 

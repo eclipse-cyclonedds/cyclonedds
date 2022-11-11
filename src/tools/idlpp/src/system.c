@@ -469,7 +469,7 @@ void    do_options(
     bsl2sl( cwd);
 #endif
     cwd_len = strlen( cwd);
-    snprintf( cwd + cwd_len, cwd_sz - cwd_len, "%c%c", PATH_DELIM, EOS);
+    (void) snprintf( cwd + cwd_len, cwd_sz - cwd_len, "%c%c", PATH_DELIM, EOS);
         /* Append trailing path-delimiter   */
 
 #if COMPILER == GNUC
@@ -1761,9 +1761,9 @@ static void def_a_macro(
 
     /* Convert trigraphs for the environment which need trigraphs   */
     if (mcpp_mode == STD && option_flags.trig)
-        cnv_trigraph( def);
+        (void) cnv_trigraph( def);
     if (mcpp_mode == POST_STD && option_flags.dig)
-        cnv_digraph( def);  /* Convert prior to installing macro    */
+        (void) cnv_digraph( def);  /* Convert prior to installing macro    */
     definition = xmalloc( strlen( def) + 4);
     strcpy( definition, def);
     if ((cp = strchr( definition, '=')) != NULL) {
@@ -1974,7 +1974,7 @@ static void init_predefines( void)
         un_predefine( FALSE);           /* Undefine "unix" or so    */
 #endif
     }
-    snprintf( tmp, sizeof(tmp), "%ldL", cplus_val ? cplus_val : stdc_ver);
+    (void) snprintf( tmp, sizeof(tmp), "%ldL", cplus_val ? cplus_val : stdc_ver);
     if (cplus_val) {
         look_and_install( "__cplusplus", DEF_NOARGS_STANDARD, null, tmp);
     } else {
@@ -2019,13 +2019,13 @@ static void init_std_defines( void)
     /* Define __DATE__, __TIME__ as present date and time.          */
     time( &tvec);
     tstring = ctime( &tvec);
-    snprintf( timestr, sizeof(timestr), "\"%.3s %c%c %.4s\"",
+    (void) snprintf( timestr, sizeof(timestr), "\"%.3s %c%c %.4s\"",
         tstring + 4,
         *(tstring + 8) == '0' ? ' ' : *(tstring + 8),
         *(tstring + 9),
         tstring + 20);
     look_and_install( "__DATE__", DEF_NOARGS_DYNAMIC, null, timestr);
-    snprintf( timestr, sizeof(timestr), "\"%.8s\"", tstring + 11);
+    (void) snprintf( timestr, sizeof(timestr), "\"%.8s\"", tstring + 11);
     look_and_install( "__TIME__", DEF_NOARGS_DYNAMIC, null, timestr);
 
     if (! look_id( "__STDC_HOSTED__")) {
@@ -2033,7 +2033,7 @@ static void init_std_defines( void)
          * Some compilers, e.g. GCC older than 3.3, define this macro by
          * -D option.
          */
-        snprintf( tmp, sizeof(tmp), "%d", STDC_HOSTED);
+        (void) snprintf( tmp, sizeof(tmp), "%d", STDC_HOSTED);
         look_and_install( "__STDC_HOSTED__", DEF_NOARGS_PREDEF, null, tmp);
     }
 #if COMPILER != GNUC        /* GCC do not undefine __STDC__ on C++  */
@@ -2042,7 +2042,7 @@ static void init_std_defines( void)
 #endif
     /* Define __STDC__ as 1 or such for Standard conforming compiler.   */
     if (! look_id( "__STDC__")) {
-        snprintf( tmp, sizeof(tmp), "%d", stdc_val);
+        (void) snprintf( tmp, sizeof(tmp), "%d", stdc_val);
         look_and_install( "__STDC__", DEF_NOARGS_STANDARD, null, tmp);
     }
 }
@@ -2097,7 +2097,7 @@ static void set_pragma_op( void)
     char *  name = "_Pragma";
     char    tmp[ 16];
 
-    snprintf( tmp, sizeof(tmp), "%c%s ( %c%c )", DEF_MAGIC, name, MAC_PARM, 1);
+    (void) snprintf( tmp, sizeof(tmp), "%c%s ( %c%c )", DEF_MAGIC, name, MAC_PARM, 1);
                                                 /* Replacement text */
     look_and_install( name, DEF_PRAGMA, "a", tmp);
 }
@@ -2753,7 +2753,7 @@ static char *   norm_path(
 #endif
     if (inf) {
         char    debug_buf[ PATHMAX+1];
-        strlcpy( debug_buf, dir, sizeof(debug_buf));
+        (void) strlcpy( debug_buf, dir, sizeof(debug_buf));
         strlcat( debug_buf, fname ? fname : null, sizeof(debug_buf));
 #if SYS_FAMILY == SYS_WIN
         bsl2sl( debug_buf);
@@ -3011,7 +3011,7 @@ void    put_depend(
                 if (fp == fp_out)
                     mcpp_fputs( output, OUT);
                 else
-                    fputs( output, fp);
+                    (void) fputs( output, fp);
                 return;
             } else if (strlen( output) * 2 + (pos_num * 2) >= mkdep_len) {
                 /* Enlarge the buffer   */
@@ -3040,7 +3040,7 @@ void    put_depend(
         if (fp == fp_out) { /* To the same path with normal preprocessing   */
             mcpp_fputs( output, OUT);
         } else {        /* To the file specified by -MF, -MD, -MMD options  */
-            fputs( output, fp);
+            (void) fputs( output, fp);
             fclose( fp);
         }
         fp = NULL;      /* Clear for the next call in MCPP_LIB build        */
@@ -3499,7 +3499,7 @@ static int  open_file(
     size_t      len;
     FILEINFO *  file = infile;
     FILE *      fp;
-    char *      fullname;
+    char *      fullname = NULL;
     const char *    fname;
 
     (void)local;
@@ -3527,7 +3527,7 @@ static int  open_file(
     /* src_dir is usually NULL.  This is specified to   */
     /* search the source directory of the includer.     */
     if (src_dir && *src_dir != EOS) {
-        strlcpy( dir_fname, src_dir, sizeof(dir_fname));
+        (void) strlcpy( dir_fname, src_dir, sizeof(dir_fname));
         strlcat( dir_fname, filename, sizeof(dir_fname));
         fname = dir_fname;
     } else {
@@ -3598,9 +3598,12 @@ search:
         put_depend( fullname);          /* Output dependency line   */
 
 true:
+    if (fullname)
+      free( fullname);
     return  TRUE;
 false:
-    free( fullname);
+    if (fullname)
+      free( fullname);
     return  FALSE;
 }
 
@@ -4741,8 +4744,8 @@ static void do_preprocessed( void)
         strcpy( comment - 2, "\n");         /* Remove the comment   */
         unget_string( lbuf + 8, NULL);
         do_define( FALSE, 0);
-        get_ch();                               /* '\n' */
-        get_ch();                               /* Clear the "file" */
+        (void) get_ch();                               /* '\n' */
+        (void) get_ch();                               /* Clear the "file" */
         unget_ch();                             /* infile == file   */
     }
     file->bptr = file->buffer + strlen( file->buffer);

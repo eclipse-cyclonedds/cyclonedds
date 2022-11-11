@@ -47,7 +47,7 @@
 #else
 #undef TRACE
 #define TRACE(args) nn_trace args
-#define TRACE_FUNC(ptr) printf("[%p] %s\n", ptr, __FUNCTION__);
+#define TRACE_FUNC(ptr) (void) printf("[%p] %s\n", ptr, __FUNCTION__);
 #endif
 
 typedef enum {

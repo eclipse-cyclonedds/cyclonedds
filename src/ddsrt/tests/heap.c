@@ -68,7 +68,7 @@ CU_Test(ddsrt_heap, realloc)
   for(size_t i = 0; i < nof_allocsizes; i++) {
     for(size_t j = 0; j < nof_allocsizes; j++) {
       s = allocsizes[i] * allocsizes[j]; /* Allocates up to 1MB */
-      printf("ddsrt_realloc(%p) %zu -> %zu\n", ptr, prevs, s);
+      (void) printf("ddsrt_realloc(%p) %zu -> %zu\n", ptr, prevs, s);
       ptr = ddsrt_realloc(ptr, s);
       CU_ASSERT_PTR_NOT_NULL_FATAL(ptr); /* ddsrt_realloc is supposed to abort on failure */
       assert(ptr);
@@ -136,7 +136,7 @@ CU_Test(ddsrt_heap, ddsrt_realloc_s)
     for(size_t j = 0; j < nof_allocsizes_s; j++) {
       s = allocsizes_s[i] * allocsizes_s[j]; /* Allocates up to 8MB */
       newptr = ddsrt_realloc_s(ptr, s);
-      printf("%p = ddsrt_realloc_s(%p) %zu -> %zu\n", newptr, ptr, prevs, s);
+      (void) printf("%p = ddsrt_realloc_s(%p) %zu -> %zu\n", newptr, ptr, prevs, s);
       if (s <= 16) {
         /* Failure to allocate can't be considered a test fault really,
          * except that a ddsrt_realloc_s(0 < s <=16) would fail is unlikely. */

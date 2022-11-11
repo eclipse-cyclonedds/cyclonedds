@@ -60,7 +60,7 @@ ddsrt_setenv(const char *name, const char *value)
   const size_t namelen = strlen (name);
   const size_t entrysize = namelen + 1 + strlen (value) + 1;
   char *entry = malloc (entrysize);
-  snprintf (entry, entrysize, "%s=%s", name, value);
+  (void) snprintf (entry, entrysize, "%s=%s", name, value);
   size_t n = 0;
   while (environ[n] != NULL)
   {

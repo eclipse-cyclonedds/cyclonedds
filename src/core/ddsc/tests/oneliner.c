@@ -57,7 +57,7 @@ int main (int argc, char **argv)
       {
         if (test_indent < SIZE_MAX)
           (void) test_oneliner_fini (&ctx);
-        fprintf (stderr, "stdin:%u: line too long\n", lineno);
+        (void) fprintf (stderr, "stdin:%u: line too long\n", lineno);
         return 1;
       }
 
@@ -86,12 +86,12 @@ int main (int argc, char **argv)
         {
           if (test_oneliner_fini (&ctx) <= 0)
           {
-            fprintf (stderr, "stdin:%u-%u: FAIL: %s\n", test_begin, test_end, test_oneliner_message (&ctx));
+            (void) fprintf (stderr, "stdin:%u-%u: FAIL: %s\n", test_begin, test_end, test_oneliner_message (&ctx));
             return 1;
           }
-          printf ("\n");
+          (void) printf ("\n");
         }
-        printf ("------ stdin:%u ------\n", lineno);
+        (void) printf ("------ stdin:%u ------\n", lineno);
         test_indent = indent;
         test_begin = lineno;
         test_oneliner_init (&ctx, NULL);
@@ -102,10 +102,10 @@ int main (int argc, char **argv)
     }
 
     if (test_indent < SIZE_MAX && test_oneliner_fini (&ctx) <= 0)
-      fprintf (stderr, "stdin:%u-%u: FAIL: %s\n", test_begin, test_end, test_oneliner_message (&ctx));
+      (void) fprintf (stderr, "stdin:%u-%u: FAIL: %s\n", test_begin, test_end, test_oneliner_message (&ctx));
     if (ferror (stdin))
     {
-      fprintf (stderr, "error reading stdin\n");
+      (void) fprintf (stderr, "error reading stdin\n");
       return 1;
     }
   }

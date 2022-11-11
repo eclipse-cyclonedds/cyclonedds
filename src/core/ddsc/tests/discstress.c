@@ -90,7 +90,7 @@ static uint32_t createwriter_publisher (void *varg)
      reliable transport like a local loopback).  So other than waiting for some readers to show up
      at all, there's no need to look at matching events or to use anything other than volatile,
      provided the readers accept an initial short sequence in the first batch.  */
-  printf ("=== Publishing while waiting for some reader ...\n");
+  (void) printf ("=== Publishing while waiting for some reader ...\n");
   fflush (stdout);
   uint32_t seq = 0;
   int32_t round = -1;
@@ -108,7 +108,7 @@ static uint32_t createwriter_publisher (void *varg)
       matched = (mc == N_READERS * N_WRITERS);
       if (matched)
       {
-        printf ("All readers found; continuing at [%"PRIu32",%"PRIu32"] for %d rounds\n",
+        (void) printf ("All readers found; continuing at [%"PRIu32",%"PRIu32"] for %d rounds\n",
                 wrseq * N_WRITERS + 1, (wrseq + 1) * N_WRITERS, N_ROUNDS);
         fflush (stdout);
       }
@@ -179,9 +179,9 @@ static void dumplog (char logbuf[LOGDEPTH][LOGLINE], int *logidx)
 {
   if (logbuf[*logidx][0])
     for (int i = *logidx; i < LOGDEPTH; i++)
-      fputs (logbuf[i], stdout);
+      (void) fputs (logbuf[i], stdout);
   for (int i = 0; i < *logidx; i++)
-    fputs (logbuf[i], stdout);
+    (void) fputs (logbuf[i], stdout);
   for (int i = 0; i < LOGDEPTH; i++)
     logbuf[i][0] = 0;
   *logidx = 0;
@@ -220,7 +220,7 @@ static uint32_t createwriter_subscriber (void *varg)
     CU_ASSERT_FATAL (readers[i] > 0);
   }
 
-  printf ("--- Waiting for some writer to match ...\n");
+  (void) printf ("--- Waiting for some writer to match ...\n");
   fflush (stdout);
 
   /* Wait until we have matching writers */
@@ -257,7 +257,7 @@ static uint32_t createwriter_subscriber (void *varg)
   }
 
   /* Loop while we have some matching writers */
-  printf ("--- Checking data ...\n");
+  (void) printf ("--- Checking data ...\n");
   fflush (stdout);
   struct ddsrt_hh *wrinfo = ddsrt_hh_new (1, wrinfo_hash, wrinfo_eq);
   dds_entity_t xreader = 0;
@@ -292,13 +292,13 @@ static uint32_t createwriter_subscriber (void *varg)
     CU_ASSERT_FATAL (nxs >= 0);
     if (nxs == 0 && matched)
     {
-      printf ("--- Unexpected timeout\n");
+      (void) printf ("--- Unexpected timeout\n");
       for (int i = 0; i < N_READERS; i++)
       {
         dds_subscription_matched_status_t st;
         rc = dds_get_subscription_matched_status (readers[i], &st);
         CU_ASSERT_FATAL (rc == 0);
-        printf ("--- reader %d current_count %"PRIu32"\n", i, st.current_count);
+        (void) printf ("--- reader %d current_count %"PRIu32"\n", i, st.current_count);
       }
       fflush (stdout);
       CU_ASSERT_FATAL (0);
@@ -325,14 +325,14 @@ static uint32_t createwriter_subscriber (void *varg)
             CU_ASSERT_FATAL (s->wridx < N_WRITERS);
 
 #define XASSERT(cond, ...) do { if (!(cond)) { \
-  printf ("%s: %s", #cond, __VA_ARGS__); \
+  (void) printf ("%s: %s", #cond, __VA_ARGS__); \
   fflush (stdout); \
   dumplog (logbuf[xs[i]], &logidx[xs[i]]); \
   error = true; \
   CU_ASSERT (0); \
 } } while (0)
 #define XASSERT_FATAL(cond, ...) do { if (!(cond)) { \
-  printf ("%s: %s", #cond, __VA_ARGS__); \
+  (void) printf ("%s: %s", #cond, __VA_ARGS__); \
   fflush (stdout); \
   dumplog (logbuf[xs[i]], &logidx[xs[i]]); \
   CU_ASSERT_FATAL (0); \
@@ -346,7 +346,7 @@ static uint32_t createwriter_subscriber (void *varg)
               CU_ASSERT_FATAL (rc != 0);
             }
 
-            snprintf (logbuf[xs[i]][logidx[xs[i]]], sizeof (logbuf[xs[i]][logidx[xs[i]]]),
+            (void) snprintf (logbuf[xs[i]][logidx[xs[i]]], sizeof (logbuf[xs[i]][logidx[xs[i]]]),
                       "%"PRIu32": %"PRId32".%"PRIu32" %"PRIu32".%"PRIu32" iid %"PRIx64" new %"PRIx64" st %c%c seq %"PRIu32" seen %"PRIu32"\n",
                       (uint32_t) xs[i], s->round, s->wrseq, s->wridx, s->histidx, wri->wr_iid, si[j].publication_handle,
                       (si[j].instance_state == DDS_IST_ALIVE) ? 'A' : (si[j].instance_state == DDS_IST_NOT_ALIVE_DISPOSED) ? 'D' : 'U',
@@ -404,7 +404,7 @@ static uint32_t createwriter_subscriber (void *varg)
     nwri++;
     if (wri->seen != (1u << DEPTH) - 1)
     {
-      printf ("err: wri->seen = %x rdid %"PRIu32" wrid %"PRIu32" iid %"PRIx64" lna %d\n",
+      (void) printf ("err: wri->seen = %x rdid %"PRIu32" wrid %"PRIu32" iid %"PRIx64" lna %d\n",
               wri->seen, wri->rdid, wri->wrid, wri->wr_iid, wri->last_not_alive);
       err++;
     }
@@ -414,7 +414,7 @@ static uint32_t createwriter_subscriber (void *varg)
   ddsrt_hh_free (wrinfo);
   CU_ASSERT_FATAL (err == 0);
   CU_ASSERT_FATAL (nwri >= (N_ROUNDS / 3) * N_READERS * N_WRITERS);
-  printf ("--- Done after %"PRIu32" sets\n", nwri / (N_READERS * N_WRITERS));
+  (void) printf ("--- Done after %"PRIu32" sets\n", nwri / (N_READERS * N_WRITERS));
   return 0;
 }
 

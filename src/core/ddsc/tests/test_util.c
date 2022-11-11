@@ -22,7 +22,7 @@ void tprintf (const char *msg, ...)
 {
   va_list args;
   dds_time_t t = dds_time ();
-  printf ("%d.%06d ", (int32_t) (t / DDS_NSECS_IN_SEC), (int32_t) (t % DDS_NSECS_IN_SEC) / 1000);
+  (void) printf ("%d.%06d ", (int32_t) (t / DDS_NSECS_IN_SEC), (int32_t) (t % DDS_NSECS_IN_SEC) / 1000);
   va_start (args, msg);
   vprintf (msg, args);
   va_end (args);

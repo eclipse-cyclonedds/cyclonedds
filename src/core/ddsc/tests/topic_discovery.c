@@ -57,9 +57,9 @@ static void topic_discovery_init (void)
 
 static void topic_discovery_fini (void)
 {
-  dds_delete (g_domain_remote);
+  (void) dds_delete (g_domain_remote);
   /* Add a delay so that sedp dispose messages for topics (and endpoints) are sent and processed */
-  dds_delete (g_domain1);
+  (void) dds_delete (g_domain1);
 }
 
 CU_TheoryDataPoints(ddsc_topic_discovery, remote_topics) = {
@@ -181,8 +181,8 @@ static void check_topic_samples (dds_entity_t topic_rd, char *topic_name, uint32
       bool not_alive = sample_info->instance_state != DDS_IST_ALIVE;
       tprintf ("read topic: %s, key={", sample->topic_name);
       for (uint32_t i = 0; i < sizeof (first_key); i++)
-        printf ("%02x", sample->key.d[i]);
-      printf ("} %sALIVE\n", not_alive ? "NOT_" : "");
+        (void) printf ("%02x", sample->key.d[i]);
+      (void) printf ("} %sALIVE\n", not_alive ? "NOT_" : "");
       if (!not_alive && (topic_name == NULL || !strcmp (sample->topic_name, topic_name)))
       {
         if (topic_seen == 0)
@@ -294,8 +294,8 @@ static uint32_t delete_participants_thread (void *varg)
   uint32_t n = NUM_PP;
   while (n-- > 0)
   {
-    dds_delete (participants[n]);
-    dds_delete (participants_remote[n]);
+    (void) dds_delete (participants[n]);
+    (void) dds_delete (participants_remote[n]);
     dds_sleepfor (DDS_MSECS (DELAY_MSECS));
   }
   ddsrt_atomic_st32 (&terminate, 1);
@@ -307,8 +307,8 @@ static uint32_t delete_topics_thread (void *varg)
   (void) varg;
   while (!ddsrt_atomic_ld32 (&terminate))
   {
-    dds_delete (((dds_entity_t *) topics)[ddsrt_random () % (NUM_PP * NUM_TP)]);
-    dds_delete (((dds_entity_t *) topics_remote)[ddsrt_random () % (NUM_PP * NUM_TP)]);
+    (void) dds_delete (((dds_entity_t *) topics)[ddsrt_random () % (NUM_PP * NUM_TP)]);
+    (void) dds_delete (((dds_entity_t *) topics_remote)[ddsrt_random () % (NUM_PP * NUM_TP)]);
     dds_sleepfor (DDS_MSECS (DELAY_MSECS / NUM_TP));
   }
   return 0;

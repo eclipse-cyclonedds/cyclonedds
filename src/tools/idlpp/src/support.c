@@ -433,12 +433,12 @@ int     get_unexpandable(
         }
         if (file == infile) {
             infile->bptr += strlen( infile->bptr);
-            get_ch();
+            (void) get_ch();
         }
         unget_ch();
         if (token_type == OPE) {
             unget_string( work_buf, NULL);  /* Set again 'openum'   */
-            scan_token( get_ch(), ((void)(workp = work_buf), &workp), work_end);
+            (void) scan_token( get_ch(), ((void)(workp = work_buf), &workp), work_end);
         }
     }
 
@@ -453,7 +453,7 @@ void    skip_nl( void)
     insert_sep = NO_SEP;
     while (infile && infile->fp == NULL) {  /* Stacked text         */
         infile->bptr += strlen( infile->bptr);
-        get_ch();                           /* To the parent        */
+        (void) get_ch();                           /* To the parent        */
     }
     if (infile)
         infile->bptr += strlen( infile->bptr);  /* Source line      */

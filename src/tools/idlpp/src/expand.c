@@ -910,7 +910,7 @@ static char *   close_macro_inf(
         *out_p++ = (char)((m_num % UCHARMAX) + 1);
     }
     *out_p = EOS;
-    get_ch();                               /* Clear the garbage    */
+    (void) get_ch();                               /* Clear the garbage    */
     unget_ch();
     if (infile->fp || in_src_n) {
         if (infile->fp) {           /* Macro call on source file    */
@@ -1029,7 +1029,7 @@ static int  prescan(
         switch (c) {
         case ST_QUOTE:
             assert( arglist != NULL);
-            skip_ws();      /* Skip spaces and the returned MAC_PARM*/
+            (void) skip_ws();      /* Skip spaces and the returned MAC_PARM*/
             c = get_ch() - 1;               /* Parameter number     */
             prev_token = out;               /* Remember the token   */
             out = stringize( defp, arglist[ c], out);
@@ -1080,7 +1080,7 @@ static int  prescan(
             break;
         default:
             prev_token = out;
-            scan_token( c, &out, out_end);  /* Ordinary token       */
+            (void) scan_token( c, &out, out_end);  /* Ordinary token       */
             break;
         }
 
@@ -1135,7 +1135,7 @@ static char *   catenate(
                 file = unget_string( argp, NULL);
                 while ((void)(c = get_ch()), file == infile) {
                     prev_token = out;   /* Remember the last token  */
-                    scan_token( c, &out, out_end);
+                    (void) scan_token( c, &out, out_end);
                 }       /* Copy actual argument without expansion   */
                 unget_ch();
             } else {
@@ -1143,7 +1143,7 @@ static char *   catenate(
                 while ((c = get_ch()) != RT_END) {
                     prev_prev_token = prev_token;
                     prev_token = out;   /* Remember the last token  */
-                    scan_token( c, &out, out_end);
+                    (void) scan_token( c, &out, out_end);
                 }       /* Copy actual argument without expansion   */
                 if (*prev_token == TOK_SEP) {
                     out = prev_token;
@@ -1171,7 +1171,7 @@ static char *   catenate(
     switch (c) {
     case ST_QUOTE:          /* First stringize and then catenate    */
         assert( arglist != NULL);
-        skip_ws();                  /* Skip MAC_PARM, ST_QUOTE      */
+        (void) skip_ws();                  /* Skip MAC_PARM, ST_QUOTE      */
         c = get_ch() - 1;
         out = stringize( defp, arglist[ c], out);
         break;
@@ -1192,12 +1192,12 @@ static char *   catenate(
                 c = get_ch();               /*  enabling to replace */
             } else if (c == IN_SRC) {       /* Remove IN_SRC        */
                 if (trace_macro) {
-                    get_ch();               /* Also its number      */
-                    get_ch();
+                    (void) get_ch();               /* Also its number      */
+                    (void) get_ch();
                 }
                 c = get_ch();
             }
-            scan_token( c, &out, out_end);  /* The first token      */
+            (void) scan_token( c, &out, out_end);  /* The first token      */
             if (*infile->bptr)              /* There are more tokens*/
                 in_arg = TRUE;
         }
@@ -1206,15 +1206,15 @@ static char *   catenate(
         break;
     case IN_SRC:
         if (trace_macro) {
-            get_ch();
-            get_ch();
+            (void) get_ch();
+            (void) get_ch();
         }
         /* Fall through */
     case DEF_MAGIC:
         c = get_ch();                   /* Skip DEF_MAGIC, IN_SRC   */
         /* Fall through */
     default:
-        scan_token( c, &out, out_end);      /* Copy the token       */
+        (void) scan_token( c, &out, out_end);      /* Copy the token       */
         break;
     }
 
@@ -1225,7 +1225,7 @@ static char *   catenate(
         infile->fp = (FILE *)-1;            /* To check token length*/
         if (mcpp_debug & EXPAND)
             dump_string( "checking generated token", infile->buffer);
-        scan_token( c, ((void)(workp = work_buf), &workp), work_end);
+        (void) scan_token( c, ((void)(workp = work_buf), &workp), work_end);
         infile->fp = NULL;
         if (*infile->bptr != EOS) {         /* More than a token    */
             if (option_flags.lang_asm) {    /* Assembler source     */
@@ -1238,7 +1238,7 @@ static char *   catenate(
             }
             infile->bptr += strlen( infile->bptr);
         }
-        get_ch();                           /* To the parent "file" */
+        (void) get_ch();                           /* To the parent "file" */
         unget_ch();
     }
 
@@ -1251,7 +1251,7 @@ static char *   catenate(
             file = infile;
             while ((void)(c = get_ch()), file == infile) {
                 prev_token = out;       /* Remember the last token  */
-                scan_token( c, &out, out_end);
+                (void) scan_token( c, &out, out_end);
             }           /* Copy rest of argument without expansion  */
             unget_ch();
         } else {
@@ -1259,7 +1259,7 @@ static char *   catenate(
                 if (c == TOK_SEP)
                     continue;           /* Skip separator           */
                 prev_token = out;       /* Remember the last token  */
-                scan_token( c, &out, out_end);
+                (void) scan_token( c, &out, out_end);
             }           /* Copy rest of argument without expansion  */
         }
     }
@@ -1392,10 +1392,10 @@ static char *     remove_magics(
             first = ap;
         if (char_type[ c & UCHARMAX] & HSP)
             space = ap;         /* Remember the last white space    */
-        scan_token( c, &ap, ep);
+        (void) scan_token( c, &ap, ep);
     }
     if (file == infile)
-        get_ch();                               /* Clear the "file" */
+        (void) get_ch();                               /* Clear the "file" */
     unget_ch();
     if (space == ep - 1)
         ep--;                       /* Remove trailing white space  */
@@ -1500,7 +1500,7 @@ static char *     remove_magics(
         size_t  len = 0;
 
         if (c != MAC_INF) {
-            scan_token( c, ((void)(--tp), &tp), ep);
+            (void) scan_token( c, ((void)(--tp), &tp), ep);
             continue;
         }
         unget_ch();                             /* Pushback MAC_INF */
@@ -1550,7 +1550,7 @@ static char *     remove_magics(
         tp--;
     *tp = EOS;
     if (file == infile)
-        get_ch();                               /* Clear the "file" */
+        (void) get_ch();                               /* Clear the "file" */
     unget_ch();
 
 done:
@@ -1679,8 +1679,8 @@ static char *   stringize(
             continue;                   /* Skip inserted separator  */
         } else if (c == IN_SRC) {           /* Skip magics          */
             if (trace_macro) {
-                get_ch();
-                get_ch();
+                (void) get_ch();
+                (void) get_ch();
             }
             continue;
         } else if (c == '\\') {
@@ -1688,21 +1688,21 @@ static char *   stringize(
         } else if (c == MAC_INF) {  /* Remove intervening magics    */
             switch (c = get_ch()) {
             case MAC_ARG_START  :
-                get_ch();
+                (void) get_ch();
                 /* Fall through */
             case MAC_CALL_START :
-                get_ch();
-                get_ch();
+                (void) get_ch();
+                (void) get_ch();
                 break;
             }
             if (option_flags.v) {
                 switch (c) {
                 case MAC_ARG_END    :
-                    get_ch();
+                    (void) get_ch();
                     /* Fall through */
                 case MAC_CALL_END   :
-                    get_ch();
-                    get_ch();
+                    (void) get_ch();
+                    (void) get_ch();
                     break;
                 }
             }
@@ -1764,7 +1764,7 @@ static char *   stringize(
         if (*infile->bptr != EOS)           /* More than a token    */
             invalid = TRUE; /* Diagnose after clearing the "file"   */
         infile->bptr += strlen( infile->bptr);
-        get_ch();                           /* Clear the "file"     */
+        (void) get_ch();                           /* Clear the "file"     */
         unget_ch();
         if (invalid)
             diag_macro( CERROR
@@ -1905,7 +1905,7 @@ static char *   rescan(
     if (! disable_repl( outer)) /* Don't re-replace replacing macro */
         return  NULL;               /* Too deeply nested macro call */
     if (mcpp_mode == STD) {
-        get_ch();                   /* Clear empty "file"s          */
+        (void) get_ch();                   /* Clear empty "file"s          */
         unget_ch();                 /*      for diagnostic          */
         cur_cp = infile->bptr;      /* Remember current location    */
     }
@@ -2512,7 +2512,7 @@ static int  collect_args(
             /* Skip MAC_INF seqs and white spaces, still remember   */
             /* the sequence in buffer, if necessary.                */
         if (c == ')' || c == ',')
-            scan_token( c, &seq, seq_end);  /* Ensure token parsing */
+            (void) scan_token( c, &seq, seq_end);  /* Ensure token parsing */
         else
             *seq = EOS;
 
@@ -2987,7 +2987,7 @@ static void skip_macro( void)
         return;
     while (infile->fp == NULL) {            /* Stacked stuff        */
         infile->bptr += strlen( infile->bptr);
-        get_ch();                           /* To the parent "file" */
+        (void) get_ch();                           /* To the parent "file" */
     }
     unget_ch();
 }

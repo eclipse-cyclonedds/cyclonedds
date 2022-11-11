@@ -306,7 +306,7 @@ static int validate_local_identity_and_permissions(void)
   if (result != DDS_SECURITY_VALIDATION_OK)
   {
     res = -1;
-    printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("validate_local_identity_failed: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   reset_exception(&exception);
@@ -324,7 +324,7 @@ static int validate_local_identity_and_permissions(void)
     if (local_permissions_handle == DDS_SECURITY_HANDLE_NIL)
     {
       res = -1;
-      printf("validate_local_permissions_failed: %s\n", exception.message ? exception.message : "Error message missing");
+      (void) printf("validate_local_permissions_failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
   }
 
@@ -342,7 +342,7 @@ static void clear_local_identity_and_permissions(void)
   {
     success = access_control->return_permissions_handle(access_control, local_permissions_handle, &exception);
     if (!success)
-      printf("return_permission_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
+      (void) printf("return_permission_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
     reset_exception(&exception);
   }
 
@@ -350,7 +350,7 @@ static void clear_local_identity_and_permissions(void)
   {
     success = auth->return_identity_handle(auth, local_identity_handle, &exception);
     if (!success)
-      printf("return_identity_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
+      (void) printf("return_identity_handle failed: %s\n", exception.message ? exception.message : "Error message missing");
     reset_exception(&exception);
   }
 }
@@ -408,7 +408,7 @@ CU_Test(ddssec_builtin_validate_remote_permissions, valid_permissions, .init = s
       &exception);
 
   if (result == 0)
-    printf("validate_remote_permissions_failed: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("validate_remote_permissions_failed: %s\n", exception.message ? exception.message : "Error message missing");
   reset_exception(&exception);
   CU_ASSERT_FATAL(result != 0);
   access_control->return_permissions_handle(access_control, result, &exception);
@@ -451,7 +451,7 @@ CU_Test(ddssec_builtin_validate_remote_permissions, permissions_unknown_ca, .ini
 
   if (result == 0)
   {
-    printf("validate_remote_permissions_failed: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("validate_remote_permissions_failed: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT(result == 0);
@@ -506,7 +506,7 @@ CU_Test(ddssec_builtin_validate_remote_permissions, permissions_not_signed, .ini
 
   if (result == 0)
   {
-    printf("validate_remote_permissions_failed: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("validate_remote_permissions_failed: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT(result == 0);
@@ -561,7 +561,7 @@ CU_Test(ddssec_builtin_validate_remote_permissions, invalid_credential_token, .i
 
   if (result == 0)
   {
-    printf("validate_remote_permissions_failed: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("validate_remote_permissions_failed: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT(result == 0);
@@ -592,7 +592,7 @@ CU_Test(ddssec_builtin_validate_remote_permissions, invalid_credential_token, .i
 
   if (result == 0)
   {
-    printf("validate_remote_permissions_failed: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("validate_remote_permissions_failed: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT(result == 0);
@@ -623,7 +623,7 @@ CU_Test(ddssec_builtin_validate_remote_permissions, invalid_credential_token, .i
 
   if (result == 0)
   {
-    printf("validate_remote_permissions_failed: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("validate_remote_permissions_failed: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT(result == 0);
@@ -655,7 +655,7 @@ CU_Test(ddssec_builtin_validate_remote_permissions, invalid_credential_token, .i
 
   if (result == 0)
   {
-    printf("validate_remote_permissions_failed: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("validate_remote_permissions_failed: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT(result == 0);
@@ -686,7 +686,7 @@ CU_Test(ddssec_builtin_validate_remote_permissions, invalid_credential_token, .i
 
   if (result == 0)
   {
-    printf("validate_remote_permissions_failed: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("validate_remote_permissions_failed: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT(result == 0);
@@ -717,7 +717,7 @@ CU_Test(ddssec_builtin_validate_remote_permissions, invalid_credential_token, .i
 
   if (result == 0)
   {
-    printf("validate_remote_permissions_failed: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("validate_remote_permissions_failed: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT(result == 0);
@@ -748,7 +748,7 @@ CU_Test(ddssec_builtin_validate_remote_permissions, invalid_credential_token, .i
 
   if (result == 0)
   {
-    printf("validate_remote_permissions_failed: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("validate_remote_permissions_failed: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT(result == 0);
@@ -779,7 +779,7 @@ CU_Test(ddssec_builtin_validate_remote_permissions, invalid_credential_token, .i
 
   if (result == 0)
   {
-    printf("validate_remote_permissions_failed: %s\n", exception.message ? exception.message : "Error message missing");
+    (void) printf("validate_remote_permissions_failed: %s\n", exception.message ? exception.message : "Error message missing");
   }
 
   CU_ASSERT(result == 0);
@@ -838,7 +838,7 @@ CU_Test(ddssec_builtin_validate_remote_permissions, invalid_xml, .init = suite_v
   CU_ASSERT(exception.message != NULL);
   if (exception.message)
   {
-    printf("(%d) %s\n", (int)exception.code, exception.message);
+    (void) printf("(%d) %s\n", (int)exception.code, exception.message);
   }
   reset_exception(&exception);
 
@@ -1075,7 +1075,7 @@ CU_Test(ddssec_builtin_validate_remote_permissions, corrupted_signature, .init =
   CU_ASSERT(exception.message != NULL);
   if (exception.message)
   {
-    printf("(%d) %s\n", (int)exception.code, exception.message);
+    (void) printf("(%d) %s\n", (int)exception.code, exception.message);
   }
   reset_exception(&exception);
 

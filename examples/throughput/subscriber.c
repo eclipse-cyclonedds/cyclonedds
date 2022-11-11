@@ -81,12 +81,12 @@ int main (int argc, char **argv)
     return EXIT_FAILURE;
   }
 
-  printf ("Cycles: %llu | PollingDelay: %ld | Partition: %s\n", maxCycles, pollingDelay, partitionName);
+  (void) printf ("Cycles: %llu | PollingDelay: %ld | Partition: %s\n", maxCycles, pollingDelay, partitionName);
   fflush (stdout);
 
   participant = prepare_dds(&reader, partitionName);
 
-  printf ("=== [Subscriber] Waiting for samples...\n");
+  (void) printf ("=== [Subscriber] Waiting for samples...\n");
   fflush (stdout);
 
   /* Process samples until Ctrl-C is pressed or until maxCycles */
@@ -215,10 +215,10 @@ static int parse_args(int argc, char **argv, unsigned long long *maxCycles, char
    */
   if (argc == 2 && (strcmp (argv[1], "-h") == 0 || strcmp (argv[1], "--help") == 0))
   {
-    printf ("Usage (parameters must be supplied in order):\n");
-    printf ("./subscriber [maxCycles (0 = infinite)] [pollingDelay (ms, 0 = waitset, -1 = listener)] [partitionName]\n");
-    printf ("Defaults:\n");
-    printf ("./subscriber 0 0 \"Throughput example\"\n");
+    (void) printf ("Usage (parameters must be supplied in order):\n");
+    (void) printf ("./subscriber [maxCycles (0 = infinite)] [pollingDelay (ms, 0 = waitset, -1 = listener)] [partitionName]\n");
+    (void) printf ("Defaults:\n");
+    (void) printf ("./subscriber 0 0 \"Throughput example\"\n");
     return EXIT_FAILURE;
   }
 
@@ -275,7 +275,7 @@ static void process_samples(dds_entity_t reader, unsigned long long maxCycles)
 
       if (deltaTime >= 1.0 && total_samples != prev_samples)
       {
-        printf ("=== [Subscriber] %5.3f Payload size: %lu | Total received: %llu samples, %llu bytes | Out of order: %llu samples "
+        (void) printf ("=== [Subscriber] %5.3f Payload size: %lu | Total received: %llu samples, %llu bytes | Out of order: %llu samples "
                 "Transfer rate: %.2lf samples/s, %.2lf Mbit/s\n",
                 deltaTime, payloadSize, total_samples, total_bytes, outOfOrder,
                 (deltaTime != 0.0) ? ((double)(total_samples - prev_samples) / deltaTime) : 0,
@@ -297,10 +297,10 @@ static void process_samples(dds_entity_t reader, unsigned long long maxCycles)
   /* Output totals and averages */
   deltaTv = time_now - startTime;
   deltaTime = (double) (deltaTv / DDS_NSECS_IN_SEC);
-  printf ("\nTotal received: %llu samples, %llu bytes\n", total_samples, total_bytes);
-  printf ("Out of order: %llu samples\n", outOfOrder);
-  printf ("Average transfer rate: %.2lf samples/s, ", (double)total_samples / deltaTime);
-  printf ("%.2lf Mbit/s\n", (double)(total_bytes / BYTES_PER_SEC_TO_MEGABITS_PER_SEC) / deltaTime);
+  (void) printf ("\nTotal received: %llu samples, %llu bytes\n", total_samples, total_bytes);
+  (void) printf ("Out of order: %llu samples\n", outOfOrder);
+  (void) printf ("Average transfer rate: %.2lf samples/s, ", (double)total_samples / deltaTime);
+  (void) printf ("%.2lf Mbit/s\n", (double)(total_bytes / BYTES_PER_SEC_TO_MEGABITS_PER_SEC) / deltaTime);
   fflush (stdout);
 }
 

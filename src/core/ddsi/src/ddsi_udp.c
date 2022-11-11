@@ -535,7 +535,7 @@ static dds_return_t ddsi_udp_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tran_
 
     char buf[DDSI_LOCSTRLEN];
     if (bind_to_any)
-      snprintf (buf, sizeof (buf), "ANY:%"PRIu32, port);
+      (void) snprintf (buf, sizeof (buf), "ANY:%"PRIu32, port);
     else
       ddsi_locator_to_string (buf, sizeof (buf), &ownloc_w_port);
     GVERROR ("ddsi_udp_create_conn: failed to bind to %s: %s\n", buf,

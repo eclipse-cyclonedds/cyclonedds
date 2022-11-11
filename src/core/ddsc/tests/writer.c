@@ -35,10 +35,10 @@ setup(void)
 static void
 teardown(void)
 {
-    dds_delete(writer);
-    dds_delete(publisher);
-    dds_delete(topic);
-    dds_delete(participant);
+    (void) dds_delete(writer);
+    (void) dds_delete(publisher);
+    (void) dds_delete(topic);
+    (void) dds_delete(participant);
 }
 
 CU_Test(ddsc_create_writer, basic, .init = setup, .fini = teardown)
@@ -78,7 +78,7 @@ CU_Test(ddsc_create_writer, wrong_participant, .init = setup, .fini = teardown)
     CU_ASSERT_FATAL(participant2 > 0);
     writer = dds_create_writer(participant2, topic, NULL, NULL);
     CU_ASSERT_EQUAL_FATAL(writer, DDS_RETCODE_BAD_PARAMETER);
-    dds_delete(participant2);
+    (void) dds_delete(participant2);
 }
 
 CU_Test(ddsc_create_writer, publisher, .init = setup, .fini = teardown)
@@ -89,7 +89,7 @@ CU_Test(ddsc_create_writer, publisher, .init = setup, .fini = teardown)
 
 CU_Test(ddsc_create_writer, deleted_publisher, .init = setup, .fini = teardown)
 {
-    dds_delete(publisher);
+    (void) dds_delete(publisher);
 
     writer = dds_create_writer(publisher, topic, NULL, NULL);
     CU_ASSERT_EQUAL_FATAL(writer, DDS_RETCODE_BAD_PARAMETER);
@@ -111,7 +111,7 @@ CU_Test(ddsc_create_writer, bad_topic, .init = setup, .fini = teardown)
 
 CU_Test(ddsc_create_writer, deleted_topic, .init = setup, .fini = teardown)
 {
-    dds_delete(topic);
+    (void) dds_delete(topic);
 
     writer = dds_create_writer(publisher, topic, NULL, NULL);
     CU_ASSERT_EQUAL_FATAL(writer, DDS_RETCODE_BAD_PARAMETER);
@@ -137,6 +137,6 @@ CU_Test(ddsc_create_writer, participant_mismatch, .init = setup, .fini = teardow
     /* Expect the creation to have failed. */
     CU_ASSERT_FATAL(writer <= 0);
 
-    dds_delete(l_pub);
-    dds_delete(l_par);
+    (void) dds_delete(l_pub);
+    (void) dds_delete(l_par);
 }

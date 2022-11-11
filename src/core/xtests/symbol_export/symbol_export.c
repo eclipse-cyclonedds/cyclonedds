@@ -108,7 +108,7 @@ int main (int argc, char **argv)
 
   // dds.h
   dds_enable (1);
-  dds_delete (1);
+  (void) dds_delete (1);
   dds_get_publisher (1);
   dds_get_subscriber (1);
   dds_get_datareader (1);
@@ -729,7 +729,7 @@ int main (int argc, char **argv)
   ddsrt_hh_new (0, ptr, ptr);
   ddsrt_hh_free (ptr);
   ddsrt_hh_lookup (ptr, ptr);
-  ddsrt_hh_add (ptr, ptr2);
+  (void)ddsrt_hh_add (ptr, ptr2);
   ddsrt_hh_remove (ptr, ptr2);
   ddsrt_hh_add_absent (ptr, ptr2);
   ddsrt_hh_remove_present (ptr, ptr2);

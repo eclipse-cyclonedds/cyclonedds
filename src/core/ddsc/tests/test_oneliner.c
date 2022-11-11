@@ -267,7 +267,7 @@ static int mvfprintf (struct oneliner_ctx *ctx, FILE *fp, const char *msg, va_li
   if (needs_timestamp)
   {
     const dds_time_t dt = dds_time () - ctx->l.tref;
-    fprintf (fp, "%d.%06d ", (int32_t) (dt / DDS_NSECS_IN_SEC), (int32_t) (dt % DDS_NSECS_IN_SEC) / 1000);
+    (void) fprintf (fp, "%d.%06d ", (int32_t) (dt / DDS_NSECS_IN_SEC), (int32_t) (dt % DDS_NSECS_IN_SEC) / 1000);
   }
   int n = vfprintf (fp, msg, args);
   fflush (fp);
@@ -325,7 +325,7 @@ static void error_dds (struct oneliner_ctx *ctx, dds_return_t ret, const char *m
   va_end (ap);
   size_t n = strlen (ctx->msg);
   if (n < sizeof (ctx->msg))
-    snprintf (ctx->msg + n, sizeof (ctx->msg) - n, " (%s)", dds_strretcode (ret));
+    (void) snprintf (ctx->msg + n, sizeof (ctx->msg) - n, " (%s)", dds_strretcode (ret));
   longjmp (ctx->jb, 1);
 }
 

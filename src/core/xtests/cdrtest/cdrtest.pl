@@ -98,8 +98,8 @@ for (1 .. 300) {
   gencyc ($t);
 }
 print CYC <<EOF;
-  dds_delete (dp);
-  printf ("deserialized %"PRIu32" pieces of garbage\\n", deser_garbage);
+  (void) dds_delete (dp);
+  (void) printf ("deserialized %"PRIu32" pieces of garbage\\n", deser_garbage);
   return 0;
 }
 EOF
@@ -203,9 +203,9 @@ EOF
     c_free (samplecopy);
     dds_return_loan (rd, &msg, 1);
   } /* for run 0..9 */
-  dds_delete (rd);
-  dds_delete (wr);
-  dds_delete (tp);
+  (void) dds_delete (rd);
+  (void) dds_delete (wr);
+  (void) dds_delete (tp);
 }
 
 EOF

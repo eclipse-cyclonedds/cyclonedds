@@ -32,9 +32,9 @@
         status = dds_write(wri, &data); \
         CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK); \
         \
-        dds_delete(wri); \
-        dds_delete(top); \
-        dds_delete(par); \
+        (void) dds_delete(wri); \
+        (void) dds_delete(top); \
+        (void) dds_delete(par); \
     } while (0)
 
 
@@ -116,7 +116,7 @@ CU_Test(ddsc_types, alltypeskey)
     status = dds_write(wri, &atk_data);
     CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_OK);
 
-    dds_delete(wri);
-    dds_delete(top);
-    dds_delete(par);
+    (void) dds_delete(wri);
+    (void) dds_delete(top);
+    (void) dds_delete(par);
 }
