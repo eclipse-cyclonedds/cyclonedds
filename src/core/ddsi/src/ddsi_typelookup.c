@@ -33,7 +33,6 @@
 #include "dds/ddsi/ddsi_gc.h"
 #include "ddsi__protocol.h"
 #include "ddsi__radmin.h"
-#include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/q_transmit.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "ddsi__misc.h"
@@ -185,7 +184,7 @@ bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const ddsi_typeid_t 
     return true;
   }
 
-  struct ddsi_writer *wr = get_typelookup_writer (gv, NN_ENTITYID_TL_SVC_BUILTIN_REQUEST_WRITER);
+  struct ddsi_writer *wr = get_typelookup_writer (gv, DDSI_ENTITYID_TL_SVC_BUILTIN_REQUEST_WRITER);
   if (wr == NULL)
   {
     GVTRACE ("no pp found with tl request writer");
@@ -224,7 +223,7 @@ bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const ddsi_typeid_t 
   return true;
 }
 
-static void create_tl_reply_msg (DDS_Builtin_TypeLookup_Reply *reply, const struct ddsi_writer *wr, seqno_t seqno, const struct DDS_XTypes_TypeIdentifierTypeObjectPairSeq *types)
+static void create_tl_reply_msg (DDS_Builtin_TypeLookup_Reply *reply, const struct ddsi_writer *wr, ddsi_seqno_t seqno, const struct DDS_XTypes_TypeIdentifierTypeObjectPairSeq *types)
 {
   memset (reply, 0, sizeof (*reply));
   memcpy (&reply->header.relatedRequestId.writer_guid.guidPrefix, &wr->e.guid.prefix, sizeof (reply->header.relatedRequestId.writer_guid.guidPrefix));
@@ -239,7 +238,7 @@ static void create_tl_reply_msg (DDS_Builtin_TypeLookup_Reply *reply, const stru
 
 }
 
-static void write_typelookup_reply (struct ddsi_writer *wr, seqno_t seqno, const struct DDS_XTypes_TypeIdentifierTypeObjectPairSeq *types)
+static void write_typelookup_reply (struct ddsi_writer *wr, ddsi_seqno_t seqno, const struct DDS_XTypes_TypeIdentifierTypeObjectPairSeq *types)
 {
   struct ddsi_domaingv * const gv = wr->e.gv;
   DDS_Builtin_TypeLookup_Reply reply;
@@ -267,7 +266,7 @@ static ddsi_guid_t from_guid (const DDS_GUID_t *guid)
   return ddsi_guid;
 }
 
-static seqno_t from_seqno (const DDS_SequenceNumber *seqno)
+static ddsi_seqno_t from_seqno (const DDS_SequenceNumber *seqno)
 {
   return ddsi_from_seqno((ddsi_sequence_number_t){ .high = seqno->high, .low = seqno->low });
 }
@@ -311,7 +310,7 @@ void ddsi_tl_handle_request (struct ddsi_domaingv *gv, struct ddsi_serdata *d)
   }
   ddsrt_mutex_unlock (&gv->typelib_lock);
 
-  struct ddsi_writer *wr = get_typelookup_writer (gv, NN_ENTITYID_TL_SVC_BUILTIN_REPLY_WRITER);
+  struct ddsi_writer *wr = get_typelookup_writer (gv, DDSI_ENTITYID_TL_SVC_BUILTIN_REPLY_WRITER);
   if (wr != NULL)
     write_typelookup_reply (wr, from_seqno (&req.header.requestId.sequence_number), &types);
   else

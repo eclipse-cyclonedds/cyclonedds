@@ -60,7 +60,7 @@ void ddsi_proxy_writer_get_alive_state (struct ddsi_proxy_writer *pwr, struct dd
   ddsrt_mutex_unlock (&pwr->e.lock);
 }
 
-static int proxy_endpoint_common_init (struct ddsi_entity_common *e, struct ddsi_proxy_endpoint_common *c, enum ddsi_entity_kind kind, const struct ddsi_guid *guid, ddsrt_wctime_t tcreate, seqno_t seq, struct ddsi_proxy_participant *proxypp, struct ddsi_addrset *as, const ddsi_plist_t *plist)
+static int proxy_endpoint_common_init (struct ddsi_entity_common *e, struct ddsi_proxy_endpoint_common *c, enum ddsi_entity_kind kind, const struct ddsi_guid *guid, ddsrt_wctime_t tcreate, ddsi_seqno_t seq, struct ddsi_proxy_participant *proxypp, struct ddsi_addrset *as, const ddsi_plist_t *plist)
 {
   int ret;
 
@@ -181,14 +181,14 @@ static enum ddsi_reorder_mode get_proxy_writer_reorder_mode(const ddsi_entityid_
   {
     return DDSI_REORDER_MODE_NORMAL;
   }
-  if (pwr_entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER)
+  if (pwr_entityid.u == DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER)
   {
     return DDSI_REORDER_MODE_ALWAYS_DELIVER;
   }
   return DDSI_REORDER_MODE_MONOTONICALLY_INCREASING;
 }
 
-int ddsi_new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct ddsi_addrset *as, const ddsi_plist_t *plist, struct ddsi_dqueue *dqueue, struct xeventq *evq, ddsrt_wctime_t timestamp, seqno_t seq)
+int ddsi_new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct ddsi_addrset *as, const ddsi_plist_t *plist, struct ddsi_dqueue *dqueue, struct xeventq *evq, ddsrt_wctime_t timestamp, ddsi_seqno_t seq)
 {
   struct ddsi_proxy_participant *proxypp;
   struct ddsi_proxy_writer *pwr;
@@ -283,7 +283,7 @@ int ddsi_new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppg
   reorder_mode = get_proxy_writer_reorder_mode(pwr->e.guid.entityid, isreliable);
   pwr->reorder = ddsi_reorder_new (&gv->logconfig, reorder_mode, gv->config.primary_reorder_maxsamples, gv->config.late_ack_mode);
 
-  if (pwr->e.guid.entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER)
+  if (pwr->e.guid.entityid.u == DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER)
   {
     /* for the builtin_volatile_secure proxy writer which uses a content filter set the next expected
      * sequence number of the reorder administration to the maximum sequence number to ensure that effectively
@@ -291,7 +291,7 @@ int ddsi_new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppg
      * reader is always considered out of sync the reorder administration of the corresponding reader will be used
      * instead.
      */
-    ddsi_reorder_set_next_seq(pwr->reorder, MAX_SEQ_NUMBER);
+    ddsi_reorder_set_next_seq(pwr->reorder, DDSI_MAX_SEQ_NUMBER);
     pwr->filtered = 1;
   }
 
@@ -317,7 +317,7 @@ int ddsi_new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppg
   return 0;
 }
 
-void ddsi_update_proxy_writer (struct ddsi_proxy_writer *pwr, seqno_t seq, struct ddsi_addrset *as, const struct dds_qos *xqos, ddsrt_wctime_t timestamp)
+void ddsi_update_proxy_writer (struct ddsi_proxy_writer *pwr, ddsi_seqno_t seq, struct ddsi_addrset *as, const struct dds_qos *xqos, ddsrt_wctime_t timestamp)
 {
   struct ddsi_reader * rd;
   struct ddsi_pwr_rd_match * m;
@@ -534,7 +534,7 @@ int ddsi_proxy_writer_set_notalive (struct ddsi_proxy_writer *pwr, bool notify)
 
 /* PROXY-READER ----------------------------------------------------- */
 
-int ddsi_new_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct ddsi_addrset *as, const ddsi_plist_t *plist, ddsrt_wctime_t timestamp, seqno_t seq
+int ddsi_new_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct ddsi_addrset *as, const ddsi_plist_t *plist, ddsrt_wctime_t timestamp, ddsi_seqno_t seq
 #ifdef DDS_HAS_SSM
 , int favours_ssm
 #endif
@@ -579,7 +579,7 @@ int ddsi_new_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *ppg
   ddsrt_avl_init (&ddsi_prd_writers_treedef, &prd->writers);
 
 #ifdef DDS_HAS_SECURITY
-  if (prd->e.guid.entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_READER)
+  if (prd->e.guid.entityid.u == DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_READER)
     prd->filter = ddsi_volatile_secure_data_filter;
   else
     prd->filter = NULL;
@@ -597,7 +597,7 @@ int ddsi_new_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *ppg
   return DDS_RETCODE_OK;
 }
 
-void ddsi_update_proxy_reader (struct ddsi_proxy_reader *prd, seqno_t seq, struct ddsi_addrset *as, const struct dds_qos *xqos, ddsrt_wctime_t timestamp)
+void ddsi_update_proxy_reader (struct ddsi_proxy_reader *prd, ddsi_seqno_t seq, struct ddsi_addrset *as, const struct dds_qos *xqos, ddsrt_wctime_t timestamp)
 {
   struct ddsi_prd_wr_match * m;
   ddsi_guid_t wrguid;
@@ -633,7 +633,7 @@ void ddsi_update_proxy_reader (struct ddsi_proxy_reader *prd, seqno_t seq, struc
         else
         {
           memset (&guid_next, 0xff, sizeof (guid_next));
-          guid_next.entityid.u = (guid_next.entityid.u & ~(unsigned)0xff) | NN_ENTITYID_KIND_WRITER_NO_KEY;
+          guid_next.entityid.u = (guid_next.entityid.u & ~(unsigned)0xff) | DDSI_ENTITYID_KIND_WRITER_NO_KEY;
         }
 
         ddsrt_mutex_unlock (&prd->e.lock);
@@ -676,7 +676,7 @@ static void proxy_reader_set_delete_and_ack_all_messages (struct ddsi_proxy_read
     else
     {
       memset (&wrguid_next, 0xff, sizeof (wrguid_next));
-      wrguid_next.entityid.u = (wrguid_next.entityid.u & ~(unsigned)0xff) | NN_ENTITYID_KIND_WRITER_NO_KEY;
+      wrguid_next.entityid.u = (wrguid_next.entityid.u & ~(unsigned)0xff) | DDSI_ENTITYID_KIND_WRITER_NO_KEY;
     }
 
     ddsrt_mutex_unlock (&prd->e.lock);
@@ -688,7 +688,7 @@ static void proxy_reader_set_delete_and_ack_all_messages (struct ddsi_proxy_read
       if ((m_wr = ddsrt_avl_lookup (&ddsi_wr_readers_treedef, &wr->readers, &prd->e.guid)) != NULL)
       {
         struct whc_state whcst;
-        m_wr->seq = MAX_SEQ_NUMBER;
+        m_wr->seq = DDSI_MAX_SEQ_NUMBER;
         ddsrt_avl_augment_update (&ddsi_wr_readers_treedef, m_wr);
         (void)ddsi_remove_acked_messages (wr, &whcst, &deferred_free_list);
         ddsi_writer_clear_retransmitting (wr);

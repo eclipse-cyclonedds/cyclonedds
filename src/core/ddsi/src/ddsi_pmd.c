@@ -25,7 +25,6 @@
 #include "ddsi__misc.h"
 #include "ddsi__protocol.h"
 #include "ddsi__radmin.h"
-#include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/q_transmit.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/ddsi_pmd.h"
@@ -68,7 +67,7 @@ void ddsi_write_pmd_message (struct thread_state * const thrst, struct nn_xpack 
   struct ddsi_serdata *serdata;
   struct ddsi_tkmap_instance *tk;
 
-  if ((wr = ddsi_get_builtin_writer (pp, NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER)) == NULL)
+  if ((wr = ddsi_get_builtin_writer (pp, DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER)) == NULL)
   {
     GVTRACE ("ddsi_write_pmd_message ("PGUIDFMT") - builtin pmd writer not found\n", PGUID (pp->e.guid));
     return;
@@ -101,7 +100,7 @@ void ddsi_handle_pmd_message (const struct ddsi_receiver_state *rst, struct ddsi
       const ddsi_participant_message_data_t *pmd = sample->sample;
       RSTTRACE (" pp %"PRIx32":%"PRIx32":%"PRIx32" kind %"PRIu32" data %"PRIu32, PGUIDPREFIX (pmd->participantGuidPrefix), pmd->kind, pmd->value.length);
       ppguid.prefix = pmd->participantGuidPrefix;
-      ppguid.entityid.u = NN_ENTITYID_PARTICIPANT;
+      ppguid.entityid.u = DDSI_ENTITYID_PARTICIPANT;
       if ((proxypp = ddsi_entidx_lookup_proxy_participant_guid (rst->gv->entity_index, &ppguid)) == NULL)
         RSTTRACE (" PPunknown");
       else if (pmd->kind == DDSI_PARTICIPANT_MESSAGE_DATA_KIND_MANUAL_LIVELINESS_UPDATE &&
@@ -118,7 +117,7 @@ void ddsi_handle_pmd_message (const struct ddsi_receiver_state *rst, struct ddsi
     case DDSI_STATUSINFO_DISPOSE | DDSI_STATUSINFO_UNREGISTER: {
       const ddsi_participant_message_data_t *pmd = sample->sample;
       ppguid.prefix = pmd->participantGuidPrefix;
-      ppguid.entityid.u = NN_ENTITYID_PARTICIPANT;
+      ppguid.entityid.u = DDSI_ENTITYID_PARTICIPANT;
       if (ddsi_delete_proxy_participant_by_guid (rst->gv, &ppguid, sample->c.timestamp, 0) < 0)
         RSTTRACE (" unknown");
       else

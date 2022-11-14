@@ -161,7 +161,7 @@ dds_return_t ddsi_participant_allocate_entityid (ddsi_entityid_t *id, uint32_t k
   ddsrt_mutex_lock (&pp->e.lock);
   if (ddsi_inverse_uint32_set_alloc(&id1, &pp->avail_entityids.x))
   {
-    *id = ddsi_to_entityid (id1 * NN_ENTITYID_ALLOCSTEP + kind);
+    *id = ddsi_to_entityid (id1 * DDSI_ENTITYID_ALLOCSTEP + kind);
     ret = 0;
   }
   else
@@ -176,7 +176,7 @@ dds_return_t ddsi_participant_allocate_entityid (ddsi_entityid_t *id, uint32_t k
 void ddsi_participant_release_entityid (struct ddsi_participant *pp, ddsi_entityid_t id)
 {
   ddsrt_mutex_lock (&pp->e.lock);
-  ddsi_inverse_uint32_set_free(&pp->avail_entityids.x, id.u / NN_ENTITYID_ALLOCSTEP);
+  ddsi_inverse_uint32_set_free(&pp->avail_entityids.x, id.u / DDSI_ENTITYID_ALLOCSTEP);
   ddsrt_mutex_unlock (&pp->e.lock);
 }
 
@@ -197,7 +197,7 @@ static void add_security_builtin_endpoints (struct ddsi_participant *pp, ddsi_gu
   {
     struct whc_writer_info *wrinfo;
 
-    subguid->entityid = ddsi_to_entityid (NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER);
+    subguid->entityid = ddsi_to_entityid (DDSI_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER);
     wrinfo = whc_make_wrinfo (NULL, &gv->builtin_endpoint_xqos_wr);
     ddsi_new_writer_guid (NULL, subguid, group_guid, pp, DDS_BUILTIN_TOPIC_PARTICIPANT_SECURE_NAME, gv->spdp_secure_type, &gv->builtin_endpoint_xqos_wr, whc_new(gv, wrinfo), NULL, NULL);
     whc_free_wrinfo (wrinfo);
@@ -206,13 +206,13 @@ static void add_security_builtin_endpoints (struct ddsi_participant *pp, ddsi_gu
     force_as_disc_address(gv, subguid);
     pp->bes |= DDSI_DISC_BUILTIN_ENDPOINT_PARTICIPANT_SECURE_ANNOUNCER;
 
-    subguid->entityid = ddsi_to_entityid (NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER);
+    subguid->entityid = ddsi_to_entityid (DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER);
     wrinfo = whc_make_wrinfo (NULL, &gv->builtin_stateless_xqos_wr);
     ddsi_new_writer_guid (NULL, subguid, group_guid, pp, DDS_BUILTIN_TOPIC_PARTICIPANT_STATELESS_MESSAGE_NAME, gv->pgm_stateless_type, &gv->builtin_stateless_xqos_wr, whc_new(gv, wrinfo), NULL, NULL);
     whc_free_wrinfo (wrinfo);
     pp->bes |= DDSI_BUILTIN_ENDPOINT_PARTICIPANT_STATELESS_MESSAGE_ANNOUNCER;
 
-    subguid->entityid = ddsi_to_entityid (NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER);
+    subguid->entityid = ddsi_to_entityid (DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER);
     wrinfo = whc_make_wrinfo (NULL, &gv->builtin_secure_volatile_xqos_wr);
     ddsi_new_writer_guid (NULL, subguid, group_guid, pp, DDS_BUILTIN_TOPIC_PARTICIPANT_VOLATILE_MESSAGE_SECURE_NAME, gv->pgm_volatile_type, &gv->builtin_secure_volatile_xqos_wr, whc_new(gv, wrinfo), NULL, NULL);
     whc_free_wrinfo (wrinfo);
@@ -220,15 +220,15 @@ static void add_security_builtin_endpoints (struct ddsi_participant *pp, ddsi_gu
 
     wrinfo = whc_make_wrinfo (NULL, &gv->builtin_endpoint_xqos_wr);
 
-    subguid->entityid = ddsi_to_entityid (NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_WRITER);
+    subguid->entityid = ddsi_to_entityid (DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_WRITER);
     ddsi_new_writer_guid (NULL, subguid, group_guid, pp, DDS_BUILTIN_TOPIC_PARTICIPANT_MESSAGE_SECURE_NAME, gv->pmd_secure_type, &gv->builtin_endpoint_xqos_wr, whc_new(gv, wrinfo), NULL, NULL);
     pp->bes |= DDSI_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_SECURE_ANNOUNCER;
 
-    subguid->entityid = ddsi_to_entityid (NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER);
+    subguid->entityid = ddsi_to_entityid (DDSI_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER);
     ddsi_new_writer_guid (NULL, subguid, group_guid, pp, DDS_BUILTIN_TOPIC_PUBLICATION_SECURE_NAME, gv->sedp_writer_secure_type, &gv->builtin_endpoint_xqos_wr, whc_new(gv, wrinfo), NULL, NULL);
     pp->bes |= DDSI_BUILTIN_ENDPOINT_PUBLICATION_MESSAGE_SECURE_ANNOUNCER;
 
-    subguid->entityid = ddsi_to_entityid (NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_WRITER);
+    subguid->entityid = ddsi_to_entityid (DDSI_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_WRITER);
     ddsi_new_writer_guid (NULL, subguid, group_guid, pp, DDS_BUILTIN_TOPIC_SUBSCRIPTION_SECURE_NAME, gv->sedp_reader_secure_type, &gv->builtin_endpoint_xqos_wr, whc_new(gv, wrinfo), NULL, NULL);
     pp->bes |= DDSI_BUILTIN_ENDPOINT_SUBSCRIPTION_MESSAGE_SECURE_ANNOUNCER;
 
@@ -237,11 +237,11 @@ static void add_security_builtin_endpoints (struct ddsi_participant *pp, ddsi_gu
 
   if (add_readers)
   {
-    subguid->entityid = ddsi_to_entityid (NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_READER);
+    subguid->entityid = ddsi_to_entityid (DDSI_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_READER);
     ddsi_new_reader_guid (NULL, subguid, group_guid, pp, DDS_BUILTIN_TOPIC_SUBSCRIPTION_SECURE_NAME, gv->sedp_reader_secure_type, &gv->builtin_endpoint_xqos_rd, NULL, NULL, NULL);
     pp->bes |= DDSI_BUILTIN_ENDPOINT_SUBSCRIPTION_MESSAGE_SECURE_DETECTOR;
 
-    subguid->entityid = ddsi_to_entityid (NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_READER);
+    subguid->entityid = ddsi_to_entityid (DDSI_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_READER);
     ddsi_new_reader_guid (NULL, subguid, group_guid, pp, DDS_BUILTIN_TOPIC_PUBLICATION_SECURE_NAME, gv->sedp_writer_secure_type, &gv->builtin_endpoint_xqos_rd, NULL, NULL, NULL);
     pp->bes |= DDSI_BUILTIN_ENDPOINT_PUBLICATION_MESSAGE_SECURE_DETECTOR;
   }
@@ -250,19 +250,19 @@ static void add_security_builtin_endpoints (struct ddsi_participant *pp, ddsi_gu
    * When security is enabled configure the associated necessary builtin readers independent of the
    * besmode flag setting, because all participant do require authentication.
    */
-  subguid->entityid = ddsi_to_entityid (NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_READER);
+  subguid->entityid = ddsi_to_entityid (DDSI_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_READER);
   ddsi_new_reader_guid (NULL, subguid, group_guid, pp, DDS_BUILTIN_TOPIC_PARTICIPANT_SECURE_NAME, gv->spdp_secure_type, &gv->builtin_endpoint_xqos_rd, NULL, NULL, NULL);
   pp->bes |= DDSI_DISC_BUILTIN_ENDPOINT_PARTICIPANT_SECURE_DETECTOR;
 
-  subguid->entityid = ddsi_to_entityid (NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_READER);
+  subguid->entityid = ddsi_to_entityid (DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_READER);
   ddsi_new_reader_guid (NULL, subguid, group_guid, pp, DDS_BUILTIN_TOPIC_PARTICIPANT_VOLATILE_MESSAGE_SECURE_NAME, gv->pgm_volatile_type, &gv->builtin_secure_volatile_xqos_rd, NULL, NULL, NULL);
   pp->bes |= DDSI_BUILTIN_ENDPOINT_PARTICIPANT_VOLATILE_SECURE_DETECTOR;
 
-  subguid->entityid = ddsi_to_entityid (NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_READER);
+  subguid->entityid = ddsi_to_entityid (DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_READER);
   ddsi_new_reader_guid (NULL, subguid, group_guid, pp, DDS_BUILTIN_TOPIC_PARTICIPANT_STATELESS_MESSAGE_NAME, gv->pgm_stateless_type, &gv->builtin_stateless_xqos_rd, NULL, NULL, NULL);
   pp->bes |= DDSI_BUILTIN_ENDPOINT_PARTICIPANT_STATELESS_MESSAGE_DETECTOR;
 
-  subguid->entityid = ddsi_to_entityid (NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_READER);
+  subguid->entityid = ddsi_to_entityid (DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_READER);
   ddsi_new_reader_guid (NULL, subguid, group_guid, pp, DDS_BUILTIN_TOPIC_PARTICIPANT_MESSAGE_SECURE_NAME, gv->pmd_secure_type, &gv->builtin_endpoint_xqos_rd, NULL, NULL, NULL);
   pp->bes |= DDSI_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_SECURE_DETECTOR;
 }
@@ -312,16 +312,16 @@ static void add_builtin_endpoints (struct ddsi_participant *pp, ddsi_guid_t *sub
     struct whc_writer_info *wrinfo_tl = whc_make_wrinfo (NULL, &gv->builtin_endpoint_xqos_wr);
 
     /* SEDP writers: */
-    subguid->entityid = ddsi_to_entityid (NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER);
+    subguid->entityid = ddsi_to_entityid (DDSI_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER);
     ddsi_new_writer_guid (NULL, subguid, group_guid, pp, DDS_BUILTIN_TOPIC_SUBSCRIPTION_NAME, gv->sedp_reader_type, &gv->builtin_endpoint_xqos_wr, whc_new(gv, wrinfo_tl), NULL, NULL);
     pp->bes |= DDSI_DISC_BUILTIN_ENDPOINT_SUBSCRIPTION_ANNOUNCER;
 
-    subguid->entityid = ddsi_to_entityid (NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER);
+    subguid->entityid = ddsi_to_entityid (DDSI_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER);
     ddsi_new_writer_guid (NULL, subguid, group_guid, pp, DDS_BUILTIN_TOPIC_PUBLICATION_NAME, gv->sedp_writer_type, &gv->builtin_endpoint_xqos_wr, whc_new(gv, wrinfo_tl), NULL, NULL);
     pp->bes |= DDSI_DISC_BUILTIN_ENDPOINT_PUBLICATION_ANNOUNCER;
 
     /* PMD writer: */
-    subguid->entityid = ddsi_to_entityid (NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
+    subguid->entityid = ddsi_to_entityid (DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
     ddsi_new_writer_guid (NULL, subguid, group_guid, pp, DDS_BUILTIN_TOPIC_PARTICIPANT_MESSAGE_NAME, gv->pmd_type, &gv->builtin_endpoint_xqos_wr, whc_new(gv, wrinfo_tl), NULL, NULL);
     pp->bes |= DDSI_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_WRITER;
 
@@ -329,7 +329,7 @@ static void add_builtin_endpoints (struct ddsi_participant *pp, ddsi_guid_t *sub
     if (gv->config.enable_topic_discovery_endpoints)
     {
       /* SEDP topic writer: */
-      subguid->entityid = ddsi_to_entityid (NN_ENTITYID_SEDP_BUILTIN_TOPIC_WRITER);
+      subguid->entityid = ddsi_to_entityid (DDSI_ENTITYID_SEDP_BUILTIN_TOPIC_WRITER);
       ddsi_new_writer_guid (NULL, subguid, group_guid, pp, DDS_BUILTIN_TOPIC_TOPIC_NAME, gv->sedp_topic_type, &gv->builtin_endpoint_xqos_wr, whc_new(gv, wrinfo_tl), NULL, NULL);
       pp->bes |= DDSI_DISC_BUILTIN_ENDPOINT_TOPICS_ANNOUNCER;
     }
@@ -339,11 +339,11 @@ static void add_builtin_endpoints (struct ddsi_participant *pp, ddsi_guid_t *sub
     struct whc_writer_info *wrinfo_vol = whc_make_wrinfo (NULL, &gv->builtin_volatile_xqos_wr);
     struct ddsi_writer *wr_tl_req, *wr_tl_reply;
 
-    subguid->entityid = ddsi_to_entityid (NN_ENTITYID_TL_SVC_BUILTIN_REQUEST_WRITER);
+    subguid->entityid = ddsi_to_entityid (DDSI_ENTITYID_TL_SVC_BUILTIN_REQUEST_WRITER);
     ddsi_new_writer_guid (&wr_tl_req, subguid, group_guid, pp, DDS_BUILTIN_TOPIC_TYPELOOKUP_REQUEST_NAME, gv->tl_svc_request_type, &gv->builtin_volatile_xqos_wr, whc_new(gv, wrinfo_vol), NULL, NULL);
     pp->bes |= DDSI_BUILTIN_ENDPOINT_TL_SVC_REQUEST_DATA_WRITER;
 
-    subguid->entityid = ddsi_to_entityid (NN_ENTITYID_TL_SVC_BUILTIN_REPLY_WRITER);
+    subguid->entityid = ddsi_to_entityid (DDSI_ENTITYID_TL_SVC_BUILTIN_REPLY_WRITER);
     ddsi_new_writer_guid (&wr_tl_reply, subguid, group_guid, pp, DDS_BUILTIN_TOPIC_TYPELOOKUP_REPLY_NAME, gv->tl_svc_reply_type, &gv->builtin_volatile_xqos_wr, whc_new(gv, wrinfo_vol), NULL, NULL);
     pp->bes |= DDSI_BUILTIN_ENDPOINT_TL_SVC_REPLY_DATA_WRITER;
 
@@ -364,21 +364,21 @@ static void add_builtin_endpoints (struct ddsi_participant *pp, ddsi_guid_t *sub
   if (add_readers)
   {
     /* SPDP reader: */
-    subguid->entityid = ddsi_to_entityid (NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER);
+    subguid->entityid = ddsi_to_entityid (DDSI_ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER);
     ddsi_new_reader_guid (NULL, subguid, group_guid, pp, DDS_BUILTIN_TOPIC_PARTICIPANT_NAME, gv->spdp_type, &gv->spdp_endpoint_xqos, NULL, NULL, NULL);
     pp->bes |= DDSI_DISC_BUILTIN_ENDPOINT_PARTICIPANT_DETECTOR;
 
     /* SEDP readers: */
-    subguid->entityid = ddsi_to_entityid (NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_READER);
+    subguid->entityid = ddsi_to_entityid (DDSI_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_READER);
     ddsi_new_reader_guid (NULL, subguid, group_guid, pp, DDS_BUILTIN_TOPIC_SUBSCRIPTION_NAME, gv->sedp_reader_type, &gv->builtin_endpoint_xqos_rd, NULL, NULL, NULL);
     pp->bes |= DDSI_DISC_BUILTIN_ENDPOINT_SUBSCRIPTION_DETECTOR;
 
-    subguid->entityid = ddsi_to_entityid (NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_READER);
+    subguid->entityid = ddsi_to_entityid (DDSI_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_READER);
     ddsi_new_reader_guid (NULL, subguid, group_guid, pp, DDS_BUILTIN_TOPIC_PUBLICATION_NAME, gv->sedp_writer_type, &gv->builtin_endpoint_xqos_rd, NULL, NULL, NULL);
     pp->bes |= DDSI_DISC_BUILTIN_ENDPOINT_PUBLICATION_DETECTOR;
 
     /* PMD reader: */
-    subguid->entityid = ddsi_to_entityid (NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_READER);
+    subguid->entityid = ddsi_to_entityid (DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_READER);
     ddsi_new_reader_guid (NULL, subguid, group_guid, pp, DDS_BUILTIN_TOPIC_PARTICIPANT_MESSAGE_NAME, gv->pmd_type, &gv->builtin_endpoint_xqos_rd, NULL, NULL, NULL);
     pp->bes |= DDSI_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_READER;
 
@@ -386,18 +386,18 @@ static void add_builtin_endpoints (struct ddsi_participant *pp, ddsi_guid_t *sub
     if (gv->config.enable_topic_discovery_endpoints)
     {
       /* SEDP topic reader: */
-      subguid->entityid = ddsi_to_entityid (NN_ENTITYID_SEDP_BUILTIN_TOPIC_READER);
+      subguid->entityid = ddsi_to_entityid (DDSI_ENTITYID_SEDP_BUILTIN_TOPIC_READER);
       ddsi_new_reader_guid (NULL, subguid, group_guid, pp, DDS_BUILTIN_TOPIC_TOPIC_NAME, gv->sedp_topic_type, &gv->builtin_endpoint_xqos_rd, NULL, NULL, NULL);
       pp->bes |= DDSI_DISC_BUILTIN_ENDPOINT_TOPICS_DETECTOR;
     }
 #endif
 #ifdef DDS_HAS_TYPE_DISCOVERY
     /* TypeLookup readers: */
-    subguid->entityid = ddsi_to_entityid (NN_ENTITYID_TL_SVC_BUILTIN_REQUEST_READER);
+    subguid->entityid = ddsi_to_entityid (DDSI_ENTITYID_TL_SVC_BUILTIN_REQUEST_READER);
     ddsi_new_reader_guid (NULL, subguid, group_guid, pp, DDS_BUILTIN_TOPIC_TYPELOOKUP_REQUEST_NAME, gv->tl_svc_request_type, &gv->builtin_volatile_xqos_rd, NULL, NULL, NULL);
     pp->bes |= DDSI_BUILTIN_ENDPOINT_TL_SVC_REQUEST_DATA_READER;
 
-    subguid->entityid = ddsi_to_entityid (NN_ENTITYID_TL_SVC_BUILTIN_REPLY_READER);
+    subguid->entityid = ddsi_to_entityid (DDSI_ENTITYID_TL_SVC_BUILTIN_REPLY_READER);
     ddsi_new_reader_guid (NULL, subguid, group_guid, pp, DDS_BUILTIN_TOPIC_TYPELOOKUP_REPLY_NAME, gv->tl_svc_reply_type, &gv->builtin_volatile_xqos_rd, NULL, NULL, NULL);
     pp->bes |= DDSI_BUILTIN_ENDPOINT_TL_SVC_REPLY_DATA_READER;
 #endif
@@ -586,7 +586,7 @@ static void update_pp_refc (struct ddsi_participant *pp, const struct ddsi_guid 
   assert (n == -1 || n == 1);
   if (guid_of_refing_entity
       && ddsi_is_builtin_entityid (guid_of_refing_entity->entityid, DDSI_VENDORID_ECLIPSE)
-      && guid_of_refing_entity->entityid.u != NN_ENTITYID_PARTICIPANT)
+      && guid_of_refing_entity->entityid.u != DDSI_ENTITYID_PARTICIPANT)
     pp->builtin_refc += n;
   else
     pp->user_refc += n;
@@ -624,37 +624,37 @@ struct ddsi_participant *ddsi_ref_participant (struct ddsi_participant *pp, cons
 void ddsi_unref_participant (struct ddsi_participant *pp, const struct ddsi_guid *guid_of_refing_entity)
 {
   static const unsigned builtin_endpoints_tab[] = {
-    NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
-    NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER,
-    NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER,
-    NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER,
-    NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
+    DDSI_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER,
+    DDSI_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER,
+    DDSI_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER,
+    DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER,
+    DDSI_ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
 #ifdef DDS_HAS_TOPIC_DISCOVERY
-    NN_ENTITYID_SEDP_BUILTIN_TOPIC_WRITER,
-    NN_ENTITYID_SEDP_BUILTIN_TOPIC_READER,
+    DDSI_ENTITYID_SEDP_BUILTIN_TOPIC_WRITER,
+    DDSI_ENTITYID_SEDP_BUILTIN_TOPIC_READER,
 #endif
-    NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_READER,
-    NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_READER,
-    NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_READER,
+    DDSI_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_READER,
+    DDSI_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_READER,
+    DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_READER,
 #ifdef DDS_HAS_TYPE_DISCOVERY
-    NN_ENTITYID_TL_SVC_BUILTIN_REQUEST_WRITER,
-    NN_ENTITYID_TL_SVC_BUILTIN_REPLY_WRITER,
-    NN_ENTITYID_TL_SVC_BUILTIN_REQUEST_READER,
-    NN_ENTITYID_TL_SVC_BUILTIN_REPLY_READER,
+    DDSI_ENTITYID_TL_SVC_BUILTIN_REQUEST_WRITER,
+    DDSI_ENTITYID_TL_SVC_BUILTIN_REPLY_WRITER,
+    DDSI_ENTITYID_TL_SVC_BUILTIN_REQUEST_READER,
+    DDSI_ENTITYID_TL_SVC_BUILTIN_REPLY_READER,
 #endif
     /* Security ones: */
-    NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER,
-    NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_READER,
-    NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_WRITER,
-    NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_READER,
-    NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_WRITER,
-    NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_READER,
-    NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER,
-    NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_READER,
-    NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER,
-    NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_READER,
-    NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER,
-    NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_READER,
+    DDSI_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER,
+    DDSI_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_READER,
+    DDSI_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_WRITER,
+    DDSI_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_READER,
+    DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_WRITER,
+    DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_READER,
+    DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER,
+    DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_READER,
+    DDSI_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER,
+    DDSI_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_READER,
+    DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER,
+    DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_READER,
   };
 
   ddsrt_mutex_lock (&pp->refc_lock);
@@ -842,7 +842,7 @@ static dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domai
   pp->state = DDSI_PARTICIPANT_STATE_INITIALIZING;
   pp->is_ddsi2_pp = (flags & (RTPS_PF_PRIVILEGED_PP | RTPS_PF_IS_DDSI2_PP)) ? 1 : 0;
   ddsrt_mutex_init (&pp->refc_lock);
-  ddsi_inverse_uint32_set_init(&pp->avail_entityids.x, 1, UINT32_MAX / NN_ENTITYID_ALLOCSTEP);
+  ddsi_inverse_uint32_set_init(&pp->avail_entityids.x, 1, UINT32_MAX / DDSI_ENTITYID_ALLOCSTEP);
   if (plist->present & PP_PARTICIPANT_LEASE_DURATION)
     pp->lease_duration = plist->participant_lease_duration;
   else
@@ -907,7 +907,7 @@ static dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domai
   /* SPDP is very much special and must be done first */
   if (!(flags & RTPS_PF_NO_BUILTIN_WRITERS))
   {
-    subguid.entityid = ddsi_to_entityid (NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
+    subguid.entityid = ddsi_to_entityid (DDSI_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
     wrinfo = whc_make_wrinfo (NULL, &gv->spdp_endpoint_xqos);
     ddsi_new_writer_guid (NULL, &subguid, &group_guid, pp, DDS_BUILTIN_TOPIC_PARTICIPANT_NAME, gv->spdp_type, &gv->spdp_endpoint_xqos, whc_new(gv, wrinfo), NULL, NULL);
     whc_free_wrinfo (wrinfo);
@@ -1024,7 +1024,7 @@ dds_return_t ddsi_new_participant (ddsi_guid_t *p_ppguid, struct ddsi_domaingv *
   p_ppguid->prefix.u[0] = gv->ppguid_base.prefix.u[0];
   p_ppguid->prefix.u[1] = u.u32[0];
   p_ppguid->prefix.u[2] = u.u32[1];
-  p_ppguid->entityid.u = NN_ENTITYID_PARTICIPANT;
+  p_ppguid->entityid.u = DDSI_ENTITYID_PARTICIPANT;
   return new_participant_guid (p_ppguid, gv, flags, plist);
 }
 
@@ -1090,53 +1090,53 @@ struct ddsi_writer *ddsi_get_builtin_writer (const struct ddsi_participant *pp, 
      participant, which is a constant. */
   switch (entityid)
   {
-    case NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER:
+    case DDSI_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER:
       bes_mask = DDSI_DISC_BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER;
       break;
-    case NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER:
+    case DDSI_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER:
       bes_mask = DDSI_DISC_BUILTIN_ENDPOINT_SUBSCRIPTION_ANNOUNCER;
       break;
-    case NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_WRITER:
+    case DDSI_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_WRITER:
       bes_mask = DDSI_BUILTIN_ENDPOINT_SUBSCRIPTION_MESSAGE_SECURE_ANNOUNCER;
       break;
-    case NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER:
+    case DDSI_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER:
       bes_mask = DDSI_DISC_BUILTIN_ENDPOINT_PUBLICATION_ANNOUNCER;
       break;
-    case NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER:
+    case DDSI_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER:
       bes_mask = DDSI_BUILTIN_ENDPOINT_PUBLICATION_MESSAGE_SECURE_ANNOUNCER;
       break;
-    case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER:
+    case DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER:
       bes_mask = DDSI_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_DATA_WRITER;
       break;
 #ifdef DDS_HAS_TYPE_DISCOVERY
-    case NN_ENTITYID_TL_SVC_BUILTIN_REQUEST_WRITER:
+    case DDSI_ENTITYID_TL_SVC_BUILTIN_REQUEST_WRITER:
       bes_mask = DDSI_BUILTIN_ENDPOINT_TL_SVC_REQUEST_DATA_WRITER;
       break;
-    case NN_ENTITYID_TL_SVC_BUILTIN_REQUEST_READER:
+    case DDSI_ENTITYID_TL_SVC_BUILTIN_REQUEST_READER:
       bes_mask = DDSI_BUILTIN_ENDPOINT_TL_SVC_REQUEST_DATA_READER;
       break;
-    case NN_ENTITYID_TL_SVC_BUILTIN_REPLY_WRITER:
+    case DDSI_ENTITYID_TL_SVC_BUILTIN_REPLY_WRITER:
       bes_mask = DDSI_BUILTIN_ENDPOINT_TL_SVC_REPLY_DATA_WRITER;
       break;
-    case NN_ENTITYID_TL_SVC_BUILTIN_REPLY_READER:
+    case DDSI_ENTITYID_TL_SVC_BUILTIN_REPLY_READER:
       bes_mask = DDSI_BUILTIN_ENDPOINT_TL_SVC_REPLY_DATA_READER;
       break;
 #endif
 #ifdef DDS_HAS_TOPIC_DISCOVERY
-    case NN_ENTITYID_SEDP_BUILTIN_TOPIC_WRITER:
+    case DDSI_ENTITYID_SEDP_BUILTIN_TOPIC_WRITER:
       bes_mask = DDSI_DISC_BUILTIN_ENDPOINT_TOPICS_ANNOUNCER;
       break;
 #endif
-    case NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER:
+    case DDSI_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER:
       bes_mask = DDSI_DISC_BUILTIN_ENDPOINT_PARTICIPANT_SECURE_ANNOUNCER;
       break;
-    case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER:
+    case DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER:
       bes_mask = DDSI_BUILTIN_ENDPOINT_PARTICIPANT_STATELESS_MESSAGE_ANNOUNCER;
       break;
-    case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER:
+    case DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER:
       bes_mask = DDSI_BUILTIN_ENDPOINT_PARTICIPANT_VOLATILE_SECURE_ANNOUNCER;
       break;
-    case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_WRITER:
+    case DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_WRITER:
       bes_mask = DDSI_BUILTIN_ENDPOINT_PARTICIPANT_MESSAGE_SECURE_ANNOUNCER;
       break;
     default:

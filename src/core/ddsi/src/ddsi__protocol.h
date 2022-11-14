@@ -16,7 +16,6 @@
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsi/ddsi_feature_check.h"
 
-#include "dds/ddsi/q_rtps.h"
 #include "ddsi__time.h"
 #include "dds/ddsi/ddsi_locator.h"
 #include "dds/ddsi/ddsi_protocol.h"

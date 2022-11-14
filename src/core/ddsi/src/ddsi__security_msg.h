@@ -48,7 +48,7 @@ struct ddsi_serdata;
 
 typedef struct ddsi_message_identity {
   ddsi_guid_t source_guid;
-  seqno_t sequence_number;
+  ddsi_seqno_t sequence_number;
 } ddsi_message_identity_t;
 
 typedef struct ddsi_participant_generic_message {
@@ -71,7 +71,7 @@ void
 ddsi_participant_generic_message_init(
    ddsi_participant_generic_message_t *msg,
    const ddsi_guid_t *wrguid,
-   seqno_t wrseq,
+   ddsi_seqno_t wrseq,
    const ddsi_guid_t *dstpguid,
    const ddsi_guid_t *dsteguid,
    const ddsi_guid_t *srceguid,

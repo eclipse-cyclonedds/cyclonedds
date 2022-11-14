@@ -16,8 +16,7 @@
 
 #include "dds/ddsrt/bswap.h"
 #include "dds/ddsrt/misc.h"
-#include "dds/ddsi/q_rtps.h" /* for nn_guid_t, nn_guid_prefix_t */
-#include "dds/ddsi/ddsi_protocol.h" /* for ddsi_sequence_number_t */
+#include "dds/ddsi/ddsi_protocol.h"
 
 #if defined (__cplusplus)
 extern "C" {

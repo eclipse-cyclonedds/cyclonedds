@@ -21,7 +21,7 @@
 #include "dds/ddsrt/avl.h"
 
 #include "ddsi__protocol.h"
-#include "dds/ddsi/q_rtps.h"
+#include "dds/ddsi/ddsi_init.h"
 #include "ddsi__misc.h"
 #include "ddsi__config_impl.h"
 #include "dds/ddsi/ddsi_log.h"
@@ -461,7 +461,7 @@ static int check_thread_properties (const struct ddsi_domaingv *gv)
   return ok;
 }
 
-int rtps_config_open_trace (struct ddsi_domaingv *gv)
+static int ddsi_config_open_trace (struct ddsi_domaingv *gv)
 {
   DDSRT_WARNING_MSVC_OFF(4996);
   int status;
@@ -497,7 +497,7 @@ int rtps_config_open_trace (struct ddsi_domaingv *gv)
   DDSRT_WARNING_MSVC_ON(4996);
 }
 
-int rtps_config_prep (struct ddsi_domaingv *gv, struct ddsi_cfgst *cfgst)
+int ddsi_config_prep (struct ddsi_domaingv *gv, struct ddsi_cfgst *cfgst)
 {
 #ifdef DDS_HAS_NETWORK_CHANNELS
   unsigned num_channels = 0;
@@ -627,7 +627,7 @@ int rtps_config_prep (struct ddsi_domaingv *gv, struct ddsi_cfgst *cfgst)
 #endif /* DDS_HAS_NETWORK_CHANNELS */
 
   /* Open tracing file after all possible config errors have been printed */
-  if (! rtps_config_open_trace (gv))
+  if (! ddsi_config_open_trace (gv))
   {
     goto err_config_late_error;
   }
@@ -746,7 +746,7 @@ err_disc:
   return 0;
 }
 
-static void rtps_term_prep (struct ddsi_domaingv *gv)
+static void ddsi_term_prep (struct ddsi_domaingv *gv)
 {
   /* Stop all I/O */
   ddsrt_mutex_lock (&gv->lock);
@@ -1013,7 +1013,7 @@ static int setup_and_start_recv_threads (struct ddsi_domaingv *gv)
 
 fail:
   /* to trigger any threads we already started to stop - xevent thread has already been started */
-  rtps_term_prep (gv);
+  ddsi_term_prep (gv);
   wait_for_receive_threads (gv);
   for (uint32_t i = 0; i < gv->n_recv_threads; i++)
   {
@@ -1184,7 +1184,7 @@ static int iceoryx_init (struct ddsi_domaingv *gv)
 }
 #endif
 
-int rtps_init (struct ddsi_domaingv *gv)
+int ddsi_init (struct ddsi_domaingv *gv)
 {
   uint32_t port_disc_uc = 0;
   uint32_t port_data_uc = 0;
@@ -1461,7 +1461,7 @@ int rtps_init (struct ddsi_domaingv *gv)
     DDSRT_STATIC_ASSERT (sizeof (gv->ppguid_base.prefix.s) > 2 && sizeof (gv->ppguid_base.prefix.s) - 2 <= sizeof (digest));
     memcpy (&gv->ppguid_base.prefix.s[2], digest, sizeof (gv->ppguid_base.prefix.s) - 2);
     gv->ppguid_base.prefix = ddsi_ntoh_guid_prefix (gv->ppguid_base.prefix);
-    gv->ppguid_base.entityid.u = NN_ENTITYID_PARTICIPANT;
+    gv->ppguid_base.entityid.u = DDSI_ENTITYID_PARTICIPANT;
   }
 
   ddsrt_mutex_init (&gv->lock);
@@ -1864,7 +1864,7 @@ static void stop_all_xeventq_upto (struct ddsi_config_channel_listelem *chptr)
 }
 #endif
 
-int rtps_start (struct ddsi_domaingv *gv)
+int ddsi_start (struct ddsi_domaingv *gv)
 {
   ddsi_gcreq_queue_start (gv->gcreq_queue);
 
@@ -1908,7 +1908,7 @@ int rtps_start (struct ddsi_domaingv *gv)
       GVERROR ("failed to create TCP listener thread\n");
       ddsi_listener_free (gv->listener);
       gv->listener = NULL;
-      rtps_stop (gv);
+      ddsi_stop (gv);
       return -1;
     }
   }
@@ -1917,7 +1917,7 @@ int rtps_start (struct ddsi_domaingv *gv)
     if ((gv->debmon = ddsi_new_debug_monitor (gv, gv->config.monitor_port)) == NULL)
     {
       GVERROR ("failed to create debug monitor thread\n");
-      rtps_stop (gv);
+      ddsi_stop (gv);
       return -1;
     }
     else {
@@ -1949,7 +1949,7 @@ static void builtins_dqueue_ready_cb (void *varg)
   ddsrt_mutex_unlock (&arg->lock);
 }
 
-void rtps_stop (struct ddsi_domaingv *gv)
+void ddsi_stop (struct ddsi_domaingv *gv)
 {
   struct thread_state * const thrst = ddsi_lookup_thread_state ();
 
@@ -1964,7 +1964,7 @@ void rtps_stop (struct ddsi_domaingv *gv)
   }
 
   /* Stop all I/O */
-  rtps_term_prep (gv);
+  ddsi_term_prep (gv);
   if (gv->config.transport_selector != DDSI_TRANS_NONE)
     wait_for_receive_threads (gv);
 
@@ -2095,7 +2095,7 @@ void rtps_stop (struct ddsi_domaingv *gv)
   ddsrt_mutex_destroy (&gv->privileged_pp_lock);
 }
 
-void rtps_fini (struct ddsi_domaingv *gv)
+void ddsi_fini (struct ddsi_domaingv *gv)
 {
   /* The receive threads have already been stopped, therefore
      defragmentation and reorder state can't change anymore and

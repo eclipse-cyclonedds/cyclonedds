@@ -39,18 +39,18 @@ bool write_auth_handshake_message(const struct ddsi_participant *pp, const struc
   struct ddsi_participant_generic_message pmg;
   struct ddsi_serdata *serdata;
   struct ddsi_writer *wr;
-  seqno_t seq;
+  ddsi_seqno_t seq;
   struct ddsi_proxy_reader *prd;
   ddsi_guid_t prd_guid;
   bool result = false;
 
-  if ((wr = ddsi_get_builtin_writer (pp, NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER)) == NULL) {
+  if ((wr = ddsi_get_builtin_writer (pp, DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER)) == NULL) {
     GVTRACE ("write_handshake("PGUIDFMT") - builtin stateless message writer not found", PGUID (pp->e.guid));
     return false;
   }
 
   prd_guid.prefix = proxypp->e.guid.prefix;
-  prd_guid.entityid.u = NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_READER;
+  prd_guid.entityid.u = DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_READER;
   if ((prd = ddsi_entidx_lookup_proxy_reader_guid (gv->entity_index, &prd_guid)) == NULL) {
     GVTRACE ("write_handshake("PGUIDFMT") - builtin stateless message proxy reader not found", PGUID (prd_guid));
     return false;
@@ -106,13 +106,13 @@ void handle_auth_handshake_message(const struct ddsi_receiver_state *rst, ddsi_e
 
   DDSRT_UNUSED_ARG(wr_entity_id);
 
-  if (msg->message_identity.source_guid.entityid.u == NN_ENTITYID_PARTICIPANT)
+  if (msg->message_identity.source_guid.entityid.u == DDSI_ENTITYID_PARTICIPANT)
   {
     guid = msg->message_identity.source_guid;
-    guid.entityid.u = NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER;
+    guid.entityid.u = DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER;
     pwr_guid = &guid;
   }
-  else if (msg->message_identity.source_guid.entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER)
+  else if (msg->message_identity.source_guid.entityid.u == DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER)
   {
     pwr_guid = &msg->message_identity.source_guid;
   }
@@ -151,17 +151,17 @@ static bool write_crypto_exchange_message(const struct ddsi_participant *pp, con
   struct ddsi_proxy_reader *prd;
   ddsi_guid_t prd_guid;
   struct ddsi_writer *wr;
-  seqno_t seq;
+  ddsi_seqno_t seq;
   int r;
 
-  if ((wr = ddsi_get_builtin_writer (pp, NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER)) == NULL)
+  if ((wr = ddsi_get_builtin_writer (pp, DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER)) == NULL)
   {
     GVLOG (DDS_LC_DISCOVERY, "write_crypto_exchange_message("PGUIDFMT") - builtin volatile secure writer not found\n", PGUID (pp->e.guid));
     return false;
   }
 
   prd_guid.prefix = dst_pguid->prefix;
-  prd_guid.entityid.u = NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_READER;
+  prd_guid.entityid.u = DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_READER;
   if ((prd = ddsi_entidx_lookup_proxy_reader_guid (gv->entity_index, &prd_guid)) == NULL)
     return false;
 
@@ -214,7 +214,7 @@ void handle_crypto_exchange_message(const struct ddsi_receiver_state *rst, struc
   ddsi_guid_t proxypp_guid;
 
   proxypp_guid.prefix = msg->message_identity.source_guid.prefix;
-  proxypp_guid.entityid.u = NN_ENTITYID_PARTICIPANT;
+  proxypp_guid.entityid.u = DDSI_ENTITYID_PARTICIPANT;
 
   if (strcmp(GMCLASSID_SECURITY_PARTICIPANT_CRYPTO_TOKENS, msg->message_class_id) == 0)
   {
@@ -256,7 +256,7 @@ void handle_crypto_exchange_message(const struct ddsi_receiver_state *rst, struc
   {
     ddsi_guid_t guid;
     guid.prefix = rst->dst_guid_prefix;
-    guid.entityid.u = NN_ENTITYID_PARTICIPANT;
+    guid.entityid.u = DDSI_ENTITYID_PARTICIPANT;
     GVWARNING("participant "PGUIDFMT" received a crypto exchange message with unknown class_id", PGUID(guid));
   }
 }

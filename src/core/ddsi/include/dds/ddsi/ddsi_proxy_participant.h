@@ -49,7 +49,7 @@ struct ddsi_proxy_participant
 #ifdef DDS_HAS_TOPIC_DISCOVERY
   ddsrt_avl_tree_t topics;
 #endif
-  seqno_t seq; /* sequence number of most recent SPDP message */
+  ddsi_seqno_t seq; /* sequence number of most recent SPDP message */
   uint32_t receive_buffer_size; /* assumed size of receive buffer, used to limit bursts involving this proxypp */
   unsigned implicitly_created : 1; /* participants are implicitly created for Cloud/Fog discovered endpoints */
   unsigned is_ddsi2_pp: 1; /* if this is the federation-leader on the remote node */

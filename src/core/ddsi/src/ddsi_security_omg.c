@@ -137,38 +137,38 @@
 
 static bool endpoint_is_DCPSParticipantSecure (const ddsi_guid_t *guid)
 {
-  return ((guid->entityid.u == NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER) ||
-          (guid->entityid.u == NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_READER));
+  return ((guid->entityid.u == DDSI_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER) ||
+          (guid->entityid.u == DDSI_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_READER));
 }
 
 static bool endpoint_is_DCPSPublicationsSecure (const ddsi_guid_t *guid)
 {
-  return ((guid->entityid.u == NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER) ||
-          (guid->entityid.u == NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_READER));
+  return ((guid->entityid.u == DDSI_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER) ||
+          (guid->entityid.u == DDSI_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_READER));
 }
 
 static bool endpoint_is_DCPSSubscriptionsSecure (const ddsi_guid_t *guid)
 {
-  return ((guid->entityid.u == NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_WRITER) ||
-          (guid->entityid.u == NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_READER));
+  return ((guid->entityid.u == DDSI_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_WRITER) ||
+          (guid->entityid.u == DDSI_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_READER));
 }
 
 static bool endpoint_is_DCPSParticipantStatelessMessage (const ddsi_guid_t *guid)
 {
-  return ((guid->entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER) ||
-          (guid->entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_READER));
+  return ((guid->entityid.u == DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER) ||
+          (guid->entityid.u == DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_READER));
 }
 
 static bool endpoint_is_DCPSParticipantMessageSecure (const ddsi_guid_t *guid)
 {
-  return ((guid->entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_WRITER) ||
-          (guid->entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_READER));
+  return ((guid->entityid.u == DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_WRITER) ||
+          (guid->entityid.u == DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_READER));
 }
 
 static bool endpoint_is_DCPSParticipantVolatileMessageSecure (const ddsi_guid_t *guid)
 {
-  return ((guid->entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER) ||
-          (guid->entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_READER));
+  return ((guid->entityid.u == DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER) ||
+          (guid->entityid.u == DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_READER));
 }
 
 struct participant_sec_index {
@@ -1321,14 +1321,14 @@ static bool maybe_rtps_protected(ddsi_entityid_t entityid)
 
   switch (entityid.u)
   {
-    case NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER:
-    case NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_READER:
-    case NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_WRITER:
-    case NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_READER:
-    case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_WRITER:
-    case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_READER:
-    case NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER:
-    case NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_READER:
+    case DDSI_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER:
+    case DDSI_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_READER:
+    case DDSI_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_WRITER:
+    case DDSI_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_READER:
+    case DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_WRITER:
+    case DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_READER:
+    case DDSI_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER:
+    case DDSI_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_READER:
       return true;
     default:
       return false;
@@ -1542,7 +1542,7 @@ void ddsi_omg_security_register_writer (struct ddsi_writer *wr)
     }
   }
 
-  if (wr->sec_attr->attr.is_key_protected && (wr->e.guid.entityid.u & NN_ENTITYID_KIND_MASK) == NN_ENTITYID_KIND_WRITER_WITH_KEY)
+  if (wr->sec_attr->attr.is_key_protected && (wr->e.guid.entityid.u & DDSI_ENTITYID_KIND_MASK) == DDSI_ENTITYID_KIND_WRITER_WITH_KEY)
   {
     wr->num_readers_requesting_keyhash++;
     wr->force_md5_keyhash = 1;
@@ -1714,17 +1714,17 @@ bool ddsi_omg_get_reader_security_info (const struct ddsi_reader *rd, ddsi_secur
 unsigned ddsi_determine_subscription_writer(const struct ddsi_reader *rd)
 {
   if (ddsi_omg_reader_is_discovery_protected (rd))
-    return NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_WRITER;
+    return DDSI_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_WRITER;
   else
-    return NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER;
+    return DDSI_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER;
 }
 
 unsigned ddsi_determine_publication_writer (const struct ddsi_writer *wr)
 {
   if (ddsi_omg_writer_is_discovery_protected (wr))
-    return NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER;
+    return DDSI_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER;
   else
-    return NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER;
+    return DDSI_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER;
 }
 
 #ifdef DDS_HAS_TOPIC_DISCOVERY
@@ -1732,7 +1732,7 @@ unsigned ddsi_determine_topic_writer (const struct ddsi_topic *tp)
 {
   if (ddsi_omg_participant_is_discovery_protected (tp->pp))
     abort (); /* FIXME: not implemented */
-  return NN_ENTITYID_SEDP_BUILTIN_TOPIC_WRITER;
+  return DDSI_ENTITYID_SEDP_BUILTIN_TOPIC_WRITER;
 }
 #endif
 
@@ -1988,7 +1988,7 @@ void ddsi_omg_security_set_remote_participant_authenticated (struct ddsi_partici
 
 static bool is_volatile_secure_endpoint(ddsi_entityid_t entityid)
 {
-  return ((entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER) || (entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_READER));
+  return ((entityid.u == DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER) || (entityid.u == DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_READER));
 }
 
 static struct ddsi_proxypp_pp_match * get_ddsi_pp_proxypp_match_if_authenticated(struct ddsi_participant *pp, struct ddsi_proxy_participant *proxypp, ddsi_entityid_t entityid)
@@ -2059,7 +2059,7 @@ bool ddsi_is_proxy_participant_deletion_allowed (struct ddsi_domaingv * const gv
    *       participant. Deletion is not allowed when they're not equal. */
 
   /* Always allow deletion from a secure proxy writer. */
-  if (pwr_entityid.u == NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER)
+  if (pwr_entityid.u == DDSI_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER)
     return true;
 
   /* Not from a secure proxy writer.
@@ -2292,7 +2292,7 @@ static bool ddsi_omg_security_register_remote_writer_match (struct ddsi_proxy_wr
   ddsrt_mutex_lock(&rd->e.lock);
   if (ddsrt_avl_lookup (&ddsi_rd_writers_treedef, &rd->writers, &pwr->e.guid) != NULL)
     allowed = true;
-  else if (rd->e.guid.entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_READER)
+  else if (rd->e.guid.entityid.u == DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_READER)
   {
     /* The builtin ParticipantVolatileSecure endpoints do not exchange tokens.
      * Simulate that we already got them. */
@@ -2633,7 +2633,7 @@ static bool ddsi_omg_security_register_remote_reader_match (struct ddsi_proxy_re
   ddsrt_mutex_lock(&wr->e.lock);
   if (ddsrt_avl_lookup (&ddsi_wr_readers_treedef, &wr->readers, &prd->e.guid) != NULL)
     allowed = true;
-  else if (wr->e.guid.entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER || !wr->sec_attr->attr.is_submessage_protected)
+  else if (wr->e.guid.entityid.u == DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER || !wr->sec_attr->attr.is_submessage_protected)
   {
     /* The builtin ParticipantVolatileSecure endpoints do not exchange tokens.
      * Simulate that we already got them. */
@@ -2643,7 +2643,7 @@ static bool ddsi_omg_security_register_remote_reader_match (struct ddsi_proxy_re
     if (*crypto_handle != 0)
     {
       GVTRACE(" match_remote_reader: proxypp_crypto=%"PRId64" wr_crypto=%"PRId64" prd_crypto=%"PRId64"\n", proxypp->sec_attr->crypto_handle, wr->sec_attr->crypto_handle, *crypto_handle);
-      send_tokens = (wr->e.guid.entityid.u != NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER);
+      send_tokens = (wr->e.guid.entityid.u != DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER);
       allowed = true;
     }
     else
@@ -3010,7 +3010,7 @@ static bool ddsi_omg_security_decode_submessage (const struct ddsi_domaingv *gv,
   // FIXME: print_buf(src_buf, src_len, "ddsi_omg_security_decode_submessage (SOURCE)");
 
   proxypp_guid.prefix = *src_prefix;
-  proxypp_guid.entityid.u = NN_ENTITYID_PARTICIPANT;
+  proxypp_guid.entityid.u = DDSI_ENTITYID_PARTICIPANT;
   if (!(proxypp = ddsi_entidx_lookup_proxy_participant_guid (gv->entity_index, &proxypp_guid)))
   {
     GVTRACE (" Unknown remote participant "PGUIDFMT" for decoding submsg\n", PGUID (proxypp_guid));
@@ -3032,7 +3032,7 @@ static bool ddsi_omg_security_decode_submessage (const struct ddsi_domaingv *gv,
   if (dst_prefix && !ddsi_guid_prefix_zero (dst_prefix))
   {
     pp_guid.prefix = *dst_prefix;
-    pp_guid.entityid.u = NN_ENTITYID_PARTICIPANT;
+    pp_guid.entityid.u = DDSI_ENTITYID_PARTICIPANT;
     if (!(pp = ddsi_entidx_lookup_participant_guid (gv->entity_index, &pp_guid)))
       return false;
     pp_crypto_hdl = pp->sec_attr->crypto_handle;
@@ -3692,7 +3692,7 @@ static ddsi_rtps_msg_state_t check_rtps_message_is_secure (struct ddsi_domaingv 
 
   ddsi_guid_t guid;
   guid.prefix = hdr->guid_prefix;
-  guid.entityid.u = NN_ENTITYID_PARTICIPANT;
+  guid.entityid.u = DDSI_ENTITYID_PARTICIPANT;
 
   GVTRACE (" from "PGUIDFMT, PGUID (guid));
 
@@ -3824,7 +3824,7 @@ ddsi_security_secure_conn_write(
 
   hdr = (ddsi_rtps_header_t *) iov[0].iov_base;
   guid.prefix = ddsi_ntoh_guid_prefix (hdr->guid_prefix);
-  guid.entityid.u = NN_ENTITYID_PARTICIPANT;
+  guid.entityid.u = DDSI_ENTITYID_PARTICIPANT;
 
   /* first determine the size of the message, then select the
    *  on-stack buffer or allocate one on the heap ...

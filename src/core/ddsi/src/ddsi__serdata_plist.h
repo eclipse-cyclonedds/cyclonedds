@@ -32,7 +32,7 @@ extern "C" {
   uint32_t pos;                       \
   uint32_t size;                      \
   ddsi_vendorid_t vendorid;             \
-  nn_protocol_version_t protoversion; \
+  ddsi_protocol_version_t protoversion; \
   ddsi_keyhash_t keyhash
 #define DDSI_SERDATA_PLIST_POSTPAD    \
   uint16_t identifier;                \

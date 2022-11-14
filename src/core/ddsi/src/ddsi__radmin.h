@@ -20,7 +20,6 @@
 #include "dds/ddsrt/align.h"
 #include "dds/ddsrt/static_assert.h"
 #include "dds/ddsi/ddsi_locator.h"
-#include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/ddsi_protocol.h"
 #include "dds/ddsi/ddsi_radmin.h"
 
@@ -57,14 +56,14 @@ struct ddsi_receiver_state {
   uint32_t forme:1;                       /* 4 */
   uint32_t rtps_encoded:1;                /* - */
   ddsi_vendorid_t vendor;                   /* 2 */
-  nn_protocol_version_t protocol_version; /* 2 => 44/48 */
+  ddsi_protocol_version_t protocol_version; /* 2 => 44/48 */
   struct ddsi_tran_conn *conn;            /* Connection for request */
   ddsi_locator_t srcloc;
   struct ddsi_domaingv *gv;
 };
 
 struct ddsi_rsample_info {
-  seqno_t seq;
+  ddsi_seqno_t seq;
   struct ddsi_receiver_state *rst;
   struct ddsi_proxy_writer *pwr;
   uint32_t size;
@@ -138,21 +137,21 @@ void ddsi_fragchain_unref (struct ddsi_rdata *frag);
 struct ddsi_defrag *ddsi_defrag_new (const struct ddsrt_log_cfg *logcfg, enum ddsi_defrag_drop_mode drop_mode, uint32_t max_samples);
 void ddsi_defrag_free (struct ddsi_defrag *defrag);
 struct ddsi_rsample *ddsi_defrag_rsample (struct ddsi_defrag *defrag, struct ddsi_rdata *rdata, const struct ddsi_rsample_info *sampleinfo);
-void ddsi_defrag_notegap (struct ddsi_defrag *defrag, seqno_t min, seqno_t maxp1);
-enum ddsi_defrag_nackmap_result ddsi_defrag_nackmap (struct ddsi_defrag *defrag, seqno_t seq, uint32_t maxfragnum, struct ddsi_fragment_number_set_header *map, uint32_t *mapbits, uint32_t maxsz);
-void ddsi_defrag_prune (struct ddsi_defrag *defrag, ddsi_guid_prefix_t *dst, seqno_t min);
+void ddsi_defrag_notegap (struct ddsi_defrag *defrag, ddsi_seqno_t min, ddsi_seqno_t maxp1);
+enum ddsi_defrag_nackmap_result ddsi_defrag_nackmap (struct ddsi_defrag *defrag, ddsi_seqno_t seq, uint32_t maxfragnum, struct ddsi_fragment_number_set_header *map, uint32_t *mapbits, uint32_t maxsz);
+void ddsi_defrag_prune (struct ddsi_defrag *defrag, ddsi_guid_prefix_t *dst, ddsi_seqno_t min);
 
 struct ddsi_reorder *ddsi_reorder_new (const struct ddsrt_log_cfg *logcfg, enum ddsi_reorder_mode mode, uint32_t max_samples, bool late_ack_mode);
 void ddsi_reorder_free (struct ddsi_reorder *r);
 struct ddsi_rsample *ddsi_reorder_rsample_dup_first (struct ddsi_rmsg *rmsg, struct ddsi_rsample *rsampleiv);
 struct ddsi_rdata *ddsi_rsample_fragchain (struct ddsi_rsample *rsample);
 ddsi_reorder_result_t ddsi_reorder_rsample (struct ddsi_rsample_chain *sc, struct ddsi_reorder *reorder, struct ddsi_rsample *rsampleiv, int *refcount_adjust, int delivery_queue_full_p);
-ddsi_reorder_result_t ddsi_reorder_gap (struct ddsi_rsample_chain *sc, struct ddsi_reorder *reorder, struct ddsi_rdata *rdata, seqno_t min, seqno_t maxp1, int *refcount_adjust);
-void ddsi_reorder_drop_upto (struct ddsi_reorder *reorder, seqno_t maxp1); // drops [1,maxp1); next_seq' = maxp1
-int ddsi_reorder_wantsample (const struct ddsi_reorder *reorder, seqno_t seq);
-unsigned ddsi_reorder_nackmap (const struct ddsi_reorder *reorder, seqno_t base, seqno_t maxseq, struct ddsi_sequence_number_set_header *map, uint32_t *mapbits, uint32_t maxsz, int notail);
-seqno_t ddsi_reorder_next_seq (const struct ddsi_reorder *reorder);
-void ddsi_reorder_set_next_seq (struct ddsi_reorder *reorder, seqno_t seq);
+ddsi_reorder_result_t ddsi_reorder_gap (struct ddsi_rsample_chain *sc, struct ddsi_reorder *reorder, struct ddsi_rdata *rdata, ddsi_seqno_t min, ddsi_seqno_t maxp1, int *refcount_adjust);
+void ddsi_reorder_drop_upto (struct ddsi_reorder *reorder, ddsi_seqno_t maxp1); // drops [1,maxp1); next_seq' = maxp1
+int ddsi_reorder_wantsample (const struct ddsi_reorder *reorder, ddsi_seqno_t seq);
+unsigned ddsi_reorder_nackmap (const struct ddsi_reorder *reorder, ddsi_seqno_t base, ddsi_seqno_t maxseq, struct ddsi_sequence_number_set_header *map, uint32_t *mapbits, uint32_t maxsz, int notail);
+ddsi_seqno_t ddsi_reorder_next_seq (const struct ddsi_reorder *reorder);
+void ddsi_reorder_set_next_seq (struct ddsi_reorder *reorder, ddsi_seqno_t seq);
 
 struct ddsi_dqueue *ddsi_dqueue_new (const char *name, const struct ddsi_domaingv *gv, uint32_t max_samples, ddsi_dqueue_handler_t handler, void *arg);
 bool ddsi_dqueue_start (struct ddsi_dqueue *q);

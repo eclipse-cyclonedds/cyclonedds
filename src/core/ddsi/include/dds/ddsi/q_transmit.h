@@ -12,7 +12,7 @@
 #ifndef Q_TRANSMIT_H
 #define Q_TRANSMIT_H
 
-#include "dds/ddsi/q_rtps.h" /* for nn_entityid_t */
+#include "dds/ddsi/ddsi_protocol.h" /* for nn_entityid_t */
 
 #if defined (__cplusplus)
 extern "C" {
@@ -40,12 +40,12 @@ int write_sample_gc_notk (struct thread_state * const thrst, struct nn_xpack *xp
 int write_sample_nogc_notk (struct thread_state * const thrst, struct nn_xpack *xp, struct ddsi_writer *wr, struct ddsi_serdata *serdata);
 
 /* When calling the following functions, wr->lock must be held */
-dds_return_t create_fragment_message (struct ddsi_writer *wr, seqno_t seq, struct ddsi_serdata *serdata, uint32_t fragnum, uint16_t nfrags, struct ddsi_proxy_reader *prd,struct nn_xmsg **msg, int isnew, uint32_t advertised_fragnum);
-int enqueue_sample_wrlock_held (struct ddsi_writer *wr, seqno_t seq, struct ddsi_serdata *serdata, struct ddsi_proxy_reader *prd, int isnew);
-void enqueue_spdp_sample_wrlock_held (struct ddsi_writer *wr, seqno_t seq, struct ddsi_serdata *serdata, struct ddsi_proxy_reader *prd);
+dds_return_t create_fragment_message (struct ddsi_writer *wr, ddsi_seqno_t seq, struct ddsi_serdata *serdata, uint32_t fragnum, uint16_t nfrags, struct ddsi_proxy_reader *prd,struct nn_xmsg **msg, int isnew, uint32_t advertised_fragnum);
+int enqueue_sample_wrlock_held (struct ddsi_writer *wr, ddsi_seqno_t seq, struct ddsi_serdata *serdata, struct ddsi_proxy_reader *prd, int isnew);
+void enqueue_spdp_sample_wrlock_held (struct ddsi_writer *wr, ddsi_seqno_t seq, struct ddsi_serdata *serdata, struct ddsi_proxy_reader *prd);
 void add_Heartbeat (struct nn_xmsg *msg, struct ddsi_writer *wr, const struct whc_state *whcst, int hbansreq, int hbliveliness, ddsi_entityid_t dst, int issync);
 dds_return_t write_hb_liveliness (struct ddsi_domaingv * const gv, struct ddsi_guid *wr_guid, struct nn_xpack *xp);
-int write_sample_p2p_wrlock_held(struct ddsi_writer *wr, seqno_t seq, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk, struct ddsi_proxy_reader *prd);
+int write_sample_p2p_wrlock_held(struct ddsi_writer *wr, ddsi_seqno_t seq, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk, struct ddsi_proxy_reader *prd);
 
 #if defined (__cplusplus)
 }

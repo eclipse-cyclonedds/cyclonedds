@@ -408,12 +408,12 @@ void dds__builtin_init (struct dds_domain *dom)
 
   thread_state_awake (ddsi_lookup_thread_state (), &dom->gv);
   const struct ddsi_entity_index *gh = dom->gv.entity_index;
-  dom->builtintopic_writer_participant = ddsi_new_local_orphan_writer (&dom->gv, ddsi_to_entityid (NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER), DDS_BUILTIN_TOPIC_PARTICIPANT_NAME, dom->builtin_participant_type, qos, builtintopic_whc_new (DSBT_PARTICIPANT, gh));
+  dom->builtintopic_writer_participant = ddsi_new_local_orphan_writer (&dom->gv, ddsi_to_entityid (DDSI_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER), DDS_BUILTIN_TOPIC_PARTICIPANT_NAME, dom->builtin_participant_type, qos, builtintopic_whc_new (DSBT_PARTICIPANT, gh));
 #ifdef DDS_HAS_TOPIC_DISCOVERY
-  dom->builtintopic_writer_topics = ddsi_new_local_orphan_writer (&dom->gv, ddsi_to_entityid (NN_ENTITYID_SEDP_BUILTIN_TOPIC_WRITER), DDS_BUILTIN_TOPIC_TOPIC_NAME, dom->builtin_topic_type, qos, builtintopic_whc_new (DSBT_TOPIC, gh));
+  dom->builtintopic_writer_topics = ddsi_new_local_orphan_writer (&dom->gv, ddsi_to_entityid (DDSI_ENTITYID_SEDP_BUILTIN_TOPIC_WRITER), DDS_BUILTIN_TOPIC_TOPIC_NAME, dom->builtin_topic_type, qos, builtintopic_whc_new (DSBT_TOPIC, gh));
 #endif
-  dom->builtintopic_writer_publications = ddsi_new_local_orphan_writer (&dom->gv, ddsi_to_entityid (NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER), DDS_BUILTIN_TOPIC_PUBLICATION_NAME, dom->builtin_writer_type, qos, builtintopic_whc_new (DSBT_WRITER, gh));
-  dom->builtintopic_writer_subscriptions = ddsi_new_local_orphan_writer (&dom->gv, ddsi_to_entityid (NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER), DDS_BUILTIN_TOPIC_SUBSCRIPTION_NAME, dom->builtin_reader_type, qos, builtintopic_whc_new (DSBT_READER, gh));
+  dom->builtintopic_writer_publications = ddsi_new_local_orphan_writer (&dom->gv, ddsi_to_entityid (DDSI_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER), DDS_BUILTIN_TOPIC_PUBLICATION_NAME, dom->builtin_writer_type, qos, builtintopic_whc_new (DSBT_WRITER, gh));
+  dom->builtintopic_writer_subscriptions = ddsi_new_local_orphan_writer (&dom->gv, ddsi_to_entityid (DDSI_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER), DDS_BUILTIN_TOPIC_SUBSCRIPTION_NAME, dom->builtin_reader_type, qos, builtintopic_whc_new (DSBT_READER, gh));
   thread_state_asleep (ddsi_lookup_thread_state ());
 
   dds_delete_qos (qos);

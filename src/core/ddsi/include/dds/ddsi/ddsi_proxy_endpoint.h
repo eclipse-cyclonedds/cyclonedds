@@ -40,7 +40,7 @@ struct ddsi_proxy_endpoint_common
   struct ddsi_addrset *as; /* address set to use for communicating with this endpoint */
   ddsi_guid_t group_guid; /* 0:0:0:0 if not available */
   ddsi_vendorid_t vendor; /* cached from proxypp->vendor */
-  seqno_t seq; /* sequence number of most recent SEDP message */
+  ddsi_seqno_t seq; /* sequence number of most recent SEDP message */
 #ifdef DDS_HAS_TYPE_DISCOVERY
   struct ddsi_type_pair *type_pair;
 #endif
@@ -60,7 +60,7 @@ struct ddsi_proxy_writer {
   ddsrt_avl_tree_t readers; /* matching LOCAL readers, see pwr_rd_match */
   int32_t n_reliable_readers; /* number of those that are reliable */
   int32_t n_readers_out_of_sync; /* number of those that require special handling (accepting historical data, waiting for historical data set to become complete) */
-  seqno_t last_seq; /* highest known seq published by the writer, not last delivered */
+  ddsi_seqno_t last_seq; /* highest known seq published by the writer, not last delivered */
   uint32_t last_fragnum; /* last known frag for last_seq, or UINT32_MAX if last_seq not partial */
   ddsi_count_t nackfragcount; /* last nackfrag seq number */
   ddsrt_atomic_uint32_t next_deliv_seq_lowword; /* lower 32-bits for next sequence number that will be delivered; for generating acks; 32-bit so atomic reads on all supported platforms */

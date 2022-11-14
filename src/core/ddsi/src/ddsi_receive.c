@@ -23,7 +23,6 @@
 #include "dds/ddsrt/avl.h"
 
 #include "ddsi__protocol.h"
-#include "dds/ddsi/q_rtps.h"
 #include "ddsi__misc.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_log.h"
@@ -88,7 +87,7 @@ Notes:
 
 static void deliver_user_data_synchronously (struct ddsi_rsample_chain *sc, const ddsi_guid_t *rdguid);
 
-static void maybe_set_reader_in_sync (struct ddsi_proxy_writer *pwr, struct ddsi_pwr_rd_match *wn, seqno_t last_deliv_seq)
+static void maybe_set_reader_in_sync (struct ddsi_proxy_writer *pwr, struct ddsi_pwr_rd_match *wn, ddsi_seqno_t last_deliv_seq)
 {
   switch (wn->in_sync)
   {
@@ -117,11 +116,11 @@ static void maybe_set_reader_in_sync (struct ddsi_proxy_writer *pwr, struct ddsi
   }
 }
 
-static bool valid_sequence_number_set (const ddsi_sequence_number_set_header_t *snset, seqno_t *start)
+static bool valid_sequence_number_set (const ddsi_sequence_number_set_header_t *snset, ddsi_seqno_t *start)
 {
   // reject sets that imply sequence numbers beyond the range of valid sequence numbers
   // (not a spec'd requirement)
-  return (ddsi_validating_from_seqno (snset->bitmap_base, start) && snset->numbits <= 256 && snset->numbits <= MAX_SEQ_NUMBER - *start);
+  return (ddsi_validating_from_seqno (snset->bitmap_base, start) && snset->numbits <= 256 && snset->numbits <= DDSI_MAX_SEQ_NUMBER - *start);
 }
 
 static bool valid_fragment_number_set (const ddsi_fragment_number_set_header_t *fnset)
@@ -149,7 +148,7 @@ static enum validation_result validate_writer_and_reader_or_null_entityid (ddsi_
 {
   // the official term is "unknown entity id" but that's too close for comfort
   // to "unknown entity" in the message validation code
-  if (ddsi_is_writer_entityid (wrid) && (rdid.u == NN_ENTITYID_UNKNOWN || ddsi_is_reader_entityid (rdid)))
+  if (ddsi_is_writer_entityid (wrid) && (rdid.u == DDSI_ENTITYID_UNKNOWN || ddsi_is_reader_entityid (rdid)))
     return VR_ACCEPT;
   else // see validate_writer_and_reader_entityid
     return VR_NOT_UNDERSTOOD;
@@ -168,7 +167,7 @@ static enum validation_result validate_AckNack (const struct ddsi_receiver_state
   msg->readerId = ddsi_ntoh_entityid (msg->readerId);
   msg->writerId = ddsi_ntoh_entityid (msg->writerId);
   /* Validation following 8.3.7.1.3 + 8.3.5.5 */
-  seqno_t ackseq;
+  ddsi_seqno_t ackseq;
   if (!valid_sequence_number_set (&msg->readerSNState, &ackseq))
   {
     /* FastRTPS, Connext send invalid pre-emptive ACKs -- patch the message to
@@ -208,10 +207,10 @@ static enum validation_result validate_Gap (ddsi_rtps_gap_t *msg, size_t size, i
   }
   msg->readerId = ddsi_ntoh_entityid (msg->readerId);
   msg->writerId = ddsi_ntoh_entityid (msg->writerId);
-  seqno_t gapstart;
+  ddsi_seqno_t gapstart;
   if (!ddsi_validating_from_seqno (msg->gapStart, &gapstart))
     return VR_MALFORMED;
-  seqno_t gapend;
+  ddsi_seqno_t gapend;
   if (!valid_sequence_number_set (&msg->gapList, &gapend))
     return VR_MALFORMED;
   // gapstart >= gapend is not listed as malformed in spec but it really makes no sense
@@ -559,7 +558,7 @@ static enum validation_result validate_DataFrag (const struct ddsi_receiver_stat
   return vr;
 }
 
-int ddsi_add_gap (struct nn_xmsg *msg, struct ddsi_writer *wr, struct ddsi_proxy_reader *prd, seqno_t start, seqno_t base, uint32_t numbits, const uint32_t *bits)
+int ddsi_add_gap (struct nn_xmsg *msg, struct ddsi_writer *wr, struct ddsi_proxy_reader *prd, ddsi_seqno_t start, ddsi_seqno_t base, uint32_t numbits, const uint32_t *bits)
 {
   struct nn_xmsg_marker sm_marker;
   ddsi_rtps_gap_t *gap;
@@ -577,11 +576,11 @@ int ddsi_add_gap (struct nn_xmsg *msg, struct ddsi_writer *wr, struct ddsi_proxy
   return 0;
 }
 
-static seqno_t grow_gap_to_next_seq (const struct ddsi_writer *wr, seqno_t seq)
+static ddsi_seqno_t grow_gap_to_next_seq (const struct ddsi_writer *wr, ddsi_seqno_t seq)
 {
-  seqno_t next_seq = whc_next_seq (wr->whc, seq - 1);
-  seqno_t seq_xmit = ddsi_writer_read_seq_xmit (wr);
-  if (next_seq == MAX_SEQ_NUMBER) /* no next sample */
+  ddsi_seqno_t next_seq = whc_next_seq (wr->whc, seq - 1);
+  ddsi_seqno_t seq_xmit = ddsi_writer_read_seq_xmit (wr);
+  if (next_seq == DDSI_MAX_SEQ_NUMBER) /* no next sample */
     return seq_xmit + 1;
   else if (next_seq > seq_xmit)  /* next is beyond last actually transmitted */
     return seq_xmit;
@@ -652,7 +651,7 @@ void ddsi_gap_info_init(struct ddsi_gap_info *gi)
   memset(gi->gapbits, 0, sizeof(gi->gapbits));
 }
 
-void ddsi_gap_info_update(struct ddsi_domaingv *gv, struct ddsi_gap_info *gi, seqno_t seqnr)
+void ddsi_gap_info_update(struct ddsi_domaingv *gv, struct ddsi_gap_info *gi, ddsi_seqno_t seqnr)
 {
   assert (gi->gapend >= gi->gapstart);
   assert (seqnr >= gi->gapend);
@@ -771,8 +770,8 @@ static int handle_AckNack (struct ddsi_receiver_state *rst, ddsrt_etime_t tnow, 
   struct ddsi_writer *wr;
   struct ddsi_lease *lease;
   ddsi_guid_t src, dst;
-  seqno_t seqbase;
-  seqno_t seq_xmit;
+  ddsi_seqno_t seqbase;
+  ddsi_seqno_t seq_xmit;
   ddsi_count_t *countp;
   struct ddsi_gap_info gi;
   int accelerate_rexmit = 0;
@@ -782,7 +781,7 @@ static int handle_AckNack (struct ddsi_receiver_state *rst, ddsrt_etime_t tnow, 
   int enqueued;
   unsigned numbits;
   uint32_t msgs_sent, msgs_lost;
-  seqno_t max_seq_in_reply;
+  ddsi_seqno_t max_seq_in_reply;
   struct whc_node *deferred_free_list = NULL;
   struct whc_state whcst;
   int hb_sent_in_response = 0;
@@ -907,9 +906,9 @@ static int handle_AckNack (struct ddsi_receiver_state *rst, ddsrt_etime_t tnow, 
 
   /* If this reader was marked as "non-responsive" in the past, it's now responding again,
      so update its status */
-  if (rn->seq == MAX_SEQ_NUMBER && prd->c.xqos->reliability.kind == DDS_RELIABILITY_RELIABLE)
+  if (rn->seq == DDSI_MAX_SEQ_NUMBER && prd->c.xqos->reliability.kind == DDS_RELIABILITY_RELIABLE)
   {
-    seqno_t oldest_seq;
+    ddsi_seqno_t oldest_seq;
     oldest_seq = WHCST_ISEMPTY(&whcst) ? wr->seq : whcst.max_seq;
     rn->has_replied_to_hb = 1; /* was temporarily cleared to ensure heartbeats went out */
     rn->seq = seqbase - 1;
@@ -1008,7 +1007,7 @@ static int handle_AckNack (struct ddsi_receiver_state *rst, ddsrt_etime_t tnow, 
   seq_xmit = ddsi_writer_read_seq_xmit (wr);
   ddsi_gap_info_init(&gi);
   const bool gap_for_already_acked = ddsi_vendor_is_eclipse (rst->vendor) && prd->c.xqos->durability.kind == DDS_DURABILITY_VOLATILE && seqbase <= rn->seq;
-  const seqno_t min_seq_to_rexmit = gap_for_already_acked ? rn->seq + 1 : 0;
+  const ddsi_seqno_t min_seq_to_rexmit = gap_for_already_acked ? rn->seq + 1 : 0;
   uint32_t limit = wr->rexmit_burst_size_limit;
   for (uint32_t i = 0; i < numbits && seqbase + i <= seq_xmit && enqueued && limit > 0; i++)
   {
@@ -1018,7 +1017,7 @@ static int handle_AckNack (struct ddsi_receiver_state *rst, ddsrt_etime_t tnow, 
        left off ... */
     if (i >= msg->readerSNState.numbits || ddsi_bitset_isset (numbits, msg->bits, i))
     {
-      seqno_t seq = seqbase + i;
+      ddsi_seqno_t seq = seqbase + i;
       struct whc_borrowed_sample sample;
       if (seqbase + i >= min_seq_to_rexmit && whc_borrow_sample (wr->whc, seq, &sample))
       {
@@ -1150,7 +1149,7 @@ static void handle_forall_destinations (const ddsi_guid_t *dst, struct ddsi_prox
   */
   const int haveprefix =
     !(dst->prefix.u[0] == 0 && dst->prefix.u[1] == 0 && dst->prefix.u[2] == 0);
-  const int haveid = !(dst->entityid.u == NN_ENTITYID_UNKNOWN);
+  const int haveid = !(dst->entityid.u == DDSI_ENTITYID_UNKNOWN);
 
   /* must have pwr->e.lock held for safely iterating over readers */
   ASSERT_MUTEX_HELD (&pwr->e.lock);
@@ -1220,7 +1219,7 @@ static void handle_Heartbeat_helper (struct ddsi_pwr_rd_match * const wn, struct
 
   if (rst->gv->logconfig.c.mask & DDS_LC_TRACE)
   {
-    seqno_t refseq;
+    ddsi_seqno_t refseq;
     if (wn->in_sync != PRMSS_OUT_OF_SYNC && !wn->filtered)
       refseq = ddsi_reorder_next_seq (pwr->reorder);
     else
@@ -1250,8 +1249,8 @@ static int handle_Heartbeat (struct ddsi_receiver_state *rst, ddsrt_etime_t tnow
      A heartbeat that states [a,b] is the smallest interval in which
      the range of available sequence numbers is is interpreted here as
      a gap [1,a). See also handle_Gap.  */
-  const seqno_t firstseq = ddsi_from_seqno (msg->firstSN);
-  const seqno_t lastseq = ddsi_from_seqno (msg->lastSN);
+  const ddsi_seqno_t firstseq = ddsi_from_seqno (msg->firstSN);
+  const ddsi_seqno_t lastseq = ddsi_from_seqno (msg->lastSN);
   struct handle_Heartbeat_helper_arg arg;
   struct ddsi_proxy_writer *pwr;
   struct ddsi_lease *lease;
@@ -1312,7 +1311,7 @@ static int handle_Heartbeat (struct ddsi_receiver_state *rst, ddsrt_etime_t tnow
   // establishing a well-defined start point for a reliable session *and* it also defines
   // that one may have a transient-local writer with a volatile reader, and so the last
   // sequence number is the only one that can be used to start up a volatile reader ...
-  seqno_t gap_end_seq = firstseq;
+  ddsi_seqno_t gap_end_seq = firstseq;
   if (!pwr->have_seen_heartbeat)
   {
     // Note: if the writer is Cyclone DDS, there will not be any data, for other implementations
@@ -1384,7 +1383,7 @@ static int handle_Heartbeat (struct ddsi_receiver_state *rst, ddsrt_etime_t tnow
       {
         if (wn->in_sync == PRMSS_SYNC)
           continue;
-        if (wn->u.not_in_sync.end_of_tl_seq == MAX_SEQ_NUMBER)
+        if (wn->u.not_in_sync.end_of_tl_seq == DDSI_MAX_SEQ_NUMBER)
         {
           wn->u.not_in_sync.end_of_tl_seq = ddsi_from_seqno (msg->lastSN);
           RSTTRACE (" end-of-tl-seq(rd "PGUIDFMT" #%"PRIu64")", PGUID(wn->rd_guid), wn->u.not_in_sync.end_of_tl_seq);
@@ -1425,7 +1424,7 @@ static int handle_Heartbeat (struct ddsi_receiver_state *rst, ddsrt_etime_t tnow
   arg.timestamp = timestamp;
   arg.tnow = tnow;
   arg.tnow_mt = ddsrt_time_monotonic ();
-  arg.directed_heartbeat = (dst.entityid.u != NN_ENTITYID_UNKNOWN && ddsi_vendor_is_eclipse (rst->vendor));
+  arg.directed_heartbeat = (dst.entityid.u != DDSI_ENTITYID_UNKNOWN && ddsi_vendor_is_eclipse (rst->vendor));
   handle_forall_destinations (&dst, pwr, (ddsrt_avl_walk_t) handle_Heartbeat_helper, &arg);
   RSTTRACE (")");
 
@@ -1435,7 +1434,7 @@ static int handle_Heartbeat (struct ddsi_receiver_state *rst, ddsrt_etime_t tnow
 
 static int handle_HeartbeatFrag (struct ddsi_receiver_state *rst, UNUSED_ARG(ddsrt_etime_t tnow), const ddsi_rtps_heartbeatfrag_t *msg, ddsi_rtps_submessage_kind_t prev_smid)
 {
-  const seqno_t seq = ddsi_from_seqno (msg->writerSN);
+  const ddsi_seqno_t seq = ddsi_from_seqno (msg->writerSN);
   const ddsi_fragment_number_t fragnum = msg->lastFragmentNum - 1; /* we do 0-based */
   ddsi_guid_t src, dst;
   struct ddsi_proxy_writer *pwr;
@@ -1445,7 +1444,7 @@ static int handle_HeartbeatFrag (struct ddsi_receiver_state *rst, UNUSED_ARG(dds
   src.entityid = msg->writerId;
   dst.prefix = rst->dst_guid_prefix;
   dst.entityid = msg->readerId;
-  const bool directed_heartbeat = (dst.entityid.u != NN_ENTITYID_UNKNOWN && ddsi_vendor_is_eclipse (rst->vendor));
+  const bool directed_heartbeat = (dst.entityid.u != DDSI_ENTITYID_UNKNOWN && ddsi_vendor_is_eclipse (rst->vendor));
 
   RSTTRACE ("HEARTBEATFRAG(#%"PRId32":%"PRIu64"/[1,%"PRIu32"]", msg->count, seq, fragnum+1);
   if (!rst->forme)
@@ -1570,7 +1569,7 @@ static int handle_HeartbeatFrag (struct ddsi_receiver_state *rst, UNUSED_ARG(dds
         struct ddsi_fragment_number_set_header set;
         uint32_t bits[DDSI_FRAGMENT_NUMBER_SET_MAX_BITS / 32];
       } nackfrag;
-      const seqno_t last_seq = m->filtered ? m->last_seq : pwr->last_seq;
+      const ddsi_seqno_t last_seq = m->filtered ? m->last_seq : pwr->last_seq;
       if (seq == last_seq && ddsi_defrag_nackmap (pwr->defrag, seq, fragnum, &nackfrag.set, nackfrag.bits, DDSI_FRAGMENT_NUMBER_SET_MAX_BITS) == DDSI_DEFRAG_NACKMAP_FRAGMENTS_MISSING)
       {
         // don't rush it ...
@@ -1592,7 +1591,7 @@ static int handle_NackFrag (struct ddsi_receiver_state *rst, ddsrt_etime_t tnow,
   struct whc_borrowed_sample sample;
   ddsi_guid_t src, dst;
   ddsi_count_t *countp;
-  seqno_t seq = ddsi_from_seqno (msg->writerSN);
+  ddsi_seqno_t seq = ddsi_from_seqno (msg->writerSN);
 
   countp = (ddsi_count_t *) ((char *) msg + offsetof (ddsi_rtps_nackfrag_t, bits) + DDSI_FRAGMENT_NUMBER_SET_BITS_SIZE (msg->fragmentNumberState.numbits));
   src.prefix = rst->src_guid_prefix;
@@ -1730,7 +1729,7 @@ static int handle_InfoDST (struct ddsi_receiver_state *rst, const ddsi_rtps_info
   {
     ddsi_guid_t dst;
     dst.prefix = rst->dst_guid_prefix;
-    dst.entityid = ddsi_to_entityid(NN_ENTITYID_PARTICIPANT);
+    dst.entityid = ddsi_to_entityid(DDSI_ENTITYID_PARTICIPANT);
     rst->forme = (ddsi_entidx_lookup_participant_guid (rst->gv->entity_index, &dst) != NULL ||
                   ddsi_is_deleted_participant_guid (rst->gv->deleted_participants, &dst, DDSI_DELETED_PPGUID_LOCAL));
   }
@@ -1765,7 +1764,7 @@ static int handle_InfoTS (const struct ddsi_receiver_state *rst, const ddsi_rtps
   return 1;
 }
 
-static int handle_one_gap (struct ddsi_proxy_writer *pwr, struct ddsi_pwr_rd_match *wn, seqno_t a, seqno_t b, struct ddsi_rdata *gap, int *refc_adjust)
+static int handle_one_gap (struct ddsi_proxy_writer *pwr, struct ddsi_pwr_rd_match *wn, ddsi_seqno_t a, ddsi_seqno_t b, struct ddsi_rdata *gap, int *refc_adjust)
 {
   struct ddsi_rsample_chain sc;
   ddsi_reorder_result_t res = 0;
@@ -1856,7 +1855,7 @@ static int handle_Gap (struct ddsi_receiver_state *rst, ddsrt_etime_t tnow, stru
   struct ddsi_pwr_rd_match *wn;
   struct ddsi_lease *lease;
   ddsi_guid_t src, dst;
-  seqno_t gapstart, listbase;
+  ddsi_seqno_t gapstart, listbase;
   uint32_t first_excluded_rel;
   uint32_t listidx;
 
@@ -1959,7 +1958,7 @@ static int handle_Gap (struct ddsi_receiver_state *rst, ddsrt_etime_t tnow, stru
      doesn't tell us anything (which is something that RTI apparently
      got wrong in its interpetation of pure acks that do include a
      bitmap).  */
-  const seqno_t lastseq = { listbase + first_excluded_rel - 1 };
+  const ddsi_seqno_t lastseq = { listbase + first_excluded_rel - 1 };
   if (lastseq > pwr->last_seq)
   {
     pwr->last_seq = lastseq;
@@ -2294,7 +2293,7 @@ static void deliver_user_data_synchronously (struct ddsi_rsample_chain *sc, cons
 
 static void clean_defrag (struct ddsi_proxy_writer *pwr)
 {
-  seqno_t seq = ddsi_reorder_next_seq (pwr->reorder);
+  ddsi_seqno_t seq = ddsi_reorder_next_seq (pwr->reorder);
   if (pwr->n_readers_out_of_sync > 0)
   {
     struct ddsi_pwr_rd_match *wn;
@@ -2302,7 +2301,7 @@ static void clean_defrag (struct ddsi_proxy_writer *pwr)
     {
       if (wn->in_sync == PRMSS_OUT_OF_SYNC)
       {
-        seqno_t seq1 = ddsi_reorder_next_seq (wn->u.not_in_sync.reorder);
+        ddsi_seqno_t seq1 = ddsi_reorder_next_seq (wn->u.not_in_sync.reorder);
         if (seq1 < seq)
           seq = seq1;
       }
@@ -2567,8 +2566,8 @@ static void drop_oversize (struct ddsi_receiver_state *rst, struct ddsi_rmsg *rm
     /* No proxy writer means nothing really gets done with, unless it
        is SPDP.  SPDP is periodic, so oversize discovery packets would
        cause periodic warnings. */
-    if ((msg->writerId.u == NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER) ||
-        (msg->writerId.u == NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER))
+    if ((msg->writerId.u == DDSI_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER) ||
+        (msg->writerId.u == DDSI_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER))
     {
       DDS_CWARNING (&rst->gv->logconfig, "dropping oversize (%"PRIu32" > %"PRIu32") SPDP sample %"PRIu64" from remote writer "PGUIDFMT"\n",
                     sampleinfo->size, rst->gv->config.max_sample_size, sampleinfo->seq,
@@ -2647,20 +2646,20 @@ static int handle_Data (struct ddsi_receiver_state *rst, ddsrt_etime_t tnow, str
 
     rdata = ddsi_rdata_new (rmsg, 0, sampleinfo->size, submsg_offset, payload_offset, keyhash_offset);
 
-    if ((msg->x.writerId.u & NN_ENTITYID_SOURCE_MASK) == NN_ENTITYID_SOURCE_BUILTIN)
+    if ((msg->x.writerId.u & DDSI_ENTITYID_SOURCE_MASK) == DDSI_ENTITYID_SOURCE_BUILTIN)
     {
       bool renew_manbypp_lease = true;
       switch (msg->x.writerId.u)
       {
-        case NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER:
+        case DDSI_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER:
         /* fall through */
-        case NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER:
+        case DDSI_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER:
           /* SPDP needs special treatment: there are no proxy writers for it and we accept data from unknown sources */
           handle_SPDP (sampleinfo, rdata);
           break;
-        case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER:
+        case DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER:
         /* fall through */
-        case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_WRITER:
+        case DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_WRITER:
           /* Handle PMD as a regular message, but without renewing the leases on proxypp */
           renew_manbypp_lease = false;
         /* fall through */
@@ -2707,20 +2706,20 @@ static int handle_DataFrag (struct ddsi_receiver_state *rst, ddsrt_etime_t tnow,
     unsigned submsg_offset, payload_offset, keyhash_offset;
     uint32_t begin, endp1;
     bool renew_manbypp_lease = true;
-    if ((msg->x.writerId.u & NN_ENTITYID_SOURCE_MASK) == NN_ENTITYID_SOURCE_BUILTIN)
+    if ((msg->x.writerId.u & DDSI_ENTITYID_SOURCE_MASK) == DDSI_ENTITYID_SOURCE_BUILTIN)
     {
       switch (msg->x.writerId.u)
       {
-        case NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER:
+        case DDSI_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER:
         /* fall through */
-        case NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER:
+        case DDSI_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER:
           DDS_CWARNING (&rst->gv->logconfig, "DATAFRAG("PGUIDFMT" #%"PRIu64" -> "PGUIDFMT") - fragmented builtin data not yet supported\n",
                         PGUIDPREFIX (rst->src_guid_prefix), msg->x.writerId.u, ddsi_from_seqno (msg->x.writerSN),
                         PGUIDPREFIX (rst->dst_guid_prefix), msg->x.readerId.u);
           return 1;
-        case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER:
+        case DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER:
         /* fall through */
-        case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_WRITER:
+        case DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_WRITER:
           renew_manbypp_lease = false;
       }
     }

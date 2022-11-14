@@ -808,7 +808,7 @@ void dds_reader_ddsi2direct (dds_entity_t entity, ddsi2direct_directread_cb_t cb
     else
     {
       memset (&pwrguid_next, 0xff, sizeof (pwrguid_next));
-      pwrguid_next.entityid.u = (pwrguid_next.entityid.u & ~(uint32_t)0xff) | NN_ENTITYID_KIND_WRITER_NO_KEY;
+      pwrguid_next.entityid.u = (pwrguid_next.entityid.u & ~(uint32_t)0xff) | DDSI_ENTITYID_KIND_WRITER_NO_KEY;
     }
     ddsrt_mutex_unlock (&rd->e.lock);
     if ((pwr = ddsi_entidx_lookup_proxy_writer_guid (dds_entity->m_domain->gv.entity_index, &pwrguid)) != NULL)

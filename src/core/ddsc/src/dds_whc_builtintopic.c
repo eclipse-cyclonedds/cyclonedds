@@ -238,7 +238,7 @@ static void bwhc_get_state (const struct whc *whc, struct whc_state *st)
   st->unacked_bytes = 0;
 }
 
-static int bwhc_insert (struct whc *whc, seqno_t max_drop_seq, seqno_t seq, ddsrt_mtime_t exp, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk)
+static int bwhc_insert (struct whc *whc, ddsi_seqno_t max_drop_seq, ddsi_seqno_t seq, ddsrt_mtime_t exp, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk)
 {
   (void)whc;
   (void)max_drop_seq;
@@ -256,7 +256,7 @@ static uint32_t bwhc_downgrade_to_volatile (struct whc *whc, struct whc_state *s
   return 0;
 }
 
-static uint32_t bwhc_remove_acked_messages (struct whc *whc, seqno_t max_drop_seq, struct whc_state *whcst, struct whc_node **deferred_free_list)
+static uint32_t bwhc_remove_acked_messages (struct whc *whc, ddsi_seqno_t max_drop_seq, struct whc_state *whcst, struct whc_node **deferred_free_list)
 {
   (void)whc;
   (void)max_drop_seq;

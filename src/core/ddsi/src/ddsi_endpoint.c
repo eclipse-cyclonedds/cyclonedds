@@ -64,15 +64,15 @@ int ddsi_is_builtin_volatile_endpoint (ddsi_entityid_t id)
 {
   switch (id.u) {
 #ifdef DDS_HAS_SECURITY
-  case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER:
-  case NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_READER:
+  case DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER:
+  case DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_READER:
     return 1;
 #endif
 #ifdef DDS_HAS_TYPE_DISCOVERY
-  case NN_ENTITYID_TL_SVC_BUILTIN_REQUEST_WRITER:
-  case NN_ENTITYID_TL_SVC_BUILTIN_REQUEST_READER:
-  case NN_ENTITYID_TL_SVC_BUILTIN_REPLY_WRITER:
-  case NN_ENTITYID_TL_SVC_BUILTIN_REPLY_READER:
+  case DDSI_ENTITYID_TL_SVC_BUILTIN_REQUEST_WRITER:
+  case DDSI_ENTITYID_TL_SVC_BUILTIN_REQUEST_READER:
+  case DDSI_ENTITYID_TL_SVC_BUILTIN_REPLY_WRITER:
+  case DDSI_ENTITYID_TL_SVC_BUILTIN_REPLY_READER:
     return 1;
 #endif
   default:
@@ -83,7 +83,7 @@ int ddsi_is_builtin_volatile_endpoint (ddsi_entityid_t id)
 
 int ddsi_is_builtin_endpoint (ddsi_entityid_t id, ddsi_vendorid_t vendorid)
 {
-  return ddsi_is_builtin_entityid (id, vendorid) && id.u != NN_ENTITYID_PARTICIPANT && !ddsi_is_topic_entityid (id);
+  return ddsi_is_builtin_entityid (id, vendorid) && id.u != DDSI_ENTITYID_PARTICIPANT && !ddsi_is_topic_entityid (id);
 }
 
 bool ddsi_is_local_orphan_endpoint (const struct ddsi_entity_common *e)
@@ -94,10 +94,10 @@ bool ddsi_is_local_orphan_endpoint (const struct ddsi_entity_common *e)
 
 int ddsi_is_writer_entityid (ddsi_entityid_t id)
 {
-  switch (id.u & NN_ENTITYID_KIND_MASK)
+  switch (id.u & DDSI_ENTITYID_KIND_MASK)
   {
-    case NN_ENTITYID_KIND_WRITER_WITH_KEY:
-    case NN_ENTITYID_KIND_WRITER_NO_KEY:
+    case DDSI_ENTITYID_KIND_WRITER_WITH_KEY:
+    case DDSI_ENTITYID_KIND_WRITER_NO_KEY:
       return 1;
     default:
       return 0;
@@ -106,10 +106,10 @@ int ddsi_is_writer_entityid (ddsi_entityid_t id)
 
 int ddsi_is_reader_entityid (ddsi_entityid_t id)
 {
-  switch (id.u & NN_ENTITYID_KIND_MASK)
+  switch (id.u & DDSI_ENTITYID_KIND_MASK)
   {
-    case NN_ENTITYID_KIND_READER_WITH_KEY:
-    case NN_ENTITYID_KIND_READER_NO_KEY:
+    case DDSI_ENTITYID_KIND_READER_WITH_KEY:
+    case DDSI_ENTITYID_KIND_READER_NO_KEY:
       return 1;
     default:
       return 0;
@@ -118,13 +118,13 @@ int ddsi_is_reader_entityid (ddsi_entityid_t id)
 
 int ddsi_is_keyed_endpoint_entityid (ddsi_entityid_t id)
 {
-  switch (id.u & NN_ENTITYID_KIND_MASK)
+  switch (id.u & DDSI_ENTITYID_KIND_MASK)
   {
-    case NN_ENTITYID_KIND_READER_WITH_KEY:
-    case NN_ENTITYID_KIND_WRITER_WITH_KEY:
+    case DDSI_ENTITYID_KIND_READER_WITH_KEY:
+    case DDSI_ENTITYID_KIND_WRITER_WITH_KEY:
       return 1;
-    case NN_ENTITYID_KIND_READER_NO_KEY:
-    case NN_ENTITYID_KIND_WRITER_NO_KEY:
+    case DDSI_ENTITYID_KIND_READER_NO_KEY:
+    case DDSI_ENTITYID_KIND_WRITER_NO_KEY:
       return 0;
     default:
       return 0;
@@ -471,16 +471,16 @@ static void augment_wr_prd_match (void *vnode, const void *vleft, const void *vr
   struct ddsi_wr_prd_match *n = vnode;
   const struct ddsi_wr_prd_match *left = vleft;
   const struct ddsi_wr_prd_match *right = vright;
-  seqno_t min_seq, max_seq;
+  ddsi_seqno_t min_seq, max_seq;
   int have_replied = n->has_replied_to_hb;
 
   /* note: this means min <= seq, but not min <= max nor seq <= max!
-     note: this guarantees max < MAX_SEQ_NUMBER, which by induction
-     guarantees {left,right}.max < MAX_SEQ_NUMBER note: this treats a
+     note: this guarantees max < DDSI_MAX_SEQ_NUMBER, which by induction
+     guarantees {left,right}.max < DDSI_MAX_SEQ_NUMBER note: this treats a
      reader that has not yet replied to a heartbeat as a demoted
      one */
   min_seq = n->seq;
-  max_seq = (n->seq < MAX_SEQ_NUMBER) ? n->seq : 0;
+  max_seq = (n->seq < DDSI_MAX_SEQ_NUMBER) ? n->seq : 0;
 
   /* 1. Compute {min,max} & have_replied. */
   if (left)
@@ -530,17 +530,17 @@ static void augment_wr_prd_match (void *vnode, const void *vleft, const void *vr
     /* seq < max cannot be true for a best-effort reader or a demoted */
     n->arbitrary_unacked_reader = n->prd_guid;
   }
-  else if (n->is_reliable && (n->seq == MAX_SEQ_NUMBER || n->seq == 0 || !n->has_replied_to_hb))
+  else if (n->is_reliable && (n->seq == DDSI_MAX_SEQ_NUMBER || n->seq == 0 || !n->has_replied_to_hb))
   {
     /* demoted readers and reliable readers that have not yet replied to a heartbeat are candidates */
     n->arbitrary_unacked_reader = n->prd_guid;
   }
   /* 3b: maybe we can inherit from the children */
-  else if (left && left->arbitrary_unacked_reader.entityid.u != NN_ENTITYID_UNKNOWN)
+  else if (left && left->arbitrary_unacked_reader.entityid.u != DDSI_ENTITYID_UNKNOWN)
   {
     n->arbitrary_unacked_reader = left->arbitrary_unacked_reader;
   }
-  else if (right && right->arbitrary_unacked_reader.entityid.u != NN_ENTITYID_UNKNOWN)
+  else if (right && right->arbitrary_unacked_reader.entityid.u != DDSI_ENTITYID_UNKNOWN)
   {
     n->arbitrary_unacked_reader = right->arbitrary_unacked_reader;
   }
@@ -557,20 +557,20 @@ static void augment_wr_prd_match (void *vnode, const void *vleft, const void *vr
   /* 3d: else no candidate in entire subtree */
   else
   {
-    n->arbitrary_unacked_reader.entityid.u = NN_ENTITYID_UNKNOWN;
+    n->arbitrary_unacked_reader.entityid.u = DDSI_ENTITYID_UNKNOWN;
   }
 }
 
 
 /* WRITER ----------------------------------------------------------- */
 
-seqno_t ddsi_writer_max_drop_seq (const struct ddsi_writer *wr)
+ddsi_seqno_t ddsi_writer_max_drop_seq (const struct ddsi_writer *wr)
 {
   const struct ddsi_wr_prd_match *n;
   if (ddsrt_avl_is_empty (&wr->readers))
     return wr->seq;
   n = ddsrt_avl_root_non_empty (&ddsi_wr_readers_treedef, &wr->readers);
-  return (n->min_seq == MAX_SEQ_NUMBER) ? wr->seq : n->min_seq;
+  return (n->min_seq == DDSI_MAX_SEQ_NUMBER) ? wr->seq : n->min_seq;
 }
 
 int ddsi_writer_must_have_hb_scheduled (const struct ddsi_writer *wr, const struct whc_state *whcst)
@@ -626,7 +626,7 @@ void ddsi_writer_clear_retransmitting (struct ddsi_writer *wr)
 unsigned ddsi_remove_acked_messages (struct ddsi_writer *wr, struct whc_state *whcst, struct whc_node **deferred_free_list)
 {
   unsigned n;
-  assert (wr->e.guid.entityid.u != NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
+  assert (wr->e.guid.entityid.u != DDSI_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
   ASSERT_MUTEX_HELD (&wr->e.lock);
   n = whc_remove_acked_messages (wr->whc, ddsi_writer_max_drop_seq (wr), whcst, deferred_free_list);
   /* trigger anyone waiting in throttle_writer() or wait_for_acks() */
@@ -788,22 +788,22 @@ static void ddsi_new_writer_guid_common_init (struct ddsi_writer *wr, const char
   assert (wr->xqos->present & DDSI_QP_DURABILITY);
 #ifdef DDS_HAS_TYPE_DISCOVERY
   if (ddsi_is_builtin_entityid (wr->e.guid.entityid, DDSI_VENDORID_ECLIPSE) &&
-      wr->e.guid.entityid.u != NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER
-      && wr->e.guid.entityid.u != NN_ENTITYID_TL_SVC_BUILTIN_REQUEST_WRITER
-      && wr->e.guid.entityid.u != NN_ENTITYID_TL_SVC_BUILTIN_REPLY_WRITER)
+      wr->e.guid.entityid.u != DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER
+      && wr->e.guid.entityid.u != DDSI_ENTITYID_TL_SVC_BUILTIN_REQUEST_WRITER
+      && wr->e.guid.entityid.u != DDSI_ENTITYID_TL_SVC_BUILTIN_REPLY_WRITER)
 #else
   if (ddsi_is_builtin_entityid (wr->e.guid.entityid, DDSI_VENDORID_ECLIPSE) &&
-      wr->e.guid.entityid.u != NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER)
+      wr->e.guid.entityid.u != DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER)
 #endif
   {
     assert (wr->xqos->history.kind == DDS_HISTORY_KEEP_LAST);
     assert ((wr->xqos->durability.kind == DDS_DURABILITY_TRANSIENT_LOCAL) ||
-            (wr->e.guid.entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER));
+            (wr->e.guid.entityid.u == DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER));
   }
   wr->handle_as_transient_local = (wr->xqos->durability.kind == DDS_DURABILITY_TRANSIENT_LOCAL);
   wr->num_readers_requesting_keyhash +=
     wr->e.gv->config.generate_keyhash &&
-    ((wr->e.guid.entityid.u & NN_ENTITYID_KIND_MASK) == NN_ENTITYID_KIND_WRITER_WITH_KEY);
+    ((wr->e.guid.entityid.u & DDSI_ENTITYID_KIND_MASK) == DDSI_ENTITYID_KIND_WRITER_WITH_KEY);
   wr->type = ddsi_sertype_ref (type);
   wr->as = ddsi_new_addrset ();
 
@@ -1010,7 +1010,7 @@ dds_return_t ddsi_new_writer (struct ddsi_writer **wr_out, struct ddsi_guid *wrg
      awake and do not touch the thread's vtime (entidx_lookup already
      verifies we're awake) */
   wrguid->prefix = pp->e.guid.prefix;
-  kind = type->typekind_no_key ? NN_ENTITYID_KIND_WRITER_NO_KEY : NN_ENTITYID_KIND_WRITER_WITH_KEY;
+  kind = type->typekind_no_key ? DDSI_ENTITYID_KIND_WRITER_NO_KEY : DDSI_ENTITYID_KIND_WRITER_WITH_KEY;
   if ((rc = ddsi_participant_allocate_entityid (&wrguid->entityid, kind, pp)) < 0)
     return rc;
   return ddsi_new_writer_guid (wr_out, wrguid, group_guid, pp, topic_name, type, xqos, whc, status_cb, status_cb_arg);
@@ -1177,7 +1177,7 @@ dds_return_t ddsi_unblock_throttled_writer (struct ddsi_domaingv *gv, const stru
 dds_return_t ddsi_writer_wait_for_acks (struct ddsi_writer *wr, const ddsi_guid_t *rdguid, dds_time_t abstimeout)
 {
   dds_return_t rc;
-  seqno_t ref_seq;
+  ddsi_seqno_t ref_seq;
   ddsrt_mutex_lock (&wr->e.lock);
   ref_seq = wr->seq;
   if (rdguid == NULL)
@@ -1460,7 +1460,7 @@ dds_return_t ddsi_new_reader_guid (struct ddsi_reader **rd_out, const struct dds
    * used for handling transient local data.
    */
   rd->handle_as_transient_local = (rd->xqos->durability.kind == DDS_DURABILITY_TRANSIENT_LOCAL) ||
-                                  (rd->e.guid.entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_READER);
+                                  (rd->e.guid.entityid.u == DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_READER);
   rd->type = ddsi_sertype_ref (type);
   rd->request_keyhash = rd->type->request_keyhash;
   rd->ddsi2direct_cb = 0;
@@ -1514,7 +1514,7 @@ dds_return_t ddsi_new_reader (struct ddsi_reader **rd_out, struct ddsi_guid *rdg
   uint32_t kind;
 
   rdguid->prefix = pp->e.guid.prefix;
-  kind = type->typekind_no_key ? NN_ENTITYID_KIND_READER_NO_KEY : NN_ENTITYID_KIND_READER_WITH_KEY;
+  kind = type->typekind_no_key ? DDSI_ENTITYID_KIND_READER_NO_KEY : DDSI_ENTITYID_KIND_READER_WITH_KEY;
   if ((rc = ddsi_participant_allocate_entityid (&rdguid->entityid, kind, pp)) < 0)
     return rc;
   return ddsi_new_reader_guid (rd_out, rdguid, group_guid, pp, topic_name, type, xqos, rhc, status_cb, status_cbarg);

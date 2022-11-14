@@ -30,7 +30,6 @@
 
 #include "dds/ddsrt/avl.h"
 #include "ddsi__protocol.h"
-#include "dds/ddsi/q_rtps.h"
 #include "ddsi__misc.h"
 
 #include "dds/ddsi/ddsi_config_impl.h"
@@ -846,12 +845,12 @@ struct ddsi_rsample {
       ddsrt_avl_tree_t fragtree;
       struct ddsi_defrag_iv *lastfrag;
       struct ddsi_rsample_info *sampleinfo;
-      seqno_t seq;
+      ddsi_seqno_t seq;
     } defrag;
     struct ddsi_rsample_reorder {
       ddsrt_avl_node_t avlnode;       /* for ddsi_reorder::sampleivtree, if head of a chain */
       struct ddsi_rsample_chain sc; /* this interval's samples, covering ... */
-      seqno_t min, maxp1;        /* ... seq nos: [min,maxp1), but possibly with holes in it */
+      ddsi_seqno_t min, maxp1;        /* ... seq nos: [min,maxp1), but possibly with holes in it */
       uint32_t n_samples;        /* so this is the actual length of the chain */
     } reorder;
   } u;
@@ -883,8 +882,8 @@ static int compare_uint32 (const void *va, const void *vb)
 
 static int compare_seqno (const void *va, const void *vb)
 {
-  seqno_t a = *((const seqno_t *) va);
-  seqno_t b = *((const seqno_t *) vb);
+  ddsi_seqno_t a = *((const ddsi_seqno_t *) va);
+  ddsi_seqno_t b = *((const ddsi_seqno_t *) vb);
   return (a == b) ? 0 : (a < b) ? -1 : 1;
 }
 
@@ -1150,7 +1149,7 @@ static void rsample_convert_defrag_to_reorder (struct ddsi_rsample *sample)
   struct ddsi_rdata *fragchain = iv->first;
   struct ddsi_rsample_info *sampleinfo = sample->u.defrag.sampleinfo;
   struct ddsi_rsample_chain_elem *sce;
-  seqno_t seq = sample->u.defrag.seq;
+  ddsi_seqno_t seq = sample->u.defrag.seq;
 
   /* re-use memory fragment interval node for sample chain */
   sce = (struct ddsi_rsample_chain_elem *) ddsrt_avl_root_non_empty (&rsample_defrag_fragtree_treedef, &sample->u.defrag.fragtree);
@@ -1285,7 +1284,7 @@ static int ddsi_rdata_is_fragment (const struct ddsi_rdata *rdata, const struct 
   return !(rdata->min == 0 && rdata->maxp1 == sampleinfo->size);
 }
 
-static int defrag_limit_samples (struct ddsi_defrag *defrag, seqno_t seq, seqno_t *max_seq)
+static int defrag_limit_samples (struct ddsi_defrag *defrag, ddsi_seqno_t seq, ddsi_seqno_t *max_seq)
 {
   struct ddsi_rsample *sample_to_drop = NULL;
   if (defrag->n_samples < defrag->max_samples)
@@ -1352,7 +1351,7 @@ struct ddsi_rsample *ddsi_defrag_rsample (struct ddsi_defrag *defrag, struct dds
      function have been accounted for in the refcount of their rmsgs
      by adding BIAS to the refcount. */
   struct ddsi_rsample *sample, *result;
-  seqno_t max_seq;
+  ddsi_seqno_t max_seq;
   ddsrt_avl_ipath_t path;
 
   assert (defrag->n_samples <= defrag->max_samples);
@@ -1437,7 +1436,7 @@ struct ddsi_rsample *ddsi_defrag_rsample (struct ddsi_defrag *defrag, struct dds
   return result;
 }
 
-void ddsi_defrag_notegap (struct ddsi_defrag *defrag, seqno_t min, seqno_t maxp1)
+void ddsi_defrag_notegap (struct ddsi_defrag *defrag, ddsi_seqno_t min, ddsi_seqno_t maxp1)
 {
   /* All sequence numbers in [min,maxp1) are unavailable so any
      fragments in that range must be discarded.  Used both for
@@ -1452,7 +1451,7 @@ void ddsi_defrag_notegap (struct ddsi_defrag *defrag, seqno_t min, seqno_t maxp1
   defrag->max_sample = ddsrt_avl_find_max (&defrag_sampletree_treedef, &defrag->sampletree);
 }
 
-enum ddsi_defrag_nackmap_result ddsi_defrag_nackmap (struct ddsi_defrag *defrag, seqno_t seq, uint32_t maxfragnum, struct ddsi_fragment_number_set_header *map, uint32_t *mapbits, uint32_t maxsz)
+enum ddsi_defrag_nackmap_result ddsi_defrag_nackmap (struct ddsi_defrag *defrag, ddsi_seqno_t seq, uint32_t maxfragnum, struct ddsi_fragment_number_set_header *map, uint32_t *mapbits, uint32_t maxsz)
 {
   struct ddsi_rsample *s;
   struct ddsi_defrag_iv *iv;
@@ -1565,7 +1564,7 @@ enum ddsi_defrag_nackmap_result ddsi_defrag_nackmap (struct ddsi_defrag *defrag,
  * The ddsi_defrag_prune is used to remove these fragments and should only be used when
  * the Volatile Secure reader is deleted.
  */
-void ddsi_defrag_prune (struct ddsi_defrag *defrag, ddsi_guid_prefix_t *dst, seqno_t min)
+void ddsi_defrag_prune (struct ddsi_defrag *defrag, ddsi_guid_prefix_t *dst, ddsi_seqno_t min)
 {
   struct ddsi_rsample *s = ddsrt_avl_lookup_succ_eq (&defrag_sampletree_treedef, &defrag->sampletree, &min);
   while (s)
@@ -1659,7 +1658,7 @@ void ddsi_defrag_prune (struct ddsi_defrag *defrag, ddsi_guid_prefix_t *dst, seq
 struct ddsi_reorder {
   ddsrt_avl_tree_t sampleivtree;
   struct ddsi_rsample *max_sampleiv; /* = max(sampleivtree) */
-  seqno_t next_seq;
+  ddsi_seqno_t next_seq;
   enum ddsi_reorder_mode mode;
   uint32_t max_samples;
   uint32_t n_samples;
@@ -2150,7 +2149,7 @@ ddsi_reorder_result_t ddsi_reorder_rsample (struct ddsi_rsample_chain *sc, struc
   return DDSI_REORDER_ACCEPT;
 }
 
-static struct ddsi_rsample *coalesce_intervals_touching_range (struct ddsi_reorder *reorder, seqno_t min, seqno_t maxp1, int *valuable)
+static struct ddsi_rsample *coalesce_intervals_touching_range (struct ddsi_reorder *reorder, ddsi_seqno_t min, ddsi_seqno_t maxp1, int *valuable)
 {
   struct ddsi_rsample *s, *t;
   *valuable = 0;
@@ -2205,7 +2204,7 @@ struct ddsi_rdata *ddsi_rdata_newgap (struct ddsi_rmsg *rmsg)
   return d;
 }
 
-static int reorder_insert_gap (struct ddsi_reorder *reorder, struct ddsi_rdata *rdata, seqno_t min, seqno_t maxp1)
+static int reorder_insert_gap (struct ddsi_reorder *reorder, struct ddsi_rdata *rdata, ddsi_seqno_t min, ddsi_seqno_t maxp1)
 {
   struct ddsi_rsample_chain_elem *sce;
   struct ddsi_rsample *s;
@@ -2227,7 +2226,7 @@ static int reorder_insert_gap (struct ddsi_reorder *reorder, struct ddsi_rdata *
   return 1;
 }
 
-ddsi_reorder_result_t ddsi_reorder_gap (struct ddsi_rsample_chain *sc, struct ddsi_reorder *reorder, struct ddsi_rdata *rdata, seqno_t min, seqno_t maxp1, int *refcount_adjust)
+ddsi_reorder_result_t ddsi_reorder_gap (struct ddsi_rsample_chain *sc, struct ddsi_reorder *reorder, struct ddsi_rdata *rdata, ddsi_seqno_t min, ddsi_seqno_t maxp1, int *refcount_adjust)
 {
   /* All sequence numbers in [min,maxp1) are unavailable so any
      fragments in that range must be discarded.  Used both for
@@ -2339,7 +2338,7 @@ ddsi_reorder_result_t ddsi_reorder_gap (struct ddsi_rsample_chain *sc, struct dd
   }
 }
 
-void ddsi_reorder_drop_upto (struct ddsi_reorder *reorder, seqno_t maxp1)
+void ddsi_reorder_drop_upto (struct ddsi_reorder *reorder, ddsi_seqno_t maxp1)
 {
   // ddsi_reorder_gap returns the chain of available samples starting with the first
   // sequence number in the gap interval and ending at the highest sequence number
@@ -2370,7 +2369,7 @@ void ddsi_reorder_drop_upto (struct ddsi_reorder *reorder, seqno_t maxp1)
   assert (ddsi_reorder_next_seq (reorder) >= maxp1);
 }
 
-int ddsi_reorder_wantsample (const struct ddsi_reorder *reorder, seqno_t seq)
+int ddsi_reorder_wantsample (const struct ddsi_reorder *reorder, ddsi_seqno_t seq)
 {
   struct ddsi_rsample *s;
   if (seq < reorder->next_seq)
@@ -2382,7 +2381,7 @@ int ddsi_reorder_wantsample (const struct ddsi_reorder *reorder, seqno_t seq)
   return (s == NULL || s->u.reorder.maxp1 <= seq);
 }
 
-unsigned ddsi_reorder_nackmap (const struct ddsi_reorder *reorder, seqno_t base, seqno_t maxseq, struct ddsi_sequence_number_set_header *map, uint32_t *mapbits, uint32_t maxsz, int notail)
+unsigned ddsi_reorder_nackmap (const struct ddsi_reorder *reorder, ddsi_seqno_t base, ddsi_seqno_t maxseq, struct ddsi_sequence_number_set_header *map, uint32_t *mapbits, uint32_t maxsz, int notail)
 {
   /* reorder->next_seq-1 is the last one we delivered, so the last one
      we ack; maxseq is the latest sample we know exists.  Valid bitmap
@@ -2420,7 +2419,7 @@ unsigned ddsi_reorder_nackmap (const struct ddsi_reorder *reorder, seqno_t base,
 
   struct ddsi_rsample *iv = ddsrt_avl_find_min (&reorder_sampleivtree_treedef, &reorder->sampleivtree);
   assert (iv == NULL || iv->u.reorder.min > base);
-  seqno_t i = base;
+  ddsi_seqno_t i = base;
   while (iv && i < base + map->numbits)
   {
     for (; i < base + map->numbits && i < iv->u.reorder.min; i++)
@@ -2444,12 +2443,12 @@ unsigned ddsi_reorder_nackmap (const struct ddsi_reorder *reorder, seqno_t base,
   return map->numbits;
 }
 
-seqno_t ddsi_reorder_next_seq (const struct ddsi_reorder *reorder)
+ddsi_seqno_t ddsi_reorder_next_seq (const struct ddsi_reorder *reorder)
 {
   return reorder->next_seq;
 }
 
-void ddsi_reorder_set_next_seq (struct ddsi_reorder *reorder, seqno_t seq)
+void ddsi_reorder_set_next_seq (struct ddsi_reorder *reorder, ddsi_seqno_t seq)
 {
   reorder->next_seq = seq;
 }

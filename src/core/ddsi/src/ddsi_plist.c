@@ -82,7 +82,7 @@ struct dd {
   const unsigned char *buf;
   size_t bufsz;
   unsigned bswap: 1;
-  nn_protocol_version_t protocol_version;
+  ddsi_protocol_version_t protocol_version;
   ddsi_vendorid_t vendorid;
 };
 
@@ -133,7 +133,7 @@ static dds_return_t validate_history_and_resource_limits (const dds_history_qosp
 static dds_return_t validate_external_duration (const ddsi_duration_t *d);
 static dds_return_t validate_durability_service_qospolicy_acceptzero (const dds_durability_service_qospolicy_t *q, bool acceptzero);
 static enum do_locator_result do_locator (ddsi_locators_t *ls, uint64_t present, uint64_t wanted, uint64_t fl, const struct dd *dd, struct ddsi_domaingv const * const gv);
-static dds_return_t final_validation_qos (const dds_qos_t *dest, nn_protocol_version_t protocol_version, ddsi_vendorid_t vendorid, bool *dursvc_accepted_allzero, bool strict);
+static dds_return_t final_validation_qos (const dds_qos_t *dest, ddsi_protocol_version_t protocol_version, ddsi_vendorid_t vendorid, bool *dursvc_accepted_allzero, bool strict);
 static int partitions_equal (const void *srca, const void *srcb, size_t off);
 static dds_return_t ddsi_xqos_valid_strictness (const struct ddsrt_log_cfg *logcfg, const dds_qos_t *xqos, bool strict);
 static dds_return_t unalias_generic (void * __restrict dst, size_t * __restrict dstoff, bool gen_seq_aliased, const enum ddsi_pserop * __restrict desc);
@@ -1800,7 +1800,7 @@ static bool print_generic (char * __restrict *buf, size_t * __restrict bufsize, 
 #define PP(NAME_, name_, ...) ENTRY(PP, NAME_, name_, 0, 0, __VA_ARGS__)
 #define PPM(NAME_, name_, ...) ENTRY(PP, NAME_, name_, PDF_ALLOWMULTI, 0, __VA_ARGS__)
 
-static int protocol_version_is_newer (nn_protocol_version_t pv)
+static int protocol_version_is_newer (ddsi_protocol_version_t pv)
 {
   return (pv.major < DDSI_RTPS_MAJOR) ? 0 : (pv.major > DDSI_RTPS_MAJOR) ? 1 : (pv.minor > DDSI_RTPS_MINOR);
 }
@@ -1831,7 +1831,7 @@ static dds_return_t dvx_participant_guid (void * __restrict dst, const struct dd
   if (g->prefix.u[0] == 0 && g->prefix.u[1] == 0 && g->prefix.u[2] == 0)
     return (g->entityid.u == 0) ? 0 : DDS_RETCODE_BAD_PARAMETER;
   else
-    return (g->entityid.u == NN_ENTITYID_PARTICIPANT) ? 0 : DDS_RETCODE_BAD_PARAMETER;
+    return (g->entityid.u == DDSI_ENTITYID_PARTICIPANT) ? 0 : DDS_RETCODE_BAD_PARAMETER;
 }
 
 static dds_return_t dvx_group_guid (void * __restrict dst, const struct dd * __restrict dd)
@@ -1849,12 +1849,12 @@ static dds_return_t dvx_endpoint_guid (void * __restrict dst, const struct dd * 
   ddsi_guid_t *g = dst;
   if (g->prefix.u[0] == 0 && g->prefix.u[1] == 0 && g->prefix.u[2] == 0)
     return (g->entityid.u == 0) ? 0 : DDS_RETCODE_BAD_PARAMETER;
-  switch (g->entityid.u & NN_ENTITYID_KIND_MASK)
+  switch (g->entityid.u & DDSI_ENTITYID_KIND_MASK)
   {
-    case NN_ENTITYID_KIND_WRITER_WITH_KEY:
-    case NN_ENTITYID_KIND_WRITER_NO_KEY:
-    case NN_ENTITYID_KIND_READER_NO_KEY:
-    case NN_ENTITYID_KIND_READER_WITH_KEY:
+    case DDSI_ENTITYID_KIND_WRITER_WITH_KEY:
+    case DDSI_ENTITYID_KIND_WRITER_NO_KEY:
+    case DDSI_ENTITYID_KIND_READER_NO_KEY:
+    case DDSI_ENTITYID_KIND_READER_WITH_KEY:
       return 0;
     default:
       return (protocol_version_is_newer (dd->protocol_version) ? 0 : DDS_RETCODE_BAD_PARAMETER);
@@ -2479,7 +2479,7 @@ static dds_return_t ddsi_xqos_valid_strictness (const struct ddsrt_log_cfg *logc
       }
     }
   }
-  if ((ret = final_validation_qos (xqos, (nn_protocol_version_t) { DDSI_RTPS_MAJOR, DDSI_RTPS_MINOR }, DDSI_VENDORID_ECLIPSE, NULL, strict)) < 0)
+  if ((ret = final_validation_qos (xqos, (ddsi_protocol_version_t) { DDSI_RTPS_MAJOR, DDSI_RTPS_MINOR }, DDSI_VENDORID_ECLIPSE, NULL, strict)) < 0)
   {
     DDS_CLOG (DDS_LC_PLIST, logcfg, "ddsi_xqos_valid: final validation failed\n");
   }
@@ -3064,7 +3064,7 @@ void ddsi_plist_init_empty (ddsi_plist_t *dest)
   ddsi_xqos_init_empty (&dest->qos);
 }
 
-static dds_return_t final_validation_qos (const dds_qos_t *dest, nn_protocol_version_t protocol_version, ddsi_vendorid_t vendorid, bool *dursvc_accepted_allzero, bool strict)
+static dds_return_t final_validation_qos (const dds_qos_t *dest, ddsi_protocol_version_t protocol_version, ddsi_vendorid_t vendorid, bool *dursvc_accepted_allzero, bool strict)
 {
   /* input is const, but we need to validate the combination of
      history & resource limits: so use a copy of those two policies */
@@ -3141,7 +3141,7 @@ static dds_return_t final_validation_qos (const dds_qos_t *dest, nn_protocol_ver
   return 0;
 }
 
-static dds_return_t final_validation (ddsi_plist_t *dest, nn_protocol_version_t protocol_version, ddsi_vendorid_t vendorid, bool *dursvc_accepted_allzero, bool strict)
+static dds_return_t final_validation (ddsi_plist_t *dest, ddsi_protocol_version_t protocol_version, ddsi_vendorid_t vendorid, bool *dursvc_accepted_allzero, bool strict)
 {
   return final_validation_qos (&dest->qos, protocol_version, vendorid, dursvc_accepted_allzero, strict);
 }

@@ -21,6 +21,7 @@
 #include "dds/ddsi/ddsi_iid.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_domaingv.h"
+#include "dds/ddsi/ddsi_init.h"
 #include "ddsi__nwpart.h"
 #include "ddsi__udp.h"
 #include "dds/ddsi/q_thread.h"
@@ -142,7 +143,7 @@ static void setup (struct ddsi_domaingv *gv, const struct ddsi_config *config, b
     gv->xmit_conns[i] = fakeconn;
   }
 
-  rtps_config_prep (gv, NULL);
+  ddsi_config_prep (gv, NULL);
   dds_set_log_sink (null_log_sink, &errcount);
   dds_set_trace_sink (null_log_sink, &errcount);
   gv->logconfig.c.tracemask = gv->logconfig.c.mask = UINT32_MAX;

@@ -17,6 +17,8 @@
 #include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/ddsi_keyhash.h"
 #include "dds/ddsi/ddsi_tran.h" /* FIXME: eliminate */
+#include "dds/ddsi/ddsi_protocol.h"
+#include "dds/ddsi/ddsi_guid.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -157,7 +159,7 @@ typedef struct ddsi_plist {
 
   dds_qos_t qos;
 
-  nn_protocol_version_t protocol_version;
+  ddsi_protocol_version_t protocol_version;
   ddsi_vendorid_t vendorid;
   ddsi_locators_t unicast_locators;
   ddsi_locators_t multicast_locators;

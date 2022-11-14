@@ -28,7 +28,7 @@ The topic discovery implementation introduces the *ddsi_topic_definition* type. 
 
 ### topic
 
-A DDSI *topic* has a reference to a topic definition and a (back) reference to the participant. A DDSI topic is an entity: it has an entity_common element and is stored in the (domain scoped) entity index. As the DDS specification does not provide an entity kind for DDSI topic entities, vendor specific entity kinds `NN_ENTITYID_KIND_CYCLONE_TOPIC_BUILTIN` and `NN_ENTITYID_KIND_CYCLONE_TOPIC_USER` are used (different kinds for built-in and user topic are required here because `NN_ENTITYID_SOURCE_BUILTIN` and `NN_ENTITYID_SOURCE_VENDOR` cannot be combined).
+A DDSI *topic* has a reference to a topic definition and a (back) reference to the participant. A DDSI topic is an entity: it has an entity_common element and is stored in the (domain scoped) entity index. As the DDS specification does not provide an entity kind for DDSI topic entities, vendor specific entity kinds `DDSI_ENTITYID_KIND_CYCLONE_TOPIC_BUILTIN` and `DDSI_ENTITYID_KIND_CYCLONE_TOPIC_USER` are used (different kinds for built-in and user topic are required here because `DDSI_ENTITYID_SOURCE_BUILTIN` and `DDSI_ENTITYID_SOURCE_VENDOR` cannot be combined).
 
 Multiple dds_topics can share a single DDSI topic entity. In that case the topics need to share their dds_ktopic, so they have the same type name and the same QoS. In case the type identifier of their types is also equal, the topics will get a reference to the same DDSI topic. In case the type identifiers are different, a DDSI topic will be created for each type identifier.
 

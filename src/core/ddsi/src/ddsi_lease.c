@@ -17,7 +17,6 @@
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/fibheap.h"
 #include "ddsi__protocol.h"
-#include "dds/ddsi/q_rtps.h"
 #include "ddsi__misc.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_log.h"
@@ -153,7 +152,7 @@ static void trace_lease_renew (const struct ddsi_lease *l, const char *tag, ddsr
   {
     int32_t tsec, tusec;
     GVTRACE (" L(%s", tag);
-    if (l->entity->guid.entityid.u == NN_ENTITYID_PARTICIPANT)
+    if (l->entity->guid.entityid.u == DDSI_ENTITYID_PARTICIPANT)
       GVTRACE (":%"PRIx32, l->entity->guid.entityid.u);
     else
       GVTRACE (""PGUIDFMT"", PGUID (l->entity->guid));

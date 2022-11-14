@@ -30,6 +30,7 @@
 #include "dds/ddsi/ddsi_gc.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_typelib.h"
+#include "dds/ddsi/ddsi_init.h"
 #include "dds__serdata_default.h"
 
 #ifdef DDS_HAS_SHM
@@ -121,24 +122,24 @@ static dds_entity_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
   }
   domain->m_id = domain->gv.config.domainId;
 
-  if (rtps_config_prep (&domain->gv, domain->cfgst) != 0)
+  if (ddsi_config_prep (&domain->gv, domain->cfgst) != 0)
   {
     DDS_ILOG (DDS_LC_CONFIG, domain->m_id, "Failed to configure RTPS\n");
     domh = DDS_RETCODE_ERROR;
-    goto fail_rtps_config;
+    goto fail_ddsi_config;
   }
 
-  if (rtps_init (&domain->gv) < 0)
+  if (ddsi_init (&domain->gv) < 0)
   {
     DDS_ILOG (DDS_LC_CONFIG, domain->m_id, "Failed to initialize RTPS\n");
     domh = DDS_RETCODE_ERROR;
-    goto fail_rtps_init;
+    goto fail_ddsi_init;
   }
 
   domain->serpool = dds_serdatapool_new ();
 
 #ifdef DDS_HAS_SHM
-  // if DDS_HAS_SHM is enabled the iceoryx runtime was created in rtps_init and is ready
+  // if DDS_HAS_SHM is enabled the iceoryx runtime was created in ddsi_init and is ready
   // TODO: sufficient if we have multiple domains?
   // TODO: isolate the shm runtime creation in a separate function
 
@@ -175,11 +176,11 @@ static dds_entity_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
 
   dds__builtin_init (domain);
 
-  if (rtps_start (&domain->gv) < 0)
+  if (ddsi_start (&domain->gv) < 0)
   {
     DDS_ILOG (DDS_LC_CONFIG, domain->m_id, "Failed to start RTPS\n");
     domh = DDS_RETCODE_ERROR;
-    goto fail_rtps_start;
+    goto fail_ddsi_start;
   }
 
   if (domain->gv.config.liveliness_monitoring)
@@ -187,7 +188,7 @@ static dds_entity_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
   dds_entity_init_complete (&domain->m_entity);
   return domh;
 
-fail_rtps_start:
+fail_ddsi_start:
   dds__builtin_fini (domain);
   if (domain->gv.config.liveliness_monitoring && dds_global.threadmon_count == 1)
     ddsi_threadmon_stop (dds_global.threadmon);
@@ -198,10 +199,10 @@ fail_threadmon_start:
     dds_global.threadmon = NULL;
   }
 fail_threadmon_new:
-  rtps_fini (&domain->gv);
+  ddsi_fini (&domain->gv);
   dds_serdatapool_free (domain->serpool);
-fail_rtps_init:
-fail_rtps_config:
+fail_ddsi_init:
+fail_ddsi_config:
   if (domain->cfgst)
     ddsi_config_fini (domain->cfgst);
 fail_config:
@@ -321,7 +322,7 @@ dds_entity_t dds_create_domain_with_rawconfig (const dds_domainid_t domain, cons
 static dds_return_t dds_domain_free (dds_entity *vdomain)
 {
   struct dds_domain *domain = (struct dds_domain *) vdomain;
-  rtps_stop (&domain->gv);
+  ddsi_stop (&domain->gv);
   dds__builtin_fini (domain);
 
   if (domain->gv.config.liveliness_monitoring)
@@ -332,7 +333,7 @@ static dds_return_t dds_domain_free (dds_entity *vdomain)
     shm_monitor_destroy(&domain->m_shm_monitor);
 #endif
 
-  rtps_fini (&domain->gv);
+  ddsi_fini (&domain->gv);
   dds_serdatapool_free (domain->serpool);
 
   /* tearing down the top-level object has more consequences, so it waits until signalled that all

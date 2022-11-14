@@ -17,9 +17,9 @@
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "ddsi__misc.h"
 
-extern inline seqno_t ddsi_from_seqno (const ddsi_sequence_number_t sn);
-extern inline bool ddsi_validating_from_seqno (const ddsi_sequence_number_t sn, seqno_t *res);
-extern inline ddsi_sequence_number_t ddsi_to_seqno (seqno_t n);
+extern inline ddsi_seqno_t ddsi_from_seqno (const ddsi_sequence_number_t sn);
+extern inline bool ddsi_validating_from_seqno (const ddsi_sequence_number_t sn, ddsi_seqno_t *res);
+extern inline ddsi_sequence_number_t ddsi_to_seqno (ddsi_seqno_t n);
 
 const ddsi_guid_t ddsi_nullguid = { .prefix = { .u = { 0,0,0 } }, .entityid = { .u = 0 } };
 

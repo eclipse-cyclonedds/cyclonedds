@@ -11,7 +11,7 @@
  */
 
 #include "dds/ddsrt/static_assert.h"
-#include "dds/ddsi/q_rtps.h"
+#include "dds/ddsi/ddsi_protocol.h"
 #include "ddsi__radmin.h"
 #include "ddsi__misc.h"
 #include "dds/ddsi/q_xmsg.h"
@@ -26,7 +26,7 @@
 
 #define ACK_REASON_IN_FLAGS 0
 
-static seqno_t next_deliv_seq (const struct ddsi_proxy_writer *pwr, const seqno_t next_seq)
+static ddsi_seqno_t next_deliv_seq (const struct ddsi_proxy_writer *pwr, const ddsi_seqno_t next_seq)
 {
   /* We want to determine next_deliv_seq, the next sequence number to
      be delivered to all in-sync readers, so that we can acknowledge
@@ -67,7 +67,7 @@ static seqno_t next_deliv_seq (const struct ddsi_proxy_writer *pwr, const seqno_
      provided #dqueue is decremented after delivery, rather than
      before delivery. */
   const uint32_t lw = ddsrt_atomic_ld32 (&pwr->next_deliv_seq_lowword);
-  seqno_t next_deliv_seq;
+  ddsi_seqno_t next_deliv_seq;
   next_deliv_seq = (next_seq & ~(uint64_t)UINT32_MAX) | lw;
   if (next_deliv_seq > next_seq)
     next_deliv_seq -= ((uint64_t) 1) << 32;
@@ -75,7 +75,7 @@ static seqno_t next_deliv_seq (const struct ddsi_proxy_writer *pwr, const seqno_
   return next_deliv_seq;
 }
 
-static void add_acknack_getsource (const struct ddsi_proxy_writer *pwr, const struct ddsi_pwr_rd_match *rwn, struct ddsi_reorder **reorder, seqno_t *bitmap_base, int *notail)
+static void add_acknack_getsource (const struct ddsi_proxy_writer *pwr, const struct ddsi_pwr_rd_match *rwn, struct ddsi_reorder **reorder, ddsi_seqno_t *bitmap_base, int *notail)
 {
   /* if in sync, look at proxy writer status, else look at proxy-writer--reader match status */
   if (rwn->in_sync == PRMSS_OUT_OF_SYNC || rwn->filtered)
@@ -103,12 +103,12 @@ static void add_acknack_getsource (const struct ddsi_proxy_writer *pwr, const st
 static bool add_acknack_makebitmaps (const struct ddsi_proxy_writer *pwr, const struct ddsi_pwr_rd_match *rwn, struct ddsi_add_acknack_info *info)
 {
   struct ddsi_reorder *reorder;
-  seqno_t bitmap_base;
+  ddsi_seqno_t bitmap_base;
   int notail; /* notail = false: all known missing ones are nack'd */
   add_acknack_getsource (pwr, rwn, &reorder, &bitmap_base, &notail);
 
   /* Make bitmap; note that we've made sure to have room for the maximum bitmap size. */
-  const seqno_t last_seq = rwn->filtered ? rwn->last_seq : pwr->last_seq;
+  const ddsi_seqno_t last_seq = rwn->filtered ? rwn->last_seq : pwr->last_seq;
   const uint32_t numbits = ddsi_reorder_nackmap (reorder, bitmap_base, last_seq, &info->acknack.set, info->acknack.bits, DDSI_SEQUENCE_NUMBER_SET_MAX_BITS, notail);
   if (numbits == 0)
   {
@@ -119,13 +119,13 @@ static bool add_acknack_makebitmaps (const struct ddsi_proxy_writer *pwr, const 
   /* Scan through bitmap, cutting it off at the first missing sample that the defragmenter
      knows about. Then note the sequence number & add a NACKFRAG for that sample */
   info->nackfrag.seq = 0;
-  const seqno_t base = ddsi_from_seqno (info->acknack.set.bitmap_base);
+  const ddsi_seqno_t base = ddsi_from_seqno (info->acknack.set.bitmap_base);
   for (uint32_t i = 0; i < numbits; i++)
   {
     if (!ddsi_bitset_isset (numbits, info->acknack.bits, i))
       continue;
 
-    const seqno_t seq = base + i;
+    const ddsi_seqno_t seq = base + i;
     const uint32_t fragnum = (seq == pwr->last_seq) ? pwr->last_fragnum : UINT32_MAX;
     switch (ddsi_defrag_nackmap (pwr->defrag, seq, fragnum, &info->nackfrag.set, info->nackfrag.bits, DDSI_FRAGMENT_NUMBER_SET_MAX_BITS))
     {
@@ -255,10 +255,10 @@ static enum ddsi_add_acknack_result get_acknack_info (const struct ddsi_proxy_wr
   else
   {
     // [seq_base:0 .. seq_end_p1:0) + [seq_end_p1:frag_base .. seq_end_p1:frag_end_p1) if frag_end_p1 > 0
-    const seqno_t seq_base = ddsi_from_seqno (info->acknack.set.bitmap_base);
+    const ddsi_seqno_t seq_base = ddsi_from_seqno (info->acknack.set.bitmap_base);
     assert (seq_base >= 1 && (info->acknack.set.numbits > 0 || info->nackfrag.seq > 0));
     assert (info->nackfrag.seq == 0 || info->nackfrag.set.numbits > 0);
-    const seqno_t seq_end_p1 = seq_base + info->acknack.set.numbits;
+    const ddsi_seqno_t seq_end_p1 = seq_base + info->acknack.set.numbits;
     const uint32_t frag_base = (info->nackfrag.seq > 0) ? info->nackfrag.set.bitmap_base : 0;
     const uint32_t frag_end_p1 = (info->nackfrag.seq > 0) ? info->nackfrag.set.bitmap_base + info->nackfrag.set.numbits : 0;
 
@@ -339,7 +339,7 @@ void ddsi_sched_acknack_if_needed (struct xevent *ev, struct ddsi_proxy_writer *
   // the alternative is to do:
   //
   //   add_acknack_getsource (pwr, rwn, &reorder, &bitmap_base, &notail);
-  //   const seqno_t last_seq = rwn->filtered ? rwn->last_seq : pwr->last_seq;
+  //   const ddsi_seqno_t last_seq = rwn->filtered ? rwn->last_seq : pwr->last_seq;
   //   if (bitmap_base <= last_seq)
   //     (void) resched_xevent_if_earlier (ev, tnow);
   //   else if (!(rwn->heartbeat_since_ack && rwn->ack_requested))

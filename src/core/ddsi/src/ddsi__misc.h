@@ -18,13 +18,13 @@
 extern "C" {
 #endif
 
-inline seqno_t ddsi_from_seqno (const ddsi_sequence_number_t sn)
+inline ddsi_seqno_t ddsi_from_seqno (const ddsi_sequence_number_t sn)
 {
   uint64_t sn_high = (uint32_t) sn.high;
   return (sn_high << 32) | sn.low;
 }
 
-inline bool ddsi_validating_from_seqno (const ddsi_sequence_number_t sn, seqno_t *res)
+inline bool ddsi_validating_from_seqno (const ddsi_sequence_number_t sn, ddsi_seqno_t *res)
 {
   // ddsi_from_seqno does not checks whatsoever (and shouldn't because it is used quite a lot)
   // Valid sequence numbers are in [1 .. 2**63-1] union { SEQUENCE_NUMBER_UNKNOWN }
@@ -36,12 +36,12 @@ inline bool ddsi_validating_from_seqno (const ddsi_sequence_number_t sn, seqno_t
   // to do differently.  That leaves [1 .. 2**63-1]
   //
   // Since we use uint64_t, we can easily test by checking whether (s-1) is in [0 .. 2**63-1)
-  const seqno_t tmp = ddsi_from_seqno (sn);
+  const ddsi_seqno_t tmp = ddsi_from_seqno (sn);
   *res = tmp;
-  return (tmp - 1) < MAX_SEQ_NUMBER;
+  return (tmp - 1) < DDSI_MAX_SEQ_NUMBER;
 }
 
-inline ddsi_sequence_number_t ddsi_to_seqno (seqno_t n)
+inline ddsi_sequence_number_t ddsi_to_seqno (ddsi_seqno_t n)
 {
   ddsi_sequence_number_t x;
   x.high = (int32_t) (n >> 32);

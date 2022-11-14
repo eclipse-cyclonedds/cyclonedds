@@ -17,6 +17,7 @@
 #include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/ddsi_keyhash.h"
 #include "dds/ddsi/ddsi_plist.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -69,7 +70,7 @@ typedef uint32_t ddsi_ipv4address_t;
 typedef uint32_t ddsi_port_t;
 
 typedef struct ddsi_plist_src {
-  nn_protocol_version_t protocol_version; /**< input protocol version */
+  ddsi_protocol_version_t protocol_version; /**< input protocol version */
   ddsi_vendorid_t vendorid;                 /**< vendor code for input */
   int encoding;                           /**< DDSI_RTPS_PL_CDR_LE or DDSI_RTPS_PL_CDR_BE */
   const unsigned char *buf;               /**< input buffer */

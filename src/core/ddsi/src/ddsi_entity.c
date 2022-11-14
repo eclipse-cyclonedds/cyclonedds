@@ -35,8 +35,8 @@ extern inline struct ddsi_tkmap_instance *ddsi_builtintopic_get_tkmap_entry (con
 extern inline void ddsi_builtintopic_write_endpoint (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_entity_common *e, ddsrt_wctime_t timestamp, bool alive);
 extern inline void ddsi_builtintopic_write_topic (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_topic_definition *tpd, ddsrt_wctime_t timestamp, bool alive);
 
-extern inline seqno_t ddsi_writer_read_seq_xmit (const struct ddsi_writer *wr);
-extern inline void ddsi_writer_update_seq_xmit (struct ddsi_writer *wr, seqno_t nv);
+extern inline ddsi_seqno_t ddsi_writer_read_seq_xmit (const struct ddsi_writer *wr);
+extern inline void ddsi_writer_update_seq_xmit (struct ddsi_writer *wr, ddsi_seqno_t nv);
 
 int ddsi_compare_guid (const void *va, const void *vb)
 {
@@ -112,15 +112,15 @@ ddsi_vendorid_t ddsi_get_entity_vendorid (const struct ddsi_entity_common *e)
 
 int ddsi_is_builtin_entityid (ddsi_entityid_t id, ddsi_vendorid_t vendorid)
 {
-  if ((id.u & NN_ENTITYID_SOURCE_MASK) == NN_ENTITYID_SOURCE_BUILTIN)
+  if ((id.u & DDSI_ENTITYID_SOURCE_MASK) == DDSI_ENTITYID_SOURCE_BUILTIN)
     return 1;
-  else if ((id.u & NN_ENTITYID_SOURCE_MASK) != NN_ENTITYID_SOURCE_VENDOR)
+  else if ((id.u & DDSI_ENTITYID_SOURCE_MASK) != DDSI_ENTITYID_SOURCE_VENDOR)
     return 0;
   else if (!ddsi_vendor_is_eclipse_or_adlink (vendorid))
     return 0;
   else
   {
-    if ((id.u & NN_ENTITYID_KIND_MASK) == NN_ENTITYID_KIND_CYCLONE_TOPIC_USER)
+    if ((id.u & DDSI_ENTITYID_KIND_MASK) == DDSI_ENTITYID_KIND_CYCLONE_TOPIC_USER)
       return 0;
     return 1;
   }

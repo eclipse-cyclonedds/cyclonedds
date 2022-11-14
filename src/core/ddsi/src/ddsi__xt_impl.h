@@ -278,7 +278,7 @@ struct ddsi_type {
   struct xt_type xt;                            /* wrapper for XTypes type id/obj */
   ddsrt_avl_node_t avl_node;
   enum ddsi_type_state state;
-  seqno_t request_seqno;                        /* sequence number of the last type lookup request message */
+  ddsi_seqno_t request_seqno;                        /* sequence number of the last type lookup request message */
   struct ddsi_type_proxy_guid_list proxy_guids; /* administration for proxy endpoints (not proxy topics) that are using this type */
   uint32_t refc;                                /* refcount for this record */
 };

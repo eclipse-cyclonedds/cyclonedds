@@ -15,9 +15,8 @@
 #include "dds/ddsrt/endian.h"
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsi/ddsi_feature_check.h"
-
-#include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/ddsi_locator.h"
+#include "dds/ddsi/ddsi_guid.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -43,6 +42,19 @@ extern "C" {
 typedef uint32_t ddsi_count_t;
 
 typedef struct {
+  uint8_t major, minor;
+} ddsi_protocol_version_t;
+
+typedef uint64_t ddsi_seqno_t;
+#define DDSI_MAX_SEQ_NUMBER INT64_MAX
+
+#define PGUIDPREFIX(gp) (gp).u[0], (gp).u[1], (gp).u[2]
+#define PGUID(g) PGUIDPREFIX ((g).prefix), (g).entityid.u
+#define PGUIDPREFIXFMT "%" PRIx32 ":%" PRIx32 ":%" PRIx32
+#define PGUIDFMT PGUIDPREFIXFMT ":%" PRIx32
+
+
+typedef struct {
   uint8_t id[2];
 } ddsi_vendorid_t;
 
@@ -53,7 +65,7 @@ typedef struct ddsi_sequence_number {
 
 #define DDSI_SEQUENCE_NUMBER_UNKNOWN_HIGH -1
 #define DDSI_SEQUENCE_NUMBER_UNKNOWN_LOW 0
-#define DDSI_SEQUENCE_NUMBER_UNKNOWN ((seqno_t) (((uint64_t)DDSI_SEQUENCE_NUMBER_UNKNOWN_HIGH << 32) | DDSI_SEQUENCE_NUMBER_UNKNOWN_LOW))
+#define DDSI_SEQUENCE_NUMBER_UNKNOWN ((ddsi_seqno_t) (((uint64_t)DDSI_SEQUENCE_NUMBER_UNKNOWN_HIGH << 32) | DDSI_SEQUENCE_NUMBER_UNKNOWN_LOW))
 
 /* C99 disallows flex array in nested struct, so only put the
    header in.  (GCC and Clang allow it, but there are other
@@ -88,7 +100,7 @@ typedef struct ddsi_protocolid {
 
 typedef struct ddsi_rtps_header {
   ddsi_protocolid_t protocol;
-  nn_protocol_version_t version;
+  ddsi_protocol_version_t version;
   ddsi_vendorid_t vendorid;
   ddsi_guid_prefix_t guid_prefix;
 } ddsi_rtps_header_t;
@@ -130,7 +142,7 @@ typedef enum ddsi_rtps_submessage_kind {
 typedef struct ddsi_rtps_info_src {
   ddsi_rtps_submessage_header_t smhdr;
   unsigned unused;
-  nn_protocol_version_t version;
+  ddsi_protocol_version_t version;
   ddsi_vendorid_t vendorid;
   ddsi_guid_prefix_t guid_prefix;
 } ddsi_rtps_info_src_t;
@@ -189,6 +201,59 @@ typedef struct ddsi_rtps_msg_len {
 #define DDSI_PARTICIPANT_MESSAGE_DATA_KIND_AUTOMATIC_LIVELINESS_UPDATE 0x1u
 #define DDSI_PARTICIPANT_MESSAGE_DATA_KIND_MANUAL_LIVELINESS_UPDATE 0x2u
 #define DDSI_PARTICIPANT_MESSAGE_DATA_VENDOR_SPECIFIC_KIND_FLAG 0x8000000u
+
+/* predefined entity ids; here viewed as an unsigned int, on the
+   network as four bytes corresponding to the integer in network byte
+   order */
+#define DDSI_ENTITYID_UNKNOWN 0x0
+#define DDSI_ENTITYID_PARTICIPANT 0x1c1
+#define DDSI_ENTITYID_SEDP_BUILTIN_TOPIC_WRITER 0x2c2
+#define DDSI_ENTITYID_SEDP_BUILTIN_TOPIC_READER 0x2c7
+#define DDSI_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER 0x3c2
+#define DDSI_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_READER 0x3c7
+#define DDSI_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER 0x4c2
+#define DDSI_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_READER 0x4c7
+#define DDSI_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER 0x100c2
+#define DDSI_ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER 0x100c7
+#define DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER 0x200c2
+#define DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_READER 0x200c7
+
+#define DDSI_ENTITYID_TL_SVC_BUILTIN_REQUEST_WRITER 0x300c3
+#define DDSI_ENTITYID_TL_SVC_BUILTIN_REQUEST_READER 0x300c4
+#define DDSI_ENTITYID_TL_SVC_BUILTIN_REPLY_WRITER 0x301c3
+#define DDSI_ENTITYID_TL_SVC_BUILTIN_REPLY_READER 0x301c4
+
+#define DDSI_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER 0xff0003c2
+#define DDSI_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_READER 0xff0003c7
+#define DDSI_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_WRITER 0xff0004c2
+#define DDSI_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_READER 0xff0004c7
+#define DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER 0x201c3
+#define DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_READER 0x201c4
+#define DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_WRITER 0xff0200c2
+#define DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_READER 0xff0200c7
+#define DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER 0xff0202c3
+#define DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_READER 0xff0202c4
+#define DDSI_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER 0xff0101c2
+#define DDSI_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_READER 0xff0101c7
+
+#define DDSI_ENTITYID_SOURCE_MASK 0xc0
+#define DDSI_ENTITYID_SOURCE_USER 0x00
+#define DDSI_ENTITYID_SOURCE_BUILTIN 0xc0
+#define DDSI_ENTITYID_SOURCE_VENDOR 0x40
+#define DDSI_ENTITYID_KIND_MASK 0x3f
+#define DDSI_ENTITYID_KIND_WRITER_WITH_KEY 0x02
+#define DDSI_ENTITYID_KIND_WRITER_NO_KEY 0x03
+#define DDSI_ENTITYID_KIND_READER_NO_KEY 0x04
+#define DDSI_ENTITYID_KIND_READER_WITH_KEY 0x07
+/* Entity kind topic is not defined in the RTPS spec, so the following two
+   should to be used as vendor specific entities using DDSI_ENTITYID_SOURCE_VENDOR.
+   Two entity kinds for built-in and user topics are required, because the
+   vendor and built-in flags cannot be combined. */
+#define DDSI_ENTITYID_KIND_CYCLONE_TOPIC_BUILTIN 0x0c
+#define DDSI_ENTITYID_KIND_CYCLONE_TOPIC_USER 0x0d
+
+#define DDSI_ENTITYID_ALLOCSTEP 0x100
+
 
 /* Names of the built-in topics */
 #define DDS_BUILTIN_TOPIC_PARTICIPANT_NAME "DCPSParticipant"

@@ -29,7 +29,6 @@
 #include "dds/ddsi/ddsi_unused.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_tkmap.h"
-#include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/ddsi_freelist.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_entity.h"
@@ -45,7 +44,7 @@ struct whc_node {
   struct whc_node *prev_seq; /* prev in this interval */
   struct whc_idxnode *idxnode; /* NULL if not in index */
   uint32_t idxnode_pos; /* index in idxnode.hist */
-  seqno_t seq;
+  ddsi_seqno_t seq;
   uint64_t total_bytes; /* cumulative number of bytes up to and including this node */
   size_t size;
   unsigned unacked: 1; /* counted in whc::unacked_bytes iff 1 */
@@ -60,15 +59,15 @@ struct whc_node {
 
 struct whc_intvnode {
   ddsrt_avl_node_t avlnode;
-  seqno_t min;
-  seqno_t maxp1;
+  ddsi_seqno_t min;
+  ddsi_seqno_t maxp1;
   struct whc_node *first; /* linked list of seqs with contiguous sequence numbers [min,maxp1) */
   struct whc_node *last; /* valid iff first != NULL */
 };
 
 struct whc_idxnode {
   uint64_t iid;
-  seqno_t prune_seq;
+  ddsi_seqno_t prune_seq;
   struct ddsi_tkmap_instance *tk;
   uint32_t headidx;
 #ifdef DDS_HAS_DEADLINE_MISSED
@@ -79,7 +78,7 @@ struct whc_idxnode {
 
 #if USE_EHH
 struct whc_seq_entry {
-  seqno_t seq;
+  ddsi_seqno_t seq;
   struct whc_node *whcn;
 };
 #endif
@@ -105,7 +104,7 @@ struct whc_impl {
   struct ddsi_domaingv *gv;
   struct ddsi_tkmap *tkmap;
   struct whc_writer_info wrinfo;
-  seqno_t max_drop_seq; /* samples in whc with seq <= max_drop_seq => transient-local */
+  ddsi_seqno_t max_drop_seq; /* samples in whc with seq <= max_drop_seq => transient-local */
   struct whc_intvnode *open_intv; /* interval where next sample will go (usually) */
   struct whc_node *maxseq_node; /* NULL if empty; if not in open_intv, open_intv is empty */
 #if USE_EHH
@@ -143,20 +142,20 @@ DDSRT_STATIC_ASSERT (sizeof (struct whc_sample_iter_impl) <= sizeof (struct whc_
  * - cleaning up after ACKs has additional pruning stage for same case
  */
 
-static struct whc_node *whc_findseq (const struct whc_impl *whc, seqno_t seq);
+static struct whc_node *whc_findseq (const struct whc_impl *whc, ddsi_seqno_t seq);
 static void insert_whcn_in_hash (struct whc_impl *whc, struct whc_node *whcn);
 static void whc_delete_one (struct whc_impl *whc, struct whc_node *whcn);
 static int compare_seq (const void *va, const void *vb);
 static void free_deferred_free_list (struct whc_node *deferred_free_list);
 static void get_state_locked (const struct whc_impl *whc, struct whc_state *st);
 
-static uint32_t whc_default_remove_acked_messages_full (struct whc_impl *whc, seqno_t max_drop_seq, struct whc_node **deferred_free_list);
-static uint32_t whc_default_remove_acked_messages (struct whc *whc, seqno_t max_drop_seq, struct whc_state *whcst, struct whc_node **deferred_free_list);
+static uint32_t whc_default_remove_acked_messages_full (struct whc_impl *whc, ddsi_seqno_t max_drop_seq, struct whc_node **deferred_free_list);
+static uint32_t whc_default_remove_acked_messages (struct whc *whc, ddsi_seqno_t max_drop_seq, struct whc_state *whcst, struct whc_node **deferred_free_list);
 static void whc_default_free_deferred_free_list (struct whc *whc, struct whc_node *deferred_free_list);
 static void whc_default_get_state (const struct whc *whc, struct whc_state *st);
-static int whc_default_insert (struct whc *whc, seqno_t max_drop_seq, seqno_t seq, ddsrt_mtime_t exp, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk);
-static seqno_t whc_default_next_seq (const struct whc *whc, seqno_t seq);
-static bool whc_default_borrow_sample (const struct whc *whc, seqno_t seq, struct whc_borrowed_sample *sample);
+static int whc_default_insert (struct whc *whc, ddsi_seqno_t max_drop_seq, ddsi_seqno_t seq, ddsrt_mtime_t exp, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk);
+static ddsi_seqno_t whc_default_next_seq (const struct whc *whc, ddsi_seqno_t seq);
+static bool whc_default_borrow_sample (const struct whc *whc, ddsi_seqno_t seq, struct whc_borrowed_sample *sample);
 static bool whc_default_borrow_sample_key (const struct whc *whc, const struct ddsi_serdata *serdata_key, struct whc_borrowed_sample *sample);
 static void whc_default_return_sample (struct whc *whc, struct whc_borrowed_sample *sample, bool update_retransmit_info);
 static uint32_t whc_default_downgrade_to_volatile (struct whc *whc, struct whc_state *st);
@@ -246,8 +245,8 @@ static int whc_idxnode_eq_key (const void *va, const void *vb)
 
 static int compare_seq (const void *va, const void *vb)
 {
-  const seqno_t *a = va;
-  const seqno_t *b = vb;
+  const ddsi_seqno_t *a = va;
+  const ddsi_seqno_t *b = vb;
   return (*a == *b) ? 0 : (*a < *b) ? -1 : 1;
 }
 
@@ -300,7 +299,7 @@ static void check_whc (const struct whc_impl *whc)
   {
     struct whc_intvnode *firstintv;
     struct whc_node *cur;
-    seqno_t prevseq = 0;
+    ddsi_seqno_t prevseq = 0;
     firstintv = ddsrt_avl_find_min (&whc_seq_treedef, &whc->seq);
     assert (firstintv);
     cur = firstintv->first;
@@ -339,7 +338,7 @@ static void remove_whcn_from_hash (struct whc_impl *whc, struct whc_node *whcn)
 #endif
 }
 
-static struct whc_node *whc_findseq (const struct whc_impl *whc, seqno_t seq)
+static struct whc_node *whc_findseq (const struct whc_impl *whc, ddsi_seqno_t seq)
 {
 #if USE_EHH
   struct whc_seq_entry e = { .seq = seq }, *r;
@@ -585,7 +584,7 @@ static void whc_default_get_state (const struct whc *whc_generic, struct whc_sta
   ddsrt_mutex_unlock ((ddsrt_mutex_t *)&whc->lock);
 }
 
-static struct whc_node *find_nextseq_intv (struct whc_intvnode **p_intv, const struct whc_impl *whc, seqno_t seq)
+static struct whc_node *find_nextseq_intv (struct whc_intvnode **p_intv, const struct whc_impl *whc, ddsi_seqno_t seq)
 {
   struct whc_node *n;
   struct whc_intvnode *intv;
@@ -627,16 +626,16 @@ static struct whc_node *find_nextseq_intv (struct whc_intvnode **p_intv, const s
   }
 }
 
-static seqno_t whc_default_next_seq (const struct whc *whc_generic, seqno_t seq)
+static ddsi_seqno_t whc_default_next_seq (const struct whc *whc_generic, ddsi_seqno_t seq)
 {
   const struct whc_impl * const whc = (const struct whc_impl *)whc_generic;
   struct whc_node *n;
   struct whc_intvnode *intv;
-  seqno_t nseq;
+  ddsi_seqno_t nseq;
   ddsrt_mutex_lock ((ddsrt_mutex_t *)&whc->lock);
   check_whc (whc);
   if ((n = find_nextseq_intv (&intv, whc, seq)) == NULL)
-    nseq = MAX_SEQ_NUMBER;
+    nseq = DDSI_MAX_SEQ_NUMBER;
   else
     nseq = n->seq;
   ddsrt_mutex_unlock ((ddsrt_mutex_t *)&whc->lock);
@@ -653,7 +652,7 @@ static void delete_one_sample_from_idx (struct whc_node *whcn)
   whcn->idxnode = NULL;
 }
 
-static void free_one_instance_from_idx (struct whc_impl *whc, seqno_t max_drop_seq, struct whc_idxnode *idxn)
+static void free_one_instance_from_idx (struct whc_impl *whc, ddsi_seqno_t max_drop_seq, struct whc_idxnode *idxn)
 {
   for (uint32_t i = 0; i < whc->wrinfo.idxdepth; i++)
   {
@@ -672,7 +671,7 @@ static void free_one_instance_from_idx (struct whc_impl *whc, seqno_t max_drop_s
   ddsrt_free (idxn);
 }
 
-static void delete_one_instance_from_idx (struct whc_impl *whc, seqno_t max_drop_seq, struct whc_idxnode *idxn)
+static void delete_one_instance_from_idx (struct whc_impl *whc, ddsi_seqno_t max_drop_seq, struct whc_idxnode *idxn)
 {
   ddsrt_hh_remove_present (whc->idx_hash, idxn);
 #ifdef DDS_HAS_DEADLINE_MISSED
@@ -696,7 +695,7 @@ static int whcn_in_tlidx (const struct whc_impl *whc, const struct whc_idxnode *
 static uint32_t whc_default_downgrade_to_volatile (struct whc *whc_generic, struct whc_state *st)
 {
   struct whc_impl * const whc = (struct whc_impl *)whc_generic;
-  seqno_t old_max_drop_seq;
+  ddsi_seqno_t old_max_drop_seq;
   struct whc_node *deferred_free_list;
   uint32_t cnt;
 
@@ -901,7 +900,7 @@ static void whc_default_free_deferred_free_list (struct whc *whc_generic, struct
   free_deferred_free_list (deferred_free_list);
 }
 
-static uint32_t whc_default_remove_acked_messages_noidx (struct whc_impl *whc, seqno_t max_drop_seq, struct whc_node **deferred_free_list)
+static uint32_t whc_default_remove_acked_messages_noidx (struct whc_impl *whc, ddsi_seqno_t max_drop_seq, struct whc_node **deferred_free_list)
 {
   struct whc_intvnode *intv;
   struct whc_node *whcn;
@@ -980,7 +979,7 @@ static uint32_t whc_default_remove_acked_messages_noidx (struct whc_impl *whc, s
   return ndropped;
 }
 
-static uint32_t whc_default_remove_acked_messages_full (struct whc_impl *whc, seqno_t max_drop_seq, struct whc_node **deferred_free_list)
+static uint32_t whc_default_remove_acked_messages_full (struct whc_impl *whc, ddsi_seqno_t max_drop_seq, struct whc_node **deferred_free_list)
 {
   struct whc_intvnode *intv;
   struct whc_node *whcn;
@@ -1119,13 +1118,13 @@ static uint32_t whc_default_remove_acked_messages_full (struct whc_impl *whc, se
   return ndropped;
 }
 
-static uint32_t whc_default_remove_acked_messages (struct whc *whc_generic, seqno_t max_drop_seq, struct whc_state *whcst, struct whc_node **deferred_free_list)
+static uint32_t whc_default_remove_acked_messages (struct whc *whc_generic, ddsi_seqno_t max_drop_seq, struct whc_state *whcst, struct whc_node **deferred_free_list)
 {
   struct whc_impl * const whc = (struct whc_impl *)whc_generic;
   uint32_t cnt;
 
   ddsrt_mutex_lock (&whc->lock);
-  assert (max_drop_seq < MAX_SEQ_NUMBER);
+  assert (max_drop_seq < DDSI_MAX_SEQ_NUMBER);
   assert (max_drop_seq >= whc->max_drop_seq);
 
   if (whc->gv->logconfig.c.mask & DDS_LC_WHC)
@@ -1152,7 +1151,7 @@ static uint32_t whc_default_remove_acked_messages (struct whc *whc_generic, seqn
   return cnt;
 }
 
-static struct whc_node *whc_default_insert_seq (struct whc_impl *whc, seqno_t max_drop_seq, seqno_t seq, ddsrt_mtime_t exp, struct ddsi_serdata *serdata)
+static struct whc_node *whc_default_insert_seq (struct whc_impl *whc, ddsi_seqno_t max_drop_seq, ddsi_seqno_t seq, ddsrt_mtime_t exp, struct ddsi_serdata *serdata)
 {
   struct whc_node *newn = NULL;
 
@@ -1223,7 +1222,7 @@ static struct whc_node *whc_default_insert_seq (struct whc_impl *whc, seqno_t ma
   return newn;
 }
 
-static int whc_default_insert (struct whc *whc_generic, seqno_t max_drop_seq, seqno_t seq, ddsrt_mtime_t exp, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk)
+static int whc_default_insert (struct whc *whc_generic, ddsi_seqno_t max_drop_seq, ddsi_seqno_t seq, ddsrt_mtime_t exp, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk)
 {
   struct whc_impl * const whc = (struct whc_impl *)whc_generic;
   struct whc_node *newn = NULL;
@@ -1249,7 +1248,7 @@ static int whc_default_insert (struct whc *whc_generic, seqno_t max_drop_seq, se
            whcst.min_seq, whcst.max_seq, whc->max_drop_seq, whc->wrinfo.hdepth, whc->wrinfo.tldepth);
   }
 
-  assert (max_drop_seq < MAX_SEQ_NUMBER);
+  assert (max_drop_seq < DDSI_MAX_SEQ_NUMBER);
   assert (max_drop_seq >= whc->max_drop_seq);
 
   /* Seq must be greater than what is currently stored. Usually it'll
@@ -1389,7 +1388,7 @@ static void make_borrowed_sample (struct whc_borrowed_sample *sample, struct whc
   sample->last_rexmit_ts = whcn->last_rexmit_ts;
 }
 
-static bool whc_default_borrow_sample (const struct whc *whc_generic, seqno_t seq, struct whc_borrowed_sample *sample)
+static bool whc_default_borrow_sample (const struct whc *whc_generic, ddsi_seqno_t seq, struct whc_borrowed_sample *sample)
 {
   const struct whc_impl * const whc = (const struct whc_impl *)whc_generic;
   struct whc_node *whcn;
@@ -1464,7 +1463,7 @@ static bool whc_default_sample_iter_borrow_next (struct whc_sample_iter *opaque_
   struct whc_impl * const whc = (struct whc_impl *)it->c.whc;
   struct whc_node *whcn;
   struct whc_intvnode *intv;
-  seqno_t seq;
+  ddsi_seqno_t seq;
   bool valid;
   ddsrt_mutex_lock (&whc->lock);
   check_whc (whc);

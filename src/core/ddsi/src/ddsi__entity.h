@@ -16,10 +16,10 @@
 #include "dds/features.h"
 
 #include "dds/ddsrt/atomics.h"
-#include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/ddsi_protocol.h"
 #include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/ddsi_entity.h"
+#include "dds/ddsi/ddsi_guid.h"
 
 #if defined (__cplusplus)
 extern "C" {

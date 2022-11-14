@@ -157,8 +157,8 @@ static void add_proxy_builtin_endpoints (struct ddsi_domaingv *gv, const struct 
 {
   /* Add proxy endpoints based on the advertised (& possibly augmented
      ...) built-in endpoint set. */
-#define TE(ap_, a_, bp_, b_, c_) { DDSI_##ap_##BUILTIN_ENDPOINT_##a_, NN_ENTITYID_##bp_##_BUILTIN_##b_, DDS_BUILTIN_TOPIC_##c_##_NAME }
-#define LTE(a_, bp_, b_, c_) { DDSI_##BUILTIN_ENDPOINT_##a_, NN_ENTITYID_##bp_##_BUILTIN_##b_, DDS_BUILTIN_TOPIC_##c_##_NAME }
+#define TE(ap_, a_, bp_, b_, c_) { DDSI_##ap_##BUILTIN_ENDPOINT_##a_, DDSI_ENTITYID_##bp_##_BUILTIN_##b_, DDS_BUILTIN_TOPIC_##c_##_NAME }
+#define LTE(a_, bp_, b_, c_) { DDSI_##BUILTIN_ENDPOINT_##a_, DDSI_ENTITYID_##bp_##_BUILTIN_##b_, DDS_BUILTIN_TOPIC_##c_##_NAME }
 
   /* 'Default' proxy endpoints. */
   static const struct ddsi_bestab bestab_default[] = {
@@ -328,7 +328,7 @@ static void free_proxy_participant (struct ddsi_proxy_participant *proxypp)
   ddsrt_free (proxypp);
 }
 
-bool ddsi_new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, uint32_t bes, const struct ddsi_guid *privileged_pp_guid, struct ddsi_addrset *as_default, struct ddsi_addrset *as_meta, const ddsi_plist_t *plist, dds_duration_t tlease_dur, ddsi_vendorid_t vendor, unsigned custom_flags, ddsrt_wctime_t timestamp, seqno_t seq)
+bool ddsi_new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, uint32_t bes, const struct ddsi_guid *privileged_pp_guid, struct ddsi_addrset *as_default, struct ddsi_addrset *as_meta, const ddsi_plist_t *plist, dds_duration_t tlease_dur, ddsi_vendorid_t vendor, unsigned custom_flags, ddsrt_wctime_t timestamp, ddsi_seqno_t seq)
 {
   /* No locking => iff all participants use unique guids, and sedp
      runs on a single thread, it can't go wrong. FIXME, maybe? The
@@ -339,9 +339,9 @@ bool ddsi_new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_gui
   assert (is_secure || (bes & ~DDSI_BES_MASK_NON_SECURITY) == 0);
   (void) is_secure;
 
-  assert (ppguid->entityid.u == NN_ENTITYID_PARTICIPANT);
+  assert (ppguid->entityid.u == DDSI_ENTITYID_PARTICIPANT);
   assert (ddsi_entidx_lookup_proxy_participant_guid (gv->entity_index, ppguid) == NULL);
-  assert (privileged_pp_guid == NULL || privileged_pp_guid->entityid.u == NN_ENTITYID_PARTICIPANT);
+  assert (privileged_pp_guid == NULL || privileged_pp_guid->entityid.u == DDSI_ENTITYID_PARTICIPANT);
 
   ddsi_prune_deleted_participant_guids (gv->deleted_participants, ddsrt_time_monotonic ());
 
@@ -358,7 +358,7 @@ bool ddsi_new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_gui
     proxypp->privileged_pp_guid = *privileged_pp_guid;
   } else {
     memset (&proxypp->privileged_pp_guid.prefix, 0, sizeof (proxypp->privileged_pp_guid.prefix));
-    proxypp->privileged_pp_guid.entityid.u = NN_ENTITYID_PARTICIPANT;
+    proxypp->privileged_pp_guid.entityid.u = DDSI_ENTITYID_PARTICIPANT;
   }
   if ((plist->present & PP_ADLINK_PARTICIPANT_VERSION_INFO) &&
       (plist->adlink_participant_version_info.flags & DDSI_ADLINK_FL_DDSI2_PARTICIPANT_FLAG) &&
@@ -479,7 +479,7 @@ bool ddsi_new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_gui
   return true;
 }
 
-int ddsi_update_proxy_participant_plist_locked (struct ddsi_proxy_participant *proxypp, seqno_t seq, const struct ddsi_plist *datap, ddsrt_wctime_t timestamp)
+int ddsi_update_proxy_participant_plist_locked (struct ddsi_proxy_participant *proxypp, ddsi_seqno_t seq, const struct ddsi_plist *datap, ddsrt_wctime_t timestamp)
 {
   if (seq > proxypp->seq)
   {

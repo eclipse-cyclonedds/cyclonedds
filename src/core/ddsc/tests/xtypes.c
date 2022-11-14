@@ -861,8 +861,8 @@ CU_Test (ddsc_xtypes, invalid_top_level_remote_hash, .init = xtypes_init, .fini 
 
   // create proxy reader with modified type
   struct ddsi_guid pp_guid, rd_guid;
-  gen_test_guid (gv, &pp_guid, NN_ENTITYID_PARTICIPANT);
-  gen_test_guid (gv, &rd_guid, NN_ENTITYID_KIND_READER_NO_KEY);
+  gen_test_guid (gv, &pp_guid, DDSI_ENTITYID_PARTICIPANT);
+  gen_test_guid (gv, &rd_guid, DDSI_ENTITYID_KIND_READER_NO_KEY);
   test_proxy_rd_create (gv, topic_name, ti, DDS_RETCODE_BAD_PARAMETER, &pp_guid, &rd_guid);
 
   // clean up
@@ -904,8 +904,8 @@ CU_Theory ((const char *test_descr, const dds_topic_descriptor_t *topic_desc, ty
   DDS_XTypes_TypeInformation *ti;
   typeinfo_deser (&ti, &desc.type_information);
   struct ddsi_guid pp_guid, rd_guid;
-  gen_test_guid (gv, &pp_guid, NN_ENTITYID_PARTICIPANT);
-  gen_test_guid (gv, &rd_guid, NN_ENTITYID_KIND_READER_NO_KEY);
+  gen_test_guid (gv, &pp_guid, DDSI_ENTITYID_PARTICIPANT);
+  gen_test_guid (gv, &rd_guid, DDSI_ENTITYID_KIND_READER_NO_KEY);
   test_proxy_rd_create (gv, topic_name, ti, DDS_RETCODE_OK, &pp_guid, &rd_guid);
   test_proxy_rd_matches (wr, false);
 
@@ -992,8 +992,8 @@ CU_Test (ddsc_xtypes, resolve_dep_type, .init = xtypes_init, .fini = xtypes_fini
   DDS_XTypes_TypeInformation *ti;
   typeinfo_deser (&ti, &desc.type_information);
   struct ddsi_guid pp_guid, rd_guid;
-  gen_test_guid (gv, &pp_guid, NN_ENTITYID_PARTICIPANT);
-  gen_test_guid (gv, &rd_guid, NN_ENTITYID_KIND_READER_NO_KEY);
+  gen_test_guid (gv, &pp_guid, DDSI_ENTITYID_PARTICIPANT);
+  gen_test_guid (gv, &rd_guid, DDSI_ENTITYID_KIND_READER_NO_KEY);
   test_proxy_rd_create (gv, topic_name, ti, DDS_RETCODE_OK, &pp_guid, &rd_guid);
   test_proxy_rd_matches (wr, false);
 

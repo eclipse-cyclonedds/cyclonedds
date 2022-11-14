@@ -55,10 +55,10 @@ struct ddsi_wr_prd_match {
   unsigned has_replied_to_hb: 1; /* we must keep sending HBs until all readers have this set */
   unsigned all_have_replied_to_hb: 1; /* true iff 'has_replied_to_hb' for all readers in subtree */
   unsigned is_reliable: 1; /* true iff reliable proxy reader */
-  seqno_t min_seq; /* smallest ack'd seq nr in subtree */
-  seqno_t max_seq; /* sort-of highest ack'd seq nr in subtree (see augment function) */
-  seqno_t seq; /* highest acknowledged seq nr */
-  seqno_t last_seq; /* highest seq send to this reader used when filter is applied */
+  ddsi_seqno_t min_seq; /* smallest ack'd seq nr in subtree */
+  ddsi_seqno_t max_seq; /* sort-of highest ack'd seq nr in subtree (see augment function) */
+  ddsi_seqno_t seq; /* highest acknowledged seq nr */
+  ddsi_seqno_t last_seq; /* highest seq send to this reader used when filter is applied */
   uint32_t num_reliable_readers_where_seq_equals_max;
   ddsi_guid_t arbitrary_unacked_reader;
   ddsi_count_t prev_acknack; /* latest accepted acknack sequence number */

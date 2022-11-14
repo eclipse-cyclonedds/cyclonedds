@@ -637,7 +637,7 @@ static void test_discovery_liveliness_protection(enum test_discovery_liveliness 
   if (!exp_rd_wr_match_fail)
     write_read_for (wr, g_participant[1], rd, DDS_MSECS (100), false, false);
 
-  unsigned builtin_wr = dp ? NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER : NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_WRITER;
+  unsigned builtin_wr = dp ? DDSI_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER : DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_WRITER;
   const char * builtin_wr_descr = dp ? "SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER" : "P2P_BUILTIN_PARTICIPANT_MESSAGE_SECURE_WRITER";
   DDS_Security_DatawriterCryptoHandle secure_pub_wr_handle = get_builtin_writer_crypto_handle (g_participant[0], builtin_wr);
   print_test_msg ("crypto handle for %s: %ld\n", builtin_wr_descr, secure_pub_wr_handle);

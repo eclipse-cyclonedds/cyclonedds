@@ -62,10 +62,10 @@ int ddsi_is_builtin_topic (ddsi_entityid_t id, ddsi_vendorid_t vendorid)
 
 int ddsi_is_topic_entityid (ddsi_entityid_t id)
 {
-  switch (id.u & NN_ENTITYID_KIND_MASK)
+  switch (id.u & DDSI_ENTITYID_KIND_MASK)
   {
-    case NN_ENTITYID_KIND_CYCLONE_TOPIC_BUILTIN:
-    case NN_ENTITYID_KIND_CYCLONE_TOPIC_USER:
+    case DDSI_ENTITYID_KIND_CYCLONE_TOPIC_BUILTIN:
+    case DDSI_ENTITYID_KIND_CYCLONE_TOPIC_USER:
       return 1;
     default:
       return 0;
@@ -83,7 +83,7 @@ dds_return_t ddsi_new_topic (struct ddsi_topic **tp_out, struct ddsi_guid *tpgui
   ddsrt_wctime_t timestamp = ddsrt_time_wallclock ();
   struct ddsi_domaingv *gv = pp->e.gv;
   tpguid->prefix = pp->e.guid.prefix;
-  if ((rc = ddsi_participant_allocate_entityid (&tpguid->entityid, (is_builtin ? NN_ENTITYID_KIND_CYCLONE_TOPIC_BUILTIN : NN_ENTITYID_KIND_CYCLONE_TOPIC_USER) | NN_ENTITYID_SOURCE_VENDOR, pp)) < 0)
+  if ((rc = ddsi_participant_allocate_entityid (&tpguid->entityid, (is_builtin ? DDSI_ENTITYID_KIND_CYCLONE_TOPIC_BUILTIN : DDSI_ENTITYID_KIND_CYCLONE_TOPIC_USER) | DDSI_ENTITYID_SOURCE_VENDOR, pp)) < 0)
     return rc;
   assert (ddsi_entidx_lookup_topic_guid (gv->entity_index, tpguid) == NULL);
 
@@ -431,7 +431,7 @@ struct ddsi_proxy_topic *ddsi_lookup_proxy_topic (struct ddsi_proxy_participant 
   return ptp;
 }
 
-dds_return_t ddsi_new_proxy_topic (struct ddsi_proxy_participant *proxypp, seqno_t seq, const ddsi_guid_t *guid, const ddsi_typeid_t *type_id_minimal, const ddsi_typeid_t *type_id_complete, struct dds_qos *qos, ddsrt_wctime_t timestamp)
+dds_return_t ddsi_new_proxy_topic (struct ddsi_proxy_participant *proxypp, ddsi_seqno_t seq, const ddsi_guid_t *guid, const ddsi_typeid_t *type_id_minimal, const ddsi_typeid_t *type_id_complete, struct dds_qos *qos, ddsrt_wctime_t timestamp)
 {
   assert (proxypp != NULL);
   struct ddsi_domaingv *gv = proxypp->e.gv;
@@ -468,7 +468,7 @@ dds_return_t ddsi_new_proxy_topic (struct ddsi_proxy_participant *proxypp, seqno
   return DDS_RETCODE_OK;
 }
 
-void ddsi_update_proxy_topic (struct ddsi_proxy_participant *proxypp, struct ddsi_proxy_topic *proxytp, seqno_t seq, struct dds_qos *xqos, ddsrt_wctime_t timestamp)
+void ddsi_update_proxy_topic (struct ddsi_proxy_participant *proxypp, struct ddsi_proxy_topic *proxytp, ddsi_seqno_t seq, struct dds_qos *xqos, ddsrt_wctime_t timestamp)
 {
   ddsrt_mutex_lock (&proxypp->e.lock);
   struct ddsi_domaingv *gv = proxypp->e.gv;

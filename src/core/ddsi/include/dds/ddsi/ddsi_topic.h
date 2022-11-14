@@ -50,7 +50,7 @@ struct ddsi_proxy_topic
   ddsi_entityid_t entityid;
   struct ddsi_topic_definition *definition; /* ref to (shared) topic definition */
   ddsrt_wctime_t tupdate; /* timestamp of last update */
-  seqno_t seq; /* sequence number of most recent SEDP message */
+  ddsi_seqno_t seq; /* sequence number of most recent SEDP message */
   ddsrt_avl_node_t avlnode; /* entry in proxypp->topics */
   unsigned deleted: 1;
 };

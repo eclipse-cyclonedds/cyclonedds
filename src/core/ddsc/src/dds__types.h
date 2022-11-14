@@ -16,7 +16,7 @@
 
 #include "dds/dds.h"
 #include "dds/ddsrt/sync.h"
-#include "dds/ddsi/q_rtps.h"
+#include "dds/ddsi/ddsi_protocol.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #ifdef DDS_HAS_TOPIC_DISCOVERY
 #include "dds/ddsi/ddsi_typewrap.h"

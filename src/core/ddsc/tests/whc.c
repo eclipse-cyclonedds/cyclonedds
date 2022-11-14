@@ -113,7 +113,7 @@ static void get_writer_whc_state (dds_entity_t writer, struct whc_state *whcst)
   dds_entity_unpin(wr_entity);
 }
 
-static void check_intermediate_whc_state(dds_entity_t writer, seqno_t exp_min, seqno_t exp_max)
+static void check_intermediate_whc_state(dds_entity_t writer, ddsi_seqno_t exp_min, ddsi_seqno_t exp_max)
 {
   struct whc_state whcst;
   get_writer_whc_state (writer, &whcst);
@@ -124,7 +124,7 @@ static void check_intermediate_whc_state(dds_entity_t writer, seqno_t exp_min, s
   CU_ASSERT_FATAL (whcst.max_seq == exp_max || (whcst.min_seq == 0 && whcst.max_seq == 0));
 }
 
-static void check_whc_state(dds_entity_t writer, seqno_t exp_min, seqno_t exp_max)
+static void check_whc_state(dds_entity_t writer, ddsi_seqno_t exp_min, ddsi_seqno_t exp_max)
 {
   struct whc_state whcst;
   get_writer_whc_state (writer, &whcst);

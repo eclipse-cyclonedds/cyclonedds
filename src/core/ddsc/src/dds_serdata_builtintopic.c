@@ -353,7 +353,7 @@ static bool to_sample_endpoint (const struct ddsi_serdata_builtintopic_endpoint 
   ddsi_guid_t ppguid;
   convkey (&sample->key, &dep->common.key.guid);
   ppguid = dep->common.key.guid;
-  ppguid.entityid.u = NN_ENTITYID_PARTICIPANT;
+  ppguid.entityid.u = DDSI_ENTITYID_PARTICIPANT;
   convkey (&sample->participant_key, &ppguid);
   sample->participant_instance_handle = dep->pphandle;
   if (dep->common.c.kind == SDK_DATA)

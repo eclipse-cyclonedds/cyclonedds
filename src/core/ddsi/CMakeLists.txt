@@ -131,7 +131,7 @@ set(hdrs_ddsi
   ddsi_log.h
   ddsi_qosmatch.h
   ddsi_radmin.h
-  q_rtps.h
+  ddsi_init.h
   q_sockwaitset.h
   q_thread.h
   q_transmit.h

@@ -85,11 +85,11 @@ int LLVMFuzzerTestOneInput(
   ddsi_config_init_default(&gv.config);
   gv.config.transport_selector = DDSI_TRANS_NONE;
 
-  rtps_config_prep(&gv, cfgst);
+  ddsi_config_prep(&gv, cfgst);
   dds_set_log_sink(null_log_sink, NULL);
   dds_set_trace_sink(null_log_sink, NULL);
 
-  rtps_init(&gv);
+  ddsi_init(&gv);
 
   ddsi_vnet_init(&gv, "fake", 123);
   fakenet = ddsi_factory_find(&gv, "fake");
@@ -110,7 +110,7 @@ int LLVMFuzzerTestOneInput(
   ddsi_handle_rtps_message (thrst, &gv, fakeconn, &guidprefix, rbpool, rmsg, size, buff, &srcloc);
   ddsi_rmsg_commit (rmsg);
 
-  rtps_fini(&gv);
+  ddsi_fini(&gv);
   ddsi_rbufpool_free(rbpool);
   free (fakeconn);
 

@@ -26,7 +26,7 @@
 #include "ddsi__participant.h"
 #include "dds/ddsi/ddsi_proxy_endpoint.h"
 #include "dds/ddsi/ddsi_endpoint.h"
-#include "dds/ddsi/q_rtps.h" /* guid_t */
+#include "dds/ddsi/ddsi_protocol.h"
 #include "dds/ddsi/q_thread.h" /* for assert(thread is awake) */
 #include "ddsi__endpoint.h"
 #include "ddsi__gc.h"
@@ -380,14 +380,14 @@ void ddsi_entidx_remove_proxy_reader_guid (struct ddsi_entity_index *ei, struct 
 struct ddsi_participant *ddsi_entidx_lookup_participant_guid (const struct ddsi_entity_index *ei, const struct ddsi_guid *guid)
 {
   DDSRT_STATIC_ASSERT (offsetof (struct ddsi_participant, e) == 0);
-  assert (guid->entityid.u == NN_ENTITYID_PARTICIPANT);
+  assert (guid->entityid.u == DDSI_ENTITYID_PARTICIPANT);
   return entidx_lookup_guid_int (ei, guid, DDSI_EK_PARTICIPANT);
 }
 
 struct ddsi_proxy_participant *ddsi_entidx_lookup_proxy_participant_guid (const struct ddsi_entity_index *ei, const struct ddsi_guid *guid)
 {
   DDSRT_STATIC_ASSERT (offsetof (struct ddsi_proxy_participant, e) == 0);
-  assert (guid->entityid.u == NN_ENTITYID_PARTICIPANT);
+  assert (guid->entityid.u == DDSI_ENTITYID_PARTICIPANT);
   return entidx_lookup_guid_int (ei, guid, DDSI_EK_PROXY_PARTICIPANT);
 }
 

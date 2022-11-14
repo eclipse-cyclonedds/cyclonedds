@@ -42,7 +42,7 @@ struct ddsi_add_acknack_info {
     uint32_t bits[DDSI_FRAGMENT_NUMBER_SET_MAX_BITS / 32];
   } acknack;
   struct {
-    seqno_t seq;
+    ddsi_seqno_t seq;
     struct ddsi_fragment_number_set_header set;
     uint32_t bits[DDSI_FRAGMENT_NUMBER_SET_MAX_BITS / 32];
   } nackfrag;

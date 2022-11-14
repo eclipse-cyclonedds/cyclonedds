@@ -26,7 +26,7 @@ struct whc_node; /* opaque, but currently used for deferred free lists */
 struct whc;
 
 struct whc_borrowed_sample {
-  seqno_t seq;
+  ddsi_seqno_t seq;
   struct ddsi_serdata *serdata;
   bool unacked;
   ddsrt_mtime_t last_rexmit_ts;
@@ -34,8 +34,8 @@ struct whc_borrowed_sample {
 };
 
 struct whc_state {
-  seqno_t min_seq; /* 0 if WHC empty, else > 0 */
-  seqno_t max_seq; /* 0 if WHC empty, else >= min_seq */
+  ddsi_seqno_t min_seq; /* 0 if WHC empty, else > 0 */
+  ddsi_seqno_t max_seq; /* 0 if WHC empty, else >= min_seq */
   size_t unacked_bytes;
 };
 #define WHCST_ISEMPTY(whcst) ((whcst)->max_seq == 0)
@@ -59,9 +59,9 @@ struct whc_sample_iter {
   } opaque;
 };
 
-typedef seqno_t (*whc_next_seq_t)(const struct whc *whc, seqno_t seq);
+typedef ddsi_seqno_t (*whc_next_seq_t)(const struct whc *whc, ddsi_seqno_t seq);
 typedef void (*whc_get_state_t)(const struct whc *whc, struct whc_state *st);
-typedef bool (*whc_borrow_sample_t)(const struct whc *whc, seqno_t seq, struct whc_borrowed_sample *sample);
+typedef bool (*whc_borrow_sample_t)(const struct whc *whc, ddsi_seqno_t seq, struct whc_borrowed_sample *sample);
 typedef bool (*whc_borrow_sample_key_t)(const struct whc *whc, const struct ddsi_serdata *serdata_key, struct whc_borrowed_sample *sample);
 typedef void (*whc_return_sample_t)(struct whc *whc, struct whc_borrowed_sample *sample, bool update_retransmit_info);
 typedef void (*whc_sample_iter_init_t)(const struct whc *whc, struct whc_sample_iter *it);
@@ -72,9 +72,9 @@ typedef void (*whc_free_t)(struct whc *whc);
    reliable readers that have not acknowledged all data */
 /* max_drop_seq must go soon, it's way too ugly. */
 /* plist may be NULL or ddsrt_malloc'd, WHC takes ownership of plist */
-typedef int (*whc_insert_t)(struct whc *whc, seqno_t max_drop_seq, seqno_t seq, ddsrt_mtime_t exp, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk);
+typedef int (*whc_insert_t)(struct whc *whc, ddsi_seqno_t max_drop_seq, ddsi_seqno_t seq, ddsrt_mtime_t exp, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk);
 typedef uint32_t (*whc_downgrade_to_volatile_t)(struct whc *whc, struct whc_state *st);
-typedef uint32_t (*whc_remove_acked_messages_t)(struct whc *whc, seqno_t max_drop_seq, struct whc_state *whcst, struct whc_node **deferred_free_list);
+typedef uint32_t (*whc_remove_acked_messages_t)(struct whc *whc, ddsi_seqno_t max_drop_seq, struct whc_state *whcst, struct whc_node **deferred_free_list);
 typedef void (*whc_free_deferred_free_list_t)(struct whc *whc, struct whc_node *deferred_free_list);
 
 struct whc_ops {
@@ -96,13 +96,13 @@ struct whc {
   const struct whc_ops *ops;
 };
 
-inline seqno_t whc_next_seq (const struct whc *whc, seqno_t seq) {
+inline ddsi_seqno_t whc_next_seq (const struct whc *whc, ddsi_seqno_t seq) {
   return whc->ops->next_seq (whc, seq);
 }
 inline void whc_get_state (const struct whc *whc, struct whc_state *st) {
   whc->ops->get_state (whc, st);
 }
-inline bool whc_borrow_sample (const struct whc *whc, seqno_t seq, struct whc_borrowed_sample *sample) {
+inline bool whc_borrow_sample (const struct whc *whc, ddsi_seqno_t seq, struct whc_borrowed_sample *sample) {
   return whc->ops->borrow_sample (whc, seq, sample);
 }
 inline bool whc_borrow_sample_key (const struct whc *whc, const struct ddsi_serdata *serdata_key, struct whc_borrowed_sample *sample) {
@@ -120,13 +120,13 @@ inline bool whc_sample_iter_borrow_next (struct whc_sample_iter *it, struct whc_
 inline void whc_free (struct whc *whc) {
   whc->ops->free (whc);
 }
-inline int whc_insert (struct whc *whc, seqno_t max_drop_seq, seqno_t seq, ddsrt_mtime_t exp, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk) {
+inline int whc_insert (struct whc *whc, ddsi_seqno_t max_drop_seq, ddsi_seqno_t seq, ddsrt_mtime_t exp, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk) {
   return whc->ops->insert (whc, max_drop_seq, seq, exp, serdata, tk);
 }
 inline unsigned whc_downgrade_to_volatile (struct whc *whc, struct whc_state *st) {
   return whc->ops->downgrade_to_volatile (whc, st);
 }
-inline unsigned whc_remove_acked_messages (struct whc *whc, seqno_t max_drop_seq, struct whc_state *whcst, struct whc_node **deferred_free_list) {
+inline unsigned whc_remove_acked_messages (struct whc *whc, ddsi_seqno_t max_drop_seq, struct whc_state *whcst, struct whc_node **deferred_free_list) {
   return whc->ops->remove_acked_messages (whc, max_drop_seq, whcst, deferred_free_list);
 }
 inline void whc_free_deferred_free_list (struct whc *whc, struct whc_node *deferred_free_list) {

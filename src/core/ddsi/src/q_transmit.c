@@ -53,7 +53,7 @@ static const struct ddsi_wr_prd_match *root_rdmatch (const struct ddsi_writer *w
 
 static int have_reliable_subs (const struct ddsi_writer *wr)
 {
-  if (ddsrt_avl_is_empty (&wr->readers) || root_rdmatch (wr)->min_seq == MAX_SEQ_NUMBER)
+  if (ddsrt_avl_is_empty (&wr->readers) || root_rdmatch (wr)->min_seq == DDSI_MAX_SEQ_NUMBER)
     return 0;
   else
     return 1;
@@ -176,7 +176,7 @@ struct nn_xmsg *ddsi_writer_hbcontrol_create_heartbeat (struct ddsi_writer *wr, 
       prd_guid = NULL;
     else
     {
-      assert (root_rdmatch (wr)->arbitrary_unacked_reader.entityid.u != NN_ENTITYID_UNKNOWN);
+      assert (root_rdmatch (wr)->arbitrary_unacked_reader.entityid.u != DDSI_ENTITYID_UNKNOWN);
       if (n_unacked > 1)
         prd_guid = NULL;
       else
@@ -208,7 +208,7 @@ struct nn_xmsg *ddsi_writer_hbcontrol_create_heartbeat (struct ddsi_writer *wr, 
   if (prd_guid == NULL)
   {
     nn_xmsg_setdstN (msg, wr->as);
-    add_Heartbeat (msg, wr, whcst, hbansreq, 0, ddsi_to_entityid (NN_ENTITYID_UNKNOWN), issync);
+    add_Heartbeat (msg, wr, whcst, hbansreq, 0, ddsi_to_entityid (DDSI_ENTITYID_UNKNOWN), issync);
   }
   else
   {
@@ -224,7 +224,7 @@ struct nn_xmsg *ddsi_writer_hbcontrol_create_heartbeat (struct ddsi_writer *wr, 
     nn_xmsg_setdstPRD (msg, prd);
     // send to all readers in the participant: whether or not the entityid is set affects
     // the retransmit requests
-    add_Heartbeat (msg, wr, whcst, hbansreq, 0, ddsi_to_entityid (NN_ENTITYID_UNKNOWN), issync);
+    add_Heartbeat (msg, wr, whcst, hbansreq, 0, ddsi_to_entityid (DDSI_ENTITYID_UNKNOWN), issync);
   }
 
   /* It is possible that the encoding removed the submessage(s). */
@@ -394,7 +394,7 @@ void add_Heartbeat (struct nn_xmsg *msg, struct ddsi_writer *wr, const struct wh
   struct ddsi_domaingv const * const gv = wr->e.gv;
   struct nn_xmsg_marker sm_marker;
   ddsi_rtps_heartbeat_t * hb;
-  seqno_t max, min;
+  ddsi_seqno_t max, min;
 
   ASSERT_MUTEX_HELD (&wr->e.lock);
 
@@ -429,7 +429,7 @@ void add_Heartbeat (struct nn_xmsg *msg, struct ddsi_writer *wr, const struct wh
     /* If data present in WHC, wr->seq > 0, but xmit_seq possibly still 0 */
     min = whcst->min_seq;
     max = wr->seq;
-    const seqno_t seq_xmit = ddsi_writer_read_seq_xmit (wr);
+    const ddsi_seqno_t seq_xmit = ddsi_writer_read_seq_xmit (wr);
     assert (min <= max);
     /* Informing readers of samples that haven't even been transmitted makes little sense,
        but for transient-local data, we let the first heartbeat determine the time at which
@@ -457,7 +457,7 @@ void add_Heartbeat (struct nn_xmsg *msg, struct ddsi_writer *wr, const struct wh
   ddsi_security_encode_datawriter_submsg(msg, sm_marker, wr);
 }
 
-static dds_return_t create_fragment_message_simple (struct ddsi_writer *wr, seqno_t seq, struct ddsi_serdata *serdata, struct nn_xmsg **pmsg)
+static dds_return_t create_fragment_message_simple (struct ddsi_writer *wr, ddsi_seqno_t seq, struct ddsi_serdata *serdata, struct nn_xmsg **pmsg)
 {
 #define TEST_KEYHASH 0
   /* actual expected_inline_qos_size is typically 0, but always claiming 32 bytes won't make
@@ -498,7 +498,7 @@ static dds_return_t create_fragment_message_simple (struct ddsi_writer *wr, seqn
   nn_xmsg_submsg_init (*pmsg, sm_marker, DDSI_RTPS_SMID_DATA);
   data->x.smhdr.flags = (unsigned char) (data->x.smhdr.flags | contentflag);
   data->x.extraFlags = 0;
-  data->x.readerId = ddsi_to_entityid (NN_ENTITYID_UNKNOWN);
+  data->x.readerId = ddsi_to_entityid (DDSI_ENTITYID_UNKNOWN);
   data->x.writerId = ddsi_hton_entityid (wr->e.guid.entityid);
   data->x.writerSN = ddsi_to_seqno (seq);
   data->x.octetsToInlineQos = (unsigned short) ((char*) (data+1) - ((char*) &data->x.octetsToInlineQos + 2));
@@ -527,7 +527,7 @@ static dds_return_t create_fragment_message_simple (struct ddsi_writer *wr, seqn
   return 0;
 }
 
-dds_return_t create_fragment_message (struct ddsi_writer *wr, seqno_t seq, struct ddsi_serdata *serdata, uint32_t fragnum, uint16_t nfrags, struct ddsi_proxy_reader *prd, struct nn_xmsg **pmsg, int isnew, uint32_t advertised_fragnum)
+dds_return_t create_fragment_message (struct ddsi_writer *wr, ddsi_seqno_t seq, struct ddsi_serdata *serdata, uint32_t fragnum, uint16_t nfrags, struct ddsi_proxy_reader *prd, struct nn_xmsg **pmsg, int isnew, uint32_t advertised_fragnum)
 {
   /* We always fragment into FRAGMENT_SIZEd fragments, which are near
      the smallest allowed fragment size & can't be bothered (yet) to
@@ -641,7 +641,7 @@ dds_return_t create_fragment_message (struct ddsi_writer *wr, seqno_t seq, struc
   }
 
   ddcmn->extraFlags = 0;
-  ddcmn->readerId = ddsi_hton_entityid (prd ? prd->e.guid.entityid : ddsi_to_entityid (NN_ENTITYID_UNKNOWN));
+  ddcmn->readerId = ddsi_hton_entityid (prd ? prd->e.guid.entityid : ddsi_to_entityid (DDSI_ENTITYID_UNKNOWN));
   ddcmn->writerId = ddsi_hton_entityid (wr->e.guid.entityid);
   ddcmn->writerSN = ddsi_to_seqno (seq);
 
@@ -691,7 +691,7 @@ dds_return_t create_fragment_message (struct ddsi_writer *wr, seqno_t seq, struc
   return ret;
 }
 
-static void create_HeartbeatFrag (struct ddsi_writer *wr, seqno_t seq, unsigned fragnum, struct ddsi_proxy_reader *prd, struct nn_xmsg **pmsg)
+static void create_HeartbeatFrag (struct ddsi_writer *wr, ddsi_seqno_t seq, unsigned fragnum, struct ddsi_proxy_reader *prd, struct nn_xmsg **pmsg)
 {
   struct ddsi_domaingv const * const gv = wr->e.gv;
   struct nn_xmsg_marker sm_marker;
@@ -705,7 +705,7 @@ static void create_HeartbeatFrag (struct ddsi_writer *wr, seqno_t seq, unsigned 
     nn_xmsg_setdstN (*pmsg, wr->as);
   hbf = nn_xmsg_append (*pmsg, &sm_marker, sizeof (ddsi_rtps_heartbeatfrag_t));
   nn_xmsg_submsg_init (*pmsg, sm_marker, DDSI_RTPS_SMID_HEARTBEAT_FRAG);
-  hbf->readerId = ddsi_hton_entityid (prd ? prd->e.guid.entityid : ddsi_to_entityid (NN_ENTITYID_UNKNOWN));
+  hbf->readerId = ddsi_hton_entityid (prd ? prd->e.guid.entityid : ddsi_to_entityid (DDSI_ENTITYID_UNKNOWN));
   hbf->writerId = ddsi_hton_entityid (wr->e.guid.entityid);
   hbf->writerSN = ddsi_to_seqno (seq);
   hbf->lastFragmentNum = fragnum + 1; /* network format is 1 based */
@@ -749,7 +749,7 @@ dds_return_t write_hb_liveliness (struct ddsi_domaingv * const gv, struct ddsi_g
   ddsrt_mutex_lock (&wr->e.lock);
   nn_xmsg_setdstN (msg, wr->as);
   whc_get_state (wr->whc, &whcst);
-  add_Heartbeat (msg, wr, &whcst, 0, 1, ddsi_to_entityid (NN_ENTITYID_UNKNOWN), 1);
+  add_Heartbeat (msg, wr, &whcst, 0, 1, ddsi_to_entityid (DDSI_ENTITYID_UNKNOWN), 1);
   ddsrt_mutex_unlock (&wr->e.lock);
   nn_xpack_addmsg (xp, msg, 0);
   nn_xpack_send (xp, true);
@@ -780,7 +780,7 @@ static int must_skip_frag (const char *frags_to_skip, unsigned frag)
 }
 #endif
 
-static void transmit_sample_lgmsg_unlocks_wr (struct nn_xpack *xp, struct ddsi_writer *wr, seqno_t seq, struct ddsi_serdata *serdata, struct ddsi_proxy_reader *prd, int isnew, uint32_t nfrags, uint32_t nfrags_lim)
+static void transmit_sample_lgmsg_unlocks_wr (struct nn_xpack *xp, struct ddsi_writer *wr, ddsi_seqno_t seq, struct ddsi_serdata *serdata, struct ddsi_proxy_reader *prd, int isnew, uint32_t nfrags, uint32_t nfrags_lim)
 {
 #if 0
   const char *frags_to_skip = getenv ("SKIPFRAGS");
@@ -824,7 +824,7 @@ static void transmit_sample_lgmsg_unlocks_wr (struct nn_xpack *xp, struct ddsi_w
   }
 }
 
-static void transmit_sample_unlocks_wr (struct nn_xpack *xp, struct ddsi_writer *wr, const struct whc_state *whcst, seqno_t seq, struct ddsi_serdata *serdata, struct ddsi_proxy_reader *prd, int isnew)
+static void transmit_sample_unlocks_wr (struct nn_xpack *xp, struct ddsi_writer *wr, const struct whc_state *whcst, ddsi_seqno_t seq, struct ddsi_serdata *serdata, struct ddsi_proxy_reader *prd, int isnew)
 {
   /* on entry: &wr->e.lock held; on exit: lock no longer held */
   struct ddsi_domaingv const * const gv = wr->e.gv;
@@ -866,15 +866,15 @@ static void transmit_sample_unlocks_wr (struct nn_xpack *xp, struct ddsi_writer 
     nn_xpack_send (xp, true);
 }
 
-void enqueue_spdp_sample_wrlock_held (struct ddsi_writer *wr, seqno_t seq, struct ddsi_serdata *serdata, struct ddsi_proxy_reader *prd)
+void enqueue_spdp_sample_wrlock_held (struct ddsi_writer *wr, ddsi_seqno_t seq, struct ddsi_serdata *serdata, struct ddsi_proxy_reader *prd)
 {
-  assert (wr->e.guid.entityid.u == NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
+  assert (wr->e.guid.entityid.u == DDSI_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
   struct nn_xmsg *msg = NULL;
   if (create_fragment_message(wr, seq, serdata, 0, UINT16_MAX, prd, &msg, 1, UINT32_MAX) >= 0)
     qxev_msg (wr->evq, msg);
 }
 
-int enqueue_sample_wrlock_held (struct ddsi_writer *wr, seqno_t seq, struct ddsi_serdata *serdata, struct ddsi_proxy_reader *prd, int isnew)
+int enqueue_sample_wrlock_held (struct ddsi_writer *wr, ddsi_seqno_t seq, struct ddsi_serdata *serdata, struct ddsi_proxy_reader *prd, int isnew)
 {
   struct ddsi_domaingv const * const gv = wr->e.gv;
   uint32_t i, sz, nfrags;
@@ -937,7 +937,7 @@ int enqueue_sample_wrlock_held (struct ddsi_writer *wr, seqno_t seq, struct ddsi
   return (enqueued != QXEV_MSG_REXMIT_DROPPED) ? 0 : -1;
 }
 
-static int insert_sample_in_whc (struct ddsi_writer *wr, seqno_t seq, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk)
+static int insert_sample_in_whc (struct ddsi_writer *wr, ddsi_seqno_t seq, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk)
 {
   /* returns: < 0 on error, 0 if no need to insert in whc, > 0 if inserted */
   int insres, res = 0;
@@ -994,8 +994,8 @@ static int insert_sample_in_whc (struct ddsi_writer *wr, seqno_t seq, struct dds
   }
 
 #ifndef NDEBUG
-  if (((wr->e.guid.entityid.u == NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER) ||
-       (wr->e.guid.entityid.u == NN_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER)) &&
+  if (((wr->e.guid.entityid.u == DDSI_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER) ||
+       (wr->e.guid.entityid.u == DDSI_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER)) &&
        !ddsi_is_local_orphan_endpoint (&wr->e))
   {
     struct whc_state whcst;
@@ -1022,7 +1022,7 @@ static dds_return_t throttle_writer (struct thread_state * const thrst, struct n
      variable embedded in "struct ddsi_writer", of course.
 
      For normal data that would be okay, because the thread forwarding
-     data from the network queue to rtps_write() simply uses the gid
+     data from the network queue to ddsi_write() simply uses the gid
      and doesn't mind if the writer is freed halfway through (although
      we would have to specify it may do so it!); but for internal
      data, it would be absolutely unacceptable if they were ever to
@@ -1136,14 +1136,14 @@ static int maybe_grow_whc (struct ddsi_writer *wr)
   return 0;
 }
 
-int write_sample_p2p_wrlock_held(struct ddsi_writer *wr, seqno_t seq, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk, struct ddsi_proxy_reader *prd)
+int write_sample_p2p_wrlock_held(struct ddsi_writer *wr, ddsi_seqno_t seq, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk, struct ddsi_proxy_reader *prd)
 {
   struct ddsi_domaingv * const gv = wr->e.gv;
   int r = 0;
   ddsrt_mtime_t tnow;
   int rexmit = 1;
   struct ddsi_wr_prd_match *wprd = NULL;
-  seqno_t gseq;
+  ddsi_seqno_t gseq;
   struct nn_xmsg *gap = NULL;
 
   tnow = ddsrt_time_monotonic ();
@@ -1155,7 +1155,7 @@ int write_sample_p2p_wrlock_held(struct ddsi_writer *wr, seqno_t seq, struct dds
   {
     if ((wprd = ddsrt_avl_lookup (&ddsi_wr_readers_treedef, &wr->readers, &prd->e.guid)) != NULL)
     {
-      if (wprd->seq == MAX_SEQ_NUMBER)
+      if (wprd->seq == DDSI_MAX_SEQ_NUMBER)
         goto prd_is_deleting;
 
       rexmit = prd->filter(wr, prd, serdata);
@@ -1208,7 +1208,7 @@ static int write_sample (struct thread_state * const thrst, struct nn_xpack *xp,
 {
   struct ddsi_domaingv const * const gv = wr->e.gv;
   int r;
-  seqno_t seq;
+  ddsi_seqno_t seq;
   ddsrt_mtime_t tnow;
   struct ddsi_lease *lease;
 
@@ -1322,7 +1322,7 @@ static int write_sample (struct thread_state * const thrst, struct nn_xpack *xp,
     {
       if (wr->heartbeat_xevent)
         ddsi_writer_hbcontrol_note_asyncwrite (wr, tnow);
-      if (wr->e.guid.entityid.u == NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER)
+      if (wr->e.guid.entityid.u == DDSI_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER)
         enqueue_spdp_sample_wrlock_held(wr, seq, serdata, NULL);
       else
         enqueue_sample_wrlock_held (wr, seq, serdata, NULL, 1);

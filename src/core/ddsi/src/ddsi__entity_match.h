@@ -53,8 +53,8 @@ enum ddsi_pwr_rd_match_syncstate {
 };
 
 struct ddsi_last_nack_summary {
-  seqno_t seq_end_p1; /* last seq for which we requested a retransmit */
-  seqno_t seq_base;
+  ddsi_seqno_t seq_end_p1; /* last seq for which we requested a retransmit */
+  ddsi_seqno_t seq_base;
   uint32_t frag_end_p1; /* last fragnum of seq_last_nack for which requested a retransmit */
   uint32_t frag_base;
 };
@@ -77,7 +77,7 @@ struct ddsi_pwr_rd_match {
   ddsrt_etime_t t_heartbeat_accepted; /* (local) time a heartbeat was last accepted */
   ddsrt_mtime_t t_last_nack; /* (local) time we last sent a NACK */
   ddsrt_mtime_t t_last_ack; /* (local) time we last sent any ACKNACK */
-  seqno_t last_seq; /* last known sequence number from this writer */
+  ddsi_seqno_t last_seq; /* last known sequence number from this writer */
   struct ddsi_last_nack_summary last_nack;
   struct xevent *acknack_xevent; /* entry in xevent queue for sending acknacks */
   enum ddsi_pwr_rd_match_syncstate in_sync; /* whether in sync with the proxy writer */
@@ -89,7 +89,7 @@ struct ddsi_pwr_rd_match {
   unsigned filtered : 1;
   union {
     struct {
-      seqno_t end_of_tl_seq; /* when seq >= end_of_tl_seq, it's in sync, =0 when not tl */
+      ddsi_seqno_t end_of_tl_seq; /* when seq >= end_of_tl_seq, it's in sync, =0 when not tl */
       struct ddsi_reorder *reorder; /* can be done (mostly) per proxy writer, but that is harder; only when state=OUT_OF_SYNC */
     } not_in_sync;
   } u;

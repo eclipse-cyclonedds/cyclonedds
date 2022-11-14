@@ -5,8 +5,8 @@
 It is expected to have some knowledge of DDSI builtin (security) endpoints.
 
 ```cpp
-#define NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER 0xff0202c3
-#define NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_READER 0xff0202c4
+#define DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER 0xff0202c3
+#define DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_READER 0xff0202c4
 ```
 These builtin endpoints have caused about the biggest code change in ddsi, regarding security.
 

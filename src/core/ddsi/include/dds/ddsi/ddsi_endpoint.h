@@ -70,9 +70,9 @@ struct ddsi_writer
   ddsi_status_cb_t status_cb;
   void * status_cb_entity;
   ddsrt_cond_t throttle_cond; /* used to trigger a transmit thread blocked in throttle_writer() or wait_for_acks() */
-  seqno_t seq; /* last sequence number (transmitted seqs are 1 ... seq, 0 when nothing published yet) */
+  ddsi_seqno_t seq; /* last sequence number (transmitted seqs are 1 ... seq, 0 when nothing published yet) */
   seq_xmit_t seq_xmit; /* last sequence number actually transmitted */
-  seqno_t min_local_readers_reject_seq; /* mimum of local_readers->last_deliv_seq */
+  ddsi_seqno_t min_local_readers_reject_seq; /* mimum of local_readers->last_deliv_seq */
   ddsi_count_t hbcount; /* last hb seq number */
   ddsi_count_t hbfragcount; /* last hb frag seq number */
   int throttling; /* non-zero when some thread is waiting for the WHC to shrink */

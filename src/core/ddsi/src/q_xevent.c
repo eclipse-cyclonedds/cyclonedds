@@ -201,7 +201,7 @@ static void trace_msg (struct xeventq *evq, const char *func, const struct nn_xm
   if (dds_get_log_mask() & DDS_LC_TRACE)
   {
     ddsi_guid_t wrguid;
-    seqno_t wrseq;
+    ddsi_seqno_t wrseq;
     ddsi_fragment_number_t wrfragid;
     nn_xmsg_guid_seq_fragid (m, &wrguid, &wrseq, &wrfragid);
     EVQTRACE(" %s("PGUIDFMT"/%"PRId64"/%"PRIu32")", func, PGUID (wrguid), wrseq, wrfragid);
@@ -739,7 +739,7 @@ static void handle_xevk_heartbeat (struct nn_xpack *xp, struct xevent *ev, ddsrt
   }
 
 #ifdef DDS_HAS_SECURITY
-  if (wr->e.guid.entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER)
+  if (wr->e.guid.entityid.u == DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER)
   {
     send_heartbeat_to_all_readers(xp, ev, wr, tnow);
     return;
@@ -975,7 +975,7 @@ static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct xevent *e
     return;
   }
 
-  if ((spdp_wr = ddsi_get_builtin_writer (pp, NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER)) == NULL)
+  if ((spdp_wr = ddsi_get_builtin_writer (pp, DDSI_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER)) == NULL)
   {
     GVTRACE ("handle_xevk_spdp "PGUIDFMT" - spdp writer of participant not found\n", PGUID (ev->u.spdp.pp_guid));
     if (ev->u.spdp.directed)
@@ -994,7 +994,7 @@ static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct xevent *e
   {
     ddsi_guid_t guid;
     guid.prefix = ev->u.spdp.dest_proxypp_guid_prefix;
-    guid.entityid.u = NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER;
+    guid.entityid.u = DDSI_ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER;
     prd = ddsi_entidx_lookup_proxy_reader_guid (gv->entity_index, &guid);
     do_write = (prd != NULL);
     if (!do_write)
@@ -1024,7 +1024,7 @@ static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct xevent *e
     else
     {
       GVTRACE ("xmit spdp: suppressing early spdp response from "PGUIDFMT" to %"PRIx32":%"PRIx32":%"PRIx32":%x\n",
-               PGUID (pp->e.guid), PGUIDPREFIX (ev->u.spdp.dest_proxypp_guid_prefix), NN_ENTITYID_PARTICIPANT);
+               PGUID (pp->e.guid), PGUIDPREFIX (ev->u.spdp.dest_proxypp_guid_prefix), DDSI_ENTITYID_PARTICIPANT);
     }
 #endif
   }
@@ -1040,7 +1040,7 @@ static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct xevent *e
       ddsrt_mtime_t tnext = ddsrt_mtime_add_duration (tnow, DDS_SECS (1));
       GVTRACE ("xmit spdp "PGUIDFMT" to %"PRIx32":%"PRIx32":%"PRIx32":%x (resched %gs)\n",
                PGUID (pp->e.guid),
-               PGUIDPREFIX (ev->u.spdp.dest_proxypp_guid_prefix), NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
+               PGUIDPREFIX (ev->u.spdp.dest_proxypp_guid_prefix), DDSI_ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
                (double)(tnext.v - tnow.v) / 1e9);
       (void) resched_xevent_if_earlier (ev, tnext);
     }
@@ -1067,7 +1067,7 @@ static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct xevent *e
     tnext = ddsrt_mtime_add_duration (tnow, intv);
     GVTRACE ("xmit spdp "PGUIDFMT" to %"PRIx32":%"PRIx32":%"PRIx32":%x (resched %gs)\n",
              PGUID (pp->e.guid),
-             PGUIDPREFIX (ev->u.spdp.dest_proxypp_guid_prefix), NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
+             PGUIDPREFIX (ev->u.spdp.dest_proxypp_guid_prefix), DDSI_ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
              (double)(tnext.v - tnow.v) / 1e9);
     (void) resched_xevent_if_earlier (ev, tnext);
   }

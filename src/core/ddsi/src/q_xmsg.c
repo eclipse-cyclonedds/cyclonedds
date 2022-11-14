@@ -27,7 +27,6 @@
 
 #include "ddsi__protocol.h"
 #include "dds/ddsi/ddsi_xqos.h"
-#include "dds/ddsi/q_rtps.h"
 #include "ddsi__addrset.h"
 #include "ddsi__misc.h"
 #include "dds/ddsi/ddsi_log.h"
@@ -91,7 +90,7 @@ struct nn_xmsg {
     char control;
     struct {
       ddsi_guid_t wrguid;
-      seqno_t wrseq;
+      ddsi_seqno_t wrseq;
       ddsi_fragment_number_t wrfragid;
       /* readerId encodes offset to destination readerId or 0 -- used
          only for rexmits, but more convenient to combine both into
@@ -463,7 +462,7 @@ enum nn_xmsg_kind nn_xmsg_kind (const struct nn_xmsg *m)
   return m->kind;
 }
 
-void nn_xmsg_guid_seq_fragid (const struct nn_xmsg *m, ddsi_guid_t *wrguid, seqno_t *wrseq, ddsi_fragment_number_t *wrfragid)
+void nn_xmsg_guid_seq_fragid (const struct nn_xmsg *m, ddsi_guid_t *wrguid, ddsi_seqno_t *wrseq, ddsi_fragment_number_t *wrfragid)
 {
   assert (m->kind != NN_XMSG_KIND_CONTROL);
   *wrguid = m->kindspecific.data.wrguid;
@@ -657,7 +656,7 @@ void nn_xmsg_add_entityid (struct nn_xmsg * m)
 
   eid = (ddsi_rtps_entityid_t*) nn_xmsg_append (m, &sm, sizeof (ddsi_rtps_entityid_t));
   nn_xmsg_submsg_init (m, sm, DDSI_RTPS_SMID_ADLINK_ENTITY_ID);
-  eid->entityid.u = NN_ENTITYID_PARTICIPANT;
+  eid->entityid.u = DDSI_ENTITYID_PARTICIPANT;
   nn_xmsg_submsg_setnext (m, sm);
 }
 
@@ -699,7 +698,7 @@ static void nn_xmsg_setdst1_common (struct ddsi_domaingv *gv, struct nn_xmsg *m,
     ddsi_guid_t guid;
 
     guid.prefix = *gp;
-    guid.entityid.u = NN_ENTITYID_PARTICIPANT;
+    guid.entityid.u = DDSI_ENTITYID_PARTICIPANT;
 
     proxypp = ddsi_entidx_lookup_proxy_participant_guid(gv->entity_index, &guid);
     if (proxypp)
@@ -791,7 +790,7 @@ static void clear_readerId (struct nn_xmsg *m)
   assert (m->kind == NN_XMSG_KIND_DATA_REXMIT || m->kind == NN_XMSG_KIND_DATA_REXMIT_NOMERGE);
   assert (m->kindspecific.data.readerId_off != 0);
   *((ddsi_entityid_t *) (m->data->payload + m->kindspecific.data.readerId_off)) =
-    ddsi_hton_entityid (ddsi_to_entityid (NN_ENTITYID_UNKNOWN));
+    ddsi_hton_entityid (ddsi_to_entityid (DDSI_ENTITYID_UNKNOWN));
 }
 
 static ddsi_entityid_t load_readerId (const struct nn_xmsg *m)
@@ -805,7 +804,7 @@ static int readerId_compatible (const struct nn_xmsg *m, const struct nn_xmsg *m
 {
   ddsi_entityid_t e = load_readerId (m);
   ddsi_entityid_t eadd = load_readerId (madd);
-  return e.u == NN_ENTITYID_UNKNOWN || e.u == eadd.u;
+  return e.u == DDSI_ENTITYID_UNKNOWN || e.u == eadd.u;
 }
 
 int nn_xmsg_merge_rexmit_destinations_wrlock_held (struct ddsi_domaingv *gv, struct nn_xmsg *m, const struct nn_xmsg *madd)
@@ -904,13 +903,13 @@ int nn_xmsg_setmaxdelay (struct nn_xmsg *msg, int64_t maxdelay)
   return 0;
 }
 
-void nn_xmsg_setwriterseq (struct nn_xmsg *msg, const ddsi_guid_t *wrguid, seqno_t wrseq)
+void nn_xmsg_setwriterseq (struct nn_xmsg *msg, const ddsi_guid_t *wrguid, ddsi_seqno_t wrseq)
 {
   msg->kindspecific.data.wrguid = *wrguid;
   msg->kindspecific.data.wrseq = wrseq;
 }
 
-void nn_xmsg_setwriterseq_fragid (struct nn_xmsg *msg, const ddsi_guid_t *wrguid, seqno_t wrseq, ddsi_fragment_number_t wrfragid)
+void nn_xmsg_setwriterseq_fragid (struct nn_xmsg *msg, const ddsi_guid_t *wrguid, ddsi_seqno_t wrseq, ddsi_fragment_number_t wrfragid)
 {
   nn_xmsg_setwriterseq (msg, wrguid, wrseq);
   msg->kindspecific.data.wrfragid = wrfragid;

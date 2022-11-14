@@ -28,12 +28,12 @@ struct ddsi_entity_common;
 struct ddsi_endpoint_common;
 struct dds_qos;
 
-inline seqno_t ddsi_writer_read_seq_xmit (const struct ddsi_writer *wr)
+inline ddsi_seqno_t ddsi_writer_read_seq_xmit (const struct ddsi_writer *wr)
 {
   return ddsrt_atomic_ld64 (&wr->seq_xmit);
 }
 
-inline void ddsi_writer_update_seq_xmit (struct ddsi_writer *wr, seqno_t nv)
+inline void ddsi_writer_update_seq_xmit (struct ddsi_writer *wr, ddsi_seqno_t nv)
 {
   uint64_t ov;
   do {
@@ -52,7 +52,7 @@ dds_return_t ddsi_new_writer_guid (struct ddsi_writer **wr_out, const struct dds
 int ddsi_is_writer_entityid (ddsi_entityid_t id);
 void ddsi_deliver_historical_data (const struct ddsi_writer *wr, const struct ddsi_reader *rd);
 unsigned ddsi_remove_acked_messages (struct ddsi_writer *wr, struct whc_state *whcst, struct whc_node **deferred_free_list);
-seqno_t ddsi_writer_max_drop_seq (const struct ddsi_writer *wr);
+ddsi_seqno_t ddsi_writer_max_drop_seq (const struct ddsi_writer *wr);
 int ddsi_writer_must_have_hb_scheduled (const struct ddsi_writer *wr, const struct whc_state *whcst);
 void ddsi_writer_set_retransmitting (struct ddsi_writer *wr);
 void ddsi_writer_clear_retransmitting (struct ddsi_writer *wr);

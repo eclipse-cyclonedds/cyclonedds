@@ -20,7 +20,6 @@
 extern "C" {
 #endif
 
-#include "dds/ddsi/q_rtps.h"
 #include "ddsi__radmin.h"
 #include "ddsi__security_msg.h"
 

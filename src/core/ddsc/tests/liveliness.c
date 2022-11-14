@@ -83,16 +83,16 @@ static void liveliness_fini(void)
  * can be used to count the number of PMD messages that is sent by
  * the participant.
  */
-static seqno_t get_pmd_seqno(dds_entity_t participant)
+static ddsi_seqno_t get_pmd_seqno(dds_entity_t participant)
 {
-  seqno_t seqno;
+  ddsi_seqno_t seqno;
   struct dds_entity *pp_entity;
   struct ddsi_participant *pp;
   struct ddsi_writer *wr;
   CU_ASSERT_EQUAL_FATAL(dds_entity_pin(participant, &pp_entity), 0);
   thread_state_awake(ddsi_lookup_thread_state(), &pp_entity->m_domain->gv);
   pp = ddsi_entidx_lookup_participant_guid(pp_entity->m_domain->gv.entity_index, &pp_entity->m_guid);
-  wr = ddsi_get_builtin_writer (pp, NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
+  wr = ddsi_get_builtin_writer (pp, DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
   CU_ASSERT_FATAL(wr != NULL);
   assert(wr != NULL); /* for Clang's static analyzer */
   seqno = wr->seq;
@@ -153,7 +153,7 @@ static void test_pmd_count(dds_liveliness_kind_t kind, uint32_t ldur, double mul
   dds_entity_t sub_topic = 0;
   dds_entity_t reader;
   dds_entity_t writer;
-  seqno_t start_seqno, end_seqno;
+  ddsi_seqno_t start_seqno, end_seqno;
   dds_qos_t *rqos;
   dds_qos_t *wqos;
   dds_entity_t waitset;

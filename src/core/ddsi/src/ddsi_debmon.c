@@ -153,7 +153,7 @@ static void cpfku64 (struct st *st, const char *key, uint64_t v)
   st->comma = ",";
 }
 
-static void cpfkseqno (struct st *st, const char *key, seqno_t v)
+static void cpfkseqno (struct st *st, const char *key, ddsi_seqno_t v)
 {
   cpfku64 (st, key, v);
 }

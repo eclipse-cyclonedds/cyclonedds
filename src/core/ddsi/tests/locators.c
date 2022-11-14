@@ -19,7 +19,6 @@
 #include "ddsi__udp.h"
 #include "ddsi__tcp.h"
 #include "dds/ddsi/ddsi_config_impl.h"
-#include "dds/ddsi/q_rtps.h"
 #include "CUnit/Theory.h"
 
 static bool prefix_zero (const ddsi_locator_t *loc, size_t n)

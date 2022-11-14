@@ -16,6 +16,7 @@
 #include "dds/ddsi/ddsi_iid.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_domaingv.h"
+#include "dds/ddsi/ddsi_init.h"
 #include "ddsi__radmin.h"
 #include "dds/ddsi/q_thread.h"
 #include "ddsi__misc.h"
@@ -47,18 +48,18 @@ static void setup (void)
   ddsi_config_init_default (&gv.config);
   gv.config.transport_selector = DDSI_TRANS_NONE;
 
-  rtps_config_prep (&gv, NULL);
+  ddsi_config_prep (&gv, NULL);
   dds_set_log_sink (null_log_sink, NULL);
   dds_set_trace_sink (null_log_sink, NULL);
 
-  rtps_init (&gv);
+  ddsi_init (&gv);
   rbpool = ddsi_rbufpool_new (&gv.logconfig, gv.config.rbuf_size, gv.config.rmsg_chunk_size);
   ddsi_rbufpool_setowner (rbpool, ddsrt_thread_self ());
 }
 
 static void teardown (void)
 {
-  rtps_fini (&gv);
+  ddsi_fini (&gv);
   ddsi_rbufpool_free (rbpool);
 
   // On shutdown, there is an expectation that the thread was discovered dynamically.
@@ -69,7 +70,7 @@ static void teardown (void)
   ddsi_iid_fini ();
 }
 
-static void insert_gap (struct ddsi_reorder *reorder, struct ddsi_rmsg *rmsg, seqno_t seq)
+static void insert_gap (struct ddsi_reorder *reorder, struct ddsi_rmsg *rmsg, ddsi_seqno_t seq)
 {
   struct ddsi_rdata *gap = ddsi_rdata_newgap (rmsg);
   struct ddsi_rsample_chain sc;
@@ -79,7 +80,7 @@ static void insert_gap (struct ddsi_reorder *reorder, struct ddsi_rmsg *rmsg, se
   ddsi_fragchain_adjust_refcount (gap, refc_adjust);
 }
 
-static void check_reorder (struct ddsi_reorder *reorder, uint64_t ndiscard, seqno_t next_exp, seqno_t end, const seqno_t *present)
+static void check_reorder (struct ddsi_reorder *reorder, uint64_t ndiscard, ddsi_seqno_t next_exp, ddsi_seqno_t end, const ddsi_seqno_t *present)
 {
   // expect to be waiting for the right sequence number
   CU_ASSERT_FATAL (ddsi_reorder_next_seq (reorder) == next_exp);
@@ -90,7 +91,7 @@ static void check_reorder (struct ddsi_reorder *reorder, uint64_t ndiscard, seqn
   // expect the set of present sequence numbers to match
   int i = 0, err = 0;
   printf ("check:");
-  for (seqno_t s = next_exp; s <= end; s++)
+  for (ddsi_seqno_t s = next_exp; s <= end; s++)
   {
     if (s < present[i] || present[i] == 0) {
       int w = ddsi_reorder_wantsample (reorder, s);
@@ -108,7 +109,7 @@ static void check_reorder (struct ddsi_reorder *reorder, uint64_t ndiscard, seqn
   CU_ASSERT_FATAL (err == 0);
 }
 
-static void insert_sample (struct ddsi_defrag *defrag, struct ddsi_reorder *reorder, struct ddsi_rmsg *rmsg, struct ddsi_receiver_state *rst, seqno_t seq)
+static void insert_sample (struct ddsi_defrag *defrag, struct ddsi_reorder *reorder, struct ddsi_rmsg *rmsg, struct ddsi_receiver_state *rst, ddsi_seqno_t seq)
 {
   struct ddsi_rsample_info *si = ddsi_rmsg_alloc (rmsg, sizeof (*si));
   CU_ASSERT_FATAL (si != NULL);
@@ -145,18 +146,18 @@ CU_Test (ddsi_radmin, drop_gap_at_end, .init = setup, .fini = teardown)
   memset (rst, 0, sizeof (*rst));
 
   // initially, we want everything
-  check_reorder(reorder, 0, 1, 6, (const seqno_t[]){0});
+  check_reorder(reorder, 0, 1, 6, (const ddsi_seqno_t[]){0});
   // insert gap #5 => no longer want 5
   insert_gap (reorder, rmsg, 5);
-  check_reorder(reorder, 0, 1, 6, (const seqno_t[]){5,0});
+  check_reorder(reorder, 0, 1, 6, (const ddsi_seqno_t[]){5,0});
   // etc. etc.
   insert_sample (defrag, reorder, rmsg, rst, 2);
-  check_reorder(reorder, 0, 1, 6, (const seqno_t[]){2,5,0});
+  check_reorder(reorder, 0, 1, 6, (const ddsi_seqno_t[]){2,5,0});
   insert_sample (defrag, reorder, rmsg, rst, 3);
-  check_reorder(reorder, 0, 1, 6, (const seqno_t[]){2,3,5,0});
+  check_reorder(reorder, 0, 1, 6, (const ddsi_seqno_t[]){2,3,5,0});
   // inserting #4 pushes gap out, so suddenly we want it again
   insert_sample (defrag, reorder, rmsg, rst, 4);
-  check_reorder(reorder, 0, 1, 6, (const seqno_t[]){2,3,4,0});
+  check_reorder(reorder, 0, 1, 6, (const ddsi_seqno_t[]){2,3,4,0});
 
   ddsi_rmsg_commit (rmsg);
   ddsi_reorder_free (reorder);

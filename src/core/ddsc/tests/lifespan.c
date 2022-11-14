@@ -103,7 +103,7 @@ static void ddsi_lifespan_fini(void)
   dds_delete(g_participant);
 }
 
-static void check_whc_state(dds_entity_t writer, seqno_t exp_min, seqno_t exp_max)
+static void check_whc_state(dds_entity_t writer, ddsi_seqno_t exp_min, ddsi_seqno_t exp_max)
 {
   struct dds_entity *wr_entity;
   struct ddsi_writer *wr;

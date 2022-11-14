@@ -304,8 +304,8 @@ bool ddsi_omg_get_writer_security_info (const struct ddsi_writer *wr, ddsi_secur
  * @param[in] wr Writer to determine the publication writer from.
  *
  * @returns unsigned
- * @retval NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER
- * @retval NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER
+ * @retval DDSI_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER
+ * @retval DDSI_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER
  */
 unsigned ddsi_determine_publication_writer(const struct ddsi_writer *wr);
 
@@ -358,8 +358,8 @@ bool ddsi_omg_get_reader_security_info (const struct ddsi_reader *rd, ddsi_secur
  * @param[in] rd Reader to determine the subscription writer from.
  *
  * @returns unsigned
- * @retval NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_WRITER
- * @retval NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER
+ * @retval DDSI_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_WRITER
+ * @retval DDSI_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER
  */
 unsigned ddsi_determine_subscription_writer(const struct ddsi_reader *rd);
 
@@ -373,7 +373,7 @@ unsigned ddsi_determine_subscription_writer(const struct ddsi_reader *rd);
  * @param[in] tp Topic to determine the writer from.
  *
  * @returns unsigned
- * @retval NN_ENTITYID_SEDP_BUILTIN_TOPIC_WRITER
+ * @retval DDSI_ENTITYID_SEDP_BUILTIN_TOPIC_WRITER
  */
 unsigned ddsi_determine_topic_writer(const struct ddsi_topic *tp);
 #endif /* DDS_HAS_TOPIC_DISCOVERY */
@@ -1094,18 +1094,18 @@ inline bool ddsi_omg_proxy_participant_is_secure (UNUSED_ARG(const struct ddsi_p
 
 inline unsigned ddsi_determine_subscription_writer(UNUSED_ARG(const struct ddsi_reader *rd))
 {
-  return NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER;
+  return DDSI_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER;
 }
 
 inline unsigned ddsi_determine_publication_writer(UNUSED_ARG(const struct ddsi_writer *wr))
 {
-  return NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER;
+  return DDSI_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER;
 }
 
 #ifdef DDS_HAS_TOPIC_DISCOVERY
 inline unsigned ddsi_determine_topic_writer(UNUSED_ARG(const struct ddsi_topic *tp))
 {
-  return NN_ENTITYID_SEDP_BUILTIN_TOPIC_WRITER;
+  return DDSI_ENTITYID_SEDP_BUILTIN_TOPIC_WRITER;
 }
 #endif
 

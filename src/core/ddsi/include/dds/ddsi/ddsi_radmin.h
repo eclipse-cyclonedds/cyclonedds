@@ -20,7 +20,6 @@
 #include "dds/ddsrt/align.h"
 #include "dds/ddsrt/static_assert.h"
 #include "dds/ddsi/ddsi_locator.h"
-#include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/ddsi_protocol.h"
 
 #if defined (__cplusplus)
