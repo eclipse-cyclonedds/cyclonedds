@@ -27,7 +27,7 @@
 #include "ddsi__discovery.h"
 #include "dds/ddsi/q_xevent.h"
 #include "ddsi__lease.h"
-#include "dds/ddsi/q_receive.h"
+#include "ddsi__receive.h"
 #include "ddsi__addrset.h"
 #include "dds__whc.h"
 #include "ddsi__endpoint.h"
@@ -963,7 +963,7 @@ static dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domai
   {
     ddsrt_atomic_fence ();
     ddsrt_atomic_inc32 (&gv->participant_set_generation);
-    trigger_recv_threads (gv);
+    ddsi_trigger_recv_threads (gv);
   }
 
   ddsi_builtintopic_write_endpoint (gv->builtin_topic_interface, &pp->e, ddsrt_time_wallclock(), true);

@@ -24,7 +24,7 @@
 #include "dds/ddsi/ddsi_unused.h"
 #include "ddsi__lease.h"
 #include "dds/ddsi/ddsi_domaingv.h" /* for mattr, cattr */
-#include "dds/ddsi/q_receive.h" /* for trigger_receive_threads */
+#include "ddsi__receive.h" /* for trigger_receive_threads */
 #include "ddsi__gc.h"
 
 struct ddsi_gcreq_queue {
@@ -95,7 +95,7 @@ static uint32_t gcreq_queue_thread (struct ddsi_gcreq_queue *q)
 {
   struct thread_state * const thrst = ddsi_lookup_thread_state ();
   ddsrt_mtime_t next_thread_cputime = { 0 };
-  ddsrt_mtime_t t_trigger_recv_threads = { 0 };
+  ddsrt_mtime_t t_ddsi_trigger_recv_threads = { 0 };
   int64_t shortsleep = DDS_MSECS (1);
   int64_t delay = DDS_MSECS (1); /* force evaluation after startup */
   struct ddsi_gcreq *gcreq = NULL;
@@ -111,10 +111,10 @@ static uint32_t gcreq_queue_thread (struct ddsi_gcreq_queue *q)
     if (q->gv->deaf)
     {
       ddsrt_mtime_t tnow_mt = ddsrt_time_monotonic ();
-      if (tnow_mt.v > t_trigger_recv_threads.v)
+      if (tnow_mt.v > t_ddsi_trigger_recv_threads.v)
       {
-        trigger_recv_threads (q->gv);
-        t_trigger_recv_threads.v = tnow_mt.v + DDS_MSECS (100);
+        ddsi_trigger_recv_threads (q->gv);
+        t_ddsi_trigger_recv_threads.v = tnow_mt.v + DDS_MSECS (100);
       }
     }
 

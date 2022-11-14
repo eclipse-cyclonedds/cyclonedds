@@ -42,7 +42,7 @@
 #include "ddsi__ownip.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_xmsg.h"
-#include "dds/ddsi/q_receive.h"
+#include "ddsi__receive.h"
 #include "ddsi__pcap.h"
 #include "dds/ddsi/ddsi_feature_check.h"
 #include "ddsi__debmon.h"
@@ -755,7 +755,7 @@ static void rtps_term_prep (struct ddsi_domaingv *gv)
     ddsrt_atomic_st32 (&gv->rtps_keepgoing, 0); /* so threads will stop once they get round to checking */
     ddsrt_atomic_fence ();
     /* can't wake up throttle_writer, currently, but it'll check every few seconds */
-    trigger_recv_threads (gv);
+    ddsi_trigger_recv_threads (gv);
   }
   ddsrt_mutex_unlock (&gv->lock);
 }
@@ -770,7 +770,7 @@ static void wait_for_receive_threads_helper (struct xevent *xev, void *varg, dds
   struct wait_for_receive_threads_helper_arg * const arg = varg;
   if (arg->count++ == arg->gv->config.recv_thread_stop_maxretries)
     abort ();
-  trigger_recv_threads (arg->gv);
+  ddsi_trigger_recv_threads (arg->gv);
   (void) resched_xevent_if_earlier (xev, ddsrt_mtime_add_duration (tnow, DDS_SECS (1)));
 }
 
@@ -1003,7 +1003,7 @@ static int setup_and_start_recv_threads (struct ddsi_domaingv *gv)
         goto fail;
       }
     }
-    if (create_thread (&gv->recv_threads[i].thrst, gv, gv->recv_threads[i].name, recv_thread, &gv->recv_threads[i].arg) != DDS_RETCODE_OK)
+    if (create_thread (&gv->recv_threads[i].thrst, gv, gv->recv_threads[i].name, ddsi_recv_thread, &gv->recv_threads[i].arg) != DDS_RETCODE_OK)
     {
       GVERROR ("rtps_init: failed to start thread %s\n", gv->recv_threads[i].name);
       goto fail;
@@ -1756,9 +1756,9 @@ int rtps_init (struct ddsi_domaingv *gv)
   gv->builtins_dqueue = ddsi_dqueue_new ("builtins", gv, gv->config.delivery_queue_maxsamples, ddsi_builtins_dqueue_handler, NULL);
 #ifdef DDS_HAS_NETWORK_CHANNELS
   for (struct ddsi_config_channel_listelem *chptr = gv->config.channels; chptr; chptr = chptr->next)
-    chptr->dqueue = ddsi_dqueue_new (chptr->name, &gv->config, gv->config.delivery_queue_maxsamples, user_dqueue_handler, NULL);
+    chptr->dqueue = ddsi_dqueue_new (chptr->name, &gv->config, gv->config.delivery_queue_maxsamples, ddsi_user_dqueue_handler, NULL);
 #else
-  gv->user_dqueue = ddsi_dqueue_new ("user", gv, gv->config.delivery_queue_maxsamples, user_dqueue_handler, NULL);
+  gv->user_dqueue = ddsi_dqueue_new ("user", gv, gv->config.delivery_queue_maxsamples, ddsi_user_dqueue_handler, NULL);
 #endif
 
   if (reset_deaf_mute_time.v < DDS_NEVER)
@@ -1903,7 +1903,7 @@ int rtps_start (struct ddsi_domaingv *gv)
   }
   if (gv->listener)
   {
-    if (create_thread (&gv->listen_ts, gv, "listen", (uint32_t (*) (void *)) listen_thread, gv->listener) != DDS_RETCODE_OK)
+    if (create_thread (&gv->listen_ts, gv, "listen", (uint32_t (*) (void *)) ddsi_listen_thread, gv->listener) != DDS_RETCODE_OK)
     {
       GVERROR ("failed to create TCP listener thread\n");
       ddsi_listener_free (gv->listener);

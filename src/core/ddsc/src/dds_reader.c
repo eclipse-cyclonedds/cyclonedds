@@ -41,7 +41,6 @@
 #ifdef DDS_HAS_SHM
 #include "dds/ddsi/ddsi_shm_transport.h"
 #include "dds/ddsi/ddsi_tkmap.h"
-#include "dds/ddsi/q_receive.h"
 #include "dds/ddsrt/md5.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/threads.h"

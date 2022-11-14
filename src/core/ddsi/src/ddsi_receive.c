@@ -46,7 +46,7 @@
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/ddsi_proxy_endpoint.h"
 #include "dds/ddsi/q_xmsg.h"
-#include "dds/ddsi/q_receive.h"
+#include "ddsi__receive.h"
 #include "ddsi__rhc.h"
 #include "dds/ddsi/ddsi_deliver_locally.h"
 #include "dds/ddsi/q_transmit.h"
@@ -559,7 +559,7 @@ static enum validation_result validate_DataFrag (const struct ddsi_receiver_stat
   return vr;
 }
 
-int add_Gap (struct nn_xmsg *msg, struct ddsi_writer *wr, struct ddsi_proxy_reader *prd, seqno_t start, seqno_t base, uint32_t numbits, const uint32_t *bits)
+int ddsi_add_gap (struct nn_xmsg *msg, struct ddsi_writer *wr, struct ddsi_proxy_reader *prd, seqno_t start, seqno_t base, uint32_t numbits, const uint32_t *bits)
 {
   struct nn_xmsg_marker sm_marker;
   ddsi_rtps_gap_t *gap;
@@ -644,7 +644,7 @@ static int accept_ack_or_hb_w_timeout (ddsi_count_t new_count, ddsi_count_t *pre
   return 1;
 }
 
-void nn_gap_info_init(struct nn_gap_info *gi)
+void ddsi_gap_info_init(struct ddsi_gap_info *gi)
 {
   gi->gapstart = 0;
   gi->gapend = 0;
@@ -652,7 +652,7 @@ void nn_gap_info_init(struct nn_gap_info *gi)
   memset(gi->gapbits, 0, sizeof(gi->gapbits));
 }
 
-void nn_gap_info_update(struct ddsi_domaingv *gv, struct nn_gap_info *gi, seqno_t seqnr)
+void ddsi_gap_info_update(struct ddsi_domaingv *gv, struct ddsi_gap_info *gi, seqno_t seqnr)
 {
   assert (gi->gapend >= gi->gapstart);
   assert (seqnr >= gi->gapend);
@@ -677,7 +677,7 @@ void nn_gap_info_update(struct ddsi_domaingv *gv, struct nn_gap_info *gi, seqno_
   }
 }
 
-struct nn_xmsg * nn_gap_info_create_gap(struct ddsi_writer *wr, struct ddsi_proxy_reader *prd, struct nn_gap_info *gi)
+struct nn_xmsg * ddsi_gap_info_create_gap(struct ddsi_writer *wr, struct ddsi_proxy_reader *prd, struct ddsi_gap_info *gi)
 {
   struct nn_xmsg *m;
 
@@ -687,7 +687,7 @@ struct nn_xmsg * nn_gap_info_create_gap(struct ddsi_writer *wr, struct ddsi_prox
   m = nn_xmsg_new (wr->e.gv->xmsgpool, &wr->e.guid, wr->c.pp, 0, NN_XMSG_KIND_CONTROL);
 
   nn_xmsg_setdstPRD (m, prd);
-  add_Gap (m, wr, prd, gi->gapstart, gi->gapend, gi->gapnumbits, gi->gapbits);
+  ddsi_add_gap (m, wr, prd, gi->gapstart, gi->gapend, gi->gapnumbits, gi->gapbits);
   if (nn_xmsg_size(m) == 0)
   {
     nn_xmsg_free (m);
@@ -774,7 +774,7 @@ static int handle_AckNack (struct ddsi_receiver_state *rst, ddsrt_etime_t tnow, 
   seqno_t seqbase;
   seqno_t seq_xmit;
   ddsi_count_t *countp;
-  struct nn_gap_info gi;
+  struct ddsi_gap_info gi;
   int accelerate_rexmit = 0;
   int is_pure_ack;
   int is_pure_nonhist_ack;
@@ -1006,7 +1006,7 @@ static int handle_AckNack (struct ddsi_receiver_state *rst, ddsrt_etime_t tnow, 
   }
   enqueued = 1;
   seq_xmit = ddsi_writer_read_seq_xmit (wr);
-  nn_gap_info_init(&gi);
+  ddsi_gap_info_init(&gi);
   const bool gap_for_already_acked = ddsi_vendor_is_eclipse (rst->vendor) && prd->c.xqos->durability.kind == DDS_DURABILITY_VOLATILE && seqbase <= rn->seq;
   const seqno_t min_seq_to_rexmit = gap_for_already_acked ? rn->seq + 1 : 0;
   uint32_t limit = wr->rexmit_burst_size_limit;
@@ -1058,7 +1058,7 @@ static int handle_AckNack (struct ddsi_receiver_state *rst, ddsrt_etime_t tnow, 
           /* Is this a volatile reader with a filter?
            * If so, call the filter to see if we should re-arrange the sequence gap when needed. */
           if (prd->filter && !prd->filter (wr, prd, sample.serdata))
-            nn_gap_info_update (rst->gv, &gi, seqbase + i);
+            ddsi_gap_info_update (rst->gv, &gi, seqbase + i);
           else
           {
             /* no merging, send directed retransmit */
@@ -1084,7 +1084,7 @@ static int handle_AckNack (struct ddsi_receiver_state *rst, ddsrt_etime_t tnow, 
       }
       else
       {
-        nn_gap_info_update (rst->gv, &gi, seqbase + i);
+        ddsi_gap_info_update (rst->gv, &gi, seqbase + i);
         msgs_lost++;
       }
     }
@@ -1103,7 +1103,7 @@ static int handle_AckNack (struct ddsi_receiver_state *rst, ddsrt_etime_t tnow, 
     if (gi.gapend-1 + gi.gapnumbits > max_seq_in_reply)
       max_seq_in_reply = gi.gapend-1 + gi.gapnumbits;
 
-    gap = nn_gap_info_create_gap (wr, prd, &gi);
+    gap = ddsi_gap_info_create_gap (wr, prd, &gi);
     if (gap)
     {
       qxev_msg (wr->evq, gap);
@@ -1696,7 +1696,7 @@ static int handle_NackFrag (struct ddsi_receiver_state *rst, ddsrt_etime_t tnow,
     m = nn_xmsg_new (rst->gv->xmsgpool, &wr->e.guid, wr->c.pp, 0, NN_XMSG_KIND_CONTROL);
     nn_xmsg_setdstPRD (m, prd);
     /* length-1 bitmap with the bit clear avoids the illegal case of a length-0 bitmap */
-    add_Gap (m, wr, prd, seq, seq+1, 0, &zero);
+    ddsi_add_gap (m, wr, prd, seq, seq+1, 0, &zero);
     qxev_msg (wr->evq, m);
   }
   if (seq <= ddsi_writer_read_seq_xmit (wr))
@@ -2267,7 +2267,7 @@ static int deliver_user_data (const struct ddsi_rsample_info *sampleinfo, const 
   return 0;
 }
 
-int user_dqueue_handler (const struct ddsi_rsample_info *sampleinfo, const struct ddsi_rdata *fragchain, const ddsi_guid_t *rdguid, UNUSED_ARG (void *qarg))
+int ddsi_user_dqueue_handler (const struct ddsi_rsample_info *sampleinfo, const struct ddsi_rdata *fragchain, const ddsi_guid_t *rdguid, UNUSED_ARG (void *qarg))
 {
   int res;
   res = deliver_user_data (sampleinfo, fragchain, rdguid, 0);
@@ -3444,7 +3444,7 @@ static void rebuild_local_participant_set (struct thread_state * const thrst, st
   GVTRACE ("  nparticipants %"PRIu32"\n", lps->nps);
 }
 
-uint32_t listen_thread (struct ddsi_tran_listener *listener)
+uint32_t ddsi_listen_thread (struct ddsi_tran_listener *listener)
 {
   struct ddsi_domaingv *gv = listener->m_base.gv;
   ddsi_tran_conn_t conn;
@@ -3477,7 +3477,7 @@ static int recv_thread_waitset_add_conn (os_sockWaitset ws, ddsi_tran_conn_t con
   }
 }
 
-void trigger_recv_threads (const struct ddsi_domaingv *gv)
+void ddsi_trigger_recv_threads (const struct ddsi_domaingv *gv)
 {
   for (uint32_t i = 0; i < gv->n_recv_threads; i++)
   {
@@ -3492,13 +3492,13 @@ void trigger_recv_threads (const struct ddsi_domaingv *gv)
         ddsrt_iovec_t iov;
         iov.iov_base = &dummy;
         iov.iov_len = 1;
-        GVTRACE ("trigger_recv_threads: %"PRIu32" single %s\n", i, ddsi_locator_to_string (buf, sizeof (buf), dst));
+        GVTRACE ("ddsi_trigger_recv_threads: %"PRIu32" single %s\n", i, ddsi_locator_to_string (buf, sizeof (buf), dst));
         // all sockets listen on at least the interfaces used for transmitting (at least for now)
         ddsi_conn_write (gv->xmit_conns[0], dst, 1, &iov, 0);
         break;
       }
       case RTM_MANY: {
-        GVTRACE ("trigger_recv_threads: %"PRIu32" many %p\n", i, (void *) gv->recv_threads[i].arg.u.many.ws);
+        GVTRACE ("ddsi_trigger_recv_threads: %"PRIu32" many %p\n", i, (void *) gv->recv_threads[i].arg.u.many.ws);
         os_sockWaitsetTrigger (gv->recv_threads[i].arg.u.many.ws);
         break;
       }
@@ -3506,7 +3506,7 @@ void trigger_recv_threads (const struct ddsi_domaingv *gv)
   }
 }
 
-uint32_t recv_thread (void *vrecv_thread_arg)
+uint32_t ddsi_recv_thread (void *vrecv_thread_arg)
 {
   struct thread_state * const thrst = ddsi_lookup_thread_state ();
   struct recv_thread_arg *recv_thread_arg = vrecv_thread_arg;

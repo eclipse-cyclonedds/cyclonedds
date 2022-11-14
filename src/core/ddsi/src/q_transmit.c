@@ -32,7 +32,7 @@
 #include "dds/ddsi/q_transmit.h"
 #include "dds/ddsi/ddsi_unused.h"
 #include "ddsi__hbcontrol.h"
-#include "dds/ddsi/q_receive.h"
+#include "ddsi__receive.h"
 #include "ddsi__lease.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/ddsi_serdata.h"
@@ -1162,11 +1162,11 @@ int write_sample_p2p_wrlock_held(struct ddsi_writer *wr, seqno_t seq, struct dds
       /* determine if gap has to added */
       if (rexmit)
       {
-        struct nn_gap_info gi;
+        struct ddsi_gap_info gi;
 
         GVLOG (DDS_LC_DISCOVERY, "send filtered "PGUIDFMT" last_seq=%"PRIu64" seq=%"PRIu64"\n", PGUID (wr->e.guid), wprd->seq, seq);
 
-        nn_gap_info_init(&gi);
+        ddsi_gap_info_init(&gi);
         for (gseq = wprd->seq + 1; gseq < seq; gseq++)
         {
           struct whc_borrowed_sample sample;
@@ -1174,12 +1174,12 @@ int write_sample_p2p_wrlock_held(struct ddsi_writer *wr, seqno_t seq, struct dds
           {
             if (prd->filter(wr, prd, sample.serdata) == 0)
             {
-              nn_gap_info_update(wr->e.gv, &gi, gseq);
+              ddsi_gap_info_update(wr->e.gv, &gi, gseq);
             }
             whc_return_sample (wr->whc, &sample, false);
           }
         }
-        gap = nn_gap_info_create_gap(wr, prd, &gi);
+        gap = ddsi_gap_info_create_gap(wr, prd, &gi);
       }
       wprd->last_seq = seq;
     }

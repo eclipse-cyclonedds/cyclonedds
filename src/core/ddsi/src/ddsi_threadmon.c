@@ -24,7 +24,7 @@
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/ddsi_unused.h"
 #include "dds/ddsi/ddsi_domaingv.h" /* for mattr, cattr */
-#include "dds/ddsi/q_receive.h"
+#include "ddsi__receive.h"
 
 struct alive_vt {
   bool alive;
