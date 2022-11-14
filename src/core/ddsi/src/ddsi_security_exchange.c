@@ -94,7 +94,7 @@ void auth_get_serialized_participant_data(struct ddsi_participant *pp, ddsi_octe
   nn_xmsg_free (mpayload);
 }
 
-void handle_auth_handshake_message(const struct receiver_state *rst, ddsi_entityid_t wr_entity_id, struct ddsi_serdata *sample_common)
+void handle_auth_handshake_message(const struct ddsi_receiver_state *rst, ddsi_entityid_t wr_entity_id, struct ddsi_serdata *sample_common)
 {
   const struct ddsi_serdata_pserop *sample = (const struct ddsi_serdata_pserop *) sample_common;
   const struct ddsi_participant_generic_message *msg = sample->sample;
@@ -206,7 +206,7 @@ bool write_crypto_reader_tokens(const struct ddsi_reader *rd, const struct ddsi_
   return write_crypto_exchange_message(pp, &proxypp->e.guid, &rd->e.guid, &pwr->e.guid, GMCLASSID_SECURITY_DATAREADER_CRYPTO_TOKENS, tokens);
 }
 
-void handle_crypto_exchange_message(const struct receiver_state *rst, struct ddsi_serdata *sample_common)
+void handle_crypto_exchange_message(const struct ddsi_receiver_state *rst, struct ddsi_serdata *sample_common)
 {
   struct ddsi_domaingv * const gv = rst->gv;
   const struct ddsi_serdata_pserop *sample = (const struct ddsi_serdata_pserop *) sample_common;

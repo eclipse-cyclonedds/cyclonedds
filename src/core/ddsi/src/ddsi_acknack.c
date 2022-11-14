@@ -12,7 +12,7 @@
 
 #include "dds/ddsrt/static_assert.h"
 #include "dds/ddsi/q_rtps.h"
-#include "dds/ddsi/q_radmin.h"
+#include "ddsi__radmin.h"
 #include "ddsi__misc.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/ddsi_log.h"
@@ -75,13 +75,13 @@ static seqno_t next_deliv_seq (const struct ddsi_proxy_writer *pwr, const seqno_
   return next_deliv_seq;
 }
 
-static void add_acknack_getsource (const struct ddsi_proxy_writer *pwr, const struct ddsi_pwr_rd_match *rwn, struct nn_reorder **reorder, seqno_t *bitmap_base, int *notail)
+static void add_acknack_getsource (const struct ddsi_proxy_writer *pwr, const struct ddsi_pwr_rd_match *rwn, struct ddsi_reorder **reorder, seqno_t *bitmap_base, int *notail)
 {
   /* if in sync, look at proxy writer status, else look at proxy-writer--reader match status */
   if (rwn->in_sync == PRMSS_OUT_OF_SYNC || rwn->filtered)
   {
     *reorder = rwn->u.not_in_sync.reorder;
-    *bitmap_base = nn_reorder_next_seq (*reorder);
+    *bitmap_base = ddsi_reorder_next_seq (*reorder);
     *notail = 0;
   }
   else
@@ -89,27 +89,27 @@ static void add_acknack_getsource (const struct ddsi_proxy_writer *pwr, const st
     *reorder = pwr->reorder;
     if (!pwr->e.gv->config.late_ack_mode)
     {
-      *bitmap_base = nn_reorder_next_seq (*reorder);
+      *bitmap_base = ddsi_reorder_next_seq (*reorder);
       *notail = 0;
     }
     else
     {
-      *bitmap_base = next_deliv_seq (pwr, nn_reorder_next_seq (*reorder));
-      *notail = nn_dqueue_is_full (pwr->dqueue);
+      *bitmap_base = next_deliv_seq (pwr, ddsi_reorder_next_seq (*reorder));
+      *notail = ddsi_dqueue_is_full (pwr->dqueue);
     }
   }
 }
 
 static bool add_acknack_makebitmaps (const struct ddsi_proxy_writer *pwr, const struct ddsi_pwr_rd_match *rwn, struct ddsi_add_acknack_info *info)
 {
-  struct nn_reorder *reorder;
+  struct ddsi_reorder *reorder;
   seqno_t bitmap_base;
   int notail; /* notail = false: all known missing ones are nack'd */
   add_acknack_getsource (pwr, rwn, &reorder, &bitmap_base, &notail);
 
   /* Make bitmap; note that we've made sure to have room for the maximum bitmap size. */
   const seqno_t last_seq = rwn->filtered ? rwn->last_seq : pwr->last_seq;
-  const uint32_t numbits = nn_reorder_nackmap (reorder, bitmap_base, last_seq, &info->acknack.set, info->acknack.bits, DDSI_SEQUENCE_NUMBER_SET_MAX_BITS, notail);
+  const uint32_t numbits = ddsi_reorder_nackmap (reorder, bitmap_base, last_seq, &info->acknack.set, info->acknack.bits, DDSI_SEQUENCE_NUMBER_SET_MAX_BITS, notail);
   if (numbits == 0)
   {
     info->nackfrag.seq = 0;
@@ -127,16 +127,16 @@ static bool add_acknack_makebitmaps (const struct ddsi_proxy_writer *pwr, const 
 
     const seqno_t seq = base + i;
     const uint32_t fragnum = (seq == pwr->last_seq) ? pwr->last_fragnum : UINT32_MAX;
-    switch (nn_defrag_nackmap (pwr->defrag, seq, fragnum, &info->nackfrag.set, info->nackfrag.bits, DDSI_FRAGMENT_NUMBER_SET_MAX_BITS))
+    switch (ddsi_defrag_nackmap (pwr->defrag, seq, fragnum, &info->nackfrag.set, info->nackfrag.bits, DDSI_FRAGMENT_NUMBER_SET_MAX_BITS))
     {
-      case DEFRAG_NACKMAP_UNKNOWN_SAMPLE:
+      case DDSI_DEFRAG_NACKMAP_UNKNOWN_SAMPLE:
         break;
-      case DEFRAG_NACKMAP_ALL_ADVERTISED_FRAGMENTS_KNOWN:
+      case DDSI_DEFRAG_NACKMAP_ALL_ADVERTISED_FRAGMENTS_KNOWN:
         /* Cut the NACK short (or make it an ACK if this is the first sample), no NACKFRAG */
         info->nackfrag.seq = 0;
         info->acknack.set.numbits = i;
         return (i > 0);
-      case DEFRAG_NACKMAP_FRAGMENTS_MISSING:
+      case DDSI_DEFRAG_NACKMAP_FRAGMENTS_MISSING:
         /* Cut the NACK short, NACKFRAG */
         info->nackfrag.seq = seq;
         info->acknack.set.numbits = i;

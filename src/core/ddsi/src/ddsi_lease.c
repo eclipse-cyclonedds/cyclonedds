@@ -26,7 +26,7 @@
 #include "dds/ddsi/q_xevent.h"
 #include "ddsi__addrset.h"
 #include "ddsi__discovery.h"
-#include "dds/ddsi/q_radmin.h"
+#include "ddsi__radmin.h"
 #include "ddsi__entity_index.h"
 #include "ddsi__entity.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"

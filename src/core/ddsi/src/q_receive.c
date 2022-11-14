@@ -35,7 +35,7 @@
 #include "dds/ddsi/q_xevent.h"
 #include "ddsi__addrset.h"
 #include "ddsi__discovery.h"
-#include "dds/ddsi/q_radmin.h"
+#include "ddsi__radmin.h"
 #include "dds/ddsi/q_thread.h"
 #include "ddsi__entity_index.h"
 #include "ddsi__lease.h"
@@ -76,7 +76,7 @@ Notes:
   isn't strictly necessary in the particular configuration we have
   (such as one receive thread vs. multiple receive threads)
 
-- nn_dqueue_enqueue may be called with pwr->e.lock held
+- ddsi_dqueue_enqueue may be called with pwr->e.lock held
 
 - deliver_user_data_synchronously may be called with pwr->e.lock held,
   which is needed if IN-ORDER synchronous delivery is desired when
@@ -86,7 +86,7 @@ Notes:
 
 */
 
-static void deliver_user_data_synchronously (struct nn_rsample_chain *sc, const ddsi_guid_t *rdguid);
+static void deliver_user_data_synchronously (struct ddsi_rsample_chain *sc, const ddsi_guid_t *rdguid);
 
 static void maybe_set_reader_in_sync (struct ddsi_proxy_writer *pwr, struct ddsi_pwr_rd_match *wn, seqno_t last_deliv_seq)
 {
@@ -106,7 +106,7 @@ static void maybe_set_reader_in_sync (struct ddsi_proxy_writer *pwr, struct ddsi
     case PRMSS_OUT_OF_SYNC:
       if (!wn->filtered)
       {
-        if (pwr->have_seen_heartbeat && nn_reorder_next_seq (wn->u.not_in_sync.reorder) == nn_reorder_next_seq (pwr->reorder))
+        if (pwr->have_seen_heartbeat && ddsi_reorder_next_seq (wn->u.not_in_sync.reorder) == ddsi_reorder_next_seq (pwr->reorder))
         {
           ETRACE (pwr, " msr_in_sync("PGUIDFMT" out-of-sync to tlcatchup)", PGUID (wn->rd_guid));
           wn->in_sync = PRMSS_TLCATCHUP;
@@ -155,7 +155,7 @@ static enum validation_result validate_writer_and_reader_or_null_entityid (ddsi_
     return VR_NOT_UNDERSTOOD;
 }
 
-static enum validation_result validate_AckNack (const struct receiver_state *rst, ddsi_rtps_acknack_t *msg, size_t size, int byteswap)
+static enum validation_result validate_AckNack (const struct ddsi_receiver_state *rst, ddsi_rtps_acknack_t *msg, size_t size, int byteswap)
 {
   ddsi_count_t *count; /* this should've preceded the bitmap */
   if (size < DDSI_ACKNACK_SIZE (0))
@@ -334,13 +334,13 @@ static enum validation_result validate_NackFrag (ddsi_rtps_nackfrag_t *msg, size
   return validate_writer_and_reader_entityid (msg->writerId, msg->readerId);
 }
 
-static void set_sampleinfo_proxy_writer (struct nn_rsample_info *sampleinfo, ddsi_guid_t *pwr_guid)
+static void set_sampleinfo_proxy_writer (struct ddsi_rsample_info *sampleinfo, ddsi_guid_t *pwr_guid)
 {
   struct ddsi_proxy_writer * pwr = ddsi_entidx_lookup_proxy_writer_guid (sampleinfo->rst->gv->entity_index, pwr_guid);
   sampleinfo->pwr = pwr;
 }
 
-static bool set_sampleinfo_bswap (struct nn_rsample_info *sampleinfo, struct dds_cdr_header *hdr)
+static bool set_sampleinfo_bswap (struct ddsi_rsample_info *sampleinfo, struct dds_cdr_header *hdr)
 {
   if (hdr)
   {
@@ -351,7 +351,7 @@ static bool set_sampleinfo_bswap (struct nn_rsample_info *sampleinfo, struct dds
   return true;
 }
 
-static enum validation_result validate_Data (const struct receiver_state *rst, ddsi_rtps_data_t *msg, size_t size, int byteswap, struct nn_rsample_info *sampleinfo, const ddsi_keyhash_t **keyhashp, unsigned char **payloadp, uint32_t *payloadsz)
+static enum validation_result validate_Data (const struct ddsi_receiver_state *rst, ddsi_rtps_data_t *msg, size_t size, int byteswap, struct ddsi_rsample_info *sampleinfo, const ddsi_keyhash_t **keyhashp, unsigned char **payloadp, uint32_t *payloadsz)
 {
   /* on success: sampleinfo->{seq,rst,statusinfo,bswap,complex_qos} all set */
   ddsi_guid_t pwr_guid;
@@ -378,7 +378,7 @@ static enum validation_result validate_Data (const struct receiver_state *rst, d
   pwr_guid.prefix = rst->src_guid_prefix;
   pwr_guid.entityid = msg->x.writerId;
 
-  sampleinfo->rst = (struct receiver_state *) rst; /* drop const */
+  sampleinfo->rst = (struct ddsi_receiver_state *) rst; /* drop const */
   if (!ddsi_validating_from_seqno (msg->x.writerSN, &sampleinfo->seq))
     return VR_MALFORMED;
   sampleinfo->fragsize = 0; /* for unfragmented data, fragsize = 0 works swell */
@@ -450,7 +450,7 @@ accept:
   return vr;
 }
 
-static enum validation_result validate_DataFrag (const struct receiver_state *rst, ddsi_rtps_datafrag_t *msg, size_t size, int byteswap, struct nn_rsample_info *sampleinfo, const ddsi_keyhash_t **keyhashp, unsigned char **payloadp, uint32_t *payloadsz)
+static enum validation_result validate_DataFrag (const struct ddsi_receiver_state *rst, ddsi_rtps_datafrag_t *msg, size_t size, int byteswap, struct ddsi_rsample_info *sampleinfo, const ddsi_keyhash_t **keyhashp, unsigned char **payloadp, uint32_t *payloadsz)
 {
   ddsi_guid_t pwr_guid;
   unsigned char *ptr;
@@ -498,7 +498,7 @@ static enum validation_result validate_DataFrag (const struct receiver_state *rs
        fragment numbers are 1-based */
     return VR_MALFORMED;
 
-  sampleinfo->rst = (struct receiver_state *) rst; /* drop const */
+  sampleinfo->rst = (struct ddsi_receiver_state *) rst; /* drop const */
   if (!ddsi_validating_from_seqno (msg->x.writerSN, &sampleinfo->seq))
     return VR_MALFORMED;
   sampleinfo->fragsize = msg->fragmentSize;
@@ -764,7 +764,7 @@ static void defer_hb_state_fini (struct ddsi_domaingv * const gv, struct defer_h
   }
 }
 
-static int handle_AckNack (struct receiver_state *rst, ddsrt_etime_t tnow, const ddsi_rtps_acknack_t *msg, ddsrt_wctime_t timestamp, ddsi_rtps_submessage_kind_t prev_smid, struct defer_hb_state *defer_hb_state)
+static int handle_AckNack (struct ddsi_receiver_state *rst, ddsrt_etime_t tnow, const ddsi_rtps_acknack_t *msg, ddsrt_wctime_t timestamp, ddsi_rtps_submessage_kind_t prev_smid, struct defer_hb_state *defer_hb_state)
 {
   struct ddsi_proxy_reader *prd;
   struct ddsi_wr_prd_match *rn;
@@ -1189,7 +1189,7 @@ static void handle_forall_destinations (const ddsi_guid_t *dst, struct ddsi_prox
 }
 
 struct handle_Heartbeat_helper_arg {
-  struct receiver_state *rst;
+  struct ddsi_receiver_state *rst;
   const ddsi_rtps_heartbeat_t *msg;
   struct ddsi_proxy_writer *pwr;
   ddsrt_wctime_t timestamp;
@@ -1200,7 +1200,7 @@ struct handle_Heartbeat_helper_arg {
 
 static void handle_Heartbeat_helper (struct ddsi_pwr_rd_match * const wn, struct handle_Heartbeat_helper_arg * const arg)
 {
-  struct receiver_state * const rst = arg->rst;
+  struct ddsi_receiver_state * const rst = arg->rst;
   ddsi_rtps_heartbeat_t const * const msg = arg->msg;
   struct ddsi_proxy_writer * const pwr = arg->pwr;
 
@@ -1222,9 +1222,9 @@ static void handle_Heartbeat_helper (struct ddsi_pwr_rd_match * const wn, struct
   {
     seqno_t refseq;
     if (wn->in_sync != PRMSS_OUT_OF_SYNC && !wn->filtered)
-      refseq = nn_reorder_next_seq (pwr->reorder);
+      refseq = ddsi_reorder_next_seq (pwr->reorder);
     else
-      refseq = nn_reorder_next_seq (wn->u.not_in_sync.reorder);
+      refseq = ddsi_reorder_next_seq (wn->u.not_in_sync.reorder);
     RSTTRACE (" "PGUIDFMT"@%"PRIu64"%s", PGUID (wn->rd_guid), refseq - 1, (wn->in_sync == PRMSS_SYNC) ? "(sync)" : (wn->in_sync == PRMSS_TLCATCHUP) ? "(tlcatchup)" : "");
   }
 
@@ -1237,7 +1237,7 @@ static void handle_Heartbeat_helper (struct ddsi_pwr_rd_match * const wn, struct
   ddsi_sched_acknack_if_needed (wn->acknack_xevent, pwr, wn, arg->tnow_mt, true);
 }
 
-static int handle_Heartbeat (struct receiver_state *rst, ddsrt_etime_t tnow, struct nn_rmsg *rmsg, const ddsi_rtps_heartbeat_t *msg, ddsrt_wctime_t timestamp, ddsi_rtps_submessage_kind_t prev_smid)
+static int handle_Heartbeat (struct ddsi_receiver_state *rst, ddsrt_etime_t tnow, struct ddsi_rmsg *rmsg, const ddsi_rtps_heartbeat_t *msg, ddsrt_wctime_t timestamp, ddsi_rtps_submessage_kind_t prev_smid)
 {
   /* We now cheat: and process the heartbeat for _all_ readers,
      always, regardless of the destination address in the Heartbeat
@@ -1335,15 +1335,15 @@ static int handle_Heartbeat (struct receiver_state *rst, ddsrt_etime_t tnow, str
     pwr->last_fragnum = UINT32_MAX;
   }
 
-  nn_defrag_notegap (pwr->defrag, 1, gap_end_seq);
+  ddsi_defrag_notegap (pwr->defrag, 1, gap_end_seq);
 
   {
-    struct nn_rdata *gap;
+    struct ddsi_rdata *gap;
     struct ddsi_pwr_rd_match *wn;
-    struct nn_rsample_chain sc;
+    struct ddsi_rsample_chain sc;
     int refc_adjust = 0;
-    nn_reorder_result_t res;
-    gap = nn_rdata_newgap (rmsg);
+    ddsi_reorder_result_t res;
+    gap = ddsi_rdata_newgap (rmsg);
     int filtered = 0;
 
     if (pwr->filtered && !ddsi_is_null_guid(&dst))
@@ -1357,9 +1357,9 @@ static int handle_Heartbeat (struct receiver_state *rst, ddsrt_etime_t tnow, str
             // Content filtering on reader GUID, and the HEARTBEAT destination GUID is
             // just that one reader, so it makes sense to "trust" the heartbeat and
             // use the advertised first sequence number in the WHC
-            struct nn_reorder *ro = wn->u.not_in_sync.reorder;
-            if ((res = nn_reorder_gap (&sc, ro, gap, 1, firstseq, &refc_adjust)) > 0)
-              nn_dqueue_enqueue1 (pwr->dqueue, &wn->rd_guid, &sc, res);
+            struct ddsi_reorder *ro = wn->u.not_in_sync.reorder;
+            if ((res = ddsi_reorder_gap (&sc, ro, gap, 1, firstseq, &refc_adjust)) > 0)
+              ddsi_dqueue_enqueue1 (pwr->dqueue, &wn->rd_guid, &sc, res);
             if (ddsi_from_seqno (msg->lastSN) > wn->last_seq)
             {
               wn->last_seq = ddsi_from_seqno (msg->lastSN);
@@ -1373,12 +1373,12 @@ static int handle_Heartbeat (struct receiver_state *rst, ddsrt_etime_t tnow, str
 
     if (!filtered)
     {
-      if ((res = nn_reorder_gap (&sc, pwr->reorder, gap, 1, gap_end_seq, &refc_adjust)) > 0)
+      if ((res = ddsi_reorder_gap (&sc, pwr->reorder, gap, 1, gap_end_seq, &refc_adjust)) > 0)
       {
         if (pwr->deliver_synchronously)
           deliver_user_data_synchronously (&sc, NULL);
         else
-          nn_dqueue_enqueue (pwr->dqueue, &sc, res);
+          ddsi_dqueue_enqueue (pwr->dqueue, &sc, res);
       }
       for (wn = ddsrt_avl_find_min (&ddsi_pwr_readers_treedef, &pwr->readers); wn; wn = ddsrt_avl_find_succ (&ddsi_pwr_readers_treedef, &pwr->readers, wn))
       {
@@ -1395,28 +1395,28 @@ static int handle_Heartbeat (struct receiver_state *rst, ddsrt_etime_t tnow, str
             assert(0);
             break;
           case PRMSS_TLCATCHUP:
-            assert (nn_reorder_next_seq (pwr->reorder) > 0);
-            maybe_set_reader_in_sync (pwr, wn, nn_reorder_next_seq (pwr->reorder) - 1);
+            assert (ddsi_reorder_next_seq (pwr->reorder) > 0);
+            maybe_set_reader_in_sync (pwr, wn, ddsi_reorder_next_seq (pwr->reorder) - 1);
             break;
           case PRMSS_OUT_OF_SYNC: {
-            struct nn_reorder *ro = wn->u.not_in_sync.reorder;
+            struct ddsi_reorder *ro = wn->u.not_in_sync.reorder;
             // per-reader "out-of-sync" reorder admins need to use firstseq: they are used
             // to retrieve transient-local data, hence fast-forwarding to lastseq would
             // mean they would never need to retrieve any historical data
-            if ((res = nn_reorder_gap (&sc, ro, gap, 1, firstseq, &refc_adjust)) > 0)
+            if ((res = ddsi_reorder_gap (&sc, ro, gap, 1, firstseq, &refc_adjust)) > 0)
             {
               if (pwr->deliver_synchronously)
                 deliver_user_data_synchronously (&sc, &wn->rd_guid);
               else
-                nn_dqueue_enqueue1 (pwr->dqueue, &wn->rd_guid, &sc, res);
+                ddsi_dqueue_enqueue1 (pwr->dqueue, &wn->rd_guid, &sc, res);
             }
-            assert (nn_reorder_next_seq (wn->u.not_in_sync.reorder) > 0);
-            maybe_set_reader_in_sync (pwr, wn, nn_reorder_next_seq (wn->u.not_in_sync.reorder) - 1);
+            assert (ddsi_reorder_next_seq (wn->u.not_in_sync.reorder) > 0);
+            maybe_set_reader_in_sync (pwr, wn, ddsi_reorder_next_seq (wn->u.not_in_sync.reorder) - 1);
           }
         }
       }
     }
-    nn_fragchain_adjust_refcount (gap, refc_adjust);
+    ddsi_fragchain_adjust_refcount (gap, refc_adjust);
   }
 
   arg.rst = rst;
@@ -1433,7 +1433,7 @@ static int handle_Heartbeat (struct receiver_state *rst, ddsrt_etime_t tnow, str
   return 1;
 }
 
-static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(ddsrt_etime_t tnow), const ddsi_rtps_heartbeatfrag_t *msg, ddsi_rtps_submessage_kind_t prev_smid)
+static int handle_HeartbeatFrag (struct ddsi_receiver_state *rst, UNUSED_ARG(ddsrt_etime_t tnow), const ddsi_rtps_heartbeatfrag_t *msg, ddsi_rtps_submessage_kind_t prev_smid)
 {
   const seqno_t seq = ddsi_from_seqno (msg->writerSN);
   const ddsi_fragment_number_t fragnum = msg->lastFragmentNum - 1; /* we do 0-based */
@@ -1499,7 +1499,7 @@ static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(ddsrt_et
   {
     struct ddsi_pwr_rd_match *m = NULL;
 
-    if (nn_reorder_wantsample (pwr->reorder, seq))
+    if (ddsi_reorder_wantsample (pwr->reorder, seq))
     {
       if (directed_heartbeat)
       {
@@ -1527,12 +1527,12 @@ static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(ddsrt_et
         }
       }
     }
-    else if (seq < nn_reorder_next_seq (pwr->reorder))
+    else if (seq < ddsi_reorder_next_seq (pwr->reorder))
     {
       if (directed_heartbeat)
       {
         m = ddsrt_avl_lookup (&ddsi_pwr_readers_treedef, &pwr->readers, &dst);
-        if (m && !(m->in_sync == PRMSS_OUT_OF_SYNC && m->acknack_xevent != NULL && nn_reorder_wantsample (m->u.not_in_sync.reorder, seq)))
+        if (m && !(m->in_sync == PRMSS_OUT_OF_SYNC && m->acknack_xevent != NULL && ddsi_reorder_wantsample (m->u.not_in_sync.reorder, seq)))
         {
           /* Ignore if reader is happy or not best-effort */
           m = NULL;
@@ -1545,7 +1545,7 @@ static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(ddsrt_et
         m = ddsrt_avl_find_min (&ddsi_pwr_readers_treedef, &pwr->readers);
         while (m)
         {
-          if (m->in_sync == PRMSS_OUT_OF_SYNC && m->acknack_xevent != NULL && nn_reorder_wantsample (m->u.not_in_sync.reorder, seq))
+          if (m->in_sync == PRMSS_OUT_OF_SYNC && m->acknack_xevent != NULL && ddsi_reorder_wantsample (m->u.not_in_sync.reorder, seq))
           {
             /* If reader is out-of-sync, and reader is realiable, and
              reader still wants this particular sample, then use this
@@ -1571,7 +1571,7 @@ static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(ddsrt_et
         uint32_t bits[DDSI_FRAGMENT_NUMBER_SET_MAX_BITS / 32];
       } nackfrag;
       const seqno_t last_seq = m->filtered ? m->last_seq : pwr->last_seq;
-      if (seq == last_seq && nn_defrag_nackmap (pwr->defrag, seq, fragnum, &nackfrag.set, nackfrag.bits, DDSI_FRAGMENT_NUMBER_SET_MAX_BITS) == DEFRAG_NACKMAP_FRAGMENTS_MISSING)
+      if (seq == last_seq && ddsi_defrag_nackmap (pwr->defrag, seq, fragnum, &nackfrag.set, nackfrag.bits, DDSI_FRAGMENT_NUMBER_SET_MAX_BITS) == DDSI_DEFRAG_NACKMAP_FRAGMENTS_MISSING)
       {
         // don't rush it ...
         resched_xevent_if_earlier (m->acknack_xevent, ddsrt_mtime_add_duration (ddsrt_time_monotonic (), pwr->e.gv->config.nack_delay));
@@ -1583,7 +1583,7 @@ static int handle_HeartbeatFrag (struct receiver_state *rst, UNUSED_ARG(ddsrt_et
   return 1;
 }
 
-static int handle_NackFrag (struct receiver_state *rst, ddsrt_etime_t tnow, const ddsi_rtps_nackfrag_t *msg, ddsi_rtps_submessage_kind_t prev_smid, struct defer_hb_state *defer_hb_state)
+static int handle_NackFrag (struct ddsi_receiver_state *rst, ddsrt_etime_t tnow, const ddsi_rtps_nackfrag_t *msg, ddsi_rtps_submessage_kind_t prev_smid, struct defer_hb_state *defer_hb_state)
 {
   struct ddsi_proxy_reader *prd;
   struct ddsi_wr_prd_match *rn;
@@ -1716,7 +1716,7 @@ static int handle_NackFrag (struct receiver_state *rst, ddsrt_etime_t tnow, cons
   return 1;
 }
 
-static int handle_InfoDST (struct receiver_state *rst, const ddsi_rtps_info_dst_t *msg, const ddsi_guid_prefix_t *dst_prefix)
+static int handle_InfoDST (struct ddsi_receiver_state *rst, const ddsi_rtps_info_dst_t *msg, const ddsi_guid_prefix_t *dst_prefix)
 {
   rst->dst_guid_prefix = ddsi_ntoh_guid_prefix (msg->guid_prefix);
   RSTTRACE ("INFODST(%"PRIx32":%"PRIx32":%"PRIx32")", PGUIDPREFIX (rst->dst_guid_prefix));
@@ -1737,7 +1737,7 @@ static int handle_InfoDST (struct receiver_state *rst, const ddsi_rtps_info_dst_
   return 1;
 }
 
-static int handle_InfoSRC (struct receiver_state *rst, const ddsi_rtps_info_src_t *msg)
+static int handle_InfoSRC (struct ddsi_receiver_state *rst, const ddsi_rtps_info_src_t *msg)
 {
   rst->src_guid_prefix = ddsi_ntoh_guid_prefix (msg->guid_prefix);
   rst->protocol_version = msg->version;
@@ -1747,7 +1747,7 @@ static int handle_InfoSRC (struct receiver_state *rst, const ddsi_rtps_info_src_
   return 1;
 }
 
-static int handle_InfoTS (const struct receiver_state *rst, const ddsi_rtps_info_ts_t *msg, ddsrt_wctime_t *timestamp)
+static int handle_InfoTS (const struct ddsi_receiver_state *rst, const ddsi_rtps_info_ts_t *msg, ddsrt_wctime_t *timestamp)
 {
   RSTTRACE ("INFOTS(");
   if (msg->smhdr.flags & DDSI_INFOTS_INVALIDATE_FLAG)
@@ -1765,10 +1765,10 @@ static int handle_InfoTS (const struct receiver_state *rst, const ddsi_rtps_info
   return 1;
 }
 
-static int handle_one_gap (struct ddsi_proxy_writer *pwr, struct ddsi_pwr_rd_match *wn, seqno_t a, seqno_t b, struct nn_rdata *gap, int *refc_adjust)
+static int handle_one_gap (struct ddsi_proxy_writer *pwr, struct ddsi_pwr_rd_match *wn, seqno_t a, seqno_t b, struct ddsi_rdata *gap, int *refc_adjust)
 {
-  struct nn_rsample_chain sc;
-  nn_reorder_result_t res = 0;
+  struct ddsi_rsample_chain sc;
+  ddsi_reorder_result_t res = 0;
   int gap_was_valuable = 0;
   ASSERT_MUTEX_HELD (&pwr->e.lock);
   assert (a > 0 && b >= a);
@@ -1777,17 +1777,17 @@ static int handle_one_gap (struct ddsi_proxy_writer *pwr, struct ddsi_pwr_rd_mat
      be arriving in the future */
   if (!(wn && wn->filtered))
   {
-    nn_defrag_notegap (pwr->defrag, a, b);
+    ddsi_defrag_notegap (pwr->defrag, a, b);
 
     /* Primary reorder: the gap message may cause some samples to become
      deliverable. */
 
-    if ((res = nn_reorder_gap (&sc, pwr->reorder, gap, a, b, refc_adjust)) > 0)
+    if ((res = ddsi_reorder_gap (&sc, pwr->reorder, gap, a, b, refc_adjust)) > 0)
     {
       if (pwr->deliver_synchronously)
         deliver_user_data_synchronously (&sc, NULL);
       else
-        nn_dqueue_enqueue (pwr->dqueue, &sc, res);
+        ddsi_dqueue_enqueue (pwr->dqueue, &sc, res);
     }
   }
 
@@ -1795,7 +1795,7 @@ static int handle_one_gap (struct ddsi_proxy_writer *pwr, struct ddsi_pwr_rd_mat
      anything useful, or there was insufficient memory to store it.
      When the result is either ACCEPT or a sample chain, it clearly
      meant something. */
-  DDSRT_STATIC_ASSERT_CODE (NN_REORDER_ACCEPT == 0);
+  DDSRT_STATIC_ASSERT_CODE (DDSI_REORDER_ACCEPT == 0);
   if (res >= 0)
     gap_was_valuable = 1;
 
@@ -1812,12 +1812,12 @@ static int handle_one_gap (struct ddsi_proxy_writer *pwr, struct ddsi_pwr_rd_mat
       case PRMSS_TLCATCHUP:
         break;
       case PRMSS_OUT_OF_SYNC:
-        if ((res = nn_reorder_gap (&sc, wn->u.not_in_sync.reorder, gap, a, b, refc_adjust)) > 0)
+        if ((res = ddsi_reorder_gap (&sc, wn->u.not_in_sync.reorder, gap, a, b, refc_adjust)) > 0)
         {
           if (pwr->deliver_synchronously)
             deliver_user_data_synchronously (&sc, &wn->rd_guid);
           else
-            nn_dqueue_enqueue1 (pwr->dqueue, &wn->rd_guid, &sc, res);
+            ddsi_dqueue_enqueue1 (pwr->dqueue, &wn->rd_guid, &sc, res);
         }
         if (res >= 0)
           gap_was_valuable = 1;
@@ -1834,7 +1834,7 @@ static int handle_one_gap (struct ddsi_proxy_writer *pwr, struct ddsi_pwr_rd_mat
   return gap_was_valuable;
 }
 
-static int handle_Gap (struct receiver_state *rst, ddsrt_etime_t tnow, struct nn_rmsg *rmsg, const ddsi_rtps_gap_t *msg, ddsi_rtps_submessage_kind_t prev_smid)
+static int handle_Gap (struct ddsi_receiver_state *rst, ddsrt_etime_t tnow, struct ddsi_rmsg *rmsg, const ddsi_rtps_gap_t *msg, ddsi_rtps_submessage_kind_t prev_smid)
 {
   /* Option 1: Process the Gap for the proxy writer and all
      out-of-sync readers: what do I care which reader is being
@@ -1922,8 +1922,8 @@ static int handle_Gap (struct receiver_state *rst, ddsrt_etime_t tnow, struct nn
      available because preceding ones are now known to be missing. */
   {
     int refc_adjust = 0;
-    struct nn_rdata *gap;
-    gap = nn_rdata_newgap (rmsg);
+    struct ddsi_rdata *gap;
+    gap = ddsi_rdata_newgap (rmsg);
     if (gapstart < listbase + listidx)
     {
       /* sanity check on sequence numbers because a GAP message is not invalid even
@@ -1950,7 +1950,7 @@ static int handle_Gap (struct receiver_state *rst, ddsrt_etime_t tnow, struct nn
         listidx = j;
       }
     }
-    nn_fragchain_adjust_refcount (gap, refc_adjust);
+    ddsi_fragchain_adjust_refcount (gap, refc_adjust);
   }
 
   /* If the last sequence number explicitly included in the set is
@@ -1976,7 +1976,7 @@ static int handle_Gap (struct receiver_state *rst, ddsrt_etime_t tnow, struct nn
   return 1;
 }
 
-static struct ddsi_serdata *get_serdata (struct ddsi_sertype const * const type, const struct nn_rdata *fragchain, uint32_t sz, int justkey, unsigned statusinfo, ddsrt_wctime_t tstamp)
+static struct ddsi_serdata *get_serdata (struct ddsi_sertype const * const type, const struct ddsi_rdata *fragchain, uint32_t sz, int justkey, unsigned statusinfo, ddsrt_wctime_t tstamp)
 {
   struct ddsi_serdata *sd = ddsi_serdata_from_ser (type, justkey ? SDK_KEY : SDK_DATA, fragchain, sz);
   if (sd)
@@ -1988,10 +1988,10 @@ static struct ddsi_serdata *get_serdata (struct ddsi_sertype const * const type,
 }
 
 struct remote_sourceinfo {
-  const struct nn_rsample_info *sampleinfo;
+  const struct ddsi_rsample_info *sampleinfo;
   unsigned char data_smhdr_flags;
   const ddsi_plist_t *qos;
-  const struct nn_rdata *fragchain;
+  const struct ddsi_rdata *fragchain;
   unsigned statusinfo;
   ddsrt_wctime_t tstamp;
 };
@@ -2001,8 +2001,8 @@ static struct ddsi_serdata *remote_make_sample (struct ddsi_tkmap_instance **tk,
   /* hopefully the compiler figures out that these are just aliases and doesn't reload them
      unnecessarily from memory */
   const struct remote_sourceinfo * __restrict si = vsourceinfo;
-  const struct nn_rsample_info * __restrict sampleinfo = si->sampleinfo;
-  const struct nn_rdata * __restrict fragchain = si->fragchain;
+  const struct ddsi_rsample_info * __restrict sampleinfo = si->sampleinfo;
+  const struct ddsi_rdata * __restrict fragchain = si->fragchain;
   const uint32_t statusinfo = si->statusinfo;
   const unsigned char data_smhdr_flags = si->data_smhdr_flags;
   const ddsrt_wctime_t tstamp = si->tstamp;
@@ -2168,7 +2168,7 @@ static dds_return_t remote_on_delivery_failure_fastpath (struct ddsi_entity_comm
   return DDS_RETCODE_TRY_AGAIN;
 }
 
-static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const struct nn_rdata *fragchain, const ddsi_guid_t *rdguid, int pwr_locked)
+static int deliver_user_data (const struct ddsi_rsample_info *sampleinfo, const struct ddsi_rdata *fragchain, const ddsi_guid_t *rdguid, int pwr_locked)
 {
   static const struct deliver_locally_ops deliver_locally_ops = {
     .makesample = remote_make_sample,
@@ -2176,7 +2176,7 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
     .next_reader = proxy_writer_next_in_sync_reader,
     .on_failure_fastpath = remote_on_delivery_failure_fastpath
   };
-  struct receiver_state const * const rst = sampleinfo->rst;
+  struct ddsi_receiver_state const * const rst = sampleinfo->rst;
   struct ddsi_domaingv * const gv = rst->gv;
   struct ddsi_proxy_writer * const pwr = sampleinfo->pwr;
   unsigned statusinfo;
@@ -2200,7 +2200,7 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
   /* Luckily, the Data header (up to inline QoS) is a prefix of the
      DataFrag header, so for the fixed-position things that we're
      interested in here, both can be treated as Data submessages. */
-  msg = (ddsi_rtps_data_datafrag_common_t *) NN_RMSG_PAYLOADOFF (fragchain->rmsg, NN_RDATA_SUBMSG_OFF (fragchain));
+  msg = (ddsi_rtps_data_datafrag_common_t *) DDSI_RMSG_PAYLOADOFF (fragchain->rmsg, DDSI_RDATA_SUBMSG_OFF (fragchain));
   data_smhdr_flags = ddsi_normalize_data_datafrag_flags (&msg->smhdr);
 
   /* Extract QoS's to the extent necessary.  The expected case has all
@@ -2224,13 +2224,13 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
   else
   {
     ddsi_plist_src_t src;
-    size_t qos_offset = NN_RDATA_SUBMSG_OFF (fragchain) + offsetof (ddsi_rtps_data_datafrag_common_t, octetsToInlineQos) + sizeof (msg->octetsToInlineQos) + msg->octetsToInlineQos;
+    size_t qos_offset = DDSI_RDATA_SUBMSG_OFF (fragchain) + offsetof (ddsi_rtps_data_datafrag_common_t, octetsToInlineQos) + sizeof (msg->octetsToInlineQos) + msg->octetsToInlineQos;
     dds_return_t plist_ret;
     src.protocol_version = rst->protocol_version;
     src.vendorid = rst->vendor;
     src.encoding = (msg->smhdr.flags & DDSI_RTPS_SUBMESSAGE_FLAG_ENDIANNESS) ? DDSI_RTPS_PL_CDR_LE : DDSI_RTPS_PL_CDR_BE;
-    src.buf = NN_RMSG_PAYLOADOFF (fragchain->rmsg, qos_offset);
-    src.bufsz = NN_RDATA_PAYLOAD_OFF (fragchain) - qos_offset;
+    src.buf = DDSI_RMSG_PAYLOADOFF (fragchain->rmsg, qos_offset);
+    src.bufsz = DDSI_RDATA_PAYLOAD_OFF (fragchain) - qos_offset;
     src.strict = DDSI_SC_STRICT_P (gv->config);
     if ((plist_ret = ddsi_plist_init_frommsg (&qos, NULL, PP_STATUSINFO | PP_KEYHASH, 0, &src, gv)) < 0)
     {
@@ -2267,18 +2267,18 @@ static int deliver_user_data (const struct nn_rsample_info *sampleinfo, const st
   return 0;
 }
 
-int user_dqueue_handler (const struct nn_rsample_info *sampleinfo, const struct nn_rdata *fragchain, const ddsi_guid_t *rdguid, UNUSED_ARG (void *qarg))
+int user_dqueue_handler (const struct ddsi_rsample_info *sampleinfo, const struct ddsi_rdata *fragchain, const ddsi_guid_t *rdguid, UNUSED_ARG (void *qarg))
 {
   int res;
   res = deliver_user_data (sampleinfo, fragchain, rdguid, 0);
   return res;
 }
 
-static void deliver_user_data_synchronously (struct nn_rsample_chain *sc, const ddsi_guid_t *rdguid)
+static void deliver_user_data_synchronously (struct ddsi_rsample_chain *sc, const ddsi_guid_t *rdguid)
 {
   while (sc->first)
   {
-    struct nn_rsample_chain_elem *e = sc->first;
+    struct ddsi_rsample_chain_elem *e = sc->first;
     sc->first = e->next;
     if (e->sampleinfo != NULL)
     {
@@ -2288,13 +2288,13 @@ static void deliver_user_data_synchronously (struct nn_rsample_chain *sc, const 
          GUID of a reader to deliver to */
       deliver_user_data (e->sampleinfo, e->fragchain, rdguid, 1);
     }
-    nn_fragchain_unref (e->fragchain);
+    ddsi_fragchain_unref (e->fragchain);
   }
 }
 
 static void clean_defrag (struct ddsi_proxy_writer *pwr)
 {
-  seqno_t seq = nn_reorder_next_seq (pwr->reorder);
+  seqno_t seq = ddsi_reorder_next_seq (pwr->reorder);
   if (pwr->n_readers_out_of_sync > 0)
   {
     struct ddsi_pwr_rd_match *wn;
@@ -2302,20 +2302,20 @@ static void clean_defrag (struct ddsi_proxy_writer *pwr)
     {
       if (wn->in_sync == PRMSS_OUT_OF_SYNC)
       {
-        seqno_t seq1 = nn_reorder_next_seq (wn->u.not_in_sync.reorder);
+        seqno_t seq1 = ddsi_reorder_next_seq (wn->u.not_in_sync.reorder);
         if (seq1 < seq)
           seq = seq1;
       }
     }
   }
-  nn_defrag_notegap (pwr->defrag, 1, seq);
+  ddsi_defrag_notegap (pwr->defrag, 1, seq);
 }
 
-static void handle_regular (struct receiver_state *rst, ddsrt_etime_t tnow, struct nn_rmsg *rmsg, const ddsi_rtps_data_datafrag_common_t *msg, const struct nn_rsample_info *sampleinfo,
-    uint32_t max_fragnum_in_msg, struct nn_rdata *rdata, struct nn_dqueue **deferred_wakeup, bool renew_manbypp_lease)
+static void handle_regular (struct ddsi_receiver_state *rst, ddsrt_etime_t tnow, struct ddsi_rmsg *rmsg, const ddsi_rtps_data_datafrag_common_t *msg, const struct ddsi_rsample_info *sampleinfo,
+    uint32_t max_fragnum_in_msg, struct ddsi_rdata *rdata, struct ddsi_dqueue **deferred_wakeup, bool renew_manbypp_lease)
 {
   struct ddsi_proxy_writer *pwr;
-  struct nn_rsample *rsample;
+  struct ddsi_rsample *rsample;
   ddsi_guid_t dst;
   struct ddsi_lease *lease;
 
@@ -2394,12 +2394,12 @@ static void handle_regular (struct receiver_state *rst, ddsrt_etime_t tnow, stru
 
   clean_defrag (pwr);
 
-  if ((rsample = nn_defrag_rsample (pwr->defrag, rdata, sampleinfo)) != NULL)
+  if ((rsample = ddsi_defrag_rsample (pwr->defrag, rdata, sampleinfo)) != NULL)
   {
     int refc_adjust = 0;
-    struct nn_rsample_chain sc;
-    struct nn_rdata *fragchain = nn_rsample_fragchain (rsample);
-    nn_reorder_result_t rres, rres2;
+    struct ddsi_rsample_chain sc;
+    struct ddsi_rdata *fragchain = ddsi_rsample_fragchain (rsample);
+    ddsi_reorder_result_t rres, rres2;
     struct ddsi_pwr_rd_match *wn;
     int filtered = 0;
 
@@ -2411,7 +2411,7 @@ static void handle_regular (struct receiver_state *rst, ddsrt_etime_t tnow, stru
         {
           if (wn->filtered)
           {
-            rres2 = nn_reorder_rsample (&sc, wn->u.not_in_sync.reorder, rsample, &refc_adjust, nn_dqueue_is_full (pwr->dqueue));
+            rres2 = ddsi_reorder_rsample (&sc, wn->u.not_in_sync.reorder, rsample, &refc_adjust, ddsi_dqueue_is_full (pwr->dqueue));
             if (sampleinfo->seq > wn->last_seq)
             {
               wn->last_seq = sampleinfo->seq;
@@ -2419,7 +2419,7 @@ static void handle_regular (struct receiver_state *rst, ddsrt_etime_t tnow, stru
             if (rres2 > 0)
             {
               if (!pwr->deliver_synchronously)
-                nn_dqueue_enqueue1 (pwr->dqueue, &wn->rd_guid, &sc, rres2);
+                ddsi_dqueue_enqueue1 (pwr->dqueue, &wn->rd_guid, &sc, rres2);
               else
                 deliver_user_data_synchronously (&sc, &wn->rd_guid);
             }
@@ -2432,9 +2432,9 @@ static void handle_regular (struct receiver_state *rst, ddsrt_etime_t tnow, stru
 
     if (!filtered)
     {
-      rres = nn_reorder_rsample (&sc, pwr->reorder, rsample, &refc_adjust, 0); // nn_dqueue_is_full (pwr->dqueue));
+      rres = ddsi_reorder_rsample (&sc, pwr->reorder, rsample, &refc_adjust, 0); // ddsi_dqueue_is_full (pwr->dqueue));
 
-      if (rres == NN_REORDER_ACCEPT && pwr->n_reliable_readers == 0)
+      if (rres == DDSI_REORDER_ACCEPT && pwr->n_reliable_readers == 0)
       {
         /* If no reliable readers but the reorder buffer accepted the
            sample, it must be a reliable proxy writer with only
@@ -2442,7 +2442,7 @@ static void handle_regular (struct receiver_state *rst, ddsrt_etime_t tnow, stru
            will force delivery of this sample, and not cause the gap to
            be added to the reorder admin. */
         int gap_refc_adjust = 0;
-        rres = nn_reorder_gap (&sc, pwr->reorder, rdata, 1, sampleinfo->seq, &gap_refc_adjust);
+        rres = ddsi_reorder_gap (&sc, pwr->reorder, rdata, 1, sampleinfo->seq, &gap_refc_adjust);
         assert (rres > 0);
         assert (gap_refc_adjust == 0);
       }
@@ -2461,15 +2461,15 @@ static void handle_regular (struct receiver_state *rst, ddsrt_etime_t tnow, stru
           /* FIXME: just in case the synchronous delivery runs into a delay caused
              by the current mishandling of resource limits */
           if (*deferred_wakeup)
-            dd_dqueue_enqueue_trigger (*deferred_wakeup);
+            ddsi_dqueue_enqueue_trigger (*deferred_wakeup);
           deliver_user_data_synchronously (&sc, NULL);
         }
         else
         {
-          if (nn_dqueue_enqueue_deferred_wakeup (pwr->dqueue, &sc, rres))
+          if (ddsi_dqueue_enqueue_deferred_wakeup (pwr->dqueue, &sc, rres))
           {
             if (*deferred_wakeup && *deferred_wakeup != pwr->dqueue)
-              dd_dqueue_enqueue_trigger (*deferred_wakeup);
+              ddsi_dqueue_enqueue_trigger (*deferred_wakeup);
             *deferred_wakeup = pwr->dqueue;
           }
         }
@@ -2482,7 +2482,7 @@ static void handle_regular (struct receiver_state *rst, ddsrt_etime_t tnow, stru
            writer; those catching up with TL all by themselves go through
            the "TOO_OLD" path below. */
         ddsrt_avl_iter_t it;
-        struct nn_rsample *rsample_dup = NULL;
+        struct ddsi_rsample *rsample_dup = NULL;
         int reuse_rsample_dup = 0;
         for (wn = ddsrt_avl_iter_first (&ddsi_pwr_readers_treedef, &pwr->readers, &it); wn != NULL; wn = ddsrt_avl_iter_next (&it))
         {
@@ -2491,15 +2491,15 @@ static void handle_regular (struct receiver_state *rst, ddsrt_etime_t tnow, stru
           /* only need to get a copy of the first sample, because that's the one
              that triggered delivery */
           if (!reuse_rsample_dup)
-            rsample_dup = nn_reorder_rsample_dup_first (rmsg, rsample);
-          rres2 = nn_reorder_rsample (&sc, wn->u.not_in_sync.reorder, rsample_dup, &refc_adjust, nn_dqueue_is_full (pwr->dqueue));
+            rsample_dup = ddsi_reorder_rsample_dup_first (rmsg, rsample);
+          rres2 = ddsi_reorder_rsample (&sc, wn->u.not_in_sync.reorder, rsample_dup, &refc_adjust, ddsi_dqueue_is_full (pwr->dqueue));
           switch (rres2)
           {
-            case NN_REORDER_TOO_OLD:
-            case NN_REORDER_REJECT:
+            case DDSI_REORDER_TOO_OLD:
+            case DDSI_REORDER_REJECT:
               reuse_rsample_dup = 1;
               break;
-            case NN_REORDER_ACCEPT:
+            case DDSI_REORDER_ACCEPT:
               reuse_rsample_dup = 0;
               break;
             default:
@@ -2513,7 +2513,7 @@ static void handle_regular (struct receiver_state *rst, ddsrt_etime_t tnow, stru
                  the old data will never be guaranteed to arrive
                  in-order, and those few microseconds can't hurt in
                  catching up on transient-local data.  See also
-                 NN_REORDER_DELIVER case in outer switch. */
+                 DDSI_REORDER_DELIVER case in outer switch. */
               if (pwr->deliver_synchronously)
               {
                 /* FIXME: just in case the synchronous delivery runs into a delay caused
@@ -2524,10 +2524,10 @@ static void handle_regular (struct receiver_state *rst, ddsrt_etime_t tnow, stru
               {
                 if (*deferred_wakeup && *deferred_wakeup != pwr->dqueue)
                 {
-                  dd_dqueue_enqueue_trigger (*deferred_wakeup);
+                  ddsi_dqueue_enqueue_trigger (*deferred_wakeup);
                   *deferred_wakeup = NULL;
                 }
-                nn_dqueue_enqueue1 (pwr->dqueue, &wn->rd_guid, &sc, rres2);
+                ddsi_dqueue_enqueue1 (pwr->dqueue, &wn->rd_guid, &sc, rres2);
               }
               break;
           }
@@ -2535,31 +2535,31 @@ static void handle_regular (struct receiver_state *rst, ddsrt_etime_t tnow, stru
       }
     }
 
-    nn_fragchain_adjust_refcount (fragchain, refc_adjust);
+    ddsi_fragchain_adjust_refcount (fragchain, refc_adjust);
   }
   ddsrt_mutex_unlock (&pwr->e.lock);
-  nn_dqueue_wait_until_empty_if_full (pwr->dqueue);
+  ddsi_dqueue_wait_until_empty_if_full (pwr->dqueue);
 }
 
-static int handle_SPDP (const struct nn_rsample_info *sampleinfo, struct nn_rdata *rdata)
+static int handle_SPDP (const struct ddsi_rsample_info *sampleinfo, struct ddsi_rdata *rdata)
 {
   struct ddsi_domaingv * const gv = sampleinfo->rst->gv;
-  struct nn_rsample *rsample;
-  struct nn_rsample_chain sc;
-  struct nn_rdata *fragchain;
-  nn_reorder_result_t rres;
+  struct ddsi_rsample *rsample;
+  struct ddsi_rsample_chain sc;
+  struct ddsi_rdata *fragchain;
+  ddsi_reorder_result_t rres;
   int refc_adjust = 0;
   ddsrt_mutex_lock (&gv->spdp_lock);
-  rsample = nn_defrag_rsample (gv->spdp_defrag, rdata, sampleinfo);
-  fragchain = nn_rsample_fragchain (rsample);
-  if ((rres = nn_reorder_rsample (&sc, gv->spdp_reorder, rsample, &refc_adjust, nn_dqueue_is_full (gv->builtins_dqueue))) > 0)
-    nn_dqueue_enqueue (gv->builtins_dqueue, &sc, rres);
-  nn_fragchain_adjust_refcount (fragchain, refc_adjust);
+  rsample = ddsi_defrag_rsample (gv->spdp_defrag, rdata, sampleinfo);
+  fragchain = ddsi_rsample_fragchain (rsample);
+  if ((rres = ddsi_reorder_rsample (&sc, gv->spdp_reorder, rsample, &refc_adjust, ddsi_dqueue_is_full (gv->builtins_dqueue))) > 0)
+    ddsi_dqueue_enqueue (gv->builtins_dqueue, &sc, rres);
+  ddsi_fragchain_adjust_refcount (fragchain, refc_adjust);
   ddsrt_mutex_unlock (&gv->spdp_lock);
   return 0;
 }
 
-static void drop_oversize (struct receiver_state *rst, struct nn_rmsg *rmsg, const ddsi_rtps_data_datafrag_common_t *msg, struct nn_rsample_info *sampleinfo)
+static void drop_oversize (struct ddsi_receiver_state *rst, struct ddsi_rmsg *rmsg, const ddsi_rtps_data_datafrag_common_t *msg, struct ddsi_rsample_info *sampleinfo)
 {
   struct ddsi_proxy_writer *pwr = sampleinfo->pwr;
   if (pwr == NULL)
@@ -2582,7 +2582,7 @@ static void drop_oversize (struct receiver_state *rst, struct nn_rmsg *rmsg, con
        event only once is trickier.  Checking whether the gap had some
        effect seems a reasonable approach. */
     int refc_adjust = 0;
-    struct nn_rdata *gap = nn_rdata_newgap (rmsg);
+    struct ddsi_rdata *gap = ddsi_rdata_newgap (rmsg);
     ddsi_guid_t dst;
     struct ddsi_pwr_rd_match *wn;
     int gap_was_valuable;
@@ -2593,7 +2593,7 @@ static void drop_oversize (struct receiver_state *rst, struct nn_rmsg *rmsg, con
     ddsrt_mutex_lock (&pwr->e.lock);
     wn = ddsrt_avl_lookup (&ddsi_pwr_readers_treedef, &pwr->readers, &dst);
     gap_was_valuable = handle_one_gap (pwr, wn, sampleinfo->seq, sampleinfo->seq+1, gap, &refc_adjust);
-    nn_fragchain_adjust_refcount (gap, refc_adjust);
+    ddsi_fragchain_adjust_refcount (gap, refc_adjust);
     ddsrt_mutex_unlock (&pwr->e.lock);
 
     if (gap_was_valuable)
@@ -2608,7 +2608,7 @@ static void drop_oversize (struct receiver_state *rst, struct nn_rmsg *rmsg, con
   }
 }
 
-static int handle_Data (struct receiver_state *rst, ddsrt_etime_t tnow, struct nn_rmsg *rmsg, const ddsi_rtps_data_t *msg, size_t size, struct nn_rsample_info *sampleinfo, const ddsi_keyhash_t *keyhash, unsigned char *datap, struct nn_dqueue **deferred_wakeup, ddsi_rtps_submessage_kind_t prev_smid)
+static int handle_Data (struct ddsi_receiver_state *rst, ddsrt_etime_t tnow, struct ddsi_rmsg *rmsg, const ddsi_rtps_data_t *msg, size_t size, struct ddsi_rsample_info *sampleinfo, const ddsi_keyhash_t *keyhash, unsigned char *datap, struct ddsi_dqueue **deferred_wakeup, ddsi_rtps_submessage_kind_t prev_smid)
 {
   RSTTRACE ("DATA("PGUIDFMT" -> "PGUIDFMT" #%"PRIu64,
             PGUIDPREFIX (rst->src_guid_prefix), msg->x.writerId.u,
@@ -2633,19 +2633,19 @@ static int handle_Data (struct receiver_state *rst, ddsrt_etime_t tnow, struct n
     drop_oversize (rst, rmsg, &msg->x, sampleinfo);
   else
   {
-    struct nn_rdata *rdata;
+    struct ddsi_rdata *rdata;
     unsigned submsg_offset, payload_offset, keyhash_offset;
-    submsg_offset = (unsigned) ((unsigned char *) msg - NN_RMSG_PAYLOAD (rmsg));
+    submsg_offset = (unsigned) ((unsigned char *) msg - DDSI_RMSG_PAYLOAD (rmsg));
     if (datap)
-      payload_offset = (unsigned) ((unsigned char *) datap - NN_RMSG_PAYLOAD (rmsg));
+      payload_offset = (unsigned) ((unsigned char *) datap - DDSI_RMSG_PAYLOAD (rmsg));
     else
       payload_offset = submsg_offset + (unsigned) size;
     if (keyhash)
-      keyhash_offset = (unsigned) (keyhash->value - NN_RMSG_PAYLOAD (rmsg));
+      keyhash_offset = (unsigned) (keyhash->value - DDSI_RMSG_PAYLOAD (rmsg));
     else
       keyhash_offset = 0;
 
-    rdata = nn_rdata_new (rmsg, 0, sampleinfo->size, submsg_offset, payload_offset, keyhash_offset);
+    rdata = ddsi_rdata_new (rmsg, 0, sampleinfo->size, submsg_offset, payload_offset, keyhash_offset);
 
     if ((msg->x.writerId.u & NN_ENTITYID_SOURCE_MASK) == NN_ENTITYID_SOURCE_BUILTIN)
     {
@@ -2677,7 +2677,7 @@ static int handle_Data (struct receiver_state *rst, ddsrt_etime_t tnow, struct n
   return 1;
 }
 
-static int handle_DataFrag (struct receiver_state *rst, ddsrt_etime_t tnow, struct nn_rmsg *rmsg, const ddsi_rtps_datafrag_t *msg, size_t size, struct nn_rsample_info *sampleinfo, const ddsi_keyhash_t *keyhash, unsigned char *datap, struct nn_dqueue **deferred_wakeup, ddsi_rtps_submessage_kind_t prev_smid)
+static int handle_DataFrag (struct ddsi_receiver_state *rst, ddsrt_etime_t tnow, struct ddsi_rmsg *rmsg, const ddsi_rtps_datafrag_t *msg, size_t size, struct ddsi_rsample_info *sampleinfo, const ddsi_keyhash_t *keyhash, unsigned char *datap, struct ddsi_dqueue **deferred_wakeup, ddsi_rtps_submessage_kind_t prev_smid)
 {
   RSTTRACE ("DATAFRAG("PGUIDFMT" -> "PGUIDFMT" #%"PRIu64"/[%"PRIu32"..%"PRIu32"]",
             PGUIDPREFIX (rst->src_guid_prefix), msg->x.writerId.u,
@@ -2703,7 +2703,7 @@ static int handle_DataFrag (struct receiver_state *rst, ddsrt_etime_t tnow, stru
     drop_oversize (rst, rmsg, &msg->x, sampleinfo);
   else
   {
-    struct nn_rdata *rdata;
+    struct ddsi_rdata *rdata;
     unsigned submsg_offset, payload_offset, keyhash_offset;
     uint32_t begin, endp1;
     bool renew_manbypp_lease = true;
@@ -2725,13 +2725,13 @@ static int handle_DataFrag (struct receiver_state *rst, ddsrt_etime_t tnow, stru
       }
     }
 
-    submsg_offset = (unsigned) ((unsigned char *) msg - NN_RMSG_PAYLOAD (rmsg));
+    submsg_offset = (unsigned) ((unsigned char *) msg - DDSI_RMSG_PAYLOAD (rmsg));
     if (datap)
-      payload_offset = (unsigned) ((unsigned char *) datap - NN_RMSG_PAYLOAD (rmsg));
+      payload_offset = (unsigned) ((unsigned char *) datap - DDSI_RMSG_PAYLOAD (rmsg));
     else
       payload_offset = submsg_offset + (unsigned) size;
     if (keyhash)
-      keyhash_offset = (unsigned) (keyhash->value - NN_RMSG_PAYLOAD (rmsg));
+      keyhash_offset = (unsigned) (keyhash->value - DDSI_RMSG_PAYLOAD (rmsg));
     else
       keyhash_offset = 0;
 
@@ -2758,7 +2758,7 @@ static int handle_DataFrag (struct receiver_state *rst, ddsrt_etime_t tnow, stru
     }
     RSTTRACE ("/[%"PRIu32"..%"PRIu32") of %"PRIu32, begin, endp1, msg->sampleSize);
 
-    rdata = nn_rdata_new (rmsg, begin, endp1, submsg_offset, payload_offset, keyhash_offset);
+    rdata = ddsi_rdata_new (rmsg, begin, endp1, submsg_offset, payload_offset, keyhash_offset);
 
     /* Fragment numbers in DDSI2 internal representation are 0-based,
        whereas in DDSI they are 1-based.  The highest fragment number in
@@ -2915,13 +2915,13 @@ static void malformed_packet_received (const struct ddsi_domaingv *gv, const uns
   GVWARNING ("%s\n", tmp);
 }
 
-static struct receiver_state *rst_cow_if_needed (int *rst_live, struct nn_rmsg *rmsg, struct receiver_state *rst)
+static struct ddsi_receiver_state *rst_cow_if_needed (int *rst_live, struct ddsi_rmsg *rmsg, struct ddsi_receiver_state *rst)
 {
   if (! *rst_live)
     return rst;
   else
   {
-    struct receiver_state *nrst = nn_rmsg_alloc (rmsg, sizeof (*nrst));
+    struct ddsi_receiver_state *nrst = ddsi_rmsg_alloc (rmsg, sizeof (*nrst));
     *nrst = *rst;
     *rst_live = 0;
     return nrst;
@@ -2941,17 +2941,17 @@ static int handle_submsg_sequence
   unsigned char * const msg /* NOT const - we may byteswap it */,
   const size_t len,
   unsigned char * submsg /* aliases somewhere in msg */,
-  struct nn_rmsg * const rmsg,
+  struct ddsi_rmsg * const rmsg,
   bool rtps_encoded /* indicate if the message was rtps encoded */
 )
 {
   ddsi_rtps_header_t * hdr = (ddsi_rtps_header_t *) msg;
-  struct receiver_state *rst;
+  struct ddsi_receiver_state *rst;
   int rst_live, ts_for_latmeas;
   ddsrt_wctime_t timestamp;
   size_t submsg_size = 0;
   unsigned char * end = msg + len;
-  struct nn_dqueue *deferred_wakeup = NULL;
+  struct ddsi_dqueue *deferred_wakeup = NULL;
   ddsi_rtps_submessage_kind_t prev_smid = DDSI_RTPS_SMID_PAD;
   struct defer_hb_state defer_hb_state;
 
@@ -2959,7 +2959,7 @@ static int handle_submsg_sequence
      the message.  Updates cause a new copy to be created if the
      current one is "live", i.e., possibly referenced by a
      submessage (for now, only Data(Frag)). */
-  rst = nn_rmsg_alloc (rmsg, sizeof (*rst));
+  rst = ddsi_rmsg_alloc (rmsg, sizeof (*rst));
   memset (rst, 0, sizeof (*rst));
   rst->conn = conn;
   rst->src_guid_prefix = *src_prefix;
@@ -3081,7 +3081,7 @@ static int handle_submsg_sequence
         break;
       }
       case DDSI_RTPS_SMID_DATA_FRAG: {
-        struct nn_rsample_info sampleinfo;
+        struct ddsi_rsample_info sampleinfo;
         uint32_t datasz = 0;
         unsigned char *datap;
         const ddsi_keyhash_t *keyhash;
@@ -3104,7 +3104,7 @@ static int handle_submsg_sequence
         break;
       }
       case DDSI_RTPS_SMID_DATA: {
-        struct nn_rsample_info sampleinfo;
+        struct ddsi_rsample_info sampleinfo;
         unsigned char *datap;
         const ddsi_keyhash_t *keyhash;
         uint32_t datasz = 0;
@@ -3176,7 +3176,7 @@ static int handle_submsg_sequence
   assert (thread_is_asleep ());
   defer_hb_state_fini (gv, &defer_hb_state);
   if (deferred_wakeup)
-    dd_dqueue_enqueue_trigger (deferred_wakeup);
+    ddsi_dqueue_enqueue_trigger (deferred_wakeup);
 
   if (vr != VR_MALFORMED) {
     return 0;
@@ -3186,7 +3186,7 @@ static int handle_submsg_sequence
   }
 }
 
-static void handle_rtps_message (struct thread_state * const thrst, struct ddsi_domaingv *gv, ddsi_tran_conn_t conn, const ddsi_guid_prefix_t *guidprefix, struct nn_rbufpool *rbpool, struct nn_rmsg *rmsg, size_t sz, unsigned char *msg, const ddsi_locator_t *srcloc)
+static void handle_rtps_message (struct thread_state * const thrst, struct ddsi_domaingv *gv, ddsi_tran_conn_t conn, const ddsi_guid_prefix_t *guidprefix, struct ddsi_rbufpool *rbpool, struct ddsi_rmsg *rmsg, size_t sz, unsigned char *msg, const ddsi_locator_t *srcloc)
 {
   ddsi_rtps_header_t *hdr = (ddsi_rtps_header_t *) msg;
   assert (thread_is_asleep ());
@@ -3221,12 +3221,12 @@ static void handle_rtps_message (struct thread_state * const thrst, struct ddsi_
   }
 }
 
-void ddsi_handle_rtps_message (struct thread_state * const thrst, struct ddsi_domaingv *gv, ddsi_tran_conn_t conn, const ddsi_guid_prefix_t *guidprefix, struct nn_rbufpool *rbpool, struct nn_rmsg *rmsg, size_t sz, unsigned char *msg, const ddsi_locator_t *srcloc)
+void ddsi_handle_rtps_message (struct thread_state * const thrst, struct ddsi_domaingv *gv, ddsi_tran_conn_t conn, const ddsi_guid_prefix_t *guidprefix, struct ddsi_rbufpool *rbpool, struct ddsi_rmsg *rmsg, size_t sz, unsigned char *msg, const ddsi_locator_t *srcloc)
 {
   handle_rtps_message (thrst, gv, conn, guidprefix, rbpool, rmsg, sz, msg, srcloc);
 }
 
-static bool do_packet (struct thread_state * const thrst, struct ddsi_domaingv *gv, ddsi_tran_conn_t conn, const ddsi_guid_prefix_t *guidprefix, struct nn_rbufpool *rbpool)
+static bool do_packet (struct thread_state * const thrst, struct ddsi_domaingv *gv, ddsi_tran_conn_t conn, const ddsi_guid_prefix_t *guidprefix, struct ddsi_rbufpool *rbpool)
 {
   /* UDP max packet size is 64kB */
 
@@ -3234,7 +3234,7 @@ static bool do_packet (struct thread_state * const thrst, struct ddsi_domaingv *
   const size_t ddsi_msg_len_size = 8;
   const size_t stream_hdr_size = DDSI_RTPS_MESSAGE_HEADER_SIZE + ddsi_msg_len_size;
   ssize_t sz;
-  struct nn_rmsg * rmsg = nn_rmsg_new (rbpool);
+  struct ddsi_rmsg * rmsg = ddsi_rmsg_new (rbpool);
   unsigned char * buff;
   size_t buff_len = maxsz;
   ddsi_rtps_header_t * hdr;
@@ -3245,8 +3245,8 @@ static bool do_packet (struct thread_state * const thrst, struct ddsi_domaingv *
     return false;
   }
 
-  DDSRT_STATIC_ASSERT (sizeof (struct nn_rmsg) == offsetof (struct nn_rmsg, chunk) + sizeof (struct nn_rmsg_chunk));
-  buff = (unsigned char *) NN_RMSG_PAYLOAD (rmsg);
+  DDSRT_STATIC_ASSERT (sizeof (struct ddsi_rmsg) == offsetof (struct ddsi_rmsg, chunk) + sizeof (struct ddsi_rmsg_chunk));
+  buff = (unsigned char *) DDSI_RMSG_PAYLOAD (rmsg);
   hdr = (ddsi_rtps_header_t*) buff;
 
   if (conn->m_stream)
@@ -3264,7 +3264,7 @@ static bool do_packet (struct thread_state * const thrst, struct ddsi_domaingv *
     if (sz == 0)
     {
       /* Spurious read -- which at this point is still ok */
-      nn_rmsg_commit (rmsg);
+      ddsi_rmsg_commit (rmsg);
       return true;
     }
 
@@ -3313,10 +3313,10 @@ static bool do_packet (struct thread_state * const thrst, struct ddsi_domaingv *
 
   if (sz > 0 && !gv->deaf)
   {
-    nn_rmsg_setsize (rmsg, (uint32_t) sz);
+    ddsi_rmsg_setsize (rmsg, (uint32_t) sz);
     handle_rtps_message(thrst, gv, conn, guidprefix, rbpool, rmsg, (size_t) sz, buff, &srcloc);
   }
-  nn_rmsg_commit (rmsg);
+  ddsi_rmsg_commit (rmsg);
   return (sz > 0);
 }
 
@@ -3511,11 +3511,11 @@ uint32_t recv_thread (void *vrecv_thread_arg)
   struct thread_state * const thrst = ddsi_lookup_thread_state ();
   struct recv_thread_arg *recv_thread_arg = vrecv_thread_arg;
   struct ddsi_domaingv * const gv = recv_thread_arg->gv;
-  struct nn_rbufpool *rbpool = recv_thread_arg->rbpool;
+  struct ddsi_rbufpool *rbpool = recv_thread_arg->rbpool;
   os_sockWaitset waitset = recv_thread_arg->mode == RTM_MANY ? recv_thread_arg->u.many.ws : NULL;
   ddsrt_mtime_t next_thread_cputime = { 0 };
 
-  nn_rbufpool_setowner (rbpool, ddsrt_thread_self ());
+  ddsi_rbufpool_setowner (rbpool, ddsrt_thread_self ());
   if (waitset == NULL)
   {
     struct ddsi_tran_conn *conn = recv_thread_arg->u.single.conn;

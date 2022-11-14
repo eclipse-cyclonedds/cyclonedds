@@ -23,8 +23,8 @@ struct ddsi_participant;
 struct ddsi_topic;
 struct ddsi_writer;
 struct ddsi_reader;
-struct nn_rsample_info;
-struct nn_rdata;
+struct ddsi_rsample_info;
+struct ddsi_rdata;
 struct ddsi_plist;
 
 struct ddsi_participant_builtin_topic_data_locators {
@@ -44,7 +44,7 @@ int ddsi_sedp_write_reader (struct ddsi_reader *rd);
 int ddsi_sedp_dispose_unregister_writer (struct ddsi_writer *wr);
 int ddsi_sedp_dispose_unregister_reader (struct ddsi_reader *rd);
 
-int ddsi_builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const struct nn_rdata *fragchain, const ddsi_guid_t *rdguid, void *qarg);
+int ddsi_builtins_dqueue_handler (const struct ddsi_rsample_info *sampleinfo, const struct ddsi_rdata *fragchain, const ddsi_guid_t *rdguid, void *qarg);
 
 #if defined (__cplusplus)
 }

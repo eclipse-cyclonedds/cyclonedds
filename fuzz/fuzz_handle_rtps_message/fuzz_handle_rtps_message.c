@@ -21,7 +21,7 @@
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_entity.h"
-#include "dds/ddsi/q_radmin.h"
+#include "ddsi__radmin.h"
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/q_transmit.h"
 #include "dds/ddsi/q_receive.h"
@@ -44,7 +44,7 @@ static struct ddsi_config cfg;
 static ddsi_tran_conn_t fakeconn;
 static ddsi_tran_factory_t fakenet;
 static struct thread_state *thrst;
-static struct nn_rbufpool *rbpool;
+static struct ddsi_rbufpool *rbpool;
 // static struct ddsi_tkmap_instance *tk;
 
 static void null_log_sink(void *varg, const dds_log_data_t *msg)
@@ -98,20 +98,20 @@ int LLVMFuzzerTestOneInput(
   fakeconn->m_read_fn = &fakeconn_read;
   fakeconn->m_write_fn = &fakeconn_write;
 
-  rbpool = nn_rbufpool_new(&gv.logconfig, gv.config.rbuf_size, gv.config.rmsg_chunk_size);
-  nn_rbufpool_setowner(rbpool, ddsrt_thread_self());
+  rbpool = ddsi_rbufpool_new(&gv.logconfig, gv.config.rbuf_size, gv.config.rmsg_chunk_size);
+  ddsi_rbufpool_setowner(rbpool, ddsrt_thread_self());
 
   ddsi_guid_prefix_t guidprefix = { 0 };
   ddsi_locator_t srcloc = { 0 };
-  struct nn_rmsg *rmsg = nn_rmsg_new (rbpool);
-  unsigned char *buff = (unsigned char *) NN_RMSG_PAYLOAD (rmsg);
+  struct ddsi_rmsg *rmsg = ddsi_rmsg_new (rbpool);
+  unsigned char *buff = (unsigned char *) DDSI_RMSG_PAYLOAD (rmsg);
   memcpy (buff, data, size);
-  nn_rmsg_setsize (rmsg, (uint32_t) size);
+  ddsi_rmsg_setsize (rmsg, (uint32_t) size);
   ddsi_handle_rtps_message (thrst, &gv, fakeconn, &guidprefix, rbpool, rmsg, size, buff, &srcloc);
-  nn_rmsg_commit (rmsg);
+  ddsi_rmsg_commit (rmsg);
 
   rtps_fini(&gv);
-  nn_rbufpool_free(rbpool);
+  ddsi_rbufpool_free(rbpool);
   free (fakeconn);
 
   // On shutdown there is an expectation that the thread was discovered dynamically.

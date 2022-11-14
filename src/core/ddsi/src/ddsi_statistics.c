@@ -18,7 +18,7 @@
 #include "ddsi__entity_match.h"
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/ddsi_proxy_endpoint.h"
-#include "dds/ddsi/q_radmin.h"
+#include "ddsi__radmin.h"
 #include "ddsi__proxy_endpoint.h"
 
 void ddsi_get_writer_stats (struct ddsi_writer *wr, uint64_t * __restrict rexmit_bytes, uint32_t * __restrict throttle_count, uint64_t * __restrict time_throttled, uint64_t * __restrict time_retransmit)
@@ -54,11 +54,11 @@ void ddsi_get_reader_stats (struct ddsi_reader *rd, uint64_t * __restrict discar
       struct ddsi_pwr_rd_match *x = ddsrt_avl_lookup (&ddsi_pwr_readers_treedef, &pwr->readers, &rd->e.guid);
       if (x != NULL)
       {
-        nn_defrag_stats (pwr->defrag, &disc_frags);
+        ddsi_defrag_stats (pwr->defrag, &disc_frags);
         if (x->in_sync != PRMSS_OUT_OF_SYNC && !x->filtered)
-          nn_reorder_stats (pwr->reorder, &disc_samples);
+          ddsi_reorder_stats (pwr->reorder, &disc_samples);
         else
-          nn_reorder_stats (x->u.not_in_sync.reorder, &disc_samples);
+          ddsi_reorder_stats (x->u.not_in_sync.reorder, &disc_samples);
         *discarded_bytes += disc_frags + disc_samples;
       }
       ddsrt_mutex_unlock (&pwr->e.lock);

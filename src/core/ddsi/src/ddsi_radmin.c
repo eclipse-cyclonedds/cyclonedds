@@ -38,7 +38,7 @@
 
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/ddsi_unused.h"
-#include "dds/ddsi/q_radmin.h"
+#include "ddsi__radmin.h"
 #include "ddsi__bitset.h"
 #include "dds/ddsi/q_thread.h"
 #include "dds/ddsi/ddsi_domaingv.h" /* for mattr, cattr */
@@ -74,7 +74,7 @@
    counting.  For the indexing structures for defragmenting and
    reordering messages, see RDATA, DEFRAG and REORDER below.
 
-   nn_rbufpool
+   ddsi_rbufpool
 
                 One or more rbufs. Currently, an rbufpool is owned by
                 a single receive thread, and only this thread may
@@ -91,20 +91,20 @@
                 does provide a convenient location for storing some
                 constant data.)
 
-   nn_rbuf
+   ddsi_rbuf
 
                 Largish buffer for receiving several UDP packets and
                 for storing partially decoded and indexing information
                 directly following the packet.
 
-   nn_rmsg
+   ddsi_rmsg
 
                 One message in an rbuf; the layout for one message is
                 rmsg, raw udp packet, decoder stuff mixed with rdata,
                 defragmentation and message reordering state.  One
                 rbuf can contain many messages.
 
-   nn_rdata
+   ddsi_rdata
 
                 Represents one Data/DataFrag submessage.  These
                 contain some administrative data & point to the
@@ -177,18 +177,18 @@
      receive_thread ()
      {
        ...
-       rbpool = nn_rbufpool_new (1MB, 128kB)
+       rbpool = ddsi_rbufpool_new (1MB, 128kB)
        ...
 
        while ...
-         rmsg = nn_rmsg_new (rbpool)
+         rmsg = ddsi_rmsg_new (rbpool)
          actualsize = recvfrom (rmsg.payload, 64kB)
-         nn_rmsg_setsize (rmsg, actualsize)
+         ddsi_rmsg_setsize (rmsg, actualsize)
          process (rmsg)
-         nn_rmsg_commit (rmsg)
+         ddsi_rmsg_commit (rmsg)
 
        ... ensure no references to any buffer in rbpool exist ...
-       nn_rbufpool_free (rbpool)
+       ddsi_rbufpool_free (rbpool)
        ...
      }
 
@@ -203,28 +203,28 @@
        sampleinfo.fragsize = XX;
        sampleinfo.size = XX;
        sampleinfo.(others) = XX if first fragment, else not important
-       sample = nn_defrag_rsample (pwr->defrag, rdata, &sampleinfo)
+       sample = ddsi_defrag_rsample (pwr->defrag, rdata, &sampleinfo)
        if sample
-         fragchain = nn_rsample_fragchain (sample)
+         fragchain = ddsi_rsample_fragchain (sample)
          refcount_adjust = 0;
 
          if send-to-proxy-writer-reorder
-           if nn_reorder_rsample (&sc, pwr->reorder, sample, &refcount_adjust)
+           if ddsi_reorder_rsample (&sc, pwr->reorder, sample, &refcount_adjust)
               == DELIVER
              deliver-to-group (pwr, sc)
          else
            for (m in out-of-sync-reader-matches)
-             sample' = nn_reorder_rsample_dup (rmsg, sample)
-             if nn_reorder_rsample (&sc, m->reorder, sample, &refcount_adjust)
+             sample' = ddsi_reorder_rsample_dup (rmsg, sample)
+             if ddsi_reorder_rsample (&sc, m->reorder, sample, &refcount_adjust)
                 == DELIVER
                deliver-to-reader (m->reader, sc)
 
-         nn_fragchain_adjust_refcount (fragchain, refcount_adjust)
+         ddsi_fragchain_adjust_refcount (fragchain, refcount_adjust)
        fi
      rof
 
    Where deliver-to-x() must of course decrement refcounts after
-   delivery when done, using nn_fragchain_unref().  See also REORDER
+   delivery when done, using ddsi_fragchain_unref().  See also REORDER
    for the subtleties of the refcount game.
 
    Note that there is an alternative to all this trickery with
@@ -251,13 +251,13 @@
      for a Gap [a,b] in rmsg
        defrag_notegap (a, b+1)
        refcount_adjust = 0
-       gap = nn_rdata_newgap (rmsg);
-       if nn_reorder_gap (&sc, reorder, gap, a, b+1, &refcount_adjust)
+       gap = ddsi_rdata_newgap (rmsg);
+       if ddsi_reorder_gap (&sc, reorder, gap, a, b+1, &refcount_adjust)
          deliver-to-group (pwr, sc)
        for (m in out-of-sync-reader-matches)
-         if nn_reorder_gap (&sc, m->reorder, gap, a, b+1, &refcount_adjust)
+         if ddsi_reorder_gap (&sc, m->reorder, gap, a, b+1, &refcount_adjust)
            deliver-to-reader (m->reader, sc)
-       nn_fragchain_adjust_refcount (gap, refcount_adjust)
+       ddsi_fragchain_adjust_refcount (gap, refcount_adjust)
 
    Note that a Gap always gets processed both by the primary and by
    the secondary reorder admins.  This is because it covers a range.
@@ -267,7 +267,7 @@
 
 /* RBUFPOOL ------------------------------------------------------------ */
 
-struct nn_rbufpool {
+struct ddsi_rbufpool {
   /* An rbuf pool is owned by a receive thread, and that thread is the
      only allocating rmsgs from the rbufs in the pool. Any thread may
      be releasing buffers to the pool as they become empty.
@@ -281,7 +281,7 @@ struct nn_rbufpool {
      compare-and-swap, and we don't have that. But it hardly ever
      happens anyway. */
   ddsrt_mutex_t lock;
-  struct nn_rbuf *current;
+  struct ddsi_rbuf *current;
   uint32_t rbuf_size;
   uint32_t max_rmsg_size;
   const struct ddsrt_log_cfg *logcfg;
@@ -293,8 +293,8 @@ struct nn_rbufpool {
 #endif
 };
 
-static struct nn_rbuf *nn_rbuf_alloc_new (struct nn_rbufpool *rbp);
-static void nn_rbuf_release (struct nn_rbuf *rbuf);
+static struct ddsi_rbuf *ddsi_rbuf_alloc_new (struct ddsi_rbufpool *rbp);
+static void ddsi_rbuf_release (struct ddsi_rbuf *rbuf);
 
 #define TRACE_CFG(obj, logcfg, ...) ((obj)->trace ? (void) DDS_CLOG (DDS_LC_RADMIN, (logcfg), __VA_ARGS__) : (void) 0)
 #define TRACE(obj, ...)             TRACE_CFG ((obj), (obj)->logcfg, __VA_ARGS__)
@@ -305,8 +305,8 @@ static void nn_rbuf_release (struct nn_rbuf *rbuf);
 
 static uint32_t align_rmsg (uint32_t x)
 {
-  x += (uint32_t) ALIGNOF_RMSG - 1;
-  x -= x % (uint32_t) ALIGNOF_RMSG;
+  x += (uint32_t) DDSI_ALIGNOF_RMSG - 1;
+  x -= x % (uint32_t) DDSI_ALIGNOF_RMSG;
   return x;
 }
 
@@ -326,19 +326,19 @@ static uint32_t max_rmsg_size_w_hdr (uint32_t max_rmsg_size)
   /* rbuf_alloc allocates max_rmsg_size, which is actually max
      _payload_ size (this is so 64kB max_rmsg_size always suffices for
      a UDP packet, regardless of internal structure).  We use it for
-     nn_rmsg and nn_rmsg_chunk, but the difference in size is
+     ddsi_rmsg and ddsi_rmsg_chunk, but the difference in size is
      negligible really.  So in the interest of simplicity, we always
      allocate for the worst case, and may waste a few bytes here or
      there. */
   return
-    max_uint32 ((uint32_t) (offsetof (struct nn_rmsg, chunk) + sizeof (struct nn_rmsg_chunk)),
-                (uint32_t) sizeof (struct nn_rmsg_chunk))
+    max_uint32 ((uint32_t) (offsetof (struct ddsi_rmsg, chunk) + sizeof (struct ddsi_rmsg_chunk)),
+                (uint32_t) sizeof (struct ddsi_rmsg_chunk))
     + max_rmsg_size;
 }
 
-struct nn_rbufpool *nn_rbufpool_new (const struct ddsrt_log_cfg *logcfg, uint32_t rbuf_size, uint32_t max_rmsg_size)
+struct ddsi_rbufpool *ddsi_rbufpool_new (const struct ddsrt_log_cfg *logcfg, uint32_t rbuf_size, uint32_t max_rmsg_size)
 {
-  struct nn_rbufpool *rbp;
+  struct ddsi_rbufpool *rbp;
 
   assert (max_rmsg_size > 0);
 
@@ -366,7 +366,7 @@ struct nn_rbufpool *nn_rbufpool_new (const struct ddsrt_log_cfg *logcfg, uint32_
   VALGRIND_CREATE_MEMPOOL (rbp, 0, 0);
 #endif
 
-  if ((rbp->current = nn_rbuf_alloc_new (rbp)) == NULL)
+  if ((rbp->current = ddsi_rbuf_alloc_new (rbp)) == NULL)
     goto fail_rbuf;
   return rbp;
 
@@ -380,14 +380,14 @@ struct nn_rbufpool *nn_rbufpool_new (const struct ddsrt_log_cfg *logcfg, uint32_
   return NULL;
 }
 
-void nn_rbufpool_setowner (UNUSED_ARG_NDEBUG (struct nn_rbufpool *rbp), UNUSED_ARG_NDEBUG (ddsrt_thread_t tid))
+void ddsi_rbufpool_setowner (UNUSED_ARG_NDEBUG (struct ddsi_rbufpool *rbp), UNUSED_ARG_NDEBUG (ddsrt_thread_t tid))
 {
 #ifndef NDEBUG
   rbp->owner_tid = tid;
 #endif
 }
 
-void nn_rbufpool_free (struct nn_rbufpool *rbp)
+void ddsi_rbufpool_free (struct ddsi_rbufpool *rbp)
 {
 #if 0
   /* Anyone may free it: I want to be able to stop the receive
@@ -396,7 +396,7 @@ void nn_rbufpool_free (struct nn_rbufpool *rbp)
      reference counts are all 0, as they should be. */
   ASSERT_RBUFPOOL_OWNER (rbp);
 #endif
-  nn_rbuf_release (rbp->current);
+  ddsi_rbuf_release (rbp->current);
 #if USE_VALGRIND
   VALGRIND_DESTROY_MEMPOOL (rbp);
 #endif
@@ -406,11 +406,11 @@ void nn_rbufpool_free (struct nn_rbufpool *rbp)
 
 /* RBUF ---------------------------------------------------------------- */
 
-struct nn_rbuf {
+struct ddsi_rbuf {
   ddsrt_atomic_uint32_t n_live_rmsg_chunks;
   uint32_t size;
   uint32_t max_rmsg_size;
-  struct nn_rbufpool *rbufpool;
+  struct ddsi_rbufpool *rbufpool;
   bool trace;
 
   /* Allocating sequentially, releasing in random order, not bothering
@@ -426,16 +426,16 @@ struct nn_rbuf {
     void *p;
   } u;
 
-  /* raw data array, nn_rbuf::size bytes long in reality */
+  /* raw data array, ddsi_rbuf::size bytes long in reality */
   unsigned char raw[];
 };
 
-static struct nn_rbuf *nn_rbuf_alloc_new (struct nn_rbufpool *rbp)
+static struct ddsi_rbuf *ddsi_rbuf_alloc_new (struct ddsi_rbufpool *rbp)
 {
-  struct nn_rbuf *rb;
+  struct ddsi_rbuf *rb;
   ASSERT_RBUFPOOL_OWNER (rbp);
 
-  if ((rb = ddsrt_malloc (sizeof (struct nn_rbuf) + rbp->rbuf_size)) == NULL)
+  if ((rb = ddsrt_malloc (sizeof (struct ddsi_rbuf) + rbp->rbuf_size)) == NULL)
     return NULL;
 #if USE_VALGRIND
   VALGRIND_MAKE_MEM_NOACCESS (rb->raw, rbp->rbuf_size);
@@ -451,24 +451,24 @@ static struct nn_rbuf *nn_rbuf_alloc_new (struct nn_rbufpool *rbp)
   return rb;
 }
 
-static struct nn_rbuf *nn_rbuf_new (struct nn_rbufpool *rbp)
+static struct ddsi_rbuf *ddsi_rbuf_new (struct ddsi_rbufpool *rbp)
 {
-  struct nn_rbuf *rb;
+  struct ddsi_rbuf *rb;
   assert (rbp->current);
   ASSERT_RBUFPOOL_OWNER (rbp);
-  if ((rb = nn_rbuf_alloc_new (rbp)) != NULL)
+  if ((rb = ddsi_rbuf_alloc_new (rbp)) != NULL)
   {
     ddsrt_mutex_lock (&rbp->lock);
-    nn_rbuf_release (rbp->current);
+    ddsi_rbuf_release (rbp->current);
     rbp->current = rb;
     ddsrt_mutex_unlock (&rbp->lock);
   }
   return rb;
 }
 
-static void nn_rbuf_release (struct nn_rbuf *rbuf)
+static void ddsi_rbuf_release (struct ddsi_rbuf *rbuf)
 {
-  struct nn_rbufpool *rbp = rbuf->rbufpool;
+  struct ddsi_rbufpool *rbp = rbuf->rbufpool;
   RBPTRACE ("rbuf_release(%p) pool %p current %p\n", (void *) rbuf, (void *) rbp, (void *) rbp->current);
   if (ddsrt_atomic_dec32_ov (&rbuf->n_live_rmsg_chunks) == 1)
   {
@@ -494,11 +494,11 @@ static void nn_rbuf_release (struct nn_rbuf *rbuf)
 #define ASSERT_RMSG_UNCOMMITTED(rmsg) ((void) 0)
 #endif
 
-static void *nn_rbuf_alloc (struct nn_rbufpool *rbp)
+static void *ddsi_rbuf_alloc (struct ddsi_rbufpool *rbp)
 {
-  /* Note: only one thread calls nn_rmsg_new on a pool */
+  /* Note: only one thread calls ddsi_rmsg_new on a pool */
   uint32_t asize = max_rmsg_size_w_hdr (rbp->max_rmsg_size);
-  struct nn_rbuf *rb;
+  struct ddsi_rbuf *rb;
   RBPTRACE ("rmsg_rbuf_alloc(%p, %"PRIu32")\n", (void *) rbp, asize);
   ASSERT_RBUFPOOL_OWNER (rbp);
   rb = rbp->current;
@@ -509,7 +509,7 @@ static void *nn_rbuf_alloc (struct nn_rbufpool *rbp)
   if ((uint32_t) (rb->raw + rb->size - rb->freeptr) < asize)
   {
     /* not enough space left for new rmsg */
-    if ((rb = nn_rbuf_new (rbp)) == NULL)
+    if ((rb = ddsi_rbuf_new (rbp)) == NULL)
       return NULL;
 
     /* a new one should have plenty of space */
@@ -523,7 +523,7 @@ static void *nn_rbuf_alloc (struct nn_rbufpool *rbp)
   return rb->freeptr;
 }
 
-static void init_rmsg_chunk (struct nn_rmsg_chunk *chunk, struct nn_rbuf *rbuf)
+static void init_rmsg_chunk (struct ddsi_rmsg_chunk *chunk, struct ddsi_rbuf *rbuf)
 {
   chunk->rbuf = rbuf;
   chunk->next = NULL;
@@ -531,13 +531,13 @@ static void init_rmsg_chunk (struct nn_rmsg_chunk *chunk, struct nn_rbuf *rbuf)
   ddsrt_atomic_inc32 (&rbuf->n_live_rmsg_chunks);
 }
 
-struct nn_rmsg *nn_rmsg_new (struct nn_rbufpool *rbp)
+struct ddsi_rmsg *ddsi_rmsg_new (struct ddsi_rbufpool *rbp)
 {
-  /* Note: only one thread calls nn_rmsg_new on a pool */
-  struct nn_rmsg *rmsg;
+  /* Note: only one thread calls ddsi_rmsg_new on a pool */
+  struct ddsi_rmsg *rmsg;
   RBPTRACE ("rmsg_new(%p)\n", (void *) rbp);
 
-  rmsg = nn_rbuf_alloc (rbp);
+  rmsg = ddsi_rbuf_alloc (rbp);
   if (rmsg == NULL)
     return NULL;
 
@@ -553,7 +553,7 @@ struct nn_rmsg *nn_rmsg_new (struct nn_rbufpool *rbp)
   return rmsg;
 }
 
-void nn_rmsg_setsize (struct nn_rmsg *rmsg, uint32_t size)
+void ddsi_rmsg_setsize (struct ddsi_rmsg *rmsg, uint32_t size)
 {
   uint32_t size8P = align_rmsg (size);
   RMSGTRACE ("rmsg_setsize(%p, %"PRIu32" => %"PRIu32")\n", (void *) rmsg, size, size8P);
@@ -565,11 +565,11 @@ void nn_rmsg_setsize (struct nn_rmsg *rmsg, uint32_t size)
   assert (rmsg->lastchunk == &rmsg->chunk);
   rmsg->chunk.u.size = size8P;
 #if USE_VALGRIND
-  VALGRIND_MEMPOOL_CHANGE (rmsg->chunk.rbuf->rbufpool, rmsg, rmsg, offsetof (struct nn_rmsg, chunk.u.payload) + rmsg->chunk.size);
+  VALGRIND_MEMPOOL_CHANGE (rmsg->chunk.rbuf->rbufpool, rmsg, rmsg, offsetof (struct ddsi_rmsg, chunk.u.payload) + rmsg->chunk.size);
 #endif
 }
 
-void nn_rmsg_free (struct nn_rmsg *rmsg)
+void ddsi_rmsg_free (struct ddsi_rmsg *rmsg)
 {
   /* Note: any thread may call rmsg_free.
 
@@ -578,14 +578,14 @@ void nn_rmsg_free (struct nn_rmsg *rmsg)
      rmsg.  Except that that would require synchronising new() and
      free() which we don't do currently.  And ideally, you'd use
      compare-and-swap for this. */
-  struct nn_rmsg_chunk *c;
+  struct ddsi_rmsg_chunk *c;
   RMSGTRACE ("rmsg_free(%p)\n", (void *) rmsg);
   assert (ddsrt_atomic_ld32 (&rmsg->refcount) == 0);
   c = &rmsg->chunk;
   while (c)
   {
-    struct nn_rbuf *rbuf = c->rbuf;
-    struct nn_rmsg_chunk *c1 = c->next;
+    struct ddsi_rbuf *rbuf = c->rbuf;
+    struct ddsi_rmsg_chunk *c1 = c->next;
 #if USE_VALGRIND
     if (c == &rmsg->chunk) {
       VALGRIND_MEMPOOL_FREE (rbuf->rbufpool, rmsg);
@@ -594,19 +594,19 @@ void nn_rmsg_free (struct nn_rmsg *rmsg)
     }
 #endif
     assert (ddsrt_atomic_ld32 (&rbuf->n_live_rmsg_chunks) > 0);
-    nn_rbuf_release (rbuf);
+    ddsi_rbuf_release (rbuf);
     c = c1;
   }
 }
 
-static void commit_rmsg_chunk (struct nn_rmsg_chunk *chunk)
+static void commit_rmsg_chunk (struct ddsi_rmsg_chunk *chunk)
 {
-  struct nn_rbuf *rbuf = chunk->rbuf;
+  struct ddsi_rbuf *rbuf = chunk->rbuf;
   RBUFTRACE ("commit_rmsg_chunk(%p)\n", (void *) chunk);
   rbuf->freeptr = (unsigned char *) (chunk + 1) + chunk->u.size;
 }
 
-void nn_rmsg_commit (struct nn_rmsg *rmsg)
+void ddsi_rmsg_commit (struct ddsi_rmsg *rmsg)
 {
   /* Note: only one thread calls rmsg_commit -- the one that created
      it in the first place.
@@ -616,19 +616,19 @@ void nn_rmsg_commit (struct nn_rmsg *rmsg)
      contain anything processed asynchronously, or the scheduling
      happens to be such that any asynchronous activities have
      completed before we got to commit. */
-  struct nn_rmsg_chunk *chunk = rmsg->lastchunk;
+  struct ddsi_rmsg_chunk *chunk = rmsg->lastchunk;
   RMSGTRACE ("rmsg_commit(%p) refcount 0x%"PRIx32" last-chunk-size %"PRIu32"\n",
              (void *) rmsg, rmsg->refcount.v, chunk->u.size);
   ASSERT_RBUFPOOL_OWNER (chunk->rbuf->rbufpool);
   ASSERT_RMSG_UNCOMMITTED (rmsg);
   assert (chunk->u.size <= chunk->rbuf->max_rmsg_size);
-  assert ((chunk->u.size % ALIGNOF_RMSG) == 0);
+  assert ((chunk->u.size % DDSI_ALIGNOF_RMSG) == 0);
   assert (ddsrt_atomic_ld32 (&rmsg->refcount) >= RMSG_REFCOUNT_UNCOMMITTED_BIAS);
   assert (ddsrt_atomic_ld32 (&rmsg->chunk.rbuf->n_live_rmsg_chunks) > 0);
   assert (ddsrt_atomic_ld32 (&chunk->rbuf->n_live_rmsg_chunks) > 0);
   assert (chunk->rbuf->rbufpool->current == chunk->rbuf);
   if (ddsrt_atomic_sub32_nv (&rmsg->refcount, RMSG_REFCOUNT_UNCOMMITTED_BIAS) == 0)
-    nn_rmsg_free (rmsg);
+    ddsi_rmsg_free (rmsg);
   else
   {
     /* Other references exist, so either stored in defrag, reorder
@@ -638,7 +638,7 @@ void nn_rmsg_commit (struct nn_rmsg *rmsg)
   }
 }
 
-static void nn_rmsg_addbias (struct nn_rmsg *rmsg)
+static void ddsi_rmsg_addbias (struct ddsi_rmsg *rmsg)
 {
   /* Note: only the receive thread that owns the receive pool may
      increase the reference count, and only while it is still
@@ -652,7 +652,7 @@ static void nn_rmsg_addbias (struct nn_rmsg *rmsg)
   ddsrt_atomic_add32 (&rmsg->refcount, RMSG_REFCOUNT_RDATA_BIAS);
 }
 
-static void nn_rmsg_rmbias_and_adjust (struct nn_rmsg *rmsg, int adjust)
+static void ddsi_rmsg_rmbias_and_adjust (struct ddsi_rmsg *rmsg, int adjust)
 {
   /* This can happen to any rmsg referenced by an sample still
      progressing through the pipeline, but only by a receive
@@ -664,39 +664,39 @@ static void nn_rmsg_rmbias_and_adjust (struct nn_rmsg *rmsg, int adjust)
   sub = RMSG_REFCOUNT_RDATA_BIAS - (uint32_t) adjust;
   assert (ddsrt_atomic_ld32 (&rmsg->refcount) >= sub);
   if (ddsrt_atomic_sub32_nv (&rmsg->refcount, sub) == 0)
-    nn_rmsg_free (rmsg);
+    ddsi_rmsg_free (rmsg);
 }
 
-static void nn_rmsg_unref (struct nn_rmsg *rmsg)
+static void ddsi_rmsg_unref (struct ddsi_rmsg *rmsg)
 {
   RMSGTRACE ("rmsg_unref(%p)\n", (void *) rmsg);
   assert (ddsrt_atomic_ld32 (&rmsg->refcount) > 0);
   if (ddsrt_atomic_dec32_ov (&rmsg->refcount) == 1)
-    nn_rmsg_free (rmsg);
+    ddsi_rmsg_free (rmsg);
 }
 
-void *nn_rmsg_alloc (struct nn_rmsg *rmsg, uint32_t size)
+void *ddsi_rmsg_alloc (struct ddsi_rmsg *rmsg, uint32_t size)
 {
-  struct nn_rmsg_chunk *chunk = rmsg->lastchunk;
-  struct nn_rbuf *rbuf = chunk->rbuf;
+  struct ddsi_rmsg_chunk *chunk = rmsg->lastchunk;
+  struct ddsi_rbuf *rbuf = chunk->rbuf;
   uint32_t size8P = align_rmsg (size);
   void *ptr;
   RMSGTRACE ("rmsg_alloc(%p, %"PRIu32" => %"PRIu32")\n", (void *) rmsg, size, size8P);
   ASSERT_RBUFPOOL_OWNER (rbuf->rbufpool);
   ASSERT_RMSG_UNCOMMITTED (rmsg);
-  assert ((chunk->u.size % ALIGNOF_RMSG) == 0);
+  assert ((chunk->u.size % DDSI_ALIGNOF_RMSG) == 0);
   assert (size8P <= rbuf->max_rmsg_size);
 
   if (chunk->u.size + size8P > rbuf->max_rmsg_size)
   {
-    struct nn_rbufpool *rbp = rbuf->rbufpool;
-    struct nn_rmsg_chunk *newchunk;
+    struct ddsi_rbufpool *rbp = rbuf->rbufpool;
+    struct ddsi_rmsg_chunk *newchunk;
     RMSGTRACE ("rmsg_alloc(%p, %"PRIu32") limit hit - new chunk\n", (void *) rmsg, size);
     commit_rmsg_chunk (chunk);
-    newchunk = nn_rbuf_alloc (rbp);
+    newchunk = ddsi_rbuf_alloc (rbp);
     if (newchunk == NULL)
     {
-      DDS_CWARNING (rbp->logcfg, "nn_rmsg_alloc: can't allocate more memory (%"PRIu32" bytes) ... giving up\n", size);
+      DDS_CWARNING (rbp->logcfg, "ddsi_rmsg_alloc: can't allocate more memory (%"PRIu32" bytes) ... giving up\n", size);
       return NULL;
     }
     init_rmsg_chunk (newchunk, rbp->current);
@@ -709,9 +709,9 @@ void *nn_rmsg_alloc (struct nn_rmsg *rmsg, uint32_t size)
   RMSGTRACE ("rmsg_alloc(%p, %"PRIu32") = %p\n", (void *) rmsg, size, ptr);
 #if USE_VALGRIND
   if (chunk == &rmsg->chunk) {
-    VALGRIND_MEMPOOL_CHANGE (rbuf->rbufpool, rmsg, rmsg, offsetof (struct nn_rmsg, chunk.u.payload) + chunk->size);
+    VALGRIND_MEMPOOL_CHANGE (rbuf->rbufpool, rmsg, rmsg, offsetof (struct ddsi_rmsg, chunk.u.payload) + chunk->size);
   } else {
-    VALGRIND_MEMPOOL_CHANGE (rbuf->rbufpool, chunk, chunk, offsetof (struct nn_rmsg_chunk, u.payload) + chunk->size);
+    VALGRIND_MEMPOOL_CHANGE (rbuf->rbufpool, chunk, chunk, offsetof (struct ddsi_rmsg_chunk, u.payload) + chunk->size);
   }
 #endif
   return ptr;
@@ -719,54 +719,54 @@ void *nn_rmsg_alloc (struct nn_rmsg *rmsg, uint32_t size)
 
 /* RDATA --------------------------------------- */
 
-struct nn_rdata *nn_rdata_new (struct nn_rmsg *rmsg, uint32_t start, uint32_t endp1, uint32_t submsg_offset, uint32_t payload_offset, uint32_t keyhash_offset)
+struct ddsi_rdata *ddsi_rdata_new (struct ddsi_rmsg *rmsg, uint32_t start, uint32_t endp1, uint32_t submsg_offset, uint32_t payload_offset, uint32_t keyhash_offset)
 {
-  struct nn_rdata *d;
-  if ((d = nn_rmsg_alloc (rmsg, sizeof (*d))) == NULL)
+  struct ddsi_rdata *d;
+  if ((d = ddsi_rmsg_alloc (rmsg, sizeof (*d))) == NULL)
     return NULL;
   d->rmsg = rmsg;
   d->nextfrag = NULL;
   d->min = start;
   d->maxp1 = endp1;
-  d->submsg_zoff = (uint16_t) NN_OFF_TO_ZOFF (submsg_offset);
-  d->payload_zoff = (uint16_t) NN_OFF_TO_ZOFF (payload_offset);
-  d->keyhash_zoff = (uint16_t) NN_OFF_TO_ZOFF (keyhash_offset);
+  d->submsg_zoff = (uint16_t) DDSI_OFF_TO_ZOFF (submsg_offset);
+  d->payload_zoff = (uint16_t) DDSI_OFF_TO_ZOFF (payload_offset);
+  d->keyhash_zoff = (uint16_t) DDSI_OFF_TO_ZOFF (keyhash_offset);
 #ifndef NDEBUG
   ddsrt_atomic_st32 (&d->refcount_bias_added, 0);
 #endif
   RMSGTRACE ("rdata_new(%p, bytes [%"PRIu32",%"PRIu32"), submsg @ %u, payload @ %u) = %p\n",
-             (void *) rmsg, start, endp1, NN_RDATA_SUBMSG_OFF (d), NN_RDATA_PAYLOAD_OFF (d), (void *) d);
+             (void *) rmsg, start, endp1, DDSI_RDATA_SUBMSG_OFF (d), DDSI_RDATA_PAYLOAD_OFF (d), (void *) d);
   return d;
 }
 
-static void nn_rdata_addbias (struct nn_rdata *rdata)
+static void ddsi_rdata_addbias (struct ddsi_rdata *rdata)
 {
-  struct nn_rmsg *rmsg = rdata->rmsg;
+  struct ddsi_rmsg *rmsg = rdata->rmsg;
   RMSGTRACE ("rdata_addbias(%p)\n", (void *) rdata);
 #ifndef NDEBUG
   ASSERT_RBUFPOOL_OWNER (rmsg->chunk.rbuf->rbufpool);
   if (ddsrt_atomic_inc32_nv (&rdata->refcount_bias_added) != 1)
     abort ();
 #endif
-  nn_rmsg_addbias (rmsg);
+  ddsi_rmsg_addbias (rmsg);
 }
 
-static void nn_rdata_rmbias_and_adjust (struct nn_rdata *rdata, int adjust)
+static void ddsi_rdata_rmbias_and_adjust (struct ddsi_rdata *rdata, int adjust)
 {
-  struct nn_rmsg *rmsg = rdata->rmsg;
+  struct ddsi_rmsg *rmsg = rdata->rmsg;
   RMSGTRACE ("rdata_rmbias_and_adjust(%p, %d)\n", (void *) rdata, adjust);
 #ifndef NDEBUG
   if (ddsrt_atomic_dec32_ov (&rdata->refcount_bias_added) != 1)
     abort ();
 #endif
-  nn_rmsg_rmbias_and_adjust (rmsg, adjust);
+  ddsi_rmsg_rmbias_and_adjust (rmsg, adjust);
 }
 
-static void nn_rdata_unref (struct nn_rdata *rdata)
+static void ddsi_rdata_unref (struct ddsi_rdata *rdata)
 {
-  struct nn_rmsg *rmsg = rdata->rmsg;
+  struct ddsi_rmsg *rmsg = rdata->rmsg;
   RMSGTRACE ("rdata_rdata_unref(%p)\n", (void *) rdata);
-  nn_rmsg_unref (rmsg);
+  ddsi_rmsg_unref (rmsg);
 }
 
 /* DEFRAG --------------------------------------------------------------
@@ -832,37 +832,37 @@ static void nn_rdata_unref (struct nn_rdata *rdata)
    of intervals in the tree is limited, which probably is a good idea
    anyway). */
 
-struct nn_defrag_iv {
-  ddsrt_avl_node_t avlnode; /* for nn_rsample.defrag::fragtree */
+struct ddsi_defrag_iv {
+  ddsrt_avl_node_t avlnode; /* for ddsi_rsample.defrag::fragtree */
   uint32_t min, maxp1;
-  struct nn_rdata *first;
-  struct nn_rdata *last;
+  struct ddsi_rdata *first;
+  struct ddsi_rdata *last;
 };
 
-struct nn_rsample {
+struct ddsi_rsample {
   union {
-    struct nn_rsample_defrag {
-      ddsrt_avl_node_t avlnode; /* for nn_defrag::sampletree */
+    struct ddsi_rsample_defrag {
+      ddsrt_avl_node_t avlnode; /* for ddsi_defrag::sampletree */
       ddsrt_avl_tree_t fragtree;
-      struct nn_defrag_iv *lastfrag;
-      struct nn_rsample_info *sampleinfo;
+      struct ddsi_defrag_iv *lastfrag;
+      struct ddsi_rsample_info *sampleinfo;
       seqno_t seq;
     } defrag;
-    struct nn_rsample_reorder {
-      ddsrt_avl_node_t avlnode;       /* for nn_reorder::sampleivtree, if head of a chain */
-      struct nn_rsample_chain sc; /* this interval's samples, covering ... */
+    struct ddsi_rsample_reorder {
+      ddsrt_avl_node_t avlnode;       /* for ddsi_reorder::sampleivtree, if head of a chain */
+      struct ddsi_rsample_chain sc; /* this interval's samples, covering ... */
       seqno_t min, maxp1;        /* ... seq nos: [min,maxp1), but possibly with holes in it */
       uint32_t n_samples;        /* so this is the actual length of the chain */
     } reorder;
   } u;
 };
 
-struct nn_defrag {
+struct ddsi_defrag {
   ddsrt_avl_tree_t sampletree;
-  struct nn_rsample *max_sample; /* = max(sampletree) */
+  struct ddsi_rsample *max_sample; /* = max(sampletree) */
   uint32_t n_samples;
   uint32_t max_samples;
-  enum nn_defrag_drop_mode drop_mode;
+  enum ddsi_defrag_drop_mode drop_mode;
   uint64_t discarded_bytes;
   const struct ddsrt_log_cfg *logcfg;
   bool trace;
@@ -871,8 +871,8 @@ struct nn_defrag {
 static int compare_uint32 (const void *va, const void *vb);
 static int compare_seqno (const void *va, const void *vb);
 
-static const ddsrt_avl_treedef_t defrag_sampletree_treedef = DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct nn_rsample, u.defrag.avlnode), offsetof (struct nn_rsample, u.defrag.seq), compare_seqno, 0);
-static const ddsrt_avl_treedef_t rsample_defrag_fragtree_treedef = DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct nn_defrag_iv, avlnode), offsetof (struct nn_defrag_iv, min), compare_uint32, 0);
+static const ddsrt_avl_treedef_t defrag_sampletree_treedef = DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct ddsi_rsample, u.defrag.avlnode), offsetof (struct ddsi_rsample, u.defrag.seq), compare_seqno, 0);
+static const ddsrt_avl_treedef_t rsample_defrag_fragtree_treedef = DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct ddsi_defrag_iv, avlnode), offsetof (struct ddsi_defrag_iv, min), compare_uint32, 0);
 
 static int compare_uint32 (const void *va, const void *vb)
 {
@@ -888,9 +888,9 @@ static int compare_seqno (const void *va, const void *vb)
   return (a == b) ? 0 : (a < b) ? -1 : 1;
 }
 
-struct nn_defrag *nn_defrag_new (const struct ddsrt_log_cfg *logcfg, enum nn_defrag_drop_mode drop_mode, uint32_t max_samples)
+struct ddsi_defrag *ddsi_defrag_new (const struct ddsrt_log_cfg *logcfg, enum ddsi_defrag_drop_mode drop_mode, uint32_t max_samples)
 {
-  struct nn_defrag *d;
+  struct ddsi_defrag *d;
   assert (max_samples >= 1);
   if ((d = ddsrt_malloc (sizeof (*d))) == NULL)
     return NULL;
@@ -905,28 +905,28 @@ struct nn_defrag *nn_defrag_new (const struct ddsrt_log_cfg *logcfg, enum nn_def
   return d;
 }
 
-void nn_defrag_stats (struct nn_defrag *defrag, uint64_t *discarded_bytes)
+void ddsi_defrag_stats (struct ddsi_defrag *defrag, uint64_t *discarded_bytes)
 {
   *discarded_bytes = defrag->discarded_bytes;
 }
 
-void nn_fragchain_adjust_refcount (struct nn_rdata *frag, int adjust)
+void ddsi_fragchain_adjust_refcount (struct ddsi_rdata *frag, int adjust)
 {
   RDATATRACE (frag, "fragchain_adjust_refcount(%p, %d)\n", (void *) frag, adjust);
   while (frag)
   {
-    struct nn_rdata * const frag1 = frag->nextfrag;
-    nn_rdata_rmbias_and_adjust (frag, adjust);
+    struct ddsi_rdata * const frag1 = frag->nextfrag;
+    ddsi_rdata_rmbias_and_adjust (frag, adjust);
     frag = frag1;
   }
 }
 
-static void nn_fragchain_rmbias (struct nn_rdata *frag)
+static void ddsi_fragchain_rmbias (struct ddsi_rdata *frag)
 {
-  nn_fragchain_adjust_refcount (frag, 0);
+  ddsi_fragchain_adjust_refcount (frag, 0);
 }
 
-static void defrag_rsample_drop (struct nn_defrag *defrag, struct nn_rsample *rsample)
+static void defrag_rsample_drop (struct ddsi_defrag *defrag, struct ddsi_rsample *rsample)
 {
   /* Can't reference rsample after the first fragchain_free, because
      we don't know which rdata/rmsg provides the storage for the
@@ -936,7 +936,7 @@ static void defrag_rsample_drop (struct nn_defrag *defrag, struct nn_rsample *rs
      "forward progress" in the memory accesses, which this particular
      inorder treewalk does provide. */
   ddsrt_avl_iter_t iter;
-  struct nn_defrag_iv *iv;
+  struct ddsi_defrag_iv *iv;
   TRACE (defrag, "  defrag_rsample_drop (%p, %p)\n", (void *) defrag, (void *) rsample);
   ddsrt_avl_delete (&defrag_sampletree_treedef, &defrag->sampletree, rsample);
   assert (defrag->n_samples > 0);
@@ -945,13 +945,13 @@ static void defrag_rsample_drop (struct nn_defrag *defrag, struct nn_rsample *rs
   {
     if (iv->first)
       /* if the first fragment is missing, a sentinel "iv" is inserted with an empty chain */
-      nn_fragchain_rmbias (iv->first);
+      ddsi_fragchain_rmbias (iv->first);
   }
 }
 
-void nn_defrag_free (struct nn_defrag *defrag)
+void ddsi_defrag_free (struct ddsi_defrag *defrag)
 {
-  struct nn_rsample *s;
+  struct ddsi_rsample *s;
   s = ddsrt_avl_find_min (&defrag_sampletree_treedef, &defrag->sampletree);
   while (s)
   {
@@ -963,9 +963,9 @@ void nn_defrag_free (struct nn_defrag *defrag)
   ddsrt_free (defrag);
 }
 
-static int defrag_try_merge_with_succ (const struct nn_defrag *defrag, struct nn_rsample_defrag *sample, struct nn_defrag_iv *node)
+static int defrag_try_merge_with_succ (const struct ddsi_defrag *defrag, struct ddsi_rsample_defrag *sample, struct ddsi_defrag_iv *node)
 {
-  struct nn_defrag_iv *succ;
+  struct ddsi_defrag_iv *succ;
 
   TRACE (defrag, "  defrag_try_merge_with_succ(%p [%"PRIu32"..%"PRIu32")):\n", (void *) node, node->min, node->maxp1);
   if (node == sample->lastfrag)
@@ -1022,38 +1022,38 @@ static int defrag_try_merge_with_succ (const struct nn_defrag *defrag, struct nn
   }
 }
 
-static void defrag_rsample_addiv (struct nn_rsample_defrag *sample, struct nn_rdata *rdata, ddsrt_avl_ipath_t *path)
+static void defrag_rsample_addiv (struct ddsi_rsample_defrag *sample, struct ddsi_rdata *rdata, ddsrt_avl_ipath_t *path)
 {
-  struct nn_defrag_iv *newiv;
-  if ((newiv = nn_rmsg_alloc (rdata->rmsg, sizeof (*newiv))) == NULL)
+  struct ddsi_defrag_iv *newiv;
+  if ((newiv = ddsi_rmsg_alloc (rdata->rmsg, sizeof (*newiv))) == NULL)
     return;
   rdata->nextfrag = NULL;
   newiv->first = newiv->last = rdata;
   newiv->min = rdata->min;
   newiv->maxp1 = rdata->maxp1;
-  nn_rdata_addbias (rdata);
+  ddsi_rdata_addbias (rdata);
   ddsrt_avl_insert_ipath (&rsample_defrag_fragtree_treedef, &sample->fragtree, newiv, path);
   if (sample->lastfrag == NULL || rdata->min > sample->lastfrag->min)
     sample->lastfrag = newiv;
 }
 
-static void rsample_init_common (UNUSED_ARG (struct nn_rsample *rsample), UNUSED_ARG (struct nn_rdata *rdata), UNUSED_ARG (const struct nn_rsample_info *sampleinfo))
+static void rsample_init_common (UNUSED_ARG (struct ddsi_rsample *rsample), UNUSED_ARG (struct ddsi_rdata *rdata), UNUSED_ARG (const struct ddsi_rsample_info *sampleinfo))
 {
 }
 
-static struct nn_rsample *defrag_rsample_new (struct nn_rdata *rdata, const struct nn_rsample_info *sampleinfo)
+static struct ddsi_rsample *defrag_rsample_new (struct ddsi_rdata *rdata, const struct ddsi_rsample_info *sampleinfo)
 {
-  struct nn_rsample *rsample;
-  struct nn_rsample_defrag *dfsample;
+  struct ddsi_rsample *rsample;
+  struct ddsi_rsample_defrag *dfsample;
   ddsrt_avl_ipath_t ivpath;
 
-  if ((rsample = nn_rmsg_alloc (rdata->rmsg, sizeof (*rsample))) == NULL)
+  if ((rsample = ddsi_rmsg_alloc (rdata->rmsg, sizeof (*rsample))) == NULL)
     return NULL;
   rsample_init_common (rsample, rdata, sampleinfo);
   dfsample = &rsample->u.defrag;
   dfsample->lastfrag = NULL;
   dfsample->seq = sampleinfo->seq;
-  if ((dfsample->sampleinfo = nn_rmsg_alloc (rdata->rmsg, sizeof (*dfsample->sampleinfo))) == NULL)
+  if ((dfsample->sampleinfo = ddsi_rmsg_alloc (rdata->rmsg, sizeof (*dfsample->sampleinfo))) == NULL)
     return NULL;
   *dfsample->sampleinfo = *sampleinfo;
 
@@ -1062,8 +1062,8 @@ static struct nn_rsample *defrag_rsample_new (struct nn_rdata *rdata, const stru
   /* add sentinel if rdata is not the first fragment of the message */
   if (rdata->min > 0)
   {
-    struct nn_defrag_iv *sentinel;
-    if ((sentinel = nn_rmsg_alloc (rdata->rmsg, sizeof (*sentinel))) == NULL)
+    struct ddsi_defrag_iv *sentinel;
+    if ((sentinel = ddsi_rmsg_alloc (rdata->rmsg, sizeof (*sentinel))) == NULL)
       return NULL;
     sentinel->first = sentinel->last = NULL;
     sentinel->min = sentinel->maxp1 = 0;
@@ -1077,7 +1077,7 @@ static struct nn_rsample *defrag_rsample_new (struct nn_rdata *rdata, const stru
   return rsample;
 }
 
-static struct nn_rsample *reorder_rsample_new (struct nn_rdata *rdata, const struct nn_rsample_info *sampleinfo)
+static struct ddsi_rsample *reorder_rsample_new (struct ddsi_rdata *rdata, const struct ddsi_rsample_info *sampleinfo)
 {
   /* Implements:
 
@@ -1087,23 +1087,23 @@ static struct nn_rsample *reorder_rsample_new (struct nn_rdata *rdata, const str
      discrepancy between defrag_rsample_new which fully initializes
      the rsample, including the AVL node headers, and this function,
      which doesn't do so. */
-  struct nn_rsample *rsample;
-  struct nn_rsample_reorder *s;
-  struct nn_rsample_chain_elem *sce;
+  struct ddsi_rsample *rsample;
+  struct ddsi_rsample_reorder *s;
+  struct ddsi_rsample_chain_elem *sce;
 
-  if ((rsample = nn_rmsg_alloc (rdata->rmsg, sizeof (*rsample))) == NULL)
+  if ((rsample = ddsi_rmsg_alloc (rdata->rmsg, sizeof (*rsample))) == NULL)
     return NULL;
   rsample_init_common (rsample, rdata, sampleinfo);
 
-  if ((sce = nn_rmsg_alloc (rdata->rmsg, sizeof (*sce))) == NULL)
+  if ((sce = ddsi_rmsg_alloc (rdata->rmsg, sizeof (*sce))) == NULL)
     return NULL;
   sce->fragchain = rdata;
   sce->next = NULL;
-  if ((sce->sampleinfo = nn_rmsg_alloc (rdata->rmsg, sizeof (*sce->sampleinfo))) == NULL)
+  if ((sce->sampleinfo = ddsi_rmsg_alloc (rdata->rmsg, sizeof (*sce->sampleinfo))) == NULL)
     return NULL;
   *sce->sampleinfo = *sampleinfo;
   rdata->nextfrag = NULL;
-  nn_rdata_addbias (rdata);
+  ddsi_rdata_addbias (rdata);
 
   s = &rsample->u.reorder;
   s->min = sampleinfo->seq;
@@ -1113,13 +1113,13 @@ static struct nn_rsample *reorder_rsample_new (struct nn_rdata *rdata, const str
   return rsample;
 }
 
-static int is_complete (const struct nn_rsample_defrag *sample)
+static int is_complete (const struct ddsi_rsample_defrag *sample)
 {
   /* Returns: NULL if 'sample' is incomplete, else 'sample'. Complete:
      one interval covering all bytes. One interval because of the
      greedy coalescing in add_fragment(). There is at least one
      interval if we get here. */
-  const struct nn_defrag_iv *iv = ddsrt_avl_root (&rsample_defrag_fragtree_treedef, &sample->fragtree);
+  const struct ddsi_defrag_iv *iv = ddsrt_avl_root (&rsample_defrag_fragtree_treedef, &sample->fragtree);
   assert (iv != NULL);
   if (iv->min == 0 && iv->maxp1 >= sample->sampleinfo->size)
   {
@@ -1138,7 +1138,7 @@ static int is_complete (const struct nn_rsample_defrag *sample)
   }
 }
 
-static void rsample_convert_defrag_to_reorder (struct nn_rsample *sample)
+static void rsample_convert_defrag_to_reorder (struct ddsi_rsample *sample)
 {
   /* Converts an rsample as stored in defrag to one as stored in a
      reorder admin. Have to be careful with the ordering, or at least
@@ -1146,14 +1146,14 @@ static void rsample_convert_defrag_to_reorder (struct nn_rsample *sample)
      self-respecting compiler will optimise them away, and any
      self-respecting CPU would need to copy them via registers anyway
      because it uses a load-store architecture. */
-  struct nn_defrag_iv *iv = ddsrt_avl_root_non_empty (&rsample_defrag_fragtree_treedef, &sample->u.defrag.fragtree);
-  struct nn_rdata *fragchain = iv->first;
-  struct nn_rsample_info *sampleinfo = sample->u.defrag.sampleinfo;
-  struct nn_rsample_chain_elem *sce;
+  struct ddsi_defrag_iv *iv = ddsrt_avl_root_non_empty (&rsample_defrag_fragtree_treedef, &sample->u.defrag.fragtree);
+  struct ddsi_rdata *fragchain = iv->first;
+  struct ddsi_rsample_info *sampleinfo = sample->u.defrag.sampleinfo;
+  struct ddsi_rsample_chain_elem *sce;
   seqno_t seq = sample->u.defrag.seq;
 
   /* re-use memory fragment interval node for sample chain */
-  sce = (struct nn_rsample_chain_elem *) ddsrt_avl_root_non_empty (&rsample_defrag_fragtree_treedef, &sample->u.defrag.fragtree);
+  sce = (struct ddsi_rsample_chain_elem *) ddsrt_avl_root_non_empty (&rsample_defrag_fragtree_treedef, &sample->u.defrag.fragtree);
   sce->fragchain = fragchain;
   sce->next = NULL;
   sce->sampleinfo = sampleinfo;
@@ -1164,10 +1164,10 @@ static void rsample_convert_defrag_to_reorder (struct nn_rsample *sample)
   sample->u.reorder.n_samples = 1;
 }
 
-static struct nn_rsample *defrag_add_fragment (struct nn_defrag *defrag, struct nn_rsample *sample, struct nn_rdata *rdata, const struct nn_rsample_info *sampleinfo)
+static struct ddsi_rsample *defrag_add_fragment (struct ddsi_defrag *defrag, struct ddsi_rsample *sample, struct ddsi_rdata *rdata, const struct ddsi_rsample_info *sampleinfo)
 {
-  struct nn_rsample_defrag *dfsample = &sample->u.defrag;
-  struct nn_defrag_iv *predeq, *succ;
+  struct ddsi_rsample_defrag *dfsample = &sample->u.defrag;
+  struct ddsi_defrag_iv *predeq, *succ;
   const uint32_t min = rdata->min;
   const uint32_t maxp1 = rdata->maxp1;
 
@@ -1219,7 +1219,7 @@ static struct nn_rsample *defrag_add_fragment (struct nn_defrag *defrag, struct 
        end); this may close the gap to the successor of predeq; predeq
        need not have a fragment chain yet (it may be the sentinel) */
     TRACE (defrag, "  grow predeq with new\n");
-    nn_rdata_addbias (rdata);
+    ddsi_rdata_addbias (rdata);
     rdata->nextfrag = NULL;
     if (predeq->first)
       predeq->last->nextfrag = rdata;
@@ -1247,7 +1247,7 @@ static struct nn_rsample *defrag_add_fragment (struct nn_defrag *defrag, struct 
        predeq so the tree structure doesn't change even though the key
        does change */
     TRACE (defrag, "  extending succ %p [%"PRIu32"..%"PRIu32") at head\n", (void *) succ, succ->min, succ->maxp1);
-    nn_rdata_addbias (rdata);
+    ddsi_rdata_addbias (rdata);
     rdata->nextfrag = succ->first;
     succ->first = rdata;
     succ->min = min;
@@ -1277,7 +1277,7 @@ static struct nn_rsample *defrag_add_fragment (struct nn_defrag *defrag, struct 
   }
 }
 
-static int nn_rdata_is_fragment (const struct nn_rdata *rdata, const struct nn_rsample_info *sampleinfo)
+static int ddsi_rdata_is_fragment (const struct ddsi_rdata *rdata, const struct ddsi_rsample_info *sampleinfo)
 {
   /* sanity check: min, maxp1 must be within bounds */
   assert (rdata->min <= rdata->maxp1);
@@ -1285,9 +1285,9 @@ static int nn_rdata_is_fragment (const struct nn_rdata *rdata, const struct nn_r
   return !(rdata->min == 0 && rdata->maxp1 == sampleinfo->size);
 }
 
-static int defrag_limit_samples (struct nn_defrag *defrag, seqno_t seq, seqno_t *max_seq)
+static int defrag_limit_samples (struct ddsi_defrag *defrag, seqno_t seq, seqno_t *max_seq)
 {
-  struct nn_rsample *sample_to_drop = NULL;
+  struct ddsi_rsample *sample_to_drop = NULL;
   if (defrag->n_samples < defrag->max_samples)
     return 1;
   /* max_samples >= 1 => some sample present => max_sample != NULL */
@@ -1295,7 +1295,7 @@ static int defrag_limit_samples (struct nn_defrag *defrag, seqno_t seq, seqno_t 
   TRACE (defrag, "  max samples reached\n");
   switch (defrag->drop_mode)
   {
-    case NN_DEFRAG_DROP_LATEST:
+    case DDSI_DEFRAG_DROP_LATEST:
       TRACE (defrag, "  drop mode = DROP_LATEST\n");
       if (seq > defrag->max_sample->u.defrag.seq)
       {
@@ -1304,7 +1304,7 @@ static int defrag_limit_samples (struct nn_defrag *defrag, seqno_t seq, seqno_t 
       }
       sample_to_drop = defrag->max_sample;
       break;
-    case NN_DEFRAG_DROP_OLDEST:
+    case DDSI_DEFRAG_DROP_OLDEST:
       TRACE (defrag, "  drop mode = DROP_OLDEST\n");
       sample_to_drop = ddsrt_avl_find_min (&defrag_sampletree_treedef, &defrag->sampletree);
       assert (sample_to_drop);
@@ -1327,7 +1327,7 @@ static int defrag_limit_samples (struct nn_defrag *defrag, seqno_t seq, seqno_t 
   return 1;
 }
 
-struct nn_rsample *nn_defrag_rsample (struct nn_defrag *defrag, struct nn_rdata *rdata, const struct nn_rsample_info *sampleinfo)
+struct ddsi_rsample *ddsi_defrag_rsample (struct ddsi_defrag *defrag, struct ddsi_rdata *rdata, const struct ddsi_rsample_info *sampleinfo)
 {
   /* Takes an rdata, records it in defrag if needed and returns an
      rdata chain representing a complete message ready for further
@@ -1351,7 +1351,7 @@ struct nn_rsample *nn_defrag_rsample (struct nn_defrag *defrag, struct nn_rdata 
      return: all rdatas referenced in the chain returned by this
      function have been accounted for in the refcount of their rmsgs
      by adding BIAS to the refcount. */
-  struct nn_rsample *sample, *result;
+  struct ddsi_rsample *sample, *result;
   seqno_t max_seq;
   ddsrt_avl_ipath_t path;
 
@@ -1359,7 +1359,7 @@ struct nn_rsample *nn_defrag_rsample (struct nn_defrag *defrag, struct nn_rdata 
 
   /* not a fragment => always complete, so refcount rdata, turn into a
      valid chain behind a valid msginfo and return it. */
-  if (!nn_rdata_is_fragment (rdata, sampleinfo))
+  if (!ddsi_rdata_is_fragment (rdata, sampleinfo))
     return reorder_rsample_new (rdata, sampleinfo);
 
   /* max_seq is used for the fast path, and is 0 when there is no
@@ -1437,25 +1437,25 @@ struct nn_rsample *nn_defrag_rsample (struct nn_defrag *defrag, struct nn_rdata 
   return result;
 }
 
-void nn_defrag_notegap (struct nn_defrag *defrag, seqno_t min, seqno_t maxp1)
+void ddsi_defrag_notegap (struct ddsi_defrag *defrag, seqno_t min, seqno_t maxp1)
 {
   /* All sequence numbers in [min,maxp1) are unavailable so any
      fragments in that range must be discarded.  Used both for
      Hearbeats (by setting min=1) and for Gaps. */
-  struct nn_rsample *s = ddsrt_avl_lookup_succ_eq (&defrag_sampletree_treedef, &defrag->sampletree, &min);
+  struct ddsi_rsample *s = ddsrt_avl_lookup_succ_eq (&defrag_sampletree_treedef, &defrag->sampletree, &min);
   while (s && s->u.defrag.seq < maxp1)
   {
-    struct nn_rsample *s1 = ddsrt_avl_find_succ (&defrag_sampletree_treedef, &defrag->sampletree, s);
+    struct ddsi_rsample *s1 = ddsrt_avl_find_succ (&defrag_sampletree_treedef, &defrag->sampletree, s);
     defrag_rsample_drop (defrag, s);
     s = s1;
   }
   defrag->max_sample = ddsrt_avl_find_max (&defrag_sampletree_treedef, &defrag->sampletree);
 }
 
-enum nn_defrag_nackmap_result nn_defrag_nackmap (struct nn_defrag *defrag, seqno_t seq, uint32_t maxfragnum, struct ddsi_fragment_number_set_header *map, uint32_t *mapbits, uint32_t maxsz)
+enum ddsi_defrag_nackmap_result ddsi_defrag_nackmap (struct ddsi_defrag *defrag, seqno_t seq, uint32_t maxfragnum, struct ddsi_fragment_number_set_header *map, uint32_t *mapbits, uint32_t maxsz)
 {
-  struct nn_rsample *s;
-  struct nn_defrag_iv *iv;
+  struct ddsi_rsample *s;
+  struct ddsi_defrag_iv *iv;
   uint32_t i, fragsz, nfrags;
   assert (maxsz <= 256);
   s = ddsrt_avl_lookup (&defrag_sampletree_treedef, &defrag->sampletree, &seq);
@@ -1464,7 +1464,7 @@ enum nn_defrag_nackmap_result nn_defrag_nackmap (struct nn_defrag *defrag, seqno
     if (maxfragnum == UINT32_MAX)
     {
       /* If neither the caller nor the defragmenter knows anything about the sample, say so */
-      return DEFRAG_NACKMAP_UNKNOWN_SAMPLE;
+      return DDSI_DEFRAG_NACKMAP_UNKNOWN_SAMPLE;
     }
     else
     {
@@ -1477,7 +1477,7 @@ enum nn_defrag_nackmap_result nn_defrag_nackmap (struct nn_defrag *defrag, seqno
         map->numbits = maxfragnum + 1;
       map->bitmap_base = 0;
       ddsi_bitset_one (map->numbits, mapbits);
-      return DEFRAG_NACKMAP_FRAGMENTS_MISSING;
+      return DDSI_DEFRAG_NACKMAP_FRAGMENTS_MISSING;
     }
   }
 
@@ -1493,7 +1493,7 @@ enum nn_defrag_nackmap_result nn_defrag_nackmap (struct nn_defrag *defrag, seqno
   {
     /* We always have an interval starting at 0, which is empty if we
        are missing the first fragment. */
-    struct nn_defrag_iv *liv = s->u.defrag.lastfrag;
+    struct ddsi_defrag_iv *liv = s->u.defrag.lastfrag;
     ddsi_fragment_number_t map_end;
     iv = ddsrt_avl_find_min (&rsample_defrag_fragtree_treedef, &s->u.defrag.fragtree);
     assert (iv != NULL);
@@ -1515,7 +1515,7 @@ enum nn_defrag_nackmap_result nn_defrag_nackmap (struct nn_defrag *defrag, seqno
        map->bitmap_base, but there is nothing to request in that
        case. */
     if (map_end < map->bitmap_base)
-      return DEFRAG_NACKMAP_ALL_ADVERTISED_FRAGMENTS_KNOWN;
+      return DDSI_DEFRAG_NACKMAP_ALL_ADVERTISED_FRAGMENTS_KNOWN;
     map->numbits = map_end - map->bitmap_base + 1;
     iv = ddsrt_avl_find_succ (&rsample_defrag_fragtree_treedef, &s->u.defrag.fragtree, iv);
   }
@@ -1555,22 +1555,22 @@ enum nn_defrag_nackmap_result nn_defrag_nackmap (struct nn_defrag *defrag, seqno
     unsigned x = (unsigned) (i - map->bitmap_base);
     ddsi_bitset_set (map->numbits, mapbits, x);
   }
-  return DEFRAG_NACKMAP_FRAGMENTS_MISSING;
+  return DDSI_DEFRAG_NACKMAP_FRAGMENTS_MISSING;
 }
 
 /* There is only one defrag per proxy writer. However for the Volatile Secure writer a filter
  * is applied to filter on the destination participant. Note that there will be one
  * builtin Volatile Secure reader for each local participant. When this local participant
  * is deleted the defrag buffer may still contain fragments for the associated reader.
- * The nn_defrag_prune is used to remove these fragments and should only be used when
+ * The ddsi_defrag_prune is used to remove these fragments and should only be used when
  * the Volatile Secure reader is deleted.
  */
-void nn_defrag_prune (struct nn_defrag *defrag, ddsi_guid_prefix_t *dst, seqno_t min)
+void ddsi_defrag_prune (struct ddsi_defrag *defrag, ddsi_guid_prefix_t *dst, seqno_t min)
 {
-  struct nn_rsample *s = ddsrt_avl_lookup_succ_eq (&defrag_sampletree_treedef, &defrag->sampletree, &min);
+  struct ddsi_rsample *s = ddsrt_avl_lookup_succ_eq (&defrag_sampletree_treedef, &defrag->sampletree, &min);
   while (s)
   {
-    struct nn_rsample *s1 = ddsrt_avl_find_succ (&defrag_sampletree_treedef, &defrag->sampletree, s);
+    struct ddsi_rsample *s1 = ddsrt_avl_find_succ (&defrag_sampletree_treedef, &defrag->sampletree, s);
     if (ddsi_guid_prefix_eq(&s->u.defrag.sampleinfo->rst->dst_guid_prefix, dst))
     {
       defrag_rsample_drop (defrag, s);
@@ -1656,11 +1656,11 @@ void nn_defrag_prune (struct nn_defrag *defrag, ddsi_guid_prefix_t *dst, seqno_t
    based on the fragment chain instead of the sample.  Example code is
    in the overview comment at the top of this file. */
 
-struct nn_reorder {
+struct ddsi_reorder {
   ddsrt_avl_tree_t sampleivtree;
-  struct nn_rsample *max_sampleiv; /* = max(sampleivtree) */
+  struct ddsi_rsample *max_sampleiv; /* = max(sampleivtree) */
   seqno_t next_seq;
-  enum nn_reorder_mode mode;
+  enum ddsi_reorder_mode mode;
   uint32_t max_samples;
   uint32_t n_samples;
   uint64_t discarded_bytes;
@@ -1670,11 +1670,11 @@ struct nn_reorder {
 };
 
 static const ddsrt_avl_treedef_t reorder_sampleivtree_treedef =
-  DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct nn_rsample, u.reorder.avlnode), offsetof (struct nn_rsample, u.reorder.min), compare_seqno, 0);
+  DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct ddsi_rsample, u.reorder.avlnode), offsetof (struct ddsi_rsample, u.reorder.min), compare_seqno, 0);
 
-struct nn_reorder *nn_reorder_new (const struct ddsrt_log_cfg *logcfg, enum nn_reorder_mode mode, uint32_t max_samples, bool late_ack_mode)
+struct ddsi_reorder *ddsi_reorder_new (const struct ddsrt_log_cfg *logcfg, enum ddsi_reorder_mode mode, uint32_t max_samples, bool late_ack_mode)
 {
-  struct nn_reorder *r;
+  struct ddsi_reorder *r;
   if ((r = ddsrt_malloc (sizeof (*r))) == NULL)
     return NULL;
   ddsrt_avl_init (&reorder_sampleivtree_treedef, &r->sampleivtree);
@@ -1690,26 +1690,26 @@ struct nn_reorder *nn_reorder_new (const struct ddsrt_log_cfg *logcfg, enum nn_r
   return r;
 }
 
-void nn_reorder_stats (struct nn_reorder *reorder, uint64_t *discarded_bytes)
+void ddsi_reorder_stats (struct ddsi_reorder *reorder, uint64_t *discarded_bytes)
 {
   *discarded_bytes = reorder->discarded_bytes;
 }
 
-void nn_fragchain_unref (struct nn_rdata *frag)
+void ddsi_fragchain_unref (struct ddsi_rdata *frag)
 {
-  struct nn_rdata *frag1;
+  struct ddsi_rdata *frag1;
   while (frag)
   {
     frag1 = frag->nextfrag;
-    nn_rdata_unref (frag);
+    ddsi_rdata_unref (frag);
     frag = frag1;
   }
 }
 
-void nn_reorder_free (struct nn_reorder *r)
+void ddsi_reorder_free (struct ddsi_reorder *r)
 {
-  struct nn_rsample *iv;
-  struct nn_rsample_chain_elem *sce;
+  struct ddsi_rsample *iv;
+  struct ddsi_rsample_chain_elem *sce;
   /* FXIME: instead of findmin/delete, a treewalk can be used. */
   iv = ddsrt_avl_find_min (&reorder_sampleivtree_treedef, &r->sampleivtree);
   while (iv)
@@ -1718,8 +1718,8 @@ void nn_reorder_free (struct nn_reorder *r)
     sce = iv->u.reorder.sc.first;
     while (sce)
     {
-      struct nn_rsample_chain_elem *sce1 = sce->next;
-      nn_fragchain_unref (sce->fragchain);
+      struct ddsi_rsample_chain_elem *sce1 = sce->next;
+      ddsi_fragchain_unref (sce->fragchain);
       sce = sce1;
     }
     iv = ddsrt_avl_find_min (&reorder_sampleivtree_treedef, &r->sampleivtree);
@@ -1727,7 +1727,7 @@ void nn_reorder_free (struct nn_reorder *r)
   ddsrt_free (r);
 }
 
-static void reorder_add_rsampleiv (struct nn_reorder *reorder, struct nn_rsample *rsample)
+static void reorder_add_rsampleiv (struct ddsi_reorder *reorder, struct ddsi_rsample *rsample)
 {
   ddsrt_avl_ipath_t path;
   if (ddsrt_avl_lookup_ipath (&reorder_sampleivtree_treedef, &reorder->sampleivtree, &rsample->u.reorder.min, &path) != NULL)
@@ -1736,7 +1736,7 @@ static void reorder_add_rsampleiv (struct nn_reorder *reorder, struct nn_rsample
 }
 
 #ifndef NDEBUG
-static int rsample_is_singleton (const struct nn_rsample_reorder *s)
+static int rsample_is_singleton (const struct ddsi_rsample_reorder *s)
 {
   assert (s->min < s->maxp1);
   if (s->n_samples != 1)
@@ -1750,7 +1750,7 @@ static int rsample_is_singleton (const struct nn_rsample_reorder *s)
 }
 #endif
 
-static void append_rsample_interval (struct nn_rsample *a, struct nn_rsample *b)
+static void append_rsample_interval (struct ddsi_rsample *a, struct ddsi_rsample *b)
 {
   a->u.reorder.sc.last->next = b->u.reorder.sc.first;
   a->u.reorder.sc.last = b->u.reorder.sc.last;
@@ -1758,7 +1758,7 @@ static void append_rsample_interval (struct nn_rsample *a, struct nn_rsample *b)
   a->u.reorder.n_samples += b->u.reorder.n_samples;
 }
 
-static int reorder_try_append_and_discard (struct nn_reorder *reorder, struct nn_rsample *appendto, struct nn_rsample *todiscard)
+static int reorder_try_append_and_discard (struct ddsi_reorder *reorder, struct ddsi_rsample *appendto, struct ddsi_rsample *todiscard)
 {
   if (todiscard == NULL)
   {
@@ -1793,7 +1793,7 @@ static int reorder_try_append_and_discard (struct nn_reorder *reorder, struct nn
   }
 }
 
-struct nn_rsample *nn_reorder_rsample_dup_first (struct nn_rmsg *rmsg, struct nn_rsample *rsampleiv)
+struct ddsi_rsample *ddsi_reorder_rsample_dup_first (struct ddsi_rmsg *rmsg, struct ddsi_rsample *rsampleiv)
 {
   /* Duplicates the rsampleiv without updating any reference counts:
      that is left to the caller, as they do not need to be updated if
@@ -1803,19 +1803,19 @@ struct nn_rsample *nn_reorder_rsample_dup_first (struct nn_rmsg *rmsg, struct nn
      currently being processed (one can only allocate memory from an
      uncommitted rmsg) and must be referenced by an rdata in
      rsampleiv. */
-  struct nn_rsample *rsampleiv_new;
-  struct nn_rsample_chain_elem *sce;
+  struct ddsi_rsample *rsampleiv_new;
+  struct ddsi_rsample_chain_elem *sce;
 #ifndef NDEBUG
   {
-    struct nn_rdata *d = rsampleiv->u.reorder.sc.first->fragchain;
+    struct ddsi_rdata *d = rsampleiv->u.reorder.sc.first->fragchain;
     while (d && d->rmsg != rmsg)
       d = d->nextfrag;
     assert (d != NULL);
   }
 #endif
-  if ((rsampleiv_new = nn_rmsg_alloc (rmsg, sizeof (*rsampleiv_new))) == NULL)
+  if ((rsampleiv_new = ddsi_rmsg_alloc (rmsg, sizeof (*rsampleiv_new))) == NULL)
     return NULL;
-  if ((sce = nn_rmsg_alloc (rmsg, sizeof (*sce))) == NULL)
+  if ((sce = ddsi_rmsg_alloc (rmsg, sizeof (*sce))) == NULL)
     return NULL;
   sce->fragchain = rsampleiv->u.reorder.sc.first->fragchain;
   sce->next = NULL;
@@ -1827,28 +1827,28 @@ struct nn_rsample *nn_reorder_rsample_dup_first (struct nn_rmsg *rmsg, struct nn
   return rsampleiv_new;
 }
 
-struct nn_rdata *nn_rsample_fragchain (struct nn_rsample *rsample)
+struct ddsi_rdata *ddsi_rsample_fragchain (struct ddsi_rsample *rsample)
 {
   assert (rsample_is_singleton (&rsample->u.reorder));
   return rsample->u.reorder.sc.first->fragchain;
 }
 
-static char reorder_mode_as_char (const struct nn_reorder *reorder)
+static char reorder_mode_as_char (const struct ddsi_reorder *reorder)
 {
   switch (reorder->mode)
   {
-    case NN_REORDER_MODE_NORMAL: return 'R';
-    case NN_REORDER_MODE_MONOTONICALLY_INCREASING: return 'U';
-    case NN_REORDER_MODE_ALWAYS_DELIVER: return 'A';
+    case DDSI_REORDER_MODE_NORMAL: return 'R';
+    case DDSI_REORDER_MODE_MONOTONICALLY_INCREASING: return 'U';
+    case DDSI_REORDER_MODE_ALWAYS_DELIVER: return 'A';
   }
   assert (0);
   return '?';
 }
 
-static void delete_last_sample (struct nn_reorder *reorder)
+static void delete_last_sample (struct ddsi_reorder *reorder)
 {
-  struct nn_rsample_reorder *last = &reorder->max_sampleiv->u.reorder;
-  struct nn_rdata *fragchain;
+  struct ddsi_rsample_reorder *last = &reorder->max_sampleiv->u.reorder;
+  struct ddsi_rdata *fragchain;
 
   /* This just removes it, it doesn't adjust the count. It is not
      supposed to be called on an radmin with only one sample. */
@@ -1876,7 +1876,7 @@ static void delete_last_sample (struct nn_reorder *reorder)
        singly-linked list (so you might not want max_samples set very
        large!).  Can't be a singleton list, so might as well chop off
        one evaluation of the loop condition. */
-    struct nn_rsample_chain_elem *e, *pe;
+    struct ddsi_rsample_chain_elem *e, *pe;
     TRACE (reorder, "  delete_last_sample: scanning last interval [%"PRIu64"..%"PRIu64")\n", last->min, last->maxp1);
     assert (last->n_samples >= 1);
     assert (last->min + last->n_samples <= last->maxp1);
@@ -1895,10 +1895,10 @@ static void delete_last_sample (struct nn_reorder *reorder)
     last->n_samples--;
   }
 
-  nn_fragchain_unref (fragchain);
+  ddsi_fragchain_unref (fragchain);
 }
 
-nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_reorder *reorder, struct nn_rsample *rsampleiv, int *refcount_adjust, int delivery_queue_full_p)
+ddsi_reorder_result_t ddsi_reorder_rsample (struct ddsi_rsample_chain *sc, struct ddsi_reorder *reorder, struct ddsi_rsample *rsampleiv, int *refcount_adjust, int delivery_queue_full_p)
 {
   /* Adds an rsample (represented as an interval) to the reorder admin
      and returns the chain of consecutive samples ready for delivery
@@ -1907,7 +1907,7 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
      chain.
 
      refcount_adjust is incremented if the sample is not discarded. */
-  struct nn_rsample_reorder *s = &rsampleiv->u.reorder;
+  struct ddsi_rsample_reorder *s = &rsampleiv->u.reorder;
 
   TRACE (reorder, "reorder_sample(%p %c, %"PRIu64" @ %p) expecting %"PRIu64":\n",
          (void *) reorder, reorder_mode_as_char (reorder), rsampleiv->u.reorder.min,
@@ -1920,7 +1920,7 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
      seq; max must be set iff the reorder is non-empty. */
 #ifndef NDEBUG
   {
-    struct nn_rsample *min = ddsrt_avl_find_min (&reorder_sampleivtree_treedef, &reorder->sampleivtree);
+    struct ddsi_rsample *min = ddsrt_avl_find_min (&reorder_sampleivtree_treedef, &reorder->sampleivtree);
     if (min)
       TRACE (reorder, "  min = %"PRIu64" @ %p\n", min->u.reorder.min, (void *) min);
     assert (min == NULL || reorder->next_seq < min->u.reorder.min);
@@ -1936,8 +1936,8 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
            reorder->max_sampleiv->u.reorder.maxp1, (void *) reorder->max_sampleiv);
 
   if (s->min == reorder->next_seq ||
-      (s->min > reorder->next_seq && reorder->mode == NN_REORDER_MODE_MONOTONICALLY_INCREASING) ||
-      reorder->mode == NN_REORDER_MODE_ALWAYS_DELIVER)
+      (s->min > reorder->next_seq && reorder->mode == DDSI_REORDER_MODE_MONOTONICALLY_INCREASING) ||
+      reorder->mode == DDSI_REORDER_MODE_ALWAYS_DELIVER)
   {
     /* Can deliver at least one sample, but that appends samples to
        the delivery queue.  If delivery_queue_full_p is set, the delivery
@@ -1949,7 +1949,7 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
     {
       TRACE (reorder, "  discarding deliverable sample: delivery queue is full\n");
       reorder->discarded_bytes += s->sc.first->sampleinfo->size;
-      return NN_REORDER_REJECT;
+      return DDSI_REORDER_REJECT;
     }
 
     /* 's' is next sample to be delivered; maybe we can append the
@@ -1958,7 +1958,7 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
        out-of-order either ends up here or in discard.)  */
     if (reorder->max_sampleiv != NULL)
     {
-      struct nn_rsample *min = ddsrt_avl_find_min (&reorder_sampleivtree_treedef, &reorder->sampleivtree);
+      struct ddsi_rsample *min = ddsrt_avl_find_min (&reorder_sampleivtree_treedef, &reorder->sampleivtree);
       TRACE (reorder, "  try append_and_discard\n");
       if (reorder_try_append_and_discard (reorder, rsampleiv, min))
         reorder->max_sampleiv = NULL;
@@ -1974,7 +1974,7 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
     assert (s->min + s->n_samples <= s->maxp1);
     assert (reorder->n_samples >= s->n_samples - 1);
     reorder->n_samples -= s->n_samples - 1;
-    return (nn_reorder_result_t) s->n_samples;
+    return (ddsi_reorder_result_t) s->n_samples;
   }
   else if (s->min < reorder->next_seq)
   {
@@ -1982,7 +1982,7 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
        n_samples */
     TRACE (reorder, "  discard: too old\n");
     reorder->discarded_bytes += s->sc.first->sampleinfo->size;
-    return NN_REORDER_TOO_OLD; /* don't want refcount increment */
+    return DDSI_REORDER_TOO_OLD; /* don't want refcount increment */
   }
   else if (ddsrt_avl_is_empty (&reorder->sampleivtree))
   {
@@ -1995,7 +1995,7 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
     {
       TRACE (reorder, "  NOT - max_samples hit\n");
       reorder->discarded_bytes += s->sc.first->sampleinfo->size;
-      return NN_REORDER_REJECT;
+      return DDSI_REORDER_REJECT;
     }
     else
     {
@@ -2012,7 +2012,7 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
       /* growing last inteval will not be accepted when this flag is set */
       TRACE (reorder, "  discarding sample: only accepting delayed samples due to backlog in delivery queue\n");
       reorder->discarded_bytes += s->sc.first->sampleinfo->size;
-      return NN_REORDER_REJECT;
+      return DDSI_REORDER_REJECT;
     }
 
     /* grow the last interval, if we're still accepting samples */
@@ -2026,7 +2026,7 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
     {
       TRACE (reorder, "  discarding sample: max_samples reached and sample at end\n");
       reorder->discarded_bytes += s->sc.first->sampleinfo->size;
-      return NN_REORDER_REJECT;
+      return DDSI_REORDER_REJECT;
     }
   }
   else if (s->min > reorder->max_sampleiv->u.reorder.maxp1)
@@ -2036,7 +2036,7 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
       /* new interval at the end will not be accepted when this flag is set */
       TRACE (reorder, "  discarding sample: only accepting delayed samples due to backlog in delivery queue\n");
       reorder->discarded_bytes += s->sc.first->sampleinfo->size;
-      return NN_REORDER_REJECT;
+      return DDSI_REORDER_REJECT;
     }
     if (reorder->n_samples < reorder->max_samples)
     {
@@ -2049,7 +2049,7 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
     {
       TRACE (reorder, "  discarding sample: max_samples reached and sample at end\n");
       reorder->discarded_bytes += s->sc.first->sampleinfo->size;
-      return NN_REORDER_REJECT;
+      return DDSI_REORDER_REJECT;
     }
   }
   else
@@ -2061,14 +2061,14 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
        - if n=s->min we can append s to predeq
        - if immsucc exists we can prepend s to immsucc
        - and possibly join predeq, s, and immsucc */
-    struct nn_rsample *predeq, *immsucc;
+    struct ddsi_rsample *predeq, *immsucc;
     TRACE (reorder, "  hard case ...\n");
 
     if (reorder->late_ack_mode && delivery_queue_full_p)
     {
       TRACE (reorder, "  discarding sample: delivery queue full\n");
       reorder->discarded_bytes += s->sc.first->sampleinfo->size;
-      return NN_REORDER_REJECT;
+      return DDSI_REORDER_REJECT;
     }
 
     predeq = ddsrt_avl_lookup_pred_eq (&reorder_sampleivtree_treedef, &reorder->sampleivtree, &s->min);
@@ -2082,7 +2082,7 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
       /* contained in predeq */
       TRACE (reorder, "  discard: contained in predeq\n");
       reorder->discarded_bytes += s->sc.first->sampleinfo->size;
-      return NN_REORDER_REJECT;
+      return DDSI_REORDER_REJECT;
     }
 
     immsucc = ddsrt_avl_lookup (&reorder_sampleivtree_treedef, &reorder->sampleivtree, &s->maxp1);
@@ -2147,12 +2147,12 @@ nn_reorder_result_t nn_reorder_rsample (struct nn_rsample_chain *sc, struct nn_r
   }
 
   (*refcount_adjust)++;
-  return NN_REORDER_ACCEPT;
+  return DDSI_REORDER_ACCEPT;
 }
 
-static struct nn_rsample *coalesce_intervals_touching_range (struct nn_reorder *reorder, seqno_t min, seqno_t maxp1, int *valuable)
+static struct ddsi_rsample *coalesce_intervals_touching_range (struct ddsi_reorder *reorder, seqno_t min, seqno_t maxp1, int *valuable)
 {
-  struct nn_rsample *s, *t;
+  struct ddsi_rsample *s, *t;
   *valuable = 0;
   /* Find first (lowest m) interval [m,n) s.t. n >= min && m <= maxp1 */
   s = ddsrt_avl_lookup_pred_eq (&reorder_sampleivtree_treedef, &reorder->sampleivtree, &min);
@@ -2160,7 +2160,7 @@ static struct nn_rsample *coalesce_intervals_touching_range (struct nn_reorder *
   {
     /* m <= min && n >= min (note: pred of s [m',n') necessarily has n' < m) */
 #ifndef NDEBUG
-    struct nn_rsample *q = ddsrt_avl_find_pred (&reorder_sampleivtree_treedef, &reorder->sampleivtree, s);
+    struct ddsi_rsample *q = ddsrt_avl_find_pred (&reorder_sampleivtree_treedef, &reorder->sampleivtree, s);
     assert (q == NULL || q->u.reorder.maxp1 < min);
 #endif
   }
@@ -2196,28 +2196,28 @@ static struct nn_rsample *coalesce_intervals_touching_range (struct nn_reorder *
   return s;
 }
 
-struct nn_rdata *nn_rdata_newgap (struct nn_rmsg *rmsg)
+struct ddsi_rdata *ddsi_rdata_newgap (struct ddsi_rmsg *rmsg)
 {
-  struct nn_rdata *d;
-  if ((d = nn_rdata_new (rmsg, 0, 0, 0, 0, 0)) == NULL)
+  struct ddsi_rdata *d;
+  if ((d = ddsi_rdata_new (rmsg, 0, 0, 0, 0, 0)) == NULL)
     return NULL;
-  nn_rdata_addbias (d);
+  ddsi_rdata_addbias (d);
   return d;
 }
 
-static int reorder_insert_gap (struct nn_reorder *reorder, struct nn_rdata *rdata, seqno_t min, seqno_t maxp1)
+static int reorder_insert_gap (struct ddsi_reorder *reorder, struct ddsi_rdata *rdata, seqno_t min, seqno_t maxp1)
 {
-  struct nn_rsample_chain_elem *sce;
-  struct nn_rsample *s;
+  struct ddsi_rsample_chain_elem *sce;
+  struct ddsi_rsample *s;
   ddsrt_avl_ipath_t path;
   if (ddsrt_avl_lookup_ipath (&reorder_sampleivtree_treedef, &reorder->sampleivtree, &min, &path) != NULL)
     assert (0);
-  if ((sce = nn_rmsg_alloc (rdata->rmsg, sizeof (*sce))) == NULL)
+  if ((sce = ddsi_rmsg_alloc (rdata->rmsg, sizeof (*sce))) == NULL)
     return 0;
   sce->fragchain = rdata;
   sce->next = NULL;
   sce->sampleinfo = NULL;
-  if ((s = nn_rmsg_alloc (rdata->rmsg, sizeof (*s))) == NULL)
+  if ((s = ddsi_rmsg_alloc (rdata->rmsg, sizeof (*s))) == NULL)
     return 0;
   s->u.reorder.sc.first = s->u.reorder.sc.last = sce;
   s->u.reorder.min = min;
@@ -2227,7 +2227,7 @@ static int reorder_insert_gap (struct nn_reorder *reorder, struct nn_rdata *rdat
   return 1;
 }
 
-nn_reorder_result_t nn_reorder_gap (struct nn_rsample_chain *sc, struct nn_reorder *reorder, struct nn_rdata *rdata, seqno_t min, seqno_t maxp1, int *refcount_adjust)
+ddsi_reorder_result_t ddsi_reorder_gap (struct ddsi_rsample_chain *sc, struct ddsi_reorder *reorder, struct ddsi_rdata *rdata, seqno_t min, seqno_t maxp1, int *refcount_adjust)
 {
   /* All sequence numbers in [min,maxp1) are unavailable so any
      fragments in that range must be discarded.  Used both for
@@ -2254,7 +2254,7 @@ nn_reorder_result_t nn_reorder_gap (struct nn_rsample_chain *sc, struct nn_reord
      refcount_adjust) if gap causes data to be delivered: altnerative
      path for out-of-order delivery if all readers of a reliable
      proxy-writer are unrelibale depends on it. */
-  struct nn_rsample *coalesced;
+  struct ddsi_rsample *coalesced;
   int valuable;
 
   TRACE (reorder, "reorder_gap(%p %c, [%"PRIu64",%"PRIu64") data %p) expecting %"PRIu64":\n",
@@ -2264,41 +2264,41 @@ nn_reorder_result_t nn_reorder_gap (struct nn_rsample_chain *sc, struct nn_reord
   if (maxp1 <= reorder->next_seq)
   {
     TRACE (reorder, "  too old\n");
-    return NN_REORDER_TOO_OLD;
+    return DDSI_REORDER_TOO_OLD;
   }
-  if (reorder->mode != NN_REORDER_MODE_NORMAL)
+  if (reorder->mode != DDSI_REORDER_MODE_NORMAL)
   {
     TRACE (reorder, "  special mode => don't care\n");
-    return NN_REORDER_REJECT;
+    return DDSI_REORDER_REJECT;
   }
 
   /* Coalesce all intervals [m,n) with n >= min or m <= maxp1 */
   if ((coalesced = coalesce_intervals_touching_range (reorder, min, maxp1, &valuable)) == NULL)
   {
-    nn_reorder_result_t res;
+    ddsi_reorder_result_t res;
     TRACE (reorder, "  coalesced = null\n");
     if (min <= reorder->next_seq)
     {
       TRACE (reorder, "  next expected: %"PRIu64"\n", maxp1);
       reorder->next_seq = maxp1;
-      res = NN_REORDER_ACCEPT;
+      res = DDSI_REORDER_ACCEPT;
     }
     else if (reorder->n_samples == reorder->max_samples &&
              (reorder->max_sampleiv == NULL || min > reorder->max_sampleiv->u.reorder.maxp1))
     {
       /* n_samples = max_samples => (max_sampleiv = NULL <=> max_samples = 0) */
       TRACE (reorder, "  discarding gap: max_samples reached and gap at end\n");
-      res = NN_REORDER_REJECT;
+      res = DDSI_REORDER_REJECT;
     }
     else if (!reorder_insert_gap (reorder, rdata, min, maxp1))
     {
       TRACE (reorder, "  store gap failed: no memory\n");
-      res = NN_REORDER_REJECT;
+      res = DDSI_REORDER_REJECT;
     }
     else
     {
       TRACE (reorder, "  storing gap\n");
-      res = NN_REORDER_ACCEPT;
+      res = DDSI_REORDER_ACCEPT;
       /* do not let radmin grow beyond max_samples; there is a small
          possibility that we insert it & delete it immediately
          afterward. */
@@ -2328,51 +2328,51 @@ nn_reorder_result_t nn_reorder_gap (struct nn_rsample_chain *sc, struct nn_reord
     assert (coalesced->u.reorder.min + coalesced->u.reorder.n_samples <= coalesced->u.reorder.maxp1);
     assert (reorder->n_samples >= coalesced->u.reorder.n_samples);
     reorder->n_samples -= coalesced->u.reorder.n_samples;
-    return (nn_reorder_result_t) coalesced->u.reorder.n_samples;
+    return (ddsi_reorder_result_t) coalesced->u.reorder.n_samples;
   }
   else
   {
     TRACE (reorder, "  coalesced = [%"PRIu64",%"PRIu64") @ %p - that is all\n",
            coalesced->u.reorder.min, coalesced->u.reorder.maxp1, (void *) coalesced);
     reorder->max_sampleiv = ddsrt_avl_find_max (&reorder_sampleivtree_treedef, &reorder->sampleivtree);
-    return valuable ? NN_REORDER_ACCEPT : NN_REORDER_REJECT;
+    return valuable ? DDSI_REORDER_ACCEPT : DDSI_REORDER_REJECT;
   }
 }
 
-void nn_reorder_drop_upto (struct nn_reorder *reorder, seqno_t maxp1)
+void ddsi_reorder_drop_upto (struct ddsi_reorder *reorder, seqno_t maxp1)
 {
-  // nn_reorder_gap returns the chain of available samples starting with the first
+  // ddsi_reorder_gap returns the chain of available samples starting with the first
   // sequence number in the gap interval and ending at the highest sequence number
   // >= maxp1 for which all sequence numbers starting from maxp1 are present.
   // Requiring that no samples are present beyond maxp1 means we're not dropping
   // too much.  That's good enough for the current purpose.
   assert (reorder->max_sampleiv == NULL || reorder->max_sampleiv->u.reorder.maxp1 <= maxp1);
   // gap won't be stored, so can safely be stack-allocated for the purpose of calling
-  // nn_reorder_gap
-  struct nn_rdata gap = {
+  // ddsi_reorder_gap
+  struct ddsi_rdata gap = {
     .rmsg = NULL, .nextfrag = NULL, .min = 0, .maxp1 = 0, .submsg_zoff = 0, .payload_zoff = 0
 #ifndef NDEBUG
     , .refcount_bias_added = DDSRT_ATOMIC_UINT32_INIT (0)
 #endif
   };
-  struct nn_rsample_chain sc;
+  struct ddsi_rsample_chain sc;
   int refc_adjust = 0;
-  if (nn_reorder_gap (&sc, reorder, &gap, 1, maxp1, &refc_adjust) > 0)
+  if (ddsi_reorder_gap (&sc, reorder, &gap, 1, maxp1, &refc_adjust) > 0)
   {
     while (sc.first)
     {
-      struct nn_rsample_chain_elem *e = sc.first;
+      struct ddsi_rsample_chain_elem *e = sc.first;
       sc.first = e->next;
-      nn_fragchain_unref (e->fragchain);
+      ddsi_fragchain_unref (e->fragchain);
     }
   }
   assert (refc_adjust == 0 && !ddsrt_atomic_ld32 (&gap.refcount_bias_added));
-  assert (nn_reorder_next_seq (reorder) >= maxp1);
+  assert (ddsi_reorder_next_seq (reorder) >= maxp1);
 }
 
-int nn_reorder_wantsample (const struct nn_reorder *reorder, seqno_t seq)
+int ddsi_reorder_wantsample (const struct ddsi_reorder *reorder, seqno_t seq)
 {
-  struct nn_rsample *s;
+  struct ddsi_rsample *s;
   if (seq < reorder->next_seq)
     /* trivially not interesting */
     return 0;
@@ -2382,7 +2382,7 @@ int nn_reorder_wantsample (const struct nn_reorder *reorder, seqno_t seq)
   return (s == NULL || s->u.reorder.maxp1 <= seq);
 }
 
-unsigned nn_reorder_nackmap (const struct nn_reorder *reorder, seqno_t base, seqno_t maxseq, struct ddsi_sequence_number_set_header *map, uint32_t *mapbits, uint32_t maxsz, int notail)
+unsigned ddsi_reorder_nackmap (const struct ddsi_reorder *reorder, seqno_t base, seqno_t maxseq, struct ddsi_sequence_number_set_header *map, uint32_t *mapbits, uint32_t maxsz, int notail)
 {
   /* reorder->next_seq-1 is the last one we delivered, so the last one
      we ack; maxseq is the latest sample we know exists.  Valid bitmap
@@ -2401,13 +2401,13 @@ unsigned nn_reorder_nackmap (const struct nn_reorder *reorder, seqno_t base, seq
 #else
   if (base > reorder->next_seq)
   {
-    DDS_CERROR (reorder->logcfg, "nn_reorder_nackmap: incorrect base sequence number supplied (%"PRIu64" > %"PRIu64")\n", base, reorder->next_seq);
+    DDS_CERROR (reorder->logcfg, "ddsi_reorder_nackmap: incorrect base sequence number supplied (%"PRIu64" > %"PRIu64")\n", base, reorder->next_seq);
     base = reorder->next_seq;
   }
 #endif
   if (maxseq + 1 < base)
   {
-    DDS_CERROR (reorder->logcfg, "nn_reorder_nackmap: incorrect max sequence number supplied (maxseq %"PRIu64" base %"PRIu64")\n", maxseq, base);
+    DDS_CERROR (reorder->logcfg, "ddsi_reorder_nackmap: incorrect max sequence number supplied (maxseq %"PRIu64" base %"PRIu64")\n", maxseq, base);
     maxseq = base - 1;
   }
 
@@ -2418,7 +2418,7 @@ unsigned nn_reorder_nackmap (const struct nn_reorder *reorder, seqno_t base, seq
     map->numbits = (uint32_t) (maxseq + 1 - base);
   ddsi_bitset_zero (map->numbits, mapbits);
 
-  struct nn_rsample *iv = ddsrt_avl_find_min (&reorder_sampleivtree_treedef, &reorder->sampleivtree);
+  struct ddsi_rsample *iv = ddsrt_avl_find_min (&reorder_sampleivtree_treedef, &reorder->sampleivtree);
   assert (iv == NULL || iv->u.reorder.min > base);
   seqno_t i = base;
   while (iv && i < base + map->numbits)
@@ -2444,25 +2444,25 @@ unsigned nn_reorder_nackmap (const struct nn_reorder *reorder, seqno_t base, seq
   return map->numbits;
 }
 
-seqno_t nn_reorder_next_seq (const struct nn_reorder *reorder)
+seqno_t ddsi_reorder_next_seq (const struct ddsi_reorder *reorder)
 {
   return reorder->next_seq;
 }
 
-void nn_reorder_set_next_seq (struct nn_reorder *reorder, seqno_t seq)
+void ddsi_reorder_set_next_seq (struct ddsi_reorder *reorder, seqno_t seq)
 {
   reorder->next_seq = seq;
 }
 
 /* DQUEUE -------------------------------------------------------------- */
 
-struct nn_dqueue {
+struct ddsi_dqueue {
   ddsrt_mutex_t lock;
   ddsrt_cond_t cond;
-  nn_dqueue_handler_t handler;
+  ddsi_dqueue_handler_t handler;
   void *handler_arg;
 
-  struct nn_rsample_chain sc;
+  struct ddsi_rsample_chain sc;
 
   struct thread_state *thrst;
   struct ddsi_domaingv *gv;
@@ -2477,22 +2477,22 @@ enum dqueue_elem_kind {
   DQEK_BUBBLE
 };
 
-enum nn_dqueue_bubble_kind {
-  NN_DQBK_STOP, /* _not_ ddsrt_malloc()ed! */
-  NN_DQBK_CALLBACK,
-  NN_DQBK_RDGUID
+enum ddsi_dqueue_bubble_kind {
+  DDSI_DQBK_STOP, /* _not_ ddsrt_malloc()ed! */
+  DDSI_DQBK_CALLBACK,
+  DDSI_DQBK_RDGUID
 };
 
-struct nn_dqueue_bubble {
+struct ddsi_dqueue_bubble {
   /* sample_chain_elem must be first: and is used to link it into the
      queue, with the sampleinfo pointing to itself, but mangled */
-  struct nn_rsample_chain_elem sce;
+  struct ddsi_rsample_chain_elem sce;
 
-  enum nn_dqueue_bubble_kind kind;
+  enum ddsi_dqueue_bubble_kind kind;
   union {
     /* stop */
     struct {
-      nn_dqueue_callback_t cb;
+      ddsi_dqueue_callback_t cb;
       void *arg;
     } cb;
     struct {
@@ -2502,7 +2502,7 @@ struct nn_dqueue_bubble {
   } u;
 };
 
-static enum dqueue_elem_kind dqueue_elem_kind (const struct nn_rsample_chain_elem *e)
+static enum dqueue_elem_kind dqueue_elem_kind (const struct ddsi_rsample_chain_elem *e)
 {
   if (e->sampleinfo == NULL)
     return DQEK_GAP;
@@ -2512,7 +2512,7 @@ static enum dqueue_elem_kind dqueue_elem_kind (const struct nn_rsample_chain_ele
     return DQEK_BUBBLE;
 }
 
-static uint32_t dqueue_thread (struct nn_dqueue *q)
+static uint32_t dqueue_thread (struct ddsi_dqueue *q)
 {
   struct thread_state * const thrst = ddsi_lookup_thread_state ();
 #if DDSRT_HAVE_RUSAGE
@@ -2526,7 +2526,7 @@ static uint32_t dqueue_thread (struct nn_dqueue *q)
   ddsrt_mutex_lock (&q->lock);
   while (keepgoing)
   {
-    struct nn_rsample_chain sc;
+    struct ddsi_rsample_chain sc;
 
     LOG_THREAD_CPUTIME (&gv->logconfig, next_thread_cputime);
 
@@ -2539,7 +2539,7 @@ static uint32_t dqueue_thread (struct nn_dqueue *q)
     thread_state_awake_fixed_domain (thrst);
     while (sc.first)
     {
-      struct nn_rsample_chain_elem *e = sc.first;
+      struct ddsi_rsample_chain_elem *e = sc.first;
       int ret;
       sc.first = e->next;
       if (ddsrt_atomic_dec32_ov (&q->nof_samples) == 1) {
@@ -2554,7 +2554,7 @@ static uint32_t dqueue_thread (struct nn_dqueue *q)
           assert (ret == 0); /* so every handler will return 0 */
           /* FALLS THROUGH */
         case DQEK_GAP:
-          nn_fragchain_unref (e->fragchain);
+          ddsi_fragchain_unref (e->fragchain);
           if (rdguid_count > 0)
           {
             if (--rdguid_count == 0)
@@ -2564,8 +2564,8 @@ static uint32_t dqueue_thread (struct nn_dqueue *q)
 
         case DQEK_BUBBLE:
           {
-            struct nn_dqueue_bubble *b = (struct nn_dqueue_bubble *) e->sampleinfo;
-            if (b->kind == NN_DQBK_STOP)
+            struct ddsi_dqueue_bubble *b = (struct ddsi_dqueue_bubble *) e->sampleinfo;
+            if (b->kind == DDSI_DQBK_STOP)
             {
               /* Stuff enqueued behind the bubble will still be
                  processed, we do want to drain the queue.  Nothing
@@ -2579,12 +2579,12 @@ static uint32_t dqueue_thread (struct nn_dqueue *q)
             {
               switch (b->kind)
               {
-                case NN_DQBK_STOP:
+                case DDSI_DQBK_STOP:
                   abort ();
-                case NN_DQBK_CALLBACK:
+                case DDSI_DQBK_CALLBACK:
                   b->u.cb.cb (b->u.cb.arg);
                   break;
-                case NN_DQBK_RDGUID:
+                case DDSI_DQBK_RDGUID:
                   rdguid = b->u.rdguid.rdguid;
                   rdguid_count = b->u.rdguid.count;
                   prdguid = &rdguid;
@@ -2604,9 +2604,9 @@ static uint32_t dqueue_thread (struct nn_dqueue *q)
   return 0;
 }
 
-struct nn_dqueue *nn_dqueue_new (const char *name, const struct ddsi_domaingv *gv, uint32_t max_samples, nn_dqueue_handler_t handler, void *arg)
+struct ddsi_dqueue *ddsi_dqueue_new (const char *name, const struct ddsi_domaingv *gv, uint32_t max_samples, ddsi_dqueue_handler_t handler, void *arg)
 {
-  struct nn_dqueue *q;
+  struct ddsi_dqueue *q;
 
   if ((q = ddsrt_malloc (sizeof (*q))) == NULL)
     goto fail_q;
@@ -2630,7 +2630,7 @@ struct nn_dqueue *nn_dqueue_new (const char *name, const struct ddsi_domaingv *g
   return NULL;
 }
 
-bool nn_dqueue_start (struct nn_dqueue *q)
+bool ddsi_dqueue_start (struct ddsi_dqueue *q)
 {
   char *thrname;
   size_t thrnamesz;
@@ -2643,7 +2643,7 @@ bool nn_dqueue_start (struct nn_dqueue *q)
   return ret == DDS_RETCODE_OK;
 }
 
-static int nn_dqueue_enqueue_locked (struct nn_dqueue *q, struct nn_rsample_chain *sc)
+static int ddsi_dqueue_enqueue_locked (struct ddsi_dqueue *q, struct ddsi_rsample_chain *sc)
 {
   int must_signal;
   if (q->sc.first == NULL)
@@ -2660,7 +2660,7 @@ static int nn_dqueue_enqueue_locked (struct nn_dqueue *q, struct nn_rsample_chai
   return must_signal;
 }
 
-bool nn_dqueue_enqueue_deferred_wakeup (struct nn_dqueue *q, struct nn_rsample_chain *sc, nn_reorder_result_t rres)
+bool ddsi_dqueue_enqueue_deferred_wakeup (struct ddsi_dqueue *q, struct ddsi_rsample_chain *sc, ddsi_reorder_result_t rres)
 {
   bool signal;
   assert (rres > 0);
@@ -2668,65 +2668,65 @@ bool nn_dqueue_enqueue_deferred_wakeup (struct nn_dqueue *q, struct nn_rsample_c
   assert (sc->last->next == NULL);
   ddsrt_mutex_lock (&q->lock);
   ddsrt_atomic_add32 (&q->nof_samples, (uint32_t) rres);
-  signal = nn_dqueue_enqueue_locked (q, sc);
+  signal = ddsi_dqueue_enqueue_locked (q, sc);
   ddsrt_mutex_unlock (&q->lock);
   return signal;
 }
 
-void dd_dqueue_enqueue_trigger (struct nn_dqueue *q)
+void ddsi_dqueue_enqueue_trigger (struct ddsi_dqueue *q)
 {
   ddsrt_mutex_lock (&q->lock);
   ddsrt_cond_broadcast (&q->cond);
   ddsrt_mutex_unlock (&q->lock);
 }
 
-void nn_dqueue_enqueue (struct nn_dqueue *q, struct nn_rsample_chain *sc, nn_reorder_result_t rres)
+void ddsi_dqueue_enqueue (struct ddsi_dqueue *q, struct ddsi_rsample_chain *sc, ddsi_reorder_result_t rres)
 {
   assert (rres > 0);
   assert (sc->first);
   assert (sc->last->next == NULL);
   ddsrt_mutex_lock (&q->lock);
   ddsrt_atomic_add32 (&q->nof_samples, (uint32_t) rres);
-  if (nn_dqueue_enqueue_locked (q, sc))
+  if (ddsi_dqueue_enqueue_locked (q, sc))
     ddsrt_cond_broadcast (&q->cond);
   ddsrt_mutex_unlock (&q->lock);
 }
 
-static int nn_dqueue_enqueue_bubble_locked (struct nn_dqueue *q, struct nn_dqueue_bubble *b)
+static int ddsi_dqueue_enqueue_bubble_locked (struct ddsi_dqueue *q, struct ddsi_dqueue_bubble *b)
 {
-  struct nn_rsample_chain sc;
+  struct ddsi_rsample_chain sc;
   b->sce.next = NULL;
   b->sce.fragchain = NULL;
-  b->sce.sampleinfo = (struct nn_rsample_info *) b;
+  b->sce.sampleinfo = (struct ddsi_rsample_info *) b;
   sc.first = sc.last = &b->sce;
-  return nn_dqueue_enqueue_locked (q, &sc);
+  return ddsi_dqueue_enqueue_locked (q, &sc);
 }
 
-static void nn_dqueue_enqueue_bubble (struct nn_dqueue *q, struct nn_dqueue_bubble *b)
+static void ddsi_dqueue_enqueue_bubble (struct ddsi_dqueue *q, struct ddsi_dqueue_bubble *b)
 {
   ddsrt_mutex_lock (&q->lock);
   ddsrt_atomic_inc32 (&q->nof_samples);
-  if (nn_dqueue_enqueue_bubble_locked (q, b))
+  if (ddsi_dqueue_enqueue_bubble_locked (q, b))
     ddsrt_cond_broadcast (&q->cond);
   ddsrt_mutex_unlock (&q->lock);
 }
 
-void nn_dqueue_enqueue_callback (struct nn_dqueue *q, nn_dqueue_callback_t cb, void *arg)
+void ddsi_dqueue_enqueue_callback (struct ddsi_dqueue *q, ddsi_dqueue_callback_t cb, void *arg)
 {
-  struct nn_dqueue_bubble *b;
+  struct ddsi_dqueue_bubble *b;
   b = ddsrt_malloc (sizeof (*b));
-  b->kind = NN_DQBK_CALLBACK;
+  b->kind = DDSI_DQBK_CALLBACK;
   b->u.cb.cb = cb;
   b->u.cb.arg = arg;
-  nn_dqueue_enqueue_bubble (q, b);
+  ddsi_dqueue_enqueue_bubble (q, b);
 }
 
-void nn_dqueue_enqueue1 (struct nn_dqueue *q, const ddsi_guid_t *rdguid, struct nn_rsample_chain *sc, nn_reorder_result_t rres)
+void ddsi_dqueue_enqueue1 (struct ddsi_dqueue *q, const ddsi_guid_t *rdguid, struct ddsi_rsample_chain *sc, ddsi_reorder_result_t rres)
 {
-  struct nn_dqueue_bubble *b;
+  struct ddsi_dqueue_bubble *b;
 
   b = ddsrt_malloc (sizeof (*b));
-  b->kind = NN_DQBK_RDGUID;
+  b->kind = DDSI_DQBK_RDGUID;
   b->u.rdguid.rdguid = *rdguid;
   b->u.rdguid.count = (uint32_t) rres;
 
@@ -2736,13 +2736,13 @@ void nn_dqueue_enqueue1 (struct nn_dqueue *q, const ddsi_guid_t *rdguid, struct 
   assert (sc->last->next == NULL);
   ddsrt_mutex_lock (&q->lock);
   ddsrt_atomic_add32 (&q->nof_samples, 1 + (uint32_t) rres);
-  if (nn_dqueue_enqueue_bubble_locked (q, b))
+  if (ddsi_dqueue_enqueue_bubble_locked (q, b))
     ddsrt_cond_broadcast (&q->cond);
-  (void) nn_dqueue_enqueue_locked (q, sc);
+  (void) ddsi_dqueue_enqueue_locked (q, sc);
   ddsrt_mutex_unlock (&q->lock);
 }
 
-int nn_dqueue_is_full (struct nn_dqueue *q)
+int ddsi_dqueue_is_full (struct ddsi_dqueue *q)
 {
   /* Reading nof_samples exactly once. It IS a 32-bit int, so at
      worst we get an old value. That mean: we think it is full when
@@ -2755,7 +2755,7 @@ int nn_dqueue_is_full (struct nn_dqueue *q)
   return (count >= q->max_samples);
 }
 
-void nn_dqueue_wait_until_empty_if_full (struct nn_dqueue *q)
+void ddsi_dqueue_wait_until_empty_if_full (struct ddsi_dqueue *q)
 {
   const uint32_t count = ddsrt_atomic_ld32 (&q->nof_samples);
   if (count >= q->max_samples)
@@ -2769,22 +2769,22 @@ void nn_dqueue_wait_until_empty_if_full (struct nn_dqueue *q)
   }
 }
 
-static void dqueue_free_remaining_elements (struct nn_dqueue *q)
+static void dqueue_free_remaining_elements (struct ddsi_dqueue *q)
 {
   assert (q->thrst == NULL);
   while (q->sc.first)
   {
-    struct nn_rsample_chain_elem *e = q->sc.first;
+    struct ddsi_rsample_chain_elem *e = q->sc.first;
     q->sc.first = e->next;
     switch (dqueue_elem_kind (e))
     {
       case DQEK_DATA:
       case DQEK_GAP:
-        nn_fragchain_unref (e->fragchain);
+        ddsi_fragchain_unref (e->fragchain);
         break;
       case DQEK_BUBBLE: {
-        struct nn_dqueue_bubble *b = (struct nn_dqueue_bubble *) e->sampleinfo;
-        if (b->kind != NN_DQBK_STOP)
+        struct ddsi_dqueue_bubble *b = (struct ddsi_dqueue_bubble *) e->sampleinfo;
+        if (b->kind != DDSI_DQBK_STOP)
           ddsrt_free (b);
         break;
       }
@@ -2792,7 +2792,7 @@ static void dqueue_free_remaining_elements (struct nn_dqueue *q)
   }
 }
 
-void nn_dqueue_free (struct nn_dqueue *q)
+void ddsi_dqueue_free (struct ddsi_dqueue *q)
 {
   /* There must not be any thread enqueueing things anymore at this
      point.  The stop bubble is special in that it does _not_ get
@@ -2801,9 +2801,9 @@ void nn_dqueue_free (struct nn_dqueue *q)
      heap space, would it not? */
   if (q->thrst)
   {
-    struct nn_dqueue_bubble b;
-    b.kind = NN_DQBK_STOP;
-    nn_dqueue_enqueue_bubble (q, &b);
+    struct ddsi_dqueue_bubble b;
+    b.kind = DDSI_DQBK_STOP;
+    ddsi_dqueue_enqueue_bubble (q, &b);
 
     join_thread (q->thrst);
     assert (q->sc.first == NULL);

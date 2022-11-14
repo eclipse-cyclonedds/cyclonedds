@@ -33,7 +33,7 @@
 #include "ddsi__entity_index.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "ddsi__addrset.h"
-#include "dds/ddsi/q_radmin.h"
+#include "ddsi__radmin.h"
 #include "ddsi__discovery.h"
 #include "ddsi__protocol.h"
 #include "dds/ddsi/ddsi_unused.h"
@@ -561,8 +561,8 @@ static void print_proxy_writer (struct st *st, void *varg)
   cpfku32 (st, "last_fragnum", w->last_fragnum);
   cpfkseq (st, "local_readers", print_proxy_writer_rdseq, w);
   uint64_t disc_frags, disc_samples;
-  nn_defrag_stats (w->defrag, &disc_frags);
-  nn_reorder_stats (w->reorder, &disc_samples);
+  ddsi_defrag_stats (w->defrag, &disc_frags);
+  ddsi_reorder_stats (w->reorder, &disc_samples);
   cpfku64 (st, "discarded_fragment_bytes", disc_frags);
   cpfku64 (st, "discarded_sample_bytes", disc_samples);
   ddsrt_mutex_unlock (&w->e.lock);

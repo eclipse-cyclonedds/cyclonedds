@@ -250,7 +250,7 @@ void ddsi_plist_addtomsg_bo (struct nn_xmsg *m, const ddsi_plist_t *ps, uint64_t
  */
 size_t ddsi_plist_print (char * __restrict buf, size_t bufsize, const ddsi_plist_t *plist);
 
-struct nn_rsample_info;
+struct ddsi_rsample_info;
 
 /**
  * @brief Scan a PL_CDR-serialized parameter list, checking structure and copying some information to "dest".
@@ -275,7 +275,7 @@ struct nn_rsample_info;
  * @return pointer to the first byte following the sentinel if the input is well-formed, a
  * null pointer if it is not.
 */
-unsigned char *ddsi_plist_quickscan (struct nn_rsample_info *dest, const ddsi_keyhash_t **keyhashp, const ddsi_plist_src_t *src, struct ddsi_domaingv const * const gv);
+unsigned char *ddsi_plist_quickscan (struct ddsi_rsample_info *dest, const ddsi_keyhash_t **keyhashp, const ddsi_plist_src_t *src, struct ddsi_domaingv const * const gv);
 
 /**
  * @brief Locate a specific parameter in a PL_CDR-serialized parameter list

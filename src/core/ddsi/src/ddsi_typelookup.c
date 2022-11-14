@@ -32,7 +32,7 @@
 #include "ddsi__participant.h"
 #include "dds/ddsi/ddsi_gc.h"
 #include "ddsi__protocol.h"
-#include "dds/ddsi/q_radmin.h"
+#include "ddsi__radmin.h"
 #include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/q_transmit.h"
 #include "dds/ddsi/q_xmsg.h"

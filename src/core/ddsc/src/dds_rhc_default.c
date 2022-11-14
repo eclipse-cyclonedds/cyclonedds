@@ -36,7 +36,7 @@
 #include "dds/ddsi/ddsi_unused.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/q_radmin.h" /* sampleinfo */
+#include "dds/ddsi/ddsi_radmin.h" /* sampleinfo */
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #ifdef DDS_HAS_LIFESPAN

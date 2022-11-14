@@ -22,7 +22,7 @@
 #include "dds/ddsi/ddsi_freelist.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/cdr/dds_cdrstream.h"
-#include "dds/ddsi/q_radmin.h"
+#include "ddsi__radmin.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "ddsi__serdata_cdr.h"
 
@@ -130,7 +130,7 @@ static inline bool is_valid_xcdr_id (unsigned short cdr_identifier)
 }
 
 /* Construct a serdata from a fragchain received over the network */
-static struct ddsi_serdata_cdr *serdata_cdr_from_ser_common (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, const struct nn_rdata *fragchain, size_t size)
+static struct ddsi_serdata_cdr *serdata_cdr_from_ser_common (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, const struct ddsi_rdata *fragchain, size_t size)
 {
   assert (kind == SDK_DATA);
   const struct ddsi_sertype_cdr *tp = (const struct ddsi_sertype_cdr *)tpcmn;
@@ -150,7 +150,7 @@ static struct ddsi_serdata_cdr *serdata_cdr_from_ser_common (const struct ddsi_s
   assert (fragchain->min == 0);
   assert (fragchain->maxp1 >= off); /* CDR header must be in first fragment */
 
-  memcpy (&d->hdr, NN_RMSG_PAYLOADOFF (fragchain->rmsg, NN_RDATA_PAYLOAD_OFF (fragchain)), sizeof (d->hdr));
+  memcpy (&d->hdr, DDSI_RMSG_PAYLOADOFF (fragchain->rmsg, DDSI_RDATA_PAYLOAD_OFF (fragchain)), sizeof (d->hdr));
   if (!is_valid_xcdr_id (d->hdr.identifier))
     goto err;
 
@@ -161,7 +161,7 @@ static struct ddsi_serdata_cdr *serdata_cdr_from_ser_common (const struct ddsi_s
     if (fragchain->maxp1 > off)
     {
       /* only copy if this fragment adds data */
-      const unsigned char *payload = NN_RMSG_PAYLOADOFF (fragchain->rmsg, NN_RDATA_PAYLOAD_OFF (fragchain));
+      const unsigned char *payload = DDSI_RMSG_PAYLOADOFF (fragchain->rmsg, DDSI_RDATA_PAYLOAD_OFF (fragchain));
       serdata_cdr_append_blob (&d, fragchain->maxp1 - off, payload + off - fragchain->min);
       off = fragchain->maxp1;
     }
@@ -189,7 +189,7 @@ err:
   return NULL;
 }
 
-static struct ddsi_serdata *serdata_cdr_from_ser (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, const struct nn_rdata *fragchain, size_t size)
+static struct ddsi_serdata *serdata_cdr_from_ser (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, const struct ddsi_rdata *fragchain, size_t size)
 {
   struct ddsi_serdata_cdr *d;
   if ((d = serdata_cdr_from_ser_common (tpcmn, kind, fragchain, size)) == NULL)

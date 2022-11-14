@@ -21,7 +21,7 @@
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_freelist.h"
 #include "dds/ddsi/ddsi_tkmap.h"
-#include "dds/ddsi/q_radmin.h"
+#include "ddsi__radmin.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "ddsi__serdata_plist.h"
 #include "dds/ddsi/q_xmsg.h"
@@ -101,10 +101,10 @@ static struct ddsi_serdata *serdata_plist_fix (const struct ddsi_sertype_plist *
   return &d->c;
 }
 
-static struct ddsi_serdata *serdata_plist_from_ser (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, const struct nn_rdata *fragchain, size_t size)
+static struct ddsi_serdata *serdata_plist_from_ser (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, const struct ddsi_rdata *fragchain, size_t size)
 {
   const struct ddsi_sertype_plist *tp = (const struct ddsi_sertype_plist *) tpcmn;
-  struct ddsi_serdata_plist *d = serdata_plist_new (tp, kind, size, NN_RMSG_PAYLOADOFF (fragchain->rmsg, NN_RDATA_PAYLOAD_OFF (fragchain)));
+  struct ddsi_serdata_plist *d = serdata_plist_new (tp, kind, size, DDSI_RMSG_PAYLOADOFF (fragchain->rmsg, DDSI_RDATA_PAYLOAD_OFF (fragchain)));
   if (d == NULL)
     return NULL;
   uint32_t off = 4; /* must skip the CDR header */
@@ -117,7 +117,7 @@ static struct ddsi_serdata *serdata_plist_from_ser (const struct ddsi_sertype *t
     if (fragchain->maxp1 > off)
     {
       /* only copy if this fragment adds data */
-      const unsigned char *payload = NN_RMSG_PAYLOADOFF (fragchain->rmsg, NN_RDATA_PAYLOAD_OFF (fragchain));
+      const unsigned char *payload = DDSI_RMSG_PAYLOADOFF (fragchain->rmsg, DDSI_RDATA_PAYLOAD_OFF (fragchain));
       uint32_t n = fragchain->maxp1 - off;
       memcpy (d->data + d->pos, payload + off - fragchain->min, n);
       d->pos += n;

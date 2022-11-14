@@ -23,7 +23,7 @@
 
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_unused.h"
-#include "dds/ddsi/q_radmin.h"
+#include "ddsi__radmin.h"
 #include "ddsi__misc.h"
 #include "ddsi__entity_index.h"
 #include "ddsi__security_msg.h"
@@ -3373,7 +3373,7 @@ bool ddsi_security_encode_payload (struct ddsi_writer *wr, ddsrt_iovec_t *vec, u
   return true;
 }
 
-static bool decode_payload (const struct ddsi_domaingv *gv, struct nn_rsample_info *sampleinfo, unsigned char *payloadp, uint32_t *payloadsz, size_t *submsg_len)
+static bool decode_payload (const struct ddsi_domaingv *gv, struct ddsi_rsample_info *sampleinfo, unsigned char *payloadp, uint32_t *payloadsz, size_t *submsg_len)
 {
   assert (payloadp);
   assert (payloadsz);
@@ -3410,7 +3410,7 @@ static bool decode_payload (const struct ddsi_domaingv *gv, struct nn_rsample_in
   return true;
 }
 
-bool ddsi_security_decode_data (const struct ddsi_domaingv *gv, struct nn_rsample_info *sampleinfo, unsigned char *payloadp, uint32_t payloadsz, size_t *submsg_len)
+bool ddsi_security_decode_data (const struct ddsi_domaingv *gv, struct ddsi_rsample_info *sampleinfo, unsigned char *payloadp, uint32_t payloadsz, size_t *submsg_len)
 {
   /* Only decode when there's actual data. */
   if (payloadp == NULL || payloadsz == 0)
@@ -3425,7 +3425,7 @@ bool ddsi_security_decode_data (const struct ddsi_domaingv *gv, struct nn_rsampl
   }
 }
 
-bool ddsi_security_decode_datafrag (const struct ddsi_domaingv *gv, struct nn_rsample_info *sampleinfo, unsigned char *payloadp, uint32_t payloadsz, size_t *submsg_len)
+bool ddsi_security_decode_datafrag (const struct ddsi_domaingv *gv, struct ddsi_rsample_info *sampleinfo, unsigned char *payloadp, uint32_t payloadsz, size_t *submsg_len)
 {
   /* Only decode when there's actual data; do not touch the sampleinfo->size in
      contradiction to ddsi_security_decode_data() (it has been calculated differently). */
@@ -3505,7 +3505,7 @@ void ddsi_security_encode_datawriter_submsg (struct nn_xmsg *msg, struct nn_xmsg
   }
 }
 
-bool ddsi_security_validate_msg_decoding (const struct ddsi_entity_common *e, const struct ddsi_proxy_endpoint_common *c, const struct ddsi_proxy_participant *proxypp, const struct receiver_state *rst, ddsi_rtps_submessage_kind_t prev_smid)
+bool ddsi_security_validate_msg_decoding (const struct ddsi_entity_common *e, const struct ddsi_proxy_endpoint_common *c, const struct ddsi_proxy_participant *proxypp, const struct ddsi_receiver_state *rst, ddsi_rtps_submessage_kind_t prev_smid)
 {
   assert (e);
   assert (c);
@@ -3586,7 +3586,7 @@ static int32_t padding_submsg (struct ddsi_domaingv *gv, unsigned char *start, u
   return (int32_t) size;
 }
 
-static bool ddsi_security_decode_sec_prefix_patched_hdr_flags (const struct receiver_state *rst, unsigned char *submsg, size_t submsg_size, unsigned char * const msg_end, const ddsi_guid_prefix_t * const src_prefix, const ddsi_guid_prefix_t * const dst_prefix, int byteswap)
+static bool ddsi_security_decode_sec_prefix_patched_hdr_flags (const struct ddsi_receiver_state *rst, unsigned char *submsg, size_t submsg_size, unsigned char * const msg_end, const ddsi_guid_prefix_t * const src_prefix, const ddsi_guid_prefix_t * const dst_prefix, int byteswap)
 {
   int smsize = -1;
   size_t totalsize = submsg_size;
@@ -3664,7 +3664,7 @@ static bool ddsi_security_decode_sec_prefix_patched_hdr_flags (const struct rece
   return (smsize > 0);
 }
 
-bool ddsi_security_decode_sec_prefix (const struct receiver_state *rst, unsigned char *submsg, size_t submsg_size, unsigned char * const msg_end, const ddsi_guid_prefix_t * const src_prefix, const ddsi_guid_prefix_t * const dst_prefix, int byteswap)
+bool ddsi_security_decode_sec_prefix (const struct ddsi_receiver_state *rst, unsigned char *submsg, size_t submsg_size, unsigned char * const msg_end, const ddsi_guid_prefix_t * const src_prefix, const ddsi_guid_prefix_t * const dst_prefix, int byteswap)
 {
   /* FIXME: eliminate the patching of hdr->flags if possible */
   ddsi_rtps_submessage_header_t *hdr = (ddsi_rtps_submessage_header_t *) submsg;
@@ -3714,11 +3714,11 @@ static ddsi_rtps_msg_state_t check_rtps_message_is_secure (struct ddsi_domaingv 
 
 static ddsi_rtps_msg_state_t
 decode_rtps_message_awake (
-  struct nn_rmsg **rmsg,
+  struct ddsi_rmsg **rmsg,
   ddsi_rtps_header_t **hdr,
   unsigned char **buff,
   size_t *sz,
-  struct nn_rbufpool *rbpool,
+  struct ddsi_rbufpool *rbpool,
   bool isstream,
   struct ddsi_proxy_participant *proxypp)
 {
@@ -3727,7 +3727,7 @@ decode_rtps_message_awake (
   size_t srclen, dstlen;
 
   /* Currently the decode_rtps_message returns a new allocated buffer.
-   * This could be optimized by providing a pre-allocated nn_rmsg buffer to
+   * This could be optimized by providing a pre-allocated ddsi_rmsg buffer to
    * copy the decoded rtps message in.
    */
   if (isstream)
@@ -3750,12 +3750,12 @@ else
   assert (dstbuf);
   assert (dstlen <= UINT32_MAX);
 
-  nn_rmsg_commit (*rmsg);
-  *rmsg = nn_rmsg_new (rbpool);
-  *buff = NN_RMSG_PAYLOAD (*rmsg);
+  ddsi_rmsg_commit (*rmsg);
+  *rmsg = ddsi_rmsg_new (rbpool);
+  *buff = DDSI_RMSG_PAYLOAD (*rmsg);
 
   memcpy(*buff, dstbuf, dstlen);
-  nn_rmsg_setsize (*rmsg, (uint32_t) dstlen);
+  ddsi_rmsg_setsize (*rmsg, (uint32_t) dstlen);
 
   ddsrt_free (dstbuf);
 
@@ -3769,11 +3769,11 @@ ddsi_rtps_msg_state_t
 ddsi_security_decode_rtps_message (
   struct thread_state * const thrst,
   struct ddsi_domaingv *gv,
-  struct nn_rmsg **rmsg,
+  struct ddsi_rmsg **rmsg,
   ddsi_rtps_header_t **hdr,
   unsigned char **buff,
   size_t *sz,
-  struct nn_rbufpool *rbpool,
+  struct ddsi_rbufpool *rbpool,
   bool isstream)
 {
   struct ddsi_proxy_participant *proxypp;
@@ -4002,14 +4002,14 @@ extern inline void ddsi_set_proxy_writer_security_info(UNUSED_ARG(struct ddsi_pr
 
 extern inline bool ddsi_security_decode_data(
   UNUSED_ARG(const struct ddsi_domaingv *gv),
-  UNUSED_ARG(struct nn_rsample_info *sampleinfo),
+  UNUSED_ARG(struct ddsi_rsample_info *sampleinfo),
   UNUSED_ARG(unsigned char *payloadp),
   UNUSED_ARG(uint32_t payloadsz),
   UNUSED_ARG(size_t *submsg_len));
 
 extern inline bool ddsi_security_decode_datafrag(
   UNUSED_ARG(const struct ddsi_domaingv *gv),
-  UNUSED_ARG(struct nn_rsample_info *sampleinfo),
+  UNUSED_ARG(struct ddsi_rsample_info *sampleinfo),
   UNUSED_ARG(unsigned char *payloadp),
   UNUSED_ARG(uint32_t payloadsz),
   UNUSED_ARG(size_t *submsg_len));
@@ -4029,11 +4029,11 @@ extern inline bool ddsi_security_validate_msg_decoding(
   UNUSED_ARG(const struct ddsi_entity_common *e),
   UNUSED_ARG(const struct ddsi_proxy_endpoint_common *c),
   UNUSED_ARG(struct ddsi_proxy_participant *proxypp),
-  UNUSED_ARG(struct receiver_state *rst),
+  UNUSED_ARG(struct ddsi_receiver_state *rst),
   UNUSED_ARG(ddsi_rtps_submessage_kind_t prev_smid));
 
 extern inline int ddsi_security_decode_sec_prefix(
-  UNUSED_ARG(struct receiver_state *rst),
+  UNUSED_ARG(struct ddsi_receiver_state *rst),
   UNUSED_ARG(unsigned char *submsg),
   UNUSED_ARG(size_t submsg_size),
   UNUSED_ARG(unsigned char * const msg_end),
@@ -4044,11 +4044,11 @@ extern inline int ddsi_security_decode_sec_prefix(
 extern inline ddsi_rtps_msg_state_t ddsi_security_decode_rtps_message (
   UNUSED_ARG(struct thread_state * const thrst),
   UNUSED_ARG(struct ddsi_domaingv *gv),
-  UNUSED_ARG(struct nn_rmsg **rmsg),
+  UNUSED_ARG(struct ddsi_rmsg **rmsg),
   UNUSED_ARG(ddsi_rtps_header_t **hdr),
   UNUSED_ARG(unsigned char **buff),
   UNUSED_ARG(size_t *sz),
-  UNUSED_ARG(struct nn_rbufpool *rbpool),
+  UNUSED_ARG(struct ddsi_rbufpool *rbpool),
   UNUSED_ARG(bool isstream));
 
 extern inline int64_t ddsi_omg_security_get_remote_participant_handle (UNUSED_ARG(struct ddsi_proxy_participant *proxypp));

@@ -16,10 +16,10 @@
 extern "C" {
 #endif
 
-struct nn_rbufpool;
-struct nn_rsample_info;
-struct nn_rdata;
-struct nn_rmsg;
+struct ddsi_rbufpool;
+struct ddsi_rsample_info;
+struct ddsi_rdata;
+struct ddsi_rmsg;
 struct ddsi_tran_listener;
 struct recv_thread_arg;
 struct ddsi_writer;
@@ -39,10 +39,10 @@ struct nn_xmsg * nn_gap_info_create_gap(struct ddsi_writer *wr, struct ddsi_prox
 void trigger_recv_threads (const struct ddsi_domaingv *gv);
 uint32_t recv_thread (void *vrecv_thread_arg);
 uint32_t listen_thread (struct ddsi_tran_listener * listener);
-int user_dqueue_handler (const struct nn_rsample_info *sampleinfo, const struct nn_rdata *fragchain, const ddsi_guid_t *rdguid, void *qarg);
+int user_dqueue_handler (const struct ddsi_rsample_info *sampleinfo, const struct ddsi_rdata *fragchain, const ddsi_guid_t *rdguid, void *qarg);
 int add_Gap (struct nn_xmsg *msg, struct ddsi_writer *wr, struct ddsi_proxy_reader *prd, seqno_t start, seqno_t base, uint32_t numbits, const uint32_t *bits);
 
-void ddsi_handle_rtps_message (struct thread_state * const thrst, struct ddsi_domaingv *gv, ddsi_tran_conn_t conn, const ddsi_guid_prefix_t *guidprefix, struct nn_rbufpool *rbpool, struct nn_rmsg *rmsg, size_t sz, unsigned char *msg, const ddsi_locator_t *srcloc);
+void ddsi_handle_rtps_message (struct thread_state * const thrst, struct ddsi_domaingv *gv, ddsi_tran_conn_t conn, const ddsi_guid_prefix_t *guidprefix, struct ddsi_rbufpool *rbpool, struct ddsi_rmsg *rmsg, size_t sz, unsigned char *msg, const ddsi_locator_t *srcloc);
 
 #if defined (__cplusplus)
 }

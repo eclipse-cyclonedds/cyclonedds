@@ -21,7 +21,7 @@
 
 #include "dds/dds.h"
 #include "dds/ddsi/ddsi_serdata.h"
-#include "dds/ddsi/q_radmin.h"
+#include "ddsi__radmin.h"
 #include "dds__entity.h"
 
 #include "test_common.h"
@@ -228,11 +228,11 @@ static struct ddsi_serdata *sd_from_ser_iov (const struct ddsi_sertype *tpcmn, e
   return &sd->c;
 }
 
-static struct ddsi_serdata *sd_from_ser (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, const struct nn_rdata *fragchain, size_t size)
+static struct ddsi_serdata *sd_from_ser (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, const struct ddsi_rdata *fragchain, size_t size)
 {
   assert (fragchain->nextfrag == NULL);
   ddsrt_iovec_t iov = {
-    .iov_base = NN_RMSG_PAYLOADOFF (fragchain->rmsg, NN_RDATA_PAYLOAD_OFF (fragchain)),
+    .iov_base = DDSI_RMSG_PAYLOADOFF (fragchain->rmsg, DDSI_RDATA_PAYLOAD_OFF (fragchain)),
     .iov_len = fragchain->maxp1 // fragchain->min = 0 for first fragment, by definition
   };
   const ddsi_keyhash_t *kh = ddsi_serdata_keyhash_from_fragchain (fragchain);

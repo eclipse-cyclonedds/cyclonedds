@@ -119,7 +119,7 @@ The following elements are added to the data structures:
 Functions added:
 
 * writer_hbcontrol_p2p : This function creates a heartbeat destined for a specific reader. The volatile secure writer will use an submessage encoding which uses a distinct key for each reader. Therefor a reader specific heartbeat is needed.
-* nn_defrag_prune : When a volatile secure reader is deleted then the defragmentation administration could still contain messages destined for this reader. This function removes these messages from the defragmentation administration.
+* ddsi_defrag_prune : When a volatile secure reader is deleted then the defragmentation administration could still contain messages destined for this reader. This function removes these messages from the defragmentation administration.
 * ddsi_volatile_secure_data_filter : The filter applied to the secure volatile messages which filters on the destination participant guid.
 * write_sample_p2p_wrlock_held : This function writes a message to a particular reader.
 

@@ -645,7 +645,7 @@ void ddsi_free_pwr_rd_match (struct ddsi_pwr_rd_match *m)
   {
     if (m->acknack_xevent)
       delete_xevent (m->acknack_xevent);
-    nn_reorder_free (m->u.not_in_sync.reorder);
+    ddsi_reorder_free (m->u.not_in_sync.reorder);
     ddsrt_free (m);
   }
 }
@@ -1080,14 +1080,14 @@ void ddsi_proxy_writer_add_connection (struct ddsi_proxy_writer *pwr, struct dds
     const ddsrt_mtime_t tsched = use_iceoryx ? DDSRT_MTIME_NEVER : ddsrt_mtime_add_duration (tnow, pwr->e.gv->config.preemptive_ack_delay);
     m->acknack_xevent = qxev_acknack (pwr->evq, tsched, &pwr->e.guid, &rd->e.guid);
     m->u.not_in_sync.reorder =
-      nn_reorder_new (&pwr->e.gv->logconfig, NN_REORDER_MODE_NORMAL, secondary_reorder_maxsamples, pwr->e.gv->config.late_ack_mode);
+      ddsi_reorder_new (&pwr->e.gv->logconfig, DDSI_REORDER_MODE_NORMAL, secondary_reorder_maxsamples, pwr->e.gv->config.late_ack_mode);
     pwr->n_reliable_readers++;
   }
   else
   {
     m->acknack_xevent = NULL;
     m->u.not_in_sync.reorder =
-      nn_reorder_new (&pwr->e.gv->logconfig, NN_REORDER_MODE_MONOTONICALLY_INCREASING, pwr->e.gv->config.secondary_reorder_maxsamples, pwr->e.gv->config.late_ack_mode);
+      ddsi_reorder_new (&pwr->e.gv->logconfig, DDSI_REORDER_MODE_MONOTONICALLY_INCREASING, pwr->e.gv->config.secondary_reorder_maxsamples, pwr->e.gv->config.late_ack_mode);
   }
 
   ddsrt_avl_insert_ipath (&ddsi_pwr_readers_treedef, &pwr->readers, m, &path);
@@ -1307,8 +1307,8 @@ void ddsi_proxy_writer_drop_connection (const struct ddsi_guid *pwr_guid, struct
       if (pwr->n_reliable_readers == 0 && isreliable && pwr->have_seen_heartbeat)
       {
         pwr->have_seen_heartbeat = 0;
-        nn_defrag_notegap (pwr->defrag, 1, pwr->last_seq + 1);
-        nn_reorder_drop_upto (pwr->reorder, pwr->last_seq + 1);
+        ddsi_defrag_notegap (pwr->defrag, 1, pwr->last_seq + 1);
+        ddsi_reorder_drop_upto (pwr->reorder, pwr->last_seq + 1);
       }
       ddsi_local_reader_ary_remove (&pwr->rdary, rd);
     }
@@ -1317,7 +1317,7 @@ void ddsi_proxy_writer_drop_connection (const struct ddsi_guid *pwr_guid, struct
     {
       ddsi_update_reader_init_acknack_count (&rd->e.gv->logconfig, rd->e.gv->entity_index, &rd->e.guid, m->count);
       if (m->filtered)
-        nn_defrag_prune(pwr->defrag, &m->rd_guid.prefix, m->last_seq);
+        ddsi_defrag_prune(pwr->defrag, &m->rd_guid.prefix, m->last_seq);
     }
     ddsi_free_pwr_rd_match (m);
   }

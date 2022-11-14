@@ -16,13 +16,13 @@
 #include "dds/ddsi/ddsi_iid.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/q_radmin.h"
+#include "ddsi__radmin.h"
 #include "dds/ddsi/q_thread.h"
 #include "ddsi__misc.h"
 
 static struct ddsi_domaingv gv;
 static struct thread_state *thrst;
-static struct nn_rbufpool *rbpool;
+static struct ddsi_rbufpool *rbpool;
 
 static void null_log_sink (void *varg, const dds_log_data_t *msg)
 {
@@ -52,14 +52,14 @@ static void setup (void)
   dds_set_trace_sink (null_log_sink, NULL);
 
   rtps_init (&gv);
-  rbpool = nn_rbufpool_new (&gv.logconfig, gv.config.rbuf_size, gv.config.rmsg_chunk_size);
-  nn_rbufpool_setowner (rbpool, ddsrt_thread_self ());
+  rbpool = ddsi_rbufpool_new (&gv.logconfig, gv.config.rbuf_size, gv.config.rmsg_chunk_size);
+  ddsi_rbufpool_setowner (rbpool, ddsrt_thread_self ());
 }
 
 static void teardown (void)
 {
   rtps_fini (&gv);
-  nn_rbufpool_free (rbpool);
+  ddsi_rbufpool_free (rbpool);
 
   // On shutdown, there is an expectation that the thread was discovered dynamically.
   // We overrode it in the setup code, we undo it now.
@@ -69,23 +69,23 @@ static void teardown (void)
   ddsi_iid_fini ();
 }
 
-static void insert_gap (struct nn_reorder *reorder, struct nn_rmsg *rmsg, seqno_t seq)
+static void insert_gap (struct ddsi_reorder *reorder, struct ddsi_rmsg *rmsg, seqno_t seq)
 {
-  struct nn_rdata *gap = nn_rdata_newgap (rmsg);
-  struct nn_rsample_chain sc;
+  struct ddsi_rdata *gap = ddsi_rdata_newgap (rmsg);
+  struct ddsi_rsample_chain sc;
   int refc_adjust = 0;
-  nn_reorder_result_t res = nn_reorder_gap (&sc, reorder, gap, seq, seq + 1, &refc_adjust);
-  CU_ASSERT_FATAL (res == NN_REORDER_ACCEPT);
-  nn_fragchain_adjust_refcount (gap, refc_adjust);
+  ddsi_reorder_result_t res = ddsi_reorder_gap (&sc, reorder, gap, seq, seq + 1, &refc_adjust);
+  CU_ASSERT_FATAL (res == DDSI_REORDER_ACCEPT);
+  ddsi_fragchain_adjust_refcount (gap, refc_adjust);
 }
 
-static void check_reorder (struct nn_reorder *reorder, uint64_t ndiscard, seqno_t next_exp, seqno_t end, const seqno_t *present)
+static void check_reorder (struct ddsi_reorder *reorder, uint64_t ndiscard, seqno_t next_exp, seqno_t end, const seqno_t *present)
 {
   // expect to be waiting for the right sequence number
-  CU_ASSERT_FATAL (nn_reorder_next_seq (reorder) == next_exp);
+  CU_ASSERT_FATAL (ddsi_reorder_next_seq (reorder) == next_exp);
   // expect the number of discarded bytes to match
   uint64_t discarded_bytes;
-  nn_reorder_stats (reorder, &discarded_bytes);
+  ddsi_reorder_stats (reorder, &discarded_bytes);
   CU_ASSERT_FATAL (discarded_bytes == ndiscard);
   // expect the set of present sequence numbers to match
   int i = 0, err = 0;
@@ -93,13 +93,13 @@ static void check_reorder (struct nn_reorder *reorder, uint64_t ndiscard, seqno_
   for (seqno_t s = next_exp; s <= end; s++)
   {
     if (s < present[i] || present[i] == 0) {
-      int w = nn_reorder_wantsample (reorder, s);
+      int w = ddsi_reorder_wantsample (reorder, s);
       printf (" -%"PRId64"/%d", s, w);
       if (!w) err++;
     } else {
       if (s == present[i])
         i++;
-      int w = nn_reorder_wantsample (reorder, s);
+      int w = ddsi_reorder_wantsample (reorder, s);
       if (w) err++;
       printf (" +%"PRId64"/%d", s, w);
     }
@@ -108,9 +108,9 @@ static void check_reorder (struct nn_reorder *reorder, uint64_t ndiscard, seqno_
   CU_ASSERT_FATAL (err == 0);
 }
 
-static void insert_sample (struct nn_defrag *defrag, struct nn_reorder *reorder, struct nn_rmsg *rmsg, struct receiver_state *rst, seqno_t seq)
+static void insert_sample (struct ddsi_defrag *defrag, struct ddsi_reorder *reorder, struct ddsi_rmsg *rmsg, struct ddsi_receiver_state *rst, seqno_t seq)
 {
-  struct nn_rsample_info *si = nn_rmsg_alloc (rmsg, sizeof (*si));
+  struct ddsi_rsample_info *si = ddsi_rmsg_alloc (rmsg, sizeof (*si));
   CU_ASSERT_FATAL (si != NULL);
   assert (si);
   // only "seq" and "size" really matter
@@ -118,30 +118,30 @@ static void insert_sample (struct nn_defrag *defrag, struct nn_reorder *reorder,
   si->rst = rst;
   si->size = 1;
   si->seq = seq;
-  struct nn_rdata *rdata = nn_rdata_new (rmsg, 0, si->size, 0, 0, 0);
-  struct nn_rsample *rsample = nn_defrag_rsample (defrag, rdata, si);
+  struct ddsi_rdata *rdata = ddsi_rdata_new (rmsg, 0, si->size, 0, 0, 0);
+  struct ddsi_rsample *rsample = ddsi_defrag_rsample (defrag, rdata, si);
   CU_ASSERT_FATAL (rsample != NULL);
 
-  struct nn_rsample_chain sc;
+  struct ddsi_rsample_chain sc;
   int refc_adjust = 0;
-  struct nn_rdata *fragchain = nn_rsample_fragchain (rsample);
-  nn_reorder_result_t res = nn_reorder_rsample (&sc, reorder, rsample, &refc_adjust, 0);
-  CU_ASSERT_FATAL (res == NN_REORDER_ACCEPT);
-  nn_fragchain_adjust_refcount (fragchain, refc_adjust);
+  struct ddsi_rdata *fragchain = ddsi_rsample_fragchain (rsample);
+  ddsi_reorder_result_t res = ddsi_reorder_rsample (&sc, reorder, rsample, &refc_adjust, 0);
+  CU_ASSERT_FATAL (res == DDSI_REORDER_ACCEPT);
+  ddsi_fragchain_adjust_refcount (fragchain, refc_adjust);
 }
 
 CU_Test (ddsi_radmin, drop_gap_at_end, .init = setup, .fini = teardown)
 {
   // not doing fragmented samples in this test, so defragmenter mode & size limits are irrelevant
-  struct nn_defrag *defrag = nn_defrag_new (&gv.logconfig, NN_DEFRAG_DROP_LATEST, 1);
-  struct nn_reorder *reorder = nn_reorder_new (&gv.logconfig, NN_REORDER_MODE_NORMAL, 3, false);
-  CU_ASSERT_FATAL (nn_reorder_next_seq (reorder) == 1);
+  struct ddsi_defrag *defrag = ddsi_defrag_new (&gv.logconfig, DDSI_DEFRAG_DROP_LATEST, 1);
+  struct ddsi_reorder *reorder = ddsi_reorder_new (&gv.logconfig, DDSI_REORDER_MODE_NORMAL, 3, false);
+  CU_ASSERT_FATAL (ddsi_reorder_next_seq (reorder) == 1);
 
   // pretending that we get all the input as a single RTPSMessage
-  struct nn_rmsg *rmsg = nn_rmsg_new (rbpool);
-  nn_rmsg_setsize (rmsg, 0); // 0 isn't true, but it doesn't matter
+  struct ddsi_rmsg *rmsg = ddsi_rmsg_new (rbpool);
+  ddsi_rmsg_setsize (rmsg, 0); // 0 isn't true, but it doesn't matter
   // actual receiver state is pretty much irrelevant to the reorder buffer
-  struct receiver_state *rst = nn_rmsg_alloc (rmsg, sizeof (*rst));
+  struct ddsi_receiver_state *rst = ddsi_rmsg_alloc (rmsg, sizeof (*rst));
   memset (rst, 0, sizeof (*rst));
 
   // initially, we want everything
@@ -158,7 +158,7 @@ CU_Test (ddsi_radmin, drop_gap_at_end, .init = setup, .fini = teardown)
   insert_sample (defrag, reorder, rmsg, rst, 4);
   check_reorder(reorder, 0, 1, 6, (const seqno_t[]){2,3,4,0});
 
-  nn_rmsg_commit (rmsg);
-  nn_reorder_free (reorder);
-  nn_defrag_free (defrag);
+  ddsi_rmsg_commit (rmsg);
+  ddsi_reorder_free (reorder);
+  ddsi_defrag_free (defrag);
 }

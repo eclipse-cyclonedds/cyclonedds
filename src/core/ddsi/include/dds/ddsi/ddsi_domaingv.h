@@ -35,9 +35,9 @@ extern "C" {
 #endif
 
 struct nn_xmsgpool;
-struct nn_dqueue;
-struct nn_reorder;
-struct nn_defrag;
+struct ddsi_dqueue;
+struct ddsi_reorder;
+struct ddsi_defrag;
 struct ddsi_addrset;
 struct xeventq;
 struct ddsi_gcreq_queue;
@@ -72,7 +72,7 @@ enum recv_thread_mode {
 
 struct recv_thread_arg {
   enum recv_thread_mode mode;
-  struct nn_rbufpool *rbpool;
+  struct ddsi_rbufpool *rbpool;
   struct ddsi_domaingv *gv;
   union {
     struct {
@@ -261,12 +261,12 @@ struct ddsi_domaingv {
      do-nothing defragmentation and reordering thingummies, as well as a
      global mutex to in lieu of the proxy writer lock. */
   ddsrt_mutex_t spdp_lock;
-  struct nn_defrag *spdp_defrag;
-  struct nn_reorder *spdp_reorder;
+  struct ddsi_defrag *spdp_defrag;
+  struct ddsi_reorder *spdp_reorder;
 
   /* Built-in stuff other than SPDP gets funneled through the builtins
      delivery queue; currently just SEDP and PMD */
-  struct nn_dqueue *builtins_dqueue;
+  struct ddsi_dqueue *builtins_dqueue;
 
   struct ddsi_debug_monitor *debmon;
 
@@ -275,7 +275,7 @@ struct ddsi_domaingv {
   struct thread_state *channel_reader_thrst;
 
   /* Application data gets its own delivery queue */
-  struct nn_dqueue *user_dqueue;
+  struct ddsi_dqueue *user_dqueue;
 #endif
 
   /* Transmit side: pool for transmit queue*/

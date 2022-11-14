@@ -36,7 +36,7 @@ struct ddsi_domaingv;
 struct thread_state;
 struct nn_xpack;
 struct ddsi_participant;
-struct receiver_state;
+struct ddsi_receiver_state;
 struct ddsi_serdata;
 struct ddsi_sertype;
 struct ddsi_type;

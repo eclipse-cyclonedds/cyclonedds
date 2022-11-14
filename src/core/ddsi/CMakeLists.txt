@@ -71,7 +71,7 @@ set(srcs_ddsi
   ddsi_misc.c
   ddsi_pcap.c
   ddsi_qosmatch.c
-  q_radmin.c
+  ddsi_radmin.c
   q_receive.c
   q_sockwaitset.c
   q_thread.c
@@ -130,7 +130,7 @@ set(hdrs_ddsi
   ddsi_lease.h
   ddsi_log.h
   ddsi_qosmatch.h
-  q_radmin.h
+  ddsi_radmin.h
   q_receive.h
   q_rtps.h
   q_sockwaitset.h
@@ -196,6 +196,7 @@ set(hdrs_private_ddsi
   ddsi__lease.h
   ddsi__misc.h
   ddsi__pcap.h
+  ddsi__radmin.h
 )
 
 if(ENABLE_LIFESPAN)

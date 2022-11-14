@@ -31,7 +31,7 @@
 #include "dds/ddsi/q_xevent.h"
 #include "ddsi__addrset.h"
 #include "ddsi__discovery.h"
-#include "dds/ddsi/q_radmin.h"
+#include "ddsi__radmin.h"
 #include "dds/ddsi/q_thread.h"
 #include "ddsi__entity_index.h"
 #include "ddsi__lease.h"
@@ -990,7 +990,7 @@ static int setup_and_start_recv_threads (struct ddsi_domaingv *gv)
     /* We create the rbufpool for the receive thread, and so we'll
        become the initial owner thread. The receive thread will change
        it before it does anything with it. */
-    if ((gv->recv_threads[i].arg.rbpool = nn_rbufpool_new (&gv->logconfig, gv->config.rbuf_size, gv->config.rmsg_chunk_size)) == NULL)
+    if ((gv->recv_threads[i].arg.rbpool = ddsi_rbufpool_new (&gv->logconfig, gv->config.rbuf_size, gv->config.rmsg_chunk_size)) == NULL)
     {
       GVERROR ("rtps_init: can't allocate receive buffer pool for thread %s\n", gv->recv_threads[i].name);
       goto fail;
@@ -1020,7 +1020,7 @@ fail:
     if (gv->recv_threads[i].arg.mode == RTM_MANY && gv->recv_threads[i].arg.u.many.ws)
       os_sockWaitsetFree (gv->recv_threads[i].arg.u.many.ws);
     if (gv->recv_threads[i].arg.rbpool)
-      nn_rbufpool_free (gv->recv_threads[i].arg.rbpool);
+      ddsi_rbufpool_free (gv->recv_threads[i].arg.rbpool);
   }
   return -1;
 }
@@ -1466,8 +1466,8 @@ int rtps_init (struct ddsi_domaingv *gv)
 
   ddsrt_mutex_init (&gv->lock);
   ddsrt_mutex_init (&gv->spdp_lock);
-  gv->spdp_defrag = nn_defrag_new (&gv->logconfig, NN_DEFRAG_DROP_OLDEST, gv->config.defrag_unreliable_maxsamples);
-  gv->spdp_reorder = nn_reorder_new (&gv->logconfig, NN_REORDER_MODE_ALWAYS_DELIVER, gv->config.primary_reorder_maxsamples, false);
+  gv->spdp_defrag = ddsi_defrag_new (&gv->logconfig, DDSI_DEFRAG_DROP_OLDEST, gv->config.defrag_unreliable_maxsamples);
+  gv->spdp_reorder = ddsi_reorder_new (&gv->logconfig, DDSI_REORDER_MODE_ALWAYS_DELIVER, gv->config.primary_reorder_maxsamples, false);
 
   gv->m_tkmap = ddsi_tkmap_new (gv);
 
@@ -1753,12 +1753,12 @@ int rtps_init (struct ddsi_domaingv *gv)
   gv->sendq_running = false;
   ddsrt_mutex_init (&gv->sendq_running_lock);
 
-  gv->builtins_dqueue = nn_dqueue_new ("builtins", gv, gv->config.delivery_queue_maxsamples, ddsi_builtins_dqueue_handler, NULL);
+  gv->builtins_dqueue = ddsi_dqueue_new ("builtins", gv, gv->config.delivery_queue_maxsamples, ddsi_builtins_dqueue_handler, NULL);
 #ifdef DDS_HAS_NETWORK_CHANNELS
   for (struct ddsi_config_channel_listelem *chptr = gv->config.channels; chptr; chptr = chptr->next)
-    chptr->dqueue = nn_dqueue_new (chptr->name, &gv->config, gv->config.delivery_queue_maxsamples, user_dqueue_handler, NULL);
+    chptr->dqueue = ddsi_dqueue_new (chptr->name, &gv->config, gv->config.delivery_queue_maxsamples, user_dqueue_handler, NULL);
 #else
-  gv->user_dqueue = nn_dqueue_new ("user", gv, gv->config.delivery_queue_maxsamples, user_dqueue_handler, NULL);
+  gv->user_dqueue = ddsi_dqueue_new ("user", gv, gv->config.delivery_queue_maxsamples, user_dqueue_handler, NULL);
 #endif
 
   if (reset_deaf_mute_time.v < DDS_NEVER)
@@ -1785,8 +1785,8 @@ err_mc_conn:
   ddsi_free_mcgroup_membership (gv->mship);
 err_unicast_sockets:
   ddsi_tkmap_free (gv->m_tkmap);
-  nn_reorder_free (gv->spdp_reorder);
-  nn_defrag_free (gv->spdp_defrag);
+  ddsi_reorder_free (gv->spdp_reorder);
+  ddsi_defrag_free (gv->spdp_defrag);
   ddsrt_mutex_destroy (&gv->spdp_lock);
   ddsrt_mutex_destroy (&gv->lock);
   ddsrt_mutex_destroy (&gv->privileged_pp_lock);
@@ -1868,12 +1868,12 @@ int rtps_start (struct ddsi_domaingv *gv)
 {
   ddsi_gcreq_queue_start (gv->gcreq_queue);
 
-  nn_dqueue_start (gv->builtins_dqueue);
+  ddsi_dqueue_start (gv->builtins_dqueue);
 #ifdef DDS_HAS_NETWORK_CHANNELS
   for (struct ddsi_config_channel_listelem *chptr = gv->config.channels; chptr; chptr = chptr->next)
-    nn_dqueue_start (chptr->dqueue);
+    ddsi_dqueue_start (chptr->dqueue);
 #else
-  nn_dqueue_start (gv->user_dqueue);
+  ddsi_dqueue_start (gv->user_dqueue);
 #endif
 
   if (xeventq_start (gv->xevents, NULL) < 0)
@@ -1992,7 +1992,7 @@ void rtps_stop (struct ddsi_domaingv *gv)
     ddsrt_mutex_init (&arg.lock);
     ddsrt_cond_init (&arg.cond);
     arg.ready = 0;
-    nn_dqueue_enqueue_callback(gv->builtins_dqueue, builtins_dqueue_ready_cb, &arg);
+    ddsi_dqueue_enqueue_callback(gv->builtins_dqueue, builtins_dqueue_ready_cb, &arg);
     ddsrt_mutex_lock (&arg.lock);
     while (!arg.ready)
       ddsrt_cond_wait (&arg.cond, &arg.lock);
@@ -2100,8 +2100,8 @@ void rtps_fini (struct ddsi_domaingv *gv)
   /* The receive threads have already been stopped, therefore
      defragmentation and reorder state can't change anymore and
      can be freed. */
-  nn_reorder_free (gv->spdp_reorder);
-  nn_defrag_free (gv->spdp_defrag);
+  ddsi_reorder_free (gv->spdp_reorder);
+  ddsi_defrag_free (gv->spdp_defrag);
   ddsrt_mutex_destroy (&gv->spdp_lock);
 
   /* Shut down the GC system -- no new requests will be added */
@@ -2110,17 +2110,17 @@ void rtps_fini (struct ddsi_domaingv *gv)
   /* No new data gets added to any admin, all synchronous processing
      has ended, so now we can drain the delivery queues to end up with
      the expected reference counts all over the radmin thingummies. */
-  nn_dqueue_free (gv->builtins_dqueue);
+  ddsi_dqueue_free (gv->builtins_dqueue);
 
 #ifdef DDS_HAS_NETWORK_CHANNELS
   chptr = gv->config.channels;
   while (chptr)
   {
-    nn_dqueue_free (chptr->dqueue);
+    ddsi_dqueue_free (chptr->dqueue);
     chptr = chptr->next;
   }
 #else
-  nn_dqueue_free (gv->user_dqueue);
+  ddsi_dqueue_free (gv->user_dqueue);
 #endif
 
 #ifdef DDS_HAS_SECURITY
@@ -2178,7 +2178,7 @@ void rtps_fini (struct ddsi_domaingv *gv)
   {
     if (gv->recv_threads[i].arg.mode == RTM_MANY)
       os_sockWaitsetFree (gv->recv_threads[i].arg.u.many.ws);
-    nn_rbufpool_free (gv->recv_threads[i].arg.rbpool);
+    ddsi_rbufpool_free (gv->recv_threads[i].arg.rbpool);
   }
 
   ddsi_tkmap_free (gv->m_tkmap);

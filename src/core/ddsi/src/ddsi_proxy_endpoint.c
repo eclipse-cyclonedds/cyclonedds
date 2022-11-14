@@ -26,7 +26,7 @@
 #include "ddsi__addrset.h"
 #include "dds/ddsi/q_whc.h"
 #include "dds/ddsi/q_xevent.h"
-#include "dds/ddsi/q_radmin.h"
+#include "ddsi__radmin.h"
 #include "ddsi__endpoint.h"
 #include "ddsi__gc.h"
 #include "ddsi__plist.h"
@@ -175,26 +175,26 @@ bool ddsi_is_proxy_endpoint (const struct ddsi_entity_common *e)
 
 /* PROXY-WRITER ----------------------------------------------------- */
 
-static enum nn_reorder_mode get_proxy_writer_reorder_mode(const ddsi_entityid_t pwr_entityid, int isreliable)
+static enum ddsi_reorder_mode get_proxy_writer_reorder_mode(const ddsi_entityid_t pwr_entityid, int isreliable)
 {
   if (isreliable)
   {
-    return NN_REORDER_MODE_NORMAL;
+    return DDSI_REORDER_MODE_NORMAL;
   }
   if (pwr_entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER)
   {
-    return NN_REORDER_MODE_ALWAYS_DELIVER;
+    return DDSI_REORDER_MODE_ALWAYS_DELIVER;
   }
-  return NN_REORDER_MODE_MONOTONICALLY_INCREASING;
+  return DDSI_REORDER_MODE_MONOTONICALLY_INCREASING;
 }
 
-int ddsi_new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct ddsi_addrset *as, const ddsi_plist_t *plist, struct nn_dqueue *dqueue, struct xeventq *evq, ddsrt_wctime_t timestamp, seqno_t seq)
+int ddsi_new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct ddsi_addrset *as, const ddsi_plist_t *plist, struct ddsi_dqueue *dqueue, struct xeventq *evq, ddsrt_wctime_t timestamp, seqno_t seq)
 {
   struct ddsi_proxy_participant *proxypp;
   struct ddsi_proxy_writer *pwr;
   int isreliable;
   ddsrt_mtime_t tnow = ddsrt_time_monotonic ();
-  enum nn_reorder_mode reorder_mode;
+  enum ddsi_reorder_mode reorder_mode;
   int ret;
 
   assert (ddsi_is_writer_entityid (guid->entityid));
@@ -274,14 +274,14 @@ int ddsi_new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppg
 
   if (isreliable)
   {
-    pwr->defrag = nn_defrag_new (&gv->logconfig, NN_DEFRAG_DROP_LATEST, gv->config.defrag_reliable_maxsamples);
+    pwr->defrag = ddsi_defrag_new (&gv->logconfig, DDSI_DEFRAG_DROP_LATEST, gv->config.defrag_reliable_maxsamples);
   }
   else
   {
-    pwr->defrag = nn_defrag_new (&gv->logconfig, NN_DEFRAG_DROP_OLDEST, gv->config.defrag_unreliable_maxsamples);
+    pwr->defrag = ddsi_defrag_new (&gv->logconfig, DDSI_DEFRAG_DROP_OLDEST, gv->config.defrag_unreliable_maxsamples);
   }
   reorder_mode = get_proxy_writer_reorder_mode(pwr->e.guid.entityid, isreliable);
-  pwr->reorder = nn_reorder_new (&gv->logconfig, reorder_mode, gv->config.primary_reorder_maxsamples, gv->config.late_ack_mode);
+  pwr->reorder = ddsi_reorder_new (&gv->logconfig, reorder_mode, gv->config.primary_reorder_maxsamples, gv->config.late_ack_mode);
 
   if (pwr->e.guid.entityid.u == NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER)
   {
@@ -291,7 +291,7 @@ int ddsi_new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppg
      * reader is always considered out of sync the reorder administration of the corresponding reader will be used
      * instead.
      */
-    nn_reorder_set_next_seq(pwr->reorder, MAX_SEQ_NUMBER);
+    ddsi_reorder_set_next_seq(pwr->reorder, MAX_SEQ_NUMBER);
     pwr->filtered = 1;
   }
 
@@ -384,8 +384,8 @@ static void gc_delete_proxy_writer (struct ddsi_gcreq *gcreq)
   ddsi_omg_security_deregister_remote_writer (pwr);
 #endif
   proxy_endpoint_common_fini (&pwr->e, &pwr->c);
-  nn_defrag_free (pwr->defrag);
-  nn_reorder_free (pwr->reorder);
+  ddsi_defrag_free (pwr->defrag);
+  ddsi_reorder_free (pwr->reorder);
   ddsrt_free (pwr);
 }
 
@@ -401,9 +401,9 @@ static void gc_delete_proxy_writer_dqueue (struct ddsi_gcreq *gcreq)
 {
   /* delete proxy_writer, phase 2 */
   struct ddsi_proxy_writer *pwr = gcreq->arg;
-  struct nn_dqueue *dqueue = pwr->dqueue;
+  struct ddsi_dqueue *dqueue = pwr->dqueue;
   ELOGDISC (pwr, "gc_delete_proxy_writer_dqueue(%p, "PGUIDFMT")\n", (void *) gcreq, PGUID (pwr->e.guid));
-  nn_dqueue_enqueue_callback (dqueue, (void (*) (void *)) gc_delete_proxy_writer_dqueue_bubble_cb, gcreq);
+  ddsi_dqueue_enqueue_callback (dqueue, (void (*) (void *)) gc_delete_proxy_writer_dqueue_bubble_cb, gcreq);
 }
 
 static int gcreq_proxy_writer (struct ddsi_proxy_writer *pwr)

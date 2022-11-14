@@ -17,7 +17,7 @@
 #include "dds/export.h"
 #include "dds/ddsrt/md5.h"
 #include "dds/ddsi/ddsi_config_impl.h"
-#include "dds/ddsi/q_radmin.h"
+#include "ddsi__radmin.h"
 #include "dds/ddsi/ddsi_freelist.h"
 #include "dds/ddsi/ddsi_serdata.h"
 
@@ -58,18 +58,18 @@ struct ddsi_serdata *ddsi_serdata_ref_as_type (const struct ddsi_sertype *type, 
   }
 }
 
-const ddsi_keyhash_t *ddsi_serdata_keyhash_from_fragchain (const struct nn_rdata *fragchain)
+const ddsi_keyhash_t *ddsi_serdata_keyhash_from_fragchain (const struct ddsi_rdata *fragchain)
 {
   if (fragchain->keyhash_zoff == 0)
     return NULL;
   else
-    return (const ddsi_keyhash_t *) NN_RMSG_PAYLOADOFF (fragchain->rmsg, NN_RDATA_KEYHASH_OFF (fragchain));
+    return (const ddsi_keyhash_t *) DDSI_RMSG_PAYLOADOFF (fragchain->rmsg, DDSI_RDATA_KEYHASH_OFF (fragchain));
 }
 
 extern inline struct ddsi_serdata *ddsi_serdata_ref (const struct ddsi_serdata *serdata_const);
 extern inline void ddsi_serdata_unref (struct ddsi_serdata *serdata);
 extern inline uint32_t ddsi_serdata_size (const struct ddsi_serdata *d);
-extern inline struct ddsi_serdata *ddsi_serdata_from_ser (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, const struct nn_rdata *fragchain, size_t size);
+extern inline struct ddsi_serdata *ddsi_serdata_from_ser (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, const struct ddsi_rdata *fragchain, size_t size);
 extern inline struct ddsi_serdata *ddsi_serdata_from_ser_iov (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, ddsrt_msg_iovlen_t niov, const ddsrt_iovec_t *iov, size_t size);
 extern inline struct ddsi_serdata *ddsi_serdata_from_keyhash (const struct ddsi_sertype *type, const struct ddsi_keyhash *keyhash);
 extern inline struct ddsi_serdata *ddsi_serdata_from_sample (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, const void *sample);

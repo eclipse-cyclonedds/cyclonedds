@@ -22,7 +22,7 @@
 #include "dds/ddsi/ddsi_freelist.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/cdr/dds_cdrstream.h"
-#include "dds/ddsi/q_radmin.h"
+#include "dds/ddsi/ddsi_radmin.h" /* sampleinfo */
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds__serdata_default.h"
@@ -292,7 +292,7 @@ static bool gen_serdata_key_from_cdr (dds_istream_t * __restrict is, struct dds_
 }
 
 /* Construct a serdata from a fragchain received over the network */
-static struct dds_serdata_default *serdata_default_from_ser_common (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, const struct nn_rdata *fragchain, size_t size)
+static struct dds_serdata_default *serdata_default_from_ser_common (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, const struct ddsi_rdata *fragchain, size_t size)
 {
   const struct dds_sertype_default *tp = (const struct dds_sertype_default *)tpcmn;
 
@@ -311,7 +311,7 @@ static struct dds_serdata_default *serdata_default_from_ser_common (const struct
   assert (fragchain->min == 0);
   assert (fragchain->maxp1 >= off); /* CDR header must be in first fragment */
 
-  memcpy (&d->hdr, NN_RMSG_PAYLOADOFF (fragchain->rmsg, NN_RDATA_PAYLOAD_OFF (fragchain)), sizeof (d->hdr));
+  memcpy (&d->hdr, DDSI_RMSG_PAYLOADOFF (fragchain->rmsg, DDSI_RDATA_PAYLOAD_OFF (fragchain)), sizeof (d->hdr));
   if (!is_valid_xcdr_id (d->hdr.identifier))
     goto err;
 
@@ -322,7 +322,7 @@ static struct dds_serdata_default *serdata_default_from_ser_common (const struct
     if (fragchain->maxp1 > off)
     {
       /* only copy if this fragment adds data */
-      const unsigned char *payload = NN_RMSG_PAYLOADOFF (fragchain->rmsg, NN_RDATA_PAYLOAD_OFF (fragchain));
+      const unsigned char *payload = DDSI_RMSG_PAYLOADOFF (fragchain->rmsg, DDSI_RDATA_PAYLOAD_OFF (fragchain));
       serdata_default_append_blob (&d, fragchain->maxp1 - off, payload + off - fragchain->min);
       off = fragchain->maxp1;
     }
@@ -406,7 +406,7 @@ err:
   return NULL;
 }
 
-static struct ddsi_serdata *serdata_default_from_ser (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, const struct nn_rdata *fragchain, size_t size)
+static struct ddsi_serdata *serdata_default_from_ser (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, const struct ddsi_rdata *fragchain, size_t size)
 {
   struct dds_serdata_default *d;
   if ((d = serdata_default_from_ser_common (tpcmn, kind, fragchain, size)) == NULL)
@@ -422,7 +422,7 @@ static struct ddsi_serdata *serdata_default_from_ser_iov (const struct ddsi_sert
   return fix_serdata_default (d, tpcmn->serdata_basehash);
 }
 
-static struct ddsi_serdata *serdata_default_from_ser_nokey (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, const struct nn_rdata *fragchain, size_t size)
+static struct ddsi_serdata *serdata_default_from_ser_nokey (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, const struct ddsi_rdata *fragchain, size_t size)
 {
   struct dds_serdata_default *d;
   if ((d = serdata_default_from_ser_common (tpcmn, kind, fragchain, size)) == NULL)

@@ -21,7 +21,7 @@ extern "C" {
 #endif
 
 #include "dds/ddsi/q_rtps.h"
-#include "dds/ddsi/q_radmin.h"
+#include "ddsi__radmin.h"
 #include "ddsi__security_msg.h"
 
 
@@ -30,8 +30,8 @@ extern "C" {
 #define GMCLASSID_SECURITY_DATAREADER_CRYPTO_TOKENS     "dds.sec.datareader_crypto_tokens"
 
 bool write_auth_handshake_message(const struct ddsi_participant *pp, const struct ddsi_proxy_participant *proxypp, ddsi_dataholderseq_t *mdata, bool request, const ddsi_message_identity_t *related_message_id);
-void handle_auth_handshake_message(const struct receiver_state *rst, ddsi_entityid_t wr_entity_id, struct ddsi_serdata *sample);
-void handle_crypto_exchange_message(const struct receiver_state *rst, struct ddsi_serdata *sample);
+void handle_auth_handshake_message(const struct ddsi_receiver_state *rst, ddsi_entityid_t wr_entity_id, struct ddsi_serdata *sample);
+void handle_crypto_exchange_message(const struct ddsi_receiver_state *rst, struct ddsi_serdata *sample);
 void auth_get_serialized_participant_data(struct ddsi_participant *pp, ddsi_octetseq_t *seq);
 bool write_crypto_participant_tokens(const struct ddsi_participant *pp, const struct ddsi_proxy_participant *proxypp, const ddsi_dataholderseq_t *tokens);
 bool write_crypto_writer_tokens(const struct ddsi_writer *wr, const struct ddsi_proxy_reader *prd, const ddsi_dataholderseq_t *tokens);

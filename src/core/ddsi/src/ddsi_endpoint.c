@@ -34,7 +34,7 @@
 #include "dds/ddsi/q_whc.h"
 #include "dds/ddsi/q_xevent.h"
 #include "ddsi__addrset.h"
-#include "dds/ddsi/q_radmin.h"
+#include "ddsi__radmin.h"
 #include "ddsi__misc.h"
 #include "dds/ddsi/sysdeps.h"
 #include "ddsi__endpoint.h"

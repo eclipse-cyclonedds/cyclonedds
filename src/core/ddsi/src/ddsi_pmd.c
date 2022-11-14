@@ -24,7 +24,7 @@
 #include "dds/ddsi/ddsi_log.h"
 #include "ddsi__misc.h"
 #include "ddsi__protocol.h"
-#include "dds/ddsi/q_radmin.h"
+#include "ddsi__radmin.h"
 #include "dds/ddsi/q_rtps.h"
 #include "dds/ddsi/q_transmit.h"
 #include "dds/ddsi/q_xmsg.h"
@@ -87,7 +87,7 @@ void ddsi_write_pmd_message (struct thread_state * const thrst, struct nn_xpack 
 #undef PMD_DATA_LENGTH
 }
 
-void ddsi_handle_pmd_message (const struct receiver_state *rst, struct ddsi_serdata *sample_common)
+void ddsi_handle_pmd_message (const struct ddsi_receiver_state *rst, struct ddsi_serdata *sample_common)
 {
   /* use sample with knowledge of internal representation: there's a deserialized sample inside already */
   const struct ddsi_serdata_pserop *sample = (const struct ddsi_serdata_pserop *) sample_common;

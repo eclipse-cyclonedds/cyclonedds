@@ -34,7 +34,7 @@
 #include "ddsi__discovery.h"
 #include "ddsi__serdata_plist.h"
 
-#include "dds/ddsi/q_radmin.h"
+#include "ddsi__radmin.h"
 #include "ddsi__entity_index.h"
 #include "ddsi__entity.h"
 #include "ddsi__participant.h"
@@ -648,7 +648,7 @@ static void respond_to_spdp (const struct ddsi_domaingv *gv, const ddsi_guid_t *
   ddsi_entidx_enum_participant_fini (&est);
 }
 
-static int handle_spdp_dead (const struct receiver_state *rst, ddsi_entityid_t pwr_entityid, ddsrt_wctime_t timestamp, const ddsi_plist_t *datap, unsigned statusinfo)
+static int handle_spdp_dead (const struct ddsi_receiver_state *rst, ddsi_entityid_t pwr_entityid, ddsrt_wctime_t timestamp, const ddsi_plist_t *datap, unsigned statusinfo)
 {
   struct ddsi_domaingv * const gv = rst->gv;
   ddsi_guid_t guid;
@@ -733,7 +733,7 @@ static void make_participants_dependent_on_ddsi2 (struct ddsi_domaingv *gv, cons
   }
 }
 
-static int handle_spdp_alive (const struct receiver_state *rst, seqno_t seq, ddsrt_wctime_t timestamp, const ddsi_plist_t *datap)
+static int handle_spdp_alive (const struct ddsi_receiver_state *rst, seqno_t seq, ddsrt_wctime_t timestamp, const ddsi_plist_t *datap)
 {
   struct ddsi_domaingv * const gv = rst->gv;
   const unsigned bes_sedp_announcer_mask =
@@ -995,7 +995,7 @@ static int handle_spdp_alive (const struct receiver_state *rst, seqno_t seq, dds
   }
 }
 
-static void handle_spdp (const struct receiver_state *rst, ddsi_entityid_t pwr_entityid, seqno_t seq, const struct ddsi_serdata *serdata)
+static void handle_spdp (const struct ddsi_receiver_state *rst, ddsi_entityid_t pwr_entityid, seqno_t seq, const struct ddsi_serdata *serdata)
 {
   struct ddsi_domaingv * const gv = rst->gv;
   ddsi_plist_t decoded_data;
@@ -1603,7 +1603,7 @@ struct ddsi_addrset *ddsi_get_endpoint_addrset (const struct ddsi_domaingv *gv, 
   return as;
 }
 
-static void handle_sedp_alive_endpoint (const struct receiver_state *rst, seqno_t seq, ddsi_plist_t *datap /* note: potentially modifies datap */, ddsi_sedp_kind_t sedp_kind, const ddsi_guid_prefix_t *src_guid_prefix, ddsi_vendorid_t vendorid, ddsrt_wctime_t timestamp)
+static void handle_sedp_alive_endpoint (const struct ddsi_receiver_state *rst, seqno_t seq, ddsi_plist_t *datap /* note: potentially modifies datap */, ddsi_sedp_kind_t sedp_kind, const ddsi_guid_prefix_t *src_guid_prefix, ddsi_vendorid_t vendorid, ddsrt_wctime_t timestamp)
 {
 #define E(msg, lbl) do { GVLOGDISC (msg); goto lbl; } while (0)
   struct ddsi_domaingv * const gv = rst->gv;
@@ -1755,7 +1755,7 @@ err:
 #undef E
 }
 
-static void handle_sedp_dead_endpoint (const struct receiver_state *rst, ddsi_plist_t *datap, ddsi_sedp_kind_t sedp_kind, ddsrt_wctime_t timestamp)
+static void handle_sedp_dead_endpoint (const struct ddsi_receiver_state *rst, ddsi_plist_t *datap, ddsi_sedp_kind_t sedp_kind, ddsrt_wctime_t timestamp)
 {
   struct ddsi_domaingv * const gv = rst->gv;
   int res = -1;
@@ -1772,7 +1772,7 @@ static void handle_sedp_dead_endpoint (const struct receiver_state *rst, ddsi_pl
 
 #ifdef DDS_HAS_TOPIC_DISCOVERY
 
-static void handle_sedp_alive_topic (const struct receiver_state *rst, seqno_t seq, ddsi_plist_t *datap /* note: potentially modifies datap */, const ddsi_guid_prefix_t *src_guid_prefix, ddsi_vendorid_t vendorid, ddsrt_wctime_t timestamp)
+static void handle_sedp_alive_topic (const struct ddsi_receiver_state *rst, seqno_t seq, ddsi_plist_t *datap /* note: potentially modifies datap */, const ddsi_guid_prefix_t *src_guid_prefix, ddsi_vendorid_t vendorid, ddsrt_wctime_t timestamp)
 {
   struct ddsi_domaingv * const gv = rst->gv;
   struct ddsi_proxy_participant *proxypp;
@@ -1835,7 +1835,7 @@ static void handle_sedp_alive_topic (const struct receiver_state *rst, seqno_t s
   }
 }
 
-static void handle_sedp_dead_topic (const struct receiver_state *rst, ddsi_plist_t *datap, ddsrt_wctime_t timestamp)
+static void handle_sedp_dead_topic (const struct ddsi_receiver_state *rst, ddsi_plist_t *datap, ddsrt_wctime_t timestamp)
 {
   struct ddsi_proxy_participant *proxypp;
   struct ddsi_proxy_topic *proxytp;
@@ -1860,7 +1860,7 @@ static void handle_sedp_dead_topic (const struct receiver_state *rst, ddsi_plist
 
 #endif /* DDS_HAS_TOPIC_DISCOVERY */
 
-static void handle_sedp (const struct receiver_state *rst, seqno_t seq, struct ddsi_serdata *serdata, ddsi_sedp_kind_t sedp_kind)
+static void handle_sedp (const struct ddsi_receiver_state *rst, seqno_t seq, struct ddsi_serdata *serdata, ddsi_sedp_kind_t sedp_kind)
 {
   ddsi_plist_t decoded_data;
   if (ddsi_serdata_to_sample (serdata, &decoded_data, NULL, NULL))
@@ -1905,7 +1905,7 @@ static void handle_sedp (const struct receiver_state *rst, seqno_t seq, struct d
 }
 
 #ifdef DDS_HAS_TYPE_DISCOVERY
-static void handle_typelookup (const struct receiver_state *rst, ddsi_entityid_t wr_entity_id, struct ddsi_serdata *serdata)
+static void handle_typelookup (const struct ddsi_receiver_state *rst, ddsi_entityid_t wr_entity_id, struct ddsi_serdata *serdata)
 {
   if (!(serdata->statusinfo & (DDSI_STATUSINFO_DISPOSE | DDSI_STATUSINFO_UNREGISTER)))
   {
@@ -1923,7 +1923,7 @@ static void handle_typelookup (const struct receiver_state *rst, ddsi_entityid_t
 /******************************************************************************
  *****************************************************************************/
 
-int ddsi_builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, const struct nn_rdata *fragchain, UNUSED_ARG (const ddsi_guid_t *rdguid), UNUSED_ARG (void *qarg))
+int ddsi_builtins_dqueue_handler (const struct ddsi_rsample_info *sampleinfo, const struct ddsi_rdata *fragchain, UNUSED_ARG (const ddsi_guid_t *rdguid), UNUSED_ARG (void *qarg))
 {
   struct ddsi_domaingv * const gv = sampleinfo->rst->gv;
   struct ddsi_proxy_writer *pwr;
@@ -1941,7 +1941,7 @@ int ddsi_builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, cons
      instead of splitting out all the code, we reformat these flags
      from the submsg to always conform to that of the "Data"
      submessage regardless of the input. */
-  msg = (ddsi_rtps_data_datafrag_common_t *) NN_RMSG_PAYLOADOFF (fragchain->rmsg, NN_RDATA_SUBMSG_OFF (fragchain));
+  msg = (ddsi_rtps_data_datafrag_common_t *) DDSI_RMSG_PAYLOADOFF (fragchain->rmsg, DDSI_RDATA_SUBMSG_OFF (fragchain));
   data_smhdr_flags = ddsi_normalize_data_datafrag_flags (&msg->smhdr);
   srcguid.prefix = sampleinfo->rst->src_guid_prefix;
   srcguid.entityid = msg->writerId;
@@ -1976,13 +1976,13 @@ int ddsi_builtins_dqueue_handler (const struct nn_rsample_info *sampleinfo, cons
   else
   {
     ddsi_plist_src_t src;
-    size_t qos_offset = NN_RDATA_SUBMSG_OFF (fragchain) + offsetof (ddsi_rtps_data_datafrag_common_t, octetsToInlineQos) + sizeof (msg->octetsToInlineQos) + msg->octetsToInlineQos;
+    size_t qos_offset = DDSI_RDATA_SUBMSG_OFF (fragchain) + offsetof (ddsi_rtps_data_datafrag_common_t, octetsToInlineQos) + sizeof (msg->octetsToInlineQos) + msg->octetsToInlineQos;
     dds_return_t plist_ret;
     src.protocol_version = sampleinfo->rst->protocol_version;
     src.vendorid = sampleinfo->rst->vendor;
     src.encoding = (msg->smhdr.flags & DDSI_RTPS_SUBMESSAGE_FLAG_ENDIANNESS) ? DDSI_RTPS_PL_CDR_LE : DDSI_RTPS_PL_CDR_BE;
-    src.buf = NN_RMSG_PAYLOADOFF (fragchain->rmsg, qos_offset);
-    src.bufsz = NN_RDATA_PAYLOAD_OFF (fragchain) - qos_offset;
+    src.buf = DDSI_RMSG_PAYLOADOFF (fragchain->rmsg, qos_offset);
+    src.bufsz = DDSI_RDATA_PAYLOAD_OFF (fragchain) - qos_offset;
     src.strict = DDSI_SC_STRICT_P (gv->config);
     if ((plist_ret = ddsi_plist_init_frommsg (&qos, NULL, PP_STATUSINFO | PP_KEYHASH, 0, &src, gv)) < 0)
     {

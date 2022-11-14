@@ -22,7 +22,7 @@
 #include "dds/ddsi/ddsi_proxy_participant.h"
 #include "dds/ddsi/ddsi_entity_match.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/q_radmin.h"
+#include "ddsi__radmin.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsrt/retcode.h"
 #include "dds/ddsrt/types.h"
@@ -868,7 +868,7 @@ bool ddsi_security_encode_payload(struct ddsi_writer *wr, ddsrt_iovec_t *vec, un
  *                contains the data that should be deserialized.
  * @retval false  Decoding was necessary, but failed.
  */
-bool ddsi_security_decode_data(const struct ddsi_domaingv *gv, struct nn_rsample_info *sampleinfo, unsigned char *payloadp, uint32_t payloadsz, size_t *submsg_len);
+bool ddsi_security_decode_data(const struct ddsi_domaingv *gv, struct ddsi_rsample_info *sampleinfo, unsigned char *payloadp, uint32_t payloadsz, size_t *submsg_len);
 
 /**
  * @brief Decode the payload of a DataFrag submessage.
@@ -890,7 +890,7 @@ bool ddsi_security_decode_data(const struct ddsi_domaingv *gv, struct nn_rsample
  *                contains the data that should be deserialized.
  * @retval false  Decoding was necessary, but failed.
  */
-bool ddsi_security_decode_datafrag(const struct ddsi_domaingv *gv, struct nn_rsample_info *sampleinfo, unsigned char *payloadp, uint32_t payloadsz, size_t *submsg_len);
+bool ddsi_security_decode_datafrag(const struct ddsi_domaingv *gv, struct ddsi_rsample_info *sampleinfo, unsigned char *payloadp, uint32_t payloadsz, size_t *submsg_len);
 
 /**
  * @brief Encode datareader submessage when necessary.
@@ -945,7 +945,7 @@ ddsi_security_validate_msg_decoding(
   const struct ddsi_entity_common *e,
   const struct ddsi_proxy_endpoint_common *c,
   const struct ddsi_proxy_participant *proxypp,
-  const struct receiver_state *rst,
+  const struct ddsi_receiver_state *rst,
   ddsi_rtps_submessage_kind_t prev_smid);
 
 /**
@@ -970,7 +970,7 @@ ddsi_security_validate_msg_decoding(
  */
 bool
 ddsi_security_decode_sec_prefix(
-  const struct receiver_state *rst,
+  const struct ddsi_receiver_state *rst,
   unsigned char *submsg,
   size_t submsg_size,
   unsigned char * const msg_end,
@@ -999,7 +999,7 @@ ddsi_security_decode_sec_prefix(
  * @retval DDSI_RTPS_MSG_STATE_ENCODED  Decoding succeeded.
  * @retval DDSI_RTPS_MSG_STATE_ERROR    Decoding failed.
  */
-ddsi_rtps_msg_state_t ddsi_security_decode_rtps_message (struct thread_state * const thrst, struct ddsi_domaingv *gv, struct nn_rmsg **rmsg, ddsi_rtps_header_t **hdr, unsigned char **buff, size_t *sz, struct nn_rbufpool *rbpool, bool isstream);
+ddsi_rtps_msg_state_t ddsi_security_decode_rtps_message (struct thread_state * const thrst, struct ddsi_domaingv *gv, struct ddsi_rmsg **rmsg, ddsi_rtps_header_t **hdr, unsigned char **buff, size_t *sz, struct ddsi_rbufpool *rbpool, bool isstream);
 
 /**
  * @brief Send the RTPS message securely.
@@ -1260,7 +1260,7 @@ inline void ddsi_set_proxy_writer_security_info(UNUSED_ARG(struct ddsi_proxy_wri
 inline bool
 ddsi_security_decode_data(
   UNUSED_ARG(const struct ddsi_domaingv *gv),
-  UNUSED_ARG(struct nn_rsample_info *sampleinfo),
+  UNUSED_ARG(struct ddsi_rsample_info *sampleinfo),
   UNUSED_ARG(unsigned char *payloadp),
   UNUSED_ARG(uint32_t payloadsz),
   UNUSED_ARG(size_t *submsg_len))
@@ -1271,7 +1271,7 @@ ddsi_security_decode_data(
 inline bool
 ddsi_security_decode_datafrag(
   UNUSED_ARG(const struct ddsi_domaingv *gv),
-  UNUSED_ARG(struct nn_rsample_info *sampleinfo),
+  UNUSED_ARG(struct ddsi_rsample_info *sampleinfo),
   UNUSED_ARG(unsigned char *payloadp),
   UNUSED_ARG(uint32_t payloadsz),
   UNUSED_ARG(size_t *submsg_len))
@@ -1301,7 +1301,7 @@ ddsi_security_validate_msg_decoding(
   UNUSED_ARG(const struct ddsi_entity_common *e),
   UNUSED_ARG(const struct ddsi_proxy_endpoint_common *c),
   UNUSED_ARG(struct ddsi_proxy_participant *proxypp),
-  UNUSED_ARG(struct receiver_state *rst),
+  UNUSED_ARG(struct ddsi_receiver_state *rst),
   UNUSED_ARG(ddsi_rtps_submessage_kind_t prev_smid))
 {
   return true;
@@ -1309,7 +1309,7 @@ ddsi_security_validate_msg_decoding(
 
 inline int
 ddsi_security_decode_sec_prefix(
-  UNUSED_ARG(struct receiver_state *rst),
+  UNUSED_ARG(struct ddsi_receiver_state *rst),
   UNUSED_ARG(unsigned char *submsg),
   UNUSED_ARG(size_t submsg_size),
   UNUSED_ARG(unsigned char * const msg_end),
@@ -1325,11 +1325,11 @@ inline ddsi_rtps_msg_state_t
 ddsi_security_decode_rtps_message (
   UNUSED_ARG(struct thread_state * const thrst),
   UNUSED_ARG(struct ddsi_domaingv *gv),
-  UNUSED_ARG(struct nn_rmsg **rmsg),
+  UNUSED_ARG(struct ddsi_rmsg **rmsg),
   UNUSED_ARG(ddsi_rtps_header_t **hdr),
   UNUSED_ARG(unsigned char **buff),
   UNUSED_ARG(size_t *sz),
-  UNUSED_ARG(struct nn_rbufpool *rbpool),
+  UNUSED_ARG(struct ddsi_rbufpool *rbpool),
   UNUSED_ARG(bool isstream))
 {
   return DDSI_RTPS_MSG_STATE_PLAIN;
