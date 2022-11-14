@@ -27,7 +27,7 @@
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/ddsi_ownip.h"
 #include "dds/ddsi/ddsi_protocol.h"
-#include "dds/ddsi/q_sockwaitset.h"
+#include "dds/ddsi/ddsi_sockwaitset.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 
 #if defined (__cplusplus)
@@ -80,7 +80,7 @@ struct recv_thread_arg {
       struct ddsi_tran_conn *conn;
     } single;
     struct {
-      os_sockWaitset ws;
+      struct ddsi_sock_waitset *ws;
     } many;
   } u;
 };

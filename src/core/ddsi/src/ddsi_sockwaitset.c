@@ -17,9 +17,9 @@
 #include "dds/ddsrt/sockets.h"
 #include "dds/ddsrt/sync.h"
 
-#include "dds/ddsi/q_sockwaitset.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_log.h"
+#include "ddsi__sockwaitset.h"
 #include "ddsi__tran.h"
 
 #define WAITSET_DELTA 8
@@ -48,7 +48,7 @@
 #include <sys/event.h>
 #include <sys/time.h>
 
-struct os_sockWaitsetCtx
+struct ddsi_sock_waitset_ctx
 {
   struct kevent *evs;
   uint32_t nevs;
@@ -62,17 +62,17 @@ struct entry {
   ddsi_tran_conn_t conn;
 };
 
-struct os_sockWaitset
+struct ddsi_sock_waitset
 {
   int kqueue;
   int pipe[2]; /* pipe used for triggering */
   ddsrt_atomic_uint32_t sz;
   struct entry *entries;
-  struct os_sockWaitsetCtx ctx; /* set of descriptors being handled */
+  struct ddsi_sock_waitset_ctx ctx; /* set of descriptors being handled */
   ddsrt_mutex_t lock; /* for add/delete */
 };
 
-static int add_entry_locked (os_sockWaitset ws, ddsi_tran_conn_t conn, int fd)
+static int add_entry_locked (struct ddsi_sock_waitset * ws, ddsi_tran_conn_t conn, int fd)
 {
   uint32_t idx, fidx, sz, n;
   struct kevent kev;
@@ -105,10 +105,10 @@ static int add_entry_locked (os_sockWaitset ws, ddsi_tran_conn_t conn, int fd)
   return 1;
 }
 
-os_sockWaitset os_sockWaitsetNew (void)
+struct ddsi_sock_waitset * ddsi_sock_waitset_new (void)
 {
   const uint32_t sz = WAITSET_DELTA;
-  os_sockWaitset ws;
+  struct ddsi_sock_waitset * ws;
   uint32_t i;
   if ((ws = ddsrt_malloc (sizeof (*ws))) == NULL)
     goto fail_waitset;
@@ -154,7 +154,7 @@ fail_waitset:
   return NULL;
 }
 
-void os_sockWaitsetFree (os_sockWaitset ws)
+void ddsi_sock_waitset_free (struct ddsi_sock_waitset * ws)
 {
   ddsrt_mutex_destroy (&ws->lock);
   close (ws->pipe[0]);
@@ -165,18 +165,18 @@ void os_sockWaitsetFree (os_sockWaitset ws)
   ddsrt_free (ws);
 }
 
-void os_sockWaitsetTrigger (os_sockWaitset ws)
+void ddsi_sock_waitset_trigger (struct ddsi_sock_waitset * ws)
 {
   char buf = 0;
   int n;
   n = (int)write (ws->pipe[1], &buf, 1);
   if (n != 1)
   {
-    DDS_WARNING("os_sockWaitsetTrigger: read failed on trigger pipe, errno = %d\n", errno);
+    DDS_WARNING("ddsi_sock_waitset_trigger: read failed on trigger pipe, errno = %d\n", errno);
   }
 }
 
-int os_sockWaitsetAdd (os_sockWaitset ws, ddsi_tran_conn_t conn)
+int ddsi_sock_waitset_add (struct ddsi_sock_waitset * ws, ddsi_tran_conn_t conn)
 {
   int ret;
   ddsrt_mutex_lock (&ws->lock);
@@ -185,7 +185,7 @@ int os_sockWaitsetAdd (os_sockWaitset ws, ddsi_tran_conn_t conn)
   return ret;
 }
 
-void os_sockWaitsetPurge (os_sockWaitset ws, unsigned index)
+void ddsi_sock_waitset_purge (struct ddsi_sock_waitset * ws, unsigned index)
 {
   /* Sockets may have been closed by the Purge is called, but any closed sockets
      are automatically deleted from the kqueue and the file descriptors be reused
@@ -213,7 +213,7 @@ void os_sockWaitsetPurge (os_sockWaitset ws, unsigned index)
   ddsrt_mutex_unlock (&ws->lock);
 }
 
-void os_sockWaitsetRemove (os_sockWaitset ws, ddsi_tran_conn_t conn)
+void ddsi_sock_waitset_remove (struct ddsi_sock_waitset * ws, ddsi_tran_conn_t conn)
 {
   const int fd = ddsi_conn_handle (conn);
   uint32_t i, sz;
@@ -234,7 +234,7 @@ void os_sockWaitsetRemove (os_sockWaitset ws, ddsi_tran_conn_t conn)
   ddsrt_mutex_unlock (&ws->lock);
 }
 
-os_sockWaitsetCtx os_sockWaitsetWait (os_sockWaitset ws)
+struct ddsi_sock_waitset_ctx * ddsi_sock_waitset_wait (struct ddsi_sock_waitset * ws)
 {
   /* if the array of events is smaller than the number of file descriptors in the
      kqueue, things will still work fine, as the kernel will just return what can
@@ -253,7 +253,7 @@ os_sockWaitsetCtx os_sockWaitsetWait (os_sockWaitset ws)
       nevs = 0;
     else
     {
-      DDS_WARNING("os_sockWaitsetWait: kevent failed, errno = %d\n", errno);
+      DDS_WARNING("ddsi_sock_waitset_wait: kevent failed, errno = %d\n", errno);
       return NULL;
     }
   }
@@ -262,7 +262,7 @@ os_sockWaitsetCtx os_sockWaitsetWait (os_sockWaitset ws)
   return &ws->ctx;
 }
 
-int os_sockWaitsetNextEvent (os_sockWaitsetCtx ctx, ddsi_tran_conn_t *conn)
+int ddsi_sock_waitset_next_event (struct ddsi_sock_waitset_ctx * ctx, ddsi_tran_conn_t *conn)
 {
   while (ctx->index < ctx->nevs)
   {
@@ -285,7 +285,7 @@ int os_sockWaitsetNextEvent (os_sockWaitsetCtx ctx, ddsi_tran_conn_t *conn)
 
 #elif MODE_SEL == MODE_WFMEVS
 
-struct os_sockWaitsetCtx
+struct ddsi_sock_waitset_ctx
 {
   ddsi_tran_conn_t conns[MAXIMUM_WAIT_OBJECTS]; /* connections and listeners */
   WSAEVENT events[MAXIMUM_WAIT_OBJECTS];        /* events associated with sockets */
@@ -293,16 +293,16 @@ struct os_sockWaitsetCtx
   unsigned n; /* sockets/events [0 .. n-1] are occupied */
 };
 
-struct os_sockWaitset
+struct ddsi_sock_waitset
 {
   ddsrt_mutex_t mutex;  /* concurrency guard */
-  struct os_sockWaitsetCtx ctx;
-  struct os_sockWaitsetCtx ctx0;
+  struct ddsi_sock_waitset_ctx ctx;
+  struct ddsi_sock_waitset_ctx ctx0;
 };
 
-os_sockWaitset os_sockWaitsetNew (void)
+struct ddsi_sock_waitset * ddsi_sock_waitset_new (void)
 {
-  os_sockWaitset ws = ddsrt_malloc (sizeof (*ws));
+  struct ddsi_sock_waitset * ws = ddsrt_malloc (sizeof (*ws));
   ws->ctx.conns[0] = NULL;
   ws->ctx.events[0] = WSACreateEvent ();
   ws->ctx.n = 1;
@@ -311,7 +311,7 @@ os_sockWaitset os_sockWaitsetNew (void)
   return ws;
 }
 
-void os_sockWaitsetFree (os_sockWaitset ws)
+void ddsi_sock_waitset_free (struct ddsi_sock_waitset * ws)
 {
   for (unsigned i = 0; i < ws->ctx.n; i++)
   {
@@ -321,7 +321,7 @@ void os_sockWaitsetFree (os_sockWaitset ws)
   ddsrt_free (ws);
 }
 
-void os_sockWaitsetPurge (os_sockWaitset ws, unsigned index)
+void ddsi_sock_waitset_purge (struct ddsi_sock_waitset * ws, unsigned index)
 {
   ddsrt_mutex_lock (&ws->mutex);
   for (unsigned i = index + 1; i < ws->ctx.n; i++)
@@ -329,14 +329,14 @@ void os_sockWaitsetPurge (os_sockWaitset ws, unsigned index)
     ws->ctx.conns[i] = NULL;
     if (!WSACloseEvent (ws->ctx.events[i]))
     {
-      DDS_WARNING("os_sockWaitsetPurge: WSACloseEvent (%x failed, error %d\n", (os_uint32) ws->ctx.events[i], os_getErrno ());
+      DDS_WARNING("ddsi_sock_waitset_purge: WSACloseEvent (%x failed, error %d\n", (os_uint32) ws->ctx.events[i], os_getErrno ());
     }
   }
   ws->ctx.n = index + 1;
   ddsrt_mutex_unlock (&ws->mutex);
 }
 
-void os_sockWaitsetRemove (os_sockWaitset ws, ddsi_tran_conn_t conn)
+void ddsi_sock_waitset_remove (struct ddsi_sock_waitset * ws, ddsi_tran_conn_t conn)
 {
   ddsrt_mutex_lock (&ws->mutex);
   for (unsigned i = 0; i < ws->ctx.n; i++)
@@ -356,15 +356,15 @@ void os_sockWaitsetRemove (os_sockWaitset ws, ddsi_tran_conn_t conn)
   ddsrt_mutex_unlock (&ws->mutex);
 }
 
-void os_sockWaitsetTrigger (os_sockWaitset ws)
+void ddsi_sock_waitset_trigger (struct ddsi_sock_waitset * ws)
 {
   if (! WSASetEvent (ws->ctx.events[0]))
   {
-    DDS_WARNING("os_sockWaitsetTrigger: WSASetEvent(%x) failed, error %d\n", (os_uint32) ws->ctx.events[0], os_getErrno ());
+    DDS_WARNING("ddsi_sock_waitset_trigger: WSASetEvent(%x) failed, error %d\n", (os_uint32) ws->ctx.events[0], os_getErrno ());
   }
 }
 
-int os_sockWaitsetAdd (os_sockWaitset ws, ddsi_tran_conn_t conn)
+int ddsi_sock_waitset_add (struct ddsi_sock_waitset * ws, ddsi_tran_conn_t conn)
 {
   WSAEVENT ev;
   os_socket sock = ddsi_conn_handle (conn);
@@ -389,7 +389,7 @@ int os_sockWaitsetAdd (os_sockWaitset ws, ddsi_tran_conn_t conn)
     {
       if (WSAEventSelect (sock, ev, FD_READ) == SOCKET_ERROR)
       {
-        DDS_WARNING("os_sockWaitsetAdd: WSAEventSelect(%x,%x) failed, error %d\n", (os_uint32) sock, (os_uint32) ev, os_getErrno ());
+        DDS_WARNING("ddsi_sock_waitset_add: WSAEventSelect(%x,%x) failed, error %d\n", (os_uint32) sock, (os_uint32) ev, os_getErrno ());
         WSACloseEvent (ev);
         ret = -1;
       }
@@ -407,7 +407,7 @@ int os_sockWaitsetAdd (os_sockWaitset ws, ddsi_tran_conn_t conn)
   return ret;
 }
 
-os_sockWaitsetCtx os_sockWaitsetWait (os_sockWaitset ws)
+struct ddsi_sock_waitset_ctx * ddsi_sock_waitset_wait (struct ddsi_sock_waitset * ws)
 {
   unsigned idx;
 
@@ -419,7 +419,7 @@ os_sockWaitsetCtx os_sockWaitsetWait (os_sockWaitset ws)
 
   if ((idx = WSAWaitForMultipleEvents (ws->ctx0.n, ws->ctx0.events, FALSE, WSA_INFINITE, FALSE)) == WSA_WAIT_FAILED)
   {
-    DDS_WARNING("os_sockWaitsetWait: WSAWaitForMultipleEvents(%d,...,0,0,0) failed, error %d\n", ws->ctx0.n, os_getErrno ());
+    DDS_WARNING("ddsi_sock_waitset_wait: WSAWaitForMultipleEvents(%d,...,0,0,0) failed, error %d\n", ws->ctx0.n, os_getErrno ());
     return NULL;
   }
 
@@ -442,11 +442,11 @@ os_sockWaitsetCtx os_sockWaitsetWait (os_sockWaitset ws)
   if (idx == WAIT_IO_COMPLETION)
   {
     /* Presumably can't happen with alertable = FALSE */
-    DDS_WARNING("os_sockWaitsetWait: WSAWaitForMultipleEvents(%d,...,0,0,0) returned unexpected WAIT_IO_COMPLETION\n", ws->ctx0.n);
+    DDS_WARNING("ddsi_sock_waitset_wait: WSAWaitForMultipleEvents(%d,...,0,0,0) returned unexpected WAIT_IO_COMPLETION\n", ws->ctx0.n);
   }
   else
   {
-    DDS_WARNING("os_sockWaitsetWait: WSAWaitForMultipleEvents(%d,...,0,0,0) returned unrecognised %d\n", ws->ctx0.n, idx);
+    DDS_WARNING("ddsi_sock_waitset_wait: WSAWaitForMultipleEvents(%d,...,0,0,0) returned unrecognised %d\n", ws->ctx0.n, idx);
   }
 #ifdef TEMP_DEF_WAIT_IO_COMPLETION
 #undef WAIT_IO_COMPLETION
@@ -462,7 +462,7 @@ os_sockWaitsetCtx os_sockWaitsetWait (os_sockWaitset ws)
  is large, the lower indices may get a disproportionally large
  amount of attention. */
 
-int os_sockWaitsetNextEvent (os_sockWaitsetCtx ctx, ddsi_tran_conn_t * conn)
+int ddsi_sock_waitset_next_event (struct ddsi_sock_waitset_ctx * ctx, ddsi_tran_conn_t * conn)
 {
   assert (-1 <= ctx->index && ctx->index < ctx->n);
   assert (0 < ctx->n && ctx->n <= ctx->sz);
@@ -485,7 +485,7 @@ int os_sockWaitsetNextEvent (os_sockWaitsetCtx ctx, ddsi_tran_conn_t * conn)
       {
         /* May have a wakeup and a close in parallel, so the handle
          need not exist anymore. */
-        DDS_ERROR("os_sockWaitsetNextEvent: WSAEnumNetworkEvents(%x,%x,...) failed, error %d", (os_uint32) handle, (os_uint32) ctx->events[idx], err);
+        DDS_ERROR("ddsi_sock_waitset_next_event: WSAEnumNetworkEvents(%x,%x,...) failed, error %d", (os_uint32) handle, (os_uint32) ctx->events[idx], err);
       }
       return -1;
     }
@@ -522,28 +522,28 @@ int os_sockWaitsetNextEvent (os_sockWaitsetCtx ctx, ddsi_tran_conn_t * conn)
 
 #endif /* !_WIN32 && !LWIP_SOCKET */
 
-typedef struct os_sockWaitsetSet
+typedef struct ddsi_sock_waitset_set
 {
   ddsi_tran_conn_t * conns;  /* connections in set */
   ddsrt_socket_t * fds;           /* file descriptors in set */
   unsigned sz;               /* max number of fds in context */
   unsigned n;                /* actual number of fds in context */
-} os_sockWaitsetSet;
+} ddsi_sock_waitset_set_t;
 
-struct os_sockWaitsetCtx
+struct ddsi_sock_waitset_ctx
 {
-  os_sockWaitsetSet set;     /* set of connections and descriptors */
+  ddsi_sock_waitset_set_t set;     /* set of connections and descriptors */
   unsigned index;            /* cursor for enumerating */
   fd_set rdset;              /* read file descriptors */
 };
 
-struct os_sockWaitset
+struct ddsi_sock_waitset
 {
   ddsrt_socket_t pipe[2];             /* pipe used for triggering */
   ddsrt_mutex_t mutex;                /* concurrency guard */
   int fdmax_plus_1;              /* value for first parameter of select() */
-  os_sockWaitsetSet set;         /* set of descriptors handled next */
-  struct os_sockWaitsetCtx ctx;  /* set of descriptors being handled  */
+  ddsi_sock_waitset_set_t set;         /* set of descriptors handled next */
+  struct ddsi_sock_waitset_ctx ctx;  /* set of descriptors being handled  */
 };
 
 #if defined (_WIN32)
@@ -612,7 +612,7 @@ static int make_pipe (int pfd[2])
 }
 #endif
 
-static void os_sockWaitsetNewSet (os_sockWaitsetSet * set)
+static void ddsi_sock_waitset_new_set (ddsi_sock_waitset_set_t * set)
 {
   set->fds = ddsrt_malloc (WAITSET_DELTA * sizeof (*set->fds));
   set->conns = ddsrt_malloc (WAITSET_DELTA * sizeof (*set->conns));
@@ -620,30 +620,30 @@ static void os_sockWaitsetNewSet (os_sockWaitsetSet * set)
   set->n = 1;
 }
 
-static void os_sockWaitsetFreeSet (os_sockWaitsetSet * set)
+static void ddsi_sock_waitset_free_set (ddsi_sock_waitset_set_t * set)
 {
   ddsrt_free (set->fds);
   ddsrt_free (set->conns);
 }
 
-static void os_sockWaitsetNewCtx (os_sockWaitsetCtx ctx)
+static void ddsi_sock_waitset_new_ctx (struct ddsi_sock_waitset_ctx * ctx)
 {
-  os_sockWaitsetNewSet (&ctx->set);
+  ddsi_sock_waitset_new_set (&ctx->set);
   FD_ZERO (&ctx->rdset);
 }
 
-static void os_sockWaitsetFreeCtx (os_sockWaitsetCtx ctx)
+static void ddsi_sock_waitset_free_ctx (struct ddsi_sock_waitset_ctx * ctx)
 {
-  os_sockWaitsetFreeSet (&ctx->set);
+  ddsi_sock_waitset_free_set (&ctx->set);
 }
 
-os_sockWaitset os_sockWaitsetNew (void)
+struct ddsi_sock_waitset * ddsi_sock_waitset_new (void)
 {
   int result;
-  os_sockWaitset ws = ddsrt_malloc (sizeof (*ws));
+  struct ddsi_sock_waitset * ws = ddsrt_malloc (sizeof (*ws));
 
-  os_sockWaitsetNewSet (&ws->set);
-  os_sockWaitsetNewCtx (&ws->ctx);
+  ddsi_sock_waitset_new_set (&ws->set);
+  ddsi_sock_waitset_new_ctx (&ws->ctx);
 
 #if ! defined (_WIN32)
   ws->fdmax_plus_1 = 0;
@@ -660,8 +660,8 @@ os_sockWaitset os_sockWaitsetNew (void)
 #endif
   if (result == -1)
   {
-    os_sockWaitsetFreeCtx (&ws->ctx);
-    os_sockWaitsetFreeSet (&ws->set);
+    ddsi_sock_waitset_free_ctx (&ws->ctx);
+    ddsi_sock_waitset_free_set (&ws->set);
     ddsrt_free (ws);
     return NULL;
   }
@@ -689,14 +689,14 @@ os_sockWaitset os_sockWaitsetNew (void)
   return ws;
 }
 
-static void os_sockWaitsetGrow (os_sockWaitsetSet * set)
+static void ddsi_sock_waitset_grow (ddsi_sock_waitset_set_t * set)
 {
   set->sz += WAITSET_DELTA;
   set->conns = ddsrt_realloc (set->conns, set->sz * sizeof (*set->conns));
   set->fds = ddsrt_realloc (set->fds, set->sz * sizeof (*set->fds));
 }
 
-void os_sockWaitsetFree (os_sockWaitset ws)
+void ddsi_sock_waitset_free (struct ddsi_sock_waitset * ws)
 {
 #if defined(__VXWORKS__) && defined(__RTP__)
   char nameBuf[OSPL_PIPENAMESIZE];
@@ -712,13 +712,13 @@ void os_sockWaitsetFree (os_sockWaitset ws)
 #if defined(__VXWORKS__) && defined(__RTP__)
   pipeDevDelete ((char*) &nameBuf, 0);
 #endif
-  os_sockWaitsetFreeSet (&ws->set);
-  os_sockWaitsetFreeCtx (&ws->ctx);
+  ddsi_sock_waitset_free_set (&ws->set);
+  ddsi_sock_waitset_free_ctx (&ws->ctx);
   ddsrt_mutex_destroy (&ws->mutex);
   ddsrt_free (ws);
 }
 
-void os_sockWaitsetTrigger (os_sockWaitset ws)
+void ddsi_sock_waitset_trigger (struct ddsi_sock_waitset * ws)
 {
 #if defined(LWIP_SOCKET)
   (void)ws;
@@ -733,15 +733,15 @@ void os_sockWaitsetTrigger (os_sockWaitset ws)
 #endif
   if (n != 1)
   {
-    DDS_WARNING("os_sockWaitsetTrigger: write failed on trigger pipe\n");
+    DDS_WARNING("ddsi_sock_waitset_trigger: write failed on trigger pipe\n");
   }
 #endif
 }
 
-int os_sockWaitsetAdd (os_sockWaitset ws, ddsi_tran_conn_t conn)
+int ddsi_sock_waitset_add (struct ddsi_sock_waitset * ws, ddsi_tran_conn_t conn)
 {
   ddsrt_socket_t handle = ddsi_conn_handle (conn);
-  os_sockWaitsetSet * set = &ws->set;
+  ddsi_sock_waitset_set_t * set = &ws->set;
   unsigned idx;
   int ret;
 
@@ -761,7 +761,7 @@ int os_sockWaitsetAdd (os_sockWaitset ws, ddsi_tran_conn_t conn)
   else
   {
     if (set->n == set->sz)
-      os_sockWaitsetGrow (set);
+      ddsi_sock_waitset_grow (set);
 #if ! defined (_WIN32)
     if ((int) handle >= ws->fdmax_plus_1)
       ws->fdmax_plus_1 = handle + 1;
@@ -775,9 +775,9 @@ int os_sockWaitsetAdd (os_sockWaitset ws, ddsi_tran_conn_t conn)
   return ret;
 }
 
-void os_sockWaitsetPurge (os_sockWaitset ws, unsigned index)
+void ddsi_sock_waitset_purge (struct ddsi_sock_waitset * ws, unsigned index)
 {
-  os_sockWaitsetSet * set = &ws->set;
+  ddsi_sock_waitset_set_t * set = &ws->set;
 
   ddsrt_mutex_lock (&ws->mutex);
   if (index + 1 <= set->n)
@@ -792,9 +792,9 @@ void os_sockWaitsetPurge (os_sockWaitset ws, unsigned index)
   ddsrt_mutex_unlock (&ws->mutex);
 }
 
-void os_sockWaitsetRemove (os_sockWaitset ws, ddsi_tran_conn_t conn)
+void ddsi_sock_waitset_remove (struct ddsi_sock_waitset * ws, ddsi_tran_conn_t conn)
 {
-  os_sockWaitsetSet * set = &ws->set;
+  ddsi_sock_waitset_set_t * set = &ws->set;
 
   ddsrt_mutex_lock (&ws->mutex);
   for (unsigned i = 0; i < set->n; i++)
@@ -813,16 +813,16 @@ void os_sockWaitsetRemove (os_sockWaitset ws, ddsi_tran_conn_t conn)
   ddsrt_mutex_unlock (&ws->mutex);
 }
 
-os_sockWaitsetCtx os_sockWaitsetWait (os_sockWaitset ws)
+struct ddsi_sock_waitset_ctx * ddsi_sock_waitset_wait (struct ddsi_sock_waitset * ws)
 {
   unsigned u;
 #if !_WIN32
   int fdmax;
 #endif
   fd_set * rdset = NULL;
-  os_sockWaitsetCtx ctx = &ws->ctx;
-  os_sockWaitsetSet * dst = &ctx->set;
-  os_sockWaitsetSet * src = &ws->set;
+  struct ddsi_sock_waitset_ctx * ctx = &ws->ctx;
+  ddsi_sock_waitset_set_t * dst = &ctx->set;
+  ddsi_sock_waitset_set_t * src = &ws->set;
 
   ddsrt_mutex_lock (&ws->mutex);
 
@@ -834,7 +834,7 @@ os_sockWaitsetCtx os_sockWaitsetWait (os_sockWaitset ws)
 
   while (dst->sz < src->sz)
   {
-    os_sockWaitsetGrow (dst);
+    ddsi_sock_waitset_grow (dst);
   }
   dst->n = src->n;
 
@@ -870,7 +870,7 @@ os_sockWaitsetCtx os_sockWaitsetWait (os_sockWaitset ws)
     rc = ddsrt_select (fdmax, rdset, NULL, NULL, DDS_INFINITY);
     if (rc < 0 && rc != DDS_RETCODE_INTERRUPTED && rc != DDS_RETCODE_TRY_AGAIN)
     {
-      DDS_WARNING("os_sockWaitsetWait: select failed, retcode = %"PRId32, rc);
+      DDS_WARNING("ddsi_sock_waitset_wait: select failed, retcode = %"PRId32, rc);
       break;
     }
   } while (rc < 0);
@@ -891,7 +891,7 @@ os_sockWaitsetCtx os_sockWaitsetWait (os_sockWaitset ws)
 #endif
       if (n1 != 1)
       {
-        DDS_WARNING("os_sockWaitsetWait: read failed on trigger pipe\n");
+        DDS_WARNING("ddsi_sock_waitset_wait: read failed on trigger pipe\n");
         assert (0);
       }
     }
@@ -906,7 +906,7 @@ os_sockWaitsetCtx os_sockWaitsetWait (os_sockWaitset ws)
 DDSRT_WARNING_GNUC_OFF(sign-conversion)
 #endif
 
-int os_sockWaitsetNextEvent (os_sockWaitsetCtx ctx, ddsi_tran_conn_t * conn)
+int ddsi_sock_waitset_next_event (struct ddsi_sock_waitset_ctx * ctx, ddsi_tran_conn_t * conn)
 {
   while (ctx->index < ctx->set.n)
   {

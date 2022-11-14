@@ -64,6 +64,7 @@
 #include "ddsi__tran.h"
 #include "ddsi__vendor.h"
 #include "ddsi__hbcontrol.h"
+#include "ddsi__sockwaitset.h"
 
 #include "dds/cdr/dds_cdrstream.h"
 #include "dds__whc.h"
@@ -3455,14 +3456,14 @@ uint32_t ddsi_listen_thread (struct ddsi_tran_listener *listener)
     conn = ddsi_listener_accept (listener);
     if (conn)
     {
-      os_sockWaitsetAdd (gv->recv_threads[0].arg.u.many.ws, conn);
-      os_sockWaitsetTrigger (gv->recv_threads[0].arg.u.many.ws);
+      ddsi_sock_waitset_add (gv->recv_threads[0].arg.u.many.ws, conn);
+      ddsi_sock_waitset_trigger (gv->recv_threads[0].arg.u.many.ws);
     }
   }
   return 0;
 }
 
-static int recv_thread_waitset_add_conn (os_sockWaitset ws, ddsi_tran_conn_t conn)
+static int recv_thread_waitset_add_conn (struct ddsi_sock_waitset * ws, ddsi_tran_conn_t conn)
 {
   if (conn == NULL)
     return 0;
@@ -3472,7 +3473,7 @@ static int recv_thread_waitset_add_conn (os_sockWaitset ws, ddsi_tran_conn_t con
     for (uint32_t i = 0; i < gv->n_recv_threads; i++)
       if (gv->recv_threads[i].arg.mode == RTM_SINGLE && gv->recv_threads[i].arg.u.single.conn == conn)
         return 0;
-    return os_sockWaitsetAdd (ws, conn);
+    return ddsi_sock_waitset_add (ws, conn);
   }
 }
 
@@ -3498,7 +3499,7 @@ void ddsi_trigger_recv_threads (const struct ddsi_domaingv *gv)
       }
       case RTM_MANY: {
         GVTRACE ("ddsi_trigger_recv_threads: %"PRIu32" many %p\n", i, (void *) gv->recv_threads[i].arg.u.many.ws);
-        os_sockWaitsetTrigger (gv->recv_threads[i].arg.u.many.ws);
+        ddsi_sock_waitset_trigger (gv->recv_threads[i].arg.u.many.ws);
         break;
       }
     }
@@ -3511,7 +3512,7 @@ uint32_t ddsi_recv_thread (void *vrecv_thread_arg)
   struct recv_thread_arg *recv_thread_arg = vrecv_thread_arg;
   struct ddsi_domaingv * const gv = recv_thread_arg->gv;
   struct ddsi_rbufpool *rbpool = recv_thread_arg->rbpool;
-  os_sockWaitset waitset = recv_thread_arg->mode == RTM_MANY ? recv_thread_arg->u.many.ws : NULL;
+  struct ddsi_sock_waitset * waitset = recv_thread_arg->mode == RTM_MANY ? recv_thread_arg->u.many.ws : NULL;
   ddsrt_mtime_t next_thread_cputime = { 0 };
 
   ddsi_rbufpool_setowner (rbpool, ddsrt_thread_self ());
@@ -3528,7 +3529,7 @@ uint32_t ddsi_recv_thread (void *vrecv_thread_arg)
   {
     struct local_participant_set lps;
     unsigned num_fixed = 0, num_fixed_uc = 0;
-    os_sockWaitsetCtx ctx;
+    struct ddsi_sock_waitset_ctx * ctx;
     local_participant_set_init (&lps, &gv->participant_set_generation);
     if (gv->m_factory->m_connless)
     {
@@ -3579,19 +3580,19 @@ uint32_t ddsi_recv_thread (void *vrecv_thread_arg)
         /* first rebuild local participant set - unless someone's toggling "deafness", this
          only happens when the participant set has changed, so might as well rebuild it */
         rebuild_local_participant_set (thrst, gv, &lps);
-        os_sockWaitsetPurge (waitset, num_fixed);
+        ddsi_sock_waitset_purge (waitset, num_fixed);
         for (uint32_t i = 0; i < lps.nps; i++)
         {
           if (lps.ps[i].m_conn)
-            os_sockWaitsetAdd (waitset, lps.ps[i].m_conn);
+            ddsi_sock_waitset_add (waitset, lps.ps[i].m_conn);
         }
       }
 
-      if ((ctx = os_sockWaitsetWait (waitset)) != NULL)
+      if ((ctx = ddsi_sock_waitset_wait (waitset)) != NULL)
       {
         int idx;
         ddsi_tran_conn_t conn;
-        while ((idx = os_sockWaitsetNextEvent (ctx, &conn)) >= 0)
+        while ((idx = ddsi_sock_waitset_next_event (ctx, &conn)) >= 0)
         {
           const ddsi_guid_prefix_t *guid_prefix;
           if (((unsigned)idx < num_fixed) || gv->config.many_sockets_mode != DDSI_MSM_MANY_UNICAST)

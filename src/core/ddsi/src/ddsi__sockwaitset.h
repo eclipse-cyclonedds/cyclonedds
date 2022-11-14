@@ -9,15 +9,15 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef Q_SOCKWAITSET_H
-#define Q_SOCKWAITSET_H
+#ifndef DDSI__SOCKWAITSET_H
+#define DDSI__SOCKWAITSET_H
+
+#include "dds/ddsi/ddsi_sockwaitset.h"
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
 
-typedef struct os_sockWaitset * os_sockWaitset;
-typedef struct os_sockWaitsetCtx * os_sockWaitsetCtx;
 struct ddsi_tran_conn;
 
 /*
@@ -27,30 +27,30 @@ struct ddsi_tran_conn;
   the wait set using the Wait and NextEvent functions in a single handling
   loop.
 */
-os_sockWaitset os_sockWaitsetNew (void);
+struct ddsi_sock_waitset * ddsi_sock_waitset_new (void);
 
 /*
   Frees the waitset WS. Any connections associated with it will
   be closed.
 */
-void os_sockWaitsetFree (os_sockWaitset ws);
+void ddsi_sock_waitset_free (struct ddsi_sock_waitset * ws);
 
 /*
   Triggers the waitset, from any thread.  It is level
   triggered, when called while no thread is waiting in
-  os_sockWaitsetWait the trigger will cause an (early) wakeup on the
-  next call to os_sockWaitsetWait.  Returns DDS_RETCODE_OK if
+  ddsi_sock_waitset_wait the trigger will cause an (early) wakeup on the
+  next call to ddsi_sock_waitset_wait.  Returns DDS_RETCODE_OK if
   successfully triggered, DDS_RETCODE_BAD_PARAMETER if an error occurs.
 
   Triggering a waitset may require resources and they may be counted.
   Do not trigger a waitset arbitrarily often without ensuring
-  os_sockWaitsetWait is called often enough to let it release any
+  ddsi_sock_waitset_wait is called often enough to let it release any
   resources used.
 
-  Shared state updates preceding os_sockWaitsetTrigger are visible
-  following os_sockWaitsetWait.
+  Shared state updates preceding struct ddsi_sock_waitset *rigger are visible
+  following ddsi_sock_waitset_wait.
 */
-void os_sockWaitsetTrigger (os_sockWaitset ws);
+void ddsi_sock_waitset_trigger (struct ddsi_sock_waitset * ws);
 
 /*
   A connection may be associated with only one waitset at any time, and
@@ -62,7 +62,7 @@ void os_sockWaitsetTrigger (os_sockWaitset ws);
 
   Returns < 0 on error, 0 if already present, 1 if added
 */
-int os_sockWaitsetAdd (os_sockWaitset ws, struct ddsi_tran_conn * conn);
+int ddsi_sock_waitset_add (struct ddsi_sock_waitset * ws, struct ddsi_tran_conn * conn);
 
 /*
   Drops all connections from the waitset from index onwards. Index
@@ -70,7 +70,7 @@ int os_sockWaitsetAdd (os_sockWaitset ws, struct ddsi_tran_conn * conn);
   the second, etc. Behaviour is undefined when called after a successful wait
   but before all events had been enumerated.
 */
-void os_sockWaitsetPurge (os_sockWaitset ws, unsigned index);
+void ddsi_sock_waitset_purge (struct ddsi_sock_waitset * ws, unsigned index);
 
 /*
   Waits until some of the connections in WS have data to be read.
@@ -78,13 +78,13 @@ void os_sockWaitsetPurge (os_sockWaitset ws, unsigned index);
   Returns a new wait set context if one or more connections have data to read.
   However, the return may be spurious (NULL) (i.e., no events)
 
-  If a context is returned it must be enumerated before os_sockWaitsetWait
+  If a context is returned it must be enumerated before ddsi_sock_waitset_wait
   may be called again.
 
-  Shared state updates preceding os_sockWaitsetTrigger are visible
-  following os_sockWaitsetWait.
+  Shared state updates preceding struct ddsi_sock_waitset *rigger are visible
+  following ddsi_sock_waitset_wait.
 */
-os_sockWaitsetCtx os_sockWaitsetWait (os_sockWaitset ws);
+struct ddsi_sock_waitset_ctx * ddsi_sock_waitset_wait (struct ddsi_sock_waitset * ws);
 
 /*
   Returns the index of the next triggered connection in the
@@ -92,19 +92,19 @@ os_sockWaitsetCtx os_sockWaitsetWait (os_sockWaitset ws);
   exhausted. Index 0 is the first connection added to the waitset, index
   1 the second, &c.
 
-  Following a call to os_sockWaitsetWait on waitset that returned
+  Following a call to ddsi_sock_waitset_wait on waitset that returned
   a context, one MUST enumerate all available events before
-  os_sockWaitsetWait may be called again.
+  ddsi_sock_waitset_wait may be called again.
 
   If the return value is >= 0, *conn contains the connection on which
   data is available.
 */
-int os_sockWaitsetNextEvent (os_sockWaitsetCtx ctx, struct ddsi_tran_conn ** conn);
+int ddsi_sock_waitset_next_event (struct ddsi_sock_waitset_ctx * ctx, struct ddsi_tran_conn ** conn);
 
 /* Remove connection */
-void os_sockWaitsetRemove (os_sockWaitset ws, struct ddsi_tran_conn * conn);
+void ddsi_sock_waitset_remove (struct ddsi_sock_waitset * ws, struct ddsi_tran_conn * conn);
 
 #if defined (__cplusplus)
 }
 #endif
-#endif /* Q_SOCKWAITSET_H */
+#endif /* DDSI__SOCKWAITSET_H */

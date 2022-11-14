@@ -30,6 +30,7 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "ddsi__ssl.h"
 #include "ddsi__proxy_participant.h"
+#include "ddsi__sockwaitset.h"
 
 #define INVALID_PORT (~0u)
 
@@ -303,8 +304,8 @@ static void ddsi_tcp_conn_connect (ddsi_tcp_conn_t conn, const ddsrt_msghdr_t * 
 
   assert (conn->m_base.m_base.gv->n_recv_threads > 0);
   assert (conn->m_base.m_base.gv->recv_threads[0].arg.mode == RTM_MANY);
-  os_sockWaitsetAdd (conn->m_base.m_base.gv->recv_threads[0].arg.u.many.ws, &conn->m_base);
-  os_sockWaitsetTrigger (conn->m_base.m_base.gv->recv_threads[0].arg.u.many.ws);
+  ddsi_sock_waitset_add (conn->m_base.m_base.gv->recv_threads[0].arg.u.many.ws, &conn->m_base);
+  ddsi_sock_waitset_trigger (conn->m_base.m_base.gv->recv_threads[0].arg.u.many.ws);
   return;
 
 fail_w_socket:

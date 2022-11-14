@@ -22,6 +22,7 @@
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_log.h"
 #include "dds/ddsi/ddsi_domaingv.h"
+#include "ddsi__sockwaitset.h"
 
 extern inline uint32_t ddsi_conn_type (const struct ddsi_tran_conn *conn);
 extern inline uint32_t ddsi_conn_port (const struct ddsi_tran_conn *conn);
@@ -140,7 +141,7 @@ void ddsi_conn_free (ddsi_tran_conn_t conn)
             switch (conn->m_base.gv->recv_threads[i].arg.mode)
             {
               case RTM_MANY:
-                os_sockWaitsetRemove (conn->m_base.gv->recv_threads[i].arg.u.many.ws, conn);
+                ddsi_sock_waitset_remove (conn->m_base.gv->recv_threads[i].arg.u.many.ws, conn);
                 break;
               case RTM_SINGLE:
                 if (conn->m_base.gv->recv_threads[i].arg.u.single.conn == conn)

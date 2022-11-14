@@ -72,6 +72,7 @@
 #include "ddsi__topic.h"
 #include "ddsi__typelib.h"
 #include "ddsi__vendor.h"
+#include "ddsi__sockwaitset.h"
 
 #include "dds__whc.h"
 #include "dds/cdr/dds_cdrstream.h"
@@ -997,7 +998,7 @@ static int setup_and_start_recv_threads (struct ddsi_domaingv *gv)
     }
     if (gv->recv_threads[i].arg.mode == RTM_MANY)
     {
-      if ((gv->recv_threads[i].arg.u.many.ws = os_sockWaitsetNew ()) == NULL)
+      if ((gv->recv_threads[i].arg.u.many.ws = ddsi_sock_waitset_new ()) == NULL)
       {
         GVERROR ("rtps_init: can't allocate sock waitset for thread %s\n", gv->recv_threads[i].name);
         goto fail;
@@ -1018,7 +1019,7 @@ fail:
   for (uint32_t i = 0; i < gv->n_recv_threads; i++)
   {
     if (gv->recv_threads[i].arg.mode == RTM_MANY && gv->recv_threads[i].arg.u.many.ws)
-      os_sockWaitsetFree (gv->recv_threads[i].arg.u.many.ws);
+      ddsi_sock_waitset_free (gv->recv_threads[i].arg.u.many.ws);
     if (gv->recv_threads[i].arg.rbpool)
       ddsi_rbufpool_free (gv->recv_threads[i].arg.rbpool);
   }
@@ -2177,7 +2178,7 @@ void ddsi_fini (struct ddsi_domaingv *gv)
   for (uint32_t i = 0; i < gv->n_recv_threads; i++)
   {
     if (gv->recv_threads[i].arg.mode == RTM_MANY)
-      os_sockWaitsetFree (gv->recv_threads[i].arg.u.many.ws);
+      ddsi_sock_waitset_free (gv->recv_threads[i].arg.u.many.ws);
     ddsi_rbufpool_free (gv->recv_threads[i].arg.rbpool);
   }
 
