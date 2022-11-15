@@ -1199,6 +1199,8 @@ int ddsi_init (struct ddsi_domaingv *gv)
     gv->xmit_conns[i] = NULL;
   gv->listener = NULL;
   gv->debmon = NULL;
+  gv->n_recv_threads = 0;
+  gv->ddsi_tran_factories = NULL;
 
   /* Print start time for referencing relative times in the remainder of the DDS_LOG. */
   {
@@ -1346,9 +1348,8 @@ int ddsi_init (struct ddsi_domaingv *gv)
   // a plain copy is safe because it doesn't alias anything
   gv->default_local_plist_pp = ddsi_default_plist_participant;
   assert (gv->default_local_plist_pp.aliased == 0 && gv->default_local_plist_pp.qos.aliased == 0);
-  assert (!(gv->default_local_plist_pp.qos.present & DDSI_QP_LIVELINESS));
-  gv->default_local_plist_pp.qos.present |= DDSI_QP_LIVELINESS;
-  gv->default_local_plist_pp.qos.liveliness.kind = DDS_LIVELINESS_AUTOMATIC;
+  assert (gv->default_local_plist_pp.qos.present & DDSI_QP_LIVELINESS);
+  assert (gv->default_local_plist_pp.qos.liveliness.kind == DDS_LIVELINESS_AUTOMATIC);
   gv->default_local_plist_pp.qos.liveliness.lease_duration = gv->config.lease_duration;
 
   ddsi_xqos_copy (&gv->spdp_endpoint_xqos, &ddsi_default_qos_reader);
