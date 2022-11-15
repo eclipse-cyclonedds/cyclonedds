@@ -256,7 +256,7 @@ static void waitfor_or_reset_fastpath (dds_entity_t rdhandle, bool fastpath, siz
   struct ddsi_rd_pwr_match *m;
   ddsi_guid_t cursor;
   size_t wrcount = 0;
-  thread_state_awake (ddsi_lookup_thread_state (), rd->e.gv);
+  ddsi_thread_state_awake (ddsi_lookup_thread_state (), rd->e.gv);
   ddsrt_mutex_lock (&rd->e.lock);
 
   memset (&cursor, 0, sizeof (cursor));
@@ -305,7 +305,7 @@ static void waitfor_or_reset_fastpath (dds_entity_t rdhandle, bool fastpath, siz
     ddsrt_mutex_lock (&rd->e.lock);
   }
   ddsrt_mutex_unlock (&rd->e.lock);
-  thread_state_asleep (ddsi_lookup_thread_state ());
+  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
   dds_entity_unpin (x);
 
   CU_ASSERT_FATAL (wrcount == nwr);

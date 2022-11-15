@@ -24,7 +24,7 @@
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/ddsi_iid.h"
 #include "ddsi__entity_index.h"
-#include "dds/ddsi/q_thread.h"
+#include "ddsi__thread.h"
 #include "ddsi__endpoint.h"
 #include "ddsi__vendor.h"
 #include "ddsi__xqos.h"
@@ -160,13 +160,13 @@ bool ddsi_update_qos_locked (struct ddsi_entity_common *e, dds_qos_t *ent_qos, c
 
 uint64_t ddsi_get_entity_instanceid (const struct ddsi_domaingv *gv, const struct ddsi_guid *guid)
 {
-  struct thread_state *thrst = ddsi_lookup_thread_state ();
+  struct ddsi_thread_state *thrst = ddsi_lookup_thread_state ();
   struct ddsi_entity_common *e;
   uint64_t iid = 0;
-  thread_state_awake (thrst, gv);
+  ddsi_thread_state_awake (thrst, gv);
   if ((e = ddsi_entidx_lookup_guid_untyped (gv->entity_index, guid)) != NULL)
     iid = e->iid;
-  thread_state_asleep (thrst);
+  ddsi_thread_state_asleep (thrst);
   return iid;
 }
 

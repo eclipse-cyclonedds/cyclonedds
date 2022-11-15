@@ -17,7 +17,7 @@
 
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsi/ddsi_iid.h"
-#include "dds/ddsi/q_thread.h"
+#include "ddsi__thread.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_entity.h"
@@ -43,7 +43,7 @@ static struct ddsi_domaingv gv;
 static struct ddsi_config cfg;
 static ddsi_tran_conn_t fakeconn;
 static ddsi_tran_factory_t fakenet;
-static struct thread_state *thrst;
+static struct ddsi_thread_state *thrst;
 static struct ddsi_rbufpool *rbpool;
 // static struct ddsi_tkmap_instance *tk;
 
@@ -71,14 +71,14 @@ int LLVMFuzzerTestOneInput(
     return EXIT_SUCCESS;
 
   ddsi_iid_init();
-  thread_states_init();
+  ddsi_thread_states_init();
 
   // register the main thread, then claim it as spawned by Cyclone because the
   // internal processing has various asserts that it isn't an application thread
   // doing the dirty work
   thrst = ddsi_lookup_thread_state ();
-  assert (thrst->state == THREAD_STATE_LAZILY_CREATED);
-  thrst->state = THREAD_STATE_ALIVE;
+  assert (thrst->state == DDSI_THREAD_STATE_LAZILY_CREATED);
+  thrst->state = DDSI_THREAD_STATE_ALIVE;
   ddsrt_atomic_stvoidp (&thrst->gv, &gv);
 
   memset(&gv, 0, sizeof(gv));
@@ -116,8 +116,8 @@ int LLVMFuzzerTestOneInput(
 
   // On shutdown there is an expectation that the thread was discovered dynamically.
   // We overrode it in the setup code, we undo it now.
-  thrst->state = THREAD_STATE_LAZILY_CREATED;
-  thread_states_fini ();
+  thrst->state = DDSI_THREAD_STATE_LAZILY_CREATED;
+  ddsi_thread_states_fini ();
   ddsi_iid_fini ();
   return EXIT_SUCCESS;
 }

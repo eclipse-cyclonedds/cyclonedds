@@ -14,7 +14,7 @@
 
 #include "dds/export.h"
 #include "dds/ddsi/ddsi_gc.h"
-#include "dds/ddsi/q_thread.h"
+#include "ddsi__thread.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -24,8 +24,8 @@ struct ddsi_domaingv;
 struct ddsi_gcreq_queue;
 
 struct ddsi_idx_vtime {
-  struct thread_state *thrst;
-  vtime_t vtime;
+  struct ddsi_thread_state *thrst;
+  ddsi_vtime_t vtime;
 };
 
 struct ddsi_gcreq {

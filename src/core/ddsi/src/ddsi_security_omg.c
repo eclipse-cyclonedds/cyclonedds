@@ -931,12 +931,12 @@ static bool proxypp_expired_by_id (const struct ddsi_proxy_participant * proxypp
 static DDS_Security_boolean on_revoke_permissions_cb(const dds_security_access_control *plugin, const DDS_Security_PermissionsHandle handle)
 {
   struct ddsi_domaingv *gv = plugin->gv;
-  thread_state_awake (ddsi_lookup_thread_state (), gv);
+  ddsi_thread_state_awake (ddsi_lookup_thread_state (), gv);
 
   if (!delete_pp_by_handle (handle, pp_expired_by_perm, gv))
     delete_proxypp_by_handle (handle, proxypp_expired_by_perm, gv);
 
-  thread_state_asleep (ddsi_lookup_thread_state ());
+  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
   return true;
 }
 
@@ -944,12 +944,12 @@ static DDS_Security_boolean on_revoke_permissions_cb(const dds_security_access_c
 static DDS_Security_boolean on_revoke_identity_cb(const dds_security_authentication *plugin, const DDS_Security_IdentityHandle handle)
 {
   struct ddsi_domaingv *gv = plugin->gv;
-  thread_state_awake (ddsi_lookup_thread_state (), gv);
+  ddsi_thread_state_awake (ddsi_lookup_thread_state (), gv);
 
   if (!delete_pp_by_handle (handle, pp_expired_by_id, gv))
     delete_proxypp_by_handle (handle, proxypp_expired_by_id, gv);
 
-  thread_state_asleep (ddsi_lookup_thread_state ());
+  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
   return true;
 }
 
@@ -1457,7 +1457,7 @@ bool ddsi_omg_security_check_create_topic (const struct ddsi_domaingv *gv, const
   DDS_Security_SecurityException exception = DDS_SECURITY_EXCEPTION_INIT;
   DDS_Security_Qos topic_qos;
 
-  thread_state_awake (ddsi_lookup_thread_state (), gv);
+  ddsi_thread_state_awake (ddsi_lookup_thread_state (), gv);
   pp = ddsi_entidx_lookup_participant_guid (gv->entity_index, pp_guid);
 
   if ((sc = ddsi_omg_security_get_secure_context (pp)) != NULL)
@@ -1468,7 +1468,7 @@ bool ddsi_omg_security_check_create_topic (const struct ddsi_domaingv *gv, const
       handle_not_allowed(gv, pp->sec_attr->permissions_handle, sc->access_control_context, &exception, topic_name, "Local topic permission denied");
     ddsi_omg_shallow_free_security_qos (&topic_qos);
   }
-  thread_state_asleep (ddsi_lookup_thread_state ());
+  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
 
   return result;
 }
@@ -3767,7 +3767,7 @@ else
 
 ddsi_rtps_msg_state_t
 ddsi_security_decode_rtps_message (
-  struct thread_state * const thrst,
+  struct ddsi_thread_state * const thrst,
   struct ddsi_domaingv *gv,
   struct ddsi_rmsg **rmsg,
   ddsi_rtps_header_t **hdr,
@@ -3778,11 +3778,11 @@ ddsi_security_decode_rtps_message (
 {
   struct ddsi_proxy_participant *proxypp;
   ddsi_rtps_msg_state_t ret;
-  thread_state_awake_fixed_domain (thrst);
+  ddsi_thread_state_awake_fixed_domain (thrst);
   ret = check_rtps_message_is_secure (gv, *hdr, *buff, isstream, &proxypp);
   if (ret == DDSI_RTPS_MSG_STATE_ENCODED)
     ret = decode_rtps_message_awake (rmsg, hdr, buff, sz, rbpool, isstream, proxypp);
-  thread_state_asleep (thrst);
+  ddsi_thread_state_asleep (thrst);
   return ret;
 }
 
@@ -4042,7 +4042,7 @@ extern inline int ddsi_security_decode_sec_prefix(
   UNUSED_ARG(int byteswap));
 
 extern inline ddsi_rtps_msg_state_t ddsi_security_decode_rtps_message (
-  UNUSED_ARG(struct thread_state * const thrst),
+  UNUSED_ARG(struct ddsi_thread_state * const thrst),
   UNUSED_ARG(struct ddsi_domaingv *gv),
   UNUSED_ARG(struct ddsi_rmsg **rmsg),
   UNUSED_ARG(ddsi_rtps_header_t **hdr),

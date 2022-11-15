@@ -27,7 +27,7 @@
 #include "dds/ddsi/ddsi_proxy_endpoint.h"
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/ddsi_protocol.h"
-#include "dds/ddsi/q_thread.h" /* for assert(thread is awake) */
+#include "ddsi__thread.h" /* for assert(thread is awake) */
 #include "ddsi__endpoint.h"
 #include "ddsi__gc.h"
 #include "ddsi__topic.h"
@@ -299,7 +299,7 @@ void *ddsi_entidx_lookup_guid_untyped (const struct ddsi_entity_index *ei, const
   /* FIXME: could (now) require guid to be first in entity_common; entity_common already is first in entity */
   struct ddsi_entity_common e;
   e.guid = *guid;
-  assert (thread_is_awake ());
+  assert (ddsi_thread_is_awake ());
   return ddsrt_chh_lookup (ei->guid_hash, &e);
 }
 
@@ -429,7 +429,7 @@ static void entidx_enum_init_minmax_int (struct ddsi_entity_enum *st, const stru
      be possible to allow the GC to reclaim any entities already visited, but I don't think
      that additional effort is worth it. */
 #ifndef NDEBUG
-  assert (thread_is_awake ());
+  assert (ddsi_thread_is_awake ());
   st->vtime = ddsrt_atomic_ld32 (&ddsi_lookup_thread_state ()->vtime);
 #endif
   st->entidx = (struct ddsi_entity_index *) ei;

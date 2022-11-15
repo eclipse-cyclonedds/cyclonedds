@@ -13,7 +13,7 @@
 #include "dds/ddsi/ddsi_tran.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_xevent.h"
-#include "dds/ddsi/q_thread.h"
+#include "dds/ddsi/ddsi_thread.h"
 #include "dds/security/dds_security_api.h"
 #include "dds/security/dds_security_api_authentication.h"
 #include "dds/security/core/dds_security_serialize.h"
@@ -1076,7 +1076,7 @@ CU_Init(ddssec_builtin_listeners_auth)
 {
     int res = 0;
     dds_openssl_init ();
-    thread_states_init();
+    ddsi_thread_states_init();
 
     plugins = load_plugins(&access_control   /* Access Control */,
                            &auth  /* Authentication */,

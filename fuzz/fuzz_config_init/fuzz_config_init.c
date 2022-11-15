@@ -17,7 +17,7 @@
 
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsi/ddsi_iid.h"
-#include "dds/ddsi/q_thread.h"
+#include "ddsi__thread.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_entity.h"
@@ -47,7 +47,7 @@ int LLVMFuzzerTestOneInput(
         return EXIT_FAILURE;
 
     ddsi_iid_init();
-    thread_states_init();
+    ddsi_thread_states_init();
 
     memset(&dds_global, 0, sizeof(dds_global));
     ddsrt_mutex_init(&dds_global.m_mutex);

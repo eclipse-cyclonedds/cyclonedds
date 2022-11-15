@@ -16,7 +16,7 @@
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/hopscotch.h"
-#include "dds/ddsi/q_thread.h"
+#include "ddsi__thread.h"
 #include "dds/ddsi/ddsi_unused.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_config_impl.h"
@@ -116,7 +116,7 @@ uint64_t ddsi_tkmap_lookup (struct ddsi_tkmap * map, const struct ddsi_serdata *
 {
   struct ddsi_tkmap_instance dummy;
   struct ddsi_tkmap_instance * tk;
-  assert (thread_is_awake ());
+  assert (ddsi_thread_is_awake ());
   dummy.m_sample = (struct ddsi_serdata *) sd;
   tk = ddsrt_chh_lookup (map->m_hh, &dummy);
   return (tk) ? tk->m_iid : DDS_HANDLE_NIL;
@@ -128,7 +128,7 @@ struct ddsi_tkmap_instance *ddsi_tkmap_find_by_id (struct ddsi_tkmap *map, uint6
   struct ddsrt_chh_iter it;
   struct ddsi_tkmap_instance *tk;
   uint32_t refc;
-  assert (thread_is_awake ());
+  assert (ddsi_thread_is_awake ());
   for (tk = ddsrt_chh_iter_first (map->m_hh, &it); tk; tk = ddsrt_chh_iter_next (&it))
     if (tk->m_iid == iid)
       break;
@@ -160,7 +160,7 @@ struct ddsi_tkmap_instance *ddsi_tkmap_find (struct ddsi_tkmap *map, struct ddsi
   struct ddsi_tkmap_instance dummy;
   struct ddsi_tkmap_instance *tk;
 
-  assert (thread_is_awake ());
+  assert (ddsi_thread_is_awake ());
   dummy.m_sample = sd;
 retry:
   if ((tk = ddsrt_chh_lookup(map->m_hh, &dummy)) != NULL)
@@ -214,7 +214,7 @@ void ddsi_tkmap_instance_ref (struct ddsi_tkmap_instance *tk)
 void ddsi_tkmap_instance_unref (struct ddsi_tkmap *map, struct ddsi_tkmap_instance *tk)
 {
   uint32_t old, new;
-  assert (thread_is_awake ());
+  assert (ddsi_thread_is_awake ());
   do {
     old = ddsrt_atomic_ld32(&tk->m_refc);
     if (old == 1)

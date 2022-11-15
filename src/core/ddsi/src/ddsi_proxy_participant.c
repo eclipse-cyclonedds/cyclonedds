@@ -693,11 +693,11 @@ void ddsi_purge_proxy_participants (struct ddsi_domaingv *gv, const ddsi_xlocato
 {
   /* FIXME: check whether addr:port can't be reused for a new connection by the time we get here. */
   /* NOTE: This function exists for the sole purpose of cleaning up after closing a TCP connection in ddsi_tcp_close_conn and the state of the calling thread could be anything at this point. Because of that we do the unspeakable and toggle the thread state conditionally. We can't afford to have it in "asleep", as that causes a race with the garbage collector. */
-  struct thread_state * const thrst = ddsi_lookup_thread_state ();
+  struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
   struct ddsi_entity_enum_proxy_participant est;
   struct proxy_purge_data data;
 
-  thread_state_awake (thrst, gv);
+  ddsi_thread_state_awake (thrst, gv);
   data.loc = loc;
   data.timestamp = ddsrt_time_wallclock();
   ddsi_entidx_enum_proxy_participant_init (&est, gv->entity_index);
@@ -709,7 +709,7 @@ void ddsi_purge_proxy_participants (struct ddsi_domaingv *gv, const ddsi_xlocato
   if (delete_from_as_disc)
     ddsi_remove_from_addrset (gv, gv->as_disc, loc);
 
-  thread_state_asleep (thrst);
+  ddsi_thread_state_asleep (thrst);
 }
 
 int ddsi_delete_proxy_participant_by_guid (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, ddsrt_wctime_t timestamp, int isimplicit)

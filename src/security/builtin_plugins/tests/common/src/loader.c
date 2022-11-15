@@ -21,7 +21,7 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_xevent.h"
-#include "dds/ddsi/q_thread.h"
+#include "ddsi__thread.h"
 #include "ddsi__tran.h"
 #include "dds/security/core/dds_security_utils.h"
 #include "loader.h"
@@ -133,7 +133,7 @@ load_plugins(
         }
     }
 
-    thread_states_init();
+    ddsi_thread_states_init();
     xeventq_start(plugins->gv.xevents, "TEST");
     return plugins;
 
@@ -173,7 +173,7 @@ unload_plugins(
     xeventq_free(plugins->gv.xevents);
     ddsrt_free(plugins);
 
-    (void)thread_states_fini();
+    (void)ddsi_thread_states_fini();
 }
 
 static size_t

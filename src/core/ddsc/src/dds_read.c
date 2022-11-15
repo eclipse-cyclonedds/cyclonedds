@@ -15,7 +15,7 @@
 #include "dds__reader.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsc/dds_rhc.h"
-#include "dds/ddsi/q_thread.h"
+#include "dds/ddsi/ddsi_thread.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_domaingv.h"
@@ -60,8 +60,8 @@ static dds_return_t dds_read_impl (bool take, dds_entity_t reader_or_condition, 
     cond = (dds_readcond *) entity;
   }
 
-  struct thread_state * const thrst = ddsi_lookup_thread_state ();
-  thread_state_awake (thrst, &entity->m_domain->gv);
+  struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
+  ddsi_thread_state_awake (thrst, &entity->m_domain->gv);
 
   /* Allocate samples if not provided (assuming all or none provided) */
   if (buf[0] == NULL)
@@ -127,7 +127,7 @@ static dds_return_t dds_read_impl (bool take, dds_entity_t reader_or_condition, 
     ddsrt_mutex_unlock (&rd->m_entity.m_mutex);
   }
   dds_entity_unpin (entity);
-  thread_state_asleep (thrst);
+  ddsi_thread_state_asleep (thrst);
   return ret;
 
 #undef NC_CLEAR_LOAN_OUT
@@ -160,8 +160,8 @@ static dds_return_t dds_readcdr_impl (bool take, dds_entity_t reader_or_conditio
     rd = (dds_reader *) entity->m_parent;
   }
 
-  struct thread_state * const thrst = ddsi_lookup_thread_state ();
-  thread_state_awake (thrst, &entity->m_domain->gv);
+  struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
+  ddsi_thread_state_awake (thrst, &entity->m_domain->gv);
 
   /* read/take resets data available status -- must reset before reading because
      the actual writing is protected by RHC lock, not by rd->m_entity.m_lock */
@@ -176,7 +176,7 @@ static dds_return_t dds_readcdr_impl (bool take, dds_entity_t reader_or_conditio
     ret = dds_rhc_readcdr (rd->m_rhc, lock, buf, si, maxs, mask & DDS_ANY_SAMPLE_STATE, mask & DDS_ANY_VIEW_STATE, mask & DDS_ANY_INSTANCE_STATE, hand);
 
   dds_entity_unpin (entity);
-  thread_state_asleep (thrst);
+  ddsi_thread_state_asleep (thrst);
   return ret;
 }
 

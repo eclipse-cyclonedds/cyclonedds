@@ -31,6 +31,7 @@
 #include "dds/ddsi/ddsi_proxy_endpoint.h"
 #include "dds/ddsi/ddsi_gc.h"
 #include "dds/ddsi/ddsi_serdata.h"
+#include "ddsi__thread.h"
 #include "dds__topic.h"
 #include "dds/ddsc/dds_rhc.h"
 #include "dds__rhc_default.h"
@@ -50,7 +51,7 @@
 static ddsrt_prng_t prng;
 
 static struct ddsi_sertype *mdtype;
-static struct thread_state *mainthread;
+static struct ddsi_thread_state *mainthread;
 static dds_time_t tref_dds;
 static uint32_t seq;
 
@@ -134,7 +135,7 @@ static uint64_t store (struct ddsi_tkmap *tkmap, struct dds_rhc *rhc, struct dds
   struct ddsi_tkmap_instance *tk;
   struct ddsi_writer_info pwr_info;
   /* single-domain application ... so domain won't change */
-  thread_state_awake_domain_ok (ddsi_lookup_thread_state ());
+  ddsi_thread_state_awake_domain_ok (ddsi_lookup_thread_state ());
   tk = ddsi_tkmap_lookup_instance_ref (tkmap, sd);
   uint64_t iid = tk->m_iid;
   if (print)
@@ -164,7 +165,7 @@ static uint64_t store (struct ddsi_tkmap *tkmap, struct dds_rhc *rhc, struct dds
 #endif
   dds_rhc_store (rhc, &pwr_info, sd, tk);
   ddsi_tkmap_instance_unref (tkmap, tk);
-  thread_state_asleep (ddsi_lookup_thread_state ());
+  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
   ddsi_serdata_unref (sd);
   return iid;
 }
@@ -211,19 +212,19 @@ static struct dds_rhc *mkrhc (struct ddsi_domaingv *gv, dds_reader *rd, dds_hist
   rqos.history.depth = hdepth;
   rqos.destination_order.kind = dok;
   ddsi_xqos_mergein_missing (&rqos, &ddsi_default_qos_reader, ~(uint64_t)0);
-  thread_state_awake_domain_ok (ddsi_lookup_thread_state ());
+  ddsi_thread_state_awake_domain_ok (ddsi_lookup_thread_state ());
   rhc = dds_rhc_default_new_xchecks (rd, gv, mdtype, true);
   dds_rhc_set_qos(rhc, &rqos);
-  thread_state_asleep (ddsi_lookup_thread_state ());
+  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
   ddsi_xqos_fini (&rqos);
   return rhc;
 }
 
 static void frhc (struct dds_rhc *rhc)
 {
-  thread_state_awake_domain_ok (ddsi_lookup_thread_state ());
+  ddsi_thread_state_awake_domain_ok (ddsi_lookup_thread_state ());
   dds_rhc_free (rhc);
-  thread_state_asleep (ddsi_lookup_thread_state ());
+  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
 }
 
 static char si2is (const dds_sample_info_t *si)
@@ -329,9 +330,9 @@ static void rdtkcond (struct dds_rhc *rhc, dds_readcond *cond, const struct chec
   if (print)
     printf ("%s:\n", opname);
 
-  thread_state_awake_domain_ok (ddsi_lookup_thread_state ());
+  ddsi_thread_state_awake_domain_ok (ddsi_lookup_thread_state ());
   cnt = op (rhc, true, rres_ptrs, rres_iseq, (max <= 0) ? (uint32_t) (sizeof (rres_iseq) / sizeof (rres_iseq[0])) : (uint32_t) max, cond ? NO_STATE_MASK_SET : (DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE), 0, cond);
-  thread_state_asleep (ddsi_lookup_thread_state ());
+  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
   if (max > 0 && cnt > max) {
     printf ("%s TOO MUCH DATA (%d > %d)\n", opname, cnt, max);
     abort ();
@@ -835,7 +836,7 @@ static void test_conditions (dds_entity_t pp, dds_entity_t tp, const int count, 
         break;
       }
       case 11: {
-        thread_state_awake_domain_ok (ddsi_lookup_thread_state ());
+        ddsi_thread_state_awake_domain_ok (ddsi_lookup_thread_state ());
         struct ddsi_writer_info wr_info;
         wr_info.auto_dispose = wr[which]->c.xqos->writer_data_lifecycle.autodispose_unregistered_instances;
         wr_info.guid = wr[which]->e.guid;
@@ -846,26 +847,26 @@ static void test_conditions (dds_entity_t pp, dds_entity_t tp, const int count, 
 #endif
         for (size_t k = 0; k < nrd; k++)
           dds_rhc_unregister_wr (rhc[k], &wr_info);
-        thread_state_asleep (ddsi_lookup_thread_state ());
+        ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
         break;
       }
       case 12: {
 #ifdef DDS_HAS_LIFESPAN
-        thread_state_awake_domain_ok (ddsi_lookup_thread_state ());
+        ddsi_thread_state_awake_domain_ok (ddsi_lookup_thread_state ());
         /* We can assume that rhc[k] is a dds_rhc_default at this point */
         for (size_t k = 0; k < nrd; k++)
           (void) dds_rhc_default_sample_expired_cb (rhc[k], rand_texp());
-        thread_state_asleep (ddsi_lookup_thread_state ());
+        ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
 #endif
         break;
       }
       case 13: {
 #ifdef DDS_HAS_DEADLINE_MISSED
-        thread_state_awake_domain_ok (ddsi_lookup_thread_state ());
+        ddsi_thread_state_awake_domain_ok (ddsi_lookup_thread_state ());
         /* We can assume that rhc[k] is a dds_rhc_default at this point */
         for (size_t k = 0; k < nrd; k++)
           (void) dds_rhc_default_deadline_missed_cb (rhc[k], rand_texp());
-        thread_state_asleep (ddsi_lookup_thread_state ());
+        ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
 #endif
         break;
       }
@@ -918,7 +919,7 @@ static uint32_t stacktracethread (void *varg)
     if (ddsrt_cond_waituntil (&arg->cond, &arg->lock, when))
       continue;
     ddsrt_mutex_unlock (&arg->lock);
-    log_stack_traces (&logcfg, NULL);
+    ddsi_log_stack_traces (&logcfg, NULL);
     ddsrt_mutex_lock (&arg->lock);
     if (arg->period == 0)
       break;
@@ -1046,7 +1047,7 @@ int main (int argc, char **argv)
       { 0, 0, 0, 0, 0, 0, 0, 0 }
     };
     rdall (rhc, c3, print, states_seen);
-    thread_state_awake_domain_ok (ddsi_lookup_thread_state ());
+    ddsi_thread_state_awake_domain_ok (ddsi_lookup_thread_state ());
     struct ddsi_writer_info wr0_info;
     wr0_info.auto_dispose = wr0->c.xqos->writer_data_lifecycle.autodispose_unregistered_instances;
     wr0_info.guid = wr0->e.guid;
@@ -1056,7 +1057,7 @@ int main (int argc, char **argv)
     wr0_info.lifespan_exp = DDSRT_MTIME_NEVER;
 #endif
     dds_rhc_unregister_wr (rhc, &wr0_info);
-    thread_state_asleep (ddsi_lookup_thread_state ());
+    ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
     const struct check c4[] = {
       { "ROD", iid0, wr1->e.iid, 0,0, 1, 0,3 },
       { "ROD", iid0, 0, 0,0, 0, 0,0 },

@@ -24,7 +24,7 @@ extern "C" {
 #endif
 
 struct ddsi_domaingv;
-struct thread_state;
+struct ddsi_thread_state;
 struct ddsi_guid;
 struct nn_xpack;
 struct ddsi_participant;
@@ -41,7 +41,7 @@ extern size_t ddsi_participant_message_data_nops;
 extern const enum ddsi_pserop ddsi_participant_message_data_ops_key[];
 extern size_t ddsi_participant_message_data_nops_key;
 
-void ddsi_write_pmd_message (struct thread_state * const ts1, struct nn_xpack *xp, struct ddsi_participant *pp, unsigned pmd_kind);
+void ddsi_write_pmd_message (struct ddsi_thread_state * const ts1, struct nn_xpack *xp, struct ddsi_participant *pp, unsigned pmd_kind);
 void ddsi_handle_pmd_message (const struct ddsi_receiver_state *rst, struct ddsi_serdata *sample_common);
 
 #if defined (__cplusplus)

@@ -104,12 +104,12 @@ static void get_writer_whc_state (dds_entity_t writer, struct whc_state *whcst)
   struct dds_entity *wr_entity;
   struct ddsi_writer *wr;
   CU_ASSERT_EQUAL_FATAL(dds_entity_pin(writer, &wr_entity), 0);
-  thread_state_awake(ddsi_lookup_thread_state(), &wr_entity->m_domain->gv);
+  ddsi_thread_state_awake(ddsi_lookup_thread_state(), &wr_entity->m_domain->gv);
   wr = ddsi_entidx_lookup_writer_guid (wr_entity->m_domain->gv.entity_index, &wr_entity->m_guid);
   CU_ASSERT_FATAL(wr != NULL);
   assert(wr != NULL); /* for Clang's static analyzer */
   whc_get_state(wr->whc, whcst);
-  thread_state_asleep(ddsi_lookup_thread_state());
+  ddsi_thread_state_asleep(ddsi_lookup_thread_state());
   dds_entity_unpin(wr_entity);
 }
 

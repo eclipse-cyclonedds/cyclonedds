@@ -42,9 +42,9 @@ size_t ddsi_participant_message_data_nops_key = sizeof (ddsi_participant_message
 
 void ddsi_write_pmd_message_guid (struct ddsi_domaingv * const gv, struct ddsi_guid *pp_guid, unsigned pmd_kind)
 {
-  struct thread_state * const thrst = ddsi_lookup_thread_state ();
+  struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
   struct ddsi_lease *lease;
-  thread_state_awake (thrst, gv);
+  ddsi_thread_state_awake (thrst, gv);
   struct ddsi_participant *pp = ddsi_entidx_lookup_participant_guid (gv->entity_index, pp_guid);
   if (pp == NULL)
     GVTRACE ("ddsi_write_pmd_message ("PGUIDFMT") - builtin pmd writer not found\n", PGUID (*pp_guid));
@@ -54,10 +54,10 @@ void ddsi_write_pmd_message_guid (struct ddsi_domaingv * const gv, struct ddsi_g
       ddsi_lease_renew (lease, ddsrt_time_elapsed());
     ddsi_write_pmd_message (thrst, NULL, pp, pmd_kind);
   }
-  thread_state_asleep (thrst);
+  ddsi_thread_state_asleep (thrst);
 }
 
-void ddsi_write_pmd_message (struct thread_state * const thrst, struct nn_xpack *xp, struct ddsi_participant *pp, unsigned pmd_kind)
+void ddsi_write_pmd_message (struct ddsi_thread_state * const thrst, struct nn_xpack *xp, struct ddsi_participant *pp, unsigned pmd_kind)
 {
 #define PMD_DATA_LENGTH 1
   struct ddsi_domaingv * const gv = pp->e.gv;

@@ -40,11 +40,11 @@ struct dds_statistics *dds_create_statistics (dds_entity_t entity)
   struct dds_statistics *s;
   if (dds_entity_pin (entity, &e) != DDS_RETCODE_OK)
     return NULL;
-  struct thread_state * const thrst = ddsi_lookup_thread_state ();
-  thread_state_awake (thrst, &e->m_domain->gv);
+  struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
+  ddsi_thread_state_awake (thrst, &e->m_domain->gv);
   if ((s = dds_entity_deriver_create_statistics (e)) != NULL)
     dds_entity_deriver_refresh_statistics (e, s);
-  thread_state_asleep (thrst);
+  ddsi_thread_state_asleep (thrst);
   dds_entity_unpin (e);
   return s;
 }
@@ -62,11 +62,11 @@ dds_return_t dds_refresh_statistics (struct dds_statistics *stat)
     dds_entity_unpin (e);
     return DDS_RETCODE_BAD_PARAMETER;
   }
-  struct thread_state * const thrst = ddsi_lookup_thread_state ();
-  thread_state_awake (thrst, &e->m_domain->gv);
+  struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
+  ddsi_thread_state_awake (thrst, &e->m_domain->gv);
   stat->time = dds_time ();
   dds_entity_deriver_refresh_statistics (e, stat);
-  thread_state_asleep (thrst);
+  ddsi_thread_state_asleep (thrst);
   dds_entity_unpin (e);
   return DDS_RETCODE_OK;
 }

@@ -36,7 +36,7 @@ void ddsi_get_reader_stats (struct ddsi_reader *rd, uint64_t * __restrict discar
   struct ddsi_rd_pwr_match *m;
   ddsi_guid_t pwrguid;
   memset (&pwrguid, 0, sizeof (pwrguid));
-  assert (thread_is_awake ());
+  assert (ddsi_thread_is_awake ());
 
   *discarded_bytes = 0;
 

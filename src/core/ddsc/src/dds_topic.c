@@ -29,7 +29,7 @@
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/ddsi_entity_index.h"
-#include "dds/ddsi/q_thread.h"
+#include "dds/ddsi/ddsi_thread.h"
 #include "dds/ddsi/ddsi_sertype.h"
 #include "dds/ddsi/ddsi_iid.h"
 #include "dds/ddsi/ddsi_plist.h"
@@ -118,9 +118,9 @@ static void topic_guid_map_unref (struct ddsi_domaingv * const gv, const struct 
   if (m->refc == 0)
   {
     ddsrt_hh_remove_present (ktp->topic_guid_map, m);
-    thread_state_awake (ddsi_lookup_thread_state (), gv);
+    ddsi_thread_state_awake (ddsi_lookup_thread_state (), gv);
     (void) ddsi_delete_topic (gv, &m->guid);
-    thread_state_asleep (ddsi_lookup_thread_state ());
+    ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
     ddsi_typeid_fini (m->type_id);
     ddsrt_free (m->type_id);
     dds_free (m);
@@ -251,7 +251,7 @@ static dds_return_t dds_topic_qos_set (dds_entity *e, const dds_qos_t *qos, bool
   {
     struct dds_topic *tp = (struct dds_topic *) e;
     struct dds_ktopic * const ktp = tp->m_ktopic;
-    thread_state_awake (ddsi_lookup_thread_state (), &e->m_domain->gv);
+    ddsi_thread_state_awake (ddsi_lookup_thread_state (), &e->m_domain->gv);
     struct ddsrt_hh_iter it;
     /* parent pp is locked and protects ktp->topic_guid_map */
     for (struct ktopic_type_guid *obj = ddsrt_hh_iter_first(ktp->topic_guid_map, &it); obj; obj = ddsrt_hh_iter_next(&it))
@@ -260,7 +260,7 @@ static dds_return_t dds_topic_qos_set (dds_entity *e, const dds_qos_t *qos, bool
       if ((ddsi_tp = ddsi_entidx_lookup_topic_guid (e->m_domain->gv.entity_index, &obj->guid)) != NULL)
         ddsi_update_topic_qos (ddsi_tp, qos);
     }
-    thread_state_asleep (ddsi_lookup_thread_state ());
+    ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
   }
 #else
   (void) e; (void) qos; (void) enabled;
@@ -371,7 +371,7 @@ static bool register_topic_type_for_discovery (struct ddsi_domaingv * const gv, 
   {
     /* Add a ktopic-type-guid entry with the complete type identifier of the sertype as
         key and a reference to a newly create ddsi topic entity */
-    thread_state_awake (ddsi_lookup_thread_state (), gv);
+    ddsi_thread_state_awake (ddsi_lookup_thread_state (), gv);
     const struct ddsi_guid * pp_guid = dds_entity_participant_guid (&pp->m_entity);
     struct ddsi_participant * pp_ddsi = ddsi_entidx_lookup_participant_guid (gv->entity_index, pp_guid);
 
@@ -383,7 +383,7 @@ static bool register_topic_type_for_discovery (struct ddsi_domaingv * const gv, 
     assert (rc == DDS_RETCODE_OK); /* FIXME: can be out-of-resources at the very least */
     (void) rc;
     ddsrt_hh_add_absent (ktp->topic_guid_map, m);
-    thread_state_asleep (ddsi_lookup_thread_state ());
+    ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
   }
 free_typeid:
   if (type_id != NULL)

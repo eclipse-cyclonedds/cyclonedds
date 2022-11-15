@@ -23,7 +23,7 @@
 #include "ddsi__addrset.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/q_xevent.h"
-#include "dds/ddsi/q_thread.h"
+#include "ddsi__thread.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_unused.h"
 #include "dds/ddsi/ddsi_domaingv.h"
@@ -156,7 +156,7 @@ struct xeventq {
   size_t max_queued_rexmit_bytes;
   size_t max_queued_rexmit_msgs;
   int terminate;
-  struct thread_state *thrst;
+  struct ddsi_thread_state *thrst;
   struct ddsi_domaingv *gv;
   ddsrt_mutex_t lock;
   ddsrt_cond_t cond;
@@ -548,7 +548,7 @@ dds_return_t xeventq_start (struct xeventq *evq, const char *name)
   }
 
   evq->terminate = 0;
-  rc = create_thread (&evq->thrst, evq->gv, evqname, (uint32_t (*) (void *)) xevent_thread, evq);
+  rc = ddsi_create_thread (&evq->thrst, evq->gv, evqname, (uint32_t (*) (void *)) xevent_thread, evq);
 
   if (name)
   {
@@ -564,7 +564,7 @@ void xeventq_stop (struct xeventq *evq)
   evq->terminate = 1;
   ddsrt_cond_broadcast (&evq->cond);
   ddsrt_mutex_unlock (&evq->lock);
-  join_thread (evq->thrst);
+  ddsi_join_thread (evq->thrst);
   evq->thrst = NULL;
 }
 
@@ -577,17 +577,17 @@ void xeventq_free (struct xeventq *evq)
 
   {
     struct nn_xpack *xp = nn_xpack_new (evq->gv, evq->auxiliary_bandwidth_limit, false);
-    thread_state_awake (ddsi_lookup_thread_state (), evq->gv);
+    ddsi_thread_state_awake (ddsi_lookup_thread_state (), evq->gv);
     ddsrt_mutex_lock (&evq->lock);
     while (!non_timed_xmit_list_is_empty (evq))
     {
-      thread_state_awake_to_awake_no_nest (ddsi_lookup_thread_state ());
+      ddsi_thread_state_awake_to_awake_no_nest (ddsi_lookup_thread_state ());
       handle_nontimed_xevent (getnext_from_non_timed_xmit_list (evq), xp);
     }
     ddsrt_mutex_unlock (&evq->lock);
     nn_xpack_send (xp, false);
     nn_xpack_free (xp);
-    thread_state_asleep (ddsi_lookup_thread_state ());
+    ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
   }
 
   assert (ddsrt_avl_is_empty (&evq->msg_xevents));
@@ -1073,7 +1073,7 @@ static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct xevent *e
   }
 }
 
-static void handle_xevk_pmd_update (struct thread_state * const thrst, struct nn_xpack *xp, struct xevent *ev, ddsrt_mtime_t tnow)
+static void handle_xevk_pmd_update (struct ddsi_thread_state * const thrst, struct nn_xpack *xp, struct xevent *ev, ddsrt_mtime_t tnow)
 {
   struct ddsi_domaingv * const gv = ev->evq->gv;
   struct ddsi_participant *pp;
@@ -1116,7 +1116,7 @@ static void handle_xevk_delete_writer (UNUSED_ARG (struct nn_xpack *xp), struct 
   delete_xevent (ev);
 }
 
-static void handle_individual_xevent (struct thread_state * const thrst, struct xevent *xev, struct nn_xpack *xp, ddsrt_mtime_t tnow)
+static void handle_individual_xevent (struct ddsi_thread_state * const thrst, struct xevent *xev, struct nn_xpack *xp, ddsrt_mtime_t tnow)
 {
   struct xeventq *xevq = xev->evq;
   /* We relinquish the lock while processing the event, but require it
@@ -1181,7 +1181,7 @@ static void handle_individual_xevent_nt (struct xevent_nt *xev, struct nn_xpack 
   ddsrt_free (xev);
 }
 
-static void handle_timed_xevent (struct thread_state * const thrst, struct xevent *xev, struct nn_xpack *xp, ddsrt_mtime_t tnow /* monotonic */)
+static void handle_timed_xevent (struct ddsi_thread_state * const thrst, struct xevent *xev, struct nn_xpack *xp, ddsrt_mtime_t tnow /* monotonic */)
 {
    /* This function handles the individual xevent irrespective of
       whether it is a "timed" or "non-timed" xevent */
@@ -1209,12 +1209,12 @@ static void handle_nontimed_xevent (struct xevent_nt *xev, struct nn_xpack *xp)
   ASSERT_MUTEX_HELD (&xevq->lock);
 }
 
-static void handle_xevents (struct thread_state * const thrst, struct xeventq *xevq, struct nn_xpack *xp, ddsrt_mtime_t tnow /* monotonic */)
+static void handle_xevents (struct ddsi_thread_state * const thrst, struct xeventq *xevq, struct nn_xpack *xp, ddsrt_mtime_t tnow /* monotonic */)
 {
   int xeventsToProcess = 1;
 
   ASSERT_MUTEX_HELD (&xevq->lock);
-  assert (thread_is_awake ());
+  assert (ddsi_thread_is_awake ());
 
   /* The following loops give priority to the "timed" events (heartbeats,
      acknacks etc) if there are any.  The algorithm is that we handle all
@@ -1240,7 +1240,7 @@ static void handle_xevents (struct thread_state * const thrst, struct xeventq *x
            scheduled or not), so set to TSCHED_NEVER to indicate it
            currently isn't. */
         xev->tsched.v = DDS_NEVER;
-        thread_state_awake_to_awake_no_nest (thrst);
+        ddsi_thread_state_awake_to_awake_no_nest (thrst);
         handle_timed_xevent (thrst, xev, xp, tnow);
       }
 
@@ -1252,7 +1252,7 @@ static void handle_xevents (struct thread_state * const thrst, struct xeventq *x
     if (!non_timed_xmit_list_is_empty (xevq))
     {
       struct xevent_nt *xev = getnext_from_non_timed_xmit_list (xevq);
-      thread_state_awake_to_awake_no_nest (thrst);
+      ddsi_thread_state_awake_to_awake_no_nest (thrst);
       handle_nontimed_xevent (xev, xp);
       tnow = ddsrt_time_monotonic ();
     }
@@ -1267,7 +1267,7 @@ static void handle_xevents (struct thread_state * const thrst, struct xeventq *x
 
 static uint32_t xevent_thread (struct xeventq * xevq)
 {
-  struct thread_state * const thrst = ddsi_lookup_thread_state ();
+  struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
   struct nn_xpack *xp;
   ddsrt_mtime_t next_thread_cputime = { 0 };
 
@@ -1280,13 +1280,13 @@ static uint32_t xevent_thread (struct xeventq * xevq)
 
     LOG_THREAD_CPUTIME (&xevq->gv->logconfig, next_thread_cputime);
 
-    thread_state_awake_fixed_domain (thrst);
+    ddsi_thread_state_awake_fixed_domain (thrst);
     handle_xevents (thrst, xevq, xp, tnow);
     /* Send to the network unlocked, as it may sleep due to bandwidth limitation */
     ddsrt_mutex_unlock (&xevq->lock);
     nn_xpack_send (xp, false);
     ddsrt_mutex_lock (&xevq->lock);
-    thread_state_asleep (thrst);
+    ddsi_thread_state_asleep (thrst);
 
     if (!non_timed_xmit_list_is_empty (xevq) || xevq->terminate)
     {

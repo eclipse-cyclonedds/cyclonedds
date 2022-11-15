@@ -1271,7 +1271,7 @@ dds_return_t ddsi_delete_writer_nolinger (struct ddsi_domaingv *gv, const struct
 
 void ddsi_delete_local_orphan_writer (struct ddsi_local_orphan_writer *lowr)
 {
-  assert (thread_is_awake ());
+  assert (ddsi_thread_is_awake ());
   ddsrt_mutex_lock (&lowr->wr.e.lock);
   delete_writer_nolinger_locked (&lowr->wr);
   ddsrt_mutex_unlock (&lowr->wr.e.lock);

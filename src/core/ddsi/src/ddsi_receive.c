@@ -35,7 +35,7 @@
 #include "ddsi__addrset.h"
 #include "ddsi__discovery.h"
 #include "ddsi__radmin.h"
-#include "dds/ddsi/q_thread.h"
+#include "ddsi__thread.h"
 #include "ddsi__entity_index.h"
 #include "ddsi__lease.h"
 #include "dds/ddsi/ddsi_gc.h"
@@ -2930,7 +2930,7 @@ static struct ddsi_receiver_state *rst_cow_if_needed (int *rst_live, struct ddsi
 
 static int handle_submsg_sequence
 (
-  struct thread_state * const thrst,
+  struct ddsi_thread_state * const thrst,
   struct ddsi_domaingv *gv,
   ddsi_tran_conn_t conn,
   const ddsi_locator_t *srcloc,
@@ -2984,8 +2984,8 @@ static int handle_submsg_sequence
   ts_for_latmeas = 0;
   timestamp = DDSRT_WCTIME_INVALID;
   defer_hb_state_init (&defer_hb_state);
-  assert (thread_is_asleep ());
-  thread_state_awake_fixed_domain (thrst);
+  assert (ddsi_thread_is_asleep ());
+  ddsi_thread_state_awake_fixed_domain (thrst);
   enum validation_result vr = (len >= sizeof (ddsi_rtps_submessage_header_t)) ? VR_NOT_UNDERSTOOD : VR_MALFORMED;
   while (vr != VR_MALFORMED && submsg <= (end - sizeof (ddsi_rtps_submessage_header_t)))
   {
@@ -3024,7 +3024,7 @@ static int handle_submsg_sequence
       break;
     }
 
-    thread_state_awake_to_awake_no_nest (thrst);
+    ddsi_thread_state_awake_to_awake_no_nest (thrst);
     switch (sm->smhdr.submessageId)
     {
       case DDSI_RTPS_SMID_ACKNACK: {
@@ -3172,8 +3172,8 @@ static int handle_submsg_sequence
     GVTRACE ("short (size %"PRIuSIZE" exp %p act %p)", submsg_size, (void *) submsg, (void *) end);
     vr = VR_MALFORMED;
   }
-  thread_state_asleep (thrst);
-  assert (thread_is_asleep ());
+  ddsi_thread_state_asleep (thrst);
+  assert (ddsi_thread_is_asleep ());
   defer_hb_state_fini (gv, &defer_hb_state);
   if (deferred_wakeup)
     ddsi_dqueue_enqueue_trigger (deferred_wakeup);
@@ -3186,10 +3186,10 @@ static int handle_submsg_sequence
   }
 }
 
-static void handle_rtps_message (struct thread_state * const thrst, struct ddsi_domaingv *gv, ddsi_tran_conn_t conn, const ddsi_guid_prefix_t *guidprefix, struct ddsi_rbufpool *rbpool, struct ddsi_rmsg *rmsg, size_t sz, unsigned char *msg, const ddsi_locator_t *srcloc)
+static void handle_rtps_message (struct ddsi_thread_state * const thrst, struct ddsi_domaingv *gv, ddsi_tran_conn_t conn, const ddsi_guid_prefix_t *guidprefix, struct ddsi_rbufpool *rbpool, struct ddsi_rmsg *rmsg, size_t sz, unsigned char *msg, const ddsi_locator_t *srcloc)
 {
   ddsi_rtps_header_t *hdr = (ddsi_rtps_header_t *) msg;
-  assert (thread_is_asleep ());
+  assert (ddsi_thread_is_asleep ());
   if (sz < DDSI_RTPS_MESSAGE_HEADER_SIZE || *(uint32_t *)msg != DDSI_PROTOCOLID_AS_UINT32)
   {
     /* discard packets that are really too small or don't have magic cookie */
@@ -3221,12 +3221,12 @@ static void handle_rtps_message (struct thread_state * const thrst, struct ddsi_
   }
 }
 
-void ddsi_handle_rtps_message (struct thread_state * const thrst, struct ddsi_domaingv *gv, ddsi_tran_conn_t conn, const ddsi_guid_prefix_t *guidprefix, struct ddsi_rbufpool *rbpool, struct ddsi_rmsg *rmsg, size_t sz, unsigned char *msg, const ddsi_locator_t *srcloc)
+void ddsi_handle_rtps_message (struct ddsi_thread_state * const thrst, struct ddsi_domaingv *gv, ddsi_tran_conn_t conn, const ddsi_guid_prefix_t *guidprefix, struct ddsi_rbufpool *rbpool, struct ddsi_rmsg *rmsg, size_t sz, unsigned char *msg, const ddsi_locator_t *srcloc)
 {
   handle_rtps_message (thrst, gv, conn, guidprefix, rbpool, rmsg, sz, msg, srcloc);
 }
 
-static bool do_packet (struct thread_state * const thrst, struct ddsi_domaingv *gv, ddsi_tran_conn_t conn, const ddsi_guid_prefix_t *guidprefix, struct ddsi_rbufpool *rbpool)
+static bool do_packet (struct ddsi_thread_state * const thrst, struct ddsi_domaingv *gv, ddsi_tran_conn_t conn, const ddsi_guid_prefix_t *guidprefix, struct ddsi_rbufpool *rbpool)
 {
   /* UDP max packet size is 64kB */
 
@@ -3378,13 +3378,13 @@ static void local_participant_set_fini (struct local_participant_set *lps)
   ddsrt_free (lps->ps);
 }
 
-static void rebuild_local_participant_set (struct thread_state * const thrst, struct ddsi_domaingv *gv, struct local_participant_set *lps)
+static void rebuild_local_participant_set (struct ddsi_thread_state * const thrst, struct ddsi_domaingv *gv, struct local_participant_set *lps)
 {
   struct ddsi_entity_enum_participant est;
   struct ddsi_participant *pp;
   unsigned nps_alloc;
   GVTRACE ("pp set gen changed: local %"PRIu32" global %"PRIu32"\n", lps->gen, ddsrt_atomic_ld32 (&gv->participant_set_generation));
-  thread_state_awake_fixed_domain (thrst);
+  ddsi_thread_state_awake_fixed_domain (thrst);
  restart:
   lps->gen = ddsrt_atomic_ld32 (&gv->participant_set_generation);
   /* Actual local set of participants may never be older than the
@@ -3429,7 +3429,7 @@ static void rebuild_local_participant_set (struct thread_state * const thrst, st
     GVTRACE ("  set changed - restarting\n");
     goto restart;
   }
-  thread_state_asleep (thrst);
+  ddsi_thread_state_asleep (thrst);
 
   /* The definition of the hash enumeration allows visiting one
      participant multiple times, so guard against that, too.  Note
@@ -3508,7 +3508,7 @@ void ddsi_trigger_recv_threads (const struct ddsi_domaingv *gv)
 
 uint32_t ddsi_recv_thread (void *vrecv_thread_arg)
 {
-  struct thread_state * const thrst = ddsi_lookup_thread_state ();
+  struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
   struct recv_thread_arg *recv_thread_arg = vrecv_thread_arg;
   struct ddsi_domaingv * const gv = recv_thread_arg->gv;
   struct ddsi_rbufpool *rbpool = recv_thread_arg->rbpool;

@@ -48,7 +48,7 @@
 
 #include "dds/ddsi/ddsi_config.h"
 #include "dds/ddsi/ddsi_config_impl.h"
-#include "dds/ddsi/q_thread.h"
+#include "dds/ddsi/ddsi_thread.h"
 #include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_gc.h"

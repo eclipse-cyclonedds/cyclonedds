@@ -27,7 +27,7 @@
 #include "dds__qos.h"
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_endpoint.h"
-#include "dds/ddsi/q_thread.h"
+#include "dds/ddsi/ddsi_thread.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds__builtin.h"
 #include "dds__statistics.h"
@@ -75,9 +75,9 @@ static void dds_reader_close (dds_entity *e)
   }
 #endif
 
-  thread_state_awake (ddsi_lookup_thread_state (), &e->m_domain->gv);
+  ddsi_thread_state_awake (ddsi_lookup_thread_state (), &e->m_domain->gv);
   (void) ddsi_delete_reader (&e->m_domain->gv, &e->m_guid);
-  thread_state_asleep (ddsi_lookup_thread_state ());
+  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
 
   ddsrt_mutex_lock (&e->m_mutex);
   while (rd->m_rd != NULL)
@@ -99,9 +99,9 @@ static dds_return_t dds_reader_delete (dds_entity *e)
     ddsrt_free (ptrs);
   }
 
-  thread_state_awake (ddsi_lookup_thread_state (), &e->m_domain->gv);
+  ddsi_thread_state_awake (ddsi_lookup_thread_state (), &e->m_domain->gv);
   dds_rhc_free (rd->m_rhc);
-  thread_state_asleep (ddsi_lookup_thread_state ());
+  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
 
 #ifdef DDS_HAS_SHM
   if (rd->m_iox_sub)
@@ -138,10 +138,10 @@ static dds_return_t dds_reader_qos_set (dds_entity *e, const dds_qos_t *qos, boo
   if (enabled)
   {
     struct ddsi_reader *rd;
-    thread_state_awake (ddsi_lookup_thread_state (), &e->m_domain->gv);
+    ddsi_thread_state_awake (ddsi_lookup_thread_state (), &e->m_domain->gv);
     if ((rd = ddsi_entidx_lookup_reader_guid (e->m_domain->gv.entity_index, &e->m_guid)) != NULL)
       ddsi_update_reader_qos (rd, qos);
-    thread_state_asleep (ddsi_lookup_thread_state ());
+    ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
   }
   return DDS_RETCODE_OK;
 }
@@ -643,7 +643,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
     goto err_bad_qos;
   }
 
-  thread_state_awake (ddsi_lookup_thread_state (), gv);
+  ddsi_thread_state_awake (ddsi_lookup_thread_state (), gv);
   const struct ddsi_guid * ppguid = dds_entity_participant_guid (&sub->m_entity);
   struct ddsi_participant * pp = ddsi_entidx_lookup_participant_guid (gv->entity_index, ppguid);
 
@@ -660,7 +660,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
     if (!ddsi_omg_security_check_create_reader (pp, gv->config.domainId, tp->m_name, rqos))
     {
       rc = DDS_RETCODE_NOT_ALLOWED_BY_SECURITY;
-      thread_state_asleep(ddsi_lookup_thread_state());
+      ddsi_thread_state_asleep(ddsi_lookup_thread_state());
       goto err_bad_qos;
     }
   }
@@ -699,7 +699,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
      not specific for a data representation (the representation can be retrieved from the cdr header) */
   rc = ddsi_new_reader (&rd->m_rd, &rd->m_entity.m_guid, NULL, pp, tp->m_name, tp->m_stype, rqos, &rd->m_rhc->common.rhc, dds_reader_status_cb, rd);
   assert (rc == DDS_RETCODE_OK); /* FIXME: can be out-of-resources at the very least */
-  thread_state_asleep (ddsi_lookup_thread_state ());
+  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
 
 #ifdef DDS_HAS_SHM
   if (rd->m_rd->has_iceoryx)

@@ -24,7 +24,7 @@
 #include "dds/ddsi/ddsi_init.h"
 #include "ddsi__nwpart.h"
 #include "ddsi__udp.h"
-#include "dds/ddsi/q_thread.h"
+#include "ddsi__thread.h"
 #include "ddsi__misc.h"
 #include "ddsi__addrset.h"
 #include "ddsi__discovery.h"
@@ -108,15 +108,15 @@ static void intf_init (struct ddsi_network_interface *intf, int index, bool allo
 static void setup (struct ddsi_domaingv *gv, const struct ddsi_config *config, bool allow_mc, bool weird_extloc)
 {
   ddsi_iid_init ();
-  thread_states_init ();
+  ddsi_thread_states_init ();
 
   // register the main thread, then claim it as spawned by Cyclone because the
   // internal processing has various asserts that it isn't an application thread
   // doing the dirty work
-  struct thread_state * const thrst = ddsi_lookup_thread_state ();
+  struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
   // coverity[missing_lock:FALSE]
-  assert (thrst->state == THREAD_STATE_LAZILY_CREATED);
-  thrst->state = THREAD_STATE_ALIVE;
+  assert (thrst->state == DDSI_THREAD_STATE_LAZILY_CREATED);
+  thrst->state = DDSI_THREAD_STATE_ALIVE;
   ddsrt_atomic_stvoidp (&thrst->gv, &gv);
 
   memset (gv, 0, sizeof (*gv));
@@ -166,9 +166,9 @@ static void teardown (struct ddsi_domaingv *gv)
   // On shutdown, there is an expectation that the thread was discovered dynamically.
   // We overrode it in the setup code, we undo it now.
   // coverity[missing_lock:FALSE]
-  struct thread_state * const thrst = ddsi_lookup_thread_state ();
-  thrst->state = THREAD_STATE_LAZILY_CREATED;
-  thread_states_fini ();
+  struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
+  thrst->state = DDSI_THREAD_STATE_LAZILY_CREATED;
+  ddsi_thread_states_fini ();
   ddsi_iid_fini ();
 }
 

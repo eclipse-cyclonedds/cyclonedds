@@ -1332,17 +1332,17 @@ static void nn_xpack_send_real (struct nn_xpack *xp)
 static uint32_t nn_xpack_sendq_thread (void *vgv)
 {
   struct ddsi_domaingv *gv = vgv;
-  struct thread_state * const thrst = ddsi_lookup_thread_state ();
-  thread_state_awake_fixed_domain (thrst);
+  struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
+  ddsi_thread_state_awake_fixed_domain (thrst);
   ddsrt_mutex_lock (&gv->sendq_lock);
   while (!(gv->sendq_stop && gv->sendq_head == NULL))
   {
     struct nn_xpack *xp;
     if ((xp = gv->sendq_head) == NULL)
     {
-      thread_state_asleep (thrst);
+      ddsi_thread_state_asleep (thrst);
       (void) ddsrt_cond_wait (&gv->sendq_cond, &gv->sendq_lock);
-      thread_state_awake_fixed_domain (thrst);
+      ddsi_thread_state_awake_fixed_domain (thrst);
     }
     else
     {
@@ -1356,7 +1356,7 @@ static uint32_t nn_xpack_sendq_thread (void *vgv)
     }
   }
   ddsrt_mutex_unlock (&gv->sendq_lock);
-  thread_state_asleep (thrst);
+  ddsi_thread_state_asleep (thrst);
   return 0;
 }
 
@@ -1372,7 +1372,7 @@ void nn_xpack_sendq_init (struct ddsi_domaingv *gv)
 
 void nn_xpack_sendq_start (struct ddsi_domaingv *gv)
 {
-  if (create_thread (&gv->sendq_ts, gv, "sendq", nn_xpack_sendq_thread, gv) != DDS_RETCODE_OK)
+  if (ddsi_create_thread (&gv->sendq_ts, gv, "sendq", nn_xpack_sendq_thread, gv) != DDS_RETCODE_OK)
     GVERROR ("nn_xpack_sendq_start: can't create nn_xpack_sendq_thread\n");
   gv->sendq_running = true;
 }
@@ -1387,7 +1387,7 @@ void nn_xpack_sendq_stop (struct ddsi_domaingv *gv)
 
 void nn_xpack_sendq_fini (struct ddsi_domaingv *gv)
 {
-  join_thread (gv->sendq_ts);
+  ddsi_join_thread (gv->sendq_ts);
   assert (gv->sendq_head == NULL);
   ddsrt_cond_destroy (&gv->sendq_cond);
   ddsrt_mutex_destroy (&gv->sendq_lock);

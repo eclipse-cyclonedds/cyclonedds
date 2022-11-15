@@ -82,7 +82,7 @@ static void get_type (dds_entity_t entity, ddsi_typeid_t **type_id, char **type_
 {
   struct dds_entity *e;
   CU_ASSERT_EQUAL_FATAL (dds_entity_pin (entity, &e), 0);
-  thread_state_awake (ddsi_lookup_thread_state (), &e->m_domain->gv);
+  ddsi_thread_state_awake (ddsi_lookup_thread_state (), &e->m_domain->gv);
   struct ddsi_entity_common *ec = ddsi_entidx_lookup_guid_untyped (e->m_domain->gv.entity_index, &e->m_guid);
   CU_ASSERT_FATAL (ec != NULL);
   assert (ec);
@@ -140,7 +140,7 @@ static void get_type (dds_entity_t entity, ddsi_typeid_t **type_id, char **type_
   }
   else
     abort ();
-  thread_state_asleep (ddsi_lookup_thread_state ());
+  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
   dds_entity_unpin (e);
 }
 

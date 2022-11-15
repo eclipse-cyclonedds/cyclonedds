@@ -14,7 +14,7 @@
 
 #include "dds/ddsrt/countargs.h"
 #include "dds__types.h"
-#include "dds/ddsi/q_thread.h"
+#include "dds/ddsi/ddsi_thread.h"
 #include "dds/export.h"
 
 #if defined (__cplusplus)

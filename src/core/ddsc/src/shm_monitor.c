@@ -96,7 +96,7 @@ static void receive_data_wakeup_handler(struct dds_reader* rd)
 {
   void* chunk = NULL;
   struct ddsi_domaingv* gv = rd->m_rd->e.gv;
-  thread_state_awake(ddsi_lookup_thread_state(), gv);
+  ddsi_thread_state_awake(ddsi_lookup_thread_state(), gv);
 
   while (true)
   {
@@ -179,7 +179,7 @@ release:
     if (d)
       ddsi_serdata_unref(d);
   }
-  thread_state_asleep(ddsi_lookup_thread_state());
+  ddsi_thread_state_asleep(ddsi_lookup_thread_state());
 }
 
 static void shm_subscriber_callback(iox_sub_t subscriber, void * context_data)

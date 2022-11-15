@@ -13,7 +13,7 @@
 #define DDSI__ENTITY_INDEX_H
 
 #include "dds/ddsrt/hopscotch.h"
-#include "dds/ddsi/q_thread.h"
+#include "ddsi__thread.h"
 #include "dds/ddsi/ddsi_topic.h"
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/ddsi_proxy_endpoint.h"

@@ -21,14 +21,14 @@
 #include "dds/ddsi/ddsi_threadmon.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_log.h"
-#include "dds/ddsi/q_thread.h"
+#include "ddsi__thread.h"
 #include "dds/ddsi/ddsi_unused.h"
 #include "dds/ddsi/ddsi_domaingv.h" /* for mattr, cattr */
 #include "ddsi__receive.h"
 
 struct alive_vt {
   bool alive;
-  vtime_t vt;
+  ddsi_vtime_t vt;
 };
 
 struct threadmon_domain {
@@ -49,7 +49,7 @@ struct ddsi_threadmon {
 
   ddsrt_mutex_t lock;
   ddsrt_cond_t cond;
-  struct thread_state *thrst;
+  struct ddsi_thread_state *thrst;
   struct ddsrt_hh *domains;
 };
 
@@ -110,29 +110,29 @@ static uint32_t threadmon_thread (struct ddsi_threadmon *sl)
        considered "alive".  An awake one may be switching to another domain immediately after loading
        the domain here, but in that case it is making progress -- and so also mostly ignored.  (This
        is a similar argument to that used for the GC). */
-    struct thread_states_list * const tslist = ddsrt_atomic_ldvoidp (&thread_states.thread_states_head);
+    struct ddsi_thread_states_list * const tslist = ddsrt_atomic_ldvoidp (&thread_states.thread_states_head);
     update_av_ary (sl, tslist->nthreads);
     uint32_t n_not_alive = 0;
     tlast = tnow;
     struct alive_vt *av_ary_cur = sl->av_ary;
-    for (struct thread_states_list *cur = tslist; cur; cur = cur->next)
+    for (struct ddsi_thread_states_list *cur = tslist; cur; cur = cur->next)
     {
-      for (uint32_t i = 0; i < THREAD_STATE_BATCH; i++, av_ary_cur++)
+      for (uint32_t i = 0; i < DDSI_THREAD_STATE_BATCH; i++, av_ary_cur++)
       {
         const uint32_t threadidx = (uint32_t) (av_ary_cur - sl->av_ary);
         assert (threadidx < tslist->nthreads);
-        struct thread_state * const thrst = &cur->thrst[i];
-        if (thrst->state == THREAD_STATE_ZERO)
+        struct ddsi_thread_state * const thrst = &cur->thrst[i];
+        if (thrst->state == DDSI_THREAD_STATE_ZERO)
           continue;
 
-        vtime_t vt = ddsrt_atomic_ld32 (&thrst->vtime);
+        ddsi_vtime_t vt = ddsrt_atomic_ld32 (&thrst->vtime);
         ddsrt_atomic_fence_ldld ();
         struct ddsi_domaingv const * const gv = ddsrt_atomic_ldvoidp (&thrst->gv);
         struct threadmon_domain *tmdom = find_domain (sl, gv);
         if (tmdom == NULL)
           continue;
 
-        bool alive = vtime_asleep_p (vt) || vtime_asleep_p (av_ary_cur->vt) || vtime_gt (vt, av_ary_cur->vt);
+        bool alive = ddsi_vtime_asleep_p (vt) || ddsi_vtime_asleep_p (av_ary_cur->vt) || ddsi_vtime_gt (vt, av_ary_cur->vt);
         n_not_alive += (unsigned) !alive;
         tmdom->n_not_alive += (unsigned) !alive;
 
@@ -177,7 +177,7 @@ static uint32_t threadmon_thread (struct ddsi_threadmon *sl)
           if (!sl->noprogress_log_stacktraces)
             DDS_CLOG (~DDS_LC_FATAL, &tmdom->gv->logconfig, "-- stack traces requested, but traces disabled --\n");
           else
-            log_stack_traces (&tmdom->gv->logconfig, tmdom->gv);
+            ddsi_log_stack_traces (&tmdom->gv->logconfig, tmdom->gv);
         }
         was_alive = false;
       }
@@ -251,7 +251,7 @@ dds_return_t ddsi_threadmon_start (struct ddsi_threadmon *sl, const char *name)
   ddsrt_mutex_unlock (&sl->lock);
 
   /* FIXME: thread properties */
-  if (create_thread_with_properties (&sl->thrst, NULL, name, (uint32_t (*) (void *)) threadmon_thread, sl) != DDS_RETCODE_OK)
+  if (ddsi_create_thread_with_properties (&sl->thrst, NULL, name, (uint32_t (*) (void *)) threadmon_thread, sl) != DDS_RETCODE_OK)
     goto fail_thread;
   return 0;
 
@@ -299,7 +299,7 @@ void ddsi_threadmon_stop (struct ddsi_threadmon *sl)
     sl->keepgoing = 0;
     ddsrt_cond_signal (&sl->cond);
     ddsrt_mutex_unlock (&sl->lock);
-    join_thread (sl->thrst);
+    ddsi_join_thread (sl->thrst);
   }
 }
 

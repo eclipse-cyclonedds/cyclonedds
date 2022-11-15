@@ -999,7 +999,7 @@ ddsi_security_decode_sec_prefix(
  * @retval DDSI_RTPS_MSG_STATE_ENCODED  Decoding succeeded.
  * @retval DDSI_RTPS_MSG_STATE_ERROR    Decoding failed.
  */
-ddsi_rtps_msg_state_t ddsi_security_decode_rtps_message (struct thread_state * const thrst, struct ddsi_domaingv *gv, struct ddsi_rmsg **rmsg, ddsi_rtps_header_t **hdr, unsigned char **buff, size_t *sz, struct ddsi_rbufpool *rbpool, bool isstream);
+ddsi_rtps_msg_state_t ddsi_security_decode_rtps_message (struct ddsi_thread_state * const thrst, struct ddsi_domaingv *gv, struct ddsi_rmsg **rmsg, ddsi_rtps_header_t **hdr, unsigned char **buff, size_t *sz, struct ddsi_rbufpool *rbpool, bool isstream);
 
 /**
  * @brief Send the RTPS message securely.
@@ -1323,7 +1323,7 @@ ddsi_security_decode_sec_prefix(
 
 inline ddsi_rtps_msg_state_t
 ddsi_security_decode_rtps_message (
-  UNUSED_ARG(struct thread_state * const thrst),
+  UNUSED_ARG(struct ddsi_thread_state * const thrst),
   UNUSED_ARG(struct ddsi_domaingv *gv),
   UNUSED_ARG(struct ddsi_rmsg **rmsg),
   UNUSED_ARG(ddsi_rtps_header_t **hdr),

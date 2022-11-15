@@ -32,7 +32,7 @@
 #include "ddsi__addrset.h"
 #include "ddsi__discovery.h"
 #include "ddsi__radmin.h"
-#include "dds/ddsi/q_thread.h"
+#include "ddsi__thread.h"
 #include "ddsi__entity_index.h"
 #include "ddsi__lease.h"
 #include "ddsi__entity.h"
@@ -616,7 +616,7 @@ int ddsi_config_prep (struct ddsi_domaingv *gv, struct ddsi_cfgst *cfgst)
 #ifdef DDS_HAS_BANDWIDTH_LIMITING
           chptr->auxiliary_bandwidth_limit > 0 ||
 #endif
-          lookup_thread_properties (thread_name))
+          ddsi_lookup_thread_properties (thread_name))
         num_channel_threads++;
 
       ddsrt_free (thread_name);
@@ -792,7 +792,7 @@ static void wait_for_receive_threads (struct ddsi_domaingv *gv)
   {
     if (gv->recv_threads[i].thrst)
     {
-      join_thread (gv->recv_threads[i].thrst);
+      ddsi_join_thread (gv->recv_threads[i].thrst);
       /* setting .thrst to NULL helps in sanity checking */
       gv->recv_threads[i].thrst = NULL;
     }
@@ -1004,7 +1004,7 @@ static int setup_and_start_recv_threads (struct ddsi_domaingv *gv)
         goto fail;
       }
     }
-    if (create_thread (&gv->recv_threads[i].thrst, gv, gv->recv_threads[i].name, ddsi_recv_thread, &gv->recv_threads[i].arg) != DDS_RETCODE_OK)
+    if (ddsi_create_thread (&gv->recv_threads[i].thrst, gv, gv->recv_threads[i].name, ddsi_recv_thread, &gv->recv_threads[i].arg) != DDS_RETCODE_OK)
     {
       GVERROR ("rtps_init: failed to start thread %s\n", gv->recv_threads[i].name);
       goto fail;
@@ -1677,7 +1677,7 @@ int ddsi_init (struct ddsi_domaingv *gv)
       GVLOG (DDS_LC_CONFIG, "channel %s: transmit port %d\n", chptr->name, (int) ddsi_tran_port (chptr->transmit_conn));
 
 #ifdef DDS_HAS_BANDWIDTH_LIMITING
-      if (chptr->auxiliary_bandwidth_limit > 0 || lookup_thread_properties (tname))
+      if (chptr->auxiliary_bandwidth_limit > 0 || ddsi_lookup_thread_properties (tname))
       {
         chptr->evq = xeventq_new
         (
@@ -1688,7 +1688,7 @@ int ddsi_init (struct ddsi_domaingv *gv)
         );
       }
 #else
-      if (lookup_thread_properties (tname))
+      if (ddsi_lookup_thread_properties (tname))
       {
         chptr->evq = xeventq_new
         (
@@ -1904,7 +1904,7 @@ int ddsi_start (struct ddsi_domaingv *gv)
   }
   if (gv->listener)
   {
-    if (create_thread (&gv->listen_ts, gv, "listen", (uint32_t (*) (void *)) ddsi_listen_thread, gv->listener) != DDS_RETCODE_OK)
+    if (ddsi_create_thread (&gv->listen_ts, gv, "listen", (uint32_t (*) (void *)) ddsi_listen_thread, gv->listener) != DDS_RETCODE_OK)
     {
       GVERROR ("failed to create TCP listener thread\n");
       ddsi_listener_free (gv->listener);
@@ -1952,7 +1952,7 @@ static void builtins_dqueue_ready_cb (void *varg)
 
 void ddsi_stop (struct ddsi_domaingv *gv)
 {
-  struct thread_state * const thrst = ddsi_lookup_thread_state ();
+  struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
 
 #ifdef DDS_HAS_NETWORK_CHANNELS
   struct ddsi_config_channel_listelem * chptr;
@@ -1972,7 +1972,7 @@ void ddsi_stop (struct ddsi_domaingv *gv)
   if (gv->listener)
   {
     ddsi_listener_unblock(gv->listener);
-    join_thread (gv->listen_ts);
+    ddsi_join_thread (gv->listen_ts);
     ddsi_listener_free(gv->listener);
   }
 
@@ -2014,14 +2014,14 @@ void ddsi_stop (struct ddsi_domaingv *gv)
     /* Clean up proxy readers, proxy writers and proxy
        participants. Deleting a proxy participants deletes all its
        readers and writers automatically */
-    thread_state_awake (thrst, gv);
+    ddsi_thread_state_awake (thrst, gv);
     ddsi_entidx_enum_proxy_participant_init (&est, gv->entity_index);
     while ((proxypp = ddsi_entidx_enum_proxy_participant_next (&est)) != NULL)
     {
       ddsi_delete_proxy_participant_by_guid (gv, &proxypp->e.guid, tnow, 1);
     }
     ddsi_entidx_enum_proxy_participant_fini (&est);
-    thread_state_asleep (thrst);
+    ddsi_thread_state_asleep (thrst);
   }
 
   {
@@ -2036,7 +2036,7 @@ void ddsi_stop (struct ddsi_domaingv *gv)
        rwriters to get all SEDP and SPDP dispose+unregister messages
        out. FIXME: need to keep xevent thread alive for a while
        longer. */
-    thread_state_awake (thrst, gv);
+    ddsi_thread_state_awake (thrst, gv);
     ddsi_entidx_enum_writer_init (&est_wr, gv->entity_index);
     while ((wr = ddsi_entidx_enum_writer_next (&est_wr)) != NULL)
     {
@@ -2044,7 +2044,7 @@ void ddsi_stop (struct ddsi_domaingv *gv)
         ddsi_delete_writer_nolinger (gv, &wr->e.guid);
     }
     ddsi_entidx_enum_writer_fini (&est_wr);
-    thread_state_awake_to_awake_no_nest (thrst);
+    ddsi_thread_state_awake_to_awake_no_nest (thrst);
     ddsi_entidx_enum_reader_init (&est_rd, gv->entity_index);
     while ((rd = ddsi_entidx_enum_reader_next (&est_rd)) != NULL)
     {
@@ -2052,7 +2052,7 @@ void ddsi_stop (struct ddsi_domaingv *gv)
         ddsi_delete_reader (gv, &rd->e.guid);
     }
     ddsi_entidx_enum_reader_fini (&est_rd);
-    thread_state_awake_to_awake_no_nest (thrst);
+    ddsi_thread_state_awake_to_awake_no_nest (thrst);
 #ifdef DDS_HAS_TOPIC_DISCOVERY
     struct ddsi_entity_enum_topic est_tp;
     struct ddsi_topic *tp;
@@ -2060,7 +2060,7 @@ void ddsi_stop (struct ddsi_domaingv *gv)
     while ((tp = ddsi_entidx_enum_topic_next (&est_tp)) != NULL)
       ddsi_delete_topic (gv, &tp->e.guid);
     ddsi_entidx_enum_topic_fini (&est_tp);
-    thread_state_awake_to_awake_no_nest (thrst);
+    ddsi_thread_state_awake_to_awake_no_nest (thrst);
 #endif
     ddsi_entidx_enum_participant_init (&est_pp, gv->entity_index);
     while ((pp = ddsi_entidx_enum_participant_next (&est_pp)) != NULL)
@@ -2068,7 +2068,7 @@ void ddsi_stop (struct ddsi_domaingv *gv)
       ddsi_delete_participant (gv, &pp->e.guid);
     }
     ddsi_entidx_enum_participant_fini (&est_pp);
-    thread_state_asleep (thrst);
+    ddsi_thread_state_asleep (thrst);
   }
 
   /* Stop background (handshake) processing in security implementation,

@@ -55,7 +55,7 @@ static struct ddsi_writer *get_typelookup_writer (const struct ddsi_domaingv *gv
   struct ddsi_participant *pp;
   struct ddsi_writer *wr = NULL;
   struct ddsi_entity_enum_participant est;
-  thread_state_awake (ddsi_lookup_thread_state (), gv);
+  ddsi_thread_state_awake (ddsi_lookup_thread_state (), gv);
   ddsi_entidx_enum_participant_init (&est, gv->entity_index);
   while (wr == NULL && (pp = ddsi_entidx_enum_participant_next (&est)) != NULL)
   {
@@ -63,7 +63,7 @@ static struct ddsi_writer *get_typelookup_writer (const struct ddsi_domaingv *gv
       wr = ddsi_get_builtin_writer (pp, wr_eid);
   }
   ddsi_entidx_enum_participant_fini (&est);
-  thread_state_asleep (ddsi_lookup_thread_state ());
+  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
   return wr;
 }
 
@@ -213,12 +213,12 @@ bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const ddsi_typeid_t 
   serdata->timestamp = ddsrt_time_wallclock ();
   ddsrt_mutex_unlock (&gv->typelib_lock);
 
-  thread_state_awake (ddsi_lookup_thread_state (), gv);
+  ddsi_thread_state_awake (ddsi_lookup_thread_state (), gv);
   GVTRACE ("wr "PGUIDFMT" typeid %s\n", PGUID (wr->e.guid), ddsi_make_typeid_str (&tidstr, type_id));
   struct ddsi_tkmap_instance *tk = ddsi_tkmap_lookup_instance_ref (gv->m_tkmap, serdata);
   write_sample_gc (ddsi_lookup_thread_state (), NULL, wr, serdata, tk);
   ddsi_tkmap_instance_unref (gv->m_tkmap, tk);
-  thread_state_asleep (ddsi_lookup_thread_state ());
+  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
 
   return true;
 }

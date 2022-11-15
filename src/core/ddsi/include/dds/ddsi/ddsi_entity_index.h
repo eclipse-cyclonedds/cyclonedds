@@ -12,7 +12,7 @@
 #ifndef DDSI_ENTITY_INDEX_H
 #define DDSI_ENTITY_INDEX_H
 
-#include "dds/ddsi/q_thread.h"
+#include "dds/ddsi/ddsi_thread.h"
 #include "dds/ddsi/ddsi_topic.h"
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_endpoint.h"
@@ -32,7 +32,7 @@ struct ddsi_entity_enum
   enum ddsi_entity_kind kind;
   struct ddsi_entity_common *cur;
 #ifndef NDEBUG
-  vtime_t vtime;
+  ddsi_vtime_t vtime;
 #endif
 };
 

@@ -53,7 +53,7 @@ struct plugin {
 };
 
 struct ddsi_debug_monitor {
-  struct thread_state *servts;
+  struct ddsi_thread_state *servts;
   ddsi_tran_factory_t tran_factory;
   ddsi_tran_listener_t servsock;
   ddsi_locator_t servlocator;
@@ -66,7 +66,7 @@ struct ddsi_debug_monitor {
 struct st {
   ddsi_tran_conn_t conn;
   struct ddsi_domaingv *gv;
-  struct thread_state *thrst;
+  struct ddsi_thread_state *thrst;
   bool error;
   const char *comma;
   // almost guaranteed to be large enough (some strings are user-controlled),
@@ -471,11 +471,11 @@ static void print_participants_seq (struct st *st, void *ve)
 static void print_participants (struct st *st)
 {
   struct ddsi_entity_enum_participant e;
-  thread_state_awake_fixed_domain (st->thrst);
+  ddsi_thread_state_awake_fixed_domain (st->thrst);
   ddsi_entidx_enum_participant_init (&e, st->gv->entity_index);
   cpfkseq (st, "participants", print_participants_seq, &e);
   ddsi_entidx_enum_participant_fini (&e);
-  thread_state_asleep (st->thrst);
+  ddsi_thread_state_asleep (st->thrst);
 }
 
 struct print_proxy_reader_arg {
@@ -632,11 +632,11 @@ static void print_proxy_participants_seq (struct st *st, void *ve)
 static void print_proxy_participants (struct st *st)
 {
   struct ddsi_entity_enum_proxy_participant e;
-  thread_state_awake_fixed_domain (st->thrst);
+  ddsi_thread_state_awake_fixed_domain (st->thrst);
   ddsi_entidx_enum_proxy_participant_init (&e, st->gv->entity_index);
   cpfkseq (st, "proxy_participants", print_proxy_participants_seq, &e);
   ddsi_entidx_enum_proxy_participant_fini (&e);
-  thread_state_asleep (st->thrst);
+  ddsi_thread_state_asleep (st->thrst);
 }
 
 static void print_domain (struct st *st, void *varg)
@@ -652,7 +652,7 @@ static void debmon_handle_connection (struct ddsi_debug_monitor *dm, ddsi_tran_c
   const char *http_header = "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n";
   const ddsrt_iovec_t iov = { .iov_base = (void *) http_header, .iov_len = (ddsrt_iov_len_t) strlen (http_header) };
 
-  struct thread_state * const thrst = ddsi_lookup_thread_state ();
+  struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
   struct st st = {
     .conn = conn,
     .gv = dm->gv,
@@ -746,7 +746,7 @@ struct ddsi_debug_monitor *ddsi_new_debug_monitor (struct ddsi_domaingv *gv, int
   if (ddsi_listener_listen (dm->servsock) < 0)
     goto err_listen;
   dm->stop = 0;
-  if (create_thread (&dm->servts, gv, "debmon", debmon_main, dm) != DDS_RETCODE_OK)
+  if (ddsi_create_thread (&dm->servts, gv, "debmon", debmon_main, dm) != DDS_RETCODE_OK)
     goto err_listen;
   return dm;
 
@@ -776,7 +776,7 @@ void ddsi_free_debug_monitor (struct ddsi_debug_monitor *dm)
   ddsrt_cond_broadcast (&dm->cond);
   ddsrt_mutex_unlock (&dm->lock);
   ddsi_listener_unblock (dm->servsock);
-  join_thread (dm->servts);
+  ddsi_join_thread (dm->servts);
   ddsi_listener_free (dm->servsock);
   ddsrt_cond_destroy (&dm->cond);
   ddsrt_mutex_destroy (&dm->lock);

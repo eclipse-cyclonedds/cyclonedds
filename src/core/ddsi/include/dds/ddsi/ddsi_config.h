@@ -124,7 +124,7 @@ struct ddsi_config_channel_listelem {
   uint32_t auxiliary_bandwidth_limit;
 #endif
   int    diffserv_field;
-  struct thread_state *channel_reader_thrst;  /* keeping an handle to the running thread for this channel */
+  struct ddsi_thread_state *channel_reader_thrst;  /* keeping an handle to the running thread for this channel */
   struct ddsi_dqueue *dqueue; /* The handle of teh delivery queue servicing incoming data for this channel*/
   struct xeventq *evq; /* The handle of the event queue servicing this channel*/
   uint32_t queueId; /* the index of the networkqueue serviced by this channel*/

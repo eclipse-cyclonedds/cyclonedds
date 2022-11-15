@@ -587,8 +587,8 @@ static void test_proxy_rd_create (struct ddsi_domaingv *gv, const char *topic_na
   plist->qos.data_representation.value.ids = ddsrt_calloc (1, sizeof (*plist->qos.data_representation.value.ids));
   plist->qos.data_representation.value.ids[0] = DDS_DATA_REPRESENTATION_XCDR2;
 
-  struct thread_state * const thrst = ddsi_lookup_thread_state ();
-  thread_state_awake (thrst, gv);
+  struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
+  ddsi_thread_state_awake (thrst, gv);
   struct ddsi_addrset *as = ddsi_new_addrset ();
   ddsi_add_locator_to_addrset (gv, as, &gv->loc_default_uc);
   ddsi_ref_addrset (as); // increase refc to 2, new_proxy_participant does not add a ref
@@ -600,7 +600,7 @@ static void test_proxy_rd_create (struct ddsi_domaingv *gv, const char *topic_na
   CU_ASSERT_EQUAL_FATAL (rc, exp_ret);
   ddsi_plist_fini (plist);
   ddsrt_free (plist);
-  thread_state_asleep (thrst);
+  ddsi_thread_state_asleep (thrst);
 }
 
 static void test_proxy_rd_matches (dds_entity_t wr, bool exp_match)
@@ -616,11 +616,11 @@ static void test_proxy_rd_matches (dds_entity_t wr, bool exp_match)
 static void test_proxy_rd_fini (const ddsi_guid_t *pp_guid, const ddsi_guid_t *rd_guid)
 {
   struct ddsi_domaingv *gv = get_domaingv (g_participant1);
-  struct thread_state * const thrst = ddsi_lookup_thread_state ();
-  thread_state_awake (thrst, gv);
+  struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
+  ddsi_thread_state_awake (thrst, gv);
   ddsi_delete_proxy_reader (gv, rd_guid, ddsrt_time_wallclock (), false);
   ddsi_delete_proxy_participant_by_guid (gv, pp_guid, ddsrt_time_wallclock (), false);
-  thread_state_asleep (thrst);
+  ddsi_thread_state_asleep (thrst);
 }
 
 /* Invalid hashed type (with valid hash type id) as top-level type */

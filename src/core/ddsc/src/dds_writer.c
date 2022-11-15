@@ -19,7 +19,7 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_endpoint.h"
-#include "dds/ddsi/q_thread.h"
+#include "dds/ddsi/ddsi_thread.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/ddsi_security_omg.h"
@@ -172,9 +172,9 @@ static void dds_writer_interrupt (dds_entity *e) ddsrt_nonnull_all;
 static void dds_writer_interrupt (dds_entity *e)
 {
   struct ddsi_domaingv * const gv = &e->m_domain->gv;
-  thread_state_awake (ddsi_lookup_thread_state (), gv);
+  ddsi_thread_state_awake (ddsi_lookup_thread_state (), gv);
   ddsi_unblock_throttled_writer (gv, &e->m_guid);
-  thread_state_asleep (ddsi_lookup_thread_state ());
+  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
 }
 
 static void dds_writer_close (dds_entity *e) ddsrt_nonnull_all;
@@ -183,11 +183,11 @@ static void dds_writer_close (dds_entity *e)
 {
   struct dds_writer * const wr = (struct dds_writer *) e;
   struct ddsi_domaingv * const gv = &e->m_domain->gv;
-  struct thread_state * const thrst = ddsi_lookup_thread_state ();
-  thread_state_awake (thrst, gv);
+  struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
+  ddsi_thread_state_awake (thrst, gv);
   nn_xpack_send (wr->m_xp, false);
   (void) ddsi_delete_writer (gv, &e->m_guid);
-  thread_state_asleep (thrst);
+  ddsi_thread_state_asleep (thrst);
 
   ddsrt_mutex_lock (&e->m_mutex);
   while (wr->m_wr != NULL)
@@ -209,9 +209,9 @@ static dds_return_t dds_writer_delete (dds_entity *e)
   }
 #endif
   /* FIXME: not freeing WHC here because it is owned by the DDSI entity */
-  thread_state_awake (ddsi_lookup_thread_state (), &e->m_domain->gv);
+  ddsi_thread_state_awake (ddsi_lookup_thread_state (), &e->m_domain->gv);
   nn_xpack_free (wr->m_xp);
-  thread_state_asleep (ddsi_lookup_thread_state ());
+  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
   dds_entity_drop_ref (&wr->m_topic->m_entity);
   return DDS_RETCODE_OK;
 }
@@ -241,10 +241,10 @@ static dds_return_t dds_writer_qos_set (dds_entity *e, const dds_qos_t *qos, boo
   if (enabled)
   {
     struct ddsi_writer *wr;
-    thread_state_awake (ddsi_lookup_thread_state (), &e->m_domain->gv);
+    ddsi_thread_state_awake (ddsi_lookup_thread_state (), &e->m_domain->gv);
     if ((wr = ddsi_entidx_lookup_writer_guid (e->m_domain->gv.entity_index, &e->m_guid)) != NULL)
       ddsi_update_writer_qos (wr, qos);
-    thread_state_asleep (ddsi_lookup_thread_state ());
+    ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
   }
   return DDS_RETCODE_OK;
 }
@@ -418,7 +418,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   assert (wqos->present & DDSI_QP_DATA_REPRESENTATION && wqos->data_representation.value.n > 0);
   dds_data_representation_id_t data_representation = wqos->data_representation.value.ids[0];
 
-  thread_state_awake (ddsi_lookup_thread_state (), gv);
+  ddsi_thread_state_awake (ddsi_lookup_thread_state (), gv);
   const struct ddsi_guid *ppguid = dds_entity_participant_guid (&pub->m_entity);
   struct ddsi_participant *pp = ddsi_entidx_lookup_participant_guid (gv->entity_index, ppguid);
   /* When deleting a participant, the child handles (that include the publisher)
@@ -466,7 +466,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
 
   rc = ddsi_new_writer (&wr->m_wr, &wr->m_entity.m_guid, NULL, pp, tp->m_name, sertype, wqos, wr->m_whc, dds_writer_status_cb, wr);
   assert(rc == DDS_RETCODE_OK);
-  thread_state_asleep (ddsi_lookup_thread_state ());
+  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
 
 #ifdef DDS_HAS_SHM
   if (wr->m_wr->has_iceoryx)
@@ -503,7 +503,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
 
 #ifdef DDS_HAS_SECURITY
 err_not_allowed:
-  thread_state_asleep (ddsi_lookup_thread_state ());
+  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
 #endif
 err_bad_qos:
 err_data_repr:

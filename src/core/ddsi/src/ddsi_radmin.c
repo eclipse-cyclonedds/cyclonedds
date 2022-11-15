@@ -39,7 +39,7 @@
 #include "dds/ddsi/ddsi_unused.h"
 #include "ddsi__radmin.h"
 #include "ddsi__bitset.h"
-#include "dds/ddsi/q_thread.h"
+#include "ddsi__thread.h"
 #include "dds/ddsi/ddsi_domaingv.h" /* for mattr, cattr */
 
 /* OVERVIEW ------------------------------------------------------------
@@ -2463,7 +2463,7 @@ struct ddsi_dqueue {
 
   struct ddsi_rsample_chain sc;
 
-  struct thread_state *thrst;
+  struct ddsi_thread_state *thrst;
   struct ddsi_domaingv *gv;
   char *name;
   uint32_t max_samples;
@@ -2513,7 +2513,7 @@ static enum dqueue_elem_kind dqueue_elem_kind (const struct ddsi_rsample_chain_e
 
 static uint32_t dqueue_thread (struct ddsi_dqueue *q)
 {
-  struct thread_state * const thrst = ddsi_lookup_thread_state ();
+  struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
 #if DDSRT_HAVE_RUSAGE
   struct ddsi_domaingv const * const gv = ddsrt_atomic_ldvoidp (&thrst->gv);
 #endif
@@ -2535,7 +2535,7 @@ static uint32_t dqueue_thread (struct ddsi_dqueue *q)
     q->sc.first = q->sc.last = NULL;
     ddsrt_mutex_unlock (&q->lock);
 
-    thread_state_awake_fixed_domain (thrst);
+    ddsi_thread_state_awake_fixed_domain (thrst);
     while (sc.first)
     {
       struct ddsi_rsample_chain_elem *e = sc.first;
@@ -2544,7 +2544,7 @@ static uint32_t dqueue_thread (struct ddsi_dqueue *q)
       if (ddsrt_atomic_dec32_ov (&q->nof_samples) == 1) {
         ddsrt_cond_broadcast (&q->cond);
       }
-      thread_state_awake_to_awake_no_nest (thrst);
+      ddsi_thread_state_awake_to_awake_no_nest (thrst);
       switch (dqueue_elem_kind (e))
       {
         case DQEK_DATA:
@@ -2596,7 +2596,7 @@ static uint32_t dqueue_thread (struct ddsi_dqueue *q)
       }
     }
 
-    thread_state_asleep (thrst);
+    ddsi_thread_state_asleep (thrst);
     ddsrt_mutex_lock (&q->lock);
   }
   ddsrt_mutex_unlock (&q->lock);
@@ -2637,7 +2637,7 @@ bool ddsi_dqueue_start (struct ddsi_dqueue *q)
   if ((thrname = ddsrt_malloc (thrnamesz)) == NULL)
     return false;
   (void) snprintf (thrname, thrnamesz, "dq.%s", q->name);
-  dds_return_t ret = create_thread (&q->thrst, q->gv, thrname, (uint32_t (*) (void *)) dqueue_thread, q);
+  dds_return_t ret = ddsi_create_thread (&q->thrst, q->gv, thrname, (uint32_t (*) (void *)) dqueue_thread, q);
   ddsrt_free (thrname);
   return ret == DDS_RETCODE_OK;
 }
@@ -2804,7 +2804,7 @@ void ddsi_dqueue_free (struct ddsi_dqueue *q)
     b.kind = DDSI_DQBK_STOP;
     ddsi_dqueue_enqueue_bubble (q, &b);
 
-    join_thread (q->thrst);
+    ddsi_join_thread (q->thrst);
     assert (q->sc.first == NULL);
   }
   else

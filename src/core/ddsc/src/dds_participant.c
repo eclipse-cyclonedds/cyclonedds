@@ -17,7 +17,7 @@
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_participant.h"
 #include "dds/ddsi/ddsi_proxy_endpoint.h"
-#include "dds/ddsi/q_thread.h"
+#include "dds/ddsi/ddsi_thread.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/ddsi_domaingv.h"
@@ -55,10 +55,10 @@ static dds_return_t dds_participant_delete (dds_entity *e)
   /* ktopics & topics are children and therefore must all have been deleted by the time we get here */
   assert (ddsrt_avl_is_empty (&((struct dds_participant *) e)->m_ktopics));
 
-  thread_state_awake (ddsi_lookup_thread_state (), &e->m_domain->gv);
+  ddsi_thread_state_awake (ddsi_lookup_thread_state (), &e->m_domain->gv);
   if ((ret = ddsi_delete_participant (&e->m_domain->gv, &e->m_guid)) < 0)
     DDS_CERROR (&e->m_domain->gv.logconfig, "dds_participant_delete: internal error %"PRId32"\n", ret);
-  thread_state_asleep (ddsi_lookup_thread_state ());
+  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
   return DDS_RETCODE_OK;
 }
 
@@ -68,7 +68,7 @@ static dds_return_t dds_participant_qos_set (dds_entity *e, const dds_qos_t *qos
   if (enabled)
   {
     struct ddsi_participant *pp;
-    thread_state_awake (ddsi_lookup_thread_state (), &e->m_domain->gv);
+    ddsi_thread_state_awake (ddsi_lookup_thread_state (), &e->m_domain->gv);
     if ((pp = ddsi_entidx_lookup_participant_guid (e->m_domain->gv.entity_index, &e->m_guid)) != NULL)
     {
       ddsi_plist_t plist;
@@ -77,7 +77,7 @@ static dds_return_t dds_participant_qos_set (dds_entity *e, const dds_qos_t *qos
       plist.qos = *qos;
       ddsi_update_participant_plist (pp, &plist);
     }
-    thread_state_asleep (ddsi_lookup_thread_state ());
+    ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
   }
   return DDS_RETCODE_OK;
 }
@@ -137,9 +137,9 @@ dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_
   plist.participant_lease_duration = new_qos->liveliness.lease_duration;
   plist.present |= PP_PARTICIPANT_LEASE_DURATION;
 
-  thread_state_awake (ddsi_lookup_thread_state (), &dom->gv);
+  ddsi_thread_state_awake (ddsi_lookup_thread_state (), &dom->gv);
   ret = ddsi_new_participant (&guid, &dom->gv, 0, &plist);
-  thread_state_asleep (ddsi_lookup_thread_state ());
+  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
   ddsi_plist_fini (&plist);
   if (ret < 0)
   {
