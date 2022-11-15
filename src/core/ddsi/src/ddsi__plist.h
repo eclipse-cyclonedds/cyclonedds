@@ -18,6 +18,8 @@
 #include "dds/ddsi/ddsi_keyhash.h"
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/ddsi_domaingv.h"
+#include "ddsi__protocol.h"
+
 
 #if defined (__cplusplus)
 extern "C" {

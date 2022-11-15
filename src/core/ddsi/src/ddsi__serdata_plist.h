@@ -12,10 +12,10 @@
 #ifndef DDSI__SERDATA_PLIST_H
 #define DDSI__SERDATA_PLIST_H
 
-#include "dds/ddsi/ddsi_protocol.h" /* for ddsi_parameterid_t */
 #include "dds/ddsi/ddsi_keyhash.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_sertype.h"
+#include "ddsi__protocol.h"
 
 #include "dds/dds.h"
 

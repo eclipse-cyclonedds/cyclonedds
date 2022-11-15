@@ -74,6 +74,50 @@ extern "C" {
 #error "DDSRT_ENDIAN neither LITTLE nor BIG"
 #endif
 
+typedef uint16_t ddsi_parameterid_t; /* spec says short */
+typedef struct ddsi_parameter {
+  ddsi_parameterid_t parameterid;
+  uint16_t length; /* spec says signed short */
+  /* char value[] */
+} ddsi_parameter_t;
+
+typedef struct ddsi_sequence_number {
+  int32_t high;
+  uint32_t low;
+} ddsi_sequence_number_t;
+
+#define DDSI_SEQUENCE_NUMBER_UNKNOWN_HIGH -1
+#define DDSI_SEQUENCE_NUMBER_UNKNOWN_LOW 0
+#define DDSI_SEQUENCE_NUMBER_UNKNOWN ((ddsi_seqno_t) (((uint64_t)DDSI_SEQUENCE_NUMBER_UNKNOWN_HIGH << 32) | DDSI_SEQUENCE_NUMBER_UNKNOWN_LOW))
+
+/* C99 disallows flex array in nested struct, so only put the
+   header in.  (GCC and Clang allow it, but there are other
+   compilers in the world as well.) */
+
+typedef struct ddsi_sequence_number_set_header {
+  ddsi_sequence_number_t bitmap_base;
+  uint32_t numbits;
+} ddsi_sequence_number_set_header_t;
+
+/* SequenceNumberSet size is base (2 words) + numbits (1 word) +
+   bitmap ((numbits+31)/32 words), and this at 4 bytes/word */
+#define DDSI_SEQUENCE_NUMBER_SET_MAX_BITS (256u)
+#define DDSI_SEQUENCE_NUMBER_SET_BITS_SIZE(numbits) ((unsigned) (4 * (((numbits) + 31) / 32)))
+#define DDSI_SEQUENCE_NUMBER_SET_SIZE(numbits) (sizeof (ddsi_sequence_number_set_header_t) + DDSI_SEQUENCE_NUMBER_SET_BITS_SIZE (numbits))
+
+typedef uint32_t ddsi_fragment_number_t;
+typedef struct ddsi_fragment_number_set_header {
+  ddsi_fragment_number_t bitmap_base;
+  uint32_t numbits;
+} ddsi_fragment_number_set_header_t;
+
+/* FragmentNumberSet size is base (2 words) + numbits (1 word) +
+   bitmap ((numbits+31)/32 words), and this at 4 bytes/word */
+#define DDSI_FRAGMENT_NUMBER_SET_MAX_BITS (256u)
+#define DDSI_FRAGMENT_NUMBER_SET_BITS_SIZE(numbits) ((unsigned) (4 * (((numbits) + 31) / 32)))
+#define DDSI_FRAGMENT_NUMBER_SET_SIZE(numbits) (sizeof (ddsi_fragment_number_set_header_t) + DDSI_FRAGMENT_NUMBER_SET_BITS_SIZE (numbits))
+
+
 typedef struct ddsi_rtps_entityid {
   ddsi_rtps_submessage_header_t smhdr;
   ddsi_entityid_t entityid;

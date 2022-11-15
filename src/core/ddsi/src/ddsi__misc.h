@@ -12,7 +12,7 @@
 #ifndef DDSI__MISC_H
 #define DDSI__MISC_H
 
-#include "dds/ddsi/ddsi_protocol.h"
+#include "ddsi__protocol.h"
 
 #if defined (__cplusplus)
 extern "C" {

@@ -16,7 +16,7 @@
 
 #include "dds/ddsrt/bswap.h"
 #include "dds/ddsrt/misc.h"
-#include "dds/ddsi/ddsi_protocol.h"
+#include "ddsi__protocol.h"
 
 #if defined (__cplusplus)
 extern "C" {
