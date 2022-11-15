@@ -23,6 +23,10 @@ jobs:
     vmImage: $(image)
   strategy:
     matrix:
+      #gcc-12.2 is the first version of gcc's static analyzer that accepts this code
+      #without -Wno-analyzer-malloc-leak without any false positives.  Ubuntu is far
+      #behind in gcc versions, and so falling back to macOS is the most pragmatic
+      #option at this time.
       #'Ubuntu 22.04 LTS with GCC 12 (Debug, x86_64)':
       #  image: ubuntu-22.04
       #  analyzer: on
