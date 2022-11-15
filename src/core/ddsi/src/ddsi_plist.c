@@ -779,7 +779,7 @@ static size_t ser_generic_srcsize (const enum ddsi_pserop * __restrict desc)
       case XSTOP: return (srcoff + srcalign - 1) & ~(srcalign - 1);
       case XO: SIMPLE (XO, ddsi_octetseq_t); break;
       case XS: SIMPLE (XS, const char *); break;
-      case XE1: case XE2: case XE3: SIMPLE (*desc, unsigned); break;
+      case XE1: case XE2: case XE3: SIMPLE (*desc, uint32_t); break;
       case Xs: SIMPLE (Xs, int16_t); break;
       case Xi: case Xix2: case Xix3: case Xix4: SIMPLE (Xi, int32_t); break;
       case Xu: case Xux2: case Xux3: case Xux4: case Xux5: SIMPLE (Xu, uint32_t); break;
@@ -824,7 +824,7 @@ static bool fini_generic_embeddable (void * __restrict dst, size_t * __restrict 
       case XSTOP: return freed;
       case XO: COMPLEX (XO, ddsi_octetseq_t, { ddsrt_free (x->value); freed = true; }, (void) 0); break;
       case XS: COMPLEX (XS, char *, { ddsrt_free (*x); freed = true; }, (void) 0); break;
-      case XE1: case XE2: case XE3: COMPLEX (*desc, unsigned, (void) 0, (void) 0); break;
+      case XE1: case XE2: case XE3: COMPLEX (*desc, uint32_t, (void) 0, (void) 0); break;
       case Xs: SIMPLE (Xs, int16_t); break;
       case Xi: case Xix2: case Xix3: case Xix4: SIMPLE (Xi, int32_t); break;
       case Xu: case Xux2: case Xux3: case Xux4: case Xux5: SIMPLE (Xu, uint32_t); break;
@@ -871,10 +871,10 @@ static size_t pserop_memalign (enum ddsi_pserop op)
     case Xb: case Xbx2: case Xbx3: case Xbx4: case Xbx5: return 1;
     case Xo: case Xox2: return 1;
     case XbCOND: case XbPROP: return 1;
-    case XE1: case XE2: case XE3: return sizeof (uint32_t);
-    case Xs: return sizeof (int16_t);
-    case Xi: case Xix2: case Xix3: case Xix4: return sizeof (int32_t);
-    case Xu: case Xux2: case Xux3: case Xux4: case Xux5: return sizeof (uint32_t);
+    case XE1: case XE2: case XE3: return dds_alignof (uint32_t);
+    case Xs: return dds_alignof (int16_t);
+    case Xi: case Xix2: case Xix3: case Xix4: return dds_alignof (int32_t);
+    case Xu: case Xux2: case Xux3: case Xux4: case Xux5: return dds_alignof (uint32_t);
     case Xl: return dds_alignof (int64_t);
     case XD: case XDx2: return dds_alignof (dds_duration_t);
     case XSTOP: case Xopt: assert (0);
@@ -920,12 +920,12 @@ static dds_return_t deser_generic_r (void * __restrict dst, size_t * __restrict 
         break;
       }
       case XE1: case XE2: case XE3: { /* enum with max allowed value */
-        unsigned * const x = deser_generic_dst (dst, dstoff, dds_alignof (int));
+        uint32_t * const x = deser_generic_dst (dst, dstoff, dds_alignof (int));
         const uint32_t maxval = 1 + (uint32_t) (*desc - XE1);
         uint32_t tmp;
         if (deser_uint32 (&tmp, dd, srcoff) < 0 || tmp > maxval)
           goto fail;
-        *x = (unsigned) tmp;
+        *x = (uint32_t) tmp;
         *dstoff += sizeof (*x);
         break;
       }
@@ -1126,7 +1126,7 @@ void ddsi_plist_ser_generic_size_embeddable (size_t *dstoff, const void *src, si
       case XSTOP: return;
       case XO: COMPLEX (XO, ddsi_octetseq_t, *dstoff = align4 (*dstoff) + 4 + x->length); break;
       case XS: COMPLEX (XS, const char *, *dstoff = align4 (*dstoff) + 4 + strlen (*x) + 1); break;
-      case XE1: case XE2: case XE3: COMPLEX (*desc, unsigned, *dstoff = align4 (*dstoff) + 4); break;
+      case XE1: case XE2: case XE3: COMPLEX (*desc, uint32_t, *dstoff = align4 (*dstoff) + 4); break;
       case Xs: SIMPLE2 (Xs, int16_t); break;
       case Xi: case Xix2: case Xix3: case Xix4: SIMPLE4 (Xi, int32_t); break;
       case Xu: case Xux2: case Xux3: case Xux4: case Xux5: SIMPLE4 (Xu, uint32_t); break;
@@ -1205,7 +1205,7 @@ dds_return_t ddsi_plist_ser_generic_embeddable (char * const data, size_t *dstof
         break;
       }
       case XE1: case XE2: case XE3: { /* enum */
-        unsigned const * const x = deser_generic_src (src, &srcoff, dds_alignof (unsigned));
+        uint32_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (uint32_t));
         uint32_t * const p = ser_generic_align4 (data, dstoff);
         *p = ddsrt_toBO4u(bo, (uint32_t) *x);
         *dstoff += 4;
@@ -1473,7 +1473,7 @@ static dds_return_t valid_generic (const void *src, size_t srcoff, const enum dd
       case XSTOP: return 0;
       case XO: SIMPLE (XO, ddsi_octetseq_t, (x->length == 0) == (x->value == NULL)); break;
       case XS: SIMPLE (XS, const char *, *x != NULL); break;
-      case XE1: case XE2: case XE3: SIMPLE (*desc, unsigned, *x <= 1 + (unsigned) *desc - XE1); break;
+      case XE1: case XE2: case XE3: SIMPLE (*desc, uint32_t, *x <= 1 + (uint32_t) *desc - XE1); break;
       case Xs: TRIVIAL (Xs, int16_t); break;
       case Xi: case Xix2: case Xix3: case Xix4: TRIVIAL (Xi, int32_t); break;
       case Xu: case Xux2: case Xux3: case Xux4: case Xux5: TRIVIAL (Xu, uint32_t); break;
@@ -1531,7 +1531,7 @@ static bool equal_generic (const void *srcx, const void *srcy, size_t srcoff, co
       case XS:
         SIMPLE (XS, const char *, strcmp (*x, *y) == 0);
         break;
-      case XE1: case XE2: case XE3: TRIVIAL (*desc, unsigned); break;
+      case XE1: case XE2: case XE3: TRIVIAL (*desc, uint32_t); break;
       case Xs: TRIVIAL (Xs, int16_t); break;
       case Xi: case Xix2: case Xix3: case Xix4: TRIVIAL (Xi, int32_t); break;
       case Xu: case Xux2: case Xux3: case Xux4: case Xux5: TRIVIAL (Xu, uint32_t); break;
@@ -1644,8 +1644,8 @@ static bool print_generic1 (char * __restrict *buf, size_t * __restrict bufsize,
         break;
       }
       case XE1: case XE2: case XE3: { /* enum */
-        unsigned const * const x = deser_generic_src (src, &srcoff, dds_alignof (unsigned));
-        if (!prtf (buf, bufsize, "%s%u", sep, *x))
+        uint32_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (uint32_t));
+        if (!prtf (buf, bufsize, "%s%"PRIu32, sep, *x))
           return false;
         srcoff += sizeof (*x);
         break;
