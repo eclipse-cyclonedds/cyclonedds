@@ -611,7 +611,7 @@ int main (int argc, char **argv)
   ddsi_serdata_print_untyped (ptr, ptr, buf, 0);
   ddsi_serdata_get_keyhash (ptr, ptr, 0);
 #ifdef DDS_HAS_SHM
-  ddsi_serdata_iox_size (0);
+  ddsi_serdata_iox_size (ptr);
   ddsi_serdata_from_iox (ptr, 0, ptr, ptr);
   ddsi_serdata_from_loaned_sample (ptr, 0, ptr);
 #endif
