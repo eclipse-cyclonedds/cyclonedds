@@ -24,7 +24,7 @@
 #include "dds/ddsi/ddsi_builtin_topic_if.h"
 #include "ddsi__security_omg.h"
 #include "ddsi__addrset.h"
-#include "dds/ddsi/q_whc.h"
+#include "ddsi__whc.h"
 #include "dds/ddsi/q_xevent.h"
 #include "ddsi__radmin.h"
 #include "ddsi__endpoint.h"
@@ -682,19 +682,19 @@ static void proxy_reader_set_delete_and_ack_all_messages (struct ddsi_proxy_read
     ddsrt_mutex_unlock (&prd->e.lock);
     if ((wr = ddsi_entidx_lookup_writer_guid (prd->e.gv->entity_index, &wrguid)) != NULL)
     {
-      struct whc_node *deferred_free_list = NULL;
+      struct ddsi_whc_node *deferred_free_list = NULL;
       struct ddsi_wr_prd_match *m_wr;
       ddsrt_mutex_lock (&wr->e.lock);
       if ((m_wr = ddsrt_avl_lookup (&ddsi_wr_readers_treedef, &wr->readers, &prd->e.guid)) != NULL)
       {
-        struct whc_state whcst;
+        struct ddsi_whc_state whcst;
         m_wr->seq = DDSI_MAX_SEQ_NUMBER;
         ddsrt_avl_augment_update (&ddsi_wr_readers_treedef, m_wr);
         (void)ddsi_remove_acked_messages (wr, &whcst, &deferred_free_list);
         ddsi_writer_clear_retransmitting (wr);
       }
       ddsrt_mutex_unlock (&wr->e.lock);
-      whc_free_deferred_free_list (wr->whc, deferred_free_list);
+      ddsi_whc_free_deferred_free_list (wr->whc, deferred_free_list);
     }
 
     wrguid = wrguid_next;

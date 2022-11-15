@@ -357,7 +357,7 @@ typedef struct dds_writer {
   struct dds_topic *m_topic; /* refc'd, constant, lock(wr) -> lock(tp) allowed */
   struct nn_xpack *m_xp;
   struct ddsi_writer *m_wr;
-  struct whc *m_whc; /* FIXME: ownership still with underlying DDSI writer (cos of DDSI built-in writers )*/
+  struct ddsi_whc *m_whc; /* FIXME: ownership still with underlying DDSI writer (cos of DDSI built-in writers )*/
   bool whc_batch; /* FIXME: channels + latency budget */
 #ifdef DDS_HAS_SHM
   iox_pub_t m_iox_pub;

@@ -30,7 +30,7 @@ are transmitted on a separate thread.
       |           \
       |            \
       |             |
-      |  whc_insert (for reliable data)
+      |  ddsi_whc_insert (for reliable data)
       |    - allocates whc_node (2)
       |    - inserts in seq# hash (which may grow hash table)
       |    - adds to seq# interval tree (which may require an interval tree node)

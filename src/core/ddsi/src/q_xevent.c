@@ -626,7 +626,7 @@ static void handle_xevk_entityid (struct nn_xpack *xp, struct xevent_nt *ev)
 }
 
 #ifdef DDS_HAS_SECURITY
-static int send_heartbeat_to_all_readers_check_and_sched (struct xevent *ev, struct ddsi_writer *wr, const struct whc_state *whcst, ddsrt_mtime_t tnow, ddsrt_mtime_t *t_next)
+static int send_heartbeat_to_all_readers_check_and_sched (struct xevent *ev, struct ddsi_writer *wr, const struct ddsi_whc_state *whcst, ddsrt_mtime_t tnow, ddsrt_mtime_t *t_next)
 {
   int send;
   if (!ddsi_writer_must_have_hb_scheduled (wr, whcst))
@@ -653,13 +653,13 @@ static int send_heartbeat_to_all_readers_check_and_sched (struct xevent *ev, str
 
 static void send_heartbeat_to_all_readers (struct nn_xpack *xp, struct xevent *ev, struct ddsi_writer *wr, ddsrt_mtime_t tnow)
 {
-  struct whc_state whcst;
+  struct ddsi_whc_state whcst;
   ddsrt_mtime_t t_next;
   unsigned count = 0;
 
   ddsrt_mutex_lock (&wr->e.lock);
 
-  whc_get_state(wr->whc, &whcst);
+  ddsi_whc_get_state(wr->whc, &whcst);
   const int hbansreq = send_heartbeat_to_all_readers_check_and_sched (ev, wr, &whcst, tnow, &t_next);
   if (hbansreq >= 0)
   {
@@ -730,7 +730,7 @@ static void handle_xevk_heartbeat (struct nn_xpack *xp, struct xevent *ev, ddsrt
   struct ddsi_writer *wr;
   ddsrt_mtime_t t_next;
   int hbansreq = 0;
-  struct whc_state whcst;
+  struct ddsi_whc_state whcst;
 
   if ((wr = ddsi_entidx_lookup_writer_guid (gv->entity_index, &ev->u.heartbeat.wr_guid)) == NULL)
   {
@@ -748,7 +748,7 @@ static void handle_xevk_heartbeat (struct nn_xpack *xp, struct xevent *ev, ddsrt
 
   ddsrt_mutex_lock (&wr->e.lock);
   assert (wr->reliable);
-  whc_get_state(wr->whc, &whcst);
+  ddsi_whc_get_state(wr->whc, &whcst);
   if (!ddsi_writer_must_have_hb_scheduled (wr, &whcst))
   {
     hbansreq = 1; /* just for trace */
@@ -939,10 +939,10 @@ static bool resend_spdp_sample_by_guid_key (struct ddsi_writer *wr, const ddsi_g
   ps.participant_guid = *guid;
   struct ddsi_serdata *sd = ddsi_serdata_from_sample (gv->spdp_type, SDK_KEY, &ps);
   ddsi_plist_fini (&ps);
-  struct whc_borrowed_sample sample;
+  struct ddsi_whc_borrowed_sample sample;
 
   ddsrt_mutex_lock (&wr->e.lock);
-  sample_found = whc_borrow_sample_key (wr->whc, sd, &sample);
+  sample_found = ddsi_whc_borrow_sample_key (wr->whc, sd, &sample);
   if (sample_found)
   {
     /* Claiming it is new rather than a retransmit so that the rexmit
@@ -951,7 +951,7 @@ static bool resend_spdp_sample_by_guid_key (struct ddsi_writer *wr, const ddsi_g
        place anyway.  Nor is it necessary to fiddle with heartbeat
        control stuff. */
     ddsi_enqueue_spdp_sample_wrlock_held (wr, sample.seq, sample.serdata, prd);
-    whc_return_sample(wr->whc, &sample, false);
+    ddsi_whc_return_sample(wr->whc, &sample, false);
   }
   ddsrt_mutex_unlock (&wr->e.lock);
   ddsi_serdata_unref (sd);

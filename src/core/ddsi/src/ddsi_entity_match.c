@@ -26,7 +26,7 @@
 #include "dds/ddsi/ddsi_qosmatch.h"
 #include "ddsi__addrset.h"
 #include "dds/ddsi/q_xevent.h"
-#include "dds/ddsi/q_whc.h"
+#include "ddsi__whc.h"
 #include "ddsi__endpoint.h"
 #include "ddsi__entity_match.h"
 #include "ddsi__proxy_endpoint.h"
@@ -1149,12 +1149,12 @@ void ddsi_writer_drop_connection (const struct ddsi_guid *wr_guid, const struct 
   struct ddsi_writer *wr;
   if ((wr = ddsi_entidx_lookup_writer_guid (prd->e.gv->entity_index, wr_guid)) != NULL)
   {
-    struct whc_node *deferred_free_list = NULL;
+    struct ddsi_whc_node *deferred_free_list = NULL;
     struct ddsi_wr_prd_match *m;
     ddsrt_mutex_lock (&wr->e.lock);
     if ((m = ddsrt_avl_lookup (&ddsi_wr_readers_treedef, &wr->readers, &prd->e.guid)) != NULL)
     {
-      struct whc_state whcst;
+      struct ddsi_whc_state whcst;
       ddsrt_avl_delete (&ddsi_wr_readers_treedef, &wr->readers, m);
       wr->num_readers--;
       wr->num_reliable_readers -= m->is_reliable;
@@ -1172,7 +1172,7 @@ void ddsi_writer_drop_connection (const struct ddsi_guid *wr_guid, const struct 
       data.handle = prd->e.iid;
       (wr->status_cb) (wr->status_cb_entity, &data);
     }
-    whc_free_deferred_free_list (wr->whc, deferred_free_list);
+    ddsi_whc_free_deferred_free_list (wr->whc, deferred_free_list);
     ddsi_free_wr_prd_match (wr->e.gv, &wr->e.guid, m);
   }
 }

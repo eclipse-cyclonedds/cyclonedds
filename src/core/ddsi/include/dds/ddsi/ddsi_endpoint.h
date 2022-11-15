@@ -100,7 +100,7 @@ struct ddsi_writer
   struct ddsi_addrset *as; /* set of addresses to publish to */
   struct xevent *heartbeat_xevent; /* timed event for "periodically" publishing heartbeats when unack'd data present, NULL <=> unreliable */
   struct ldur_fhnode *lease_duration; /* fibheap node to keep lease duration for this writer, NULL in case of automatic liveliness with inifite duration  */
-  struct whc *whc; /* WHC tracking history, T-L durability service history + samples by sequence number for retransmit */
+  struct ddsi_whc *whc; /* WHC tracking history, T-L durability service history + samples by sequence number for retransmit */
   uint32_t whc_low, whc_high; /* watermarks for WHC in bytes (counting only unack'd data) */
   ddsrt_etime_t t_rexmit_start;
   ddsrt_etime_t t_rexmit_end; /* time of last 1->0 transition of "retransmitting" */
@@ -178,9 +178,9 @@ DDS_EXPORT extern const ddsrt_avl_treedef_t ddsi_rd_local_writers_treedef;
 int ddsi_is_builtin_endpoint (ddsi_entityid_t id, ddsi_vendorid_t vendorid);
 
 // writer
-struct ddsi_local_orphan_writer *ddsi_new_local_orphan_writer (struct ddsi_domaingv *gv, ddsi_entityid_t entityid, const char *topic_name, struct ddsi_sertype *type, const struct dds_qos *xqos, struct whc *whc);
+struct ddsi_local_orphan_writer *ddsi_new_local_orphan_writer (struct ddsi_domaingv *gv, ddsi_entityid_t entityid, const char *topic_name, struct ddsi_sertype *type, const struct dds_qos *xqos, struct ddsi_whc *whc);
 void ddsi_delete_local_orphan_writer (struct ddsi_local_orphan_writer *wr);
-dds_return_t ddsi_new_writer (struct ddsi_writer **wr_out, struct ddsi_guid *wrguid, const struct ddsi_guid *group_guid, struct ddsi_participant *pp, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos, struct whc * whc, ddsi_status_cb_t status_cb, void *status_cb_arg);
+dds_return_t ddsi_new_writer (struct ddsi_writer **wr_out, struct ddsi_guid *wrguid, const struct ddsi_guid *group_guid, struct ddsi_participant *pp, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos, struct ddsi_whc * whc, ddsi_status_cb_t status_cb, void *status_cb_arg);
 void ddsi_update_writer_qos (struct ddsi_writer *wr, const struct dds_qos *xqos);
 void ddsi_make_writer_info(struct ddsi_writer_info *wrinfo, const struct ddsi_entity_common *e, const struct dds_qos *xqos, uint32_t statusinfo);
 dds_return_t ddsi_writer_wait_for_acks (struct ddsi_writer *wr, const ddsi_guid_t *rdguid, dds_time_t abstimeout);

@@ -18,7 +18,7 @@
 #include "dds/ddsrt/environ.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/ddsi_entity.h"
-#include "dds/ddsi/q_whc.h"
+#include "ddsi__whc.h"
 #include "dds__entity.h"
 
 #include "test_common.h"
@@ -99,7 +99,7 @@ static dds_entity_t create_and_sync_reader(dds_entity_t subscriber, dds_entity_t
   return reader;
 }
 
-static void get_writer_whc_state (dds_entity_t writer, struct whc_state *whcst)
+static void get_writer_whc_state (dds_entity_t writer, struct ddsi_whc_state *whcst)
 {
   struct dds_entity *wr_entity;
   struct ddsi_writer *wr;
@@ -108,14 +108,14 @@ static void get_writer_whc_state (dds_entity_t writer, struct whc_state *whcst)
   wr = ddsi_entidx_lookup_writer_guid (wr_entity->m_domain->gv.entity_index, &wr_entity->m_guid);
   CU_ASSERT_FATAL(wr != NULL);
   assert(wr != NULL); /* for Clang's static analyzer */
-  whc_get_state(wr->whc, whcst);
+  ddsi_whc_get_state(wr->whc, whcst);
   ddsi_thread_state_asleep(ddsi_lookup_thread_state());
   dds_entity_unpin(wr_entity);
 }
 
 static void check_intermediate_whc_state(dds_entity_t writer, ddsi_seqno_t exp_min, ddsi_seqno_t exp_max)
 {
-  struct whc_state whcst;
+  struct ddsi_whc_state whcst;
   get_writer_whc_state (writer, &whcst);
   /* WHC must not contain any samples < exp_min and must contain at least exp_max if it
      contains at least one sample.  (We never know for certain when ACKs arrive.) */
@@ -126,7 +126,7 @@ static void check_intermediate_whc_state(dds_entity_t writer, ddsi_seqno_t exp_m
 
 static void check_whc_state(dds_entity_t writer, ddsi_seqno_t exp_min, ddsi_seqno_t exp_max)
 {
-  struct whc_state whcst;
+  struct ddsi_whc_state whcst;
   get_writer_whc_state (writer, &whcst);
   printf(" -- final state: unacked: %zu; min %"PRIu64" (exp %"PRIu64"); max %"PRIu64" (exp %"PRIu64")\n", whcst.unacked_bytes, whcst.min_seq, exp_min, whcst.max_seq, exp_max);
   CU_ASSERT_EQUAL_FATAL (whcst.unacked_bytes, 0);

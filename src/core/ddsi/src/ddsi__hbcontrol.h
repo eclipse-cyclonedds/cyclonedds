@@ -20,19 +20,19 @@ extern "C" {
 #endif
 
 struct ddsi_writer;
-struct whc_state;
+struct ddsi_whc_state;
 struct ddsi_proxy_reader;
 
 void ddsi_writer_hbcontrol_init (struct ddsi_hbcontrol *hbc);
-int64_t ddsi_writer_hbcontrol_intv (const struct ddsi_writer *wr, const struct whc_state *whcst, ddsrt_mtime_t tnow);
+int64_t ddsi_writer_hbcontrol_intv (const struct ddsi_writer *wr, const struct ddsi_whc_state *whcst, ddsrt_mtime_t tnow);
 void ddsi_writer_hbcontrol_note_asyncwrite (struct ddsi_writer *wr, ddsrt_mtime_t tnow);
-int ddsi_writer_hbcontrol_ack_required (const struct ddsi_writer *wr, const struct whc_state *whcst, ddsrt_mtime_t tnow);
-struct nn_xmsg *ddsi_writer_hbcontrol_piggyback (struct ddsi_writer *wr, const struct whc_state *whcst, ddsrt_mtime_t tnow, uint32_t packetid, int *hbansreq);
-int ddsi_writer_hbcontrol_must_send (const struct ddsi_writer *wr, const struct whc_state *whcst, ddsrt_mtime_t tnow);
-struct nn_xmsg *ddsi_writer_hbcontrol_create_heartbeat (struct ddsi_writer *wr, const struct whc_state *whcst, ddsrt_mtime_t tnow, int hbansreq, int issync);
+int ddsi_writer_hbcontrol_ack_required (const struct ddsi_writer *wr, const struct ddsi_whc_state *whcst, ddsrt_mtime_t tnow);
+struct nn_xmsg *ddsi_writer_hbcontrol_piggyback (struct ddsi_writer *wr, const struct ddsi_whc_state *whcst, ddsrt_mtime_t tnow, uint32_t packetid, int *hbansreq);
+int ddsi_writer_hbcontrol_must_send (const struct ddsi_writer *wr, const struct ddsi_whc_state *whcst, ddsrt_mtime_t tnow);
+struct nn_xmsg *ddsi_writer_hbcontrol_create_heartbeat (struct ddsi_writer *wr, const struct ddsi_whc_state *whcst, ddsrt_mtime_t tnow, int hbansreq, int issync);
 
 #ifdef DDS_HAS_SECURITY
-struct nn_xmsg *writer_hbcontrol_p2p(struct ddsi_writer *wr, const struct whc_state *whcst, int hbansreq, struct ddsi_proxy_reader *prd);
+struct nn_xmsg *writer_hbcontrol_p2p(struct ddsi_writer *wr, const struct ddsi_whc_state *whcst, int hbansreq, struct ddsi_proxy_reader *prd);
 #endif
 
 

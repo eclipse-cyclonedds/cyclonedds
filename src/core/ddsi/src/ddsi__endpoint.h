@@ -16,7 +16,7 @@
 #include "dds/features.h"
 
 #include "dds/ddsrt/fibheap.h"
-#include "dds/ddsi/q_whc.h"
+#include "ddsi__whc.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -48,12 +48,12 @@ int ddsi_is_keyed_endpoint_entityid (ddsi_entityid_t id);
 int ddsi_is_builtin_volatile_endpoint (ddsi_entityid_t id);
 
 // writer
-dds_return_t ddsi_new_writer_guid (struct ddsi_writer **wr_out, const struct ddsi_guid *guid, const struct ddsi_guid *group_guid, struct ddsi_participant *pp, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos, struct whc *whc, ddsi_status_cb_t status_cb, void *status_entity);
+dds_return_t ddsi_new_writer_guid (struct ddsi_writer **wr_out, const struct ddsi_guid *guid, const struct ddsi_guid *group_guid, struct ddsi_participant *pp, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos, struct ddsi_whc *whc, ddsi_status_cb_t status_cb, void *status_entity);
 int ddsi_is_writer_entityid (ddsi_entityid_t id);
 void ddsi_deliver_historical_data (const struct ddsi_writer *wr, const struct ddsi_reader *rd);
-unsigned ddsi_remove_acked_messages (struct ddsi_writer *wr, struct whc_state *whcst, struct whc_node **deferred_free_list);
+unsigned ddsi_remove_acked_messages (struct ddsi_writer *wr, struct ddsi_whc_state *whcst, struct ddsi_whc_node **deferred_free_list);
 ddsi_seqno_t ddsi_writer_max_drop_seq (const struct ddsi_writer *wr);
-int ddsi_writer_must_have_hb_scheduled (const struct ddsi_writer *wr, const struct whc_state *whcst);
+int ddsi_writer_must_have_hb_scheduled (const struct ddsi_writer *wr, const struct ddsi_whc_state *whcst);
 void ddsi_writer_set_retransmitting (struct ddsi_writer *wr);
 void ddsi_writer_clear_retransmitting (struct ddsi_writer *wr);
 dds_return_t ddsi_delete_writer_nolinger (struct ddsi_domaingv *gv, const struct ddsi_guid *guid);

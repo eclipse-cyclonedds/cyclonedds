@@ -314,8 +314,8 @@ struct print_writer_arg {
 static void print_whc_state (struct st *st, void *vw)
 {
   struct ddsi_writer * const w = vw;
-  struct whc_state whcst;
-  whc_get_state (w->whc, &whcst);
+  struct ddsi_whc_state whcst;
+  ddsi_whc_get_state (w->whc, &whcst);
   cpfkseqno (st, "min_seq", whcst.min_seq);
   cpfkseqno (st, "max_seq", whcst.max_seq);
   cpfksize (st, "unacked_bytes", whcst.unacked_bytes);

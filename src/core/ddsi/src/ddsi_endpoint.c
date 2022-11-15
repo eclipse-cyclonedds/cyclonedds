@@ -31,7 +31,7 @@
 #include "ddsi__security_omg.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "ddsi__discovery.h"
-#include "dds/ddsi/q_whc.h"
+#include "ddsi__whc.h"
 #include "dds/ddsi/q_xevent.h"
 #include "ddsi__addrset.h"
 #include "ddsi__radmin.h"
@@ -352,11 +352,11 @@ void ddsi_deliver_historical_data (const struct ddsi_writer *wr, const struct dd
 {
   struct ddsi_domaingv * const gv = wr->e.gv;
   struct ddsi_tkmap * const tkmap = gv->m_tkmap;
-  struct whc_sample_iter it;
-  struct whc_borrowed_sample sample;
+  struct ddsi_whc_sample_iter it;
+  struct ddsi_whc_borrowed_sample sample;
   /* FIXME: should limit ourselves to what it is available because of durability history, not writer history */
-  whc_sample_iter_init (wr->whc, &it);
-  while (whc_sample_iter_borrow_next (&it, &sample))
+  ddsi_whc_sample_iter_init (wr->whc, &it);
+  while (ddsi_whc_sample_iter_borrow_next (&it, &sample))
   {
     struct ddsi_serdata *payload;
     if ((payload = ddsi_serdata_ref_as_type (rd->type, sample.serdata)) == NULL)
@@ -573,7 +573,7 @@ ddsi_seqno_t ddsi_writer_max_drop_seq (const struct ddsi_writer *wr)
   return (n->min_seq == DDSI_MAX_SEQ_NUMBER) ? wr->seq : n->min_seq;
 }
 
-int ddsi_writer_must_have_hb_scheduled (const struct ddsi_writer *wr, const struct whc_state *whcst)
+int ddsi_writer_must_have_hb_scheduled (const struct ddsi_writer *wr, const struct ddsi_whc_state *whcst)
 {
   if (ddsrt_avl_is_empty (&wr->readers))
   {
@@ -623,12 +623,12 @@ void ddsi_writer_clear_retransmitting (struct ddsi_writer *wr)
   ddsrt_cond_broadcast (&wr->throttle_cond);
 }
 
-unsigned ddsi_remove_acked_messages (struct ddsi_writer *wr, struct whc_state *whcst, struct whc_node **deferred_free_list)
+unsigned ddsi_remove_acked_messages (struct ddsi_writer *wr, struct ddsi_whc_state *whcst, struct ddsi_whc_node **deferred_free_list)
 {
   unsigned n;
   assert (wr->e.guid.entityid.u != DDSI_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
   ASSERT_MUTEX_HELD (&wr->e.lock);
-  n = whc_remove_acked_messages (wr->whc, ddsi_writer_max_drop_seq (wr), whcst, deferred_free_list);
+  n = ddsi_whc_remove_acked_messages (wr->whc, ddsi_writer_max_drop_seq (wr), whcst, deferred_free_list);
   /* trigger anyone waiting in throttle_writer() or wait_for_acks() */
   ddsrt_cond_broadcast (&wr->throttle_cond);
   if (wr->retransmitting && whcst->unacked_bytes == 0)
@@ -726,7 +726,7 @@ int ddsi_writer_set_notalive (struct ddsi_writer *wr, bool notify)
   return ret;
 }
 
-static void ddsi_new_writer_guid_common_init (struct ddsi_writer *wr, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos, struct whc *whc, ddsi_status_cb_t status_cb, void * status_entity)
+static void ddsi_new_writer_guid_common_init (struct ddsi_writer *wr, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos, struct ddsi_whc *whc, ddsi_status_cb_t status_cb, void * status_entity)
 {
   ddsrt_cond_init (&wr->throttle_cond);
   wr->seq = 0;
@@ -917,7 +917,7 @@ static void ddsi_new_writer_guid_common_init (struct ddsi_writer *wr, const char
   ddsi_local_reader_ary_init (&wr->rdary);
 }
 
-dds_return_t ddsi_new_writer_guid (struct ddsi_writer **wr_out, const struct ddsi_guid *guid, const struct ddsi_guid *group_guid, struct ddsi_participant *pp, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos, struct whc *whc, ddsi_status_cb_t status_cb, void *status_entity)
+dds_return_t ddsi_new_writer_guid (struct ddsi_writer **wr_out, const struct ddsi_guid *guid, const struct ddsi_guid *group_guid, struct ddsi_participant *pp, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos, struct ddsi_whc *whc, ddsi_status_cb_t status_cb, void *status_entity)
 {
   struct ddsi_writer *wr;
   ddsrt_mtime_t tnow = ddsrt_time_monotonic ();
@@ -1001,7 +1001,7 @@ dds_return_t ddsi_new_writer_guid (struct ddsi_writer **wr_out, const struct dds
   return 0;
 }
 
-dds_return_t ddsi_new_writer (struct ddsi_writer **wr_out, struct ddsi_guid *wrguid, const struct ddsi_guid *group_guid, struct ddsi_participant *pp, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos, struct whc * whc, ddsi_status_cb_t status_cb, void *status_cb_arg)
+dds_return_t ddsi_new_writer (struct ddsi_writer **wr_out, struct ddsi_guid *wrguid, const struct ddsi_guid *group_guid, struct ddsi_participant *pp, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos, struct ddsi_whc * whc, ddsi_status_cb_t status_cb, void *status_cb_arg)
 {
   dds_return_t rc;
   uint32_t kind;
@@ -1016,7 +1016,7 @@ dds_return_t ddsi_new_writer (struct ddsi_writer **wr_out, struct ddsi_guid *wrg
   return ddsi_new_writer_guid (wr_out, wrguid, group_guid, pp, topic_name, type, xqos, whc, status_cb, status_cb_arg);
 }
 
-struct ddsi_local_orphan_writer *ddsi_new_local_orphan_writer (struct ddsi_domaingv *gv, ddsi_entityid_t entityid, const char *topic_name, struct ddsi_sertype *type, const struct dds_qos *xqos, struct whc *whc)
+struct ddsi_local_orphan_writer *ddsi_new_local_orphan_writer (struct ddsi_domaingv *gv, ddsi_entityid_t entityid, const char *topic_name, struct ddsi_sertype *type, const struct dds_qos *xqos, struct ddsi_whc *whc)
 {
   ddsi_guid_t guid;
   struct ddsi_local_orphan_writer *lowr;
@@ -1097,7 +1097,7 @@ static void gc_delete_writer (struct ddsi_gcreq *gcreq)
   /* Do last gasp on SEDP and free writer. */
   if (!ddsi_is_builtin_entityid (wr->e.guid.entityid, DDSI_VENDORID_ECLIPSE))
     ddsi_sedp_dispose_unregister_writer (wr);
-  whc_free (wr->whc);
+  ddsi_whc_free (wr->whc);
   if (wr->status_cb)
     (wr->status_cb) (wr->status_cb_entity, NULL);
 
@@ -1280,7 +1280,7 @@ void ddsi_delete_local_orphan_writer (struct ddsi_local_orphan_writer *lowr)
 dds_return_t ddsi_delete_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *guid)
 {
   struct ddsi_writer *wr;
-  struct whc_state whcst;
+  struct ddsi_whc_state whcst;
   if ((wr = ddsi_entidx_lookup_writer_guid (gv->entity_index, guid)) == NULL)
   {
     GVLOGDISC ("delete_writer(guid "PGUIDFMT") - unknown guid\n", PGUID (*guid));
@@ -1293,7 +1293,7 @@ dds_return_t ddsi_delete_writer (struct ddsi_domaingv *gv, const struct ddsi_gui
      be the usual case), do it immediately.  If more data is still
      coming in (which can't really happen at the moment, but might
      again in the future) it'll potentially be discarded.  */
-  whc_get_state(wr->whc, &whcst);
+  ddsi_whc_get_state(wr->whc, &whcst);
   if (whcst.unacked_bytes == 0)
   {
     GVLOGDISC ("delete_writer(guid "PGUIDFMT") - no unack'ed samples\n", PGUID (*guid));
