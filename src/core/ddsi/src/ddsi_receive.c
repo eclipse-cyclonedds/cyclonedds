@@ -2220,7 +2220,7 @@ static int deliver_user_data (const struct ddsi_rsample_info *sampleinfo, const 
     src.buf = DDSI_RMSG_PAYLOADOFF (fragchain->rmsg, qos_offset);
     src.bufsz = DDSI_RDATA_PAYLOAD_OFF (fragchain) - qos_offset;
     src.strict = DDSI_SC_STRICT_P (gv->config);
-    if ((plist_ret = ddsi_plist_init_frommsg (&qos, NULL, PP_STATUSINFO | PP_KEYHASH, 0, &src, gv)) < 0)
+    if ((plist_ret = ddsi_plist_init_frommsg (&qos, NULL, PP_STATUSINFO | PP_KEYHASH, 0, &src, gv, DDSI_PLIST_CONTEXT_ENDPOINT)) < 0)
     {
       if (plist_ret != DDS_RETCODE_UNSUPPORTED)
         GVWARNING ("data(application, vendor %u.%u): "PGUIDFMT" #%"PRIu64": invalid inline qos\n",

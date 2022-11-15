@@ -573,15 +573,15 @@ static void typemap_deser (DDS_XTypes_TypeMapping **tmap, const struct dds_type_
 static void test_proxy_rd_create (struct ddsi_domaingv *gv, const char *topic_name, DDS_XTypes_TypeInformation *ti, dds_return_t exp_ret, const ddsi_guid_t *pp_guid, const ddsi_guid_t *rd_guid)
 {
   ddsi_plist_t *plist = ddsrt_calloc (1, sizeof (*plist));
-  plist->present |= PP_PARTICIPANT_LEASE_DURATION;
-  plist->participant_lease_duration = DDS_INFINITY;
-  plist->qos.present |= DDSI_QP_TOPIC_NAME | DDSI_QP_TYPE_NAME | DDSI_QP_TYPE_INFORMATION | DDSI_QP_DATA_REPRESENTATION;
+  plist->qos.present |= DDSI_QP_TOPIC_NAME | DDSI_QP_TYPE_NAME | DDSI_QP_TYPE_INFORMATION | DDSI_QP_DATA_REPRESENTATION | DDSI_QP_LIVELINESS;
   plist->qos.topic_name = ddsrt_strdup (topic_name);
   plist->qos.type_name = ddsrt_strdup ("dummy");
   plist->qos.type_information = ddsi_typeinfo_dup ((struct ddsi_typeinfo *) ti);
   plist->qos.data_representation.value.n = 1;
   plist->qos.data_representation.value.ids = ddsrt_calloc (1, sizeof (*plist->qos.data_representation.value.ids));
   plist->qos.data_representation.value.ids[0] = DDS_DATA_REPRESENTATION_XCDR2;
+  plist->qos.liveliness.kind = DDS_LIVELINESS_AUTOMATIC;
+  plist->qos.liveliness.lease_duration = DDS_INFINITY;
 
   struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
   ddsi_thread_state_awake (thrst, gv);

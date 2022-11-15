@@ -178,7 +178,12 @@ static bool serdata_plist_untyped_to_sample (const struct ddsi_sertype *tpcmn, c
     .strict = DDSI_SC_STRICT_P (gv->config),
     .vendorid = d->vendorid
   };
-  const dds_return_t rc = ddsi_plist_init_frommsg (sample, NULL, ~(uint64_t)0, ~(uint64_t)0, &src, gv);
+  enum ddsi_plist_context_kind context_kind;
+  if (tp->keyparam == DDSI_PID_PARTICIPANT_GUID)
+    context_kind = DDSI_PLIST_CONTEXT_PARTICIPANT;
+  else
+    context_kind = DDSI_PLIST_CONTEXT_ENDPOINT;
+  const dds_return_t rc = ddsi_plist_init_frommsg (sample, NULL, ~(uint64_t)0, ~(uint64_t)0, &src, gv, context_kind);
   // FIXME: need a more informative return type
   if (rc != DDS_RETCODE_OK && rc != DDS_RETCODE_UNSUPPORTED)
     GVWARNING ("Invalid %s (vendor %u.%u): invalid qos/parameters\n", tpcmn->type_name, src.vendorid.id[0], src.vendorid.id[1]);
@@ -221,7 +226,12 @@ static struct ddsi_serdata *serdata_plist_from_sample (const struct ddsi_sertype
   struct ddsi_domaingv * const gv = ddsrt_atomic_ldvoidp (&tp->c.gv);
   struct ddsi_xmsg *mpayload = ddsi_xmsg_new (gv->xmsgpool, &ddsi_nullguid, NULL, 0, DDSI_XMSG_KIND_DATA);
   memcpy (ddsi_xmsg_append (mpayload, NULL, 4), &header, 4);
-  ddsi_plist_addtomsg (mpayload, sample, ~(uint64_t)0, ~(uint64_t)0);
+  enum ddsi_plist_context_kind context_kind;
+  if (tp->keyparam == DDSI_PID_PARTICIPANT_GUID)
+    context_kind = DDSI_PLIST_CONTEXT_PARTICIPANT;
+  else
+    context_kind = DDSI_PLIST_CONTEXT_ENDPOINT;
+  ddsi_plist_addtomsg (mpayload, sample, ~(uint64_t)0, ~(uint64_t)0, context_kind);
   ddsi_xmsg_addpar_sentinel (mpayload);
 
   size_t sz;
@@ -281,7 +291,12 @@ static size_t serdata_plist_print_plist (const struct ddsi_sertype *sertype_comm
     .vendorid = d->vendorid
   };
   ddsi_plist_t tmp;
-  if (ddsi_plist_init_frommsg (&tmp, NULL, ~(uint64_t)0, ~(uint64_t)0, &src, gv) < 0)
+  enum ddsi_plist_context_kind context_kind;
+  if (tp->keyparam == DDSI_PID_PARTICIPANT_GUID)
+    context_kind = DDSI_PLIST_CONTEXT_PARTICIPANT;
+  else
+    context_kind = DDSI_PLIST_CONTEXT_ENDPOINT;
+  if (ddsi_plist_init_frommsg (&tmp, NULL, ~(uint64_t)0, ~(uint64_t)0, &src, gv, context_kind) < 0)
     return (size_t) snprintf (buf, size, "(unparseable-plist)");
   else
   {

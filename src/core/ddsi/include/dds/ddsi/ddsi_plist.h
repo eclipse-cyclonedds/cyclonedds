@@ -35,7 +35,7 @@ extern "C" {
 #define PP_EXPECTS_INLINE_QOS                   ((uint64_t)1 <<  8)
 #define PP_PARTICIPANT_MANUAL_LIVELINESS_COUNT  ((uint64_t)1 <<  9)
 #define PP_PARTICIPANT_BUILTIN_ENDPOINTS        ((uint64_t)1 << 10)
-#define PP_PARTICIPANT_LEASE_DURATION           ((uint64_t)1 << 11)
+//#define PP_PARTICIPANT_LEASE_DURATION           ((uint64_t)1 << 11)
 #define PP_CONTENT_FILTER_PROPERTY              ((uint64_t)1 << 12)
 #define PP_PARTICIPANT_GUID                     ((uint64_t)1 << 13)
 #define PP_PARTICIPANT_ENTITYID                 ((uint64_t)1 << 14)
@@ -171,7 +171,6 @@ typedef struct ddsi_plist {
   unsigned char expects_inline_qos;
   ddsi_count_t participant_manual_liveliness_count;
   uint32_t participant_builtin_endpoints;
-  dds_duration_t participant_lease_duration;
   /* ddsi_content_filter_property_t content_filter_property; */
   ddsi_guid_t participant_guid;
   ddsi_guid_t endpoint_guid;
@@ -226,7 +225,6 @@ void ddsi_plist_init_empty (ddsi_plist_t *dest);
  * @param[in] ps   ddsi_plist_t for which to free memory
  */
 void ddsi_plist_fini (ddsi_plist_t *ps);
-
 
 #if defined (__cplusplus)
 }

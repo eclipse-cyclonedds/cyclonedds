@@ -158,22 +158,11 @@ static void add_pp_addresses_to_xqos(dds_qos_t *q, const struct ddsi_proxy_parti
   }
 }
 
-static void translate_pp_lease_duration (dds_qos_t *qos, const ddsi_plist_t *plist)
-{
-  // Participant lease duration doesn't play by the rules because it doesn't officially exist as a QoS
-  // and we make it available via the liveliness QoS setting
-  assert (plist->present & PP_PARTICIPANT_LEASE_DURATION);
-  qos->present |= DDSI_QP_LIVELINESS;
-  qos->liveliness.kind = DDS_LIVELINESS_AUTOMATIC;
-  qos->liveliness.lease_duration = plist->participant_lease_duration;
-}
-
 static void from_entity_pp (struct ddsi_serdata_builtintopic_participant *d, const struct ddsi_participant *pp)
 {
   ddsi_xqos_copy(&d->common.xqos, &pp->plist->qos);
   ddsi_xqos_add_property_if_unset(&d->common.xqos, true, DDS_BUILTIN_TOPIC_PARTICIPANT_PROPERTY_NETWORKADDRESSES, "localprocess");
   d->pphandle = pp->e.iid;
-  translate_pp_lease_duration (&d->common.xqos, pp->plist);
 }
 
 static void from_entity_proxypp (struct ddsi_serdata_builtintopic_participant *d, const struct ddsi_proxy_participant *proxypp)
@@ -181,7 +170,6 @@ static void from_entity_proxypp (struct ddsi_serdata_builtintopic_participant *d
   ddsi_xqos_copy(&d->common.xqos, &proxypp->plist->qos);
   add_pp_addresses_to_xqos(&d->common.xqos, proxypp);
   d->pphandle = proxypp->e.iid;
-  translate_pp_lease_duration (&d->common.xqos, proxypp->plist);
 }
 
 static void from_qos (struct ddsi_serdata_builtintopic *d, const dds_qos_t *xqos)

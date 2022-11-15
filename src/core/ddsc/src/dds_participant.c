@@ -131,11 +131,6 @@ dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_
   ddsi_plist_init_empty (&plist);
   ddsi_xqos_mergein_missing (&plist.qos, new_qos, ~(uint64_t)0);
 
-  // Participants don't have a liveliness QoS according to the spec, that's a Cyclone
-  // extension.  DDSI has a "participant lease duration" parameter.
-  plist.participant_lease_duration = new_qos->liveliness.lease_duration;
-  plist.present |= PP_PARTICIPANT_LEASE_DURATION;
-
   ddsi_thread_state_awake (ddsi_lookup_thread_state (), &dom->gv);
   ret = ddsi_new_participant (&guid, &dom->gv, 0, &plist);
   ddsi_thread_state_asleep (ddsi_lookup_thread_state ());

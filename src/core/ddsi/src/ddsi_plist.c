@@ -76,6 +76,7 @@ struct dd {
   unsigned bswap: 1;
   ddsi_protocol_version_t protocol_version;
   ddsi_vendorid_t vendorid;
+  enum ddsi_plist_context_kind context_kind;
 };
 
 #define PDF_QOS        1 /* part of dds_qos_t */
@@ -101,8 +102,8 @@ struct piddesc {
        will fit */
     const enum ddsi_pserop desc[12];
     struct {
-dds_return_t (*deser) (void * __restrict dst, struct flagset *flagset, uint64_t flag, const struct dd * __restrict dd, struct ddsi_domaingv const * const gv);
-      dds_return_t (*ser) (struct ddsi_xmsg *xmsg, ddsi_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo);
+      dds_return_t (*deser) (void * __restrict dst, struct flagset *flagset, uint64_t flag, const struct dd * __restrict dd, struct ddsi_domaingv const * const gv);
+      dds_return_t (*ser) (struct ddsi_xmsg *xmsg, ddsi_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo, enum ddsi_plist_context_kind context_kind);
       dds_return_t (*unalias) (void * __restrict dst, size_t * __restrict dstoff, bool gen_seq_aliased);
       dds_return_t (*fini) (void * __restrict dst, size_t * __restrict dstoff, struct flagset *flagset, uint64_t flag);
       dds_return_t (*valid) (const void *src, size_t srcoff);
@@ -129,10 +130,12 @@ static dds_return_t final_validation_qos (const dds_qos_t *dest, ddsi_protocol_v
 static int partitions_equal (const void *srca, const void *srcb, size_t off);
 static dds_return_t ddsi_xqos_valid_strictness (const struct ddsrt_log_cfg *logcfg, const dds_qos_t *xqos, bool strict);
 static dds_return_t unalias_generic (void * __restrict dst, size_t * __restrict dstoff, bool gen_seq_aliased, const enum ddsi_pserop * __restrict desc);
+static dds_return_t deser_generic (void * __restrict dst, struct flagset *flagset, uint64_t flag, const struct dd * __restrict dd, const enum ddsi_pserop * __restrict desc);
 static dds_return_t ser_generic (struct ddsi_xmsg *xmsg, ddsi_parameterid_t pid, const void *src, size_t srcoff, const enum ddsi_pserop * __restrict desc, enum ddsrt_byte_order_selector bo);
 static bool equal_generic (const void *srcx, const void *srcy, size_t srcoff, const enum ddsi_pserop * __restrict desc);
 static dds_return_t fini_generic (void * __restrict dst, size_t * __restrict dstoff, struct flagset *flagset, uint64_t flag, const enum ddsi_pserop * __restrict desc);
 static dds_return_t valid_generic (const void *src, size_t srcoff, const enum ddsi_pserop * __restrict desc);
+static bool print_generic (char * __restrict *buf, size_t * __restrict bufsize, const void *src, size_t srcoff, const enum ddsi_pserop * __restrict desc);
 
 static size_t pserop_seralign(enum ddsi_pserop op)
 {
@@ -338,8 +341,9 @@ static dds_return_t deser_reliability (void * __restrict dst, struct flagset *fl
   return 0;
 }
 
-static dds_return_t ser_reliability (struct ddsi_xmsg *xmsg, ddsi_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo)
+static dds_return_t ser_reliability (struct ddsi_xmsg *xmsg, ddsi_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo, enum ddsi_plist_context_kind context_kind)
 {
+  (void) context_kind;
   DDSRT_STATIC_ASSERT (DDS_EXTERNAL_RELIABILITY_BEST_EFFORT == 1 && DDS_EXTERNAL_RELIABILITY_RELIABLE == 2 &&
                        DDS_RELIABILITY_BEST_EFFORT == 0 && DDS_RELIABILITY_RELIABLE == 1);
   dds_reliability_qospolicy_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (dds_reliability_qospolicy_t));
@@ -389,8 +393,9 @@ static dds_return_t deser_statusinfo (void * __restrict dst, struct flagset *fla
   return 0;
 }
 
-static dds_return_t ser_statusinfo (struct ddsi_xmsg *xmsg, ddsi_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo)
+static dds_return_t ser_statusinfo (struct ddsi_xmsg *xmsg, ddsi_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo, enum ddsi_plist_context_kind context_kind)
 {
+  (void) context_kind;
   uint32_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (uint32_t));
   uint32_t * const p = ddsi_xmsg_addpar_bo (xmsg, pid, sizeof (uint32_t), bo);
   *p = ddsrt_toBE4u (*x);
@@ -429,8 +434,9 @@ static dds_return_t deser_locator (void * __restrict dst, struct flagset *flagse
   return 0;
 }
 
-static dds_return_t ser_locator (struct ddsi_xmsg *xmsg, ddsi_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo)
+static dds_return_t ser_locator (struct ddsi_xmsg *xmsg, ddsi_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo, enum ddsi_plist_context_kind context_kind)
 {
+  (void) context_kind;
   ddsi_locators_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (ddsi_locators_t));
   for (const struct ddsi_locators_one *l = x->first; l != NULL; l = l->next)
   {
@@ -563,8 +569,9 @@ static dds_return_t deser_type_consistency (void * __restrict dst, struct flagse
   return 0;
 }
 
-static dds_return_t ser_type_consistency (struct ddsi_xmsg *xmsg, ddsi_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo)
+static dds_return_t ser_type_consistency (struct ddsi_xmsg *xmsg, ddsi_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo, enum ddsi_plist_context_kind context_kind)
 {
+  (void) context_kind;
   dds_type_consistency_enforcement_qospolicy_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (dds_type_consistency_enforcement_qospolicy_t));
   char * const p = ddsi_xmsg_addpar_bo (xmsg, pid, 8, bo);
   const uint16_t kind = ddsrt_toBO2u (bo, (uint16_t) x->kind);
@@ -605,7 +612,91 @@ static bool print_type_consistency (char * __restrict *buf, size_t * __restrict 
   return prtf (buf, bufsize, "%d:%d%d%d%d%d", (int) x->kind, x->ignore_sequence_bounds, x->ignore_string_bounds, x->ignore_member_names, x->prevent_type_widening, x->force_type_validation);
 }
 
-const enum ddsi_pserop desc_data_representation[] =  { XQ, Xs, XSTOP, XSTOP };
+static const enum ddsi_pserop desc_liveliness[] = { XE2, XD, XSTOP };
+
+static dds_return_t validate_liveliness_kind (uint32_t kind)
+{
+  switch (kind)
+  {
+    case DDS_LIVELINESS_AUTOMATIC:
+    case DDS_LIVELINESS_MANUAL_BY_PARTICIPANT:
+    case DDS_LIVELINESS_MANUAL_BY_TOPIC:
+      return 0;
+  }
+  return DDS_RETCODE_BAD_PARAMETER;
+}
+
+static dds_return_t deser_liveliness (void * __restrict dst, struct flagset *flagset, uint64_t flag, const struct dd * __restrict dd, struct ddsi_domaingv const * const gv)
+{
+  (void) flag; (void) gv;
+  size_t srcoff = 0, dstoff = 0;
+  dds_liveliness_qospolicy_t * const x = deser_generic_dst (dst, &dstoff, dds_alignof (dds_liveliness_qospolicy_t));
+  switch (dd->context_kind)
+  {
+    case DDSI_PLIST_CONTEXT_PARTICIPANT: {
+      x->kind = DDS_LIVELINESS_AUTOMATIC;
+      break;
+    }
+    case DDSI_PLIST_CONTEXT_ENDPOINT: {
+      uint32_t kind;
+      if (deser_uint32 (&kind, dd, &srcoff) < 0 || validate_liveliness_kind (kind) != 0)
+        return DDS_RETCODE_BAD_PARAMETER;
+      x->kind = (dds_liveliness_kind_t) kind;
+      break;
+    }
+  }
+  ddsi_duration_t tmp;
+  if (deser_uint32 ((uint32_t *) &tmp.seconds, dd, &srcoff) < 0 ||
+      deser_uint32 (&tmp.fraction, dd, &srcoff) < 0 ||
+      validate_external_duration (&tmp) != 0)
+    return DDS_RETCODE_BAD_PARAMETER;
+  x->lease_duration = ddsi_duration_to_dds (tmp);
+  *flagset->present |= DDSI_QP_LIVELINESS;
+  return 0;
+}
+
+static dds_return_t ser_liveliness (struct ddsi_xmsg *xmsg, ddsi_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo, enum ddsi_plist_context_kind context_kind)
+{
+  (void) pid;
+  dds_liveliness_qospolicy_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (dds_liveliness_qospolicy_t));
+  switch (context_kind)
+  {
+    case DDSI_PLIST_CONTEXT_PARTICIPANT: {
+      uint32_t * const p = ddsi_xmsg_addpar_bo (xmsg, DDSI_PID_PARTICIPANT_LEASE_DURATION, sizeof (ddsi_duration_t), bo);
+      const ddsi_duration_t tmp = ddsi_duration_from_dds (x->lease_duration);
+      assert (x->kind == DDS_LIVELINESS_AUTOMATIC);
+      p[0] = ddsrt_toBO4u(bo, (uint32_t) tmp.seconds);
+      p[1] = ddsrt_toBO4u(bo, tmp.fraction);
+      break;
+    }
+    case DDSI_PLIST_CONTEXT_ENDPOINT: {
+      uint32_t * const p = ddsi_xmsg_addpar_bo (xmsg, DDSI_PID_LIVELINESS, sizeof (uint32_t) + sizeof (ddsi_duration_t), bo);
+      const ddsi_duration_t tmp = ddsi_duration_from_dds (x->lease_duration);
+      p[0] = ddsrt_toBO4u(bo, (uint32_t) x->kind);
+      p[1] = ddsrt_toBO4u(bo, (uint32_t) tmp.seconds);
+      p[2] = ddsrt_toBO4u(bo, tmp.fraction);
+      break;
+    }
+  }
+  return 0;
+}
+
+static dds_return_t valid_liveliness (const void *src, size_t srcoff)
+{
+  return valid_generic (src, srcoff, desc_liveliness);
+}
+
+static bool equal_liveliness (const void *srcx, const void *srcy, size_t srcoff)
+{
+  return equal_generic (srcx, srcy, srcoff, desc_liveliness);
+}
+
+static bool print_liveliness (char * __restrict *buf, size_t * __restrict bufsize, const void *src, size_t srcoff)
+{
+  return print_generic (buf, bufsize, src, srcoff, desc_liveliness);
+}
+
+static const enum ddsi_pserop desc_data_representation[] =  { XQ, Xs, XSTOP, XSTOP };
 
 static dds_return_t deser_data_representation (void * __restrict dst, struct flagset *flagset, uint64_t flag, const struct dd * __restrict dd, struct ddsi_domaingv const * const gv)
 {
@@ -636,8 +727,9 @@ static dds_return_t deser_data_representation (void * __restrict dst, struct fla
   return 0;
 }
 
-static dds_return_t ser_data_representation (struct ddsi_xmsg *xmsg, ddsi_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo)
+static dds_return_t ser_data_representation (struct ddsi_xmsg *xmsg, ddsi_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo, enum ddsi_plist_context_kind context_kind)
 {
+  (void) context_kind;
   return ser_generic (xmsg, pid, src, srcoff, desc_data_representation, bo);
 }
 
@@ -705,8 +797,9 @@ err_normalize:
   return ret;
 }
 
-static dds_return_t ser_type_information (struct ddsi_xmsg *xmsg, ddsi_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo)
+static dds_return_t ser_type_information (struct ddsi_xmsg *xmsg, ddsi_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo, enum ddsi_plist_context_kind context_kind)
 {
+  (void) context_kind;
   ddsi_typeinfo_t const * const * x = deser_generic_src (src, &srcoff, dds_alignof (ddsi_typeinfo_t *));
 
   dds_ostream_t os = { .m_buffer = NULL, .m_index = 0, .m_size = 0, .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
@@ -1094,6 +1187,7 @@ dds_return_t ddsi_plist_deser_generic_srcoff (void * __restrict dst, const void 
     .bswap = bswap,
     .protocol_version = {0,0},
     .vendorid = DDSI_VENDORID_ECLIPSE,
+    .context_kind = DDSI_PLIST_CONTEXT_ENDPOINT // actually: don't care
   };
   uint64_t present = 0, aliased = 0;
   struct flagset fs = { .present = &present, .aliased = &aliased, .wanted = 1 };
@@ -1378,7 +1472,7 @@ static dds_return_t unalias_generic (void * __restrict dst, size_t * __restrict 
         return 0;
       case XO: COMPLEX (XO, ddsi_octetseq_t, if (x->value) { x->value = ddsrt_memdup (x->value, x->length); }); break;
       case XS: COMPLEX (XS, char *, if (*x) { *x = ddsrt_strdup (*x); }); break;
-      case XE1: case XE2: case XE3: COMPLEX (*desc, unsigned, (void) 0); break;
+      case XE1: case XE2: case XE3: COMPLEX (*desc, uint32_t, (void) 0); break;
       case Xs: SIMPLE (Xs, int16_t); break;
       case Xi: case Xix2: case Xix3: case Xix4: SIMPLE (Xi, int32_t); break;
       case Xu: case Xux2: case Xux3: case Xux4: case Xux5: SIMPLE (Xu, uint32_t); break;
@@ -1879,7 +1973,10 @@ static const struct piddesc piddesc_omg[] = {
   QPV (DURABILITY_SERVICE,                  durability_service, XD, XE1, Xix4),
   QP  (DEADLINE,                            deadline, XD),
   QP  (LATENCY_BUDGET,                      latency_budget, XD),
-  QP  (LIVELINESS,                          liveliness, XE2, XD),
+  //QP  (LIVELINESS,                          liveliness, XE2, XD),
+  { DDSI_PID_LIVELINESS, PDF_QOS | PDF_FUNCTION, DDSI_QP_LIVELINESS, "LIVELINESS",
+    offsetof (struct ddsi_plist, qos.liveliness), membersize (struct ddsi_plist, qos.liveliness),
+    { .f = { .deser = deser_liveliness, .ser = ser_liveliness, .valid = valid_liveliness, .equal = equal_liveliness, .print = print_liveliness } }, 0 },
   /* Property list used to be of type [(String,String]), security changed into ([String,String],Maybe [(String,[Word8])]),
      the "Xopt" here is to allow both forms on input, with an assumed empty second sequence if the old form was received */
   QP  (PROPERTY_LIST,                       property, XQ, XbPROP, XS, XS, XSTOP, Xopt, XQ, XbPROP, XS, XO, XSTOP),
@@ -1916,7 +2013,6 @@ static const struct piddesc piddesc_omg[] = {
   PP  (EXPECTS_INLINE_QOS,                  expects_inline_qos, Xb),
   PP  (PARTICIPANT_MANUAL_LIVELINESS_COUNT, participant_manual_liveliness_count, Xi),
   PP  (PARTICIPANT_BUILTIN_ENDPOINTS,       participant_builtin_endpoints, Xu),
-  PP  (PARTICIPANT_LEASE_DURATION,          participant_lease_duration, XD),
   PPV (PARTICIPANT_GUID,                    participant_guid, XG),
   PPV (GROUP_GUID,                          group_guid, XG),
   PP  (BUILTIN_ENDPOINT_SET,                builtin_endpoint_set, Xu),
@@ -2381,7 +2477,7 @@ static void plist_or_xqos_mergein_missing (void * __restrict dst, const void * _
   assert ((*qfs_dst.aliased & ~ aliased_dst_inq) == 0);
 }
 
-static void plist_or_xqos_addtomsg (struct ddsi_xmsg *xmsg, const void * __restrict src, size_t shift, uint64_t pwanted, uint64_t qwanted, enum ddsrt_byte_order_selector bo)
+static void plist_or_xqos_addtomsg (struct ddsi_xmsg *xmsg, const void * __restrict src, size_t shift, uint64_t pwanted, uint64_t qwanted, enum ddsrt_byte_order_selector bo, enum ddsi_plist_context_kind context_kind)
 {
   /* shift == 0: plist, shift > 0: just qos */
   uint64_t pw, qw;
@@ -2413,7 +2509,7 @@ static void plist_or_xqos_addtomsg (struct ddsi_xmsg *xmsg, const void * __restr
         if (!(entry->flags & PDF_FUNCTION))
           ser_generic (xmsg, entry->pid, src, srcoff, entry->op.desc, bo);
         else
-          entry->op.f.ser (xmsg, entry->pid, src, srcoff, bo);
+          entry->op.f.ser (xmsg, entry->pid, src, srcoff, bo, context_kind);
       }
     }
   }
@@ -2929,6 +3025,23 @@ static dds_return_t return_unrecognized_pid (ddsi_plist_t *plist, ddsi_parameter
 
 static dds_return_t init_one_parameter (ddsi_plist_t *plist, ddsi_ipaddress_params_tmp_t *dest_tmp, uint64_t pwanted, uint64_t qwanted, uint16_t pid, const struct dd *dd, struct ddsi_domaingv const * const gv)
 {
+  /* PID_LIVELINESS and PID_PARTICIPANT_LEASE_DURATION need some preprocessing because
+     they are both considered "liveliness" by Cyclone, but the spec has the former not
+     for participants and the latter only for participants */
+  switch (dd->context_kind)
+  {
+    case DDSI_PLIST_CONTEXT_PARTICIPANT:
+      if (pid == DDSI_PID_LIVELINESS)
+        return 0;
+      if (pid == DDSI_PID_PARTICIPANT_LEASE_DURATION)
+        pid = DDSI_PID_LIVELINESS;
+      break;
+    case DDSI_PLIST_CONTEXT_ENDPOINT:
+      if (pid == DDSI_PID_PARTICIPANT_LEASE_DURATION)
+        return 0;
+      break;
+  }
+
   /* special-cased ipv4address and port, because they have state beyond that what gets
      passed into the generic code */
   switch (pid)
@@ -3143,7 +3256,7 @@ static dds_return_t final_validation (ddsi_plist_t *dest, ddsi_protocol_version_
   return final_validation_qos (&dest->qos, protocol_version, vendorid, dursvc_accepted_allzero, strict);
 }
 
-dds_return_t ddsi_plist_init_frommsg (ddsi_plist_t *dest, char **nextafterplist, uint64_t pwanted, uint64_t qwanted, const ddsi_plist_src_t *src, struct ddsi_domaingv const * const gv)
+dds_return_t ddsi_plist_init_frommsg (ddsi_plist_t *dest, char **nextafterplist, uint64_t pwanted, uint64_t qwanted, const ddsi_plist_src_t *src, struct ddsi_domaingv const * const gv, enum ddsi_plist_context_kind context_kind)
 {
   const unsigned char *pl;
   struct dd dd;
@@ -3157,6 +3270,7 @@ dds_return_t ddsi_plist_init_frommsg (ddsi_plist_t *dest, char **nextafterplist,
     *nextafterplist = NULL;
   dd.protocol_version = src->protocol_version;
   dd.vendorid = src->vendorid;
+  dd.context_kind = context_kind;
   switch (src->encoding)
   {
     case DDSI_RTPS_PL_CDR_LE:
@@ -3417,11 +3531,13 @@ const ddsi_plist_t ddsi_default_plist_participant = {
   .present = 0,
   .aliased = 0,
   .qos = {
-    .present = DDSI_QP_ADLINK_ENTITY_FACTORY | DDSI_QP_USER_DATA,
+    .present = DDSI_QP_ADLINK_ENTITY_FACTORY | DDSI_QP_USER_DATA | DDSI_QP_LIVELINESS,
     .aliased = 0,
     .entity_factory.autoenable_created_entities = 0,
     .user_data.length = 0,
-    .user_data.value = NULL
+    .user_data.value = NULL,
+    .liveliness.kind = DDS_LIVELINESS_AUTOMATIC,
+    .liveliness.lease_duration = DDS_SECS (100)
   }
 };
 
@@ -3813,17 +3929,18 @@ static int partitions_equal (const void *srca, const void *srcb, size_t off)
 
 void ddsi_xqos_addtomsg (struct ddsi_xmsg *m, const dds_qos_t *xqos, uint64_t wanted)
 {
-  plist_or_xqos_addtomsg (m, xqos, offsetof (struct ddsi_plist, qos), 0, wanted, DDSRT_BOSEL_NATIVE);
+  // FIXME: not sure it is wise to hard-code the context here
+  plist_or_xqos_addtomsg (m, xqos, offsetof (struct ddsi_plist, qos), 0, wanted, DDSRT_BOSEL_NATIVE, DDSI_PLIST_CONTEXT_ENDPOINT);
 }
 
-void ddsi_plist_addtomsg_bo (struct ddsi_xmsg *m, const ddsi_plist_t *ps, uint64_t pwanted, uint64_t qwanted, enum ddsrt_byte_order_selector bo)
+void ddsi_plist_addtomsg_bo (struct ddsi_xmsg *m, const ddsi_plist_t *ps, uint64_t pwanted, uint64_t qwanted, enum ddsrt_byte_order_selector bo, enum ddsi_plist_context_kind context_kind)
 {
-  plist_or_xqos_addtomsg (m, ps, 0, pwanted, qwanted, bo);
+  plist_or_xqos_addtomsg (m, ps, 0, pwanted, qwanted, bo, context_kind);
 }
 
-void ddsi_plist_addtomsg (struct ddsi_xmsg *m, const ddsi_plist_t *ps, uint64_t pwanted, uint64_t qwanted)
+void ddsi_plist_addtomsg (struct ddsi_xmsg *m, const ddsi_plist_t *ps, uint64_t pwanted, uint64_t qwanted, enum ddsi_plist_context_kind context_kind)
 {
-  plist_or_xqos_addtomsg (m, ps, 0, pwanted, qwanted, DDSRT_BOSEL_NATIVE);
+  plist_or_xqos_addtomsg (m, ps, 0, pwanted, qwanted, DDSRT_BOSEL_NATIVE, context_kind);
 }
 
 /*************************/
