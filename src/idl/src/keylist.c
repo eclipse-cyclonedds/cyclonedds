@@ -144,16 +144,16 @@ static struct key_container *key_containers_append (struct key_containers *kcs, 
   return boxed_vector_append_with_failure_action (&kcs->key_containers, kc, key_container_free_wrapper);
 }
 
-static const struct key_container *key_containers_first (const struct key_containers *kcs, struct key_containers_iter *it) {
+static const struct key_container *key_containers_first_c (const struct key_containers *kcs, struct key_containers_iter *it) {
   return idl_boxed_vector_first_c (&kcs->key_containers, &it->x);
 }
-static const struct key_container *key_containers_next (struct key_containers_iter *it) {
+static const struct key_container *key_containers_next_c (struct key_containers_iter *it) {
   return idl_boxed_vector_next_c (&it->x);
 }
-static struct key_container *key_containers_first_nc (struct key_containers *kcs, struct key_containers_iter *it) {
+static struct key_container *key_containers_first (struct key_containers *kcs, struct key_containers_iter *it) {
   return idl_boxed_vector_first (&kcs->key_containers, &it->x);
 }
-static struct key_container *key_containers_next_nc (struct key_containers_iter *it) {
+static struct key_container *key_containers_next (struct key_containers_iter *it) {
   return idl_boxed_vector_next (&it->x);
 }
 
@@ -167,7 +167,7 @@ static int cmp_parent_path (const void *a, const void *b)
 static void sort_parent_paths (struct key_containers *key_containers)
 {
   struct key_containers_iter it;
-  for (struct key_container *cntr = key_containers_first_nc (key_containers, &it); cntr; cntr = key_containers_next_nc (&it))
+  for (struct key_container *cntr = key_containers_first (key_containers, &it); cntr; cntr = key_containers_next (&it))
   {
     struct key_container_iter kcit;
     for (struct key_field *fld = key_container_first (cntr, &kcit); fld; fld = key_container_next (&kcit))
@@ -179,7 +179,7 @@ static bool has_conflicting_keys(const struct key_containers *key_containers, co
 {
   assert (node);
   struct key_containers_iter it;
-  for (const struct key_container *cntr = key_containers_first (key_containers, &it); cntr; cntr = key_containers_next (&it))
+  for (const struct key_container *cntr = key_containers_first_c (key_containers, &it); cntr; cntr = key_containers_next_c (&it))
   {
     /* For all keys in a key_container (struct), check if the set of parent nodes is
        equal. The parent path of a key is the list of fields that form the key,
@@ -221,7 +221,7 @@ static bool has_conflicting_keys(const struct key_containers *key_containers, co
 static struct key_container *get_key_container (const idl_node_t *key_type_node, struct key_containers *key_containers)
 {
   struct key_containers_iter it;
-  for (struct key_container *kc = key_containers_first_nc (key_containers, &it); kc; kc = key_containers_next_nc (&it))
+  for (struct key_container *kc = key_containers_first (key_containers, &it); kc; kc = key_containers_next (&it))
     if (kc->node == key_type_node)
       return kc;
   return key_containers_append (key_containers, key_type_node);
