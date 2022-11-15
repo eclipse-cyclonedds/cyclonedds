@@ -16,7 +16,7 @@
 #include "dds/ddsrt/string.h"
 #include "ddsi__entity.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
-#include "dds/ddsi/q_transmit.h"
+#include "ddsi__transmit.h"
 #include "ddsi__misc.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "ddsi__entity_index.h"

@@ -75,7 +75,7 @@ set(srcs_ddsi
   ddsi_receive.c
   ddsi_sockwaitset.c
   ddsi_thread.c
-  q_transmit.c
+  ddsi_transmit.c
   ddsi_inverse_uint32_set.c
   q_whc.c
   q_xevent.c
@@ -134,7 +134,7 @@ set(hdrs_ddsi
   ddsi_init.h
   ddsi_sockwaitset.h
   ddsi_thread.h
-  q_transmit.h
+  ddsi_transmit.h
   ddsi_unused.h
   q_whc.h
   q_xevent.h
@@ -199,6 +199,7 @@ set(hdrs_private_ddsi
   ddsi__receive.h
   ddsi__sockwaitset.h
   ddsi__thread.h
+  ddsi__transmit.h
 )
 
 if(ENABLE_LIFESPAN)

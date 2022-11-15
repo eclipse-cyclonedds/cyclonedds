@@ -23,7 +23,7 @@
 #include "dds/ddsi/ddsi_entity.h"
 #include "ddsi__radmin.h"
 #include "dds/ddsi/ddsi_plist.h"
-#include "dds/ddsi/q_transmit.h"
+#include "ddsi__transmit.h"
 #include "ddsi__receive.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "ddsi__addrset.h"

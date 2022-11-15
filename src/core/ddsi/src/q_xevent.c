@@ -28,7 +28,7 @@
 #include "dds/ddsi/ddsi_unused.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "ddsi__entity_index.h"
-#include "dds/ddsi/q_transmit.h"
+#include "ddsi__transmit.h"
 #include "ddsi__entity.h"
 #include "ddsi__participant.h"
 #include "dds/ddsi/ddsi_endpoint.h"
@@ -950,7 +950,7 @@ static bool resend_spdp_sample_by_guid_key (struct ddsi_writer *wr, const ddsi_g
        updating of the last transmitted sequence number won't take
        place anyway.  Nor is it necessary to fiddle with heartbeat
        control stuff. */
-    enqueue_spdp_sample_wrlock_held (wr, sample.seq, sample.serdata, prd);
+    ddsi_enqueue_spdp_sample_wrlock_held (wr, sample.seq, sample.serdata, prd);
     whc_return_sample(wr->whc, &sample, false);
   }
   ddsrt_mutex_unlock (&wr->e.lock);

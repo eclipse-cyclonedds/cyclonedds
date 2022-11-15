@@ -19,7 +19,7 @@
 #include "dds/ddsi/ddsi_rhc.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/cdr/dds_cdrstream.h"
-#include "dds/ddsi/q_transmit.h"
+#include "dds/ddsi/ddsi_transmit.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_entity.h"
@@ -242,8 +242,8 @@ static struct ddsi_serdata_any *convert_serdata(struct ddsi_writer *ddsi_wr, str
 
 static dds_return_t deliver_data_network (struct ddsi_thread_state * const thrst, struct ddsi_writer *ddsi_wr, struct ddsi_serdata_any *d, struct nn_xpack *xp, bool flush, struct ddsi_tkmap_instance *tk)
 {
-  // write_sample_gc always consumes 1 refc from d
-  int ret = write_sample_gc (thrst, xp, ddsi_wr, &d->a, tk);
+  // ddsi_write_sample_gc always consumes 1 refc from d
+  int ret = ddsi_write_sample_gc (thrst, xp, ddsi_wr, &d->a, tk);
   if (ret >= 0)
   {
     /* Flush out write unless configured to batch */

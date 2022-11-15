@@ -33,7 +33,7 @@
 #include "dds/ddsi/ddsi_gc.h"
 #include "ddsi__protocol.h"
 #include "ddsi__radmin.h"
-#include "dds/ddsi/q_transmit.h"
+#include "ddsi__transmit.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "ddsi__misc.h"
 #include "ddsi__typelib.h"
@@ -216,7 +216,7 @@ bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const ddsi_typeid_t 
   ddsi_thread_state_awake (ddsi_lookup_thread_state (), gv);
   GVTRACE ("wr "PGUIDFMT" typeid %s\n", PGUID (wr->e.guid), ddsi_make_typeid_str (&tidstr, type_id));
   struct ddsi_tkmap_instance *tk = ddsi_tkmap_lookup_instance_ref (gv->m_tkmap, serdata);
-  write_sample_gc (ddsi_lookup_thread_state (), NULL, wr, serdata, tk);
+  ddsi_write_sample_gc (ddsi_lookup_thread_state (), NULL, wr, serdata, tk);
   ddsi_tkmap_instance_unref (gv->m_tkmap, tk);
   ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
 
@@ -254,7 +254,7 @@ static void write_typelookup_reply (struct ddsi_writer *wr, ddsi_seqno_t seqno, 
 
   GVTRACE ("wr "PGUIDFMT"\n", PGUID (wr->e.guid));
   struct ddsi_tkmap_instance *tk = ddsi_tkmap_lookup_instance_ref (gv->m_tkmap, serdata);
-  write_sample_gc (ddsi_lookup_thread_state (), NULL, wr, serdata, tk);
+  ddsi_write_sample_gc (ddsi_lookup_thread_state (), NULL, wr, serdata, tk);
   ddsi_tkmap_instance_unref (gv->m_tkmap, tk);
 }
 

@@ -48,7 +48,7 @@
 #include "ddsi__receive.h"
 #include "ddsi__rhc.h"
 #include "dds/ddsi/ddsi_deliver_locally.h"
-#include "dds/ddsi/q_transmit.h"
+#include "ddsi__transmit.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "ddsi__mcgroup.h"
@@ -735,7 +735,7 @@ static void defer_heartbeat_to_peer (struct ddsi_writer *wr, const struct whc_st
 
   defer_hb_state->m = nn_xmsg_new (wr->e.gv->xmsgpool, &wr->e.guid, wr->c.pp, 0, NN_XMSG_KIND_CONTROL);
   nn_xmsg_setdstPRD (defer_hb_state->m, prd);
-  add_Heartbeat (defer_hb_state->m, wr, whcst, hbansreq, 0, prd->e.guid.entityid, 0);
+  ddsi_add_heartbeat (defer_hb_state->m, wr, whcst, hbansreq, 0, prd->e.guid.entityid, 0);
   defer_hb_state->evq = wr->evq;
   defer_hb_state->hbansreq = hbansreq;
   defer_hb_state->wr_iid = wr->e.iid;
@@ -1032,13 +1032,13 @@ static int handle_AckNack (struct ddsi_receiver_state *rst, ddsrt_etime_t tnow, 
           if (tstamp.v > sample.last_rexmit_ts.v + rst->gv->config.retransmit_merging_period)
           {
             RSTTRACE (" RX%"PRIu64, seqbase + i);
-            enqueued = (enqueue_sample_wrlock_held (wr, seq, sample.serdata, NULL, 0) >= 0);
+            enqueued = (ddsi_enqueue_sample_wrlock_held (wr, seq, sample.serdata, NULL, 0) >= 0);
             if (enqueued)
             {
               max_seq_in_reply = seqbase + i;
               msgs_sent++;
               sample.last_rexmit_ts = tstamp;
-              // FIXME: now enqueue_sample_wrlock_held limits retransmit requests of a large sample to 1 fragment
+              // FIXME: now ddsi_enqueue_sample_wrlock_held limits retransmit requests of a large sample to 1 fragment
               // thus we can easily figure out how much was sent, but we shouldn't have that knowledge here:
               // it should return how much it queued instead
               uint32_t sent = ddsi_serdata_size (sample.serdata);
@@ -1063,13 +1063,13 @@ static int handle_AckNack (struct ddsi_receiver_state *rst, ddsrt_etime_t tnow, 
           {
             /* no merging, send directed retransmit */
             RSTTRACE (" RX%"PRIu64"", seqbase + i);
-            enqueued = (enqueue_sample_wrlock_held (wr, seq, sample.serdata, prd, 0) >= 0);
+            enqueued = (ddsi_enqueue_sample_wrlock_held (wr, seq, sample.serdata, prd, 0) >= 0);
             if (enqueued)
             {
               max_seq_in_reply = seqbase + i;
               msgs_sent++;
               sample.rexmit_count++;
-              // FIXME: now enqueue_sample_wrlock_held limits retransmit requests of a large sample to 1 fragment
+              // FIXME: now ddsi_enqueue_sample_wrlock_held limits retransmit requests of a large sample to 1 fragment
               // thus we can easily figure out how much was sent, but we shouldn't have that knowledge here:
               // it should return how much it queued instead
               uint32_t sent = ddsi_serdata_size (sample.serdata);
@@ -1669,7 +1669,7 @@ static int handle_NackFrag (struct ddsi_receiver_state *rst, ddsrt_etime_t tnow,
       if (ddsi_bitset_isset (msg->fragmentNumberState.numbits, msg->bits, i))
       {
         struct nn_xmsg *reply;
-        if (create_fragment_message (wr, seq, sample.serdata, base + i, 1, prd, &reply, 0, 0) < 0)
+        if (ddsi_create_fragment_message (wr, seq, sample.serdata, base + i, 1, prd, &reply, 0, 0) < 0)
           nfrags_lim = 0;
         else if (qxev_msg_rexmit_wrlock_held (wr->evq, reply, 0) == QXEV_MSG_REXMIT_DROPPED)
           nfrags_lim = 0;

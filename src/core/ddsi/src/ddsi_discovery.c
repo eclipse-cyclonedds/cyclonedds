@@ -42,7 +42,7 @@
 #include "dds/ddsi/ddsi_proxy_endpoint.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/q_xmsg.h"
-#include "dds/ddsi/q_transmit.h"
+#include "ddsi__transmit.h"
 #include "ddsi__lease.h"
 #include "dds/ddsi/ddsi_feature_check.h"
 #include "ddsi__security_omg.h"
@@ -533,7 +533,7 @@ static int write_and_fini_plist (struct ddsi_writer *wr, ddsi_plist_t *ps, bool 
   ddsi_plist_fini (ps);
   serdata->statusinfo = alive ? 0 : (DDSI_STATUSINFO_DISPOSE | DDSI_STATUSINFO_UNREGISTER);
   serdata->timestamp = ddsrt_time_wallclock ();
-  return write_sample_nogc_notk (ddsi_lookup_thread_state (), NULL, wr, serdata);
+  return ddsi_write_sample_nogc_notk (ddsi_lookup_thread_state (), NULL, wr, serdata);
 }
 
 int ddsi_spdp_write (struct ddsi_participant *pp)

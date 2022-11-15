@@ -2,7 +2,7 @@
 
 Path traversed by a sample, skipping some trivial functions and functions that are simply
 "more of the same", as well as with a bit of license in the "local subscription bypass"
-(skips straight from `write_sample_gc` to `rhc_store`, which is a bit of a lie when you
+(skips straight from `ddsi_write_sample_gc` to `rhc_store`, which is a bit of a lie when you
 look carefully at the code).  This is annotated with memory allocation activity.
 
 Currently in default configuration, everything from `dds_write` to `sendmsg` happens on
@@ -24,7 +24,7 @@ are transmitted on a separate thread.
       |    (if no readers, undoes the above)
       |
       v
-    write_sample_gc
+    ddsi_write_sample_gc
       |         \
       |          \ (local subscriptiosn bypass)
       |           \

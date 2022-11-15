@@ -26,7 +26,7 @@
 #include "dds/version.h"
 #include "dds/ddsi/ddsi_pmd.h"
 #include "dds/ddsi/ddsi_xqos.h"
-#include "dds/ddsi/q_transmit.h"
+#include "dds/ddsi/ddsi_transmit.h"
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/ddsi_sertype.h"
@@ -1531,7 +1531,7 @@ dds_return_t dds_assert_liveliness (dds_entity_t entity)
     case DDS_KIND_WRITER: {
       if ((rc = dds_entity_lock (entity, DDS_KIND_WRITER, &ewr)) != DDS_RETCODE_OK)
         return rc;
-      if ((rc = write_hb_liveliness (&e->m_domain->gv, &e->m_guid, ((struct dds_writer *)ewr)->m_xp)) != DDS_RETCODE_OK)
+      if ((rc = ddsi_write_hb_liveliness (&e->m_domain->gv, &e->m_guid, ((struct dds_writer *)ewr)->m_xp)) != DDS_RETCODE_OK)
         return rc;
       dds_entity_unlock (e);
       break;

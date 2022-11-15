@@ -25,7 +25,7 @@
 #include "ddsi__misc.h"
 #include "ddsi__protocol.h"
 #include "ddsi__radmin.h"
-#include "dds/ddsi/q_transmit.h"
+#include "ddsi__transmit.h"
 #include "dds/ddsi/q_xmsg.h"
 #include "dds/ddsi/ddsi_pmd.h"
 #include "ddsi__proxy_participant.h"
@@ -81,7 +81,7 @@ void ddsi_write_pmd_message (struct ddsi_thread_state * const thrst, struct nn_x
   serdata->timestamp = ddsrt_time_wallclock ();
 
   tk = ddsi_tkmap_lookup_instance_ref (gv->m_tkmap, serdata);
-  write_sample_nogc (thrst, xp, wr, serdata, tk);
+  ddsi_write_sample_nogc (thrst, xp, wr, serdata, tk);
   ddsi_tkmap_instance_unref (gv->m_tkmap, tk);
 #undef PMD_DATA_LENGTH
 }

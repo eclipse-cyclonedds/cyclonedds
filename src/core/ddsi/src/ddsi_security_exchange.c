@@ -26,7 +26,7 @@
 #include "ddsi__discovery.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/q_xmsg.h"
-#include "dds/ddsi/q_transmit.h"
+#include "ddsi__transmit.h"
 #include "dds/ddsi/ddsi_log.h"
 #include "ddsi__entity.h"
 #include "ddsi__participant.h"
@@ -67,7 +67,7 @@ bool write_auth_handshake_message(const struct ddsi_participant *pp, const struc
 
   serdata = ddsi_serdata_from_sample (wr->type, SDK_DATA, &pmg);
   serdata->timestamp = ddsrt_time_wallclock ();
-  result = enqueue_sample_wrlock_held (wr, seq, serdata, prd, 1) == 0;
+  result = ddsi_enqueue_sample_wrlock_held (wr, seq, serdata, prd, 1) == 0;
   ddsi_serdata_unref (serdata);
   ddsrt_mutex_unlock (&wr->e.lock);
   ddsi_participant_generic_message_deinit(&pmg);
@@ -175,7 +175,7 @@ static bool write_crypto_exchange_message(const struct ddsi_participant *pp, con
   serdata = ddsi_serdata_from_sample (wr->type, SDK_DATA, &pmg);
   serdata->timestamp = ddsrt_time_wallclock ();
   tk = ddsi_tkmap_lookup_instance_ref (gv->m_tkmap, serdata);
-  r = write_sample_p2p_wrlock_held(wr, seq, serdata, tk, prd);
+  r = ddsi_write_sample_p2p_wrlock_held(wr, seq, serdata, tk, prd);
   ddsrt_mutex_unlock (&wr->e.lock);
   ddsi_tkmap_instance_unref (gv->m_tkmap, tk);
   ddsi_serdata_unref (serdata);
