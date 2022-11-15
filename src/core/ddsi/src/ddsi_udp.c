@@ -18,7 +18,7 @@
 #include "dds/ddsrt/sockets.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/static_assert.h"
-#include "ddsi_eth.h"
+#include "ddsi__eth.h"
 #include "ddsi__tran.h"
 #include "ddsi__udp.h"
 #include "ddsi__ipaddr.h"
