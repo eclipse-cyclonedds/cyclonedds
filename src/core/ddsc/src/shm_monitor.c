@@ -19,7 +19,7 @@
 
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_entity_index.h"
-#include "dds/ddsi/q_xmsg.h"
+#include "dds/ddsi/ddsi_xmsg.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/ddsi_rhc.h"
 #include "dds/ddsi/ddsi_serdata.h"

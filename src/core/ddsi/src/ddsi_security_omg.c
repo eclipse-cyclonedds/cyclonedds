@@ -3436,7 +3436,7 @@ bool ddsi_security_decode_datafrag (const struct ddsi_domaingv *gv, struct ddsi_
     return decode_payload (gv, sampleinfo, payloadp, &payloadsz, submsg_len);
 }
 
-void ddsi_security_encode_datareader_submsg (struct nn_xmsg *msg, struct nn_xmsg_marker sm_marker, const struct ddsi_proxy_writer *pwr, const struct ddsi_guid *rd_guid)
+void ddsi_security_encode_datareader_submsg (struct ddsi_xmsg *msg, struct ddsi_xmsg_marker sm_marker, const struct ddsi_proxy_writer *pwr, const struct ddsi_guid *rd_guid)
 {
   /* FIXME: avoid this lookup */
   struct ddsi_reader * const rd = ddsi_entidx_lookup_reader_guid (pwr->e.gv->entity_index, rd_guid);
@@ -3451,25 +3451,25 @@ void ddsi_security_encode_datareader_submsg (struct nn_xmsg *msg, struct nn_xmsg
   size_t dst_len;
 
   /* Make one blob of the current sub-message by appending the serialized payload. */
-  nn_xmsg_submsg_append_refd_payload (msg, sm_marker);
+  ddsi_xmsg_submsg_append_refd_payload (msg, sm_marker);
 
   /* Get the sub-message buffer. */
-  src_buf = nn_xmsg_submsg_from_marker (msg, sm_marker);
-  src_len = nn_xmsg_submsg_size (msg, sm_marker);
+  src_buf = ddsi_xmsg_submsg_from_marker (msg, sm_marker);
+  src_len = ddsi_xmsg_submsg_size (msg, sm_marker);
 
   if (ddsi_omg_security_encode_datareader_submessage (rd, &pwr->e.guid.prefix, src_buf, src_len, &dst_buf, &dst_len))
   {
-    nn_xmsg_submsg_replace (msg, sm_marker, dst_buf, dst_len);
+    ddsi_xmsg_submsg_replace (msg, sm_marker, dst_buf, dst_len);
     ddsrt_free (dst_buf);
   }
   else
   {
     /* The sub-message should have been encoded, which failed. Remove it to prevent it from being send. */
-    nn_xmsg_submsg_remove (msg, sm_marker);
+    ddsi_xmsg_submsg_remove (msg, sm_marker);
   }
 }
 
-void ddsi_security_encode_datawriter_submsg (struct nn_xmsg *msg, struct nn_xmsg_marker sm_marker, struct ddsi_writer *wr)
+void ddsi_security_encode_datawriter_submsg (struct ddsi_xmsg *msg, struct ddsi_xmsg_marker sm_marker, struct ddsi_writer *wr)
 {
   if (!ddsi_omg_writer_is_submessage_protected (wr))
     return;
@@ -3485,24 +3485,24 @@ void ddsi_security_encode_datawriter_submsg (struct nn_xmsg *msg, struct nn_xmsg
   ddsi_guid_prefix_t *dst = NULL;
 
   /* Make one blob of the current sub-message by appending the serialized payload. */
-  nn_xmsg_submsg_append_refd_payload (msg, sm_marker);
+  ddsi_xmsg_submsg_append_refd_payload (msg, sm_marker);
 
   /* Get the sub-message buffer. */
-  src_buf = nn_xmsg_submsg_from_marker (msg, sm_marker);
-  src_len = nn_xmsg_submsg_size (msg, sm_marker);
+  src_buf = ddsi_xmsg_submsg_from_marker (msg, sm_marker);
+  src_len = ddsi_xmsg_submsg_size (msg, sm_marker);
 
-  if (nn_xmsg_getdst1prefix (msg, &dst_guid_prefix))
+  if (ddsi_xmsg_getdst1_prefix (msg, &dst_guid_prefix))
     dst = &dst_guid_prefix;
 
   if (ddsi_omg_security_encode_datawriter_submessage (wr, dst, src_buf, src_len, &dst_buf, &dst_len))
   {
-    nn_xmsg_submsg_replace (msg, sm_marker, dst_buf, dst_len);
+    ddsi_xmsg_submsg_replace (msg, sm_marker, dst_buf, dst_len);
     ddsrt_free (dst_buf);
   }
   else
   {
     /* The sub-message should have been encoded, which failed. Remove it to prevent it from being send. */
-    nn_xmsg_submsg_remove (msg, sm_marker);
+    ddsi_xmsg_submsg_remove (msg, sm_marker);
   }
 }
 
@@ -4016,14 +4016,14 @@ extern inline bool ddsi_security_decode_datafrag(
   UNUSED_ARG(size_t *submsg_len));
 
 extern inline void ddsi_security_encode_datareader_submsg(
-  UNUSED_ARG(struct nn_xmsg *msg),
-  UNUSED_ARG(struct nn_xmsg_marker sm_marker),
+  UNUSED_ARG(struct ddsi_xmsg *msg),
+  UNUSED_ARG(struct ddsi_xmsg_marker sm_marker),
   UNUSED_ARG(const struct ddsi_proxy_writer *pwr),
   UNUSED_ARG(const struct ddsi_guid *rd_guid));
 
 extern inline void ddsi_security_encode_datawriter_submsg(
-  UNUSED_ARG(struct nn_xmsg *msg),
-  UNUSED_ARG(struct nn_xmsg_marker sm_marker),
+  UNUSED_ARG(struct ddsi_xmsg *msg),
+  UNUSED_ARG(struct ddsi_xmsg_marker sm_marker),
   UNUSED_ARG(struct ddsi_writer *wr));
 
 extern inline bool ddsi_security_validate_msg_decoding(

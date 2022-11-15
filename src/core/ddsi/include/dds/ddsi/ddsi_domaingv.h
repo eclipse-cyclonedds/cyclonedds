@@ -34,7 +34,7 @@
 extern "C" {
 #endif
 
-struct nn_xmsgpool;
+struct ddsi_xmsgpool;
 struct ddsi_dqueue;
 struct ddsi_reorder;
 struct ddsi_defrag;
@@ -279,7 +279,7 @@ struct ddsi_domaingv {
 #endif
 
   /* Transmit side: pool for transmit queue*/
-  struct nn_xmsgpool *xmsgpool;
+  struct ddsi_xmsgpool *xmsgpool;
   struct ddsi_sertype *spdp_type; /* key = participant GUID */
   struct ddsi_sertype *sedp_reader_type; /* key = endpoint GUID */
   struct ddsi_sertype *sedp_writer_type; /* key = endpoint GUID */
@@ -301,8 +301,8 @@ struct ddsi_domaingv {
   ddsrt_mutex_t sendq_lock;
   ddsrt_cond_t sendq_cond;
   unsigned sendq_length;
-  struct nn_xpack *sendq_head;
-  struct nn_xpack *sendq_tail;
+  struct ddsi_xpack *sendq_head;
+  struct ddsi_xpack *sendq_tail;
   int sendq_stop;
   struct ddsi_thread_state *sendq_ts;
   bool sendq_running;

@@ -21,7 +21,7 @@
 
 #include "dds/ddsi/ddsi_log.h"
 #include "ddsi__addrset.h"
-#include "dds/ddsi/q_xmsg.h"
+#include "ddsi__xmsg.h"
 #include "ddsi__xevent.h"
 #include "ddsi__thread.h"
 #include "dds/ddsi/ddsi_config_impl.h"
@@ -37,7 +37,7 @@
 #include "ddsi__radmin.h"
 #include "ddsi__bitset.h"
 #include "ddsi__lease.h"
-#include "dds/ddsi/q_xmsg.h"
+#include "ddsi__xmsg.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "ddsi__security_omg.h"
 #include "dds/ddsi/ddsi_tkmap.h"
@@ -127,17 +127,17 @@ struct ddsi_xevent_nt
   union {
     struct {
       /* xmsg is self-contained / relies on reference counts */
-      struct nn_xmsg *msg;
+      struct ddsi_xmsg *msg;
     } msg;
     struct {
       /* xmsg is self-contained / relies on reference counts */
-      struct nn_xmsg *msg;
+      struct ddsi_xmsg *msg;
       size_t queued_rexmit_bytes;
       ddsrt_avl_node_t msg_avlnode;
     } msg_rexmit; /* and msg_rexmit_nomerge */
     struct {
       /* xmsg is self-contained / relies on reference counts */
-      struct nn_xmsg *msg;
+      struct ddsi_xmsg *msg;
     } entityid;
     struct {
       void (*cb) (void *arg);
@@ -169,7 +169,7 @@ static uint32_t xevent_thread (struct ddsi_xeventq *xevq);
 static ddsrt_mtime_t earliest_in_xeventq (struct ddsi_xeventq *evq);
 static int msg_xevents_cmp (const void *a, const void *b);
 static int compare_xevent_tsched (const void *va, const void *vb);
-static void handle_nontimed_xevent (struct ddsi_xevent_nt *xev, struct nn_xpack *xp);
+static void handle_nontimed_xevent (struct ddsi_xevent_nt *xev, struct ddsi_xpack *xp);
 
 static const ddsrt_avl_treedef_t msg_xevents_treedef = DDSRT_AVL_TREEDEF_INITIALIZER_INDKEY (offsetof (struct ddsi_xevent_nt, u.msg_rexmit.msg_avlnode), offsetof (struct ddsi_xevent_nt, u.msg_rexmit.msg), msg_xevents_cmp, 0);
 
@@ -196,35 +196,35 @@ static void update_rexmit_counts (struct ddsi_xeventq *evq, struct ddsi_xevent_n
 }
 
 #if 0
-static void trace_msg (struct ddsi_xeventq *evq, const char *func, const struct nn_xmsg *m)
+static void trace_msg (struct ddsi_xeventq *evq, const char *func, const struct ddsi_xmsg *m)
 {
   if (dds_get_log_mask() & DDS_LC_TRACE)
   {
     ddsi_guid_t wrguid;
     ddsi_seqno_t wrseq;
     ddsi_fragment_number_t wrfragid;
-    nn_xmsg_guid_seq_fragid (m, &wrguid, &wrseq, &wrfragid);
+    ddsi_xmsg_guid_seq_fragid (m, &wrguid, &wrseq, &wrfragid);
     EVQTRACE(" %s("PGUIDFMT"/%"PRId64"/%"PRIu32")", func, PGUID (wrguid), wrseq, wrfragid);
   }
 }
 #else
-static void trace_msg (UNUSED_ARG (struct ddsi_xeventq *evq), UNUSED_ARG (const char *func), UNUSED_ARG (const struct nn_xmsg *m))
+static void trace_msg (UNUSED_ARG (struct ddsi_xeventq *evq), UNUSED_ARG (const char *func), UNUSED_ARG (const struct ddsi_xmsg *m))
 {
 }
 #endif
 
-static struct ddsi_xevent_nt *lookup_msg (struct ddsi_xeventq *evq, struct nn_xmsg *msg)
+static struct ddsi_xevent_nt *lookup_msg (struct ddsi_xeventq *evq, struct ddsi_xmsg *msg)
 {
-  switch (nn_xmsg_kind (msg))
+  switch (ddsi_xmsg_kind (msg))
   {
-    case NN_XMSG_KIND_CONTROL:
-    case NN_XMSG_KIND_DATA:
+    case DDSI_XMSG_KIND_CONTROL:
+    case DDSI_XMSG_KIND_DATA:
       assert (0);
       return NULL;
-    case NN_XMSG_KIND_DATA_REXMIT:
+    case DDSI_XMSG_KIND_DATA_REXMIT:
       trace_msg (evq, "lookup-msg", msg);
       return ddsrt_avl_lookup (&msg_xevents_treedef, &evq->msg_xevents, msg);
-    case NN_XMSG_KIND_DATA_REXMIT_NOMERGE:
+    case DDSI_XMSG_KIND_DATA_REXMIT_NOMERGE:
       return NULL;
   }
   assert (0);
@@ -506,7 +506,7 @@ static void qxev_insert_nt (struct ddsi_xevent_nt *ev)
 
 static int msg_xevents_cmp (const void *a, const void *b)
 {
-  return nn_xmsg_compare_fragid (a, b);
+  return ddsi_xmsg_compare_fragid (a, b);
 }
 
 struct ddsi_xeventq * ddsi_xeventq_new (struct ddsi_domaingv *gv, size_t max_queued_rexmit_bytes, size_t max_queued_rexmit_msgs, uint32_t auxiliary_bandwidth_limit)
@@ -576,7 +576,7 @@ void ddsi_xeventq_free (struct ddsi_xeventq *evq)
     free_xevent (evq, ev);
 
   {
-    struct nn_xpack *xp = nn_xpack_new (evq->gv, evq->auxiliary_bandwidth_limit, false);
+    struct ddsi_xpack *xp = ddsi_xpack_new (evq->gv, evq->auxiliary_bandwidth_limit, false);
     ddsi_thread_state_awake (ddsi_lookup_thread_state (), evq->gv);
     ddsrt_mutex_lock (&evq->lock);
     while (!non_timed_xmit_list_is_empty (evq))
@@ -585,8 +585,8 @@ void ddsi_xeventq_free (struct ddsi_xeventq *evq)
       handle_nontimed_xevent (getnext_from_non_timed_xmit_list (evq), xp);
     }
     ddsrt_mutex_unlock (&evq->lock);
-    nn_xpack_send (xp, false);
-    nn_xpack_free (xp);
+    ddsi_xpack_send (xp, false);
+    ddsi_xpack_free (xp);
     ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
   }
 
@@ -598,19 +598,19 @@ void ddsi_xeventq_free (struct ddsi_xeventq *evq)
 
 /* EVENT QUEUE EVENT HANDLERS ******************************************************/
 
-static void handle_xevk_msg (struct nn_xpack *xp, struct ddsi_xevent_nt *ev)
+static void handle_xevk_msg (struct ddsi_xpack *xp, struct ddsi_xevent_nt *ev)
 {
   assert (!nontimed_xevent_in_queue (ev->evq, ev));
-  nn_xpack_addmsg (xp, ev->u.msg.msg, 0);
+  ddsi_xpack_addmsg (xp, ev->u.msg.msg, 0);
 }
 
-static void handle_xevk_msg_rexmit (struct nn_xpack *xp, struct ddsi_xevent_nt *ev)
+static void handle_xevk_msg_rexmit (struct ddsi_xpack *xp, struct ddsi_xevent_nt *ev)
 {
   struct ddsi_xeventq *evq = ev->evq;
 
   assert (!nontimed_xevent_in_queue (ev->evq, ev));
 
-  nn_xpack_addmsg (xp, ev->u.msg_rexmit.msg, 0);
+  ddsi_xpack_addmsg (xp, ev->u.msg_rexmit.msg, 0);
 
   /* FIXME: less than happy about having to relock the queue for a
      little while here */
@@ -619,10 +619,10 @@ static void handle_xevk_msg_rexmit (struct nn_xpack *xp, struct ddsi_xevent_nt *
   ddsrt_mutex_unlock (&evq->lock);
 }
 
-static void handle_xevk_entityid (struct nn_xpack *xp, struct ddsi_xevent_nt *ev)
+static void handle_xevk_entityid (struct ddsi_xpack *xp, struct ddsi_xevent_nt *ev)
 {
   assert (!nontimed_xevent_in_queue (ev->evq, ev));
-  nn_xpack_addmsg (xp, ev->u.entityid.msg, 0);
+  ddsi_xpack_addmsg (xp, ev->u.entityid.msg, 0);
 }
 
 #ifdef DDS_HAS_SECURITY
@@ -651,7 +651,7 @@ static int send_heartbeat_to_all_readers_check_and_sched (struct ddsi_xevent *ev
   return send;
 }
 
-static void send_heartbeat_to_all_readers (struct nn_xpack *xp, struct ddsi_xevent *ev, struct ddsi_writer *wr, ddsrt_mtime_t tnow)
+static void send_heartbeat_to_all_readers (struct ddsi_xpack *xp, struct ddsi_xevent *ev, struct ddsi_writer *wr, ddsrt_mtime_t tnow)
 {
   struct ddsi_whc_state whcst;
   ddsrt_mtime_t t_next;
@@ -684,11 +684,11 @@ static void send_heartbeat_to_all_readers (struct nn_xpack *xp, struct ddsi_xeve
               m->seq,
               m->last_seq);
 
-          struct nn_xmsg *msg = writer_hbcontrol_p2p(wr, &whcst, hbansreq, prd);
+          struct ddsi_xmsg *msg = writer_hbcontrol_p2p(wr, &whcst, hbansreq, prd);
           if (msg != NULL)
           {
             ddsrt_mutex_unlock (&wr->e.lock);
-            nn_xpack_addmsg (xp, msg, 0);
+            ddsi_xpack_addmsg (xp, msg, 0);
             ddsrt_mutex_lock (&wr->e.lock);
           }
           count++;
@@ -723,10 +723,10 @@ static void send_heartbeat_to_all_readers (struct nn_xpack *xp, struct ddsi_xeve
 }
 #endif
 
-static void handle_xevk_heartbeat (struct nn_xpack *xp, struct ddsi_xevent *ev, ddsrt_mtime_t tnow)
+static void handle_xevk_heartbeat (struct ddsi_xpack *xp, struct ddsi_xevent *ev, ddsrt_mtime_t tnow)
 {
   struct ddsi_domaingv const * const gv = ev->evq->gv;
-  struct nn_xmsg *msg;
+  struct ddsi_xmsg *msg;
   struct ddsi_writer *wr;
   ddsrt_mtime_t t_next;
   int hbansreq = 0;
@@ -800,11 +800,11 @@ static void handle_xevk_heartbeat (struct nn_xpack *xp, struct ddsi_xevent *ev, 
   if (msg)
   {
     if (!wr->test_suppress_heartbeat)
-      nn_xpack_addmsg (xp, msg, 0);
+      ddsi_xpack_addmsg (xp, msg, 0);
     else
     {
       GVTRACE ("test_suppress_heartbeat\n");
-      nn_xmsg_free (msg);
+      ddsi_xmsg_free (msg);
     }
   }
 }
@@ -827,7 +827,7 @@ static dds_duration_t preemptive_acknack_interval (const struct ddsi_pwr_rd_matc
   }
 }
 
-static struct nn_xmsg *make_preemptive_acknack (struct ddsi_xevent *ev, struct ddsi_proxy_writer *pwr, struct ddsi_pwr_rd_match *rwn, ddsrt_mtime_t tnow)
+static struct ddsi_xmsg *make_preemptive_acknack (struct ddsi_xevent *ev, struct ddsi_proxy_writer *pwr, struct ddsi_pwr_rd_match *rwn, ddsrt_mtime_t tnow)
 {
   const dds_duration_t old_intv = preemptive_acknack_interval (rwn);
   if (tnow.v < ddsrt_mtime_add_duration (rwn->t_last_ack, old_intv).v)
@@ -845,18 +845,18 @@ static struct nn_xmsg *make_preemptive_acknack (struct ddsi_xevent *ev, struct d
       pp = rd->c.pp;
   }
 
-  struct nn_xmsg *msg;
-  if ((msg = nn_xmsg_new (gv->xmsgpool, &rwn->rd_guid, pp, DDSI_ACKNACK_SIZE_MAX, NN_XMSG_KIND_CONTROL)) == NULL)
+  struct ddsi_xmsg *msg;
+  if ((msg = ddsi_xmsg_new (gv->xmsgpool, &rwn->rd_guid, pp, DDSI_ACKNACK_SIZE_MAX, DDSI_XMSG_KIND_CONTROL)) == NULL)
   {
     // if out of memory, try again later
     (void) ddsi_resched_xevent_if_earlier (ev, ddsrt_mtime_add_duration (tnow, old_intv));
     return NULL;
   }
 
-  nn_xmsg_setdstPWR (msg, pwr);
-  struct nn_xmsg_marker sm_marker;
-  ddsi_rtps_acknack_t *an = nn_xmsg_append (msg, &sm_marker, DDSI_ACKNACK_SIZE (0));
-  nn_xmsg_submsg_init (msg, sm_marker, DDSI_RTPS_SMID_ACKNACK);
+  ddsi_xmsg_setdst_pwr (msg, pwr);
+  struct ddsi_xmsg_marker sm_marker;
+  ddsi_rtps_acknack_t *an = ddsi_xmsg_append (msg, &sm_marker, DDSI_ACKNACK_SIZE (0));
+  ddsi_xmsg_submsg_init (msg, sm_marker, DDSI_RTPS_SMID_ACKNACK);
   an->readerId = ddsi_hton_entityid (rwn->rd_guid.entityid);
   an->writerId = ddsi_hton_entityid (pwr->e.guid.entityid);
   an->readerSNState.bitmap_base = ddsi_to_seqno (1);
@@ -864,7 +864,7 @@ static struct nn_xmsg *make_preemptive_acknack (struct ddsi_xevent *ev, struct d
   ddsi_count_t * const countp =
     (ddsi_count_t *) ((char *) an + offsetof (ddsi_rtps_acknack_t, bits) + DDSI_SEQUENCE_NUMBER_SET_BITS_SIZE (0));
   *countp = 0;
-  nn_xmsg_submsg_setnext (msg, sm_marker);
+  ddsi_xmsg_submsg_setnext (msg, sm_marker);
   ddsi_security_encode_datareader_submsg (msg, sm_marker, pwr, &rwn->rd_guid);
 
   rwn->t_last_ack = tnow;
@@ -878,7 +878,7 @@ static struct nn_xmsg *make_preemptive_acknack (struct ddsi_xevent *ev, struct d
   return msg;
 }
 
-static void handle_xevk_acknack (struct nn_xpack *xp, struct ddsi_xevent *ev, ddsrt_mtime_t tnow)
+static void handle_xevk_acknack (struct ddsi_xpack *xp, struct ddsi_xevent *ev, ddsrt_mtime_t tnow)
 {
   /* FIXME: ought to keep track of which NACKs are being generated in
      response to a Heartbeat.  There is no point in having multiple
@@ -891,7 +891,7 @@ static void handle_xevk_acknack (struct nn_xpack *xp, struct ddsi_xevent *ev, dd
      threshing and fail to make progress! */
   struct ddsi_domaingv *gv = ev->evq->gv;
   struct ddsi_proxy_writer *pwr;
-  struct nn_xmsg *msg;
+  struct ddsi_xmsg *msg;
   struct ddsi_pwr_rd_match *rwn;
 
   if ((pwr = ddsi_entidx_lookup_proxy_writer_guid (gv->entity_index, &ev->u.acknack.pwr_guid)) == NULL)
@@ -919,10 +919,10 @@ static void handle_xevk_acknack (struct nn_xpack *xp, struct ddsi_xevent *ev, dd
     // a possible result of trying to encode a submessage is that it is removed,
     // in which case we may end up with an empty one.
     // FIXME: change ddsi_security_encode_datareader_submsg so that it returns this and make it warn_unused_result
-    if (nn_xmsg_size (msg) == 0)
-      nn_xmsg_free (msg);
+    if (ddsi_xmsg_size (msg) == 0)
+      ddsi_xmsg_free (msg);
     else
-      nn_xpack_addmsg (xp, msg, 0);
+      ddsi_xpack_addmsg (xp, msg, 0);
   }
 }
 
@@ -958,7 +958,7 @@ static bool resend_spdp_sample_by_guid_key (struct ddsi_writer *wr, const ddsi_g
   return sample_found;
 }
 
-static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct ddsi_xevent *ev, ddsrt_mtime_t tnow)
+static void handle_xevk_spdp (UNUSED_ARG (struct ddsi_xpack *xp), struct ddsi_xevent *ev, ddsrt_mtime_t tnow)
 {
   /* Like the writer pointer in the heartbeat event, the participant pointer in the spdp event is assumed valid. */
   struct ddsi_domaingv *gv = ev->evq->gv;
@@ -1073,7 +1073,7 @@ static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct ddsi_xeve
   }
 }
 
-static void handle_xevk_pmd_update (struct ddsi_thread_state * const thrst, struct nn_xpack *xp, struct ddsi_xevent *ev, ddsrt_mtime_t tnow)
+static void handle_xevk_pmd_update (struct ddsi_thread_state * const thrst, struct ddsi_xpack *xp, struct ddsi_xevent *ev, ddsrt_mtime_t tnow)
 {
   struct ddsi_domaingv * const gv = ev->evq->gv;
   struct ddsi_participant *pp;
@@ -1107,7 +1107,7 @@ static void handle_xevk_pmd_update (struct ddsi_thread_state * const thrst, stru
   (void) ddsi_resched_xevent_if_earlier (ev, tnext);
 }
 
-static void handle_xevk_delete_writer (UNUSED_ARG (struct nn_xpack *xp), struct ddsi_xevent *ev, UNUSED_ARG (ddsrt_mtime_t tnow))
+static void handle_xevk_delete_writer (UNUSED_ARG (struct ddsi_xpack *xp), struct ddsi_xevent *ev, UNUSED_ARG (ddsrt_mtime_t tnow))
 {
   /* don't worry if the writer is already gone by the time we get here, delete_writer_nolinger checks for that. */
   struct ddsi_domaingv * const gv = ev->evq->gv;
@@ -1116,7 +1116,7 @@ static void handle_xevk_delete_writer (UNUSED_ARG (struct nn_xpack *xp), struct 
   ddsi_delete_xevent (ev);
 }
 
-static void handle_individual_xevent (struct ddsi_thread_state * const thrst, struct ddsi_xevent *xev, struct nn_xpack *xp, ddsrt_mtime_t tnow)
+static void handle_individual_xevent (struct ddsi_thread_state * const thrst, struct ddsi_xevent *xev, struct ddsi_xpack *xp, ddsrt_mtime_t tnow)
 {
   struct ddsi_xeventq *xevq = xev->evq;
   /* We relinquish the lock while processing the event, but require it
@@ -1160,7 +1160,7 @@ static void handle_individual_xevent (struct ddsi_thread_state * const thrst, st
   ASSERT_MUTEX_HELD (&xevq->lock);
 }
 
-static void handle_individual_xevent_nt (struct ddsi_xevent_nt *xev, struct nn_xpack *xp)
+static void handle_individual_xevent_nt (struct ddsi_xevent_nt *xev, struct ddsi_xpack *xp)
 {
   switch (xev->kind)
   {
@@ -1181,7 +1181,7 @@ static void handle_individual_xevent_nt (struct ddsi_xevent_nt *xev, struct nn_x
   ddsrt_free (xev);
 }
 
-static void handle_timed_xevent (struct ddsi_thread_state * const thrst, struct ddsi_xevent *xev, struct nn_xpack *xp, ddsrt_mtime_t tnow /* monotonic */)
+static void handle_timed_xevent (struct ddsi_thread_state * const thrst, struct ddsi_xevent *xev, struct ddsi_xpack *xp, ddsrt_mtime_t tnow /* monotonic */)
 {
    /* This function handles the individual xevent irrespective of
       whether it is a "timed" or "non-timed" xevent */
@@ -1189,7 +1189,7 @@ static void handle_timed_xevent (struct ddsi_thread_state * const thrst, struct 
   handle_individual_xevent (thrst, xev, xp, tnow /* monotonic */);
 }
 
-static void handle_nontimed_xevent (struct ddsi_xevent_nt *xev, struct nn_xpack *xp)
+static void handle_nontimed_xevent (struct ddsi_xevent_nt *xev, struct ddsi_xpack *xp)
 {
    /* This function handles the individual xevent irrespective of
       whether it is a "timed" or "non-timed" xevent */
@@ -1209,7 +1209,7 @@ static void handle_nontimed_xevent (struct ddsi_xevent_nt *xev, struct nn_xpack 
   ASSERT_MUTEX_HELD (&xevq->lock);
 }
 
-static void handle_xevents (struct ddsi_thread_state * const thrst, struct ddsi_xeventq *xevq, struct nn_xpack *xp, ddsrt_mtime_t tnow /* monotonic */)
+static void handle_xevents (struct ddsi_thread_state * const thrst, struct ddsi_xeventq *xevq, struct ddsi_xpack *xp, ddsrt_mtime_t tnow /* monotonic */)
 {
   int xeventsToProcess = 1;
 
@@ -1268,10 +1268,10 @@ static void handle_xevents (struct ddsi_thread_state * const thrst, struct ddsi_
 static uint32_t xevent_thread (struct ddsi_xeventq * xevq)
 {
   struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
-  struct nn_xpack *xp;
+  struct ddsi_xpack *xp;
   ddsrt_mtime_t next_thread_cputime = { 0 };
 
-  xp = nn_xpack_new (xevq->gv, xevq->auxiliary_bandwidth_limit, false);
+  xp = ddsi_xpack_new (xevq->gv, xevq->auxiliary_bandwidth_limit, false);
 
   ddsrt_mutex_lock (&xevq->lock);
   while (!xevq->terminate)
@@ -1284,7 +1284,7 @@ static uint32_t xevent_thread (struct ddsi_xeventq * xevq)
     handle_xevents (thrst, xevq, xp, tnow);
     /* Send to the network unlocked, as it may sleep due to bandwidth limitation */
     ddsrt_mutex_unlock (&xevq->lock);
-    nn_xpack_send (xp, false);
+    ddsi_xpack_send (xp, false);
     ddsrt_mutex_lock (&xevq->lock);
     ddsi_thread_state_asleep (thrst);
 
@@ -1316,16 +1316,16 @@ static uint32_t xevent_thread (struct ddsi_xeventq * xevq)
     }
   }
   ddsrt_mutex_unlock (&xevq->lock);
-  nn_xpack_send (xp, false);
-  nn_xpack_free (xp);
+  ddsi_xpack_send (xp, false);
+  ddsi_xpack_free (xp);
   return 0;
 }
 
-void ddsi_qxev_msg (struct ddsi_xeventq *evq, struct nn_xmsg *msg)
+void ddsi_qxev_msg (struct ddsi_xeventq *evq, struct ddsi_xmsg *msg)
 {
   struct ddsi_xevent_nt *ev;
   assert (evq);
-  assert (nn_xmsg_kind (msg) != NN_XMSG_KIND_DATA_REXMIT);
+  assert (ddsi_xmsg_kind (msg) != DDSI_XMSG_KIND_DATA_REXMIT);
   ddsrt_mutex_lock (&evq->lock);
   ev = qxev_common_nt (evq, XEVK_MSG);
   ev->u.msg.msg = msg;
@@ -1348,17 +1348,17 @@ void ddsi_qxev_nt_callback (struct ddsi_xeventq *evq, void (*cb) (void *arg), vo
 void ddsi_qxev_prd_entityid (struct ddsi_proxy_reader *prd, const ddsi_guid_t *guid)
 {
   struct ddsi_domaingv * const gv = prd->e.gv;
-  struct nn_xmsg *msg;
+  struct ddsi_xmsg *msg;
   struct ddsi_xevent_nt *ev;
 
   /* For connected transports, may need to establish and identify connection */
 
   if (! gv->m_factory->m_connless)
   {
-    msg = nn_xmsg_new (gv->xmsgpool, guid, NULL, sizeof (ddsi_rtps_entityid_t), NN_XMSG_KIND_CONTROL);
-    nn_xmsg_setdstPRD (msg, prd);
+    msg = ddsi_xmsg_new (gv->xmsgpool, guid, NULL, sizeof (ddsi_rtps_entityid_t), DDSI_XMSG_KIND_CONTROL);
+    ddsi_xmsg_setdst_prd (msg, prd);
     GVTRACE ("  ddsi_qxev_prd_entityid (%"PRIx32":%"PRIx32":%"PRIx32")\n", PGUIDPREFIX (guid->prefix));
-    nn_xmsg_add_entityid (msg);
+    ddsi_xmsg_add_entityid (msg);
     ddsrt_mutex_lock (&gv->xevents->lock);
     ev = qxev_common_nt (gv->xevents, XEVK_ENTITYID);
     ev->u.entityid.msg = msg;
@@ -1370,17 +1370,17 @@ void ddsi_qxev_prd_entityid (struct ddsi_proxy_reader *prd, const ddsi_guid_t *g
 void ddsi_qxev_pwr_entityid (struct ddsi_proxy_writer *pwr, const ddsi_guid_t *guid)
 {
   struct ddsi_domaingv * const gv = pwr->e.gv;
-  struct nn_xmsg *msg;
+  struct ddsi_xmsg *msg;
   struct ddsi_xevent_nt *ev;
 
   /* For connected transports, may need to establish and identify connection */
 
   if (! gv->m_factory->m_connless)
   {
-    msg = nn_xmsg_new (gv->xmsgpool, guid, NULL, sizeof (ddsi_rtps_entityid_t), NN_XMSG_KIND_CONTROL);
-    nn_xmsg_setdstPWR (msg, pwr);
+    msg = ddsi_xmsg_new (gv->xmsgpool, guid, NULL, sizeof (ddsi_rtps_entityid_t), DDSI_XMSG_KIND_CONTROL);
+    ddsi_xmsg_setdst_pwr (msg, pwr);
     GVTRACE ("  ddsi_qxev_pwr_entityid (%"PRIx32":%"PRIx32":%"PRIx32")\n", PGUIDPREFIX (guid->prefix));
-    nn_xmsg_add_entityid (msg);
+    ddsi_xmsg_add_entityid (msg);
     ddsrt_mutex_lock (&pwr->evq->lock);
     ev = qxev_common_nt (pwr->evq, XEVK_ENTITYID);
     ev->u.entityid.msg = msg;
@@ -1389,20 +1389,20 @@ void ddsi_qxev_pwr_entityid (struct ddsi_proxy_writer *pwr, const ddsi_guid_t *g
   }
 }
 
-enum ddsi_qxev_msg_rexmit_result ddsi_qxev_msg_rexmit_wrlock_held (struct ddsi_xeventq *evq, struct nn_xmsg *msg, int force)
+enum ddsi_qxev_msg_rexmit_result ddsi_qxev_msg_rexmit_wrlock_held (struct ddsi_xeventq *evq, struct ddsi_xmsg *msg, int force)
 {
   struct ddsi_domaingv * const gv = evq->gv;
-  size_t msg_size = nn_xmsg_size (msg);
+  size_t msg_size = ddsi_xmsg_size (msg);
   struct ddsi_xevent_nt *existing_ev;
 
   assert (evq);
-  assert (nn_xmsg_kind (msg) == NN_XMSG_KIND_DATA_REXMIT || nn_xmsg_kind (msg) == NN_XMSG_KIND_DATA_REXMIT_NOMERGE);
+  assert (ddsi_xmsg_kind (msg) == DDSI_XMSG_KIND_DATA_REXMIT || ddsi_xmsg_kind (msg) == DDSI_XMSG_KIND_DATA_REXMIT_NOMERGE);
   ddsrt_mutex_lock (&evq->lock);
-  if ((existing_ev = lookup_msg (evq, msg)) != NULL && nn_xmsg_merge_rexmit_destinations_wrlock_held (gv, existing_ev->u.msg_rexmit.msg, msg))
+  if ((existing_ev = lookup_msg (evq, msg)) != NULL && ddsi_xmsg_merge_rexmit_destinations_wrlock_held (gv, existing_ev->u.msg_rexmit.msg, msg))
   {
     /* MSG got merged with a pending retransmit, so it has effectively been queued */
     ddsrt_mutex_unlock (&evq->lock);
-    nn_xmsg_free (msg);
+    ddsi_xmsg_free (msg);
     return DDSI_QXEV_MSG_REXMIT_MERGED;
   }
   else if ((evq->queued_rexmit_bytes > evq->max_queued_rexmit_bytes ||
@@ -1411,7 +1411,7 @@ enum ddsi_qxev_msg_rexmit_result ddsi_qxev_msg_rexmit_wrlock_held (struct ddsi_x
   {
     /* drop it if insufficient resources available */
     ddsrt_mutex_unlock (&evq->lock);
-    nn_xmsg_free (msg);
+    ddsi_xmsg_free (msg);
 #if 0
     GVTRACE (" qxev_msg_rexmit%s drop (sz %"PA_PRIuSIZE" qb %"PA_PRIuSIZE" qm %"PA_PRIuSIZE")", force ? "!" : "",
              msg_size, evq->queued_rexmit_bytes, evq->queued_rexmit_msgs);
@@ -1435,7 +1435,7 @@ enum ddsi_qxev_msg_rexmit_result ddsi_qxev_msg_rexmit_wrlock_held (struct ddsi_x
     // So in a very rare case, there'd be a (presumably) even rarer case where the second option confers a
     // benefit. The first has the advantage of being simpler, which weighs heaver in my opinion.
     const enum ddsi_xeventkind_nt kind =
-      (nn_xmsg_kind (msg) == NN_XMSG_KIND_DATA_REXMIT && existing_ev == NULL) ? XEVK_MSG_REXMIT : XEVK_MSG_REXMIT_NOMERGE;
+      (ddsi_xmsg_kind (msg) == DDSI_XMSG_KIND_DATA_REXMIT && existing_ev == NULL) ? XEVK_MSG_REXMIT : XEVK_MSG_REXMIT_NOMERGE;
     struct ddsi_xevent_nt *ev = qxev_common_nt (evq, kind);
     ev->u.msg_rexmit.msg = msg;
     ev->u.msg_rexmit.queued_rexmit_bytes = msg_size;

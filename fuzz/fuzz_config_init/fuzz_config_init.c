@@ -24,7 +24,7 @@
 #include "ddsi__radmin.h"
 #include "dds/ddsi/ddsi_plist.h"
 #include "ddsi__transmit.h"
-#include "dds/ddsi/q_xmsg.h"
+#include "ddsi__xmsg.h"
 #include "ddsi__addrset.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/ddsi_sertype.h"

@@ -22,6 +22,8 @@
 extern "C" {
 #endif
 
+struct ddsi_xmsg;
+
 /**
  * @brief Replace any memory "xqos" aliases by copies it owns
  *
@@ -60,7 +62,7 @@ void ddsi_xqos_fini_mask (dds_qos_t *xqos, uint64_t mask);
  * @param[in]     xqos     source
  * @param[in]     wanted   subset to be added (if DDSI_QP_X is set, add X if present)
  */
-void ddsi_xqos_addtomsg (struct nn_xmsg *m, const dds_qos_t *xqos, uint64_t wanted);
+void ddsi_xqos_addtomsg (struct ddsi_xmsg *m, const dds_qos_t *xqos, uint64_t wanted);
 
 /**
  * @brief Formats xqos using `ddsi_xqos_print` and writes it to the trace.

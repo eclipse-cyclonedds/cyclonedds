@@ -41,7 +41,7 @@
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "ddsi__ownip.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/q_xmsg.h"
+#include "ddsi__xmsg.h"
 #include "ddsi__receive.h"
 #include "ddsi__pcap.h"
 #include "dds/ddsi/ddsi_feature_check.h"
@@ -1344,7 +1344,7 @@ int ddsi_init (struct ddsi_domaingv *gv)
 #endif
   }
 
-  gv->xmsgpool = nn_xmsgpool_new ();
+  gv->xmsgpool = ddsi_xmsgpool_new ();
 
   // copy default participant plist into one that is used for this domain's participants
   // a plain copy is safe because it doesn't alias anything
@@ -1836,7 +1836,7 @@ err_unicast_sockets:
   ddsi_xqos_fini (&gv->spdp_endpoint_xqos);
   ddsi_plist_fini (&gv->default_local_plist_pp);
 
-  nn_xmsgpool_free (gv->xmsgpool);
+  ddsi_xmsgpool_free (gv->xmsgpool);
 err_set_ext_address:
   while (gv->recvips)
   {
@@ -2134,8 +2134,8 @@ void ddsi_fini (struct ddsi_domaingv *gv)
   ddsrt_mutex_lock (&gv->sendq_running_lock);
   if (gv->sendq_running)
   {
-    nn_xpack_sendq_stop (gv);
-    nn_xpack_sendq_fini (gv);
+    ddsi_xpack_sendq_stop (gv);
+    ddsi_xpack_sendq_fini (gv);
   }
   ddsrt_mutex_unlock (&gv->sendq_running_lock);
 
@@ -2255,6 +2255,6 @@ void ddsi_fini (struct ddsi_domaingv *gv)
   for (int i = 0; i < (int) gv->n_interfaces; i++)
     ddsrt_free (gv->interfaces[i].name);
 
-  nn_xmsgpool_free (gv->xmsgpool);
+  ddsi_xmsgpool_free (gv->xmsgpool);
   GVLOG (DDS_LC_CONFIG, "Finis.\n");
 }

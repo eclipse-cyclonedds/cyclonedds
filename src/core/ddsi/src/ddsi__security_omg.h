@@ -23,7 +23,7 @@
 #include "dds/ddsi/ddsi_entity_match.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "ddsi__radmin.h"
-#include "dds/ddsi/q_xmsg.h"
+#include "ddsi__xmsg.h"
 #include "dds/ddsrt/retcode.h"
 #include "dds/ddsrt/types.h"
 #include "dds/ddsrt/sync.h"
@@ -906,7 +906,7 @@ bool ddsi_security_decode_datafrag(const struct ddsi_domaingv *gv, struct ddsi_r
  * @param[in]     pwr       Writer for which the message is intended.
  * @param[in]     rd_guid   Origin reader guid.
  */
-void ddsi_security_encode_datareader_submsg(struct nn_xmsg *msg, struct nn_xmsg_marker sm_marker, const struct ddsi_proxy_writer *pwr, const struct ddsi_guid *rd_guid);
+void ddsi_security_encode_datareader_submsg(struct ddsi_xmsg *msg, struct ddsi_xmsg_marker sm_marker, const struct ddsi_proxy_writer *pwr, const struct ddsi_guid *rd_guid);
 
 /**
  * @brief Encode datawriter submessage when necessary.
@@ -921,7 +921,7 @@ void ddsi_security_encode_datareader_submsg(struct nn_xmsg *msg, struct nn_xmsg_
  * @param[in,out] sm_marker Submessage location within message.
  * @param[in]     wr        Origin writer guid.
  */
-void ddsi_security_encode_datawriter_submsg(struct nn_xmsg *msg, struct nn_xmsg_marker sm_marker, struct ddsi_writer *wr);
+void ddsi_security_encode_datawriter_submsg(struct ddsi_xmsg *msg, struct ddsi_xmsg_marker sm_marker, struct ddsi_writer *wr);
 
 /**
  * @brief Check if given submessage is properly decoded.
@@ -1281,8 +1281,8 @@ ddsi_security_decode_datafrag(
 
 inline void
 ddsi_security_encode_datareader_submsg(
-  UNUSED_ARG(struct nn_xmsg *msg),
-  UNUSED_ARG(struct nn_xmsg_marker sm_marker),
+  UNUSED_ARG(struct ddsi_xmsg *msg),
+  UNUSED_ARG(struct ddsi_xmsg_marker sm_marker),
   UNUSED_ARG(const struct ddsi_proxy_writer *pwr),
   UNUSED_ARG(const struct ddsi_guid *rd_guid))
 {
@@ -1290,8 +1290,8 @@ ddsi_security_encode_datareader_submsg(
 
 inline void
 ddsi_security_encode_datawriter_submsg(
-  UNUSED_ARG(struct nn_xmsg *msg),
-  UNUSED_ARG(struct nn_xmsg_marker sm_marker),
+  UNUSED_ARG(struct ddsi_xmsg *msg),
+  UNUSED_ARG(struct ddsi_xmsg_marker sm_marker),
   UNUSED_ARG(struct ddsi_writer *wr))
 {
 }

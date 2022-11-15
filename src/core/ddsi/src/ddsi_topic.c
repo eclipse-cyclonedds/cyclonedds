@@ -24,7 +24,7 @@
 #include "ddsi__entity_index.h"
 #include "dds/ddsi/ddsi_builtin_topic_if.h"
 #include "ddsi__discovery.h"
-#include "dds/ddsi/q_xmsg.h"
+#include "ddsi__xmsg.h"
 #include "ddsi__misc.h"
 #include "ddsi__gc.h"
 #include "ddsi__typelib.h"
@@ -268,13 +268,13 @@ static void set_ddsi_topic_definition_hash (struct ddsi_topic_definition *tpd)
      of the QoS is not included, as this field may contain a list of
      dependent type ids and therefore may be different for equal
      type definitions */
-  struct nn_xmsg *mqos = nn_xmsg_new (tpd->gv->xmsgpool, &ddsi_nullguid, NULL, 0, NN_XMSG_KIND_DATA);
+  struct ddsi_xmsg *mqos = ddsi_xmsg_new (tpd->gv->xmsgpool, &ddsi_nullguid, NULL, 0, DDSI_XMSG_KIND_DATA);
   ddsi_xqos_addtomsg (mqos, tpd->xqos, ~(DDSI_QP_TYPE_INFORMATION));
   size_t sqos_sz;
-  void * sqos = nn_xmsg_payload (&sqos_sz, mqos);
+  void * sqos = ddsi_xmsg_payload (&sqos_sz, mqos);
   assert (sqos_sz <= UINT32_MAX);
   ddsrt_md5_append (&md5st, (ddsrt_md5_byte_t *) sqos, (uint32_t) sqos_sz);
-  nn_xmsg_free (mqos);
+  ddsi_xmsg_free (mqos);
 
   ddsrt_md5_finish (&md5st, (ddsrt_md5_byte_t *) &tpd->key);
 }

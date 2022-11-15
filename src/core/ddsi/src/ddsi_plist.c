@@ -28,7 +28,7 @@
 #include "dds/ddsi/ddsi_plist.h"
 #include "ddsi__plist.h"
 #include "ddsi__time.h"
-#include "dds/ddsi/q_xmsg.h"
+#include "ddsi__xmsg.h"
 #include "dds/ddsi/ddsi_xqos.h"
 #include "ddsi__vendor.h"
 #include "ddsi__udp.h" /* nn_mc4gen_address_t */
@@ -110,7 +110,7 @@ struct piddesc {
     const enum ddsi_pserop desc[12];
     struct {
 dds_return_t (*deser) (void * __restrict dst, struct flagset *flagset, uint64_t flag, const struct dd * __restrict dd, struct ddsi_domaingv const * const gv);
-      dds_return_t (*ser) (struct nn_xmsg *xmsg, ddsi_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo);
+      dds_return_t (*ser) (struct ddsi_xmsg *xmsg, ddsi_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo);
       dds_return_t (*unalias) (void * __restrict dst, size_t * __restrict dstoff, bool gen_seq_aliased);
       dds_return_t (*fini) (void * __restrict dst, size_t * __restrict dstoff, struct flagset *flagset, uint64_t flag);
       dds_return_t (*valid) (const void *src, size_t srcoff);
@@ -137,7 +137,7 @@ static dds_return_t final_validation_qos (const dds_qos_t *dest, ddsi_protocol_v
 static int partitions_equal (const void *srca, const void *srcb, size_t off);
 static dds_return_t ddsi_xqos_valid_strictness (const struct ddsrt_log_cfg *logcfg, const dds_qos_t *xqos, bool strict);
 static dds_return_t unalias_generic (void * __restrict dst, size_t * __restrict dstoff, bool gen_seq_aliased, const enum ddsi_pserop * __restrict desc);
-static dds_return_t ser_generic (struct nn_xmsg *xmsg, ddsi_parameterid_t pid, const void *src, size_t srcoff, const enum ddsi_pserop * __restrict desc, enum ddsrt_byte_order_selector bo);
+static dds_return_t ser_generic (struct ddsi_xmsg *xmsg, ddsi_parameterid_t pid, const void *src, size_t srcoff, const enum ddsi_pserop * __restrict desc, enum ddsrt_byte_order_selector bo);
 static bool equal_generic (const void *srcx, const void *srcy, size_t srcoff, const enum ddsi_pserop * __restrict desc);
 static dds_return_t fini_generic (void * __restrict dst, size_t * __restrict dstoff, struct flagset *flagset, uint64_t flag, const enum ddsi_pserop * __restrict desc);
 static dds_return_t valid_generic (const void *src, size_t srcoff, const enum ddsi_pserop * __restrict desc);
@@ -346,13 +346,13 @@ static dds_return_t deser_reliability (void * __restrict dst, struct flagset *fl
   return 0;
 }
 
-static dds_return_t ser_reliability (struct nn_xmsg *xmsg, ddsi_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo)
+static dds_return_t ser_reliability (struct ddsi_xmsg *xmsg, ddsi_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo)
 {
   DDSRT_STATIC_ASSERT (DDS_EXTERNAL_RELIABILITY_BEST_EFFORT == 1 && DDS_EXTERNAL_RELIABILITY_RELIABLE == 2 &&
                        DDS_RELIABILITY_BEST_EFFORT == 0 && DDS_RELIABILITY_RELIABLE == 1);
   dds_reliability_qospolicy_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (dds_reliability_qospolicy_t));
   ddsi_duration_t mbt = ddsi_duration_from_dds (x->max_blocking_time);
-  uint32_t * const p = nn_xmsg_addpar_bo (xmsg, pid, 3 * sizeof (uint32_t), bo);
+  uint32_t * const p = ddsi_xmsg_addpar_bo (xmsg, pid, 3 * sizeof (uint32_t), bo);
   p[0] = ddsrt_toBO4u(bo, 1 + (uint32_t) x->kind);
   p[1] = ddsrt_toBO4u(bo, (uint32_t) mbt.seconds);
   p[2] = ddsrt_toBO4u(bo, mbt.fraction);
@@ -397,10 +397,10 @@ static dds_return_t deser_statusinfo (void * __restrict dst, struct flagset *fla
   return 0;
 }
 
-static dds_return_t ser_statusinfo (struct nn_xmsg *xmsg, ddsi_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo)
+static dds_return_t ser_statusinfo (struct ddsi_xmsg *xmsg, ddsi_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo)
 {
   uint32_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (uint32_t));
-  uint32_t * const p = nn_xmsg_addpar_bo (xmsg, pid, sizeof (uint32_t), bo);
+  uint32_t * const p = ddsi_xmsg_addpar_bo (xmsg, pid, sizeof (uint32_t), bo);
   *p = ddsrt_toBE4u (*x);
   return 0;
 }
@@ -437,12 +437,12 @@ static dds_return_t deser_locator (void * __restrict dst, struct flagset *flagse
   return 0;
 }
 
-static dds_return_t ser_locator (struct nn_xmsg *xmsg, ddsi_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo)
+static dds_return_t ser_locator (struct ddsi_xmsg *xmsg, ddsi_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo)
 {
   ddsi_locators_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (ddsi_locators_t));
   for (const struct ddsi_locators_one *l = x->first; l != NULL; l = l->next)
   {
-    char * const p = nn_xmsg_addpar_bo (xmsg, pid, 24, bo);
+    char * const p = ddsi_xmsg_addpar_bo (xmsg, pid, 24, bo);
     const int32_t kind = ddsrt_toBO4 (bo, l->loc.kind);
     const uint32_t port = ddsrt_toBO4u (bo, l->loc.port);
     memcpy (p, &kind, 4);
@@ -571,10 +571,10 @@ static dds_return_t deser_type_consistency (void * __restrict dst, struct flagse
   return 0;
 }
 
-static dds_return_t ser_type_consistency (struct nn_xmsg *xmsg, ddsi_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo)
+static dds_return_t ser_type_consistency (struct ddsi_xmsg *xmsg, ddsi_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo)
 {
   dds_type_consistency_enforcement_qospolicy_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (dds_type_consistency_enforcement_qospolicy_t));
-  char * const p = nn_xmsg_addpar_bo (xmsg, pid, 8, bo);
+  char * const p = ddsi_xmsg_addpar_bo (xmsg, pid, 8, bo);
   const uint16_t kind = ddsrt_toBO2u (bo, (uint16_t) x->kind);
   memcpy (p, &kind, 2);
   size_t offs = sizeof (kind);
@@ -644,7 +644,7 @@ static dds_return_t deser_data_representation (void * __restrict dst, struct fla
   return 0;
 }
 
-static dds_return_t ser_data_representation (struct nn_xmsg *xmsg, ddsi_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo)
+static dds_return_t ser_data_representation (struct ddsi_xmsg *xmsg, ddsi_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo)
 {
   return ser_generic (xmsg, pid, src, srcoff, desc_data_representation, bo);
 }
@@ -713,13 +713,13 @@ err_normalize:
   return ret;
 }
 
-static dds_return_t ser_type_information (struct nn_xmsg *xmsg, ddsi_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo)
+static dds_return_t ser_type_information (struct ddsi_xmsg *xmsg, ddsi_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo)
 {
   ddsi_typeinfo_t const * const * x = deser_generic_src (src, &srcoff, dds_alignof (ddsi_typeinfo_t *));
 
   dds_ostream_t os = { .m_buffer = NULL, .m_index = 0, .m_size = 0, .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
   (void) dds_stream_write_with_byte_order (&os, (const void *) *x, DDS_XTypes_TypeInformation_desc.m_ops, bo);
-  char * const p = nn_xmsg_addpar_bo (xmsg, pid, os.m_index, bo);
+  char * const p = ddsi_xmsg_addpar_bo (xmsg, pid, os.m_index, bo);
   memcpy (p, os.m_buffer, os.m_index);
   dds_ostream_fini (&os);
   return 0;
@@ -1336,9 +1336,9 @@ dds_return_t ddsi_plist_ser_generic_embeddable (char * const data, size_t *dstof
 
 
 
-static dds_return_t ser_generic (struct nn_xmsg *xmsg, ddsi_parameterid_t pid, const void *src, size_t srcoff, const enum ddsi_pserop * __restrict desc, enum ddsrt_byte_order_selector bo)
+static dds_return_t ser_generic (struct ddsi_xmsg *xmsg, ddsi_parameterid_t pid, const void *src, size_t srcoff, const enum ddsi_pserop * __restrict desc, enum ddsrt_byte_order_selector bo)
 {
-  char * const data = nn_xmsg_addpar_bo (xmsg, pid, ser_generic_size (src, srcoff, desc), bo);
+  char * const data = ddsi_xmsg_addpar_bo (xmsg, pid, ser_generic_size (src, srcoff, desc), bo);
   size_t dstoff = 0;
   return ddsi_plist_ser_generic_embeddable (data, &dstoff, src, srcoff, desc, bo);
 }
@@ -2389,7 +2389,7 @@ static void plist_or_xqos_mergein_missing (void * __restrict dst, const void * _
   assert ((*qfs_dst.aliased & ~ aliased_dst_inq) == 0);
 }
 
-static void plist_or_xqos_addtomsg (struct nn_xmsg *xmsg, const void * __restrict src, size_t shift, uint64_t pwanted, uint64_t qwanted, enum ddsrt_byte_order_selector bo)
+static void plist_or_xqos_addtomsg (struct ddsi_xmsg *xmsg, const void * __restrict src, size_t shift, uint64_t pwanted, uint64_t qwanted, enum ddsrt_byte_order_selector bo)
 {
   /* shift == 0: plist, shift > 0: just qos */
   uint64_t pw, qw;
@@ -3814,17 +3814,17 @@ static int partitions_equal (const void *srca, const void *srcb, size_t off)
 
 /*************************/
 
-void ddsi_xqos_addtomsg (struct nn_xmsg *m, const dds_qos_t *xqos, uint64_t wanted)
+void ddsi_xqos_addtomsg (struct ddsi_xmsg *m, const dds_qos_t *xqos, uint64_t wanted)
 {
   plist_or_xqos_addtomsg (m, xqos, offsetof (struct ddsi_plist, qos), 0, wanted, DDSRT_BOSEL_NATIVE);
 }
 
-void ddsi_plist_addtomsg_bo (struct nn_xmsg *m, const ddsi_plist_t *ps, uint64_t pwanted, uint64_t qwanted, enum ddsrt_byte_order_selector bo)
+void ddsi_plist_addtomsg_bo (struct ddsi_xmsg *m, const ddsi_plist_t *ps, uint64_t pwanted, uint64_t qwanted, enum ddsrt_byte_order_selector bo)
 {
   plist_or_xqos_addtomsg (m, ps, 0, pwanted, qwanted, bo);
 }
 
-void ddsi_plist_addtomsg (struct nn_xmsg *m, const ddsi_plist_t *ps, uint64_t pwanted, uint64_t qwanted)
+void ddsi_plist_addtomsg (struct ddsi_xmsg *m, const ddsi_plist_t *ps, uint64_t pwanted, uint64_t qwanted)
 {
   plist_or_xqos_addtomsg (m, ps, 0, pwanted, qwanted, DDSRT_BOSEL_NATIVE);
 }

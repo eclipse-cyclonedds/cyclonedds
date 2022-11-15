@@ -32,7 +32,7 @@
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/ddsi_proxy_endpoint.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/q_xmsg.h"
+#include "ddsi__xmsg.h"
 #include "ddsi__transmit.h"
 #include "ddsi__lease.h"
 #include "dds/ddsi/ddsi_gc.h"

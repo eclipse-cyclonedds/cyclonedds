@@ -16,7 +16,7 @@
 extern "C" {
 #endif
 
-struct nn_xpack;
+struct ddsi_xpack;
 struct ddsi_writer;
 struct ddsi_serdata;
 struct ddsi_tkmap_instance;
@@ -25,10 +25,10 @@ struct ddsi_thread_state;
 /* Writing new data; serdata_twrite (serdata) is assumed to be really recentish; serdata is unref'd.
    If xp == NULL, data is queued, else packed. GC may occur, which means the writer history and watermarks
    can be anything. This must be used for all application data. */
-int ddsi_write_sample_gc (struct ddsi_thread_state * const thrst, struct nn_xpack *xp, struct ddsi_writer *wr, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk);
+int ddsi_write_sample_gc (struct ddsi_thread_state * const thrst, struct ddsi_xpack *xp, struct ddsi_writer *wr, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk);
 
 /* wr->lock must be held */
-dds_return_t ddsi_write_hb_liveliness (struct ddsi_domaingv * const gv, struct ddsi_guid *wr_guid, struct nn_xpack *xp);
+dds_return_t ddsi_write_hb_liveliness (struct ddsi_domaingv * const gv, struct ddsi_guid *wr_guid, struct ddsi_xpack *xp);
 
 #if defined (__cplusplus)
 }

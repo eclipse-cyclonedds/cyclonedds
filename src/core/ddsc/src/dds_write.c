@@ -15,7 +15,7 @@
 #include "dds__write.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/ddsi_thread.h"
-#include "dds/ddsi/q_xmsg.h"
+#include "dds/ddsi/ddsi_xmsg.h"
 #include "dds/ddsi/ddsi_rhc.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/cdr/dds_cdrstream.h"
@@ -240,7 +240,7 @@ static struct ddsi_serdata_any *convert_serdata(struct ddsi_writer *ddsi_wr, str
   return dout;
 }
 
-static dds_return_t deliver_data_network (struct ddsi_thread_state * const thrst, struct ddsi_writer *ddsi_wr, struct ddsi_serdata_any *d, struct nn_xpack *xp, bool flush, struct ddsi_tkmap_instance *tk)
+static dds_return_t deliver_data_network (struct ddsi_thread_state * const thrst, struct ddsi_writer *ddsi_wr, struct ddsi_serdata_any *d, struct ddsi_xpack *xp, bool flush, struct ddsi_tkmap_instance *tk)
 {
   // ddsi_write_sample_gc always consumes 1 refc from d
   int ret = ddsi_write_sample_gc (thrst, xp, ddsi_wr, &d->a, tk);
@@ -248,7 +248,7 @@ static dds_return_t deliver_data_network (struct ddsi_thread_state * const thrst
   {
     /* Flush out write unless configured to batch */
     if (flush && xp != NULL)
-      nn_xpack_send (xp, false);
+      ddsi_xpack_send (xp, false);
     return DDS_RETCODE_OK;
   }
   else
@@ -257,7 +257,7 @@ static dds_return_t deliver_data_network (struct ddsi_thread_state * const thrst
   }
 }
 
-static dds_return_t deliver_data_any (struct ddsi_thread_state * const thrst, struct ddsi_writer *ddsi_wr, dds_writer *wr, struct ddsi_serdata_any *d, struct nn_xpack *xp, bool flush)
+static dds_return_t deliver_data_any (struct ddsi_thread_state * const thrst, struct ddsi_writer *ddsi_wr, dds_writer *wr, struct ddsi_serdata_any *d, struct ddsi_xpack *xp, bool flush)
 {
   struct ddsi_tkmap_instance * const tk = ddsi_tkmap_lookup_instance_ref (ddsi_wr->e.gv->m_tkmap, &d->a);
   dds_return_t ret;
@@ -280,7 +280,7 @@ static dds_return_t deliver_data_any (struct ddsi_thread_state * const thrst, st
   return ret;
 }
 
-static dds_return_t dds_writecdr_impl_common (struct ddsi_writer *ddsi_wr, struct nn_xpack *xp, struct ddsi_serdata_any *din, bool flush, dds_writer *wr)
+static dds_return_t dds_writecdr_impl_common (struct ddsi_writer *ddsi_wr, struct ddsi_xpack *xp, struct ddsi_serdata_any *din, bool flush, dds_writer *wr)
 {
   // consumes 1 refc from din in all paths (weird, but ... history ...)
   // let refc(din) be r, so upon returning it must be r-1
@@ -594,7 +594,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
   return ret;
 }
 
-dds_return_t dds_writecdr_impl (dds_writer *wr, struct nn_xpack *xp, struct ddsi_serdata *dinp, bool flush)
+dds_return_t dds_writecdr_impl (dds_writer *wr, struct ddsi_xpack *xp, struct ddsi_serdata *dinp, bool flush)
 {
   return dds_writecdr_impl_common (wr->m_wr, xp, (struct ddsi_serdata_any *) dinp, flush, wr);
 }
@@ -606,7 +606,7 @@ void dds_write_flush (dds_entity_t writer)
   {
     struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
     ddsi_thread_state_awake (thrst, &wr->m_entity.m_domain->gv);
-    nn_xpack_send (wr->m_xp, true);
+    ddsi_xpack_send (wr->m_xp, true);
     ddsi_thread_state_asleep (thrst);
     dds_writer_unlock (wr);
   }

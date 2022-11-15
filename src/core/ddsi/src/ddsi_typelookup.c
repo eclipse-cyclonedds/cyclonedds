@@ -34,7 +34,7 @@
 #include "ddsi__protocol.h"
 #include "ddsi__radmin.h"
 #include "ddsi__transmit.h"
-#include "dds/ddsi/q_xmsg.h"
+#include "ddsi__xmsg.h"
 #include "ddsi__misc.h"
 #include "ddsi__typelib.h"
 

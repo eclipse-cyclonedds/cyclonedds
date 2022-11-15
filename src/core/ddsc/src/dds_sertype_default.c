@@ -30,7 +30,7 @@
 #include "dds__serdata_default.h"
 
 #ifdef DDS_HAS_SHM
-#include "dds/ddsi/q_xmsg.h"
+#include "dds/ddsi/ddsi_xmsg.h"
 #endif
 
 static bool sertype_default_equal (const struct ddsi_sertype *acmn, const struct ddsi_sertype *bcmn)

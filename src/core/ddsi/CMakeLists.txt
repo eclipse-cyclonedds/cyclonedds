@@ -79,7 +79,7 @@ set(srcs_ddsi
   ddsi_inverse_uint32_set.c
   ddsi_whc.c
   ddsi_xevent.c
-  q_xmsg.c
+  ddsi_xmsg.c
   ddsi_freelist.c
   sysdeps.c
 )
@@ -138,7 +138,7 @@ set(hdrs_ddsi
   ddsi_unused.h
   ddsi_whc.h
   ddsi_xevent.h
-  q_xmsg.h
+  ddsi_xmsg.h
   sysdeps.h
 )
 
@@ -202,6 +202,7 @@ set(hdrs_private_ddsi
   ddsi__transmit.h
   ddsi__whc.h
   ddsi__xevent.h
+  ddsi__xmsg.h
 )
 
 if(ENABLE_LIFESPAN)

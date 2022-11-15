@@ -289,8 +289,6 @@ struct dds_qos {
   /*xxx */dds_data_representation_qospolicy_t data_representation;
 };
 
-struct nn_xmsg;
-
 DDS_EXPORT extern const dds_qos_t ddsi_default_qos_reader;
 DDS_EXPORT extern const dds_qos_t ddsi_default_qos_writer;
 DDS_EXPORT extern const dds_qos_t ddsi_default_qos_topic;

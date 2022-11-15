@@ -355,7 +355,7 @@ typedef struct dds_reader {
 typedef struct dds_writer {
   struct dds_entity m_entity;
   struct dds_topic *m_topic; /* refc'd, constant, lock(wr) -> lock(tp) allowed */
-  struct nn_xpack *m_xp;
+  struct ddsi_xpack *m_xp;
   struct ddsi_writer *m_wr;
   struct ddsi_whc *m_whc; /* FIXME: ownership still with underlying DDSI writer (cos of DDSI built-in writers )*/
   bool whc_batch; /* FIXME: channels + latency budget */

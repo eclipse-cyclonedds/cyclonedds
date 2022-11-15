@@ -26,7 +26,7 @@
 #include "ddsi__protocol.h"
 #include "ddsi__radmin.h"
 #include "ddsi__transmit.h"
-#include "dds/ddsi/q_xmsg.h"
+#include "ddsi__xmsg.h"
 #include "dds/ddsi/ddsi_pmd.h"
 #include "ddsi__proxy_participant.h"
 
@@ -57,7 +57,7 @@ void ddsi_write_pmd_message_guid (struct ddsi_domaingv * const gv, struct ddsi_g
   ddsi_thread_state_asleep (thrst);
 }
 
-void ddsi_write_pmd_message (struct ddsi_thread_state * const thrst, struct nn_xpack *xp, struct ddsi_participant *pp, unsigned pmd_kind)
+void ddsi_write_pmd_message (struct ddsi_thread_state * const thrst, struct ddsi_xpack *xp, struct ddsi_participant *pp, unsigned pmd_kind)
 {
 #define PMD_DATA_LENGTH 1
   struct ddsi_domaingv * const gv = pp->e.gv;

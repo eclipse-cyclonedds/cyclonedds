@@ -14,7 +14,7 @@
 #include "dds/ddsi/ddsi_protocol.h"
 #include "ddsi__radmin.h"
 #include "ddsi__misc.h"
-#include "dds/ddsi/q_xmsg.h"
+#include "ddsi__xmsg.h"
 #include "dds/ddsi/ddsi_log.h"
 #include "ddsi__bitset.h"
 #include "dds/ddsi/ddsi_domaingv.h"
@@ -147,15 +147,15 @@ static bool add_acknack_makebitmaps (const struct ddsi_proxy_writer *pwr, const 
   return true;
 }
 
-static void add_NackFrag (struct nn_xmsg *msg, const struct ddsi_proxy_writer *pwr, const struct ddsi_pwr_rd_match *rwn, const struct ddsi_add_acknack_info *info)
+static void add_NackFrag (struct ddsi_xmsg *msg, const struct ddsi_proxy_writer *pwr, const struct ddsi_pwr_rd_match *rwn, const struct ddsi_add_acknack_info *info)
 {
-  struct nn_xmsg_marker sm_marker;
+  struct ddsi_xmsg_marker sm_marker;
   ddsi_rtps_nackfrag_t *nf;
 
   assert (info->nackfrag.set.numbits > 0 && info->nackfrag.set.numbits <= DDSI_FRAGMENT_NUMBER_SET_MAX_BITS);
-  nf = nn_xmsg_append (msg, &sm_marker, DDSI_NACKFRAG_SIZE (info->nackfrag.set.numbits));
+  nf = ddsi_xmsg_append (msg, &sm_marker, DDSI_NACKFRAG_SIZE (info->nackfrag.set.numbits));
 
-  nn_xmsg_submsg_init (msg, sm_marker, DDSI_RTPS_SMID_NACK_FRAG);
+  ddsi_xmsg_submsg_init (msg, sm_marker, DDSI_RTPS_SMID_NACK_FRAG);
   nf->readerId = ddsi_hton_entityid (rwn->rd_guid.entityid);
   nf->writerId = ddsi_hton_entityid (pwr->e.guid.entityid);
   nf->writerSN = ddsi_to_seqno (info->nackfrag.seq);
@@ -172,7 +172,7 @@ static void add_NackFrag (struct nn_xmsg *msg, const struct ddsi_proxy_writer *p
     (ddsi_count_t *) ((char *) nf + offsetof (ddsi_rtps_nackfrag_t, bits) + DDSI_FRAGMENT_NUMBER_SET_BITS_SIZE (nf->fragmentNumberState.numbits));
   *countp = pwr->nackfragcount;
 
-  nn_xmsg_submsg_setnext (msg, sm_marker);
+  ddsi_xmsg_submsg_setnext (msg, sm_marker);
 
   if (pwr->e.gv->logconfig.c.mask & DDS_LC_TRACE)
   {
@@ -187,7 +187,7 @@ static void add_NackFrag (struct nn_xmsg *msg, const struct ddsi_proxy_writer *p
   ddsi_security_encode_datareader_submsg (msg, sm_marker, pwr, &rwn->rd_guid);
 }
 
-static void add_acknack (struct nn_xmsg *msg, const struct ddsi_proxy_writer *pwr, const struct ddsi_pwr_rd_match *rwn, const struct ddsi_add_acknack_info *info)
+static void add_acknack (struct ddsi_xmsg *msg, const struct ddsi_proxy_writer *pwr, const struct ddsi_pwr_rd_match *rwn, const struct ddsi_add_acknack_info *info)
 {
   /* If pwr->have_seen_heartbeat == 0, no heartbeat has been received
      by this proxy writer yet, so we'll be sending a pre-emptive
@@ -195,10 +195,10 @@ static void add_acknack (struct nn_xmsg *msg, const struct ddsi_proxy_writer *pw
      upon reception of the first heartbeat, and so cause the data to
      be resent twice. */
   ddsi_rtps_acknack_t *an;
-  struct nn_xmsg_marker sm_marker;
+  struct ddsi_xmsg_marker sm_marker;
 
-  an = nn_xmsg_append (msg, &sm_marker, DDSI_ACKNACK_SIZE_MAX);
-  nn_xmsg_submsg_init (msg, sm_marker, DDSI_RTPS_SMID_ACKNACK);
+  an = ddsi_xmsg_append (msg, &sm_marker, DDSI_ACKNACK_SIZE_MAX);
+  ddsi_xmsg_submsg_init (msg, sm_marker, DDSI_RTPS_SMID_ACKNACK);
   an->readerId = ddsi_hton_entityid (rwn->rd_guid.entityid);
   an->writerId = ddsi_hton_entityid (pwr->e.guid.entityid);
 
@@ -216,8 +216,8 @@ static void add_acknack (struct nn_xmsg *msg, const struct ddsi_proxy_writer *pw
     (ddsi_count_t *) ((char *) an + offsetof (ddsi_rtps_acknack_t, bits) + DDSI_SEQUENCE_NUMBER_SET_BITS_SIZE (an->readerSNState.numbits));
   *countp = rwn->count;
   // Reset submessage size, now that we know the real size, and update the offset to the next submessage.
-  nn_xmsg_shrink (msg, sm_marker, DDSI_ACKNACK_SIZE (an->readerSNState.numbits));
-  nn_xmsg_submsg_setnext (msg, sm_marker);
+  ddsi_xmsg_shrink (msg, sm_marker, DDSI_ACKNACK_SIZE (an->readerSNState.numbits));
+  ddsi_xmsg_submsg_setnext (msg, sm_marker);
 
   if (pwr->e.gv->logconfig.c.mask & DDS_LC_TRACE)
   {
@@ -369,10 +369,10 @@ void ddsi_sched_acknack_if_needed (struct ddsi_xevent *ev, struct ddsi_proxy_wri
     (void) ddsi_resched_xevent_if_earlier (ev, tnow);
 }
 
-struct nn_xmsg *ddsi_make_and_resched_acknack (struct ddsi_xevent *ev, struct ddsi_proxy_writer *pwr, struct ddsi_pwr_rd_match *rwn, ddsrt_mtime_t tnow, bool avoid_suppressed_nack)
+struct ddsi_xmsg *ddsi_make_and_resched_acknack (struct ddsi_xevent *ev, struct ddsi_proxy_writer *pwr, struct ddsi_pwr_rd_match *rwn, ddsrt_mtime_t tnow, bool avoid_suppressed_nack)
 {
   struct ddsi_domaingv * const gv = pwr->e.gv;
-  struct nn_xmsg *msg;
+  struct ddsi_xmsg *msg;
   struct ddsi_add_acknack_info info;
 
   struct ddsi_last_nack_summary nack_summary;
@@ -431,12 +431,12 @@ struct nn_xmsg *ddsi_make_and_resched_acknack (struct ddsi_xevent *ev, struct dd
       pp = rd->c.pp;
   }
 
-  if ((msg = nn_xmsg_new (gv->xmsgpool, &rwn->rd_guid, pp, DDSI_ACKNACK_SIZE_MAX, NN_XMSG_KIND_CONTROL)) == NULL)
+  if ((msg = ddsi_xmsg_new (gv->xmsgpool, &rwn->rd_guid, pp, DDSI_ACKNACK_SIZE_MAX, DDSI_XMSG_KIND_CONTROL)) == NULL)
   {
     return NULL;
   }
 
-  nn_xmsg_setdstPWR (msg, pwr);
+  ddsi_xmsg_setdst_pwr (msg, pwr);
   if (gv->config.meas_hb_to_ack_latency && rwn->hb_timestamp.v)
   {
     // If HB->ACK latency measurement is enabled, and we have a
@@ -444,7 +444,7 @@ struct nn_xmsg *ddsi_make_and_resched_acknack (struct ddsi_xevent *ev, struct dd
     // is no real guarantee that the two match, but I haven't got a
     // solution for that yet ...  If adding the time stamp fails,
     // too bad, but no reason to get worried. */
-    nn_xmsg_add_timestamp (msg, rwn->hb_timestamp);
+    ddsi_xmsg_add_timestamp (msg, rwn->hb_timestamp);
     rwn->hb_timestamp.v = 0;
   }
 
@@ -456,10 +456,10 @@ struct nn_xmsg *ddsi_make_and_resched_acknack (struct ddsi_xevent *ev, struct dd
     add_NackFrag (msg, pwr, rwn, &info);
   }
   ETRACE (pwr, "\n");
-  if (nn_xmsg_size (msg) == 0)
+  if (ddsi_xmsg_size (msg) == 0)
   {
     // attempt at encoding the message caused it to be dropped
-    nn_xmsg_free (msg);
+    ddsi_xmsg_free (msg);
     return NULL;
   }
 

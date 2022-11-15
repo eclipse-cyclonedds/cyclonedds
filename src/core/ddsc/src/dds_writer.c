@@ -20,7 +20,7 @@
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/ddsi_thread.h"
-#include "dds/ddsi/q_xmsg.h"
+#include "dds/ddsi/ddsi_xmsg.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/ddsi_security_omg.h"
 #include "dds/cdr/dds_cdrstream.h"
@@ -185,7 +185,7 @@ static void dds_writer_close (dds_entity *e)
   struct ddsi_domaingv * const gv = &e->m_domain->gv;
   struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
   ddsi_thread_state_awake (thrst, gv);
-  nn_xpack_send (wr->m_xp, false);
+  ddsi_xpack_send (wr->m_xp, false);
   (void) ddsi_delete_writer (gv, &e->m_guid);
   ddsi_thread_state_asleep (thrst);
 
@@ -210,7 +210,7 @@ static dds_return_t dds_writer_delete (dds_entity *e)
 #endif
   /* FIXME: not freeing WHC here because it is owned by the DDSI entity */
   ddsi_thread_state_awake (ddsi_lookup_thread_state (), &e->m_domain->gv);
-  nn_xpack_free (wr->m_xp);
+  ddsi_xpack_free (wr->m_xp);
   ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
   dds_entity_drop_ref (&wr->m_topic->m_entity);
   return DDS_RETCODE_OK;
@@ -447,7 +447,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   const dds_entity_t writer = dds_entity_init (&wr->m_entity, &pub->m_entity, DDS_KIND_WRITER, false, true, wqos, listener, DDS_WRITER_STATUS_MASK);
   wr->m_topic = tp;
   dds_entity_add_ref_locked (&tp->m_entity);
-  wr->m_xp = nn_xpack_new (gv, get_bandwidth_limit (wqos->transport_priority), async_mode);
+  wr->m_xp = ddsi_xpack_new (gv, get_bandwidth_limit (wqos->transport_priority), async_mode);
   wrinfo = whc_make_wrinfo (wr, wqos);
   wr->m_whc = whc_new (gv, wrinfo);
   whc_free_wrinfo (wrinfo);
@@ -495,8 +495,8 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   // start async thread if not already started and the latency budget is non zero
   ddsrt_mutex_lock (&gv->sendq_running_lock);
   if (async_mode && !gv->sendq_running) {
-    nn_xpack_sendq_init(gv);
-    nn_xpack_sendq_start(gv);
+    ddsi_xpack_sendq_init(gv);
+    ddsi_xpack_sendq_start(gv);
   }
   ddsrt_mutex_unlock (&gv->sendq_running_lock);
   return writer;

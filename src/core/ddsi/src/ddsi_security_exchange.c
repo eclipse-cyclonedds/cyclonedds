@@ -25,7 +25,7 @@
 #include "ddsi__serdata_pserop.h"
 #include "ddsi__discovery.h"
 #include "dds/ddsi/ddsi_tkmap.h"
-#include "dds/ddsi/q_xmsg.h"
+#include "ddsi__xmsg.h"
 #include "ddsi__transmit.h"
 #include "dds/ddsi/ddsi_log.h"
 #include "ddsi__entity.h"
@@ -77,21 +77,21 @@ bool write_auth_handshake_message(const struct ddsi_participant *pp, const struc
 
 void auth_get_serialized_participant_data(struct ddsi_participant *pp, ddsi_octetseq_t *seq)
 {
-  struct nn_xmsg *mpayload;
+  struct ddsi_xmsg *mpayload;
   ddsi_plist_t ps;
   struct ddsi_participant_builtin_topic_data_locators locs;
   size_t sz;
   char *payload;
-  mpayload = nn_xmsg_new (pp->e.gv->xmsgpool, &pp->e.guid, pp, 0, NN_XMSG_KIND_DATA);
+  mpayload = ddsi_xmsg_new (pp->e.gv->xmsgpool, &pp->e.guid, pp, 0, DDSI_XMSG_KIND_DATA);
   ddsi_get_participant_builtin_topic_data (pp, &ps, &locs);
   ddsi_plist_addtomsg_bo (mpayload, &ps, ~(uint64_t)0, ~(uint64_t)0, DDSRT_BOSEL_BE);
-  nn_xmsg_addpar_sentinel_bo (mpayload, DDSRT_BOSEL_BE);
+  ddsi_xmsg_addpar_sentinel_bo (mpayload, DDSRT_BOSEL_BE);
   ddsi_plist_fini (&ps);
-  payload = nn_xmsg_payload (&sz, mpayload);
+  payload = ddsi_xmsg_payload (&sz, mpayload);
   seq->length = (uint32_t) sz;
   seq->value = ddsrt_malloc (sz);
   memcpy (seq->value, payload, sz);
-  nn_xmsg_free (mpayload);
+  ddsi_xmsg_free (mpayload);
 }
 
 void handle_auth_handshake_message(const struct ddsi_receiver_state *rst, ddsi_entityid_t wr_entity_id, struct ddsi_serdata *sample_common)

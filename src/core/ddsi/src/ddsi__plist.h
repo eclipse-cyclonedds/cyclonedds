@@ -23,6 +23,8 @@
 extern "C" {
 #endif
 
+struct ddsi_xmsg;
+
 #define DDSI_ADLINK_PARTICIPANT_VERSION_INFO_FIXED_CDRSIZE (24)
 
 #define DDSI_ADLINK_FL_KERNEL_SEQUENCE_NUMBER     (1u << 0)
@@ -216,7 +218,7 @@ void ddsi_plist_unalias (ddsi_plist_t *plist);
  * @param[in]     pwanted  subset of non-QoS part of ps (if PP_X is set, add X if present)
  * @param[in]     qwanted  subset of QoS part of ps (if DDSI_QP_X is set, add X if present)
  */
-void ddsi_plist_addtomsg (struct nn_xmsg *m, const ddsi_plist_t *ps, uint64_t pwanted, uint64_t qwanted);
+void ddsi_plist_addtomsg (struct ddsi_xmsg *m, const ddsi_plist_t *ps, uint64_t pwanted, uint64_t qwanted);
 
 /**
  * @brief Add selected entries in "ps" to a message with selected endianness.
@@ -233,7 +235,7 @@ void ddsi_plist_addtomsg (struct nn_xmsg *m, const ddsi_plist_t *ps, uint64_t pw
  * @param[in]     qwanted  subset of QoS part of ps (if DDSI_QP_X is set, add X if present)
  * @param[in]     bo       byte order
  */
-void ddsi_plist_addtomsg_bo (struct nn_xmsg *m, const ddsi_plist_t *ps, uint64_t pwanted, uint64_t qwanted, enum ddsrt_byte_order_selector bo);
+void ddsi_plist_addtomsg_bo (struct ddsi_xmsg *m, const ddsi_plist_t *ps, uint64_t pwanted, uint64_t qwanted, enum ddsrt_byte_order_selector bo);
 
 /**
  * @brief Formats plist into a buffer

@@ -44,7 +44,7 @@
 #include "dds/ddsi/ddsi_proxy_participant.h"
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/ddsi_proxy_endpoint.h"
-#include "dds/ddsi/q_xmsg.h"
+#include "ddsi__xmsg.h"
 #include "ddsi__receive.h"
 #include "ddsi__rhc.h"
 #include "dds/ddsi/ddsi_deliver_locally.h"
@@ -559,20 +559,20 @@ static enum validation_result validate_DataFrag (const struct ddsi_receiver_stat
   return vr;
 }
 
-int ddsi_add_gap (struct nn_xmsg *msg, struct ddsi_writer *wr, struct ddsi_proxy_reader *prd, ddsi_seqno_t start, ddsi_seqno_t base, uint32_t numbits, const uint32_t *bits)
+int ddsi_add_gap (struct ddsi_xmsg *msg, struct ddsi_writer *wr, struct ddsi_proxy_reader *prd, ddsi_seqno_t start, ddsi_seqno_t base, uint32_t numbits, const uint32_t *bits)
 {
-  struct nn_xmsg_marker sm_marker;
+  struct ddsi_xmsg_marker sm_marker;
   ddsi_rtps_gap_t *gap;
   ASSERT_MUTEX_HELD (wr->e.lock);
-  gap = nn_xmsg_append (msg, &sm_marker, DDSI_GAP_SIZE (numbits));
-  nn_xmsg_submsg_init (msg, sm_marker, DDSI_RTPS_SMID_GAP);
+  gap = ddsi_xmsg_append (msg, &sm_marker, DDSI_GAP_SIZE (numbits));
+  ddsi_xmsg_submsg_init (msg, sm_marker, DDSI_RTPS_SMID_GAP);
   gap->readerId = ddsi_hton_entityid (prd->e.guid.entityid);
   gap->writerId = ddsi_hton_entityid (wr->e.guid.entityid);
   gap->gapStart = ddsi_to_seqno (start);
   gap->gapList.bitmap_base = ddsi_to_seqno (base);
   gap->gapList.numbits = numbits;
   memcpy (gap->bits, bits, DDSI_SEQUENCE_NUMBER_SET_BITS_SIZE (numbits));
-  nn_xmsg_submsg_setnext (msg, sm_marker);
+  ddsi_xmsg_submsg_setnext (msg, sm_marker);
   ddsi_security_encode_datawriter_submsg(msg, sm_marker, wr);
   return 0;
 }
@@ -677,20 +677,20 @@ void ddsi_gap_info_update(struct ddsi_domaingv *gv, struct ddsi_gap_info *gi, dd
   }
 }
 
-struct nn_xmsg * ddsi_gap_info_create_gap(struct ddsi_writer *wr, struct ddsi_proxy_reader *prd, struct ddsi_gap_info *gi)
+struct ddsi_xmsg * ddsi_gap_info_create_gap(struct ddsi_writer *wr, struct ddsi_proxy_reader *prd, struct ddsi_gap_info *gi)
 {
-  struct nn_xmsg *m;
+  struct ddsi_xmsg *m;
 
   if (gi->gapstart == 0)
     return NULL;
 
-  m = nn_xmsg_new (wr->e.gv->xmsgpool, &wr->e.guid, wr->c.pp, 0, NN_XMSG_KIND_CONTROL);
+  m = ddsi_xmsg_new (wr->e.gv->xmsgpool, &wr->e.guid, wr->c.pp, 0, DDSI_XMSG_KIND_CONTROL);
 
-  nn_xmsg_setdstPRD (m, prd);
+  ddsi_xmsg_setdst_prd (m, prd);
   ddsi_add_gap (m, wr, prd, gi->gapstart, gi->gapend, gi->gapnumbits, gi->gapbits);
-  if (nn_xmsg_size(m) == 0)
+  if (ddsi_xmsg_size(m) == 0)
   {
-    nn_xmsg_free (m);
+    ddsi_xmsg_free (m);
     m = NULL;
   }
   else
@@ -704,7 +704,7 @@ struct nn_xmsg * ddsi_gap_info_create_gap(struct ddsi_writer *wr, struct ddsi_pr
 }
 
 struct defer_hb_state {
-  struct nn_xmsg *m;
+  struct ddsi_xmsg *m;
   struct ddsi_xeventq *evq;
   int hbansreq;
   uint64_t wr_iid;
@@ -722,7 +722,7 @@ static void defer_heartbeat_to_peer (struct ddsi_writer *wr, const struct ddsi_w
       if (hbansreq <= defer_hb_state->hbansreq)
         return;
       else
-        nn_xmsg_free (defer_hb_state->m);
+        ddsi_xmsg_free (defer_hb_state->m);
     }
     else
     {
@@ -733,8 +733,8 @@ static void defer_heartbeat_to_peer (struct ddsi_writer *wr, const struct ddsi_w
   ASSERT_MUTEX_HELD (&wr->e.lock);
   assert (wr->reliable);
 
-  defer_hb_state->m = nn_xmsg_new (wr->e.gv->xmsgpool, &wr->e.guid, wr->c.pp, 0, NN_XMSG_KIND_CONTROL);
-  nn_xmsg_setdstPRD (defer_hb_state->m, prd);
+  defer_hb_state->m = ddsi_xmsg_new (wr->e.gv->xmsgpool, &wr->e.guid, wr->c.pp, 0, DDSI_XMSG_KIND_CONTROL);
+  ddsi_xmsg_setdst_prd (defer_hb_state->m, prd);
   ddsi_add_heartbeat (defer_hb_state->m, wr, whcst, hbansreq, 0, prd->e.guid.entityid, 0);
   defer_hb_state->evq = wr->evq;
   defer_hb_state->hbansreq = hbansreq;
@@ -1095,7 +1095,7 @@ static int handle_AckNack (struct ddsi_receiver_state *rst, ddsrt_etime_t tnow, 
   /* Generate a Gap message if some of the sequence is missing */
   if (gi.gapstart > 0)
   {
-    struct nn_xmsg *gap;
+    struct ddsi_xmsg *gap;
 
     if (gi.gapend == seqbase + msg->readerSNState.numbits)
       gi.gapend = grow_gap_to_next_seq (wr, gi.gapend);
@@ -1668,7 +1668,7 @@ static int handle_NackFrag (struct ddsi_receiver_state *rst, ddsrt_etime_t tnow,
     {
       if (ddsi_bitset_isset (msg->fragmentNumberState.numbits, msg->bits, i))
       {
-        struct nn_xmsg *reply;
+        struct ddsi_xmsg *reply;
         if (ddsi_create_fragment_message (wr, seq, sample.serdata, base + i, 1, prd, &reply, 0, 0) < 0)
           nfrags_lim = 0;
         else if (ddsi_qxev_msg_rexmit_wrlock_held (wr->evq, reply, 0) == DDSI_QXEV_MSG_REXMIT_DROPPED)
@@ -1691,10 +1691,10 @@ static int handle_NackFrag (struct ddsi_receiver_state *rst, ddsrt_etime_t tnow,
   else
   {
     static uint32_t zero = 0;
-    struct nn_xmsg *m;
+    struct ddsi_xmsg *m;
     RSTTRACE (" msg not available: scheduling Gap\n");
-    m = nn_xmsg_new (rst->gv->xmsgpool, &wr->e.guid, wr->c.pp, 0, NN_XMSG_KIND_CONTROL);
-    nn_xmsg_setdstPRD (m, prd);
+    m = ddsi_xmsg_new (rst->gv->xmsgpool, &wr->e.guid, wr->c.pp, 0, DDSI_XMSG_KIND_CONTROL);
+    ddsi_xmsg_setdst_prd (m, prd);
     /* length-1 bitmap with the bit clear avoids the illegal case of a length-0 bitmap */
     ddsi_add_gap (m, wr, prd, seq, seq+1, 0, &zero);
     ddsi_qxev_msg (wr->evq, m);

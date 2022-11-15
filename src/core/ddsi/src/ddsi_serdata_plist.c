@@ -24,7 +24,7 @@
 #include "ddsi__radmin.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "ddsi__serdata_plist.h"
-#include "dds/ddsi/q_xmsg.h"
+#include "ddsi__xmsg.h"
 #include "ddsi__misc.h"
 #include "ddsi__plist.h"
 #include "dds/cdr/dds_cdrstream.h"
@@ -220,13 +220,13 @@ static struct ddsi_serdata *serdata_plist_from_sample (const struct ddsi_sertype
   // FIXME: key must not require byteswapping (GUIDs are ok)
   // FIXME: rework plist stuff so it doesn't need an nn_xmsg
   struct ddsi_domaingv * const gv = ddsrt_atomic_ldvoidp (&tp->c.gv);
-  struct nn_xmsg *mpayload = nn_xmsg_new (gv->xmsgpool, &ddsi_nullguid, NULL, 0, NN_XMSG_KIND_DATA);
-  memcpy (nn_xmsg_append (mpayload, NULL, 4), &header, 4);
+  struct ddsi_xmsg *mpayload = ddsi_xmsg_new (gv->xmsgpool, &ddsi_nullguid, NULL, 0, DDSI_XMSG_KIND_DATA);
+  memcpy (ddsi_xmsg_append (mpayload, NULL, 4), &header, 4);
   ddsi_plist_addtomsg (mpayload, sample, ~(uint64_t)0, ~(uint64_t)0);
-  nn_xmsg_addpar_sentinel (mpayload);
+  ddsi_xmsg_addpar_sentinel (mpayload);
 
   size_t sz;
-  unsigned char *blob = nn_xmsg_payload (&sz, mpayload);
+  unsigned char *blob = ddsi_xmsg_payload (&sz, mpayload);
 #ifndef NDEBUG
   void *needle;
   size_t needlesz;
@@ -235,7 +235,7 @@ static struct ddsi_serdata *serdata_plist_from_sample (const struct ddsi_sertype
 #endif
   ddsrt_iovec_t iov = { .iov_base = blob, .iov_len = (ddsrt_iov_len_t) sz };
   struct ddsi_serdata *d = serdata_plist_from_ser_iov (tpcmn, kind, 1, &iov, sz - 4);
-  nn_xmsg_free (mpayload);
+  ddsi_xmsg_free (mpayload);
 
   /* we know the vendor when we construct a serdata from a sample */
   struct ddsi_serdata_plist *d_plist = (struct ddsi_serdata_plist *) d;
