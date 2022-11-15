@@ -74,6 +74,7 @@ set(srcs_ddsi
   ddsi_radmin.c
   ddsi_receive.c
   ddsi_sockwaitset.c
+  ddsi_sysdeps.c
   ddsi_thread.c
   ddsi_transmit.c
   ddsi_inverse_uint32_set.c
@@ -81,7 +82,6 @@ set(srcs_ddsi
   ddsi_xevent.c
   ddsi_xmsg.c
   ddsi_freelist.c
-  sysdeps.c
 )
 
 set(hdrs_ddsi
@@ -139,7 +139,6 @@ set(hdrs_ddsi
   ddsi_whc.h
   ddsi_xevent.h
   ddsi_xmsg.h
-  sysdeps.h
 )
 
 set(hdrs_private_ddsi
@@ -173,6 +172,7 @@ set(hdrs_private_ddsi
   ddsi__serdata_cdr.h
   ddsi__serdata_plist.h
   ddsi__ssl.h
+  ddsi__sysdeps.h
   ddsi__tcp.h
   ddsi__protocol.h
   ddsi__time.h

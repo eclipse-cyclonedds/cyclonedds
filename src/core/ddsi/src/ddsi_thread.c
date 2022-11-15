@@ -26,7 +26,7 @@
 #include "dds/ddsi/ddsi_log.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/sysdeps.h"
+#include "ddsi__sysdeps.h"
 
 struct ddsi_thread_states thread_states;
 ddsrt_thread_local struct ddsi_thread_state *tsd_thread_state;
@@ -429,7 +429,7 @@ void ddsi_log_stack_traces (const struct ddsrt_log_cfg *logcfg, const struct dds
            thread id (or even with a thread id mapping to a newly created thread that isn't really
            relevant in this context!) but this is an optional debug feature, so it's not worth the
            bother to avoid it. */
-        log_stacktrace (logcfg, thrst->name, thrst->tid);
+        ddsi_log_stacktrace (logcfg, thrst->name, thrst->tid);
       }
     }
   }

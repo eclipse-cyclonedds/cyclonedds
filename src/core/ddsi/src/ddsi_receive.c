@@ -55,7 +55,7 @@
 #include "dds/ddsi/ddsi_serdata.h"
 #include "ddsi__security_omg.h"
 #include "ddsi__acknack.h"
-#include "dds/ddsi/sysdeps.h"
+#include "ddsi__sysdeps.h"
 #include "ddsi__deliver_locally.h"
 #include "ddsi__endpoint.h"
 #include "ddsi__entity_match.h"

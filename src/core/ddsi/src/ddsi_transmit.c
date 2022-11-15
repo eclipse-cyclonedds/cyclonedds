@@ -38,7 +38,7 @@
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_sertype.h"
 #include "ddsi__security_omg.h"
-#include "dds/ddsi/sysdeps.h"
+#include "ddsi__sysdeps.h"
 #include "ddsi__endpoint.h"
 #include "ddsi__entity_match.h"
 #include "ddsi__protocol.h"

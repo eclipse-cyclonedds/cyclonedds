@@ -16,7 +16,7 @@
 #include "dds/ddsrt/misc.h"
 
 #include "dds/ddsi/ddsi_log.h"
-#include "dds/ddsi/sysdeps.h"
+#include "ddsi__sysdeps.h"
 
 #if (defined __APPLE__ || (defined __linux && (defined __GLIBC__ || defined __UCLIBC__))) || (__GNUC__ > 0 && (__GNUC__ * 10000 + __GNUC_MINOR__ * 100 + __GNUC_PATCHLEVEL__) < 40100) && ! DDSRT_WITH_FREERTOS
 #include <errno.h>
@@ -38,7 +38,7 @@ static void log_stacktrace_sigh (int sig __attribute__ ((unused)))
   errno = e;
 }
 
-void log_stacktrace (const struct ddsrt_log_cfg *logcfg, const char *name, ddsrt_thread_t tid)
+void ddsi_log_stacktrace (const struct ddsrt_log_cfg *logcfg, const char *name, ddsrt_thread_t tid)
 {
   const dds_time_t d = 1000000;
   struct sigaction act, oact;
@@ -133,7 +133,7 @@ static int copy_thread_context (CONTEXT *dst, struct _EXCEPTION_POINTERS *ep)
   return EXCEPTION_EXECUTE_HANDLER;
 }
 
-void log_stacktrace (const struct ddsrt_log_cfg *logcfg, const char *name, ddsrt_thread_t tid)
+void ddsi_log_stacktrace (const struct ddsrt_log_cfg *logcfg, const char *name, ddsrt_thread_t tid)
 {
   const char *errmsg = "unknown";
   HANDLE handle = 0;
@@ -268,7 +268,7 @@ void log_stacktrace (const struct ddsrt_log_cfg *logcfg, const char *name, ddsrt
   DDS_CLOG (~DDS_LC_FATAL, logcfg, "-- no stack trace: %s failure --\n", errmsg);
 }
 #else
-void log_stacktrace (const struct ddsrt_log_cfg *logcfg, const char *name, ddsrt_thread_t tid)
+void ddsi_log_stacktrace (const struct ddsrt_log_cfg *logcfg, const char *name, ddsrt_thread_t tid)
 {
   DDSRT_UNUSED_ARG (logcfg);
   DDSRT_UNUSED_ARG (name);

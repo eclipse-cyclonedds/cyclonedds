@@ -49,7 +49,7 @@
 #include "dds/ddsi/ddsi_xevent.h"
 #include "ddsi__xevent.h"
 #include "dds/ddsi/ddsi_plist.h"
-#include "dds/ddsi/sysdeps.h"
+#include "ddsi__sysdeps.h"
 #include "ddsi__entity_match.h"
 #include "ddsi__plist.h"
 #include "ddsi__proxy_endpoint.h"

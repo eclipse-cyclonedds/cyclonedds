@@ -30,7 +30,7 @@
 #include "dds/ddsi/ddsi_pmd.h"
 #include "ddsi__proxy_participant.h"
 
-#include "dds/ddsi/sysdeps.h"
+#include "ddsi__sysdeps.h"
 
 /* note: treating guid prefix + kind as if it were a GUID because that matches
    the octet-sequence/sequence-of-uint32 distinction between the specified wire

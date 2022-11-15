@@ -51,7 +51,7 @@
 #include "ddsi__hbcontrol.h"
 #include "dds__whc.h"
 
-#include "dds/ddsi/sysdeps.h"
+#include "ddsi__sysdeps.h"
 
 #define EVQTRACE(...) DDS_CTRACE (&evq->gv->logconfig, __VA_ARGS__)
 

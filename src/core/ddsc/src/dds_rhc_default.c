@@ -45,7 +45,6 @@
 #ifdef DDS_HAS_DEADLINE_MISSED
 #include "dds/ddsi/ddsi_deadline.h"
 #endif
-#include "dds/ddsi/sysdeps.h"
 
 /* INSTANCE MANAGEMENT
    ===================

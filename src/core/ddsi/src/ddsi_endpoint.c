@@ -36,7 +36,7 @@
 #include "ddsi__addrset.h"
 #include "ddsi__radmin.h"
 #include "ddsi__misc.h"
-#include "dds/ddsi/sysdeps.h"
+#include "ddsi__sysdeps.h"
 #include "ddsi__endpoint.h"
 #include "ddsi__gc.h"
 #include "ddsi__topic.h"
