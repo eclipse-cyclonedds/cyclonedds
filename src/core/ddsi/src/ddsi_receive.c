@@ -2185,12 +2185,6 @@ static int deliver_user_data (const struct ddsi_rsample_info *sampleinfo, const 
   ddsi_plist_t qos;
   int need_keyhash;
 
-  if (pwr->ddsi2direct_cb)
-  {
-    pwr->ddsi2direct_cb (sampleinfo, fragchain, pwr->ddsi2direct_cbarg);
-    return 0;
-  }
-
   /* FIXME: fragments are now handled by copying the message to
      freshly malloced memory (see defragment()) ... that'll have to
      change eventually */

@@ -403,7 +403,6 @@ struct ddsi_config
 #endif
   uint32_t max_queued_rexmit_bytes;
   unsigned max_queued_rexmit_msgs;
-  unsigned ddsi2direct_max_threads;
   int late_ack_mode;
   int retry_on_reject_besteffort;
   int generate_keyhash;

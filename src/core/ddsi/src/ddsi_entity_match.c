@@ -958,11 +958,6 @@ void ddsi_proxy_writer_add_connection (struct ddsi_proxy_writer *pwr, struct dds
     goto already_matched;
 
   assert (rd->type || ddsi_is_builtin_endpoint (rd->e.guid.entityid, DDSI_VENDORID_ECLIPSE));
-  if (pwr->ddsi2direct_cb == 0 && rd->ddsi2direct_cb != 0)
-  {
-    pwr->ddsi2direct_cb = rd->ddsi2direct_cb;
-    pwr->ddsi2direct_cbarg = rd->ddsi2direct_cbarg;
-  }
 
 #ifdef DDS_HAS_SHM
   const bool use_iceoryx = pwr->is_iceoryx && !(rd->xqos->ignore_locator_type & DDSI_LOCATOR_KIND_SHEM);

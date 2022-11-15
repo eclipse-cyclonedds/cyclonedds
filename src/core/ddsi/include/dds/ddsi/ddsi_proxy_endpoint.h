@@ -82,8 +82,6 @@ struct ddsi_proxy_writer {
   struct ddsi_dqueue *dqueue; /* delivery queue for asynchronous delivery (historical data is always delivered asynchronously) */
   struct ddsi_xeventq *evq; /* timed event queue to be used for ACK generation */
   struct ddsi_local_reader_ary rdary; /* LOCAL readers for fast-pathing; if not fast-pathed, fall back to scanning local_readers */
-  ddsi2direct_directread_cb_t ddsi2direct_cb;
-  void *ddsi2direct_cbarg;
   struct ddsi_lease *lease;
 };
 

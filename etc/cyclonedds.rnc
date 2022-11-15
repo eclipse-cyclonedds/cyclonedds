@@ -399,12 +399,6 @@ CycloneDDS configuration""" ] ]
           empty
         }?
         & [ a:documentation [ xml:lang="en" """
-<p>This element sets the maximum number of extra threads for an experimental, undocumented, and unsupported direct mode.</p>
-<p>The default value is: <code>1</code></p>""" ] ]
-        element DDSI2DirectMaxThreads {
-          xsd:integer
-        }?
-        & [ a:documentation [ xml:lang="en" """
 <p>This element sets the maximum number of samples that can be defragmented simultaneously for a reliable writer. This has to be large enough to handle retransmissions of historical data in addition to new samples.</p>
 <p>The default value is: <code>16</code></p>""" ] ]
         element DefragReliableMaxSamples {
@@ -1299,9 +1293,9 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==<br>
   duration_inf = xsd:token { pattern = "inf|0|(\d+(\.\d*)?([Ee][\-+]?\d+)?|\.\d+([Ee][\-+]?\d+)?) *([num]?s|min|hr|day)" }
   memsize = xsd:token { pattern = "0|(\d+(\.\d*)?([Ee][\-+]?\d+)?|\.\d+([Ee][\-+]?\d+)?) *([kMG]i?)?B" }
 }
-# generated from ddsi_config.h[be918028f860b8d30629791cc49c55df3af3fc82] 
+# generated from ddsi_config.h[0afa09c75f102f762ff2471c993b4f50c1aace9d] 
 # generated from ddsi_cfgunits.h[fc550f1620aa20dcd9244ef4e24299d5001efbb4] 
-# generated from ddsi_cfgelems.h[a632149e8f68e76d13bf22e670e910975c77fa38] 
+# generated from ddsi_cfgelems.h[9bb5bead0234bd2442a0d121d41a97200e9f77ee] 
 # generated from ddsi_config.c[7ef6df1289260a9b355f056c7641cd8fcf40f3b3] 
 # generated from _confgen.h[f2d235d5551cbf920a8a2962831dddeabd2856ac] 
 # generated from _confgen.c[ba2e8c0cfd41039421548fdb03bcd2db8f8b172e] 

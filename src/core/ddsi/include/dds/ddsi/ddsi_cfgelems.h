@@ -1459,12 +1459,6 @@ static struct cfgelem internal_cfgelems[] = {
     BEHIND_FLAG("DDS_HAS_BANDWIDTH_LIMITING")
   ),
 #endif
-  INT("DDSI2DirectMaxThreads", NULL, 1, "1",
-    MEMBER(ddsi2direct_max_threads),
-    FUNCTIONS(0, uf_uint, 0, pf_uint),
-    DESCRIPTION(
-      "<p>This element sets the maximum number of extra threads for an "
-      "experimental, undocumented, and unsupported direct mode.</p>")),
   BOOL("SquashParticipants", NULL, 1, "false",
     MEMBER(squash_participants),
     FUNCTIONS(0, uf_boolean, 0, pf_boolean),

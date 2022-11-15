@@ -39,10 +39,6 @@ dds_return_t dds_return_reader_loan (dds_reader *rd, void **buf, int32_t bufsz);
 #define DDS_READ_WITHOUT_LOCK (0xFFFFFFED)
 DDS_EXPORT uint32_t dds_reader_lock_samples (dds_entity_t entity);
 
-struct ddsi_rsample_info;
-struct ddsi_rdata;
-void dds_reader_ddsi2direct (dds_entity_t entity, void (*cb) (const struct ddsi_rsample_info *sampleinfo, const struct ddsi_rdata *fragchain, void *arg), void *cbarg);
-
 DEFINE_ENTITY_LOCK_UNLOCK(dds_reader, DDS_KIND_READER)
 
 #if defined (__cplusplus)

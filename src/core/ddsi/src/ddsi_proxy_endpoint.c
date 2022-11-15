@@ -297,8 +297,6 @@ int ddsi_new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppg
 
   pwr->dqueue = dqueue;
   pwr->evq = evq;
-  pwr->ddsi2direct_cb = 0;
-  pwr->ddsi2direct_cbarg = 0;
 
   ddsi_local_reader_ary_init (&pwr->rdary);
 

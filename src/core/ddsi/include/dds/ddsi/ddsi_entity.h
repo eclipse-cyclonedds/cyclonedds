@@ -30,8 +30,6 @@ struct ddsi_rdata;
 struct ddsi_tkmap_instance;
 struct ddsi_local_reader_ary;
 
-typedef void (*ddsi2direct_directread_cb_t) (const struct ddsi_rsample_info *sampleinfo, const struct ddsi_rdata *fragchain, void *arg);
-
 enum ddsi_entity_kind {
   DDSI_EK_PARTICIPANT,
   DDSI_EK_PROXY_PARTICIPANT,

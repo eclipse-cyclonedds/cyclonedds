@@ -1463,8 +1463,6 @@ dds_return_t ddsi_new_reader_guid (struct ddsi_reader **rd_out, const struct dds
                                   (rd->e.guid.entityid.u == DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_READER);
   rd->type = ddsi_sertype_ref (type);
   rd->request_keyhash = rd->type->request_keyhash;
-  rd->ddsi2direct_cb = 0;
-  rd->ddsi2direct_cbarg = 0;
 #ifdef DDS_HAS_SHM
   rd->has_iceoryx = (0x0 == (xqos->ignore_locator_type & DDSI_LOCATOR_KIND_SHEM));
 #endif

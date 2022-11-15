@@ -775,56 +775,6 @@ err_pin_topic:
   return rc;
 }
 
-void dds_reader_ddsi2direct (dds_entity_t entity, ddsi2direct_directread_cb_t cb, void *cbarg)
-{
-  dds_entity *dds_entity;
-  if (dds_entity_pin (entity, &dds_entity) != DDS_RETCODE_OK)
-    return;
-  if (dds_entity_kind (dds_entity) != DDS_KIND_READER)
-  {
-    dds_entity_unpin (dds_entity);
-    return;
-  }
-
-  dds_reader *dds_rd = (dds_reader *) dds_entity;
-  struct ddsi_reader *rd = dds_rd->m_rd;
-  ddsi_guid_t pwrguid;
-  struct ddsi_proxy_writer *pwr;
-  struct ddsi_rd_pwr_match *m;
-  memset (&pwrguid, 0, sizeof (pwrguid));
-  ddsrt_mutex_lock (&rd->e.lock);
-
-  rd->ddsi2direct_cb = cb;
-  rd->ddsi2direct_cbarg = cbarg;
-  while ((m = ddsrt_avl_lookup_succ_eq (&ddsi_rd_writers_treedef, &rd->writers, &pwrguid)) != NULL)
-  {
-    /* have to be careful walking the tree -- pretty is different, but
-       I want to check this before I write a lookup_succ function. */
-    struct ddsi_rd_pwr_match *m_next;
-    ddsi_guid_t pwrguid_next;
-    pwrguid = m->pwr_guid;
-    if ((m_next = ddsrt_avl_find_succ (&ddsi_rd_writers_treedef, &rd->writers, m)) != NULL)
-      pwrguid_next = m_next->pwr_guid;
-    else
-    {
-      memset (&pwrguid_next, 0xff, sizeof (pwrguid_next));
-      pwrguid_next.entityid.u = (pwrguid_next.entityid.u & ~(uint32_t)0xff) | DDSI_ENTITYID_KIND_WRITER_NO_KEY;
-    }
-    ddsrt_mutex_unlock (&rd->e.lock);
-    if ((pwr = ddsi_entidx_lookup_proxy_writer_guid (dds_entity->m_domain->gv.entity_index, &pwrguid)) != NULL)
-    {
-      ddsrt_mutex_lock (&pwr->e.lock);
-      pwr->ddsi2direct_cb = cb;
-      pwr->ddsi2direct_cbarg = cbarg;
-      ddsrt_mutex_unlock (&pwr->e.lock);
-    }
-    pwrguid = pwrguid_next;
-    ddsrt_mutex_lock (&rd->e.lock);
-  }
-  ddsrt_mutex_unlock (&rd->e.lock);
-  dds_entity_unpin (dds_entity);
-}
-
 dds_entity_t dds_create_reader (dds_entity_t participant_or_subscriber, dds_entity_t topic, const dds_qos_t *qos, const dds_listener_t *listener)
 {
   return dds_create_reader_int (participant_or_subscriber, topic, qos, listener, NULL);

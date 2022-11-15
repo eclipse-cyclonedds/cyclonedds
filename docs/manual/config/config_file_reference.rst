@@ -714,7 +714,7 @@ The default value is: ``default``
 //CycloneDDS/Domain/Internal
 ============================
 
-Children: `//CycloneDDS/Domain/Internal/AccelerateRexmitBlockSize`_, `//CycloneDDS/Domain/Internal/AckDelay`_, `//CycloneDDS/Domain/Internal/AutoReschedNackDelay`_, `//CycloneDDS/Domain/Internal/BuiltinEndpointSet`_, `//CycloneDDS/Domain/Internal/BurstSize`_, `//CycloneDDS/Domain/Internal/ControlTopic`_, `//CycloneDDS/Domain/Internal/DDSI2DirectMaxThreads`_, `//CycloneDDS/Domain/Internal/DefragReliableMaxSamples`_, `//CycloneDDS/Domain/Internal/DefragUnreliableMaxSamples`_, `//CycloneDDS/Domain/Internal/DeliveryQueueMaxSamples`_, `//CycloneDDS/Domain/Internal/EnableExpensiveChecks`_, `//CycloneDDS/Domain/Internal/GenerateKeyhash`_, `//CycloneDDS/Domain/Internal/HeartbeatInterval`_, `//CycloneDDS/Domain/Internal/LateAckMode`_, `//CycloneDDS/Domain/Internal/LivelinessMonitoring`_, `//CycloneDDS/Domain/Internal/MaxParticipants`_, `//CycloneDDS/Domain/Internal/MaxQueuedRexmitBytes`_, `//CycloneDDS/Domain/Internal/MaxQueuedRexmitMessages`_, `//CycloneDDS/Domain/Internal/MaxSampleSize`_, `//CycloneDDS/Domain/Internal/MeasureHbToAckLatency`_, `//CycloneDDS/Domain/Internal/MonitorPort`_, `//CycloneDDS/Domain/Internal/MultipleReceiveThreads`_, `//CycloneDDS/Domain/Internal/NackDelay`_, `//CycloneDDS/Domain/Internal/PreEmptiveAckDelay`_, `//CycloneDDS/Domain/Internal/PrimaryReorderMaxSamples`_, `//CycloneDDS/Domain/Internal/PrioritizeRetransmit`_, `//CycloneDDS/Domain/Internal/RediscoveryBlacklistDuration`_, `//CycloneDDS/Domain/Internal/RetransmitMerging`_, `//CycloneDDS/Domain/Internal/RetransmitMergingPeriod`_, `//CycloneDDS/Domain/Internal/RetryOnRejectBestEffort`_, `//CycloneDDS/Domain/Internal/SPDPResponseMaxDelay`_, `//CycloneDDS/Domain/Internal/ScheduleTimeRounding`_, `//CycloneDDS/Domain/Internal/SecondaryReorderMaxSamples`_, `//CycloneDDS/Domain/Internal/SocketReceiveBufferSize`_, `//CycloneDDS/Domain/Internal/SocketSendBufferSize`_, `//CycloneDDS/Domain/Internal/SquashParticipants`_, `//CycloneDDS/Domain/Internal/SynchronousDeliveryLatencyBound`_, `//CycloneDDS/Domain/Internal/SynchronousDeliveryPriorityThreshold`_, `//CycloneDDS/Domain/Internal/Test`_, `//CycloneDDS/Domain/Internal/UnicastResponseToSPDPMessages`_, `//CycloneDDS/Domain/Internal/UseMulticastIfMreqn`_, `//CycloneDDS/Domain/Internal/Watermarks`_, `//CycloneDDS/Domain/Internal/WriteBatch`_, `//CycloneDDS/Domain/Internal/WriterLingerDuration`_
+Children: `//CycloneDDS/Domain/Internal/AccelerateRexmitBlockSize`_, `//CycloneDDS/Domain/Internal/AckDelay`_, `//CycloneDDS/Domain/Internal/AutoReschedNackDelay`_, `//CycloneDDS/Domain/Internal/BuiltinEndpointSet`_, `//CycloneDDS/Domain/Internal/BurstSize`_, `//CycloneDDS/Domain/Internal/ControlTopic`_, `//CycloneDDS/Domain/Internal/DefragReliableMaxSamples`_, `//CycloneDDS/Domain/Internal/DefragUnreliableMaxSamples`_, `//CycloneDDS/Domain/Internal/DeliveryQueueMaxSamples`_, `//CycloneDDS/Domain/Internal/EnableExpensiveChecks`_, `//CycloneDDS/Domain/Internal/GenerateKeyhash`_, `//CycloneDDS/Domain/Internal/HeartbeatInterval`_, `//CycloneDDS/Domain/Internal/LateAckMode`_, `//CycloneDDS/Domain/Internal/LivelinessMonitoring`_, `//CycloneDDS/Domain/Internal/MaxParticipants`_, `//CycloneDDS/Domain/Internal/MaxQueuedRexmitBytes`_, `//CycloneDDS/Domain/Internal/MaxQueuedRexmitMessages`_, `//CycloneDDS/Domain/Internal/MaxSampleSize`_, `//CycloneDDS/Domain/Internal/MeasureHbToAckLatency`_, `//CycloneDDS/Domain/Internal/MonitorPort`_, `//CycloneDDS/Domain/Internal/MultipleReceiveThreads`_, `//CycloneDDS/Domain/Internal/NackDelay`_, `//CycloneDDS/Domain/Internal/PreEmptiveAckDelay`_, `//CycloneDDS/Domain/Internal/PrimaryReorderMaxSamples`_, `//CycloneDDS/Domain/Internal/PrioritizeRetransmit`_, `//CycloneDDS/Domain/Internal/RediscoveryBlacklistDuration`_, `//CycloneDDS/Domain/Internal/RetransmitMerging`_, `//CycloneDDS/Domain/Internal/RetransmitMergingPeriod`_, `//CycloneDDS/Domain/Internal/RetryOnRejectBestEffort`_, `//CycloneDDS/Domain/Internal/SPDPResponseMaxDelay`_, `//CycloneDDS/Domain/Internal/ScheduleTimeRounding`_, `//CycloneDDS/Domain/Internal/SecondaryReorderMaxSamples`_, `//CycloneDDS/Domain/Internal/SocketReceiveBufferSize`_, `//CycloneDDS/Domain/Internal/SocketSendBufferSize`_, `//CycloneDDS/Domain/Internal/SquashParticipants`_, `//CycloneDDS/Domain/Internal/SynchronousDeliveryLatencyBound`_, `//CycloneDDS/Domain/Internal/SynchronousDeliveryPriorityThreshold`_, `//CycloneDDS/Domain/Internal/Test`_, `//CycloneDDS/Domain/Internal/UnicastResponseToSPDPMessages`_, `//CycloneDDS/Domain/Internal/UseMulticastIfMreqn`_, `//CycloneDDS/Domain/Internal/Watermarks`_, `//CycloneDDS/Domain/Internal/WriteBatch`_, `//CycloneDDS/Domain/Internal/WriterLingerDuration`_
 
 The Internal elements deal with a variety of settings that are evolving and that are not necessarily fully supported. For the majority of the Internal settings the functionality is supported, but the right to change the way the options control the functionality is reserved. This includes renaming or moving options.
 
@@ -823,18 +823,6 @@ The default value is: ``1 MiB``
 -----------------------------------------
 
 The ControlTopic element allows configured whether Cyclone DDS provides a special control interface via a predefined topic or not.
-
-
-.. _`//CycloneDDS/Domain/Internal/DDSI2DirectMaxThreads`:
-
-//CycloneDDS/Domain/Internal/DDSI2DirectMaxThreads
---------------------------------------------------
-
-Integer
-
-This element sets the maximum number of extra threads for an experimental, undocumented, and unsupported direct mode.
-
-The default value is: ``1``
 
 
 .. _`//CycloneDDS/Domain/Internal/DefragReliableMaxSamples`:
@@ -2672,9 +2660,9 @@ The categorisation of tracing output is incomplete and hence most of the verbosi
 The default value is: ``none``
 
 ..
-   generated from ddsi_config.h[be918028f860b8d30629791cc49c55df3af3fc82] 
+   generated from ddsi_config.h[0afa09c75f102f762ff2471c993b4f50c1aace9d] 
    generated from ddsi_cfgunits.h[fc550f1620aa20dcd9244ef4e24299d5001efbb4] 
-   generated from ddsi_cfgelems.h[a632149e8f68e76d13bf22e670e910975c77fa38] 
+   generated from ddsi_cfgelems.h[9bb5bead0234bd2442a0d121d41a97200e9f77ee] 
    generated from ddsi_config.c[7ef6df1289260a9b355f056c7641cd8fcf40f3b3] 
    generated from _confgen.h[f2d235d5551cbf920a8a2962831dddeabd2856ac] 
    generated from _confgen.c[ba2e8c0cfd41039421548fdb03bcd2db8f8b172e] 

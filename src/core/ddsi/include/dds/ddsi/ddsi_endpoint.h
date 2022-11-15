@@ -162,8 +162,6 @@ struct ddsi_reader
   uint32_t num_writers; /* total number of matching PROXY writers */
   ddsrt_avl_tree_t writers; /* all matching PROXY writers, see struct ddsi_rd_pwr_match */
   ddsrt_avl_tree_t local_writers; /* all matching LOCAL writers, see struct ddsi_rd_wr_match */
-  ddsi2direct_directread_cb_t ddsi2direct_cb;
-  void *ddsi2direct_cbarg;
 #ifdef DDS_HAS_SECURITY
   struct ddsi_reader_sec_attributes *sec_attr;
 #endif
