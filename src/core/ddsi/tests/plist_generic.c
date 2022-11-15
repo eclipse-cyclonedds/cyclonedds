@@ -39,7 +39,7 @@ typedef uint32_t raw32[];
 typedef uint64_t raw64[];
 typedef ddsi_octetseq_t oseq;
 
-struct desc descs[] = {
+static struct desc descs[] = {
   { {XSTOP}, (raw){0}, 0, (raw){0} },
   { {XO,XSTOP}, &(oseq){0, NULL },       4, (raw){SER32(0)} },
   { {XO,XSTOP}, &(oseq){1, (raw){3} },   5, (raw){SER32(1), 3} },
@@ -235,7 +235,7 @@ CU_Test (ddsi_plist_generic, unalias)
   }
 }
 
-struct desc_invalid descs_invalid[] = {
+static struct desc_invalid descs_invalid[] = {
   { {Xb,XSTOP},   1, (raw){2} }, // 2 is not a valid boolean
   { {XS,XSTOP},   8, (raw){SER32(5), 'm','e','o','w',0} }, // short input
   { {XS,XSTOP},   8, (raw){SER32(4), 'm','e','o','w',0} }, // not terminated
