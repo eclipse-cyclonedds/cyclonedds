@@ -22,7 +22,7 @@
 #include "dds/ddsi/ddsi_log.h"
 #include "ddsi__addrset.h"
 #include "dds/ddsi/q_xmsg.h"
-#include "dds/ddsi/q_xevent.h"
+#include "ddsi__xevent.h"
 #include "ddsi__thread.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_unused.h"
@@ -59,7 +59,7 @@
    != 0 -- and note that it had better be 2's complement machine! */
 #define TSCHED_DELETE ((int64_t) ((uint64_t) 1 << 63))
 
-enum xeventkind
+enum ddsi_xeventkind
 {
   XEVK_HEARTBEAT,
   XEVK_ACKNACK,
@@ -69,12 +69,12 @@ enum xeventkind
   XEVK_CALLBACK
 };
 
-struct xevent
+struct ddsi_xevent
 {
   ddsrt_fibheap_node_t heapnode;
-  struct xeventq *evq;
+  struct ddsi_xeventq *evq;
   ddsrt_mtime_t tsched;
-  enum xeventkind kind;
+  enum ddsi_xeventkind kind;
   union {
     struct {
       ddsi_guid_t wr_guid;
@@ -99,14 +99,14 @@ struct xevent
       ddsi_guid_t guid;
     } delete_writer;
     struct {
-      void (*cb) (struct xevent *ev, void *arg, ddsrt_mtime_t tnow);
+      void (*cb) (struct ddsi_xevent *ev, void *arg, ddsrt_mtime_t tnow);
       void *arg;
       bool executing;
     } callback;
   } u;
 };
 
-enum xeventkind_nt
+enum ddsi_xeventkind_nt
 {
   XEVK_MSG,
   XEVK_MSG_REXMIT,
@@ -116,14 +116,14 @@ enum xeventkind_nt
 };
 
 struct untimed_listelem {
-  struct xevent_nt *next;
+  struct ddsi_xevent_nt *next;
 };
 
-struct xevent_nt
+struct ddsi_xevent_nt
 {
   struct untimed_listelem listnode;
-  struct xeventq *evq;
-  enum xeventkind_nt kind;
+  struct ddsi_xeventq *evq;
+  enum ddsi_xeventkind_nt kind;
   union {
     struct {
       /* xmsg is self-contained / relies on reference counts */
@@ -146,11 +146,11 @@ struct xevent_nt
   } u;
 };
 
-struct xeventq {
+struct ddsi_xeventq {
   ddsrt_fibheap_t xevents;
   ddsrt_avl_tree_t msg_xevents;
-  struct xevent_nt *non_timed_xmit_list_oldest;
-  struct xevent_nt *non_timed_xmit_list_newest; /* undefined if ..._oldest == NULL */
+  struct ddsi_xevent_nt *non_timed_xmit_list_oldest;
+  struct ddsi_xevent_nt *non_timed_xmit_list_newest; /* undefined if ..._oldest == NULL */
   size_t queued_rexmit_bytes;
   size_t queued_rexmit_msgs;
   size_t max_queued_rexmit_bytes;
@@ -165,24 +165,24 @@ struct xeventq {
   size_t cum_rexmit_bytes;
 };
 
-static uint32_t xevent_thread (struct xeventq *xevq);
-static ddsrt_mtime_t earliest_in_xeventq (struct xeventq *evq);
+static uint32_t xevent_thread (struct ddsi_xeventq *xevq);
+static ddsrt_mtime_t earliest_in_xeventq (struct ddsi_xeventq *evq);
 static int msg_xevents_cmp (const void *a, const void *b);
 static int compare_xevent_tsched (const void *va, const void *vb);
-static void handle_nontimed_xevent (struct xevent_nt *xev, struct nn_xpack *xp);
+static void handle_nontimed_xevent (struct ddsi_xevent_nt *xev, struct nn_xpack *xp);
 
-static const ddsrt_avl_treedef_t msg_xevents_treedef = DDSRT_AVL_TREEDEF_INITIALIZER_INDKEY (offsetof (struct xevent_nt, u.msg_rexmit.msg_avlnode), offsetof (struct xevent_nt, u.msg_rexmit.msg), msg_xevents_cmp, 0);
+static const ddsrt_avl_treedef_t msg_xevents_treedef = DDSRT_AVL_TREEDEF_INITIALIZER_INDKEY (offsetof (struct ddsi_xevent_nt, u.msg_rexmit.msg_avlnode), offsetof (struct ddsi_xevent_nt, u.msg_rexmit.msg), msg_xevents_cmp, 0);
 
-static const ddsrt_fibheap_def_t evq_xevents_fhdef = DDSRT_FIBHEAPDEF_INITIALIZER(offsetof (struct xevent, heapnode), compare_xevent_tsched);
+static const ddsrt_fibheap_def_t evq_xevents_fhdef = DDSRT_FIBHEAPDEF_INITIALIZER(offsetof (struct ddsi_xevent, heapnode), compare_xevent_tsched);
 
 static int compare_xevent_tsched (const void *va, const void *vb)
 {
-  const struct xevent *a = va;
-  const struct xevent *b = vb;
+  const struct ddsi_xevent *a = va;
+  const struct ddsi_xevent *b = vb;
   return (a->tsched.v == b->tsched.v) ? 0 : (a->tsched.v < b->tsched.v) ? -1 : 1;
 }
 
-static void update_rexmit_counts (struct xeventq *evq, struct xevent_nt *ev)
+static void update_rexmit_counts (struct ddsi_xeventq *evq, struct ddsi_xevent_nt *ev)
 {
 #if 0
   EVQTRACE ("ZZZ(%p,%"PRIuSIZE")", (void *) ev, ev->u.msg_rexmit.queued_rexmit_bytes);
@@ -196,7 +196,7 @@ static void update_rexmit_counts (struct xeventq *evq, struct xevent_nt *ev)
 }
 
 #if 0
-static void trace_msg (struct xeventq *evq, const char *func, const struct nn_xmsg *m)
+static void trace_msg (struct ddsi_xeventq *evq, const char *func, const struct nn_xmsg *m)
 {
   if (dds_get_log_mask() & DDS_LC_TRACE)
   {
@@ -208,12 +208,12 @@ static void trace_msg (struct xeventq *evq, const char *func, const struct nn_xm
   }
 }
 #else
-static void trace_msg (UNUSED_ARG (struct xeventq *evq), UNUSED_ARG (const char *func), UNUSED_ARG (const struct nn_xmsg *m))
+static void trace_msg (UNUSED_ARG (struct ddsi_xeventq *evq), UNUSED_ARG (const char *func), UNUSED_ARG (const struct nn_xmsg *m))
 {
 }
 #endif
 
-static struct xevent_nt *lookup_msg (struct xeventq *evq, struct nn_xmsg *msg)
+static struct ddsi_xevent_nt *lookup_msg (struct ddsi_xeventq *evq, struct nn_xmsg *msg)
 {
   switch (nn_xmsg_kind (msg))
   {
@@ -231,21 +231,21 @@ static struct xevent_nt *lookup_msg (struct xeventq *evq, struct nn_xmsg *msg)
   return NULL;
 }
 
-static void remember_msg (struct xeventq *evq, struct xevent_nt *ev)
+static void remember_msg (struct ddsi_xeventq *evq, struct ddsi_xevent_nt *ev)
 {
   assert (ev->kind == XEVK_MSG_REXMIT);
   trace_msg (evq, "remember-msg", ev->u.msg_rexmit.msg);
   ddsrt_avl_insert (&msg_xevents_treedef, &evq->msg_xevents, ev);
 }
 
-static void forget_msg (struct xeventq *evq, struct xevent_nt *ev)
+static void forget_msg (struct ddsi_xeventq *evq, struct ddsi_xevent_nt *ev)
 {
   assert (ev->kind == XEVK_MSG_REXMIT);
   trace_msg (evq, "forget-msg", ev->u.msg_rexmit.msg);
   ddsrt_avl_delete (&msg_xevents_treedef, &evq->msg_xevents, ev);
 }
 
-static void add_to_non_timed_xmit_list (struct xeventq *evq, struct xevent_nt *ev)
+static void add_to_non_timed_xmit_list (struct ddsi_xeventq *evq, struct ddsi_xevent_nt *ev)
 {
   ev->listnode.next = NULL;
   if (evq->non_timed_xmit_list_oldest == NULL) {
@@ -262,11 +262,11 @@ static void add_to_non_timed_xmit_list (struct xeventq *evq, struct xevent_nt *e
   ddsrt_cond_broadcast (&evq->cond);
 }
 
-static struct xevent_nt *getnext_from_non_timed_xmit_list  (struct xeventq *evq)
+static struct ddsi_xevent_nt *getnext_from_non_timed_xmit_list  (struct ddsi_xeventq *evq)
 {
   /* function removes and returns the first item in the list
      (from the front) and frees the container */
-  struct xevent_nt *ev = evq->non_timed_xmit_list_oldest;
+  struct ddsi_xevent_nt *ev = evq->non_timed_xmit_list_oldest;
   if (ev != NULL)
   {
     evq->non_timed_xmit_list_oldest = ev->listnode.next;
@@ -280,19 +280,19 @@ static struct xevent_nt *getnext_from_non_timed_xmit_list  (struct xeventq *evq)
   return ev;
 }
 
-static int non_timed_xmit_list_is_empty (struct xeventq *evq)
+static int non_timed_xmit_list_is_empty (struct ddsi_xeventq *evq)
 {
   /* check whether the "non-timed" xevent list is empty */
   return (evq->non_timed_xmit_list_oldest == NULL);
 }
 
-static int compute_non_timed_xmit_list_size (struct xeventq *evq)
+static int compute_non_timed_xmit_list_size (struct ddsi_xeventq *evq)
 {
   /* returns how many "non-timed" xevents are pending by counting the
      number of events in the list -- it'd be easy to compute the
      length incrementally in the add_... and next_... functions, but
      it isn't really being used anywhere, so why bother? */
-  struct xevent_nt *current = evq->non_timed_xmit_list_oldest;
+  struct ddsi_xevent_nt *current = evq->non_timed_xmit_list_oldest;
   int i = 0;
   while (current)
   {
@@ -303,11 +303,11 @@ static int compute_non_timed_xmit_list_size (struct xeventq *evq)
 }
 
 #ifndef NDEBUG
-static int nontimed_xevent_in_queue (struct xeventq *evq, struct xevent_nt *ev)
+static int nontimed_xevent_in_queue (struct ddsi_xeventq *evq, struct ddsi_xevent_nt *ev)
 {
   if (!(evq->gv->config.enabled_xchecks & DDSI_XCHECK_XEV))
     return 0;
-  struct xevent_nt *x;
+  struct ddsi_xevent_nt *x;
   ddsrt_mutex_lock (&evq->lock);
   for (x = evq->non_timed_xmit_list_oldest; x; x = x->listnode.next)
   {
@@ -322,7 +322,7 @@ static int nontimed_xevent_in_queue (struct xeventq *evq, struct xevent_nt *ev)
 }
 #endif
 
-static void free_xevent (struct xeventq *evq, struct xevent *ev)
+static void free_xevent (struct ddsi_xeventq *evq, struct ddsi_xevent *ev)
 {
   (void) evq;
   if (ev->tsched.v != TSCHED_DELETE)
@@ -341,9 +341,9 @@ static void free_xevent (struct xeventq *evq, struct xevent *ev)
   ddsrt_free (ev);
 }
 
-void delete_xevent (struct xevent *ev)
+void ddsi_delete_xevent (struct ddsi_xevent *ev)
 {
-  struct xeventq *evq = ev->evq;
+  struct ddsi_xeventq *evq = ev->evq;
   ddsrt_mutex_lock (&evq->lock);
   assert (ev->kind != XEVK_CALLBACK || ev->u.callback.executing);
   /* Can delete it only once, no matter how we implement it internally */
@@ -365,9 +365,9 @@ void delete_xevent (struct xevent *ev)
   ddsrt_mutex_unlock (&evq->lock);
 }
 
-void delete_xevent_callback (struct xevent *ev)
+void ddsi_delete_xevent_callback (struct ddsi_xevent *ev)
 {
-  struct xeventq *evq = ev->evq;
+  struct ddsi_xeventq *evq = ev->evq;
   assert (ev->kind == XEVK_CALLBACK);
   ddsrt_mutex_lock (&evq->lock);
   /* wait until neither scheduled nor executing; loop in case the callback reschedules the event */
@@ -388,9 +388,9 @@ void delete_xevent_callback (struct xevent *ev)
   free_xevent (evq, ev);
 }
 
-int resched_xevent_if_earlier (struct xevent *ev, ddsrt_mtime_t tsched)
+int ddsi_resched_xevent_if_earlier (struct ddsi_xevent *ev, ddsrt_mtime_t tsched)
 {
-  struct xeventq *evq = ev->evq;
+  struct ddsi_xeventq *evq = ev->evq;
   int is_resched;
   if (tsched.v == DDS_NEVER)
     return 0;
@@ -441,11 +441,11 @@ static ddsrt_mtime_t mtime_round_up (ddsrt_mtime_t t, int64_t round)
   }
 }
 
-static struct xevent *qxev_common (struct xeventq *evq, ddsrt_mtime_t tsched, enum xeventkind kind)
+static struct ddsi_xevent *qxev_common (struct ddsi_xeventq *evq, ddsrt_mtime_t tsched, enum ddsi_xeventkind kind)
 {
   /* qxev_common is the route by which all timed xevents are
      created. */
-  struct xevent *ev = ddsrt_malloc (sizeof (*ev));
+  struct ddsi_xevent *ev = ddsrt_malloc (sizeof (*ev));
 
   assert (tsched.v != TSCHED_DELETE);
   ASSERT_MUTEX_HELD (&evq->lock);
@@ -464,27 +464,27 @@ static struct xevent *qxev_common (struct xeventq *evq, ddsrt_mtime_t tsched, en
   return ev;
 }
 
-static struct xevent_nt *qxev_common_nt (struct xeventq *evq, enum xeventkind_nt kind)
+static struct ddsi_xevent_nt *qxev_common_nt (struct ddsi_xeventq *evq, enum ddsi_xeventkind_nt kind)
 {
   /* qxev_common_nt is the route by which all non-timed xevents are created. */
-  struct xevent_nt *ev = ddsrt_malloc (sizeof (*ev));
+  struct ddsi_xevent_nt *ev = ddsrt_malloc (sizeof (*ev));
   ev->evq = evq;
   ev->kind = kind;
   return ev;
 }
 
-static ddsrt_mtime_t earliest_in_xeventq (struct xeventq *evq)
+static ddsrt_mtime_t earliest_in_xeventq (struct ddsi_xeventq *evq)
 {
-  struct xevent *min;
+  struct ddsi_xevent *min;
   ASSERT_MUTEX_HELD (&evq->lock);
   return ((min = ddsrt_fibheap_min (&evq_xevents_fhdef, &evq->xevents)) != NULL) ? min->tsched : DDSRT_MTIME_NEVER;
 }
 
-static void qxev_insert (struct xevent *ev)
+static void qxev_insert (struct ddsi_xevent *ev)
 {
   /* qxev_insert is how all timed xevents are registered into the
      event administration. */
-  struct xeventq *evq = ev->evq;
+  struct ddsi_xeventq *evq = ev->evq;
   ASSERT_MUTEX_HELD (&evq->lock);
   if (ev->tsched.v != DDS_NEVER)
   {
@@ -495,10 +495,10 @@ static void qxev_insert (struct xevent *ev)
   }
 }
 
-static void qxev_insert_nt (struct xevent_nt *ev)
+static void qxev_insert_nt (struct ddsi_xevent_nt *ev)
 {
   /* qxev_insert is how all non-timed xevents are queued. */
-  struct xeventq *evq = ev->evq;
+  struct ddsi_xeventq *evq = ev->evq;
   ASSERT_MUTEX_HELD (&evq->lock);
   add_to_non_timed_xmit_list (evq, ev);
   EVQTRACE ("non-timed queue now has %d items\n", compute_non_timed_xmit_list_size (evq));
@@ -509,9 +509,9 @@ static int msg_xevents_cmp (const void *a, const void *b)
   return nn_xmsg_compare_fragid (a, b);
 }
 
-struct xeventq * xeventq_new (struct ddsi_domaingv *gv, size_t max_queued_rexmit_bytes, size_t max_queued_rexmit_msgs, uint32_t auxiliary_bandwidth_limit)
+struct ddsi_xeventq * ddsi_xeventq_new (struct ddsi_domaingv *gv, size_t max_queued_rexmit_bytes, size_t max_queued_rexmit_msgs, uint32_t auxiliary_bandwidth_limit)
 {
-  struct xeventq *evq = ddsrt_malloc (sizeof (*evq));
+  struct ddsi_xeventq *evq = ddsrt_malloc (sizeof (*evq));
   /* limit to 2GB to prevent overflow (4GB - 64kB should be ok, too) */
   if (max_queued_rexmit_bytes > 2147483648u)
     max_queued_rexmit_bytes = 2147483648u;
@@ -534,7 +534,7 @@ struct xeventq * xeventq_new (struct ddsi_domaingv *gv, size_t max_queued_rexmit
   return evq;
 }
 
-dds_return_t xeventq_start (struct xeventq *evq, const char *name)
+dds_return_t ddsi_xeventq_start (struct ddsi_xeventq *evq, const char *name)
 {
   dds_return_t rc;
   char * evqname = "tev";
@@ -557,7 +557,7 @@ dds_return_t xeventq_start (struct xeventq *evq, const char *name)
   return rc;
 }
 
-void xeventq_stop (struct xeventq *evq)
+void ddsi_xeventq_stop (struct ddsi_xeventq *evq)
 {
   assert (evq->thrst != NULL);
   ddsrt_mutex_lock (&evq->lock);
@@ -568,9 +568,9 @@ void xeventq_stop (struct xeventq *evq)
   evq->thrst = NULL;
 }
 
-void xeventq_free (struct xeventq *evq)
+void ddsi_xeventq_free (struct ddsi_xeventq *evq)
 {
-  struct xevent *ev;
+  struct ddsi_xevent *ev;
   assert (evq->thrst == NULL);
   while ((ev = ddsrt_fibheap_extract_min (&evq_xevents_fhdef, &evq->xevents)) != NULL)
     free_xevent (evq, ev);
@@ -598,15 +598,15 @@ void xeventq_free (struct xeventq *evq)
 
 /* EVENT QUEUE EVENT HANDLERS ******************************************************/
 
-static void handle_xevk_msg (struct nn_xpack *xp, struct xevent_nt *ev)
+static void handle_xevk_msg (struct nn_xpack *xp, struct ddsi_xevent_nt *ev)
 {
   assert (!nontimed_xevent_in_queue (ev->evq, ev));
   nn_xpack_addmsg (xp, ev->u.msg.msg, 0);
 }
 
-static void handle_xevk_msg_rexmit (struct nn_xpack *xp, struct xevent_nt *ev)
+static void handle_xevk_msg_rexmit (struct nn_xpack *xp, struct ddsi_xevent_nt *ev)
 {
-  struct xeventq *evq = ev->evq;
+  struct ddsi_xeventq *evq = ev->evq;
 
   assert (!nontimed_xevent_in_queue (ev->evq, ev));
 
@@ -619,14 +619,14 @@ static void handle_xevk_msg_rexmit (struct nn_xpack *xp, struct xevent_nt *ev)
   ddsrt_mutex_unlock (&evq->lock);
 }
 
-static void handle_xevk_entityid (struct nn_xpack *xp, struct xevent_nt *ev)
+static void handle_xevk_entityid (struct nn_xpack *xp, struct ddsi_xevent_nt *ev)
 {
   assert (!nontimed_xevent_in_queue (ev->evq, ev));
   nn_xpack_addmsg (xp, ev->u.entityid.msg, 0);
 }
 
 #ifdef DDS_HAS_SECURITY
-static int send_heartbeat_to_all_readers_check_and_sched (struct xevent *ev, struct ddsi_writer *wr, const struct ddsi_whc_state *whcst, ddsrt_mtime_t tnow, ddsrt_mtime_t *t_next)
+static int send_heartbeat_to_all_readers_check_and_sched (struct ddsi_xevent *ev, struct ddsi_writer *wr, const struct ddsi_whc_state *whcst, ddsrt_mtime_t tnow, ddsrt_mtime_t *t_next)
 {
   int send;
   if (!ddsi_writer_must_have_hb_scheduled (wr, whcst))
@@ -646,12 +646,12 @@ static int send_heartbeat_to_all_readers_check_and_sched (struct xevent *ev, str
     send = hbansreq;
   }
 
-  resched_xevent_if_earlier (ev, wr->hbcontrol.tsched);
+  ddsi_resched_xevent_if_earlier (ev, wr->hbcontrol.tsched);
   *t_next = wr->hbcontrol.tsched;
   return send;
 }
 
-static void send_heartbeat_to_all_readers (struct nn_xpack *xp, struct xevent *ev, struct ddsi_writer *wr, ddsrt_mtime_t tnow)
+static void send_heartbeat_to_all_readers (struct nn_xpack *xp, struct ddsi_xevent *ev, struct ddsi_writer *wr, ddsrt_mtime_t tnow)
 {
   struct ddsi_whc_state whcst;
   ddsrt_mtime_t t_next;
@@ -723,7 +723,7 @@ static void send_heartbeat_to_all_readers (struct nn_xpack *xp, struct xevent *e
 }
 #endif
 
-static void handle_xevk_heartbeat (struct nn_xpack *xp, struct xevent *ev, ddsrt_mtime_t tnow)
+static void handle_xevk_heartbeat (struct nn_xpack *xp, struct ddsi_xevent *ev, ddsrt_mtime_t tnow)
 {
   struct ddsi_domaingv const * const gv = ev->evq->gv;
   struct nn_xmsg *msg;
@@ -788,7 +788,7 @@ static void handle_xevk_heartbeat (struct nn_xpack *xp, struct xevent *ev, ddsrt
              ((struct ddsi_wr_prd_match *) ddsrt_avl_root_non_empty (&ddsi_wr_readers_treedef, &wr->readers))->all_have_replied_to_hb ? "" : "!",
              whcst.max_seq, ddsi_writer_read_seq_xmit (wr));
   }
-  (void) resched_xevent_if_earlier (ev, t_next);
+  (void) ddsi_resched_xevent_if_earlier (ev, t_next);
   wr->hbcontrol.tsched = t_next;
   ddsrt_mutex_unlock (&wr->e.lock);
 
@@ -827,12 +827,12 @@ static dds_duration_t preemptive_acknack_interval (const struct ddsi_pwr_rd_matc
   }
 }
 
-static struct nn_xmsg *make_preemptive_acknack (struct xevent *ev, struct ddsi_proxy_writer *pwr, struct ddsi_pwr_rd_match *rwn, ddsrt_mtime_t tnow)
+static struct nn_xmsg *make_preemptive_acknack (struct ddsi_xevent *ev, struct ddsi_proxy_writer *pwr, struct ddsi_pwr_rd_match *rwn, ddsrt_mtime_t tnow)
 {
   const dds_duration_t old_intv = preemptive_acknack_interval (rwn);
   if (tnow.v < ddsrt_mtime_add_duration (rwn->t_last_ack, old_intv).v)
   {
-    (void) resched_xevent_if_earlier (ev, ddsrt_mtime_add_duration (rwn->t_last_ack, old_intv));
+    (void) ddsi_resched_xevent_if_earlier (ev, ddsrt_mtime_add_duration (rwn->t_last_ack, old_intv));
     return NULL;
   }
 
@@ -849,7 +849,7 @@ static struct nn_xmsg *make_preemptive_acknack (struct xevent *ev, struct ddsi_p
   if ((msg = nn_xmsg_new (gv->xmsgpool, &rwn->rd_guid, pp, DDSI_ACKNACK_SIZE_MAX, NN_XMSG_KIND_CONTROL)) == NULL)
   {
     // if out of memory, try again later
-    (void) resched_xevent_if_earlier (ev, ddsrt_mtime_add_duration (tnow, old_intv));
+    (void) ddsi_resched_xevent_if_earlier (ev, ddsrt_mtime_add_duration (tnow, old_intv));
     return NULL;
   }
 
@@ -869,7 +869,7 @@ static struct nn_xmsg *make_preemptive_acknack (struct xevent *ev, struct ddsi_p
 
   rwn->t_last_ack = tnow;
   const dds_duration_t new_intv = preemptive_acknack_interval (rwn);
-  (void) resched_xevent_if_earlier (ev, ddsrt_mtime_add_duration (rwn->t_last_ack, new_intv));
+  (void) ddsi_resched_xevent_if_earlier (ev, ddsrt_mtime_add_duration (rwn->t_last_ack, new_intv));
 
   // numbits is always 0 here, so need to print the bitmap
   ETRACE (pwr, "acknack "PGUIDFMT" -> "PGUIDFMT": #%"PRIu32":%"PRId64"/%"PRIu32":\n",
@@ -878,7 +878,7 @@ static struct nn_xmsg *make_preemptive_acknack (struct xevent *ev, struct ddsi_p
   return msg;
 }
 
-static void handle_xevk_acknack (struct nn_xpack *xp, struct xevent *ev, ddsrt_mtime_t tnow)
+static void handle_xevk_acknack (struct nn_xpack *xp, struct ddsi_xevent *ev, ddsrt_mtime_t tnow)
 {
   /* FIXME: ought to keep track of which NACKs are being generated in
      response to a Heartbeat.  There is no point in having multiple
@@ -958,7 +958,7 @@ static bool resend_spdp_sample_by_guid_key (struct ddsi_writer *wr, const ddsi_g
   return sample_found;
 }
 
-static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct xevent *ev, ddsrt_mtime_t tnow)
+static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct ddsi_xevent *ev, ddsrt_mtime_t tnow)
 {
   /* Like the writer pointer in the heartbeat event, the participant pointer in the spdp event is assumed valid. */
   struct ddsi_domaingv *gv = ev->evq->gv;
@@ -971,7 +971,7 @@ static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct xevent *e
   {
     GVTRACE ("handle_xevk_spdp "PGUIDFMT" - unknown guid\n", PGUID (ev->u.spdp.pp_guid));
     if (ev->u.spdp.directed)
-      delete_xevent (ev);
+      ddsi_delete_xevent (ev);
     return;
   }
 
@@ -979,7 +979,7 @@ static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct xevent *e
   {
     GVTRACE ("handle_xevk_spdp "PGUIDFMT" - spdp writer of participant not found\n", PGUID (ev->u.spdp.pp_guid));
     if (ev->u.spdp.directed)
-      delete_xevent (ev);
+      ddsi_delete_xevent (ev);
     return;
   }
 
@@ -1034,7 +1034,7 @@ static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct xevent *e
     /* Directed events are used to send SPDP packets to newly
        discovered peers, and used just once. */
     if (--ev->u.spdp.directed == 0 || gv->config.spdp_interval < DDS_SECS (1) || pp->lease_duration < DDS_SECS (1))
-      delete_xevent (ev);
+      ddsi_delete_xevent (ev);
     else
     {
       ddsrt_mtime_t tnext = ddsrt_mtime_add_duration (tnow, DDS_SECS (1));
@@ -1042,7 +1042,7 @@ static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct xevent *e
                PGUID (pp->e.guid),
                PGUIDPREFIX (ev->u.spdp.dest_proxypp_guid_prefix), DDSI_ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
                (double)(tnext.v - tnow.v) / 1e9);
-      (void) resched_xevent_if_earlier (ev, tnext);
+      (void) ddsi_resched_xevent_if_earlier (ev, tnext);
     }
   }
   else
@@ -1069,11 +1069,11 @@ static void handle_xevk_spdp (UNUSED_ARG (struct nn_xpack *xp), struct xevent *e
              PGUID (pp->e.guid),
              PGUIDPREFIX (ev->u.spdp.dest_proxypp_guid_prefix), DDSI_ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
              (double)(tnext.v - tnow.v) / 1e9);
-    (void) resched_xevent_if_earlier (ev, tnext);
+    (void) ddsi_resched_xevent_if_earlier (ev, tnext);
   }
 }
 
-static void handle_xevk_pmd_update (struct ddsi_thread_state * const thrst, struct nn_xpack *xp, struct xevent *ev, ddsrt_mtime_t tnow)
+static void handle_xevk_pmd_update (struct ddsi_thread_state * const thrst, struct nn_xpack *xp, struct ddsi_xevent *ev, ddsrt_mtime_t tnow)
 {
   struct ddsi_domaingv * const gv = ev->evq->gv;
   struct ddsi_participant *pp;
@@ -1104,21 +1104,21 @@ static void handle_xevk_pmd_update (struct ddsi_thread_state * const thrst, stru
     GVTRACE ("resched pmd("PGUIDFMT"): %gs\n", PGUID (pp->e.guid), (double)(tnext.v - tnow.v) / 1e9);
   }
 
-  (void) resched_xevent_if_earlier (ev, tnext);
+  (void) ddsi_resched_xevent_if_earlier (ev, tnext);
 }
 
-static void handle_xevk_delete_writer (UNUSED_ARG (struct nn_xpack *xp), struct xevent *ev, UNUSED_ARG (ddsrt_mtime_t tnow))
+static void handle_xevk_delete_writer (UNUSED_ARG (struct nn_xpack *xp), struct ddsi_xevent *ev, UNUSED_ARG (ddsrt_mtime_t tnow))
 {
   /* don't worry if the writer is already gone by the time we get here, delete_writer_nolinger checks for that. */
   struct ddsi_domaingv * const gv = ev->evq->gv;
   GVTRACE ("handle_xevk_delete_writer: "PGUIDFMT"\n", PGUID (ev->u.delete_writer.guid));
   ddsi_delete_writer_nolinger (gv, &ev->u.delete_writer.guid);
-  delete_xevent (ev);
+  ddsi_delete_xevent (ev);
 }
 
-static void handle_individual_xevent (struct ddsi_thread_state * const thrst, struct xevent *xev, struct nn_xpack *xp, ddsrt_mtime_t tnow)
+static void handle_individual_xevent (struct ddsi_thread_state * const thrst, struct ddsi_xevent *xev, struct nn_xpack *xp, ddsrt_mtime_t tnow)
 {
-  struct xeventq *xevq = xev->evq;
+  struct ddsi_xeventq *xevq = xev->evq;
   /* We relinquish the lock while processing the event, but require it
      held for administrative work. */
   ASSERT_MUTEX_HELD (&xevq->lock);
@@ -1160,7 +1160,7 @@ static void handle_individual_xevent (struct ddsi_thread_state * const thrst, st
   ASSERT_MUTEX_HELD (&xevq->lock);
 }
 
-static void handle_individual_xevent_nt (struct xevent_nt *xev, struct nn_xpack *xp)
+static void handle_individual_xevent_nt (struct ddsi_xevent_nt *xev, struct nn_xpack *xp)
 {
   switch (xev->kind)
   {
@@ -1181,7 +1181,7 @@ static void handle_individual_xevent_nt (struct xevent_nt *xev, struct nn_xpack 
   ddsrt_free (xev);
 }
 
-static void handle_timed_xevent (struct ddsi_thread_state * const thrst, struct xevent *xev, struct nn_xpack *xp, ddsrt_mtime_t tnow /* monotonic */)
+static void handle_timed_xevent (struct ddsi_thread_state * const thrst, struct ddsi_xevent *xev, struct nn_xpack *xp, ddsrt_mtime_t tnow /* monotonic */)
 {
    /* This function handles the individual xevent irrespective of
       whether it is a "timed" or "non-timed" xevent */
@@ -1189,11 +1189,11 @@ static void handle_timed_xevent (struct ddsi_thread_state * const thrst, struct 
   handle_individual_xevent (thrst, xev, xp, tnow /* monotonic */);
 }
 
-static void handle_nontimed_xevent (struct xevent_nt *xev, struct nn_xpack *xp)
+static void handle_nontimed_xevent (struct ddsi_xevent_nt *xev, struct nn_xpack *xp)
 {
    /* This function handles the individual xevent irrespective of
       whether it is a "timed" or "non-timed" xevent */
-  struct xeventq *xevq = xev->evq;
+  struct ddsi_xeventq *xevq = xev->evq;
 
   /* We relinquish the lock while processing the event, but require it
      held for administrative work. */
@@ -1209,7 +1209,7 @@ static void handle_nontimed_xevent (struct xevent_nt *xev, struct nn_xpack *xp)
   ASSERT_MUTEX_HELD (&xevq->lock);
 }
 
-static void handle_xevents (struct ddsi_thread_state * const thrst, struct xeventq *xevq, struct nn_xpack *xp, ddsrt_mtime_t tnow /* monotonic */)
+static void handle_xevents (struct ddsi_thread_state * const thrst, struct ddsi_xeventq *xevq, struct nn_xpack *xp, ddsrt_mtime_t tnow /* monotonic */)
 {
   int xeventsToProcess = 1;
 
@@ -1228,7 +1228,7 @@ static void handle_xevents (struct ddsi_thread_state * const thrst, struct xeven
   {
     while (earliest_in_xeventq(xevq).v <= tnow.v)
     {
-      struct xevent *xev = ddsrt_fibheap_extract_min (&evq_xevents_fhdef, &xevq->xevents);
+      struct ddsi_xevent *xev = ddsrt_fibheap_extract_min (&evq_xevents_fhdef, &xevq->xevents);
       if (xev->tsched.v == TSCHED_DELETE)
       {
         free_xevent (xevq, xev);
@@ -1251,7 +1251,7 @@ static void handle_xevents (struct ddsi_thread_state * const thrst, struct xeven
 
     if (!non_timed_xmit_list_is_empty (xevq))
     {
-      struct xevent_nt *xev = getnext_from_non_timed_xmit_list (xevq);
+      struct ddsi_xevent_nt *xev = getnext_from_non_timed_xmit_list (xevq);
       ddsi_thread_state_awake_to_awake_no_nest (thrst);
       handle_nontimed_xevent (xev, xp);
       tnow = ddsrt_time_monotonic ();
@@ -1265,7 +1265,7 @@ static void handle_xevents (struct ddsi_thread_state * const thrst, struct xeven
   ASSERT_MUTEX_HELD (&xevq->lock);
 }
 
-static uint32_t xevent_thread (struct xeventq * xevq)
+static uint32_t xevent_thread (struct ddsi_xeventq * xevq)
 {
   struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
   struct nn_xpack *xp;
@@ -1321,9 +1321,9 @@ static uint32_t xevent_thread (struct xeventq * xevq)
   return 0;
 }
 
-void qxev_msg (struct xeventq *evq, struct nn_xmsg *msg)
+void ddsi_qxev_msg (struct ddsi_xeventq *evq, struct nn_xmsg *msg)
 {
-  struct xevent_nt *ev;
+  struct ddsi_xevent_nt *ev;
   assert (evq);
   assert (nn_xmsg_kind (msg) != NN_XMSG_KIND_DATA_REXMIT);
   ddsrt_mutex_lock (&evq->lock);
@@ -1333,9 +1333,9 @@ void qxev_msg (struct xeventq *evq, struct nn_xmsg *msg)
   ddsrt_mutex_unlock (&evq->lock);
 }
 
-void qxev_nt_callback (struct xeventq *evq, void (*cb) (void *arg), void *arg)
+void ddsi_qxev_nt_callback (struct ddsi_xeventq *evq, void (*cb) (void *arg), void *arg)
 {
-  struct xevent_nt *ev;
+  struct ddsi_xevent_nt *ev;
   assert (evq);
   ddsrt_mutex_lock (&evq->lock);
   ev = qxev_common_nt (evq, XEVK_NT_CALLBACK);
@@ -1345,11 +1345,11 @@ void qxev_nt_callback (struct xeventq *evq, void (*cb) (void *arg), void *arg)
   ddsrt_mutex_unlock (&evq->lock);
 }
 
-void qxev_prd_entityid (struct ddsi_proxy_reader *prd, const ddsi_guid_t *guid)
+void ddsi_qxev_prd_entityid (struct ddsi_proxy_reader *prd, const ddsi_guid_t *guid)
 {
   struct ddsi_domaingv * const gv = prd->e.gv;
   struct nn_xmsg *msg;
-  struct xevent_nt *ev;
+  struct ddsi_xevent_nt *ev;
 
   /* For connected transports, may need to establish and identify connection */
 
@@ -1357,7 +1357,7 @@ void qxev_prd_entityid (struct ddsi_proxy_reader *prd, const ddsi_guid_t *guid)
   {
     msg = nn_xmsg_new (gv->xmsgpool, guid, NULL, sizeof (ddsi_rtps_entityid_t), NN_XMSG_KIND_CONTROL);
     nn_xmsg_setdstPRD (msg, prd);
-    GVTRACE ("  qxev_prd_entityid (%"PRIx32":%"PRIx32":%"PRIx32")\n", PGUIDPREFIX (guid->prefix));
+    GVTRACE ("  ddsi_qxev_prd_entityid (%"PRIx32":%"PRIx32":%"PRIx32")\n", PGUIDPREFIX (guid->prefix));
     nn_xmsg_add_entityid (msg);
     ddsrt_mutex_lock (&gv->xevents->lock);
     ev = qxev_common_nt (gv->xevents, XEVK_ENTITYID);
@@ -1367,11 +1367,11 @@ void qxev_prd_entityid (struct ddsi_proxy_reader *prd, const ddsi_guid_t *guid)
   }
 }
 
-void qxev_pwr_entityid (struct ddsi_proxy_writer *pwr, const ddsi_guid_t *guid)
+void ddsi_qxev_pwr_entityid (struct ddsi_proxy_writer *pwr, const ddsi_guid_t *guid)
 {
   struct ddsi_domaingv * const gv = pwr->e.gv;
   struct nn_xmsg *msg;
-  struct xevent_nt *ev;
+  struct ddsi_xevent_nt *ev;
 
   /* For connected transports, may need to establish and identify connection */
 
@@ -1379,7 +1379,7 @@ void qxev_pwr_entityid (struct ddsi_proxy_writer *pwr, const ddsi_guid_t *guid)
   {
     msg = nn_xmsg_new (gv->xmsgpool, guid, NULL, sizeof (ddsi_rtps_entityid_t), NN_XMSG_KIND_CONTROL);
     nn_xmsg_setdstPWR (msg, pwr);
-    GVTRACE ("  qxev_pwr_entityid (%"PRIx32":%"PRIx32":%"PRIx32")\n", PGUIDPREFIX (guid->prefix));
+    GVTRACE ("  ddsi_qxev_pwr_entityid (%"PRIx32":%"PRIx32":%"PRIx32")\n", PGUIDPREFIX (guid->prefix));
     nn_xmsg_add_entityid (msg);
     ddsrt_mutex_lock (&pwr->evq->lock);
     ev = qxev_common_nt (pwr->evq, XEVK_ENTITYID);
@@ -1389,11 +1389,11 @@ void qxev_pwr_entityid (struct ddsi_proxy_writer *pwr, const ddsi_guid_t *guid)
   }
 }
 
-enum qxev_msg_rexmit_result qxev_msg_rexmit_wrlock_held (struct xeventq *evq, struct nn_xmsg *msg, int force)
+enum ddsi_qxev_msg_rexmit_result ddsi_qxev_msg_rexmit_wrlock_held (struct ddsi_xeventq *evq, struct nn_xmsg *msg, int force)
 {
   struct ddsi_domaingv * const gv = evq->gv;
   size_t msg_size = nn_xmsg_size (msg);
-  struct xevent_nt *existing_ev;
+  struct ddsi_xevent_nt *existing_ev;
 
   assert (evq);
   assert (nn_xmsg_kind (msg) == NN_XMSG_KIND_DATA_REXMIT || nn_xmsg_kind (msg) == NN_XMSG_KIND_DATA_REXMIT_NOMERGE);
@@ -1403,7 +1403,7 @@ enum qxev_msg_rexmit_result qxev_msg_rexmit_wrlock_held (struct xeventq *evq, st
     /* MSG got merged with a pending retransmit, so it has effectively been queued */
     ddsrt_mutex_unlock (&evq->lock);
     nn_xmsg_free (msg);
-    return QXEV_MSG_REXMIT_MERGED;
+    return DDSI_QXEV_MSG_REXMIT_MERGED;
   }
   else if ((evq->queued_rexmit_bytes > evq->max_queued_rexmit_bytes ||
             evq->queued_rexmit_msgs == evq->max_queued_rexmit_msgs) &&
@@ -1416,7 +1416,7 @@ enum qxev_msg_rexmit_result qxev_msg_rexmit_wrlock_held (struct xeventq *evq, st
     GVTRACE (" qxev_msg_rexmit%s drop (sz %"PA_PRIuSIZE" qb %"PA_PRIuSIZE" qm %"PA_PRIuSIZE")", force ? "!" : "",
              msg_size, evq->queued_rexmit_bytes, evq->queued_rexmit_msgs);
 #endif
-    return QXEV_MSG_REXMIT_DROPPED;
+    return DDSI_QXEV_MSG_REXMIT_DROPPED;
   }
   else
   {
@@ -1434,9 +1434,9 @@ enum qxev_msg_rexmit_result qxev_msg_rexmit_wrlock_held (struct xeventq *evq, st
     //   the new entry won't be considered for merging until the first one has been sent.
     // So in a very rare case, there'd be a (presumably) even rarer case where the second option confers a
     // benefit. The first has the advantage of being simpler, which weighs heaver in my opinion.
-    const enum xeventkind_nt kind =
+    const enum ddsi_xeventkind_nt kind =
       (nn_xmsg_kind (msg) == NN_XMSG_KIND_DATA_REXMIT && existing_ev == NULL) ? XEVK_MSG_REXMIT : XEVK_MSG_REXMIT_NOMERGE;
-    struct xevent_nt *ev = qxev_common_nt (evq, kind);
+    struct ddsi_xevent_nt *ev = qxev_common_nt (evq, kind);
     ev->u.msg_rexmit.msg = msg;
     ev->u.msg_rexmit.queued_rexmit_bytes = msg_size;
     evq->queued_rexmit_bytes += msg_size;
@@ -1446,16 +1446,16 @@ enum qxev_msg_rexmit_result qxev_msg_rexmit_wrlock_held (struct xeventq *evq, st
     GVTRACE ("AAA(%p,%"PA_PRIuSIZE")", (void *) ev, msg_size);
 #endif
     ddsrt_mutex_unlock (&evq->lock);
-    return QXEV_MSG_REXMIT_QUEUED;
+    return DDSI_QXEV_MSG_REXMIT_QUEUED;
   }
 }
 
-struct xevent *qxev_heartbeat (struct xeventq *evq, ddsrt_mtime_t tsched, const ddsi_guid_t *wr_guid)
+struct ddsi_xevent *ddsi_qxev_heartbeat (struct ddsi_xeventq *evq, ddsrt_mtime_t tsched, const ddsi_guid_t *wr_guid)
 {
   /* Event _must_ be deleted before enough of the writer is freed to
      cause trouble.  Currently used exclusively for
      wr->heartbeat_xevent.  */
-  struct xevent *ev;
+  struct ddsi_xevent *ev;
   assert(evq);
   ddsrt_mutex_lock (&evq->lock);
   ev = qxev_common (evq, tsched, XEVK_HEARTBEAT);
@@ -1465,9 +1465,9 @@ struct xevent *qxev_heartbeat (struct xeventq *evq, ddsrt_mtime_t tsched, const 
   return ev;
 }
 
-struct xevent *qxev_acknack (struct xeventq *evq, ddsrt_mtime_t tsched, const ddsi_guid_t *pwr_guid, const ddsi_guid_t *rd_guid)
+struct ddsi_xevent *ddsi_qxev_acknack (struct ddsi_xeventq *evq, ddsrt_mtime_t tsched, const ddsi_guid_t *pwr_guid, const ddsi_guid_t *rd_guid)
 {
-  struct xevent *ev;
+  struct ddsi_xevent *ev;
   assert(evq);
   ddsrt_mutex_lock (&evq->lock);
   ev = qxev_common (evq, tsched, XEVK_ACKNACK);
@@ -1478,9 +1478,9 @@ struct xevent *qxev_acknack (struct xeventq *evq, ddsrt_mtime_t tsched, const dd
   return ev;
 }
 
-struct xevent *qxev_spdp (struct xeventq *evq, ddsrt_mtime_t tsched, const ddsi_guid_t *pp_guid, const ddsi_guid_t *dest_proxypp_guid)
+struct ddsi_xevent *ddsi_qxev_spdp (struct ddsi_xeventq *evq, ddsrt_mtime_t tsched, const ddsi_guid_t *pp_guid, const ddsi_guid_t *dest_proxypp_guid)
 {
-  struct xevent *ev;
+  struct ddsi_xevent *ev;
   ddsrt_mutex_lock (&evq->lock);
   ev = qxev_common (evq, tsched, XEVK_SPDP);
   ev->u.spdp.pp_guid = *pp_guid;
@@ -1496,9 +1496,9 @@ struct xevent *qxev_spdp (struct xeventq *evq, ddsrt_mtime_t tsched, const ddsi_
   return ev;
 }
 
-struct xevent *qxev_pmd_update (struct xeventq *evq, ddsrt_mtime_t tsched, const ddsi_guid_t *pp_guid)
+struct ddsi_xevent *ddsi_qxev_pmd_update (struct ddsi_xeventq *evq, ddsrt_mtime_t tsched, const ddsi_guid_t *pp_guid)
 {
-  struct xevent *ev;
+  struct ddsi_xevent *ev;
   ddsrt_mutex_lock (&evq->lock);
   ev = qxev_common (evq, tsched, XEVK_PMD_UPDATE);
   ev->u.pmd_update.pp_guid = *pp_guid;
@@ -1507,9 +1507,9 @@ struct xevent *qxev_pmd_update (struct xeventq *evq, ddsrt_mtime_t tsched, const
   return ev;
 }
 
-struct xevent *qxev_delete_writer (struct xeventq *evq, ddsrt_mtime_t tsched, const ddsi_guid_t *guid)
+struct ddsi_xevent *ddsi_qxev_delete_writer (struct ddsi_xeventq *evq, ddsrt_mtime_t tsched, const ddsi_guid_t *guid)
 {
-  struct xevent *ev;
+  struct ddsi_xevent *ev;
   ddsrt_mutex_lock (&evq->lock);
   ev = qxev_common (evq, tsched, XEVK_DELETE_WRITER);
   ev->u.delete_writer.guid = *guid;
@@ -1518,9 +1518,9 @@ struct xevent *qxev_delete_writer (struct xeventq *evq, ddsrt_mtime_t tsched, co
   return ev;
 }
 
-struct xevent *qxev_callback (struct xeventq *evq, ddsrt_mtime_t tsched, void (*cb) (struct xevent *ev, void *arg, ddsrt_mtime_t tnow), void *arg)
+struct ddsi_xevent *ddsi_qxev_callback (struct ddsi_xeventq *evq, ddsrt_mtime_t tsched, void (*cb) (struct ddsi_xevent *ev, void *arg, ddsrt_mtime_t tnow), void *arg)
 {
-  struct xevent *ev;
+  struct ddsi_xevent *ev;
   ddsrt_mutex_lock (&evq->lock);
   ev = qxev_common (evq, tsched, XEVK_CALLBACK);
   ev->u.callback.cb = cb;

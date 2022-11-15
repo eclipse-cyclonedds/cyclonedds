@@ -15,7 +15,7 @@
 
 #include "dds/export.h"
 #include "dds/ddsrt/time.h"
-#include "dds/ddsi/q_xevent.h"
+#include "dds/ddsi/ddsi_xevent.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -63,7 +63,7 @@ typedef void (*dds_security_timed_cb_t) (dds_security_time_event_handle_t timer,
  * @return              New (disabled) timed callbacks dispatcher.
  * @param evq           The event queue used to handle the timers.
  */
-DDS_EXPORT struct dds_security_timed_dispatcher * dds_security_timed_dispatcher_new(struct xeventq *evq);
+DDS_EXPORT struct dds_security_timed_dispatcher * dds_security_timed_dispatcher_new(struct ddsi_xeventq *evq);
 
 /**
  * Frees the given dispatcher.

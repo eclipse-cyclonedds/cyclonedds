@@ -107,6 +107,7 @@ target_include_directories(
         "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}>"
         "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>"
         "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../../core/ddsi/include>"
+        "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../../core/ddsi/src>"
         "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../../core/ddsc/src>"
  )
 if(ENABLE_SSL AND OPENSSL_FOUND)

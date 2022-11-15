@@ -32,7 +32,7 @@
 #include "dds/ddsi/ddsi_serdata.h"
 #include "ddsi__discovery.h"
 #include "ddsi__whc.h"
-#include "dds/ddsi/q_xevent.h"
+#include "ddsi__xevent.h"
 #include "ddsi__addrset.h"
 #include "ddsi__radmin.h"
 #include "ddsi__misc.h"
@@ -878,7 +878,7 @@ static void ddsi_new_writer_guid_common_init (struct ddsi_writer *wr, const char
      scheduled, and this can only change by writing data, which won't
      happen until after it becomes visible. */
   if (wr->reliable)
-    wr->heartbeat_xevent = qxev_heartbeat (wr->evq, DDSRT_MTIME_NEVER, &wr->e.guid);
+    wr->heartbeat_xevent = ddsi_qxev_heartbeat (wr->evq, DDSRT_MTIME_NEVER, &wr->e.guid);
   else
     wr->heartbeat_xevent = NULL;
 
@@ -975,7 +975,7 @@ dds_return_t ddsi_new_writer_guid (struct ddsi_writer **wr_out, const struct dds
       ddsrt_mutex_unlock (&pp->e.lock);
 
       /* Trigger pmd update */
-      (void) resched_xevent_if_earlier (pp->pmd_update_xevent, ddsrt_time_monotonic ());
+      (void) ddsi_resched_xevent_if_earlier (pp->pmd_update_xevent, ddsrt_time_monotonic ());
     }
     else
     {
@@ -1065,7 +1065,7 @@ static void gc_delete_writer (struct ddsi_gcreq *gcreq)
   if (wr->heartbeat_xevent)
   {
     wr->hbcontrol.tsched = DDSRT_MTIME_NEVER;
-    delete_xevent (wr->heartbeat_xevent);
+    ddsi_delete_xevent (wr->heartbeat_xevent);
   }
 
   /* Tear down connections -- no proxy reader can be adding/removing
@@ -1232,7 +1232,7 @@ static dds_return_t delete_writer_nolinger_locked (struct ddsi_writer *wr)
       ddsrt_mutex_lock (&wr->c.pp->e.lock);
       ddsrt_fibheap_delete (&ddsi_ldur_fhdef, &wr->c.pp->ldur_auto_wr, wr->lease_duration);
       ddsrt_mutex_unlock (&wr->c.pp->e.lock);
-      resched_xevent_if_earlier (wr->c.pp->pmd_update_xevent, ddsrt_time_monotonic ());
+      ddsi_resched_xevent_if_earlier (wr->c.pp->pmd_update_xevent, ddsrt_time_monotonic ());
     }
     else
     {
@@ -1310,7 +1310,7 @@ dds_return_t ddsi_delete_writer (struct ddsi_domaingv *gv, const struct ddsi_gui
     ddsrt_mtime_to_sec_usec (&tsec, &tusec, tsched);
     GVLOGDISC ("delete_writer(guid "PGUIDFMT") - unack'ed samples, will delete when ack'd or at t = %"PRId32".%06"PRId32"\n",
                PGUID (*guid), tsec, tusec);
-    qxev_delete_writer (gv->xevents, tsched, &wr->e.guid);
+    ddsi_qxev_delete_writer (gv->xevents, tsched, &wr->e.guid);
   }
   return 0;
 }

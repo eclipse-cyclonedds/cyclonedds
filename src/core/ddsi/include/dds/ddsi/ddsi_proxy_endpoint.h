@@ -80,7 +80,7 @@ struct ddsi_proxy_writer {
   struct ddsi_defrag *defrag; /* defragmenter for this proxy writer; FIXME: perhaps shouldn't be for historical data */
   struct ddsi_reorder *reorder; /* message reordering for this proxy writer, out-of-sync readers can have their own, see pwr_rd_match */
   struct ddsi_dqueue *dqueue; /* delivery queue for asynchronous delivery (historical data is always delivered asynchronously) */
-  struct xeventq *evq; /* timed event queue to be used for ACK generation */
+  struct ddsi_xeventq *evq; /* timed event queue to be used for ACK generation */
   struct ddsi_local_reader_ary rdary; /* LOCAL readers for fast-pathing; if not fast-pathed, fall back to scanning local_readers */
   ddsi2direct_directread_cb_t ddsi2direct_cb;
   void *ddsi2direct_cbarg;

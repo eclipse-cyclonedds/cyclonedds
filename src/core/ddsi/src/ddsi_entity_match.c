@@ -25,7 +25,7 @@
 #include "ddsi__rhc.h"
 #include "dds/ddsi/ddsi_qosmatch.h"
 #include "ddsi__addrset.h"
-#include "dds/ddsi/q_xevent.h"
+#include "ddsi__xevent.h"
 #include "ddsi__whc.h"
 #include "ddsi__endpoint.h"
 #include "ddsi__entity_match.h"
@@ -644,7 +644,7 @@ void ddsi_free_pwr_rd_match (struct ddsi_pwr_rd_match *m)
   if (m)
   {
     if (m->acknack_xevent)
-      delete_xevent (m->acknack_xevent);
+      ddsi_delete_xevent (m->acknack_xevent);
     ddsi_reorder_free (m->u.not_in_sync.reorder);
     ddsrt_free (m);
   }
@@ -773,7 +773,7 @@ void ddsi_writer_add_connection (struct ddsi_writer *wr, struct ddsi_proxy_reade
       if (tnext.v < wr->hbcontrol.tsched.v)
       {
         wr->hbcontrol.tsched = tnext;
-        (void) resched_xevent_if_earlier (wr->heartbeat_xevent, tnext);
+        (void) ddsi_resched_xevent_if_earlier (wr->heartbeat_xevent, tnext);
       }
       ddsrt_mutex_unlock (&wr->e.lock);
     }
@@ -1078,7 +1078,7 @@ void ddsi_proxy_writer_add_connection (struct ddsi_proxy_writer *pwr, struct dds
     }
 
     const ddsrt_mtime_t tsched = use_iceoryx ? DDSRT_MTIME_NEVER : ddsrt_mtime_add_duration (tnow, pwr->e.gv->config.preemptive_ack_delay);
-    m->acknack_xevent = qxev_acknack (pwr->evq, tsched, &pwr->e.guid, &rd->e.guid);
+    m->acknack_xevent = ddsi_qxev_acknack (pwr->evq, tsched, &pwr->e.guid, &rd->e.guid);
     m->u.not_in_sync.reorder =
       ddsi_reorder_new (&pwr->e.gv->logconfig, DDSI_REORDER_MODE_NORMAL, secondary_reorder_maxsamples, pwr->e.gv->config.late_ack_mode);
     pwr->n_reliable_readers++;
@@ -1100,7 +1100,7 @@ void ddsi_proxy_writer_add_connection (struct ddsi_proxy_writer *pwr, struct dds
 #endif
 
   ddsrt_mutex_unlock (&pwr->e.lock);
-  qxev_pwr_entityid (pwr, &rd->e.guid);
+  ddsi_qxev_pwr_entityid (pwr, &rd->e.guid);
 
   ELOGDISC (pwr, "\n");
   return;
@@ -1139,7 +1139,7 @@ void ddsi_proxy_reader_add_connection (struct ddsi_proxy_reader *prd, struct dds
               PGUID (wr->e.guid), PGUID (prd->e.guid));
     ddsrt_avl_insert_ipath (&ddsi_prd_writers_treedef, &prd->writers, m, &path);
     ddsrt_mutex_unlock (&prd->e.lock);
-    qxev_prd_entityid (prd, &wr->e.guid);
+    ddsi_qxev_prd_entityid (prd, &wr->e.guid);
 
   }
 }

@@ -25,7 +25,7 @@
 #include "ddsi__security_omg.h"
 #include "ddsi__addrset.h"
 #include "ddsi__whc.h"
-#include "dds/ddsi/q_xevent.h"
+#include "ddsi__xevent.h"
 #include "ddsi__radmin.h"
 #include "ddsi__endpoint.h"
 #include "ddsi__gc.h"
@@ -188,7 +188,7 @@ static enum ddsi_reorder_mode get_proxy_writer_reorder_mode(const ddsi_entityid_
   return DDSI_REORDER_MODE_MONOTONICALLY_INCREASING;
 }
 
-int ddsi_new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct ddsi_addrset *as, const ddsi_plist_t *plist, struct ddsi_dqueue *dqueue, struct xeventq *evq, ddsrt_wctime_t timestamp, ddsi_seqno_t seq)
+int ddsi_new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct ddsi_addrset *as, const ddsi_plist_t *plist, struct ddsi_dqueue *dqueue, struct ddsi_xeventq *evq, ddsrt_wctime_t timestamp, ddsi_seqno_t seq)
 {
   struct ddsi_proxy_participant *proxypp;
   struct ddsi_proxy_writer *pwr;
@@ -343,7 +343,7 @@ void ddsi_update_proxy_writer (struct ddsi_proxy_writer *pwr, ddsi_seqno_t seq, 
         rd = ddsi_entidx_lookup_reader_guid (pwr->e.gv->entity_index, &m->rd_guid);
         if (rd)
         {
-          qxev_pwr_entityid (pwr, &rd->e.guid);
+          ddsi_qxev_pwr_entityid (pwr, &rd->e.guid);
         }
         m = ddsrt_avl_iter_next (&iter);
       }
@@ -643,7 +643,7 @@ void ddsi_update_proxy_reader (struct ddsi_proxy_reader *prd, ddsi_seqno_t seq, 
           ddsrt_mutex_lock (&wr->e.lock);
           ddsi_rebuild_writer_addrset (wr);
           ddsrt_mutex_unlock (&wr->e.lock);
-          qxev_prd_entityid (prd, &wr->e.guid);
+          ddsi_qxev_prd_entityid (prd, &wr->e.guid);
         }
         wrguid = guid_next;
         ddsrt_mutex_lock (&prd->e.lock);

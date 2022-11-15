@@ -28,7 +28,7 @@
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/ddsi_unused.h"
 #include "ddsi__bitset.h"
-#include "dds/ddsi/q_xevent.h"
+#include "ddsi__xevent.h"
 #include "ddsi__addrset.h"
 #include "ddsi__discovery.h"
 #include "ddsi__radmin.h"
@@ -766,22 +766,22 @@ struct wait_for_receive_threads_helper_arg {
   unsigned count;
 };
 
-static void wait_for_receive_threads_helper (struct xevent *xev, void *varg, ddsrt_mtime_t tnow)
+static void wait_for_receive_threads_helper (struct ddsi_xevent *xev, void *varg, ddsrt_mtime_t tnow)
 {
   struct wait_for_receive_threads_helper_arg * const arg = varg;
   if (arg->count++ == arg->gv->config.recv_thread_stop_maxretries)
     abort ();
   ddsi_trigger_recv_threads (arg->gv);
-  (void) resched_xevent_if_earlier (xev, ddsrt_mtime_add_duration (tnow, DDS_SECS (1)));
+  (void) ddsi_resched_xevent_if_earlier (xev, ddsrt_mtime_add_duration (tnow, DDS_SECS (1)));
 }
 
 static void wait_for_receive_threads (struct ddsi_domaingv *gv)
 {
-  struct xevent *trigev;
+  struct ddsi_xevent *trigev;
   struct wait_for_receive_threads_helper_arg cbarg;
   cbarg.gv = gv;
   cbarg.count = 0;
-  if ((trigev = qxev_callback (gv->xevents, ddsrt_mtime_add_duration (ddsrt_time_monotonic (), DDS_SECS (1)), wait_for_receive_threads_helper, &cbarg)) == NULL)
+  if ((trigev = ddsi_qxev_callback (gv->xevents, ddsrt_mtime_add_duration (ddsrt_time_monotonic (), DDS_SECS (1)), wait_for_receive_threads_helper, &cbarg)) == NULL)
   {
     /* retrying is to deal a packet geting lost because the socket buffer is full or because the
        macOS firewall (and perhaps others) likes to ask if the process is allowed to receive data,
@@ -799,7 +799,7 @@ static void wait_for_receive_threads (struct ddsi_domaingv *gv)
   }
   if (trigev)
   {
-    delete_xevent_callback (trigev);
+    ddsi_delete_xevent_callback (trigev);
   }
 }
 
@@ -1047,13 +1047,13 @@ static uint32_t topic_definition_hash_wrap (const void *tpd)
 }
 #endif /* DDS_HAS_TYPE_DISCOVERY */
 
-static void reset_deaf_mute (struct xevent *xev, void *varg, UNUSED_ARG (ddsrt_mtime_t tnow))
+static void reset_deaf_mute (struct ddsi_xevent *xev, void *varg, UNUSED_ARG (ddsrt_mtime_t tnow))
 {
   struct ddsi_domaingv *gv = varg;
   gv->deaf = 0;
   gv->mute = 0;
   GVLOGDISC ("DEAFMUTE auto-reset to [deaf, mute]=[%d, %d]\n", gv->deaf, gv->mute);
-  delete_xevent (xev);
+  ddsi_delete_xevent (xev);
 }
 
 void ddsi_set_deafmute (struct ddsi_domaingv *gv, bool deaf, bool mute, int64_t reset_after)
@@ -1065,7 +1065,7 @@ void ddsi_set_deafmute (struct ddsi_domaingv *gv, bool deaf, bool mute, int64_t 
   {
     ddsrt_mtime_t when = ddsrt_mtime_add_duration (ddsrt_time_monotonic (), reset_after);
     GVTRACE (" reset after %"PRId64".%09u ns", reset_after / DDS_NSECS_IN_SEC, (unsigned) (reset_after % DDS_NSECS_IN_SEC));
-    qxev_callback (gv->xevents, when, reset_deaf_mute, gv);
+    ddsi_qxev_callback (gv->xevents, when, reset_deaf_mute, gv);
   }
   GVLOGDISC ("\n");
 }
@@ -1679,7 +1679,7 @@ int ddsi_init (struct ddsi_domaingv *gv)
 #ifdef DDS_HAS_BANDWIDTH_LIMITING
       if (chptr->auxiliary_bandwidth_limit > 0 || ddsi_lookup_thread_properties (tname))
       {
-        chptr->evq = xeventq_new
+        chptr->evq = ddsi_xeventq_new
         (
           chptr->transmit_conn,
           gv->config.max_queued_rexmit_bytes,
@@ -1690,7 +1690,7 @@ int ddsi_init (struct ddsi_domaingv *gv)
 #else
       if (ddsi_lookup_thread_properties (tname))
       {
-        chptr->evq = xeventq_new
+        chptr->evq = ddsi_xeventq_new
         (
           chptr->transmit_conn,
           gv->config.max_queued_rexmit_bytes,
@@ -1707,7 +1707,7 @@ int ddsi_init (struct ddsi_domaingv *gv)
 
   /* Create event queues */
 
-  gv->xevents = xeventq_new
+  gv->xevents = ddsi_xeventq_new
   (
     gv,
     gv->config.max_queued_rexmit_bytes,
@@ -1763,7 +1763,7 @@ int ddsi_init (struct ddsi_domaingv *gv)
 #endif
 
   if (reset_deaf_mute_time.v < DDS_NEVER)
-    qxev_callback (gv->xevents, reset_deaf_mute_time, reset_deaf_mute, gv);
+    ddsi_qxev_callback (gv->xevents, reset_deaf_mute_time, reset_deaf_mute, gv);
   return 0;
 
 #if 0
@@ -1861,7 +1861,7 @@ static void stop_all_xeventq_upto (struct ddsi_config_channel_listelem *chptr)
 {
   for (struct ddsi_config_channel_listelem *chptr1 = gv->config.channels; chptr1 != chptr; chptr1 = chptr1->next)
     if (chptr1->evq)
-      xeventq_stop (chptr1->evq);
+      ddsi_xeventq_stop (chptr1->evq);
 }
 #endif
 
@@ -1877,17 +1877,17 @@ int ddsi_start (struct ddsi_domaingv *gv)
   ddsi_dqueue_start (gv->user_dqueue);
 #endif
 
-  if (xeventq_start (gv->xevents, NULL) < 0)
+  if (ddsi_xeventq_start (gv->xevents, NULL) < 0)
     return -1;
 #ifdef DDS_HAS_NETWORK_CHANNELS
   for (struct ddsi_config_channel_listelem *chptr = gv->config.channels; chptr; chptr = chptr->next)
   {
     if (chptr->evq)
     {
-      if (xeventq_start (chptr->evq, chptr->name) < 0)
+      if (ddsi_xeventq_start (chptr->evq, chptr->name) < 0)
       {
         stop_all_xeventq_upto (chptr);
-        xeventq_stop (gv->xevents);
+        ddsi_xeventq_stop (gv->xevents);
         return -1;
       }
     }
@@ -1899,7 +1899,7 @@ int ddsi_start (struct ddsi_domaingv *gv)
 #ifdef DDS_HAS_NETWORK_CHANNELS
     stop_all_xeventq_upto (NULL);
 #endif
-    xeventq_stop (gv->xevents);
+    ddsi_xeventq_stop (gv->xevents);
     return -1;
   }
   if (gv->listener)
@@ -1976,12 +1976,12 @@ void ddsi_stop (struct ddsi_domaingv *gv)
     ddsi_listener_free(gv->listener);
   }
 
-  xeventq_stop (gv->xevents);
+  ddsi_xeventq_stop (gv->xevents);
 #ifdef DDS_HAS_NETWORK_CHANNELS
   for (chptr = gv->config.channels; chptr; chptr = chptr->next)
   {
     if (chptr->evq)
-      xeventq_stop (chptr->evq);
+      ddsi_xeventq_stop (chptr->evq);
   }
 #endif /* DDS_HAS_NETWORK_CHANNELS */
 
@@ -2128,7 +2128,7 @@ void ddsi_fini (struct ddsi_domaingv *gv)
   ddsi_omg_security_deinit (gv->security_context);
 #endif
 
-  xeventq_free (gv->xevents);
+  ddsi_xeventq_free (gv->xevents);
 
   // if sendq thread is started
   ddsrt_mutex_lock (&gv->sendq_running_lock);
@@ -2145,7 +2145,7 @@ void ddsi_fini (struct ddsi_domaingv *gv)
   {
     if (chptr->evq)
     {
-      xeventq_free (chptr->evq);
+      ddsi_xeventq_free (chptr->evq);
     }
     if (chptr->transmit_conn != gv->data_conn_uc)
     {

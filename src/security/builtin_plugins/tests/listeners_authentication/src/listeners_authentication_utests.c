@@ -12,7 +12,7 @@
 #include "dds/ddsrt/io.h"
 #include "dds/ddsi/ddsi_tran.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/q_xevent.h"
+#include "ddsi__xevent.h"
 #include "dds/ddsi/ddsi_thread.h"
 #include "dds/security/dds_security_api.h"
 #include "dds/security/dds_security_api_authentication.h"

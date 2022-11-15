@@ -79,7 +79,7 @@ struct ddsi_pwr_rd_match {
   ddsrt_mtime_t t_last_ack; /* (local) time we last sent any ACKNACK */
   ddsi_seqno_t last_seq; /* last known sequence number from this writer */
   struct ddsi_last_nack_summary last_nack;
-  struct xevent *acknack_xevent; /* entry in xevent queue for sending acknacks */
+  struct ddsi_xevent *acknack_xevent; /* entry in xevent queue for sending acknacks */
   enum ddsi_pwr_rd_match_syncstate in_sync; /* whether in sync with the proxy writer */
   unsigned ack_requested : 1; /* set on receipt of HEARTBEAT with FINAL clear, cleared on sending an ACKNACK */
   unsigned heartbeat_since_ack : 1; /* set when a HEARTBEAT has been received since the last ACKNACK */

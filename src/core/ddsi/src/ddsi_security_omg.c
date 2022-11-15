@@ -46,7 +46,8 @@
 #include "dds/ddsi/ddsi_proxy_participant.h"
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/ddsi_proxy_endpoint.h"
-#include "dds/ddsi/q_xevent.h"
+#include "dds/ddsi/ddsi_xevent.h"
+#include "ddsi__xevent.h"
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/sysdeps.h"
 #include "ddsi__entity_match.h"
@@ -210,7 +211,7 @@ struct pending_match_index {
   const struct ddsi_domaingv *gv;
   ddsrt_avl_tree_t pending_matches;
   ddsrt_fibheap_t expiry_timers;
-  struct xevent *evt;
+  struct ddsi_xevent *evt;
 };
 
 struct dds_security_context {
@@ -341,7 +342,7 @@ static void free_pending_match(struct pending_match *match)
   }
 }
 
-static void pending_match_expiry_cb(struct xevent *xev, void *varg, ddsrt_mtime_t tnow);
+static void pending_match_expiry_cb(struct ddsi_xevent *xev, void *varg, ddsrt_mtime_t tnow);
 
 static struct pending_match * find_or_create_pending_entity_match(struct pending_match_index *index, enum ddsi_entity_kind kind, const ddsi_guid_t *remote_guid, const ddsi_guid_t *local_guid, int64_t crypto_handle, DDS_Security_ParticipantCryptoTokenSeq *tokens)
 {
@@ -369,7 +370,7 @@ static struct pending_match * find_or_create_pending_entity_match(struct pending
     match->tokens = tokens;
     match->expiry = ddsrt_mtime_add_duration(ddsrt_time_monotonic(), DDS_SECS(PENDING_MATCH_EXPIRY_TIME));
     ddsrt_fibheap_insert(&pending_match_expiry_fhdef, &index->expiry_timers, match);
-    (void)resched_xevent_if_earlier(index->evt, match->expiry);
+    (void)ddsi_resched_xevent_if_earlier(index->evt, match->expiry);
   }
   ddsrt_mutex_unlock(&index->lock);
 
@@ -417,7 +418,7 @@ static void delete_pending_match(struct pending_match_index *index, struct pendi
   ddsrt_mutex_unlock(&index->lock);
 }
 
-static void pending_match_expiry_cb(struct xevent *xev, void *varg, ddsrt_mtime_t tnow)
+static void pending_match_expiry_cb(struct ddsi_xevent *xev, void *varg, ddsrt_mtime_t tnow)
 {
   struct pending_match_index *index = varg;
 
@@ -431,7 +432,7 @@ static void pending_match_expiry_cb(struct xevent *xev, void *varg, ddsrt_mtime_
     match = ddsrt_fibheap_min(&pending_match_expiry_fhdef, &index->expiry_timers);
   }
   if (match)
-    resched_xevent_if_earlier(xev, match->expiry);
+    ddsi_resched_xevent_if_earlier(xev, match->expiry);
   ddsrt_mutex_unlock(&index->lock);
 }
 
@@ -482,12 +483,12 @@ static void pending_match_index_init(const struct ddsi_domaingv *gv, struct pend
   ddsrt_avl_init(&pending_match_index_treedef, &index->pending_matches);
   ddsrt_fibheap_init(&pending_match_expiry_fhdef, &index->expiry_timers);
   index->gv = gv;
-  index->evt = qxev_callback(gv->xevents, DDSRT_MTIME_NEVER, pending_match_expiry_cb, index);;
+  index->evt = ddsi_qxev_callback(gv->xevents, DDSRT_MTIME_NEVER, pending_match_expiry_cb, index);;
 }
 
 static void pending_match_index_deinit(struct pending_match_index *index)
 {
-  delete_xevent_callback(index->evt);
+  ddsi_delete_xevent_callback(index->evt);
   ddsrt_mutex_destroy(&index->lock);
   assert(ddsrt_avl_is_empty(&index->pending_matches));
   ddsrt_avl_free(&pending_match_index_treedef, &index->pending_matches, 0);
@@ -1279,7 +1280,7 @@ void ddsi_omg_security_deregister_participant (struct ddsi_participant *pp)
     struct cleanup_participant_sec_attributes_arg *arg = ddsrt_malloc (sizeof (*arg));
     arg->crypto_handle = pp->sec_attr->crypto_handle;
     arg->gv = pp->e.gv;
-    qxev_nt_callback(pp->e.gv->xevents, cleanup_participant_sec_attributes, arg);
+    ddsi_qxev_nt_callback(pp->e.gv->xevents, cleanup_participant_sec_attributes, arg);
   }
 
   clear_pending_matches_by_local_guid(sc, &sc->security_matches, &pp->e.guid);

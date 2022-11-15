@@ -24,7 +24,7 @@ typedef ddsrt_mtime_t (*ddsi_sample_expired_cb_t)(void *hc, ddsrt_mtime_t tnow);
 
 struct ddsi_lifespan_adm {
   ddsrt_fibheap_t ls_exp_heap;              /* heap for sample expiration (lifespan) */
-  struct xevent *evt;                       /* xevent that triggers for sample with earliest expiration */
+  struct ddsi_xevent *evt;                       /* xevent that triggers for sample with earliest expiration */
   ddsi_sample_expired_cb_t sample_expired_cb;    /* callback for expired sample; this cb can use ddsi_lifespan_next_expired_locked to get next expired sample */
   size_t fh_offset;                         /* offset of lifespan_adm element in whc or rhc */
   size_t fhn_offset;                        /* offset of lifespan_fhnode element in whc or rhc node (sample) */

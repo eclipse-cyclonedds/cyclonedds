@@ -28,7 +28,7 @@
 #include "dds/ddsi/ddsi_log.h"
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/ddsi_unused.h"
-#include "dds/ddsi/q_xevent.h"
+#include "ddsi__xevent.h"
 #include "dds/ddsi/ddsi_addrset.h"
 #include "ddsi__discovery.h"
 #include "ddsi__serdata_plist.h"
@@ -640,9 +640,9 @@ static void respond_to_spdp (const struct ddsi_domaingv *gv, const ddsi_guid_t *
     GVTRACE (" %"PRId64, delay);
     if (!pp->e.gv->config.unicast_response_to_spdp_messages)
       /* pp can't reach gc_delete_participant => can safely reschedule */
-      (void) resched_xevent_if_earlier (pp->spdp_xevent, tsched);
+      (void) ddsi_resched_xevent_if_earlier (pp->spdp_xevent, tsched);
     else
-      qxev_spdp (gv->xevents, tsched, &pp->e.guid, dest_proxypp_guid);
+      ddsi_qxev_spdp (gv->xevents, tsched, &pp->e.guid, dest_proxypp_guid);
   }
   ddsi_entidx_enum_participant_fini (&est);
 }

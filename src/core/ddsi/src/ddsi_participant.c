@@ -25,7 +25,7 @@
 #include "ddsi__handshake.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "ddsi__discovery.h"
-#include "dds/ddsi/q_xevent.h"
+#include "ddsi__xevent.h"
 #include "ddsi__lease.h"
 #include "ddsi__receive.h"
 #include "ddsi__addrset.h"
@@ -694,9 +694,9 @@ void ddsi_unref_participant (struct ddsi_participant *pp, const struct ddsi_guid
     ddsrt_mutex_unlock (&pp->refc_lock);
 
     if (pp->spdp_xevent)
-      delete_xevent (pp->spdp_xevent);
+      ddsi_delete_xevent (pp->spdp_xevent);
     if (pp->pmd_update_xevent)
-      delete_xevent (pp->pmd_update_xevent);
+      ddsi_delete_xevent (pp->pmd_update_xevent);
 
     /* SPDP relies on the WHC, but dispose-unregister will empty
        it. The event handler verifies the event has already been
@@ -982,13 +982,13 @@ static dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domai
        fire before the calls return.  If the initial sample wasn't
        accepted, all is lost, but we continue nonetheless, even though
        the participant won't be able to discover or be discovered.  */
-    pp->spdp_xevent = qxev_spdp (gv->xevents, ddsrt_mtime_add_duration (ddsrt_time_monotonic (), DDS_MSECS (100)), &pp->e.guid, NULL);
+    pp->spdp_xevent = ddsi_qxev_spdp (gv->xevents, ddsrt_mtime_add_duration (ddsrt_time_monotonic (), DDS_MSECS (100)), &pp->e.guid, NULL);
   }
 
   {
     ddsrt_mtime_t tsched;
     tsched = (pp->lease_duration == DDS_INFINITY) ? DDSRT_MTIME_NEVER : (ddsrt_mtime_t){0};
-    pp->pmd_update_xevent = qxev_pmd_update (gv->xevents, tsched, &pp->e.guid);
+    pp->pmd_update_xevent = ddsi_qxev_pmd_update (gv->xevents, tsched, &pp->e.guid);
   }
 
 #ifdef DDS_HAS_SECURITY

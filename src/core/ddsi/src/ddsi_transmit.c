@@ -26,7 +26,7 @@
 #include "dds/ddsi/q_xmsg.h"
 #include "ddsi__misc.h"
 #include "ddsi__thread.h"
-#include "dds/ddsi/q_xevent.h"
+#include "ddsi__xevent.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "ddsi__transmit.h"
@@ -128,7 +128,7 @@ void ddsi_writer_hbcontrol_note_asyncwrite (struct ddsi_writer *wr, ddsrt_mtime_
        least one unacked msg if there are reliable readers, so must
        have a heartbeat scheduled.  Do so now */
     hbc->tsched = tnext;
-    (void) resched_xevent_if_earlier (wr->heartbeat_xevent, tnext);
+    (void) ddsi_resched_xevent_if_earlier (wr->heartbeat_xevent, tnext);
   }
 }
 
@@ -871,14 +871,14 @@ void ddsi_enqueue_spdp_sample_wrlock_held (struct ddsi_writer *wr, ddsi_seqno_t 
   assert (wr->e.guid.entityid.u == DDSI_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
   struct nn_xmsg *msg = NULL;
   if (ddsi_create_fragment_message(wr, seq, serdata, 0, UINT16_MAX, prd, &msg, 1, UINT32_MAX) >= 0)
-    qxev_msg (wr->evq, msg);
+    ddsi_qxev_msg (wr->evq, msg);
 }
 
 int ddsi_enqueue_sample_wrlock_held (struct ddsi_writer *wr, ddsi_seqno_t seq, struct ddsi_serdata *serdata, struct ddsi_proxy_reader *prd, int isnew)
 {
   struct ddsi_domaingv const * const gv = wr->e.gv;
   uint32_t i, sz, nfrags;
-  enum qxev_msg_rexmit_result enqueued = QXEV_MSG_REXMIT_QUEUED;
+  enum ddsi_qxev_msg_rexmit_result enqueued = DDSI_QXEV_MSG_REXMIT_QUEUED;
 
   ASSERT_MUTEX_HELD (&wr->e.lock);
 
@@ -891,7 +891,7 @@ int ddsi_enqueue_sample_wrlock_held (struct ddsi_writer *wr, ddsi_seqno_t seq, s
   }
   if (!isnew && nfrags > 1)
     nfrags = 1;
-  for (i = 0; i < nfrags && enqueued != QXEV_MSG_REXMIT_DROPPED; i++)
+  for (i = 0; i < nfrags && enqueued != DDSI_QXEV_MSG_REXMIT_DROPPED; i++)
   {
     struct nn_xmsg *fmsg = NULL;
     struct nn_xmsg *hmsg = NULL;
@@ -906,8 +906,8 @@ int ddsi_enqueue_sample_wrlock_held (struct ddsi_writer *wr, ddsi_seqno_t seq, s
     }
     if (isnew)
     {
-      if(fmsg) qxev_msg (wr->evq, fmsg);
-      if(hmsg) qxev_msg (wr->evq, hmsg);
+      if(fmsg) ddsi_qxev_msg (wr->evq, fmsg);
+      if(hmsg) ddsi_qxev_msg (wr->evq, hmsg);
     }
     else
     {
@@ -915,7 +915,7 @@ int ddsi_enqueue_sample_wrlock_held (struct ddsi_writer *wr, ddsi_seqno_t seq, s
       const int force = 0;
       if(fmsg)
       {
-        enqueued = qxev_msg_rexmit_wrlock_held (wr->evq, fmsg, force);
+        enqueued = ddsi_qxev_msg_rexmit_wrlock_held (wr->evq, fmsg, force);
       }
       /* Functioning of the system is not dependent on getting the
          HeartbeatFrags out, so never force them into the queue. */
@@ -923,18 +923,18 @@ int ddsi_enqueue_sample_wrlock_held (struct ddsi_writer *wr, ddsi_seqno_t seq, s
       {
         switch (enqueued)
         {
-          case QXEV_MSG_REXMIT_DROPPED:
-          case QXEV_MSG_REXMIT_MERGED:
+          case DDSI_QXEV_MSG_REXMIT_DROPPED:
+          case DDSI_QXEV_MSG_REXMIT_MERGED:
             nn_xmsg_free (hmsg);
             break;
-          case QXEV_MSG_REXMIT_QUEUED:
-            qxev_msg (wr->evq, hmsg);
+          case DDSI_QXEV_MSG_REXMIT_QUEUED:
+            ddsi_qxev_msg (wr->evq, hmsg);
             break;
         }
       }
     }
   }
-  return (enqueued != QXEV_MSG_REXMIT_DROPPED) ? 0 : -1;
+  return (enqueued != DDSI_QXEV_MSG_REXMIT_DROPPED) ? 0 : -1;
 }
 
 static int insert_sample_in_whc (struct ddsi_writer *wr, ddsi_seqno_t seq, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk)
@@ -1190,7 +1190,7 @@ int ddsi_write_sample_p2p_wrlock_held(struct ddsi_writer *wr, ddsi_seqno_t seq, 
     ddsi_enqueue_sample_wrlock_held (wr, seq, serdata, prd, 1);
 
     if (gap)
-      qxev_msg (wr->evq, gap);
+      ddsi_qxev_msg (wr->evq, gap);
 
     if (wr->heartbeat_xevent)
       ddsi_writer_hbcontrol_note_asyncwrite(wr, tnow);

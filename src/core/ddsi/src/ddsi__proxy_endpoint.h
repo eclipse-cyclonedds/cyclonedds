@@ -43,7 +43,7 @@ bool ddsi_is_proxy_endpoint (const struct ddsi_entity_common *e);
 
 /* To create a new proxy writer or reader; the proxy participant is
    determined from the GUID and must exist. */
-int ddsi_new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct ddsi_addrset *as, const struct ddsi_plist *plist, struct ddsi_dqueue *dqueue, struct xeventq *evq, ddsrt_wctime_t timestamp, ddsi_seqno_t seq);
+int ddsi_new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct ddsi_addrset *as, const struct ddsi_plist *plist, struct ddsi_dqueue *dqueue, struct ddsi_xeventq *evq, ddsrt_wctime_t timestamp, ddsi_seqno_t seq);
 int ddsi_new_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct ddsi_addrset *as, const struct ddsi_plist *plist, ddsrt_wctime_t timestamp, ddsi_seqno_t seq
 #ifdef DDS_HAS_SSM
 , int favours_ssm

@@ -98,7 +98,7 @@ struct ddsi_writer
   uint32_t alive_vclock; /* virtual clock counting transitions between alive/not-alive */
   const struct ddsi_sertype * type; /* type of the data written by this writer */
   struct ddsi_addrset *as; /* set of addresses to publish to */
-  struct xevent *heartbeat_xevent; /* timed event for "periodically" publishing heartbeats when unack'd data present, NULL <=> unreliable */
+  struct ddsi_xevent *heartbeat_xevent; /* timed event for "periodically" publishing heartbeats when unack'd data present, NULL <=> unreliable */
   struct ldur_fhnode *lease_duration; /* fibheap node to keep lease duration for this writer, NULL in case of automatic liveliness with inifite duration  */
   struct ddsi_whc *whc; /* WHC tracking history, T-L durability service history + samples by sequence number for retransmit */
   uint32_t whc_low, whc_high; /* watermarks for WHC in bytes (counting only unack'd data) */
@@ -124,7 +124,7 @@ struct ddsi_writer
   uint64_t rexmit_bytes; /* cum bytes queued for retransmit */
   uint64_t time_throttled; /* cum time in throttled state */
   uint64_t time_retransmit; /* cum time in retransmitting state */
-  struct xeventq *evq; /* timed event queue to be used by this writer */
+  struct ddsi_xeventq *evq; /* timed event queue to be used by this writer */
   struct ddsi_local_reader_ary rdary; /* LOCAL readers for fast-pathing; if not fast-pathed, fall back to scanning local_readers */
   struct ddsi_lease *lease; /* for liveliness administration (writer can only become inactive when using manual liveliness) */
 #ifdef DDS_HAS_SECURITY

@@ -23,6 +23,7 @@
 #include "ddsi__entity_match.h"
 #include "ddsi__security_omg.h"
 #include "ddsi__xqos.h"
+#include "ddsi__xevent.h"
 
 #define ACK_REASON_IN_FLAGS 0
 
@@ -333,7 +334,7 @@ static enum ddsi_add_acknack_result get_acknack_info (const struct ddsi_proxy_wr
   return result;
 }
 
-void ddsi_sched_acknack_if_needed (struct xevent *ev, struct ddsi_proxy_writer *pwr, struct ddsi_pwr_rd_match *rwn, ddsrt_mtime_t tnow, bool avoid_suppressed_nack)
+void ddsi_sched_acknack_if_needed (struct ddsi_xevent *ev, struct ddsi_proxy_writer *pwr, struct ddsi_pwr_rd_match *rwn, ddsrt_mtime_t tnow, bool avoid_suppressed_nack)
 {
   // This is the relatively expensive and precise code to determine what the ACKNACK event will do,
   // the alternative is to do:
@@ -341,13 +342,13 @@ void ddsi_sched_acknack_if_needed (struct xevent *ev, struct ddsi_proxy_writer *
   //   add_acknack_getsource (pwr, rwn, &reorder, &bitmap_base, &notail);
   //   const ddsi_seqno_t last_seq = rwn->filtered ? rwn->last_seq : pwr->last_seq;
   //   if (bitmap_base <= last_seq)
-  //     (void) resched_xevent_if_earlier (ev, tnow);
+  //     (void) ddsi_resched_xevent_if_earlier (ev, tnow);
   //   else if (!(rwn->heartbeat_since_ack && rwn->ack_requested))
   //     ; // writer didn't ask for it
   //   else if (!(bitmap_base > rwn->last_nack.seq_base || ackdelay_passed))
   //     ; // no progress since last, not enough time passed
   //   else
-  //    (void) resched_xevent_if_earlier (ev, tnow);
+  //    (void) ddsi_resched_xevent_if_earlier (ev, tnow);
   //
   // which is a stripped-down version of the same logic that more aggressively schedules the event,
   // relying on the event handler to suppress unnecessary messages.  There doesn't seem to be a big
@@ -363,12 +364,12 @@ void ddsi_sched_acknack_if_needed (struct xevent *ev, struct ddsi_proxy_writer *
   if (aanr == AANR_SUPPRESSED_ACK)
     ; // nothing to be done now
   else if (avoid_suppressed_nack && aanr == AANR_SUPPRESSED_NACK)
-    (void) resched_xevent_if_earlier (ev, ddsrt_mtime_add_duration (rwn->t_last_nack, gv->config.nack_delay));
+    (void) ddsi_resched_xevent_if_earlier (ev, ddsrt_mtime_add_duration (rwn->t_last_nack, gv->config.nack_delay));
   else
-    (void) resched_xevent_if_earlier (ev, tnow);
+    (void) ddsi_resched_xevent_if_earlier (ev, tnow);
 }
 
-struct nn_xmsg *ddsi_make_and_resched_acknack (struct xevent *ev, struct ddsi_proxy_writer *pwr, struct ddsi_pwr_rd_match *rwn, ddsrt_mtime_t tnow, bool avoid_suppressed_nack)
+struct nn_xmsg *ddsi_make_and_resched_acknack (struct ddsi_xevent *ev, struct ddsi_proxy_writer *pwr, struct ddsi_pwr_rd_match *rwn, ddsrt_mtime_t tnow, bool avoid_suppressed_nack)
 {
   struct ddsi_domaingv * const gv = pwr->e.gv;
   struct nn_xmsg *msg;
@@ -384,7 +385,7 @@ struct nn_xmsg *ddsi_make_and_resched_acknack (struct xevent *ev, struct ddsi_pr
     return NULL;
   else if (avoid_suppressed_nack && aanr == AANR_SUPPRESSED_NACK)
   {
-    (void) resched_xevent_if_earlier (ev, ddsrt_mtime_add_duration (rwn->t_last_nack, gv->config.nack_delay));
+    (void) ddsi_resched_xevent_if_earlier (ev, ddsrt_mtime_add_duration (rwn->t_last_nack, gv->config.nack_delay));
     return NULL;
   }
   else if (!(rwn->heartbeat_since_ack || rwn->heartbeatfrag_since_ack))
@@ -406,7 +407,7 @@ struct nn_xmsg *ddsi_make_and_resched_acknack (struct xevent *ev, struct ddsi_pr
         // suppress these spontaneous NACKs if they be more frequent than the auto-resched nack_delay
         if (tnow.v < ddsrt_mtime_add_duration (rwn->t_last_nack, gv->config.auto_resched_nack_delay).v)
         {
-          (void) resched_xevent_if_earlier (ev, ddsrt_mtime_add_duration (rwn->t_last_nack, gv->config.auto_resched_nack_delay));
+          (void) ddsi_resched_xevent_if_earlier (ev, ddsrt_mtime_add_duration (rwn->t_last_nack, gv->config.auto_resched_nack_delay));
           return NULL;
         }
         break;
@@ -490,13 +491,13 @@ struct nn_xmsg *ddsi_make_and_resched_acknack (struct xevent *ev, struct ddsi_pr
        HEARTBEAT, I've seen too many cases of not sending an NACK
        because the writing side got confused ...  Better to recover
        eventually. */
-      (void) resched_xevent_if_earlier (ev, ddsrt_mtime_add_duration (tnow, gv->config.auto_resched_nack_delay));
+      (void) ddsi_resched_xevent_if_earlier (ev, ddsrt_mtime_add_duration (tnow, gv->config.auto_resched_nack_delay));
       break;
     case AANR_SUPPRESSED_NACK:
       rwn->ack_requested = 0;
       rwn->t_last_ack = tnow;
       rwn->last_nack.seq_base = nack_summary.seq_base;
-      (void) resched_xevent_if_earlier (ev, ddsrt_mtime_add_duration (rwn->t_last_nack, gv->config.nack_delay));
+      (void) ddsi_resched_xevent_if_earlier (ev, ddsrt_mtime_add_duration (rwn->t_last_nack, gv->config.nack_delay));
       break;
   }
   GVTRACE ("send acknack(rd "PGUIDFMT" -> pwr "PGUIDFMT")\n", PGUID (rwn->rd_guid), PGUID (pwr->e.guid));

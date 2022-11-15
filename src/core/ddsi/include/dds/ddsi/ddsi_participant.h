@@ -45,8 +45,8 @@ struct ddsi_participant
   uint32_t bes; /* built-in endpoint set */
   unsigned is_ddsi2_pp: 1; /* true for the "federation leader", the ddsi2 participant itself in OSPL; FIXME: probably should use this for broker mode as well ... */
   struct ddsi_plist *plist; /* settings/QoS for this participant */
-  struct xevent *spdp_xevent; /* timed event for periodically publishing SPDP */
-  struct xevent *pmd_update_xevent; /* timed event for periodically publishing ddsi_participant_message_data */
+  struct ddsi_xevent *spdp_xevent; /* timed event for periodically publishing SPDP */
+  struct ddsi_xevent *pmd_update_xevent; /* timed event for periodically publishing ddsi_participant_message_data */
   ddsi_locator_t m_locator; /* this is always a unicast address, it is set if it is in the many unicast mode */
   ddsi_tran_conn_t m_conn; /* this is connection to m_locator, if it is set, this is used */
   struct ddsi_avail_entityid_set avail_entityids; /* available entity ids [e.lock] */

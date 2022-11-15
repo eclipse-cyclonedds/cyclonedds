@@ -14,13 +14,13 @@
 #include "dds/ddsrt/circlist.h"
 #include "dds/ddsrt/time.h"
 #include "dds/ddsi/ddsi_deadline.h"
-#include "dds/ddsi/q_xevent.h"
+#include "ddsi__xevent.h"
 
-static void instance_deadline_missed_cb (struct xevent *xev, void *varg, ddsrt_mtime_t tnow)
+static void instance_deadline_missed_cb (struct ddsi_xevent *xev, void *varg, ddsrt_mtime_t tnow)
 {
   struct ddsi_deadline_adm * const deadline_adm = varg;
   ddsrt_mtime_t next_valid = deadline_adm->deadline_missed_cb((char *)deadline_adm - deadline_adm->list_offset, tnow);
-  resched_xevent_if_earlier (xev, next_valid);
+  ddsi_resched_xevent_if_earlier (xev, next_valid);
 }
 
 /* Gets the instance from the list in deadline admin that has the earliest missed deadline and
@@ -50,7 +50,7 @@ ddsrt_mtime_t ddsi_deadline_next_missed_locked (struct ddsi_deadline_adm *deadli
 void ddsi_deadline_init (const struct ddsi_domaingv *gv, struct ddsi_deadline_adm *deadline_adm, size_t list_offset, size_t elem_offset, deadline_missed_cb_t deadline_missed_cb)
 {
   ddsrt_circlist_init (&deadline_adm->list);
-  deadline_adm->evt = qxev_callback (gv->xevents, DDSRT_MTIME_NEVER, instance_deadline_missed_cb, deadline_adm);
+  deadline_adm->evt = ddsi_qxev_callback (gv->xevents, DDSRT_MTIME_NEVER, instance_deadline_missed_cb, deadline_adm);
   deadline_adm->deadline_missed_cb = deadline_missed_cb;
   deadline_adm->list_offset = list_offset;
   deadline_adm->elem_offset = elem_offset;
@@ -58,7 +58,7 @@ void ddsi_deadline_init (const struct ddsi_domaingv *gv, struct ddsi_deadline_ad
 
 void ddsi_deadline_stop (const struct ddsi_deadline_adm *deadline_adm)
 {
-  delete_xevent_callback (deadline_adm->evt);
+  ddsi_delete_xevent_callback (deadline_adm->evt);
 }
 
 void ddsi_deadline_clear (struct ddsi_deadline_adm *deadline_adm)
@@ -80,7 +80,7 @@ void ddsi_deadline_register_instance_real (struct ddsi_deadline_adm *deadline_ad
   ddsrt_circlist_append(&deadline_adm->list, &elem->e);
   elem->t_deadline = (tprev.v + deadline_adm->dur >= tnow.v) ? tprev : tnow;
   elem->t_deadline.v += deadline_adm->dur;
-  resched_xevent_if_earlier (deadline_adm->evt, elem->t_deadline);
+  ddsi_resched_xevent_if_earlier (deadline_adm->evt, elem->t_deadline);
 }
 
 extern inline void ddsi_deadline_unregister_instance_locked (struct ddsi_deadline_adm *deadline_adm, struct deadline_elem *elem);

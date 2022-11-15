@@ -15,7 +15,7 @@
 #include "dds/ddsrt/circlist.h"
 #include "dds/ddsrt/time.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/q_xevent.h"
+#include "dds/ddsi/ddsi_xevent.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -25,7 +25,7 @@ typedef ddsrt_mtime_t (*deadline_missed_cb_t)(void *hc, ddsrt_mtime_t tnow);
 
 struct ddsi_deadline_adm {
   struct ddsrt_circlist list;               /* linked list for deadline missed */
-  struct xevent *evt;                       /* xevent that triggers when deadline expires for an instance */
+  struct ddsi_xevent *evt;                       /* xevent that triggers when deadline expires for an instance */
   deadline_missed_cb_t deadline_missed_cb;  /* callback for deadline missed; this cb can use ddsi_deadline_next_missed_locked to get next instance that has a missed deadline */
   size_t list_offset;                       /* offset of deadline_adm element in whc or rhc */
   size_t elem_offset;                       /* offset of deadline_elem element in whc or rhc instance */

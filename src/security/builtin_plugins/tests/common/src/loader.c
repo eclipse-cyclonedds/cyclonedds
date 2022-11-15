@@ -20,7 +20,7 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/q_xevent.h"
+#include "ddsi__xevent.h"
 #include "ddsi__thread.h"
 #include "ddsi__tran.h"
 #include "dds/security/core/dds_security_utils.h"
@@ -100,7 +100,7 @@ load_plugins(
     if (gv_init)
       plugins->gv = *gv_init;
     plugins->connection.m_base.gv = &plugins->gv;
-    plugins->gv.xevents = xeventq_new (&plugins->gv, 0, 0, 0);
+    plugins->gv.xevents = ddsi_xeventq_new (&plugins->gv, 0, 0, 0);
 
     if (ac) {
         *ac = load_plugin(&(plugins->plugin_ac),
@@ -134,7 +134,7 @@ load_plugins(
     }
 
     ddsi_thread_states_init();
-    xeventq_start(plugins->gv.xevents, "TEST");
+    ddsi_xeventq_start(plugins->gv.xevents, "TEST");
     return plugins;
 
 err:
@@ -169,8 +169,8 @@ unload_plugins(
     unload_plugin(&(plugins->plugin_auth));
     unload_plugin(&(plugins->plugin_crypto));
 
-    xeventq_stop(plugins->gv.xevents);
-    xeventq_free(plugins->gv.xevents);
+    ddsi_xeventq_stop(plugins->gv.xevents);
+    ddsi_xeventq_free(plugins->gv.xevents);
     ddsrt_free(plugins);
 
     (void)ddsi_thread_states_fini();

@@ -30,7 +30,7 @@
 #include "dds__writer.h"
 #include "dds/ddsi/ddsi_guid.h"
 #include "ddsi__lease.h"
-#include "dds/ddsi/q_xevent.h"
+#include "dds/ddsi/ddsi_xevent.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/ddsi_participant.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
@@ -1783,7 +1783,7 @@ static void dohearing_maybe_imm (struct oneliner_ctx *ctx, bool immediate)
         error_dds (ctx, ret, "%s: pin counterpart participant failed %"PRId32, mode, ctx->es[9*i]);
       ddsi_thread_state_awake (ddsi_lookup_thread_state (), &xprime->m_domain->gv);
       if ((pp = ddsi_entidx_lookup_participant_guid (xprime->m_domain->gv.entity_index, &xprime->m_guid)) != NULL)
-        resched_xevent_if_earlier (pp->spdp_xevent, ddsrt_mtime_add_duration (ddsrt_time_monotonic (), DDS_MSECS (100)));
+        ddsi_resched_xevent_if_earlier (pp->spdp_xevent, ddsrt_mtime_add_duration (ddsrt_time_monotonic (), DDS_MSECS (100)));
       ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
       dds_entity_unpin (xprime);
     }

@@ -39,7 +39,7 @@ struct ddsi_dqueue;
 struct ddsi_reorder;
 struct ddsi_defrag;
 struct ddsi_addrset;
-struct xeventq;
+struct ddsi_xeventq;
 struct ddsi_gcreq_queue;
 struct ddsi_entity_index;
 struct ddsi_lease;
@@ -102,7 +102,7 @@ struct ddsi_domaingv {
   struct ddsi_entity_index *entity_index;
 
   /* Timed events admin */
-  struct xeventq *xevents;
+  struct ddsi_xeventq *xevents;
 
   /* Queue for garbage collection requests */
   struct ddsi_gcreq_queue *gcreq_queue;

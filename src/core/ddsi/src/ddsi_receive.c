@@ -31,7 +31,7 @@
 #include "ddsi__bswap.h"
 #include "ddsi__lat_estim.h"
 #include "ddsi__bitset.h"
-#include "dds/ddsi/q_xevent.h"
+#include "ddsi__xevent.h"
 #include "ddsi__addrset.h"
 #include "ddsi__discovery.h"
 #include "ddsi__radmin.h"
@@ -705,7 +705,7 @@ struct nn_xmsg * ddsi_gap_info_create_gap(struct ddsi_writer *wr, struct ddsi_pr
 
 struct defer_hb_state {
   struct nn_xmsg *m;
-  struct xeventq *evq;
+  struct ddsi_xeventq *evq;
   int hbansreq;
   uint64_t wr_iid;
   uint64_t prd_iid;
@@ -726,7 +726,7 @@ static void defer_heartbeat_to_peer (struct ddsi_writer *wr, const struct ddsi_w
     }
     else
     {
-      qxev_msg (wr->evq, defer_hb_state->m);
+      ddsi_qxev_msg (wr->evq, defer_hb_state->m);
     }
   }
 
@@ -745,7 +745,7 @@ static void defer_heartbeat_to_peer (struct ddsi_writer *wr, const struct ddsi_w
 static void force_heartbeat_to_peer (struct ddsi_writer *wr, const struct ddsi_whc_state *whcst, struct ddsi_proxy_reader *prd, int hbansreq, struct defer_hb_state *defer_hb_state)
 {
   defer_heartbeat_to_peer (wr, whcst, prd, hbansreq, defer_hb_state);
-  qxev_msg (wr->evq, defer_hb_state->m);
+  ddsi_qxev_msg (wr->evq, defer_hb_state->m);
   defer_hb_state->m = NULL;
 }
 
@@ -759,7 +759,7 @@ static void defer_hb_state_fini (struct ddsi_domaingv * const gv, struct defer_h
   if (defer_hb_state->m)
   {
     GVTRACE ("send_deferred_heartbeat: %"PRIx64" -> %"PRIx64" - queue for transmit\n", defer_hb_state->wr_iid, defer_hb_state->prd_iid);
-    qxev_msg (defer_hb_state->evq, defer_hb_state->m);
+    ddsi_qxev_msg (defer_hb_state->evq, defer_hb_state->m);
     defer_hb_state->m = NULL;
   }
 }
@@ -1106,7 +1106,7 @@ static int handle_AckNack (struct ddsi_receiver_state *rst, ddsrt_etime_t tnow, 
     gap = ddsi_gap_info_create_gap (wr, prd, &gi);
     if (gap)
     {
-      qxev_msg (wr->evq, gap);
+      ddsi_qxev_msg (wr->evq, gap);
       msgs_sent++;
     }
   }
@@ -1574,7 +1574,7 @@ static int handle_HeartbeatFrag (struct ddsi_receiver_state *rst, UNUSED_ARG(dds
       if (seq == last_seq && ddsi_defrag_nackmap (pwr->defrag, seq, fragnum, &nackfrag.set, nackfrag.bits, DDSI_FRAGMENT_NUMBER_SET_MAX_BITS) == DDSI_DEFRAG_NACKMAP_FRAGMENTS_MISSING)
       {
         // don't rush it ...
-        resched_xevent_if_earlier (m->acknack_xevent, ddsrt_mtime_add_duration (ddsrt_time_monotonic (), pwr->e.gv->config.nack_delay));
+        ddsi_resched_xevent_if_earlier (m->acknack_xevent, ddsrt_mtime_add_duration (ddsrt_time_monotonic (), pwr->e.gv->config.nack_delay));
       }
     }
   }
@@ -1671,7 +1671,7 @@ static int handle_NackFrag (struct ddsi_receiver_state *rst, ddsrt_etime_t tnow,
         struct nn_xmsg *reply;
         if (ddsi_create_fragment_message (wr, seq, sample.serdata, base + i, 1, prd, &reply, 0, 0) < 0)
           nfrags_lim = 0;
-        else if (qxev_msg_rexmit_wrlock_held (wr->evq, reply, 0) == QXEV_MSG_REXMIT_DROPPED)
+        else if (ddsi_qxev_msg_rexmit_wrlock_held (wr->evq, reply, 0) == DDSI_QXEV_MSG_REXMIT_DROPPED)
           nfrags_lim = 0;
         else
         {
@@ -1697,7 +1697,7 @@ static int handle_NackFrag (struct ddsi_receiver_state *rst, ddsrt_etime_t tnow,
     nn_xmsg_setdstPRD (m, prd);
     /* length-1 bitmap with the bit clear avoids the illegal case of a length-0 bitmap */
     ddsi_add_gap (m, wr, prd, seq, seq+1, 0, &zero);
-    qxev_msg (wr->evq, m);
+    ddsi_qxev_msg (wr->evq, m);
   }
   if (seq <= ddsi_writer_read_seq_xmit (wr))
   {

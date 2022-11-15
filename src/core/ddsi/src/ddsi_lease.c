@@ -22,7 +22,7 @@
 #include "dds/ddsi/ddsi_log.h"
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/ddsi_unused.h"
-#include "dds/ddsi/q_xevent.h"
+#include "ddsi__xevent.h"
 #include "ddsi__addrset.h"
 #include "ddsi__discovery.h"
 #include "ddsi__radmin.h"

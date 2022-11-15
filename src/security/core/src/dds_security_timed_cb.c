@@ -35,8 +35,8 @@
 struct dds_security_timed_dispatcher
 {
   ddsrt_mutex_t lock;
-  struct xeventq *evq;
-  struct xevent *evt;
+  struct ddsi_xeventq *evq;
+  struct ddsi_xevent *evt;
   ddsrt_avl_tree_t events;
   ddsrt_fibheap_t timers;
   dds_security_time_event_handle_t next_timer;
@@ -96,7 +96,7 @@ static ddsrt_mtime_t calc_tsched (const struct dds_security_timed_event *ev, dds
   }
 }
 
-static void timed_event_cb (struct xevent *xev, void *arg, ddsrt_mtime_t tnow)
+static void timed_event_cb (struct ddsi_xevent *xev, void *arg, ddsrt_mtime_t tnow)
 {
   struct dds_security_timed_dispatcher * const dispatcher = arg;
   (void) tnow;
@@ -120,11 +120,11 @@ static void timed_event_cb (struct xevent *xev, void *arg, ddsrt_mtime_t tnow)
   // disabled (in which case the latter may be a null pointer) or
   // even a different event (in case it is already being re-enabled),
   // and so we must use xev.
-  (void) resched_xevent_if_earlier (xev, calc_tsched (ev, tnow_wc));
+  (void) ddsi_resched_xevent_if_earlier (xev, calc_tsched (ev, tnow_wc));
   ddsrt_mutex_unlock (&dispatcher->lock);
 }
 
-struct dds_security_timed_dispatcher *dds_security_timed_dispatcher_new (struct xeventq *evq)
+struct dds_security_timed_dispatcher *dds_security_timed_dispatcher_new (struct ddsi_xeventq *evq)
 {
   struct dds_security_timed_dispatcher *d = ddsrt_malloc (sizeof (*d));
   ddsrt_mutex_init (&d->lock);
@@ -142,16 +142,16 @@ void dds_security_timed_dispatcher_enable (struct dds_security_timed_dispatcher 
   if (d->evt == NULL)
   {
     struct dds_security_timed_event const * const ev = ddsrt_fibheap_min (&timed_cb_queue_fhdef, &d->timers);
-    d->evt = qxev_callback (d->evq, calc_tsched (ev, dds_time ()), timed_event_cb, d);
+    d->evt = ddsi_qxev_callback (d->evq, calc_tsched (ev, dds_time ()), timed_event_cb, d);
   }
   ddsrt_mutex_unlock (&d->lock);
 }
 
 bool dds_security_timed_dispatcher_disable (struct dds_security_timed_dispatcher *d)
 {
-  // delete_xevent_callback() blocks while a possible concurrent
+  // ddsi_delete_xevent_callback() blocks while a possible concurrent
   // callback invocation completes, and so disable() can't hold the
-  // dispatcher lock when it calls delete_xevent_callback().
+  // dispatcher lock when it calls ddsi_delete_xevent_callback().
   //
   // Two obvious ways of dealing with this are:
   //
@@ -160,7 +160,7 @@ bool dds_security_timed_dispatcher_disable (struct dds_security_timed_dispatcher
   //   calls but without interfering with callback execution.
   //
   // - Have just one lock protecting all state (including "evt"),
-  //   but call delete_xevent_callback outside it.  This means
+  //   but call ddsi_delete_xevent_callback outside it.  This means
   //   the callbacks can execute while "evt" is a null pointer,
   //   and that enable() can be called, installing a new callback
   //   event while the "old" one is still executing.
@@ -174,7 +174,7 @@ bool dds_security_timed_dispatcher_disable (struct dds_security_timed_dispatcher
   // of superfluous work, provided they don't depend on "evt", and
   // the case of two concurrent calls to disable() doesn't seem to
   // be an issue.  So the second option is sufficient.
-  struct xevent *evt;
+  struct ddsi_xevent *evt;
 
   ddsrt_mutex_lock (&d->lock);
   evt = d->evt;
@@ -182,7 +182,7 @@ bool dds_security_timed_dispatcher_disable (struct dds_security_timed_dispatcher
   ddsrt_mutex_unlock (&d->lock);
 
   if (evt != NULL)
-    delete_xevent_callback (evt);
+    ddsi_delete_xevent_callback (evt);
   return (evt != NULL);
 }
 
@@ -215,7 +215,7 @@ dds_security_time_event_handle_t dds_security_timed_dispatcher_add (struct dds_s
   ddsrt_fibheap_insert (&timed_cb_queue_fhdef, &d->timers, ev);
   d->next_timer++;
   if (d->evt != NULL)
-    (void) resched_xevent_if_earlier (d->evt, calc_tsched (ev, dds_time ()));
+    (void) ddsi_resched_xevent_if_earlier (d->evt, calc_tsched (ev, dds_time ()));
   ddsrt_mutex_unlock (&d->lock);
   return ev->handle;
 }
