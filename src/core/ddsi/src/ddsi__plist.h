@@ -88,6 +88,11 @@ struct ddsi_plist_sample {
   ddsi_parameterid_t keyparam;
 };
 
+enum ddsi_plist_context_kind {
+  DDSI_PLIST_CONTEXT_PARTICIPANT,
+  DDSI_PLIST_CONTEXT_ENDPOINT,
+};
+
 extern const ddsi_plist_t ddsi_default_plist_participant;
 
 /**
@@ -152,6 +157,8 @@ ddsi_plist_t *ddsi_plist_dup (const ddsi_plist_t *src);
  *               - bufsz is the size in bytes of the input buffer
  * @param[in]  gv
  *               Global context, used for locator kind lookups and tracing
+ * @param[in]  context_kind
+ *               Context in which the nterpretation is taking place
  * @param[out] dest
  *               Filled with the recognized parameters in the input if successful, otherwise
  *               initialized to an empty parameter list.  Where possible, pointers alias the
@@ -178,7 +185,7 @@ ddsi_plist_t *ddsi_plist_dup (const ddsi_plist_t *src);
  *               Input contained an unrecognized parameter with the "incompatible-if-unknown"
  *               flag set; dest is cleared, *nextafterplist is NULL.
  */
-dds_return_t ddsi_plist_init_frommsg (ddsi_plist_t *dest, char **nextafterplist, uint64_t pwanted, uint64_t qwanted, const ddsi_plist_src_t *src, struct ddsi_domaingv const * const gv);
+dds_return_t ddsi_plist_init_frommsg (ddsi_plist_t *dest, char **nextafterplist, uint64_t pwanted, uint64_t qwanted, const ddsi_plist_src_t *src, struct ddsi_domaingv const * const gv, enum ddsi_plist_context_kind context_kind);
 
 /**
  * @brief Free memory owned by "plist" for a subset of the entries
@@ -219,8 +226,9 @@ void ddsi_plist_unalias (ddsi_plist_t *plist);
  * @param[in]     ps       source
  * @param[in]     pwanted  subset of non-QoS part of ps (if PP_X is set, add X if present)
  * @param[in]     qwanted  subset of QoS part of ps (if DDSI_QP_X is set, add X if present)
+ * @param[in]     context_kind  context in which theserialization is taking place
  */
-void ddsi_plist_addtomsg (struct ddsi_xmsg *m, const ddsi_plist_t *ps, uint64_t pwanted, uint64_t qwanted);
+void ddsi_plist_addtomsg (struct ddsi_xmsg *m, const ddsi_plist_t *ps, uint64_t pwanted, uint64_t qwanted, enum ddsi_plist_context_kind context_kind);
 
 /**
  * @brief Determine the set of entries in which "x" differs from "y"
@@ -262,8 +270,9 @@ void ddsi_plist_log (uint32_t cat, const struct ddsrt_log_cfg *logcfg, const dds
  * @param[in]     pwanted  subset of non-QoS part of ps (if PP_X is set, add X if present)
  * @param[in]     qwanted  subset of QoS part of ps (if DDSI_QP_X is set, add X if present)
  * @param[in]     bo       byte order
+ * @param[in]     context_kind  context in which theserialization is taking place
  */
-void ddsi_plist_addtomsg_bo (struct ddsi_xmsg *m, const ddsi_plist_t *ps, uint64_t pwanted, uint64_t qwanted, enum ddsrt_byte_order_selector bo);
+void ddsi_plist_addtomsg_bo (struct ddsi_xmsg *m, const ddsi_plist_t *ps, uint64_t pwanted, uint64_t qwanted, enum ddsrt_byte_order_selector bo, enum ddsi_plist_context_kind context_kind);
 
 /**
  * @brief Formats plist into a buffer

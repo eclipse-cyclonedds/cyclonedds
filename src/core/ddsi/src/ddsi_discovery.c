@@ -383,8 +383,7 @@ void ddsi_get_participant_builtin_topic_data (const struct ddsi_participant *pp,
 
   ddsi_plist_init_empty (dst);
   dst->present |= PP_PARTICIPANT_GUID | PP_BUILTIN_ENDPOINT_SET |
-    PP_PROTOCOL_VERSION | PP_VENDORID | PP_PARTICIPANT_LEASE_DURATION |
-    PP_DOMAIN_ID;
+    PP_PROTOCOL_VERSION | PP_VENDORID | PP_DOMAIN_ID;
   dst->participant_guid = pp->e.guid;
   dst->builtin_endpoint_set = pp->bes;
   dst->protocol_version.major = DDSI_RTPS_MAJOR;
@@ -455,7 +454,6 @@ void ddsi_get_participant_builtin_topic_data (const struct ddsi_participant *pp,
     locators_add_one (&def_mc, &pp->e.gv->loc_default_mc, DDSI_LOCATOR_PORT_INVALID);
     locators_add_one (&meta_mc, &pp->e.gv->loc_meta_mc, DDSI_LOCATOR_PORT_INVALID);
   }
-  dst->participant_lease_duration = pp->lease_duration;
 
   /* Add Adlink specific version information */
   {
@@ -507,7 +505,7 @@ void ddsi_get_participant_builtin_topic_data (const struct ddsi_participant *pp,
 #endif
 
   /* Participant QoS's insofar as they are set, different from the default, and mapped to the SPDP data, rather than to the Adlink-specific CMParticipant endpoint. */
-  qosdiff = ddsi_xqos_delta (&pp->plist->qos, &ddsi_default_plist_participant.qos, DDSI_QP_USER_DATA | DDSI_QP_ENTITY_NAME | DDSI_QP_PROPERTY_LIST);
+  qosdiff = ddsi_xqos_delta (&pp->plist->qos, &ddsi_default_plist_participant.qos, DDSI_QP_USER_DATA | DDSI_QP_ENTITY_NAME | DDSI_QP_PROPERTY_LIST | DDSI_QP_LIVELINESS);
   if (pp->e.gv->config.explicitly_publish_qos_set_to_default)
     qosdiff |= ~(DDSI_QP_UNRECOGNIZED_INCOMPATIBLE_MASK | DDSI_QP_LIVELINESS);
 
@@ -836,16 +834,6 @@ static int handle_spdp_alive (const struct ddsi_receiver_state *rst, ddsi_seqno_
     builtin_endpoint_set &= DDSI_BES_MASK_NON_SECURITY;
   GVLOGDISC ("SPDP ST0 "PGUIDFMT" bes %"PRIx32"%s NEW", PGUID (datap->participant_guid), builtin_endpoint_set, is_secure ? " (secure)" : "");
 
-  if (datap->present & PP_PARTICIPANT_LEASE_DURATION)
-  {
-    lease_duration = datap->participant_lease_duration;
-  }
-  else
-  {
-    GVLOGDISC (" (PARTICIPANT_LEASE_DURATION defaulting to 100s)");
-    lease_duration = DDS_SECS (100);
-  }
-
   if (datap->present & PP_ADLINK_PARTICIPANT_VERSION_INFO) {
     if ((datap->adlink_participant_version_info.flags & DDSI_ADLINK_FL_DDSI2_PARTICIPANT_FLAG) &&
         (datap->adlink_participant_version_info.flags & DDSI_ADLINK_FL_PARTICIPANT_IS_DDSI2))
@@ -860,6 +848,14 @@ static int handle_spdp_alive (const struct ddsi_receiver_state *rst, ddsi_seqno_
                datap->adlink_participant_version_info.internals);
   }
 
+  /* Can't do "mergein_missing" because of constness of *datap */
+  if (datap->qos.present & DDSI_QP_LIVELINESS)
+    lease_duration = datap->qos.liveliness.lease_duration;
+  else
+  {
+    assert (ddsi_default_plist_participant.qos.present & DDSI_QP_LIVELINESS);
+    lease_duration = ddsi_default_plist_participant.qos.liveliness.lease_duration;
+  }
   /* If any of the SEDP announcer are missing AND the guid prefix of
      the SPDP writer differs from the guid prefix of the new participant,
      we make it dependent on the writer's participant.  See also the
@@ -1975,7 +1971,7 @@ int ddsi_builtins_dqueue_handler (const struct ddsi_rsample_info *sampleinfo, co
     src.buf = DDSI_RMSG_PAYLOADOFF (fragchain->rmsg, qos_offset);
     src.bufsz = DDSI_RDATA_PAYLOAD_OFF (fragchain) - qos_offset;
     src.strict = DDSI_SC_STRICT_P (gv->config);
-    if ((plist_ret = ddsi_plist_init_frommsg (&qos, NULL, PP_STATUSINFO | PP_KEYHASH, 0, &src, gv)) < 0)
+    if ((plist_ret = ddsi_plist_init_frommsg (&qos, NULL, PP_STATUSINFO | PP_KEYHASH, 0, &src, gv, DDSI_PLIST_CONTEXT_ENDPOINT)) < 0)
     {
       if (plist_ret != DDS_RETCODE_UNSUPPORTED)
         GVWARNING ("data(builtin, vendor %u.%u): "PGUIDFMT" #%"PRIu64": invalid inline qos\n",

@@ -83,7 +83,7 @@ void auth_get_serialized_participant_data(struct ddsi_participant *pp, ddsi_octe
   char *payload;
   mpayload = ddsi_xmsg_new (pp->e.gv->xmsgpool, &pp->e.guid, pp, 0, DDSI_XMSG_KIND_DATA);
   ddsi_get_participant_builtin_topic_data (pp, &ps, &locs);
-  ddsi_plist_addtomsg_bo (mpayload, &ps, ~(uint64_t)0, ~(uint64_t)0, DDSRT_BOSEL_BE);
+  ddsi_plist_addtomsg_bo (mpayload, &ps, ~(uint64_t)0, ~(uint64_t)0, DDSRT_BOSEL_BE, DDSI_PLIST_CONTEXT_PARTICIPANT);
   ddsi_xmsg_addpar_sentinel_bo (mpayload, DDSRT_BOSEL_BE);
   ddsi_plist_fini (&ps);
   payload = ddsi_xmsg_payload (&sz, mpayload);

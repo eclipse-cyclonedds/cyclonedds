@@ -1028,7 +1028,7 @@ static void handle_xevk_spdp (UNUSED_ARG (struct ddsi_xpack *xp), struct ddsi_xe
   {
     /* Directed events are used to send SPDP packets to newly
        discovered peers, and used just once. */
-    if (--ev->u.spdp.directed == 0 || gv->config.spdp_interval < DDS_SECS (1) || pp->lease_duration < DDS_SECS (1))
+    if (--ev->u.spdp.directed == 0 || gv->config.spdp_interval < DDS_SECS (1) || pp->plist->qos.liveliness.lease_duration < DDS_SECS (1))
       ddsi_delete_xevent (ev);
     else
     {
@@ -1046,7 +1046,7 @@ static void handle_xevk_spdp (UNUSED_ARG (struct ddsi_xpack *xp), struct ddsi_xe
        before the lease ends, whichever comes first (similar to PMD),
        but never wait longer than spdp_interval */
     const dds_duration_t mindelta = DDS_MSECS (10);
-    const dds_duration_t ldur = pp->lease_duration;
+    const dds_duration_t ldur = pp->plist->qos.liveliness.lease_duration;
     ddsrt_mtime_t tnext;
     int64_t intv;
 

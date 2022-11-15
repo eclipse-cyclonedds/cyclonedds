@@ -41,7 +41,6 @@ enum ddsi_participant_state {
 struct ddsi_participant
 {
   struct ddsi_entity_common e;
-  dds_duration_t lease_duration; /* constant */
   uint32_t bes; /* built-in endpoint set */
   unsigned is_ddsi2_pp: 1; /* true for the "federation leader", the ddsi2 participant itself in OSPL; FIXME: probably should use this for broker mode as well ... */
   struct ddsi_plist *plist; /* settings/QoS for this participant */

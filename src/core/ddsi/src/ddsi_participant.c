@@ -842,10 +842,8 @@ static dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domai
   pp->is_ddsi2_pp = (flags & (RTPS_PF_PRIVILEGED_PP | RTPS_PF_IS_DDSI2_PP)) ? 1 : 0;
   ddsrt_mutex_init (&pp->refc_lock);
   ddsi_inverse_uint32_set_init(&pp->avail_entityids.x, 1, UINT32_MAX / DDSI_ENTITYID_ALLOCSTEP);
-  if (plist->present & PP_PARTICIPANT_LEASE_DURATION)
-    pp->lease_duration = plist->participant_lease_duration;
-  else
-    pp->lease_duration = gv->config.lease_duration;
+  assert (plist->qos.present & DDSI_QP_LIVELINESS);
+  assert (plist->qos.liveliness.kind == DDS_LIVELINESS_AUTOMATIC);
   ddsrt_fibheap_init (&ddsi_ldur_fhdef, &pp->ldur_auto_wr);
   pp->plist = ddsrt_malloc (sizeof (*pp->plist));
   ddsi_plist_copy (pp->plist, plist);
@@ -986,7 +984,7 @@ static dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domai
 
   {
     ddsrt_mtime_t tsched;
-    tsched = (pp->lease_duration == DDS_INFINITY) ? DDSRT_MTIME_NEVER : (ddsrt_mtime_t){0};
+    tsched = (pp->plist->qos.liveliness.lease_duration == DDS_INFINITY) ? DDSRT_MTIME_NEVER : (ddsrt_mtime_t){0};
     pp->pmd_update_xevent = ddsi_qxev_pmd_update (gv->xevents, tsched, &pp->e.guid);
   }
 
@@ -1176,8 +1174,8 @@ dds_duration_t ddsi_participant_get_pmd_interval (struct ddsi_participant *pp)
   ddsrt_mutex_lock (&pp->e.lock);
   ldur_node = ddsrt_fibheap_min (&ddsi_ldur_fhdef, &pp->ldur_auto_wr);
   intv = (ldur_node != NULL) ? ldur_node->ldur : DDS_INFINITY;
-  if (pp->lease_duration < intv)
-    intv = pp->lease_duration;
+  if (pp->plist->qos.liveliness.lease_duration < intv)
+    intv = pp->plist->qos.liveliness.lease_duration;
   ddsrt_mutex_unlock (&pp->e.lock);
   return intv;
 }
