@@ -104,6 +104,13 @@
 #endif
 #endif
 
+// sprintf is slowly getting deprecated, but this is not the time to rewrite mcpp
+#if defined(__clang__) || defined(__GNUC__) && ((__GNUC__ * 100) + __GNUC_MINOR__) >= 402
+_Pragma("GCC diagnostic ignored \"-Wdeprecated-declarations\"")
+#elif defined(_MSC_VER)
+__pragma(warning(disable: 4996))
+#endif
+
 static void     version( void);
                 /* Print version message            */
 static void     usage( int opt)
