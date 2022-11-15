@@ -17,12 +17,13 @@
 #include <assert.h>
 
 #include "idl/vector.h"
+#include "idl/heap.h"
 
 bool idl_boxed_vector_init (struct idl_boxed_vector *v)
 {
   v->n = 0;
   v->cap = 1;
-  v->xs = malloc (v->cap * sizeof (*v->xs));
+  v->xs = idl_malloc (v->cap * sizeof (*v->xs));
   return (v->xs != NULL);
 }
 
@@ -32,7 +33,7 @@ bool idl_boxed_vector_append (struct idl_boxed_vector *v, void *x)
   {
     assert (v->cap <= SIZE_MAX / 2);
     const size_t cap1 = 2 * v->cap;
-    void **xs1 = realloc (v->xs, cap1 * sizeof (*xs1));
+    void **xs1 = idl_realloc (v->xs, cap1 * sizeof (*xs1));
     if (xs1 == NULL)
       return false;
     v->xs = xs1;
@@ -46,7 +47,7 @@ void idl_boxed_vector_fini (struct idl_boxed_vector *c, void (*f) (void *x))
 {
   for (size_t i = 0; i < c->n; i++)
     f (c->xs[i]);
-  free (c->xs);
+  idl_free (c->xs);
 }
 
 void *idl_boxed_vector_next (struct idl_boxed_vector_iter *it)
