@@ -20,12 +20,11 @@
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/threads.h"
 #include "dds/ddsrt/misc.h"
-
-#include "ddsi__thread.h"
 #include "dds/ddsi/ddsi_threadmon.h"
 #include "dds/ddsi/ddsi_log.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_domaingv.h"
+#include "ddsi__thread.h"
 #include "ddsi__sysdeps.h"
 
 struct ddsi_thread_states thread_states;

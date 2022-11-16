@@ -12,13 +12,6 @@
 #include <assert.h>
 #include <limits.h>
 
-#include "dds/dds.h"
-#include "config_env.h"
-
-#include "dds/version.h"
-#include "dds__entity.h"
-#include "dds/ddsi/ddsi_entity.h"
-#include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsrt/cdtors.h"
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/process.h"
@@ -26,9 +19,13 @@
 #include "dds/ddsrt/environ.h"
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/time.h"
-#include "dds/ddsi/ddsi_participant.h"
+#include "dds/ddsi/ddsi_entity.h"
+#include "dds/ddsi/ddsi_entity_index.h"
 #include "ddsi__participant.h"
-
+#include "dds/dds.h"
+#include "dds/version.h"
+#include "dds__entity.h"
+#include "config_env.h"
 #include "test_common.h"
 
 #define DDS_DOMAINID_PUB 0

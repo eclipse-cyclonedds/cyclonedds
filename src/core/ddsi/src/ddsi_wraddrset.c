@@ -15,17 +15,16 @@
 
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/static_assert.h"
+#include "dds/ddsi/ddsi_endpoint.h"
+#include "dds/ddsi/ddsi_log.h"
+#include "dds/ddsi/ddsi_domaingv.h"
 #include "ddsi__entity.h"
 #include "ddsi__entity_match.h"
-#include "dds/ddsi/ddsi_endpoint.h"
 #include "ddsi__addrset.h"
-#include "dds/ddsi/ddsi_log.h"
 #include "ddsi__bitset.h"
 #include "ddsi__entity_index.h"
-#include "dds/ddsi/ddsi_domaingv.h"
 #include "ddsi__wraddrset.h"
 #include "ddsi__tran.h"
-
 #include "ddsi__udp.h" /* nn_mc4gen_address_t */
 
 // For each (reader, locator) pair, the coverage map gives:

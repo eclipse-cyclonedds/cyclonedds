@@ -21,15 +21,15 @@
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_freelist.h"
 #include "dds/ddsi/ddsi_tkmap.h"
-#include "ddsi__radmin.h"
 #include "dds/ddsi/ddsi_domaingv.h"
+#include "ddsi__radmin.h"
 #include "ddsi__serdata_plist.h"
 #include "ddsi__xmsg.h"
 #include "ddsi__misc.h"
 #include "ddsi__plist.h"
-#include "dds/cdr/dds_cdrstream.h"
 #include "ddsi__protocol.h"
 #include "ddsi__vendor.h"
+#include "dds/cdr/dds_cdrstream.h"
 
 static uint32_t serdata_plist_get_size (const struct ddsi_serdata *dcmn)
 {

@@ -22,7 +22,6 @@
 #include "dds/ddsrt/environ.h"
 #include "dds/ddsrt/log.h"
 
-#include "dds/ddsi/ddsi_xqos.h"
 #include "ddsi__xqos.h"
 
 #include "test_common.h"

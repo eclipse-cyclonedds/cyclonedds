@@ -18,6 +18,7 @@
 #include "dds/export.h"
 #include "dds/ddsrt/retcode.h"
 #include "dds/ddsi/ddsi_guid.h"
+#include "dds/ddsi/ddsi_deliver_locally.h"
 
 #if defined (__cplusplus)
 extern "C" {

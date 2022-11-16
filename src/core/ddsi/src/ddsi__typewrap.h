@@ -19,6 +19,7 @@
 #include "dds/ddsrt/static_assert.h"
 #include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/ddsi_xt_typeinfo.h"
+#include "dds/ddsi/ddsi_typewrap.h"
 
 #if defined (__cplusplus)
 extern "C" {

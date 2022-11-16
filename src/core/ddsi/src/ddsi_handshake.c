@@ -16,20 +16,20 @@
 
 #include <string.h>
 
+#include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/avl.h"
+#include "dds/ddsi/ddsi_proxy_participant.h"
 #include "ddsi__entity_index.h"
 #include "ddsi__plist.h"
 #include "ddsi__entity.h"
 #include "ddsi__participant.h"
-#include "dds/ddsi/ddsi_proxy_participant.h"
 #include "ddsi__gc.h"
-#include "dds/security/dds_security_api_types.h"
-#include "dds/security/dds_security_api.h"
 #include "ddsi__security_omg.h"
-#include "dds/security/core/dds_security_fsm.h"
 #include "ddsi__security_util.h"
 #include "ddsi__security_exchange.h"
-#include "dds/ddsrt/heap.h"
-#include "dds/ddsrt/avl.h"
+#include "dds/security/dds_security_api_types.h"
+#include "dds/security/dds_security_api.h"
+#include "dds/security/core/dds_security_fsm.h"
 
 #define HSTRACE(...)    DDS_CTRACE (&handshake->gv->logconfig, __VA_ARGS__)
 #define HSWARNING(...)  DDS_CLOG (DDS_LC_WARNING, &handshake->gv->logconfig, __VA_ARGS__)

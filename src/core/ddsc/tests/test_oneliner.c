@@ -16,7 +16,6 @@
 #include <string.h>
 #include <setjmp.h>
 
-#include "dds/dds.h"
 #include "dds/ddsrt/align.h"
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/sync.h"
@@ -24,17 +23,16 @@
 #include "dds/ddsrt/strtod.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/environ.h"
-
-#include "dds__types.h"
-#include "dds__entity.h"
-#include "dds__writer.h"
 #include "dds/ddsi/ddsi_guid.h"
-#include "ddsi__lease.h"
 #include "dds/ddsi/ddsi_xevent.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/ddsi_participant.h"
-#include "dds/ddsi/ddsi_proxy_participant.h"
+#include "ddsi__lease.h"
 #include "ddsi__proxy_participant.h"
+#include "dds/dds.h"
+#include "dds__types.h"
+#include "dds__entity.h"
+#include "dds__writer.h"
 
 #include "test_util.h"
 #include "test_oneliner.h"

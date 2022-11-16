@@ -21,31 +21,24 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/static_assert.h"
-
+#include "dds/ddsrt/avl.h"
 #include "dds/ddsi/ddsi_log.h"
-
 #include "dds/ddsi/ddsi_unused.h"
-#include "dds/ddsi/ddsi_plist.h"
+#include "dds/ddsi/ddsi_config_impl.h"
+#include "dds/ddsi/ddsi_domaingv.h"
+#include "dds/ddsi/ddsi_typelib.h"
 #include "ddsi__plist.h"
 #include "ddsi__time.h"
 #include "ddsi__xmsg.h"
-#include "dds/ddsi/ddsi_xqos.h"
 #include "ddsi__vendor.h"
 #include "ddsi__udp.h" /* nn_mc4gen_address_t */
-
-#include "dds/ddsi/ddsi_config_impl.h"
-#include "dds/ddsi/ddsi_domaingv.h"
 #include "ddsi__protocol.h"
 #include "ddsi__radmin.h" /* for ddsi_plist_quickscan */
-
-#include "dds/ddsrt/avl.h"
-
 #include "ddsi__plist_generic.h"
 #include "ddsi__security_omg.h"
-#include "dds/ddsi/ddsi_typelib.h"
-#include "dds/cdr/dds_cdrstream.h"
 #include "ddsi__tran.h"
 #include "ddsi__xqos.h"
+#include "dds/cdr/dds_cdrstream.h"
 
 /* I am tempted to change LENGTH_UNLIMITED to 0 in the API (with -1
    supported for backwards compatibility) ... on the wire however

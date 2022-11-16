@@ -22,11 +22,11 @@
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_freelist.h"
 #include "dds/ddsi/ddsi_iid.h"
-#include "ddsi__plist_generic.h"
 #include "dds/ddsi/ddsi_sertype.h"
 #include "dds/ddsi/ddsi_serdata.h"
-#include "ddsi__serdata_pserop.h"
 #include "dds/ddsi/ddsi_domaingv.h"
+#include "ddsi__plist_generic.h"
+#include "ddsi__serdata_pserop.h"
 #include "dds/cdr/dds_cdrstream.h"
 
 #ifndef _WIN32

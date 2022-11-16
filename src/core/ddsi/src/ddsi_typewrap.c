@@ -17,13 +17,12 @@
 #include "dds/ddsrt/md5.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/cdr/dds_cdrstream.h"
-#include "dds/ddsi/ddsi_typewrap.h"
+#include "dds/ddsi/ddsi_xt_typemap.h"
 #include "ddsi__typewrap.h"
 #include "ddsi__xt_impl.h"
-#include "dds/ddsi/ddsi_xt_typemap.h"
 #include "ddsi__typelookup.h"
 #include "ddsi__typelib.h"
+#include "dds/cdr/dds_cdrstream.h"
 #include "dds/ddsc/dds_public_impl.h"
 
 #define MEMBER_FLAG_COLLECTION_ELEMENT 1u

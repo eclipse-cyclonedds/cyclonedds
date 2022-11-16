@@ -14,11 +14,11 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#include "dds/ddsc/dds_opcodes.h"
 #include "dds/ddsi/ddsi_protocol.h"
 #include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/ddsi_typelib.h"
 #include "dds/ddsi/ddsi_typewrap.h"
+#include "dds/ddsc/dds_opcodes.h"
 #include "descriptor_type_meta.h"
 #include "dds/cdr/dds_cdrstream.h"
 #include "idl/string.h"

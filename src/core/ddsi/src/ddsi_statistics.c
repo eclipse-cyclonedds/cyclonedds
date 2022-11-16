@@ -12,12 +12,11 @@
 #include <string.h>
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "ddsi__entity_index.h"
 #include "dds/ddsi/ddsi_statistics.h"
+#include "dds/ddsi/ddsi_endpoint.h"
+#include "ddsi__entity_index.h"
 #include "ddsi__entity.h"
 #include "ddsi__entity_match.h"
-#include "dds/ddsi/ddsi_endpoint.h"
-#include "dds/ddsi/ddsi_proxy_endpoint.h"
 #include "ddsi__radmin.h"
 #include "ddsi__proxy_endpoint.h"
 

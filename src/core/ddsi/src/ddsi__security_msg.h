@@ -16,10 +16,11 @@
 
 #ifdef DDS_HAS_SECURITY
 
-#include "dds/ddsi/ddsi_plist.h"
-#include "dds/ddsi/ddsi_guid.h"
 #include "dds/ddsrt/retcode.h"
 #include "dds/ddsrt/misc.h"
+#include "dds/ddsi/ddsi_plist.h"
+#include "dds/ddsi/ddsi_guid.h"
+#include "dds/ddsi/ddsi_security_msg.h"
 #include "ddsi__plist_generic.h"
 
 #if defined (__cplusplus)

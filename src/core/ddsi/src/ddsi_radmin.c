@@ -27,20 +27,17 @@
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/log.h"
-
 #include "dds/ddsrt/avl.h"
-#include "ddsi__protocol.h"
-#include "ddsi__misc.h"
-
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_log.h"
-
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/ddsi_unused.h"
+#include "dds/ddsi/ddsi_domaingv.h" /* for mattr, cattr */
+#include "ddsi__protocol.h"
+#include "ddsi__misc.h"
 #include "ddsi__radmin.h"
 #include "ddsi__bitset.h"
 #include "ddsi__thread.h"
-#include "dds/ddsi/ddsi_domaingv.h" /* for mattr, cattr */
 
 /* OVERVIEW ------------------------------------------------------------
 

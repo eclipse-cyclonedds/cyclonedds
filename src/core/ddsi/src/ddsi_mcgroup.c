@@ -16,12 +16,12 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/atomics.h"
-#include "ddsi__tran.h"
-#include "ddsi__mcgroup.h"
+#include "dds/ddsrt/avl.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_log.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsrt/avl.h"
+#include "ddsi__tran.h"
+#include "ddsi__mcgroup.h"
 
 struct ddsi_mcgroup_membership_node {
   ddsrt_avl_node_t avlnode;

@@ -13,12 +13,12 @@
 #define DDSI__ENTITY_INDEX_H
 
 #include "dds/ddsrt/hopscotch.h"
-#include "ddsi__thread.h"
 #include "dds/ddsi/ddsi_topic.h"
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/ddsi_proxy_endpoint.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/ddsi_entity.h"
+#include "ddsi__thread.h"
 
 #if defined (__cplusplus)
 extern "C" {

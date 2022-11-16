@@ -16,9 +16,9 @@
 #include "dds/features.h"
 
 #include "dds/ddsrt/avl.h"
+#include "dds/ddsi/ddsi_entity_match.h"
 #include "ddsi__handshake.h"
 #include "ddsi__addrset.h"
-#include "dds/ddsi/ddsi_entity_match.h"
 
 #if defined (__cplusplus)
 extern "C" {

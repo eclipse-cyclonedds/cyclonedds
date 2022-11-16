@@ -15,9 +15,10 @@
 #include <stdint.h>
 #include "dds/ddsrt/time.h"
 #include "dds/ddsi/ddsi_serdata.h"
-#include "ddsi__plist_generic.h"
 #include "dds/ddsi/ddsi_guid.h"
 #include "dds/ddsi/ddsi_xqos.h"
+#include "dds/ddsi/ddsi_pmd.h"
+#include "ddsi__plist_generic.h"
 
 #if defined (__cplusplus)
 extern "C" {

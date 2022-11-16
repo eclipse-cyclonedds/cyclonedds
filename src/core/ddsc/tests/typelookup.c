@@ -12,15 +12,6 @@
 #include <assert.h>
 #include <limits.h>
 
-#include "dds/dds.h"
-#include "config_env.h"
-
-#include "dds/version.h"
-#include "dds__domain.h"
-#include "dds__entity.h"
-#include "dds/ddsi/ddsi_entity.h"
-#include "dds/ddsi/ddsi_entity_index.h"
-#include "ddsi__typelib.h"
 #include "dds/ddsrt/cdtors.h"
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/process.h"
@@ -30,7 +21,16 @@
 #include "dds/ddsrt/time.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
+#include "dds/ddsi/ddsi_entity.h"
+#include "dds/ddsi/ddsi_entity_index.h"
+#include "ddsi__typelib.h"
+#include "dds/dds.h"
+#include "dds/version.h"
+#include "dds__domain.h"
+#include "dds__entity.h"
+
 #include "test_common.h"
+#include "config_env.h"
 #include "XSpace.h"
 
 #define DDS_DOMAINID_PUB 0

@@ -20,13 +20,12 @@
 #include "dds/ddsrt/environ.h"
 #include "dds/ddsrt/static_assert.h"
 
-#include "dds/dds.h"
+#include "dds/ddsi/ddsi_entity_index.h"
 #include "ddsi__addrset.h"
 #include "ddsi__entity.h"
-#include "dds/ddsi/ddsi_entity_index.h"
-#include "dds__entity.h"
-
+#include "dds/dds.h"
 #include "dds/ddsc/dds_loan_api.h"
+#include "dds__entity.h"
 
 #include "test_common.h"
 #include "Array100.h"

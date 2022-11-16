@@ -12,15 +12,13 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/io.h"
 #include "dds/ddsrt/environ.h"
-#include "dds/dds.h"
-
 #include "dds__entity.h"
 #include "dds/ddsi/ddsi_guid.h"
-#include "ddsi__lease.h"
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
-#include "dds/ddsi/ddsi_entity_index.h"
+#include "ddsi__lease.h"
 #include "ddsi__entity_index.h"
+#include "dds/dds.h"
 
 #include "test_common.h"
 

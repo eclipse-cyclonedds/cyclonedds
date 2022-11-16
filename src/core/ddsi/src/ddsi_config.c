@@ -25,16 +25,13 @@
 #include "dds/ddsrt/strtod.h"
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/environ.h"
-#include "dds/ddsi/ddsi_config_impl.h"
-#include "ddsi__config_impl.h"
-#include "dds/ddsi/ddsi_log.h"
 #include "dds/ddsrt/avl.h"
+#include "dds/ddsrt/xmlparser.h"
+#include "dds/ddsi/ddsi_log.h"
 #include "dds/ddsi/ddsi_unused.h"
+#include "ddsi__config_impl.h"
 #include "ddsi__misc.h"
 #include "ddsi__addrset.h"
-
-#include "dds/ddsrt/xmlparser.h"
-
 #include "dds/config.h"
 
 #define MAX_PATH_DEPTH 10 /* max nesting level of configuration elements */

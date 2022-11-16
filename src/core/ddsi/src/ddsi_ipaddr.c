@@ -17,9 +17,9 @@
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/sockets.h"
 #include "dds/ddsrt/string.h"
-#include "ddsi__ipaddr.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_domaingv.h"
+#include "ddsi__ipaddr.h"
 #include "ddsi__tran.h"
 
 int ddsi_ipaddr_compare (const struct sockaddr *const sa1, const struct sockaddr *const sa2)

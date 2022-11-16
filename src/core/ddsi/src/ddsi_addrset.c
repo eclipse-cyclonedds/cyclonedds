@@ -18,12 +18,12 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/avl.h"
-#include "ddsi__tran.h"
 #include "dds/ddsi/ddsi_log.h"
-#include "ddsi__misc.h"
 #include "dds/ddsi/ddsi_config_impl.h"
-#include "ddsi__addrset.h"
 #include "dds/ddsi/ddsi_domaingv.h"
+#include "ddsi__tran.h"
+#include "ddsi__misc.h"
+#include "ddsi__addrset.h"
 #include "ddsi__udp.h" /* nn_mc4gen_address_t */
 #include "ddsi__portmapping.h"
 

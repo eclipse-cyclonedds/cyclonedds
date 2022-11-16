@@ -15,11 +15,11 @@
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsi/ddsi_log.h"
-#include "ddsi__thread.h"
 #include "dds/ddsi/ddsi_protocol.h"
 #include "dds/ddsi/ddsi_feature_check.h"
 #include "dds/ddsi/ddsi_addrset.h"
 #include "dds/ddsi/ddsi_locator.h"
+#include "ddsi__thread.h"
 
 #if defined (__cplusplus)
 extern "C" {

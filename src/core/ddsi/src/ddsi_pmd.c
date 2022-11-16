@@ -11,25 +11,22 @@
  */
 #include <stdlib.h>
 #include <string.h>
-#include "ddsi__pmd.h"
 #include "dds/ddsi/ddsi_serdata.h"
-#include "ddsi__serdata_pserop.h"
 #include "dds/ddsi/ddsi_tkmap.h"
+#include "dds/ddsi/ddsi_domaingv.h"
+#include "dds/ddsi/ddsi_log.h"
+#include "ddsi__pmd.h"
+#include "ddsi__serdata_pserop.h"
 #include "ddsi__entity.h"
 #include "ddsi__entity_index.h"
-#include "dds/ddsi/ddsi_domaingv.h"
 #include "ddsi__participant.h"
-#include "dds/ddsi/ddsi_proxy_participant.h"
 #include "ddsi__lease.h"
-#include "dds/ddsi/ddsi_log.h"
 #include "ddsi__misc.h"
 #include "ddsi__protocol.h"
 #include "ddsi__radmin.h"
 #include "ddsi__transmit.h"
 #include "ddsi__xmsg.h"
-#include "dds/ddsi/ddsi_pmd.h"
 #include "ddsi__proxy_participant.h"
-
 #include "ddsi__sysdeps.h"
 
 /* note: treating guid prefix + kind as if it were a GUID because that matches

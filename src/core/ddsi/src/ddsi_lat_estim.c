@@ -11,12 +11,12 @@
  */
 #include <ctype.h>
 #include <stddef.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "dds/ddsi/ddsi_log.h"
 #include "dds/ddsi/ddsi_unused.h"
 #include "ddsi__lat_estim.h"
-#include <stdlib.h>
-#include <string.h>
 
 void ddsi_lat_estim_init (struct ddsi_lat_estim *le)
 {

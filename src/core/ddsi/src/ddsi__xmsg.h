@@ -14,11 +14,11 @@
 
 #include <stddef.h>
 
+#include "dds/features.h"
 #include "dds/ddsrt/bswap.h"
 #include "dds/ddsi/ddsi_tran.h"
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/ddsi_xmsg.h"
-#include "dds/features.h"
 #include "ddsi__protocol.h"
 
 #if defined (__cplusplus)

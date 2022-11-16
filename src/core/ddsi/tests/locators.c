@@ -14,11 +14,11 @@
 
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/sockets.h"
-#include "ddsi__tran.h"
 #include "dds/ddsi/ddsi_domaingv.h"
+#include "dds/ddsi/ddsi_config_impl.h"
+#include "ddsi__tran.h"
 #include "ddsi__udp.h"
 #include "ddsi__tcp.h"
-#include "dds/ddsi/ddsi_config_impl.h"
 #include "CUnit/Theory.h"
 
 static bool prefix_zero (const ddsi_locator_t *loc, size_t n)

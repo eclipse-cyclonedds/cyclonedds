@@ -13,15 +13,15 @@
 #include <assert.h>
 #include <stdlib.h>
 
-#include "ddsi__tran.h"
-#include "ddsi__vnet.h"
-#include "dds/ddsi/ddsi_config_impl.h"
-#include "dds/ddsi/ddsi_log.h"
-#include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/io.h"
+#include "dds/ddsi/ddsi_config_impl.h"
+#include "dds/ddsi/ddsi_log.h"
+#include "dds/ddsi/ddsi_domaingv.h"
+#include "ddsi__tran.h"
+#include "ddsi__vnet.h"
 
 typedef struct ddsi_vnet_conn {
   struct ddsi_tran_conn m_base;

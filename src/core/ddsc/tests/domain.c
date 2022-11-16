@@ -11,14 +11,14 @@
  */
 #include <stdlib.h>
 
-#include "dds/dds.h"
-#include "CUnit/Test.h"
-#include "config_env.h"
-#include "dds/version.h"
 #include "dds/ddsrt/environ.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsi/ddsi_config.h"
+#include "dds/dds.h"
+#include "dds/version.h"
+#include "CUnit/Test.h"
+#include "config_env.h"
 
 CU_Test(ddsc_domain, get_domainid)
 {

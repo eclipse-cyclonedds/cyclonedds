@@ -9,18 +9,18 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "ddsi__tran.h"
-#include "ddsi__raweth.h"
-#include "ddsi__ipaddr.h"
-#include "ddsi__mcgroup.h"
-#include "dds/ddsi/ddsi_config_impl.h"
-#include "dds/ddsi/ddsi_log.h"
-#include "ddsi__pcap.h"
-#include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/sockets.h"
+#include "dds/ddsi/ddsi_config_impl.h"
+#include "dds/ddsi/ddsi_log.h"
+#include "dds/ddsi/ddsi_domaingv.h"
+#include "ddsi__tran.h"
+#include "ddsi__raweth.h"
+#include "ddsi__ipaddr.h"
+#include "ddsi__mcgroup.h"
+#include "ddsi__pcap.h"
 
 #if defined(__linux) && !LWIP_SOCKET
 #include <linux/if_packet.h>

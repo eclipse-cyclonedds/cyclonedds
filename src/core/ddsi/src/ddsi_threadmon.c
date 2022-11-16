@@ -17,13 +17,12 @@
 #include "dds/ddsrt/time.h"
 #include "dds/ddsrt/threads.h"
 #include "dds/ddsrt/hopscotch.h"
-
 #include "dds/ddsi/ddsi_threadmon.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_log.h"
-#include "ddsi__thread.h"
 #include "dds/ddsi/ddsi_unused.h"
 #include "dds/ddsi/ddsi_domaingv.h" /* for mattr, cattr */
+#include "ddsi__thread.h"
 #include "ddsi__receive.h"
 
 struct alive_vt {

@@ -21,10 +21,10 @@
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_freelist.h"
 #include "dds/ddsi/ddsi_tkmap.h"
-#include "dds/cdr/dds_cdrstream.h"
-#include "ddsi__radmin.h"
 #include "dds/ddsi/ddsi_domaingv.h"
+#include "ddsi__radmin.h"
 #include "ddsi__serdata_cdr.h"
+#include "dds/cdr/dds_cdrstream.h"
 
 #define DEFAULT_NEW_SIZE 128
 #define CHUNK_SIZE 128

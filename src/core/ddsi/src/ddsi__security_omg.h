@@ -17,18 +17,18 @@
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/avl.h"
 
+#include "dds/ddsrt/retcode.h"
+#include "dds/ddsrt/types.h"
+#include "dds/ddsrt/sync.h"
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
 #include "dds/ddsi/ddsi_entity_match.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "ddsi__radmin.h"
-#include "ddsi__xmsg.h"
-#include "dds/ddsrt/retcode.h"
-#include "dds/ddsrt/types.h"
-#include "dds/ddsrt/sync.h"
 #include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/ddsi_security_omg.h"
+#include "ddsi__radmin.h"
+#include "ddsi__xmsg.h"
 #include "ddsi__tran.h"
 
 #ifdef DDS_HAS_SECURITY

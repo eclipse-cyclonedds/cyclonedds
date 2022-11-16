@@ -15,18 +15,16 @@
 
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/misc.h"
-
 #include "dds/ddsrt/hopscotch.h"
 #include "dds/ddsrt/avl.h"
-#include "ddsi__entity_index.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "ddsi__entity.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
-#include "ddsi__participant.h"
 #include "dds/ddsi/ddsi_proxy_endpoint.h"
-#include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/ddsi_protocol.h"
+#include "ddsi__entity_index.h"
+#include "ddsi__entity.h"
+#include "ddsi__participant.h"
 #include "ddsi__thread.h" /* for assert(thread is awake) */
 #include "ddsi__endpoint.h"
 #include "ddsi__gc.h"

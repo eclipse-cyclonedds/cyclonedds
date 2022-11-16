@@ -14,9 +14,10 @@
 
 #include "dds/features.h"
 
-#include "dds/ddsc/dds_public_qosdefs.h"
 #include "dds/ddsi/ddsi_protocol.h"
 #include "dds/ddsi/ddsi_log.h"
+#include "dds/ddsi/ddsi_xqos.h"
+#include "dds/ddsc/dds_public_qosdefs.h"
 
 #if defined (__cplusplus)
 extern "C" {

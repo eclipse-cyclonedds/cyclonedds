@@ -19,8 +19,8 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_freelist.h"
-#include "ddsi__plist_generic.h"
 #include "dds/ddsi/ddsi_sertype.h"
+#include "ddsi__plist_generic.h"
 #include "ddsi__serdata_pserop.h"
 #include "ddsi__typelookup.h"
 

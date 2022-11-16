@@ -14,10 +14,10 @@
 
 #include "dds/ddsrt/endian.h"
 #include "dds/ddsrt/avl.h"
-#include "ddsi__protocol.h"
 #include "dds/ddsi/ddsi_freelist.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_typelib.h"
+#include "ddsi__protocol.h"
 #include "ddsi__typelookup.h"
 #include "dds/cdr/dds_cdrstream.h"
 #include "dds/dds.h"

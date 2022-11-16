@@ -14,16 +14,14 @@
 #include <stddef.h>
 
 #include "dds/ddsrt/heap.h"
+#include "dds/ddsi/ddsi_proxy_participant.h"
+#include "dds/ddsi/ddsi_qosmatch.h"
 #include "ddsi__entity.h"
 #include "ddsi__participant.h"
-#include "dds/ddsi/ddsi_proxy_participant.h"
-#include "dds/ddsi/ddsi_endpoint.h"
-#include "dds/ddsi/ddsi_proxy_endpoint.h"
 #include "ddsi__security_omg.h"
 #include "ddsi__entity_index.h"
 #include "ddsi__mcgroup.h"
 #include "ddsi__rhc.h"
-#include "dds/ddsi/ddsi_qosmatch.h"
 #include "ddsi__addrset.h"
 #include "ddsi__xevent.h"
 #include "ddsi__whc.h"

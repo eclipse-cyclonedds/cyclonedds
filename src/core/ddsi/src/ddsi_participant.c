@@ -14,22 +14,20 @@
 #include <stddef.h>
 
 #include "dds/ddsrt/heap.h"
-#include "ddsi__entity.h"
-#include "ddsi__participant.h"
-#include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_iid.h"
-#include "ddsi__entity_index.h"
 #include "dds/ddsi/ddsi_builtin_topic_if.h"
+#include "dds/ddsi/ddsi_tkmap.h"
+#include "ddsi__entity.h"
+#include "ddsi__participant.h"
+#include "ddsi__entity_index.h"
 #include "ddsi__security_omg.h"
 #include "ddsi__handshake.h"
-#include "dds/ddsi/ddsi_tkmap.h"
 #include "ddsi__discovery.h"
 #include "ddsi__xevent.h"
 #include "ddsi__lease.h"
 #include "ddsi__receive.h"
 #include "ddsi__addrset.h"
-#include "dds__whc.h"
 #include "ddsi__endpoint.h"
 #include "ddsi__entity_match.h"
 #include "ddsi__gc.h"
@@ -39,6 +37,7 @@
 #include "ddsi__vendor.h"
 #include "ddsi__xqos.h"
 #include "ddsi__inverse_uint32_set.h"
+#include "dds__whc.h"
 
 static const unsigned builtin_writers_besmask =
   DDSI_DISC_BUILTIN_ENDPOINT_PARTICIPANT_ANNOUNCER |

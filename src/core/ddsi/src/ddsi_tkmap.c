@@ -16,15 +16,15 @@
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/hopscotch.h"
-#include "ddsi__thread.h"
 #include "dds/ddsi/ddsi_unused.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_iid.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/ddsi_serdata.h"
-#include "dds/cdr/dds_cdrstream.h"
+#include "ddsi__thread.h"
 #include "ddsi__gc.h"
+#include "dds/cdr/dds_cdrstream.h"
 
 #define REFC_DELETE 0x80000000
 #define REFC_MASK   0x0fffffff

@@ -20,18 +20,16 @@
 #include "dds/ddsrt/md5.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/sockets.h"
-
+#include "dds/ddsrt/avl.h"
+#include "dds/ddsi/ddsi_feature_check.h"
 #include "dds/ddsi/ddsi_log.h"
-#include "ddsi__ownip.h"
-
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_unused.h"
+#include "ddsi__ownip.h"
 #include "ddsi__misc.h"
 #include "ddsi__addrset.h" /* unspec locator */
-#include "dds/ddsi/ddsi_feature_check.h"
 #include "ddsi__ipaddr.h"
-#include "dds/ddsrt/avl.h"
 #include "ddsi__tran.h"
 
 #ifdef __linux

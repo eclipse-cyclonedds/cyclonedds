@@ -20,6 +20,7 @@
 #include "dds/ddsrt/fibheap.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_topic.h"
+#include "dds/ddsi/ddsi_proxy_participant.h"
 
 #if defined (__cplusplus)
 extern "C" {

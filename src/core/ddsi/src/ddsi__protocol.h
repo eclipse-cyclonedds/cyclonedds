@@ -15,10 +15,9 @@
 #include "dds/ddsrt/endian.h"
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsi/ddsi_feature_check.h"
-
-#include "ddsi__time.h"
 #include "dds/ddsi/ddsi_locator.h"
 #include "dds/ddsi/ddsi_protocol.h"
+#include "ddsi__time.h"
 
 #if defined (__cplusplus)
 extern "C" {

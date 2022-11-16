@@ -16,6 +16,7 @@
 #include "dds/features.h"
 
 #include "dds/ddsrt/fibheap.h"
+#include "dds/ddsi/ddsi_endpoint.h"
 #include "ddsi__whc.h"
 
 #if defined (__cplusplus)

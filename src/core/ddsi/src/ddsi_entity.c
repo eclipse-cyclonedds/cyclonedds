@@ -15,14 +15,13 @@
 
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsrt/string.h"
-
-#include "ddsi__entity.h"
-#include "ddsi__participant.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
 #include "dds/ddsi/ddsi_builtin_topic_if.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/ddsi_iid.h"
+#include "ddsi__entity.h"
+#include "ddsi__participant.h"
 #include "ddsi__entity_index.h"
 #include "ddsi__thread.h"
 #include "ddsi__endpoint.h"

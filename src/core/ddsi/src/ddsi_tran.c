@@ -17,11 +17,11 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/ifaddrs.h"
-#include "ddsi__tran.h"
-#include "ddsi__ipaddr.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_log.h"
 #include "dds/ddsi/ddsi_domaingv.h"
+#include "ddsi__tran.h"
+#include "ddsi__ipaddr.h"
 #include "ddsi__sockwaitset.h"
 
 extern inline uint32_t ddsi_conn_type (const struct ddsi_tran_conn *conn);

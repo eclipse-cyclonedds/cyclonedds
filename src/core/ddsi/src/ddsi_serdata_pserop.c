@@ -21,10 +21,10 @@
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_freelist.h"
 #include "dds/ddsi/ddsi_tkmap.h"
-#include "dds/cdr/dds_cdrstream.h"
-#include "ddsi__radmin.h"
 #include "dds/ddsi/ddsi_domaingv.h"
+#include "ddsi__radmin.h"
 #include "ddsi__serdata_pserop.h"
+#include "dds/cdr/dds_cdrstream.h"
 
 static uint32_t serdata_pserop_get_size (const struct ddsi_serdata *dcmn)
 {

@@ -15,16 +15,15 @@
 #include "dds/features.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
-#include "dds/cdr/dds_cdrstream.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_sertype.h"
-#include "dds/ddsi/ddsi_typelib.h"
-#include "ddsi__xt_impl.h"
 #include "dds/ddsi/ddsi_xt_typemap.h"
 #include "dds/ddsi/ddsi_typebuilder.h"
+#include "ddsi__xt_impl.h"
 #include "ddsi__list_tmpl.h"
 #include "ddsi__typelib.h"
+#include "dds/cdr/dds_cdrstream.h"
 
 #define OPS_CHUNK_SZ 100u
 #define XCDR1_MAX_ALIGN 8

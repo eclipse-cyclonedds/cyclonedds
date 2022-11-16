@@ -16,22 +16,21 @@
 
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/md5.h"
-
 #include "dds/ddsi/ddsi_domaingv.h"
+#include "dds/ddsi/ddsi_tkmap.h"
+#include "dds/ddsi/ddsi_log.h"
+#include "dds/ddsi/ddsi_proxy_participant.h"
 #include "ddsi__entity_index.h"
 #include "ddsi__security_exchange.h"
 #include "ddsi__security_omg.h"
 #include "ddsi__handshake.h"
 #include "ddsi__serdata_pserop.h"
 #include "ddsi__discovery.h"
-#include "dds/ddsi/ddsi_tkmap.h"
 #include "ddsi__xmsg.h"
 #include "ddsi__transmit.h"
-#include "dds/ddsi/ddsi_log.h"
 #include "ddsi__entity.h"
 #include "ddsi__participant.h"
 #include "ddsi__plist.h"
-#include "dds/ddsi/ddsi_proxy_participant.h"
 
 bool write_auth_handshake_message(const struct ddsi_participant *pp, const struct ddsi_proxy_participant *proxypp, ddsi_dataholderseq_t *mdata, bool request, const ddsi_message_identity_t *related_message_id)
 {

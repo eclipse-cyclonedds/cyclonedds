@@ -14,12 +14,11 @@
 
 #include "dds/features.h"
 #include "dds/ddsi/ddsi_xqos.h"
-#include "dds/ddsi/ddsi_typelib.h"
-#include "ddsi__typelookup.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_entity.h"
-#include "ddsi__misc.h"
 #include "dds/ddsi/ddsi_qosmatch.h"
+#include "ddsi__typelookup.h"
+#include "ddsi__misc.h"
 #include "ddsi__typelib.h"
 #include "dds/dds.h"
 

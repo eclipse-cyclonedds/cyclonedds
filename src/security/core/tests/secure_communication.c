@@ -25,8 +25,8 @@
 #include "dds/ddsrt/process.h"
 #include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "ddsi__misc.h"
 #include "dds/ddsi/ddsi_xqos.h"
+#include "ddsi__misc.h"
 #include "dds/security/dds_security_api.h"
 
 #include "common/config_env.h"
