@@ -21,9 +21,9 @@ repos:
     entry: python hooks/must-match-hash.py
     args: [
       '--hash-files',
-        'src/core/ddsi/include/dds/ddsi/ddsi_cfgelems.h',
-        'src/core/ddsi/include/dds/ddsi/ddsi_cfgunits.h',
         'src/core/ddsi/include/dds/ddsi/ddsi_config.h',
+        'src/core/ddsi/src/ddsi__cfgelems.h',
+        'src/core/ddsi/src/ddsi__cfgunits.h',
         'src/core/ddsi/src/ddsi_config.c',
         'src/tools/_confgen/_confgen.h',
         'src/tools/_confgen/_confgen.c',

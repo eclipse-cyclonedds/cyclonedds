@@ -267,7 +267,7 @@ DI(if_omg_security);
 #define GROUP(name, elems, attrs, multip, ...) \
   EXPAND(ELEMENT, (name, elems, attrs, multip, NULL, __VA_ARGS__))
 
-#include "dds/ddsi/ddsi_cfgelems.h"
+#include "ddsi__cfgelems.h"
 
 static const struct cfgelem root_cfgelem = {
   "/", cyclonedds_root_cfgelems, NULL, NODATA

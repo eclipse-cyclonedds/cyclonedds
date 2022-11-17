@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef DDSI_CFGELEMS_H
-#define DDSI_CFGELEMS_H
+#ifndef DDSI__CFGELEMS_H
+#define DDSI__CFGELEMS_H
 
 #include "dds/features.h"
 
@@ -2270,4 +2270,4 @@ static struct cfgelem cyclonedds_root_cfgelems[] = {
   END_MARKER
 };
 
-#endif /* DDSI_CFGELEMS_H */
+#endif /* DDSI__CFGELEMS_H */

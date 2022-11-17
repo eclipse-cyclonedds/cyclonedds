@@ -106,8 +106,6 @@ set(hdrs_ddsi
   ddsi_plist.h
   ddsi_xqos.h
   ddsi_ownip.h
-  ddsi_cfgunits.h
-  ddsi_cfgelems.h
   ddsi_config.h
   ddsi_config_impl.h
   ddsi_typelib.h
@@ -143,6 +141,8 @@ set(hdrs_ddsi
 
 set(hdrs_private_ddsi
   ddsi__acknack.h
+  ddsi__cfgunits.h
+  ddsi__cfgelems.h
   ddsi__config_impl.h
   ddsi__deliver_locally.h
   ddsi__endpoint.h

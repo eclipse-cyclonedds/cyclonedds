@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef DDSI_CFGUNITS_H
-#define DDSI_CFGUNITS_H
+#ifndef DDSI__CFGUNITS_H
+#define DDSI__CFGUNITS_H
 
 static const struct cfgunit cfgunits[] = {
   UNIT("bandwidth",
@@ -45,4 +45,4 @@ static const struct cfgunit cfgunits[] = {
   END_MARKER
 };
 
-#endif /* DDSI_CFGUNITS_H */
+#endif /* DDSI__CFGUNITS_H */

@@ -35,7 +35,7 @@
 #define PATTERN(str) .pattern = str
 #define END_MARKER { NULL, NULL, NULL }
 
-#include "dds/ddsi/ddsi_cfgunits.h"
+#include "ddsi__cfgunits.h"
 /* undefine unit macros */
 #undef UNIT
 #undef DESCRIPTION
@@ -90,7 +90,7 @@
 #define GROUP(name, elems, attrs, multip, ofst, funcs, desc, ...) \
   EXPAND(ELEMENT, (name, elems, attrs, multip, NULL, ofst, funcs, desc, .type = "group", __VA_ARGS__))
 
-#include "dds/ddsi/ddsi_cfgelems.h"
+#include "ddsi__cfgelems.h"
 /* undefine element macros */
 #undef DEPRECATED
 #undef MEMBER
