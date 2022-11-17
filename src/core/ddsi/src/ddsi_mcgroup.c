@@ -24,7 +24,7 @@
 
 struct ddsi_mcgroup_membership_node {
   ddsrt_avl_node_t avlnode;
-  ddsi_tran_conn_t conn;
+  struct ddsi_tran_conn * conn;
   ddsi_locator_t srcloc;
   ddsi_locator_t mcloc;
   unsigned count;
@@ -77,7 +77,7 @@ void ddsi_free_mcgroup_membership (struct ddsi_mcgroup_membership *mship)
   ddsrt_free (mship);
 }
 
-static int reg_group_membership (struct ddsi_mcgroup_membership *mship, ddsi_tran_conn_t conn, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc)
+static int reg_group_membership (struct ddsi_mcgroup_membership *mship, struct ddsi_tran_conn * conn, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc)
 {
   struct ddsi_mcgroup_membership_node key, *n;
   ddsrt_avl_ipath_t ip;
@@ -103,7 +103,7 @@ static int reg_group_membership (struct ddsi_mcgroup_membership *mship, ddsi_tra
   return isnew;
 }
 
-static int unreg_group_membership (struct ddsi_mcgroup_membership *mship, ddsi_tran_conn_t conn, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc)
+static int unreg_group_membership (struct ddsi_mcgroup_membership *mship, struct ddsi_tran_conn * conn, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc)
 {
   struct ddsi_mcgroup_membership_node key, *n;
   ddsrt_avl_dpath_t dp;
@@ -128,7 +128,7 @@ static int unreg_group_membership (struct ddsi_mcgroup_membership *mship, ddsi_t
   return mustdel;
 }
 
-static char *make_joinleave_msg (char *buf, size_t bufsz, ddsi_tran_conn_t conn, int join, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc, const struct ddsi_network_interface *interf, int err)
+static char *make_joinleave_msg (char *buf, size_t bufsz, struct ddsi_tran_conn * conn, int join, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc, const struct ddsi_network_interface *interf, int err)
 {
   char mcstr[DDSI_LOCSTRLEN], interfstr[DDSI_LOCSTRLEN];
   char srcstr[DDSI_LOCSTRLEN] = { '*', '\0' };
@@ -151,7 +151,7 @@ static char *make_joinleave_msg (char *buf, size_t bufsz, ddsi_tran_conn_t conn,
   return buf;
 }
 
-static int joinleave_mcgroup (ddsi_tran_conn_t conn, int join, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc, const struct ddsi_network_interface *interf)
+static int joinleave_mcgroup (struct ddsi_tran_conn * conn, int join, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc, const struct ddsi_network_interface *interf)
 {
   if (interf && mcloc->kind != interf->loc.kind)
   {
@@ -187,7 +187,7 @@ static int interface_in_recvips_p (const struct config_in_addr_node *recvips, co
   return 0;
 }
 
-static int joinleave_mcgroups (const struct ddsi_domaingv *gv, ddsi_tran_conn_t conn, int join, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc)
+static int joinleave_mcgroups (const struct ddsi_domaingv *gv, struct ddsi_tran_conn * conn, int join, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc)
 {
   int rc;
   switch (gv->recvips_mode)
@@ -229,7 +229,7 @@ static int joinleave_mcgroups (const struct ddsi_domaingv *gv, ddsi_tran_conn_t 
   return 0;
 }
 
-int ddsi_join_mc (const struct ddsi_domaingv *gv, struct ddsi_mcgroup_membership *mship, ddsi_tran_conn_t conn, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc)
+int ddsi_join_mc (const struct ddsi_domaingv *gv, struct ddsi_mcgroup_membership *mship, struct ddsi_tran_conn * conn, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc)
 {
   /* FIXME: gv to be reduced; perhaps mship, recvips, interfaces, ownloc should be combined into a single struct */
   int ret;
@@ -248,7 +248,7 @@ int ddsi_join_mc (const struct ddsi_domaingv *gv, struct ddsi_mcgroup_membership
   return ret;
 }
 
-int ddsi_leave_mc (const struct ddsi_domaingv *gv, struct ddsi_mcgroup_membership *mship, ddsi_tran_conn_t conn, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc)
+int ddsi_leave_mc (const struct ddsi_domaingv *gv, struct ddsi_mcgroup_membership *mship, struct ddsi_tran_conn * conn, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc)
 {
   int ret;
   ddsrt_mutex_lock (&mship->lock);
@@ -266,7 +266,7 @@ int ddsi_leave_mc (const struct ddsi_domaingv *gv, struct ddsi_mcgroup_membershi
   return ret;
 }
 
-void ddsi_transfer_mcgroup_membership (struct ddsi_mcgroup_membership *mship, ddsi_tran_conn_t conn, ddsi_tran_conn_t newconn)
+void ddsi_transfer_mcgroup_membership (struct ddsi_mcgroup_membership *mship, struct ddsi_tran_conn * conn, struct ddsi_tran_conn * newconn)
 {
   struct ddsi_mcgroup_membership_node *n, min, max;
   memset(&min, 0, sizeof(min));
@@ -288,7 +288,7 @@ void ddsi_transfer_mcgroup_membership (struct ddsi_mcgroup_membership *mship, dd
   ddsrt_mutex_unlock (&mship->lock);
 }
 
-int ddsi_rejoin_transferred_mcgroups (const struct ddsi_domaingv *gv, struct ddsi_mcgroup_membership *mship, ddsi_tran_conn_t conn)
+int ddsi_rejoin_transferred_mcgroups (const struct ddsi_domaingv *gv, struct ddsi_mcgroup_membership *mship, struct ddsi_tran_conn * conn)
 {
   /* FIXME: see gv should be reduced; perhaps recvips, ownloc, mship, interfaces should be a single struct */
   struct ddsi_mcgroup_membership_node *n, min, max;

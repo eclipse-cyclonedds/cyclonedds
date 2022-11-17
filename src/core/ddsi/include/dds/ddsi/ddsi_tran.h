@@ -23,12 +23,11 @@
 extern "C" {
 #endif
 
-/* Core types */
-typedef struct ddsi_tran_base * ddsi_tran_base_t;
-typedef struct ddsi_tran_conn * ddsi_tran_conn_t;
-typedef struct ddsi_tran_listener * ddsi_tran_listener_t;
-typedef struct ddsi_tran_factory * ddsi_tran_factory_t;
-typedef struct ddsi_tran_qos ddsi_tran_qos_t;
+struct ddsi_tran_base;
+struct ddsi_tran_conn;
+struct ddsi_tran_listener;
+struct ddsi_tran_factory;
+struct ddsi_tran_qos;
 
 /*  8 for transport/
     1 for [

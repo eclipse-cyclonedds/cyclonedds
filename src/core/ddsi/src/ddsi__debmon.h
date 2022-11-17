@@ -22,8 +22,8 @@ extern "C" {
 struct ddsi_domaingv;
 struct ddsi_debug_monitor;
 
-typedef int (*ddsi_debug_monitor_cpf_t) (ddsi_tran_conn_t conn, const char *fmt, ...);
-typedef int (*ddsi_debug_monitor_plugin_t) (ddsi_tran_conn_t conn, ddsi_debug_monitor_cpf_t cpf, void *arg);
+typedef int (*ddsi_debug_monitor_cpf_t) (struct ddsi_tran_conn * conn, const char *fmt, ...);
+typedef int (*ddsi_debug_monitor_plugin_t) (struct ddsi_tran_conn * conn, ddsi_debug_monitor_cpf_t cpf, void *arg);
 
 struct ddsi_debug_monitor *ddsi_new_debug_monitor (struct ddsi_domaingv *gv, int32_t port);
 void ddsi_add_debug_monitor_plugin (struct ddsi_debug_monitor *dm, ddsi_debug_monitor_plugin_t fn, void *arg);

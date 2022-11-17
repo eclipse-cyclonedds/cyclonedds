@@ -2710,7 +2710,7 @@ static enum do_locator_result do_locator (ddsi_locators_t *ls, uint64_t present,
     loc.port = ddsrt_bswap4u (loc.port);
   }
 
-  ddsi_tran_factory_t fact = ddsi_factory_find_supported_kind (gv, loc.kind);
+  struct ddsi_tran_factory * fact = ddsi_factory_find_supported_kind (gv, loc.kind);
   if (fact == NULL || !fact->m_enable)
     return DOLOC_IGNORED;
 

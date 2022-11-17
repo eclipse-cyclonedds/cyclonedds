@@ -18,7 +18,7 @@
 extern "C" {
 #endif
 
-int ddsi_eth_enumerate_interfaces(ddsi_tran_factory_t fact, enum ddsi_transport_selector transport_selector, ddsrt_ifaddrs_t **ifs);
+int ddsi_eth_enumerate_interfaces(struct ddsi_tran_factory * fact, enum ddsi_transport_selector transport_selector, ddsrt_ifaddrs_t **ifs);
 
 #if defined (__cplusplus)
 }

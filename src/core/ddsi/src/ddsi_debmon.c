@@ -49,8 +49,8 @@ struct plugin {
 
 struct ddsi_debug_monitor {
   struct ddsi_thread_state *servts;
-  ddsi_tran_factory_t tran_factory;
-  ddsi_tran_listener_t servsock;
+  struct ddsi_tran_factory * tran_factory;
+  struct ddsi_tran_listener * servsock;
   ddsi_locator_t servlocator;
   ddsrt_mutex_t lock;
   ddsrt_cond_t cond;
@@ -59,7 +59,7 @@ struct ddsi_debug_monitor {
 };
 
 struct st {
-  ddsi_tran_conn_t conn;
+  struct ddsi_tran_conn * conn;
   struct ddsi_domaingv *gv;
   struct ddsi_thread_state *thrst;
   bool error;
@@ -641,7 +641,7 @@ static void print_domain (struct st *st, void *varg)
   print_proxy_participants (st);
 }
 
-static void debmon_handle_connection (struct ddsi_debug_monitor *dm, ddsi_tran_conn_t conn)
+static void debmon_handle_connection (struct ddsi_debug_monitor *dm, struct ddsi_tran_conn * conn)
 {
   ddsi_locator_t loc;
   const char *http_header = "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n";
@@ -684,7 +684,7 @@ static uint32_t debmon_main (void *vdm)
   while (!dm->stop)
   {
     ddsrt_mutex_unlock (&dm->lock);
-    ddsi_tran_conn_t conn = ddsi_listener_accept (dm->servsock);
+    struct ddsi_tran_conn * conn = ddsi_listener_accept (dm->servsock);
     ddsrt_mutex_lock (&dm->lock);
     if (conn != NULL && !dm->stop)
     {

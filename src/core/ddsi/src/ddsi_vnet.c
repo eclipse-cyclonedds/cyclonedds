@@ -32,7 +32,7 @@ typedef struct ddsi_vnet_tran_factory {
   int32_t m_kind;
 } *ddsi_vnet_tran_factory_t;
 
-static char *ddsi_vnet_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc, ddsi_tran_conn_t conn, int with_port)
+static char *ddsi_vnet_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc, struct ddsi_tran_conn * conn, int with_port)
 {
   (void) conn;
   const unsigned char * const x = loc->address;
@@ -50,13 +50,13 @@ static bool ddsi_vnet_supports (const struct ddsi_tran_factory *fact_cmn, int32_
   return (kind == fact->m_kind);
 }
 
-static ddsrt_socket_t ddsi_vnet_conn_handle (ddsi_tran_base_t conn)
+static ddsrt_socket_t ddsi_vnet_conn_handle (struct ddsi_tran_base * conn)
 {
   (void) conn;
   return DDSRT_INVALID_SOCKET;
 }
 
-static int ddsi_vnet_conn_locator (ddsi_tran_factory_t vfact, ddsi_tran_base_t base, ddsi_locator_t *loc)
+static int ddsi_vnet_conn_locator (struct ddsi_tran_factory * vfact, struct ddsi_tran_base * base, ddsi_locator_t *loc)
 {
   (void) base; (void) loc;
   const struct ddsi_vnet_tran_factory *fact = (const struct ddsi_vnet_tran_factory *) vfact;
@@ -65,7 +65,7 @@ static int ddsi_vnet_conn_locator (ddsi_tran_factory_t vfact, ddsi_tran_base_t b
   return 0;
 }
 
-static dds_return_t ddsi_vnet_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tran_factory_t fact_cmn, uint32_t port, const struct ddsi_tran_qos *qos)
+static dds_return_t ddsi_vnet_create_conn (struct ddsi_tran_conn **conn_out, struct ddsi_tran_factory * fact_cmn, uint32_t port, const struct ddsi_tran_qos *qos)
 {
   (void) port;
   struct ddsi_vnet_tran_factory *fact = (struct ddsi_vnet_tran_factory *) fact_cmn;
@@ -88,7 +88,7 @@ static dds_return_t ddsi_vnet_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tran
   return 0;
 }
 
-static void ddsi_vnet_release_conn (ddsi_tran_conn_t conn)
+static void ddsi_vnet_release_conn (struct ddsi_tran_conn * conn)
 {
   ddsi_vnet_conn_t x = (ddsi_vnet_conn_t) conn;
   DDS_CTRACE (&conn->m_base.gv->logconfig, "ddsi_vnet_release_conn intf %s kind %s\n", x->m_base.m_interf->name, x->m_base.m_factory->m_typename);
@@ -155,7 +155,7 @@ static enum ddsi_locator_from_string_result ddsi_vnet_address_from_string (const
   return (*str == 0) ? AFSR_OK : AFSR_INVALID;
 }
 
-static int ddsi_vnet_enumerate_interfaces (ddsi_tran_factory_t fact, enum ddsi_transport_selector transport_selector, ddsrt_ifaddrs_t **ifs)
+static int ddsi_vnet_enumerate_interfaces (struct ddsi_tran_factory * fact, enum ddsi_transport_selector transport_selector, ddsrt_ifaddrs_t **ifs)
 {
   (void) transport_selector;
   *ifs = ddsrt_malloc (sizeof (**ifs));
@@ -195,7 +195,7 @@ static int ddsi_vnet_locator_from_sockaddr (const struct ddsi_tran_factory *tran
   return 0;
 }
 
-static void ddsi_vnet_deinit (ddsi_tran_factory_t fact)
+static void ddsi_vnet_deinit (struct ddsi_tran_factory * fact)
 {
   DDS_CLOG (DDS_LC_CONFIG, &fact->gv->logconfig, "vnet %s de-initialized\n", fact->m_typename);
   ddsrt_free ((char *) fact->m_typename);

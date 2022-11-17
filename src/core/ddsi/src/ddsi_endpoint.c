@@ -1318,7 +1318,7 @@ dds_return_t ddsi_delete_writer (struct ddsi_domaingv *gv, const struct ddsi_gui
 /* READER ----------------------------------------------------------- */
 
 #ifdef DDS_HAS_NETWORK_PARTITIONS
-static void joinleave_mcast_helper (struct ddsi_domaingv *gv, ddsi_tran_conn_t conn, const ddsi_locator_t *n, const char *joinleavestr, int (*joinleave) (const struct ddsi_domaingv *gv, struct ddsi_mcgroup_membership *mship, ddsi_tran_conn_t conn, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc))
+static void joinleave_mcast_helper (struct ddsi_domaingv *gv, struct ddsi_tran_conn * conn, const ddsi_locator_t *n, const char *joinleavestr, int (*joinleave) (const struct ddsi_domaingv *gv, struct ddsi_mcgroup_membership *mship, struct ddsi_tran_conn * conn, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc))
 {
   char buf[DDSI_LOCSTRLEN];
   assert (ddsi_is_mcaddr (gv, n));
@@ -1351,12 +1351,12 @@ static void joinleave_mcast_helper (struct ddsi_domaingv *gv, ddsi_tran_conn_t c
   }
 }
 
-static void join_mcast_helper (struct ddsi_domaingv *gv, ddsi_tran_conn_t conn, const ddsi_locator_t *n)
+static void join_mcast_helper (struct ddsi_domaingv *gv, struct ddsi_tran_conn * conn, const ddsi_locator_t *n)
 {
   joinleave_mcast_helper (gv, conn, n, "join", ddsi_join_mc);
 }
 
-static void leave_mcast_helper (struct ddsi_domaingv *gv, ddsi_tran_conn_t conn, const ddsi_locator_t *n)
+static void leave_mcast_helper (struct ddsi_domaingv *gv, struct ddsi_tran_conn * conn, const ddsi_locator_t *n)
 {
   joinleave_mcast_helper (gv, conn, n, "leave", ddsi_leave_mc);
 }

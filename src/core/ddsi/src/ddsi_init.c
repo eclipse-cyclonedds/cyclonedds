@@ -116,7 +116,7 @@ static enum make_uc_sockets_ret make_uc_sockets (struct ddsi_domaingv *gv, uint3
   if (!ddsi_is_valid_port (gv->m_factory, *pdisc) || !ddsi_is_valid_port (gv->m_factory, *pdata))
     return MUSRET_INVALID_PORTS;
 
-  const ddsi_tran_qos_t qos = { .m_purpose = DDSI_TRAN_QOS_RECV_UC, .m_diffserv = 0, .m_interface = NULL };
+  const struct ddsi_tran_qos qos = { .m_purpose = DDSI_TRAN_QOS_RECV_UC, .m_diffserv = 0, .m_interface = NULL };
   rc = ddsi_factory_create_conn (&gv->disc_conn_uc, gv->m_factory, *pdisc, &qos);
   if (rc != DDS_RETCODE_OK)
     goto fail_disc;
@@ -700,8 +700,8 @@ static int joinleave_spdp_defmcip (struct ddsi_domaingv *gv, int dojoin)
 
 static int create_multicast_sockets (struct ddsi_domaingv *gv)
 {
-  const ddsi_tran_qos_t qos = { .m_purpose = DDSI_TRAN_QOS_RECV_MC, .m_diffserv = 0, .m_interface = NULL };
-  ddsi_tran_conn_t disc, data;
+  const struct ddsi_tran_qos qos = { .m_purpose = DDSI_TRAN_QOS_RECV_MC, .m_diffserv = 0, .m_interface = NULL };
+  struct ddsi_tran_conn * disc, * data;
   uint32_t port;
 
   port = ddsi_get_port (&gv->config, DDSI_PORT_MULTI_DISC, 0);
@@ -1070,7 +1070,7 @@ static void free_conns (struct ddsi_domaingv *gv)
 {
   // Depending on settings, various "conn"s can alias others, this makes sure we free each one only once
   // FIXME: perhaps store them in a table instead?
-  ddsi_tran_conn_t cs[4 + MAX_XMIT_CONNS] = { gv->disc_conn_mc, gv->data_conn_mc, gv->disc_conn_uc, gv->data_conn_uc };
+  struct ddsi_tran_conn * cs[4 + MAX_XMIT_CONNS] = { gv->disc_conn_mc, gv->data_conn_mc, gv->disc_conn_uc, gv->data_conn_uc };
   for (size_t i = 0; i < MAX_XMIT_CONNS; i++)
     cs[4 + i] = gv->xmit_conns[i];
   for (size_t i = 0; i < sizeof (cs) / sizeof (cs[0]); i++)
@@ -1612,13 +1612,13 @@ int ddsi_init (struct ddsi_domaingv *gv)
     dds_return_t rc;
     for (int i = 0; i < gv->n_interfaces; i++)
     {
-      const ddsi_tran_qos_t qos = {
+      const struct ddsi_tran_qos qos = {
         .m_purpose = (gv->config.allowMulticast ? DDSI_TRAN_QOS_XMIT_MC : DDSI_TRAN_QOS_XMIT_UC),
         .m_diffserv = 0,
         .m_interface = &gv->interfaces[i]
       };
       // FIXME: looking up the factory here is a hack to support iceoryx in addition to (e.g.) UDP
-      ddsi_tran_factory_t fact = ddsi_factory_find_supported_kind (gv, gv->interfaces[i].loc.kind);
+      struct ddsi_tran_factory * fact = ddsi_factory_find_supported_kind (gv, gv->interfaces[i].loc.kind);
       rc = ddsi_factory_create_conn (&gv->xmit_conns[i], fact, 0, &qos);
       if (rc != DDS_RETCODE_OK)
         goto err_mc_conn;
@@ -1657,7 +1657,7 @@ int ddsi_init (struct ddsi_domaingv *gv)
 
       if (chptr->diffserv_field)
       {
-        ddsi_tran_qos_t qos = ddsi_tran_create_qos ();
+        struct ddsi_tran_qos qos = ddsi_tran_create_qos ();
         qos->m_diffserv = chptr->diffserv_field;
         chptr->transmit_conn = ddsi_factory_create_conn (gv->m_factory, 0, qos);
         ddsi_tran_free_qos (qos);

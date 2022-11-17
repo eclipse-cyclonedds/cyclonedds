@@ -255,7 +255,7 @@ fail:
 static void ddsi_tcp_node_free (void * ptr)
 {
   ddsi_tcp_node_t node = (ddsi_tcp_node_t) ptr;
-  ddsi_conn_free ((ddsi_tran_conn_t) node->m_conn);
+  ddsi_conn_free ((struct ddsi_tran_conn *) node->m_conn);
   ddsrt_free (node);
 }
 
@@ -333,7 +333,7 @@ static void ddsi_tcp_cache_add (struct ddsi_tran_factory_tcp *fact, ddsi_tcp_con
     {
       /* Replace connection in cache */
 
-      ddsi_conn_free ((ddsi_tran_conn_t) node->m_conn);
+      ddsi_conn_free ((struct ddsi_tran_conn *) node->m_conn);
       node->m_conn = conn;
       action = "updated";
     }
@@ -465,7 +465,7 @@ static int32_t addrfam_to_locator_kind (int af)
   return (af == AF_INET) ? DDSI_LOCATOR_KIND_TCPv4 : DDSI_LOCATOR_KIND_TCPv6;
 }
 
-static ssize_t ddsi_tcp_conn_read (ddsi_tran_conn_t conn, unsigned char *buf, size_t len, bool allow_spurious, ddsi_locator_t *srcloc)
+static ssize_t ddsi_tcp_conn_read (struct ddsi_tran_conn * conn, unsigned char *buf, size_t len, bool allow_spurious, ddsi_locator_t *srcloc)
 {
   struct ddsi_tran_factory_tcp * const fact = (struct ddsi_tran_factory_tcp *) conn->m_factory;
   struct ddsi_domaingv const * const gv = fact->fact.gv;
@@ -603,7 +603,7 @@ static void set_msghdr_iov (ddsrt_msghdr_t *mhdr, ddsrt_iovec_t *iov, size_t iov
   mhdr->msg_iovlen = (ddsrt_msg_iovlen_t)iovlen;
 }
 
-static ssize_t ddsi_tcp_conn_write (ddsi_tran_conn_t base, const ddsi_locator_t *dst, size_t niov, const ddsrt_iovec_t *iov, uint32_t flags)
+static ssize_t ddsi_tcp_conn_write (struct ddsi_tran_conn * base, const ddsi_locator_t *dst, size_t niov, const ddsrt_iovec_t *iov, uint32_t flags)
 {
   struct ddsi_tran_factory_tcp * const fact = (struct ddsi_tran_factory_tcp *) base->m_factory;
   struct ddsi_domaingv const * const gv = fact->fact.gv;
@@ -781,7 +781,7 @@ static ssize_t ddsi_tcp_conn_write (ddsi_tran_conn_t base, const ddsi_locator_t 
   return ((size_t) ret == len) ? ret : -1;
 }
 
-static ddsrt_socket_t ddsi_tcp_conn_handle (ddsi_tran_base_t base)
+static ddsrt_socket_t ddsi_tcp_conn_handle (struct ddsi_tran_base * base)
 {
   return ((ddsi_tcp_conn_t) base)->m_sock;
 }
@@ -793,7 +793,7 @@ static bool ddsi_tcp_supports (const struct ddsi_tran_factory *fact_cmn, int32_t
   return kind == fact->m_kind;
 }
 
-static int ddsi_tcp_locator (struct ddsi_tran_factory *fact_cmn, ddsi_tran_base_t base, ddsi_locator_t *loc)
+static int ddsi_tcp_locator (struct ddsi_tran_factory *fact_cmn, struct ddsi_tran_base * base, ddsi_locator_t *loc)
 {
   struct ddsi_tran_factory_tcp * const fact = (struct ddsi_tran_factory_tcp *) fact_cmn;
   loc->kind = fact->m_kind;
@@ -802,7 +802,7 @@ static int ddsi_tcp_locator (struct ddsi_tran_factory *fact_cmn, ddsi_tran_base_
   return 0;
 }
 
-static dds_return_t ddsi_tcp_create_conn (ddsi_tran_conn_t *conn_out, struct ddsi_tran_factory *fact_cmn, uint32_t port, const struct ddsi_tran_qos *qos)
+static dds_return_t ddsi_tcp_create_conn (struct ddsi_tran_conn **conn_out, struct ddsi_tran_factory *fact_cmn, uint32_t port, const struct ddsi_tran_qos *qos)
 {
   struct ddsi_tran_factory_tcp * const fact = (struct ddsi_tran_factory_tcp *) fact_cmn;
   (void) qos;
@@ -815,7 +815,7 @@ static dds_return_t ddsi_tcp_create_conn (ddsi_tran_conn_t *conn_out, struct dds
   return DDS_RETCODE_OK;
 }
 
-static int ddsi_tcp_listen (ddsi_tran_listener_t listener)
+static int ddsi_tcp_listen (struct ddsi_tran_listener * listener)
 {
 #ifdef DDS_HAS_SSL
   struct ddsi_tran_factory_tcp * const fact = (struct ddsi_tran_factory_tcp *) listener->m_factory;
@@ -833,7 +833,7 @@ static int ddsi_tcp_listen (ddsi_tran_listener_t listener)
   return ret;
 }
 
-static ddsi_tran_conn_t ddsi_tcp_accept (ddsi_tran_listener_t listener)
+static struct ddsi_tran_conn * ddsi_tcp_accept (struct ddsi_tran_listener * listener)
 {
   struct ddsi_tran_factory_tcp * const fact = (struct ddsi_tran_factory_tcp *) listener->m_factory;
   struct ddsi_domaingv const * const gv = fact->fact.gv;
@@ -905,7 +905,7 @@ static ddsi_tran_conn_t ddsi_tcp_accept (ddsi_tran_listener_t listener)
   return tcp ? &tcp->m_base : NULL;
 }
 
-static ddsrt_socket_t ddsi_tcp_listener_handle (ddsi_tran_base_t base)
+static ddsrt_socket_t ddsi_tcp_listener_handle (struct ddsi_tran_base * base)
 {
   return ((ddsi_tcp_listener_t) base)->m_sock;
 }
@@ -921,7 +921,7 @@ static void addr_to_loc (ddsi_locator_t *loc, const union addr *addr)
   ddsi_ipaddr_to_loc (loc, &addr->a, addrfam_to_locator_kind (addr->a.sa_family));
 }
 
-static void ddsi_tcp_conn_peer_locator (ddsi_tran_conn_t conn, ddsi_locator_t * loc)
+static void ddsi_tcp_conn_peer_locator (struct ddsi_tran_conn * conn, ddsi_locator_t * loc)
 {
   struct ddsi_domaingv const * const gv = conn->m_base.gv;
   char buff[DDSI_LOCSTRLEN];
@@ -961,7 +961,7 @@ static ddsi_tcp_conn_t ddsi_tcp_new_conn (struct ddsi_tran_factory_tcp *fact, co
   return conn;
 }
 
-static dds_return_t ddsi_tcp_create_listener (ddsi_tran_listener_t *listener_out, ddsi_tran_factory_t fact, uint32_t port, const struct ddsi_tran_qos *qos)
+static dds_return_t ddsi_tcp_create_listener (struct ddsi_tran_listener **listener_out, struct ddsi_tran_factory * fact, uint32_t port, const struct ddsi_tran_qos *qos)
 {
   struct ddsi_tran_factory_tcp * const fact_tcp = (struct ddsi_tran_factory_tcp *) fact;
   struct ddsi_domaingv const * const gv = fact_tcp->fact.gv;
@@ -1024,7 +1024,7 @@ static void ddsi_tcp_conn_delete (ddsi_tcp_conn_t conn)
   ddsrt_free (conn);
 }
 
-static void ddsi_tcp_close_conn (ddsi_tran_conn_t tc)
+static void ddsi_tcp_close_conn (struct ddsi_tran_conn * tc)
 {
   struct ddsi_tran_factory_tcp * const fact_tcp = (struct ddsi_tran_factory_tcp *) tc->m_factory;
   struct ddsi_domaingv * const gv = fact_tcp->fact.gv;
@@ -1043,7 +1043,7 @@ static void ddsi_tcp_close_conn (ddsi_tran_conn_t tc)
   }
 }
 
-static void ddsi_tcp_release_conn (ddsi_tran_conn_t conn)
+static void ddsi_tcp_release_conn (struct ddsi_tran_conn * conn)
 {
   struct ddsi_tran_factory_tcp * const fact_tcp = (struct ddsi_tran_factory_tcp *) conn->m_factory;
   if (conn != &fact_tcp->ddsi_tcp_conn_client.m_base)
@@ -1052,7 +1052,7 @@ static void ddsi_tcp_release_conn (ddsi_tran_conn_t conn)
   }
 }
 
-static void ddsi_tcp_unblock_listener (ddsi_tran_listener_t listener)
+static void ddsi_tcp_unblock_listener (struct ddsi_tran_listener * listener)
 {
   struct ddsi_tran_factory_tcp * const fact_tcp = (struct ddsi_tran_factory_tcp *) listener->m_factory;
   struct ddsi_domaingv const * const gv = fact_tcp->fact.gv;
@@ -1101,7 +1101,7 @@ fail:
   return;
 }
 
-static void ddsi_tcp_release_listener (ddsi_tran_listener_t listener)
+static void ddsi_tcp_release_listener (struct ddsi_tran_listener * listener)
 {
   ddsi_tcp_listener_t tl = (ddsi_tcp_listener_t) listener;
   struct ddsi_domaingv const * const gv = tl->m_base.m_base.gv;
@@ -1189,7 +1189,7 @@ static uint32_t ddsi_tcp_receive_buffer_size (const struct ddsi_tran_factory *fa
   return 0;
 }
 
-static char *ddsi_tcp_locator_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc, ddsi_tran_conn_t conn, int with_port)
+static char *ddsi_tcp_locator_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc, struct ddsi_tran_conn * conn, int with_port)
 {
   (void) conn;
   return ddsi_ipaddr_to_string(dst, sizeof_dst, loc, with_port, NULL);

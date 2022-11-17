@@ -58,7 +58,7 @@ struct ddsi_sock_waitset_ctx
 struct entry {
   uint32_t index;
   int fd;
-  ddsi_tran_conn_t conn;
+  struct ddsi_tran_conn * conn;
 };
 
 struct ddsi_sock_waitset
@@ -71,7 +71,7 @@ struct ddsi_sock_waitset
   ddsrt_mutex_t lock; /* for add/delete */
 };
 
-static int add_entry_locked (struct ddsi_sock_waitset * ws, ddsi_tran_conn_t conn, int fd)
+static int add_entry_locked (struct ddsi_sock_waitset * ws, struct ddsi_tran_conn * conn, int fd)
 {
   uint32_t idx, fidx, sz, n;
   struct kevent kev;
@@ -175,7 +175,7 @@ void ddsi_sock_waitset_trigger (struct ddsi_sock_waitset * ws)
   }
 }
 
-int ddsi_sock_waitset_add (struct ddsi_sock_waitset * ws, ddsi_tran_conn_t conn)
+int ddsi_sock_waitset_add (struct ddsi_sock_waitset * ws, struct ddsi_tran_conn * conn)
 {
   int ret;
   ddsrt_mutex_lock (&ws->lock);
@@ -212,7 +212,7 @@ void ddsi_sock_waitset_purge (struct ddsi_sock_waitset * ws, unsigned index)
   ddsrt_mutex_unlock (&ws->lock);
 }
 
-void ddsi_sock_waitset_remove (struct ddsi_sock_waitset * ws, ddsi_tran_conn_t conn)
+void ddsi_sock_waitset_remove (struct ddsi_sock_waitset * ws, struct ddsi_tran_conn * conn)
 {
   const int fd = ddsi_conn_handle (conn);
   uint32_t i, sz;
@@ -261,7 +261,7 @@ struct ddsi_sock_waitset_ctx * ddsi_sock_waitset_wait (struct ddsi_sock_waitset 
   return &ws->ctx;
 }
 
-int ddsi_sock_waitset_next_event (struct ddsi_sock_waitset_ctx * ctx, ddsi_tran_conn_t *conn)
+int ddsi_sock_waitset_next_event (struct ddsi_sock_waitset_ctx * ctx, struct ddsi_tran_conn **conn)
 {
   while (ctx->index < ctx->nevs)
   {
@@ -286,7 +286,7 @@ int ddsi_sock_waitset_next_event (struct ddsi_sock_waitset_ctx * ctx, ddsi_tran_
 
 struct ddsi_sock_waitset_ctx
 {
-  ddsi_tran_conn_t conns[MAXIMUM_WAIT_OBJECTS]; /* connections and listeners */
+  struct ddsi_tran_conn * conns[MAXIMUM_WAIT_OBJECTS]; /* connections and listeners */
   WSAEVENT events[MAXIMUM_WAIT_OBJECTS];        /* events associated with sockets */
   int index; /* last wakeup index, or -1 */
   unsigned n; /* sockets/events [0 .. n-1] are occupied */
@@ -335,7 +335,7 @@ void ddsi_sock_waitset_purge (struct ddsi_sock_waitset * ws, unsigned index)
   ddsrt_mutex_unlock (&ws->mutex);
 }
 
-void ddsi_sock_waitset_remove (struct ddsi_sock_waitset * ws, ddsi_tran_conn_t conn)
+void ddsi_sock_waitset_remove (struct ddsi_sock_waitset * ws, struct ddsi_tran_conn * conn)
 {
   ddsrt_mutex_lock (&ws->mutex);
   for (unsigned i = 0; i < ws->ctx.n; i++)
@@ -363,7 +363,7 @@ void ddsi_sock_waitset_trigger (struct ddsi_sock_waitset * ws)
   }
 }
 
-int ddsi_sock_waitset_add (struct ddsi_sock_waitset * ws, ddsi_tran_conn_t conn)
+int ddsi_sock_waitset_add (struct ddsi_sock_waitset * ws, struct ddsi_tran_conn * conn)
 {
   WSAEVENT ev;
   os_socket sock = ddsi_conn_handle (conn);
@@ -461,7 +461,7 @@ struct ddsi_sock_waitset_ctx * ddsi_sock_waitset_wait (struct ddsi_sock_waitset 
  is large, the lower indices may get a disproportionally large
  amount of attention. */
 
-int ddsi_sock_waitset_next_event (struct ddsi_sock_waitset_ctx * ctx, ddsi_tran_conn_t * conn)
+int ddsi_sock_waitset_next_event (struct ddsi_sock_waitset_ctx * ctx, struct ddsi_tran_conn ** conn)
 {
   assert (-1 <= ctx->index && ctx->index < ctx->n);
   assert (0 < ctx->n && ctx->n <= ctx->sz);
@@ -523,7 +523,7 @@ int ddsi_sock_waitset_next_event (struct ddsi_sock_waitset_ctx * ctx, ddsi_tran_
 
 typedef struct ddsi_sock_waitset_set
 {
-  ddsi_tran_conn_t * conns;  /* connections in set */
+  struct ddsi_tran_conn ** conns;  /* connections in set */
   ddsrt_socket_t * fds;           /* file descriptors in set */
   unsigned sz;               /* max number of fds in context */
   unsigned n;                /* actual number of fds in context */
@@ -737,7 +737,7 @@ void ddsi_sock_waitset_trigger (struct ddsi_sock_waitset * ws)
 #endif
 }
 
-int ddsi_sock_waitset_add (struct ddsi_sock_waitset * ws, ddsi_tran_conn_t conn)
+int ddsi_sock_waitset_add (struct ddsi_sock_waitset * ws, struct ddsi_tran_conn * conn)
 {
   ddsrt_socket_t handle = ddsi_conn_handle (conn);
   ddsi_sock_waitset_set_t * set = &ws->set;
@@ -791,7 +791,7 @@ void ddsi_sock_waitset_purge (struct ddsi_sock_waitset * ws, unsigned index)
   ddsrt_mutex_unlock (&ws->mutex);
 }
 
-void ddsi_sock_waitset_remove (struct ddsi_sock_waitset * ws, ddsi_tran_conn_t conn)
+void ddsi_sock_waitset_remove (struct ddsi_sock_waitset * ws, struct ddsi_tran_conn * conn)
 {
   ddsi_sock_waitset_set_t * set = &ws->set;
 
@@ -905,7 +905,7 @@ struct ddsi_sock_waitset_ctx * ddsi_sock_waitset_wait (struct ddsi_sock_waitset 
 DDSRT_WARNING_GNUC_OFF(sign-conversion)
 #endif
 
-int ddsi_sock_waitset_next_event (struct ddsi_sock_waitset_ctx * ctx, ddsi_tran_conn_t * conn)
+int ddsi_sock_waitset_next_event (struct ddsi_sock_waitset_ctx * ctx, struct ddsi_tran_conn ** conn)
 {
   while (ctx->index < ctx->set.n)
   {

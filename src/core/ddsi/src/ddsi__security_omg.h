@@ -1021,7 +1021,7 @@ ddsi_rtps_msg_state_t ddsi_security_decode_rtps_message (struct ddsi_thread_stat
 ssize_t
 ddsi_security_secure_conn_write(
     const struct ddsi_domaingv *gv,
-    ddsi_tran_conn_t conn,
+    struct ddsi_tran_conn * conn,
     const ddsi_locator_t *dst,
     size_t niov,
     const ddsrt_iovec_t *iov,

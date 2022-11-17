@@ -40,8 +40,8 @@
 static struct ddsi_cfgst *cfgst;
 static struct ddsi_domaingv gv;
 static struct ddsi_config cfg;
-static ddsi_tran_conn_t fakeconn;
-static ddsi_tran_factory_t fakenet;
+static struct ddsi_tran_conn * fakeconn;
+static struct ddsi_tran_factory * fakenet;
 static struct ddsi_thread_state *thrst;
 static struct ddsi_rbufpool *rbpool;
 // static struct ddsi_tkmap_instance *tk;
@@ -52,12 +52,12 @@ static void null_log_sink(void *varg, const dds_log_data_t *msg)
     (void)msg;
 }
 
-static ssize_t fakeconn_write(ddsi_tran_conn_t conn, const ddsi_locator_t *dst, size_t niov, const ddsrt_iovec_t *iov, uint32_t flags)
+static ssize_t fakeconn_write(struct ddsi_tran_conn * conn, const ddsi_locator_t *dst, size_t niov, const ddsrt_iovec_t *iov, uint32_t flags)
 {
     return (ssize_t)niov;
 }
 
-static ssize_t fakeconn_read(ddsi_tran_conn_t conn, unsigned char *buf, size_t len, bool allow_spurious, ddsi_locator_t *srcloc)
+static ssize_t fakeconn_read(struct ddsi_tran_conn * conn, unsigned char *buf, size_t len, bool allow_spurious, ddsi_locator_t *srcloc)
 {
     return (ssize_t)len;
 }

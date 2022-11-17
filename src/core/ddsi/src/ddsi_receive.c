@@ -2920,7 +2920,7 @@ static int handle_submsg_sequence
 (
   struct ddsi_thread_state * const thrst,
   struct ddsi_domaingv *gv,
-  ddsi_tran_conn_t conn,
+  struct ddsi_tran_conn * conn,
   const ddsi_locator_t *srcloc,
   ddsrt_wctime_t tnowWC,
   ddsrt_etime_t tnowE,
@@ -3174,7 +3174,7 @@ static int handle_submsg_sequence
   }
 }
 
-static void handle_rtps_message (struct ddsi_thread_state * const thrst, struct ddsi_domaingv *gv, ddsi_tran_conn_t conn, const ddsi_guid_prefix_t *guidprefix, struct ddsi_rbufpool *rbpool, struct ddsi_rmsg *rmsg, size_t sz, unsigned char *msg, const ddsi_locator_t *srcloc)
+static void handle_rtps_message (struct ddsi_thread_state * const thrst, struct ddsi_domaingv *gv, struct ddsi_tran_conn * conn, const ddsi_guid_prefix_t *guidprefix, struct ddsi_rbufpool *rbpool, struct ddsi_rmsg *rmsg, size_t sz, unsigned char *msg, const ddsi_locator_t *srcloc)
 {
   ddsi_rtps_header_t *hdr = (ddsi_rtps_header_t *) msg;
   assert (ddsi_thread_is_asleep ());
@@ -3209,12 +3209,12 @@ static void handle_rtps_message (struct ddsi_thread_state * const thrst, struct 
   }
 }
 
-void ddsi_handle_rtps_message (struct ddsi_thread_state * const thrst, struct ddsi_domaingv *gv, ddsi_tran_conn_t conn, const ddsi_guid_prefix_t *guidprefix, struct ddsi_rbufpool *rbpool, struct ddsi_rmsg *rmsg, size_t sz, unsigned char *msg, const ddsi_locator_t *srcloc)
+void ddsi_handle_rtps_message (struct ddsi_thread_state * const thrst, struct ddsi_domaingv *gv, struct ddsi_tran_conn * conn, const ddsi_guid_prefix_t *guidprefix, struct ddsi_rbufpool *rbpool, struct ddsi_rmsg *rmsg, size_t sz, unsigned char *msg, const ddsi_locator_t *srcloc)
 {
   handle_rtps_message (thrst, gv, conn, guidprefix, rbpool, rmsg, sz, msg, srcloc);
 }
 
-static bool do_packet (struct ddsi_thread_state * const thrst, struct ddsi_domaingv *gv, ddsi_tran_conn_t conn, const ddsi_guid_prefix_t *guidprefix, struct ddsi_rbufpool *rbpool)
+static bool do_packet (struct ddsi_thread_state * const thrst, struct ddsi_domaingv *gv, struct ddsi_tran_conn * conn, const ddsi_guid_prefix_t *guidprefix, struct ddsi_rbufpool *rbpool)
 {
   /* UDP max packet size is 64kB */
 
@@ -3310,7 +3310,7 @@ static bool do_packet (struct ddsi_thread_state * const thrst, struct ddsi_domai
 
 struct local_participant_desc
 {
-  ddsi_tran_conn_t m_conn;
+  struct ddsi_tran_conn * m_conn;
   ddsi_guid_prefix_t guid_prefix;
 };
 
@@ -3435,7 +3435,7 @@ static void rebuild_local_participant_set (struct ddsi_thread_state * const thrs
 uint32_t ddsi_listen_thread (struct ddsi_tran_listener *listener)
 {
   struct ddsi_domaingv *gv = listener->m_base.gv;
-  ddsi_tran_conn_t conn;
+  struct ddsi_tran_conn * conn;
 
   while (ddsrt_atomic_ld32 (&gv->rtps_keepgoing))
   {
@@ -3451,7 +3451,7 @@ uint32_t ddsi_listen_thread (struct ddsi_tran_listener *listener)
   return 0;
 }
 
-static int recv_thread_waitset_add_conn (struct ddsi_sock_waitset * ws, ddsi_tran_conn_t conn)
+static int recv_thread_waitset_add_conn (struct ddsi_sock_waitset * ws, struct ddsi_tran_conn * conn)
 {
   if (conn == NULL)
     return 0;
@@ -3579,7 +3579,7 @@ uint32_t ddsi_recv_thread (void *vrecv_thread_arg)
       if ((ctx = ddsi_sock_waitset_wait (waitset)) != NULL)
       {
         int idx;
-        ddsi_tran_conn_t conn;
+        struct ddsi_tran_conn * conn;
         while ((idx = ddsi_sock_waitset_next_event (ctx, &conn)) >= 0)
         {
           const ddsi_guid_prefix_t *guid_prefix;
