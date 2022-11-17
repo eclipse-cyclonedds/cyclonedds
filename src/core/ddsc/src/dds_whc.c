@@ -12,6 +12,7 @@
 #include <assert.h>
 #include <stddef.h>
 #include <string.h>
+#include "dds/ddsrt/cdtors.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/misc.h"
@@ -185,7 +186,7 @@ static const struct ddsi_whc_ops whc_ops = {
 
 /* Number of instantiated WHCs and a global freelist for WHC nodes that gets
  initialized lazily and cleaned up automatically when the last WHC is freed.
- Protected by dds_global.m_mutex.
+ Protected by ddsrt_get_singleton_mutex ().
 
  sizeof (whc_node) on 64-bit machines ~ 100 bytes, so this is ~1MB
  8k entries seems to be roughly the amount needed for minimum samples,
@@ -485,10 +486,10 @@ struct ddsi_whc *whc_new (struct ddsi_domaingv *gv, const struct whc_writer_info
   whc->open_intv = intv;
   whc->maxseq_node = NULL;
 
-  ddsrt_mutex_lock (&dds_global.m_mutex);
+  ddsrt_mutex_lock (ddsrt_get_singleton_mutex ());
   if (whc_count++ == 0)
     ddsi_freelist_init (&whc_node_freelist, MAX_FREELIST_SIZE, offsetof (struct dds_whc_default_node, next_seq));
-  ddsrt_mutex_unlock (&dds_global.m_mutex);
+  ddsrt_mutex_unlock (ddsrt_get_singleton_mutex ());
 
   check_whc (whc);
   return (struct ddsi_whc *)whc;
@@ -540,10 +541,10 @@ void whc_default_free (struct ddsi_whc *whc_generic)
 
   ddsrt_avl_free (&whc_seq_treedef, &whc->seq, ddsrt_free);
 
-  ddsrt_mutex_lock (&dds_global.m_mutex);
+  ddsrt_mutex_lock (ddsrt_get_singleton_mutex ());
   if (--whc_count == 0)
     ddsi_freelist_fini (&whc_node_freelist, ddsrt_free);
-  ddsrt_mutex_unlock (&dds_global.m_mutex);
+  ddsrt_mutex_unlock (ddsrt_get_singleton_mutex ());
 
 #if USE_EHH
   ddsrt_ehh_free (whc->seq_hash);
