@@ -17,7 +17,6 @@
 #include "dds/dds.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/md5.h"
-#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_freelist.h"
 #include "dds/ddsi/ddsi_sertype.h"
 #include "dds/ddsi/ddsi_iid.h"

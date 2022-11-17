@@ -24,7 +24,6 @@
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsi/ddsi_log.h"
 #include "dds/ddsi/ddsi_unused.h"
-#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_typelib.h"
 #include "ddsi__plist.h"

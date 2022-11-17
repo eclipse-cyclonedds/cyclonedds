@@ -11,7 +11,6 @@
  */
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/misc.h"
-#include "dds/ddsi/ddsi_config_impl.h"
 #include "ddsi__tcp.h"
 #include "ddsi__ssl.h"
 

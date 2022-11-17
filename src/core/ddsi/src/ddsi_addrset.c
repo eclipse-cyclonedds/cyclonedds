@@ -19,7 +19,6 @@
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsi/ddsi_log.h"
-#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "ddsi__tran.h"
 #include "ddsi__misc.h"

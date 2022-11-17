@@ -24,7 +24,6 @@
 #include "dds/ddsrt/io.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsi/ddsi_security_omg.h"
-#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/ddsi_participant.h"

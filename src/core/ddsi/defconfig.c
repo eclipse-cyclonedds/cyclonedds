@@ -103,7 +103,7 @@ void ddsi_config_init_default (struct ddsi_config *cfg)
   cfg->shm_log_lvl = INT32_C (4);
 #endif /* DDS_HAS_SHM */
 }
-/* generated from ddsi_config.h[0afa09c75f102f762ff2471c993b4f50c1aace9d] */
+/* generated from ddsi_config.h[9671dab75e7c043650eddba07fef548bafb5e7a8] */
 /* generated from ddsi__cfgunits.h[be1b976c6e9466472b0c331487c05180ec1052d4] */
 /* generated from ddsi__cfgelems.h[6674d0b12bab30dd24dea8880fc9ecd0a35b5b0e] */
 /* generated from ddsi_config.c[d6fddb909c263a4b9d04e3bdb4f868d2b6feb5bf] */
@@ -113,4 +113,4 @@ void ddsi_config_init_default (struct ddsi_config *cfg)
 /* generated from generate_md.c[37efe4fa9caf56e2647bafc9a7f009f72ff5d2e0] */
 /* generated from generate_rst.c[50739f627792ef056e2b4feeb20fda4edfcef079] */
 /* generated from generate_xsd.c[45064e8869b3c00573057d7c8f02d20f04b40e16] */
-/* generated from generate_defconfig.c[c80e7f499c9e6a426834a565068e35143c353a7b] */
+/* generated from generate_defconfig.c[ddf5057ceb5fb512b47f7028da2d75837a349830] */

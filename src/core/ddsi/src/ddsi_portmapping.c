@@ -13,7 +13,7 @@
 #include <inttypes.h>
 
 #include "dds/ddsrt/static_assert.h"
-#include "dds/ddsi/ddsi_config_impl.h"
+#include "dds/ddsi/ddsi_config.h"
 #include "ddsi__portmapping.h"
 
 static bool get_port_int (uint32_t *port, const struct ddsi_portmapping *map, enum ddsi_port which, uint32_t domain_id, int32_t participant_index, char *str_if_overflow, size_t strsize)

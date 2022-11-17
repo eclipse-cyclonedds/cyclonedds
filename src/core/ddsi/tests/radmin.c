@@ -14,7 +14,6 @@
 
 #include "dds/features.h"
 #include "dds/ddsi/ddsi_iid.h"
-#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_init.h"
 #include "ddsi__radmin.h"

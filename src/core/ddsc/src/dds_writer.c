@@ -15,7 +15,6 @@
 #include "dds/dds.h"
 #include "dds/version.h"
 #include "dds/ddsrt/static_assert.h"
-#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_endpoint.h"

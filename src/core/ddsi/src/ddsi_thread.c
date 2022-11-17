@@ -22,7 +22,6 @@
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsi/ddsi_threadmon.h"
 #include "dds/ddsi/ddsi_log.h"
-#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "ddsi__thread.h"
 #include "ddsi__sysdeps.h"

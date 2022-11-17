@@ -21,7 +21,6 @@
 #include "dds/cdr/dds_cdrstream.h"
 #include "dds/ddsi/ddsi_transmit.h"
 #include "dds/ddsi/ddsi_entity_index.h"
-#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_entity_match.h"
 #include "dds/ddsi/ddsi_endpoint.h"

@@ -8,7 +8,7 @@
 
 #include "dds/ddsrt/static_assert.h"
 #include "dds/ddsrt/misc.h"
-#include "dds/ddsi/ddsi_config_impl.h"
+#include "dds/ddsi/ddsi_config.h"
 #include "dds/features.h"
 
 #include "_confgen.h"

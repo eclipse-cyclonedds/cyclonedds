@@ -16,7 +16,6 @@
 
 #include "dds/export.h"
 #include "dds/ddsrt/md5.h"
-#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_freelist.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "ddsi__radmin.h"

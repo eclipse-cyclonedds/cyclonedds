@@ -18,7 +18,6 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsi/ddsi_iid.h"
 #include "ddsi__thread.h"
-#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_entity.h"
 #include "ddsi__radmin.h"

@@ -13,7 +13,6 @@
 #include <stddef.h>
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/avl.h"
-#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_log.h"
 #include "ddsi__inverse_uint32_set.h"
 

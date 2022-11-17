@@ -23,7 +23,6 @@
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 
 #include "dds/ddsi/ddsi_entity.h"

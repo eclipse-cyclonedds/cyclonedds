@@ -14,7 +14,6 @@
 #include "dds/ddsrt/md5.h"
 #include "dds/ddsrt/heap.h"
 
-#include "dds/ddsi/ddsi_config_impl.h"
 #include "ddsi__misc.h"
 
 extern inline ddsi_seqno_t ddsi_from_seqno (const ddsi_sequence_number_t sn);

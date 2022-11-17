@@ -14,7 +14,6 @@
 
 #include "dds/ddsrt/endian.h"
 #include "dds/ddsi/ddsi_log.h"
-#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "ddsi__pcap.h"
 

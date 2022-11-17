@@ -21,7 +21,6 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/static_assert.h"
 #include "dds/ddsrt/avl.h"
-#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_log.h"
 #include "dds/ddsi/ddsi_unused.h"
 #include "dds/ddsi/ddsi_gc.h"

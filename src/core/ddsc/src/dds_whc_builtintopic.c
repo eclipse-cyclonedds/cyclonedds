@@ -16,7 +16,6 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_unused.h"
-#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"

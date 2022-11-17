@@ -28,7 +28,6 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/avl.h"
-#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_log.h"
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/ddsi_unused.h"

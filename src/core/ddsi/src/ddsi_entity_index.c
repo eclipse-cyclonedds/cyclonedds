@@ -17,7 +17,6 @@
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/hopscotch.h"
 #include "dds/ddsrt/avl.h"
-#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
 #include "dds/ddsi/ddsi_proxy_endpoint.h"

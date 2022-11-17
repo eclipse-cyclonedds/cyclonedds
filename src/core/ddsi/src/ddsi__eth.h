@@ -13,7 +13,6 @@
 #define DDSI__ETH_H
 
 #include "dds/ddsi/ddsi_tran.h"
-#include "dds/ddsi/ddsi_config_impl.h"
 
 #if defined (__cplusplus)
 extern "C" {

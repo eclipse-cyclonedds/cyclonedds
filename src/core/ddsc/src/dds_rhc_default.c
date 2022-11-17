@@ -34,7 +34,6 @@
 #include "dds/ddsi/ddsi_rhc.h"
 #include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/ddsi_unused.h"
-#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_radmin.h" /* sampleinfo */
 #include "dds/ddsi/ddsi_entity.h"

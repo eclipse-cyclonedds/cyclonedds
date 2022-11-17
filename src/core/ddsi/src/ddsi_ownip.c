@@ -24,7 +24,6 @@
 #include "dds/ddsi/ddsi_feature_check.h"
 #include "dds/ddsi/ddsi_log.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_unused.h"
 #include "ddsi__ownip.h"
 #include "ddsi__misc.h"

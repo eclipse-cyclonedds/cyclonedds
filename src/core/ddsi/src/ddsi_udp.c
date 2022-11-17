@@ -18,7 +18,6 @@
 #include "dds/ddsrt/sockets.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/static_assert.h"
-#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_log.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "ddsi__eth.h"

@@ -27,7 +27,6 @@
 #include "dds/ddsi/ddsi_deadline.h"
 #endif
 #include "dds/ddsi/ddsi_unused.h"
-#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/ddsi_freelist.h"
 #include "dds/ddsi/ddsi_domaingv.h"

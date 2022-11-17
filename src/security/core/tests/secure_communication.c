@@ -23,7 +23,6 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/threads.h"
 #include "dds/ddsrt/process.h"
-#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_xqos.h"
 #include "ddsi__misc.h"

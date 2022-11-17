@@ -28,13 +28,6 @@ extern "C" {
 
 struct ddsi_config;
 
-/**
- * @brief Default-initialize a configuration (unstable)
- *
- * @param[out]  cfg The configuration struct to be initialized.
- */
-DDS_EXPORT void ddsi_config_init_default (struct ddsi_config *cfg);
-
 enum ddsi_standards_conformance {
   DDSI_SC_PEDANTIC,
   DDSI_SC_STRICT,
@@ -263,6 +256,13 @@ enum ddsi_config_entity_naming_mode {
 #define DDSI_XCHECK_RHC 2u
 #define DDSI_XCHECK_XEV 4u
 
+/**
+ * @brief Default-initialize a configuration (unstable)
+ *
+ * @param[out]  cfg The configuration struct to be initialized.
+ */
+DDS_EXPORT void ddsi_config_init_default (struct ddsi_config *cfg);
+
 struct ddsi_config
 {
   int valid;
@@ -448,6 +448,10 @@ public:
   }
 #endif
 };
+
+struct ddsi_cfgst *ddsi_config_init (const char *config, struct ddsi_config *cfg, uint32_t domid) ddsrt_nonnull((1,2));
+
+DDS_EXPORT void ddsi_config_fini (struct ddsi_cfgst *cfgst);
 
 #ifdef DDS_HAS_NETWORK_CHANNELS
 struct ddsi_config_channel_listelem *ddsi_find_network_channel (const struct config *cfg, ddsi_transport_priority_qospolicy_t transport_priority);

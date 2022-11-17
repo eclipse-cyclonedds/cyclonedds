@@ -17,7 +17,6 @@
 #include "dds/ddsrt/sockets.h"
 #include "dds/ddsrt/sync.h"
 
-#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_log.h"
 #include "ddsi__sockwaitset.h"
 #include "ddsi__tran.h"
