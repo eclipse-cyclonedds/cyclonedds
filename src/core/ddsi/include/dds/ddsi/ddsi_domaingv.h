@@ -51,10 +51,10 @@ struct dds_security_context;
 struct dds_security_match_index;
 struct ddsi_hsadmin;
 
-typedef struct config_in_addr_node {
+struct ddsi_config_in_addr_node {
    ddsi_locator_t loc;
-   struct config_in_addr_node *next;
-} config_in_addr_node;
+   struct ddsi_config_in_addr_node *next;
+};
 
 enum recvips_mode {
   RECVIPS_MODE_ALL,             /* all MC capable interfaces */
@@ -191,7 +191,7 @@ struct ddsi_domaingv {
      advertised in discovery messages (so that an external IP address on
      a NAT may be advertised), and the DDSI multi-cast address. */
   enum recvips_mode recvips_mode;
-  struct config_in_addr_node *recvips;
+  struct ddsi_config_in_addr_node *recvips;
   ddsi_locator_t extmask;
 
   /* Locators */

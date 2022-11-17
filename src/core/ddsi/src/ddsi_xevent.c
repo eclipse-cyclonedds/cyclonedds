@@ -790,7 +790,7 @@ static void handle_xevk_heartbeat (struct ddsi_xpack *xp, struct ddsi_xevent *ev
   /* Can't transmit synchronously with writer lock held: trying to add
      the heartbeat to the xp may cause xp to be sent out, which may
      require updating wr->seq_xmit for other messages already in xp.
-     Besides, nn_xpack_addmsg may sleep for bandwidth-limited channels
+     Besides, ddsi_xpack_addmsg may sleep for bandwidth-limited channels
      and we certainly don't want to hold the lock during that time. */
   if (msg)
   {
@@ -907,7 +907,7 @@ static void handle_xevk_acknack (struct ddsi_xpack *xp, struct ddsi_xevent *ev, 
     msg = ddsi_make_and_resched_acknack (ev, pwr, rwn, tnow, false);
   ddsrt_mutex_unlock (&pwr->e.lock);
 
-  /* nn_xpack_addmsg may sleep (for bandwidth-limited channels), so
+  /* ddsi_xpack_addmsg may sleep (for bandwidth-limited channels), so
      must be outside the lock */
   if (msg)
   {

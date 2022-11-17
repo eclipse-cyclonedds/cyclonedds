@@ -172,14 +172,14 @@ typedef struct ddsi_plist {
   ddsi_count_t participant_manual_liveliness_count;
   uint32_t participant_builtin_endpoints;
   dds_duration_t participant_lease_duration;
-  /* nn_content_filter_property_t content_filter_property; */
+  /* ddsi_content_filter_property_t content_filter_property; */
   ddsi_guid_t participant_guid;
   ddsi_guid_t endpoint_guid;
   ddsi_guid_t group_guid;
   ddsi_guid_t topic_guid;
 #if 0 /* reserved, rather than NIY */
-  nn_entityid_t participant_entityid;
-  nn_entityid_t group_entityid;
+  ddsi_entityid_t participant_entityid;
+  ddsi_entityid_t group_entityid;
 #endif
   uint32_t builtin_endpoint_set;
   /* int type_max_size_serialized; */

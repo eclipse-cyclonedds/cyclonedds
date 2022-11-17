@@ -44,6 +44,13 @@ struct ddsi_match_entities_range_key {
 #endif
 };
 
+struct ddsi_entity_enum_participant { struct ddsi_entity_enum st; };
+struct ddsi_entity_enum_writer { struct ddsi_entity_enum st; };
+struct ddsi_entity_enum_reader { struct ddsi_entity_enum st; };
+struct ddsi_entity_enum_proxy_participant { struct ddsi_entity_enum st; };
+struct ddsi_entity_enum_proxy_writer { struct ddsi_entity_enum st; };
+struct ddsi_entity_enum_proxy_reader { struct ddsi_entity_enum st; };
+
 struct ddsi_entity_index *ddsi_entity_index_new (struct ddsi_domaingv *gv) ddsrt_nonnull_all;
 void ddsi_entity_index_free (struct ddsi_entity_index *ei) ddsrt_nonnull_all;
 

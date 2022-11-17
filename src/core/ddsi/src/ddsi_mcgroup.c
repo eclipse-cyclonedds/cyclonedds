@@ -176,9 +176,9 @@ static int joinleave_mcgroup (struct ddsi_tran_conn * conn, int join, const ddsi
   }
 }
 
-static int interface_in_recvips_p (const struct config_in_addr_node *recvips, const struct ddsi_network_interface *interf)
+static int interface_in_recvips_p (const struct ddsi_config_in_addr_node *recvips, const struct ddsi_network_interface *interf)
 {
-  const struct config_in_addr_node *nodeaddr;
+  const struct ddsi_config_in_addr_node *nodeaddr;
   for (nodeaddr = recvips; nodeaddr; nodeaddr = nodeaddr->next)
   {
     if (locator_compare_no_port(&nodeaddr->loc, &interf->loc) == 0)

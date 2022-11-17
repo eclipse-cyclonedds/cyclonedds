@@ -45,7 +45,7 @@
 #define TRACE_FUNC(ptr)
 #else
 #undef TRACE
-#define TRACE(args) nn_trace args
+#define TRACE(args) ddsi_trace args
 #define TRACE_FUNC(ptr) printf("[%p] %s\n", ptr, __FUNCTION__);
 #endif
 
@@ -178,7 +178,7 @@ static dds_security_fsm_state state_wait_crypto_tokens                  = { NULL
 static dds_security_fsm_state state_handshake_final_resend              = { func_handshake_message_resend,         0 };
 
 #ifdef VERBOSE_HANDSHAKE_DEBUG
-static void q_handshake_fsm_debug(
+static void handshake_fsm_debug(
     struct dds_security_fsm *fsm,
     DDS_SECURITY_FSM_DEBUG_ACT act,
     const dds_security_fsm_state *current,
@@ -1042,7 +1042,7 @@ static struct ddsi_handshake * ddsi_handshake_create(struct ddsi_participant *pp
   dds_security_fsm_set_timeout(handshake->fsm, func_handshake_timeout, AUTHENTICATION_TIMEOUT);
 
 #ifdef VERBOSE_HANDSHAKE_DEBUG
-  dds_security_fsm_set_debug(handshake->fsm, q_handshake_fsm_debug);
+  dds_security_fsm_set_debug(handshake->fsm, handshake_fsm_debug);
 #endif
   dds_security_fsm_start(handshake->fsm);
 

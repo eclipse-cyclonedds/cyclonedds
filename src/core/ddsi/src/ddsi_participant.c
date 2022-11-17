@@ -53,7 +53,7 @@ static const unsigned builtin_writers_besmask =
 int compare_ldur (const void *va, const void *vb);
 
 /* used in participant for keeping writer liveliness renewal */
-const ddsrt_fibheap_def_t ddsi_ldur_fhdef = DDSRT_FIBHEAPDEF_INITIALIZER(offsetof (struct ldur_fhnode, heapnode), compare_ldur);
+const ddsrt_fibheap_def_t ddsi_ldur_fhdef = DDSRT_FIBHEAPDEF_INITIALIZER(offsetof (struct ddsi_ldur_fhnode, heapnode), compare_ldur);
 /* used in (proxy)participant for writer liveliness monitoring */
 const ddsrt_fibheap_def_t ddsi_lease_fhdef_pp = DDSRT_FIBHEAPDEF_INITIALIZER(offsetof (struct ddsi_lease, pp_heapnode), ddsi_compare_lease_tdur);
 
@@ -62,8 +62,8 @@ const ddsrt_avl_treedef_t deleted_participants_treedef =
 
 int compare_ldur (const void *va, const void *vb)
 {
-  const struct ldur_fhnode *a = va;
-  const struct ldur_fhnode *b = vb;
+  const struct ddsi_ldur_fhnode *a = va;
+  const struct ddsi_ldur_fhnode *b = vb;
   return (a->ldur == b->ldur) ? 0 : (a->ldur < b->ldur) ? -1 : 1;
 }
 
@@ -1171,7 +1171,7 @@ struct ddsi_writer *ddsi_get_builtin_writer (const struct ddsi_participant *pp, 
 
 dds_duration_t ddsi_participant_get_pmd_interval (struct ddsi_participant *pp)
 {
-  struct ldur_fhnode *ldur_node;
+  struct ddsi_ldur_fhnode *ldur_node;
   dds_duration_t intv;
   ddsrt_mutex_lock (&pp->e.lock);
   ldur_node = ddsrt_fibheap_min (&ddsi_ldur_fhdef, &pp->ldur_auto_wr);

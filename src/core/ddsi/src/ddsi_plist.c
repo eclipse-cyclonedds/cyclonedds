@@ -30,7 +30,7 @@
 #include "ddsi__time.h"
 #include "ddsi__xmsg.h"
 #include "ddsi__vendor.h"
-#include "ddsi__udp.h" /* nn_mc4gen_address_t */
+#include "ddsi__udp.h" /* ddsi_mc4gen_address_t */
 #include "ddsi__protocol.h"
 #include "ddsi__radmin.h" /* for ddsi_plist_quickscan */
 #include "ddsi__plist_generic.h"
@@ -58,7 +58,7 @@ DDSRT_STATIC_ASSERT(DDS_LENGTH_UNLIMITED == -1);
 #define PPTMP_METATRAFFIC_MULTICAST_IPADDRESS   (1 << 5)
 #define PPTMP_METATRAFFIC_MULTICAST_PORT        (1 << 6)
 
-typedef struct nn_ipaddress_params_tmp {
+typedef struct ddsi_ipaddress_params_tmp {
   uint32_t present;
 
   ddsi_ipv4address_t multicast_ipaddress;
@@ -68,7 +68,7 @@ typedef struct nn_ipaddress_params_tmp {
   ddsi_port_t metatraffic_unicast_port;
   ddsi_ipv4address_t metatraffic_multicast_ipaddress;
   ddsi_port_t metatraffic_multicast_port;
-} nn_ipaddress_params_tmp_t;
+} ddsi_ipaddress_params_tmp_t;
 
 struct dd {
   const unsigned char *buf;
@@ -2792,7 +2792,7 @@ static void locator_from_ipv4address_port (ddsi_locator_t *loc, const ddsi_ipv4a
   memcpy (loc->address + 12, a, 4);
 }
 
-static dds_return_t do_ipv4address (ddsi_plist_t *dest, nn_ipaddress_params_tmp_t *dest_tmp, uint64_t wanted, uint32_t fl_tmp, const struct dd *dd)
+static dds_return_t do_ipv4address (ddsi_plist_t *dest, ddsi_ipaddress_params_tmp_t *dest_tmp, uint64_t wanted, uint32_t fl_tmp, const struct dd *dd)
 {
   ddsi_ipv4address_t *a;
   ddsi_port_t *p;
@@ -2856,7 +2856,7 @@ static dds_return_t do_ipv4address (ddsi_plist_t *dest, nn_ipaddress_params_tmp_
   return 0;
 }
 
-static dds_return_t do_port (ddsi_plist_t *dest, nn_ipaddress_params_tmp_t *dest_tmp, uint64_t wanted, uint32_t fl_tmp, const struct dd *dd)
+static dds_return_t do_port (ddsi_plist_t *dest, ddsi_ipaddress_params_tmp_t *dest_tmp, uint64_t wanted, uint32_t fl_tmp, const struct dd *dd)
 {
   ddsi_ipv4address_t *a;
   ddsi_port_t *p;
@@ -2922,7 +2922,7 @@ static dds_return_t return_unrecognized_pid (ddsi_plist_t *plist, ddsi_parameter
   }
 }
 
-static dds_return_t init_one_parameter (ddsi_plist_t *plist, nn_ipaddress_params_tmp_t *dest_tmp, uint64_t pwanted, uint64_t qwanted, uint16_t pid, const struct dd *dd, struct ddsi_domaingv const * const gv)
+static dds_return_t init_one_parameter (ddsi_plist_t *plist, ddsi_ipaddress_params_tmp_t *dest_tmp, uint64_t pwanted, uint64_t qwanted, uint16_t pid, const struct dd *dd, struct ddsi_domaingv const * const gv)
 {
   /* special-cased ipv4address and port, because they have state beyond that what gets
      passed into the generic code */
@@ -3142,7 +3142,7 @@ dds_return_t ddsi_plist_init_frommsg (ddsi_plist_t *dest, char **nextafterplist,
 {
   const unsigned char *pl;
   struct dd dd;
-  nn_ipaddress_params_tmp_t dest_tmp;
+  ddsi_ipaddress_params_tmp_t dest_tmp;
 
 #ifndef NDEBUG
   memset (dest, 0, sizeof (*dest));

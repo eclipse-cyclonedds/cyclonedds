@@ -23,7 +23,7 @@
 #include "ddsi__tran.h"
 #include "ddsi__misc.h"
 #include "ddsi__addrset.h"
-#include "ddsi__udp.h" /* nn_mc4gen_address_t */
+#include "ddsi__udp.h" /* ddsi_mc4gen_address_t */
 #include "ddsi__portmapping.h"
 
 /* So what does one do with const & mutexes? I need to take lock in a

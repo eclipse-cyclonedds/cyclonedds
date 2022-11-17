@@ -454,7 +454,7 @@ struct ddsi_cfgst *ddsi_config_init (const char *config, struct ddsi_config *cfg
 DDS_EXPORT void ddsi_config_fini (struct ddsi_cfgst *cfgst);
 
 #ifdef DDS_HAS_NETWORK_CHANNELS
-struct ddsi_config_channel_listelem *ddsi_find_network_channel (const struct config *cfg, ddsi_transport_priority_qospolicy_t transport_priority);
+struct ddsi_config_channel_listelem *ddsi_find_network_channel (const struct config *cfg, dds_transport_priority_qospolicy_t transport_priority);
 #endif
 
 #if defined (__cplusplus)

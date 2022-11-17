@@ -28,6 +28,7 @@ struct ddsi_type_pair;
 struct ddsi_writer_info;
 struct ddsi_entity_common;
 struct ddsi_endpoint_common;
+struct ddsi_ldur_fhnode;
 struct dds_qos;
 
 /* Liveliness changed is more complicated than just add/remove. Encode the event
@@ -57,11 +58,6 @@ enum ddsi_writer_state {
 };
 
 typedef ddsrt_atomic_uint64_t seq_xmit_t;
-
-struct ldur_fhnode {
-  ddsrt_fibheap_node_t heapnode;
-  dds_duration_t ldur;
-};
 
 struct ddsi_writer
 {
@@ -99,7 +95,7 @@ struct ddsi_writer
   const struct ddsi_sertype * type; /* type of the data written by this writer */
   struct ddsi_addrset *as; /* set of addresses to publish to */
   struct ddsi_xevent *heartbeat_xevent; /* timed event for "periodically" publishing heartbeats when unack'd data present, NULL <=> unreliable */
-  struct ldur_fhnode *lease_duration; /* fibheap node to keep lease duration for this writer, NULL in case of automatic liveliness with inifite duration  */
+  struct ddsi_ldur_fhnode *lease_duration; /* fibheap node to keep lease duration for this writer, NULL in case of automatic liveliness with inifite duration  */
   struct ddsi_whc *whc; /* WHC tracking history, T-L durability service history + samples by sequence number for retransmit */
   uint32_t whc_low, whc_high; /* watermarks for WHC in bytes (counting only unack'd data) */
   ddsrt_etime_t t_rexmit_start;

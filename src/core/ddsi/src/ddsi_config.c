@@ -472,7 +472,7 @@ static void cfg_note_snprintf (struct cfg_note_buf *bb, const char *fmt, ...)
 static size_t cfg_note (struct ddsi_cfgst *cfgst, uint32_t cat, size_t bsz, const char *fmt, const char *suffix, va_list ap)
 {
   /* Have to snprintf our way to a single string so we can OS_REPORT
-     as well as nn_log.  Otherwise configuration errors will be lost
+     as well as ddsi_log.  Otherwise configuration errors will be lost
      completely on platforms where stderr doesn't actually work for
      outputting error messages (this includes Windows because of the
      way "ospl start" does its thing). */
@@ -2714,7 +2714,7 @@ void ddsi_config_fini (struct ddsi_cfgst *cfgst)
 
 #ifdef DDS_HAS_NETWORK_CHANNELS
 
-struct ddsi_config_channel_listelem *ddsi_find_network_channel (const struct config *cfg, nn_transport_priority_qospolicy_t transport_priority)
+struct ddsi_config_channel_listelem *ddsi_find_network_channel (const struct config *cfg, dds_transport_priority_qospolicy_t transport_priority)
 {
   struct ddsi_config_channel_listelem *c;
   /* Channel selection is to use the channel with the lowest priority

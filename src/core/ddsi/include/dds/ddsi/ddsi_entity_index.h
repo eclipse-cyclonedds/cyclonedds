@@ -77,13 +77,6 @@ struct ddsi_proxy_reader *ddsi_entidx_lookup_proxy_reader_guid (const struct dds
 
    - the caller must call init() before it may call next(); it must
      call fini() before it may call init() again. */
-struct ddsi_entity_enum_participant { struct ddsi_entity_enum st; };
-struct ddsi_entity_enum_writer { struct ddsi_entity_enum st; };
-struct ddsi_entity_enum_reader { struct ddsi_entity_enum st; };
-struct ddsi_entity_enum_proxy_participant { struct ddsi_entity_enum st; };
-struct ddsi_entity_enum_proxy_writer { struct ddsi_entity_enum st; };
-struct ddsi_entity_enum_proxy_reader { struct ddsi_entity_enum st; };
-
 void ddsi_entidx_enum_init (struct ddsi_entity_enum *st, const struct ddsi_entity_index *ei, enum ddsi_entity_kind kind) ddsrt_nonnull_all;
 void *ddsi_entidx_enum_next (struct ddsi_entity_enum *st) ddsrt_nonnull_all;
 void ddsi_entidx_enum_fini (struct ddsi_entity_enum *st) ddsrt_nonnull_all;

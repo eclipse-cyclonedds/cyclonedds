@@ -224,7 +224,7 @@ static int set_recvips (struct ddsi_domaingv *gv)
     }
     else
     {
-      struct config_in_addr_node **recvnode = &gv->recvips;
+      struct ddsi_config_in_addr_node **recvnode = &gv->recvips;
       int i, j;
       gv->recvips_mode = RECVIPS_MODE_SOME;
       for (i = 0; gv->config.networkRecvAddressStrings[i] != NULL; i++)
@@ -245,7 +245,7 @@ static int set_recvips (struct ddsi_domaingv *gv)
           GVERROR ("No interface bound to requested address '%s'\n", gv->config.networkRecvAddressStrings[i]);
           return -1;
         }
-        *recvnode = ddsrt_malloc (sizeof (struct config_in_addr_node));
+        *recvnode = ddsrt_malloc (sizeof (struct ddsi_config_in_addr_node));
         (*recvnode)->loc = loc;
         recvnode = &(*recvnode)->next;
         *recvnode = NULL;
@@ -1836,7 +1836,7 @@ err_unicast_sockets:
 err_set_ext_address:
   while (gv->recvips)
   {
-    struct config_in_addr_node *n = gv->recvips;
+    struct ddsi_config_in_addr_node *n = gv->recvips;
     gv->recvips = n->next;
     ddsrt_free (n);
   }
@@ -2240,7 +2240,7 @@ void ddsi_fini (struct ddsi_domaingv *gv)
 
   while (gv->recvips)
   {
-    struct config_in_addr_node *n = gv->recvips;
+    struct ddsi_config_in_addr_node *n = gv->recvips;
     /* The compiler doesn't realize that n->next is always initialized. */
     DDSRT_WARNING_MSVC_OFF(6001);
     gv->recvips = n->next;

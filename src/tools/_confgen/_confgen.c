@@ -47,7 +47,7 @@
 #define DEPRECATED(name) "|" name
 #define MEMBER(name) offsetof (struct ddsi_config, name), #name
 #define MEMBEROF(parent,name) 0, NULL /* default config for doesn't contain lists, so these aren't needed */
-/* renaming print functions to use prefix gendef_pf so that the symbols are different from those in q_config.c
+/* renaming print functions to use prefix gendef_pf so that the symbols are different from those in ddsi_config.c
    (they have file-local scope, so this isn't required, but I am guessing it will be less confusing in the long
    run, even if it means that 0/NULL will get translated to gendef_0/gendef_NULL, which then need additional
    macros to convert them back to 0 ... */

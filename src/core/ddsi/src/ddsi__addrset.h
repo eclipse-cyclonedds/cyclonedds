@@ -27,6 +27,12 @@ extern "C" {
 
 struct ddsi_domaingv;
 
+struct ddsi_addrset {
+  ddsrt_mutex_t lock;
+  ddsrt_atomic_uint32_t refc;
+  ddsrt_avl_ctree_t ucaddrs, mcaddrs;
+};
+
 typedef ssize_t (*ddsi_addrset_forone_fun_t) (const ddsi_xlocator_t *loc, void *arg);
 
 struct ddsi_addrset *ddsi_new_addrset (void);

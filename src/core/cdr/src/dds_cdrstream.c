@@ -2832,7 +2832,7 @@ static const uint32_t *stream_normalize_pl (char * __restrict data, uint32_t * _
            is dropped because of an unknown member that has the must-understand flag
            and a sample that is dropped because the data is invalid. This requires
            changes in the cdrstream interface, but also in the serdata interface to
-           pass the return value to q_receive. */
+           pass the return value to ddsi_receive. */
         if (must_understand)
           return normalize_error_ops ();
         *off = size2;

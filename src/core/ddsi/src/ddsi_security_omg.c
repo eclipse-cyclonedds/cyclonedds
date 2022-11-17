@@ -999,7 +999,7 @@ dds_return_t ddsi_omg_security_load (dds_security_context *sc, const dds_qos_t *
   }
 
 #if HANDSHAKE_IMPLEMENTED
-    (void) q_handshake_initialize ();
+    (void) handshake_initialize ();
 #endif
 
   deinit_plugin_suite_config (&psc);

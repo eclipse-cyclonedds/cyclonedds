@@ -217,7 +217,7 @@ static struct ddsi_serdata *serdata_plist_from_sample (const struct ddsi_sertype
   const struct { uint16_t identifier, options; } header = { ddsi_sertype_get_native_enc_identifier (DDSI_RTPS_CDR_ENC_VERSION_1, tp->encoding_format), 0 };
 
   // FIXME: key must not require byteswapping (GUIDs are ok)
-  // FIXME: rework plist stuff so it doesn't need an nn_xmsg
+  // FIXME: rework plist stuff so it doesn't need an ddsi_xmsg
   struct ddsi_domaingv * const gv = ddsrt_atomic_ldvoidp (&tp->c.gv);
   struct ddsi_xmsg *mpayload = ddsi_xmsg_new (gv->xmsgpool, &ddsi_nullguid, NULL, 0, DDSI_XMSG_KIND_DATA);
   memcpy (ddsi_xmsg_append (mpayload, NULL, 4), &header, 4);

@@ -21,11 +21,7 @@
 extern "C" {
 #endif
 
-struct ddsi_addrset {
-  ddsrt_mutex_t lock;
-  ddsrt_atomic_uint32_t refc;
-  ddsrt_avl_ctree_t ucaddrs, mcaddrs;
-};
+struct ddsi_addrset;
 
 typedef void (*ddsi_addrset_forall_fun_t) (const ddsi_xlocator_t *loc, void *arg);
 

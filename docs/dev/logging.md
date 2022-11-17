@@ -136,16 +136,16 @@ that can print to the native log api offered by a target. e.g.
 
 ## Log message guidelines
 * Write concise reports.
- * Do not leave out information, but also don't turn it into an essay. 
+ * Do not leave out information, but also don't turn it into an essay.
    e.g. a message for a failed write operation could include topic and
    partition names to indicate the affected system scope.
 * Write consistent reports.
- * Use the name of the parameter as it appears in the documentation for that 
+ * Use the name of the parameter as it appears in the documentation for that
    language binding to reference a parameter where applicable.
  * Use the same formatting style as other messages in the same module.
    * e.g. use "could not ..." or "failed to ..." consistently.
- * Avoid duplicate reports as much as possible. 
-   e.g. if a problem is reported in a lower layer, do not report it again when 
+ * Avoid duplicate reports as much as possible.
+   e.g. if a problem is reported in a lower layer, do not report it again when
    the error is propagated.
  * Discuss with one of the team members if you must deviate from the
    formatting rules/guidelines and update this page if applicable.
@@ -187,7 +187,7 @@ that can print to the native log api offered by a target. e.g.
   callback is not the place to handle errors gracefully. Return codes and
   exceptions are the mechanism to do that.
 
-* The logging API is different across modules. DDSI uses the nn_log macro
+* The logging API is different across modules. DDSI uses the ddsi_log macro
   family, the abstraction layer uses the OS_REPORT family and DDS uses the
   dds_report family. Apart from the macros used, the information that would
   end up in the report callback is also different.

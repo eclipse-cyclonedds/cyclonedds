@@ -29,6 +29,11 @@ struct ddsi_entity_common;
 struct ddsi_endpoint_common;
 struct dds_qos;
 
+struct ddsi_ldur_fhnode {
+  ddsrt_fibheap_node_t heapnode;
+  dds_duration_t ldur;
+};
+
 inline ddsi_seqno_t ddsi_writer_read_seq_xmit (const struct ddsi_writer *wr)
 {
   return ddsrt_atomic_ld64 (&wr->seq_xmit);

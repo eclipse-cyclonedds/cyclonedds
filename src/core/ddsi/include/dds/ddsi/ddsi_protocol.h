@@ -41,7 +41,7 @@ extern "C" {
 
 typedef uint32_t ddsi_count_t;
 
-typedef struct {
+typedef struct ddsi_protocol_version {
   uint8_t major, minor;
 } ddsi_protocol_version_t;
 

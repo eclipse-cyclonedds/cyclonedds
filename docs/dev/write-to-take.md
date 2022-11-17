@@ -51,14 +51,14 @@ are transmitted on a separate thread.
       |    - hands off the packet for synchronous/asynchronous publication
       |      when full/flushed
       |             |
-    nn_xpack_send.. | ......+ (*current* asynchronous mode)
+    ddsi_xpack_send.. | ......+ (*current* asynchronous mode)
       |             |       |
       |             |       v
-      |             |     nn_xpack_sendq_thread
+      |             |     ddsi_xpack_sendq_thread
       |             |       |
       |             |       |
       v             |       v
-    nn_xpack_send_real    nn_xpack_send_real
+    ddsi_xpack_send_real    ddsi_xpack_send_real
       |             |       |
       |    - transmits the packet using sendmsg()
       |    - releases record of samples just sent to track the highest seq#

@@ -25,7 +25,7 @@
 #include "ddsi__entity_index.h"
 #include "ddsi__wraddrset.h"
 #include "ddsi__tran.h"
-#include "ddsi__udp.h" /* nn_mc4gen_address_t */
+#include "ddsi__udp.h" /* ddsi_mc4gen_address_t */
 
 // For each (reader, locator) pair, the coverage map gives:
 // INT32_MIN if the reader isn't covered by this locator, >= INT32_MIN+1 if it is
