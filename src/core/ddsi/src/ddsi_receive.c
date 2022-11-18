@@ -1981,7 +1981,7 @@ static struct ddsi_serdata *get_serdata (struct ddsi_sertype const * const type,
   {
     sd->statusinfo = statusinfo;
     sd->timestamp = tstamp;
-    sd->seq_no = seq_no;
+    sd->sequence_number = seq_no;
   }
   return sd;
 }
