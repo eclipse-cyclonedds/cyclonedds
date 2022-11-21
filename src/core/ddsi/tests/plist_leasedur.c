@@ -28,6 +28,7 @@
 #include "ddsi__vendor.h"
 #include "ddsi__receive.h"
 #include "ddsi__tran.h"
+#include "ddsi__protocol.h"
 #include "mem_ser.h"
 
 /* We already used "liveliness" for participant lease durations in the API
@@ -267,9 +268,9 @@ static void ddsi_plist_leasedur_new_proxypp_impl (bool include_lease_duration)
     // GUID prefix: first two bytes ordinarily have vendor id, so 7,7 is
     // guaranteed to not be used locally
     TEST_GUIDPREFIX_BYTES,
-    // DATA (0x15); flags (4 = dataflag + big-endian); octets-to-next-header = 0
+    // DATA: flags (4 = dataflag + big-endian); octets-to-next-header = 0
     // means it continues until the end
-    0x15, 4, 0,0,
+    DDSI_RTPS_SMID_DATA, 4, 0,0,
     0,0, // extra flags
     0,16, // octets to inline QoS (no inline qos here, so: to payload)
     SER32BE (DDSI_ENTITYID_UNKNOWN),
@@ -379,13 +380,13 @@ static void ddsi_plist_leasedur_new_proxyrd_impl (bool include_lease_duration)
     // GUID prefix: first two bytes ordinarily have vendor id, so 7,7 is
     // guaranteed to not be used locally
     TEST_GUIDPREFIX_BYTES,
-    // INFO_DST (0xe); flags (0 = big-endian); octets-to-next-header = 12
-    0xe, 0, 0,12
+    // INFO_DST: flags (0 = big-endian); octets-to-next-header = 12
+    DDSI_RTPS_SMID_INFO_DST, 0, 0,12
     // guid prefix of local node (= ppguidprefix_base) comes here
   };
   const unsigned char pkt_p1[] = {
-    // HEARTBEAT (0x7); flags (2 = final+big-endian); octets-to-next-header = 28
-    0x7, 2, 0,28,
+    // HEARTBEAT; flags (2 = final+big-endian); octets-to-next-header = 28
+    DDSI_RTPS_SMID_HEARTBEAT, 2, 0,28,
     SER32BE (DDSI_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_READER),
     SER32BE (DDSI_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER),
     SER32BE (0), SER32BE (1), // min seq number 1 \_ empty WHC
@@ -393,9 +394,9 @@ static void ddsi_plist_leasedur_new_proxyrd_impl (bool include_lease_duration)
     SER32BE (1) // count
   };
   const unsigned char pkt_p2[] = {
-    // DATA (0x15); flags (4 = dataflag + big-endian); octets-to-next-header = 0
+    // DATA: flags (4 = dataflag + big-endian); octets-to-next-header = 0
     // means it continues until the end
-    0x15, 4, 0,0,
+    DDSI_RTPS_SMID_DATA, 4, 0,0,
     0,0, // extra flags
     0,16, // octets to inline QoS (no inline qos here, so: to payload)
     SER32BE (DDSI_ENTITYID_UNKNOWN),
