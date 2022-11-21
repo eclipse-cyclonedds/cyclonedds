@@ -157,6 +157,7 @@ set(hdrs_private_ddsi
   ddsi__nwpart.h
   ddsi__ownip.h
   ddsi__participant.h
+  ddsi__plist_context_kind.h
   ddsi__plist_generic.h
   ddsi__serdata_pserop.h
   ddsi__pmd.h

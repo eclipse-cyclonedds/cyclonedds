@@ -164,6 +164,22 @@ static struct ddsi_serdata *serdata_plist_from_keyhash (const struct ddsi_sertyp
   return serdata_plist_from_ser_iov (tpcmn, SDK_KEY, 1, &iov, sizeof (in) - 4);
 }
 
+static enum ddsi_plist_context_kind get_plist_context_kind (ddsi_parameterid_t keypid)
+{
+  switch (keypid)
+  {
+    case DDSI_PID_PARTICIPANT_GUID:
+      return DDSI_PLIST_CONTEXT_PARTICIPANT;
+    case DDSI_PID_ENDPOINT_GUID:
+    case DDSI_PID_ADLINK_ENDPOINT_GUID:
+      return DDSI_PLIST_CONTEXT_ENDPOINT;
+    case DDSI_PID_CYCLONE_TOPIC_GUID:
+      return DDSI_PLIST_CONTEXT_TOPIC;
+    default:
+      return DDSI_PLIST_CONTEXT_INLINE_QOS;
+  }
+}
+
 static bool serdata_plist_untyped_to_sample (const struct ddsi_sertype *tpcmn, const struct ddsi_serdata *serdata_common, void *sample, void **bufptr, void *buflim)
 {
   const struct ddsi_serdata_plist *d = (const struct ddsi_serdata_plist *)serdata_common;
@@ -178,11 +194,7 @@ static bool serdata_plist_untyped_to_sample (const struct ddsi_sertype *tpcmn, c
     .strict = DDSI_SC_STRICT_P (gv->config),
     .vendorid = d->vendorid
   };
-  enum ddsi_plist_context_kind context_kind;
-  if (tp->keyparam == DDSI_PID_PARTICIPANT_GUID)
-    context_kind = DDSI_PLIST_CONTEXT_PARTICIPANT;
-  else
-    context_kind = DDSI_PLIST_CONTEXT_ENDPOINT;
+  const enum ddsi_plist_context_kind context_kind = get_plist_context_kind (tp->keyparam);
   const dds_return_t rc = ddsi_plist_init_frommsg (sample, NULL, ~(uint64_t)0, ~(uint64_t)0, &src, gv, context_kind);
   // FIXME: need a more informative return type
   if (rc != DDS_RETCODE_OK && rc != DDS_RETCODE_UNSUPPORTED)
@@ -226,11 +238,7 @@ static struct ddsi_serdata *serdata_plist_from_sample (const struct ddsi_sertype
   struct ddsi_domaingv * const gv = ddsrt_atomic_ldvoidp (&tp->c.gv);
   struct ddsi_xmsg *mpayload = ddsi_xmsg_new (gv->xmsgpool, &ddsi_nullguid, NULL, 0, DDSI_XMSG_KIND_DATA);
   memcpy (ddsi_xmsg_append (mpayload, NULL, 4), &header, 4);
-  enum ddsi_plist_context_kind context_kind;
-  if (tp->keyparam == DDSI_PID_PARTICIPANT_GUID)
-    context_kind = DDSI_PLIST_CONTEXT_PARTICIPANT;
-  else
-    context_kind = DDSI_PLIST_CONTEXT_ENDPOINT;
+  const enum ddsi_plist_context_kind context_kind = get_plist_context_kind (tp->keyparam);
   ddsi_plist_addtomsg (mpayload, sample, ~(uint64_t)0, ~(uint64_t)0, context_kind);
   ddsi_xmsg_addpar_sentinel (mpayload);
 
@@ -291,11 +299,7 @@ static size_t serdata_plist_print_plist (const struct ddsi_sertype *sertype_comm
     .vendorid = d->vendorid
   };
   ddsi_plist_t tmp;
-  enum ddsi_plist_context_kind context_kind;
-  if (tp->keyparam == DDSI_PID_PARTICIPANT_GUID)
-    context_kind = DDSI_PLIST_CONTEXT_PARTICIPANT;
-  else
-    context_kind = DDSI_PLIST_CONTEXT_ENDPOINT;
+  const enum ddsi_plist_context_kind context_kind = get_plist_context_kind (tp->keyparam);
   if (ddsi_plist_init_frommsg (&tmp, NULL, ~(uint64_t)0, ~(uint64_t)0, &src, gv, context_kind) < 0)
     return (size_t) snprintf (buf, size, "(unparseable-plist)");
   else

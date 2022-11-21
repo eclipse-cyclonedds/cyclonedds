@@ -19,7 +19,7 @@
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "ddsi__protocol.h"
-
+#include "ddsi__plist_context_kind.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -86,11 +86,6 @@ struct ddsi_plist_sample {
   void *blob;
   size_t size;
   ddsi_parameterid_t keyparam;
-};
-
-enum ddsi_plist_context_kind {
-  DDSI_PLIST_CONTEXT_PARTICIPANT,
-  DDSI_PLIST_CONTEXT_ENDPOINT,
 };
 
 extern const ddsi_plist_t ddsi_default_plist_participant;

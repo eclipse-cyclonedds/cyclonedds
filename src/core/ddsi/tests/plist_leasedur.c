@@ -61,38 +61,40 @@ struct plist_valid {
   dds_duration_t lease_duration;
 };
 struct plist_cdr {
-  struct plist_valid exp[2]; // SPDP, SEDP
+  struct plist_valid spdp, others;
   unsigned char cdr[44];
 };
 static const struct plist_cdr plists[] = {
-  { { { true, true, DDS_LIVELINESS_AUTOMATIC, 3071111111 },
-      { true, false, (dds_liveliness_kind_t)0, 0 } },
-    { LD(3,0x12345679), SENTINEL } },
-  { { { true, false, (dds_liveliness_kind_t)0, 0 },
-      { true, true, DDS_LIVELINESS_MANUAL_BY_PARTICIPANT, 2041944443 } },
-    { LL(1, 2,0x0abcdefb), SENTINEL } },
-  { { { true, true, DDS_LIVELINESS_AUTOMATIC, 3071111111 },
-      { true, true, DDS_LIVELINESS_MANUAL_BY_PARTICIPANT, 2041944443 } },
-    { LD(3,0x12345679), LL(1, 2,0x0abcdefb), SENTINEL } },
-  { { { true, true, DDS_LIVELINESS_AUTOMATIC, 3071111111 },
-      { true, true, DDS_LIVELINESS_MANUAL_BY_PARTICIPANT, 2041944443 } },
-    { LL(1, 2,0x0abcdefb), LD(3,0x12345679), SENTINEL } },
+  { .spdp = { true, true, DDS_LIVELINESS_AUTOMATIC, 3071111111 },
+    .others = { true, false, (dds_liveliness_kind_t)0, 0 },
+    .cdr = { LD(3,0x12345679), SENTINEL } },
+  { .spdp = { true, false, (dds_liveliness_kind_t)0, 0 },
+    .others = { true, true, DDS_LIVELINESS_MANUAL_BY_PARTICIPANT, 2041944443 },
+    .cdr = { LL(1, 2,0x0abcdefb), SENTINEL } },
+  { .spdp = { true, true, DDS_LIVELINESS_AUTOMATIC, 3071111111 },
+    .others = { true, true, DDS_LIVELINESS_MANUAL_BY_PARTICIPANT, 2041944443 },
+    .cdr = { LD(3,0x12345679), LL(1, 2,0x0abcdefb), SENTINEL } },
+  { .spdp = { true, true, DDS_LIVELINESS_AUTOMATIC, 3071111111 },
+    .others = { true, true, DDS_LIVELINESS_MANUAL_BY_PARTICIPANT, 2041944443 },
+    .cdr = { LL(1, 2,0x0abcdefb), LD(3,0x12345679), SENTINEL } },
   { // invalid for SPDP because there are two copies of lease duration,
     // SEDP ignores those and so accepts it
-    { { false, false, (dds_liveliness_kind_t)0, 0 },
-      { true,  false, (dds_liveliness_kind_t)0, 0 } },
-    { LD(3,0x12345679), LD(4,0x12345679), SENTINEL } },
+    .spdp = { false, false, (dds_liveliness_kind_t)0, 0 },
+    .others = { true,  false, (dds_liveliness_kind_t)0, 0 },
+    .cdr = { LD(3,0x12345679), LD(4,0x12345679), SENTINEL } },
   { // invalid for SEDP because there are two copies of liveliness,
     // SPDP ignores those and so accepts it
-    { { true, false, (dds_liveliness_kind_t)0, 0 },
-      { false, false, (dds_liveliness_kind_t)0, 0 } },
-    { LL(1, 2,0x0abcdefb), LL(1, 5,0x0abcdefb), SENTINEL } },
+    .spdp = { true, false, (dds_liveliness_kind_t)0, 0 },
+    .others = { false, false, (dds_liveliness_kind_t)0, 0 },
+    .cdr = { LL(1, 2,0x0abcdefb), LL(1, 5,0x0abcdefb), SENTINEL } },
 };
 
 // context table order must match use in plists[i].valid
 static const enum ddsi_plist_context_kind contexts[] = {
   DDSI_PLIST_CONTEXT_PARTICIPANT,
-  DDSI_PLIST_CONTEXT_ENDPOINT
+  DDSI_PLIST_CONTEXT_ENDPOINT,
+  DDSI_PLIST_CONTEXT_TOPIC,
+  DDSI_PLIST_CONTEXT_INLINE_QOS
 };
 
 static struct ddsi_cfgst *cfgst;
@@ -140,7 +142,8 @@ CU_Test (ddsi_plist_leasedur, deser, .init = setup, .fini = teardown)
       ddsi_plist_t plist;
       dds_return_t ret;
 
-      struct plist_valid const * const exp = &plists[i].exp[j];
+      struct plist_valid const * const exp =
+        (contexts[j] == DDSI_PLIST_CONTEXT_PARTICIPANT) ? &plists[i].spdp : &plists[i].others;
       ret = ddsi_plist_init_frommsg (&plist, NULL, ~(uint64_t)0, ~(uint64_t)0, &src, &gv, contexts[j]);
       CU_ASSERT_FATAL ((ret == 0) == exp->valid);
       if (exp->valid)
@@ -184,29 +187,36 @@ CU_Test (ddsi_plist_leasedur, ser_spdp, .init = setup, .fini = teardown)
   ddsi_xmsg_free (m);
 }
 
-CU_Test (ddsi_plist_leasedur, ser_sedp, .init = setup, .fini = teardown)
+CU_Test (ddsi_plist_leasedur, ser_others, .init = setup, .fini = teardown)
 {
-  ddsi_guid_t guid;
-  memset (&guid, 0, sizeof (guid));
-  struct ddsi_xmsg *m = ddsi_xmsg_new (gv.xmsgpool, &guid, NULL, 64, DDSI_XMSG_KIND_DATA);
-  CU_ASSERT_FATAL (m != NULL);
-  struct ddsi_xmsg_marker marker;
-  (void) ddsi_xmsg_append (m, &marker, 0);
+  for (size_t j = 0; j < sizeof (contexts) / sizeof (contexts[0]); j++)
+  {
+    // SPDP is handled separately
+    if (contexts[j] == DDSI_PLIST_CONTEXT_PARTICIPANT)
+      continue;
 
-  ddsi_plist_t plist;
-  ddsi_plist_init_empty (&plist);
-  plist.qos.present |= DDSI_QP_LIVELINESS;
-  plist.qos.liveliness.kind = DDS_LIVELINESS_MANUAL_BY_PARTICIPANT;
-  plist.qos.liveliness.lease_duration = 2041944443;
-  ddsi_plist_addtomsg_bo (m, &plist, 0, DDSI_QP_LIVELINESS, DDSRT_BOSEL_BE, DDSI_PLIST_CONTEXT_ENDPOINT);
-  ddsi_xmsg_addpar_sentinel_bo (m, DDSRT_BOSEL_BE);
+    ddsi_guid_t guid;
+    memset (&guid, 0, sizeof (guid));
+    struct ddsi_xmsg *m = ddsi_xmsg_new (gv.xmsgpool, &guid, NULL, 64, DDSI_XMSG_KIND_DATA);
+    CU_ASSERT_FATAL (m != NULL);
+    struct ddsi_xmsg_marker marker;
+    (void) ddsi_xmsg_append (m, &marker, 0);
 
-  const uint8_t expected[] = { LL(1, 2,0x0abcdefb), SENTINEL };
-  const unsigned char *cdr = ddsi_xmsg_submsg_from_marker (m, marker);
-  CU_ASSERT (memcmp (expected, cdr, sizeof (expected)) == 0);
+    ddsi_plist_t plist;
+    ddsi_plist_init_empty (&plist);
+    plist.qos.present |= DDSI_QP_LIVELINESS;
+    plist.qos.liveliness.kind = DDS_LIVELINESS_MANUAL_BY_PARTICIPANT;
+    plist.qos.liveliness.lease_duration = 2041944443;
+    ddsi_plist_addtomsg_bo (m, &plist, 0, DDSI_QP_LIVELINESS, DDSRT_BOSEL_BE, DDSI_PLIST_CONTEXT_ENDPOINT);
+    ddsi_xmsg_addpar_sentinel_bo (m, DDSRT_BOSEL_BE);
 
-  ddsi_plist_fini (&plist);
-  ddsi_xmsg_free (m);
+    const uint8_t expected[] = { LL(1, 2,0x0abcdefb), SENTINEL };
+    const unsigned char *cdr = ddsi_xmsg_submsg_from_marker (m, marker);
+    CU_ASSERT (memcmp (expected, cdr, sizeof (expected)) == 0);
+
+    ddsi_plist_fini (&plist);
+    ddsi_xmsg_free (m);
+  }
 }
 
 #define UDPLOCATOR(a,b,c,d,port) \
