@@ -175,9 +175,10 @@ static void sort_parent_paths (struct key_containers *key_containers)
   }
 }
 
-static bool has_conflicting_keys(const struct key_containers *key_containers, const idl_node_t **node)
+static bool check_for_conflicting_keys(struct key_containers *key_containers, const idl_node_t **node)
 {
   assert (node);
+  sort_parent_paths (key_containers);
   struct key_containers_iter it;
   for (const struct key_container *cntr = key_containers_first_c (key_containers, &it); cntr; cntr = key_containers_next_c (&it))
   {
@@ -334,11 +335,10 @@ idl_retcode_t idl_validate_keylists(idl_pstate_t *pstate)
   assert(pstate);
   if ((ret = get_keylist_key_paths (pstate, pstate->root, key_containers) != IDL_RETCODE_OK))
     goto err_create_key;
-  sort_parent_paths (key_containers);
 
   /* Check for conflicting keys */
   const idl_node_t *conflicting_type;
-  if (has_conflicting_keys (key_containers, &conflicting_type))
+  if (check_for_conflicting_keys (key_containers, &conflicting_type))
   {
     idl_error(pstate, idl_location(conflicting_type),
               "Conflicting keys in keylist directive for type '%s'", idl_identifier(conflicting_type));
