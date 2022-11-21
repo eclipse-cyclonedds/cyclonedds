@@ -268,7 +268,7 @@ static void set_ddsi_topic_definition_hash (struct ddsi_topic_definition *tpd)
      dependent type ids and therefore may be different for equal
      type definitions */
   struct ddsi_xmsg *mqos = ddsi_xmsg_new (tpd->gv->xmsgpool, &ddsi_nullguid, NULL, 0, DDSI_XMSG_KIND_DATA);
-  ddsi_xqos_addtomsg (mqos, tpd->xqos, ~(DDSI_QP_TYPE_INFORMATION));
+  ddsi_xqos_addtomsg (mqos, tpd->xqos, ~(DDSI_QP_TYPE_INFORMATION), DDSI_PLIST_CONTEXT_TOPIC);
   size_t sqos_sz;
   void * sqos = ddsi_xmsg_payload (&sqos_sz, mqos);
   assert (sqos_sz <= UINT32_MAX);

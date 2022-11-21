@@ -637,12 +637,17 @@ static dds_return_t deser_liveliness (void * __restrict dst, struct flagset *fla
       x->kind = DDS_LIVELINESS_AUTOMATIC;
       break;
     }
-    case DDSI_PLIST_CONTEXT_ENDPOINT: {
+    case DDSI_PLIST_CONTEXT_ENDPOINT:
+    case DDSI_PLIST_CONTEXT_TOPIC:
+    case DDSI_PLIST_CONTEXT_INLINE_QOS: {
       uint32_t kind;
       if (deser_uint32 (&kind, dd, &srcoff) < 0 || validate_liveliness_kind (kind) != 0)
         return DDS_RETCODE_BAD_PARAMETER;
       x->kind = (dds_liveliness_kind_t) kind;
       break;
+    }
+    case DDSI_PLIST_CONTEXT_QOS_DISALLOWED: {
+      return DDS_RETCODE_BAD_PARAMETER;
     }
   }
   ddsi_duration_t tmp;
@@ -669,13 +674,18 @@ static dds_return_t ser_liveliness (struct ddsi_xmsg *xmsg, ddsi_parameterid_t p
       p[1] = ddsrt_toBO4u(bo, tmp.fraction);
       break;
     }
-    case DDSI_PLIST_CONTEXT_ENDPOINT: {
+    case DDSI_PLIST_CONTEXT_ENDPOINT:
+    case DDSI_PLIST_CONTEXT_TOPIC:
+    case DDSI_PLIST_CONTEXT_INLINE_QOS: {
       uint32_t * const p = ddsi_xmsg_addpar_bo (xmsg, DDSI_PID_LIVELINESS, sizeof (uint32_t) + sizeof (ddsi_duration_t), bo);
       const ddsi_duration_t tmp = ddsi_duration_from_dds (x->lease_duration);
       p[0] = ddsrt_toBO4u(bo, (uint32_t) x->kind);
       p[1] = ddsrt_toBO4u(bo, (uint32_t) tmp.seconds);
       p[2] = ddsrt_toBO4u(bo, tmp.fraction);
       break;
+    }
+    case DDSI_PLIST_CONTEXT_QOS_DISALLOWED: {
+      return DDS_RETCODE_BAD_PARAMETER;
     }
   }
   return 0;
@@ -1187,7 +1197,7 @@ dds_return_t ddsi_plist_deser_generic_srcoff (void * __restrict dst, const void 
     .bswap = bswap,
     .protocol_version = {0,0},
     .vendorid = DDSI_VENDORID_ECLIPSE,
-    .context_kind = DDSI_PLIST_CONTEXT_ENDPOINT // actually: don't care
+    .context_kind = DDSI_PLIST_CONTEXT_QOS_DISALLOWED
   };
   uint64_t present = 0, aliased = 0;
   struct flagset fs = { .present = &present, .aliased = &aliased, .wanted = 1 };
@@ -3037,9 +3047,13 @@ static dds_return_t init_one_parameter (ddsi_plist_t *plist, ddsi_ipaddress_para
         pid = DDSI_PID_LIVELINESS;
       break;
     case DDSI_PLIST_CONTEXT_ENDPOINT:
+    case DDSI_PLIST_CONTEXT_TOPIC:
+    case DDSI_PLIST_CONTEXT_INLINE_QOS:
       if (pid == DDSI_PID_PARTICIPANT_LEASE_DURATION)
         return 0;
       break;
+    case DDSI_PLIST_CONTEXT_QOS_DISALLOWED:
+      return DDS_RETCODE_BAD_PARAMETER;
   }
 
   /* special-cased ipv4address and port, because they have state beyond that what gets
@@ -3067,7 +3081,7 @@ static dds_return_t init_one_parameter (ddsi_plist_t *plist, ddsi_ipaddress_para
   else if (dd->vendorid.id[1] >= sizeof (piddesc_vendor_index) / sizeof (piddesc_vendor_index[0]))
     return return_unrecognized_pid (plist, pid);
   else if (piddesc_vendor_index[dd->vendorid.id[1]].index == NULL)
-  return return_unrecognized_pid (plist, pid);
+    return return_unrecognized_pid (plist, pid);
   else
     index = &piddesc_vendor_index[dd->vendorid.id[1]];
 
@@ -3927,10 +3941,9 @@ static int partitions_equal (const void *srca, const void *srcb, size_t off)
 
 /*************************/
 
-void ddsi_xqos_addtomsg (struct ddsi_xmsg *m, const dds_qos_t *xqos, uint64_t wanted)
+void ddsi_xqos_addtomsg (struct ddsi_xmsg *m, const dds_qos_t *xqos, uint64_t wanted, enum ddsi_plist_context_kind context_kind)
 {
-  // FIXME: not sure it is wise to hard-code the context here
-  plist_or_xqos_addtomsg (m, xqos, offsetof (struct ddsi_plist, qos), 0, wanted, DDSRT_BOSEL_NATIVE, DDSI_PLIST_CONTEXT_ENDPOINT);
+  plist_or_xqos_addtomsg (m, xqos, offsetof (struct ddsi_plist, qos), 0, wanted, DDSRT_BOSEL_NATIVE, context_kind);
 }
 
 void ddsi_plist_addtomsg_bo (struct ddsi_xmsg *m, const ddsi_plist_t *ps, uint64_t pwanted, uint64_t qwanted, enum ddsrt_byte_order_selector bo, enum ddsi_plist_context_kind context_kind)

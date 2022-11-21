@@ -18,6 +18,7 @@
 #include "dds/ddsi/ddsi_log.h"
 #include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsc/dds_public_qosdefs.h"
+#include "ddsi__plist_context_kind.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -62,8 +63,9 @@ void ddsi_xqos_fini_mask (dds_qos_t *xqos, uint64_t mask);
  * @param[in,out] m        message to append the parameters to
  * @param[in]     xqos     source
  * @param[in]     wanted   subset to be added (if DDSI_QP_X is set, add X if present)
+ * @param[in]     context_kind  context for interpretation of QoS settings
  */
-void ddsi_xqos_addtomsg (struct ddsi_xmsg *m, const dds_qos_t *xqos, uint64_t wanted);
+void ddsi_xqos_addtomsg (struct ddsi_xmsg *m, const dds_qos_t *xqos, uint64_t wanted, enum ddsi_plist_context_kind context_kind);
 
 /**
  * @brief Formats xqos using `ddsi_xqos_print` and writes it to the trace.
