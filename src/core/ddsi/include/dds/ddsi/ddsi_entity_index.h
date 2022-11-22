@@ -61,6 +61,7 @@ void *ddsi_entidx_lookup_guid (const struct ddsi_entity_index *ei, const struct 
 struct ddsi_participant *ddsi_entidx_lookup_participant_guid (const struct ddsi_entity_index *ei, const struct ddsi_guid *guid) ddsrt_nonnull_all;
 struct ddsi_writer *ddsi_entidx_lookup_writer_guid (const struct ddsi_entity_index *ei, const struct ddsi_guid *guid) ddsrt_nonnull_all;
 struct ddsi_reader *ddsi_entidx_lookup_reader_guid (const struct ddsi_entity_index *ei, const struct ddsi_guid *guid) ddsrt_nonnull_all;
+struct ddsi_proxy_participant *ddsi_entidx_lookup_proxy_participant_guid (const struct ddsi_entity_index *ei, const struct ddsi_guid *guid) ddsrt_nonnull_all;
 struct ddsi_proxy_writer *ddsi_entidx_lookup_proxy_writer_guid (const struct ddsi_entity_index *ei, const struct ddsi_guid *guid) ddsrt_nonnull_all;
 struct ddsi_proxy_reader *ddsi_entidx_lookup_proxy_reader_guid (const struct ddsi_entity_index *ei, const struct ddsi_guid *guid) ddsrt_nonnull_all;
 

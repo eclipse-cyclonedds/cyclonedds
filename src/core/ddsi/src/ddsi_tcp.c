@@ -301,7 +301,7 @@ static void ddsi_tcp_conn_connect (ddsi_tcp_conn_t conn, const ddsrt_msghdr_t * 
   (void)ddsrt_setsocknonblocking(conn->m_sock, true);
 
   assert (conn->m_base.m_base.gv->n_recv_threads > 0);
-  assert (conn->m_base.m_base.gv->recv_threads[0].arg.mode == RTM_MANY);
+  assert (conn->m_base.m_base.gv->recv_threads[0].arg.mode == DDSI_RTM_MANY);
   ddsi_sock_waitset_add (conn->m_base.m_base.gv->recv_threads[0].arg.u.many.ws, &conn->m_base);
   ddsi_sock_waitset_trigger (conn->m_base.m_base.gv->recv_threads[0].arg.u.many.ws);
   return;

@@ -3459,7 +3459,7 @@ static int recv_thread_waitset_add_conn (struct ddsi_sock_waitset * ws, struct d
   {
     struct ddsi_domaingv *gv = conn->m_base.gv;
     for (uint32_t i = 0; i < gv->n_recv_threads; i++)
-      if (gv->recv_threads[i].arg.mode == RTM_SINGLE && gv->recv_threads[i].arg.u.single.conn == conn)
+      if (gv->recv_threads[i].arg.mode == DDSI_RTM_SINGLE && gv->recv_threads[i].arg.u.single.conn == conn)
         return 0;
     return ddsi_sock_waitset_add (ws, conn);
   }
@@ -3473,7 +3473,7 @@ void ddsi_trigger_recv_threads (const struct ddsi_domaingv *gv)
       continue;
     switch (gv->recv_threads[i].arg.mode)
     {
-      case RTM_SINGLE: {
+      case DDSI_RTM_SINGLE: {
         char buf[DDSI_LOCSTRLEN];
         char dummy = 0;
         const ddsi_locator_t *dst = gv->recv_threads[i].arg.u.single.loc;
@@ -3485,7 +3485,7 @@ void ddsi_trigger_recv_threads (const struct ddsi_domaingv *gv)
         ddsi_conn_write (gv->xmit_conns[0], dst, 1, &iov, 0);
         break;
       }
-      case RTM_MANY: {
+      case DDSI_RTM_MANY: {
         GVTRACE ("ddsi_trigger_recv_threads: %"PRIu32" many %p\n", i, (void *) gv->recv_threads[i].arg.u.many.ws);
         ddsi_sock_waitset_trigger (gv->recv_threads[i].arg.u.many.ws);
         break;
@@ -3497,10 +3497,10 @@ void ddsi_trigger_recv_threads (const struct ddsi_domaingv *gv)
 uint32_t ddsi_recv_thread (void *vrecv_thread_arg)
 {
   struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
-  struct recv_thread_arg *recv_thread_arg = vrecv_thread_arg;
+  struct ddsi_recv_thread_arg *recv_thread_arg = vrecv_thread_arg;
   struct ddsi_domaingv * const gv = recv_thread_arg->gv;
   struct ddsi_rbufpool *rbpool = recv_thread_arg->rbpool;
-  struct ddsi_sock_waitset * waitset = recv_thread_arg->mode == RTM_MANY ? recv_thread_arg->u.many.ws : NULL;
+  struct ddsi_sock_waitset * waitset = recv_thread_arg->mode == DDSI_RTM_MANY ? recv_thread_arg->u.many.ws : NULL;
   ddsrt_mtime_t next_thread_cputime = { 0 };
 
   ddsi_rbufpool_setowner (rbpool, ddsrt_thread_self ());

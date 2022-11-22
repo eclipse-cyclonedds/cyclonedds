@@ -71,7 +71,7 @@ void ddsi_xmsg_setdst_pwr (struct ddsi_xmsg *m, const struct ddsi_proxy_writer *
 
 /* For sending to all in the address set AS -- typically, the writer's
    address set to multicast to all matched readers */
-void ddsi_xmsg_setdst_n (struct ddsi_xmsg *msg, struct ddsi_addrset *as);
+void ddsi_xmsg_setdst_addrset (struct ddsi_xmsg *msg, struct ddsi_addrset *as);
 
 int ddsi_xmsg_setmaxdelay (struct ddsi_xmsg *msg, int64_t maxdelay);
 

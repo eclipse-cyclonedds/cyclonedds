@@ -765,7 +765,7 @@ void ddsi_xmsg_setdst_pwr (struct ddsi_xmsg *m, const struct ddsi_proxy_writer *
   }
 }
 
-void ddsi_xmsg_setdst_n (struct ddsi_xmsg *m, struct ddsi_addrset *as)
+void ddsi_xmsg_setdst_addrset (struct ddsi_xmsg *m, struct ddsi_addrset *as)
 {
   assert (m->dstmode == NN_XMSG_DST_UNSET || m->dstmode == NN_XMSG_DST_ONE);
   m->dstmode = NN_XMSG_DST_ALL;

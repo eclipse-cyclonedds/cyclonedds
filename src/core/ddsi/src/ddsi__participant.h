@@ -50,41 +50,6 @@ struct ddsi_deleted_participants_admin {
   int64_t delay;
 };
 
-/* Interface for glue code between the OpenSplice kernel and the DDSI
-   entities. These all return 0 iff successful. All GIDs supplied
-   __MUST_BE_UNIQUE__. All hell may break loose if they aren't.
-
-   All delete operations synchronously remove the entity being deleted
-   from the various global hash tables on GUIDs. This ensures no new
-   operations can be invoked by the glue code, discovery, protocol
-   messages, &c.  The entity is then scheduled for garbage collection.
-
-     There is one exception: a participant without built-in
-     endpoints: that one synchronously reaches reference count zero
-     and is then freed immediately.
-
-     If ddsi_new_writer () and/or ddsi_new_reader () may be called in parallel to
-     ddsi_delete_participant (), trouble ensues. The current glue code
-     performs all local discovery single-threaded, and can't ever get
-     into that issue.
-
-   A garbage collector thread is used to perform the actual freeing of
-   an entity, but it never does so before all threads have made
-   sufficient progress to guarantee they are not using that entity any
-   longer, with the exception of use via internal pointers in the
-   entity data structures.
-
-   An example of the latter is that (proxy) endpoints have a pointer
-   to the owning (proxy) participant, but the (proxy) participant is
-   reference counted to make this safe.
-
-   The case of a proxy writer is particularly complicated is it has to
-   pass through a multiple-stage delay in the garbage collector before
-   it may be freed: first there is the possibility of a parallel
-   delete or protocol message, then there is still the possibility of
-   data in a delivery queue.  This is dealt by requeueing garbage
-   collection and sending bubbles through the delivery queue. */
-
 /* Set this flag in new_participant to prevent the creation SPDP, SEDP
    and PMD readers for that participant.  It doesn't really need it,
    they all share the information anyway.  But you do need it once. */

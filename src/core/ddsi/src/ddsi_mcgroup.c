@@ -192,22 +192,22 @@ static int joinleave_mcgroups (const struct ddsi_domaingv *gv, struct ddsi_tran_
   int rc;
   switch (gv->recvips_mode)
   {
-    case RECVIPS_MODE_NONE:
+    case DDSI_RECVIPS_MODE_NONE:
       break;
-    case RECVIPS_MODE_ANY:
+    case DDSI_RECVIPS_MODE_ANY:
       /* User has specified to use the OS default interface */
       if ((rc = joinleave_mcgroup (conn, join, srcloc, mcloc, NULL)) < 0)
         return rc;
       break;
-    case RECVIPS_MODE_ALL:
-    case RECVIPS_MODE_SOME:
-    case RECVIPS_MODE_PREFERRED: {
+    case DDSI_RECVIPS_MODE_ALL:
+    case DDSI_RECVIPS_MODE_SOME:
+    case DDSI_RECVIPS_MODE_PREFERRED: {
       int i, fails = 0, oks = 0;
       for (i = 0; i < gv->n_interfaces; i++)
       {
         if (gv->interfaces[i].mc_capable)
         {
-          if (gv->recvips_mode == RECVIPS_MODE_ALL || gv->recvips_mode == RECVIPS_MODE_PREFERRED || interface_in_recvips_p (gv->recvips, &gv->interfaces[i]))
+          if (gv->recvips_mode == DDSI_RECVIPS_MODE_ALL || gv->recvips_mode == DDSI_RECVIPS_MODE_PREFERRED || interface_in_recvips_p (gv->recvips, &gv->interfaces[i]))
           {
             if (joinleave_mcgroup (conn, join, srcloc, mcloc, &gv->interfaces[i]) < 0)
               fails++;

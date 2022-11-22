@@ -977,7 +977,7 @@ static struct cfgelem compatibility_cfgelems[] = {
     MEMBER(assume_rti_has_pmd_endpoints),
     FUNCTIONS(0, uf_boolean, 0, pf_boolean),
     DESCRIPTION(
-      "<p>This option assumes ddsi_participant_message_data endpoints required by "
+      "<p>This option assumes ParticipantMessageData endpoints required by "
       "the liveliness protocol are present in RTI participants even when not "
       "properly advertised by the participant discovery protocol.</p>"
     )),

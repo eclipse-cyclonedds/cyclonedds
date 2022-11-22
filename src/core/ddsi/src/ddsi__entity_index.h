@@ -68,8 +68,6 @@ void ddsi_entidx_remove_reader_guid (struct ddsi_entity_index *ei, struct ddsi_r
 void ddsi_entidx_remove_proxy_writer_guid (struct ddsi_entity_index *ei, struct ddsi_proxy_writer *pwr) ddsrt_nonnull_all;
 void ddsi_entidx_remove_proxy_reader_guid (struct ddsi_entity_index *ei, struct ddsi_proxy_reader *prd) ddsrt_nonnull_all;
 
-struct ddsi_proxy_participant *ddsi_entidx_lookup_proxy_participant_guid (const struct ddsi_entity_index *ei, const struct ddsi_guid *guid) ddsrt_nonnull_all;
-
 void ddsi_entidx_enum_init_topic (struct ddsi_entity_enum *st, const struct ddsi_entity_index *gh, enum ddsi_entity_kind kind, const char *topic, struct ddsi_match_entities_range_key *max) ddsrt_nonnull_all;
 void ddsi_entidx_enum_init_topic_w_prefix (struct ddsi_entity_enum *st, const struct ddsi_entity_index *ei, enum ddsi_entity_kind kind, const char *topic, const ddsi_guid_prefix_t *prefix, struct ddsi_match_entities_range_key *max) ddsrt_nonnull_all;
 void *ddsi_entidx_enum_next_max (struct ddsi_entity_enum *st, const struct ddsi_match_entities_range_key *max) ddsrt_nonnull_all;

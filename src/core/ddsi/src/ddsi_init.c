@@ -172,11 +172,11 @@ static int set_recvips (struct ddsi_domaingv *gv)
       if (gv->using_link_local_intf)
       {
         GVWARNING ("DDSI2EService/General/MulticastRecvNetworkInterfaceAddresses: using 'preferred' instead of 'all' because of link-local address\n");
-        gv->recvips_mode = RECVIPS_MODE_PREFERRED;
+        gv->recvips_mode = DDSI_RECVIPS_MODE_PREFERRED;
       }
       else
       {
-        gv->recvips_mode = RECVIPS_MODE_ALL;
+        gv->recvips_mode = DDSI_RECVIPS_MODE_ALL;
       }
     }
     else if (ddsrt_strcasecmp (gv->config.networkRecvAddressStrings[0], "any") == 0)
@@ -186,15 +186,15 @@ static int set_recvips (struct ddsi_domaingv *gv)
         GVERROR ("DDSI2EService/General/MulticastRecvNetworkInterfaceAddresses: 'any' is unsupported in combination with a link-local address\n");
         return -1;
       }
-      gv->recvips_mode = RECVIPS_MODE_ANY;
+      gv->recvips_mode = DDSI_RECVIPS_MODE_ANY;
     }
     else if (ddsrt_strcasecmp (gv->config.networkRecvAddressStrings[0], "preferred") == 0)
     {
-      gv->recvips_mode = RECVIPS_MODE_PREFERRED;
+      gv->recvips_mode = DDSI_RECVIPS_MODE_PREFERRED;
     }
     else if (ddsrt_strcasecmp (gv->config.networkRecvAddressStrings[0], "none") == 0)
     {
-      gv->recvips_mode = RECVIPS_MODE_NONE;
+      gv->recvips_mode = DDSI_RECVIPS_MODE_NONE;
     }
     else if (gv->using_link_local_intf)
     {
@@ -216,7 +216,7 @@ static int set_recvips (struct ddsi_domaingv *gv)
         else
           have_others = 1;
       }
-      gv->recvips_mode = have_selected ? RECVIPS_MODE_PREFERRED : RECVIPS_MODE_NONE;
+      gv->recvips_mode = have_selected ? DDSI_RECVIPS_MODE_PREFERRED : DDSI_RECVIPS_MODE_NONE;
       if (have_others)
       {
         GVWARNING ("DDSI2EService/General/MulticastRecvNetworkInterfaceAddresses: using 'preferred' because of IPv6 local address\n");
@@ -226,7 +226,7 @@ static int set_recvips (struct ddsi_domaingv *gv)
     {
       struct ddsi_config_in_addr_node **recvnode = &gv->recvips;
       int i, j;
-      gv->recvips_mode = RECVIPS_MODE_SOME;
+      gv->recvips_mode = DDSI_RECVIPS_MODE_SOME;
       for (i = 0; gv->config.networkRecvAddressStrings[i] != NULL; i++)
       {
         ddsi_locator_t loc;
@@ -866,7 +866,7 @@ static void make_special_types (struct ddsi_domaingv *gv)
   gv->spdp_type = make_special_type_plist ("ParticipantBuiltinTopicData", DDSI_PID_PARTICIPANT_GUID);
   gv->sedp_reader_type = make_special_type_plist ("SubscriptionBuiltinTopicData", DDSI_PID_ENDPOINT_GUID);
   gv->sedp_writer_type = make_special_type_plist ("PublicationBuiltinTopicData", DDSI_PID_ENDPOINT_GUID);
-  gv->pmd_type = make_special_type_pserop ("ddsi_participant_message_data", sizeof (ddsi_participant_message_data_t), ddsi_participant_message_data_nops, ddsi_participant_message_data_ops, ddsi_participant_message_data_nops_key, ddsi_participant_message_data_ops_key);
+  gv->pmd_type = make_special_type_pserop ("ParticipantMessageData", sizeof (ddsi_participant_message_data_t), ddsi_participant_message_data_nops, ddsi_participant_message_data_ops, ddsi_participant_message_data_nops_key, ddsi_participant_message_data_ops_key);
 #ifdef DDS_HAS_TYPE_DISCOVERY
   gv->tl_svc_request_type = make_special_type_cdrstream (gv, &DDS_Builtin_TypeLookup_Request_desc);
   gv->tl_svc_reply_type = make_special_type_cdrstream (gv, &DDS_Builtin_TypeLookup_Reply_desc);
@@ -879,7 +879,7 @@ static void make_special_types (struct ddsi_domaingv *gv)
   gv->spdp_secure_type = make_special_type_plist ("ParticipantBuiltinTopicDataSecure", DDSI_PID_PARTICIPANT_GUID);
   gv->sedp_reader_secure_type = make_special_type_plist ("SubscriptionBuiltinTopicDataSecure", DDSI_PID_ENDPOINT_GUID);
   gv->sedp_writer_secure_type = make_special_type_plist ("PublicationBuiltinTopicDataSecure", DDSI_PID_ENDPOINT_GUID);
-  gv->pmd_secure_type = make_special_type_pserop ("ddsi_participant_message_dataSecure", sizeof (ddsi_participant_message_data_t), ddsi_participant_message_data_nops, ddsi_participant_message_data_ops, ddsi_participant_message_data_nops_key, ddsi_participant_message_data_ops_key);
+  gv->pmd_secure_type = make_special_type_pserop ("ParticipantMessageDataSecure", sizeof (ddsi_participant_message_data_t), ddsi_participant_message_data_nops, ddsi_participant_message_data_ops, ddsi_participant_message_data_nops_key, ddsi_participant_message_data_ops_key);
   gv->pgm_stateless_type = make_special_type_pserop ("ParticipantStatelessMessage", sizeof (ddsi_participant_generic_message_t), ddsi_pserop_participant_generic_message_nops, ddsi_pserop_participant_generic_message, 0, NULL);
   gv->pgm_volatile_type = make_special_type_pserop ("ParticipantVolatileMessageSecure", sizeof (ddsi_participant_generic_message_t), ddsi_pserop_participant_generic_message_nops, ddsi_pserop_participant_generic_message, 0, NULL);
 #endif
@@ -945,7 +945,7 @@ static int setup_and_start_recv_threads (struct ddsi_domaingv *gv)
   for (uint32_t i = 0; i < MAX_RECV_THREADS; i++)
   {
     gv->recv_threads[i].thrst = NULL;
-    gv->recv_threads[i].arg.mode = RTM_SINGLE;
+    gv->recv_threads[i].arg.mode = DDSI_RTM_SINGLE;
     gv->recv_threads[i].arg.rbpool = NULL;
     gv->recv_threads[i].arg.gv = gv;
     gv->recv_threads[i].arg.u.single.loc = NULL;
@@ -955,14 +955,14 @@ static int setup_and_start_recv_threads (struct ddsi_domaingv *gv)
   /* First thread always uses a waitset and gobbles up all sockets not handled by dedicated threads - FIXME: DDSI_MSM_NO_UNICAST mode with UDP probably doesn't even need this one to use a waitset */
   gv->n_recv_threads = 1;
   gv->recv_threads[0].name = "recv";
-  gv->recv_threads[0].arg.mode = RTM_MANY;
+  gv->recv_threads[0].arg.mode = DDSI_RTM_MANY;
   if (gv->m_factory->m_connless && gv->config.many_sockets_mode != DDSI_MSM_NO_UNICAST && multi_recv_thr)
   {
     if (ddsi_is_mcaddr (gv, &gv->loc_default_mc) && !ddsi_is_ssm_mcaddr (gv, &gv->loc_default_mc) && (gv->config.allowMulticast & DDSI_AMC_ASM))
     {
       /* Multicast enabled, but it isn't an SSM address => handle data multicasts on a separate thread (the trouble with SSM addresses is that we only join matching writers, which our own sockets typically would not be) */
       gv->recv_threads[gv->n_recv_threads].name = "recvMC";
-      gv->recv_threads[gv->n_recv_threads].arg.mode = RTM_SINGLE;
+      gv->recv_threads[gv->n_recv_threads].arg.mode = DDSI_RTM_SINGLE;
       gv->recv_threads[gv->n_recv_threads].arg.u.single.conn = gv->data_conn_mc;
       gv->recv_threads[gv->n_recv_threads].arg.u.single.loc = &gv->loc_default_mc;
       ddsi_conn_disable_multiplexing (gv->data_conn_mc);
@@ -972,7 +972,7 @@ static int setup_and_start_recv_threads (struct ddsi_domaingv *gv)
     {
       /* No per-participant sockets => handle data unicasts on a separate thread as well */
       gv->recv_threads[gv->n_recv_threads].name = "recvUC";
-      gv->recv_threads[gv->n_recv_threads].arg.mode = RTM_SINGLE;
+      gv->recv_threads[gv->n_recv_threads].arg.mode = DDSI_RTM_SINGLE;
       gv->recv_threads[gv->n_recv_threads].arg.u.single.conn = gv->data_conn_uc;
       gv->recv_threads[gv->n_recv_threads].arg.u.single.loc = &gv->loc_default_uc;
       ddsi_conn_disable_multiplexing (gv->data_conn_uc);
@@ -992,7 +992,7 @@ static int setup_and_start_recv_threads (struct ddsi_domaingv *gv)
       GVERROR ("rtps_init: can't allocate receive buffer pool for thread %s\n", gv->recv_threads[i].name);
       goto fail;
     }
-    if (gv->recv_threads[i].arg.mode == RTM_MANY)
+    if (gv->recv_threads[i].arg.mode == DDSI_RTM_MANY)
     {
       if ((gv->recv_threads[i].arg.u.many.ws = ddsi_sock_waitset_new ()) == NULL)
       {
@@ -1014,7 +1014,7 @@ fail:
   wait_for_receive_threads (gv);
   for (uint32_t i = 0; i < gv->n_recv_threads; i++)
   {
-    if (gv->recv_threads[i].arg.mode == RTM_MANY && gv->recv_threads[i].arg.u.many.ws)
+    if (gv->recv_threads[i].arg.mode == DDSI_RTM_MANY && gv->recv_threads[i].arg.u.many.ws)
       ddsi_sock_waitset_free (gv->recv_threads[i].arg.u.many.ws);
     if (gv->recv_threads[i].arg.rbpool)
       ddsi_rbufpool_free (gv->recv_threads[i].arg.rbpool);
@@ -2173,7 +2173,7 @@ void ddsi_fini (struct ddsi_domaingv *gv)
      queues been drained.  I.e., until very late in the game. */
   for (uint32_t i = 0; i < gv->n_recv_threads; i++)
   {
-    if (gv->recv_threads[i].arg.mode == RTM_MANY)
+    if (gv->recv_threads[i].arg.mode == DDSI_RTM_MANY)
       ddsi_sock_waitset_free (gv->recv_threads[i].arg.u.many.ws);
     ddsi_rbufpool_free (gv->recv_threads[i].arg.rbpool);
   }

@@ -29,7 +29,9 @@ are transmitted on a separate thread.
       |          \ (local subscriptiosn bypass)
       |           \
       |            \
-      |             |
+      |             \
+      |              \
+      |               |
       |  ddsi_whc_insert (for reliable data)
       |    - allocates whc_node (2)
       |    - inserts in seq# hash (which may grow hash table)
@@ -37,68 +39,68 @@ are transmitted on a separate thread.
       |    - may push out old samples, which may cause frees
       |    - if keyed topic: insert in index on instance_handle
       |      - may grow hash table (1)
-      |             |
-      v             |
-    transmit_sample |
-      |             |
+      |               |
+      v               |
+    transmit_sample   |
+      |               |
       |  allocate and initialise new "xmsg" (3)
       |    - large samples: needs many, for DATAFRAG and HEARTBEATFRAG
       |    - serialised data integrated by-reference
       |    - may also need one for a HEARTBEAT
-      |             |
+      |               |
       |  xpack_add called for each "xmsg" to combine into RTPS messages
       |    - fills a (lazily allocated per writer) scatter/gather list
       |    - hands off the packet for synchronous/asynchronous publication
       |      when full/flushed
-      |             |
+      |               |
     ddsi_xpack_send.. | ......+ (*current* asynchronous mode)
-      |             |       |
-      |             |       v
-      |             |     ddsi_xpack_sendq_thread
-      |             |       |
-      |             |       |
-      v             |       v
+      |               |       |
+      |               |       v
+      |               |     ddsi_xpack_sendq_thread
+      |               |       |
+      |               |       |
+      v               |       v
     ddsi_xpack_send_real    ddsi_xpack_send_real
-      |             |       |
+      |               |       |
       |    - transmits the packet using sendmsg()
       |    - releases record of samples just sent to track the highest seq#
       |      that was actually transmitted, which may release samples if
       |      these were ACK'd already (unlikely, but possible) (3)
-      |             |       |
-      |             |       |
-      v             |       v
-    sendmsg         |     sendmsg
-      .             |
-      .             |
-      .             |
-    [network]       | (local subscriptions bypass)
-      .             |
-      .             |
-      .             |
+      |               |       |
+      |               |       |
+      v               |       v
+    sendmsg           |     sendmsg
+      .               |
+      .               |
+      .               |
+    [network]         | (local subscriptions bypass)
+      .               |
+      .               |
+      .               |
     ddsi_rmsg_new     |
-      |             |
+      |               |
       |  ensure receive buffer space is available (5)
       |    - may allocate new buffers: data is left in these buffers while
       |      defragmenting or dealing with samples received out-of-order
       |    - these buffers are huge in the default config to reduce number of allocations
-      v             |
-    recvmsg         |
-      |             |
-      |             |
-      v             |
+      v               |
+    recvmsg           |
+      |               |
+      |               |
+      v               |
     do_packet/handle_submsg_sequence (5)
-      |             |
+      |               |
       |  typically allocates memory, typically contiguous with received datagram by
       |  bumping a pointer
       |    - COW receiver state on state changes
-      |             |
+      |               |
       |  DATA/DATAFRAG/GAP:
       |    - allocate message defragmenting state
       |    - allocate message reordering state
       |    - (typically GAP doesn't require the above)
       |    - may result in delivering data or discarding fragments, which may free memory
-      |             |
-      |  ACKNACK:   |
+      |               |
+      |  ACKNACK:     |
       |    - may drop messages from WHC, freeing (2):
       |      - whc_node, interval tree entry, index entries, possibly serdata
       |      - possible "keyless serdata" and instance_handle index entry
@@ -107,38 +109,40 @@ are transmitted on a separate thread.
       |      - allocates "xmsg"s (like data path) (3)
       |      - allocates queue entries (4)
       |      - freed upon sending
-      |             |
-      |  HEARTBEAT: |
+      |               |
+      |  HEARTBEAT:   |
       |    - may result in delivering data or discarding fragments, which may free memory
-      |             |
-      |             |
+      |               |
+      |               |
       |  Note: asynchronous delivery queues samples ready for delivery; the
       |  matching delivery thread then calls deliver_user_data_synchronously
       |  to deliver the data (no allocations needed for enqueuing)
-      |             |
-      v             |
+      |               |
+      v               |
     deliver_user_data_synchronously
-      |             |
+      |               |
       |  serdata: from_ser
       |    - allocates a "serdata" and, depending on the implementation,
       |      validates the serialized data and stores it (e.g., the C version),
       |      deserialises it immediately (e.g., the C++ version), or leaves
       |      if in the receive buffers (incrementing refcounts; not done currently,
       |      probably not a wise choice either)
-      |             |
+      |               |
       |  frees receive buffer claims after having created the "serdata" (5)
       |  typical synchronous delivery path without message loss:
       |    - resets receive buffer allocator pointer to what it was prior to processing
       |      datagram, re-using the memory for the next packet
       |    - (but typical is not so interesting in a worst-case analysis ...)
-      |             |
+      |               |
       |  key to instance_handle mapping (1)
       |    allocates for a unique key
       |    - tkmap_instance (entry in table)
       |    - "untyped serdata" for insertion in table
       |    - possibly resizes hash table
       |    (if no readers, undoes the above)
-      |             |
+      |               |
+      |              /
+      |             /
       |            /
       |           /
       |          / (local subscriptions bypass)

@@ -203,7 +203,7 @@ struct ddsi_xmsg *ddsi_writer_hbcontrol_create_heartbeat (struct ddsi_writer *wr
 
   if (prd_guid == NULL)
   {
-    ddsi_xmsg_setdst_n (msg, wr->as);
+    ddsi_xmsg_setdst_addrset (msg, wr->as);
     ddsi_add_heartbeat (msg, wr, whcst, hbansreq, 0, ddsi_to_entityid (DDSI_ENTITYID_UNKNOWN), issync);
   }
   else
@@ -486,7 +486,7 @@ static dds_return_t ddsi_create_fragment_message_simple (struct ddsi_writer *wr,
   if ((*pmsg = ddsi_xmsg_new (gv->xmsgpool, &wr->e.guid, wr->c.pp, sizeof (ddsi_rtps_info_ts_t) + sizeof (ddsi_rtps_data_t) + expected_inline_qos_size, DDSI_XMSG_KIND_DATA)) == NULL)
     return DDS_RETCODE_OUT_OF_RESOURCES;
 
-  ddsi_xmsg_setdst_n (*pmsg, wr->as);
+  ddsi_xmsg_setdst_addrset (*pmsg, wr->as);
   ddsi_xmsg_setmaxdelay (*pmsg, wr->xqos->latency_budget.duration);
   ddsi_xmsg_add_timestamp (*pmsg, serdata->timestamp);
   data = ddsi_xmsg_append (*pmsg, &sm_marker, sizeof (ddsi_rtps_data_t));
@@ -573,7 +573,7 @@ dds_return_t ddsi_create_fragment_message (struct ddsi_writer *wr, ddsi_seqno_t 
   }
   else
   {
-    ddsi_xmsg_setdst_n (*pmsg, wr->as);
+    ddsi_xmsg_setdst_addrset (*pmsg, wr->as);
     ddsi_xmsg_setmaxdelay (*pmsg, wr->xqos->latency_budget.duration);
   }
 
@@ -698,7 +698,7 @@ static void create_HeartbeatFrag (struct ddsi_writer *wr, ddsi_seqno_t seq, unsi
   if (prd)
     ddsi_xmsg_setdst_prd (*pmsg, prd);
   else
-    ddsi_xmsg_setdst_n (*pmsg, wr->as);
+    ddsi_xmsg_setdst_addrset (*pmsg, wr->as);
   hbf = ddsi_xmsg_append (*pmsg, &sm_marker, sizeof (ddsi_rtps_heartbeatfrag_t));
   ddsi_xmsg_submsg_init (*pmsg, sm_marker, DDSI_RTPS_SMID_HEARTBEAT_FRAG);
   hbf->readerId = ddsi_hton_entityid (prd ? prd->e.guid.entityid : ddsi_to_entityid (DDSI_ENTITYID_UNKNOWN));
@@ -743,7 +743,7 @@ dds_return_t ddsi_write_hb_liveliness (struct ddsi_domaingv * const gv, struct d
   if ((msg = ddsi_xmsg_new (gv->xmsgpool, &wr->e.guid, wr->c.pp, sizeof (ddsi_rtps_info_ts_t) + sizeof (ddsi_rtps_heartbeat_t), DDSI_XMSG_KIND_CONTROL)) == NULL)
     return DDS_RETCODE_OUT_OF_RESOURCES;
   ddsrt_mutex_lock (&wr->e.lock);
-  ddsi_xmsg_setdst_n (msg, wr->as);
+  ddsi_xmsg_setdst_addrset (msg, wr->as);
   ddsi_whc_get_state (wr->whc, &whcst);
   ddsi_add_heartbeat (msg, wr, &whcst, 0, 1, ddsi_to_entityid (DDSI_ENTITYID_UNKNOWN), 1);
   ddsrt_mutex_unlock (&wr->e.lock);

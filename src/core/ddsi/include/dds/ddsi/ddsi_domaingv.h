@@ -56,21 +56,21 @@ struct ddsi_config_in_addr_node {
    struct ddsi_config_in_addr_node *next;
 };
 
-enum recvips_mode {
-  RECVIPS_MODE_ALL,             /* all MC capable interfaces */
-  RECVIPS_MODE_ANY,             /* kernel-default interface */
-  RECVIPS_MODE_PREFERRED,       /* selected interface only */
-  RECVIPS_MODE_NONE,            /* no interfaces at all */
-  RECVIPS_MODE_SOME             /* explicit list of interfaces; only one requiring recvips */
+enum ddsi_recvips_mode {
+  DDSI_RECVIPS_MODE_ALL,             /* all MC capable interfaces */
+  DDSI_RECVIPS_MODE_ANY,             /* kernel-default interface */
+  DDSI_RECVIPS_MODE_PREFERRED,       /* selected interface only */
+  DDSI_RECVIPS_MODE_NONE,            /* no interfaces at all */
+  DDSI_RECVIPS_MODE_SOME             /* explicit list of interfaces; only one requiring recvips */
 };
 
-enum recv_thread_mode {
-  RTM_SINGLE,
-  RTM_MANY
+enum ddsi_recv_thread_mode {
+  DDSI_RTM_SINGLE,
+  DDSI_RTM_MANY
 };
 
-struct recv_thread_arg {
-  enum recv_thread_mode mode;
+struct ddsi_recv_thread_arg {
+  enum ddsi_recv_thread_mode mode;
   struct ddsi_rbufpool *rbpool;
   struct ddsi_domaingv *gv;
   union {
@@ -190,7 +190,7 @@ struct ddsi_domaingv {
   /* Addressing: actual own (preferred) IP address, IP address
      advertised in discovery messages (so that an external IP address on
      a NAT may be advertised), and the DDSI multi-cast address. */
-  enum recvips_mode recvips_mode;
+  enum ddsi_recvips_mode recvips_mode;
   struct ddsi_config_in_addr_node *recvips;
   ddsi_locator_t extmask;
 
@@ -222,7 +222,7 @@ struct ddsi_domaingv {
   struct recv_thread {
     const char *name;
     struct ddsi_thread_state *thrst;
-    struct recv_thread_arg arg;
+    struct ddsi_recv_thread_arg arg;
   } recv_threads[MAX_RECV_THREADS];
 
   /* Listener thread for connection based transports */

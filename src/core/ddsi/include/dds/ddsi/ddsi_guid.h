@@ -32,10 +32,14 @@ typedef struct ddsi_guid {
   ddsi_entityid_t entityid;
 } ddsi_guid_t;
 
-ddsi_guid_prefix_t ddsi_hton_guid_prefix (ddsi_guid_prefix_t p);
-ddsi_guid_prefix_t ddsi_ntoh_guid_prefix (ddsi_guid_prefix_t p);
 ddsi_guid_t ddsi_hton_guid (ddsi_guid_t g);
 ddsi_guid_t ddsi_ntoh_guid (ddsi_guid_t g);
+
+ddsi_guid_prefix_t ddsi_hton_guid_prefix (ddsi_guid_prefix_t p);
+ddsi_guid_prefix_t ddsi_ntoh_guid_prefix (ddsi_guid_prefix_t p);
+
+ddsi_entityid_t ddsi_hton_entityid (ddsi_entityid_t e);
+ddsi_entityid_t ddsi_ntoh_entityid (ddsi_entityid_t e);
 
 #if defined (__cplusplus)
 }

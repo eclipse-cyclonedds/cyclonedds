@@ -680,7 +680,7 @@ while(<>) {
       }
     }
     check_qos($ts, $kind, fmtguid($prwguid), $topic, $partitions, $qos, undef);
-  } elsif (/(?:ddsi_match_proxy_writer_with_readers|ddsi_match_proxy_reader_with_writers)\((prd|pwr) ($gidre):([0-9a-f]+)(?{ $hexmode ? hex($3)%256 : $3%256 })/ && $isbuiltin_entitykind{$^R}) {
+  } elsif (/(?:match_proxy_writer_with_readers|match_proxy_reader_with_writers)\((prd|pwr) ($gidre):([0-9a-f]+)(?{ $hexmode ? hex($3)%256 : $3%256 })/ && $isbuiltin_entitykind{$^R}) {
     # this depends on GUIDs in hex ...
     my $kind = $1; my $prwguid = hexify("$2:$3");
     my $h = ($kind eq "prd") ? \%prd : \%pwr;

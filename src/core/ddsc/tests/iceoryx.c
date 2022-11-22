@@ -44,7 +44,7 @@ static bool failed;
 
 static void fail (void) { failed = true; }
 static void fail_match (void) { fail (); }
-static void ddsi_fail_addrset (void) { fail (); }
+static void fail_addrset (void) { fail (); }
 static void fail_instance_state (void) { fail (); }
 static void fail_no_data (void) { fail (); }
 
@@ -160,7 +160,7 @@ static void check_writer_addrset_helper (const ddsi_xlocator_t *loc, void *varg)
   CU_ASSERT_FATAL (i < arg->nports);
 }
 
-static bool ddsi_check_writer_addrset (dds_entity_t wrhandle, int nports, const uint32_t ports[nports])
+static bool check_writer_addrset (dds_entity_t wrhandle, int nports, const uint32_t ports[nports])
 {
   dds_return_t rc;
   struct dds_entity *x;
@@ -567,9 +567,9 @@ static void dotest (const dds_topic_descriptor_t *tpdesc, const void *sample)
         nports = j + 1;
       }
       print (&tb, "{"); for (int i = 0; i < nports; i++) print (&tb, " %u", ports[i]); print (&tb, " }");
-      if (!ddsi_check_writer_addrset (wr, nports, ports))
+      if (!check_writer_addrset (wr, nports, ports))
       {
-        ddsi_fail_addrset ();
+        fail_addrset ();
         fail_one = true;
         goto next;
       }

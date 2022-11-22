@@ -56,7 +56,7 @@ The Compatibility element allows you to specify various settings related to comp
 
 Boolean
 
-This option assumes ddsi\_participant\_message\_data endpoints required by the liveliness protocol are present in RTI participants even when not properly advertised by the participant discovery protocol.
+This option assumes ParticipantMessageData endpoints required by the liveliness protocol are present in RTI participants even when not properly advertised by the participant discovery protocol.
 
 The default value is: ``false``
 
@@ -2662,7 +2662,7 @@ The default value is: ``none``
 ..
    generated from ddsi_config.h[25c12468a096054dd7c7a9ec2fe32837c1aa9a9f] 
    generated from ddsi__cfgunits.h[be1b976c6e9466472b0c331487c05180ec1052d4] 
-   generated from ddsi__cfgelems.h[6674d0b12bab30dd24dea8880fc9ecd0a35b5b0e] 
+   generated from ddsi__cfgelems.h[bcd0c270d1ce8ec381ac5388056502d990cc4129] 
    generated from ddsi_config.c[4d8a28fd8d4388d80e375f617f21fb3c2e1a8e49] 
    generated from _confgen.h[f2d235d5551cbf920a8a2962831dddeabd2856ac] 
    generated from _confgen.c[d74e4fd06e485c5d299dbcc7741cbdb95c5ec706] 

@@ -21,7 +21,7 @@ struct ddsi_rsample_info;
 struct ddsi_rdata;
 struct ddsi_rmsg;
 struct ddsi_tran_listener;
-struct recv_thread_arg;
+struct ddsi_recv_thread_arg;
 struct ddsi_writer;
 struct ddsi_proxy_reader;
 

@@ -223,6 +223,32 @@ void ddsi_plist_unalias (ddsi_plist_t *plist);
 void ddsi_plist_addtomsg (struct ddsi_xmsg *m, const ddsi_plist_t *ps, uint64_t pwanted, uint64_t qwanted);
 
 /**
+ * @brief Determine the set of entries in which "x" differs from "y"
+ *
+ * This computes the entries set in "x" but not set in "y", not set in "x" but set in "y",
+ * or set in both "x" and "y" but to a different value.  It returns this set reduced to
+ * only those included in "pmask"/"qmask", that is, if bit X is clear in "pmask", bit X
+ * will be clear in "pdelta", etc.
+ *
+ * @param[out] pdelta    non-QoS entries that are different and not masked out
+ * @param[out] qdelta    QoS entries that are different and not masked out
+ * @param[in]  x         one of the two plists to compare
+ * @param[in]  y         other plist to compare
+ * @param[in]  pmask     subset of non-QoS part to be compared
+ * @param[in]  qmask     subset of QoS part to be compared
+ */
+void ddsi_plist_delta (uint64_t *pdelta, uint64_t *qdelta, const ddsi_plist_t *x, const ddsi_plist_t *y, uint64_t pmask, uint64_t qmask);
+
+/**
+ * @brief Formats plist using `ddsi_plist_print` and writes it to the trace.
+ *
+ * @param[in] cat        log category to use
+ * @param[in] logcfg     logging configuration
+ * @param[in] plist      parameter list to be logged
+ */
+void ddsi_plist_log (uint32_t cat, const struct ddsrt_log_cfg *logcfg, const ddsi_plist_t *plist);
+
+/**
  * @brief Add selected entries in "ps" to a message with selected endianness.
  *
  * This functions appends to "m" a serialized copy of the the entries selected by

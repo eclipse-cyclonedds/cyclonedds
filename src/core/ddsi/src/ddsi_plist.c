@@ -2546,6 +2546,11 @@ uint64_t ddsi_xqos_delta (const dds_qos_t *x, const dds_qos_t *y, uint64_t mask)
   return qdelta;
 }
 
+void ddsi_plist_delta (uint64_t *pdelta, uint64_t *qdelta, const ddsi_plist_t *x, const ddsi_plist_t *y, uint64_t pmask, uint64_t qmask)
+{
+  plist_or_xqos_delta (pdelta, qdelta, x, y, 0, pmask, qmask);
+}
+
 static dds_return_t validate_external_duration (const ddsi_duration_t *d)
 {
   /* Accepted are zero, positive, infinite or invalid as defined in
@@ -3910,6 +3915,11 @@ size_t ddsi_plist_print (char * __restrict buf, size_t bufsize, const ddsi_plist
 void ddsi_xqos_log (uint32_t cat, const struct ddsrt_log_cfg *logcfg, const dds_qos_t *xqos)
 {
   plist_or_xqos_log (cat, logcfg, xqos, offsetof (ddsi_plist_t, qos), 0, ~(uint64_t)0);
+}
+
+void ddsi_plist_log (uint32_t cat, const struct ddsrt_log_cfg *logcfg, const ddsi_plist_t *plist)
+{
+  plist_or_xqos_log (cat, logcfg, plist, 0, ~(uint64_t)0, ~(uint64_t)0);
 }
 
 size_t ddsi_plist_print_generic (char * __restrict buf, size_t bufsize, const void * __restrict src, const enum ddsi_pserop * __restrict desc)
