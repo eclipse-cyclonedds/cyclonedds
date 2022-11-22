@@ -37,7 +37,7 @@
 #include "ddsi__security_omg.h"
 #include "ddsi__sysdeps.h"
 #include "ddsi__endpoint.h"
-#include "ddsi__entity_match.h"
+#include "ddsi__endpoint_match.h"
 #include "ddsi__protocol.h"
 #include "ddsi__vendor.h"
 #include "dds__whc.h"

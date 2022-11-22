@@ -23,7 +23,7 @@
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
-#include "dds/ddsi/ddsi_entity_match.h"
+#include "dds/ddsi/ddsi_endpoint_match.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/ddsi_security_omg.h"

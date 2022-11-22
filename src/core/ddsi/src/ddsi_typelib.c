@@ -22,7 +22,7 @@
 #include "dds/ddsi/ddsi_sertype.h"
 #include "dds/ddsi/ddsi_xt_typemap.h"
 #include "ddsi__entity.h"
-#include "ddsi__entity_match.h"
+#include "ddsi__endpoint_match.h"
 #include "ddsi__misc.h"
 #include "ddsi__thread.h"
 #include "ddsi__entity_index.h"

@@ -20,7 +20,7 @@
 #include "ddsi__bitset.h"
 #include "ddsi__acknack.h"
 #include "ddsi__entity_index.h"
-#include "ddsi__entity_match.h"
+#include "ddsi__endpoint_match.h"
 #include "ddsi__security_omg.h"
 #include "ddsi__xqos.h"
 #include "ddsi__xevent.h"

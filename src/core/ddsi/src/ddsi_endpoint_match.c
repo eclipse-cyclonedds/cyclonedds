@@ -26,7 +26,7 @@
 #include "ddsi__xevent.h"
 #include "ddsi__whc.h"
 #include "ddsi__endpoint.h"
-#include "ddsi__entity_match.h"
+#include "ddsi__endpoint_match.h"
 #include "ddsi__proxy_endpoint.h"
 #include "ddsi__protocol.h"
 #include "ddsi__tran.h"

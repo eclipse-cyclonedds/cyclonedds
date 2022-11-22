@@ -52,7 +52,7 @@
 #include "ddsi__sysdeps.h"
 #include "ddsi__deliver_locally.h"
 #include "ddsi__endpoint.h"
-#include "ddsi__entity_match.h"
+#include "ddsi__endpoint_match.h"
 #include "ddsi__plist.h"
 #include "ddsi__proxy_endpoint.h"
 #include "ddsi__tran.h"

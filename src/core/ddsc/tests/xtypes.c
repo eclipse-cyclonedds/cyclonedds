@@ -27,7 +27,7 @@
 #include "dds/ddsi/ddsi_xt_typelookup.h"
 #include "ddsi__xt_impl.h"
 #include "ddsi__addrset.h"
-#include "ddsi__entity_match.h"
+#include "ddsi__endpoint_match.h"
 #include "ddsi__proxy_endpoint.h"
 #include "ddsi__proxy_participant.h"
 #include "ddsi__typelookup.h"

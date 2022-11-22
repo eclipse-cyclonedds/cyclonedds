@@ -22,7 +22,7 @@
 #include "dds/ddsi/ddsi_transmit.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/ddsi_entity.h"
-#include "dds/ddsi/ddsi_entity_match.h"
+#include "dds/ddsi/ddsi_endpoint_match.h"
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/ddsi_radmin.h" /* sampleinfo */
 #include "dds/ddsi/ddsi_domaingv.h"

@@ -39,7 +39,7 @@
 #include "ddsi__participant.h"
 #include "ddsi__xevent.h"
 #include "ddsi__sysdeps.h"
-#include "ddsi__entity_match.h"
+#include "ddsi__endpoint_match.h"
 #include "ddsi__plist.h"
 #include "ddsi__proxy_endpoint.h"
 #include "ddsi__proxy_participant.h"

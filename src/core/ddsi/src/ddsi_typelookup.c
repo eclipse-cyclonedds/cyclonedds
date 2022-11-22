@@ -28,7 +28,7 @@
 #include "ddsi__typelookup.h"
 #include "ddsi__xt_impl.h"
 #include "ddsi__entity.h"
-#include "ddsi__entity_match.h"
+#include "ddsi__endpoint_match.h"
 #include "ddsi__participant.h"
 #include "ddsi__protocol.h"
 #include "ddsi__radmin.h"

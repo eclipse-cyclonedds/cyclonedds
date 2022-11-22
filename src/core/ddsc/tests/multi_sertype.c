@@ -20,7 +20,7 @@
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/time.h"
 #include "dds/ddsi/ddsi_entity.h"
-#include "dds/ddsi/ddsi_entity_match.h"
+#include "dds/ddsi/ddsi_endpoint_match.h"
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_entity_index.h"

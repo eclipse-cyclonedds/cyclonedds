@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef DDSI_ENTITY_MATCH_H
-#define DDSI_ENTITY_MATCH_H
+#ifndef DDSI_ENDPOINT_MATCH_H
+#define DDSI_ENDPOINT_MATCH_H
 
 #include "dds/export.h"
 #include "dds/features.h"
@@ -78,4 +78,4 @@ struct ddsi_wr_prd_match {
 }
 #endif
 
-#endif /* DDSI_ENTITY_MATCH_H */
+#endif /* DDSI_ENDPOINT_MATCH_H */

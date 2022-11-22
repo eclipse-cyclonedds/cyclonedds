@@ -52,7 +52,7 @@ set(srcs_ddsi
   ddsi_wraddrset.c
   ddsi_typelib.c
   ddsi_entity.c
-  ddsi_entity_match.c
+  ddsi_endpoint_match.c
   ddsi_participant.c
   ddsi_proxy_participant.c
   ddsi_topic.c
@@ -109,7 +109,7 @@ set(hdrs_ddsi
   ddsi_config.h
   ddsi_typelib.h
   ddsi_entity.h
-  ddsi_entity_match.h
+  ddsi_endpoint_match.h
   ddsi_participant.h
   ddsi_proxy_participant.h
   ddsi_topic.h
@@ -146,7 +146,7 @@ set(hdrs_private_ddsi
   ddsi__deliver_locally.h
   ddsi__endpoint.h
   ddsi__entity_index.h
-  ddsi__entity_match.h
+  ddsi__endpoint_match.h
   ddsi__entity.h
   ddsi__gc.h
   ddsi__handshake.h

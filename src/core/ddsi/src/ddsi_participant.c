@@ -29,7 +29,7 @@
 #include "ddsi__receive.h"
 #include "ddsi__addrset.h"
 #include "ddsi__endpoint.h"
-#include "ddsi__entity_match.h"
+#include "ddsi__endpoint_match.h"
 #include "ddsi__gc.h"
 #include "ddsi__plist.h"
 #include "ddsi__protocol.h"

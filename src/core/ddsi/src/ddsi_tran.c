@@ -139,10 +139,10 @@ void ddsi_conn_free (struct ddsi_tran_conn * conn)
           {
             switch (conn->m_base.gv->recv_threads[i].arg.mode)
             {
-              case RTM_MANY:
+              case DDSI_RTM_MANY:
                 ddsi_sock_waitset_remove (conn->m_base.gv->recv_threads[i].arg.u.many.ws, conn);
                 break;
-              case RTM_SINGLE:
+              case DDSI_RTM_SINGLE:
                 if (conn->m_base.gv->recv_threads[i].arg.u.single.conn == conn)
                   abort();
                 break;

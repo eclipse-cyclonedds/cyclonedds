@@ -36,7 +36,7 @@
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/ddsi_security_omg.h"
 #include "dds/ddsi/ddsi_statistics.h"
-#include "dds/ddsi/ddsi_entity_match.h"
+#include "dds/ddsi/ddsi_endpoint_match.h"
 
 #ifdef DDS_HAS_SHM
 #include "dds/ddsi/ddsi_shm_transport.h"

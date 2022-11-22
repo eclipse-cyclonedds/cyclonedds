@@ -20,7 +20,7 @@
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "ddsi__entity.h"
-#include "ddsi__entity_match.h"
+#include "ddsi__endpoint_match.h"
 #include "ddsi__participant.h"
 #include "ddsi__rhc.h"
 #include "ddsi__entity_index.h"

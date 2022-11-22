@@ -19,7 +19,7 @@
 #include "dds/ddsi/ddsi_log.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "ddsi__entity.h"
-#include "ddsi__entity_match.h"
+#include "ddsi__endpoint_match.h"
 #include "ddsi__addrset.h"
 #include "ddsi__bitset.h"
 #include "ddsi__entity_index.h"

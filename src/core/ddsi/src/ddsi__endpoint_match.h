@@ -9,14 +9,14 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef DDSI__ENTITY_MATCH_H
-#define DDSI__ENTITY_MATCH_H
+#ifndef DDSI__ENDPOINT_MATCH_H
+#define DDSI__ENDPOINT_MATCH_H
 
 #include "dds/export.h"
 #include "dds/features.h"
 
 #include "dds/ddsrt/avl.h"
-#include "dds/ddsi/ddsi_entity_match.h"
+#include "dds/ddsi/ddsi_endpoint_match.h"
 #include "ddsi__handshake.h"
 #include "ddsi__addrset.h"
 
@@ -149,4 +149,4 @@ void ddsi_update_proxy_endpoint_matching (const struct ddsi_domaingv *gv, struct
 }
 #endif
 
-#endif /* DDSI__ENTITY_MATCH_H */
+#endif /* DDSI__ENDPOINT_MATCH_H */
