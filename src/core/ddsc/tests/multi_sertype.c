@@ -24,6 +24,7 @@
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_entity_index.h"
+#include "ddsi__endpoint_match.h"
 #include "dds/dds.h"
 #include "dds/version.h"
 #include "dds__entity.h"

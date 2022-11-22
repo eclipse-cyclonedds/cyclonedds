@@ -13,6 +13,7 @@
 #include <string.h>
 #include <stddef.h>
 
+#include "dds/ddsrt/avl.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsi/ddsi_domaingv.h"
@@ -1600,3 +1601,16 @@ void ddsi_update_reader_qos (struct ddsi_reader *rd, const dds_qos_t *xqos)
   ddsrt_mutex_unlock (&rd->e.lock);
 }
 
+struct ddsi_reader *ddsi_writer_first_in_sync_reader (struct ddsi_entity_index *entity_index, struct ddsi_entity_common *wrcmn, ddsrt_avl_iter_t *it)
+{
+  assert (wrcmn->kind == DDSI_EK_WRITER);
+  struct ddsi_writer *wr = (struct ddsi_writer *) wrcmn;
+  struct ddsi_wr_rd_match *m = ddsrt_avl_iter_first (&ddsi_wr_local_readers_treedef, &wr->local_readers, it);
+  return m ? ddsi_entidx_lookup_reader_guid (entity_index, &m->rd_guid) : NULL;
+}
+
+struct ddsi_reader *ddsi_writer_next_in_sync_reader (struct ddsi_entity_index *entity_index, ddsrt_avl_iter_t *it)
+{
+  struct ddsi_wr_rd_match *m = ddsrt_avl_iter_next (it);
+  return m ? ddsi_entidx_lookup_reader_guid (entity_index, &m->rd_guid) : NULL;
+}

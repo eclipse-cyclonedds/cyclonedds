@@ -44,14 +44,14 @@ typedef struct ddsi_reader * (*deliver_locally_next_reader_t) (struct ddsi_entit
     - anything else: error to be returned from deliver_locally_xxx */
 typedef dds_return_t (*deliver_locally_on_failure_fastpath_t) (struct ddsi_entity_common *source_entity, bool source_entity_locked, struct ddsi_local_reader_ary *fastpath_rdary, void *vsourceinfo);
 
-struct deliver_locally_ops {
+struct ddsi_deliver_locally_ops {
   deliver_locally_makesample_t makesample;
   deliver_locally_first_reader_t first_reader;
   deliver_locally_next_reader_t next_reader;
   deliver_locally_on_failure_fastpath_t on_failure_fastpath;
 };
 
-dds_return_t ddsi_deliver_locally_allinsync (struct ddsi_domaingv *gv, struct ddsi_entity_common *source_entity, bool source_entity_locked, struct ddsi_local_reader_ary *fastpath_rdary, const struct ddsi_writer_info *wrinfo, const struct deliver_locally_ops * __restrict ops, void *vsourceinfo);
+dds_return_t ddsi_deliver_locally_allinsync (struct ddsi_domaingv *gv, struct ddsi_entity_common *source_entity, bool source_entity_locked, struct ddsi_local_reader_ary *fastpath_rdary, const struct ddsi_writer_info *wrinfo, const struct ddsi_deliver_locally_ops * __restrict ops, void *vsourceinfo);
 
 #if defined (__cplusplus)
 }

@@ -112,20 +112,6 @@ dds_return_t dds_write_ts (dds_entity_t writer, const void *data, dds_time_t tim
   return ret;
 }
 
-static struct ddsi_reader *writer_first_in_sync_reader (struct ddsi_entity_index *entity_index, struct ddsi_entity_common *wrcmn, ddsrt_avl_iter_t *it)
-{
-  assert (wrcmn->kind == DDSI_EK_WRITER);
-  struct ddsi_writer *wr = (struct ddsi_writer *) wrcmn;
-  struct ddsi_wr_rd_match *m = ddsrt_avl_iter_first (&ddsi_wr_local_readers_treedef, &wr->local_readers, it);
-  return m ? ddsi_entidx_lookup_reader_guid (entity_index, &m->rd_guid) : NULL;
-}
-
-static struct ddsi_reader *writer_next_in_sync_reader (struct ddsi_entity_index *entity_index, ddsrt_avl_iter_t *it)
-{
-  struct ddsi_wr_rd_match *m = ddsrt_avl_iter_next (it);
-  return m ? ddsi_entidx_lookup_reader_guid (entity_index, &m->rd_guid) : NULL;
-}
-
 struct local_sourceinfo {
   const struct ddsi_sertype *src_type;
   struct ddsi_serdata *src_payload;
@@ -174,10 +160,10 @@ static dds_return_t local_on_delivery_failure_fastpath (struct ddsi_entity_commo
 
 static dds_return_t deliver_locally (struct ddsi_writer *wr, struct ddsi_serdata *payload, struct ddsi_tkmap_instance *tk)
 {
-  static const struct deliver_locally_ops deliver_locally_ops = {
+  static const struct ddsi_deliver_locally_ops deliver_locally_ops = {
     .makesample = local_make_sample,
-    .first_reader = writer_first_in_sync_reader,
-    .next_reader = writer_next_in_sync_reader,
+    .first_reader = ddsi_writer_first_in_sync_reader,
+    .next_reader = ddsi_writer_next_in_sync_reader,
     .on_failure_fastpath = local_on_delivery_failure_fastpath
   };
   struct local_sourceinfo sourceinfo = {

@@ -29,6 +29,7 @@ struct ddsi_writer_info;
 struct ddsi_entity_common;
 struct ddsi_endpoint_common;
 struct ddsi_ldur_fhnode;
+struct ddsi_entity_index;
 struct dds_qos;
 
 /* Liveliness changed is more complicated than just add/remove. Encode the event
@@ -180,6 +181,8 @@ void ddsi_make_writer_info(struct ddsi_writer_info *wrinfo, const struct ddsi_en
 dds_return_t ddsi_writer_wait_for_acks (struct ddsi_writer *wr, const ddsi_guid_t *rdguid, dds_time_t abstimeout);
 dds_return_t ddsi_unblock_throttled_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *guid);
 dds_return_t ddsi_delete_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *guid);
+struct ddsi_reader *ddsi_writer_first_in_sync_reader (struct ddsi_entity_index *entity_index, struct ddsi_entity_common *wrcmn, ddsrt_avl_iter_t *it);
+struct ddsi_reader *ddsi_writer_next_in_sync_reader (struct ddsi_entity_index *entity_index, ddsrt_avl_iter_t *it);
 
 // reader
 dds_return_t ddsi_new_reader (struct ddsi_reader **rd_out, struct ddsi_guid *rdguid, const struct ddsi_guid *group_guid, struct ddsi_participant *pp, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos, struct ddsi_rhc * rhc, ddsi_status_cb_t status_cb, void *status_cb_arg);

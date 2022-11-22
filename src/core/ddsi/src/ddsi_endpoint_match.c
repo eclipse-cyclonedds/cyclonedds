@@ -1714,3 +1714,163 @@ void ddsi_update_proxy_endpoint_matching (const struct ddsi_domaingv *gv, struct
   ddsi_entidx_enum_fini (&it);
   ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
 }
+
+dds_return_t ddsi_writer_get_matched_subscriptions (struct ddsi_writer *wr, uint64_t *rds, size_t nrds)
+{
+  size_t nrds_act = 0;
+  ddsrt_avl_iter_t it;
+  struct ddsi_domaingv *gv = wr->e.gv;
+  ddsi_thread_state_awake (ddsi_lookup_thread_state (), gv);
+  ddsrt_mutex_lock (&wr->e.lock);
+  for (const struct ddsi_wr_prd_match *m = ddsrt_avl_iter_first (&ddsi_wr_readers_treedef, &wr->readers, &it);
+        m != NULL;
+        m = ddsrt_avl_iter_next (&it))
+  {
+    struct ddsi_proxy_reader *prd;
+    if ((prd = ddsi_entidx_lookup_proxy_reader_guid (gv->entity_index, &m->prd_guid)) != NULL)
+    {
+      if (nrds_act < nrds)
+        rds[nrds_act] = prd->e.iid;
+      nrds_act++;
+    }
+  }
+  for (const struct ddsi_wr_rd_match *m = ddsrt_avl_iter_first (&ddsi_wr_local_readers_treedef, &wr->local_readers, &it);
+        m != NULL;
+        m = ddsrt_avl_iter_next (&it))
+  {
+    struct ddsi_reader *rd;
+    if ((rd = ddsi_entidx_lookup_reader_guid (gv->entity_index, &m->rd_guid)) != NULL)
+    {
+      if (nrds_act < nrds)
+        rds[nrds_act] = rd->e.iid;
+      nrds_act++;
+    }
+  }
+  ddsrt_mutex_unlock (&wr->e.lock);
+  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
+
+  /* FIXME: is it really true that there can not be more than INT32_MAX matching readers?
+      (in practice it'll come to a halt long before that) */
+  assert (nrds_act <= INT32_MAX);
+
+  return (dds_return_t) nrds_act;
+}
+
+dds_return_t ddsi_reader_get_matched_publications (struct ddsi_reader *rd, uint64_t *wrs, size_t nwrs)
+{
+  size_t nwrs_act = 0;
+  ddsrt_avl_iter_t it;
+  struct ddsi_domaingv *gv = rd->e.gv;
+  ddsi_thread_state_awake (ddsi_lookup_thread_state (), gv);
+  ddsrt_mutex_lock (&rd->e.lock);
+  for (const struct ddsi_rd_pwr_match *m = ddsrt_avl_iter_first (&ddsi_rd_writers_treedef, &rd->writers, &it);
+        m != NULL;
+        m = ddsrt_avl_iter_next (&it))
+  {
+    struct ddsi_proxy_writer *pwr;
+    if ((pwr = ddsi_entidx_lookup_proxy_writer_guid (gv->entity_index, &m->pwr_guid)) != NULL)
+    {
+      if (nwrs_act < nwrs)
+        wrs[nwrs_act] = pwr->e.iid;
+      nwrs_act++;
+    }
+  }
+  for (const struct ddsi_rd_wr_match *m = ddsrt_avl_iter_first (&ddsi_rd_local_writers_treedef, &rd->local_writers, &it);
+        m != NULL;
+        m = ddsrt_avl_iter_next (&it))
+  {
+    struct ddsi_writer *wr;
+    if ((wr = ddsi_entidx_lookup_writer_guid (gv->entity_index, &m->wr_guid)) != NULL)
+    {
+      if (nwrs_act < nwrs)
+        wrs[nwrs_act] = wr->e.iid;
+      nwrs_act++;
+    }
+  }
+  ddsrt_mutex_unlock (&rd->e.lock);
+  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
+
+  /* FIXME: is it really true that there can not be more than INT32_MAX matching readers?
+    (in practice it'll come to a halt long before that) */
+  assert (nwrs_act <= INT32_MAX);
+
+  return (dds_return_t) nwrs_act;
+}
+
+bool ddsi_writer_find_matched_reader (struct ddsi_writer *wr, uint64_t ih, struct ddsi_entity_common **rdc, struct dds_qos **rdqos, struct ddsi_entity_common **ppc)
+{
+  /* FIXME: this ought not be so inefficient */
+  struct ddsi_domaingv *gv = wr->e.gv;
+  bool found = false;
+  ddsrt_avl_iter_t it;
+  ddsi_thread_state_awake (ddsi_lookup_thread_state (), gv);
+  ddsrt_mutex_lock (&wr->e.lock);
+  for (const struct ddsi_wr_prd_match *m = ddsrt_avl_iter_first (&ddsi_wr_readers_treedef, &wr->readers, &it);
+        m != NULL && !found;
+        m = ddsrt_avl_iter_next (&it))
+  {
+    struct ddsi_proxy_reader *prd;
+    if ((prd = ddsi_entidx_lookup_proxy_reader_guid (gv->entity_index, &m->prd_guid)) != NULL && prd->e.iid == ih)
+    {
+      found = true;
+      *rdc = &prd->e;
+      *rdqos = prd->c.xqos;
+      *ppc = &prd->c.proxypp->e;
+    }
+  }
+  for (const struct ddsi_wr_rd_match *m = ddsrt_avl_iter_first (&ddsi_wr_local_readers_treedef, &wr->local_readers, &it);
+        m != NULL && !found;
+        m = ddsrt_avl_iter_next (&it))
+  {
+    struct ddsi_reader *rd;
+    if ((rd = ddsi_entidx_lookup_reader_guid (gv->entity_index, &m->rd_guid)) != NULL && rd->e.iid == ih)
+    {
+      found = true;
+      *rdc = &rd->e;
+      *rdqos = rd->xqos;
+      *ppc = &rd->c.pp->e;
+    }
+  }
+  ddsrt_mutex_unlock (&wr->e.lock);
+  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
+  return found;
+}
+
+bool ddsi_reader_find_matched_writer (struct ddsi_reader *rd, uint64_t ih, struct ddsi_entity_common **wrc, struct dds_qos **wrqos, struct ddsi_entity_common **ppc)
+{
+  /* FIXME: this ought not be so inefficient */
+  struct ddsi_domaingv *gv = rd->e.gv;
+  bool found = false;
+  ddsrt_avl_iter_t it;
+  ddsi_thread_state_awake (ddsi_lookup_thread_state (), gv);
+  ddsrt_mutex_lock (&rd->e.lock);
+  for (const struct ddsi_rd_pwr_match *m = ddsrt_avl_iter_first (&ddsi_rd_writers_treedef, &rd->writers, &it);
+        m != NULL && !found;
+        m = ddsrt_avl_iter_next (&it))
+  {
+    struct ddsi_proxy_writer *pwr;
+    if ((pwr = ddsi_entidx_lookup_proxy_writer_guid (gv->entity_index, &m->pwr_guid)) != NULL && pwr->e.iid == ih)
+    {
+      found = true;
+      *wrc = &pwr->e;
+      *wrqos = pwr->c.xqos;
+      *ppc = &pwr->c.proxypp->e;
+    }
+  }
+  for (const struct ddsi_rd_wr_match *m = ddsrt_avl_iter_first (&ddsi_rd_local_writers_treedef, &rd->local_writers, &it);
+        m != NULL && !found;
+        m = ddsrt_avl_iter_next (&it))
+  {
+    struct ddsi_writer *wr;
+    if ((wr = ddsi_entidx_lookup_writer_guid (gv->entity_index, &m->wr_guid)) != NULL && wr->e.iid == ih)
+    {
+      found = true;
+      *wrc = &wr->e;
+      *wrqos = wr->xqos;
+      *ppc = &wr->c.pp->e;
+    }
+  }
+  ddsrt_mutex_unlock (&rd->e.lock);
+  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
+  return found;
+}

@@ -2164,7 +2164,7 @@ static dds_return_t remote_on_delivery_failure_fastpath (struct ddsi_entity_comm
 
 static int deliver_user_data (const struct ddsi_rsample_info *sampleinfo, const struct ddsi_rdata *fragchain, const ddsi_guid_t *rdguid, int pwr_locked)
 {
-  static const struct deliver_locally_ops deliver_locally_ops = {
+  static const struct ddsi_deliver_locally_ops deliver_locally_ops = {
     .makesample = remote_make_sample,
     .first_reader = proxy_writer_first_in_sync_reader,
     .next_reader = proxy_writer_next_in_sync_reader,
