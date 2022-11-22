@@ -15,7 +15,6 @@
 #include <stdarg.h>
 
 #include "dds/ddsrt/log.h"
-#include "dds/ddsrt/rusage.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -38,30 +37,6 @@ extern "C" {
 #define GVLOGDISC(...)      DDS_CLOG (DDS_LC_DISCOVERY, &gv->logconfig, __VA_ARGS__)
 #define ELOGDISC(e_,...)    DDS_CLOG (DDS_LC_DISCOVERY, &(e_)->e.gv->logconfig, __VA_ARGS__)
 #define EELOGDISC(e_, ...)  DDS_CLOG (DDS_LC_DISCOVERY, &(e_)->gv->logconfig, __VA_ARGS__)
-
-/* LOG_THREAD_CPUTIME must be considered private. */
-#if DDSRT_HAVE_RUSAGE
-#define LOG_THREAD_CPUTIME(logcfg, guard)                                \
-    do {                                                                 \
-        if ((logcfg)->c.mask & DDS_LC_TIMING) {                          \
-            ddsrt_mtime_t tnowlt = ddsrt_time_monotonic ();              \
-            if (tnowlt.v >= (guard).v) {                                 \
-                ddsrt_rusage_t usage;                                    \
-                if (ddsrt_getrusage(DDSRT_RUSAGE_THREAD, &usage) == 0) { \
-                    DDS_CLOG(                                            \
-                        DDS_LC_TIMING,                                   \
-                        (logcfg),                                        \
-                        "thread_cputime %d.%09d\n",                      \
-                        (int)(usage.stime / DDS_NSECS_IN_SEC),           \
-                        (int)(usage.stime % DDS_NSECS_IN_SEC));          \
-                    (guard).v = tnowlt.v + DDS_NSECS_IN_SEC;             \
-                }                                                        \
-            }                                                            \
-        }                                                                \
-    } while (0)
-#else
-#define LOG_THREAD_CPUTIME(logcfg, guard) (void)(guard)
-#endif /* DDSRT_HAVE_RUSAGE */
 
 #if defined (__cplusplus)
 }

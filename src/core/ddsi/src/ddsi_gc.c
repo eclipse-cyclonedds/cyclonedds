@@ -16,12 +16,12 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/sync.h"
-#include "dds/ddsi/ddsi_log.h"
 #include "dds/ddsi/ddsi_unused.h"
 #include "dds/ddsi/ddsi_domaingv.h" /* for mattr, cattr */
 #include "ddsi__thread.h"
 #include "ddsi__entity_index.h"
 #include "ddsi__lease.h"
+#include "ddsi__log.h"
 #include "ddsi__receive.h" /* for trigger_receive_threads */
 #include "ddsi__gc.h"
 

@@ -21,7 +21,7 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/environ.h"
 #include "dds/ddsrt/log.h"
-
+#include "ddsi__log.h"
 #include "ddsi__xqos.h"
 
 #include "test_common.h"

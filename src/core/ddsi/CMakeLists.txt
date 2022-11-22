@@ -202,6 +202,7 @@ set(hdrs_private_ddsi
   ddsi__whc.h
   ddsi__xevent.h
   ddsi__xmsg.h
+  ddsi__log.h
 )
 
 if(ENABLE_LIFESPAN)
