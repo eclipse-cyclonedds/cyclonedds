@@ -26,6 +26,8 @@ static const char *xlatmd(const char *str, const char **end)
     { "<li>", " * " }, { "</li>", "\n" },
     { "<ul>", "" }, { "</ul>", "" },
     { "<sup>", "^" }, { "</sup>", "" },
+    { "<code>", "`" }, { "</code>", "`" },
+    { "&lt;empty&gt;", "<empty>" },
     { "*", "\\*" }, { "_", "\\_" },
     { NULL, NULL }
   };

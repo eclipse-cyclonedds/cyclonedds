@@ -524,7 +524,7 @@ format(
   return 0;
 }
 
-#define DFLTFMT "<p>The default value is: \"%s\".</p>"
+#define DFLTFMT "<p>The default value is: <code>%s</code></p>"
 
 int makedescription(
   struct cfgelem *elem,
@@ -534,7 +534,7 @@ int makedescription(
   if (elem->description) {
     char *src = NULL;
     char *dest = elem->meta.description;
-    const char *dflt = "";
+    const char *dflt = "&lt;empty&gt;";
     size_t len = 0, pos = 0;
     const struct cfgunit *unit = NULL;
 
@@ -542,7 +542,10 @@ int makedescription(
       src = strdup(elem->description);
     } else {
       if (elem->value)
-        dflt = elem->value;
+      {
+        if (strlen(elem->value) > 0)
+          dflt = elem->value;
+      }
       if (elem->meta.unit) {
         unit = findunit(units, elem->meta.unit);
         assert(unit);
