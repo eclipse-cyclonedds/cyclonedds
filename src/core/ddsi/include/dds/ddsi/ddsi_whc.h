@@ -22,8 +22,14 @@ extern "C" {
 struct ddsi_serdata;
 struct ddsi_plist;
 struct ddsi_tkmap_instance;
-struct ddsi_whc_node; /* opaque, but currently used for deferred free lists */
 struct ddsi_whc;
+
+/**
+ * @brief Base type for whc node
+ */
+struct ddsi_whc_node {
+  ddsi_seqno_t seq;
+};
 
 struct ddsi_whc_borrowed_sample {
   ddsi_seqno_t seq;
