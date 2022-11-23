@@ -521,7 +521,10 @@ void whc_default_free (struct ddsi_whc *whc_generic)
   struct ddsrt_hh_iter it;
   struct whc_idxnode *idxn;
   for (idxn = ddsrt_hh_iter_first (whc->idx_hash, &it); idxn != NULL; idxn = ddsrt_hh_iter_next (&it))
+  {
+    ddsi_tkmap_instance_unref (whc->tkmap, idxn->tk);
     ddsrt_free (idxn);
+  }
   ddsrt_hh_free (whc->idx_hash);
 
   {
@@ -668,6 +671,7 @@ static void free_one_instance_from_idx (struct whc_impl *whc, ddsi_seqno_t max_d
       }
     }
   }
+  ddsi_tkmap_instance_unref (whc->tkmap, idxn->tk);
   ddsrt_free (idxn);
 }
 
