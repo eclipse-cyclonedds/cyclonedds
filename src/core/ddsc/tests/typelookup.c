@@ -12,15 +12,6 @@
 #include <assert.h>
 #include <limits.h>
 
-#include "dds/dds.h"
-#include "config_env.h"
-
-#include "dds/version.h"
-#include "dds__domain.h"
-#include "dds__entity.h"
-#include "dds/ddsi/ddsi_entity.h"
-#include "dds/ddsi/ddsi_entity_index.h"
-#include "dds/ddsi/ddsi_typelib.h"
 #include "dds/ddsrt/cdtors.h"
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/process.h"
@@ -30,7 +21,16 @@
 #include "dds/ddsrt/time.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
+#include "dds/ddsi/ddsi_entity.h"
+#include "dds/ddsi/ddsi_entity_index.h"
+#include "ddsi__typelib.h"
+#include "dds/dds.h"
+#include "dds/version.h"
+#include "dds__domain.h"
+#include "dds__entity.h"
+
 #include "test_common.h"
+#include "config_env.h"
 #include "XSpace.h"
 
 #define DDS_DOMAINID_PUB 0
@@ -82,8 +82,8 @@ static void get_type (dds_entity_t entity, ddsi_typeid_t **type_id, char **type_
 {
   struct dds_entity *e;
   CU_ASSERT_EQUAL_FATAL (dds_entity_pin (entity, &e), 0);
-  thread_state_awake (ddsi_lookup_thread_state (), &e->m_domain->gv);
-  struct ddsi_entity_common *ec = entidx_lookup_guid_untyped (e->m_domain->gv.entity_index, &e->m_guid);
+  ddsi_thread_state_awake (ddsi_lookup_thread_state (), &e->m_domain->gv);
+  struct ddsi_entity_common *ec = ddsi_entidx_lookup_guid_untyped (e->m_domain->gv.entity_index, &e->m_guid);
   CU_ASSERT_FATAL (ec != NULL);
   assert (ec);
   if (ec->kind == DDSI_EK_PROXY_READER || ec->kind == DDSI_EK_PROXY_WRITER)
@@ -140,7 +140,7 @@ static void get_type (dds_entity_t entity, ddsi_typeid_t **type_id, char **type_
   }
   else
     abort ();
-  thread_state_asleep (ddsi_lookup_thread_state ());
+  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
   dds_entity_unpin (e);
 }
 
@@ -364,7 +364,7 @@ CU_Test(ddsc_typelookup, api_resolve, .init = typelookup_init, .fini = typelooku
 // the definition of `ddsi_typeid_t` is well hidden, but we need it if we want to
 // have a static assertion that an intentional but weird memset doesn't go out of
 // bounds
-#include "dds/ddsi/ddsi_xt_impl.h"
+#include "ddsi__xt_impl.h"
 
 CU_Test(ddsc_typelookup, api_resolve_invalid, .init = typelookup_init, .fini = typelookup_fini)
 {

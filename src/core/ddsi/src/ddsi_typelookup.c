@@ -17,27 +17,26 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_plist.h"
-#include "dds/ddsi/ddsi_plist_generic.h"
 #include "dds/ddsi/ddsi_guid.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_tkmap.h"
-#include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/ddsi_xt_typelookup.h"
-#include "dds/ddsi/ddsi_typelookup.h"
-#include "dds/ddsi/ddsi_typelib.h"
-#include "dds/ddsi/ddsi_xt_impl.h"
 #include "dds/ddsi/ddsi_typebuilder.h"
-#include "dds/cdr/dds_cdrstream.h"
-#include "dds/ddsi/ddsi_entity.h"
-#include "dds/ddsi/ddsi_entity_match.h"
-#include "dds/ddsi/ddsi_participant.h"
 #include "dds/ddsi/ddsi_gc.h"
-#include "dds/ddsi/q_protocol.h"
-#include "dds/ddsi/q_radmin.h"
-#include "dds/ddsi/q_rtps.h"
-#include "dds/ddsi/q_transmit.h"
-#include "dds/ddsi/q_xmsg.h"
-#include "dds/ddsi/q_misc.h"
+#include "ddsi__plist_generic.h"
+#include "ddsi__entity_index.h"
+#include "ddsi__typelookup.h"
+#include "ddsi__xt_impl.h"
+#include "ddsi__entity.h"
+#include "ddsi__endpoint_match.h"
+#include "ddsi__participant.h"
+#include "ddsi__protocol.h"
+#include "ddsi__radmin.h"
+#include "ddsi__transmit.h"
+#include "ddsi__xmsg.h"
+#include "ddsi__misc.h"
+#include "ddsi__typelib.h"
+#include "dds/cdr/dds_cdrstream.h"
 
 static bool participant_builtin_writers_ready (struct ddsi_participant *pp)
 {
@@ -55,16 +54,16 @@ static struct ddsi_writer *get_typelookup_writer (const struct ddsi_domaingv *gv
 {
   struct ddsi_participant *pp;
   struct ddsi_writer *wr = NULL;
-  struct entidx_enum_participant est;
-  thread_state_awake (ddsi_lookup_thread_state (), gv);
-  entidx_enum_participant_init (&est, gv->entity_index);
-  while (wr == NULL && (pp = entidx_enum_participant_next (&est)) != NULL)
+  struct ddsi_entity_enum_participant est;
+  ddsi_thread_state_awake (ddsi_lookup_thread_state (), gv);
+  ddsi_entidx_enum_participant_init (&est, gv->entity_index);
+  while (wr == NULL && (pp = ddsi_entidx_enum_participant_next (&est)) != NULL)
   {
     if (participant_builtin_writers_ready (pp))
       wr = ddsi_get_builtin_writer (pp, wr_eid);
   }
-  entidx_enum_participant_fini (&est);
-  thread_state_asleep (ddsi_lookup_thread_state ());
+  ddsi_entidx_enum_participant_fini (&est);
+  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
   return wr;
 }
 
@@ -121,7 +120,7 @@ static dds_return_t create_tl_request_msg (struct ddsi_domaingv * const gv, DDS_
      is (currently) no need to correlate the reply message to a specific request. */
   request->header.requestId.sequence_number.high = (int32_t) (type->request_seqno >> 32);
   request->header.requestId.sequence_number.low = (uint32_t) type->request_seqno;
-  const ddsi_guid_t *instance_name_guid = proxypp_guid ? proxypp_guid : &nullguid;
+  const ddsi_guid_t *instance_name_guid = proxypp_guid ? proxypp_guid : &ddsi_nullguid;
   (void) snprintf (request->header.instanceName, sizeof (request->header.instanceName), "dds.builtin.TOS.%08"PRIx32 "%08"PRIx32 "%08"PRIx32 "%08"PRIx32,
     instance_name_guid->prefix.u[0], instance_name_guid->prefix.u[1], instance_name_guid->prefix.u[2], instance_name_guid->entityid.u);
   request->data._d = DDS_Builtin_TypeLookup_getTypes_HashId;
@@ -185,7 +184,7 @@ bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const ddsi_typeid_t 
     return true;
   }
 
-  struct ddsi_writer *wr = get_typelookup_writer (gv, NN_ENTITYID_TL_SVC_BUILTIN_REQUEST_WRITER);
+  struct ddsi_writer *wr = get_typelookup_writer (gv, DDSI_ENTITYID_TL_SVC_BUILTIN_REQUEST_WRITER);
   if (wr == NULL)
   {
     GVTRACE ("no pp found with tl request writer");
@@ -214,17 +213,17 @@ bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const ddsi_typeid_t 
   serdata->timestamp = ddsrt_time_wallclock ();
   ddsrt_mutex_unlock (&gv->typelib_lock);
 
-  thread_state_awake (ddsi_lookup_thread_state (), gv);
+  ddsi_thread_state_awake (ddsi_lookup_thread_state (), gv);
   GVTRACE ("wr "PGUIDFMT" typeid %s\n", PGUID (wr->e.guid), ddsi_make_typeid_str (&tidstr, type_id));
   struct ddsi_tkmap_instance *tk = ddsi_tkmap_lookup_instance_ref (gv->m_tkmap, serdata);
-  write_sample_gc (ddsi_lookup_thread_state (), NULL, wr, serdata, tk);
+  ddsi_write_sample_gc (ddsi_lookup_thread_state (), NULL, wr, serdata, tk);
   ddsi_tkmap_instance_unref (gv->m_tkmap, tk);
-  thread_state_asleep (ddsi_lookup_thread_state ());
+  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
 
   return true;
 }
 
-static void create_tl_reply_msg (DDS_Builtin_TypeLookup_Reply *reply, const struct ddsi_writer *wr, seqno_t seqno, const struct DDS_XTypes_TypeIdentifierTypeObjectPairSeq *types)
+static void create_tl_reply_msg (DDS_Builtin_TypeLookup_Reply *reply, const struct ddsi_writer *wr, ddsi_seqno_t seqno, const struct DDS_XTypes_TypeIdentifierTypeObjectPairSeq *types)
 {
   memset (reply, 0, sizeof (*reply));
   memcpy (&reply->header.relatedRequestId.writer_guid.guidPrefix, &wr->e.guid.prefix, sizeof (reply->header.relatedRequestId.writer_guid.guidPrefix));
@@ -239,7 +238,7 @@ static void create_tl_reply_msg (DDS_Builtin_TypeLookup_Reply *reply, const stru
 
 }
 
-static void write_typelookup_reply (struct ddsi_writer *wr, seqno_t seqno, const struct DDS_XTypes_TypeIdentifierTypeObjectPairSeq *types)
+static void write_typelookup_reply (struct ddsi_writer *wr, ddsi_seqno_t seqno, const struct DDS_XTypes_TypeIdentifierTypeObjectPairSeq *types)
 {
   struct ddsi_domaingv * const gv = wr->e.gv;
   DDS_Builtin_TypeLookup_Reply reply;
@@ -255,7 +254,7 @@ static void write_typelookup_reply (struct ddsi_writer *wr, seqno_t seqno, const
 
   GVTRACE ("wr "PGUIDFMT"\n", PGUID (wr->e.guid));
   struct ddsi_tkmap_instance *tk = ddsi_tkmap_lookup_instance_ref (gv->m_tkmap, serdata);
-  write_sample_gc (ddsi_lookup_thread_state (), NULL, wr, serdata, tk);
+  ddsi_write_sample_gc (ddsi_lookup_thread_state (), NULL, wr, serdata, tk);
   ddsi_tkmap_instance_unref (gv->m_tkmap, tk);
 }
 
@@ -267,14 +266,14 @@ static ddsi_guid_t from_guid (const DDS_GUID_t *guid)
   return ddsi_guid;
 }
 
-static seqno_t from_seqno (const DDS_SequenceNumber *seqno)
+static ddsi_seqno_t from_seqno (const DDS_SequenceNumber *seqno)
 {
-  return fromSN((nn_sequence_number_t){ .high = seqno->high, .low = seqno->low });
+  return ddsi_from_seqno((ddsi_sequence_number_t){ .high = seqno->high, .low = seqno->low });
 }
 
 void ddsi_tl_handle_request (struct ddsi_domaingv *gv, struct ddsi_serdata *d)
 {
-  assert (!(d->statusinfo & (NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER)));
+  assert (!(d->statusinfo & (DDSI_STATUSINFO_DISPOSE | DDSI_STATUSINFO_UNREGISTER)));
 
   DDS_Builtin_TypeLookup_Request req;
   memset (&req, 0, sizeof (req));
@@ -311,7 +310,7 @@ void ddsi_tl_handle_request (struct ddsi_domaingv *gv, struct ddsi_serdata *d)
   }
   ddsrt_mutex_unlock (&gv->typelib_lock);
 
-  struct ddsi_writer *wr = get_typelookup_writer (gv, NN_ENTITYID_TL_SVC_BUILTIN_REPLY_WRITER);
+  struct ddsi_writer *wr = get_typelookup_writer (gv, DDSI_ENTITYID_TL_SVC_BUILTIN_REPLY_WRITER);
   if (wr != NULL)
     write_typelookup_reply (wr, from_seqno (&req.header.requestId.sequence_number), &types);
   else
@@ -382,7 +381,7 @@ void ddsi_tl_handle_reply (struct ddsi_domaingv *gv, struct ddsi_serdata *d)
 {
   struct ddsi_generic_proxy_endpoint **gpe_match_upd = NULL;
   uint32_t n_match_upd = 0;
-  assert (!(d->statusinfo & (NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER)));
+  assert (!(d->statusinfo & (DDSI_STATUSINFO_DISPOSE | DDSI_STATUSINFO_UNREGISTER)));
 
   DDS_Builtin_TypeLookup_Reply reply;
   memset (&reply, 0, sizeof (reply));

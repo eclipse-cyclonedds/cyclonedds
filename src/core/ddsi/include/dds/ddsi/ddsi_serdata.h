@@ -24,7 +24,7 @@
 extern "C" {
 #endif
 
-struct nn_rdata;
+struct ddsi_rdata;
 
 enum ddsi_serdata_kind {
   SDK_EMPTY,
@@ -67,7 +67,7 @@ typedef void (*ddsi_serdata_free_t) (struct ddsi_serdata *d);
    - fragchains may overlap, though I have never seen any DDS implementation
      actually send such nasty fragments
    - FIXME: get the encoding header out of the serialised data */
-typedef struct ddsi_serdata * (*ddsi_serdata_from_ser_t) (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, const struct nn_rdata *fragchain, size_t size);
+typedef struct ddsi_serdata * (*ddsi_serdata_from_ser_t) (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, const struct ddsi_rdata *fragchain, size_t size);
 
 /* Exactly like ddsi_serdata_from_ser_t, but with the data in an iovec and guaranteed absence of overlap */
 typedef struct ddsi_serdata * (*ddsi_serdata_from_ser_iov_t) (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, ddsrt_msg_iovlen_t niov, const ddsrt_iovec_t *iov, size_t size);
@@ -193,7 +193,7 @@ DDS_EXPORT void ddsi_serdata_init (struct ddsi_serdata *d, const struct ddsi_ser
  * @param[in] fragchain the fragchain argument passed to @ref ddsi_serdata_from_ser (the first one, not any subsequent ones)
  * @returns A pointer to the keyhash in the message if it was present, NULL if not. The lifetime is at least that of the fragchain itself.
  */
-const ddsi_keyhash_t *ddsi_serdata_keyhash_from_fragchain (const struct nn_rdata *fragchain);
+const ddsi_keyhash_t *ddsi_serdata_keyhash_from_fragchain (const struct ddsi_rdata *fragchain);
 
 /**
  * @brief Return a reference to a serdata with possible type conversion
@@ -234,7 +234,7 @@ DDS_INLINE_EXPORT inline uint32_t ddsi_serdata_size (const struct ddsi_serdata *
   return d->ops->get_size (d);
 }
 
-DDS_INLINE_EXPORT inline struct ddsi_serdata *ddsi_serdata_from_ser (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, const struct nn_rdata *fragchain, size_t size) {
+DDS_INLINE_EXPORT inline struct ddsi_serdata *ddsi_serdata_from_ser (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, const struct ddsi_rdata *fragchain, size_t size) {
   return type->serdata_ops->from_ser (type, kind, fragchain, size);
 }
 

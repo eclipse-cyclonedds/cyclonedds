@@ -70,7 +70,6 @@ void ddsi_config_init_default (struct ddsi_config *cfg)
   cfg->ack_delay = INT64_C (10000000);
   cfg->auto_resched_nack_delay = INT64_C (3000000000);
   cfg->preemptive_ack_delay = INT64_C (10000000);
-  cfg->ddsi2direct_max_threads = UINT32_C (1);
   cfg->max_sample_size = UINT32_C (2147483647);
   cfg->noprogress_log_stacktraces = INT32_C (1);
   cfg->liveliness_monitoring_interval = INT64_C (1000000000);
@@ -104,14 +103,14 @@ void ddsi_config_init_default (struct ddsi_config *cfg)
   cfg->shm_log_lvl = INT32_C (4);
 #endif /* DDS_HAS_SHM */
 }
-/* generated from ddsi_config.h[75edea6617af11bacc46f91e519773f6df580655] */
-/* generated from ddsi_cfgunits.h[fc550f1620aa20dcd9244ef4e24299d5001efbb4] */
-/* generated from ddsi_cfgelems.h[11913cd398f1cd1b52e06d924718df62a5981beb] */
-/* generated from ddsi_config.c[ed9898f72f9dbcfa20ce7706835da091efcea0ca] */
+/* generated from ddsi_config.h[25c12468a096054dd7c7a9ec2fe32837c1aa9a9f] */
+/* generated from ddsi__cfgunits.h[be1b976c6e9466472b0c331487c05180ec1052d4] */
+/* generated from ddsi__cfgelems.h[bcd0c270d1ce8ec381ac5388056502d990cc4129] */
+/* generated from ddsi_config.c[4d8a28fd8d4388d80e375f617f21fb3c2e1a8e49] */
 /* generated from _confgen.h[f2d235d5551cbf920a8a2962831dddeabd2856ac] */
-/* generated from _confgen.c[ba2e8c0cfd41039421548fdb03bcd2db8f8b172e] */
+/* generated from _confgen.c[d74e4fd06e485c5d299dbcc7741cbdb95c5ec706] */
 /* generated from generate_rnc.c[a2ec6e48d33ac14a320c8ec3f320028a737920e0] */
 /* generated from generate_md.c[37efe4fa9caf56e2647bafc9a7f009f72ff5d2e0] */
 /* generated from generate_rst.c[50739f627792ef056e2b4feeb20fda4edfcef079] */
 /* generated from generate_xsd.c[45064e8869b3c00573057d7c8f02d20f04b40e16] */
-/* generated from generate_defconfig.c[eec9ab7b2d053e68500799b693d089e84153a37b] */
+/* generated from generate_defconfig.c[ddf5057ceb5fb512b47f7028da2d75837a349830] */

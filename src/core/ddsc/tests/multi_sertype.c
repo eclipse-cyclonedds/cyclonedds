@@ -12,16 +12,6 @@
 #include <assert.h>
 #include <limits.h>
 
-#include "dds/dds.h"
-#include "config_env.h"
-
-#include "dds/version.h"
-#include "dds__entity.h"
-#include "dds/ddsi/ddsi_entity.h"
-#include "dds/ddsi/ddsi_entity_match.h"
-#include "dds/ddsi/ddsi_endpoint.h"
-#include "dds/ddsi/ddsi_serdata.h"
-#include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsrt/cdtors.h"
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/process.h"
@@ -29,7 +19,17 @@
 #include "dds/ddsrt/environ.h"
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/time.h"
+#include "dds/ddsi/ddsi_entity.h"
+#include "dds/ddsi/ddsi_endpoint_match.h"
+#include "dds/ddsi/ddsi_endpoint.h"
+#include "dds/ddsi/ddsi_serdata.h"
+#include "dds/ddsi/ddsi_entity_index.h"
+#include "ddsi__endpoint_match.h"
+#include "dds/dds.h"
+#include "dds/version.h"
+#include "dds__entity.h"
 
+#include "config_env.h"
 #include "test_common.h"
 
 #define DDS_DOMAINID_PUB 0
@@ -256,7 +256,7 @@ static void waitfor_or_reset_fastpath (dds_entity_t rdhandle, bool fastpath, siz
   struct ddsi_rd_pwr_match *m;
   ddsi_guid_t cursor;
   size_t wrcount = 0;
-  thread_state_awake (ddsi_lookup_thread_state (), rd->e.gv);
+  ddsi_thread_state_awake (ddsi_lookup_thread_state (), rd->e.gv);
   ddsrt_mutex_lock (&rd->e.lock);
 
   memset (&cursor, 0, sizeof (cursor));
@@ -264,7 +264,7 @@ static void waitfor_or_reset_fastpath (dds_entity_t rdhandle, bool fastpath, siz
   {
     cursor = m->pwr_guid;
     ddsrt_mutex_unlock (&rd->e.lock);
-    struct ddsi_proxy_writer * const pwr = entidx_lookup_proxy_writer_guid (rd->e.gv->entity_index, &cursor);
+    struct ddsi_proxy_writer * const pwr = ddsi_entidx_lookup_proxy_writer_guid (rd->e.gv->entity_index, &cursor);
     ddsrt_mutex_lock (&pwr->rdary.rdary_lock);
     if (!fastpath)
       pwr->rdary.fastpath_ok = false;
@@ -287,7 +287,7 @@ static void waitfor_or_reset_fastpath (dds_entity_t rdhandle, bool fastpath, siz
   {
     cursor = m->pwr_guid;
     ddsrt_mutex_unlock (&rd->e.lock);
-    struct ddsi_writer * const wr = entidx_lookup_writer_guid (rd->e.gv->entity_index, &cursor);
+    struct ddsi_writer * const wr = ddsi_entidx_lookup_writer_guid (rd->e.gv->entity_index, &cursor);
     ddsrt_mutex_lock (&wr->rdary.rdary_lock);
     if (!fastpath)
       wr->rdary.fastpath_ok = fastpath;
@@ -305,7 +305,7 @@ static void waitfor_or_reset_fastpath (dds_entity_t rdhandle, bool fastpath, siz
     ddsrt_mutex_lock (&rd->e.lock);
   }
   ddsrt_mutex_unlock (&rd->e.lock);
-  thread_state_asleep (ddsi_lookup_thread_state ());
+  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
   dds_entity_unpin (x);
 
   CU_ASSERT_FATAL (wrcount == nwr);

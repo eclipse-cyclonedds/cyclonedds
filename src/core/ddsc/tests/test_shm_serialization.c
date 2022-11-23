@@ -1,11 +1,11 @@
 #include <assert.h>
 #include <limits.h>
 
-#include "dds/ddsi/ddsi_serdata.h"
-#include "dds/ddsi/ddsi_sertype.h"
 #include "dds/ddsrt/environ.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/io.h"
+#include "dds/ddsi/ddsi_serdata.h"
+#include "dds/ddsi/ddsi_sertype.h"
 #include "dds__entity.h"
 #include "dds__topic.h"
 #include "dds__serdata_default.h"

@@ -35,7 +35,7 @@
 #define PATTERN(str) .pattern = str
 #define END_MARKER { NULL, NULL, NULL }
 
-#include "dds/ddsi/ddsi_cfgunits.h"
+#include "ddsi__cfgunits.h"
 /* undefine unit macros */
 #undef UNIT
 #undef DESCRIPTION
@@ -47,7 +47,7 @@
 #define DEPRECATED(name) "|" name
 #define MEMBER(name) offsetof (struct ddsi_config, name), #name
 #define MEMBEROF(parent,name) 0, NULL /* default config for doesn't contain lists, so these aren't needed */
-/* renaming print functions to use prefix gendef_pf so that the symbols are different from those in q_config.c
+/* renaming print functions to use prefix gendef_pf so that the symbols are different from those in ddsi_config.c
    (they have file-local scope, so this isn't required, but I am guessing it will be less confusing in the long
    run, even if it means that 0/NULL will get translated to gendef_0/gendef_NULL, which then need additional
    macros to convert them back to 0 ... */
@@ -90,7 +90,7 @@
 #define GROUP(name, elems, attrs, multip, ofst, funcs, desc, ...) \
   EXPAND(ELEMENT, (name, elems, attrs, multip, NULL, ofst, funcs, desc, .type = "group", __VA_ARGS__))
 
-#include "dds/ddsi/ddsi_cfgelems.h"
+#include "ddsi__cfgelems.h"
 /* undefine element macros */
 #undef DEPRECATED
 #undef MEMBER

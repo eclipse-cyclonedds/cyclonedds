@@ -26,10 +26,10 @@
 #include "dds/version.h"
 #include "dds/ddsi/ddsi_pmd.h"
 #include "dds/ddsi/ddsi_xqos.h"
-#include "dds/ddsi/q_transmit.h"
-#include "dds/ddsi/q_bswap.h"
+#include "dds/ddsi/ddsi_transmit.h"
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_endpoint.h"
+#include "dds/ddsi/ddsi_sertype.h"
 
 extern inline dds_entity *dds_entity_from_handle_link (struct dds_handle_link *hdllink);
 extern inline bool dds_entity_is_enabled (const dds_entity *e);
@@ -105,7 +105,7 @@ static bool entity_is_builtin_topic (const struct dds_entity *entity)
   else
   {
     const dds_topic *tp = (dds_topic *) entity;
-    return builtintopic_is_builtintopic (&tp->m_entity.m_domain->btif, tp->m_stype);
+    return ddsi_builtintopic_is_builtintopic (&tp->m_entity.m_domain->btif, tp->m_stype);
   }
 }
 
@@ -727,7 +727,7 @@ dds_return_t dds_get_qos (dds_entity_t entity, dds_qos_t *qos)
     }
 
     dds_reset_qos (qos);
-    ddsi_xqos_mergein_missing (qos, entity_qos, ~(QP_TOPIC_NAME | QP_TYPE_NAME | QP_TYPE_INFORMATION));
+    ddsi_xqos_mergein_missing (qos, entity_qos, ~(DDSI_QP_TOPIC_NAME | DDSI_QP_TYPE_NAME | DDSI_QP_TYPE_INFORMATION));
     ret = DDS_RETCODE_OK;
   }
   dds_entity_unlock(e);
@@ -762,13 +762,13 @@ static dds_return_t dds_set_qos_locked_raw (dds_entity *e, dds_qos_t **e_qos_ptr
       /* new settings are identical to the old */
       goto error_or_nochange;
     }
-    else if (delta & ~QP_CHANGEABLE_MASK)
+    else if (delta & ~DDSI_QP_CHANGEABLE_MASK)
     {
       /* not all QoS may be changed according to the spec */
       ret = DDS_RETCODE_IMMUTABLE_POLICY;
       goto error_or_nochange;
     }
-    else if (delta & (QP_RXO_MASK | QP_PARTITION))
+    else if (delta & (DDSI_QP_RXO_MASK | DDSI_QP_PARTITION))
     {
       /* Cyclone doesn't (yet) support changing QoS that affect matching.  Simply re-doing the
          matching is easy enough, but the consequences are very weird.  E.g., what is the
@@ -851,7 +851,7 @@ static void pushdown_pubsub_qos (dds_entity *e)
 
       ddsrt_mutex_lock (&c->m_mutex);
       ddsrt_mutex_lock (&e->m_mutex);
-      dds_set_qos_locked_impl (c, e->m_qos, QP_GROUP_DATA | QP_PARTITION);
+      dds_set_qos_locked_impl (c, e->m_qos, DDSI_QP_GROUP_DATA | DDSI_QP_PARTITION);
       ddsrt_mutex_unlock (&c->m_mutex);
       dds_entity_unpin (c);
     }
@@ -889,7 +889,7 @@ static void pushdown_topic_qos (dds_entity *e, struct dds_ktopic *ktp)
       struct dds_participant * const pp = dds_entity_participant (e);
       ddsrt_mutex_lock (&e->m_mutex);
       ddsrt_mutex_lock (&pp->m_entity.m_mutex);
-      dds_set_qos_locked_impl (e, ktp->qos, QP_TOPIC_DATA);
+      dds_set_qos_locked_impl (e, ktp->qos, DDSI_QP_TOPIC_DATA);
       ddsrt_mutex_unlock (&pp->m_entity.m_mutex);
       ddsrt_mutex_unlock (&e->m_mutex);
       break;
@@ -1251,7 +1251,7 @@ dds_return_t dds_get_guid (dds_entity_t entity, dds_guid_t *guid)
     case DDS_KIND_WRITER:
     case DDS_KIND_TOPIC: {
       DDSRT_STATIC_ASSERT (sizeof (dds_guid_t) == sizeof (ddsi_guid_t));
-      ddsi_guid_t tmp = nn_ntoh_guid (e->m_guid);
+      ddsi_guid_t tmp = ddsi_ntoh_guid (e->m_guid);
       memcpy (guid, &tmp, sizeof (*guid));
       ret = DDS_RETCODE_OK;
       break;
@@ -1525,13 +1525,13 @@ dds_return_t dds_assert_liveliness (dds_entity_t entity)
   switch (dds_entity_kind (e))
   {
     case DDS_KIND_PARTICIPANT: {
-      write_pmd_message_guid (&e->m_domain->gv, &e->m_guid, PARTICIPANT_MESSAGE_DATA_KIND_MANUAL_LIVELINESS_UPDATE);
+      ddsi_write_pmd_message_guid (&e->m_domain->gv, &e->m_guid, DDSI_PARTICIPANT_MESSAGE_DATA_KIND_MANUAL_LIVELINESS_UPDATE);
       break;
     }
     case DDS_KIND_WRITER: {
       if ((rc = dds_entity_lock (entity, DDS_KIND_WRITER, &ewr)) != DDS_RETCODE_OK)
         return rc;
-      if ((rc = write_hb_liveliness (&e->m_domain->gv, &e->m_guid, ((struct dds_writer *)ewr)->m_xp)) != DDS_RETCODE_OK)
+      if ((rc = ddsi_write_hb_liveliness (&e->m_domain->gv, &e->m_guid, ((struct dds_writer *)ewr)->m_xp)) != DDS_RETCODE_OK)
         return rc;
       dds_entity_unlock (e);
       break;

@@ -27,7 +27,7 @@
 #include "dds__qos.h"
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_endpoint.h"
-#include "dds/ddsi/q_thread.h"
+#include "dds/ddsi/ddsi_thread.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds__builtin.h"
 #include "dds__statistics.h"
@@ -36,11 +36,11 @@
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/ddsi_security_omg.h"
 #include "dds/ddsi/ddsi_statistics.h"
+#include "dds/ddsi/ddsi_endpoint_match.h"
 
 #ifdef DDS_HAS_SHM
 #include "dds/ddsi/ddsi_shm_transport.h"
 #include "dds/ddsi/ddsi_tkmap.h"
-#include "dds/ddsi/q_receive.h"
 #include "dds/ddsrt/md5.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/threads.h"
@@ -75,9 +75,9 @@ static void dds_reader_close (dds_entity *e)
   }
 #endif
 
-  thread_state_awake (ddsi_lookup_thread_state (), &e->m_domain->gv);
+  ddsi_thread_state_awake (ddsi_lookup_thread_state (), &e->m_domain->gv);
   (void) ddsi_delete_reader (&e->m_domain->gv, &e->m_guid);
-  thread_state_asleep (ddsi_lookup_thread_state ());
+  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
 
   ddsrt_mutex_lock (&e->m_mutex);
   while (rd->m_rd != NULL)
@@ -99,9 +99,9 @@ static dds_return_t dds_reader_delete (dds_entity *e)
     ddsrt_free (ptrs);
   }
 
-  thread_state_awake (ddsi_lookup_thread_state (), &e->m_domain->gv);
+  ddsi_thread_state_awake (ddsi_lookup_thread_state (), &e->m_domain->gv);
   dds_rhc_free (rd->m_rhc);
-  thread_state_asleep (ddsi_lookup_thread_state ());
+  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
 
 #ifdef DDS_HAS_SHM
   if (rd->m_iox_sub)
@@ -121,7 +121,7 @@ static dds_return_t dds_reader_delete (dds_entity *e)
 static dds_return_t validate_reader_qos (const dds_qos_t *rqos)
 {
 #ifndef DDS_HAS_DEADLINE_MISSED
-  if (rqos != NULL && (rqos->present & QP_DEADLINE) && rqos->deadline.deadline != DDS_INFINITY)
+  if (rqos != NULL && (rqos->present & DDSI_QP_DEADLINE) && rqos->deadline.deadline != DDS_INFINITY)
     return DDS_RETCODE_BAD_PARAMETER;
 #else
   DDSRT_UNUSED_ARG (rqos);
@@ -138,10 +138,10 @@ static dds_return_t dds_reader_qos_set (dds_entity *e, const dds_qos_t *qos, boo
   if (enabled)
   {
     struct ddsi_reader *rd;
-    thread_state_awake (ddsi_lookup_thread_state (), &e->m_domain->gv);
-    if ((rd = entidx_lookup_reader_guid (e->m_domain->gv.entity_index, &e->m_guid)) != NULL)
+    ddsi_thread_state_awake (ddsi_lookup_thread_state (), &e->m_domain->gv);
+    if ((rd = ddsi_entidx_lookup_reader_guid (e->m_domain->gv.entity_index, &e->m_guid)) != NULL)
       ddsi_update_reader_qos (rd, qos);
-    thread_state_asleep (ddsi_lookup_thread_state ());
+    ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
   }
   return DDS_RETCODE_OK;
 }
@@ -469,7 +469,7 @@ const struct dds_entity_deriver dds_entity_deriver_reader = {
 };
 
 #ifdef DDS_HAS_SHM
-#define DDS_READER_QOS_CHECK_FIELDS (QP_LIVELINESS|QP_DEADLINE|QP_RELIABILITY|QP_DURABILITY|QP_HISTORY)
+#define DDS_READER_QOS_CHECK_FIELDS (DDSI_QP_LIVELINESS|DDSI_QP_DEADLINE|DDSI_QP_RELIABILITY|DDSI_QP_DURABILITY|DDSI_QP_HISTORY)
 static bool dds_reader_support_shm(const struct ddsi_config* cfg, const dds_qos_t *qos, const struct dds_topic *tp)
 {
   if (NULL == cfg ||
@@ -622,10 +622,10 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
   if (qos)
     ddsi_xqos_mergein_missing (rqos, qos, DDS_READER_QOS_MASK);
   if (sub->m_entity.m_qos)
-    ddsi_xqos_mergein_missing (rqos, sub->m_entity.m_qos, ~QP_ENTITY_NAME);
+    ddsi_xqos_mergein_missing (rqos, sub->m_entity.m_qos, ~DDSI_QP_ENTITY_NAME);
   if (tp->m_ktopic->qos)
-    ddsi_xqos_mergein_missing (rqos, tp->m_ktopic->qos, ~QP_ENTITY_NAME);
-  ddsi_xqos_mergein_missing (rqos, &ddsi_default_qos_reader, ~QP_DATA_REPRESENTATION);
+    ddsi_xqos_mergein_missing (rqos, tp->m_ktopic->qos, ~DDSI_QP_ENTITY_NAME);
+  ddsi_xqos_mergein_missing (rqos, &ddsi_default_qos_reader, ~DDSI_QP_DATA_REPRESENTATION);
   dds_apply_entity_naming(rqos, sub->m_entity.m_qos, gv);
 
   if ((rc = dds_ensure_valid_data_representation (rqos, tp->m_stype->allowed_data_representation, false)) != 0)
@@ -643,9 +643,9 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
     goto err_bad_qos;
   }
 
-  thread_state_awake (ddsi_lookup_thread_state (), gv);
+  ddsi_thread_state_awake (ddsi_lookup_thread_state (), gv);
   const struct ddsi_guid * ppguid = dds_entity_participant_guid (&sub->m_entity);
-  struct ddsi_participant * pp = entidx_lookup_participant_guid (gv->entity_index, ppguid);
+  struct ddsi_participant * pp = ddsi_entidx_lookup_participant_guid (gv->entity_index, ppguid);
 
   /* When deleting a participant, the child handles (that include the subscriber)
      are removed before removing the DDSI participant. So at this point, within
@@ -654,13 +654,13 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
 
 #ifdef DDS_HAS_SECURITY
   /* Check if DDS Security is enabled */
-  if (q_omg_participant_is_secure (pp))
+  if (ddsi_omg_participant_is_secure (pp))
   {
     /* ask to access control security plugin for create reader permissions */
-    if (!q_omg_security_check_create_reader (pp, gv->config.domainId, tp->m_name, rqos))
+    if (!ddsi_omg_security_check_create_reader (pp, gv->config.domainId, tp->m_name, rqos))
     {
       rc = DDS_RETCODE_NOT_ALLOWED_BY_SECURITY;
-      thread_state_asleep(ddsi_lookup_thread_state());
+      ddsi_thread_state_asleep(ddsi_lookup_thread_state());
       goto err_bad_qos;
     }
   }
@@ -690,16 +690,16 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
   dds_entity_init_complete (&rd->m_entity);
 
 #ifdef DDS_HAS_SHM
-  assert(rqos->present & QP_LOCATOR_MASK);
+  assert(rqos->present & DDSI_QP_LOCATOR_MASK);
   if (!dds_reader_support_shm(&gv->config, rqos, tp))
-    rqos->ignore_locator_type |= NN_LOCATOR_KIND_SHEM;
+    rqos->ignore_locator_type |= DDSI_LOCATOR_KIND_SHEM;
 #endif
 
   /* Reader gets the sertype from the topic, as the serdata functions the reader uses are
      not specific for a data representation (the representation can be retrieved from the cdr header) */
   rc = ddsi_new_reader (&rd->m_rd, &rd->m_entity.m_guid, NULL, pp, tp->m_name, tp->m_stype, rqos, &rd->m_rhc->common.rhc, dds_reader_status_cb, rd);
   assert (rc == DDS_RETCODE_OK); /* FIXME: can be out-of-resources at the very least */
-  thread_state_asleep (ddsi_lookup_thread_state ());
+  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
 
 #ifdef DDS_HAS_SHM
   if (rd->m_rd->has_iceoryx)
@@ -773,56 +773,6 @@ err_pin_topic:
   if (created_implicit_sub)
     (void) dds_delete (subscriber);
   return rc;
-}
-
-void dds_reader_ddsi2direct (dds_entity_t entity, ddsi2direct_directread_cb_t cb, void *cbarg)
-{
-  dds_entity *dds_entity;
-  if (dds_entity_pin (entity, &dds_entity) != DDS_RETCODE_OK)
-    return;
-  if (dds_entity_kind (dds_entity) != DDS_KIND_READER)
-  {
-    dds_entity_unpin (dds_entity);
-    return;
-  }
-
-  dds_reader *dds_rd = (dds_reader *) dds_entity;
-  struct ddsi_reader *rd = dds_rd->m_rd;
-  ddsi_guid_t pwrguid;
-  struct ddsi_proxy_writer *pwr;
-  struct ddsi_rd_pwr_match *m;
-  memset (&pwrguid, 0, sizeof (pwrguid));
-  ddsrt_mutex_lock (&rd->e.lock);
-
-  rd->ddsi2direct_cb = cb;
-  rd->ddsi2direct_cbarg = cbarg;
-  while ((m = ddsrt_avl_lookup_succ_eq (&ddsi_rd_writers_treedef, &rd->writers, &pwrguid)) != NULL)
-  {
-    /* have to be careful walking the tree -- pretty is different, but
-       I want to check this before I write a lookup_succ function. */
-    struct ddsi_rd_pwr_match *m_next;
-    ddsi_guid_t pwrguid_next;
-    pwrguid = m->pwr_guid;
-    if ((m_next = ddsrt_avl_find_succ (&ddsi_rd_writers_treedef, &rd->writers, m)) != NULL)
-      pwrguid_next = m_next->pwr_guid;
-    else
-    {
-      memset (&pwrguid_next, 0xff, sizeof (pwrguid_next));
-      pwrguid_next.entityid.u = (pwrguid_next.entityid.u & ~(uint32_t)0xff) | NN_ENTITYID_KIND_WRITER_NO_KEY;
-    }
-    ddsrt_mutex_unlock (&rd->e.lock);
-    if ((pwr = entidx_lookup_proxy_writer_guid (dds_entity->m_domain->gv.entity_index, &pwrguid)) != NULL)
-    {
-      ddsrt_mutex_lock (&pwr->e.lock);
-      pwr->ddsi2direct_cb = cb;
-      pwr->ddsi2direct_cbarg = cbarg;
-      ddsrt_mutex_unlock (&pwr->e.lock);
-    }
-    pwrguid = pwrguid_next;
-    ddsrt_mutex_lock (&rd->e.lock);
-  }
-  ddsrt_mutex_unlock (&rd->e.lock);
-  dds_entity_unpin (dds_entity);
 }
 
 dds_entity_t dds_create_reader (dds_entity_t participant_or_subscriber, dds_entity_t topic, const dds_qos_t *qos, const dds_listener_t *listener)

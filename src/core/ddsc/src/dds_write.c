@@ -14,18 +14,17 @@
 #include "dds__writer.h"
 #include "dds__write.h"
 #include "dds/ddsi/ddsi_tkmap.h"
-#include "dds/ddsi/q_thread.h"
-#include "dds/ddsi/q_xmsg.h"
+#include "dds/ddsi/ddsi_thread.h"
+#include "dds/ddsi/ddsi_xmsg.h"
 #include "dds/ddsi/ddsi_rhc.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/cdr/dds_cdrstream.h"
-#include "dds/ddsi/q_transmit.h"
+#include "dds/ddsi/ddsi_transmit.h"
 #include "dds/ddsi/ddsi_entity_index.h"
-#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_entity.h"
-#include "dds/ddsi/ddsi_entity_match.h"
+#include "dds/ddsi/ddsi_endpoint_match.h"
 #include "dds/ddsi/ddsi_endpoint.h"
-#include "dds/ddsi/q_radmin.h"
+#include "dds/ddsi/ddsi_radmin.h" /* sampleinfo */
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_deliver_locally.h"
 
@@ -34,7 +33,7 @@
 
 #ifdef DDS_HAS_SHM
 #include "dds/ddsi/ddsi_shm_transport.h"
-#include "dds/ddsi/q_addrset.h"
+#include "dds/ddsi/ddsi_addrset.h"
 #endif
 
 struct ddsi_serdata_plain { struct ddsi_serdata p; };
@@ -113,20 +112,6 @@ dds_return_t dds_write_ts (dds_entity_t writer, const void *data, dds_time_t tim
   return ret;
 }
 
-static struct ddsi_reader *writer_first_in_sync_reader (struct entity_index *entity_index, struct ddsi_entity_common *wrcmn, ddsrt_avl_iter_t *it)
-{
-  assert (wrcmn->kind == DDSI_EK_WRITER);
-  struct ddsi_writer *wr = (struct ddsi_writer *) wrcmn;
-  struct ddsi_wr_rd_match *m = ddsrt_avl_iter_first (&ddsi_wr_local_readers_treedef, &wr->local_readers, it);
-  return m ? entidx_lookup_reader_guid (entity_index, &m->rd_guid) : NULL;
-}
-
-static struct ddsi_reader *writer_next_in_sync_reader (struct entity_index *entity_index, ddsrt_avl_iter_t *it)
-{
-  struct ddsi_wr_rd_match *m = ddsrt_avl_iter_next (it);
-  return m ? entidx_lookup_reader_guid (entity_index, &m->rd_guid) : NULL;
-}
-
 struct local_sourceinfo {
   const struct ddsi_sertype *src_type;
   struct ddsi_serdata *src_payload;
@@ -175,10 +160,10 @@ static dds_return_t local_on_delivery_failure_fastpath (struct ddsi_entity_commo
 
 static dds_return_t deliver_locally (struct ddsi_writer *wr, struct ddsi_serdata *payload, struct ddsi_tkmap_instance *tk)
 {
-  static const struct deliver_locally_ops deliver_locally_ops = {
+  static const struct ddsi_deliver_locally_ops deliver_locally_ops = {
     .makesample = local_make_sample,
-    .first_reader = writer_first_in_sync_reader,
-    .next_reader = writer_next_in_sync_reader,
+    .first_reader = ddsi_writer_first_in_sync_reader,
+    .next_reader = ddsi_writer_next_in_sync_reader,
     .on_failure_fastpath = local_on_delivery_failure_fastpath
   };
   struct local_sourceinfo sourceinfo = {
@@ -190,7 +175,7 @@ static dds_return_t deliver_locally (struct ddsi_writer *wr, struct ddsi_serdata
   dds_return_t rc;
   struct ddsi_writer_info wrinfo;
   ddsi_make_writer_info (&wrinfo, &wr->e, wr->xqos, payload->statusinfo);
-  rc = deliver_locally_allinsync (wr->e.gv, &wr->e, false, &wr->rdary, &wrinfo, &deliver_locally_ops, &sourceinfo);
+  rc = ddsi_deliver_locally_allinsync (wr->e.gv, &wr->e, false, &wr->rdary, &wrinfo, &deliver_locally_ops, &sourceinfo);
   if (rc == DDS_RETCODE_TIMEOUT)
     DDS_CERROR (&wr->e.gv->logconfig, "The writer could not deliver data on time, probably due to a local reader resources being full\n");
   return rc;
@@ -240,15 +225,15 @@ static struct ddsi_serdata_any *convert_serdata(struct ddsi_writer *ddsi_wr, str
   return dout;
 }
 
-static dds_return_t deliver_data_network (struct thread_state * const thrst, struct ddsi_writer *ddsi_wr, struct ddsi_serdata_any *d, struct nn_xpack *xp, bool flush, struct ddsi_tkmap_instance *tk)
+static dds_return_t deliver_data_network (struct ddsi_thread_state * const thrst, struct ddsi_writer *ddsi_wr, struct ddsi_serdata_any *d, struct ddsi_xpack *xp, bool flush, struct ddsi_tkmap_instance *tk)
 {
-  // write_sample_gc always consumes 1 refc from d
-  int ret = write_sample_gc (thrst, xp, ddsi_wr, &d->a, tk);
+  // ddsi_write_sample_gc always consumes 1 refc from d
+  int ret = ddsi_write_sample_gc (thrst, xp, ddsi_wr, &d->a, tk);
   if (ret >= 0)
   {
     /* Flush out write unless configured to batch */
     if (flush && xp != NULL)
-      nn_xpack_send (xp, false);
+      ddsi_xpack_send (xp, false);
     return DDS_RETCODE_OK;
   }
   else
@@ -257,7 +242,7 @@ static dds_return_t deliver_data_network (struct thread_state * const thrst, str
   }
 }
 
-static dds_return_t deliver_data_any (struct thread_state * const thrst, struct ddsi_writer *ddsi_wr, dds_writer *wr, struct ddsi_serdata_any *d, struct nn_xpack *xp, bool flush)
+static dds_return_t deliver_data_any (struct ddsi_thread_state * const thrst, struct ddsi_writer *ddsi_wr, dds_writer *wr, struct ddsi_serdata_any *d, struct ddsi_xpack *xp, bool flush)
 {
   struct ddsi_tkmap_instance * const tk = ddsi_tkmap_lookup_instance_ref (ddsi_wr->e.gv->m_tkmap, &d->a);
   dds_return_t ret;
@@ -280,11 +265,11 @@ static dds_return_t deliver_data_any (struct thread_state * const thrst, struct 
   return ret;
 }
 
-static dds_return_t dds_writecdr_impl_common (struct ddsi_writer *ddsi_wr, struct nn_xpack *xp, struct ddsi_serdata_any *din, bool flush, dds_writer *wr)
+static dds_return_t dds_writecdr_impl_common (struct ddsi_writer *ddsi_wr, struct ddsi_xpack *xp, struct ddsi_serdata_any *din, bool flush, dds_writer *wr)
 {
   // consumes 1 refc from din in all paths (weird, but ... history ...)
   // let refc(din) be r, so upon returning it must be r-1
-  struct thread_state * const thrst = ddsi_lookup_thread_state ();
+  struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
   int ret = DDS_RETCODE_OK;
   assert (wr != NULL);
 
@@ -297,7 +282,7 @@ static dds_return_t dds_writecdr_impl_common (struct ddsi_writer *ddsi_wr, struc
 
   // d = din: refc(d) = r, otherwise refc(d) = 1
 
-  thread_state_awake (thrst, ddsi_wr->e.gv);
+  ddsi_thread_state_awake (thrst, ddsi_wr->e.gv);
   ddsi_serdata_ref (&d->a); // d = din: refc(d) = r + 1, otherwise refc(d) = 2
 
 #ifdef DDS_HAS_SHM
@@ -316,7 +301,7 @@ static dds_return_t dds_writecdr_impl_common (struct ddsi_writer *ddsi_wr, struc
     ddsi_serdata_unref(&din->a); // d != din: refc(din) = r - 1 as required, refc(d) unchanged
   ddsi_serdata_unref(&d->a); // d = din: refc(d) = r - 1, otherwise refc(din) = r-1 and refc(d) = 0
 
-  thread_state_asleep (thrst);
+  ddsi_thread_state_asleep (thrst);
   return ret;
 }
 
@@ -353,8 +338,8 @@ static bool evalute_topic_filter (const dds_writer *wr, const void *data, bool w
 
 static void set_statusinfo_timestamp (struct ddsi_serdata_any *d, dds_time_t tstamp, dds_write_action action)
 {
-  d->a.statusinfo = (((action & DDS_WR_DISPOSE_BIT) ? NN_STATUSINFO_DISPOSE : 0) |
-                     ((action & DDS_WR_UNREGISTER_BIT) ? NN_STATUSINFO_UNREGISTER : 0));
+  d->a.statusinfo = (((action & DDS_WR_DISPOSE_BIT) ? DDSI_STATUSINFO_DISPOSE : 0) |
+                     ((action & DDS_WR_UNREGISTER_BIT) ? DDSI_STATUSINFO_UNREGISTER : 0));
   d->a.timestamp.v = tstamp;
 }
 
@@ -437,7 +422,7 @@ static uint32_t get_num_fast_path_readers(struct ddsi_writer *ddsi_wr) {
 // 2) data is in an iceoryx buffer obtained by dds_loan_sample
 static dds_return_t dds_write_impl_iox (dds_writer *wr, struct ddsi_writer *ddsi_wr, bool writekey, const void *data, dds_time_t tstamp, dds_write_action action)
 {
-  assert (thread_is_awake ());
+  assert (ddsi_thread_is_awake ());
   assert (wr != NULL && wr->m_iox_pub != NULL);
 
   void *iox_chunk = NULL;
@@ -463,7 +448,7 @@ static dds_return_t dds_write_impl_iox (dds_writer *wr, struct ddsi_writer *ddsi
   // it is rather unfortunate that this then means we have to lock here to check, then lock again to
   // actually distribute the data, so some further refactoring is needed.
   ddsrt_mutex_lock (&ddsi_wr->e.lock);
-  const bool no_network_readers = addrset_empty (ddsi_wr->as);
+  const bool no_network_readers = ddsi_addrset_empty (ddsi_wr->as);
   ddsrt_mutex_unlock (&ddsi_wr->e.lock);
 
   // NB: local readers are not in L := ddsi_wr->rdary if they use iceoryx.
@@ -549,7 +534,7 @@ static dds_return_t dds_write_impl_iox (dds_writer *wr, struct ddsi_writer *ddsi
 
 static dds_return_t dds_write_impl_plain (dds_writer *wr, struct ddsi_writer *ddsi_wr, bool writekey, const void *data, dds_time_t tstamp, dds_write_action action)
 {
-  assert (thread_is_awake ());
+  assert (ddsi_thread_is_awake ());
 #ifdef DDS_HAS_SHM
   assert (wr->m_iox_pub == NULL);
 #endif
@@ -569,7 +554,7 @@ static dds_return_t dds_write_impl_plain (dds_writer *wr, struct ddsi_writer *dd
 dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstamp, dds_write_action action)
 {
   // 1. Input validation
-  struct thread_state * const thrst = ddsi_lookup_thread_state ();
+  struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
   const bool writekey = action & DDS_WR_KEY_BIT;
   struct ddsi_writer *ddsi_wr = wr->m_wr;
   int ret = DDS_RETCODE_OK;
@@ -581,7 +566,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
   if (!evalute_topic_filter (wr, data, writekey))
     return DDS_RETCODE_OK;
 
-  thread_state_awake (thrst, &wr->m_entity.m_domain->gv);
+  ddsi_thread_state_awake (thrst, &wr->m_entity.m_domain->gv);
 #ifdef DDS_HAS_SHM
   if (wr->m_iox_pub)
     ret = dds_write_impl_iox (wr, ddsi_wr, writekey, data, tstamp, action);
@@ -590,11 +575,11 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
 #else
   ret = dds_write_impl_plain (wr, ddsi_wr, writekey, data, tstamp, action);
 #endif
-  thread_state_asleep (thrst);
+  ddsi_thread_state_asleep (thrst);
   return ret;
 }
 
-dds_return_t dds_writecdr_impl (dds_writer *wr, struct nn_xpack *xp, struct ddsi_serdata *dinp, bool flush)
+dds_return_t dds_writecdr_impl (dds_writer *wr, struct ddsi_xpack *xp, struct ddsi_serdata *dinp, bool flush)
 {
   return dds_writecdr_impl_common (wr->m_wr, xp, (struct ddsi_serdata_any *) dinp, flush, wr);
 }
@@ -604,10 +589,10 @@ void dds_write_flush (dds_entity_t writer)
   dds_writer *wr;
   if (dds_writer_lock (writer, &wr) == DDS_RETCODE_OK)
   {
-    struct thread_state * const thrst = ddsi_lookup_thread_state ();
-    thread_state_awake (thrst, &wr->m_entity.m_domain->gv);
-    nn_xpack_send (wr->m_xp, true);
-    thread_state_asleep (thrst);
+    struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
+    ddsi_thread_state_awake (thrst, &wr->m_entity.m_domain->gv);
+    ddsi_xpack_send (wr->m_xp, true);
+    ddsi_thread_state_asleep (thrst);
     dds_writer_unlock (wr);
   }
 }
@@ -621,17 +606,17 @@ dds_return_t dds_writecdr_local_orphan_impl (struct ddsi_local_orphan_writer *lo
 
   // consumes 1 refc from din in all paths (weird, but ... history ...)
   // let refc(din) be r, so upon returning it must be r-1
-  struct thread_state * const thrst = ddsi_lookup_thread_state ();
+  struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
   int ret = DDS_RETCODE_OK;
   assert (lowr->wr.type == d->type);
 
   // d = din: refc(d) = r, otherwise refc(d) = 1
 
-  thread_state_awake (thrst, lowr->wr.e.gv);
+  ddsi_thread_state_awake (thrst, lowr->wr.e.gv);
   struct ddsi_tkmap_instance * const tk = ddsi_tkmap_lookup_instance_ref (lowr->wr.e.gv->m_tkmap, d);
   deliver_locally (&lowr->wr, d, tk);
   ddsi_tkmap_instance_unref (lowr->wr.e.gv->m_tkmap, tk);
   ddsi_serdata_unref(d); // d = din: refc(d) = r - 1
-  thread_state_asleep (thrst);
+  ddsi_thread_state_asleep (thrst);
   return ret;
 }

@@ -22,5 +22,6 @@ add_executable(fuzz_config_init fuzz_config_init.c)
 target_include_directories(
   fuzz_config_init PRIVATE
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../src/core/ddsc/src>"
-  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../src/core/ddsi/include>")
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../src/core/ddsi/include>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../src/core/ddsi/src>")
 target_link_libraries(fuzz_config_init CycloneDDS::ddsc $ENV{LIB_FUZZING_ENGINE})

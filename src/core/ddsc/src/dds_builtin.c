@@ -15,9 +15,7 @@
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_topic.h"
 #include "dds/ddsi/ddsi_endpoint.h"
-#include "dds/ddsi/q_thread.h"
-#include "dds/ddsi/ddsi_config_impl.h"
-#include "dds/ddsi/q_bswap.h"
+#include "dds/ddsi/ddsi_thread.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds__init.h"
@@ -33,7 +31,7 @@
 #include "dds__writer.h"
 #include "dds__whc_builtintopic.h"
 #include "dds__serdata_builtintopic.h"
-#include "dds/ddsi/q_qosmatch.h"
+#include "dds/ddsi/ddsi_qosmatch.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 
 dds_qos_t *dds__create_builtin_qos (void)
@@ -155,7 +153,7 @@ dds_entity_t dds__get_builtin_topic (dds_entity_t entity, dds_entity_t topic)
 
 static bool qos_has_resource_limits (const dds_qos_t *qos)
 {
-  assert (qos->present & QP_RESOURCE_LIMITS);
+  assert (qos->present & DDSI_QP_RESOURCE_LIMITS);
   return (qos->resource_limits.max_samples != DDS_LENGTH_UNLIMITED ||
           qos->resource_limits.max_instances != DDS_LENGTH_UNLIMITED ||
           qos->resource_limits.max_samples_per_instance != DDS_LENGTH_UNLIMITED);
@@ -198,12 +196,12 @@ bool dds__validate_builtin_reader_qos (const dds_domain *dom, dds_entity_t topic
        the full QoS object ...  Here the two have the same topic by construction
        so ignoring them in the comparison makes things work.  The discrepancy
        should be addressed one day. */
-    const uint64_t qmask = ~(QP_TOPIC_NAME | QP_TYPE_NAME | QP_TYPE_INFORMATION);
+    const uint64_t qmask = ~(DDSI_QP_TOPIC_NAME | DDSI_QP_TYPE_NAME | DDSI_QP_TYPE_INFORMATION);
     dds_qos_policy_id_t dummy;
 #ifdef DDS_HAS_TYPE_DISCOVERY
-    return qos_match_mask_p (bwr->wr.e.gv, qos, bwr->wr.xqos, qmask, &dummy, NULL, NULL, NULL, NULL) && !qos_has_resource_limits (qos);
+    return ddsi_qos_match_mask_p (bwr->wr.e.gv, qos, bwr->wr.xqos, qmask, &dummy, NULL, NULL, NULL, NULL) && !qos_has_resource_limits (qos);
 #else
-    return qos_match_mask_p (bwr->wr.e.gv, qos, bwr->wr.xqos, qmask, &dummy) && !qos_has_resource_limits (qos);
+    return ddsi_qos_match_mask_p (bwr->wr.e.gv, qos, bwr->wr.xqos, qmask, &dummy) && !qos_has_resource_limits (qos);
 #endif
   }
 }
@@ -242,7 +240,7 @@ static bool dds__builtin_is_builtintopic (const struct ddsi_sertype *tp, void *v
   return tp->ops == &ddsi_sertype_ops_builtintopic;
 }
 
-static bool dds__builtin_is_visible (const ddsi_guid_t *guid, nn_vendorid_t vendorid, void *vdomain)
+static bool dds__builtin_is_visible (const ddsi_guid_t *guid, ddsi_vendorid_t vendorid, void *vdomain)
 {
   (void) vdomain;
   if (ddsi_is_builtin_endpoint (guid->entityid, vendorid) || ddsi_is_builtin_topic (guid->entityid, vendorid))
@@ -289,7 +287,7 @@ struct ddsi_serdata *dds__builtin_make_sample_endpoint (const struct ddsi_entity
   assert (type != NULL);
   struct ddsi_serdata *serdata = dds_serdata_builtin_from_endpoint (type, &e->guid, (struct ddsi_entity_common *) e, alive ? SDK_DATA : SDK_KEY);
   serdata->timestamp = timestamp;
-  serdata->statusinfo = alive ? 0 : NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER;
+  serdata->statusinfo = alive ? 0 : DDSI_STATUSINFO_DISPOSE | DDSI_STATUSINFO_UNREGISTER;
   return serdata;
 }
 
@@ -301,7 +299,7 @@ static struct ddsi_serdata *dds__builtin_make_sample_topic_impl (const struct dd
   struct ddsi_sertype *type = dom->builtin_topic_type;
   struct ddsi_serdata *serdata = dds_serdata_builtin_from_topic_definition (type, (dds_builtintopic_topic_key_t *) &tpd->key, tpd, alive ? SDK_DATA : SDK_KEY);
   serdata->timestamp = timestamp;
-  serdata->statusinfo = alive ? 0 : NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER;
+  serdata->statusinfo = alive ? 0 : DDSI_STATUSINFO_DISPOSE | DDSI_STATUSINFO_UNREGISTER;
   return serdata;
 }
 
@@ -407,15 +405,15 @@ void dds__builtin_init (struct dds_domain *dom)
   ddsi_sertype_register_locked (&dom->gv, dom->builtin_writer_type);
   ddsrt_mutex_unlock (&dom->gv.sertypes_lock);
 
-  thread_state_awake (ddsi_lookup_thread_state (), &dom->gv);
-  const struct entity_index *gh = dom->gv.entity_index;
-  dom->builtintopic_writer_participant = ddsi_new_local_orphan_writer (&dom->gv, ddsi_to_entityid (NN_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER), DDS_BUILTIN_TOPIC_PARTICIPANT_NAME, dom->builtin_participant_type, qos, builtintopic_whc_new (DSBT_PARTICIPANT, gh));
+  ddsi_thread_state_awake (ddsi_lookup_thread_state (), &dom->gv);
+  const struct ddsi_entity_index *gh = dom->gv.entity_index;
+  dom->builtintopic_writer_participant = ddsi_new_local_orphan_writer (&dom->gv, ddsi_to_entityid (DDSI_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER), DDS_BUILTIN_TOPIC_PARTICIPANT_NAME, dom->builtin_participant_type, qos, builtintopic_whc_new (DSBT_PARTICIPANT, gh));
 #ifdef DDS_HAS_TOPIC_DISCOVERY
-  dom->builtintopic_writer_topics = ddsi_new_local_orphan_writer (&dom->gv, ddsi_to_entityid (NN_ENTITYID_SEDP_BUILTIN_TOPIC_WRITER), DDS_BUILTIN_TOPIC_TOPIC_NAME, dom->builtin_topic_type, qos, builtintopic_whc_new (DSBT_TOPIC, gh));
+  dom->builtintopic_writer_topics = ddsi_new_local_orphan_writer (&dom->gv, ddsi_to_entityid (DDSI_ENTITYID_SEDP_BUILTIN_TOPIC_WRITER), DDS_BUILTIN_TOPIC_TOPIC_NAME, dom->builtin_topic_type, qos, builtintopic_whc_new (DSBT_TOPIC, gh));
 #endif
-  dom->builtintopic_writer_publications = ddsi_new_local_orphan_writer (&dom->gv, ddsi_to_entityid (NN_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER), DDS_BUILTIN_TOPIC_PUBLICATION_NAME, dom->builtin_writer_type, qos, builtintopic_whc_new (DSBT_WRITER, gh));
-  dom->builtintopic_writer_subscriptions = ddsi_new_local_orphan_writer (&dom->gv, ddsi_to_entityid (NN_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER), DDS_BUILTIN_TOPIC_SUBSCRIPTION_NAME, dom->builtin_reader_type, qos, builtintopic_whc_new (DSBT_READER, gh));
-  thread_state_asleep (ddsi_lookup_thread_state ());
+  dom->builtintopic_writer_publications = ddsi_new_local_orphan_writer (&dom->gv, ddsi_to_entityid (DDSI_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER), DDS_BUILTIN_TOPIC_PUBLICATION_NAME, dom->builtin_writer_type, qos, builtintopic_whc_new (DSBT_WRITER, gh));
+  dom->builtintopic_writer_subscriptions = ddsi_new_local_orphan_writer (&dom->gv, ddsi_to_entityid (DDSI_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER), DDS_BUILTIN_TOPIC_SUBSCRIPTION_NAME, dom->builtin_reader_type, qos, builtintopic_whc_new (DSBT_READER, gh));
+  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
 
   dds_delete_qos (qos);
 
@@ -428,13 +426,13 @@ void dds__builtin_init (struct dds_domain *dom)
 void dds__builtin_fini (struct dds_domain *dom)
 {
   /* No more sources for builtin topic samples */
-  thread_state_awake (ddsi_lookup_thread_state (), &dom->gv);
+  ddsi_thread_state_awake (ddsi_lookup_thread_state (), &dom->gv);
   ddsi_delete_local_orphan_writer (dom->builtintopic_writer_participant);
 #ifdef DDS_HAS_TOPIC_DISCOVERY
   ddsi_delete_local_orphan_writer (dom->builtintopic_writer_topics);
 #endif
   ddsi_delete_local_orphan_writer (dom->builtintopic_writer_publications);
   ddsi_delete_local_orphan_writer (dom->builtintopic_writer_subscriptions);
-  thread_state_asleep (ddsi_lookup_thread_state ());
+  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
   unref_builtin_types (dom);
 }

@@ -10,8 +10,6 @@
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
 
-
-
 set(srcs_ddsi
   ddsi_eth.c
   ddsi_ssl.c
@@ -54,61 +52,48 @@ set(srcs_ddsi
   ddsi_wraddrset.c
   ddsi_typelib.c
   ddsi_entity.c
-  ddsi_entity_match.c
+  ddsi_endpoint_match.c
   ddsi_participant.c
   ddsi_proxy_participant.c
   ddsi_topic.c
   ddsi_endpoint.c
   ddsi_proxy_endpoint.c
   ddsi_gc.c
-  q_addrset.c
-  q_bitset_inlines.c
-  q_bswap.c
-  q_ddsi_discovery.c
-  q_debmon.c
-  q_init.c
-  q_lat_estim.c
-  q_lease.c
-  q_misc.c
-  q_pcap.c
-  q_qosmatch.c
-  q_radmin.c
-  q_receive.c
-  q_sockwaitset.c
-  q_thread.c
-  q_transmit.c
-  q_inverse_uint32_set.c
-  q_whc.c
-  q_xevent.c
-  q_xmsg.c
-  q_freelist.c
-  sysdeps.c)
+  ddsi_addrset.c
+  ddsi_bitset.c
+  ddsi_guid.c
+  ddsi_bswap.c
+  ddsi_discovery.c
+  ddsi_debmon.c
+  ddsi_init.c
+  ddsi_lat_estim.c
+  ddsi_lease.c
+  ddsi_misc.c
+  ddsi_pcap.c
+  ddsi_qosmatch.c
+  ddsi_radmin.c
+  ddsi_receive.c
+  ddsi_sockwaitset.c
+  ddsi_sysdeps.c
+  ddsi_thread.c
+  ddsi_transmit.c
+  ddsi_inverse_uint32_set.c
+  ddsi_whc.c
+  ddsi_xevent.c
+  ddsi_xmsg.c
+  ddsi_freelist.c
+)
 
-set(hdrs_private_ddsi
-  ddsi_ssl.h
-  ddsi_tcp.h
+set(hdrs_ddsi
   ddsi_tran.h
-  ddsi_udp.h
-  ddsi_raweth.h
-  ddsi_vnet.h
-  ddsi_ipaddr.h
   ddsi_locator.h
-  ddsi_mcgroup.h
-  ddsi_nwpart.h
-  ddsi_plist_generic.h
-  ddsi_security_util.h
   ddsi_security_omg.h
   ddsi_portmapping.h
-  ddsi_handshake.h
   ddsi_serdata.h
   ddsi_sertype.h
-  ddsi_serdata_cdr.h
-  ddsi_serdata_pserop.h
-  ddsi_serdata_plist.h
   ddsi_statistics.h
   ddsi_iid.h
   ddsi_tkmap.h
-  ddsi_vendor.h
   ddsi_threadmon.h
   ddsi_builtin_topic_if.h
   ddsi_rhc.h
@@ -120,78 +105,170 @@ set(hdrs_private_ddsi
   ddsi_domaingv.h
   ddsi_plist.h
   ddsi_xqos.h
-  ddsi_time.h
   ddsi_ownip.h
-  ddsi_cfgunits.h
-  ddsi_cfgelems.h
   ddsi_config.h
-  ddsi_config_impl.h
-  ddsi_acknack.h
-  ddsi_list_tmpl.h
-  ddsi_list_genptr.h
-  ddsi_wraddrset.h
   ddsi_typelib.h
   ddsi_entity.h
-  ddsi_entity_match.h
+  ddsi_endpoint_match.h
   ddsi_participant.h
   ddsi_proxy_participant.h
   ddsi_topic.h
   ddsi_endpoint.h
   ddsi_proxy_endpoint.h
   ddsi_gc.h
-  q_addrset.h
-  q_bitset.h
-  q_bswap.h
-  q_ddsi_discovery.h
-  q_debmon.h
-  q_feature_check.h
-  q_freelist.h
-  q_hbcontrol.h
-  q_lat_estim.h
-  q_lease.h
-  q_log.h
-  q_misc.h
-  q_pcap.h
-  q_protocol.h
-  q_qosmatch.h
-  q_radmin.h
-  q_receive.h
-  q_rtps.h
-  q_sockwaitset.h
-  q_thread.h
-  q_transmit.h
-  q_inverse_uint32_set.h
-  q_unused.h
-  q_whc.h
-  q_xevent.h
-  q_xmsg.h
-  sysdeps.h)
+  ddsi_pmd.h
+  ddsi_protocol.h
+  ddsi_addrset.h
+  ddsi_feature_check.h
+  ddsi_freelist.h
+  ddsi_hbcontrol.h
+  ddsi_inverse_uint32_set.h
+  ddsi_lat_estim.h
+  ddsi_lease.h
+  ddsi_log.h
+  ddsi_qosmatch.h
+  ddsi_radmin.h
+  ddsi_init.h
+  ddsi_sockwaitset.h
+  ddsi_thread.h
+  ddsi_transmit.h
+  ddsi_unused.h
+  ddsi_whc.h
+  ddsi_xevent.h
+  ddsi_xmsg.h
+)
+
+set(hdrs_private_ddsi
+  ddsi__acknack.h
+  ddsi__cfgunits.h
+  ddsi__cfgelems.h
+  ddsi__config_impl.h
+  ddsi__deliver_locally.h
+  ddsi__endpoint.h
+  ddsi__entity_index.h
+  ddsi__endpoint_match.h
+  ddsi__entity.h
+  ddsi__gc.h
+  ddsi__handshake.h
+  ddsi__ipaddr.h
+  ddsi__list_tmpl.h
+  ddsi__list_genptr.h
+  ddsi__mcgroup.h
+  ddsi__nwpart.h
+  ddsi__ownip.h
+  ddsi__participant.h
+  ddsi__plist_generic.h
+  ddsi__serdata_pserop.h
+  ddsi__pmd.h
+  ddsi__plist.h
+  ddsi__portmapping.h
+  ddsi__proxy_endpoint.h
+  ddsi__proxy_participant.h
+  ddsi__raweth.h
+  ddsi__rhc.h
+  ddsi__security_omg.h
+  ddsi__security_util.h
+  ddsi__serdata_cdr.h
+  ddsi__serdata_plist.h
+  ddsi__ssl.h
+  ddsi__sysdeps.h
+  ddsi__tcp.h
+  ddsi__protocol.h
+  ddsi__time.h
+  ddsi__topic.h
+  ddsi__tran.h
+  ddsi__typelib.h
+  ddsi__udp.h
+  ddsi__vendor.h
+  ddsi__vnet.h
+  ddsi__wraddrset.h
+  ddsi__xqos.h
+  ddsi__addrset.h
+  ddsi__bitset.h
+  ddsi__bswap.h
+  ddsi__discovery.h
+  ddsi__debmon.h
+  ddsi__hbcontrol.h
+  ddsi__inverse_uint32_set.h
+  ddsi__lat_estim.h
+  ddsi__lease.h
+  ddsi__misc.h
+  ddsi__pcap.h
+  ddsi__radmin.h
+  ddsi__receive.h
+  ddsi__sockwaitset.h
+  ddsi__thread.h
+  ddsi__transmit.h
+  ddsi__whc.h
+  ddsi__xevent.h
+  ddsi__xmsg.h
+  ddsi__log.h
+)
 
 if(ENABLE_LIFESPAN)
-  list(APPEND srcs_ddsi ddsi_lifespan.c)
-  list(APPEND hdrs_private_ddsi ddsi_lifespan.h)
+  list(APPEND srcs_ddsi
+    ddsi_lifespan.c
+  )
+  list(APPEND hdrs_ddsi
+    ddsi_lifespan.h
+  )
 endif()
 if(ENABLE_DEADLINE_MISSED)
-  list(APPEND srcs_ddsi ddsi_deadline.c)
-  list(APPEND hdrs_private_ddsi ddsi_deadline.h)
+  list(APPEND srcs_ddsi
+    ddsi_deadline.c
+  )
+  list(APPEND hdrs_ddsi
+    ddsi_deadline.h
+  )
 endif()
 if(ENABLE_TYPE_DISCOVERY)
-  list(APPEND srcs_ddsi ddsi_xt_typeinfo.c ddsi_xt_typelookup.c ddsi_xt_typemap.c ddsi_typelookup.c ddsi_typewrap.c ddsi_typebuilder.c)
-  list(APPEND hdrs_private_ddsi ddsi_xt_typeinfo.h ddsi_xt_typelookup.h ddsi_xt_typemap.h ddsi_typelookup.h ddsi_typewrap.h ddsi_typebuilder.h)
+  list(APPEND srcs_ddsi
+    ddsi_xt_typeinfo.c
+    ddsi_xt_typelookup.c
+    ddsi_xt_typemap.c
+    ddsi_typelookup.c
+    ddsi_typewrap.c
+    ddsi_typebuilder.c
+  )
+  list(APPEND hdrs_ddsi
+    ddsi_xt_typeinfo.h
+    ddsi_xt_typelookup.h
+    ddsi_xt_typemap.h
+    ddsi_typewrap.h
+    ddsi_typebuilder.h
+  )
+  list(APPEND hdrs_private_ddsi
+    ddsi__xt_impl.h
+    ddsi__typelookup.h
+  )
 endif()
 if(ENABLE_SECURITY)
-  list(APPEND srcs_ddsi ddsi_security_msg.c ddsi_security_exchange.c)
-  list(APPEND hdrs_private_ddsi ddsi_security_msg.h ddsi_security_exchange.h)
+  list(APPEND srcs_ddsi
+    ddsi_security_msg.c
+    ddsi_security_exchange.c
+  )
+  list(APPEND hdrs_ddsi
+    ddsi_security_msg.h
+  )
+  list(APPEND hdrs_private_ddsi
+    ddsi__security_msg.h
+    ddsi__security_exchange.h
+  )
 endif()
 if(ENABLE_SHM)
-  list(APPEND srcs_ddsi ddsi_shm_transport.c)
-  list(APPEND hdrs_private_ddsi ddsi_shm_transport.h)
+  list(APPEND srcs_ddsi
+    ddsi_shm_transport.c
+  )
+  list(APPEND hdrs_ddsi
+    ddsi_shm_transport.h
+  )
 endif()
 
-prepend(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi/" ${hdrs_private_ddsi})
+prepend(hdrs_ddsi "${CMAKE_CURRENT_LIST_DIR}/include/dds/ddsi/" ${hdrs_ddsi})
+prepend(hdrs_private_ddsi "${CMAKE_CURRENT_LIST_DIR}/src/" ${hdrs_private_ddsi})
 prepend(srcs_ddsi "${CMAKE_CURRENT_LIST_DIR}/src/" ${srcs_ddsi})
 
-target_sources(ddsc PRIVATE ${srcs_ddsi} ${generated_defconfig_src} ${hdrs_private_ddsi})
+target_sources(ddsc PRIVATE ${srcs_ddsi} ${generated_defconfig_src} ${hdrs_private_ddsi} ${hdrs_ddsi})
 add_dependencies(ddsc _confgen)
 target_include_directories(ddsc PRIVATE "${CMAKE_CURRENT_LIST_DIR}/include")
 

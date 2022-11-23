@@ -12,21 +12,6 @@
 #include <assert.h>
 #include <limits.h>
 
-#include "dds/dds.h"
-#include "config_env.h"
-
-#include "dds/version.h"
-#include "dds__entity.h"
-#include "dds/cdr/dds_cdrstream.h"
-#include "dds/ddsi/ddsi_entity.h"
-#include "dds/ddsi/ddsi_entity_match.h"
-#include "dds/ddsi/ddsi_proxy_participant.h"
-#include "dds/ddsi/ddsi_proxy_endpoint.h"
-#include "dds/ddsi/ddsi_entity_index.h"
-#include "dds/ddsi/ddsi_typelib.h"
-#include "dds/ddsi/ddsi_xt_impl.h"
-#include "dds/ddsi/ddsi_xt_typelookup.h"
-#include "dds/ddsi/q_addrset.h"
 #include "dds/ddsrt/cdtors.h"
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/process.h"
@@ -36,6 +21,23 @@
 #include "dds/ddsrt/time.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
+#include "dds/ddsi/ddsi_entity.h"
+#include "dds/ddsi/ddsi_entity_index.h"
+#include "dds/ddsi/ddsi_typelib.h"
+#include "dds/ddsi/ddsi_xt_typelookup.h"
+#include "ddsi__xt_impl.h"
+#include "ddsi__addrset.h"
+#include "ddsi__endpoint_match.h"
+#include "ddsi__proxy_endpoint.h"
+#include "ddsi__proxy_participant.h"
+#include "ddsi__typelookup.h"
+#include "ddsi__typewrap.h"
+#include "ddsi__vendor.h"
+#include "dds/cdr/dds_cdrstream.h"
+#include "dds/dds.h"
+#include "dds/version.h"
+#include "dds__entity.h"
+#include "config_env.h"
 #include "test_common.h"
 
 #include "XSpace.h"
@@ -544,7 +546,7 @@ CU_Theory ((const dds_topic_descriptor_t *rd_desc, const dds_topic_descriptor_t 
 
 static void typeinfo_ser (struct dds_type_meta_ser *ser, DDS_XTypes_TypeInformation *ti)
 {
-  dds_ostream_t os = { .m_buffer = NULL, .m_index = 0, .m_size = 0, .m_xcdr_version = DDS_CDR_ENC_VERSION_2 };
+  dds_ostream_t os = { .m_buffer = NULL, .m_index = 0, .m_size = 0, .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
   xcdr2_ser (ti, &DDS_XTypes_TypeInformation_desc, &os);
   ser->data = os.m_buffer;
   ser->sz = os.m_index;
@@ -557,7 +559,7 @@ static void typeinfo_deser (DDS_XTypes_TypeInformation **ti, const struct dds_ty
 
 static void typemap_ser (struct dds_type_meta_ser *ser, DDS_XTypes_TypeMapping *tmap)
 {
-  dds_ostream_t os = { .m_buffer = NULL, .m_index = 0, .m_size = 0, .m_xcdr_version = DDS_CDR_ENC_VERSION_2 };
+  dds_ostream_t os = { .m_buffer = NULL, .m_index = 0, .m_size = 0, .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
   xcdr2_ser (tmap, &DDS_XTypes_TypeMapping_desc, &os);
   ser->data = os.m_buffer;
   ser->sz = os.m_index;
@@ -573,7 +575,7 @@ static void test_proxy_rd_create (struct ddsi_domaingv *gv, const char *topic_na
   ddsi_plist_t *plist = ddsrt_calloc (1, sizeof (*plist));
   plist->present |= PP_PARTICIPANT_LEASE_DURATION;
   plist->participant_lease_duration = DDS_INFINITY;
-  plist->qos.present |= QP_TOPIC_NAME | QP_TYPE_NAME | QP_TYPE_INFORMATION | QP_DATA_REPRESENTATION;
+  plist->qos.present |= DDSI_QP_TOPIC_NAME | DDSI_QP_TYPE_NAME | DDSI_QP_TYPE_INFORMATION | DDSI_QP_DATA_REPRESENTATION;
   plist->qos.topic_name = ddsrt_strdup (topic_name);
   plist->qos.type_name = ddsrt_strdup ("dummy");
   plist->qos.type_information = ddsi_typeinfo_dup ((struct ddsi_typeinfo *) ti);
@@ -581,12 +583,12 @@ static void test_proxy_rd_create (struct ddsi_domaingv *gv, const char *topic_na
   plist->qos.data_representation.value.ids = ddsrt_calloc (1, sizeof (*plist->qos.data_representation.value.ids));
   plist->qos.data_representation.value.ids[0] = DDS_DATA_REPRESENTATION_XCDR2;
 
-  struct thread_state * const thrst = ddsi_lookup_thread_state ();
-  thread_state_awake (thrst, gv);
-  struct addrset *as = new_addrset ();
-  add_locator_to_addrset (gv, as, &gv->loc_default_uc);
-  ref_addrset (as); // increase refc to 2, new_proxy_participant does not add a ref
-  int rc = ddsi_new_proxy_participant (gv, pp_guid, 0, NULL, as, as, plist, DDS_INFINITY, NN_VENDORID_ECLIPSE, 0, ddsrt_time_wallclock (), 1);
+  struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
+  ddsi_thread_state_awake (thrst, gv);
+  struct ddsi_addrset *as = ddsi_new_addrset ();
+  ddsi_add_locator_to_addrset (gv, as, &gv->loc_default_uc);
+  ddsi_ref_addrset (as); // increase refc to 2, new_proxy_participant does not add a ref
+  int rc = ddsi_new_proxy_participant (gv, pp_guid, 0, NULL, as, as, plist, DDS_INFINITY, DDSI_VENDORID_ECLIPSE, 0, ddsrt_time_wallclock (), 1);
   CU_ASSERT_FATAL (rc);
 
   ddsi_xqos_mergein_missing (&plist->qos, &ddsi_default_qos_reader, ~(uint64_t)0);
@@ -594,7 +596,7 @@ static void test_proxy_rd_create (struct ddsi_domaingv *gv, const char *topic_na
   CU_ASSERT_EQUAL_FATAL (rc, exp_ret);
   ddsi_plist_fini (plist);
   ddsrt_free (plist);
-  thread_state_asleep (thrst);
+  ddsi_thread_state_asleep (thrst);
 }
 
 static void test_proxy_rd_matches (dds_entity_t wr, bool exp_match)
@@ -610,11 +612,11 @@ static void test_proxy_rd_matches (dds_entity_t wr, bool exp_match)
 static void test_proxy_rd_fini (const ddsi_guid_t *pp_guid, const ddsi_guid_t *rd_guid)
 {
   struct ddsi_domaingv *gv = get_domaingv (g_participant1);
-  struct thread_state * const thrst = ddsi_lookup_thread_state ();
-  thread_state_awake (thrst, gv);
+  struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
+  ddsi_thread_state_awake (thrst, gv);
   ddsi_delete_proxy_reader (gv, rd_guid, ddsrt_time_wallclock (), false);
   ddsi_delete_proxy_participant_by_guid (gv, pp_guid, ddsrt_time_wallclock (), false);
-  thread_state_asleep (thrst);
+  ddsi_thread_state_asleep (thrst);
 }
 
 /* Invalid hashed type (with valid hash type id) as top-level type */
@@ -855,8 +857,8 @@ CU_Test (ddsc_xtypes, invalid_top_level_remote_hash, .init = xtypes_init, .fini 
 
   // create proxy reader with modified type
   struct ddsi_guid pp_guid, rd_guid;
-  gen_test_guid (gv, &pp_guid, NN_ENTITYID_PARTICIPANT);
-  gen_test_guid (gv, &rd_guid, NN_ENTITYID_KIND_READER_NO_KEY);
+  gen_test_guid (gv, &pp_guid, DDSI_ENTITYID_PARTICIPANT);
+  gen_test_guid (gv, &rd_guid, DDSI_ENTITYID_KIND_READER_NO_KEY);
   test_proxy_rd_create (gv, topic_name, ti, DDS_RETCODE_BAD_PARAMETER, &pp_guid, &rd_guid);
 
   // clean up
@@ -898,8 +900,8 @@ CU_Theory ((const char *test_descr, const dds_topic_descriptor_t *topic_desc, ty
   DDS_XTypes_TypeInformation *ti;
   typeinfo_deser (&ti, &desc.type_information);
   struct ddsi_guid pp_guid, rd_guid;
-  gen_test_guid (gv, &pp_guid, NN_ENTITYID_PARTICIPANT);
-  gen_test_guid (gv, &rd_guid, NN_ENTITYID_KIND_READER_NO_KEY);
+  gen_test_guid (gv, &pp_guid, DDSI_ENTITYID_PARTICIPANT);
+  gen_test_guid (gv, &rd_guid, DDSI_ENTITYID_KIND_READER_NO_KEY);
   test_proxy_rd_create (gv, topic_name, ti, DDS_RETCODE_OK, &pp_guid, &rd_guid);
   test_proxy_rd_matches (wr, false);
 
@@ -986,8 +988,8 @@ CU_Test (ddsc_xtypes, resolve_dep_type, .init = xtypes_init, .fini = xtypes_fini
   DDS_XTypes_TypeInformation *ti;
   typeinfo_deser (&ti, &desc.type_information);
   struct ddsi_guid pp_guid, rd_guid;
-  gen_test_guid (gv, &pp_guid, NN_ENTITYID_PARTICIPANT);
-  gen_test_guid (gv, &rd_guid, NN_ENTITYID_KIND_READER_NO_KEY);
+  gen_test_guid (gv, &pp_guid, DDSI_ENTITYID_PARTICIPANT);
+  gen_test_guid (gv, &rd_guid, DDSI_ENTITYID_KIND_READER_NO_KEY);
   test_proxy_rd_create (gv, topic_name, ti, DDS_RETCODE_OK, &pp_guid, &rd_guid);
   test_proxy_rd_matches (wr, false);
 

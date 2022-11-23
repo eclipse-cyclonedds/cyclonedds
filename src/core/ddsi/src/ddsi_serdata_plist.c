@@ -18,15 +18,16 @@
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/md5.h"
 #include "dds/ddsrt/mh3.h"
-#include "dds/ddsi/q_bswap.h"
-#include "dds/ddsi/ddsi_config_impl.h"
-#include "dds/ddsi/q_freelist.h"
+#include "dds/ddsi/ddsi_freelist.h"
 #include "dds/ddsi/ddsi_tkmap.h"
-#include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/ddsi_serdata_plist.h"
-#include "dds/ddsi/q_xmsg.h"
-#include "dds/ddsi/q_misc.h"
+#include "ddsi__radmin.h"
+#include "ddsi__serdata_plist.h"
+#include "ddsi__xmsg.h"
+#include "ddsi__misc.h"
+#include "ddsi__plist.h"
+#include "ddsi__protocol.h"
+#include "ddsi__vendor.h"
 #include "dds/cdr/dds_cdrstream.h"
 
 static uint32_t serdata_plist_get_size (const struct ddsi_serdata *dcmn)
@@ -64,13 +65,13 @@ static struct ddsi_serdata_plist *serdata_plist_new (const struct ddsi_sertype_p
   d->size = (uint32_t) size;
   // FIXME: vendorid/protoversion are not available when creating a serdata
   // these should be overruled by the one creating the serdata
-  d->vendorid = NN_VENDORID_UNKNOWN;
-  d->protoversion.major = RTPS_MAJOR;
-  d->protoversion.minor = RTPS_MINOR;
+  d->vendorid = DDSI_VENDORID_UNKNOWN;
+  d->protoversion.major = DDSI_RTPS_MAJOR;
+  d->protoversion.minor = DDSI_RTPS_MINOR;
   const uint16_t *hdrsrc = cdr_header;
   d->identifier = hdrsrc[0];
   d->options = hdrsrc[1];
-  if (d->identifier != PL_CDR_LE && d->identifier != PL_CDR_BE)
+  if (d->identifier != DDSI_RTPS_PL_CDR_LE && d->identifier != DDSI_RTPS_PL_CDR_BE)
   {
     ddsrt_free (d);
     return NULL;
@@ -80,7 +81,7 @@ static struct ddsi_serdata_plist *serdata_plist_new (const struct ddsi_sertype_p
 
 static struct ddsi_serdata *serdata_plist_fix (const struct ddsi_sertype_plist *tp, struct ddsi_serdata_plist *d)
 {
-  assert (tp->keyparam != PID_SENTINEL);
+  assert (tp->keyparam != DDSI_PID_SENTINEL);
   void *needlep;
   size_t needlesz;
   if (ddsi_plist_findparam_checking (d->data, d->pos, d->identifier, tp->keyparam, &needlep, &needlesz) != DDS_RETCODE_OK)
@@ -99,10 +100,10 @@ static struct ddsi_serdata *serdata_plist_fix (const struct ddsi_sertype_plist *
   return &d->c;
 }
 
-static struct ddsi_serdata *serdata_plist_from_ser (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, const struct nn_rdata *fragchain, size_t size)
+static struct ddsi_serdata *serdata_plist_from_ser (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, const struct ddsi_rdata *fragchain, size_t size)
 {
   const struct ddsi_sertype_plist *tp = (const struct ddsi_sertype_plist *) tpcmn;
-  struct ddsi_serdata_plist *d = serdata_plist_new (tp, kind, size, NN_RMSG_PAYLOADOFF (fragchain->rmsg, NN_RDATA_PAYLOAD_OFF (fragchain)));
+  struct ddsi_serdata_plist *d = serdata_plist_new (tp, kind, size, DDSI_RMSG_PAYLOADOFF (fragchain->rmsg, DDSI_RDATA_PAYLOAD_OFF (fragchain)));
   if (d == NULL)
     return NULL;
   uint32_t off = 4; /* must skip the CDR header */
@@ -115,7 +116,7 @@ static struct ddsi_serdata *serdata_plist_from_ser (const struct ddsi_sertype *t
     if (fragchain->maxp1 > off)
     {
       /* only copy if this fragment adds data */
-      const unsigned char *payload = NN_RMSG_PAYLOADOFF (fragchain->rmsg, NN_RDATA_PAYLOAD_OFF (fragchain));
+      const unsigned char *payload = DDSI_RMSG_PAYLOADOFF (fragchain->rmsg, DDSI_RDATA_PAYLOAD_OFF (fragchain));
       uint32_t n = fragchain->maxp1 - off;
       memcpy (d->data + d->pos, payload + off - fragchain->min, n);
       d->pos += n;
@@ -146,8 +147,8 @@ static struct ddsi_serdata *serdata_plist_from_ser_iov (const struct ddsi_sertyp
 static struct ddsi_serdata *serdata_plist_from_keyhash (const struct ddsi_sertype *tpcmn, const ddsi_keyhash_t *keyhash)
 {
   const struct ddsi_sertype_plist *tp = (const struct ddsi_sertype_plist *) tpcmn;
-  const struct { uint16_t identifier, options; nn_parameter_t par; ddsi_keyhash_t kh; nn_parameter_t sentinel; } in = {
-    .identifier = PL_CDR_BE,
+  const struct { uint16_t identifier, options; ddsi_parameter_t par; ddsi_keyhash_t kh; ddsi_parameter_t sentinel; } in = {
+    .identifier = DDSI_RTPS_PL_CDR_BE,
     .options = 0,
     .par = {
       .parameterid = ddsrt_toBE2u (tp->keyparam),
@@ -155,7 +156,7 @@ static struct ddsi_serdata *serdata_plist_from_keyhash (const struct ddsi_sertyp
     },
     .kh = *keyhash,
     .sentinel = {
-      .parameterid = ddsrt_toBE2u (PID_SENTINEL),
+      .parameterid = ddsrt_toBE2u (DDSI_PID_SENTINEL),
       .length = 0
     }
   };
@@ -213,18 +214,18 @@ static void serdata_plist_to_ser_unref (struct ddsi_serdata *serdata_common, con
 static struct ddsi_serdata *serdata_plist_from_sample (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, const void *sample)
 {
   const struct ddsi_sertype_plist *tp = (const struct ddsi_sertype_plist *)tpcmn;
-  const struct { uint16_t identifier, options; } header = { ddsi_sertype_get_native_enc_identifier (DDS_CDR_ENC_VERSION_1, tp->encoding_format), 0 };
+  const struct { uint16_t identifier, options; } header = { ddsi_sertype_get_native_enc_identifier (DDSI_RTPS_CDR_ENC_VERSION_1, tp->encoding_format), 0 };
 
   // FIXME: key must not require byteswapping (GUIDs are ok)
-  // FIXME: rework plist stuff so it doesn't need an nn_xmsg
+  // FIXME: rework plist stuff so it doesn't need an ddsi_xmsg
   struct ddsi_domaingv * const gv = ddsrt_atomic_ldvoidp (&tp->c.gv);
-  struct nn_xmsg *mpayload = nn_xmsg_new (gv->xmsgpool, &nullguid, NULL, 0, NN_XMSG_KIND_DATA);
-  memcpy (nn_xmsg_append (mpayload, NULL, 4), &header, 4);
+  struct ddsi_xmsg *mpayload = ddsi_xmsg_new (gv->xmsgpool, &ddsi_nullguid, NULL, 0, DDSI_XMSG_KIND_DATA);
+  memcpy (ddsi_xmsg_append (mpayload, NULL, 4), &header, 4);
   ddsi_plist_addtomsg (mpayload, sample, ~(uint64_t)0, ~(uint64_t)0);
-  nn_xmsg_addpar_sentinel (mpayload);
+  ddsi_xmsg_addpar_sentinel (mpayload);
 
   size_t sz;
-  unsigned char *blob = nn_xmsg_payload (&sz, mpayload);
+  unsigned char *blob = ddsi_xmsg_payload (&sz, mpayload);
 #ifndef NDEBUG
   void *needle;
   size_t needlesz;
@@ -233,11 +234,11 @@ static struct ddsi_serdata *serdata_plist_from_sample (const struct ddsi_sertype
 #endif
   ddsrt_iovec_t iov = { .iov_base = blob, .iov_len = (ddsrt_iov_len_t) sz };
   struct ddsi_serdata *d = serdata_plist_from_ser_iov (tpcmn, kind, 1, &iov, sz - 4);
-  nn_xmsg_free (mpayload);
+  ddsi_xmsg_free (mpayload);
 
   /* we know the vendor when we construct a serdata from a sample */
   struct ddsi_serdata_plist *d_plist = (struct ddsi_serdata_plist *) d;
-  d_plist->vendorid = NN_VENDORID_ECLIPSE;
+  d_plist->vendorid = DDSI_VENDORID_ECLIPSE;
   return d;
 }
 

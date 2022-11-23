@@ -16,7 +16,7 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/random.h"
 #include "dds/ddsrt/hopscotch.h"
-#include "dds/ddsi/q_thread.h"
+#include "dds/ddsi/ddsi_thread.h"
 #include "dds__handles.h"
 #include "dds__types.h"
 

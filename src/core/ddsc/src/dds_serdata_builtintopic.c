@@ -17,20 +17,19 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/md5.h"
+#include "dds/ddsrt/hopscotch.h"
 
 #include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 
-#include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_participant.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
-#include "dds/ddsi/q_addrset.h"
-#include "dds/ddsi/q_freelist.h"
+#include "dds/ddsi/ddsi_addrset.h"
+#include "dds/ddsi/ddsi_freelist.h"
 
 #include "dds__serdata_builtintopic.h"
 
@@ -138,7 +137,7 @@ static void format_address (const ddsi_xlocator_t *n, void *varg)
     arg->first = false;
 }
 
-static char * format_addrset (struct addrset *as)
+static char * ddsi_format_addrset (struct ddsi_addrset *as)
 {
   struct format_address_arg pa_arg;
   pa_arg.buf = (char*) ddsrt_malloc(DDSI_LOCSTRLEN * 3 + 4);
@@ -146,13 +145,13 @@ static char * format_addrset (struct addrset *as)
   pa_arg.buf_size = DDSI_LOCSTRLEN * 3 + 4;
   pa_arg.first = true;
 
-  addrset_forall(as, format_address, &pa_arg);
+  ddsi_addrset_forall(as, format_address, &pa_arg);
   return pa_arg.buf;
 }
 
 static void add_pp_addresses_to_xqos(dds_qos_t *q, const struct ddsi_proxy_participant *proxypp)
 {
-  char * addresses = format_addrset(proxypp->as_meta);
+  char * addresses = ddsi_format_addrset(proxypp->as_meta);
   if (addresses) {
     ddsi_xqos_add_property_if_unset(q, true, DDS_BUILTIN_TOPIC_PARTICIPANT_PROPERTY_NETWORKADDRESSES, addresses);
     ddsrt_free(addresses);
@@ -164,7 +163,7 @@ static void translate_pp_lease_duration (dds_qos_t *qos, const ddsi_plist_t *pli
   // Participant lease duration doesn't play by the rules because it doesn't officially exist as a QoS
   // and we make it available via the liveliness QoS setting
   assert (plist->present & PP_PARTICIPANT_LEASE_DURATION);
-  qos->present |= QP_LIVELINESS;
+  qos->present |= DDSI_QP_LIVELINESS;
   qos->liveliness.kind = DDS_LIVELINESS_AUTOMATIC;
   qos->liveliness.lease_duration = plist->participant_lease_duration;
 }
@@ -188,8 +187,8 @@ static void from_entity_proxypp (struct ddsi_serdata_builtintopic_participant *d
 static void from_qos (struct ddsi_serdata_builtintopic *d, const dds_qos_t *xqos)
 {
   ddsi_xqos_copy (&d->xqos, xqos);
-  assert (d->xqos.present & QP_TOPIC_NAME);
-  assert (d->xqos.present & QP_TYPE_NAME);
+  assert (d->xqos.present & DDSI_QP_TOPIC_NAME);
+  assert (d->xqos.present & DDSI_QP_TYPE_NAME);
 }
 
 static void from_entity_rd (struct ddsi_serdata_builtintopic_endpoint *d, const struct ddsi_reader *rd)
@@ -302,8 +301,8 @@ static struct ddsi_serdata *ddsi_serdata_builtin_from_sample (const struct ddsi_
       break;
   }
   struct ddsi_domaingv * const gv = ddsrt_atomic_ldvoidp (&tp->c.gv);
-  x.guid = nn_ntoh_guid (x.guid);
-  struct ddsi_entity_common *entity = entidx_lookup_guid_untyped (gv->entity_index, &x.guid);
+  x.guid = ddsi_ntoh_guid (x.guid);
+  struct ddsi_entity_common *entity = ddsi_entidx_lookup_guid_untyped (gv->entity_index, &x.guid);
   return dds_serdata_builtin_from_endpoint (tpcmn, &x.guid, entity, kind);
 }
 
@@ -316,7 +315,7 @@ static struct ddsi_serdata *serdata_builtin_to_untyped (const struct ddsi_serdat
 static void convkey (dds_guid_t *key, const ddsi_guid_t *guid)
 {
   ddsi_guid_t tmp;
-  tmp = nn_hton_guid (*guid);
+  tmp = ddsi_hton_guid (*guid);
   memcpy (key, &tmp, sizeof (*key));
 }
 
@@ -336,7 +335,7 @@ static dds_qos_t *dds_qos_from_xqos_reuse (dds_qos_t *old, const dds_qos_t *src)
     ddsi_xqos_fini (old);
   }
   ddsi_xqos_init_empty (old);
-  ddsi_xqos_mergein_missing (old, src, ~(QP_TOPIC_NAME | QP_TYPE_NAME));
+  ddsi_xqos_mergein_missing (old, src, ~(DDSI_QP_TOPIC_NAME | DDSI_QP_TYPE_NAME));
   return old;
 }
 
@@ -353,13 +352,13 @@ static bool to_sample_endpoint (const struct ddsi_serdata_builtintopic_endpoint 
   ddsi_guid_t ppguid;
   convkey (&sample->key, &dep->common.key.guid);
   ppguid = dep->common.key.guid;
-  ppguid.entityid.u = NN_ENTITYID_PARTICIPANT;
+  ppguid.entityid.u = DDSI_ENTITYID_PARTICIPANT;
   convkey (&sample->participant_key, &ppguid);
   sample->participant_instance_handle = dep->pphandle;
   if (dep->common.c.kind == SDK_DATA)
   {
-    assert (dep->common.xqos.present & QP_TOPIC_NAME);
-    assert (dep->common.xqos.present & QP_TYPE_NAME);
+    assert (dep->common.xqos.present & DDSI_QP_TOPIC_NAME);
+    assert (dep->common.xqos.present & DDSI_QP_TYPE_NAME);
     sample->topic_name = dds_string_dup_reuse (sample->topic_name, dep->common.xqos.topic_name);
     sample->type_name = dds_string_dup_reuse (sample->type_name, dep->common.xqos.type_name);
     sample->qos = dds_qos_from_xqos_reuse (sample->qos, &dep->common.xqos);
@@ -373,8 +372,8 @@ static bool to_sample_topic (const struct ddsi_serdata_builtintopic_topic *dtp, 
   memcpy (&sample->key, &dtp->common.key.raw, sizeof (sample->key));
   if (dtp->common.c.kind == SDK_DATA)
   {
-    assert (dtp->common.xqos.present & QP_TOPIC_NAME);
-    assert (dtp->common.xqos.present & QP_TYPE_NAME);
+    assert (dtp->common.xqos.present & DDSI_QP_TOPIC_NAME);
+    assert (dtp->common.xqos.present & DDSI_QP_TYPE_NAME);
     sample->topic_name = dds_string_dup_reuse (sample->topic_name, dtp->common.xqos.topic_name);
     sample->type_name = dds_string_dup_reuse (sample->type_name, dtp->common.xqos.type_name);
     sample->qos = dds_qos_from_xqos_reuse (sample->qos, &dtp->common.xqos);
@@ -484,7 +483,7 @@ static struct ddsi_serdata *ddsi_serdata_builtin_from_sample_topic (const struct
   const dds_builtintopic_topic_t *s = sample;
   union { ddsi_guid_t guid; dds_builtintopic_topic_key_t key; } x;
   x.key = s->key;
-  x.guid = nn_ntoh_guid (x.guid);
+  x.guid = ddsi_ntoh_guid (x.guid);
   struct ddsi_topic_definition templ;
   memset (&templ, 0, sizeof (templ));
   memcpy (&templ.key, &x.key, sizeof (templ.key));

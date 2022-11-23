@@ -18,11 +18,10 @@
 
 #include "dds/ddsrt/md5.h"
 #include "dds/ddsi/ddsi_serdata.h"
-#include "dds/cdr/dds_cdrstream.h"
 #include "dds/ddsi/ddsi_typewrap.h"
-#include "dds/ddsi/ddsi_xt_impl.h"
 #include "dds/ddsi/ddsi_xt_typeinfo.h"
 #include "dds/ddsi/ddsi_xt_typemap.h"
+#include "dds/cdr/dds_cdrstream.h"
 #include "dds/ddsc/dds_opcodes.h"
 
 #include "idl/heap.h"
@@ -101,7 +100,7 @@ xcdr2_ser (
   os->m_buffer = NULL;
   os->m_index = 0;
   os->m_size = 0;
-  os->m_xcdr_version = DDS_CDR_ENC_VERSION_2;
+  os->m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2;
   dds_return_t ret = dds_stream_write_sampleLE ((dds_ostreamLE_t *) os, obj, &desc) ? IDL_RETCODE_OK : IDL_RETCODE_BAD_PARAMETER;
   dds_cdrstream_desc_fini (&desc);
   return ret;

@@ -20,13 +20,12 @@
 #include "dds/ddsrt/environ.h"
 #include "dds/ddsrt/static_assert.h"
 
-#include "dds/dds.h"
-#include "dds/ddsi/ddsi_entity.h"
-#include "dds/ddsi/q_addrset.h"
 #include "dds/ddsi/ddsi_entity_index.h"
-#include "dds__entity.h"
-
+#include "ddsi__addrset.h"
+#include "ddsi__entity.h"
+#include "dds/dds.h"
 #include "dds/ddsc/dds_loan_api.h"
+#include "dds__entity.h"
 
 #include "test_common.h"
 #include "Array100.h"
@@ -145,7 +144,7 @@ static void check_writer_addrset_helper (const ddsi_xlocator_t *loc, void *varg)
 {
   struct check_writer_addrset_helper_arg * const arg = varg;
   // Iceoryx locators are not allowed in writer's address set because that causes it to go through the transmit path
-  CU_ASSERT_FATAL (loc->c.kind != NN_LOCATOR_KIND_SHEM);
+  CU_ASSERT_FATAL (loc->c.kind != DDSI_LOCATOR_KIND_SHEM);
   CU_ASSERT_FATAL (loc->c.port != 0);
   int i;
   for (i = 0; i < arg->nports; i++)
@@ -176,7 +175,7 @@ static bool check_writer_addrset (dds_entity_t wrhandle, int nports, const uint3
     .ports = ports
   };
   ddsrt_mutex_lock (&wr->e.lock);
-  addrset_forall (wr->as, check_writer_addrset_helper, &arg);
+  ddsi_addrset_forall (wr->as, check_writer_addrset_helper, &arg);
   ddsrt_mutex_unlock (&wr->e.lock);
   dds_entity_unpin (x);
   return (arg.ports_seen == (1u << nports) - 1);

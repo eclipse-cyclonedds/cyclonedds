@@ -14,12 +14,10 @@
 
 #include "dds/ddsrt/endian.h"
 #include "dds/ddsrt/avl.h"
-#include "dds/ddsi/q_protocol.h"
-#include "dds/ddsi/q_freelist.h"
+#include "dds/ddsi/ddsi_protocol.h"
+#include "dds/ddsi/ddsi_freelist.h"
 #include "dds/ddsi/ddsi_serdata.h"
-#include "dds/ddsi/ddsi_plist_generic.h"
 #include "dds/ddsi/ddsi_typelib.h"
-#include "dds/ddsi/ddsi_typelookup.h"
 #include "dds/cdr/dds_cdrstream.h"
 #include "dds__types.h"
 #include "dds/dds.h"
@@ -45,7 +43,7 @@ struct dds_serdata_default_key {
 };
 
 struct dds_serdatapool {
-  struct nn_freelist freelist;
+  struct ddsi_freelist freelist;
 };
 
 /* Debug builds may want to keep some additional state */
@@ -119,8 +117,8 @@ struct dds_sertype_default_cdr_data {
 
 struct dds_sertype_default {
   struct ddsi_sertype c;
-  uint16_t encoding_format; /* DDS_CDR_ENC_FORMAT_(PLAIN|DELIMITED|PL) - CDR encoding format for the top-level type in this sertype */
-  uint16_t write_encoding_version; /* DDS_CDR_ENC_VERSION_(1|2) - CDR encoding version used for writing data using this sertype */
+  uint16_t encoding_format; /* DDSI_RTPS_CDR_ENC_FORMAT_(PLAIN|DELIMITED|PL) - CDR encoding format for the top-level type in this sertype */
+  uint16_t write_encoding_version; /* DDSI_RTPS_CDR_ENC_VERSION_(1|2) - CDR encoding version used for writing data using this sertype */
   struct dds_serdatapool *serpool;
   struct dds_cdrstream_desc type;
   struct dds_sertype_default_cdr_data typeinfo_ser;

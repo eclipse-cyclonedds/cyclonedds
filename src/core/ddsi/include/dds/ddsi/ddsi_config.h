@@ -20,19 +20,13 @@
 #include "dds/ddsrt/random.h"
 #include "dds/ddsi/ddsi_portmapping.h"
 #include "dds/ddsi/ddsi_locator.h"
+#include "dds/ddsi/ddsi_xqos.h"
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
 
 struct ddsi_config;
-
-/**
- * @brief Default-initialize a configuration (unstable)
- *
- * @param[out]  cfg The configuration struct to be initialized.
- */
-DDS_EXPORT void ddsi_config_init_default (struct ddsi_config *cfg);
 
 enum ddsi_standards_conformance {
   DDSI_SC_PEDANTIC,
@@ -123,9 +117,9 @@ struct ddsi_config_channel_listelem {
   uint32_t auxiliary_bandwidth_limit;
 #endif
   int    diffserv_field;
-  struct thread_state *channel_reader_thrst;  /* keeping an handle to the running thread for this channel */
-  struct nn_dqueue *dqueue; /* The handle of teh delivery queue servicing incoming data for this channel*/
-  struct xeventq *evq; /* The handle of the event queue servicing this channel*/
+  struct ddsi_thread_state *channel_reader_thrst;  /* keeping an handle to the running thread for this channel */
+  struct ddsi_dqueue *dqueue; /* The handle of teh delivery queue servicing incoming data for this channel*/
+  struct ddsi_xeventq *evq; /* The handle of the event queue servicing this channel*/
   uint32_t queueId; /* the index of the networkqueue serviced by this channel*/
   struct ddsi_tran_conn * transmit_conn; /* the connection used for sending data out via this channel */
 };
@@ -261,6 +255,13 @@ enum ddsi_config_entity_naming_mode {
 #define DDSI_XCHECK_WHC 1u
 #define DDSI_XCHECK_RHC 2u
 #define DDSI_XCHECK_XEV 4u
+
+/**
+ * @brief Default-initialize a configuration (unstable)
+ *
+ * @param[out]  cfg The configuration struct to be initialized.
+ */
+DDS_EXPORT void ddsi_config_init_default (struct ddsi_config *cfg);
 
 struct ddsi_config
 {
@@ -402,7 +403,6 @@ struct ddsi_config
 #endif
   uint32_t max_queued_rexmit_bytes;
   unsigned max_queued_rexmit_msgs;
-  unsigned ddsi2direct_max_threads;
   int late_ack_mode;
   int retry_on_reject_besteffort;
   int generate_keyhash;
@@ -448,6 +448,14 @@ public:
   }
 #endif
 };
+
+struct ddsi_cfgst *ddsi_config_init (const char *config, struct ddsi_config *cfg, uint32_t domid) ddsrt_nonnull((1,2));
+
+DDS_EXPORT void ddsi_config_fini (struct ddsi_cfgst *cfgst);
+
+#ifdef DDS_HAS_NETWORK_CHANNELS
+struct ddsi_config_channel_listelem *ddsi_find_network_channel (const struct config *cfg, dds_transport_priority_qospolicy_t transport_priority);
+#endif
 
 #if defined (__cplusplus)
 }

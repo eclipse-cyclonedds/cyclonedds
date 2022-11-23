@@ -22,8 +22,6 @@
 extern "C" {
 #endif
 
-struct ddsi_domaingv;
-
 struct ddsi_network_interface {
   ddsi_locator_t loc; // actual interface address
   ddsi_locator_t extloc; // interface address to advertise in discovery
@@ -38,8 +36,6 @@ struct ddsi_network_interface {
   int32_t priority;
   char *name;
 };
-
-int find_own_ip (struct ddsi_domaingv *gv);
 
 #if defined (__cplusplus)
 }

@@ -22,12 +22,13 @@ struct ddsi_tran_factory;
 struct ddsi_tran_conn;
 
 /* address field in locator maintained in network byte order, the rest in host */
-typedef struct {
+typedef struct ddsi_locator {
   int32_t kind;
   uint32_t port;
   unsigned char address[16];
 } ddsi_locator_t;
-typedef struct {
+
+typedef struct ddsi_xlocator {
   ddsi_locator_t c;
   struct ddsi_tran_conn *conn;
 } ddsi_xlocator_t;

@@ -28,7 +28,6 @@
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_threadmon.h"
 #include "dds/ddsi/ddsi_entity.h"
-#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_gc.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/version.h"
@@ -56,7 +55,7 @@ static ddsrt_atomic_uint32_t dds_state = DDSRT_ATOMIC_UINT32_INIT (CDDS_STATE_ZE
 
 static void common_cleanup (void)
 {
-  if (thread_states_fini ())
+  if (ddsi_thread_states_fini ())
     dds_handle_server_fini ();
 
   ddsi_iid_fini ();
@@ -112,7 +111,7 @@ dds_return_t dds_init (void)
   ddsrt_mutex_init (&dds_global.m_mutex);
   ddsrt_cond_init (&dds_global.m_cond);
   ddsi_iid_init ();
-  thread_states_init ();
+  ddsi_thread_states_init ();
 
   if (dds_handle_server_init () != DDS_RETCODE_OK)
   {

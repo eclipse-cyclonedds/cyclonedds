@@ -15,16 +15,20 @@
 
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/md5.h"
-#include "dds/ddsi/ddsi_entity.h"
-#include "dds/ddsi/ddsi_participant.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
-#include "dds/ddsi/ddsi_topic.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/ddsi_builtin_topic_if.h"
-#include "dds/ddsi/q_ddsi_discovery.h"
-#include "dds/ddsi/q_xmsg.h"
-#include "dds/ddsi/q_misc.h"
+#include "ddsi__entity.h"
+#include "ddsi__participant.h"
+#include "ddsi__topic.h"
+#include "ddsi__entity_index.h"
+#include "ddsi__discovery.h"
+#include "ddsi__xmsg.h"
+#include "ddsi__misc.h"
+#include "ddsi__gc.h"
+#include "ddsi__typelib.h"
+#include "ddsi__vendor.h"
+#include "ddsi__xqos.h"
 #include "dds/dds.h"
 
 #ifdef DDS_HAS_TOPIC_DISCOVERY
@@ -50,17 +54,17 @@ struct gc_tpd {
   ddsrt_wctime_t timestamp;
 };
 
-int ddsi_is_builtin_topic (ddsi_entityid_t id, nn_vendorid_t vendorid)
+int ddsi_is_builtin_topic (ddsi_entityid_t id, ddsi_vendorid_t vendorid)
 {
   return ddsi_is_builtin_entityid (id, vendorid) && ddsi_is_topic_entityid (id);
 }
 
 int ddsi_is_topic_entityid (ddsi_entityid_t id)
 {
-  switch (id.u & NN_ENTITYID_KIND_MASK)
+  switch (id.u & DDSI_ENTITYID_KIND_MASK)
   {
-    case NN_ENTITYID_KIND_CYCLONE_TOPIC_BUILTIN:
-    case NN_ENTITYID_KIND_CYCLONE_TOPIC_USER:
+    case DDSI_ENTITYID_KIND_CYCLONE_TOPIC_BUILTIN:
+    case DDSI_ENTITYID_KIND_CYCLONE_TOPIC_USER:
       return 1;
     default:
       return 0;
@@ -78,14 +82,14 @@ dds_return_t ddsi_new_topic (struct ddsi_topic **tp_out, struct ddsi_guid *tpgui
   ddsrt_wctime_t timestamp = ddsrt_time_wallclock ();
   struct ddsi_domaingv *gv = pp->e.gv;
   tpguid->prefix = pp->e.guid.prefix;
-  if ((rc = ddsi_participant_allocate_entityid (&tpguid->entityid, (is_builtin ? NN_ENTITYID_KIND_CYCLONE_TOPIC_BUILTIN : NN_ENTITYID_KIND_CYCLONE_TOPIC_USER) | NN_ENTITYID_SOURCE_VENDOR, pp)) < 0)
+  if ((rc = ddsi_participant_allocate_entityid (&tpguid->entityid, (is_builtin ? DDSI_ENTITYID_KIND_CYCLONE_TOPIC_BUILTIN : DDSI_ENTITYID_KIND_CYCLONE_TOPIC_USER) | DDSI_ENTITYID_SOURCE_VENDOR, pp)) < 0)
     return rc;
-  assert (entidx_lookup_topic_guid (gv->entity_index, tpguid) == NULL);
+  assert (ddsi_entidx_lookup_topic_guid (gv->entity_index, tpguid) == NULL);
 
   struct ddsi_topic *tp = ddsrt_malloc (sizeof (*tp));
   if (tp_out)
     *tp_out = tp;
-  ddsi_entity_common_init (&tp->e, gv, tpguid, DDSI_EK_TOPIC, timestamp, NN_VENDORID_ECLIPSE, pp->e.onlylocal);
+  ddsi_entity_common_init (&tp->e, gv, tpguid, DDSI_EK_TOPIC, timestamp, DDSI_VENDORID_ECLIPSE, pp->e.onlylocal);
   tp->pp = ddsi_ref_participant (pp, &tp->e.guid);
 
   /* Copy QoS, merging in defaults */
@@ -95,7 +99,7 @@ dds_return_t ddsi_new_topic (struct ddsi_topic **tp_out, struct ddsi_guid *tpgui
   assert (tp_qos->aliased == 0);
 
   /* Set topic name, type name and type information in qos */
-  tp_qos->present |= QP_TYPE_INFORMATION;
+  tp_qos->present |= DDSI_QP_TYPE_INFORMATION;
   tp_qos->type_information = ddsi_sertype_typeinfo (sertype);
   assert (tp_qos->type_information);
   ddsi_set_topic_type_name (tp_qos, topic_name, sertype->type_name);
@@ -109,13 +113,13 @@ dds_return_t ddsi_new_topic (struct ddsi_topic **tp_out, struct ddsi_guid *tpgui
   tp->definition = ref_topic_definition (gv, sertype, ddsi_typeinfo_complete_typeid (tp_qos->type_information), tp_qos, new_topic_def);
   assert (tp->definition);
   if (new_topic_def)
-    builtintopic_write_topic (gv->builtin_topic_interface, tp->definition, timestamp, true);
+    ddsi_builtintopic_write_topic (gv->builtin_topic_interface, tp->definition, timestamp, true);
   ddsi_xqos_fini (tp_qos);
   ddsrt_free (tp_qos);
 
   ddsrt_mutex_lock (&tp->e.lock);
-  entidx_insert_topic_guid (gv->entity_index, tp);
-  (void) sedp_write_topic (tp, true);
+  ddsi_entidx_insert_topic_guid (gv->entity_index, tp);
+  (void) ddsi_sedp_write_topic (tp, true);
   ddsrt_mutex_unlock (&tp->e.lock);
   return 0;
 }
@@ -130,7 +134,7 @@ void ddsi_update_topic_qos (struct ddsi_topic *tp, const dds_qos_t *xqos)
   ddsrt_mutex_lock (&tp->e.lock);
   ddsrt_mutex_lock (&tp->e.qos_lock);
   struct ddsi_topic_definition *tpd = tp->definition;
-  uint64_t mask = ddsi_xqos_delta (tpd->xqos, xqos, QP_CHANGEABLE_MASK & ~(QP_RXO_MASK | QP_PARTITION)) & xqos->present;
+  uint64_t mask = ddsi_xqos_delta (tpd->xqos, xqos, DDSI_QP_CHANGEABLE_MASK & ~(DDSI_QP_RXO_MASK | DDSI_QP_PARTITION)) & xqos->present;
   GVLOGDISC ("ddsi_update_topic_qos "PGUIDFMT" delta=%"PRIu64" QOS={", PGUID(tp->e.guid), mask);
   ddsi_xqos_log (DDS_LC_DISCOVERY, &gv->logconfig, xqos);
   GVLOGDISC ("}\n");
@@ -151,9 +155,9 @@ void ddsi_update_topic_qos (struct ddsi_topic *tp, const dds_qos_t *xqos)
   unref_topic_definition_locked (tpd, ddsrt_time_wallclock());
   ddsrt_mutex_unlock (&gv->topic_defs_lock);
   if (new_tpd)
-    builtintopic_write_topic (gv->builtin_topic_interface, tp->definition, ddsrt_time_wallclock(), true);
+    ddsi_builtintopic_write_topic (gv->builtin_topic_interface, tp->definition, ddsrt_time_wallclock(), true);
   ddsrt_mutex_unlock (&tp->e.qos_lock);
-  (void) sedp_write_topic (tp, true);
+  (void) ddsi_sedp_write_topic (tp, true);
   ddsrt_mutex_unlock (&tp->e.lock);
   dds_delete_qos (newqos);
 }
@@ -163,8 +167,8 @@ static void gc_delete_topic (struct ddsi_gcreq *gcreq)
   struct ddsi_topic *tp = gcreq->arg;
   ELOGDISC (tp, "gc_delete_topic (%p, "PGUIDFMT")\n", (void *) gcreq, PGUID (tp->e.guid));
   ddsi_gcreq_free (gcreq);
-  if (!ddsi_is_builtin_entityid (tp->e.guid.entityid, NN_VENDORID_ECLIPSE))
-    (void) sedp_write_topic (tp, false);
+  if (!ddsi_is_builtin_entityid (tp->e.guid.entityid, DDSI_VENDORID_ECLIPSE))
+    (void) ddsi_sedp_write_topic (tp, false);
   ddsi_entity_common_fini (&tp->e);
   unref_topic_definition (tp->e.gv, tp->definition, ddsrt_time_wallclock());
   ddsi_unref_participant (tp->pp, &tp->e.guid);
@@ -183,13 +187,13 @@ dds_return_t ddsi_delete_topic (struct ddsi_domaingv *gv, const struct ddsi_guid
 {
   struct ddsi_topic *tp;
   assert (ddsi_is_topic_entityid (guid->entityid));
-  if ((tp = entidx_lookup_topic_guid (gv->entity_index, guid)) == NULL)
+  if ((tp = ddsi_entidx_lookup_topic_guid (gv->entity_index, guid)) == NULL)
   {
     GVLOGDISC ("ddsi_delete_topic (guid "PGUIDFMT") - unknown guid\n", PGUID (*guid));
     return DDS_RETCODE_BAD_PARAMETER;
   }
   GVLOGDISC ("ddsi_delete_topic (guid "PGUIDFMT") ...\n", PGUID (*guid));
-  entidx_remove_topic_guid (gv->entity_index, tp);
+  ddsi_entidx_remove_topic_guid (gv->entity_index, tp);
   gcreq_topic (tp);
   return 0;
 }
@@ -202,7 +206,7 @@ static void gc_delete_topic_definition (struct ddsi_gcreq *gcreq)
   struct ddsi_topic_definition *tpd = gcdata->tpd;
   struct ddsi_domaingv *gv = tpd->gv;
   GVLOGDISC ("gcreq_delete_topic_definition(%p)\n", (void *) gcreq);
-  builtintopic_write_topic (gv->builtin_topic_interface, tpd, gcdata->timestamp, false);
+  ddsi_builtintopic_write_topic (gv->builtin_topic_interface, tpd, gcdata->timestamp, false);
   if (tpd->type_pair)
   {
     ddsi_type_unref (gv, tpd->type_pair->minimal);
@@ -263,13 +267,13 @@ static void set_ddsi_topic_definition_hash (struct ddsi_topic_definition *tpd)
      of the QoS is not included, as this field may contain a list of
      dependent type ids and therefore may be different for equal
      type definitions */
-  struct nn_xmsg *mqos = nn_xmsg_new (tpd->gv->xmsgpool, &nullguid, NULL, 0, NN_XMSG_KIND_DATA);
-  ddsi_xqos_addtomsg (mqos, tpd->xqos, ~(QP_TYPE_INFORMATION));
+  struct ddsi_xmsg *mqos = ddsi_xmsg_new (tpd->gv->xmsgpool, &ddsi_nullguid, NULL, 0, DDSI_XMSG_KIND_DATA);
+  ddsi_xqos_addtomsg (mqos, tpd->xqos, ~(DDSI_QP_TYPE_INFORMATION));
   size_t sqos_sz;
-  void * sqos = nn_xmsg_payload (&sqos_sz, mqos);
+  void * sqos = ddsi_xmsg_payload (&sqos_sz, mqos);
   assert (sqos_sz <= UINT32_MAX);
   ddsrt_md5_append (&md5st, (ddsrt_md5_byte_t *) sqos, (uint32_t) sqos_sz);
-  nn_xmsg_free (mqos);
+  ddsi_xmsg_free (mqos);
 
   ddsrt_md5_finish (&md5st, (ddsrt_md5_byte_t *) &tpd->key);
 }
@@ -330,7 +334,7 @@ int ddsi_topic_definition_equal (const struct ddsi_topic_definition *tpd_a, cons
     const ddsi_typeid_t *tid_a = ddsi_type_pair_complete_id (tpd_a->type_pair),
       *tid_b = ddsi_type_pair_complete_id (tpd_b->type_pair);
     return !ddsi_typeid_compare (tid_a, tid_b)
-        && !ddsi_xqos_delta (tpd_a->xqos, tpd_b->xqos, ~(QP_TYPE_INFORMATION));
+        && !ddsi_xqos_delta (tpd_a->xqos, tpd_b->xqos, ~(DDSI_QP_TYPE_INFORMATION));
   }
   return tpd_a == tpd_b;
 }
@@ -338,7 +342,7 @@ int ddsi_topic_definition_equal (const struct ddsi_topic_definition *tpd_a, cons
 static struct ddsi_topic_definition * new_topic_definition (struct ddsi_domaingv *gv, const struct ddsi_sertype *type, const struct dds_qos *qos)
 {
   dds_return_t ret;
-  assert ((qos->present & (QP_TOPIC_NAME | QP_TYPE_NAME)) == (QP_TOPIC_NAME | QP_TYPE_NAME));
+  assert ((qos->present & (DDSI_QP_TOPIC_NAME | DDSI_QP_TYPE_NAME)) == (DDSI_QP_TOPIC_NAME | DDSI_QP_TYPE_NAME));
   struct ddsi_topic_definition *tpd = ddsrt_malloc (sizeof (*tpd));
   if (!tpd)
     goto err;
@@ -365,7 +369,7 @@ static struct ddsi_topic_definition * new_topic_definition (struct ddsi_domaingv
   }
   else
   {
-    assert (qos->present & QP_TYPE_INFORMATION);
+    assert (qos->present & DDSI_QP_TYPE_INFORMATION);
     if ((ret = ddsi_type_ref_proxy (gv, &tpd->type_pair->minimal, qos->type_information, DDSI_TYPEID_KIND_MINIMAL, NULL)) != DDS_RETCODE_OK
         || ddsi_type_ref_proxy (gv, &tpd->type_pair->complete, qos->type_information, DDSI_TYPEID_KIND_COMPLETE, NULL) != DDS_RETCODE_OK)
     {
@@ -405,7 +409,7 @@ dds_return_t ddsi_lookup_topic_definition (struct ddsi_domaingv *gv, const char 
   for (struct ddsi_topic_definition *tpd1 = ddsrt_hh_iter_first (gv->topic_defs, &it); tpd1; tpd1 = ddsrt_hh_iter_next (&it))
   {
     if (!strcmp (tpd1->xqos->topic_name, topic_name) &&
-        (ddsi_typeid_is_none (type_id) || ((tpd1->xqos->present & QP_TYPE_INFORMATION) && !ddsi_typeid_compare (type_id, ddsi_typeinfo_complete_typeid (tpd1->xqos->type_information)))))
+        (ddsi_typeid_is_none (type_id) || ((tpd1->xqos->present & DDSI_QP_TYPE_INFORMATION) && !ddsi_typeid_compare (type_id, ddsi_typeinfo_complete_typeid (tpd1->xqos->type_information)))))
     {
       *tpd = tpd1;
       break;
@@ -426,7 +430,7 @@ struct ddsi_proxy_topic *ddsi_lookup_proxy_topic (struct ddsi_proxy_participant 
   return ptp;
 }
 
-dds_return_t ddsi_new_proxy_topic (struct ddsi_proxy_participant *proxypp, seqno_t seq, const ddsi_guid_t *guid, const ddsi_typeid_t *type_id_minimal, const ddsi_typeid_t *type_id_complete, struct dds_qos *qos, ddsrt_wctime_t timestamp)
+dds_return_t ddsi_new_proxy_topic (struct ddsi_proxy_participant *proxypp, ddsi_seqno_t seq, const ddsi_guid_t *guid, const ddsi_typeid_t *type_id_minimal, const ddsi_typeid_t *type_id_complete, struct dds_qos *qos, ddsrt_wctime_t timestamp)
 {
   assert (proxypp != NULL);
   struct ddsi_domaingv *gv = proxypp->e.gv;
@@ -453,7 +457,7 @@ dds_return_t ddsi_new_proxy_topic (struct ddsi_proxy_participant *proxypp, seqno
   ddsrt_mutex_unlock (&proxypp->e.lock);
   if (new_tpd)
   {
-    builtintopic_write_topic (gv->builtin_topic_interface, tpd, timestamp, true);
+    ddsi_builtintopic_write_topic (gv->builtin_topic_interface, tpd, timestamp, true);
     ddsrt_mutex_lock (&gv->new_topic_lock);
     gv->new_topic_version++;
     ddsrt_cond_broadcast (&gv->new_topic_cond);
@@ -463,7 +467,7 @@ dds_return_t ddsi_new_proxy_topic (struct ddsi_proxy_participant *proxypp, seqno
   return DDS_RETCODE_OK;
 }
 
-void ddsi_update_proxy_topic (struct ddsi_proxy_participant *proxypp, struct ddsi_proxy_topic *proxytp, seqno_t seq, struct dds_qos *xqos, ddsrt_wctime_t timestamp)
+void ddsi_update_proxy_topic (struct ddsi_proxy_participant *proxypp, struct ddsi_proxy_topic *proxytp, ddsi_seqno_t seq, struct dds_qos *xqos, ddsrt_wctime_t timestamp)
 {
   ddsrt_mutex_lock (&proxypp->e.lock);
   struct ddsi_domaingv *gv = proxypp->e.gv;
@@ -483,7 +487,7 @@ void ddsi_update_proxy_topic (struct ddsi_proxy_participant *proxypp, struct dds
   struct ddsi_topic_definition *tpd0 = proxytp->definition;
   proxytp->seq = seq;
   proxytp->tupdate = timestamp;
-  uint64_t mask = ddsi_xqos_delta (tpd0->xqos, xqos, QP_CHANGEABLE_MASK & ~(QP_RXO_MASK | QP_PARTITION)) & xqos->present;
+  uint64_t mask = ddsi_xqos_delta (tpd0->xqos, xqos, DDSI_QP_CHANGEABLE_MASK & ~(DDSI_QP_RXO_MASK | DDSI_QP_PARTITION)) & xqos->present;
   GVLOGDISC ("ddsi_update_proxy_topic %"PRIx32" delta=%"PRIu64" QOS={", proxytp->entityid.u, mask);
   ddsi_xqos_log (DDS_LC_DISCOVERY, &gv->logconfig, xqos);
   GVLOGDISC ("}\n");
@@ -506,7 +510,7 @@ void ddsi_update_proxy_topic (struct ddsi_proxy_participant *proxypp, struct dds
   dds_delete_qos (newqos);
   if (new_tpd)
   {
-    builtintopic_write_topic (gv->builtin_topic_interface, tpd1, timestamp, true);
+    ddsi_builtintopic_write_topic (gv->builtin_topic_interface, tpd1, timestamp, true);
 
     ddsrt_mutex_lock (&gv->new_topic_lock);
     gv->new_topic_version++;

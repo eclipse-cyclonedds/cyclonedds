@@ -20,7 +20,7 @@
 #include "dds/ddsrt/random.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/ddsi_entity.h"
-#include "dds/ddsi/q_whc.h"
+#include "ddsi__whc.h"
 #include "dds__entity.h"
 
 #include "test_common.h"

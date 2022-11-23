@@ -16,8 +16,11 @@
 
 #include "dds/dds.h"
 #include "dds/ddsrt/sync.h"
-#include "dds/ddsi/q_rtps.h"
+#include "dds/ddsi/ddsi_protocol.h"
 #include "dds/ddsi/ddsi_domaingv.h"
+#ifdef DDS_HAS_TOPIC_DISCOVERY
+#include "dds/ddsi/ddsi_typewrap.h"
+#endif
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsi/ddsi_builtin_topic_if.h"
 #include "dds__handles.h"
@@ -240,7 +243,7 @@ typedef struct dds_domain {
   shm_monitor_t m_shm_monitor;
 #endif
 
-  struct cfgst *cfgst; // NULL if config initializer provided
+  struct ddsi_cfgst *cfgst; // NULL if config initializer provided
 
   struct ddsi_sertype *builtin_participant_type;
 #ifdef DDS_HAS_TOPIC_DISCOVERY
@@ -352,9 +355,9 @@ typedef struct dds_reader {
 typedef struct dds_writer {
   struct dds_entity m_entity;
   struct dds_topic *m_topic; /* refc'd, constant, lock(wr) -> lock(tp) allowed */
-  struct nn_xpack *m_xp;
+  struct ddsi_xpack *m_xp;
   struct ddsi_writer *m_wr;
-  struct whc *m_whc; /* FIXME: ownership still with underlying DDSI writer (cos of DDSI built-in writers )*/
+  struct ddsi_whc *m_whc; /* FIXME: ownership still with underlying DDSI writer (cos of DDSI built-in writers )*/
   bool whc_batch; /* FIXME: channels + latency budget */
 #ifdef DDS_HAS_SHM
   iox_pub_t m_iox_pub;

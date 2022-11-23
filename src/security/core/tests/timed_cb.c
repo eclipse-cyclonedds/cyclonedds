@@ -16,7 +16,7 @@
 #include "dds/dds.h"
 #include "dds__entity.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/q_xevent.h"
+#include "ddsi__xevent.h"
 
 #include "dds/security/core/dds_security_timed_cb.h"
 #include "dds/ddsrt/misc.h"
@@ -53,11 +53,11 @@ struct timer_argument
 
 
 static dds_entity_t pp = 0;
-static struct xeventq *xeventq = NULL;
+static struct ddsi_xeventq *xeventq = NULL;
 
-static struct xeventq *get_xeventq (dds_entity_t e)
+static struct ddsi_xeventq *get_xeventq (dds_entity_t e)
 {
-  struct xeventq *evq;
+  struct ddsi_xeventq *evq;
   dds_return_t r;
   dds_entity *x;
 

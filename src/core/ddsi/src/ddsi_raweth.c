@@ -9,18 +9,17 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#include "dds/ddsi/ddsi_tran.h"
-#include "dds/ddsi/ddsi_raweth.h"
-#include "dds/ddsi/ddsi_ipaddr.h"
-#include "dds/ddsi/ddsi_mcgroup.h"
-#include "dds/ddsi/ddsi_config_impl.h"
-#include "dds/ddsi/q_log.h"
-#include "dds/ddsi/q_pcap.h"
-#include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/sockets.h"
+#include "dds/ddsi/ddsi_log.h"
+#include "dds/ddsi/ddsi_domaingv.h"
+#include "ddsi__tran.h"
+#include "ddsi__raweth.h"
+#include "ddsi__ipaddr.h"
+#include "ddsi__mcgroup.h"
+#include "ddsi__pcap.h"
 
 #if defined(__linux) && !LWIP_SOCKET
 #include <linux/if_packet.h>
@@ -37,7 +36,7 @@ typedef struct ddsi_raweth_conn {
   int m_ifindex;
 } *ddsi_raweth_conn_t;
 
-static char *ddsi_raweth_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc, ddsi_tran_conn_t conn, int with_port)
+static char *ddsi_raweth_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc, struct ddsi_tran_conn * conn, int with_port)
 {
   (void) conn;
   if (with_port)
@@ -51,7 +50,7 @@ static char *ddsi_raweth_to_string (char *dst, size_t sizeof_dst, const ddsi_loc
   return dst;
 }
 
-static ssize_t ddsi_raweth_conn_read (ddsi_tran_conn_t conn, unsigned char * buf, size_t len, bool allow_spurious, ddsi_locator_t *srcloc)
+static ssize_t ddsi_raweth_conn_read (struct ddsi_tran_conn * conn, unsigned char * buf, size_t len, bool allow_spurious, ddsi_locator_t *srcloc)
 {
   dds_return_t rc;
   ssize_t ret = 0;
@@ -79,7 +78,7 @@ static ssize_t ddsi_raweth_conn_read (ddsi_tran_conn_t conn, unsigned char * buf
   {
     if (srcloc)
     {
-      srcloc->kind = NN_LOCATOR_KIND_RAWETH;
+      srcloc->kind = DDSI_LOCATOR_KIND_RAWETH;
       srcloc->port = ntohs (src.sll_protocol);
       memset(srcloc->address, 0, 10);
       memcpy(srcloc->address + 10, src.sll_addr, 6);
@@ -108,7 +107,7 @@ static ssize_t ddsi_raweth_conn_read (ddsi_tran_conn_t conn, unsigned char * buf
   return ret;
 }
 
-static ssize_t ddsi_raweth_conn_write (ddsi_tran_conn_t conn, const ddsi_locator_t *dst, size_t niov, const ddsrt_iovec_t *iov, uint32_t flags)
+static ssize_t ddsi_raweth_conn_write (struct ddsi_tran_conn * conn, const ddsi_locator_t *dst, size_t niov, const ddsrt_iovec_t *iov, uint32_t flags)
 {
   ddsi_raweth_conn_t uc = (ddsi_raweth_conn_t) conn;
   dds_return_t rc;
@@ -148,7 +147,7 @@ static ssize_t ddsi_raweth_conn_write (ddsi_tran_conn_t conn, const ddsi_locator
   return (rc == DDS_RETCODE_OK ? ret : -1);
 }
 
-static ddsrt_socket_t ddsi_raweth_conn_handle (ddsi_tran_base_t base)
+static ddsrt_socket_t ddsi_raweth_conn_handle (struct ddsi_tran_base * base)
 {
   return ((ddsi_raweth_conn_t) base)->m_sock;
 }
@@ -156,17 +155,17 @@ static ddsrt_socket_t ddsi_raweth_conn_handle (ddsi_tran_base_t base)
 static bool ddsi_raweth_supports (const struct ddsi_tran_factory *fact, int32_t kind)
 {
   (void) fact;
-  return (kind == NN_LOCATOR_KIND_RAWETH);
+  return (kind == DDSI_LOCATOR_KIND_RAWETH);
 }
 
-static int ddsi_raweth_conn_locator (ddsi_tran_factory_t fact, ddsi_tran_base_t base, ddsi_locator_t *loc)
+static int ddsi_raweth_conn_locator (struct ddsi_tran_factory * fact, struct ddsi_tran_base * base, ddsi_locator_t *loc)
 {
   ddsi_raweth_conn_t uc = (ddsi_raweth_conn_t) base;
   int ret = -1;
   (void) fact;
   if (uc->m_sock != DDSRT_INVALID_SOCKET)
   {
-    loc->kind = NN_LOCATOR_KIND_RAWETH;
+    loc->kind = DDSI_LOCATOR_KIND_RAWETH;
     loc->port = uc->m_base.m_base.m_port;
     memcpy(loc->address, uc->m_base.m_base.gv->interfaces[0].loc.address, sizeof (loc->address));
     ret = 0;
@@ -174,7 +173,7 @@ static int ddsi_raweth_conn_locator (ddsi_tran_factory_t fact, ddsi_tran_base_t 
   return ret;
 }
 
-static dds_return_t ddsi_raweth_create_conn (ddsi_tran_conn_t *conn_out, ddsi_tran_factory_t fact, uint32_t port, const struct ddsi_tran_qos *qos)
+static dds_return_t ddsi_raweth_create_conn (struct ddsi_tran_conn **conn_out, struct ddsi_tran_factory * fact, uint32_t port, const struct ddsi_tran_qos *qos)
 {
   ddsrt_socket_t sock;
   dds_return_t rc;
@@ -257,7 +256,7 @@ static int joinleave_asm_mcgroup (ddsrt_socket_t socket, int join, const ddsi_lo
   return (rc == DDS_RETCODE_OK) ? 0 : rc;
 }
 
-static int ddsi_raweth_join_mc (ddsi_tran_conn_t conn, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc, const struct ddsi_network_interface *interf)
+static int ddsi_raweth_join_mc (struct ddsi_tran_conn * conn, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc, const struct ddsi_network_interface *interf)
 {
   if (isbroadcast(mcloc))
     return 0;
@@ -269,7 +268,7 @@ static int ddsi_raweth_join_mc (ddsi_tran_conn_t conn, const ddsi_locator_t *src
   }
 }
 
-static int ddsi_raweth_leave_mc (ddsi_tran_conn_t conn, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc, const struct ddsi_network_interface *interf)
+static int ddsi_raweth_leave_mc (struct ddsi_tran_conn * conn, const ddsi_locator_t *srcloc, const ddsi_locator_t *mcloc, const struct ddsi_network_interface *interf)
 {
   if (isbroadcast(mcloc))
     return 0;
@@ -281,7 +280,7 @@ static int ddsi_raweth_leave_mc (ddsi_tran_conn_t conn, const ddsi_locator_t *sr
   }
 }
 
-static void ddsi_raweth_release_conn (ddsi_tran_conn_t conn)
+static void ddsi_raweth_release_conn (struct ddsi_tran_conn * conn)
 {
   ddsi_raweth_conn_t uc = (ddsi_raweth_conn_t) conn;
   DDS_CTRACE (&conn->m_base.gv->logconfig,
@@ -303,7 +302,7 @@ static int ddsi_raweth_is_loopbackaddr (const struct ddsi_tran_factory *tran, co
 static int ddsi_raweth_is_mcaddr (const struct ddsi_tran_factory *tran, const ddsi_locator_t *loc)
 {
   (void) tran;
-  assert (loc->kind == NN_LOCATOR_KIND_RAWETH);
+  assert (loc->kind == DDSI_LOCATOR_KIND_RAWETH);
   return (loc->address[10] & 1);
 }
 
@@ -329,8 +328,8 @@ static enum ddsi_locator_from_string_result ddsi_raweth_address_from_string (con
 {
   int i = 0;
   (void)tran;
-  loc->kind = NN_LOCATOR_KIND_RAWETH;
-  loc->port = NN_LOCATOR_PORT_INVALID;
+  loc->kind = DDSI_LOCATOR_KIND_RAWETH;
+  loc->port = DDSI_LOCATOR_PORT_INVALID;
   memset (loc->address, 0, sizeof (loc->address));
   while (i < 6 && *str != 0)
   {
@@ -352,13 +351,13 @@ static enum ddsi_locator_from_string_result ddsi_raweth_address_from_string (con
   return AFSR_OK;
 }
 
-static void ddsi_raweth_deinit(ddsi_tran_factory_t fact)
+static void ddsi_raweth_deinit(struct ddsi_tran_factory * fact)
 {
   DDS_CLOG (DDS_LC_CONFIG, &fact->gv->logconfig, "raweth de-initialized\n");
   ddsrt_free (fact);
 }
 
-static int ddsi_raweth_enumerate_interfaces (ddsi_tran_factory_t fact, enum ddsi_transport_selector transport_selector, ddsrt_ifaddrs_t **ifs)
+static int ddsi_raweth_enumerate_interfaces (struct ddsi_tran_factory * fact, enum ddsi_transport_selector transport_selector, ddsrt_ifaddrs_t **ifs)
 {
   int afs[] = { AF_PACKET, DDSRT_AF_TERM };
   (void)fact;
@@ -385,8 +384,8 @@ static int ddsi_raweth_locator_from_sockaddr (const struct ddsi_tran_factory *tr
   if (sockaddr->sa_family != AF_PACKET)
     return -1;
 
-  loc->kind = NN_LOCATOR_KIND_RAWETH;
-  loc->port = NN_LOCATOR_PORT_INVALID;
+  loc->kind = DDSI_LOCATOR_KIND_RAWETH;
+  loc->port = DDSI_LOCATOR_PORT_INVALID;
   memset (loc->address, 0, 10);
   memcpy (loc->address + 10, ((struct sockaddr_ll *) sockaddr)->sll_addr, 6);
   return 0;

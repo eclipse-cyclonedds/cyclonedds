@@ -20,7 +20,7 @@
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/threads.h"
 #include "dds/ddsrt/avl.h"
-#include "dds/ddsi/sysdeps.h"
+#include "ddsi__sysdeps.h"
 #include "CUnit/Theory.h"
 
 enum loggerstate {
@@ -138,7 +138,7 @@ static void teardown (void)
 
 CU_Test (ddsi_sysdeps, log_stacktrace_self, .init = setup, .fini = teardown)
 {
-  log_stacktrace (&logconfig, "self", ddsrt_thread_self ());
+  ddsi_log_stacktrace (&logconfig, "self", ddsrt_thread_self ());
   CU_ASSERT_FATAL (loggerstate == STL_TEST_PASSED || loggerstate == STL_INIT);
 }
 
@@ -207,7 +207,7 @@ CU_Test (ddsi_sysdeps, log_stacktrace_other, .init = setup, .fini = teardown)
   }
   ddsrt_mutex_unlock (&arg.lock);
 
-  log_stacktrace (&logconfig, "other", tid);
+  ddsi_log_stacktrace (&logconfig, "other", tid);
 
   ddsrt_mutex_lock (&arg.lock);
   arg.stop = 1;

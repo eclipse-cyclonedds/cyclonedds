@@ -26,53 +26,52 @@
 
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/ddsi_ownip.h"
-#include "dds/ddsi/q_protocol.h"
-#include "dds/ddsi/q_sockwaitset.h"
-#include "dds/ddsi/ddsi_config_impl.h"
+#include "dds/ddsi/ddsi_protocol.h"
+#include "dds/ddsi/ddsi_sockwaitset.h"
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
 
-struct nn_xmsgpool;
-struct nn_dqueue;
-struct nn_reorder;
-struct nn_defrag;
-struct addrset;
-struct xeventq;
+struct ddsi_xmsgpool;
+struct ddsi_dqueue;
+struct ddsi_reorder;
+struct ddsi_defrag;
+struct ddsi_addrset;
+struct ddsi_xeventq;
 struct ddsi_gcreq_queue;
-struct entity_index;
-struct lease;
+struct ddsi_entity_index;
+struct ddsi_lease;
 struct ddsi_tran_conn;
 struct ddsi_tran_listener;
 struct ddsi_tran_factory;
-struct debug_monitor;
+struct ddsi_debug_monitor;
 struct ddsi_tkmap;
 struct dds_security_context;
 struct dds_security_match_index;
 struct ddsi_hsadmin;
 
-typedef struct config_in_addr_node {
+struct ddsi_config_in_addr_node {
    ddsi_locator_t loc;
-   struct config_in_addr_node *next;
-} config_in_addr_node;
-
-enum recvips_mode {
-  RECVIPS_MODE_ALL,             /* all MC capable interfaces */
-  RECVIPS_MODE_ANY,             /* kernel-default interface */
-  RECVIPS_MODE_PREFERRED,       /* selected interface only */
-  RECVIPS_MODE_NONE,            /* no interfaces at all */
-  RECVIPS_MODE_SOME             /* explicit list of interfaces; only one requiring recvips */
+   struct ddsi_config_in_addr_node *next;
 };
 
-enum recv_thread_mode {
-  RTM_SINGLE,
-  RTM_MANY
+enum ddsi_recvips_mode {
+  DDSI_RECVIPS_MODE_ALL,             /* all MC capable interfaces */
+  DDSI_RECVIPS_MODE_ANY,             /* kernel-default interface */
+  DDSI_RECVIPS_MODE_PREFERRED,       /* selected interface only */
+  DDSI_RECVIPS_MODE_NONE,            /* no interfaces at all */
+  DDSI_RECVIPS_MODE_SOME             /* explicit list of interfaces; only one requiring recvips */
 };
 
-struct recv_thread_arg {
-  enum recv_thread_mode mode;
-  struct nn_rbufpool *rbpool;
+enum ddsi_recv_thread_mode {
+  DDSI_RTM_SINGLE,
+  DDSI_RTM_MANY
+};
+
+struct ddsi_recv_thread_arg {
+  enum ddsi_recv_thread_mode mode;
+  struct ddsi_rbufpool *rbpool;
   struct ddsi_domaingv *gv;
   union {
     struct {
@@ -80,12 +79,12 @@ struct recv_thread_arg {
       struct ddsi_tran_conn *conn;
     } single;
     struct {
-      os_sockWaitset ws;
+      struct ddsi_sock_waitset *ws;
     } many;
   } u;
 };
 
-struct deleted_participants_admin;
+struct ddsi_deleted_participants_admin;
 
 struct ddsi_domaingv {
   volatile int terminate;
@@ -99,10 +98,10 @@ struct ddsi_domaingv {
 
   /* Hash tables for participants, readers, writers, proxy
      participants, proxy readers and proxy writers by GUID. */
-  struct entity_index *entity_index;
+  struct ddsi_entity_index *entity_index;
 
   /* Timed events admin */
-  struct xeventq *xevents;
+  struct ddsi_xeventq *xevents;
 
   /* Queue for garbage collection requests */
   struct ddsi_gcreq_queue *gcreq_queue;
@@ -175,7 +174,7 @@ struct ddsi_domaingv {
   ddsrt_mutex_t privileged_pp_lock;
 
   /* For tracking (recently) deleted participants */
-  struct deleted_participants_admin *deleted_participants;
+  struct ddsi_deleted_participants_admin *deleted_participants;
 
   /* GUID to be used in next call to new_participant; also protected
      by privileged_pp_lock */
@@ -191,8 +190,8 @@ struct ddsi_domaingv {
   /* Addressing: actual own (preferred) IP address, IP address
      advertised in discovery messages (so that an external IP address on
      a NAT may be advertised), and the DDSI multi-cast address. */
-  enum recvips_mode recvips_mode;
-  struct config_in_addr_node *recvips;
+  enum ddsi_recvips_mode recvips_mode;
+  struct ddsi_config_in_addr_node *recvips;
   ddsi_locator_t extmask;
 
   /* Locators */
@@ -210,7 +209,7 @@ struct ddsi_domaingv {
     Initial discovery address set, and the current discovery address
     set. These are the addresses that SPDP pings get sent to.
   */
-  struct addrset *as_disc;
+  struct ddsi_addrset *as_disc;
 
   ddsrt_mutex_t lock;
 
@@ -222,12 +221,12 @@ struct ddsi_domaingv {
   uint32_t n_recv_threads;
   struct recv_thread {
     const char *name;
-    struct thread_state *thrst;
-    struct recv_thread_arg arg;
+    struct ddsi_thread_state *thrst;
+    struct ddsi_recv_thread_arg arg;
   } recv_threads[MAX_RECV_THREADS];
 
   /* Listener thread for connection based transports */
-  struct thread_state *listen_ts;
+  struct ddsi_thread_state *listen_ts;
 
   /* Flag cleared when stopping (receive threads). FIXME. */
   ddsrt_atomic_uint32_t rtps_keepgoing;
@@ -261,25 +260,25 @@ struct ddsi_domaingv {
      do-nothing defragmentation and reordering thingummies, as well as a
      global mutex to in lieu of the proxy writer lock. */
   ddsrt_mutex_t spdp_lock;
-  struct nn_defrag *spdp_defrag;
-  struct nn_reorder *spdp_reorder;
+  struct ddsi_defrag *spdp_defrag;
+  struct ddsi_reorder *spdp_reorder;
 
   /* Built-in stuff other than SPDP gets funneled through the builtins
      delivery queue; currently just SEDP and PMD */
-  struct nn_dqueue *builtins_dqueue;
+  struct ddsi_dqueue *builtins_dqueue;
 
-  struct debug_monitor *debmon;
+  struct ddsi_debug_monitor *debmon;
 
 #ifndef DDS_HAS_NETWORK_CHANNELS
   uint32_t networkQueueId;
-  struct thread_state *channel_reader_thrst;
+  struct ddsi_thread_state *channel_reader_thrst;
 
   /* Application data gets its own delivery queue */
-  struct nn_dqueue *user_dqueue;
+  struct ddsi_dqueue *user_dqueue;
 #endif
 
   /* Transmit side: pool for transmit queue*/
-  struct nn_xmsgpool *xmsgpool;
+  struct ddsi_xmsgpool *xmsgpool;
   struct ddsi_sertype *spdp_type; /* key = participant GUID */
   struct ddsi_sertype *sedp_reader_type; /* key = endpoint GUID */
   struct ddsi_sertype *sedp_writer_type; /* key = endpoint GUID */
@@ -301,10 +300,10 @@ struct ddsi_domaingv {
   ddsrt_mutex_t sendq_lock;
   ddsrt_cond_t sendq_cond;
   unsigned sendq_length;
-  struct nn_xpack *sendq_head;
-  struct nn_xpack *sendq_tail;
+  struct ddsi_xpack *sendq_head;
+  struct ddsi_xpack *sendq_tail;
   int sendq_stop;
-  struct thread_state *sendq_ts;
+  struct ddsi_thread_state *sendq_ts;
   bool sendq_running;
   ddsrt_mutex_t sendq_running_lock;
 
@@ -314,7 +313,7 @@ struct ddsi_domaingv {
 
   struct ddsi_builtin_topic_interface *builtin_topic_interface;
 
-  struct nn_group_membership *mship;
+  struct ddsi_mcgroup_membership *mship;
 
   ddsrt_mutex_t sertypes_lock;
   struct ddsrt_hh *sertypes;

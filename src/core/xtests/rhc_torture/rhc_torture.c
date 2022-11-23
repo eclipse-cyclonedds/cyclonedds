@@ -20,22 +20,22 @@
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/random.h"
 #include "dds/ddsrt/cdtors.h"
-#include "dds/dds.h"
 #include "dds/ddsi/ddsi_tkmap.h"
-#include "dds__entity.h"
-#include "dds/ddsi/ddsi_config_impl.h"
-#include "dds/ddsi/q_bswap.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/q_radmin.h"
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/ddsi_proxy_endpoint.h"
 #include "dds/ddsi/ddsi_gc.h"
 #include "dds/ddsi/ddsi_serdata.h"
-#include "dds__topic.h"
-#include "dds/ddsc/dds_rhc.h"
-#include "dds__rhc_default.h"
 #include "dds/ddsi/ddsi_iid.h"
+#include "ddsi__thread.h"
+#include "ddsi__radmin.h"
+#include "dds/dds.h"
+#include "dds/ddsc/dds_rhc.h"
+#include "dds__entity.h"
+#include "dds__topic.h"
+#include "dds__rhc_default.h"
+
 #ifdef DDS_HAS_LIFESPAN
 #include "dds/ddsi/ddsi_lifespan.h"
 #endif
@@ -51,7 +51,7 @@
 static ddsrt_prng_t prng;
 
 static struct ddsi_sertype *mdtype;
-static struct thread_state *mainthread;
+static struct ddsi_thread_state *mainthread;
 static dds_time_t tref_dds;
 static uint32_t seq;
 
@@ -135,15 +135,15 @@ static uint64_t store (struct ddsi_tkmap *tkmap, struct dds_rhc *rhc, struct dds
   struct ddsi_tkmap_instance *tk;
   struct ddsi_writer_info pwr_info;
   /* single-domain application ... so domain won't change */
-  thread_state_awake_domain_ok (ddsi_lookup_thread_state ());
+  ddsi_thread_state_awake_domain_ok (ddsi_lookup_thread_state ());
   tk = ddsi_tkmap_lookup_instance_ref (tkmap, sd);
   uint64_t iid = tk->m_iid;
   if (print)
   {
     RhcTypes_T d;
     char buf[64];
-    char si_d = (sd->statusinfo & NN_STATUSINFO_DISPOSE) ? 'D' : '.';
-    char si_u = (sd->statusinfo & NN_STATUSINFO_UNREGISTER) ? 'U' : '.';
+    char si_d = (sd->statusinfo & DDSI_STATUSINFO_DISPOSE) ? 'D' : '.';
+    char si_u = (sd->statusinfo & DDSI_STATUSINFO_UNREGISTER) ? 'U' : '.';
     memset (&d, 0, sizeof (d));
     ddsi_serdata_to_sample (sd, &d, NULL, NULL);
     (void) print_tstamp (buf, sizeof (buf), sd->timestamp.v);
@@ -158,14 +158,14 @@ static uint64_t store (struct ddsi_tkmap *tkmap, struct dds_rhc *rhc, struct dds
   pwr_info.iid = wr->e.iid;
   pwr_info.ownership_strength = wr->c.xqos->ownership_strength.value;
 #ifdef DDS_HAS_LIFESPAN
-  if (lifespan_expiry && (sd->statusinfo & (NN_STATUSINFO_UNREGISTER | NN_STATUSINFO_DISPOSE)) == 0)
+  if (lifespan_expiry && (sd->statusinfo & (DDSI_STATUSINFO_UNREGISTER | DDSI_STATUSINFO_DISPOSE)) == 0)
     pwr_info.lifespan_exp = rand_texp();
   else
     pwr_info.lifespan_exp = DDSRT_MTIME_NEVER;
 #endif
   dds_rhc_store (rhc, &pwr_info, sd, tk);
   ddsi_tkmap_instance_unref (tkmap, tk);
-  thread_state_asleep (ddsi_lookup_thread_state ());
+  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
   ddsi_serdata_unref (sd);
   return iid;
 }
@@ -207,24 +207,24 @@ static struct dds_rhc *mkrhc (struct ddsi_domaingv *gv, dds_reader *rd, dds_hist
   struct dds_rhc *rhc;
   dds_qos_t rqos;
   ddsi_xqos_init_empty (&rqos);
-  rqos.present |= QP_HISTORY | QP_DESTINATION_ORDER;
+  rqos.present |= DDSI_QP_HISTORY | DDSI_QP_DESTINATION_ORDER;
   rqos.history.kind = hk;
   rqos.history.depth = hdepth;
   rqos.destination_order.kind = dok;
   ddsi_xqos_mergein_missing (&rqos, &ddsi_default_qos_reader, ~(uint64_t)0);
-  thread_state_awake_domain_ok (ddsi_lookup_thread_state ());
+  ddsi_thread_state_awake_domain_ok (ddsi_lookup_thread_state ());
   rhc = dds_rhc_default_new_xchecks (rd, gv, mdtype, true);
   dds_rhc_set_qos(rhc, &rqos);
-  thread_state_asleep (ddsi_lookup_thread_state ());
+  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
   ddsi_xqos_fini (&rqos);
   return rhc;
 }
 
 static void frhc (struct dds_rhc *rhc)
 {
-  thread_state_awake_domain_ok (ddsi_lookup_thread_state ());
+  ddsi_thread_state_awake_domain_ok (ddsi_lookup_thread_state ());
   dds_rhc_free (rhc);
-  thread_state_asleep (ddsi_lookup_thread_state ());
+  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
 }
 
 static char si2is (const dds_sample_info_t *si)
@@ -330,9 +330,9 @@ static void rdtkcond (struct dds_rhc *rhc, dds_readcond *cond, const struct chec
   if (print)
     printf ("%s:\n", opname);
 
-  thread_state_awake_domain_ok (ddsi_lookup_thread_state ());
+  ddsi_thread_state_awake_domain_ok (ddsi_lookup_thread_state ());
   cnt = op (rhc, true, rres_ptrs, rres_iseq, (max <= 0) ? (uint32_t) (sizeof (rres_iseq) / sizeof (rres_iseq[0])) : (uint32_t) max, cond ? NO_STATE_MASK_SET : (DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE), 0, cond);
-  thread_state_asleep (ddsi_lookup_thread_state ());
+  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
   if (max > 0 && cnt > max) {
     printf ("%s TOO MUCH DATA (%d > %d)\n", opname, cnt, max);
     abort ();
@@ -775,35 +775,35 @@ static void test_conditions (dds_entity_t pp, dds_entity_t tp, const int count, 
         break;
       }
       case 1: { /* wr disp */
-        struct ddsi_serdata *s = mksample (keyval, NN_STATUSINFO_DISPOSE);
+        struct ddsi_serdata *s = mksample (keyval, DDSI_STATUSINFO_DISPOSE);
         for (size_t k = 0; k < nrd; k++)
           store (tkmap, rhc[k], wr[which], ddsi_serdata_ref (s), print && k == 0, true);
         ddsi_serdata_unref (s);
         break;
       }
       case 2: { /* disp */
-        struct ddsi_serdata *s = mkkeysample (keyval, NN_STATUSINFO_DISPOSE);
+        struct ddsi_serdata *s = mkkeysample (keyval, DDSI_STATUSINFO_DISPOSE);
         for (size_t k = 0; k < nrd; k++)
           store (tkmap, rhc[k], wr[which], ddsi_serdata_ref (s), print && k == 0, true);
         ddsi_serdata_unref (s);
         break;
       }
       case 3: { /* unreg */
-        struct ddsi_serdata *s = mkkeysample (keyval, NN_STATUSINFO_UNREGISTER);
+        struct ddsi_serdata *s = mkkeysample (keyval, DDSI_STATUSINFO_UNREGISTER);
         for (size_t k = 0; k < nrd; k++)
           store (tkmap, rhc[k], wr[which], ddsi_serdata_ref (s), print && k == 0, true);
         ddsi_serdata_unref (s);
         break;
       }
       case 4: { /* disp unreg */
-        struct ddsi_serdata *s = mkkeysample (keyval, NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER);
+        struct ddsi_serdata *s = mkkeysample (keyval, DDSI_STATUSINFO_DISPOSE | DDSI_STATUSINFO_UNREGISTER);
         for (size_t k = 0; k < nrd; k++)
           store (tkmap, rhc[k], wr[which], ddsi_serdata_ref (s), print && k == 0, true);
         ddsi_serdata_unref (s);
         break;
       }
       case 5: { /* wr disp unreg */
-        struct ddsi_serdata *s = mksample (keyval, NN_STATUSINFO_DISPOSE | NN_STATUSINFO_UNREGISTER);
+        struct ddsi_serdata *s = mksample (keyval, DDSI_STATUSINFO_DISPOSE | DDSI_STATUSINFO_UNREGISTER);
         for (size_t k = 0; k < nrd; k++)
           store (tkmap, rhc[k], wr[which], ddsi_serdata_ref (s), print && k == 0, true);
         ddsi_serdata_unref (s);
@@ -836,7 +836,7 @@ static void test_conditions (dds_entity_t pp, dds_entity_t tp, const int count, 
         break;
       }
       case 11: {
-        thread_state_awake_domain_ok (ddsi_lookup_thread_state ());
+        ddsi_thread_state_awake_domain_ok (ddsi_lookup_thread_state ());
         struct ddsi_writer_info wr_info;
         wr_info.auto_dispose = wr[which]->c.xqos->writer_data_lifecycle.autodispose_unregistered_instances;
         wr_info.guid = wr[which]->e.guid;
@@ -847,26 +847,26 @@ static void test_conditions (dds_entity_t pp, dds_entity_t tp, const int count, 
 #endif
         for (size_t k = 0; k < nrd; k++)
           dds_rhc_unregister_wr (rhc[k], &wr_info);
-        thread_state_asleep (ddsi_lookup_thread_state ());
+        ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
         break;
       }
       case 12: {
 #ifdef DDS_HAS_LIFESPAN
-        thread_state_awake_domain_ok (ddsi_lookup_thread_state ());
+        ddsi_thread_state_awake_domain_ok (ddsi_lookup_thread_state ());
         /* We can assume that rhc[k] is a dds_rhc_default at this point */
         for (size_t k = 0; k < nrd; k++)
           (void) dds_rhc_default_sample_expired_cb (rhc[k], rand_texp());
-        thread_state_asleep (ddsi_lookup_thread_state ());
+        ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
 #endif
         break;
       }
       case 13: {
 #ifdef DDS_HAS_DEADLINE_MISSED
-        thread_state_awake_domain_ok (ddsi_lookup_thread_state ());
+        ddsi_thread_state_awake_domain_ok (ddsi_lookup_thread_state ());
         /* We can assume that rhc[k] is a dds_rhc_default at this point */
         for (size_t k = 0; k < nrd; k++)
           (void) dds_rhc_default_deadline_missed_cb (rhc[k], rand_texp());
-        thread_state_asleep (ddsi_lookup_thread_state ());
+        ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
 #endif
         break;
       }
@@ -919,7 +919,7 @@ static uint32_t stacktracethread (void *varg)
     if (ddsrt_cond_waituntil (&arg->cond, &arg->lock, when))
       continue;
     ddsrt_mutex_unlock (&arg->lock);
-    log_stack_traces (&logcfg, NULL);
+    ddsi_log_stack_traces (&logcfg, NULL);
     ddsrt_mutex_lock (&arg->lock);
     if (arg->period == 0)
       break;
@@ -1008,7 +1008,7 @@ int main (int argc, char **argv)
     struct ddsi_proxy_writer *wr1 = mkwr (1);
     uint64_t iid0, iid1, iid_t;
     iid0 = store (tkmap, rhc, wr0, mksample (0, 0), print, false);
-    iid1 = store (tkmap, rhc, wr0, mksample (1, NN_STATUSINFO_DISPOSE), print, false);
+    iid1 = store (tkmap, rhc, wr0, mksample (1, DDSI_STATUSINFO_DISPOSE), print, false);
     const struct check c0[] = {
       { "NNA", iid0, wr0->e.iid, 0,0, 1, 0,1 },
       { "NND", iid1, wr0->e.iid, 0,0, 1, 1,2 },
@@ -1025,7 +1025,7 @@ int main (int argc, char **argv)
     };
     rdall (rhc, c1, print, states_seen);
     /* unregister instance 0 with wr0 - autodispose, but 2nd writer keeps it alive, no visible change */
-    iid_t = store (tkmap, rhc, wr0, mkkeysample (0, NN_STATUSINFO_UNREGISTER), print, false);
+    iid_t = store (tkmap, rhc, wr0, mkkeysample (0, DDSI_STATUSINFO_UNREGISTER), print, false);
     assert (iid_t == iid0);
     const struct check c2[] = {
       { "ROA", iid0, wr1->e.iid, 0,0, 1, 0,3 },
@@ -1034,11 +1034,11 @@ int main (int argc, char **argv)
     };
     rdall (rhc, c2, print, states_seen);
     /* unregistering instance 0 again should be a no-op because wr0 no longer has it registered */
-    iid_t = store (tkmap, rhc, wr0, mkkeysample (0, NN_STATUSINFO_UNREGISTER), print, false);
+    iid_t = store (tkmap, rhc, wr0, mkkeysample (0, DDSI_STATUSINFO_UNREGISTER), print, false);
     assert (iid_t == iid0);
     rdall (rhc, c2, print, states_seen);
     /* unregistering instance 0 with wr1 - autodispose, no live writers -> dispose */
-    iid_t = store (tkmap, rhc, wr1, mkkeysample (0, NN_STATUSINFO_UNREGISTER), print, false);
+    iid_t = store (tkmap, rhc, wr1, mkkeysample (0, DDSI_STATUSINFO_UNREGISTER), print, false);
     assert (iid_t == iid0);
     const struct check c3[] = {
       { "ROD", iid0, wr1->e.iid, 0,0, 1, 0,3 },
@@ -1047,7 +1047,7 @@ int main (int argc, char **argv)
       { 0, 0, 0, 0, 0, 0, 0, 0 }
     };
     rdall (rhc, c3, print, states_seen);
-    thread_state_awake_domain_ok (ddsi_lookup_thread_state ());
+    ddsi_thread_state_awake_domain_ok (ddsi_lookup_thread_state ());
     struct ddsi_writer_info wr0_info;
     wr0_info.auto_dispose = wr0->c.xqos->writer_data_lifecycle.autodispose_unregistered_instances;
     wr0_info.guid = wr0->e.guid;
@@ -1057,7 +1057,7 @@ int main (int argc, char **argv)
     wr0_info.lifespan_exp = DDSRT_MTIME_NEVER;
 #endif
     dds_rhc_unregister_wr (rhc, &wr0_info);
-    thread_state_asleep (ddsi_lookup_thread_state ());
+    ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
     const struct check c4[] = {
       { "ROD", iid0, wr1->e.iid, 0,0, 1, 0,3 },
       { "ROD", iid0, 0, 0,0, 0, 0,0 },
@@ -1099,13 +1099,13 @@ int main (int argc, char **argv)
             if (!isreg[which]) { nregs++; isreg[which] = 1; }
             break;
           case 1:
-            iid_t = store (tkmap, rhc, wr[which], mkkeysample (0, NN_STATUSINFO_DISPOSE), print, false);
+            iid_t = store (tkmap, rhc, wr[which], mkkeysample (0, DDSI_STATUSINFO_DISPOSE), print, false);
             if (!isreg[which]) { nregs++; isreg[which] = 1; }
             break;
           case 2:
             if (nregs > 1 || !isreg[which])
             {
-              iid_t = store (tkmap, rhc, wr[which], mkkeysample (0, NN_STATUSINFO_UNREGISTER), print, false);
+              iid_t = store (tkmap, rhc, wr[which], mkkeysample (0, DDSI_STATUSINFO_UNREGISTER), print, false);
               if (isreg[which]) { isreg[which] = 0; nregs--; }
             }
             break;
@@ -1120,7 +1120,7 @@ int main (int argc, char **argv)
     {
       if (isreg[i])
       {
-        iid_t = store (tkmap, rhc, wr[i], mkkeysample (0, NN_STATUSINFO_UNREGISTER), print, false);
+        iid_t = store (tkmap, rhc, wr[i], mkkeysample (0, DDSI_STATUSINFO_UNREGISTER), print, false);
         assert (iid_t == iid0);
         isreg[i] = 0;
         nregs--;
@@ -1132,7 +1132,7 @@ int main (int argc, char **argv)
     iid_t = store (tkmap, rhc, wr[0], mksample (0, 0), print, false);
     assert (iid_t != iid0);
     iid0 = iid_t;
-    iid_t = store (tkmap, rhc, wr[0], mkkeysample (0, NN_STATUSINFO_UNREGISTER), print, false);
+    iid_t = store (tkmap, rhc, wr[0], mkkeysample (0, DDSI_STATUSINFO_UNREGISTER), print, false);
     assert (iid_t == iid0);
     frhc (rhc);
 

@@ -12,17 +12,17 @@
 #include <assert.h>
 #include <limits.h>
 
-#include "dds/dds.h"
-#include "dds/ddsc/dds_rhc.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_sertype.h"
-#include "test_common.h"
-
-// internals, to allow creating all objects we need on the stack
+#include "dds/dds.h"
+#include "dds/ddsc/dds_rhc.h"
 #include "dds__qos.h"
 #include "dds__listener.h"
+
+#include "test_common.h"
+
 #ifdef DDS_HAS_TYPE_DISCOVERY
-#include "dds/ddsi/ddsi_xt_impl.h"
+#include "ddsi__xt_impl.h"
 #endif
 
 /* Calling API functions on an uninitialized library should fail with

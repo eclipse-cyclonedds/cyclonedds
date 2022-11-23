@@ -12,13 +12,13 @@
 #include <string.h>
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/ddsi_statistics.h"
-#include "dds/ddsi/ddsi_entity.h"
-#include "dds/ddsi/ddsi_entity_match.h"
 #include "dds/ddsi/ddsi_endpoint.h"
-#include "dds/ddsi/ddsi_proxy_endpoint.h"
-#include "dds/ddsi/q_radmin.h"
+#include "ddsi__entity_index.h"
+#include "ddsi__entity.h"
+#include "ddsi__endpoint_match.h"
+#include "ddsi__radmin.h"
+#include "ddsi__proxy_endpoint.h"
 
 void ddsi_get_writer_stats (struct ddsi_writer *wr, uint64_t * __restrict rexmit_bytes, uint32_t * __restrict throttle_count, uint64_t * __restrict time_throttled, uint64_t * __restrict time_retransmit)
 {
@@ -35,7 +35,7 @@ void ddsi_get_reader_stats (struct ddsi_reader *rd, uint64_t * __restrict discar
   struct ddsi_rd_pwr_match *m;
   ddsi_guid_t pwrguid;
   memset (&pwrguid, 0, sizeof (pwrguid));
-  assert (thread_is_awake ());
+  assert (ddsi_thread_is_awake ());
 
   *discarded_bytes = 0;
 
@@ -46,18 +46,18 @@ void ddsi_get_reader_stats (struct ddsi_reader *rd, uint64_t * __restrict discar
     struct ddsi_proxy_writer *pwr;
     pwrguid = m->pwr_guid;
     ddsrt_mutex_unlock (&rd->e.lock);
-    if ((pwr = entidx_lookup_proxy_writer_guid (rd->e.gv->entity_index, &pwrguid)) != NULL)
+    if ((pwr = ddsi_entidx_lookup_proxy_writer_guid (rd->e.gv->entity_index, &pwrguid)) != NULL)
     {
       uint64_t disc_frags, disc_samples;
       ddsrt_mutex_lock (&pwr->e.lock);
       struct ddsi_pwr_rd_match *x = ddsrt_avl_lookup (&ddsi_pwr_readers_treedef, &pwr->readers, &rd->e.guid);
       if (x != NULL)
       {
-        nn_defrag_stats (pwr->defrag, &disc_frags);
+        ddsi_defrag_stats (pwr->defrag, &disc_frags);
         if (x->in_sync != PRMSS_OUT_OF_SYNC && !x->filtered)
-          nn_reorder_stats (pwr->reorder, &disc_samples);
+          ddsi_reorder_stats (pwr->reorder, &disc_samples);
         else
-          nn_reorder_stats (x->u.not_in_sync.reorder, &disc_samples);
+          ddsi_reorder_stats (x->u.not_in_sync.reorder, &disc_samples);
         *discarded_bytes += disc_frags + disc_samples;
       }
       ddsrt_mutex_unlock (&pwr->e.lock);

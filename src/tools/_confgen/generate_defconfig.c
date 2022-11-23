@@ -8,7 +8,7 @@
 
 #include "dds/ddsrt/static_assert.h"
 #include "dds/ddsrt/misc.h"
-#include "dds/ddsi/ddsi_config_impl.h"
+#include "dds/ddsi/ddsi_config.h"
 #include "dds/features.h"
 
 #include "_confgen.h"
@@ -237,7 +237,7 @@ static void gen_defaults (FILE *out, void *parent, struct cfgelem const * const 
 int printdefconfig (FILE *out, struct cfgelem *elem)
 {
   struct ddsi_config cfg;
-  struct cfgst *cfgst;
+  struct ddsi_cfgst *cfgst;
 
   if ((cfgst = ddsi_config_init ("", &cfg, 0)) == NULL)
   {

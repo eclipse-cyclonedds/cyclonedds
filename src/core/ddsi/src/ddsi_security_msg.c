@@ -14,30 +14,29 @@
 #include "dds/ddsrt/md5.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
-#include "dds/ddsi/q_bswap.h"
-#include "dds/ddsi/ddsi_entity.h"
-#include "dds/ddsi/ddsi_proxy_participant.h"
-#include "dds/ddsi/q_transmit.h"
-#include "dds/ddsi/q_misc.h"
-#include "dds/ddsi/ddsi_tkmap.h"
-#include "dds/ddsi/ddsi_entity_index.h"
-#include "dds/ddsi/ddsi_security_msg.h"
-#include "dds/ddsi/ddsi_plist_generic.h"
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/ddsi_serdata.h"
+#include "dds/ddsi/ddsi_tkmap.h"
+#include "dds/ddsi/ddsi_proxy_participant.h"
+#include "ddsi__entity.h"
+#include "ddsi__transmit.h"
+#include "ddsi__misc.h"
+#include "ddsi__entity_index.h"
+#include "ddsi__security_msg.h"
+#include "ddsi__plist_generic.h"
 #include "dds/security/core/dds_security_utils.h"
 
-const enum pserop pserop_participant_generic_message[] =
+const enum ddsi_pserop ddsi_pserop_participant_generic_message[] =
 {
-  /* nn_participant_generic_message */
-  XG, Xl,              /* nn_message_identity_t message_identity         */
-  XG, Xl,              /* nn_message_identity_t related_message_identity */
+  /* ddsi_participant_generic_message */
+  XG, Xl,              /* ddsi_message_identity_t message_identity         */
+  XG, Xl,              /* ddsi_message_identity_t related_message_identity */
   XG,                  /* ddsi_guid_t destination_participant_guid       */
   XG,                  /* ddsi_guid_t destination_endpoint_guid          */
   XG,                  /* ddsi_guid_t source_endpoint_guid               */
   XS,                  /* char* message_class_id                         */
-  XQ,                  /* nn_dataholderseq_t message_data                */
-    /* nn_dataholder_t */
+  XQ,                  /* ddsi_dataholderseq_t message_data                */
+    /* ddsi_dataholder_t */
     XS,                  /* char* class_id                               */
     XQ,                  /* dds_propertyseq_t properties                 */
       XbPROP, XS, XS,      /* dds_property_t                             */
@@ -48,7 +47,7 @@ const enum pserop pserop_participant_generic_message[] =
   XSTOP,
   XSTOP                /* end                                            */
 };
-const size_t pserop_participant_generic_message_nops = sizeof (pserop_participant_generic_message) / sizeof (pserop_participant_generic_message[0]);
+const size_t ddsi_pserop_participant_generic_message_nops = sizeof (ddsi_pserop_participant_generic_message) / sizeof (ddsi_pserop_participant_generic_message[0]);
 
 static void
 alias_simple_sequence(ddsi_octetseq_t *dst, const ddsi_octetseq_t *src, size_t elem_size)
@@ -64,7 +63,7 @@ alias_simple_sequence(ddsi_octetseq_t *dst, const ddsi_octetseq_t *src, size_t e
 }
 
 static void
-alias_dataholder(nn_dataholder_t *dst, const nn_dataholder_t *src)
+alias_dataholder(ddsi_dataholder_t *dst, const ddsi_dataholder_t *src)
 {
   dst->class_id = src->class_id;
   alias_simple_sequence((ddsi_octetseq_t*)&dst->properties,
@@ -76,13 +75,13 @@ alias_dataholder(nn_dataholder_t *dst, const nn_dataholder_t *src)
 }
 
 static void
-alias_dataholderseq(nn_dataholderseq_t *dst, const nn_dataholderseq_t *src)
+alias_dataholderseq(ddsi_dataholderseq_t *dst, const ddsi_dataholderseq_t *src)
 {
   dst->n = src->n;
   if (src->n > 0)
   {
     /* Even when aliased, sequence buffers are not shared. */
-    dst->tags = ddsrt_malloc(src->n * sizeof(nn_dataholder_t));
+    dst->tags = ddsrt_malloc(src->n * sizeof(ddsi_dataholder_t));
     for (uint32_t i = 0; i < src->n; i++)
     {
       alias_dataholder(&(dst->tags[i]), &(src->tags[i]));
@@ -93,16 +92,16 @@ alias_dataholderseq(nn_dataholderseq_t *dst, const nn_dataholderseq_t *src)
 }
 
 void
-nn_participant_generic_message_init(
-   nn_participant_generic_message_t *msg,
+ddsi_participant_generic_message_init(
+   ddsi_participant_generic_message_t *msg,
    const ddsi_guid_t *wrguid,
-   seqno_t wrseq,
+   ddsi_seqno_t wrseq,
    const ddsi_guid_t *dstpguid,
    const ddsi_guid_t *dsteguid,
    const ddsi_guid_t *srceguid,
    const char *classid,
-   const nn_dataholderseq_t *mdata,
-   const nn_message_identity_t *rmid)
+   const ddsi_dataholderseq_t *mdata,
+   const ddsi_message_identity_t *rmid)
 {
   assert(msg);
   assert(wrguid);
@@ -135,36 +134,36 @@ nn_participant_generic_message_init(
 }
 
 void
-nn_participant_generic_message_deinit(
-   nn_participant_generic_message_t *msg)
+ddsi_participant_generic_message_deinit(
+   ddsi_participant_generic_message_t *msg)
 {
   assert(msg);
-  plist_fini_generic(msg, pserop_participant_generic_message, true);
+  ddsi_plist_fini_generic (msg, ddsi_pserop_participant_generic_message, true);
 }
 
 dds_return_t
-nn_participant_generic_message_serialize(
-   const nn_participant_generic_message_t *msg,
+ddsi_participant_generic_message_serialize(
+   const ddsi_participant_generic_message_t *msg,
    unsigned char **data,
    size_t *len)
 {
-  return plist_ser_generic ((void**)data, len, (void*)msg, pserop_participant_generic_message);
+  return ddsi_plist_ser_generic ((void**)data, len, (void*)msg, ddsi_pserop_participant_generic_message);
 }
 
 dds_return_t
-nn_participant_generic_message_deseralize(
-   nn_participant_generic_message_t *msg,
+ddsi_participant_generic_message_deseralize(
+   ddsi_participant_generic_message_t *msg,
    const unsigned char *data,
    size_t len,
    bool bswap)
 {
-  assert(sizeof(nn_participant_generic_message_t) == plist_memsize_generic(pserop_participant_generic_message));
-  return plist_deser_generic (msg, data, len, bswap, pserop_participant_generic_message);
+  assert(sizeof(ddsi_participant_generic_message_t) == ddsi_plist_memsize_generic (ddsi_pserop_participant_generic_message));
+  return ddsi_plist_deser_generic (msg, data, len, bswap, ddsi_pserop_participant_generic_message);
 }
 
-int volatile_secure_data_filter(struct ddsi_writer *wr, struct ddsi_proxy_reader *prd, struct ddsi_serdata *serdata)
+int ddsi_volatile_secure_data_filter(struct ddsi_writer *wr, struct ddsi_proxy_reader *prd, struct ddsi_serdata *serdata)
 {
-  static const size_t guid_offset = offsetof(nn_participant_generic_message_t, destination_participant_guid);
+  static const size_t guid_offset = offsetof(ddsi_participant_generic_message_t, destination_participant_guid);
   ddsrt_iovec_t guid_ref = { .iov_len=0, .iov_base=NULL };
   ddsi_guid_t *msg_guid;
   ddsi_guid_t pp_guid;
@@ -185,8 +184,8 @@ int volatile_secure_data_filter(struct ddsi_writer *wr, struct ddsi_proxy_reader
   pass = ddsi_is_null_guid(msg_guid);
   if (!pass)
   {
-    pp_guid = nn_hton_guid(prd->c.proxypp->e.guid);
-    pass = guid_eq(msg_guid, &pp_guid);
+    pp_guid = ddsi_hton_guid(prd->c.proxypp->e.guid);
+    pass = ddsi_guid_eq(msg_guid, &pp_guid);
   }
 
   ddsi_serdata_to_ser_unref(serdata, &guid_ref);

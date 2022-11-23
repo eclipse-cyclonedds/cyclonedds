@@ -47,8 +47,7 @@
 #endif
 
 #include "dds/ddsi/ddsi_config.h"
-#include "dds/ddsi/ddsi_config_impl.h"
-#include "dds/ddsi/q_thread.h"
+#include "dds/ddsi/ddsi_thread.h"
 #include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_gc.h"
@@ -642,6 +641,7 @@ int main (int argc, char **argv)
   ddsi_typeinfo_complete_typeid (ptr);
   ddsi_typemap_deser (ptr, 0);
   ddsi_typemap_fini (ptr);
+  ddsi_typemap_equal (ptr, ptr);
   ddsi_type_lookup (ptr, ptr);
   ddsi_type_compare (ptr, ptr);
 
@@ -659,14 +659,11 @@ int main (int argc, char **argv)
   ddsi_lookup_thread_state_real ();
 
   // ddsi/q_gc.h
-  ddsi_gcreq_queue_new (ptr);
-  ddsi_gcreq_queue_drain (ptr);
-  ddsi_gcreq_queue_free (ptr);
   ddsi_gcreq_new (ptr, ptr);
-  ddsi_gcreq_queue_start (ptr);
   ddsi_gcreq_free (ptr);
   ddsi_gcreq_enqueue (ptr);
-  ddsi_gcreq_requeue (ptr, ptr);
+  ddsi_gcreq_get_arg (ptr);
+  ddsi_gcreq_set_arg (ptr, ptr2);
 
   // ddsrt/atomics.h
   ddsrt_atomic_ld32 (ptr);

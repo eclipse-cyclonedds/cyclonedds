@@ -33,10 +33,9 @@
 #include "dds/ddsrt/circlist.h"
 #include "dds/ddsi/ddsi_rhc.h"
 #include "dds/ddsi/ddsi_xqos.h"
-#include "dds/ddsi/q_unused.h"
-#include "dds/ddsi/ddsi_config_impl.h"
+#include "dds/ddsi/ddsi_unused.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/q_radmin.h" /* sampleinfo */
+#include "dds/ddsi/ddsi_radmin.h" /* sampleinfo */
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #ifdef DDS_HAS_LIFESPAN
@@ -45,7 +44,6 @@
 #ifdef DDS_HAS_DEADLINE_MISSED
 #include "dds/ddsi/ddsi_deadline.h"
 #endif
-#include "dds/ddsi/sysdeps.h"
 
 /* INSTANCE MANAGEMENT
    ===================
@@ -247,7 +245,7 @@ struct rhc_sample {
   uint32_t disposed_gen;       /* snapshot of instance counter at time of insertion */
   uint32_t no_writers_gen;     /* __/ */
 #ifdef DDS_HAS_LIFESPAN
-  struct lifespan_fhnode lifespan;  /* fibheap node for lifespan */
+  struct ddsi_lifespan_fhnode lifespan;  /* fibheap node for lifespan */
   struct rhc_instance *inst;   /* reference to rhc instance */
 #endif
 };
@@ -327,10 +325,10 @@ struct dds_rhc_default {
   dds_querycond_mask_t qconds_samplest;  /* Mask of associated query conditions that check the sample state */
   void *qcond_eval_samplebuf;        /* Temporary storage for evaluating query conditions, NULL if no qconds */
 #ifdef DDS_HAS_LIFESPAN
-  struct lifespan_adm lifespan;      /* Lifespan administration */
+  struct ddsi_lifespan_adm lifespan;      /* Lifespan administration */
 #endif
 #ifdef DDS_HAS_DEADLINE_MISSED
-  struct deadline_adm deadline; /* Deadline missed administration */
+  struct ddsi_deadline_adm deadline; /* Deadline missed administration */
 #endif
 };
 
@@ -520,7 +518,7 @@ ddsrt_mtime_t dds_rhc_default_sample_expired_cb(void *hc, ddsrt_mtime_t tnow)
   struct rhc_sample *sample;
   ddsrt_mtime_t tnext;
   ddsrt_mutex_lock (&rhc->lock);
-  while ((tnext = lifespan_next_expired_locked (&rhc->lifespan, tnow, (void **)&sample)).v == 0)
+  while ((tnext = ddsi_lifespan_next_expired_locked (&rhc->lifespan, tnow, (void **)&sample)).v == 0)
     drop_expired_samples (rhc, sample);
   ddsrt_mutex_unlock (&rhc->lock);
   return tnext;
@@ -534,10 +532,10 @@ ddsrt_mtime_t dds_rhc_default_deadline_missed_cb(void *hc, ddsrt_mtime_t tnow)
   void *vinst;
   ddsrt_mtime_t tnext;
   ddsrt_mutex_lock (&rhc->lock);
-  while ((tnext = deadline_next_missed_locked (&rhc->deadline, tnow, &vinst)).v == 0)
+  while ((tnext = ddsi_deadline_next_missed_locked (&rhc->deadline, tnow, &vinst)).v == 0)
   {
     struct rhc_instance *inst = vinst;
-    deadline_reregister_instance_locked (&rhc->deadline, &inst->deadline, tnow);
+    ddsi_deadline_reregister_instance_locked (&rhc->deadline, &inst->deadline, tnow);
 
     inst->wr_iid_islive = 0;
 
@@ -574,12 +572,12 @@ struct dds_rhc *dds_rhc_default_new_xchecks (dds_reader *reader, struct ddsi_dom
   rhc->xchecks = xchecks;
 
 #ifdef DDS_HAS_LIFESPAN
-  lifespan_init (gv, &rhc->lifespan, offsetof(struct dds_rhc_default, lifespan), offsetof(struct rhc_sample, lifespan), dds_rhc_default_sample_expired_cb);
+  ddsi_lifespan_init (gv, &rhc->lifespan, offsetof(struct dds_rhc_default, lifespan), offsetof(struct rhc_sample, lifespan), dds_rhc_default_sample_expired_cb);
 #endif
 
 #ifdef DDS_HAS_DEADLINE_MISSED
   rhc->deadline.dur = (reader != NULL) ? reader->m_entity.m_qos->deadline.deadline : DDS_INFINITY;
-  deadline_init (gv, &rhc->deadline, offsetof(struct dds_rhc_default, deadline), offsetof(struct rhc_instance, deadline), dds_rhc_default_deadline_missed_cb);
+  ddsi_deadline_init (gv, &rhc->deadline, offsetof(struct dds_rhc_default, deadline), offsetof(struct rhc_instance, deadline), dds_rhc_default_deadline_missed_cb);
 #endif
 
   return &rhc->common;
@@ -654,7 +652,7 @@ static void free_sample (struct dds_rhc_default *rhc, struct rhc_instance *inst,
 #endif
   ddsi_serdata_unref (s->sample);
 #ifdef DDS_HAS_LIFESPAN
-  lifespan_unregister_sample_locked (&rhc->lifespan, &s->lifespan);
+  ddsi_lifespan_unregister_sample_locked (&rhc->lifespan, &s->lifespan);
 #endif
   if (s == &inst->a_sample)
   {
@@ -716,7 +714,7 @@ static void free_empty_instance (struct rhc_instance *inst, struct dds_rhc_defau
   ddsi_tkmap_instance_unref (rhc->tkmap, inst->tk);
 #ifdef DDS_HAS_DEADLINE_MISSED
   if (inst->deadline_reg)
-    deadline_unregister_instance_locked (&rhc->deadline, &inst->deadline);
+    ddsi_deadline_unregister_instance_locked (&rhc->deadline, &inst->deadline);
 #endif
   ddsrt_free (inst);
 }
@@ -773,15 +771,15 @@ static void dds_rhc_default_free (struct ddsi_rhc *rhc_common)
   struct dds_rhc_default *rhc = (struct dds_rhc_default *) rhc_common;
 #ifdef DDS_HAS_LIFESPAN
   dds_rhc_default_sample_expired_cb (rhc, DDSRT_MTIME_NEVER);
-  lifespan_fini (&rhc->lifespan);
+  ddsi_lifespan_fini (&rhc->lifespan);
 #endif
 #ifdef DDS_HAS_DEADLINE_MISSED
-  deadline_stop (&rhc->deadline);
+  ddsi_deadline_stop (&rhc->deadline);
 #endif
   ddsrt_hh_enum (rhc->instances, free_instance_rhc_free_wrap, rhc);
   assert (ddsrt_circlist_isempty (&rhc->nonempty_instances));
 #ifdef DDS_HAS_DEADLINE_MISSED
-  deadline_fini (&rhc->deadline);
+  ddsi_deadline_fini (&rhc->deadline);
 #endif
   ddsrt_hh_free (rhc->instances);
   lwregs_fini (&rhc->registrations);
@@ -861,7 +859,7 @@ static bool add_sample (struct dds_rhc_default *rhc, struct rhc_instance *inst, 
     ddsi_serdata_unref (s->sample);
 
 #ifdef DDS_HAS_LIFESPAN
-    lifespan_unregister_sample_locked (&rhc->lifespan, &s->lifespan);
+    ddsi_lifespan_unregister_sample_locked (&rhc->lifespan, &s->lifespan);
 #endif
 
     trig_qc->dec_sample_read = s->isread;
@@ -918,7 +916,7 @@ static bool add_sample (struct dds_rhc_default *rhc, struct rhc_instance *inst, 
 #ifdef DDS_HAS_LIFESPAN
   s->inst = inst;
   s->lifespan.t_expire = wrinfo->lifespan_exp;
-  lifespan_register_sample_locked (&rhc->lifespan, &s->lifespan);
+  ddsi_lifespan_register_sample_locked (&rhc->lifespan, &s->lifespan);
 #endif
 
   s->conds = 0;
@@ -1391,7 +1389,7 @@ static struct rhc_instance *alloc_new_instance (struct dds_rhc_default *rhc, con
   inst->iid = tk->m_iid;
   inst->tk = tk;
   inst->wrcount = 1;
-  inst->isdisposed = (serdata->statusinfo & NN_STATUSINFO_DISPOSE) != 0;
+  inst->isdisposed = (serdata->statusinfo & DDSI_STATUSINFO_DISPOSE) != 0;
   inst->autodispose = wrinfo->auto_dispose;
   inst->deadline_reg = 0;
   inst->isnew = 1;
@@ -1488,16 +1486,16 @@ static void postprocess_instance_update (struct dds_rhc_default * __restrict rhc
       if (inst->deadline_reg)
       {
         inst->deadline_reg = 0;
-        deadline_unregister_instance_locked (&rhc->deadline, &inst->deadline);
+        ddsi_deadline_unregister_instance_locked (&rhc->deadline, &inst->deadline);
       }
     }
     else
     {
       if (inst->deadline_reg)
-        deadline_renew_instance_locked (&rhc->deadline, &inst->deadline);
+        ddsi_deadline_renew_instance_locked (&rhc->deadline, &inst->deadline);
       else
       {
-        deadline_register_instance_locked (&rhc->deadline, &inst->deadline, ddsrt_time_monotonic ());
+        ddsi_deadline_register_instance_locked (&rhc->deadline, &inst->deadline, ddsrt_time_monotonic ());
         inst->deadline_reg = 1;
       }
     }
@@ -1563,7 +1561,7 @@ static bool dds_rhc_default_store (struct ddsi_rhc * __restrict rhc_common, cons
   const uint64_t wr_iid = wrinfo->iid;
   const uint32_t statusinfo = sample->statusinfo;
   const bool has_data = (sample->kind == SDK_DATA);
-  const int is_dispose = (statusinfo & NN_STATUSINFO_DISPOSE) != 0;
+  const int is_dispose = (statusinfo & DDSI_STATUSINFO_DISPOSE) != 0;
   struct rhc_instance dummy_instance;
   struct rhc_instance *inst;
   struct trigger_info_pre pre;
@@ -1721,7 +1719,7 @@ static bool dds_rhc_default_store (struct ddsi_rhc * __restrict rhc_common, cons
     assert (rhc_check_counts_locked (rhc, false, false));
   }
 
-  if (statusinfo & NN_STATUSINFO_UNREGISTER)
+  if (statusinfo & DDSI_STATUSINFO_UNREGISTER)
   {
     /* Either a pure unregister, or the instance rejected the sample
        because of time stamps, content filter, or something else.  If

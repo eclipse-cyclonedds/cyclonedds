@@ -19,7 +19,7 @@
 #include "dds/ddsrt/retcode.h"
 #include "dds/ddsrt/time.h"
 #include "dds/ddsrt/fibheap.h"
-#include "dds/ddsi/q_thread.h"
+#include "dds/ddsi/ddsi_thread.h"
 #include "dds/security/core/dds_security_fsm.h"
 
 
@@ -65,7 +65,7 @@ struct dds_security_fsm_control
 {
   ddsrt_mutex_t lock;
   ddsrt_cond_t cond;
-  struct thread_state *thrst;
+  struct ddsi_thread_state *thrst;
   struct ddsi_domaingv *gv;
   struct dds_security_fsm *first_fsm;
   struct dds_security_fsm *last_fsm;
@@ -290,10 +290,10 @@ static void fsm_handle_timeout (struct dds_security_fsm_control *control, struct
 
 static uint32_t handle_events (struct dds_security_fsm_control *control)
 {
-  struct thread_state * const thrst = ddsi_lookup_thread_state ();
+  struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
   struct fsm_event *event;
 
-  thread_state_awake (thrst, control->gv);
+  ddsi_thread_state_awake (thrst, control->gv);
   ddsrt_mutex_lock (&control->lock);
   while (control->running)
   {
@@ -308,9 +308,9 @@ static uint32_t handle_events (struct dds_security_fsm_control *control)
 
       if (timeout > dds_time ())
       {
-        thread_state_asleep (thrst);
+        ddsi_thread_state_asleep (thrst);
         (void)ddsrt_cond_waituntil (&control->cond, &control->lock, timeout);
-        thread_state_awake (thrst, control->gv);
+        ddsi_thread_state_awake (thrst, control->gv);
       }
       else
       {
@@ -320,7 +320,7 @@ static uint32_t handle_events (struct dds_security_fsm_control *control)
     }
   }
   ddsrt_mutex_unlock (&control->lock);
-  thread_state_asleep (thrst);
+  ddsi_thread_state_asleep (thrst);
   return 0;
 }
 
@@ -558,7 +558,7 @@ dds_return_t dds_security_fsm_control_start (struct dds_security_fsm_control *co
   assert(control);
 
   control->running = true;
-  rc = create_thread (&control->thrst, control->gv, fsm_name, (uint32_t (*) (void *)) handle_events, control);
+  rc = ddsi_create_thread (&control->thrst, control->gv, fsm_name, (uint32_t (*) (void *)) handle_events, control);
 
   return rc;
 }
@@ -573,6 +573,6 @@ void dds_security_fsm_control_stop (struct dds_security_fsm_control *control)
   ddsrt_cond_broadcast (&control->cond);
   ddsrt_mutex_unlock (&control->lock);
 
-  join_thread (control->thrst);
+  ddsi_join_thread (control->thrst);
   control->thrst = NULL;
 }

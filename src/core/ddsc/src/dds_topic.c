@@ -17,6 +17,7 @@
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
+#include "dds/ddsrt/hopscotch.h"
 #include "dds__topic.h"
 #include "dds__listener.h"
 #include "dds__participant.h"
@@ -28,9 +29,8 @@
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/ddsi_entity_index.h"
-#include "dds/ddsi/q_thread.h"
+#include "dds/ddsi/ddsi_thread.h"
 #include "dds/ddsi/ddsi_sertype.h"
-#include "dds/ddsi/q_ddsi_discovery.h"
 #include "dds/ddsi/ddsi_iid.h"
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/ddsi_domaingv.h"
@@ -118,9 +118,9 @@ static void topic_guid_map_unref (struct ddsi_domaingv * const gv, const struct 
   if (m->refc == 0)
   {
     ddsrt_hh_remove_present (ktp->topic_guid_map, m);
-    thread_state_awake (ddsi_lookup_thread_state (), gv);
+    ddsi_thread_state_awake (ddsi_lookup_thread_state (), gv);
     (void) ddsi_delete_topic (gv, &m->guid);
-    thread_state_asleep (ddsi_lookup_thread_state ());
+    ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
     ddsi_typeid_fini (m->type_id);
     ddsrt_free (m->type_id);
     dds_free (m);
@@ -251,16 +251,16 @@ static dds_return_t dds_topic_qos_set (dds_entity *e, const dds_qos_t *qos, bool
   {
     struct dds_topic *tp = (struct dds_topic *) e;
     struct dds_ktopic * const ktp = tp->m_ktopic;
-    thread_state_awake (ddsi_lookup_thread_state (), &e->m_domain->gv);
+    ddsi_thread_state_awake (ddsi_lookup_thread_state (), &e->m_domain->gv);
     struct ddsrt_hh_iter it;
     /* parent pp is locked and protects ktp->topic_guid_map */
     for (struct ktopic_type_guid *obj = ddsrt_hh_iter_first(ktp->topic_guid_map, &it); obj; obj = ddsrt_hh_iter_next(&it))
     {
       struct ddsi_topic *ddsi_tp;
-      if ((ddsi_tp = entidx_lookup_topic_guid (e->m_domain->gv.entity_index, &obj->guid)) != NULL)
+      if ((ddsi_tp = ddsi_entidx_lookup_topic_guid (e->m_domain->gv.entity_index, &obj->guid)) != NULL)
         ddsi_update_topic_qos (ddsi_tp, qos);
     }
-    thread_state_asleep (ddsi_lookup_thread_state ());
+    ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
   }
 #else
   (void) e; (void) qos; (void) enabled;
@@ -371,9 +371,9 @@ static bool register_topic_type_for_discovery (struct ddsi_domaingv * const gv, 
   {
     /* Add a ktopic-type-guid entry with the complete type identifier of the sertype as
         key and a reference to a newly create ddsi topic entity */
-    thread_state_awake (ddsi_lookup_thread_state (), gv);
+    ddsi_thread_state_awake (ddsi_lookup_thread_state (), gv);
     const struct ddsi_guid * pp_guid = dds_entity_participant_guid (&pp->m_entity);
-    struct ddsi_participant * pp_ddsi = entidx_lookup_participant_guid (gv->entity_index, pp_guid);
+    struct ddsi_participant * pp_ddsi = ddsi_entidx_lookup_participant_guid (gv->entity_index, pp_guid);
 
     m = dds_alloc (sizeof (*m));
     m->type_id = type_id;
@@ -383,7 +383,7 @@ static bool register_topic_type_for_discovery (struct ddsi_domaingv * const gv, 
     assert (rc == DDS_RETCODE_OK); /* FIXME: can be out-of-resources at the very least */
     (void) rc;
     ddsrt_hh_add_absent (ktp->topic_guid_map, m);
-    thread_state_asleep (ddsi_lookup_thread_state ());
+    ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
   }
 free_typeid:
   if (type_id != NULL)
@@ -495,7 +495,7 @@ dds_entity_t dds_create_topic_impl (
   if ((rc = ddsi_xqos_valid (&gv->logconfig, new_qos)) != DDS_RETCODE_OK)
     goto error;
 
-  if (!q_omg_security_check_create_topic (&pp->m_entity.m_domain->gv, &pp->m_entity.m_guid, name, new_qos))
+  if (!ddsi_omg_security_check_create_topic (&pp->m_entity.m_domain->gv, &pp->m_entity.m_guid, name, new_qos))
   {
     rc = DDS_RETCODE_NOT_ALLOWED_BY_SECURITY;
     goto error;
@@ -628,12 +628,12 @@ dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descrip
   uint32_t allowed_repr = desc->m_flagset & DDS_TOPIC_RESTRICT_DATA_REPRESENTATION ?
       desc->restrict_data_representation : DDS_DATA_REPRESENTATION_RESTRICT_DEFAULT;
   uint16_t min_xcdrv = dds_stream_minimum_xcdr_version (desc->m_ops);
-  if (min_xcdrv == DDS_CDR_ENC_VERSION_2)
+  if (min_xcdrv == DDSI_RTPS_CDR_ENC_VERSION_2)
     allowed_repr &= ~DDS_DATA_REPRESENTATION_FLAG_XCDR1;
   if ((hdl = dds_ensure_valid_data_representation (tpqos, allowed_repr, true)) != 0)
     goto err_data_repr;
 
-  assert (tpqos->present & QP_DATA_REPRESENTATION && tpqos->data_representation.value.n > 0);
+  assert (tpqos->present & DDSI_QP_DATA_REPRESENTATION && tpqos->data_representation.value.n > 0);
   dds_data_representation_id_t data_representation = tpqos->data_representation.value.ids[0];
 
   struct dds_sertype_default *st = ddsrt_malloc (sizeof (*st));

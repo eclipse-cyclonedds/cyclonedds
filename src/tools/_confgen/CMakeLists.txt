@@ -14,8 +14,8 @@ include(HashUtilities)
 
 set(confgen_hash_files
   ${CMAKE_CURRENT_LIST_DIR}/../../core/ddsi/include/dds/ddsi/ddsi_config.h
-  ${CMAKE_CURRENT_LIST_DIR}/../../core/ddsi/include/dds/ddsi/ddsi_cfgunits.h
-  ${CMAKE_CURRENT_LIST_DIR}/../../core/ddsi/include/dds/ddsi/ddsi_cfgelems.h
+  ${CMAKE_CURRENT_LIST_DIR}/../../core/ddsi/src/ddsi__cfgunits.h
+  ${CMAKE_CURRENT_LIST_DIR}/../../core/ddsi/src/ddsi__cfgelems.h
   ${CMAKE_CURRENT_LIST_DIR}/../../core/ddsi/src/ddsi_config.c
   _confgen.h _confgen.c generate_rnc.c generate_md.c generate_rst.c generate_xsd.c generate_defconfig.c
 )
@@ -54,7 +54,9 @@ if (NOT ${_confgen_hash_correct})
   target_include_directories(_confgen-exe
     PRIVATE
     "${CMAKE_CURRENT_BINARY_DIR}/include"
-    "${CMAKE_CURRENT_LIST_DIR}/../../core/ddsi/include")
+    "${CMAKE_CURRENT_LIST_DIR}/../../core/ddsc/include"
+    "${CMAKE_CURRENT_LIST_DIR}/../../core/ddsi/include"
+    "${CMAKE_CURRENT_LIST_DIR}/../../core/ddsi/src")
 
   list(JOIN confgen_hash_files "\;" out_confgen_hash_files)
 

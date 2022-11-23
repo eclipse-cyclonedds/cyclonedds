@@ -20,12 +20,12 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_sertype.h"
-#include "dds/ddsi/ddsi_serdata_cdr.h"
+#include "ddsi__serdata_cdr.h"
 #include "dds/cdr/dds_cdrstream.h"
 
 
 #ifdef DDS_HAS_SHM
-#include "dds/ddsi/q_xmsg.h"
+#include "ddsi__xmsg.h"
 #endif
 
 static bool sertype_cdr_equal (const struct ddsi_sertype *acmn, const struct ddsi_sertype *bcmn)
@@ -176,7 +176,7 @@ dds_return_t ddsi_sertype_cdr_init (const struct ddsi_domaingv *gv, struct ddsi_
     return DDS_RETCODE_BAD_PARAMETER;
   }
 
-  st->type.opt_size_xcdr2 = dds_stream_check_optimize (&st->type, DDS_CDR_ENC_VERSION_2);
+  st->type.opt_size_xcdr2 = dds_stream_check_optimize (&st->type, DDSI_RTPS_CDR_ENC_VERSION_2);
   if (st->type.opt_size_xcdr2 > 0)
     GVTRACE ("Marshalling XCDR2 for type: %s is %soptimised\n", st->c.type_name, st->type.opt_size_xcdr2 ? "" : "not ");
 

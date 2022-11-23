@@ -18,23 +18,26 @@
 #include <stdlib.h>
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
-#include "dds/ddsi/ddsi_entity.h"
-#include "dds/ddsi/ddsi_entity_match.h"
-#include "dds/ddsi/q_misc.h"
-#include "dds/ddsi/q_thread.h"
-#include "dds/cdr/dds_cdrstream.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/ddsi_sertype.h"
-#include "dds/ddsi/ddsi_typelib.h"
-#include "dds/ddsi/ddsi_xt_impl.h"
 #include "dds/ddsi/ddsi_xt_typemap.h"
-#include "dds/ddsi/ddsi_typelookup.h"
-#include "dds/ddsi/ddsi_serdata_cdr.h"
+#include "ddsi__entity.h"
+#include "ddsi__endpoint_match.h"
+#include "ddsi__misc.h"
+#include "ddsi__thread.h"
+#include "ddsi__entity_index.h"
+#include "ddsi__xt_impl.h"
+#include "ddsi__typelookup.h"
+#include "ddsi__serdata_cdr.h"
+#include "ddsi__list_tmpl.h"
+#include "ddsi__topic.h"
+#include "ddsi__typelib.h"
+#include "ddsi__typewrap.h"
+#include "dds/cdr/dds_cdrstream.h"
 #include "dds/ddsc/dds_public_impl.h"
 
 DDSI_LIST_DECLS_TMPL(static, ddsi_type_proxy_guid_list, ddsi_guid_t, ddsrt_attribute_unused)
-DDSI_LIST_CODE_TMPL(static, ddsi_type_proxy_guid_list, ddsi_guid_t, nullguid, ddsrt_malloc, ddsrt_free)
+DDSI_LIST_CODE_TMPL(static, ddsi_type_proxy_guid_list, ddsi_guid_t, ddsi_nullguid, ddsrt_malloc, ddsrt_free)
 
 static int ddsi_type_compare_wrap (const void *type_a, const void *type_b);
 const ddsrt_avl_treedef_t ddsi_typelib_treedef = DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct ddsi_type, avl_node), 0, ddsi_type_compare_wrap, 0);
@@ -101,14 +104,14 @@ ddsi_typeinfo_t *ddsi_typeinfo_deser (const unsigned char *data, uint32_t sz)
     data_ne = ddsrt_memdup (data, sz);
   else
     data_ne = (unsigned char *) data;
-  if (!dds_stream_normalize_data ((char *) data_ne, &srcoff, sz, bswap, DDS_CDR_ENC_VERSION_2, DDS_XTypes_TypeInformation_desc.m_ops))
+  if (!dds_stream_normalize_data ((char *) data_ne, &srcoff, sz, bswap, DDSI_RTPS_CDR_ENC_VERSION_2, DDS_XTypes_TypeInformation_desc.m_ops))
   {
     if (bswap)
       ddsrt_free (data_ne);
     return NULL;
   }
 
-  dds_istream_t is = { .m_buffer = data_ne, .m_index = 0, .m_size = sz, .m_xcdr_version = DDS_CDR_ENC_VERSION_2 };
+  dds_istream_t is = { .m_buffer = data_ne, .m_index = 0, .m_size = sz, .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
   ddsi_typeinfo_t *typeinfo = ddsrt_calloc (1, sizeof (*typeinfo));
   dds_stream_read (&is, (void *) typeinfo, DDS_XTypes_TypeInformation_desc.m_ops);
   if (bswap)
@@ -216,14 +219,14 @@ ddsi_typemap_t *ddsi_typemap_deser (const unsigned char *data, uint32_t sz)
     data_ne = ddsrt_memdup (data, sz);
   else
     data_ne = (unsigned char *) data;
-  if (!dds_stream_normalize_data ((char *) data_ne, &srcoff, sz, bswap, DDS_CDR_ENC_VERSION_2, DDS_XTypes_TypeMapping_desc.m_ops))
+  if (!dds_stream_normalize_data ((char *) data_ne, &srcoff, sz, bswap, DDSI_RTPS_CDR_ENC_VERSION_2, DDS_XTypes_TypeMapping_desc.m_ops))
   {
     if (bswap)
       ddsrt_free (data_ne);
     return NULL;
   }
 
-  dds_istream_t is = { .m_buffer = data_ne, .m_index = 0, .m_size = sz, .m_xcdr_version = DDS_CDR_ENC_VERSION_2 };
+  dds_istream_t is = { .m_buffer = data_ne, .m_index = 0, .m_size = sz, .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
   ddsi_typemap_t *typemap = ddsrt_calloc (1, sizeof (*typemap));
   dds_stream_read (&is, (void *) typemap, DDS_XTypes_TypeMapping_desc.m_ops);
   if (bswap)
@@ -236,12 +239,76 @@ void ddsi_typemap_fini (ddsi_typemap_t *typemap)
   dds_stream_free_sample (typemap, DDS_XTypes_TypeMapping_desc.m_ops);
 }
 
+static bool ti_to_pairs_equal (const dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectPair *a, const dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectPair *b)
+{
+  if (a->_length != b->_length)
+    return false;
+
+  struct dds_cdrstream_desc desc;
+  dds_cdrstream_desc_from_topic_desc (&desc, &DDS_XTypes_TypeObject_desc);
+
+  for (uint32_t n = 0; n < a->_length; n++)
+  {
+    struct DDS_XTypes_TypeObject *to_b = NULL;
+    for (uint32_t m = 0; !to_b && m < b->_length; m++)
+    {
+      if (!ddsi_typeid_compare_impl (&a->_buffer[n].type_identifier, &b->_buffer[m].type_identifier))
+        to_b = &b->_buffer[m].type_object;
+    }
+    if (to_b == NULL)
+      return false;
+
+    dds_ostream_t to_a_ser = { NULL, 0, 0, DDSI_RTPS_CDR_ENC_VERSION_2 };
+    dds_ostream_t to_b_ser = { NULL, 0, 0, DDSI_RTPS_CDR_ENC_VERSION_2 };
+    dds_stream_write_sample (&to_a_ser, &a->_buffer[n].type_object, &desc);
+    dds_stream_write_sample (&to_b_ser, &b->_buffer[n].type_object, &desc);
+    if (to_a_ser.m_index != to_b_ser.m_index)
+      return false;
+    if (memcmp (to_a_ser.m_buffer, to_b_ser.m_buffer, to_a_ser.m_index))
+      return false;
+    dds_ostream_fini (&to_a_ser);
+    dds_ostream_fini (&to_b_ser);
+  }
+  return true;
+}
+
+static bool ti_pairs_equal (const dds_sequence_DDS_XTypes_TypeIdentifierPair *a, const dds_sequence_DDS_XTypes_TypeIdentifierPair *b)
+{
+  if (a->_length != b->_length)
+    return false;
+  for (uint32_t n = 0; n < a->_length; n++)
+  {
+    bool found = false;
+    for (uint32_t m = 0; !found && m < b->_length; m++)
+    {
+      if (!ddsi_typeid_compare_impl (&a->_buffer[n].type_identifier1, &b->_buffer[m].type_identifier1))
+      {
+        if (ddsi_typeid_compare_impl (&a->_buffer[n].type_identifier2, &b->_buffer[m].type_identifier2))
+          return false;
+        found = true;
+      }
+    }
+    if (!found)
+      return false;
+  }
+  return true;
+}
+
+bool ddsi_typemap_equal (const ddsi_typemap_t *a, const ddsi_typemap_t *b)
+{
+  if (a == NULL || b == NULL)
+    return a == b;
+  return ti_to_pairs_equal (&a->x.identifier_object_pair_minimal, &b->x.identifier_object_pair_minimal)
+      && ti_to_pairs_equal (&a->x.identifier_object_pair_complete, &b->x.identifier_object_pair_complete)
+      && ti_pairs_equal (&a->x.identifier_complete_minimal, &b->x.identifier_complete_minimal);
+}
+
 static bool ddsi_type_proxy_guid_exists (struct ddsi_type *type, const ddsi_guid_t *proxy_guid)
 {
   struct ddsi_type_proxy_guid_list_iter it;
   for (ddsi_guid_t guid = ddsi_type_proxy_guid_list_iter_first (&type->proxy_guids, &it); !ddsi_is_null_guid (&guid); guid = ddsi_type_proxy_guid_list_iter_next (&it))
   {
-    if (guid_eq (&guid, proxy_guid))
+    if (ddsi_guid_eq (&guid, proxy_guid))
       return true;
   }
   return false;
@@ -249,7 +316,7 @@ static bool ddsi_type_proxy_guid_exists (struct ddsi_type *type, const ddsi_guid
 
 static int ddsi_type_proxy_guids_eq (const struct ddsi_guid a, const struct ddsi_guid b)
 {
-  return guid_eq (&a, &b);
+  return ddsi_guid_eq (&a, &b);
 }
 
 int ddsi_type_compare (const struct ddsi_type *a, const struct ddsi_type *b)
@@ -669,7 +736,7 @@ static dds_return_t xcdr2_ser (const void *obj, const dds_topic_descriptor_t *to
   os->m_buffer = NULL;
   os->m_index = 0;
   os->m_size = 0;
-  os->m_xcdr_version = DDS_CDR_ENC_VERSION_2;
+  os->m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2;
   dds_return_t ret = dds_stream_write_sampleLE ((dds_ostreamLE_t *) os, obj, &desc) ? DDS_RETCODE_OK : DDS_RETCODE_BAD_PARAMETER;
   dds_cdrstream_desc_fini (&desc);
   return ret;
@@ -856,7 +923,7 @@ dds_return_t ddsi_type_get_typeinfo (struct ddsi_domaingv *gv, const struct ddsi
 dds_return_t ddsi_type_get_typeinfo_ser (struct ddsi_domaingv *gv, const struct ddsi_type *type, unsigned char **data, uint32_t *sz)
 {
   dds_return_t ret;
-  dds_ostream_t os = { NULL, 0, 0, DDS_CDR_ENC_VERSION_2 };
+  dds_ostream_t os = { NULL, 0, 0, DDSI_RTPS_CDR_ENC_VERSION_2 };
   struct ddsi_typeinfo type_info;
   if ((ret = ddsi_type_get_typeinfo (gv, type, &type_info)))
     goto err_typeinfo;
@@ -953,7 +1020,7 @@ err:
 dds_return_t ddsi_type_get_typemap_ser (struct ddsi_domaingv *gv, const struct ddsi_type *type, unsigned char **data, uint32_t *sz)
 {
   dds_return_t ret;
-  dds_ostream_t os = { NULL, 0, 0, DDS_CDR_ENC_VERSION_2 };
+  dds_ostream_t os = { NULL, 0, 0, DDSI_RTPS_CDR_ENC_VERSION_2 };
   struct ddsi_typemap type_map;
   if ((ret = ddsi_type_get_typemap (gv, type, &type_map)))
     goto err_typemap;
@@ -1055,14 +1122,14 @@ static void ddsi_type_get_gpe_matches_impl (struct ddsi_domaingv *gv, const stru
     return;
 
   uint32_t n = 0;
-  thread_state_awake (ddsi_lookup_thread_state (), gv);
+  ddsi_thread_state_awake (ddsi_lookup_thread_state (), gv);
   *gpe_match_upd = ddsrt_realloc (*gpe_match_upd, (*n_match_upd + ddsi_type_proxy_guid_list_count (&type->proxy_guids)) * sizeof (**gpe_match_upd));
   struct ddsi_type_proxy_guid_list_iter it;
   for (ddsi_guid_t guid = ddsi_type_proxy_guid_list_iter_first (&type->proxy_guids, &it); !ddsi_is_null_guid (&guid); guid = ddsi_type_proxy_guid_list_iter_next (&it))
   {
     if (!ddsi_is_topic_entityid (guid.entityid))
     {
-      struct ddsi_entity_common *ec = entidx_lookup_guid_untyped (gv->entity_index, &guid);
+      struct ddsi_entity_common *ec = ddsi_entidx_lookup_guid_untyped (gv->entity_index, &guid);
       if (ec != NULL)
       {
         assert (ec->kind == DDSI_EK_PROXY_READER || ec->kind == DDSI_EK_PROXY_WRITER);
@@ -1071,7 +1138,7 @@ static void ddsi_type_get_gpe_matches_impl (struct ddsi_domaingv *gv, const stru
     }
   }
   *n_match_upd += n;
-  thread_state_asleep (ddsi_lookup_thread_state ());
+  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
 }
 
 void ddsi_type_get_gpe_matches (struct ddsi_domaingv *gv, const struct ddsi_type *type, struct ddsi_generic_proxy_endpoint ***gpe_match_upd, uint32_t *n_match_upd)

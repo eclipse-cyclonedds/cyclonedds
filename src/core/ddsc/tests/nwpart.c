@@ -19,14 +19,16 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/environ.h"
 #include "dds/ddsi/ddsi_iid.h"
-#include "dds/ddsi/ddsi_config_impl.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "dds/ddsi/ddsi_nwpart.h"
-#include "dds/ddsi/ddsi_udp.h"
-#include "dds/ddsi/q_thread.h"
-#include "dds/ddsi/q_misc.h"
-#include "dds/ddsi/q_addrset.h"
-#include "dds/ddsi/q_ddsi_discovery.h"
+#include "dds/ddsi/ddsi_init.h"
+#include "ddsi__nwpart.h"
+#include "ddsi__udp.h"
+#include "ddsi__thread.h"
+#include "ddsi__misc.h"
+#include "ddsi__addrset.h"
+#include "ddsi__discovery.h"
+#include "ddsi__plist.h"
+#include "ddsi__tran.h"
 
 #include "test_util.h"
 
@@ -46,7 +48,7 @@ static void null_log_sink (void *vcount, const dds_log_data_t *msg)
 static void intf_init (struct ddsi_network_interface *intf, int index, bool allow_mc, bool weird_extloc)
 {
   memset (intf, 0, sizeof (*intf));
-  intf->loc.kind = NN_LOCATOR_KIND_UDPv4;
+  intf->loc.kind = DDSI_LOCATOR_KIND_UDPv4;
   intf->loc.port = 0;
   // IPv4 locator address format: 12 leading 0s
   // - index 0 is loopback, indices > 0 are regular networks
@@ -81,7 +83,7 @@ static void intf_init (struct ddsi_network_interface *intf, int index, bool allo
     if (weird_extloc)
       intf->extloc.address[13]++;
   }
-  intf->netmask.kind = NN_LOCATOR_KIND_UDPv4;
+  intf->netmask.kind = DDSI_LOCATOR_KIND_UDPv4;
   // if_index is whatever index the operating system assigned to it, we just put
   // something in that would (probably) lead to disaster if used as an index in
   // gv->interfaces
@@ -105,15 +107,15 @@ static void intf_init (struct ddsi_network_interface *intf, int index, bool allo
 static void setup (struct ddsi_domaingv *gv, const struct ddsi_config *config, bool allow_mc, bool weird_extloc)
 {
   ddsi_iid_init ();
-  thread_states_init ();
+  ddsi_thread_states_init ();
 
   // register the main thread, then claim it as spawned by Cyclone because the
   // internal processing has various asserts that it isn't an application thread
   // doing the dirty work
-  struct thread_state * const thrst = ddsi_lookup_thread_state ();
+  struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
   // coverity[missing_lock:FALSE]
-  assert (thrst->state == THREAD_STATE_LAZILY_CREATED);
-  thrst->state = THREAD_STATE_ALIVE;
+  assert (thrst->state == DDSI_THREAD_STATE_LAZILY_CREATED);
+  thrst->state = DDSI_THREAD_STATE_ALIVE;
   ddsrt_atomic_stvoidp (&thrst->gv, &gv);
 
   memset (gv, 0, sizeof (*gv));
@@ -127,7 +129,7 @@ static void setup (struct ddsi_domaingv *gv, const struct ddsi_config *config, b
   assert (gv->m_factory != NULL);
 
   DDSRT_STATIC_ASSERT (4 <= MAX_XMIT_CONNS);
-  gv->extmask.kind = NN_LOCATOR_KIND_INVALID;
+  gv->extmask.kind = DDSI_LOCATOR_KIND_INVALID;
   gv->n_interfaces = 4;
   for (int i = 0; i < gv->n_interfaces; i++)
   {
@@ -140,7 +142,7 @@ static void setup (struct ddsi_domaingv *gv, const struct ddsi_config *config, b
     gv->xmit_conns[i] = fakeconn;
   }
 
-  rtps_config_prep (gv, NULL);
+  ddsi_config_prep (gv, NULL);
   dds_set_log_sink (null_log_sink, &errcount);
   dds_set_trace_sink (null_log_sink, &errcount);
   gv->logconfig.c.tracemask = gv->logconfig.c.mask = UINT32_MAX;
@@ -163,9 +165,9 @@ static void teardown (struct ddsi_domaingv *gv)
   // On shutdown, there is an expectation that the thread was discovered dynamically.
   // We overrode it in the setup code, we undo it now.
   // coverity[missing_lock:FALSE]
-  struct thread_state * const thrst = ddsi_lookup_thread_state ();
-  thrst->state = THREAD_STATE_LAZILY_CREATED;
-  thread_states_fini ();
+  struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
+  thrst->state = DDSI_THREAD_STATE_LAZILY_CREATED;
+  ddsi_thread_states_fini ();
   ddsi_iid_fini ();
 }
 
@@ -254,7 +256,7 @@ CU_Theory ((struct ddsi_config_networkpartition_listelem ps, bool allow_mc, cons
   config.networkPartitions = &ps;
   errcount = 0;
   setup (&gv, &config, allow_mc, true);
-  int rc = convert_network_partition_config (&gv, 31415);
+  int rc = ddsi_convert_nwpart_config (&gv, 31415);
   if (uc == NULL) {
     CU_ASSERT_FATAL (rc < 0);
     CU_ASSERT_FATAL (errcount > 0);
@@ -264,7 +266,7 @@ CU_Theory ((struct ddsi_config_networkpartition_listelem ps, bool allow_mc, cons
     CU_ASSERT_FATAL (check_address_list (uc, ps.uc_addresses));
     CU_ASSERT_FATAL (check_address_list (mc, ps.asm_addresses));
   }
-  free_config_networkpartition_addresses (&gv);
+  ddsi_free_config_nwpart_addresses (&gv);
   teardown (&gv);
 #endif
 }
@@ -513,7 +515,7 @@ CU_Theory ((bool same_machine, bool proxypp_has_defmc, int n_ep_uc, int n_ep_mc,
 
   // pretend the remote one is on another machine but on the same networks
   printf ("as_default =\n");
-  struct addrset *as_default = new_addrset ();
+  struct ddsi_addrset *as_default = ddsi_new_addrset ();
   for (int i = (same_machine ? 0 : 1); i < gv.n_interfaces; i++)
   {
     ddsi_xlocator_t xloc = {
@@ -525,11 +527,11 @@ CU_Theory ((bool same_machine, bool proxypp_has_defmc, int n_ep_uc, int n_ep_mc,
       xloc.c.address[15]++;
     char buf[DDSI_LOCSTRLEN];
     printf ("  %s\n", ddsi_xlocator_to_string (buf, sizeof (buf), &xloc));
-    add_xlocator_to_addrset (&gv, as_default, &xloc);
+    ddsi_add_xlocator_to_addrset (&gv, as_default, &xloc);
   }
 
   const ddsi_locator_t defmcloc = {
-    .kind = NN_LOCATOR_KIND_UDPv4,
+    .kind = DDSI_LOCATOR_KIND_UDPv4,
     .port = 7401,
     .address = { 0,0,0,0, 0,0,0,0, 0,0,0,0, 239,255,0,1 }
   };
@@ -542,7 +544,7 @@ CU_Theory ((bool same_machine, bool proxypp_has_defmc, int n_ep_uc, int n_ep_mc,
         ddsi_xlocator_t xloc = { .conn = gv.xmit_conns[i], .c = defmcloc };
         char buf[DDSI_LOCSTRLEN];
         printf ("  %s\n", ddsi_xlocator_to_string (buf, sizeof (buf), &xloc));
-        add_xlocator_to_addrset (&gv, as_default, &xloc);
+        ddsi_add_xlocator_to_addrset (&gv, as_default, &xloc);
       }
     }
   }
@@ -551,7 +553,7 @@ CU_Theory ((bool same_machine, bool proxypp_has_defmc, int n_ep_uc, int n_ep_mc,
   // (interfaces are: lo, nomc, eth0, eth1)
   ddsi_plist_t plist;
   ddsi_plist_init_empty (&plist);
-  struct nn_locators_one uc[MAX_XMIT_CONNS];
+  struct ddsi_locators_one uc[MAX_XMIT_CONNS];
   assert (n_ep_uc <= gv.n_interfaces);
   for (int i = 0; i < n_ep_uc; i++)
   {
@@ -563,21 +565,21 @@ CU_Theory ((bool same_machine, bool proxypp_has_defmc, int n_ep_uc, int n_ep_mc,
   }
   if (n_ep_uc > 0)
     uc[n_ep_uc-1].next = NULL;
-  plist.unicast_locators = (nn_locators_t){ .n = (uint32_t)n_ep_uc, .first = &uc[0], .last = &uc[n_ep_uc-1] };
+  plist.unicast_locators = (ddsi_locators_t){ .n = (uint32_t)n_ep_uc, .first = &uc[0], .last = &uc[n_ep_uc-1] };
   if (plist.unicast_locators.n > 0)
     plist.present |= PP_UNICAST_LOCATOR;
 
-  struct nn_locators_one mc[2] = {
+  struct ddsi_locators_one mc[2] = {
     { .next = &mc[1],
       .loc = {
-        .kind = NN_LOCATOR_KIND_UDPv4,
+        .kind = DDSI_LOCATOR_KIND_UDPv4,
         .port = 7401,
         .address = { 0,0,0,0, 0,0,0,0, 0,0,0,0, 239,255,0,2 }
       }
     },
     { .next = NULL,
       .loc = {
-        .kind = NN_LOCATOR_KIND_UDPv4,
+        .kind = DDSI_LOCATOR_KIND_UDPv4,
         .port = 7401,
         .address = { 0,0,0,0, 0,0,0,0, 0,0,0,0, 239,255,0,3 }
       }
@@ -586,7 +588,7 @@ CU_Theory ((bool same_machine, bool proxypp_has_defmc, int n_ep_uc, int n_ep_mc,
   assert (n_ep_mc <= (int) (sizeof (mc) / sizeof (mc[0])));
   if (n_ep_mc > 0)
     mc[n_ep_mc-1].next = NULL;
-  plist.multicast_locators = (nn_locators_t){ .n = (uint32_t)n_ep_mc, .first = &mc[0], .last = &mc[n_ep_mc-1] };
+  plist.multicast_locators = (ddsi_locators_t){ .n = (uint32_t)n_ep_mc, .first = &mc[0], .last = &mc[n_ep_mc-1] };
   if (plist.multicast_locators.n > 0)
     plist.present |= PP_MULTICAST_LOCATOR;
 
@@ -596,17 +598,17 @@ CU_Theory ((bool same_machine, bool proxypp_has_defmc, int n_ep_uc, int n_ep_mc,
     printf ("advertised plist: %s\n", buf);
   }
 
-  struct addrset *as = ddsi_get_endpoint_addrset (&gv, &plist, as_default, NULL);
+  struct ddsi_addrset *as = ddsi_get_endpoint_addrset (&gv, &plist, as_default, NULL);
 
   int n = 0;
   while (expected[n])
     n++;
   struct check_address_present_arg arg = {
     .expected = expected,
-    .ok = (addrset_count (as) == (size_t) n)
+    .ok = (ddsi_addrset_count (as) == (size_t) n)
   };
   printf ("addrset =");
-  addrset_forall (as, check_address_present, &arg);
+  ddsi_addrset_forall (as, check_address_present, &arg);
   if (arg.ok)
     printf ("\nOK\n");
   else
@@ -617,8 +619,8 @@ CU_Theory ((bool same_machine, bool proxypp_has_defmc, int n_ep_uc, int n_ep_mc,
     printf ("\n(in any order)\n");
   }
   CU_ASSERT (arg.ok);
-  unref_addrset (as);
+  ddsi_unref_addrset (as);
   // not calling plist_fini: we didn't allocate anything
-  unref_addrset (as_default);
+  ddsi_unref_addrset (as_default);
   teardown (&gv);
 }

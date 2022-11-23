@@ -50,7 +50,7 @@ static void dds_stream_write_keyBO_impl (DDS_OSTREAM_T * __restrict os, const ui
         }
         case DDS_OP_VAL_ENU: case DDS_OP_VAL_BMK: {
           uint32_t offs = 0, xcdrv = ((struct dds_ostream *)os)->m_xcdr_version;
-          if (xcdrv == DDS_CDR_ENC_VERSION_2)
+          if (xcdrv == DDSI_RTPS_CDR_ENC_VERSION_2)
           {
             /* reserve space for DHEADER */
             dds_os_reserve4BO (os);
@@ -61,7 +61,7 @@ static void dds_stream_write_keyBO_impl (DDS_OSTREAM_T * __restrict os, const ui
           else
             (void) dds_stream_write_bitmask_arrBO (os, insn, (const uint32_t *) addr, num, ops[3], ops[4]);
           /* write DHEADER */
-          if (xcdrv == DDS_CDR_ENC_VERSION_2)
+          if (xcdrv == DDSI_RTPS_CDR_ENC_VERSION_2)
             *((uint32_t *) (((struct dds_ostream *)os)->m_buffer + offs - 4)) = to_BO4u(((struct dds_ostream *)os)->m_index - offs);
           break;
         }
@@ -149,7 +149,7 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_adr (uint32_t insn, dd
     {
       assert (*keys_remaining <= n_keys);
       uint32_t idx = n_keys - *keys_remaining; // position (index) of the key in the CDR
-      if (((struct dds_ostream *)os)->m_xcdr_version == DDS_CDR_ENC_VERSION_1)
+      if (((struct dds_ostream *)os)->m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_1)
       {
         /* Key in CDR encoding version 1 are ordered by their definition order, so we can
            use the key index field from the key descriptors key list */
