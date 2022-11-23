@@ -44,6 +44,7 @@ static char * get_x509_data(X509 * cert)
   BIO *output_bio = BIO_new (BIO_s_mem ());
   if (!PEM_write_bio_X509 (output_bio, cert)) {
     printf ("Error writing certificate\n");
+    ERR_print_errors_fp (stderr);
     CU_ASSERT_FATAL (false);
   }
 
@@ -87,7 +88,7 @@ char * generate_ca(const char *ca_name, const char * ca_priv_key_str, int not_va
 
   X509_set_pubkey (ca_cert, ca_priv_key);
   X509_set_issuer_name (ca_cert, X509_get_subject_name (ca_cert)); /* self-signed */
-  X509_sign (ca_cert, ca_priv_key, EVP_sha1 ());
+  X509_sign (ca_cert, ca_priv_key, EVP_sha256 ());
   char * output = get_x509_data (ca_cert);
 
   EVP_PKEY_free (ca_priv_key);
