@@ -14,6 +14,8 @@
 
 #include "dds/features.h"
 
+#include "dds/ddsrt/retcode.h"
+#include "dds/ddsrt/time.h"
 #include "dds/ddsc/dds_public_qosdefs.h"
 #include "dds/ddsi/ddsi_protocol.h"
 #include "dds/ddsi/ddsi_log.h"
