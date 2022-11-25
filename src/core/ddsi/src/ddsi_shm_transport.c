@@ -56,7 +56,7 @@ static enum iox_LogLevel to_iox_loglevel(enum ddsi_shm_loglevel level) {
         case DDSI_SHM_WARN : return Iceoryx_LogLevel_Warn;
         case DDSI_SHM_INFO : return Iceoryx_LogLevel_Info;
         case DDSI_SHM_DEBUG : return Iceoryx_LogLevel_Debug;
-        case DDSI_SHM_VERBOSE : return Iceoryx_LogLevel_Verbose;
+        case DDSI_SHM_VERBOSE : return Iceoryx_LogLevel_Trace;
     }
     return Iceoryx_LogLevel_Off;
 }
