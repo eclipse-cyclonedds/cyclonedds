@@ -244,9 +244,6 @@ static bool ti_to_pairs_equal (const dds_sequence_DDS_XTypes_TypeIdentifierTypeO
   if (a->_length != b->_length)
     return false;
 
-  struct dds_cdrstream_desc desc;
-  dds_cdrstream_desc_from_topic_desc (&desc, &DDS_XTypes_TypeObject_desc);
-
   bool equal = true;
   for (uint32_t n = 0; equal && n < a->_length; n++)
   {
@@ -262,8 +259,8 @@ static bool ti_to_pairs_equal (const dds_sequence_DDS_XTypes_TypeIdentifierTypeO
     {
       dds_ostream_t to_a_ser = { NULL, 0, 0, DDSI_RTPS_CDR_ENC_VERSION_2 };
       dds_ostream_t to_b_ser = { NULL, 0, 0, DDSI_RTPS_CDR_ENC_VERSION_2 };
-      dds_stream_write_sample (&to_a_ser, &a->_buffer[n].type_object, &desc);
-      dds_stream_write_sample (&to_b_ser, to_b, &desc);
+      dds_stream_write_sample (&to_a_ser, &a->_buffer[n].type_object, &DDS_XTypes_TypeObject_cdrstream_desc);
+      dds_stream_write_sample (&to_b_ser, to_b, &DDS_XTypes_TypeObject_cdrstream_desc);
       equal = (to_a_ser.m_index == to_b_ser.m_index) && memcmp (to_a_ser.m_buffer, to_b_ser.m_buffer, to_a_ser.m_index) == 0;
       dds_ostream_fini (&to_a_ser);
       dds_ostream_fini (&to_b_ser);
