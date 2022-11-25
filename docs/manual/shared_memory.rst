@@ -20,19 +20,19 @@ Next you will need to get and build iceoryx (all of this is assumed to occur in 
 
 .. code-block:: bash
 
-  git clone https://github.com/eclipse-iceoryx/iceoryx.git -b master
+  git clone https://github.com/eclipse-iceoryx/iceoryx.git -b release_2.0
   cd iceoryx
-  cmake -Bbuild -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=install -DBUILD_SHARED_LIBS=ON -Hiceoryx_meta
-  cmake --build build --config Debug --target install
+  cmake -Bbuild -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DBUILD_SHARED_LIBS=ON -Hiceoryx_meta
+  cmake --build build --config Release --target install
 
 After that, get |var-project-short| and build it with shared memory support:
 
 .. code-block:: bash
 
-  git clone https://github.com/eclipse-cyclonedds/cyclonedds.git -b iceoryx
+  git clone https://github.com/eclipse-cyclonedds/cyclonedds.git
   cd cyclonedds
-  cmake -Bbuild -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=install -DBUILD_EXAMPLES=On -DCMAKE_PREFIX_PATH=~/iceoryx/install/
-  cmake --build build --config Debug --target install
+  cmake -Bbuild -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DBUILD_EXAMPLES=On -DCMAKE_PREFIX_PATH=~/iceoryx/install/
+  cmake --build build --config Release --target install
 
 When the compiler has finished, you should have built both iceoryx and |var-project-short|. Their respective files can be found in the install directories which were created in the directories git has made for you.
 
