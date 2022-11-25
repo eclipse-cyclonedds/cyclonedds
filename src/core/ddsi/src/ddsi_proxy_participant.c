@@ -434,7 +434,7 @@ bool ddsi_new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_gui
   ddsrt_avl_init (&ddsi_proxypp_proxytp_treedef, &proxypp->topics);
 #endif
   proxypp->plist = ddsi_plist_dup (plist);
-  ddsi_xqos_mergein_missing (&proxypp->plist->qos, &ddsi_default_plist_participant.qos, ~(uint64_t)0);
+  ddsi_xqos_mergein_missing (&proxypp->plist->qos, &ddsi_default_qos_participant, ~(uint64_t)0);
 
 #ifdef DDS_HAS_SECURITY
   proxypp->sec_attr = NULL;
@@ -487,7 +487,7 @@ int ddsi_update_proxy_participant_plist_locked (struct ddsi_proxy_participant *p
     ddsi_plist_t *new_plist = ddsrt_malloc (sizeof (*new_plist));
     ddsi_plist_init_empty (new_plist);
     ddsi_plist_mergein_missing (new_plist, datap, pmask, qmask);
-    ddsi_plist_mergein_missing (new_plist, &ddsi_default_plist_participant, ~(uint64_t)0, ~(uint64_t)0);
+    ddsi_xqos_mergein_missing(&new_plist->qos, &ddsi_default_qos_participant,~(uint64_t)0);
     (void) ddsi_update_qos_locked (&proxypp->e, &proxypp->plist->qos, &new_plist->qos, timestamp);
     ddsi_plist_fini (new_plist);
     ddsrt_free (new_plist);

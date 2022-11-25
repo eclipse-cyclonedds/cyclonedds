@@ -113,7 +113,7 @@ dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_
   new_qos = dds_create_qos ();
   if (qos != NULL)
     ddsi_xqos_mergein_missing (new_qos, qos, DDS_PARTICIPANT_QOS_MASK);
-  ddsi_xqos_mergein_missing (new_qos, &dom->gv.default_local_plist_pp.qos, ~(uint64_t)0);
+  ddsi_xqos_mergein_missing (new_qos, &dom->gv.default_local_xqos_pp, ~(uint64_t)0);
   dds_apply_entity_naming(new_qos, NULL, &dom->gv);
 
   if ((ret = ddsi_xqos_valid (&dom->gv.logconfig, new_qos)) < 0)

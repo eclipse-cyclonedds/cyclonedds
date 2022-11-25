@@ -1346,11 +1346,10 @@ int ddsi_init (struct ddsi_domaingv *gv)
 
   // copy default participant plist into one that is used for this domain's participants
   // a plain copy is safe because it doesn't alias anything
-  gv->default_local_plist_pp = ddsi_default_plist_participant;
-  assert (gv->default_local_plist_pp.aliased == 0 && gv->default_local_plist_pp.qos.aliased == 0);
-  assert (gv->default_local_plist_pp.qos.present & DDSI_QP_LIVELINESS);
-  assert (gv->default_local_plist_pp.qos.liveliness.kind == DDS_LIVELINESS_AUTOMATIC);
-  gv->default_local_plist_pp.qos.liveliness.lease_duration = gv->config.lease_duration;
+  gv->default_local_xqos_pp = ddsi_default_qos_participant;
+  assert (gv->default_local_xqos_pp.present & DDSI_QP_LIVELINESS);
+  assert (gv->default_local_xqos_pp.liveliness.kind == DDS_LIVELINESS_AUTOMATIC);
+  gv->default_local_xqos_pp.liveliness.lease_duration = gv->config.lease_duration;
 
   ddsi_xqos_copy (&gv->spdp_endpoint_xqos, &ddsi_default_qos_reader);
   ddsi_xqos_mergein_missing (&gv->spdp_endpoint_xqos, &ddsi_default_qos_writer, ~(uint64_t)0);
@@ -1382,16 +1381,16 @@ int ddsi_init (struct ddsi_domaingv *gv)
     char namebuf[256];
 
     if (procname) {
-      ddsi_xqos_add_property_if_unset(&gv->default_local_plist_pp.qos, true, DDS_BUILTIN_TOPIC_PARTICIPANT_PROPERTY_PROCESS_NAME, procname);
+      ddsi_xqos_add_property_if_unset(&gv->default_local_xqos_pp, true, DDS_BUILTIN_TOPIC_PARTICIPANT_PROPERTY_PROCESS_NAME, procname);
       ddsrt_free(procname);
     }
 
     snprintf(namebuf, sizeof(namebuf), "%" PRIdPID, ddsrt_getpid());
-    ddsi_xqos_add_property_if_unset(&gv->default_local_plist_pp.qos, true, DDS_BUILTIN_TOPIC_PARTICIPANT_PROPERTY_PID, namebuf);
+    ddsi_xqos_add_property_if_unset(&gv->default_local_xqos_pp, true, DDS_BUILTIN_TOPIC_PARTICIPANT_PROPERTY_PID, namebuf);
 
 #if DDSRT_HAVE_GETHOSTNAME
     if (ddsrt_gethostname(namebuf, sizeof(namebuf)) == DDS_RETCODE_OK) {
-      ddsi_xqos_add_property_if_unset(&gv->default_local_plist_pp.qos, true, DDS_BUILTIN_TOPIC_PARTICIPANT_PROPERTY_HOSTNAME, namebuf);
+      ddsi_xqos_add_property_if_unset(&gv->default_local_xqos_pp, true, DDS_BUILTIN_TOPIC_PARTICIPANT_PROPERTY_HOSTNAME, namebuf);
     }
 #endif
   }
@@ -1831,7 +1830,7 @@ err_unicast_sockets:
   ddsi_xqos_fini (&gv->builtin_endpoint_xqos_wr);
   ddsi_xqos_fini (&gv->builtin_endpoint_xqos_rd);
   ddsi_xqos_fini (&gv->spdp_endpoint_xqos);
-  ddsi_plist_fini (&gv->default_local_plist_pp);
+  ddsi_xqos_fini (&gv->default_local_xqos_pp);
 
   ddsi_xmsgpool_free (gv->xmsgpool);
 err_set_ext_address:
@@ -1923,7 +1922,7 @@ int ddsi_start (struct ddsi_domaingv *gv)
       char buf[DDSI_LOCSTRLEN];
 
       if (ddsi_get_debug_monitor_locator(gv->debmon, &loc)) {
-        ddsi_xqos_add_property_if_unset(&gv->default_local_plist_pp.qos, true, DDS_BUILTIN_TOPIC_PARTICIPANT_DEBUG_MONITOR,
+        ddsi_xqos_add_property_if_unset(&gv->default_local_xqos_pp, true, DDS_BUILTIN_TOPIC_PARTICIPANT_DEBUG_MONITOR,
           ddsi_locator_to_string (buf, sizeof(buf), &loc));
       }
     }
@@ -2235,7 +2234,7 @@ void ddsi_fini (struct ddsi_domaingv *gv)
   ddsi_xqos_fini (&gv->builtin_endpoint_xqos_wr);
   ddsi_xqos_fini (&gv->builtin_endpoint_xqos_rd);
   ddsi_xqos_fini (&gv->spdp_endpoint_xqos);
-  ddsi_plist_fini (&gv->default_local_plist_pp);
+  ddsi_xqos_fini (&gv->default_local_xqos_pp);
 
   ddsrt_mutex_destroy (&gv->lock);
 

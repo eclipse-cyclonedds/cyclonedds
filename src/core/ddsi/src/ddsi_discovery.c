@@ -505,7 +505,7 @@ void ddsi_get_participant_builtin_topic_data (const struct ddsi_participant *pp,
 #endif
 
   /* Participant QoS's insofar as they are set, different from the default, and mapped to the SPDP data, rather than to the Adlink-specific CMParticipant endpoint. */
-  qosdiff = ddsi_xqos_delta (&pp->plist->qos, &ddsi_default_plist_participant.qos, DDSI_QP_USER_DATA | DDSI_QP_ENTITY_NAME | DDSI_QP_PROPERTY_LIST | DDSI_QP_LIVELINESS);
+  qosdiff = ddsi_xqos_delta (&pp->plist->qos, &ddsi_default_qos_participant, DDSI_QP_USER_DATA | DDSI_QP_ENTITY_NAME | DDSI_QP_PROPERTY_LIST | DDSI_QP_LIVELINESS);
   if (pp->e.gv->config.explicitly_publish_qos_set_to_default)
     qosdiff |= ~(DDSI_QP_UNRECOGNIZED_INCOMPATIBLE_MASK | DDSI_QP_LIVELINESS);
 
@@ -853,8 +853,8 @@ static int handle_spdp_alive (const struct ddsi_receiver_state *rst, ddsi_seqno_
     lease_duration = datap->qos.liveliness.lease_duration;
   else
   {
-    assert (ddsi_default_plist_participant.qos.present & DDSI_QP_LIVELINESS);
-    lease_duration = ddsi_default_plist_participant.qos.liveliness.lease_duration;
+    assert (ddsi_default_qos_participant.present & DDSI_QP_LIVELINESS);
+    lease_duration = ddsi_default_qos_participant.liveliness.lease_duration;
   }
   /* If any of the SEDP announcer are missing AND the guid prefix of
      the SPDP writer differs from the guid prefix of the new participant,

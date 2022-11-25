@@ -295,6 +295,7 @@ DDS_EXPORT extern const dds_qos_t ddsi_default_qos_reader;
 DDS_EXPORT extern const dds_qos_t ddsi_default_qos_writer;
 DDS_EXPORT extern const dds_qos_t ddsi_default_qos_topic;
 DDS_EXPORT extern const dds_qos_t ddsi_default_qos_publisher_subscriber;
+DDS_EXPORT extern const dds_qos_t ddsi_default_qos_participant;
 
 /**
  * @brief Initialize a new empty dds_qos_t as an empty object

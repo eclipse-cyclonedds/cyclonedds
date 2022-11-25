@@ -88,8 +88,6 @@ struct ddsi_plist_sample {
   ddsi_parameterid_t keyparam;
 };
 
-extern const ddsi_plist_t ddsi_default_plist_participant;
-
 /**
  * @brief Initialize global parameter-list parsing indices.
  *

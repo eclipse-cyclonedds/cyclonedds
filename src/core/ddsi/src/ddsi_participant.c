@@ -847,7 +847,7 @@ static dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domai
   ddsrt_fibheap_init (&ddsi_ldur_fhdef, &pp->ldur_auto_wr);
   pp->plist = ddsrt_malloc (sizeof (*pp->plist));
   ddsi_plist_copy (pp->plist, plist);
-  ddsi_plist_mergein_missing (pp->plist, &gv->default_local_plist_pp, ~(uint64_t)0, ~(uint64_t)0);
+  ddsi_xqos_mergein_missing(&pp->plist->qos, &gv->default_local_xqos_pp, ~(uint64_t)0);
 
 #ifdef DDS_HAS_SECURITY
   pp->sec_attr = NULL;
