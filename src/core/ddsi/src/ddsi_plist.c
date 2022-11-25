@@ -3541,20 +3541,6 @@ void ddsi_xqos_init_empty (dds_qos_t *dest)
   dest->present = dest->aliased = 0;
 }
 
-const ddsi_plist_t ddsi_default_plist_participant = {
-  .present = 0,
-  .aliased = 0,
-  .qos = {
-    .present = DDSI_QP_ADLINK_ENTITY_FACTORY | DDSI_QP_USER_DATA | DDSI_QP_LIVELINESS,
-    .aliased = 0,
-    .entity_factory.autoenable_created_entities = 0,
-    .user_data.length = 0,
-    .user_data.value = NULL,
-    .liveliness.kind = DDS_LIVELINESS_AUTOMATIC,
-    .liveliness.lease_duration = DDS_SECS (100)
-  }
-};
-
 const dds_qos_t ddsi_default_qos_reader = {
   .present = DDSI_QP_PRESENTATION | DDSI_QP_DURABILITY | DDSI_QP_DEADLINE | DDSI_QP_LATENCY_BUDGET | DDSI_QP_LIVELINESS | DDSI_QP_DESTINATION_ORDER | DDSI_QP_HISTORY | DDSI_QP_RESOURCE_LIMITS | DDSI_QP_TRANSPORT_PRIORITY | DDSI_QP_OWNERSHIP | DDSI_QP_CYCLONE_IGNORELOCAL | DDSI_QP_TOPIC_DATA | DDSI_QP_GROUP_DATA | DDSI_QP_USER_DATA | DDSI_QP_PARTITION | DDSI_QP_RELIABILITY | DDSI_QP_TIME_BASED_FILTER | DDSI_QP_ADLINK_READER_DATA_LIFECYCLE | DDSI_QP_ADLINK_READER_LIFESPAN | DDSI_QP_TYPE_CONSISTENCY_ENFORCEMENT | DDSI_QP_LOCATOR_MASK | DDSI_QP_DATA_REPRESENTATION,
   .aliased = DDSI_QP_DATA_REPRESENTATION,
@@ -3688,6 +3674,16 @@ const dds_qos_t ddsi_default_qos_publisher_subscriber = {
   .group_data.value = NULL,
   .partition.n = 0,
   .partition.strs = NULL
+};
+
+const dds_qos_t ddsi_default_qos_participant= {
+  .present = DDSI_QP_ADLINK_ENTITY_FACTORY | DDSI_QP_USER_DATA | DDSI_QP_LIVELINESS,
+  .aliased = 0,
+  .entity_factory.autoenable_created_entities = 0,
+  .user_data.length = 0,
+  .user_data.value = NULL,
+  .liveliness.kind = DDS_LIVELINESS_AUTOMATIC,
+  .liveliness.lease_duration = DDS_SECS (100)
 };
 
 void ddsi_xqos_copy (dds_qos_t *dst, const dds_qos_t *src)
