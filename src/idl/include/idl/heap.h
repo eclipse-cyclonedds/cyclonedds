@@ -18,9 +18,9 @@
 #include "idl/export.h"
 #include "idl/attributes.h"
 
-IDL_EXPORT void* idl_malloc  (size_t size);
-IDL_EXPORT void* idl_calloc  (size_t num, size_t size);
-IDL_EXPORT void* idl_realloc (void *ptr, size_t new_size);
 IDL_EXPORT void  idl_free    (void *pt);
+IDL_EXPORT void* idl_malloc  (size_t size) idl_attribute_malloc idl_attribute_malloc2 ((idl_free, 1));
+IDL_EXPORT void* idl_calloc  (size_t num, size_t size) idl_attribute_malloc idl_attribute_malloc2 ((idl_free, 1)) idl_attribute_alloc_size ((1, 2));
+IDL_EXPORT void* idl_realloc (void *ptr, size_t new_size) idl_attribute_alloc_size ((2));
 
 #endif /* IDL_HEAP_H */

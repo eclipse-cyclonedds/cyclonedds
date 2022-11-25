@@ -2398,7 +2398,7 @@ check_and_create_remote_participant_rights(
     /* use default permissions document (all deny) if there is no permissions file
          *to communicate with access_control=false and comply with previous release */
     struct domain_rule *domainRule = find_domain_rule_in_governance(local_rights->governance_tree->dds->domain_access_rules->domain_rule, local_rights->domain_id);
-    if (!domainRule->enable_join_access_control->value)
+    if (domainRule && !domainRule->enable_join_access_control->value)
     {
       permissions_xml = ddsrt_str_replace(DDS_SECURITY_DEFAULT_PERMISSIONS, "DEFAULT_SUBJECT", identity_subject, 1);
     }

@@ -1555,8 +1555,9 @@ CU_Test(ddssec_builtin_get_authenticated_peer_credential,token_after_reply )
 
     c_perm = find_property(&credential_token, DDS_AUTHTOKEN_PROP_C_PERM);
     CU_ASSERT_FATAL(c_perm != NULL);
+    assert(c_perm); // for Clang, GCC static analyzers
     CU_ASSERT_FATAL(c_perm->value != NULL);
-    assert(c_perm && c_perm->value); // for Clang's static analyzer
+    assert(c_perm->value); // for Clang's static analyzer
     //printf("c_perm->value: %s\n", c_perm->value);
     CU_ASSERT(strcmp(c_perm->value, PERMISSIONS_DOCUMENT) == 0);
 

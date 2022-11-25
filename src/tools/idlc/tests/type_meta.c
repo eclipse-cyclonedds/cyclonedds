@@ -32,6 +32,15 @@
 
 #ifdef DDS_HAS_TYPE_DISCOVERY
 
+static void *calloc_no_fail (size_t count, size_t size)
+{
+  assert (count > 0 && size > 0);
+  void *p = calloc (count, size);
+  if (p == NULL)
+    abort ();
+  return p;
+}
+
 /* In a type object, case label is stored as 32 bits signed integer,
    so this test should be enabled when type object generation is enabled */
 CU_Test(idlc_type_meta, union_max_label_value)
@@ -125,7 +134,7 @@ static void xcdr2_deser (unsigned char *buf, uint32_t sz, void **obj, const dds_
     data = buf;
 
   dds_istream_t is = { .m_buffer = data, .m_index = 0, .m_size = sz, .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
-  *obj = calloc (1, desc->m_size);
+  *obj = calloc_no_fail (1, desc->m_size);
   dds_stream_read (&is, (void *) *obj, desc->m_ops);
   if (bswap)
     free (data);
@@ -135,7 +144,7 @@ static void xcdr2_deser (unsigned char *buf, uint32_t sz, void **obj, const dds_
 typedef struct smember { uint32_t id; uint16_t flags; DDS_XTypes_TypeIdentifier ti; DDS_XTypes_MemberName name; } smember_t;
 static struct DDS_XTypes_CompleteStructMember *get_typeobj_struct_member_seq(uint32_t cnt, struct smember *m)
 {
-  struct DDS_XTypes_CompleteStructMember *member_seq = calloc (cnt, sizeof (*member_seq));
+  struct DDS_XTypes_CompleteStructMember *member_seq = calloc_no_fail (cnt, sizeof (*member_seq));
   for (uint32_t n = 0; n < cnt; n++)
   {
     member_seq[n] = (DDS_XTypes_CompleteStructMember) { .common = { .member_id = m[n].id, .member_flags = m[n].flags, .member_type_id = m[n].ti } };
@@ -148,7 +157,7 @@ static struct DDS_XTypes_CompleteStructMember *get_typeobj_struct_member_seq(uin
 typedef struct umember { uint32_t id; uint16_t flags; DDS_XTypes_TypeIdentifier ti; DDS_XTypes_MemberName name; uint32_t num_case_labels; int32_t *case_labels; } umember_t;
 static struct DDS_XTypes_CompleteUnionMember *get_typeobj_union_member_seq(uint32_t cnt, struct umember *m)
 {
-  struct DDS_XTypes_CompleteUnionMember *member_seq = calloc (cnt, sizeof (*member_seq));
+  struct DDS_XTypes_CompleteUnionMember *member_seq = calloc_no_fail (cnt, sizeof (*member_seq));
   for (uint32_t n = 0; n < cnt; n++)
   {
     member_seq[n] = (DDS_XTypes_CompleteUnionMember) { .common = { .member_id = m[n].id, .member_flags = m[n].flags, .type_id = m[n].ti } };
@@ -156,7 +165,7 @@ static struct DDS_XTypes_CompleteUnionMember *get_typeobj_union_member_seq(uint3
     member_seq[n].common.label_seq._length = m[n].num_case_labels;
     if (m[n].num_case_labels > 0)
     {
-      member_seq[n].common.label_seq._buffer = calloc (m[n].num_case_labels, sizeof (*member_seq[n].common.label_seq._buffer));
+      member_seq[n].common.label_seq._buffer = calloc_no_fail (m[n].num_case_labels, sizeof (*member_seq[n].common.label_seq._buffer));
       for (uint32_t cl = 0; cl < m[n].num_case_labels; cl++)
         member_seq[n].common.label_seq._buffer[cl] = m[n].case_labels[cl];
       member_seq[n].common.label_seq._release = true;
@@ -169,7 +178,7 @@ static struct DDS_XTypes_CompleteUnionMember *get_typeobj_union_member_seq(uint3
 
 static DDS_XTypes_TypeObject *get_typeobj_struct(const char *name, uint16_t flags, DDS_XTypes_TypeIdentifier base, uint32_t member_cnt, struct smember *members)
 {
-  DDS_XTypes_TypeObject *to = calloc (1, sizeof (*to));
+  DDS_XTypes_TypeObject *to = calloc_no_fail (1, sizeof (*to));
   to->_d = DDS_XTypes_EK_COMPLETE;
   to->_u.complete = (DDS_XTypes_CompleteTypeObject) {
     ._d = DDS_XTypes_TK_STRUCTURE,
@@ -191,7 +200,7 @@ static DDS_XTypes_TypeObject *get_typeobj_struct(const char *name, uint16_t flag
 
 static DDS_XTypes_TypeObject *get_typeobj_union(const char *name, uint16_t flags, DDS_XTypes_TypeIdentifier disc_type, uint32_t member_cnt, struct umember *members)
 {
-  DDS_XTypes_TypeObject *to = calloc (1, sizeof (*to));
+  DDS_XTypes_TypeObject *to = calloc_no_fail (1, sizeof (*to));
   to->_d = DDS_XTypes_EK_COMPLETE;
   to->_u.complete = (DDS_XTypes_CompleteTypeObject) {
     ._d = DDS_XTypes_TK_UNION,
@@ -284,12 +293,12 @@ static DDS_XTypes_TypeObject *get_typeobj4 (void)
 
 static DDS_XTypes_TypeObject *get_typeobj5 (void)
 {
-  DDS_XTypes_TypeIdentifier *ti_long = calloc (1, sizeof (*ti_long));
+  DDS_XTypes_TypeIdentifier *ti_long = calloc_no_fail (1, sizeof (*ti_long));
   ti_long->_d = DDS_XTypes_TK_INT32;
 
   /* get type identifier for typedef */
   DDS_XTypes_TypeIdentifier ti_alias;
-  DDS_XTypes_TypeObject *to_alias = calloc (1, sizeof (*to_alias));
+  DDS_XTypes_TypeObject *to_alias = calloc_no_fail (1, sizeof (*to_alias));
   to_alias->_d = DDS_XTypes_EK_COMPLETE;
   to_alias->_u.complete = (DDS_XTypes_CompleteTypeObject) {
     ._d = DDS_XTypes_TK_ALIAS,
@@ -316,7 +325,7 @@ static DDS_XTypes_TypeObject *get_typeobj5 (void)
       .bound = 0
     }
   };
-  ti_seq._u.seq_sdefn.element_identifier = calloc (1, sizeof (*ti_seq._u.seq_sdefn.element_identifier));
+  ti_seq._u.seq_sdefn.element_identifier = calloc_no_fail (1, sizeof (*ti_seq._u.seq_sdefn.element_identifier));
   memcpy (ti_seq._u.seq_sdefn.element_identifier, &ti_alias, sizeof (ti_alias));
 
   return get_typeobj_struct (
@@ -335,10 +344,10 @@ static DDS_XTypes_TypeObject *get_typeobj6 (void)
 
   /* f1 type identifier: long f1[5] */
   {
-    DDS_XTypes_TypeIdentifier *ti_f1_el = calloc (1, sizeof (*ti_f1_el));
+    DDS_XTypes_TypeIdentifier *ti_f1_el = calloc_no_fail (1, sizeof (*ti_f1_el));
     ti_f1_el->_d = DDS_XTypes_TK_INT32;
 
-    uint8_t *f1bound_seq = calloc (1, sizeof (*f1bound_seq));
+    uint8_t *f1bound_seq = calloc_no_fail (1, sizeof (*f1bound_seq));
     f1bound_seq[0] = 5;
     ti_f1 = (DDS_XTypes_TypeIdentifier) {
       ._d = DDS_XTypes_TI_PLAIN_ARRAY_SMALL,
@@ -359,11 +368,11 @@ static DDS_XTypes_TypeObject *get_typeobj6 (void)
 
   /* f2 type identifier: string<555> f2[999][3] */
   {
-    DDS_XTypes_TypeIdentifier *ti_f2_el = calloc (1, sizeof (*ti_f2_el));
+    DDS_XTypes_TypeIdentifier *ti_f2_el = calloc_no_fail (1, sizeof (*ti_f2_el));
     ti_f2_el->_d = DDS_XTypes_TI_STRING8_LARGE;
     ti_f2_el->_u.string_ldefn.bound = 555;
 
-    uint32_t *f2bound_seq = calloc (2, sizeof (*f2bound_seq));
+    uint32_t *f2bound_seq = calloc_no_fail (2, sizeof (*f2bound_seq));
     f2bound_seq[0] = 999;
     f2bound_seq[1] = 3;
     ti_f2 = (DDS_XTypes_TypeIdentifier) {
@@ -383,7 +392,7 @@ static DDS_XTypes_TypeObject *get_typeobj6 (void)
   /* f3 type identifier: a[3] f3 */
   {
     /* type a identifier */
-    DDS_XTypes_TypeIdentifier *ti_a = calloc (1, sizeof (*ti_a));
+    DDS_XTypes_TypeIdentifier *ti_a = calloc_no_fail (1, sizeof (*ti_a));
     get_typeid (ti_a, get_typeobj_struct (
       "t6::a",
       DDS_XTypes_IS_FINAL | DDS_XTypes_IS_NESTED,
@@ -392,7 +401,7 @@ static DDS_XTypes_TypeObject *get_typeobj6 (void)
         { 0, DDS_XTypes_TRY_CONSTRUCT_DISCARD, { ._d = DDS_XTypes_TK_INT32 }, "a1" }
       }));
 
-    uint8_t *f3bound_seq = calloc (1, sizeof (*f3bound_seq));
+    uint8_t *f3bound_seq = calloc_no_fail (1, sizeof (*f3bound_seq));
     f3bound_seq[0] = 3;
     ti_f3 = (DDS_XTypes_TypeIdentifier) {
       ._d = DDS_XTypes_TI_PLAIN_ARRAY_SMALL,
@@ -425,11 +434,11 @@ static DDS_XTypes_TypeObject *get_typeobj7 (void)
 
   /* f1 type identifier */
   {
-    struct DDS_XTypes_CompleteBitflag *flag_seq = calloc (2, sizeof (*flag_seq));
+    struct DDS_XTypes_CompleteBitflag *flag_seq = calloc_no_fail (2, sizeof (*flag_seq));
     flag_seq[0] = (DDS_XTypes_CompleteBitflag) { .common = { .position = 0, .flags = 0 }, .detail.name = "bm0" };
     flag_seq[1] = (DDS_XTypes_CompleteBitflag) { .common = { .position = 5, .flags = 0 }, .detail.name = "bm5" };
 
-    DDS_XTypes_TypeObject *to_bitmask = calloc (1, sizeof (*to_bitmask));
+    DDS_XTypes_TypeObject *to_bitmask = calloc_no_fail (1, sizeof (*to_bitmask));
     to_bitmask->_d = DDS_XTypes_EK_COMPLETE;
     to_bitmask->_u.complete = (DDS_XTypes_CompleteTypeObject) {
       ._d = DDS_XTypes_TK_BITMASK,
@@ -444,11 +453,11 @@ static DDS_XTypes_TypeObject *get_typeobj7 (void)
 
   /* f2 type identifier */
   {
-    struct DDS_XTypes_CompleteEnumeratedLiteral *literal_seq = calloc (2, sizeof (*literal_seq));
+    struct DDS_XTypes_CompleteEnumeratedLiteral *literal_seq = calloc_no_fail (2, sizeof (*literal_seq));
     literal_seq[0] = (DDS_XTypes_CompleteEnumeratedLiteral) { .common = { .value = 0, .flags = 0 }, .detail.name = "en0" };
     literal_seq[1] = (DDS_XTypes_CompleteEnumeratedLiteral) { .common = { .value = 3, .flags = 0 }, .detail.name = "en3" };
 
-    DDS_XTypes_TypeObject *to_enum = calloc (1, sizeof (*to_enum));
+    DDS_XTypes_TypeObject *to_enum = calloc_no_fail (1, sizeof (*to_enum));
     to_enum->_d = DDS_XTypes_EK_COMPLETE;
     to_enum->_u.complete = (DDS_XTypes_CompleteTypeObject) {
       ._d = DDS_XTypes_TK_ENUM,
@@ -477,10 +486,10 @@ static DDS_XTypes_TypeObject *get_typeobj8 (void)
 
   /* f1 type identifier: unsigned long long f1[1][1] */
   {
-    DDS_XTypes_TypeIdentifier *ti_f1_el = calloc (1, sizeof (*ti_f1_el));
+    DDS_XTypes_TypeIdentifier *ti_f1_el = calloc_no_fail (1, sizeof (*ti_f1_el));
     ti_f1_el->_d = DDS_XTypes_TK_UINT64;
 
-    uint8_t *f1bound_seq = calloc (2, sizeof (*f1bound_seq));
+    uint8_t *f1bound_seq = calloc_no_fail (2, sizeof (*f1bound_seq));
     f1bound_seq[0] = 1;
     f1bound_seq[1] = 1;
     ti_f1 = (DDS_XTypes_TypeIdentifier) {
@@ -508,11 +517,11 @@ static DDS_XTypes_TypeObject *get_typeobj9 (void)
 
   /* f1 and f2 type identifier */
   {
-    struct DDS_XTypes_CompleteBitflag *flag_seq = calloc (2, sizeof (*flag_seq));
+    struct DDS_XTypes_CompleteBitflag *flag_seq = calloc_no_fail (2, sizeof (*flag_seq));
     flag_seq[0] = (DDS_XTypes_CompleteBitflag) { .common = { .position = 0, .flags = 0 }, .detail.name = "bm0" };
     flag_seq[1] = (DDS_XTypes_CompleteBitflag) { .common = { .position = 1, .flags = 0 }, .detail.name = "bm1" };
 
-    DDS_XTypes_TypeObject *to_bitmask = calloc (1, sizeof (*to_bitmask));
+    DDS_XTypes_TypeObject *to_bitmask = calloc_no_fail (1, sizeof (*to_bitmask));
     to_bitmask->_d = DDS_XTypes_EK_COMPLETE;
     to_bitmask->_u.complete = (DDS_XTypes_CompleteTypeObject) {
       ._d = DDS_XTypes_TK_BITMASK,
@@ -541,11 +550,11 @@ static DDS_XTypes_TypeObject *get_typeobj10 (void)
 
   /* f1 and f2 type identifier */
   {
-    struct DDS_XTypes_CompleteEnumeratedLiteral *literal_seq = calloc (2, sizeof (*literal_seq));
+    struct DDS_XTypes_CompleteEnumeratedLiteral *literal_seq = calloc_no_fail (2, sizeof (*literal_seq));
     literal_seq[0] = (DDS_XTypes_CompleteEnumeratedLiteral) { .common = { .value = 0, .flags = 0 }, .detail.name = "en0" };
     literal_seq[1] = (DDS_XTypes_CompleteEnumeratedLiteral) { .common = { .value = 1, .flags = 0 }, .detail.name = "en1" };
 
-    DDS_XTypes_TypeObject *to_enum = calloc (1, sizeof (*to_enum));
+    DDS_XTypes_TypeObject *to_enum = calloc_no_fail (1, sizeof (*to_enum));
     to_enum->_d = DDS_XTypes_EK_COMPLETE;
     to_enum->_u.complete = (DDS_XTypes_CompleteTypeObject) {
       ._d = DDS_XTypes_TK_ENUM,
@@ -587,13 +596,13 @@ static DDS_XTypes_TypeObject *get_typeobj12 (void)
 
   /* f1 type identifier */
   {
-    DDS_XTypes_TypeIdentifier *ti_long = calloc (1, sizeof (*ti_long));
+    DDS_XTypes_TypeIdentifier *ti_long = calloc_no_fail (1, sizeof (*ti_long));
     ti_long->_d = DDS_XTypes_TK_INT32;
 
     /* typedef sequence<long> td_seq */
-    DDS_XTypes_TypeIdentifier *ti_alias_seq = calloc (1, sizeof (*ti_alias_seq));
+    DDS_XTypes_TypeIdentifier *ti_alias_seq = calloc_no_fail (1, sizeof (*ti_alias_seq));
 
-    DDS_XTypes_TypeObject *to_alias_seq = calloc (1, sizeof (*to_alias_seq));
+    DDS_XTypes_TypeObject *to_alias_seq = calloc_no_fail (1, sizeof (*to_alias_seq));
     to_alias_seq->_d = DDS_XTypes_EK_COMPLETE;
     to_alias_seq->_u.complete = (DDS_XTypes_CompleteTypeObject) {
       ._d = DDS_XTypes_TK_ALIAS,
@@ -613,9 +622,9 @@ static DDS_XTypes_TypeObject *get_typeobj12 (void)
     get_typeid (ti_alias_seq, to_alias_seq);
 
     /* typedef td_seq td_array[2] */
-    uint8_t *bound_seq = calloc (1, sizeof (*bound_seq));
+    uint8_t *bound_seq = calloc_no_fail (1, sizeof (*bound_seq));
     bound_seq[0] = 2;
-    DDS_XTypes_TypeObject *to_alias_arr = calloc (1, sizeof (*to_alias_arr));
+    DDS_XTypes_TypeObject *to_alias_arr = calloc_no_fail (1, sizeof (*to_alias_arr));
     to_alias_arr->_d = DDS_XTypes_EK_COMPLETE;
     to_alias_arr->_u.complete = (DDS_XTypes_CompleteTypeObject) {
       ._d = DDS_XTypes_TK_ALIAS,
@@ -650,12 +659,12 @@ static DDS_XTypes_TypeObject *get_typeobj13 (void)
 
   /* f1 type identifier */
   {
-    DDS_XTypes_TypeIdentifier *ti_long = calloc (1, sizeof (*ti_long));
+    DDS_XTypes_TypeIdentifier *ti_long = calloc_no_fail (1, sizeof (*ti_long));
     ti_long->_d = DDS_XTypes_TK_INT32;
 
     /* typedef long td_arr[3] */
-    DDS_XTypes_TypeObject *to_alias_arr = calloc (1, sizeof (*to_alias_arr));
-    uint8_t *bound_seq = calloc (1, sizeof (*bound_seq));
+    DDS_XTypes_TypeObject *to_alias_arr = calloc_no_fail (1, sizeof (*to_alias_arr));
+    uint8_t *bound_seq = calloc_no_fail (1, sizeof (*bound_seq));
     bound_seq[0] = 3;
     to_alias_arr->_d = DDS_XTypes_EK_COMPLETE;
     to_alias_arr->_u.complete = (DDS_XTypes_CompleteTypeObject) {
@@ -675,7 +684,7 @@ static DDS_XTypes_TypeObject *get_typeobj13 (void)
     };
 
     /* typedef td_seq td */
-    DDS_XTypes_TypeObject *to_alias = calloc (1, sizeof (*to_alias));
+    DDS_XTypes_TypeObject *to_alias = calloc_no_fail (1, sizeof (*to_alias));
     to_alias->_d = DDS_XTypes_EK_COMPLETE;
     to_alias->_u.complete = (DDS_XTypes_CompleteTypeObject) {
       ._d = DDS_XTypes_TK_ALIAS,
@@ -705,10 +714,10 @@ static DDS_XTypes_TypeObject *get_typeobj14 (void)
 
   /* f1 type identifier */
   {
-    DDS_XTypes_TypeIdentifier *ti_long = calloc (1, sizeof (*ti_long));
+    DDS_XTypes_TypeIdentifier *ti_long = calloc_no_fail (1, sizeof (*ti_long));
     ti_long->_d = DDS_XTypes_TK_INT32;
 
-    DDS_XTypes_TypeIdentifier *ti_seq = calloc (1, sizeof (*ti_seq));
+    DDS_XTypes_TypeIdentifier *ti_seq = calloc_no_fail (1, sizeof (*ti_seq));
     ti_seq->_d = DDS_XTypes_TI_PLAIN_SEQUENCE_SMALL;
     ti_seq->_u.seq_sdefn = (struct DDS_XTypes_PlainSequenceSElemDefn) {
       .header = { .equiv_kind = DDS_XTypes_EK_BOTH, .element_flags = DDS_XTypes_TRY_CONSTRUCT_DISCARD },
@@ -717,9 +726,9 @@ static DDS_XTypes_TypeObject *get_typeobj14 (void)
     };
 
     /* typedef sequence<long> td_seq_arr[2] */
-    uint8_t *bound_seq = calloc (1, sizeof (*bound_seq));
+    uint8_t *bound_seq = calloc_no_fail (1, sizeof (*bound_seq));
     bound_seq[0] = 3;
-    DDS_XTypes_TypeObject *to_alias_seq_arr = calloc (1, sizeof (*to_alias_seq_arr));
+    DDS_XTypes_TypeObject *to_alias_seq_arr = calloc_no_fail (1, sizeof (*to_alias_seq_arr));
     to_alias_seq_arr->_d = DDS_XTypes_EK_COMPLETE;
     to_alias_seq_arr->_u.complete = (DDS_XTypes_CompleteTypeObject) {
       ._d = DDS_XTypes_TK_ALIAS,

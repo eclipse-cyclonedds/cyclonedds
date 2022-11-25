@@ -33,6 +33,7 @@ _Pragma("GCC diagnostic ignored \"-Wsign-conversion\"")
 _Pragma("GCC diagnostic ignored \"-Wmissing-prototypes\"")
 #if (__GNUC__ >= 10)
 _Pragma("GCC diagnostic ignored \"-Wanalyzer-free-of-non-heap\"")
+_Pragma("GCC diagnostic ignored \"-Wanalyzer-malloc-leak\"")
 #endif
 #endif
 

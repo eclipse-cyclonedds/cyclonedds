@@ -150,6 +150,10 @@ static void setup (struct ddsi_domaingv *gv, const struct ddsi_config *config, b
 
 static void teardown (struct ddsi_domaingv *gv)
 {
+  // for some reason, GCC 12's analyzer thinks some of this is uninitialised
+#if __GNUC__ >= 12
+  DDSRT_WARNING_GNUC_OFF(analyzer-use-of-uninitialized-value)
+#endif
   for (int i = 0; i < gv->n_interfaces; i++)
   {
     ddsrt_free (gv->xmit_conns[i]);
@@ -161,6 +165,9 @@ static void teardown (struct ddsi_domaingv *gv)
     gv->ddsi_tran_factories = f->m_factory;
     ddsi_factory_free (f);
   }
+#if __GNUC__ >= 12
+  DDSRT_WARNING_GNUC_ON(analyzer-use-of-uninitialized-value)
+#endif
 
   // On shutdown, there is an expectation that the thread was discovered dynamically.
   // We overrode it in the setup code, we undo it now.
@@ -503,6 +510,7 @@ CU_Theory ((bool same_machine, bool proxypp_has_defmc, int n_ep_uc, int n_ep_mc,
   config.transport_selector = DDSI_TRANS_UDP;
   config.allowMulticast = DDSI_AMC_TRUE;
   errcount = 0;
+  memset (&gv, 0, sizeof (gv)); // solves a spurious gcc-12 "uninitialized" warning
   setup (&gv, &config, true, false);
   printf ("interfaces =\n");
   for (int i = 0; i < gv.n_interfaces; i++)
