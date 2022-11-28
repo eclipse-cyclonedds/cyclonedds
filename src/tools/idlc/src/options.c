@@ -208,7 +208,7 @@ static int handle_options(
         continue;
       assert(off >= 0);
       assert(optarg || off == 0);
-      if (!(ret = handle_option(opt, optarg+off, options[i])))
+      if (!(ret = handle_option(opt, optarg ? optarg+off : NULL, options[i])))
         break;
       else if (ret == IDLC_NO_ARGUMENT)
         print_error(argv[0], ": option requires an argument -- ", (char)opt, optarg);
