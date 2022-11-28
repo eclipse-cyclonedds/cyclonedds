@@ -102,21 +102,17 @@ CU_Test(idlc_type_meta, union_max_label_value)
 }
 
 
-static void xcdr2_ser (const void *obj, const dds_topic_descriptor_t *topic_desc, dds_ostream_t *os)
+static void xcdr2_ser (const void *obj, const struct dds_cdrstream_desc *desc, dds_ostream_t *os)
 {
-  struct dds_cdrstream_desc desc;
-  dds_cdrstream_desc_from_topic_desc (&desc, topic_desc);
-
   os->m_buffer = NULL;
   os->m_index = 0;
   os->m_size = 0;
   os->m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2;
-  bool ret = dds_stream_write_sampleLE ((dds_ostreamLE_t *) os, obj, &desc);
-  dds_cdrstream_desc_fini (&desc);
+  bool ret = dds_stream_write_sampleLE ((dds_ostreamLE_t *) os, obj, desc);
   CU_ASSERT_FATAL (ret);
 }
 
-static void xcdr2_deser (unsigned char *buf, uint32_t sz, void **obj, const dds_topic_descriptor_t *desc)
+static void xcdr2_deser (unsigned char *buf, uint32_t sz, void **obj, const struct dds_cdrstream_desc *desc)
 {
   unsigned char *data;
   uint32_t srcoff = 0;
@@ -127,15 +123,15 @@ static void xcdr2_deser (unsigned char *buf, uint32_t sz, void **obj, const dds_
   {
     data = malloc (sz);
     memcpy (data, buf, sz);
-    const uint32_t *ret = dds_stream_normalize_data ((char *) data, &srcoff, sz, bswap, DDSI_RTPS_CDR_ENC_VERSION_2, desc->m_ops);
+    const uint32_t *ret = dds_stream_normalize_data ((char *) data, &srcoff, sz, bswap, DDSI_RTPS_CDR_ENC_VERSION_2, desc->ops.ops);
     CU_ASSERT_NOT_EQUAL_FATAL (ret, NULL);
   }
   else
     data = buf;
 
   dds_istream_t is = { .m_buffer = data, .m_index = 0, .m_size = sz, .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
-  *obj = calloc_no_fail (1, desc->m_size);
-  dds_stream_read (&is, (void *) *obj, desc->m_ops);
+  *obj = calloc_no_fail (1, desc->size);
+  dds_stream_read (&is, (void *) *obj, desc->ops.ops);
   if (bswap)
     free (data);
 }
@@ -811,14 +807,14 @@ CU_Test(idlc_type_meta, type_obj_serdes)
 
       // serialize the generated type object
       dds_ostream_t os;
-      xcdr2_ser (tm->to_complete, &DDS_XTypes_TypeObject_desc, &os);
+      xcdr2_ser (tm->to_complete, &DDS_XTypes_TypeObject_cdrstream_desc, &os);
 
       if (tm->node == descriptor.topic)
       {
         dds_ostream_t os_test;
         // serializer the reference type object
         DDS_XTypes_TypeObject *to_test = tests[i].get_typeobj_fn();
-        xcdr2_ser (to_test, &DDS_XTypes_TypeObject_desc, &os_test);
+        xcdr2_ser (to_test, &DDS_XTypes_TypeObject_cdrstream_desc, &os_test);
 
         // compare serialized blobs
         CU_ASSERT_EQUAL_FATAL (os.m_index, os_test.m_index);
@@ -833,7 +829,7 @@ CU_Test(idlc_type_meta, type_obj_serdes)
 
       // test that generated type object can be serialized
       DDS_XTypes_TypeObject *to;
-      xcdr2_deser (os.m_buffer, os.m_index, (void **)&to, &DDS_XTypes_TypeObject_desc);
+      xcdr2_deser (os.m_buffer, os.m_index, (void **)&to, &DDS_XTypes_TypeObject_cdrstream_desc);
 
       // cleanup
       dds_stream_free_sample (to, DDS_XTypes_TypeObject_desc.m_ops);

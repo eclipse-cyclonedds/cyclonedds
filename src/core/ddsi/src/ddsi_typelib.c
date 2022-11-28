@@ -725,17 +725,13 @@ err:
   return ret;
 }
 
-static dds_return_t xcdr2_ser (const void *obj, const dds_topic_descriptor_t *topic_desc, dds_ostream_t *os)
+static dds_return_t xcdr2_ser (const void *obj, const struct dds_cdrstream_desc *desc, dds_ostream_t *os)
 {
-  struct dds_cdrstream_desc desc;
-  dds_cdrstream_desc_from_topic_desc (&desc, topic_desc);
-
   os->m_buffer = NULL;
   os->m_index = 0;
   os->m_size = 0;
   os->m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2;
-  dds_return_t ret = dds_stream_write_sampleLE ((dds_ostreamLE_t *) os, obj, &desc) ? DDS_RETCODE_OK : DDS_RETCODE_BAD_PARAMETER;
-  dds_cdrstream_desc_fini (&desc);
+  dds_return_t ret = dds_stream_write_sampleLE ((dds_ostreamLE_t *) os, obj, desc) ? DDS_RETCODE_OK : DDS_RETCODE_BAD_PARAMETER;
   return ret;
 }
 
@@ -744,7 +740,7 @@ static dds_return_t get_typeid_with_size (DDS_XTypes_TypeIdentifierWithSize *typ
   dds_return_t ret;
   dds_ostream_t os;
   ddsi_typeid_copy_impl (&typeid_with_size->type_id, ti);
-  if ((ret = xcdr2_ser (to, &DDS_XTypes_TypeObject_desc, &os)) < 0)
+  if ((ret = xcdr2_ser (to, &DDS_XTypes_TypeObject_cdrstream_desc, &os)) < 0)
     return ret;
   typeid_with_size->typeobject_serialized_size = os.m_index;
   dds_ostream_fini (&os);
@@ -924,7 +920,7 @@ dds_return_t ddsi_type_get_typeinfo_ser (struct ddsi_domaingv *gv, const struct 
   struct ddsi_typeinfo type_info;
   if ((ret = ddsi_type_get_typeinfo (gv, type, &type_info)))
     goto err_typeinfo;
-  if ((ret = xcdr2_ser (&type_info.x, &DDS_XTypes_TypeInformation_desc, &os)) != DDS_RETCODE_OK)
+  if ((ret = xcdr2_ser (&type_info.x, &DDS_XTypes_TypeInformation_cdrstream_desc, &os)) != DDS_RETCODE_OK)
     goto err_ser;
   ddsi_typeinfo_fini (&type_info);
   *data = os.m_buffer;
@@ -1021,7 +1017,7 @@ dds_return_t ddsi_type_get_typemap_ser (struct ddsi_domaingv *gv, const struct d
   struct ddsi_typemap type_map;
   if ((ret = ddsi_type_get_typemap (gv, type, &type_map)))
     goto err_typemap;
-  if ((ret = xcdr2_ser (&type_map.x, &DDS_XTypes_TypeMapping_desc, &os)) != DDS_RETCODE_OK)
+  if ((ret = xcdr2_ser (&type_map.x, &DDS_XTypes_TypeMapping_cdrstream_desc, &os)) != DDS_RETCODE_OK)
     goto err_ser;
   ddsi_typemap_fini (&type_map);
   *data = os.m_buffer;
