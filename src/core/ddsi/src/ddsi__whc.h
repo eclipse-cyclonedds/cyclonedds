@@ -51,9 +51,6 @@ inline void ddsi_whc_free (struct ddsi_whc *whc) {
 inline int ddsi_whc_insert (struct ddsi_whc *whc, ddsi_seqno_t max_drop_seq, ddsi_seqno_t seq, ddsrt_mtime_t exp, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk) {
   return whc->ops->insert (whc, max_drop_seq, seq, exp, serdata, tk);
 }
-inline unsigned ddsi_whc_downgrade_to_volatile (struct ddsi_whc *whc, struct ddsi_whc_state *st) {
-  return whc->ops->downgrade_to_volatile (whc, st);
-}
 inline unsigned ddsi_whc_remove_acked_messages (struct ddsi_whc *whc, ddsi_seqno_t max_drop_seq, struct ddsi_whc_state *whcst, struct ddsi_whc_node **deferred_free_list) {
   return whc->ops->remove_acked_messages (whc, max_drop_seq, whcst, deferred_free_list);
 }
