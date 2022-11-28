@@ -248,13 +248,6 @@ static int bwhc_insert (struct ddsi_whc *whc, ddsi_seqno_t max_drop_seq, ddsi_se
   return 0;
 }
 
-static uint32_t bwhc_downgrade_to_volatile (struct ddsi_whc *whc, struct ddsi_whc_state *st)
-{
-  (void)whc;
-  (void)st;
-  return 0;
-}
-
 static uint32_t bwhc_remove_acked_messages (struct ddsi_whc *whc, ddsi_seqno_t max_drop_seq, struct ddsi_whc_state *whcst, struct ddsi_whc_node **deferred_free_list)
 {
   (void)whc;
@@ -281,7 +274,6 @@ static const struct ddsi_whc_ops bwhc_ops = {
   .return_sample = 0,
   .sample_iter_init = bwhc_sample_iter_init,
   .sample_iter_borrow_next = bwhc_sample_iter_borrow_next,
-  .downgrade_to_volatile = bwhc_downgrade_to_volatile,
   .free = bwhc_free
 };
 

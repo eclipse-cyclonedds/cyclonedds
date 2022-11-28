@@ -21,6 +21,5 @@ extern inline void ddsi_whc_sample_iter_init (const struct ddsi_whc *whc, struct
 extern inline bool ddsi_whc_sample_iter_borrow_next (struct ddsi_whc_sample_iter *it, struct ddsi_whc_borrowed_sample *sample);
 extern inline void ddsi_whc_free (struct ddsi_whc *whc);
 extern int ddsi_whc_insert (struct ddsi_whc *whc, ddsi_seqno_t max_drop_seq, ddsi_seqno_t seq, ddsrt_mtime_t exp, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk);
-extern unsigned ddsi_whc_downgrade_to_volatile (struct ddsi_whc *whc, struct ddsi_whc_state *st);
 extern unsigned ddsi_whc_remove_acked_messages (struct ddsi_whc *whc, ddsi_seqno_t max_drop_seq, struct ddsi_whc_state *whcst, struct ddsi_whc_node **deferred_free_list);
 extern void ddsi_whc_free_deferred_free_list (struct ddsi_whc *whc, struct ddsi_whc_node *deferred_free_list);

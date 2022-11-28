@@ -158,7 +158,6 @@ static ddsi_seqno_t whc_default_next_seq (const struct ddsi_whc *whc, ddsi_seqno
 static bool whc_default_borrow_sample (const struct ddsi_whc *whc, ddsi_seqno_t seq, struct ddsi_whc_borrowed_sample *sample);
 static bool whc_default_borrow_sample_key (const struct ddsi_whc *whc, const struct ddsi_serdata *serdata_key, struct ddsi_whc_borrowed_sample *sample);
 static void whc_default_return_sample (struct ddsi_whc *whc, struct ddsi_whc_borrowed_sample *sample, bool update_retransmit_info);
-static uint32_t whc_default_downgrade_to_volatile (struct ddsi_whc *whc, struct ddsi_whc_state *st);
 static void whc_default_sample_iter_init (const struct ddsi_whc *whc, struct ddsi_whc_sample_iter *opaque_it);
 static bool whc_default_sample_iter_borrow_next (struct ddsi_whc_sample_iter *opaque_it, struct ddsi_whc_borrowed_sample *sample);
 static void whc_default_free (struct ddsi_whc *whc);
@@ -177,7 +176,6 @@ static const struct ddsi_whc_ops whc_ops = {
   .return_sample = whc_default_return_sample,
   .sample_iter_init = whc_default_sample_iter_init,
   .sample_iter_borrow_next = whc_default_sample_iter_borrow_next,
-  .downgrade_to_volatile = whc_default_downgrade_to_volatile,
   .free = whc_default_free
 };
 
@@ -694,61 +692,6 @@ static int whcn_in_tlidx (const struct whc_impl *whc, const struct whc_idxnode *
     assert (d < whc->wrinfo.idxdepth);
     return d < whc->wrinfo.tldepth;
   }
-}
-
-static uint32_t whc_default_downgrade_to_volatile (struct ddsi_whc *whc_generic, struct ddsi_whc_state *st)
-{
-  struct whc_impl * const whc = (struct whc_impl *)whc_generic;
-  ddsi_seqno_t old_max_drop_seq;
-  struct ddsi_whc_node *deferred_free_list;
-  uint32_t cnt;
-
-  /* We only remove them from whc->tlidx: we don't remove them from
-   whc->seq yet.  That'll happen eventually.  */
-  ddsrt_mutex_lock (&whc->lock);
-  check_whc (whc);
-
-  if (whc->wrinfo.idxdepth == 0)
-  {
-    /* if not maintaining an index at all, this is nonsense */
-    get_state_locked (whc, st);
-    ddsrt_mutex_unlock (&whc->lock);
-    return 0;
-  }
-
-  assert (!whc->wrinfo.is_transient_local);
-  if (whc->wrinfo.tldepth > 0)
-  {
-    assert (whc->wrinfo.hdepth == 0 || whc->wrinfo.tldepth <= whc->wrinfo.hdepth);
-    whc->wrinfo.tldepth = 0;
-    if (whc->wrinfo.hdepth == 0)
-    {
-      struct ddsrt_hh_iter it;
-      struct whc_idxnode *idxn;
-      for (idxn = ddsrt_hh_iter_first (whc->idx_hash, &it); idxn != NULL; idxn = ddsrt_hh_iter_next (&it))
-      {
-#ifdef DDS_HAS_DEADLINE_MISSED
-        ddsi_deadline_unregister_instance_locked (&whc->deadline, &idxn->deadline);
-#endif
-        free_one_instance_from_idx (whc, 0, idxn);
-      }
-      ddsrt_hh_free (whc->idx_hash);
-      whc->wrinfo.idxdepth = 0;
-      whc->idx_hash = NULL;
-    }
-  }
-
-  /* Immediately drop them from the WHC (used to delay it until the
-   next ack); but need to make sure remove_acked_messages processes
-   them all. */
-  old_max_drop_seq = whc->max_drop_seq;
-  whc->max_drop_seq = 0;
-  cnt = whc_default_remove_acked_messages_full (whc, old_max_drop_seq, &deferred_free_list);
-  whc_default_free_deferred_free_list (whc_generic, deferred_free_list);
-  assert (whc->max_drop_seq == old_max_drop_seq);
-  get_state_locked (whc, st);
-  ddsrt_mutex_unlock (&whc->lock);
-  return cnt;
 }
 
 static size_t whcn_size (const struct whc_impl *whc, const struct dds_whc_default_node *whcn)

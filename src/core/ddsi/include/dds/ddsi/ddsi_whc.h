@@ -79,7 +79,6 @@ typedef void (*whc_free_t)(struct ddsi_whc *whc);
 /* max_drop_seq must go soon, it's way too ugly. */
 /* plist may be NULL or ddsrt_malloc'd, WHC takes ownership of plist */
 typedef int (*ddsi_whc_insert_t)(struct ddsi_whc *whc, ddsi_seqno_t max_drop_seq, ddsi_seqno_t seq, ddsrt_mtime_t exp, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk);
-typedef uint32_t (*ddsi_whc_downgrade_to_volatile_t)(struct ddsi_whc *whc, struct ddsi_whc_state *st);
 typedef uint32_t (*ddsi_whc_remove_acked_messages_t)(struct ddsi_whc *whc, ddsi_seqno_t max_drop_seq, struct ddsi_whc_state *whcst, struct ddsi_whc_node **deferred_free_list);
 typedef void (*ddsi_whc_free_deferred_free_list_t)(struct ddsi_whc *whc, struct ddsi_whc_node *deferred_free_list);
 
@@ -94,7 +93,6 @@ struct ddsi_whc_ops {
   ddsi_whc_return_sample_t return_sample;
   ddsi_whc_sample_iter_init_t sample_iter_init;
   ddsi_whc_sample_iter_borrow_next_t sample_iter_borrow_next;
-  ddsi_whc_downgrade_to_volatile_t downgrade_to_volatile;
   whc_free_t free;
 };
 

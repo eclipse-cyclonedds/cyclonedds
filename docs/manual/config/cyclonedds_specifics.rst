@@ -145,42 +145,6 @@ linger duration has elapsed, whichever comes first.
   is requested to terminate.
 
 
-.. _`Start-up mode`:
-
-=============
-Start-up Mode
-=============
-
-A similar issue exists when starting |var-project-short|: DDSI discovery takes time, and when
-data is written immediately after the first participant was created, it is likely that
-the discovery process hasn't been completed yet, and some remote Readers have not yet been
-discovered. This would cause the Writers to throw away samples for lack of interest,
-even though matching Readers already existed at the starting time. For best-effort
-Writers, this is perhaps surprising but still acceptable; for reliable Writers, however,
-it would be very counter-intuitive.
-
-Hence, in the so-called *start-up mode*, all volatile reliable Writers are
-treated as transient-local Writers. Transient-local data is meant to ensure
-samples are available to late-joining Readers. The start-up mode uses this exact
-mechanism to ensure late-discovered Readers will also receive the data. This treatment of
-volatile data as-if it were transient-local happens internally and is invisible to the
-outside world, other than the availability of some samples that would not otherwise be available.
-
-Once the initial discovery has been completed, new local Writers can be matched locally against
-existing Readers. Consequently, new samples are published in a Writers history cache because
-these existing Readers have not acknowledged them yet. Hence, this mode is tied to the start-up
-of the DDSI stack rather than an individual Writer.
-
-Unfortunately, it is impossible to detect with certainty when the initial discovery process has
-been completed, and therefore an option controls the duration of this start-up mode:
-``General/StartupModeDuration``.
-
-Although the start-up mode is generally beneficial, its downside is that the Writers history
-caches can grow significantly larger than expected during the start-up period. Consequently,
-the extensive amounts of historical data may be transferred to Readers and discovered relatively
-late in the process.
-
-
 .. _`Writer history QoS and throttling`:
 
 =================================
