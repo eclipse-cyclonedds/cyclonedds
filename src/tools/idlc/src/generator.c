@@ -29,6 +29,7 @@
 #include "idlc/generator.h"
 
 const char *export_macro = NULL;
+const char *header_guard_prefix = "DDSC_";
 int generate_cdrstream_desc = 0;
 
 static int print_base_type(
@@ -236,7 +237,7 @@ static idl_retcode_t print_header(FILE *fh, const char *in, const char *out)
 
 static idl_retcode_t print_guard(FILE *fh, const char *in)
 {
-  if (fputs("DDSC_", fh) < 0)
+  if (fputs(header_guard_prefix, fh) < 0)
     return IDL_RETCODE_NO_MEMORY;
   for (const char *ptr = in; *ptr; ptr++) {
     int chr = (unsigned char)*ptr;
@@ -356,6 +357,10 @@ static const idlc_option_t *opts[] = {
   &(idlc_option_t){
     IDLC_FLAG, { .flag = &generate_cdrstream_desc }, 'f', "cdrstream-desc", "",
     "Generate CDR descriptor in addition to regular topic descriptor." },
+  &(idlc_option_t){
+    IDLC_STRING, { .string = &header_guard_prefix },
+    'f', "header-guard-prefix", "<header guard prefix>",
+    "Prefix to use for header inclusion guard macros (default: DDSC_)." },
   NULL
 };
 
