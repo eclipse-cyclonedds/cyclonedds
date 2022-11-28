@@ -21,6 +21,7 @@ if(TARGET CycloneDDS::ddsc)
   # shouldn't need this ...
   target_include_directories(dynsub
     PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../src/core/cdr/include"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../src/core/ddsi/include")
 endif()
 target_link_libraries(dynsub CycloneDDS::ddsc)
