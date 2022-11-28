@@ -91,19 +91,15 @@ pop_type (struct descriptor_type_meta *dtm, const void *node)
 static idl_retcode_t
 xcdr2_ser (
   const void *obj,
-  const dds_topic_descriptor_t *topic_desc,
+  const struct dds_cdrstream_desc *desc,
   dds_ostream_t *os)
 {
-  struct dds_cdrstream_desc desc;
-  dds_cdrstream_desc_from_topic_desc (&desc, topic_desc);
-
   // serialize as XCDR2 LE
   os->m_buffer = NULL;
   os->m_index = 0;
   os->m_size = 0;
   os->m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2;
-  dds_return_t ret = dds_stream_write_sampleLE ((dds_ostreamLE_t *) os, obj, &desc) ? IDL_RETCODE_OK : IDL_RETCODE_BAD_PARAMETER;
-  dds_cdrstream_desc_fini (&desc);
+  dds_return_t ret = dds_stream_write_sampleLE ((dds_ostreamLE_t *) os, obj, desc) ? IDL_RETCODE_OK : IDL_RETCODE_BAD_PARAMETER;
   return ret;
 }
 
@@ -329,7 +325,7 @@ get_type_hash (DDS_XTypes_EquivalenceHash hash, const DDS_XTypes_TypeObject *to)
 {
   dds_ostream_t os;
   idl_retcode_t ret;
-  if ((ret = xcdr2_ser (to, &DDS_XTypes_TypeObject_desc, &os)) < 0)
+  if ((ret = xcdr2_ser (to, &DDS_XTypes_TypeObject_cdrstream_desc, &os)) < 0)
     return ret;
 
   // get md5 of serialized cdr and store first 14 bytes in equivalence hash parameter
@@ -1537,7 +1533,7 @@ get_typeid_with_size (
   assert (to);
   memcpy (&typeid_with_size->type_id, ti, sizeof (typeid_with_size->type_id));
   dds_ostream_t os;
-  if ((ret = xcdr2_ser (to, &DDS_XTypes_TypeObject_desc, &os)) < 0)
+  if ((ret = xcdr2_ser (to, &DDS_XTypes_TypeObject_cdrstream_desc, &os)) < 0)
     return ret;
   typeid_with_size->typeobject_serialized_size = os.m_index;
   dds_ostream_fini (&os);
@@ -1720,7 +1716,7 @@ generate_type_meta_ser_impl (
     type_information->complete.dependent_typeid_count++;
   }
 
-  if ((ret = xcdr2_ser (type_information, &DDS_XTypes_TypeInformation_desc, os_typeinfo)) < 0)
+  if ((ret = xcdr2_ser (type_information, &DDS_XTypes_TypeInformation_cdrstream_desc, os_typeinfo)) < 0)
     goto err_dep_ser;
 
   /* type id/obj seq for min and complete */
@@ -1746,7 +1742,7 @@ generate_type_meta_ser_impl (
       goto err_map;
   }
 
-  if ((ret = xcdr2_ser (&mapping, &DDS_XTypes_TypeMapping_desc, os_typemap)) < 0)
+  if ((ret = xcdr2_ser (&mapping, &DDS_XTypes_TypeMapping_cdrstream_desc, os_typemap)) < 0)
     goto err_map_ser;
 
   generate_type_meta_ser_impl_free_mapping_buffers (&mapping);
