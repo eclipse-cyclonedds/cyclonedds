@@ -246,6 +246,14 @@ emit_struct(
             "\n";
       if (idl_fprintf(gen->header.handle, fmt, name) < 0)
         return IDL_RETCODE_NO_MEMORY;
+      if (gen->config.generate_cdrstream_desc)
+      {
+        if (gen->config.export_macro && idl_fprintf(gen->header.handle, "%1$s ", gen->config.export_macro) < 0)
+          return IDL_RETCODE_NO_MEMORY;
+        fmt = "extern const struct dds_cdrstream_desc %1$s_cdrstream_desc;\n\n";
+        if (idl_fprintf(gen->header.handle, fmt, name) < 0)
+          return IDL_RETCODE_NO_MEMORY;
+      }
       if ((ret = generate_descriptor(pstate, gen, node)))
         return ret;
     }
@@ -325,6 +333,14 @@ emit_union(
             "\n";
       if (idl_fprintf(gen->header.handle, fmt, name) < 0)
         return IDL_RETCODE_NO_MEMORY;
+      if (gen->config.generate_cdrstream_desc)
+      {
+        if (gen->config.export_macro && idl_fprintf(gen->header.handle, "%1$s ", gen->config.export_macro) < 0)
+          return IDL_RETCODE_NO_MEMORY;
+        fmt = "extern const struct dds_cdrstream_desc %1$s_cdrstream_desc;\n\n";
+        if (idl_fprintf(gen->header.handle, fmt, name) < 0)
+          return IDL_RETCODE_NO_MEMORY;
+      }
       if ((ret = generate_descriptor(pstate, gen, node)))
         return ret;
     }

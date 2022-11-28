@@ -2422,6 +2422,62 @@ static int print_descriptor(FILE *fp, struct descriptor *descriptor, bool type_i
   return 0;
 }
 
+static int print_cdrstream_descriptor(FILE *fp, struct descriptor *descriptor, uint32_t offset)
+{
+  char *name, *type;
+  const char *fmt;
+
+  if (IDL_PRINTA(&name, print_scoped_name, descriptor->topic) < 0)
+    return -1;
+  if (IDL_PRINTA(&type, print_type, descriptor->topic) < 0)
+    return -1;
+  fmt = "const struct dds_cdrstream_desc %1$s_cdrstream_desc =\n{\n"
+        "  .size = sizeof (%1$s),\n" /* size of type */
+        "  .align = dds_alignof (%1$s),\n" /* alignment */
+        "  .flagset = ";
+  if (idl_fprintf(fp, fmt, type) < 0)
+    return -1;
+  if (print_flags(fp, descriptor, false) < 0)
+    return -1;
+  fmt = "  .keys = {\n"
+        "    .nkeys = %1$"PRIu32"u,\n";
+  if (idl_fprintf(fp, fmt, descriptor->n_keys) < 0)
+    return -1;
+  if (descriptor->n_keys == 0) {
+    if (idl_fprintf(fp, "    .keys = NULL\n") < 0)
+      return -1;
+  } else {
+    if (idl_fprintf(fp, "    .keys = (struct dds_cdrstream_desc_key[]){\n") < 0)
+      return -1;
+    const char *sep = "";
+    const char *keyfmt = "%s      { %"PRIu32", %"PRIu32" }";
+    for (uint32_t k=0; k < descriptor->n_keys; k++) {
+      if (idl_fprintf(fp, keyfmt, sep, offset + descriptor->keys[k].inst_offs, descriptor->keys[k].key_idx) < 0)
+        return -1;
+      sep = ",\n";
+    }
+    if (idl_fprintf(fp, "\n    }\n") < 0)
+      return -1;
+  }
+  if (idl_fprintf(fp, "  },\n") < 0)
+    return -1;
+  fmt = "  .ops = {\n"
+        "    .nops = (uint32_t) (sizeof(%1$s_ops) / sizeof(%1$s_ops[0])),\n"
+        "    .ops = (uint32_t *) %1$s_ops\n"
+        "  },\n";
+  if (idl_fprintf(fp, fmt, type) < 0)
+    return -1;
+  // opt_size_xcdr... = 0 means the serializer won't use memcpy, this is not
+  // a problem for our purpose and avoids making the output dependent on
+  // platform-specific details (such as alignment)
+  fmt = "  .opt_size_xcdr1 = 0,\n"
+        "  .opt_size_xcdr2 = 0\n"
+        "};\n\n";
+  if (idl_fprintf(fp, "%s", fmt) < 0)
+    return -1;
+  return 0;
+}
+
 static idl_retcode_t
 resolve_offsets(struct descriptor *descriptor)
 {
@@ -2617,6 +2673,8 @@ generate_descriptor(
   if (print_descriptor(generator->source.handle, &descriptor, false) < 0)
     { ret = IDL_RETCODE_NO_MEMORY; goto err_print; }
 #endif
+  if (generator->config.generate_cdrstream_desc && print_cdrstream_descriptor(generator->source.handle, &descriptor, inst_count) < 0)
+    { ret = IDL_RETCODE_NO_MEMORY; goto err_print; }
 
 err_print:
   descriptor_fini(&descriptor);

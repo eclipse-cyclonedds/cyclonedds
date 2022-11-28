@@ -29,6 +29,7 @@
 #include "idlc/generator.h"
 
 const char *export_macro = NULL;
+int generate_cdrstream_desc = 0;
 
 static int print_base_type(
   char *str, size_t size, const void *node, void *user_data)
@@ -321,7 +322,11 @@ generate_nosetup(const idl_pstate_t *pstate, struct generator *generator)
     return ret;
   if ((ret = print_includes(generator->header.handle, pstate->sources)))
     return ret;
-  if (fputs("#include \"dds/ddsc/dds_public_impl.h\"\n\n", generator->header.handle) < 0)
+  if (fputs("#include \"dds/ddsc/dds_public_impl.h\"\n", generator->header.handle) < 0)
+    return IDL_RETCODE_NO_MEMORY;
+  if (generator->config.generate_cdrstream_desc && fputs("#include \"dds/cdr/dds_cdrstream.h\"\n", generator->header.handle) < 0)
+    return IDL_RETCODE_NO_MEMORY;
+  if (fputs("\n", generator->header.handle) < 0)
     return IDL_RETCODE_NO_MEMORY;
   if (fputs("#ifdef __cplusplus\nextern \"C\" {\n#endif\n\n", generator->header.handle) < 0)
     return IDL_RETCODE_NO_MEMORY;
@@ -348,6 +353,9 @@ static const idlc_option_t *opts[] = {
   &(idlc_option_t){
     IDLC_STRING, { .string = &export_macro }, 'e', "", "<export macro>",
     "Add export macro before topic descriptors." },
+  &(idlc_option_t){
+    IDLC_FLAG, { .flag = &generate_cdrstream_desc }, 'f', "cdrstream-desc", "",
+    "Generate CDR descriptor in addition to regular topic descriptor." },
   NULL
 };
 
@@ -385,6 +393,7 @@ idlc_generate(const idl_pstate_t *pstate, const idlc_generator_config_t *config)
   } else {
     generator.config.export_macro = NULL;
   }
+  generator.config.generate_cdrstream_desc = (generate_cdrstream_desc != 0);
   ret = generate_nosetup(pstate, &generator);
 
 err_options:
