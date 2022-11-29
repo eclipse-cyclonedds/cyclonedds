@@ -378,8 +378,8 @@ const char *    set_encoding(
         if ((env || pragma) && (warn_level & 1)) {
             cwarn( too_long, name, 0L, NULL);
         } else {
-            mcpp_fprintf( ERR, too_long, name);
-            mcpp_fputc( '\n', ERR);
+            mcpp_fprintf( MCPP_ERR, too_long, name);
+            mcpp_fputc( '\n', MCPP_ERR);
         }
     }
     /* XPG syntax: language[_territory[.codeset]][@modifier]    */
@@ -417,8 +417,8 @@ const char *    set_encoding(
         if ((env || pragma) && (warn_level & 1)) {
             cwarn( unknown_encoding, name, 0L, NULL);
         } else {                        /* -m option            */
-            mcpp_fprintf( ERR, unknown_encoding, name);
-            mcpp_fputc( '\n', ERR);
+            mcpp_fprintf( MCPP_ERR, unknown_encoding, name);
+            mcpp_fputc( '\n', MCPP_ERR);
         }
     } else {
         mb_init();                      /* Re-initialize        */

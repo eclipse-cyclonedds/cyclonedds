@@ -13,10 +13,10 @@
 #define MCPP_OUT_H
 
 typedef enum {
-  OUT,
-  ERR,
-  DBG,
-  NUM_OUTDEST
-} OUTDEST;
+  MCPP_OUT,
+  MCPP_ERR,
+  MCPP_DBG,
+  MCPP_NUM_OUTDEST
+} MCPP_OUTDEST;
 
 #endif /* MCPP_OUT_H */

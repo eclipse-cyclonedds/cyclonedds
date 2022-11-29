@@ -79,9 +79,9 @@ static struct {
 static idl_retcode_t retcode = IDL_RETCODE_OK;
 static idl_pstate_t *pstate = NULL;
 
-static int idlc_putc(int chr, OUTDEST od);
-static int idlc_puts(const char *str, OUTDEST od);
-static int idlc_printf(OUTDEST od, const char *str, ...);
+static int idlc_putc(int chr, MCPP_OUTDEST od);
+static int idlc_puts(const char *str, MCPP_OUTDEST od);
+static int idlc_printf(MCPP_OUTDEST od, const char *str, ...);
 
 #define CHUNK (4096)
 
@@ -130,22 +130,22 @@ static int idlc_putn(const char *str, size_t len)
   return 0;
 }
 
-static int idlc_putc(int chr, OUTDEST od)
+static int idlc_putc(int chr, MCPP_OUTDEST od)
 {
   int ret = -1;
   char str[2] = { (char)chr, '\0' };
 
   switch (od) {
-  case OUT:
+  case MCPP_OUT:
     if (!(config.compile))
       ret = printf("%c", chr);
     else
       ret = idlc_putn(str, 1);
     break;
-  case ERR:
+  case MCPP_ERR:
     ret = fprintf(stderr, "%c", chr);
     break;
-  case DBG:
+  case MCPP_DBG:
 #if 0
     if (config.flags & IDLC_DEBUG_PREPROCESSOR)
 #endif
@@ -159,7 +159,7 @@ static int idlc_putc(int chr, OUTDEST od)
   return ret < 0 ? -1 : ret;
 }
 
-static int idlc_puts(const char *str, OUTDEST od)
+static int idlc_puts(const char *str, MCPP_OUTDEST od)
 {
   int ret = -1;
   size_t len = strlen(str);
@@ -168,16 +168,16 @@ static int idlc_puts(const char *str, OUTDEST od)
   assert(len <= INT_MAX);
 
   switch (od) {
-  case OUT:
+  case MCPP_OUT:
     if (!(config.compile))
       ret = printf("%s", str);
     else
       ret = idlc_putn(str, len);
     break;
-  case ERR:
+  case MCPP_ERR:
     ret = fprintf(stderr, "%s", str);
     break;
-  case DBG:
+  case MCPP_DBG:
 #if 0
     if (config.flags & IDLC_DEBUG_PREPROCESSOR)
 #endif
@@ -191,7 +191,7 @@ static int idlc_puts(const char *str, OUTDEST od)
   return ret < 0 ? -1 : (int)len;
 }
 
-static int idlc_printf(OUTDEST od, const char *fmt, ...)
+static int idlc_printf(MCPP_OUTDEST od, const char *fmt, ...)
 {
   int ret = -1;
   char *str = NULL;
@@ -210,16 +210,16 @@ static int idlc_printf(OUTDEST od, const char *fmt, ...)
   }
 
   switch (od) {
-  case OUT:
+  case MCPP_OUT:
     if (!(config.compile))
       ret = printf("%s", str);
     else
       ret = idlc_putn(str, (size_t)len);
     break;
-  case ERR:
+  case MCPP_ERR:
     ret = fprintf(stderr, "%s", str);
     break;
-  case DBG:
+  case MCPP_DBG:
 #if 0
     if (config.flags & IDLC_DEBUG_PREPROCESSOR)
 #endif

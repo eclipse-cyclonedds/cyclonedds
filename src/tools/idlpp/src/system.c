@@ -511,7 +511,7 @@ opt_search: ;
 plus:
 #endif
             if (cplus_val || sflag) {
-                mcpp_fputs( "warning: -+ option is ignored\n", ERR);
+                mcpp_fputs( "warning: -+ option is ignored\n", MCPP_ERR);
                 break;
             }
             cplus_val = CPLUS;
@@ -559,7 +559,7 @@ plus:
                 usage( opt);
             standard = (mcpp_mode == STD || mcpp_mode == POST_STD);
             if (old_mode != STD && old_mode != mcpp_mode)
-                mcpp_fprintf( ERR, "Mode is redefined to: %s\n", mcpp_optarg);
+                mcpp_fprintf( MCPP_ERR, "Mode is redefined to: %s\n", mcpp_optarg);
             break;
 
 #if COMPILER == GNUC
@@ -653,7 +653,7 @@ plus:
         case 'D':                           /* Define symbol        */
             assert( mcpp_optarg != NULL);
             if (def_cnt >= MAX_DEF) {
-                mcpp_fputs( "Too many -D options.\n", ERR);
+                mcpp_fputs( "Too many -D options.\n", MCPP_ERR);
                 longjmp( error_exit, -1);
             }
             def_list[ def_cnt++] = mcpp_optarg;
@@ -747,7 +747,7 @@ plus:
                             , DEF_NOARGS_PREDEF, null, "1");
                     break;
                 default :
-                    mcpp_fprintf( ERR, warning, opt, mcpp_optarg);
+                    mcpp_fprintf( MCPP_ERR, warning, opt, mcpp_optarg);
                 }
             } else {
                 usage( opt);
@@ -801,7 +801,7 @@ plus:
             assert( mcpp_optarg != NULL);
             if (str_eq( mcpp_optarg, "l")) {        /* -Fl          */
                 if (preinc_end >= &preinclude[ NPREINCLUDE]) {
-                    mcpp_fputs( "Too many -Fl options.\n", ERR);
+                    mcpp_fputs( "Too many -Fl options.\n", MCPP_ERR);
                     longjmp( error_exit, -1);
                 }
                 *preinc_end++ = argv[ mcpp_optind++];
@@ -816,20 +816,20 @@ plus:
             assert( mcpp_optarg != NULL);
             if (str_eq( mcpp_optarg, "nclude")) {   /* -include     */
                 if (preinc_end >= &preinclude[ NPREINCLUDE]) {
-                    mcpp_fputs( "Too many -include options.\n", ERR);
+                    mcpp_fputs( "Too many -include options.\n", MCPP_ERR);
                     longjmp( error_exit, -1);
                 }
                 *preinc_end++ = argv[ mcpp_optind++];
             } else if (str_eq( mcpp_optarg, "system")) {    /* -isystem     */
                 if (sysdir_end >= &sysdir[ NSYSDIR]) {
-                    mcpp_fputs( "Too many -isystem options.\n", ERR);
+                    mcpp_fputs( "Too many -isystem options.\n", MCPP_ERR);
                     longjmp( error_exit, -1);
                 }
                 *sysdir_end++ = argv[ mcpp_optind++];
                 /* Add the directory before system include directory*/
             } else if (str_eq( mcpp_optarg, "quote")) {     /* -iquote      */
                 if (quote_dir_end >= &quote_dir[ N_QUOTE_DIR]) {
-                    mcpp_fputs( "Too many -iquote options.\n", ERR);
+                    mcpp_fputs( "Too many -iquote options.\n", MCPP_ERR);
                     longjmp( error_exit, -1);
                 }
                 *quote_dir_end++ = argv[ mcpp_optind++];
@@ -1010,7 +1010,7 @@ plus:
             } else if (str_eq( mcpp_optarg, "ostdinc++")) { /* -nostdinc++  */
                 set_cplus_dir = FALSE;  /* Unset C++-specific directories   */
             } else if (str_eq( mcpp_optarg, "oprecomp")) {  /* -noprecomp   */
-                mcpp_fprintf( ERR, warning, opt, mcpp_optarg);
+                mcpp_fprintf( MCPP_ERR, warning, opt, mcpp_optarg);
                 break;
             }
 #endif
@@ -1101,7 +1101,7 @@ plus:
         case 'S':
             assert( mcpp_optarg != NULL);
             if (cplus_val || sflag) {   /* C++ or the second time   */
-                mcpp_fprintf( ERR, warning, opt, mcpp_optarg);
+                mcpp_fprintf( MCPP_ERR, warning, opt, mcpp_optarg);
                 break;
             }
             i = *mcpp_optarg;
@@ -1115,7 +1115,7 @@ plus:
         case 'r':
             assert( mcpp_optarg != NULL);
             if (str_eq( mcpp_optarg, "emap"))
-                mcpp_fprintf( ERR, warning, opt, mcpp_optarg);
+                mcpp_fprintf( MCPP_ERR, warning, opt, mcpp_optarg);
                                             /* Ignore -remap option */
             else
                 usage( opt);
@@ -1206,7 +1206,7 @@ plus:
 
         case 'U':                           /* Undefine macro       */
             if (undef_cnt >= MAX_UNDEF) {
-                mcpp_fputs( "Too many -U options.\n", ERR);
+                mcpp_fputs( "Too many -U options.\n", MCPP_ERR);
                 longjmp( error_exit, -1);
             }
             undef_list[ undef_cnt++] = mcpp_optarg;
@@ -1313,7 +1313,7 @@ Version:
                 break;
             } else if (*(mcpp_optarg + 1) == EOS) {
                 /* -Z followed by one char  */
-                mcpp_fprintf( ERR, warning, opt, mcpp_optarg);
+                mcpp_fprintf( MCPP_ERR, warning, opt, mcpp_optarg);
                 /* Ignore the option with warning   */
             } else {
                 usage( opt);
@@ -1355,7 +1355,7 @@ Version:
                 && (! str_eq( arch, "i386") && ! str_eq( arch, "x86_64")))
             || ((str_eq( CPU, "ppc") || str_eq( CPU, "ppc64"))
                 && (! str_eq( arch, "ppc") && ! str_eq( arch, "ppc64")))) {
-            mcpp_fprintf( ERR, "Wrong argument of -arch option: %s\n", arch);
+            mcpp_fprintf( MCPP_ERR, "Wrong argument of -arch option: %s\n", arch);
             longjmp( error_exit, -1);
         }
     }
@@ -1462,7 +1462,7 @@ static void version( void)
 
     const char **   mpp = mes;
     while (*mpp)
-        mcpp_fputs( *mpp++, ERR);
+        mcpp_fputs( *mpp++, MCPP_ERR);
 }
 
 static void usage(
@@ -1657,13 +1657,13 @@ static void usage(
     const char * const *    mpp = mes;
 
     if (opt != '?')
-        mcpp_fprintf( ERR, illegopt, opt, mcpp_optarg ? mcpp_optarg : null);
+        mcpp_fprintf( MCPP_ERR, illegopt, opt, mcpp_optarg ? mcpp_optarg : null);
     version();
 #if MCPP_LIB
     mes[ 1] = argv0;
 #endif
     while (*mpp)
-        mcpp_fputs( *mpp++, ERR);
+        mcpp_fputs( *mpp++, MCPP_ERR);
     longjmp( error_exit, -1);
 }
 
@@ -1744,7 +1744,7 @@ static int  parse_warn_level(
         }
     }
     if (*cp != EOS) {               /* Not ending with digit        */
-        mcpp_fprintf( ERR, "Illegal warning level option \"%s\"\n"
+        mcpp_fprintf( MCPP_ERR, "Illegal warning level option \"%s\"\n"
                 , arg);
         usage( opt);
     }
@@ -1852,12 +1852,12 @@ static void     chk_opts(
         incompat = TRUE;
     if ((mcpp_debug & MACRO_CALL)
                 && (option_flags.lang_asm || option_flags.c)) {
-            mcpp_fputs( "Disabled -K option.\n", ERR);
+            mcpp_fputs( "Disabled -K option.\n", MCPP_ERR);
             mcpp_debug &= ~MACRO_CALL;
             /* -a and -C options do not co-exist with -K    */
     }
     if (incompat) {
-        mcpp_fputs( "Incompatible options are specified.\n", ERR);
+        mcpp_fputs( "Incompatible options are specified.\n", MCPP_ERR);
         usage( '?');
     }
 
@@ -2191,16 +2191,16 @@ static void put_info(
     sharp_file->line--;
 #if COMPILER == GNUC
     if (gcc_work_dir)
-        mcpp_fprintf( OUT, "%s%d \"%s%c\"\n"
+        mcpp_fprintf( MCPP_OUT, "%s%d \"%s%c\"\n"
                 , std_line_prefix ? "#line " : LINE_PREFIX
                 , 1, cur_work_dir, '/');
         /* Putout the current directory as a #line line as: */
         /* '# 1 "/abs-path/cur_dir//"'.                     */
-    mcpp_fprintf( OUT, "%s%d \"<built-in>\"\n"
+    mcpp_fprintf( MCPP_OUT, "%s%d \"<built-in>\"\n"
                 , std_line_prefix ? "#line " : LINE_PREFIX , 1);
-    mcpp_fprintf( OUT, "%s%d \"<command line>\"\n"
+    mcpp_fprintf( MCPP_OUT, "%s%d \"<command line>\"\n"
                 , std_line_prefix ? "#line " : LINE_PREFIX , 1);
-    mcpp_fprintf( OUT, "%s%d \"%s\"%s\n"
+    mcpp_fprintf( MCPP_OUT, "%s%d \"%s\"%s\n"
             , std_line_prefix ? "#line " : LINE_PREFIX, 1, cur_fullname
             , ! str_eq( cur_fullname, sharp_file->full_fname) ? " 1" : null);
             /* Suffix " 1" for the file specified by -include   */
@@ -2394,7 +2394,7 @@ static void set_a_dir(
     for (ip = incdir; ip < incend; ip++) {
         if (str_case_eq( *ip, norm_name)) {
             if (option_flags.v && ! (mcpp_debug & MACRO_CALL))
-                mcpp_fprintf( ERR, "Duplicate directory \"%s\" is ignored\n"
+                mcpp_fprintf( MCPP_ERR, "Duplicate directory \"%s\" is ignored\n"
                         , norm_name);
             free( norm_name);               /* Already registered   */
             return;
@@ -2478,7 +2478,7 @@ static char *   norm_dir(
         /* "header map" file (not an include directory) */
         norm_name = norm_path( null, dirname, FALSE, TRUE);
         if (! norm_name && option_flags.v)
-            mcpp_fprintf( ERR, "Invalid header map file \"%s\" is ignored\n"
+            mcpp_fprintf( MCPP_ERR, "Invalid header map file \"%s\" is ignored\n"
                     , dirname);
     } else
 #endif
@@ -2486,7 +2486,7 @@ static char *   norm_dir(
         norm_name = norm_path( dirname, NULL, FALSE, FALSE);
                             /* Normalize the pathname to compare    */
         if (! norm_name && option_flags.v && ! (mcpp_debug & MACRO_CALL))
-            mcpp_fprintf( ERR, "Non-existent directory \"%s\" is ignored\n"
+            mcpp_fprintf( MCPP_ERR, "Non-existent directory \"%s\" is ignored\n"
                     , dirname);
     }
 #if COMPILER == GNUC
@@ -2626,7 +2626,7 @@ static char *   norm_path(
     }
     if (inf) {
         if (slbuf2[ 0])
-            mcpp_fprintf( DBG, "Dereferenced \"%s%s\" to \"%s\"\n"
+            mcpp_fprintf( MCPP_DBG, "Dereferenced \"%s%s\" to \"%s\"\n"
                     , dir, fname ? fname : null, slbuf1);
     }
 #endif
@@ -2766,7 +2766,7 @@ static char *   norm_path(
         bsl2sl( debug_buf);
 #endif
         if (! str_eq( debug_buf, norm_name))
-            mcpp_fprintf( DBG, "Normalized the path \"%s\" to \"%s\"\n"
+            mcpp_fprintf( MCPP_DBG, "Normalized the path \"%s\" to \"%s\"\n"
                     , debug_buf, norm_name);
     }
 
@@ -2860,7 +2860,7 @@ static void init_gcc_macro( void)
                 , gcc_maj_ver, gcc_min_ver, cp);
             /* Note that norm_path() append a PATH_DELIM.   */
         if ((fp = fopen( fname, "r")) == NULL) {
-            mcpp_fprintf( ERR, "The mode for %s has not been installed.\n"
+            mcpp_fprintf( MCPP_ERR, "The mode for %s has not been installed.\n"
                     , arch);
             longjmp( error_exit, -1);
         }
@@ -2965,7 +2965,7 @@ static void     undef_macros( void)
         if (look_id( name) != NULL)
             undefine( name);
         else if (warn_level & 8)
-            mcpp_fprintf( ERR, "\"%s\" wasn't defined\n", name);
+            mcpp_fprintf( MCPP_ERR, "\"%s\" wasn't defined\n", name);
     }
 }
 
@@ -3016,7 +3016,7 @@ void    put_depend(
                 cerror( "Too long dependency line"          /* _E_  */
                         , NULL, 0UL, NULL);
                 if (fp == fp_out)
-                    mcpp_fputs( output, OUT);
+                    mcpp_fputs( output, MCPP_OUT);
                 else
                     fputs( output, fp);
                 return;
@@ -3045,7 +3045,7 @@ void    put_depend(
             }
         }
         if (fp == fp_out) { /* To the same path with normal preprocessing   */
-            mcpp_fputs( output, OUT);
+            mcpp_fputs( output, MCPP_OUT);
         } else {        /* To the file specified by -MF, -MD, -MMD options  */
             fputs( output, fp);
             fclose( fp);
@@ -3332,7 +3332,7 @@ static int  open_include(
                 || (**(infile->dirp) != EOS);
     }
     if (mcpp_debug & PATH)
-        mcpp_fprintf( DBG, "filename: %s\n", filename);
+        mcpp_fprintf( MCPP_DBG, "filename: %s\n", filename);
 
 #if COMPILER == GNUC
     if (! full_path) {
@@ -3528,7 +3528,7 @@ static int  open_file(
 #endif
     {
         if (mcpp_debug & PATH)
-            mcpp_fprintf( DBG, "Searching %s%s%s\n", *dirp
+            mcpp_fprintf( MCPP_DBG, "Searching %s%s%s\n", *dirp
                     , src_dir ? src_dir : null, filename);
     }
     /* src_dir is usually NULL.  This is specified to   */
@@ -3552,7 +3552,7 @@ search:
 
     if ((fp = fopen( fullname, "r")) == NULL) {
         if (errno == EMFILE) {
-            mcpp_fprintf( DBG,
+            mcpp_fprintf( MCPP_DBG,
     "#include nest reached at the maximum of system: %d, returned errno: %d\n"
                         , include_nest, errno);
         }
@@ -3593,7 +3593,7 @@ search:
     if (option_flags.z) {
         no_output++;        /* Don't output the included file       */
         if (include_nest == 2)
-            mcpp_fprintf( OUT, "#include \"%s\"\n", fullname);
+            mcpp_fprintf( MCPP_OUT, "#include \"%s\"\n", fullname);
             /* Output #include line instead, if it is in main source file   */
     } else if (! include_opt) {     /* Do not sharp() on -include   */
         src_line = 1;                   /* Working on line 1 now    */
@@ -3779,7 +3779,7 @@ static void     init_framework( void)
         framework[ num_framework++] = framework_dir;
 #endif
     if (num_framework >= MAX_FRAMEWORK) {
-        mcpp_fputs( "Too many Framework directories.", ERR);
+        mcpp_fputs( "Too many Framework directories.", MCPP_ERR);
         longjmp( error_exit, -1);
     }
 }
@@ -3982,13 +3982,13 @@ void    sharp(
     sh_file = file;
     sh_line = line;
     if (keep_comments)
-        mcpp_fputc( '\n', OUT);         /* Ensure to be on line top */
+        mcpp_fputc( '\n', MCPP_OUT);         /* Ensure to be on line top */
     if (std_line_prefix)
-        mcpp_fprintf( OUT, "#line %zu", line);
+        mcpp_fprintf( MCPP_OUT, "#line %zu", line);
     else
-        mcpp_fprintf( OUT, "%s%zu", LINE_PREFIX, line);
+        mcpp_fprintf( MCPP_OUT, "%s%zu", LINE_PREFIX, line);
     cur_file( file, sharp_file, flag);
-    mcpp_fputc( '\n', OUT);
+    mcpp_fputc( '\n', MCPP_OUT);
 sharp_exit:
     wrong_line = FALSE;
 }
@@ -4025,7 +4025,7 @@ static void cur_file(
             free( sharp_filename);
         sharp_filename = save_string( name);
     }
-    mcpp_fprintf( OUT, " \"%s\"", name);
+    mcpp_fprintf( MCPP_OUT, " \"%s\"", name);
 #if COMPILER == GNUC || COMPILER == IDLC
     if (! std_line_prefix) {
 #if COMPILER == IDLC
@@ -4033,14 +4033,14 @@ static void cur_file(
             flag = (strlen(*(file->dirp)) != 0) ? 3 : 1;
 #endif
         if (flag)
-            mcpp_fprintf( OUT, " %d", flag);
+            mcpp_fprintf( MCPP_OUT, " %d", flag);
 #if COMPILER == GNUC
         if (file->sys_header)
-            mcpp_fputs( " 3", OUT);
+            mcpp_fputs( " 3", MCPP_OUT);
 #endif
 #if COMPILER == IDLC
         if ((flag & 1))                 /* Output original filename */
-            mcpp_fprintf( OUT, " \"%s\"", cur_fname);
+            mcpp_fprintf( MCPP_OUT, " \"%s\"", cur_fname);
 #endif
     }
 #else
@@ -4212,7 +4212,7 @@ void    do_pragma( void)
                 dump_def( TRUE, FALSE); /* #pragma MCPP put_defines */
         } else if (str_eq( identifier, "preprocess")) {
             if (! is_junk())            /* #pragma MCPP preprocess  */
-                mcpp_fputs( "#pragma MCPP preprocessed\n", OUT);
+                mcpp_fputs( "#pragma MCPP preprocessed\n", MCPP_OUT);
                     /* Just putout the directive    */
         } else if (str_eq( identifier, "preprocessed")) {
             if (! is_junk()) {          /* #pragma MCPP preprocessed*/
@@ -4321,8 +4321,8 @@ void    do_pragma( void)
 
     sharp( NULL, 0);    /* Synchronize line number before output    */
     if (! no_output) {
-        mcpp_fputs( "#pragma ", OUT);
-        mcpp_fputs( bp, OUT);           /* Line is put out          */
+        mcpp_fputs( "#pragma ", MCPP_OUT);
+        mcpp_fputs( bp, MCPP_OUT);           /* Line is put out          */
     }
 skip_nl: /* Don't use skip_nl() which skips to the newline in source file */
     while (get_ch() != '\n')
@@ -4371,7 +4371,7 @@ static int  included(
         if (inc->len == fnamelen && str_case_eq( inc->name, fullname)) {
             /* Already included */
             if (mcpp_debug & PATH)
-                mcpp_fprintf( DBG, "Once included \"%s\"\n", fullname);
+                mcpp_fprintf( MCPP_DBG, "Once included \"%s\"\n", fullname);
             return  TRUE;
         }
     }
@@ -4547,7 +4547,7 @@ void    do_old( void)
                                             /* #using or #import    */
         if (! compiling)
             return;
-        mcpp_fputs( infile->buffer, OUT);   /* Putout the line as is*/
+        mcpp_fputs( infile->buffer, MCPP_OUT);   /* Putout the line as is*/
         skip_nl();
         unget_ch();
         return;
@@ -4576,7 +4576,7 @@ void    do_old( void)
         if (option_flags.lang_asm) {        /* "Assembler" source   */
             if (warn_level & 1)
                 cwarn( unknown, identifier, 0L, NULL);
-            mcpp_fputs( infile->buffer, OUT);   /* Putout the line  */
+            mcpp_fputs( infile->buffer, MCPP_OUT);   /* Putout the line  */
         } else {
             cerror( unknown, identifier, 0L, NULL);
         }
@@ -4619,7 +4619,7 @@ static int  do_prestd_directive( void)
             return  TRUE;
         if (mcpp_mode != OLD_PREP && ! is_junk())
         /* Just putout the directive for the succeding preprocessor */
-            mcpp_fputs( "#preprocessed\n", OUT);
+            mcpp_fputs( "#preprocessed\n", MCPP_OUT);
         skip_nl();
         unget_ch();
         return  TRUE;
@@ -4698,11 +4698,11 @@ static void do_preprocessed( void)
 #if STD_LINE_PREFIX == FALSE
         if (memcmp( lbuf, "#line ", 6) == 0) {
             strcpy( arg, lbuf + 6);
-            mcpp_fputs( conv, OUT);
+            mcpp_fputs( conv, MCPP_OUT);
         } else
 #endif
         {
-            mcpp_fputs( lbuf, OUT);
+            mcpp_fputs( lbuf, MCPP_OUT);
         }
     }
     if (! str_eq( lbuf, "/* Currently defined macros. */\n"))
@@ -4846,8 +4846,8 @@ void    put_asm( void)
  */
 {
 #if 0
-    mcpp_fputs( "#2\n", OUT);
-    mcpp_fputs( infile->buffer, OUT);
+    mcpp_fputs( "#2\n", MCPP_OUT);
+    mcpp_fputs( infile->buffer, MCPP_OUT);
     skip_nl();
 #endif
 }
@@ -4861,19 +4861,19 @@ static void dump_path( void)
     const char *    inc_dir;
     const char *    dir = "./";
 
-    mcpp_fputs( "Include paths are as follows --\n", DBG);
+    mcpp_fputs( "Include paths are as follows --\n", MCPP_DBG);
     for (incptr = incdir; incptr < incend; incptr++) {
         inc_dir = *incptr;
         if (*inc_dir == '\0')
             inc_dir = dir;
-        mcpp_fprintf( DBG, "    %s\n", inc_dir);
+        mcpp_fprintf( MCPP_DBG, "    %s\n", inc_dir);
     }
-    mcpp_fputs( "End of include path list.\n", DBG);
+    mcpp_fputs( "End of include path list.\n", MCPP_DBG);
 #if SYSTEM == SYS_MAC
-    mcpp_fputs( "Framework paths are as follows --\n", DBG);
+    mcpp_fputs( "Framework paths are as follows --\n", MCPP_DBG);
     for (int i = 0; i < num_framework; i++ )
-        mcpp_fprintf( DBG, "    %s\n", framework[ i]);
-    mcpp_fputs( "End of framework path list.\n", DBG);
+        mcpp_fprintf( MCPP_DBG, "    %s\n", framework[ i]);
+    mcpp_fputs( "End of framework path list.\n", MCPP_DBG);
 #endif
 }
 
@@ -4886,10 +4886,10 @@ static void dump_path( void)
 /* Based on the public-domain-software released by AT&T in 1985.    */
 
 #define OPTERR( s, c)   if (mcpp_opterr) {  \
-    mcpp_fputs( argv[0], ERR);  \
-    mcpp_fputs( s, ERR);        \
-    mcpp_fputc( c, ERR);        \
-    mcpp_fputc( '\n', ERR);     \
+    mcpp_fputs( argv[0], MCPP_ERR);  \
+    mcpp_fputs( s, MCPP_ERR);        \
+    mcpp_fputc( c, MCPP_ERR);        \
+    mcpp_fputc( '\n', MCPP_ERR);     \
     }
 
 static int  mcpp_getopt(

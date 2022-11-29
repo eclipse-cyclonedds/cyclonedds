@@ -20,12 +20,12 @@ MCPP_EXPORT int mcpp_lib_main(int argc, char **argv);
 MCPP_EXPORT void mcpp_reset_def_out_func(void);
 
 MCPP_EXPORT void mcpp_set_out_func(
-  int (*func_fputc)(int chr, OUTDEST od),
-  int (*func_fputs)(const char *str, OUTDEST od),
-  int (*func_fprintf)(OUTDEST od, const char *fmt, ...));
+  int (*func_fputc)(int chr, MCPP_OUTDEST od),
+  int (*func_fputs)(const char *str, MCPP_OUTDEST od),
+  int (*func_fprintf)(MCPP_OUTDEST od, const char *fmt, ...));
 
 MCPP_EXPORT void mcpp_use_mem_buffers(int tf);
 
-MCPP_EXPORT char *mcpp_get_mem_buffer(OUTDEST od);
+MCPP_EXPORT char *mcpp_get_mem_buffer(MCPP_OUTDEST od);
 
 #endif /* MCPP_LIB_H */
