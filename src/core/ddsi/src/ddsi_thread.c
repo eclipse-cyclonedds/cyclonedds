@@ -33,7 +33,7 @@ extern inline bool ddsi_vtime_awake_p (ddsi_vtime_t vtime);
 extern inline bool ddsi_vtime_asleep_p (ddsi_vtime_t vtime);
 extern inline bool ddsi_vtime_gt (ddsi_vtime_t vtime1, ddsi_vtime_t vtime0);
 
-extern inline struct ddsi_thread_state *ddsi_lookup_thread_state (void);
+DDS_EXPORT extern inline struct ddsi_thread_state *ddsi_lookup_thread_state (void);
 extern inline bool ddsi_thread_is_asleep (void);
 extern inline bool ddsi_thread_is_awake (void);
 extern inline void ddsi_thread_state_asleep (struct ddsi_thread_state *thrst);
