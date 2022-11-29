@@ -109,7 +109,7 @@ struct ddsi_thread_states {
 extern struct ddsi_thread_states thread_states;
 
 // thread_local cannot (and doesn't need to?) be exported on Windows
-#ifdef _WIN32
+#if defined _WIN32 && !defined __MINGW32__
 extern ddsrt_thread_local struct ddsi_thread_state *tsd_thread_state;
 #else
 DDS_EXPORT extern ddsrt_thread_local struct ddsi_thread_state *tsd_thread_state;
