@@ -125,5 +125,4 @@ module XSpace {
     struct to_arraybound {
       tdd_byte f1[1];
     };
-
 };

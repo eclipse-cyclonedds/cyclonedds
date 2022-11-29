@@ -22,6 +22,7 @@
 
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/sync.h"
+#include "dds/ddsrt/time.h"
 
 #include "dds__entity.h"
 #include "dds__reader.h"
@@ -296,6 +297,7 @@ struct dds_rhc_default {
   int32_t max_instances; /* FIXME: probably better as uint32_t with MAX_UINT32 for unlimited */
   int32_t max_samples;   /* FIXME: probably better as uint32_t with MAX_UINT32 for unlimited */
   int32_t max_samples_per_instance; /* FIXME: probably better as uint32_t with MAX_UINT32 for unlimited */
+  dds_duration_t minimum_separation; /* derived from the time_based_filter QoSPolicy */
 
   uint32_t n_instances;              /* # instances, including empty */
   uint32_t n_nonempty_instances;     /* # non-empty instances */
@@ -604,6 +606,7 @@ static void dds_rhc_default_set_qos (struct ddsi_rhc *rhc_common, const dds_qos_
   rhc->max_samples = qos->resource_limits.max_samples;
   rhc->max_instances = qos->resource_limits.max_instances;
   rhc->max_samples_per_instance = qos->resource_limits.max_samples_per_instance;
+  rhc->minimum_separation = qos->time_based_filter.minimum_separation;
   rhc->by_source_ordering = (qos->destination_order.kind == DDS_DESTINATIONORDER_BY_SOURCE_TIMESTAMP);
   rhc->exclusive_ownership = (qos->ownership.kind == DDS_OWNERSHIP_EXCLUSIVE);
   rhc->reliable = (qos->reliability.kind == DDS_RELIABILITY_RELIABLE);
@@ -1017,22 +1020,30 @@ static int inst_accepts_sample_by_writer_guid (const struct rhc_instance *inst, 
 
 static int inst_accepts_sample (const struct dds_rhc_default *rhc, const struct rhc_instance *inst, const struct ddsi_writer_info *wrinfo, const struct ddsi_serdata *sample, const bool has_data)
 {
-  if (rhc->by_source_ordering)
+  if (rhc->by_source_ordering && sample->timestamp.v != DDS_TIME_INVALID)
   {
-    if (sample->timestamp.v > inst->tstamp.v)
+    //invalid timestamp?
+    int64_t diff = sample->timestamp.v - inst->tstamp.v;
+    if (diff > rhc->minimum_separation)
     {
-      /* ok */
+      /* outside minimum separation window, accept sample */
     }
-    else if (sample->timestamp.v < inst->tstamp.v)
+    else if (diff == rhc->minimum_separation && diff != 0)
     {
+      /* at minimum separation window, but there is a time difference, accept sample */
+    }
+    else if (diff < rhc->minimum_separation)
+    {
+      /* inside minimum separation window, reject sample */
       return 0;
     }
-    else if (inst_accepts_sample_by_writer_guid (inst, wrinfo))
+    else if (diff == 0 && inst_accepts_sample_by_writer_guid (inst, wrinfo))
     {
-      /* ok */
+      /* at same time stamp, and sample is accepted through writer guid, accept sample */
     }
     else
     {
+      /* all other cases, reject sample*/
       return 0;
     }
   }
