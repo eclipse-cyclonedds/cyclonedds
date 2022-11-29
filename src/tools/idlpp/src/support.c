@@ -150,7 +150,7 @@ typedef struct  mem_buf {
     size_t  bytes_avail;
 } MEMBUF;
 
-static MEMBUF   mem_buffers[ NUM_OUTDEST];
+static MEMBUF   mem_buffers[ MCPP_NUM_OUTDEST];
 
 void    mcpp_use_mem_buffers(
     int    tf
@@ -160,7 +160,7 @@ void    mcpp_use_mem_buffers(
 
     use_mem_buffers = tf ? TRUE : FALSE;
 
-    for (i = 0; i < NUM_OUTDEST; ++i) {
+    for (i = 0; i < MCPP_NUM_OUTDEST; ++i) {
         if (mem_buffers[ i].buffer) {
             /* Free previously allocated memory buffer  */
             MSC_PRAGMA(warning(suppress: 6001))
@@ -213,7 +213,7 @@ static char *   append_to_buffer(
 
 static int  mem_putc(
     int     c,
-    OUTDEST od
+    MCPP_OUTDEST od
 )
 {
     char string[ 1];
@@ -228,7 +228,7 @@ static int  mem_putc(
 
 static int  mem_puts(
     const char *    s,
-    OUTDEST od
+    MCPP_OUTDEST od
 )
 {
     if (append_to_buffer( &(mem_buffers[od]), s, strlen(s)) != NULL)
@@ -238,7 +238,7 @@ static int  mem_puts(
 }
 
 char *  mcpp_get_mem_buffer(
-    OUTDEST od
+    MCPP_OUTDEST od
 )
 {
     return mem_buffers[ od].buffer;
@@ -247,9 +247,9 @@ char *  mcpp_get_mem_buffer(
 #endif  /* MCPP_LIB */
 
 #define DEST2FP(od) \
-    (od == OUT) ? fp_out : \
-    ((od == ERR) ? fp_err : \
-    ((od == DBG) ? fp_debug : \
+    (od == MCPP_OUT) ? fp_out : \
+    ((od == MCPP_ERR) ? fp_err : \
+    ((od == MCPP_DBG) ? fp_debug : \
     (NULL)))
 
 /*
@@ -262,7 +262,7 @@ char *  mcpp_get_mem_buffer(
 
 static int  mcpp_lib_fputc(
     int     c,
-    OUTDEST od
+    MCPP_OUTDEST od
 )
 {
 #if MCPP_LIB
@@ -278,11 +278,11 @@ static int  mcpp_lib_fputc(
 #endif
 }
 
-int (* mcpp_fputc)( int c, OUTDEST od) = mcpp_lib_fputc;
+int (* mcpp_fputc)( int c, MCPP_OUTDEST od) = mcpp_lib_fputc;
 
 static int  mcpp_lib_fputs(
     const char *    s,
-    OUTDEST od
+    MCPP_OUTDEST od
 )
 {
 #if MCPP_LIB
@@ -298,12 +298,12 @@ static int  mcpp_lib_fputs(
 #endif
 }
 
-int (* mcpp_fputs)( const char * s, OUTDEST od) = mcpp_lib_fputs;
+int (* mcpp_fputs)( const char * s, MCPP_OUTDEST od) = mcpp_lib_fputs;
 
 #include <stdarg.h>
 
 static int  mcpp_lib_fprintf(
-    OUTDEST od,
+    MCPP_OUTDEST od,
     const char *    format,
     ...
 )
@@ -339,7 +339,7 @@ static int  mcpp_lib_fprintf(
     }
 }
 
-int (* mcpp_fprintf)( OUTDEST od, const char * format, ...) = mcpp_lib_fprintf;
+int (* mcpp_fprintf)( MCPP_OUTDEST od, const char * format, ...) = mcpp_lib_fprintf;
 
 #if MCPP_LIB
 void    mcpp_reset_def_out_func( void)
@@ -350,9 +350,9 @@ void    mcpp_reset_def_out_func( void)
 }
 
 void    mcpp_set_out_func(
-    int (* func_fputc)( int c, OUTDEST od),
-    int (* func_fputs)( const char * s, OUTDEST od),
-    int (* func_fprintf)( OUTDEST od, const char * format, ...)
+    int (* func_fputc)( int c, MCPP_OUTDEST od),
+    int (* func_fputs)( const char * s, MCPP_OUTDEST od),
+    int (* func_fprintf)( MCPP_OUTDEST od, const char * format, ...)
 )
 {
     mcpp_fputc = func_fputc;
@@ -1538,7 +1538,7 @@ int     get_ch( void)
     }
 
     if (mcpp_debug & GETC) {
-        mcpp_fprintf( DBG, "get_ch(%s) '%c' line %zu, bptr = %d, buffer"
+        mcpp_fprintf( MCPP_DBG, "get_ch(%s) '%c' line %zu, bptr = %d, buffer"
             , file->fp ? cur_fullname : file->real_fname ? file->real_fname
             : file->filename ? file->filename : "NULL"
             , *file->bptr & UCHARMAX
@@ -1716,8 +1716,8 @@ static char *   parse_line( void)
                 if (keep_comments) {
                     sp -= 2;
                     while (*sp != '\n')     /* Until end of line    */
-                        mcpp_fputc( *sp++, OUT);
-                    mcpp_fputc( '\n', OUT);
+                        mcpp_fputc( *sp++, MCPP_OUT);
+                    mcpp_fputc( '\n', MCPP_OUT);
                     wrong_line = TRUE;
                 }
                 goto  end_line;
@@ -1827,12 +1827,12 @@ static char *   read_a_comment(
         *sizp = 0;
     }
     if (keep_comments)                      /* If writing comments  */
-        mcpp_fputs( "/*", OUT);             /* Write the initializer*/
+        mcpp_fputs( "/*", MCPP_OUT);             /* Write the initializer*/
     c = *sp++;
 
     while (1) {                             /* Eat a comment        */
         if (keep_comments)
-            mcpp_fputc( c, OUT);
+            mcpp_fputc( c, MCPP_OUT);
 
         switch (c) {
         case '/':
@@ -1841,15 +1841,15 @@ static char *   read_a_comment(
             if (warn_level & 1)
                 cwarn( "\"/*\" within comment", NULL, 0L, NULL);    /* _W1_ */
             if (keep_comments)
-                mcpp_fputc( c, OUT);
+                mcpp_fputc( c, MCPP_OUT);
                                             /* Fall into * stuff    */
             /* Fall through */
         case '*':
             if ((c = *sp++) != '/')         /* If comment doesn't   */
                 continue;                   /*   end, look at next. */
             if (keep_comments) {            /* Put out comment      */
-                mcpp_fputc( c, OUT);        /*   terminator, too.   */
-                mcpp_fputc( '\n', OUT);     /* Append '\n' to avoid */
+                mcpp_fputc( c, MCPP_OUT);        /*   terminator, too.   */
+                mcpp_fputc( '\n', MCPP_OUT);     /* Append '\n' to avoid */
                     /*  trouble on some other tools such as rpcgen. */
                 wrong_line = TRUE;
             }
@@ -1944,8 +1944,8 @@ static char *   get_line(
                 && (warn_level & 1))
             cwarn( "Line number %.0s\"%ld\" got beyond range"       /* _W1_ */
                     , NULL, (long)src_line, NULL);
-        if (mcpp_debug & (TOKEN | GETC)) {  /* Dump it to DBG       */
-            mcpp_fprintf( DBG, "\n#line %zu (%s)", src_line, cur_fullname);
+        if (mcpp_debug & (TOKEN | GETC)) {  /* Dump it to MCPP_DBG       */
+            mcpp_fprintf( MCPP_DBG, "\n#line %zu (%s)", src_line, cur_fullname);
             dump_string( NULL, ptr);
         }
         len = strlen( ptr);
@@ -2542,10 +2542,10 @@ static void do_msg(
         file = file->parent;                        /* Skip macro   */
     if (file != NULL) {
         file->line = src_line;
-        mcpp_fprintf( ERR, "%s:%zu: %s: ", cur_fullname, src_line, severity);
+        mcpp_fprintf( MCPP_ERR, "%s:%zu: %s: ", cur_fullname, src_line, severity);
     }
-    mcpp_fprintf( ERR, format, arg_t[ 0], arg2, arg_t[ 1]);
-    mcpp_fputc( '\n', ERR);
+    mcpp_fprintf( MCPP_ERR, format, arg_t[ 0], arg2, arg_t[ 1]);
+    mcpp_fputc( '\n', MCPP_ERR);
     if (option_flags.no_source_line)
         goto  free_arg;
 
@@ -2553,10 +2553,10 @@ static void do_msg(
     file = infile;
     if (file != NULL && file->fp != NULL) {
         if (mcpp_mode == OLD_PREP) {
-            mcpp_fputs( "    ", ERR);
+            mcpp_fputs( "    ", MCPP_ERR);
             put_line( file->buffer, fp_err);
         } else {
-            mcpp_fprintf( ERR, "    %s", file->buffer);
+            mcpp_fprintf( MCPP_ERR, "    %s", file->buffer);
                                             /* Current source line  */
         }
         file = file->parent;
@@ -2576,13 +2576,13 @@ static void do_msg(
             if (file->buffer[ 0] == '\0')
                 strcpy( file->buffer, "\n");
             if (mcpp_mode != OLD_PREP) {
-                mcpp_fprintf( ERR, "    from %s: %zu:    %s",
+                mcpp_fprintf( MCPP_ERR, "    from %s: %zu:    %s",
                     file->line ? file->full_fname       /* Full-path-list   */
                         : "<stdin>",        /* Included by -include */
                     file->line,             /* Current line number  */
                     file->buffer);          /* The source line      */
             } else {
-                mcpp_fprintf( ERR, "    from %s: %zu:    ", file->full_fname
+                mcpp_fprintf( MCPP_ERR, "    from %s: %zu:    ", file->full_fname
                         , file->line);
                 put_line( file->buffer, fp_err);
             }
@@ -2678,11 +2678,11 @@ void    dump_string(
     int     c, c1, c2;
 
     if (why != NULL)
-        mcpp_fprintf( DBG, " (%s)", why);
-    mcpp_fputs( " => ", DBG);
+        mcpp_fprintf( MCPP_DBG, " (%s)", why);
+    mcpp_fputs( " => ", MCPP_DBG);
 
     if (text == NULL) {
-        mcpp_fputs( "NULL", DBG);
+        mcpp_fputs( "NULL", MCPP_DBG);
         return;
     }
 
@@ -2692,7 +2692,7 @@ void    dump_string(
         switch (c) {
         case MAC_PARM:
             c = *cp++ & UCHARMAX;       /* Macro parameter number   */
-            mcpp_fprintf( DBG, "<%d>", c);
+            mcpp_fprintf( MCPP_DBG, "<%d>", c);
             break;
         case MAC_INF:
             if (! (mcpp_mode == STD && (mcpp_debug & MACRO_CALL)))
@@ -2706,22 +2706,22 @@ void    dump_string(
             }
             switch (c2) {
             case MAC_CALL_START:
-                mcpp_fprintf( DBG, "<MAC%d>", c);
+                mcpp_fprintf( MCPP_DBG, "<MAC%d>", c);
                 break;
             case MAC_CALL_END:
                 if (option_flags.v)
-                    mcpp_fprintf( DBG, "<MAC_END%d>", c);
+                    mcpp_fprintf( MCPP_DBG, "<MAC_END%d>", c);
                 else
                     chr = "<MAC_END>";
                 break;
             case MAC_ARG_START:
                 c1 = *cp++ & UCHARMAX;
-                mcpp_fprintf( DBG, "<MAC%d:ARG%d>", c, c1 - 1);
+                mcpp_fprintf( MCPP_DBG, "<MAC%d:ARG%d>", c, c1 - 1);
                 break;
             case MAC_ARG_END:
                 if (option_flags.v) {
                     c1 = *cp++ & UCHARMAX;
-                    mcpp_fprintf( DBG, "<ARG_END%d-%d>", c, c1 - 1);
+                    mcpp_fprintf( MCPP_DBG, "<ARG_END%d-%d>", c, c1 - 1);
                 } else {
                     chr = "<ARG_END>";
                 }
@@ -2754,12 +2754,12 @@ void    dump_string(
                     int     num;
                     num = ((*cp++ & UCHARMAX) - 1) * UCHARMAX;
                     num += (*cp++ & UCHARMAX) - 1;
-                    mcpp_fprintf( DBG, "<SRC%d>", num);
+                    mcpp_fprintf( MCPP_DBG, "<SRC%d>", num);
                 } else {
                     chr = "<SRC>";
                 }
             } else {                        /* Control character    */
-                mcpp_fprintf( DBG, "<^%c>", c + '@');
+                mcpp_fprintf( MCPP_DBG, "<^%c>", c + '@');
             }
             break;
         case TOK_SEP:
@@ -2773,17 +2773,17 @@ void    dump_string(
         default:
 no_magic:
             if (c < ' ')
-                mcpp_fprintf( DBG, "<^%c>", c + '@');
+                mcpp_fprintf( MCPP_DBG, "<^%c>", c + '@');
             else
-                mcpp_fputc( c, DBG);
+                mcpp_fputc( c, MCPP_DBG);
             break;
         }
 
         if (chr)
-            mcpp_fputs( chr, DBG);
+            mcpp_fputs( chr, MCPP_DBG);
     }
 
-    mcpp_fputc( '\n', DBG);
+    mcpp_fputc( '\n', MCPP_DBG);
 }
 
 void    dump_unget(
@@ -2795,12 +2795,12 @@ void    dump_unget(
 {
     const FILEINFO *    file;
 
-    mcpp_fputs( "dump of pending input text", DBG);
+    mcpp_fputs( "dump of pending input text", MCPP_DBG);
     if (why != NULL) {
-        mcpp_fputs( "-- ", DBG);
-        mcpp_fputs( why, DBG);
+        mcpp_fputs( "-- ", MCPP_DBG);
+        mcpp_fputs( why, MCPP_DBG);
     }
-    mcpp_fputc( '\n', DBG);
+    mcpp_fputc( '\n', MCPP_DBG);
 
     for (file = infile; file != NULL; file = file->parent)
         dump_string( file->real_fname ? file->real_fname
@@ -2819,7 +2819,7 @@ static void dump_token(
             = { "NAM", "NUM", "STR", "WSTR", "CHR", "WCHR", "OPE", "SPE"
             , "SEP", };
 
-    mcpp_fputs( "token", DBG);
+    mcpp_fputs( "token", MCPP_DBG);
     dump_string( t_type[ token_type - NAM], cp);
 }
 
