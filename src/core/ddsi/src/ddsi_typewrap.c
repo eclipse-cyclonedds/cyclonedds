@@ -15,6 +15,7 @@
 #include "dds/features.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/md5.h"
+#include "dds/ddsrt/sort.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_xt_typemap.h"
@@ -598,7 +599,7 @@ static dds_return_t xt_valid_struct_member_ids (struct ddsi_domaingv *gv, const 
     for (uint32_t n = 0; n < t1->_u.structure.members.length; n++)
       ids[--cnt1] = t1->_u.structure.members.seq[n].id;
   }
-  qsort (ids, cnt, sizeof (*ids), xt_member_id_cmp);
+  ddsrt_sort (ids, cnt, sizeof (*ids), xt_member_id_cmp);
   for (uint32_t n = 0; n < cnt - 1; n++)
   {
     if (ids[n] == ids[n + 1])
@@ -627,7 +628,7 @@ static dds_return_t xt_valid_union_member_ids (struct ddsi_domaingv *gv, const s
   DDS_XTypes_MemberId *ids = ddsrt_malloc (cnt * sizeof (*ids));
   for (uint32_t n = 0; n < cnt; n++)
     ids[n] = t->_u.union_type.members.seq[n].id;
-  qsort (ids, cnt, sizeof (*ids), xt_member_id_cmp);
+  ddsrt_sort (ids, cnt, sizeof (*ids), xt_member_id_cmp);
   for (uint32_t n = 0; n < cnt - 1; n++)
   {
     if (ids[n] == ids[n + 1])
@@ -657,7 +658,7 @@ static dds_return_t xt_valid_enum_values (struct ddsi_domaingv *gv, const struct
   int32_t *values = ddsrt_malloc (cnt * sizeof (*values));
   for (uint32_t n = 0; n < cnt; n++)
     values[n] = t->_u.enum_type.literals.seq[n].value;
-  qsort (values, cnt, sizeof (*values), xt_enum_value_cmp);
+  ddsrt_sort (values, cnt, sizeof (*values), xt_enum_value_cmp);
   for (uint32_t n = 0; n < cnt - 1; n++)
   {
     if (values[n] == values[n + 1])
@@ -687,7 +688,7 @@ static dds_return_t xt_valid_bitmask_positions (struct ddsi_domaingv *gv, const 
   uint16_t *positions = ddsrt_malloc (cnt * sizeof (*positions));
   for (uint32_t n = 0; n < cnt; n++)
     positions[n] = t->_u.bitmask.bitflags.seq[n].position;
-  qsort (positions, cnt, sizeof (*positions), xt_bitmask_position_cmp);
+  ddsrt_sort (positions, cnt, sizeof (*positions), xt_bitmask_position_cmp);
   for (uint32_t n = 0; n < cnt - 1; n++)
   {
     if (positions[n] == positions[n + 1])

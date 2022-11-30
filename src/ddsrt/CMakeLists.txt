@@ -72,7 +72,8 @@ set(headers
   "${source_dir}/src/threads_priv.h"
   "${source_dir}/include/dds/ddsrt/cdtors.h"
   "${source_dir}/include/dds/ddsrt/random.h"
-  "${source_dir}/include/dds/ddsrt/align.h")
+  "${source_dir}/include/dds/ddsrt/align.h"
+  "${source_dir}/include/dds/ddsrt/sort.h")
 
 set(sources
   "${source_dir}/src/atomics.c"
@@ -97,7 +98,8 @@ set(sources
   "${source_dir}/src/ifaddrs.c"
   "${source_dir}/src/cdtors.c"
   "${source_dir}/src/random.c"
-  "${source_dir}/src/time.c")
+  "${source_dir}/src/time.c"
+  "${source_dir}/src/sort.c")
 
 # Not every target offers the same set of features. For embedded targets the
 # set of features may even be different between builds. e.g. a FreeRTOS build

@@ -16,6 +16,7 @@
 #include "dds/ddsrt/md5.h"
 #include "dds/ddsrt/io.h"
 #include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/sort.h"
 #include "dds/ddsrt/bswap.h"
 #include "dds/ddsrt/environ.h"
 #include "dds/ddsrt/static_assert.h"
@@ -271,7 +272,7 @@ static bool allmatched (dds_entity_t ws, dds_entity_t wr, int nrds, const dds_en
     dds_return_t rc = dds_get_guid (rds[i], &rdguids[i]);
     CU_ASSERT_FATAL (rc == 0);
   }
-  qsort (rdguids, (size_t) nrds, sizeof (rdguids[0]), ddsi_compare_guid);
+  ddsrt_sort (rdguids, (size_t) nrds, sizeof (rdguids[0]), ddsi_compare_guid);
 
   const dds_time_t abstimeout = dds_time () + DDS_SECS (2);
   while (dds_time () < abstimeout)
@@ -293,7 +294,7 @@ static bool allmatched (dds_entity_t ws, dds_entity_t wr, int nrds, const dds_en
       mguids[i] = ep->key;
       dds_builtintopic_free_endpoint (ep);
     }
-    qsort (mguids, (size_t) nms, sizeof (mguids[0]), ddsi_compare_guid);
+    ddsrt_sort (mguids, (size_t) nms, sizeof (mguids[0]), ddsi_compare_guid);
     if (memcmp (mguids, rdguids, (size_t) nms * sizeof (*mguids)) != 0)
       continue;
 
@@ -559,7 +560,7 @@ static void dotest (const dds_topic_descriptor_t *tpdesc, const void *sample)
       print (&tb, "; addrset");
       if (nports > 0)
       {
-        qsort (ports, (size_t) nports, sizeof (ports[0]), compare_uint32);
+        ddsrt_sort (ports, (size_t) nports, sizeof (ports[0]), compare_uint32);
         int i, j;
         for (i = 1, j = 0; i < nports; i++)
           if (ports[i] != ports[j])

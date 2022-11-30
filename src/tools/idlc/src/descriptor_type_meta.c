@@ -30,6 +30,7 @@
 #include "idl/stream.h"
 #include "idl/string.h"
 #include "idl/misc.h"
+#include "idl/sort.h"
 #include "generator.h"
 #include "descriptor_type_meta.h"
 
@@ -1274,8 +1275,8 @@ emit_enum (
        shall be ordered in increasing values of their numeric value. */
     DDS_XTypes_MinimalEnumeratedLiteralSeq *seqm = &dtm->stack->to_minimal->_u.minimal._u.enumerated_type.literal_seq;
     DDS_XTypes_CompleteEnumeratedLiteralSeq *seqc = &dtm->stack->to_complete->_u.complete._u.enumerated_type.literal_seq;
-    qsort (seqm->_buffer, seqm->_length, sizeof (*seqm->_buffer), enum_literal_minimal_compare);
-    qsort (seqc->_buffer, seqc->_length, sizeof (*seqc->_buffer), enum_literal_complete_compare);
+    idl_sort (seqm->_buffer, seqm->_length, sizeof (*seqm->_buffer), enum_literal_minimal_compare);
+    idl_sort (seqc->_buffer, seqc->_length, sizeof (*seqc->_buffer), enum_literal_complete_compare);
   }
   if ((ret = emit_hashed_type (DDS_XTypes_TK_ENUM, node, revisit, (struct descriptor_type_meta *) user_data)) < 0)
     return ret;
@@ -1370,8 +1371,8 @@ emit_bitmask(
        ordered in increasing values of their position. */
     DDS_XTypes_MinimalBitflagSeq *seqm = &dtm->stack->to_minimal->_u.minimal._u.bitmask_type.flag_seq;
     DDS_XTypes_CompleteBitflagSeq *seqc = &dtm->stack->to_complete->_u.complete._u.bitmask_type.flag_seq;
-    qsort (seqm->_buffer, seqm->_length, sizeof (*seqm->_buffer), bitflag_minimal_compare);
-    qsort (seqc->_buffer, seqc->_length, sizeof (*seqc->_buffer), bitflag_complete_compare);
+    idl_sort (seqm->_buffer, seqm->_length, sizeof (*seqm->_buffer), bitflag_minimal_compare);
+    idl_sort (seqc->_buffer, seqc->_length, sizeof (*seqc->_buffer), bitflag_complete_compare);
   }
   if ((ret = emit_hashed_type (DDS_XTypes_TK_BITMASK, node, revisit, (struct descriptor_type_meta *) user_data)) < 0)
     return ret;

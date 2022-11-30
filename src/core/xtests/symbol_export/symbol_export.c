@@ -20,6 +20,7 @@
 #include "dds/ddsrt/environ.h"
 #include "dds/ddsrt/md5.h"
 #include "dds/ddsrt/mh3.h"
+#include "dds/ddsrt/sort.h"
 #include "dds/ddsrt/environ.h"
 #include "dds/ddsrt/threads.h"
 #include "dds/ddsrt/process.h"
@@ -950,6 +951,10 @@ int main (int argc, char **argv)
   ddsrt_realloc (ptr, 1);
   ddsrt_realloc_s (ptr, 1);
   ddsrt_free (ptr);
+
+  // ddsrt/sort.h
+  ddsrt_sort(ptr, 0, 1, NULL);
+  ddsrt_sort_with_context(ptr, 0, 1, NULL, NULL);
 
   // ddsrt/string.h
   ddsrt_strcasecmp (ptr, ptr);

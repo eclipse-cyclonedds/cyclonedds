@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "dds/ddsrt/sort.h"
 #include "dds/ddsi/ddsi_log.h"
 #include "dds/ddsi/ddsi_unused.h"
 #include "ddsi__lat_estim.h"
@@ -48,7 +49,7 @@ void ddsi_lat_estim_update (struct ddsi_lat_estim *le, int64_t est)
   if (++le->index == DDSI_LAT_ESTIM_MEDIAN_WINSZ)
     le->index = 0;
   memcpy (tmp, le->window, sizeof (tmp));
-  qsort (tmp, DDSI_LAT_ESTIM_MEDIAN_WINSZ, sizeof (tmp[0]), (int (*) (const void *, const void *)) cmpfloat);
+  ddsrt_sort (tmp, DDSI_LAT_ESTIM_MEDIAN_WINSZ, sizeof (tmp[0]), (int (*) (const void *, const void *)) cmpfloat);
   med = tmp[DDSI_LAT_ESTIM_MEDIAN_WINSZ / 2];
   if (le->smoothed == 0 && le->index == 0)
     le->smoothed = med;
@@ -65,7 +66,7 @@ int ddsi_lat_estim_log (uint32_t logcat, const struct ddsrt_log_cfg *logcfg, con
     float tmp[DDSI_LAT_ESTIM_MEDIAN_WINSZ];
     int i;
     memcpy (tmp, le->window, sizeof (tmp));
-    qsort (tmp, DDSI_LAT_ESTIM_MEDIAN_WINSZ, sizeof (tmp[0]), (int (*) (const void *, const void *)) cmpfloat);
+    ddsrt_sort (tmp, DDSI_LAT_ESTIM_MEDIAN_WINSZ, sizeof (tmp[0]), (int (*) (const void *, const void *)) cmpfloat);
     if (tag)
       DDS_CLOG (logcat, logcfg, " LAT(%s: %e {", tag, le->smoothed);
     else

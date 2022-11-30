@@ -20,6 +20,7 @@
 #include "dds/features.h"
 #include "idl/heap.h"
 #include "idl/misc.h"
+#include "idl/sort.h"
 #include "idl/print.h"
 #include "idl/processor.h"
 #include "idl/stream.h"
@@ -2244,7 +2245,7 @@ static idl_retcode_t descriptor_init_keys(const idl_pstate_t *pstate, struct con
     descriptor->keysz_xcdr1 = add_to_key_size(descriptor->keysz_xcdr1, descriptor->keys[k].size, false, descriptor->keys[k].dims, descriptor->keys[k].align, XCDR1_MAX_ALIGN);
 
   // sort keys by member id (scoped within the containing aggregated type)
-  qsort(descriptor->keys, descriptor->n_keys, sizeof (*descriptor->keys), key_meta_data_cmp);
+  idl_sort(descriptor->keys, descriptor->n_keys, sizeof (*descriptor->keys), key_meta_data_cmp);
 
   // calculate key size for XCDR2 keys (ordered by member id)
   for (uint32_t k = 0; k < descriptor->n_keys; k++)

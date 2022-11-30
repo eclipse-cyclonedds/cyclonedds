@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include "dds/features.h"
 #include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/sort.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_serdata.h"
@@ -1566,7 +1567,7 @@ static dds_return_t typebuilder_get_keys_push_ops (struct typebuilder_data *tbd,
 
   for (uint32_t k = 0; k < tbd->n_keys; k++)
     keys_by_id[k] = &tbd->keys[k];
-  qsort ((struct typebuilder_key **) keys_by_id, tbd->n_keys, sizeof (*keys_by_id), key_id_cmp);
+  ddsrt_sort ((struct typebuilder_key **) keys_by_id, tbd->n_keys, sizeof (*keys_by_id), key_id_cmp);
 
   // key ops (sorted by member index)
   for (uint32_t k = 0; k < tbd->n_keys; k++)

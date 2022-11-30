@@ -31,6 +31,7 @@
 #include "dds/ddsrt/process.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/sync.h"
+#include "dds/ddsrt/sort.h"
 #include "dds/ddsrt/sockets.h"
 #include "dds/ddsrt/threads.h"
 #include "dds/ddsrt/random.h"
@@ -796,7 +797,7 @@ static int64_t *latencystat_print (struct latencystat *y, const char *prefix, co
       snprintf (ppinfo, sizeof (ppinfo), "%s:%"PRIu32, pp->hostname, pp->pid);
     ddsrt_mutex_unlock (&disc_lock);
 
-    qsort (y->raw, rawcnt, sizeof (*y->raw), cmp_int64);
+    ddsrt_sort (y->raw, rawcnt, sizeof (*y->raw), cmp_int64);
     printf ("%s%s %s size %"PRIu32" mean %.3fus min %.3fus 50%% %.3fus 90%% %.3fus 99%% %.3fus max %.3fus cnt %"PRIu32"\n",
             prefix, subprefix, ppinfo, size,
             (double) y->sum / (double) y->cnt / 1e3,

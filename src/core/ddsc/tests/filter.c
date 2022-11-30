@@ -28,6 +28,7 @@
 #include <stdlib.h>
 
 #include "dds/dds.h"
+#include "dds/ddsrt/sort.h"
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/attributes.h"
 
@@ -176,7 +177,7 @@ static void checkdata (dds_entity_t rd, const struct exp *exp, const char *heade
   fflush (stdout);
   CU_ASSERT_FATAL (ret == exp->n);
   // sort because there's no ordering between instances
-  qsort (data, (size_t) ret, sizeof (data[0]), cmpdata);
+  ddsrt_sort (data, (size_t) ret, sizeof (data[0]), cmpdata);
   for (int k = 0; k < exp->n; k++)
   {
     CU_ASSERT_FATAL (exp->xs[k].long_1 == data[k].long_1 &&

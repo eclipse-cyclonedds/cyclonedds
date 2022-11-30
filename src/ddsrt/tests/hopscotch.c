@@ -18,6 +18,7 @@
 
 #include "dds/ddsrt/random.h"
 #include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/sort.h"
 #include "dds/ddsrt/time.h"
 #include "dds/ddsrt/hopscotch.h"
 #include "dds/ddsrt/atomics.h"
@@ -84,7 +85,7 @@ static void init (bool random)
       objs[i] = ddsrt_prng_random (&prng);
     do {
       objs[i] = ddsrt_prng_random (&prng);
-      qsort (objs, MAX_NKEYS, sizeof (*objs), compare_uint32);
+      ddsrt_sort (objs, MAX_NKEYS, sizeof (*objs), compare_uint32);
       for (i = 1; i < MAX_NKEYS && objs[i-1] != objs[i]; i++)
         ;
     } while (i < MAX_NKEYS);

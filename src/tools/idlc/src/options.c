@@ -17,6 +17,7 @@
 
 #include "idl/heap.h"
 #include "idl/string.h"
+#include "idl/sort.h"
 
 #include "config.h"
 #include "options.h"
@@ -91,7 +92,7 @@ static idlc_option_t **sort_options(
     return NULL;
   memcpy(vec, options, len * sizeof(*vec));
   vec[len] = NULL;
-  qsort(vec, len, sizeof(*vec), cmp);
+  idl_sort(vec, len, sizeof(*vec), cmp);
   return vec;
 }
 

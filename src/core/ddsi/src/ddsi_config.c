@@ -21,6 +21,7 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/md5.h"
+#include "dds/ddsrt/sort.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/strtod.h"
 #include "dds/ddsrt/misc.h"
@@ -2201,7 +2202,7 @@ static int sort_channels_check_nodups (struct config *cfg, uint32_t domid)
   i = 0;
   for (c = cfg->channels; c; c = c->next)
     ary[i++] = c;
-  qsort (ary, n, sizeof (*ary), sort_channels_cmp);
+  ddsrt_sort (ary, n, sizeof (*ary), sort_channels_cmp);
 
   result = 0;
   for (i = 0; i < n - 1; i++) {

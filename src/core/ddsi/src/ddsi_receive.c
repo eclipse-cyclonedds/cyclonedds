@@ -21,6 +21,7 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/static_assert.h"
 #include "dds/ddsrt/avl.h"
+#include "dds/ddsrt/sort.h"
 #include "dds/ddsi/ddsi_unused.h"
 #include "dds/ddsi/ddsi_gc.h"
 #include "dds/ddsi/ddsi_proxy_participant.h"
@@ -3426,7 +3427,7 @@ static void rebuild_local_participant_set (struct ddsi_thread_state * const thrs
      duplicates. */
   if (lps->nps)
   {
-    qsort (lps->ps, lps->nps, sizeof (*lps->ps), local_participant_cmp);
+    ddsrt_sort (lps->ps, lps->nps, sizeof (*lps->ps), local_participant_cmp);
     lps->nps = (unsigned) dedup_sorted_array (lps->ps, lps->nps, sizeof (*lps->ps), local_participant_cmp);
   }
   GVTRACE ("  nparticipants %"PRIu32"\n", lps->nps);

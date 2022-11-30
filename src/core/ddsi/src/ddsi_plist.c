@@ -22,6 +22,7 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/static_assert.h"
 #include "dds/ddsrt/avl.h"
+#include "dds/ddsrt/sort.h"
 #include "dds/ddsi/ddsi_log.h"
 #include "dds/ddsi/ddsi_unused.h"
 #include "dds/ddsi/ddsi_domaingv.h"
@@ -2305,8 +2306,8 @@ static void ddsi_plist_init_tables_real (void)
   }
   assert (unalias_index == sizeof (piddesc_unalias) / sizeof (piddesc_unalias[0]) &&
           fini_index == sizeof (piddesc_fini) / sizeof (piddesc_fini[0]));
-  qsort ((void *) piddesc_unalias, unalias_index, sizeof (piddesc_unalias[0]), piddesc_cmp_qos_addr);
-  qsort ((void *) piddesc_fini, fini_index, sizeof (piddesc_fini[0]), piddesc_cmp_qos_addr);
+  ddsrt_sort ((void *) piddesc_unalias, unalias_index, sizeof (piddesc_unalias[0]), piddesc_cmp_qos_addr);
+  ddsrt_sort ((void *) piddesc_fini, fini_index, sizeof (piddesc_fini[0]), piddesc_cmp_qos_addr);
 #ifndef NDEBUG
   {
     size_t i;
@@ -3883,7 +3884,7 @@ static int partitions_equal_nlogn (const dds_partition_qospolicy_t *a, const dds
 
   for (i = 0; i < a->n; i++)
     tab[i] = a->strs[i];
-  qsort (tab, a->n, sizeof (*tab), strcmp_wrapper);
+  ddsrt_sort (tab, a->n, sizeof (*tab), strcmp_wrapper);
   for (i = 0; i < b->n; i++)
     if (bsearch (&b->strs[i], tab, a->n, sizeof (*tab), strcmp_wrapper) == NULL)
     {

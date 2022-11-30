@@ -17,6 +17,7 @@
 
 #include "idl/heap.h"
 #include "idl/string.h"
+#include "idl/sort.h"
 
 #include "expression.h"
 #include "file.h" /* for ssize_t on Windows */
@@ -1211,7 +1212,7 @@ assign_field_ids(idl_pstate_t *pstate, void *node)
   assert(!declarator);
   for (size_t count=0; (declarator = iterate(node, declarator)); count++)
     sorted[count] = declarator;
-  qsort(sorted, length, sizeof(*sorted), &compare_declarator);
+  idl_sort(sorted, length, sizeof(*sorted), &compare_declarator);
 
   for (size_t count=1; count < length; count++) {
     if (sorted[count-1]->id.value == sorted[count]->id.value) {
@@ -1987,7 +1988,7 @@ idl_finalize_union(
     }
 
     assert(count == used);
-    qsort(labels, (size_t)used, sizeof(*labels), &compare_label);
+    idl_sort(labels, (size_t)used, sizeof(*labels), &compare_label);
 
     /* if a member corresponds to the default case label, its simple modifier
        shall set the discriminant to the first available default value

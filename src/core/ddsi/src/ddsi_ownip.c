@@ -18,6 +18,7 @@
 #include "dds/ddsrt/ifaddrs.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/md5.h"
+#include "dds/ddsrt/sort.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/sockets.h"
 #include "dds/ddsrt/avl.h"
@@ -472,7 +473,7 @@ int ddsi_find_own_ip (struct ddsi_domaingv *gv)
       // so must be silent here
       ok = false;
     } else {
-      qsort (matches, num_matches, sizeof (*matches), compare_interface_priority);
+      ddsrt_sort (matches, num_matches, sizeof (*matches), compare_interface_priority);
       for(size_t i = 0; i < num_matches && ok; ++i) {
         gv->interfaces[gv->n_interfaces] = interfaces[matches[i].match];
         if ((gv->interfaces[gv->n_interfaces].name = ddsrt_strdup (gv->interfaces[gv->n_interfaces].name)) == NULL)

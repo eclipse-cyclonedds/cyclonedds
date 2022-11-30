@@ -1,5 +1,6 @@
 #include "dds/dds.h"
 #include "dds/ddsrt/misc.h"
+#include "dds/ddsrt/sort.h"
 #include "RoundTrip.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -88,7 +89,7 @@ static double exampleGetMedianFromTimeStats (ExampleTimeStats *stats)
 {
   double median = 0.0;
 
-  qsort (stats->values, stats->valuesSize, sizeof (dds_time_t), exampleCompareul);
+  ddsrt_sort (stats->values, stats->valuesSize, sizeof (dds_time_t), exampleCompareul);
 
   if (stats->valuesSize % 2 == 0)
   {
@@ -104,7 +105,7 @@ static double exampleGetMedianFromTimeStats (ExampleTimeStats *stats)
 
 static dds_time_t exampleGet99PercentileFromTimeStats (ExampleTimeStats *stats)
 {
-  qsort (stats->values, stats->valuesSize, sizeof (dds_time_t), exampleCompareul);
+  ddsrt_sort (stats->values, stats->valuesSize, sizeof (dds_time_t), exampleCompareul);
   return stats->values[stats->valuesSize - stats->valuesSize / 100];
 }
 

@@ -123,7 +123,9 @@ set(templates
   include/dds/ddsrt/attributes.h
   include/dds/ddsrt/endian.h
   include/dds/ddsrt/md5.h
-  src/md5.c)
+  include/dds/ddsrt/sort.h
+  src/md5.c
+  src/sort.c)
 # FIXME: move general functionality to ddsrt
 
 foreach(source ${templates})

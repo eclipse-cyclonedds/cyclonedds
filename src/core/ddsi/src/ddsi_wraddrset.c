@@ -14,6 +14,7 @@
 #include <assert.h>
 
 #include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/sort.h"
 #include "dds/ddsrt/static_assert.h"
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/ddsi_log.h"
@@ -275,7 +276,7 @@ static struct locset *wras_calc_locators (const struct ddsrt_log_cfg *logcfg, st
   int i, j;
   /* We want MC gens just once for each IP,BASE,COUNT pair, not once for each node */
   i = 0; j = 1;
-  qsort (ls->locs, (size_t) ls->nlocs, sizeof (*ls->locs), wras_compare_locs);
+  ddsrt_sort (ls->locs, (size_t) ls->nlocs, sizeof (*ls->locs), wras_compare_locs);
   while (j < ls->nlocs)
   {
     if (wras_compare_locs (&ls->locs[i], &ls->locs[j]) != 0)
@@ -428,7 +429,7 @@ static int move_loopback_forward (struct ddsi_domaingv const * const gv, struct 
     }
   }
   // i <= nlocs
-  qsort (ls->locs + i, (size_t) (ls->nlocs - i), sizeof (ls->locs[0]), wras_compare_by_interface);
+  ddsrt_sort (ls->locs + i, (size_t) (ls->nlocs - i), sizeof (ls->locs[0]), wras_compare_by_interface);
   return i;
 }
 

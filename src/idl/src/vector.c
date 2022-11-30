@@ -18,6 +18,7 @@
 
 #include "idl/vector.h"
 #include "idl/heap.h"
+#include "idl/sort.h"
 
 bool idl_boxed_vector_init (struct idl_boxed_vector *v)
 {
@@ -76,7 +77,6 @@ struct cmp_context {
   int (*cmp) (const void *a, const void *b);
 };
 
-#if defined __GLIBC__
 static int cmp_wrapper (const void *va, const void *vb, void *vcontext)
 {
   struct cmp_context *context = vcontext;
@@ -84,24 +84,9 @@ static int cmp_wrapper (const void *va, const void *vb, void *vcontext)
   const void * const *b = vb;
   return context->cmp (*a, *b);
 }
-#else
-static int cmp_wrapper (void *vcontext, const void *va, const void *vb)
-{
-  struct cmp_context *context = vcontext;
-  const void * const *a = va;
-  const void * const *b = vb;
-  return context->cmp (*a, *b);
-}
-#endif
 
 void idl_boxed_vector_sort (struct idl_boxed_vector *v, int (*cmp) (const void *a, const void *b))
 {
   struct cmp_context context = { .cmp = cmp };
-#if defined __GLIBC__
-  qsort_r (v->xs, v->n, sizeof (*v->xs), cmp_wrapper, &context);
-#elif _WIN32
-  qsort_s (v->xs, v->n, sizeof (*v->xs), cmp_wrapper, &context);
-#else
-  qsort_r (v->xs, v->n, sizeof (*v->xs), &context, cmp_wrapper);
-#endif
+  idl_sort_with_context (v->xs, v->n, sizeof(*v->xs), cmp_wrapper, &context);
 }

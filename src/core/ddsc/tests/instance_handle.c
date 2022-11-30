@@ -13,6 +13,7 @@
 #include <limits.h>
 
 #include "dds/dds.h"
+#include "dds/ddsrt/sort.h"
 #include "dds/ddsrt/bswap.h"
 
 #include "test_common.h"
@@ -200,7 +201,7 @@ CU_Test (ddsc_instance_handle, md5)
   CU_ASSERT_FATAL (n == (int32_t) N);
   for (int i = 0; i < n; i++)
     CU_ASSERT (memcmp (xs[i], &md5xs[i], sizeof (md5xs[i])) == 0);
-  qsort (si, (size_t) n, sizeof (*si), cmp_si_ih);
+  ddsrt_sort (si, (size_t) n, sizeof (*si), cmp_si_ih);
   for (int i = 1; i < n; i++)
     CU_ASSERT (si[i].instance_handle != si[i-1].instance_handle);
   rc = dds_return_loan (rd[0], xs, n);
