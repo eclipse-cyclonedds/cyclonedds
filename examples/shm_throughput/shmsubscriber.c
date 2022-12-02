@@ -219,9 +219,9 @@ static int parse_args(int argc, char **argv, unsigned long long *maxCycles, char
   if (argc == 2 && (strcmp (argv[1], "-h") == 0 || strcmp (argv[1], "--help") == 0))
   {
     printf ("Usage (parameters must be supplied in order):\n");
-    printf ("./subscriber [maxCycles (0 = infinite)] [pollingDelay (ms, 0 = waitset, -1 = listener)] [partitionName]\n");
+    printf ("./subscriber [maxCycles (0 = infinite)] [pollingDelay (ms, 0 = waitset, -1 = listener)] [partitionName] [payloadSize (bytes)] \n");
     printf ("Defaults:\n");
-    printf ("./subscriber 0 0 \"Throughput example\"\n");
+    printf ("./subscriber 0 0 \"Throughput example\" 8192\n");
     return EXIT_FAILURE;
   }
 
