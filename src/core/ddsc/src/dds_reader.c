@@ -263,13 +263,17 @@ void dds_reader_data_available_cb (struct dds_reader *rd)
 static void update_requested_deadline_missed (struct dds_requested_deadline_missed_status * __restrict st, const ddsi_status_cb_data_t *data)
 {
   st->last_instance_handle = data->handle;
-  st->total_count++;
+  int64_t tmp = (int64_t)data->extra + (int64_t)st->total_count;
+  assert (tmp <= UINT32_MAX);
+  st->total_count = (uint32_t)tmp;
   // always incrementing st->total_count_change, then copying into *lst is
   // a bit more than minimal work, but this guarantees the correct value
   // also when enabling a listeners after some events have occurred
   //
   // (same line of reasoning for all of them)
-  st->total_count_change++;
+  tmp = (int64_t)data->extra + (int64_t)st->total_count_change;
+  assert (tmp <= INT32_MAX);
+  st->total_count_change = (int32_t)tmp;
 }
 
 static void update_requested_incompatible_qos (struct dds_requested_incompatible_qos_status * __restrict st, const ddsi_status_cb_data_t *data)

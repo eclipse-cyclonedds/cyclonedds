@@ -20,8 +20,11 @@
 #include "dds/ddsi/ddsi_entity.h"
 #include "ddsi__whc.h"
 #include "dds__entity.h"
+#include "dds/ddsc/dds_internal_api.h"
+#include "dds/ddsi/ddsi_xevent.h"
 
 #include "test_common.h"
+#include "Space.h"
 
 #define MAX_RUNS 4
 #define WRITER_DEADLINE DDS_MSECS(50)
@@ -433,4 +436,126 @@ CU_Theory((int32_t n_inst, uint8_t unreg_nth, uint8_t dispose_nth), ddsc_deadlin
       }
     }
   } while (!test_finished);
+}
+
+#define DEADLINE DDS_MSECS(100)
+
+static void cb (struct ddsi_xevent *xev, void *ptr, ddsrt_mtime_t tm)
+{
+  (void) xev;
+  (void) ptr;
+  (void) tm;
+  dds_sleepfor(DEADLINE);
+}
+
+CU_Test(ddsc_deadline, update)
+{
+  dds_entity_t pp = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
+  CU_ASSERT_FATAL(pp > 0);
+
+  dds_entity_t tp = dds_create_topic(pp, &Space_Type1_desc, "abc_def", NULL, NULL);
+  CU_ASSERT_FATAL(tp > 0);
+
+  //qos
+  dds_qos_t qos;
+  ddsi_xqos_init_empty (&qos);
+  qos.present |= DDSI_QP_HISTORY | DDSI_QP_DESTINATION_ORDER | DDSI_QP_DEADLINE;
+  qos.history.kind = DDS_HISTORY_KEEP_LAST;
+  qos.history.depth = 1;
+  qos.destination_order.kind = DDS_DESTINATIONORDER_BY_SOURCE_TIMESTAMP;
+  qos.deadline.deadline = DEADLINE;
+
+  dds_entity_t wr = dds_create_writer(pp, tp, &qos, NULL);
+  CU_ASSERT_FATAL(wr > 0);
+
+  dds_entity_t rd = dds_create_reader (pp, tp, &qos, NULL);
+  CU_ASSERT_FATAL(rd > 0);
+
+  dds_return_t rc = dds_set_status_mask(wr, DDS_PUBLICATION_MATCHED_STATUS);
+  CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+
+  uint32_t status = 0;
+  while(!(status & DDS_PUBLICATION_MATCHED_STATUS))
+  {
+    /* Polling sleep. */
+    dds_sleepfor (DDS_MSECS(1));
+
+    CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+    rc = dds_get_status_changes (wr, &status);
+  }
+
+  struct ddsi_domaingv *gvptr = get_domaingv (wr);
+  ddsrt_mtime_t now = ddsrt_time_monotonic();
+  ddsrt_mtime_t next = ddsrt_mtime_add_duration(now, DEADLINE);
+  struct ddsi_xevent *xev = ddsi_qxev_callback(gvptr->xevents, next, cb, NULL);
+  CU_ASSERT_FATAL(xev != NULL);
+
+  /*write*/
+  Space_Type1 msg1 = { 1, 0, 0 }, //this is the main instance whose deadline will expire but get pushed back
+              msg2 = { 2, 0, 0 }; //this is a secondary instance whose deadline will get pushed back all the time
+  rc = dds_write(wr, &msg1);  /* expires @ DEADLINE */
+  CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+  rc = dds_write(wr, &msg2);  /* expires @ DEADLINE */
+  CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+
+  dds_instance_handle_t ih = dds_lookup_instance(wr, &msg1);
+
+  dds_requested_deadline_missed_status_t rstatus;
+
+  rc = dds_get_requested_deadline_missed_status (rd, &rstatus);
+  CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+  CU_ASSERT_EQUAL (rstatus.total_count, 0);
+  CU_ASSERT_EQUAL (rstatus.last_instance_handle, 0);
+
+  dds_offered_deadline_missed_status_t ostatus;
+  rc = dds_get_offered_deadline_missed_status (wr, &ostatus);
+  CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+  CU_ASSERT_EQUAL (ostatus.total_count, 0);
+  CU_ASSERT_EQUAL (ostatus.last_instance_handle, 0);
+
+  dds_sleepfor(DEADLINE/2);
+  rc = dds_write(wr, &msg2);  /* expires @ 1.5*DEADLINE */
+  CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+  dds_sleepfor(DEADLINE/2);
+
+  rc = dds_write(wr, &msg1);  /* expires @ 2*DEADLINE */
+  CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+  rc = dds_write(wr, &msg2);  /* expires @ 2*DEADLINE */
+  CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+
+  dds_sleepfor(DEADLINE/2);
+  rc = dds_write(wr, &msg2);  /* expires @ 2.5*DEADLINE */
+  CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+
+  rc = dds_get_requested_deadline_missed_status (rd, &rstatus);
+  CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+/* here the status can be updated already, or queued to be updated
+   on the expiry of the next deadline */
+  CU_ASSERT ((rstatus.total_count == 0 && rstatus.last_instance_handle == 0) ||
+             (rstatus.total_count == 1 && rstatus.last_instance_handle == ih));
+
+  rc = dds_get_offered_deadline_missed_status (wr, &ostatus);
+  CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+/* here the status can be updated already, or queued to be updated
+   on the expiry of the next deadline */
+  CU_ASSERT ((ostatus.total_count == 0 && ostatus.last_instance_handle == 0) ||
+             (ostatus.total_count == 1 && ostatus.last_instance_handle == ih));
+
+  dds_sleepfor(DEADLINE/2);
+  rc = dds_write(wr, &msg2);  /* expires @ 3*DEADLINE */
+  CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+  dds_sleepfor(DEADLINE/2);
+
+  rc = dds_get_requested_deadline_missed_status (rd, &rstatus);
+  CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+  CU_ASSERT_EQUAL (rstatus.total_count, 2);
+  CU_ASSERT_EQUAL (rstatus.last_instance_handle, ih);
+
+  rc = dds_get_offered_deadline_missed_status (wr, &ostatus);
+  CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+  CU_ASSERT_EQUAL (ostatus.total_count, 2);
+  CU_ASSERT_EQUAL (ostatus.last_instance_handle, ih);
+
+  ddsi_delete_xevent_callback(xev);
+  dds_delete(pp);
 }

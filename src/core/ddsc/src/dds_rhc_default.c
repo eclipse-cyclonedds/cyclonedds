@@ -535,13 +535,14 @@ ddsrt_mtime_t dds_rhc_default_deadline_missed_cb(void *hc, ddsrt_mtime_t tnow)
   while ((tnext = ddsi_deadline_next_missed_locked (&rhc->deadline, tnow, &vinst)).v == 0)
   {
     struct rhc_instance *inst = vinst;
+    uint32_t deadlines_expired = inst->deadline.deadlines_missed+1;
     ddsi_deadline_reregister_instance_locked (&rhc->deadline, &inst->deadline, tnow);
 
     inst->wr_iid_islive = 0;
 
     ddsi_status_cb_data_t cb_data;
     cb_data.raw_status_id = (int) DDS_REQUESTED_DEADLINE_MISSED_STATUS_ID;
-    cb_data.extra = 0;
+    cb_data.extra = deadlines_expired;
     cb_data.handle = inst->iid;
     cb_data.add = true;
     ddsrt_mutex_unlock (&rhc->lock);

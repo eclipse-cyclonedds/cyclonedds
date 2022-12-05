@@ -35,6 +35,8 @@ struct ddsi_deadline_adm {
 struct deadline_elem {
   struct ddsrt_circlist_elem e;
   ddsrt_mtime_t t_deadline;
+  ddsrt_mtime_t t_last_trigger;
+  uint32_t deadlines_missed;
 };
 
 /** @component deadline_qos */

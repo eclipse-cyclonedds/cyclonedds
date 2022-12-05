@@ -396,12 +396,13 @@ static ddsrt_mtime_t whc_deadline_missed_cb(void *hc, ddsrt_mtime_t tnow)
   while ((tnext = ddsi_deadline_next_missed_locked (&whc->deadline, tnow, &vidxnode)).v == 0)
   {
     struct whc_idxnode *idxnode = vidxnode;
+    uint32_t deadlines_expired = idxnode->deadline.deadlines_missed+1;
     ddsi_deadline_reregister_instance_locked (&whc->deadline, &idxnode->deadline, tnow);
 
     ddsi_status_cb_data_t cb_data;
     cb_data.raw_status_id = (int) DDS_OFFERED_DEADLINE_MISSED_STATUS_ID;
-    cb_data.extra = 0;
-    cb_data.handle = 0;
+    cb_data.extra = deadlines_expired;
+    cb_data.handle = idxnode->iid;
     cb_data.add = true;
     ddsrt_mutex_unlock (&whc->lock);
     dds_writer_status_cb (&whc->wrinfo.writer->m_entity, &cb_data);
