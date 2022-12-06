@@ -21,21 +21,12 @@ extern "C" {
 
 DEFINE_ENTITY_LOCK_UNLOCK(dds_topic, DDS_KIND_TOPIC)
 
-void dds_topic_free (dds_domainid_t domainid, struct ddsi_sertype * st) ddsrt_nonnull_all;
-
 dds_return_t dds_topic_pin_with_origin (dds_entity_t handle, bool from_user, struct dds_topic **tp) ddsrt_nonnull_all;
 dds_return_t dds_topic_pin (dds_entity_t handle, struct dds_topic **tp) ddsrt_nonnull_all;
 void dds_topic_unpin (struct dds_topic *tp) ddsrt_nonnull_all;
 void dds_topic_defer_set_qos (struct dds_topic *tp) ddsrt_nonnull_all;
 void dds_topic_allow_set_qos (struct dds_topic *tp) ddsrt_nonnull_all;
 
-#ifndef DDS_TOPIC_INTERN_FILTER_FN_DEFINED
-#define DDS_TOPIC_INTERN_FILTER_FN_DEFINED
-typedef bool (*dds_topic_intern_filter_fn) (const void * sample, void *ctx);
-#endif
-
-void dds_topic_set_filter_with_ctx (dds_entity_t topic, dds_topic_intern_filter_fn filter, void *ctx);
-dds_topic_intern_filter_fn dds_topic_get_filter_with_ctx (dds_entity_t topic);
 dds_entity_t dds_create_topic_impl (
     dds_entity_t participant,
     const char * name,

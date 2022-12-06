@@ -568,7 +568,6 @@ int main (int argc, char **argv)
   ddsi_sertype_init (ptr, ptr, ptr, ptr, 0);
   ddsi_sertype_fini (ptr);
   ddsi_sertype_ref (ptr);
-  ddsi_sertype_unref_locked (ptr, ptr);
   ddsi_sertype_unref (ptr);
   ddsi_sertype_compute_serdata_basehash (ptr);
   ddsi_sertype_equal (ptr, ptr);

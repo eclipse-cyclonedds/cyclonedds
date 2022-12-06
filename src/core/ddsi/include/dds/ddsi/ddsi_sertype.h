@@ -175,7 +175,6 @@ DDS_EXPORT void ddsi_sertype_init (struct ddsi_sertype *tp, const char *type_nam
 DDS_EXPORT void ddsi_sertype_fini (struct ddsi_sertype *tp);
 DDS_EXPORT struct ddsi_sertype *ddsi_sertype_ref (const struct ddsi_sertype *tp);
 
-DDS_EXPORT void ddsi_sertype_unref_locked (struct ddsi_domaingv * const gv, struct ddsi_sertype *tp); /* gv->sertypes_lock must be held */
 DDS_EXPORT void ddsi_sertype_unref (struct ddsi_sertype *tp); /* tp->gv->sertypes_lock may not be held */
 
 DDS_EXPORT uint32_t ddsi_sertype_compute_serdata_basehash (const struct ddsi_serdata_ops *ops);
