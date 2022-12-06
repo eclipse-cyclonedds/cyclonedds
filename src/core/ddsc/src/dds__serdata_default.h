@@ -105,11 +105,6 @@ DDSRT_STATIC_ASSERT ((offsetof (struct dds_serdata_default, data) % 8) == 0);
 #undef DDS_SERDATA_DEFAULT_PREPAD
 #undef DDS_SERDATA_DEFAULT_FIXED_FIELD
 
-#ifndef DDS_TOPIC_INTERN_FILTER_FN_DEFINED
-#define DDS_TOPIC_INTERN_FILTER_FN_DEFINED
-typedef bool (*dds_topic_intern_filter_fn) (const void * sample, void *ctx);
-#endif
-
 struct dds_sertype_default_cdr_data {
   uint32_t sz;
   unsigned char *data;
