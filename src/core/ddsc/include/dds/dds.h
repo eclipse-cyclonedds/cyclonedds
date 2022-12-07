@@ -1091,6 +1091,7 @@ dds_create_domain(const dds_domainid_t domain, const char *config);
  * initializer (unstable interface)
  * @ingroup domain
  * @component domain
+ * @unstable
  *
  * To explicitly create a domain based on a configuration passed as a raw
  * initializer rather than as an XML string. This allows bypassing the XML
@@ -4528,6 +4529,7 @@ dds_assert_liveliness (
  * @ingroup testing
  * @component domain
  * @warning Unstable API, for testing
+ * @unstable
  *
  * This is a support function for testing and, other special uses and is subject to change.
  *

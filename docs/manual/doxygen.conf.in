@@ -24,3 +24,4 @@ MACRO_EXPANSION        = YES
 PREDEFINED             = __restrict= __attribute__= __declspec(x)= DDS_EXPORT= DDS_DEPRECATED_EXPORT= DDSRT_STATIC_ASSERT(x)= DOXYGEN_SHOULD_SKIP_THIS=1 DDS_HAS_TOPIC_DISCOVERY=1 DDS_HAS_TYPE_DISCOVERY=1 ddsrt_attribute_warn_unused_result= ddsrt_attribute_malloc= ddsrt_nonnull(x)=
 CLASS_GRAPH            = TEXT
 ALIASES               += "component=\noop"
+ALIASES               += "unstable=\noop"

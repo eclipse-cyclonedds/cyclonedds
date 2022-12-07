@@ -35,6 +35,7 @@ extern "C" {
 /**
  * @ingroup internal
  * @component reader
+ * @unstable
  * @brief Returns number of samples in read cache and locks the reader cache,
  * to make sure that the samples content doesn't change.
  *
