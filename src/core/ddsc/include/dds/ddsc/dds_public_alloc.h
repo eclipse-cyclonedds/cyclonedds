@@ -81,6 +81,7 @@ dds_allocator_t;
 
 /**
  * @brief Perform an alloc() with the default allocator.
+ * @component memory_alloc
  *
  * @param[in] size number of bytes
  * @returns new pointer or NULL if out of memory
@@ -89,6 +90,7 @@ DDS_EXPORT void * dds_alloc (size_t size);
 
 /**
  * @brief Perform a realloc() with the default allocator.
+ * @component memory_alloc
  *
  * @param[in] ptr previously alloc()'ed pointer
  * @param[in] size new size
@@ -98,6 +100,7 @@ DDS_EXPORT void * dds_realloc (void * ptr, size_t size);
 
 /**
  * @brief Perform a realloc() with the default allocator. Zero out memory.
+ * @component memory_alloc
  *
  * @param[in] ptr previously alloc()'ed pointer
  * @param[in] size new size
@@ -107,6 +110,7 @@ DDS_EXPORT void * dds_realloc_zero (void * ptr, size_t size);
 
 /**
  * @brief Perform a free() on a memory fragment allocated with the default allocator.
+ * @component memory_alloc
  *
  * @param[in] ptr previously alloc()'ed pointer
  */
@@ -120,6 +124,7 @@ typedef void (*dds_free_fn_t) (void *);
 
 /**
  * @brief Allocated a string with size, accounting for the null terminator.
+ * @component memory_alloc
  *
  * @param[in] size number of characters
  * @returns newly allocated string or NULL if out of memory
@@ -128,6 +133,7 @@ DDS_EXPORT char * dds_string_alloc (size_t size);
 
 /**
  * @brief Duplicate a null-terminated string
+ * @component memory_alloc
  *
  * @param[in] str string to duplicate
  * @returns newly allocated duplicate string, or NULL if out of memory
@@ -136,6 +142,7 @@ DDS_EXPORT char * dds_string_dup (const char * str);
 
 /**
  * @brief Free a string, equivalent to dds_free
+ * @component memory_alloc
  *
  * @param[in] str string to free
  */
@@ -143,6 +150,7 @@ DDS_EXPORT void dds_string_free (char * str);
 
 /**
  * @brief Free (parts of) a sample according to the \ref dds_free_op_t
+ * @component memory_alloc
  *
  * @param[in] sample sample to free
  * @param[in] desc topic descriptor of the type this sample was created from.

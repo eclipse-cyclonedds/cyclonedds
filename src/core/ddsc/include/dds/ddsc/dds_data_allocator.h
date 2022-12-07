@@ -47,6 +47,7 @@ typedef struct dds_data_allocator {
 
 /**
  * @ingroup data_allocator
+ * @component data_alloc
  * @brief Initialize an object for performing allocations/frees in the context of a reader/writer
  *
  * The operation will fall back to standard heap allocation if nothing better is available.
@@ -69,6 +70,7 @@ DDS_EXPORT dds_return_t dds_data_allocator_init (dds_entity_t entity, dds_data_a
 
 /**
  * @ingroup data_allocator
+ * @component data_alloc
  * @brief Initialize an object for performing standard allocations/frees on the heap
  *
  * @param[out] data_allocator opaque allocator object to initialize
@@ -88,6 +90,7 @@ DDS_EXPORT dds_return_t dds_data_allocator_init_heap (dds_data_allocator_t *data
 
 /**
  * @ingroup data_allocator
+ * @component data_alloc
  * @brief Finalize a previously initialized allocator object
  *
  * @param[in,out] data_allocator object to finalize
@@ -105,6 +108,7 @@ DDS_EXPORT dds_return_t dds_data_allocator_fini (dds_data_allocator_t *data_allo
 
 /**
  * @ingroup data_allocator
+ * @component data_alloc
  * @brief Allocate memory using the given allocator
  *
  * @param[in,out] data_allocator  initialized allocator object
@@ -117,6 +121,7 @@ DDS_EXPORT void *dds_data_allocator_alloc (dds_data_allocator_t *data_allocator,
 
 /**
  * @ingroup data_allocator
+ * @component data_alloc
  * @brief Release memory using the given allocator
  *
  * @param[in,out] data_allocator  initialized allocator object

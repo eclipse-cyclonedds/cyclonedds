@@ -338,6 +338,8 @@ dds_typeid_kind_t;
 
 /**
  * @brief Enable or disable write batching.
+ * @component domain
+ *
  * Overrides default configuration setting for write batching (Internal/WriteBatch).
  *
  * @param[in] enable Enables or disables write batching for all writers.
