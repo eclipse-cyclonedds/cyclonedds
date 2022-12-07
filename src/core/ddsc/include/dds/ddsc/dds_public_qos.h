@@ -38,6 +38,7 @@ extern "C" {
 
 /**
  * @ingroup qos
+ * @component qos_obj
  * @brief Allocate memory and initialize default QoS-policies
  *
  * @returns - Pointer to the initialized dds_qos_t structure, NULL if unsuccessful.
@@ -47,6 +48,7 @@ dds_qos_t * dds_create_qos (void);
 
 /**
  * @ingroup qos
+ * @component qos_obj
  * @brief Delete memory allocated to QoS-policies structure
  *
  * @param[in] qos - Pointer to dds_qos_t structure
@@ -56,6 +58,7 @@ dds_delete_qos (dds_qos_t * __restrict qos);
 
 /**
  * @ingroup qos
+ * @component qos_obj
  * @brief Reset a QoS-policies structure to default values
  *
  * @param[in,out] qos - Pointer to the dds_qos_t structure
@@ -65,6 +68,7 @@ dds_reset_qos(dds_qos_t * __restrict qos);
 
 /**
  * @ingroup qos
+ * @component qos_obj
  * @brief Copy all QoS-policies from one structure to another
  *
  * @param[in,out] dst - Pointer to the destination dds_qos_t structure
@@ -77,6 +81,7 @@ dds_copy_qos (dds_qos_t * __restrict dst, const dds_qos_t * __restrict src);
 
 /**
  * @ingroup qos
+ * @component qos_obj
  * @brief Copy all QoS-policies from one structure to another, unless already set
  *
  * Policies are copied from src to dst, unless src already has the policy set to a non-default value.
@@ -89,6 +94,7 @@ dds_merge_qos (dds_qos_t * __restrict dst, const dds_qos_t * __restrict src);
 
 /**
  * @ingroup qos
+ * @component qos_obj
  * @brief Copy all QoS-policies from one structure to another, unless already set
  *
  * Policies are copied from src to dst, unless src already has the policy set to a non-default value.
@@ -104,10 +110,12 @@ dds_qos_equal (const dds_qos_t * __restrict a, const dds_qos_t * __restrict b);
 /**
  * @defgroup qos_setters (Qos Setters)
  * @ingroup qos
+ * @component qos_obj
  */
 
 /**
  * @ingroup qos_setters
+ * @component qos_obj
  * @brief Set the userdata of a qos structure.
  *
  * @param[in,out] qos - Pointer to a dds_qos_t structure that will store the userdata
@@ -122,6 +130,7 @@ dds_qset_userdata (
 
 /**
  * @ingroup qos_setters
+ * @component qos_obj
  * @brief Set the topicdata of a qos structure.
  *
  * @param[in,out] qos - Pointer to a dds_qos_t structure that will store the topicdata
@@ -136,6 +145,7 @@ dds_qset_topicdata (
 
 /**
  * @ingroup qos_setters
+ * @component qos_obj
  * @brief Set the groupdata of a qos structure.
  *
  * @param[in,out] qos - Pointer to a dds_qos_t structure that will store the groupdata
@@ -150,6 +160,7 @@ dds_qset_groupdata (
 
 /**
  * @ingroup qos_setters
+ * @component qos_obj
  * @brief Set the durability policy of a qos structure.
  *
  * @param[in,out] qos - Pointer to a dds_qos_t structure that will store the policy
@@ -160,6 +171,7 @@ dds_qset_durability (dds_qos_t * __restrict qos, dds_durability_kind_t kind);
 
 /**
  * @ingroup qos_setters
+ * @component qos_obj
  * @brief Set the history policy of a qos structure.
  *
  * Note that depth is only relevant for keep last. If you want limited history for keep all, use dds_qset_resource_limits().
@@ -176,6 +188,7 @@ dds_qset_history (
 
 /**
  * @ingroup qos_setters
+ * @component qos_obj
  * @brief Set the resource limits policy of a qos structure.
  *
  * @param[in,out] qos - Pointer to a dds_qos_t structure that will store the policy
@@ -192,6 +205,7 @@ dds_qset_resource_limits (
 
 /**
  * @ingroup qos_setters
+ * @component qos_obj
  * @brief Set the presentation policy of a qos structure.
  *
  * @param[in,out] qos - Pointer to a dds_qos_t structure that will store the policy
@@ -208,6 +222,7 @@ dds_qset_presentation (
 
 /**
  * @ingroup qos_setters
+ * @component qos_obj
  * @brief Set the lifespan policy of a qos structure.
  *
  * @param[in,out] qos - Pointer to a dds_qos_t structure that will store the policy
@@ -220,6 +235,7 @@ dds_qset_lifespan (
 
 /**
  * @ingroup qos_setters
+ * @component qos_obj
  * @brief Set the deadline policy of a qos structure.
  *
  * @param[in,out] qos - Pointer to a dds_qos_t structure that will store the policy
@@ -232,6 +248,7 @@ dds_qset_deadline (
 
 /**
  * @ingroup qos_setters
+ * @component qos_obj
  * @brief Set the latency-budget policy of a qos structure
  *
  * @param[in,out] qos - Pointer to a dds_qos_t structure that will store the policy
@@ -244,6 +261,7 @@ dds_qset_latency_budget (
 
 /**
  * @ingroup qos_setters
+ * @component qos_obj
  * @brief Set the ownership policy of a qos structure
  *
  * @param[in,out] qos - Pointer to a dds_qos_t structure that will store the policy
@@ -256,6 +274,7 @@ dds_qset_ownership (
 
 /**
  * @ingroup qos_setters
+ * @component qos_obj
  * @brief Set the ownership strength policy of a qos structure
  *
  * @param[in,out] qos - Pointer to a dds_qos_t structure that will store the policy
@@ -266,6 +285,7 @@ dds_qset_ownership_strength (dds_qos_t * __restrict qos, int32_t value);
 
 /**
  * @ingroup qos_setters
+ * @component qos_obj
  * @brief Set the liveliness policy of a qos structure
  *
  * @param[in,out] qos - Pointer to a dds_qos_t structure that will store the policy
@@ -280,6 +300,7 @@ dds_qset_liveliness (
 
 /**
  * @ingroup qos_setters
+ * @component qos_obj
  * @brief Set the time-based filter policy of a qos structure
  *
  * @param[in,out] qos - Pointer to a dds_qos_t structure that will store the policy
@@ -292,6 +313,7 @@ dds_qset_time_based_filter (
 
 /**
  * @ingroup qos_setters
+ * @component qos_obj
  * @brief Set the partition policy of a qos structure
  *
  * @param[in,out] qos - Pointer to a dds_qos_t structure that will store the policy
@@ -306,6 +328,7 @@ dds_qset_partition (
 
 /**
  * @ingroup qos_setters
+ * @component qos_obj
  * @brief Convenience function to set the partition policy of a qos structure to a
  * single name.  Name may be a null pointer.
  *
@@ -319,6 +342,7 @@ dds_qset_partition1 (
 
 /**
  * @ingroup qos_setters
+ * @component qos_obj
  * @brief Set the reliability policy of a qos structure
  *
  * @param[in,out] qos - Pointer to a dds_qos_t structure that will store the policy
@@ -333,6 +357,7 @@ dds_qset_reliability (
 
 /**
  * @ingroup qos_setters
+ * @component qos_obj
  * @brief Set the transport-priority policy of a qos structure
  *
  * @param[in,out] qos - Pointer to a dds_qos_t structure that will store the policy
@@ -343,6 +368,7 @@ dds_qset_transport_priority (dds_qos_t * __restrict qos, int32_t value);
 
 /**
  * @ingroup qos_setters
+ * @component qos_obj
  * @brief Set the destination-order policy of a qos structure
  *
  * @param[in,out] qos - Pointer to a dds_qos_t structure that will store the policy
@@ -355,6 +381,7 @@ dds_qset_destination_order (
 
 /**
  * @ingroup qos_setters
+ * @component qos_obj
  * @brief Set the writer data-lifecycle policy of a qos structure
  *
  * @param[in,out] qos - Pointer to a dds_qos_t structure that will store the policy
@@ -365,6 +392,7 @@ dds_qset_writer_data_lifecycle (dds_qos_t * __restrict qos, bool autodispose);
 
 /**
  * @ingroup qos_setters
+ * @component qos_obj
  * @brief Set the reader data-lifecycle policy of a qos structure
  *
  * @param[in,out] qos - Pointer to a dds_qos_t structure that will store the policy
@@ -379,6 +407,7 @@ dds_qset_reader_data_lifecycle (
 
 /**
  * @ingroup qos_setters
+ * @component qos_obj
  * @brief Set the durability-service policy of a qos structure
  *
  * @param[in,out] qos - Pointer to a dds_qos_t structure that will store the policy
@@ -401,6 +430,7 @@ dds_qset_durability_service (
 
 /**
  * @ingroup qos_setters
+ * @component qos_obj
  * @brief Set the ignore-local policy of a qos structure
  *
  * @param[in,out] qos - Pointer to a dds_qos_t structure that will store the policy
@@ -413,6 +443,7 @@ dds_qset_ignorelocal (
 
 /**
  * @ingroup qos_setters
+ * @component qos_obj
  * @brief Stores a property with the provided name and string value in a qos structure.
  *
  * In the case a property with the provided name already exists in the qos structure,
@@ -432,6 +463,7 @@ dds_qset_prop (
 
 /**
  * @ingroup qos_setters
+ * @component qos_obj
  * @brief Removes the property with the provided name from a qos structure.
  *
  * In case more than one property exists with this name, only the first property
@@ -447,6 +479,7 @@ dds_qunset_prop (
 
 /**
  * @ingroup qos_setters
+ * @component qos_obj
  * @brief Stores the provided binary data as a property in a qos structure
  *
  * In the case a property with the provided name already exists in the qos structure,
@@ -468,6 +501,7 @@ dds_qset_bprop (
 
 /**
  * @ingroup qos_setters
+ * @component qos_obj
  * @brief Removes the binary property with the provided name from a qos structure.
  *
  * In case more than one binary property exists with this name, only the first binary
@@ -483,6 +517,7 @@ dds_qunset_bprop (
 
 /**
  * @ingroup qos_setters
+ * @component qos_obj
  * @brief Set the type consistency enforcement policy of a qos structure
  *
  * @param[in,out] qos - Pointer to a dds_qos_t structure that will store the policy
@@ -505,6 +540,7 @@ dds_qset_type_consistency (
 
 /**
  * @ingroup qos_setters
+ * @component qos_obj
  * @brief Set the data representation of a qos structure
  *
  * @param[in,out] qos    - Pointer to a dds_qos_t structure that will store the policy
@@ -519,6 +555,7 @@ dds_qset_data_representation (
 
 /**
  * @ingroup qos_setters
+ * @component qos_obj
  * @brief Set the entity name.
  *
  * When using this QoS to initialize a participant, publisher, subscriber, reader or writer
@@ -537,10 +574,12 @@ dds_qset_entity_name (
 /**
  * @defgroup qos_getters (QoS Getters)
  * @ingroup qos
+ * @component qos_obj
  */
 
 /**
  * @ingroup qos_getters
+ * @component qos_obj
  * @brief Get the userdata from a qos structure
  *
  * @param[in] qos - Pointer to a dds_qos_t structure storing the policy
@@ -553,6 +592,7 @@ DDS_EXPORT bool dds_qget_userdata (const dds_qos_t * __restrict qos, void **valu
 
 /**
  * @ingroup qos_getters
+ * @component qos_obj
  * @brief Get the topicdata from a qos structure
  *
  * @param[in] qos - Pointer to a dds_qos_t structure storing the policy
@@ -565,6 +605,7 @@ DDS_EXPORT bool dds_qget_topicdata (const dds_qos_t * __restrict qos, void **val
 
 /**
  * @ingroup qos_getters
+ * @component qos_obj
  * @brief Get the groupdata from a qos structure
  *
  * @param[in] qos - Pointer to a dds_qos_t structure storing the policy
@@ -577,6 +618,7 @@ DDS_EXPORT bool dds_qget_groupdata (const dds_qos_t * __restrict qos, void **val
 
 /**
  * @ingroup qos_getters
+ * @component qos_obj
  * @brief Get the durability policy from a qos structure
  *
  * @param[in] qos - Pointer to a dds_qos_t structure storing the policy
@@ -588,6 +630,7 @@ DDS_EXPORT bool dds_qget_durability (const dds_qos_t * __restrict qos, dds_durab
 
 /**
  * @ingroup qos_getters
+ * @component qos_obj
  * @brief Get the history policy from a qos structure
  *
  * @param[in] qos - Pointer to a dds_qos_t structure storing the policy
@@ -600,6 +643,7 @@ DDS_EXPORT bool dds_qget_history (const dds_qos_t * __restrict qos, dds_history_
 
 /**
  * @ingroup qos_getters
+ * @component qos_obj
  * @brief Get the resource-limits policy from a qos structure
  *
  * @param[in] qos - Pointer to a dds_qos_t structure storing the policy
@@ -618,6 +662,7 @@ dds_qget_resource_limits (
 
 /**
  * @ingroup qos_getters
+ * @component qos_obj
  * @brief Get the presentation policy from a qos structure
  *
  * @param[in] qos - Pointer to a dds_qos_t structure storing the policy
@@ -636,6 +681,7 @@ dds_qget_presentation (
 
 /**
  * @ingroup qos_getters
+ * @component qos_obj
  * @brief Get the lifespan policy from a qos structure
  *
  * @param[in] qos - Pointer to a dds_qos_t structure storing the policy
@@ -650,6 +696,7 @@ dds_qget_lifespan (
 
 /**
  * @ingroup qos_getters
+ * @component qos_obj
  * @brief Get the deadline policy from a qos structure
  *
  * @param[in] qos - Pointer to a dds_qos_t structure storing the policy
@@ -664,6 +711,7 @@ dds_qget_deadline (
 
 /**
  * @ingroup qos_getters
+ * @component qos_obj
  * @brief Get the latency-budget policy from a qos structure
  *
  * @param[in] qos - Pointer to a dds_qos_t structure storing the policy
@@ -678,6 +726,7 @@ dds_qget_latency_budget (
 
 /**
  * @ingroup qos_getters
+ * @component qos_obj
  * @brief Get the ownership policy from a qos structure
  *
  * @param[in] qos - Pointer to a dds_qos_t structure storing the policy
@@ -692,6 +741,7 @@ dds_qget_ownership (
 
 /**
  * @ingroup qos_getters
+ * @component qos_obj
  * @brief Get the ownership strength qos policy
  *
  * @param[in] qos - Pointer to a dds_qos_t structure storing the policy
@@ -706,6 +756,7 @@ dds_qget_ownership_strength (
 
 /**
  * @ingroup qos_getters
+ * @component qos_obj
  * @brief Get the liveliness qos policy
  *
  * @param[in] qos - Pointer to a dds_qos_t structure storing the policy
@@ -722,6 +773,7 @@ dds_qget_liveliness (
 
 /**
  * @ingroup qos_getters
+ * @component qos_obj
  * @brief Get the time-based filter qos policy
  *
  * @param[in] qos - Pointer to a dds_qos_t structure storing the policy
@@ -736,6 +788,7 @@ dds_qget_time_based_filter (
 
 /**
  * @ingroup qos_getters
+ * @component qos_obj
  * @brief Get the partition qos policy
  *
  * @param[in] qos - Pointer to a dds_qos_t structure storing the policy
@@ -752,6 +805,7 @@ dds_qget_partition (
 
 /**
  * @ingroup qos_getters
+ * @component qos_obj
  * @brief Get the reliability qos policy
  *
  * @param[in] qos - Pointer to a dds_qos_t structure storing the policy
@@ -768,6 +822,7 @@ dds_qget_reliability (
 
 /**
  * @ingroup qos_getters
+ * @component qos_obj
  * @brief Get the transport priority qos policy
  *
  * @param[in] qos - Pointer to a dds_qos_t structure storing the policy
@@ -782,6 +837,7 @@ dds_qget_transport_priority (
 
 /**
  * @ingroup qos_getters
+ * @component qos_obj
  * @brief Get the destination-order qos policy
  *
  * @param[in] qos - Pointer to a dds_qos_t structure storing the policy
@@ -796,6 +852,7 @@ dds_qget_destination_order (
 
 /**
  * @ingroup qos_getters
+ * @component qos_obj
  * @brief Get the writer data-lifecycle qos policy
  *
  * @param[in] qos - Pointer to a dds_qos_t structure storing the policy
@@ -810,6 +867,7 @@ dds_qget_writer_data_lifecycle (
 
 /**
  * @ingroup qos_getters
+ * @component qos_obj
  * @brief Get the reader data-lifecycle qos policy
  *
  * @param[in] qos - Pointer to a dds_qos_t structure storing the policy
@@ -826,6 +884,7 @@ dds_qget_reader_data_lifecycle (
 
 /**
  * @ingroup qos_getters
+ * @component qos_obj
  * @brief Get the durability-service qos policy values.
  *
  * @param[in] qos - Pointer to a dds_qos_t structure storing the policy
@@ -850,6 +909,7 @@ dds_qget_durability_service (
 
 /**
  * @ingroup qos_getters
+ * @component qos_obj
  * @brief Get the ignore-local qos policy
  *
  * @param[in] qos - Pointer to a dds_qos_t structure storing the policy
@@ -864,6 +924,7 @@ dds_qget_ignorelocal (
 
 /**
  * @ingroup qos_getters
+ * @component qos_obj
  * @brief Gets the names of the properties from a qos structure.
  *
  * @param[in,out] qos - Pointer to a dds_qos_t structure that contains properties
@@ -880,6 +941,7 @@ dds_qget_propnames (
 
 /**
  * @ingroup qos_getters
+ * @component qos_obj
  * @brief Get the value of the property with the provided name from a qos structure.
  *
  * In case more than one property exists with this name, the value for the first
@@ -899,6 +961,7 @@ dds_qget_prop (
 
 /**
  * @ingroup qos_getters
+ * @component qos_obj
  * @brief Gets the names of the binary properties from a qos structure.
  *
  * @param[in,out] qos - Pointer to a dds_qos_t structure that contains binary properties
@@ -915,6 +978,7 @@ dds_qget_bpropnames (
 
 /**
  * @ingroup qos_getters
+ * @component qos_obj
  * @brief Get the value of the binary property with the provided name from a qos structure.
  *
  * In case more than one binary property exists with this name, the value for the first
@@ -936,6 +1000,7 @@ dds_qget_bprop (
 
 /**
  * @ingroup qos_getters
+ * @component qos_obj
  * @brief Get the type consistency enforcement qos policy values.
  *
  * @param[in] qos - Pointer to a dds_qos_t structure storing the policy
@@ -960,6 +1025,7 @@ dds_qget_type_consistency (
 
 /**
  * @ingroup qos_getters
+ * @component qos_obj
  * @brief Get the data representation qos policy value.
  *
  * Returns the data representation values that are set in the provided QoS object
@@ -982,6 +1048,7 @@ dds_qget_data_representation (
 
 /**
  * @ingroup qos_getters
+ * @component qos_obj
  * @brief Get the entity name from a qos structure
  *
  * @param[in] qos - Pointer to a dds_qos_t structure storing the entity name

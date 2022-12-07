@@ -197,6 +197,7 @@ dds_inconsistent_topic_status_t;
 
 /**
  * @ingroup dcps_status_getters
+ * @component entity_status
  * @brief Get INCONSISTENT_TOPIC status
  *
  * This operation gets the status value corresponding to INCONSISTENT_TOPIC
@@ -225,6 +226,7 @@ dds_get_inconsistent_topic_status (
 
 /**
  * @ingroup dcps_status_getters
+ * @component entity_status
  * @brief Get PUBLICATION_MATCHED status
  *
  * This operation gets the status value corresponding to PUBLICATION_MATCHED
@@ -253,6 +255,7 @@ dds_get_publication_matched_status (
 
 /**
  * @ingroup dcps_status_getters
+ * @component entity_status
  * @brief Get LIVELINESS_LOST status
  *
  * This operation gets the status value corresponding to LIVELINESS_LOST
@@ -281,6 +284,7 @@ dds_get_liveliness_lost_status (
 
 /**
  * @ingroup dcps_status_getters
+ * @component entity_status
  * @brief Get OFFERED_DEADLINE_MISSED status
  *
  * This operation gets the status value corresponding to OFFERED_DEADLINE_MISSED
@@ -309,6 +313,7 @@ dds_get_offered_deadline_missed_status(
 
 /**
  * @ingroup dcps_status_getters
+ * @component entity_status
  * @brief Get OFFERED_INCOMPATIBLE_QOS status
  *
  * This operation gets the status value corresponding to OFFERED_INCOMPATIBLE_QOS
@@ -337,6 +342,7 @@ dds_get_offered_incompatible_qos_status (
 
 /**
  * @ingroup dcps_status_getters
+ * @component entity_status
  * @brief Get SUBSCRIPTION_MATCHED status
  *
  * This operation gets the status value corresponding to SUBSCRIPTION_MATCHED
@@ -365,6 +371,7 @@ dds_get_subscription_matched_status (
 
 /**
  * @ingroup dcps_status_getters
+ * @component entity_status
  * @brief Get LIVELINESS_CHANGED status
  *
  * This operation gets the status value corresponding to LIVELINESS_CHANGED
@@ -393,6 +400,7 @@ dds_get_liveliness_changed_status (
 
 /**
  * @ingroup dcps_status_getters
+ * @component entity_status
  * @brief Get SAMPLE_REJECTED status
  *
  * This operation gets the status value corresponding to SAMPLE_REJECTED
@@ -421,6 +429,7 @@ dds_get_sample_rejected_status (
 
 /**
  * @ingroup dcps_status_getters
+ * @component entity_status
  * @brief Get SAMPLE_LOST status
  *
  * This operation gets the status value corresponding to SAMPLE_LOST
@@ -450,6 +459,7 @@ dds_get_sample_lost_status (
 
 /**
  * @ingroup dcps_status_getters
+ * @component entity_status
  * @brief Get REQUESTED_DEADLINE_MISSED status
  *
  * This operation gets the status value corresponding to REQUESTED_DEADLINE_MISSED
@@ -479,6 +489,7 @@ dds_get_requested_deadline_missed_status (
 
 /**
  * @ingroup dcps_status_getters
+ * @component entity_status
  * @brief Get REQUESTED_INCOMPATIBLE_QOS status
  *
  * This operation gets the status value corresponding to REQUESTED_INCOMPATIBLE_QOS
