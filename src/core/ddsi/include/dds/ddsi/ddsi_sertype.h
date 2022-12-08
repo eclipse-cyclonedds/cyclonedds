@@ -161,7 +161,10 @@ struct ddsi_sertype_ops {
   ddsi_sertype_serialize_into_t serialize_into;
 };
 
+/** @component typesupport_if */
 struct ddsi_sertype *ddsi_sertype_lookup_locked (struct ddsi_domaingv *gv, const struct ddsi_sertype *sertype_template);
+
+/** @component typesupport_if */
 void ddsi_sertype_register_locked (struct ddsi_domaingv *gv, struct ddsi_sertype *sertype);
 
 #define DDSI_SERTYPE_FLAG_TOPICKIND_NO_KEY (1u)
@@ -170,80 +173,119 @@ void ddsi_sertype_register_locked (struct ddsi_domaingv *gv, struct ddsi_sertype
 
 #define DDSI_SERTYPE_FLAG_MASK (0x7u)
 
+/** @component typesupport_if */
 DDS_EXPORT void ddsi_sertype_init_flags (struct ddsi_sertype *tp, const char *type_name, const struct ddsi_sertype_ops *sertype_ops, const struct ddsi_serdata_ops *serdata_ops, uint32_t flags);
+
+/** @component typesupport_if */
 DDS_EXPORT void ddsi_sertype_init (struct ddsi_sertype *tp, const char *type_name, const struct ddsi_sertype_ops *sertype_ops, const struct ddsi_serdata_ops *serdata_ops, bool topickind_no_key);
+
+/** @component typesupport_if */
 DDS_EXPORT void ddsi_sertype_fini (struct ddsi_sertype *tp);
+
+/** @component typesupport_if */
 DDS_EXPORT struct ddsi_sertype *ddsi_sertype_ref (const struct ddsi_sertype *tp);
 
+/** @component typesupport_if */
 DDS_EXPORT void ddsi_sertype_unref (struct ddsi_sertype *tp); /* tp->gv->sertypes_lock may not be held */
 
+/** @component typesupport_if */
 DDS_EXPORT uint32_t ddsi_sertype_compute_serdata_basehash (const struct ddsi_serdata_ops *ops);
 
+/** @component typesupport_if */
 DDS_EXPORT bool ddsi_sertype_equal (const struct ddsi_sertype *a, const struct ddsi_sertype *b);
+
+/** @component typesupport_if */
 DDS_EXPORT uint32_t ddsi_sertype_hash (const struct ddsi_sertype *tp);
 
+/** @component typesupport_if */
 DDS_EXPORT uint16_t ddsi_sertype_extensibility_enc_format (enum dds_cdr_type_extensibility type_extensibility);
+
+/** @component typesupport_if */
 DDS_EXPORT uint16_t ddsi_sertype_get_native_enc_identifier (uint32_t enc_version, uint32_t encoding_format);
+
+/** @component typesupport_if */
 DDS_EXPORT uint32_t ddsi_sertype_enc_id_xcdr_version (uint16_t cdr_identifier);
+
+/** @component typesupport_if */
 DDS_EXPORT uint32_t ddsi_sertype_enc_id_enc_format (uint16_t cdr_identifier);
 
+
+/** @component typesupport_if */
 DDS_INLINE_EXPORT inline void ddsi_sertype_free (struct ddsi_sertype *tp) {
   tp->ops->free (tp);
 }
+
+/** @component typesupport_if */
 DDS_INLINE_EXPORT inline void ddsi_sertype_zero_samples (const struct ddsi_sertype *tp, void *samples, size_t count) {
   tp->ops->zero_samples (tp, samples, count);
 }
+
+/** @component typesupport_if */
 DDS_INLINE_EXPORT inline void ddsi_sertype_realloc_samples (void **ptrs, const struct ddsi_sertype *tp, void *old, size_t oldcount, size_t count)
 {
   tp->ops->realloc_samples (ptrs, tp, old, oldcount, count);
 }
+
+/** @component typesupport_if */
 DDS_INLINE_EXPORT inline void ddsi_sertype_free_samples (const struct ddsi_sertype *tp, void **ptrs, size_t count, dds_free_op_t op) {
   tp->ops->free_samples (tp, ptrs, count, op);
 }
+
+/** @component typesupport_if */
 DDS_INLINE_EXPORT inline void ddsi_sertype_zero_sample (const struct ddsi_sertype *tp, void *sample) {
   ddsi_sertype_zero_samples (tp, sample, 1);
 }
+
+/** @component typesupport_if */
 DDS_INLINE_EXPORT inline void *ddsi_sertype_alloc_sample (const struct ddsi_sertype *tp) {
   void *ptr;
   ddsi_sertype_realloc_samples (&ptr, tp, NULL, 0, 1);
   return ptr;
 }
+
+/** @component typesupport_if */
 DDS_INLINE_EXPORT inline void ddsi_sertype_free_sample (const struct ddsi_sertype *tp, void *sample, dds_free_op_t op) {
   ddsi_sertype_free_samples (tp, &sample, 1, op);
 }
+
+/** @component typesupport_if */
 DDS_INLINE_EXPORT inline ddsi_typeid_t * ddsi_sertype_typeid (const struct ddsi_sertype *tp, ddsi_typeid_kind_t kind)
 {
   if (!tp->ops->type_id)
     return NULL;
   return tp->ops->type_id (tp, kind);
 }
+
+/** @component typesupport_if */
 DDS_INLINE_EXPORT inline ddsi_typemap_t * ddsi_sertype_typemap (const struct ddsi_sertype *tp)
 {
   if (!tp->ops->type_map)
     return NULL;
   return tp->ops->type_map (tp);
 }
+
+/** @component typesupport_if */
 DDS_INLINE_EXPORT inline ddsi_typeinfo_t *ddsi_sertype_typeinfo (const struct ddsi_sertype *tp)
 {
   if (!tp->ops->type_info)
     return NULL;
   return tp->ops->type_info (tp);
 }
+
+/** @component typesupport_if */
 DDS_INLINE_EXPORT inline struct ddsi_sertype * ddsi_sertype_derive_sertype (const struct ddsi_sertype *base_sertype, dds_data_representation_id_t data_representation, dds_type_consistency_enforcement_qospolicy_t tce_qos) {
   if (!base_sertype->ops->derive_sertype)
     return NULL;
   return base_sertype->ops->derive_sertype (base_sertype, data_representation, tce_qos);
 }
 
-DDS_INLINE_EXPORT inline size_t
-ddsi_sertype_get_serialized_size(const struct ddsi_sertype *tp,
-                                 const void *sample) {
+/** @component typesupport_if */
+DDS_INLINE_EXPORT inline size_t ddsi_sertype_get_serialized_size(const struct ddsi_sertype *tp, const void *sample) {
   return tp->ops->get_serialized_size(tp, sample);
 }
 
-DDS_INLINE_EXPORT inline bool
-ddsi_sertype_serialize_into(const struct ddsi_sertype *tp, const void *sample,
-                            void *dst_buffer, size_t dst_size) {
+/** @component typesupport_if */
+DDS_INLINE_EXPORT inline bool ddsi_sertype_serialize_into(const struct ddsi_sertype *tp, const void *sample, void *dst_buffer, size_t dst_size) {
   return tp->ops->serialize_into(tp, sample, dst_buffer, dst_size);
 }
 

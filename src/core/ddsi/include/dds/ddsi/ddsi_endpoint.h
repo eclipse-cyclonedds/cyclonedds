@@ -169,24 +169,52 @@ DDS_EXPORT extern const ddsrt_avl_treedef_t ddsi_wr_local_readers_treedef;
 DDS_EXPORT extern const ddsrt_avl_treedef_t ddsi_rd_writers_treedef;
 DDS_EXPORT extern const ddsrt_avl_treedef_t ddsi_rd_local_writers_treedef;
 
-// generic
+/** @component ddsi_endpoint */
 int ddsi_is_builtin_endpoint (ddsi_entityid_t id, ddsi_vendorid_t vendorid);
 
+
 // writer
+
+/** @component ddsi_endpoint */
 struct ddsi_local_orphan_writer *ddsi_new_local_orphan_writer (struct ddsi_domaingv *gv, ddsi_entityid_t entityid, const char *topic_name, struct ddsi_sertype *type, const struct dds_qos *xqos, struct ddsi_whc *whc);
+
+/** @component ddsi_endpoint */
 void ddsi_delete_local_orphan_writer (struct ddsi_local_orphan_writer *wr);
+
+/** @component ddsi_endpoint */
 dds_return_t ddsi_new_writer (struct ddsi_writer **wr_out, struct ddsi_guid *wrguid, const struct ddsi_guid *group_guid, struct ddsi_participant *pp, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos, struct ddsi_whc * whc, ddsi_status_cb_t status_cb, void *status_cb_arg);
+
+/** @component ddsi_endpoint */
 void ddsi_update_writer_qos (struct ddsi_writer *wr, const struct dds_qos *xqos);
+
+/** @component ddsi_endpoint */
 void ddsi_make_writer_info(struct ddsi_writer_info *wrinfo, const struct ddsi_entity_common *e, const struct dds_qos *xqos, uint32_t statusinfo);
+
+/** @component ddsi_endpoint */
 dds_return_t ddsi_writer_wait_for_acks (struct ddsi_writer *wr, const ddsi_guid_t *rdguid, dds_time_t abstimeout);
+
+/** @component ddsi_endpoint */
 dds_return_t ddsi_unblock_throttled_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *guid);
+
+/** @component ddsi_endpoint */
 dds_return_t ddsi_delete_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *guid);
+
+/** @component ddsi_endpoint */
 struct ddsi_reader *ddsi_writer_first_in_sync_reader (struct ddsi_entity_index *entity_index, struct ddsi_entity_common *wrcmn, ddsrt_avl_iter_t *it);
+
+/** @component ddsi_endpoint */
 struct ddsi_reader *ddsi_writer_next_in_sync_reader (struct ddsi_entity_index *entity_index, ddsrt_avl_iter_t *it);
 
+
 // reader
+
+/** @component ddsi_endpoint */
 dds_return_t ddsi_new_reader (struct ddsi_reader **rd_out, struct ddsi_guid *rdguid, const struct ddsi_guid *group_guid, struct ddsi_participant *pp, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos, struct ddsi_rhc * rhc, ddsi_status_cb_t status_cb, void *status_cb_arg);
+
+/** @component ddsi_endpoint */
 void ddsi_update_reader_qos (struct ddsi_reader *rd, const struct dds_qos *xqos);
+
+/** @component ddsi_endpoint */
 dds_return_t ddsi_delete_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *guid);
 
 

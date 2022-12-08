@@ -64,6 +64,7 @@ struct ddsi_participant
 
 /**
  * @brief Create a new participant in the domain
+ * @component ddsi_participant
  *
  * @param[out] ppguid
  *               On successful return: the GUID of the new participant;
@@ -92,7 +93,9 @@ struct ddsi_participant
 dds_return_t ddsi_new_participant (struct ddsi_guid *ppguid, struct ddsi_domaingv *gv, unsigned flags, const struct ddsi_plist *plist);
 
 /**
- * @brief Initiate the deletion of the participant:
+ * @component ddsi_participant
+ *
+ * Initiate the deletion of the participant:
  * - dispose/unregister built-in topic
  * - list it as one of the recently deleted participants
  * - remote it from the GUID hash tables
@@ -118,8 +121,8 @@ dds_return_t ddsi_new_participant (struct ddsi_guid *ppguid, struct ddsi_domaing
 dds_return_t ddsi_delete_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid);
 
 /**
- * @brief Updates the parameters list for this participant and trigger sending
- * an updated SPDP message.
+ * @brief Updates the parameters list for this participant and trigger sending an updated SPDP message.
+ * @component ddsi_participant
  *
  * @param[in] pp The participant
  * @param[in] plist The new parameters

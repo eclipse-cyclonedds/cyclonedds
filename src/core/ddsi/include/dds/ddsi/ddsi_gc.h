@@ -23,10 +23,19 @@ struct ddsi_gcreq_queue;
 
 typedef void (*ddsi_gcreq_cb_t) (struct ddsi_gcreq *gcreq);
 
+/** @component garbage_collector */
 DDS_EXPORT struct ddsi_gcreq *ddsi_gcreq_new (struct ddsi_gcreq_queue *gcreq_queue, ddsi_gcreq_cb_t cb);
+
+/** @component garbage_collector */
 DDS_EXPORT void ddsi_gcreq_free (struct ddsi_gcreq *gcreq);
+
+/** @component garbage_collector */
 DDS_EXPORT void ddsi_gcreq_enqueue (struct ddsi_gcreq *gcreq);
+
+/** @component garbage_collector */
 DDS_EXPORT void * ddsi_gcreq_get_arg (struct ddsi_gcreq *gcreq);
+
+/** @component garbage_collector */
 DDS_EXPORT void ddsi_gcreq_set_arg (struct ddsi_gcreq *gcreq, void *arg);
 
 #if defined (__cplusplus)

@@ -30,13 +30,28 @@ struct ddsi_tkmap_instance
   ddsrt_atomic_uint32_t m_refc;
 };
 
+/** @component key_instance_map */
 struct ddsi_tkmap *ddsi_tkmap_new (struct ddsi_domaingv *gv);
+
+/** @component key_instance_map */
 void ddsi_tkmap_free (struct ddsi_tkmap *tkmap);
+
+/** @component key_instance_map */
 void ddsi_tkmap_instance_ref (struct ddsi_tkmap_instance *tk);
+
+/** @component key_instance_map */
 uint64_t ddsi_tkmap_lookup (struct ddsi_tkmap *tkmap, const struct ddsi_serdata *serdata);
+
+/** @component key_instance_map */
 struct ddsi_tkmap_instance * ddsi_tkmap_find(struct ddsi_tkmap *map, struct ddsi_serdata *sd, const bool create);
+
+/** @component key_instance_map */
 struct ddsi_tkmap_instance * ddsi_tkmap_find_by_id (struct ddsi_tkmap *map, uint64_t iid);
+
+/** @component key_instance_map */
 struct ddsi_tkmap_instance * ddsi_tkmap_lookup_instance_ref (struct ddsi_tkmap *map, struct ddsi_serdata * sd);
+
+/** @component key_instance_map */
 void ddsi_tkmap_instance_unref (struct ddsi_tkmap *map, struct ddsi_tkmap_instance *tk);
 
 #if defined (__cplusplus)

@@ -67,6 +67,7 @@ enum ddsi_thread_state_kind {
   int stks_depth[DDSI_THREAD_NSTACKS]; \
   int stks_idx;
 
+/** @component thread_support */
 void ddsi_thread_vtime_trace (struct ddsi_thread_state *thrst);
 #else /* DDSI_THREAD_DEBUG */
 #define THREAD_BASE_DEBUG
@@ -115,14 +116,22 @@ extern ddsrt_thread_local struct ddsi_thread_state *tsd_thread_state;
 DDS_EXPORT extern ddsrt_thread_local struct ddsi_thread_state *tsd_thread_state;
 #endif
 
+/** @component thread_support */
 void ddsi_thread_states_init (void);
+
+/** @component thread_support */
 bool ddsi_thread_states_fini (void);
 
+/** @component thread_support */
 dds_return_t ddsi_create_thread (struct ddsi_thread_state **thrst, const struct ddsi_domaingv *gv, const char *name, uint32_t (*f) (void *arg), void *arg);
+
+/** @component thread_support */
 dds_return_t ddsi_join_thread (struct ddsi_thread_state *thrst);
 
+/** @component thread_support */
 DDS_EXPORT struct ddsi_thread_state *ddsi_lookup_thread_state_real (void);
 
+/** @component thread_support */
 DDS_INLINE_EXPORT inline struct ddsi_thread_state *ddsi_lookup_thread_state (void) {
   struct ddsi_thread_state *thrst = tsd_thread_state;
   if (thrst)
@@ -131,16 +140,19 @@ DDS_INLINE_EXPORT inline struct ddsi_thread_state *ddsi_lookup_thread_state (voi
     return ddsi_lookup_thread_state_real ();
 }
 
+/** @component thread_support */
 inline bool ddsi_vtime_awake_p (ddsi_vtime_t vtime)
 {
   return (vtime & DDSI_VTIME_NEST_MASK) != 0;
 }
 
+/** @component thread_support */
 inline bool ddsi_vtime_asleep_p (ddsi_vtime_t vtime)
 {
   return (vtime & DDSI_VTIME_NEST_MASK) == 0;
 }
 
+/** @component thread_support */
 inline bool ddsi_thread_is_awake (void)
 {
   struct ddsi_thread_state *thrst = ddsi_lookup_thread_state ();
@@ -148,6 +160,7 @@ inline bool ddsi_thread_is_awake (void)
   return ddsi_vtime_awake_p (vt);
 }
 
+/** @component thread_support */
 inline bool ddsi_thread_is_asleep (void)
 {
   struct ddsi_thread_state *thrst = ddsi_lookup_thread_state ();
@@ -155,6 +168,7 @@ inline bool ddsi_thread_is_asleep (void)
   return ddsi_vtime_asleep_p (vt);
 }
 
+/** @component thread_support */
 inline void ddsi_thread_state_asleep (struct ddsi_thread_state *thrst)
 {
   ddsi_vtime_t vt = ddsrt_atomic_ld32 (&thrst->vtime);
@@ -169,6 +183,7 @@ inline void ddsi_thread_state_asleep (struct ddsi_thread_state *thrst)
   ddsrt_atomic_st32 (&thrst->vtime, vt);
 }
 
+/** @component thread_support */
 inline void ddsi_thread_state_awake (struct ddsi_thread_state *thrst, const struct ddsi_domaingv *gv)
 {
   ddsi_vtime_t vt = ddsrt_atomic_ld32 (&thrst->vtime);

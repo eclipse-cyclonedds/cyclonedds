@@ -22,6 +22,7 @@ extern "C" {
 struct ddsi_domaingv;
 struct ddsi_guid;
 
+/** @component pmd */
 void ddsi_write_pmd_message_guid (struct ddsi_domaingv * const gv, struct ddsi_guid *pp_guid, unsigned pmd_kind);
 
 #if defined (__cplusplus)

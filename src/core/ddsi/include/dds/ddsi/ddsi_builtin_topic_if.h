@@ -32,18 +32,27 @@ struct ddsi_builtin_topic_interface {
   void (*builtintopic_write_topic) (const struct ddsi_topic_definition *tpd, ddsrt_wctime_t timestamp, bool alive, void *arg);
 };
 
+/** @component builtintopic_if */
 inline bool ddsi_builtintopic_is_visible (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_guid *guid, ddsi_vendorid_t vendorid) {
   return btif ? btif->builtintopic_is_visible (guid, vendorid, btif->arg) : false;
 }
+
+/** @component builtintopic_if */
 inline bool ddsi_builtintopic_is_builtintopic (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_sertype *type) {
   return btif ? btif->builtintopic_is_builtintopic (type, btif->arg) : false;
 }
+
+/** @component builtintopic_if */
 inline struct ddsi_tkmap_instance *ddsi_builtintopic_get_tkmap_entry (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_guid *guid) {
   return btif ? btif->builtintopic_get_tkmap_entry (guid, btif->arg) : NULL;
 }
+
+/** @component builtintopic_if */
 inline void ddsi_builtintopic_write_endpoint (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_entity_common *e, ddsrt_wctime_t timestamp, bool alive) {
   if (btif) btif->builtintopic_write_endpoint (e, timestamp, alive, btif->arg);
 }
+
+/** @component builtintopic_if */
 inline void ddsi_builtintopic_write_topic (const struct ddsi_builtin_topic_interface *btif, const struct ddsi_topic_definition *tpd, ddsrt_wctime_t timestamp, bool alive) {
   if (btif) btif->builtintopic_write_topic (tpd, timestamp, alive, btif->arg);
 }

@@ -22,12 +22,38 @@ extern "C" {
 struct ddsi_xevent;
 struct ddsi_xeventq;
 
-/* All of the following lock EVQ for the duration of the operation */
+/**
+ * @component timed_events
+ * @remark: locks EVQ for the duration of the operation
+ * @param ev
+ */
 void ddsi_delete_xevent (struct ddsi_xevent *ev);
+
+/**
+ * @component timed_events
+ * @remark: locks EVQ for the duration of the operation
+ * @param ev
+ */
 void ddsi_delete_xevent_callback (struct ddsi_xevent *ev);
+
+/**
+ * @component timed_events
+ * @remark: locks EVQ for the duration of the operation
+ * @param ev
+ */
 int ddsi_resched_xevent_if_earlier (struct ddsi_xevent *ev, ddsrt_mtime_t tsched);
 
-/* cb will be called with now = NEVER if the event is still enqueued when when ddsi_xeventq_free starts cleaning up */
+/**
+ * @component timed_events
+ *
+ * @remark: cb will be called with now = NEVER if the event is still enqueued when when ddsi_xeventq_free starts cleaning up
+ *
+ * @param evq
+ * @param tsched
+ * @param cb
+ * @param arg
+ * @return struct ddsi_xevent*
+ */
 struct ddsi_xevent *ddsi_qxev_callback (struct ddsi_xeventq *evq, ddsrt_mtime_t tsched, void (*cb) (struct ddsi_xevent *xev, void *arg, ddsrt_mtime_t now), void *arg);
 
 #if defined (__cplusplus)

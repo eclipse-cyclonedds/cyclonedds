@@ -25,7 +25,10 @@ struct ddsi_addrset;
 
 typedef void (*ddsi_addrset_forall_fun_t) (const ddsi_xlocator_t *loc, void *arg);
 
+/** @component locators */
 int ddsi_addrset_empty (const struct ddsi_addrset *as);
+
+/** @component locators */
 void ddsi_addrset_forall (struct ddsi_addrset *as, ddsi_addrset_forall_fun_t f, void *arg);
 
 #if defined (__cplusplus)

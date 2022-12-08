@@ -60,6 +60,7 @@ struct ddsi_rhc {
   const struct ddsi_rhc_ops *ops;
 };
 
+/** @component rhc_interface */
 inline bool ddsi_rhc_store (struct ddsi_rhc * __restrict rhc, const struct ddsi_writer_info * __restrict wrinfo, struct ddsi_serdata * __restrict sample, struct ddsi_tkmap_instance * __restrict tk) {
   return rhc->ops->store (rhc, wrinfo, sample, tk);
 }
