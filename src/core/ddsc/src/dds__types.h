@@ -29,7 +29,7 @@
 #include "dds/ddsi/ddsi_shm_transport.h"
 #include "iceoryx_binding_c/publisher.h"
 #include "iceoryx_binding_c/subscriber.h"
-#include "shm__monitor.h"
+#include "dds__shm_monitor.h"
 #define MAX_PUB_LOANS 8
 #endif
 

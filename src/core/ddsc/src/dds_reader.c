@@ -45,7 +45,7 @@
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/threads.h"
 #include "iceoryx_binding_c/wait_set.h"
-#include "shm__monitor.h"
+#include "dds__shm_monitor.h"
 #endif
 
 DECL_ENTITY_LOCK_UNLOCK (dds_reader)
@@ -70,7 +70,7 @@ static void dds_reader_close (dds_entity *e)
   if (rd->m_iox_sub)
   {
   //will wait for any runing callback using the iceoryx subscriber of this reader
-    shm_monitor_detach_reader(&rd->m_entity.m_domain->m_shm_monitor, rd);
+    dds_shm_monitor_detach_reader(&rd->m_entity.m_domain->m_shm_monitor, rd);
   //from now on no callbacks on this reader will run
   }
 #endif
@@ -722,7 +722,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
     iox_sub_context_t **context = iox_sub_context_ptr(rd->m_iox_sub);
     *context = &rd->m_iox_sub_context;
 
-    rc = shm_monitor_attach_reader(&rd->m_entity.m_domain->m_shm_monitor, rd);
+    rc = dds_shm_monitor_attach_reader(&rd->m_entity.m_domain->m_shm_monitor, rd);
 
     if (rc != DDS_RETCODE_OK) {
       // we fail if we cannot attach to the listener (as we would get no data)
