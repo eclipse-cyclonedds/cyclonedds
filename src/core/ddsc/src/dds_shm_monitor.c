@@ -11,7 +11,7 @@
  */
 
 
-#include "shm__monitor.h"
+#include "dds__shm_monitor.h"
 
 #include "dds__types.h"
 #include "dds__entity.h"
@@ -31,7 +31,7 @@ extern "C" {
 
 static void shm_subscriber_callback(iox_sub_t subscriber, void * context_data);
 
-void shm_monitor_init(shm_monitor_t* monitor)
+void dds_shm_monitor_init(shm_monitor_t* monitor)
 {
     ddsrt_mutex_init(&monitor->m_lock);
 
@@ -42,9 +42,9 @@ void shm_monitor_init(shm_monitor_t* monitor)
     monitor->m_state = SHM_MONITOR_RUNNING;
 }
 
-void shm_monitor_destroy(shm_monitor_t* monitor)
+void dds_shm_monitor_destroy(shm_monitor_t* monitor)
 {
-    shm_monitor_wake_and_disable(monitor);
+    dds_shm_monitor_wake_and_disable(monitor);
     // waiting for the readers to be detached is not necessary,
     // they will be detached when the listener is destroyed (deinit)
     // the deinit will wait for the internal listener thread to join,
@@ -55,21 +55,21 @@ void shm_monitor_destroy(shm_monitor_t* monitor)
     ddsrt_mutex_destroy(&monitor->m_lock);
 }
 
-dds_return_t shm_monitor_wake_and_disable(shm_monitor_t* monitor)
+dds_return_t dds_shm_monitor_wake_and_disable(shm_monitor_t* monitor)
 {
     monitor->m_state = SHM_MONITOR_NOT_RUNNING;
     iox_user_trigger_trigger(monitor->m_wakeup_trigger);
     return DDS_RETCODE_OK;
 }
 
-dds_return_t shm_monitor_wake_and_enable(shm_monitor_t* monitor)
+dds_return_t dds_shm_monitor_wake_and_enable(shm_monitor_t* monitor)
 {
     monitor->m_state = SHM_MONITOR_RUNNING;
     iox_user_trigger_trigger(monitor->m_wakeup_trigger);
     return DDS_RETCODE_OK;
 }
 
-dds_return_t shm_monitor_attach_reader(shm_monitor_t* monitor, struct dds_reader* reader)
+dds_return_t dds_shm_monitor_attach_reader(shm_monitor_t* monitor, struct dds_reader* reader)
 {
 
     if(iox_listener_attach_subscriber_event_with_context_data(monitor->m_listener,
@@ -85,7 +85,7 @@ dds_return_t shm_monitor_attach_reader(shm_monitor_t* monitor, struct dds_reader
     return DDS_RETCODE_OK;
 }
 
-dds_return_t shm_monitor_detach_reader(shm_monitor_t* monitor, struct dds_reader* reader)
+dds_return_t dds_shm_monitor_detach_reader(shm_monitor_t* monitor, struct dds_reader* reader)
 {
     iox_listener_detach_subscriber_event(monitor->m_listener, reader->m_iox_sub, SubscriberEvent_DATA_RECEIVED);
     --monitor->m_number_of_attached_readers;

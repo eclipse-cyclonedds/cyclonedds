@@ -47,7 +47,7 @@ prepend(srcs_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/"
   dds_loan.c)
 
 if(ENABLE_SHM)
-  list(APPEND srcs_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/shm_monitor.c")
+  list(APPEND srcs_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/dds_shm_monitor.c")
 endif()
 
 prepend(hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/"
@@ -93,7 +93,7 @@ prepend(hdrs_public_ddsc "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>$<
   ddsc/dds_loan_api.h)
 
 if(ENABLE_SHM)
-  list(APPEND hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/shm__monitor.h")
+  list(APPEND hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/dds__shm_monitor.h")
 endif()
 
 generate_export_header(
