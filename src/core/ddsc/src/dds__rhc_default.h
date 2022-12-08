@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef _DDS_RHC_DEFAULT_H_
-#define _DDS_RHC_DEFAULT_H_
+#ifndef DDS__RHC_DEFAULT_H
+#define DDS__RHC_DEFAULT_H
 
 #include "dds/features.h"
 
@@ -37,4 +37,4 @@ ddsrt_mtime_t dds_rhc_default_deadline_missed_cb(void *hc, ddsrt_mtime_t tnow);
 #if defined (__cplusplus)
 }
 #endif
-#endif
+#endif /* DDS__RHC_DEFAULT_H */

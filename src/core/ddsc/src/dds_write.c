@@ -390,7 +390,7 @@ static dds_return_t create_and_fill_chunk (dds_writer *wr, const void *data, voi
 static dds_return_t get_iox_chunk (dds_writer *wr, const void *data, void **iox_chunk)
 {
   //note: whether the data was loaned cannot be determined in the non-iceoryx case currently
-  if (!deregister_pub_loan (wr, data))
+  if (!dds_deregister_pub_loan (wr, data))
     return create_and_fill_chunk (wr, data, iox_chunk);
   else
   {

@@ -414,7 +414,7 @@ static ddsrt_mtime_t whc_deadline_missed_cb(void *hc, ddsrt_mtime_t tnow)
 }
 #endif
 
-struct whc_writer_info *whc_make_wrinfo (struct dds_writer *wr, const dds_qos_t *qos)
+struct whc_writer_info *dds_whc_make_wrinfo (struct dds_writer *wr, const dds_qos_t *qos)
 {
   struct whc_writer_info *wrinfo = ddsrt_malloc (sizeof (*wrinfo));
   assert (qos->present & DDSI_QP_HISTORY);
@@ -433,12 +433,12 @@ struct whc_writer_info *whc_make_wrinfo (struct dds_writer *wr, const dds_qos_t 
   return wrinfo;
 }
 
-void whc_free_wrinfo (struct whc_writer_info *wrinfo)
+void dds_whc_free_wrinfo (struct whc_writer_info *wrinfo)
 {
   ddsrt_free (wrinfo);
 }
 
-struct ddsi_whc *whc_new (struct ddsi_domaingv *gv, const struct whc_writer_info *wrinfo)
+struct ddsi_whc *dds_whc_new (struct ddsi_domaingv *gv, const struct whc_writer_info *wrinfo)
 {
   size_t sample_overhead = 80; /* INFO_TS, DATA (estimate), inline QoS */
   struct whc_impl *whc;

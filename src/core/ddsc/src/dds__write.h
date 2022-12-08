@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef _DDS_WRITE_H_
-#define _DDS_WRITE_H_
+#ifndef DDS__WRITE_H
+#define DDS__WRITE_H
 
 #if defined (__cplusplus)
 extern "C" {
@@ -36,4 +36,4 @@ dds_return_t dds_writecdr_local_orphan_impl (struct ddsi_local_orphan_writer *lo
 #if defined (__cplusplus)
 }
 #endif
-#endif
+#endif /* DDS__WRITE_H */

@@ -51,7 +51,6 @@ if(ENABLE_SHM)
 endif()
 
 prepend(hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/"
-  dds__alloc.h
   dds__builtin.h
   dds__domain.h
   dds__handles.h
@@ -61,7 +60,6 @@ prepend(hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/"
   dds__participant.h
   dds__publisher.h
   dds__qos.h
-  dds__querycond.h
   dds__readcond.h
   dds__guardcond.h
   dds__reader.h

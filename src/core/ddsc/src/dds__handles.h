@@ -23,14 +23,6 @@ extern "C" {
 
 struct dds_entity;
 
-/********************************************************************************************
- *
- * TODO CHAM-138: Header file improvements
- *    - Remove some internal design decisions and masks from the header file.
- *    - Improve function headers where needed.
- *
- ********************************************************************************************/
-
 /*
  * Short working ponderings.
  *
@@ -87,16 +79,14 @@ struct dds_handle_link {
 /*
  * Initialize handleserver singleton.
  */
-dds_return_t
-dds_handle_server_init(void);
+dds_return_t dds_handle_server_init(void);
 
 
 /*
  * Destroy handleserver singleton.
  * The handleserver is destroyed when fini() is called as often as init().
  */
-void
-dds_handle_server_fini(void);
+void dds_handle_server_fini(void);
 
 
 /*
@@ -117,20 +107,13 @@ dds_handle_server_fini(void);
  * Valid handle when returned value is positive.
  * Otherwise negative handle is returned.
  */
-dds_handle_t
-dds_handle_create(
-        struct dds_handle_link *link,
-        bool implicit,
-        bool allow_children,
-        bool user_access);
+dds_handle_t dds_handle_create(struct dds_handle_link *link, bool implicit, bool allow_children, bool user_access);
 
 
 /*
  * Register a specific handle.
  */
-dds_return_t
-dds_handle_register_special (
-        struct dds_handle_link *link, bool implicit, bool allow_children, dds_handle_t handle);
+dds_return_t dds_handle_register_special (struct dds_handle_link *link, bool implicit, bool allow_children, dds_handle_t handle);
 
 void dds_handle_unpend (struct dds_handle_link *link);
 
@@ -140,9 +123,7 @@ void dds_handle_unpend (struct dds_handle_link *link);
  *
  * This is a noop on an already closed handle.
  */
-void
-dds_handle_close_wait (
-        struct dds_handle_link *link);
+void dds_handle_close_wait (struct dds_handle_link *link);
 
 /*
  * This will remove the handle related information from the server administration
@@ -153,9 +134,7 @@ dds_handle_close_wait (
  * It will delete the information when there are no more active claims. It'll
  * block when necessary to wait for all possible claims to be released.
  */
-int32_t
-dds_handle_delete(
-        struct dds_handle_link *link);
+int32_t dds_handle_delete(struct dds_handle_link *link);
 
 
 /*
@@ -164,35 +143,20 @@ dds_handle_delete(
  *
  * Returns OK when succeeded.
  */
-int32_t
-dds_handle_pin(
-        dds_handle_t hdl,
-        struct dds_handle_link **entity);
+int32_t dds_handle_pin(dds_handle_t hdl, struct dds_handle_link **entity);
 
-int32_t
-dds_handle_pin_with_origin(
-        dds_handle_t hdl,
-        bool from_user,
-        struct dds_handle_link **entity);
+int32_t dds_handle_pin_with_origin(dds_handle_t hdl, bool from_user, struct dds_handle_link **entity);
 
-int32_t
-dds_handle_pin_and_ref_with_origin(
-        dds_handle_t hdl,
-        bool from_user,
-        struct dds_handle_link **entity);
+int32_t dds_handle_pin_and_ref_with_origin(dds_handle_t hdl, bool from_user, struct dds_handle_link **entity);
 
 
-void
-dds_handle_repin(
-        struct dds_handle_link *link);
+void dds_handle_repin(struct dds_handle_link *link);
 
 
 /*
  * The active claims count is decreased.
  */
-void
-dds_handle_unpin(
-        struct dds_handle_link *link);
+void dds_handle_unpin(struct dds_handle_link *link);
 
 int32_t dds_handle_pin_for_delete (dds_handle_t hdl, bool explicit, bool from_user, struct dds_handle_link **link);
 bool dds_handle_drop_childref_and_pin (struct dds_handle_link *link, bool may_delete_parent);

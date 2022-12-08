@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef DDS_WHC_BUILTINTOPIC_H
-#define DDS_WHC_BUILTINTOPIC_H
+#ifndef DDS__WHC_BUILTINTOPIC_H
+#define DDS__WHC_BUILTINTOPIC_H
 
 #include "dds/ddsi/ddsi_whc.h"
 #include "dds__serdata_builtintopic.h"
@@ -19,10 +19,10 @@
 extern "C" {
 #endif
 
-struct ddsi_whc *builtintopic_whc_new (enum ddsi_sertype_builtintopic_entity_kind entity_kind, const struct ddsi_entity_index *entidx);
+struct ddsi_whc *dds_builtintopic_whc_new (enum ddsi_sertype_builtintopic_entity_kind entity_kind, const struct ddsi_entity_index *entidx);
 
 #if defined (__cplusplus)
 }
 #endif
 
-#endif /* Q_WHC_H */
+#endif /* DDS__WHC_BUILTINTOPIC_H */

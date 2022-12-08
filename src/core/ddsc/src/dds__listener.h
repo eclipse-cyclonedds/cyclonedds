@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef _DDS_LISTENER_H_
-#define _DDS_LISTENER_H_
+#ifndef DDS__LISTENER_H
+#define DDS__LISTENER_H
 
 #include "dds__types.h"
 #include "dds/ddsc/dds_public_listener.h"
@@ -25,4 +25,4 @@ void dds_inherit_listener (dds_listener_t * __restrict dst, const dds_listener_t
 #if defined (__cplusplus)
 }
 #endif
-#endif
+#endif /* DDS__LISTENER_H */
