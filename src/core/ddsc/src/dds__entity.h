@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef _DDS_ENTITY_H_
-#define _DDS_ENTITY_H_
+#ifndef DDS__ENTITY_H
+#define DDS__ENTITY_H
 
 #include "dds/ddsrt/countargs.h"
 #include "dds__types.h"
@@ -21,8 +21,7 @@
 extern "C" {
 #endif
 
-dds_entity_t
-dds_entity_init(
+dds_entity_t dds_entity_init(
   dds_entity * e,
   dds_entity * parent,
   dds_entity_kind_t kind,
@@ -34,19 +33,13 @@ dds_entity_init(
 
 void dds_entity_init_complete (dds_entity *entity);
 
-void
-dds_entity_register_child (
-  dds_entity *parent,
-  dds_entity *child);
+void dds_entity_register_child (dds_entity *parent, dds_entity *child);
 
-void
-dds_entity_add_ref_locked(dds_entity *e);
+void dds_entity_add_ref_locked(dds_entity *e);
 
-void
-dds_entity_drop_ref(dds_entity *e);
+void dds_entity_drop_ref(dds_entity *e);
 
-void
-dds_entity_unpin_and_drop_ref (dds_entity *e);
+void dds_entity_unpin_and_drop_ref (dds_entity *e);
 
 #define DEFINE_ENTITY_LOCK_UNLOCK(type_, kind_) \
   inline dds_return_t type_##_lock (dds_entity_t hdl, type_ **x) \
@@ -175,57 +168,32 @@ enum delete_impl_state {
 
 dds_return_t dds_delete_impl_pinned (dds_entity *e, enum delete_impl_state delstate);
 
-dds_return_t
-dds_entity_pin (
-  dds_entity_t hdl,
-  dds_entity **eptr);
+dds_return_t dds_entity_pin (dds_entity_t hdl, dds_entity **eptr);
 
-dds_return_t
-dds_entity_pin_with_origin (
-  dds_entity_t hdl,
-  bool from_user,
-  dds_entity **eptr);
+dds_return_t dds_entity_pin_with_origin (dds_entity_t hdl, bool from_user, dds_entity **eptr);
 
 dds_return_t dds_entity_pin_for_delete (dds_entity_t hdl, bool explicit, bool from_user, dds_entity **eptr);
 
-void dds_entity_unpin (
-  dds_entity *e);
+void dds_entity_unpin (dds_entity *e);
 
-dds_return_t
-dds_entity_lock(
-  dds_entity_t hdl,
-  dds_entity_kind_t kind,
-  dds_entity **e);
+dds_return_t dds_entity_lock (dds_entity_t hdl, dds_entity_kind_t kind, dds_entity **e);
 
-void
-dds_entity_unlock(dds_entity *e);
+void dds_entity_unlock (dds_entity *e);
 
-dds_return_t
-dds_entity_observer_register(
+dds_return_t dds_entity_observer_register (
   dds_entity *observed,
   dds_waitset *observer,
   dds_entity_callback_t cb,
   dds_entity_attach_callback_t attach_cb, void *attach_arg,
   dds_entity_delete_callback_t delete_cb);
 
-dds_return_t
-dds_entity_observer_unregister(
-  dds_entity *observed,
-  dds_waitset *observer,
-  bool invoke_delete_cb);
+dds_return_t dds_entity_observer_unregister(dds_entity *observed, dds_waitset *observer, bool invoke_delete_cb);
 
-dds_return_t
-dds_generic_unimplemented_operation_manykinds(
-        dds_entity_t handle,
-        size_t nkinds,
-        const dds_entity_kind_t *kinds);
+dds_return_t dds_generic_unimplemented_operation_manykinds(dds_entity_t handle, size_t nkinds, const dds_entity_kind_t *kinds);
 
-dds_return_t
-dds_generic_unimplemented_operation(
-        dds_entity_t handle,
-        dds_entity_kind_t kind);
+dds_return_t dds_generic_unimplemented_operation(dds_entity_t handle, dds_entity_kind_t kind);
 
 #if defined (__cplusplus)
 }
 #endif
-#endif
+#endif /* DDS__ENTITY_H */

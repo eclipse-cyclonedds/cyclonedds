@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef _DDS_STATISTICS_IMPL_H_
-#define _DDS_STATISTICS_IMPL_H_
+#ifndef DDS__STATISTICS_H
+#define DDS__STATISTICS_H
 
 #include "dds/ddsc/dds_statistics.h"
 
@@ -33,4 +33,4 @@ struct dds_statistics *dds_alloc_statistics (const struct dds_entity *e, const s
 #if defined (__cplusplus)
 }
 #endif
-#endif /* _DDS_STATISTICS_IMPL_H_ */
+#endif /* DDS__STATISTICS_H */

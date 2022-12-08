@@ -447,9 +447,9 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   wr->m_topic = tp;
   dds_entity_add_ref_locked (&tp->m_entity);
   wr->m_xp = ddsi_xpack_new (gv, get_bandwidth_limit (wqos->transport_priority), async_mode);
-  wrinfo = whc_make_wrinfo (wr, wqos);
-  wr->m_whc = whc_new (gv, wrinfo);
-  whc_free_wrinfo (wrinfo);
+  wrinfo = dds_whc_make_wrinfo (wr, wqos);
+  wr->m_whc = dds_whc_new (gv, wrinfo);
+  dds_whc_free_wrinfo (wrinfo);
   wr->whc_batch = gv->config.whc_batch;
 
 #ifdef DDS_HAS_SHM

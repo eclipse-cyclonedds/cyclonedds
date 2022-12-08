@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef _DDS_READER_H_
-#define _DDS_READER_H_
+#ifndef DDS__READER_H
+#define DDS__READER_H
 
 #include "dds__types.h"
 #include "dds__entity.h"
@@ -18,7 +18,6 @@
 #if defined (__cplusplus)
 extern "C" {
 #endif
-
 struct ddsi_status_cb_data;
 
 void dds_reader_status_cb (void *entity, const struct ddsi_status_cb_data * data);
@@ -44,4 +43,5 @@ DEFINE_ENTITY_LOCK_UNLOCK(dds_reader, DDS_KIND_READER)
 #if defined (__cplusplus)
 }
 #endif
-#endif
+
+#endif // DDS__READER_H

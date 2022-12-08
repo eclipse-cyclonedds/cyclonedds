@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef _DDS_INIT_H_
-#define _DDS_INIT_H_
+#ifndef DDS__INIT_H
+#define DDS__INIT_H
 
 #include "dds__types.h"
 
@@ -31,4 +31,4 @@ dds_return_t dds_init (void);
 #if defined (__cplusplus)
 }
 #endif
-#endif
+#endif /* DDS__INIT_H */

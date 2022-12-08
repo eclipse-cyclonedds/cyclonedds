@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef _DDS_BUILTIN_H_
-#define _DDS_BUILTIN_H_
+#ifndef DDS__BUILTIN_H
+#define DDS__BUILTIN_H
 
 #include "dds/ddsi/ddsi_builtin_topic_if.h"
 #include "dds__types.h"
@@ -51,5 +51,5 @@ struct ddsi_serdata *dds__builtin_make_sample_proxy_topic (const struct ddsi_pro
 }
 #endif
 
-#endif /* _DDS_BUILTIN_H_ */
+#endif /* DDS__BUILTIN_H */
 

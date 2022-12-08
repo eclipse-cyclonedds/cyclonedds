@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef _DDS_PPANT_H_
-#define _DDS_PPANT_H_
+#ifndef DDS__PARTICIPANT_H
+#define DDS__PARTICIPANT_H
 
 #include "dds__entity.h"
 
@@ -25,4 +25,5 @@ extern const ddsrt_avl_treedef_t participant_ktopics_treedef;
 #if defined (__cplusplus)
 }
 #endif
-#endif
+
+#endif /* DDS__PARTICIPANT_H */

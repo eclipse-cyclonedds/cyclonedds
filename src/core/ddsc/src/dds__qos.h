@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef _DDS_QOS_H_
-#define _DDS_QOS_H_
+#ifndef DDS__QOS_H
+#define DDS__QOS_H
 
 #include "dds/ddsi/ddsi_xqos.h"
 
@@ -62,4 +62,4 @@ void dds_apply_entity_naming(dds_qos_t *qos, /* optional */ dds_qos_t *parent_qo
 #if defined (__cplusplus)
 }
 #endif
-#endif
+#endif /* DDS__QOS_H */

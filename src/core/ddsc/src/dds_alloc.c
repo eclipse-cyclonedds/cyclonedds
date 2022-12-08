@@ -12,7 +12,6 @@
 #include <assert.h>
 #include <string.h>
 
-#include "dds__alloc.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/cdr/dds_cdrstream.h"
 

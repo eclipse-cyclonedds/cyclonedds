@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef _DDS_GET_STATUS_H_
-#define _DDS_GET_STATUS_H_
+#ifndef DDS__GET_STATUS_H
+#define DDS__GET_STATUS_H
 
 #define DDS_GET_STATUS_LOCKED(ent_type_, status_, STATUS_, ...) \
   static void dds_get_##status_##_status_locked (dds_##ent_type_ *ent, dds_##status_##_status_t *status) \
@@ -39,4 +39,4 @@
   DDS_GET_STATUS_LOCKED (ent_type_, status_, STATUS_, __VA_ARGS__) \
   DDS_GET_STATUS_COMMON (ent_type_, status_)
 
-#endif
+#endif /* DDS__GET_STATUS_H */

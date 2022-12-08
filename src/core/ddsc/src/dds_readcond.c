@@ -41,7 +41,7 @@ const struct dds_entity_deriver dds_entity_deriver_readcondition = {
   .refresh_statistics = dds_entity_deriver_dummy_refresh_statistics
 };
 
-dds_readcond *dds_create_readcond (dds_reader *rd, dds_entity_kind_t kind, uint32_t mask, dds_querycondition_filter_fn filter)
+dds_readcond *dds_create_readcond_impl (dds_reader *rd, dds_entity_kind_t kind, uint32_t mask, dds_querycondition_filter_fn filter)
 {
   dds_readcond *cond = dds_alloc (sizeof (*cond));
   assert ((kind == DDS_KIND_COND_READ && filter == 0) || (kind == DDS_KIND_COND_QUERY && filter != 0));
@@ -74,7 +74,7 @@ dds_entity_t dds_create_readcondition (dds_entity_t reader, uint32_t mask)
   else
   {
     dds_entity_t hdl;
-    dds_readcond *cond = dds_create_readcond(rd, DDS_KIND_COND_READ, mask, 0);
+    dds_readcond *cond = dds_create_readcond_impl (rd, DDS_KIND_COND_READ, mask, 0);
     assert (cond);
     hdl = cond->m_entity.m_hdllink.hdl;
     dds_entity_init_complete (&cond->m_entity);

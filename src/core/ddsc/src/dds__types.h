@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef _DDS_TYPES_H_
-#define _DDS_TYPES_H_
+#ifndef DDS__TYPES_H
+#define DDS__TYPES_H
 
 /* DDS internal type definitions */
 
@@ -424,4 +424,4 @@ extern dds_cyclonedds_entity dds_global;
 #if defined (__cplusplus)
 }
 #endif
-#endif
+#endif /* DDS__TYPES_H */

@@ -64,4 +64,4 @@ dds_return_t dds__reader_data_allocator_fini (const struct dds_reader *wr, dds_d
 }
 #endif
 
-#endif
+#endif /* DDS__DATA_ALLOCATOR_H */

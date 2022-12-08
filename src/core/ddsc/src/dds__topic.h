@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef _DDS_TOPIC_H_
-#define _DDS_TOPIC_H_
+#ifndef DDS__TOPIC_H
+#define DDS__TOPIC_H
 
 #include "dds__types.h"
 #include "dds__entity.h"
@@ -39,4 +39,5 @@ dds_entity_t dds_create_topic_impl (
 #if defined (__cplusplus)
 }
 #endif
-#endif
+
+#endif /* DDS__TOPIC_H */

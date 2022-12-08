@@ -277,7 +277,7 @@ static const struct ddsi_whc_ops bwhc_ops = {
   .free = bwhc_free
 };
 
-struct ddsi_whc *builtintopic_whc_new (enum ddsi_sertype_builtintopic_entity_kind entity_kind, const struct ddsi_entity_index *entidx)
+struct ddsi_whc *dds_builtintopic_whc_new (enum ddsi_sertype_builtintopic_entity_kind entity_kind, const struct ddsi_entity_index *entidx)
 {
   struct bwhc *whc = ddsrt_malloc (sizeof (*whc));
   whc->common.ops = &bwhc_ops;

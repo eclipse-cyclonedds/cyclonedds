@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef _DDS_GUARDCOND_H_
-#define _DDS_GUARDCOND_H_
+#ifndef DDS__GUARDCOND_H
+#define DDS__GUARDCOND_H
 
 #include "dds__entity.h"
 
@@ -24,4 +24,4 @@ DEFINE_ENTITY_LOCK_UNLOCK(dds_guardcond, DDS_KIND_COND_GUARD)
 }
 #endif
 
-#endif
+#endif /* DDS__GUARDCOND_H */

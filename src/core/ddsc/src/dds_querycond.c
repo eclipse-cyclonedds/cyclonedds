@@ -16,7 +16,6 @@
 #include "dds__entity.h"
 #include "dds__reader.h"
 #include "dds__topic.h"
-#include "dds__querycond.h"
 #include "dds__readcond.h"
 #include "dds/ddsi/ddsi_serdata.h"
 
@@ -30,7 +29,7 @@ dds_entity_t dds_create_querycondition (dds_entity_t reader, uint32_t mask, dds_
   else
   {
     dds_entity_t hdl;
-    dds_readcond *cond = dds_create_readcond (r, DDS_KIND_COND_QUERY, mask, filter);
+    dds_readcond *cond = dds_create_readcond_impl (r, DDS_KIND_COND_QUERY, mask, filter);
     assert (cond);
     hdl = cond->m_entity.m_hdllink.hdl;
     dds_entity_init_complete (&cond->m_entity);

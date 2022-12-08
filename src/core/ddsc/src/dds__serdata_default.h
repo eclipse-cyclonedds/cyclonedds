@@ -136,4 +136,4 @@ dds_return_t dds_sertype_default_init (const struct dds_domain *domain, struct d
 }
 #endif
 
-#endif
+#endif /* DDS__SERDATA_DEFAULT_H */

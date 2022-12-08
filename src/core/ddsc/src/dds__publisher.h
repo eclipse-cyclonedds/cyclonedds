@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef _DDS_PUBLISHER_H_
-#define _DDS_PUBLISHER_H_
+#ifndef DDS__PUBLISHER_H
+#define DDS__PUBLISHER_H
 
 #include "dds/dds.h"
 #include "dds__entity.h"
@@ -34,4 +34,4 @@ dds_return_t dds_publisher_end_coherent (dds_entity_t e);
 #if defined (__cplusplus)
 }
 #endif
-#endif /* _DDS_PUBLISHER_H_ */
+#endif /* DDS__PUBLISHER_H */
