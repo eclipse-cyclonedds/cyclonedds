@@ -28,6 +28,7 @@ struct dds_stat_descriptor {
   const struct dds_stat_keyvalue_descriptor *kv;
 };
 
+/** @component statistics */
 struct dds_statistics *dds_alloc_statistics (const struct dds_entity *e, const struct dds_stat_descriptor *d);
 
 #if defined (__cplusplus)

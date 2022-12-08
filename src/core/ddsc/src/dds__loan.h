@@ -18,10 +18,10 @@ extern "C" {
 
 #ifdef DDS_HAS_SHM
 
-// NB: required in dds_write.c and dds_loan.c for now
-
+/** @component write_data */
 void dds_register_pub_loan(dds_writer *wr, void *pub_loan);
 
+/** @component write_data */
 bool dds_deregister_pub_loan(dds_writer *wr, const void *pub_loan);
 
 #endif /* DDS_HAS_SHM */

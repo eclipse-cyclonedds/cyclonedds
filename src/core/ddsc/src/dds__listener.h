@@ -19,7 +19,10 @@
 extern "C" {
 #endif
 
+/** @component entity_listener */
 void dds_override_inherited_listener (dds_listener_t * __restrict dst, const dds_listener_t * __restrict src);
+
+/** @component entity_listener */
 void dds_inherit_listener (dds_listener_t * __restrict dst, const dds_listener_t * __restrict src);
 
 #if defined (__cplusplus)

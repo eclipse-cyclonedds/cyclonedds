@@ -18,7 +18,7 @@
 extern "C" {
 #endif
 
-DEFINE_ENTITY_LOCK_UNLOCK(dds_participant, DDS_KIND_PARTICIPANT)
+DEFINE_ENTITY_LOCK_UNLOCK(dds_participant, DDS_KIND_PARTICIPANT, participant)
 
 extern const ddsrt_avl_treedef_t participant_ktopics_treedef;
 

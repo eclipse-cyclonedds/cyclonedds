@@ -21,6 +21,7 @@
 extern "C" {
 #endif
 
+/** @component generic_entity */
 dds_entity_t dds_entity_init(
   dds_entity * e,
   dds_entity * parent,
@@ -31,17 +32,23 @@ dds_entity_t dds_entity_init(
   const dds_listener_t *listener,
   status_mask_t mask);
 
+/** @component generic_entity */
 void dds_entity_init_complete (dds_entity *entity);
 
+/** @component generic_entity */
 void dds_entity_register_child (dds_entity *parent, dds_entity *child);
 
+/** @component generic_entity */
 void dds_entity_add_ref_locked(dds_entity *e);
 
+/** @component generic_entity */
 void dds_entity_drop_ref(dds_entity *e);
 
+/** @component generic_entity */
 void dds_entity_unpin_and_drop_ref (dds_entity *e);
 
-#define DEFINE_ENTITY_LOCK_UNLOCK(type_, kind_) \
+#define DEFINE_ENTITY_LOCK_UNLOCK(type_, kind_, component_) \
+  /** @component component_ */ \
   inline dds_return_t type_##_lock (dds_entity_t hdl, type_ **x) \
   { \
     dds_return_t rc; \
@@ -51,6 +58,7 @@ void dds_entity_unpin_and_drop_ref (dds_entity *e);
     *x = (type_ *) e; \
     return DDS_RETCODE_OK; \
   } \
+  /** @component component_ */ \
   inline void type_##_unlock (type_ *x) \
   { \
     dds_entity_unlock (&x->m_entity); \
@@ -59,30 +67,38 @@ void dds_entity_unpin_and_drop_ref (dds_entity *e);
   extern inline dds_return_t type_##_lock (dds_entity_t hdl, type_ **x); \
   extern inline void type_##_unlock (type_ *x);
 
+/** @component generic_entity */
 inline dds_entity *dds_entity_from_handle_link (struct dds_handle_link *hdllink) {
   return (dds_entity *) ((char *) hdllink - offsetof (struct dds_entity, m_hdllink));
 }
 
+/** @component generic_entity */
 inline bool dds_entity_is_enabled (const dds_entity *e) {
   return (e->m_flags & DDS_ENTITY_ENABLED) != 0;
 }
 
+/** @component generic_entity */
 bool dds_entity_status_set (dds_entity *e, status_mask_t t) ddsrt_attribute_warn_unused_result;
 
+/** @component generic_entity */
 inline void dds_entity_status_reset (dds_entity *e, status_mask_t t) {
   ddsrt_atomic_and32 (&e->m_status.m_status_and_mask, SAM_ENABLED_MASK | (status_mask_t) ~t);
 }
 
+/** @component generic_entity */
 inline uint32_t dds_entity_status_reset_ov (dds_entity *e, status_mask_t t) {
   return ddsrt_atomic_and32_ov (&e->m_status.m_status_and_mask, SAM_ENABLED_MASK | (status_mask_t) ~t);
 }
 
+/** @component generic_entity */
 inline dds_entity_kind_t dds_entity_kind (const dds_entity *e) {
   return e->m_kind;
 }
 
+/** @component generic_entity */
 void dds_entity_observers_signal (dds_entity *observed, uint32_t status);
 
+/** @component generic_entity */
 void dds_entity_status_signal (dds_entity *e, uint32_t status);
 
 union dds_status_union {
@@ -154,9 +170,16 @@ union dds_status_union {
       dds_entity_observers_signal (&e->m_entity, DDS_##NAME_##_STATUS); \
   }
 
+/** @component generic_entity */
 dds_participant *dds_entity_participant (const dds_entity *e);
+
+/** @component generic_entity */
 const ddsi_guid_t *dds_entity_participant_guid (const dds_entity *e);
+
+/** @component generic_entity */
 void dds_entity_final_deinit_before_free (dds_entity *e);
+
+/** @component generic_entity */
 bool dds_entity_in_scope (const dds_entity *e, const dds_entity *root);
 
 enum delete_impl_state {
@@ -166,20 +189,28 @@ enum delete_impl_state {
   DIS_IMPLICIT     /* called from child; delete if implicit w/o children */
 };
 
+/** @component generic_entity */
 dds_return_t dds_delete_impl_pinned (dds_entity *e, enum delete_impl_state delstate);
 
+/** @component generic_entity */
 dds_return_t dds_entity_pin (dds_entity_t hdl, dds_entity **eptr);
 
+/** @component generic_entity */
 dds_return_t dds_entity_pin_with_origin (dds_entity_t hdl, bool from_user, dds_entity **eptr);
 
+/** @component generic_entity */
 dds_return_t dds_entity_pin_for_delete (dds_entity_t hdl, bool explicit, bool from_user, dds_entity **eptr);
 
+/** @component generic_entity */
 void dds_entity_unpin (dds_entity *e);
 
+/** @component generic_entity */
 dds_return_t dds_entity_lock (dds_entity_t hdl, dds_entity_kind_t kind, dds_entity **e);
 
+/** @component generic_entity */
 void dds_entity_unlock (dds_entity *e);
 
+/** @component generic_entity */
 dds_return_t dds_entity_observer_register (
   dds_entity *observed,
   dds_waitset *observer,
@@ -187,10 +218,13 @@ dds_return_t dds_entity_observer_register (
   dds_entity_attach_callback_t attach_cb, void *attach_arg,
   dds_entity_delete_callback_t delete_cb);
 
+/** @component generic_entity */
 dds_return_t dds_entity_observer_unregister(dds_entity *observed, dds_waitset *observer, bool invoke_delete_cb);
 
+/** @component generic_entity */
 dds_return_t dds_generic_unimplemented_operation_manykinds(dds_entity_t handle, size_t nkinds, const dds_entity_kind_t *kinds);
 
+/** @component generic_entity */
 dds_return_t dds_generic_unimplemented_operation(dds_entity_t handle, dds_entity_kind_t kind);
 
 #if defined (__cplusplus)

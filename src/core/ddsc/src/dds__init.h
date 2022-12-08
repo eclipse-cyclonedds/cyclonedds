@@ -19,13 +19,14 @@ extern "C" {
 #endif
 
 /**
- *Description : Initializes the library and constructs the global
- *pseudo-entity identified by DDS_CYCLONEDDS_HANDLE with one reference
- *that must (eventually) be released by calling dds_delete on that handle.
+ * @component cyclone_root
  *
- *Arguments :
- *-# Returns 0 on success or a non-zero error status
- **/
+ * Initializes the library and constructs the global pseudo-entity identified
+ * by DDS_CYCLONEDDS_HANDLE with one reference that must (eventually) be
+ * released by calling dds_delete on that handle.
+ *
+ * @return dds_return_t Returns 0 on success or a non-zero error status
+ */
 dds_return_t dds_init (void);
 
 #if defined (__cplusplus)

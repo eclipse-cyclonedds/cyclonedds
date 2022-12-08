@@ -19,6 +19,7 @@
 extern "C" {
 #endif
 
+/** @component builtin_topic */
 struct ddsi_whc *dds_builtintopic_whc_new (enum ddsi_sertype_builtintopic_entity_kind entity_kind, const struct ddsi_entity_index *entidx);
 
 #if defined (__cplusplus)

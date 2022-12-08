@@ -18,12 +18,8 @@
 extern "C" {
 #endif
 
-dds_readcond *
-dds_create_readcond_impl (
-  dds_reader *rd,
-  dds_entity_kind_t kind,
-  uint32_t mask,
-  dds_querycondition_filter_fn filter);
+/** @component data_query */
+dds_readcond * dds_create_readcond_impl (dds_reader *rd, dds_entity_kind_t kind, uint32_t mask, dds_querycondition_filter_fn filter);
 
 #if defined (__cplusplus)
 }

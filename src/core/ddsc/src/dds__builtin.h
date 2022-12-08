@@ -20,31 +20,78 @@ extern "C"
 {
 #endif
 
-/* Get name and typename based from a builtin-topic pseudo-handle; returns an DDS_RETCODE_BAD_PARAMETER if pseudo_handle is invalid */
+/**
+ * @brief Get name and typename based from a builtin-topic pseudo-handle
+ * @component builtin_topic
+ *
+ * @param pseudo_handle
+ * @param name
+ * @return DDS_RETCODE_BAD_PARAMETER if pseudo_handle is invalid
+ */
 dds_return_t dds__get_builtin_topic_name_typename (dds_entity_t pseudo_handle, const char **name, const char **typename);
 
-/* Returns the pseudo handle for the given typename, returns DDS_RETCODE_BAD_PARAMETER if typename isn't one of the built-in topics */
+/**
+ * @brief Returns the pseudo handle for the given typename
+ * @component builtin_topic
+ *
+ * @return DDS_RETCODE_BAD_PARAMETER if typename isn't one of the built-in topics
+ */
 dds_entity_t dds__get_builtin_topic_pseudo_handle_from_typename (const char *typename);
 
-/* Get actual topic in related participant related to topic 'id'. */
+/**
+ * @brief Get actual topic in related participant related to topic 'id'.
+ * @component builtin_topic
+ *
+ * @param e
+ * @param topic
+ * @return
+ */
 dds_entity_t dds__get_builtin_topic (dds_entity_t e, dds_entity_t topic);
 
-/* Constructs the QoS object for a built-in topic QoS */
+/**
+ * @brief Constructs the QoS object for a built-in topic QoS
+ * @component builtin_topic
+ *
+ * @return
+ */
 dds_qos_t *dds__create_builtin_qos (void);
 
-/* Subscriber singleton within related participant. */
+/**
+ * @brief Subscriber singleton within related participant.
+ * @component builtin_topic
+ *
+ * @param e
+ * @return
+ */
 dds_entity_t dds__get_builtin_subscriber (dds_entity_t e);
 
-/* Checks whether the reader QoS is valid for use with built-in topic TOPIC */
+/**
+ * @brief Checks whether the reader QoS is valid for use with built-in topic TOPIC
+ * @component builtin_topic
+ *
+ * @param dom
+ * @param topic
+ * @param qos
+ * @return
+ */
 bool dds__validate_builtin_reader_qos (const dds_domain *dom, dds_entity_t topic, const dds_qos_t *qos);
 
+/** @component builtin_topic */
 void dds__builtin_init (struct dds_domain *dom);
+
+/** @component builtin_topic */
 void dds__builtin_fini (struct dds_domain *dom);
 
 struct ddsi_entity_common;
 struct ddsi_proxy_topic;
+
+/** @component builtin_topic */
 struct ddsi_serdata *dds__builtin_make_sample_endpoint (const struct ddsi_entity_common *e, ddsrt_wctime_t timestamp, bool alive);
+
+/** @component builtin_topic */
 struct ddsi_serdata *dds__builtin_make_sample_topic (const struct ddsi_entity_common *e, ddsrt_wctime_t timestamp, bool alive);
+
+/** @component builtin_topic */
 struct ddsi_serdata *dds__builtin_make_sample_proxy_topic (const struct ddsi_proxy_topic *proxytp, ddsrt_wctime_t timestamp, bool alive);
 
 #if defined (__cplusplus)

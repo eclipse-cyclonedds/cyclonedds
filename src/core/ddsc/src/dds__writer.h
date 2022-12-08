@@ -18,14 +18,17 @@
 extern "C" {
 #endif
 
-DEFINE_ENTITY_LOCK_UNLOCK(dds_writer, DDS_KIND_WRITER)
+DEFINE_ENTITY_LOCK_UNLOCK(dds_writer, DDS_KIND_WRITER, writer)
 
 struct ddsi_status_cb_data;
 
+/** @component writer */
 void dds_writer_status_cb (void *entity, const struct ddsi_status_cb_data * data);
 
+/** @component writer */
 dds_return_t dds_return_writer_loan(dds_writer *writer, void **buf, int32_t bufsz) ddsrt_nonnull_all;
 
+/** @component writer */
 dds_return_t dds__ddsi_writer_wait_for_acks (struct dds_writer *wr, ddsi_guid_t *rdguid, dds_time_t abstimeout);
 
 #if defined (__cplusplus)
