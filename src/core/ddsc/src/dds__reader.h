@@ -20,25 +20,32 @@ extern "C" {
 #endif
 struct ddsi_status_cb_data;
 
+/** @component reader */
 void dds_reader_status_cb (void *entity, const struct ddsi_status_cb_data * data);
 
+/** @component reader */
 dds_return_t dds_return_reader_loan (dds_reader *rd, void **buf, int32_t bufsz);
 
-/*
-  dds_reader_lock_samples: Returns number of samples in read cache and locks the
-  reader cache to make sure that the samples content doesn't change.
-  Because the cache is locked, you should be able to read/take without having to
-  lock first. This is done by passing the DDS_READ_WITHOUT_LOCK value to the
-  read/take call as maxs. Then the read/take will not lock but still unlock.
 
-  See also CHAM-287, CHAM-306 and LITE-1183.
-
-  Used to support LENGTH_UNLIMITED in C++.
-*/
 #define DDS_READ_WITHOUT_LOCK (0xFFFFFFED)
+
+/**
+ * @component reader
+ *
+ * Returns number of samples in read cache and locks the reader cache to make
+ * sure that the samples content doesn't change. Because the cache is locked,
+ * you should be able to read/take without having to lock first. This is done
+ * by passing the DDS_READ_WITHOUT_LOCK value to the read/take call as maxs.
+ * Then the read/take will not lock but still unlock.
+ *
+ * Used to support LENGTH_UNLIMITED in C++.
+ *
+ * @param entity
+ * @return
+ */
 DDS_EXPORT uint32_t dds_reader_lock_samples (dds_entity_t entity);
 
-DEFINE_ENTITY_LOCK_UNLOCK(dds_reader, DDS_KIND_READER)
+DEFINE_ENTITY_LOCK_UNLOCK(dds_reader, DDS_KIND_READER, reader)
 
 #if defined (__cplusplus)
 }

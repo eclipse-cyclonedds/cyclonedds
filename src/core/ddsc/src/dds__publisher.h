@@ -19,16 +19,24 @@
 extern "C" {
 #endif
 
-DEFINE_ENTITY_LOCK_UNLOCK(dds_publisher, DDS_KIND_PUBLISHER)
+DEFINE_ENTITY_LOCK_UNLOCK(dds_publisher, DDS_KIND_PUBLISHER, publisher)
 
-dds_entity_t
-dds__create_publisher_l(
-  struct dds_participant *participant, /* entity-lock must be held */
-  bool implicit,
-  const dds_qos_t *qos,
-  const dds_listener_t *listener);
+/**
+ * @brief Creates a publisher with participant entity-lock held
+ * @component publisher
+ *
+ * @param participant
+ * @param implicit
+ * @param qos
+ * @param listener
+ * @return dds_entity_t
+ */
+dds_entity_t dds__create_publisher_l(struct dds_participant *participant, bool implicit, const dds_qos_t *qos, const dds_listener_t *listener);
 
+/** @component publisher */
 dds_return_t dds_publisher_begin_coherent (dds_entity_t e);
+
+/** @component publisher */
 dds_return_t dds_publisher_end_coherent (dds_entity_t e);
 
 #if defined (__cplusplus)

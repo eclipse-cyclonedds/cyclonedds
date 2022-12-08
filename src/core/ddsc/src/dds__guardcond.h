@@ -18,7 +18,7 @@
 extern "C" {
 #endif
 
-DEFINE_ENTITY_LOCK_UNLOCK(dds_guardcond, DDS_KIND_COND_GUARD)
+DEFINE_ENTITY_LOCK_UNLOCK(dds_guardcond, DDS_KIND_COND_GUARD, guard_condition)
 
 #if defined (__cplusplus)
 }

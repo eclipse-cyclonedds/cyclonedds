@@ -19,20 +19,30 @@
 extern "C" {
 #endif
 
-DEFINE_ENTITY_LOCK_UNLOCK(dds_subscriber, DDS_KIND_SUBSCRIBER)
+DEFINE_ENTITY_LOCK_UNLOCK(dds_subscriber, DDS_KIND_SUBSCRIBER, subscriber)
 
-dds_entity_t dds__create_subscriber_l(
-  struct dds_participant *participant, /* entity-lock must be held */
-  bool implicit,
-  const dds_qos_t *qos,
-  const dds_listener_t *listener);
+/**
+ * @brief Creates a subscriber with participant entity-lock held
+ * @component subscriber
+ *
+ * @param participant
+ * @param implicit
+ * @param qos
+ * @param listener
+ * @return dds_entity_t
+ */
+dds_entity_t dds__create_subscriber_l(struct dds_participant *participant, bool implicit, const dds_qos_t *qos, const dds_listener_t *listener);
 
+/** @component subscriber */
 dds_return_t dds_subscriber_begin_coherent (dds_entity_t e);
 
+/** @component subscriber */
 dds_return_t dds_subscriber_end_coherent (dds_entity_t e);
 
+/** @component subscriber */
 bool dds_subscriber_compute_data_on_readers_locked (dds_subscriber *sub);
 
+/** @component subscriber */
 void dds_subscriber_adjust_materialize_data_on_readers (dds_subscriber *sub, bool materialization_needed) ddsrt_nonnull_all;
 
 #if defined (__cplusplus)

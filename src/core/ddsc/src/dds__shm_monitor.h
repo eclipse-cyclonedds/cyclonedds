@@ -51,32 +51,58 @@ struct shm_monitor {
 
 typedef struct shm_monitor shm_monitor_t;
 
-/// @brief initialize the shm_monitor
-/// @param monitor self
+/**
+ * @brief Initialize the shm_monitor
+ * @component shm_monitor
+ *
+ * @param monitor self
+ */
 void dds_shm_monitor_init(shm_monitor_t* monitor);
 
-/// @brief delete the shm_monitor
-/// @param monitor self
+/**
+ * @brief Delete the shm_monitor
+ * @component shm_monitor
+ *
+ * @param monitor self
+ */
 void dds_shm_monitor_destroy(shm_monitor_t* monitor);
 
-/// @brief wake up the internal listener and disable execution of listener callbacks
-///        due to received data
-/// @param monitor self
+/**
+ * @brief Wake up the internal listener and disable execution of listener callbacks due to received data
+ * @component shm_monitor
+ *
+ * @param monitor self
+ * @return dds_return_t
+ */
 dds_return_t dds_shm_monitor_wake_and_disable(shm_monitor_t* monitor);
 
-/// @brief wake up the internal listener and enable execution of listener callbacks
-///        due to received data
-/// @param monitor self
+/**
+ * @brief Wake up the internal listener and enable execution of listener callbacks due to received data
+ * @component shm_monitor
+ *
+ * @param monitor self
+ * @return dds_return_t
+ */
 dds_return_t dds_shm_monitor_wake_and_enable(shm_monitor_t* monitor);
 
-/// @brief attach a new reader
-/// @param monitor self
-/// @param reader reader to attach
+/**
+ * @brief Attach a new reader
+ * @component shm_monitor
+ *
+ * @param monitor self
+ * @param reader reader to attach
+ * @return dds_return_t
+ */
 dds_return_t dds_shm_monitor_attach_reader(shm_monitor_t* monitor, struct dds_reader* reader);
 
-/// @brief detach a reader
-/// @param monitor self
-/// @param reader reader to detach
+/**
+ * @brief Detach a reader
+ * @component shm_monitor
+ *
+ * @param monitor self
+ * @param reader reader to detach
+ * @return dds_return_t
+ */
 dds_return_t dds_shm_monitor_detach_reader(shm_monitor_t* monitor, struct dds_reader* reader);
 
 // ICEORYX_TODO: clarify lifetime of readers, it should be ok since they are detached in the dds_reader_delete call

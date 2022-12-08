@@ -128,8 +128,13 @@ extern const struct ddsi_serdata_ops dds_serdata_ops_cdr_nokey;
 extern const struct ddsi_serdata_ops dds_serdata_ops_xcdr2;
 extern const struct ddsi_serdata_ops dds_serdata_ops_xcdr2_nokey;
 
+/** @component typesupport_c */
 struct dds_serdatapool * dds_serdatapool_new (void);
+
+/** @component typesupport_c */
 void dds_serdatapool_free (struct dds_serdatapool * pool);
+
+/** @component typesupport_c */
 dds_return_t dds_sertype_default_init (const struct dds_domain *domain, struct dds_sertype_default *st, const dds_topic_descriptor_t *desc, uint16_t min_xcdrv, dds_data_representation_id_t data_representation);
 
 #if defined (__cplusplus)
