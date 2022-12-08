@@ -49,18 +49,43 @@ typedef enum ddsi_type_include_deps {
   DDSI_TYPE_INCLUDE_DEPS
 } ddsi_type_include_deps_t;
 
+/** @component xtypes_wrapper */
 DDS_EXPORT int ddsi_typeid_compare (const ddsi_typeid_t *a, const ddsi_typeid_t *b);
+
+/** @component xtypes_wrapper */
 DDS_EXPORT void ddsi_typeid_copy (ddsi_typeid_t *dst, const ddsi_typeid_t *src);
+
+/** @component xtypes_wrapper */
 DDS_EXPORT ddsi_typeid_t * ddsi_typeid_dup (const ddsi_typeid_t *src);
+
+/** @component xtypes_wrapper */
 DDS_EXPORT void ddsi_typeid_ser (const ddsi_typeid_t *type_id, unsigned char **buf, uint32_t *sz);
+
+/** @component xtypes_wrapper */
 DDS_EXPORT bool ddsi_typeid_is_none (const ddsi_typeid_t *type_id);
+
+/** @component xtypes_wrapper */
 DDS_EXPORT bool ddsi_typeid_is_hash (const ddsi_typeid_t *type_id);
+
+/** @component xtypes_wrapper */
 DDS_EXPORT bool ddsi_typeid_is_minimal (const ddsi_typeid_t *type_id);
+
+/** @component xtypes_wrapper */
 DDS_EXPORT bool ddsi_typeid_is_complete (const ddsi_typeid_t *type_id);
+
+/** @component xtypes_wrapper */
 DDS_EXPORT bool ddsi_typeid_is_fully_descriptive (const ddsi_typeid_t *type_id);
+
+/** @component xtypes_wrapper */
 DDS_EXPORT void ddsi_typeid_get_equivalence_hash (const ddsi_typeid_t *type_id, DDS_XTypes_EquivalenceHash *hash);
+
+/** @component xtypes_wrapper */
 DDS_EXPORT ddsi_typeid_kind_t ddsi_typeid_kind (const ddsi_typeid_t *type);
+
+/** @component xtypes_wrapper */
 DDS_EXPORT void ddsi_typeid_fini (ddsi_typeid_t *type_id);
+
+/** @component xtypes_wrapper */
 void ddsi_typeobj_fini (ddsi_typeobj_t *typeobj);
 
 #else /* DDS_HAS_TYPE_DISCOVERY */

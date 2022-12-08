@@ -21,7 +21,10 @@ extern "C" {
 struct ddsi_reader;
 struct ddsi_writer;
 
+/** @component ddsi_statistics */
 void ddsi_get_writer_stats (struct ddsi_writer *wr, uint64_t * __restrict rexmit_bytes, uint32_t * __restrict throttle_count, uint64_t * __restrict time_throttled, uint64_t * __restrict time_retransmit);
+
+/** @component ddsi_statistics */
 void ddsi_get_reader_stats (struct ddsi_reader *rd, uint64_t * __restrict discarded_bytes);
 
 #if defined (__cplusplus)

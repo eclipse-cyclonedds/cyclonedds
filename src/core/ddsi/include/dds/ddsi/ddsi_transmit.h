@@ -22,12 +22,32 @@ struct ddsi_serdata;
 struct ddsi_tkmap_instance;
 struct ddsi_thread_state;
 
-/* Writing new data; serdata_twrite (serdata) is assumed to be really recentish; serdata is unref'd.
-   If xp == NULL, data is queued, else packed. GC may occur, which means the writer history and watermarks
-   can be anything. This must be used for all application data. */
+/**
+ * @component outgoing_rtps
+ *
+ * Writing new data; serdata_twrite (serdata) is assumed to be really recentish; serdata is unref'd.
+ * If xp == NULL, data is queued, else packed. GC may occur, which means the writer history and watermarks
+ * can be anything. This must be used for all application data.
+ *
+ * @param thrst
+ * @param xp
+ * @param wr
+ * @param serdata
+ * @param tk
+ * @return int
+ */
 int ddsi_write_sample_gc (struct ddsi_thread_state * const thrst, struct ddsi_xpack *xp, struct ddsi_writer *wr, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk);
 
-/* wr->lock must be held */
+/**
+ * @component outgoing_rtps
+ *
+ * @remark wr->lock must be held
+ *
+ * @param gv
+ * @param wr_guid
+ * @param xp
+ * @return dds_return_t
+ */
 dds_return_t ddsi_write_hb_liveliness (struct ddsi_domaingv * const gv, struct ddsi_guid *wr_guid, struct ddsi_xpack *xp);
 
 #if defined (__cplusplus)

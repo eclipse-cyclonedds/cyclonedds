@@ -205,6 +205,7 @@ typedef struct ddsi_plist {
 
 /**
  * @brief Initialize a ddsi_plist_t as an empty object
+ * @component parameter_list
  *
  * In principle, this only clears the "present" and "aliased" bitmasks.  A debug build
  * additionally initializes all other bytes to 0x55.
@@ -215,6 +216,7 @@ void ddsi_plist_init_empty (ddsi_plist_t *dest);
 
 /**
  * @brief Free memory owned by "ps"
+ * @component parameter_list
  *
  * A ddsi_plist_t may own other allocated blocks of memory, depending on which fields are
  * set, their types and whether they are marked as "aliased".  This function releases any

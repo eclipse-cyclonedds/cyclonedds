@@ -25,8 +25,13 @@ struct ddsi_iid {
   uint32_t key[4];
 };
 
+/** @component instance_id */
 void ddsi_iid_init (void);
+
+/** @component instance_id */
 void ddsi_iid_fini (void);
+
+/** @component instance_id */
 uint64_t ddsi_iid_gen (void);
 
 #if defined (__cplusplus)

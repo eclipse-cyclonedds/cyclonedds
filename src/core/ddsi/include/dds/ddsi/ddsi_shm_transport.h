@@ -57,28 +57,42 @@ typedef struct {
   struct dds_reader *parent_reader;
 } iox_sub_context_t;
 
+/** @component iceoryx_support */
 iox_sub_context_t **iox_sub_context_ptr(iox_sub_t sub);
 
+/** @component iceoryx_support */
 void iox_sub_context_init(iox_sub_context_t *context);
 
+/** @component iceoryx_support */
 void iox_sub_context_fini(iox_sub_context_t *context);
 
-// lock and unlock for individual subscribers
+/**
+ * @brief lock and unlock for individual subscribers
+ * @component iceoryx_support
+ *
+ * @param sub
+ */
 void shm_lock_iox_sub(iox_sub_t sub);
 
+/** @component iceoryx_support */
 void shm_unlock_iox_sub(iox_sub_t sub);
 
+/** @component iceoryx_support */
 DDS_EXPORT void free_iox_chunk(iox_sub_t *iox_sub, void **iox_chunk);
 
+/** @component iceoryx_support */
 DDS_EXPORT iceoryx_header_t *iceoryx_header_from_chunk(const void *iox_chunk);
 
+/** @component iceoryx_support */
 void shm_set_loglevel(enum ddsi_shm_loglevel);
 
+/** @component iceoryx_support */
 void *shm_create_chunk(iox_pub_t iox_pub, size_t size);
 
-DDS_EXPORT void shm_set_data_state(void *iox_chunk,
-                                   iox_shm_data_state_t data_state);
+/** @component iceoryx_support */
+DDS_EXPORT void shm_set_data_state(void *iox_chunk, iox_shm_data_state_t data_state);
 
+/** @component iceoryx_support */
 iox_shm_data_state_t shm_get_data_state(void *iox_chunk);
 
 #if defined(__cplusplus)

@@ -449,11 +449,14 @@ public:
 #endif
 };
 
+/** @component config */
 struct ddsi_cfgst *ddsi_config_init (const char *config, struct ddsi_config *cfg, uint32_t domid) ddsrt_nonnull((1,2));
 
+/** @component config */
 DDS_EXPORT void ddsi_config_fini (struct ddsi_cfgst *cfgst);
 
 #ifdef DDS_HAS_NETWORK_CHANNELS
+/** @component config */
 struct ddsi_config_channel_listelem *ddsi_find_network_channel (const struct config *cfg, dds_transport_priority_qospolicy_t transport_priority);
 #endif
 

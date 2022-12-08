@@ -23,6 +23,7 @@
 extern "C" {
 #endif
 
+/** @component ddsi_topic */
 int ddsi_is_builtin_topic (ddsi_entityid_t id, ddsi_vendorid_t vendorid);
 
 #ifdef DDS_HAS_TOPIC_DISCOVERY
@@ -55,9 +56,16 @@ struct ddsi_proxy_topic
   unsigned deleted: 1;
 };
 
+/** @component ddsi_topic */
 dds_return_t ddsi_new_topic (struct ddsi_topic **tp_out, struct ddsi_guid *tpguid, struct ddsi_participant *pp, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos, bool is_builtin, bool *new_topic_def);
+
+/** @component ddsi_topic */
 void ddsi_update_topic_qos (struct ddsi_topic *tp, const dds_qos_t *xqos);
+
+/** @component ddsi_topic */
 dds_return_t ddsi_delete_topic (struct ddsi_domaingv *gv, const struct ddsi_guid *guid);
+
+/** @component ddsi_topic */
 dds_return_t ddsi_lookup_topic_definition (struct ddsi_domaingv *gv, const char * topic_name, const ddsi_typeid_t *type_id, struct ddsi_topic_definition **tpd);
 
 #endif /* DDS_HAS_TOPIC_DISCOVERY */

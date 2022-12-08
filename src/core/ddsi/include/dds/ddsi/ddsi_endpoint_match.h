@@ -27,9 +27,16 @@ struct ddsi_reader;
 struct ddsi_entity_common;
 struct dds_qos;
 
+/** @component endpoint_matching */
 dds_return_t ddsi_writer_get_matched_subscriptions (struct ddsi_writer *wr, uint64_t *rds, size_t nrds);
+
+/** @component endpoint_matching */
 dds_return_t ddsi_reader_get_matched_publications (struct ddsi_reader *rd, uint64_t *wrs, size_t nwrs);
+
+/** @component endpoint_matching */
 bool ddsi_writer_find_matched_reader (struct ddsi_writer *wr, uint64_t ih, struct ddsi_entity_common **rdc, struct dds_qos **rdqos, struct ddsi_entity_common **ppc);
+
+/** @component endpoint_matching */
 bool ddsi_reader_find_matched_writer (struct ddsi_reader *rd, uint64_t ih, struct ddsi_entity_common **wrc, struct dds_qos **wrqos, struct ddsi_entity_common **ppc);
 
 #if defined (__cplusplus)

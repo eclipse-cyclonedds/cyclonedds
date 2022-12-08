@@ -29,6 +29,7 @@ extern "C" {
 
 /**
  * @brief Check if security is enabled for the participant.
+ * @component security_entity
  *
  * @param[in] pp  Participant to check if it is secure.
  *
@@ -38,6 +39,7 @@ bool ddsi_omg_participant_is_secure(const struct ddsi_participant *pp);
 
 /**
  * @brief Check if security allows to create the topic.
+ * @component security_entity
  *
  * This function checks with access control if is allowed to create
  * this topic for the specified domain.
@@ -55,6 +57,7 @@ bool ddsi_omg_security_check_create_topic (const struct ddsi_domaingv *gv, const
 
 /**
  * @brief Check if security allows to create the reader.
+ * @component security_entity
  *
  * This function checks with access control if is allowed to create
  * this reader for the specified domain.
@@ -72,6 +75,7 @@ bool ddsi_omg_security_check_create_reader (struct ddsi_participant *pp, uint32_
 
 /**
  * @brief Check if security allows to create the writer.
+ * @component security_entity
  *
  * This function checks with access control if is allowed to create
  * this writer for the specified domain.
@@ -91,21 +95,25 @@ bool ddsi_omg_security_check_create_writer (struct ddsi_participant *pp, uint32_
 
 #include "dds/ddsi/ddsi_unused.h"
 
+/** @component security_entity */
 inline bool ddsi_omg_participant_is_secure(UNUSED_ARG(const struct ddsi_participant *pp))
 {
   return false;
 }
 
+/** @component security_entity */
 inline bool ddsi_omg_security_check_create_topic (UNUSED_ARG(const struct ddsi_domaingv *gv), UNUSED_ARG(const ddsi_guid_t *pp_guid), UNUSED_ARG(const char *topic_name), UNUSED_ARG(const struct dds_qos *qos))
 {
   return true;
 }
 
+/** @component security_entity */
 inline bool ddsi_omg_security_check_create_reader (UNUSED_ARG(struct ddsi_participant *pp), UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(const char *topic_name), UNUSED_ARG(const struct dds_qos *reader_qos))
 {
   return true;
 }
 
+/** @component security_entity */
 inline bool ddsi_omg_security_check_create_writer (UNUSED_ARG(struct ddsi_participant *pp), UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(const char *topic_name), UNUSED_ARG(const struct dds_qos *writer_qos))
 {
   return true;

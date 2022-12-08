@@ -55,14 +55,28 @@ struct ddsi_entity_enum
    to transmit data. */
 
 
+/** @component entity_index */
 void *ddsi_entidx_lookup_guid_untyped (const struct ddsi_entity_index *ei, const struct ddsi_guid *guid) ddsrt_nonnull_all;
+
+/** @component entity_index */
 void *ddsi_entidx_lookup_guid (const struct ddsi_entity_index *ei, const struct ddsi_guid *guid, enum ddsi_entity_kind kind) ddsrt_nonnull_all;
 
+/** @component entity_index */
 struct ddsi_participant *ddsi_entidx_lookup_participant_guid (const struct ddsi_entity_index *ei, const struct ddsi_guid *guid) ddsrt_nonnull_all;
+
+/** @component entity_index */
 struct ddsi_writer *ddsi_entidx_lookup_writer_guid (const struct ddsi_entity_index *ei, const struct ddsi_guid *guid) ddsrt_nonnull_all;
+
+/** @component entity_index */
 struct ddsi_reader *ddsi_entidx_lookup_reader_guid (const struct ddsi_entity_index *ei, const struct ddsi_guid *guid) ddsrt_nonnull_all;
+
+/** @component entity_index */
 struct ddsi_proxy_participant *ddsi_entidx_lookup_proxy_participant_guid (const struct ddsi_entity_index *ei, const struct ddsi_guid *guid) ddsrt_nonnull_all;
+
+/** @component entity_index */
 struct ddsi_proxy_writer *ddsi_entidx_lookup_proxy_writer_guid (const struct ddsi_entity_index *ei, const struct ddsi_guid *guid) ddsrt_nonnull_all;
+
+/** @component entity_index */
 struct ddsi_proxy_reader *ddsi_entidx_lookup_proxy_reader_guid (const struct ddsi_entity_index *ei, const struct ddsi_guid *guid) ddsrt_nonnull_all;
 
 /* Enumeration of entries in the hash table:
@@ -78,11 +92,18 @@ struct ddsi_proxy_reader *ddsi_entidx_lookup_proxy_reader_guid (const struct dds
 
    - the caller must call init() before it may call next(); it must
      call fini() before it may call init() again. */
+
+/** @component entity_index */
 void ddsi_entidx_enum_init (struct ddsi_entity_enum *st, const struct ddsi_entity_index *ei, enum ddsi_entity_kind kind) ddsrt_nonnull_all;
+
+/** @component entity_index */
 void *ddsi_entidx_enum_next (struct ddsi_entity_enum *st) ddsrt_nonnull_all;
+
+/** @component entity_index */
 void ddsi_entidx_enum_fini (struct ddsi_entity_enum *st) ddsrt_nonnull_all;
 
 #ifdef DDS_HAS_TOPIC_DISCOVERY
+/** @component entity_index */
 struct ddsi_topic *ddsi_entidx_lookup_topic_guid (const struct ddsi_entity_index *ei, const struct ddsi_guid *guid);
 #endif
 

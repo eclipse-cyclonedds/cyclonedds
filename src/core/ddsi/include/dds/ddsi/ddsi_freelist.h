@@ -78,10 +78,19 @@ struct ddsi_freelist {
 
 #endif
 
+/** @component ddsi_freelist */
 void ddsi_freelist_init (struct ddsi_freelist *fl, uint32_t max, size_t linkoff);
+
+/** @component ddsi_freelist */
 void ddsi_freelist_fini (struct ddsi_freelist *fl, void (*free) (void *elem));
+
+/** @component ddsi_freelist */
 bool ddsi_freelist_push (struct ddsi_freelist *fl, void *elem);
+
+/** @component ddsi_freelist */
 void *ddsi_freelist_pushmany (struct ddsi_freelist *fl, void *first, void *last, uint32_t n);
+
+/** @component ddsi_freelist */
 void *ddsi_freelist_pop (struct ddsi_freelist *fl);
 
 #if defined (__cplusplus)
