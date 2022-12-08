@@ -18,7 +18,7 @@ The wheels (binary archives) on PyPi contain a pre-built binary of the CycloneDD
  * does not provide support for shared memory via Iceoryx,
  * comes with generic binaries that are not optimized per platform.
 
-If you need these features, or cannot use the binaries for other reasons, install the |var-project-short| Python API from the source (see below).
+If you need these features, or cannot use the binaries for other reasons, install the |var-project-short| Python API from source (see below).
 If the |var-project-short| C library is not on the ``PATH``, set the environment variable ``CYCLONEDDS_HOME``.
 
 Install |var-project-short| using pip directly from PyPi.

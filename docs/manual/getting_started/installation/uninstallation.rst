@@ -1,4 +1,4 @@
-.. _unintalling:
+.. _uninstalling:
 
 Uninstalling |var-project-short|
 ================================
