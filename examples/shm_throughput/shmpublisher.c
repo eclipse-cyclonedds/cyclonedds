@@ -150,14 +150,14 @@ static int parse_args(
   int result = EXIT_SUCCESS;
   /*
    * Get the program parameters
-   * Parameters: publisher [payloadSize] [burstInterval] [burstSize] [timeOut] [partitionName]
+   * Parameters: ShmThroughputPublisher [payloadSize] [burstInterval] [burstSize] [timeOut] [partitionName]
    */
   if (argc == 2 && (strcmp (argv[1], "-h") == 0 || strcmp (argv[1], "--help") == 0))
   {
     printf ("Usage (parameters must be supplied in order):\n");
-    printf ("./publisher [payloadSize (bytes)] [burstInterval (ms)] [burstSize (samples)] [timeOut (seconds)] [partitionName]\n");
+    printf ("./ShmThroughputPublisher [payloadSize (bytes)] [burstInterval (ms)] [burstSize (samples)] [timeOut (seconds)] [partitionName]\n");
     printf ("Defaults:\n");
-    printf ("./publisher 8192 0 1 0 \"Throughput example\"\n");
+    printf ("./ShmThroughputPublisher 8192 0 1 0 \"Throughput example\"\n");
     return EXIT_FAILURE;
   }
   if (argc > 1)
