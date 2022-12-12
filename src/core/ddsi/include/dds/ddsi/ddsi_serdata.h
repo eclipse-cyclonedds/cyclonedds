@@ -317,6 +317,7 @@ DDS_INLINE_EXPORT inline void ddsi_serdata_get_keyhash (const struct ddsi_serdat
 }
 
 #ifdef DDS_HAS_SHM
+
 /** @component typesupport_if */
 DDS_INLINE_EXPORT inline uint32_t ddsi_serdata_iox_size(const struct ddsi_serdata* d)
 {

@@ -20,6 +20,7 @@ extern "C" {
 
 struct ddsi_domaingv;
 
+/** @component tcp_transport */
 int ddsi_tcp_init (struct ddsi_domaingv *gv);
 
 #if defined (__cplusplus)

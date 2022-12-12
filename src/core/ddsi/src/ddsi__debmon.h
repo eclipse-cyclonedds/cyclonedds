@@ -25,9 +25,16 @@ struct ddsi_debug_monitor;
 typedef int (*ddsi_debug_monitor_cpf_t) (struct ddsi_tran_conn * conn, const char *fmt, ...);
 typedef int (*ddsi_debug_monitor_plugin_t) (struct ddsi_tran_conn * conn, ddsi_debug_monitor_cpf_t cpf, void *arg);
 
+/** @component debug_support */
 struct ddsi_debug_monitor *ddsi_new_debug_monitor (struct ddsi_domaingv *gv, int32_t port);
+
+/** @component debug_support */
 void ddsi_add_debug_monitor_plugin (struct ddsi_debug_monitor *dm, ddsi_debug_monitor_plugin_t fn, void *arg);
+
+/** @component debug_support */
 bool ddsi_get_debug_monitor_locator (struct ddsi_debug_monitor *dm, ddsi_locator_t *locator);
+
+/** @component debug_support */
 void ddsi_free_debug_monitor (struct ddsi_debug_monitor *dm);
 
 #if defined (__cplusplus)

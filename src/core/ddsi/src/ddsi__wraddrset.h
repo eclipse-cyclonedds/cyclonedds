@@ -22,6 +22,7 @@ extern "C" {
 
 struct ddsi_writer;
 
+/** @component locators */
 struct ddsi_addrset *ddsi_compute_writer_addrset (const struct ddsi_writer *wr);
 
 #if defined (__cplusplus)

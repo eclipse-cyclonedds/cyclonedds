@@ -30,11 +30,19 @@ typedef struct {
 
 typedef ddsi_time_t ddsi_duration_t;
 
+/** @component time_utils */
 bool ddsi_is_valid_timestamp (ddsi_time_t t);
 
+/** @component time_utils */
 ddsi_time_t ddsi_wctime_to_ddsi_time (ddsrt_wctime_t t);
+
+/** @component time_utils */
 ddsrt_wctime_t ddsi_wctime_from_ddsi_time (ddsi_time_t x);
+
+/** @component time_utils */
 ddsi_duration_t ddsi_duration_from_dds (dds_duration_t t);
+
+/** @component time_utils */
 dds_duration_t ddsi_duration_to_dds (ddsi_duration_t x);
 
 #if defined (__cplusplus)

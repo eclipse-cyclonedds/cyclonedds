@@ -68,23 +68,50 @@ struct ddsi_deleted_participants_admin {
   /* Set this flag to mark the participant as an local entity only. */
 #define RTPS_PF_ONLY_LOCAL 16u
 
+/** @component ddsi_participant */
 void ddsi_participant_add_wr_lease_locked (struct ddsi_participant * pp, const struct ddsi_writer * wr);
+
+/** @component ddsi_participant */
 void ddsi_participant_remove_wr_lease_locked (struct ddsi_participant * pp, struct ddsi_writer * wr);
+
+/** @component ddsi_participant */
 dds_return_t ddsi_participant_allocate_entityid (ddsi_entityid_t *id, uint32_t kind, struct ddsi_participant *pp);
+
+/** @component ddsi_participant */
 void ddsi_participant_release_entityid (struct ddsi_participant *pp, ddsi_entityid_t id);
+
+/** @component ddsi_participant */
 void ddsi_gc_participant_lease (struct ddsi_gcreq *gcreq);
+
+/** @component ddsi_participant */
 void ddsi_prune_deleted_participant_guids (struct ddsi_deleted_participants_admin *admin, ddsrt_mtime_t tnow);
+
+/** @component ddsi_participant */
 void ddsi_remove_deleted_participant_guid (struct ddsi_deleted_participants_admin *admin, const struct ddsi_guid *guid, unsigned for_what);
+
+/** @component ddsi_participant */
 void ddsi_remember_deleted_participant_guid (struct ddsi_deleted_participants_admin *admin, const struct ddsi_guid *guid);
+
+/** @component ddsi_participant */
 struct ddsi_participant *ddsi_ref_participant (struct ddsi_participant *pp, const struct ddsi_guid *guid_of_refing_entity);
+
+/** @component ddsi_participant */
 void ddsi_unref_participant (struct ddsi_participant *pp, const struct ddsi_guid *guid_of_refing_entity);
+
+/** @component ddsi_participant */
 struct ddsi_deleted_participants_admin *ddsi_deleted_participants_admin_new (const ddsrt_log_cfg_t *logcfg, int64_t delay);
+
+/** @component ddsi_participant */
 void ddsi_deleted_participants_admin_free (struct ddsi_deleted_participants_admin *admin);
+
+/** @component ddsi_participant */
 int ddsi_is_deleted_participant_guid (struct ddsi_deleted_participants_admin *admin, const struct ddsi_guid *guid, unsigned for_what);
 
 /**
+ * @component ddsi_participant
  * @brief Gets the interval for PMD messages, which is the minimal lease duration for writers
  * with auto liveliness in this participant, or the participants lease duration if shorter
+ *
  *
  * @param[in] pp The participant
  * @returns The PMD interval of the participant
@@ -92,6 +119,7 @@ int ddsi_is_deleted_participant_guid (struct ddsi_deleted_participants_admin *ad
 dds_duration_t ddsi_participant_get_pmd_interval (struct ddsi_participant *pp);
 
 /**
+ * @component ddsi_participant
  * @brief To obtain the builtin writer to be used for publishing SPDP, SEDP, PMD stuff for
  * PP and its endpoints, given the entityid. If PP has its own writer, use it; else use the
  * privileged participant.

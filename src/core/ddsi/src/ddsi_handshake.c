@@ -523,7 +523,7 @@ static bool send_handshake_message(const struct ddsi_handshake *handshake, DDS_S
 
   ddsi_omg_shallow_copyout_DataHolderSeq (&mdata, &tseq);
 
-  if (!(ret = write_auth_handshake_message(pp, proxypp, &mdata, request, &handshake->handshake_message_in_id)))
+  if (!(ret = ddsi_write_auth_handshake_message(pp, proxypp, &mdata, request, &handshake->handshake_message_in_id)))
   {
     HSWARNING("Send handshake: failed to send message (lguid="PGUIDFMT" rguid="PGUIDFMT")", PGUID (pp->e.guid), PGUID (proxypp->e.guid));
   }
@@ -1014,7 +1014,7 @@ static struct ddsi_handshake * ddsi_handshake_create(struct ddsi_participant *pp
   handshake->gv = gv;
   handshake->handshake_handle = 0;
   handshake->shared_secret = 0;
-  auth_get_serialized_participant_data(pp, &pdata);
+  ddsi_auth_get_serialized_participant_data(pp, &pdata);
 
   handshake->pdata._length =  handshake->pdata._maximum = pdata.length;
   handshake->pdata._buffer = pdata.value;

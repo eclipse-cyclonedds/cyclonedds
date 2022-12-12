@@ -138,6 +138,7 @@ typedef void (*ddsi_sertype_v0_t) (struct ddsi_sertype_v0 *dummy);
 
 // Because Windows ... just can't get its act together ...
 #ifndef _WIN32
+/** @component typesupport_if */
 DDS_EXPORT void ddsi_sertype_v0 (struct ddsi_sertype_v0 *dummy);
 #else
 #define ddsi_sertype_v0 ((ddsi_sertype_v0_t) 1)

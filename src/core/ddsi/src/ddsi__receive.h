@@ -32,16 +32,31 @@ struct ddsi_gap_info {
   uint32_t gapbits[256 / 32];
 };
 
+/** @component incoming_rtps */
 void ddsi_gap_info_init(struct ddsi_gap_info *gi);
+
+/** @component incoming_rtps */
 void ddsi_gap_info_update(struct ddsi_domaingv *gv, struct ddsi_gap_info *gi, ddsi_seqno_t seqnr);
+
+/** @component incoming_rtps */
 struct ddsi_xmsg * ddsi_gap_info_create_gap(struct ddsi_writer *wr, struct ddsi_proxy_reader *prd, struct ddsi_gap_info *gi);
 
+/** @component incoming_rtps */
 void ddsi_trigger_recv_threads (const struct ddsi_domaingv *gv);
+
+/** @component incoming_rtps */
 uint32_t ddsi_recv_thread (void *vrecv_thread_arg);
+
+/** @component incoming_rtps */
 uint32_t ddsi_listen_thread (struct ddsi_tran_listener * listener);
+
+/** @component incoming_rtps */
 int ddsi_user_dqueue_handler (const struct ddsi_rsample_info *sampleinfo, const struct ddsi_rdata *fragchain, const ddsi_guid_t *rdguid, void *qarg);
+
+/** @component incoming_rtps */
 int ddsi_add_gap (struct ddsi_xmsg *msg, struct ddsi_writer *wr, struct ddsi_proxy_reader *prd, ddsi_seqno_t start, ddsi_seqno_t base, uint32_t numbits, const uint32_t *bits);
 
+/** @component incoming_rtps */
 void ddsi_handle_rtps_message (struct ddsi_thread_state * const thrst, struct ddsi_domaingv *gv, struct ddsi_tran_conn * conn, const ddsi_guid_prefix_t *guidprefix, struct ddsi_rbufpool *rbpool, struct ddsi_rmsg *rmsg, size_t sz, unsigned char *msg, const ddsi_locator_t *srcloc);
 
 #if defined (__cplusplus)

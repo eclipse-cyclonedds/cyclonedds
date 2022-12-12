@@ -90,6 +90,7 @@ struct ddsi_plist_sample {
 
 /**
  * @brief Initialize global parameter-list parsing indices.
+ * @component parameter_list
  *
  * These indices are derived from compile-time constant tables.  This only does the work
  * once; ideally it would be done at compile time instead.
@@ -98,6 +99,7 @@ void ddsi_plist_init_tables (void);
 
 /**
  * @brief Extend "a" with selected entries present in "b"
+ * @component parameter_list
  *
  * This copies into "a" any entries present in "b" that are included in "pmask" and
  * "qmask" and missing in "a".  It doesn't touch any entries already present in "a".
@@ -113,6 +115,7 @@ void ddsi_plist_mergein_missing (ddsi_plist_t *a, const ddsi_plist_t *b, uint64_
 
 /**
  * @brief Copy "src" to "dst"
+ * @component parameter_list
  *
  * @param[out]    dst     destination, any contents are overwritten
  * @param[in]     src     source ddsi_plist_t
@@ -121,6 +124,7 @@ void ddsi_plist_copy (ddsi_plist_t *dst, const ddsi_plist_t *src);
 
 /**
  * @brief Duplicate "src"
+ * @component parameter_list
  *
  * @param[in]     src     ddsi_plist_t to be duplicated
  *
@@ -130,6 +134,7 @@ ddsi_plist_t *ddsi_plist_dup (const ddsi_plist_t *src);
 
 /**
  * @brief Initialize an ddsi_plist_t from a PL_CDR_{LE,BE} paylaod.
+ * @component parameter_list
  *
  * @param[in]  pwanted
  *               PP_... flags indicating which non-QoS parameters are of interest, treated as
@@ -182,6 +187,7 @@ dds_return_t ddsi_plist_init_frommsg (ddsi_plist_t *dest, char **nextafterplist,
 
 /**
  * @brief Free memory owned by "plist" for a subset of the entries
+ * @component parameter_list
  *
  * A ddsi_plist_t may own other allocated blocks of memory, depending on which fields are
  * set, their types and whether they are marked as "aliased".  This function releases any
@@ -196,6 +202,7 @@ void ddsi_plist_fini_mask (ddsi_plist_t *plist, uint64_t pmask, uint64_t qmask);
 
 /**
  * @brief Replace any memory "plist" aliases by copies it owns
+ * @component parameter_list
  *
  * A ddsi_plist_t may can reference other memory without owning it.  This functions allows
  * one to replace any such aliased memory by copies, allowing one to free the original
@@ -208,6 +215,7 @@ void ddsi_plist_unalias (ddsi_plist_t *plist);
 
 /**
  * @brief Add selected entries in "ps" to a message in native endianness.
+ * @component parameter_list
  *
  * This functions appends to "m" a serialized copy of the the entries selected by
  * "pwanted"/"qwanted" and present in "ps".  Each copy is preceded by a 4-byte header with
@@ -225,6 +233,7 @@ void ddsi_plist_addtomsg (struct ddsi_xmsg *m, const ddsi_plist_t *ps, uint64_t 
 
 /**
  * @brief Determine the set of entries in which "x" differs from "y"
+ * @component parameter_list
  *
  * This computes the entries set in "x" but not set in "y", not set in "x" but set in "y",
  * or set in both "x" and "y" but to a different value.  It returns this set reduced to
@@ -242,6 +251,7 @@ void ddsi_plist_delta (uint64_t *pdelta, uint64_t *qdelta, const ddsi_plist_t *x
 
 /**
  * @brief Formats plist using `ddsi_plist_print` and writes it to the trace.
+ * @component parameter_list
  *
  * @param[in] cat        log category to use
  * @param[in] logcfg     logging configuration
@@ -251,6 +261,7 @@ void ddsi_plist_log (uint32_t cat, const struct ddsrt_log_cfg *logcfg, const dds
 
 /**
  * @brief Add selected entries in "ps" to a message with selected endianness.
+ * @component parameter_list
  *
  * This functions appends to "m" a serialized copy of the the entries selected by
  * "pwanted"/"qwanted" and present in "ps".  Each copy is preceded by a 4-byte header with
@@ -269,6 +280,7 @@ void ddsi_plist_addtomsg_bo (struct ddsi_xmsg *m, const ddsi_plist_t *ps, uint64
 
 /**
  * @brief Formats plist into a buffer
+ * @component parameter_list
  *
  * The representation is somewhat cryptic as all enumerated types are dumped as numbers
  * and timestamps are durations as nanoseconds with "infinite" represented as
@@ -287,6 +299,7 @@ struct ddsi_rsample_info;
 
 /**
  * @brief Scan a PL_CDR-serialized parameter list, checking structure and copying some information to "dest".
+ * @component parameter_list
  *
  * This checks that the serialized data is structured correctly (proper aligned headers,
  * declared lengths within bounds, a sentinel at the end).  It sets the `statusinfo` of
@@ -312,6 +325,7 @@ unsigned char *ddsi_plist_quickscan (struct ddsi_rsample_info *dest, const ddsi_
 
 /**
  * @brief Locate a specific parameter in a PL_CDR-serialized parameter list
+ * @component parameter_list
  *
  * This scans the serialized data until it encounters the sentinel, recording whether the
  * specified parameter occurs and returning the size and address of it in `buf`.

@@ -49,40 +49,59 @@
 extern "C" {
 #endif
 
+/** @component vendor_codes */
 inline bool ddsi_vendor_equals (ddsi_vendorid_t a, ddsi_vendorid_t b) {
   return ((a.id[0] << 8) | a.id[1]) == ((b.id[0] << 8) | b.id[1]);
 }
+
+/** @component vendor_codes */
 inline bool ddsi_vendor_is_eclipse (ddsi_vendorid_t vendor) {
   const ddsi_vendorid_t x = DDSI_VENDORID_INIT (ECLIPSE);
   return ddsi_vendor_equals (vendor, x);
 }
+
+/** @component vendor_codes */
 inline bool ddsi_vendor_is_rti (ddsi_vendorid_t vendor) {
   const ddsi_vendorid_t x = DDSI_VENDORID_INIT (RTI);
   return ddsi_vendor_equals (vendor, x);
 }
+
+/** @component vendor_codes */
 inline bool ddsi_vendor_is_rti_micro (ddsi_vendorid_t vendor) {
   const ddsi_vendorid_t x = DDSI_VENDORID_INIT (RTI_MICRO);
   return ddsi_vendor_equals (vendor, x);
 }
+
+/** @component vendor_codes */
 inline bool ddsi_vendor_is_opensplice (ddsi_vendorid_t vendor) {
   const ddsi_vendorid_t x = DDSI_VENDORID_INIT (ADLINK_OSPL);
   return ddsi_vendor_equals (vendor, x);
 }
+
+/** @component vendor_codes */
 inline bool ddsi_vendor_is_twinoaks (ddsi_vendorid_t vendor) {
   const ddsi_vendorid_t x = DDSI_VENDORID_INIT (TWINOAKS);
   return ddsi_vendor_equals (vendor, x);
 }
+
+/** @component vendor_codes */
 inline bool ddsi_vendor_is_eprosima (ddsi_vendorid_t vendor) {
   const ddsi_vendorid_t x = DDSI_VENDORID_INIT (EPROSIMA);
   return ddsi_vendor_equals (vendor, x);
 }
+
+/** @component vendor_codes */
 inline bool ddsi_vendor_is_cloud (ddsi_vendorid_t vendor) {
   const ddsi_vendorid_t x = DDSI_VENDORID_INIT (ADLINK_CLOUD);
   return ddsi_vendor_equals (vendor, x);
 }
+
+/** @component vendor_codes */
 inline bool ddsi_vendor_is_eclipse_or_opensplice (ddsi_vendorid_t vendor) {
   return ddsi_vendor_is_eclipse (vendor) || ddsi_vendor_is_opensplice (vendor);
 }
+
+/** @component vendor_codes */
 inline bool ddsi_vendor_is_adlink (ddsi_vendorid_t vendor) {
   const ddsi_vendorid_t a = DDSI_VENDORID_INIT (ADLINK_OSPL);
   const ddsi_vendorid_t b = DDSI_VENDORID_INIT (ADLINK_LITE);
@@ -95,6 +114,8 @@ inline bool ddsi_vendor_is_adlink (ddsi_vendorid_t vendor) {
           ddsi_vendor_equals (vendor, d) ||
           ddsi_vendor_equals (vendor, e));
 }
+
+/** @component vendor_codes */
 inline bool ddsi_vendor_is_eclipse_or_adlink (ddsi_vendorid_t vendor) {
   return ddsi_vendor_is_eclipse (vendor) || ddsi_vendor_is_adlink (vendor);
 }

@@ -215,22 +215,40 @@ struct ddsi_tran_qos
   struct ddsi_network_interface *m_interface; // only for purpose = XMIT
 };
 
+/** @component transport */
 void ddsi_tran_factories_fini (struct ddsi_domaingv *gv);
+
+/** @component transport */
 void ddsi_factory_add (struct ddsi_domaingv *gv, struct ddsi_tran_factory * factory);
+
+/** @component transport */
 void ddsi_factory_free (struct ddsi_tran_factory * factory);
+
+/** @component transport */
 struct ddsi_tran_factory * ddsi_factory_find (const struct ddsi_domaingv *gv, const char * type);
+
+/** @component transport */
 struct ddsi_tran_factory * ddsi_factory_find_supported_kind (const struct ddsi_domaingv *gv, int32_t kind);
+
+/** @component transport */
 void ddsi_factory_conn_init (const struct ddsi_tran_factory *factory, const struct ddsi_network_interface *interf, struct ddsi_tran_conn * conn);
 
+/** @component transport */
 inline bool ddsi_factory_supports (const struct ddsi_tran_factory *factory, int32_t kind) {
   return factory->m_supports_fn (factory, kind);
 }
+
+/** @component transport */
 inline int ddsi_is_valid_port (const struct ddsi_tran_factory *factory, uint32_t port) {
   return factory->m_is_valid_port_fn (factory, port);
 }
+
+/** @component transport */
 inline uint32_t ddsi_receive_buffer_size (const struct ddsi_tran_factory *factory) {
   return factory->m_receive_buffer_size_fn (factory);
 }
+
+/** @component transport */
 inline dds_return_t ddsi_factory_create_conn (struct ddsi_tran_conn **conn, struct ddsi_tran_factory * factory, uint32_t port, const struct ddsi_tran_qos *qos) {
   *conn = NULL;
   if ((qos->m_interface != NULL) != (qos->m_purpose == DDSI_TRAN_QOS_XMIT_UC || qos->m_purpose == DDSI_TRAN_QOS_XMIT_MC))
@@ -239,6 +257,8 @@ inline dds_return_t ddsi_factory_create_conn (struct ddsi_tran_conn **conn, stru
     return DDS_RETCODE_BAD_PARAMETER;
   return factory->m_create_conn_fn (conn, factory, port, qos);
 }
+
+/** @component transport */
 inline dds_return_t ddsi_factory_create_listener (struct ddsi_tran_listener **listener, struct ddsi_tran_factory * factory, uint32_t port, const struct ddsi_tran_qos *qos) {
   *listener = NULL;
   if (!ddsi_is_valid_port (factory, port))
@@ -246,57 +266,111 @@ inline dds_return_t ddsi_factory_create_listener (struct ddsi_tran_listener **li
   return factory->m_create_listener_fn (listener, factory, port, qos);
 }
 
+/** @component transport */
 void ddsi_tran_free (struct ddsi_tran_base * base);
+
+/** @component transport */
 inline ddsrt_socket_t ddsi_tran_handle (struct ddsi_tran_base * base) {
   return base->m_handle_fn (base);
 }
+
+/** @component transport */
 inline ddsrt_socket_t ddsi_conn_handle (struct ddsi_tran_conn * conn) {
   return conn->m_base.m_handle_fn (&conn->m_base);
 }
+
+/** @component transport */
 inline uint32_t ddsi_conn_type (const struct ddsi_tran_conn *conn) {
   return conn->m_base.m_trantype;
 }
+
+/** @component transport */
 inline uint32_t ddsi_conn_port (const struct ddsi_tran_conn *conn) {
   return conn->m_base.m_port;
 }
+
+/** @component transport */
 inline int ddsi_conn_locator (struct ddsi_tran_conn * conn, ddsi_locator_t * loc) {
   return conn->m_locator_fn (conn->m_factory, &conn->m_base, loc);
 }
+
+/** @component transport */
 inline ssize_t ddsi_conn_write (struct ddsi_tran_conn * conn, const ddsi_locator_t *dst, size_t niov, const ddsrt_iovec_t *iov, uint32_t flags) {
   return conn->m_closed ? -1 : (conn->m_write_fn) (conn, dst, niov, iov, flags);
 }
+
+/** @component transport */
 inline ssize_t ddsi_conn_read (struct ddsi_tran_conn * conn, unsigned char * buf, size_t len, bool allow_spurious, ddsi_locator_t *srcloc) {
   return conn->m_closed ? -1 : conn->m_read_fn (conn, buf, len, allow_spurious, srcloc);
 }
+
+/** @component transport */
 bool ddsi_conn_peer_locator (struct ddsi_tran_conn * conn, ddsi_locator_t * loc);
+
+/** @component transport */
 void ddsi_conn_disable_multiplexing (struct ddsi_tran_conn * conn);
+
+/** @component transport */
 void ddsi_conn_add_ref (struct ddsi_tran_conn * conn);
+
+/** @component transport */
 void ddsi_conn_free (struct ddsi_tran_conn * conn);
+
+/** @component transport */
 int ddsi_conn_join_mc (struct ddsi_tran_conn * conn, const ddsi_locator_t *srcip, const ddsi_locator_t *mcip, const struct ddsi_network_interface *interf);
+
+/** @component transport */
 int ddsi_conn_leave_mc (struct ddsi_tran_conn * conn, const ddsi_locator_t *srcip, const ddsi_locator_t *mcip, const struct ddsi_network_interface *interf);
+
+/** @component transport */
 void ddsi_conn_transfer_group_membership (struct ddsi_tran_conn * conn, struct ddsi_tran_conn * newconn);
+
+/** @component transport */
 int ddsi_conn_rejoin_transferred_mcgroups (struct ddsi_tran_conn * conn);
+
+/** @component transport */
 int ddsi_is_loopbackaddr (const struct ddsi_domaingv *gv, const ddsi_locator_t *loc);
+
+/** @component transport */
 int ddsi_is_mcaddr (const struct ddsi_domaingv *gv, const ddsi_locator_t *loc);
+
+/** @component transport */
 int ddsi_is_ssm_mcaddr (const struct ddsi_domaingv *gv, const ddsi_locator_t *loc);
+
+/** @component transport */
 enum ddsi_nearby_address_result ddsi_is_nearby_address (const struct ddsi_domaingv *gv, const ddsi_locator_t *loc, size_t ninterf, const struct ddsi_network_interface *interf, size_t *interf_idx);
 
+
+/** @component transport */
 enum ddsi_locator_from_string_result ddsi_locator_from_string (const struct ddsi_domaingv *gv, ddsi_locator_t *loc, const char *str, struct ddsi_tran_factory * default_factory);
 
+
+/** @component transport */
 int ddsi_locator_from_sockaddr (const struct ddsi_tran_factory *tran, ddsi_locator_t *loc, const struct sockaddr *sockaddr);
 
+
+/** @component transport */
 int ddsi_enumerate_interfaces (struct ddsi_tran_factory * factory, enum ddsi_transport_selector transport_selector, ddsrt_ifaddrs_t **interfs);
 
+/** @component transport */
 inline int ddsi_listener_locator (struct ddsi_tran_listener * listener, ddsi_locator_t *loc) {
   return listener->m_locator_fn (listener->m_factory, &listener->m_base, loc);
 }
+
+/** @component transport */
 inline int ddsi_listener_listen (struct ddsi_tran_listener * listener) {
   return listener->m_listen_fn (listener);
 }
+
+/** @component transport */
 inline struct ddsi_tran_conn * ddsi_listener_accept (struct ddsi_tran_listener * listener) {
   return listener->m_accept_fn (listener);
 }
+
+/** @component transport */
 void ddsi_listener_unblock (struct ddsi_tran_listener * listener);
+
+/** @component transport */
 void ddsi_listener_free (struct ddsi_tran_listener * listener);
 
 #if defined (__cplusplus)

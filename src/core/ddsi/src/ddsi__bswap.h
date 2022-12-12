@@ -22,15 +22,23 @@
 extern "C" {
 #endif
 
+/** @component ddsi_byteswap */
 inline void ddsi_bswap_sequence_number (ddsi_sequence_number_t *sn)
 {
   sn->high = ddsrt_bswap4 (sn->high);
   sn->low = ddsrt_bswap4u (sn->low);
 }
 
+/** @component ddsi_byteswap */
 void ddsi_bswap_sequence_number_set_hdr (ddsi_sequence_number_set_header_t *snset);
+
+/** @component ddsi_byteswap */
 void ddsi_bswap_sequence_number_set_bitmap (ddsi_sequence_number_set_header_t *snset, uint32_t *bits);
+
+/** @component ddsi_byteswap */
 void ddsi_bswap_fragment_number_set_hdr (ddsi_fragment_number_set_header_t *fnset);
+
+/** @component ddsi_byteswap */
 void ddsi_bswap_fragment_number_set_bitmap (ddsi_fragment_number_set_header_t *fnset, uint32_t *bits);
 
 #if defined (__cplusplus)

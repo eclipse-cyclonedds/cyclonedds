@@ -258,6 +258,7 @@ enum ddsi_config_entity_naming_mode {
 
 /**
  * @brief Default-initialize a configuration (unstable)
+ * @component config
  *
  * @param[out]  cfg The configuration struct to be initialized.
  */

@@ -1821,7 +1821,7 @@ static void send_participant_crypto_tokens(struct ddsi_participant *pp, struct d
     ddsi_dataholderseq_t tholder;
 
     ddsi_omg_shallow_copyout_DataHolderSeq (&tholder, &tokens);
-    write_crypto_participant_tokens(pp, proxypp, &tholder);
+    ddsi_write_crypto_participant_tokens(pp, proxypp, &tholder);
     ddsi_omg_shallow_free_ddsi_dataholderseq (&tholder);
 
     if (!sc->crypto_context->crypto_key_exchange->return_crypto_tokens(sc->crypto_context->crypto_key_exchange, &tokens, &exception))
@@ -2257,7 +2257,7 @@ static void send_reader_crypto_tokens(struct ddsi_reader *rd, struct ddsi_proxy_
     ddsi_dataholderseq_t tholder;
 
     ddsi_omg_shallow_copyout_DataHolderSeq (&tholder, &tokens);
-    write_crypto_reader_tokens(rd, pwr, &tholder);
+    ddsi_write_crypto_reader_tokens(rd, pwr, &tholder);
     ddsi_omg_shallow_free_ddsi_dataholderseq (&tholder);
 
     if (!sc->crypto_context->crypto_key_exchange->return_crypto_tokens(sc->crypto_context->crypto_key_exchange, &tokens, &exception))
@@ -2601,7 +2601,7 @@ static void send_writer_crypto_tokens(struct ddsi_writer *wr, struct ddsi_proxy_
     ddsi_dataholderseq_t tholder;
 
     ddsi_omg_shallow_copyout_DataHolderSeq (&tholder, &tokens);
-    write_crypto_writer_tokens(wr, prd, &tholder);
+    ddsi_write_crypto_writer_tokens(wr, prd, &tholder);
     ddsi_omg_shallow_free_ddsi_dataholderseq (&tholder);
 
     if (!sc->crypto_context->crypto_key_exchange->return_crypto_tokens(sc->crypto_context->crypto_key_exchange, &tokens, &exception))

@@ -22,8 +22,13 @@ extern "C" {
 
 struct ddsi_domaingv;
 
+/** @component network_partitions */
 void ddsi_free_config_nwpart_addresses (struct ddsi_domaingv *gv) ddsrt_nonnull_all;
+
+/** @component network_partitions */
 int ddsi_convert_nwpart_config (struct ddsi_domaingv *gv, uint32_t port_data_uc) ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
+
+/** @component network_partitions */
 bool ddsi_is_ignored_nwpart (const struct ddsi_domaingv *gv, const struct dds_qos *xqos, const char *topic_name) ddsrt_nonnull_all;
 
 #ifdef DDS_HAS_NETWORK_PARTITIONS
@@ -33,7 +38,10 @@ struct ddsi_config;
 struct ddsi_config_partitionmapping_listelem;
 struct ddsrt_log_cfg;
 
+/** @component network_partitions */
 const struct ddsi_config_partitionmapping_listelem *ddsi_find_nwpart_mapping (const struct ddsi_config *cfg, const char *partition, const char *topic) ddsrt_nonnull_all;
+
+/** @component network_partitions */
 const struct ddsi_config_networkpartition_listelem *ddsi_get_nwpart_from_mapping (const struct ddsrt_log_cfg *logcfg, const struct ddsi_config *config, const struct dds_qos *xqos, const char *topic_name) ddsrt_nonnull_all;
 
 #endif // DDS_HAS_NETWORK_PARTITIONS

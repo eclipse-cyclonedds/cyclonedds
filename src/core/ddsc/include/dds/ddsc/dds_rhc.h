@@ -15,8 +15,6 @@
 #include "dds/ddsrt/static_assert.h"
 #include "dds/ddsi/ddsi_rhc.h"
 
-#ifndef DOXYGEN_SHOULD_SKIP_THIS /** DOC_TODO we should document the rhc */
-
 #define NO_STATE_MASK_SET   (DDS_ANY_STATE + 1)
 
 #if defined (__cplusplus)
@@ -60,50 +58,75 @@ struct dds_rhc {
 
 DDSRT_STATIC_ASSERT (offsetof (struct dds_rhc, common.ops) == offsetof (struct ddsi_rhc, ops));
 
+/** @component rhc */
 DDS_INLINE_EXPORT inline dds_return_t dds_rhc_associate (struct dds_rhc *rhc, struct dds_reader *reader, const struct ddsi_sertype *type, struct ddsi_tkmap *tkmap) {
   return rhc->common.ops->associate (rhc, reader, type, tkmap);
 }
+
+/** @component rhc */
 DDS_INLINE_EXPORT inline bool dds_rhc_store (struct dds_rhc * __restrict rhc, const struct ddsi_writer_info * __restrict wrinfo, struct ddsi_serdata * __restrict sample, struct ddsi_tkmap_instance * __restrict tk) {
   return rhc->common.ops->rhc_ops.store (&rhc->common.rhc, wrinfo, sample, tk);
 }
+
+/** @component rhc */
 DDS_INLINE_EXPORT inline void dds_rhc_unregister_wr (struct dds_rhc * __restrict rhc, const struct ddsi_writer_info * __restrict wrinfo) {
   rhc->common.ops->rhc_ops.unregister_wr (&rhc->common.rhc, wrinfo);
 }
+
+/** @component rhc */
 DDS_INLINE_EXPORT inline void dds_rhc_relinquish_ownership (struct dds_rhc * __restrict rhc, const uint64_t wr_iid) {
   rhc->common.ops->rhc_ops.relinquish_ownership (&rhc->common.rhc, wr_iid);
 }
+
+/** @component rhc */
 DDS_INLINE_EXPORT inline void dds_rhc_set_qos (struct dds_rhc *rhc, const struct dds_qos *qos) {
   rhc->common.ops->rhc_ops.set_qos (&rhc->common.rhc, qos);
 }
+
+/** @component rhc */
 DDS_INLINE_EXPORT inline void dds_rhc_free (struct dds_rhc *rhc) {
   rhc->common.ops->rhc_ops.free (&rhc->common.rhc);
 }
+
+/** @component rhc */
 DDS_INLINE_EXPORT inline int32_t dds_rhc_read (struct dds_rhc *rhc, bool lock, void **values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t mask, dds_instance_handle_t handle, struct dds_readcond *cond) {
   return (rhc->common.ops->read) (rhc, lock, values, info_seq, max_samples, mask, handle, cond);
 }
+
+/** @component rhc */
 DDS_INLINE_EXPORT inline int32_t dds_rhc_take (struct dds_rhc *rhc, bool lock, void **values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t mask, dds_instance_handle_t handle, struct dds_readcond *cond) {
   return rhc->common.ops->take (rhc, lock, values, info_seq, max_samples, mask, handle, cond);
 }
+
+/** @component rhc */
 DDS_INLINE_EXPORT inline int32_t dds_rhc_readcdr (struct dds_rhc *rhc, bool lock, struct ddsi_serdata **values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t sample_states, uint32_t view_states, uint32_t instance_states, dds_instance_handle_t handle) {
   return rhc->common.ops->readcdr (rhc, lock, values, info_seq, max_samples, sample_states, view_states, instance_states, handle);
 }
+
+/** @component rhc */
 DDS_INLINE_EXPORT inline int32_t dds_rhc_takecdr (struct dds_rhc *rhc, bool lock, struct ddsi_serdata **values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t sample_states, uint32_t view_states, uint32_t instance_states, dds_instance_handle_t handle) {
   return rhc->common.ops->takecdr (rhc, lock, values, info_seq, max_samples, sample_states, view_states, instance_states, handle);
 }
+
+/** @component rhc */
 DDS_INLINE_EXPORT inline bool dds_rhc_add_readcondition (struct dds_rhc *rhc, struct dds_readcond *cond) {
   return rhc->common.ops->add_readcondition (rhc, cond);
 }
+
+/** @component rhc */
 DDS_INLINE_EXPORT inline void dds_rhc_remove_readcondition (struct dds_rhc *rhc, struct dds_readcond *cond) {
   rhc->common.ops->remove_readcondition (rhc, cond);
 }
+
+/** @component rhc */
 DDS_INLINE_EXPORT inline uint32_t dds_rhc_lock_samples (struct dds_rhc *rhc) {
   return rhc->common.ops->lock_samples (rhc);
 }
 
+/** @component rhc */
 DDS_EXPORT void dds_reader_data_available_cb (struct dds_reader *rd);
 
 #if defined (__cplusplus)
 }
-#endif
 #endif
 #endif

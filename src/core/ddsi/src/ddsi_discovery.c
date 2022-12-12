@@ -2129,10 +2129,10 @@ int ddsi_builtins_dqueue_handler (const struct ddsi_rsample_info *sampleinfo, co
 #endif
 #ifdef DDS_HAS_SECURITY
     case DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER:
-      handle_auth_handshake_message(sampleinfo->rst, srcguid.entityid, d);
+      ddsi_handle_auth_handshake_message(sampleinfo->rst, srcguid.entityid, d);
       break;
     case DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER:
-      handle_crypto_exchange_message(sampleinfo->rst, d);
+      ddsi_handle_crypto_exchange_message(sampleinfo->rst, d);
       break;
 #endif
     default:

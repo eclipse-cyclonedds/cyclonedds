@@ -25,6 +25,7 @@ extern "C" {
 
 struct ddsi_domaingv;
 
+/** @component network_if_selection */
 int ddsi_find_own_ip (struct ddsi_domaingv *gv);
 
 #if defined (__cplusplus)
