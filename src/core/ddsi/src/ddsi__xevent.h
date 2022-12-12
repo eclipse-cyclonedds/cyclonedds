@@ -32,18 +32,37 @@ struct ddsi_proxy_reader;
 struct ddsi_domaingv;
 struct ddsi_xmsg;
 
+/** @component timed_events */
 struct ddsi_xeventq *ddsi_xeventq_new (struct ddsi_domaingv *gv, size_t max_queued_rexmit_bytes, size_t max_queued_rexmit_msgs, uint32_t auxiliary_bandwidth_limit);
 
-/* ddsi_xeventq_free calls callback handlers with t = NEVER, at which point they are required to free
-   whatever memory is claimed for the argument and call ddsi_delete_xevent. */
+
+/**
+ * @component timed_events
+ *
+ * ddsi_xeventq_free calls callback handlers with t = NEVER, at which point
+ * they are required to free whatever memory is claimed for the argument
+ * and call ddsi_delete_xevent.
+ *
+ * @param evq
+ */
 void ddsi_xeventq_free (struct ddsi_xeventq *evq);
+
+/** @component timed_events */
 dds_return_t ddsi_xeventq_start (struct ddsi_xeventq *evq, const char *name); /* <0 => error, =0 => ok */
+
+/** @component timed_events */
 void ddsi_xeventq_stop (struct ddsi_xeventq *evq);
 
+/** @component timed_events */
 void ddsi_qxev_msg (struct ddsi_xeventq *evq, struct ddsi_xmsg *msg);
 
+/** @component timed_events */
 void ddsi_qxev_pwr_entityid (struct ddsi_proxy_writer * pwr, const ddsi_guid_t *guid);
+
+/** @component timed_events */
 void ddsi_qxev_prd_entityid (struct ddsi_proxy_reader * prd, const ddsi_guid_t *guid);
+
+/** @component timed_events */
 void ddsi_qxev_nt_callback (struct ddsi_xeventq *evq, void (*cb) (void *arg), void *arg);
 
 enum ddsi_qxev_msg_rexmit_result {
@@ -52,12 +71,22 @@ enum ddsi_qxev_msg_rexmit_result {
   DDSI_QXEV_MSG_REXMIT_QUEUED
 };
 
+/** @component timed_events */
 enum ddsi_qxev_msg_rexmit_result ddsi_qxev_msg_rexmit_wrlock_held (struct ddsi_xeventq *evq, struct ddsi_xmsg *msg, int force);
 
+/** @component timed_events */
 struct ddsi_xevent *ddsi_qxev_heartbeat (struct ddsi_xeventq *evq, ddsrt_mtime_t tsched, const ddsi_guid_t *wr_guid);
+
+/** @component timed_events */
 struct ddsi_xevent *ddsi_qxev_acknack (struct ddsi_xeventq *evq, ddsrt_mtime_t tsched, const ddsi_guid_t *pwr_guid, const ddsi_guid_t *rd_guid);
+
+/** @component timed_events */
 struct ddsi_xevent *ddsi_qxev_spdp (struct ddsi_xeventq *evq, ddsrt_mtime_t tsched, const ddsi_guid_t *pp_guid, const ddsi_guid_t *proxypp_guid);
+
+/** @component timed_events */
 struct ddsi_xevent *ddsi_qxev_pmd_update (struct ddsi_xeventq *evq, ddsrt_mtime_t tsched, const ddsi_guid_t *pp_guid);
+
+/** @component timed_events */
 struct ddsi_xevent *ddsi_qxev_delete_writer (struct ddsi_xeventq *evq, ddsrt_mtime_t tsched, const ddsi_guid_t *guid);
 
 

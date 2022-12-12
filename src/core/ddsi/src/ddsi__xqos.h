@@ -28,6 +28,7 @@ struct ddsi_xmsg;
 
 /**
  * @brief Replace any memory "xqos" aliases by copies it owns
+ * @component qos_handling
  *
  * A dds_qos_t may can reference other memory without owning it.  This functions allows
  * one to replace any such aliased memory by copies, allowing one to free the original
@@ -40,6 +41,7 @@ void ddsi_xqos_unalias (dds_qos_t *xqos);
 
 /**
  * @brief Free memory owned by "xqos" for a subset of the entries
+ * @component qos_handling
  *
  * A dds_qos_t may own other allocated blocks of memory, depending on which fields are
  * set, their types and whether they are marked as "aliased".  This function releases any
@@ -53,6 +55,7 @@ void ddsi_xqos_fini_mask (dds_qos_t *xqos, uint64_t mask);
 
 /**
  * @brief Add selected entries in "xqos" to a message in native endianness.
+ * @component qos_handling
  *
  * This functions appends to "xqos" a serialized copy of the the entries selected by
  * "wanted" and present in "xqos".  Each copy is preceded by a 4-byte header with a
@@ -69,6 +72,7 @@ void ddsi_xqos_addtomsg (struct ddsi_xmsg *m, const dds_qos_t *xqos, uint64_t wa
 
 /**
  * @brief Formats xqos using `ddsi_xqos_print` and writes it to the trace.
+ * @component qos_handling
  *
  * @param[in] cat        log category to use
  * @param[in] logcfg     logging configuration
@@ -78,6 +82,7 @@ void ddsi_xqos_log (uint32_t cat, const struct ddsrt_log_cfg *logcfg, const dds_
 
 /**
  * @brief Formats xqos into a buffer
+ * @component qos_handling
  *
  * The representation is somewhat cryptic as all enumerated types are dumped as numbers
  * and timestamps are durations as nanoseconds with "infinite" represented as
@@ -94,6 +99,7 @@ size_t ddsi_xqos_print (char * __restrict buf, size_t bufsize, const dds_qos_t *
 
 /**
  * @brief Check if "xqos" includes properties with a name starting with "nameprefix"
+ * @component qos_handling
  *
  * That is, if xqos.present has DDSI_QP_PROPERTY_LIST set, and at least one of them has a name
  * starting with "nameprefix".
@@ -107,6 +113,7 @@ bool ddsi_xqos_has_prop_prefix (const dds_qos_t *xqos, const char *nameprefix);
 
 /**
  * @brief Lookup property "name" in "xqos" and return a pointer to its value
+ * @component qos_handling
  *
  * The value pointer is left unchanged if the property doesn't exist.  The returned
  * address points into the memory owned by the QoS object and must not be freed.
@@ -120,9 +127,13 @@ bool ddsi_xqos_has_prop_prefix (const dds_qos_t *xqos, const char *nameprefix);
 bool ddsi_xqos_find_prop (const dds_qos_t *xqos, const char *name, const char **value);
 
 #ifdef DDS_HAS_SECURITY
+
 struct ddsi_config_omg_security;
+
+/** @component qos_handling */
 void ddsi_xqos_mergein_security_config (dds_qos_t *xqos, const struct ddsi_config_omg_security *cfg);
-#endif
+
+#endif /* DDS_HAS_SECURITY */
 
 #if defined (__cplusplus)
 }

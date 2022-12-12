@@ -23,16 +23,27 @@
 extern "C" {
 #endif
 
+/** @component ddsi_topic */
 int ddsi_is_topic_entityid (ddsi_entityid_t id);
 
 #ifdef DDS_HAS_TOPIC_DISCOVERY
 
+/** @component ddsi_topic */
 int ddsi_topic_definition_equal (const struct ddsi_topic_definition *tpd_a, const struct ddsi_topic_definition *tpd_b);
+
+/** @component ddsi_topic */
 uint32_t ddsi_topic_definition_hash (const struct ddsi_topic_definition *tpd);
 
+/** @component ddsi_topic */
 dds_return_t ddsi_new_proxy_topic (struct ddsi_proxy_participant *proxypp, ddsi_seqno_t seq, const ddsi_guid_t *guid, const ddsi_typeid_t *type_id_minimal, const ddsi_typeid_t *type_id, struct dds_qos *qos, ddsrt_wctime_t timestamp);
+
+/** @component ddsi_topic */
 struct ddsi_proxy_topic *ddsi_lookup_proxy_topic (struct ddsi_proxy_participant *proxypp, const ddsi_guid_t *guid);
+
+/** @component ddsi_topic */
 void ddsi_update_proxy_topic (struct ddsi_proxy_participant *proxypp, struct ddsi_proxy_topic *proxytp, ddsi_seqno_t seq, struct dds_qos *xqos, ddsrt_wctime_t timestamp);
+
+/** @component ddsi_topic */
 int ddsi_delete_proxy_topic_locked (struct ddsi_proxy_participant *proxypp, struct ddsi_proxy_topic *proxytp, ddsrt_wctime_t timestamp);
 
 #endif /* DDS_HAS_TOPIC_DISCOVERY */

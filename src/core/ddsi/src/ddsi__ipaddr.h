@@ -19,11 +19,22 @@
 extern "C" {
 #endif
 
+/** @component ip_address */
 enum ddsi_nearby_address_result ddsi_ipaddr_is_nearby_address (const ddsi_locator_t *loc, size_t ninterf, const struct ddsi_network_interface *interf, size_t *interf_idx);
+
+/** @component ip_address */
 enum ddsi_locator_from_string_result ddsi_ipaddr_from_string (ddsi_locator_t *loc, const char *str, int32_t kind);
+
+/** @component ip_address */
 int ddsi_ipaddr_compare (const struct sockaddr *const sa1, const struct sockaddr *const sa2);
+
+/** @component ip_address */
 char *ddsi_ipaddr_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc, int with_port, const struct ddsi_network_interface *interf);
+
+/** @component ip_address */
 void ddsi_ipaddr_to_loc (ddsi_locator_t *dst, const struct sockaddr *src, int32_t kind);
+
+/** @component ip_address */
 void ddsi_ipaddr_from_loc (struct sockaddr_storage *dst, const ddsi_locator_t *src);
 
 #if defined (__cplusplus)

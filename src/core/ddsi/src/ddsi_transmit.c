@@ -345,7 +345,7 @@ struct ddsi_xmsg *ddsi_writer_hbcontrol_piggyback (struct ddsi_writer *wr, const
 }
 
 #ifdef DDS_HAS_SECURITY
-struct ddsi_xmsg *writer_hbcontrol_p2p(struct ddsi_writer *wr, const struct ddsi_whc_state *whcst, int hbansreq, struct ddsi_proxy_reader *prd)
+struct ddsi_xmsg *ddsi_writer_hbcontrol_p2p(struct ddsi_writer *wr, const struct ddsi_whc_state *whcst, int hbansreq, struct ddsi_proxy_reader *prd)
 {
   struct ddsi_domaingv const * const gv = wr->e.gv;
   struct ddsi_xmsg *msg;

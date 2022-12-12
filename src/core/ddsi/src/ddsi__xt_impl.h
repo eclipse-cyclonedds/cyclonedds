@@ -294,23 +294,54 @@ DDSRT_STATIC_ASSERT (offsetof (struct ddsi_typeobj, x) == 0);
 DDSRT_STATIC_ASSERT (offsetof (struct ddsi_typeinfo, x) == 0);
 DDSRT_STATIC_ASSERT (offsetof (struct ddsi_typemap, x) == 0);
 
+/** @component xtypes_wrapper */
 int ddsi_typeid_compare_impl (const struct DDS_XTypes_TypeIdentifier *a, const struct DDS_XTypes_TypeIdentifier *b);
+
+/** @component xtypes_wrapper */
 void ddsi_typeid_copy_impl (struct DDS_XTypes_TypeIdentifier *dst, const struct DDS_XTypes_TypeIdentifier *src);
+
+/** @component xtypes_wrapper */
 void ddsi_typeid_copy_to_impl (struct DDS_XTypes_TypeIdentifier *dst, const ddsi_typeid_t *src);
+
+/** @component xtypes_wrapper */
 struct DDS_XTypes_TypeIdentifier * ddsi_typeid_dup_impl (const struct DDS_XTypes_TypeIdentifier *src);
+
+/** @component xtypes_wrapper */
 ddsi_typeid_t * ddsi_typeid_dup_from_impl (const struct DDS_XTypes_TypeIdentifier *src);
+
+/** @component xtypes_wrapper */
 bool ddsi_typeid_is_none_impl (const struct DDS_XTypes_TypeIdentifier *type_id);
+
+/** @component xtypes_wrapper */
 void ddsi_typeid_fini_impl (struct DDS_XTypes_TypeIdentifier *type_id);
 
+
+/** @component xtypes_wrapper */
 void ddsi_xt_get_typeobject_impl (const struct xt_type *xt, struct DDS_XTypes_TypeObject *to);
+
+/** @component xtypes_wrapper */
 dds_return_t ddsi_type_ref_id_locked_impl (struct ddsi_domaingv *gv, struct ddsi_type **type, const struct DDS_XTypes_TypeIdentifier *type_id);
+
+/** @component xtypes_wrapper */
 struct ddsi_type * ddsi_type_lookup_locked_impl (struct ddsi_domaingv *gv, const struct DDS_XTypes_TypeIdentifier *type_id);
+
+/** @component xtypes_wrapper */
 const struct DDS_XTypes_TypeObject * ddsi_typemap_typeobj (const ddsi_typemap_t *tmap, const struct DDS_XTypes_TypeIdentifier *type_id);
 
+
+/** @component xtypes_wrapper */
 bool ddsi_typeid_is_hash_impl (const struct DDS_XTypes_TypeIdentifier *type_id);
+
+/** @component xtypes_wrapper */
 bool ddsi_typeid_is_minimal_impl (const struct DDS_XTypes_TypeIdentifier *type_id);
+
+/** @component xtypes_wrapper */
 bool ddsi_typeid_is_complete_impl (const struct DDS_XTypes_TypeIdentifier *type_id);
+
+/** @component xtypes_wrapper */
 void ddsi_typeobj_fini_impl (struct DDS_XTypes_TypeObject *typeobj);
+
+/** @component xtypes_wrapper */
 dds_return_t ddsi_xt_type_init_impl (struct ddsi_domaingv *gv, struct xt_type *xt, const struct DDS_XTypes_TypeIdentifier *ti, const struct DDS_XTypes_TypeObject *to);
 
 #if defined (__cplusplus)

@@ -34,31 +34,96 @@ struct ddsi_addrset;
 extern const ddsrt_avl_treedef_t ddsi_pwr_readers_treedef;
 extern const ddsrt_avl_treedef_t ddsi_prd_writers_treedef;
 
+/** @component ddsi_proxy_endpoint */
 void ddsi_proxy_writer_set_alive_may_unlock (struct ddsi_proxy_writer *pwr, bool notify);
+
+/** @component ddsi_proxy_endpoint */
 int ddsi_proxy_writer_set_notalive (struct ddsi_proxy_writer *pwr, bool notify);
+
+/** @component ddsi_proxy_endpoint */
 void ddsi_proxy_writer_get_alive_state (struct ddsi_proxy_writer *pwr, struct ddsi_alive_state *st);
+
+/** @component ddsi_proxy_endpoint */
 struct ddsi_entity_common *ddsi_entity_common_from_proxy_endpoint_common (const struct ddsi_proxy_endpoint_common *c);
+
+/** @component ddsi_proxy_endpoint */
 bool ddsi_is_proxy_endpoint (const struct ddsi_entity_common *e);
 
 
-/* To create a new proxy writer or reader; the proxy participant is
-   determined from the GUID and must exist. */
+/**
+ * @brief To create a new proxy writer
+ * @component ddsi_proxy_endpoint
+ *
+ * @param gv
+ * @param ppguid the proxy participant is determined from the GUID and must exist
+ * @param guid
+ * @param as
+ * @param plist
+ * @param dqueue
+ * @param evq
+ * @param timestamp
+ * @param seq
+ * @return
+ */
 int ddsi_new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct ddsi_addrset *as, const struct ddsi_plist *plist, struct ddsi_dqueue *dqueue, struct ddsi_xeventq *evq, ddsrt_wctime_t timestamp, ddsi_seqno_t seq);
+
+
+/**
+ * @brief To create a new proxy reader
+ * @component ddsi_proxy_endpoint
+ *
+ * @param gv
+ * @param ppguid the proxy participant is determined from the GUID and must exist
+ * @param guid
+ * @param as
+ * @param plist
+ * @param timestamp
+ * @param seq
+ * @param favours_ssm
+ * @return
+ */
 int ddsi_new_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct ddsi_addrset *as, const struct ddsi_plist *plist, ddsrt_wctime_t timestamp, ddsi_seqno_t seq
 #ifdef DDS_HAS_SSM
 , int favours_ssm
 #endif
 );
 
-/* To delete a proxy writer or reader; these synchronously hide it
-   from the outside world, preventing it from being matched to a
-   reader or writer. Actual deletion is scheduled in the future, when
-   no outstanding references may still exist (determined by checking
-   thread progress, &c.). */
+/**
+ * @brief Delete a proxy writer
+ * @component ddsi_proxy_endpoint
+ *
+ * These synchronously hide it from the outside world, preventing it from being matched to a
+ * reader. Actual deletion is scheduled in the future, when no outstanding references may
+ * still exist (determined by checking thread progress, &c.)
+ *
+ * @param gv
+ * @param guid
+ * @param timestamp
+ * @param isimplicit
+ * @return int
+ */
 int ddsi_delete_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, ddsrt_wctime_t timestamp, int isimplicit);
+
+/**
+ * @brief Delete a proxy reader
+ * @component ddsi_proxy_endpoint
+ *
+ * These synchronously hide it from the outside world, preventing it from being matched to a
+ * writer. Actual deletion is scheduled in the future, when no outstanding references may still
+ * exist (determined by checking thread progress, &c.)
+ *
+ * @param gv
+ * @param guid
+ * @param timestamp
+ * @param isimplicit
+ * @return int
+ */
 int ddsi_delete_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, ddsrt_wctime_t timestamp, int isimplicit);
 
+/** @component ddsi_proxy_endpoint */
 void ddsi_update_proxy_reader (struct ddsi_proxy_reader *prd, ddsi_seqno_t seq, struct ddsi_addrset *as, const struct dds_qos *xqos, ddsrt_wctime_t timestamp);
+
+/** @component ddsi_proxy_endpoint */
 void ddsi_update_proxy_writer (struct ddsi_proxy_writer *pwr, ddsi_seqno_t seq, struct ddsi_addrset *as, const struct dds_qos *xqos, ddsrt_wctime_t timestamp);
 
 #if defined (__cplusplus)

@@ -18,6 +18,7 @@ extern "C" {
 
 struct ddsi_domaingv;
 
+/** @component raw_ethernet_transport */
 int ddsi_raweth_init (struct ddsi_domaingv *gv);
 
 #if defined (__cplusplus)

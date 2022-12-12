@@ -91,6 +91,7 @@ struct ddsi_sertype_cdr {
 
 extern const struct ddsi_serdata_ops ddsi_serdata_ops_cdr;
 
+/** @component typesupport_cdr */
 dds_return_t ddsi_sertype_cdr_init (const struct ddsi_domaingv *gv, struct ddsi_sertype_cdr *st, const dds_topic_descriptor_t *desc);
 
 #if defined (__cplusplus)

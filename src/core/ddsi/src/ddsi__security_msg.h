@@ -63,13 +63,25 @@ typedef struct ddsi_participant_generic_message {
 } ddsi_participant_generic_message_t;
 
 
-/*
- * The arguments are aliased in the resulting message structure.
- * This means that the lifecycle of the arguments should be longer
- * then that of the message.
+
+/**
+ * @component security_msg_exchange
+ *
+ * The arguments are aliased in the resulting message structure. This means
+ * that the lifecycle of the arguments should be longer then that of the
+ * message.
+ *
+ * @param msg
+ * @param wrguid
+ * @param wrseq
+ * @param dstpguid
+ * @param dsteguid
+ * @param srceguid
+ * @param classid
+ * @param mdata
+ * @param rmid
  */
-void
-ddsi_participant_generic_message_init(
+void ddsi_participant_generic_message_init(
    ddsi_participant_generic_message_t *msg,
    const ddsi_guid_t *wrguid,
    ddsi_seqno_t wrseq,
@@ -80,39 +92,37 @@ ddsi_participant_generic_message_init(
    const ddsi_dataholderseq_t *mdata,
    const ddsi_message_identity_t *rmid);
 
-/*
- * Aliased struct variables will not be freed.
+/**
+ * @brief Aliased struct variables will not be freed.
+ * @component security_msg_exchange
+ *
+ * @param msg
  */
-void
-ddsi_participant_generic_message_deinit(
-   ddsi_participant_generic_message_t *msg);
+void ddsi_participant_generic_message_deinit(ddsi_participant_generic_message_t *msg);
 
-/*
- * Some struct variables are aliased to the given buffer.
- * This means that the lifecycle of the data buffer should be
- * longer then that of the message.
+/**
+ * @component security_msg_exchange
+ *
+ * Some struct variables are aliased to the given buffer. This means that
+ * the lifecycle of the data buffer should be longer then that of the message.
+ *
+ * @param msg
+ * @param data
+ * @param len
+ * @param bswap
+ * @return dds_return_t
  */
-dds_return_t
-ddsi_participant_generic_message_deseralize(
-   ddsi_participant_generic_message_t *msg,
-   const unsigned char *data,
-   size_t len,
+dds_return_t ddsi_participant_generic_message_deseralize(ddsi_participant_generic_message_t *msg, const unsigned char *data, size_t len,
    bool bswap);
 
-dds_return_t
-ddsi_participant_generic_message_serialize(
-   const ddsi_participant_generic_message_t *msg,
-   unsigned char **data,
-   size_t *len);
+/** @component security_msg_exchange */
+dds_return_t ddsi_participant_generic_message_serialize(const ddsi_participant_generic_message_t *msg, unsigned char **data, size_t *len);
 
 DDS_EXPORT extern const enum ddsi_pserop ddsi_pserop_participant_generic_message[];
 DDS_EXPORT extern const size_t ddsi_pserop_participant_generic_message_nops;
 
-int
-ddsi_volatile_secure_data_filter(
-   struct ddsi_writer *wr,
-   struct ddsi_proxy_reader *prd,
-   struct ddsi_serdata *serdata);
+/** @component security_msg_exchange */
+int ddsi_volatile_secure_data_filter(struct ddsi_writer *wr, struct ddsi_proxy_reader *prd, struct ddsi_serdata *serdata);
 
 #if defined (__cplusplus)
 }

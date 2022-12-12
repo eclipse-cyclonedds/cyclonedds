@@ -103,15 +103,24 @@ struct ddsi_reader_sec_attributes {
   bool plugin_attr;
 };
 
+/** @component security_entity */
 struct dds_security_access_control *ddsi_omg_participant_get_access_control(const struct ddsi_participant *pp);
+
+/** @component security_entity */
 struct dds_security_authentication *ddsi_omg_participant_get_authentication(const struct ddsi_participant *pp);
+
+/** @component security_entity */
 struct dds_security_cryptography *ddsi_omg_participant_get_cryptography(const struct ddsi_participant *pp);
 
+/** @component security_core */
 void ddsi_omg_vlog_exception(const struct ddsrt_log_cfg *lc, uint32_t cat, DDS_Security_SecurityException *exception, const char *file, uint32_t line, const char *func, const char *fmt, va_list ap);
+
+/** @component security_core */
 void ddsi_omg_log_exception(const struct ddsrt_log_cfg *lc, uint32_t cat, DDS_Security_SecurityException *exception, const char *file, uint32_t line, const char *func, const char *fmt, ...);
 
 /**
  * @brief Check if access control is enabled for the participant.
+ * @component security_entity
  *
  * @param[in] pp  Participant to check.
  *
@@ -121,6 +130,7 @@ bool ddsi_omg_participant_is_access_protected(const struct ddsi_participant *pp)
 
 /**
  * @brief Check if protection at RTPS level is enabled for the participant.
+ * @component security_entity
  *
  * @param[in] pp  Participant to check.
  *
@@ -130,6 +140,7 @@ bool ddsi_omg_participant_is_rtps_protected(const struct ddsi_participant *pp);
 
 /**
  * @brief Check if liveliness is protected for the participant.
+ * @component security_entity
  *
  * @param[in] pp  Participant to check.
  *
@@ -139,6 +150,7 @@ bool ddsi_omg_participant_is_liveliness_protected(const struct ddsi_participant 
 
 /**
  * @brief Check if discovery is protected for the participant.
+ * @component security_entity
  *
  * @param[in] pp  Participant to check.
  *
@@ -148,6 +160,7 @@ bool ddsi_omg_participant_is_discovery_protected(const struct ddsi_participant *
 
 /**
  * @brief Check if security is enabled for the proxy participant.
+ * @component security_entity
  *
  * @param[in] proxypp  Proxy participant to check if it is secure.
  *
@@ -157,6 +170,7 @@ bool ddsi_omg_proxy_participant_is_secure (const struct ddsi_proxy_participant *
 
 /**
  * @brief Check security if it is allowed to create the participant.
+ * @component security_entity
  *
  * When security is enabled for this participant it is checked if the
  * participant is authenticated by checking the provided security
@@ -174,12 +188,15 @@ bool ddsi_omg_proxy_participant_is_secure (const struct ddsi_proxy_participant *
  */
 dds_return_t ddsi_omg_security_check_create_participant (struct ddsi_participant *pp, uint32_t domain_id);
 
+/** @component security_entity */
 void ddsi_omg_security_participant_set_initialized (struct ddsi_participant *pp);
 
+/** @component security_entity */
 bool ddsi_omg_security_participant_is_initialized (struct ddsi_participant *pp);
 
 /**
  * @brief Remove the participant from the security plugins.
+ * @component security_entity
  *
  * When the participant was registered with the security
  * plugins then this function will release the allocated
@@ -191,6 +208,7 @@ void ddsi_omg_security_deregister_participant (struct ddsi_participant *pp);
 
 /**
  * @brief Get the identity handle associate with this participant.
+ * @component security_entity
  *
  * This function returns the identity handle that was created
  * when the participant was authenticated. This handle corresponds
@@ -207,6 +225,7 @@ int64_t ddsi_omg_security_get_local_participant_handle (const struct ddsi_partic
 
 /**
  * @brief Get security info flags of the given participant.
+ * @component security_entity
  *
  * @param[in]  pp    Participant to get the security info from.
  * @param[out] info  The security info.
@@ -219,6 +238,7 @@ bool ddsi_omg_get_participant_security_info (const struct ddsi_participant *pp, 
 
 /**
  * @brief Get the is_rtps_protected flag of the given remote participant.
+ * @component security_entity
  *
  * @param[in] pp        The participant.
  * @param[in] entityid  ID of the entity to check.
@@ -232,6 +252,7 @@ bool ddsi_omg_security_is_local_rtps_protected (const struct ddsi_participant *p
 /**
  * @brief Check if the participant and the proxy participant
  *        have compatible security info settings.
+ * @component security_entity
  *
  * Associated with a secure participant is the ParticipantSecurityInfo parameter.
  * This parameter contains the setting of the security attributes and the associated
@@ -251,6 +272,7 @@ bool ddsi_omg_is_similar_participant_security_info (struct ddsi_participant *pp,
 
 /**
  * @brief Check if the parameter list key hash is protected
+ * @component security_data
  *
  * @param[in] plist        The parameter list
  *
@@ -260,6 +282,7 @@ bool ddsi_omg_plist_keyhash_is_protected (const ddsi_plist_t *plist);
 
 /**
  * @brief Check if the endpoint is protected
+ * @component security_entity
  *
  * Checks whether the provided parameter list has the flag
  * ENDPOINT_SECURITY_ATTRIBUTES_FLAG_IS_VALID set. When this flag
@@ -274,6 +297,7 @@ bool ddsi_omg_is_endpoint_protected (const ddsi_plist_t *plist);
 
 /**
  * @brief Writes the security attributes and security plugin attributes to log (category discovery)
+ * @component security_core
  *
  * @param[in] gv        Global variable
  * @param[in] plist     The parameter list
@@ -282,6 +306,7 @@ void ddsi_omg_log_endpoint_protection (struct ddsi_domaingv * const gv, const dd
 
 /**
  * @brief Get security info flags of the given writer.
+ * @component security_entity
  *
  * @param[in]  wr    Writer to get the security info from.
  * @param[out] info  The security info.
@@ -294,6 +319,7 @@ bool ddsi_omg_get_writer_security_info (const struct ddsi_writer *wr, ddsi_secur
 
 /**
  * @brief Return the builtin writer id for this writers' discovery.
+ * @component security_entity
  *
  * Return builtin entity id of the writer to use for the publication
  * discovery information.
@@ -311,6 +337,7 @@ unsigned ddsi_determine_publication_writer(const struct ddsi_writer *wr);
 
 /**
  * @brief Register the writer with security.
+ * @component security_entity
  *
  * This function registers the writer with security
  * when the associated participant has security enabled.
@@ -325,6 +352,7 @@ void ddsi_omg_security_register_writer (struct ddsi_writer *wr);
 
 /**
  * @brief Remove the writer from security.
+ * @component security_entity
  *
  * When the writer was registered with security then this function
  * will remove the writer from security which will free the allocated
@@ -336,6 +364,7 @@ void ddsi_omg_security_deregister_writer (struct ddsi_writer *wr);
 
 /**
  * @brief Get security info flags of the given reader.
+ * @component security_entity
  *
  * @param[in]  rd    Reader to get the security info from.
  * @param[out] info  The security info.
@@ -348,6 +377,7 @@ bool ddsi_omg_get_reader_security_info (const struct ddsi_reader *rd, ddsi_secur
 
 /**
  * @brief Return the builtin writer id for this readers' discovery.
+ * @component security_entity
  *
  * Return builtin entity id of the writer to use for the subscription
  * discovery information.
@@ -366,6 +396,7 @@ unsigned ddsi_determine_subscription_writer(const struct ddsi_reader *rd);
 #ifdef DDS_HAS_TOPIC_DISCOVERY
 /**
  * @brief Return the builtin writer id for topic discovery.
+ * @component security_entity
  *
  * Return builtin entity id of the writer to use for the topic
  * discovery information.
@@ -380,6 +411,7 @@ unsigned ddsi_determine_topic_writer(const struct ddsi_topic *tp);
 
 /**
  * @brief Register the reader with security.
+ * @component security_entity
  *
  * This function registers the reader with security
  * when the associated participant has security enabled.
@@ -394,6 +426,7 @@ void ddsi_omg_security_register_reader (struct ddsi_reader *rd);
 
 /**
  * @brief Remove the reader from security.
+ * @component security_entity
  *
  * When the reader was registered with security then this function
  * will remove the reader from security which will free the allocated
@@ -404,8 +437,8 @@ void ddsi_omg_security_register_reader (struct ddsi_reader *rd);
 void ddsi_omg_security_deregister_reader (struct ddsi_reader *rd);
 
 /**
- * @brief Determine if the proxy participant is allowed to be deleted
- *        by the given writer.
+ * @brief Determine if the proxy participant is allowed to be deleted by the given writer.
+ * @component security_entity
  *
  * If an proxy participant is authenticated, it is only allowed to
  * to deleted when a dispose is received from the proper protected
@@ -422,8 +455,8 @@ void ddsi_omg_security_deregister_reader (struct ddsi_reader *rd);
 bool ddsi_is_proxy_participant_deletion_allowed(struct ddsi_domaingv * const gv, const struct ddsi_guid *guid, const ddsi_entityid_t pwr_entityid);
 
 /**
- * @brief Determine if the messages, related to the given remote
- * entity, are RTPS protected or not.
+ * @brief Determine if the messages, related to the given remote entity, are RTPS protected or not.
+ * @component security_entity
  *
  * @param[in] proxy_pp  Related proxy participant.
  * @param[in] entityid  ID of the entity to check.
@@ -437,6 +470,7 @@ bool ddsi_omg_security_is_remote_rtps_protected (const struct ddsi_proxy_partici
 /**
  * @brief Set security information, depending on plist, into the given
  * proxy participant.
+ * @component security_entity
  *
  * @param[in] proxypp  Proxy participant to set security info on.
  * @param[in] plist    Paramater list, possibly contains security info.
@@ -446,6 +480,7 @@ void ddsi_set_proxy_participant_security_info(struct ddsi_proxy_participant *pro
 /**
  * @brief Determine if the messages, related to the given remote
  * entity, are RTPS protected or not.
+ * @component security_entity
  *
  * @param[in] pp       The participant.
  * @param[in] entityid ID of the entity to check.
@@ -459,6 +494,7 @@ bool ddsi_omg_security_is_local_rtps_protected (const struct ddsi_participant *p
 /**
  * @brief Check if the participant allows communication with unauthenticated
  *        participants
+ * @component security_entity
  *
  * @param[in] pp  The participant.
  *
@@ -470,18 +506,22 @@ bool ddsi_omg_participant_allow_unauthenticated(struct ddsi_participant *pp);
 
 /**
  * @brief Initialize the proxy participant security attributes
+ * @component security_entity
  *
  * @param[in] proxypp  The proxy participant.
  *
  */
 void ddsi_omg_security_init_remote_participant (struct ddsi_proxy_participant *proxypp);
 
+/** @component security_entity */
 void ddsi_omg_security_remote_participant_set_initialized (struct ddsi_proxy_participant *proxypp);
 
+/** @component security_entity */
 bool ddsi_omg_security_remote_participant_is_initialized (struct ddsi_proxy_participant *proxypp);
 
 /**
  * @brief Registers the matched proxy participant with the crypto plugin
+ * @component security_entity
  *
  * When the proxy participant is authenticated and allowed by access control then the match between the local and
  * the remote participant must be registered with the cypto factory provided by the crypto plugin. The
@@ -501,6 +541,7 @@ bool ddsi_omg_security_register_remote_participant (struct ddsi_participant *pp,
 
 /**
  * @brief Sets the matching participant and proxy participant as authorized.
+ * @component security_entity
  *
  * When the authentication handshake has finished successfully and the
  * volatile secure readers and writers are matched then with this function
@@ -516,6 +557,7 @@ void ddsi_omg_security_set_remote_participant_authenticated (struct ddsi_partici
 /**
  * @brief Removes a registered proxy participant from administation of the authentication,
  *        access control and crypto plugins.
+ * @component security_entity
  *
  * @param[in] proxypp            The proxy participant.
  */
@@ -523,6 +565,7 @@ void ddsi_omg_security_deregister_remote_participant (struct ddsi_proxy_particip
 
 /**
  * @brief Generate and send the crypto tokens needed for encoding RTPS messages.
+ * @component security_entity
  *
  * When the security settings indicate that RTPS message encoding or signing is
  * configured for the participant then this function will ask the cypto echange for
@@ -535,6 +578,7 @@ void ddsi_omg_security_participant_send_tokens (struct ddsi_participant *pp, str
 
 /**
  * @brief Get the cypto handle associated with the proxy participant.
+ * @component security_entity
  *
  * This function returns the handle which is the association between
  * the proxy participant and the crypto plugin. This handle is created
@@ -550,6 +594,7 @@ int64_t ddsi_omg_security_get_remote_participant_handle (struct ddsi_proxy_parti
 
 /**
  * @brief Set the crypto tokens used for the encryption and decryption of RTPS messages.
+ * @component security_entity
  *
  * The remote participant  will send the crypto tokens when the security settings determine that the
  * communication between the participants must be secure. These tokens are used for the necryption and
@@ -565,6 +610,7 @@ void ddsi_omg_security_set_participant_crypto_tokens (struct ddsi_participant *p
 
 /**
  * @brief Check if the writer has the is_discovery_protected flag set
+ * @component security_entity
  *
  * @param[in] wr        The local writer.
  *
@@ -574,6 +620,7 @@ bool ddsi_omg_writer_is_discovery_protected (const struct ddsi_writer *wr);
 
 /**
  * @brief Check if the writer has the is_submessage_protected flag set
+ * @component security_entity
  *
  * @param[in] wr        The local writer.
  *
@@ -583,6 +630,7 @@ bool ddsi_omg_writer_is_submessage_protected (const struct ddsi_writer *wr);
 
 /**
  * @brief Check if the writer has the is_payload_protected flag set
+ * @component security_entity
  *
  * @param[in] wr        The local writer.
  *
@@ -593,6 +641,7 @@ bool ddsi_omg_writer_is_payload_protected (const struct ddsi_writer *wr);
 /**
  * @brief Check if the remote writer is allowed to communicate with endpoints of the
  *        local participant.
+ * @component security_entity
  *
  * This function will check with the access control plugin if the remote writer
  * is allowed to communicate with this participant.
@@ -609,6 +658,7 @@ bool ddsi_omg_security_check_remote_writer_permissions (const struct ddsi_proxy_
 
 /**
  * @brief Check it the remote writer is allowed to communicate with the local reader.
+ * @component security_entity
  *
  * When a remote writer is allowed by access control it has to be checked if the remote
  * writer is allowed to communicate with a particular local reader. This function will
@@ -632,6 +682,7 @@ bool ddsi_omg_security_match_remote_writer_enabled (struct ddsi_reader *rd, stru
 /**
  * @brief Release the security information associated with the match between a reader and
  * a remote writer.
+ * @component security_entity
  *
  * This function releases the security resources that were allocated for this reader and remote
  * writer match. For example it will release the security tokens that where associated with this
@@ -645,6 +696,7 @@ void ddsi_omg_security_deregister_remote_writer_match (const struct ddsi_domaing
 
 /**
  * @brief Set the crypto tokens used for the secure communication from the remote writer to the reader.
+ * @component security_entity
  *
  * The remote writer instance will send the crypto tokens when the security settings determine that the
  * communication between the remote writer and the reader must be secure. When these tokens are received
@@ -659,6 +711,7 @@ void ddsi_omg_security_set_remote_writer_crypto_tokens (struct ddsi_reader *rd, 
 
 /**
  * @brief Release all the security resources associated with the remote writer.
+ * @component security_entity
  *
  * Cleanup security resource associated with the remote writer.
  *
@@ -669,6 +722,7 @@ void ddsi_omg_security_deregister_remote_writer (const struct ddsi_proxy_writer 
 /**
  * @brief Set security information, depending on plist and proxy participant,
  * into the given proxy reader.
+ * @component security_entity
  *
  * @param[in] prd      Proxy reader to set security info on.
  * @param[in] plist    Paramater list, possibly contains security info.
@@ -677,6 +731,7 @@ void ddsi_set_proxy_reader_security_info(struct ddsi_proxy_reader *prd, const dd
 
 /**
  * @brief Determine the security settings associated with the remote reader.
+ * @component security_entity
  *
  * From the security information contained in the parameter list from the remote reader
  * the corresponding security settings are determined and returned in the info parameter.
@@ -689,6 +744,7 @@ void ddsi_omg_get_proxy_reader_security_info (struct ddsi_proxy_reader *prd, con
 
 /**
  * @brief Check if the reader has the is_discovery_protected flag set
+ * @component security_entity
  *
  * @param[in] rd        The local reader.
  *
@@ -698,6 +754,7 @@ bool ddsi_omg_reader_is_discovery_protected (const struct ddsi_reader *rd);
 
 /**
  * @brief Check if the reader has the is_submessage_protected flag set
+ * @component security_entity
  *
  * @param[in] rd        The local reader.
  *
@@ -708,6 +765,7 @@ bool ddsi_omg_reader_is_submessage_protected (const struct ddsi_reader *rd);
 /**
  * @brief Check if the remote reader is allowed to communicate with endpoints of the
  *        local participant.
+ * @component security_entity
  *
  * This function will check with the access control plugin if the remote reader
  * is allowed to communicate with this participant.
@@ -728,6 +786,7 @@ bool ddsi_omg_security_check_remote_reader_permissions (const struct ddsi_proxy_
 /**
  * @brief Set security information, depending on plist and proxy participant,
  * into the given proxy endpoint.
+ * @component security_entity
  *
  * @param[in] entity            The endpoint common attributes.
  * @param[in] proxypp_sec_info  The security info of the proxy participant
@@ -738,6 +797,7 @@ void ddsi_omg_get_proxy_endpoint_security_info (const struct ddsi_entity_common 
 
 /**
  * @brief Check it the local writer is allowed to communicate with the remote reader.
+ * @component security_entity
  *
  * When a remote reader is allowed by accessstruct dds_security_garbage control it has to be checked if the local
  * writer is allowed to communicate with a particular local writer. This function will
@@ -764,6 +824,7 @@ bool ddsi_omg_security_match_remote_reader_enabled (struct ddsi_writer *wr, stru
 /**
  * @brief Release the security information associated with the match between a writer and
  * a remote reader.
+ * @component security_entity
  *
  * This function releases the security resources that were allocated for this writer and remote
  * reader match. For example it will release the security tokens that where associated with this
@@ -777,6 +838,7 @@ void ddsi_omg_security_deregister_remote_reader_match (const struct ddsi_domaing
 
 /**
  * @brief Set the crypto tokens used for the secure communication from the remote reader to the writer.
+ * @component security_entity
  *
  * The remote reader instance will send the crypto tokens when the security settings determine that the
  * communication between the remote reader and the writer must be secure. When these tokens are received
@@ -791,6 +853,7 @@ void ddsi_omg_security_set_remote_reader_crypto_tokens (struct ddsi_writer *wr, 
 
 /**
  * @brief Release all the security resources associated with the remote reader.
+ * @component security_entity
  *
  * Cleanup security resource associated with the remote reader.
  *
@@ -800,6 +863,7 @@ void ddsi_omg_security_deregister_remote_reader (const struct ddsi_proxy_reader 
 
 /**
  * @brief Encode RTPS message.
+ * @component security_data
  *
  * @param[in]     src_handle  Security handle of data source.
  * @param[in]     src_guid    GUID of the entity data source.
@@ -813,8 +877,7 @@ void ddsi_omg_security_deregister_remote_reader (const struct ddsi_proxy_reader 
  * @retval true   Encoding succeeded.
  * @retval false  Encoding failed.
  */
-bool
-ddsi_omg_security_encode_rtps_message (
+bool ddsi_omg_security_encode_rtps_message (
   const struct ddsi_domaingv *gv,
   int64_t                 src_handle,
   const ddsi_guid_t      *src_guid,
@@ -826,6 +889,7 @@ ddsi_omg_security_encode_rtps_message (
 
 /**
  * @brief Encode payload when necessary.
+ * @component security_data
  *
  * When encoding is necessary, *buf will be allocated and the vec contents
  * will change to point to that buffer.
@@ -850,6 +914,7 @@ bool ddsi_security_encode_payload(struct ddsi_writer *wr, ddsrt_iovec_t *vec, un
 
 /**
  * @brief Decode the payload of a Data submessage.
+ * @component security_data
  *
  * When decoding is necessary, the payloadp memory will be replaced
  * by the decoded payload. This means that the original submessage
@@ -872,6 +937,7 @@ bool ddsi_security_decode_data(const struct ddsi_domaingv *gv, struct ddsi_rsamp
 
 /**
  * @brief Decode the payload of a DataFrag submessage.
+ * @component security_data
  *
  * When decoding is necessary, the payloadp memory will be replaced
  * by the decoded payload. This means that the original submessage
@@ -894,6 +960,7 @@ bool ddsi_security_decode_datafrag(const struct ddsi_domaingv *gv, struct ddsi_r
 
 /**
  * @brief Encode datareader submessage when necessary.
+ * @component security_data
  *
  * When encoding is necessary, the original submessage will be replaced
  * by a new encoded submessage.
@@ -910,6 +977,7 @@ void ddsi_security_encode_datareader_submsg(struct ddsi_xmsg *msg, struct ddsi_x
 
 /**
  * @brief Encode datawriter submessage when necessary.
+ * @component security_data
  *
  * When encoding is necessary, the original submessage will be replaced
  * by a new encoded submessage.
@@ -925,6 +993,7 @@ void ddsi_security_encode_datawriter_submsg(struct ddsi_xmsg *msg, struct ddsi_x
 
 /**
  * @brief Check if given submessage is properly decoded.
+ * @component security_data
  *
  * When decoding is necessary, it should be checked if a plain submessage was
  * actually decoded. Otherwise data can be injected just by inserting a plain
@@ -951,6 +1020,7 @@ ddsi_security_validate_msg_decoding(
 /**
  * @brief Decode not only SecPrefix, but also the SecBody and SecPostfix
  * sub-messages.
+ * @component security_data
  *
  * When encrypted, the original SecBody will be replaced by the decrypted
  * submessage. Then the normal sequence can continue as if there was no
@@ -980,6 +1050,7 @@ ddsi_security_decode_sec_prefix(
 
 /**
  * @brief Decode the RTPS message.
+ * @component security_data
  *
  * When encrypted, the original buffers and information will be replaced
  * by the decrypted RTPS message. Then the normal sequence can continue
@@ -1003,6 +1074,7 @@ ddsi_rtps_msg_state_t ddsi_security_decode_rtps_message (struct ddsi_thread_stat
 
 /**
  * @brief Send the RTPS message securely.
+ * @component security_data
  *
  * @param[in]     conn          Connection to use.
  * @param[in]     dst           Possible destination information.
@@ -1037,6 +1109,7 @@ ddsi_security_secure_conn_write(
  *        This function tries to load the plugins only once. Returns the same
  *        result on subsequent calls.
  *        It logs the reason and returns error if can not load a plugin.
+ * @component security_core
  *
  * @param[in] qos   Participant qos which owns the Property list
  *                             that contains security configurations and
@@ -1047,15 +1120,19 @@ ddsi_security_secure_conn_write(
  */
 dds_return_t ddsi_omg_security_load ( struct dds_security_context *security_context, const dds_qos_t *qos, struct ddsi_domaingv *gv );
 
-
+/** @component security_core */
 void ddsi_omg_security_init ( struct ddsi_domaingv *gv );
 
+/** @component security_core */
 void ddsi_omg_security_stop (struct ddsi_domaingv *gv);
 
+/** @component security_core */
 void ddsi_omg_security_deinit (struct dds_security_context *sc );
 
+/** @component security_core */
 void ddsi_omg_security_free (struct ddsi_domaingv *gv);
 
+/** @component security_core */
 bool ddsi_omg_is_security_loaded (  struct dds_security_context *sc );
 
 #else /* DDS_HAS_SECURITY */

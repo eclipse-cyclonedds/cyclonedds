@@ -679,7 +679,7 @@ static void send_heartbeat_to_all_readers (struct ddsi_xpack *xp, struct ddsi_xe
               m->seq,
               m->last_seq);
 
-          struct ddsi_xmsg *msg = writer_hbcontrol_p2p(wr, &whcst, hbansreq, prd);
+          struct ddsi_xmsg *msg = ddsi_writer_hbcontrol_p2p(wr, &whcst, hbansreq, prd);
           if (msg != NULL)
           {
             ddsrt_mutex_unlock (&wr->e.lock);

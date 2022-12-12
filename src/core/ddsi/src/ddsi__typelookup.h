@@ -43,12 +43,16 @@ struct ddsi_type;
 struct ddsi_generic_proxy_endpoint;
 
 /**
+ * @component type_lookup
+ *
  * Send a type lookup request message in order to request type information for the
  * provided type identifier.
  */
 bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const ddsi_typeid_t *type_id, const ddsi_guid_t *proxypp_guid, ddsi_type_include_deps_t deps);
 
 /**
+ * @component type_lookup
+ *
  * Handle an incoming type lookup request message. For all types requested
  * that are known in this node, the serialized sertype is send in a type
  * lookup reply message. In case none of the requested types is known,
@@ -57,11 +61,15 @@ bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const ddsi_typeid_t 
 void ddsi_tl_handle_request (struct ddsi_domaingv *gv, struct ddsi_serdata *sample_common);
 
 /**
+ * @component type_lookup
+ *
  * Add type information from a type lookup reply to the type library.
  */
 void ddsi_tl_add_types (struct ddsi_domaingv *gv, const DDS_Builtin_TypeLookup_Reply *reply, struct ddsi_generic_proxy_endpoint ***gpe_match_upd, uint32_t *n_match_upd);
 
 /**
+ * @component type_lookup
+ *
  * Handle an incoming type lookup reply message. The sertypes from this
  * reply are registered in the local type administation and referenced
  * from the corresponding proxy endpoints.

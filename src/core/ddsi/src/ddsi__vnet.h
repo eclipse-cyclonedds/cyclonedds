@@ -18,6 +18,7 @@ extern "C" {
 
 struct ddsi_domaingv;
 
+/** @component vnet_if */
 int ddsi_vnet_init (struct ddsi_domaingv *gv, const char *name, int32_t locator_kind);
 
 #if defined (__cplusplus)

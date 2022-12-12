@@ -47,103 +47,233 @@ enum ddsi_xmsg_kind {
   DDSI_XMSG_KIND_DATA_REXMIT_NOMERGE
 };
 
-/* XMSGPOOL */
+/** @component rtps_submsg */
 struct ddsi_xmsgpool *ddsi_xmsgpool_new (void);
+
+/** @component rtps_submsg */
 void ddsi_xmsgpool_free (struct ddsi_xmsgpool *pool);
 
-
-/* XMSG */
-
-/* To allocate a new xmsg from the pool; if expected_size is NOT
-   exceeded, no reallocs will be performed, else the address of the
-   xmsg may change because of reallocing when appending to it. */
+/**
+ * @brief Allocates a new xmsg from the pool
+ * @component rtps_submsg
+ *
+ * if expected_size is NOT exceeded, no reallocs will be performed,
+ * else the address of the xmsg may change because of reallocing
+ * when appending to it.
+ *
+ * @param pool
+ * @param src_guid
+ * @param pp
+ * @param expected_size
+ * @param kind
+ * @return struct ddsi_xmsg*
+ */
 struct ddsi_xmsg *ddsi_xmsg_new (struct ddsi_xmsgpool *pool, const ddsi_guid_t *src_guid, struct ddsi_participant *pp, size_t expected_size, enum ddsi_xmsg_kind kind);
 
-/* For sending to a particular destination (participant) */
+/**
+ * @brief For sending to a particular destination (participant)
+ * @component rtps_submsg
+ *
+ * @param gv
+ * @param m
+ * @param gp
+ * @param addr
+ */
 void ddsi_xmsg_setdst1 (struct ddsi_domaingv *gv, struct ddsi_xmsg *m, const ddsi_guid_prefix_t *gp, const ddsi_xlocator_t *addr);
+
+/** @component rtps_submsg */
 bool ddsi_xmsg_getdst1_prefix (struct ddsi_xmsg *m, ddsi_guid_prefix_t *gp);
 
-/* For sending to a particular proxy reader; this is a convenience
-   routine that extracts a suitable address from the proxy reader's
-   address sets and calls setdst1. */
+/**
+ * @brief For sending to a particular proxy reader
+ * @component rtps_submsg
+ *
+ * This is a convenience routine that extracts a suitable address from the
+ * proxy reader's address sets and calls setdst1.
+ *
+ * @param m
+ * @param prd
+ */
 void ddsi_xmsg_setdst_prd (struct ddsi_xmsg *m, const struct ddsi_proxy_reader *prd);
+
+/** @component rtps_submsg */
 void ddsi_xmsg_setdst_pwr (struct ddsi_xmsg *m, const struct ddsi_proxy_writer *pwr);
 
-/* For sending to all in the address set AS -- typically, the writer's
-   address set to multicast to all matched readers */
+/**
+ * @brief For sending to all in the address set AS
+ * @component rtps_submsg
+ *
+ * Typically, the writer's address set to multicast to all matched readers
+ *
+ * @param msg
+ * @param as
+ */
 void ddsi_xmsg_setdst_addrset (struct ddsi_xmsg *msg, struct ddsi_addrset *as);
 
+/** @component rtps_submsg */
 int ddsi_xmsg_setmaxdelay (struct ddsi_xmsg *msg, int64_t maxdelay);
 
 #ifdef DDS_HAS_NETWORK_PARTITIONS
+/** @component rtps_submsg */
 int ddsi_xmsg_setencoderid (struct ddsi_xmsg *msg, uint32_t encoderid);
 #endif
 
-/* Sets the location of the destination readerId within the message
-   (address changes because of reallocations are handled correctly).
-   M must be a rexmit, and for all rexmits this must be called.  It is
-   a separate function because the location may only become known at a
-   late-ish stage in the construction of the message. */
+/**
+ * @brief Sets the location of the destination readerId within the message
+ * @component rtps_submsg
+ *
+ * (address changes because of reallocations are handled correctly).
+ * M must be a rexmit, and for all rexmits this must be called. It is a
+ * separate function because the location may only become known at a late-ish
+ * stage in the construction of the message.
+ *
+ * @param m
+ * @param readerId
+ */
 void ddsi_xmsg_set_data_reader_id (struct ddsi_xmsg *m, ddsi_entityid_t *readerId);
 
-/* If M and MADD are both xmsg's containing the same retransmit
-   message, this will merge the destination embedded in MADD into M.
-   Typically, this will cause the readerId of M to be cleared and the
-   destination to change to the writer's address set.
-
-   M and MADD *must* contain the same sample/fragment of a sample.
-
-   Returns 1 if merge was successful, else 0.  On failure, neither
-   message will have been changed and both should be sent as if there
-   had been no merging. */
+/**
+ * @component rtps_submsg
+ *
+ * If M and MADD are both xmsg's containing the same retransmit message, this will
+ * merge the destination embedded in MADD into M. Typically, this will cause the
+ * readerId of M to be cleared and the destination to change to the writer's
+ * address set.
+ *
+ * M and MADD *must* contain the same sample/fragment of a sample. Returns 1 if
+ * merge was successful, else 0. On failure, neither message will have been changed
+ * and both should be sent as if there had been no merging.
+ *
+ * @param gv
+ * @param m
+ * @param madd
+ * @return
+ */
 int ddsi_xmsg_merge_rexmit_destinations_wrlock_held (struct ddsi_domaingv *gv, struct ddsi_xmsg *m, const struct ddsi_xmsg *madd);
 
-/* To set writer ids for updating last transmitted sequence number;
-   wrfragid is 0 based, unlike DDSI but like other places where
-   fragment numbers are handled internally. */
+/**
+ * @brief To set writer ids for updating last transmitted sequence number
+ * @component rtps_submsg
+ *
+ * wrfragid is 0 based, unlike DDSI but like other places where
+   fragment numbers are handled internally.
+
+ * @param msg
+ * @param wrguid
+ * @param wrseq
+ */
 void ddsi_xmsg_setwriterseq (struct ddsi_xmsg *msg, const ddsi_guid_t *wrguid, ddsi_seqno_t wrseq);
+
+/** @component rtps_submsg */
 void ddsi_xmsg_setwriterseq_fragid (struct ddsi_xmsg *msg, const ddsi_guid_t *wrguid, ddsi_seqno_t wrseq, ddsi_fragment_number_t wrfragid);
 
-/* Comparison function for retransmits: orders messages on writer
-   guid, sequence number and fragment id */
+/**
+ * @brief Comparison function for retransmits
+ * @component rtps_submsg
+ *
+ * Orders messages on writer guid, sequence number and fragment id
+ *
+ * @param a
+ * @param b
+ * @return int
+ */
 int ddsi_xmsg_compare_fragid (const struct ddsi_xmsg *a, const struct ddsi_xmsg *b);
 
+/** @component rtps_submsg */
 void ddsi_xmsg_free (struct ddsi_xmsg *msg);
+
+/** @component rtps_submsg */
 size_t ddsi_xmsg_size (const struct ddsi_xmsg *m);
+
+/** @component rtps_submsg */
 void *ddsi_xmsg_payload (size_t *sz, struct ddsi_xmsg *m);
+
+/** @component rtps_submsg */
 void ddsi_xmsg_payload_to_plistsample (struct ddsi_plist_sample *dst, ddsi_parameterid_t keyparam, const struct ddsi_xmsg *m);
+
+/** @component rtps_submsg */
 enum ddsi_xmsg_kind ddsi_xmsg_kind (const struct ddsi_xmsg *m);
+
+/** @component rtps_submsg */
 void ddsi_xmsg_guid_seq_fragid (const struct ddsi_xmsg *m, ddsi_guid_t *wrguid, ddsi_seqno_t *wrseq, ddsi_fragment_number_t *wrfragid);
 
+
+/** @component rtps_submsg */
 void *ddsi_xmsg_submsg_from_marker (struct ddsi_xmsg *msg, struct ddsi_xmsg_marker marker);
+
+/** @component rtps_submsg */
 void *ddsi_xmsg_append (struct ddsi_xmsg *m, struct ddsi_xmsg_marker *marker, size_t sz);
+
+/** @component rtps_submsg */
 void ddsi_xmsg_shrink (struct ddsi_xmsg *m, struct ddsi_xmsg_marker marker, size_t sz);
+
+/** @component rtps_submsg */
 void ddsi_xmsg_serdata (struct ddsi_xmsg *m, struct ddsi_serdata *serdata, size_t off, size_t len, struct ddsi_writer *wr);
+
+
 #ifdef DDS_HAS_SECURITY
+/** @component rtps_submsg */
 size_t ddsi_xmsg_submsg_size (struct ddsi_xmsg *msg, struct ddsi_xmsg_marker marker);
+
+/** @component rtps_submsg */
 void ddsi_xmsg_submsg_remove (struct ddsi_xmsg *msg, struct ddsi_xmsg_marker sm_marker);
+
+/** @component rtps_submsg */
 void ddsi_xmsg_submsg_replace (struct ddsi_xmsg *msg, struct ddsi_xmsg_marker sm_marker, unsigned char *new_submsg, size_t new_len);
+
+/** @component rtps_submsg */
 void ddsi_xmsg_submsg_append_refd_payload (struct ddsi_xmsg *msg, struct ddsi_xmsg_marker sm_marker);
-#endif
+
+#endif /* DDS_HAS_SECURITY */
+
+
+/** @component rtps_submsg */
 void ddsi_xmsg_submsg_setnext (struct ddsi_xmsg *msg, struct ddsi_xmsg_marker marker);
+
+/** @component rtps_submsg */
 void ddsi_xmsg_submsg_init (struct ddsi_xmsg *msg, struct ddsi_xmsg_marker marker, ddsi_rtps_submessage_kind_t smkind);
+
+/** @component rtps_submsg */
 void ddsi_xmsg_add_timestamp (struct ddsi_xmsg *m, ddsrt_wctime_t t);
+
+/** @component rtps_submsg */
 void ddsi_xmsg_add_entityid (struct ddsi_xmsg * m);
+
+/** @component rtps_submsg */
 void *ddsi_xmsg_addpar_bo (struct ddsi_xmsg *m, ddsi_parameterid_t pid, size_t len, enum ddsrt_byte_order_selector bo);
+
+/** @component rtps_submsg */
 void *ddsi_xmsg_addpar (struct ddsi_xmsg *m, ddsi_parameterid_t pid, size_t len);
+
+/** @component rtps_submsg */
 void ddsi_xmsg_addpar_keyhash (struct ddsi_xmsg *m, const struct ddsi_serdata *serdata, bool force_md5);
+
+/** @component rtps_submsg */
 void ddsi_xmsg_addpar_statusinfo (struct ddsi_xmsg *m, unsigned statusinfo);
+
+/** @component rtps_submsg */
 void ddsi_xmsg_addpar_sentinel (struct ddsi_xmsg *m);
+/** @component rtps_submsg */
 void ddsi_xmsg_addpar_sentinel_bo (struct ddsi_xmsg * m, enum ddsrt_byte_order_selector bo);
+
+/** @component rtps_submsg */
 int ddsi_xmsg_addpar_sentinel_ifparam (struct ddsi_xmsg *m);
 
-/* XPACK */
+
+
+/** @component rtps_msg */
 int ddsi_xpack_addmsg (struct ddsi_xpack *xp, struct ddsi_xmsg *m, const uint32_t flags);
+
+/** @component rtps_msg */
 int64_t ddsi_xpack_maxdelay (const struct ddsi_xpack *xp);
+
+/** @component rtps_msg */
 unsigned ddsi_xpack_packetid (const struct ddsi_xpack *xp);
 
-/* SENDQ */
+/** @component rtps_msg */
 void ddsi_xpack_sendq_stop (struct ddsi_domaingv *gv);
+
+/** @component rtps_msg */
 void ddsi_xpack_sendq_fini (struct ddsi_domaingv *gv);
 
 #if defined (__cplusplus)
