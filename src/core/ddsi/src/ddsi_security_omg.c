@@ -3937,7 +3937,6 @@ extern inline bool ddsi_omg_writer_is_payload_protected (UNUSED_ARG(const struct
 extern inline void ddsi_omg_get_proxy_writer_security_info (UNUSED_ARG(struct ddsi_proxy_writer *pwr), UNUSED_ARG(const ddsi_plist_t *plist), UNUSED_ARG(ddsi_security_info_t *info));
 extern inline bool ddsi_omg_security_check_remote_writer_permissions (UNUSED_ARG(const struct ddsi_proxy_writer *pwr), UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(struct ddsi_participant *pp));
 extern inline void ddsi_omg_security_deregister_remote_writer_match (UNUSED_ARG(const struct ddsi_proxy_writer *pwr), UNUSED_ARG(const struct ddsi_reader *rd), UNUSED_ARG(struct ddsi_rd_pwr_match *match));
-extern inline void ddsi_omg_get_proxy_reader_security_info (UNUSED_ARG(struct ddsi_proxy_reader *prd), UNUSED_ARG(const ddsi_plist_t *plist), UNUSED_ARG(ddsi_security_info_t *info));
 extern inline bool ddsi_omg_security_check_remote_reader_permissions (UNUSED_ARG(const struct ddsi_proxy_reader *prd), UNUSED_ARG(uint32_t domain_id), UNUSED_ARG(struct ddsi_participant *par), UNUSED_ARG(bool *relay_only));
 extern inline void ddsi_omg_security_deregister_remote_reader_match (UNUSED_ARG(const struct ddsi_proxy_reader *prd), UNUSED_ARG(const struct ddsi_writer *wr), UNUSED_ARG(struct ddsi_wr_prd_match *match));
 
@@ -3988,8 +3987,6 @@ extern inline void ddsi_omg_security_deregister_remote_participant (UNUSED_ARG(s
 extern inline void ddsi_omg_security_participant_send_tokens (UNUSED_ARG(struct ddsi_participant *pp), UNUSED_ARG(struct ddsi_proxy_participant *proxypp));
 
 extern inline void ddsi_set_proxy_participant_security_info(UNUSED_ARG(struct ddsi_proxy_participant *prd), UNUSED_ARG(const ddsi_plist_t *plist));
-
-extern inline void ddsi_set_proxy_reader_security_info(UNUSED_ARG(struct ddsi_proxy_reader *prd), UNUSED_ARG(const ddsi_plist_t *plist));
 
 extern inline void ddsi_set_proxy_writer_security_info(UNUSED_ARG(struct ddsi_proxy_writer *pwr), UNUSED_ARG(const ddsi_plist_t *plist));
 
