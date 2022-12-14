@@ -113,11 +113,6 @@ void ddsi_xmsg_setdst_addrset (struct ddsi_xmsg *msg, struct ddsi_addrset *as);
 /** @component rtps_submsg */
 int ddsi_xmsg_setmaxdelay (struct ddsi_xmsg *msg, int64_t maxdelay);
 
-#ifdef DDS_HAS_NETWORK_PARTITIONS
-/** @component rtps_submsg */
-int ddsi_xmsg_setencoderid (struct ddsi_xmsg *msg, uint32_t encoderid);
-#endif
-
 /**
  * @brief Sets the location of the destination readerId within the message
  * @component rtps_submsg

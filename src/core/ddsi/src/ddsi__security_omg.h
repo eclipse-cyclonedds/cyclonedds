@@ -720,29 +720,6 @@ void ddsi_omg_security_set_remote_writer_crypto_tokens (struct ddsi_reader *rd, 
 void ddsi_omg_security_deregister_remote_writer (const struct ddsi_proxy_writer *pwr);
 
 /**
- * @brief Set security information, depending on plist and proxy participant,
- * into the given proxy reader.
- * @component security_entity
- *
- * @param[in] prd      Proxy reader to set security info on.
- * @param[in] plist    Paramater list, possibly contains security info.
- */
-void ddsi_set_proxy_reader_security_info(struct ddsi_proxy_reader *prd, const ddsi_plist_t *plist);
-
-/**
- * @brief Determine the security settings associated with the remote reader.
- * @component security_entity
- *
- * From the security information contained in the parameter list from the remote reader
- * the corresponding security settings are determined and returned in the info parameter.
- *
- * @param[in] prd       The remote reader.
- * @param[in] plist     The parameter list from the remote reader.
- * @param[out] info     The security settings associated with the remote reader.
- */
-void ddsi_omg_get_proxy_reader_security_info (struct ddsi_proxy_reader *prd, const ddsi_plist_t *plist, ddsi_security_info_t *info);
-
-/**
  * @brief Check if the reader has the is_discovery_protected flag set
  * @component security_entity
  *
@@ -1301,10 +1278,6 @@ inline void ddsi_omg_security_deregister_remote_writer_match (UNUSED_ARG(const s
 {
 }
 
-inline void ddsi_omg_get_proxy_reader_security_info (UNUSED_ARG(struct ddsi_proxy_reader *prd), UNUSED_ARG(const ddsi_plist_t *plist), UNUSED_ARG(ddsi_security_info_t *info))
-{
-}
-
 inline bool ddsi_omg_reader_is_discovery_protected (UNUSED_ARG(const struct ddsi_reader *rd))
 {
   return false;
@@ -1323,10 +1296,6 @@ inline bool ddsi_omg_security_check_remote_reader_permissions (UNUSED_ARG(const 
 }
 
 inline void ddsi_set_proxy_participant_security_info(UNUSED_ARG(struct ddsi_proxy_participant *prd), UNUSED_ARG(const ddsi_plist_t *plist))
-{
-}
-
-inline void ddsi_set_proxy_reader_security_info(UNUSED_ARG(struct ddsi_proxy_reader *prd), UNUSED_ARG(const ddsi_plist_t *plist))
 {
 }
 
