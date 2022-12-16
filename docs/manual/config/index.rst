@@ -12,7 +12,7 @@
 .. _config-docs:
 
 ###################
-Configuration Guide
+Configuration guide
 ###################
 
 Configuration parameters for |var-project-short| are expressed in XML and grouped together in an
@@ -66,19 +66,24 @@ The following shows an example XML configuration:
 For a full listing of the configuration settings (and default value for each parameter) refer
 to the :ref:`configuration_reference`, which is generated directly from the source code.
 
-Configuration Log Files
+Configuration log files
 =======================
 
-.. |url::verbosity-link| raw:: html
- 
-    <a href="https://cyclonedds.io/docs/cyclonedds/latest/config/config_file_reference.html#cyclonedds-domain-tracing-verbosity">Verbosity</a>
-
 When editing configuration files, the ``cdds.log`` can be very useful for providing information about the build. 
-To determine the information included in the log file, change the |url::verbosity-link| settings.
+To determine the information included in the log file, change the :ref:`Tracing/Verbosity <//CycloneDDS/Domain/Tracing/Verbosity>` settings.
 
 .. toctree::
    :maxdepth: 2
 
    ddsi_concepts
-   cyclonedds_specifics
+   discovery-behavior
+   discovery-config
+   network-config
+   combining-participants
+   data-path-config
+   network-partition
+   thread-config
+   reporting-tracing
+   conformance
+   compatability
    config_file_reference

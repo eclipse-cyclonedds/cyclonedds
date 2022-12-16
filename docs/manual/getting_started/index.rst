@@ -10,6 +10,10 @@ Getting Started
  
     <a href="..\index.html"><img src="..\_images\Cyclone_DDS-Logo.png" width="50%" height="50%"></a>
 
+.. image:: ../_static/gettingstarted-figures/Cyclone_DDS-Logo.png
+   :width: 1px
+   :height: 1px
+
 |url::image|
 
 |var-project| is a performant and robust OMG-compliant **Data Distribution Service** (DDS) implementation. The core of |var-project-short| is

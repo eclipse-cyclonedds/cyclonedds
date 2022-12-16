@@ -13,7 +13,7 @@
 =========================================
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
    getting_started/index
    config/index
@@ -21,6 +21,7 @@
    security
    shared_memory
    ddsc
+   glossary
 
 Indices and tables
 ==================

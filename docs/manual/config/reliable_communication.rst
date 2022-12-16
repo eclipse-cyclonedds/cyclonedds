@@ -1,7 +1,9 @@
 .. _`Reliable communication`:
 
+.. index:: Reliable Communication, Writer History Cache, Heartbeat, Best-effort communication
+
 **********************
-Reliable Communication
+Reliable communication
 **********************
 
 *Best-effort* communication is a wrapper around UDP/IP. That is, the packet(s) containing
@@ -9,8 +11,8 @@ a sample are sent to the addresses where the Readers reside. No state is maintai
 on the Writer. If a packet is lost, the Reader ignores the samples contained in the 
 lost packet and continue with the next one.
 
-When using *reliable* communication, the Writer maintains a copy of the sample in the Writer 
-History Cache (or *WHC*) of the DDSI Writer. If a Reader detects that there are lost packets, 
+When using *reliable* communication, the Writer maintains a copy of the sample in the 
+Writer History Cache (WHC) of the DDSI Writer. If a Reader detects that there are lost packets, 
 the Reader can request a re-transmission of the sample. To ensure that all Readers learn of 
 new samples in the WHC, the DDSI Writer periodically sends *Heartbeats* to its Readers. 
 If all matched Readers have acknowledged all samples in the WHC, the DDSI Writer can 

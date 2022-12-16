@@ -1,5 +1,5 @@
 
-.. _`Discovery of participants & endpoints`:
+.. _`Discovery of participants and endpoints`:
 
 ***************************************
 Discovery of Participants & Endpoints
