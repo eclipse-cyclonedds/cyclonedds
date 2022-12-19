@@ -29,11 +29,11 @@ struct ddsi_thread_state;
  * If xp == NULL, data is queued, else packed. GC may occur, which means the writer history and watermarks
  * can be anything. This must be used for all application data.
  *
- * @param thrst
- * @param xp
- * @param wr
- * @param serdata
- * @param tk
+ * @param thrst     Thread state
+ * @param xp        xpack
+ * @param wr        writer
+ * @param serdata   serialized sample data
+ * @param tk        key-instance map instance
  * @return int
  */
 int ddsi_write_sample_gc (struct ddsi_thread_state * const thrst, struct ddsi_xpack *xp, struct ddsi_writer *wr, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk);
@@ -43,9 +43,9 @@ int ddsi_write_sample_gc (struct ddsi_thread_state * const thrst, struct ddsi_xp
  *
  * @remark wr->lock must be held
  *
- * @param gv
- * @param wr_guid
- * @param xp
+ * @param gv        domain globals
+ * @param wr_guid   writer guid
+ * @param xp        xpack
  * @return dds_return_t
  */
 dds_return_t ddsi_write_hb_liveliness (struct ddsi_domaingv * const gv, struct ddsi_guid *wr_guid, struct ddsi_xpack *xp);

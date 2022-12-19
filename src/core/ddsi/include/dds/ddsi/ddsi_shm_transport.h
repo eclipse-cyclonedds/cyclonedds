@@ -69,8 +69,6 @@ void iox_sub_context_fini(iox_sub_context_t *context);
 /**
  * @brief lock and unlock for individual subscribers
  * @component iceoryx_support
- *
- * @param sub
  */
 void shm_lock_iox_sub(iox_sub_t sub);
 

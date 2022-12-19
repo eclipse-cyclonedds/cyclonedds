@@ -39,7 +39,7 @@ struct ddsi_sock_waitset * ddsi_sock_waitset_new (void);
  *
  * Any connections associated with it will be closed.
  *
- * @param ws
+ * @param ws    The socket waitset
  */
 void ddsi_sock_waitset_free (struct ddsi_sock_waitset * ws);
 
@@ -61,7 +61,7 @@ void ddsi_sock_waitset_free (struct ddsi_sock_waitset * ws);
  * Shared state updates preceding struct ddsi_sock_waitset *rigger are
  * visible following ddsi_sock_waitset_wait.
  *
- * @param ws
+ * @param ws    The socket waitset
  */
 void ddsi_sock_waitset_trigger (struct ddsi_sock_waitset * ws);
 
@@ -75,8 +75,8 @@ void ddsi_sock_waitset_trigger (struct ddsi_sock_waitset * ws);
  * Closing a connection associated with a waitset is handled gracefully:
  * no operations will signal errors because of it.
  *
- * @param ws
- * @param conn
+ * @param ws    The socket waitset
+ * @param conn  Connection
  * @returns Returns < 0 on error, 0 if already present, 1 if added
  */
 int ddsi_sock_waitset_add (struct ddsi_sock_waitset * ws, struct ddsi_tran_conn * conn);
@@ -89,8 +89,8 @@ int ddsi_sock_waitset_add (struct ddsi_sock_waitset * ws, struct ddsi_tran_conn 
  * second, etc. Behaviour is undefined when called after a successful wait but before
  * all events had been enumerated.
  *
- * @param ws
- * @param index
+ * @param ws        The socket waitset
+ * @param index     Index of first connection to be dropped
  */
 void ddsi_sock_waitset_purge (struct ddsi_sock_waitset * ws, unsigned index);
 
@@ -107,14 +107,10 @@ void ddsi_sock_waitset_purge (struct ddsi_sock_waitset * ws, unsigned index);
  * Shared state updates preceding struct ddsi_sock_waitset *rigger are visible
  * following ddsi_sock_waitset_wait.
  *
- * @param ws
+ * @param ws The socket waitset
  * @return struct ddsi_sock_waitset_ctx*
  */
 struct ddsi_sock_waitset_ctx * ddsi_sock_waitset_wait (struct ddsi_sock_waitset * ws);
-
-/*
-
-*/
 
 /**
  * @component socket_waitset
@@ -130,8 +126,8 @@ struct ddsi_sock_waitset_ctx * ddsi_sock_waitset_wait (struct ddsi_sock_waitset 
  * If the return value is >= 0, *conn contains the connection on which data is
  * available.
  *
- * @param ctx
- * @param conn
+ * @param ctx   Socket waitset context
+ * @param conn  Connection
  * @return int
  */
 int ddsi_sock_waitset_next_event (struct ddsi_sock_waitset_ctx * ctx, struct ddsi_tran_conn ** conn);
@@ -140,8 +136,8 @@ int ddsi_sock_waitset_next_event (struct ddsi_sock_waitset_ctx * ctx, struct dds
  * @brief Remove connection
  * @component socket_waitset
  *
- * @param ws
- * @param conn
+ * @param ws    The socket waitset
+ * @param conn  Connection
  */
 void ddsi_sock_waitset_remove (struct ddsi_sock_waitset * ws, struct ddsi_tran_conn * conn);
 

@@ -25,17 +25,17 @@ struct ddsi_domaingv;
  * @brief perform reader/writer QoS (and topic name, type name, partition) matching
  * @component qos_matching
  *
- * @param gv
- * @param rd_qos
- * @param wr_qos
+ * @param gv domain globals
+ * @param rd_qos reader qos
+ * @param wr_qos writer qos
  * @param mask can be used to exclude some of these (including topic name and type name, so be careful!)
  * @param reason will be set to the policy id of one of the mismatching QoS, or to DDS_INVALID_QOS_POLICY_ID if there is no mismatch or if the mismatch is in topic or type name (those are not really QoS and don't have a policy id)
- * @param rd_type_pair
- * @param wr_type_pair
+ * @param rd_type_pair minimal and complete ddsi type for the reader
+ * @param wr_type_pair minimal and complete ddsi type for the writer
  * @param rd_typeid_req_lookup is set to true in case the matching cannot be completed because of missing type information. A type-lookup request is required to get the details of the type to do the qos matching (e.g. check assignability)
  * @param wr_typeid_req_lookup see rd_typeid_req_lookup
  *
- * @return
+ * @returns true in case of a match, false otherwise
  */
 bool ddsi_qos_match_mask_p (
     struct ddsi_domaingv *gv,

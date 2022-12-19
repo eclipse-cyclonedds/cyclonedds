@@ -122,8 +122,8 @@ void ddsi_log_addrset (struct ddsi_domaingv *gv, uint32_t tf, const char *prefix
  * @component locators
  * @remark Tries to lock A then B for a decent check, returning false if trylock B fails
  *
- * @param a
- * @param b
+ * @param a   Address set
+ * @param b   Address set to compare with
  * @return int
  */
 int ddsi_addrset_eq_onesidederr (const struct ddsi_addrset *a, const struct ddsi_addrset *b);

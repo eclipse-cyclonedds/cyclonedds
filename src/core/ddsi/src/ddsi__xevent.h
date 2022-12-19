@@ -43,7 +43,7 @@ struct ddsi_xeventq *ddsi_xeventq_new (struct ddsi_domaingv *gv, size_t max_queu
  * they are required to free whatever memory is claimed for the argument
  * and call ddsi_delete_xevent.
  *
- * @param evq
+ * @param evq the event queue
  */
 void ddsi_xeventq_free (struct ddsi_xeventq *evq);
 

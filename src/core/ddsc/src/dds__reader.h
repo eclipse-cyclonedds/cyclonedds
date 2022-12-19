@@ -40,8 +40,8 @@ dds_return_t dds_return_reader_loan (dds_reader *rd, void **buf, int32_t bufsz);
  *
  * Used to support LENGTH_UNLIMITED in C++.
  *
- * @param entity
- * @return
+ * @param entity reader entity
+ * @return the number of samples
  */
 DDS_EXPORT uint32_t dds_reader_lock_samples (dds_entity_t entity);
 

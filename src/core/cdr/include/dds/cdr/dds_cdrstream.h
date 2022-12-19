@@ -135,17 +135,17 @@ DDS_EXPORT void dds_ostreamBE_fini (dds_ostreamBE_t * __restrict st);
 dds_ostream_t dds_ostream_from_buffer(void *buffer, size_t size, uint16_t write_encoding_version);
 
 /**
- * @brief TODO
+ * @brief Normalized and validates CDR data
  * @component cdr_serializer
  *
- * @param data
- * @param size
- * @param bswap
- * @param xcdr_version
- * @param type
- * @param just_key
- * @param actual_size is set to the actual size of the data (*actual_size <= size) on successful return
- * @return
+ * @param data          data sample
+ * @param size          size of the data
+ * @param bswap         byte-swapping required
+ * @param xcdr_version  XCDR version of the CDR data
+ * @param type          type descriptor
+ * @param just_key      indicates if the data is a serialized key or a complete sample
+ * @param actual_size   is set to the actual size of the data (*actual_size <= size) on successful return
+ * @returns             True iff validation and normalization succeeded
  */
 DDS_EXPORT bool dds_stream_normalize (void * __restrict data, uint32_t size, bool bswap, uint32_t xcdr_version, const struct dds_cdrstream_desc * __restrict type, bool just_key, uint32_t * __restrict actual_size) ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 
