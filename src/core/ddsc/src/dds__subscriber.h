@@ -25,10 +25,10 @@ DEFINE_ENTITY_LOCK_UNLOCK(dds_subscriber, DDS_KIND_SUBSCRIBER, subscriber)
  * @brief Creates a subscriber with participant entity-lock held
  * @component subscriber
  *
- * @param participant
- * @param implicit
- * @param qos
- * @param listener
+ * @param participant the parent participant
+ * @param implicit indicates if implicitly created
+ * @param qos qos object that is stored in the subscriber
+ * @param listener listener object that is stored in the subscriber
  * @return dds_entity_t
  */
 dds_entity_t dds__create_subscriber_l(struct dds_participant *participant, bool implicit, const dds_qos_t *qos, const dds_listener_t *listener);

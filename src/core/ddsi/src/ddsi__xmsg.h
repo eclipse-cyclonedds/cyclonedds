@@ -61,11 +61,11 @@ void ddsi_xmsgpool_free (struct ddsi_xmsgpool *pool);
  * else the address of the xmsg may change because of reallocing
  * when appending to it.
  *
- * @param pool
- * @param src_guid
- * @param pp
- * @param expected_size
- * @param kind
+ * @param pool          message pool
+ * @param src_guid      source guid
+ * @param pp            participant
+ * @param expected_size expected message size
+ * @param kind          the xmsg kind
  * @return struct ddsi_xmsg*
  */
 struct ddsi_xmsg *ddsi_xmsg_new (struct ddsi_xmsgpool *pool, const ddsi_guid_t *src_guid, struct ddsi_participant *pp, size_t expected_size, enum ddsi_xmsg_kind kind);
@@ -74,10 +74,10 @@ struct ddsi_xmsg *ddsi_xmsg_new (struct ddsi_xmsgpool *pool, const ddsi_guid_t *
  * @brief For sending to a particular destination (participant)
  * @component rtps_submsg
  *
- * @param gv
- * @param m
- * @param gp
- * @param addr
+ * @param gv    domain globals
+ * @param m     xmsg
+ * @param gp    guid prefix
+ * @param addr  destination locator
  */
 void ddsi_xmsg_setdst1 (struct ddsi_domaingv *gv, struct ddsi_xmsg *m, const ddsi_guid_prefix_t *gp, const ddsi_xlocator_t *addr);
 
@@ -91,8 +91,8 @@ bool ddsi_xmsg_getdst1_prefix (struct ddsi_xmsg *m, ddsi_guid_prefix_t *gp);
  * This is a convenience routine that extracts a suitable address from the
  * proxy reader's address sets and calls setdst1.
  *
- * @param m
- * @param prd
+ * @param m   xmsg
+ * @param prd destination proxy reader
  */
 void ddsi_xmsg_setdst_prd (struct ddsi_xmsg *m, const struct ddsi_proxy_reader *prd);
 
@@ -105,8 +105,8 @@ void ddsi_xmsg_setdst_pwr (struct ddsi_xmsg *m, const struct ddsi_proxy_writer *
  *
  * Typically, the writer's address set to multicast to all matched readers
  *
- * @param msg
- * @param as
+ * @param msg xmsg
+ * @param as  address set
  */
 void ddsi_xmsg_setdst_addrset (struct ddsi_xmsg *msg, struct ddsi_addrset *as);
 
@@ -122,8 +122,8 @@ int ddsi_xmsg_setmaxdelay (struct ddsi_xmsg *msg, int64_t maxdelay);
  * separate function because the location may only become known at a late-ish
  * stage in the construction of the message.
  *
- * @param m
- * @param readerId
+ * @param m         xmsg
+ * @param readerId  reader entity id
  */
 void ddsi_xmsg_set_data_reader_id (struct ddsi_xmsg *m, ddsi_entityid_t *readerId);
 
@@ -139,10 +139,10 @@ void ddsi_xmsg_set_data_reader_id (struct ddsi_xmsg *m, ddsi_entityid_t *readerI
  * merge was successful, else 0. On failure, neither message will have been changed
  * and both should be sent as if there had been no merging.
  *
- * @param gv
- * @param m
- * @param madd
- * @return
+ * @param gv    domain globals
+ * @param m     xmsg
+ * @param madd  xmsg to add
+ * @returns Returns 1 if merge was successful, else 0.
  */
 int ddsi_xmsg_merge_rexmit_destinations_wrlock_held (struct ddsi_domaingv *gv, struct ddsi_xmsg *m, const struct ddsi_xmsg *madd);
 
@@ -153,9 +153,9 @@ int ddsi_xmsg_merge_rexmit_destinations_wrlock_held (struct ddsi_domaingv *gv, s
  * wrfragid is 0 based, unlike DDSI but like other places where
    fragment numbers are handled internally.
 
- * @param msg
- * @param wrguid
- * @param wrseq
+ * @param msg     xmsg
+ * @param wrguid  writer guid
+ * @param wrseq   write sequence number
  */
 void ddsi_xmsg_setwriterseq (struct ddsi_xmsg *msg, const ddsi_guid_t *wrguid, ddsi_seqno_t wrseq);
 
@@ -168,8 +168,8 @@ void ddsi_xmsg_setwriterseq_fragid (struct ddsi_xmsg *msg, const ddsi_guid_t *wr
  *
  * Orders messages on writer guid, sequence number and fragment id
  *
- * @param a
- * @param b
+ * @param a   xmsg
+ * @param b   xmsg to compare with
  * @return int
  */
 int ddsi_xmsg_compare_fragid (const struct ddsi_xmsg *a, const struct ddsi_xmsg *b);

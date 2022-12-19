@@ -24,8 +24,9 @@ extern "C"
  * @brief Get name and typename based from a builtin-topic pseudo-handle
  * @component builtin_topic
  *
- * @param pseudo_handle
- * @param name
+ * @param pseudo_handle built-in topic pseudo handle
+ * @param name          gets the name of the built-in topic
+ * @param typename      gets the type name of the built-in topic
  * @return DDS_RETCODE_BAD_PARAMETER if pseudo_handle is invalid
  */
 dds_return_t dds__get_builtin_topic_name_typename (dds_entity_t pseudo_handle, const char **name, const char **typename);
@@ -42,9 +43,9 @@ dds_entity_t dds__get_builtin_topic_pseudo_handle_from_typename (const char *typ
  * @brief Get actual topic in related participant related to topic 'id'.
  * @component builtin_topic
  *
- * @param e
- * @param topic
- * @return
+ * @param e         entity to get the built-in topic from
+ * @param topic     pseudo handle to get the actual built-in topic for
+ * @returns the built-in topic entity
  */
 dds_entity_t dds__get_builtin_topic (dds_entity_t e, dds_entity_t topic);
 
@@ -52,7 +53,7 @@ dds_entity_t dds__get_builtin_topic (dds_entity_t e, dds_entity_t topic);
  * @brief Constructs the QoS object for a built-in topic QoS
  * @component builtin_topic
  *
- * @return
+ * @returns the qos for the built-in topic
  */
 dds_qos_t *dds__create_builtin_qos (void);
 
@@ -60,8 +61,8 @@ dds_qos_t *dds__create_builtin_qos (void);
  * @brief Subscriber singleton within related participant.
  * @component builtin_topic
  *
- * @param e
- * @return
+ * @param e entity to get the participant from, from which the built-in subscriber will be retrieved
+ * @returns the subscriber entity
  */
 dds_entity_t dds__get_builtin_subscriber (dds_entity_t e);
 
@@ -69,10 +70,10 @@ dds_entity_t dds__get_builtin_subscriber (dds_entity_t e);
  * @brief Checks whether the reader QoS is valid for use with built-in topic TOPIC
  * @component builtin_topic
  *
- * @param dom
- * @param topic
- * @param qos
- * @return
+ * @param dom the domain
+ * @param topic pseudo handle of the built-in topic
+ * @param qos qos to check validity for
+ * @returns true iff the qos is valid
  */
 bool dds__validate_builtin_reader_qos (const dds_domain *dom, dds_entity_t topic, const dds_qos_t *qos);
 

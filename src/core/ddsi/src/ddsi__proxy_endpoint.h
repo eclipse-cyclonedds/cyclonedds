@@ -54,16 +54,16 @@ bool ddsi_is_proxy_endpoint (const struct ddsi_entity_common *e);
  * @brief To create a new proxy writer
  * @component ddsi_proxy_endpoint
  *
- * @param gv
- * @param ppguid the proxy participant is determined from the GUID and must exist
- * @param guid
- * @param as
- * @param plist
- * @param dqueue
- * @param evq
- * @param timestamp
- * @param seq
- * @return
+ * @param gv        domain globals
+ * @param ppguid    the proxy participant is determined from the GUID and must exist
+ * @param guid      guid for the proxy writer
+ * @param as        address set
+ * @param plist     parameter list
+ * @param dqueue    receive queue
+ * @param evq       event queue
+ * @param timestamp timestamp to be used as creation time for the proxy writer
+ * @param seq       sequence number
+ * @returns 0 on success
  */
 int ddsi_new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct ddsi_addrset *as, const struct ddsi_plist *plist, struct ddsi_dqueue *dqueue, struct ddsi_xeventq *evq, ddsrt_wctime_t timestamp, ddsi_seqno_t seq);
 
@@ -72,15 +72,15 @@ int ddsi_new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppg
  * @brief To create a new proxy reader
  * @component ddsi_proxy_endpoint
  *
- * @param gv
- * @param ppguid the proxy participant is determined from the GUID and must exist
- * @param guid
- * @param as
- * @param plist
- * @param timestamp
- * @param seq
- * @param favours_ssm
- * @return
+ * @param gv            domain globals
+ * @param ppguid        the proxy participant is determined from the GUID and must exist
+ * @param guid          guid for the proxy reader
+ * @param as            address set
+ * @param plist         parameter list
+ * @param timestamp     timestamp to be used as creation time for the proxy reader
+ * @param seq           sequence number
+ * @param favours_ssm   indicates if the proxy reader favors ssm
+ * @return int
  */
 int ddsi_new_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct ddsi_addrset *as, const struct ddsi_plist *plist, ddsrt_wctime_t timestamp, ddsi_seqno_t seq
 #ifdef DDS_HAS_SSM
@@ -96,10 +96,10 @@ int ddsi_new_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *ppg
  * reader. Actual deletion is scheduled in the future, when no outstanding references may
  * still exist (determined by checking thread progress, &c.)
  *
- * @param gv
- * @param guid
- * @param timestamp
- * @param isimplicit
+ * @param gv            domain globals
+ * @param guid          guid of the proxy writer to delete
+ * @param timestamp     deletion timestamp
+ * @param isimplicit    indicates if the proxy writer was implicitly created
  * @return int
  */
 int ddsi_delete_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, ddsrt_wctime_t timestamp, int isimplicit);
@@ -112,10 +112,10 @@ int ddsi_delete_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *
  * writer. Actual deletion is scheduled in the future, when no outstanding references may still
  * exist (determined by checking thread progress, &c.)
  *
- * @param gv
- * @param guid
- * @param timestamp
- * @param isimplicit
+ * @param gv            domain globals
+ * @param guid          guid of the proxy reader to delete
+ * @param timestamp     deletion timestamp
+ * @param isimplicit    indicates if the proxy reader was implicitly created
  * @return int
  */
 int ddsi_delete_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, ddsrt_wctime_t timestamp, int isimplicit);

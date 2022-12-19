@@ -71,15 +71,15 @@ typedef struct ddsi_participant_generic_message {
  * that the lifecycle of the arguments should be longer then that of the
  * message.
  *
- * @param msg
- * @param wrguid
- * @param wrseq
- * @param dstpguid
- * @param dsteguid
- * @param srceguid
- * @param classid
- * @param mdata
- * @param rmid
+ * @param msg       the participant generic message to initialize
+ * @param wrguid    writer guid
+ * @param wrseq     writer sequence number
+ * @param dstpguid  destination participant guid
+ * @param dsteguid  destination endpoint guid
+ * @param srceguid  source endpoint guid
+ * @param classid   message class id
+ * @param mdata     messate data
+ * @param rmid      resulting message identity
  */
 void ddsi_participant_generic_message_init(
    ddsi_participant_generic_message_t *msg,
@@ -96,7 +96,7 @@ void ddsi_participant_generic_message_init(
  * @brief Aliased struct variables will not be freed.
  * @component security_msg_exchange
  *
- * @param msg
+ * @param msg participant generic message
  */
 void ddsi_participant_generic_message_deinit(ddsi_participant_generic_message_t *msg);
 
@@ -106,10 +106,10 @@ void ddsi_participant_generic_message_deinit(ddsi_participant_generic_message_t 
  * Some struct variables are aliased to the given buffer. This means that
  * the lifecycle of the data buffer should be longer then that of the message.
  *
- * @param msg
- * @param data
- * @param len
- * @param bswap
+ * @param msg participant generic message to deserialize into
+ * @param data serialized data
+ * @param len length of serialized data
+ * @param bswap byte-swapping required
  * @return dds_return_t
  */
 dds_return_t ddsi_participant_generic_message_deseralize(ddsi_participant_generic_message_t *msg, const unsigned char *data, size_t len,

@@ -25,10 +25,10 @@ DEFINE_ENTITY_LOCK_UNLOCK(dds_publisher, DDS_KIND_PUBLISHER, publisher)
  * @brief Creates a publisher with participant entity-lock held
  * @component publisher
  *
- * @param participant
- * @param implicit
- * @param qos
- * @param listener
+ * @param participant the parent participant
+ * @param implicit indicates if implicitly created
+ * @param qos qos object that is stored in the publisher
+ * @param listener listener object that is stored in the publisher
  * @return dds_entity_t
  */
 dds_entity_t dds__create_publisher_l(struct dds_participant *participant, bool implicit, const dds_qos_t *qos, const dds_listener_t *listener);
