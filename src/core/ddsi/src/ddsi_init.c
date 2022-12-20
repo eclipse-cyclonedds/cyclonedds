@@ -131,6 +131,8 @@ static enum make_uc_sockets_ret make_uc_sockets (struct ddsi_domaingv *gv, uint3
   }
   ddsi_conn_locator (gv->disc_conn_uc, &gv->loc_meta_uc);
   ddsi_conn_locator (gv->data_conn_uc, &gv->loc_default_uc);
+  *pdisc = gv->loc_meta_uc.port;
+  *pdata = gv->loc_default_uc.port;
   return MUSRET_SUCCESS;
 
 fail_data:
