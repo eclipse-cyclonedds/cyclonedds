@@ -60,6 +60,10 @@ inline bool ddsi_vendor_is_rti (ddsi_vendorid_t vendor) {
   const ddsi_vendorid_t x = DDSI_VENDORID_INIT (RTI);
   return ddsi_vendor_equals (vendor, x);
 }
+inline bool ddsi_vendor_is_rti_micro (ddsi_vendorid_t vendor) {
+  const ddsi_vendorid_t x = DDSI_VENDORID_INIT (RTI_MICRO);
+  return ddsi_vendor_equals (vendor, x);
+}
 inline bool ddsi_vendor_is_opensplice (ddsi_vendorid_t vendor) {
   const ddsi_vendorid_t x = DDSI_VENDORID_INIT (ADLINK_OSPL);
   return ddsi_vendor_equals (vendor, x);

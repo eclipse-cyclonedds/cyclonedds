@@ -169,7 +169,7 @@ static enum validation_result validate_AckNack (const struct ddsi_receiver_state
        make it well-formed and process it as normal */
     if (! DDSI_SC_STRICT_P (rst->gv->config) &&
         (ackseq == 0 && msg->readerSNState.numbits == 0) &&
-        (ddsi_vendor_is_eprosima (rst->vendor) || ddsi_vendor_is_rti (rst->vendor)))
+        (ddsi_vendor_is_eprosima (rst->vendor) || ddsi_vendor_is_rti (rst->vendor) || ddsi_vendor_is_rti_micro (rst->vendor)))
       msg->readerSNState.bitmap_base = ddsi_to_seqno (1);
     else
       return VR_MALFORMED;
