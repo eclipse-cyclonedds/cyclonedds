@@ -64,6 +64,10 @@ DDS_INLINE_EXPORT inline bool vendor_is_rti (nn_vendorid_t vendor) {
   const nn_vendorid_t x = NN_VENDORID_INIT (RTI);
   return vendor_equals (vendor, x);
 }
+DDS_INLINE_EXPORT inline bool vendor_is_rti_micro (nn_vendorid_t vendor) {
+  const nn_vendorid_t x = NN_VENDORID_INIT (RTI_MICRO);
+  return vendor_equals (vendor, x);
+}
 DDS_INLINE_EXPORT inline bool vendor_is_opensplice (nn_vendorid_t vendor) {
   const nn_vendorid_t x = NN_VENDORID_INIT (ADLINK_OSPL);
   return vendor_equals (vendor, x);
