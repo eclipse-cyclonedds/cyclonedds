@@ -243,6 +243,12 @@ int test_oneliner_with_config (const char *ops, const char *config_override);
  */
 int test_oneliner (const char *ops);
 
+/** @brief shorthand for test_oneliner with an override that disables any use of shared memory
+ * @param[in] ops Program to execute
+ * @return > 0 sucess, 0 failure, < 0 invalid input
+ */
+int test_oneliner_no_shm (const char *ops);
+
 union oneliner_tokval {
   int i;
   int64_t d;

@@ -14,7 +14,10 @@
 #include "test_common.h"
 #include "test_oneliner.h"
 
-#define dotest(ops) CU_ASSERT_FATAL (test_oneliner (ops) > 0)
+// Use no_shm variant because the use of shared memory may result in asynchronous delivery
+// of data published by a local reader/writer and these tests are written on the assumption
+// that it is always synchronous
+#define dotest(ops) CU_ASSERT_FATAL (test_oneliner_no_shm (ops) > 0)
 
 CU_Test (ddsc_destorder, by_source)
 {

@@ -859,11 +859,7 @@ static const char *getentname (entname_t *name, int ent)
 static void make_participant (struct oneliner_ctx *ctx, int ent, dds_qos_t *qos, dds_listener_t *list)
 {
   const dds_domainid_t domid = (dds_domainid_t) (ent / 9);
-#ifdef DDS_HAS_SHM
-  char *conf = ddsrt_expand_envvars ("${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}<Discovery><ExternalDomainId>0</ExternalDomainId></Discovery><Domain id=\"any\"><SharedMemory><Enable>false</Enable></SharedMemory></Domain>", domid);
-#else
   char* conf = ddsrt_expand_envvars("${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}<Discovery><ExternalDomainId>0</ExternalDomainId></Discovery>", domid);
-#endif
   if (ctx->config_override)
   {
     size_t newsize = strlen (conf) + strlen (ctx->config_override) + 1;
@@ -2049,4 +2045,14 @@ int test_oneliner_with_config (const char *ops, const char *config_override)
 int test_oneliner (const char *ops)
 {
   return test_oneliner_with_config (ops, NULL);
+}
+
+int test_oneliner_no_shm (const char *ops)
+{
+#ifdef DDS_HAS_SHM
+  const char *config_override = "<Domain id=\"any\"><SharedMemory><Enable>false</Enable></SharedMemory></Domain>";
+#else
+  const char *config_override = NULL;
+#endif
+  return test_oneliner_with_config (ops, config_override);
 }
