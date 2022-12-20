@@ -170,7 +170,7 @@ static enum validation_result validate_AckNack (const struct receiver_state *rst
        make it well-formed and process it as normal */
     if (! DDSI_SC_STRICT_P (rst->gv->config) &&
         (ackseq == 0 && msg->readerSNState.numbits == 0) &&
-        (vendor_is_eprosima (rst->vendor) || vendor_is_rti (rst->vendor) || ddsi_vendor_is_rti_micro (rst->vendor)))
+        (vendor_is_eprosima (rst->vendor) || vendor_is_rti (rst->vendor) || vendor_is_rti_micro (rst->vendor)))
       msg->readerSNState.bitmap_base = toSN (1);
     else
       return VR_MALFORMED;
@@ -3000,9 +3000,26 @@ static int handle_submsg_sequence
     if (octetsToNextHeader != 0) {
       // DDSI 2.5 9.4.1: The PSM aligns each Submessage on a 32-bit boundary
       // with respect to the start of the Message
-      if ((octetsToNextHeader % 4) == 0) {
-        submsg_size = RTPS_SUBMESSAGE_HEADER_SIZE + octetsToNextHeader;
-      } else {
+      //
+      // DDSI 2.5 9.4.5.1.3 - regular case:
+      //
+      // In case octetsToNextHeader > 0, it is the number of octets from the first octet
+      // of the contents of the Submessage until the first octet of the header of the next
+      // Submessage (in case the Submessage is not the last Submessage in the Message)
+      //
+      // DDSI 2.5 9.4.5.1.3 - the unnecessary complication:
+      //
+      // OR it is the number of octets remaining in the Message (in case the Submessage
+      // is the last Submessage in the Message). An interpreter of the Message can distinguish
+      // these two cases as it knows the total length of the Message.
+      //
+      // So what then if it is not 0 mod 4 and yet also not the number of octets remaining in
+      // the Message?  The total length of the Message comes from elsewhere and is also not
+      // necessarily trustworthy.  Following the tradition in Cyclone, we'll consider it
+      // malformed.  (The alternative would be to *update* "end", because otherwise we'd be
+      // interpreting misaligned data.)
+      submsg_size = RTPS_SUBMESSAGE_HEADER_SIZE + octetsToNextHeader;
+      if (!((octetsToNextHeader % 4) == 0 || submsg_size == (size_t) (end - submsg))) {
         vr = VR_MALFORMED;
         break;
       }
@@ -3013,7 +3030,7 @@ static int handle_submsg_sequence
     }
     /*GVTRACE ("submsg_size %d\n", submsg_size);*/
 
-    if (submsg + submsg_size > end)
+    if (submsg_size > (size_t) (end - submsg))
     {
       GVTRACE (" BREAK (%u %"PRIuSIZE": %p %u)\n", (unsigned) (submsg - msg), submsg_size, (void *) msg, (unsigned) len);
       break;
