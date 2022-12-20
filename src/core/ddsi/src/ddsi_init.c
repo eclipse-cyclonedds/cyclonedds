@@ -560,6 +560,14 @@ int ddsi_config_prep (struct ddsi_domaingv *gv, struct ddsi_cfgst *cfgst)
     if (gv->config.max_participants == 0)
       gv->config.max_participants = 100;
   }
+  else if (gv->config.many_sockets_mode == DDSI_MSM_NO_UNICAST)
+  {
+    if (gv->config.participantIndex != DDSI_PARTICIPANT_INDEX_NONE)
+    {
+      DDS_ILOG (DDS_LC_ERROR, gv->config.domainId, "ParticipantIndex and ManySocketsMode are incompatible\n");
+      goto err_config_late_error;
+    }
+  }
   if (gv->config.max_queued_rexmit_bytes == 0)
   {
 #ifdef DDS_HAS_BANDWIDTH_LIMITING
