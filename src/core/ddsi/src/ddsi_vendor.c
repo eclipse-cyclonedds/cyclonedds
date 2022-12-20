@@ -15,6 +15,7 @@
 
 extern inline bool ddsi_vendor_equals (ddsi_vendorid_t a, ddsi_vendorid_t b);
 extern inline bool ddsi_vendor_is_rti (ddsi_vendorid_t vendor);
+extern inline bool ddsi_vendor_is_rti_micro (ddsi_vendorid_t vendor);
 extern inline bool ddsi_vendor_is_twinoaks (ddsi_vendorid_t vendor);
 extern inline bool ddsi_vendor_is_eprosima (ddsi_vendorid_t vendor);
 extern inline bool ddsi_vendor_is_adlink (ddsi_vendorid_t vendor);
