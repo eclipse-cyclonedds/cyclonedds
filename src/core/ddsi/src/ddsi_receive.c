@@ -2063,6 +2063,7 @@ static struct ddsi_serdata *remote_make_sample (struct ddsi_tkmap_instance **tk,
     {
       sample->statusinfo = statusinfo;
       sample->timestamp = tstamp;
+      sample->sequence_number = sampleinfo->seq;
     }
   }
   else
