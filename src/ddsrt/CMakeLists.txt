@@ -36,6 +36,7 @@ target_include_directories(
 set(headers
   "${binary_dir}/include/dds/config.h"
   "${source_dir}/include/dds/ddsrt/avl.h"
+  "${source_dir}/include/dds/ddsrt/bits.h"
   "${source_dir}/include/dds/ddsrt/fibheap.h"
   "${source_dir}/include/dds/ddsrt/hopscotch.h"
   "${source_dir}/include/dds/ddsrt/log.h"
@@ -77,6 +78,7 @@ set(headers
 set(sources
   "${source_dir}/src/atomics.c"
   "${source_dir}/src/avl.c"
+  "${source_dir}/src/bits.c"
   "${source_dir}/src/bswap.c"
   "${source_dir}/src/io.c"
   "${source_dir}/src/log.c"

@@ -18,6 +18,7 @@
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/bswap.h"
 #include "dds/ddsrt/environ.h"
+#include "dds/ddsrt/bits.h"
 #include "dds/ddsrt/md5.h"
 #include "dds/ddsrt/mh3.h"
 #include "dds/ddsrt/environ.h"
@@ -718,6 +719,9 @@ int main (int argc, char **argv)
   ddsrt_atomic_inc64_nv (ptr);
   ddsrt_atomic_cas64 (ptr, 0, 0);
 #endif
+
+  // ddsrt/bits.h
+  ddsrt_ffs32u (0);
 
   // ddsrt/md5.h
   ddsrt_md5_init (ptr);
