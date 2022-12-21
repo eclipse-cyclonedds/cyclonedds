@@ -321,8 +321,6 @@ typedef struct dds_sample_info
   uint32_t generation_rank;
   /** difference in generations between the sample and most recent sample of the same instance when read/take was called */
   uint32_t absolute_generation_rank;
-  /** sequence number of the data (relative to the publisher); always 0 for invalid samples */
-  uint64_t seq_no;
 }
 dds_sample_info_t;
 

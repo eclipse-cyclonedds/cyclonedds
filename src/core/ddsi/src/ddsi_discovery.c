@@ -425,6 +425,7 @@ int ddsi_builtins_dqueue_handler (const struct ddsi_rsample_info *sampleinfo, co
 
   d->timestamp = (sampleinfo->timestamp.v != DDSRT_WCTIME_INVALID.v) ? sampleinfo->timestamp : ddsrt_time_wallclock ();
   d->statusinfo = statusinfo;
+  d->sequence_number = sampleinfo->seq;
   // set protocol version & vendor id for plist types
   // FIXME: find a better way then fixing these up afterward
   if (d->ops == &ddsi_serdata_ops_plist)
