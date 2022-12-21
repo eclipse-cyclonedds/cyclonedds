@@ -15,6 +15,7 @@
 #include "dds/ddsrt/endian.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/log.h"
+#include "dds/ddsrt/bits.h"
 #include "dds/ddsrt/sockets.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsi/ddsi_domaingv.h"
@@ -55,6 +56,46 @@ int ddsi_ipaddr_compare (const struct sockaddr *const sa1, const struct sockaddr
   return eq;
 }
 
+static uint32_t ipaddr_prefixlen (const struct sockaddr * const addr)
+{
+  uint32_t prefixlen = 0;
+  switch(addr->sa_family) {
+#if DDSRT_HAVE_IPV6
+    case AF_INET6: {
+      struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *)addr;
+      prefixlen = 0;
+      for (size_t i = 0; i < sizeof (addr6->sin6_addr.s6_addr); i++)
+      {
+        if (addr6->sin6_addr.s6_addr[i] == 0xff)
+          prefixlen += 8;
+        else
+        {
+          if (addr6->sin6_addr.s6_addr[i] != 0)
+            prefixlen += 9 - ddsrt_ffs32u (addr6->sin6_addr.s6_addr[i]);
+          break;
+        }
+      }
+      break;
+    }
+#endif
+    case AF_INET: {
+      struct sockaddr_in *addr4 = (struct sockaddr_in *)addr;
+      const uint32_t netmask_nativeendian = ddsrt_fromBE4u (addr4->sin_addr.s_addr);
+      const uint32_t x = ddsrt_ffs32u (netmask_nativeendian);
+      // 255.255.255.255 => x =  1, maximally selective
+      // 255.255.255.0   => x =  9, less selective
+      // 255.0.0.0       => x = 25, much less selective
+      // 0.0.0.0         => x =  0, illegal? in any case, by extension least selective
+      prefixlen = (x == 0) ? 0 : 33 - x;
+      break;
+    }
+    default: {
+      assert(0);
+    }
+  }
+  return prefixlen;
+}
+
 enum ddsi_nearby_address_result ddsi_ipaddr_is_nearby_address (const ddsi_locator_t *loc, size_t ninterf, const struct ddsi_network_interface interf[], size_t *interf_idx)
 {
   enum ddsi_nearby_address_result default_result = DNAR_UNREACHABLE;
@@ -78,6 +119,7 @@ enum ddsi_nearby_address_result ddsi_ipaddr_is_nearby_address (const ddsi_locato
     }
   }
 
+  uint32_t best_prefixlen = 0;
   struct sockaddr_storage tmp;
   ddsi_ipaddr_from_loc(&tmp, loc);
   for (size_t i = 0; i < ninterf; i++)
@@ -91,9 +133,15 @@ enum ddsi_nearby_address_result ddsi_ipaddr_is_nearby_address (const ddsi_locato
     if (ddsrt_sockaddr_insamesubnet ((struct sockaddr *) &tmp, (struct sockaddr *) &iftmp, (struct sockaddr *) &nmtmp) ||
         ddsrt_sockaddr_insamesubnet ((struct sockaddr *) &tmp, (struct sockaddr *) &xiftmp, (struct sockaddr *) &nmtmp))
     {
-      if (interf_idx)
+      default_result = DNAR_LOCAL;
+      if (interf_idx == NULL)
+        break; // not returning an interface: no need to worry about most specific match
+      const uint32_t plen = ipaddr_prefixlen ((struct sockaddr *) &nmtmp);
+      if (plen >= best_prefixlen) // >= so (illegal?) edge case of prefixlen 0 handled gracefully
+      {
+        best_prefixlen = plen;
         *interf_idx = i;
-      return DNAR_LOCAL;
+      }
     }
   }
   return default_result;
