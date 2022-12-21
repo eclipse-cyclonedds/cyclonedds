@@ -1,5 +1,7 @@
 .. _`Network configuration`:
 
+.. include:: ../external-links.part.rst
+
 *********************
 Network configuration
 *********************
@@ -130,7 +132,7 @@ selection can be influenced in two ways:
 The :ref:`General/RedundantNetworking <//CycloneDDS/Domain/General/RedundantNetworking>` 
 setting forces the address selection code to consider all interfaces advertised by a peer.
 
-.. index:: Unicast, Multicasting, Partitioning
+.. index:: Unicast, Multicast, Partitioning
 
 ---------------------------------------------------
 Overriding addresses/interfaces for Readers/Writers
@@ -211,14 +213,6 @@ where:
 
 The default values (taken from the DDSI specification) are in parentheses.
 
-.. |url::dds2.1| raw:: html
-
-    <a href="http://www.omg.org/spec/DDSI-RTPS/2.1/" target="_blank">DDSI 2.1</a>
-
-.. |url::dds2.2| raw:: html
-
-    <a href="http://www.omg.org/spec/DDSI-RTPS/2.2/" target="_blank">DDSI 2.2</a>
-
 .. note:: 
   This shows only a sub-set of the available parameters. The other parameters in the 
   specification have no bearing on |var-project|. However, these are configurable. For
@@ -264,7 +258,7 @@ unicast sufficing even when addressing multiple participants.
 
 .. _`Multicasting`:
 
-.. index:: ! Multicasting
+.. index:: ! Multicast
 
 ============
 Multicasting

@@ -9,6 +9,8 @@
 
    SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
+.. _documentation_top:
+
 |var-project| |var-release| documentation
 =========================================
 

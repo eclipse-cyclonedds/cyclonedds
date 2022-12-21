@@ -1,14 +1,8 @@
 .. _`Network partition configuration`:
 
 *******************************
-Network Partition Configuration
+Network partition configuration
 *******************************
-
-.. _`Network partition configuration overview`:
-
-========================================
-Network Partition Configuration Overview
-========================================
 
 Network partitions introduce alternative multicast addresses for data. In the DDSI
 discovery protocol, a Reader can override the default address at which it is reachable,

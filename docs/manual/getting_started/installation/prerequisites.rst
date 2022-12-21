@@ -1,31 +1,6 @@
 .. _prerequisites:
 
-.. links to external sites that open in a separate tab:
-
-.. |url::git_link| raw:: html
-
-   <a href="https://git-scm.com/" target="_blank">Git</a>
-
-.. |url::cmake_link| raw:: html
-
-   <a href="https://cmake.org/download/" target="_blank">CMake</a>
-
-.. |url::openssl_link| raw:: html
-
-   <a href="https://www.openssl.org/" target="_blank">OpenSSL</a>
-
-.. |url::iceoryx_link| raw:: html
-
-   <a href="https://projects.eclipse.org/proposals/eclipse-iceoryx/" target="_blank">Eclipse iceoryx</a>
-
-.. |url::cunit_link| raw:: html
-
-   <a href="https://cunit.sourceforge.net/" target="_blank">CUnit</a>
-
-.. |url::sphinx_link| raw:: html
-
-   <a href="https://www.sphinx-doc.org/en/master/" target="_blank">Sphinx</a>
- 
+.. include:: ../external-links.part.rst
 
 Prerequisites
 =============
@@ -58,14 +33,14 @@ To obtain the dependencies for |var-project-short|, follow the platform-specific
 
     .. group-tab:: Windows
 
-        Install Visual Studio Code for the C compiler, then install the `chocolatey package manager <https://chocolatey.org/>`_.
+        Install Visual Studio Code for the C compiler, then install the |url::chocolatey_link|.
 
         .. code-block:: bash
 
             choco install cmake
             choco install git
 
-        Alternatively, to install the dependencies, use `scoop <https://scoop.sh/>`_.
+        Alternatively, to install the dependencies, use |url::scoop_link|.
 
 .. _tools:
 

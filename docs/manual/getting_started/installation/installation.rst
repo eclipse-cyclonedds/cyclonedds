@@ -2,18 +2,7 @@
 Installation
 ############
 
-.. |url::omg.org| raw:: html
- 
-    <a href="https://www.omg.org/spec/DDS-PSM-Cxx/" target="_blank">DDS ISO/IEC C++ PSM API</a>
-
-
-.. |url::python-link| raw:: html
- 
-    <a href="https://cyclonedds.io/docs/cyclonedds-python/latest/" target="_blank">Eclipse Cyclone DDS: Python API documentation</a>
-
-.. |url::cpp-link| raw:: html
- 
-    <a href="https://cyclonedds.io/docs/cyclonedds-cxx/latest/" target="_blank">Eclipse Cyclone DDS: C++ API documentation</a>
+.. include:: ../../external-links.part.rst
 
 The core of Cyclone DDS is implemented in C and provides C-APIs to applications. Additional language bindings are: 
 

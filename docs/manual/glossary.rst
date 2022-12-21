@@ -2,12 +2,14 @@
 Glossary of terms
 #################
 
+.. include:: external-links.part.rst
+
 
 A
 =
 
 .. glossary::
-    **AckNack**
+    AckNack
         TBD
 
 B
@@ -20,31 +22,37 @@ C
 =
 
 .. glossary::
+    CDR
+        Common Data Representation
 
 D
 =
 
 .. glossary::
-    **DataReader**
+    Datagram
+        TBD
+        
+    DataReader
         A DCPS equivalent of a DDSI Reader. Each DDSI Reader is the combination of the 
         corresponding DCPS DataReader and the DCPS Subscriber it belongs to.
 
-    **DataWriter**
-        A DCPS equivalent of a DDSI Writer. Each DDSI Writer is a combination of the corresponding DCPS DataWriter and DCPS Publisher.
+    DataWriter
+        A DCPS equivalent of a DDSI Writer. Each DDSI Writer is a combination of the 
+        corresponding DCPS DataWriter and DCPS Publisher.
 
-    **DDSI participants**
+    DDSI participants
         TBD
      
-    **DCPS**
+    DCPS
         TBD
      
-    **DDSI**
-        TBD
+    DDSI
+        Data Distribution Service Interoperability. DDSI specification: |url::dds2.1|, |url::dds2.2|, |url::dds2.5|.
      
-    **DDS**
+    DDS
         Data Distribution Service
 
-    **Domain ID**
+    Domain ID
         TBD
 
 E
@@ -66,17 +74,17 @@ H
 =
 
 .. glossary::
-    **Heartbeat**
+    Heartbeat
         TBD
 
 I
 =
 
 .. glossary::
-    **IPv4**
+    IPv4
         TBD
      
-    **IPv6**
+    IPv6
         TBD
 
 J
@@ -93,20 +101,20 @@ L
 =
 
 .. glossary::
-    **link-local address**
+    link-local address
         TBD
 
-    **Liveliness**
+    Liveliness
         TBD
 
-    **Loopback**
+    Loopback
         TBD
 
 M
 =
 
 .. glossary::
-    **Multicast**
+    Multicast
        In computer networking, multicast is group communication where data transmission is 
        addressed to a group of destination computers simultaneously. Multicast can be 
        one-to-many or many-to-many distribution.
@@ -115,25 +123,26 @@ N
 =
 
 .. glossary::
+    NACK
 
 O
 =
 
 .. glossary::
-    **OpenSplice**
+    OpenSplice
         TBD
 
 P
 =
 
 .. glossary::
-    **Participant**
+    Participant
         TBD
 
-    **Peer Node**
+    Peer Node
         TBD
 
-    **Publisher**
+    Publisher
         TBD
 Q
 =
@@ -144,33 +153,33 @@ R
 =
 
 .. glossary::
-    **Reader**
+    Reader
         TBD
 
 S
 =
 
 .. glossary::
-    **Samples**
+    Samples
         TBD
 
-    **SEDP**
+    SEDP
         Simple Endpoint Discovery Protocol
 
-    **SPDP**
+    SPDP
         Simple Participant Discovery Protocol
 
-    **StatefulWriter**
+    StatefulWriter
         TBD
 
 T
 =
 
 .. glossary::
-    **TLS**
+    TLS
         Thread-Local Storage
 
-    **TSN**
+    TSN
         Time Sensitive Network
 
 U
@@ -178,30 +187,30 @@ U
 
 .. glossary::
 
-    **UDP/IP**
-        TBD
+    UDP
+        User Datagram Protocol
 
-    **Unicast**
+    Unicast
         TBD
 
 V
 =
 
 .. glossary::
-    **Vendors**
+    Vendors
         TBD
 
-    **Volatile**
+    Volatile
         TBD
 
 W
 =
 
 .. glossary::
-    **Writer**
+    Writer
         TBD
 
-    **WHC**
+    WHC
         Writer History Cache
 
 X
