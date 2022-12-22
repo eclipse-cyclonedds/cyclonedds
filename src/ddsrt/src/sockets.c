@@ -436,7 +436,7 @@ ddsrt_setsockreuse(ddsrt_socket_t sock, bool reuse)
   switch (rc)
   {
     case DDS_RETCODE_UNSUPPORTED:
-      // e.g. LWIP, which defines SO_REUSEPORT but doesn't implement it.
+      // e.g. LWIP or Zephyr, which defines SO_REUSEPORT but doesn't implement it.
       //      note that we ignore this error because some systems use SO_REUSEADDR instead
     case DDS_RETCODE_OK:
       break;

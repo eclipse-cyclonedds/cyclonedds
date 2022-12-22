@@ -170,7 +170,7 @@ void ddsrt_atomics_fini (void) { }
    something else will have to be done. */
 #define N_MUTEXES_LG2 4
 #define N_MUTEXES     (1 << N_MUTEXES_LG2)
-#ifndef PTHREAD_MUTEX_INITIALIZER
+#if !defined(PTHREAD_MUTEX_INITIALIZER) || defined(__ZEPHYR__)
 static ddsrt_mutex_t mutexes[N_MUTEXES];
 
 void ddsrt_atomics_init (void)

@@ -39,6 +39,8 @@ set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/Modules")
 option(BUILD_IDLC "Build IDL preprocessor" ${not_crosscompiling})
 option(BUILD_DDSPERF "Build ddsperf tool" ${not_crosscompiling})
 
+option(WITH_ZEPHYR "Build for Zephyr RTOS" OFF)
+
 set(CMAKE_C_STANDARD 99)
 if(CMAKE_SYSTEM_NAME STREQUAL "VxWorks")
   add_definitions(-std=c99)
@@ -127,7 +129,12 @@ if("${CMAKE_C_COMPILER_ID}" STREQUAL "Clang" OR
   endif()
 elseif("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
   #message(STATUS gcc)
-  add_compile_options(-Wall -Wextra -Wconversion -Wmissing-prototypes)
+  if(WITH_ZEPHYR)
+    # Suppress false warnings from system includes
+    add_compile_options(-Wall -Wextra -Wno-unused-parameter -Wmissing-prototypes)
+  else()
+    add_compile_options(-Wall -Wextra -Wconversion -Wmissing-prototypes)
+  endif()
   if(${WERROR})
     add_compile_options(-Werror)
   endif()

@@ -48,11 +48,14 @@ static int cmp_group_membership (const void *va, const void *vb)
   const struct ddsi_mcgroup_membership_node *a = va;
   const struct ddsi_mcgroup_membership_node *b = vb;
   int c;
+
+#if !defined(DDSRT_MCGROUP_JOIN_ONCE)
   if (a->conn < b->conn)
     return -1;
   else if (a->conn > b->conn)
     return 1;
-  else if ((c = locator_compare_no_port (&a->srcloc, &b->srcloc)) != 0)
+#endif
+  if ((c = locator_compare_no_port (&a->srcloc, &b->srcloc)) != 0)
     return c;
   else if ((c = locator_compare_no_port (&a->mcloc, &b->mcloc)) != 0)
     return c;

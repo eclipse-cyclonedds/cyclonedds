@@ -66,7 +66,16 @@ typedef struct {
 #include <pthread.h>
 #include <sys/neutrino.h>
 #define MAXTHREADNAMESIZE (_NTO_THREAD_NAME_MAX - 1)
+#elif defined(__ZEPHYR__) && defined(CONFIG_THREAD_NAME)
+/* CONFIG_THREAD_MAX_NAME_LEN indicates the max name length,
+   including the terminating NULL byte */
+#define MAXTHREADNAMESIZE (CONFIG_THREAD_MAX_NAME_LEN - 1)
 #endif /* __APPLE__ */
+
+#if defined(__ZEPHYR__) && !defined(CONFIG_FILE_SYSTEM)
+int _open(const char *name, int mode);
+int _open(const char *name, int mode) { return -1; }
+#endif
 
 size_t
 ddsrt_thread_getname(char *str, size_t size)
@@ -117,6 +126,9 @@ ddsrt_thread_getname(char *str, size_t size)
 #elif defined(__QNXNTO__)
   (void)pthread_getname_np(pthread_self(), buf, sizeof(buf));
   cnt = ddsrt_strlcpy(str, buf, size);
+#elif defined(__ZEPHYR__) && defined(CONFIG_THREAD_NAME)
+  (void)pthread_getname_np(pthread_self(), buf, sizeof(buf));
+  cnt = ddsrt_strlcpy(str, buf, size);
 #endif
 
   /* Thread identifier is used as fall back if thread name lookup is not
@@ -152,6 +164,8 @@ ddsrt_thread_setname(const char *__restrict name)
 #endif
 #elif defined(__QNXNTO__)
   (void)pthread_setname_np(pthread_self(), name);
+#elif defined(__ZEPHYR__) && defined(CONFIG_THREAD_NAME)
+  (void)pthread_setname_np(pthread_self(), (char*)name);
 #else
   /* VxWorks does not support the task name to be set after a task is created.
      Setting the name of a task can be done through pthread_attr_setname. */
@@ -213,6 +227,23 @@ static void *os_startRoutineWrapper (void *threadContext)
   return (void *)resultValue;
 }
 
+#if defined(__ZEPHYR__)
+#ifndef CYCLONEDDS_THREAD_COUNT 
+#define CYCLONEDDS_THREAD_COUNT 10
+#endif
+
+#ifndef CYCLONEDDS_THREAD_STACK_SIZE
+#define CYCLONEDDS_THREAD_STACK_SIZE 32768
+#endif
+
+#if (CYCLONEDDS_THREAD_COUNT > CONFIG_MAX_PTHREAD_COUNT)
+#error "CONFIG_MAX_PTHREAD_COUNT is insufficient to run CycloneDDS"
+#endif
+
+static int currThrIdx = 0;
+K_THREAD_STACK_ARRAY_DEFINE(zephyr_stacks, CYCLONEDDS_THREAD_COUNT, CYCLONEDDS_THREAD_STACK_SIZE);
+#endif
+
 dds_return_t
 ddsrt_thread_create (
   ddsrt_thread_t *threadptr,
@@ -225,13 +256,20 @@ ddsrt_thread_create (
   thread_context_t *ctx;
   ddsrt_threadattr_t tattr;
   int result, create_ret;
+#if !defined(__ZEPHYR__)
   sigset_t set, oset;
+#endif
 
   assert (threadptr != NULL);
   assert (name != NULL);
   assert (threadAttr != NULL);
   assert (start_routine != NULL);
   tattr = *threadAttr;
+
+#if defined(__ZEPHYR__)
+  /* Override requested size by size of statically allocated stacks */
+  tattr.stackSize = CYCLONEDDS_THREAD_STACK_SIZE;
+#endif
 
   if (pthread_attr_init (&attr) != 0)
     return DDS_RETCODE_ERROR;
@@ -242,9 +280,14 @@ ddsrt_thread_create (
   (void)pthread_attr_setname (&attr, name);
 #endif
 
-  if (pthread_attr_setscope (&attr, PTHREAD_SCOPE_SYSTEM) != 0 ||
-      pthread_attr_setdetachstate (&attr, PTHREAD_CREATE_JOINABLE) != 0)
+#if !defined(__ZEPHYR__)
+  if (pthread_attr_setscope (&attr, PTHREAD_SCOPE_SYSTEM) != 0)
     goto err;
+#endif
+
+  if (pthread_attr_setdetachstate (&attr, PTHREAD_CREATE_JOINABLE) != 0) {
+    goto err;
+  }
 
   if (tattr.stackSize != 0)
   {
@@ -252,13 +295,32 @@ ddsrt_thread_create (
     if (tattr.stackSize < (uint32_t)PTHREAD_STACK_MIN)
       tattr.stackSize = (uint32_t)PTHREAD_STACK_MIN;
 #endif
+
+#if !defined(__ZEPHYR__)
     if ((result = pthread_attr_setstacksize (&attr, tattr.stackSize)) != 0)
     {
       DDS_ERROR ("ddsrt_thread_create(%s): pthread_attr_setstacksize(%"PRIu32") failed with error %d\n", name, tattr.stackSize, result);
       goto err;
     }
+#else
+    if (currThrIdx >= CYCLONEDDS_THREAD_COUNT)
+    {
+      DDS_ERROR ("ddsrt_thread_create(%s): CYCLONEDDS_THREAD_COUNT(%d) exceeded\n", name, currThrIdx);
+      goto err;
+    }
+    if ((result = pthread_attr_setstack (&attr, &zephyr_stacks[currThrIdx], tattr.stackSize)) != 0)
+    {
+      DDS_ERROR ("ddsrt_thread_create(%s): pthread_attr_setstack(%p, %"PRIu32") failed with error %d\n",
+        name, &zephyr_stacks[currThrIdx], tattr.stackSize, result);
+      goto err;
+    }
+    currThrIdx++;
+#endif
   }
 
+  /* For Zephyr SCHED_DEFAULT is either SCHED_RR or SCHED_FIFO, both realtime classes that
+  take a priority. For other platforms, SCHED_DEFAULT with a non-default priority is rejected. */
+#if !defined(__ZEPHYR__)
   if (tattr.schedClass == DDSRT_SCHED_DEFAULT)
   {
     if (tattr.schedPriority != 0)
@@ -270,30 +332,42 @@ ddsrt_thread_create (
     }
   }
   else
+#endif
   {
     int policy;
     struct sched_param sched_param;
-    if ((result = pthread_getschedparam (pthread_self (), &policy, &sched_param) != 0) != 0)
+#if !defined(__ZEPHYR__)
+    if ((result = pthread_getschedparam (pthread_self (), &policy, &sched_param)) != 0)
     {
-      DDS_ERROR("ddsrt_thread_create(%s): pthread_attr_getschedparam(self) failed with error %d\n", name, result);
+      DDS_ERROR("ddsrt_thread_create(%s): pthread_getschedparam(self) failed with error %d\n", name, result);
       goto err;
     }
+#endif
     switch (tattr.schedClass)
     {
       case DDSRT_SCHED_DEFAULT:
+#if !defined(__ZEPHYR__)
         assert (0);
+#endif
         break;
       case DDSRT_SCHED_REALTIME:
         policy = SCHED_FIFO;
         break;
       case DDSRT_SCHED_TIMESHARE:
+#if !defined(__ZEPHYR__)
         policy = SCHED_OTHER;
+#else
+        DDS_ERROR("ddsrt_thread_create(%s): timeshare scheduling class not supported on this platform\n", name);
+        goto err;
+#endif
         break;
     }
-    if ((result = pthread_attr_setschedpolicy (&attr, policy)) != 0)
-    {
-      DDS_ERROR("ddsrt_thread_create(%s): pthread_attr_setschedpolicy(%d) failed with error %d\n", name, policy, result);
-      goto err;
+    if (tattr.schedClass != DDSRT_SCHED_DEFAULT) {
+      if ((result = pthread_attr_setschedpolicy (&attr, policy)) != 0)
+      {
+        DDS_ERROR("ddsrt_thread_create(%s): pthread_attr_setschedpolicy(%d) failed with error %d\n", name, policy, result);
+        goto err;
+      }
     }
     sched_param.sched_priority = tattr.schedPriority;
     if ((result = pthread_attr_setschedparam (&attr, &sched_param)) != 0)
@@ -301,11 +375,13 @@ ddsrt_thread_create (
       DDS_ERROR("ddsrt_thread_create(%s): pthread_attr_setschedparam(priority = %d) failed with error %d\n", name, tattr.schedPriority, result);
       goto err;
     }
+#if !defined(__ZEPHYR__)
     if ((result = pthread_attr_setinheritsched (&attr, PTHREAD_EXPLICIT_SCHED)) != 0)
     {
       DDS_ERROR("ddsrt_thread_create(%s): pthread_attr_setinheritsched(EXPLICIT) failed with error %d\n", name, result);
       goto err;
     }
+#endif
   }
 
   /* Construct context structure & start thread */
@@ -314,6 +390,7 @@ ddsrt_thread_create (
   ctx->routine = start_routine;
   ctx->arg = arg;
 
+#if !defined(__ZEPHYR__)
   /* Block signal delivery in our own threads (SIGXCPU is excluded so we have a way of
      dumping stack traces, but that should be improved upon) */
   sigfillset (&set);
@@ -325,12 +402,15 @@ ddsrt_thread_create (
   DDSRT_WARNING_GNUC_ON(sign-conversion)
 #endif
   sigprocmask (SIG_BLOCK, &set, &oset);
+#endif /* !defined(__ZEPHYR__) */
   if ((create_ret = pthread_create (&threadptr->v, &attr, os_startRoutineWrapper, ctx)) != 0)
   {
     DDS_ERROR ("os_threadCreate(%s): pthread_create failed with error %d\n", name, create_ret);
     goto err_create;
   }
+#if !defined(__ZEPHYR__)
   sigprocmask (SIG_SETMASK, &oset, NULL);
+#endif
   pthread_attr_destroy (&attr);
   return DDS_RETCODE_OK;
 
@@ -391,7 +471,11 @@ ddsrt_thread_join(ddsrt_thread_t thread, uint32_t *thread_result)
   int err;
   void *vthread_result;
 
+#if !defined(__ZEPHYR__)
+/* In Zephyr, pthread_t is an array index so 0 is fine for the first pthread,
+   which can be a ddsrt_thread when eg. the main thread is a native Zephyr thread */
   assert (thread.v);
+#endif
 
 
   if ((err = pthread_join (thread.v, &vthread_result)) != 0)
@@ -530,6 +614,13 @@ dds_return_t ddsrt_thread_cleanup_push (void (*routine) (void *), void *arg)
 
   assert(routine != NULL);
 
+#if defined(__ZEPHYR__)
+  if (pthread_self() >= CONFIG_MAX_PTHREAD_COUNT) {
+    /* Not a pthread */
+    return DDS_RETCODE_UNSUPPORTED;
+  }
+#endif
+
   thread_init();
   if ((tail = ddsrt_calloc(1, sizeof(*tail))) != NULL) {
     prev = pthread_getspecific(thread_cleanup_key);
@@ -549,6 +640,13 @@ dds_return_t ddsrt_thread_cleanup_pop (int execute)
 {
   int err;
   thread_cleanup_t *tail;
+
+#if defined(__ZEPHYR__)
+  if (pthread_self() >= CONFIG_MAX_PTHREAD_COUNT) {
+    /* Not a pthread */
+    return DDS_RETCODE_UNSUPPORTED;
+  }
+#endif
 
   thread_init();
   if ((tail = pthread_getspecific(thread_cleanup_key)) != NULL) {
