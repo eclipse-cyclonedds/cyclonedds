@@ -44,7 +44,7 @@ D
         TBD
      
     DCPS
-        TBD
+        Data-Centric Publish-Subscribe
      
     DDSI
         Data Distribution Service Interoperability. DDSI specification: |url::dds2.1|, |url::dds2.2|, |url::dds2.5|.

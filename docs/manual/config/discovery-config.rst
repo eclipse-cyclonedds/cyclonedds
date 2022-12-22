@@ -71,6 +71,8 @@ and risks Writers being blocked by unresponsive Readers.
 
 .. _`Timing of SPDP packets`:
 
+.. index:: Timing of SPDP,
+
 Timing of SPDP packets
 ======================
 
@@ -82,6 +84,8 @@ To configure the interval with which the SPDP packets are transmitted, set
   (especially in the face of temporary network disconnections).
 
 .. _`Endpoint discovery`:
+
+.. index:: Partition, Ignored partitions
 
 Endpoint discovery
 ==================

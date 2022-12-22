@@ -1,7 +1,7 @@
 .. _`DDSI Concepts`:
 
 #############
-DDSI Concepts
+DDSI concepts
 #############
 
 The DDSI specification is related to the DDS specifications, with a clear

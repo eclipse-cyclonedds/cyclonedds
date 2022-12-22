@@ -132,7 +132,9 @@ selection can be influenced in two ways:
 The :ref:`General/RedundantNetworking <//CycloneDDS/Domain/General/RedundantNetworking>` 
 setting forces the address selection code to consider all interfaces advertised by a peer.
 
-.. index:: Unicast, Multicast, Partitioning
+.. index:: Unicast, Multicast, Partition, DCPS
+
+.. _`Overriding addresses`:
 
 ---------------------------------------------------
 Overriding addresses/interfaces for Readers/Writers
