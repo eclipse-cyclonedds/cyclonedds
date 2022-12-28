@@ -9,21 +9,24 @@
 
    SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
+.. index:: 
+   single: Examples; Roundtrip
+   single: Roundtrip example
+  
+.. _roundtrip_bm:
+
 Roundtrip
 ==========
 
-Description
-***********
-
-The Roundtrip example allows the measurement of roundtrip duration when sending and receiving back a single message.
+Measures the roundtrip duration when sending and receiving a single message.
 
 Design
 ******
 
-It consists of 2 units:
+The Roundtrip example consists of two units:
 
-- Pong: waits for messages from ping and sends the same message back.
-- Ping: Sends a message to pong and waits for its return.
+- **ping**: Sends a message to pong and waits for its return.
+- **pong**: Waits for messages from ping and sends the same message back.
 
 Scenario
 ********
@@ -49,35 +52,38 @@ Configurable:
 Running the example
 *******************
 
-It is recommended that you run ping and pong in separate terminals to avoid mixing the output.
+To avoid mixing the output, run the ping and pong in separate terminals.
 
-- Open 2 terminals.
-- In the first terminal start Pong by running pong.
+#. Open two terminals.
+#. In the first terminal start Pong by running **pong**.
 
-  pong usage:
-    ``./pong``
+   pong usage:
+     ``./pong``
 
-- In the second terminal start Ping by running ping.
+#. In the second terminal start Ping by running **ping**.
 
-  ping usage (parameters must be supplied in order):
-    ``./ping [payloadSize (bytes, 0 - 655536)] [numSamples (0 = infinite)] [timeOut (seconds, 0 = infinite)]``
+   ping usage (parameters must be supplied in order):
+     ``./ping [payloadSize (bytes, 0 - 655536)] [numSamples (0 = infinite)] [timeOut (seconds, 0 = infinite)]``
+ 
+     ``./ping quit - ping sends a quit signal to pong.``
+   defaults:
+     ``./ping 0 0 0``
 
-    ``./ping quit - ping sends a quit signal to pong.``
-  defaults:
-    ``./ping 0 0 0``
+#. To achieve optimal performance, set the CPU affinity so that ping and pong run on separate CPU cores
+   and use real-time scheduling:
 
-- To achieve optimal performance it is recommended to set the CPU affinity so that ping and pong run on separate CPU cores,
-  and use real-time scheduling. In a Linux environment this can be achieved as follows:
+  .. tabs::
 
-  pong usage:
-    ``taskset -c 0 chrt -f 80 ./pong``
-  ping usage:
-    ``taskset -c 1 chrt -f 80 ./ping [payloadSize (bytes, 0 - 655536)] [numSamples (0 = infinite)] [timeOut (seconds, 0 = infinite)]``
+    .. group-tab:: Linux
 
-  On Windows the CPU affinity and scheduling class can be set as follows:
+          Pong usage:
+            ``taskset -c 0 chrt -f 80 ./pong``
+          Ping usage:
+            ``taskset -c 1 chrt -f 80 ./ping [payloadSize (bytes, 0 - 655536)] [numSamples (0 = infinite)] [timeOut (seconds, 0 = infinite)]``
 
-  pong usage:
-    ``START /affinity 1 /high cmd /k "pong.exe"``
-  ping usage:
-    ``START /affinity 2 /high cmd /k "ping.exe" [payloadSize (bytes, 0 - 655536)] [numSamples (0 = infinite)] [timeOut (seconds, 0 = infinite)]``
-
+    .. group-tab:: Windows
+        
+        Pong usage:
+          ``START /affinity 1 /high cmd /k "pong.exe"``
+        Ping usage:
+          ``START /affinity 2 /high cmd /k "ping.exe" [payloadSize (bytes, 0 - 655536)] [numSamples (0 = infinite)] [timeOut (seconds, 0 = infinite)]``

@@ -142,8 +142,12 @@ P
     Peer Node
         TBD
 
+    PoC
+        Proof of Concept
+    
     Publisher
         TBD
+    
 Q
 =
 
@@ -155,6 +159,12 @@ R
 .. glossary::
     Reader
         TBD
+
+    RTI
+        TBD
+
+    RTPS
+        Real-Time Publish Subscribe
 
 S
 =
