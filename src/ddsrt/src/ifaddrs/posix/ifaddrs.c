@@ -19,6 +19,10 @@
 #include "dds/ddsrt/retcode.h"
 #include "dds/ddsrt/string.h"
 
+#if __APPLE__
+  #include <TargetConditionals.h>
+#endif
+
 extern const int *const os_supp_afs;
 
 #if defined __linux
@@ -79,7 +83,8 @@ static enum ddsrt_iftype guess_iftype (const struct ifaddrs *sys_ifa)
   fclose (fp);
   return type;
 }
-#elif defined(__APPLE__) || defined(__QNXNTO__) || defined(__FreeBSD__)  /* probably works for all BSDs */
+#elif (defined(__APPLE__) && !TARGET_OS_IPHONE) || defined(__QNXNTO__) || defined(__FreeBSD__)  /* probably works for all BSDs */
+
 #include <sys/ioctl.h>
 #include <sys/sockio.h>
 #include <net/if.h>
