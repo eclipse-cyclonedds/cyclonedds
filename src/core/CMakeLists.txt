@@ -38,10 +38,21 @@ if(ENABLE_LTO)
   include(CheckIPOSupported)
   check_ipo_supported(RESULT ipo_supported OUTPUT error)
   if(ipo_supported)
-    set_property(TARGET ddsc PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
-    set_property(TARGET ddsc PROPERTY INTERPROCEDURAL_OPTIMIZATION_MINSIZEREL TRUE)
-    #-flto and debugging info do not seem to go well together
-    #set_property(TARGET ddsc PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELWITHDEBINFO TRUE)
+    if(ANDROID AND "${CMAKE_ANDROID_ARCH_ABI}" STREQUAL "armeabi-v7a")
+      if("${CMAKE_ANDROID_ARCH_ABI}" STREQUAL "armeabi-v7a")
+        # clang android LTO bug (only armv7 affected)
+        # https://stackoverflow.com/questions/56238019/linker-error-when-enabling-link-time-optimization-in-ndk
+        # Fixed in newer clang versions: https://reviews.llvm.org/D79919
+        # But fixed here to keep supported android api level as low as possible
+        # Tested with android ndk v20.0.5594570 (android api 29)
+        set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -flto=full")
+      endif()
+    else()
+      set_property(TARGET ddsc PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
+      set_property(TARGET ddsc PROPERTY INTERPROCEDURAL_OPTIMIZATION_MINSIZEREL TRUE)
+      #-flto and debugging info do not seem to go well together
+      #set_property(TARGET ddsc PROPERTY INTERPROCEDURAL_OPTIMIZATION_RELWITHDEBINFO TRUE)
+    endif()
   endif()
 endif()
 
