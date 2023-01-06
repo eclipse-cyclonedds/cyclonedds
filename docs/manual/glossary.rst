@@ -12,6 +12,15 @@ A
     AckNack
         TBD
 
+    AES
+        Advanced Encryption Standard
+
+    AES-GCM
+        :term:`AES` using :term:`GCM`. A block cipher mode of operation that provides high 
+        speed of authenticated encryption and data integrity.
+
+    AES-GMAC
+        :term:`AES` using :term:`GMAC`
 B
 =
 
@@ -24,6 +33,12 @@ C
 .. glossary::
     CDR
         Common Data Representation
+
+    CRL
+        Certificate Revocation List
+    
+    CSR
+        Certificate Signing Request
 
 D
 =
@@ -69,6 +84,11 @@ G
 =
 
 .. glossary::
+    GCM
+        Galois Counter Mode
+
+    GMAC
+        Galois Message Authentication Code
 
 H
 =
@@ -114,6 +134,9 @@ M
 =
 
 .. glossary::
+    MAC
+        Message Authentication Code
+
     Multicast
        In computer networking, multicast is group communication where data transmission is 
        addressed to a group of destination computers simultaneously. Multicast can be 
@@ -142,6 +165,9 @@ P
     Peer Node
         TBD
 
+    PKI
+        Public Key Infrastructure
+
     PoC
         Proof of Concept
     
@@ -160,6 +186,9 @@ R
     Reader
         TBD
 
+    RSA
+        Rivest-Shamir-Adleman. A public-key cryptosystem that is widely used for secure data transmission. 
+
     RTI
         TBD
 
@@ -176,6 +205,9 @@ S
     SEDP
         Simple Endpoint Discovery Protocol
 
+    SPI
+        Service Plugin Interface
+    
     SPDP
         Simple Participant Discovery Protocol
 
@@ -189,9 +221,12 @@ T
     TLS
         Thread-Local Storage
 
+    Topic
+        TBD
+
     TSN
         Time Sensitive Network
-
+    
 U
 =
 

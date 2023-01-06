@@ -32,6 +32,10 @@
  
     <a href="https://www.omg.org/spec/DDS-PSM-Cxx/" target="_blank">DDS ISO/IEC C++ PSM API</a>
 
+.. |url::omg.security| raw:: html
+   
+    <a href="https://www.omg.org/spec/DDS-SECURITY/" target="_blank">DDS security</a>
+
 .. |url::logoimage| raw:: html
  
     <a href="..\index.html"><img src="..\_images\Cyclone_DDS-Logo.png" width="50%" height="50%"></a>
@@ -79,4 +83,32 @@
 .. |url::c-api-liveliness| raw:: html
  
     <a href="../api/qos.html#c.dds_liveliness_kind">dds_liveliness_kind</a>
-   
+
+.. |url::rfc5751_link| raw:: html
+ 
+    <a href="https://www.rfc-editor.org/info/rfc5751" target="_blank">IETF RFC 5751</a>
+
+.. |url::rfc5751_2-4-2_link| raw:: html
+ 
+    <a href="https://www.rfc-editor.org/rfc/rfc5751.html#section-2.4.2" target="_blank">IETF RFC 5751 section 2.4.2</a>
+
+.. |url::rfc5751_3-4-3_link| raw:: html
+ 
+    <a href="https://www.rfc-editor.org/rfc/rfc5751.html#section-3.4.3" target="_blank">IETF RFC 5751 section 3.4.3</a>
+
+
+.. |url::DDS_plugins| raw:: html
+ 
+    <a href="https://github.com/eclipse-cyclonedds/cyclonedds/tree/master/src/security/builtin_plugins" target="_blank">DDS Plugins</a>
+
+.. |url::DDS_plugins_access-control| raw:: html
+ 
+    <a href="https://github.com/eclipse-cyclonedds/cyclonedds/tree/master/src/security/builtin_plugins/access_control" target="_blank">access control plugin</a>
+
+.. |url::DDS_plugins_authentication| raw:: html
+ 
+    <a href="https://github.com/eclipse-cyclonedds/cyclonedds/tree/master/src/security/builtin_plugins/authentication" target="_blank">authentication plugin</a>
+
+.. |url::DDS_plugins_cryptographic| raw:: html
+ 
+    <a href="https://github.com/eclipse-cyclonedds/cyclonedds/tree/master/src/security/builtin_plugins/cryptographic" target="_blank">cryptographic plugin</a>

@@ -10,15 +10,17 @@
    SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
 .. index:: 
-   single: Examples; Helloworld
-   single: Helloworld example
+   single: Examples; HelloWorld
+   single: HelloWorld example
+   single: HelloWorld
 
 .. _helloworld_bm:
 
 HelloWorld
 ==========
 
-The basic HelloWorld example describes the steps necessary for setting up DCPS entities.
+The basic HelloWorld example describes the steps necessary for setting up DCPS entities 
+(see also :ref:`hello_world`).
 
 .. note:: 
    The HelloWorld example is referenced throughout the :ref:`Getting_Started` Guide.
@@ -47,5 +49,5 @@ Running the example
 To avoid mixing the output, run the subscriber and publisher in separate terminals.
 
 #. Open two terminals.
-#. In the first terminal, start the subscriber by running HelloWorldSubscriber.
-#. In the second terminal, start the publisher by running HelloWorldPublisher.
+#. In the first terminal, start the subscriber by running ``HelloWorldSubscriber``.
+#. In the second terminal, start the publisher by running ``HelloWorldPublisher``.

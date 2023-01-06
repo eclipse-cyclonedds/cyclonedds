@@ -1,19 +1,30 @@
+
+.. index:: HelloWorld
+
 .. _hello_world:
 
-Hello World!
-------------
+HelloWorld
+----------
 
-To test your installation, |var-project| includes a simple **Hello World!** application.
-The **Hello World!** application consists of two executables:
+To test your installation, |var-project| includes a simple **HelloWorld!** application 
+(see also the :ref:`helloworld_bm` example). **HelloWorld!** consists of two executables:
 
  -  ``HelloworldPublisher``
  -  ``HelloworldSubscriber``
 
-The **Hello World!** executables are located in ``<cyclonedds-directory>\build\bin\Debug`` on Windows, and
-``<cyclonedds-directory>/build/bin`` on Linux/macOS. Please note that you did not run CMake with ``-DBUILD_EXAMPLES=ON`` earlier the executables will be missing.
+The **HelloWorld!** executables are located in:
 
-To run the example application, open two console windows and navigate to the appropriate directory in both console windows. Run ``HelloworldSubscriber`` 
-in one of the console windows:
+- ``<cyclonedds-directory>\build\bin\Debug`` on Windows
+- ``<cyclonedds-directory>/build/bin`` on Linux/macOS. 
+
+.. note::
+   Requires CMake with ``-DBUILD_EXAMPLES=ON``.
+
+To avoid mixing the output, run the subscriber and publisher in separate terminals.
+
+#. Open two terminals.
+#. In the first terminal, start the subscriber by running ``HelloWorldSubscriber``.
+#. In the second terminal, start the publisher by running ``HelloWorldPublisher``.
 
 .. tabs::
 

@@ -20,7 +20,7 @@
    getting_started/index
    config/index
    examples/index
-   security
+   security/dds_security
    shared_memory
    ddsc
    glossary
