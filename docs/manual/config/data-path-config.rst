@@ -1,6 +1,6 @@
-.. _`Data path configuration`:
-
 .. include:: ../external-links.part.rst
+
+.. _data_path_config:
 
 ***********************
 Data path configuration

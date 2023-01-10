@@ -1,16 +1,20 @@
-.. _`Discovery behaviour`:
+.. include:: ../external-links.part.rst
+  
+.. index:: Discovery behaviour
+
+.. _discovery_behaviour:
 
 ###################
 Discovery behaviour
 ###################
 
-.. _`Proxy participants and endpoints`:
+.. _proxy_participants_endpoints:
 
 ********************************
 Proxy participants and endpoints
 ********************************
 
-In the DDSI specification, |var-project| is known as a *stateful* implementation. Writers 
+In the |url::ddsi_spec|, |var-project| is known as a *stateful* implementation. Writers 
 only send data to discovered Readers, and Readers only accept data from discovered
 Writers. There is one exception: the ``wWriter`` may choose to multicast the data so 
 that any Reader is able to receive it. If a Reader has already discovered the Writer 
@@ -35,14 +39,14 @@ Deleting endpoints triggers 'disposes' and 'un-registers' in the SEDP protocol. 
 participant also creates special messages that allow the peers to immediately reclaim 
 resources instead of waiting for the lease to expire.
 
-.. _`Sharing of discovery information`:
+.. _sharing_discovery_info:
 
 ********************************
 Sharing of discovery information
 ********************************
 
 |var-project| handles any number of participants in an integrated manner, the discovery
-protocol as described in :ref:`Proxy participants and endpoints` can be wasteful. It is not 
+protocol as described in :ref:`proxy_participants_endpoints` can be wasteful. It is not 
 necessary for each participant in a |var-project| process to run the full discovery protocol 
 for itself.
 
@@ -66,12 +70,10 @@ new participant or endpoint is immediately aware of the existing peers and can d
 communicate with these peers. If these peers take significant time to discover the new 
 participant or endpoint, it can generate some redundant network traffic.
 
-.. _`Lingering writers`:
-
-.. index:: ! Lingering Writers
+.. index:: ! Lingering writers
 
 *****************
-Lingering Writers
+Lingering writers
 *****************
 
 When an application deletes a reliable DCPS Writer, there is no guarantee that all
@@ -83,7 +85,7 @@ linger duration has elapsed, whichever comes first.
 
 .. note::
 
-  The Writer linger duration setting is currently not applied when |var-project|
+  The Writer linger duration setting is not applied when |var-project|
   is requested to terminate.
 
 .. _`Writer history QoS and throttling`:
@@ -94,7 +96,7 @@ linger duration has elapsed, whichever comes first.
 Writer history QoS and throttling
 *********************************
 
-The DDSI specification relies on the Writer History Cache (WHC), in which a sequence number 
+The |url::ddsi_spec| relies on the Writer History Cache (WHC), in which a sequence number 
 uniquely identifies each sample. The WHC integrates two different indices on the samples 
 published by a Writer: 
 
@@ -104,7 +106,7 @@ published by a Writer:
 - The **key value** index is used for retaining the current state of each instance in the WHC.
   
 When a new sample overwrites the state of an instance, the key value index allows dropping 
-samples from the sequence number index. For transient-local behavior (see 
+samples from the sequence number index. For transient-local behaviour (see 
 :ref:`DDSI-specific transient-local behaviour`), the key value index also allows retaining 
 the current state of each instance even when all Readers have acknowledged a sample.
 

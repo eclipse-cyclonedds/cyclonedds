@@ -1,8 +1,8 @@
-.. _`Combining multiple participants`:
+.. include:: ../external-links.part.rst
 
 .. index:: ! Participant, Multiple participants
 
-.. include:: ../external-links.part.rst
+.. _combining_multiple_participants:
 
 *******************************
 Combining multiple participants

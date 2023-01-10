@@ -21,7 +21,7 @@
    config/index
    examples/index
    security/dds_security
-   shared_memory
+   shared_memory/shared_memory
    ddsc
    glossary
 

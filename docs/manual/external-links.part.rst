@@ -16,6 +16,14 @@
 
    <a href="https://accounts.eclipse.org/user/eca/">Eclipse Contributor Agreement</a>
 
+.. |url::ddsi_spec| raw:: html
+
+   <a href="https://www.omg.org/spec/DDSI-RTPS" target="_blank">DDSI Specification</a>
+
+.. |url::dds_spec| raw:: html
+
+   <a href="https://www.omg.org/spec/DDS/" target="_blank">DDS Specification</a>
+
 .. |url::dds2.1| raw:: html
 
    <a href="https://www.omg.org/spec/DDSI-RTPS/2.1" target="_blank">DDSI-RTPS 2.1</a>

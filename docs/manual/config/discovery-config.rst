@@ -1,10 +1,12 @@
-.. _`Discovery configuration`:
+.. _discovery_config:
 
 #######################
 Discovery configuration
 #######################
 
-.. _`Discovery addresses`:
+.. index:: IPv4, IPv6
+
+.. _discovery_addresses:
 
 Discovery addresses
 ===================
@@ -14,7 +16,7 @@ The DDSI discovery protocols:
 - Simple Participant Discovery Protocol (SPDP) for the *domain participants* (usually 
   operates well without any explicit configuration). 
 - Simple Endpoint Discovery Protocol (SEDP) for their *endpoints* (never requires 
-  configuration, see :ref:`Endpoint discovery`).
+  configuration, see :ref:`endpoint_discovery`).
 
 For each domain participant, the SPDP protocol periodically sends an SPDP sample to a
 set of addresses (the default only contains the multicast address):
@@ -49,9 +51,9 @@ calculating the port number.
 To ensure that the configured port number corresponds to the port number that the remote 
 DDSI implementation is listening on, also edit the participant index by setting: 
 :ref:`Discovery/ParticipantIndex <//CycloneDDS/Domain/Discovery/ParticipantIndex>` 
-(see the description of "PI" in :ref:`Controlling port numbers`).
+(see the description of "PI" in :ref:`port_numbers`).
 
-.. _`Asymmetrical discovery`:
+.. index:: Asymmetrical discovery
 
 Asymmetrical discovery
 ======================
@@ -69,8 +71,6 @@ adds A's address to its own set and starts sending its SPDP message to A, theref
 allowing A to discover B. This takes longer than normal multicast based discovery, 
 and risks Writers being blocked by unresponsive Readers.
 
-.. _`Timing of SPDP packets`:
-
 .. index:: Timing of SPDP,
 
 Timing of SPDP packets
@@ -83,9 +83,9 @@ To configure the interval with which the SPDP packets are transmitted, set
   A longer interval reduces the network load, but also increases the time discovery takes
   (especially in the face of temporary network disconnections).
 
-.. _`Endpoint discovery`:
+.. index:: Partition, Ignored partitions, Endpoint discovery
 
-.. index:: Partition, Ignored partitions
+.. _endpoint_discovery:
 
 Endpoint discovery
 ==================

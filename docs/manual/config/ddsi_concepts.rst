@@ -1,10 +1,12 @@
-.. _`DDSI Concepts`:
+.. include:: ../external-links.part.rst
+    
+.. _ddsi_concepts:
 
 #############
 DDSI concepts
 #############
 
-The DDSI specification is related to the DDS specifications, with a clear
+The |url::ddsi_spec| is related to the |url::dds_spec|, with a clear
 correspondence between the entities in DDSI and those in DCPS. However, this
 correspondence is not one-to-one.
 
@@ -13,12 +15,12 @@ begins, this section provides a high-level description of the concepts of the DD
 specification, with few references to the specifics of the |var-project|
 implementation.
 
-.. include:: mapping_domains.rst
-
-.. include:: mapping_entities.rst
-
-.. include:: reliable_communication.rst
-
-.. include:: ddsi-transient_behavoir.rst
-
-.. include:: discovery_participants.rst
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+   
+   mapping_domains
+   mapping_entities
+   reliable_communication
+   ddsi-transient_behavoir
+   discovery_participants

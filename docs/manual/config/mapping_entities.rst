@@ -6,7 +6,7 @@ Mapping of DCPS Entities to DDSI Entities
 
 Each DCPS domain participant in a domain has a corresponding DDSI participant.
 These DDSI participants drive the discovery of participants, Readers, and Writers
-via the discovery protocols (:ref:`Discovery behaviour`). By default, each DDSI participant 
+via the discovery protocols (:ref:`discovery_behaviour`). By default, each DDSI participant 
 has a unique address on the network in the form of its own UDP/IP socket with a unique 
 port number.
 

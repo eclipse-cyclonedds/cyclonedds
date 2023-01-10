@@ -73,7 +73,7 @@ When editing configuration files, the ``cdds.log`` can be very useful for provid
 To determine the information included in the log file, change the :ref:`Tracing/Verbosity <//CycloneDDS/Domain/Tracing/Verbosity>` settings.
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :hidden:
    
    ddsi_concepts
@@ -82,9 +82,8 @@ To determine the information included in the log file, change the :ref:`Tracing/
    network-config
    combining-participants
    data-path-config
-   network-partition
+   network-interfaces
    thread-config
    reporting-tracing
    conformance
-   compatability
    config_file_reference

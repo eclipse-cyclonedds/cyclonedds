@@ -1,38 +1,46 @@
-.. _`Shared Memory`:
+.. include:: ../external-links.part.rst
 
-Shared Memory
+.. index:: Shared memory
+
+.. _shared_memory:
+
+Shared memory
 ==============
 
-This documentation is intended to describe the details of supporting shared memory exchange in |var-project|, which is based on `Eclipse iceoryx <https://projects.eclipse.org/proposals/eclipse-iceoryx>`_.
+This section describes how to support shared memory exchange in |var-project|, 
+which is based on |url::iceoryx_link|.
 
 Build
 -----
 
-The following steps were done on Ubuntu 20.04.
+|url::iceoryx_link| depends on several packages (cmake, libacl1, libncurses5, pkgconfig and maven).
 
-Before compiling iceoryx, a number of packages which it depends on (cmake, libacl1, libncurses5, pkgconfig and maven) must be installed:
+.. note:: 
+  The following steps were done on Ubuntu 20.04.
 
-.. code-block:: bash
+#. Install the prerequisite packages:
 
-  sudo apt install cmake libacl1-dev libncurses5-dev pkg-config maven
+   .. code-block:: bash
 
-Next you will need to get and build iceoryx (all of this is assumed to occur in your home directory):
+     sudo apt install cmake libacl1-dev libncurses5-dev pkg-config maven
 
-.. code-block:: bash
+#. Get and build iceoryx. The following assumes that the istall is in your home directory:
 
-  git clone https://github.com/eclipse-iceoryx/iceoryx.git -b release_2.0
-  cd iceoryx
-  cmake -Bbuild -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DBUILD_SHARED_LIBS=ON -Hiceoryx_meta
-  cmake --build build --config Release --target install
+   .. code-block:: bash
 
-After that, get |var-project-short| and build it with shared memory support:
+     git clone https://github.com/eclipse-iceoryx/iceoryx.git -b release_2.0
+     cd iceoryx
+     cmake -Bbuild -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DBUILD_SHARED_LIBS=ON -Hiceoryx_meta
+     cmake --build build --config Release --target install
 
-.. code-block:: bash
+#. Get |var-project-short| and build it with shared memory support:
 
-  git clone https://github.com/eclipse-cyclonedds/cyclonedds.git
-  cd cyclonedds
-  cmake -Bbuild -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DBUILD_EXAMPLES=On -DCMAKE_PREFIX_PATH=~/iceoryx/install/
-  cmake --build build --config Release --target install
+   .. code-block:: bash
+
+     git clone https://github.com/eclipse-cyclonedds/cyclonedds.git
+     cd cyclonedds
+     cmake -Bbuild -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DBUILD_EXAMPLES=On -DCMAKE_PREFIX_PATH=~/iceoryx/install/
+     cmake --build build --config Release --target install
 
 When the compiler has finished, you should have built both iceoryx and |var-project-short|. Their respective files can be found in the install directories which were created in the directories git has made for you.
 
@@ -172,7 +180,7 @@ A typical result on the subscriber side will look something like this:
 
 Shared memory is especially suited for exchanging large messages:
 
-.. image:: _static/pictures/iox_comp.png
+.. image:: ../_static/pictures/iox_comp.png
   :width: 1000
   :alt: Comparison between networked (lo) and shared memory (iox) exchange
 
