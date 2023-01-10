@@ -41,6 +41,7 @@ bool ddsi_type_id_with_deps_equal (const struct DDS_XTypes_TypeIdentifierWithDep
 
 /** @component xtypes_wrapper */
 const char * ddsi_typekind_descr (unsigned char disc);
+void ddsi_xt_get_typeid_impl (const struct xt_type *xt, struct DDS_XTypes_TypeIdentifier *ti, ddsi_typeid_kind_t kind);
 
 
 /** @component xtypes_wrapper */
@@ -76,6 +77,12 @@ bool ddsi_xt_is_unresolved (const struct xt_type *t);
 
 /** @component xtypes_wrapper */
 bool ddsi_xt_is_resolved (const struct xt_type *t);
+
+/** @component xtypes_wrapper */
+void ddsi_xt_copy (struct ddsi_domaingv *gv, struct xt_type *dst, const struct xt_type *src);
+
+/** @component xtypes_wrapper */
+void ddsi_xt_get_namehash (DDS_XTypes_NameHash name_hash, const char *name);
 
 #endif /* DDS_HAS_TYPE_DISCOVERY */
 

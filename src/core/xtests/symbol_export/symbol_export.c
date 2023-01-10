@@ -402,6 +402,27 @@ int main (int argc, char **argv)
   dds_get_requested_deadline_missed_status (1, ptr);
   dds_get_requested_incompatible_qos_status (1, ptr);
 
+#ifdef DDS_HAS_TYPE_DISCOVERY
+  // dds_public_dynamic_type.h
+  dds_dynamic_member_set_external (ptr, 0, 0);
+  dds_dynamic_member_set_hashid (ptr, 0, ptr);
+  dds_dynamic_member_set_key (ptr, 0, 0);
+  dds_dynamic_member_set_must_understand (ptr, 0, 0);
+  dds_dynamic_member_set_optional (ptr, 0, 0);
+  dds_dynamic_type_add_bitmask_field (ptr, ptr, 0);
+  dds_dynamic_type_add_enum_literal (ptr, ptr, (dds_dynamic_enum_literal_value_t) { .value_kind = 0 }, 0);
+  dds_dynamic_type_add_member (ptr, (dds_dynamic_member_descriptor_t) { .name = "dummy" });
+  dds_dynamic_type_create (0, (dds_dynamic_type_descriptor_t) { .name = "dummy" });
+  dds_dynamic_type_dup (ptr);
+  dds_dynamic_type_ref (ptr);
+  dds_dynamic_type_register (ptr, ptr);
+  dds_dynamic_type_set_autoid (ptr, 0);
+  dds_dynamic_type_set_bit_bound (ptr, 0);
+  dds_dynamic_type_set_extensibility (ptr, 0);
+  dds_dynamic_type_set_nested (ptr, 0);
+  dds_dynamic_type_unref (ptr);
+#endif
+
   // dds_rhs.h
   dds_rhc_associate (ptr, NULL, NULL, NULL);
   dds_rhc_store (ptr, NULL, NULL, NULL);
@@ -636,6 +657,7 @@ int main (int argc, char **argv)
   ddsi_typeinfo_typeid (ptr, 0);
   ddsi_typeinfo_deser (ptr, 0);
   ddsi_typeinfo_fini (ptr);
+  ddsi_typeinfo_free (ptr);
   ddsi_typeinfo_dup (ptr);
   ddsi_typeinfo_minimal_typeid (ptr);
   ddsi_typeinfo_complete_typeid (ptr);

@@ -36,7 +36,6 @@
 #define MEMBER_FLAG_BITSET_MEMBER 9u
 
 static ddsi_typeid_kind_t ddsi_typeid_kind_impl (const struct DDS_XTypes_TypeIdentifier *type_id);
-static void ddsi_xt_get_typeid_impl (const struct xt_type *xt, struct DDS_XTypes_TypeIdentifier *ti, ddsi_typeid_kind_t kind);
 static bool xt_is_non_hash (const struct xt_type *xt);
 static void xt_applied_member_annotations_fini (struct xt_applied_member_annotations *ann);
 
@@ -495,7 +494,7 @@ static void xt_lbounds_dup (struct DDS_XTypes_LBoundSeq *dst, const struct DDS_X
   dst->_buffer = ddsrt_memdup (src->_buffer, dst->_length * sizeof (*dst->_buffer));
 }
 
-static void get_namehash (DDS_XTypes_NameHash name_hash, const char *name)
+void ddsi_xt_get_namehash (DDS_XTypes_NameHash name_hash, const char *name)
 {
   /* FIXME: multi byte utf8 chars? */
   char buf[16];
@@ -511,7 +510,7 @@ static void DDS_XTypes_AppliedAnnotationSeq_copy (struct DDS_XTypes_AppliedAnnot
 static void set_member_detail (struct xt_member_detail *dst, const DDS_XTypes_CompleteMemberDetail *src)
 {
   ddsrt_strlcpy (dst->name, src->name, sizeof (dst->name));
-  get_namehash (dst->name_hash, dst->name);
+  ddsi_xt_get_namehash (dst->name_hash, dst->name);
   if (src->ann_builtin) {
     dst->annotations.ann_builtin = ddsrt_calloc(1, sizeof(struct DDS_XTypes_AppliedBuiltinMemberAnnotations));
     DDS_XTypes_AppliedBuiltinMemberAnnotations_copy (dst->annotations.ann_builtin, src->ann_builtin);
@@ -1848,10 +1847,13 @@ static void xt_bitflag_seq_copy (struct xt_bitflag_seq *dst, const struct xt_bit
   }
 }
 
-static struct xt_type * xt_dup (struct ddsi_domaingv *gv, const struct xt_type *src)
+void ddsi_xt_copy (struct ddsi_domaingv *gv, struct xt_type *dst, const struct xt_type *src)
 {
-  struct xt_type *dst = ddsrt_calloc (1, sizeof (*dst));
-  ddsi_typeid_copy (&dst->id, &src->id);
+  if (!ddsi_typeid_is_none (&src->id))
+    ddsi_typeid_copy (&dst->id, &src->id);
+  else
+    dst->id.x._d = DDS_XTypes_TK_NONE;
+
   dst->kind = src->kind;
   dst->_d = src->_d;
   switch (src->_d)
@@ -1920,6 +1922,12 @@ static struct xt_type * xt_dup (struct ddsi_domaingv *gv, const struct xt_type *
       xt_type_detail_copy (&dst->_u.bitmask.detail, &src->_u.bitmask.detail);
       break;
   }
+}
+
+static struct xt_type * xt_dup (struct ddsi_domaingv *gv, const struct xt_type *src)
+{
+  struct xt_type *dst = ddsrt_calloc (1, sizeof (*dst));
+  ddsi_xt_copy (gv, dst, src);
   return dst;
 }
 
@@ -2817,7 +2825,7 @@ static void ddsi_xt_get_non_hash_id (const struct xt_type *xt, struct DDS_XTypes
   }
 }
 
-static void ddsi_xt_get_typeid_impl (const struct xt_type *xt, struct DDS_XTypes_TypeIdentifier *ti, ddsi_typeid_kind_t kind)
+void ddsi_xt_get_typeid_impl (const struct xt_type *xt, struct DDS_XTypes_TypeIdentifier *ti, ddsi_typeid_kind_t kind)
 {
   if (xt_is_non_hash (xt))
   {
