@@ -45,6 +45,7 @@ enum ddsi_type_state {
   DDSI_TYPE_PARTIAL_RESOLVED,
   DDSI_TYPE_RESOLVED,
   DDSI_TYPE_INVALID,
+  DDSI_TYPE_CONSTRUCTING
 };
 
 /** @component type_system */
@@ -52,6 +53,9 @@ dds_return_t ddsi_type_register_dep (struct ddsi_domaingv *gv, const ddsi_typeid
 
 /** @component type_system */
 void ddsi_type_ref_locked (struct ddsi_domaingv *gv, struct ddsi_type **type, const struct ddsi_type *src);
+
+/** @component type_system */
+void ddsi_type_ref (struct ddsi_domaingv *gv, struct ddsi_type **type, const struct ddsi_type *src);
 
 /** @component type_system */
 dds_return_t ddsi_type_ref_id_locked (struct ddsi_domaingv *gv, struct ddsi_type **type, const ddsi_typeid_t *type_id);
@@ -80,6 +84,9 @@ void ddsi_type_unref_locked (struct ddsi_domaingv *gv, struct ddsi_type *type);
 /** @component type_system */
 bool ddsi_type_resolved_locked (struct ddsi_domaingv *gv, const struct ddsi_type *type, ddsi_type_include_deps_t resolved_kind);
 
+/** @component type_system */
+void ddsi_type_free (struct ddsi_type *type);
+
 
 /** @component type_system */
 bool ddsi_is_assignable_from (struct ddsi_domaingv *gv, const struct ddsi_type_pair *rd_type_pair, uint32_t rd_resolved, const struct ddsi_type_pair *wr_type_pair, uint32_t wr_resolved, const dds_type_consistency_enforcement_qospolicy_t *tce);
@@ -101,7 +108,6 @@ struct ddsi_type_pair *ddsi_type_pair_init (const ddsi_typeid_t *type_id_minimal
 
 /** @component type_system */
 void ddsi_type_pair_free (struct ddsi_type_pair *type_pair);
-
 /**
  * @brief Returns the type lookup meta object for the provided type identifier.
  * @component type_system

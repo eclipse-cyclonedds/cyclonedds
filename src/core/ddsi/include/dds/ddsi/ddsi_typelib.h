@@ -56,6 +56,9 @@ DDS_EXPORT ddsi_typeinfo_t *ddsi_typeinfo_deser (const unsigned char *data, uint
 DDS_EXPORT void ddsi_typeinfo_fini (ddsi_typeinfo_t *typeinfo);
 
 /** @component type_system */
+DDS_EXPORT void ddsi_typeinfo_free (ddsi_typeinfo_t *typeinfo);
+
+/** @component type_system */
 DDS_EXPORT ddsi_typeinfo_t * ddsi_typeinfo_dup (const ddsi_typeinfo_t *src);
 
 /** @component type_system */
@@ -100,6 +103,11 @@ struct ddsi_typeobj *ddsi_type_get_typeobj (struct ddsi_domaingv *gv, const stru
 /** @component type_system */
 bool ddsi_type_resolved (struct ddsi_domaingv *gv, const struct ddsi_type *type, ddsi_type_include_deps_t resolved_kind);
 
+/** @component type_system */
+struct ddsi_domaingv *ddsi_type_get_gv (const struct ddsi_type *type);
+
+/** @component type_system */
+DDS_XTypes_TypeKind ddsi_type_get_kind (const struct ddsi_type *type);
 
 /**
  * @brief Waits for the provided type to be resolved

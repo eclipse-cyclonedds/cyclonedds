@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2006 to 2022 ZettaScale Technology and others
+ * Copyright(c) 2006 to 2023 ZettaScale Technology and others
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -132,6 +132,12 @@ ddsi_typeid_t *ddsi_typeinfo_typeid (const ddsi_typeinfo_t *type_info, ddsi_type
 void ddsi_typeinfo_fini (ddsi_typeinfo_t *typeinfo)
 {
   dds_stream_free_sample (typeinfo, &dds_cdrstream_default_allocator, DDS_XTypes_TypeInformation_desc.m_ops);
+}
+
+void ddsi_typeinfo_free (ddsi_typeinfo_t *typeinfo)
+{
+  ddsi_typeinfo_fini (typeinfo);
+  ddsrt_free (typeinfo);
 }
 
 const ddsi_typeid_t *ddsi_typeinfo_minimal_typeid (const ddsi_typeinfo_t *typeinfo)
@@ -350,8 +356,9 @@ static void type_dep_trace (struct ddsi_domaingv *gv, const char *prefix, struct
   GVTRACE ("%sdep <%s, %s>\n", prefix, ddsi_make_typeid_str (&tistr, &dep->src_type_id), ddsi_make_typeid_str (&tistrdep, &dep->dep_type_id));
 }
 
-static void ddsi_type_free (struct ddsi_domaingv *gv, struct ddsi_type *type)
+void ddsi_type_free (struct ddsi_type *type)
 {
+  struct ddsi_domaingv *gv = type->gv;
   struct ddsi_type_dep key;
   memset (&key, 0, sizeof (key));
   ddsi_typeid_copy (&key.src_type_id, &type->xt.id);
@@ -422,11 +429,12 @@ static dds_return_t ddsi_type_new (struct ddsi_domaingv *gv, struct ddsi_type **
 
   if ((*type = ddsrt_calloc (1, sizeof (**type))) == NULL)
     return DDS_RETCODE_OUT_OF_RESOURCES;
+  (*type)->gv = gv;
 
   GVTRACE (" new %p", *type);
   if ((ret = ddsi_xt_type_init_impl (gv, &(*type)->xt, type_id, type_obj)) != DDS_RETCODE_OK)
   {
-    ddsi_type_free (gv, *type);
+    ddsi_type_free (*type);
     *type = NULL;
     return ret;
   }
@@ -584,6 +592,13 @@ void ddsi_type_ref_locked (struct ddsi_domaingv *gv, struct ddsi_type **type, co
   GVTRACE ("ref ddsi_type %p refc %"PRIu32"\n", t, t->refc);
   if (type)
     *type = t;
+}
+
+void ddsi_type_ref (struct ddsi_domaingv *gv, struct ddsi_type **type, const struct ddsi_type *src)
+{
+  ddsrt_mutex_lock (&gv->typelib_lock);
+  ddsi_type_ref_locked (gv, type, src);
+  ddsrt_mutex_unlock (&gv->typelib_lock);
 }
 
 dds_return_t ddsi_type_ref_id_locked_impl (struct ddsi_domaingv *gv, struct ddsi_type **type, const struct DDS_XTypes_TypeIdentifier *type_id)
@@ -1063,14 +1078,25 @@ struct ddsi_typeobj *ddsi_type_get_typeobj (struct ddsi_domaingv *gv, const stru
   return to;
 }
 
+struct ddsi_domaingv *ddsi_type_get_gv (const struct ddsi_type *type)
+{
+  return type->gv;
+}
+
+DDS_XTypes_TypeKind ddsi_type_get_kind (const struct ddsi_type *type)
+{
+  return type->xt._d;
+}
+
 static void ddsi_type_unref_impl_locked (struct ddsi_domaingv *gv, struct ddsi_type *type)
 {
   assert (type->refc > 0);
   if (--type->refc == 0)
   {
     GVTRACE (" refc 0 remove type ");
-    ddsrt_avl_delete (&ddsi_typelib_treedef, &gv->typelib, type);
-    ddsi_type_free (gv, type);
+    if (type->state != DDSI_TYPE_CONSTRUCTING)
+      ddsrt_avl_delete (&ddsi_typelib_treedef, &gv->typelib, type);
+    ddsi_type_free (type);
   }
   else
     GVTRACE (" refc %" PRIu32 " ", type->refc);

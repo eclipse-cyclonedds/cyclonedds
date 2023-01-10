@@ -37,6 +37,7 @@ DDSI,Data Type Handling,Dynamic Types,dynamic_types
 DDSI,Data Type Handling,Type Lookup,type_lookup
 DDSI,Data Type Handling,Type System,type_system
 DDSI,Data Type Handling,XTypes Type Wrapper,xtypes_wrapper
+DDSI,Data Type Handling,Dynamic Type API,dynamic_type_api
 DDSI,Debugging and Monitoring,DDSI Statistics,ddsi_statistics
 DDSI,Debugging and Monitoring,Debug Support,debug_support
 DDSI,Debugging and Monitoring,Packet Capturing,packet_capturing
@@ -98,6 +99,7 @@ DDSI,Type Support,Type Support CDR Implementation,typesupport_cdr
 DDSI,Type Support,Type Support Interface,typesupport_if
 DDSI,Type Support,Type Support Parameter List Implementation,typesupport_pl
 DDSI,Type Support,Type Support Pserop Implementation,typesupport_pserop
+DDSI,Type Support,Dynamic Type Support,dynamic_type_support
 DDSI,Utils,Bitset,bitset
 DDSI,Utils,DDSI Byteswapping,ddsi_byteswap
 DDSI,Utils,DDSI Freelist,ddsi_freelist
