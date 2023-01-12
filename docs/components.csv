@@ -41,7 +41,7 @@ DDSI,Debugging and Monitoring,DDSI Statistics,ddsi_statistics
 DDSI,Debugging and Monitoring,Debug Support,debug_support
 DDSI,Debugging and Monitoring,Packet Capturing,packet_capturing
 DDSI,Debugging and Monitoring,Thread Monitor,thread_monitor
-DDSI,Endpoint History Cache,Reader History Cache Interface,rhc_interface
+DDSI,Endpoint History Cache,Reader History Cache Interface,rhc_if
 DDSI,Endpoint History Cache,Writer History Cache Interface,whc_if
 DDSI,Entity Support,Built-in Topic Interface,builtintopic_if
 DDSI,Entity Support,DDSI Endpoint,ddsi_endpoint
