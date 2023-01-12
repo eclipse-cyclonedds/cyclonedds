@@ -46,7 +46,7 @@
 
 .. |url::logoimage| raw:: html
  
-    <a href="..\index.html"><img src="..\_images\Cyclone_DDS-Logo.png" width="50%" height="50%"></a>
+    <a href="..\index.html"><img src="..\_images\Cyclone_DDS_logo.svg" width="50%" height="50%"></a>
 
 .. |url::python-link| raw:: html
  
@@ -120,3 +120,21 @@
 .. |url::DDS_plugins_cryptographic| raw:: html
  
     <a href="https://github.com/eclipse-cyclonedds/cyclonedds/tree/master/src/security/builtin_plugins/cryptographic" target="_blank">cryptographic plugin</a>
+
+.. |url::iceoryx_issues| raw:: html
+ 
+    <a href="https://github.com/eclipse/iceoryx/issues/33" target="_blank">iceoryx issues</a>
+
+.. |url::adlink-ROS| raw:: html
+ 
+    <a href="https://github.com/adlink-ROS/" target="_blank">ADLINK Advanced Robotics Platform Group</a>
+
+.. |url::Apex.AI| raw:: html
+ 
+    <a href="https://www.apex.ai/" target="_blank">Apex.AI</a>
+
+.. |url::iceoryx_introspection| raw:: html
+ 
+    <a href="https://github.com/eclipse-iceoryx/iceoryx/tree/v2.0.0/tools/introspection" target="_blank">iceoryx introspection</a>
+
+    

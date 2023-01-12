@@ -1,3 +1,5 @@
+.. include:: ../../external-links.part.rst
+
 Language-specific installation
 ==============================
 

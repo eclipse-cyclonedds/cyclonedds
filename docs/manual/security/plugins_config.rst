@@ -1,3 +1,5 @@
+.. include:: ../external-links.part.rst
+
 .. index:: 
   single: Plugin; Configuration
   single: DDS security; Plugin configuration

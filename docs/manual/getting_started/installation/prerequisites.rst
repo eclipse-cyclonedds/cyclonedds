@@ -1,6 +1,8 @@
-.. _prerequisites:
+.. include:: ../../external-links.part.rst
 
-.. include:: ../external-links.part.rst
+.. index:: Software prerequisites, Prerequisites
+
+.. _software_prerequisites:
 
 Prerequisites
 =============

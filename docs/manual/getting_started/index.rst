@@ -6,7 +6,7 @@ Getting Started
 
 .. include:: ../external-links.part.rst
 
-.. image:: ../_static/gettingstarted-figures/Cyclone_DDS-Logo.png
+.. image:: ../_static/gettingstarted-figures/Cyclone_DDS_logo.svg
    :width: 1px
    :height: 1px
 

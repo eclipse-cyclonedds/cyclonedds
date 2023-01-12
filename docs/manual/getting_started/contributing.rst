@@ -1,6 +1,8 @@
-.. _contributing:
-
 .. include:: ../external-links.part.rst
+
+.. index:: Contributing
+
+.. _contributing_to_dds:
 
 Contributing to |var-project|
 =============================

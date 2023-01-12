@@ -1,3 +1,5 @@
+.. include:: ../../external-links.part.rst
+
 .. _installing_cpp:
 
 Installing |var-project-short| C++ API
