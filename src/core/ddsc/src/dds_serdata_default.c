@@ -599,18 +599,26 @@ static struct dds_serdata_default *serdata_default_from_sample_cdr_common (const
         /* We have a XCDR1 key, so this must be converted to XCDR2 to store
            it as key in this serdata. */
         if (!gen_serdata_key_from_sample (tp, &d->key, sample))
-          return NULL;
+          goto error;
       }
       break;
-    case SDK_DATA:
-      if (!dds_stream_write_sample (&os, sample, &tp->type))
-        return NULL;
+    case SDK_DATA: {
+      const bool ok = dds_stream_write_sample (&os, sample, &tp->type);
+      // `os` aliased what was in `d`, but was changed and may have moved.
+      // `d` therefore needs to be updated even when write_sample failed.
       ostream_add_to_serdata_default (&os, &d);
+      if (!ok)
+        goto error;
       if (!gen_serdata_key_from_sample (tp, &d->key, sample))
-        return NULL;
+        goto error;
       break;
+    }
   }
   return d;
+
+error:
+  ddsi_serdata_unref (&d->c);
+  return NULL;
 }
 
 static struct ddsi_serdata *serdata_default_from_sample_data_representation (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, dds_data_representation_id_t data_representation, const void *sample, bool key)

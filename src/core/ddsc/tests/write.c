@@ -176,7 +176,7 @@ CU_Test(ddsc_write, invalid_data)
         .o = 1,
         .s = "This string is exactly so long that it would previously trigger CHAM-405. If this string is shortened exactly one character, all is well. Since it is fixed now, there doesn't need to be any further investigation."
     };
-    memset (&st_data.b, 2, 1); // make something invalid that the serialiser should reject
+    memset (&st_data, 0xff, sizeof (st_data)); // make something invalid that the serialiser should reject
 
     par = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
     CU_ASSERT_FATAL(par > 0);
