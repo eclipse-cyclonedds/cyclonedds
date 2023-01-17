@@ -158,3 +158,37 @@ CU_Test(ddsc_write, simpletypes)
     dds_delete(top);
     dds_delete(par);
 }
+
+CU_Test(ddsc_write, invalid_data)
+{
+    dds_return_t status;
+    dds_entity_t par, top, wri;
+    Space_simpletypes st_data = {
+        .l = -1,
+        .ll = -1,
+        .us = 1,
+        .ul = 1,
+        .ull = 1,
+        .f = 1.0f,
+        .d = 1.0f,
+        .c = '1',
+        .b = true,
+        .o = 1,
+        .s = "This string is exactly so long that it would previously trigger CHAM-405. If this string is shortened exactly one character, all is well. Since it is fixed now, there doesn't need to be any further investigation."
+    };
+    memset (&st_data.b, 2, 1); // make something invalid that the serialiser should reject
+
+    par = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
+    CU_ASSERT_FATAL(par > 0);
+    top = dds_create_topic(par, &Space_simpletypes_desc, "SimpleTypes", NULL, NULL);
+    CU_ASSERT_FATAL(top > 0);
+    wri = dds_create_writer(par, top, NULL, NULL);
+    CU_ASSERT_FATAL(wri > 0);
+
+    status = dds_write(wri, &st_data);
+    CU_ASSERT_EQUAL_FATAL(status, DDS_RETCODE_BAD_PARAMETER);
+
+    dds_delete(wri);
+    dds_delete(top);
+    dds_delete(par);
+}
