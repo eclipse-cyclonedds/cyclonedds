@@ -58,7 +58,7 @@ The other non-fixed ports that are used are the per-domain participant ports, th
 item in the list. These are used only because there exist some DDSI implementations
 that assume each domain participant advertises a unique port number as part of the
 discovery protocol, and hence that there is never any need for including an explicit
-destination participant id when intending to address a single domain participant by
+destination participant ID when intending to address a single domain participant by
 using its unicast locator. |var-project| never makes this assumption, instead opting to
 send a few bytes extra to ensure the contents of a message are all that is needed. With
 other implementations, you will need to check.

@@ -16,7 +16,7 @@ Proxy participants and endpoints
 
 In the |url::ddsi_spec|, |var-project| is known as a *stateful* implementation. Writers 
 only send data to discovered Readers, and Readers only accept data from discovered
-Writers. There is one exception: the ``wWriter`` may choose to multicast the data so 
+Writers. There is one exception: the ``Writer`` may choose to multicast the data so 
 that any Reader is able to receive it. If a Reader has already discovered the Writer 
 but not vice-versa, it can accept the data even though the connection is not fully 
 established. 
@@ -100,8 +100,8 @@ The |url::ddsi_spec| relies on the Writer History Cache (WHC), in which a sequen
 uniquely identifies each sample. The WHC integrates two different indices on the samples 
 published by a Writer: 
 
-- The **sequence number** index is used for retransmitting lost samples, and is therefore needed 
-  for all reliable Writers (see :ref:`Reliable communication`).
+- The **sequence number** index is used for re-transmitting lost samples, and is therefore needed 
+  for all reliable Writers (see :ref:`reliable_coms`).
    
 - The **key value** index is used for retaining the current state of each instance in the WHC.
   
@@ -121,9 +121,9 @@ The WHC distinguishes between:
 - History to be retained for late-joining readers for transient-local writers (controlled by 
   the topic's durability-service history QoS setting). 
 
-It is therefore possible to create a Writer that never overwrites samples for live Readers, 
+It is therefore possible to create a Writer that never overwrites samples for live readers, 
 while maintaining only the most recent samples for late-joining readers. This ensures that 
-the data that is available for late-joining Readers is the same for transient-local and for 
+the data that is available for late-joining readers is the same for transient-local and for 
 transient data.
 
 .. Index:: ! Writer throttling
@@ -137,7 +137,7 @@ When the WHC contains at least ``high`` bytes in unacknowledged samples, it stal
 Writer until the number of bytes in unacknowledged samples drops below the value set in: 
 :ref:`Internal/Watermarks/WhcLow <//CycloneDDS/Domain/Internal/Watermarks/WhcLow>`.
 
-Based on the transmit pressure and receive retransmit requests, the value of ``high`` is 
+Based on the transmit pressure and receive re-ransmit requests, the value of ``high`` is 
 dynamically adjusted between:
  - :ref:`Internal/Watermarks/WhcLow <//CycloneDDS/Domain/Internal/Watermarks/WhcLow>`
  - :ref:`Internal/Watermarks/WhcHigh <//CycloneDDS/Domain/Internal/Watermarks/WhcHigh>` 
@@ -149,8 +149,8 @@ The adaptive behavior can be disabled by setting
 :ref:`Internal/Watermarks/WhcAdaptive <//CycloneDDS/Domain/Internal/Watermarks/WhcAdaptive>` 
 to ``false``.
 
-While the adaptive behaviour generally handles a variety of fast and slow Writers and
-Readers quite well, the introduction of a very slow Reader with small buffers in an
+While the adaptive behaviour generally handles a variety of fast and slow writers and
+readers quite well, the introduction of a very slow reader with small buffers in an
 existing network that is transmitting data at high rates can cause a sudden stop while
-the new Reader tries to recover the large amount of data stored in the Writer, before
+the new reader tries to recover the large amount of data stored in the writer, before
 things can continue at a much lower rate.

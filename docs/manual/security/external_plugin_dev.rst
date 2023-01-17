@@ -20,7 +20,7 @@ External plugin development
 - Cryptographic
 
 Security plugins are dynamically loaded. The locations are defined in |var-project-short|
-configuration or Participant QoS settings, see :ref:`DDS_security`.
+configuration or participant QoS settings, see :ref:`DDS_security`.
 
 You can add your own custom plugin in an API by implementing according to the OMG 
 |url::omg.security| specification. You can implement all of the plugins or just one of them.

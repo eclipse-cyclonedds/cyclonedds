@@ -65,7 +65,7 @@ D
         Data Distribution Service Interoperability. DDSI specification: |url::dds2.1|, |url::dds2.2|, |url::dds2.5|.
      
     DDS
-        Data Distribution Service
+        Data Distribution Service. |url::dds_spec|
 
     Domain ID
         TBD
@@ -101,6 +101,9 @@ I
 =
 
 .. glossary::
+    IDL
+        Interface Definition Language
+
     IPv4
         TBD
      
@@ -218,6 +221,9 @@ T
 =
 
 .. glossary::
+    TCP
+        Transmission Control Protocol
+
     TLS
         Thread-Local Storage
 

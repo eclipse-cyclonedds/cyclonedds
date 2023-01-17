@@ -42,7 +42,7 @@ The DDS Security Model has the following three |var-project-short| plugins:
 - **AccessControl service plugin**
 
   Enforces policy decisions that determine what DDS-related operations an authenticated user is 
-  permitted to do. For example, which domains it can join, which Topics it can publish or subscribe 
+  permitted to do. For example, which domains it can join, which topics it can publish or subscribe 
   to, and so on.
 
 - **Cryptographic service plugin**
@@ -58,7 +58,7 @@ Permissions document that is signed by a shared certificate authority. Cryptogra
 for encryption and :term:`AES-GMAC` for message authentication.
 
 Security plugins are dynamically loaded. The locations are defined in |var-project-short|
-configuration or Participant QoS settings:
+configuration or participant QoS settings:
 
 - :ref:`//CycloneDDS/Domain/Security/AccessControl/Library`
 - :ref:`//CycloneDDS/Domain/Security/Authentication/Library`

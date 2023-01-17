@@ -8,7 +8,7 @@ Loan mechanism
 ==============
 
 When using shared memory exchange, additional performance gains can be made by using 
-the loan mechanism on the Writer side. The loan mechanism directly allocates memory 
+the loan mechanism on the writer side. The loan mechanism directly allocates memory 
 from the |url::iceoryx_link| shared memory pool, and provides this to the user as a 
 message data type. This eliminates a copy step in the publication process.
 
@@ -22,8 +22,8 @@ message data type. This eliminates a copy step in the publication process.
 If *status* returns :c:macro:`DDS_RETCODE_OK`, then *loaned_sample* contains a pointer 
 to the memory pool object, in all other cases, *loaned_sample* should not be dereferenced.
 
-Necessary information about the data type is supplied by the Writer. When requesting 
-loaned samples, the Writer used to request the loaned sample must be the same data 
+Necessary information about the data type is supplied by the writer. When requesting 
+loaned samples, the writer used to request the loaned sample must be the same data 
 type as the sample that you are writing in it.
 
 When requesting loaned samples, the maximum number of outstanding loans is defined by 

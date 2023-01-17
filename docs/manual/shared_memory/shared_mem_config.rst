@@ -67,7 +67,7 @@ The following optional configuration parameters in SharedMemory govern how |var-
 
 * Enable
 
-  * When set to *true* enables cyclonedds to use shared memory for local data exchange
+  * When set to *true* enables |var-project-short| to use shared memory for local data exchange
 
   * Defaults to *false*
 

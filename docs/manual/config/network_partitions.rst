@@ -20,10 +20,10 @@ elements and mapping topic/partition names to these "network partitions" using
 
 Network partitions introduce alternative multicast addresses for data and/or restrict 
 the set of unicast addresses (that is, interfaces). In the DDSI discovery protocol, 
-a Reader can override the addresses at which it is reachable, which is a feature of the 
+a reader can override the addresses at which it is reachable, which is a feature of the 
 discovery protocol that is used to advertise alternative multicast addresses and/or 
-a subset of the unicast addresses. The Writers in the network use the addresses advertised 
-by the Reader rather than the default addresses advertised by the Reader's participant.
+a subset of the unicast addresses. The writers in the network use the addresses advertised 
+by the reader rather than the default addresses advertised by the reader's participant.
 
 Unicast and multicast addresses in a network partition play different roles:
 
@@ -35,12 +35,12 @@ Unicast and multicast addresses in a network partition play different roles:
 - The unicast addresses not only influence the set of interfaces are used for unicast, but 
   thereby also the set of interfaces that are considered for use by multicast. For example: 
   specifying a unicast address that matches network interface A, ensures all traffic to that 
-  Reader uses interface A, whether unicast or multicast.
+  reader uses interface A, whether unicast or multicast.
 
 The typical use of unicast addresses is to force traffic onto certain interfaces, 
 the configuration also allows specifying interface names (using the ``interface`` attribute).
 
-The mapping of a data Reader or Writer to a network partition is indirect: 
+The mapping of a data reader or writer to a network partition is indirect: 
 
 #. The partition and topic are matched against a table of *partition mappings*, partition/topic 
    combinations to obtain the name of a network partition
@@ -54,7 +54,7 @@ The matching sequence is in the order in which the partition mappings are specif
 configuration. The first matching mapping is the one that is used. The ``*`` and ``?`` 
 wildcards are available for the DCPS partition/topic combination in the partition mapping.
 
-A single Reader or Writer is associated with a set of partitions, and each partition/topic 
+A single reader or writer is associated with a set of partitions, and each partition/topic 
 combination can potentially map to a different network partition. In this case, the first 
-matching network partition is used. This does not affect the data the Reader receives, it 
+matching network partition is used. This does not affect the data the reader receives, it 
 only affects the addressing on the network.

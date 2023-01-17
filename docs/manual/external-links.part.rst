@@ -18,11 +18,11 @@
 
 .. |url::ddsi_spec| raw:: html
 
-   <a href="https://www.omg.org/spec/DDSI-RTPS" target="_blank">DDSI Specification</a>
+   <a href="https://www.omg.org/spec/DDSI-RTPS" target="_blank">DDSI specification</a>
 
 .. |url::dds_spec| raw:: html
 
-   <a href="https://www.omg.org/spec/DDS/" target="_blank">DDS Specification</a>
+   <a href="https://www.omg.org/spec/DDS/" target="_blank">DDS specification</a>
 
 .. |url::dds2.1| raw:: html
 

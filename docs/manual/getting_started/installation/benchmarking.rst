@@ -4,7 +4,7 @@ Benchmarking Tools
 
 The |var-project-short| ``ddsperf`` tool primarily measures data *throughput*
 and *latency* of the DDS applications within a network, or within the same board. 
-the ``ddsperf`` tool also helps to do sanity checks that ensure your configuration 
+The ``ddsperf`` tool also helps to do sanity checks that ensure your configuration 
 is correctly set up and running. 
 
 In addition to ``ddsperf``, there are dedicated :ref:`examples` that show how to measure 
@@ -107,19 +107,20 @@ The output of the ``ddsperf`` tool is as shown below:
 
 - The output for the **Ping** application:
 
+  .. image:: /_static/gettingstarted-figures/4.3-2.png
+
  - The **size of the data** involved in the test (For example, 12 bytes)
  - The **minimum latency** (For example, 78.89 us)
  - The **maximum latency** (For example, 544,85 us)
  - The **mean latency** (For example, 118.434 us)
  - As well as the latency at 50%, 90%, or 99% of the time.
 
- .. image:: /_static/gettingstarted-figures/4.3-2.png
-   :align: center
-
 - The output for the **Pong** application:
 
+  .. image:: /_static/gettingstarted-figures/4.3-3.png
+
  - **RSS** is the Resident Set Size; it indicates the amount of memory
-    used by the process (For example, 3.5MB used by the process id 2680).
+    used by the process (For example, 3.5MB used by the process ID 2680).
  - **VCSW** is the number of voluntary switches, it indicates the
    times when the process waits for input or an event (For example, 2097 times).
  - **IVCSW** is the number of involuntary switches, it indicates the
@@ -130,8 +131,6 @@ The output of the ``ddsperf`` tool is as shown below:
    almost 0% of the time executing the user code and 5% executing kernel
    code in thread "ping").
 
- .. image:: /_static/gettingstarted-figures/4.3-3.png
-   :align: center
 
 Measuring throughput
 ====================
@@ -145,7 +144,6 @@ the ``ddsperf`` tool. One terminal acts as a Publisher that sends a set amount o
  If several subscriber instances are running, the multicast is automatically used.
 
 .. image:: /_static/gettingstarted-figures/4.4-1.png
-   :align: center
 
 Two additional modes are supported:
 
@@ -159,12 +157,12 @@ In the Sub mode, the subscriber operates in one of the following ways:
   WaitSet are met. For further information, refer to :ref:`waitset_conditions`.
 - **Pooling** mode. The subscriber cyclically fetches the data from its local cache.
 
-There are two ways to publish each data sample; individually, or by sending them in *Burst* mode.
-The following are the parameters for *Burst* mode:
+There are two ways to publish each data sample; individually, or by sending them in 
+*Burst* mode. The following are the parameters for *Burst* mode:
 
 - The **Rate** and frequency at which data is written (defined by the [R[Hz]] option). 
-  The default rate is "as fast as possible". In **pub** mode, instead of trying to reach a set rate, it sends data fast
-  as possible.
+  The default rate is "as fast as possible". In **pub** mode, instead of trying to 
+  reach a set rate, it sends data as fast as possible.
 - The **Size** of the data that is exchanged (defined by the [Size S] option). 
   The default size is "as small as possible" (depending on the size of the topic).
 - The **Burst Size** (only applies to the **pub** mode) is the number of data samples 
@@ -202,9 +200,11 @@ The output of the ``ddsperf`` tool when measuring throughput is as shown
 below:
 
 - The output for the **Pub** application:
+  
+  .. image:: /_static/gettingstarted-figures/4.4-2.png
 
  - **RSS** is the Resident Set Size; it indicates the amount of memory
-   used by the process (For example, 6.3MB used by the process id "4026");
+   used by the process (For example, 6.3MB used by the process ID "4026");
  - **VCSW** is the number of voluntary switches, it indicates the
    times when the process waits for input or an event (For example, 1054 times);
  - **IVCSW** is the number of involuntary switches, it indicates the
@@ -215,23 +215,21 @@ below:
    34% of the time executing the user code and 11% executing kernel code
    in thread "pub").
 
-.. image:: /_static/gettingstarted-figures/4.4-2.png
-   :align: center
 
 - The output for the **Sub** application:
 
+  .. image:: /_static/gettingstarted-figures/4.4-3.png
+
  - The **size of the data** involved in this test (For example, 1024 bytes,
-   which is the "size 1k" defined in the pub command)
- - The **total packets received** (For example, 614598);
- - The **total packets lost** t (For example, 0);
+   which is the "size 1k" defined in the pub command).
+ - The **total packets received** (For example, 614598).
+ - The **total packets lost** (For example, 0).
  - The **packets received in a 1 second reporting period** (For example,
-   212648);
- - The **packets lost in a 1 second report period** (For example, 0);
+   212648).
+ - The **packets lost in a 1 second report period** (For example, 0).
  - The **number of samples processed by the Sub application** in 1s
    (For example, 21260 KS/s, with the unit KS/s is 1000 samples per second).
 
-.. image:: /_static/gettingstarted-figures/4.4-3.png
-   :align: center
 
 Measuring Throughput and Latency in a mixed scenario
 ====================================================

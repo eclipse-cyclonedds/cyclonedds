@@ -36,7 +36,7 @@ SPDP message is sent, it is sent to all of these addresses.
 The default behaviour is to include each IP address several times in the set of addresses
 (for participant indices 0 through 
 :ref:`Discovery/MaxAutoParticipantIndex <//CycloneDDS/Domain/Discovery/MaxAutoParticipantIndex>`).
-Each IP address then has a different UDP port number, which corresponding to another participant index. 
+Each IP address then has a different UDP port number, each corresponding to a participant index. 
 Configuring several peers in this way causes a large burst of packets to be sent each 
 time an SPDP message is sent out, and each local DDSI participant causes a burst of 
 its own messages. Because most participant indices are not used, this is wasteful behaviour and is 

@@ -2,7 +2,7 @@
 
 .. index:: 
   single: Shared memory
-  single: Iceoryx; Shared memory
+  single: iceoryx; Shared memory
 
 .. _shared_memory:
 

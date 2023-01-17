@@ -85,9 +85,9 @@ be verified if it is really issued by ID CA.
 
 Access Control is configured with governance and permissions documents:
 
-- A governance document defines the security behavior of domains and Topics. 
-- A permissions document contains the permissions of the domain participant (Topics, Readers and 
-  Writers), and binds them to an identity certificate by subject name (distinguished name).
+- A governance document defines the security behavior of domains and topics. 
+- A permissions document contains the permissions of the domain participant (topics, readers and 
+  writers), and binds them to an identity certificate by subject name (distinguished name).
 
 Governance documents and Permissions documents are signed by **Permission CA**. Signed documents also
 contains Permissions CA certificate so that they can be verified that they are really issued

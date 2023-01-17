@@ -124,7 +124,7 @@ Receiving of data is split into multiple threads:
 
   - Retrieving all incoming network packets.
   - Running the protocol state machine, which involves scheduling of AckNack and Heartbeat messages.
-  - Queueing of samples that must be retransmitted.
+  - Queueing of samples that must be re-transmitted.
   - Defragmenting.
   - Ordering incoming samples.
   
@@ -132,7 +132,7 @@ Receiving of data is split into multiple threads:
   queue size, set: :ref:`Internal/DeliveryQueueMaxSamples <//CycloneDDS/Domain/Internal/DeliveryQueueMaxSamples>`.
   Generally, queues do not need to be very large (unless there are very small samples in very
   large messages). The primary function is to smooth out the processing when batches of
-  samples become available at once, for example following a retransmission.
+  samples become available at once, for example following a re-transmission.
   
   When any of these receive buffers hit their size limit, and it concerns application data,
   the receive thread waits for the queue to shrink. However, discovery data never blocks the 

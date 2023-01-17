@@ -1,15 +1,17 @@
-.. index:: ! TCP support
+.. include:: ../external-links.part.rst
+
+.. index:: ! TCP
   
-.. _`TCP support`:
+.. _tcp_support:
 
 ===========
 TCP support
 ===========
 
-The DDSI protocol is a protocol that provides a connectionless transport with
-unreliable datagrams. However, there are times where TCP is the only
+The |url::ddsi_spec| is a protocol that provides a connectionless transport with
+unreliable datagrams. However, there are times where :term:`TCP` is the only
 practical network transport available (for example, across a WAN). This is the reason
-|var-project| can use TCP instead of UDP if needed.
+|var-project| can use TCP instead of :term:`UDP` if needed.
 
 The differences in the model of operation between DDSI and TCP are quite large: DDSI is
 based on the notion of peers, whereas TCP communication is based on the notion of a
@@ -26,7 +28,6 @@ recovered via the standard DDSI reliability. This also means that the Heartbeats
 AckNacks still need to be sent over a TCP connection, and consequently that DDSI
 flow-control occurs on top of TCP flow-control.
 
-Another point worth noting is that connection establishment potentially takes a long
-time, and that giving up on a transmission to a failed or no longer reachable host can
-also take a long time. These long delays can be visible at the application level at
-present.
+Connection establishment potentially takes a long time, and giving up on a transmission 
+to a failed, or no longer reachable host, can also take a long time. These long delays 
+can be visible at the application level.

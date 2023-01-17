@@ -1,6 +1,7 @@
-.. _`TLS support`:
-
 .. index:: ! TLS support
+    single: TCP; TLS support
+
+.. _tls_support:
 
 -----------
 TLS support

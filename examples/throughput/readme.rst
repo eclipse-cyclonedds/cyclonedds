@@ -65,11 +65,11 @@ Configuration:
 Running the example
 *******************
 
-To avoid mixing the output, run the Publisher and Subscriber in separate terminals.
+To avoid mixing the output, run the publisher and subscriber in separate terminals.
 
 #. Open 2 terminals.
 
-#. In the first terminal start Publisher by running **publisher**.
+#. In the first terminal start publisher by running **publisher**.
 
    Publisher usage (parameters must be supplied in order):
 
@@ -79,7 +79,7 @@ To avoid mixing the output, run the Publisher and Subscriber in separate termina
 
    ``./publisher 8192 0 1 0 "Throughput example"``
 
-#. In the second terminal start Subscriber by running **subscriber**.
+#. In the second terminal start subscriber by running **subscriber**.
 
    Subscriber usage (parameters must be supplied in order):
 
@@ -89,7 +89,7 @@ To avoid mixing the output, run the Publisher and Subscriber in separate termina
 
    ``./subscriber 0 0 "Throughput example"``  
 
-#. To achieve optimal performance, set the CPU affinity so that the Publisher and Subscriber 
+#. To achieve optimal performance, set the CPU affinity so that the publisher and subscriber 
    run on separate CPU cores and use real-time scheduling:
 
   .. tabs::

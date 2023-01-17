@@ -14,7 +14,7 @@ The |var-project| C++ API consists of the following:
 
 **Obtaining C++ API**
 
-Obtain |var-project-short| via Git from the github-hosted repository:
+Obtain |var-project-short| via Git from the repository hosted on GitHub:
 
 .. code-block:: bash
 

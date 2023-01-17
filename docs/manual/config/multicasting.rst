@@ -1,6 +1,6 @@
-.. _`Multicasting`:
+.. index:: ! Multicast.. 
 
-.. index:: ! Multicast
+.. _multicasting_bm:
 
 ============
 Multicasting

@@ -3,7 +3,7 @@
 Installing |var-project|
 ========================
 
-Obtain |var-project-short| via Git from the github-hosted repository:
+Obtain |var-project-short| via Git from the repository hosted on GitHub:
 
 .. code-block:: bash
 

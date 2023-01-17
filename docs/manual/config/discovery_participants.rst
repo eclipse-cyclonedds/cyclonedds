@@ -2,7 +2,7 @@
 .. _`Discovery of participants and endpoints`:
 
 ***************************************
-Discovery of Participants & Endpoints
+Discovery of participants and andpoints
 ***************************************
 
 DDSI participants discover each other using the *Simple Participant Discovery
@@ -31,11 +31,11 @@ Protocol* (SEDP) takes over. The SEDP exchanges information about the DCPS Reade
 writers with the two participants. For |var-project|, SEDP also exchanges information about 
 publishers, subscribers and topics in a manner compatible with OpenSplice.
 
-The SEDP data is handled as reliable (see :ref:`Reliable communication`), transient-local data 
+The SEDP data is handled as reliable (see :ref:`reliable_coms`), transient-local data 
 (see :ref:`DDSI-specific transient-local behaviour`). Therefore, the SEDP Writers
 send Heartbeats. If the SEDP Readers detect they have not yet received all samples and send
-AckNacks requesting retransmissions, the Writer responds to these and eventually
-receives a pure acknowledgement informing it that the Reader has now received the
+AckNacks requesting re-transmissions, the Writer responds to these and eventually
+receives a pure acknowledgement informing it that the reader has now received the
 complete set.
 
 .. note::

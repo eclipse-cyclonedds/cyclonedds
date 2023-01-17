@@ -7,8 +7,8 @@
 Limitations of shared memory
 ============================
 
-Due to the manner in which the shared memory exchange functions, there are some 
-limitations to the types of data, and delivery are required to ensure their correct 
+Due to the manner in which data is exchanged over shared memory, there are some 
+limitations to the types of data that may be exchanged, and delivery are required to ensure their correct 
 functioning.
 
 Fixed size data types
@@ -24,10 +24,12 @@ A possible workaround for this limitation is to use fixed size arrays of chars
 instead of strings (and arrays of other types in stead of sequences), and accept 
 the overhead.
 
+.. index:: iceoryx; Data exchange
+
 iceoryx data exchange
 ---------------------
 
-The manner in which the iceoryx memory pool keeps track of exchanged data puts a 
+The manner in which the |url::iceoryx_link| memory pool keeps track of exchanged data puts a 
 number of limitations on the QoS settings. For Writers, the following QoS settings 
 are prerequisites for shared memory exchange:
 
@@ -40,6 +42,12 @@ are prerequisites for shared memory exchange:
 
     * - Deadline
       - :c:macro:`DDS_INFINITY`
+
+        ``DDS_INFINITY`` is a define in |var-project-short| that indicates an amount 
+        of time in excess of the maximum duration that can be represented. It is used 
+        to tell the interface that this duration is infinite. If timeouts depend on 
+        this duration, they will never occur in the program's lifetime. Due to this, 
+        some code paths can differ, and be more efficient.
 
     * - Reliability
       - :c:macro:`DDS_RELIABILITY_RELIABLE`
@@ -84,5 +92,5 @@ iceoryx service is 127.
 Operating system limitations
 ----------------------------
 
-The limit on the operating system. Iceoryx has no functioning implementation for the 
+The limit on the operating system. iceoryx has no functioning implementation for the 
 Windows operating system. Refer to |url::iceoryx_issues| for further information.

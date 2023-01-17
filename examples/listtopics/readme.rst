@@ -38,4 +38,4 @@ mitigate this, the listtopics example also monitors the discovery of other parti
 If any show up but no topics are discovered, it prints a warning.
 
 .. note::
-   Running two copies of the listtopics example (and nothing) else always triggers a warning.
+   Running two copies of the listtopics example (and nothing else) always triggers a warning.

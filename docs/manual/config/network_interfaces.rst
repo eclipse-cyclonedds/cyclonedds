@@ -1,6 +1,6 @@
 .. index:: Network interface, IPv4, IPv6
 
-.. _Networking_interfaces:
+.. _networking_interfaces:
 
 =====================
 Networking interfaces
@@ -44,7 +44,7 @@ The default address family is IPv4. To change the address family to IPv6, set:
 
 .. note::
   |var-project| does not mix IPv4 and IPv6 addressing. Therefore, all DDSI participants in 
-  the network must use the same addressing mode. When inter-operating, this behaviour is 
+  the network must use the same addressing mode. When interoperating, this behaviour is 
   the same. That is, it looks at either IPv4 or IPv6 addresses in the advertised address 
   information in the SPDP and SEDP discovery protocols.
 
@@ -72,7 +72,7 @@ Multiple network interfaces
 
 Multiple network interfaces can be used simultaneously by listing multiple 
 :ref:`NetworkInterface <//CycloneDDS/Domain/General/Interfaces/NetworkInterface>` elements. 
-The default behavoir still applies, but with extended network interfaces. For example, 
+The default behaviour still applies, but with extended network interfaces. For example, 
 the SPDP packets advertise multiple addresses and sends these packets out on all interfaces. 
 If link-local addresses are used, the issue with *link-local addressing* gains importance.
 

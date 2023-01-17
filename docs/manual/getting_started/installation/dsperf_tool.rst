@@ -5,7 +5,11 @@ The ``ddsperf`` tool
 
 The ``ddsperf`` tool is pre-installed within ``<installation-dir>/bin``.
 
-The following test ensures that the the loop-back option is enabled.
+.. note:: 
+   ``ddsperf`` is not Python based. The Python tooling uses ``ddsperf`` to provide the 
+   cyclonedds ``performance`` subcommand and acts as a front-end for ``ddsperf``.
+
+The following test ensures that the the loopback option is enabled.
 
 To complete the sanity checks of your DDS-based system:
 

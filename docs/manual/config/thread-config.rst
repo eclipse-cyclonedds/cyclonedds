@@ -36,7 +36,7 @@ The following threads exist:
          - Performs all protocol processing.
          - Queues (nearly) all protocol messages sent in response for handling by the timed-event 
            thread.
-         - Queues for delivery (in special cases, delivers it directly to the data Readers).
+         - Queues for delivery (in special cases, delivers it directly to the data readers).
     * - ``dq.builtins``
       - Processes all discovery data coming in from the network.
     * - ``lease``
@@ -44,7 +44,7 @@ The following threads exist:
     * - ``tev``
       - Timed-event handling. Used for: 
          - Periodic transmission of participant discovery and liveliness messages.
-         - Transmission of control messages for reliable Writers and Readers (except those that have 
+         - Transmission of control messages for reliable writers and readers (except those that have 
            their own timed-event thread)
          - Retransmitting of reliable data on request (except those that have their own timed-event 
            thread)
@@ -59,8 +59,8 @@ For each defined channel:
     * - ``dq.channel-name``
       - Deserialisation and asynchronous delivery of all user data.
     * - ``tev.channel-name``
-      - Channel-specific "timed-event" handling transmission of control messages for reliable Writers 
-        and Readers and retransmission of data on request. 
+      - Channel-specific "timed-event" handling transmission of control messages for reliable writers 
+        and Readers and re-transmission of data on request. 
         
         Channel-specific threads exist only if the configuration includes an element for it, or if an 
         auxiliary bandwidth limit is set for the channel.

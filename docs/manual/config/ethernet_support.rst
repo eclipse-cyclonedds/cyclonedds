@@ -1,4 +1,6 @@
-.. _`Raw Ethernet support`:
+.. index:: Ethernet support
+
+.. _ethernet_support:
 
 ====================
 Raw ethernet support

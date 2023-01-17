@@ -1,20 +1,20 @@
-.. _`Network partition configuration`:
-
 .. index:: Network partition, Partition, Multicast, DCPS
+
+.. _network_partition_config:
 
 *******************************
 Network partition configuration
 *******************************
 
 Network partitions have alternative multicast addresses for data that is transmitted via 
-Readers and Writers that are mapped to the topic under that partition. 
+readers and wters that are mapped to the topic under that partition. 
 
-In the DDSI discovery protocol, a Reader can override the default address at which it is 
+In the DDSI discovery protocol, a reader can override the default address at which it is 
 reachable. This feature of the discovery protocol is used for advertising alternative 
-multicast addresses. The DDSI Writers in the network multicast to such an alternative 
+multicast addresses. The DDSI writers in the network multicast to such an alternative 
 multicast address when multicasting samples or control data.
 
-The mapping of a :term:`DCPS` data Reader to a network partition is indirect: 
+The mapping of a :term:`DCPS` data reader to a network partition is indirect: 
 
 #. To obtain the network partition name, the DCPS partitions and topic are matched against 
    a table of *partition mappings* (partition/topic combinations). 
@@ -24,9 +24,9 @@ The mapping of a :term:`DCPS` data Reader to a network partition is indirect:
 
 If no match is found, the default multicast address is used.
 
-.. _`Matching rules`:
-
 .. index:: Matching rules, DCPS, Ignored partitions
+
+.. _matching_rules:
 
 ==============
 Matching rules
@@ -37,21 +37,21 @@ partition mappings are specified in the configuration. The first matching mappin
 the one that is used. The ``*`` and ``?`` wildcards are available for the DCPS
 partition/topic combination in the partition mapping.
 
-|var-project| can be instructed to ignore all DCPS data Readers and Writers for certain 
+|var-project| can be instructed to ignore all DCPS data readers and writers for certain 
 DCPS partition/topic combinations through the use of 
 :ref:`Partitioning/IgnoredPartitions <//CycloneDDS/Domain/Partitioning/IgnoredPartitions>`
 (see :ref:`Endpoint discovery <Endpoint discovery>`). The ignored partitions use the same 
 matching rules as normal mappings, and take precedence over the normal mappings.
 
-.. _`Multiple matching mappings`:
+.. _multiple_matching_mappings:
 
 ==========================
 Multiple matching mappings
 ==========================
 
-A single DCPS data Reader can be associated with a set of partitions, and each partition/topic 
+A single DCPS data reader can be associated with a set of partitions, and each partition/topic 
 combination can potentially map to different network partitions. The first matching network 
 partition is used. 
 
 .. note::
-    This does not affect the data that the Reader receives. It only affects the addressing on the network.
+    This does not affect the data that the reader receives. It only affects the addressing on the network.

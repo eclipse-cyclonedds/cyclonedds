@@ -17,7 +17,9 @@ are very welcome, see :ref:`contributing_to_dds`.
 
 The following is a list of useful tips:
 
-* Most of the shared memory modification is under the define :c:macro:`DDS_HAS_SHM`.
+* Most of the shared memory modification is under the define :c:macro:`DDS_HAS_SHM`. 
+  `DDS_HAS_SHM` is a flag set through ``cmake`` when compiling, which enables 
+  shared memory support.
 
 * To learn about the internal happenings of the |url::iceoryx_link| service, there 
   is a useful tool from iceoryx called |url::iceoryx_introspection|:

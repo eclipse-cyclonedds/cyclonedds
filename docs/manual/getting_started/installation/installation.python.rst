@@ -1,3 +1,7 @@
+.. include:: ../external-links.part.rst
+
+.. index:: Python
+
 .. _installing_python:
 
 Installing |var-project-short| Python
@@ -15,7 +19,7 @@ If you get an exception about non-locatable libraries, or need to manage multipl
 The wheels (binary archives) on PyPi contain a pre-built binary of the CycloneDDS C library and IDL compiler. However, the pre-built package:
 
  * does not provide support for DDS Security,
- * does not provide support for shared memory via Iceoryx,
+ * does not provide support for shared memory via |url::iceoryx_link|,
  * comes with generic binaries that are not optimized per platform.
 
 If you need these features, or cannot use the binaries for other reasons, install the |var-project-short| Python API from source (see below).
