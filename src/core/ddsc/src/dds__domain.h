@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef _DDS_DOMAIN_H_
-#define _DDS_DOMAIN_H_
+#ifndef DDS__DOMAIN_H
+#define DDS__DOMAIN_H
 
 #include "dds__types.h"
 
@@ -18,10 +18,13 @@
 extern "C" {
 #endif
 
+/** @component domain */
 dds_entity_t dds_domain_create_internal (dds_domain **domain_out, dds_domainid_t id, bool implicit, const char *config) ddsrt_nonnull((1,4));
+
+/** @component domain */
 dds_domain *dds_domain_find_locked (dds_domainid_t id);
 
 #if defined (__cplusplus)
 }
 #endif
-#endif
+#endif /* DDS__DOMAIN_H */

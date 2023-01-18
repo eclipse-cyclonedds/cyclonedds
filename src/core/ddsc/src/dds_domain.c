@@ -33,7 +33,7 @@
 #include "dds__serdata_default.h"
 
 #ifdef DDS_HAS_SHM
-#include "shm__monitor.h"
+#include "dds__shm_monitor.h"
 #endif
 
 static dds_return_t dds_domain_free (dds_entity *vdomain);
@@ -145,7 +145,7 @@ static dds_entity_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
   // create the shared memory monitor based on iceoryx
   if (domain->gv.config.enable_shm)
   {
-    shm_monitor_init(&domain->m_shm_monitor);
+    dds_shm_monitor_init(&domain->m_shm_monitor);
   }
 #endif
 
@@ -329,7 +329,7 @@ static dds_return_t dds_domain_free (dds_entity *vdomain)
 
 #ifdef DDS_HAS_SHM
   if (domain->gv.config.enable_shm)
-    shm_monitor_destroy(&domain->m_shm_monitor);
+    dds_shm_monitor_destroy(&domain->m_shm_monitor);
 #endif
 
   ddsi_fini (&domain->gv);

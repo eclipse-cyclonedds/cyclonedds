@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef _DDS_TOPIC_H_
-#define _DDS_TOPIC_H_
+#ifndef DDS__TOPIC_H
+#define DDS__TOPIC_H
 
 #include "dds__types.h"
 #include "dds__entity.h"
@@ -19,23 +19,24 @@
 extern "C" {
 #endif
 
-DEFINE_ENTITY_LOCK_UNLOCK(dds_topic, DDS_KIND_TOPIC)
+DEFINE_ENTITY_LOCK_UNLOCK(dds_topic, DDS_KIND_TOPIC, topic)
 
-void dds_topic_free (dds_domainid_t domainid, struct ddsi_sertype * st) ddsrt_nonnull_all;
-
+/** @component topic */
 dds_return_t dds_topic_pin_with_origin (dds_entity_t handle, bool from_user, struct dds_topic **tp) ddsrt_nonnull_all;
+
+/** @component topic */
 dds_return_t dds_topic_pin (dds_entity_t handle, struct dds_topic **tp) ddsrt_nonnull_all;
+
+/** @component topic */
 void dds_topic_unpin (struct dds_topic *tp) ddsrt_nonnull_all;
+
+/** @component topic */
 void dds_topic_defer_set_qos (struct dds_topic *tp) ddsrt_nonnull_all;
+
+/** @component topic */
 void dds_topic_allow_set_qos (struct dds_topic *tp) ddsrt_nonnull_all;
 
-#ifndef DDS_TOPIC_INTERN_FILTER_FN_DEFINED
-#define DDS_TOPIC_INTERN_FILTER_FN_DEFINED
-typedef bool (*dds_topic_intern_filter_fn) (const void * sample, void *ctx);
-#endif
-
-void dds_topic_set_filter_with_ctx (dds_entity_t topic, dds_topic_intern_filter_fn filter, void *ctx);
-dds_topic_intern_filter_fn dds_topic_get_filter_with_ctx (dds_entity_t topic);
+/** @component topic */
 dds_entity_t dds_create_topic_impl (
     dds_entity_t participant,
     const char * name,
@@ -48,4 +49,5 @@ dds_entity_t dds_create_topic_impl (
 #if defined (__cplusplus)
 }
 #endif
-#endif
+
+#endif /* DDS__TOPIC_H */

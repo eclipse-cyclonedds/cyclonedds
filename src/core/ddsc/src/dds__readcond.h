@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef _DDS_READCOND_H_
-#define _DDS_READCOND_H_
+#ifndef DDS__READCOND_H
+#define DDS__READCOND_H
 
 #include "dds__entity.h"
 
@@ -18,15 +18,11 @@
 extern "C" {
 #endif
 
-dds_readcond *
-dds_create_readcond(
-  dds_reader *rd,
-  dds_entity_kind_t kind,
-  uint32_t mask,
-  dds_querycondition_filter_fn filter);
+/** @component data_query */
+dds_readcond * dds_create_readcond_impl (dds_reader *rd, dds_entity_kind_t kind, uint32_t mask, dds_querycondition_filter_fn filter);
 
 #if defined (__cplusplus)
 }
 #endif
 
-#endif
+#endif /* DDS__READCOND_H */

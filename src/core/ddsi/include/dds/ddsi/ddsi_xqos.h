@@ -299,6 +299,7 @@ DDS_EXPORT extern const dds_qos_t ddsi_default_qos_participant;
 
 /**
  * @brief Initialize a new empty dds_qos_t as an empty object
+ * @component qos_handling
  *
  * In principle, this only clears the "present" and "aliased" bitmasks.  A debug build
  * additionally initializes all other bytes to 0x55.
@@ -309,6 +310,7 @@ void ddsi_xqos_init_empty (dds_qos_t *xqos);
 
 /**
  * @brief Copy "src" to "dst"
+ * @component qos_handling
  *
  * @param[out]    dst     destination, any contents are overwritten
  * @param[in]     src     source dds_qos_t
@@ -317,6 +319,7 @@ void ddsi_xqos_copy (dds_qos_t *dst, const dds_qos_t *src);
 
 /**
  * @brief Free memory owned by "xqos"
+ * @component qos_handling
  *
  * A dds_qos_t may own other allocated blocks of memory, depending on which fields are
  * set, their types and whether they are marked as "aliased".  This function releases any
@@ -329,6 +332,7 @@ void ddsi_xqos_fini (dds_qos_t *xqos);
 
 /**
  * @brief Check whether xqos is valid according to the validation rules in the spec
+ * @component qos_handling
  *
  * The checks concern the values for the individual fields as well as a few combinations
  * of fields.  Only those that are set are checked (the defaults are all valid anyway),
@@ -347,6 +351,7 @@ dds_return_t ddsi_xqos_valid (const struct ddsrt_log_cfg *logcfg, const dds_qos_
 
 /**
  * @brief Extend "a" with selected entries present in "b"
+ * @component qos_handling
  *
  * This copies into "a" any entries present in "b" that are included in "mask" and missing
  * in "a".  It doesn't touch any entries already present in "a".  Calling this on an empty
@@ -361,6 +366,7 @@ void ddsi_xqos_mergein_missing (dds_qos_t *a, const dds_qos_t *b, uint64_t mask)
 
 /**
  * @brief Determine the set of entries in which "x" differs from "y"
+ * @component qos_handling
  *
  * This computes the entries set in "x" but not set in "y", not set in "x" but set in "y",
  * or set in both "x" and "y" but to a different value.  It returns this set reduced to
@@ -377,6 +383,7 @@ uint64_t ddsi_xqos_delta (const dds_qos_t *a, const dds_qos_t *b, uint64_t mask)
 
 /**
  * @brief Add a property 'name' to the properties of "xqos" if it does not exists
+ * @component qos_handling
  *
  * @param[in]  xqos        qos object to add property to.
  * @param[in]  propagate   whether to propagate (emit to wire) the property
@@ -389,6 +396,7 @@ bool ddsi_xqos_add_property_if_unset (dds_qos_t *xqos, bool propagate, const cha
 
 /**
  * @brief Duplicate "src"
+ * @component qos_handling
  *
  * @param[in]  src       dds_qos_t to be duplicated
  *

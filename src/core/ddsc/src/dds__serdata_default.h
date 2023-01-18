@@ -105,11 +105,6 @@ DDSRT_STATIC_ASSERT ((offsetof (struct dds_serdata_default, data) % 8) == 0);
 #undef DDS_SERDATA_DEFAULT_PREPAD
 #undef DDS_SERDATA_DEFAULT_FIXED_FIELD
 
-#ifndef DDS_TOPIC_INTERN_FILTER_FN_DEFINED
-#define DDS_TOPIC_INTERN_FILTER_FN_DEFINED
-typedef bool (*dds_topic_intern_filter_fn) (const void * sample, void *ctx);
-#endif
-
 struct dds_sertype_default_cdr_data {
   uint32_t sz;
   unsigned char *data;
@@ -133,12 +128,17 @@ extern const struct ddsi_serdata_ops dds_serdata_ops_cdr_nokey;
 extern const struct ddsi_serdata_ops dds_serdata_ops_xcdr2;
 extern const struct ddsi_serdata_ops dds_serdata_ops_xcdr2_nokey;
 
+/** @component typesupport_c */
 struct dds_serdatapool * dds_serdatapool_new (void);
+
+/** @component typesupport_c */
 void dds_serdatapool_free (struct dds_serdatapool * pool);
+
+/** @component typesupport_c */
 dds_return_t dds_sertype_default_init (const struct dds_domain *domain, struct dds_sertype_default *st, const dds_topic_descriptor_t *desc, uint16_t min_xcdrv, dds_data_representation_id_t data_representation);
 
 #if defined (__cplusplus)
 }
 #endif
 
-#endif
+#endif /* DDS__SERDATA_DEFAULT_H */

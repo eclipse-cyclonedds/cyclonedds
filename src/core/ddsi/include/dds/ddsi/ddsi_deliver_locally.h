@@ -51,6 +51,7 @@ struct ddsi_deliver_locally_ops {
   deliver_locally_on_failure_fastpath_t on_failure_fastpath;
 };
 
+/** @component local_delivery */
 dds_return_t ddsi_deliver_locally_allinsync (struct ddsi_domaingv *gv, struct ddsi_entity_common *source_entity, bool source_entity_locked, struct ddsi_local_reader_ary *fastpath_rdary, const struct ddsi_writer_info *wrinfo, const struct ddsi_deliver_locally_ops * __restrict ops, void *vsourceinfo);
 
 #if defined (__cplusplus)

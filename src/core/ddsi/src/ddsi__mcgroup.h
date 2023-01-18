@@ -20,12 +20,17 @@ extern "C" {
 
 struct ddsi_mcgroup_membership;
 
+/** @component multicast_group */
 struct ddsi_mcgroup_membership *ddsi_new_mcgroup_membership (void);
+
+/** @component multicast_group */
 void ddsi_free_mcgroup_membership (struct ddsi_mcgroup_membership *mship);
+
+/** @component multicast_group */
 int ddsi_join_mc (const struct ddsi_domaingv *gv, struct ddsi_mcgroup_membership *mship, struct ddsi_tran_conn * conn, const ddsi_locator_t *srcip, const ddsi_locator_t *mcip);
+
+/** @component multicast_group */
 int ddsi_leave_mc (const struct ddsi_domaingv *gv, struct ddsi_mcgroup_membership *mship, struct ddsi_tran_conn * conn, const ddsi_locator_t *srcip, const ddsi_locator_t *mcip);
-void ddsi_transfer_mcgroup_membership (struct ddsi_mcgroup_membership *mship, struct ddsi_tran_conn * conn, struct ddsi_tran_conn * newconn);
-int ddsi_rejoin_transferred_mcgroups (const struct ddsi_domaingv *gv, struct ddsi_mcgroup_membership *mship, struct ddsi_tran_conn * conn);
 
 #if defined (__cplusplus)
 }

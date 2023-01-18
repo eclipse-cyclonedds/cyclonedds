@@ -1,5 +1,16 @@
-#ifndef _DDS_LOAN_H_
-#define _DDS_LOAN_H_
+/*
+ * Copyright(c) 2006 to 2019 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
+#ifndef DDS__LOAN_H
+#define DDS__LOAN_H
 
 #if defined(__cplusplus)
 extern "C" {
@@ -7,16 +18,16 @@ extern "C" {
 
 #ifdef DDS_HAS_SHM
 
-// NB: required in dds_write.c and dds_loan.c for now
+/** @component write_data */
+void dds_register_pub_loan(dds_writer *wr, void *pub_loan);
 
-void register_pub_loan(dds_writer *wr, void *pub_loan);
+/** @component write_data */
+bool dds_deregister_pub_loan(dds_writer *wr, const void *pub_loan);
 
-bool deregister_pub_loan(dds_writer *wr, const void *pub_loan);
-
-#endif
+#endif /* DDS_HAS_SHM */
 
 #if defined(__cplusplus)
 }
+#endif
 
-#endif
-#endif
+#endif /* DDS__LOAN_H */

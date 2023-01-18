@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef _DDS_INIT_H_
-#define _DDS_INIT_H_
+#ifndef DDS__INIT_H
+#define DDS__INIT_H
 
 #include "dds__types.h"
 
@@ -19,16 +19,17 @@ extern "C" {
 #endif
 
 /**
- *Description : Initializes the library and constructs the global
- *pseudo-entity identified by DDS_CYCLONEDDS_HANDLE with one reference
- *that must (eventually) be released by calling dds_delete on that handle.
+ * @component cyclone_root
  *
- *Arguments :
- *-# Returns 0 on success or a non-zero error status
- **/
+ * Initializes the library and constructs the global pseudo-entity identified
+ * by DDS_CYCLONEDDS_HANDLE with one reference that must (eventually) be
+ * released by calling dds_delete on that handle.
+ *
+ * @return dds_return_t Returns 0 on success or a non-zero error status
+ */
 dds_return_t dds_init (void);
 
 #if defined (__cplusplus)
 }
 #endif
-#endif
+#endif /* DDS__INIT_H */

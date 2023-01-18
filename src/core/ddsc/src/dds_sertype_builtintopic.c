@@ -33,7 +33,7 @@ static struct ddsi_sertype *new_sertype_builtintopic_impl (
   return &tp->c;
 }
 
-struct ddsi_sertype *new_sertype_builtintopic (enum ddsi_sertype_builtintopic_entity_kind entity_kind, const char *typename)
+struct ddsi_sertype *dds_new_sertype_builtintopic (enum ddsi_sertype_builtintopic_entity_kind entity_kind, const char *typename)
 {
   return new_sertype_builtintopic_impl (entity_kind, typename, &ddsi_serdata_ops_builtintopic);
 }
@@ -66,7 +66,7 @@ static void free_pp (void *vsample)
 
 #ifdef DDS_HAS_TOPIC_DISCOVERY
 
-struct ddsi_sertype *new_sertype_builtintopic_topic (enum ddsi_sertype_builtintopic_entity_kind entity_kind, const char *typename)
+struct ddsi_sertype *dds_new_sertype_builtintopic_topic (enum ddsi_sertype_builtintopic_entity_kind entity_kind, const char *typename)
 {
   return new_sertype_builtintopic_impl (entity_kind, typename, &ddsi_serdata_ops_builtintopic_topic);
 }

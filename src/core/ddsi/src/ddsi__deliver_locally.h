@@ -29,6 +29,7 @@ struct ddsi_entity_common;
 struct ddsi_writer_info;
 struct ddsi_deliver_locally_ops;
 
+/** @component local_delivery */
 dds_return_t ddsi_deliver_locally_one (struct ddsi_domaingv *gv, struct ddsi_entity_common *source_entity, bool source_entity_locked, const ddsi_guid_t *rdguid,
     const struct ddsi_writer_info *wrinfo, const struct ddsi_deliver_locally_ops * __restrict ops, void *vsourceinfo);
 

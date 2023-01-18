@@ -32,13 +32,22 @@ typedef struct ddsi_guid {
   ddsi_entityid_t entityid;
 } ddsi_guid_t;
 
+/** @component misc */
 ddsi_guid_t ddsi_hton_guid (ddsi_guid_t g);
+
+/** @component misc */
 ddsi_guid_t ddsi_ntoh_guid (ddsi_guid_t g);
 
+/** @component misc */
 ddsi_guid_prefix_t ddsi_hton_guid_prefix (ddsi_guid_prefix_t p);
+
+/** @component misc */
 ddsi_guid_prefix_t ddsi_ntoh_guid_prefix (ddsi_guid_prefix_t p);
 
+/** @component misc */
 ddsi_entityid_t ddsi_hton_entityid (ddsi_entityid_t e);
+
+/** @component misc */
 ddsi_entityid_t ddsi_ntoh_entityid (ddsi_entityid_t e);
 
 #if defined (__cplusplus)

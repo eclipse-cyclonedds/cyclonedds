@@ -85,7 +85,7 @@ static void release_iox_chunk(dds_writer *wr, void *sample) {
   iox_pub_release_chunk(wr->m_iox_pub, sample);
 }
 
-void register_pub_loan(dds_writer *wr, void *pub_loan) {
+void dds_register_pub_loan(dds_writer *wr, void *pub_loan) {
   for (uint32_t i = 0; i < MAX_PUB_LOANS; ++i) {
     if (!wr->m_iox_pub_loans[i]) {
       wr->m_iox_pub_loans[i] = pub_loan;
@@ -99,7 +99,7 @@ void register_pub_loan(dds_writer *wr, void *pub_loan) {
   assert(false);
 }
 
-bool deregister_pub_loan(dds_writer *wr, const void *pub_loan) {
+bool dds_deregister_pub_loan(dds_writer *wr, const void *pub_loan) {
   for (uint32_t i = 0; i < MAX_PUB_LOANS; ++i) {
     if (wr->m_iox_pub_loans[i] == pub_loan) {
       wr->m_iox_pub_loans[i] = NULL;
@@ -112,7 +112,7 @@ bool deregister_pub_loan(dds_writer *wr, const void *pub_loan) {
 static void *dds_writer_loan_chunk(dds_writer *wr, size_t size) {
   void *chunk = shm_create_chunk(wr->m_iox_pub, size);
   if (chunk) {
-    register_pub_loan(wr, chunk);
+    dds_register_pub_loan(wr, chunk);
     // NB: we set this since the user can use this chunk not only with write
     // where we check whether it was loaned before.
     // It is only possible to loan for fixed size types as of now.
@@ -218,7 +218,7 @@ dds_return_t dds_return_writer_loan(dds_writer *writer, void **buf,
     if (buf[i] == NULL) {
       ret = DDS_RETCODE_BAD_PARAMETER;
       break;
-    } else if (!deregister_pub_loan(writer, buf[i])) {
+    } else if (!dds_deregister_pub_loan(writer, buf[i])) {
       ret = DDS_RETCODE_PRECONDITION_NOT_MET;
       break;
     } else {

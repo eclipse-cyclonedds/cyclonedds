@@ -42,7 +42,10 @@ extern size_t ddsi_participant_message_data_nops;
 extern const enum ddsi_pserop ddsi_participant_message_data_ops_key[];
 extern size_t ddsi_participant_message_data_nops_key;
 
+/** @component pmd */
 void ddsi_write_pmd_message (struct ddsi_thread_state * const ts1, struct ddsi_xpack *xp, struct ddsi_participant *pp, unsigned pmd_kind);
+
+/** @component pmd */
 void ddsi_handle_pmd_message (const struct ddsi_receiver_state *rst, struct ddsi_serdata *sample_common);
 
 #if defined (__cplusplus)

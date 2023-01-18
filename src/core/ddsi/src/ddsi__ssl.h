@@ -39,6 +39,7 @@ struct ddsi_ssl_plugins
   SSL * (*accept) (const struct ddsi_domaingv *gv, BIO *bio, ddsrt_socket_t *sock);
 };
 
+/** @component legacy_ssl */
 void ddsi_ssl_config_plugin (struct ddsi_ssl_plugins *plugin);
 
 #if defined (__cplusplus)

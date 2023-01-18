@@ -30,7 +30,10 @@ enum ddsi_port {
 
 struct ddsi_config;
 
+/** @component port_mapping */
 bool ddsi_valid_portmapping (const struct ddsi_config *config, int32_t participant_index, char *msg, size_t msgsize);
+
+/** @component port_mapping */
 uint32_t ddsi_get_port (const struct ddsi_config *config, enum ddsi_port which, int32_t participant_index);
 
 #if defined (__cplusplus)

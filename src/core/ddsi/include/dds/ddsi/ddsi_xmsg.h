@@ -23,13 +23,19 @@ extern "C" {
 struct ddsi_domaingv;
 struct ddsi_xpack;
 
-/* XPACK */
+/** @component rtps_msg */
 struct ddsi_xpack * ddsi_xpack_new (struct ddsi_domaingv *gv, uint32_t bw_limit, bool async_mode);
+
+/** @component rtps_msg */
 void ddsi_xpack_free (struct ddsi_xpack *xp);
+
+/** @component rtps_msg */
 void ddsi_xpack_send (struct ddsi_xpack *xp, bool immediately /* unused */);
 
-/* SENDQ */
+/** @component rtps_msg */
 void ddsi_xpack_sendq_init (struct ddsi_domaingv *gv);
+
+/** @component rtps_msg */
 void ddsi_xpack_sendq_start (struct ddsi_domaingv *gv);
 
 #if defined (__cplusplus)

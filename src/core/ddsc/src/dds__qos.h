@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef _DDS_QOS_H_
-#define _DDS_QOS_H_
+#ifndef DDS__QOS_H
+#define DDS__QOS_H
 
 #include "dds/ddsi/ddsi_xqos.h"
 
@@ -55,11 +55,13 @@ extern "C" {
    DDSI_QP_CYCLONE_IGNORELOCAL | DDSI_QP_PROPERTY_LIST | DDSI_QP_DATA_REPRESENTATION |      \
    DDSI_QP_ENTITY_NAME)
 
+/** @component qos_obj */
 dds_return_t dds_ensure_valid_data_representation (dds_qos_t *qos, uint32_t allowed_data_representations, bool topicqos);
 
+/** @component qos_obj */
 void dds_apply_entity_naming(dds_qos_t *qos, /* optional */ dds_qos_t *parent_qos, struct ddsi_domaingv *gv);
 
 #if defined (__cplusplus)
 }
 #endif
-#endif
+#endif /* DDS__QOS_H */

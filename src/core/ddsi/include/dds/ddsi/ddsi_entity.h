@@ -90,8 +90,13 @@ struct ddsi_local_reader_ary {
   struct ddsi_reader **rdary; /* for efficient delivery, null-pointer terminated, grouped by topic */
 };
 
+/** @component ddsi_generic_entity */
 ddsi_entityid_t ddsi_to_entityid (unsigned u);
+
+/** @component ddsi_generic_entity */
 ddsi_vendorid_t ddsi_get_entity_vendorid (const struct ddsi_entity_common *e);
+
+/** @component ddsi_generic_entity */
 uint64_t ddsi_get_entity_instanceid (const struct ddsi_domaingv *gv, const struct ddsi_guid *guid);
 
 #if defined (__cplusplus)

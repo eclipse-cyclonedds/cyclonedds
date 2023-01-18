@@ -409,6 +409,7 @@ dds_builtintopic_endpoint_t;
 /**
  * @brief Enable entity.
  * @ingroup entity
+ * @component generic_entity
  *
  * @note Delayed entity enabling is not supported yet (CHAM-96).
  *
@@ -477,6 +478,7 @@ dds_enable(dds_entity_t entity);
 /**
  * @brief Delete given entity.
  * @ingroup entity
+ * @component generic_entity
  *
  * This operation will delete the given entity. It will also automatically
  * delete all its children, childrens' children, etc entities.
@@ -501,6 +503,7 @@ dds_delete(dds_entity_t entity);
 /**
  * @brief Get entity publisher.
  * @ingroup entity
+ * @component entity_relations
  *
  * This operation returns the publisher to which the given entity belongs.
  * For instance, it will return the Publisher that was used when
@@ -525,6 +528,7 @@ dds_get_publisher(dds_entity_t writer);
 /**
  * @brief Get entity subscriber.
  * @ingroup entity
+ * @component entity_relations
  *
  * This operation returns the subscriber to which the given entity belongs.
  * For instance, it will return the Subscriber that was used when
@@ -550,6 +554,7 @@ dds_get_subscriber(dds_entity_t entity);
 /**
  * @brief Get entity datareader.
  * @ingroup entity
+ * @component entity_relations
  *
  * This operation returns the datareader to which the given entity belongs.
  * For instance, it will return the DataReader that was used when
@@ -582,6 +587,7 @@ dds_get_datareader(dds_entity_t entity);
 /**
  * @brief Get the mask of a condition.
  * @ingroup condition
+ * @component entity_status
  *
  * This operation returns the mask that was used to create the given
  * condition.
@@ -608,6 +614,7 @@ dds_get_mask(dds_entity_t condition, uint32_t *mask);
 /**
  * @brief Returns the instance handle that represents the entity.
  * @ingroup entity
+ * @component generic_entity
  *
  * @param[in]   entity  Entity of which to get the instance handle.
  * @param[out]  ihdl    Pointer to dds_instance_handle_t.
@@ -627,6 +634,7 @@ dds_get_instance_handle(dds_entity_t entity, dds_instance_handle_t *ihdl);
  * @brief Returns the GUID that represents the entity in the network,
  * and therefore only supports participants, readers and writers.
  * @ingroup entity
+ * @component generic_entity
  *
  * @param[in]   entity  Entity of which to get the instance handle.
  * @param[out]  guid    Where to store the GUID.
@@ -648,6 +656,7 @@ dds_get_guid (dds_entity_t entity, dds_guid_t *guid);
 /**
  * @brief Read the status set for the entity
  * @ingroup entity_status
+ * @component entity_status
  *
  * This operation reads the status(es) set for the entity based on
  * the enabled status and mask set. It does not clear the read status(es).
@@ -675,6 +684,7 @@ dds_read_status(dds_entity_t entity, uint32_t *status, uint32_t mask);
 /**
  * @brief Read the status set for the entity
  * @ingroup entity_status
+ * @component entity_status
  *
  * This operation reads the status(es) set for the entity based on the enabled
  * status and mask set. It clears the status set after reading.
@@ -702,6 +712,7 @@ dds_take_status(dds_entity_t entity, uint32_t *status, uint32_t mask);
 /**
  * @brief Get changed status(es)
  * @ingroup entity_status
+ * @component entity_status
  *
  * This operation returns the status changes since they were last read.
  *
@@ -726,6 +737,7 @@ dds_get_status_changes(dds_entity_t entity, uint32_t *status);
  * @anchor dds_get_status_mask
  * @brief Get enabled status on entity
  * @ingroup entity_status
+ * @component entity_status
  *
  * This operation returns the status enabled on the entity
  *
@@ -750,6 +762,7 @@ dds_get_status_mask(dds_entity_t entity, uint32_t *mask);
  * @anchor dds_set_status_mask
  * @brief Set status enabled on entity
  * @ingroup entity_status
+ * @component entity_status
  *
  * This operation enables the status(es) based on the mask set
  *
@@ -782,6 +795,7 @@ dds_set_status_mask(dds_entity_t entity, uint32_t mask);
 /**
  * @brief Get entity QoS policies.
  * @ingroup entity_qos
+ * @component entity_qos
  *
  * This operation allows access to the existing set of QoS policies
  * for the entity.
@@ -813,6 +827,7 @@ dds_get_qos(dds_entity_t entity, dds_qos_t *qos);
 /**
  * @brief Set entity QoS policies.
  * @ingroup entity_qos
+ * @component entity_qos
  *
  * This operation replaces the existing set of Qos Policy settings for an
  * entity. The parameter qos must contain the struct with the QosPolicy
@@ -863,6 +878,7 @@ dds_set_qos(dds_entity_t entity, const dds_qos_t * qos);
 /**
  * @brief Get entity listeners.
  * @ingroup entity_listener
+ * @component entity_listener
  *
  * This operation allows access to the existing listeners attached to
  * the entity.
@@ -893,6 +909,7 @@ dds_get_listener(dds_entity_t entity, dds_listener_t * listener);
 /**
  * @brief Set entity listeners.
  * @ingroup entity_listener
+ * @component entity_listener
  *
  * This operation attaches a dds_listener_t to the dds_entity_t. Only one
  * Listener can be attached to each Entity. If a Listener was already
@@ -974,6 +991,7 @@ dds_set_listener(dds_entity_t entity, const dds_listener_t * listener);
 /**
  * @brief Creates a new instance of a DDS participant in a domain
  * @ingroup domain_participant
+ * @component participant
  *
  * If domain is set (not DDS_DOMAIN_DEFAULT) then it must match if the domain has also
  * been configured or an error status will be returned.
@@ -1015,6 +1033,7 @@ dds_create_participant(
 /**
  * @brief Creates a domain with a given configuration
  * @ingroup domain
+ * @component domain
  *
  * To explicitly create a domain based on a configuration passed as a string.
  *
@@ -1071,6 +1090,8 @@ dds_create_domain(const dds_domainid_t domain, const char *config);
  * @brief Creates a domain with a given configuration, specified as an
  * initializer (unstable interface)
  * @ingroup domain
+ * @component domain
+ * @unstable
  *
  * To explicitly create a domain based on a configuration passed as a raw
  * initializer rather than as an XML string. This allows bypassing the XML
@@ -1103,6 +1124,7 @@ dds_create_domain_with_rawconfig(const dds_domainid_t domain, const struct ddsi_
 /**
  * @brief Get entity parent.
  * @ingroup entity
+ * @component entity_relations
  *
  * This operation returns the parent to which the given entity belongs.
  * For instance, it will return the Participant that was used when
@@ -1135,6 +1157,7 @@ dds_get_parent(dds_entity_t entity);
 /**
  * @brief Get entity participant.
  * @ingroup entity
+ * @component entity_relations
  *
  * This operation returns the participant to which the given entity belongs.
  * For instance, it will return the Participant that was used when
@@ -1162,6 +1185,7 @@ dds_get_participant(dds_entity_t entity);
 /**
  * @brief Get entity children.
  * @ingroup entity
+ * @component entity_relations
  *
  * This operation returns the children that the entity contains.
  * For instance, it will return all the Topics, Publishers and Subscribers
@@ -1209,6 +1233,7 @@ dds_get_children(dds_entity_t entity, dds_entity_t *children, size_t size);
 /**
  * @brief Get the domain id to which this entity is attached.
  * @ingroup entity
+ * @component entity_relations
  *
  * When creating a participant entity, it is attached to a certain domain.
  * All the children (like Publishers) and childrens' children (like
@@ -1240,6 +1265,7 @@ dds_get_domainid(dds_entity_t entity, dds_domainid_t *id);
 /**
  * @brief Get participants of a domain.
  * @ingroup domain
+ * @component participant
  *
  * This operation acquires the participants created on a domain and returns
  * the number of found participants.
@@ -1278,6 +1304,7 @@ dds_lookup_participant(
 /**
  * @brief Creates a new topic with default type handling.
  * @ingroup topic
+ * @component topic
  *
  * The type name for the topic is taken from the generated descriptor. Topic
  * matching is done on a combination of topic name and type name. Each successful
@@ -1322,6 +1349,7 @@ dds_create_topic(
 /**
  * @brief Creates a new topic with provided type handling.
  * @ingroup topic
+ * @component topic
  *
  * The name for the type is taken from the provided "sertype" object. Type
  * matching is done on a combination of topic name and type name. Each successful
@@ -1365,6 +1393,7 @@ dds_create_topic_sertype (
 /**
  * @brief Finds a locally created or discovered remote topic by topic name and type information
  * @ingroup topic
+ * @component topic
  *
  * Finds a locally created topic or a discovered remote topic based on the topic
  * name and type. In case the topic is not found, this function will wait for
@@ -1406,6 +1435,7 @@ DDS_EXPORT dds_entity_t
 dds_find_topic (dds_find_scope_t scope, dds_entity_t participant, const char *name, const dds_typeinfo_t *type_info, dds_duration_t timeout);
 
 /**
+ * @component topic
  * @deprecated Finds a locally created or discovered remote topic by topic name
  * @ingroup deprecated
  * Use @ref dds_find_topic instead.
@@ -1440,6 +1470,7 @@ dds_find_topic_scoped (dds_find_scope_t scope, dds_entity_t participant, const c
 
 /**
  * @ingroup topic
+ * @component topic
  * @brief Creates topic descriptor for the provided type_info
  *
  * @param[in]  scope        The scope used to find the type: DDS_FIND_SCOPE_LOCAL_DOMAIN or DDS_FIND_SCOPE_GLOBAL. In case DDS_FIND_SCOPE_GLOBAL is used, a type lookup request will be sent to other nodes.
@@ -1467,6 +1498,7 @@ dds_create_topic_descriptor (dds_find_scope_t scope, dds_entity_t participant, c
 
 /**
  * @ingroup topic
+ * @component topic
  * @brief Delete memory allocated to the provided topic descriptor
  *
  * @param[in] descriptor - Pointer to a dds_topic_descriptor_t
@@ -1487,6 +1519,7 @@ dds_delete_topic_descriptor (dds_topic_descriptor_t *descriptor);
 /**
  * @brief Returns the name of a given topic.
  * @ingroup topic
+ * @component topic
  *
  * @param[in]  topic  The topic.
  * @param[out] name   Buffer to write the topic name to.
@@ -1502,6 +1535,7 @@ dds_get_name(dds_entity_t topic, char *name, size_t size);
 /**
  * @brief Returns the type name of a given topic.
  * @ingroup topic
+ * @component topic
  *
  * @param[in]  topic  The topic.
  * @param[out] name   Buffer to write the topic type name to.
@@ -1546,6 +1580,7 @@ dds_get_type_name(dds_entity_t topic, char *name, size_t size);
  * @brief Topic filter function that only needs to look at the sample.
  * @ingroup topic_filter
  * @warning Unstable API
+ * @unstable
  */
 typedef bool (*dds_topic_filter_sample_fn) (const void * sample);
 
@@ -1629,6 +1664,7 @@ struct dds_topic_filter {
  * @anchor dds_set_topic_filter_and_arg
  * @brief Sets a filter and filter argument on a topic.
  * @ingroup topic_filter
+ * @component topic
  * @warning Unstable API
  * To be replaced by proper filtering on readers.
  *
@@ -1656,6 +1692,7 @@ dds_set_topic_filter_and_arg(
  * @anchor dds_set_topic_filter_extended
  * @brief Sets a filter and filter argument on a topic.
  * @ingroup topic_filter
+ * @component topic
  * @warning Unstable API
  * To be replaced by proper filtering on readers.
  *
@@ -1680,6 +1717,7 @@ dds_set_topic_filter_extended(
 /**
  * @brief Gets the filter for a topic.
  * @ingroup topic_filter
+ * @component topic
  * @warning Unstable API
  *
  * To be replaced by proper filtering on readers
@@ -1701,6 +1739,7 @@ dds_get_topic_filter_and_arg (
 /**
  * @brief Gets the filter for a topic.
  * @ingroup topic_filter
+ * @component topic
  * @warning Unstable API
  *
  * To be replaced by proper filtering on readers
@@ -1725,6 +1764,7 @@ dds_get_topic_filter_extended (
 /**
  * @brief Creates a new instance of a DDS subscriber
  * @ingroup subscriber
+ * @component subscriber
  *
  * @param[in]  participant The participant on which the subscriber is being created.
  * @param[in]  qos         The QoS to set on the new subscriber (can be NULL).
@@ -1761,6 +1801,7 @@ dds_create_subscriber(
 /**
  * @brief Creates a new instance of a DDS publisher
  * @ingroup publisher
+ * @component publisher
  *
  * @param[in]  participant The participant to create a publisher for.
  * @param[in]  qos         The QoS to set on the new publisher (can be NULL).
@@ -1783,6 +1824,7 @@ dds_create_publisher(
 /**
  * @brief Suspends the publications of the Publisher
  * @ingroup publisher
+ * @component publisher
  *
  * This operation is a hint to the Service so it can optimize its performance by e.g., collecting
  * modifications to DDS writers and then batching them. The Service is not required to use the hint.
@@ -1807,6 +1849,7 @@ dds_suspend(dds_entity_t publisher);
 /**
  * @brief Resumes the publications of the Publisher
  * @ingroup publisher
+ * @component publisher
  *
  * This operation is a hint to the Service to indicate that the application has
  * completed changes initiated by a previous dds_suspend(). The Service is not
@@ -1833,6 +1876,7 @@ dds_resume(dds_entity_t publisher);
 /**
  * @brief Waits at most for the duration timeout for acks for data in the publisher or writer.
  * @ingroup publication
+ * @component publisher
  *
  * This operation blocks the calling thread until either all data written by the publisher
  * or writer is acknowledged by all matched reliable reader entities, or else the duration
@@ -1865,6 +1909,7 @@ dds_wait_for_acks(dds_entity_t publisher_or_writer, dds_duration_t timeout);
 /**
  * @brief Creates a new instance of a DDS reader.
  * @ingroup reader
+ * @component reader
  *
  * When a participant is used to create a reader, an implicit subscriber is created.
  * This implicit subscriber will be deleted automatically when the created reader
@@ -1894,6 +1939,7 @@ dds_create_reader(
 /**
  * @brief Creates a new instance of a DDS reader with a custom history cache.
  * @ingroup reader
+ * @component reader
  *
  * When a participant is used to create a reader, an implicit subscriber is created.
  * This implicit subscriber will be deleted automatically when the created reader
@@ -1925,6 +1971,7 @@ dds_create_reader_rhc(
 /**
  * @brief Wait until reader receives all historic data
  * @ingroup reader
+ * @component reader
  *
  * The operation blocks the calling thread until either all "historical" data is
  * received, or else the duration specified by the max_wait parameter elapses, whichever happens
@@ -1952,6 +1999,7 @@ dds_reader_wait_for_historical_data(
 /**
  * @brief Creates a new instance of a DDS writer.
  * @ingroup writer
+ * @component writer
  *
  * When a participant is used to create a writer, an implicit publisher is created.
  * This implicit publisher will be deleted automatically when the created writer
@@ -1992,6 +2040,7 @@ dds_create_writer(
 /**
  * @brief Registers an instance
  * @ingroup writing
+ * @component data_instance
  *
  * This operation registers an instance with a key value to the data writer and
  * returns an instance handle that could be used for successive write & dispose
@@ -2020,6 +2069,7 @@ dds_register_instance(
 /**
  * @brief Unregisters an instance by instance
  * @ingroup writing
+ * @component data_instance
  *
  * This operation reverses the action of register instance, removes all information regarding
  * the instance and unregisters an instance with a key value from the data writer.
@@ -2042,6 +2092,7 @@ dds_unregister_instance(dds_entity_t writer, const void *data);
 /**
  * @brief Unregisters an instance by instance handle
  * @ingroup writing
+ * @component data_instance
  *
  * This operation unregisters the instance which is identified by the key fields of the given
  * typed instance handle.
@@ -2064,6 +2115,7 @@ dds_unregister_instance_ih(dds_entity_t writer, dds_instance_handle_t handle);
 /**
  * @brief Unregisters an instance by instance with timestamp
  * @ingroup writing
+ * @component data_instance
  *
  * This operation reverses the action of register instance, removes all information regarding
  * the instance and unregisters an instance with a key value from the data writer. It also
@@ -2091,6 +2143,7 @@ dds_unregister_instance_ts(
 /**
  * @brief Unregisters an instance by instance handle with timestamp
  * @ingroup writing
+ * @component data_instance
  *
  * This operation unregisters an instance with a key value from the handle. Instance can be identified
  * from instance handle. If an unregistered key ID is passed as an instance data, an error is logged and
@@ -2118,6 +2171,7 @@ dds_unregister_instance_ih_ts(
 /**
  * @brief This operation modifies and disposes a data instance.
  * @ingroup writing
+ * @component write_data
  *
  * This operation requests the Data Distribution Service to modify the instance and
  * mark it for deletion. Copies of the instance and its corresponding samples, which are
@@ -2172,6 +2226,7 @@ dds_writedispose(dds_entity_t writer, const void *data);
  * @brief This operation modifies and disposes a data instance with a specific
  *        timestamp.
  * @ingroup writing
+ * @component write_data
  *
  * This operation performs the same functions as dds_writedispose() except that
  * the application provides the value for the source_timestamp that is made
@@ -2212,6 +2267,7 @@ dds_writedispose_ts(
 /**
  * @brief This operation disposes an instance, identified by the data sample.
  * @ingroup writing
+ * @component write_data
  *
  * This operation requests the Data Distribution Service to modify the instance and
  * mark it for deletion. Copies of the instance and its corresponding samples, which are
@@ -2266,6 +2322,7 @@ dds_dispose(dds_entity_t writer, const void *data);
 /**
  * @brief This operation disposes an instance with a specific timestamp, identified by the data sample.
  * @ingroup writing
+ * @component write_data
  *
  * This operation performs the same functions as dds_dispose() except that
  * the application provides the value for the source_timestamp that is made
@@ -2307,6 +2364,7 @@ dds_dispose_ts(
 /**
  * @brief This operation disposes an instance, identified by the instance handle.
  * @ingroup writing
+ * @component write_data
  *
  * This operation requests the Data Distribution Service to modify the instance and
  * mark it for deletion. Copies of the instance and its corresponding samples, which are
@@ -2343,6 +2401,7 @@ dds_dispose_ih(dds_entity_t writer, dds_instance_handle_t handle);
 /**
  * @brief This operation disposes an instance with a specific timestamp, identified by the instance handle.
  * @ingroup writing
+ * @component write_data
  *
  * This operation performs the same functions as dds_dispose_ih() except that
  * the application provides the value for the source_timestamp that is made
@@ -2377,6 +2436,7 @@ dds_dispose_ih_ts(
 /**
  * @brief Write the value of a data instance
  * @ingroup writing
+ * @component write_data
  *
  * With this API, the value of the source timestamp is automatically made
  * available to the data reader by the service.
@@ -2392,6 +2452,7 @@ dds_write(dds_entity_t writer, const void *data);
 /**
  * @brief Flush a writers batched writes
  * @ingroup writing
+ * @component write_data
  *
  * When using the WriteBatch mode you can manually batch small writes into larger
  * datapackets for network efficiency. The normal dds_write() calls will no longer
@@ -2407,6 +2468,7 @@ dds_write_flush(dds_entity_t writer);
 /**
  * @brief Write a serialized value of a data instance
  * @ingroup writing
+ * @component write_data
  *
  * This call causes the writer to write the serialized value that is provided
  * in the serdata argument.  Timestamp and statusinfo fields are set to the
@@ -2436,6 +2498,7 @@ dds_writecdr(dds_entity_t writer, struct ddsi_serdata *serdata);
 /**
  * @brief Write a serialized value of a data instance
  * @ingroup writing
+ * @component write_data
  *
  * This call causes the writer to write the serialized value that is provided
  * in the serdata argument.  Timestamp and statusinfo are used as is.
@@ -2464,6 +2527,7 @@ dds_forwardcdr(dds_entity_t writer, struct ddsi_serdata *serdata);
 /**
  * @brief Write the value of a data instance along with the source timestamp passed.
  * @ingroup writing
+ * @component write_data
  *
  * @param[in]  writer The writer entity.
  * @param[in]  data Value to be written.
@@ -2493,6 +2557,7 @@ dds_write_ts(
 /**
  * @brief Creates a readcondition associated to the given reader.
  * @ingroup readcondition
+ * @component data_query
  *
  * The readcondition allows specifying which samples are of interest in
  * a data reader's history, by means of a mask. The mask is or'd with
@@ -2540,6 +2605,7 @@ typedef bool (*dds_querycondition_filter_fn) (const void * sample);
 /**
  * @brief Creates a queryondition associated to the given reader.
  * @ingroup querycondition
+ * @component data_query
  *
  * The queryondition allows specifying which samples are of interest in
  * a data reader's history, by means of a mask and a filter. The mask is
@@ -2586,6 +2652,7 @@ dds_create_querycondition(
 /**
  * @brief Creates a guardcondition.
  * @ingroup guardcondition
+ * @component guard_condition
  *
  * Waitsets allow waiting for an event on some of any set of entities.
  * This means that the guardcondition can be used to wake up a waitset when
@@ -2610,6 +2677,7 @@ dds_create_guardcondition(dds_entity_t participant);
 /**
  * @brief Sets the trigger status of a guardcondition.
  * @ingroup guardcondition
+ * @component guard_condition
  *
  * @param[in]   guardcond  Guard condition to set the trigger status of.
  * @param[in]   triggered  The triggered status to set.
@@ -2629,6 +2697,7 @@ dds_set_guardcondition(dds_entity_t guardcond, bool triggered);
 /**
  * @brief Reads the trigger status of a guardcondition.
  * @ingroup guardcondition
+ * @component guard_condition
  *
  * @param[in]   guardcond  Guard condition to read the trigger status of.
  * @param[out]  triggered  The triggered status read from the guard condition.
@@ -2648,6 +2717,7 @@ dds_read_guardcondition(dds_entity_t guardcond, bool *triggered);
 /**
  * @brief Reads and resets the trigger status of a guardcondition.
  * @ingroup guardcondition
+ * @component guard_condition
  *
  * @param[in]   guardcond  Guard condition to read and reset the trigger status of.
  * @param[out]  triggered  The triggered status read from the guard condition.
@@ -2683,6 +2753,7 @@ typedef intptr_t dds_attach_t;
 /**
  * @brief Create a waitset and allocate the resources required
  * @ingroup waitset
+ * @component waitset
  *
  * A WaitSet object allows an application to wait until one or more of the
  * conditions of the attached entities evaluates to TRUE or until the timeout
@@ -2707,6 +2778,7 @@ dds_create_waitset(dds_entity_t participant);
 /**
  * @brief Acquire previously attached entities.
  * @ingroup waitset
+ * @component waitset
  *
  * This functions takes a pre-allocated list to put the entities in and
  * will return the number of found entities. It is possible that the given
@@ -2743,6 +2815,7 @@ dds_waitset_get_entities(
 /**
  * @brief This operation attaches an Entity to the WaitSet.
  * @ingroup waitset
+ * @component waitset
  *
  * This operation attaches an Entity to the WaitSet. The dds_waitset_wait()
  * will block when none of the attached entities are triggered. 'Triggered'
@@ -2792,6 +2865,7 @@ dds_waitset_attach(
 /**
  * @brief This operation detaches an Entity from the WaitSet.
  * @ingroup waitset
+ * @component waitset
  *
  * @param[in]  waitset  The waitset to detach the given entity from.
  * @param[in]  entity   The entity to detach.
@@ -2819,6 +2893,7 @@ dds_waitset_detach(
 /**
  * @brief Sets the trigger_value associated with a waitset.
  * @ingroup waitset
+ * @component waitset
  *
  * When the waitset is attached to itself and the trigger value is
  * set to 'true', then the waitset will wake up just like with an
@@ -2857,6 +2932,7 @@ dds_waitset_set_trigger(
  *        change or other trigger on (one of) the entities that are attached to
  *        the WaitSet.
  * @ingroup waitset
+ * @component waitset
  *
  * The dds_waitset_wait() operation blocks until the some of the attached
  * entities have triggered or "reltimeout" has elapsed.
@@ -2930,6 +3006,7 @@ dds_waitset_wait(
  *        change or other trigger on (one of) the entities that are attached to
  *        the WaitSet.
  * @ingroup waitset
+ * @component waitset
  *
  * The dds_waitset_wait() operation blocks until the some of the attached
  * entities have triggered or "abstimeout" has been reached.
@@ -3025,6 +3102,7 @@ dds_waitset_wait_until(
  * @brief Access and read the collection of data values (of same type) and sample info from the
  *        data reader, readcondition or querycondition.
  * @ingroup reading
+ * @component read_data
  *
  * Return value provides information about number of samples read, which will
  * be <= maxs. Based on the count, the buffer will contain data to be read only
@@ -3065,6 +3143,7 @@ dds_read(
 /**
  * @brief Access and read loaned samples of data reader, readcondition or querycondition.
  * @ingroup reading
+ * @component read_data
  *
  * After dds_read_wl function is being called and the data has been handled, dds_return_loan() function must be called to possibly free memory.
  *
@@ -3097,6 +3176,7 @@ dds_read_wl(
  * @brief Read the collection of data values and sample info from the data reader, readcondition
  *        or querycondition based on mask.
  * @ingroup reading
+ * @component read_data
  *
  * When using a readcondition or querycondition, their masks are or'd with the given mask.
  *
@@ -3133,6 +3213,7 @@ dds_read_mask(
  * @brief Access and read loaned samples of data reader, readcondition
  *        or querycondition based on mask
  * @ingroup reading
+ * @component read_data
  *
  * When using a readcondition or querycondition, their masks are or'd with the given mask.
  *
@@ -3169,6 +3250,7 @@ dds_read_mask_wl(
  * @brief Access and read the collection of data values (of same type) and sample info from the
  *        data reader, readcondition or querycondition, coped by the provided instance handle.
  * @ingroup reading
+ * @component read_data
  *
  * This operation implements the same functionality as dds_read, except that only data scoped to
  * the provided instance handle is read.
@@ -3208,6 +3290,7 @@ dds_read_instance(
  * @brief Access and read loaned samples of data reader, readcondition or querycondition,
  *        scoped by the provided instance handle.
  * @ingroup reading
+ * @component read_data
  *
  * This operation implements the same functionality as dds_read_wl, except that only data
  * scoped to the provided instance handle is read.
@@ -3245,6 +3328,7 @@ dds_read_instance_wl(
  * @brief Read the collection of data values and sample info from the data reader, readcondition
  *        or querycondition based on mask and scoped by the provided instance handle.
  * @ingroup reading
+ * @component read_data
  *
  * This operation implements the same functionality as dds_read_mask, except that only data
  * scoped to the provided instance handle is read.
@@ -3286,6 +3370,7 @@ dds_read_instance_mask(
  * @brief Access and read loaned samples of data reader, readcondition or
  *        querycondition based on mask, scoped by the provided instance handle.
  * @ingroup reading
+ * @component read_data
  *
  * This operation implements the same functionality as dds_read_mask_wl, except that
  * only data scoped to the provided instance handle is read.
@@ -3325,6 +3410,7 @@ dds_read_instance_mask_wl(
  * @brief Access the collection of data values (of same type) and sample info from the
  *        data reader, readcondition or querycondition.
  * @ingroup reading
+ * @component read_data
  *
  * Data value once read is removed from the Data Reader cannot to
  * 'read' or 'taken' again.
@@ -3365,6 +3451,7 @@ dds_take(
 /**
  * @brief Access loaned samples of data reader, readcondition or querycondition.
  * @ingroup reading
+ * @component read_data
  *
  * After dds_take_wl function is being called and the data has been handled, dds_return_loan() function must be called to possibly free memory
  *
@@ -3397,6 +3484,7 @@ dds_take_wl(
  * @brief Take the collection of data values (of same type) and sample info from the
  *        data reader, readcondition or querycondition based on mask
  * @ingroup reading
+ * @component read_data
  *
  * When using a readcondition or querycondition, their masks are or'd with the given mask.
  *
@@ -3432,6 +3520,7 @@ dds_take_mask(
 /**
  * @brief  Access loaned samples of data reader, readcondition or querycondition based on mask.
  * @ingroup reading
+ * @component read_data
  *
  * When using a readcondition or querycondition, their masks are or'd with the given mask.
  *
@@ -3475,6 +3564,7 @@ dds_take_mask_wl(
  * @brief Access the collection of serialized data values (of same type) and
  *        sample info from the data reader, readcondition or querycondition.
  * @ingroup reading
+ * @component read_data
  *
  * This call accesses the serialized data from the data reader, readcondition or
  * querycondition and makes it available to the application. The serialized data
@@ -3523,6 +3613,7 @@ dds_readcdr(
  *        sample info from the data reader, readcondition or querycondition
  *        scoped by the provided instance handle.
  * @ingroup reading
+ * @component read_data
  *
  * This operation implements the same functionality as dds_read_instance_wl, except that
  * samples are now in their serialized form. The serialized data is made available through
@@ -3571,6 +3662,7 @@ dds_readcdr_instance (
  * @brief Access the collection of serialized data values (of same type) and
  *        sample info from the data reader, readcondition or querycondition.
  * @ingroup reading
+ * @component read_data
  *
  * This call accesses the serialized data from the data reader, readcondition or
  * querycondition and makes it available to the application. The serialized data
@@ -3619,6 +3711,7 @@ dds_takecdr(
  *        sample info from the data reader, readcondition or querycondition
  *        scoped by the provided instance handle.
  * @ingroup reading
+ * @component read_data
  *
  * This operation implements the same functionality as dds_take_instance_wl, except that
  * samples are now in their serialized form. The serialized data is made available through
@@ -3669,6 +3762,7 @@ dds_takecdr_instance (
  *        data reader, readcondition or querycondition but scoped by the given
  *        instance handle.
  * @ingroup reading
+ * @component read_data
  *
  * This operation mplements the same functionality as dds_take, except that only data
  * scoped to the provided instance handle is taken.
@@ -3708,6 +3802,7 @@ dds_take_instance(
  * @brief Access loaned samples of data reader, readcondition or querycondition,
  *        scoped by the given instance handle.
  * @ingroup reading
+ * @component read_data
  *
  * This operation implements the same functionality as dds_take_wl, except that
  * only data scoped to the provided instance handle is read.
@@ -3746,6 +3841,7 @@ dds_take_instance_wl(
  *        data reader, readcondition or querycondition based on mask and scoped
  *        by the given instance handle.
  * @ingroup reading
+ * @component read_data
  *
  * This operation implements the same functionality as dds_take_mask, except that only
  * data scoped to the provided instance handle is read.
@@ -3787,6 +3883,7 @@ dds_take_instance_mask(
  * @brief  Access loaned samples of data reader, readcondition or querycondition based
  *         on mask and scoped by the given intance handle.
  * @ingroup reading
+ * @component read_data
  *
  * This operation implements the same functionality as dds_take_mask_wl, except that
  * only data scoped to the provided instance handle is read.
@@ -3825,6 +3922,7 @@ dds_take_instance_mask_wl(
 /**
  * @brief Read, copy and remove the status set for the entity
  * @ingroup reading
+ * @component read_data
  *
  * This operation copies the next, non-previously accessed
  * data value and corresponding sample info and removes from
@@ -3858,6 +3956,7 @@ dds_take_next(
 /**
  * @brief Read, copy and remove the status set for the entity
  * @ingroup reading
+ * @component read_data
  *
  * This operation copies the next, non-previously accessed
  * data value and corresponding sample info and removes from
@@ -3894,6 +3993,7 @@ dds_take_next_wl(
 /**
  * @brief Read and copy the status set for the entity
  * @ingroup reading
+ * @component read_data
  *
  * This operation copies the next, non-previously accessed
  * data value and corresponding sample info. As an entity,
@@ -3927,6 +4027,7 @@ dds_read_next(
 /**
  * @brief Read and copy the status set for the loaned sample
  * @ingroup reading
+ * @component read_data
  *
  * This operation copies the next, non-previously accessed
  * data value and corresponding loaned sample info. As an entity,
@@ -3969,6 +4070,7 @@ dds_read_next_wl(
 /**
  * @brief Return loaned samples to a reader or writer
  * @ingroup loan
+ * @component read_data
  *
  * Used to release sample buffers returned by a read/take operation (a reader-loan)
  * or, in case shared memory is enabled, of the loan_sample operation (a writer-loan).
@@ -4027,6 +4129,7 @@ dds_return_loan(
 /**
  * @brief This operation takes a sample and returns an instance handle to be used for subsequent operations.
  * @ingroup instance_handle
+ * @component data_instance
  *
  * @param[in]  entity Reader or Writer entity.
  * @param[in]  data   Sample with a key fields set.
@@ -4039,6 +4142,7 @@ dds_lookup_instance(dds_entity_t entity, const void *data);
 /**
  * @brief This operation takes an instance handle and return a key-value corresponding to it.
  * @ingroup instance_handle
+ * @component data_instance
  *
  * @param[in]  entity Reader, writer, readcondition or querycondition entity.
  * @param[in]  inst   Instance handle.
@@ -4065,6 +4169,7 @@ dds_instance_get_key(
 /**
  * @brief Begin coherent publishing or begin accessing a coherent set in a subscriber
  * @ingroup publication
+ * @component coherent_sets
  *
  * Invoking on a Writer or Reader behaves as if dds_begin_coherent was invoked on its parent
  * Publisher or Subscriber respectively.
@@ -4086,6 +4191,7 @@ dds_begin_coherent(dds_entity_t entity);
 /**
  * @brief End coherent publishing or end accessing a coherent set in a subscriber
  * @ingroup publication
+ * @component coherent_sets
  *
  * Invoking on a Writer or Reader behaves as if dds_end_coherent was invoked on its parent
  * Publisher or Subscriber respectively.
@@ -4105,6 +4211,7 @@ dds_end_coherent(dds_entity_t entity);
 /**
  * @brief Trigger DATA_AVAILABLE event on contained readers
  * @ingroup subscriber
+ * @component subscriber
  *
  * The DATA_AVAILABLE event is broadcast to all readers owned by this subscriber that currently
  * have new data available. Any on_data_available listener callbacks attached to respective
@@ -4125,6 +4232,7 @@ dds_notify_readers(dds_entity_t subscriber);
 /**
  * @brief Checks whether the entity has one of its enabled statuses triggered.
  * @ingroup entity
+ * @component entity_status
  *
  * @param[in]  entity  Entity for which to check for triggered status.
  *
@@ -4145,6 +4253,7 @@ dds_triggered(dds_entity_t entity);
 /**
  * @brief Get the topic
  * @ingroup entity
+ * @component entity_relations
  *
  * This operation returns a topic (handle) when the function call is done
  * with reader, writer, read condition or query condition. For instance, it
@@ -4171,6 +4280,7 @@ dds_get_topic(dds_entity_t entity);
 /**
  * @brief Get instance handles of the data readers matching a writer
  * @ingroup builtintopic
+ * @component writer
  *
  * This operation fills the provided array with the instance handles
  * of the data readers that match the writer.  On successful output,
@@ -4207,6 +4317,7 @@ dds_get_matched_subscriptions (
 /**
  * @brief Get a description of a reader matched with the provided writer
  * @ingroup builtintopic
+ * @component writer
  *
  * This operation looks up the reader instance handle in the set of
  * readers matched with the specified writer, returning a freshly
@@ -4239,6 +4350,7 @@ dds_get_matched_subscription_data (
 /**
  * @brief Get instance handles of the data writers matching a reader
  * @ingroup builtintopic
+ * @component reader
  *
  * This operation fills the provided array with the instance handles
  * of the data writers that match the reader.  On successful output,
@@ -4275,6 +4387,7 @@ dds_get_matched_publications (
 /**
  * @brief Get a description of a writer matched with the provided reader
  * @ingroup builtintopic
+ * @component reader
  *
  * This operation looks up the writer instance handle in the set of
  * writers matched with the specified reader, returning a freshly
@@ -4310,6 +4423,7 @@ dds_get_matched_publication_data (
  *        retrieved by dds_get_matched_subscription_data or
  *        dds_get_matched_publication_data
  * @ingroup builtintopic
+ * @component builtin_topic
  *
  * @param[in] builtintopic_endpoint  The builtintopic endpoint struct
  * @param[out] type_info             Type information that will be allocated by this function in case of success.
@@ -4331,6 +4445,7 @@ dds_builtintopic_get_endpoint_type_info (
  * @brief Free the endpoint information that was retrieved by
  *        dds_get_matched_subscription_data or dds_get_matched_publication_data
  * @ingroup builtintopic
+ * @component builtin_topic
  *
  * This operation deallocates the memory of the fields in a
  * dds_builtintopic_endpoint_t struct and deallocates the
@@ -4345,6 +4460,7 @@ dds_builtintopic_free_endpoint (
 /**
  * @brief Free the provided topic information
  * @ingroup builtintopic
+ * @component builtin_topic
  *
  * This operation deallocates the memory of the fields in a
  * dds_builtintopic_topic_t struct and deallocates the
@@ -4359,6 +4475,7 @@ dds_builtintopic_free_topic (
 /**
  * @brief Free the provided participant information
  * @ingroup builtintopic
+ * @component builtin_topic
  *
  * This operation deallocates the memory of the fields in a
  * dds_builtintopic_participant_t struct and deallocates the
@@ -4374,6 +4491,7 @@ dds_builtintopic_free_participant (
  * @brief This operation manually asserts the liveliness of a writer
  *        or domain participant.
  * @ingroup entity
+ * @component participant
  *
  * This operation manually asserts the liveliness of a writer
  * or domain participant. This is used in combination with the Liveliness
@@ -4409,7 +4527,9 @@ dds_assert_liveliness (
  *
  * @brief This operation allows making the domain's network stack temporarily deaf and/or mute.
  * @ingroup testing
+ * @component domain
  * @warning Unstable API, for testing
+ * @unstable
  *
  * This is a support function for testing and, other special uses and is subject to change.
  *
@@ -4457,6 +4577,7 @@ dds_domain_set_deafmute (
  * @brief This function resolves the type for the provided type identifier,
  * which can e.g. be retrieved from endpoint or topic discovery data.
  * @ingroup xtypes
+ * @component type_metadata
  *
  * @param[in]   entity              A domain entity or an entity bound to a domain, such
  *                                  as a participant, reader or writer.
@@ -4490,6 +4611,7 @@ dds_get_typeobj (
 /**
  * @brief Free the type object that was retrieved using dds_get_typeobj
  * @ingroup xtypes
+ * @component type_metadata
  *
  * @param[in]  type_obj     The type object
  *
@@ -4512,6 +4634,7 @@ dds_free_typeobj (
  * @brief This function gets the type information from the
  * provided topic, reader or writer
  * @ingroup xtypes
+ * @component type_metadata
  *
  * @param[in]   entity          A topic/reader/writer entity
  * @param[out]  type_info       The type information, untouched if returncode indicates failure
@@ -4539,6 +4662,7 @@ dds_get_typeinfo (
 /**
  * @brief Free the type information that was retrieved using dds_get_typeinfo
  * @ingroup xtypes
+ * @component type_metadata
  *
  * @param[in]  type_info     The type information
  *

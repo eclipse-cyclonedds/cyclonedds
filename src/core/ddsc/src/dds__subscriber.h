@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef _DDS_SUBSCRIBER_H_
-#define _DDS_SUBSCRIBER_H_
+#ifndef DDS__SUBSCRIBER_H
+#define DDS__SUBSCRIBER_H
 
 #include "dds/dds.h"
 #include "dds__entity.h"
@@ -19,28 +19,34 @@
 extern "C" {
 #endif
 
-DEFINE_ENTITY_LOCK_UNLOCK(dds_subscriber, DDS_KIND_SUBSCRIBER)
+DEFINE_ENTITY_LOCK_UNLOCK(dds_subscriber, DDS_KIND_SUBSCRIBER, subscriber)
 
-dds_entity_t
-dds__create_subscriber_l(
-  struct dds_participant *participant, /* entity-lock must be held */
-  bool implicit,
-  const dds_qos_t *qos,
-  const dds_listener_t *listener);
+/**
+ * @brief Creates a subscriber with participant entity-lock held
+ * @component subscriber
+ *
+ * @param participant the parent participant
+ * @param implicit indicates if implicitly created
+ * @param qos qos object that is stored in the subscriber
+ * @param listener listener object that is stored in the subscriber
+ * @return dds_entity_t
+ */
+dds_entity_t dds__create_subscriber_l(struct dds_participant *participant, bool implicit, const dds_qos_t *qos, const dds_listener_t *listener);
 
-dds_return_t
-dds_subscriber_begin_coherent(
-  dds_entity_t e);
+/** @component subscriber */
+dds_return_t dds_subscriber_begin_coherent (dds_entity_t e);
 
-dds_return_t
-dds_subscriber_end_coherent (
-  dds_entity_t e);
+/** @component subscriber */
+dds_return_t dds_subscriber_end_coherent (dds_entity_t e);
 
+/** @component subscriber */
 bool dds_subscriber_compute_data_on_readers_locked (dds_subscriber *sub);
 
+/** @component subscriber */
 void dds_subscriber_adjust_materialize_data_on_readers (dds_subscriber *sub, bool materialization_needed) ddsrt_nonnull_all;
 
 #if defined (__cplusplus)
 }
 #endif
-#endif /* _DDS_SUBSCRIBER_H_ */
+
+#endif /* DDS__SUBSCRIBER_H */

@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef _SHM_monitor_H_
-#define _SHM_monitor_H_
+#ifndef DDS__SHM_MONITOR_H
+#define DDS__SHM_MONITOR_H
 
 #include "iceoryx_binding_c/subscriber.h"
 #include "iceoryx_binding_c/listener.h"
@@ -42,46 +42,73 @@ struct shm_monitor {
     ddsrt_mutex_t m_lock;
     iox_listener_t m_listener;
 
-    //use this if we wait but want to wake up for some reason e.g. terminate   
+    //use this if we wait but want to wake up for some reason e.g. terminate
     iox_user_trigger_t m_wakeup_trigger;
-   
+
     uint32_t m_number_of_attached_readers;
     uint32_t m_state;
 };
 
 typedef struct shm_monitor shm_monitor_t;
 
-/// @brief initialize the shm_monitor
-/// @param monitor self
-void shm_monitor_init(shm_monitor_t* monitor);
+/**
+ * @brief Initialize the shm_monitor
+ * @component shm_monitor
+ *
+ * @param monitor self
+ */
+void dds_shm_monitor_init(shm_monitor_t* monitor);
 
-/// @brief delete the shm_monitor
-/// @param monitor self
-void shm_monitor_destroy(shm_monitor_t* monitor);
+/**
+ * @brief Delete the shm_monitor
+ * @component shm_monitor
+ *
+ * @param monitor self
+ */
+void dds_shm_monitor_destroy(shm_monitor_t* monitor);
 
-/// @brief wake up the internal listener and disable execution of listener callbacks
-///        due to received data
-/// @param monitor self
-dds_return_t shm_monitor_wake_and_disable(shm_monitor_t* monitor);
+/**
+ * @brief Wake up the internal listener and disable execution of listener callbacks due to received data
+ * @component shm_monitor
+ *
+ * @param monitor self
+ * @return dds_return_t
+ */
+dds_return_t dds_shm_monitor_wake_and_disable(shm_monitor_t* monitor);
 
-/// @brief wake up the internal listener and enable execution of listener callbacks
-///        due to received data
-/// @param monitor self
-dds_return_t shm_monitor_wake_and_enable(shm_monitor_t* monitor);
+/**
+ * @brief Wake up the internal listener and enable execution of listener callbacks due to received data
+ * @component shm_monitor
+ *
+ * @param monitor self
+ * @return dds_return_t
+ */
+dds_return_t dds_shm_monitor_wake_and_enable(shm_monitor_t* monitor);
 
-/// @brief attach a new reader
-/// @param monitor self
-/// @param reader reader to attach
-dds_return_t shm_monitor_attach_reader(shm_monitor_t* monitor, struct dds_reader* reader);
+/**
+ * @brief Attach a new reader
+ * @component shm_monitor
+ *
+ * @param monitor self
+ * @param reader reader to attach
+ * @return dds_return_t
+ */
+dds_return_t dds_shm_monitor_attach_reader(shm_monitor_t* monitor, struct dds_reader* reader);
 
-/// @brief detach a reader
-/// @param monitor self
-/// @param reader reader to detach
-dds_return_t shm_monitor_detach_reader(shm_monitor_t* monitor, struct dds_reader* reader);
+/**
+ * @brief Detach a reader
+ * @component shm_monitor
+ *
+ * @param monitor self
+ * @param reader reader to detach
+ * @return dds_return_t
+ */
+dds_return_t dds_shm_monitor_detach_reader(shm_monitor_t* monitor, struct dds_reader* reader);
 
 // ICEORYX_TODO: clarify lifetime of readers, it should be ok since they are detached in the dds_reader_delete call
 
 #if defined (__cplusplus)
 }
 #endif
-#endif
+
+#endif /* DDS__SHM_MONITOR_H */

@@ -15,7 +15,6 @@
 #include "dds/ddsrt/log.h"
 #include "dds__entity.h"
 #include "dds__participant.h"
-#include "dds__querycond.h"
 #include "dds__readcond.h"
 #include "dds__init.h"
 #include "dds__subscriber.h" // only for (de)materializing data_on_readers
@@ -317,7 +316,7 @@ dds_return_t dds_waitset_attach (dds_entity_t waitset, dds_entity_t entity, dds_
       ret = DDS_RETCODE_BAD_PARAMETER;
       goto err_scope;
     }
-    
+
     // Attaching a subscriber to a waitset forces materialization of DATA_ON_READERS
     // subscribers have no other statuses, so no point in also looking at the status mask
     // note: no locks held
@@ -327,7 +326,7 @@ dds_return_t dds_waitset_attach (dds_entity_t waitset, dds_entity_t entity, dds_
     /* This will fail if given entity is already attached (or deleted). */
     struct dds_waitset_attach_observer_arg attach_arg = { .x = x };
     ret = dds_entity_observer_register (e, ws, dds_waitset_observer, dds_waitset_attach_observer, &attach_arg, dds_waitset_delete_observer);
-    
+
     // If it failed for a subscriber, undo the DATA_ON_READERS materialize changes
     // note: no locks held
     if (ret < 0 && dds_entity_kind (e) == DDS_KIND_SUBSCRIBER)

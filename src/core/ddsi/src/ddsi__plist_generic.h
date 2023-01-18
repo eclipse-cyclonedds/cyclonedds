@@ -47,16 +47,37 @@ enum ddsi_pserop {
   Xopt, /* remainder is optional on deser, 0-init if not present */
 } ddsrt_attribute_packed;
 
+/** @component parameter_list */
 void ddsi_plist_fini_generic (void * __restrict dst, const enum ddsi_pserop *desc, bool aliased);
+
+/** @component parameter_list */
 void ddsi_plist_ser_generic_size_embeddable (size_t *dstoff, const void *src, size_t srcoff, const enum ddsi_pserop * __restrict desc);
+
+/** @component parameter_list */
 dds_return_t ddsi_plist_deser_generic (void * __restrict dst, const void * __restrict src, size_t srcsize, bool bswap, const enum ddsi_pserop * __restrict desc);
+
+/** @component parameter_list */
 dds_return_t ddsi_plist_deser_generic_srcoff (void * __restrict dst, const void * __restrict src, size_t srcsize, size_t *srcoff, bool bswap, const enum ddsi_pserop * __restrict desc);
+
+/** @component parameter_list */
 dds_return_t ddsi_plist_ser_generic_embeddable (char * const data, size_t *dstoff, const void *src, size_t srcoff, const enum ddsi_pserop * __restrict desc, enum ddsrt_byte_order_selector bo);
+
+/** @component parameter_list */
 dds_return_t ddsi_plist_ser_generic (void **dst, size_t *dstsize, const void *src, const enum ddsi_pserop * __restrict desc);
+
+/** @component parameter_list */
 dds_return_t ddsi_plist_ser_generic_be (void **dst, size_t *dstsize, const void *src, const enum ddsi_pserop * __restrict desc);
+
+/** @component parameter_list */
 dds_return_t ddsi_plist_unalias_generic (void * __restrict dst, const enum ddsi_pserop * __restrict desc);
+
+/** @component parameter_list */
 bool ddsi_plist_equal_generic (const void *srcx, const void *srcy, const enum ddsi_pserop * __restrict desc);
+
+/** @component parameter_list */
 size_t ddsi_plist_memsize_generic (const enum ddsi_pserop * __restrict desc);
+
+/** @component parameter_list */
 size_t ddsi_plist_print_generic (char * __restrict buf, size_t bufsize, const void * __restrict src, const enum ddsi_pserop * __restrict desc);
 
 #if defined (__cplusplus)

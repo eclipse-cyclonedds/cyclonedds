@@ -1,0 +1,108 @@
+Module,Component Group,Component Name,Component Handle
+CDR,,CDR Serializer,cdr_serializer
+DDSC,Entity Kinds Implementations,Cyclone Root,cyclone_root
+DDSC,Entity Kinds Implementations,Data Query,data_query
+DDSC,Entity Kinds Implementations,Domain,domain
+DDSC,Entity Kinds Implementations,Guard Condition,guard_condition
+DDSC,Entity Kinds Implementations,Participant,participant
+DDSC,Entity Kinds Implementations,Publisher,publisher
+DDSC,Entity Kinds Implementations,Reader,reader
+DDSC,Entity Kinds Implementations,Subscriber,subscriber
+DDSC,Entity Kinds Implementations,Topic,topic
+DDSC,Entity Kinds Implementations,Waitset,waitset
+DDSC,Entity Kinds Implementations,Writer,writer
+DDSC,Entity management,Entity Listener,entity_listener
+DDSC,Entity management,Entity QoS,entity_qos
+DDSC,Entity management,Entity Relations,entity_relations
+DDSC,Entity management,Entity Status,entity_status
+DDSC,Entity Support,Generic Entity,generic_entity
+DDSC,Entity Support,Handles,handles
+DDSC,Entity Support,Listener Object,listener_obj
+DDSC,Entity Support,QoS Object,qos_obj
+DDSC,Miscellanous,Memory Allocation,memory_alloc
+DDSC,Miscellanous,Shared Memory Monitor,shm_monitor
+DDSC,Miscellanous,Statistics,statistics
+DDSC,Reading/writing data,Built-in Topic,builtin_topic
+DDSC,Reading/writing data,Coherent Sets,coherent_sets
+DDSC,Reading/writing data,Data Allocation,data_alloc
+DDSC,Reading/writing data,Data Instance,data_instance
+DDSC,Reading/writing data,Read Data,read_data
+DDSC,Reading/writing data,Reader History Cache,rhc
+DDSC,Reading/writing data,Type Meta-Data,type_metadata
+DDSC,Reading/writing data,Type Support Built-in Topic Implementation,typesupport_builtin
+DDSC,Reading/writing data,Type Support C Implementation,typesupport_c
+DDSC,Reading/writing data,Write Data,write_data
+DDSC,Reading/writing data,Writer History Cache,whc
+DDSI,Data Type Handling,Dynamic Types,dynamic_types
+DDSI,Data Type Handling,Type Lookup,type_lookup
+DDSI,Data Type Handling,Type System,type_system
+DDSI,Data Type Handling,XTypes Type Wrapper,xtypes_wrapper
+DDSI,Debugging and Monitoring,DDSI Statistics,ddsi_statistics
+DDSI,Debugging and Monitoring,Debug Support,debug_support
+DDSI,Debugging and Monitoring,Packet Capturing,packet_capturing
+DDSI,Debugging and Monitoring,Thread Monitor,thread_monitor
+DDSI,Endpoint History Cache,Reader History Cache Interface,rhc_if
+DDSI,Endpoint History Cache,Writer History Cache Interface,whc_if
+DDSI,Entity Support,Built-in Topic Interface,builtintopic_if
+DDSI,Entity Support,DDSI Endpoint,ddsi_endpoint
+DDSI,Entity Support,DDSI Generic Entity,ddsi_generic_entity
+DDSI,Entity Support,DDSI Participant,ddsi_participant
+DDSI,Entity Support,DDSI Proxy Endpoint,ddsi_proxy_endpoint
+DDSI,Entity Support,DDSI Proxy Participant,ddsi_proxy_participant
+DDSI,Entity Support,DDSI Topic,ddsi_topic
+DDSI,Entity Support,Endpoint Matching,endpoint_matching
+DDSI,Entity Support,Entity Index,entity_index
+DDSI,Entity Support,Local Delivery,local_delivery
+DDSI,Entity Support,QoS Matching,qos_matching
+DDSI,Incoming RTPS Support,Incoming RTPS Message Handling,incoming_rtps
+DDSI,Incoming RTPS Support,Receive Buffers,receive_buffers
+DDSI,Initialization and Configuration,Configuration,config
+DDSI,Initialization and Configuration,DDSI Initialization,ddsi_init
+DDSI,Legacy Security,Legacy SSL Support,legacy_ssl
+DDSI,Network Interfaces and Addressing,Ethernet,ethernet
+DDSI,Network Interfaces and Addressing,IP Address,ip_address
+DDSI,Network Interfaces and Addressing,Locators,locators
+DDSI,Network Interfaces and Addressing,Multicast Group,multicast_group
+DDSI,Network Interfaces and Addressing,Network Interface Selection,network_if_selection
+DDSI,Network Interfaces and Addressing,Network Partitions,network_partitions
+DDSI,Network Interfaces and Addressing,Port Mapping,port_mapping
+DDSI,Network Transport,Raw Ethernet Transport,raw_ethernet_transport
+DDSI,Network Transport,Socket Waitset,socket_waitset
+DDSI,Network Transport,TCP Transport,tcp_transport
+DDSI,Network Transport,Transport,transport
+DDSI,Network Transport,UDP Transport,udp_transport
+DDSI,Network Transport,Virtual Network Interface,vnet_if
+DDSI,Outgoing RTPS Support,Outgoing RTPS Message Handling,outgoing_rtps
+DDSI,Outgoing RTPS Support,RTPS Message Construction,rtps_msg
+DDSI,Outgoing RTPS Support,RTPS Submessage Construction,rtps_submsg
+DDSI,RTPS Protocol Handling,Discovery,discovery
+DDSI,RTPS Protocol Handling,Parameter List Handling,parameter_list
+DDSI,RTPS Protocol Handling,Participant Message Data,pmd
+DDSI,Security Support,Security Core,security_core
+DDSI,Security Support,Security Data,security_data
+DDSI,Security Support,Security Entity,security_entity
+DDSI,Security Support,Security Handshake,security_handshake
+DDSI,Security Support,Security Message Exchange,security_msg_exchange
+DDSI,Security Support,Security Utils,security_utils
+DDSI,Supporting Functionality,Deadline QoS,deadline_qos
+DDSI,Supporting Functionality,Garbage Collector,garbage_collector
+DDSI,Supporting Functionality,Iceroryx Support,iceoryx_support
+DDSI,Supporting Functionality,Key-Instance Map,key_instance_map
+DDSI,Supporting Functionality,Latency Estimation,latency_estim
+DDSI,Supporting Functionality,Lease Handling,lease_handling
+DDSI,Supporting Functionality,Lifespan QoS,lifespan_qos
+DDSI,Supporting Functionality,QoS Handling,qos_handling
+DDSI,Supporting Functionality,Thread Support,thread_support
+DDSI,Supporting Functionality,Timed Events,timed_events
+DDSI,Type Support,Type Support CDR Implementation,typesupport_cdr
+DDSI,Type Support,Type Support Interface,typesupport_if
+DDSI,Type Support,Type Support Parameter List Implementation,typesupport_pl
+DDSI,Type Support,Type Support Pserop Implementation,typesupport_pserop
+DDSI,Utils,Bitset,bitset
+DDSI,Utils,DDSI Byteswapping,ddsi_byteswap
+DDSI,Utils,DDSI Freelist,ddsi_freelist
+DDSI,Utils,Instance ID,instance_id
+DDSI,Utils,Inverse Set,inverset_set
+DDSI,Utils,Miscellaneous,misc
+DDSI,Utils,Time Utils,time_utils
+DDSI,Utils,Vendor Codes,vendor_codes

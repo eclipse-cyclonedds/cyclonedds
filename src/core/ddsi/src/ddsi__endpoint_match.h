@@ -150,51 +150,126 @@ struct ddsi_pwr_rd_match {
 #endif
 };
 
+/** @component endpoint_matching */
 void ddsi_connect_writer_with_proxy_reader_secure (struct ddsi_writer *wr, struct ddsi_proxy_reader *prd, ddsrt_mtime_t tnow, int64_t crypto_handle);
+
+/** @component endpoint_matching */
 void ddsi_connect_reader_with_proxy_writer_secure (struct ddsi_reader *rd, struct ddsi_proxy_writer *pwr, ddsrt_mtime_t tnow, int64_t crypto_handle);
+
+/** @component endpoint_matching */
 void ddsi_match_writer_with_proxy_readers (struct ddsi_writer *wr, ddsrt_mtime_t tnow);
+
+/** @component endpoint_matching */
 void ddsi_match_writer_with_local_readers (struct ddsi_writer *wr, ddsrt_mtime_t tnow);
+
+/** @component endpoint_matching */
 void ddsi_match_reader_with_proxy_writers (struct ddsi_reader *rd, ddsrt_mtime_t tnow);
+
+/** @component endpoint_matching */
 void ddsi_match_reader_with_local_writers (struct ddsi_reader *rd, ddsrt_mtime_t tnow);
+
+/** @component endpoint_matching */
 void ddsi_match_proxy_writer_with_readers (struct ddsi_proxy_writer *pwr, ddsrt_mtime_t tnow);
+
+/** @component endpoint_matching */
 void ddsi_match_proxy_reader_with_writers (struct ddsi_proxy_reader *prd, ddsrt_mtime_t tnow);
+
+/** @component endpoint_matching */
 void ddsi_free_wr_prd_match (const struct ddsi_domaingv *gv, const ddsi_guid_t *wr_guid, struct ddsi_wr_prd_match *m);
+
+/** @component endpoint_matching */
 void ddsi_free_rd_pwr_match (struct ddsi_domaingv *gv, const ddsi_guid_t *rd_guid, struct ddsi_rd_pwr_match *m);
+
+/** @component endpoint_matching */
 void ddsi_free_pwr_rd_match (struct ddsi_pwr_rd_match *m);
+
+/** @component endpoint_matching */
 void ddsi_free_prd_wr_match (struct ddsi_prd_wr_match *m);
+
+/** @component endpoint_matching */
 void ddsi_free_rd_wr_match (struct ddsi_rd_wr_match *m);
+
+/** @component endpoint_matching */
 void ddsi_free_wr_rd_match (struct ddsi_wr_rd_match *m);
 
+/** @component endpoint_matching */
 void ddsi_writer_add_connection (struct ddsi_writer *wr, struct ddsi_proxy_reader *prd, int64_t crypto_handle);
+
+/** @component endpoint_matching */
 void ddsi_writer_add_local_connection (struct ddsi_writer *wr, struct ddsi_reader *rd);
+
+/** @component endpoint_matching */
 void ddsi_reader_add_connection (struct ddsi_reader *rd, struct ddsi_proxy_writer *pwr, ddsi_count_t *init_count, const struct ddsi_alive_state *alive_state, int64_t crypto_handle);
+
+/** @component endpoint_matching */
 void ddsi_reader_add_local_connection (struct ddsi_reader *rd, struct ddsi_writer *wr, const struct ddsi_alive_state *alive_state);
+
+/** @component endpoint_matching */
 void ddsi_proxy_writer_add_connection (struct ddsi_proxy_writer *pwr, struct ddsi_reader *rd, ddsrt_mtime_t tnow, ddsi_count_t init_count, int64_t crypto_handle);
+
+/** @component endpoint_matching */
 void ddsi_proxy_reader_add_connection (struct ddsi_proxy_reader *prd, struct ddsi_writer *wr, int64_t crypto_handle);
 
+/** @component endpoint_matching */
 void ddsi_writer_drop_connection (const struct ddsi_guid *wr_guid, const struct ddsi_proxy_reader *prd);
+
+/** @component endpoint_matching */
 void ddsi_writer_drop_local_connection (const struct ddsi_guid *wr_guid, struct ddsi_reader *rd);
+
+/** @component endpoint_matching */
 void ddsi_reader_drop_connection (const struct ddsi_guid *rd_guid, const struct ddsi_proxy_writer *pwr);
+
+/** @component endpoint_matching */
 void ddsi_reader_drop_local_connection (const struct ddsi_guid *rd_guid, const struct ddsi_writer *wr);
+
+/** @component endpoint_matching */
 void ddsi_proxy_writer_drop_connection (const struct ddsi_guid *pwr_guid, struct ddsi_reader *rd);
+
+/** @component endpoint_matching */
 void ddsi_proxy_reader_drop_connection (const struct ddsi_guid *prd_guid, struct ddsi_writer *wr);
 
+/** @component endpoint_matching */
 void ddsi_local_reader_ary_init (struct ddsi_local_reader_ary *x);
+
+/** @component endpoint_matching */
 void ddsi_local_reader_ary_fini (struct ddsi_local_reader_ary *x);
+
+/** @component endpoint_matching */
 void ddsi_local_reader_ary_setinvalid (struct ddsi_local_reader_ary *x);
+
+/** @component endpoint_matching */
 void ddsi_local_reader_ary_insert (struct ddsi_local_reader_ary *x, struct ddsi_reader *rd);
+
+/** @component endpoint_matching */
 void ddsi_local_reader_ary_remove (struct ddsi_local_reader_ary *x, struct ddsi_reader *rd);
+
+/** @component endpoint_matching */
 void ddsi_local_reader_ary_setfastpath_ok (struct ddsi_local_reader_ary *x, bool fastpath_ok);
 
-#ifdef DDS_HAS_SECURITY
-void ddsi_handshake_end_cb (struct ddsi_handshake *handshake, struct ddsi_participant *pp, struct ddsi_proxy_participant *proxypp, enum ddsi_handshake_state result);
-bool ddsi_proxy_participant_has_pp_match (struct ddsi_domaingv *gv, struct ddsi_proxy_participant *proxypp);
-void ddsi_proxy_participant_create_handshakes (struct ddsi_domaingv *gv, struct ddsi_proxy_participant *proxypp);
-void ddsi_disconnect_proxy_participant_secure (struct ddsi_proxy_participant *proxypp);
-void ddsi_match_volatile_secure_endpoints (struct ddsi_participant *pp, struct ddsi_proxy_participant *proxypp);
-void ddsi_update_proxy_participant_endpoint_matching (struct ddsi_proxy_participant *proxypp, struct ddsi_participant *pp);
-#endif
 
+#ifdef DDS_HAS_SECURITY
+
+/** @component endpoint_matching */
+void ddsi_handshake_end_cb (struct ddsi_handshake *handshake, struct ddsi_participant *pp, struct ddsi_proxy_participant *proxypp, enum ddsi_handshake_state result);
+
+/** @component endpoint_matching */
+bool ddsi_proxy_participant_has_pp_match (struct ddsi_domaingv *gv, struct ddsi_proxy_participant *proxypp);
+
+/** @component endpoint_matching */
+void ddsi_proxy_participant_create_handshakes (struct ddsi_domaingv *gv, struct ddsi_proxy_participant *proxypp);
+
+/** @component endpoint_matching */
+void ddsi_disconnect_proxy_participant_secure (struct ddsi_proxy_participant *proxypp);
+
+/** @component endpoint_matching */
+void ddsi_match_volatile_secure_endpoints (struct ddsi_participant *pp, struct ddsi_proxy_participant *proxypp);
+
+/** @component endpoint_matching */
+void ddsi_update_proxy_participant_endpoint_matching (struct ddsi_proxy_participant *proxypp, struct ddsi_participant *pp);
+
+#endif /* DDS_HAS_SECURITY */
+
+/** @component endpoint_matching */
 void ddsi_update_proxy_endpoint_matching (const struct ddsi_domaingv *gv, struct ddsi_generic_proxy_endpoint *proxy_ep);
 
 #if defined (__cplusplus)

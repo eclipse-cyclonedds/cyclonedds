@@ -24,8 +24,13 @@ extern "C" {
 struct ddsi_cfgst;
 struct ddsrt_log_cfg;
 
+/** @component config */
 void ddsi_config_print_cfgst (struct ddsi_cfgst *cfgst, const struct ddsrt_log_cfg *logcfg);
+
+/** @component config */
 void ddsi_config_print_rawconfig (const struct ddsi_config *cfg, const struct ddsrt_log_cfg *logcfg);
+
+/** @component config */
 void ddsi_config_free_source_info (struct ddsi_cfgst *cfgst);
 
 #if defined (__cplusplus)

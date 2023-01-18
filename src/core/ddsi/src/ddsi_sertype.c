@@ -92,7 +92,7 @@ void ddsi_sertype_register_locked (struct ddsi_domaingv *gv, struct ddsi_sertype
   ddsrt_hh_add_absent (gv->sertypes, sertype);
 }
 
-void ddsi_sertype_unref_locked (struct ddsi_domaingv * const gv, struct ddsi_sertype *sertype)
+static void ddsi_sertype_unref_locked (struct ddsi_domaingv * const gv, struct ddsi_sertype *sertype)
 {
   const uint32_t flags_refc1 = ddsrt_atomic_dec32_nv (&sertype->flags_refc);
   assert (!(flags_refc1 & DDSI_SERTYPE_REGISTERED) || gv == ddsrt_atomic_ldvoidp (&sertype->gv));

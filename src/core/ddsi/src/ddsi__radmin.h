@@ -119,52 +119,130 @@ enum ddsi_defrag_nackmap_result {
   DDSI_DEFRAG_NACKMAP_FRAGMENTS_MISSING
 };
 
+/** @component receive_buffers */
 struct ddsi_rbufpool *ddsi_rbufpool_new (const struct ddsrt_log_cfg *logcfg, uint32_t rbuf_size, uint32_t max_rmsg_size);
+
+/** @component receive_buffers */
 void ddsi_rbufpool_setowner (struct ddsi_rbufpool *rbp, ddsrt_thread_t tid);
+
+/** @component receive_buffers */
 void ddsi_rbufpool_free (struct ddsi_rbufpool *rbp);
 
+/** @component receive_buffers */
 struct ddsi_rmsg *ddsi_rmsg_new (struct ddsi_rbufpool *rbufpool);
+
+/** @component receive_buffers */
 void ddsi_rmsg_setsize (struct ddsi_rmsg *rmsg, uint32_t size);
+
+/** @component receive_buffers */
 void ddsi_rmsg_commit (struct ddsi_rmsg *rmsg);
+
+/** @component receive_buffers */
 void ddsi_rmsg_free (struct ddsi_rmsg *rmsg);
+
+/** @component receive_buffers */
 void *ddsi_rmsg_alloc (struct ddsi_rmsg *rmsg, uint32_t size);
 
+/** @component receive_buffers */
 struct ddsi_rdata *ddsi_rdata_new (struct ddsi_rmsg *rmsg, uint32_t start, uint32_t endp1, uint32_t submsg_offset, uint32_t payload_offset, uint32_t keyhash_offset);
+
+/** @component receive_buffers */
 struct ddsi_rdata *ddsi_rdata_newgap (struct ddsi_rmsg *rmsg);
+
+/** @component receive_buffers */
 void ddsi_fragchain_adjust_refcount (struct ddsi_rdata *frag, int adjust);
+
+/** @component receive_buffers */
 void ddsi_fragchain_unref (struct ddsi_rdata *frag);
 
+
+/** @component receive_buffers */
 struct ddsi_defrag *ddsi_defrag_new (const struct ddsrt_log_cfg *logcfg, enum ddsi_defrag_drop_mode drop_mode, uint32_t max_samples);
+
+/** @component receive_buffers */
 void ddsi_defrag_free (struct ddsi_defrag *defrag);
+
+/** @component receive_buffers */
 struct ddsi_rsample *ddsi_defrag_rsample (struct ddsi_defrag *defrag, struct ddsi_rdata *rdata, const struct ddsi_rsample_info *sampleinfo);
+
+/** @component receive_buffers */
 void ddsi_defrag_notegap (struct ddsi_defrag *defrag, ddsi_seqno_t min, ddsi_seqno_t maxp1);
+
+/** @component receive_buffers */
 enum ddsi_defrag_nackmap_result ddsi_defrag_nackmap (struct ddsi_defrag *defrag, ddsi_seqno_t seq, uint32_t maxfragnum, struct ddsi_fragment_number_set_header *map, uint32_t *mapbits, uint32_t maxsz);
+
+/** @component receive_buffers */
 void ddsi_defrag_prune (struct ddsi_defrag *defrag, ddsi_guid_prefix_t *dst, ddsi_seqno_t min);
 
+/** @component receive_buffers */
 struct ddsi_reorder *ddsi_reorder_new (const struct ddsrt_log_cfg *logcfg, enum ddsi_reorder_mode mode, uint32_t max_samples, bool late_ack_mode);
+
+/** @component receive_buffers */
 void ddsi_reorder_free (struct ddsi_reorder *r);
+
+/** @component receive_buffers */
 struct ddsi_rsample *ddsi_reorder_rsample_dup_first (struct ddsi_rmsg *rmsg, struct ddsi_rsample *rsampleiv);
+
+/** @component receive_buffers */
 struct ddsi_rdata *ddsi_rsample_fragchain (struct ddsi_rsample *rsample);
+
+/** @component receive_buffers */
 ddsi_reorder_result_t ddsi_reorder_rsample (struct ddsi_rsample_chain *sc, struct ddsi_reorder *reorder, struct ddsi_rsample *rsampleiv, int *refcount_adjust, int delivery_queue_full_p);
+
+/** @component receive_buffers */
 ddsi_reorder_result_t ddsi_reorder_gap (struct ddsi_rsample_chain *sc, struct ddsi_reorder *reorder, struct ddsi_rdata *rdata, ddsi_seqno_t min, ddsi_seqno_t maxp1, int *refcount_adjust);
+
+/** @component receive_buffers */
 void ddsi_reorder_drop_upto (struct ddsi_reorder *reorder, ddsi_seqno_t maxp1); // drops [1,maxp1); next_seq' = maxp1
+
+/** @component receive_buffers */
 int ddsi_reorder_wantsample (const struct ddsi_reorder *reorder, ddsi_seqno_t seq);
+
+/** @component receive_buffers */
 unsigned ddsi_reorder_nackmap (const struct ddsi_reorder *reorder, ddsi_seqno_t base, ddsi_seqno_t maxseq, struct ddsi_sequence_number_set_header *map, uint32_t *mapbits, uint32_t maxsz, int notail);
+
+/** @component receive_buffers */
 ddsi_seqno_t ddsi_reorder_next_seq (const struct ddsi_reorder *reorder);
+
+/** @component receive_buffers */
 void ddsi_reorder_set_next_seq (struct ddsi_reorder *reorder, ddsi_seqno_t seq);
 
+
+/** @component receive_buffers */
 struct ddsi_dqueue *ddsi_dqueue_new (const char *name, const struct ddsi_domaingv *gv, uint32_t max_samples, ddsi_dqueue_handler_t handler, void *arg);
+
+/** @component receive_buffers */
 bool ddsi_dqueue_start (struct ddsi_dqueue *q);
+
+/** @component receive_buffers */
 void ddsi_dqueue_free (struct ddsi_dqueue *q);
+
+/** @component receive_buffers */
 bool ddsi_dqueue_enqueue_deferred_wakeup (struct ddsi_dqueue *q, struct ddsi_rsample_chain *sc, ddsi_reorder_result_t rres);
+
+/** @component receive_buffers */
 void ddsi_dqueue_enqueue_trigger (struct ddsi_dqueue *q);
+
+/** @component receive_buffers */
 void ddsi_dqueue_enqueue (struct ddsi_dqueue *q, struct ddsi_rsample_chain *sc, ddsi_reorder_result_t rres);
+
+/** @component receive_buffers */
 void ddsi_dqueue_enqueue1 (struct ddsi_dqueue *q, const ddsi_guid_t *rdguid, struct ddsi_rsample_chain *sc, ddsi_reorder_result_t rres);
+
+/** @component receive_buffers */
 void ddsi_dqueue_enqueue_callback (struct ddsi_dqueue *q, ddsi_dqueue_callback_t cb, void *arg);
+
+/** @component receive_buffers */
 int ddsi_dqueue_is_full (struct ddsi_dqueue *q);
+
+/** @component receive_buffers */
 void ddsi_dqueue_wait_until_empty_if_full (struct ddsi_dqueue *q);
 
+
+/** @component receive_buffers */
 void ddsi_defrag_stats (struct ddsi_defrag *defrag, uint64_t *discarded_bytes);
+
+/** @component receive_buffers */
 void ddsi_reorder_stats (struct ddsi_reorder *reorder, uint64_t *discarded_bytes);
 
 #if defined (__cplusplus)

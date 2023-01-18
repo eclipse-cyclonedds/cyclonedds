@@ -27,6 +27,7 @@ typedef struct ddsi_udpv4mcgen_address {
   uint8_t idx; /* must be last: then sorting will put them consecutively */
 } ddsi_udpv4mcgen_address_t;
 
+/** @component udp_transport */
 int ddsi_udp_init (struct ddsi_domaingv *gv);
 
 #if defined (__cplusplus)

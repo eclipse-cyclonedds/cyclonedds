@@ -24,9 +24,16 @@ struct ddsi_inverse_uint32_set_node {
   uint32_t min, max;
 };
 
+/** @component inverset_set */
 void ddsi_inverse_uint32_set_init(struct ddsi_inverse_uint32_set *set, uint32_t min, uint32_t max);
+
+/** @component inverset_set */
 void ddsi_inverse_uint32_set_fini(struct ddsi_inverse_uint32_set *set);
+
+/** @component inverset_set */
 int ddsi_inverse_uint32_set_alloc(uint32_t * const id, struct ddsi_inverse_uint32_set *set);
+
+/** @component inverset_set */
 void ddsi_inverse_uint32_set_free(struct ddsi_inverse_uint32_set *set, uint32_t id);
 
 #if defined (__cplusplus)

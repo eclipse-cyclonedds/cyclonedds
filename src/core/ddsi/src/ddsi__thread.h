@@ -38,16 +38,23 @@ struct ddsi_thread_states_list {
   uint32_t nthreads; // = DDSI_THREAD_STATE_BATCH + (next ? next->nthreads : 0)
 };
 
+/** @component thread_support */
 const struct ddsi_config_thread_properties_listelem *ddsi_lookup_thread_properties (const struct ddsi_config *config, const char *name);
+
+/** @component thread_support */
 dds_return_t ddsi_create_thread_with_properties (struct ddsi_thread_state **thrst, struct ddsi_config_thread_properties_listelem const * const tprops, const char *name, uint32_t (*f) (void *arg), void *arg);
+
+/** @component thread_support */
 void ddsi_log_stack_traces (const struct ddsrt_log_cfg *logcfg, const struct ddsi_domaingv *gv);
 
+/** @component thread_support */
 inline bool ddsi_vtime_gt (ddsi_vtime_t vtime1, ddsi_vtime_t vtime0)
 {
   DDSRT_STATIC_ASSERT_CODE (sizeof (ddsi_vtime_t) == sizeof (ddsi_svtime_t));
   return (ddsi_svtime_t) ((vtime1 & DDSI_VTIME_TIME_MASK) - (vtime0 & DDSI_VTIME_TIME_MASK)) > 0;
 }
 
+/** @component thread_support */
 inline void ddsi_thread_state_awake_domain_ok (struct ddsi_thread_state *thrst)
 {
   ddsi_vtime_t vt = ddsrt_atomic_ld32 (&thrst->vtime);
@@ -59,6 +66,7 @@ inline void ddsi_thread_state_awake_domain_ok (struct ddsi_thread_state *thrst)
   ddsrt_atomic_fence_acq ();
 }
 
+/** @component thread_support */
 inline void ddsi_thread_state_awake_fixed_domain (struct ddsi_thread_state *thrst)
 {
   /* fixed domain -> must be an internal thread */
@@ -66,6 +74,7 @@ inline void ddsi_thread_state_awake_fixed_domain (struct ddsi_thread_state *thrs
   ddsi_thread_state_awake_domain_ok (thrst);
 }
 
+/** @component thread_support */
 inline void ddsi_thread_state_awake_to_awake_no_nest (struct ddsi_thread_state *thrst)
 {
   ddsi_vtime_t vt = ddsrt_atomic_ld32 (&thrst->vtime);

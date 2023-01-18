@@ -24,17 +24,40 @@ extern "C" {
 struct ddsi_entity_common;
 struct ddsi_domaingv; /* FIXME: make a special for the lease admin */
 
+/** @component lease_handling */
 int ddsi_compare_lease_tsched (const void *va, const void *vb);
+
+/** @component lease_handling */
 int ddsi_compare_lease_tdur (const void *va, const void *vb);
+
+/** @component lease_handling */
 void ddsi_lease_management_init (struct ddsi_domaingv *gv);
+
+/** @component lease_handling */
 void ddsi_lease_management_term (struct ddsi_domaingv *gv);
+
+/** @component lease_handling */
 struct ddsi_lease *ddsi_lease_new (ddsrt_etime_t texpire, int64_t tdur, struct ddsi_entity_common *e);
+
+/** @component lease_handling */
 struct ddsi_lease *ddsi_lease_clone (const struct ddsi_lease *l);
+
+/** @component lease_handling */
 void ddsi_lease_register (struct ddsi_lease *l);
+
+/** @component lease_handling */
 void ddsi_lease_unregister (struct ddsi_lease *l);
+
+/** @component lease_handling */
 void ddsi_lease_free (struct ddsi_lease *l);
+
+/** @component lease_handling */
 void ddsi_lease_renew (struct ddsi_lease *l, ddsrt_etime_t tnow);
+
+/** @component lease_handling */
 void ddsi_lease_set_expiry (struct ddsi_lease *l, ddsrt_etime_t when);
+
+/** @component lease_handling */
 int64_t ddsi_check_and_handle_lease_expiration (struct ddsi_domaingv *gv, ddsrt_etime_t tnow);
 
 #if defined (__cplusplus)

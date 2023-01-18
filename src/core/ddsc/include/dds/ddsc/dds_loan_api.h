@@ -27,6 +27,7 @@ extern "C" {
 
 /**
  * @ingroup loan
+ * @component read_data
  * @brief Check if a Loan is available to reader/writer
  * The loan is available if the shared memory is enabled and all the constraints
  * to enable shared memory are met and the type is fixed
@@ -41,6 +42,7 @@ DDS_EXPORT bool dds_is_loan_available(const dds_entity_t entity);
 
 /**
  * @ingroup loan
+ * @component read_data
  * @brief Check if a shared memory is available to reader/writer.
  *
  * @note dds_loan_shared_memory_buffer can be used if and only if
@@ -54,6 +56,7 @@ DDS_EXPORT bool dds_is_shared_memory_available(const dds_entity_t entity);
 
 /**
  * @ingroup loan
+ * @component read_data
  * @brief Loan a shared memory buffer of a specific size from the writer.
  *
  * @note Currently this function is to be used with dds_writecdr by adding the
@@ -73,6 +76,7 @@ DDS_EXPORT dds_return_t dds_loan_shared_memory_buffer(dds_entity_t writer,
 
 /**
  * @ingroup loan
+ * @component read_data
  * @brief Loan a sample from the writer.
  *
  * @note This function is to be used with dds_write to publish the loaned

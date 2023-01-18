@@ -9,8 +9,8 @@
  *
  * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
  */
-#ifndef _DDS_TYPES_H_
-#define _DDS_TYPES_H_
+#ifndef DDS__TYPES_H
+#define DDS__TYPES_H
 
 /* DDS internal type definitions */
 
@@ -29,7 +29,7 @@
 #include "dds/ddsi/ddsi_shm_transport.h"
 #include "iceoryx_binding_c/publisher.h"
 #include "iceoryx_binding_c/subscriber.h"
-#include "shm__monitor.h"
+#include "dds__shm_monitor.h"
 #define MAX_PUB_LOANS 8
 #endif
 
@@ -187,38 +187,68 @@ extern const struct dds_entity_deriver dds_entity_deriver_domain;
 extern const struct dds_entity_deriver dds_entity_deriver_cyclonedds;
 extern const struct dds_entity_deriver *dds_entity_deriver_table[];
 
+/** @notincomponent */
 void dds_entity_deriver_dummy_interrupt (struct dds_entity *e);
+
+/** @notincomponent */
 void dds_entity_deriver_dummy_close (struct dds_entity *e);
+
+/** @notincomponent */
 dds_return_t dds_entity_deriver_dummy_delete (struct dds_entity *e);
+
+/** @notincomponent */
 dds_return_t dds_entity_deriver_dummy_set_qos (struct dds_entity *e, const dds_qos_t *qos, bool enabled);
+
+/** @notincomponent */
 dds_return_t dds_entity_deriver_dummy_validate_status (uint32_t mask);
+
+/** @notincomponent */
 struct dds_statistics *dds_entity_deriver_dummy_create_statistics (const struct dds_entity *e);
+
+/** @notincomponent */
 void dds_entity_deriver_dummy_refresh_statistics (const struct dds_entity *e, struct dds_statistics *s);
 
+/** @component generic_entity */
 inline void dds_entity_deriver_interrupt (struct dds_entity *e) {
   (dds_entity_deriver_table[e->m_kind]->interrupt) (e);
 }
+
+/** @component generic_entity */
 inline void dds_entity_deriver_close (struct dds_entity *e) {
   (dds_entity_deriver_table[e->m_kind]->close) (e);
 }
+
+/** @component generic_entity */
 inline dds_return_t dds_entity_deriver_delete (struct dds_entity *e) {
   return dds_entity_deriver_table[e->m_kind]->delete (e);
 }
+
+/** @component generic_entity */
 inline dds_return_t dds_entity_deriver_set_qos (struct dds_entity *e, const dds_qos_t *qos, bool enabled) {
   return dds_entity_deriver_table[e->m_kind]->set_qos (e, qos, enabled);
 }
+
+/** @component generic_entity */
 inline dds_return_t dds_entity_deriver_validate_status (struct dds_entity *e, uint32_t mask) {
   return dds_entity_deriver_table[e->m_kind]->validate_status (mask);
 }
+
+/** @component generic_entity */
 inline bool dds_entity_supports_set_qos (struct dds_entity *e) {
   return dds_entity_deriver_table[e->m_kind]->set_qos != dds_entity_deriver_dummy_set_qos;
 }
+
+/** @component generic_entity */
 inline bool dds_entity_supports_validate_status (struct dds_entity *e) {
   return dds_entity_deriver_table[e->m_kind]->validate_status != dds_entity_deriver_dummy_validate_status;
 }
+
+/** @component statistics */
 inline struct dds_statistics *dds_entity_deriver_create_statistics (const struct dds_entity *e) {
   return dds_entity_deriver_table[e->m_kind]->create_statistics (e);
 }
+
+/** @component statistics */
 inline void dds_entity_deriver_refresh_statistics (const struct dds_entity *e, struct dds_statistics *s) {
   dds_entity_deriver_table[e->m_kind]->refresh_statistics (e, s);
 }
@@ -424,4 +454,4 @@ extern dds_cyclonedds_entity dds_global;
 #if defined (__cplusplus)
 }
 #endif
-#endif
+#endif /* DDS__TYPES_H */

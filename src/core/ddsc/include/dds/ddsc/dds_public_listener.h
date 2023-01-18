@@ -64,6 +64,7 @@ typedef struct dds_listener dds_listener_t;
 
 /**
  * @ingroup listener
+ * @component listener_obj
  * @brief Allocate memory and initializes to default values (@ref DDS_LUNSET) of a listener
  *
  * @param[in] arg optional pointer that will be passed on to the listener callbacks
@@ -74,6 +75,7 @@ DDS_EXPORT dds_listener_t* dds_create_listener(void* arg);
 
 /**
  * @ingroup listener
+ * @component listener_obj
  * @brief Delete the memory allocated to listener structure
  *
  * @param[in] listener pointer to the listener struct to delete
@@ -82,6 +84,7 @@ DDS_EXPORT void dds_delete_listener (dds_listener_t * __restrict listener);
 
 /**
  * @ingroup listener
+ * @component listener_obj
  * @brief Reset the listener structure contents to @ref DDS_LUNSET
  *
  * @param[in,out] listener pointer to the listener struct to reset
@@ -90,6 +93,7 @@ DDS_EXPORT void dds_reset_listener (dds_listener_t * __restrict listener);
 
 /**
  * @ingroup listener
+ * @component listener_obj
  * @brief Copy the listener callbacks from source to destination
  *
  * @param[in,out] dst The pointer to the destination listener structure, where the content is to copied
@@ -99,6 +103,7 @@ DDS_EXPORT void dds_copy_listener (dds_listener_t * __restrict dst, const dds_li
 
 /**
  * @ingroup listener
+ * @component listener_obj
  * @brief Copy the listener callbacks from source to destination, unless already set
  *
  * Any listener callbacks already set in @p dst (including NULL) are skipped, only
@@ -120,6 +125,7 @@ DDS_EXPORT void dds_merge_listener (dds_listener_t * __restrict dst, const dds_l
 
 /**
  * @ingroup listener_setters
+ * @component listener_obj
  * @brief Set the data_available callback and argument in the listener structure.
  *
  * @param[in,out] listener listener structure to update
@@ -134,6 +140,7 @@ DDS_EXPORT dds_return_t dds_lset_data_available_arg (dds_listener_t * __restrict
 
 /**
  * @ingroup listener_setters
+ * @component listener_obj
  * @brief Set the data_on_readers callback and argument in the listener structure.
  *
  * @param[in,out] listener listener structure to update
@@ -148,6 +155,7 @@ DDS_EXPORT dds_return_t dds_lset_data_on_readers_arg (dds_listener_t * __restric
 
 /**
  * @ingroup listener_setters
+ * @component listener_obj
  * @brief Set the inconsistent_topic callback and argument in the listener structure.
  *
  * @param[in,out] listener listener structure to update
@@ -162,6 +170,7 @@ DDS_EXPORT dds_return_t dds_lset_inconsistent_topic_arg (dds_listener_t * __rest
 
 /**
  * @ingroup listener_setters
+ * @component listener_obj
  * @brief Set the liveliness_changed callback and argument in the listener structure.
  *
  * @param[in,out] listener listener structure to update
@@ -176,6 +185,7 @@ DDS_EXPORT dds_return_t dds_lset_liveliness_changed_arg (dds_listener_t * __rest
 
 /**
  * @ingroup listener_setters
+ * @component listener_obj
  * @brief Set the liveliness_lost callback and argument in the listener structure.
  *
  * @param[in,out] listener listener structure to update
@@ -190,6 +200,7 @@ DDS_EXPORT dds_return_t dds_lset_liveliness_lost_arg (dds_listener_t * __restric
 
 /**
  * @ingroup listener_setters
+ * @component listener_obj
  * @brief Set the offered_deadline_missed callback and argument in the listener structure.
  *
  * @param[in,out] listener listener structure to update
@@ -204,6 +215,7 @@ DDS_EXPORT dds_return_t dds_lset_offered_deadline_missed_arg (dds_listener_t * _
 
 /**
  * @ingroup listener_setters
+ * @component listener_obj
  * @brief Set the offered_incompatible_qos callback and argument in the listener structure.
  *
  * @param[in,out] listener listener structure to update
@@ -218,6 +230,7 @@ DDS_EXPORT dds_return_t dds_lset_offered_incompatible_qos_arg (dds_listener_t * 
 
 /**
  * @ingroup listener_setters
+ * @component listener_obj
  * @brief Set the publication_matched callback and argument in the listener structure.
  *
  * @param[in,out] listener listener structure to update
@@ -232,6 +245,7 @@ DDS_EXPORT dds_return_t dds_lset_publication_matched_arg (dds_listener_t * __res
 
 /**
  * @ingroup listener_setters
+ * @component listener_obj
  * @brief Set the requested_deadline_missed callback and argument in the listener structure.
  *
  * @param[in,out] listener listener structure to update
@@ -246,6 +260,7 @@ DDS_EXPORT dds_return_t dds_lset_requested_deadline_missed_arg (dds_listener_t *
 
 /**
  * @ingroup listener_setters
+ * @component listener_obj
  * @brief Set the requested_incompatible_qos callback and argument in the listener structure.
  *
  * @param[in,out] listener listener structure to update
@@ -260,6 +275,7 @@ DDS_EXPORT dds_return_t dds_lset_requested_incompatible_qos_arg (dds_listener_t 
 
 /**
  * @ingroup listener_setters
+ * @component listener_obj
  * @brief Set the sample_lost callback and argument in the listener structure.
  *
  * @param[in,out] listener listener structure to update
@@ -274,6 +290,7 @@ DDS_EXPORT dds_return_t dds_lset_sample_lost_arg (dds_listener_t * __restrict li
 
 /**
  * @ingroup listener_setters
+ * @component listener_obj
  * @brief Set the sample_rejected callback and argument in the listener structure.
  *
  * @param[in,out] listener listener structure to update
@@ -288,6 +305,7 @@ DDS_EXPORT dds_return_t dds_lset_sample_rejected_arg (dds_listener_t * __restric
 
 /**
  * @ingroup listener_setters
+ * @component listener_obj
  * @brief Set the subscription_matched callback and argument in the listener structure.
  *
  * @param[in,out] listener listener structure to update
@@ -302,6 +320,7 @@ DDS_EXPORT dds_return_t dds_lset_subscription_matched_arg (dds_listener_t * __re
 
 /**
  * @ingroup listener_setters
+ * @component listener_obj
  * @brief Set the inconsistent_topic callback in the listener structure.
  *
  * Equivalent to calling @ref dds_lset_inconsistent_topic_arg with arg set to the argument passed in
@@ -314,6 +333,7 @@ DDS_EXPORT void dds_lset_inconsistent_topic (dds_listener_t * __restrict listene
 
 /**
  * @ingroup listener_setters
+ * @component listener_obj
  * @brief Set the liveliness_lost callback in the listener structure.
  *
  * Equivalent to calling @ref dds_lset_liveliness_lost_arg with arg set to the argument passed in
@@ -326,6 +346,7 @@ DDS_EXPORT void dds_lset_liveliness_lost (dds_listener_t * __restrict listener, 
 
 /**
  * @ingroup listener_setters
+ * @component listener_obj
  * @brief Set the offered_deadline_missed callback in the listener structure.
  *
  * Equivalent to calling @ref dds_lset_offered_deadline_missed_arg with arg set to the argument passed in
@@ -338,6 +359,7 @@ DDS_EXPORT void dds_lset_offered_deadline_missed (dds_listener_t * __restrict li
 
 /**
  * @ingroup listener_setters
+ * @component listener_obj
  * @brief Set the offered_incompatible_qos callback in the listener structure.
  *
  * Equivalent to calling @ref dds_lset_offered_incompatible_qos_arg with arg set to the argument passed in
@@ -350,6 +372,7 @@ DDS_EXPORT void dds_lset_offered_incompatible_qos (dds_listener_t * __restrict l
 
 /**
  * @ingroup listener_setters
+ * @component listener_obj
  * @brief Set the data_on_readers callback in the listener structure.
  *
  * Equivalent to calling @ref dds_lset_data_on_readers_arg with arg set to the argument passed in
@@ -362,6 +385,7 @@ DDS_EXPORT void dds_lset_data_on_readers (dds_listener_t * __restrict listener, 
 
 /**
  * @ingroup listener_setters
+ * @component listener_obj
  * @brief Set the sample_lost callback in the listener structure.
  *
  * Equivalent to calling @ref dds_lset_sample_lost_arg with arg set to the argument passed in
@@ -374,6 +398,7 @@ DDS_EXPORT void dds_lset_sample_lost (dds_listener_t * __restrict listener, dds_
 
 /**
  * @ingroup listener_setters
+ * @component listener_obj
  * @brief Set the data_available callback in the listener structure.
  *
  * Equivalent to calling @ref dds_lset_data_available_arg with arg set to the argument passed in
@@ -386,6 +411,7 @@ DDS_EXPORT void dds_lset_data_available (dds_listener_t * __restrict listener, d
 
 /**
  * @ingroup listener_setters
+ * @component listener_obj
  * @brief Set the sample_rejected callback in the listener structure.
  *
  * Equivalent to calling @ref dds_lset_sample_rejected_arg with arg set to the argument passed in
@@ -398,6 +424,7 @@ DDS_EXPORT void dds_lset_sample_rejected (dds_listener_t * __restrict listener, 
 
 /**
  * @ingroup listener_setters
+ * @component listener_obj
  * @brief Set the liveliness_changed callback in the listener structure.
  *
  * Equivalent to calling @ref dds_lset_liveliness_changed_arg with arg set to the argument passed in
@@ -410,6 +437,7 @@ DDS_EXPORT void dds_lset_liveliness_changed (dds_listener_t * __restrict listene
 
 /**
  * @ingroup listener_setters
+ * @component listener_obj
  * @brief Set the requested_deadline_missed callback in the listener structure.
  *
  * Equivalent to calling @ref dds_lset_requested_deadline_missed_arg with arg set to the argument passed in
@@ -422,6 +450,7 @@ DDS_EXPORT void dds_lset_requested_deadline_missed (dds_listener_t * __restrict 
 
 /**
  * @ingroup listener_setters
+ * @component listener_obj
  * @brief Set the requested_incompatible_qos callback in the listener structure.
  *
  * Equivalent to calling @ref dds_lset_requested_incompatible_qos_arg with arg set to the argument passed in
@@ -434,6 +463,7 @@ DDS_EXPORT void dds_lset_requested_incompatible_qos (dds_listener_t * __restrict
 
 /**
  * @ingroup listener_setters
+ * @component listener_obj
  * @brief Set the publication_matched callback in the listener structure.
  *
  * Equivalent to calling @ref dds_lset_publication_matched_arg with arg set to the argument passed in
@@ -446,6 +476,7 @@ DDS_EXPORT void dds_lset_publication_matched (dds_listener_t * __restrict listen
 
 /**
  * @ingroup listener_setters
+ * @component listener_obj
  * @brief Set the subscription_matched callback in the listener structure.
  *
  * Equivalent to calling @ref dds_lset_subscription_matched_arg with arg set to the argument passed in
@@ -468,6 +499,7 @@ DDS_EXPORT void dds_lset_subscription_matched (dds_listener_t * __restrict liste
 
 /**
  * @ingroup listener_getters
+ * @component listener_obj
  * @brief Get the data_available callback from the listener structure.
  *
  * @param[in] listener The pointer to the listener structure, where the callback will be retrieved from
@@ -482,6 +514,7 @@ DDS_EXPORT dds_return_t dds_lget_data_available_arg (const dds_listener_t * __re
 
 /**
  * @ingroup listener_getters
+ * @component listener_obj
  * @brief Get the data_on_readers callback from the listener structure.
  *
  * @param[in] listener The pointer to the listener structure, where the callback will be retrieved from
@@ -496,6 +529,7 @@ DDS_EXPORT dds_return_t dds_lget_data_on_readers_arg (const dds_listener_t * __r
 
 /**
  * @ingroup listener_getters
+ * @component listener_obj
  * @brief Get the inconsistent_topic callback from the listener structure.
  *
  * @param[in] listener The pointer to the listener structure, where the callback will be retrieved from
@@ -510,6 +544,7 @@ DDS_EXPORT dds_return_t dds_lget_inconsistent_topic_arg (const dds_listener_t * 
 
 /**
  * @ingroup listener_getters
+ * @component listener_obj
  * @brief Get the liveliness_changed callback from the listener structure.
  *
  * @param[in] listener The pointer to the listener structure, where the callback will be retrieved from
@@ -524,6 +559,7 @@ DDS_EXPORT dds_return_t dds_lget_liveliness_changed_arg (const dds_listener_t * 
 
 /**
  * @ingroup listener_getters
+ * @component listener_obj
  * @brief Get the liveliness_lost callback from the listener structure.
  *
  * @param[in] listener The pointer to the listener structure, where the callback will be retrieved from
@@ -538,6 +574,7 @@ DDS_EXPORT dds_return_t dds_lget_liveliness_lost_arg (const dds_listener_t * __r
 
 /**
  * @ingroup listener_getters
+ * @component listener_obj
  * @brief Get the offered_deadline_missed callback from the listener structure.
  *
  * @param[in] listener The pointer to the listener structure, where the callback will be retrieved from
@@ -552,6 +589,7 @@ DDS_EXPORT dds_return_t dds_lget_offered_deadline_missed_arg (const dds_listener
 
 /**
  * @ingroup listener_getters
+ * @component listener_obj
  * @brief Get the offered_incompatible_qos callback from the listener structure.
  *
  * @param[in] listener The pointer to the listener structure, where the callback will be retrieved from
@@ -566,6 +604,7 @@ DDS_EXPORT dds_return_t dds_lget_offered_incompatible_qos_arg (const dds_listene
 
 /**
  * @ingroup listener_getters
+ * @component listener_obj
  * @brief Get the publication_matched callback from the listener structure.
  *
  * @param[in] listener The pointer to the listener structure, where the callback will be retrieved from
@@ -580,6 +619,7 @@ DDS_EXPORT dds_return_t dds_lget_publication_matched_arg (const dds_listener_t *
 
 /**
  * @ingroup listener_getters
+ * @component listener_obj
  * @brief Get the subscription_matched callback from the listener structure.
  *
  * @param[in] listener The pointer to the listener structure, where the callback will be retrieved from
@@ -594,6 +634,7 @@ DDS_EXPORT dds_return_t dds_lget_requested_deadline_missed_arg (const dds_listen
 
 /**
  * @ingroup listener_getters
+ * @component listener_obj
  * @brief Get the requested_incompatible_qos callback from the listener structure.
  *
  * @param[in] listener The pointer to the listener structure, where the callback will be retrieved from
@@ -608,6 +649,7 @@ DDS_EXPORT dds_return_t dds_lget_requested_incompatible_qos_arg (const dds_liste
 
 /**
  * @ingroup listener_getters
+ * @component listener_obj
  * @brief Get the sample_lost callback from the listener structure.
  *
  * @param[in] listener The pointer to the listener structure, where the callback will be retrieved from
@@ -622,6 +664,7 @@ DDS_EXPORT dds_return_t dds_lget_sample_lost_arg (const dds_listener_t * __restr
 
 /**
  * @ingroup listener_getters
+ * @component listener_obj
  * @brief Get the sample_rejected callback from the listener structure.
  *
  * @param[in] listener The pointer to the listener structure, where the callback will be retrieved from
@@ -636,6 +679,7 @@ DDS_EXPORT dds_return_t dds_lget_sample_rejected_arg (const dds_listener_t * __r
 
 /**
  * @ingroup listener_getters
+ * @component listener_obj
  * @brief Get the subscription_matched callback from the listener structure.
  *
  * @param[in] listener The pointer to the listener structure, where the callback will be retrieved from
@@ -650,6 +694,7 @@ DDS_EXPORT dds_return_t dds_lget_subscription_matched_arg (const dds_listener_t 
 
 /**
  * @ingroup listener_getters
+ * @component listener_obj
  * @brief Get the inconsistent_topic callback from the listener structure
  *
  * Equivalent to calling @ref dds_lget_inconsistent_topic_arg with arg and reset_on_invoke set to a null pointer and throwing away the result.
@@ -661,6 +706,7 @@ DDS_EXPORT void dds_lget_inconsistent_topic (const dds_listener_t * __restrict l
 
 /**
  * @ingroup listener_getters
+ * @component listener_obj
  * @brief Get the liveliness_lost callback from the listener structure.
  *
  * Equivalent to calling @ref dds_lget_liveliness_lost_arg with arg and reset_on_invoke set to a null pointer and throwing away the result.
@@ -672,6 +718,7 @@ DDS_EXPORT void dds_lget_liveliness_lost (const dds_listener_t * __restrict list
 
 /**
  * @ingroup listener_getters
+ * @component listener_obj
  * @brief Get the offered_deadline_missed callback from the listener structure.
  *
  * Equivalent to calling @ref dds_lget_offered_deadline_missed_arg with arg and reset_on_invoke set to a null pointer and throwing away the result.
@@ -683,6 +730,7 @@ DDS_EXPORT void dds_lget_offered_deadline_missed (const dds_listener_t * __restr
 
 /**
  * @ingroup listener_getters
+ * @component listener_obj
  * @brief Get the offered_incompatible_qos callback from the listener structure.
  *
  * Equivalent to calling @ref dds_lget_offered_incompatible_qos_arg with arg and reset_on_invoke set to a null pointer and throwing away the result.
@@ -694,6 +742,7 @@ DDS_EXPORT void dds_lget_offered_incompatible_qos (const dds_listener_t * __rest
 
 /**
  * @ingroup listener_getters
+ * @component listener_obj
  * @brief Get the data_on_readers callback from the listener structure.
  *
  * Equivalent to calling @ref dds_lget_data_on_readers_arg with arg and reset_on_invoke set to a null pointer and throwing away the result.
@@ -705,6 +754,7 @@ DDS_EXPORT void dds_lget_data_on_readers (const dds_listener_t * __restrict list
 
 /**
  * @ingroup listener_getters
+ * @component listener_obj
  * @brief Get the sample_lost callback from the listener structure.
  *
  * Equivalent to calling @ref dds_lget_sample_lost_arg with arg and reset_on_invoke set to a null pointer and throwing away the result.
@@ -716,6 +766,7 @@ DDS_EXPORT void dds_lget_sample_lost (const dds_listener_t *__restrict listener,
 
 /**
  * @ingroup listener_getters
+ * @component listener_obj
  * @brief Get the data_available callback from the listener structure.
  *
  * Equivalent to calling @ref dds_lget_data_available_arg with arg and reset_on_invoke set to a null pointer and throwing away the result.
@@ -727,6 +778,7 @@ DDS_EXPORT void dds_lget_data_available (const dds_listener_t *__restrict listen
 
 /**
  * @ingroup listener_getters
+ * @component listener_obj
  * @brief Get the sample_rejected callback from the listener structure.
  *
  * Equivalent to calling @ref dds_lget_sample_rejected_arg with arg and reset_on_invoke set to a null pointer and throwing away the result.
@@ -738,6 +790,7 @@ DDS_EXPORT void dds_lget_sample_rejected (const dds_listener_t  *__restrict list
 
 /**
  * @ingroup listener_getters
+ * @component listener_obj
  * @brief Get the liveliness_changed callback from the listener structure.
  *
  * Equivalent to calling @ref dds_lget_liveliness_changed_arg with arg and reset_on_invoke set to a null pointer and throwing away the result.
@@ -749,6 +802,7 @@ DDS_EXPORT void dds_lget_liveliness_changed (const dds_listener_t * __restrict l
 
 /**
  * @ingroup listener_getters
+ * @component listener_obj
  * @brief Get the requested_deadline_missed callback from the listener structure.
  *
  * Equivalent to calling @ref dds_lget_requested_deadline_missed_arg with arg and reset_on_invoke set to a null pointer and throwing away the result.
@@ -760,6 +814,7 @@ DDS_EXPORT void dds_lget_requested_deadline_missed (const dds_listener_t * __res
 
 /**
  * @ingroup listener_getters
+ * @component listener_obj
  * @brief Get the requested_incompatible_qos callback from the listener structure.
  *
  * Equivalent to calling @ref dds_lget_requested_incompatible_qos_arg with arg and reset_on_invoke set to a null pointer and throwing away the result.
@@ -771,6 +826,7 @@ DDS_EXPORT void dds_lget_requested_incompatible_qos (const dds_listener_t * __re
 
 /**
  * @ingroup listener_getters
+ * @component listener_obj
  * @brief Get the publication_matched callback from the listener structure.
  *
  * Equivalent to calling @ref dds_lget_publication_matched_arg with arg and reset_on_invoke set to a null pointer and throwing away the result.
@@ -782,6 +838,7 @@ DDS_EXPORT void dds_lget_publication_matched (const dds_listener_t * __restrict 
 
 /**
  * @ingroup listener_getters
+ * @component listener_obj
  * @brief Get the subscription_matched callback from the listener structure.
  *
  * Equivalent to calling @ref dds_lget_subscription_matched_arg with arg and reset_on_invoke set to a null pointer and throwing away the result.

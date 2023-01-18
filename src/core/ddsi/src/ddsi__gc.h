@@ -37,10 +37,19 @@ struct ddsi_gcreq {
   struct ddsi_idx_vtime vtimes[];
 };
 
+/** @component garbage_collector */
 struct ddsi_gcreq_queue *ddsi_gcreq_queue_new (struct ddsi_domaingv *gv);
+
+/** @component garbage_collector */
 void ddsi_gcreq_queue_drain (struct ddsi_gcreq_queue *q);
+
+/** @component garbage_collector */
 void ddsi_gcreq_queue_free (struct ddsi_gcreq_queue *q);
+
+/** @component garbage_collector */
 bool ddsi_gcreq_queue_start (struct ddsi_gcreq_queue *q);
+
+/** @component garbage_collector */
 int ddsi_gcreq_requeue (struct ddsi_gcreq *gcreq, ddsi_gcreq_cb_t cb);
 
 #if defined (__cplusplus)

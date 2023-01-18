@@ -37,27 +37,45 @@ struct deadline_elem {
   ddsrt_mtime_t t_deadline;
 };
 
+/** @component deadline_qos */
 void ddsi_deadline_init (const struct ddsi_domaingv *gv, struct ddsi_deadline_adm *deadline_adm, size_t list_offset, size_t elem_offset, deadline_missed_cb_t deadline_missed_cb);
+
+/** @component deadline_qos */
 void ddsi_deadline_stop (const struct ddsi_deadline_adm *deadline_adm);
+
+/** @component deadline_qos */
 void ddsi_deadline_clear (struct ddsi_deadline_adm *deadline_adm);
+
+/** @component deadline_qos */
 void ddsi_deadline_fini (const struct ddsi_deadline_adm *deadline_adm);
+
+/** @component deadline_qos */
 ddsrt_mtime_t ddsi_deadline_next_missed_locked (struct ddsi_deadline_adm *deadline_adm, ddsrt_mtime_t tnow, void **instance);
+
+/** @component deadline_qos */
 void ddsi_deadline_register_instance_real (struct ddsi_deadline_adm *deadline_adm, struct deadline_elem *elem, ddsrt_mtime_t tprev, ddsrt_mtime_t tnow);
+
+/** @component deadline_qos */
 void ddsi_deadline_unregister_instance_real (struct ddsi_deadline_adm *deadline_adm, struct deadline_elem *elem);
+
+/** @component deadline_qos */
 void ddsi_deadline_renew_instance_real (struct ddsi_deadline_adm *deadline_adm, struct deadline_elem *elem);
 
+/** @component deadline_qos */
 inline void ddsi_deadline_register_instance_locked (struct ddsi_deadline_adm *deadline_adm, struct deadline_elem *elem, ddsrt_mtime_t tnow)
 {
   if (deadline_adm->dur != DDS_INFINITY)
     ddsi_deadline_register_instance_real (deadline_adm, elem, tnow, tnow);
 }
 
+/** @component deadline_qos */
 inline void ddsi_deadline_reregister_instance_locked (struct ddsi_deadline_adm *deadline_adm, struct deadline_elem *elem, ddsrt_mtime_t tnow)
 {
   if (deadline_adm->dur != DDS_INFINITY)
     ddsi_deadline_register_instance_real (deadline_adm, elem, elem->t_deadline, tnow);
 }
 
+/** @component deadline_qos */
 inline void ddsi_deadline_unregister_instance_locked (struct ddsi_deadline_adm *deadline_adm, struct deadline_elem *elem)
 {
   if (deadline_adm->dur != DDS_INFINITY)
@@ -67,6 +85,7 @@ inline void ddsi_deadline_unregister_instance_locked (struct ddsi_deadline_adm *
   }
 }
 
+/** @component deadline_qos */
 inline void ddsi_deadline_renew_instance_locked (struct ddsi_deadline_adm *deadline_adm, struct deadline_elem *elem)
 {
   if (deadline_adm->dur != DDS_INFINITY)
