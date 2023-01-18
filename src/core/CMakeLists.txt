@@ -56,7 +56,7 @@ endif()
 
 # Support the OMG DDS Security within ddsc adds quite a bit of code.
 if(ENABLE_SECURITY)
-  target_link_libraries(ddsc PRIVATE security_core)
+  target_link_libraries(ddsc PRIVATE "$<BUILD_INTERFACE:security_core>")
   target_include_directories(
     ddsc PUBLIC
     $<BUILD_INTERFACE:$<TARGET_PROPERTY:security_api,INTERFACE_INCLUDE_DIRECTORIES>>)
