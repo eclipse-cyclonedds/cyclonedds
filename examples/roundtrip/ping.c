@@ -448,14 +448,17 @@ static dds_entity_t prepare_dds(dds_entity_t *wr, dds_entity_t *rd, dds_entity_t
   const char *pubPartitions[] = { "ping" };
   const char *subPartitions[] = { "pong" };
   dds_qos_t *pubQos;
-  dds_qos_t *dwQos;
-  dds_qos_t *drQos;
   dds_qos_t *subQos;
+  dds_qos_t *tQos;
+  dds_qos_t *wQos;
 
   /* A DDS_Topic is created for our sample type on the domain participant. */
-  topic = dds_create_topic (participant, &RoundTripModule_DataType_desc, "RoundTrip", NULL, NULL);
+  tQos = dds_create_qos ();
+  dds_qset_reliability (tQos, DDS_RELIABILITY_RELIABLE, DDS_SECS (10));
+  topic = dds_create_topic (participant, &RoundTripModule_DataType_desc, "RoundTrip", tQos, NULL);
   if (topic < 0)
     DDS_FATAL("dds_create_topic: %s\n", dds_strretcode(-topic));
+  dds_delete_qos (tQos);
 
   /* A DDS_Publisher is created on the domain participant. */
   pubQos = dds_create_qos ();
@@ -467,13 +470,12 @@ static dds_entity_t prepare_dds(dds_entity_t *wr, dds_entity_t *rd, dds_entity_t
   dds_delete_qos (pubQos);
 
   /* A DDS_DataWriter is created on the Publisher & Topic with a modified Qos. */
-  dwQos = dds_create_qos ();
-  dds_qset_reliability (dwQos, DDS_RELIABILITY_RELIABLE, DDS_SECS (10));
-  dds_qset_writer_data_lifecycle (dwQos, false);
-  *wr = dds_create_writer (publisher, topic, dwQos, NULL);
+  wQos = dds_create_qos ();
+  dds_qset_writer_data_lifecycle (wQos, false);
+  *wr = dds_create_writer (publisher, topic, wQos, NULL);
   if (*wr < 0)
     DDS_FATAL("dds_create_writer: %s\n", dds_strretcode(-*wr));
-  dds_delete_qos (dwQos);
+  dds_delete_qos (wQos);
 
   /* A DDS_Subscriber is created on the domain participant. */
   subQos = dds_create_qos ();
@@ -485,12 +487,9 @@ static dds_entity_t prepare_dds(dds_entity_t *wr, dds_entity_t *rd, dds_entity_t
     DDS_FATAL("dds_create_subscriber: %s\n", dds_strretcode(-subscriber));
   dds_delete_qos (subQos);
   /* A DDS_DataReader is created on the Subscriber & Topic with a modified QoS. */
-  drQos = dds_create_qos ();
-  dds_qset_reliability (drQos, DDS_RELIABILITY_RELIABLE, DDS_SECS(10));
-  *rd = dds_create_reader (subscriber, topic, drQos, listener);
+  *rd = dds_create_reader (subscriber, topic, NULL, listener);
   if (*rd < 0)
     DDS_FATAL("dds_create_reader: %s\n", dds_strretcode(-*rd));
-  dds_delete_qos (drQos);
 
   waitSet = dds_create_waitset (participant);
   if (listener == NULL) {
