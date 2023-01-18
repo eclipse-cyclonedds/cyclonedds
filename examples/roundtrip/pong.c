@@ -168,9 +168,12 @@ static dds_entity_t prepare_dds(dds_entity_t *wr, dds_entity_t *rd, dds_entity_t
 
   /* A DDS Topic is created for our sample type on the domain participant. */
 
-  topic = dds_create_topic (participant, &RoundTripModule_DataType_desc, "RoundTrip", NULL, NULL);
+  qos = dds_create_qos ();
+  dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_SECS(10));
+  topic = dds_create_topic (participant, &RoundTripModule_DataType_desc, "RoundTrip", qos, NULL);
   if (topic < 0)
     DDS_FATAL("dds_create_topic: %s\n", dds_strretcode(-topic));
+  dds_delete_qos (qos);
 
   /* A DDS Publisher is created on the domain participant. */
 
@@ -185,7 +188,6 @@ static dds_entity_t prepare_dds(dds_entity_t *wr, dds_entity_t *rd, dds_entity_t
   /* A DDS DataWriter is created on the Publisher & Topic with a modififed Qos. */
 
   qos = dds_create_qos ();
-  dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_SECS(10));
   dds_qset_writer_data_lifecycle (qos, false);
   *wr = dds_create_writer (publisher, topic, qos, NULL);
   if (*wr < 0)
@@ -204,12 +206,9 @@ static dds_entity_t prepare_dds(dds_entity_t *wr, dds_entity_t *rd, dds_entity_t
 
   /* A DDS DataReader is created on the Subscriber & Topic with a modified QoS. */
 
-  qos = dds_create_qos ();
-  dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_SECS(10));
-  *rd = dds_create_reader (subscriber, topic, qos, rdlist);
+  *rd = dds_create_reader (subscriber, topic, NULL, rdlist);
   if (*rd < 0)
     DDS_FATAL("dds_create_reader: %s\n", dds_strretcode(-*rd));
-  dds_delete_qos (qos);
 
   waitSet = dds_create_waitset (participant);
   if (rdlist == NULL) {
