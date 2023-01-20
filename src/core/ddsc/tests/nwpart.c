@@ -572,10 +572,11 @@ CU_Theory ((bool same_machine, bool proxypp_has_defmc, int n_ep_uc, int n_ep_mc,
       uc[i].loc.address[15]++; // see as_default above
   }
   if (n_ep_uc > 0)
+  {
     uc[n_ep_uc-1].next = NULL;
-  plist.unicast_locators = (ddsi_locators_t){ .n = (uint32_t)n_ep_uc, .first = &uc[0], .last = &uc[n_ep_uc-1] };
-  if (plist.unicast_locators.n > 0)
+    plist.unicast_locators = (ddsi_locators_t){ .n = (uint32_t)n_ep_uc, .first = &uc[0], .last = &uc[n_ep_uc-1] };
     plist.present |= PP_UNICAST_LOCATOR;
+  }
 
   struct ddsi_locators_one mc[2] = {
     { .next = &mc[1],
@@ -595,10 +596,11 @@ CU_Theory ((bool same_machine, bool proxypp_has_defmc, int n_ep_uc, int n_ep_mc,
   };
   assert (n_ep_mc <= (int) (sizeof (mc) / sizeof (mc[0])));
   if (n_ep_mc > 0)
+  {
     mc[n_ep_mc-1].next = NULL;
-  plist.multicast_locators = (ddsi_locators_t){ .n = (uint32_t)n_ep_mc, .first = &mc[0], .last = &mc[n_ep_mc-1] };
-  if (plist.multicast_locators.n > 0)
+    plist.multicast_locators = (ddsi_locators_t){ .n = (uint32_t)n_ep_mc, .first = &mc[0], .last = &mc[n_ep_mc-1] };
     plist.present |= PP_MULTICAST_LOCATOR;
+  }
 
   {
     char buf[1024];
