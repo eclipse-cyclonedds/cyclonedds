@@ -187,10 +187,8 @@ struct ddsi_xmsg *ddsi_writer_hbcontrol_create_heartbeat (struct ddsi_writer *wr
     ETRACE (wr, "unicasting to prd "PGUIDFMT" ", PGUID (*prd_guid));
   if (ddsrt_avl_is_empty (&wr->readers))
   {
-    ETRACE (wr, "(rel-prd %"PRId32" seq-eq-max [none] seq %"PRId64" maxseq %"PRId64")\n",
-            wr->num_reliable_readers,
-            wr->seq,
-            root_rdmatch (wr)->max_seq);
+    ETRACE (wr, "(rel-prd %"PRId32" seq-eq-max [none] seq %"PRId64" maxseq [none])\n",
+            wr->num_reliable_readers, wr->seq);
   }
   else
   {
