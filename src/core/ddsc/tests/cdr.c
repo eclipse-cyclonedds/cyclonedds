@@ -461,7 +461,8 @@ static const struct ddsi_serdata_ops sd_ops = {
   .to_untyped = sd_to_untyped,
   .untyped_to_sample = sd_untyped_to_sample,
   .print = sd_print,
-  .get_keyhash = sd_get_keyhash
+  .get_keyhash = sd_get_keyhash,
+  .get_sequencenumber = 0
 };
 
 /*----------------------------------------------------------------

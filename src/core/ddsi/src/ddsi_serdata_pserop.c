@@ -307,5 +307,6 @@ const struct ddsi_serdata_ops ddsi_serdata_ops_pserop = {
   .to_untyped = serdata_pserop_to_untyped,
   .untyped_to_sample = serdata_pserop_untyped_to_sample,
   .print = serdata_pserop_print_pserop,
-  .get_keyhash = serdata_pserop_get_keyhash
+  .get_keyhash = serdata_pserop_get_keyhash,
+  .get_sequencenumber = 0
 };

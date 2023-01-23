@@ -353,5 +353,6 @@ const struct ddsi_serdata_ops ddsi_serdata_ops_cdr = {
   .to_untyped = serdata_cdr_to_untyped,
   .untyped_to_sample = serdata_cdr_untyped_to_sample_cdr,
   .print = serdata_cdr_print_cdr,
+  .get_sequencenumber = 0,
   .get_keyhash = 0
 };

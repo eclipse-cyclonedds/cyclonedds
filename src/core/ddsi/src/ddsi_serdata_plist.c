@@ -324,5 +324,6 @@ const struct ddsi_serdata_ops ddsi_serdata_ops_plist = {
   .to_untyped = serdata_plist_to_untyped,
   .untyped_to_sample = serdata_plist_untyped_to_sample,
   .print = serdata_plist_print_plist,
-  .get_keyhash = serdata_plist_get_keyhash
+  .get_keyhash = serdata_plist_get_keyhash,
+  .get_sequencenumber = 0
 };
