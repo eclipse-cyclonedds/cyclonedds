@@ -20,7 +20,7 @@ HelloWorld
 ==========
 
 The basic HelloWorld example describes the steps necessary for setting up DCPS entities 
-(see also :ref:`hello_world`).
+(see also :ref:`helloworld_main`).
 
 .. note:: 
    The HelloWorld example is referenced throughout the :ref:`Getting_Started` Guide.
@@ -48,6 +48,4 @@ Running the example
 
 To avoid mixing the output, run the subscriber and publisher in separate terminals.
 
-#. Open two terminals.
-#. In the first terminal, start the subscriber by running ``HelloWorldSubscriber``.
-#. In the second terminal, start the publisher by running ``HelloWorldPublisher``.
+.. include:: ../../docs/manual/getting_started/helloworld/helloworld_run.part.rst

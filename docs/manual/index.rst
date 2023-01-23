@@ -17,6 +17,7 @@
 .. toctree::
    :maxdepth: 1
 
+   about_dds/eclipse_cyclone_dds
    getting_started/index
    config/index
    examples/index

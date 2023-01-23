@@ -1,6 +1,6 @@
-.. _examples:
-
 .. index:: Examples
+
+.. _examples_bm:
 
 ========
 Examples

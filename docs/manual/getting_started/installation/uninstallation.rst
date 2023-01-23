@@ -23,4 +23,4 @@ To uninstall |var-project-short|, manually remove the install and build director
 
     .. group-tab:: Windows
 
-        Navigate to your install location and remove the |var-project| folder.
+        Navigate to your install location and remove the |var-project| directory.

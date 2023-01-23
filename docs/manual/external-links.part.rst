@@ -22,7 +22,7 @@
 
 .. |url::dds_spec| raw:: html
 
-   <a href="https://www.omg.org/spec/DDS/" target="_blank">DDS specification</a>
+   <a href="https://www.omg.org/spec/DDS/" target="_blank">OMG DDS specification</a>
 
 .. |url::dds2.1| raw:: html
 
@@ -40,6 +40,14 @@
  
     <a href="https://www.omg.org/spec/DDS-PSM-Cxx/" target="_blank">DDS ISO/IEC C++ PSM API</a>
 
+.. |url::dds_xtypes| raw:: html
+ 
+    <a href="https://www.omg.org/spec/DDS-XTypes/1.3/" target="_blank">DDS XTypes</a>
+
+.. |url::ros2| raw:: html
+   
+    <a href="https://docs.ros.org/en/rolling/" target="_blank">ROS 2</a>
+
 .. |url::omg.security| raw:: html
    
     <a href="https://www.omg.org/spec/DDS-SECURITY/" target="_blank">DDS security</a>
@@ -52,6 +60,22 @@
  
     <a href="https://cyclonedds.io/docs/cyclonedds-python/latest/" target="_blank">Eclipse Cyclone DDS: Python API documentation</a>
 
+.. |url::python-link2| raw:: html
+ 
+    <a href="https://github.com/eclipse-cyclonedds/cyclonedds-python" target="_blank">Python binding</a>
+
+.. |url::cyclone_dds-link| raw:: html
+ 
+    <a href="https://projects.eclipse.org/projects/iot.cyclonedds" target="_blank">Eclipse Cyclone DDS</a>
+
+.. |url::cyclone_adopters| raw:: html
+ 
+    <a href="https://iot.eclipse.org/adopters/?#iot.cyclonedds" target="_blank">adopters</a>
+
+.. |url::cyclone_git_logo| raw:: html
+ 
+    <a href="https://github.com/EclipseFdn/iot.eclipse.org/issues/new?template=adopter_request.md" target="_blank">logo</a>
+
 .. |url::cpp-link| raw:: html
  
     <a href="https://cyclonedds.io/docs/cyclonedds-cxx/latest/" target="_blank">Eclipse Cyclone DDS: C++ API documentation</a>
@@ -62,7 +86,11 @@
 
 .. |url::cmake_link| raw:: html
 
-   <a href="https://cmake.org/download/" target="_blank">CMake</a>
+   <a href="https://cmake.org/" target="_blank">CMake</a>
+
+.. |url::cmake_dependencies| raw:: html
+
+   <a href="https://cmake.org/cmake/help/latest/guide/using-dependencies/index.html#guide:Using%20Dependencies%20Guide" target="_blank">Using dependencies guide</a>
 
 .. |url::openssl_link| raw:: html
 
@@ -137,4 +165,22 @@
  
     <a href="https://github.com/eclipse-iceoryx/iceoryx/tree/v2.0.0/tools/introspection" target="_blank">iceoryx introspection</a>
 
-    
+.. |url::scripts| raw:: html
+ 
+    <a href="https://github.com/eclipse-cyclonedds/cyclonedds/tree/master/examples/perfscript" target="_blank">Scripts</a>
+
+.. |url::environment_details| raw:: html
+ 
+    <a href="https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/assets/performance/20190730/config.txt" target="_blank">Environment details</a>
+
+.. |url::throughput| raw:: html
+ 
+    <a href="https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/assets/performance/20190730/sub.log" target="_blank">Throughput</a>
+
+.. |url::latency| raw:: html
+ 
+    <a href="https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/assets/performance/20190730/ping.log" target="_blank">Latency</a>
+
+.. |url::latency| raw:: html
+ 
+    <a href="https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/assets/performance/20190730/ping.log" target="_blank">Latency</a>

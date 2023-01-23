@@ -1,8 +1,12 @@
+.. include:: ../../external-links.part.rst
+
+.. index:: ! Installation
+
+.. _installation_bm:
+
 ############
 Installation
 ############
-
-.. include:: ../../external-links.part.rst
 
 The core of Cyclone DDS is implemented in C and provides C-APIs to applications. Additional language bindings are: 
 
