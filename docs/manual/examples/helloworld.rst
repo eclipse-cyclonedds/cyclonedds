@@ -1,5 +1,7 @@
 .. include:: ../../../examples/helloworld/readme.rst
 
+For the source code, refer to the :ref:`helloword_sc`.
+
 Source code
 ***********
 

@@ -48,4 +48,4 @@ Running the example
 
 To avoid mixing the output, run the subscriber and publisher in separate terminals.
 
-.. include:: ../../docs/manual/getting_started/helloworld/helloworld_run.part.rst
+.. include:: ../../../docs/manual/getting_started/helloworld/helloworld_run.part.rst

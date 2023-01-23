@@ -12,82 +12,9 @@ message and reads it when it receives it.
 
 The subscriber application implements the steps defined in :ref:`key_steps`.
 
-.. code-block:: C
+.. literalinclude:: ../../../../examples/helloworld/subscriber.c
+    :language: c
     :linenos:
-
-    #include "ddsc/dds.h"
-    #include "HelloWorldData.h"
-    #include <stdio.h>
-    #include <string.h>
-    #include <stdlib.h>
-
-    /* An array of one message (aka sample in dds terms) will be used. */
-    #define MAX_SAMPLES 1
-    int main (int argc, char ** argv) {
-      dds_entity_t participant;
-      dds_entity_t topic;
-      dds_entity_t reader;
-      HelloWorldData_Msg *msg;
-      void *samples[MAX_SAMPLES];
-      dds_sample_info_t infos[MAX_SAMPLES];
-      dds_return_t ret;
-      dds_qos_t *qos;
-      (void)argc;
-      (void)argv;
-
-      /* Create a Participant. */
-      participant = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
-      DDS_ERR_CHECK (participant, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
-
-      /* Create a Topic. */
-      topic = dds_create_topic (participant, &HelloWorldData_Msg_desc,
-      "HelloWorldData_Msg", NULL, NULL);
-      DDS_ERR_CHECK (topic, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
-
-      /* Create a reliable Reader. */
-      qos = dds_create_qos ();
-      dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_SECS (10));
-      reader = dds_create_reader (participant, topic, qos, NULL);
-      DDS_ERR_CHECK (reader, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
-      dds_delete_qos(qos);
-
-      printf ("\n=== [Subscriber] Waiting for a sample ...\n");
-
-      /* Initialize the sample buffer, by pointing the void pointer within
-      * the buffer array to a valid sample memory location. */
-      samples[0] = HelloWorldData_Msg alloc ();
-
-      /* Poll until data has been read. */
-      while (true)
-      {
-        /* Do the actual read.
-        * The return value contains the number of samples read. */
-        ret = dds_read (reader, samples, infos, MAX_SAMPLES, MAX_SAMPLES);
-        DDS_ERR_CHECK (ret, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
-
-        /* Check if we read some data and it is valid. */
-        if ((ret > 0) && (infos[0].valid_data))
-        {
-            /* Print Message. */
-            msg = (HelloWorldData_Msg*) samples[0];
-            printf ("=== [Subscriber] Received : ");
-            printf ("Message (%d, %s)\n", msg->userID, msg->message);
-            break;
-        }
-        else
-        {
-            /* Polling sleep. */
-            dds_sleepfor (DDS_MSECS (20));
-        }
-      }
-      /* Free the data location. */
-      HelloWorldData_Msg_free (samples[0], DDS_FREE_ALL);
-      /* Deleting the participant will delete all its children recursively as well. */
-      ret = dds_delete (participant);
-      DDS_ERR_CHECK (ret, DDS_CHECK_REPORT | DDS_CHECK_EXIT);
-
-      return EXIT_SUCCESS;
-    }
 
 To create a subscriber:
 
@@ -98,7 +25,9 @@ To create a subscriber:
     - The ``HelloWorldData.h`` is specific to the data type defined in the IDL
 
     .. code-block:: C
-
+       :linenos:
+       :lineno-start: 1
+ 
         #include "ddsc/dds.h"
         #include "HelloWorldData.h"
 
@@ -112,6 +41,8 @@ To create a subscriber:
     behavior can be overridden.
 
     .. code-block:: C
+        :linenos:
+        :lineno-start: 12
 
         dds_entity_t participant;
         dds_entity_t topic;
@@ -120,6 +51,8 @@ To create a subscriber:
 #.  To handle the data, create and declare some buffers:
 
     .. code-block:: C
+        :linenos:
+        :lineno-start: 15
 
         HelloWorldData_Msg *msg;
         void *samples[MAX_SAMPLES];
@@ -138,6 +71,8 @@ To create a subscriber:
     ``cyclonedds.xml``).
 
     .. code-block:: C
+        :linenos:
+        :lineno-start: 24
 
         participant = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
 
@@ -148,16 +83,25 @@ To create a subscriber:
     same name but incompatible datatype are considered an error and should be avoided.
 
     .. code-block:: C
+        :linenos:
+        :lineno-start: 29
 
-        topic = dds_create_topic (participant, &HelloWorldData_Msg_desc, "HelloWorldData_Msg", NULL, NULL);
+        topic = dds_create_topic (
+            participant, &HelloWorldData_Msg_desc, "HelloWorldData_Msg", NULL, NULL);
+        if (topic < 0)
+            DDS_FATAL("dds_create_topic: %s\n", dds_strretcode(-topic));
 
 #.  Create a data reader and attach to it:
 
     .. code-block:: C
+        :linenos:
+        :lineno-start: 35
 
-        dds_qos_t *qos = dds_create_qos ();
+        qos = dds_create_qos ();
         dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_SECS (10));
         reader = dds_create_reader (participant, topic, qos, NULL);
+        if (reader < 0)
+            DDS_FATAL("dds_create_reader: %s\n", dds_strretcode(-reader));
         dds_delete_qos(qos);
 
     The read operation expects an array of pointers to a valid memory location. This 
@@ -168,21 +112,27 @@ To create a subscriber:
 #.  Allocate memory for one ``HelloWorldData_Msg``:
 
     .. code-block:: C
+        :linenos:
+        :lineno-start: 47
 
-        samples[0] = HelloWorldData_Msg_alloc ();
+        samples[0] = HelloWorldData_Msg__alloc ();
 
 #.  Attempt to read data by going into a polling loop that regularly scrutinizes 
     and examines the arrival of a message:
 
     .. code-block:: C
+        :linenos:
+        :lineno-start: 54
 
-        ret = dds_read (reader, samples, info, MAX_SAMPLES, MAX_SAMPLES);
+        rc = dds_read (reader, samples, infos, MAX_SAMPLES, MAX_SAMPLES);
+        if (rc < 0)
+            DDS_FATAL("dds_read: %s\n", dds_strretcode(-rc));
 
     The ``dds_read`` operation returns the number of samples equal to the
     parameter ``MAX_SAMPLE``. If data has arrived in the reader's cache, 
     that number will exceed 0.
 
-    The Sample\_info (``info``) structure shows whether the data is either: 
+#.  The Sample\_info (``info``) structure shows whether the data is either: 
     
     - Valid data means that it contains the payload provided by the publishing application. 
     - Invalid data means we are reading the DDS state of the data Instance. 
@@ -193,6 +143,8 @@ To create a subscriber:
     Valid, and its sample ``info[].Valid_data`` the field is ``False``:
 
     .. code-block:: C
+        :linenos:
+        :lineno-start: 59
 
         if ((ret > 0) && (info[0].valid_data))
 
@@ -200,6 +152,8 @@ To create a subscriber:
     and display the contents:
 
     .. code-block:: C
+        :linenos:
+        :lineno-start: 62
 
         msg = (HelloWorldData_Msg*) samples[0]; 
         printf ("=== [Subscriber] Received : ");
@@ -210,9 +164,20 @@ To create a subscriber:
     allocated memory and delete the domain participant:
 
     .. code-block:: C
-
+        :linenos:
+        :lineno-start: 76
+    
         HelloWorldData_Msg_free (samples[0], DDS_FREE_ALL); 
-        dds_delete (participant);
 
-    All the entities that are created under the participant, such as the
+#.  All the entities that are created under the participant, such as the
     data reader and topic, are recursively deleted.
+
+    .. code-block:: C
+        :linenos:
+        :lineno-start: 79
+    
+        rc = dds_delete (participant);
+        if (rc != DDS_RETCODE_OK)
+            DDS_FATAL("dds_delete: %s\n", dds_strretcode(-rc));
+
+
