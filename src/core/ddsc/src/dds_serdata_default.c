@@ -159,6 +159,12 @@ static uint32_t serdata_default_get_size(const struct ddsi_serdata *dcmn)
   return d->pos + (uint32_t)sizeof (struct dds_cdr_header);
 }
 
+static uint64_t serdata_default_get_sequencenumber(const struct ddsi_serdata *dcmn)
+{
+  const struct dds_serdata_default *d = (const struct dds_serdata_default *) dcmn;
+  return d->c.sequence_number;
+}
+
 static bool serdata_default_eqkey(const struct ddsi_serdata *acmn, const struct ddsi_serdata *bcmn)
 {
   const struct dds_serdata_default *a = (const struct dds_serdata_default *)acmn;
@@ -983,6 +989,7 @@ const struct ddsi_serdata_ops dds_serdata_ops_cdr = {
   .untyped_to_sample = serdata_default_untyped_to_sample_cdr,
   .print = serdata_default_print_cdr,
   .get_keyhash = serdata_default_get_keyhash,
+  .get_sequencenumber = serdata_default_get_sequencenumber,
   .from_loaned_sample = serdata_default_from_loaned_sample,
   .from_psmx = serdata_default_from_psmx
 };
@@ -1003,6 +1010,7 @@ const struct ddsi_serdata_ops dds_serdata_ops_xcdr2 = {
   .untyped_to_sample = serdata_default_untyped_to_sample_cdr,
   .print = serdata_default_print_cdr,
   .get_keyhash = serdata_default_get_keyhash,
+  .get_sequencenumber = serdata_default_get_sequencenumber,
   .from_loaned_sample = serdata_default_from_loaned_sample,
   .from_psmx = serdata_default_from_psmx
 };
@@ -1023,6 +1031,7 @@ const struct ddsi_serdata_ops dds_serdata_ops_cdr_nokey = {
   .untyped_to_sample = serdata_default_untyped_to_sample_cdr_nokey,
   .print = serdata_default_print_cdr,
   .get_keyhash = serdata_default_get_keyhash,
+  .get_sequencenumber = serdata_default_get_sequencenumber,
   .from_loaned_sample = serdata_default_from_loaned_sample,
   .from_psmx = serdata_default_from_psmx
 };
@@ -1043,6 +1052,7 @@ const struct ddsi_serdata_ops dds_serdata_ops_xcdr2_nokey = {
   .untyped_to_sample = serdata_default_untyped_to_sample_cdr_nokey,
   .print = serdata_default_print_cdr,
   .get_keyhash = serdata_default_get_keyhash,
+  .get_sequencenumber = serdata_default_get_sequencenumber,
   .from_loaned_sample = serdata_default_from_loaned_sample,
   .from_psmx = serdata_default_from_psmx
 };
