@@ -28,7 +28,7 @@ to:
    specific to the topic. Applications may want to change the default
    QoSs. In the ``Hello world!`` Example, the ``ReliabilityQoS`` is changed
    from its default value (``Best-effort``) to ``Reliable``.
-#. Once the previous DDS computational entities are in place, the
+#. When the previous DDS computational entities are in place, the
    application logic can start writing or reading the data.
 
 At the application level, readers and writers do not need to be aware of

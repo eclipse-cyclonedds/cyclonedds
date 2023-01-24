@@ -12,6 +12,9 @@ message and reads it when it receives it.
 
 The subscriber application implements the steps defined in :ref:`key_steps`.
 
+The following is a copy of the **subscriber.c** file that is available from the 
+|url::helloworld_c_github| repository.
+
 .. literalinclude:: ../../../../examples/helloworld/subscriber.c
     :language: c
     :linenos:
@@ -66,9 +69,10 @@ To create a subscriber:
     the metadata, the ``dds_sample_info`` array must be declared.
 
 #.  The DDS participant is always attached to a specific DDS domain. In the HelloWorld 
-    example, it is part of the ``Default\_Domain``, which is specified in the XML deployment 
-    file. To override the default behavior, create or edit a deployment file (for example, 
-    ``cyclonedds.xml``).
+    example, it is part of the ``Default\_Domain``, which is specified in the XML configuration 
+    file. To override the default behavior, create or edit a configuration file (for example, 
+    ``cyclonedds.xml``). For further information, refer to the :ref:`config-docs` and the 
+    :ref:`configuration_reference`.
 
     .. code-block:: C
         :linenos:

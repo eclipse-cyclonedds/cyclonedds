@@ -9,77 +9,11 @@ written only when at least one matching reader is discovered, a synchronization
 statement is added to the main thread. Synchronizing the main thread until a reader 
 is discovered ensures we can start the publisher or subscriber program in any order.
 
-.. code-block:: C++
+The following is a copy of the **publisher.cpp** file that is available from the 
+|url::helloworld_cpp_github| repository.
+
+.. literalinclude:: publisher.cpp
     :linenos:
-
-    #include <cstdlib>
-    #include <iostream>
-    #include <chrono>
-    #include <thread>
-
-    /* Include the C++ DDS API. */
-    #include "dds/dds.hpp"
-
-    /* Include data type and specific traits to be used with the C++ DDS API. */
-    #include "HelloWorldData.hpp"
-
-    using namespace org::eclipse::cyclonedds;
-
-    int main() {
-        try {
-            std::cout << "=== [Publisher] Create writer." << std::endl;
-
-            /* First, a domain participant is needed.
-             * Create one on the default domain. */
-            dds::domain::DomainParticipant participant(domain::default_id());
-
-            /* To publish something, a topic is needed. */
-            dds::topic::Topic<HelloWorldData::Msg> topic(participant, "ddsC++_helloworld_example");
-
-            /* A writer also needs a publisher. */
-            dds::pub::Publisher publisher(participant);
-
-            /* Now, the writer can be created to publish a HelloWorld message. */
-            dds::pub::DataWriter<HelloWorldData::Msg> writer(publisher, topic);
-
-            /* For this example, we'd like to have a subscriber read
-             * our message. This is not always necessary. Also, the way it is
-             * done here is to illustrate the easiest way to do so. However, it is *not*
-             * recommended to do a wait in a polling loop.
-             * Please take a look at Listeners and WaitSets for much better
-             * solutions, albeit somewhat more elaborate ones. */
-            std::cout << "=== [Publisher] Waiting for subscriber." << std::endl;
-            while (writer.publication_matched_status().current_count() == 0) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(20));
-            }
-
-            /* Create a message to write. */
-            HelloWorldData::Msg msg(1, "Hello World");
-
-            /* Write the message. */
-            std::cout << "=== [Publisher] Write sample." << std::endl;
-            writer.write(msg);
-
-            /* With a normal configuration (see dds::pub::qos::DataWriterQos
-             * for various writer configurations), deleting a writer will
-             * dispose of all its related messages.
-             * Wait for the subscriber to have stopped to be sure it received the
-             * message. Again, not normally necessary and not recommended to do
-             * this in a polling loop. */
-            std::cout << "=== [Publisher] Waiting for sample to be accepted." << std::endl;
-            while (writer.publication_matched_status().current_count() > 0) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(50));
-            }
-        }
-        catch (const dds::core::Exception& e) {
-            std::cerr << "=== [Publisher] Exception: " << e.what() << std::endl;
-            return EXIT_FAILURE;
-        }
-
-        std::cout << "=== [Publisher] Done." << std::endl;
-
-        return EXIT_SUCCESS;
-    }
 
 To create a publisher:
 
@@ -87,44 +21,54 @@ To create a publisher:
     appropriate header files:
 
     .. code-block:: C++
+        :linenos:
+        :lineno-start: 18
 
         #include "dds/dds.hpp"
-        #include "HelloWorldData.hpp"
-
-#. An exception handling mechanism ``try/catch`` block is used.
 
     .. code-block:: C++
+        :linenos:
+        :lineno-start: 21
+
+        #include "HelloWorldData.hpp"
+
+#.  An exception handling mechanism ``try/catch`` block is used.
+
+    .. code-block:: C++
+        :linenos:
+        :lineno-start: 26
 
         try {
-            // …
-        }
-        catch (const dds::core::Exception& e) {
-            std::cerr << "=== [Subscriber] Exception: " << e.what() << std::endl;
-            return EXIT_FAILURE;
-        }
 
 #.  Create a writer. You must have a participant, a topic, and a publisher (must have
     the same topic name as specified in ``subscriber.cpp``):
 
     .. code-block:: C++
+        :linenos:
+        :lineno-start: 31
 
         dds::domain::DomainParticipant participant(domain::default_id());
-        dds::topic::Topic<HelloWorldData::Msg> topic(participant, "ddsC++_helloworld_example");
-        dds::pub::Publisher publisher(participant);
+
+    .. code-block:: C++
+        :linenos:
+        :lineno-start: 34
+
+        dds::topic::Topic<HelloWorldData::Msg> topic(participant, "HelloWorldData_Msg");
+
+     .. code-block:: C++
+        :linenos:
+        :lineno-start: 37
+
+       dds::pub::Publisher publisher(participant);
 
 #.  Create the writer for a specific topic ``“ddsC++_helloworld_example”`` in the 
     default DDS domain.
 
     .. code-block:: C++
+        :linenos:
+        :lineno-start: 40
 
         dds::pub::DataWriter<HelloWorldData::Msg> writer(publisher, topic);
-
-#.  To modify the ``DataWriter`` Default Reliability Qos to Reliable:
-
-    .. code-block:: C++
-
-        dds::pub::qos::DataReaderQos dwqos = topic.qos() << dds::core::policy::Reliability::Reliable();
-        dds::sub::DataWriter<HelloWorldData::Msg> dr(publisher, topic, dwqos);
 
 #.  When readers and writers are sharing the same data type and topic name, it connects 
     them without the application's involvement. To write data only when a DataReader 
@@ -142,6 +86,8 @@ To create a publisher:
     ``writer.publication_matched_status()``:
 
     .. code-block:: C++
+        :linenos:
+        :lineno-start: 40
 
         dds::pub::DataWriter<HelloWorldData::Msg> writer(publisher, topic);
 
@@ -149,6 +95,8 @@ To create a publisher:
     the writing thread sleeps for for 20 milliseconds:
 
     .. code-block:: C++
+        :linenos:
+        :lineno-start: 49
 
         while (writer.publication_matched_status().current_count() == 0) {
             std::this_thread::sleep_for(std::chrono::milliseconds(20));
@@ -159,12 +107,16 @@ To create a publisher:
 #.  To write the data instance, create and initialize the data:
 
     .. code-block:: C++
+        :linenos:
+        :lineno-start: 54
 
         HelloWorldData::Msg msg(1, "Hello World");
 
 #.  Send the data instance of the keyed message.
 
     .. code-block:: C++
+        :linenos:
+        :lineno-start: 58
 
         writer.write(msg);
 
@@ -174,8 +126,24 @@ To create a publisher:
     subscriber is found, then the publisher program is ended:
 
     .. code-block:: C++
+        :linenos:
+        :lineno-start: 78
 
         return EXIT_SUCCESS;
 
     Through scoping, all the entities such as topic, writer, etc. are
     deleted automatically.
+
+.. note::
+    To modify the ``DataWriter`` Default Reliability Qos to Reliable:
+
+    .. code-block:: C++
+        :linenos:
+        :lineno-start: 60
+
+        /* With a normal configuration (see dds::pub::qos::DataWriterQos
+
+    .. code-block:: C++
+
+        dds::pub::qos::DataReaderQos dwqos = topic.qos() << dds::core::policy::Reliability::Reliable();
+        dds::sub::DataWriter<HelloWorldData::Msg> dr(publisher, topic, dwqos);

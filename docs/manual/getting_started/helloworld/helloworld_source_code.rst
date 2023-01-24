@@ -1,3 +1,5 @@
+.. include:: ../../external-links.part.rst
+
 .. index:: HelloWorld source code
 
 .. _helloword_sc:

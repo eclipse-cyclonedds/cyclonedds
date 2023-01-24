@@ -184,3 +184,12 @@
 .. |url::latency| raw:: html
  
     <a href="https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/assets/performance/20190730/ping.log" target="_blank">Latency</a>
+
+.. |url::helloworld_cpp_github| raw:: html
+ 
+    <a href="https://github.com/eclipse-cyclonedds/cyclonedds-cxx/tree/master/examples/helloworld" target="_blank">GitHub cyclonedds-cxx/examples/helloworld/</a>
+
+.. |url::helloworld_c_github| raw:: html
+ 
+    <a href="https://github.com/eclipse-cyclonedds/cyclonedds/tree/master/examples/helloworld" target="_blank">GitHub cyclonedds/examples/helloworld/</a>
+

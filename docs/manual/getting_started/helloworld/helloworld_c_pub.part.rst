@@ -10,6 +10,9 @@ written only when at least one matching reader is discovered, a synchronization
 statement is added to the main thread. Synchronizing the main thread until a reader 
 is discovered ensures we can start the publisher or subscriber program in any order.
 
+The following is a copy of the **publisher.c** file that is available from the 
+|url::helloworld_c_github| repository.
+
 .. literalinclude:: ../../../../examples/helloworld/publisher.c
     :linenos:
     

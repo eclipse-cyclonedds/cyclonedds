@@ -1,7 +1,7 @@
 HelloWorld subscriber C++ source code
 =====================================
 
-The ``Subscriber.cpp`` file mainly contains the statements to wait for a HelloWorld 
+The ``subscriber.cpp`` file mainly contains the statements to wait for a HelloWorld 
 message and reads it when it receives it.
 
 .. note::
@@ -9,97 +9,13 @@ message and reads it when it receives it.
     The |var-project-short| ``read`` semantics keep the data sample in the data 
     reader cache.
 
-The subscriber application implements the steps defined in :ref:`key_steps`.
+The subscriber application implements the steps defined in :ref:`key_steps`. 
 
-.. code-block:: C++
+The following is a copy of the **subscriber.cpp** file that is available from the 
+|url::helloworld_cpp_github| repository.
+
+.. literalinclude:: subscriber.cpp
     :linenos:
-
-    #include <cstdlib>
-    #include <iostream>
-    #include <chrono>
-    #include <thread>
-
-    /* Include the C++ DDS API. */
-    #include "dds/dds.hpp"
-
-    /* Include data type and specific traits to be used with the C++ DDS API. */
-    #include "HelloWorldData.hpp"
-
-    using namespace org::eclipse::cyclonedds;
-
-    int main() {
-        try {
-            std::cout << "=== [Subscriber] Create reader." << std::endl;
-
-            /* First, a domain participant is needed.
-             * Create one on the default domain. */
-            dds::domain::DomainParticipant participant(domain::default_id());
-
-            /* To subscribe to something, a topic is needed. */
-            dds::topic::Topic<HelloWorldData::Msg> topic(participant, "ddsC++_helloworld_example");
-
-            /* A reader also needs a subscriber. */
-            dds::sub::Subscriber subscriber(participant);
-
-            /* Now, the reader can be created to subscribe to a HelloWorld message. */
-            dds::sub::DataReader<HelloWorldData::Msg> reader(subscriber, topic);
-
-            /* Poll until a message has been read.
-             * It isn't really recommended to do this kind wait in a polling loop.
-             * It's done here just to illustrate the easiest way to get data.
-             * Please take a look at Listeners and WaitSets for much better
-             * solutions, albeit somewhat more elaborate ones. */
-            std::cout << "=== [Subscriber] Wait for message." << std::endl;
-            bool poll = true;
-
-            while (poll) {
-                /* For this example, the reader will return a set of messages (aka
-                 * Samples). There are other ways of getting samples from reader.
-                 * See the various read() and take() functions that are present. */
-                dds::sub::LoanedSamples<HelloWorldData::Msg> samples;
-
-                /* Try taking samples from the reader. */
-                samples = reader.take();
-
-                /* Are samples read? */
-                if (samples.length() > 0) {
-                    /* Use an iterator to run over the set of samples. */
-                    dds::sub::LoanedSamples<HelloWorldData::Msg>::const_iterator sample_iter;
-                    for (sample_iter = samples.begin();
-                         sample_iter < samples.end();
-                         ++sample_iter) {
-                        /* Get the message and sample information. */
-                        const HelloWorldData::Msg& msg = sample_iter->data();
-                        const dds::sub::SampleInfo& info = sample_iter->info();
-
-                        /* Sometimes a sample is read, only to indicate a data
-                         * state change (which can be found in the info). If
-                         * that's the case, only the key value of the sample
-                         * is set. The other data parts are not.
-                         * Check if this sample has valid data. */
-                        if (info.valid()) {
-                            std::cout << "=== [Subscriber] Message received:" << std::endl;
-                            std::cout << "    userID  : " << msg.userID() << std::endl;
-                            std::cout << "    Message : \"" << msg.message() << "\"" << std::endl;
-
-                            /* Only 1 message is expected in this example. */
-                            poll = false;
-                        }
-                    }
-                } else {
-                    std::this_thread::sleep_for(std::chrono::milliseconds(20));
-                }
-            }
-        }
-        catch (const dds::core::Exception& e) {
-            std::cerr << "=== [Subscriber] Exception: " << e.what() << std::endl;
-            return EXIT_FAILURE;
-        }
-
-        std::cout << "=== [Subscriber] Done." << std::endl;
-
-        return EXIT_SUCCESS;
-    }
 
 To create a subscriber:
 
@@ -107,45 +23,93 @@ To create a subscriber:
     the appropriate header files:
 
     - The ``dds.hpp`` file give access to the DDS APIs,
-    - The ``HelloWorldData.hpp`` is specific to the data type defined
-    in the IDL.
+    - The ``HelloWorldData.hpp`` is specific to the data type defined in the IDL.
 
     .. code-block:: C++
+        :linenos:
+        :lineno-start: 18
 
         #include "dds/dds.hpp"
-        #include "HelloWorldData.hpp"
-
-#.  At least four DDS entities are needed to build a minimalistic application:
-
-    - Domain participant
-    - Topic
-    - Subscriber
-    - Reader
 
     .. code-block:: C++
+        :linenos:
+        :lineno-start: 21
+
+        #include "HelloWorldData.hpp"
+
+At least four DDS entities are needed to build a minimalistic application:
+
+- Domain participant
+- Topic
+- Subscriber
+- Reader
+
+2.  The DDS participant is always attached to a specific DDS domain. In the HelloWorld 
+    example, it is part of the ``Default\_Domain``, which is specified in the XML configuration 
+    file. To override the default behavior, create or edit a configuration file (for example, 
+    ``$CYCLONEDDS_URI``). For further information, refer to the :ref:`config-docs` 
+    and the :ref:`configuration_reference`.
+
+    .. code-block:: C++
+        :linenos:
+        :lineno-start: 31
 
         dds::domain::DomainParticipant participant(domain::default_id());
-        dds::topic::Topic<HelloWorldData::Msg> topic(participant,"ddsC++_helloworld_example");
+ 
+#.  Create the topic with a given name (\ ``ddsC++_helloworld_example``) and the predefined 
+    data type (\ ``HelloWorldData::Msg``). Topics with the same data type description 
+    and with different names are considered other topics. This means that readers 
+    or writers created for a given topic do not interfere with readers or writers 
+    created with another topic even if they have the same data type.
+
+    .. code-block:: C++
+        :linenos:
+        :lineno-start: 34
+
+        dds::topic::Topic<HelloWorldData::Msg> topic(participant, "HelloWorldData_Msg");
+
+#.  Create the subscriber:
+ 
+    .. code-block:: C++
+        :linenos:
+        :lineno-start: 37
+
         dds::sub::Subscriber subscriber(participant);
-        dds::sub::DataReader<HelloWorldData::Msg> reader(subscriber,topic);
+
+#.  Create a data reader and attach to it:
+
+    .. code-block:: C++
+        :linenos:
+        :lineno-start: 40
+
+        dds::sub::DataReader<HelloWorldData::Msg> reader(subscriber, topic);
 
 #.  The |var-project-short| C++ API simplifies and extends how data can be read or taken.
     To handle the data some, ``LoanedSamples`` is declared and created which loan samples 
     from the Service pool. Return of the loan is implicit and managed by scoping:
 
     .. code-block:: C++
+        :linenos:
+        :lineno-start: 53
 
         dds::sub::LoanedSamples<HelloWorldData::Msg> samples;
+
+    .. code-block:: C++
+        :linenos:
+        :lineno-start: 61
+
         dds::sub::LoanedSamples<HelloWorldData::Msg>::const_iterator sample_iter;
 
 #.  The ``read()/take()`` operation can return more than one data sample (where several 
     publishing applications are started simultaneously to write different message 
     instances), an an iterator is used:
 
-        .. code-block:: C++
+    .. code-block:: C++
+        :linenos:
+        :lineno-start: 66
 
-            const::HelloWorldData::Msg& msg;
-            const dds::sub::SampleInfo& info;
+            const HelloWorldData::Msg& msg = sample_iter->data();
+            const dds::sub::SampleInfo& info = sample_iter->info();
 
 #.  In |var-project-short|, data and metadata are propagated together. The samples are a 
     set of data samples (that is, user-defined data) and metadata describing the sample 
@@ -153,12 +117,14 @@ To create a subscriber:
     use iterators:
 
     .. code-block:: C++
+        :linenos:
+        :lineno-start: 87
 
-        try {
-            // ...
-        }
-        catch (const dds::core::Exception& e) {
-            std::cerr << "=== [Subscriber] Exception: " << e.what() << std::endl;
+        } catch (const dds::core::Exception& e) {
+            std::cerr << "=== [Subscriber] DDS exception: " << e.what() << std::endl;
+            return EXIT_FAILURE;
+        } catch (const std::exception& e) {
+            std::cerr << "=== [Subscriber] C++ exception: " << e.what() << std::endl;
             return EXIT_FAILURE;
         }
 
@@ -168,42 +134,16 @@ To create a subscriber:
     improve source code readability:
 
     .. code-block:: C++
+        :linenos:
+        :lineno-start: 26
 
-        dds::domain::DomainParticipant participant(domain::default_id());
-
-#.  The DDS participant is always attached to a specific DDS domain. In the HelloWorld 
-    example, it is part of the ``Default\_Domain``, which is specified in the XML deployment 
-    file. To override the default behavior, create or edit a deployment file (for example, 
-    ``$CYCLONEDDS_URI``).
-
-#.  Create a subscriber attached to your participant.
+        try {
 
     .. code-block:: C++
+        :linenos:
+        :lineno-start: 87
 
-        dds::sub::Subscriber subscriber(participant);
-
-#.  Create the topic with a given name (\ ``ddsC++_helloworld_example``) and the predefined 
-    data type(\ ``HelloWorldData::Msg``). Topics with the same data type description 
-    and with different names are considered other topics. This means that readers 
-    or writers created for a given topic do not interfere with readers or writers 
-    created with another topic even if they have the same data type.
-
-    .. code-block:: C++
-
-        dds::topic::Topic<HelloWorldData::Msg> topic(participant,"ddsC++_helloworld_example");
-
-#.  Create a data reader and attach to it:
-
-    .. code-block:: C++
-
-        dds::sub::DataReader<HelloWorldData::Msg> reader(subscriber, topic);
-
-#.  To modify the data reader default reliability Qos to `reliable`:
-
-    .. code-block:: C++
-
-        dds::sub::qos::DataReaderQos drqos = topic.qos() << dds::core::policy::Reliability::Reliable();
-        dds::sub::DataReader<HelloWorldData::Msg> dr(subscriber, topic, drqos);
+        } catch (const dds::core::Exception& e) {
 
 #.  To retrieve data in your application code from the data reader's cache, you can 
     either:
@@ -218,6 +158,8 @@ To create a subscriber:
     data available in the data reader's cache:
 
     .. code-block:: C++
+        :linenos:
+        :lineno-start: 53
 
         dds::sub::LoanedSamples<HelloWorldData::Msg> samples;
 
@@ -226,6 +168,8 @@ To create a subscriber:
     cache when taken with the ``take()``:
 
     .. code-block:: C++
+        :linenos:
+        :lineno-start: 56
 
         samples = reader.take();
 
@@ -234,6 +178,8 @@ To create a subscriber:
     reader cache was not empty:
 
     .. code-block:: C++
+        :linenos:
+        :lineno-start: 59
 
         if (samples.length() > 0)
 
@@ -241,6 +187,8 @@ To create a subscriber:
     ``DataReader``:
 
     .. code-block:: C++
+        :linenos:
+        :lineno-start: 61
 
         dds::sub::LoanedSamples<HelloWorldData::Msg>::const_iterator sample_iter;
         for (sample_iter = samples.begin();
@@ -251,6 +199,8 @@ To create a subscriber:
     (``info``):
 
     .. code-block:: C++
+        :linenos:
+        :lineno-start: 66
 
         const HelloWorldData::Msg& msg = sample_iter->data();
         const dds::sub::SampleInfo& info = sample_iter->info();
@@ -265,12 +215,16 @@ To create a subscriber:
     Valid, and its sample ``info.valid()`` field is False.
 
     .. code-block:: C++
+        :linenos:
+        :lineno-start: 74
 
         if (info.valid())
 
 #.  Display the sample containing valid data:
 
     .. code-block:: C++
+        :linenos:
+        :lineno-start: 75
 
         std::cout << "=== [Subscriber] Message received:" << std::endl;
         std::cout << "    userID  : " << msg.userID() << std::endl;
@@ -280,6 +234,8 @@ To create a subscriber:
     every 20 milliseconds.
 
     .. code-block:: C++
+        :linenos:
+        :lineno-start: 83
 
         else {
             std::this_thread::sleep_for(std::chrono::milliseconds(20));
@@ -294,3 +250,17 @@ To create a subscriber:
 All the entities that are created under the participant, such as the
 data reader, subscriber, and topic are automatically deleted by
 middleware through the scoping mechanism.
+
+.. note::
+    To modify the data reader default reliability Qos to `reliable`:
+
+    .. code-block:: C++
+        :linenos:
+        :lineno-start: 60
+
+        /* With a normal configuration (see dds::pub::qos::DataWriterQos
+
+    .. code-block:: C++
+
+        dds::sub::qos::DataReaderQos drqos = topic.qos() << dds::core::policy::Reliability::Reliable();
+        dds::sub::DataReader<HelloWorldData::Msg> dr(subscriber, topic, drqos);
