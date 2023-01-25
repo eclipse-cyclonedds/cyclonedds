@@ -9,9 +9,9 @@ Prerequisites
 
 Install the following software on your machine:
 
- - A C compiler (For example, GCC or clang on Linux, Visual Studio on Windows, XCode on macOS)
- - |url::git_link| version control system;
- - |url::cmake_link|, version 3.10 or later;
+ - A C compiler (For example, GCC or clang on Linux, Visual Studio on Windows, XCode on macOS).
+ - |url::git_link| version control system.
+ - |url::cmake_link|, version 3.10 or later, see :ref:`cmake_config`.
  - Optionally, |url::openssl_link|, preferably version 1.1 later to use TLS over TCP.
 
 To obtain the dependencies for |var-project-short|, follow the platform-specific instructions:

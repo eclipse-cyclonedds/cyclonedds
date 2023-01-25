@@ -76,6 +76,7 @@ To determine the information included in the log file, change the :ref:`Tracing/
    :maxdepth: 1
    :hidden:
    
+   cmake_config
    ddsi_concepts
    discovery-behavior
    discovery-config

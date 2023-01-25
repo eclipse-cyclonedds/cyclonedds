@@ -193,3 +193,6 @@
  
     <a href="https://github.com/eclipse-cyclonedds/cyclonedds/tree/master/examples/helloworld" target="_blank">GitHub cyclonedds/examples/helloworld/</a>
 
+.. |url::ddsperf_github| raw:: html
+ 
+    <a href="https://github.com/eclipse-cyclonedds/cyclonedds/tree/master/src/tools/ddsperf" target="_blank">GitHub ddsperf</a>
