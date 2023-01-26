@@ -268,7 +268,6 @@ static void fsm_state_change (struct dds_security_fsm_control *control, struct f
 static void fsm_handle_timeout (struct dds_security_fsm_control *control, struct fsm_timer_event *timer_event)
 {
   struct dds_security_fsm *fsm = timer_event->fsm;
-
   switch (timer_event->kind)
   {
   case FSM_TIMEOUT_STATE:
@@ -283,9 +282,6 @@ static void fsm_handle_timeout (struct dds_security_fsm_control *control, struct
       ddsrt_cond_broadcast(&control->cond);
     break;
   }
-
-  /* mark timer event as being processed */
-  timer_event->endtime = DDS_NEVER;
 }
 
 static uint32_t handle_events (struct dds_security_fsm_control *control)
@@ -315,6 +311,8 @@ static uint32_t handle_events (struct dds_security_fsm_control *control)
       else
       {
         struct fsm_timer_event *timer_event = ddsrt_fibheap_extract_min (&timer_events_fhdef, &control->timers);
+        /* set endtime to NEVER to maintain the invariant that (on heap) <=> (endtime != NEVER) */
+        timer_event->endtime = DDS_NEVER;
         fsm_handle_timeout (control, timer_event);
       }
     }
