@@ -234,7 +234,7 @@ static bool PKCS7_document_from_data(const char *data, size_t len, PKCS7 **p7, B
 static bool PKCS7_document_verify(PKCS7 *p7, X509 *cert, BIO *inbio, BIO **outbio, DDS_Security_SecurityException *ex)
 {
   bool result = false;
-  X509_STORE *store = NULL;
+  STACK_OF(X509) *certStack = NULL;
 
   assert(p7);
   assert(cert);
@@ -243,18 +243,18 @@ static bool PKCS7_document_verify(PKCS7 *p7, X509 *cert, BIO *inbio, BIO **outbi
 
   if ((*outbio = BIO_new(BIO_s_mem())) == NULL)
     DDS_Security_Exception_set_with_openssl_error(ex, DDS_ACCESS_CONTROL_PLUGIN_CONTEXT, DDS_SECURITY_ERR_ALLOCATION_FAILED_CODE, 0, DDS_SECURITY_ERR_ALLOCATION_FAILED_MESSAGE ": ");
-  else if ((store = X509_STORE_new()) == NULL)
+  else if ((certStack = sk_X509_new_null()) == NULL)
     DDS_Security_Exception_set_with_openssl_error(ex, DDS_ACCESS_CONTROL_PLUGIN_CONTEXT, DDS_SECURITY_ERR_ALLOCATION_FAILED_CODE, 0, DDS_SECURITY_ERR_ALLOCATION_FAILED_MESSAGE ": ");
   else
   {
-    X509_STORE_add_cert(store, cert);
-    if (PKCS7_verify(p7, NULL, store, inbio, *outbio, PKCS7_TEXT) != 1)
+    sk_X509_push(certStack, cert);
+    if (PKCS7_verify(p7, certStack, NULL, inbio, *outbio, PKCS7_TEXT | PKCS7_NOVERIFY | PKCS7_NOINTERN) != 1)
       DDS_Security_Exception_set_with_openssl_error(ex, DDS_ACCESS_CONTROL_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_SMIME_DOCUMENT_CODE, 0, DDS_SECURITY_ERR_INVALID_SMIME_DOCUMENT_MESSAGE ": ");
     else
       result = true;
   }
-  if (store)
-    X509_STORE_free(store);
+  if (certStack)
+      sk_X509_free(certStack);
   if (!result && *outbio)
   {
     BIO_free(*outbio);
