@@ -248,7 +248,7 @@ static bool PKCS7_document_verify(PKCS7 *p7, X509 *cert, BIO *inbio, BIO **outbi
   else
   {
     X509_STORE_add_cert(store, cert);
-    if (PKCS7_verify(p7, NULL, store, inbio, *outbio, PKCS7_TEXT) != 1)
+    if (PKCS7_verify(p7, NULL, store, inbio, *outbio, PKCS7_TEXT | PKCS7_NOVERIFY | PKCS7_NOINTERN) != 1)
       DDS_Security_Exception_set_with_openssl_error(ex, DDS_ACCESS_CONTROL_PLUGIN_CONTEXT, DDS_SECURITY_ERR_INVALID_SMIME_DOCUMENT_CODE, 0, DDS_SECURITY_ERR_INVALID_SMIME_DOCUMENT_MESSAGE ": ");
     else
       result = true;
