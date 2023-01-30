@@ -196,3 +196,7 @@
 .. |url::ddsperf_github| raw:: html
  
     <a href="https://github.com/eclipse-cyclonedds/cyclonedds/tree/master/src/tools/ddsperf" target="_blank">GitHub ddsperf</a>
+
+.. |url::idl_4.2| raw:: html
+
+    <a href"https://www.omg.org/spec/IDL/4.2"> target="_blank">OMG IDL</a>

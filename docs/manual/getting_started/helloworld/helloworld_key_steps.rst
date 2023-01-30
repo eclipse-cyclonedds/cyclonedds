@@ -37,8 +37,8 @@ data reader periodically until a publishing application, now called
 The publisher writes the required data into the shared topic, namely
 ``HelloWorldData_Msg``.
 
-The data type is described using the OMG IDL.
-Language <http://www.omg.org/gettingstarted/omg_idl.htm>`__ located in
+The data type is described using the |url::idl_4.2|.
+Language located in
 ``HelloWorldData.idl`` file. Such IDL file is seen as the data model of
 our example.
 
