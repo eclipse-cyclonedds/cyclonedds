@@ -9,8 +9,8 @@ Prerequisites
 
 Install the following software on your machine:
 
- - A C compiler (For example, GCC or clang on Linux, Visual Studio on Windows (MSVC), 
-   CLang on macOS).
+ - A C compiler (For example, GCC or Clang on Linux, Visual Studio on Windows (MSVC), 
+   Clang on macOS).
    
  - |url::git_link| version control system.
  - |url::cmake_link|, version 3.10 or later, see :ref:`cmake_config`.
