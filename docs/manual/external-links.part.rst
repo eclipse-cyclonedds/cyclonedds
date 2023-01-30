@@ -199,4 +199,4 @@
 
 .. |url::idl_4.2| raw:: html
 
-    <a href"https://www.omg.org/spec/IDL/4.2"> target="_blank">OMG IDL</a>
+    <a href"https://www.omg.org/spec/IDL/4.2" target="_blank">OMG IDL</a>
