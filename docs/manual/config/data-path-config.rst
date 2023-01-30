@@ -14,21 +14,21 @@ Data path configuration
 Re-transmission merging
 =====================
 
-A remote Reader can request re-transmission whenever it receives a Heartbeat and detects
-missing samples. If a sample is lost on the network for many or all Readers, the
+A remote reader can request re-transmission whenever it receives a heartbeat and detects
+missing samples. If a sample is lost on the network for many or all readers, the
 next heartbeat can trigger a large number of re-transmission requests. Therefore, to avoid
-re-transmitting the same sample over and over again to many different Readers, the
+re-transmitting the same sample over and over again to many different readers, the
 Writer should attempt to merge these requests into a multicast re-transmission. Similarly,
-while Readers should try to avoid requesting re-transmission too often, in an
-interoperable system, the Writers should be robust against it.
+while readers should try to avoid requesting re-transmission too often, in an
+interoperable system, the writers should be robust against it.
 
-On receiving a Heartbeat that indicates samples are missing, a Reader either:
+On receiving a heartbeat that indicates samples are missing, a reader either:
 
 - Schedules the second and subsequent re-transmission requests to be sent after a delay (set in:
   :ref:`Internal/NackDelay <//CycloneDDS/Domain/Internal/NackDelay>`).
 - Combines it with an already scheduled request. Any samples that are received between the 
-  receipt of the Heartbeat and the sending of the AckNack do not need to be re-transmitted. 
-  A Writer attempts to combine re-transmission requests:
+  receipt of the heartbeat and the sending of the AckNack do not need to be re-transmitted. 
+  A writer attempts to combine re-transmission requests:
 
   - When another re-transmission request arrives, and while the re-transmission has not yet occurred, 
     change the messages from unicast to multicast. This is particularly effective when 
@@ -45,9 +45,9 @@ On receiving a Heartbeat that indicates samples are missing, a Reader either:
 Re-transmission backlogs
 ========================
 
-A Reader can request re-transmission of many samples at once. When the Writer queues 
+A reader can request re-transmission of many samples at once. When the writer queues 
 all these samples for re-transmission, it can cause a large backlog of samples. As a 
-result, the samples near the queue's end may be delayed so much that the Reader issues 
+result, the samples near the queue's end may be delayed so much that the reader issues 
 another re-transmission request.
 
 |var-project| limits the number of samples queued for re-transmission and ignores
@@ -123,7 +123,7 @@ Receiving of data is split into multiple threads:
 - A single receive thread, which is responsible for:
 
   - Retrieving all incoming network packets.
-  - Running the protocol state machine, which involves scheduling of AckNack and Heartbeat messages.
+  - Running the protocol state machine, which involves scheduling of AckNack and heartbeat messages.
   - Queueing of samples that must be re-transmitted.
   - Defragmenting.
   - Ordering incoming samples.
@@ -145,9 +145,9 @@ Receiving of data is split into multiple threads:
 
 - One or more delivery threads dedicated to the handling of application data:
    - deserialisation
-   - delivery to the DCPS data Reader caches
+   - delivery to the DCPS data reader caches
 
-Fragmented data first enters the defragmentation stage, which is per proxy Writer. The
+Fragmented data first enters the defragmentation stage, which is per proxy writer. The
 number of samples that can be defragmented simultaneously is limited:
 
 - Reliable data: :ref:`Internal/DefragReliableMaxSamples <//CycloneDDS/Domain/Internal/DefragReliableMaxSamples>` 
@@ -155,7 +155,7 @@ number of samples that can be defragmented simultaneously is limited:
 
 Samples (defragmented if necessary) received out of sequence are buffered:
 
-- Initially per proxy Writer. The size is limited to: 
+- Initially per proxy writer. The size is limited to: 
   :ref:`Internal/PrimaryReorderMaxSamples <//CycloneDDS/Domain/Internal/PrimaryReorderMaxSamples>`.
 - Then per Reader (catching up on historical (transient-local) data). The size is limited to:
   :ref:`Internal/SecondaryReorderMaxSamples <//CycloneDDS/Domain/Internal/SecondaryReorderMaxSamples>`.
@@ -201,7 +201,7 @@ When transmitting, samples larger than
 with a warning. |var-project| behaves as if the sample never existed.
 
 Where the transmitting side completely ignores the sample, the receiving side assumes that 
-the sample has been correctly received and acknowledges reception to the Writer, which allows 
+the sample has been correctly received and acknowledges reception to the writer, which allows 
 communication to continue.
 
 When receiving, samples larger than 
@@ -210,7 +210,7 @@ early as possible. To prevent any resources from being claimed for longer than s
 samples are dropped immediately following the reception of a sample or fragment of one. 
 
 .. note::
-  When the receiving side drops a sample, Readers receive a *sample lost* notification included
+  When the receiving side drops a sample, readers receive a *sample lost* notification included
   with the next delivered sample. This notification can be easily overlooked. Therefore, the only 
   reliable way of determining whether samples have been dropped or not is by checking the logs.
 

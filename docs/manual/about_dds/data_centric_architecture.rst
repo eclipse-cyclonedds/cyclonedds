@@ -12,7 +12,7 @@ tightly coupled system. The centralized interface repositories are
 usually seen as a single point of failure.
 
 In a data-centric architecture, your design focuses on the data each
-the application produces and decides to share rather than on the Interfaces'
+application produces and decides to share rather than on the Interfaces'
 operations and the internal processing that produced them.
 
 A data-centric architecture creates a decoupled system that focuses on
@@ -26,12 +26,12 @@ Space-decoupling derives from the fact that applications do not need to
 know the identity of the data produced or consumed, nor their logical 
 or a physical location in the network. Under the hood, |var-project-short|
 runs a zero-configuration, interoperable discovery protocol that
-searches matching data readers and data writes that are interested in
+searches matching data readers and data writers that are interested in
 the same data topic.
 
 Time-decoupling derives from the fact that, fundamentally, the nature of
 communication is asynchronous. Data producers and consumers,
-known as ``DataWriter``s and ``DataReader``s, are not forced to
+known as ``DataWriter``\s and ``DataReader``\s, are not forced to
 be active and connected simultaneously to share data. In this
 scenario, the |var-project-short| middleware can handle and manage data on behalf of
 late joining ``DataReader`` applications and deliver it to them when they

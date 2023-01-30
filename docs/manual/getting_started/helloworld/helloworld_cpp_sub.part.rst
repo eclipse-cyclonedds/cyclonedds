@@ -212,7 +212,7 @@ At least four DDS entities are needed to build a minimalistic application:
     be ``DISPOSED`` by the writer, or it is ``NOT_ALIVE`` anymore, which
     could happen when the publisher application terminates while the
     subscriber is still active. In this case, the sample is not considered
-    Valid, and its sample ``info.valid()`` field is False.
+    valid, and its sample ``info.valid()`` field is False.
 
     .. code-block:: C++
         :linenos:

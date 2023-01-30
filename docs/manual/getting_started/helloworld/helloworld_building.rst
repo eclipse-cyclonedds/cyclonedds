@@ -101,7 +101,7 @@ the following:
             Prefix Path. For example: ``cmake -DCMAKE_PREFIX_PATH=<install-location>``. If 
             you have further issues, please refer to CMake's |url::cmake_dependencies|.
 
-    .. group-tab:: Core C++
+    .. group-tab:: C++
 
         - ``|var-project-short| C++`` libraries that contain the DDS CXX API your 
           application needs.

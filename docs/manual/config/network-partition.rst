@@ -7,7 +7,7 @@ Network partition configuration
 *******************************
 
 Network partitions have alternative multicast addresses for data that is transmitted via 
-readers and wters that are mapped to the topic under that partition. 
+readers and writers that are mapped to the topic under that partition. 
 
 In the DDSI discovery protocol, a reader can override the default address at which it is 
 reachable. This feature of the discovery protocol is used for advertising alternative 

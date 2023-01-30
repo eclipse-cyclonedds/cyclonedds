@@ -144,7 +144,7 @@ To create a subscriber:
     The state of a data instance can be, *DISPOSED* by the writer, or it is
     *NOT\_ALIVE* anymore, which could happen if the publisher application terminates 
     while the subscriber is still active. In this case, the sample is not considered 
-    Valid, and its sample ``info[].Valid_data`` the field is ``False``:
+    valid, and its sample ``info[].Valid_data`` the field is ``False``:
 
     .. code-block:: C
         :linenos:

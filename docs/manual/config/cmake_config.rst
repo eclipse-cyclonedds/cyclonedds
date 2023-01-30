@@ -51,6 +51,6 @@ addition to the standard options such as ``CMAKE_BUILD_TYPE``):
         may be needed for QNX builds) 
     * - ``-DBUILD_IDLC_XTESTS=NO``
       - Include a set of tests for the IDL compiler that use the C back-end to compile 
-        an idl file at (test) runtime, and use the C compiler to build a test 
+        an IDL file at (test) runtime, and use the C compiler to build a test 
         application for the generated types, that is executed to do the actual testing 
         (not supported on Windows) 
