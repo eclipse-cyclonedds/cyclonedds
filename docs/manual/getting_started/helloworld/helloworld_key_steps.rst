@@ -37,10 +37,8 @@ data reader periodically until a publishing application, now called
 The publisher writes the required data into the shared topic, namely
 ``HelloWorldData_Msg``.
 
-The data type is described using the |url::idl_4.2|.
-Language located in
-``HelloWorldData.idl`` file. Such IDL file is seen as the data model of
-our example.
+The data type is described using the |url::idl_4.2| language located in
+the ``HelloWorldData.idl`` file and is the data model of the example.
 
 .. tabs::
 

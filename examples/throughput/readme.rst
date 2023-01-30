@@ -45,9 +45,12 @@ Configuration:
 
 The **subscriber** receives the data and outputs: 
 
-The total amount received and the data-rate in bytes-per-second. It also indicates whether 
-any samples were received out-of-order. You can specify the maximum number of cycles, and 
-when this is reached, the subscriber terminates and outputs the totals and averages.
+- The total amount of data received.
+- The data-rate in bytes-per-second.
+- Whether any samples were received out-of-order. 
+
+You can specify the maximum number of cycles. When the maximum is reached, the 
+subscriber terminates and outputs the totals and averages.
 
 The **subscriber** executable measures:
 
