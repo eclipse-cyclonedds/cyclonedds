@@ -8,44 +8,48 @@
    http://www.eclipse.org/org/documents/edl-v10.php.
 
    SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+   
+.. index:: 
+   single: Examples; dynsub
+   single: dynsub example
+
+.. _dynsub_bm:
 
 dynsub
 ======
 
-Description
-***********
-
-The "dynsub" example is a PoC for a C-based JSON printer for arbitrary data. It assumes
+The dynsub example is a :term:`PoC` for a C-based JSON printer of arbitrary data. It assumes
 that topic discovery is enabled, but doesn't require it.
 
 Running the example
 *******************
 
-Pass it the name of a topic and it will wait for some time for a writer of that topic to
-show up.  Once it finds on in the DCPSPublication topic, it then tries to subscribe and
-print the received samples as JSON.
+Pass the name of a topic to dynsub and it waits for a writer of that topic to show up. When it 
+finds one in the DCPSPublication topic, it tries to subscribe and print the received samples as JSON.
 
-It is far from complete and definitely buggy.  It is just a PoC!
+For example: Start the ``HelloworldPublisher`` in one shell:
 
-For example: start the HelloworldPublisher in one shell:
+.. code-block:: c
 
     # bin/HelloworldPublisher
     === [Publisher]  Waiting for a reader to be discovered ...
 
-then in another shell start this program:
+In another shell start ``dynsub``:
+
+.. code-block:: c
 
     # bin/dynsub HelloWorldData_Msg
     {"userID":1,"message":"Hello World"}
     {"userID":1}
 
 The second line is the "invalid sample" generated because of the termination of the
-publisher.  In Cyclone DDS that means only the key fields are valid and so that is what
-gets printed.
+publisher. In |var-project-short|, only the key fields are valid, and therefore printed.
 
-There is a small publisher program "variouspub" that can publish a number of different
-types to make things a bit more interesting than HelloWorldData_Msg.  Pass it the name of
-the type to publish, like:
+Instead of the HelloWorldData_Msg, the small publisher program "variouspub" can publish 
+a number of different types. Pass it the name of the type to publish. For example:
+
+.. code-block:: c
 
     # bin/variouspub B
 
-This will publish samples at 1Hz until killed.
+This publishes samples at 1Hz until killed.

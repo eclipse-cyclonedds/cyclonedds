@@ -9,18 +9,22 @@
 
    SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
+.. _documentation_top:
+
 |var-project| |var-release| documentation
 =========================================
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
+   about_dds/eclipse_cyclone_dds
    getting_started/index
    config/index
    examples/index
-   security
-   shared_memory
+   security/dds_security
+   shared_memory/shared_memory
    ddsc
+   glossary
 
 Indices and tables
 ==================

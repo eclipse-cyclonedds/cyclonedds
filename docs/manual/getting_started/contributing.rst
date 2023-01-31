@@ -1,4 +1,8 @@
-.. _contributing:
+.. include:: ../external-links.part.rst
+
+.. index:: Contributing
+
+.. _contributing_to_dds:
 
 Contributing to |var-project|
 =============================
@@ -10,16 +14,14 @@ etc.
 
 .. tip::
 
-    Contributing to |var-project| means donating your code to the Eclipse foundation. This means you need to
-    sign the `Eclipse Contributor Agreement <https://www.eclipse.org/legal/ECA.php>`__ using
-    `this form <https://accounts.eclipse.org/user/eca>`__. It effectively means that what you are contributing is
-    yours to give away and you are fine with everyone using and distributing it. However, don't take legal advice
+    Contributing to |var-project| means donating your code to the Eclipse foundation. It requires that you
+    sign the |url::eclipse_link| using |url::eclipse-form_link|. In summary, this means that your contribution is
+    yours to give away, and that you allow others to use and distribute it. However, don't take legal advice
     from this getting started guide, read the terms linked above.
 
-If you want to contribute code, it is helpful to know that build
-configurations for Azure DevOps Pipelines are present in the repositories.
-There is a test suite using CTest and CUnit that can be built
-locally.
+To contribute code, it may be helpful to know that build configurations for Azure DevOps Pipelines 
+are present in the repositories.
+There is a test suite using CTest and |url::cunit_link| that can be built locally.
 
 The following sections explain how to do this for the different
 operating systems.
@@ -36,9 +38,9 @@ Set the CMake variable ``BUILD_TESTING`` to ``ON`` when configuring, e.g.:
     cmake --build .
     ctest
 
-This build requires `CUnit <http://cunit.sourceforge.net/>`__. You can
+This build requires |url::cunit_link|. You can
 install this yourself, or you can choose to instead rely on the
-`Conan <https://conan.io/>`__ packaging system that the CI build
+|url::conan_link| packaging system that the CI build
 infrastructure also uses. In that case, install Conan in the build
 directory before running CMake:
 
@@ -59,9 +61,9 @@ Set the CMake variable ``BUILD_TESTING`` to ``ON`` when configuring, e.g.:
     cmake --build .
     ctest
 
-This build requires `CUnit <http://cunit.sourceforge.net/>`__. You can
+This build requires |url::cunit_link|. You can
 install this yourself, or you can choose to instead rely on the
-`Conan <https://conan.io/>`__ packaging system that the CI build
+|url::conan_link| packaging system that the CI build
 infrastructure also uses. In that case, install Conan in the build
 directory before running CMake:
 

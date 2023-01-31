@@ -12,44 +12,79 @@
 .. _config-docs:
 
 ###################
-Configuration Guide
+Configuration guide
 ###################
 
-|var-project| has various configuration parameters and comes with a default built-in
-configuration.  To run an example, or any application that uses |var-project| for its data
-exchange, this default configuration is usually fine and no further action is required.
-
-This document attempts to provide background information that will help in adjusting the
-configuration when the default settings do not give the desired behavior. A full listing of
-all settings is included as generated document directly from the source code in the
-:ref:`configuration_reference`. These also list the default value for each parameter.
-
 Configuration parameters for |var-project-short| are expressed in XML and grouped together in an
-XML file. To use a custom XML configuration in an application, the ``CYCLONEDDS_URI``
-environment variable needs to be set prior to starting the application and pointed to the location
-of the configuration file to be used.
+XML file. To use a custom XML configuration in an application, you must set the ``CYCLONEDDS_URI`` 
+environment variable to the location of the configuration file. For example:
 
-| *Example*
-| **Windows:** ``set CYCLONEDDS_URI=file://%USERPROFILE%/CycloneDDS/my-config.xml``
-| **Linux:** ``export CYCLONEDDS_URI="file://$HOME/CycloneDDS/my-config.xml"``
+.. tabs::
 
-If you run into any issues the first place to start are the "tracing" settings: these allow
-you to trace very detailed information, and this includes the actual
-configuration settings in use, including all those that are set to the default. When editing
-configuration files by hand, this overview can be very useful. Increasing the Verbosity from
-"warning" to, e.g., "config" already suffices for getting this information written to the log.
+    .. group-tab:: Windows
 
-This configuration guide is broken down into three parts:
+       .. code-block:: bash
+         
+          set CYCLONEDDS_URI=file://%USERPROFILE%/CycloneDDS/my-config.xml
 
- - A high level description of the DDSI Concepts,
- - A section that goes through the |var-project| specifics,
- - A description of all supported configuration parameters, generated from the source code.
+    .. group-tab:: Linux
 
-Users that are already familiar with the concepts of DDS can go directly to the :ref:`cyclonedds_specifics`.
+       .. code-block:: bash
+         
+          export CYCLONEDDS_URI="file://$HOME/CycloneDDS/my-config.xml"
+
+The following shows an example XML configuration:
+
+.. code-block:: xml
+   :linenos:
+   :caption: ``/path/to/dds/configuration.xml``
+
+   <?xml version="1.0" encoding="utf-8"?>
+   <CycloneDDS
+     xmlns="https://cdds.io/config"
+     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+     xsi:schemaLocation="https://cdds.io/config https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/master/etc/cyclonedds.xsd"
+   >
+     <Domain Id="any">
+       <General>
+         <Interfaces>
+           <NetworkInterface autodetermine="true" priority="default"
+           multicast="default" />
+         </Interfaces>
+         <AllowMulticast>default</AllowMulticast>
+         <MaxMessageSize>65500B</MaxMessageSize>
+       </General>
+       <Tracing>
+         <Verbosity>config</Verbosity>
+         <OutputFile>
+           ${HOME}/dds/log/cdds.log.${CYCLONEDDS_PID}
+         </OutputFile>
+       </Tracing>
+     </Domain>
+   </CycloneDDS>
+
+For a full listing of the configuration settings (and default value for each parameter) refer
+to the :ref:`configuration_reference`, which is generated directly from the source code.
+
+Configuration log files
+=======================
+
+When editing configuration files, the ``cdds.log`` can be very useful for providing information about the build. 
+To determine the information included in the log file, change the :ref:`Tracing/Verbosity <//CycloneDDS/Domain/Tracing/Verbosity>` settings.
 
 .. toctree::
-   :maxdepth: 2
-
+   :maxdepth: 1
+   :hidden:
+   
+   cmake_config
    ddsi_concepts
-   cyclonedds_specifics
+   discovery-behavior
+   discovery-config
+   network-config
+   combining-participants
+   data-path-config
+   network-interfaces
+   thread-config
+   reporting-tracing
+   conformance
    config_file_reference
