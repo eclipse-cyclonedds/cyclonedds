@@ -8,7 +8,7 @@ Networking interfaces
 
 |var-project| can use multiple network interfaces simultaneously (the default is a single 
 network interface). The set of enabled interfaces determines the addresses that the host 
-advertises in the discovery information (see :ref:`Discovery of participants and endpoints`).
+advertises in the discovery information (see :ref:`discovery_participants_endpoints`).
 
 -----------------
 Default behaviour
