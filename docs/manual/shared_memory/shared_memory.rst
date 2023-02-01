@@ -36,7 +36,7 @@ Prerequisites
 
      sudo apt install cmake libacl1-dev libncurses5-dev pkg-config maven
 
-#. Get and build iceoryx. The following assumes that the istall is in your home directory:
+#. Get and build iceoryx. The following assumes that the install is in your home directory:
 
    .. code-block:: console
 

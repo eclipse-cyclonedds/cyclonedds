@@ -1,5 +1,7 @@
 .. index:: Data-centric architecture
 
+.. _data_centric_architecture:
+
 Data-centric architecture
 -------------------------
 
@@ -31,7 +33,7 @@ the same data topic.
 
 Time-decoupling derives from the fact that, fundamentally, the nature of
 communication is asynchronous. Data producers and consumers,
-known as ``DataWriter``\s and ``DataReader``\s, are not forced to
+known as :ref:`datawriters_bm` and :ref:`datareaders_bm`, are not forced to
 be active and connected simultaneously to share data. In this
 scenario, the |var-project-short| middleware can handle and manage data on behalf of
 late joining ``DataReader`` applications and deliver it to them when they
@@ -40,5 +42,5 @@ join the system.
 Time and space decoupling gives applications the freedom to be plugged
 or unplugged from the system at any time, from anywhere, in any order.
 This keeps the complexity and administration of a data-centric
-architecture relatively low when adding more and more ``DataReader`` and
-``DataWriter`` applications.
+architecture relatively low when adding more and more DataReader and
+DataWriter applications.

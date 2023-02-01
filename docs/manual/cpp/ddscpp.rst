@@ -9,27 +9,15 @@
 
    SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
-.. _documentation_top:
+.. include:: ../external-links.part.rst
 
-|var-project| |var-release| documentation
-=========================================
+.. index:: C++ API reference
 
-.. toctree::
-   :maxdepth: 1
+.. _cpp_api_ref_bm:
 
-   about_dds/eclipse_cyclone_dds
-   getting_started/index
-   config/index
-   examples/index
-   security/dds_security
-   shared_memory/shared_memory
-   ddsc
-   cpp/ddscpp
-   glossary
-   genindex
+C++ API reference
+=================
 
-Indices and tables
-==================
+|url::cpp_api_link|
 
-* :ref:`modindex`
-* :ref:`search`
+:ref:`cpp_custom_containers`
