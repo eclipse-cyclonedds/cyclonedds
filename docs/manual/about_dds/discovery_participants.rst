@@ -1,9 +1,14 @@
+.. index::
+    single: Discovery; DDSI Participants and endpoints
+    single: Endpoints; DDSI discovery
+    single: Participants; DDSI discovery
+    single: DDSI; Discovery of participants and endpoints
 
-.. _`Discovery of participants and endpoints`:
+.. _discovery_participants_endpoints:
 
-***************************************
-Discovery of participants and andpoints
-***************************************
+********************************************
+Discovery of DDSI participants and endpoints
+********************************************
 
 DDSI participants discover each other using the *Simple Participant Discovery
 Protocol* (SPDP). This protocol periodically sends a message containing the specifics 

@@ -1,3 +1,7 @@
+.. index:: Topics
+
+.. _topic_bm:
+
 Topics
 ======
 

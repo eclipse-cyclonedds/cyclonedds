@@ -22,5 +22,5 @@ implementation.
    mapping_domains
    mapping_entities
    reliable_communication
-   ddsi-transient_behavoir
+   ddsi-transient_behavior
    discovery_participants
