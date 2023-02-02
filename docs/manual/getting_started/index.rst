@@ -18,10 +18,7 @@ Getting Started
 
    installation/installation
    helloworld/helloworld
-   py_tutorial/index
+   py_tutorial_link
    installation/benchmarking
-   contributing
 
-
-.. include:: disclaimer.part.rst
 
