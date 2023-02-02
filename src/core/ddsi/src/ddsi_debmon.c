@@ -41,12 +41,6 @@
 
 #include "dds__whc.h"
 
-struct plugin {
-  ddsi_debug_monitor_plugin_t fn;
-  void *arg;
-  struct plugin *next;
-};
-
 struct ddsi_debug_monitor {
   struct ddsi_thread_state *servts;
   struct ddsi_tran_factory * tran_factory;
