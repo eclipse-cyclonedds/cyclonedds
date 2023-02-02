@@ -134,16 +134,6 @@ struct ddsi_xmsg_chain {
   struct ddsi_xmsg_chain_elem *latest;
 };
 
-#ifdef DDS_HAS_BANDWIDTH_LIMITING
-#define DDSI_BW_UNLIMITED (0)
-
-struct ddsi_bw_limiter {
-    uint32_t       bandwidth;   /*gv.config in bytes/s   (0 = UNLIMITED)*/
-    int64_t        balance;
-    ddsrt_mtime_t  last_update;
-};
-#endif
-
 struct ddsi_xpack
 {
   struct ddsi_xpack *sendq_next;
@@ -176,10 +166,6 @@ struct ddsi_xpack
 
   bool includes_rexmit;
   struct ddsi_xmsg_chain included_msgs;
-
-#ifdef DDS_HAS_BANDWIDTH_LIMITING
-  struct ddsi_bw_limiter limiter;
-#endif
 
 #ifdef DDS_HAS_NETWORK_PARTITIONS
   uint32_t encoderId;
@@ -1036,70 +1022,6 @@ static void ddsi_xmsg_chain_add (struct ddsi_xmsg_chain *chain, struct ddsi_xmsg
   chain->latest = &m->link;
 }
 
-#ifdef DDS_HAS_BANDWIDTH_LIMITING
-/* BW_LIMITER ----------------------------------------------------------
-
-   Helper for XPACKS, that contain the configuration and state to handle Bandwidth limitation.*/
-
-/* To be called after Xpack sends out a packet.
- * Keeps a balance of real data vs. allowed data according to the bandwidth limit.
- * If data is send too fast, a sleep is inserted to get the used bandwidth at the configured rate.
- */
-
-#define NN_BW_LIMIT_MAX_BUFFER (DDS_MSECS (-30))
-#define NN_BW_LIMIT_MIN_SLEEP (DDS_MSECS (2))
-static void ddsi_bw_limit_sleep_if_needed (struct ddsi_domaingv const * const gv, struct ddsi_bw_limiter *this, ssize_t size)
-{
-  if ( this->bandwidth > 0 ) {
-    ddsrt_mtime_t tnow = ddsrt_time_monotonic();
-    int64_t actual_interval;
-    int64_t target_interval;
-
-    /* calculate intervals */
-    actual_interval = tnow.v - this->last_update.v;
-    this->last_update = tnow;
-
-    target_interval = DDS_NSECS_IN_SEC*size/this->bandwidth;
-
-    this->balance += (target_interval - actual_interval);
-
-
-    GVTRACE (" <limiter(us):%"PRId64"",(target_interval - actual_interval)/1000);
-
-    if ( this->balance < NN_BW_LIMIT_MAX_BUFFER )
-    {
-      /* We're below the bandwidth limit, do not further accumulate  */
-      this->balance = NN_BW_LIMIT_MAX_BUFFER;
-      GVTRACE (":%"PRId64":max",this->balance/1000);
-    }
-    else if ( this->balance > NN_BW_LIMIT_MIN_SLEEP )
-    {
-      /* We're over the bandwidth limit far enough, to warrent a sleep. */
-      GVTRACE (":%"PRId64":sleep",this->balance/1000);
-      thread_state_blocked (ddsi_lookup_thread_state ());
-      dds_sleepfor (this->balance);
-      thread_state_unblocked (ddsi_lookup_thread_state ());
-    }
-    else
-    {
-      GVTRACE (":%"PRId64"",this->balance/1000);
-    }
-    GVTRACE (">");
-  }
-}
-
-
-static void ddsi_bw_limit_init (struct ddsi_bw_limiter *limiter, uint32_t bandwidth_limit)
-{
-  limiter->bandwidth = bandwidth_limit;
-  limiter->balance = 0;
-  if (bandwidth_limit)
-    limiter->last_update = ddsrt_time_monotonic();
-  else
-    limiter->last_update.v = 0;
-}
-#endif /* DDS_HAS_BANDWIDTH_LIMITING */
-
 /* XPACK ---------------------------------------------------------------
 
    Queued messages are packed into xpacks (all by-ref, using iovecs).
@@ -1124,7 +1046,7 @@ static void ddsi_xpack_reinit (struct ddsi_xpack *xp)
   xp->packetid++;
 }
 
-struct ddsi_xpack * ddsi_xpack_new (struct ddsi_domaingv *gv, uint32_t bw_limit, bool async_mode)
+struct ddsi_xpack * ddsi_xpack_new (struct ddsi_domaingv *gv, bool async_mode)
 {
   struct ddsi_xpack *xp;
 
@@ -1144,18 +1066,12 @@ struct ddsi_xpack * ddsi_xpack_new (struct ddsi_domaingv *gv, uint32_t bw_limit,
   xp->hdr.vendorid = DDSI_VENDORID_ECLIPSE;
 
   /* MSG_LEN first sub message for stream based connections */
-
   xp->msg_len.smhdr.submessageId = DDSI_RTPS_SMID_ADLINK_MSG_LEN;
   xp->msg_len.smhdr.flags = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN ? DDSI_RTPS_SUBMESSAGE_FLAG_ENDIANNESS : 0);
   xp->msg_len.smhdr.octetsToNextHeader = 4;
 
   ddsi_xpack_reinit (xp);
 
-#ifdef DDS_HAS_BANDWIDTH_LIMITING
-  ddsi_bw_limit_init (&xp->limiter, bw_limit);
-#else
-  (void) bw_limit;
-#endif
   return xp;
 }
 
@@ -1248,15 +1164,7 @@ static ssize_t ddsi_xpack_send1 (const ddsi_xlocator_t *loc, void * varg)
   }
 
   /* Clear call flags, as used on a per call basis */
-
   xp->call_flags = 0;
-
-#ifdef DDS_HAS_BANDWIDTH_LIMITING
-  if (nbytes > 0)
-  {
-    ddsi_bw_limit_sleep_if_needed (gv, &xp->limiter, nbytes);
-  }
-#endif
 
   return nbytes;
 }

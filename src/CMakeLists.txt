@@ -65,10 +65,6 @@ if(ENABLE_SHM)
   endif()
 endif()
 
-# ones that linger in the sources
-# - DDS_HAS_BANDWIDTH_LIMITING
-# - DDS_HAS_NETWORK_CHANNELS
-
 # OpenSSL is huge, raising the RSS by 1MB or so, and moreover find_package(OpenSSL) causes
 # trouble on some older CMake versions that otherwise work fine, so provide an option to avoid
 # all OpenSSL related things.

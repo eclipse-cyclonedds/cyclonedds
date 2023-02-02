@@ -33,7 +33,7 @@ struct ddsi_domaingv;
 struct ddsi_xmsg;
 
 /** @component timed_events */
-struct ddsi_xeventq *ddsi_xeventq_new (struct ddsi_domaingv *gv, size_t max_queued_rexmit_bytes, size_t max_queued_rexmit_msgs, uint32_t auxiliary_bandwidth_limit);
+struct ddsi_xeventq *ddsi_xeventq_new (struct ddsi_domaingv *gv, size_t max_queued_rexmit_bytes, size_t max_queued_rexmit_msgs);
 
 
 /**

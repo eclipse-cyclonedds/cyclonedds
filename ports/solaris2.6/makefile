@@ -5,7 +5,7 @@ include $(dir $(lastword $(MAKEFILE_LIST)))/config.mk
 CPPFLAGS += -Isrc/core/ddsc/src -Isrc/core/ddsc/include -Isrc/core/ddsi/include -Isrc/ddsrt/include
 CPPFLAGS += $(addprefix -I, $(wildcard src/ddsrt/src/*/include))
 CPPFLAGS += -Ibuild/src/core/include -Ibuild/src/ddsrt/include
-CPPFLAGS += -DDDSI_INCLUDE_NETWORK_PARTITIONS # -DDDSI_INCLUDE_BANDWIDTH_LIMITING -DDDSI_INCLUDE_NETWORK_CHANNELS
+CPPFLAGS += -DDDSI_INCLUDE_NETWORK_PARTITIONS
 
 SHLIBS = ddsc
 EXES   = ddsperf

@@ -178,9 +178,6 @@ DUPF(random_seed);
 DUPF(entity_naming_mode);
 DUPF(maybe_memsize);
 DUPF(maybe_int32);
-#ifdef DDS_HAS_BANDWIDTH_LIMITING
-DUPF(bandwidth);
-#endif
 DUPF(domainId);
 DUPF(transport_selector);
 DUPF(many_sockets_mode);
@@ -201,9 +198,6 @@ DF(ff_networkAddresses);
 #undef DF
 
 #define DI(fname) static int fname (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
-#ifdef DDS_HAS_NETWORK_CHANNELS
-DI(if_channel);
-#endif /* DDS_HAS_NETWORK_CHANNELS */
 #ifdef DDS_HAS_NETWORK_PARTITIONS
 DI(if_network_partition);
 DI(if_ignored_partition);
@@ -322,37 +316,6 @@ static const struct unit unittab_memsize[] = {
   { "GB", 1073741824 },
   { NULL, 0 }
 };
-
-#ifdef DDS_HAS_BANDWIDTH_LIMITING
-static const struct unit unittab_bandwidth_bps[] = {
-  { "b/s", 1 },{ "bps", 1 },
-  { "Kib/s", 1024 },{ "Kibps", 1024 },
-  { "kb/s", 1000 },{ "kbps", 1000 },
-  { "Mib/s", 1048576 },{ "Mibps", 1000 },
-  { "Mb/s", 1000000 },{ "Mbps", 1000000 },
-  { "Gib/s", 1073741824 },{ "Gibps", 1073741824 },
-  { "Gb/s", 1000000000 },{ "Gbps", 1000000000 },
-  { "B/s", 8 },{ "Bps", 8 },
-  { "KiB/s", 8 * 1024 },{ "KiBps", 8 * 1024 },
-  { "kB/s", 8 * 1000 },{ "kBps", 8 * 1000 },
-  { "MiB/s", 8 * 1048576 },{ "MiBps", 8 * 1048576 },
-  { "MB/s", 8 * 1000000 },{ "MBps", 8 * 1000000 },
-  { "GiB/s", 8 * (int64_t) 1073741824 },{ "GiBps", 8 * (int64_t) 1073741824 },
-  { "GB/s", 8 * (int64_t) 1000000000 },{ "GBps", 8 * (int64_t) 1000000000 },
-  { NULL, 0 }
-};
-
-static const struct unit unittab_bandwidth_Bps[] = {
-  { "B/s", 1 },{ "Bps", 1 },
-  { "KiB/s", 1024 },{ "KiBps", 1024 },
-  { "kB/s", 1000 },{ "kBps", 1000 },
-  { "MiB/s", 1048576 },{ "MiBps", 1048576 },
-  { "MB/s", 1000000 },{ "MBps", 1000000 },
-  { "GiB/s", 1073741824 },{ "GiBps", 1073741824 },
-  { "GB/s", 1000000000 },{ "GBps", 1000000000 },
-  { NULL, 0 }
-};
-#endif
 
 static void free_configured_elements (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem);
 static void free_configured_element (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem);
@@ -694,22 +657,6 @@ static int if_network_interfaces(struct ddsi_cfgst *cfgst, void *parent, struct 
   new->cfg.address = NULL;
   return 0;
 }
-
-#ifdef DDS_HAS_NETWORK_CHANNELS
-static int if_channel(struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
-{
-  struct ddsi_config_channel_listelem *new = if_common (cfgst, parent, cfgelem, sizeof(*new));
-  if (new == NULL)
-    return -1;
-  new->name = NULL;
-  new->channel_reader_thrst = NULL;
-  new->dqueue = NULL;
-  new->queueId = 0;
-  new->evq = NULL;
-  new->transmit_conn = NULL;
-  return 0;
-}
-#endif /* DDS_HAS_NETWORK_CHANNELS */
 
 #ifdef DDS_HAS_NETWORK_PARTITIONS
 static int if_network_partition (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem)
@@ -1105,39 +1052,6 @@ static void pf_string (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem co
   char ** const p = cfg_address (cfgst, parent, cfgelem);
   cfg_logelem (cfgst, sources, "%s", *p ? *p : "(null)");
 }
-
-#ifdef DDS_HAS_BANDWIDTH_LIMITING
-static enum update_result uf_bandwidth (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
-{
-  int64_t bandwidth_bps = 0;
-  if (strncmp (value, "inf", 3) == 0) {
-    /* special case: inf needs no unit */
-    uint32_t * const elem = cfg_address (cfgst, parent, cfgelem);
-    if (strspn (value + 3, " ") != strlen (value + 3) &&
-        lo.up_multiplier (cfgst, unittab_bandwidth_bps, value, 3, 1, 8, 1) == 0)
-      return URES_ERROR;
-    *elem = 0;
-    return URES_SUCCESS;
-  } else if (uf_natint64_unit (cfgst, &bandwidth_bps, value, unittab_bandwidth_bps, 8, INT64_MAX) != URES_SUCCESS) {
-    return URES_ERROR;
-  } else if (bandwidth_bps / 8 > INT_MAX) {
-    return cfg_error (cfgst, "%s: value out of range", value);
-  } else {
-    uint32_t * const elem = cfg_address (cfgst, parent, cfgelem);
-    *elem = (uint32_t) (bandwidth_bps / 8);
-    return URES_SUCCESS;
-  }
-}
-
-static void pf_bandwidth(struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, uint32_t sources)
-{
-  uint32_t const * const elem = cfg_address (cfgst, parent, cfgelem);
-  if (*elem == 0)
-    cfg_logelem (cfgst, sources, "inf");
-  else
-    pf_int64_unit (cfgst, *elem, sources, unittab_bandwidth_Bps, "B/s");
-}
-#endif
 
 static enum update_result uf_memsize (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
 {
@@ -2146,86 +2060,6 @@ static int cfgst_node_cmp (const void *va, const void *vb)
   return memcmp (va, vb, sizeof (struct ddsi_cfgst_nodekey));
 }
 
-#ifdef DDS_HAS_NETWORK_CHANNELS
-static int set_default_channel (struct config *cfg)
-{
-  if (cfg->channels == NULL)
-  {
-    /* create one default channel if none configured */
-    struct ddsi_config_channel_listelem *c;
-    if ((c = ddsrt_malloc (sizeof (*c))) == NULL)
-      return ERR_OUT_OF_MEMORY;
-    c->next = NULL;
-    c->name = ddsrt_strdup ("user");
-    c->priority = 0;
-    c->resolution = DDS_MSECS (1);
-#ifdef DDS_HAS_BANDWIDTH_LIMITING
-    c->data_bandwidth_limit = 0;
-    c->auxiliary_bandwidth_limit = 0;
-#endif
-    c->diffserv_field = 0;
-    c->channel_reader_thrst = NULL;
-    c->queueId = 0;
-    c->dqueue = NULL;
-    c->evq = NULL;
-    c->transmit_conn = NULL;
-    cfg->channels = c;
-  }
-  return 0;
-}
-
-static int sort_channels_cmp (const void *va, const void *vb)
-{
-  const struct ddsi_config_channel_listelem * const *a = va;
-  const struct ddsi_config_channel_listelem * const *b = vb;
-  return ((*a)->priority == (*b)->priority) ? 0 : ((*a)->priority < (*b)->priority) ? -1 : 1;
-}
-
-static int sort_channels_check_nodups (struct config *cfg, uint32_t domid)
-{
-  /* Selecting a channel is much easier & more elegant if the channels
-     are sorted on descending priority.  While we do retain the list
-     structure, sorting is much easier in an array, and hence we
-     convert back and forth. */
-  struct ddsi_config_channel_listelem **ary, *c;
-  uint32_t i, n;
-  int result;
-
-  n = 0;
-  for (c = cfg->channels; c; c = c->next)
-    n++;
-  assert(n > 0);
-
-  ary = ddsrt_malloc (n * sizeof (*ary));
-
-  i = 0;
-  for (c = cfg->channels; c; c = c->next)
-    ary[i++] = c;
-  qsort (ary, n, sizeof (*ary), sort_channels_cmp);
-
-  result = 0;
-  for (i = 0; i < n - 1; i++) {
-    if (ary[i]->priority == ary[i + 1]->priority) {
-      DDS_ILOG (DDS_LC_ERROR, domid, "config: duplicate channel definition for priority %u: channels %s and %s\n",
-                ary[i]->priority, ary[i]->name, ary[i + 1]->name);
-      result = ERR_ENTITY_EXISTS;
-    }
-  }
-
-  if (result == 0)
-  {
-    cfg->channels = ary[0];
-    for (i = 0; i < n - 1; i++)
-      ary[i]->next = ary[i + 1];
-    ary[i]->next = NULL;
-    cfg->max_channel = ary[i];
-  }
-
-  ddsrt_free (ary);
-  return result;
-}
-#endif /* DDS_HAS_NETWORK_CHANNELS */
-
 static FILE *config_open_file (char *tok, char **cursor, uint32_t domid)
 {
   assert (*tok && !(isspace ((unsigned char) *tok) || *tok == ','));
@@ -2355,21 +2189,6 @@ static struct ddsi_config_network_interface * network_interface_find_or_append(s
   *prev_iface = iface;
 
   return &iface->cfg;
-}
-
-static int setup_network_channels (struct ddsi_cfgst *cfgst)
-{
-#ifdef DDS_HAS_NETWORK_CHANNELS
-  /* Default channel gets set outside set_defaults -- a bit too
-     complicated for the poor framework */
-  if (set_default_channel (cfgst->cfg) < 0)
-    return 0;
-  if (cfgst->cfg->channels && sort_channels_check_nodups (cfgst->cfg) < 0)
-    return 0;
-#else
-  (void) cfgst;
-#endif
-  return 1;
 }
 
 static int setup_network_partitions (struct ddsi_cfgst *cfgst)
@@ -2651,7 +2470,6 @@ struct ddsi_cfgst *ddsi_config_init (const char *config, struct ddsi_config *cfg
     cfgst->cfg->compat_tcp_enable = (cfgst->cfg->transport_selector == DDSI_TRANS_TCP || cfgst->cfg->transport_selector == DDSI_TRANS_TCP6) ? DDSI_BOOLDEF_TRUE : DDSI_BOOLDEF_FALSE;
   }
 
-  ok = ok && setup_network_channels (cfgst);
   ok = ok && setup_network_partitions (cfgst);
   ok = ok && convert_deprecated_interface_specification (cfgst);
 
@@ -2710,25 +2528,3 @@ void ddsi_config_fini (struct ddsi_cfgst *cfgst)
   ddsrt_avl_free (&cfgst_found_treedef, &cfgst->found, ddsrt_free);
   ddsrt_free (cfgst);
 }
-
-
-#ifdef DDS_HAS_NETWORK_CHANNELS
-
-struct ddsi_config_channel_listelem *ddsi_find_network_channel (const struct config *cfg, dds_transport_priority_qospolicy_t transport_priority)
-{
-  struct ddsi_config_channel_listelem *c;
-  /* Channel selection is to use the channel with the lowest priority
-     not less than transport_priority, or else the one with the
-     highest priority. */
-  assert(cfg->channels != NULL);
-  assert(cfg->max_channel != NULL);
-  for (c = cfg->channels; c; c = c->next)
-  {
-    assert(c->next == NULL || c->next->priority > c->priority);
-    if (transport_priority.value <= c->priority)
-      return c;
-  }
-  return cfg->max_channel;
-}
-
-#endif /* DDS_HAS_NETWORK_CHANNELS */

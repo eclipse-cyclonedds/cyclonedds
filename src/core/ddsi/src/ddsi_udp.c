@@ -549,17 +549,6 @@ static dds_return_t ddsi_udp_create_conn (struct ddsi_tran_conn **conn_out, stru
       goto fail_w_socket;
   }
 
-#ifdef DDS_HAS_NETWORK_CHANNELS
-  if (qos->m_diffserv != 0 && fact->m_kind == DDSI_LOCATOR_KIND_UDPv4)
-  {
-    if ((rc = ddsrt_setsockopt (sock, IPPROTO_IP, IP_TOS, &qos->m_diffserv, sizeof (qos->m_diffserv))) != DDS_RETCODE_OK)
-    {
-      GVERROR ("ddsi_udp_create_conn: set diffserv retcode %"PRId32"\n", rc);
-      goto fail_w_socket;
-    }
-  }
-#endif
-
   ddsi_udp_conn_t conn = ddsrt_malloc (sizeof (*conn));
   memset (conn, 0, sizeof (*conn));
 

@@ -1711,14 +1711,7 @@ static void handle_sedp_alive_endpoint (const struct ddsi_receiver_state *rst, d
       {
         /* not supposed to get here for built-in ones, so can determine the channel based on the transport priority */
         assert (!ddsi_is_builtin_entityid (datap->endpoint_guid.entityid, vendorid));
-#ifdef DDS_HAS_NETWORK_CHANNELS
-        {
-          struct ddsi_config_channel_listelem *channel = ddsi_find_network_channel (&gv->config, xqos->transport_priority);
-          ddsi_new_proxy_writer (gv, &ppguid, &datap->endpoint_guid, as, datap, channel->dqueue, channel->evq ? channel->evq : gv->xevents, timestamp, seq);
-        }
-#else
         ddsi_new_proxy_writer (gv, &ppguid, &datap->endpoint_guid, as, datap, gv->user_dqueue, gv->xevents, timestamp, seq);
-#endif
       }
     }
     else
