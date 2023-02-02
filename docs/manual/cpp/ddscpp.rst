@@ -11,13 +11,18 @@
 
 .. include:: ../external-links.part.rst
 
-.. index:: C++ API reference
+.. index:: 
+   single: C++; API reference
+   single: API; C++ reference
 
 .. _cpp_api_ref_bm:
 
+=================
 C++ API reference
 =================
 
-|url::cpp_api_link|
+.. toctree::
+   :maxdepth: 1
 
-:ref:`cpp_custom_containers`
+   cpp_api_link
+   cpp_custom_containers

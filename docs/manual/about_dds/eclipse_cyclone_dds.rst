@@ -26,7 +26,9 @@
    waitset
    status
    performance
+   idl
    ddsi_concepts
+   contributing
 
 |var-project| is a performant and robust OMG-compliant **Data Distribution Service** 
 (DDS) implementation (see |url::dds_spec|). |var-project-short| is developed 
@@ -137,3 +139,5 @@ With references to the individual OMG specifications, the following is available
 The network stack in Cyclone DDS has been around for over a decade in one form or 
 another and has proven itself in many systems, including large, high-availability 
 ones and systems where inter-operation with other implementations was needed.
+
+.. include:: disclaimer.part.rst

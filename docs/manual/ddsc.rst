@@ -9,7 +9,11 @@
 
    SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
-C API Reference
+.. index::
+   single: C API reference
+   single: API; C reference
+
+C API reference
 ===============
 
 .. toctree::

@@ -9,30 +9,26 @@
 
    SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
-.. _documentation_top:
+.. include:: ../external-links.part.rst
 
-.. image:: _static/gettingstarted-figures/Cyclone_DDS_logo.svg
+.. index:: 
+   single: Python; API reference
+   single: API; Python reference
 
-|var-project| |var-release| documentation
-=========================================
+.. _py_api_ref_bm:
+
+====================
+Python API reference
+====================
+
+To install Python, refer to :ref:`installing_python`. 
 
 .. toctree::
    :maxdepth: 1
 
-   about_dds/eclipse_cyclone_dds
-   getting_started/index
-   config/index
-   examples/index
-   security/dds_security
-   shared_memory/shared_memory
-   ddsc
-   cpp/ddscpp
-   python/ddspython
-   glossary
-   genindex
+   py_api_link
+   py_tutorial
+   py_idl
+   py_cltools
 
-Indices and tables
-==================
 
-* :ref:`modindex`
-* :ref:`search`
