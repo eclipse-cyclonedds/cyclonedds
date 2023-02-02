@@ -460,7 +460,7 @@ bool ddsi_new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_gui
   ddsi_builtintopic_write_endpoint (gv->builtin_topic_interface, &proxypp->e, timestamp, true);
 
   /* Register lease for auto liveliness, but be careful not to accidentally re-register
-     DDSI2's lease, as we may have become dependent on DDSI2 any time after
+     DDSI's lease, as we may have become dependent on DDSI any time after
      ddsi_entidx_insert_proxy_participant_guid even if privileged_pp_guid was NULL originally */
   ddsrt_mutex_lock (&proxypp->e.lock);
   if (proxypp->owns_lease)
@@ -604,7 +604,7 @@ static void delete_or_detach_dependent_pp (struct ddsi_proxy_participant *p, str
   }
   else if (!(ddsi_vendor_is_cloud (p->vendor) && p->implicitly_created))
   {
-    /* DDSI2 minimal participant mode -- but really, anything not discovered via Cloud gets deleted */
+    /* DDSI minimal participant mode -- but really, anything not discovered via Cloud gets deleted */
     ddsrt_mutex_unlock (&p->e.lock);
     (void) ddsi_delete_proxy_participant_by_guid (p->e.gv, &p->e.guid, timestamp, isimplicit);
   }

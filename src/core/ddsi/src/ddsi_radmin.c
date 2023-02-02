@@ -40,7 +40,7 @@
 
 /* OVERVIEW ------------------------------------------------------------
 
-   The receive path of DDSI2 has any number of receive threads that
+   The receive path of DDSI has any number of receive threads that
    accept data from sockets and (synchronously) push it up the
    protocol stack, potentially offloading processing to other threads
    at some point.  In particular, delivery of data can safely be

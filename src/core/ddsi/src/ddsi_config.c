@@ -2202,7 +2202,7 @@ static int setup_network_partitions (struct ddsi_cfgst *cfgst)
     {
       if (ddsrt_strcasecmp (p->name, q->name) == 0)
       {
-        DDS_ILOG (DDS_LC_ERROR, domid, "config: DDSI2Service/Partitioning/PartitionMappings/PartitionMapping[@networkpartition]: %s: duplicate partition\n", p->name);
+        DDS_ILOG (DDS_LC_ERROR, domid, "config: CycloneDDS/Domain/Partitioning/PartitionMappings/PartitionMapping[@networkpartition]: %s: duplicate partition\n", p->name);
         ok = 0;
       }
     }
@@ -2221,7 +2221,7 @@ static int setup_network_partitions (struct ddsi_cfgst *cfgst)
       m->partition = p;
     else
     {
-      DDS_ILOG (DDS_LC_ERROR, domid, "config: DDSI2Service/Partitioning/PartitionMappings/PartitionMapping[@networkpartition]: %s: unknown partition\n", m->networkPartition);
+      DDS_ILOG (DDS_LC_ERROR, domid, "config: CycloneDDS/Domain/Partitioning/PartitionMappings/PartitionMapping[@networkpartition]: %s: unknown partition\n", m->networkPartition);
       ok = 0;
     }
     m = m->next;

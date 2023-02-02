@@ -173,7 +173,7 @@ static int set_recvips (struct ddsi_domaingv *gv)
     {
       if (gv->using_link_local_intf)
       {
-        GVWARNING ("DDSI2EService/General/MulticastRecvNetworkInterfaceAddresses: using 'preferred' instead of 'all' because of link-local address\n");
+        GVWARNING ("CycloneDDS/Domain/General/MulticastRecvNetworkInterfaceAddresses: using 'preferred' instead of 'all' because of link-local address\n");
         gv->recvips_mode = DDSI_RECVIPS_MODE_PREFERRED;
       }
       else
@@ -185,7 +185,7 @@ static int set_recvips (struct ddsi_domaingv *gv)
     {
       if (gv->using_link_local_intf)
       {
-        GVERROR ("DDSI2EService/General/MulticastRecvNetworkInterfaceAddresses: 'any' is unsupported in combination with a link-local address\n");
+        GVERROR ("CycloneDDS/Domain/General/MulticastRecvNetworkInterfaceAddresses: 'any' is unsupported in combination with a link-local address\n");
         return -1;
       }
       gv->recvips_mode = DDSI_RECVIPS_MODE_ANY;
@@ -210,7 +210,7 @@ static int set_recvips (struct ddsi_domaingv *gv)
         ddsi_locator_t loc;
         if (ddsi_locator_from_string(gv, &loc, gv->config.networkRecvAddressStrings[i], gv->m_factory) != AFSR_OK)
         {
-          GVERROR ("%s: not a valid address in DDSI2EService/General/MulticastRecvNetworkInterfaceAddresses\n", gv->config.networkRecvAddressStrings[i]);
+          GVERROR ("%s: not a valid address in CycloneDDS/Domain/General/MulticastRecvNetworkInterfaceAddresses\n", gv->config.networkRecvAddressStrings[i]);
           return -1;
         }
         if (ddsi_compare_locators(&loc, &gv->interfaces[0].loc) == 0)
@@ -221,7 +221,7 @@ static int set_recvips (struct ddsi_domaingv *gv)
       gv->recvips_mode = have_selected ? DDSI_RECVIPS_MODE_PREFERRED : DDSI_RECVIPS_MODE_NONE;
       if (have_others)
       {
-        GVWARNING ("DDSI2EService/General/MulticastRecvNetworkInterfaceAddresses: using 'preferred' because of IPv6 local address\n");
+        GVWARNING ("CycloneDDS/Domain/General/MulticastRecvNetworkInterfaceAddresses: using 'preferred' because of IPv6 local address\n");
       }
     }
     else
@@ -234,7 +234,7 @@ static int set_recvips (struct ddsi_domaingv *gv)
         ddsi_locator_t loc;
         if (ddsi_locator_from_string(gv, &loc, gv->config.networkRecvAddressStrings[i], gv->m_factory) != AFSR_OK)
         {
-          GVERROR ("%s: not a valid address in DDSI2EService/General/MulticastRecvNetworkInterfaceAddresses\n", gv->config.networkRecvAddressStrings[i]);
+          GVERROR ("%s: not a valid address in CycloneDDS/Domain/General/MulticastRecvNetworkInterfaceAddresses\n", gv->config.networkRecvAddressStrings[i]);
           return -1;
         }
         for (j = 0; j < gv->n_interfaces; j++)
@@ -421,7 +421,7 @@ static int check_thread_properties (const struct ddsi_domaingv *gv)
         break;
     if (fixed[i] == NULL)
     {
-      DDS_ILOG (DDS_LC_ERROR, gv->config.domainId, "config: DDSI2Service/Threads/Thread[@name=\"%s\"]: unknown thread\n", e->name);
+      DDS_ILOG (DDS_LC_ERROR, gv->config.domainId, "config: CycloneDDS/Domain/Threads/Thread[@name=\"%s\"]: unknown thread\n", e->name);
       ok = 0;
     }
   }

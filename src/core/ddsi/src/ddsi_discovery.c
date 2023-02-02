@@ -1917,7 +1917,7 @@ int ddsi_builtins_dqueue_handler (const struct ddsi_rsample_info *sampleinfo, co
   /* Luckily, most of the Data and DataFrag headers are the same - and
      in particular, all that we care about here is the same.  The
      key/data flags of DataFrag are different from those of Data, but
-     DDSI2 used to treat them all as if they are data :( so now,
+     DDSI used to treat them all as if they are data :( so now,
      instead of splitting out all the code, we reformat these flags
      from the submsg to always conform to that of the "Data"
      submessage regardless of the input. */

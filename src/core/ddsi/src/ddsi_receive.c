@@ -2956,7 +2956,7 @@ static int handle_submsg_sequence
     rst->dst_guid_prefix = *dst_prefix;
   }
   /* "forme" is a whether the current submessage is intended for this
-     instance of DDSI2 and is roughly equivalent to
+     instance of DDSI and is roughly equivalent to
        (dst_prefix == 0) ||
        (ddsi_entidx_lookup_participant_guid(dst_prefix:1c1) != 0)
      they are only roughly equivalent because the second term can become
