@@ -115,8 +115,8 @@ struct ddsi_domaingv {
   struct ddsi_tran_factory *m_factory;
 
   /* Connections for multicast discovery & data, and those that correspond
-     to the one DDSI participant index that the DDSI2 service uses. The
-     DCPS participant of DDSI2 itself will be mirrored in a DDSI
+     to the one DDSI participant index that the DDSI service uses. The
+     DCPS participant of DDSI itself will be mirrored in a DDSI
      participant, and in multi-socket mode that one gets its own
      socket. */
   struct ddsi_tran_conn * disc_conn_mc;
@@ -231,7 +231,7 @@ struct ddsi_domaingv {
   /* Flag cleared when stopping (receive threads). FIXME. */
   ddsrt_atomic_uint32_t rtps_keepgoing;
 
-  /* Start time of the DDSI2 service, for logging relative time stamps,
+  /* Start time of the DDSI service, for logging relative time stamps,
      should I ever so desire. */
   ddsrt_wctime_t tstart;
 

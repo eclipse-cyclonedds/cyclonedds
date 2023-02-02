@@ -42,7 +42,7 @@
    The "augment" function is automatically called whenever some of the
    children of a node change, as well as when the "augment" function
    has been called on some of the children. It allows you to maintain
-   a "summary" of the subtree -- currently only used in ddsi2e, in one
+   a "summary" of the subtree -- currently only used in DDSI, in one
    spot.
 
    Trees come in various "variants", configured through "treedef"
