@@ -122,7 +122,11 @@ function(IDLC_GENERATE_GENERIC)
   endif()
 
   if(IDLC_BASE_DIR)
-    file(REAL_PATH ${IDLC_BASE_DIR} _base_dir_abs)
+    if(${CMAKE_VERSION} VERSION_LESS "3.19.0")
+      get_filename_component(_base_dir_abs ${IDLC_BASE_DIR} REALPATH)
+    else()
+      file(REAL_PATH ${IDLC_BASE_DIR} _base_dir_abs)
+    endif()
     list(APPEND IDLC_ARGS "-b${_base_dir_abs}")
   endif()
 
