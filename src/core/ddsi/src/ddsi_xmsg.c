@@ -233,11 +233,7 @@ void ddsi_xmsgpool_free (struct ddsi_xmsgpool *pool)
    An xmsg can be queued for transmission, after which it must be
    forgotten by its creator.  The queue handler packs them into xpacks
    (see below), transmits them, and releases them.
-
-   Currently, the message pool is fake, so 2 mallocs and frees are
-   needed for each message, and additionally, it involves address set
-   manipulations.  The latter is especially inefficiently dealt with
-   in the xpack. */
+*/
 
 static void ddsi_xmsg_reinit (struct ddsi_xmsg *m, enum ddsi_xmsg_kind kind)
 {
