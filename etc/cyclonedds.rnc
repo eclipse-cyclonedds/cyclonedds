@@ -1293,10 +1293,10 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==<br>
   duration_inf = xsd:token { pattern = "inf|0|(\d+(\.\d*)?([Ee][\-+]?\d+)?|\.\d+([Ee][\-+]?\d+)?) *([num]?s|min|hr|day)" }
   memsize = xsd:token { pattern = "0|(\d+(\.\d*)?([Ee][\-+]?\d+)?|\.\d+([Ee][\-+]?\d+)?) *([kMG]i?)?B" }
 }
-# generated from ddsi_config.h[caefb1fc403977b0a33941156683b686290988a9] 
+# generated from ddsi_config.h[d0e749e6d58d560b8172dcb0cb109d6e5f6897ba] 
 # generated from ddsi__cfgunits.h[be1b976c6e9466472b0c331487c05180ec1052d4] 
-# generated from ddsi__cfgelems.h[bcd0c270d1ce8ec381ac5388056502d990cc4129] 
-# generated from ddsi_config.c[4d8a28fd8d4388d80e375f617f21fb3c2e1a8e49] 
+# generated from ddsi__cfgelems.h[63812c3c423805d6d3ad61b1706651329935ac40] 
+# generated from ddsi_config.c[f4097031a24801254262d89cde3374845d33c155] 
 # generated from _confgen.h[f2d235d5551cbf920a8a2962831dddeabd2856ac] 
 # generated from _confgen.c[d74e4fd06e485c5d299dbcc7741cbdb95c5ec706] 
 # generated from generate_rnc.c[a2ec6e48d33ac14a320c8ec3f320028a737920e0] 

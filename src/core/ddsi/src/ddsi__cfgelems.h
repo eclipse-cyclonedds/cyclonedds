@@ -761,87 +761,6 @@ static struct cfgelem partitioning_cfgelems[] = {
 };
 #endif /* DDS_HAS_NETWORK_PARTITIONS */
 
-#ifdef DDS_HAS_NETWORK_CHANNELS
-static struct cfgelem channel_cfgelems[] = {
-#ifdef DDS_HAS_BANDWIDTH_LIMITING
-  STRING("DataBandwidthLimit", NULL, 1, "inf",
-    MEMBEROF(ddsi_config_channel_listelem, data_bandwidth_limit),
-    FUNCTIONS(0, uf_bandwidth, 0, pf_bandwidth),
-    DESCRIPTION(
-      "<p>This element specifies the maximum transmit rate of new samples "
-      "and directly related data for this channel. Bandwidth limiting uses "
-      "a leaky bucket scheme. The default value \"inf\" means Cyclone DDS imposes "
-      "no limitation, the underlying operating system and hardware will "
-      "likely limit the maximum transmit rate.</p>")
-    BEHIND_FLAG("DDS_HAS_BANDWIDTH_LIMITING")
-    UNIT("bandwidth")),
-  STRING("AuxiliaryBandwidthLimit", NULL, 1, "inf",
-    MEMBEROF(ddsi_config_channel_listelem, auxiliary_bandwidth_limit),
-    FUNCTIONS(0, uf_bandwidth, 0, pf_bandwidth),
-    DESCRIPTION(
-      "<p>This element specifies the maximum transmit rate of auxiliary "
-      "traffic on this channel (e.g. retransmits, heartbeats, etc). "
-      "Bandwidth limiting uses a leaky bucket scheme. The default value "
-      "\"inf\" means Cyclone DDS imposes no limitation, the underlying operating "
-      "system and hardware will likely limit the maximum transmit rate.</p>")
-    UNIT("bandwidth")),
-#endif
-  INT("DiffServField", NULL, 1, "0",
-    MEMBEROF(ddsi_config_channel_listelem, diffserv_field),
-    FUNCTIONS(0, uf_natint, 0, pf_int),
-    DESCRIPTION(
-      "<p>This element describes the DiffServ setting the channel will apply "
-      "to the networking messages. This parameter determines the value of "
-      "the diffserv field of the IP version 4 packets sent on this channel "
-      "which allows QoS setting to be applied to the network traffic sent on "
-      "this channel.<br/>\n"
-      "Windows platform support for setting the diffserv field is dependent "
-      "on the OS version.<br/>\n"
-      "For Windows version 7 or higher, a new API (qWAVE) has been introduced. "
-      "For these platforms the specified diffserv value is mapped to one of "
-      "the support traffic types.\n"
-      "The mapping is as follows: 1-8 background traffic; 9-40 excellent "
-      "traffic; 41-55 audio/video traffic; 56 voice traffic; 57-63 control "
-      "traffic.\n"
-      "When an application is run without Administrative privileges, then "
-      "only the diffserv value of 0, 8, 40 or 56 is allowed.</p>"
-    ),
-    BEHIND_FLAG("DDS_HAS_NETWORK_CHANNELS")
-  ),
-  END_MARKER
-};
-
-static struct cfgelem channel_cfgattrs[] = {
-  STRING("Name", NULL, 1, NULL,
-    MEMBEROF(ddsi_config_channel_listelem, name),
-    FUNCTIONS(0, uf_string, ff_free, pf_string),
-    DESCRIPTION(
-      "<p>This attribute specifies the name of this channel. The name should "
-      "uniquely identify the channel.</p>"
-    )),
-  INT("TransportPriority", NULL, 1, "0",
-    MEMBEROF(ddsi_config_channel_listelem, priority),
-    FUNCTIONS(0, uf_natint, 0, pf_int),
-    DESCRIPTION(
-      "<p>This attribute sets the transport priority threshold for the "
-      "channel. Each DCPS data writer has a \"transport_priority\" QoS and "
-      "this QoS is used to select a channel for use by this writer. The "
-      "selected channel is the one with the largest threshold not greater "
-      "than the writer's transport priority, and if no such channel exists, "
-      "the channel with the lowest threshold.</p>"
-    )),
-  END_MARKER
-};
-
-static struct cfgelem channels_cfgelems[] = {
-  GROUP("Channel", channel_cfgelems, channel_cfgattrs, INT_MAX,
-    MEMBER(channels),
-    FUNCTIONS(if_channel, 0, 0, 0),
-    DESCRIPTION("<p>This element defines a channel.</p>")),
-  END_MARKER
-};
-#endif /* DDS_HAS_NETWORK_CHANNELS */
-
 static struct cfgelem thread_properties_sched_cfgelems[] = {
   ENUM("Class", NULL, 1, "default",
     MEMBEROF(ddsi_config_thread_properties_listelem, sched_class),
@@ -1443,22 +1362,6 @@ static struct cfgelem internal_cfgelems[] = {
       "scheduled exactly, whereas a value of 10ms would mean that events are "
       "rounded up to the nearest 10 milliseconds.</p>"),
     UNIT("duration")),
-#ifdef DDS_HAS_BANDWIDTH_LIMITING
-  STRING("AuxiliaryBandwidthLimit", NULL, 1, "inf",
-    MEMBER(auxiliary_bandwidth_limit),
-    FUNCTIONS(0, uf_bandwidth, 0, pf_bandwidth),
-    DESCRIPTION(
-      "<p>This element specifies the maximum transmit rate of auxiliary "
-      "traffic not bound to a specific channel, such as discovery traffic, "
-      "as well as auxiliary traffic related to a certain channel if that "
-      "channel has elected to share this global AuxiliaryBandwidthLimit. "
-      "Bandwidth limiting uses a leaky bucket scheme. The default value "
-      "\"inf\" means Cyclone DDS imposes no limitation, the underlying operating "
-      "system and hardware will likely limit the maximum transmit rate.</p>"
-    ),
-    BEHIND_FLAG("DDS_HAS_BANDWIDTH_LIMITING")
-  ),
-#endif
   BOOL("SquashParticipants", NULL, 1, "false",
     MEMBER(squash_participants),
     FUNCTIONS(0, uf_boolean, 0, pf_boolean),
@@ -2127,20 +2030,6 @@ static struct cfgelem domain_cfgelems[] = {
     BEHIND_FLAG("DDS_HAS_NETWORK_PARTITIONS")
   ),
 #endif
-#ifdef DDS_HAS_NETWORK_CHANNELS
-  GROUP("Channels", channels_cfgelems, NULL, 1,
-    NOMEMBER,
-    NOFUNCTIONS,
-    DESCRIPTION(
-      "<p>This element is used to group a set of channels. The channels are "
-      "independent data paths through Cyclone DDS and by using separate threads "
-      "and setting their priorities appropriately, channels can be used to "
-      "map transport priorities to operating system scheduler priorities, "
-      "ensuring system-wide end-to-end priority preservation.</p>"
-    ),
-    BEHIND_FLAG("DDS_HAS_NETWORK_CHANNELS")
-  ),
-#endif
   GROUP("Threads", threads_cfgelems, NULL, 1,
     NOMEMBER,
     NOFUNCTIONS,
@@ -2230,9 +2119,6 @@ static struct cfgelem root_cfgelems[] = {
   MOVED("General", "CycloneDDS/Domain/General"),
 #if DDS_HAS_NETWORK_PARTITIONS
   MOVED("Partitioning", "CycloneDDS/Domain/Partitioning"),
-#endif
-#if DDS_HAS_NETWORK_CHANNELS
-  MOVED("Channels", "CycloneDDS/Domain/Channels"),
 #endif
   MOVED("Threads", "CycloneDDS/Domain/Threads"),
   MOVED("Sizing", "CycloneDDS/Domain/Sizing"),

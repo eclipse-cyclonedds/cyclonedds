@@ -409,25 +409,9 @@ static int set_ext_address_and_mask (struct ddsi_domaingv *gv)
   return 0;
 }
 
-#ifdef DDS_HAS_NETWORK_CHANNELS
-static int known_channel_p (const struct ddsi_domaingv *gv, const char *name)
-{
-  const struct ddsi_config_channel_listelem *c;
-  for (c = gv->config.channels; c; c = c->next)
-    if (strcmp (name, c->name) == 0)
-      return 1;
-  return 0;
-}
-#endif
-
 static int check_thread_properties (const struct ddsi_domaingv *gv)
 {
-#ifdef DDS_HAS_NETWORK_CHANNELS
-  static const char *fixed[] = { "recv", "tev", "gc", "lease", "dq.builtins", "debmon", "fsm", NULL };
-  static const char *chanprefix[] = { "xmit.", "tev.","dq.",NULL };
-#else
   static const char *fixed[] = { "recv", "tev", "gc", "lease", "dq.builtins", "xmit.user", "dq.user", "debmon", "fsm", NULL };
-#endif
   const struct ddsi_config_thread_properties_listelem *e;
   int ok = 1, i;
   for (e = gv->config.thread_properties; e; e = e->next)
@@ -437,24 +421,8 @@ static int check_thread_properties (const struct ddsi_domaingv *gv)
         break;
     if (fixed[i] == NULL)
     {
-#ifdef DDS_HAS_NETWORK_CHANNELS
-      /* Some threads are named after the channel, with names of the form PREFIX.CHAN */
-
-      for (i = 0; chanprefix[i]; i++)
-      {
-        size_t n = strlen (chanprefix[i]);
-        if (strncmp (chanprefix[i], e->name, n) == 0 && known_channel_p (gv, e->name + n))
-          break;
-      }
-      if (chanprefix[i] == NULL)
-      {
-        DDS_ILOG (DDS_LC_ERROR, gv->config.domainId, "config: DDSI2Service/Threads/Thread[@name=\"%s\"]: unknown thread\n", e->name);
-        ok = 0;
-      }
-#else
       DDS_ILOG (DDS_LC_ERROR, gv->config.domainId, "config: DDSI2Service/Threads/Thread[@name=\"%s\"]: unknown thread\n", e->name);
       ok = 0;
-#endif /* DDS_HAS_NETWORK_CHANNELS */
     }
   }
   return ok;
@@ -498,11 +466,6 @@ static int ddsi_config_open_trace (struct ddsi_domaingv *gv)
 
 int ddsi_config_prep (struct ddsi_domaingv *gv, struct ddsi_cfgst *cfgst)
 {
-#ifdef DDS_HAS_NETWORK_CHANNELS
-  unsigned num_channels = 0;
-  unsigned num_channel_threads = 0;
-#endif
-
   /* advertised domain id defaults to the real domain id; clear "isdefault" so the config
      dump includes the actually used value rather than "default" */
   if (gv->config.extDomainId.isdefault)
@@ -570,22 +533,7 @@ int ddsi_config_prep (struct ddsi_domaingv *gv, struct ddsi_cfgst *cfgst)
   }
   if (gv->config.max_queued_rexmit_bytes == 0)
   {
-#ifdef DDS_HAS_BANDWIDTH_LIMITING
-    if (gv->config.auxiliary_bandwidth_limit == 0)
-      gv->config.max_queued_rexmit_bytes = 2147483647u;
-    else
-    {
-      double max = (double) gv->config.auxiliary_bandwidth_limit * ((double) gv->config.nack_delay / 1e9);
-      if (max < 0)
-      {
-        DDS_ILOG (DDS_LC_ERROR, gv->config.domainId.value, "AuxiliaryBandwidthLimit * NackDelay = %g bytes is insane\n", max);
-        goto err_config_late_error;
-      }
-      gv->config.max_queued_rexmit_bytes = max > 2147483647.0 ? 2147483647u : (unsigned) max;
-    }
-#else
     gv->config.max_queued_rexmit_bytes = 2147483647u;
-#endif /* DDS_HAS_BANDWIDTH_LIMITING */
   }
 
   /* Verify thread properties refer to defined threads */
@@ -594,47 +542,8 @@ int ddsi_config_prep (struct ddsi_domaingv *gv, struct ddsi_cfgst *cfgst)
     goto err_config_late_error;
   }
 
-#ifdef DDS_HAS_NETWORK_CHANNELS
-  {
-    /* Determine number of configured channels to be able to
-     determine the correct number of threads.  Also fix fields if
-     at default, and check for some known IPv4/IPv6
-     "compatibility" issues */
-    struct ddsi_config_channel_listelem *chptr = gv->config.channels;
-    int error = 0;
-
-    while (chptr)
-    {
-      size_t slen = strlen (chptr->name) + 5;
-      char *thread_name = ddsrt_malloc (slen);
-      (void) snprintf (thread_name, slen, "tev.%s", chptr->name);
-
-      num_channels++;
-      num_channel_threads += 2; /* xmit and dqueue */
-
-      if (gv->config.transport_selector != DDSI_TRANS_UDP && chptr->diffserv_field != 0)
-      {
-        DDS_ILOG (DDS_LC_ERROR, gv->config.domainId.value, "channel %s specifies IPv4 DiffServ settings which is incompatible with IPv6 use\n", chptr->name);
-        error = 1;
-      }
-
-      if (
-#ifdef DDS_HAS_BANDWIDTH_LIMITING
-          chptr->auxiliary_bandwidth_limit > 0 ||
-#endif
-          ddsi_lookup_thread_properties (thread_name))
-        num_channel_threads++;
-
-      ddsrt_free (thread_name);
-      chptr = chptr->next;
-    }
-    if (error)
-      goto err_config_late_error;
-  }
-#endif /* DDS_HAS_NETWORK_CHANNELS */
-
   /* Open tracing file after all possible config errors have been printed */
-  if (! ddsi_config_open_trace (gv))
+  if (!ddsi_config_open_trace (gv))
   {
     goto err_config_late_error;
   }
@@ -1654,76 +1563,8 @@ int ddsi_init (struct ddsi_domaingv *gv)
       goto err_joinleave_spdp;
   }
 
-#ifdef DDS_HAS_NETWORK_CHANNELS
-  {
-    struct ddsi_config_channel_listelem *chptr = gv->config.channels;
-    while (chptr)
-    {
-      size_t slen = strlen (chptr->name) + 5;
-      char * tname = ddsrt_malloc (slen);
-      (void) snprintf (tname, slen, "tev.%s", chptr->name);
-
-      /* Only actually create new connection if diffserv set */
-
-      if (chptr->diffserv_field)
-      {
-        struct ddsi_tran_qos qos = ddsi_tran_create_qos ();
-        qos->m_diffserv = chptr->diffserv_field;
-        chptr->transmit_conn = ddsi_factory_create_conn (gv->m_factory, 0, qos);
-        ddsi_tran_free_qos (qos);
-        if (chptr->transmit_conn == NULL)
-        {
-          DDS_FATAL ("failed to create transmit connection for channel %s\n", chptr->name);
-        }
-      }
-      else
-      {
-        chptr->transmit_conn = gv->data_conn_uc;
-      }
-      GVLOG (DDS_LC_CONFIG, "channel %s: transmit port %d\n", chptr->name, (int) ddsi_tran_port (chptr->transmit_conn));
-
-#ifdef DDS_HAS_BANDWIDTH_LIMITING
-      if (chptr->auxiliary_bandwidth_limit > 0 || ddsi_lookup_thread_properties (tname))
-      {
-        chptr->evq = ddsi_xeventq_new
-        (
-          chptr->transmit_conn,
-          gv->config.max_queued_rexmit_bytes,
-          gv->config.max_queued_rexmit_msgs,
-          chptr->auxiliary_bandwidth_limit
-        );
-      }
-#else
-      if (ddsi_lookup_thread_properties (tname))
-      {
-        chptr->evq = ddsi_xeventq_new
-        (
-          chptr->transmit_conn,
-          gv->config.max_queued_rexmit_bytes,
-          gv->config.max_queued_rexmit_msgs,
-          0
-        );
-      }
-#endif
-      ddsrt_free (tname);
-      chptr = chptr->next;
-    }
-  }
-#endif /* DDS_HAS_NETWORK_CHANNELS */
-
   /* Create event queues */
-
-  gv->xevents = ddsi_xeventq_new
-  (
-    gv,
-    gv->config.max_queued_rexmit_bytes,
-    gv->config.max_queued_rexmit_msgs,
-#ifdef DDS_HAS_BANDWIDTH_LIMITING
-    gv->config.auxiliary_bandwidth_limit
-#else
-    0
-#endif
-  );
+  gv->xevents = ddsi_xeventq_new (gv, gv->config.max_queued_rexmit_bytes, gv->config.max_queued_rexmit_msgs);
 
 #ifdef DDS_HAS_SECURITY
   ddsi_omg_security_init (gv);
@@ -1761,12 +1602,7 @@ int ddsi_init (struct ddsi_domaingv *gv)
   ddsrt_mutex_init (&gv->sendq_running_lock);
 
   gv->builtins_dqueue = ddsi_dqueue_new ("builtins", gv, gv->config.delivery_queue_maxsamples, ddsi_builtins_dqueue_handler, NULL);
-#ifdef DDS_HAS_NETWORK_CHANNELS
-  for (struct ddsi_config_channel_listelem *chptr = gv->config.channels; chptr; chptr = chptr->next)
-    chptr->dqueue = ddsi_dqueue_new (chptr->name, &gv->config, gv->config.delivery_queue_maxsamples, ddsi_user_dqueue_handler, NULL);
-#else
   gv->user_dqueue = ddsi_dqueue_new ("user", gv, gv->config.delivery_queue_maxsamples, ddsi_user_dqueue_handler, NULL);
-#endif
 
   if (reset_deaf_mute_time.v < DDS_NEVER)
     ddsi_qxev_callback (gv->xevents, reset_deaf_mute_time, reset_deaf_mute, gv);
@@ -1862,49 +1698,18 @@ err_udp_tcp_init:
   return -1;
 }
 
-#ifdef DDS_HAS_NETWORK_CHANNELS
-static void stop_all_xeventq_upto (struct ddsi_config_channel_listelem *chptr)
-{
-  for (struct ddsi_config_channel_listelem *chptr1 = gv->config.channels; chptr1 != chptr; chptr1 = chptr1->next)
-    if (chptr1->evq)
-      ddsi_xeventq_stop (chptr1->evq);
-}
-#endif
-
 int ddsi_start (struct ddsi_domaingv *gv)
 {
   ddsi_gcreq_queue_start (gv->gcreq_queue);
 
   ddsi_dqueue_start (gv->builtins_dqueue);
-#ifdef DDS_HAS_NETWORK_CHANNELS
-  for (struct ddsi_config_channel_listelem *chptr = gv->config.channels; chptr; chptr = chptr->next)
-    ddsi_dqueue_start (chptr->dqueue);
-#else
   ddsi_dqueue_start (gv->user_dqueue);
-#endif
 
   if (ddsi_xeventq_start (gv->xevents, NULL) < 0)
     return -1;
-#ifdef DDS_HAS_NETWORK_CHANNELS
-  for (struct ddsi_config_channel_listelem *chptr = gv->config.channels; chptr; chptr = chptr->next)
-  {
-    if (chptr->evq)
-    {
-      if (ddsi_xeventq_start (chptr->evq, chptr->name) < 0)
-      {
-        stop_all_xeventq_upto (chptr);
-        ddsi_xeventq_stop (gv->xevents);
-        return -1;
-      }
-    }
-  }
-#endif
 
   if (gv->config.transport_selector != DDSI_TRANS_NONE && setup_and_start_recv_threads (gv) < 0)
   {
-#ifdef DDS_HAS_NETWORK_CHANNELS
-    stop_all_xeventq_upto (NULL);
-#endif
     ddsi_xeventq_stop (gv->xevents);
     return -1;
   }
@@ -1960,10 +1765,6 @@ void ddsi_stop (struct ddsi_domaingv *gv)
 {
   struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
 
-#ifdef DDS_HAS_NETWORK_CHANNELS
-  struct ddsi_config_channel_listelem * chptr;
-#endif
-
   if (gv->debmon)
   {
     ddsi_free_debug_monitor (gv->debmon);
@@ -1983,13 +1784,6 @@ void ddsi_stop (struct ddsi_domaingv *gv)
   }
 
   ddsi_xeventq_stop (gv->xevents);
-#ifdef DDS_HAS_NETWORK_CHANNELS
-  for (chptr = gv->config.channels; chptr; chptr = chptr->next)
-  {
-    if (chptr->evq)
-      ddsi_xeventq_stop (chptr->evq);
-  }
-#endif /* DDS_HAS_NETWORK_CHANNELS */
 
   /* Send a bubble through the delivery queue for built-ins, so that any
      pending proxy participant discovery is finished before we start
@@ -2118,17 +1912,7 @@ void ddsi_fini (struct ddsi_domaingv *gv)
      has ended, so now we can drain the delivery queues to end up with
      the expected reference counts all over the radmin thingummies. */
   ddsi_dqueue_free (gv->builtins_dqueue);
-
-#ifdef DDS_HAS_NETWORK_CHANNELS
-  chptr = gv->config.channels;
-  while (chptr)
-  {
-    ddsi_dqueue_free (chptr->dqueue);
-    chptr = chptr->next;
-  }
-#else
   ddsi_dqueue_free (gv->user_dqueue);
-#endif
 
 #ifdef DDS_HAS_SECURITY
   ddsi_omg_security_deinit (gv->security_context);
@@ -2144,22 +1928,6 @@ void ddsi_fini (struct ddsi_domaingv *gv)
     ddsi_xpack_sendq_fini (gv);
   }
   ddsrt_mutex_unlock (&gv->sendq_running_lock);
-
-#ifdef DDS_HAS_NETWORK_CHANNELS
-  chptr = gv->config.channels;
-  while (chptr)
-  {
-    if (chptr->evq)
-    {
-      ddsi_xeventq_free (chptr->evq);
-    }
-    if (chptr->transmit_conn != gv->data_conn_uc)
-    {
-      ddsi_conn_free (chptr->transmit_conn);
-    }
-    chptr = chptr->next;
-  }
-#endif
 
   (void) joinleave_spdp_defmcip (gv, 0);
   for (int i = 0; i < gv->n_interfaces; i++)

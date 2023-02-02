@@ -24,7 +24,7 @@ struct ddsi_domaingv;
 struct ddsi_xpack;
 
 /** @component rtps_msg */
-struct ddsi_xpack * ddsi_xpack_new (struct ddsi_domaingv *gv, uint32_t bw_limit, bool async_mode);
+struct ddsi_xpack * ddsi_xpack_new (struct ddsi_domaingv *gv, bool async_mode);
 
 /** @component rtps_msg */
 void ddsi_xpack_free (struct ddsi_xpack *xp);

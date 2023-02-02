@@ -155,7 +155,6 @@ struct ddsi_xeventq {
   struct ddsi_domaingv *gv;
   ddsrt_mutex_t lock;
   ddsrt_cond_t cond;
-  uint32_t auxiliary_bandwidth_limit;
 
   size_t cum_rexmit_bytes;
 };
@@ -504,7 +503,7 @@ static int msg_xevents_cmp (const void *a, const void *b)
   return ddsi_xmsg_compare_fragid (a, b);
 }
 
-struct ddsi_xeventq * ddsi_xeventq_new (struct ddsi_domaingv *gv, size_t max_queued_rexmit_bytes, size_t max_queued_rexmit_msgs, uint32_t auxiliary_bandwidth_limit)
+struct ddsi_xeventq * ddsi_xeventq_new (struct ddsi_domaingv *gv, size_t max_queued_rexmit_bytes, size_t max_queued_rexmit_msgs)
 {
   struct ddsi_xeventq *evq = ddsrt_malloc (sizeof (*evq));
   /* limit to 2GB to prevent overflow (4GB - 64kB should be ok, too) */
@@ -518,7 +517,6 @@ struct ddsi_xeventq * ddsi_xeventq_new (struct ddsi_domaingv *gv, size_t max_que
   evq->thrst = NULL;
   evq->max_queued_rexmit_bytes = max_queued_rexmit_bytes;
   evq->max_queued_rexmit_msgs = max_queued_rexmit_msgs;
-  evq->auxiliary_bandwidth_limit = auxiliary_bandwidth_limit;
   evq->queued_rexmit_bytes = 0;
   evq->queued_rexmit_msgs = 0;
   evq->gv = gv;
@@ -571,7 +569,7 @@ void ddsi_xeventq_free (struct ddsi_xeventq *evq)
     free_xevent (evq, ev);
 
   {
-    struct ddsi_xpack *xp = ddsi_xpack_new (evq->gv, evq->auxiliary_bandwidth_limit, false);
+    struct ddsi_xpack *xp = ddsi_xpack_new (evq->gv, false);
     ddsi_thread_state_awake (ddsi_lookup_thread_state (), evq->gv);
     ddsrt_mutex_lock (&evq->lock);
     while (!non_timed_xmit_list_is_empty (evq))
@@ -1266,7 +1264,7 @@ static uint32_t xevent_thread (struct ddsi_xeventq * xevq)
   struct ddsi_xpack *xp;
   ddsrt_mtime_t next_thread_cputime = { 0 };
 
-  xp = ddsi_xpack_new (xevq->gv, xevq->auxiliary_bandwidth_limit, false);
+  xp = ddsi_xpack_new (xevq->gv, false);
 
   ddsrt_mutex_lock (&xevq->lock);
   while (!xevq->terminate)

@@ -106,25 +106,6 @@ struct ddsi_config_partitionmapping_listelem {
 };
 #endif /* DDS_HAS_NETWORK_PARTITIONS */
 
-#ifdef DDS_HAS_NETWORK_CHANNELS
-struct ddsi_config_channel_listelem {
-  struct ddsi_config_channel_listelem *next;
-  char   *name;
-  int    priority;
-  int64_t resolution;
-#ifdef DDS_HAS_BANDWIDTH_LIMITING
-  uint32_t data_bandwidth_limit;
-  uint32_t auxiliary_bandwidth_limit;
-#endif
-  int    diffserv_field;
-  struct ddsi_thread_state *channel_reader_thrst;  /* keeping an handle to the running thread for this channel */
-  struct ddsi_dqueue *dqueue; /* The handle of teh delivery queue servicing incoming data for this channel*/
-  struct ddsi_xeventq *evq; /* The handle of the event queue servicing this channel*/
-  uint32_t queueId; /* the index of the networkqueue serviced by this channel*/
-  struct ddsi_tran_conn * transmit_conn; /* the connection used for sending data out via this channel */
-};
-#endif /* DDS_HAS_NETWORK_CHANNELS */
-
 struct ddsi_config_maybe_int32 {
   int isdefault;
   int32_t value;
@@ -353,10 +334,6 @@ struct ddsi_config
   struct ddsi_config_ssl_min_version ssl_min_version;
 #endif
 
-#ifdef DDS_HAS_NETWORK_CHANNELS
-  struct ddsi_config_channel_listelem *channels;
-  struct ddsi_config_channel_listelem *max_channel; /* channel with highest prio; always computed */
-#endif /* DDS_HAS_NETWORK_CHANNELS */
 #ifdef DDS_HAS_NETWORK_PARTITIONS
   struct ddsi_config_networkpartition_listelem *networkPartitions;
   unsigned nof_networkPartitions;
@@ -399,9 +376,6 @@ struct ddsi_config
   int64_t schedule_time_rounding;
   int64_t auto_resched_nack_delay;
   int64_t ds_grace_period;
-#ifdef DDS_HAS_BANDWIDTH_LIMITING
-  uint32_t auxiliary_bandwidth_limit; /* bytes/second */
-#endif
   uint32_t max_queued_rexmit_bytes;
   unsigned max_queued_rexmit_msgs;
   int late_ack_mode;
@@ -455,11 +429,6 @@ struct ddsi_cfgst *ddsi_config_init (const char *config, struct ddsi_config *cfg
 
 /** @component config */
 DDS_EXPORT void ddsi_config_fini (struct ddsi_cfgst *cfgst);
-
-#ifdef DDS_HAS_NETWORK_CHANNELS
-/** @component config */
-struct ddsi_config_channel_listelem *ddsi_find_network_channel (const struct config *cfg, dds_transport_priority_qospolicy_t transport_priority);
-#endif
 
 #if defined (__cplusplus)
 }

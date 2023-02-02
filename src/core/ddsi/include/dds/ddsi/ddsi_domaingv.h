@@ -269,13 +269,11 @@ struct ddsi_domaingv {
 
   struct ddsi_debug_monitor *debmon;
 
-#ifndef DDS_HAS_NETWORK_CHANNELS
   uint32_t networkQueueId;
   struct ddsi_thread_state *channel_reader_thrst;
 
   /* Application data gets its own delivery queue */
   struct ddsi_dqueue *user_dqueue;
-#endif
 
   /* Transmit side: pool for transmit queue*/
   struct ddsi_xmsgpool *xmsgpool;

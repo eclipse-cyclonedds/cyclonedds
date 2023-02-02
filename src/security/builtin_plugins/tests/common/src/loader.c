@@ -100,7 +100,7 @@ load_plugins(
     if (gv_init)
       plugins->gv = *gv_init;
     plugins->connection.m_base.gv = &plugins->gv;
-    plugins->gv.xevents = ddsi_xeventq_new (&plugins->gv, 0, 0, 0);
+    plugins->gv.xevents = ddsi_xeventq_new (&plugins->gv, 0, 0);
 
     if (ac) {
         *ac = load_plugin(&(plugins->plugin_ac),

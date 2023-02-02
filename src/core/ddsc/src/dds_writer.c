@@ -155,17 +155,6 @@ void dds_writer_status_cb (void *entity, const struct ddsi_status_cb_data *data)
   ddsrt_mutex_unlock (&wr->m_entity.m_observers_lock);
 }
 
-static uint32_t get_bandwidth_limit (dds_transport_priority_qospolicy_t transport_priority)
-{
-#ifdef DDS_HAS_NETWORK_CHANNELS
-  struct ddsi_config_channel_listelem *channel = ddsi_find_network_channel (&config, transport_priority);
-  return channel->data_bandwidth_limit;
-#else
-  (void) transport_priority;
-  return 0;
-#endif
-}
-
 static void dds_writer_interrupt (dds_entity *e) ddsrt_nonnull_all;
 
 static void dds_writer_interrupt (dds_entity *e)
@@ -446,7 +435,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   const dds_entity_t writer = dds_entity_init (&wr->m_entity, &pub->m_entity, DDS_KIND_WRITER, false, true, wqos, listener, DDS_WRITER_STATUS_MASK);
   wr->m_topic = tp;
   dds_entity_add_ref_locked (&tp->m_entity);
-  wr->m_xp = ddsi_xpack_new (gv, get_bandwidth_limit (wqos->transport_priority), async_mode);
+  wr->m_xp = ddsi_xpack_new (gv, async_mode);
   wrinfo = dds_whc_make_wrinfo (wr, wqos);
   wr->m_whc = dds_whc_new (gv, wrinfo);
   dds_whc_free_wrinfo (wrinfo);
