@@ -196,3 +196,11 @@
 .. |url::idl_4.2| raw:: html
 
     <a href="https://www.omg.org/spec/IDL/4.2" target="_blank">OMG IDL</a>
+
+.. |url::py_api_link| raw:: html
+
+    <a href="https://cyclonedds.io/docs/cyclonedds-python/latest/" target="_blank">Python API reference</a>
+
+.. |url::runtype_link| raw:: html
+
+    <a href="https://pypi.org/project/runtype/" target="_blank">runtype</a>
