@@ -1,3 +1,7 @@
+.. index:: Benchmarking
+
+.. _benchmarking_bm:
+
 ##################
 Benchmarking Tools
 ##################
@@ -19,7 +23,11 @@ parameterized sizes.
     benchmarking tools as they sacrifice performance for simplicity. You cannot compare
     test results from these tools with results from other tools.
 
-.. include:: test_installation.part.rst
+.. include:: ../test_installation.part.rst
+
+.. index:: Latency
+
+.. _latency_bm:
 
 Measuring latency
 =================
