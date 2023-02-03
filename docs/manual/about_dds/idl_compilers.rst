@@ -2,10 +2,10 @@
     single: IDL; Compilers
     single: Compilers; IDL
 
-.. _idl_compilers:
+.. _idl_compiler:
 
-IDL Compilers
-=============
+IDL compiler
+============
 
 The |var-project-short| IDL compiler translates module names into namespaces 
 and structure names into classes.
