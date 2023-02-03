@@ -113,3 +113,4 @@ To determine the information included in the log file, change the :ref:`Tracing/
    conformance
    config_file_reference
    runtime_config
+   benchmarking
