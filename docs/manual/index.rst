@@ -20,6 +20,7 @@
    :maxdepth: 1
 
    about_dds/eclipse_cyclone_dds
+   installation/installation
    getting_started/index
    config/index
    examples/index

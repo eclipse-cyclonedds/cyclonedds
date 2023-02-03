@@ -16,9 +16,7 @@ Getting Started
    :maxdepth: 2
    :caption: Contents
 
-   installation/installation
    helloworld/helloworld
    py_tutorial_link
-   installation/benchmarking
 
 
