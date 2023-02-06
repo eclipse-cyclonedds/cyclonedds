@@ -158,9 +158,11 @@ const char * ddsi_typekind_descr (unsigned char disc)
     case DDS_XTypes_TK_NONE: return "NONE";
     case DDS_XTypes_TK_BOOLEAN: return "BOOLEAN";
     case DDS_XTypes_TK_BYTE: return "BYTE";
+    case DDS_XTypes_TK_INT8: return "INT8";
     case DDS_XTypes_TK_INT16: return "INT16";
     case DDS_XTypes_TK_INT32: return "INT32";
     case DDS_XTypes_TK_INT64: return "INT64";
+    case DDS_XTypes_TK_UINT8: return "UINT8";
     case DDS_XTypes_TK_UINT16: return "UINT16";
     case DDS_XTypes_TK_UINT32: return "UINT32";
     case DDS_XTypes_TK_UINT64: return "UINT64";
@@ -563,9 +565,10 @@ static dds_return_t xt_valid_union_disc_type (struct ddsi_domaingv *gv, const st
   if (ddsi_xt_is_unresolved (&t->_u.union_type.disc_type->xt))
     return DDS_RETCODE_OK;
   uint8_t d = ddsi_xt_unalias (&t->_u.union_type.disc_type->xt)->_d;
-  if (d != DDS_XTypes_TK_BOOLEAN && d != DDS_XTypes_TK_BYTE && d != DDS_XTypes_TK_CHAR8 && d != DDS_XTypes_TK_CHAR16
-      && d != DDS_XTypes_TK_INT16 && d != DDS_XTypes_TK_INT32 && d != DDS_XTypes_TK_INT64
-      && d != DDS_XTypes_TK_UINT16 && d != DDS_XTypes_TK_UINT32 && d != DDS_XTypes_TK_UINT64
+  if (d != DDS_XTypes_TK_BOOLEAN
+      && d != DDS_XTypes_TK_BYTE && d != DDS_XTypes_TK_CHAR8 && d != DDS_XTypes_TK_CHAR16
+      && d != DDS_XTypes_TK_INT8 && d != DDS_XTypes_TK_INT16 && d != DDS_XTypes_TK_INT32 && d != DDS_XTypes_TK_INT64
+      && d != DDS_XTypes_TK_UINT8 && d != DDS_XTypes_TK_UINT16 && d != DDS_XTypes_TK_UINT32 && d != DDS_XTypes_TK_UINT64
       && d != DDS_XTypes_TK_ENUM && d != DDS_XTypes_TK_BITMASK)
   {
     GVTRACE ("discriminator type for union is invalid\n");
@@ -944,8 +947,8 @@ static dds_return_t xt_validate_impl (struct ddsi_domaingv *gv, const struct xt_
         return ret;
       break;
     case DDS_XTypes_TK_BOOLEAN: case DDS_XTypes_TK_BYTE:
-    case DDS_XTypes_TK_INT16: case DDS_XTypes_TK_INT32: case DDS_XTypes_TK_INT64:
-    case DDS_XTypes_TK_UINT16: case DDS_XTypes_TK_UINT32: case DDS_XTypes_TK_UINT64:
+    case DDS_XTypes_TK_INT8: case DDS_XTypes_TK_INT16: case DDS_XTypes_TK_INT32: case DDS_XTypes_TK_INT64:
+    case DDS_XTypes_TK_UINT8: case DDS_XTypes_TK_UINT16: case DDS_XTypes_TK_UINT32: case DDS_XTypes_TK_UINT64:
     case DDS_XTypes_TK_FLOAT32: case DDS_XTypes_TK_FLOAT64: case DDS_XTypes_TK_FLOAT128:
     case DDS_XTypes_TK_CHAR8: case DDS_XTypes_TK_CHAR16: case DDS_XTypes_TK_STRING8:
       // no validations

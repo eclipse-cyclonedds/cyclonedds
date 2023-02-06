@@ -223,6 +223,7 @@ struct xt_type
     // case TK_NONE:
     // case TK_BOOLEAN:
     // case TK_BYTE:
+    // case TK_INT8:
     // case TK_INT16:
     // case TK_INT32:
     // case TK_INT64:

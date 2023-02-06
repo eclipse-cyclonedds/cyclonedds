@@ -41,6 +41,8 @@ typedef uint8_t DDS_XTypes_TypeKind;
 #define DDS_XTypes_TK_FLOAT32 9
 #define DDS_XTypes_TK_FLOAT64 10
 #define DDS_XTypes_TK_FLOAT128 11
+#define DDS_XTypes_TK_INT8 12
+#define DDS_XTypes_TK_UINT8 13
 #define DDS_XTypes_TK_CHAR8 16
 #define DDS_XTypes_TK_CHAR16 17
 #define DDS_XTypes_TK_STRING8 32
@@ -383,6 +385,8 @@ typedef struct DDS_XTypes_AnnotationParameterValue
   {
     bool boolean_value;
     uint8_t byte_value;
+    int8_t int8_value;
+    uint8_t uint8_value;
     int16_t int16_value;
     uint16_t uint_16_value;
     int32_t int32_value;
