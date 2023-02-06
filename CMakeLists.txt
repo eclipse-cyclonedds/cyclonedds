@@ -38,6 +38,15 @@ set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake/Modules")
 
 option(BUILD_IDLC "Build IDL preprocessor" ${not_crosscompiling})
 option(BUILD_DDSPERF "Build ddsperf tool" ${not_crosscompiling})
+option(BUILD_IDLC_ONLY "Only build the IDLC preprocessor" OFF)
+
+if(BUILD_IDLC_ONLY)
+  set(BUILD_DDSPERF NO)
+  set(ENABLE_SECURITY NO)
+  set(BUILD_EXAMPLES NO)
+  set(BUILD_IDLC_XTESTS NO)
+  set(BUILD_TESTING OFF)
+endif()
 
 set(CMAKE_C_STANDARD 99)
 if(CMAKE_SYSTEM_NAME STREQUAL "VxWorks")
