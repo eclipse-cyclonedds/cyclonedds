@@ -260,11 +260,13 @@ get_plain_typeid (const idl_pstate_t *pstate, struct descriptor_type_meta *dtm, 
     switch (idl_type (type_spec))
     {
       case IDL_BOOL: ti->_d = DDS_XTypes_TK_BOOLEAN; break;
-      case IDL_INT8: case IDL_CHAR: ti->_d = DDS_XTypes_TK_CHAR8; break;
-      case IDL_UINT8: case IDL_OCTET: ti->_d = DDS_XTypes_TK_BYTE; break;
+      case IDL_CHAR: ti->_d = DDS_XTypes_TK_CHAR8; break;
+      case IDL_OCTET: ti->_d = DDS_XTypes_TK_BYTE; break;
+      case IDL_INT8: ti->_d = DDS_XTypes_TK_INT8; break;
       case IDL_INT16: case IDL_SHORT: ti->_d = DDS_XTypes_TK_INT16; break;
       case IDL_INT32: case IDL_LONG: ti->_d = DDS_XTypes_TK_INT32; break;
       case IDL_INT64: case IDL_LLONG: ti->_d = DDS_XTypes_TK_INT64; break;
+      case IDL_UINT8: ti->_d = DDS_XTypes_TK_UINT8; break;
       case IDL_UINT16: case IDL_USHORT: ti->_d = DDS_XTypes_TK_UINT16; break;
       case IDL_UINT32: case IDL_ULONG: ti->_d = DDS_XTypes_TK_UINT32; break;
       case IDL_UINT64: case IDL_ULLONG: ti->_d = DDS_XTypes_TK_UINT64; break;
@@ -624,15 +626,21 @@ set_xtypes_annotation_parameter_value(
       val->_d = DDS_XTypes_TK_BOOLEAN;
       val->_u.boolean_value = lit->value.bln;
       break;
-    case IDL_INT8:
     case IDL_CHAR:
       val->_d = DDS_XTypes_TK_CHAR8;
       val->_u.char_value = lit->value.chr;
       break;
     case IDL_OCTET:
-    case IDL_UINT8:
       val->_d = DDS_XTypes_TK_BYTE;
       val->_u.byte_value = lit->value.uint8;
+      break;
+    case IDL_INT8:
+      val->_d = DDS_XTypes_TK_INT8;
+      val->_u.int8_value = lit->value.int8;
+      break;
+    case IDL_UINT8:
+      val->_d = DDS_XTypes_TK_UINT8;
+      val->_u.uint8_value = lit->value.uint8;
       break;
     case IDL_SHORT:
     case IDL_INT16:
