@@ -379,10 +379,12 @@ static dds_return_t typebuilder_add_type (struct typebuilder_data *tbd, uint32_t
       *align = ALGN (uint8_t, is_ext);
       *size = SZ (uint8_t, is_ext);
       break;
+    case DDS_XTypes_TK_INT8:
+    case DDS_XTypes_TK_UINT8:
     case DDS_XTypes_TK_CHAR8:
     case DDS_XTypes_TK_BYTE:
       tb_type->type_code = DDS_OP_VAL_1BY;
-      tb_type->args.prim_args.is_signed = (type->xt._d == DDS_XTypes_TK_CHAR8);
+      tb_type->args.prim_args.is_signed = (type->xt._d == DDS_XTypes_TK_CHAR8 || type->xt._d == DDS_XTypes_TK_INT8);
       tb_type->cdr_align = 1;
       *align = ALGN (uint8_t, is_ext);
       *size = SZ (uint8_t, is_ext);
