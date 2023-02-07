@@ -145,6 +145,16 @@ set_tests_properties(
 		REQUIRED_FILES ${CUnit_ddsc_config_simple_udp_file}
 		ENVIRONMENT "${CUnit_ddsc_config_simple_udp_env}")
 
+if(ENABLE_DEADLINE_MISSED)
+  foreach(t
+      basic
+      instances
+      update
+      writer_types)
+    set_tests_properties(CUnit_ddsc_deadline_${t} PROPERTIES RUN_SERIAL TRUE)
+  endforeach()
+endif()
+
 configure_file("config_env.h.in" "config_env.h" @ONLY)
 
 add_executable(oneliner
