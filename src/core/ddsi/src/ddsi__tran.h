@@ -323,12 +323,6 @@ int ddsi_conn_join_mc (struct ddsi_tran_conn * conn, const ddsi_locator_t *srcip
 int ddsi_conn_leave_mc (struct ddsi_tran_conn * conn, const ddsi_locator_t *srcip, const ddsi_locator_t *mcip, const struct ddsi_network_interface *interf);
 
 /** @component transport */
-void ddsi_conn_transfer_group_membership (struct ddsi_tran_conn * conn, struct ddsi_tran_conn * newconn);
-
-/** @component transport */
-int ddsi_conn_rejoin_transferred_mcgroups (struct ddsi_tran_conn * conn);
-
-/** @component transport */
 int ddsi_is_loopbackaddr (const struct ddsi_domaingv *gv, const ddsi_locator_t *loc);
 
 /** @component transport */
