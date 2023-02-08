@@ -27,6 +27,57 @@ extern "C" {
 
 struct ddsi_xmsg;
 
+#define PP_PROTOCOL_VERSION                     ((uint64_t)1 <<  0)
+#define PP_VENDORID                             ((uint64_t)1 <<  1)
+#define PP_UNICAST_LOCATOR                      ((uint64_t)1 <<  2)
+#define PP_MULTICAST_LOCATOR                    ((uint64_t)1 <<  3)
+#define PP_DEFAULT_UNICAST_LOCATOR              ((uint64_t)1 <<  4)
+#define PP_DEFAULT_MULTICAST_LOCATOR            ((uint64_t)1 <<  5)
+#define PP_METATRAFFIC_UNICAST_LOCATOR          ((uint64_t)1 <<  6)
+#define PP_METATRAFFIC_MULTICAST_LOCATOR        ((uint64_t)1 <<  7)
+#define PP_EXPECTS_INLINE_QOS                   ((uint64_t)1 <<  8)
+#define PP_PARTICIPANT_MANUAL_LIVELINESS_COUNT  ((uint64_t)1 <<  9)
+#define PP_PARTICIPANT_BUILTIN_ENDPOINTS        ((uint64_t)1 << 10)
+//#define PP_PARTICIPANT_LEASE_DURATION           ((uint64_t)1 << 11)
+#define PP_CONTENT_FILTER_PROPERTY              ((uint64_t)1 << 12)
+#define PP_PARTICIPANT_GUID                     ((uint64_t)1 << 13)
+#define PP_PARTICIPANT_ENTITYID                 ((uint64_t)1 << 14)
+#define PP_GROUP_GUID                           ((uint64_t)1 << 15)
+#define PP_GROUP_ENTITYID                       ((uint64_t)1 << 16)
+#define PP_BUILTIN_ENDPOINT_SET                 ((uint64_t)1 << 17)
+#define PP_PROPERTIES                           ((uint64_t)1 << 18)
+#define PP_TYPE_MAX_SIZE_SERIALIZED             ((uint64_t)1 << 19)
+#define PP_CYCLONE_REDUNDANT_NETWORKING         ((uint64_t)1 << 20)
+#define PP_KEYHASH                              ((uint64_t)1 << 21)
+#define PP_STATUSINFO                           ((uint64_t)1 << 22)
+#define PP_ORIGINAL_WRITER_INFO                 ((uint64_t)1 << 23)
+#define PP_ENDPOINT_GUID                        ((uint64_t)1 << 24)
+#define PP_ADLINK_PARTICIPANT_VERSION_INFO      ((uint64_t)1 << 26)
+#define PP_ADLINK_TYPE_DESCRIPTION              ((uint64_t)1 << 27)
+// ((uint64_t)1 << 28) is available
+#ifdef DDS_HAS_SSM
+#define PP_READER_FAVOURS_SSM                   ((uint64_t)1 << 29)
+#endif
+#define PP_DOMAIN_ID                            ((uint64_t)1 << 30)
+#define PP_DOMAIN_TAG                           ((uint64_t)1 << 31)
+/* Security extensions. */
+#define PP_IDENTITY_TOKEN                       ((uint64_t)1 << 32)
+#define PP_PERMISSIONS_TOKEN                    ((uint64_t)1 << 33)
+#define PP_ENDPOINT_SECURITY_INFO               ((uint64_t)1 << 34)
+#define PP_PARTICIPANT_SECURITY_INFO            ((uint64_t)1 << 35)
+#define PP_IDENTITY_STATUS_TOKEN                ((uint64_t)1 << 36)
+#define PP_DATA_TAGS                            ((uint64_t)1 << 37)
+/* Other stuff */
+#define PP_CYCLONE_RECEIVE_BUFFER_SIZE          ((uint64_t)1 << 38)
+#define PP_CYCLONE_TOPIC_GUID                   ((uint64_t)1 << 39)
+#define PP_CYCLONE_REQUESTS_KEYHASH             ((uint64_t)1 << 40)
+
+/* Set for unrecognized parameters that are in the reserved space or
+   in our own vendor-specific space that have the
+   DDSI_PID_UNRECOGNIZED_INCOMPATIBLE_FLAG set (see DDSI 2.1 9.6.2.2.1) */
+#define PP_INCOMPATIBLE                         ((uint64_t)1 << 63)
+
+
 #define DDSI_ADLINK_PARTICIPANT_VERSION_INFO_FIXED_CDRSIZE (24)
 
 #define DDSI_ADLINK_FL_KERNEL_SEQUENCE_NUMBER     (1u << 0)
