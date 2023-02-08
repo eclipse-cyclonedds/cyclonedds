@@ -76,7 +76,7 @@ int LLVMFuzzerTestOneInput(
           type_id_minimal = (ddsi_typeid_t *) &type_map->x.identifier_complete_minimal._buffer[i].type_identifier2;
       }
 
-      if (type_id_complete && type_id_minimal)
+      if (!ddsi_typeid_is_none (type_id_complete) && !ddsi_typeid_is_none (type_id_minimal))
       {
         ddsi_typeinfo_t type_info;
         memset (&type_info, 0, sizeof (type_info));
