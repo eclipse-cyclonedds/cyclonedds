@@ -1194,6 +1194,7 @@ static dds_return_t add_complete_typeobj (struct ddsi_domaingv *gv, struct xt_ty
           {
             ddsi_type_unref_locked (gv, xt->_u.union_type.members.seq[m].type);
             ddsrt_free (xt->_u.union_type.members.seq[m].label_seq._buffer);
+            xt_applied_member_annotations_fini (&xt->_u.union_type.members.seq[m].detail.annotations);
           }
           ddsi_type_unref_locked (gv, xt->_u.union_type.disc_type);
           ddsrt_free (xt->_u.union_type.members.seq);
