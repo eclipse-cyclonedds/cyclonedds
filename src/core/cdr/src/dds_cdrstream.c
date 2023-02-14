@@ -1826,7 +1826,7 @@ static const uint32_t *dds_stream_skip_delimited_default (char * __restrict data
   return dds_stream_skip_default (data, ++ops);
 }
 
-static bool dds_stream_skip_pl_member_default (char * __restrict data, const uint32_t * __restrict ops)
+static void dds_stream_skip_pl_member_default (char * __restrict data, const uint32_t * __restrict ops)
 {
   uint32_t insn;
   while ((insn = *ops) != DDS_OP_RTS)
@@ -1834,19 +1834,19 @@ static bool dds_stream_skip_pl_member_default (char * __restrict data, const uin
     switch (DDS_OP (insn))
     {
       case DDS_OP_ADR: {
-        void *addr = data + ops[1];
-        * (void **) addr = NULL;
+        ops = dds_stream_skip_default (data, ops);
         break;
       }
       case DDS_OP_JSR:
-        return dds_stream_skip_pl_member_default (data, ops + DDS_OP_JUMP (insn));
+        dds_stream_skip_pl_member_default (data, ops + DDS_OP_JUMP (insn));
+        ops++;
+        break;
       case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF:
       case DDS_OP_DLC: case DDS_OP_PLC: case DDS_OP_PLM:
         abort ();
         break;
     }
   }
-  abort ();
 }
 
 static const uint32_t *dds_stream_skip_pl_memberlist_default (char * __restrict data, const uint32_t * __restrict ops)
@@ -1883,8 +1883,7 @@ static const uint32_t *dds_stream_skip_pl_memberlist_default (char * __restrict 
 static const uint32_t *dds_stream_skip_pl_default (char * __restrict data, const uint32_t * __restrict ops)
 {
   /* skip PLC op */
-  ops++;
-  return dds_stream_skip_pl_memberlist_default (data, ops);
+  return dds_stream_skip_pl_memberlist_default (data, ++ops);
 }
 
 static const uint32_t *dds_stream_skip_default (char * __restrict data, const uint32_t * __restrict ops)
