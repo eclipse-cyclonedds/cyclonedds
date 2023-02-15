@@ -1803,7 +1803,7 @@ bool ddsi_writer_find_matched_reader (struct ddsi_writer *wr, uint64_t ih, struc
   struct ddsi_domaingv *gv = wr->e.gv;
   bool found = false;
   ddsrt_avl_iter_t it;
-  ddsi_thread_state_awake (ddsi_lookup_thread_state (), gv);
+  assert (ddsi_thread_is_awake ());
   ddsrt_mutex_lock (&wr->e.lock);
   for (const struct ddsi_wr_prd_match *m = ddsrt_avl_iter_first (&ddsi_wr_readers_treedef, &wr->readers, &it);
         m != NULL && !found;
@@ -1832,7 +1832,6 @@ bool ddsi_writer_find_matched_reader (struct ddsi_writer *wr, uint64_t ih, struc
     }
   }
   ddsrt_mutex_unlock (&wr->e.lock);
-  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
   return found;
 }
 
@@ -1842,7 +1841,7 @@ bool ddsi_reader_find_matched_writer (struct ddsi_reader *rd, uint64_t ih, struc
   struct ddsi_domaingv *gv = rd->e.gv;
   bool found = false;
   ddsrt_avl_iter_t it;
-  ddsi_thread_state_awake (ddsi_lookup_thread_state (), gv);
+  assert (ddsi_thread_is_awake ());
   ddsrt_mutex_lock (&rd->e.lock);
   for (const struct ddsi_rd_pwr_match *m = ddsrt_avl_iter_first (&ddsi_rd_writers_treedef, &rd->writers, &it);
         m != NULL && !found;
@@ -1871,6 +1870,5 @@ bool ddsi_reader_find_matched_writer (struct ddsi_reader *rd, uint64_t ih, struc
     }
   }
   ddsrt_mutex_unlock (&rd->e.lock);
-  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
   return found;
 }
