@@ -14,6 +14,8 @@
 #include "CUnit/Theory.h"
 #include "RoundTrip.h"
 #include "Space.h"
+#include "test_oneliner.h"
+
 #include "dds/dds.h"
 #include "dds/ddsrt/misc.h"
 
@@ -191,4 +193,31 @@ CU_Test(ddsc_write, invalid_data)
     dds_delete(wri);
     dds_delete(top);
     dds_delete(par);
+}
+
+CU_Test(ddsc_write, relwr_unrelrd_network)
+{
+  // Avoid shared memory because we need the debugging tricks in DDSI
+  // Use a special port number to reduce interference from other tests, because
+  // we depend on best-effort data making it through
+  const char *config_override =
+  "<Domain id=\"any\">"
+#ifdef DDS_HAS_SHM
+  "  <SharedMemory><Enable>false</Enable></SharedMemory>"
+#endif
+  "  <Discovery><Ports><Base>7350</Base></Ports></Discovery>"
+  "</Domain>";
+
+  int result = test_oneliner_with_config
+    ("pm w(r=r) "
+     "dor R' " // subscriber with data-on-readers
+     "sm r'(r=be) "
+     "?pm w ?sm r' " // mutual discovery complete
+     "wr w 0 ?dor R' " // data should arrive (likelihood of loss in practice is low here)
+     "s'(r=be) " // create 2nd reader, no need to worry about discovery because of w+r'
+     "setflags(d) w wr w 1 wr w 2 setflags() w " // lose some data on the network
+     "wr w 3 ?dor(2) R' " // 4th sample should arrive (like 1st), both readers should trigger
+     "take{(0,0,0),(3,0,0)} r' take{(3,0,0)} s'", // r' should now have 2 samples, s' one
+     config_override);
+  CU_ASSERT_FATAL (result > 0);
 }
