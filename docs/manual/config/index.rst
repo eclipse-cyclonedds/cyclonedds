@@ -87,8 +87,8 @@ directly after the ``set`` command, otherwise ``<`` and ``>`` has to be escaped 
           export CYCLONEDDS_URI="<CycloneDDS><Domain><General><NetworkInterfaceAddress>127.0.0.1</NetworkInterfaceAddress></General></Domain></CycloneDDS>"
 
 The example configuration above is helpfull if you are working on a machine with activated firewall.
-Otherwise it would not be possible to send and receive messages. The ip ``127.0.0.1 (localhost)``
-expresses that the communication shall be restricted to your pc only.
+Otherwise it would not be possible to send and receive messages between apps on the local machine.
+The ip ``127.0.0.1`` expresses that the communication shall be restricted to your pc only (localhost).
 
 Configuration log files
 =======================
