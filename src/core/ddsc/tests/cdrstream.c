@@ -24,6 +24,7 @@
 #include "test_util.h"
 #include "MinXcdrVersion.h"
 #include "CdrStreamOptimize.h"
+#include "CdrStreamSkipDefault.h"
 
 #define DDS_DOMAINID1 0
 #define DDS_DOMAINID2 1
@@ -1902,3 +1903,152 @@ CU_Test (ddsc_cdrstream, check_optimize)
 
 #undef XCDR1
 #undef XCDR2
+
+
+// Skip-default tests
+typedef void sample_init_fn (uint8_t *data);
+typedef void default_check_fn (uint8_t *data);
+
+static void init_sub1 (uint8_t *data)
+{
+  struct CdrStreamSkipDefault_t1_sub *t1 = (struct CdrStreamSkipDefault_t1_sub *) data;
+  t1->f2.s2 = NULL;
+  t1->f2.s3 = (dds_sequence_string) { ._length = 1, ._maximum = 1, ._release = true, ._buffer = ddsrt_malloc (1 * sizeof (*t1->f2.s3._buffer)) };
+  t1->f2.s3._buffer[0] = ddsrt_strdup ("test");
+}
+
+static void check_t1 (uint8_t *data)
+{
+  struct CdrStreamSkipDefault_t1_sub *t1 = (struct CdrStreamSkipDefault_t1_sub *) data;
+  CU_ASSERT_EQUAL_FATAL (t1->f2.s1, 0);
+  CU_ASSERT_EQUAL_FATAL (strlen (t1->f2.s2), 0);
+  CU_ASSERT_EQUAL_FATAL (t1->f2.s3._length, 0);
+  CU_ASSERT_EQUAL_FATAL (t1->f2.s3._maximum, 1);
+  CU_ASSERT_EQUAL_FATAL (t1->f2.s3._release, true);
+  CU_ASSERT_NOT_EQUAL_FATAL (t1->f2.s3._buffer, NULL);
+}
+
+static void init_sub2 (uint8_t *data)
+{
+  struct CdrStreamSkipDefault_t2_sub *t2 = (struct CdrStreamSkipDefault_t2_sub *) data;
+  t2->f2.s2 = ddsrt_strdup ("test");
+  t2->f2.s4 = NULL;
+}
+
+static void check_t2 (uint8_t *data)
+{
+  struct CdrStreamSkipDefault_t2_sub *t2 = (struct CdrStreamSkipDefault_t2_sub *) data;
+  CU_ASSERT_EQUAL_FATAL (t2->f2.s1, 0);
+  CU_ASSERT_EQUAL_FATAL (strlen (t2->f2.s2), 0);
+  CU_ASSERT_EQUAL_FATAL (t2->f2.s3, 0);
+  CU_ASSERT_EQUAL_FATAL (t2->f2.s4, NULL);
+  CU_ASSERT_EQUAL_FATAL (t2->f3, 0.0);
+}
+
+static void init_sub3 (uint8_t *data)
+{
+  struct CdrStreamSkipDefault_t3_sub *t3 = (struct CdrStreamSkipDefault_t3_sub *) data;
+  t3->f2.s2.s1 = NULL;
+  t3->f2.s2.s2 = (dds_sequence_long) { ._length = 0, ._maximum = 0, ._release = false };
+  t3->f4.s1 = NULL;
+  t3->f4.s2 = (dds_sequence_long) { ._length = 2, ._maximum = 2, ._release = true, ._buffer = ddsrt_malloc (2 * sizeof (*t3->f4.s2._buffer)) };
+}
+
+static void check_t3 (uint8_t *data)
+{
+  struct CdrStreamSkipDefault_t3_sub *t3 = (struct CdrStreamSkipDefault_t3_sub *) data;
+  CU_ASSERT_EQUAL_FATAL (t3->f2.s1, 0);
+  CU_ASSERT_EQUAL_FATAL (strlen (t3->f2.s2.s1), 0);
+  CU_ASSERT_EQUAL_FATAL (t3->f2.s2.s2._length, 0);
+  CU_ASSERT_EQUAL_FATAL (t3->f2.s2.s2._maximum, 0);
+  CU_ASSERT_EQUAL_FATAL (t3->f3, 0);
+  CU_ASSERT_EQUAL_FATAL (strlen (t3->f4.s1), 0);
+  CU_ASSERT_EQUAL_FATAL (t3->f4.s2._length, 0);
+  CU_ASSERT_EQUAL_FATAL (t3->f4.s2._maximum, 2);
+  CU_ASSERT_EQUAL_FATAL (t3->f4.s2._release, true);
+  CU_ASSERT_NOT_EQUAL_FATAL (t3->f4.s2._buffer, NULL);
+}
+
+static void init_sub4 (uint8_t *data)
+{
+  struct CdrStreamSkipDefault_t4_sub *t4 = (struct CdrStreamSkipDefault_t4_sub *) data;
+  t4->f2.s2.s2 = ddsrt_malloc (sizeof (*t4->f2.s2.s2));
+  (*t4->f2.s2.s2) = (dds_sequence_long) { ._length = 3, ._maximum = 3, ._release = true, ._buffer = ddsrt_malloc (3 * sizeof (t4->f2.s2.s2->_buffer)) };
+  t4->f4.s2 = ddsrt_malloc (sizeof (*t4->f2.s2.s2));
+  (*t4->f4.s2) = (dds_sequence_long) { ._length = 1, ._maximum = 4, ._release = true, ._buffer = ddsrt_malloc (4 * sizeof (t4->f4.s2->_buffer)) };
+}
+
+static void check_t4 (uint8_t *data)
+{
+  struct CdrStreamSkipDefault_t4_sub *t4 = (struct CdrStreamSkipDefault_t4_sub *) data;
+  CU_ASSERT_EQUAL_FATAL (t4->f2.s1, 0);
+  CU_ASSERT_EQUAL_FATAL (t4->f2.s2.s1, 0);
+  CU_ASSERT_EQUAL_FATAL (t4->f2.s2.s2, NULL);
+  CU_ASSERT_EQUAL_FATAL (t4->f4.s1, 0);
+  CU_ASSERT_EQUAL_FATAL (t4->f4.s2, NULL);
+}
+
+
+static void init_sub5 (uint8_t *data)
+{
+  struct CdrStreamSkipDefault_t5_sub *t5 = (struct CdrStreamSkipDefault_t5_sub *) data;
+  t5->f2.s2.s2 = (dds_sequence_long) { ._release = false, ._length = 0, ._maximum = 0 };
+}
+
+static void check_t5 (uint8_t *data)
+{
+  struct CdrStreamSkipDefault_t5_sub *t5 = (struct CdrStreamSkipDefault_t5_sub *) data;
+  CU_ASSERT_EQUAL_FATAL (t5->f2.s2.s1, 0);
+  CU_ASSERT_EQUAL_FATAL (t5->f2.s2.s2._length, 0);
+  CU_ASSERT_EQUAL_FATAL (t5->f2.s2.s2._maximum, 0);
+}
+
+#define D(n) (&CdrStreamSkipDefault_ ## n ## _desc)
+CU_Test (ddsc_cdrstream, skip_default)
+{
+  static const struct {
+    const dds_topic_descriptor_t *desc_pub;
+    const dds_topic_descriptor_t *desc_sub;
+    sample_init_fn *init_sub;
+    default_check_fn *check_sub;
+    const char *description;
+  } tests[] = {
+    { D(t1_pub), D(t1_sub), init_sub1, check_t1, "appendable top-level, appendable member" },
+    { D(t2_pub), D(t2_sub), init_sub2, check_t2, "appendable top-level, mutable member" },
+    { D(t3_pub), D(t3_sub), init_sub3, check_t3, "mutable top-level, nested mutable member" },
+    { D(t4_pub), D(t4_sub), init_sub4, check_t4, "mutable top-level, nested appendable member" },
+    { D(t5_pub), D(t5_sub), init_sub5, check_t5, "top-level equal, mutable member different" }
+  };
+
+  for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
+  {
+    printf("running test for desc %s/%s: %s\n", tests[i].desc_pub->m_typename, tests[i].desc_sub->m_typename, tests[i].description);
+
+    struct dds_cdrstream_desc desc_pub, desc_sub;
+    dds_cdrstream_desc_from_topic_desc (&desc_pub, tests[i].desc_pub);
+    dds_cdrstream_desc_from_topic_desc (&desc_sub, tests[i].desc_sub);
+
+    dds_ostreamLE_t os = { .x.m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
+    uint8_t *sample_pub = ddsrt_malloc (desc_pub.size);
+    memset (sample_pub, 0xef, desc_pub.size); // assumes no pointers (strings, sequences, @external, @optional) in pub type
+    bool ret = dds_stream_write_sampleLE (&os, sample_pub, &desc_pub);
+    CU_ASSERT_FATAL (ret);
+
+    uint8_t *sample_sub = ddsrt_malloc (desc_sub.size);
+    memset (sample_sub, 0xbe, desc_sub.size);
+    tests[i].init_sub (sample_sub);
+    dds_istream_t is = { .m_buffer = os.x.m_buffer, .m_index = 0, .m_size = os.x.m_size, .m_xcdr_version = os.x.m_xcdr_version };
+    dds_stream_read_sample (&is, sample_sub, &desc_sub);
+    tests[i].check_sub (sample_sub);
+
+    // clean-up
+    dds_ostream_fini (&os.x);
+    ddsrt_free (sample_pub);
+    dds_stream_free_sample (sample_sub, desc_sub.ops.ops);
+    ddsrt_free (sample_sub);
+
+    dds_cdrstream_desc_fini (&desc_pub);
+    dds_cdrstream_desc_fini (&desc_sub);
+  }
+}
+#undef D
