@@ -485,8 +485,9 @@ dds_return_t ddsi_type_add_typeobj (struct ddsi_domaingv *gv, struct ddsi_type *
   return ret;
 }
 
-static void ddsi_type_register_dep_impl (struct ddsi_domaingv *gv, const ddsi_typeid_t *src_type_id, struct ddsi_type **dst_dep_type, const struct DDS_XTypes_TypeIdentifier *dep_tid, bool from_type_info)
+static dds_return_t ddsi_type_register_dep_impl (struct ddsi_domaingv *gv, const ddsi_typeid_t *src_type_id, struct ddsi_type **dst_dep_type, const struct DDS_XTypes_TypeIdentifier *dep_tid, bool from_type_info)
 {
+  dds_return_t ret = DDS_RETCODE_OK;
   struct ddsi_typeid dep_type_id;
   dep_type_id.x = *dep_tid;
   struct ddsi_type_dep *dep = ddsrt_calloc (1, sizeof (*dep));
@@ -499,7 +500,11 @@ static void ddsi_type_register_dep_impl (struct ddsi_domaingv *gv, const ddsi_ty
     dep->from_type_info = from_type_info;
     ddsrt_avl_insert (&ddsi_typedeps_treedef, &gv->typedeps, dep);
     ddsrt_avl_insert (&ddsi_typedeps_reverse_treedef, &gv->typedeps_reverse, dep);
-    ddsi_type_ref_id_locked (gv, dst_dep_type, &dep_type_id);
+    if ((ret = ddsi_type_ref_id_locked (gv, dst_dep_type, &dep_type_id)) != DDS_RETCODE_OK)
+    {
+      ddsrt_avl_delete (&ddsi_typedeps_treedef, &gv->typedeps, dep);
+      ddsrt_avl_delete (&ddsi_typedeps_reverse_treedef, &gv->typedeps_reverse, dep);
+    }
   }
   else
   {
@@ -507,15 +512,20 @@ static void ddsi_type_register_dep_impl (struct ddsi_domaingv *gv, const ddsi_ty
     ddsi_typeid_fini (&dep->dep_type_id);
     ddsrt_free (dep);
     if (!from_type_info)
-      ddsi_type_ref_id_locked (gv, dst_dep_type, &dep_type_id);
+      ret = ddsi_type_ref_id_locked (gv, dst_dep_type, &dep_type_id);
     else
+    {
       *dst_dep_type = ddsi_type_lookup_locked (gv, &dep_type_id);
+      if (*dst_dep_type == NULL)
+        ret = DDS_RETCODE_ERROR;
+    }
   }
+  return ret;
 }
 
-void ddsi_type_register_dep (struct ddsi_domaingv *gv, const ddsi_typeid_t *src_type_id, struct ddsi_type **dst_dep_type, const struct DDS_XTypes_TypeIdentifier *dep_tid)
+dds_return_t ddsi_type_register_dep (struct ddsi_domaingv *gv, const ddsi_typeid_t *src_type_id, struct ddsi_type **dst_dep_type, const struct DDS_XTypes_TypeIdentifier *dep_tid)
 {
-  ddsi_type_register_dep_impl (gv, src_type_id, dst_dep_type, dep_tid, false);
+  return ddsi_type_register_dep_impl (gv, src_type_id, dst_dep_type, dep_tid, false);
 }
 
 static dds_return_t type_add_deps (struct ddsi_domaingv *gv, struct ddsi_type *type, const ddsi_typeinfo_t *type_info, const ddsi_typemap_t *type_map, ddsi_typeid_kind_t kind, uint32_t *n_match_upd, struct ddsi_generic_proxy_endpoint ***gpe_match_upd)
@@ -537,7 +547,13 @@ static dds_return_t type_add_deps (struct ddsi_domaingv *gv, struct ddsi_type *t
       continue;
 
     struct ddsi_type *dst_dep_type = NULL;
-    ddsi_type_register_dep_impl (gv, &type->xt.id, &dst_dep_type, dep_type_id, true);
+    if ((ret = ddsi_type_register_dep_impl (gv, &type->xt.id, &dst_dep_type, dep_type_id, true)) != DDS_RETCODE_OK)
+    {
+      /* If an error occurs, stop registering deps. The type will be finalized later, that
+         will clean up the dependencies that are already added at this point */
+      type->state = DDSI_TYPE_INVALID;
+      return ret;
+    }
     assert (dst_dep_type);
     if (!type_map || ddsi_type_resolved_locked (gv, dst_dep_type, DDSI_TYPE_IGNORE_DEPS))
       continue;
