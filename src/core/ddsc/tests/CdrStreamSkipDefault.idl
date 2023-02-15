@@ -1,0 +1,45 @@
+/*
+ * Copyright(c) 2006 to 2022 ZettaScale Technology and others
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Eclipse Public License v. 2.0 which is available at
+ * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+ * v. 1.0 which is available at
+ * http://www.eclipse.org/org/documents/edl-v10.php.
+ *
+ * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+ */
+module CdrStreamSkipDefault {
+
+  // t1
+  @appendable @nested struct t1_append { long s1; string s2; sequence<string> s3; };
+  @appendable struct t1_pub { long f1; };
+  @appendable struct t1_sub { long f1; t1_append f2; };
+
+  // t2
+  @mutable @nested struct t2_mutable { long s1; string s2; uint64 s3; @external long s4; };
+  @appendable struct t2_pub { long f1; };
+  @appendable struct t2_sub { long f1; t2_mutable f2; double f3; };
+
+  // t3
+  @mutable @nested struct t3_sub2 { string s1; sequence<long> s2; };
+  @mutable @nested struct t3_sub1 { long s1; t3_sub2 s2; };
+  @mutable struct t3_pub { long f1; };
+  @mutable struct t3_sub { long f1; t3_sub1 f2; double f3; t3_sub2 f4; };
+
+  // t4
+  enum t4_enum { E4_1, E4_2 };
+  @appendable @nested struct t4_sub2 { t4_enum s1; @external sequence<long> s2; };
+  @appendable @nested struct t4_sub1 { long s1; t4_sub2 s2; };
+  @mutable struct t4_pub { long f1; };
+  @mutable struct t4_sub { long f1; t4_sub1 f2; double f3; t4_sub2 f4; };
+
+  // t5
+  @appendable @nested struct t5_pub1 { long s1; };
+  @mutable struct t5_pub { long f1; t5_pub1 f2; };
+
+  @appendable @nested struct t5_sub2 { long s1; sequence<long> s2; };
+  @appendable @nested struct t5_sub1 { long s1; t5_sub2 s2; };
+  @mutable struct t5_sub { long f1; t5_sub1 f2; };
+
+};
