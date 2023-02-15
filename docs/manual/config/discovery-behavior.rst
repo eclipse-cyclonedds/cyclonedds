@@ -14,18 +14,18 @@ Discovery behaviour
 Proxy participants and endpoints
 ********************************
 
-In the |url::ddsi_spec|, |var-project| is known as a *stateful* implementation. Writers 
-only send data to discovered Readers, and Readers only accept data from discovered
-Writers. There is one exception: the ``Writer`` may choose to multicast the data so 
-that any Reader is able to receive it. If a Reader has already discovered the Writer 
+In the |url::ddsi_spec|, |var-project| is known as a *stateful* implementation. writers 
+only send data to discovered readers, and readers only accept data from discovered
+writers. There is one exception: the ``writer`` may choose to multicast the data so 
+that any reader is able to receive it. If a reader has already discovered the writer 
 but not vice-versa, it can accept the data even though the connection is not fully 
 established. 
 
 Such asymmetrical discovery can cause data to be delivered when it is not expected, 
 which can also cause indefinite blocking. To avoid this, |var-project| internally 
-creates a proxy for each remote participant and Reader or Writer. In the discovery 
-process, Writers are matched with proxy Readers, and Readers are matched with proxy 
-Writers, based on the topic name, type name, and the QoS settings.
+creates a proxy for each remote participant and reader or writer. In the discovery 
+process, writers are matched with proxy readers, and readers are matched with proxy 
+writers, based on the topic name, type name, and the :ref:`QoS <qos_bm>` settings.
 
 Proxies have the same natural hierarchy as 'normal' DDSI entities. Each proxy endpoint 
 is owned by a proxy participant. When a proxy participant is deleted, all of its proxy 
@@ -76,57 +76,57 @@ participant or endpoint, it can generate some redundant network traffic.
 Lingering writers
 *****************
 
-When an application deletes a reliable DCPS Writer, there is no guarantee that all
-its Readers have already acknowledged the correct receipt of all samples. |var-project| 
-lets the Writer (and the owning participant if necessary) linger in the system for some time, 
-controlled by the :ref:`Internal/WriterLingerDuration <//CycloneDDS/Domain/Internal/WriterLingerDuration>` 
-option. The Writer is deleted when all Readers have acknowledged all samples, or the
+When an application deletes a reliable DCPS writer, there is no guarantee that all
+its readers have already acknowledged the correct receipt of all samples. |var-project| 
+lets the writer (and the owning participant if necessary) linger in the system for some time, 
+controlled by the :ref:`Internal/writerLingerDuration <//CycloneDDS/Domain/Internal/writerLingerDuration>` 
+option. The writer is deleted when all readers have acknowledged all samples, or the
 linger duration has elapsed, whichever comes first.
 
 .. note::
 
-  The Writer linger duration setting is not applied when |var-project|
+  The writer linger duration setting is not applied when |var-project|
   is requested to terminate.
 
-.. _`Writer history QoS and throttling`:
+.. _`writer history QoS and throttling`:
 
-.. index:: ! Writer History Cache
+.. index:: ! writer History Cache
 
 *********************************
 Writer history QoS and throttling
 *********************************
 
-The |url::ddsi_spec| relies on the Writer History Cache (WHC), in which a sequence number 
+The |url::ddsi_spec| relies on the writer History Cache (WHC), in which a sequence number 
 uniquely identifies each sample. The WHC integrates two different indices on the samples 
-published by a Writer: 
+published by a writer: 
 
 - The **sequence number** index is used for re-transmitting lost samples, and is therefore needed 
-  for all reliable Writers (see :ref:`reliable_coms`).
+  for all reliable writers (see :ref:`reliable_coms`).
    
 - The **key value** index is used for retaining the current state of each instance in the WHC.
   
 When a new sample overwrites the state of an instance, the key value index allows dropping 
 samples from the sequence number index. For transient-local behaviour (see 
 :ref:`DDSI-specific transient-local behaviour`), the key value index also allows retaining 
-the current state of each instance even when all Readers have acknowledged a sample.
+the current state of each instance even when all readers have acknowledged a sample.
 
 Transient-local data always requires the key values index, and by default is also 
-used for other Writers that have a history setting of ``KEEP_LAST``. The advantage of an 
+used for other writers that have a history setting of ``KEEP_LAST``. The advantage of an 
 index on key value is that superseded samples can be dropped aggressively, instead of 
-delivering them to all Readers. The disadvantage is that it is somewhat more resource-intensive.
+delivering them to all readers. The disadvantage is that it is somewhat more resource-intensive.
 
 The WHC distinguishes between:
 
-- History to be retained for existing Readers (controlled by the Writer's history QoS setting).
+- History to be retained for existing readers (controlled by the writer's history QoS setting).
 - History to be retained for late-joining readers for transient-local writers (controlled by 
   the topic's durability-service history QoS setting). 
 
-It is therefore possible to create a Writer that never overwrites samples for live readers, 
+It is therefore possible to create a writer that never overwrites samples for live readers, 
 while maintaining only the most recent samples for late-joining readers. This ensures that 
 the data that is available for late-joining readers is the same for transient-local and for 
 transient data.
 
-.. Index:: ! Writer throttling
+.. Index:: ! writer throttling
 
 Writer throttling
 =================
@@ -134,7 +134,7 @@ Writer throttling
 Writer throttling is based on the WHC size. The following settings control writer throttling:
 
 When the WHC contains at least ``high`` bytes in unacknowledged samples, it stalls the 
-Writer until the number of bytes in unacknowledged samples drops below the value set in: 
+writer until the number of bytes in unacknowledged samples drops below the value set in: 
 :ref:`Internal/Watermarks/WhcLow <//CycloneDDS/Domain/Internal/Watermarks/WhcLow>`.
 
 Based on the transmit pressure and receive re-ransmit requests, the value of ``high`` is 

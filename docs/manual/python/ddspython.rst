@@ -9,26 +9,26 @@
 
    SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
-.. index::
-   single: C API reference
-   single: API; C reference
+.. include:: ../external-links.part.rst
 
-C API reference
-===============
+.. index:: 
+   single: Python; API reference
+   single: API; Python reference
+
+.. _py_api_ref_bm:
+
+====================
+Python API reference
+====================
+
+To install Python, refer to :ref:`installing_python`. 
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
-   api/basics
-   api/entity
-   api/qos
-   api/domain
-   api/topic
-   api/data
-   api/status_conditions
-   api/builtin
-   api/statistics
-   api/alloc
-   api/serialization
-   api/internal
-   api/deprecated
+   py_api_link
+   py_tutorial
+   py_idl
+   py_cltools
+
+

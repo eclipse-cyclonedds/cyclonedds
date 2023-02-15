@@ -14,14 +14,27 @@
    :maxdepth: 1
    :hidden:
 
-   performance
    data_centric_architecture
+   domainparticipants
+   topics
+   publishers
+   subscribers
+   datareaders
+   datawriters
+   qos
+   listener
+   waitset
+   status
+   performance
+   idl
+   ddsi_concepts
+   contributing
 
 |var-project| is a performant and robust OMG-compliant **Data Distribution Service** 
 (DDS) implementation (see |url::dds_spec|). |var-project-short| is developed 
 completely in the open as an Eclipse IoT project (see |url::cyclone_dds-link|) with a 
-growing list of |url::cyclone_adopters| (if you're one of them, please add your 
-|url::cyclone_git_logo|. It is a tier-1 middleware for the Robot Operating System |url::ros2|.
+growing list of |url::cyclone_adopters|. It is a tier-1 middleware for the Robot 
+Operating System |url::ros2|.
 
 The core of |var-project-short| is implemented in C and provides C-APIs to applications. 
 Through its C++ package, the |url::omg.org| 2003 language binding is also supported.
@@ -84,7 +97,7 @@ but our |url::python-link2| allows you to define data types on the fly:
       sleep(rng.exponential())
 
 Today DDS is also popular in robotics and autonomous vehicles because those really 
-depend on high-throuhgput, low-latency control systems without introducing a single 
+depend on high-throughput, low-latency control systems without introducing a single 
 point of failure by having a message broker in the middle. Indeed, it is by far the 
 most used and the default middleware choice in ROS 2. It is used to transfer commands, 
 sensor data and even video and point clouds between components.
@@ -125,4 +138,6 @@ With references to the individual OMG specifications, the following is available
 
 The network stack in Cyclone DDS has been around for over a decade in one form or 
 another and has proven itself in many systems, including large, high-availability 
-ones and systems where interoperation with other implementations was needed.
+ones and systems where inter-operation with other implementations was needed.
+
+.. include:: disclaimer.part.rst

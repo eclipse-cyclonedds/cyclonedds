@@ -16,12 +16,7 @@ Getting Started
    :maxdepth: 2
    :caption: Contents
 
-   installation/installation
    helloworld/helloworld
-   py_tutorial/index
-   installation/benchmarking
-   contributing
+   py_tutorial_link
 
-
-.. include:: disclaimer.part.rst
 

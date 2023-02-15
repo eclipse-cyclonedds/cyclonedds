@@ -9,26 +9,20 @@
 
    SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
-.. index::
-   single: C API reference
-   single: API; C reference
+.. include:: ../external-links.part.rst
 
-C API reference
-===============
+.. index:: 
+   single: C++; API reference
+   single: API; C++ reference
+
+.. _cpp_api_ref_bm:
+
+=================
+C++ API reference
+=================
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
-   api/basics
-   api/entity
-   api/qos
-   api/domain
-   api/topic
-   api/data
-   api/status_conditions
-   api/builtin
-   api/statistics
-   api/alloc
-   api/serialization
-   api/internal
-   api/deprecated
+   cpp_api_link
+   cpp_custom_containers

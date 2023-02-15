@@ -1,9 +1,19 @@
+.. index:: Python: Tutorial
+
+.. _py_tutorial:
+
 ###############
 Python Tutorial
 ###############
 
-Let's enter the world of DDS by making our presence known. We will not worry about configuration or what DDS does under the hood but write a single message.
-To publish anything to DDS we need to define the type of message first. Suppose you are worried about talking to other applications that are not necessarily running Python. In that case, you will use the  IDL compiler, but for now, we will manually define our message type directly in Python using the ``cyclonedds.idl`` tools:
+This tutorial describes how to write a single message. To publish anything to DDS it 
+is necessary to first define the type of message. 
+
+.. note::
+    In order to talk to other applications that are not necessarily running Python, 
+    use the IDL compiler.
+
+To manually define a message type in Python using the ``cyclonedds.idl`` tools:
 
 .. code-block:: python3
     :linenos:
@@ -19,13 +29,15 @@ To publish anything to DDS we need to define the type of message first. Suppose 
     name = input("What is your name? ")
     message = Message(text=f"{name} has started his first DDS Python application!")
 
-
-With ``cyclonedds.idl`` write typed classes with the standard library module `dataclasses <python:dataclasses>`. For this simple application, the data being transmitted only contains a piece of text, but this system has the same expressive power as the OMG IDL specification, allowing you to use almost any complex datastructure.
+With ``cyclonedds.idl`` write typed classes with the standard library module 
+`dataclasses <python:dataclasses>`. For this simple application, the data being 
+transmitted only contains a piece of text, but this system has the same expressive 
+power as the OMG IDL specification, allowing you to use almost any complex datastructure.
 
 To send your message over a DDS domain, carry out the following steps:
 
 1. Join the DDS network using a DomainParticipant
-2. Define which data type and under what name you will publish your message as a Topic
+2. Define which data type and under what name you will publish your message as a topic
 3. Create the ``DataWriter`` that publishes that Topic
 4. And finally, publish the message.
 
@@ -42,7 +54,10 @@ To send your message over a DDS domain, carry out the following steps:
 
     writer.write(message)
 
-You have now published your first message successfully! However, it is hard to tell if that did anything since we don't have anything set up to listen for incoming messages. Let's make a second script that takes messages from DDS and prints them to the terminal:
+You have now published your first message successfully! However, it is hard to tell 
+if that did anything since we don't have anything set up to listen for incoming 
+messages. Let's make a second script that takes messages from DDS and prints them 
+to the terminal:
 
 .. code-block:: python3
     :linenos:
@@ -66,4 +81,5 @@ You have now published your first message successfully! However, it is hard to t
     for msg in reader.take_iter(timeout=duration(minutes=5)):
         print(msg.text)
 
-Now with this script running in a second terminal, you should see the message pop up when you rerun the first script.
+Now with this script running in a second terminal, you should see the message pop up 
+when you rerun the first script.
