@@ -1768,6 +1768,13 @@ static const uint32_t *dds_stream_skip_adr_default (uint32_t insn, char * __rest
   void *addr = data + ops[1];
   /* FIXME: currently only implicit default values are used, this code should be
      using default values that are specified in the type definition */
+
+  if (op_type_external (insn))
+  {
+    *(void **) addr = NULL;
+    return dds_stream_skip_adr (insn, ops);
+  }
+
   switch (DDS_OP_TYPE (insn))
   {
     case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: *(uint8_t *) addr = 0; return ops + 2;
@@ -1810,7 +1817,73 @@ static const uint32_t *dds_stream_skip_adr_default (uint32_t insn, char * __rest
       break;
     }
   }
+
   return NULL;
+}
+
+static const uint32_t *dds_stream_skip_delimited_default (char * __restrict data, const uint32_t * __restrict ops)
+{
+  return dds_stream_skip_default (data, ++ops);
+}
+
+static void dds_stream_skip_pl_member_default (char * __restrict data, const uint32_t * __restrict ops)
+{
+  uint32_t insn;
+  while ((insn = *ops) != DDS_OP_RTS)
+  {
+    switch (DDS_OP (insn))
+    {
+      case DDS_OP_ADR: {
+        ops = dds_stream_skip_default (data, ops);
+        break;
+      }
+      case DDS_OP_JSR:
+        dds_stream_skip_pl_member_default (data, ops + DDS_OP_JUMP (insn));
+        ops++;
+        break;
+      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF:
+      case DDS_OP_DLC: case DDS_OP_PLC: case DDS_OP_PLM:
+        abort ();
+        break;
+    }
+  }
+}
+
+static const uint32_t *dds_stream_skip_pl_memberlist_default (char * __restrict data, const uint32_t * __restrict ops)
+{
+  uint32_t insn;
+  while (ops && (insn = *ops) != DDS_OP_RTS)
+  {
+    switch (DDS_OP (insn))
+    {
+      case DDS_OP_PLM: {
+        uint32_t flags = DDS_PLM_FLAGS (insn);
+        const uint32_t *plm_ops = ops + DDS_OP_ADR_PLM (insn);
+        if (flags & DDS_OP_FLAG_BASE)
+        {
+          assert (plm_ops[0] == DDS_OP_PLC);
+          plm_ops++; /* skip PLC op to go to first PLM for the base type */
+          (void) dds_stream_skip_pl_memberlist_default (data, plm_ops);
+        }
+        else
+        {
+          dds_stream_skip_pl_member_default (data, plm_ops);
+        }
+        ops += 2;
+        break;
+      }
+      default:
+        abort (); /* other ops not supported at this point */
+        break;
+    }
+  }
+  return ops;
+}
+
+static const uint32_t *dds_stream_skip_pl_default (char * __restrict data, const uint32_t * __restrict ops)
+{
+  /* skip PLC op */
+  return dds_stream_skip_pl_memberlist_default (data, ++ops);
 }
 
 static const uint32_t *dds_stream_skip_default (char * __restrict data, const uint32_t * __restrict ops)
@@ -1829,10 +1902,15 @@ static const uint32_t *dds_stream_skip_default (char * __restrict data, const ui
         ops++;
         break;
       }
-      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_DLC: case DDS_OP_PLC: case DDS_OP_PLM: {
+      case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_PLM:
         abort ();
         break;
-      }
+      case DDS_OP_DLC:
+        ops = dds_stream_skip_delimited_default (data, ops);
+        break;
+      case DDS_OP_PLC:
+        ops = dds_stream_skip_pl_default (data, ops);
+        break;
     }
   }
   return ops;
