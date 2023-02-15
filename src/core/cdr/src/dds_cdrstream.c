@@ -1041,7 +1041,7 @@ static const uint32_t *skip_array_default (uint32_t insn, char * __restrict data
     case DDS_OP_VAL_ENU: case DDS_OP_VAL_BMK: {
       const uint32_t elem_size = DDS_OP_TYPE_SZ (insn);
       memset (data, 0, num * elem_size);
-      return ops + 3 + (subtype == DDS_OP_VAL_BMK ? 1 : 0);
+      return ops + 4 + (subtype == DDS_OP_VAL_BMK ? 1 : 0);
     }
     case DDS_OP_VAL_STR: {
       char **ptr = (char **) data;
@@ -1670,9 +1670,9 @@ static inline const uint32_t *dds_stream_read_adr (uint32_t insn, dds_istream_t 
   void *addr = data + ops[1];
   if (!stream_is_member_present (insn, is, is_mutable_member))
   {
-    (void) stream_free_sample_adr (insn, data, ops);
+    ops = stream_free_sample_adr (insn, data, ops);
     *(char **) addr = NULL;
-    return dds_stream_skip_adr (insn, ops);
+    return ops;
   }
 
   if (op_type_external (insn))
@@ -1769,10 +1769,14 @@ static const uint32_t *dds_stream_skip_adr_default (uint32_t insn, char * __rest
   /* FIXME: currently only implicit default values are used, this code should be
      using default values that are specified in the type definition */
 
-  if (op_type_external (insn))
+  /* Free memory in sample and set pointer to null in case of optional or external member.
+     test for optional (which also gets the external flag) is added because string type
+     is the exception for this rule, that does not get the external flag */
+  if (op_type_external (insn) || op_type_optional (insn))
   {
-    *(void **) addr = NULL;
-    return dds_stream_skip_adr (insn, ops);
+    ops = stream_free_sample_adr(insn, data, ops);
+    *(char **) addr = NULL;
+    return ops;
   }
 
   switch (DDS_OP_TYPE (insn))
@@ -1979,6 +1983,10 @@ static const uint32_t *dds_stream_read_pl (dds_istream_t * __restrict is, char *
 {
   /* skip PLC op */
   ops++;
+
+  /* default-initialize all members
+      FIXME: optimize so that only members not in received data are initialized */
+  dds_stream_skip_pl_memberlist_default (data, ops);
 
   /* read DHEADER */
   uint32_t pl_sz = dds_is_get4 (is), pl_offs = is->m_index;
