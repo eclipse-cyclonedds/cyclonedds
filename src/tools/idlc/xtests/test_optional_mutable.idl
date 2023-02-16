@@ -26,6 +26,13 @@ struct test_opt_base {
   @optional long b1n;
 };
 
+@bit_bound(15)
+bitmask bm16 {
+  @position(1) BM_1,
+  @position(10) BM_10,
+  BM_11
+};
+
 @topic @mutable
 struct test_opt : test_opt_base {
   @optional long f1;
@@ -40,6 +47,8 @@ struct test_opt : test_opt_base {
   @optional short f5n[2][3];
   @optional sequence<seqlong_t> f6;
   @optional sequence<seqlong_t> f6n;
+  @optional bm16 f7[2];
+  @optional bm16 f7n[2];
 };
 
 #else
@@ -86,6 +95,11 @@ void init_sample (void *s)
     s1->f6->_buffer[n]._buffer[1] = 20 * n + 10;
   }
   s1->f6n = NULL;
+
+  A (s1->f7);
+  (*(s1->f7))[0] = BM_10;
+  (*(s1->f7))[1] = BM_1;
+  s1->f7n = NULL;
 }
 
 int cmp_sample (const void *sa, const void *sb)
@@ -119,6 +133,10 @@ int cmp_sample (const void *sa, const void *sb)
     CMP(a, b, f6->_buffer[n]._buffer[1], 20 * n + 10);
   }
   CMP (a, b, f6n, NULL);
+
+  CMPEXTA (a, b, f7, 0, BM_10);
+  CMPEXTA (a, b, f7, 1, BM_1);
+  CMP (a, b, f7n, NULL);
 
   return 0;
 }

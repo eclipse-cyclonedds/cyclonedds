@@ -51,7 +51,7 @@ typedef bm8 b;
 typedef bm16 b_arr[50];
 typedef sequence<bm> b_seq_arr[2];
 
-@topic @final
+@topic @mutable
 struct test_bitmask {
   @key bm f1;
   @key bm8 f2;
