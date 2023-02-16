@@ -1669,11 +1669,7 @@ static inline const uint32_t *dds_stream_read_adr (uint32_t insn, dds_istream_t 
 {
   void *addr = data + ops[1];
   if (!stream_is_member_present (insn, is, is_mutable_member))
-  {
-    ops = stream_free_sample_adr (insn, data, ops);
-    *(char **) addr = NULL;
-    return ops;
-  }
+    return stream_free_sample_adr (insn, data, ops);
 
   if (op_type_external (insn))
     dds_stream_alloc_external (ops, insn, &addr);
@@ -1773,11 +1769,7 @@ static const uint32_t *dds_stream_skip_adr_default (uint32_t insn, char * __rest
      test for optional (which also gets the external flag) is added because string type
      is the exception for this rule, that does not get the external flag */
   if (op_type_external (insn) || op_type_optional (insn))
-  {
-    ops = stream_free_sample_adr(insn, data, ops);
-    *(char **) addr = NULL;
-    return ops;
-  }
+    return stream_free_sample_adr(insn, data, ops);
 
   switch (DDS_OP_TYPE (insn))
   {
@@ -3244,23 +3236,16 @@ static const uint32_t *dds_stream_free_sample_pl (char * __restrict addr, const 
   return ops;
 }
 
-static const uint32_t *stream_free_sample_adr (uint32_t insn, void * __restrict data, const uint32_t * __restrict ops)
+static const uint32_t *stream_free_sample_adr_nonexternal (uint32_t insn, void * __restrict addr, void * __restrict data, const uint32_t * __restrict ops)
 {
   assert (DDS_OP (insn) == DDS_OP_ADR);
-  void *addr = (char *) data + ops[1];
-
-  if (op_type_external (insn))
-  {
-    addr = *(char **) addr;
-    if (!addr)
-      return dds_stream_skip_adr (insn, ops);
-  }
 
   switch (DDS_OP_TYPE (insn))
   {
     case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: ops += 2; break;
     case DDS_OP_VAL_STR: {
       dds_free (*((char **) addr));
+      *(char **) addr = NULL;
       ops += 2;
       break;
     }
@@ -3281,13 +3266,32 @@ static const uint32_t *stream_free_sample_adr (uint32_t insn, void * __restrict 
       break;
   }
 
-  /* free buffer of the external member */
-  if (op_type_external (insn))
-  {
-    dds_free (addr);
-    addr = NULL;
-  }
+  return ops;
+}
 
+static const uint32_t *stream_free_sample_adr (uint32_t insn, void * __restrict data, const uint32_t * __restrict ops)
+{
+  assert (DDS_OP (insn) == DDS_OP_ADR);
+  if (!op_type_external (insn))
+  {
+    void *addr = (char *) data + ops[1];
+    ops = stream_free_sample_adr_nonexternal (insn, addr, data, ops);
+  }
+  else
+  {
+    void **ext_addr = (void **) ((char *) data + ops[1]);
+    void *addr = *ext_addr;
+    if (addr == NULL)
+    {
+      ops = dds_stream_skip_adr (insn, ops);
+    }
+    else
+    {
+      ops = stream_free_sample_adr_nonexternal (insn, addr, data, ops);
+      dds_free (*ext_addr);
+      *ext_addr = NULL;
+    }
+  }
   return ops;
 }
 
