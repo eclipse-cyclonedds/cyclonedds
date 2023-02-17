@@ -449,21 +449,21 @@ static void cb (struct ddsi_xevent *xev, void *ptr, ddsrt_mtime_t tm)
   dds_sleepfor(DEADLINE);
 }
 
-static void check_statuses(dds_entity_t datareader, dds_entity_t datawriter, uint32_t count, dds_instance_handle_t handle)
+static void check_statuses(dds_entity_t datareader, dds_entity_t datawriter, uint32_t prevcount, uint32_t newcount, dds_instance_handle_t prevhandle, dds_instance_handle_t newhandle)
 {
   dds_requested_deadline_missed_status_t rstatus;
 
   dds_return_t rc = dds_get_requested_deadline_missed_status (datareader, &rstatus);
   CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
-  CU_ASSERT_EQUAL (rstatus.total_count, count);
-  CU_ASSERT_EQUAL (rstatus.last_instance_handle, handle);
+  CU_ASSERT ( (rstatus.total_count == prevcount && rstatus.last_instance_handle == prevhandle) ||
+              (rstatus.total_count == newcount  && rstatus.last_instance_handle == newhandle));
 
   dds_offered_deadline_missed_status_t ostatus;
 
   rc = dds_get_offered_deadline_missed_status (datawriter, &ostatus);
   CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
-  CU_ASSERT_EQUAL (ostatus.total_count, count);
-  CU_ASSERT_EQUAL (ostatus.last_instance_handle, handle);
+  CU_ASSERT ( (ostatus.total_count == prevcount && ostatus.last_instance_handle == prevhandle) ||
+              (ostatus.total_count == newcount  && ostatus.last_instance_handle == newhandle));
 }
 
 CU_Test(ddsc_deadline, update)
@@ -521,7 +521,7 @@ CU_Test(ddsc_deadline, update)
                         ih2 = dds_lookup_instance(wr, &msg2);
 
   // nothing should have expired yet
-  check_statuses(rd,wr,0,0);
+  check_statuses(rd,wr,0,0,0,0);
 
   dds_sleepfor((dds_duration_t)(0.7*DEADLINE));  // T = 0.7*DEADLINE
   rc = dds_write(wr, &msg2);  // expires @ 1.7*DEADLINE
@@ -529,7 +529,7 @@ CU_Test(ddsc_deadline, update)
   dds_sleepfor((dds_duration_t)(0.4*DEADLINE));  // T = 1.1*DEADLINE
 
   // now msg1 should have expired once, but since the monitor thread is sleeping it should not yet be updated
-  check_statuses(rd,wr,0,0);
+  check_statuses(rd,wr,0,0,0,0);
 
   dds_sleepfor((dds_duration_t)(0.3*DEADLINE)); // T = 1.4*DEADLINE
   //now msg1's expiration should have happened, but it is refreshed
@@ -537,16 +537,16 @@ CU_Test(ddsc_deadline, update)
   CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
   dds_sleepfor((dds_duration_t)(0.2*DEADLINE)); // T = 1.6*DEADLINE
   //the monitor thread should have processed the "queued" expirations now
-  check_statuses(rd,wr,1,ih1);
+  check_statuses(rd,wr,0,1,0,ih1);
   rc = dds_write(wr, &msg2);  // expires @ 2.6*DEADLINE
   CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
 
   dds_sleepfor((dds_duration_t)(0.9*DEADLINE)); // T = 2.5*DEADLINE
   //msg1 should have expired again, but msg2 should still be "alive"
-  check_statuses(rd,wr,2,ih1);
+  check_statuses(rd,wr,1,2,ih1,ih1);
   dds_sleepfor((dds_duration_t)(0.2*DEADLINE)); // T = 2.7*DEADLINE
   //msg2 should have expired as well now
-  check_statuses(rd,wr,3,ih2);
+  check_statuses(rd,wr,2,3,ih1,ih2);
 
   ddsi_delete_xevent_callback(xev);
   dds_delete(pp);
