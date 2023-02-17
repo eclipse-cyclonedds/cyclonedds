@@ -34,7 +34,7 @@ ddsrt_mtime_t ddsi_deadline_next_missed_locked (struct ddsi_deadline_adm *deadli
   {
     struct ddsrt_circlist_elem *list_elem = ddsrt_circlist_oldest (&deadline_adm->list);
     elem = DDSRT_FROM_CIRCLIST (struct deadline_elem, e, list_elem);
-    if (elem->t_deadline.v <= tnow.v)
+    if (elem->t_deadline.v <= tnow.v || elem->deadlines_missed)
     {
       ddsrt_circlist_remove (&deadline_adm->list, &elem->e);
       if (instance != NULL)
@@ -108,22 +108,12 @@ void ddsi_deadline_renew_instance_real (struct ddsi_deadline_adm *deadline_adm, 
      the callback the deadline (which will be the updated value) will be
      checked for expiry */
   ddsrt_mtime_t updatetime = ddsrt_time_monotonic();
-  int64_t deadlines_missed = (updatetime.v - elem->t_last_trigger.v)/deadline_adm->dur;
-  if (deadlines_missed > 0)
-  {
-    if ((deadlines_missed + elem->deadlines_missed) > UINT32_MAX)
-    {
-      assert(false);
-      elem->deadlines_missed = UINT32_MAX;
-    }
-    else
-    {
-      elem->deadlines_missed += (uint32_t)deadlines_missed;
-    }
-  }
-
-  ddsrt_circlist_remove(&deadline_adm->list, &elem->e);
+  int64_t newdeadlines = (updatetime.v - elem->t_last_trigger.v)/deadline_adm->dur;
+  elem->deadlines_missed += newdeadlines > 0 ? (uint64_t)newdeadlines : 0;
   elem->t_last_trigger = updatetime;
-  elem->t_deadline = ddsrt_mtime_add_duration(updatetime, deadline_adm->dur);
-  ddsrt_circlist_append(&deadline_adm->list, &elem->e);
+  if (elem->deadlines_missed == 0) {
+    ddsrt_circlist_remove(&deadline_adm->list, &elem->e);
+    elem->t_deadline = ddsrt_mtime_add_duration(updatetime, deadline_adm->dur);
+    ddsrt_circlist_append(&deadline_adm->list, &elem->e);
+  }
 }
