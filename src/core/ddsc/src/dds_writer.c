@@ -393,7 +393,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   if (pub->m_entity.m_qos)
     ddsi_xqos_mergein_missing (wqos, pub->m_entity.m_qos, ~DDSI_QP_ENTITY_NAME);
   if (tp->m_ktopic->qos)
-    ddsi_xqos_mergein_missing (wqos, tp->m_ktopic->qos, ~DDSI_QP_ENTITY_NAME);
+    ddsi_xqos_mergein_missing (wqos, tp->m_ktopic->qos, (DDS_WRITER_QOS_MASK | DDSI_QP_TOPIC_DATA) & ~DDSI_QP_ENTITY_NAME);
   ddsi_xqos_mergein_missing (wqos, &ddsi_default_qos_writer, ~DDSI_QP_DATA_REPRESENTATION);
   dds_apply_entity_naming(wqos, pub->m_entity.m_qos, gv);
 

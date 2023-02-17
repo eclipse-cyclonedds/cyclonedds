@@ -17,6 +17,7 @@
 #include "dds/ddsrt/process.h"
 #include "dds/ddsrt/threads.h"
 
+#include "dds__entity.h"
 #include "test_common.h"
 
 /**************************************************************************************************
@@ -309,6 +310,37 @@ CU_Test(ddsc_reader_create, participant_mismatch)
     dds_delete(par1);
 }
 /*************************************************************************************************/
+
+CU_Test(ddsc_reader_create, topic_lifespan)
+{
+  dds_return_t rc;
+  dds_entity_t pp = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
+  CU_ASSERT_FATAL (pp > 0);
+  char name[100];
+  dds_qos_t *qos = dds_create_qos ();
+  CU_ASSERT_FATAL (qos != NULL);
+  assert (qos);
+  dds_qset_lifespan (qos, DDS_SECS (3)); // value doesn't matter
+  create_unique_topic_name ("ddsc_reader_create_topic_lifespan", name, sizeof name);
+  dds_entity_t tp = dds_create_topic (pp, &Space_Type1_desc, name, qos, NULL);
+  dds_delete_qos (qos);
+  CU_ASSERT_FATAL (tp > 0);
+  dds_entity_t rd = dds_create_reader (pp, tp, NULL, NULL);
+  CU_ASSERT_FATAL (rd > 0);
+  
+  // need to look at the QoS object as it is actually stored: we don't want to
+  // overlook the LIFESPAN making it into the reader and then not observing it
+  // because get_qos does something funny
+  struct dds_entity *x;
+  rc = dds_entity_pin (rd, &x);
+  assert (rc == DDS_RETCODE_OK);
+  CU_ASSERT_FATAL (rc == 0);
+  CU_ASSERT_FATAL (x->m_qos != NULL);
+  CU_ASSERT (!dds_qget_lifespan (x->m_qos, NULL));
+  dds_entity_unpin (x);
+  rc = dds_delete (pp);
+  CU_ASSERT_FATAL (rc == 0);
+}
 
 
 

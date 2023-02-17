@@ -624,7 +624,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
   if (sub->m_entity.m_qos)
     ddsi_xqos_mergein_missing (rqos, sub->m_entity.m_qos, ~DDSI_QP_ENTITY_NAME);
   if (tp->m_ktopic->qos)
-    ddsi_xqos_mergein_missing (rqos, tp->m_ktopic->qos, ~DDSI_QP_ENTITY_NAME);
+    ddsi_xqos_mergein_missing (rqos, tp->m_ktopic->qos, (DDS_READER_QOS_MASK | DDSI_QP_TOPIC_DATA) & ~DDSI_QP_ENTITY_NAME);
   ddsi_xqos_mergein_missing (rqos, &ddsi_default_qos_reader, ~DDSI_QP_DATA_REPRESENTATION);
   dds_apply_entity_naming(rqos, sub->m_entity.m_qos, gv);
 
