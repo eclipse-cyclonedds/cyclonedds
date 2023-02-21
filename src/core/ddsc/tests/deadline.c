@@ -471,7 +471,9 @@ CU_Test(ddsc_deadline, update)
   dds_entity_t pp = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
   CU_ASSERT_FATAL(pp > 0);
 
-  dds_entity_t tp = dds_create_topic(pp, &Space_Type1_desc, "abc_def", NULL, NULL);
+  char topicname[100];
+  create_unique_topic_name ("ddsc_deadline_update", topicname, sizeof topicname);
+  dds_entity_t tp = dds_create_topic(pp, &Space_Type1_desc, topicname, NULL, NULL);
   CU_ASSERT_FATAL(tp > 0);
 
   //qos
