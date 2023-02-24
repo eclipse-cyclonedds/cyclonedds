@@ -35,8 +35,8 @@ struct ddsi_deadline_adm {
 struct deadline_elem {
   struct ddsrt_circlist_elem e;
   ddsrt_mtime_t t_deadline;
-  ddsrt_mtime_t t_last_trigger;
-  uint64_t deadlines_missed;
+  ddsrt_mtime_t t_last_update;
+  uint32_t deadlines_missed;
 };
 
 /** @component deadline_qos */
@@ -74,7 +74,7 @@ inline void ddsi_deadline_register_instance_locked (struct ddsi_deadline_adm *de
 inline void ddsi_deadline_reregister_instance_locked (struct ddsi_deadline_adm *deadline_adm, struct deadline_elem *elem, ddsrt_mtime_t tnow)
 {
   if (deadline_adm->dur != DDS_INFINITY)
-    ddsi_deadline_register_instance_real (deadline_adm, elem, elem->t_deadline, tnow);
+    ddsi_deadline_register_instance_real (deadline_adm, elem, elem->t_last_update, tnow);
 }
 
 /** @component deadline_qos */
