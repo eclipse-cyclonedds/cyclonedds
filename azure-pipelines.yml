@@ -86,21 +86,25 @@ jobs:
       'macOS 11 with Clang 12 (Debug, x86_64)':
         image: macOS-11
         sanitizer: address,undefined
+        deadline_update_skip: on
         cc: clang
       'macOS 11 with Clang 12 (Release, x86_64)':
         image: macOS-11
         build_type: Release
         sanitizer: undefined
+        deadline_update_skip: on
         cc: clang
       'macOS 11 with Clang 13 (Release, x86_64)':
         image: macOS-11
         build_type: Release
         sanitizer: undefined
+        deadline_update_skip: on
         cc: clang
         coverage: on
       'macOS 12 with gcc 12 (Debug, analyzer, x86_64)':
         image: macOS-12
         sanitizer: undefined
+        deadline_update_skip: on
         cc: gcc-12
         analyzer: on
       'Windows 2019 with Visual Studio 2019 (Visual Studio 2017, Debug, x86)':

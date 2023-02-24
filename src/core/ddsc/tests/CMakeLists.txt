@@ -145,6 +145,8 @@ set_tests_properties(
 		REQUIRED_FILES ${CUnit_ddsc_config_simple_udp_file}
 		ENVIRONMENT "${CUnit_ddsc_config_simple_udp_env}")
 
+configure_file("deadline_update.h.in" "deadline_update.h")
+
 if(ENABLE_DEADLINE_MISSED)
   foreach(t
       basic
