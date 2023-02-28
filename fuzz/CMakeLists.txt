@@ -16,4 +16,5 @@ include("${CMAKE_SOURCE_DIR}/cmake/Modules/Generate.cmake")
 
 add_subdirectory(fuzz_config_init)
 add_subdirectory(fuzz_handle_rtps_message)
+add_subdirectory(fuzz_type_object)
 # add_subdirectory(fuzz_idlc)

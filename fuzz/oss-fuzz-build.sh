@@ -28,6 +28,8 @@ cmake --build . --target install
 cd ..
 )
 
+cp fuzz/*.options $OUT
+
 # copy fuzzer executables to $OUT
 find build/bin -type f -name 'fuzz_*' | while read fuzzer; do
   cp -v "$fuzzer" "$OUT/"
