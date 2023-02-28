@@ -34,7 +34,7 @@ ddsrt_mtime_t ddsi_deadline_next_missed_locked (struct ddsi_deadline_adm *deadli
   {
     struct ddsrt_circlist_elem *list_elem = ddsrt_circlist_oldest (&deadline_adm->list);
     elem = DDSRT_FROM_CIRCLIST (struct deadline_elem, e, list_elem);
-    if (elem->t_deadline.v <= tnow.v)
+    if (elem->t_deadline.v <= tnow.v || elem->deadlines_missed)
     {
       ddsrt_circlist_remove (&deadline_adm->list, &elem->e);
       if (instance != NULL)
@@ -78,7 +78,9 @@ extern inline void ddsi_deadline_reregister_instance_locked (struct ddsi_deadlin
 void ddsi_deadline_register_instance_real (struct ddsi_deadline_adm *deadline_adm, struct deadline_elem *elem, ddsrt_mtime_t tprev, ddsrt_mtime_t tnow)
 {
   ddsrt_circlist_append(&deadline_adm->list, &elem->e);
-  elem->t_deadline = (tprev.v + deadline_adm->dur >= tnow.v) ? tprev : tnow;
+  elem->deadlines_missed = 0;
+  elem->t_deadline.v = ((tnow.v - tprev.v)/deadline_adm->dur)*deadline_adm->dur+tprev.v;
+  elem->t_last_update = elem->t_deadline;
   elem->t_deadline.v += deadline_adm->dur;
   ddsi_resched_xevent_if_earlier (deadline_adm->evt, elem->t_deadline);
 }
@@ -105,8 +107,13 @@ void ddsi_deadline_renew_instance_real (struct ddsi_deadline_adm *deadline_adm, 
      will still be triggered, but has no effect on this instance because in
      the callback the deadline (which will be the updated value) will be
      checked for expiry */
-  ddsrt_circlist_remove(&deadline_adm->list, &elem->e);
-  elem->t_deadline = ddsrt_time_monotonic();
-  elem->t_deadline.v += deadline_adm->dur;
-  ddsrt_circlist_append(&deadline_adm->list, &elem->e);
+  ddsrt_mtime_t now = ddsrt_time_monotonic();
+  int64_t newdeadlines = (now.v - elem->t_last_update.v)/deadline_adm->dur;
+  elem->deadlines_missed += newdeadlines > 0 ? (uint32_t)newdeadlines : 0;
+  elem->t_last_update = now;
+  if (elem->deadlines_missed == 0) {
+    ddsrt_circlist_remove(&deadline_adm->list, &elem->e);
+    elem->t_deadline = ddsrt_mtime_add_duration(now, deadline_adm->dur);
+    ddsrt_circlist_append(&deadline_adm->list, &elem->e);
+  }
 }

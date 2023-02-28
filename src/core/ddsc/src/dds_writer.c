@@ -52,13 +52,15 @@ static dds_return_t dds_writer_status_validate (uint32_t mask)
 static void update_offered_deadline_missed (struct dds_offered_deadline_missed_status * __restrict st, const ddsi_status_cb_data_t *data)
 {
   st->last_instance_handle = data->handle;
-  st->total_count++;
+  uint64_t tmp = (uint64_t)data->extra + (uint64_t)st->total_count;
+  st->total_count = tmp > UINT32_MAX ? UINT32_MAX : (uint32_t)tmp;
   // always incrementing st->total_count_change, then copying into *lst is
   // a bit more than minimal work, but this guarantees the correct value
   // also when enabling a listeners after some events have occurred
   //
   // (same line of reasoning for all of them)
-  st->total_count_change++;
+  int64_t tmp2 = (int64_t)data->extra + (int64_t)st->total_count_change;
+  st->total_count_change = tmp2 > INT32_MAX ? INT32_MAX : tmp2 < INT32_MIN ? INT32_MIN : (int32_t)tmp2;
 }
 
 static void update_offered_incompatible_qos (struct dds_offered_incompatible_qos_status * __restrict st, const ddsi_status_cb_data_t *data)
