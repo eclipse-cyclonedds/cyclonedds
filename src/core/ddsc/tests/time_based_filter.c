@@ -33,17 +33,19 @@ static dds_entity_t wr = 0;
 static Space_Type1 msg = { 123, 0, 0};
 
 
-static void setup(const char *topic_name, dds_duration_t sep, dds_destination_order_kind_t dok)
+static void setup(dds_duration_t sep, dds_destination_order_kind_t dok)
 {
     pp = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
     CU_ASSERT_FATAL(pp > 0);
 
-    tp = dds_create_topic(pp, &Space_Type1_desc, topic_name, NULL, NULL);
+    char name[100];
+    create_unique_topic_name("ddsc_time_based_filter", name, sizeof name);
+    tp = dds_create_topic(pp, &Space_Type1_desc, name, NULL, NULL);
     CU_ASSERT_FATAL(tp > 0);
 
     //qos
     dds_qos_t *qos = dds_create_qos();
-    CU_ASSERT_FATAL(NULL != qos);
+    CU_ASSERT_PTR_NOT_NULL_FATAL(qos);
 
     dds_qset_history(qos, DDS_HISTORY_KEEP_LAST, 1);
     dds_qset_destination_order(qos, dok);
@@ -106,41 +108,68 @@ static struct ddsi_domaingv *get_gv (dds_entity_t e)
 static void test_insert(void)
 {
     dds_entity *e_ptr = NULL;
+    struct dds_topic *x = NULL;
+    struct ddsi_sertype *st = NULL;
+    struct ddsi_serdata *sd = NULL;
+
     dds_return_t ret = dds_entity_pin(rd, &e_ptr);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_PTR_NOT_NULL_FATAL(e_ptr);
+    if (!e_ptr)
+      goto fail;
 
     /*implementation TBD*/
     ddsi_thread_state_awake_domain_ok (ddsi_lookup_thread_state ());
 
-    struct dds_topic *x;
     ret = dds_topic_pin (tp, &x);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT_PTR_NOT_NULL_FATAL(x);
+    if (!x)
+      goto fail;
 
-    struct ddsi_sertype *st = ddsi_sertype_ref (x->m_stype);
-    dds_topic_unpin (x);
-    CU_ASSERT_FATAL(NULL != st);
+    st = ddsi_sertype_ref (x->m_stype);
+    CU_ASSERT_PTR_NOT_NULL_FATAL(st);
+    if (!st)
+      goto fail;
 
     msg.long_2++;
-    struct ddsi_serdata *sd = ddsi_serdata_from_sample (st, SDK_DATA, &msg);
+    sd = ddsi_serdata_from_sample (st, SDK_DATA, &msg);
+    CU_ASSERT_PTR_NOT_NULL_FATAL(sd);
+    if (!sd)
+      goto fail;
+
     sd->twrite.v = DDS_TIME_INVALID;
+
     struct ddsi_writer_info wi;
     const struct ddsi_domaingv *gv = get_gv (pp);
-    CU_ASSERT_FATAL(NULL != gv);
+    CU_ASSERT_PTR_NOT_NULL_FATAL(gv);
+    if (!gv)
+      goto fail;
+
     struct ddsi_tkmap_instance *ti = ddsi_tkmap_lookup_instance_ref(gv->m_tkmap, sd);
+    CU_ASSERT_PTR_NOT_NULL_FATAL(ti);
+    if (!ti)
+      goto fail;
+
     bool store_result = dds_rhc_store(((struct dds_reader*)e_ptr)->m_rhc, &wi, sd, ti);
     CU_ASSERT(store_result);
 
-    ddsi_sertype_unref (st);
-    dds_entity_unpin(e_ptr);
+fail:
+    if (sd)
+      ddsi_serdata_unref(sd);
+    if (st)
+      ddsi_sertype_unref(st);
+    if (x)
+      dds_topic_unpin (x);
+    if (e_ptr)
+      dds_entity_unpin(e_ptr);
+
     ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
 }
 
 CU_Test(ddsc_time_based_filter, filter_reception_no_separation)
 {
-    dds_duration_t sep = DDS_MSECS(0);
-    dds_destination_order_kind_t dok = DDS_DESTINATIONORDER_BY_RECEPTION_TIMESTAMP;
-
-    setup("ddsc_time_based_filter_rec_1", sep, dok);
+    setup(DDS_MSECS(0), DDS_DESTINATIONORDER_BY_RECEPTION_TIMESTAMP);
 
     test_write(DDS_MSECS(1), 0, 0);
     test_write(DDS_MSECS(0), 0, 0);
@@ -151,10 +180,7 @@ CU_Test(ddsc_time_based_filter, filter_reception_no_separation)
 
 CU_Test(ddsc_time_based_filter, filter_reception_separation)
 {
-    dds_duration_t sep = DDS_MSECS(100);
-    dds_destination_order_kind_t dok = DDS_DESTINATIONORDER_BY_RECEPTION_TIMESTAMP;
-
-    setup("ddsc_time_based_filter_rec_2", sep, dok);
+    setup(DDS_MSECS(100), DDS_DESTINATIONORDER_BY_RECEPTION_TIMESTAMP);
 
     test_write(DDS_MSECS(1), 0, 0);
     test_write(DDS_MSECS(0), 0, 0);
@@ -166,10 +192,7 @@ CU_Test(ddsc_time_based_filter, filter_reception_separation)
 
 CU_Test(ddsc_time_based_filter, filter_source_no_separation)
 {
-    dds_duration_t sep = DDS_MSECS(0);
-    dds_destination_order_kind_t dok = DDS_DESTINATIONORDER_BY_SOURCE_TIMESTAMP;
-
-    setup("ddsc_time_based_filter_src_1", sep, dok);
+    setup(DDS_MSECS(0), DDS_DESTINATIONORDER_BY_SOURCE_TIMESTAMP);
 
     test_write(DDS_MSECS(1), 0, 0);
     test_write(DDS_MSECS(0), 1, 1);
@@ -180,10 +203,7 @@ CU_Test(ddsc_time_based_filter, filter_source_no_separation)
 
 CU_Test(ddsc_time_based_filter, filter_source_separation)
 {
-    dds_duration_t sep = DDS_MSECS(100);
-    dds_destination_order_kind_t dok = DDS_DESTINATIONORDER_BY_SOURCE_TIMESTAMP;
-
-    setup("ddsc_time_based_filter_src_2", sep, dok);
+    setup(DDS_MSECS(100), DDS_DESTINATIONORDER_BY_SOURCE_TIMESTAMP);
 
     test_write(DDS_MSECS(1), 0, 0);
     test_write(DDS_MSECS(0), 1, 1);
@@ -195,10 +215,7 @@ CU_Test(ddsc_time_based_filter, filter_source_separation)
 
 CU_Test(ddsc_time_based_filter, filter_reception_invalid_timestamp)
 {
-    dds_duration_t sep = DDS_MSECS(100);
-    dds_destination_order_kind_t dok = DDS_DESTINATIONORDER_BY_RECEPTION_TIMESTAMP;
-
-    setup("ddsc_time_based_filter_src_3", sep, dok);
+    setup(DDS_MSECS(100), DDS_DESTINATIONORDER_BY_RECEPTION_TIMESTAMP);
 
     test_write(DDS_MSECS(0), 0, 0);
     test_insert();
@@ -208,10 +225,7 @@ CU_Test(ddsc_time_based_filter, filter_reception_invalid_timestamp)
 
 CU_Test(ddsc_time_based_filter, filter_source_invalid_timestamp)
 {
-    dds_duration_t sep = DDS_MSECS(100);
-    dds_destination_order_kind_t dok = DDS_DESTINATIONORDER_BY_SOURCE_TIMESTAMP;
-
-    setup("ddsc_time_based_filter_src_3", sep, dok);
+    setup(DDS_MSECS(100), DDS_DESTINATIONORDER_BY_SOURCE_TIMESTAMP);
 
     test_write(DDS_MSECS(0), 0, 0);
     test_insert();
