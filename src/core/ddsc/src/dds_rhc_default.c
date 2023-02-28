@@ -1020,33 +1020,28 @@ static int inst_accepts_sample_by_writer_guid (const struct rhc_instance *inst, 
 
 static int inst_accepts_sample (const struct dds_rhc_default *rhc, const struct rhc_instance *inst, const struct ddsi_writer_info *wrinfo, const struct ddsi_serdata *sample, const bool has_data)
 {
-  if (rhc->by_source_ordering && sample->timestamp.v != DDS_TIME_INVALID)
+  if (rhc->by_source_ordering)
   {
-    //invalid timestamp?
-    int64_t diff = sample->timestamp.v - inst->tstamp.v;
-    if (diff > rhc->minimum_separation)
+    int64_t diff = DDS_TIME_INVALID;
+    /* can we determine a valid time difference between the two? */
+    if (DDS_TIME_INVALID != inst->tstamp.v && DDS_TIME_INVALID != sample->timestamp.v)
+      diff = sample->timestamp.v - inst->tstamp.v;
+
+    if (DDS_TIME_INVALID == diff || rhc->minimum_separation == diff)
     {
-      /* outside minimum separation window, accept sample */
-    }
-    else if (diff == rhc->minimum_separation && diff != 0)
-    {
-      /* at minimum separation window, but there is a time difference, accept sample */
+      /* time difference equal to the minimum separation,
+         or the time difference could not be determined */
+      if (0 == inst_accepts_sample_by_writer_guid (inst, wrinfo))
+        return 0;
     }
     else if (diff < rhc->minimum_separation)
     {
       /* inside minimum separation window, reject sample */
       return 0;
     }
-    else if (diff == 0 && inst_accepts_sample_by_writer_guid (inst, wrinfo))
-    {
-      /* at same time stamp, and sample is accepted through writer guid, accept sample */
-    }
-    else
-    {
-      /* all other cases, reject sample*/
-      return 0;
-    }
+    /* all other cases, accept */
   }
+
   if (rhc->exclusive_ownership && inst->wr_iid_islive && inst->wr_iid != wrinfo->iid)
   {
     int32_t strength = wrinfo->ownership_strength;
