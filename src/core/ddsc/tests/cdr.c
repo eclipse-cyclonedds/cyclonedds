@@ -923,12 +923,17 @@ ${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}\
  *
  *----------------------------------------------------------------*/
 
-static struct tw make_topic (dds_entity_t pp, const char *topicname, const char *typename, const dds_qos_t *qos)
+static struct ddsi_sertype *make_sertype (const char *typename)
 {
   struct stp *stp = malloc (sizeof (*stp));
   assert(stp);
   ddsi_sertype_init_flags (&stp->c, typename, &stp_ops, &sd_ops, DDSI_SERTYPE_FLAG_REQUEST_KEYHASH);
-  struct ddsi_sertype *st = &stp->c;
+  return &stp->c;
+}
+
+static struct tw make_topic (dds_entity_t pp, const char *topicname, const char *typename, const dds_qos_t *qos)
+{
+  struct ddsi_sertype *st = make_sertype (typename);
   dds_entity_t tp = dds_create_topic_sertype (pp, topicname, &st, qos, NULL, NULL);
   CU_ASSERT_FATAL (tp > 0);
   return ((struct tw) { .tp = tp, .st = st });
@@ -969,4 +974,62 @@ CU_Test(ddsc_cdr, invalid_data)
 CU_Test(ddsc_cdr, timeout)
 {
   cdr_timeout (&gops);
+}
+
+CU_Test(ddsc_cdr, forward_conv_serdata)
+{
+  dds_return_t rc;
+
+  const dds_entity_t pp = dds_create_participant (0, NULL, NULL);
+  CU_ASSERT_FATAL (pp > 0);
+
+  char topicname[100];
+  create_unique_topic_name ("ddsc_cdr_forward_conv_serdata", topicname, sizeof topicname);
+  struct tw tw = make_topic (pp, topicname, "x", NULL);
+  struct ddsi_sertype *st1 = make_sertype ("x");
+
+  const dds_entity_t wr = dds_create_writer (pp, tw.tp, NULL, NULL);
+  CU_ASSERT_FATAL (wr > 0);
+
+  // we make a reader so the test is not dependent on the writer trying to
+  // convert the serdata representations even in the absence of a reader
+  const dds_entity_t rd = dds_create_reader (pp, tw.tp, NULL, NULL);
+  CU_ASSERT_FATAL (rd > 0);
+
+  // construct a serdata of type 1, then publish it with the writer of type 0
+  struct sampletype xs = { .key = "aap", .value = "banaan" };
+  struct ddsi_serdata *sd1 = sd_from_sample (st1, SDK_DATA, &xs);
+  // ... but increment the refcount first so that we can inspect the refcount later
+  (void) ddsi_serdata_ref (sd1);
+  rc = dds_forwardcdr (wr, sd1);
+  CU_ASSERT_FATAL (rc == 0);
+
+  // forwardcdr drops the refcount, but we held on to one
+  CU_ASSERT_FATAL (ddsrt_atomic_ld32 (&sd1->refc) == 1);
+  ddsi_serdata_unref (sd1);
+
+  // given that we have a reader, we can take out the sample
+  // and check that it, too, has a refcount of 1
+  struct ddsi_serdata *sd0;
+  dds_sample_info_t si;
+  rc = dds_takecdr (rd, &sd0, 1, &si, DDS_ANY_STATE);
+  CU_ASSERT_FATAL (rc == 1);
+  CU_ASSERT_FATAL (si.valid_data);
+  CU_ASSERT_FATAL (si.instance_state == DDS_ALIVE_INSTANCE_STATE);
+  CU_ASSERT_FATAL (ddsrt_atomic_ld32 (&sd0->refc) == 1);
+  CU_ASSERT_FATAL (sd0->type == tw.st);
+
+  struct sampletype ys = { 0 };
+  bool ok = ddsi_serdata_to_sample (sd0, &ys, NULL, NULL);
+  CU_ASSERT_FATAL (ok);
+  CU_ASSERT_FATAL (strcmp (ys.key, xs.key) == 0);
+  CU_ASSERT_FATAL (strcmp (ys.value, xs.value) == 0);
+  ddsi_sertype_free_sample (tw.st, &ys, DDS_FREE_CONTENTS);
+  ddsi_serdata_unref (sd0);
+
+  // the weird sertype "st1" doesn't get tracked by Cyclone because we never
+  // used it in a topic, so we must release it ourselves
+  ddsi_sertype_unref (st1);
+  rc = dds_delete (DDS_CYCLONEDDS_HANDLE);
+  CU_ASSERT_FATAL (rc == 0);
 }
