@@ -1020,26 +1020,29 @@ static int inst_accepts_sample_by_writer_guid (const struct rhc_instance *inst, 
 
 static int inst_accepts_sample (const struct dds_rhc_default *rhc, const struct rhc_instance *inst, const struct ddsi_writer_info *wrinfo, const struct ddsi_serdata *sample, const bool has_data)
 {
-  if (rhc->by_source_ordering)
-  {
-    int64_t diff = DDS_TIME_INVALID;
-    /* can we determine a valid time difference between the two? */
-    if (DDS_TIME_INVALID != inst->tstamp.v && DDS_TIME_INVALID != sample->timestamp.v)
-      diff = sample->timestamp.v - inst->tstamp.v;
-
-    if (DDS_TIME_INVALID == diff || rhc->minimum_separation == diff)
-    {
-      /* time difference equal to the minimum separation,
-         or the time difference could not be determined */
-      if (0 == inst_accepts_sample_by_writer_guid (inst, wrinfo))
+  if (rhc->by_source_ordering) {
+    /* source ordering, so compare timestamps*/
+    if (sample->timestamp.v == DDS_TIME_INVALID ||
+        inst->tstamp.v == DDS_TIME_INVALID ||
+        inst->tstamp.v == sample->timestamp.v) {
+      /* one or both of the samples has no valid timestamp,
+         or both are at the same time, writer guid check */
+      if (!inst_accepts_sample_by_writer_guid (inst, wrinfo))
         return 0;
-    }
-    else if (diff < rhc->minimum_separation)
-    {
-      /* inside minimum separation window, reject sample */
+    } else if (sample->timestamp.v < inst->tstamp.v) {
+      /* sample is before inst, so definitely reject */
       return 0;
     }
-    /* all other cases, accept */
+    /* sample is later than inst, further checks may be needed */
+  }
+
+  if (rhc->minimum_separation > 0 &&
+      sample->timestamp.v != DDS_TIME_INVALID &&
+      inst->tstamp.v != DDS_TIME_INVALID) {
+    if (sample->timestamp.v < INT64_MIN + rhc->minimum_separation ||
+        sample->timestamp.v - rhc->minimum_separation < inst->tstamp.v) {
+      return 0;//reject
+    }
   }
 
   if (rhc->exclusive_ownership && inst->wr_iid_islive && inst->wr_iid != wrinfo->iid)

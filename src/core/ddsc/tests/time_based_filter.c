@@ -183,9 +183,9 @@ CU_Test(ddsc_time_based_filter, filter_reception_separation)
     setup(DDS_MSECS(100), DDS_DESTINATIONORDER_BY_RECEPTION_TIMESTAMP);
 
     test_write(DDS_MSECS(1), 0, 0);
-    test_write(DDS_MSECS(0), 0, 0);
-    test_write(DDS_MSECS(1), 0, 0);
-    test_write(DDS_MSECS(101), 0, 0);
+    test_write(DDS_MSECS(0), 1, 1);
+    test_write(DDS_MSECS(1), 2, 1);
+    test_write(DDS_MSECS(101), 2, 0);
 
     teardown();
 }
