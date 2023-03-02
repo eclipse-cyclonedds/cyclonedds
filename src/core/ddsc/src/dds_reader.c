@@ -14,6 +14,7 @@
 #include "dds/dds.h"
 #include "dds/version.h"
 #include "dds/ddsrt/static_assert.h"
+#include "dds/ddsrt/io.h"
 #include "dds/ddsrt/heap.h"
 #include "dds__participant.h"
 #include "dds__subscriber.h"
@@ -498,6 +499,13 @@ static bool dds_reader_support_shm(const struct ddsi_config* cfg, const dds_qos_
     return false;
   }
 
+  // only default partition or one non-wildcard partition
+  if (qos->partition.n > 1) {
+    return false;
+  } else if (qos->partition.n == 1 && (strchr (qos->partition.strs[0], '*') || strchr (qos->partition.strs[0], '?'))) {
+    return false;
+  }
+
   return (DDS_READER_QOS_CHECK_FIELDS ==
               (qos->present & DDS_READER_QOS_CHECK_FIELDS) &&
           DDS_LIVELINESS_AUTOMATIC == qos->liveliness.kind &&
@@ -712,11 +720,17 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
 
     iox_sub_options_t opts = create_iox_sub_options(rqos);
 
+    // quick hack to make partitions work; use a * mark to separate partition name and topic name
+    // because we already know the partition can't contain a * anymore
+    char *part_topic = NULL;
+    assert (rqos->partition.n <= 1);
+    ddsrt_asprintf (&part_topic, "%s*%s", (rqos->partition.n == 0) ? "" : rqos->partition.strs[0], rd->m_topic->m_name);
     // NB: This may fail due to icoeryx being out of internal resources for subsribers.
     //     In this case terminate is called by iox_sub_init.
     //     it is currently (iceoryx 2.0 and lower) not possible to change this to
     //     e.g. return a nullptr and handle the error here.
-    rd->m_iox_sub = iox_sub_init(&(iox_sub_storage_t){0}, gv->config.iceoryx_service, rd->m_topic->m_stype->type_name, rd->m_topic->m_name, &opts);
+    rd->m_iox_sub = iox_sub_init(&(iox_sub_storage_t){0}, gv->config.iceoryx_service, rd->m_topic->m_stype->type_name, part_topic, &opts);
+    ddsrt_free (part_topic);
 
     // NB: Due to some storage paradigm change of iceoryx structs
     // we now have a pointer 8 bytes before m_iox_sub
