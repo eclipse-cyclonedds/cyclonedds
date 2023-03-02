@@ -15,6 +15,8 @@
 #include "dds/dds.h"
 #include "dds/version.h"
 #include "dds/ddsrt/static_assert.h"
+#include "dds/ddsrt/io.h"
+#include "dds/ddsrt/heap.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_endpoint.h"
@@ -310,6 +312,13 @@ static bool dds_writer_support_shm(const struct ddsi_config* cfg, const dds_qos_
     return false;
   }
 
+  // only default partition or one non-wildcard partition
+  if (qos->partition.n > 1) {
+    return false;
+  } else if (qos->partition.n == 1 && (strchr (qos->partition.strs[0], '*') || strchr (qos->partition.strs[0], '?'))) {
+    return false;
+  }
+
   return (DDS_WRITER_QOS_CHECK_FIELDS == (qos->present & DDS_WRITER_QOS_CHECK_FIELDS) &&
           DDS_LIVELINESS_AUTOMATIC == qos->liveliness.kind &&
           DDS_INFINITY == qos->deadline.deadline);
@@ -468,7 +477,14 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
     //     In this case terminate is called by iox_pub_init.
     //     it is currently (iceoryx 2.0 and lower) not possible to change this to
     //     e.g. return a nullptr and handle the error here.
-    wr->m_iox_pub = iox_pub_init(&(iox_pub_storage_t){0}, gv->config.iceoryx_service, wr->m_topic->m_stype->type_name, wr->m_topic->m_name, &opts);
+
+    // quick hack to make partitions work; use a * mark to separate partition name and topic name
+    // because we already know the partition can't contain a * anymore
+    char *part_topic = NULL;
+    assert (wqos->partition.n <= 1);
+    ddsrt_asprintf (&part_topic, "%s*%s", (wqos->partition.n == 0) ? "" : wqos->partition.strs[0], wr->m_topic->m_name);
+    wr->m_iox_pub = iox_pub_init(&(iox_pub_storage_t){0}, gv->config.iceoryx_service, wr->m_topic->m_stype->type_name, part_topic, &opts);
+    ddsrt_free (part_topic);
     memset(wr->m_iox_pub_loans, 0, sizeof(wr->m_iox_pub_loans));
   }
 #endif

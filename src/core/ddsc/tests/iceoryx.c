@@ -699,3 +699,70 @@ CU_Test(ddsc_iceoryx, return_loan)
   CU_ASSERT_FATAL (rc == 0);
 }
 
+CU_Test(ddsc_iceoryx, partition_xtalk)
+{
+  dds_return_t rc;
+  const dds_entity_t pp = create_participant (0, true);
+  char topicname[100];
+  create_unique_topic_name ("test_iceoryx", topicname, sizeof (topicname));
+  const dds_entity_t tp = dds_create_topic (pp, &Space_Type1_desc, topicname, NULL, NULL);
+  CU_ASSERT_FATAL (tp > 0);
+  
+  dds_qos_t *qos = dds_create_qos ();
+  CU_ASSERT_FATAL (qos != NULL);
+  dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, 0);
+  dds_qset_writer_data_lifecycle (qos, false);
+  dds_entity_t wrA = dds_create_writer (pp, tp, qos, NULL);
+  CU_ASSERT_FATAL (wrA > 0);
+  CU_ASSERT_FATAL (endpoint_has_iceoryx_enabled (wrA) == true);
+  dds_entity_t rdA = dds_create_reader (pp, tp, qos, NULL);
+  CU_ASSERT_FATAL (rdA > 0);
+  CU_ASSERT_FATAL (endpoint_has_iceoryx_enabled (rdA) == true);
+  dds_qset_partition1 (qos, "b");
+  dds_entity_t wrB = dds_create_writer (pp, tp, qos, NULL);
+  CU_ASSERT_FATAL (wrB > 0);
+  CU_ASSERT_FATAL (endpoint_has_iceoryx_enabled (wrB) == true);
+  dds_entity_t rdB = dds_create_reader (pp, tp, qos, NULL);
+  CU_ASSERT_FATAL (rdB > 0);
+  CU_ASSERT_FATAL (endpoint_has_iceoryx_enabled (rdB) == true);
+  dds_qset_partition1 (qos, "*");
+  dds_entity_t wrS = dds_create_writer (pp, tp, qos, NULL);
+  CU_ASSERT_FATAL (wrS > 0);
+  CU_ASSERT_FATAL (endpoint_has_iceoryx_enabled (wrS) == false);
+  dds_delete_qos (qos);
+
+  rc = dds_write (wrA, &(Space_Type1){ 1, 2, 3 });
+  CU_ASSERT_FATAL (rc == 0);
+
+  Space_Type1 t;
+  void *tptr = &t;
+  dds_sample_info_t si;
+  // data must arrive on rdA
+  while (dds_take (rdA, &tptr, &si, 1, 1) <= 0)
+    dds_sleepfor (DDS_MSECS (10));
+  CU_ASSERT_FATAL (t.long_1 == 1 && t.long_2 == 2 && t.long_3 == 3);
+  // data may not arrive on rdB, which is tricky to test ...
+  // so we write a sample from wrB, which really must be queued
+  // after the one from wrA given how Iceoryx works
+  rc = dds_take (rdB, &tptr, &si, 1, 1);
+  CU_ASSERT_FATAL (rc == 0);
+  rc = dds_write (wrB, &(Space_Type1){ 4, 5, 6 });
+  CU_ASSERT_FATAL (rc == 0);
+  while (dds_take (rdB, &tptr, &si, 1, 1) <= 0)
+    dds_sleepfor (DDS_MSECS (10));
+  CU_ASSERT_FATAL (t.long_1 == 4 && t.long_2 == 5 && t.long_3 == 6);
+
+  // from wrS it should arrive on both (but of course not via Iceoryx,
+  // which we checked after creating it)
+  rc = dds_write (wrS, &(Space_Type1){ 7, 8, 9 });
+  CU_ASSERT_FATAL (rc == 0);
+  while (dds_take (rdA, &tptr, &si, 1, 1) <= 0)
+    dds_sleepfor (DDS_MSECS (10));
+  CU_ASSERT_FATAL (t.long_1 == 7 && t.long_2 == 8 && t.long_3 == 9);
+  while (dds_take (rdB, &tptr, &si, 1, 1) <= 0)
+    dds_sleepfor (DDS_MSECS (10));
+  CU_ASSERT_FATAL (t.long_1 == 7 && t.long_2 == 8 && t.long_3 == 9);
+
+  rc = dds_delete (DDS_CYCLONEDDS_HANDLE);
+  CU_ASSERT_FATAL (rc == 0);
+}
