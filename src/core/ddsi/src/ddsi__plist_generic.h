@@ -31,7 +31,7 @@ enum ddsi_pserop {
   XSTOP,
   XO, /* octet sequence */
   XS, /* string */
-  XE1, XE2, XE3, /* enum 0..1, 0..2, 0..3 */
+  XE1, XE2, XE3, /* enum 0..1, 0..2, 0..3; mapping to integral type assumed to be the same for all three */
   Xs, /* int16_t */
   Xi, Xix2, Xix3, Xix4, /* int32_t, 1 .. 4 in a row */
   Xu, Xux2, Xux3, Xux4, Xux5, /* uint32_t, 1 .. 5 in a row */
