@@ -753,6 +753,45 @@ static DDS_XTypes_TypeObject *get_typeobj14 (void)
     });
 }
 
+static DDS_XTypes_TypeObject *get_typeobj15 (void)
+{
+  DDS_XTypes_TypeIdentifier ti_f1;
+
+  /* f1 type identifier */
+  {
+    DDS_XTypes_TypeObject *to_s = get_typeobj_struct (
+      "t15::s",
+      DDS_XTypes_IS_FINAL | DDS_XTypes_IS_NESTED,
+      (DDS_XTypes_TypeIdentifier) { ._d = DDS_XTypes_TK_NONE },
+      1, (smember_t[]) {
+        { 0, DDS_XTypes_TRY_CONSTRUCT_DISCARD, { ._d = DDS_XTypes_TK_INT32 }, "s1" }
+      }
+    );
+
+    /* typedef s x */
+    DDS_XTypes_TypeObject *to_alias = calloc_no_fail (1, sizeof (*to_alias));
+    to_alias->_d = DDS_XTypes_EK_COMPLETE;
+    to_alias->_u.complete = (DDS_XTypes_CompleteTypeObject) {
+      ._d = DDS_XTypes_TK_ALIAS,
+      ._u.alias_type = (DDS_XTypes_CompleteAliasType) {
+        .alias_flags = 0,
+        .header = { .detail = { .type_name = "t15::td_s" } },
+        .body = { .common = { .related_flags = 0 } }
+      }
+    };
+    get_typeid (&to_alias->_u.complete._u.alias_type.body.common.related_type, to_s);
+    get_typeid (&ti_f1, to_alias);
+  }
+
+  return get_typeobj_struct (
+    "t15::test_struct",
+    DDS_XTypes_IS_FINAL,
+    (DDS_XTypes_TypeIdentifier) { ._d = DDS_XTypes_TK_NONE },
+    1, (smember_t[]) {
+      { 0, DDS_XTypes_IS_EXTERNAL | DDS_XTypes_TRY_CONSTRUCT_DISCARD, ti_f1, "f1" },
+    });
+}
+
 typedef DDS_XTypes_TypeObject * (*get_typeobj_t) (void);
 
 CU_Test(idlc_type_meta, type_obj_serdes)
@@ -775,7 +814,8 @@ CU_Test(idlc_type_meta, type_obj_serdes)
     { "module t11 { @final union test_union switch (char) { case 'a': @id(99) long f1; default: @id(5) unsigned short f2; }; };", get_typeobj11 },
     { "module t12 { typedef sequence<long> td_seq; typedef td_seq td_array[2]; struct test_struct { td_array f1; }; };", get_typeobj12 },
     { "module t13 { typedef long td_arr[3]; typedef td_arr td; @topic @final struct test_struct { td f1; }; };", get_typeobj13 },
-    { "module t14 { typedef sequence<long> td_seq_arr[3]; @final struct test_struct { td_seq_arr f1; }; };", get_typeobj14 }
+    { "module t14 { typedef sequence<long> td_seq_arr[3]; @final struct test_struct { td_seq_arr f1; }; };", get_typeobj14 },
+    { "module t15 { struct s; typedef s td_s; @final struct test_struct { @external td_s f1; }; @final @nested struct s { long s1; }; };", get_typeobj15 }
   };
 
   uint32_t flags = IDL_FLAG_EXTENDED_DATA_TYPES |
