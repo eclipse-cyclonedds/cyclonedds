@@ -3320,6 +3320,7 @@ idl_create_annotation(
 
   if ((ret = create_node(pstate, size, mask, location, &methods, &node)))
     goto err_node;
+  name->is_annotation = true;
   declaration = idl_find(pstate, NULL, name, IDL_FIND_ANNOTATION);
   if (declaration) {
     /* annotations should not cause more compile errors than strictly needed.
@@ -3342,6 +3343,7 @@ idl_create_annotation(
   *((idl_annotation_t **)nodep) = node;
   pstate->parser.state = IDL_PARSE_ANNOTATION_BODY;
   return IDL_RETCODE_OK;
+
 err_declare:
   idl_delete_scope(scope);
 err_scope:

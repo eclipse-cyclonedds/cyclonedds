@@ -21,6 +21,20 @@
 #include "scope.h"
 #include "tree.h"
 
+static int namecmp(const idl_name_t *n1, const idl_name_t *n2)
+{
+  if (n1->is_annotation != n2->is_annotation)
+    return n1->is_annotation ? -1 : 1;
+  return strcmp(n1->identifier, n2->identifier);
+}
+
+static int namecasecmp(const idl_name_t *n1, const idl_name_t *n2)
+{
+  if (n1->is_annotation != n2->is_annotation)
+    return n1->is_annotation ? -1 : 1;
+  return idl_strcasecmp(n1->identifier, n2->identifier);
+}
+
 static idl_retcode_t
 create_declaration(
   idl_pstate_t *pstate,
@@ -38,6 +52,7 @@ create_declaration(
     goto err_identifier;
   if (idl_create_name(pstate, idl_location(name), identifier, &declaration->name))
     goto err_name;
+  declaration->name->is_annotation = name->is_annotation;
   *declarationp = declaration;
   return IDL_RETCODE_OK;
 err_name:
@@ -170,16 +185,16 @@ idl_declare(
   idl_declaration_t **declarationp)
 {
   idl_declaration_t *entry = NULL, *last = NULL;
-  int (*cmp)(const char *, const char *);
+  int (*cmp)(const idl_name_t *, const idl_name_t *);
 
   assert(pstate && pstate->scope);
-  cmp = (pstate->config.flags & IDL_FLAG_CASE_SENSITIVE) ? &strcmp : &idl_strcasecmp;
+  cmp = (pstate->config.flags & IDL_FLAG_CASE_SENSITIVE) ? &namecmp : &namecasecmp;
 
   /* ensure there is no collision with an earlier declaration */
   for (entry = pstate->scope->declarations.first; entry; entry = entry->next) {
     /* identifiers that differ only in case collide, and will yield a
        compilation error under certain circumstances */
-    if (cmp(name->identifier, entry->name->identifier) == 0) {
+    if (cmp(name, entry->name) == 0) {
       last = entry;
       switch (entry->kind) {
         case IDL_SCOPE_DECLARATION:
@@ -251,9 +266,9 @@ idl_declare(
         default:
 clash:
           idl_error(pstate, idl_location(node),
-            "Declaration '%s%s' collides with earlier an declaration of '%s%s'",
+            "Declaration '%s%s' collides with an earlier declaration of '%s%s'",
             kind == IDL_ANNOTATION_DECLARATION ? "@" : "", name->identifier,
-            kind == IDL_ANNOTATION_DECLARATION ? "@" : "", entry->name->identifier);
+            entry->kind == IDL_ANNOTATION_DECLARATION ? "@" : "", entry->name->identifier);
           return IDL_RETCODE_SEMANTIC_ERROR;
       }
     }
@@ -351,16 +366,6 @@ exists:
   return IDL_RETCODE_OK;
 }
 
-static int namecmp(const idl_name_t *n1, const idl_name_t *n2)
-{
-  return strcmp(n1->identifier, n2->identifier);
-}
-
-static int namecasecmp(const idl_name_t *n1, const idl_name_t *n2)
-{
-  return idl_strcasecmp(n1->identifier, n2->identifier);
-}
-
 static bool
 is_annotation(const idl_scope_t *scope, const idl_declaration_t *declaration)
 {
@@ -435,9 +440,12 @@ idl_find_scoped_name(
 
   for (size_t i=0; i < scoped_name->length && scope;) {
     const idl_name_t *name = scoped_name->names[i];
-    entry = idl_find(pstate, scope, name, (flags|IDL_FIND_IGNORE_CASE|IDL_FIND_SCOPE_DECLARATION));
+
+    idl_name_t find_name = { .identifier = name->identifier, .symbol = name->symbol, .is_annotation = (flags & IDL_FIND_ANNOTATION) };
+
+    entry = idl_find(pstate, scope, &find_name, (flags|IDL_FIND_IGNORE_CASE|IDL_FIND_SCOPE_DECLARATION));
     if (entry && entry->kind != IDL_USE_DECLARATION) {
-      if (cmp(name, entry->name) != 0)
+      if (cmp(&find_name, entry->name) != 0)
         return NULL;
       scope = entry->kind == IDL_SCOPE_DECLARATION ? scope : entry->scope;
       i++;

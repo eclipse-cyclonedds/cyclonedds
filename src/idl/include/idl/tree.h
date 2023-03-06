@@ -128,6 +128,7 @@ typedef struct idl_name idl_name_t;
 struct idl_name {
   idl_symbol_t symbol;
   char *identifier;
+  bool is_annotation;
 };
 
 typedef struct idl_scoped_name idl_scoped_name_t;
