@@ -67,6 +67,7 @@ set(ddsc_test_sources
     "subscriber.c"
     "take_instance.c"
     "time.c"
+    "time_based_filter.c"
     "topic.c"
     "topic_find_local.c"
     "transientlocal.c"
