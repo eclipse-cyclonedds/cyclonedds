@@ -465,7 +465,7 @@ emit_typedef(
 {
   struct generator *gen = user_data;
   char dims[32] = "";
-  const char *fmt, *star = "";
+  const char *fmt, *star = "", *type_prefix = "";
   char *name = NULL, *type = NULL;
   const idl_declarator_t *declarator;
   const idl_literal_t *literal;
@@ -479,14 +479,17 @@ emit_typedef(
     idl_snprintf(dims, sizeof(dims), "[%" PRIu32 "]", idl_bound(type_spec)+1);
   else if (idl_is_string(type_spec))
     star = "*";
+
+  type_prefix = get_type_prefix(type_spec);
+
   if (IDL_PRINTA(&type, print_type, type_spec) < 0)
     return IDL_RETCODE_NO_MEMORY;
   declarator = ((const idl_typedef_t *)node)->declarators;
   for (; declarator; declarator = idl_next(declarator)) {
     if (IDL_PRINTA(&name, print_type, declarator) < 0)
       return IDL_RETCODE_NO_MEMORY;
-    fmt = "typedef %1$s %2$s%3$s%4$s";
-    if (idl_fprintf(gen->header.handle, fmt, type, star, name, dims) < 0)
+    fmt = "typedef %1$s%2$s %3$s%4$s%5$s";
+    if (idl_fprintf(gen->header.handle, fmt, type_prefix, type, star, name, dims) < 0)
       return IDL_RETCODE_NO_MEMORY;
     literal = declarator->const_expr;
     for (; literal; literal = idl_next(literal)) {
