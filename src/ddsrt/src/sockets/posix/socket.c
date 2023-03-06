@@ -309,7 +309,7 @@ ddsrt_setsockopt(
 
 #if defined(__ZEPHYR__)
   switch (optname) {
-#if defined(DDSRT_USE_IPV6)
+#if defined(DDSRT_HAVE_IPV6)
     case IPV6_MULTICAST_IF:
     case IPV6_MULTICAST_HOPS:
     case IPV6_MULTICAST_LOOP:
@@ -323,7 +323,7 @@ ddsrt_setsockopt(
       struct ipv6_mreq *mreq = (struct ipv6_mreq*)optval;
       struct net_if_mcast_addr *maddr;
       assert(level == IPPROTO_IPV6);
-      iface = net_if_get_by_index(&(mreq->ipv6mr_interface));
+      iface = net_if_get_by_index(mreq->ipv6mr_interface);
       if (iface) {
         maddr = net_if_ipv6_maddr_lookup(&(mreq->ipv6mr_multiaddr), &iface);
         if (optname == IPV6_JOIN_GROUP) {
@@ -334,6 +334,7 @@ ddsrt_setsockopt(
             maddr = net_if_ipv6_maddr_add(iface, &(mreq->ipv6mr_multiaddr));
             if (maddr) {
               net_if_ipv6_maddr_join(maddr);
+              net_if_mcast_monitor(iface, &(maddr->address), true);
               return DDS_RETCODE_OK;
             }
           }
@@ -341,6 +342,7 @@ ddsrt_setsockopt(
           if (maddr) {
             if (net_if_ipv6_maddr_rm(iface, &(mreq->ipv6mr_multiaddr))) {
               net_if_ipv6_maddr_leave(maddr);
+              net_if_mcast_monitor(iface, &(maddr->address), false);
               return DDS_RETCODE_OK;
             }
           }
@@ -348,7 +350,7 @@ ddsrt_setsockopt(
       }
       return DDS_RETCODE_ERROR;
     }
-#endif /* DDSRT_USE_IPV6 */
+#endif /* DDSRT_HAVE_IPV6 */
     case IP_MULTICAST_IF:
     case IP_MULTICAST_TTL:
     case IP_MULTICAST_LOOP:
@@ -380,6 +382,7 @@ ddsrt_setsockopt(
             maddr = net_if_ipv4_maddr_add(iface, &(mreq->imr_multiaddr));
             if (maddr) {
               net_if_ipv4_maddr_join(maddr);
+              net_if_mcast_monitor(iface, &(maddr->address), true);
               return DDS_RETCODE_OK;
             }
           }
@@ -387,6 +390,7 @@ ddsrt_setsockopt(
           if (maddr) {  
             if (net_if_ipv4_maddr_rm(iface, &(mreq->imr_multiaddr))) {
               net_if_ipv4_maddr_leave(maddr);
+              net_if_mcast_monitor(iface, &(maddr->address), false);
               return DDS_RETCODE_OK;
             }
           }
