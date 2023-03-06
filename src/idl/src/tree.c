@@ -1374,6 +1374,19 @@ idl_finalize_struct(
     }
   }
 
+  /*check for incomplete member types*/
+  IDL_FOREACH(member, members) {
+    IDL_FOREACH(decl, member->declarators) {
+      if (idl_is_forward(idl_strip(member->type_spec, IDL_STRIP_ALIASES | IDL_STRIP_ALIASES_ARRAY))
+          && idl_strip(member->type_spec, 0) == NULL
+          && (!member->external.value || idl_is_array(decl))
+      ) {
+        idl_error(state, idl_location(member), "Member '%s' has incomplete type '%s'", decl->name->identifier, idl_identifier(member->type_spec));
+        return IDL_RETCODE_SEMANTIC_ERROR;
+      }
+    }
+  }
+
   idl_exit_scope(state);
   node->node.symbol.location.last = location->last;
   if (members) {
@@ -1716,6 +1729,7 @@ idl_create_member(
 
   if ((ret = create_node(pstate, size, mask, location, &methods, &node)))
     goto err_node;
+
   node->type_spec = type_spec;
   if (idl_scope(type_spec)) {
     /* struct and union types introduce a scope. resolve scope and link it for
@@ -1957,6 +1971,15 @@ idl_finalize_union(
         }
         default_case = cl;
       }
+    }
+
+    /*check for incomplete member types*/
+    if (idl_is_forward(idl_strip(c->type_spec, IDL_STRIP_ALIASES | IDL_STRIP_ALIASES_ARRAY))
+        && idl_strip(c->type_spec, 0) == NULL
+        && (!c->external.value || idl_is_array(c))
+    ) {
+      idl_error(pstate, idl_location(c), "Member '%s' has incomplete type '%s'", c->declarator->name->identifier, idl_identifier(c->type_spec));
+      return IDL_RETCODE_SEMANTIC_ERROR;
     }
   }
 
@@ -2918,6 +2941,15 @@ idl_create_typedef(
     ((idl_node_t*)type_spec)->parent = (idl_node_t*)node;
   node->declarators = declarators;
   for (idl_declarator_t *d = declarators; d; d = idl_next(d)) {
+    if (idl_is_array(d)
+        && idl_is_forward(idl_strip(type_spec, IDL_STRIP_ALIASES | IDL_STRIP_ALIASES_ARRAY))
+        && idl_strip(type_spec, 0) == NULL
+    ) {
+      idl_error(pstate, idl_location(d), "Array has incomplete element type '%s'", idl_identifier(type_spec));
+      ret = IDL_RETCODE_SEMANTIC_ERROR;
+      goto err_declare;
+    }
+
     assert(!d->node.parent);
     d->node.parent = (idl_node_t*)node;
     /* declarators can introduce an array, hence type definitions must refer
