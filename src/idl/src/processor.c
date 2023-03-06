@@ -37,7 +37,7 @@ static const idl_source_t builtin_source =
 #define BUILTIN_POSITION { &builtin_source, &builtin_file, 1, 1 }
 #define BUILTIN_LOCATION { BUILTIN_POSITION, BUILTIN_POSITION }
 static const idl_name_t builtin_name =
-  { { BUILTIN_LOCATION }, "" };
+  { { BUILTIN_LOCATION }, "", false };
 
 static idl_retcode_t parse_grammar(idl_pstate_t *pstate, idl_token_t *tok);
 
@@ -90,6 +90,7 @@ parse_builtin_annotations(
           if (save) {
             name.symbol.location = token.location;
             name.identifier = token.value.str;
+            name.is_annotation = true;
           }
           /* fall through */
         case IDL_TOKEN_STRING_LITERAL:

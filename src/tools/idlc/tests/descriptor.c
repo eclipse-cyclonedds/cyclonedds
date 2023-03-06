@@ -196,13 +196,13 @@ CU_Test(idlc_descriptor, key_size)
       true, true, 6, 6 },   // key size: 4 + 2
     { "@topic struct test { @key char a; @key long long b; @key short c; }; ",
       false, true, VAR, 14 },  // key size: 1 + 7/3 (pad) + 8 + 2
-    { "@nested struct nested { @key char a; @key long long b; @key short c; }; @topic struct test { @key nested a; }; ",
+    { "@nested struct nested1 { @key char a; @key long long b; @key short c; }; @topic struct test { @key nested1 a; }; ",
       false, true, VAR, 14 },  // key size: 1 + 7/3 (pad) + 8 + 2
-    { "@nested struct nested { char a; short b; }; @topic struct test { @key nested a; @key long long b; @key char c; }; ",
+    { "@nested struct nested1 { char a; short b; }; @topic struct test { @key nested1 a; @key long long b; @key char c; }; ",
       false, true, VAR, 13 },  // key size: 1 + 1 (pad) + 2 + 4/0 (pad) + 8 + 1
     { "@topic struct test { @key long a[5]; }; ",
       false, false, VAR, VAR },
-    { "@nested struct nested { @key long long a; }; @topic struct test { @key nested a; long b[5]; @key char c; @key float d; }; ",
+    { "@nested struct nested1 { @key long long a; }; @topic struct test { @key nested1 a; long b[5]; @key char c; @key float d; }; ",
       true, true, 16, 16 }, // key size: 8 + 1 + 3 (pad) + 4
     { "@nested struct nested1 { @key short a; }; @nested struct nested2 { @key long long a; }; @topic struct test { @key nested1 a; @key nested2 b; @key char c; @key nested1 d; }; ",
       false, true, VAR, 16 }, // key size: 2 + 6/2 (pad) + 8 + 1 + 1 (pad) 2
@@ -210,7 +210,7 @@ CU_Test(idlc_descriptor, key_size)
       true, true, 15, 15 },
     { "@topic struct test { @key short a[6]; }; ",
       true, true, 12, 12 },
-    { "@nested struct nested { @key long long a; long b; }; @topic struct test { nested a; @key nested b; }; ",
+    { "@nested struct nested1 { @key long long a; long b; }; @topic struct test { nested1 a; @key nested1 b; }; ",
       true, true, 8, 8 }, // key size: 8
     { "@topic struct test { @key string<3> a; @key long long b; }; ",
       true, true, 16, 16 }, // key size: 8 + 8

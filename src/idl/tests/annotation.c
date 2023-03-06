@@ -942,6 +942,42 @@ CU_Test(idl_annotation, parameter_scope)
 #undef A
 #undef TA
 
+CU_Test(idl_annotation, identifier_clash)
+{
+  static const struct {
+    const char *str;
+    idl_retcode_t ret;
+  } tests[] = {
+    { "struct key { @key long f1; };", IDL_RETCODE_OK },
+    { "struct Key { @key long f1; };", IDL_RETCODE_OK },
+    { "struct external { long f1; };", IDL_RETCODE_OK },
+    { "module m1 { struct key { long f1; }; }; struct b { @key long f1; };", IDL_RETCODE_OK },
+    { "@annotation key { }; struct a { @key long f1; };", IDL_RETCODE_SEMANTIC_ERROR },
+    { "module m1 { @annotation key { }; struct a { @key long f1; }; };", IDL_RETCODE_OK }, // uses the custom @key annotation, so field is not a key!
+    { "@annotation a1 { }; struct a1 { long f1; };", IDL_RETCODE_OK },
+    { "@annotation a1 { }; @annotation a1 { }; struct b { @a1 long f1; };", IDL_RETCODE_OK },
+    { "@annotation a1 { }; @annotation a1 { unsigned long value; }; struct b { @a1 long f1; };", IDL_RETCODE_SEMANTIC_ERROR },
+    { "@annotation a1 { }; @a1 struct a2 { @a1 long f1; };", IDL_RETCODE_OK },
+    { "module m1 { @annotation a1 { }; }; struct a1 { long f1; };", IDL_RETCODE_OK },
+    { "module m1 { struct a1 { long f1; }; }; @annotation a1 { };", IDL_RETCODE_OK }
+  };
+  static const size_t n = sizeof(tests)/sizeof(tests[0]);
+
+  idl_retcode_t ret;
+  idl_pstate_t *pstate = NULL;
+
+  for (size_t i = 0; i < n; i++) {
+    pstate = NULL;
+    ret = parse_string(IDL_FLAG_ANNOTATIONS, tests[i].str, &pstate);
+    CU_ASSERT_EQUAL_FATAL(ret, tests[i].ret);
+    if (tests[i].ret == IDL_RETCODE_OK)
+    {
+      CU_ASSERT_PTR_NOT_NULL_FATAL(pstate);
+      idl_delete_pstate(pstate);
+    }
+  }
+}
+
 #define BM(i) "@bit_bound(" i ") bitmask MyBitMask { flag0 };"
 #define E(i) "@bit_bound(" i ") enum MyEnum { ENUM1 };"
 CU_Test(idl_annotation, bit_bound)

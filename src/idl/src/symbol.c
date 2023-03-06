@@ -45,6 +45,7 @@ idl_create_name(
     return IDL_RETCODE_NO_MEMORY;
   name->symbol.location = *location;
   name->identifier = identifier;
+  name->is_annotation = false;
   *namep = name;
   return IDL_RETCODE_OK;
 }
