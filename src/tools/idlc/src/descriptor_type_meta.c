@@ -1501,6 +1501,22 @@ emit_sequence(
 }
 
 static idl_retcode_t
+emit_forward(
+  const idl_pstate_t *pstate,
+  bool revisit,
+  const idl_path_t *path,
+  const void *node,
+  void *user_data)
+{
+  (void)pstate;
+  (void)revisit;
+  (void)path;
+  (void)node;
+  (void)user_data;
+  return IDL_VISIT_TYPE_SPEC;
+}
+
+static idl_retcode_t
 print_ser_data(FILE *fp, const char *kind, const char *type, unsigned char *data, uint32_t sz)
 {
   char *sep = ", ", *lsep = "\\\n  ", *fmt;
@@ -1613,6 +1629,7 @@ generate_descriptor_type_meta (
   visitor.accept[IDL_ACCEPT_ENUMERATOR] = &emit_enumerator;
   visitor.accept[IDL_ACCEPT_INHERIT_SPEC] = &emit_inherit_spec;
   visitor.accept[IDL_ACCEPT_SEQUENCE] = &emit_sequence;
+  visitor.accept[IDL_ACCEPT_FORWARD] = &emit_forward;
 
   /* must be invoked for topics only, so structs and unions */
   assert (idl_is_struct (node) || idl_is_union (node));
