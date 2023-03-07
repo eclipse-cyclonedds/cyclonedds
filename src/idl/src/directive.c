@@ -406,7 +406,7 @@ static int stash_name(idl_pstate_t *pstate, idl_location_t *loc, char *str)
   struct keylist *dir = (struct keylist *)pstate->directive;
   idl_name_t *name = NULL;
 
-  if (idl_create_name(pstate, loc, str, &name))
+  if (idl_create_name(pstate, loc, str, false, &name))
     goto err_alloc;
   if (idl_push_scoped_name(pstate, dir->data_type, name))
     goto err_alloc;
@@ -422,7 +422,7 @@ static int stash_data_type(idl_pstate_t *pstate, idl_location_t *loc, char *str)
   struct keylist *dir = (struct keylist *)pstate->directive;
   idl_name_t *name = NULL;
 
-  if (idl_create_name(pstate, loc, str, &name))
+  if (idl_create_name(pstate, loc, str, false, &name))
     goto err_alloc;
   if (idl_create_scoped_name(pstate, loc, name, false, &dir->data_type))
     goto err_alloc;
@@ -440,7 +440,7 @@ static int stash_field(idl_pstate_t *pstate, idl_location_t *loc, char *str)
   size_t n;
 
   assert(dir->keys);
-  if (idl_create_name(pstate, loc, str, &name))
+  if (idl_create_name(pstate, loc, str, false, &name))
     goto err_alloc;
   assert(dir->keys);
   for (n=0; dir->keys[n]; n++) ;
@@ -466,7 +466,7 @@ static int stash_key(idl_pstate_t *pstate, idl_location_t *loc, char *str)
     goto err_alloc;
   dir->keys = keys;
   keys[n+0] = NULL;
-  if (idl_create_name(pstate, loc, str, &name))
+  if (idl_create_name(pstate, loc, str, false, &name))
     goto err_alloc;
   if (idl_create_field_name(pstate, loc, name, &keys[n+0]))
     goto err_alloc;

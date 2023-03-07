@@ -19,6 +19,7 @@ idl_create_name(
   idl_pstate_t *state,
   const idl_location_t *location,
   char *identifier,
+  bool is_annotation,
   idl_name_t **namep);
 
 void idl_delete_name(idl_name_t *name);

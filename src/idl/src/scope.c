@@ -50,9 +50,8 @@ create_declaration(
   declaration->kind = kind;
   if (!(identifier = idl_strdup(name->identifier)))
     goto err_identifier;
-  if (idl_create_name(pstate, idl_location(name), identifier, &declaration->name))
+  if (idl_create_name(pstate, idl_location(name), identifier, name->is_annotation, &declaration->name))
     goto err_name;
-  declaration->name->is_annotation = name->is_annotation;
   *declarationp = declaration;
   return IDL_RETCODE_OK;
 err_name:
@@ -440,12 +439,10 @@ idl_find_scoped_name(
 
   for (size_t i=0; i < scoped_name->length && scope;) {
     const idl_name_t *name = scoped_name->names[i];
-
-    idl_name_t find_name = { .identifier = name->identifier, .symbol = name->symbol, .is_annotation = (flags & IDL_FIND_ANNOTATION) };
-
-    entry = idl_find(pstate, scope, &find_name, (flags|IDL_FIND_IGNORE_CASE|IDL_FIND_SCOPE_DECLARATION));
+    assert(name->is_annotation == ((i == scoped_name->length - 1) && flags & IDL_FIND_ANNOTATION));
+    entry = idl_find(pstate, scope, name, (flags|IDL_FIND_IGNORE_CASE|IDL_FIND_SCOPE_DECLARATION));
     if (entry && entry->kind != IDL_USE_DECLARATION) {
-      if (cmp(&find_name, entry->name) != 0)
+      if (cmp(name, entry->name) != 0)
         return NULL;
       scope = entry->kind == IDL_SCOPE_DECLARATION ? scope : entry->scope;
       i++;
