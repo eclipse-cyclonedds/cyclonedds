@@ -950,8 +950,10 @@ identifier:
         else if (!(n = ($1[0] == '_')) && idl_iskeyword(pstate, $1, nocase))
           SEMANTIC_ERROR(&@1, "Identifier '%s' collides with a keyword", $1);
 
-        if (pstate->parser.state != IDL_PARSE_UNKNOWN_ANNOTATION_APPL_PARAMS)
-          TRY(idl_create_name(pstate, &@1, idl_strdup($1+n), &$$));
+        if (pstate->parser.state != IDL_PARSE_UNKNOWN_ANNOTATION_APPL_PARAMS) {
+          bool is_annotation = pstate->parser.state == IDL_PARSE_ANNOTATION || pstate->parser.state == IDL_PARSE_ANNOTATION_APPL;
+          TRY(idl_create_name(pstate, &@1, idl_strdup($1+n), is_annotation, &$$));
+        }
       }
   ;
 

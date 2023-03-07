@@ -36,6 +36,7 @@ idl_create_name(
   idl_pstate_t *pstate,
   const idl_location_t *location,
   char *identifier,
+  bool is_annotation,
   idl_name_t **namep)
 {
   idl_name_t *name;
@@ -45,7 +46,7 @@ idl_create_name(
     return IDL_RETCODE_NO_MEMORY;
   name->symbol.location = *location;
   name->identifier = identifier;
-  name->is_annotation = false;
+  name->is_annotation = is_annotation;
   *namep = name;
   return IDL_RETCODE_OK;
 }

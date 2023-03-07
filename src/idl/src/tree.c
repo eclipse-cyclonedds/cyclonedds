@@ -3318,9 +3318,9 @@ idl_create_annotation(
     delete_annotation, iterate_annotation, describe_annotation };
   static const enum idl_declaration_kind kind = IDL_ANNOTATION_DECLARATION;
 
+  assert(name->is_annotation);
   if ((ret = create_node(pstate, size, mask, location, &methods, &node)))
     goto err_node;
-  name->is_annotation = true;
   declaration = idl_find(pstate, NULL, name, IDL_FIND_ANNOTATION);
   if (declaration) {
     /* annotations should not cause more compile errors than strictly needed.
