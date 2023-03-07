@@ -47,6 +47,7 @@
 #include "dds/ddsrt/threads.h"
 #include "iceoryx_binding_c/wait_set.h"
 #include "dds__shm_monitor.h"
+#include "dds__shm_qos.h"
 #endif
 
 DECL_ENTITY_LOCK_UNLOCK (dds_reader)
@@ -472,46 +473,6 @@ const struct dds_entity_deriver dds_entity_deriver_reader = {
 };
 
 #ifdef DDS_HAS_SHM
-#define DDS_READER_QOS_CHECK_FIELDS (DDSI_QP_LIVELINESS|DDSI_QP_DEADLINE|DDSI_QP_RELIABILITY|DDSI_QP_DURABILITY|DDSI_QP_HISTORY)
-static bool dds_reader_support_shm(const struct ddsi_config* cfg, const dds_qos_t *qos, const struct dds_topic *tp)
-{
-  if (NULL == cfg ||
-      false == cfg->enable_shm)
-    return false;
-
-  // check necessary condition: fixed size data type OR serializing into shared
-  // memory is available
-  if (!tp->m_stype->fixed_size && (!tp->m_stype->ops->get_serialized_size ||
-                                   !tp->m_stype->ops->serialize_into)) {
-    return false;
-  }
-
-  if(qos->history.kind != DDS_HISTORY_KEEP_LAST) {
-    return false;
-  }
-
-  if(!(qos->durability.kind == DDS_DURABILITY_VOLATILE ||
-    qos->durability.kind == DDS_DURABILITY_TRANSIENT_LOCAL)) {
-    return false;
-  }
-
-  if (qos->ignorelocal.value != DDS_IGNORELOCAL_NONE) {
-    return false;
-  }
-
-  // only default partition or one non-wildcard partition
-  if (qos->partition.n > 1) {
-    return false;
-  } else if (qos->partition.n == 1 && (strchr (qos->partition.strs[0], '*') || strchr (qos->partition.strs[0], '?'))) {
-    return false;
-  }
-
-  return (DDS_READER_QOS_CHECK_FIELDS ==
-              (qos->present & DDS_READER_QOS_CHECK_FIELDS) &&
-          DDS_LIVELINESS_AUTOMATIC == qos->liveliness.kind &&
-          DDS_INFINITY == qos->deadline.deadline);
-}
-
 static iox_sub_options_t create_iox_sub_options(const dds_qos_t* qos) {
 
   iox_sub_options_t opts;
@@ -701,7 +662,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
 
 #ifdef DDS_HAS_SHM
   assert(rqos->present & DDSI_QP_LOCATOR_MASK);
-  if (!dds_reader_support_shm(&gv->config, rqos, tp))
+  if (!(gv->config.enable_shm && dds_shm_compatible_qos_and_topic (rqos, tp, true)))
     rqos->ignore_locator_type |= DDSI_LOCATOR_KIND_SHEM;
 #endif
 
@@ -722,13 +683,8 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
 
     // quick hack to make partitions work; use a * mark to separate partition name and topic name
     // because we already know the partition can't contain a * anymore
-    char *part_topic = NULL;
-    assert (rqos->partition.n <= 1);
-    ddsrt_asprintf (&part_topic, "%s*%s", (rqos->partition.n == 0) ? "" : rqos->partition.strs[0], rd->m_topic->m_name);
-    // NB: This may fail due to icoeryx being out of internal resources for subsribers.
-    //     In this case terminate is called by iox_sub_init.
-    //     it is currently (iceoryx 2.0 and lower) not possible to change this to
-    //     e.g. return a nullptr and handle the error here.
+    char *part_topic = dds_shm_partition_topic (rqos, rd->m_topic);
+    assert (part_topic != NULL);
     rd->m_iox_sub = iox_sub_init(&(iox_sub_storage_t){0}, gv->config.iceoryx_service, rd->m_topic->m_stype->type_name, part_topic, &opts);
     ddsrt_free (part_topic);
 

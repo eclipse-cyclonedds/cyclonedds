@@ -26,6 +26,7 @@
 #include "dds/dds.h"
 #include "dds/ddsc/dds_loan_api.h"
 #include "dds__entity.h"
+#include "dds__shm_qos.h"
 
 #include "test_common.h"
 #include "Array100.h"
@@ -118,6 +119,36 @@ static bool endpoint_has_iceoryx_enabled (dds_entity_t rd_or_wr)
   }
   dds_entity_unpin (x);
   return iceoryx_enabled;
+}
+
+static struct dds_topic *get_endpoint_topic_pointer (dds_entity_t rd_or_wr)
+{
+  // returning a "raw", unpinned topic pointer is not very smart generally speaking, but
+  // the topic remains alive while the endpoint exists, so it's ok in a test case
+  dds_return_t rc;
+  struct dds_entity *x;
+  struct dds_topic *tp = NULL;
+  rc = dds_entity_pin (rd_or_wr, &x);
+  CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
+  switch (dds_entity_kind (x))
+  {
+    case DDS_KIND_READER: {
+      struct dds_reader const * const rd = (struct dds_reader *) x;
+      tp = rd->m_topic;
+      break;
+    }
+    case DDS_KIND_WRITER: {
+      struct dds_writer const * const wr = (struct dds_writer *) x;
+      tp = wr->m_topic;
+      break;
+    }
+    default: {
+      CU_ASSERT_FATAL (dds_entity_kind (x) == DDS_KIND_READER || dds_entity_kind (x) == DDS_KIND_WRITER);
+      break;
+    }
+  }
+  dds_entity_unpin (x);
+  return tp;
 }
 
 static uint32_t reader_unicast_port (dds_entity_t rdhandle)
@@ -707,62 +738,111 @@ CU_Test(ddsc_iceoryx, partition_xtalk)
   create_unique_topic_name ("test_iceoryx", topicname, sizeof (topicname));
   const dds_entity_t tp = dds_create_topic (pp, &Space_Type1_desc, topicname, NULL, NULL);
   CU_ASSERT_FATAL (tp > 0);
-  
+
   dds_qos_t *qos = dds_create_qos ();
   CU_ASSERT_FATAL (qos != NULL);
   dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, 0);
   dds_qset_writer_data_lifecycle (qos, false);
-  dds_entity_t wrA = dds_create_writer (pp, tp, qos, NULL);
-  CU_ASSERT_FATAL (wrA > 0);
-  CU_ASSERT_FATAL (endpoint_has_iceoryx_enabled (wrA) == true);
-  dds_entity_t rdA = dds_create_reader (pp, tp, qos, NULL);
-  CU_ASSERT_FATAL (rdA > 0);
-  CU_ASSERT_FATAL (endpoint_has_iceoryx_enabled (rdA) == true);
-  dds_qset_partition1 (qos, "b");
-  dds_entity_t wrB = dds_create_writer (pp, tp, qos, NULL);
-  CU_ASSERT_FATAL (wrB > 0);
-  CU_ASSERT_FATAL (endpoint_has_iceoryx_enabled (wrB) == true);
-  dds_entity_t rdB = dds_create_reader (pp, tp, qos, NULL);
-  CU_ASSERT_FATAL (rdB > 0);
-  CU_ASSERT_FATAL (endpoint_has_iceoryx_enabled (rdB) == true);
-  dds_qset_partition1 (qos, "*");
-  dds_entity_t wrS = dds_create_writer (pp, tp, qos, NULL);
-  CU_ASSERT_FATAL (wrS > 0);
-  CU_ASSERT_FATAL (endpoint_has_iceoryx_enabled (wrS) == false);
+
+  static const struct testcase {
+    struct epspec {
+      uint32_t np;
+      const char *p[2];
+      const char *ptcheck; // partition+topic prefix in iceoryx, or null if no iceoryx
+    } wr, rd;
+    const char *checkwrp; // null: wr & rd match; non-null: partition to use for check writer
+  } testcases[] = {
+    // QoS checking and iceoryx name construction code are the same for reader & writer, so
+    // no need to check all combinations
+    { {0,{0,0},"."},        {0,{0,0},"."},       0 },
+    { {1,{"",0},"."},       {0,{0,0},"."},       0 },
+    { {2,{"","a"},0},       {0,{0,0},"."},       0 },   // 2 pt -> no iceoryx for writer, still match
+    { {1,{"a"},"a."},       {1,{"b",0},"b."},    "b" }, // diff partition, no match (so need checkwr)
+    { {2,{"","a"},0},       {1,{"b",0},"b."},    "b" }, // 2 pt -> no iceoryx for writer, no match
+    { {2,{"","a"},0},       {1,{"*",0},0},       0 },   // 2 pt, wildcard: no iceoryx involved
+    { {1,{"*",0},0},        {1,{"*",0},0},       "x" }, // rd&wr both wildcard: no match, hence "x"
+    { {1,{"?",0},0},        {1,{"b",0},"b."},    0 },   // ? is also a wildcard character
+    { {2,{"",""},0},        {1,{"",0},"."},      0 },   // 2 pt -> no iceoryx, even if the two are the same
+    { {1,{".",0},"\\.."},   {1,{".",0},"\\.."},  0 },   // a dot and \ should be escaped (can't check the
+    { {1,{"\\",0},"\\\\."}, {1,{"\\",0},"\\\\."},0 },   // ... name in iceoryx, but should at least try)
+  };
+
+  for (size_t i = 0; i < sizeof (testcases) / sizeof (testcases[0]); i++)
+  {
+    const struct testcase *tc = &testcases[i];
+    printf ("wr %s %s rd %s %s checkwr %s\n",
+            tc->wr.p[0] ? tc->wr.p[0] : "(null)",
+            tc->wr.p[1] ? tc->wr.p[1] : "(null)",
+            tc->rd.p[0] ? tc->rd.p[0] : "(null)",
+            tc->rd.p[1] ? tc->rd.p[1] : "(null)",
+            tc->checkwrp ? tc->checkwrp : "(null)");
+
+    dds_qset_partition (qos, tc->wr.np, (const char **) tc->wr.p);
+    dds_entity_t wr = dds_create_writer (pp, tp, qos, NULL);
+    CU_ASSERT_FATAL (wr > 0);
+    CU_ASSERT_FATAL (endpoint_has_iceoryx_enabled (wr) == (tc->wr.ptcheck != 0));
+    if (tc->wr.ptcheck)
+    {
+      char *pt = dds_shm_partition_topic (qos, get_endpoint_topic_pointer (wr));
+      CU_ASSERT_FATAL (strlen (pt) > strlen (tc->wr.ptcheck));
+      CU_ASSERT_FATAL (strncmp (tc->wr.ptcheck, pt, strlen (tc->wr.ptcheck)) == 0);
+      CU_ASSERT_FATAL (strcmp (pt + strlen (tc->wr.ptcheck), topicname) == 0);
+      ddsrt_free (pt);
+    }
+
+    dds_qset_partition (qos, tc->rd.np, (const char **) tc->rd.p);
+    dds_entity_t rd = dds_create_reader (pp, tp, qos, NULL);
+    CU_ASSERT_FATAL (rd > 0);
+    CU_ASSERT_FATAL (endpoint_has_iceoryx_enabled (rd) == (tc->rd.ptcheck != 0));
+    if (tc->rd.ptcheck)
+    {
+      char *pt = dds_shm_partition_topic (qos, get_endpoint_topic_pointer (rd));
+      CU_ASSERT_FATAL (strlen (pt) > strlen (tc->rd.ptcheck));
+      CU_ASSERT_FATAL (strncmp (tc->rd.ptcheck, pt, strlen (tc->rd.ptcheck)) == 0);
+      CU_ASSERT_FATAL (strcmp (pt + strlen (tc->rd.ptcheck), topicname) == 0);
+      ddsrt_free (pt);
+    }
+
+    dds_entity_t checkwr = 0;
+    if (tc->checkwrp)
+    {
+      dds_qset_partition1 (qos, tc->checkwrp);
+      checkwr = dds_create_writer (pp, tp, qos, NULL);
+      CU_ASSERT_FATAL (checkwr > 0);
+    }
+
+    rc = dds_write (wr, &(Space_Type1){ 1, 2, 3 });
+    CU_ASSERT_FATAL (rc == 0);
+    if (checkwr)
+    {
+      rc = dds_write (checkwr, &(Space_Type1){ 4, 5, 6 });
+      CU_ASSERT_FATAL (rc == 0);
+    }
+
+    Space_Type1 t;
+    void *tptr = &t;
+    dds_sample_info_t si;
+    while ((rc = dds_take (rd, &tptr, &si, 1, 1)) <= 0)
+      dds_sleepfor (DDS_MSECS (10));
+    CU_ASSERT_FATAL (rc == 1);
+    if (checkwr == 0) {
+      CU_ASSERT_FATAL (t.long_1 == 1 && t.long_2 == 2 && t.long_3 == 3);
+    } else {
+      CU_ASSERT_FATAL (t.long_1 == 4 && t.long_2 == 5 && t.long_3 == 6);
+    }
+
+    rc = dds_delete (wr);
+    CU_ASSERT_FATAL (rc == 0);
+    rc = dds_delete (rd);
+    CU_ASSERT_FATAL (rc == 0);
+    if (checkwr)
+    {
+      rc = dds_delete (checkwr);
+      CU_ASSERT_FATAL (rc == 0);
+    }
+  }
+
   dds_delete_qos (qos);
-
-  rc = dds_write (wrA, &(Space_Type1){ 1, 2, 3 });
-  CU_ASSERT_FATAL (rc == 0);
-
-  Space_Type1 t;
-  void *tptr = &t;
-  dds_sample_info_t si;
-  // data must arrive on rdA
-  while (dds_take (rdA, &tptr, &si, 1, 1) <= 0)
-    dds_sleepfor (DDS_MSECS (10));
-  CU_ASSERT_FATAL (t.long_1 == 1 && t.long_2 == 2 && t.long_3 == 3);
-  // data may not arrive on rdB, which is tricky to test ...
-  // so we write a sample from wrB, which really must be queued
-  // after the one from wrA given how Iceoryx works
-  rc = dds_take (rdB, &tptr, &si, 1, 1);
-  CU_ASSERT_FATAL (rc == 0);
-  rc = dds_write (wrB, &(Space_Type1){ 4, 5, 6 });
-  CU_ASSERT_FATAL (rc == 0);
-  while (dds_take (rdB, &tptr, &si, 1, 1) <= 0)
-    dds_sleepfor (DDS_MSECS (10));
-  CU_ASSERT_FATAL (t.long_1 == 4 && t.long_2 == 5 && t.long_3 == 6);
-
-  // from wrS it should arrive on both (but of course not via Iceoryx,
-  // which we checked after creating it)
-  rc = dds_write (wrS, &(Space_Type1){ 7, 8, 9 });
-  CU_ASSERT_FATAL (rc == 0);
-  while (dds_take (rdA, &tptr, &si, 1, 1) <= 0)
-    dds_sleepfor (DDS_MSECS (10));
-  CU_ASSERT_FATAL (t.long_1 == 7 && t.long_2 == 8 && t.long_3 == 9);
-  while (dds_take (rdB, &tptr, &si, 1, 1) <= 0)
-    dds_sleepfor (DDS_MSECS (10));
-  CU_ASSERT_FATAL (t.long_1 == 7 && t.long_2 == 8 && t.long_3 == 9);
-
   rc = dds_delete (DDS_CYCLONEDDS_HANDLE);
   CU_ASSERT_FATAL (rc == 0);
 }
