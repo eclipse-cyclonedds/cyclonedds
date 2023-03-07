@@ -38,6 +38,10 @@
 #include "dds__data_allocator.h"
 #include "dds/ddsi/ddsi_statistics.h"
 
+#ifdef DDS_HAS_SHM
+#include "dds__shm_qos.h"
+#endif
+
 DECL_ENTITY_LOCK_UNLOCK (dds_writer)
 
 #define DDS_WRITER_STATUS_MASK                                   \
@@ -276,54 +280,6 @@ const struct dds_entity_deriver dds_entity_deriver_writer = {
 };
 
 #ifdef DDS_HAS_SHM
-#define DDS_WRITER_QOS_CHECK_FIELDS (DDSI_QP_LIVELINESS|DDSI_QP_DEADLINE|DDSI_QP_RELIABILITY|DDSI_QP_DURABILITY|DDSI_QP_HISTORY)
-static bool dds_writer_support_shm(const struct ddsi_config* cfg, const dds_qos_t* qos, const struct dds_topic *tp)
-{
-  if (NULL == cfg ||
-      false == cfg->enable_shm)
-    return false;
-
-  // check necessary condition: fixed size data type OR serializing into shared
-  // memory is available
-  if (!tp->m_stype->fixed_size && (!tp->m_stype->ops->get_serialized_size ||
-                                   !tp->m_stype->ops->serialize_into)) {
-    return false;
-  }
-
-  // only VOLATILE or TRANSIENT LOCAL
-  if(!(qos->durability.kind == DDS_DURABILITY_VOLATILE ||
-    qos->durability.kind == DDS_DURABILITY_TRANSIENT_LOCAL)) {
-    return false;
-  }
-
-  // only KEEP LAST
-  if(qos->history.kind != DDS_HISTORY_KEEP_LAST) {
-    return false;
-  }
-  // we cannot support the required history with iceoryx
-  if (qos->durability.kind == DDS_DURABILITY_TRANSIENT_LOCAL &&
-      qos->durability_service.history.kind == DDS_HISTORY_KEEP_LAST &&
-      qos->durability_service.history.depth >
-          (int32_t)iox_cfg_max_publisher_history()) {
-    return false;
-  }
-
-  if (qos->ignorelocal.value != DDS_IGNORELOCAL_NONE) {
-    return false;
-  }
-
-  // only default partition or one non-wildcard partition
-  if (qos->partition.n > 1) {
-    return false;
-  } else if (qos->partition.n == 1 && (strchr (qos->partition.strs[0], '*') || strchr (qos->partition.strs[0], '?'))) {
-    return false;
-  }
-
-  return (DDS_WRITER_QOS_CHECK_FIELDS == (qos->present & DDS_WRITER_QOS_CHECK_FIELDS) &&
-          DDS_LIVELINESS_AUTOMATIC == qos->liveliness.kind &&
-          DDS_INFINITY == qos->deadline.deadline);
-}
-
 static iox_pub_options_t create_iox_pub_options(const dds_qos_t* qos) {
 
   iox_pub_options_t opts;
@@ -454,7 +410,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
 
 #ifdef DDS_HAS_SHM
   assert(wqos->present & DDSI_QP_LOCATOR_MASK);
-  if (!dds_writer_support_shm(&gv->config, wqos, tp))
+  if (!(gv->config.enable_shm && dds_shm_compatible_qos_and_topic (wqos, tp, true)))
     wqos->ignore_locator_type |= DDSI_LOCATOR_KIND_SHEM;
 #endif
 
@@ -478,11 +434,8 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
     //     it is currently (iceoryx 2.0 and lower) not possible to change this to
     //     e.g. return a nullptr and handle the error here.
 
-    // quick hack to make partitions work; use a * mark to separate partition name and topic name
-    // because we already know the partition can't contain a * anymore
-    char *part_topic = NULL;
-    assert (wqos->partition.n <= 1);
-    ddsrt_asprintf (&part_topic, "%s*%s", (wqos->partition.n == 0) ? "" : wqos->partition.strs[0], wr->m_topic->m_name);
+    char *part_topic = dds_shm_partition_topic (wqos, wr->m_topic);
+    assert (part_topic != NULL);
     wr->m_iox_pub = iox_pub_init(&(iox_pub_storage_t){0}, gv->config.iceoryx_service, wr->m_topic->m_stype->type_name, part_topic, &opts);
     ddsrt_free (part_topic);
     memset(wr->m_iox_pub_loans, 0, sizeof(wr->m_iox_pub_loans));
