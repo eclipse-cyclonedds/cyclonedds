@@ -11,7 +11,7 @@
 #
 
 function(IDLC_GENERATE)
-  set(options NO_TYPE_INFO)
+  set(options NO_TYPE_INFO WERROR)
   set(one_value_keywords TARGET DEFAULT_EXTENSIBILITY BASE_DIR)
   set(multi_value_keywords FILES FEATURES INCLUDES WARNINGS)
   cmake_parse_arguments(
@@ -29,11 +29,14 @@ function(IDLC_GENERATE)
   if(${IDLC_NO_TYPE_INFO})
     list(APPEND gen_args NO_TYPE_INFO)
   endif()
+  if(${IDLC_WERROR})
+    list(APPEND gen_args WERROR)
+  endif()
   idlc_generate_generic(${gen_args})
 endfunction()
 
 function(IDLC_GENERATE_GENERIC)
-  set(options NO_TYPE_INFO)
+  set(options NO_TYPE_INFO WERROR)
   set(one_value_keywords TARGET BACKEND DEFAULT_EXTENSIBILITY BASE_DIR)
   set(multi_value_keywords FILES FEATURES INCLUDES WARNINGS SUFFIXES DEPENDS)
   cmake_parse_arguments(
@@ -119,6 +122,10 @@ function(IDLC_GENERATE_GENERIC)
 
   if(IDLC_NO_TYPE_INFO)
     list(APPEND IDLC_ARGS "-t")
+  endif()
+
+  if(IDLC_WERROR)
+    list(APPEND IDLC_ARGS "-Werror")
   endif()
 
   if(IDLC_BASE_DIR)

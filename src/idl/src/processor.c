@@ -294,9 +294,8 @@ idl_warning(
 {
   va_list ap;
 
-  for (size_t n = 0; n < pstate->config.n_disable_warnings; n++)
-    if (pstate->config.disable_warnings[n] == warning)
-      return;
+  if (pstate->track_warning && !pstate->track_warning(warning))
+    return;
 
   va_start(ap, fmt);
   idl_log(pstate, IDL_LC_WARNING, loc, fmt, ap);
