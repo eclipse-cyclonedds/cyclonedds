@@ -65,6 +65,7 @@ static struct {
   int default_extensibility;
   bool default_nested;
   struct idlc_disable_warning_list disable_warnings;
+  bool werror;
   int help;
   int version;
 #ifdef DDS_HAS_TYPE_DISCOVERY
@@ -78,6 +79,8 @@ static struct {
 /* mcpp does not accept userdata */
 static idl_retcode_t retcode = IDL_RETCODE_OK;
 static idl_pstate_t *pstate = NULL;
+
+static bool has_warnings = false;
 
 static int idlc_putc(int chr, MCPP_OUTDEST od);
 static int idlc_puts(const char *str, MCPP_OUTDEST od);
@@ -235,6 +238,16 @@ static int idlc_printf(MCPP_OUTDEST od, const char *fmt, ...)
   return ret < 0 ? -1 : ret;
 }
 
+static bool track_warning (idl_warning_t warning)
+{
+  for (size_t n = 0; n < config.disable_warnings.count; n++)
+    if (config.disable_warnings.list[n] == warning)
+      return false;
+
+  has_warnings = true;
+  return true;
+}
+
 static idl_retcode_t figure_file(idl_file_t **filep)
 {
   idl_file_t *file;
@@ -345,8 +358,7 @@ static idl_retcode_t idlc_parse(const idl_builtin_annotation_t ** generator_anno
     pstate->config.flags |= IDL_WRITE;
     pstate->config.default_extensibility = config.default_extensibility;
     pstate->config.default_nested = config.default_nested;
-    pstate->config.disable_warnings = config.disable_warnings.list;
-    pstate->config.n_disable_warnings = config.disable_warnings.count;
+    pstate->track_warning = &track_warning;
   }
 
   if (config.preprocess) {
@@ -525,6 +537,8 @@ static int config_warning(const idlc_option_t *opt, const char *arg)
     add_disable_warning(IDL_WARN_ENUM_CONSECUTIVE);
   else if (strcmp(arg, "no-unsupported-annotations") == 0)
     add_disable_warning(IDL_WARN_UNSUPPORTED_ANNOTATIONS);
+  else if (strcmp(arg, "error") == 0)
+    config.werror = true;
   else
     return IDLC_BAD_ARGUMENT;
   return 0;
@@ -601,10 +615,11 @@ static const idlc_option_t *compopts[] = {
     "with an unset nestedness implicitly being false. Possible values for this option are: true, "
     "false (default: true). " },
   &(idlc_option_t){
-    IDLC_FUNCTION, { .function = &config_warning }, 'W', "", "<no-warning>",
-    "Enable or disable warnings. Possible values are: no-implicit-extensibility, "
-    "no-extra-token-directive, no-unknown_escape_seq, no-inherit-appendable, "
-    "no-eof-newline, no-enum-consecutive. " },
+    IDLC_FUNCTION, { .function = &config_warning }, 'W', "", "<[no-]warning>",
+    "Enable or disable warnings. Possible values are: -Wno-implicit-extensibility, "
+    "-Wno-extra-token-directive, -Wno-unknown_escape_seq, -Wno-inherit-appendable, "
+    "-Wno-eof-newline, -Wno-enum-consecutive. Use -Werror to make all warnings into "
+    "errors. " },
   &(idlc_option_t){
     IDLC_STRING, { .string = &config.output_dir }, 'o', "", "<directory>",
     "Set the output directory for compiled files." },
@@ -677,6 +692,7 @@ int main(int argc, char *argv[])
   config.disable_warnings.list = NULL;
   config.disable_warnings.size = 0;
   config.disable_warnings.count = 0;
+  config.werror = false;
 #ifdef DDS_HAS_TYPE_DISCOVERY
   config.no_type_info = 0;
 #endif
@@ -786,8 +802,8 @@ int main(int argc, char *argv[])
       }
     }
   }
+  exit_code = (has_warnings && config.werror) ? EXIT_FAILURE : EXIT_SUCCESS;
 
-  exit_code = EXIT_SUCCESS;
 err_generate:
 err_parse:
 err_parse_opts:

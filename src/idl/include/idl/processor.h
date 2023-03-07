@@ -71,6 +71,8 @@ enum idl_warning {
   IDL_WARN_UNSUPPORTED_ANNOTATIONS
 };
 
+typedef bool (*track_warning_fn)(idl_warning_t warning);
+
 typedef struct idl_pstate idl_pstate_t;
 struct idl_pstate {
   bool keylists;
@@ -79,9 +81,8 @@ struct idl_pstate {
     uint32_t flags; /**< processor options */
     int default_extensibility; /**< default extensibility for aggregated types */
     bool default_nested; /**< default nestedness for aggregated types */
-    const idl_warning_t *disable_warnings; /**< list of warning that will be suppressed */
-    size_t n_disable_warnings; /**< number of items in disable_warnings */
   } config;
+  track_warning_fn track_warning;
   idl_file_t *paths; /**< normalized paths used in include statements */
   idl_file_t *files; /**< filenames used in #line directives */
   idl_source_t *sources;
