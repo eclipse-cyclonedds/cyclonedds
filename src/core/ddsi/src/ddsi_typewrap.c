@@ -1946,10 +1946,10 @@ static struct xt_type *xt_expand_basetype (struct ddsi_domaingv *gv, const struc
   /* Expand members of the base type in the resulting type
      before the members of the derived type */
   uint32_t incr = b->_u.structure.members.length;
+  ms->seq = ddsrt_realloc (ms->seq, (ms->length + incr) * sizeof (*ms->seq));
+  memmove (&ms->seq[incr], ms->seq, ms->length * sizeof (*ms->seq));
   ms->length += incr;
-  ms->seq = ddsrt_realloc (ms->seq, ms->length * sizeof (*ms->seq));
-  memmove (&ms->seq[incr], ms->seq, incr * sizeof (*ms->seq));
-  for (uint32_t i = 0; i < b->_u.structure.members.length; i++)
+  for (uint32_t i = 0; i < incr; i++)
     xt_struct_member_copy (gv, &ms->seq[i], &b->_u.structure.members.seq[i]);
   return te;
 }
