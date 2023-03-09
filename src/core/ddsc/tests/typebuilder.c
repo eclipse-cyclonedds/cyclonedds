@@ -98,8 +98,8 @@ static bool ti_to_pairs_equal (dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectP
     if (memcmp (to_a_ser.m_buffer, to_b_ser.m_buffer, to_a_ser.m_index))
       return false;
 
-    dds_ostream_fini (&to_a_ser);
-    dds_ostream_fini (&to_b_ser);
+    dds_ostream_fini (&to_a_ser, &dds_cdrstream_default_allocator);
+    dds_ostream_fini (&to_b_ser, &dds_cdrstream_default_allocator);
   }
   return true;
 }

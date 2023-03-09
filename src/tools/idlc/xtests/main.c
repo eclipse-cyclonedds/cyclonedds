@@ -26,7 +26,7 @@ extern int cmp_key (const void *sa, const void *sb);
 
 static void free_sample (void *s)
 {
-  dds_stream_free_sample (s, desc->m_ops);
+  dds_stream_free_sample (s, &dds_cdrstream_default_allocator, desc->m_ops);
   dds_free (s);
 }
 
@@ -72,7 +72,7 @@ int rd_cmp_print_key (dds_ostream_t *os, const void *msg_wr, struct dds_cdrstrea
 
   // read
   void *msg_rd = ddsrt_calloc (1, desc->m_size);
-  dds_stream_read_key (&is, msg_rd, cdrstream_desc);
+  dds_stream_read_key (&is, msg_rd, &dds_cdrstream_default_allocator, cdrstream_desc);
 
   // compare
   res = cmp_key(msg_wr, msg_rd);
@@ -114,9 +114,9 @@ int main(int argc, char **argv)
     dds_ostream_t os = { NULL, 0, 0, DDSI_RTPS_CDR_ENC_VERSION_2 };
     bool ret;
     if (tests[i] == BE)
-      ret = dds_stream_write_sampleBE ((dds_ostreamBE_t *)(&os), msg_wr, &cdrstream_desc);
+      ret = dds_stream_write_sampleBE ((dds_ostreamBE_t *)(&os), &dds_cdrstream_default_allocator, msg_wr, &cdrstream_desc);
     else
-      ret = dds_stream_write_sampleLE ((dds_ostreamLE_t *)(&os), msg_wr, &cdrstream_desc);
+      ret = dds_stream_write_sampleLE ((dds_ostreamLE_t *)(&os), &dds_cdrstream_default_allocator, msg_wr, &cdrstream_desc);
     if (!ret)
     {
       printf("cdr write failed\n");
@@ -145,7 +145,7 @@ int main(int argc, char **argv)
     // read data and check for expected result
     printf("cdr read data\n");
     void *msg_rd = ddsrt_calloc (1, desc->m_size);
-    dds_stream_read_sample (&is, msg_rd, &cdrstream_desc);
+    dds_stream_read_sample (&is, msg_rd, &dds_cdrstream_default_allocator, &cdrstream_desc);
     res = cmp_sample(msg_wr, msg_rd);
     printf("data compare result: %d\n", res);
 
@@ -159,7 +159,7 @@ int main(int argc, char **argv)
       // extract key from data
       is.m_index = 0;
       dds_ostream_t os_key_from_data = { NULL, 0, 0, DDSI_RTPS_CDR_ENC_VERSION_2 };
-      if (!dds_stream_extract_key_from_data (&is, &os_key_from_data, &cdrstream_desc))
+      if (!dds_stream_extract_key_from_data (&is, &os_key_from_data, &dds_cdrstream_default_allocator, &cdrstream_desc))
       {
         printf("extract key from data failed\n");
         return 1;
@@ -173,20 +173,20 @@ int main(int argc, char **argv)
 
       // write key
       dds_ostream_t os_wr_key = { NULL, 0, 0, DDSI_RTPS_CDR_ENC_VERSION_2 };
-      dds_stream_write_key (&os_wr_key, msg_wr, &cdrstream_desc);
+      dds_stream_write_key (&os_wr_key, &dds_cdrstream_default_allocator, msg_wr, &cdrstream_desc);
 
       // extract key from key
       dds_istream_t is_key_from_key = { os_wr_key.m_buffer, os_wr_key.m_size, 0, DDSI_RTPS_CDR_ENC_VERSION_2 };
       dds_ostream_t os_key_from_key = { NULL, 0, 0, DDSI_RTPS_CDR_ENC_VERSION_2 };
-      dds_stream_extract_key_from_key (&is_key_from_key, &os_key_from_key, &cdrstream_desc);
+      dds_stream_extract_key_from_key (&is_key_from_key, &os_key_from_key, &dds_cdrstream_default_allocator, &cdrstream_desc);
       res = rd_cmp_print_key (&os_key_from_key, msg_wr, &cdrstream_desc);
 
-      dds_ostream_fini (&os_key_from_data);
-      dds_ostream_fini (&os_key_from_key);
-      dds_ostream_fini (&os_wr_key);
+      dds_ostream_fini (&os_key_from_data, &dds_cdrstream_default_allocator);
+      dds_ostream_fini (&os_key_from_key, &dds_cdrstream_default_allocator);
+      dds_ostream_fini (&os_wr_key, &dds_cdrstream_default_allocator);
     }
 
-    dds_ostream_fini (&os);
+    dds_ostream_fini (&os, &dds_cdrstream_default_allocator);
     free_sample(msg_wr);
     free_sample(msg_rd);
     if (res != 0)

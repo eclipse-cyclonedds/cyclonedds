@@ -119,7 +119,7 @@ static void sertype_cdr_free_samples (const struct ddsi_sertype *sertype_common,
       char *ptr = ptrs[0];
       for (size_t i = 0; i < count; i++)
       {
-        dds_stream_free_sample (ptr, type->ops.ops);
+        dds_stream_free_sample (ptr, &dds_cdrstream_default_allocator, type->ops.ops);
         ptr += size;
       }
     }

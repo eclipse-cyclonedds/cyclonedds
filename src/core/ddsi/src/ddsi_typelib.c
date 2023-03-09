@@ -113,7 +113,7 @@ ddsi_typeinfo_t *ddsi_typeinfo_deser (const unsigned char *data, uint32_t sz)
 
   dds_istream_t is = { .m_buffer = data_ne, .m_index = 0, .m_size = sz, .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
   ddsi_typeinfo_t *typeinfo = ddsrt_calloc (1, sizeof (*typeinfo));
-  dds_stream_read (&is, (void *) typeinfo, DDS_XTypes_TypeInformation_desc.m_ops);
+  dds_stream_read (&is, (void *) typeinfo, &dds_cdrstream_default_allocator, DDS_XTypes_TypeInformation_desc.m_ops);
   if (bswap)
     ddsrt_free (data_ne);
   return typeinfo;
@@ -131,7 +131,7 @@ ddsi_typeid_t *ddsi_typeinfo_typeid (const ddsi_typeinfo_t *type_info, ddsi_type
 
 void ddsi_typeinfo_fini (ddsi_typeinfo_t *typeinfo)
 {
-  dds_stream_free_sample (typeinfo, DDS_XTypes_TypeInformation_desc.m_ops);
+  dds_stream_free_sample (typeinfo, &dds_cdrstream_default_allocator, DDS_XTypes_TypeInformation_desc.m_ops);
 }
 
 const ddsi_typeid_t *ddsi_typeinfo_minimal_typeid (const ddsi_typeinfo_t *typeinfo)
@@ -228,7 +228,7 @@ ddsi_typemap_t *ddsi_typemap_deser (const unsigned char *data, uint32_t sz)
 
   dds_istream_t is = { .m_buffer = data_ne, .m_index = 0, .m_size = sz, .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
   ddsi_typemap_t *typemap = ddsrt_calloc (1, sizeof (*typemap));
-  dds_stream_read (&is, (void *) typemap, DDS_XTypes_TypeMapping_desc.m_ops);
+  dds_stream_read (&is, (void *) typemap, &dds_cdrstream_default_allocator, DDS_XTypes_TypeMapping_desc.m_ops);
   if (bswap)
     ddsrt_free (data_ne);
   return typemap;
@@ -236,7 +236,7 @@ ddsi_typemap_t *ddsi_typemap_deser (const unsigned char *data, uint32_t sz)
 
 void ddsi_typemap_fini (ddsi_typemap_t *typemap)
 {
-  dds_stream_free_sample (typemap, DDS_XTypes_TypeMapping_desc.m_ops);
+  dds_stream_free_sample (typemap, &dds_cdrstream_default_allocator, DDS_XTypes_TypeMapping_desc.m_ops);
 }
 
 static bool ti_to_pairs_equal (const dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectPair *a, const dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectPair *b)
@@ -259,11 +259,11 @@ static bool ti_to_pairs_equal (const dds_sequence_DDS_XTypes_TypeIdentifierTypeO
     {
       dds_ostream_t to_a_ser = { NULL, 0, 0, DDSI_RTPS_CDR_ENC_VERSION_2 };
       dds_ostream_t to_b_ser = { NULL, 0, 0, DDSI_RTPS_CDR_ENC_VERSION_2 };
-      dds_stream_write_sample (&to_a_ser, &a->_buffer[n].type_object, &DDS_XTypes_TypeObject_cdrstream_desc);
-      dds_stream_write_sample (&to_b_ser, to_b, &DDS_XTypes_TypeObject_cdrstream_desc);
+      dds_stream_write_sample (&to_a_ser, &dds_cdrstream_default_allocator, &a->_buffer[n].type_object, &DDS_XTypes_TypeObject_cdrstream_desc);
+      dds_stream_write_sample (&to_b_ser, &dds_cdrstream_default_allocator, to_b, &DDS_XTypes_TypeObject_cdrstream_desc);
       equal = (to_a_ser.m_index == to_b_ser.m_index) && memcmp (to_a_ser.m_buffer, to_b_ser.m_buffer, to_a_ser.m_index) == 0;
-      dds_ostream_fini (&to_a_ser);
-      dds_ostream_fini (&to_b_ser);
+      dds_ostream_fini (&to_a_ser, &dds_cdrstream_default_allocator);
+      dds_ostream_fini (&to_b_ser, &dds_cdrstream_default_allocator);
     }
   }
   return equal;
@@ -747,7 +747,7 @@ static dds_return_t xcdr2_ser (const void *obj, const struct dds_cdrstream_desc 
   os->m_index = 0;
   os->m_size = 0;
   os->m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2;
-  dds_return_t ret = dds_stream_write_sampleLE ((dds_ostreamLE_t *) os, obj, desc) ? DDS_RETCODE_OK : DDS_RETCODE_BAD_PARAMETER;
+  dds_return_t ret = dds_stream_write_sampleLE ((dds_ostreamLE_t *) os, &dds_cdrstream_default_allocator, obj, desc) ? DDS_RETCODE_OK : DDS_RETCODE_BAD_PARAMETER;
   return ret;
 }
 
@@ -759,7 +759,7 @@ static dds_return_t get_typeid_with_size (DDS_XTypes_TypeIdentifierWithSize *typ
   if ((ret = xcdr2_ser (to, &DDS_XTypes_TypeObject_cdrstream_desc, &os)) < 0)
     return ret;
   typeid_with_size->typeobject_serialized_size = os.m_index;
-  dds_ostream_fini (&os);
+  dds_ostream_fini (&os, &dds_cdrstream_default_allocator);
   return DDS_RETCODE_OK;
 }
 

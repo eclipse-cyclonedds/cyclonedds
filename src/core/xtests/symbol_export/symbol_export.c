@@ -100,7 +100,7 @@ int main (int argc, char **argv)
 {
   (void) argc;
   (void) argv;
-  void *ptr = &ptr, *ptr2 = &ptr2, *ptr3 = &ptr3;
+  void *ptr = &ptr, *ptr2 = &ptr2, *ptr3 = &ptr3, *ptr4 = &ptr4;
 
   /* The functions shouldn't actually be called, just included here so that
      the linker resolves the symbols. An early return (with unreachable code
@@ -428,41 +428,41 @@ int main (int argc, char **argv)
   bool ret_cdrs;
   dds_istream_init (ptr, 0, ptr2, 0);
   dds_istream_fini (ptr);
-  dds_ostream_init (ptr, 0, 0);
-  dds_ostream_fini (ptr);
-  dds_ostreamLE_init (ptr, 0, 0);
-  dds_ostreamLE_fini (ptr);
-  dds_ostreamBE_init (ptr, 0, 0);
-  dds_ostreamBE_fini (ptr);
+  dds_ostream_init (ptr, ptr2, 0, 0);
+  dds_ostream_fini (ptr, ptr2);
+  dds_ostreamLE_init (ptr, ptr2, 0, 0);
+  dds_ostreamLE_fini (ptr, ptr2);
+  dds_ostreamBE_init (ptr, ptr2, 0, 0);
+  dds_ostreamBE_fini (ptr, ptr2);
 
   ret_cdrs = dds_stream_normalize (ptr, 0, 0, 0, ptr2, 0, ptr3);
   (void) ret_cdrs;
   ret_cdrs = dds_stream_normalize_data (ptr, ptr2, 0, 0, 0, ptr3);
   (void) ret_cdrs;
 
-  dds_stream_write (ptr, ptr2, ptr3);
-  dds_stream_writeLE (ptr, ptr2, ptr3);
-  dds_stream_writeBE (ptr, ptr2, ptr3);
-  dds_stream_write_with_byte_order (ptr, ptr2, ptr3, 0);
-  dds_stream_write_sample (ptr, ptr2, ptr3);
-  dds_stream_write_sampleLE (ptr, ptr2, ptr3);
-  dds_stream_write_sampleBE (ptr, ptr2, ptr3);
+  dds_stream_write (ptr, ptr2, ptr3, ptr4);
+  dds_stream_writeLE (ptr, ptr2, ptr3, ptr4);
+  dds_stream_writeBE (ptr, ptr2, ptr3, ptr4);
+  dds_stream_write_with_byte_order (ptr, ptr2, ptr3, ptr4, 0);
+  dds_stream_write_sample (ptr, ptr2, ptr3, ptr4);
+  dds_stream_write_sampleLE (ptr, ptr2, ptr3, ptr4);
+  dds_stream_write_sampleBE (ptr, ptr2, ptr3, ptr4);
 
-  dds_stream_read (ptr, ptr2, ptr3);
-  dds_stream_read_key (ptr, ptr2, ptr3);
+  dds_stream_read (ptr, ptr2, ptr3, ptr4);
+  dds_stream_read_key (ptr, ptr2, ptr3, ptr4);
 
-  dds_stream_read_sample (ptr, ptr2, ptr3);
-  dds_stream_free_sample (ptr, ptr2);
+  dds_stream_read_sample (ptr, ptr2, ptr3, ptr4);
+  dds_stream_free_sample (ptr, ptr2, ptr3);
   dds_stream_countops (ptr, 0, ptr2);
   dds_stream_print_key (ptr, ptr2, ptr3, 0);
   dds_stream_print_sample (ptr, ptr2, ptr3, 0);
 
-  dds_stream_extract_key_from_data (ptr, ptr2, ptr3);
-  dds_stream_extract_key_from_key (ptr, ptr2, ptr3);
-  dds_stream_extract_keyBE_from_data (ptr, ptr2, ptr3);
-  dds_stream_extract_keyBE_from_key (ptr, ptr2, ptr3);
+  dds_stream_extract_key_from_data (ptr, ptr2, ptr3, ptr4);
+  dds_stream_extract_key_from_key (ptr, ptr2, ptr3, ptr4);
+  dds_stream_extract_keyBE_from_data (ptr, ptr2, ptr3, ptr4);
+  dds_stream_extract_keyBE_from_key (ptr, ptr2, ptr3, ptr4);
   dds_cdrstream_desc_from_topic_desc (ptr, ptr2);
-  dds_cdrstream_desc_fini (ptr);
+  dds_cdrstream_desc_fini (ptr, ptr2);
 
 #ifdef DDS_HAS_SECURITY
   // dds_security_timed_cb.h

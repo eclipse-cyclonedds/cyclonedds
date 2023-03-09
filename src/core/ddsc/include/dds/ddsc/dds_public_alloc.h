@@ -32,6 +32,8 @@ extern "C" {
 struct dds_topic_descriptor;
 struct dds_sequence;
 
+DDS_EXPORT extern const struct dds_cdrstream_allocator dds_cdrstream_default_allocator;
+
 /**
  * @anchor DDS_FREE_KEY_BIT
  * @ingroup alloc

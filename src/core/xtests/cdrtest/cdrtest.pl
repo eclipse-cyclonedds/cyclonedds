@@ -158,7 +158,7 @@ EOF
         is.m_buffer = garbage;
         is.m_size = 1000;
         is.m_index = 0;
-        dds_stream_read_sample (&is, msg, &ddd.type);
+        dds_stream_read_sample (&is, msg, &dds_cdrstream_default_allocator, &ddd.type);
         deser_garbage++;
       }
     }
@@ -186,7 +186,7 @@ EOF
     is.m_buffer = blob;
     is.m_size = blobsz;
     is.m_index = 0;
-    dds_stream_read_sample (&is, msg, &ddd.type);
+    dds_stream_read_sample (&is, msg, &dds_cdrstream_default_allocator, &ddd.type);
     sd_cdrSerdataFree (sd);
     sd = sd_cdrSerialize (ci, samplecopy);
     blobsz = sd_cdrSerdataBlob (&blob, sd);

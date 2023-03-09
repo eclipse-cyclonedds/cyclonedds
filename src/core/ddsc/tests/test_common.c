@@ -89,8 +89,8 @@ void xcdr2_ser (const void *obj, const dds_topic_descriptor_t *topic_desc, dds_o
   os->m_index = 0;
   os->m_size = 0;
   os->m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2;
-  bool ret = dds_stream_write_sampleLE ((dds_ostreamLE_t *) os, obj, &desc);
-  dds_cdrstream_desc_fini (&desc);
+  bool ret = dds_stream_write_sampleLE ((dds_ostreamLE_t *) os, &dds_cdrstream_default_allocator, obj, &desc);
+  dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
   CU_ASSERT_FATAL (ret);
 }
 
@@ -113,7 +113,7 @@ void xcdr2_deser (unsigned char *buf, uint32_t sz, void **obj, const dds_topic_d
 
   dds_istream_t is = { .m_buffer = data, .m_index = 0, .m_size = sz, .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
   *obj = ddsrt_calloc (1, desc->m_size);
-  dds_stream_read (&is, (void *) *obj, desc->m_ops);
+  dds_stream_read (&is, (void *) *obj, &dds_cdrstream_default_allocator, desc->m_ops);
   if (bswap)
     ddsrt_free (data);
 }

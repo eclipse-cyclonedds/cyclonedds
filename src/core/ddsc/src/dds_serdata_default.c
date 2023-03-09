@@ -245,7 +245,7 @@ static bool gen_serdata_key (const struct dds_sertype_default *type, struct dds_
   {
     // Force the key in the serdata object to be serialized in XCDR2 format
     dds_ostream_t os;
-    dds_ostream_init (&os, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
+    dds_ostream_init (&os, &dds_cdrstream_default_allocator, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
     if (is_topic_fixed_key(desc->flagset, DDSI_RTPS_CDR_ENC_VERSION_2))
     {
       // FIXME: there are more cases where we don't have to allocate memory
@@ -255,16 +255,16 @@ static bool gen_serdata_key (const struct dds_sertype_default *type, struct dds_
     switch (input_kind)
     {
       case GSKIK_SAMPLE:
-        dds_stream_write_key (&os, input, &type->type);
+        dds_stream_write_key (&os, &dds_cdrstream_default_allocator, input, &type->type);
         break;
       case GSKIK_CDRSAMPLE:
-        if (!dds_stream_extract_key_from_data (input, &os, &type->type))
+        if (!dds_stream_extract_key_from_data (input, &os, &dds_cdrstream_default_allocator, &type->type))
           return false;
         break;
       case GSKIK_CDRKEY:
         assert (is);
         assert (is->m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_1);
-        dds_stream_extract_key_from_key (is, &os, &type->type);
+        dds_stream_extract_key_from_key (is, &os, &dds_cdrstream_default_allocator, &type->type);
         break;
     }
     assert (os.m_index < (1u << 30));
@@ -548,7 +548,7 @@ static void ostream_from_serdata_default (dds_ostream_t * __restrict s, const st
 static void ostream_add_to_serdata_default (dds_ostream_t * __restrict s, struct dds_serdata_default ** __restrict d)
 {
   /* DDSI requires 4 byte alignment */
-  const uint32_t pad = dds_cdr_alignto4_clear_and_resize (s, s->m_xcdr_version);
+  const uint32_t pad = dds_cdr_alignto4_clear_and_resize (s, &dds_cdrstream_default_allocator, s->m_xcdr_version);
   assert (pad <= 3);
 
   /* Reset data pointer as stream may have reallocated */
@@ -574,7 +574,7 @@ static struct dds_serdata_default *serdata_default_from_sample_cdr_common (const
       ostream_add_to_serdata_default (&os, &d);
       break;
     case SDK_KEY:
-      dds_stream_write_key (&os, sample, &tp->type);
+      dds_stream_write_key (&os, &dds_cdrstream_default_allocator, sample, &tp->type);
       ostream_add_to_serdata_default (&os, &d);
 
       /* FIXME: detect cases where the XCDR1 and 2 representations are equal,
@@ -603,7 +603,7 @@ static struct dds_serdata_default *serdata_default_from_sample_cdr_common (const
       }
       break;
     case SDK_DATA: {
-      const bool ok = dds_stream_write_sample (&os, sample, &tp->type);
+      const bool ok = dds_stream_write_sample (&os, &dds_cdrstream_default_allocator, sample, &tp->type);
       // `os` aliased what was in `d`, but was changed and may have moved.
       // `d` therefore needs to be updated even when write_sample failed.
       ostream_add_to_serdata_default (&os, &d);
@@ -720,9 +720,9 @@ static bool serdata_default_to_sample_cdr (const struct ddsi_serdata *serdata_co
       dds_istream_init (&is, hdr->data_size, iox_chunk, ddsi_sertype_enc_id_xcdr_version(d->hdr.identifier));
       assert (DDSI_RTPS_CDR_ENC_IS_NATIVE (d->hdr.identifier));
       if (d->c.kind == SDK_KEY)
-        dds_stream_read_key (&is, sample, &tp->type);
+        dds_stream_read_key (&is, sample, &dds_cdrstream_default_allocator, &tp->type);
       else
-        dds_stream_read_sample (&is, sample, &tp->type);
+        dds_stream_read_sample (&is, sample, &dds_cdrstream_default_allocator, &tp->type);
     } else {
       // should contain raw unserialized data
       // we could check the data_state but should not be needed
@@ -735,9 +735,9 @@ static bool serdata_default_to_sample_cdr (const struct ddsi_serdata *serdata_co
   assert (DDSI_RTPS_CDR_ENC_IS_NATIVE (d->hdr.identifier));
   istream_from_serdata_default(&is, d);
   if (d->c.kind == SDK_KEY)
-    dds_stream_read_key (&is, sample, &tp->type);
+    dds_stream_read_key (&is, sample, &dds_cdrstream_default_allocator, &tp->type);
   else
-    dds_stream_read_sample (&is, sample, &tp->type);
+    dds_stream_read_sample (&is, sample, &dds_cdrstream_default_allocator, &tp->type);
   return true; /* FIXME: can't conversion to sample fail? */
 }
 
@@ -752,7 +752,7 @@ static bool serdata_default_untyped_to_sample_cdr (const struct ddsi_sertype *se
   assert (DDSI_RTPS_CDR_ENC_IS_NATIVE (d->hdr.identifier));
   if (bufptr) abort(); else { (void)buflim; } /* FIXME: haven't implemented that bit yet! */
   istream_from_serdata_default(&is, d);
-  dds_stream_read_key (&is, sample, &tp->type);
+  dds_stream_read_key (&is, sample, &dds_cdrstream_default_allocator, &tp->type);
   return true; /* FIXME: can't conversion to sample fail? */
 }
 
@@ -800,8 +800,8 @@ static void serdata_default_get_keyhash (const struct ddsi_serdata *serdata_comm
   /* The output stream uses the XCDR version from the serdata, so that the keyhash in
      ostream is calculated using this CDR representation (XTypes spec 7.6.8, RTPS spec 9.6.3.8) */
   dds_ostreamBE_t os;
-  dds_ostreamBE_init (&os, 0, xcdrv);
-  dds_stream_extract_keyBE_from_key (&is, &os, &tp->type);
+  dds_ostreamBE_init (&os, &dds_cdrstream_default_allocator, 0, xcdrv);
+  dds_stream_extract_keyBE_from_key (&is, &os, &dds_cdrstream_default_allocator, &tp->type);
   assert (is.m_index == d->key.keysize);
 
   /* We know the key size for XCDR2 encoding, but for XCDR1 there can be additional
@@ -824,7 +824,7 @@ static void serdata_default_get_keyhash (const struct ddsi_serdata *serdata_comm
     memset (buf->value, 0, DDS_FIXED_KEY_MAX_SIZE);
     memcpy (buf->value, os.x.m_buffer, actual_keysz);
   }
-  dds_ostreamBE_fini (&os);
+  dds_ostreamBE_fini (&os, &dds_cdrstream_default_allocator);
 }
 
 const struct ddsi_serdata_ops dds_serdata_ops_cdr = {
