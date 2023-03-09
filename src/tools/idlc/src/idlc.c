@@ -21,6 +21,7 @@
 #include <string.h>
 
 #include "dds/features.h"
+#include "dds/cdr/dds_cdrstream.h"
 #include "idl/heap.h"
 #include "idl/misc.h"
 #include "idl/tree.h"

@@ -799,7 +799,7 @@ static dds_return_t deser_type_information (void * __restrict dst, struct flagse
   dds_istream_t is = { .m_buffer = buf, .m_index = 0, .m_size = (uint32_t) dd->bufsz, .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
   ddsi_typeinfo_t const ** x = deser_generic_dst (dst, &dstoff, dds_alignof (ddsi_typeinfo_t *));
   *x = ddsrt_calloc (1, DDS_XTypes_TypeInformation_desc.m_size);
-  dds_stream_read (&is, (void *) *x, DDS_XTypes_TypeInformation_desc.m_ops);
+  dds_stream_read (&is, (void *) *x, &dds_cdrstream_default_allocator, DDS_XTypes_TypeInformation_desc.m_ops);
   *flagset->present |= flag;
 err_normalize:
   if (dd->bswap)
@@ -813,10 +813,10 @@ static dds_return_t ser_type_information (struct ddsi_xmsg *xmsg, ddsi_parameter
   ddsi_typeinfo_t const * const * x = deser_generic_src (src, &srcoff, dds_alignof (ddsi_typeinfo_t *));
 
   dds_ostream_t os = { .m_buffer = NULL, .m_index = 0, .m_size = 0, .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
-  (void) dds_stream_write_with_byte_order (&os, (const void *) *x, DDS_XTypes_TypeInformation_desc.m_ops, bo);
+  (void) dds_stream_write_with_byte_order (&os, &dds_cdrstream_default_allocator, (const void *) *x, DDS_XTypes_TypeInformation_desc.m_ops, bo);
   char * const p = ddsi_xmsg_addpar_bo (xmsg, pid, os.m_index, bo);
   memcpy (p, os.m_buffer, os.m_index);
-  dds_ostream_fini (&os);
+  dds_ostream_fini (&os, &dds_cdrstream_default_allocator);
   return 0;
 }
 

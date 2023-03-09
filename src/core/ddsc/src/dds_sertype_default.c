@@ -170,7 +170,7 @@ static void sertype_default_free_samples (const struct ddsi_sertype *sertype_com
       char *ptr = ptrs[0];
       for (size_t i = 0; i < count; i++)
       {
-        dds_stream_free_sample (ptr, type->ops.ops);
+        dds_stream_free_sample (ptr, &dds_cdrstream_default_allocator, type->ops.ops);
         ptr += size;
       }
     }
@@ -247,7 +247,7 @@ static bool sertype_default_serialize_into (const struct ddsi_sertype *type, con
 {
   const struct dds_sertype_default *type_default = (const struct dds_sertype_default *)type;
   dds_ostream_t os = ostream_from_buffer(dst_buffer, dst_size, type_default->write_encoding_version);
-  return dds_stream_write_sample(&os, sample, &type_default->type);
+  return dds_stream_write_sample(&os, &dds_cdrstream_default_allocator, sample, &type_default->type);
 }
 
 const struct ddsi_sertype_ops dds_sertype_ops_default = {

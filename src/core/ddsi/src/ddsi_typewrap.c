@@ -354,14 +354,14 @@ int ddsi_typeid_compare (const ddsi_typeid_t *a, const ddsi_typeid_t *b)
 void ddsi_typeid_ser (const ddsi_typeid_t *type_id, unsigned char **buf, uint32_t *sz)
 {
   dds_ostream_t os = { .m_buffer = NULL, .m_index = 0, .m_size = 0, .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
-  dds_stream_writeLE ((dds_ostreamLE_t *) &os, (const void *) type_id, DDS_XTypes_TypeIdentifier_desc.m_ops);
+  dds_stream_writeLE ((dds_ostreamLE_t *) &os, &dds_cdrstream_default_allocator, (const void *) type_id, DDS_XTypes_TypeIdentifier_desc.m_ops);
   *buf = os.m_buffer;
   *sz = os.m_index;
 }
 
 void ddsi_typeid_fini_impl (struct DDS_XTypes_TypeIdentifier *type_id)
 {
-  dds_stream_free_sample (type_id, DDS_XTypes_TypeIdentifier_desc.m_ops);
+  dds_stream_free_sample (type_id, &dds_cdrstream_default_allocator, DDS_XTypes_TypeIdentifier_desc.m_ops);
 }
 
 void ddsi_typeid_fini (ddsi_typeid_t *type_id)
@@ -426,7 +426,7 @@ void ddsi_typeobj_get_hash_id_impl (const struct DDS_XTypes_TypeObject *type_obj
   assert (type_id);
   assert (type_obj->_d == DDS_XTypes_EK_MINIMAL || type_obj->_d == DDS_XTypes_EK_COMPLETE);
   dds_ostream_t os = { .m_buffer = NULL, .m_index = 0, .m_size = 0, .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
-  dds_stream_writeLE ((dds_ostreamLE_t *) &os, (const void *) type_obj, DDS_XTypes_TypeObject_desc.m_ops);
+  dds_stream_writeLE ((dds_ostreamLE_t *) &os, &dds_cdrstream_default_allocator, (const void *) type_obj, DDS_XTypes_TypeObject_desc.m_ops);
 
   char buf[16];
   ddsrt_md5_state_t md5st;
@@ -435,7 +435,7 @@ void ddsi_typeobj_get_hash_id_impl (const struct DDS_XTypes_TypeObject *type_obj
   ddsrt_md5_finish (&md5st, (ddsrt_md5_byte_t *) buf);
   type_id->_d = type_obj->_d;
   memcpy (type_id->_u.equivalence_hash, buf, sizeof(DDS_XTypes_EquivalenceHash));
-  dds_ostream_fini (&os);
+  dds_ostream_fini (&os, &dds_cdrstream_default_allocator);
 }
 
 dds_return_t ddsi_typeobj_get_hash_id (const struct DDS_XTypes_TypeObject *type_obj, ddsi_typeid_t *type_id)
@@ -448,7 +448,7 @@ dds_return_t ddsi_typeobj_get_hash_id (const struct DDS_XTypes_TypeObject *type_
 
 void ddsi_typeobj_fini_impl (struct DDS_XTypes_TypeObject *typeobj)
 {
-  dds_stream_free_sample (typeobj, DDS_XTypes_TypeObject_desc.m_ops);
+  dds_stream_free_sample (typeobj, &dds_cdrstream_default_allocator, DDS_XTypes_TypeObject_desc.m_ops);
 }
 
 void ddsi_typeobj_fini (ddsi_typeobj_t *typeobj)

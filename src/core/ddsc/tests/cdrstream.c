@@ -485,7 +485,7 @@ static bool sample_equal_ext (void *s1, void *s2)
 
 static void sample_free_ext (void *s)
 {
-  dds_stream_free_sample (s, TestIdl_MsgExt_desc.m_ops);
+  dds_stream_free_sample (s, &dds_cdrstream_default_allocator, TestIdl_MsgExt_desc.m_ops);
   ddsrt_free (s);
 }
 
@@ -621,7 +621,7 @@ static bool sample_equal_opt (void *s1, void *s2)
 
 static void sample_free_opt (void *s)
 {
-  dds_stream_free_sample (s, TestIdl_MsgOpt_desc.m_ops);
+  dds_stream_free_sample (s, &dds_cdrstream_default_allocator, TestIdl_MsgOpt_desc.m_ops);
   ddsrt_free (s);
 }
 
@@ -1779,7 +1779,7 @@ CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc1, const dds_to
     };
 
     void * msg_wr = t ? sample_init_fn2 () : sample_init_fn1 ();
-    bool ret = dds_stream_write_sample (&os, msg_wr, &desc_wr);
+    bool ret = dds_stream_write_sample (&os, &dds_cdrstream_default_allocator, msg_wr, &desc_wr);
     CU_ASSERT_FATAL (ret);
 
     /* Read data */
@@ -1802,7 +1802,7 @@ CU_Theory ((const char *descr, const dds_topic_descriptor_t *desc1, const dds_to
     };
 
     void *msg_rd = ddsrt_calloc (1, desc_rd.size);
-    dds_stream_read_sample (&is, msg_rd, &desc_rd);
+    dds_stream_read_sample (&is, msg_rd, &dds_cdrstream_default_allocator, &desc_rd);
 
     /* Check for expected result */
     bool eq = t ? sample_equal_fn2 (msg_wr, msg_rd) : sample_equal_fn1 (msg_wr, msg_rd);
@@ -2031,24 +2031,24 @@ CU_Test (ddsc_cdrstream, skip_default)
     dds_ostreamLE_t os = { .x.m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
     uint8_t *sample_pub = ddsrt_malloc (desc_pub.size);
     memset (sample_pub, 0xef, desc_pub.size); // assumes no pointers (strings, sequences, @external, @optional) in pub type
-    bool ret = dds_stream_write_sampleLE (&os, sample_pub, &desc_pub);
+    bool ret = dds_stream_write_sampleLE (&os, &dds_cdrstream_default_allocator, sample_pub, &desc_pub);
     CU_ASSERT_FATAL (ret);
 
     uint8_t *sample_sub = ddsrt_malloc (desc_sub.size);
     memset (sample_sub, 0xbe, desc_sub.size);
     tests[i].init_sub (sample_sub);
     dds_istream_t is = { .m_buffer = os.x.m_buffer, .m_index = 0, .m_size = os.x.m_size, .m_xcdr_version = os.x.m_xcdr_version };
-    dds_stream_read_sample (&is, sample_sub, &desc_sub);
+    dds_stream_read_sample (&is, sample_sub, &dds_cdrstream_default_allocator, &desc_sub);
     tests[i].check_sub (sample_sub);
 
     // clean-up
-    dds_ostream_fini (&os.x);
+    dds_ostream_fini (&os.x, &dds_cdrstream_default_allocator);
     ddsrt_free (sample_pub);
-    dds_stream_free_sample (sample_sub, desc_sub.ops.ops);
+    dds_stream_free_sample (sample_sub, &dds_cdrstream_default_allocator, desc_sub.ops.ops);
     ddsrt_free (sample_sub);
 
-    dds_cdrstream_desc_fini (&desc_pub);
-    dds_cdrstream_desc_fini (&desc_sub);
+    dds_cdrstream_desc_fini (&desc_pub, &dds_cdrstream_default_allocator);
+    dds_cdrstream_desc_fini (&desc_sub, &dds_cdrstream_default_allocator);
   }
 }
 #undef D

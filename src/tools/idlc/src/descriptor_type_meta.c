@@ -33,6 +33,8 @@
 #include "generator.h"
 #include "descriptor_type_meta.h"
 
+static struct dds_cdrstream_allocator idlc_cdrstream_default_allocator = { idl_malloc, idl_realloc, idl_free };
+
 static idl_retcode_t
 push_type (struct descriptor_type_meta *dtm, const void *node)
 {
@@ -99,7 +101,7 @@ xcdr2_ser (
   os->m_index = 0;
   os->m_size = 0;
   os->m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2;
-  dds_return_t ret = dds_stream_write_sampleLE ((dds_ostreamLE_t *) os, obj, desc) ? IDL_RETCODE_OK : IDL_RETCODE_BAD_PARAMETER;
+  dds_return_t ret = dds_stream_write_sampleLE ((dds_ostreamLE_t *) os, &idlc_cdrstream_default_allocator, obj, desc) ? IDL_RETCODE_OK : IDL_RETCODE_BAD_PARAMETER;
   return ret;
 }
 
@@ -335,7 +337,7 @@ get_type_hash (DDS_XTypes_EquivalenceHash hash, const DDS_XTypes_TypeObject *to)
   ddsrt_md5_append (&md5st, (ddsrt_md5_byte_t *) os.m_buffer, os.m_index);
   ddsrt_md5_finish (&md5st, (ddsrt_md5_byte_t *) buf);
   memcpy (hash, buf, sizeof(DDS_XTypes_EquivalenceHash));
-  dds_ostream_fini (&os);
+  dds_ostream_fini (&os, &idlc_cdrstream_default_allocator);
   return IDL_RETCODE_OK;
 }
 
@@ -591,7 +593,7 @@ get_check_type_spec_typeid(
     ret = get_typeid (pstate, dtm, type_spec, alias_related_type, &ti_tmp, kind, false);
     assert (ret == IDL_RETCODE_OK);
     assert (!ddsi_typeid_compare ((struct ddsi_typeid *) ti, (struct ddsi_typeid *) &ti_tmp));
-    ddsi_typeid_fini ((struct ddsi_typeid *) &ti_tmp);
+    dds_stream_free_sample ((struct ddsi_typeid *) &ti_tmp, &idlc_cdrstream_default_allocator, DDS_XTypes_TypeIdentifier_desc.m_ops);
   }
 #endif
   return IDL_RETCODE_OK;
@@ -1552,20 +1554,20 @@ get_typeid_with_size (
   if ((ret = xcdr2_ser (to, &DDS_XTypes_TypeObject_cdrstream_desc, &os)) < 0)
     return ret;
   typeid_with_size->typeobject_serialized_size = os.m_index;
-  dds_ostream_fini (&os);
+  dds_ostream_fini (&os, &idlc_cdrstream_default_allocator);
   return IDL_RETCODE_OK;
 }
 
 static void
 type_id_fini (DDS_XTypes_TypeIdentifier *ti)
 {
-  dds_stream_free_sample (ti, DDS_XTypes_TypeIdentifier_desc.m_ops);
+  dds_stream_free_sample (ti, &idlc_cdrstream_default_allocator, DDS_XTypes_TypeIdentifier_desc.m_ops);
 }
 
 static void
 type_obj_fini (DDS_XTypes_TypeObject *to)
 {
-  dds_stream_free_sample (to, DDS_XTypes_TypeObject_desc.m_ops);
+  dds_stream_free_sample (to, &idlc_cdrstream_default_allocator, DDS_XTypes_TypeObject_desc.m_ops);
 }
 
 static idl_retcode_t
@@ -1802,8 +1804,8 @@ print_type_meta_ser (
 
 err_print:
   xtypes_typeinfo_fini (&type_information);
-  dds_ostream_fini (&os_typeinfo);
-  dds_ostream_fini (&os_typemap);
+  dds_ostream_fini (&os_typeinfo, &idlc_cdrstream_default_allocator);
+  dds_ostream_fini (&os_typemap, &idlc_cdrstream_default_allocator);
   return rc;
 }
 
@@ -1839,8 +1841,8 @@ generate_type_meta_ser (
 
 err_nomem:
   xtypes_typeinfo_fini (&type_information);
-  dds_ostream_fini (&os_typeinfo);
-  dds_ostream_fini (&os_typemap);
+  dds_ostream_fini (&os_typeinfo, &idlc_cdrstream_default_allocator);
+  dds_ostream_fini (&os_typemap, &idlc_cdrstream_default_allocator);
   return rc;
 }
 

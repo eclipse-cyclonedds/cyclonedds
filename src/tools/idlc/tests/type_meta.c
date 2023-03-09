@@ -29,7 +29,6 @@
 
 #include "CUnit/Theory.h"
 
-
 #ifdef DDS_HAS_TYPE_DISCOVERY
 
 static void *calloc_no_fail (size_t count, size_t size)
@@ -108,7 +107,7 @@ static void xcdr2_ser (const void *obj, const struct dds_cdrstream_desc *desc, d
   os->m_index = 0;
   os->m_size = 0;
   os->m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2;
-  bool ret = dds_stream_write_sampleLE ((dds_ostreamLE_t *) os, obj, desc);
+  bool ret = dds_stream_write_sampleLE ((dds_ostreamLE_t *) os, &dds_cdrstream_default_allocator, obj, desc);
   CU_ASSERT_FATAL (ret);
 }
 
@@ -131,7 +130,7 @@ static void xcdr2_deser (unsigned char *buf, uint32_t sz, void **obj, const stru
 
   dds_istream_t is = { .m_buffer = data, .m_index = 0, .m_size = sz, .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
   *obj = calloc_no_fail (1, desc->size);
-  dds_stream_read (&is, (void *) *obj, desc->ops.ops);
+  dds_stream_read (&is, (void *) *obj, &dds_cdrstream_default_allocator, desc->ops.ops);
   if (bswap)
     free (data);
 }
@@ -263,7 +262,7 @@ static void get_typeid (DDS_XTypes_TypeIdentifier *ti, DDS_XTypes_TypeObject *to
   ti->_d = DDS_XTypes_EK_COMPLETE;
   idl_retcode_t ret = get_type_hash (ti->_u.equivalence_hash, to);
   CU_ASSERT_EQUAL_FATAL (ret, IDL_RETCODE_OK);
-  dds_stream_free_sample (to, DDS_XTypes_TypeObject_desc.m_ops);
+  dds_stream_free_sample (to, &dds_cdrstream_default_allocator, DDS_XTypes_TypeObject_desc.m_ops);
   free (to);
 }
 
@@ -862,9 +861,9 @@ CU_Test(idlc_type_meta, type_obj_serdes)
         int cmp = memcmp (os.m_buffer, os_test.m_buffer, os.m_index);
         CU_ASSERT_EQUAL_FATAL (cmp, 0);
 
-        dds_stream_free_sample (to_test, DDS_XTypes_TypeObject_desc.m_ops);
+        dds_stream_free_sample (to_test, &dds_cdrstream_default_allocator, DDS_XTypes_TypeObject_desc.m_ops);
         free (to_test);
-        dds_ostream_fini (&os_test);
+        dds_ostream_fini (&os_test, &dds_cdrstream_default_allocator);
       }
 
       // test that generated type object can be serialized
@@ -872,9 +871,9 @@ CU_Test(idlc_type_meta, type_obj_serdes)
       xcdr2_deser (os.m_buffer, os.m_index, (void **)&to, &DDS_XTypes_TypeObject_cdrstream_desc);
 
       // cleanup
-      dds_stream_free_sample (to, DDS_XTypes_TypeObject_desc.m_ops);
+      dds_stream_free_sample (to, &dds_cdrstream_default_allocator, DDS_XTypes_TypeObject_desc.m_ops);
       free (to);
-      dds_ostream_fini (&os);
+      dds_ostream_fini (&os, &dds_cdrstream_default_allocator);
     }
 
     descriptor_type_meta_fini (&dtm);

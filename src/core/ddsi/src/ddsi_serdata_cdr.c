@@ -225,7 +225,7 @@ static void ostream_from_serdata_cdr (dds_ostream_t * __restrict s, const struct
 static void ostream_add_to_serdata_cdr (dds_ostream_t * __restrict s, struct ddsi_serdata_cdr ** __restrict d)
 {
   /* DDSI requires 4 byte alignment */
-  const uint32_t pad = dds_cdr_alignto4_clear_and_resize (s, s->m_xcdr_version);
+  const uint32_t pad = dds_cdr_alignto4_clear_and_resize (s, &dds_cdrstream_default_allocator, s->m_xcdr_version);
   assert (pad <= 3);
 
   /* Reset data pointer as stream may have reallocated */
@@ -254,7 +254,7 @@ static struct ddsi_serdata_cdr *serdata_cdr_from_sample_cdr_common (const struct
       abort ();
       break;
     case SDK_DATA:
-      if (!dds_stream_write_sample (&os, sample, &tp->type))
+      if (!dds_stream_write_sample (&os, &dds_cdrstream_default_allocator, sample, &tp->type))
         return NULL;
       ostream_add_to_serdata_cdr (&os, &d);
       break;
@@ -318,7 +318,7 @@ static bool serdata_cdr_to_sample_cdr (const struct ddsi_serdata *serdata_common
   if (bufptr) abort(); else { (void)buflim; } /* FIXME: haven't implemented that bit yet! */
   assert (DDSI_RTPS_CDR_ENC_IS_NATIVE (d->hdr.identifier));
   istream_from_serdata_cdr(&is, d);
-  dds_stream_read_sample (&is, sample, &tp->type);
+  dds_stream_read_sample (&is, sample, &dds_cdrstream_default_allocator, &tp->type);
   return true; /* FIXME: can't conversion to sample fail? */
 }
 
