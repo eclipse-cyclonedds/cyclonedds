@@ -26,6 +26,10 @@ DDSRT_WARNING_CLANG_OFF(old-style-cast)
 # define DDSRT_HAVE_ATOMIC_LIFO 1
 #endif
 
+#if defined(__STRICT_ANSI__)
+#define asm __asm__
+#endif
+
 /* LD, ST */
 
 DDS_INLINE_EXPORT ddsrt_attribute_no_sanitize (("thread"))
