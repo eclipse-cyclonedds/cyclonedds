@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2006 to 2020 ZettaScale Technology and others
+ * Copyright(c) 2006 to 2023 ZettaScale Technology and others
  *
  * This program and the accompanying materials are made available under the
  * terms of the Eclipse Public License v. 2.0 which is available at
@@ -17,6 +17,8 @@
 #include "dds/ddsrt/environ.h"
 #include "dds/ddsrt/retcode.h"
 
+extern char **environ;
+
 static int
 isenvvar(const char *name)
 {
@@ -26,13 +28,24 @@ isenvvar(const char *name)
 dds_return_t
 ddsrt_getenv(const char *name, const char **value)
 {
+  char **ep;
+  size_t name_len;
+
   assert(name != NULL);
   assert(value != NULL);
 
   if (!isenvvar(name))
     return DDS_RETCODE_BAD_PARAMETER;
   
-  /* TODO */
+  /* poor mans getenv, good enough for CYCLONEDDS_URI */
+  name_len = strlen(name);
+  for (ep = environ; *ep != NULL; ep++)
+  {
+    if (!strncmp(*ep, name, name_len) && (*ep)[name_len] == '=') {
+      *value = *ep + name_len + 1;
+      return DDS_RETCODE_OK;
+    }
+  }
 
   return DDS_RETCODE_NOT_FOUND;
 }
