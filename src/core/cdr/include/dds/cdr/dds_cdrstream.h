@@ -233,9 +233,6 @@ uint32_t dds_stream_type_nesting_depth (const uint32_t * __restrict ops);
 bool dds_stream_extensibility (const uint32_t * __restrict ops, enum dds_cdr_type_extensibility *ext);
 
 /** @component cdr_serializer */
-DDS_EXPORT void dds_cdrstream_desc_from_topic_desc (struct dds_cdrstream_desc *desc, const dds_topic_descriptor_t *topic_desc);
-
-/** @component cdr_serializer */
 DDS_EXPORT void dds_cdrstream_desc_fini (struct dds_cdrstream_desc *desc, const struct dds_cdrstream_allocator * __restrict allocator);
 
 

@@ -4428,26 +4428,6 @@ uint32_t dds_stream_type_nesting_depth (const uint32_t * __restrict ops)
   return nesting_depth;
 }
 
-void dds_cdrstream_desc_from_topic_desc (struct dds_cdrstream_desc *desc, const dds_topic_descriptor_t *topic_desc)
-{
-  memset (desc, 0, sizeof (*desc));
-  desc->size = topic_desc->m_size;
-  desc->align = topic_desc->m_align;
-  desc->flagset = topic_desc->m_flagset;
-  desc->ops.nops = dds_stream_countops (topic_desc->m_ops, topic_desc->m_nkeys, topic_desc->m_keys);
-  desc->ops.ops = ddsrt_memdup (topic_desc->m_ops, desc->ops.nops * sizeof (*desc->ops.ops));
-  desc->keys.nkeys = topic_desc->m_nkeys;
-  if (desc->keys.nkeys > 0)
-  {
-    desc->keys.keys = ddsrt_malloc (desc->keys.nkeys * sizeof (*desc->keys.keys));
-    for (uint32_t i = 0; i < desc->keys.nkeys; i++)
-    {
-      desc->keys.keys[i].ops_offs = topic_desc->m_keys[i].m_offset;
-      desc->keys.keys[i].idx = topic_desc->m_keys[i].m_idx;
-    }
-  }
-}
-
 void dds_cdrstream_desc_fini (struct dds_cdrstream_desc *desc, const struct dds_cdrstream_allocator * __restrict allocator)
 {
   if (desc->keys.nkeys > 0 && desc->keys.keys != NULL)
