@@ -13,6 +13,7 @@
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/process.h"
 #include "dds/ddsrt/threads.h"
+#include "dds/ddsc/dds_internal_api.h"
 #include "test_common.h"
 
 static void sync_reader_writer_impl (dds_entity_t participant_rd, dds_entity_t reader, dds_entity_t participant_wr, dds_entity_t writer, bool expect_sync, dds_duration_t timeout)

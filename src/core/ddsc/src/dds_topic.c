@@ -36,6 +36,7 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_security_omg.h"
 #include "dds/ddsi/ddsi_typebuilder.h"
+#include "dds/ddsc/dds_internal_api.h"
 #include "dds/cdr/dds_cdrstream.h"
 #include "dds__serdata_builtintopic.h"
 #include "dds__serdata_default.h"
@@ -1111,3 +1112,24 @@ dds_return_t dds_delete_topic_descriptor (dds_topic_descriptor_t *descriptor)
 }
 
 #endif /* DDS_HAS_TOPIC_DISCOVERY */
+
+void dds_cdrstream_desc_from_topic_desc (struct dds_cdrstream_desc *desc, const dds_topic_descriptor_t *topic_desc)
+{
+  memset (desc, 0, sizeof (*desc));
+  desc->size = topic_desc->m_size;
+  desc->align = topic_desc->m_align;
+  desc->flagset = topic_desc->m_flagset;
+  desc->ops.nops = dds_stream_countops (topic_desc->m_ops, topic_desc->m_nkeys, topic_desc->m_keys);
+  desc->ops.ops = dds_alloc (desc->ops.nops * sizeof (*desc->ops.ops));
+  memcpy (desc->ops.ops, topic_desc->m_ops, desc->ops.nops * sizeof (*desc->ops.ops));
+  desc->keys.nkeys = topic_desc->m_nkeys;
+  if (desc->keys.nkeys > 0)
+  {
+    desc->keys.keys = dds_alloc (desc->keys.nkeys * sizeof (*desc->keys.keys));
+    for (uint32_t i = 0; i < desc->keys.nkeys; i++)
+    {
+      desc->keys.keys[i].ops_offs = topic_desc->m_keys[i].m_offset;
+      desc->keys.keys[i].idx = topic_desc->m_keys[i].m_idx;
+    }
+  }
+}

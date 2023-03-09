@@ -20,6 +20,7 @@
 #define DDS_INTERNAL_API_H
 
 #include "dds/export.h"
+#include "dds/cdr/dds_cdrstream.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -53,6 +54,19 @@ extern "C" {
  */
 DDS_EXPORT uint32_t
 dds_reader_lock_samples (dds_entity_t reader);
+
+/**
+ * @ingroup internal
+ * @component topic
+ * @unstable
+ * @brief Gets a CDR stream serializer type descriptor from a topic descriptor
+ *
+ * @param[out] desc Pointer to the target struct that can be filled with the CDR stream topic descriptor
+ * @param[in] topic_desc The source topic descriptor
+ *
+*/
+DDS_EXPORT void
+dds_cdrstream_desc_from_topic_desc (struct dds_cdrstream_desc *desc, const dds_topic_descriptor_t *topic_desc);
 
 #if defined (__cplusplus)
 }

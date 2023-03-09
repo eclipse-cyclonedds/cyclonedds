@@ -19,6 +19,7 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsc/dds_public_impl.h"
+#include "dds/ddsc/dds_internal_api.h"
 #include "dds/cdr/dds_cdrstream.h"
 #include "dds__topic.h"
 #include "test_util.h"
