@@ -1316,10 +1316,9 @@ dds_return_t ddsi_xt_type_init_impl (struct ddsi_domaingv *gv, struct xt_type *x
 {
   assert (xt);
   assert (ti);
-  dds_return_t ret = DDS_RETCODE_OK, ret_validate = DDS_RETCODE_OK;
+  dds_return_t ret = DDS_RETCODE_OK;
 
   ddsi_typeid_copy_impl (&xt->id.x, ti);
-  xt->kind = ddsi_typeid_kind_impl (ti);
   if (ti->_d <= DDS_XTypes_TK_STRING16)
   {
     if (to != NULL)
@@ -1383,6 +1382,7 @@ dds_return_t ddsi_xt_type_init_impl (struct ddsi_domaingv *gv, struct xt_type *x
         if ((ret = ddsi_type_register_dep (gv, &xt->id, &xt->_u.map.key_type, ti->_u.map_sdefn.key_identifier)) != DDS_RETCODE_OK)
         {
           ddsi_type_unref_locked (gv, xt->_u.map.c.element_type);
+          xt->_u.map.c.element_type = NULL;
           goto err;
         }
         break;
@@ -1395,6 +1395,7 @@ dds_return_t ddsi_xt_type_init_impl (struct ddsi_domaingv *gv, struct xt_type *x
         if ((ret = ddsi_type_register_dep (gv, &xt->id, &xt->_u.map.key_type, ti->_u.map_ldefn.key_identifier)) != DDS_RETCODE_OK)
         {
           ddsi_type_unref_locked (gv, xt->_u.map.c.element_type);
+          xt->_u.map.c.element_type = NULL;
           goto err;
         }
         break;
@@ -1416,15 +1417,13 @@ dds_return_t ddsi_xt_type_init_impl (struct ddsi_domaingv *gv, struct xt_type *x
         break;
     }
   }
-  if (ret != DDS_RETCODE_OK || (ret_validate = ddsi_xt_validate (gv, xt)) != DDS_RETCODE_OK)
+  if (ret != DDS_RETCODE_OK || (ret = ddsi_xt_validate (gv, xt)) != DDS_RETCODE_OK)
   {
-    if (ret == DDS_RETCODE_OK)
-    {
-      ddsi_xt_type_fini (gv, xt, true);
-      ret = ret_validate;
-    }
     GVWARNING ("type " PTYPEIDFMT ": ddsi_xt_type_init_impl with invalid type object\n", PTYPEID (xt->id.x));
+    goto err;
   }
+  xt->kind = ddsi_typeid_kind_impl (ti);
+
 err:
   return ret;
 }
