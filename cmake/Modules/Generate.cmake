@@ -12,7 +12,7 @@
 
 function(IDLC_GENERATE)
   set(options NO_TYPE_INFO WERROR)
-  set(one_value_keywords TARGET DEFAULT_EXTENSIBILITY BASE_DIR)
+  set(one_value_keywords TARGET DEFAULT_EXTENSIBILITY BASE_DIR OUTPUT_DIR)
   set(multi_value_keywords FILES FEATURES INCLUDES WARNINGS)
   cmake_parse_arguments(
     IDLC "${options}" "${one_value_keywords}" "${multi_value_keywords}" "" ${ARGN})
@@ -137,7 +137,12 @@ function(IDLC_GENERATE_GENERIC)
     list(APPEND IDLC_ARGS "-b${_base_dir_abs}")
   endif()
 
-  set(_dir ${CMAKE_CURRENT_BINARY_DIR})
+  if(IDLC_OUTPUT_DIR)
+    set(_dir ${IDLC_OUTPUT_DIR})
+  else()
+    set(_dir ${CMAKE_CURRENT_BINARY_DIR})
+  endif()
+
   list(APPEND IDLC_ARGS "-o${_dir}")
   set(_target ${IDLC_TARGET})
   foreach(_file ${IDLC_FILES})
