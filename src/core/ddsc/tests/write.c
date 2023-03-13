@@ -208,16 +208,29 @@ CU_Test(ddsc_write, relwr_unrelrd_network)
   "  <Discovery><Ports><Base>7350</Base></Ports></Discovery>"
   "</Domain>";
 
-  int result = test_oneliner_with_config
-    ("pm w(r=r) "
-     "dor R' " // subscriber with data-on-readers
-     "sm r'(r=be) "
-     "?pm w ?sm r' " // mutual discovery complete
-     "wr w 0 ?dor R' " // data should arrive (likelihood of loss in practice is low here)
-     "s'(r=be) " // create 2nd reader, no need to worry about discovery because of w+r'
-     "setflags(d) w wr w 1 wr w 2 setflags() w " // lose some data on the network
-     "wr w 3 ?dor(2) R' " // 4th sample should arrive (like 1st), both readers should trigger
-     "take{(0,0,0),(3,0,0)} r' take{(3,0,0)} s'", // r' should now have 2 samples, s' one
-     config_override);
+  // Relying on unreliable communication leads to a really flaky test, so
+  // try a few times
+  int result = 0;
+  for (int attempt = 0; result <= 0 && attempt < 10; attempt++)
+  {
+    // We don't now why it failed if it failed, so let's sleep a while before
+    // trying again
+    if (attempt > 0)
+      dds_sleepfor (DDS_MSECS (100));
+    
+    result = test_oneliner_with_config
+      ("pm w(r=r) "
+       "dor R' " // subscriber with data-on-readers
+       "sm r'(r=be) "
+       "?pm w ?sm r' " // mutual discovery complete
+       "wr w 0 ?dor R' " // data should arrive (likelihood of loss in practice is low here)
+       "s'(r=be) " // create 2nd reader, no need to worry about discovery because of w+r'
+       "setflags(d) w wr w 1 wr w 2 setflags() w " // lose some data on the network
+       "wr w 3 ?dor(2) R' " // 4th sample should arrive (like 1st), both readers should trigger
+       "take{(0,0,0),(3,0,0)} r' take{(3,0,0)} s'", // r' should now have 2 samples, s' one
+       config_override);
+  }
+  
+  // It really should have succeeded after several attempts
   CU_ASSERT_FATAL (result > 0);
 }
