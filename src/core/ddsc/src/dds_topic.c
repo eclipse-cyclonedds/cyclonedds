@@ -1048,7 +1048,7 @@ dds_return_t dds_get_type_name (dds_entity_t topic, char *name, size_t size)
 
 DDS_GET_STATUS(topic, inconsistent_topic, INCONSISTENT_TOPIC, total_count_change)
 
-#ifdef DDS_HAS_TOPIC_DISCOVERY
+#ifdef DDS_HAS_TYPE_DISCOVERY
 
 dds_return_t dds_create_topic_descriptor (dds_find_scope_t scope, dds_entity_t participant, const dds_typeinfo_t *type_info, dds_duration_t timeout, dds_topic_descriptor_t **descriptor)
 {
@@ -1097,7 +1097,7 @@ dds_return_t dds_delete_topic_descriptor (dds_topic_descriptor_t *descriptor)
   return DDS_RETCODE_OK;
 }
 
-#else
+#else /* DDS_HAS_TYPE_DISCOVERY */
 
 dds_return_t dds_create_topic_descriptor (dds_find_scope_t scope, dds_entity_t participant, const dds_typeinfo_t *type_info, dds_duration_t timeout, dds_topic_descriptor_t **descriptor)
 {
@@ -1111,7 +1111,7 @@ dds_return_t dds_delete_topic_descriptor (dds_topic_descriptor_t *descriptor)
   return DDS_RETCODE_UNSUPPORTED;
 }
 
-#endif /* DDS_HAS_TOPIC_DISCOVERY */
+#endif /* DDS_HAS_TYPE_DISCOVERY */
 
 void dds_cdrstream_desc_from_topic_desc (struct dds_cdrstream_desc *desc, const dds_topic_descriptor_t *topic_desc)
 {
