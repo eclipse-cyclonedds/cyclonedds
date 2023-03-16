@@ -113,6 +113,7 @@ struct whc_impl {
 #else
   struct ddsrt_hh *seq_hash;
 #endif
+  uint32_t n_instances;
   struct ddsrt_hh *idx_hash;
   ddsrt_avl_tree_t seq;
 #ifdef DDS_HAS_LIFESPAN
@@ -391,17 +392,20 @@ static ddsrt_mtime_t whc_deadline_missed_cb(void *hc, ddsrt_mtime_t tnow)
 {
   struct whc_impl *whc = hc;
   void *vidxnode;
-  ddsrt_mtime_t tnext;
+  ddsrt_mtime_t tnext = {0};
+  uint32_t ninst = 0;
   ddsrt_mutex_lock (&whc->lock);
-  while ((tnext = ddsi_deadline_next_missed_locked (&whc->deadline, tnow, &vidxnode)).v == 0)
+  // stop after touching all instances to somewhat gracefully handle cases where we can't keep up
+  // alternatively one could do at most a fixed number at the time
+  while (ninst++ < whc->n_instances && (tnext = ddsi_deadline_next_missed_locked (&whc->deadline, tnow, &vidxnode)).v == 0)
   {
     struct whc_idxnode *idxnode = vidxnode;
-    uint32_t deadlines_expired = idxnode->deadline.deadlines_missed + (uint32_t)((tnow.v - idxnode->deadline.t_last_update.v)/whc->deadline.dur);
+    const uint32_t deadlines_missed = ddsi_deadline_compute_deadlines_missed (tnow, &idxnode->deadline, whc->deadline.dur);
     ddsi_deadline_reregister_instance_locked (&whc->deadline, &idxnode->deadline, tnow);
 
     ddsi_status_cb_data_t cb_data;
     cb_data.raw_status_id = (int) DDS_OFFERED_DEADLINE_MISSED_STATUS_ID;
-    cb_data.extra = deadlines_expired;
+    cb_data.extra = deadlines_missed;
     cb_data.handle = idxnode->iid;
     cb_data.add = true;
     ddsrt_mutex_unlock (&whc->lock);
@@ -460,6 +464,7 @@ struct ddsi_whc *dds_whc_new (struct ddsi_domaingv *gv, const struct whc_writer_
   whc->total_bytes = 0;
   whc->sample_overhead = sample_overhead;
   whc->fragment_size = gv->config.fragment_size;
+  whc->n_instances = 0;
   whc->idx_hash = ddsrt_hh_new (1, whc_idxnode_hash_key, whc_idxnode_eq_key);
 #if USE_EHH
   whc->seq_hash = ddsrt_ehh_new (sizeof (struct whc_seq_entry), 32, whc_seq_entry_hash, whc_seq_entry_eq);
@@ -682,6 +687,7 @@ static void delete_one_instance_from_idx (struct whc_impl *whc, ddsi_seqno_t max
   ddsi_deadline_unregister_instance_locked (&whc->deadline, &idxn->deadline);
 #endif
   free_one_instance_from_idx (whc, max_drop_seq, idxn);
+  whc->n_instances--;
 }
 
 static int whcn_in_tlidx (const struct whc_impl *whc, const struct whc_idxnode *idxn, uint32_t pos)
@@ -1305,6 +1311,7 @@ static int whc_default_insert (struct ddsi_whc *whc_generic, ddsi_seqno_t max_dr
         newn->idxnode = idxn;
         newn->idxnode_pos = 0;
       }
+      whc->n_instances++;
       ddsrt_hh_add_absent (whc->idx_hash, idxn);
 #ifdef DDS_HAS_DEADLINE_MISSED
       ddsi_deadline_register_instance_locked (&whc->deadline, &idxn->deadline, ddsrt_time_monotonic ());

@@ -16,6 +16,7 @@
 #include "dds/ddsrt/process.h"
 #include "dds/ddsrt/threads.h"
 #include "dds/ddsrt/environ.h"
+#include "dds/ddsrt/io.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/ddsi_entity.h"
 #include "ddsi__whc.h"
@@ -24,6 +25,7 @@
 #include "dds/ddsi/ddsi_xevent.h"
 
 #include "test_common.h"
+#include "test_oneliner.h"
 #include "Space.h"
 #include "deadline_update.h"
 
@@ -599,4 +601,52 @@ CU_Test(ddsc_deadline, update)
 
   ddsi_delete_xevent_callback(xev);
   dds_delete(pp);
+}
+
+CU_Test(ddsc_deadline, insanely_short)
+{
+  // The "*"s in the odm,rdm checks causes it to print the actual values
+  // which can be useful in identifying the cause of a failure
+  const char *program_template =
+    "odm pm w(dl=%s) rdm da sm r'(dl=%s,r=r) ?pm w ?sm r' "
+    "wr w 0 ?da r' take r' "
+    "sleep 1 ?odm(*,*) w ?rdm(*,*) r' "
+    "sleep 1 ?odm(*,*) w ?rdm(*,*) r'";
+
+  static const char *deadlines[] = {
+    "0",
+    "0.000000001" // 1ns
+  };
+
+  for (size_t i = 0; i < sizeof (deadlines) / sizeof (deadlines[0]); i++)
+  {
+    char *program = NULL;
+    (void) ddsrt_asprintf (&program, program_template, deadlines[i], deadlines[i]);
+    int result = test_oneliner (program);
+    ddsrt_free (program);
+    CU_ASSERT_FATAL (result > 0);
+  }
+}
+
+CU_Test(ddsc_deadline, insanely_long)
+{
+  // The "*"s in the odm,rdm checks causes it to print the actual values
+  // which can be useful in identifying the cause of a failure
+  const char *program_template =
+    "odm pm w(dl=%s) rdm da sm r'(dl=%s,r=r) ?pm w ?sm r' "
+    "wr w 0 ?da r' take r' "
+    "sleep 1 ?!odm ?!rdm";
+
+  static const char *deadlines[] = {
+    "2147483647" // INT32_MAX seconds
+  };
+
+  for (size_t i = 0; i < sizeof (deadlines) / sizeof (deadlines[0]); i++)
+  {
+    char *program = NULL;
+    (void) ddsrt_asprintf (&program, program_template, deadlines[i], deadlines[i]);
+    int result = test_oneliner (program);
+    ddsrt_free (program);
+    CU_ASSERT_FATAL (result > 0);
+  }
 }
