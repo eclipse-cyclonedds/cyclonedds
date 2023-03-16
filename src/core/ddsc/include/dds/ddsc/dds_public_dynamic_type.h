@@ -287,7 +287,7 @@ typedef struct dds_dynamic_enum_literal_value {
  * In case these properties include a base-type, element-type or discriminator type, the
  * ownership of these types is transferred to the newly created type.
  *
- * @param[in] entity Any DDS entity. This entity is used to get the type library of the entity's domain, to add the type to.
+ * @param[in] entity A DDS entity (any entity, except the pseudo root entity identified by DDS_CYCLONEDDS_HANDLE). This entity is used to get the type library of the entity's domain, to add the type to.
  * @param[in] descriptor The Dynamic Type descriptor.
  *
  * @return dds_dynamic_type_t A Dynamic Type reference for the created type.
