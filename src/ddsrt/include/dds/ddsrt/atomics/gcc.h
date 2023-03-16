@@ -26,10 +26,6 @@ DDSRT_WARNING_CLANG_OFF(old-style-cast)
 # define DDSRT_HAVE_ATOMIC_LIFO 1
 #endif
 
-#if defined(__STRICT_ANSI__)
-#define asm __asm__
-#endif
-
 /* LD, ST */
 
 DDS_INLINE_EXPORT ddsrt_attribute_no_sanitize (("thread"))
@@ -293,14 +289,14 @@ DDS_INLINE_EXPORT inline void ddsrt_atomic_fence_acq (void) {
 #if !(defined __i386__ || defined __x86_64__ || defined _M_IX86 || defined _M_X64)
   ddsrt_atomic_fence ();
 #else
-  asm volatile ("" ::: "memory");
+  __asm__ volatile ("" ::: "memory");
 #endif
 }
 DDS_INLINE_EXPORT inline void ddsrt_atomic_fence_rel (void) {
 #if !(defined __i386__ || defined __x86_64__ || defined _M_IX86 || defined _M_X64)
   ddsrt_atomic_fence ();
 #else
-  asm volatile ("" ::: "memory");
+  __asm__ volatile ("" ::: "memory");
 #endif
 }
 

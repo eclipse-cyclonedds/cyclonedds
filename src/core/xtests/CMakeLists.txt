@@ -15,6 +15,6 @@ if(BUILD_TESTING AND BUILD_IDLC)
     add_subdirectory(initsampledeliv)
 endif()
 
-if(NOT CMAKE_CROSSCOMPILING)
+if(NOT CMAKE_CROSSCOMPILING AND NOT CMAKE_SYSTEM_NAME MATCHES "iOS")
     add_subdirectory(symbol_export)
 endif()

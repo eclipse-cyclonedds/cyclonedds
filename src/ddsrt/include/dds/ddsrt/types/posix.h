@@ -17,7 +17,6 @@
 #if defined(__IAR_SYSTEMS_ICC__)
 typedef long int ssize_t;
 #else
-/* #undef _POSIX_THREADS */
 #include <unistd.h>
 #endif
 

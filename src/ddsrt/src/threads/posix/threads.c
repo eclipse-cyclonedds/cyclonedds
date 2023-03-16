@@ -240,8 +240,14 @@ static void *os_startRoutineWrapper (void *threadContext)
 #error "CONFIG_MAX_PTHREAD_COUNT is insufficient to run CycloneDDS"
 #endif
 
-static int currThrIdx = 0;
+static int currThrIdx;
 K_THREAD_STACK_ARRAY_DEFINE(zephyr_stacks, CYCLONEDDS_THREAD_COUNT, CYCLONEDDS_THREAD_STACK_SIZE);
+
+void
+ddsrt_thread_stack_init (void)
+{
+  currThrIdx = 0;
+}
 #endif
 
 dds_return_t
@@ -268,7 +274,13 @@ ddsrt_thread_create (
 
 #if defined(__ZEPHYR__)
   /* Override requested size by size of statically allocated stacks */
-  tattr.stackSize = CYCLONEDDS_THREAD_STACK_SIZE;
+  if (tattr.stackSize != 0 && tattr.stackSize > CYCLONEDDS_THREAD_STACK_SIZE) {
+    DDS_ERROR ("ddsrt_thread_create(%s): requested stack size (%d) exceeds maximum size (%d)\n",
+      name, tattr.stackSize, CYCLONEDDS_THREAD_STACK_SIZE);
+    return DDS_RETCODE_ERROR;
+  } else {
+    tattr.stackSize = CYCLONEDDS_THREAD_STACK_SIZE;
+  }
 #endif
 
   if (pthread_attr_init (&attr) != 0)
