@@ -18,12 +18,15 @@
 #include "ddsi__dynamic_type.h"
 #include "ddsi__xt_impl.h"
 #include "test_util.h"
+#include "Space.h"
 
-dds_entity_t participant;
+static dds_entity_t domain = 0, participant = 0;
 
 static void dynamic_type_init(void)
 {
-  participant = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
+  domain = dds_create_domain (0, NULL);
+  CU_ASSERT_FATAL (domain >= 0);
+  participant = dds_create_participant (0, NULL, NULL);
   CU_ASSERT_FATAL (participant >= 0);
 }
 
@@ -60,6 +63,36 @@ CU_Test (ddsc_dynamic_type, basic, .init = dynamic_type_init, .fini = dynamic_ty
     (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_STRUCTURE, .name = "dynamic_struct" });
   dds_dynamic_type_add_member (&dstruct, DDS_DYNAMIC_MEMBER_PRIM(DDS_DYNAMIC_UINT32, "member_uint32"));
   do_test (&dstruct);
+}
+
+CU_Test (ddsc_dynamic_type, entity_kinds, .init = dynamic_type_init, .fini = dynamic_type_fini)
+{
+  char name[100];
+  dds_entity_t publisher = dds_create_publisher (participant, NULL, NULL);
+  dds_entity_t topic = dds_create_topic (participant, &Space_Type1_desc, create_unique_topic_name("ddsc_dynamic_type_test", name, sizeof name), NULL, NULL);
+
+  const struct {
+    dds_entity_t entity;
+    dds_return_t ret;
+  } tests[] = {
+    { DDS_CYCLONEDDS_HANDLE, DDS_RETCODE_BAD_PARAMETER },
+    { domain, DDS_RETCODE_OK },
+    { participant, DDS_RETCODE_OK },
+    { publisher, DDS_RETCODE_OK },
+    { topic, DDS_RETCODE_OK }
+  };
+
+  for (uint32_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++)
+  {
+    dds_dynamic_type_t dstruct = dds_dynamic_type_create (tests[i].entity,
+      (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_STRUCTURE, .name = "dynamic_struct" });
+    CU_ASSERT_EQUAL_FATAL (dstruct.ret, tests[i].ret);
+    if (tests[i].ret == DDS_RETCODE_OK)
+    {
+      dds_dynamic_type_add_member (&dstruct, DDS_DYNAMIC_MEMBER_PRIM(DDS_DYNAMIC_UINT32, "member_uint32"));
+      do_test (&dstruct);
+    }
+  }
 }
 
 /* Copy of the DDS_DYNAMIC_TYPE_SPEC_PRIM macro, without the explicit cast because

@@ -17,14 +17,19 @@
 #include "dds/ddsi/ddsi_typelib.h"
 #include "dds__entity.h"
 
-static struct ddsi_domaingv * get_entity_gv (dds_entity_t entity)
+static dds_return_t get_entity_gv (dds_entity_t entity, struct ddsi_domaingv **gv)
 {
-  struct ddsi_domaingv *gv = NULL;
+  dds_return_t ret;
   struct dds_entity *e;
-  if ((dds_entity_pin (entity, &e)) == DDS_RETCODE_OK)
-    gv = &e->m_domain->gv;
-  dds_entity_unpin (e);
-  return gv;
+  if ((ret = dds_entity_pin (entity, &e)) == DDS_RETCODE_OK)
+  {
+    if (e->m_kind == DDS_KIND_CYCLONEDDS)
+      ret = DDS_RETCODE_BAD_PARAMETER;
+    else
+      *gv = &e->m_domain->gv;
+    dds_entity_unpin (e);
+  }
+  return ret;
 }
 
 static DDS_XTypes_TypeKind typekind_to_xtkind (dds_dynamic_type_kind_t type_kind)
@@ -161,9 +166,9 @@ static bool membername_valid (const char *name)
 
 dds_dynamic_type_t dds_dynamic_type_create (dds_entity_t entity, dds_dynamic_type_descriptor_t descriptor)
 {
-  dds_dynamic_type_t type = { .ret = DDS_RETCODE_BAD_PARAMETER };
+  dds_dynamic_type_t type = { .x = NULL };
   struct ddsi_domaingv *gv;
-  if ((gv = get_entity_gv (entity)) == NULL)
+  if ((type.ret = get_entity_gv (entity, &gv)) != DDS_RETCODE_OK)
     goto err;
 
   switch (descriptor.kind)
