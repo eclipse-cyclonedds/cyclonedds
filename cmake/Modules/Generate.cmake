@@ -25,6 +25,7 @@ function(IDLC_GENERATE)
     FEATURES ${IDLC_FEATURES}
     INCLUDES ${IDLC_INCLUDES}
     WARNINGS ${IDLC_WARNINGS}
+    OUTPUT_DIR ${IDLC_OUTPUT_DIR}
     DEFAULT_EXTENSIBILITY ${IDLC_DEFAULT_EXTENSIBILITY})
   if(${IDLC_NO_TYPE_INFO})
     list(APPEND gen_args NO_TYPE_INFO)
@@ -37,7 +38,7 @@ endfunction()
 
 function(IDLC_GENERATE_GENERIC)
   set(options NO_TYPE_INFO WERROR)
-  set(one_value_keywords TARGET BACKEND DEFAULT_EXTENSIBILITY BASE_DIR)
+  set(one_value_keywords TARGET BACKEND DEFAULT_EXTENSIBILITY BASE_DIR OUTPUT_DIR)
   set(multi_value_keywords FILES FEATURES INCLUDES WARNINGS SUFFIXES DEPENDS)
   cmake_parse_arguments(
     IDLC "${options}" "${one_value_keywords}" "${multi_value_keywords}" "" ${ARGN})
