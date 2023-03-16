@@ -531,13 +531,16 @@ ddsrt_mtime_t dds_rhc_default_sample_expired_cb(void *hc, ddsrt_mtime_t tnow)
 ddsrt_mtime_t dds_rhc_default_deadline_missed_cb(void *hc, ddsrt_mtime_t tnow)
 {
   struct dds_rhc_default *rhc = hc;
+  ddsrt_mtime_t tnext = {0};
+  uint32_t ninst = 0;
   void *vinst;
-  ddsrt_mtime_t tnext;
   ddsrt_mutex_lock (&rhc->lock);
-  while ((tnext = ddsi_deadline_next_missed_locked (&rhc->deadline, tnow, &vinst)).v == 0)
+  // stop after touching all instances to somewhat gracefully handle cases where we can't keep up
+  // alternatively one could do at most a fixed number at the time
+  while (ninst++ < rhc->n_instances && (tnext = ddsi_deadline_next_missed_locked (&rhc->deadline, tnow, &vinst)).v == 0)
   {
     struct rhc_instance *inst = vinst;
-    uint32_t deadlines_expired = inst->deadline.deadlines_missed + (uint32_t)((tnow.v - inst->deadline.t_last_update.v)/rhc->deadline.dur);
+    const uint32_t deadlines_expired = ddsi_deadline_compute_deadlines_missed (tnow, &inst->deadline, rhc->deadline.dur);
     ddsi_deadline_reregister_instance_locked (&rhc->deadline, &inst->deadline, tnow);
 
     inst->wr_iid_islive = 0;

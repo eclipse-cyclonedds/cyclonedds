@@ -19,8 +19,38 @@
 static void instance_deadline_missed_cb (struct ddsi_xevent *xev, void *varg, ddsrt_mtime_t tnow)
 {
   struct ddsi_deadline_adm * const deadline_adm = varg;
-  ddsrt_mtime_t next_valid = deadline_adm->deadline_missed_cb((char *)deadline_adm - deadline_adm->list_offset, tnow);
-  ddsi_resched_xevent_if_earlier (xev, next_valid);
+  const ddsrt_mtime_t next = deadline_adm->deadline_missed_cb ((char *)deadline_adm - deadline_adm->list_offset, tnow);
+  // Rate-limit repeated deadline miss notifications. The first deadline miss following an
+  // update of the instance is always handled by ddsi_deadline_register_instance_real and
+  // therefore always scheduled at the correct time.
+  const ddsrt_mtime_t earliest_rate_limited = ddsrt_mtime_add_duration (tnow, DDS_MSECS (1));
+  ddsi_resched_xevent_if_earlier (xev, (next.v > earliest_rate_limited.v) ? next : earliest_rate_limited);
+}
+
+uint32_t ddsi_deadline_compute_deadlines_missed (ddsrt_mtime_t tnow, const struct deadline_elem *deadline_elem, dds_duration_t deadline_dur)
+{
+  // deadline_elem->deadlines_missed + (tnow - deadline_elem->t_last_update) / deadline_dur
+  // while handling all edge cases
+  if (deadline_dur == 0)
+  {
+    // edge case: deadline = 0 means notifications by definition cannot keep up
+    return UINT32_MAX;
+  }
+  else
+  {
+    const dds_duration_t dt = tnow.v - deadline_elem->t_last_update.v;
+    if (dt < deadline_dur)
+      return deadline_elem->deadlines_missed;
+    else
+    {
+      // 0 < deadline_dur <= dt <= INT64_MAX => 0 < x <= INT64_MAX
+      const int64_t x = dt / deadline_dur;
+      if (x > (int64_t)UINT32_MAX || deadline_elem->deadlines_missed > UINT32_MAX - (uint32_t)x)
+        return UINT32_MAX;
+      else
+        return deadline_elem->deadlines_missed + (uint32_t)x;
+    }
+  }
 }
 
 /* Gets the instance from the list in deadline admin that has the earliest missed deadline and
@@ -75,14 +105,28 @@ void ddsi_deadline_fini (const struct ddsi_deadline_adm *deadline_adm)
 extern inline void ddsi_deadline_register_instance_locked (struct ddsi_deadline_adm *deadline_adm, struct deadline_elem *elem, ddsrt_mtime_t tnow);
 extern inline void ddsi_deadline_reregister_instance_locked (struct ddsi_deadline_adm *deadline_adm, struct deadline_elem *elem, ddsrt_mtime_t tnow);
 
-void ddsi_deadline_register_instance_real (struct ddsi_deadline_adm *deadline_adm, struct deadline_elem *elem, ddsrt_mtime_t tprev, ddsrt_mtime_t tnow)
+void ddsi_deadline_register_instance_real (struct ddsi_deadline_adm *deadline_adm, struct deadline_elem *elem, ddsrt_mtime_t tnow)
 {
-  ddsrt_circlist_append(&deadline_adm->list, &elem->e);
+  ddsrt_circlist_append (&deadline_adm->list, &elem->e);
   elem->deadlines_missed = 0;
-  elem->t_deadline.v = ((tnow.v - tprev.v)/deadline_adm->dur)*deadline_adm->dur+tprev.v;
-  elem->t_last_update = elem->t_deadline;
-  elem->t_deadline.v += deadline_adm->dur;
+  elem->t_last_update = tnow;
+  elem->t_deadline = ddsrt_mtime_add_duration (elem->t_last_update, deadline_adm->dur);
   ddsi_resched_xevent_if_earlier (deadline_adm->evt, elem->t_deadline);
+}
+
+void ddsi_deadline_reregister_instance_real (struct ddsi_deadline_adm *deadline_adm, struct deadline_elem *elem, ddsrt_mtime_t tprev, ddsrt_mtime_t tnow)
+{
+  ddsrt_circlist_append (&deadline_adm->list, &elem->e);
+  elem->deadlines_missed = 0;
+  if (tnow.v <= tprev.v || deadline_adm->dur == 0)
+    elem->t_last_update = tprev;
+  else
+  {
+    const dds_duration_t dt_rounded_down =
+      ((tnow.v - tprev.v) / deadline_adm->dur) * deadline_adm->dur;
+    elem->t_last_update = ddsrt_mtime_add_duration (tprev, dt_rounded_down);
+  }
+  elem->t_deadline = ddsrt_mtime_add_duration (elem->t_last_update, deadline_adm->dur);
 }
 
 extern inline void ddsi_deadline_unregister_instance_locked (struct ddsi_deadline_adm *deadline_adm, struct deadline_elem *elem);
@@ -93,9 +137,8 @@ void ddsi_deadline_unregister_instance_real (struct ddsi_deadline_adm *deadline_
    * is not required, because the event will be rescheduled when
    * this removed element expires. Only remove the element from the
    * deadline list */
-
   elem->t_deadline = DDSRT_MTIME_NEVER;
-  ddsrt_circlist_remove(&deadline_adm->list, &elem->e);
+  ddsrt_circlist_remove (&deadline_adm->list, &elem->e);
 }
 
 extern inline void ddsi_deadline_renew_instance_locked (struct ddsi_deadline_adm *deadline_adm, struct deadline_elem *elem);
@@ -107,13 +150,13 @@ void ddsi_deadline_renew_instance_real (struct ddsi_deadline_adm *deadline_adm, 
      will still be triggered, but has no effect on this instance because in
      the callback the deadline (which will be the updated value) will be
      checked for expiry */
-  ddsrt_mtime_t now = ddsrt_time_monotonic();
-  int64_t newdeadlines = (now.v - elem->t_last_update.v)/deadline_adm->dur;
-  elem->deadlines_missed += newdeadlines > 0 ? (uint32_t)newdeadlines : 0;
+  ddsrt_mtime_t now = ddsrt_time_monotonic ();
+  elem->deadlines_missed = ddsi_deadline_compute_deadlines_missed (now, elem, deadline_adm->dur);
   elem->t_last_update = now;
-  if (elem->deadlines_missed == 0) {
-    ddsrt_circlist_remove(&deadline_adm->list, &elem->e);
-    elem->t_deadline = ddsrt_mtime_add_duration(now, deadline_adm->dur);
-    ddsrt_circlist_append(&deadline_adm->list, &elem->e);
+  if (elem->deadlines_missed == 0)
+  {
+    ddsrt_circlist_remove (&deadline_adm->list, &elem->e);
+    elem->t_deadline = ddsrt_mtime_add_duration (now, deadline_adm->dur);
+    ddsrt_circlist_append (&deadline_adm->list, &elem->e);
   }
 }
