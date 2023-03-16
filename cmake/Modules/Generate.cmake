@@ -156,7 +156,7 @@ function(IDLC_GENERATE_GENERIC)
   endif()
   set(_outputs "")
   foreach(_file ${_files})
-    get_filename_component(_name ${_file} NAME_WE)
+    get_filename_component(_name ${_file} NAME_WLE)
     get_filename_component(_name_ext ${_file} NAME)
 
     # Determine middle path for directory reconstruction
