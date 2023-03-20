@@ -535,7 +535,7 @@ dds_return_t dds_dynamic_type_register (dds_dynamic_type_t *type, dds_typeinfo_t
 
 dds_dynamic_type_t dds_dynamic_type_ref (dds_dynamic_type_t *type)
 {
-  dds_dynamic_type_t ref;
+  dds_dynamic_type_t ref = { NULL, 0 };
   if ((ref.ret = check_type_param (type, true)) != DDS_RETCODE_OK)
     return ref;
   ref.x = ddsi_dynamic_type_ref ((struct ddsi_type *) type->x);
@@ -552,7 +552,7 @@ dds_return_t dds_dynamic_type_unref (dds_dynamic_type_t *type)
 
 dds_dynamic_type_t dds_dynamic_type_dup (const dds_dynamic_type_t *src)
 {
-  dds_dynamic_type_t dst;
+  dds_dynamic_type_t dst = { NULL, 0 };
   if ((dst.ret = check_type_param (src, true)) == DDS_RETCODE_OK)
   {
     dst.x = ddsi_dynamic_type_dup ((struct ddsi_type *) src->x);

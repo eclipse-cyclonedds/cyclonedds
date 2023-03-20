@@ -143,7 +143,7 @@ int main (int argc, char ** argv)
   dds_dynamic_type_unref (&dstruct);
 
   printf ("<press enter to exit>\n");
-  getchar ();
+  (void) getchar ();
 
   /* Deleting the participant will delete all its children recursively as well. */
   rc = dds_delete (participant);
