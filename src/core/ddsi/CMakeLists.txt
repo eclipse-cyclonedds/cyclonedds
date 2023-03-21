@@ -86,6 +86,7 @@ set(srcs_ddsi
   ddsi_xevent.c
   ddsi_xmsg.c
   ddsi_freelist.c
+  ddsi_hbcontrol.c
 )
 
 set(hdrs_ddsi
