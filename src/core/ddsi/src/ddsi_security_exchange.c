@@ -25,7 +25,7 @@
 #include "ddsi__security_omg.h"
 #include "ddsi__handshake.h"
 #include "ddsi__serdata_pserop.h"
-#include "ddsi__discovery.h"
+#include "ddsi__discovery_spdp.h"
 #include "ddsi__xmsg.h"
 #include "ddsi__transmit.h"
 #include "ddsi__entity.h"

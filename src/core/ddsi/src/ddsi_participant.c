@@ -23,7 +23,7 @@
 #include "ddsi__entity_index.h"
 #include "ddsi__security_omg.h"
 #include "ddsi__handshake.h"
-#include "ddsi__discovery.h"
+#include "ddsi__discovery_spdp.h"
 #include "ddsi__xevent.h"
 #include "ddsi__lease.h"
 #include "ddsi__receive.h"
@@ -32,6 +32,7 @@
 #include "ddsi__endpoint_match.h"
 #include "ddsi__gc.h"
 #include "ddsi__plist.h"
+#include "ddsi__pmd.h"
 #include "ddsi__protocol.h"
 #include "ddsi__tran.h"
 #include "ddsi__vendor.h"
@@ -979,13 +980,14 @@ static dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domai
        fire before the calls return.  If the initial sample wasn't
        accepted, all is lost, but we continue nonetheless, even though
        the participant won't be able to discover or be discovered.  */
-    pp->spdp_xevent = ddsi_qxev_spdp (gv->xevents, ddsrt_mtime_add_duration (ddsrt_time_monotonic (), DDS_MSECS (100)), &pp->e.guid, NULL);
+    struct ddsi_xevent_spdp_broadcast_cb_arg arg = { .pp_guid = pp->e.guid };
+    pp->spdp_xevent = ddsi_qxev_callback (gv->xevents, ddsrt_mtime_add_duration (ddsrt_time_monotonic (), DDS_MSECS (100)), ddsi_xevent_spdp_broadcast_cb, &arg, sizeof (arg), false);
   }
 
   {
-    ddsrt_mtime_t tsched;
-    tsched = (pp->plist->qos.liveliness.lease_duration == DDS_INFINITY) ? DDSRT_MTIME_NEVER : (ddsrt_mtime_t){0};
-    pp->pmd_update_xevent = ddsi_qxev_pmd_update (gv->xevents, tsched, &pp->e.guid);
+    ddsrt_mtime_t tsched = (pp->plist->qos.liveliness.lease_duration == DDS_INFINITY) ? DDSRT_MTIME_NEVER : (ddsrt_mtime_t){0};
+    struct ddsi_xevent_write_pmd_message_cb_arg arg = { .pp_guid = pp->e.guid };
+    pp->pmd_update_xevent = ddsi_qxev_callback (gv->xevents, tsched, ddsi_xevent_write_pmd_message_cb, &arg, sizeof (arg), false);
   }
 
 #ifdef DDS_HAS_SECURITY

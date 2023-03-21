@@ -74,21 +74,14 @@ enum ddsi_qxev_msg_rexmit_result {
 /** @component timed_events */
 enum ddsi_qxev_msg_rexmit_result ddsi_qxev_msg_rexmit_wrlock_held (struct ddsi_xeventq *evq, struct ddsi_xmsg *msg, int force);
 
-/** @component timed_events */
-struct ddsi_xevent *ddsi_qxev_heartbeat (struct ddsi_xeventq *evq, ddsrt_mtime_t tsched, const ddsi_guid_t *wr_guid);
-
-/** @component timed_events */
-struct ddsi_xevent *ddsi_qxev_acknack (struct ddsi_xeventq *evq, ddsrt_mtime_t tsched, const ddsi_guid_t *pwr_guid, const ddsi_guid_t *rd_guid);
-
-/** @component timed_events */
-struct ddsi_xevent *ddsi_qxev_spdp (struct ddsi_xeventq *evq, ddsrt_mtime_t tsched, const ddsi_guid_t *pp_guid, const ddsi_guid_t *proxypp_guid);
-
-/** @component timed_events */
-struct ddsi_xevent *ddsi_qxev_pmd_update (struct ddsi_xeventq *evq, ddsrt_mtime_t tsched, const ddsi_guid_t *pp_guid);
-
-/** @component timed_events */
-struct ddsi_xevent *ddsi_qxev_delete_writer (struct ddsi_xeventq *evq, ddsrt_mtime_t tsched, const ddsi_guid_t *guid);
-
+#ifndef NDEBUG
+/**
+ * @component timed_events
+ * @remark: locks EVQ for the duration of the operation
+ * @param ev the event
+ */
+bool ddsi_delete_xevent_pending (struct ddsi_xevent *ev);
+#endif
 
 #if defined (__cplusplus)
 }

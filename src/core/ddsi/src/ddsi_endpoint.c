@@ -12,6 +12,7 @@
 #include <assert.h>
 #include <string.h>
 #include <stddef.h>
+#include <math.h>
 
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsrt/heap.h"
@@ -30,7 +31,7 @@
 #include "ddsi__udp.h"
 #include "ddsi__wraddrset.h"
 #include "ddsi__security_omg.h"
-#include "ddsi__discovery.h"
+#include "ddsi__discovery_endpoint.h"
 #include "ddsi__whc.h"
 #include "ddsi__xevent.h"
 #include "ddsi__addrset.h"
@@ -726,6 +727,193 @@ int ddsi_writer_set_notalive (struct ddsi_writer *wr, bool notify)
   return ret;
 }
 
+#ifdef DDS_HAS_SECURITY
+static int send_heartbeat_to_all_readers_check_and_sched (struct ddsi_xevent *ev, struct ddsi_writer *wr, const struct ddsi_whc_state *whcst, ddsrt_mtime_t tnow, ddsrt_mtime_t *t_next)
+{
+  int send;
+  if (!ddsi_writer_must_have_hb_scheduled (wr, whcst))
+  {
+    wr->hbcontrol.tsched = DDSRT_MTIME_NEVER;
+    send = -1;
+  }
+  else if (!ddsi_writer_hbcontrol_must_send (wr, whcst, tnow))
+  {
+    wr->hbcontrol.tsched = ddsrt_mtime_add_duration (tnow, ddsi_writer_hbcontrol_intv (wr, whcst, tnow));
+    send = -1;
+  }
+  else
+  {
+    const int hbansreq = ddsi_writer_hbcontrol_ack_required (wr, whcst, tnow);
+    wr->hbcontrol.tsched = ddsrt_mtime_add_duration (tnow, ddsi_writer_hbcontrol_intv (wr, whcst, tnow));
+    send = hbansreq;
+  }
+
+  ddsi_resched_xevent_if_earlier (ev, wr->hbcontrol.tsched);
+  *t_next = wr->hbcontrol.tsched;
+  return send;
+}
+
+static void send_heartbeat_to_all_readers (struct ddsi_xpack *xp, struct ddsi_xevent *ev, struct ddsi_writer *wr, ddsrt_mtime_t tnow)
+{
+  struct ddsi_whc_state whcst;
+  ddsrt_mtime_t t_next;
+  unsigned count = 0;
+
+  ddsrt_mutex_lock (&wr->e.lock);
+
+  ddsi_whc_get_state(wr->whc, &whcst);
+  const int hbansreq = send_heartbeat_to_all_readers_check_and_sched (ev, wr, &whcst, tnow, &t_next);
+  if (hbansreq >= 0)
+  {
+    struct ddsi_wr_prd_match *m;
+    struct ddsi_guid last_guid = { .prefix = {.u = {0,0,0}}, .entityid = {0} };
+
+    while ((m = ddsrt_avl_lookup_succ (&ddsi_wr_readers_treedef, &wr->readers, &last_guid)) != NULL)
+    {
+      last_guid = m->prd_guid;
+      if (m->seq < m->last_seq)
+      {
+        struct ddsi_proxy_reader *prd;
+
+        prd = ddsi_entidx_lookup_proxy_reader_guid (wr->e.gv->entity_index, &m->prd_guid);
+        if (prd)
+        {
+          ETRACE (wr, " heartbeat(wr "PGUIDFMT" rd "PGUIDFMT" %s) send, resched in %g s (min-ack %"PRIu64", avail-seq %"PRIu64")\n",
+              PGUID (wr->e.guid),
+              PGUID (m->prd_guid),
+              hbansreq ? "" : " final",
+              (double)(t_next.v - tnow.v) / 1e9,
+              m->seq,
+              m->last_seq);
+
+          struct ddsi_xmsg *msg = ddsi_writer_hbcontrol_p2p(wr, &whcst, hbansreq, prd);
+          if (msg != NULL)
+          {
+            ddsrt_mutex_unlock (&wr->e.lock);
+            ddsi_xpack_addmsg (xp, msg, 0);
+            ddsrt_mutex_lock (&wr->e.lock);
+          }
+          count++;
+        }
+      }
+    }
+  }
+
+  if (count == 0)
+  {
+    if (ddsrt_avl_is_empty (&wr->readers))
+    {
+      ETRACE (wr, "heartbeat(wr "PGUIDFMT") suppressed, resched in %g s (min-ack [none], avail-seq %"PRIu64", xmit %"PRIu64")\n",
+              PGUID (wr->e.guid),
+              (t_next.v == DDS_NEVER) ? INFINITY : (double)(t_next.v - tnow.v) / 1e9,
+              whcst.max_seq,
+              ddsi_writer_read_seq_xmit(wr));
+    }
+    else
+    {
+      ETRACE (wr, "heartbeat(wr "PGUIDFMT") suppressed, resched in %g s (min-ack %"PRIu64"%s, avail-seq %"PRIu64", xmit %"PRIu64")\n",
+              PGUID (wr->e.guid),
+              (t_next.v == DDS_NEVER) ? INFINITY : (double)(t_next.v - tnow.v) / 1e9,
+              ((struct ddsi_wr_prd_match *) ddsrt_avl_root (&ddsi_wr_readers_treedef, &wr->readers))->min_seq,
+              ((struct ddsi_wr_prd_match *) ddsrt_avl_root (&ddsi_wr_readers_treedef, &wr->readers))->all_have_replied_to_hb ? "" : "!",
+              whcst.max_seq,
+              ddsi_writer_read_seq_xmit(wr));
+    }
+  }
+
+  ddsrt_mutex_unlock (&wr->e.lock);
+}
+#endif
+
+struct handle_heartbeat_event_arg {
+  ddsi_guid_t wr_guid;
+};
+
+static void handle_heartbeat_event (struct ddsi_domaingv *gv, struct ddsi_xevent *ev, struct ddsi_xpack *xp, void *varg, ddsrt_mtime_t tnow)
+{
+  struct handle_heartbeat_event_arg const * const arg = varg;
+  struct ddsi_writer *wr;
+  if ((wr = ddsi_entidx_lookup_writer_guid (gv->entity_index, &arg->wr_guid)) == NULL)
+  {
+    return;
+  }
+
+  struct ddsi_xmsg *msg;
+  ddsrt_mtime_t t_next;
+  int hbansreq = 0;
+  struct ddsi_whc_state whcst;
+
+#ifdef DDS_HAS_SECURITY
+  if (wr->e.guid.entityid.u == DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER)
+  {
+    send_heartbeat_to_all_readers(xp, ev, wr, tnow);
+    return;
+  }
+#endif
+
+  ddsrt_mutex_lock (&wr->e.lock);
+  assert (wr->reliable);
+  ddsi_whc_get_state(wr->whc, &whcst);
+  if (!ddsi_writer_must_have_hb_scheduled (wr, &whcst))
+  {
+    hbansreq = 1; /* just for trace */
+    msg = NULL; /* Need not send it now, and no need to schedule it for the future */
+    t_next.v = DDS_NEVER;
+  }
+  else if (!ddsi_writer_hbcontrol_must_send (wr, &whcst, tnow))
+  {
+    hbansreq = 1; /* just for trace */
+    msg = NULL;
+    t_next.v = tnow.v + ddsi_writer_hbcontrol_intv (wr, &whcst, tnow);
+  }
+  else
+  {
+    hbansreq = ddsi_writer_hbcontrol_ack_required (wr, &whcst, tnow);
+    msg = ddsi_writer_hbcontrol_create_heartbeat (wr, &whcst, tnow, hbansreq, 0);
+    t_next.v = tnow.v + ddsi_writer_hbcontrol_intv (wr, &whcst, tnow);
+  }
+
+  if (ddsrt_avl_is_empty (&wr->readers))
+  {
+    GVTRACE ("heartbeat(wr "PGUIDFMT"%s) %s, resched in %g s (min-ack [none], avail-seq %"PRIu64", xmit %"PRIu64")\n",
+             PGUID (wr->e.guid),
+             hbansreq ? "" : " final",
+             msg ? "sent" : "suppressed",
+             (t_next.v == DDS_NEVER) ? INFINITY : (double)(t_next.v - tnow.v) / 1e9,
+             whcst.max_seq, ddsi_writer_read_seq_xmit (wr));
+  }
+  else
+  {
+    GVTRACE ("heartbeat(wr "PGUIDFMT"%s) %s, resched in %g s (min-ack %"PRId64"%s, avail-seq %"PRIu64", xmit %"PRIu64")\n",
+             PGUID (wr->e.guid),
+             hbansreq ? "" : " final",
+             msg ? "sent" : "suppressed",
+             (t_next.v == DDS_NEVER) ? INFINITY : (double)(t_next.v - tnow.v) / 1e9,
+             ((struct ddsi_wr_prd_match *) ddsrt_avl_root_non_empty (&ddsi_wr_readers_treedef, &wr->readers))->min_seq,
+             ((struct ddsi_wr_prd_match *) ddsrt_avl_root_non_empty (&ddsi_wr_readers_treedef, &wr->readers))->all_have_replied_to_hb ? "" : "!",
+             whcst.max_seq, ddsi_writer_read_seq_xmit (wr));
+  }
+  (void) ddsi_resched_xevent_if_earlier (ev, t_next);
+  wr->hbcontrol.tsched = t_next;
+  ddsrt_mutex_unlock (&wr->e.lock);
+
+  /* Can't transmit synchronously with writer lock held: trying to add
+     the heartbeat to the xp may cause xp to be sent out, which may
+     require updating wr->seq_xmit for other messages already in xp.
+     Besides, ddsi_xpack_addmsg may sleep for bandwidth-limited channels
+     and we certainly don't want to hold the lock during that time. */
+  if (msg)
+  {
+    if (!wr->test_suppress_heartbeat)
+      ddsi_xpack_addmsg (xp, msg, 0);
+    else
+    {
+      GVTRACE ("test_suppress_heartbeat\n");
+      ddsi_xmsg_free (msg);
+    }
+  }
+}
+
 static void ddsi_new_writer_guid_common_init (struct ddsi_writer *wr, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos, struct ddsi_whc *whc, ddsi_status_cb_t status_cb, void * status_entity)
 {
   ddsrt_cond_init (&wr->throttle_cond);
@@ -863,10 +1051,13 @@ static void ddsi_new_writer_guid_common_init (struct ddsi_writer *wr, const char
      writer for it in the hash table. NEVER => won't ever be
      scheduled, and this can only change by writing data, which won't
      happen until after it becomes visible. */
-  if (wr->reliable)
-    wr->heartbeat_xevent = ddsi_qxev_heartbeat (wr->evq, DDSRT_MTIME_NEVER, &wr->e.guid);
-  else
+  if (!wr->reliable)
     wr->heartbeat_xevent = NULL;
+  else
+  {
+    struct handle_heartbeat_event_arg arg = {.wr_guid = wr->e.guid };
+    wr->heartbeat_xevent = ddsi_qxev_callback (wr->evq, DDSRT_MTIME_NEVER, handle_heartbeat_event, &arg, sizeof (arg), false);
+  }
 
   assert (wr->xqos->present & DDSI_QP_LIVELINESS);
   if (wr->xqos->liveliness.lease_duration != DDS_INFINITY)
@@ -1263,6 +1454,19 @@ void ddsi_delete_local_orphan_writer (struct ddsi_local_orphan_writer *lowr)
   ddsrt_mutex_unlock (&lowr->wr.e.lock);
 }
 
+struct xevent_delete_writer_cb_arg {
+  ddsi_guid_t wr_guid;
+};
+
+static void xevent_delete_writer_cb (struct ddsi_domaingv *gv, struct ddsi_xevent *ev, UNUSED_ARG (struct ddsi_xpack *xp), void *varg, UNUSED_ARG (ddsrt_mtime_t tnow))
+{
+  struct xevent_delete_writer_cb_arg const * const arg = varg;
+  /* don't worry if the writer is already gone by the time we get here, delete_writer_nolinger checks for that. */
+  GVTRACE ("handle_xevk_delete_writer: "PGUIDFMT"\n", PGUID (arg->wr_guid));
+  ddsi_delete_writer_nolinger (gv, &arg->wr_guid);
+  ddsi_delete_xevent (ev);
+}
+
 dds_return_t ddsi_delete_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *guid)
 {
   struct ddsi_writer *wr;
@@ -1296,7 +1500,9 @@ dds_return_t ddsi_delete_writer (struct ddsi_domaingv *gv, const struct ddsi_gui
     ddsrt_mtime_to_sec_usec (&tsec, &tusec, tsched);
     GVLOGDISC ("delete_writer(guid "PGUIDFMT") - unack'ed samples, will delete when ack'd or at t = %"PRId32".%06"PRId32"\n",
                PGUID (*guid), tsec, tusec);
-    ddsi_qxev_delete_writer (gv->xevents, tsched, &wr->e.guid);
+    
+    struct xevent_delete_writer_cb_arg arg = { .wr_guid = wr->e.guid };
+    ddsi_qxev_callback (gv->xevents, tsched, xevent_delete_writer_cb, &arg, sizeof (arg), false);
   }
   return 0;
 }

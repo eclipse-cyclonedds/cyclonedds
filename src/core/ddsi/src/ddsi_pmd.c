@@ -27,7 +27,7 @@
 #include "ddsi__transmit.h"
 #include "ddsi__xmsg.h"
 #include "ddsi__proxy_participant.h"
-#include "ddsi__sysdeps.h"
+#include "ddsi__xevent.h"
 
 /* note: treating guid prefix + kind as if it were a GUID because that matches
    the octet-sequence/sequence-of-uint32 distinction between the specified wire
@@ -124,3 +124,39 @@ void ddsi_handle_pmd_message (const struct ddsi_receiver_state *rst, struct ddsi
   }
   RSTTRACE ("\n");
 }
+
+void ddsi_xevent_write_pmd_message_cb (struct ddsi_domaingv *gv, struct ddsi_xevent *ev, struct ddsi_xpack *xp, void *varg, ddsrt_mtime_t tnow)
+{
+  struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
+  struct ddsi_xevent_write_pmd_message_cb_arg const * const arg = varg;
+  struct ddsi_participant *pp;
+  dds_duration_t intv;
+  ddsrt_mtime_t tnext;
+
+  if ((pp = ddsi_entidx_lookup_participant_guid (gv->entity_index, &arg->pp_guid)) == NULL)
+  {
+    return;
+  }
+
+  ddsi_write_pmd_message (thrst, xp, pp, DDSI_PARTICIPANT_MESSAGE_DATA_KIND_AUTOMATIC_LIVELINESS_UPDATE);
+
+  intv = ddsi_participant_get_pmd_interval (pp);
+  if (intv == DDS_INFINITY)
+  {
+    tnext.v = DDS_NEVER;
+    GVTRACE ("resched pmd("PGUIDFMT"): never\n", PGUID (pp->e.guid));
+  }
+  else
+  {
+    /* schedule next when 80% of the interval has elapsed, or 2s
+       before the lease ends, whichever comes first */
+    if (intv >= DDS_SECS (10))
+      tnext.v = tnow.v + intv - DDS_SECS (2);
+    else
+      tnext.v = tnow.v + 4 * intv / 5;
+    GVTRACE ("resched pmd("PGUIDFMT"): %gs\n", PGUID (pp->e.guid), (double)(tnext.v - tnow.v) / 1e9);
+  }
+
+  (void) ddsi_resched_xevent_if_earlier (ev, tnext);
+}
+

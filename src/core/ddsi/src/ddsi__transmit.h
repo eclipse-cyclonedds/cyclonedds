@@ -44,6 +44,8 @@ int ddsi_write_sample_gc_notk (struct ddsi_thread_state * const thrst, struct dd
 /** @component outgoing_rtps */
 int ddsi_write_sample_nogc_notk (struct ddsi_thread_state * const thrst, struct ddsi_xpack *xp, struct ddsi_writer *wr, struct ddsi_serdata *serdata);
 
+/** @component outgoing_rtps */
+int ddsi_write_and_fini_plist (struct ddsi_writer *wr, ddsi_plist_t *ps, bool alive);
 
 /* When calling the following functions, wr->lock must be held */
 
