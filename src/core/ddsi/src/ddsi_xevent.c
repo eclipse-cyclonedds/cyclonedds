@@ -114,7 +114,7 @@ static uint32_t xevent_thread (struct ddsi_xeventq *xevq);
 static ddsrt_mtime_t earliest_in_xeventq (struct ddsi_xeventq *evq);
 static int msg_xevents_cmp (const void *a, const void *b);
 static int compare_xevent_tsched (const void *va, const void *vb);
-static void handle_nontimed_xevent (struct ddsi_xevent_nt *xev, struct ddsi_xpack *xp);
+static void handle_nontimed_xevent (struct ddsi_xeventq *evq, struct ddsi_xevent_nt *xev, struct ddsi_xpack *xp);
 
 static const ddsrt_avl_treedef_t msg_xevents_treedef = DDSRT_AVL_TREEDEF_INITIALIZER_INDKEY (offsetof (struct ddsi_xevent_nt, u.msg_rexmit.msg_avlnode), offsetof (struct ddsi_xevent_nt, u.msg_rexmit.msg), msg_xevents_cmp, 0);
 
@@ -355,24 +355,6 @@ bool ddsi_delete_xevent_pending (struct ddsi_xevent *ev)
 }
 #endif
 
-static ddsrt_mtime_t mtime_round_up (ddsrt_mtime_t t, int64_t round)
-{
-  /* This function rounds up t to the nearest next multiple of round.
-     t is nanoseconds, round is milliseconds.  Avoid functions from
-     maths libraries to keep code portable */
-  assert (t.v >= 0 && round >= 0);
-  if (round == 0 || t.v == DDS_INFINITY)
-    return t;
-  else
-  {
-    int64_t remainder = t.v % round;
-    if (remainder == 0)
-      return t;
-    else
-      return (ddsrt_mtime_t) { t.v + round - remainder };
-  }
-}
-
 static struct ddsi_xevent_nt *qxev_common_nt (struct ddsi_xeventq *evq, enum ddsi_xeventkind_nt kind)
 {
   /* qxev_common_nt is the route by which all non-timed xevents are created. */
@@ -491,7 +473,7 @@ void ddsi_xeventq_free (struct ddsi_xeventq *evq)
     while (!non_timed_xmit_list_is_empty (evq))
     {
       ddsi_thread_state_awake_to_awake_no_nest (ddsi_lookup_thread_state ());
-      handle_nontimed_xevent (getnext_from_non_timed_xmit_list (evq), xp);
+      handle_nontimed_xevent (evq, getnext_from_non_timed_xmit_list (evq), xp);
     }
     ddsrt_mutex_unlock (&evq->lock);
     ddsi_xpack_send (xp, false);
@@ -507,11 +489,36 @@ void ddsi_xeventq_free (struct ddsi_xeventq *evq)
 
 /* EVENT QUEUE EVENT HANDLERS ******************************************************/
 
-static void handle_nontimed_xevent (struct ddsi_xevent_nt *xev, struct ddsi_xpack *xp)
+static void handle_timed_xevent (struct ddsi_xeventq *evq, struct ddsi_xevent *xev, struct ddsi_xpack *xp, ddsrt_mtime_t tnow)
+{
+  /* event rescheduling functions look at xev->tsched to
+     determine whether it is currently on the heap or not (i.e.,
+     scheduled or not), so set to TSCHED_NEVER to indicate it
+     currently isn't. */
+  xev->tsched.v = DDS_NEVER;
+
+  /* We relinquish the lock while processing the event. */
+  if (xev->sync_state == CSS_DONTCARE)
+  {
+    ddsrt_mutex_unlock (&evq->lock);
+    xev->cb.cb (evq->gv, xev, xp, xev->arg, tnow);
+    ddsrt_mutex_lock (&evq->lock);
+  }
+  else
+  {
+    xev->sync_state = CSS_EXECUTING;
+    ddsrt_mutex_unlock (&evq->lock);
+    xev->cb.cb (evq->gv, xev, xp, xev->arg, tnow);
+    ddsrt_mutex_lock (&evq->lock);
+    xev->sync_state = CSS_SCHEDULED;
+    ddsrt_cond_broadcast (&evq->cond);
+  }
+}
+
+static void handle_nontimed_xevent (struct ddsi_xeventq *evq, struct ddsi_xevent_nt *xev, struct ddsi_xpack *xp)
 {
    /* This function handles the individual xevent irrespective of
       whether it is a "timed" or "non-timed" xevent */
-  struct ddsi_xeventq *evq = xev->evq;
   size_t msg_rexmit_queued_rexmit_bytes = SIZE_MAX;
 
   /* We relinquish the lock while processing the event, but require it
@@ -544,8 +551,6 @@ static void handle_nontimed_xevent (struct ddsi_xevent_nt *xev, struct ddsi_xpac
 
 static void handle_xevents (struct ddsi_thread_state * const thrst, struct ddsi_xeventq *xevq, struct ddsi_xpack *xp, ddsrt_mtime_t tnow)
 {
-  int xeventsToProcess = 1;
-
   ASSERT_MUTEX_HELD (&xevq->lock);
   assert (ddsi_thread_is_awake ());
 
@@ -557,71 +562,42 @@ static void handle_xevents (struct ddsi_thread_state * const thrst, struct ddsi_
      clock and continue the loop, i.e. test again to see whether any
      "timed" events are now due. */
 
-  while (xeventsToProcess)
-  {
-    while (earliest_in_xeventq(xevq).v <= tnow.v)
+  bool cont;
+  do {
+    cont = false;
+    while (earliest_in_xeventq (xevq).v <= tnow.v)
     {
       struct ddsi_xevent *xev = ddsrt_fibheap_extract_min (&evq_xevents_fhdef, &xevq->xevents);
       if (xev->tsched.v == TSCHED_DELETE)
-      {
         free_xevent (xevq, xev);
-      }
       else
       {
-        /* event rescheduling functions look at xev->tsched to
-           determine whether it is currently on the heap or not (i.e.,
-           scheduled or not), so set to TSCHED_NEVER to indicate it
-           currently isn't. */
-        xev->tsched.v = DDS_NEVER;
         ddsi_thread_state_awake_to_awake_no_nest (thrst);
-
-        /* We relinquish the lock while processing the event. */
-        if (xev->sync_state == CSS_DONTCARE)
-        {
-          ddsrt_mutex_unlock (&xevq->lock);
-          xev->cb.cb (xevq->gv, xev, xp, xev->arg, tnow);
-          ddsrt_mutex_lock (&xevq->lock);
-        }
-        else
-        {
-          xev->sync_state = CSS_EXECUTING;
-          ddsrt_mutex_unlock (&xevq->lock);
-          xev->cb.cb (xevq->gv, xev, xp, xev->arg, tnow);
-          ddsrt_mutex_lock (&xevq->lock);
-          xev->sync_state = CSS_SCHEDULED;
-          ddsrt_cond_broadcast (&xevq->cond);
-        }
+        handle_timed_xevent (xevq, xev, xp, tnow);
+        cont = true;
       }
-
-      /* Limited-bandwidth channels means events can take a LONG time
-         to process.  So read the clock more often. */
-      tnow = ddsrt_time_monotonic ();
     }
 
     if (!non_timed_xmit_list_is_empty (xevq))
     {
       struct ddsi_xevent_nt *xev = getnext_from_non_timed_xmit_list (xevq);
       ddsi_thread_state_awake_to_awake_no_nest (thrst);
-      handle_nontimed_xevent (xev, xp);
-      tnow = ddsrt_time_monotonic ();
+      handle_nontimed_xevent (xevq, xev, xp);
+      cont = true;
     }
-    else
-    {
-      xeventsToProcess = 0;
-    }
-  }
 
+    tnow = ddsrt_time_monotonic ();
+  } while (cont);
   ASSERT_MUTEX_HELD (&xevq->lock);
 }
 
 static uint32_t xevent_thread (struct ddsi_xeventq * xevq)
 {
   struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
-  struct ddsi_xpack *xp;
+  const dds_duration_t rounding = xevq->gv->config.schedule_time_rounding;
   ddsrt_mtime_t next_thread_cputime = { 0 };
 
-  xp = ddsi_xpack_new (xevq->gv, false);
-
+  struct ddsi_xpack * const xp = ddsi_xpack_new (xevq->gv, false);
   ddsrt_mutex_lock (&xevq->lock);
   while (!xevq->terminate)
   {
@@ -651,14 +627,11 @@ static uint32_t xevent_thread (struct ddsi_xeventq * xevq)
       }
       else
       {
-        /* Although we assumed instantaneous handling of events, we
-           don't want to sleep much longer than we have to. With
-           os_condTimedWait requiring a relative time, we don't have
-           much choice but to read the clock now */
+        /* "Wrong" time-base here ... should make cond_waitfor time-base aware */
         tnow = ddsrt_time_monotonic ();
         if (twakeup.v > tnow.v)
         {
-          twakeup.v -= tnow.v; /* ddsrt_cond_waitfor: relative timeout */
+          twakeup.v = ddsrt_mtime_add_duration(twakeup, rounding).v - tnow.v;
           ddsrt_cond_waitfor (&xevq->cond, &xevq->lock, twakeup.v);
         }
       }
@@ -759,22 +732,13 @@ struct ddsi_xevent *ddsi_qxev_callback (struct ddsi_xeventq *evq, ddsrt_mtime_t 
 {
   assert (tsched.v != TSCHED_DELETE);
   struct ddsi_xevent *ev = ddsrt_malloc (sizeof (*ev) + arg_size);
-  ddsrt_mutex_lock (&evq->lock);
-
-  /* round up the scheduled time if required */
-  if (tsched.v != DDS_NEVER && evq->gv->config.schedule_time_rounding != 0)
-  {
-    ddsrt_mtime_t tsched_rounded = mtime_round_up (tsched, evq->gv->config.schedule_time_rounding);
-    EVQTRACE ("rounded event scheduled for %"PRId64" to %"PRId64"\n", tsched.v, tsched_rounded.v);
-    tsched = tsched_rounded;
-  }
-
   ev->evq = evq;
   ev->tsched = tsched;
   ev->cb.cb = cb;
   ev->sync_state = sync_on_delete ? CSS_SCHEDULED : CSS_DONTCARE;
   if (arg_size) // so arg = NULL, arg_size = 0 is allowed
     memcpy (ev->arg, arg, arg_size);
+  ddsrt_mutex_lock (&evq->lock);
   qxev_insert (ev);
   ddsrt_mutex_unlock (&evq->lock);
   return ev;
