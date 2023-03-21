@@ -27,6 +27,7 @@ struct ddsi_participant;
 struct ddsi_type_pair;
 struct ddsi_entity_common;
 struct ddsi_endpoint_common;
+struct ddsi_alive_state;
 struct dds_qos;
 
 struct ddsi_ldur_fhnode {

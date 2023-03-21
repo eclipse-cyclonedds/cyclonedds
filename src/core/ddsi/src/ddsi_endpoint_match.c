@@ -33,6 +33,7 @@
 #include "ddsi__typelib.h"
 #include "ddsi__vendor.h"
 #include "ddsi__lat_estim.h"
+#include "ddsi__acknack.h"
 #ifdef DDS_HAS_TYPE_DISCOVERY
 #include "ddsi__typelookup.h"
 #endif
@@ -946,131 +947,6 @@ void ddsi_reader_add_local_connection (struct ddsi_reader *rd, struct ddsi_write
   }
 }
 
-#include "ddsi__acknack.h"
-#include "ddsi__misc.h"
-
-static dds_duration_t preemptive_acknack_interval (const struct ddsi_pwr_rd_match *rwn)
-{
-  if (rwn->t_last_ack.v < rwn->tcreate.v)
-    return 0;
-  else
-  {
-    const dds_duration_t age = rwn->t_last_ack.v - rwn->tcreate.v;
-    if (age <= DDS_SECS (10))
-      return DDS_SECS (1);
-    else if (age <= DDS_SECS (60))
-      return DDS_SECS (2);
-    else if (age <= DDS_SECS (120))
-      return DDS_SECS (5);
-    else
-      return DDS_SECS (10);
-  }
-}
-
-static struct ddsi_xmsg *make_preemptive_acknack (struct ddsi_xevent *ev, struct ddsi_proxy_writer *pwr, struct ddsi_pwr_rd_match *rwn, ddsrt_mtime_t tnow)
-{
-  const dds_duration_t old_intv = preemptive_acknack_interval (rwn);
-  if (tnow.v < ddsrt_mtime_add_duration (rwn->t_last_ack, old_intv).v)
-  {
-    (void) ddsi_resched_xevent_if_earlier (ev, ddsrt_mtime_add_duration (rwn->t_last_ack, old_intv));
-    return NULL;
-  }
-
-  struct ddsi_domaingv * const gv = pwr->e.gv;
-  struct ddsi_participant *pp = NULL;
-  if (ddsi_omg_proxy_participant_is_secure (pwr->c.proxypp))
-  {
-    struct ddsi_reader *rd = ddsi_entidx_lookup_reader_guid (gv->entity_index, &rwn->rd_guid);
-    if (rd)
-      pp = rd->c.pp;
-  }
-
-  struct ddsi_xmsg *msg;
-  if ((msg = ddsi_xmsg_new (gv->xmsgpool, &rwn->rd_guid, pp, DDSI_ACKNACK_SIZE_MAX, DDSI_XMSG_KIND_CONTROL)) == NULL)
-  {
-    // if out of memory, try again later
-    (void) ddsi_resched_xevent_if_earlier (ev, ddsrt_mtime_add_duration (tnow, old_intv));
-    return NULL;
-  }
-
-  ddsi_xmsg_setdst_pwr (msg, pwr);
-  struct ddsi_xmsg_marker sm_marker;
-  ddsi_rtps_acknack_t *an = ddsi_xmsg_append (msg, &sm_marker, DDSI_ACKNACK_SIZE (0));
-  ddsi_xmsg_submsg_init (msg, sm_marker, DDSI_RTPS_SMID_ACKNACK);
-  an->readerId = ddsi_hton_entityid (rwn->rd_guid.entityid);
-  an->writerId = ddsi_hton_entityid (pwr->e.guid.entityid);
-  an->readerSNState.bitmap_base = ddsi_to_seqno (1);
-  an->readerSNState.numbits = 0;
-  ddsi_count_t * const countp =
-    (ddsi_count_t *) ((char *) an + offsetof (ddsi_rtps_acknack_t, bits) + DDSI_SEQUENCE_NUMBER_SET_BITS_SIZE (0));
-  *countp = 0;
-  ddsi_xmsg_submsg_setnext (msg, sm_marker);
-  ddsi_security_encode_datareader_submsg (msg, sm_marker, pwr, &rwn->rd_guid);
-
-  rwn->t_last_ack = tnow;
-  const dds_duration_t new_intv = preemptive_acknack_interval (rwn);
-  (void) ddsi_resched_xevent_if_earlier (ev, ddsrt_mtime_add_duration (rwn->t_last_ack, new_intv));
-
-  // numbits is always 0 here, so need to print the bitmap
-  ETRACE (pwr, "acknack "PGUIDFMT" -> "PGUIDFMT": #%"PRIu32":%"PRId64"/%"PRIu32":\n",
-          PGUID (rwn->rd_guid), PGUID (pwr->e.guid), *countp,
-          ddsi_from_seqno (an->readerSNState.bitmap_base), an->readerSNState.numbits);
-  return msg;
-}
-
-struct handle_xevk_acknack_arg {
-  ddsi_guid_t pwr_guid;
-  ddsi_guid_t rd_guid;
-};
-
-static void handle_xevk_acknack (struct ddsi_domaingv *gv, struct ddsi_xevent *ev, struct ddsi_xpack *xp, void *varg, ddsrt_mtime_t tnow)
-{
-  /* FIXME: ought to keep track of which NACKs are being generated in
-     response to a Heartbeat.  There is no point in having multiple
-     readers NACK the data.
-
-     FIXME: ought to determine the set of missing samples (as it does
-     now), and then check which for of those fragments are available already.
-     A little snag is that the defragmenter can throw out partial samples in
-     favour of others, so MUST ensure that the defragmenter won't start
-     threshing and fail to make progress! */
-  struct handle_xevk_acknack_arg const * const arg = varg;
-  struct ddsi_proxy_writer *pwr;
-  struct ddsi_xmsg *msg;
-  struct ddsi_pwr_rd_match *rwn;
-
-  if ((pwr = ddsi_entidx_lookup_proxy_writer_guid (gv->entity_index, &arg->pwr_guid)) == NULL)
-  {
-    return;
-  }
-
-  ddsrt_mutex_lock (&pwr->e.lock);
-  if ((rwn = ddsrt_avl_lookup (&ddsi_pwr_readers_treedef, &pwr->readers, &arg->rd_guid)) == NULL)
-  {
-    ddsrt_mutex_unlock (&pwr->e.lock);
-    return;
-  }
-
-  if (!pwr->have_seen_heartbeat)
-    msg = make_preemptive_acknack (ev, pwr, rwn, tnow);
-  else
-    msg = ddsi_make_and_resched_acknack (ev, pwr, rwn, tnow, false);
-  ddsrt_mutex_unlock (&pwr->e.lock);
-
-  /* ddsi_xpack_addmsg may sleep (for bandwidth-limited channels), so
-     must be outside the lock */
-  if (msg)
-  {
-    // a possible result of trying to encode a submessage is that it is removed,
-    // in which case we may end up with an empty one.
-    // FIXME: change ddsi_security_encode_datareader_submsg so that it returns this and make it warn_unused_result
-    if (ddsi_xmsg_size (msg) == 0)
-      ddsi_xmsg_free (msg);
-    else
-      ddsi_xpack_addmsg (xp, msg, 0);
-  }
-}
-
 void ddsi_proxy_writer_add_connection (struct ddsi_proxy_writer *pwr, struct ddsi_reader *rd, ddsrt_mtime_t tnow, ddsi_count_t init_count, int64_t crypto_handle)
 {
   struct ddsi_pwr_rd_match *m = ddsrt_malloc (sizeof (*m));
@@ -1202,8 +1078,8 @@ void ddsi_proxy_writer_add_connection (struct ddsi_proxy_writer *pwr, struct dds
 
     const ddsrt_mtime_t tsched = use_iceoryx ? DDSRT_MTIME_NEVER : ddsrt_mtime_add_duration (tnow, pwr->e.gv->config.preemptive_ack_delay);
     {
-      struct handle_xevk_acknack_arg arg = { .pwr_guid = pwr->e.guid, .rd_guid = rd->e.guid };
-      m->acknack_xevent = ddsi_qxev_callback (pwr->evq, tsched, handle_xevk_acknack, &arg, sizeof (arg), false);
+      struct ddsi_xevent_acknack_cb_arg arg = { .pwr_guid = pwr->e.guid, .rd_guid = rd->e.guid };
+      m->acknack_xevent = ddsi_qxev_callback (pwr->evq, tsched, ddsi_xevent_acknack_cb, &arg, sizeof (arg), false);
     }
     m->u.not_in_sync.reorder =
       ddsi_reorder_new (&pwr->e.gv->logconfig, DDSI_REORDER_MODE_NORMAL, secondary_reorder_maxsamples, pwr->e.gv->config.late_ack_mode);
