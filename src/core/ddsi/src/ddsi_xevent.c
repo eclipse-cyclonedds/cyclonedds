@@ -23,9 +23,7 @@
 #include "ddsi__xevent.h"
 #include "ddsi__thread.h"
 #include "ddsi__transmit.h"
-#include "ddsi__entity.h"
 #include "ddsi__xmsg.h"
-#include "ddsi__proxy_endpoint.h"
 #include "ddsi__tran.h"
 #include "ddsi__sysdeps.h"
 
@@ -63,7 +61,6 @@ enum ddsi_xeventkind_nt
   XEVK_MSG,
   XEVK_MSG_REXMIT,
   XEVK_MSG_REXMIT_NOMERGE,
-  XEVK_ENTITYID,
   XEVK_NT_CALLBACK
 };
 
@@ -88,10 +85,6 @@ struct ddsi_xevent_nt
       ddsrt_avl_node_t msg_avlnode;
     } msg_rexmit; /* and msg_rexmit_nomerge */
     struct {
-      /* xmsg is self-contained / relies on reference counts */
-      struct ddsi_xmsg *msg;
-    } entityid;
-    struct {
       void (*cb) (void *arg);
       void *arg;
     } callback;
@@ -103,6 +96,7 @@ struct ddsi_xeventq {
   ddsrt_avl_tree_t msg_xevents;
   struct ddsi_xevent_nt *non_timed_xmit_list_oldest;
   struct ddsi_xevent_nt *non_timed_xmit_list_newest; /* undefined if ..._oldest == NULL */
+  size_t non_timed_xmit_list_length;
   size_t queued_rexmit_bytes;
   size_t queued_rexmit_msgs;
   size_t max_queued_rexmit_bytes;
@@ -133,17 +127,13 @@ static int compare_xevent_tsched (const void *va, const void *vb)
   return (a->tsched.v == b->tsched.v) ? 0 : (a->tsched.v < b->tsched.v) ? -1 : 1;
 }
 
-static void update_rexmit_counts (struct ddsi_xeventq *evq, struct ddsi_xevent_nt *ev)
+static void update_rexmit_counts (struct ddsi_xeventq *evq, size_t msg_rexmit_queued_rexmit_bytes)
 {
-#if 0
-  EVQTRACE ("ZZZ(%p,%"PRIuSIZE")", (void *) ev, ev->u.msg_rexmit.queued_rexmit_bytes);
-#endif
-  assert (ev->kind == XEVK_MSG_REXMIT || ev->kind == XEVK_MSG_REXMIT_NOMERGE);
-  assert (ev->u.msg_rexmit.queued_rexmit_bytes <= evq->queued_rexmit_bytes);
+  assert (msg_rexmit_queued_rexmit_bytes <= evq->queued_rexmit_bytes);
   assert (evq->queued_rexmit_msgs > 0);
-  evq->queued_rexmit_bytes -= ev->u.msg_rexmit.queued_rexmit_bytes;
+  evq->queued_rexmit_bytes -= msg_rexmit_queued_rexmit_bytes;
   evq->queued_rexmit_msgs--;
-  evq->cum_rexmit_bytes += ev->u.msg_rexmit.queued_rexmit_bytes;
+  evq->cum_rexmit_bytes += msg_rexmit_queued_rexmit_bytes;
 }
 
 #if 0
@@ -206,6 +196,7 @@ static void add_to_non_timed_xmit_list (struct ddsi_xeventq *evq, struct ddsi_xe
     evq->non_timed_xmit_list_newest->listnode.next = ev;
   }
   evq->non_timed_xmit_list_newest = ev;
+  evq->non_timed_xmit_list_length++;
 
   if (ev->kind == XEVK_MSG_REXMIT)
     remember_msg (evq, ev);
@@ -220,6 +211,7 @@ static struct ddsi_xevent_nt *getnext_from_non_timed_xmit_list  (struct ddsi_xev
   struct ddsi_xevent_nt *ev = evq->non_timed_xmit_list_oldest;
   if (ev != NULL)
   {
+    evq->non_timed_xmit_list_length--;
     evq->non_timed_xmit_list_oldest = ev->listnode.next;
 
     if (ev->kind == XEVK_MSG_REXMIT)
@@ -235,22 +227,6 @@ static int non_timed_xmit_list_is_empty (struct ddsi_xeventq *evq)
 {
   /* check whether the "non-timed" xevent list is empty */
   return (evq->non_timed_xmit_list_oldest == NULL);
-}
-
-static int compute_non_timed_xmit_list_size (struct ddsi_xeventq *evq)
-{
-  /* returns how many "non-timed" xevents are pending by counting the
-     number of events in the list -- it'd be easy to compute the
-     length incrementally in the add_... and next_... functions, but
-     it isn't really being used anywhere, so why bother? */
-  struct ddsi_xevent_nt *current = evq->non_timed_xmit_list_oldest;
-  int i = 0;
-  while (current)
-  {
-    current = current->listnode.next;
-    i++;
-  }
-  return i;
 }
 
 #ifndef NDEBUG
@@ -434,7 +410,7 @@ static void qxev_insert_nt (struct ddsi_xevent_nt *ev)
   struct ddsi_xeventq *evq = ev->evq;
   ASSERT_MUTEX_HELD (&evq->lock);
   add_to_non_timed_xmit_list (evq, ev);
-  EVQTRACE ("non-timed queue now has %d items\n", compute_non_timed_xmit_list_size (evq));
+  EVQTRACE (" (%"PRIuSIZE" in queue)\n", evq->non_timed_xmit_list_length);
 }
 
 static int msg_xevents_cmp (const void *a, const void *b)
@@ -452,6 +428,7 @@ struct ddsi_xeventq * ddsi_xeventq_new (struct ddsi_domaingv *gv, size_t max_que
   ddsrt_avl_init (&msg_xevents_treedef, &evq->msg_xevents);
   evq->non_timed_xmit_list_oldest = NULL;
   evq->non_timed_xmit_list_newest = NULL;
+  evq->non_timed_xmit_list_length = 0;
   evq->terminate = 0;
   evq->thrst = NULL;
   evq->max_queued_rexmit_bytes = max_queued_rexmit_bytes;
@@ -530,72 +507,39 @@ void ddsi_xeventq_free (struct ddsi_xeventq *evq)
 
 /* EVENT QUEUE EVENT HANDLERS ******************************************************/
 
-static void handle_xevk_msg (struct ddsi_xpack *xp, struct ddsi_xevent_nt *ev)
+static void handle_nontimed_xevent (struct ddsi_xevent_nt *xev, struct ddsi_xpack *xp)
 {
-  assert (!nontimed_xevent_in_queue (ev->evq, ev));
-  ddsi_xpack_addmsg (xp, ev->u.msg.msg, 0);
-}
+   /* This function handles the individual xevent irrespective of
+      whether it is a "timed" or "non-timed" xevent */
+  struct ddsi_xeventq *evq = xev->evq;
+  size_t msg_rexmit_queued_rexmit_bytes = SIZE_MAX;
 
-static void handle_xevk_msg_rexmit (struct ddsi_xpack *xp, struct ddsi_xevent_nt *ev)
-{
-  struct ddsi_xeventq *evq = ev->evq;
-
-  assert (!nontimed_xevent_in_queue (ev->evq, ev));
-
-  ddsi_xpack_addmsg (xp, ev->u.msg_rexmit.msg, 0);
-
-  /* FIXME: less than happy about having to relock the queue for a
-     little while here */
-  ddsrt_mutex_lock (&evq->lock);
-  update_rexmit_counts (evq, ev);
+  /* We relinquish the lock while processing the event, but require it
+     held for administrative work. */
+  ASSERT_MUTEX_HELD (&evq->lock);
   ddsrt_mutex_unlock (&evq->lock);
-}
-
-static void handle_xevk_entityid (struct ddsi_xpack *xp, struct ddsi_xevent_nt *ev)
-{
-  assert (!nontimed_xevent_in_queue (ev->evq, ev));
-  ddsi_xpack_addmsg (xp, ev->u.entityid.msg, 0);
-}
-
-static void handle_individual_xevent_nt (struct ddsi_xevent_nt *xev, struct ddsi_xpack *xp)
-{
   switch (xev->kind)
   {
     case XEVK_MSG:
-      handle_xevk_msg (xp, xev);
+      assert (!nontimed_xevent_in_queue (evq, xev));
+      ddsi_xpack_addmsg (xp, xev->u.msg.msg, 0);
       break;
     case XEVK_MSG_REXMIT:
     case XEVK_MSG_REXMIT_NOMERGE:
-      handle_xevk_msg_rexmit (xp, xev);
-      break;
-    case XEVK_ENTITYID:
-      handle_xevk_entityid (xp, xev);
+      assert (!nontimed_xevent_in_queue (evq, xev));
+      ddsi_xpack_addmsg (xp, xev->u.msg_rexmit.msg, 0);
+      msg_rexmit_queued_rexmit_bytes = xev->u.msg_rexmit.queued_rexmit_bytes;
+      assert (msg_rexmit_queued_rexmit_bytes < SIZE_MAX);
       break;
     case XEVK_NT_CALLBACK:
       xev->u.callback.cb (xev->u.callback.arg);
       break;
   }
   ddsrt_free (xev);
-}
-
-static void handle_nontimed_xevent (struct ddsi_xevent_nt *xev, struct ddsi_xpack *xp)
-{
-   /* This function handles the individual xevent irrespective of
-      whether it is a "timed" or "non-timed" xevent */
-  struct ddsi_xeventq *xevq = xev->evq;
-
-  /* We relinquish the lock while processing the event, but require it
-     held for administrative work. */
-  ASSERT_MUTEX_HELD (&xevq->lock);
-
-  assert (xev->evq == xevq);
-
-  ddsrt_mutex_unlock (&xevq->lock);
-  handle_individual_xevent_nt (xev, xp);
-  /* non-timed xevents are freed by the handlers */
-  ddsrt_mutex_lock (&xevq->lock);
-
-  ASSERT_MUTEX_HELD (&xevq->lock);
+  ddsrt_mutex_lock (&evq->lock);
+  if (msg_rexmit_queued_rexmit_bytes < SIZE_MAX) {
+    update_rexmit_counts (evq, msg_rexmit_queued_rexmit_bytes);
+  }
 }
 
 static void handle_xevents (struct ddsi_thread_state * const thrst, struct ddsi_xeventq *xevq, struct ddsi_xpack *xp, ddsrt_mtime_t tnow)
@@ -748,50 +692,6 @@ void ddsi_qxev_nt_callback (struct ddsi_xeventq *evq, void (*cb) (void *arg), vo
   ev->u.callback.arg = arg;
   qxev_insert_nt (ev);
   ddsrt_mutex_unlock (&evq->lock);
-}
-
-void ddsi_qxev_prd_entityid (struct ddsi_proxy_reader *prd, const ddsi_guid_t *guid)
-{
-  struct ddsi_domaingv * const gv = prd->e.gv;
-  struct ddsi_xmsg *msg;
-  struct ddsi_xevent_nt *ev;
-
-  /* For connected transports, may need to establish and identify connection */
-
-  if (! gv->m_factory->m_connless)
-  {
-    msg = ddsi_xmsg_new (gv->xmsgpool, guid, NULL, sizeof (ddsi_rtps_entityid_t), DDSI_XMSG_KIND_CONTROL);
-    ddsi_xmsg_setdst_prd (msg, prd);
-    GVTRACE ("  ddsi_qxev_prd_entityid (%"PRIx32":%"PRIx32":%"PRIx32")\n", PGUIDPREFIX (guid->prefix));
-    ddsi_xmsg_add_entityid (msg);
-    ddsrt_mutex_lock (&gv->xevents->lock);
-    ev = qxev_common_nt (gv->xevents, XEVK_ENTITYID);
-    ev->u.entityid.msg = msg;
-    qxev_insert_nt (ev);
-    ddsrt_mutex_unlock (&gv->xevents->lock);
-  }
-}
-
-void ddsi_qxev_pwr_entityid (struct ddsi_proxy_writer *pwr, const ddsi_guid_t *guid)
-{
-  struct ddsi_domaingv * const gv = pwr->e.gv;
-  struct ddsi_xmsg *msg;
-  struct ddsi_xevent_nt *ev;
-
-  /* For connected transports, may need to establish and identify connection */
-
-  if (! gv->m_factory->m_connless)
-  {
-    msg = ddsi_xmsg_new (gv->xmsgpool, guid, NULL, sizeof (ddsi_rtps_entityid_t), DDSI_XMSG_KIND_CONTROL);
-    ddsi_xmsg_setdst_pwr (msg, pwr);
-    GVTRACE ("  ddsi_qxev_pwr_entityid (%"PRIx32":%"PRIx32":%"PRIx32")\n", PGUIDPREFIX (guid->prefix));
-    ddsi_xmsg_add_entityid (msg);
-    ddsrt_mutex_lock (&pwr->evq->lock);
-    ev = qxev_common_nt (pwr->evq, XEVK_ENTITYID);
-    ev->u.entityid.msg = msg;
-    qxev_insert_nt (ev);
-    ddsrt_mutex_unlock (&pwr->evq->lock);
-  }
 }
 
 enum ddsi_qxev_msg_rexmit_result ddsi_qxev_msg_rexmit_wrlock_held (struct ddsi_xeventq *evq, struct ddsi_xmsg *msg, int force)

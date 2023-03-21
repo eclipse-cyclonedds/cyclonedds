@@ -170,6 +170,34 @@ bool ddsi_is_proxy_endpoint (const struct ddsi_entity_common *e)
 }
 #endif /* DDS_HAS_TYPE_DISCOVERY */
 
+void ddsi_send_entityid_to_prd (struct ddsi_proxy_reader *prd, const ddsi_guid_t *guid)
+{
+  /* For connected transports, may need to establish and identify connection */
+  struct ddsi_domaingv * const gv = prd->e.gv;
+  if (!gv->m_factory->m_connless)
+  {
+    GVTRACE ("  ddsi_send_entityid_to_prd (%"PRIx32":%"PRIx32":%"PRIx32")\n", PGUIDPREFIX (guid->prefix));
+    struct ddsi_xmsg *msg = ddsi_xmsg_new (gv->xmsgpool, guid, NULL, sizeof (ddsi_rtps_entityid_t), DDSI_XMSG_KIND_CONTROL);
+    ddsi_xmsg_setdst_prd (msg, prd);
+    ddsi_xmsg_add_entityid (msg);
+    ddsi_qxev_msg (gv->xevents, msg);
+  }
+}
+
+void ddsi_send_entityid_to_pwr (struct ddsi_proxy_writer *pwr, const ddsi_guid_t *guid)
+{
+  /* For connected transports, may need to establish and identify connection */
+  struct ddsi_domaingv * const gv = pwr->e.gv;
+  if (!gv->m_factory->m_connless)
+  {
+    GVTRACE ("  ddsi_send_entityid_to_pwr (%"PRIx32":%"PRIx32":%"PRIx32")\n", PGUIDPREFIX (guid->prefix));
+    struct ddsi_xmsg *msg = ddsi_xmsg_new (gv->xmsgpool, guid, NULL, sizeof (ddsi_rtps_entityid_t), DDSI_XMSG_KIND_CONTROL);
+    ddsi_xmsg_setdst_pwr (msg, pwr);
+    ddsi_xmsg_add_entityid (msg);
+    ddsi_qxev_msg (gv->xevents, msg);
+  }
+}
+
 /* PROXY-WRITER ----------------------------------------------------- */
 
 static enum ddsi_reorder_mode get_proxy_writer_reorder_mode(const ddsi_entityid_t pwr_entityid, int isreliable)
@@ -338,7 +366,7 @@ void ddsi_update_proxy_writer (struct ddsi_proxy_writer *pwr, ddsi_seqno_t seq, 
         rd = ddsi_entidx_lookup_reader_guid (pwr->e.gv->entity_index, &m->rd_guid);
         if (rd)
         {
-          ddsi_qxev_pwr_entityid (pwr, &rd->e.guid);
+          ddsi_send_entityid_to_pwr (pwr, &rd->e.guid);
         }
         m = ddsrt_avl_iter_next (&iter);
       }
@@ -638,7 +666,7 @@ void ddsi_update_proxy_reader (struct ddsi_proxy_reader *prd, ddsi_seqno_t seq, 
           ddsrt_mutex_lock (&wr->e.lock);
           ddsi_rebuild_writer_addrset (wr);
           ddsrt_mutex_unlock (&wr->e.lock);
-          ddsi_qxev_prd_entityid (prd, &wr->e.guid);
+          ddsi_send_entityid_to_prd (prd, &wr->e.guid);
         }
         wrguid = guid_next;
         ddsrt_mutex_lock (&prd->e.lock);

@@ -49,6 +49,11 @@ struct ddsi_entity_common *ddsi_entity_common_from_proxy_endpoint_common (const 
 /** @component ddsi_proxy_endpoint */
 bool ddsi_is_proxy_endpoint (const struct ddsi_entity_common *e);
 
+/** @component timed_events */
+void ddsi_send_entityid_to_pwr (struct ddsi_proxy_writer *pwr, const ddsi_guid_t *guid);
+
+/** @component timed_events */
+void ddsi_send_entityid_to_prd (struct ddsi_proxy_reader *prd, const ddsi_guid_t *guid);
 
 /**
  * @brief To create a new proxy writer

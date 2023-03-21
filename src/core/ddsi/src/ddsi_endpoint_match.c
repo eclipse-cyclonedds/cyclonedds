@@ -1102,7 +1102,7 @@ void ddsi_proxy_writer_add_connection (struct ddsi_proxy_writer *pwr, struct dds
 #endif
 
   ddsrt_mutex_unlock (&pwr->e.lock);
-  ddsi_qxev_pwr_entityid (pwr, &rd->e.guid);
+  ddsi_send_entityid_to_pwr (pwr, &rd->e.guid);
 
   ELOGDISC (pwr, "\n");
   return;
@@ -1141,7 +1141,7 @@ void ddsi_proxy_reader_add_connection (struct ddsi_proxy_reader *prd, struct dds
               PGUID (wr->e.guid), PGUID (prd->e.guid));
     ddsrt_avl_insert_ipath (&ddsi_prd_writers_treedef, &prd->writers, m, &path);
     ddsrt_mutex_unlock (&prd->e.lock);
-    ddsi_qxev_prd_entityid (prd, &wr->e.guid);
+    ddsi_send_entityid_to_prd (prd, &wr->e.guid);
 
   }
 }

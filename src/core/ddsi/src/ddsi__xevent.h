@@ -57,12 +57,6 @@ void ddsi_xeventq_stop (struct ddsi_xeventq *evq);
 void ddsi_qxev_msg (struct ddsi_xeventq *evq, struct ddsi_xmsg *msg);
 
 /** @component timed_events */
-void ddsi_qxev_pwr_entityid (struct ddsi_proxy_writer * pwr, const ddsi_guid_t *guid);
-
-/** @component timed_events */
-void ddsi_qxev_prd_entityid (struct ddsi_proxy_reader * prd, const ddsi_guid_t *guid);
-
-/** @component timed_events */
 void ddsi_qxev_nt_callback (struct ddsi_xeventq *evq, void (*cb) (void *arg), void *arg);
 
 enum ddsi_qxev_msg_rexmit_result {
