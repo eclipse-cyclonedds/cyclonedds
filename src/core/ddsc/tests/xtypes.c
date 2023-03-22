@@ -653,7 +653,7 @@ CU_Test (ddsc_xtypes, invalid_top_level_local_hash, .init = xtypes_init, .fini =
 
     ddsi_typeinfo_fini ((ddsi_typeinfo_t *) ti);
     ddsrt_free (ti);
-    ddsrt_free (desc.type_information.data);
+    ddsrt_free ((void *) desc.type_information.data);
   }
 }
 
@@ -679,7 +679,7 @@ CU_Test (ddsc_xtypes, invalid_top_level_local_non_hash, .init = xtypes_init, .fi
 
   ddsi_typeinfo_fini ((ddsi_typeinfo_t *) ti);
   ddsrt_free (ti);
-  ddsrt_free (desc.type_information.data);
+  ddsrt_free ((void *) desc.type_information.data);
 }
 
 static void mod_toplevel (dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectPair *type_id_obj_seq, uint32_t kind)
@@ -835,8 +835,8 @@ CU_Theory ((const char *test_descr, const dds_topic_descriptor_t *topic_desc, ty
   CU_ASSERT_FATAL (topic < 0);
 
   if (matching_typeinfo)
-    ddsrt_free (desc.type_information.data);
-  ddsrt_free (desc.type_mapping.data);
+    ddsrt_free ((void *) desc.type_information.data);
+  ddsrt_free ((void *) desc.type_mapping.data);
 }
 
 /* Invalid hashed type (with valid hash type id) as top-level type for proxy endpoint */
@@ -936,8 +936,8 @@ CU_Theory ((const char *test_descr, const dds_topic_descriptor_t *topic_desc, ty
   ddsrt_free (ti);
   ddsi_typemap_fini ((ddsi_typemap_t *) tmap);
   ddsrt_free (tmap);
-  ddsrt_free (desc.type_information.data);
-  ddsrt_free (desc.type_mapping.data);
+  ddsrt_free ((void *) desc.type_information.data);
+  ddsrt_free ((void *) desc.type_mapping.data);
 }
 
 static void mod_dep_test (dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectPair *type_id_obj_seq, uint32_t kind)
@@ -1038,8 +1038,8 @@ CU_Test (ddsc_xtypes, resolve_dep_type, .init = xtypes_init, .fini = xtypes_fini
   ddsrt_free (ti);
   ddsi_typemap_fini ((ddsi_typemap_t *) tmap);
   ddsrt_free (tmap);
-  ddsrt_free (desc.type_information.data);
-  ddsrt_free (desc.type_mapping.data);
+  ddsrt_free ((void *) desc.type_information.data);
+  ddsrt_free ((void *) desc.type_mapping.data);
 }
 
 CU_Test (ddsc_xtypes, get_type_info, .init = xtypes_init, .fini = xtypes_fini)

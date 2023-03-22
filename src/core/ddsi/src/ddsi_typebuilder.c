@@ -1817,8 +1817,8 @@ static dds_return_t get_topic_descriptor (dds_topic_descriptor_t *desc, struct t
   if (d.m_typename == NULL)
   {
     ddsrt_free ((void *) d.m_typename);
-    ddsrt_free (d.type_information.data);
-    ddsrt_free (d.type_mapping.data);
+    ddsrt_free ((void *) d.type_information.data);
+    ddsrt_free ((void *) d.type_mapping.data);
     ret = DDS_RETCODE_OUT_OF_RESOURCES;
     goto err;
   }

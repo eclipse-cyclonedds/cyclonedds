@@ -1531,7 +1531,7 @@ print_ser_data(FILE *fp, const char *kind, const char *type, unsigned char *data
 {
   char *sep = ", ", *lsep = "\\\n  ", *fmt;
 
-  fmt = "#define %1$s_%2$s (unsigned char []){ ";
+  fmt = "#define %1$s_%2$s (const unsigned char []){ ";
   if (idl_fprintf(fp, fmt, kind, type) < 0)
     return IDL_RETCODE_NO_MEMORY;
 
