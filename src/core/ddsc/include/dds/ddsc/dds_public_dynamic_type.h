@@ -108,8 +108,8 @@ typedef enum dds_dynamic_type_kind
  *
  * Short notation for initializer of a dynamic type spec for non-primitive and primitive types.
  */
-#define DDS_DYNAMIC_TYPE_SPEC(t) ((dds_dynamic_type_spec_t) { .kind = DDS_DYNAMIC_TYPE_KIND_DEFINITION, .type.type = (t) })
-#define DDS_DYNAMIC_TYPE_SPEC_PRIM(p) ((dds_dynamic_type_spec_t) { .kind = DDS_DYNAMIC_TYPE_KIND_PRIMITIVE, .type.primitive = (p) })
+#define DDS_DYNAMIC_TYPE_SPEC(t) ((dds_dynamic_type_spec_t) { .kind = DDS_DYNAMIC_TYPE_KIND_DEFINITION, .type = { .type = (t) } })
+#define DDS_DYNAMIC_TYPE_SPEC_PRIM(p) ((dds_dynamic_type_spec_t) { .kind = DDS_DYNAMIC_TYPE_KIND_PRIMITIVE, .type = { .primitive = (p) } })
 
 /**
  * @ingroup dynamic_type
@@ -118,9 +118,9 @@ typedef enum dds_dynamic_type_kind
  */
 #define DDS_DYNAMIC_MEMBER_(member_type_spec,member_name,member_id,member_index) \
     ((dds_dynamic_member_descriptor_t) { \
-      .type = (member_type_spec), \
       .name = (member_name), \
       .id = (member_id), \
+      .type = (member_type_spec), \
       .index = (member_index) \
     })
 #define DDS_DYNAMIC_MEMBER_ID(member_type,member_name,member_id) \
@@ -139,10 +139,10 @@ typedef enum dds_dynamic_type_kind
  */
 #define DDS_DYNAMIC_UNION_MEMBER_(member_type_spec,member_name,member_id,member_index,member_num_labels,member_labels,member_is_default) \
     ((dds_dynamic_member_descriptor_t) { \
-      .type = (member_type_spec), \
-      .id = (member_id), \
-      .index = (member_index), \
       .name = (member_name), \
+      .id = (member_id), \
+      .type = (member_type_spec), \
+      .index = (member_index), \
       .num_labels = (member_num_labels), \
       .labels = (member_labels), \
       .default_label = (member_is_default) \
@@ -249,6 +249,16 @@ enum dds_dynamic_type_autoid {
 };
 
 /**
+ * @brief Enum value kind
+ *
+ * see @ref dds_dynamic_enum_literal_value
+ */
+enum dds_dynamic_type_enum_value_kind {
+    DDS_DYNAMIC_ENUM_LITERAL_VALUE_NEXT_AVAIL,
+    DDS_DYNAMIC_ENUM_LITERAL_VALUE_EXPLICIT
+};
+
+/**
  * @ingroup dynamic_type
  *
  * Dynamic Enumeration type literal value kind and value. Can be set to NEXT_AVAIL to indicate
@@ -256,10 +266,7 @@ enum dds_dynamic_type_autoid {
  * provided.
  */
 typedef struct dds_dynamic_enum_literal_value {
-  enum {
-    DDS_DYNAMIC_ENUM_LITERAL_VALUE_NEXT_AVAIL,
-    DDS_DYNAMIC_ENUM_LITERAL_VALUE_EXPLICIT
-  } value_kind;
+  enum dds_dynamic_type_enum_value_kind value_kind;
   int32_t value;
 } dds_dynamic_enum_literal_value_t;
 
