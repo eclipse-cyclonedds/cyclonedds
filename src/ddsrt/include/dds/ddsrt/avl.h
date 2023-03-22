@@ -12,7 +12,8 @@
 #ifndef DDSRT_AVL_H
 #define DDSRT_AVL_H
 
-/* The tree library never performs memory allocations or deallocations internally.
+/** \file avl.h
+  The tree library never performs memory allocations or deallocations internally.
 
    - Treedef_t: defines the properties of the tree, offsets,
      comparison functions, augmented structures, flags -- these are
@@ -156,7 +157,8 @@
    efficiently. If one were to do a threaded tree variant, the
    implemetantion of IterFirst/IterNext would become absolute trivial
    and faster still, but at the cost of significantly more overhead in
-   memory and updates. */
+   memory and updates.
+*/
 
 #include <stdint.h>
 #include <stdlib.h>
@@ -170,22 +172,77 @@ extern "C" {
 
 #define DDSRT_AVL_MAX_TREEHEIGHT (12 * sizeof (void *))
 
+/**
+ * @brief User defined compare function.
+ * 
+ * Input arguments are expected to be pointers to the keys.
+ * The expected return values are as follows:
+ * - value < 0 to indicate key a is less than key b
+ * - value > 0 to indicate key a is greater than key b
+ * - value == 0 to indicate key a is equal to key b
+ * @see @ref ddsrt_avl_compare_r_t
+ */
 typedef int (*ddsrt_avl_compare_t) (const void *a, const void *b);
+
+/** @brief Same as @ref ddsrt_avl_compare_t, but with extra argument for state information. */
 typedef int (*ddsrt_avl_compare_r_t) (const void *a, const void *b, void *arg);
+
+/**
+ * @brief User defined augment function.
+ * 
+ * If provided, it is called whenever the structure of the tree changes,
+ * or when explicitly calling @ref ddsrt_avl_augment_update.
+ * It is called for each node on the path to (and inclusive of) the root.
+ * It is intended to update user data in nodes when a change occurs in one or both child nodes,
+ * or when a the change occurs in the node itself.
+ */
 typedef void (*ddsrt_avl_augment_t) (void *node, const void *left, const void *right);
+
+/**
+ * @brief User defined walk function to perform an action on each node in the tree.
+ */
 typedef void (*ddsrt_avl_walk_t) (void *node, void *arg);
+
+/**
+ * @brief Like @ref ddsrt_avl_walk_t, but works on const nodes.
+ */
 typedef void (*ddsrt_avl_const_walk_t) (const void *node, void *arg);
 
+/**
+ * @brief The avl node is the basic element of the avl tree structure.
+ * 
+ * To store user data in the tree, the avl node must be embedded in a user node, which is a struct containing the user data.
+ * All API calls with a node as input or output, deal with the user node. Example:
+ * @code{.c}
+ * typedef struct num_s{ // user node
+ *   ddsrt_avl_node_t node;
+ *   uint64_t val; // user data
+ * }num_t;
+ * @endcode
+ */
 typedef struct ddsrt_avl_node {
-    struct ddsrt_avl_node *cs[2]; /* 0 = left, 1 = right */
-    struct ddsrt_avl_node *parent;
-    int height;
+    struct ddsrt_avl_node *cs[2]; ///< contains pointers to the left and right child node
+    struct ddsrt_avl_node *parent; ///< points to the parent node
+    int height; ///< is the height of the subtree starting at this node
 } ddsrt_avl_node_t;
 
+/**
+ * Save a reference/dereference when using an indirect key. For details, see @ref ddsrt_avl_treedef_init.
+ */
 #define DDSRT_AVL_TREEDEF_FLAG_INDKEY 1
-#define DDSRT_AVL_TREEDEF_FLAG_R 2
-#define DDSRT_AVL_TREEDEF_FLAG_ALLOWDUPS 4
+#define DDSRT_AVL_TREEDEF_FLAG_R 2 /**< Flag used internally by @ref ddsrt_avl_treedef_init_r : compare function has extra argument */
+#define DDSRT_AVL_TREEDEF_FLAG_ALLOWDUPS 4 /**< Flag for @ref ddsrt_avl_treedef_init : multiple nodes with the same key are allowed */
 
+/**
+ * @brief The tree definition.
+ * 
+ * The treedef stores settings for the tree, but does not hold the actual tree itself. This implies that:
+ * - A single treedef can be used for multiple trees of the same type.
+ * - Most tree operations require you to provide both the treedef and the @ref ddsrt_avl_tree.
+ * 
+ * To initialize it, use @ref ddsrt_avl_treedef_init, @ref ddsrt_avl_treedef_init_r,
+ * or one of the 'DDSRT_AVL_TREEDEF_INITIALIZER' macros.
+ */
 typedef struct ddsrt_avl_treedef {
 #if defined (__cplusplus)
     ddsrt_avl_treedef() {}
@@ -201,14 +258,22 @@ typedef struct ddsrt_avl_treedef {
     void *cmp_arg; /* for _r variant */
 } ddsrt_avl_treedef_t;
 
+/** @brief Counted version of @ref ddsrt_avl_treedef */
 typedef struct ddsrt_avl_ctreedef {
     ddsrt_avl_treedef_t t;
 } ddsrt_avl_ctreedef_t;
 
+/**
+ * @brief The avl tree.
+ * 
+ * The tree only knows the root @ref ddsrt_avl_node. The settings for the tree are stored separately in the @ref ddsrt_avl_treedef.
+ * As a result, most tree operations require you to provide both the treedef and the tree.
+ */
 typedef struct ddsrt_avl_tree {
-    ddsrt_avl_node_t *root;
+    ddsrt_avl_node_t *root; ///< is the root node of the tree
 } ddsrt_avl_tree_t;
 
+/** @brief Counted version of @ref ddsrt_avl_tree */
 typedef struct ddsrt_avl_ctree {
     ddsrt_avl_tree_t t;
     size_t count;
@@ -221,14 +286,27 @@ typedef struct ddsrt_avl_path {
     ddsrt_avl_node_t **pnode[DDSRT_AVL_MAX_TREEHEIGHT];
 } ddsrt_avl_path_t;
 
+/**
+ * @brief Path for inserting a node.
+ * @see @ref ddsrt_avl_lookup_ipath
+ * @see @ref ddsrt_avl_insert_ipath
+ */
 typedef struct ddsrt_avl_ipath {
     ddsrt_avl_path_t p;
 } ddsrt_avl_ipath_t;
 
+/**
+ * @brief Path for removing a node.
+ * @see @ref ddsrt_avl_lookup_dpath
+ * @see @ref ddsrt_avl_delete_dpath
+ */
 typedef struct ddsrt_avl_dpath {
     ddsrt_avl_path_t p;
 } ddsrt_avl_dpath_t;
 
+/**
+ * @brief Iter object for the iterator to store its progress and know where to go next.
+ */
 typedef struct ddsrt_avl_iter {
     const ddsrt_avl_treedef_t *td;
     ddsrt_avl_node_t *right;
@@ -236,6 +314,7 @@ typedef struct ddsrt_avl_iter {
     ddsrt_avl_node_t *todo[1+DDSRT_AVL_MAX_TREEHEIGHT];
 } ddsrt_avl_iter_t;
 
+/** @brief Counted version of @ref ddsrt_avl_iter*/
 typedef struct ddsrt_avl_citer {
     ddsrt_avl_iter_t t;
 } ddsrt_avl_citer_t;
@@ -252,48 +331,485 @@ typedef struct ddsrt_avl_citer {
 
 /* Not maintaining # nodes */
 
+/**
+ * @brief Initialize the @ref ddsrt_avl_treedef
+ * 
+ * Different types of trees are supported. This function defines which type to use.
+ * Given a node defined as:
+ * @code{.c}
+ * typedef struct num_s{ // user node
+ *   ddsrt_avl_node_t node;
+ *   uint64_t val; // user data
+ * }num_t;
+ * @endcode
+ * 
+ * For a treedef initialized with default settings:
+ * @code{.c}
+ * ddsrt_avl_treedef_t td;
+ * ddsrt_avl_treedef_init(&td, offsetof(num_t, node), offsetof(num_t, val), num_cmp, 0, 0);
+ * @endcode
+ * 
+ * A lookup is performed as:
+ * @code{.c}
+ * uint64_t key = 7;
+ * num_t* num_lookup = ddsrt_avl_lookup(&td, &tree, &key);
+ * @endcode
+ * 
+ * By using keyoffset == 0, you can do the lookup using a dummy node:
+ * @code{.c}
+ * num_t dummy;
+ * dummy.val = 7;
+ * num_t* num_lookup = ddsrt_avl_lookup(&td, &tree, &dummy);
+ * @endcode
+ * 
+ * Regarding the flags:
+ * - The flag @ref DDSRT_AVL_TREEDEF_FLAG_INDKEY affects functions like @ref ddsrt_avl_compare_t and @ref ddsrt_avl_lookup.
+ *   These functions expect their 'key' argument to be a pointer, so by default you need to pass a reference to the key.
+ *   Alternatively, by using @ref DDSRT_AVL_TREEDEF_FLAG_INDKEY you indicate that the key is already a pointer, allowing you to pass the key directly.
+ *   As an example in the case of a C string, using the INDKEY flag means you can provide the key directly (char*), rather than a reference (char**).
+ *   @code{.c}
+ *   typedef struct name_s{ // user node
+ *     ddsrt_avl_node_t node;
+ *     char* val; // user data
+ *   }name_t;
+ *   @endcode
+ * 
+ *   If using the default flag:
+ *   @code{.c}
+ *   ddsrt_avl_treedef_t td;
+ *   ddsrt_avl_treedef_init(&td, offsetof(name_t, node), offsetof(name_t, val), name_cmp_default, 0, 0);
+ *   @endcode
+ *
+ *   Then a lookup is done as:
+ *   @code{.c}
+ *   char* key = strdup("John");
+ *   name_t* name_lookup = ddsrt_avl_lookup(&td, &tree, &key); // Using default flag
+ *   @endcode
+ *
+ *   If using the INDKEY flag:
+ *   @code{.c}
+ *   ddsrt_avl_treedef_t td;
+ *   ddsrt_avl_treedef_init(&td, offsetof(name_t, node), offsetof(name_t, val), name_cmp_indkey, 0, DDSRT_AVL_TREEDEF_FLAG_INDKEY);
+ *   @endcode
+ * 
+ *   Then a lookup is done as:
+ *   @code{.c}
+ *   char* key = strdup("John");
+ *   name_t* name_lookup = ddsrt_avl_lookup(&td, &tree, key); // Using INDKEY flag
+ *   @endcode
+ * 
+ * - Multiple nodes with the same key are not allowed, unless using @ref DDSRT_AVL_TREEDEF_FLAG_ALLOWDUPS.
+ * 
+ * To set multiple flags, use the bitwise or.
+ * 
+ * @param[out] td the treedef to initialize
+ * @param[in] avlnodeoffset offset of @ref ddsrt_avl_node relative to the user node.
+ * @param[in] keyoffset offset of the key relative to the user node
+ * @param[in] comparekk a key compare function, see @ref ddsrt_avl_compare_t
+ * @param[in] augment optional function @ref ddsrt_avl_augment_t, provide NULL if not used
+ * @param[in] flags optional flags, use 0 for default
+ * @see @ref ddsrt_avl_treedef_init_r
+ * @see @ref ddsrt_avl_init
+ */
 DDS_EXPORT void ddsrt_avl_treedef_init (ddsrt_avl_treedef_t *td, size_t avlnodeoffset, size_t keyoffset, ddsrt_avl_compare_t comparekk, ddsrt_avl_augment_t augment, uint32_t flags) ddsrt_nonnull((1,4));
+
+/**
+ * @brief Like @ref ddsrt_avl_treedef_init, but there is an extra argument for the compare function.
+ * 
+ * @param[out] td the treedef to initialize
+ * @param[in] avlnodeoffset offset of @ref ddsrt_avl_node relative to the user node.
+ * @param[in] keyoffset offset of the key relative to the user node
+ * @param[in] comparekk_r a key compare function, see @ref ddsrt_avl_compare_r_t
+ * @param[in] cmp_arg is fed to the compare function
+ * @param[in] augment optional function @ref ddsrt_avl_augment_t, provide NULL if not used
+ * @param[in] flags optional flags, use 0 for default
+ * @see @ref ddsrt_avl_treedef_init
+ */
 DDS_EXPORT void ddsrt_avl_treedef_init_r (ddsrt_avl_treedef_t *td, size_t avlnodeoffset, size_t keyoffset, ddsrt_avl_compare_r_t comparekk_r, void *cmp_arg, ddsrt_avl_augment_t augment, uint32_t flags) ddsrt_nonnull((1,4));
 
+/**
+ * @brief Initialize the tree.
+ * 
+ * The treedef must have been initialized prior to calling this.
+ * 
+ * @param[in] td treedef of the tree
+ * @param[out] tree the avl tree
+ * @see @ref ddsrt_avl_free
+ * @see @ref ddsrt_avl_treedef_init
+ */
 DDS_EXPORT void ddsrt_avl_init (const ddsrt_avl_treedef_t *td, ddsrt_avl_tree_t *tree) ddsrt_nonnull_all;
+
+/**
+ * @brief Destroy the tree
+ * 
+ * Applies user defined free function to each node, and initializes the tree again.
+ * The free function is optional, but if not provided, the user is responsible for freeing the memory.
+ * 
+ * @param[in] td treedef of the tree
+ * @param[in,out] tree the avl tree
+ * @param[in] freefun optional user defined free function to use on nodes, NULL if not used
+ * @see @ref ddsrt_avl_init
+ */
 DDS_EXPORT void ddsrt_avl_free (const ddsrt_avl_treedef_t *td, ddsrt_avl_tree_t *tree, void (*freefun) (void *node)) ddsrt_nonnull((1,2));
+
+/**
+ * @brief Same as @ref ddsrt_avl_free, but with an extra argument for the free function.
+ * 
+ * Extra parameter:
+ * @param[in] arg is for the user defined free function
+ */
 DDS_EXPORT void ddsrt_avl_free_arg (const ddsrt_avl_treedef_t *td, ddsrt_avl_tree_t *tree, void (*freefun) (void *node, void *arg), void *arg) ddsrt_nonnull((1,2));
 
+/**
+ * @brief Get the root node
+ * 
+ * @param[in] td treedef of the tree
+ * @param[in] tree the avl tree
+ * @returns pointer to root node, NULL if tree is empty
+ */
 DDS_EXPORT void *ddsrt_avl_root (const ddsrt_avl_treedef_t *td, const ddsrt_avl_tree_t *tree) ddsrt_nonnull_all;
+
+/** Same as @ref ddsrt_avl_root, but has undefined behavior in case the tree is empty. */
 DDS_EXPORT void *ddsrt_avl_root_non_empty (const ddsrt_avl_treedef_t *td, const ddsrt_avl_tree_t *tree) ddsrt_nonnull_all ddsrt_attribute_returns_nonnull;
+
+/**
+ * @brief Lookup a node based on the key
+ * 
+ * @param[in] td treedef of the tree
+ * @param[in] tree the avl tree
+ * @param[in] key key to search for
+ * @return pointer to the node satisfying (node.key == key), NULL if failed
+ */
 DDS_EXPORT void *ddsrt_avl_lookup (const ddsrt_avl_treedef_t *td, const ddsrt_avl_tree_t *tree, const void *key) ddsrt_nonnull_all;
+
+/**
+ * @brief Same as @ref ddsrt_avl_lookup, but also initializes a @ref ddsrt_avl_ipath.
+ * 
+ * The path initialized is intended for use with @ref ddsrt_avl_insert_ipath.
+ * 
+ * @param[in] td treedef of the tree
+ * @param[in] tree the avl tree
+ * @param[in] key key to search for
+ * @param[out] path is the insert path
+ * @return pointer to the node satisfying (node.key == key), NULL if failed
+ * @see @ref ddsrt_avl_lookup_dpath
+ */
 DDS_EXPORT void *ddsrt_avl_lookup_ipath (const ddsrt_avl_treedef_t *td, const ddsrt_avl_tree_t *tree, const void *key, ddsrt_avl_ipath_t *path) ddsrt_nonnull_all;
+
+/**
+ * @brief Same as @ref ddsrt_avl_lookup, but also initializes a @ref ddsrt_avl_dpath.
+ * 
+ * The path initialized is intended for use with @ref ddsrt_avl_delete_dpath.
+ * 
+ * @param[in] td treedef of the tree
+ * @param[in] tree the avl tree
+ * @param[in] key key to search for
+ * @param[out] path is the delete path
+ * @return pointer to the node satisfying (node.key == key), NULL if failed
+ * @see @ref ddsrt_avl_lookup_ipath
+ */
 DDS_EXPORT void *ddsrt_avl_lookup_dpath (const ddsrt_avl_treedef_t *td, const ddsrt_avl_tree_t *tree, const void *key, ddsrt_avl_dpath_t *path) ddsrt_nonnull_all;
+
+/**
+ * @brief Like @ref ddsrt_avl_lookup, but match greatest node satisfying (node.key <= key)
+ * 
+ * @param[in] td treedef of the tree
+ * @param[in] tree the avl tree
+ * @param[in] key key to search for
+ * @return pointer to the node satisfying (node.key <= key), NULL if failed
+ */
 DDS_EXPORT void *ddsrt_avl_lookup_pred_eq (const ddsrt_avl_treedef_t *td, const ddsrt_avl_tree_t *tree, const void *key) ddsrt_nonnull_all;
+
+/**
+ * @brief Like @ref ddsrt_avl_lookup, but match smallest node satisfying (node.key >= key)
+ * 
+ * @param[in] td treedef of the tree
+ * @param[in] tree the avl tree
+ * @param[in] key key to search for
+ * @return pointer to the node satisfying (node.key >= key), NULL if failed
+ */
 DDS_EXPORT void *ddsrt_avl_lookup_succ_eq (const ddsrt_avl_treedef_t *td, const ddsrt_avl_tree_t *tree, const void *key) ddsrt_nonnull_all;
+
+/**
+ * @brief Like @ref ddsrt_avl_lookup, but match greatest node satisfying (node.key < key)
+ * 
+ * @param[in] td treedef of the tree
+ * @param[in] tree the avl tree
+ * @param[in] key key to search for
+ * @return pointer to the node satisfying (node.key < key), NULL if failed
+ */
 DDS_EXPORT void *ddsrt_avl_lookup_pred (const ddsrt_avl_treedef_t *td, const ddsrt_avl_tree_t *tree, const void *key) ddsrt_nonnull_all;
+
+/**
+ * @brief Like @ref ddsrt_avl_lookup, but match smallest node satisfying (node.key > key)
+ * 
+ * @param[in] td treedef of the tree
+ * @param[in] tree the avl tree
+ * @param[in] key key to search for
+ * @return pointer to the node satisfying (node.key > key), NULL if failed
+ */
 DDS_EXPORT void *ddsrt_avl_lookup_succ (const ddsrt_avl_treedef_t *td, const ddsrt_avl_tree_t *tree, const void *key) ddsrt_nonnull_all;
 
+/**
+ * @brief Insert a node into the tree.
+ * 
+ * There is no protection against duplicates (which causes a crash if the treedef says duplicates are not allowed).
+ * If you want a safe insert, you should use @ref ddsrt_avl_lookup_ipath to check for existence, then insert using @ref ddsrt_avl_insert_ipath.
+ * 
+ * @param[in] td treedef of the tree
+ * @param[in,out] tree the avl tree
+ * @param[in] node the node to insert
+ * @see @ref ddsrt_avl_delete
+ */
 DDS_EXPORT void ddsrt_avl_insert (const ddsrt_avl_treedef_t *td, ddsrt_avl_tree_t *tree, void *node) ddsrt_nonnull_all;
+
+/**
+ * @brief Remove a node from the tree.
+ * 
+ * Despite the name 'delete', it only removes the node from the tree. To fully delete it, you still need to free the memory associated with the node.
+ * There is no protection against a crash due to trying to remove a nonexisting node.
+ * If you want a safe remove, you should use @ref ddsrt_avl_lookup_dpath to check for existence, then remove using @ref ddsrt_avl_delete_dpath.
+ * 
+ * @param[in] td treedef of the tree
+ * @param[in,out] tree the avl tree
+ * @param[in] node the node to remove
+ * @see @ref ddsrt_avl_insert
+ */
 DDS_EXPORT void ddsrt_avl_delete (const ddsrt_avl_treedef_t *td, ddsrt_avl_tree_t *tree, void *node) ddsrt_nonnull_all;
+
+/**
+ * @brief Same as @ref ddsrt_avl_insert, but also requires a @ref ddsrt_avl_ipath.
+ * 
+ * The path required can be initialized by @ref ddsrt_avl_lookup_ipath.
+ * 
+ * @param[in] td treedef of the tree
+ * @param[in,out] tree the avl tree
+ * @param[in] node the node to insert
+ * @param[in] path is the insert path
+ * @see @ref ddsrt_avl_delete_dpath
+ */
 DDS_EXPORT void ddsrt_avl_insert_ipath (const ddsrt_avl_treedef_t *td, ddsrt_avl_tree_t *tree, void *node, ddsrt_avl_ipath_t *path) ddsrt_nonnull_all;
+
+/**
+ * @brief Same as @ref ddsrt_avl_delete, but also requires a @ref ddsrt_avl_dpath.
+ * 
+ * The path required can be initialized by @ref ddsrt_avl_lookup_dpath.
+ * 
+ * @param[in] td treedef of the tree
+ * @param[in,out] tree the avl tree
+ * @param[in] node the node to remove
+ * @param[in] path is the delete path
+ * @see @ref ddsrt_avl_insert_ipath
+ */
 DDS_EXPORT void ddsrt_avl_delete_dpath (const ddsrt_avl_treedef_t *td, ddsrt_avl_tree_t *tree, void *node, ddsrt_avl_dpath_t *path) ddsrt_nonnull_all;
+
+/**
+ * @brief Replace a node in the tree.
+ * 
+ * Replace a node in the tree without using @ref ddsrt_avl_delete and @ref ddsrt_avl_insert.
+ * This operation can invalidate the tree as it doesn't check whether the key of the new node preserves the ordering of the set.
+ * 
+ * @param[in] td treedef of the tree
+ * @param[in,out] tree the avl tree
+ * @param[in] oldn the node to replace
+ * @param[in] newn the node to take the old node's place
+ * @see @ref ddsrt_avl_insert
+ * @see @ref ddsrt_avl_delete
+ */
 DDS_EXPORT void ddsrt_avl_swap_node (const ddsrt_avl_treedef_t *td, ddsrt_avl_tree_t *tree, void *oldn, void *newn) ddsrt_nonnull_all;
+
+/**
+ * @brief Call the user defined augment function @ref ddsrt_avl_augment_t on a node and its parents up to the root.
+ * 
+ * It is intended to update user data in nodes when a change occurs in one or both child nodes, or when a the change occurs in the node itself.
+ * Note that @ref ddsrt_avl_augment_t is called automatically whenever the structure of the tree changes, such as in rotations.
+ * It is called for each node on the path to (and inclusive of) the root.
+ * 
+ * @param[in] td treedef of the tree
+ * @param[in] node is the node from which to start the augmentation
+ */
 DDS_EXPORT void ddsrt_avl_augment_update (const ddsrt_avl_treedef_t *td, void *node) ddsrt_nonnull_all;
 
+/**
+ * @brief Check whether the tree is empty or not.
+ * 
+ * @param[in] tree the avl tree
+ * @return int meant to be interpreted as bool (1 is true, 0 is false)
+ */
 DDS_EXPORT int ddsrt_avl_is_empty (const ddsrt_avl_tree_t *tree) ddsrt_nonnull_all;
+
+/**
+ * @brief Check whether the tree contains exactly one node.
+ * 
+ * @param[in] tree the avl tree
+ * @return int meant to be interpreted as bool (1 is true, 0 is false)
+ */
 DDS_EXPORT int ddsrt_avl_is_singleton (const ddsrt_avl_tree_t *tree) ddsrt_nonnull_all;
 
+/**
+ * @brief Lookup node with smallest key.
+ * 
+ * @param[in] td treedef of the tree
+ * @param[in] tree the avl tree
+ * @return pointer to the node
+ * @see @ref ddsrt_avl_find_max
+ */
 DDS_EXPORT void *ddsrt_avl_find_min (const ddsrt_avl_treedef_t *td, const ddsrt_avl_tree_t *tree) ddsrt_nonnull_all;
+
+/**
+ * @brief Lookup node with greatest key.
+ * 
+ * @param[in] td treedef of the tree
+ * @param[in] tree the avl tree
+ * @return pointer to the node
+ * @see @ref ddsrt_avl_find_min
+ */
 DDS_EXPORT void *ddsrt_avl_find_max (const ddsrt_avl_treedef_t *td, const ddsrt_avl_tree_t *tree) ddsrt_nonnull_all;
+
+/**
+ * @brief Get the previous node in the ordered set.
+ * 
+ * @param[in] td treedef of the tree
+ * @param[in] tree the avl tree
+ * @param[in] vnode the current node
+ * @return pointer to the node
+ * @see @ref ddsrt_avl_find_succ
+ */
 DDS_EXPORT void *ddsrt_avl_find_pred (const ddsrt_avl_treedef_t *td, const ddsrt_avl_tree_t *tree, const void *vnode) ddsrt_nonnull((1,2));
+
+/**
+ * @brief Get the next node in in the ordered set
+ * 
+ * @param[in] td treedef of the tree
+ * @param[in] tree the avl tree
+ * @param[in] vnode the current node
+ * @return pointer to the node
+ * @see @ref ddsrt_avl_find_pred
+ * @see @ref ddsrt_avl_iter_next
+ */
 DDS_EXPORT void *ddsrt_avl_find_succ (const ddsrt_avl_treedef_t *td, const ddsrt_avl_tree_t *tree, const void *vnode) ddsrt_nonnull((1,2));
 
+/**
+ * @brief Walk the tree and apply a user defined function @ref ddsrt_avl_walk_t to each node.
+ * 
+ * Functionally the same as doing a loop using @ref ddsrt_avl_find_succ or @ref ddsrt_avl_iter_next, and calling the function on each node.
+ * Modifying the tree structure is not allowed when using the walk function. If that is desired, use @ref ddsrt_avl_find_succ
+ * (or @ref ddsrt_avl_find_pred for the reverse walk).
+ * 
+ * @param[in] td treedef of the tree
+ * @param[in] tree the avl tree
+ * @param[in] f is the user defined walk function
+ * @param[in,out] a is an argument for the user defined function
+ * @see @ref ddsrt_avl_find_succ
+ * @see @ref ddsrt_avl_iter_next
+ */
 DDS_EXPORT void ddsrt_avl_walk (const ddsrt_avl_treedef_t *td, ddsrt_avl_tree_t *tree, ddsrt_avl_walk_t f, void *a) ddsrt_nonnull((1,2,3));
+
+/**
+ * @brief Like @ref ddsrt_avl_walk, but the user defined function @ref ddsrt_avl_const_walk_t works on const nodes.
+ * 
+ * @param[in] td treedef of the tree
+ * @param[in] tree the avl tree
+ * @param[in] f is the user defined walk function
+ * @param[in,out] a is an argument for the user defined function
+ */
 DDS_EXPORT void ddsrt_avl_const_walk (const ddsrt_avl_treedef_t *td, const ddsrt_avl_tree_t *tree, ddsrt_avl_const_walk_t f, void *a) ddsrt_nonnull((1,2,3));
+
+/**
+ * @brief Like @ref ddsrt_avl_walk, but walk within a restricted range defined by [min, max].
+ * 
+ * - If min is smaller than the smallest value, it starts at the smallest value.
+ * - If max is larger than the largest value, it finishes at the largest value.
+ * 
+ * @param[in] td treedef of the tree
+ * @param[in] tree the avl tree
+ * @param[in] min The smallest value to start at
+ * @param[in] max The largest value to finish at (inclusive)
+ * @param[in] f is the user defined walk function
+ * @param[in,out] a is an argument for the user defined function
+ */
 DDS_EXPORT void ddsrt_avl_walk_range (const ddsrt_avl_treedef_t *td, ddsrt_avl_tree_t *tree, const void *min, const void *max, ddsrt_avl_walk_t f, void *a)  ddsrt_nonnull((1,2,3,4,5));
+
+/**
+ * @brief Like @ref ddsrt_avl_walk_range, but the user defined function @ref ddsrt_avl_const_walk_t works on const nodes.
+ * 
+ * @param[in] td treedef of the tree
+ * @param[in] tree the avl tree
+ * @param[in] min The smallest value to start at
+ * @param[in] max The largest value to finish at (inclusive)
+ * @param[in] f is the user defined walk function
+ * @param[in,out] a is an argument for the user defined function
+*/
 DDS_EXPORT void ddsrt_avl_const_walk_range (const ddsrt_avl_treedef_t *td, const ddsrt_avl_tree_t *tree, const void *min, const void *max, ddsrt_avl_const_walk_t f, void *a) ddsrt_nonnull((1,2,3,4,5));
+
+/**
+ * @brief Like @ref ddsrt_avl_walk_range, but walks in the reverse direction.
+ * 
+ * @param[in] td treedef of the tree
+ * @param[in] tree the avl tree
+ * @param[in] min The smallest value to finish at (inclusive)
+ * @param[in] max The largest value to start at
+ * @param[in] f is the user defined walk function
+ * @param[in,out] a is an argument for the user defined function
+ */
 DDS_EXPORT void ddsrt_avl_walk_range_reverse (const ddsrt_avl_treedef_t *td, ddsrt_avl_tree_t *tree, const void *min, const void *max, ddsrt_avl_walk_t f, void *a) ddsrt_nonnull((1,2,3));
+
+/**
+ * @brief Like @ref ddsrt_avl_walk_range_reverse, but the user defined function @ref ddsrt_avl_const_walk_t works on const nodes.
+ * 
+ * @param[in] td treedef of the tree
+ * @param[in] tree the avl tree
+ * @param[in] min The smallest value to finish at (inclusive)
+ * @param[in] max The largest value to start at
+ * @param[in] f is the user defined walk function
+ * @param[in,out] a is an argument for the user defined function
+ */
 DDS_EXPORT void ddsrt_avl_const_walk_range_reverse (const ddsrt_avl_treedef_t *td, const ddsrt_avl_tree_t *tree, const void *min, const void *max, ddsrt_avl_const_walk_t f, void *a) ddsrt_nonnull((1,2,3));
 
+/**
+ * @brief Get the first node in in the ordered set, and initialize the iterator @ref ddsrt_avl_iter_t.
+ * 
+ * @param[in] td treedef of the tree
+ * @param[in] tree the avl tree
+ * @param[out] iter the iterator
+ * @return pointer to the node
+ * @see @ref ddsrt_avl_iter_next
+ * @see @ref ddsrt_avl_find_min
+ */
 DDS_EXPORT void *ddsrt_avl_iter_first (const ddsrt_avl_treedef_t *td, const ddsrt_avl_tree_t *tree, ddsrt_avl_iter_t *iter) ddsrt_nonnull_all;
+
+/**
+ * @brief Similar to @ref ddsrt_avl_iter_first, but start at smallest node satisfying (node.key >= key)
+ * 
+ * @param[in] td treedef of the tree
+ * @param[in] tree the avl tree
+ * @param[out] iter the iterator
+ * @param[in] key the key with which to do the lookup
+ * @return pointer to the node
+ */
 DDS_EXPORT void *ddsrt_avl_iter_succ_eq (const ddsrt_avl_treedef_t *td, const ddsrt_avl_tree_t *tree, ddsrt_avl_iter_t *iter, const void *key) ddsrt_nonnull_all;
+
+/**
+ * @brief Similar to @ref ddsrt_avl_iter_first, but start at smallest node satisfying (node.key > key)
+ * 
+ * @param[in] td treedef of the tree
+ * @param[in] tree the avl tree
+ * @param[out] iter the iterator
+ * @param[in] key the key with which to do the lookup
+ * @return pointer to the node
+ */
 DDS_EXPORT void *ddsrt_avl_iter_succ (const ddsrt_avl_treedef_t *td, const ddsrt_avl_tree_t *tree, ddsrt_avl_iter_t *iter, const void *key) ddsrt_nonnull_all;
+
+/**
+ * @brief Get the next node in in the ordered set.
+ * 
+ * Modifying the tree structure is not allowed when using the iterator. If that is desired, use @ref ddsrt_avl_find_succ.
+ * 
+ * @param[in,out] iter the iterator
+ * @return pointer to the node
+ * @see @ref ddsrt_avl_iter_first
+ * @see @ref ddsrt_avl_find_succ
+ */
 DDS_EXPORT void *ddsrt_avl_iter_next (ddsrt_avl_iter_t *iter) ddsrt_nonnull_all;
 
 /* Maintaining # nodes */
@@ -307,49 +823,115 @@ DDS_EXPORT void *ddsrt_avl_iter_next (ddsrt_avl_iter_t *iter) ddsrt_nonnull_all;
 #define DDSRT_AVL_CTREEDEF_INITIALIZER_R_ALLOWDUPS(avlnodeoffset, keyoffset, comparekk, cmparg, augment) { DDSRT_AVL_TREEDEF_INITIALIZER_R_ALLOWDUPS (avlnodeoffset, keyoffset, comparekk, cmparg, augment) }
 #define DDSRT_AVL_CTREEDEF_INITIALIZER_INDKEY_R_ALLOWDUPS(avlnodeoffset, keyoffset, comparekk, cmparg, augment) { DDSRT_AVL_TREEDEF_INITIALIZER_INDKEY_R_ALLOWDUPS (avlnodeoffset, keyoffset, comparekk, cmparg, augment) }
 
+/** @brief Counted version of @ref ddsrt_avl_treedef_init*/
 DDS_EXPORT void ddsrt_avl_ctreedef_init (ddsrt_avl_ctreedef_t *td, size_t avlnodeoffset, size_t keyoffset, ddsrt_avl_compare_t comparekk, ddsrt_avl_augment_t augment, uint32_t flags) ddsrt_nonnull((1,4));
+
+/** @brief Counted version of @ref ddsrt_avl_treedef_init_r*/
 DDS_EXPORT void ddsrt_avl_ctreedef_init_r (ddsrt_avl_ctreedef_t *td, size_t avlnodeoffset, size_t keyoffset, ddsrt_avl_compare_r_t comparekk_r, void *cmp_arg, ddsrt_avl_augment_t augment, uint32_t flags) ddsrt_nonnull((1,4));
 
+/** @brief Counted version of @ref ddsrt_avl_init*/
 DDS_EXPORT void ddsrt_avl_cinit (const ddsrt_avl_ctreedef_t *td, ddsrt_avl_ctree_t *tree) ddsrt_nonnull_all;
+
+/** @brief Counted version of @ref ddsrt_avl_free*/
 DDS_EXPORT void ddsrt_avl_cfree (const ddsrt_avl_ctreedef_t *td, ddsrt_avl_ctree_t *tree, void (*freefun) (void *node)) ddsrt_nonnull((1,2));
+
+/** @brief Counted version of @ref ddsrt_avl_free_arg*/
 DDS_EXPORT void ddsrt_avl_cfree_arg (const ddsrt_avl_ctreedef_t *td, ddsrt_avl_ctree_t *tree, void (*freefun) (void *node, void *arg), void *arg) ddsrt_nonnull((1,2));
 
+/** @brief Counted version of @ref ddsrt_avl_root*/
 DDS_EXPORT void *ddsrt_avl_croot (const ddsrt_avl_ctreedef_t *td, const ddsrt_avl_ctree_t *tree) ddsrt_nonnull_all;
+
+/** @brief Counted version of @ref ddsrt_avl_root_non_empty*/
 DDS_EXPORT void *ddsrt_avl_croot_non_empty (const ddsrt_avl_ctreedef_t *td, const ddsrt_avl_ctree_t *tree) ddsrt_nonnull_all;
+
+/** @brief Counted version of @ref ddsrt_avl_lookup*/
 DDS_EXPORT void *ddsrt_avl_clookup (const ddsrt_avl_ctreedef_t *td, const ddsrt_avl_ctree_t *tree, const void *key) ddsrt_nonnull_all;
+
+/** @brief Counted version of @ref ddsrt_avl_lookup_ipath*/
 DDS_EXPORT void *ddsrt_avl_clookup_ipath (const ddsrt_avl_ctreedef_t *td, const ddsrt_avl_ctree_t *tree, const void *key, ddsrt_avl_ipath_t *path) ddsrt_nonnull_all;
+
+/** @brief Counted version of @ref ddsrt_avl_lookup_dpath*/
 DDS_EXPORT void *ddsrt_avl_clookup_dpath (const ddsrt_avl_ctreedef_t *td, const ddsrt_avl_ctree_t *tree, const void *key, ddsrt_avl_dpath_t *path) ddsrt_nonnull_all;
+
+/** @brief Counted version of @ref ddsrt_avl_lookup_pred_eq*/
 DDS_EXPORT void *ddsrt_avl_clookup_pred_eq (const ddsrt_avl_ctreedef_t *td, const ddsrt_avl_ctree_t *tree, const void *key) ddsrt_nonnull_all;
+
+/** @brief Counted version of @ref ddsrt_avl_lookup_succ_eq*/
 DDS_EXPORT void *ddsrt_avl_clookup_succ_eq (const ddsrt_avl_ctreedef_t *td, const ddsrt_avl_ctree_t *tree, const void *key) ddsrt_nonnull_all;
+
+/** @brief Counted version of @ref ddsrt_avl_lookup_pred*/
 DDS_EXPORT void *ddsrt_avl_clookup_pred (const ddsrt_avl_ctreedef_t *td, const ddsrt_avl_ctree_t *tree, const void *key) ddsrt_nonnull_all;
+
+/** @brief Counted version of @ref ddsrt_avl_lookup_succ*/
 DDS_EXPORT void *ddsrt_avl_clookup_succ (const ddsrt_avl_ctreedef_t *td, const ddsrt_avl_ctree_t *tree, const void *key) ddsrt_nonnull_all;
 
+/** @brief Counted version of @ref ddsrt_avl_insert*/
 DDS_EXPORT void ddsrt_avl_cinsert (const ddsrt_avl_ctreedef_t *td, ddsrt_avl_ctree_t *tree, void *node) ddsrt_nonnull_all;
+
+/** @brief Counted version of @ref ddsrt_avl_delete*/
 DDS_EXPORT void ddsrt_avl_cdelete (const ddsrt_avl_ctreedef_t *td, ddsrt_avl_ctree_t *tree, void *node) ddsrt_nonnull_all;
+
+/** @brief Counted version of @ref ddsrt_avl_insert_ipath*/
 DDS_EXPORT void ddsrt_avl_cinsert_ipath (const ddsrt_avl_ctreedef_t *td, ddsrt_avl_ctree_t *tree, void *node, ddsrt_avl_ipath_t *path) ddsrt_nonnull_all;
+
+/** @brief Counted version of @ref ddsrt_avl_delete_dpath*/
 DDS_EXPORT void ddsrt_avl_cdelete_dpath (const ddsrt_avl_ctreedef_t *td, ddsrt_avl_ctree_t *tree, void *node, ddsrt_avl_dpath_t *path) ddsrt_nonnull_all;
+
+/** @brief Counted version of @ref ddsrt_avl_swap_node*/
 DDS_EXPORT void ddsrt_avl_cswap_node (const ddsrt_avl_ctreedef_t *td, ddsrt_avl_ctree_t *tree, void *oldn, void *newn) ddsrt_nonnull_all;
+
+/** @brief Counted version of @ref ddsrt_avl_augment_update*/
 DDS_EXPORT void ddsrt_avl_caugment_update (const ddsrt_avl_ctreedef_t *td, void *node) ddsrt_nonnull_all;
 
+/** @brief Counted version of @ref ddsrt_avl_is_empty*/
 DDS_EXPORT int ddsrt_avl_cis_empty (const ddsrt_avl_ctree_t *tree) ddsrt_nonnull_all;
+
+/** @brief Counted version of @ref ddsrt_avl_is_singleton*/
 DDS_EXPORT int ddsrt_avl_cis_singleton (const ddsrt_avl_ctree_t *tree) ddsrt_nonnull_all;
+
+/** @brief Counted version of @ref ddsrt_avl_count*/
 DDS_EXPORT size_t ddsrt_avl_ccount (const ddsrt_avl_ctree_t *tree) ddsrt_nonnull_all;
 
+/** @brief Counted version of @ref ddsrt_avl_find_min*/
 DDS_EXPORT void *ddsrt_avl_cfind_min (const ddsrt_avl_ctreedef_t *td, const ddsrt_avl_ctree_t *tree) ddsrt_nonnull_all;
+
+/** @brief Counted version of @ref ddsrt_avl_find_max*/
 DDS_EXPORT void *ddsrt_avl_cfind_max (const ddsrt_avl_ctreedef_t *td, const ddsrt_avl_ctree_t *tree) ddsrt_nonnull_all;
+
+/** @brief Counted version of @ref ddsrt_avl_find_pred*/
 DDS_EXPORT void *ddsrt_avl_cfind_pred (const ddsrt_avl_ctreedef_t *td, const ddsrt_avl_ctree_t *tree, const void *vnode) ddsrt_nonnull((1,2));
+
+/** @brief Counted version of @ref ddsrt_avl_find_succ*/
 DDS_EXPORT void *ddsrt_avl_cfind_succ (const ddsrt_avl_ctreedef_t *td, const ddsrt_avl_ctree_t *tree, const void *vnode) ddsrt_nonnull((1,2));
 
+/** @brief Counted version of @ref ddsrt_avl_walk*/
 DDS_EXPORT void ddsrt_avl_cwalk (const ddsrt_avl_ctreedef_t *td, ddsrt_avl_ctree_t *tree, ddsrt_avl_walk_t f, void *a) ddsrt_nonnull((1,2,3));
+
+/** @brief Counted version of @ref ddsrt_avl_const_walk*/
 DDS_EXPORT void ddsrt_avl_cconst_walk (const ddsrt_avl_ctreedef_t *td, const ddsrt_avl_ctree_t *tree, ddsrt_avl_const_walk_t f, void *a) ddsrt_nonnull((1,2,3));
+
+/** @brief Counted version of @ref ddsrt_avl_walk_range*/
 DDS_EXPORT void ddsrt_avl_cwalk_range (const ddsrt_avl_ctreedef_t *td, ddsrt_avl_ctree_t *tree, const void *min, const void *max, ddsrt_avl_walk_t f, void *a) ddsrt_nonnull((1,2,3,4,5));
+
+/** @brief Counted version of @ref ddsrt_avl_const_walk_range*/
 DDS_EXPORT void ddsrt_avl_cconst_walk_range (const ddsrt_avl_ctreedef_t *td, const ddsrt_avl_ctree_t *tree, const void *min, const void *max, ddsrt_avl_const_walk_t f, void *a) ddsrt_nonnull((1,2,3,4,5));
+
+/** @brief Counted version of @ref ddsrt_avl_walk_range_reverse*/
 DDS_EXPORT void ddsrt_avl_cwalk_range_reverse (const ddsrt_avl_ctreedef_t *td, ddsrt_avl_ctree_t *tree, const void *min, const void *max, ddsrt_avl_walk_t f, void *a) ddsrt_nonnull((1,2,3,4,5));
+
+/** @brief Counted version of @ref ddsrt_avl_const_walk_range_reverse*/
 DDS_EXPORT void ddsrt_avl_cconst_walk_range_reverse (const ddsrt_avl_ctreedef_t *td, const ddsrt_avl_ctree_t *tree, const void *min, const void *max, ddsrt_avl_const_walk_t f, void *a) ddsrt_nonnull((1,2,3,4,5));
 
+/** @brief Counted version of @ref ddsrt_avl_iter_first*/
 DDS_EXPORT void *ddsrt_avl_citer_first (const ddsrt_avl_ctreedef_t *td, const ddsrt_avl_ctree_t *tree, ddsrt_avl_citer_t *iter) ddsrt_nonnull_all;
+
+/** @brief Counted version of @ref ddsrt_avl_iter_succ_eq*/
 DDS_EXPORT void *ddsrt_avl_citer_succ_eq (const ddsrt_avl_ctreedef_t *td, const ddsrt_avl_ctree_t *tree, ddsrt_avl_citer_t *iter, const void *key) ddsrt_nonnull_all;
+
+/** @brief Counted version of @ref ddsrt_avl_iter_succ*/
 DDS_EXPORT void *ddsrt_avl_citer_succ (const ddsrt_avl_ctreedef_t *td, const ddsrt_avl_ctree_t *tree, ddsrt_avl_citer_t *iter, const void *key) ddsrt_nonnull_all;
+
+/** @brief Counted version of @ref ddsrt_avl_iter_next*/
 DDS_EXPORT void *ddsrt_avl_citer_next (ddsrt_avl_citer_t *iter) ddsrt_nonnull_all;
 
 #if defined (__cplusplus)
