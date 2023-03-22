@@ -95,7 +95,7 @@ void xcdr2_ser (const void *obj, const dds_topic_descriptor_t *topic_desc, dds_o
   CU_ASSERT_FATAL (ret);
 }
 
-void xcdr2_deser (unsigned char *buf, uint32_t sz, void **obj, const dds_topic_descriptor_t *desc)
+void xcdr2_deser (const unsigned char *buf, uint32_t sz, void **obj, const dds_topic_descriptor_t *desc)
 {
   unsigned char *data;
   uint32_t srcoff = 0;
@@ -110,7 +110,7 @@ void xcdr2_deser (unsigned char *buf, uint32_t sz, void **obj, const dds_topic_d
     CU_ASSERT_NOT_EQUAL_FATAL (ret, NULL);
   }
   else
-    data = buf;
+    data = (void *) buf;
 
   dds_istream_t is = { .m_buffer = data, .m_index = 0, .m_size = sz, .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
   *obj = ddsrt_calloc (1, desc->m_size);
