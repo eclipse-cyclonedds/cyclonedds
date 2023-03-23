@@ -714,7 +714,7 @@ The default value is: ``default``
 //CycloneDDS/Domain/Internal
 ============================
 
-Children: `//CycloneDDS/Domain/Internal/AccelerateRexmitBlockSize`_, `//CycloneDDS/Domain/Internal/AckDelay`_, `//CycloneDDS/Domain/Internal/AutoReschedNackDelay`_, `//CycloneDDS/Domain/Internal/BuiltinEndpointSet`_, `//CycloneDDS/Domain/Internal/BurstSize`_, `//CycloneDDS/Domain/Internal/ControlTopic`_, `//CycloneDDS/Domain/Internal/DefragReliableMaxSamples`_, `//CycloneDDS/Domain/Internal/DefragUnreliableMaxSamples`_, `//CycloneDDS/Domain/Internal/DeliveryQueueMaxSamples`_, `//CycloneDDS/Domain/Internal/EnableExpensiveChecks`_, `//CycloneDDS/Domain/Internal/GenerateKeyhash`_, `//CycloneDDS/Domain/Internal/HeartbeatInterval`_, `//CycloneDDS/Domain/Internal/LateAckMode`_, `//CycloneDDS/Domain/Internal/LivelinessMonitoring`_, `//CycloneDDS/Domain/Internal/MaxParticipants`_, `//CycloneDDS/Domain/Internal/MaxQueuedRexmitBytes`_, `//CycloneDDS/Domain/Internal/MaxQueuedRexmitMessages`_, `//CycloneDDS/Domain/Internal/MaxSampleSize`_, `//CycloneDDS/Domain/Internal/MeasureHbToAckLatency`_, `//CycloneDDS/Domain/Internal/MonitorPort`_, `//CycloneDDS/Domain/Internal/MultipleReceiveThreads`_, `//CycloneDDS/Domain/Internal/NackDelay`_, `//CycloneDDS/Domain/Internal/PreEmptiveAckDelay`_, `//CycloneDDS/Domain/Internal/PrimaryReorderMaxSamples`_, `//CycloneDDS/Domain/Internal/PrioritizeRetransmit`_, `//CycloneDDS/Domain/Internal/RediscoveryBlacklistDuration`_, `//CycloneDDS/Domain/Internal/RetransmitMerging`_, `//CycloneDDS/Domain/Internal/RetransmitMergingPeriod`_, `//CycloneDDS/Domain/Internal/RetryOnRejectBestEffort`_, `//CycloneDDS/Domain/Internal/SPDPResponseMaxDelay`_, `//CycloneDDS/Domain/Internal/ScheduleTimeRounding`_, `//CycloneDDS/Domain/Internal/SecondaryReorderMaxSamples`_, `//CycloneDDS/Domain/Internal/SocketReceiveBufferSize`_, `//CycloneDDS/Domain/Internal/SocketSendBufferSize`_, `//CycloneDDS/Domain/Internal/SquashParticipants`_, `//CycloneDDS/Domain/Internal/SynchronousDeliveryLatencyBound`_, `//CycloneDDS/Domain/Internal/SynchronousDeliveryPriorityThreshold`_, `//CycloneDDS/Domain/Internal/Test`_, `//CycloneDDS/Domain/Internal/UnicastResponseToSPDPMessages`_, `//CycloneDDS/Domain/Internal/UseMulticastIfMreqn`_, `//CycloneDDS/Domain/Internal/Watermarks`_, `//CycloneDDS/Domain/Internal/WriteBatch`_, `//CycloneDDS/Domain/Internal/WriterLingerDuration`_
+Children: `//CycloneDDS/Domain/Internal/AccelerateRexmitBlockSize`_, `//CycloneDDS/Domain/Internal/AckDelay`_, `//CycloneDDS/Domain/Internal/AutoReschedNackDelay`_, `//CycloneDDS/Domain/Internal/BuiltinEndpointSet`_, `//CycloneDDS/Domain/Internal/BurstSize`_, `//CycloneDDS/Domain/Internal/ControlTopic`_, `//CycloneDDS/Domain/Internal/DefragReliableMaxSamples`_, `//CycloneDDS/Domain/Internal/DefragUnreliableMaxSamples`_, `//CycloneDDS/Domain/Internal/DeliveryQueueMaxSamples`_, `//CycloneDDS/Domain/Internal/EnableExpensiveChecks`_, `//CycloneDDS/Domain/Internal/GenerateKeyhash`_, `//CycloneDDS/Domain/Internal/HeartbeatInterval`_, `//CycloneDDS/Domain/Internal/LateAckMode`_, `//CycloneDDS/Domain/Internal/LivelinessMonitoring`_, `//CycloneDDS/Domain/Internal/MaxParticipants`_, `//CycloneDDS/Domain/Internal/MaxQueuedRexmitBytes`_, `//CycloneDDS/Domain/Internal/MaxQueuedRexmitMessages`_, `//CycloneDDS/Domain/Internal/MaxSampleSize`_, `//CycloneDDS/Domain/Internal/MeasureHbToAckLatency`_, `//CycloneDDS/Domain/Internal/MonitorPort`_, `//CycloneDDS/Domain/Internal/MultipleReceiveThreads`_, `//CycloneDDS/Domain/Internal/NackDelay`_, `//CycloneDDS/Domain/Internal/PreEmptiveAckDelay`_, `//CycloneDDS/Domain/Internal/PrimaryReorderMaxSamples`_, `//CycloneDDS/Domain/Internal/PrioritizeRetransmit`_, `//CycloneDDS/Domain/Internal/RediscoveryBlacklistDuration`_, `//CycloneDDS/Domain/Internal/RetransmitMerging`_, `//CycloneDDS/Domain/Internal/RetransmitMergingPeriod`_, `//CycloneDDS/Domain/Internal/RetryOnRejectBestEffort`_, `//CycloneDDS/Domain/Internal/SPDPResponseMaxDelay`_, `//CycloneDDS/Domain/Internal/SecondaryReorderMaxSamples`_, `//CycloneDDS/Domain/Internal/SocketReceiveBufferSize`_, `//CycloneDDS/Domain/Internal/SocketSendBufferSize`_, `//CycloneDDS/Domain/Internal/SquashParticipants`_, `//CycloneDDS/Domain/Internal/SynchronousDeliveryLatencyBound`_, `//CycloneDDS/Domain/Internal/SynchronousDeliveryPriorityThreshold`_, `//CycloneDDS/Domain/Internal/Test`_, `//CycloneDDS/Domain/Internal/UnicastResponseToSPDPMessages`_, `//CycloneDDS/Domain/Internal/UseMulticastIfMreqn`_, `//CycloneDDS/Domain/Internal/Watermarks`_, `//CycloneDDS/Domain/Internal/WriteBatch`_, `//CycloneDDS/Domain/Internal/WriterLingerDuration`_
 
 The Internal elements deal with a variety of settings that are evolving and that are not necessarily fully supported. For the majority of the Internal settings the functionality is supported, but the right to change the way the options control the functionality is reserved. This includes renaming or moving options.
 
@@ -1243,20 +1243,6 @@ The default value is: ``false``
 Number-with-unit
 
 Maximum pseudo-random delay in milliseconds between discovering aremote participant and responding to it.
-
-The unit must be specified explicitly. Recognised units: ns, us, ms, s, min, hr, day.
-
-The default value is: ``0 ms``
-
-
-.. _`//CycloneDDS/Domain/Internal/ScheduleTimeRounding`:
-
-//CycloneDDS/Domain/Internal/ScheduleTimeRounding
--------------------------------------------------
-
-Number-with-unit
-
-This setting allows the timing of scheduled events to be rounded up so that more events can be handled in a single cycle of the event queue. The default is 0 and causes no rounding at all, i.e. are scheduled exactly, whereas a value of 10ms would mean that events are rounded up to the nearest 10 milliseconds.
 
 The unit must be specified explicitly. Recognised units: ns, us, ms, s, min, hr, day.
 
@@ -2660,10 +2646,10 @@ The categorisation of tracing output is incomplete and hence most of the verbosi
 The default value is: ``none``
 
 ..
-   generated from ddsi_config.h[d0e749e6d58d560b8172dcb0cb109d6e5f6897ba] 
+   generated from ddsi_config.h[af204240792218d7541714019cac9ae65b87878f] 
    generated from ddsi__cfgunits.h[be1b976c6e9466472b0c331487c05180ec1052d4] 
-   generated from ddsi__cfgelems.h[63812c3c423805d6d3ad61b1706651329935ac40] 
-   generated from ddsi_config.c[3564342f60516165409e1a563f2346bc91895f15] 
+   generated from ddsi__cfgelems.h[8090d347c12ef665e43b0de41fa57f309c4e9980] 
+   generated from ddsi_config.c[c8b22d1fe853f4cc6545b65610d441dee5558011] 
    generated from _confgen.h[f2d235d5551cbf920a8a2962831dddeabd2856ac] 
    generated from _confgen.c[d74e4fd06e485c5d299dbcc7741cbdb95c5ec706] 
    generated from generate_rnc.c[a2ec6e48d33ac14a320c8ec3f320028a737920e0] 

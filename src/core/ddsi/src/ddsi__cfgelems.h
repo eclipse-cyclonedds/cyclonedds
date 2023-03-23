@@ -1352,9 +1352,9 @@ static struct cfgelem internal_cfgelems[] = {
       "writer and sending a pre-emptive AckNack to discover the available "
       "range of data.</p>"),
     UNIT("duration")),
-  STRING("ScheduleTimeRounding", NULL, 1, "0 ms",
-    MEMBER(schedule_time_rounding),
-    FUNCTIONS(0, uf_duration_ms_1hr, 0, pf_duration),
+  STRING(DEPRECATED("ScheduleTimeRounding"), NULL, 1, "0 ms",
+    NOMEMBER,
+    FUNCTIONS(0, uf_nop_duration_ms_1hr, 0, 0),
     DESCRIPTION(
       "<p>This setting allows the timing of scheduled events to be rounded "
       "up so that more events can be handled in a single cycle of the event "

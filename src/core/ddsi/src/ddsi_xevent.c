@@ -594,7 +594,6 @@ static void handle_xevents (struct ddsi_thread_state * const thrst, struct ddsi_
 static uint32_t xevent_thread (struct ddsi_xeventq * xevq)
 {
   struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
-  const dds_duration_t rounding = xevq->gv->config.schedule_time_rounding;
   ddsrt_mtime_t next_thread_cputime = { 0 };
 
   struct ddsi_xpack * const xp = ddsi_xpack_new (xevq->gv, false);
@@ -631,7 +630,7 @@ static uint32_t xevent_thread (struct ddsi_xeventq * xevq)
         tnow = ddsrt_time_monotonic ();
         if (twakeup.v > tnow.v)
         {
-          twakeup.v = ddsrt_mtime_add_duration(twakeup, rounding).v - tnow.v;
+          twakeup.v -= tnow.v;
           ddsrt_cond_waitfor (&xevq->cond, &xevq->lock, twakeup.v);
         }
       }

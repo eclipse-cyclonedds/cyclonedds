@@ -169,6 +169,7 @@ DU(duration_ms_1hr);
 DU(duration_ms_1s);
 DU(duration_us_1s);
 DU(duration_100ms_1hr);
+DU(nop_duration_ms_1hr);
 PF(duration);
 DUPF(standards_conformance);
 DUPF(besmode);
@@ -1393,6 +1394,12 @@ static enum update_result uf_duration_inf (struct ddsi_cfgst *cfgst, void *paren
 static enum update_result uf_duration_ms_1hr (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
 {
   return uf_duration_gen (cfgst, parent, cfgelem, value, DDS_MSECS (1), 0, DDS_SECS (3600));
+}
+
+static enum update_result uf_nop_duration_ms_1hr (struct ddsi_cfgst *cfgst, UNUSED_ARG(void *parent), UNUSED_ARG(struct cfgelem const * const cfgelem), UNUSED_ARG (int first), const char *value)
+{
+  int64_t dummy;
+  return uf_natint64_unit (cfgst, &dummy, value, unittab_duration, DDS_MSECS (1), 0, DDS_SECS (3600));
 }
 
 static enum update_result uf_duration_ms_1s (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
