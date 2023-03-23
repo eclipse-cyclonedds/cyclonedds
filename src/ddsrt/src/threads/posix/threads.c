@@ -240,14 +240,9 @@ static void *os_startRoutineWrapper (void *threadContext)
 #error "CONFIG_MAX_PTHREAD_COUNT is insufficient to run CycloneDDS"
 #endif
 
-static int currThrIdx;
+static int currThrIdx = 0;
 K_THREAD_STACK_ARRAY_DEFINE(zephyr_stacks, CYCLONEDDS_THREAD_COUNT, CYCLONEDDS_THREAD_STACK_SIZE);
 
-void
-ddsrt_thread_stack_init (void)
-{
-  currThrIdx = 0;
-}
 #endif
 
 dds_return_t

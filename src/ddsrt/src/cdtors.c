@@ -23,8 +23,6 @@ extern void ddsrt_winsock_init(void);
 extern void ddsrt_winsock_fini(void);
 extern void ddsrt_time_init(void);
 extern void ddsrt_time_fini(void);
-#elif __ZEPHYR__
-extern void ddsrt_thread_stack_init(void);
 #endif
 
 #define INIT_STATUS_OK 0x80000000u
@@ -45,8 +43,6 @@ retry:
 #if _WIN32
     ddsrt_winsock_init();
     ddsrt_time_init();
-#elif __ZEPHYR__
-    ddsrt_thread_stack_init();
 #endif
     ddsrt_random_init();
     ddsrt_atomics_init();

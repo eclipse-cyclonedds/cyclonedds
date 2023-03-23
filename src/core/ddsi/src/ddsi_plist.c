@@ -1605,7 +1605,7 @@ static dds_return_t valid_generic (const void *src, size_t srcoff, const enum dd
       case XSTOP: return 0;
       case XO: SIMPLE (XO, ddsi_octetseq_t, (x->length == 0) == (x->value == NULL)); break;
       case XS: SIMPLE (XS, const char *, *x != NULL); break;
-      case XE1: case XE2: case XE3: SIMPLE (*desc, enum xe3_prototype, *x <= 1 + (uint32_t) *desc - XE1); break;
+      case XE1: case XE2: case XE3: SIMPLE (*desc, enum xe3_prototype, (uint32_t) *x <= 1 + (uint32_t) *desc - XE1); break;
       case Xs: TRIVIAL (Xs, int16_t); break;
       case Xi: case Xix2: case Xix3: case Xix4: TRIVIAL (Xi, int32_t); break;
       case Xu: case Xux2: case Xux3: case Xux4: case Xux5: TRIVIAL (Xu, uint32_t); break;
