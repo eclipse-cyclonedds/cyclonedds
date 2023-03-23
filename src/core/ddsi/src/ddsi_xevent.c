@@ -33,10 +33,10 @@
    != 0 -- and note that it had better be 2's complement machine! */
 #define TSCHED_DELETE ((int64_t) ((uint64_t) 1 << 63))
 
-enum cb_sync_state {
-  CSS_DONTCARE,
-  CSS_SCHEDULED,
-  CSS_EXECUTING
+enum cb_sync_on_delete_state {
+  CSODS_NO_SYNC_NEEDED,
+  CSODS_SCHEDULED,
+  CSODS_EXECUTING
 };
 
 struct ddsi_xevent
@@ -45,7 +45,7 @@ struct ddsi_xevent
   struct ddsi_xeventq *evq;
   ddsrt_mtime_t tsched;
 
-  enum cb_sync_state sync_state;
+  enum cb_sync_on_delete_state sync_state;
   union {
     ddsi_xevent_cb_t cb;
     // ensure alignment of arg is good
@@ -259,7 +259,7 @@ static void ddsi_delete_xevent_nosync (struct ddsi_xevent *ev)
 {
   struct ddsi_xeventq *evq = ev->evq;
   ddsrt_mutex_lock (&evq->lock);
-  assert (ev->sync_state != CSS_EXECUTING);
+  assert (ev->sync_state != CSODS_EXECUTING);
   /* Can delete it only once, no matter how we implement it internally */
   assert (ev->tsched.v != TSCHED_DELETE);
   assert (TSCHED_DELETE < ev->tsched.v);
@@ -284,7 +284,7 @@ static void ddsi_delete_xevent_sync (struct ddsi_xevent *ev)
   struct ddsi_xeventq *evq = ev->evq;
   ddsrt_mutex_lock (&evq->lock);
   /* wait until neither scheduled nor executing; loop in case the callback reschedules the event */
-  while (ev->tsched.v != DDS_NEVER || ev->sync_state == CSS_EXECUTING)
+  while (ev->tsched.v != DDS_NEVER || ev->sync_state == CSODS_EXECUTING)
   {
     if (ev->tsched.v != DDS_NEVER)
     {
@@ -292,7 +292,7 @@ static void ddsi_delete_xevent_sync (struct ddsi_xevent *ev)
       ddsrt_fibheap_delete (&evq_xevents_fhdef, &evq->xevents, ev);
       ev->tsched.v = DDS_NEVER;
     }
-    if (ev->sync_state == CSS_EXECUTING)
+    if (ev->sync_state == CSODS_EXECUTING)
     {
       ddsrt_cond_wait (&evq->cond, &evq->lock);
     }
@@ -303,7 +303,7 @@ static void ddsi_delete_xevent_sync (struct ddsi_xevent *ev)
 
 void ddsi_delete_xevent (struct ddsi_xevent *ev)
 {
-  if (ev->sync_state == CSS_DONTCARE)
+  if (ev->sync_state == CSODS_NO_SYNC_NEEDED)
     ddsi_delete_xevent_nosync (ev);
   else
     ddsi_delete_xevent_sync (ev);
@@ -498,7 +498,7 @@ static void handle_timed_xevent (struct ddsi_xeventq *evq, struct ddsi_xevent *x
   xev->tsched.v = DDS_NEVER;
 
   /* We relinquish the lock while processing the event. */
-  if (xev->sync_state == CSS_DONTCARE)
+  if (xev->sync_state == CSODS_NO_SYNC_NEEDED)
   {
     ddsrt_mutex_unlock (&evq->lock);
     xev->cb.cb (evq->gv, xev, xp, xev->arg, tnow);
@@ -506,11 +506,11 @@ static void handle_timed_xevent (struct ddsi_xeventq *evq, struct ddsi_xevent *x
   }
   else
   {
-    xev->sync_state = CSS_EXECUTING;
+    xev->sync_state = CSODS_EXECUTING;
     ddsrt_mutex_unlock (&evq->lock);
     xev->cb.cb (evq->gv, xev, xp, xev->arg, tnow);
     ddsrt_mutex_lock (&evq->lock);
-    xev->sync_state = CSS_SCHEDULED;
+    xev->sync_state = CSODS_SCHEDULED;
     ddsrt_cond_broadcast (&evq->cond);
   }
 }
@@ -734,7 +734,7 @@ struct ddsi_xevent *ddsi_qxev_callback (struct ddsi_xeventq *evq, ddsrt_mtime_t 
   ev->evq = evq;
   ev->tsched = tsched;
   ev->cb.cb = cb;
-  ev->sync_state = sync_on_delete ? CSS_SCHEDULED : CSS_DONTCARE;
+  ev->sync_state = sync_on_delete ? CSODS_SCHEDULED : CSODS_NO_SYNC_NEEDED;
   if (arg_size) // so arg = NULL, arg_size = 0 is allowed
     memcpy (ev->arg, arg, arg_size);
   ddsrt_mutex_lock (&evq->lock);
