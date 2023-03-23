@@ -528,9 +528,9 @@ static void send_heartbeat_to_all_readers (struct ddsi_xpack *xp, struct ddsi_xe
 }
 #endif
 
-void ddsi_xevent_heartbeat_cb (struct ddsi_domaingv *gv, struct ddsi_xevent *ev, struct ddsi_xpack *xp, void *varg, ddsrt_mtime_t tnow)
+void ddsi_heartbeat_xevent_cb (struct ddsi_domaingv *gv, struct ddsi_xevent *ev, struct ddsi_xpack *xp, void *varg, ddsrt_mtime_t tnow)
 {
-  struct ddsi_xevent_heartbeat_cb_arg const * const arg = varg;
+  struct ddsi_heartbeat_xevent_cb_arg const * const arg = varg;
   struct ddsi_writer *wr;
   if ((wr = ddsi_entidx_lookup_writer_guid (gv->entity_index, &arg->wr_guid)) == NULL)
   {

@@ -1078,8 +1078,8 @@ void ddsi_proxy_writer_add_connection (struct ddsi_proxy_writer *pwr, struct dds
 
     const ddsrt_mtime_t tsched = use_iceoryx ? DDSRT_MTIME_NEVER : ddsrt_mtime_add_duration (tnow, pwr->e.gv->config.preemptive_ack_delay);
     {
-      struct ddsi_xevent_acknack_cb_arg arg = { .pwr_guid = pwr->e.guid, .rd_guid = rd->e.guid };
-      m->acknack_xevent = ddsi_qxev_callback (pwr->evq, tsched, ddsi_xevent_acknack_cb, &arg, sizeof (arg), false);
+      struct ddsi_acknack_xevent_cb_arg arg = { .pwr_guid = pwr->e.guid, .rd_guid = rd->e.guid };
+      m->acknack_xevent = ddsi_qxev_callback (pwr->evq, tsched, ddsi_acknack_xevent_cb, &arg, sizeof (arg), false);
     }
     m->u.not_in_sync.reorder =
       ddsi_reorder_new (&pwr->e.gv->logconfig, DDSI_REORDER_MODE_NORMAL, secondary_reorder_maxsamples, pwr->e.gv->config.late_ack_mode);

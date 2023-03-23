@@ -868,8 +868,8 @@ static void ddsi_new_writer_guid_common_init (struct ddsi_writer *wr, const char
     wr->heartbeat_xevent = NULL;
   else
   {
-    struct ddsi_xevent_heartbeat_cb_arg arg = {.wr_guid = wr->e.guid };
-    wr->heartbeat_xevent = ddsi_qxev_callback (wr->evq, DDSRT_MTIME_NEVER, ddsi_xevent_heartbeat_cb, &arg, sizeof (arg), false);
+    struct ddsi_heartbeat_xevent_cb_arg arg = {.wr_guid = wr->e.guid };
+    wr->heartbeat_xevent = ddsi_qxev_callback (wr->evq, DDSRT_MTIME_NEVER, ddsi_heartbeat_xevent_cb, &arg, sizeof (arg), false);
   }
 
   assert (wr->xqos->present & DDSI_QP_LIVELINESS);
@@ -1267,13 +1267,13 @@ void ddsi_delete_local_orphan_writer (struct ddsi_local_orphan_writer *lowr)
   ddsrt_mutex_unlock (&lowr->wr.e.lock);
 }
 
-struct xevent_delete_writer_cb_arg {
+struct ddsi_delete_writer_xevent_cb_arg {
   ddsi_guid_t wr_guid;
 };
 
-static void xevent_delete_writer_cb (struct ddsi_domaingv *gv, struct ddsi_xevent *ev, UNUSED_ARG (struct ddsi_xpack *xp), void *varg, UNUSED_ARG (ddsrt_mtime_t tnow))
+static void ddsi_delete_writer_xevent_cb (struct ddsi_domaingv *gv, struct ddsi_xevent *ev, UNUSED_ARG (struct ddsi_xpack *xp), void *varg, UNUSED_ARG (ddsrt_mtime_t tnow))
 {
-  struct xevent_delete_writer_cb_arg const * const arg = varg;
+  struct ddsi_delete_writer_xevent_cb_arg const * const arg = varg;
   /* don't worry if the writer is already gone by the time we get here, delete_writer_nolinger checks for that. */
   GVTRACE ("handle_xevk_delete_writer: "PGUIDFMT"\n", PGUID (arg->wr_guid));
   ddsi_delete_writer_nolinger (gv, &arg->wr_guid);
@@ -1314,8 +1314,8 @@ dds_return_t ddsi_delete_writer (struct ddsi_domaingv *gv, const struct ddsi_gui
     GVLOGDISC ("delete_writer(guid "PGUIDFMT") - unack'ed samples, will delete when ack'd or at t = %"PRId32".%06"PRId32"\n",
                PGUID (*guid), tsec, tusec);
     
-    struct xevent_delete_writer_cb_arg arg = { .wr_guid = wr->e.guid };
-    ddsi_qxev_callback (gv->xevents, tsched, xevent_delete_writer_cb, &arg, sizeof (arg), false);
+    struct ddsi_delete_writer_xevent_cb_arg arg = { .wr_guid = wr->e.guid };
+    ddsi_qxev_callback (gv->xevents, tsched, ddsi_delete_writer_xevent_cb, &arg, sizeof (arg), false);
   }
   return 0;
 }

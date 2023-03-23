@@ -574,7 +574,7 @@ static struct ddsi_xmsg *make_preemptive_acknack (struct ddsi_xevent *ev, struct
   return msg;
 }
 
-void ddsi_xevent_acknack_cb (struct ddsi_domaingv *gv, struct ddsi_xevent *ev, struct ddsi_xpack *xp, void *varg, ddsrt_mtime_t tnow)
+void ddsi_acknack_xevent_cb (struct ddsi_domaingv *gv, struct ddsi_xevent *ev, struct ddsi_xpack *xp, void *varg, ddsrt_mtime_t tnow)
 {
   /* FIXME: ought to keep track of which NACKs are being generated in
      response to a Heartbeat.  There is no point in having multiple
@@ -585,7 +585,7 @@ void ddsi_xevent_acknack_cb (struct ddsi_domaingv *gv, struct ddsi_xevent *ev, s
      A little snag is that the defragmenter can throw out partial samples in
      favour of others, so MUST ensure that the defragmenter won't start
      threshing and fail to make progress! */
-  struct ddsi_xevent_acknack_cb_arg const * const arg = varg;
+  struct ddsi_acknack_xevent_cb_arg const * const arg = varg;
   struct ddsi_proxy_writer *pwr;
   struct ddsi_xmsg *msg;
   struct ddsi_pwr_rd_match *rwn;

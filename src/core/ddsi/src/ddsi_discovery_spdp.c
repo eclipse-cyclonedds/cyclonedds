@@ -281,7 +281,7 @@ int ddsi_spdp_dispose_unregister (struct ddsi_participant *pp)
   return ret;
 }
 
-struct xevent_spdp_directed_cb_arg {
+struct ddsi_spdp_directed_xevent_cb_arg {
   ddsi_guid_t pp_guid;
   int nrepeats;
   ddsi_guid_prefix_t dest_proxypp_guid_prefix;
@@ -334,9 +334,9 @@ static bool get_pp_and_spdp_wr (struct ddsi_domaingv *gv, const ddsi_guid_t *pp_
   return true;
 }
 
-static void xevent_spdp_directed_cb (struct ddsi_domaingv *gv, struct ddsi_xevent *ev, UNUSED_ARG (struct ddsi_xpack *xp), void *varg, ddsrt_mtime_t tnow)
+static void ddsi_spdp_directed_xevent_cb (struct ddsi_domaingv *gv, struct ddsi_xevent *ev, UNUSED_ARG (struct ddsi_xpack *xp), void *varg, ddsrt_mtime_t tnow)
 {
-  struct xevent_spdp_directed_cb_arg * const arg = varg;
+  struct ddsi_spdp_directed_xevent_cb_arg * const arg = varg;
   struct ddsi_participant *pp;
   struct ddsi_writer *spdp_wr;
 
@@ -396,10 +396,10 @@ static void resched_spdp_broadcast (struct ddsi_xevent *ev, struct ddsi_particip
   (void) ddsi_resched_xevent_if_earlier (ev, tnext);
 }
 
-void ddsi_xevent_spdp_broadcast_cb (struct ddsi_domaingv *gv, struct ddsi_xevent *ev, UNUSED_ARG (struct ddsi_xpack *xp), void *varg, ddsrt_mtime_t tnow)
+void ddsi_spdp_broadcast_xevent_cb (struct ddsi_domaingv *gv, struct ddsi_xevent *ev, UNUSED_ARG (struct ddsi_xpack *xp), void *varg, ddsrt_mtime_t tnow)
 {
   /* Like the writer pointer in the heartbeat event, the participant pointer in the spdp event is assumed valid. */
-  struct ddsi_xevent_spdp_broadcast_cb_arg * const arg = varg;
+  struct ddsi_spdp_broadcast_xevent_cb_arg * const arg = varg;
   struct ddsi_participant *pp;
   struct ddsi_writer *spdp_wr;
 
@@ -477,11 +477,11 @@ static void respond_to_spdp (const struct ddsi_domaingv *gv, const ddsi_guid_t *
       (void) ddsi_resched_xevent_if_earlier (pp->spdp_xevent, tsched);
     else
     {
-      struct xevent_spdp_directed_cb_arg arg = {
+      struct ddsi_spdp_directed_xevent_cb_arg arg = {
         .pp_guid = pp->e.guid,
         .nrepeats = 4, .dest_proxypp_guid_prefix = dest_proxypp_guid->prefix
       };
-      ddsi_qxev_callback (gv->xevents, tsched, xevent_spdp_directed_cb, &arg, sizeof (arg), false);
+      ddsi_qxev_callback (gv->xevents, tsched, ddsi_spdp_directed_xevent_cb, &arg, sizeof (arg), false);
     }
   }
   ddsi_entidx_enum_participant_fini (&est);

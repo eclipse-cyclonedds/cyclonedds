@@ -980,14 +980,14 @@ static dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domai
        fire before the calls return.  If the initial sample wasn't
        accepted, all is lost, but we continue nonetheless, even though
        the participant won't be able to discover or be discovered.  */
-    struct ddsi_xevent_spdp_broadcast_cb_arg arg = { .pp_guid = pp->e.guid };
-    pp->spdp_xevent = ddsi_qxev_callback (gv->xevents, ddsrt_mtime_add_duration (ddsrt_time_monotonic (), DDS_MSECS (100)), ddsi_xevent_spdp_broadcast_cb, &arg, sizeof (arg), false);
+    struct ddsi_spdp_broadcast_xevent_cb_arg arg = { .pp_guid = pp->e.guid };
+    pp->spdp_xevent = ddsi_qxev_callback (gv->xevents, ddsrt_mtime_add_duration (ddsrt_time_monotonic (), DDS_MSECS (100)), ddsi_spdp_broadcast_xevent_cb, &arg, sizeof (arg), false);
   }
 
   {
     ddsrt_mtime_t tsched = (pp->plist->qos.liveliness.lease_duration == DDS_INFINITY) ? DDSRT_MTIME_NEVER : (ddsrt_mtime_t){0};
-    struct ddsi_xevent_write_pmd_message_cb_arg arg = { .pp_guid = pp->e.guid };
-    pp->pmd_update_xevent = ddsi_qxev_callback (gv->xevents, tsched, ddsi_xevent_write_pmd_message_cb, &arg, sizeof (arg), false);
+    struct ddsi_write_pmd_message_xevent_cb_arg arg = { .pp_guid = pp->e.guid };
+    pp->pmd_update_xevent = ddsi_qxev_callback (gv->xevents, tsched, ddsi_write_pmd_message_xevent_cb, &arg, sizeof (arg), false);
   }
 
 #ifdef DDS_HAS_SECURITY

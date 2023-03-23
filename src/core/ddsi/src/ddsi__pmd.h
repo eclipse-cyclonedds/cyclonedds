@@ -49,12 +49,12 @@ void ddsi_write_pmd_message (struct ddsi_thread_state * const ts1, struct ddsi_x
 /** @component pmd */
 void ddsi_handle_pmd_message (const struct ddsi_receiver_state *rst, struct ddsi_serdata *sample_common);
 
-struct ddsi_xevent_write_pmd_message_cb_arg {
+struct ddsi_write_pmd_message_xevent_cb_arg {
   ddsi_guid_t pp_guid;
 };
 
 /** @component pmd */
-void ddsi_xevent_write_pmd_message_cb (struct ddsi_domaingv *gv, struct ddsi_xevent *ev, struct ddsi_xpack *xp, void *varg, ddsrt_mtime_t tnow);
+void ddsi_write_pmd_message_xevent_cb (struct ddsi_domaingv *gv, struct ddsi_xevent *ev, struct ddsi_xpack *xp, void *varg, ddsrt_mtime_t tnow);
 
 #if defined (__cplusplus)
 }

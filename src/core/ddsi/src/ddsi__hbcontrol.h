@@ -49,11 +49,11 @@ struct ddsi_xmsg *ddsi_writer_hbcontrol_create_heartbeat (struct ddsi_writer *wr
 struct ddsi_xmsg *ddsi_writer_hbcontrol_p2p(struct ddsi_writer *wr, const struct ddsi_whc_state *whcst, int hbansreq, struct ddsi_proxy_reader *prd);
 #endif
 
-struct ddsi_xevent_heartbeat_cb_arg {
+struct ddsi_heartbeat_xevent_cb_arg {
   ddsi_guid_t wr_guid;
 };
 
-void ddsi_xevent_heartbeat_cb (struct ddsi_domaingv *gv, struct ddsi_xevent *ev, struct ddsi_xpack *xp, void *varg, ddsrt_mtime_t tnow);
+void ddsi_heartbeat_xevent_cb (struct ddsi_domaingv *gv, struct ddsi_xevent *ev, struct ddsi_xpack *xp, void *varg, ddsrt_mtime_t tnow);
 
 #if defined (__cplusplus)
 }

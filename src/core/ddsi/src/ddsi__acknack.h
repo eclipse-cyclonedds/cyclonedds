@@ -56,12 +56,12 @@ struct ddsi_add_acknack_info {
 /** @component incoming_rtps */
 void ddsi_sched_acknack_if_needed (struct ddsi_xevent *ev, struct ddsi_proxy_writer *pwr, struct ddsi_pwr_rd_match *rwn, ddsrt_mtime_t tnow, bool avoid_suppressed_nack);
 
-struct ddsi_xevent_acknack_cb_arg {
+struct ddsi_acknack_xevent_cb_arg {
   ddsi_guid_t pwr_guid;
   ddsi_guid_t rd_guid;
 };
 
-void ddsi_xevent_acknack_cb (struct ddsi_domaingv *gv, struct ddsi_xevent *ev, struct ddsi_xpack *xp, void *varg, ddsrt_mtime_t tnow);
+void ddsi_acknack_xevent_cb (struct ddsi_domaingv *gv, struct ddsi_xevent *ev, struct ddsi_xpack *xp, void *varg, ddsrt_mtime_t tnow);
 
 #if defined (__cplusplus)
 }

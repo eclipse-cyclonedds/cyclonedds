@@ -125,10 +125,10 @@ void ddsi_handle_pmd_message (const struct ddsi_receiver_state *rst, struct ddsi
   RSTTRACE ("\n");
 }
 
-void ddsi_xevent_write_pmd_message_cb (struct ddsi_domaingv *gv, struct ddsi_xevent *ev, struct ddsi_xpack *xp, void *varg, ddsrt_mtime_t tnow)
+void ddsi_write_pmd_message_xevent_cb (struct ddsi_domaingv *gv, struct ddsi_xevent *ev, struct ddsi_xpack *xp, void *varg, ddsrt_mtime_t tnow)
 {
   struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
-  struct ddsi_xevent_write_pmd_message_cb_arg const * const arg = varg;
+  struct ddsi_write_pmd_message_xevent_cb_arg const * const arg = varg;
   struct ddsi_participant *pp;
   dds_duration_t intv;
   ddsrt_mtime_t tnext;
