@@ -25,9 +25,16 @@ static int compare_lifespan_texp (const void *va, const void *vb)
 
 const ddsrt_fibheap_def_t lifespan_fhdef = DDSRT_FIBHEAPDEF_INITIALIZER(offsetof (struct ddsi_lifespan_fhnode, heapnode), compare_lifespan_texp);
 
-static void lifespan_rhc_node_exp (struct ddsi_xevent *xev, void *varg, ddsrt_mtime_t tnow)
+struct lifespan_rhc_node_exp_arg {
+  struct ddsi_lifespan_adm *lifespan_adm;
+};
+
+static void lifespan_rhc_node_exp (struct ddsi_domaingv *gv, struct ddsi_xevent *xev, struct ddsi_xpack *xp, void *varg, ddsrt_mtime_t tnow)
 {
-  struct ddsi_lifespan_adm * const lifespan_adm = varg;
+  struct lifespan_rhc_node_exp_arg * const arg = varg;
+  struct ddsi_lifespan_adm * const lifespan_adm = arg->lifespan_adm;
+  (void) gv;
+  (void) xp;
   ddsrt_mtime_t next_valid = lifespan_adm->sample_expired_cb((char *)lifespan_adm - lifespan_adm->fh_offset, tnow);
   ddsi_resched_xevent_if_earlier (xev, next_valid);
 }
@@ -51,7 +58,8 @@ ddsrt_mtime_t ddsi_lifespan_next_expired_locked (const struct ddsi_lifespan_adm 
 void ddsi_lifespan_init (const struct ddsi_domaingv *gv, struct ddsi_lifespan_adm *lifespan_adm, size_t fh_offset, size_t fh_node_offset, ddsi_sample_expired_cb_t sample_expired_cb)
 {
   ddsrt_fibheap_init (&lifespan_fhdef, &lifespan_adm->ls_exp_heap);
-  lifespan_adm->evt = ddsi_qxev_callback (gv->xevents, DDSRT_MTIME_NEVER, lifespan_rhc_node_exp, lifespan_adm);
+  struct lifespan_rhc_node_exp_arg arg = { .lifespan_adm = lifespan_adm };
+  lifespan_adm->evt = ddsi_qxev_callback (gv->xevents, DDSRT_MTIME_NEVER, lifespan_rhc_node_exp, &arg, sizeof (arg), true);
   lifespan_adm->sample_expired_cb = sample_expired_cb;
   lifespan_adm->fh_offset = fh_offset;
   lifespan_adm->fhn_offset = fh_node_offset;
@@ -60,7 +68,7 @@ void ddsi_lifespan_init (const struct ddsi_domaingv *gv, struct ddsi_lifespan_ad
 void ddsi_lifespan_fini (const struct ddsi_lifespan_adm *lifespan_adm)
 {
   assert (ddsrt_fibheap_min (&lifespan_fhdef, &lifespan_adm->ls_exp_heap) == NULL);
-  ddsi_delete_xevent_callback (lifespan_adm->evt);
+  ddsi_delete_xevent (lifespan_adm->evt);
 }
 
 extern inline void ddsi_lifespan_register_sample_locked (struct ddsi_lifespan_adm *lifespan_adm, struct ddsi_lifespan_fhnode *node);

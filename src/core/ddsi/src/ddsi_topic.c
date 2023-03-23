@@ -23,6 +23,9 @@
 #include "ddsi__topic.h"
 #include "ddsi__entity_index.h"
 #include "ddsi__discovery.h"
+#ifdef DDS_HAS_TOPIC_DISCOVERY
+#include "ddsi__discovery_topic.h"
+#endif
 #include "ddsi__xmsg.h"
 #include "ddsi__misc.h"
 #include "ddsi__gc.h"

@@ -373,7 +373,6 @@ struct ddsi_config
   int64_t ack_delay;
   int64_t nack_delay;
   int64_t preemptive_ack_delay;
-  int64_t schedule_time_rounding;
   int64_t auto_resched_nack_delay;
   int64_t ds_grace_period;
   uint32_t max_queued_rexmit_bytes;

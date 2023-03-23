@@ -12,6 +12,7 @@
 #include <assert.h>
 #include <string.h>
 #include <stddef.h>
+#include <math.h>
 
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsrt/heap.h"
@@ -30,7 +31,7 @@
 #include "ddsi__udp.h"
 #include "ddsi__wraddrset.h"
 #include "ddsi__security_omg.h"
-#include "ddsi__discovery.h"
+#include "ddsi__discovery_endpoint.h"
 #include "ddsi__whc.h"
 #include "ddsi__xevent.h"
 #include "ddsi__addrset.h"
@@ -863,10 +864,13 @@ static void ddsi_new_writer_guid_common_init (struct ddsi_writer *wr, const char
      writer for it in the hash table. NEVER => won't ever be
      scheduled, and this can only change by writing data, which won't
      happen until after it becomes visible. */
-  if (wr->reliable)
-    wr->heartbeat_xevent = ddsi_qxev_heartbeat (wr->evq, DDSRT_MTIME_NEVER, &wr->e.guid);
-  else
+  if (!wr->reliable)
     wr->heartbeat_xevent = NULL;
+  else
+  {
+    struct ddsi_heartbeat_xevent_cb_arg arg = {.wr_guid = wr->e.guid };
+    wr->heartbeat_xevent = ddsi_qxev_callback (wr->evq, DDSRT_MTIME_NEVER, ddsi_heartbeat_xevent_cb, &arg, sizeof (arg), false);
+  }
 
   assert (wr->xqos->present & DDSI_QP_LIVELINESS);
   if (wr->xqos->liveliness.lease_duration != DDS_INFINITY)
@@ -1263,6 +1267,19 @@ void ddsi_delete_local_orphan_writer (struct ddsi_local_orphan_writer *lowr)
   ddsrt_mutex_unlock (&lowr->wr.e.lock);
 }
 
+struct ddsi_delete_writer_xevent_cb_arg {
+  ddsi_guid_t wr_guid;
+};
+
+static void ddsi_delete_writer_xevent_cb (struct ddsi_domaingv *gv, struct ddsi_xevent *ev, UNUSED_ARG (struct ddsi_xpack *xp), void *varg, UNUSED_ARG (ddsrt_mtime_t tnow))
+{
+  struct ddsi_delete_writer_xevent_cb_arg const * const arg = varg;
+  /* don't worry if the writer is already gone by the time we get here, delete_writer_nolinger checks for that. */
+  GVTRACE ("handle_xevk_delete_writer: "PGUIDFMT"\n", PGUID (arg->wr_guid));
+  ddsi_delete_writer_nolinger (gv, &arg->wr_guid);
+  ddsi_delete_xevent (ev);
+}
+
 dds_return_t ddsi_delete_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *guid)
 {
   struct ddsi_writer *wr;
@@ -1296,7 +1313,9 @@ dds_return_t ddsi_delete_writer (struct ddsi_domaingv *gv, const struct ddsi_gui
     ddsrt_mtime_to_sec_usec (&tsec, &tusec, tsched);
     GVLOGDISC ("delete_writer(guid "PGUIDFMT") - unack'ed samples, will delete when ack'd or at t = %"PRId32".%06"PRId32"\n",
                PGUID (*guid), tsec, tusec);
-    ddsi_qxev_delete_writer (gv->xevents, tsched, &wr->e.guid);
+    
+    struct ddsi_delete_writer_xevent_cb_arg arg = { .wr_guid = wr->e.guid };
+    ddsi_qxev_callback (gv->xevents, tsched, ddsi_delete_writer_xevent_cb, &arg, sizeof (arg), false);
   }
   return 0;
 }

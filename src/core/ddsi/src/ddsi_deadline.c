@@ -16,9 +16,16 @@
 #include "dds/ddsi/ddsi_deadline.h"
 #include "ddsi__xevent.h"
 
-static void instance_deadline_missed_cb (struct ddsi_xevent *xev, void *varg, ddsrt_mtime_t tnow)
+struct instance_deadline_missed_cb_arg {
+  struct ddsi_deadline_adm *deadline_adm;
+};
+
+static void instance_deadline_missed_cb (struct ddsi_domaingv *gv, struct ddsi_xevent *xev, struct ddsi_xpack *xp, void *varg, ddsrt_mtime_t tnow)
 {
-  struct ddsi_deadline_adm * const deadline_adm = varg;
+  (void) gv;
+  (void) xp;
+  struct instance_deadline_missed_cb_arg * const arg = varg;
+  struct ddsi_deadline_adm * const deadline_adm = arg->deadline_adm;
   const ddsrt_mtime_t next = deadline_adm->deadline_missed_cb ((char *)deadline_adm - deadline_adm->list_offset, tnow);
   // Rate-limit repeated deadline miss notifications. The first deadline miss following an
   // update of the instance is always handled by ddsi_deadline_register_instance_real and
@@ -80,7 +87,8 @@ ddsrt_mtime_t ddsi_deadline_next_missed_locked (struct ddsi_deadline_adm *deadli
 void ddsi_deadline_init (const struct ddsi_domaingv *gv, struct ddsi_deadline_adm *deadline_adm, size_t list_offset, size_t elem_offset, deadline_missed_cb_t deadline_missed_cb)
 {
   ddsrt_circlist_init (&deadline_adm->list);
-  deadline_adm->evt = ddsi_qxev_callback (gv->xevents, DDSRT_MTIME_NEVER, instance_deadline_missed_cb, deadline_adm);
+  struct instance_deadline_missed_cb_arg arg = { .deadline_adm = deadline_adm };
+  deadline_adm->evt = ddsi_qxev_callback (gv->xevents, DDSRT_MTIME_NEVER, instance_deadline_missed_cb, &arg, sizeof (arg), true);
   deadline_adm->deadline_missed_cb = deadline_missed_cb;
   deadline_adm->list_offset = list_offset;
   deadline_adm->elem_offset = elem_offset;
@@ -88,7 +96,7 @@ void ddsi_deadline_init (const struct ddsi_domaingv *gv, struct ddsi_deadline_ad
 
 void ddsi_deadline_stop (const struct ddsi_deadline_adm *deadline_adm)
 {
-  ddsi_delete_xevent_callback (deadline_adm->evt);
+  ddsi_delete_xevent (deadline_adm->evt);
 }
 
 void ddsi_deadline_clear (struct ddsi_deadline_adm *deadline_adm)

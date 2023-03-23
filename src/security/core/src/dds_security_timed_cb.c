@@ -96,9 +96,16 @@ static ddsrt_mtime_t calc_tsched (const struct dds_security_timed_event *ev, dds
   }
 }
 
-static void timed_event_cb (struct ddsi_xevent *xev, void *arg, ddsrt_mtime_t tnow)
+struct timed_event_cb_arg {
+  struct dds_security_timed_dispatcher *dispatcher;
+};
+
+static void timed_event_cb (struct ddsi_domaingv *gv, struct ddsi_xevent *xev, struct ddsi_xpack *xp, void *varg, ddsrt_mtime_t tnow)
 {
-  struct dds_security_timed_dispatcher * const dispatcher = arg;
+  struct timed_event_cb_arg * const arg = varg;
+  struct dds_security_timed_dispatcher * const dispatcher = arg->dispatcher;
+  (void) gv;
+  (void) xp;
   (void) tnow;
 
   ddsrt_mutex_lock (&dispatcher->lock);
@@ -142,7 +149,8 @@ void dds_security_timed_dispatcher_enable (struct dds_security_timed_dispatcher 
   if (d->evt == NULL)
   {
     struct dds_security_timed_event const * const ev = ddsrt_fibheap_min (&timed_cb_queue_fhdef, &d->timers);
-    d->evt = ddsi_qxev_callback (d->evq, calc_tsched (ev, dds_time ()), timed_event_cb, d);
+    struct timed_event_cb_arg arg = { .dispatcher = d };
+    d->evt = ddsi_qxev_callback (d->evq, calc_tsched (ev, dds_time ()), timed_event_cb, &arg, sizeof (arg), true);
   }
   ddsrt_mutex_unlock (&d->lock);
 }
@@ -182,7 +190,7 @@ bool dds_security_timed_dispatcher_disable (struct dds_security_timed_dispatcher
   ddsrt_mutex_unlock (&d->lock);
 
   if (evt != NULL)
-    ddsi_delete_xevent_callback (evt);
+    ddsi_delete_xevent (evt);
   return (evt != NULL);
 }
 

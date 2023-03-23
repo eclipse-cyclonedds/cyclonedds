@@ -677,26 +677,24 @@ static void ddsi_term_prep (struct ddsi_domaingv *gv)
 }
 
 struct wait_for_receive_threads_helper_arg {
-  struct ddsi_domaingv *gv;
   unsigned count;
 };
 
-static void wait_for_receive_threads_helper (struct ddsi_xevent *xev, void *varg, ddsrt_mtime_t tnow)
+static void wait_for_receive_threads_helper (struct ddsi_domaingv *gv, struct ddsi_xevent *xev, struct ddsi_xpack *xp, void *varg, ddsrt_mtime_t tnow)
 {
   struct wait_for_receive_threads_helper_arg * const arg = varg;
-  if (arg->count++ == arg->gv->config.recv_thread_stop_maxretries)
+  (void) xp;
+  if (arg->count++ == gv->config.recv_thread_stop_maxretries)
     abort ();
-  ddsi_trigger_recv_threads (arg->gv);
+  ddsi_trigger_recv_threads (gv);
   (void) ddsi_resched_xevent_if_earlier (xev, ddsrt_mtime_add_duration (tnow, DDS_SECS (1)));
 }
 
 static void wait_for_receive_threads (struct ddsi_domaingv *gv)
 {
   struct ddsi_xevent *trigev;
-  struct wait_for_receive_threads_helper_arg cbarg;
-  cbarg.gv = gv;
-  cbarg.count = 0;
-  if ((trigev = ddsi_qxev_callback (gv->xevents, ddsrt_mtime_add_duration (ddsrt_time_monotonic (), DDS_SECS (1)), wait_for_receive_threads_helper, &cbarg)) == NULL)
+  struct wait_for_receive_threads_helper_arg cbarg = { .count = 0 };
+  if ((trigev = ddsi_qxev_callback (gv->xevents, ddsrt_mtime_add_duration (ddsrt_time_monotonic (), DDS_SECS (1)), wait_for_receive_threads_helper, &cbarg, sizeof (cbarg), true)) == NULL)
   {
     /* retrying is to deal a packet geting lost because the socket buffer is full or because the
        macOS firewall (and perhaps others) likes to ask if the process is allowed to receive data,
@@ -714,7 +712,7 @@ static void wait_for_receive_threads (struct ddsi_domaingv *gv)
   }
   if (trigev)
   {
-    ddsi_delete_xevent_callback (trigev);
+    ddsi_delete_xevent (trigev);
   }
 }
 
@@ -962,9 +960,8 @@ static uint32_t topic_definition_hash_wrap (const void *tpd)
 }
 #endif /* DDS_HAS_TYPE_DISCOVERY */
 
-static void reset_deaf_mute (struct ddsi_xevent *xev, void *varg, UNUSED_ARG (ddsrt_mtime_t tnow))
+static void reset_deaf_mute (struct ddsi_domaingv *gv, struct ddsi_xevent *xev, UNUSED_ARG (struct ddsi_xpack *xp), UNUSED_ARG (void *varg), UNUSED_ARG (ddsrt_mtime_t tnow))
 {
-  struct ddsi_domaingv *gv = varg;
   gv->deaf = 0;
   gv->mute = 0;
   GVLOGDISC ("DEAFMUTE auto-reset to [deaf, mute]=[%d, %d]\n", gv->deaf, gv->mute);
@@ -980,7 +977,7 @@ void ddsi_set_deafmute (struct ddsi_domaingv *gv, bool deaf, bool mute, int64_t 
   {
     ddsrt_mtime_t when = ddsrt_mtime_add_duration (ddsrt_time_monotonic (), reset_after);
     GVTRACE (" reset after %"PRId64".%09u ns", reset_after / DDS_NSECS_IN_SEC, (unsigned) (reset_after % DDS_NSECS_IN_SEC));
-    ddsi_qxev_callback (gv->xevents, when, reset_deaf_mute, gv);
+    ddsi_qxev_callback (gv->xevents, when, reset_deaf_mute, NULL, 0, true);
   }
   GVLOGDISC ("\n");
 }
@@ -1605,7 +1602,7 @@ int ddsi_init (struct ddsi_domaingv *gv)
   gv->user_dqueue = ddsi_dqueue_new ("user", gv, gv->config.delivery_queue_maxsamples, ddsi_user_dqueue_handler, NULL);
 
   if (reset_deaf_mute_time.v < DDS_NEVER)
-    ddsi_qxev_callback (gv->xevents, reset_deaf_mute_time, reset_deaf_mute, gv);
+    ddsi_qxev_callback (gv->xevents, reset_deaf_mute_time, reset_deaf_mute, NULL, 0, true);
   return 0;
 
 #if 0

@@ -334,8 +334,6 @@ static void free_pending_match(struct pending_match *match)
   }
 }
 
-static void pending_match_expiry_cb(struct ddsi_xevent *xev, void *varg, ddsrt_mtime_t tnow);
-
 static struct pending_match * find_or_create_pending_entity_match(struct pending_match_index *index, enum ddsi_entity_kind kind, const ddsi_guid_t *remote_guid, const ddsi_guid_t *local_guid, int64_t crypto_handle, DDS_Security_ParticipantCryptoTokenSeq *tokens)
 {
   struct guid_pair guids = { .remote_guid = *remote_guid, .local_guid = *local_guid};
@@ -410,9 +408,16 @@ static void delete_pending_match(struct pending_match_index *index, struct pendi
   ddsrt_mutex_unlock(&index->lock);
 }
 
-static void pending_match_expiry_cb(struct ddsi_xevent *xev, void *varg, ddsrt_mtime_t tnow)
+struct pending_match_expiry_cb_arg {
+  struct pending_match_index *index;
+};
+
+static void pending_match_expiry_cb(struct ddsi_domaingv *gv, struct ddsi_xevent *xev, struct ddsi_xpack *xp, void *varg, ddsrt_mtime_t tnow)
 {
-  struct pending_match_index *index = varg;
+  struct pending_match_expiry_cb_arg * const arg = varg;
+  struct pending_match_index *index = arg->index;
+  (void) gv;
+  (void) xp;
 
   ddsrt_mutex_lock(&index->lock);
   struct pending_match *match = ddsrt_fibheap_min(&pending_match_expiry_fhdef, &index->expiry_timers);
@@ -475,12 +480,13 @@ static void pending_match_index_init(const struct ddsi_domaingv *gv, struct pend
   ddsrt_avl_init(&pending_match_index_treedef, &index->pending_matches);
   ddsrt_fibheap_init(&pending_match_expiry_fhdef, &index->expiry_timers);
   index->gv = gv;
-  index->evt = ddsi_qxev_callback(gv->xevents, DDSRT_MTIME_NEVER, pending_match_expiry_cb, index);;
+  struct pending_match_expiry_cb_arg arg = { .index = index };
+  index->evt = ddsi_qxev_callback(gv->xevents, DDSRT_MTIME_NEVER, pending_match_expiry_cb, &arg, sizeof (arg), true);
 }
 
 static void pending_match_index_deinit(struct pending_match_index *index)
 {
-  ddsi_delete_xevent_callback(index->evt);
+  ddsi_delete_xevent(index->evt);
   ddsrt_mutex_destroy(&index->lock);
   assert(ddsrt_avl_is_empty(&index->pending_matches));
   ddsrt_avl_free(&pending_match_index_treedef, &index->pending_matches, 0);
