@@ -534,6 +534,7 @@ void ddsi_xevent_heartbeat_cb (struct ddsi_domaingv *gv, struct ddsi_xevent *ev,
   struct ddsi_writer *wr;
   if ((wr = ddsi_entidx_lookup_writer_guid (gv->entity_index, &arg->wr_guid)) == NULL)
   {
+    GVTRACE("heartbeat(wr "PGUIDFMT") writer gone\n", PGUID (arg->wr_guid));
     return;
   }
 
