@@ -14,7 +14,7 @@
 
 #include "dds/ddsi/ddsi_unused.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "ddsi__discovery_sedp.h"
+#include "ddsi__discovery.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -30,6 +30,7 @@ struct ddsi_plist;
 struct ddsi_xevent;
 struct ddsi_xpack;
 struct ddsi_domaingv;
+struct ddsi_receiver_state;
 
 /** @component discovery */
 struct ddsi_addrset *ddsi_get_endpoint_addrset (const struct ddsi_domaingv *gv, const ddsi_plist_t *datap, struct ddsi_addrset *proxypp_as_default, const ddsi_locator_t *rst_srcloc)

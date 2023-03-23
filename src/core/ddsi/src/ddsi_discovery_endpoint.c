@@ -19,8 +19,8 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/log.h"
 #include "dds/ddsi/ddsi_domaingv.h"
+#include "ddsi__discovery.h"
 #include "ddsi__discovery_addrset.h"
-#include "ddsi__discovery_sedp.h"
 #include "ddsi__discovery_endpoint.h"
 #include "ddsi__serdata_plist.h"
 #include "ddsi__entity_index.h"
@@ -105,12 +105,6 @@ static void add_iox_locator_to_ps(const ddsi_locator_t* loc, struct add_locator_
   locs->n++;
 }
 #endif
-
-/******************************************************************************
- ***
- *** SEDP
- ***
- *****************************************************************************/
 
 static int sedp_write_endpoint_impl
 (

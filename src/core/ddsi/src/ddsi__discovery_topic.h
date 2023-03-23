@@ -14,7 +14,6 @@
 
 #include "dds/ddsi/ddsi_unused.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "ddsi__discovery_sedp.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -30,6 +29,7 @@ struct ddsi_plist;
 struct ddsi_xevent;
 struct ddsi_xpack;
 struct ddsi_domaingv;
+struct ddsi_receiver_state;
 
 /** @component discovery */
 int ddsi_sedp_write_topic (struct ddsi_topic *tp, bool alive) ddsrt_nonnull_all;

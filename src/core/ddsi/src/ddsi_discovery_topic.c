@@ -17,7 +17,7 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/log.h"
 #include "dds/ddsi/ddsi_domaingv.h"
-#include "ddsi__discovery_sedp.h"
+#include "ddsi__discovery.h"
 #include "ddsi__discovery_topic.h"
 #include "ddsi__entity_index.h"
 #include "ddsi__entity.h"

@@ -66,7 +66,6 @@ set(srcs_ddsi
   ddsi_discovery.c
   ddsi_discovery_addrset.c
   ddsi_discovery_spdp.c
-  ddsi_discovery_sedp.c
   ddsi_discovery_endpoint.c
   ddsi_debmon.c
   ddsi_init.c
@@ -195,7 +194,6 @@ set(hdrs_private_ddsi
   ddsi__discovery.h
   ddsi__discovery_addrset.h
   ddsi__discovery_spdp.h
-  ddsi__discovery_sedp.h
   ddsi__discovery_endpoint.h
   ddsi__debmon.h
   ddsi__hbcontrol.h
