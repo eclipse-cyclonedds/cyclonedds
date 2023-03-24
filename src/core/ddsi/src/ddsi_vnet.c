@@ -166,7 +166,7 @@ static int ddsi_vnet_enumerate_interfaces (struct ddsi_tran_factory * fact, enum
   (*ifs)->flags = IFF_UP | IFF_MULTICAST;
   (*ifs)->addr = ddsrt_malloc (sizeof (struct sockaddr_storage));
   memset ((*ifs)->addr, 0, sizeof (struct sockaddr_storage));
-  (*ifs)->addr->sa_data[0] = 1;
+  ((char*)(*ifs)->addr)[sizeof ((*ifs)->addr->sa_family)] = 1;
   (*ifs)->netmask = NULL;
   (*ifs)->broadaddr = NULL;
   return 0;
@@ -191,7 +191,7 @@ static int ddsi_vnet_locator_from_sockaddr (const struct ddsi_tran_factory *tran
   memset (loc, 0, sizeof (*loc));
   loc->kind = fact->m_kind;
   loc->port = 0;
-  memcpy (loc->address, sockaddr->sa_data, sizeof (loc->address));
+  memcpy (loc->address, &((char*)sockaddr)[sizeof (sockaddr->sa_family)], sizeof (loc->address));
   return 0;
 }
 

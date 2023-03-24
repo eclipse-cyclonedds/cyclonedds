@@ -48,7 +48,11 @@ static dds_sample_info_t info[MAX_SAMPLES];
 
 static dds_entity_t waitSet;
 
+#if !DDSRT_WITH_FREERTOS && !__ZEPHYR__
 static volatile sig_atomic_t done = false;
+#else
+static bool done = false;
+#endif
 
 /* Forward declarations */
 static HandleMap * HandleMap__alloc (void);
@@ -62,11 +66,13 @@ static void process_samples(dds_entity_t reader, unsigned long long maxCycles);
 static dds_entity_t prepare_dds(dds_entity_t *reader, const char *partitionName);
 static void finalize_dds(dds_entity_t participant);
 
+#if !DDSRT_WITH_FREERTOS && !__ZEPHYR__
 static void sigint (int sig)
 {
   (void) sig;
   done = true;
 }
+#endif
 
 int main (int argc, char **argv)
 {
@@ -91,7 +97,9 @@ int main (int argc, char **argv)
 
   /* Process samples until Ctrl-C is pressed or until maxCycles */
   /* has been reached (0 = infinite) */
+#if !DDSRT_WITH_FREERTOS && !__ZEPHYR__
   signal (SIGINT, sigint);
+#endif
   process_samples(reader, maxCycles);
 
   (void) dds_set_status_mask (reader, 0);
@@ -341,12 +349,13 @@ static dds_entity_t prepare_dds(dds_entity_t *reader, const char *partitionName)
     DDS_FATAL("dds_create_subscriber: %s\n", dds_strretcode(-subscriber));
   dds_delete_qos (subQos);
 
-  /* A Reader is created on the Subscriber & Topic with a modified Qos. */
+  /* A Listener is created which is triggered when data is available to read */
 
   rd_listener = dds_create_listener(NULL);
   dds_lset_data_available(rd_listener, data_available_handler);
 
-  /* A Read Condition is created which is triggered when data is available to read */
+  /* A Waitset is created which is triggered when data is available to read */
+
   waitSet = dds_create_waitset (participant);
   if (waitSet < 0)
     DDS_FATAL("dds_create_waitset: %s\n", dds_strretcode(-waitSet));
@@ -362,6 +371,8 @@ static dds_entity_t prepare_dds(dds_entity_t *reader, const char *partitionName)
   {
     samples[i] = &data[i];
   }
+
+  /* A Reader is created on the Subscriber & Topic and attached to Waitset */
 
   *reader = dds_create_reader (subscriber, topic, NULL, pollingDelay < 0 ? rd_listener : NULL);
   if (*reader < 0)

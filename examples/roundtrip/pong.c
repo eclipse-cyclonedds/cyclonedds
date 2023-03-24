@@ -22,7 +22,7 @@ static bool CtrlHandler (DWORD fdwCtrlType)
   dds_waitset_set_trigger (waitSet, true);
   return true; //Don't let other handlers handle this key
 }
-#elif !DDSRT_WITH_FREERTOS
+#elif !DDSRT_WITH_FREERTOS && !__ZEPHYR__
 static void CtrlHandler (int sig)
 {
   (void)sig;
@@ -91,7 +91,7 @@ int main (int argc, char *argv[])
   DDSRT_WARNING_GNUC_OFF(cast-function-type)
   SetConsoleCtrlHandler ((PHANDLER_ROUTINE)CtrlHandler, TRUE);
   DDSRT_WARNING_GNUC_ON(cast-function-type)
-#elif !DDSRT_WITH_FREERTOS
+#elif !DDSRT_WITH_FREERTOS && !__ZEPHYR__
   struct sigaction sat, oldAction;
   sat.sa_handler = CtrlHandler;
   sigemptyset (&sat.sa_mask);
@@ -134,7 +134,7 @@ int main (int argc, char *argv[])
 
 #ifdef _WIN32
   SetConsoleCtrlHandler (0, FALSE);
-#elif !DDSRT_WITH_FREERTOS
+#elif !DDSRT_WITH_FREERTOS && !__ZEPHYR__
   sigaction (SIGINT, &oldAction, 0);
 #endif
 

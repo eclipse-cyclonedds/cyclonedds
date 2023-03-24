@@ -29,11 +29,13 @@ static int parse_args(int argc, char **argv, uint32_t *payloadSize, int *burstIn
 static dds_entity_t prepare_dds(dds_entity_t *writer, const char *partitionName);
 static void finalize_dds(dds_entity_t participant, dds_entity_t writer, ThroughputModule_DataType sample);
 
+#if !DDSRT_WITH_FREERTOS && !__ZEPHYR__
 static void sigint (int sig)
 {
   (void)sig;
   done = true;
 }
+#endif
 
 int main (int argc, char **argv)
 {
@@ -73,7 +75,9 @@ int main (int argc, char **argv)
   }
 
   /* Register handler for Ctrl-C */
+#if !DDSRT_WITH_FREERTOS && !__ZEPHYR__
   signal (SIGINT, sigint);
+#endif
 
   /* Register the sample instance and write samples repeatedly or until time out */
   start_writing(writer, &sample, burstInterval, burstSize, timeOut);

@@ -29,7 +29,7 @@ ddsrt_getpid(void)
   return getpid();
 }
 
-#if (defined(__APPLE__) || defined(__FreeBSD__) || defined(_GNU_SOURCE))
+#if (defined(__APPLE__) || defined(__FreeBSD__) || defined(_GNU_SOURCE) || defined(__ZEPHYR__))
   // _basename not needed
 #else
 static const char *_basename(char const *path)
@@ -46,6 +46,8 @@ ddsrt_getprocessname(void)
   const char * appname = getprogname();
 #elif defined(_GNU_SOURCE)
   const char * appname = program_invocation_name;
+#elif defined(__ZEPHYR__)
+  const char * appname = NULL; /* CONFIG_KERNEL_BIN_NAME? */
 #else
   const char * appname = NULL;
 

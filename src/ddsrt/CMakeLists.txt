@@ -148,9 +148,15 @@ else()
     list(APPEND headers
       "${source_dir}/include/dds/ddsrt/sockets/posix.h")
     list(APPEND sources
-      "${source_dir}/src/ifaddrs/posix/ifaddrs.c"
       "${source_dir}/src/sockets/posix/socket.c"
       "${source_dir}/src/sockets/posix/gethostname.c")
+    if(WITH_ZEPHYR)
+      list(APPEND sources
+        "${source_dir}/src/ifaddrs/zephyr/ifaddrs.c")
+    else()
+      list(APPEND sources
+        "${source_dir}/src/ifaddrs/posix/ifaddrs.c")
+    endif()
   endif()
 endif()
 
@@ -194,6 +200,23 @@ if(WITH_FREERTOS)
     list(APPEND sources
       "${source_dir}/src/rusage/freertos/rusage.c")
   endif()
+elseif(WITH_ZEPHYR)
+  set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
+  find_package(Threads REQUIRED)
+  target_link_libraries(ddsrt INTERFACE Threads::Threads)
+
+  list(APPEND headers
+    "${source_dir}/include/dds/ddsrt/sync/posix.h"
+    "${source_dir}/include/dds/ddsrt/threads/posix.h"
+    "${source_dir}/include/dds/ddsrt/types/posix.h")
+  list(APPEND sources
+    "${source_dir}/src/environ/zephyr/environ.c"
+    "${source_dir}/src/heap/posix/heap.c"
+    "${source_dir}/src/process/posix/process.c"
+    "${source_dir}/src/random/posix/random.c"
+    "${source_dir}/src/sync/posix/sync.c"
+    "${source_dir}/src/threads/posix/threads.c"
+    "${source_dir}/src/time/posix/time.c")
 else()
   set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
   find_package(Threads REQUIRED)

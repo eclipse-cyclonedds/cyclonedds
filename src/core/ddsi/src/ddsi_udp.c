@@ -300,7 +300,7 @@ static dds_return_t set_socket_buffer (struct ddsi_domaingv const * const gv, dd
   dds_return_t rc;
 
   rc = ddsrt_getsockopt (sock, SOL_SOCKET, socket_option, &actsize, &optlen);
-  if (rc == DDS_RETCODE_BAD_PARAMETER)
+  if (rc == DDS_RETCODE_BAD_PARAMETER || rc == DDS_RETCODE_UNSUPPORTED)
   {
     /* not all stacks support getting/setting RCVBUF */
     GVLOG (DDS_LC_CONFIG, "cannot retrieve socket %s buffer size\n", name);

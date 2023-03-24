@@ -35,6 +35,10 @@ typedef uint32_t ddsrt_pid_t;
 typedef RTP_ID ddsrt_pid_t; /* typedef struct wind_rtp *RTP_ID */
 #define PRIdPID PRIuPTR
 #define DDSRT_HAVE_MULTI_PROCESS 0
+#elif defined(__ZEPHYR__)
+typedef int ddsrt_pid_t;
+#define PRIdPID "d"
+#define DDSRT_HAVE_MULTI_PROCESS 0
 #else
 typedef pid_t ddsrt_pid_t;
 #define PRIdPID "d"

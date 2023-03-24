@@ -44,6 +44,25 @@
    it must be -1 */
 DDSRT_STATIC_ASSERT(DDS_LENGTH_UNLIMITED == -1);
 
+/* It turns out there are some platforms where the alignment of a
+   field m in the following:
+
+     struct {
+       ...;
+       T m;
+     }
+
+   may be different from _Alignof(T) ...  So far I have only seen
+   this on some embedded platform, and I furthermore suppose one
+   should expect this to happen if one were to use "#pragma pack"
+   or any of the analogous things, but that is not something we
+   have in our code.
+
+   Still, it means some of the parameter list code fails in nasty
+   ways.  From the current set of observations, the problem
+   disappears if we use this alternative form. */
+#define plist_alignof(ty_) (offsetof(struct {char c_; ty_ t;}, t))
+
 /* These are internal to the parameter list processing. We never
    generate them, and we never want to do see them anywhere outside
    the actual parsing of an incoming parameter list. (There are
@@ -323,7 +342,7 @@ static dds_return_t deser_reliability (void * __restrict dst, struct flagset *fl
   DDSRT_STATIC_ASSERT (DDS_EXTERNAL_RELIABILITY_BEST_EFFORT == 1 && DDS_EXTERNAL_RELIABILITY_RELIABLE == 2 &&
                        DDS_RELIABILITY_BEST_EFFORT == 0 && DDS_RELIABILITY_RELIABLE == 1);
   size_t srcoff = 0, dstoff = 0;
-  dds_reliability_qospolicy_t * const x = deser_generic_dst (dst, &dstoff, dds_alignof (dds_reliability_qospolicy_t));
+  dds_reliability_qospolicy_t * const x = deser_generic_dst (dst, &dstoff, plist_alignof (dds_reliability_qospolicy_t));
   uint32_t kind, mbtsec, mbtfrac;
   ddsi_duration_t mbt;
   (void) gv;
@@ -346,7 +365,7 @@ static dds_return_t ser_reliability (struct ddsi_xmsg *xmsg, ddsi_parameterid_t 
   (void) context_kind;
   DDSRT_STATIC_ASSERT (DDS_EXTERNAL_RELIABILITY_BEST_EFFORT == 1 && DDS_EXTERNAL_RELIABILITY_RELIABLE == 2 &&
                        DDS_RELIABILITY_BEST_EFFORT == 0 && DDS_RELIABILITY_RELIABLE == 1);
-  dds_reliability_qospolicy_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (dds_reliability_qospolicy_t));
+  dds_reliability_qospolicy_t const * const x = deser_generic_src (src, &srcoff, plist_alignof (dds_reliability_qospolicy_t));
   ddsi_duration_t mbt = ddsi_duration_from_dds (x->max_blocking_time);
   uint32_t * const p = ddsi_xmsg_addpar_bo (xmsg, pid, 3 * sizeof (uint32_t), bo);
   p[0] = ddsrt_toBO4u(bo, 1 + (uint32_t) x->kind);
@@ -357,7 +376,7 @@ static dds_return_t ser_reliability (struct ddsi_xmsg *xmsg, ddsi_parameterid_t 
 
 static dds_return_t valid_reliability (const void *src, size_t srcoff)
 {
-  dds_reliability_qospolicy_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (dds_reliability_qospolicy_t));
+  dds_reliability_qospolicy_t const * const x = deser_generic_src (src, &srcoff, plist_alignof (dds_reliability_qospolicy_t));
   if ((x->kind == DDS_RELIABILITY_BEST_EFFORT || x->kind == DDS_RELIABILITY_RELIABLE) && x->max_blocking_time >= 0)
     return 0;
   else
@@ -366,21 +385,21 @@ static dds_return_t valid_reliability (const void *src, size_t srcoff)
 
 static bool equal_reliability (const void *srcx, const void *srcy, size_t srcoff)
 {
-  dds_reliability_qospolicy_t const * const x = deser_generic_src (srcx, &srcoff, dds_alignof (dds_reliability_qospolicy_t));
-  dds_reliability_qospolicy_t const * const y = deser_generic_src (srcy, &srcoff, dds_alignof (dds_reliability_qospolicy_t));
+  dds_reliability_qospolicy_t const * const x = deser_generic_src (srcx, &srcoff, plist_alignof (dds_reliability_qospolicy_t));
+  dds_reliability_qospolicy_t const * const y = deser_generic_src (srcy, &srcoff, plist_alignof (dds_reliability_qospolicy_t));
   return x->kind == y->kind && x->max_blocking_time == y->max_blocking_time;
 }
 
 static bool print_reliability (char * __restrict *buf, size_t * __restrict bufsize, const void *src, size_t srcoff)
 {
-  dds_reliability_qospolicy_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (dds_reliability_qospolicy_t));
+  dds_reliability_qospolicy_t const * const x = deser_generic_src (src, &srcoff, plist_alignof (dds_reliability_qospolicy_t));
   return prtf (buf, bufsize, "%d:%"PRId64, (int) x->kind, x->max_blocking_time);
 }
 
 static dds_return_t deser_statusinfo (void * __restrict dst, struct flagset *flagset, uint64_t flag, const struct dd * __restrict dd, struct ddsi_domaingv const * const gv)
 {
   size_t srcoff = 0, dstoff = 0;
-  uint32_t * const x = deser_generic_dst (dst, &dstoff, dds_alignof (dds_reliability_qospolicy_t));
+  uint32_t * const x = deser_generic_dst (dst, &dstoff, plist_alignof (dds_reliability_qospolicy_t));
   size_t srcoff1 = (srcoff + 3) & ~(size_t)3;
   (void) gv;
   if (srcoff1 + 4 > dd->bufsz)
@@ -396,7 +415,7 @@ static dds_return_t deser_statusinfo (void * __restrict dst, struct flagset *fla
 static dds_return_t ser_statusinfo (struct ddsi_xmsg *xmsg, ddsi_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo, enum ddsi_plist_context_kind context_kind)
 {
   (void) context_kind;
-  uint32_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (uint32_t));
+  uint32_t const * const x = deser_generic_src (src, &srcoff, plist_alignof (uint32_t));
   uint32_t * const p = ddsi_xmsg_addpar_bo (xmsg, pid, sizeof (uint32_t), bo);
   *p = ddsrt_toBE4u (*x);
   return 0;
@@ -404,14 +423,14 @@ static dds_return_t ser_statusinfo (struct ddsi_xmsg *xmsg, ddsi_parameterid_t p
 
 static bool print_statusinfo (char * __restrict *buf, size_t * __restrict bufsize, const void *src, size_t srcoff)
 {
-  uint32_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (uint32_t));
+  uint32_t const * const x = deser_generic_src (src, &srcoff, plist_alignof (uint32_t));
   return prtf (buf, bufsize, "%"PRIx32, *x);
 }
 
 static dds_return_t deser_locator (void * __restrict dst, struct flagset *flagset, uint64_t flag, const struct dd * __restrict dd, struct ddsi_domaingv const * const gv)
 {
   size_t srcoff = 0, dstoff = 0;
-  ddsi_locators_t * const x = deser_generic_dst (dst, &dstoff, dds_alignof (ddsi_locators_t));
+  ddsi_locators_t * const x = deser_generic_dst (dst, &dstoff, plist_alignof (ddsi_locators_t));
   /* FIXME: don't want to modify do_locator just yet, and don't want to require that a
      locator is the only thing in the descriptor string (even though it actually always is),
      so do alignment explicitly, fake a temporary input buffer and advance the source buffer */
@@ -437,7 +456,7 @@ static dds_return_t deser_locator (void * __restrict dst, struct flagset *flagse
 static dds_return_t ser_locator (struct ddsi_xmsg *xmsg, ddsi_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo, enum ddsi_plist_context_kind context_kind)
 {
   (void) context_kind;
-  ddsi_locators_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (ddsi_locators_t));
+  ddsi_locators_t const * const x = deser_generic_src (src, &srcoff, plist_alignof (ddsi_locators_t));
   for (const struct ddsi_locators_one *l = x->first; l != NULL; l = l->next)
   {
     char * const p = ddsi_xmsg_addpar_bo (xmsg, pid, 24, bo);
@@ -452,7 +471,7 @@ static dds_return_t ser_locator (struct ddsi_xmsg *xmsg, ddsi_parameterid_t pid,
 
 static dds_return_t unalias_locator (void * __restrict dst, size_t * __restrict dstoff, bool gen_seq_aliased)
 {
-  ddsi_locators_t * const x = deser_generic_dst (dst, dstoff, dds_alignof (ddsi_locators_t));
+  ddsi_locators_t * const x = deser_generic_dst (dst, dstoff, plist_alignof (ddsi_locators_t));
   ddsi_locators_t newlocs = { .n = x->n, .first = NULL, .last = NULL };
   struct ddsi_locators_one **pnext = &newlocs.first;
   (void) gen_seq_aliased;
@@ -471,7 +490,7 @@ static dds_return_t unalias_locator (void * __restrict dst, size_t * __restrict 
 
 static dds_return_t fini_locator (void * __restrict dst, size_t * __restrict dstoff, struct flagset *flagset, uint64_t flag)
 {
-  ddsi_locators_t * const x = deser_generic_dst (dst, dstoff, dds_alignof (ddsi_locators_t));
+  ddsi_locators_t * const x = deser_generic_dst (dst, dstoff, plist_alignof (ddsi_locators_t));
   if (!(*flagset->aliased & flag))
   {
     while (x->first)
@@ -508,7 +527,7 @@ static const enum ddsi_pserop* pserop_advance (const enum ddsi_pserop * __restri
 
 static bool print_locator (char * __restrict *buf, size_t * __restrict bufsize, const void *src, size_t srcoff)
 {
-  ddsi_locators_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (ddsi_locators_t));
+  ddsi_locators_t const * const x = deser_generic_src (src, &srcoff, plist_alignof (ddsi_locators_t));
   const char *sep = "";
   prtf (buf, bufsize, "{");
   for (const struct ddsi_locators_one *l = x->first; l != NULL; l = l->next)
@@ -525,7 +544,7 @@ static dds_return_t deser_type_consistency (void * __restrict dst, struct flagse
 {
   DDSRT_STATIC_ASSERT (DDS_TYPE_CONSISTENCY_DISALLOW_TYPE_COERCION == 0 && DDS_TYPE_CONSISTENCY_ALLOW_TYPE_COERCION == 1);
   size_t srcoff = 0, dstoff = 0;
-  dds_type_consistency_enforcement_qospolicy_t * const x = deser_generic_dst (dst, &dstoff, dds_alignof (dds_type_consistency_enforcement_qospolicy_t));
+  dds_type_consistency_enforcement_qospolicy_t * const x = deser_generic_dst (dst, &dstoff, plist_alignof (dds_type_consistency_enforcement_qospolicy_t));
   const uint32_t option_count = 5;
   uint16_t kind;
   (void) gv;
@@ -572,7 +591,7 @@ static dds_return_t deser_type_consistency (void * __restrict dst, struct flagse
 static dds_return_t ser_type_consistency (struct ddsi_xmsg *xmsg, ddsi_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo, enum ddsi_plist_context_kind context_kind)
 {
   (void) context_kind;
-  dds_type_consistency_enforcement_qospolicy_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (dds_type_consistency_enforcement_qospolicy_t));
+  dds_type_consistency_enforcement_qospolicy_t const * const x = deser_generic_src (src, &srcoff, plist_alignof (dds_type_consistency_enforcement_qospolicy_t));
   char * const p = ddsi_xmsg_addpar_bo (xmsg, pid, 8, bo);
   const uint16_t kind = ddsrt_toBO2u (bo, (uint16_t) x->kind);
   memcpy (p, &kind, 2);
@@ -588,7 +607,7 @@ static dds_return_t ser_type_consistency (struct ddsi_xmsg *xmsg, ddsi_parameter
 static dds_return_t valid_type_consistency (const void *src, size_t srcoff)
 {
   DDSRT_STATIC_ASSERT (DDS_TYPE_CONSISTENCY_DISALLOW_TYPE_COERCION == 0 && DDS_TYPE_CONSISTENCY_ALLOW_TYPE_COERCION == 1);
-  dds_type_consistency_enforcement_qospolicy_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (dds_type_consistency_enforcement_qospolicy_t));
+  dds_type_consistency_enforcement_qospolicy_t const * const x = deser_generic_src (src, &srcoff, plist_alignof (dds_type_consistency_enforcement_qospolicy_t));
   if (x->kind > DDS_TYPE_CONSISTENCY_ALLOW_TYPE_COERCION)
     return DDS_RETCODE_BAD_PARAMETER;
   return 0;
@@ -596,8 +615,8 @@ static dds_return_t valid_type_consistency (const void *src, size_t srcoff)
 
 static bool equal_type_consistency (const void *srcx, const void *srcy, size_t srcoff)
 {
-  dds_type_consistency_enforcement_qospolicy_t const * const x = deser_generic_src (srcx, &srcoff, dds_alignof (dds_type_consistency_enforcement_qospolicy_t));
-  dds_type_consistency_enforcement_qospolicy_t const * const y = deser_generic_src (srcy, &srcoff, dds_alignof (dds_type_consistency_enforcement_qospolicy_t));
+  dds_type_consistency_enforcement_qospolicy_t const * const x = deser_generic_src (srcx, &srcoff, plist_alignof (dds_type_consistency_enforcement_qospolicy_t));
+  dds_type_consistency_enforcement_qospolicy_t const * const y = deser_generic_src (srcy, &srcoff, plist_alignof (dds_type_consistency_enforcement_qospolicy_t));
   return x->kind == y->kind
     && x->ignore_sequence_bounds == y->ignore_sequence_bounds
     && x->ignore_string_bounds== y->ignore_string_bounds
@@ -608,7 +627,7 @@ static bool equal_type_consistency (const void *srcx, const void *srcy, size_t s
 
 static bool print_type_consistency (char * __restrict *buf, size_t * __restrict bufsize, const void *src, size_t srcoff)
 {
-  dds_type_consistency_enforcement_qospolicy_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (dds_type_consistency_enforcement_qospolicy_t));
+  dds_type_consistency_enforcement_qospolicy_t const * const x = deser_generic_src (src, &srcoff, plist_alignof (dds_type_consistency_enforcement_qospolicy_t));
   return prtf (buf, bufsize, "%d:%d%d%d%d%d", (int) x->kind, x->ignore_sequence_bounds, x->ignore_string_bounds, x->ignore_member_names, x->prevent_type_widening, x->force_type_validation);
 }
 
@@ -630,7 +649,7 @@ static dds_return_t deser_liveliness (void * __restrict dst, struct flagset *fla
 {
   (void) flag; (void) gv;
   size_t srcoff = 0, dstoff = 0;
-  dds_liveliness_qospolicy_t * const x = deser_generic_dst (dst, &dstoff, dds_alignof (dds_liveliness_qospolicy_t));
+  dds_liveliness_qospolicy_t * const x = deser_generic_dst (dst, &dstoff, plist_alignof (dds_liveliness_qospolicy_t));
   switch (dd->context_kind)
   {
     case DDSI_PLIST_CONTEXT_PARTICIPANT: {
@@ -663,7 +682,7 @@ static dds_return_t deser_liveliness (void * __restrict dst, struct flagset *fla
 static dds_return_t ser_liveliness (struct ddsi_xmsg *xmsg, ddsi_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo, enum ddsi_plist_context_kind context_kind)
 {
   (void) pid;
-  dds_liveliness_qospolicy_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (dds_liveliness_qospolicy_t));
+  dds_liveliness_qospolicy_t const * const x = deser_generic_src (src, &srcoff, plist_alignof (dds_liveliness_qospolicy_t));
   switch (context_kind)
   {
     case DDSI_PLIST_CONTEXT_PARTICIPANT: {
@@ -711,7 +730,7 @@ static const enum ddsi_pserop desc_data_representation[] =  { XQ, Xs, XSTOP, XST
 static dds_return_t deser_data_representation (void * __restrict dst, struct flagset *flagset, uint64_t flag, const struct dd * __restrict dd, struct ddsi_domaingv const * const gv)
 {
   size_t srcoff = 0, dstoff = 0;
-  dds_data_representation_qospolicy_t * const x = deser_generic_dst (dst, &dstoff, dds_alignof (dds_data_representation_qospolicy_t));
+  dds_data_representation_qospolicy_t * const x = deser_generic_dst (dst, &dstoff, plist_alignof (dds_data_representation_qospolicy_t));
   uint32_t cnt;
   int16_t v;
   (void) gv;
@@ -765,7 +784,7 @@ static dds_return_t fini_data_representation (void * __restrict dst, size_t * __
 
 static bool print_data_representation (char * __restrict *buf, size_t * __restrict bufsize, const void *src, size_t srcoff)
 {
-  dds_data_representation_qospolicy_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (dds_data_representation_qospolicy_t));
+  dds_data_representation_qospolicy_t const * const x = deser_generic_src (src, &srcoff, plist_alignof (dds_data_representation_qospolicy_t));
   prtf (buf, bufsize, "%"PRIu32"(", x->value.n);
   const char *sep = "";
   for (uint32_t n = 0; n < x->value.n; n++)
@@ -797,7 +816,7 @@ static dds_return_t deser_type_information (void * __restrict dst, struct flagse
   }
 
   dds_istream_t is = { .m_buffer = buf, .m_index = 0, .m_size = (uint32_t) dd->bufsz, .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
-  ddsi_typeinfo_t const ** x = deser_generic_dst (dst, &dstoff, dds_alignof (ddsi_typeinfo_t *));
+  ddsi_typeinfo_t const ** x = deser_generic_dst (dst, &dstoff, plist_alignof (ddsi_typeinfo_t *));
   *x = ddsrt_calloc (1, DDS_XTypes_TypeInformation_desc.m_size);
   dds_stream_read (&is, (void *) *x, &dds_cdrstream_default_allocator, DDS_XTypes_TypeInformation_desc.m_ops);
   *flagset->present |= flag;
@@ -810,7 +829,7 @@ err_normalize:
 static dds_return_t ser_type_information (struct ddsi_xmsg *xmsg, ddsi_parameterid_t pid, const void *src, size_t srcoff, enum ddsrt_byte_order_selector bo, enum ddsi_plist_context_kind context_kind)
 {
   (void) context_kind;
-  ddsi_typeinfo_t const * const * x = deser_generic_src (src, &srcoff, dds_alignof (ddsi_typeinfo_t *));
+  ddsi_typeinfo_t const * const * x = deser_generic_src (src, &srcoff, plist_alignof (ddsi_typeinfo_t *));
 
   dds_ostream_t os = { .m_buffer = NULL, .m_index = 0, .m_size = 0, .m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
   (void) dds_stream_write_with_byte_order (&os, &dds_cdrstream_default_allocator, (const void *) *x, DDS_XTypes_TypeInformation_desc.m_ops, bo);
@@ -822,20 +841,20 @@ static dds_return_t ser_type_information (struct ddsi_xmsg *xmsg, ddsi_parameter
 
 static dds_return_t valid_type_information (const void *src, size_t srcoff)
 {
-  ddsi_typeinfo_t const * const * x = deser_generic_src (src, &srcoff, dds_alignof (ddsi_typeinfo_t *));
+  ddsi_typeinfo_t const * const * x = deser_generic_src (src, &srcoff, plist_alignof (ddsi_typeinfo_t *));
   return (*x != NULL && ddsi_typeinfo_valid (*x)) ? DDS_RETCODE_OK : DDS_RETCODE_BAD_PARAMETER;
 }
 
 static bool equal_type_information (const void *srcx, const void *srcy, size_t srcoff)
 {
-  ddsi_typeinfo_t const * const * x = deser_generic_src (srcx, &srcoff, dds_alignof (ddsi_typeinfo_t *));
-  ddsi_typeinfo_t const * const * y = deser_generic_src (srcy, &srcoff, dds_alignof (ddsi_typeinfo_t *));
+  ddsi_typeinfo_t const * const * x = deser_generic_src (srcx, &srcoff, plist_alignof (ddsi_typeinfo_t *));
+  ddsi_typeinfo_t const * const * y = deser_generic_src (srcy, &srcoff, plist_alignof (ddsi_typeinfo_t *));
   return ddsi_typeinfo_equal (*x, *y, DDSI_TYPE_INCLUDE_DEPS);
 }
 
 static dds_return_t unalias_type_information (void * __restrict dst, size_t * __restrict dstoff, bool gen_seq_aliased)
 {
-  ddsi_typeinfo_t const * * x = deser_generic_dst (dst, dstoff, dds_alignof (ddsi_typeinfo_t *));
+  ddsi_typeinfo_t const * * x = deser_generic_dst (dst, dstoff, plist_alignof (ddsi_typeinfo_t *));
   ddsi_typeinfo_t * new_type_info = ddsi_typeinfo_dup (*x);
   (void) gen_seq_aliased;
   *x = new_type_info;
@@ -845,7 +864,7 @@ static dds_return_t unalias_type_information (void * __restrict dst, size_t * __
 
 static dds_return_t fini_type_information (void * __restrict dst, size_t * __restrict dstoff, struct flagset *flagset, uint64_t flag)
 {
-  ddsi_typeinfo_t const * const * x = deser_generic_src (dst, dstoff, dds_alignof (ddsi_typeinfo_t *));
+  ddsi_typeinfo_t const * const * x = deser_generic_src (dst, dstoff, plist_alignof (ddsi_typeinfo_t *));
   if ((*flagset->present & flag) && !(*flagset->aliased & flag))
   {
     ddsi_typeinfo_fini ((ddsi_typeinfo_t *) *x);
@@ -856,7 +875,7 @@ static dds_return_t fini_type_information (void * __restrict dst, size_t * __res
 
 static bool print_type_information (char * __restrict *buf, size_t * __restrict bufsize, const void *src, size_t srcoff)
 {
-  ddsi_typeinfo_t const * const * x = deser_generic_src (src, &srcoff, dds_alignof (ddsi_typeinfo_t *));
+  ddsi_typeinfo_t const * const * x = deser_generic_src (src, &srcoff, plist_alignof (ddsi_typeinfo_t *));
   struct ddsi_typeid_str tpstrm, tpstrc;
   return prtf (buf, bufsize, "%s/%s",
     ddsi_make_typeid_str (&tpstrm, ddsi_typeinfo_minimal_typeid (*x)),
@@ -865,12 +884,21 @@ static bool print_type_information (char * __restrict *buf, size_t * __restrict 
 
 #endif /* DDS_HAS_TYPE_DISCOVERY */
 
+// The XE1 .. XE3 codes are the only ones dealing with an enumerated type and are
+// assumed to map to the same type, which would traditionally be an "int", but in
+// gcc with the -fshort-enums option enabled, it is a char.  That happens quite a
+// bit on embedded platforms, judging by a few tickets.
+//
+// This enum definition is used only in the serialisation/deserialisation code to
+// stand in for the actual type.
+enum xe3_prototype { XE3_PROTO_0, XE3_PROTO_1, XE3_PROTO_2, XE3_PROTO_3 };
+
 static size_t ser_generic_srcsize (const enum ddsi_pserop * __restrict desc)
 {
   size_t srcoff = 0, srcalign = 0;
 #define SIMPLE(basecase_, type_) do {                          \
     const uint32_t cnt = 1 + (uint32_t) (*desc - (basecase_)); \
-    const size_t align = dds_alignof (type_);                      \
+    const size_t align = plist_alignof (type_);                      \
     srcalign = (align > srcalign) ? align : srcalign;          \
     srcoff = (srcoff + align - 1) & ~(align - 1);              \
     srcoff += cnt * sizeof (type_);                            \
@@ -882,7 +910,7 @@ static size_t ser_generic_srcsize (const enum ddsi_pserop * __restrict desc)
       case XSTOP: return (srcoff + srcalign - 1) & ~(srcalign - 1);
       case XO: SIMPLE (XO, ddsi_octetseq_t); break;
       case XS: SIMPLE (XS, const char *); break;
-      case XE1: case XE2: case XE3: SIMPLE (*desc, uint32_t); break;
+      case XE1: case XE2: case XE3: SIMPLE (*desc, enum xe3_prototype); break;
       case Xs: SIMPLE (Xs, int16_t); break;
       case Xi: case Xix2: case Xix3: case Xix4: SIMPLE (Xi, int32_t); break;
       case Xu: case Xux2: case Xux3: case Xux4: case Xux5: SIMPLE (Xu, uint32_t); break;
@@ -911,7 +939,7 @@ static bool fini_generic_embeddable (void * __restrict dst, size_t * __restrict 
 {
   bool freed = false;
 #define COMPLEX(basecase_, type_, cleanup_unaliased_, cleanup_always_) do { \
-    type_ *x = deser_generic_dst (dst, dstoff, dds_alignof (type_));            \
+    type_ *x = deser_generic_dst (dst, dstoff, plist_alignof (type_));      \
     const uint32_t cnt = 1 + (uint32_t) (*desc - (basecase_));              \
     for (uint32_t xi = 0; xi < cnt; xi++, x++) {                            \
       if (!aliased) do { cleanup_unaliased_; } while (0);                   \
@@ -927,7 +955,7 @@ static bool fini_generic_embeddable (void * __restrict dst, size_t * __restrict 
       case XSTOP: return freed;
       case XO: COMPLEX (XO, ddsi_octetseq_t, { ddsrt_free (x->value); freed = true; }, (void) 0); break;
       case XS: COMPLEX (XS, char *, { ddsrt_free (*x); freed = true; }, (void) 0); break;
-      case XE1: case XE2: case XE3: COMPLEX (*desc, uint32_t, (void) 0, (void) 0); break;
+      case XE1: case XE2: case XE3: COMPLEX (*desc, enum xe3_prototype, (void) 0, (void) 0); break;
       case Xs: SIMPLE (Xs, int16_t); break;
       case Xi: case Xix2: case Xix3: case Xix4: SIMPLE (Xi, int32_t); break;
       case Xu: case Xux2: case Xux3: case Xux4: case Xux5: SIMPLE (Xu, uint32_t); break;
@@ -941,7 +969,7 @@ static bool fini_generic_embeddable (void * __restrict dst, size_t * __restrict 
       case XbPROP: SIMPLE (XbPROP, unsigned char); break;
       case XQ:
       {
-        ddsi_octetseq_t *x = deser_generic_dst (dst, dstoff, dds_alignof (ddsi_octetseq_t));
+        ddsi_octetseq_t *x = deser_generic_dst (dst, dstoff, plist_alignof (ddsi_octetseq_t));
         const size_t elem_size = ser_generic_srcsize (desc + 1);
         bool elem_freed = true;
         for (uint32_t i = 0; (i < x->length) && elem_freed; i++)
@@ -967,19 +995,19 @@ static size_t pserop_memalign (enum ddsi_pserop op)
 {
   switch (op)
   {
-    case XO: case XQ: return dds_alignof (ddsi_octetseq_t);
-    case XS: return dds_alignof (char *);
-    case XG: return dds_alignof (ddsi_guid_t);
-    case XK: return dds_alignof (ddsi_keyhash_t);
+    case XO: case XQ: return plist_alignof (ddsi_octetseq_t);
+    case XS: return plist_alignof (char *);
+    case XG: return plist_alignof (ddsi_guid_t);
+    case XK: return plist_alignof (ddsi_keyhash_t);
     case Xb: case Xbx2: case Xbx3: case Xbx4: case Xbx5: return 1;
     case Xo: case Xox2: return 1;
     case XbCOND: case XbPROP: return 1;
-    case XE1: case XE2: case XE3: return dds_alignof (uint32_t);
-    case Xs: return dds_alignof (int16_t);
-    case Xi: case Xix2: case Xix3: case Xix4: return dds_alignof (int32_t);
-    case Xu: case Xux2: case Xux3: case Xux4: case Xux5: return dds_alignof (uint32_t);
-    case Xl: return dds_alignof (int64_t);
-    case XD: case XDx2: return dds_alignof (dds_duration_t);
+    case XE1: case XE2: case XE3: return plist_alignof (enum xe3_prototype);
+    case Xs: return plist_alignof (int16_t);
+    case Xi: case Xix2: case Xix3: case Xix4: return plist_alignof (int32_t);
+    case Xu: case Xux2: case Xux3: case Xux4: case Xux5: return plist_alignof (uint32_t);
+    case Xl: return plist_alignof (int64_t);
+    case XD: case XDx2: return plist_alignof (dds_duration_t);
     case XSTOP: case Xopt: assert (0);
   }
   return 0;
@@ -1001,7 +1029,7 @@ static dds_return_t deser_generic_r (void * __restrict dst, size_t * __restrict 
       case XSTOP:
         goto success;
       case XO: { /* octet sequence */
-        ddsi_octetseq_t * const x = deser_generic_dst (dst, dstoff, dds_alignof (ddsi_octetseq_t));
+        ddsi_octetseq_t * const x = deser_generic_dst (dst, dstoff, plist_alignof (ddsi_octetseq_t));
         if (deser_uint32 (&x->length, dd, srcoff) < 0 || dd->bufsz - *srcoff < x->length)
           goto fail;
         x->value = x->length ? (unsigned char *) (dd->buf + *srcoff) : NULL;
@@ -1011,7 +1039,7 @@ static dds_return_t deser_generic_r (void * __restrict dst, size_t * __restrict 
         break;
       }
       case XS: { /* string: alias as-if octet sequence, do additional checks and store as string */
-        char ** const x = deser_generic_dst (dst, dstoff, dds_alignof (char *));
+        char ** const x = deser_generic_dst (dst, dstoff, plist_alignof (char *));
         ddsi_octetseq_t tmp;
         size_t tmpoff = 0;
         if (deser_generic_r (&tmp, &tmpoff, flagset, flag, dd, srcoff, (enum ddsi_pserop []) { XO, XSTOP }) < 0)
@@ -1023,24 +1051,24 @@ static dds_return_t deser_generic_r (void * __restrict dst, size_t * __restrict 
         break;
       }
       case XE1: case XE2: case XE3: { /* enum with max allowed value */
-        uint32_t * const x = deser_generic_dst (dst, dstoff, dds_alignof (int));
+        enum xe3_prototype * const x = deser_generic_dst (dst, dstoff, plist_alignof (enum xe3_prototype));
         const uint32_t maxval = 1 + (uint32_t) (*desc - XE1);
         uint32_t tmp;
         if (deser_uint32 (&tmp, dd, srcoff) < 0 || tmp > maxval)
           goto fail;
-        *x = (uint32_t) tmp;
+        *x = (enum xe3_prototype) tmp;
         *dstoff += sizeof (*x);
         break;
       }
       case Xs: { /* int16_t */
-        uint16_t * const x = deser_generic_dst (dst, dstoff, dds_alignof (uint16_t));
+        uint16_t * const x = deser_generic_dst (dst, dstoff, plist_alignof (uint16_t));
         if (deser_uint16(x, dd, srcoff) < 0)
           goto fail;
         *dstoff += sizeof (*x);
         break;
       }
       case Xi: case Xix2: case Xix3: case Xix4: { /* int32_t(s) */
-        uint32_t * const x = deser_generic_dst (dst, dstoff, dds_alignof (uint32_t));
+        uint32_t * const x = deser_generic_dst (dst, dstoff, plist_alignof (uint32_t));
         const uint32_t cnt = 1 + (uint32_t) (*desc - Xi);
         for (uint32_t i = 0; i < cnt; i++)
           if (deser_uint32 (&x[i], dd, srcoff) < 0)
@@ -1049,7 +1077,7 @@ static dds_return_t deser_generic_r (void * __restrict dst, size_t * __restrict 
         break;
       }
       case Xu: case Xux2: case Xux3: case Xux4: case Xux5: { /* uint32_t(s): treated the same */
-        uint32_t * const x = deser_generic_dst (dst, dstoff, dds_alignof (uint32_t));
+        uint32_t * const x = deser_generic_dst (dst, dstoff, plist_alignof (uint32_t));
         const uint32_t cnt = 1 + (uint32_t) (*desc - Xu);
         for (uint32_t i = 0; i < cnt; i++)
           if (deser_uint32 (&x[i], dd, srcoff) < 0)
@@ -1058,14 +1086,14 @@ static dds_return_t deser_generic_r (void * __restrict dst, size_t * __restrict 
         break;
       }
       case Xl: { /* int64_t */
-        int64_t * const x = deser_generic_dst (dst, dstoff, dds_alignof (int64_t));
+        int64_t * const x = deser_generic_dst (dst, dstoff, plist_alignof (int64_t));
         if (deser_int64(x, dd, srcoff) < 0)
           goto fail;
         *dstoff += sizeof (*x);
         break;
       }
       case XD: case XDx2: { /* duration(s): int64_t <=> int32_t.uint32_t (seconds.fraction) */
-        dds_duration_t * const x = deser_generic_dst (dst, dstoff, dds_alignof (dds_duration_t));
+        dds_duration_t * const x = deser_generic_dst (dst, dstoff, plist_alignof (dds_duration_t));
         const uint32_t cnt = 1 + (uint32_t) (*desc - XD);
         for (uint32_t i = 0; i < cnt; i++)
         {
@@ -1080,7 +1108,7 @@ static dds_return_t deser_generic_r (void * __restrict dst, size_t * __restrict 
         break;
       }
       case Xo: case Xox2: { /* octet(s) */
-        unsigned char * const x = deser_generic_dst (dst, dstoff, dds_alignof (unsigned char));
+        unsigned char * const x = deser_generic_dst (dst, dstoff, plist_alignof (unsigned char));
         const uint32_t cnt = 1 + (uint32_t) (*desc - Xo);
         if (dd->bufsz - *srcoff < cnt)
           goto fail;
@@ -1090,7 +1118,7 @@ static dds_return_t deser_generic_r (void * __restrict dst, size_t * __restrict 
         break;
       }
       case Xb: case Xbx2: case Xbx3: case Xbx4: case Xbx5: case XbCOND: { /* boolean(s) */
-        unsigned char * const x = deser_generic_dst (dst, dstoff, dds_alignof (unsigned char));
+        unsigned char * const x = deser_generic_dst (dst, dstoff, plist_alignof (unsigned char));
         const uint32_t cnt = 1 + ((*desc == XbCOND) ? 0 : (uint32_t) (*desc - Xb));
         if (dd->bufsz - *srcoff < cnt)
           goto fail;
@@ -1103,13 +1131,13 @@ static dds_return_t deser_generic_r (void * __restrict dst, size_t * __restrict 
         break;
       }
       case XbPROP: { /* "propagate" flag, boolean, implied in serialized representation */
-        unsigned char * const x = deser_generic_dst (dst, dstoff, dds_alignof (unsigned char));
+        unsigned char * const x = deser_generic_dst (dst, dstoff, plist_alignof (unsigned char));
         *x = 1;
         *dstoff += sizeof (*x);
         break;
       }
       case XG: { /* GUID */
-        ddsi_guid_t * const x = deser_generic_dst (dst, dstoff, dds_alignof (ddsi_guid_t));
+        ddsi_guid_t * const x = deser_generic_dst (dst, dstoff, plist_alignof (ddsi_guid_t));
         if (dd->bufsz - *srcoff < sizeof (*x))
           goto fail;
         memcpy (x, dd->buf + *srcoff, sizeof (*x));
@@ -1119,7 +1147,7 @@ static dds_return_t deser_generic_r (void * __restrict dst, size_t * __restrict 
         break;
       }
       case XK: { /* keyhash */
-        ddsi_keyhash_t * const x = deser_generic_dst (dst, dstoff, dds_alignof (ddsi_keyhash_t));
+        ddsi_keyhash_t * const x = deser_generic_dst (dst, dstoff, plist_alignof (ddsi_keyhash_t));
         if (dd->bufsz - *srcoff < sizeof (*x))
           goto fail;
         memcpy (x, dd->buf + *srcoff, sizeof (*x));
@@ -1128,7 +1156,7 @@ static dds_return_t deser_generic_r (void * __restrict dst, size_t * __restrict 
         break;
       }
       case XQ: { /* arbitrary sequence */
-        ddsi_octetseq_t * const x = deser_generic_dst (dst, dstoff, dds_alignof (ddsi_octetseq_t));
+        ddsi_octetseq_t * const x = deser_generic_dst (dst, dstoff, plist_alignof (ddsi_octetseq_t));
         if (deser_uint32 (&x->length, dd, srcoff) < 0 || x->length > dd->bufsz - *srcoff)
           goto fail;
         const size_t elem_size = ser_generic_srcsize (desc + 1);
@@ -1213,11 +1241,11 @@ dds_return_t ddsi_plist_deser_generic (void * __restrict dst, const void * __res
 
 void ddsi_plist_ser_generic_size_embeddable (size_t *dstoff, const void *src, size_t srcoff, const enum ddsi_pserop * __restrict desc)
 {
-#define COMPLEX(basecase_, type_, dstoff_update_) do {                  \
-    type_ const *x = deser_generic_src (src, &srcoff, dds_alignof (type_)); \
-    const uint32_t cnt = 1 + (uint32_t) (*desc - (basecase_));          \
-    for (uint32_t xi = 0; xi < cnt; xi++, x++) { dstoff_update_; }      \
-    srcoff += cnt * sizeof (*x);                                        \
+#define COMPLEX(basecase_, type_, dstoff_update_) do {                        \
+    type_ const *x = deser_generic_src (src, &srcoff, plist_alignof (type_)); \
+    const uint32_t cnt = 1 + (uint32_t) (*desc - (basecase_));                \
+    for (uint32_t xi = 0; xi < cnt; xi++, x++) { dstoff_update_; }            \
+    srcoff += cnt * sizeof (*x);                                              \
   } while (0)
 #define SIMPLE1(basecase_, type_) COMPLEX (basecase_, type_, *dstoff = *dstoff + sizeof (*x))
 #define SIMPLE2(basecase_, type_) COMPLEX (basecase_, type_, *dstoff = align2 (*dstoff) + sizeof (*x))
@@ -1230,7 +1258,7 @@ void ddsi_plist_ser_generic_size_embeddable (size_t *dstoff, const void *src, si
       case XSTOP: return;
       case XO: COMPLEX (XO, ddsi_octetseq_t, *dstoff = align4 (*dstoff) + 4 + x->length); break;
       case XS: COMPLEX (XS, const char *, *dstoff = align4 (*dstoff) + 4 + strlen (*x) + 1); break;
-      case XE1: case XE2: case XE3: COMPLEX (*desc, uint32_t, *dstoff = align4 (*dstoff) + 4); break;
+      case XE1: case XE2: case XE3: COMPLEX (*desc, enum xe3_prototype, *dstoff = align4 (*dstoff) + 4); break;
       case Xs: SIMPLE2 (Xs, int16_t); break;
       case Xi: case Xix2: case Xix3: case Xix4: SIMPLE4 (Xi, int32_t); break;
       case Xu: case Xux2: case Xux3: case Xux4: case Xux5: SIMPLE4 (Xu, uint32_t); break;
@@ -1290,7 +1318,7 @@ dds_return_t ddsi_plist_ser_generic_embeddable (char * const data, size_t *dstof
       case XSTOP:
         return 0;
       case XO: { /* octet sequence */
-        ddsi_octetseq_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (ddsi_octetseq_t));
+        ddsi_octetseq_t const * const x = deser_generic_src (src, &srcoff, plist_alignof (ddsi_octetseq_t));
         char * const p = ser_generic_align4 (data, dstoff);
         *((uint32_t *) p) = ddsrt_toBO4u(bo, x->length);
         if (x->length) memcpy (p + 4, x->value, x->length);
@@ -1299,7 +1327,7 @@ dds_return_t ddsi_plist_ser_generic_embeddable (char * const data, size_t *dstof
         break;
       }
       case XS: { /* string */
-        char const * const * const x = deser_generic_src (src, &srcoff, dds_alignof (char *));
+        char const * const * const x = deser_generic_src (src, &srcoff, plist_alignof (char *));
         const uint32_t size = (uint32_t) (strlen (*x) + 1);
         char * const p = ser_generic_align4 (data, dstoff);
         *((uint32_t *) p) = ddsrt_toBO4u(bo, size);
@@ -1309,7 +1337,7 @@ dds_return_t ddsi_plist_ser_generic_embeddable (char * const data, size_t *dstof
         break;
       }
       case XE1: case XE2: case XE3: { /* enum */
-        uint32_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (uint32_t));
+        enum xe3_prototype const * const x = deser_generic_src (src, &srcoff, plist_alignof (enum xe3_prototype));
         uint32_t * const p = ser_generic_align4 (data, dstoff);
         *p = ddsrt_toBO4u(bo, (uint32_t) *x);
         *dstoff += 4;
@@ -1317,7 +1345,7 @@ dds_return_t ddsi_plist_ser_generic_embeddable (char * const data, size_t *dstof
         break;
       }
       case Xs: { /* int16_t */
-        int16_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (int16_t));
+        int16_t const * const x = deser_generic_src (src, &srcoff, plist_alignof (int16_t));
         int16_t * const p = ser_generic_align2 (data, dstoff);
         *p = ddsrt_toBO2(bo, *x);
         *dstoff += sizeof (*x);
@@ -1325,7 +1353,7 @@ dds_return_t ddsi_plist_ser_generic_embeddable (char * const data, size_t *dstof
         break;
       }
       case Xi: case Xix2: case Xix3: case Xix4: { /* int32_t(s) */
-        int32_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (int32_t));
+        int32_t const * const x = deser_generic_src (src, &srcoff, plist_alignof (int32_t));
         const uint32_t cnt = 1 + (uint32_t) (*desc - Xi);
         int32_t * const p = ser_generic_align4 (data, dstoff);
         for (uint32_t i = 0; i < cnt; i++)
@@ -1335,7 +1363,7 @@ dds_return_t ddsi_plist_ser_generic_embeddable (char * const data, size_t *dstof
         break;
       }
       case Xu: case Xux2: case Xux3: case Xux4: case Xux5:  { /* uint32_t(s) */
-        uint32_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (uint32_t));
+        uint32_t const * const x = deser_generic_src (src, &srcoff, plist_alignof (uint32_t));
         const uint32_t cnt = 1 + (uint32_t) (*desc - Xu);
         uint32_t * const p = ser_generic_align4 (data, dstoff);
         for (uint32_t i = 0; i < cnt; i++)
@@ -1345,7 +1373,7 @@ dds_return_t ddsi_plist_ser_generic_embeddable (char * const data, size_t *dstof
         break;
       }
       case Xl: { /* int64_t */
-        int64_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (int64_t));
+        int64_t const * const x = deser_generic_src (src, &srcoff, plist_alignof (int64_t));
         int64_t * const p = ser_generic_align8 (data, dstoff);
         *p = ddsrt_toBO8(bo, *x);
         *dstoff += sizeof (*x);
@@ -1353,7 +1381,7 @@ dds_return_t ddsi_plist_ser_generic_embeddable (char * const data, size_t *dstof
         break;
       }
       case XD: case XDx2: { /* duration(s): int64_t <=> int32_t.uint32_t (seconds.fraction) */
-        dds_duration_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (dds_duration_t));
+        dds_duration_t const * const x = deser_generic_src (src, &srcoff, plist_alignof (dds_duration_t));
         const uint32_t cnt = 1 + (uint32_t) (*desc - XD);
         uint32_t * const p = ser_generic_align4 (data, dstoff);
         for (uint32_t i = 0; i < cnt; i++)
@@ -1367,7 +1395,7 @@ dds_return_t ddsi_plist_ser_generic_embeddable (char * const data, size_t *dstof
         break;
       }
       case Xo: case Xox2: { /* octet(s) */
-        unsigned char const * const x = deser_generic_src (src, &srcoff, dds_alignof (unsigned char));
+        unsigned char const * const x = deser_generic_src (src, &srcoff, plist_alignof (unsigned char));
         const uint32_t cnt = 1 + (uint32_t) (*desc - Xo);
         char * const p = data + *dstoff;
         memcpy (p, x, cnt);
@@ -1376,7 +1404,7 @@ dds_return_t ddsi_plist_ser_generic_embeddable (char * const data, size_t *dstof
         break;
       }
       case Xb: case Xbx2: case Xbx3: case Xbx4: case Xbx5: case XbCOND: { /* boolean(s) */
-        unsigned char const * const x = deser_generic_src (src, &srcoff, dds_alignof (unsigned char));
+        unsigned char const * const x = deser_generic_src (src, &srcoff, plist_alignof (unsigned char));
         const uint32_t cnt = 1 + ((*desc == XbCOND) ? 0 : (uint32_t) (*desc - Xb));
         char * const p = data + *dstoff;
         memcpy (p, x, cnt);
@@ -1385,13 +1413,13 @@ dds_return_t ddsi_plist_ser_generic_embeddable (char * const data, size_t *dstof
         break;
       }
       case XbPROP: { /* "propagate" boolean: don't serialize, skip it and everything that follows if false */
-        unsigned char const * const x = deser_generic_src (src, &srcoff, dds_alignof (unsigned char));
+        unsigned char const * const x = deser_generic_src (src, &srcoff, plist_alignof (unsigned char));
         if (! *x) return 0;
         srcoff++;
         break;
       }
       case XG: { /* GUID */
-        ddsi_guid_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (ddsi_guid_t));
+        ddsi_guid_t const * const x = deser_generic_src (src, &srcoff, plist_alignof (ddsi_guid_t));
         const ddsi_guid_t xn = ddsi_hton_guid (*x);
         char * const p = data + *dstoff;
         memcpy (p, &xn, sizeof (xn));
@@ -1400,7 +1428,7 @@ dds_return_t ddsi_plist_ser_generic_embeddable (char * const data, size_t *dstof
         break;
       }
       case XK: { /* keyhash */
-        ddsi_keyhash_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (ddsi_keyhash_t));
+        ddsi_keyhash_t const * const x = deser_generic_src (src, &srcoff, plist_alignof (ddsi_keyhash_t));
         char * const p = data + *dstoff;
         memcpy (p, x, sizeof (*x));
         *dstoff += sizeof (*x);
@@ -1408,7 +1436,7 @@ dds_return_t ddsi_plist_ser_generic_embeddable (char * const data, size_t *dstof
         break;
       }
       case XQ: { /* arbitrary sequence */
-        ddsi_octetseq_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (ddsi_octetseq_t));
+        ddsi_octetseq_t const * const x = deser_generic_src (src, &srcoff, plist_alignof (ddsi_octetseq_t));
         char * const p = ser_generic_align4 (data, dstoff);
         *dstoff += 4;
         if (x->length == 0)
@@ -1467,11 +1495,11 @@ dds_return_t ddsi_plist_ser_generic_be (void **dst, size_t *dstsize, const void 
 
 static dds_return_t unalias_generic (void * __restrict dst, size_t * __restrict dstoff, bool gen_seq_aliased, const enum ddsi_pserop * __restrict desc)
 {
-#define COMPLEX(basecase_, type_, ...) do {                      \
-    type_ *x = deser_generic_dst (dst, dstoff, dds_alignof (type_)); \
-    const uint32_t cnt = 1 + (uint32_t) (*desc - basecase_);     \
-    for (uint32_t xi = 0; xi < cnt; xi++, x++) { __VA_ARGS__; }  \
-    *dstoff += cnt * sizeof (*x);                                \
+#define COMPLEX(basecase_, type_, ...) do {                            \
+    type_ *x = deser_generic_dst (dst, dstoff, plist_alignof (type_)); \
+    const uint32_t cnt = 1 + (uint32_t) (*desc - basecase_);           \
+    for (uint32_t xi = 0; xi < cnt; xi++, x++) { __VA_ARGS__; }        \
+    *dstoff += cnt * sizeof (*x);                                      \
   } while (0)
 #define SIMPLE(basecase_, type_) COMPLEX (basecase_, type_, (void) 0)
   while (true)
@@ -1482,7 +1510,7 @@ static dds_return_t unalias_generic (void * __restrict dst, size_t * __restrict 
         return 0;
       case XO: COMPLEX (XO, ddsi_octetseq_t, if (x->value) { x->value = ddsrt_memdup (x->value, x->length); }); break;
       case XS: COMPLEX (XS, char *, if (*x) { *x = ddsrt_strdup (*x); }); break;
-      case XE1: case XE2: case XE3: COMPLEX (*desc, uint32_t, (void) 0); break;
+      case XE1: case XE2: case XE3: COMPLEX (*desc, enum xe3_prototype, (void) 0); break;
       case Xs: SIMPLE (Xs, int16_t); break;
       case Xi: case Xix2: case Xix3: case Xix4: SIMPLE (Xi, int32_t); break;
       case Xu: case Xux2: case Xux3: case Xux4: case Xux5: SIMPLE (Xu, uint32_t); break;
@@ -1562,11 +1590,11 @@ void ddsi_plist_fini_generic (void * __restrict dst, const enum ddsi_pserop *des
 
 static dds_return_t valid_generic (const void *src, size_t srcoff, const enum ddsi_pserop * __restrict desc)
 {
-#define COMPLEX(basecase_, type_, cond_stmts_) do {                     \
-    type_ const *x = deser_generic_src (src, &srcoff, dds_alignof (type_)); \
-    const uint32_t cnt = 1 + (uint32_t) (*desc - (basecase_));          \
-    for (uint32_t xi = 0; xi < cnt; xi++, x++) { cond_stmts_; }         \
-    srcoff += cnt * sizeof (*x);                                        \
+#define COMPLEX(basecase_, type_, cond_stmts_) do {                           \
+    type_ const *x = deser_generic_src (src, &srcoff, plist_alignof (type_)); \
+    const uint32_t cnt = 1 + (uint32_t) (*desc - (basecase_));                \
+    for (uint32_t xi = 0; xi < cnt; xi++, x++) { cond_stmts_; }               \
+    srcoff += cnt * sizeof (*x);                                              \
   } while (0)
 #define SIMPLE(basecase_, type_, cond_) COMPLEX (basecase_, type_, if (!(cond_)) return DDS_RETCODE_BAD_PARAMETER)
 #define TRIVIAL(basecase_, type_) COMPLEX (basecase_, type_, (void) 0)
@@ -1577,7 +1605,7 @@ static dds_return_t valid_generic (const void *src, size_t srcoff, const enum dd
       case XSTOP: return 0;
       case XO: SIMPLE (XO, ddsi_octetseq_t, (x->length == 0) == (x->value == NULL)); break;
       case XS: SIMPLE (XS, const char *, *x != NULL); break;
-      case XE1: case XE2: case XE3: SIMPLE (*desc, uint32_t, *x <= 1 + (uint32_t) *desc - XE1); break;
+      case XE1: case XE2: case XE3: SIMPLE (*desc, enum xe3_prototype, (uint32_t) *x <= 1 + (uint32_t) *desc - XE1); break;
       case Xs: TRIVIAL (Xs, int16_t); break;
       case Xi: case Xix2: case Xix3: case Xix4: TRIVIAL (Xi, int32_t); break;
       case Xu: case Xux2: case Xux3: case Xux4: case Xux5: TRIVIAL (Xu, uint32_t); break;
@@ -1612,12 +1640,12 @@ static dds_return_t valid_generic (const void *src, size_t srcoff, const enum dd
 
 static bool equal_generic (const void *srcx, const void *srcy, size_t srcoff, const enum ddsi_pserop * __restrict desc)
 {
-#define COMPLEX(basecase_, type_, cond_stmts_) do {                      \
-    type_ const *x = deser_generic_src (srcx, &srcoff, dds_alignof (type_)); \
-    type_ const *y = deser_generic_src (srcy, &srcoff, dds_alignof (type_)); \
-    const uint32_t cnt = 1 + (uint32_t) (*desc - (basecase_));           \
-    for (uint32_t xi = 0; xi < cnt; xi++, x++, y++) { cond_stmts_; }     \
-    srcoff += cnt * sizeof (*x);                                         \
+#define COMPLEX(basecase_, type_, cond_stmts_) do {                            \
+    type_ const *x = deser_generic_src (srcx, &srcoff, plist_alignof (type_)); \
+    type_ const *y = deser_generic_src (srcy, &srcoff, plist_alignof (type_)); \
+    const uint32_t cnt = 1 + (uint32_t) (*desc - (basecase_));                 \
+    for (uint32_t xi = 0; xi < cnt; xi++, x++, y++) { cond_stmts_; }           \
+    srcoff += cnt * sizeof (*x);                                               \
   } while (0)
 #define SIMPLE(basecase_, type_, cond_) COMPLEX (basecase_, type_, if (!(cond_)) return false)
 #define TRIVIAL(basecase_, type_) SIMPLE (basecase_, type_, *x == *y)
@@ -1635,7 +1663,7 @@ static bool equal_generic (const void *srcx, const void *srcy, size_t srcoff, co
       case XS:
         SIMPLE (XS, const char *, strcmp (*x, *y) == 0);
         break;
-      case XE1: case XE2: case XE3: TRIVIAL (*desc, uint32_t); break;
+      case XE1: case XE2: case XE3: TRIVIAL (*desc, enum xe3_prototype); break;
       case Xs: TRIVIAL (Xs, int16_t); break;
       case Xi: case Xix2: case Xix3: case Xix4: TRIVIAL (Xi, int32_t); break;
       case Xu: case Xux2: case Xux3: case Xux4: case Xux5: TRIVIAL (Xu, uint32_t); break;
@@ -1732,7 +1760,7 @@ static bool print_generic1 (char * __restrict *buf, size_t * __restrict bufsize,
       case XSTOP:
         return true;
       case XO: { /* octet sequence */
-        ddsi_octetseq_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (ddsi_octetseq_t));
+        ddsi_octetseq_t const * const x = deser_generic_src (src, &srcoff, plist_alignof (ddsi_octetseq_t));
         prtf (buf, bufsize, "%s%"PRIu32"<", sep, x->length);
         (void) prtf_octetseq (buf, bufsize, x->length, x->value);
         if (!prtf (buf, bufsize, ">"))
@@ -1741,28 +1769,28 @@ static bool print_generic1 (char * __restrict *buf, size_t * __restrict bufsize,
         break;
       }
       case XS: { /* string */
-        char const * const * const x = deser_generic_src (src, &srcoff, dds_alignof (char *));
+        char const * const * const x = deser_generic_src (src, &srcoff, plist_alignof (char *));
         if (!prtf (buf, bufsize, "%s\"%s\"", sep, *x))
           return false;
         srcoff += sizeof (*x);
         break;
       }
       case XE1: case XE2: case XE3: { /* enum */
-        uint32_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (uint32_t));
+        enum xe3_prototype const * const x = deser_generic_src (src, &srcoff, plist_alignof (enum xe3_prototype));
         if (!prtf (buf, bufsize, "%s%"PRIu32, sep, *x))
           return false;
         srcoff += sizeof (*x);
         break;
       }
       case Xs: {
-        int16_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (int16_t));
+        int16_t const * const x = deser_generic_src (src, &srcoff, plist_alignof (int16_t));
         if (!prtf (buf, bufsize, "%s%"PRId16, sep, *x))
           return false;
         srcoff += sizeof (*x);
         break;
       }
       case Xi: case Xix2: case Xix3: case Xix4: { /* int32_t(s) */
-        int32_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (int32_t));
+        int32_t const * const x = deser_generic_src (src, &srcoff, plist_alignof (int32_t));
         const uint32_t cnt = 1 + (uint32_t) (*desc - Xi);
         for (uint32_t i = 0; i < cnt; i++)
         {
@@ -1774,7 +1802,7 @@ static bool print_generic1 (char * __restrict *buf, size_t * __restrict bufsize,
         break;
       }
       case Xu: case Xux2: case Xux3: case Xux4: case Xux5:  { /* uint32_t(s) */
-        uint32_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (uint32_t));
+        uint32_t const * const x = deser_generic_src (src, &srcoff, plist_alignof (uint32_t));
         const uint32_t cnt = 1 + (uint32_t) (*desc - Xu);
         for (uint32_t i = 0; i < cnt; i++)
         {
@@ -1786,7 +1814,7 @@ static bool print_generic1 (char * __restrict *buf, size_t * __restrict bufsize,
         break;
       }
       case Xl: {
-        int64_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (int64_t));
+        int64_t const * const x = deser_generic_src (src, &srcoff, plist_alignof (int64_t));
         const uint32_t cnt = 1 + (uint32_t) (*desc - Xl);
         for (uint32_t i = 0; i < cnt; i++)
         {
@@ -1798,7 +1826,7 @@ static bool print_generic1 (char * __restrict *buf, size_t * __restrict bufsize,
         break;
       }
       case XD: case XDx2: { /* duration(s): int64_t <=> int32_t.uint32_t (seconds.fraction) */
-        dds_duration_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (dds_duration_t));
+        dds_duration_t const * const x = deser_generic_src (src, &srcoff, plist_alignof (dds_duration_t));
         const uint32_t cnt = 1 + (uint32_t) (*desc - XD);
         for (uint32_t i = 0; i < cnt; i++)
         {
@@ -1810,7 +1838,7 @@ static bool print_generic1 (char * __restrict *buf, size_t * __restrict bufsize,
         break;
       }
       case Xo: case Xox2: { /* octet(s) */
-        unsigned char const * const x = deser_generic_src (src, &srcoff, dds_alignof (unsigned char));
+        unsigned char const * const x = deser_generic_src (src, &srcoff, plist_alignof (unsigned char));
         const uint32_t cnt = 1 + (uint32_t) (*desc - Xo);
         for (uint32_t i = 0; i < cnt; i++)
         {
@@ -1822,7 +1850,7 @@ static bool print_generic1 (char * __restrict *buf, size_t * __restrict bufsize,
         break;
       }
       case Xb: case Xbx2: case Xbx3: case Xbx4: case Xbx5: case XbCOND: { /* boolean(s) */
-        unsigned char const * const x = deser_generic_src (src, &srcoff, dds_alignof (unsigned char));
+        unsigned char const * const x = deser_generic_src (src, &srcoff, plist_alignof (unsigned char));
         const uint32_t cnt = 1 + ((*desc == XbCOND) ? 0 : (uint32_t) (*desc - Xb));
         for (uint32_t i = 0; i < cnt; i++)
         {
@@ -1834,21 +1862,21 @@ static bool print_generic1 (char * __restrict *buf, size_t * __restrict bufsize,
         break;
       }
       case XbPROP: { /* "propagate" boolean: don't serialize, skip it and everything that follows if false */
-        unsigned char const * const x = deser_generic_src (src, &srcoff, dds_alignof (unsigned char));
+        unsigned char const * const x = deser_generic_src (src, &srcoff, plist_alignof (unsigned char));
         if (!prtf (buf, bufsize, "%s%d", sep, *x))
           return false;
         srcoff++;
         break;
       }
       case XG: { /* GUID */
-        ddsi_guid_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (ddsi_guid_t));
+        ddsi_guid_t const * const x = deser_generic_src (src, &srcoff, plist_alignof (ddsi_guid_t));
         if (!prtf (buf, bufsize, "%s{"PGUIDFMT"}", sep, PGUID (*x)))
           return false;
         srcoff += sizeof (*x);
         break;
       }
       case XK: { /* keyhash */
-        ddsi_keyhash_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (ddsi_keyhash_t));
+        ddsi_keyhash_t const * const x = deser_generic_src (src, &srcoff, plist_alignof (ddsi_keyhash_t));
         if (!prtf (buf, bufsize, "%s{%02x%02x%02x%02x:%02x%02x%02x%02x:%02x%02x%02x%02x:%02x%02x%02x%02x}", sep,
                    x->value[0], x->value[1], x->value[2], x->value[3], x->value[4], x->value[5], x->value[6], x->value[7],
                    x->value[8], x->value[9], x->value[10], x->value[11], x->value[12], x->value[13], x->value[14], x->value[15]))
@@ -1857,7 +1885,7 @@ static bool print_generic1 (char * __restrict *buf, size_t * __restrict bufsize,
         break;
       }
       case XQ: {
-        ddsi_octetseq_t const * const x = deser_generic_src (src, &srcoff, dds_alignof (ddsi_octetseq_t));
+        ddsi_octetseq_t const * const x = deser_generic_src (src, &srcoff, plist_alignof (ddsi_octetseq_t));
         if (!prtf (buf, bufsize, "%s{", sep))
           return false;
         if (x->length > 0)
