@@ -546,6 +546,15 @@ get_enum_flags(const idl_enum_t *_enum)
   return flags;
 }
 
+static DDS_XTypes_EnumeratedLiteralFlag
+get_enum_literal_flags(const idl_enum_t *_enum, const idl_enumerator_t *_enumerator)
+{
+  DDS_XTypes_EnumeratedLiteralFlag flags = 0u;
+  if (_enum->default_enumerator == _enumerator)
+    flags |= DDS_XTypes_IS_DEFAULT;
+  return flags;
+}
+
 static idl_retcode_t
 get_typeid(
   const idl_pstate_t *pstate,
@@ -1323,6 +1332,7 @@ emit_enumerator (
   struct type_meta *tm = dtm->stack;
 
   assert (idl_is_enum (idl_parent (node)));
+  idl_enum_t *_enum = (idl_enum_t *) idl_parent (node);
   assert (tm->to_minimal->_u.minimal._d == DDS_XTypes_TK_ENUM && tm->to_complete->_u.complete._d == DDS_XTypes_TK_ENUM);
 
   DDS_XTypes_MinimalEnumeratedLiteral m;
@@ -1334,6 +1344,7 @@ emit_enumerator (
   assert (enumerator->value.value <= INT32_MAX);
   m.common.value = c.common.value = (int32_t) enumerator->value.value;
   get_namehash (m.detail.name_hash, idl_identifier (enumerator));
+  m.common.flags = c.common.flags = get_enum_literal_flags (_enum, enumerator);
   if ((ret = get_complete_member_detail (node, &c.detail)) < 0)
     return ret;
 
