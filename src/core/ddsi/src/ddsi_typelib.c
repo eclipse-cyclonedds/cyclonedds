@@ -1216,6 +1216,8 @@ bool ddsi_type_resolved_locked (struct ddsi_domaingv *gv, const struct ddsi_type
       struct ddsi_type *dep_type = ddsi_type_lookup_locked (gv, &dep->dep_type_id);
       if (dep_type && ddsi_xt_is_unresolved (&dep_type->xt))
         resolved = false;
+      else
+        resolved = ddsi_type_resolved_locked (gv, dep_type, resolved_kind);
     }
     ddsi_typeid_fini (&tmpl.src_type_id);
   }
