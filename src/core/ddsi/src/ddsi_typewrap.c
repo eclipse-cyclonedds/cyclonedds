@@ -2742,10 +2742,29 @@ static void ddsi_xt_get_non_hash_id (const struct xt_type *xt, struct DDS_XTypes
     switch (xt->_d)
     {
       case DDS_XTypes_TK_STRING8:
-      case DDS_XTypes_TK_STRING16:
-        ddsi_typeid_copy_to_impl (ti, &xt->id);
+        if (xt->_u.str8.bound <= 255)
+        {
+          ti->_d = DDS_XTypes_TI_STRING8_SMALL;
+          ti->_u.string_sdefn.bound = (DDS_XTypes_SBound) xt->_u.str8.bound;
+        }
+        else
+        {
+          ti->_d = DDS_XTypes_TI_STRING8_LARGE;
+          ti->_u.string_ldefn.bound = xt->_u.str8.bound;
+        }
         break;
-
+      case DDS_XTypes_TK_STRING16:
+        if (xt->_u.str16.bound <= 255)
+        {
+          ti->_d = DDS_XTypes_TI_STRING16_SMALL;
+          ti->_u.string_sdefn.bound = (DDS_XTypes_SBound) xt->_u.str16.bound;
+        }
+        else
+        {
+          ti->_d = DDS_XTypes_TI_STRING16_LARGE;
+          ti->_u.string_ldefn.bound = xt->_u.str16.bound;
+        }
+        break;
       case DDS_XTypes_TK_SEQUENCE:
         if (xt->_u.seq.bound <= 255)
         {

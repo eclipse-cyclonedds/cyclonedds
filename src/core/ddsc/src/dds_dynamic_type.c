@@ -174,8 +174,7 @@ dds_dynamic_type_t dds_dynamic_type_create (dds_entity_t entity, dds_dynamic_typ
   switch (descriptor.kind)
   {
     case DDS_DYNAMIC_NONE:
-      type.ret = DDS_RETCODE_BAD_PARAMETER;
-      break;
+      goto err_bad_param;
 
     case DDS_DYNAMIC_BOOLEAN:
     case DDS_DYNAMIC_BYTE:
@@ -194,52 +193,54 @@ dds_dynamic_type_t dds_dynamic_type_create (dds_entity_t entity, dds_dynamic_typ
       type.ret = ddsi_dynamic_type_create_primitive (gv, (struct ddsi_type **) &type.x, descriptor.kind);
       break;
     case DDS_DYNAMIC_STRING8:
-      type.ret = ddsi_dynamic_type_create_string (gv, (struct ddsi_type **) &type.x);
+      if (descriptor.num_bounds > 1)
+        goto err_bad_param;
+      type.ret = ddsi_dynamic_type_create_string8 (gv, (struct ddsi_type **) &type.x, descriptor.num_bounds ? descriptor.bounds[0] : 0);
       break;
     case DDS_DYNAMIC_ALIAS: {
       if (!typespec_valid (descriptor.base_type, false) || !typename_valid (descriptor.name))
-        goto err;
+        goto err_bad_param;
       dds_dynamic_type_t aliased_type = dyntype_from_typespec (gv, descriptor.base_type);
       type.ret = ddsi_dynamic_type_create_alias (gv, (struct ddsi_type **) &type.x, descriptor.name, (struct ddsi_type **) &aliased_type.x);
       break;
     }
     case DDS_DYNAMIC_ENUMERATION:
       if (!typename_valid (descriptor.name))
-        goto err;
+        goto err_bad_param;
       type.ret = ddsi_dynamic_type_create_enum (gv, (struct ddsi_type **) &type.x, descriptor.name);
       break;
     case DDS_DYNAMIC_BITMASK:
       if (!typename_valid (descriptor.name))
-        goto err;
+        goto err_bad_param;
       type.ret = ddsi_dynamic_type_create_bitmask (gv, (struct ddsi_type **) &type.x, descriptor.name);
       break;
     case DDS_DYNAMIC_ARRAY: {
       if (!typespec_valid (descriptor.element_type, false) || !typename_valid (descriptor.name) || descriptor.num_bounds == 0 || descriptor.bounds == NULL)
-        goto err;
+        goto err_bad_param;
       for (uint32_t n = 0; n < descriptor.num_bounds; n++)
         if (descriptor.bounds[n] == 0)
-          goto err;
+          goto err_bad_param;
       dds_dynamic_type_t element_type = dyntype_from_typespec (gv, descriptor.element_type);
       type.ret = ddsi_dynamic_type_create_array (gv, (struct ddsi_type **) &type.x, descriptor.name, (struct ddsi_type **) &element_type.x, descriptor.num_bounds, descriptor.bounds);
       break;
     }
     case DDS_DYNAMIC_SEQUENCE: {
       if (!typespec_valid (descriptor.element_type, false) || !typename_valid (descriptor.name) || descriptor.num_bounds > 1 || (descriptor.num_bounds == 1 && descriptor.bounds == NULL))
-        goto err;
+        goto err_bad_param;
       dds_dynamic_type_t element_type = dyntype_from_typespec (gv, descriptor.element_type);
       type.ret = ddsi_dynamic_type_create_sequence (gv, (struct ddsi_type **) &type.x, descriptor.name, (struct ddsi_type **) &element_type.x, descriptor.num_bounds > 0 ? descriptor.bounds[0] : 0);
       break;
     }
     case DDS_DYNAMIC_STRUCTURE: {
       if (!typespec_valid (descriptor.base_type, true) || !typename_valid (descriptor.name))
-        goto err;
+        goto err_bad_param;
       dds_dynamic_type_t base_type = dyntype_from_typespec (gv, descriptor.base_type);
       type.ret = ddsi_dynamic_type_create_struct (gv, (struct ddsi_type **) &type.x, descriptor.name, (struct ddsi_type **) &base_type.x);
       break;
     }
     case DDS_DYNAMIC_UNION: {
       if (!typespec_valid (descriptor.discriminator_type, false) || !union_disc_valid (descriptor.discriminator_type) || !typename_valid (descriptor.name))
-        goto err;
+        goto err_bad_param;
       dds_dynamic_type_t discriminator_type = dyntype_from_typespec (gv, descriptor.discriminator_type);
       type.ret = ddsi_dynamic_type_create_union (gv, (struct ddsi_type **) &type.x, descriptor.name, (struct ddsi_type **) &discriminator_type.x);
       break;
@@ -252,7 +253,10 @@ dds_dynamic_type_t dds_dynamic_type_create (dds_entity_t entity, dds_dynamic_typ
       type.ret = DDS_RETCODE_UNSUPPORTED;
       break;
   }
+  return type;
 
+err_bad_param:
+  type.ret = DDS_RETCODE_BAD_PARAMETER;
 err:
   return type;
 }

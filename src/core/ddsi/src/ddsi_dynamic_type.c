@@ -27,8 +27,6 @@ static dds_return_t dynamic_type_ref_deps (struct ddsi_type *type)
   dds_return_t ret = DDS_RETCODE_OK;
   switch (type->xt._d)
   {
-    case DDS_XTypes_TK_STRING8:
-      break;
     case DDS_XTypes_TK_SEQUENCE:
       if ((ret = ddsi_type_register_dep (type->gv, &type->xt.id, &type->xt._u.seq.c.element_type, &type->xt._u.seq.c.element_type->xt.id.x)) != DDS_RETCODE_OK)
         goto err;
@@ -62,6 +60,9 @@ static dds_return_t dynamic_type_ref_deps (struct ddsi_type *type)
           goto err;
         ddsi_type_unref_locked (type->gv, type->xt._u.union_type.members.seq[m].type);
       }
+      break;
+    default:
+      // other types don't have dependencies
       break;
   }
 err:
@@ -241,11 +242,12 @@ dds_return_t ddsi_dynamic_type_create_alias (struct ddsi_domaingv *gv, struct dd
   return DDS_RETCODE_OK;
 }
 
-dds_return_t ddsi_dynamic_type_create_string (struct ddsi_domaingv *gv, struct ddsi_type **type)
+dds_return_t ddsi_dynamic_type_create_string8 (struct ddsi_domaingv *gv, struct ddsi_type **type, uint32_t bound)
 {
   if ((*type = ddsrt_calloc (1, sizeof (**type))) == NULL)
     return DDS_RETCODE_OUT_OF_RESOURCES;
   dynamic_type_init (gv, *type, DDS_XTypes_TK_STRING8, DDSI_TYPEID_KIND_FULLY_DESCRIPTIVE);
+  (*type)->xt._u.str8.bound = bound;
   return DDS_RETCODE_OK;
 }
 

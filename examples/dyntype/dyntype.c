@@ -91,6 +91,14 @@ int main (int argc, char ** argv)
       .name = "dynamic_alias"
   });
 
+  // String types
+  dds_dynamic_type_t dstring = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_STRING8 });
+  dds_dynamic_type_t dstring_bounded = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) {
+    .kind = DDS_DYNAMIC_STRING8,
+    .bounds = (uint32_t[]) { 100 },
+    .num_bounds = 1
+  });
+
   dds_dynamic_type_t dstruct = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_STRUCTURE, .name = "dynamic_struct" });
   dds_dynamic_type_add_member (&dstruct, DDS_DYNAMIC_MEMBER_PRIM(DDS_DYNAMIC_INT32, "member_int32"));
   dds_dynamic_type_add_member (&dstruct, DDS_DYNAMIC_MEMBER_ID_PRIM(DDS_DYNAMIC_FLOAT64, "member_float64", 10 /* has specific member id */));
@@ -103,6 +111,8 @@ int main (int argc, char ** argv)
   dds_dynamic_type_add_member (&dstruct, DDS_DYNAMIC_MEMBER(denum, "member_enum"));
   dds_dynamic_type_add_member (&dstruct, DDS_DYNAMIC_MEMBER(dbitmask, "member_bitmask"));
   dds_dynamic_type_add_member (&dstruct, DDS_DYNAMIC_MEMBER(dalias, "member_alias"));
+  dds_dynamic_type_add_member (&dstruct, DDS_DYNAMIC_MEMBER(dstring, "member_string8"));
+  dds_dynamic_type_add_member (&dstruct, DDS_DYNAMIC_MEMBER(dstring_bounded, "member_string8_bounded"));
 
   // Add members at specific index
   dds_dynamic_type_add_member (&dstruct, (dds_dynamic_member_descriptor_t) {
