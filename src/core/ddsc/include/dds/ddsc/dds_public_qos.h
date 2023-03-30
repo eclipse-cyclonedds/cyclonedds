@@ -95,14 +95,12 @@ dds_merge_qos (dds_qos_t * __restrict dst, const dds_qos_t * __restrict src);
 /**
  * @ingroup qos
  * @component qos_obj
- * @brief Copy all QoS-policies from one structure to another, unless already set
+ * @brief Check if two qos structures contain the same set of QoS-policies.
  *
- * Policies are copied from src to dst, unless src already has the policy set to a non-default value.
+ * @param[in] a - Pointer to a qos structure
+ * @param[in] b - Pointer to a qos structure
  *
- * @param[in,out] a - Pointer to the destination qos structure
- * @param[in] b - Pointer to the source qos structure
- *
- * @returns whether the copy was successful.
+ * @returns whether the two qos structures contain the same set of QoS-policies
  */
 DDS_EXPORT bool
 dds_qos_equal (const dds_qos_t * __restrict a, const dds_qos_t * __restrict b);
