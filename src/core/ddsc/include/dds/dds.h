@@ -4682,6 +4682,31 @@ DDS_EXPORT dds_return_t
 dds_free_typeinfo (
   dds_typeinfo_t *type_info);
 
+
+/**
+ * @brief Gets the sertype of an entity
+ *
+ * The provided entity must be a topic or endpoint. This function returns a pointer to
+ * the sertype of the entity. The refcount of the sertype is not incremented. The lifetime
+ * of the returned sertype pointer is at least that of the lifetime of the entity on which
+ * it was invoked.
+ *
+ * @param[in] entity A topic, reader or writer entity
+ * @param[out] sertype A pointer to the entity's sertype is stored in this parameter (see note above on lifetime of this pointer)
+ *
+ * @returns A dds_return_t indicating success or failure.
+ * @retval DDS_RETCODE_OK
+ *             The operation was successful.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             The sertype parameter is NULL
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION
+ *             Not a topic, reader or writer entity
+ */
+DDS_EXPORT dds_return_t
+dds_get_entity_sertype (
+  dds_entity_t entity,
+  const struct ddsi_sertype **sertype);
+
 #if defined (__cplusplus)
 }
 #endif
