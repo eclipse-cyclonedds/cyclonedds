@@ -99,13 +99,17 @@ To avoid mixing the output, run the publisher and subscriber in separate termina
 
     .. group-tab:: Linux
 
+      .. code-block:: console
+
         Publisher usage:
           ``taskset -c 0 chrt -f 80 ./publisher [payloadSize (bytes)] [burstInterval (ms)] [burstSize (samples)] [timeOut (seconds)] [partitionName]``
         Subscriber usage:
           ``taskset -c 1 chrt -f 80 ./subscriber [maxCycles (0 = infinite)] [pollingDelay (ms, 0 = event based)] [partitionName]``
 
     .. group-tab:: Windows
-        
+
+      .. code-block:: console
+
         Publisher usage:
           ``START /affinity 1 /high cmd /k "publisher.exe" [payloadSize (bytes)] [burstInterval (ms)] [burstSize (samples)] [timeOut (seconds)] [partitionName]``
         Subscriber usage:

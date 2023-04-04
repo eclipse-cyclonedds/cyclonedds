@@ -23,13 +23,13 @@ environment variable to the location of the configuration file. For example:
 
     .. group-tab:: Windows
 
-       .. code-block:: bash
+       .. code-block:: console
          
           set CYCLONEDDS_URI=file://%USERPROFILE%/CycloneDDS/my-config.xml
 
     .. group-tab:: Linux
 
-       .. code-block:: bash
+       .. code-block:: console
          
           export CYCLONEDDS_URI="file://$HOME/CycloneDDS/my-config.xml"
 
@@ -75,14 +75,14 @@ directly after the ``set`` command, otherwise ``<`` and ``>`` has to be escaped 
 
     .. group-tab:: Windows
 
-       .. code-block:: bash
-         
+       .. code-block:: console
+
           set "CYCLONEDDS_URI=<CycloneDDS><Domain><General><NetworkInterfaceAddress>127.0.0.1</NetworkInterfaceAddress></General></Domain></CycloneDDS>"
           set CYCLONEDDS_URI=^<CycloneDDS^>^<Domain^>^<General^>^<NetworkInterfaceAddress^>127.0.0.1^</NetworkInterfaceAddress^>^</General^>^</Domain^>^</CycloneDDS^>
 
     .. group-tab:: Linux
 
-       .. code-block:: bash
+       .. code-block:: console
          
           export CYCLONEDDS_URI="<CycloneDDS><Domain><General><NetworkInterfaceAddress>127.0.0.1</NetworkInterfaceAddress></General></Domain></CycloneDDS>"
 
@@ -107,7 +107,7 @@ To determine the information included in the log file, change the :ref:`Tracing/
    network-config
    combining-participants
    data-path-config
-   network-interfaces
+   network_interfaces
    thread-config
    reporting-tracing
    conformance

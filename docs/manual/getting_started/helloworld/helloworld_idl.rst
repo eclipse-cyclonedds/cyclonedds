@@ -159,7 +159,7 @@ Generated files with the IDL compiler
 
         The IDL compiler is a C program that processes .idl files.
 
-        .. code-block:: bash
+        .. code-block:: console
 
             idlc HelloWorldData.idl
 
@@ -203,7 +203,7 @@ Generated files with the IDL compiler
         languages, but this is seldom relevant to you as a user. You can use
         ``CMake`` recipes as described above or invoke directly:
 
-        .. code-block:: bash
+        .. code-block:: console
 
             idlc -l C++ HelloWorldData.idl
 

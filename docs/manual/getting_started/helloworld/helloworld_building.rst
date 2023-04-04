@@ -140,7 +140,7 @@ Building the HelloWorld Example
 #. Open a terminal inside the directory with the HelloWorld files.
 #. Run:
 
-   .. code-block:: bash
+   .. code-block:: console
 
       mkdir build
         cd build
@@ -151,19 +151,19 @@ Building the HelloWorld Example
 
        .. group-tab:: Linux
 
-           .. code-block:: bash
+           .. code-block:: console
 
                cmake -DCMAKE_PREFIX_PATH=<install-location> ..
 
        .. group-tab:: macOS
 
-           .. code-block:: bash
+           .. code-block:: console
 
                cmake -DCMAKE_PREFIX_PATH=<install-location> ..
 
        .. group-tab:: Windows
 
-           .. code-block:: bash
+           .. code-block:: console
 
                cmake -G <generator-name> -DCMAKE_PREFIX_PATH=<install-location> ..
 
@@ -186,7 +186,7 @@ Building the HelloWorld Example
    that target the native platform. The |var-project-short| build directory is now ready 
    to build the ``HelloworldPublisher`` and ``HelloworldSubscriber`` executables. Run:
 
-   .. code-block:: bash
+   .. code-block:: console
 
        cmake --build .
 

@@ -1,11 +1,8 @@
-.. include:: ../external-links.part.rst
+.. include:: ../../external-links.part.rst
 
 .. index:: Python
 
 .. _installing_python:
-
-Installing |var-project-short| Python
-=====================================
 
 **Binaries or from source**
 

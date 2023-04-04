@@ -1,5 +1,3 @@
-HelloWorld publisher C++ source code
-====================================
 
 The ``Publisher.cpp`` contains the source that writes a *Hello World* message. 
 
@@ -55,11 +53,11 @@ To create a publisher:
 
         dds::topic::Topic<HelloWorldData::Msg> topic(participant, "HelloWorldData_Msg");
 
-     .. code-block:: C++
+    .. code-block:: C++
         :linenos:
         :lineno-start: 37
 
-       dds::pub::Publisher publisher(participant);
+        dds::pub::Publisher publisher(participant);
 
 #.  Create the writer for a specific topic ``“ddsC++_helloworld_example”`` in the 
     default DDS domain.

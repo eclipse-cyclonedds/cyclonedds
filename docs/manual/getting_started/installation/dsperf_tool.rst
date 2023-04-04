@@ -16,7 +16,7 @@ To complete the sanity checks of your DDS-based system:
 1. Open two terminals. 
 2. In the first terminal, run the following command:
 
- .. code-block:: bash
+ .. code-block:: console
 
     ddsperf sanity
 
@@ -26,7 +26,7 @@ To complete the sanity checks of your DDS-based system:
 the data to the first instance of the ``ddsperf`` (started with the
 *Sanity* option).
 
- .. code-block:: bash
+ .. code-block:: console
 
     ddsperf pong
 
@@ -39,6 +39,4 @@ the appropriate network card on both machines, or a firewall in-between is
 preventing communication.
 
 |var-project| automatically selects the most available network interface.
-This behavior can be overridden by changing the configuration file. For 
-further information, refer to the section :ref:`test your installation
-<test_your_installation>`.
+This behavior can be overridden by changing the configuration file.

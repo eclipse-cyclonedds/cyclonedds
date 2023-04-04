@@ -1,3 +1,5 @@
+.. include:: ../../external-links.part.rst
+
 .. index:: HelloWorld; Key steps
 
 .. _key_steps:

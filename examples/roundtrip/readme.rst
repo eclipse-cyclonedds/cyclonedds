@@ -16,7 +16,7 @@
 .. _roundtrip_bm:
 
 Roundtrip
-==========
+=========
 
 Measures the roundtrip duration when sending and receiving a single message.
 
@@ -76,13 +76,17 @@ To avoid mixing the output, run the ping and pong in separate terminals.
 
     .. group-tab:: Linux
 
+      .. code-block:: console
+
           Pong usage:
             ``taskset -c 0 chrt -f 80 ./pong``
           Ping usage:
             ``taskset -c 1 chrt -f 80 ./ping [payloadSize (bytes, 0 - 655536)] [numSamples (0 = infinite)] [timeOut (seconds, 0 = infinite)]``
 
     .. group-tab:: Windows
-        
+
+      .. code-block:: console
+
         Pong usage:
           ``START /affinity 1 /high cmd /k "pong.exe"``
         Ping usage:

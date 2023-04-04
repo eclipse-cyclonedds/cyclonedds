@@ -10,9 +10,9 @@ Data path configuration
 
 .. index:: Heartbeat, Unicast, Multicast, Re-transmission merging
 
-=====================
+=======================
 Re-transmission merging
-=====================
+=======================
 
 A remote reader can request re-transmission whenever it receives a heartbeat and detects
 missing samples. If a sample is lost on the network for many or all readers, the

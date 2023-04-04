@@ -22,9 +22,9 @@ To obtain the dependencies for |var-project-short|, follow the platform-specific
 
     .. group-tab:: Linux
 
-        To install the dependencies, use a package manager. For example:
+      .. code-block:: console
 
-        .. code-block:: bash
+        To install the dependencies, use a package manager. For example:
 
             yum install git cmake gcc
             apt-get install git cmake gcc
@@ -33,18 +33,20 @@ To obtain the dependencies for |var-project-short|, follow the platform-specific
 
     .. group-tab:: macOS
 
+      .. code-block:: console
+
         Install XCode from the App Store.
 
     .. group-tab:: Windows
 
-        Install Visual Studio Code for the C compiler, then install the |url::chocolatey_link|.
+      Install Visual Studio Code for the C compiler, then install the |url::chocolatey_link|.
 
-        .. code-block:: bash
+      .. code-block:: console
 
             choco install cmake
             choco install git
 
-        Alternatively, to install the dependencies, use |url::scoop_link|.
+     Alternatively, to install the dependencies, use |url::scoop_link|.
 
 .. _tools:
 

@@ -31,7 +31,7 @@ Linux and macOS
 
 Set the CMake variable ``BUILD_TESTING`` to ``ON`` when configuring, e.g.:
 
-.. code-block:: bash
+.. code-block:: console
 
     cd build
     cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON ..
@@ -44,7 +44,7 @@ install this yourself, or you can choose to instead rely on the
 infrastructure also uses. In that case, install Conan in the build
 directory before running CMake:
 
-.. code-block:: bash
+.. code-block:: console
 
     conan install .. --build missing
 
@@ -54,7 +54,7 @@ Windows
 
 Set the CMake variable ``BUILD_TESTING`` to ``ON`` when configuring, e.g.:
 
-.. code-block:: bash
+.. code-block:: console
 
     cd build
     cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON ..
@@ -67,7 +67,7 @@ install this yourself, or you can choose to instead rely on the
 infrastructure also uses. In that case, install Conan in the build
 directory before running CMake:
 
-.. code-block:: bash
+.. code-block:: console
 
     conan install .. --build missing
 
@@ -77,6 +77,6 @@ This automatically downloads and builds CUnit (and currently OpenSSL for transpo
 
     Depending on the generator, you may also need to add switches to select the architecture and build type, e.g.:
 
-    .. code-block:: bash
+    .. code-block:: console
 
         conan install -s arch=x86_64 -s build_type=Debug ..

@@ -14,13 +14,19 @@ Code examples are provided for each of these platforms throughout the
 
     .. group-tab:: Linux
 
+      .. code-block:: console
+
         Linux-specific information
 
     .. group-tab:: macOS
 
+      .. code-block:: console
+
         macOS-specific information
 
     .. group-tab:: Windows
+
+      .. code-block:: console
 
         Windows-specific information
 
