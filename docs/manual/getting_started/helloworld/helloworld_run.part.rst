@@ -5,19 +5,19 @@
 
        .. group-tab:: Linux
 
-           .. code-block:: bash
+           .. code-block:: console
 
                ./HelloworldSubscriber
 
        .. group-tab:: macOS
 
-           .. code-block:: bash
+           .. code-block:: console
 
                ./HelloworldSubscriber
 
        .. group-tab:: Windows
 
-           .. code-block:: PowerShell
+           .. code-block:: console
 
                HelloworldSubscriber.exe
 
@@ -27,19 +27,19 @@
 
        .. group-tab:: Linux
 
-           .. code-block:: bash
+           .. code-block:: console
 
                ./HelloworldPublisher
 
        .. group-tab:: macOS
 
-           .. code-block:: bash
+           .. code-block:: console
 
                ./HelloworldPublisher
 
        .. group-tab:: Windows
 
-           .. code-block:: PowerShell
+           .. code-block:: console
 
                HelloworldPublisher.exe
 

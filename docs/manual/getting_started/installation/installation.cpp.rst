@@ -2,9 +2,6 @@
 
 .. _installing_cpp:
 
-Installing |var-project-short| C++ API
-======================================
-
 The |var-project| C++ API is an implementation of the DDS |url::omg.org|, that is, a C++ binding for |var-project-short|. 
 
 The |var-project| C++ API consists of the following:
@@ -16,7 +13,7 @@ The |var-project| C++ API consists of the following:
 
 Obtain |var-project-short| via Git from the repository hosted on GitHub:
 
-.. code-block:: bash
+.. code-block:: console
 
     git clone https://github.com/eclipse-cyclonedds/cyclonedds-cxx.git
     cd cyclonedds
@@ -30,7 +27,7 @@ To build and install the required libraries for your applications, use the follo
 
     .. group-tab:: Linux
 
-        .. code-block:: bash
+        .. code-block:: console
 
             cd build
             cmake -DCMAKE_PREFIX_PATH=<core-install-location> -DCMAKE_INSTALL_PREFIX=<install-location> -DBUILD_EXAMPLES=ON ..
@@ -38,7 +35,7 @@ To build and install the required libraries for your applications, use the follo
 
     .. group-tab:: macOS
 
-        .. code-block:: bash
+        .. code-block:: console
 
             cd build
             cmake -DCMAKE_PREFIX_PATH=<core-install-location> -DCMAKE_INSTALL_PREFIX=<install-location> -DBUILD_EXAMPLES=ON ..
@@ -46,7 +43,7 @@ To build and install the required libraries for your applications, use the follo
 
     .. group-tab:: Windows
 
-        .. code-block:: bash
+        .. code-block:: console
 
             cd build
             cmake -G <generator-name> -DCMAKE_PREFIX_PATH=<core-install-location> -DCMAKE_INSTALL_PREFIX=<install-location> -DBUILD_EXAMPLES=ON ..

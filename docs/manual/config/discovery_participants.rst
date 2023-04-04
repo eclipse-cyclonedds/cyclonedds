@@ -2,7 +2,7 @@
 .. _`Discovery of participants and endpoints`:
 
 ***************************************
-Discovery of participants and andpoints
+Discovery of participants and endpoints
 ***************************************
 
 DDSI participants discover each other using the *Simple Participant Discovery

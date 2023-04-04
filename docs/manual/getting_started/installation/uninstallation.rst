@@ -9,18 +9,20 @@ To uninstall |var-project-short|, manually remove the install and build director
 
     .. group-tab:: Linux
 
-        .. code-block:: bash
+        .. code-block:: console
 
             rm -rf cyclonedds
             rm -rf <install-location>
 
     .. group-tab:: macOS
 
-        .. code-block:: bash
+        .. code-block:: console
 
             rm -rf cyclonedds
             rm -rf <install-location>
 
     .. group-tab:: Windows
+    
+        .. code-block:: console
 
         Navigate to your install location and remove the |var-project| directory.

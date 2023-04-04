@@ -35,7 +35,7 @@ Governance document
 
 The governance document is an XML file that defines the security behavior of domains and topics. 
 It is specified in OMG |url::omg.security| (Version 1.1 Section 9.4.1.2.3). For an example of a 
-governance document, see :ref:`Create a signed governance document`. 
+governance document, see :ref:`create_governance_document`. 
 
 .. note::
   To establish communication with a remote node, the options that are specified in a governance 
@@ -170,17 +170,17 @@ fnmatch pattern matching can be used for topic expressions including the followi
 
 .. _`fnmatch pattern matching`:
 
-+----------+----------------------------------+
-|Pattern   |Meaning                           |
-+==========+==================================+
-| \*       | matches everything               |
-+----------+----------------------------------+
-| \?       | matches any single character     |
-+----------+----------------------------------+
-| [seq]    | matches any character in seq     |
-+----------+----------------------------------+
-| [!seq]   | matches any character not in seq |
-+----------+----------------------------------+
++---------+----------------------------------+
+| Pattern | Meaning                          |
++=========+==================================+
+| \*      | matches everything               |
++---------+----------------------------------+
+| \?      | matches any single character     |
++---------+----------------------------------+
+| [seq]   | matches any character in seq     |
++---------+----------------------------------+
+| [!seq]  | matches any character not in seq |
++---------+----------------------------------+
 
 .. index:: Permissions document
 

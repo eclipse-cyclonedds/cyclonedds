@@ -8,7 +8,7 @@ Performance test
 
 Reliable message throughput is over 1MS/s for very small samples and is roughly 90% 
 of GbE with 100 byte samples. Latency is about 30us when measured using 
-:ref:`_dsperf_tool` between two Intel(R) Xeon(R) CPU E3-1270 V2 @ 3.50GHz 
+:ref:`dsperf_tool` between two Intel(R) Xeon(R) CPU E3-1270 V2 @ 3.50GHz
 (2012 hardware) running Ubuntu 16.04, with the executables built on 
 Ubuntu 18.04 using gcc 7.4.0 for a default (that is, "RelWithDebInfo") build.
 

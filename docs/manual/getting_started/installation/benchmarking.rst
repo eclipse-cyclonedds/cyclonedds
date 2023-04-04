@@ -7,7 +7,7 @@ and *latency* of the DDS applications within a network, or within the same board
 The ``ddsperf`` tool also helps to do sanity checks that ensure your configuration 
 is correctly set up and running. 
 
-In addition to ``ddsperf``, there are dedicated :ref:`examples` that show how to measure 
+In addition to ``ddsperf``, there are dedicated :ref:`examples_bm` that show how to measure
 the DDS system throughput and the latency with their associated codebase. You can start 
 from the provided code and customize it to fit your requirements. Both the ``ddsperf`` 
 tool and the examples perform the benchmarking using sequences of octets with different 
@@ -19,7 +19,6 @@ parameterized sizes.
     benchmarking tools as they sacrifice performance for simplicity. You cannot compare
     test results from these tools with results from other tools.
 
-.. include:: test_installation.part.rst
 
 Measuring latency
 =================
@@ -49,13 +48,13 @@ To run the Ping-Pong scenario (with default values):
 1. Open two terminals (for example, on Linux-like OSs). 
 2. In the first terminal, run the following command: 
   
- .. code-block:: bash
+ .. code-block:: console
 
     ddsperf ping
 
 3. In the second terminal run the following command:
 
- .. code-block:: bash
+ .. code-block:: console
 
     ddsperf pong
 
@@ -93,13 +92,13 @@ at the frequency of 50Hz:
 1. Open two terminals. 
 2. In the first terminal, run the following command: 
 
- .. code-block:: bash
+ .. code-block:: console
 
     ddsperf ping 50Hz 2048 waitset
 
 3. In the second terminal run the following command:
 
- .. code-block:: bash
+ .. code-block:: console
 
     ddsperf pong waitset
 
@@ -175,13 +174,13 @@ To run a simple throughput test (with default values):
 1. Open two terminals. 
 2. In the first terminal, run the following command:
 
- .. code-block:: bash
+ .. code-block:: console
 
     ddsperf pub size 1k
 
 3. In the second terminal run the following command:
 
- .. code-block:: bash
+ .. code-block:: console
 
     ddsperf -Qrss:1 sub
 
@@ -251,7 +250,7 @@ below.
 
 To get more information for the ``ddsperf`` tool, use the [help] option:
 
-.. code-block:: bash
+.. code-block:: console
 
     ddsperf help
 

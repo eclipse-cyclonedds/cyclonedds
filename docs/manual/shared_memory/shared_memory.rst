@@ -32,13 +32,13 @@ Prerequisites
 
 #. Install the prerequisite packages:
 
-   .. code-block:: bash
+   .. code-block:: console
 
      sudo apt install cmake libacl1-dev libncurses5-dev pkg-config maven
 
 #. Get and build iceoryx. The following assumes that the istall is in your home directory:
 
-   .. code-block:: bash
+   .. code-block:: console
 
      git clone https://github.com/eclipse-iceoryx/iceoryx.git -b release_2.0
      cd iceoryx
@@ -47,7 +47,7 @@ Prerequisites
 
 #. Get |var-project-short| and build it with shared memory support:
 
-   .. code-block:: bash
+   .. code-block:: console
 
      git clone https://github.com/eclipse-cyclonedds/cyclonedds.git
      cd cyclonedds

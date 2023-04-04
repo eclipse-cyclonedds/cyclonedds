@@ -59,7 +59,7 @@ The configuration file is supplied to iceoryx using the ``-c`` parameter.
 
 The location where |var-project-short| looks for the config file is set through the environment variable *CYCLONEDDS_URI*:
 
-.. code-block:: bash
+.. code-block:: console
 
   export CYCLONEDDS_URI=file://cyclonedds.xml
 

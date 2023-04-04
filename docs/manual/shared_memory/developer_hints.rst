@@ -24,7 +24,7 @@ The following is a list of useful tips:
 * To learn about the internal happenings of the |url::iceoryx_link| service, there 
   is a useful tool from iceoryx called |url::iceoryx_introspection|:
 
-  .. code-block:: bash
+  .. code-block:: console
 
     ~/iceoryx/build/iox-introspection-client --all
 

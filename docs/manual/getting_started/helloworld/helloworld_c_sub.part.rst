@@ -1,5 +1,3 @@
-HelloWorld subscriber C source code
-==================================
 
 The ``Subscriber.c`` file mainly contains the statements to wait for a HelloWorld 
 message and reads it when it receives it.

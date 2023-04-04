@@ -1,5 +1,3 @@
-HelloWorld subscriber C++ source code
-=====================================
 
 The ``subscriber.cpp`` file mainly contains the statements to wait for a HelloWorld 
 message and reads it when it receives it.

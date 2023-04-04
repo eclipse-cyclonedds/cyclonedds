@@ -4,7 +4,7 @@ If you do not require the examples, use ``-DBUILD_EXAMPLES=OFF`` to omit them.
 
 To install |var-project-short| after a successful build:
 
-.. code-block:: bash
+.. code-block:: console
 
     cmake --build . --target install
 

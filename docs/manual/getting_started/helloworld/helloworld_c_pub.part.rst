@@ -1,5 +1,3 @@
-HelloWorld publisher C source code
-==================================
 
 The ``Publisher.c`` contains the source that writes a **Hello World!**
 Message.
@@ -53,8 +51,7 @@ To create a publisher:
         :linenos:
         :lineno-start: 23
 
-        topic = dds_create_topic (
-        participant, &HelloWorldData_Msg_desc, "HelloWorldData_Msg", NULL, NULL);
+        topic = dds_create_topic (participant, &HelloWorldData_Msg_desc, "HelloWorldData_Msg", NULL, NULL);
 
 #.  Create a Writer.
 

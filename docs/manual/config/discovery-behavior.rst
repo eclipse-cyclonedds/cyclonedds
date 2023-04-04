@@ -139,8 +139,8 @@ Writer until the number of bytes in unacknowledged samples drops below the value
 
 Based on the transmit pressure and receive re-ransmit requests, the value of ``high`` is 
 dynamically adjusted between:
- - :ref:`Internal/Watermarks/WhcLow <//CycloneDDS/Domain/Internal/Watermarks/WhcLow>`
- - :ref:`Internal/Watermarks/WhcHigh <//CycloneDDS/Domain/Internal/Watermarks/WhcHigh>` 
+- :ref:`Internal/Watermarks/WhcLow <//CycloneDDS/Domain/Internal/Watermarks/WhcLow>`
+- :ref:`Internal/Watermarks/WhcHigh <//CycloneDDS/Domain/Internal/Watermarks/WhcHigh>`
   
 The initial value of ``high`` is set in: 
 :ref:`Internal/Watermarks/WhcHighInit <//CycloneDDS/Domain/Internal/Watermarks/WhcHighInit>`.

@@ -14,13 +14,13 @@ To start running |var-project-short| with shared memory exchange:
 #. Open three terminals.
 #. In the first terminal, start ``RouDi``:
 
-   .. code-block:: bash
+   .. code-block:: console
 
      ~/iceoryx/build/iox-roudi -c iox_config.toml
 
 #. In the second terminal, run the publisher.
 
-   .. code-block:: bash
+   .. code-block:: console
 
      export LD_LIBRARY_PATH=~/iceoryx/install/lib/${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
      export CYCLONEDDS_URI=file://cyclonedds.xml
@@ -28,7 +28,7 @@ To start running |var-project-short| with shared memory exchange:
 
 #. In the third terminal, run the subscriber.
 
-   .. code-block:: bash
+   .. code-block:: console
 
      export LD_LIBRARY_PATH=~/iceoryx/install/lib/${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
      export CYCLONEDDS_URI=file://cyclonedds.xml
@@ -40,7 +40,7 @@ To start running |var-project-short| with shared memory exchange:
 
 The following shows a typical result on the subscriber side:
 
-.. code-block:: bash
+.. code-block:: console
 
   Cycles: 10 | PollingDelay: 0 | Partition: Throughput example
   === [Subscriber] Waiting for samples...

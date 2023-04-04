@@ -7,7 +7,7 @@ However, if they are not installed in those locations, you must change the libra
 
 - Execute the following command:
 
-.. code-block:: PowerShell
+.. code-block:: console
 
     set PATH=<install-location>\bin;%PATH%
 
