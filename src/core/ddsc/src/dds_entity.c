@@ -1666,3 +1666,38 @@ dds_return_t dds_free_typeinfo (dds_typeinfo_t *type_info)
 }
 
 #endif /* DDS_HAS_TYPE_DISCOVERY */
+
+
+dds_return_t dds_get_entity_sertype (dds_entity_t entity, const struct ddsi_sertype **sertype)
+{
+  dds_return_t ret;
+  dds_entity *e;
+
+  if (!sertype)
+    return DDS_RETCODE_BAD_PARAMETER;
+  if ((ret = dds_entity_pin (entity, &e)) != DDS_RETCODE_OK)
+    return ret;
+  switch (dds_entity_kind (e))
+  {
+    case DDS_KIND_TOPIC: {
+      struct dds_topic * const tp = (struct dds_topic *) e;
+      *sertype = tp->m_stype;
+      break;
+    }
+    case DDS_KIND_READER: {
+      struct dds_reader * const rd = (struct dds_reader *) e;
+      *sertype = rd->m_rd->type;
+      break;
+    }
+    case DDS_KIND_WRITER: {
+      struct dds_writer * const wr = (struct dds_writer *) e;
+      *sertype = wr->m_wr->type;
+      break;
+    }
+    default:
+      ret = DDS_RETCODE_ILLEGAL_OPERATION;
+      break;
+  }
+  dds_entity_unpin (e);
+  return ret;
+}
