@@ -1782,7 +1782,7 @@ static dds_return_t get_topic_descriptor (dds_topic_descriptor_t *desc, struct t
     goto err;
   }
 
-  struct dds_key_descriptor *key_desc;
+  struct dds_key_descriptor *key_desc = NULL;
   if ((ret = typebuilder_get_keys (tbd, &ops, &key_desc)))
   {
     typebuilder_ops_fini (&ops);
