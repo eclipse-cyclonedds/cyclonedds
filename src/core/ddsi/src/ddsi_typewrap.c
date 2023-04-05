@@ -2564,7 +2564,7 @@ bool ddsi_xt_is_assignable_from (struct ddsi_domaingv *gv, const struct xt_type 
 
 static ddsi_typeid_kind_t ddsi_typeid_kind_impl (const struct DDS_XTypes_TypeIdentifier *type_id)
 {
-  ddsi_typeid_kind_t kind;
+  ddsi_typeid_kind_t kind = DDSI_TYPEID_KIND_MINIMAL;
   if (ddsi_typeid_is_hash_impl (type_id))
     kind = ddsi_typeid_is_minimal_impl (type_id) ? DDSI_TYPEID_KIND_MINIMAL : DDSI_TYPEID_KIND_COMPLETE;
   else
