@@ -411,7 +411,7 @@ static int set_ext_address_and_mask (struct ddsi_domaingv *gv)
 
 static int check_thread_properties (const struct ddsi_domaingv *gv)
 {
-  static const char *fixed[] = { "recv", "tev", "gc", "lease", "dq.builtins", "xmit.user", "dq.user", "debmon", "fsm", NULL };
+  static const char *fixed[] = { "recv", "recvUC", "recvMC", "tev", "gc", "lease", "dq.builtins", "xmit.user", "dq.user", "debmon", "fsm", NULL };
   const struct ddsi_config_thread_properties_listelem *e;
   int ok = 1, i;
   for (e = gv->config.thread_properties; e; e = e->next)
