@@ -27,8 +27,6 @@ A topic is identifiable by:
 		:ref:`topic_bm`
 
     .. group-tab:: C++
-			
-		`dds::topic::Topic class <https://cyclonedds.io/docs/cyclonedds-cxx/latest/api/topic.html#>`_
 
 		.. code-block:: C++
 
@@ -62,7 +60,7 @@ topic is created on the DomainParticipant participant:
 
 		.. code:: C
 			
-			C code sample TBD
+			dds_entity_t topic = dds_create_topic (participant, &DataType_desc, "DataType", NULL, NULL);
 
     .. group-tab:: C++
 
@@ -76,7 +74,7 @@ topic is created on the DomainParticipant participant:
 
 			Python code sample TBD
 
-To generate the data type of the topic from the user's IDL files, use CycloneDDS's ``idlc`` 
+To generate the data type of the topic from the user's IDL files, use |var-project-short| ``idlc`` 
 generator (with the idlcxx library). 
 
 .. important::

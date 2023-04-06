@@ -21,21 +21,21 @@ To use the default settings:
 
     .. group-tab:: Core DDS (C)
 
-		.. code:: C
-			
-			C code sample TBD
+      .. code-block:: C
+
+         dds_entity_t publisher = dds_create_publisher (participant, NULL, NULL);
 
     .. group-tab:: C++
 
-		.. code:: C++
+      .. code-block:: C++
 
 			dds::pub::Publisher pub(participant);
 
     .. group-tab:: Python
 
-		.. code:: Python
+      .. code-block:: python
 
-			Python code sample TBD
+         publisher = Publisher(participant)
 
 To supply your own settings:
 
@@ -43,13 +43,16 @@ To supply your own settings:
 
     .. group-tab:: Core DDS (C)
 
-		.. code:: C
+      .. code-block:: C
 			
-			C code sample TBD
+         dds_qos_t *qos = dds_create_qos ();
+         dds_listener_t *listener = dds_create_listener(NULL);
+         dds_lset_publication_matched(listener, publication_matched);
+         dds_entity_t publisher = dds_create_spublisher (participant, qos, listener);
 
     .. group-tab:: C++
 
-		.. code:: C++
+      .. code-block:: C++
 
 			dds::pub::NoOpPublisherListener listener; /*you need to create your own class that derives from this listener, and implement your own callbacks*/
 			/*the listener implementation should implement the on_publication_matched virtual function as we will rely on it later*/
@@ -58,7 +61,7 @@ To supply your own settings:
 
     .. group-tab:: Python
 
-		.. code:: Python
+      .. code-block:: python
 
 			Python code sample TBD
 

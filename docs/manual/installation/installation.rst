@@ -1,4 +1,4 @@
-.. include:: ../../external-links.part.rst
+.. include:: ../external-links.part.rst
 
 .. index:: ! Installation
 

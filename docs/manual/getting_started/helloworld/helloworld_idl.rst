@@ -35,7 +35,7 @@ In our simplistic case, the data type Msg contains two fields:
 ``userID`` and ``message`` payload. The ``userID`` is used to uniquely identify each message instance. This is done using the
 ``@key`` annotation.
 
-For further information, refer to :ref:`idl_compilers`.
+For further information, refer to :ref:`idl_bm`.
 
 .. tabs::
 

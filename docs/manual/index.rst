@@ -27,8 +27,6 @@
    security/dds_security
    shared_memory/shared_memory
    ddsc
-   cpp/ddscpp
-   python/ddspython
    glossary
    genindex
 

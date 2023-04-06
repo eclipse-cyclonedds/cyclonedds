@@ -101,7 +101,6 @@ To determine the information included in the log file, change the :ref:`Tracing/
    :hidden:
    
    cmake_config
-   ddsi_concepts
    discovery-behavior
    discovery-config
    network-config
@@ -112,5 +111,4 @@ To determine the information included in the log file, change the :ref:`Tracing/
    reporting-tracing
    conformance
    config_file_reference
-   runtime_config
    benchmarking

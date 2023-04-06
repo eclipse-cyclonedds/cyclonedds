@@ -20,21 +20,21 @@ To use the default settings:
 
     .. group-tab:: Core DDS (C)
 
-		.. code:: C
+      .. code-block:: C
 			
-			C code sample TBD
+			dds_entity_t subscriber = dds_create_subscriber (participant, NULL, NULL);
 
     .. group-tab:: C++
 
-		.. code:: C++
+      .. code-block:: C++
 
 			dds::sub::Subscriber sub(participant);
 
     .. group-tab:: Python
 
-		.. code:: Python
+      .. code-block:: python
 
-			Python code sample TBD
+         subscriber = Subscriber(participant)
 
 To supply your own settings:
 
@@ -42,13 +42,16 @@ To supply your own settings:
 
     .. group-tab:: Core DDS (C)
 
-		.. code:: C
-			
-			C code sample TBD
+      .. code-block:: C
+
+         dds_qos_t *qos = dds_create_qos ();
+         dds_listener_t *listener = dds_create_listener(NULL);
+         dds_lset_subscription_matched(listener, subscription_matched);
+         dds_entity_t subscriber = dds_create_subscriber (participant, qos, listener);
 
     .. group-tab:: C++
 
-		.. code:: C++
+      .. code-block:: C++
 
 			dds::sub::NoOpSubscriberListener listener; /*you need to create your own class that derives from this listener, and implement your own callbacks*/
 			/*the listener implementation should implement the on_subscription_matched virtual function as we will rely on it later*/
@@ -57,7 +60,7 @@ To supply your own settings:
 
     .. group-tab:: Python
 
-		.. code:: Python
+      .. code-block:: python
 
 			Python code sample TBD
 

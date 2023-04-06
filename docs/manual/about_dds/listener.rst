@@ -25,10 +25,10 @@ and :ref:`subscribers <subscribers_bm>` in a ``DomainParticipantListener``, this
 only needs to be set once in the :ref:`DomainParticipant <domainparticipants_bm>`, and 
 the topic and subscriber propagates the events to this Listener.
 
-.. table:: CycloneDDS Entities and associated listeners
+.. table:: Entities and associated listeners
 
 	+-----------------------+---------------------------+-----------------------+-------------------------------+----------------------------+--------------------------------+
-	| CDDS-CXX Entity Type  | Listener Type             | Inherits From         | Associated Unique Callbacks   | Associated StatusMask      | Passed Status Entity           |
+	| Entity Type           | Listener Type             | Inherits From         | Associated Unique Callbacks   | Associated StatusMask      | Passed Status Entity           |
 	+=======================+===========================+=======================+===============================+============================+================================+
 	| DomainParticipant     | DomainParticipantListener | PublisherListener     |                               |                            |                                |
 	|                       |                           | SubscriberListener    |                               |                            |                                |

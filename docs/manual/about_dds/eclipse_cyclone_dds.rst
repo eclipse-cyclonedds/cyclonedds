@@ -122,7 +122,7 @@ systems that need to satisfy many "ilities": dependability, maintainability,
 extensibility, upgradeability, ... Truth be told, that's why it was invented, and 
 publish-subscribe messaging was simply an implementation technique.
 
-Cyclone DDS aims at full coverage of the specs and today already covers most of this.
+|var-project| aims at full coverage of the specs and today already covers most of this.
 With references to the individual OMG specifications, the following is available:
 
 - |url::dds_spec| the base specification
@@ -136,7 +136,7 @@ With references to the individual OMG specifications, the following is available
 - |url::dds_xtypes| - the structural type system (some [caveats](docs/dev/xtypes_relnotes.md) here)
 - |url::dds2.5| - the interoperable network protocol
 
-The network stack in Cyclone DDS has been around for over a decade in one form or 
+The network stack in |var-project| has been around for over a decade in one form or 
 another and has proven itself in many systems, including large, high-availability 
 ones and systems where inter-operation with other implementations was needed.
 

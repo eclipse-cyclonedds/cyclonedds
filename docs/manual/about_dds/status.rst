@@ -23,7 +23,7 @@ of DDS entities. The following table lists the fields for each status and their 
 .. table:: CycloneDDS-CXX Status entities and fields
 
 	+-----------------------+--------------------------------+--------------------------+------------------------------------------------------+
-	| CDDS-CXX Entity Type  | Status Entity                  | Associated Fields        | Meaning of field                                     |
+	| Entity Type           | Status Entity                  | Associated Fields        | Meaning of field                                     |
 	+=======================+================================+==========================+======================================================+
 	| DomainParticipant     |                                |                          |                                                      |
 	+-----------------------+--------------------------------+--------------------------+------------------------------------------------------+
@@ -139,7 +139,7 @@ To access the statuses, use the following functions on the entity:
 .. table:: CycloneDDS-CXX Status accessors
 
 	+-----------------------+--------------------------------+----------------------------------+
-	| CDDS-CXX Entity Type  | Status Entity                  | Accessor                         |
+	| Entity Type           | Status Entity                  | Accessor                         |
 	+=======================+================================+==================================+
 	| Topic                 | InconsistentTopicStatus        | inconsistent_topic_status        |
 	+-----------------------+--------------------------------+----------------------------------+

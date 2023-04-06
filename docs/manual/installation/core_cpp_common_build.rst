@@ -18,7 +18,7 @@ The install step copies everything to:
 .. note::
     Depending on the installation location, you may need administrator privileges. 
 
-At this point, you are ready to use Cyclone DDS in your projects.
+At this point, you are ready to use var-project-short| in your projects.
 
 .. note:: Build types
 
