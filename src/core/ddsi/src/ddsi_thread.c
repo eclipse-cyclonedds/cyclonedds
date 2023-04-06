@@ -282,7 +282,7 @@ static struct ddsi_thread_state *grow_thread_states (void)
   return &x->thrst[0];
 }
 
-static struct ddsi_thread_state *get_available_thread_slot ()
+static struct ddsi_thread_state *get_available_thread_slot (void)
 {
   struct ddsi_thread_states_list *cur;
   uint32_t i;
