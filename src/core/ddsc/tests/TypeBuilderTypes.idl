@@ -401,4 +401,8 @@ module TypeBuilderTypes {
     t27_1 f1;
   };
 
+  /* unbounded string key */
+  struct t28 {
+    @key string f1;
+  };
 };
