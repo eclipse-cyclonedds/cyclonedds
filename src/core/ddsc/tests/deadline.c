@@ -353,7 +353,7 @@ CU_Theory((int32_t n_inst, uint8_t unreg_nth, uint8_t dispose_nth), ddsc_deadlin
   Space_Type1 sample = { 0, 0, 0 };
   dds_entity_t reader_dl, writer;
   dds_return_t ret;
-  int32_t n, n_unreg, n_dispose, n_alive, run = 1;
+  int32_t n, n_dispose, n_alive, run = 1;
   bool test_finished = false;
   dds_duration_t deadline_dur = WRITER_DEADLINE;
 
@@ -368,7 +368,7 @@ CU_Theory((int32_t n_inst, uint8_t unreg_nth, uint8_t dispose_nth), ddsc_deadlin
     reader_dl = create_and_sync_reader(g_participant, g_subscriber, g_topic, g_qos, writer);
 
     /* Write first sample for each instance */
-    n_unreg = n_dispose = 0;
+    n_dispose = 0;
     for (n = 1; n <= n_inst; n++)
     {
       sample.long_1 = n;
@@ -378,7 +378,6 @@ CU_Theory((int32_t n_inst, uint8_t unreg_nth, uint8_t dispose_nth), ddsc_deadlin
       {
         ret = dds_unregister_instance (writer, &sample);
         CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
-        n_unreg++;
       }
       else if (dispose_nth && n % dispose_nth == 0)
       {
