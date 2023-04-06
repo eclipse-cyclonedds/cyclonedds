@@ -17,6 +17,4 @@ Getting Started
    :caption: Contents
 
    helloworld/helloworld
-   py_tutorial_link
-
 

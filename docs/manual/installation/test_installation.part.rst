@@ -38,7 +38,7 @@ The **HelloWorld!** executables are located in:
 .. note::
    Requires CMake with ``-DBUILD_EXAMPLES=ON``.
 
-.. include:: ../helloworld/helloworld_run.part.rst
+.. include:: ../getting_started/helloworld/helloworld_run.part.rst
 
 .. note::
    There are some common issues with multiple network interface cards on machine 

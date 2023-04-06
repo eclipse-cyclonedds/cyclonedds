@@ -17,21 +17,21 @@ Inherited from the subscriber:
 
     .. group-tab:: Core DDS (C)
 
-		.. code:: C
+		.. code-block:: C
 			
-			C code sample TBD
+			dds_entity_t reader = dds_create_reader (subscriber, topic, NULL, NULL);
 
     .. group-tab:: C++
 
-		.. code:: C++
+		.. code-block:: C++
 			
 			dds::sub::DataReader<DataType> reader(sub, topic);
 
     .. group-tab:: Python
 
-		.. code:: Python
+		.. code-block:: python
 
-			Python code sample TBD
+			reader = DataReader(subscriber, topic)
 
 Explicitly set in its own QoS policies and listener:
 
@@ -39,27 +39,31 @@ Explicitly set in its own QoS policies and listener:
 
     .. group-tab:: Core DDS (C)
 
-		.. code:: C
-			
-			C code sample TBD
+      .. code-block:: C
+
+         dds_qos_t *qos = dds_create_qos ();
+         dds_listener_t *listener = dds_create_listener(NULL);
+         dds_lset_data_available(listener, data_available);
+         dds_entity_t reader = dds_create_reader (participant, topic, qos, listener);
 
     .. group-tab:: C++
 
-		.. code:: C++
-			
-			dds::sub::NoOpAnyDataReaderListener listener; /*you need to create your own class that derives from this listener, and implement your own callback functions*/
-			/*the listener implementation should implement the on_data_available virtual function as we will rely on it later*/
-			dds::sub::qos::DataReaderQos rqos;
-			dds::sub::DataReader<DataType> reader(sub, topic, rqos, &listener, dds::core::status::StatusMask::data_available());
+      .. code-block:: C++
+
+         dds::sub::qos::DataReaderQos rqos;
+         dds::sub::NoOpAnyDataReaderListener listener;
+         dds::sub::DataReader<DataType> reader(sub, topic, rqos, &listener, dds::core::status::StatusMask::data_available());
 
     .. group-tab:: Python
 
-		.. code:: Python
+      .. code-block:: python
 
-			Python code sample TBD
+         qos = Qos()
+         listener = MyListener()
+         reader = DataReader(participant, topic, qos=qos, listener=listener)
 
 The data is accessed by either `reading` or `taking` the samples from the reader.
-Both return a container of ``dds::sub::Sample``s, which have:
+Both return a container of samples , which have:
 
 - The received sample of the exchanged datatype accessed through `data()`.
 - The metadata for the received sample accessed through `info()`. 
@@ -79,9 +83,18 @@ The `take` operation only returns samples that have not yet been returned in a `
 
     .. group-tab:: Core DDS (C)
 
-		.. code:: C
-			
-			C code sample TBD
+      .. code-block:: C
+         :emphasize-lines: 4
+
+         int MAXSAMPLES 10;
+         void *samples[MAX_SAMPLES];
+         dds_sample_info_t infos[MAX_SAMPLES];
+         int samples_received = dds_take (reader, samples, info, MAX_SAMPLES, MAX_SAMPLES);
+         for (int i = 0; i < samples_received; i++) {
+           if (info[i].valid_data) {
+              /*print the data*/
+           } 
+         }
 
     .. group-tab:: C++
 
@@ -93,14 +106,15 @@ The `take` operation only returns samples that have not yet been returned in a `
 				if (!sample.valid())
 					continue;
 				const auto &data = sample.data();
-				/*print the data?*/
+				/*print the data*/
 			}
 
     .. group-tab:: Python
 
-		.. code:: Python
+      .. code-block:: python
 
-			Python code sample TBD
+         for sample in reader.take_iter(timeout=duration(milliseconds=10)):
+            print(sample)
 
 The `read` operation returns all samples currently stored by the reader.
 
@@ -108,27 +122,37 @@ The `read` operation returns all samples currently stored by the reader.
 
     .. group-tab:: Core DDS (C)
 
-		.. code:: C
-			
-			C code sample TBD
+      .. code-block:: C
+         :emphasize-lines: 4
+
+         int MAXSAMPLES 10;
+         void *samples[MAX_SAMPLES];
+         dds_sample_info_t infos[MAX_SAMPLES];
+         int samples_received = dds_read (reader, samples, info, MAX_SAMPLES, MAX_SAMPLES);
+         for (int i = 0; i < samples_received; i++) {
+           if (info[i].valid_data) {
+              /*print the data*/
+           } 
+         }
 
     .. group-tab:: C++
 
-		.. code-block:: C++
-			:emphasize-lines: 1
+      .. code-block:: C++
+         :emphasize-lines: 1
 
-			auto samples = reader.read();
-			for (const auto & sample:samples) {
-				if (!sample.valid() ||
-					sample.state() != dds::sub::status::SampleState::not_read())
-					continue;
-				const auto &data = sample.data();
-				/*print the data?*/
-			}
+         auto samples = reader.read();
+         for (const auto & sample:samples) {
+            if (!sample.valid() ||
+               sample.state() != dds::sub::status::SampleState::not_read())
+               continue;
+            const auto &data = sample.data();
+            /*print the data?*/
+         }
 
     .. group-tab:: Python
 
-		.. code:: Python
+      .. code-block:: python
 
-			Python code sample TBD
+         for sample in reader.read_iter(timeout=duration(milliseconds=10)):
+            print(sample)
 

@@ -72,6 +72,4 @@ For example, the following IDL code:
             usedID: int32
             message: str
 
-      For further information, refer to :ref:`py_idl`.
-
 See also: :ref:`helloworld_idl`.

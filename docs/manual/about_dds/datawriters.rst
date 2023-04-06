@@ -17,21 +17,21 @@ Inherited from the publisher:
 
     .. group-tab:: Core DDS (C)
 
-		.. code:: C
-			
-			C code sample TBD
+      .. code-block:: C
+
+         dds_entity_t writer = dds_create_writer (publisher, topic, NULL, NULL);
 
     .. group-tab:: C++
 
-		.. code:: C++
-			
-			dds::pub::DataWriter<DataType> writer(pub, topic);
+      .. code-block:: C++
+
+         dds::pub::DataWriter<DataType> writer(pub, topic);
 
     .. group-tab:: Python
 
-		.. code:: Python
+      .. code-block:: python
 
-			Python code sample TBD
+         writer = DataWriter(publisher, topic)
 
 Explicitly set in its own QoS policies and listener:
 
@@ -39,13 +39,16 @@ Explicitly set in its own QoS policies and listener:
 
     .. group-tab:: Core DDS (C)
 
-		.. code:: C
+      .. code-block:: C
 			
-			C code sample TBD
+         dds_qos_t *qos = dds_create_qos ();
+         dds_listener_t *listener = dds_create_listener(NULL);
+         dds_lset_publication_matched(listener, publication_matched);
+         dds_entity_t writer = dds_create_writer (participant, topic, qos, listener);
 
     .. group-tab:: C++
 
-		.. code:: C++
+      .. code-block:: C++
 			
 			dds::pub::NoOpAnyDataWriterListener listener; /*you need to create your own class that derives from this listener, and implement your own callback functions*/
 			/*the listener implementation should implement the on_publication_matched virtual function as we will rely on it later*/
@@ -54,7 +57,7 @@ Explicitly set in its own QoS policies and listener:
 
     .. group-tab:: Python
 
-		.. code:: Python
+      .. code-block:: python
 
 			Python code sample TBD
 
@@ -64,22 +67,24 @@ A writer can write a sample:
 
     .. group-tab:: Core DDS (C)
 
-		.. code:: C
-			
-			C code sample TBD
+      .. code-block:: C
+
+         DataType sample;
+         dds_write (writer, &sample);
 
     .. group-tab:: C++
 
-		.. code:: C++
+      .. code-block:: C++
 			
 			DataType sample;
 			writer.write(sample);
 
     .. group-tab:: Python
 
-		.. code:: Python
+      .. code-block:: python
 
-			Python code sample TBD
+         writer.write(sample)
+
 
 A sample with a specific timestamp:
 
@@ -87,13 +92,14 @@ A sample with a specific timestamp:
 
     .. group-tab:: Core DDS (C)
 
-		.. code:: C
-			
-			C code sample TBD
+      .. code-block:: C
+
+         DataType sample;
+         dds_write_ts(writer, &sample, dds_time());
 
     .. group-tab:: C++
 
-		.. code:: C++
+      .. code-block:: C++
 			
 			DataType sample;
 			dds::core::Time timestamp(123 /*seconds*/, 456 /*nanoseconds*/);
@@ -101,7 +107,7 @@ A sample with a specific timestamp:
 
     .. group-tab:: Python
 
-		.. code:: Python
+      .. code-block:: python
 
 			Python code sample TBD
 
@@ -111,22 +117,19 @@ A range of samples:
 
     .. group-tab:: Core DDS (C)
 
-		.. code:: C
+      .. code-block:: C
 			
 			C code sample TBD
 
     .. group-tab:: C++
 
-		.. code:: C++
+      .. code-block:: C++
 			
 			std::vector<DataType> samples;
 			writer.write(samples.begin(), samples.end());
 
     .. group-tab:: Python
 
-		.. code:: Python
+      .. code-block:: python
 
 			Python code sample TBD
-
-.. tbd::
-	Or update existing instances through handles, which we will not go into here.

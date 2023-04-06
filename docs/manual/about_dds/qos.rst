@@ -9,6 +9,7 @@
 
    SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
+.. include:: ../external-links.part.rst
 .. index:: ! Quality of service
 
 .. _qos_bm:

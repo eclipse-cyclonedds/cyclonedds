@@ -15,7 +15,6 @@ Examples
     throughput
     listtopics
     dynsub
-    dds_datatype_example
 
 - :ref:`helloworld_bm`
   
@@ -37,9 +36,6 @@ Examples
 
   The dynsub example is a :term:`PoC` for a C-based JSON printer for arbitrary data. It assumes 
   that topic discovery is enabled (but doesn't require it).
-
-- :ref:`_datatype_example`
-  This is a DDS example for writing data of the type ``DataType``. 
 
 .. note::
     |var-project| has various configuration parameters and comes with a default built-in

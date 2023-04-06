@@ -10,7 +10,7 @@ A Domain is a specific subsection of the DDS shared-dataspace and identified by 
 domain ID, which is a 32-bit unsigned integer.
 
 Data exchanges are limited to the domain they are made on. For example, data exchanged 
-on domain 456 is not visible on domain 789.
+on domain 2 is not visible on domain 8.
 
 To exchange data you must create a DomainParticipant, which is an entrypoint for the 
 program on the shared dataspace's domain.
@@ -23,7 +23,7 @@ To specify the default domain ID:
 
 		.. code:: C
 			
-			C code sample TBD
+			dds_entity_t participant = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
 
     .. group-tab:: C++
 
@@ -35,9 +35,9 @@ To specify the default domain ID:
 
 		.. code:: Python
 
-			Python code sample TBD
+			dp = DomainParticipant()
 
-To specify your own ID:
+To specify with domain ID 5:
 
 .. tabs::
 
@@ -45,24 +45,21 @@ To specify your own ID:
 
 		.. code:: C
 			
-			C code sample TBD
+			dds_entity_t participant = dds_create_participant (5, NULL, NULL);
 
     .. group-tab:: C++
 
 		.. code:: C++
 			
-			dds::domain::DomainParticipant participant(123456);
+			dds::domain::DomainParticipant participant(5);
 
     .. group-tab:: Python
 
 		.. code:: Python
 
-			Python code sample TBD
+			dp = DomainParticipant(5)
 
 .. important::
 	You must have the same ID on both the reading side and the writing side, otherwise, 
 	they can not see each other.
-
-.. tbd:: 
-	???Explain more about setting QoSes???
 

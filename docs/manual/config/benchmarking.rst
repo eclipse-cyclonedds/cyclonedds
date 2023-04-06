@@ -23,8 +23,6 @@ parameterized sizes.
     benchmarking tools as they sacrifice performance for simplicity. You cannot compare
     test results from these tools with results from other tools.
 
-.. include:: ../test_installation.part.rst
-
 .. index:: Latency
 
 .. _latency_bm:
