@@ -19,7 +19,7 @@
 
 const idl_location_t *idl_location(const void *symbol)
 {
-  return &((const idl_symbol_t *)symbol)->location;
+  return symbol ? &((const idl_symbol_t *)symbol)->location : NULL;
 }
 
 void idl_delete_name(idl_name_t *name)

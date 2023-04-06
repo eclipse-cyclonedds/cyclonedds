@@ -3072,7 +3072,7 @@ bool dds_stream_normalize (void * __restrict data, uint32_t size, bool bswap, ui
 static const uint32_t *dds_stream_free_sample_seq (char * __restrict addr, const struct dds_cdrstream_allocator * __restrict allocator, const uint32_t * __restrict ops, uint32_t insn)
 {
   dds_sequence_t * const seq = (dds_sequence_t *) addr;
-  uint32_t num = (seq->_maximum > seq->_length) ? seq->_maximum : seq->_length;
+  uint32_t num = (seq->_buffer == NULL) ? 0 : (seq->_maximum > seq->_length) ? seq->_maximum : seq->_length;
   const enum dds_stream_typecode subtype = DDS_OP_SUBTYPE (insn);
   uint32_t bound_op = seq_is_bounded (DDS_OP_TYPE (insn)) ? 1 : 0;
   if ((seq->_release && num) || subtype > DDS_OP_VAL_STR)

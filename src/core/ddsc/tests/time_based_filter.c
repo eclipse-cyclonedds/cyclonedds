@@ -140,7 +140,15 @@ static void test_insert(void)
 
     sd->twrite.v = DDS_TIME_INVALID;
 
-    struct ddsi_writer_info wi;
+  struct ddsi_writer_info wi = {
+    .guid = { .prefix = { .u = {1,1,1} }, .entityid = { .u = 0x102 } },
+    .auto_dispose = false,
+    .ownership_strength = 0,
+    .iid = 1
+#ifdef DDS_HAS_LIFESPAN
+    , .lifespan_exp = { DDS_INFINITY }
+#endif
+    };
     const struct ddsi_domaingv *gv = get_gv (pp);
     CU_ASSERT_PTR_NOT_NULL_FATAL(gv);
     if (!gv)

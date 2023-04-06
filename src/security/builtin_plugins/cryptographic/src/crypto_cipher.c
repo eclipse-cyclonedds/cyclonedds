@@ -51,7 +51,7 @@ static bool trusted_check_buffer_sizes (const size_t num, const trusted_crypto_d
   DDSRT_STATIC_ASSERT (sizeof (trusted_crypto_data_t) == sizeof (tainted_crypto_data_t));
   DDSRT_STATIC_ASSERT (offsetof (trusted_crypto_data_t, x.base) == offsetof (tainted_crypto_data_t, base));
   DDSRT_STATIC_ASSERT (offsetof (trusted_crypto_data_t, x.length) == offsetof (tainted_crypto_data_t, length));
-  return check_buffer_sizes (num, (const const_tainted_crypto_data_t *) inp, &outp->x);
+  return check_buffer_sizes (num, (const const_tainted_crypto_data_t *) inp, outp ? &outp->x : NULL);
 }
 #endif
 
