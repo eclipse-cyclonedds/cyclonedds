@@ -462,7 +462,7 @@ void test_authentication_plugin_release_msg(struct message *msg)
   delete_message(msg);
 }
 
-static struct dds_security_authentication_impl * init_test_authentication_common()
+static struct dds_security_authentication_impl * init_test_authentication_common(void)
 {
   struct dds_security_authentication_impl * impl = ddsrt_malloc(sizeof(*impl));
   memset(impl, 0, sizeof(*impl));

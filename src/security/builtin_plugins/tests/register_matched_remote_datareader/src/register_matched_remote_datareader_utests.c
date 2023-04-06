@@ -60,7 +60,7 @@ static void prepare_endpoint_security_attributes(DDS_Security_EndpointSecurityAt
   attributes->plugin_endpoint_attributes |= DDS_SECURITY_PLUGIN_ENDPOINT_ATTRIBUTES_FLAG_IS_SUBMESSAGE_ENCRYPTED;
 }
 
-static void register_local_regular()
+static void register_local_regular(void)
 {
   DDS_Security_SecurityException exception = {NULL, 0, 0};
   DDS_Security_PropertySeq datawriter_properties;

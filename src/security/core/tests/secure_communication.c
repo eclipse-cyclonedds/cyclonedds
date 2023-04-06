@@ -105,7 +105,7 @@ const char * g_pp_secret = "ppsecret";
 const char * g_groupdata_secret = "groupsecret";
 const char * g_ep_secret = "epsecret";
 
-static dds_qos_t *get_qos()
+static dds_qos_t *get_qos(void)
 {
   dds_qos_t * qos = dds_create_qos ();
   CU_ASSERT_FATAL (qos != NULL);
