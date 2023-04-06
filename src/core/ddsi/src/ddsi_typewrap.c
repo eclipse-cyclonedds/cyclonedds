@@ -1037,8 +1037,13 @@ static dds_return_t add_minimal_typeobj (struct ddsi_domaingv *gv, struct xt_typ
           goto err_to;
         }
         xt->_u.union_type.members.seq[n].label_seq._length = mto->_u.union_type.member_seq._buffer[n].common.label_seq._length;
-        xt->_u.union_type.members.seq[n].label_seq._buffer = ddsrt_memdup (mto->_u.union_type.member_seq._buffer[n].common.label_seq._buffer,
-          mto->_u.union_type.member_seq._buffer[n].common.label_seq._length * sizeof (*mto->_u.union_type.member_seq._buffer[n].common.label_seq._buffer));
+        if (xt->_u.union_type.members.seq[n].label_seq._length > 0) {
+          xt->_u.union_type.members.seq[n].label_seq._buffer =
+            ddsrt_memdup (mto->_u.union_type.member_seq._buffer[n].common.label_seq._buffer,
+                          mto->_u.union_type.member_seq._buffer[n].common.label_seq._length * sizeof (*mto->_u.union_type.member_seq._buffer[n].common.label_seq._buffer));
+        } else {
+          xt->_u.union_type.members.seq[n].label_seq._buffer = NULL;
+        }
         memcpy (xt->_u.union_type.members.seq[n].detail.name_hash, mto->_u.union_type.member_seq._buffer[n].detail.name_hash,
           sizeof (xt->_u.union_type.members.seq[n].detail.name_hash));
       }
@@ -1203,8 +1208,13 @@ static dds_return_t add_complete_typeobj (struct ddsi_domaingv *gv, struct xt_ty
           goto err_to;
         }
         xt->_u.union_type.members.seq[n].label_seq._length = cto->_u.union_type.member_seq._buffer[n].common.label_seq._length;
-        xt->_u.union_type.members.seq[n].label_seq._buffer = ddsrt_memdup (cto->_u.union_type.member_seq._buffer[n].common.label_seq._buffer,
-          cto->_u.union_type.member_seq._buffer[n].common.label_seq._length * sizeof (*cto->_u.union_type.member_seq._buffer[n].common.label_seq._buffer));
+        if (xt->_u.union_type.members.seq[n].label_seq._length > 0) {
+          xt->_u.union_type.members.seq[n].label_seq._buffer =
+            ddsrt_memdup (cto->_u.union_type.member_seq._buffer[n].common.label_seq._buffer,
+                          cto->_u.union_type.member_seq._buffer[n].common.label_seq._length * sizeof (*cto->_u.union_type.member_seq._buffer[n].common.label_seq._buffer));
+        } else {
+          xt->_u.union_type.members.seq[n].label_seq._buffer = NULL;
+        }
         set_member_detail (&xt->_u.union_type.members.seq[n].detail, &cto->_u.union_type.member_seq._buffer[n].detail);
       }
       break;
@@ -2927,8 +2937,13 @@ void ddsi_xt_get_typeobject_kind_impl (const struct xt_type *xt, struct DDS_XTyp
           munion->member_seq._buffer[n].common.member_flags = xt->_u.union_type.members.seq[n].flags;
           ddsi_xt_get_typeid_impl (&xt->_u.union_type.members.seq[n].type->xt, &munion->member_seq._buffer[n].common.type_id, DDSI_TYPEID_KIND_MINIMAL);
           munion->member_seq._buffer[n].common.label_seq._length = xt->_u.union_type.members.seq[n].label_seq._length;
-          munion->member_seq._buffer[n].common.label_seq._buffer = ddsrt_memdup (xt->_u.union_type.members.seq[n].label_seq._buffer,
-            xt->_u.union_type.members.seq[n].label_seq._length * sizeof (*xt->_u.union_type.members.seq[n].label_seq._buffer));
+          if (munion->member_seq._buffer[n].common.label_seq._length > 0) {
+            munion->member_seq._buffer[n].common.label_seq._buffer =
+              ddsrt_memdup (xt->_u.union_type.members.seq[n].label_seq._buffer,
+                            xt->_u.union_type.members.seq[n].label_seq._length * sizeof (*xt->_u.union_type.members.seq[n].label_seq._buffer));
+          } else {
+            munion->member_seq._buffer[n].common.label_seq._buffer = NULL;
+          }
           munion->member_seq._buffer[n].common.label_seq._release = true;
           get_minimal_member_detail (&munion->member_seq._buffer[n].detail, &xt->_u.union_type.members.seq[n].detail);
         }
@@ -3060,8 +3075,13 @@ void ddsi_xt_get_typeobject_kind_impl (const struct xt_type *xt, struct DDS_XTyp
           cunion->member_seq._buffer[n].common.member_flags = xt->_u.union_type.members.seq[n].flags;
           ddsi_xt_get_typeid_impl (&xt->_u.union_type.members.seq[n].type->xt, &cunion->member_seq._buffer[n].common.type_id, DDSI_TYPEID_KIND_COMPLETE);
           cunion->member_seq._buffer[n].common.label_seq._length = xt->_u.union_type.members.seq[n].label_seq._length;
-          cunion->member_seq._buffer[n].common.label_seq._buffer = ddsrt_memdup (xt->_u.union_type.members.seq[n].label_seq._buffer,
-            xt->_u.union_type.members.seq[n].label_seq._length * sizeof (*xt->_u.union_type.members.seq[n].label_seq._buffer));
+          if (cunion->member_seq._buffer[n].common.label_seq._length > 0) {
+            cunion->member_seq._buffer[n].common.label_seq._buffer =
+              ddsrt_memdup (xt->_u.union_type.members.seq[n].label_seq._buffer,
+                            xt->_u.union_type.members.seq[n].label_seq._length * sizeof (*xt->_u.union_type.members.seq[n].label_seq._buffer));
+          } else {
+            cunion->member_seq._buffer[n].common.label_seq._buffer = NULL;
+          }
           cunion->member_seq._buffer[n].common.label_seq._release = true;
           get_member_detail (&cunion->member_seq._buffer[n].detail, &xt->_u.union_type.members.seq[n].detail);
         }
