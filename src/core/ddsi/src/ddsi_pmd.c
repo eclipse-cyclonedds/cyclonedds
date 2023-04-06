@@ -141,7 +141,7 @@ void ddsi_write_pmd_message_xevent_cb (struct ddsi_domaingv *gv, struct ddsi_xev
   ddsi_write_pmd_message (thrst, xp, pp, DDSI_PARTICIPANT_MESSAGE_DATA_KIND_AUTOMATIC_LIVELINESS_UPDATE);
 
   intv = ddsi_participant_get_pmd_interval (pp);
-  if (intv == DDS_INFINITY)
+  if (intv < 0 || intv == DDS_INFINITY)
   {
     tnext.v = DDS_NEVER;
     GVTRACE ("resched pmd("PGUIDFMT"): never\n", PGUID (pp->e.guid));

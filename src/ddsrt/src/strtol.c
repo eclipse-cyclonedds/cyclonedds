@@ -95,7 +95,7 @@ ddsrt_strtoll(
 {
   dds_return_t rc = DDS_RETCODE_OK;
   size_t cnt = 0;
-  long long tot = 1;
+  int sign = 1;
   unsigned long long ullng = 0, max = INT64_MAX;
 
   assert(str != NULL);
@@ -106,7 +106,7 @@ ddsrt_strtoll(
   }
 
   if (str[cnt] == '-') {
-    tot = -1;
+    sign = -1;
     max++;
     cnt++;
   } else if (str[cnt] == '+') {
@@ -116,9 +116,11 @@ ddsrt_strtoll(
   rc = ullfstr(str + cnt, endptr, base, &ullng, max);
   if (endptr && *endptr == (str + cnt))
     *endptr = (char *)str;
-  if (rc != DDS_RETCODE_BAD_PARAMETER)
-    *llng = tot * (long long)ullng;
-
+  if (rc != DDS_RETCODE_BAD_PARAMETER) {
+    *llng = (long long)ullng;
+    if (sign == -1 && *llng != INT64_MIN)
+      *llng = - *llng;
+  }
   return rc;
 }
 

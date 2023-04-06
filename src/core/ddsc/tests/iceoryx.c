@@ -191,7 +191,7 @@ static void check_writer_addrset_helper (const ddsi_xlocator_t *loc, void *varg)
   CU_ASSERT_FATAL (i < arg->nports);
 }
 
-static bool check_writer_addrset (dds_entity_t wrhandle, int nports, const uint32_t ports[nports])
+static bool check_writer_addrset (dds_entity_t wrhandle, int nports, const uint32_t *ports)
 {
   dds_return_t rc;
   struct dds_entity *x;
