@@ -1613,26 +1613,55 @@ err:
   return ret;
 }
 
-static void typebuilder_get_keys_calc_size (const struct typebuilder_data *tbd, struct typebuilder_key const * const *keys_by_id, uint32_t *p_keysz_xcdr1, uint32_t *p_keysz_xcdr2)
-{
-  uint32_t keysz_xcdr1 = 0, keysz_xcdr2 = 0;
-  for (uint32_t k = 0; k < tbd->n_keys; k++)
-  {
-    // size XCDR2: using key definition order
-    const struct typebuilder_key *key_xcdr1 = &tbd->keys[k];
-    keysz_xcdr1 = add_to_key_size (keysz_xcdr1, key_xcdr1->path->parts[key_xcdr1->path->n_parts - 1].member->type.size, false,
-                                   key_xcdr1->path->parts[key_xcdr1->path->n_parts - 1].member->type.cdr_align, XCDR1_MAX_ALIGN);
+enum get_keys_calc_size_repr { GET_KEYS_CALC_SIZE_XCDR1, GET_KEYS_CALC_SIZE_XCDR2 };
 
-    // size XCDR2: using member id sort order
-    const struct typebuilder_key *key_xcdr2 = keys_by_id[k];
-    const struct typebuilder_struct_member *key_member = key_xcdr2->path->parts[key_xcdr2->path->n_parts - 1].member;
-    bool dheader = key_member->type.type_code == DDS_OP_VAL_ARR &&
-    !(key_member->type.args.collection_args.element_type.type->type_code == DDS_OP_VAL_BLN || key_member->type.args.collection_args.element_type.type->type_code <= DDS_OP_VAL_8BY);
-    keysz_xcdr2 = add_to_key_size (keysz_xcdr2, key_member->type.size, dheader,
-                                   key_xcdr2->path->parts[key_xcdr2->path->n_parts - 1].member->type.cdr_align, XCDR2_MAX_ALIGN);
+static uint32_t typebuilder_get_keys_calc_size_accum_one (uint32_t keysize, const struct typebuilder_key *key, enum get_keys_calc_size_repr data_representation)
+{
+  const struct typebuilder_struct_member *member = key->path->parts[key->path->n_parts - 1].member;
+  if (keysize >= DDS_FIXED_KEY_MAX_SIZE || member->type.type_code == DDS_OP_VAL_STR)
+  {
+    // If it didn't fit before, if no additional field can fit, or this key field is an unbounded string,
+    // then we can avoid the effort because we know it won't fit.
+    return DDS_FIXED_KEY_MAX_SIZE + 1;
   }
-  *p_keysz_xcdr1 = keysz_xcdr1;
-  *p_keysz_xcdr2 = keysz_xcdr2;
+  else
+  {
+    bool dheader = false;
+    uint32_t max_align = 1;
+    switch (data_representation)
+    {
+      case GET_KEYS_CALC_SIZE_XCDR1:
+        dheader = false;
+        max_align = XCDR1_MAX_ALIGN;
+        break;
+      case GET_KEYS_CALC_SIZE_XCDR2:
+        dheader = (member->type.type_code == DDS_OP_VAL_ARR &&
+                   !(member->type.args.collection_args.element_type.type->type_code == DDS_OP_VAL_BLN ||
+                     member->type.args.collection_args.element_type.type->type_code <= DDS_OP_VAL_8BY));
+        max_align = XCDR2_MAX_ALIGN;
+        break;
+    }
+    return add_to_key_size (keysize, member->type.size, dheader, member->type.cdr_align, max_align);
+  }
+}
+
+static uint32_t typebuilder_get_keys_calc_size (const struct typebuilder_data *tbd, struct typebuilder_key const * const *keys_by_id, enum get_keys_calc_size_repr data_representation)
+{
+  uint32_t keysz = 0;
+  switch (data_representation)
+  {
+    case GET_KEYS_CALC_SIZE_XCDR1:
+      // size XCDR1: using key definition order
+      for (uint32_t k = 0; k < tbd->n_keys; k++)
+        keysz = typebuilder_get_keys_calc_size_accum_one (keysz, &tbd->keys[k], data_representation);
+      break;
+    case GET_KEYS_CALC_SIZE_XCDR2:
+      // size XCDR2: using member id sort order
+      for (uint32_t k = 0; k < tbd->n_keys; k++)
+        keysz = typebuilder_get_keys_calc_size_accum_one (keysz, keys_by_id[k], data_representation);
+      break;
+  }
+  return keysz;
 }
 
 static char *typebuilder_get_keys_make_name (const struct typebuilder_key *key)
@@ -1698,9 +1727,8 @@ static dds_return_t typebuilder_get_keys (struct typebuilder_data *tbd, struct t
   if ((ret = typebuilder_get_keys_push_ops (tbd, ops, &keys_by_id)) != 0)
     return ret;
 
-  uint32_t keysz_xcdr1, keysz_xcdr2;
-  typebuilder_get_keys_calc_size (tbd, keys_by_id, &keysz_xcdr1, &keysz_xcdr2);
-
+  const uint32_t keysz_xcdr1 = typebuilder_get_keys_calc_size (tbd, keys_by_id, GET_KEYS_CALC_SIZE_XCDR1);
+  const uint32_t keysz_xcdr2 = typebuilder_get_keys_calc_size (tbd, keys_by_id, GET_KEYS_CALC_SIZE_XCDR2);
   if (keysz_xcdr1 > 0 && keysz_xcdr1 <= DDS_FIXED_KEY_MAX_SIZE)
     tbd->fixed_key_xcdr1 = true;
   if (keysz_xcdr2 > 0 && keysz_xcdr2 <= DDS_FIXED_KEY_MAX_SIZE)
