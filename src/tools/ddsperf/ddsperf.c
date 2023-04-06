@@ -624,7 +624,6 @@ static uint32_t pubthread (void *varg)
   dds_instance_handle_t *ihs;
   dds_time_t ntot = 0, tfirst;
   union data data;
-  uint64_t timeouts = 0;
   void *baggage = NULL;
   (void) varg;
 
@@ -674,7 +673,6 @@ static uint32_t pubthread (void *varg)
       fflush (stdout);
       if (result != DDS_RETCODE_TIMEOUT)
         exit (2);
-      timeouts++;
       /* retry with original timestamp, it really is just a way of reporting
          blocking for an exceedingly long time, but do force a fresh time stamp
          for the next sample */
