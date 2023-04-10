@@ -28,7 +28,7 @@
  * @ingroup qos
  * @brief Whether or not the "property list" QoS setting is supported in this version.  If it is,
  * the "dds.sec." properties are treated specially, preventing the accidental creation of
- * an non-secure participant by an implementation built without support for DDS Security.
+ * a non-secure participant by an implementation built without support for DDS Security.
  */
 #define DDS_HAS_PROPERTY_LIST_QOS 1
 
