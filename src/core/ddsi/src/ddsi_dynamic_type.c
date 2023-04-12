@@ -87,25 +87,40 @@ static dds_return_t dynamic_type_complete (struct ddsi_type **type)
   ddsi_xt_get_typeid_impl (&(*type)->xt, &ti, (*type)->xt.kind);
 
   struct ddsi_type *ref_type = ddsi_type_lookup_locked_impl (gv, &ti);
-  if (ref_type)
+  if (ref_type && ref_type->state == DDSI_TYPE_RESOLVED)
   {
-    /* The constructed type exists in the type library, so replace the type
+    /* The constructed type exists in the type library and is resolved, so replace the type
        pointer with the existing type and transfer the refcount for the constructed
        type to the existing type. */
-    ref_type->refc += (*type)->refc;
     ddsi_type_free (*type);
     *type = ref_type;
+    ddsi_type_ref_locked (gv, NULL, *type);
   }
-  else
+  else if ((ret = ddsi_xt_validate (gv, &(*type)->xt)) == DDS_RETCODE_OK)
   {
-    if ((ret = ddsi_xt_validate (gv, &(*type)->xt)) == DDS_RETCODE_OK)
+    if (ref_type && ref_type->state == DDSI_TYPE_INVALID)
     {
+      (*type)->state = DDSI_TYPE_INVALID;
+    }
+    else
+    {
+      if (ref_type != NULL)
+      {
+        /* The constructed type exists in the type library, but is not (fully) resolved. */
+        ddsi_xt_copy (gv, &ref_type->xt, &(*type)->xt);
+        ddsi_type_free (*type);
+        *type = ref_type;
+        ddsi_type_ref_locked (gv, NULL, *type);
+      }
+
       ddsi_typeid_copy_impl (&(*type)->xt.id.x, &ti);
-      ddsrt_avl_insert (&ddsi_typelib_treedef, &gv->typelib, *type);
+      if (ref_type == NULL)
+        ddsrt_avl_insert (&ddsi_typelib_treedef, &gv->typelib, *type);
+
       if ((ret = dynamic_type_ref_deps (*type)) != DDS_RETCODE_OK)
       {
+        assert (ref_type == NULL); // if a valid type with same ID exists, the constructed type can't be invalid
         (*type)->state = DDSI_TYPE_INVALID;
-        ddsi_type_unref_locked (gv, *type);
       }
       else
       {

@@ -590,3 +590,131 @@ CU_Test (ddsc_dynamic_type, no_members, .init = dynamic_type_init, .fini = dynam
   CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_BAD_PARAMETER);
   dds_dynamic_type_unref (&dunion);
 }
+
+static void create_type_topic_wr (dds_entity_t pp, const char *topic_name, ddsi_typeid_t **type_id)
+{
+  dds_dynamic_type_t dsubstruct = dds_dynamic_type_create (pp, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_STRUCTURE, .name = "dynamic_substruct" });
+  dds_dynamic_type_add_member (&dsubstruct, DDS_DYNAMIC_MEMBER_PRIM(DDS_DYNAMIC_UINT32, "submember_uint32"));
+
+  dds_dynamic_type_t dstruct = dds_dynamic_type_create (pp, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_STRUCTURE, .name = "dynamic_struct" });
+  dds_dynamic_type_add_member (&dstruct, DDS_DYNAMIC_MEMBER_PRIM(DDS_DYNAMIC_UINT16, "member_uint16"));
+  dds_dynamic_type_add_member (&dstruct, DDS_DYNAMIC_MEMBER(dsubstruct, "member_struct"));
+
+  dds_typeinfo_t *type_info;
+  dds_return_t ret = dds_dynamic_type_register (&dstruct, &type_info);
+  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+
+  dds_topic_descriptor_t *descriptor;
+  ret = dds_create_topic_descriptor (DDS_FIND_SCOPE_LOCAL_DOMAIN, pp, type_info, 0, &descriptor);
+  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+  dds_entity_t topic = dds_create_topic (pp, descriptor, topic_name, NULL, NULL);
+  CU_ASSERT_FATAL (topic >= 0);
+  dds_entity_t writer = dds_create_writer (pp, topic, NULL, NULL);
+  CU_ASSERT_FATAL (writer >= 0);
+
+  *type_id = ddsi_typeid_dup (ddsi_typeinfo_complete_typeid (type_info));
+  dds_free_typeinfo (type_info);
+  dds_delete_topic_descriptor (descriptor);
+  dds_dynamic_type_unref (&dstruct);
+}
+
+CU_Test (ddsc_dynamic_type, existing, .init = dynamic_type_init, .fini = dynamic_type_fini)
+{
+  dds_return_t ret;
+  char topic_name[100];
+  create_unique_topic_name ("ddsc_dynamic_type", topic_name, sizeof (topic_name));
+
+  // Create participant2 with writer
+  dds_entity_t domain2 = dds_create_domain (1, "<Discovery><ExternalDomainId>0</ExternalDomainId></Discovery>");
+  CU_ASSERT_FATAL (domain2 >= 0);
+  dds_entity_t participant2 = dds_create_participant (1, NULL, NULL);
+  CU_ASSERT_FATAL (participant2 >= 0);
+
+  ddsi_typeid_t *type_id, *type_id2;
+  create_type_topic_wr (participant2, topic_name, &type_id2);
+
+  // Read DCPS Publication and find participant2 writer
+  dds_entity_t pub_rd = dds_create_reader (participant, DDS_BUILTIN_TOPIC_DCPSPUBLICATION, NULL, NULL);
+  CU_ASSERT_FATAL (pub_rd >= 0);
+  ret = dds_set_status_mask (pub_rd, DDS_DATA_AVAILABLE_STATUS);
+  CU_ASSERT_FATAL (ret == 0);
+  dds_entity_t ws = dds_create_waitset (participant);
+  CU_ASSERT_FATAL (ws >= 0);
+  ret = dds_waitset_attach (ws, pub_rd, 0);
+  CU_ASSERT_FATAL (ret == 0);
+
+  bool done = false;
+  while (!done)
+  {
+    ret = dds_waitset_wait (ws, NULL, 0, DDS_INFINITY);
+    CU_ASSERT_FATAL (ret >= 0);
+
+    void *samples[1];
+    dds_sample_info_t si;
+    samples[0] = NULL;
+    while (!done && dds_take (pub_rd, samples, &si, 1, 1) == 1)
+    {
+      const dds_builtintopic_endpoint_t *sample = samples[0];
+      done = si.valid_data && si.instance_state == DDS_IST_ALIVE && !strcmp (sample->topic_name, topic_name);
+    }
+    dds_return_loan (pub_rd, samples, 1);
+  }
+
+  /* Now that we have discovered the writer from participant2, its types should be
+     in the type library in unresolved state (in participant 1 context!). */
+  struct ddsi_type *type, *type2;
+  struct ddsi_domaingv *gv = get_domaingv (participant);
+  type2 = ddsi_type_lookup_locked (gv, type_id2);
+  CU_ASSERT_FATAL (type2 != NULL);
+  bool resolved = ddsi_type_resolved_locked (gv, type2, DDSI_TYPE_IGNORE_DEPS);
+  CU_ASSERT_FATAL (!resolved);
+
+  /* Create the same type for a local writer and confirm that the type
+     id is the same and the type is resolved. */
+  create_type_topic_wr (participant, topic_name, &type_id);
+  CU_ASSERT_FATAL (ddsi_typeid_compare (type_id, type_id2) == 0);
+  type = ddsi_type_lookup_locked (gv, type_id);
+  CU_ASSERT_FATAL (type != NULL);
+  resolved = ddsi_type_resolved_locked (gv, type, DDSI_TYPE_IGNORE_DEPS);
+  CU_ASSERT_FATAL (resolved);
+
+  // Clean-up
+  ddsi_typeid_fini (type_id);
+  ddsrt_free (type_id);
+  ddsi_typeid_fini (type_id2);
+  ddsrt_free (type_id2);
+
+  dds_delete (domain2);
+}
+
+CU_Test (ddsc_dynamic_type, existing_constructing, .init = dynamic_type_init, .fini = dynamic_type_fini)
+{
+  dds_dynamic_type_t dstruct1 = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_STRUCTURE, .name = "dynamic_struct" });
+  dds_dynamic_type_add_member (&dstruct1, DDS_DYNAMIC_MEMBER_PRIM(DDS_DYNAMIC_UINT32, "member_uint32"));
+
+  dds_dynamic_type_t dstruct2 = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_STRUCTURE, .name = "dynamic_struct" });
+  dds_dynamic_type_add_member (&dstruct2, DDS_DYNAMIC_MEMBER_PRIM(DDS_DYNAMIC_UINT32, "member_uint32"));
+
+  dds_typeinfo_t *type_info1, *type_info2;
+  dds_return_t ret;
+  ret = dds_dynamic_type_register (&dstruct2, &type_info2);
+  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+
+  ret = dds_dynamic_type_register (&dstruct1, &type_info1);
+  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+
+  ddsi_typeid_t *type_id1, *type_id2;
+  type_id1 = ddsi_typeid_dup (ddsi_typeinfo_complete_typeid (type_info1));
+  type_id2 = ddsi_typeid_dup (ddsi_typeinfo_complete_typeid (type_info2));
+  CU_ASSERT_FATAL (ddsi_typeid_compare (type_id1, type_id2) == 0);
+
+  ddsi_typeid_fini (type_id1);
+  ddsrt_free (type_id1);
+  ddsi_typeid_fini (type_id2);
+  ddsrt_free (type_id2);
+
+  dds_free_typeinfo (type_info1);
+  dds_free_typeinfo (type_info2);
+  dds_dynamic_type_unref (&dstruct1);
+  dds_dynamic_type_unref (&dstruct2);
+}
