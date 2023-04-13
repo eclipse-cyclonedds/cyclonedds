@@ -189,22 +189,29 @@ CU_Test (ddsi_plist_generic, ser_and_deser)
        but to something unlikely for the remainder */
     memset (mem.buf, 0, memsize);
     memset (mem.buf + memsize, 0xee, sizeof (mem) - memsize);
-    ret = ddsi_plist_deser_generic (&mem, ser, sersize, false, descs[i].desc);
-    if (ret != DDS_RETCODE_OK)
-      CU_ASSERT_FATAL (ret == DDS_RETCODE_OK);
-    /* the compare function should be happy with it */
-    if (!ddsi_plist_equal_generic (descs[i].exp_data ? descs[i].exp_data : descs[i].data, &mem, descs[i].desc))
-      CU_ASSERT (!(bool)"plist_equal_generic");
-    /* content should be identical except when an XO, XS or XQ is present (because the first two
+
+    /* 0 mod 4 is guaranteed by plist handling code, 0 mod 8 isn't, so be sure to check */
+    ser = ddsrt_realloc (ser, sersize + 4);
+    for (uint32_t shift = 0; shift != 4; shift += 4)
+    {
+      memmove ((char *) ser + shift, ser, sersize);
+      ret = ddsi_plist_deser_generic (&mem, (char *) ser + shift, sersize, false, descs[i].desc);
+      if (ret != DDS_RETCODE_OK)
+        CU_ASSERT_FATAL (ret == DDS_RETCODE_OK);
+      /* the compare function should be happy with it */
+      if (!ddsi_plist_equal_generic (descs[i].exp_data ? descs[i].exp_data : descs[i].data, &mem, descs[i].desc))
+        CU_ASSERT (!(bool)"plist_equal_generic");
+      /* content should be identical except when an XO, XS or XQ is present (because the first two
        alias the serialised form and XQ to freshly allocated memory), so we do a limited check */
-    bool can_memcmp = true;
-    for (const enum ddsi_pserop *op = descs[i].desc; *op != XSTOP && can_memcmp; op++)
-      if (*op == XS || *op == XO || *op == XQ)
-        can_memcmp = false;
-    if (can_memcmp && memcmp (descs[i].exp_data ? descs[i].exp_data : descs[i].data, &mem, memsize) != 0)
-      CU_ASSERT (!(bool)"memcmp");
-    /* rely on mem checkers to find memory leaks, incorrect free, etc. */
-    ddsi_plist_fini_generic (&mem, descs[i].desc, true);
+      bool can_memcmp = true;
+      for (const enum ddsi_pserop *op = descs[i].desc; *op != XSTOP && can_memcmp; op++)
+        if (*op == XS || *op == XO || *op == XQ)
+          can_memcmp = false;
+      if (can_memcmp && memcmp (descs[i].exp_data ? descs[i].exp_data : descs[i].data, &mem, memsize) != 0)
+        CU_ASSERT (!(bool)"memcmp");
+      /* rely on mem checkers to find memory leaks, incorrect free, etc. */
+      ddsi_plist_fini_generic (&mem, descs[i].desc, true);
+    }
     ddsrt_free (ser);
   }
 }
@@ -277,10 +284,20 @@ CU_Test (ddsi_plist_generic, invalid_input)
 
   for (size_t i = 0; i < sizeof (descs_invalid) / sizeof (descs_invalid[0]); i++)
   {
-    dds_return_t ret;
-    ret = ddsi_plist_deser_generic (&mem, descs_invalid[i].ser, descs_invalid[i].sersize, false, descs_invalid[i].desc);
-    if (ret == DDS_RETCODE_OK)
-      CU_ASSERT_FATAL (ret != DDS_RETCODE_OK);
+    // plist handling guarantees 4-byte alignment, which (unsigned char[]) doesn't
+    // also make sure to test try with 0 mod 8 & 4 mod 8 addresses
+    // + 11: at most + 7 for aligning to 0 mod 8, + 4 for 4 mod 8
+    // obviously one needs at most 7 but this is easier and does no harm
+    char * const serbuf = ddsrt_malloc (descs_invalid[i].sersize + 11);
+    for (size_t a = 0; a <= 4; a += 4)
+    {
+      char * const ser = serbuf + ((8 - ((uintptr_t)serbuf % 8)) % 8) + 4;
+      memcpy (ser, descs_invalid[i].ser, descs_invalid[i].sersize);
+      dds_return_t ret = ddsi_plist_deser_generic (&mem, ser, descs_invalid[i].sersize, false, descs_invalid[i].desc);
+      if (ret == DDS_RETCODE_OK)
+        CU_ASSERT_FATAL (ret != DDS_RETCODE_OK);
+    }
+    ddsrt_free (serbuf);
   }
 }
 
