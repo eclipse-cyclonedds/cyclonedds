@@ -115,7 +115,9 @@ void DDS_Security_Exception_set_with_openssl_error (DDS_Security_SecurityExcepti
     size_t exception_msg_len = len + strlen (error_area) + 1;
     char *str = ddsrt_malloc (exception_msg_len);
     ddsrt_strlcpy (str, error_area, exception_msg_len);
-    memcpy (str + strlen (error_area), buf, len);
+    if (len > 0) {
+      memcpy (str + strlen (error_area), buf, len);
+    }
     str[exception_msg_len - 1] = '\0';
     ex->message = str;
     ex->code = code;

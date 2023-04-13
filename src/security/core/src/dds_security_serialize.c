@@ -270,10 +270,12 @@ DDS_Security_Serialize_OctetSeq(
      DDS_Security_Serializer ser,
      const DDS_Security_OctetSeq *seq)
 {
-     DDS_Security_Serialize_uint32_t(ser, seq->_length);
-     serbuffer_adjust_size(ser, seq->_length);
-     memcpy(&(ser->buffer[ser->offset]), seq->_buffer, seq->_length);
-     ser->offset += seq->_length;
+    DDS_Security_Serialize_uint32_t(ser, seq->_length);
+    if (seq->_length) {
+        serbuffer_adjust_size(ser, seq->_length);
+        memcpy(&(ser->buffer[ser->offset]), seq->_buffer, seq->_length);
+        ser->offset += seq->_length;
+    }
 }
 
 static void
