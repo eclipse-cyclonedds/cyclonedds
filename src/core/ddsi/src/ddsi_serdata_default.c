@@ -760,7 +760,8 @@ static void serdata_default_get_keyhash (const struct ddsi_serdata *serdata_comm
   else
   {
     memset (buf->value, 0, DDS_FIXED_KEY_MAX_SIZE);
-    memcpy (buf->value, os.x.m_buffer, actual_keysz);
+    if (actual_keysz > 0)
+      memcpy (buf->value, os.x.m_buffer, actual_keysz);
   }
   dds_ostreamBE_fini (&os);
 }
