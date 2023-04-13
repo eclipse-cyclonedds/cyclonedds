@@ -134,17 +134,23 @@ serialize_master_key_material(
 
   sd[i++] = ddsrt_toBE4u(keymat->transformation_kind);
   sd[i++] = ddsrt_toBE4u(key_bytes);
-  memcpy(&sd[i], keymat->master_salt, key_bytes);
+  if (key_bytes > 0) {
+    memcpy(&sd[i], keymat->master_salt, key_bytes);
+  }
   i += key_bytes / sizeof (uint32_t);
   sd[i++] = ddsrt_toBE4u(keymat->sender_key_id);
   sd[i++] = ddsrt_toBE4u(key_bytes);
-  memcpy(&sd[i], keymat->master_sender_key, key_bytes);
+  if (key_bytes > 0) {
+    memcpy(&sd[i], keymat->master_sender_key, key_bytes);
+  }
   i += key_bytes / sizeof (uint32_t);
   sd[i++] = ddsrt_toBE4u(keymat->receiver_specific_key_id);
   if (keymat->receiver_specific_key_id)
   {
     sd[i++] = ddsrt_toBE4u(key_bytes);
-    memcpy(&sd[i], keymat->master_receiver_specific_key, key_bytes);
+    if (key_bytes > 0) {
+      memcpy(&sd[i], keymat->master_receiver_specific_key, key_bytes);
+    }
   }
   else
   {
