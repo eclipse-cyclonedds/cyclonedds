@@ -41,7 +41,9 @@ DDS_Security_BinaryProperty_deinit(
     }
 
     ddsrt_free(p->name);
-    memset (p->value._buffer, 0, p->value._length); /* because key material can be stored in binary property */
+    if (p->value._length > 0) {
+        memset (p->value._buffer, 0, p->value._length); /* because key material can be stored in binary property */
+    }
     ddsrt_free(p->value._buffer);
 }
 
