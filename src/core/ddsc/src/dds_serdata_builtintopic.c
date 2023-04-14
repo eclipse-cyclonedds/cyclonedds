@@ -101,6 +101,8 @@ static struct ddsi_serdata_builtintopic *serdata_builtin_new(const struct ddsi_s
     case DSBT_WRITER:
       size = sizeof (struct ddsi_serdata_builtintopic_endpoint);
       break;
+    default:
+      abort();
   }
   struct ddsi_serdata_builtintopic *d = ddsrt_malloc(size);
   ddsi_serdata_init (&d->c, &tp->c, serdata_kind);
@@ -452,7 +454,7 @@ struct ddsi_serdata *dds_serdata_builtin_from_topic_definition (const struct dds
   const struct ddsi_sertype_builtintopic *tp = (const struct ddsi_sertype_builtintopic *) tpcmn;
   assert (tp->entity_kind == DSBT_TOPIC);
   struct ddsi_serdata_builtintopic_topic *d = (struct ddsi_serdata_builtintopic_topic *) serdata_builtin_new (tp, kind);
-  memcpy (&d->common.key.raw, key, sizeof (d->common.key.raw));
+  memcpy (d->common.key.raw, key->d, sizeof (d->common.key.raw));
   if (tpd != NULL && kind == SDK_DATA)
     from_qos (&d->common, tpd->xqos);
   return fix_serdata_builtin (&d->common, DSBT_TOPIC, tp->c.serdata_basehash);
