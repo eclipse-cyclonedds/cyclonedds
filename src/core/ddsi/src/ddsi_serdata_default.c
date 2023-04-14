@@ -469,54 +469,38 @@ static struct ddsi_serdata *ddsi_serdata_from_keyhash_cdr_nokey (const struct dd
 }
 
 #ifdef DDS_HAS_SHM
-static struct ddsi_serdata* serdata_default_from_received_iox_buffer(const struct ddsi_sertype* tpcmn, enum ddsi_serdata_kind kind, void* sub, void* iox_buffer)
+static struct ddsi_serdata_default *serdata_default_from_iox_common (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, void *sub, void *iox_buffer)
 {
-  const iceoryx_header_t* ice_hdr = iceoryx_header_from_chunk(iox_buffer);
-
-  const struct ddsi_sertype_default* tp = (const struct ddsi_sertype_default*)tpcmn;
-
-  struct ddsi_serdata_default *d = serdata_default_new_size (tp, kind, ice_hdr->data_size, tp->write_encoding_version);
-
+  struct ddsi_sertype_default const * const tp = (const struct ddsi_sertype_default *) tpcmn;
+  iceoryx_header_t const * const ice_hdr = iceoryx_header_from_chunk (iox_buffer);
+  struct ddsi_serdata_default * const d = serdata_default_new_size (tp, kind, ice_hdr->data_size, tp->write_encoding_version);
   // note: we do not deserialize or memcpy here, just take ownership of the chunk
   d->c.iox_chunk = iox_buffer;
   d->c.iox_subscriber = sub;
-  d->key.buftype = KEYBUFTYPE_STATIC;
-  d->key.keysize = DDS_FIXED_KEY_MAX_SIZE;
-  memcpy(d->key.u.stbuf, ice_hdr->keyhash.value, DDS_FIXED_KEY_MAX_SIZE);
-
-  fix_serdata_default(d, tpcmn->serdata_basehash);
-
-  return (struct ddsi_serdata*)d;
-}
-
-// Creates a serdata for the case where only iceoryx is required (i.e. no network).
-// This skips expensive serialization and just takes ownership of the iceoryx buffer.
-// Computing the keyhash is currently still required.
-static struct ddsi_serdata *ddsi_serdata_default_from_loaned_sample (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, const char *sample)
-{
-  const struct ddsi_sertype_default *t = (const struct ddsi_sertype_default *)type;
-  struct ddsi_serdata_default *d = serdata_default_new (t, kind, t->write_encoding_version);
-
-  if(d == NULL)
-    return NULL;
-
-  // Currently needed even in the shared memory case (since it is potentially used at the reader side).
-  // This may still incur computational costs linear in the sample size (?).
-  // TODO: Can we avoid this with specific handling on the reader side which does not require the keyhash?
-  if (!gen_serdata_key_from_sample (t, &d->key, sample))
-    return NULL;
-
-  struct ddsi_serdata *serdata = &d->c;
-  serdata->iox_chunk = (void*) sample;
-  return serdata;
-}
-
-static struct ddsi_serdata* serdata_default_from_iox(const struct ddsi_sertype* tpcmn, enum ddsi_serdata_kind kind, void* sub, void* buffer)
-{
-  if (sub == NULL)
-    return ddsi_serdata_default_from_loaned_sample(tpcmn, kind, buffer);
+  if (ice_hdr->shm_data_state != IOX_CHUNK_CONTAINS_SERIALIZED_DATA)
+    gen_serdata_key_from_sample (tp, &d->key, iox_buffer);
   else
-    return serdata_default_from_received_iox_buffer(tpcmn, kind, sub, buffer);
+  {
+    // This is silly: we get here only from dds_write and so we have the original sample available
+    // somewhere, just not here.  This is not the time to change the serdata interface and we have
+    // to make do with what is available.
+    dds_istream_t is;
+    dds_istream_init (&is, ice_hdr->data_size, iox_buffer, tp->write_encoding_version);
+    gen_serdata_key_from_cdr (&is, &d->key, tp, kind == SDK_KEY);
+  }
+  return d;
+}
+
+static struct ddsi_serdata *serdata_default_from_iox (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, void *sub, void *iox_buffer)
+{
+  struct ddsi_serdata_default *d = serdata_default_from_iox_common (tpcmn, kind, sub, iox_buffer);
+  return fix_serdata_default (d, tpcmn->serdata_basehash);
+}
+
+static struct ddsi_serdata *serdata_default_from_iox_nokey (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, void *sub, void *iox_buffer)
+{
+  struct ddsi_serdata_default *d = serdata_default_from_iox_common (tpcmn, kind, sub, iox_buffer);
+  return fix_serdata_default_nokey (d, tpcmn->serdata_basehash);
 }
 #endif
 
@@ -843,7 +827,7 @@ const struct ddsi_serdata_ops ddsi_serdata_ops_cdr_nokey = {
   .get_keyhash = serdata_default_get_keyhash
 #ifdef DDS_HAS_SHM
   , .get_sample_size = ddsi_serdata_iox_size
-  , .from_iox_buffer = serdata_default_from_iox
+  , .from_iox_buffer = serdata_default_from_iox_nokey
 #endif
 };
 
@@ -865,6 +849,6 @@ const struct ddsi_serdata_ops ddsi_serdata_ops_xcdr2_nokey = {
   .get_keyhash = serdata_default_get_keyhash
 #ifdef DDS_HAS_SHM
   , .get_sample_size = ddsi_serdata_iox_size
-  , .from_iox_buffer = serdata_default_from_iox
+  , .from_iox_buffer = serdata_default_from_iox_nokey
 #endif
 };
