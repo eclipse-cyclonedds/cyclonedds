@@ -82,29 +82,29 @@ static void serdata_builtin_free(struct ddsi_serdata *dcmn)
   ddsrt_free (d);
 }
 
-static struct ddsi_serdata_builtintopic *serdata_builtin_new(const struct ddsi_sertype_builtintopic *tp, enum ddsi_serdata_kind serdata_kind)
+static size_t serdata_builtin_sizeof(enum ddsi_sertype_builtintopic_entity_kind entity_kind)
 {
-  size_t size = 0;
-  switch (tp->entity_kind)
+  switch (entity_kind)
   {
     case DSBT_PARTICIPANT:
-      size = sizeof (struct ddsi_serdata_builtintopic_participant);
-      break;
+      return sizeof (struct ddsi_serdata_builtintopic_participant);
     case DSBT_TOPIC:
 #ifdef DDS_HAS_TOPIC_DISCOVERY
-      size = sizeof (struct ddsi_serdata_builtintopic_topic);
+      return sizeof (struct ddsi_serdata_builtintopic_topic);
 #else
-      assert(0);
-#endif
       break;
+#endif
     case DSBT_READER:
     case DSBT_WRITER:
-      size = sizeof (struct ddsi_serdata_builtintopic_endpoint);
-      break;
-    default:
-      abort();
+      return sizeof (struct ddsi_serdata_builtintopic_endpoint);
   }
-  struct ddsi_serdata_builtintopic *d = ddsrt_malloc(size);
+  abort ();
+  return 0;
+}
+
+static struct ddsi_serdata_builtintopic *serdata_builtin_new(const struct ddsi_sertype_builtintopic *tp, enum ddsi_serdata_kind serdata_kind)
+{
+  struct ddsi_serdata_builtintopic *d = ddsrt_malloc(serdata_builtin_sizeof(tp->entity_kind));
   ddsi_serdata_init (&d->c, &tp->c, serdata_kind);
   return d;
 }
