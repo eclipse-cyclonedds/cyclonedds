@@ -121,11 +121,12 @@ DDS_EXPORT void *ddsrt_hh_lookup (const struct ddsrt_hh * __restrict rt, const v
 /**
  * @brief Add an element to the hash table.
  * 
- * It is not allowed to add duplicates to the hash table. Trying to do so results in failure.
+ * Attempting to add a duplicate to the hash table results in failure i.e. the element is not added,
+ * and the function returns with failure.
  * 
  * @param[in,out] rt the hash table
  * @param[in] data user data to add
- * @return int meant to be interpreted as bool (1 is success, 0 is failure)
+ * @return int meant to be interpreted as bool (1 is success, element added; 0 is failure, element not added)
  * @see @ref ddsrt_hh_remove
  */
 DDS_EXPORT int ddsrt_hh_add (struct ddsrt_hh * __restrict rt, void * __restrict data) ddsrt_nonnull_all;
@@ -170,14 +171,15 @@ DDS_EXPORT void ddsrt_hh_remove_present (struct ddsrt_hh * __restrict rt, void *
  * @brief Walk the hash table and apply a user defined function to each node.
  * 
  * The walk function 'f' receives in parameter 'a' the pointer to user data, and has 'f_arg' as an optional extra argument.
- * It is allowed to modify the user data. The @ref ddsrt_hh_enum is useful to free user data prior to calling @ref ddsrt_hh_free.
+ * It is allowed to modify the user data. The @ref ddsrt_hh_enum is useful to free user data
+ * (by passing a function 'f' that frees memory pointed to by 'a') prior to calling @ref ddsrt_hh_free.
  * 
  * @param[in,out] rt the hash table
  * @param[in] f user defined walk function to apply to each element
  * @param[in] f_arg extra argument for walk function
  * @see @ref ddsrt_hh_iter_next
  */
-DDS_EXPORT void ddsrt_hh_enum (struct ddsrt_hh * __restrict rt, void (*f) (void *a, void *f_arg), void *f_arg) ddsrt_nonnull ((1, 2)); /* may delete a */
+DDS_EXPORT void ddsrt_hh_enum (struct ddsrt_hh * __restrict rt, void (*f) (void *a, void *f_arg), void *f_arg) ddsrt_nonnull ((1, 2));
 
 /**
  * @brief Initialize the iterator and get the first element.
@@ -187,7 +189,7 @@ DDS_EXPORT void ddsrt_hh_enum (struct ddsrt_hh * __restrict rt, void (*f) (void 
  * @return pointer to first element
  * @see @ref ddsrt_hh_iter_next
  */
-DDS_EXPORT void *ddsrt_hh_iter_first (struct ddsrt_hh * __restrict rt, struct ddsrt_hh_iter * __restrict iter) ddsrt_nonnull_all; /* may delete nodes */
+DDS_EXPORT void *ddsrt_hh_iter_first (struct ddsrt_hh * __restrict rt, struct ddsrt_hh_iter * __restrict iter) ddsrt_nonnull_all;
 
 /**
  * @brief Use the iterator to get the next element
@@ -249,6 +251,10 @@ void ddsrt_chh_free (struct ddsrt_chh * __restrict hh);
 /**
  * @brief Concurrent version of @ref ddsrt_hh_lookup
  * 
+ * The lookup is lock-free and wait-free, but can fail (and return NULL) despite the element existing,
+ * if another thread was busy with it for too long. It can work in parallel to @ref ddsrt_chh_remove,
+ * but a successful lookup doesn't guarantee that the element hasn't been removed in the mean time.
+ * 
  * @param[in] rt the hash table
  * @param[in] keyobject is the object with which to do the lookup
  * @return pointer to the matching element, NULL if failed
@@ -278,7 +284,8 @@ int ddsrt_chh_remove (struct ddsrt_chh * __restrict rt, const void * __restrict 
 /**
  * @brief Concurrent version of @ref ddsrt_hh_enum
  * 
- * Called unsafe because it doesn't use a mutex. The user must ensure no other thread is accessing the hash table in the mean time.
+ * Called unsafe because it doesn't use a mutex. The user must ensure no other thread is modifying the hash table in the mean time.
+ * There is no guarantee that elements removed or added in parallel are visited or not.
  * 
  * @param[in,out] rt the hash table
  * @param[in] f user defined walk function to apply to each element
