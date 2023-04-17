@@ -233,6 +233,7 @@ int main (int argc, char **argv)
   dds_free_typeobj (ptr);
   dds_get_typeinfo (1, ptr);
   dds_free_typeinfo (ptr);
+  dds_get_entity_sertype (1, ptr);
 
   // dds_data_allocator.h
   dds_data_allocator_init (1, ptr);
