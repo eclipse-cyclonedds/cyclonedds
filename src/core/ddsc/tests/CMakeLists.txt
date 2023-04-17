@@ -263,6 +263,7 @@ kill -0 `cat ctest_fixture_iox_roudi.pid`")
   foreach(t
       iceoryx_one_writer
       iceoryx_one_writer_dynsize
+      iceoryx_one_writer_dynsize_strkey
       iceoryx_return_loan
       iceoryx_partition_xtalk
       shm_serialization_get_serialized_size
