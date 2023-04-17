@@ -251,8 +251,11 @@ void ddsrt_chh_free (struct ddsrt_chh * __restrict hh);
 /**
  * @brief Concurrent version of @ref ddsrt_hh_lookup
  * 
- * The lookup is lock-free and wait-free, but can fail (and return NULL) despite the element existing,
- * if another thread was busy with it for too long. It can work in parallel to @ref ddsrt_chh_remove,
+ * The lookup is lock-free and wait-free, and an element that exists in the hash table is guaranteed to be found.
+ * Note that wait-free doesn't mean the operation is unimpeded by actions of other threads,
+ * but rather it means that the operation will complete within a bounded number of steps.
+ * 
+ * It can work in parallel to @ref ddsrt_chh_remove,
  * but a successful lookup doesn't guarantee that the element hasn't been removed in the mean time.
  * 
  * @param[in] rt the hash table
@@ -273,6 +276,9 @@ int ddsrt_chh_add (struct ddsrt_chh * __restrict rt, void * __restrict data);
 
 /**
  * @brief Concurrent version of @ref ddsrt_hh_remove
+ * 
+ * It can work in parallel to @ref ddsrt_chh_lookup, but in that case the looked up element may not be
+ * part of the hash table anymore by the time the caller of @ref ddsrt_chh_lookup accesses the element.
  * 
  * @param[in,out] rt the hash table
  * @param[in] keyobject user data to remove
