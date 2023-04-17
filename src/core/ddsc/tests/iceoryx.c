@@ -744,6 +744,20 @@ CU_Test(ddsc_iceoryx, one_writer_dynsize, .timeout = 30)
   CU_ASSERT (!failed);
 }
 
+CU_Test(ddsc_iceoryx, one_writer_dynsize_strkey, .timeout = 30)
+{
+  failed = false;
+  dotest (&DynamicData_KMsg_desc, &(const DynamicData_KMsg){
+    .message = "Muss es sein?",
+    .scalar = 135,
+    .values = {
+      ._length = 4, ._maximum = 4, ._release = false,
+      ._buffer = (int32_t[]) { 193, 272, 54, 277 }
+    }
+  });
+  CU_ASSERT (!failed);
+}
+
 CU_Test(ddsc_iceoryx, return_loan)
 {
   dds_return_t rc;
