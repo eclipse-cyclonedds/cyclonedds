@@ -202,9 +202,6 @@ static dds_entity_t prepare_dds(dds_entity_t *writer, const char *partitionName)
   if (participant < 0)
     DDS_FATAL("dds_create_participant: %s\n", dds_strretcode(-participant));
 
-  /* Enable write batching */
-  dds_write_set_batch (true);
-
   /* A topic is created for our sample type on the domain participant. */
   switch (payloadSize)
   {
@@ -282,6 +279,7 @@ static dds_entity_t prepare_dds(dds_entity_t *writer, const char *partitionName)
   dds_qset_durability(dwQos, DDS_DURABILITY_VOLATILE);
   dds_qset_liveliness(dwQos, DDS_LIVELINESS_AUTOMATIC, DDS_SECS(1));
   dds_qset_resource_limits (dwQos, MAX_SAMPLES, DDS_LENGTH_UNLIMITED, DDS_LENGTH_UNLIMITED);
+  dds_qset_writer_batching(dwQos, true);
   *writer = dds_create_writer (publisher, topic, dwQos, NULL);
   if (*writer < 0)
     DDS_FATAL("dds_create_writer: %s\n", dds_strretcode(-*writer));

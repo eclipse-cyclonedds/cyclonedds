@@ -144,15 +144,13 @@ static dds_entity_t prepare_dds(dds_entity_t *writer, const char *partitionName)
   dds_entity_t publisher;
   const char *pubParts[1];
   dds_qos_t *pubQos;
+  dds_qos_t *wrQos;
   dds_qos_t *tQos;
 
   /* A domain participant is created for the default domain. */
   participant = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
   if (participant < 0)
     DDS_FATAL("dds_create_participant: %s\n", dds_strretcode(-participant));
-
-  /* Enable write batching */
-  dds_write_set_batch (true);
 
   /* A topic is created for our sample type on the domain participant. */
   tQos = dds_create_qos ();
@@ -162,6 +160,7 @@ static dds_entity_t prepare_dds(dds_entity_t *writer, const char *partitionName)
   topic = dds_create_topic (participant, &ThroughputModule_DataType_desc, "Throughput", tQos, NULL);
   if (topic < 0)
     DDS_FATAL("dds_create_topic: %s\n", dds_strretcode(-topic));
+  dds_delete_qos (tQos);
 
   /* A publisher is created on the domain participant. */
   pubQos = dds_create_qos ();
@@ -173,10 +172,12 @@ static dds_entity_t prepare_dds(dds_entity_t *writer, const char *partitionName)
   dds_delete_qos (pubQos);
 
   /* A DataWriter is created on the publisher. */
-  *writer = dds_create_writer (publisher, topic, NULL, NULL);
+  wrQos = dds_create_qos ();
+  dds_qset_writer_batching (wrQos, true);
+  *writer = dds_create_writer (publisher, topic, wrQos, NULL);
   if (*writer < 0)
     DDS_FATAL("dds_create_writer: %s\n", dds_strretcode(-*writer));
-  dds_delete_qos (tQos);
+  dds_delete_qos (wrQos);
 
   return participant;
 }

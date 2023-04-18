@@ -351,6 +351,7 @@ int main (int argc, char **argv)
   dds_qset_destination_order (ptr, 0);
   dds_qset_writer_data_lifecycle (ptr, 0);
   dds_qset_reader_data_lifecycle (ptr, 0, 0);
+  dds_qset_writer_batching (ptr, 0);
   dds_qset_durability_service (ptr, 0, 0, 0, 0, 0, 0);
   dds_qset_ignorelocal (ptr, 0);
   dds_qset_prop (ptr, ptr2, ptr3);
@@ -380,6 +381,7 @@ int main (int argc, char **argv)
   dds_qget_destination_order (ptr, 0);
   dds_qget_writer_data_lifecycle (ptr, ptr);
   dds_qget_reader_data_lifecycle (ptr, ptr, ptr);
+  dds_qget_writer_batching (ptr, ptr);
   dds_qget_durability_service (ptr, ptr, 0, ptr, ptr, ptr, ptr);
   dds_qget_ignorelocal (ptr, 0);
   dds_qget_propnames (ptr, ptr, ptr);

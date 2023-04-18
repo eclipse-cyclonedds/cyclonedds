@@ -94,9 +94,6 @@ void gendef_pf_networkAddresses (FILE *out, void *parent, struct cfgelem const *
   char *** const p = cfg_address (parent, cfgelem);
   if (*p != 0)
   {
-    int n = 0;
-    for (int i = 0; (*p)[i] != NULL; i++)
-      n++;
     fprintf (out, "  static char *%s_init_[] = {\n", cfgelem->membername);
     for (int i = 0; (*p)[i] != NULL; i++)
       fprintf (out, "    \"%s\",\n", (*p)[i]);

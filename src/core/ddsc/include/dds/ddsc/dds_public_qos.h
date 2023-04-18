@@ -406,6 +406,17 @@ dds_qset_reader_data_lifecycle (
 /**
  * @ingroup qos_setters
  * @component qos_obj
+ * @brief Set the writer data-lifecycle policy of a qos structure
+ *
+ * @param[in,out] qos - Pointer to a dds_qos_t structure that will store the policy
+ * @param[in] batch_updates - Whether writes should be batched
+ */
+DDS_EXPORT void
+dds_qset_writer_batching (dds_qos_t * __restrict qos, bool batch_updates);
+
+/**
+ * @ingroup qos_setters
+ * @component qos_obj
  * @brief Set the durability-service policy of a qos structure
  *
  * @param[in,out] qos - Pointer to a dds_qos_t structure that will store the policy
@@ -879,6 +890,21 @@ dds_qget_reader_data_lifecycle (
   const dds_qos_t * __restrict qos,
   dds_duration_t *autopurge_nowriter_samples_delay,
   dds_duration_t *autopurge_disposed_samples_delay);
+
+/**
+ * @ingroup qos_getters
+ * @component qos_obj
+ * @brief Get the writer data-lifecycle qos policy
+ *
+ * @param[in] qos - Pointer to a dds_qos_t structure storing the policy
+ * @param[in,out] batch_updates - Pointer that will store the batching enable value
+ *
+ * @returns - false iff any of the arguments is invalid or the qos is not present in the qos object
+ */
+DDS_EXPORT bool
+dds_qget_writer_batching (
+  const dds_qos_t * __restrict qos,
+  bool *batch_updates);
 
 /**
  * @ingroup qos_getters
