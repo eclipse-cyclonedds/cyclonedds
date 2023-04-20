@@ -290,8 +290,11 @@ int ddsrt_chh_remove (struct ddsrt_chh * __restrict rt, const void * __restrict 
 /**
  * @brief Concurrent version of @ref ddsrt_hh_enum
  * 
- * Called unsafe because it doesn't use a mutex. The user must ensure no other thread is modifying the hash table in the mean time.
- * There is no guarantee that elements removed or added in parallel are visited or not.
+ * Called unsafe because:
+ * - if another thread is removing an element, then there is no guarantee that the element for which 'f' is invoked
+ *   is still in the table at the time of invocation (similar to a @ref ddsrt_chh_remove and @ref ddsrt_chh_lookup)
+ * - if another thread is adding an element, there is no guarantee whether that new element will, or will not, be visited
+ * - if another thread is adding an element, there is no guarantee that an element won't be visited multiple times
  * 
  * @param[in,out] rt the hash table
  * @param[in] f user defined walk function to apply to each element
