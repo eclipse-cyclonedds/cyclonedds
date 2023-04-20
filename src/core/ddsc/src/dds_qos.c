@@ -317,6 +317,14 @@ void dds_qset_reader_data_lifecycle (dds_qos_t * __restrict qos, dds_duration_t 
   qos->present |= QP_ADLINK_READER_DATA_LIFECYCLE;
 }
 
+void dds_qset_writer_batching (dds_qos_t * __restrict qos, bool batch_updates)
+{
+  if (qos == NULL)
+    return;
+  qos->writer_batching.batch_updates = batch_updates;
+  qos->present |= QP_CYCLONE_WRITER_BATCHING;
+}
+
 void dds_qset_durability_service (dds_qos_t * __restrict qos, dds_duration_t service_cleanup_delay, dds_history_kind_t history_kind, int32_t history_depth, int32_t max_samples, int32_t max_instances, int32_t max_samples_per_instance)
 {
   if (qos == NULL)
@@ -694,6 +702,15 @@ bool dds_qget_reader_data_lifecycle (const dds_qos_t * __restrict qos, dds_durat
     *autopurge_nowriter_samples_delay = qos->reader_data_lifecycle.autopurge_nowriter_samples_delay;
   if (autopurge_disposed_samples_delay)
     *autopurge_disposed_samples_delay = qos->reader_data_lifecycle.autopurge_disposed_samples_delay;
+  return true;
+}
+
+bool dds_qget_writer_batching (const dds_qos_t * __restrict qos, bool *batch_updates)
+{
+  if (qos == NULL || !(qos->present & QP_CYCLONE_WRITER_BATCHING))
+    return false;
+  if (batch_updates)
+    *batch_updates = qos->writer_batching.batch_updates;
   return true;
 }
 
