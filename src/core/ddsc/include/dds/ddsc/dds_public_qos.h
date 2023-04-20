@@ -406,7 +406,21 @@ dds_qset_reader_data_lifecycle (
 /**
  * @ingroup qos_setters
  * @component qos_obj
- * @brief Set the writer data-lifecycle policy of a qos structure
+ * @brief Set the writer batching policy of a qos structure
+ *
+ * When batching is disabled, each write/dispose/unregister operation results in its own
+ * RTPS message that is sent out onto the transport.  For small data types, this means
+ * most messages (and hence network packets) are small.  As a consequence the fixed cost
+ * of processing a message (or packet) increases load.
+ *
+ * Enabling write batching causes the samples to be aggregated into a single larger RTPS
+ * message.  This improves efficiency by spreading the fixed cost out over more samples.
+ * Naturally this increases latency a bit.
+ *
+ * The batching mechanism may or may not send out packets on a write/&c. operation.  It
+ * buffers only a limited amount and will send out what has been buffered when a new
+ * write/&c. can not be added.  To guarantee that the buffered data is sent, one must call
+ * "dds_flush".
  *
  * @param[in,out] qos - Pointer to a dds_qos_t structure that will store the policy
  * @param[in] batch_updates - Whether writes should be batched
@@ -894,7 +908,7 @@ dds_qget_reader_data_lifecycle (
 /**
  * @ingroup qos_getters
  * @component qos_obj
- * @brief Get the writer data-lifecycle qos policy
+ * @brief Get the writer batching qos policy
  *
  * @param[in] qos - Pointer to a dds_qos_t structure storing the policy
  * @param[in,out] batch_updates - Pointer that will store the batching enable value
