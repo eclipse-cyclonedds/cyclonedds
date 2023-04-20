@@ -53,7 +53,7 @@ extern "C" {
    QP_LIFESPAN | QP_DESTINATION_ORDER | QP_HISTORY |                    \
    QP_RESOURCE_LIMITS | QP_ADLINK_WRITER_DATA_LIFECYCLE |               \
    QP_CYCLONE_IGNORELOCAL | QP_PROPERTY_LIST | QP_DATA_REPRESENTATION | \
-   QP_ENTITY_NAME)
+   QP_ENTITY_NAME | QP_CYCLONE_WRITER_BATCHING)
 
 dds_return_t dds_ensure_valid_data_representation (dds_qos_t *qos, uint32_t allowed_data_representations, bool topicqos);
 

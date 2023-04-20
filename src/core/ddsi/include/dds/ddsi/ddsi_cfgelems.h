@@ -1482,7 +1482,7 @@ static struct cfgelem internal_cfgelems[] = {
       "that Cyclone DDS will forward in either direction. Samples larger than "
       "this are discarded with a warning.</p>"),
     UNIT("memsize")),
-  BOOL("WriteBatch", NULL, 1, "false",
+  BOOL(DEPRECATED("WriteBatch"), NULL, 1, "false",
     MEMBER(whc_batch),
     FUNCTIONS(0, uf_boolean, 0, pf_boolean),
     DESCRIPTION(

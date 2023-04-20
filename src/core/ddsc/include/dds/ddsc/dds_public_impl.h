@@ -342,7 +342,7 @@ dds_typeid_kind_t;
  *
  * @param[in] enable Enables or disables write batching for all writers.
  */
-DDS_EXPORT void dds_write_set_batch (bool enable);
+DDS_DEPRECATED_EXPORT void dds_write_set_batch (bool enable);
 
 #if defined (__cplusplus)
 }
