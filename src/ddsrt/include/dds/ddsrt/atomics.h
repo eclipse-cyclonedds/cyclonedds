@@ -23,7 +23,7 @@
  * @brief Contains functions and types for atomic operations on various types
  *
  * This header file declares functions and types for atomic operations on uint32_t,
- * uint64_t, and uintptr_t types.
+ * uint64_t, uintptr_t, and void* types.
  * 
  * 64-bit atomics are not supported by all hardware, but it would be a shame not to use them when
  * they are available. That necessitates an alternative implementation when they are not, either in
@@ -119,7 +119,7 @@ DDS_EXPORT void ddsrt_atomic_dec64 (volatile ddsrt_atomic_uint64_t *x);
  *
  * @param[in,out] x Pointer to the variable to increment
  *
- * @return The new value of the incremented variable
+ * @return The new value of the decremented variable
  */
 DDS_EXPORT uint64_t ddsrt_atomic_dec64_nv (volatile ddsrt_atomic_uint64_t *x);
 
@@ -216,7 +216,7 @@ DDS_EXPORT uint64_t ddsrt_atomic_or64_ov (volatile ddsrt_atomic_uint64_t *x, uin
 DDS_EXPORT uint64_t ddsrt_atomic_or64_nv (volatile ddsrt_atomic_uint64_t *x, uint64_t v);
 
 /**
- * @brief Compare and swap a 64-bit unsigned integer atomically and return the new value
+ * @brief Compare and swap a 64-bit unsigned integer atomically
  * 
  * Assigns des to x iff x == exp
  *
