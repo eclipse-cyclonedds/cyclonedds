@@ -169,6 +169,10 @@ typedef struct dds_reader_lifespan_qospolicy {
   dds_duration_t duration;
 } dds_reader_lifespan_qospolicy_t;
 
+typedef struct dds_writer_batching_qospolicy {
+  unsigned char batch_updates;
+} dds_writer_batching_qospolicy_t;
+
 typedef struct dds_ignorelocal_qospolicy {
   dds_ignorelocal_kind_t value;
 } dds_ignorelocal_qospolicy_t;
@@ -221,7 +225,7 @@ typedef struct dds_data_representation_qospolicy {
 #define DDSI_QP_ADLINK_WRITER_DATA_LIFECYCLE      ((uint64_t)1 << 21)
 #define DDSI_QP_ADLINK_READER_DATA_LIFECYCLE      ((uint64_t)1 << 22)
 #define DDSI_QP_ADLINK_READER_LIFESPAN            ((uint64_t)1 << 24)
-//available: ((uint64_t)1 << 25)
+#define DDSI_QP_CYCLONE_WRITER_BATCHING           ((uint64_t)1 << 25)
 #define DDSI_QP_ADLINK_ENTITY_FACTORY             ((uint64_t)1 << 27)
 #define DDSI_QP_CYCLONE_IGNORELOCAL               ((uint64_t)1 << 30)
 #define DDSI_QP_PROPERTY_LIST                     ((uint64_t)1 << 31)
@@ -284,6 +288,7 @@ struct dds_qos {
   /*x  W*/dds_writer_data_lifecycle_qospolicy_t writer_data_lifecycle;
   /*x xR*/dds_reader_data_lifecycle_qospolicy_t reader_data_lifecycle;
   /*x xR*/dds_reader_lifespan_qospolicy_t reader_lifespan;
+  /*x  W*/dds_writer_batching_qospolicy_t writer_batching;
   /* x  */dds_ignorelocal_qospolicy_t ignorelocal;
   /*xxx */dds_property_qospolicy_t property;
   /*xxxR*/dds_type_consistency_enforcement_qospolicy_t type_consistency;

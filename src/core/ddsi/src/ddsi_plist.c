@@ -2114,6 +2114,9 @@ static const struct piddesc piddesc_eclipse[] = {
   { DDSI_PID_PAD, PDF_QOS, DDSI_QP_CYCLONE_IGNORELOCAL, "CYCLONE_IGNORELOCAL",
     offsetof (struct ddsi_plist, qos.ignorelocal), membersize (struct ddsi_plist, qos.ignorelocal),
     { .desc = { XE2, XSTOP } }, 0 },
+  { DDSI_PID_PAD, PDF_QOS, DDSI_QP_CYCLONE_WRITER_BATCHING, "CYCLONE_WRITER_BATCHING",
+    offsetof (struct ddsi_plist, qos.writer_batching), membersize (struct ddsi_plist, qos.writer_batching),
+    { .desc = { Xb, XSTOP } }, 0 },
   { DDSI_PID_PAD, PDF_QOS, DDSI_QP_LOCATOR_MASK, "CYCLONE_LOCATOR_MASK",
     offsetof(struct ddsi_plist, qos.ignore_locator_type), membersize(struct ddsi_plist, qos.ignore_locator_type),
     {.desc = { Xu, XSTOP } }, 0 },
@@ -3615,7 +3618,7 @@ const dds_qos_t ddsi_default_qos_reader = {
 };
 
 const dds_qos_t ddsi_default_qos_writer = {
-  .present = DDSI_QP_PRESENTATION | DDSI_QP_DURABILITY | DDSI_QP_DEADLINE | DDSI_QP_LATENCY_BUDGET | DDSI_QP_LIVELINESS | DDSI_QP_DESTINATION_ORDER | DDSI_QP_HISTORY | DDSI_QP_RESOURCE_LIMITS | DDSI_QP_OWNERSHIP | DDSI_QP_CYCLONE_IGNORELOCAL | DDSI_QP_TOPIC_DATA | DDSI_QP_GROUP_DATA | DDSI_QP_USER_DATA | DDSI_QP_PARTITION | DDSI_QP_DURABILITY_SERVICE | DDSI_QP_RELIABILITY | DDSI_QP_OWNERSHIP_STRENGTH | DDSI_QP_TRANSPORT_PRIORITY | DDSI_QP_LIFESPAN | DDSI_QP_ADLINK_WRITER_DATA_LIFECYCLE | DDSI_QP_LOCATOR_MASK | DDSI_QP_DATA_REPRESENTATION,
+  .present = DDSI_QP_PRESENTATION | DDSI_QP_DURABILITY | DDSI_QP_DEADLINE | DDSI_QP_LATENCY_BUDGET | DDSI_QP_LIVELINESS | DDSI_QP_DESTINATION_ORDER | DDSI_QP_HISTORY | DDSI_QP_RESOURCE_LIMITS | DDSI_QP_OWNERSHIP | DDSI_QP_CYCLONE_IGNORELOCAL | DDSI_QP_TOPIC_DATA | DDSI_QP_GROUP_DATA | DDSI_QP_USER_DATA | DDSI_QP_PARTITION | DDSI_QP_DURABILITY_SERVICE | DDSI_QP_RELIABILITY | DDSI_QP_OWNERSHIP_STRENGTH | DDSI_QP_TRANSPORT_PRIORITY | DDSI_QP_LIFESPAN | DDSI_QP_ADLINK_WRITER_DATA_LIFECYCLE | DDSI_QP_LOCATOR_MASK | DDSI_QP_DATA_REPRESENTATION | DDSI_QP_CYCLONE_WRITER_BATCHING,
   .aliased = DDSI_QP_DATA_REPRESENTATION,
   .presentation.access_scope = DDS_PRESENTATION_INSTANCE,
   .presentation.coherent_access = 0,
@@ -3653,6 +3656,7 @@ const dds_qos_t ddsi_default_qos_writer = {
   .transport_priority.value = 0,
   .lifespan.duration = DDS_INFINITY,
   .writer_data_lifecycle.autodispose_unregistered_instances = 1,
+  .writer_batching.batch_updates = 0,
   .ignore_locator_type = 0,
   .data_representation.value.n = 1,
   .data_representation.value.ids = (dds_data_representation_id_t []) { DDS_DATA_REPRESENTATION_XCDR1 }

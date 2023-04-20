@@ -406,7 +406,12 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   wrinfo = dds_whc_make_wrinfo (wr, wqos);
   wr->m_whc = dds_whc_new (gv, wrinfo);
   dds_whc_free_wrinfo (wrinfo);
-  wr->whc_batch = gv->config.whc_batch;
+  // We now have the QoS which defaults to "false", but it used to be controlled by a global setting
+  // (that most people were sensible enough to leave at false and that this deprecated now).  Or'ing
+  // the two together is perhaps a bit simplistic because it doesn't allow you to enable it globally
+  // and then disable it for a specific writer.  Should somebody runs into a problem because of this
+  // we can have another look.
+  wr->whc_batch = wqos->writer_batching.batch_updates || gv->config.whc_batch;
 
 #ifdef DDS_HAS_SHM
   assert(wqos->present & DDSI_QP_LOCATOR_MASK);
