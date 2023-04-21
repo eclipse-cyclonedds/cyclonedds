@@ -465,8 +465,9 @@ dds_return_t ddsi_dynamic_type_add_struct_member (struct ddsi_type *type, struct
   memset (m, 0, sizeof (*m));
   m->type = *member_type;
   m->id = member_id;
+  m->flags = DDS_XTypes_TRY_CONSTRUCT_DISCARD;
   if (params.is_key)
-    m->flags = DDS_XTypes_IS_KEY;
+    m->flags |= DDS_XTypes_IS_KEY;
   (void) ddsrt_strlcpy (m->detail.name, params.name, sizeof (m->detail.name));
 
   return DDS_RETCODE_OK;
@@ -542,8 +543,9 @@ dds_return_t ddsi_dynamic_type_add_union_member (struct ddsi_type *type, struct 
   m->type = *member_type;
   m->id = member_id;
   (void) ddsrt_strlcpy (m->detail.name, params.name, sizeof (m->detail.name));
+  m->flags = DDS_XTypes_TRY_CONSTRUCT_DISCARD;
   if (params.is_default)
-    m->flags = DDS_XTypes_IS_DEFAULT;
+    m->flags |= DDS_XTypes_IS_DEFAULT;
   else
   {
     assert (sizeof (*m->label_seq._buffer) == sizeof (*params.labels));
