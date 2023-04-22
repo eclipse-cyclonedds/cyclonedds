@@ -19,12 +19,11 @@
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/strtod.h"
 
-/*
- * Determine the maximum size that a string should have to be
- * able to contain a double.
- * See the following site for the calculation explanation:
- * http://stackoverflow.com/questions/1701055/what-is-the-maximum-length-in-chars-needed-to-represent-any-double-value
- */
+// Determine the maximum size that a string should have to be
+// able to contain a double.
+// See the following site for the calculation explanation:
+// http://stackoverflow.com/questions/1701055/what-is-the-maximum-length-in-chars-needed-to-represent-any-double-value
+
 #include <float.h>
 #define DOUBLE_STRING_MAX_LENGTH (3 + DBL_MANT_DIG - DBL_MIN_EXP)
 

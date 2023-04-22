@@ -690,11 +690,11 @@ set_xtypes_annotation_parameter_value(
       val->_d = DDS_XTypes_TK_FLOAT64;
       val->_u.float64_value = lit->value.dbl;
       break;
-    /*  //enums are currently not allowed in min/max/range annotations
-    case IDL_ENUM:
-      val->_d = DDS_XTypes_TK_ENUM;
-      val->_u.enumerated_value = ???;
-      break;*/
+    // enums are currently not allowed in min/max/range annotations
+    // case IDL_ENUM:
+    //   val->_d = DDS_XTypes_TK_ENUM;
+    //   val->_u.enumerated_value = ???;
+    //   break;
     default:
       return IDL_RETCODE_BAD_PARAMETER;
   }

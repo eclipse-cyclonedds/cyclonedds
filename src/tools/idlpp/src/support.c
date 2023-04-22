@@ -1705,7 +1705,7 @@ static char *   parse_line( void)
                     break;
                 }
                 break;
-            case '/':                                       /* //   */
+            case '/':                                       // Comment (`//`)
                 if (! standard)
                     goto  not_comment;
                 /* Comment when C++ or __STDC_VERSION__ >= 199901L      */

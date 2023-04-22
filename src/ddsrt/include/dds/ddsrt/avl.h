@@ -207,18 +207,16 @@ typedef void (*ddsrt_avl_walk_t) (void *node, void *arg);
  */
 typedef void (*ddsrt_avl_const_walk_t) (const void *node, void *arg);
 
-/**
- * @brief The avl node is the basic element of the avl tree structure.
- * 
- * To store user data in the tree, the avl node must be embedded in a user node, which is a struct containing the user data.
- * All API calls with a node as input or output, deal with the user node. Example:
- * @code{.c}
- * typedef struct num_s{ // user node
- *   ddsrt_avl_node_t node;
- *   uint64_t val; // user data
- * }num_t;
- * @endcode
- */
+/// @brief The avl node is the basic element of the avl tree structure.
+/// 
+/// To store user data in the tree, the avl node must be embedded in a user node, which is a struct containing the user data.
+/// All API calls with a node as input or output, deal with the user node. Example:
+/// @code{.c}
+/// typedef struct num_s{ // user node
+///   ddsrt_avl_node_t node;
+///   uint64_t val; // user data
+/// }num_t;
+/// @endcode
 typedef struct ddsrt_avl_node {
     struct ddsrt_avl_node *cs[2]; ///< contains pointers to the left and right child node
     struct ddsrt_avl_node *parent; ///< points to the parent node
@@ -330,86 +328,84 @@ typedef struct ddsrt_avl_citer {
 
 /* Not maintaining # nodes */
 
-/**
- * @brief Initialize the @ref ddsrt_avl_treedef
- * 
- * Different types of trees are supported. This function defines which type to use.
- * Given a node defined as:
- * @code{.c}
- * typedef struct num_s{ // user node
- *   ddsrt_avl_node_t node;
- *   uint64_t val; // user data
- * }num_t;
- * @endcode
- * 
- * For a treedef initialized with default settings:
- * @code{.c}
- * ddsrt_avl_treedef_t td;
- * ddsrt_avl_treedef_init(&td, offsetof(num_t, node), offsetof(num_t, val), num_cmp, 0, 0);
- * @endcode
- * 
- * A lookup is performed as:
- * @code{.c}
- * uint64_t key = 7;
- * num_t* num_lookup = ddsrt_avl_lookup(&td, &tree, &key);
- * @endcode
- * 
- * By using keyoffset == 0, you can do the lookup using a dummy node:
- * @code{.c}
- * num_t dummy;
- * dummy.val = 7;
- * num_t* num_lookup = ddsrt_avl_lookup(&td, &tree, &dummy);
- * @endcode
- * 
- * Regarding the flags:
- * - The flag @ref DDSRT_AVL_TREEDEF_FLAG_INDKEY affects functions like @ref ddsrt_avl_compare_t and @ref ddsrt_avl_lookup.
- *   These functions expect their 'key' argument to be a pointer, so by default you need to pass a reference to the key.
- *   Alternatively, by using @ref DDSRT_AVL_TREEDEF_FLAG_INDKEY you indicate that the key is already a pointer, allowing you to pass the key directly.
- *   As an example in the case of a C string, using the INDKEY flag means you can provide the key directly (char*), rather than a reference (char**).
- *   @code{.c}
- *   typedef struct name_s{ // user node
- *     ddsrt_avl_node_t node;
- *     char* val; // user data
- *   }name_t;
- *   @endcode
- * 
- *   If using the default flag:
- *   @code{.c}
- *   ddsrt_avl_treedef_t td;
- *   ddsrt_avl_treedef_init(&td, offsetof(name_t, node), offsetof(name_t, val), name_cmp_default, 0, 0);
- *   @endcode
- *
- *   Then a lookup is done as:
- *   @code{.c}
- *   char* key = strdup("John");
- *   name_t* name_lookup = ddsrt_avl_lookup(&td, &tree, &key); // Using default flag
- *   @endcode
- *
- *   If using the INDKEY flag:
- *   @code{.c}
- *   ddsrt_avl_treedef_t td;
- *   ddsrt_avl_treedef_init(&td, offsetof(name_t, node), offsetof(name_t, val), name_cmp_indkey, 0, DDSRT_AVL_TREEDEF_FLAG_INDKEY);
- *   @endcode
- * 
- *   Then a lookup is done as:
- *   @code{.c}
- *   char* key = strdup("John");
- *   name_t* name_lookup = ddsrt_avl_lookup(&td, &tree, key); // Using INDKEY flag
- *   @endcode
- * 
- * - Multiple nodes with the same key are not allowed, unless using @ref DDSRT_AVL_TREEDEF_FLAG_ALLOWDUPS.
- * 
- * To set multiple flags, use the bitwise or.
- * 
- * @param[out] td the treedef to initialize
- * @param[in] avlnodeoffset offset of @ref ddsrt_avl_node relative to the user node.
- * @param[in] keyoffset offset of the key relative to the user node
- * @param[in] comparekk a key compare function, see @ref ddsrt_avl_compare_t
- * @param[in] augment optional function @ref ddsrt_avl_augment_t, provide NULL if not used
- * @param[in] flags optional flags, use 0 for default
- * @see @ref ddsrt_avl_treedef_init_r
- * @see @ref ddsrt_avl_init
- */
+/// @brief Initialize the @ref ddsrt_avl_treedef
+/// 
+/// Different types of trees are supported. This function defines which type to use.
+/// Given a node defined as:
+/// @code{.c}
+/// typedef struct num_s{ // user node
+///   ddsrt_avl_node_t node;
+///   uint64_t val; // user data
+/// }num_t;
+/// @endcode
+/// 
+/// For a treedef initialized with default settings:
+/// @code{.c}
+/// ddsrt_avl_treedef_t td;
+/// ddsrt_avl_treedef_init(&td, offsetof(num_t, node), offsetof(num_t, val), num_cmp, 0, 0);
+/// @endcode
+/// 
+/// A lookup is performed as:
+/// @code{.c}
+/// uint64_t key = 7;
+/// num_t* num_lookup = ddsrt_avl_lookup(&td, &tree, &key);
+/// @endcode
+/// 
+/// By using keyoffset == 0, you can do the lookup using a dummy node:
+/// @code{.c}
+/// num_t dummy;
+/// dummy.val = 7;
+/// num_t* num_lookup = ddsrt_avl_lookup(&td, &tree, &dummy);
+/// @endcode
+/// 
+/// Regarding the flags:
+/// - The flag @ref DDSRT_AVL_TREEDEF_FLAG_INDKEY affects functions like @ref ddsrt_avl_compare_t and @ref ddsrt_avl_lookup.
+///   These functions expect their 'key' argument to be a pointer, so by default you need to pass a reference to the key.
+///   Alternatively, by using @ref DDSRT_AVL_TREEDEF_FLAG_INDKEY you indicate that the key is already a pointer, allowing you to pass the key directly.
+///   As an example in the case of a C string, using the INDKEY flag means you can provide the key directly (char*), rather than a reference (char**).
+///   @code{.c}
+///   typedef struct name_s{ // user node
+///     ddsrt_avl_node_t node;
+///     char* val; // user data
+///   }name_t;
+///   @endcode
+/// 
+///   If using the default flag:
+///   @code{.c}
+///   ddsrt_avl_treedef_t td;
+///   ddsrt_avl_treedef_init(&td, offsetof(name_t, node), offsetof(name_t, val), name_cmp_default, 0, 0);
+///   @endcode
+///
+///   Then a lookup is done as:
+///   @code{.c}
+///   char* key = strdup("John");
+///   name_t* name_lookup = ddsrt_avl_lookup(&td, &tree, &key); // Using default flag
+///   @endcode
+///
+///   If using the INDKEY flag:
+///   @code{.c}
+///   ddsrt_avl_treedef_t td;
+///   ddsrt_avl_treedef_init(&td, offsetof(name_t, node), offsetof(name_t, val), name_cmp_indkey, 0, DDSRT_AVL_TREEDEF_FLAG_INDKEY);
+///   @endcode
+/// 
+///   Then a lookup is done as:
+///   @code{.c}
+///   char* key = strdup("John");
+///   name_t* name_lookup = ddsrt_avl_lookup(&td, &tree, key); // Using INDKEY flag
+///   @endcode
+/// 
+/// - Multiple nodes with the same key are not allowed, unless using @ref DDSRT_AVL_TREEDEF_FLAG_ALLOWDUPS.
+/// 
+/// To set multiple flags, use the bitwise or.
+/// 
+/// @param[out] td the treedef to initialize
+/// @param[in] avlnodeoffset offset of @ref ddsrt_avl_node relative to the user node.
+/// @param[in] keyoffset offset of the key relative to the user node
+/// @param[in] comparekk a key compare function, see @ref ddsrt_avl_compare_t
+/// @param[in] augment optional function @ref ddsrt_avl_augment_t, provide NULL if not used
+/// @param[in] flags optional flags, use 0 for default
+/// @see @ref ddsrt_avl_treedef_init_r
+/// @see @ref ddsrt_avl_init
 DDS_EXPORT void ddsrt_avl_treedef_init (ddsrt_avl_treedef_t *td, size_t avlnodeoffset, size_t keyoffset, ddsrt_avl_compare_t comparekk, ddsrt_avl_augment_t augment, uint32_t flags) ddsrt_nonnull((1,4));
 
 /**

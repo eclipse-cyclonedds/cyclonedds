@@ -2194,8 +2194,8 @@ static void put_info(
         mcpp_fprintf( MCPP_OUT, "%s%d \"%s%c\"\n"
                 , std_line_prefix ? "#line " : LINE_PREFIX
                 , 1, cur_work_dir, '/');
-        /* Putout the current directory as a #line line as: */
-        /* '# 1 "/abs-path/cur_dir//"'.                     */
+        // Putout the current directory as a #line line as:
+        // '# 1 "/abs-path/cur_dir//"'.
     mcpp_fprintf( MCPP_OUT, "%s%d \"<built-in>\"\n"
                 , std_line_prefix ? "#line " : LINE_PREFIX , 1);
     mcpp_fprintf( MCPP_OUT, "%s%d \"<command line>\"\n"

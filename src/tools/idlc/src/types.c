@@ -75,7 +75,7 @@ emit_implicit_sequence(
 
   type_prefix = get_type_prefix(type_spec);
 
-  /* https://www.omg.org/spec/C/1.0/PDF section 1.11 */
+  // https://www.omg.org/spec/C/1.0/PDF section 1.11
   if (IDL_PRINTA(&name, print_type, node) < 0)
     return IDL_RETCODE_NO_MEMORY;
   if (IDL_PRINTA(&type, print_type, type_spec) < 0)

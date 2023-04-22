@@ -571,7 +571,7 @@ static long do_line( void)
             goto  not_fname;
     }
 #if COMPILER == GNUC
-    if (memcmp( workp - 3, "//", 2) == 0) { /* "/cur-dir//"         */
+    if (memcmp( workp - 3, "//", 2) == 0) { // "/cur-dir//"
         save = infile->filename;    /* Do not change the file name  */
     } else
 #endif

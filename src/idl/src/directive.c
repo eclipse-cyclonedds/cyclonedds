@@ -227,11 +227,11 @@ parse_line(idl_pstate_t *pstate, idl_token_t *tok)
       if (tok->code == '\n' || tok->code == '\0') {
         return push_line(pstate, dir);
       } else if (tok->code == IDL_TOKEN_PP_NUMBER) {
-        /* for proper handling of includes by parsing line controls, a
-           mechanism derived from GCCs linemarkers is required. they are
-           enabled in mcpp by defining the compiler to IDLC. See
-           https://gcc.gnu.org/onlinedocs/cpp/Preprocessor-Output.html for
-           details */
+        // for proper handling of includes by parsing line controls, a
+        // mechanism derived from GCCs linemarkers is required. they are
+        // enabled in mcpp by defining the compiler to IDLC. See
+        // https://gcc.gnu.org/onlinedocs/cpp/Preprocessor-Output.html for
+        // details
         uint32_t flags = 0;
         if (strcmp(tok->value.str, "1") == 0)
           flags = START_OF_FILE;

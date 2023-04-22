@@ -16,7 +16,7 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "ddsi__pcap.h"
 
-/* pcap format info taken from http://wiki.wireshark.org/Development/LibpcapFileFormat */
+// pcap format info taken from http://wiki.wireshark.org/Development/LibpcapFileFormat
 
 #define LINKTYPE_RAW 101 /* Raw IP; the packet begins with an IPv4 or IPv6 header, with the "version" field of the header indicating whether it's an IPv4 or IPv6 header. */
 

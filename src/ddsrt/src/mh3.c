@@ -12,10 +12,10 @@
 
 #define DDSRT_MH3_ROTL32(x,r) (((x) << (r)) | ((x) >> (32 - (r))))
 
-/* Really
-   http://code.google.com/p/smhasher/source/browse/trunk/MurmurHash3.cpp,
-   MurmurHash3_x86_32
-*/
+// Really
+// http://code.google.com/p/smhasher/source/browse/trunk/MurmurHash3.cpp,
+// MurmurHash3_x86_32
+
 uint32_t ddsrt_mh3 (const void *key, size_t len, uint32_t seed)
 {
   const uint8_t *data = (const uint8_t *) key;
