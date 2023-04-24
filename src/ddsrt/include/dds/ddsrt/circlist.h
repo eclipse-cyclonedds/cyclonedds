@@ -27,7 +27,7 @@ extern "C" {
 #endif
 
 /**
- * @brief Convenience macro to get the pointer to the user node, see @ref ddsrt_circlist_elem for an example.
+ * @brief Macro to get the pointer to the user node, see @ref ddsrt_circlist_elem for an example.
  */
 #define DDSRT_FROM_CIRCLIST(typ_, member_, cle_) ((typ_ *) ((char *) (cle_) - offsetof (typ_, member_)))
 
@@ -48,14 +48,7 @@ struct ddsrt_circlist {
  * }num_t;
  * @endcode
  * 
- * For functions like @ref ddsrt_circlist_latest, this means that to get a pointer to the user element, you'll have to subtract
- * the offset (obviously can be skipped if the offset is zero) and typecast accordingly:
- * 
- * @code{.c}
- * num_t* num = (num_t*)((char*)(ddsrt_circlist_latest(listptr)) - offsetof(num_t, elem));
- * @endcode
- * 
- * Alternatively you can use the macro @ref DDSRT_FROM_CIRCLIST :
+ * For functions like @ref ddsrt_circlist_latest, this means that to get a pointer to the user element, you can use the macro @ref DDSRT_FROM_CIRCLIST :
  * @code{.c}
  * num_t* num = DDSRT_FROM_CIRCLIST(num_t, elem, ddsrt_circlist_latest(listptr));
  * @endcode
