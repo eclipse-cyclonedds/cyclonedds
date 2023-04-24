@@ -181,7 +181,7 @@ void ddsi_get_participant_builtin_topic_data (const struct ddsi_participant *pp,
     if (ddsrt_gethostname(node, sizeof(node)-1) < 0)
 #endif
       (void) ddsrt_strlcpy (node, "unknown", sizeof (node));
-    size = strlen(node) + strlen(DDS_VERSION) + strlen(DDS_HOST_NAME) + strlen(DDS_TARGET_NAME) + 4; // + '\0';
+    size = strlen(node) + strlen(DDS_VERSION) + strlen(DDS_HOST_NAME) + strlen(DDS_TARGET_NAME) + 4; // + '///' + '\0';
     dst->adlink_participant_version_info.internals = ddsrt_malloc(size);
     (void) snprintf(dst->adlink_participant_version_info.internals, size, "%s/%s/%s/%s", node, DDS_VERSION, DDS_HOST_NAME, DDS_TARGET_NAME);
     ETRACE (pp, "ddsi_spdp_write("PGUIDFMT") - internals: %s\n", PGUID (pp->e.guid), dst->adlink_participant_version_info.internals);
