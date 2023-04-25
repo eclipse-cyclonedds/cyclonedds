@@ -757,6 +757,7 @@ static void ddsi_new_writer_guid_common_init (struct ddsi_writer *wr, const char
   wr->test_ignore_acknack = 0;
   wr->test_suppress_retransmit = 0;
   wr->test_suppress_heartbeat = 0;
+  wr->test_suppress_flush_on_sync_heartbeat = 0;
   wr->test_drop_outgoing_data = 0;
 #ifdef DDS_HAS_SHM
   wr->has_iceoryx = (0x0 == (xqos->ignore_locator_type & DDSI_LOCATOR_KIND_SHEM));

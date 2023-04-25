@@ -179,6 +179,8 @@
  *                         a   ignore ACKNACK messages
  *                         r   ignore retransmit requests
  *                         h   suppress periodic heartbeats
+ *                         s   suppress possible flush on synchronous (a.k.a. piggy-backed)
+ *                             heartbeat
  *                         d   drop outgoing data
  *
  *               | status LISTENER(ARGS) ENTITY-NAME
