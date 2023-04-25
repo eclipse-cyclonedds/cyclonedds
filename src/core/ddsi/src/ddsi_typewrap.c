@@ -2622,9 +2622,8 @@ bool ddsi_xt_is_assignable_from (struct ddsi_domaingv *gv, const struct xt_type 
     {
       case DDS_XTypes_TK_BITMASK:
         return bb == t_other->_u.bitmask.bit_bound;
-      // FIXME: TK_UINT8 not defined in idl
-      // case TK_UINT8:   
-      //   return bb >= 1 && bb <= 8;
+      case DDS_XTypes_TK_UINT8:
+        return bb >= 1 && bb <= 8;
       case DDS_XTypes_TK_UINT16:
         return bb >= 9 && bb <= 16;
       case DDS_XTypes_TK_UINT32:
