@@ -1443,7 +1443,6 @@ static void dounregfail (struct oneliner_ctx *ctx) { dowritelike (ctx, "unregfai
 static void dowriteflush (struct oneliner_ctx *ctx)
 {
   dds_return_t ret;
-  dds_time_t ts = dds_time ();
   int ent;
   if ((ent = parse_entity (ctx)) < 0)
     error (ctx, "flush: expecting entity");
@@ -1451,9 +1450,7 @@ static void dowriteflush (struct oneliner_ctx *ctx)
   if (ctx->es[ent] == 0)
     make_entity (ctx, ent, NULL);
   DDSRT_WARNING_MSVC_ON(6385)
-  mprintf (ctx, "entity %"PRId32": flush", ctx->es[ent]);
-  print_timestamp (ctx, ts);
-  mprintf (ctx, "\n");
+  mprintf (ctx, "entity %"PRId32": flush\n", ctx->es[ent]);
   if ((ret = dds_write_flush (ctx->es[ent])) != 0)
     error_dds (ctx, ret, "flush: failed");
 }

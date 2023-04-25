@@ -583,17 +583,11 @@ dds_return_t dds_writecdr_impl (dds_writer *wr, struct ddsi_xpack *xp, struct dd
   return dds_writecdr_impl_common (wr->m_wr, xp, (struct ddsi_serdata_any *) dinp, flush, wr);
 }
 
-void dds_write_flush (dds_entity_t writer)
+void dds_write_flush_impl (dds_writer *wr)
 {
-  dds_writer *wr;
-  if (dds_writer_lock (writer, &wr) == DDS_RETCODE_OK)
-  {
-    struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
-    ddsi_thread_state_awake (thrst, &wr->m_entity.m_domain->gv);
-    ddsi_xpack_send (wr->m_xp, true);
-    ddsi_thread_state_asleep (thrst);
-    dds_writer_unlock (wr);
-  }
+  ddsrt_mutex_lock (&wr->m_entity.m_mutex);
+  ddsi_xpack_send (wr->m_xp, true);
+  ddsrt_mutex_unlock (&wr->m_entity.m_mutex);
 }
 
 dds_return_t dds_writecdr_local_orphan_impl (struct ddsi_local_orphan_writer *lowr, struct ddsi_serdata *d)
