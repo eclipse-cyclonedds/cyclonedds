@@ -2454,15 +2454,25 @@ dds_write(dds_entity_t writer, const void *data);
  * @ingroup writing
  * @component write_data
  *
- * When using the WriteBatch mode you can manually batch small writes into larger
- * datapackets for network efficiency. The normal dds_write() calls will no longer
- * automatically decide when to send data, you will do that manually using this function.
- *
- * DOC_TODO check if my assumptions about how this function works are correct
+ * When using write batching you can manually batch small writes into larger
+ * datapackets for network efficiency. The normal `dds_write()` no longer
+ * guarantee that data is sent on the network automatically.
  *
  * @param[in]  writer The writer entity.
+
+ * @returns A dds_return_t indicating success or failure.
+ * @retval DDS_RETCODE_OK
+ *             The writer successfully forwarded to the network.
+ * @retval DDS_RETCODE_ERROR
+ *             An internal error has occurred.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             One of the given arguments is not valid.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION
+ *             The operation is invoked on an inappropriate object.
+ * @retval DDS_RETCODE_ALREADY_DELETED
+ *             The entity has already been deleted.
  */
-DDS_EXPORT void
+DDS_EXPORT dds_return_t
 dds_write_flush(dds_entity_t writer);
 
 /**
@@ -2477,7 +2487,7 @@ dds_write_flush(dds_entity_t writer);
  * @param[in]  writer The writer entity.
  * @param[in]  serdata Serialized value to be written.
  *
- * @returns A dds_return_t indicating success or failure.
+ * @returns A dds_return_t indicating success or failure. On error, some writers failed to flush buffered messages.
  *
  * @retval DDS_RETCODE_OK
  *             The writer successfully wrote the serialized value.

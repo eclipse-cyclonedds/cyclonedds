@@ -37,6 +37,9 @@ dds_return_t dds_writecdr_impl (dds_writer *wr, struct ddsi_xpack *xp, struct dd
 /** @component write_data */
 dds_return_t dds_writecdr_local_orphan_impl (struct ddsi_local_orphan_writer *lowr, struct ddsi_serdata *d);
 
+/** @component write_data */
+void dds_write_flush_impl (dds_writer *wr);
+
 #if defined (__cplusplus)
 }
 #endif

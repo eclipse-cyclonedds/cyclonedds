@@ -1700,3 +1700,71 @@ dds_return_t dds_get_entity_sertype (dds_entity_t entity, const struct ddsi_sert
   dds_entity_unpin (e);
   return ret;
 }
+
+static dds_return_t pushdown_write_flush (dds_entity *e)
+{
+  /* Note: e is claimed, no mutexes held */
+  dds_return_t rc = DDS_RETCODE_OK;
+  struct dds_entity *c;
+  dds_instance_handle_t last_iid = 0;
+  ddsrt_mutex_lock (&e->m_mutex);
+  while ((c = ddsrt_avl_lookup_succ (&dds_entity_children_td, &e->m_children, &last_iid)) != NULL)
+  {
+    struct dds_entity *x;
+    last_iid = c->m_iid;
+    if (dds_entity_pin (c->m_hdllink.hdl, &x) == DDS_RETCODE_OK)
+    {
+      assert (x == c);
+      ddsrt_mutex_unlock (&e->m_mutex);
+      switch (dds_entity_kind (c))
+      {
+        case DDS_KIND_WRITER: {
+          dds_write_flush_impl ((dds_writer *) c);
+          break;
+        }
+        case DDS_KIND_PUBLISHER:
+        case DDS_KIND_PARTICIPANT:
+        case DDS_KIND_DOMAIN: {
+          dds_return_t rc1;
+          if ((rc1 = pushdown_write_flush (c)) < 0 && rc1 == 0)
+            rc = rc1;
+          break;
+        }
+        default: {
+          break;
+        }
+      }
+      ddsrt_mutex_lock (&e->m_mutex);
+      dds_entity_unpin (c);
+    }
+  }
+  ddsrt_mutex_unlock (&e->m_mutex);
+  return rc;
+}
+
+dds_return_t dds_write_flush (dds_entity_t entity)
+{
+  dds_entity *e;
+  dds_return_t rc;
+  if ((rc = dds_entity_pin (entity, &e)) != DDS_RETCODE_OK)
+    return rc;
+  struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
+  ddsi_thread_state_awake (thrst, &e->m_domain->gv);
+  switch (dds_entity_kind (e))
+  {
+    case DDS_KIND_WRITER:
+      dds_write_flush_impl ((dds_writer *) e);
+      break;
+    case DDS_KIND_PUBLISHER:
+    case DDS_KIND_PARTICIPANT:
+    case DDS_KIND_DOMAIN:
+      rc = pushdown_write_flush (e);
+      break;
+    default:
+      rc = DDS_RETCODE_ILLEGAL_OPERATION;
+      break;
+  }
+  ddsi_thread_state_asleep (thrst);
+  dds_entity_unpin (e);
+  return rc;
+}
