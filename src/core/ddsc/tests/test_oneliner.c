@@ -1269,15 +1269,19 @@ static void doreadlike (struct oneliner_ctx *ctx, const char *name, dds_return_t
   bool ellipsis = false;
   int exp_nvalid = -1, exp_ninvalid = -1;
   int ent;
+  const bool blocking = nexttok_if (&ctx->l, '!');
+  char const * const namesuf = blocking ? "!" : "";
   switch (peektok (&ctx->l, NULL))
   {
     default: // no expectations
       ellipsis = true;
       break;
     case '(': // (# valid, # invalid)
+      if (blocking)
+        error (ctx, "%s%s: blocking only supported i.c.w. expected result", name, namesuf);
       nexttok (&ctx->l, NULL);
       if (!(nexttok_int (&ctx->l, &exp_nvalid) && nexttok_if (&ctx->l, ',') && nexttok_int (&ctx->l, &exp_ninvalid) && nexttok_if (&ctx->l, ')')))
-        error (ctx, "%s: expecting (NINVALID, NVALID)", name);
+        error (ctx, "%s%s: expecting (NINVALID, NVALID)", name, namesuf);
       ellipsis = true;
       break;
     case '{':
@@ -1288,26 +1292,26 @@ static void doreadlike (struct oneliner_ctx *ctx, const char *name, dds_return_t
           if (nexttok_if (&ctx->l, TOK_ELLIPSIS)) {
             ellipsis = true; break;
           } else if (nexp == MAXN) {
-            error (ctx, "%s: too many samples specified", name);
+            error (ctx, "%s%s: too many samples specified", name, namesuf);
           } else if (!doreadlike_parse_sample (ctx, &exp[nexp++])) {
-            error (ctx, "%s: expecting sample", name);
+            error (ctx, "%s%s: expecting sample", name, namesuf);
           }
         } while (nexttok_if (&ctx->l, ','));
         if (!nexttok_if (&ctx->l, '}'))
-          error (ctx, "%s: expecting '}'", name);
+          error (ctx, "%s%s: expecting '}'", name, namesuf);
       }
       break;
   }
   if ((ent = parse_entity1 (&ctx->l, NULL)) < 0)
-    error (ctx, "%s: entity required", name);
+    error (ctx, "%s%s: entity required", name, namesuf);
 
   for (int i = 0; i < nexp; i++)
   {
     if (exp[i].wrent >= 0 && (exp[i].wrih = lookup_insthandle (ctx, ent, exp[i].wrent)) == 0)
-      error (ctx, "%s: instance lookup failed", name);
+      error (ctx, "%s%s: instance lookup failed", name, namesuf);
   }
 
-  mprintf (ctx, "entity %"PRId32": %s: ", ctx->es[ent], (fn == dds_take) ? "take" : "read");
+  mprintf (ctx, "entity %"PRId32": %s%s: ", ctx->es[ent], name, namesuf);
   Space_Type1 data[MAXN];
   void *raw[MAXN];
   for (int i = 0; i < MAXN; i++)
@@ -1315,40 +1319,64 @@ static void doreadlike (struct oneliner_ctx *ctx, const char *name, dds_return_t
   int matchidx[MAXN];
   dds_sample_info_t si[MAXN];
   DDSRT_STATIC_ASSERT (MAXN < CHAR_BIT * sizeof (unsigned));
-  const uint32_t maxs = (uint32_t) (sizeof (raw) / sizeof (raw[0]));
-  const int32_t n = fn (ctx->es[ent], raw, si, maxs, maxs);
-  if (n < 0)
-    error_dds (ctx, n, "%s: failed on %"PRId32, name, ctx->es[ent]);
   unsigned tomatch = (1u << nexp) - 1; // used to track result entries matched by spec
-  dds_instance_handle_t lastih = 0;
-  int cursor = -1;
-  int count[2] = { 0, 0 };
+  bool first = true;
   bool matchok = true;
-  mprintf (ctx, "{");
-  for (int i = 0; i < n; i++)
-  {
-    const Space_Type1 *s = raw[i];
-    entname_t wrname;
-    count[si[i].valid_data]++;
-    mprintf (ctx, "%s%c%c%c",
-            (i > 0) ? "," : "",
-            (si[i].sample_state == DDS_NOT_READ_SAMPLE_STATE) ? 'f' : 's',
-            (si[i].instance_state == DDS_ALIVE_INSTANCE_STATE) ? 'a' : (si[i].instance_state == DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE) ? 'u' : 'd',
-            (si[i].view_state == DDS_NEW_VIEW_STATE) ? 'n' : 'o');
-    if (si[i].valid_data)
-      mprintf (ctx, "(%"PRId32",%"PRId32",%"PRId32")", s->long_1, s->long_2, s->long_3);
-    else
-      mprintf (ctx, "%"PRId32, s->long_1);
-    if (!wrname_from_pubhandle (ctx, ent, si[i].publication_handle, &wrname))
-      error (ctx, "%s: unknown publication handle received", name);
-    mprintf (ctx, "%s", wrname.n);
-    print_timestamp (ctx, si[i].source_timestamp);
-    if (!doreadlike_matchstep (&si[i], s, exp, nexp, ellipsis, &tomatch, &cursor, &lastih, &matchidx[i]))
-      matchok = false;
+  int count[2] = { 0, 0 };
+  dds_entity_t ws = 0, readcond = 0;
+  const dds_duration_t abstimeout = dds_time () + DDS_SECS (5);
+  if (blocking) {
+    if ((ws = dds_create_waitset (dds_get_participant (ctx->es[ent]))) < 0)
+      error_dds (ctx, ws, "%s%s: failed to create waitset for %"PRId32, name, namesuf, ctx->es[ent]);
+    if ((readcond = dds_create_readcondition (ctx->es[ent], DDS_NOT_READ_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE))< 0)
+      error_dds (ctx, readcond, "%s%s: failed to create read condition for %"PRId32, name, namesuf, ctx->es[ent]);
+    dds_return_t rc;
+    if ((rc = dds_waitset_attach (ws, readcond, 0)) < 0)
+      error_dds (ctx, rc, "%s%s: failed to attach read condition to waitset for %"PRId32, name, namesuf, ctx->es[ent]);
   }
-  mprintf (ctx, "}:");
-  for (int i = 0; i < n; i++)
-    mprintf (ctx, " %d", matchidx[i]);
+  while (first || (tomatch != 0 && ws && dds_waitset_wait_until (ws, NULL, 0, abstimeout) > 0))
+  {
+    first = false;
+    const uint32_t maxs = (uint32_t) (sizeof (raw) / sizeof (raw[0]));
+    const int32_t n = fn (ctx->es[ent], raw, si, maxs, maxs);
+    if (n < 0)
+      error_dds (ctx, n, "%s%s: failed on %"PRId32, name, namesuf, ctx->es[ent]);
+    dds_instance_handle_t lastih = 0;
+    int cursor = -1;
+    mprintf (ctx, "{");
+    for (int i = 0; i < n; i++)
+    {
+      const Space_Type1 *s = raw[i];
+      entname_t wrname;
+      count[si[i].valid_data]++;
+      mprintf (ctx, "%s%c%c%c",
+               (i > 0) ? "," : "",
+               (si[i].sample_state == DDS_NOT_READ_SAMPLE_STATE) ? 'f' : 's',
+               (si[i].instance_state == DDS_ALIVE_INSTANCE_STATE) ? 'a' : (si[i].instance_state == DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE) ? 'u' : 'd',
+               (si[i].view_state == DDS_NEW_VIEW_STATE) ? 'n' : 'o');
+      if (si[i].valid_data)
+        mprintf (ctx, "(%"PRId32",%"PRId32",%"PRId32")", s->long_1, s->long_2, s->long_3);
+      else
+        mprintf (ctx, "%"PRId32, s->long_1);
+      if (!wrname_from_pubhandle (ctx, ent, si[i].publication_handle, &wrname))
+        error (ctx, "%s%s: unknown publication handle received", name, namesuf);
+      mprintf (ctx, "%s", wrname.n);
+      print_timestamp (ctx, si[i].source_timestamp);
+      if (!doreadlike_matchstep (&si[i], s, exp, nexp, ellipsis, &tomatch, &cursor, &lastih, &matchidx[i]))
+        matchok = false;
+    }
+    mprintf (ctx, "}:");
+    for (int i = 0; i < n; i++)
+      mprintf (ctx, " %d", matchidx[i]);
+  }
+  if (ws)
+  {
+    dds_return_t rc;
+    if ((rc = dds_delete (ws)) < 0)
+      error_dds (ctx, rc, "%s%s: failed to delete waitset", name, namesuf);
+    if ((rc = dds_delete (readcond)) < 0)
+      error_dds (ctx, rc, "%s%s: failed to delete read condition", name, namesuf);
+  }
   if (tomatch != 0)
   {
     mprintf (ctx, " (samples missing)");
@@ -1361,7 +1389,7 @@ static void doreadlike (struct oneliner_ctx *ctx, const char *name, dds_return_t
     matchok = false;
   mprintf (ctx, "\n");
   if (!matchok)
-    testfail (ctx, "%s: mismatch between actual and expected set\n", name);
+    testfail (ctx, "%s%s: mismatch between actual and expected set\n", name, namesuf);
 #undef MAXN
 }
 

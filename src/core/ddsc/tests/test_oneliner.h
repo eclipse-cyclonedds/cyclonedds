@@ -80,7 +80,7 @@
  *
  *               | READ-LIKE ENTITY-NAME
  *               | READ-LIKE(A,B) ENTITY-NAME
- *               | READ-LIKE{[S1[,S2[,S3...]][,...]} ENTITY-NAME
+ *               | READ-LIKE[!]{[S1[,S2[,S3...]][,...]} ENTITY-NAME
  *
  *                       Reads/takes at most 10 samples.  The second form counts the
  *                       number of valid and invalid samples seen and checks them against
@@ -91,6 +91,10 @@
  *
  *                         [STATE]K[ENTITY-NAME][@DT]
  *                         [STATE](K,X,Y)[ENTITY-NAME][@DT]
+ *
+ *                       Suffixing READ-LIKE with an exclamation mark in this third form
+ *                       makes it wait until all specified data has been received (with
+ *                       a maximum of 5s).
  *
  *                       The first form is an invalid sample with only the (integer) key
  *                       value K, the second form also specifies the two (integer)
