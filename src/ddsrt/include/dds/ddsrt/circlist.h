@@ -36,23 +36,21 @@ struct ddsrt_circlist {
   struct ddsrt_circlist_elem *latest; /**< pointer to latest inserted element */
 };
 
-/**
- * @brief The circlist element is the basic element of circular doubly linked list structure.
- * 
- * To store user data in the list, the element must be embedded in a user element, which is a struct containing the user data.
- * All API calls with an element as input or output, deal with the circlist element. Example:
- * @code{.c}
- * typedef struct num_s{ // user element
- *   uint64_t val; // user data
- *   ddsrt_circlist_elem elem;
- * }num_t;
- * @endcode
- * 
- * For functions like @ref ddsrt_circlist_latest, this means that to get a pointer to the user element, you can use the macro @ref DDSRT_FROM_CIRCLIST :
- * @code{.c}
- * num_t* num = DDSRT_FROM_CIRCLIST(num_t, elem, ddsrt_circlist_latest(listptr));
- * @endcode
- */
+/// @brief The circlist element is the basic element of circular doubly linked list structure.
+/// 
+/// To store user data in the list, the element must be embedded in a user element, which is a struct containing the user data.
+/// All API calls with an element as input or output, deal with the circlist element. Example:
+/// @code{.c}
+/// typedef struct num_s{ // user element
+///   uint64_t val; // user data
+///   ddsrt_circlist_elem elem;
+/// }num_t;
+/// @endcode
+/// 
+/// For functions like @ref ddsrt_circlist_latest, this means that to get a pointer to the user element, you can use the macro @ref DDSRT_FROM_CIRCLIST :
+/// @code{.c}
+/// num_t* num = DDSRT_FROM_CIRCLIST(num_t, elem, ddsrt_circlist_latest(listptr));
+/// @endcode
 struct ddsrt_circlist_elem {
   struct ddsrt_circlist_elem *next;
   struct ddsrt_circlist_elem *prev;
@@ -78,7 +76,8 @@ bool ddsrt_circlist_isempty (const struct ddsrt_circlist *list);
  * 
  * @param[in,out] list the circular list
  * @param[in] elem the element to append
- * @see @ref ddsrt_circlist_remove
+ * 
+ * See @ref ddsrt_circlist_remove
  */
 void ddsrt_circlist_append (struct ddsrt_circlist *list, struct ddsrt_circlist_elem *elem);
 
@@ -89,7 +88,8 @@ void ddsrt_circlist_append (struct ddsrt_circlist *list, struct ddsrt_circlist_e
  * 
  * @param[in,out] list the circular list
  * @param[in] elem the element to append
- * @see @ref ddsrt_circlist_append
+ * 
+ * See @ref ddsrt_circlist_append
  */
 void ddsrt_circlist_remove (struct ddsrt_circlist *list, struct ddsrt_circlist_elem *elem);
 
@@ -98,8 +98,8 @@ void ddsrt_circlist_remove (struct ddsrt_circlist *list, struct ddsrt_circlist_e
  * 
  * @param[in] list the circular list
  * @return pointer to the oldest element
- * @see @ref ddsrt_circlist_latest
- * @see @ref ddsrt_circlist_elem
+ * 
+ * See @ref ddsrt_circlist_latest, @ref ddsrt_circlist_elem
  */
 struct ddsrt_circlist_elem *ddsrt_circlist_oldest (const struct ddsrt_circlist *list);
 
@@ -108,8 +108,8 @@ struct ddsrt_circlist_elem *ddsrt_circlist_oldest (const struct ddsrt_circlist *
  * 
  * @param[in] list the circular list
  * @return pointer to the latest element
- * @see @ref ddsrt_circlist_oldest
- * @see @ref ddsrt_circlist_elem
+ * 
+ * See @ref ddsrt_circlist_oldest, @ref ddsrt_circlist_elem
  */
 struct ddsrt_circlist_elem *ddsrt_circlist_latest (const struct ddsrt_circlist *list);
 
