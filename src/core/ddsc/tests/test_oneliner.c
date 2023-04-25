@@ -743,6 +743,19 @@ static bool qos_autodispose_unregistered_instances (struct oneliner_lex *l, dds_
   return true;
 }
 
+static bool qos_writer_batching (struct oneliner_lex *l, dds_qos_t *q)
+{
+  static const struct kvarg ks[] = {
+    { "y", 1, 1 },
+    { "n", 1, 0 }
+  };
+  int v;
+  if (!read_kvarg (ks, sizeof ks, l, &v, NULL))
+    return false;
+  dds_qset_writer_batching (q, !!v);
+  return true;
+}
+
 static const struct {
   char *abbrev;
   size_t n;
@@ -762,7 +775,8 @@ static const struct {
   { "r",  1, qos_reliability, DDS_RELIABILITY_QOS_POLICY_ID },
   { "rl", 2, qos_resource_limits, DDS_RESOURCELIMITS_QOS_POLICY_ID },
   { "ds", 2, qos_durability_service, DDS_DURABILITYSERVICE_QOS_POLICY_ID },
-  { "ad", 2, qos_autodispose_unregistered_instances, DDS_WRITERDATALIFECYCLE_QOS_POLICY_ID }
+  { "ad", 2, qos_autodispose_unregistered_instances, DDS_WRITERDATALIFECYCLE_QOS_POLICY_ID },
+  { "wb", 2, qos_writer_batching, DDS_INVALID_QOS_POLICY_ID }
 };
 
 static bool setqos (struct oneliner_lex *l, dds_qos_t *q)
@@ -1398,6 +1412,24 @@ static void dodispfail (struct oneliner_ctx *ctx) { dowritelike (ctx, "dispfail"
 static void dounreg (struct oneliner_ctx *ctx) { dowritelike (ctx, "unreg", false, dds_unregister_instance_ts); }
 static void dounregfail (struct oneliner_ctx *ctx) { dowritelike (ctx, "unregfail", true, dds_unregister_instance_ts); }
 
+static void dowriteflush (struct oneliner_ctx *ctx)
+{
+  dds_return_t ret;
+  dds_time_t ts = dds_time ();
+  int ent;
+  if ((ent = parse_entity (ctx)) < 0)
+    error (ctx, "flush: expecting entity");
+  DDSRT_WARNING_MSVC_OFF(6385)
+  if (ctx->es[ent] == 0)
+    make_entity (ctx, ent, NULL);
+  DDSRT_WARNING_MSVC_ON(6385)
+  mprintf (ctx, "entity %"PRId32": flush", ctx->es[ent]);
+  print_timestamp (ctx, ts);
+  mprintf (ctx, "\n");
+  if ((ret = dds_write_flush (ctx->es[ent])) != 0)
+    error_dds (ctx, ret, "flush: failed");
+}
+
 static int checkstatus (struct oneliner_ctx *ctx, int ll, int ent, struct oneliner_lex *argl, const void *status)
 {
   assert (lldesc[ll].desc != NULL);
@@ -1896,6 +1928,7 @@ static void dispatchcmd (struct oneliner_ctx *ctx)
     { "wrdispfail", dowrdispfail },
     { "dispfail",   dodispfail },
     { "unregfail",  dounregfail },
+    { "flush",      dowriteflush },
     { "take",       dotake },
     { "read",       doread },
     { "deaf",       dodeaf },
