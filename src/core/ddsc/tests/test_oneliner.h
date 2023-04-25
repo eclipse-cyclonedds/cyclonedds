@@ -74,6 +74,10 @@
  *                       the test + <dt>s rather than the current time; DT is a
  *                       floating-point number
  *
+ *               | flush ENTITY-NAME
+ *
+ *                       Invokes dds_write_flush on entity
+ *
  *               | READ-LIKE ENTITY-NAME
  *               | READ-LIKE(A,B) ENTITY-NAME
  *               | READ-LIKE{[S1[,S2[,S3...]][,...]} ENTITY-NAME
@@ -226,6 +230,7 @@
  *               | tp=N          transport-priority
  *               | ud=...        user data (with escape sequences and hex/octal
  *                               input allowed)
+ *               | wr={y|n}      writer batching
  *
  * All entities share the listeners with their global state. Only the latest invocation is visible.
  *
@@ -301,13 +306,13 @@ struct oneliner_ctx {
   char msg[256];
 
   jmp_buf jb;
-  
+
   int mprintf_needs_timestamp;
 
   ddsrt_mutex_t g_mutex;
   ddsrt_cond_t g_cond;
   struct oneliner_cb cb[3];
-  
+
   const char *config_override; // optional
 };
 
