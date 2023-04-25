@@ -83,6 +83,7 @@ struct ddsi_writer
   unsigned test_ignore_acknack : 1; /* iff 1, the writer ignores all arriving ACKNACK messages */
   unsigned test_suppress_retransmit : 1; /* iff 1, the writer does not respond to retransmit requests */
   unsigned test_suppress_heartbeat : 1; /* iff 1, the writer suppresses all periodic heartbeats */
+  unsigned test_suppress_flush_on_sync_heartbeat : 1; /* iff 1, the writer never flushes because of a piggy-backed heartbeat */
   unsigned test_drop_outgoing_data : 1; /* iff 1, the writer drops outgoing data, forcing the readers to request a retransmit */
 #ifdef DDS_HAS_SHM
   unsigned has_iceoryx : 1;

@@ -1858,7 +1858,7 @@ static void dosetflags (struct oneliner_ctx *ctx)
     error (ctx, "setflags: entity is not a writer");
   }
   dds_writer *wr = (dds_writer *) xwr;
-  if (strspn (flagstok.n, "arhd") != strlen (flagstok.n))
+  if (strspn (flagstok.n, "arhsd") != strlen (flagstok.n))
   {
     dds_entity_unpin (xwr);
     error (ctx, "setflags: unknown flags");
@@ -1866,6 +1866,7 @@ static void dosetflags (struct oneliner_ctx *ctx)
   wr->m_wr->test_ignore_acknack = (strchr (flagstok.n, 'a') != NULL);
   wr->m_wr->test_suppress_retransmit = (strchr (flagstok.n, 'r') != NULL);
   wr->m_wr->test_suppress_heartbeat = (strchr (flagstok.n, 'h') != NULL);
+  wr->m_wr->test_suppress_flush_on_sync_heartbeat = (strchr (flagstok.n, 's') != NULL);
   wr->m_wr->test_drop_outgoing_data = (strchr (flagstok.n, 'd') != NULL);
   dds_entity_unpin (xwr);
 }

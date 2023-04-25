@@ -277,6 +277,8 @@ struct ddsi_xmsg *ddsi_writer_hbcontrol_piggyback (struct ddsi_writer *wr, const
     /* So we force a heartbeat in - but we also rely on our caller to
        send the packet out */
     msg = ddsi_writer_hbcontrol_create_heartbeat (wr, whcst, tnow, *hbansreq, 1);
+    if (wr->test_suppress_flush_on_sync_heartbeat)
+      *hbansreq = 1;
   } else if (last_packetid != packetid && tnow.v - t_of_last_hb.v > DDS_USECS (100)) {
     /* If we crossed a packet boundary since the previous write,
        piggyback a heartbeat, with *hbansreq determining whether or
