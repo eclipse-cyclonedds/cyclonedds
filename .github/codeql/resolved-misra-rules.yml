@@ -1,0 +1,5 @@
+disable-default-queries: true
+
+# List of MISRA rules that have been resolved to check for regressions against.
+queries:
+  - uses: ./codeql-coding-standards/c/misra/src/rules/RULE-3-1/CharacterSequencesAndUsedWithinAComment.ql
