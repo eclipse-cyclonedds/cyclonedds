@@ -1,14 +1,13 @@
-/*
- * Copyright(c) 2021 to 2022 ZettaScale Technology and others
- *
- * This program and the accompanying materials are made available under the
- * terms of the Eclipse Public License v. 2.0 which is available at
- * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
- * v. 1.0 which is available at
- * http://www.eclipse.org/org/documents/edl-v10.php.
- *
- * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
- */
+// Copyright(c) 2021 to 2022 ZettaScale Technology and others
+//
+// This program and the accompanying materials are made available under the
+// terms of the Eclipse Public License v. 2.0 which is available at
+// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+// v. 1.0 which is available at
+// http://www.eclipse.org/org/documents/edl-v10.php.
+//
+// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -691,11 +690,11 @@ set_xtypes_annotation_parameter_value(
       val->_d = DDS_XTypes_TK_FLOAT64;
       val->_u.float64_value = lit->value.dbl;
       break;
-    /*  //enums are currently not allowed in min/max/range annotations
-    case IDL_ENUM:
-      val->_d = DDS_XTypes_TK_ENUM;
-      val->_u.enumerated_value = ???;
-      break;*/
+    // enums are currently not allowed in min/max/range annotations
+    // case IDL_ENUM:
+    //   val->_d = DDS_XTypes_TK_ENUM;
+    //   val->_u.enumerated_value = ???;
+    //   break;
     default:
       return IDL_RETCODE_BAD_PARAMETER;
   }

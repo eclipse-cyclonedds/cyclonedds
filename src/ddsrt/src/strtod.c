@@ -1,14 +1,13 @@
-/*
- * Copyright(c) 2006 to 2019 ZettaScale Technology and others
- *
- * This program and the accompanying materials are made available under the
- * terms of the Eclipse Public License v. 2.0 which is available at
- * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
- * v. 1.0 which is available at
- * http://www.eclipse.org/org/documents/edl-v10.php.
- *
- * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
- */
+// Copyright(c) 2006 to 2019 ZettaScale Technology and others
+//
+// This program and the accompanying materials are made available under the
+// terms of the Eclipse Public License v. 2.0 which is available at
+// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+// v. 1.0 which is available at
+// http://www.eclipse.org/org/documents/edl-v10.php.
+//
+// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+
 #include <assert.h>
 #include <ctype.h>
 #include <errno.h>
@@ -20,12 +19,11 @@
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/strtod.h"
 
-/*
- * Determine the maximum size that a string should have to be
- * able to contain a double.
- * See the following site for the calculation explanation:
- * http://stackoverflow.com/questions/1701055/what-is-the-maximum-length-in-chars-needed-to-represent-any-double-value
- */
+// Determine the maximum size that a string should have to be
+// able to contain a double.
+// See the following site for the calculation explanation:
+// http://stackoverflow.com/questions/1701055/what-is-the-maximum-length-in-chars-needed-to-represent-any-double-value
+
 #include <float.h>
 #define DOUBLE_STRING_MAX_LENGTH (3 + DBL_MANT_DIG - DBL_MIN_EXP)
 

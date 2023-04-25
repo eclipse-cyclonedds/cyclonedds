@@ -1,20 +1,15 @@
-/*
- * Copyright(c) 2006 to 2020 ZettaScale Technology and others
- *
- * This program and the accompanying materials are made available under the
- * terms of the Eclipse Public License v. 2.0 which is available at
- * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
- * v. 1.0 which is available at
- * http://www.eclipse.org/org/documents/edl-v10.php.
- *
- * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
- */
+// Copyright(c) 2006 to 2020 ZettaScale Technology and others
+//
+// This program and the accompanying materials are made available under the
+// terms of the Eclipse Public License v. 2.0 which is available at
+// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+// v. 1.0 which is available at
+// http://www.eclipse.org/org/documents/edl-v10.php.
+//
+// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
-
-/*
- * WARNING This file is only needed for the work around for https://github.com/eclipse-cyclonedds/cyclonedds/issues/74
- * Do not include this file in an application! Once issue #74 is solved this header file should be removed.
- */
+// WARNING This file is only needed for the work around for https://github.com/eclipse-cyclonedds/cyclonedds/issues/74
+// Do not include this file in an application! Once issue #74 is solved this header file should be removed.
 
 #ifndef DDS_INTERNAL_API_H
 #define DDS_INTERNAL_API_H

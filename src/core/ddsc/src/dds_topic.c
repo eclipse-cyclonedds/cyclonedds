@@ -1,14 +1,13 @@
-/*
- * Copyright(c) 2006 to 2022 ZettaScale Technology and others
- *
- * This program and the accompanying materials are made available under the
- * terms of the Eclipse Public License v. 2.0 which is available at
- * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
- * v. 1.0 which is available at
- * http://www.eclipse.org/org/documents/edl-v10.php.
- *
- * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
- */
+// Copyright(c) 2006 to 2022 ZettaScale Technology and others
+//
+// This program and the accompanying materials are made available under the
+// terms of the Eclipse Public License v. 2.0 which is available at
+// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+// v. 1.0 which is available at
+// http://www.eclipse.org/org/documents/edl-v10.php.
+//
+// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+
 #include <assert.h>
 #include <string.h>
 #include <ctype.h>
@@ -56,10 +55,10 @@ static bool is_valid_name (const char *name) ddsrt_nonnull_all;
 
 static bool is_valid_name (const char *name)
 {
-  /* DDS Spec does not explicitly specify what constitutes a valid name.
-   * Per https://github.com/eclipse-cyclonedds/cyclonedds/pull/1426
-   *  Require isprint is true and not <space>*?[]"' for the time being, then work our way to supporting UTF-8
-   */
+  // DDS Spec does not explicitly specify what constitutes a valid name.
+  // Per https://github.com/eclipse-cyclonedds/cyclonedds/pull/1426
+  //  Require isprint is true and not <space>*?[]"' for the time being, then work our way to supporting UTF-8
+   
   const char* invalid = "*?[]\"'#$";
 
   if (name[0] == '\0')

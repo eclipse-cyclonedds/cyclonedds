@@ -1,14 +1,13 @@
-/*
- * Copyright(c) 2006 to 2021 ZettaScale Technology and others
- *
- * This program and the accompanying materials are made available under the
- * terms of the Eclipse Public License v. 2.0 which is available at
- * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
- * v. 1.0 which is available at
- * http://www.eclipse.org/org/documents/edl-v10.php.
- *
- * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
- */
+// Copyright(c) 2006 to 2021 ZettaScale Technology and others
+//
+// This program and the accompanying materials are made available under the
+// terms of the Eclipse Public License v. 2.0 which is available at
+// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+// v. 1.0 which is available at
+// http://www.eclipse.org/org/documents/edl-v10.php.
+//
+// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/cdtors.h"
 #include "dds/ddsrt/sync.h"
@@ -134,21 +133,21 @@ ddsrt_cdtor(PVOID handle, DWORD reason, PVOID reserved)
 DDSRT_WARNING_GNUC_ON(missing-prototypes)
 DDSRT_WARNING_CLANG_ON(missing-prototypes)
 
-/* These instructions are very specific to the Windows platform. They register
-   a function (or multiple) as a TLS initialization function. TLS initializers
-   are executed when a thread (or program) attaches or detaches. In contrast to
-   DllMain, a TLS initializer is also executed when the library is linked
-   statically. TLS initializers are always executed before DllMain (both when
-   the library is attached and detached). See http://www.nynaeve.net/?p=190,
-   for a detailed explanation on TLS initializers. Boost and/or POSIX Threads
-   for Windows code bases may also form good sources of information on this
-   subject.
-
-   These instructions could theoretically be hidden in the build system, but
-   doing so would be going a bit overboard as only Windows offers (and
-   requires) this type of functionality/initialization. Apart from that the
-   logic isn't exactly as trivial as for example determining the endianness of
-   a platform, so keeping this close to the implementation is probably wise. */
+// These instructions are very specific to the Windows platform. They register
+// a function (or multiple) as a TLS initialization function. TLS initializers
+// are executed when a thread (or program) attaches or detaches. In contrast to
+// DllMain, a TLS initializer is also executed when the library is linked
+// statically. TLS initializers are always executed before DllMain (both when
+// the library is attached and detached). See http://www.nynaeve.net/?p=190,
+// for a detailed explanation on TLS initializers. Boost and/or POSIX Threads
+// for Windows code bases may also form good sources of information on this
+// subject.
+//
+// These instructions could theoretically be hidden in the build system, but
+// doing so would be going a bit overboard as only Windows offers (and
+// requires) this type of functionality/initialization. Apart from that the
+// logic isn't exactly as trivial as for example determining the endianness of
+// a platform, so keeping this close to the implementation is probably wise.
 #if __MINGW32__
   PIMAGE_TLS_CALLBACK __crt_xl_tls_callback__ __attribute__ ((section(".CRT$XLZ"))) = ddsrt_cdtor;
 #elif _WIN64

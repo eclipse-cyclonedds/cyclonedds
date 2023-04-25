@@ -1,14 +1,13 @@
-/*
- * Copyright(c) 2021 to 2022 ZettaScale Technology and others
- *
- * This program and the accompanying materials are made available under the
- * terms of the Eclipse Public License v. 2.0 which is available at
- * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
- * v. 1.0 which is available at
- * http://www.eclipse.org/org/documents/edl-v10.php.
- *
- * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
- */
+// Copyright(c) 2021 to 2022 ZettaScale Technology and others
+//
+// This program and the accompanying materials are made available under the
+// terms of the Eclipse Public License v. 2.0 which is available at
+// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+// v. 1.0 which is available at
+// http://www.eclipse.org/org/documents/edl-v10.php.
+//
+// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+
 #include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -228,11 +227,11 @@ parse_line(idl_pstate_t *pstate, idl_token_t *tok)
       if (tok->code == '\n' || tok->code == '\0') {
         return push_line(pstate, dir);
       } else if (tok->code == IDL_TOKEN_PP_NUMBER) {
-        /* for proper handling of includes by parsing line controls, a
-           mechanism derived from GCCs linemarkers is required. they are
-           enabled in mcpp by defining the compiler to IDLC. See
-           https://gcc.gnu.org/onlinedocs/cpp/Preprocessor-Output.html for
-           details */
+        // for proper handling of includes by parsing line controls, a
+        // mechanism derived from GCCs linemarkers is required. they are
+        // enabled in mcpp by defining the compiler to IDLC. See
+        // https://gcc.gnu.org/onlinedocs/cpp/Preprocessor-Output.html for
+        // details
         uint32_t flags = 0;
         if (strcmp(tok->value.str, "1") == 0)
           flags = START_OF_FILE;

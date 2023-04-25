@@ -1,14 +1,12 @@
-/*
- * Copyright(c) 2006 to 2022 ZettaScale Technology and others
- *
- * This program and the accompanying materials are made available under the
- * terms of the Eclipse Public License v. 2.0 which is available at
- * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
- * v. 1.0 which is available at
- * http://www.eclipse.org/org/documents/edl-v10.php.
- *
- * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
- */
+// Copyright(c) 2006 to 2022 ZettaScale Technology and others
+//
+// This program and the accompanying materials are made available under the
+// terms of the Eclipse Public License v. 2.0 which is available at
+// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+// v. 1.0 which is available at
+// http://www.eclipse.org/org/documents/edl-v10.php.
+//
+// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
 #include <string.h>
 #include <stdlib.h>
@@ -2262,7 +2260,7 @@ static bool xt_is_assignable_from_enum (const struct xt_type *t1, const struct x
 {
   assert (t1->_d == DDS_XTypes_TK_ENUM);
   assert (t2->_d == DDS_XTypes_TK_ENUM);
-  /* Note: extensibility flags not defined, see https://issues.omg.org/issues/DDSXTY14-24 */
+  // Note: extensibility flags not defined, see https://issues.omg.org/issues/DDSXTY14-24
   if (xt_get_extensibility (t1) != xt_get_extensibility (t2))
     return false;
   /* Members are ordered by increasing value (XTypes 1.3 spec 7.3.4.5) */
@@ -2624,7 +2622,8 @@ bool ddsi_xt_is_assignable_from (struct ddsi_domaingv *gv, const struct xt_type 
     {
       case DDS_XTypes_TK_BITMASK:
         return bb == t_other->_u.bitmask.bit_bound;
-      // case TK_UINT8:   /* FIXME: TK_UINT8 not defined in idl */
+      // FIXME: TK_UINT8 not defined in idl
+      // case TK_UINT8:   
       //   return bb >= 1 && bb <= 8;
       case DDS_XTypes_TK_UINT16:
         return bb >= 9 && bb <= 16;

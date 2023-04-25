@@ -1,14 +1,13 @@
-/*
- * Copyright(c) 2021 to 2022 ZettaScale Technology and others
- *
- * This program and the accompanying materials are made available under the
- * terms of the Eclipse Public License v. 2.0 which is available at
- * http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
- * v. 1.0 which is available at
- * http://www.eclipse.org/org/documents/edl-v10.php.
- *
- * SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
- */
+// Copyright(c) 2021 to 2022 ZettaScale Technology and others
+//
+// This program and the accompanying materials are made available under the
+// terms of the Eclipse Public License v. 2.0 which is available at
+// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+// v. 1.0 which is available at
+// http://www.eclipse.org/org/documents/edl-v10.php.
+//
+// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+
 #include <assert.h>
 #include <errno.h>
 #include <stdint.h>
@@ -76,7 +75,7 @@ emit_implicit_sequence(
 
   type_prefix = get_type_prefix(type_spec);
 
-  /* https://www.omg.org/spec/C/1.0/PDF section 1.11 */
+  // https://www.omg.org/spec/C/1.0/PDF section 1.11
   if (IDL_PRINTA(&name, print_type, node) < 0)
     return IDL_RETCODE_NO_MEMORY;
   if (IDL_PRINTA(&type, print_type, type_spec) < 0)
