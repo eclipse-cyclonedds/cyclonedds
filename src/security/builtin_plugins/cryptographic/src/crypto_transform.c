@@ -76,19 +76,17 @@ struct trusted_crypto_footer
 #define CRYPTO_FOOTER_BASIC_SIZE (CRYPTO_HMAC_SIZE + sizeof (uint32_t))
 #define CRYPTO_FOOTER_MIN_SIZE   (sizeof (struct trusted_crypto_footer))
 
-/*
-const DDS_octet INFO_SRC_HDR[] =
-   {
-         RTPS_Message_Type_INFO_SRC,
-         0x00, // BIG ENDIAN
-         0x14,
-         0x00,
-         0x00,
-         0x00,
-         0x00,
-         0x00
-   };
-*/
+// const DDS_octet INFO_SRC_HDR[] =
+//    {
+//          RTPS_Message_Type_INFO_SRC,
+//          0x00, // BIG ENDIAN
+//          0x14,
+//          0x00,
+//          0x00,
+//          0x00,
+//          0x00,
+//          0x00
+//    };
 
 /**
  * Implementation structure for storing encapsulated members of the instance
