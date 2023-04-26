@@ -1,20 +1,20 @@
-# Check against the set of MISRA rules that have already been 
+# Check against the set of MISRA rules that have already been
 # resolved to prevent regressions.
 name: "MISRA regressions check"
 
 on:
   push:
-    branches: [ "master" ]
+    branches: ["master"]
   pull_request:
     # The branches below must be a subset of the branches above
-    branches: [ "master" ]
+    branches: ["master"]
   schedule:
-    - cron: '16 12 * * 3'
+    - cron: "16 12 * * 3"
 
 jobs:
   analyze:
     name: Analyze
-    runs-on: 'ubuntu-latest'
+    runs-on: "ubuntu-latest"
     permissions:
       actions: read
       contents: read
@@ -27,34 +27,34 @@ jobs:
         # Use only 'java' to analyze code written in Java, Kotlin or both
         # Use only 'javascript' to analyze code written in JavaScript, TypeScript or both
         # Learn more about CodeQL language support at https://aka.ms/codeql-docs/language-support
-        language: [ 'cpp' ]
+        language: ["cpp"]
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-    # Pull in the codeql-coding-standards qlpack repository.
-    # https://github.com/github/codeql-coding-standards
-    - name: Checkout codeql-coding-standards
-      uses: actions/checkout@v3
-      with:
-        repository: github/codeql-coding-standards
-        path: codeql-coding-standards/
-        ref: 39f8f9801307e058d6d9f07dcbe7c7d229c18dd0
-    
-    # Initializes the CodeQL tools for scanning.
-    - name: Initialize CodeQL
-      uses: github/codeql-action/init@v2
-      with:
-        languages: ${{ matrix.language }}
-        # Points at the config file containing the MISRA rules that have been resolved.
-        config-file: ./.github/codeql/resolved-misra-rules.yml
+      # Pull in the codeql-coding-standards qlpack repository.
+      # https://github.com/github/codeql-coding-standards
+      - name: Checkout codeql-coding-standards
+        uses: actions/checkout@v3
+        with:
+          repository: github/codeql-coding-standards
+          path: codeql-coding-standards/
+          ref: 39f8f9801307e058d6d9f07dcbe7c7d229c18dd0
 
-    # Autobuild attempts to build any compiled languages  (C/C++, C#, Go, or Java).
-    - name: Autobuild
-      uses: github/codeql-action/autobuild@v2
+      # Initializes the CodeQL tools for scanning.
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v2
+        with:
+          languages: ${{ matrix.language }}
+          # Points at the config file containing the MISRA rules that have been resolved.
+          config-file: ./.github/codeql/resolved-misra-rules.yml
 
-    - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v2
-      with:
-        category: "MISRA"
+      # Autobuild attempts to build any compiled languages  (C/C++, C#, Go, or Java).
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v2
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
+        with:
+          category: "MISRA"
