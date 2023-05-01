@@ -165,6 +165,12 @@ static uint64_t serdata_default_get_sequencenumber(const struct ddsi_serdata *dc
   return d->c.sequence_number;
 }
 
+static ddsi_guid_t *serdata_default_get_writer_guid(const struct ddsi_serdata *dcmn)
+{
+  struct dds_serdata_default *d = (struct dds_serdata_default *) dcmn;
+  return &d->c.writer_guid;
+}
+
 static bool serdata_default_eqkey(const struct ddsi_serdata *acmn, const struct ddsi_serdata *bcmn)
 {
   const struct dds_serdata_default *a = (const struct dds_serdata_default *)acmn;
@@ -987,6 +993,7 @@ const struct ddsi_serdata_ops dds_serdata_ops_cdr = {
   .print = serdata_default_print_cdr,
   .get_keyhash = serdata_default_get_keyhash,
   .get_sequencenumber = serdata_default_get_sequencenumber,
+  .get_writer_guid = serdata_default_get_writer_guid,
   .from_loaned_sample = serdata_default_from_loaned_sample,
   .from_psmx = serdata_default_from_psmx
 };
@@ -1008,6 +1015,7 @@ const struct ddsi_serdata_ops dds_serdata_ops_xcdr2 = {
   .print = serdata_default_print_cdr,
   .get_keyhash = serdata_default_get_keyhash,
   .get_sequencenumber = serdata_default_get_sequencenumber,
+  .get_writer_guid = serdata_default_get_writer_guid,
   .from_loaned_sample = serdata_default_from_loaned_sample,
   .from_psmx = serdata_default_from_psmx
 };
@@ -1029,6 +1037,7 @@ const struct ddsi_serdata_ops dds_serdata_ops_cdr_nokey = {
   .print = serdata_default_print_cdr,
   .get_keyhash = serdata_default_get_keyhash,
   .get_sequencenumber = serdata_default_get_sequencenumber,
+  .get_writer_guid = serdata_default_get_writer_guid,
   .from_loaned_sample = serdata_default_from_loaned_sample,
   .from_psmx = serdata_default_from_psmx
 };
@@ -1050,6 +1059,7 @@ const struct ddsi_serdata_ops dds_serdata_ops_xcdr2_nokey = {
   .print = serdata_default_print_cdr,
   .get_keyhash = serdata_default_get_keyhash,
   .get_sequencenumber = serdata_default_get_sequencenumber,
+  .get_writer_guid = serdata_default_get_writer_guid,
   .from_loaned_sample = serdata_default_from_loaned_sample,
   .from_psmx = serdata_default_from_psmx
 };

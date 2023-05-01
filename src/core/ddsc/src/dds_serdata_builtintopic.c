@@ -445,6 +445,7 @@ const struct ddsi_serdata_ops ddsi_serdata_ops_builtintopic = {
   .print = serdata_builtin_type_print,
   .get_keyhash = NULL,
   .get_sequencenumber = NULL,
+  .get_writer_guid = NULL,
   .from_loaned_sample = NULL,
   .from_psmx = NULL
 };
@@ -503,6 +504,7 @@ const struct ddsi_serdata_ops ddsi_serdata_ops_builtintopic_topic = {
   .print = serdata_builtin_type_print,
   .get_keyhash = NULL,
   .get_sequencenumber = NULL,
+  .get_writer_guid = NULL,
   .from_loaned_sample = NULL,
   .from_psmx = NULL
 };
