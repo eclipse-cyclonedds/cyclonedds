@@ -151,7 +151,7 @@ void *ddsrt_fibheap_extract_min (const ddsrt_fibheap_def_t *fhdef, ddsrt_fibheap
     /* FIXME: can speed up by combining a few things & improving
        locality of reference by scanning lists only once */
 
-    /* insert min'schildren as new roots -- must fix parent pointers,
+    /* insert min's children as new roots -- must fix parent pointers,
        and reset marks because roots are always unmarked */
     if (min->children) {
         ddsrt_fibheap_node_t * const mark = min->children;
