@@ -18,11 +18,11 @@
 int32_t ddsrt_todigit(const int chr)
 {
   if (chr >= '0' && chr <= '9') {
-    return chr - '0';
+    return (char) chr - '0';
   } else if (chr >= 'a' && chr <= 'z') {
-    return 10 + (chr - 'a');
+    return 10 + ((char) chr - 'a');
   } else if (chr >= 'A' && chr <= 'Z') {
-    return 10 + (chr - 'A');
+    return 10 + ((char) chr - 'A');
   }
 
   return -1;
