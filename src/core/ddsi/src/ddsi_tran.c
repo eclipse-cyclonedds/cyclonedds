@@ -70,7 +70,7 @@ static bool type_is_numeric (const char *type, size_t len, int32_t *value)
   {
     if (!isdigit ((unsigned char) type[i]))
       return false;
-    int32_t d = (unsigned char) type[i] - '0';
+    int32_t d = (char) type[i] - '0';
     if (*value > INT32_MAX / 10 || 10 * *value > INT32_MAX - d)
       return false;
     *value = 10 * *value + d;
