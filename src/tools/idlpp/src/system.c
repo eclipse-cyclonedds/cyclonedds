@@ -1107,7 +1107,7 @@ plus:
             i = *mcpp_optarg;
             if (! isdigit( i) || *(mcpp_optarg + 1) != EOS)
                 usage( opt);
-            stdc_val = i - '0';
+            stdc_val = (char) i - '0';
             sflag = TRUE;
             break;
 

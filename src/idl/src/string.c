@@ -90,11 +90,11 @@ int idl_isdigit(int chr, int base)
   int num = -1;
   assert(base > 0 && base < 36);
   if (chr >= '0' && chr <= '9')
-    num = chr - '0';
+    num = (char) chr - '0';
   else if (chr >= 'a' && chr <= 'z')
-    num = chr - 'a';
+    num = (char) chr - 'a';
   else if (chr >= 'A' && chr <= 'Z')
-    num = chr - 'A';
+    num = (char) chr - 'A';
   return num != -1 && num < base ? num : -1;
 }
 

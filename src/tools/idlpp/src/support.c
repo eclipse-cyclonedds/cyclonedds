@@ -1163,7 +1163,7 @@ static char *   scan_ucn(
         }
         c = tolower( c);
         *out++ = (char)c;
-        c = (isdigit( c) ? (c - '0') : (c - 'a' + 10));
+        c = (isdigit( c) ? ((char) c - '0') : ((char) c - 'a' + 10));
         value = (value << 4) | (unsigned int)c;
     }
     if (infile->fp                              /* In source        */
