@@ -282,6 +282,8 @@ void ddsrt_fibheap_decrease_key (const ddsrt_fibheap_def_t *fhdef, ddsrt_fibheap
        caller is concerned => declare as const argument, then drop the
        const qualifier */
     ddsrt_fibheap_node_t *node = (ddsrt_fibheap_node_t *) ((char *) vnode + fhdef->offset);
+    /* Sanity check that the node is actually part of the heap */
+    assert(node->next != node ? node->next->prev == node : (node->parent == NULL ? fh->roots == node : node->parent->children == node));
 
     if (node->parent && cmp (fhdef, node->parent, node) <= 0) {
         /* heap property not violated, do nothing */
