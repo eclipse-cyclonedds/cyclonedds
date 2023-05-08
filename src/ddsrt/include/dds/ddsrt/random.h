@@ -16,8 +16,6 @@
  * 
  * Pseudo random number generator known as the Mersenne Twister.
  * It generates uint32_t from a uniform distribution in the range 0 to 0xffffffff (the maximum value of uint32_t).
- * A useful property is that the use of a fixed seed allows you to reproduce
- * an identical sequence of numbers over different runs of a program.
  */
 
 #include <stddef.h>
@@ -31,7 +29,7 @@ extern "C" {
 
 #define DDSRT_MT19937_N 624
 
-/** @brief A composite seed consisting of multiple smaller seeds */
+/** @brief A 256-bit seed */
 typedef struct ddsrt_prng_seed {
   uint32_t key[8];
 } ddsrt_prng_seed_t;
@@ -43,7 +41,7 @@ typedef struct ddsrt_prng {
 } ddsrt_prng_t;
 
 /**
- * @brief Initialize the pseudo random number generator
+ * @brief Initialize the hidden, global pseudo random number generator for @ref ddsrt_random
  * 
  * Initializes a hidden @ref ddsrt_prng with a seed that should be different on each call.
  * Also initializes a hidden mutex, so multiple threads can share the hidden state object.
