@@ -20,10 +20,6 @@
   For example, after lots of calls to insert and/or decrease_key, the next call to extract_min is very expensive
   since it has to rebalance, and this could take as much as O(N) in the worst case. This is where you pay off the debt
   for procrastinating on rebalancing. Once balanced, following calls to extract_min will be O(log(N)).
-
-  It is worth mentioning that the avl tree is a viable alternative as it can support the same use cases with its
-  insert, find_min, and delete operations. Whilst the avl tree is not necessarily more efficient as a priority queue overall,
-  it has a better worst case performance of O(log(N)) for find_min and delete (which would replace the fibonacci heap's extract_min).
 */
 
 #include <stdint.h>
