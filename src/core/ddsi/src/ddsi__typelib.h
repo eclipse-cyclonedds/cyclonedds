@@ -54,9 +54,6 @@ dds_return_t ddsi_type_register_dep (struct ddsi_domaingv *gv, const ddsi_typeid
 void ddsi_type_ref_locked (struct ddsi_domaingv *gv, struct ddsi_type **type, const struct ddsi_type *src);
 
 /** @component type_system */
-void ddsi_type_ref (struct ddsi_domaingv *gv, struct ddsi_type **type, const struct ddsi_type *src);
-
-/** @component type_system */
 dds_return_t ddsi_type_ref_id_locked (struct ddsi_domaingv *gv, struct ddsi_type **type, const ddsi_typeid_t *type_id);
 
 /** @component type_system */
@@ -66,10 +63,30 @@ dds_return_t ddsi_type_ref_proxy (struct ddsi_domaingv *gv, struct ddsi_type **t
 dds_return_t ddsi_type_add_typeobj (struct ddsi_domaingv *gv, struct ddsi_type *type, const struct DDS_XTypes_TypeObject *type_obj);
 
 /** @component type_system */
-dds_return_t ddsi_type_get_typeinfo_ser (struct ddsi_domaingv *gv, const struct ddsi_type *type, unsigned char **data, uint32_t *sz);
+dds_return_t ddsi_type_get_typeinfo_ser (struct ddsi_domaingv *gv, const struct ddsi_type *type_c, unsigned char **data, uint32_t *sz);
 
-/** @component type_system */
-dds_return_t ddsi_type_get_typeinfo (struct ddsi_domaingv *gv, const struct ddsi_type *type, struct ddsi_typeinfo *type_info);
+
+/**
+ * @brief Gets the type_info for a complete type
+ * @component type_system
+ *
+ * This functions gets the type information structure for the provided
+ * complete type. The provided type should exist in the type library and
+ * should be resolved.
+ *
+ * The corresponding minimal type is calculated from the complete type,
+ * and if it is not in the type library, it is added with a refcount
+ * of 1. This applies to the top-level minimal type and all underlying
+ * dependencies. The refcount for the complete type is also incremented
+ * by this function.
+ *
+ * @param gv  domain globals
+ * @param type_c  the complete DDSI type
+ * @param type_info  the type_info structure to create
+ * @param type_m  the minimal DDSI type corresponding to the provided complete type is stored in this variable
+ * @return dds_return_t
+ */
+dds_return_t ddsi_type_get_typeinfo_locked (struct ddsi_domaingv *gv, struct ddsi_type *type_c, struct ddsi_typeinfo *type_info, struct ddsi_type **type_m);
 
 /** @component type_system */
 dds_return_t ddsi_type_get_typemap_ser (struct ddsi_domaingv *gv, const struct ddsi_type *type, unsigned char **data, uint32_t *sz);
@@ -97,10 +114,7 @@ const ddsi_typeid_t *ddsi_type_pair_minimal_id (const struct ddsi_type_pair *typ
 const ddsi_typeid_t *ddsi_type_pair_complete_id (const struct ddsi_type_pair *type_pair);
 
 /** @component type_system */
-ddsi_typeinfo_t *ddsi_type_pair_minimal_info (struct ddsi_domaingv *gv, const struct ddsi_type_pair *type_pair);
-
-/** @component type_system */
-ddsi_typeinfo_t *ddsi_type_pair_complete_info (struct ddsi_domaingv *gv, const struct ddsi_type_pair *type_pair);
+ddsi_typeinfo_t *ddsi_type_pair_get_typeinfo (struct ddsi_domaingv *gv, const struct ddsi_type_pair *type_pair);
 
 /** @component type_system */
 struct ddsi_type_pair *ddsi_type_pair_init (const ddsi_typeid_t *type_id_minimal, const ddsi_typeid_t *type_id_complete);

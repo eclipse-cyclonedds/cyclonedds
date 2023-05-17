@@ -38,7 +38,7 @@ struct ddsi_typeinfo;
  *
  */
 typedef struct dds_dynamic_type {
-  void * x;
+  void * x[2];
   dds_return_t ret;
 } dds_dynamic_type_t;
 

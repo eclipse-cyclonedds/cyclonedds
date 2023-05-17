@@ -68,16 +68,14 @@ err:
   return ret;
 }
 
-static dds_return_t dynamic_type_complete (struct ddsi_type **type)
+static dds_return_t dynamic_type_complete_locked (struct ddsi_type **type)
 {
   dds_return_t ret = DDS_RETCODE_OK;
   struct ddsi_domaingv *gv = (*type)->gv;
-  ddsrt_mutex_lock (&gv->typelib_lock);
 
   if ((*type)->state != DDSI_TYPE_CONSTRUCTING)
   {
     assert ((*type)->state == DDSI_TYPE_RESOLVED);
-    ddsrt_mutex_unlock (&gv->typelib_lock);
     return ret;
   }
 
@@ -129,6 +127,14 @@ static dds_return_t dynamic_type_complete (struct ddsi_type **type)
     }
   }
   ddsi_typeid_fini_impl (&ti);
+  return ret;
+}
+
+static dds_return_t dynamic_type_complete (struct ddsi_type **type)
+{
+  struct ddsi_domaingv *gv = (*type)->gv;
+  ddsrt_mutex_lock (&gv->typelib_lock);
+  dds_return_t ret = dynamic_type_complete_locked (type);
   ddsrt_mutex_unlock (&gv->typelib_lock);
   return ret;
 }
@@ -784,28 +790,32 @@ dds_return_t ddsi_dynamic_type_member_set_hashid (struct ddsi_type *type, uint32
   return ret;
 }
 
-dds_return_t ddsi_dynamic_type_register (struct ddsi_type **type, ddsi_typeinfo_t **type_info)
+dds_return_t ddsi_dynamic_type_register (struct ddsi_type **type_c, struct ddsi_type **type_m, ddsi_typeinfo_t **type_info)
 {
   dds_return_t ret;
-  if ((ret = dynamic_type_complete (type)) != DDS_RETCODE_OK)
-    return ret;
+  struct ddsi_domaingv *gv = (*type_c)->gv;
+  ddsrt_mutex_lock (&gv->typelib_lock);
+  if ((ret = dynamic_type_complete_locked (type_c)) != DDS_RETCODE_OK)
+    goto err;
   if ((*type_info = ddsrt_malloc (sizeof (**type_info))) == NULL)
-    return DDS_RETCODE_OUT_OF_RESOURCES;
-  if ((ret = ddsi_type_get_typeinfo ((*type)->gv, *type, *type_info)) != DDS_RETCODE_OK)
+  {
+    ret = DDS_RETCODE_OUT_OF_RESOURCES;
+    goto err;
+  }
+  if ((ret = ddsi_type_get_typeinfo_locked (gv, *type_c, *type_info, type_m)) != DDS_RETCODE_OK)
+  {
     ddsrt_free (*type_info);
+    goto err;
+  }
+
+  /* A dynamic type has a ref to the complete type. ddsi_type_get_typeinfo increases
+     the refcount for both minimal and complete type. The ref for the minimal type
+     is transferred to the dynamic type, so we need to release the complete type's ref */
+  ddsi_type_unref_locked (gv, *type_c);
+
+err:
+  ddsrt_mutex_unlock (&gv->typelib_lock);
   return ret;
-}
-
-struct ddsi_type * ddsi_dynamic_type_ref (struct ddsi_type *type)
-{
-  struct ddsi_type *ref;
-  ddsi_type_ref (type->gv, &ref, type);
-  return ref;
-}
-
-void ddsi_dynamic_type_unref (struct ddsi_type *type)
-{
-  ddsi_type_unref (type->gv, type);
 }
 
 struct ddsi_type *ddsi_dynamic_type_dup (const struct ddsi_type *src)
