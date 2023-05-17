@@ -26,6 +26,7 @@ if(ENABLE_TYPE_DISCOVERY)
   idlc_generate(TARGET XSpace FILES XSpace.idl XSpaceEnum.idl XSpaceMustUnderstand.idl XSpaceTypeConsistencyEnforcement.idl WARNINGS no-implicit-extensibility no-inherit-appendable)
   idlc_generate(TARGET XSpaceNoTypeInfo FILES XSpaceNoTypeInfo.idl NO_TYPE_INFO WARNINGS no-implicit-extensibility)
   idlc_generate(TARGET TypeBuilderTypes FILES TypeBuilderTypes.idl WARNINGS no-implicit-extensibility)
+  idlc_generate(TARGET DynamicTypeTypes FILES DynamicTypeTypes.idl)
 endif()
 
 set(ddsc_test_sources
@@ -134,7 +135,7 @@ target_link_libraries(cunit_ddsc PRIVATE
 
 if(ENABLE_TYPE_DISCOVERY)
   target_link_libraries(cunit_ddsc PRIVATE
-  XSpace XSpaceNoTypeInfo TypeBuilderTypes)
+  XSpace XSpaceNoTypeInfo TypeBuilderTypes DynamicTypeTypes)
 endif()
 
 # Setup environment for config-tests

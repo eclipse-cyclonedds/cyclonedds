@@ -17,6 +17,7 @@
 #include "ddsi__xt_impl.h"
 #include "test_util.h"
 #include "Space.h"
+#include "DynamicTypeTypes.h"
 
 static dds_entity_t domain = 0, participant = 0;
 
@@ -715,4 +716,101 @@ CU_Test (ddsc_dynamic_type, existing_constructing, .init = dynamic_type_init, .f
   dds_free_typeinfo (type_info2);
   dds_dynamic_type_unref (&dstruct1);
   dds_dynamic_type_unref (&dstruct2);
+}
+
+CU_Test (ddsc_dynamic_type, type_info, .init = dynamic_type_init, .fini = dynamic_type_fini)
+{
+  dds_dynamic_type_t dsub1 = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_STRUCTURE, .name = "dsub1" });
+  dds_dynamic_type_add_member (&dsub1, DDS_DYNAMIC_MEMBER_PRIM(DDS_DYNAMIC_INT32, "m_int32"));
+
+  dds_dynamic_type_t dsubsub1 = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_STRUCTURE, .name = "dsubsub1" });
+  dds_dynamic_type_add_member (&dsubsub1, DDS_DYNAMIC_MEMBER_PRIM(DDS_DYNAMIC_BOOLEAN, "m_bool"));
+
+  dds_dynamic_type_t dsubsub2 = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_STRUCTURE, .name = "dsubsub2" });
+  dds_dynamic_type_add_member (&dsubsub2, DDS_DYNAMIC_MEMBER_PRIM(DDS_DYNAMIC_BOOLEAN, "m_bool"));
+
+  dds_dynamic_type_t dsub2 = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_STRUCTURE, .name = "dsub2" });
+  dds_dynamic_type_add_member (&dsub2, DDS_DYNAMIC_MEMBER(dds_dynamic_type_ref (&dsubsub1), "m_subsub1")); // increase ref because type is re-used below
+  dds_dynamic_type_add_member (&dsub2, DDS_DYNAMIC_MEMBER(dds_dynamic_type_ref (&dsubsub2), "m_subsub2")); // increase ref because type is re-used below
+
+  dds_dynamic_type_t dseq = dds_dynamic_type_create (participant,
+      (dds_dynamic_type_descriptor_t) {
+        .kind = DDS_DYNAMIC_SEQUENCE,
+        .name = "dseq",
+        .element_type = DDS_DYNAMIC_TYPE_SPEC(dds_dynamic_type_ref (&dsub2)),
+        .num_bounds = 0
+      });
+
+  static const uint32_t bounds[] = { 10 };
+  dds_dynamic_type_t darr = dds_dynamic_type_create (participant,
+      (dds_dynamic_type_descriptor_t) {
+        .kind = DDS_DYNAMIC_ARRAY,
+        .name = "darr",
+        .element_type = DDS_DYNAMIC_TYPE_SPEC(dds_dynamic_type_ref (&dsub2)),
+        .num_bounds = 1,
+        .bounds = bounds
+      });
+
+  dds_dynamic_type_t dalias = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) {
+      .kind = DDS_DYNAMIC_ALIAS,
+      .base_type = DDS_DYNAMIC_TYPE_SPEC(dsubsub1),
+      .name = "dalias"
+  });
+
+  dds_dynamic_type_t dunion = dds_dynamic_type_create (participant,
+      (dds_dynamic_type_descriptor_t) {
+        .kind = DDS_DYNAMIC_UNION,
+        .discriminator_type = DDS_DYNAMIC_TYPE_SPEC_PRIM(DDS_DYNAMIC_INT32),
+        .name = "dunion"
+      });
+  dds_dynamic_type_add_member (&dunion, DDS_DYNAMIC_UNION_MEMBER_ID_PRIM(DDS_DYNAMIC_FLOAT64, "um_f", 100 /* has specific member id */, 2, ((int32_t[]) { 9, 10 })));
+  dds_dynamic_type_add_member (&dunion, DDS_DYNAMIC_UNION_MEMBER(dds_dynamic_type_ref (&dsub1) /* increase ref because type is re-used */, "um_sub1", 2, ((int32_t[]) { 15, 16 })));
+
+  dds_dynamic_type_t denum = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_ENUMERATION, .name = "denum" });
+  dds_dynamic_type_add_enum_literal (&denum, "DE1", DDS_DYNAMIC_ENUM_LITERAL_VALUE_AUTO, false);
+  dds_dynamic_type_add_enum_literal (&denum, "DE2", DDS_DYNAMIC_ENUM_LITERAL_VALUE_AUTO, false);
+
+  dds_dynamic_type_t dstruct = dds_dynamic_type_create (participant, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_STRUCTURE, .name = "dstruct" });
+  dds_dynamic_type_add_member (&dstruct, DDS_DYNAMIC_MEMBER_PRIM(DDS_DYNAMIC_BOOLEAN, "m_bool"));
+  dds_dynamic_type_add_member (&dstruct, DDS_DYNAMIC_MEMBER(dseq, "m_seq"));
+  dds_dynamic_type_add_member (&dstruct, DDS_DYNAMIC_MEMBER(darr, "m_arr"));
+  dds_dynamic_type_add_member (&dstruct, DDS_DYNAMIC_MEMBER(dsub1, "m_sub1"));
+  dds_dynamic_type_add_member (&dstruct, DDS_DYNAMIC_MEMBER(dsub2, "m_sub2"));
+  dds_dynamic_type_add_member (&dstruct, DDS_DYNAMIC_MEMBER(dsubsub2, "m_subsub2"));
+  dds_dynamic_type_add_member (&dstruct, DDS_DYNAMIC_MEMBER(dalias, "m_alias"));
+  dds_dynamic_type_add_member (&dstruct, DDS_DYNAMIC_MEMBER(dunion, "m_union"));
+  dds_dynamic_type_add_member (&dstruct, DDS_DYNAMIC_MEMBER(denum, "m_enum"));
+
+  dds_typeinfo_t *type_info;
+  dds_return_t ret = dds_dynamic_type_register (&dstruct, &type_info);
+  if (ret != DDS_RETCODE_OK)
+    DDS_FATAL ("dds_dynamic_type_register: %s\n", dds_strretcode (-ret));
+  struct ddsi_typeinfo *dti = (struct ddsi_typeinfo *) type_info;
+
+  struct ddsi_domaingv *gv = get_domaingv (participant);
+  const ddsi_typeid_t *tid = ddsi_typeinfo_complete_typeid (dti);
+  struct ddsi_type *t = ddsi_type_lookup (gv, tid);
+  unsigned char *data;
+  uint32_t sz;
+  ret = ddsi_type_get_typemap_ser (gv, t, &data, &sz);
+  CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
+  ddsi_typemap_t *dtypemap = ddsi_typemap_deser (data, sz);
+  ddsi_typemap_t *typemap = ddsi_typemap_deser (dstruct_desc.type_mapping.data, dstruct_desc.type_mapping.sz);
+  ddsrt_free (data);
+
+  if (!ddsi_typemap_equal (dtypemap, typemap))
+    CU_FAIL ("typemap not equal");
+  ddsi_typemap_fini (dtypemap);
+  ddsi_typemap_fini (typemap);
+  ddsrt_free (dtypemap);
+  ddsrt_free (typemap);
+
+  ddsi_typeinfo_t *ti = ddsi_typeinfo_deser (dstruct_desc.type_information.data, dstruct_desc.type_information.sz);
+  if (!ddsi_typeinfo_equal (dti, ti, DDSI_TYPE_INCLUDE_DEPS))
+    CU_FAIL ("typeinfo not equal");
+
+  ddsi_typeinfo_fini (ti);
+  ddsrt_free (ti);
+  dds_dynamic_type_unref (&dstruct);
+  dds_free_typeinfo (type_info);
 }
