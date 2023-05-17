@@ -811,7 +811,8 @@ static dds_return_t DDS_XTypes_TypeIdentifierWithDependencies_deps_append (DDS_X
   // if identical to one already present, ignore it (needed for minimal typeobjects)
   for (uint32_t i = 0; i < x->dependent_typeids._length; i++)
   {
-    if (ddsi_typeid_compare_impl (&x->dependent_typeids._buffer[i].type_id, &x->dependent_typeids._buffer[x->dependent_typeids._length].type_id) == 0)
+    if (ddsi_typeid_compare_impl (&x->dependent_typeids._buffer[i].type_id,
+        &x->dependent_typeids._buffer[x->dependent_typeids._length].type_id) == 0)
     {
       assert (x->dependent_typeids._buffer[i].typeobject_serialized_size == x->dependent_typeids._buffer[x->dependent_typeids._length].typeobject_serialized_size);
       return DDS_RETCODE_OK;
@@ -839,27 +840,33 @@ static dds_return_t ddsi_typeinfo_deps_init (struct ddsi_typeinfo *type_info, ui
   return ret;
 }
 
-static dds_return_t ddsi_typeinfo_deps_append (struct ddsi_domaingv *gv, struct ddsi_typeinfo *type_info, const struct ddsi_type_dep *dep)
+static dds_return_t ddsi_typeinfo_deps_append (struct ddsi_domaingv *gv, struct ddsi_typeinfo *type_info, const struct ddsi_type_dep *dep_c)
 {
-  struct ddsi_type const * const dep_type = ddsi_type_lookup_locked (gv, &dep->dep_type_id);
-  DDS_XTypes_TypeObject to_dep_m;
+  struct ddsi_type const * const dep_type_c = ddsi_type_lookup_locked (gv, &dep_c->dep_type_id);
+  DDS_XTypes_TypeObject to_dep_m, to_dep_c;
   ddsi_typeid_t ti_dep_m;
   dds_return_t ret;
 
-  ddsi_xt_get_typeobject_kind_impl (&dep_type->xt, &to_dep_m, DDSI_TYPEID_KIND_MINIMAL);
+  ddsi_xt_get_typeobject_kind_impl (&dep_type_c->xt, &to_dep_m, DDSI_TYPEID_KIND_MINIMAL);
   if ((ret = ddsi_typeobj_get_hash_id (&to_dep_m, &ti_dep_m)))
   {
     ddsi_typeobj_fini_impl (&to_dep_m);
     return ret;
   }
 
-  DDS_XTypes_TypeObject to_dep_c;
-  ddsi_xt_get_typeobject_kind_impl (&dep_type->xt, &to_dep_c, DDSI_TYPEID_KIND_COMPLETE);
+  struct ddsi_type *dep_type_m = ddsi_type_lookup_locked_impl (gv, &ti_dep_m.x);
+  if (dep_type_m == NULL)
+    ddsi_type_new (gv, &dep_type_m, &ti_dep_m.x, &to_dep_m);
+  else
+    ddsi_type_add_typeobj (gv, dep_type_m, &to_dep_m);
+  // don't increase refc for the dependency because the parent type has the ref
+
+  ddsi_xt_get_typeobject_kind_impl (&dep_type_c->xt, &to_dep_c, DDSI_TYPEID_KIND_COMPLETE);
 
   // append dedups because two different complete type ids can map to the same minimal type id
   // (it does so inefficiently, but ... well ... good enough for now)
-  if ((ret = DDS_XTypes_TypeIdentifierWithDependencies_deps_append (&type_info->x.minimal, &ti_dep_m.x, &to_dep_m)) == 0)
-    ret = DDS_XTypes_TypeIdentifierWithDependencies_deps_append (&type_info->x.complete, &dep_type->xt.id.x, &to_dep_c);
+  if ((ret = DDS_XTypes_TypeIdentifierWithDependencies_deps_append (&type_info->x.minimal, &ti_dep_m.x, &to_dep_m)) == DDS_RETCODE_OK)
+    ret = DDS_XTypes_TypeIdentifierWithDependencies_deps_append (&type_info->x.complete, &dep_type_c->xt.id.x, &to_dep_c);
 
   ddsi_typeobj_fini_impl (&to_dep_c);
   ddsi_typeobj_fini_impl (&to_dep_m);
@@ -873,33 +880,48 @@ static void ddsi_typeinfo_deps_fini (struct ddsi_typeinfo *type_info)
   DDS_XTypes_TypeIdentifierWithDependencies_deps_fini (&type_info->x.complete);
 }
 
-static dds_return_t ddsi_type_get_typeinfo_toplevel (struct ddsi_domaingv *gv, const struct ddsi_type *type, struct ddsi_typeinfo *type_info)
+static dds_return_t ddsi_type_get_typeinfo_toplevel (struct ddsi_domaingv *gv, struct ddsi_type *type_c, struct ddsi_typeinfo *type_info, struct ddsi_type **type_m)
 {
   DDS_XTypes_TypeObject to_c, to_m;
   ddsi_typeid_t ti_m;
   dds_return_t ret;
-  ddsi_xt_get_typeobject_kind_impl (&type->xt, &to_c, DDSI_TYPEID_KIND_COMPLETE);
-  ddsi_xt_get_typeobject_kind_impl (&type->xt, &to_m, DDSI_TYPEID_KIND_MINIMAL);
+
+  assert (type_c && type_m && type_info);
+  ddsi_xt_get_typeobject_kind_impl (&type_c->xt, &to_c, DDSI_TYPEID_KIND_COMPLETE);
+  ddsi_xt_get_typeobject_kind_impl (&type_c->xt, &to_m, DDSI_TYPEID_KIND_MINIMAL);
   if ((ret = ddsi_typeobj_get_hash_id (&to_m, &ti_m)))
     goto err_typeid;
+
+  *type_m = ddsi_type_lookup_locked_impl (gv, &ti_m.x);
+  if (*type_m != NULL)
+  {
+    ddsi_type_ref_locked (gv, NULL, *type_m);
+  }
+  else
+  {
+    if ((ret = ddsi_type_new (gv, type_m, &ti_m.x, &to_m)) != DDS_RETCODE_OK)
+      goto err_type_new;
+    assert (*type_m);
+    (*type_m)->refc++;
+    GVTRACE (" refc %"PRIu32"\n", (*type_m)->refc);
+  }
+
+  ddsi_type_ref_locked (gv, NULL, type_c);
 
 #ifndef NDEBUG
   {
     ddsi_typeid_t ti_c;
     if (ddsi_typeobj_get_hash_id (&to_c, &ti_c) != 0)
       abort ();
-    assert (ddsi_typeid_compare(&type->xt.id, &ti_c) == 0);
+    assert (ddsi_typeid_compare (&type_c->xt.id, &ti_c) == 0);
     ddsi_typeid_fini (&ti_c);
   }
-  struct ddsi_type *tmp_type = ddsi_type_lookup_locked (gv, &type->xt.id);
-  assert (tmp_type);
-#else
-  (void) gv;
 #endif
 
   if ((ret = get_typeid_with_size (&type_info->x.minimal.typeid_with_size, &ti_m.x, &to_m)) == 0)
-    ret = get_typeid_with_size (&type_info->x.complete.typeid_with_size, &type->xt.id.x, &to_c);
+    ret = get_typeid_with_size (&type_info->x.complete.typeid_with_size, &type_c->xt.id.x, &to_c);
 
+err_type_new:
   ddsi_typeid_fini (&ti_m);
 err_typeid:
   ddsi_typeobj_fini_impl (&to_c);
@@ -907,99 +929,182 @@ err_typeid:
   return ret;
 }
 
-dds_return_t ddsi_type_get_typeinfo (struct ddsi_domaingv *gv, const struct ddsi_type *type, struct ddsi_typeinfo *type_info)
+static uint32_t get_type_ndeps_hash_r (struct ddsi_domaingv *gv, const ddsi_typeid_t *type_id)
 {
-  dds_return_t ret;
-
-  assert (ddsi_typeid_is_complete (&type->xt.id));
-  if ((ret = ddsi_type_get_typeinfo_toplevel (gv, type, type_info)))
-    return ret;
-
+  uint32_t n_deps = 0;
   struct ddsi_type_dep tmpl;
   memset (&tmpl, 0, sizeof (tmpl));
-  ddsi_typeid_copy (&tmpl.src_type_id, &type->xt.id);
+  ddsi_typeid_copy (&tmpl.src_type_id, type_id);
 
-  uint32_t n_deps = 0;
   struct ddsi_type_dep *dep = &tmpl;
-  while ((dep = ddsrt_avl_lookup_succ (&ddsi_typedeps_treedef, &gv->typedeps, dep)) && !ddsi_typeid_compare (&type->xt.id, &dep->src_type_id))
-    n_deps += ddsi_typeid_is_hash (&dep->dep_type_id) ? 1 : 0;
+  while ((dep = ddsrt_avl_lookup_succ (&ddsi_typedeps_treedef, &gv->typedeps, dep)) && ddsi_typeid_compare (type_id, &dep->src_type_id) == 0)
+    n_deps += get_type_ndeps_hash_r (gv, &dep->dep_type_id) + (ddsi_typeid_is_hash (&dep->dep_type_id) ? 1 : 0);
   assert (n_deps <= INT32_MAX);
+  ddsi_typeid_fini (&tmpl.src_type_id);
+  return n_deps;
+}
 
-  if ((ret = ddsi_typeinfo_deps_init (type_info, n_deps)))
-  {
-    ddsi_typeid_fini (&tmpl.src_type_id);
-    return ret;
-  }
+static dds_return_t add_type_info_hash_deps_r (struct ddsi_domaingv *gv, const ddsi_typeid_t *type_id_c, struct ddsi_typeinfo *type_info)
+{
+  dds_return_t ret = DDS_RETCODE_OK;
+  struct ddsi_type_dep tmpl;
+  memset (&tmpl, 0, sizeof (tmpl));
+  ddsi_typeid_copy (&tmpl.src_type_id, type_id_c);
 
-  dep = &tmpl;
-  while ((dep = ddsrt_avl_lookup_succ (&ddsi_typedeps_treedef, &gv->typedeps, dep)) && !ddsi_typeid_compare (&type->xt.id, &dep->src_type_id))
+  struct ddsi_type_dep *dep_c = &tmpl;
+  while (ret == DDS_RETCODE_OK
+      && (dep_c = ddsrt_avl_lookup_succ (&ddsi_typedeps_treedef, &gv->typedeps, dep_c))
+      && ddsi_typeid_compare (type_id_c, &dep_c->src_type_id) == 0)
   {
     /* XTypes spec 7.6.3.2.1: The TypeIdentifiers included in the TypeInformation shall include only direct HASH TypeIdentifiers,
-     so we'll skip both fully descriptive and indirect hash identifiers (kind DDSI_TYPEID_KIND_PLAIN_COLLECTION_MINIMAL and
-     DDSI_TYPEID_KIND_PLAIN_COLLECTION_COMPLETE) */
-    if (!ddsi_typeid_is_hash (&dep->dep_type_id))
-      continue;
-    if ((ret = ddsi_typeinfo_deps_append (gv, type_info, dep)) != 0)
+     so we'll skip fully descriptive and indirect hash identifiers (kind DDSI_TYPEID_KIND_PLAIN_COLLECTION_MINIMAL and
+     DDSI_TYPEID_KIND_PLAIN_COLLECTION_COMPLETE), but we need to include the element type (in case this is a HASH type) and its
+     dependent types */
+    switch (ddsi_typeid_kind (&dep_c->dep_type_id))
     {
-      ddsi_typeinfo_deps_fini (type_info);
-      ddsi_typeid_fini (&tmpl.src_type_id);
-      return ret;
+      case DDSI_TYPEID_KIND_PLAIN_COLLECTION_MINIMAL:
+      case DDSI_TYPEID_KIND_PLAIN_COLLECTION_COMPLETE:
+        ret = add_type_info_hash_deps_r (gv, &dep_c->dep_type_id, type_info);
+        break;
+
+      case DDSI_TYPEID_KIND_MINIMAL:
+      case DDSI_TYPEID_KIND_COMPLETE:
+        if ((ret = add_type_info_hash_deps_r (gv, &dep_c->dep_type_id, type_info)) != DDS_RETCODE_OK
+            || (ret = ddsi_typeinfo_deps_append (gv, type_info, dep_c)) != DDS_RETCODE_OK)
+        {
+          ddsi_typeinfo_deps_fini (type_info);
+          ddsi_typeid_fini (&tmpl.src_type_id);
+        }
+        break;
+
+      case DDSI_TYPEID_KIND_FULLY_DESCRIPTIVE:
+        break;
     }
   }
-
   ddsi_typeid_fini (&tmpl.src_type_id);
   return ret;
 }
 
-dds_return_t ddsi_type_get_typeinfo_ser (struct ddsi_domaingv *gv, const struct ddsi_type *type, unsigned char **data, uint32_t *sz)
+dds_return_t ddsi_type_get_typeinfo_locked (struct ddsi_domaingv *gv, struct ddsi_type *type_c, struct ddsi_typeinfo *type_info, struct ddsi_type **type_m)
+{
+  dds_return_t ret;
+
+  assert (ddsi_typeid_is_complete (&type_c->xt.id));
+  if ((ret = ddsi_type_get_typeinfo_toplevel (gv, type_c, type_info, type_m)) != DDS_RETCODE_OK)
+    return ret;
+
+  uint32_t n_deps = get_type_ndeps_hash_r (gv, &type_c->xt.id);
+  if ((ret = ddsi_typeinfo_deps_init (type_info, n_deps)) != DDS_RETCODE_OK)
+    return ret;
+
+  ret = add_type_info_hash_deps_r (gv, &type_c->xt.id, type_info);
+  return ret;
+}
+
+dds_return_t ddsi_type_get_typeinfo_ser (struct ddsi_domaingv *gv, const struct ddsi_type *type_c, unsigned char **data, uint32_t *sz)
 {
   dds_return_t ret;
   dds_ostream_t os = { NULL, 0, 0, DDSI_RTPS_CDR_ENC_VERSION_2 };
   struct ddsi_typeinfo type_info;
-  if ((ret = ddsi_type_get_typeinfo (gv, type, &type_info)))
+  struct ddsi_type *type_m;
+
+  ddsrt_mutex_lock (&gv->typelib_lock);
+
+  // non-const complete type ptr, refc is decreased after getting type-info
+  struct ddsi_type *type_c_nc = (struct ddsi_type *) type_c;
+
+  if ((ret = ddsi_type_get_typeinfo_locked (gv, type_c_nc, &type_info, &type_m)))
+  {
+    ddsrt_mutex_unlock (&gv->typelib_lock);
     goto err_typeinfo;
+  }
+
+  // ddsi_type_get_typeinfo_locked increases both min and complete type refc, release these refs
+  ddsi_type_unref_locked (gv, type_c_nc);
+  ddsi_type_unref_locked (gv, (struct ddsi_type *) type_m);
+  ddsrt_mutex_unlock (&gv->typelib_lock);
+
   if ((ret = xcdr2_ser (&type_info.x, &DDS_XTypes_TypeInformation_cdrstream_desc, &os)) != DDS_RETCODE_OK)
     goto err_ser;
-  ddsi_typeinfo_fini (&type_info);
   *data = os.m_buffer;
   *sz = os.m_index;
+
 err_ser:
   ddsi_typeinfo_fini (&type_info);
 err_typeinfo:
   return ret;
 }
 
-static void typemap_add_type (struct ddsi_typemap *type_map, const struct ddsi_type *type)
+static void typemap_add_type (struct ddsi_typemap *type_map, const struct ddsi_type *type_c)
 {
+  // if identical to one already present, ignore it
+  for (uint32_t i = 0; i < type_map->x.identifier_complete_minimal._length; i++)
+  {
+    if (ddsi_typeid_compare_impl (&type_map->x.identifier_complete_minimal._buffer[i].type_identifier1, &type_c->xt.id.x) == 0)
+      return;
+  }
+
   uint32_t n = type_map->x.identifier_complete_minimal._length;
   type_map->x.identifier_complete_minimal._length++;
   type_map->x.identifier_complete_minimal._maximum++;
 
   type_map->x.identifier_object_pair_minimal._length++;
   type_map->x.identifier_object_pair_minimal._maximum++;
-  ddsi_xt_get_typeobject_kind_impl (&type->xt, &type_map->x.identifier_object_pair_minimal._buffer[n].type_object, DDSI_TYPEID_KIND_MINIMAL);
+  ddsi_xt_get_typeobject_kind_impl (&type_c->xt, &type_map->x.identifier_object_pair_minimal._buffer[n].type_object, DDSI_TYPEID_KIND_MINIMAL);
   ddsi_typeobj_get_hash_id_impl (&type_map->x.identifier_object_pair_minimal._buffer[n].type_object, &type_map->x.identifier_object_pair_minimal._buffer[n].type_identifier);
   ddsi_typeid_copy_impl (&type_map->x.identifier_complete_minimal._buffer[n].type_identifier2, &type_map->x.identifier_object_pair_minimal._buffer[n].type_identifier);
 
   type_map->x.identifier_object_pair_complete._length++;
   type_map->x.identifier_object_pair_complete._maximum++;
-  ddsi_xt_get_typeobject_kind_impl (&type->xt, &type_map->x.identifier_object_pair_complete._buffer[n].type_object, DDSI_TYPEID_KIND_COMPLETE);
+  ddsi_xt_get_typeobject_kind_impl (&type_c->xt, &type_map->x.identifier_object_pair_complete._buffer[n].type_object, DDSI_TYPEID_KIND_COMPLETE);
   ddsi_typeobj_get_hash_id_impl (&type_map->x.identifier_object_pair_complete._buffer[n].type_object, &type_map->x.identifier_object_pair_complete._buffer[n].type_identifier);
   ddsi_typeid_copy_impl (&type_map->x.identifier_complete_minimal._buffer[n].type_identifier1, &type_map->x.identifier_object_pair_complete._buffer[n].type_identifier);
 }
 
-static dds_return_t ddsi_type_get_typemap (struct ddsi_domaingv *gv, const struct ddsi_type *type, struct ddsi_typemap *type_map)
+static dds_return_t add_type_map_hash_deps_r (struct ddsi_domaingv *gv, const ddsi_typeid_t *type_id, struct ddsi_typemap *type_map)
+{
+  dds_return_t ret = DDS_RETCODE_OK;
+  struct ddsi_type_dep tmpl, *dep_c = &tmpl;
+  memset (&tmpl, 0, sizeof (tmpl));
+  ddsi_typeid_copy (&tmpl.src_type_id, type_id);
+
+  struct ddsi_type *dep_type_c;
+  while (ret == DDS_RETCODE_OK
+      && (dep_c = ddsrt_avl_lookup_succ (&ddsi_typedeps_treedef, &gv->typedeps, dep_c))
+      && !ddsi_typeid_compare (type_id, &dep_c->src_type_id))
+  {
+    switch (ddsi_typeid_kind (&dep_c->dep_type_id))
+    {
+      case DDSI_TYPEID_KIND_PLAIN_COLLECTION_MINIMAL:
+      case DDSI_TYPEID_KIND_PLAIN_COLLECTION_COMPLETE:
+        ret = add_type_map_hash_deps_r (gv, &dep_c->dep_type_id, type_map);
+        break;
+
+      case DDSI_TYPEID_KIND_MINIMAL:
+      case DDSI_TYPEID_KIND_COMPLETE:
+        if ((ret = add_type_map_hash_deps_r (gv, &dep_c->dep_type_id, type_map)) == DDS_RETCODE_OK)
+        {
+          if ((dep_type_c = ddsi_type_lookup_locked (gv, &dep_c->dep_type_id)) == NULL)
+            ret = DDS_RETCODE_ERROR;
+          else
+            typemap_add_type (type_map, dep_type_c);
+        }
+        break;
+
+      case DDSI_TYPEID_KIND_FULLY_DESCRIPTIVE:
+        break;
+    }
+  }
+  ddsi_typeid_fini (&tmpl.src_type_id);
+  return ret;
+}
+
+static dds_return_t ddsi_type_get_typemap_locked (struct ddsi_domaingv *gv, const struct ddsi_type *type_c, struct ddsi_typemap *type_map)
 {
   dds_return_t ret = DDS_RETCODE_OK;
   memset (type_map, 0, sizeof (*type_map));
 
-  struct ddsi_type_dep tmpl, *dep = &tmpl;
-  memset (&tmpl, 0, sizeof (tmpl));
-  ddsi_typeid_copy (&tmpl.src_type_id, &type->xt.id);
-
-  uint32_t n_deps = 0;
-  while ((dep = ddsrt_avl_lookup_succ (&ddsi_typedeps_treedef, &gv->typedeps, dep)) && !ddsi_typeid_compare (&type->xt.id, &dep->src_type_id))
-    n_deps += ddsi_typeid_is_hash (&dep->dep_type_id) ? 1 : 0;
+  uint32_t n_deps = get_type_ndeps_hash_r (gv, &type_c->xt.id);
 
   if (!(type_map->x.identifier_complete_minimal._buffer = ddsrt_calloc (1 + n_deps, sizeof (*type_map->x.identifier_complete_minimal._buffer)))
       || !(type_map->x.identifier_object_pair_minimal._buffer = ddsrt_calloc (1 + n_deps, sizeof (*type_map->x.identifier_object_pair_minimal._buffer)))
@@ -1014,25 +1119,11 @@ static dds_return_t ddsi_type_get_typemap (struct ddsi_domaingv *gv, const struc
   type_map->x.identifier_object_pair_complete._release = true;
 
   // add top-level type to typemap
-  typemap_add_type (type_map, type);
+  typemap_add_type (type_map, type_c);
 
   // add dependent types
-  struct ddsi_type *dep_type;
   if (n_deps > 0)
-  {
-    dep = &tmpl;
-    while ((dep = ddsrt_avl_lookup_succ (&ddsi_typedeps_treedef, &gv->typedeps, dep)) && !ddsi_typeid_compare (&type->xt.id, &dep->src_type_id))
-    {
-      if (!ddsi_typeid_is_hash (&dep->dep_type_id))
-        continue;
-      if (!(dep_type = ddsi_type_lookup_locked (gv, &dep->dep_type_id)))
-      {
-        ret = DDS_RETCODE_ERROR;
-        goto err;
-      }
-      typemap_add_type (type_map, dep_type);
-    }
-  }
+    add_type_map_hash_deps_r (gv, &type_c->xt.id, type_map);
 
 err:
   if (ret != DDS_RETCODE_OK)
@@ -1044,7 +1135,6 @@ err:
     if (type_map->x.identifier_object_pair_complete._buffer)
       ddsrt_free (type_map->x.identifier_object_pair_complete._buffer);
   }
-  ddsi_typeid_fini (&tmpl.src_type_id);
   return ret;
 }
 
@@ -1053,16 +1143,21 @@ dds_return_t ddsi_type_get_typemap_ser (struct ddsi_domaingv *gv, const struct d
   dds_return_t ret;
   dds_ostream_t os = { NULL, 0, 0, DDSI_RTPS_CDR_ENC_VERSION_2 };
   struct ddsi_typemap type_map;
-  if ((ret = ddsi_type_get_typemap (gv, type, &type_map)))
-    goto err_typemap;
-  if ((ret = xcdr2_ser (&type_map.x, &DDS_XTypes_TypeMapping_cdrstream_desc, &os)) != DDS_RETCODE_OK)
-    goto err_ser;
+
+  ddsrt_mutex_lock (&gv->typelib_lock);
+  ret = ddsi_type_get_typemap_locked (gv, type, &type_map);
+  ddsrt_mutex_unlock (&gv->typelib_lock);
+  if (ret != DDS_RETCODE_OK)
+    goto err;
+
+  ret = xcdr2_ser (&type_map.x, &DDS_XTypes_TypeMapping_cdrstream_desc, &os);
   ddsi_typemap_fini (&type_map);
+  if (ret != DDS_RETCODE_OK)
+    goto err;
+
   *data = os.m_buffer;
   *sz = os.m_index;
-err_ser:
-  ddsi_typemap_fini (&type_map);
-err_typemap:
+err:
   return ret;
 }
 
@@ -1268,33 +1363,27 @@ const ddsi_typeid_t *ddsi_type_pair_complete_id (const struct ddsi_type_pair *ty
   return &type_pair->complete->xt.id;
 }
 
-ddsi_typeinfo_t *ddsi_type_pair_minimal_info (struct ddsi_domaingv *gv, const struct ddsi_type_pair *type_pair)
-{
-  if (type_pair == NULL || type_pair->minimal == NULL)
-    return NULL;
-  ddsi_typeinfo_t *type_info;
-  if (!(type_info = ddsrt_malloc (sizeof (*type_info))))
-    return NULL;
-  if (ddsi_type_get_typeinfo (gv, type_pair->minimal, type_info))
-  {
-    ddsrt_free (type_info);
-    return NULL;
-  }
-  return type_info;
-}
-
-ddsi_typeinfo_t *ddsi_type_pair_complete_info (struct ddsi_domaingv *gv, const struct ddsi_type_pair *type_pair)
+ddsi_typeinfo_t *ddsi_type_pair_get_typeinfo (struct ddsi_domaingv *gv, const struct ddsi_type_pair *type_pair)
 {
   if (type_pair == NULL || type_pair->complete == NULL)
     return NULL;
   ddsi_typeinfo_t *type_info;
   if (!(type_info = ddsrt_malloc (sizeof (*type_info))))
     return NULL;
-  if (ddsi_type_get_typeinfo (gv, type_pair->complete, type_info))
+
+  struct ddsi_type *type_m;
+  ddsrt_mutex_lock (&gv->typelib_lock);
+  if (ddsi_type_get_typeinfo_locked (gv, type_pair->complete, type_info, &type_m) != DDS_RETCODE_OK)
   {
     ddsrt_free (type_info);
-    return NULL;
+    type_info = NULL;
   }
+  else
+  {
+    ddsi_type_unref_locked (gv, type_pair->complete);
+    ddsi_type_unref_locked (gv, type_m);
+  }
+  ddsrt_mutex_unlock (&gv->typelib_lock);
   return type_info;
 }
 

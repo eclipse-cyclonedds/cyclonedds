@@ -71,7 +71,7 @@ int ddsi_sedp_write_topic (struct ddsi_topic *tp, bool alive)
     struct ddsi_writer *sedp_wr = ddsi_get_sedp_writer (tp->pp, entityid);
     ddsrt_mutex_lock (&tp->e.qos_lock);
     // the allocation type info object is freed with the plist
-    res = ddsi_sedp_write_topic_impl (sedp_wr, alive, &tp->e.guid, tp->definition->xqos, ddsi_type_pair_complete_info (tp->e.gv, tp->definition->type_pair));
+    res = ddsi_sedp_write_topic_impl (sedp_wr, alive, &tp->e.guid, tp->definition->xqos, ddsi_type_pair_get_typeinfo (tp->e.gv, tp->definition->type_pair));
     ddsrt_mutex_unlock (&tp->e.qos_lock);
   }
   return res;
