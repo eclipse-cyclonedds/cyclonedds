@@ -68,6 +68,25 @@ err:
   return ret;
 }
 
+static dds_return_t dynamic_type_complete_type_specific (struct ddsi_type *type)
+{
+  switch (type->xt._d)
+  {
+    case DDS_XTypes_TK_ENUM: {
+      bool has_default = false;
+      for (uint32_t l = 0; !has_default && l < type->xt._u.enum_type.literals.length; l++)
+        has_default = type->xt._u.enum_type.literals.seq[l].flags & DDS_XTypes_IS_DEFAULT;
+      if (!has_default)
+        type->xt._u.enum_type.literals.seq[0].flags |= DDS_XTypes_IS_DEFAULT;
+      break;
+    }
+    default:
+      // no specific type completion required
+      break;
+  }
+  return DDS_RETCODE_OK;
+}
+
 static dds_return_t dynamic_type_complete_locked (struct ddsi_type **type)
 {
   dds_return_t ret = DDS_RETCODE_OK;
@@ -78,6 +97,9 @@ static dds_return_t dynamic_type_complete_locked (struct ddsi_type **type)
     assert ((*type)->state == DDSI_TYPE_RESOLVED);
     return ret;
   }
+
+  /* Specific finalization for types */
+  dynamic_type_complete_type_specific (*type);
 
   struct DDS_XTypes_TypeIdentifier ti;
   assert (ddsi_typeid_is_none (&(*type)->xt.id));
@@ -189,6 +211,7 @@ dds_return_t ddsi_dynamic_type_create_union (struct ddsi_domaingv *gv, struct dd
   dynamic_type_init (gv, *type, DDS_XTypes_TK_UNION, DDSI_TYPEID_KIND_COMPLETE);
   (*type)->xt._u.union_type.flags = DDS_XTypes_IS_FINAL;
   (*type)->xt._u.union_type.disc_type = *discriminant_type;
+  (*type)->xt._u.union_type.disc_flags = DDS_XTypes_TRY_CONSTRUCT_DISCARD | DDS_XTypes_IS_MUST_UNDERSTAND;
   (void) ddsrt_strlcpy ((*type)->xt._u.union_type.detail.type_name, type_name, sizeof ((*type)->xt._u.union_type.detail.type_name));
   return DDS_RETCODE_OK;
 }
@@ -203,6 +226,7 @@ dds_return_t ddsi_dynamic_type_create_sequence (struct ddsi_domaingv *gv, struct
   dynamic_type_init (gv, *type, DDS_XTypes_TK_SEQUENCE, DDSI_TYPEID_KIND_PLAIN_COLLECTION_COMPLETE);
   (*type)->xt._u.seq.bound = bound;
   (*type)->xt._u.seq.c.element_type = *element_type;
+  (*type)->xt._u.seq.c.element_flags = DDS_XTypes_TRY_CONSTRUCT_DISCARD; // FIXME: support non-default try-construct
   (void) ddsrt_strlcpy ((*type)->xt._u.seq.c.detail.type_name, type_name, sizeof ((*type)->xt._u.seq.c.detail.type_name));
   return DDS_RETCODE_OK;
 }
@@ -223,6 +247,7 @@ dds_return_t ddsi_dynamic_type_create_array (struct ddsi_domaingv *gv, struct dd
   }
   memcpy ((*type)->xt._u.array.bounds._buffer, bounds, num_bounds * sizeof (*(*type)->xt._u.array.bounds._buffer));
   (*type)->xt._u.array.c.element_type = *element_type;
+  (*type)->xt._u.array.c.element_flags = DDS_XTypes_TRY_CONSTRUCT_DISCARD; // FIXME: support non-default try-construct
   (void) ddsrt_strlcpy ((*type)->xt._u.array.c.detail.type_name, type_name, sizeof ((*type)->xt._u.array.c.detail.type_name));
   return DDS_RETCODE_OK;
 }
@@ -474,7 +499,7 @@ dds_return_t ddsi_dynamic_type_add_struct_member (struct ddsi_type *type, struct
   if (params.is_key)
     m->flags |= DDS_XTypes_IS_KEY;
   (void) ddsrt_strlcpy (m->detail.name, params.name, sizeof (m->detail.name));
-
+  ddsi_xt_get_namehash (m->detail.name_hash, m->detail.name);
   return DDS_RETCODE_OK;
 }
 
@@ -548,6 +573,7 @@ dds_return_t ddsi_dynamic_type_add_union_member (struct ddsi_type *type, struct 
   m->type = *member_type;
   m->id = member_id;
   (void) ddsrt_strlcpy (m->detail.name, params.name, sizeof (m->detail.name));
+  ddsi_xt_get_namehash (m->detail.name_hash, m->detail.name);
   m->flags = DDS_XTypes_TRY_CONSTRUCT_DISCARD;
   if (params.is_default)
     m->flags |= DDS_XTypes_IS_DEFAULT;
@@ -623,6 +649,7 @@ dds_return_t ddsi_dynamic_type_add_enum_literal (struct ddsi_type *type, struct 
   if (params.is_default)
     l->flags |= DDS_XTypes_IS_DEFAULT;
   (void) ddsrt_strlcpy (l->detail.name, params.name, sizeof (l->detail.name));
+  ddsi_xt_get_namehash (l->detail.name_hash, l->detail.name);
 
   return DDS_RETCODE_OK;
 }
@@ -668,6 +695,7 @@ dds_return_t ddsi_dynamic_type_add_bitmask_field (struct ddsi_type *type, struct
   memset (f, 0, sizeof (*f));
   f->position = position;
   (void) ddsrt_strlcpy (f->detail.name, params.name, sizeof (f->detail.name));
+  ddsi_xt_get_namehash (f->detail.name_hash, f->detail.name);
 
   return DDS_RETCODE_OK;
 }
