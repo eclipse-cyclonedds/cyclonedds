@@ -54,6 +54,37 @@ static bool sertype_default_equal (const struct ddsi_sertype *acmn, const struct
     return false;
   assert (a->type.opt_size_xcdr1 == b->type.opt_size_xcdr1);
   assert (a->type.opt_size_xcdr2 == b->type.opt_size_xcdr2);
+
+#ifdef DDS_HAS_TYPELIB
+  if (a->type.flagset & DDS_TOPIC_XTYPES_METADATA)
+  {
+    bool ti_eq;
+    // Expectation is that in the overwhelming majority of cases the serialized typeinfo will be the same
+    // so leave the (relatively expensive) deserialization until we need it.
+    if (a->typeinfo_ser.sz == b->typeinfo_ser.sz && memcmp (a->typeinfo_ser.data, b->typeinfo_ser.data, a->typeinfo_ser.sz) == 0)
+      ti_eq = true;
+    else
+    {
+      ddsi_typeinfo_t *ti_a, *ti_b;
+      ti_a = ddsi_typeinfo_deser (a->typeinfo_ser.data, a->typeinfo_ser.sz);
+      ti_b = ddsi_typeinfo_deser (b->typeinfo_ser.data, b->typeinfo_ser.sz);
+      ti_eq = ti_a != NULL && ti_b != NULL && ddsi_typeinfo_equal (ti_a, ti_b, DDSI_TYPE_IGNORE_DEPS);
+      if (ti_a != NULL)
+      {
+        ddsi_typeinfo_fini (ti_a);
+        ddsrt_free (ti_a);
+      }
+      if (ti_b != NULL)
+      {
+        ddsi_typeinfo_fini (ti_b);
+        ddsrt_free (ti_b);
+      }
+    }
+    if (!ti_eq)
+      return false;
+  }
+#endif
+
   return true;
 }
 
@@ -103,6 +134,10 @@ static uint32_t sertype_default_hash (const struct ddsi_sertype *tpcmn)
   ddsrt_md5_append (&md5st, (ddsrt_md5_byte_t *) &tp->type.flagset, sizeof (tp->type.flagset));
   ddsrt_md5_append (&md5st, (ddsrt_md5_byte_t *) tp->type.keys.keys, (uint32_t) (tp->type.keys.nkeys * sizeof (*tp->type.keys.keys)));
   ddsrt_md5_append (&md5st, (ddsrt_md5_byte_t *) tp->type.ops.ops, (uint32_t) (tp->type.ops.nops * sizeof (*tp->type.ops.ops)));
+#ifdef DDS_HAS_TYPELIB
+  if (tp->type.flagset & DDS_TOPIC_XTYPES_METADATA)
+    ddsrt_md5_append (&md5st, (ddsrt_md5_byte_t *) tp->typeinfo_ser.data, (uint32_t) tp->typeinfo_ser.sz);
+#endif
   ddsrt_md5_finish (&md5st, (ddsrt_md5_byte_t *) buf);
   return *(uint32_t *) buf;
 }

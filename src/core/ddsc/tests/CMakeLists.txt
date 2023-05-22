@@ -36,6 +36,7 @@ idlc_generate(TARGET CdrStreamDataTypeInfo FILES CdrStreamDataTypeInfo.idl WARNI
 idlc_generate(TARGET Array100 FILES Array100.idl WARNINGS no-implicit-extensibility)
 idlc_generate(TARGET DynamicData FILES DynamicData.idl WARNINGS no-implicit-extensibility)
 if(ENABLE_TYPELIB)
+  idlc_generate(TARGET SertypeData FILES SertypeData.idl)
   idlc_generate(TARGET XSpace FILES XSpace.idl XSpaceEnum.idl XSpaceMustUnderstand.idl XSpaceTypeConsistencyEnforcement.idl WARNINGS no-implicit-extensibility no-inherit-appendable)
   idlc_generate(TARGET XSpaceNoTypeInfo FILES XSpaceNoTypeInfo.idl NO_TYPE_INFO WARNINGS no-implicit-extensibility)
   idlc_generate(TARGET TypeBuilderTypes FILES TypeBuilderTypes.idl WARNINGS no-implicit-extensibility no-inherit-appendable)
@@ -112,6 +113,7 @@ set(ddsc_test_sources
     "test_oneliner.h"
     "cdrstream.c"
     "serdata_keys.c"
+    "sertype.c"
   )
 
 if(ENABLE_LIFESPAN)
@@ -198,7 +200,7 @@ target_link_libraries(cunit_ddsc PRIVATE
 
 if(ENABLE_TYPELIB)
   target_link_libraries(cunit_ddsc PRIVATE
-  XSpace XSpaceNoTypeInfo TypeBuilderTypes DynamicTypeTypes)
+  SertypeData XSpace XSpaceNoTypeInfo TypeBuilderTypes DynamicTypeTypes)
 endif()
 
 # Setup environment for config-tests
