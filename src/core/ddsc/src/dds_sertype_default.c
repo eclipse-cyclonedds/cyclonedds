@@ -57,6 +57,29 @@ static bool sertype_default_equal (const struct ddsi_sertype *acmn, const struct
     return false;
   assert (a->type.opt_size_xcdr1 == b->type.opt_size_xcdr1);
   assert (a->type.opt_size_xcdr2 == b->type.opt_size_xcdr2);
+
+#ifdef DDS_HAS_TYPE_DISCOVERY
+  if (a->type.flagset & DDS_TOPIC_XTYPES_METADATA)
+  {
+    ddsi_typeinfo_t *ti_a, *ti_b;
+    ti_a = ddsi_typeinfo_deser (a->typeinfo_ser.data, a->typeinfo_ser.sz);
+    ti_b = ddsi_typeinfo_deser (b->typeinfo_ser.data, b->typeinfo_ser.sz);
+    bool ti_eq = ti_a != NULL && ti_b != NULL && ddsi_typeinfo_equal (ti_a, ti_b, DDSI_TYPE_IGNORE_DEPS);
+    if (ti_a != NULL)
+    {
+      ddsi_typeinfo_fini (ti_a);
+      ddsrt_free (ti_a);
+    }
+    if (ti_b != NULL)
+    {
+      ddsi_typeinfo_fini (ti_b);
+      ddsrt_free (ti_b);
+    }
+    if (!ti_eq)
+      return false;
+  }
+#endif
+
   return true;
 }
 
