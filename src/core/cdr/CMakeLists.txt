@@ -42,6 +42,8 @@ else()
 
   add_library(${PROJECT_NAME}::cdr ALIAS cdr)
 
+  set_target_properties(cdr PROPERTIES VERSION ${PROJECT_VERSION} SOVERSION ${PROJECT_VERSION})
+
   target_sources(cdr PRIVATE ${srcs_cdr} ${hdrs_private_cdr})
   target_include_directories(cdr PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include"
                                          "${PROJECT_BINARY_DIR}/include"

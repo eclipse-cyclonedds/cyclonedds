@@ -153,7 +153,7 @@ set_target_properties(
   idl PROPERTIES
   OUTPUT_NAME "cycloneddsidl"
   VERSION ${PROJECT_VERSION}
-  SOVERSION ${PROJECT_VERSION_MAJOR})
+  SOVERSION ${PROJECT_VERSION})
 
 generate_export_header(idl EXPORT_FILE_NAME include/idl/export.h)
 
