@@ -248,17 +248,14 @@ static int nontimed_xevent_in_queue (struct ddsi_xeventq *evq, struct ddsi_xeven
 }
 #endif
 
-static void free_xevent (struct ddsi_xeventq *evq, struct ddsi_xevent *ev)
+static void free_xevent (struct ddsi_xevent *ev)
 {
-  (void) evq;
   ddsrt_free (ev);
 }
 
-static void ddsi_delete_xevent_nosync (struct ddsi_xevent *ev)
+static void ddsi_delete_xevent_nosync (struct ddsi_xeventq *evq, struct ddsi_xevent *ev)
 {
-  struct ddsi_xeventq *evq = ev->evq;
-  ddsrt_mutex_lock (&evq->lock);
-  assert (ev->sync_state != CSODS_EXECUTING);
+  assert (ev->sync_state == CSODS_NO_SYNC_NEEDED);
   /* Can delete it only once, no matter how we implement it internally */
   assert (ev->tsched.v != TSCHED_DELETE);
   assert (TSCHED_DELETE < ev->tsched.v);
@@ -275,13 +272,10 @@ static void ddsi_delete_xevent_nosync (struct ddsi_xevent *ev)
   /* TSCHED_DELETE is absolute minimum time, so chances are we need to
      wake up the thread.  The superfluous signal is harmless. */
   ddsrt_cond_broadcast (&evq->cond);
-  ddsrt_mutex_unlock (&evq->lock);
 }
 
-static void ddsi_delete_xevent_sync (struct ddsi_xevent *ev)
+static void ddsi_delete_xevent_sync (struct ddsi_xeventq *evq, struct ddsi_xevent *ev)
 {
-  struct ddsi_xeventq *evq = ev->evq;
-  ddsrt_mutex_lock (&evq->lock);
   /* wait until neither scheduled nor executing; loop in case the callback reschedules the event */
   while (ev->tsched.v != DDS_NEVER || ev->sync_state == CSODS_EXECUTING)
   {
@@ -296,16 +290,24 @@ static void ddsi_delete_xevent_sync (struct ddsi_xevent *ev)
       ddsrt_cond_wait (&evq->cond, &evq->lock);
     }
   }
-  ddsrt_mutex_unlock (&evq->lock);
-  free_xevent (evq, ev);
+  free_xevent (ev);
 }
 
 void ddsi_delete_xevent (struct ddsi_xevent *ev)
 {
+  struct ddsi_xeventq * const evq = ev->evq;
+  ddsrt_mutex_lock (&evq->lock);
   if (ev->sync_state == CSODS_NO_SYNC_NEEDED)
-    ddsi_delete_xevent_nosync (ev);
+  {
+    // schedule at TSCHED_DELETE, handler thread will free
+    ddsi_delete_xevent_nosync (evq, ev);
+  }
   else
-    ddsi_delete_xevent_sync (ev);
+  {
+    // wait while executing, then free
+    ddsi_delete_xevent_sync (evq, ev);
+  }
+  ddsrt_mutex_unlock (&evq->lock);
 }
 
 int ddsi_resched_xevent_if_earlier (struct ddsi_xevent *ev, ddsrt_mtime_t tsched)
@@ -463,7 +465,7 @@ void ddsi_xeventq_free (struct ddsi_xeventq *evq)
   struct ddsi_xevent *ev;
   assert (evq->thrst == NULL);
   while ((ev = ddsrt_fibheap_extract_min (&evq_xevents_fhdef, &evq->xevents)) != NULL)
-    free_xevent (evq, ev);
+    free_xevent (ev);
 
   {
     struct ddsi_xpack *xp = ddsi_xpack_new (evq->gv, false);
@@ -568,7 +570,7 @@ static void handle_xevents (struct ddsi_thread_state * const thrst, struct ddsi_
     {
       struct ddsi_xevent *xev = ddsrt_fibheap_extract_min (&evq_xevents_fhdef, &xevq->xevents);
       if (xev->tsched.v == TSCHED_DELETE)
-        free_xevent (xevq, xev);
+        free_xevent (xev);
       else
       {
         ddsi_thread_state_awake_to_awake_no_nest (thrst);
