@@ -42,7 +42,7 @@ else()
 
   add_library(${PROJECT_NAME}::cdr ALIAS cdr)
 
-  target_sources(cdr PRIVATE ${srcs_cdr} ${hdrs_private_cdr})
+  target_sources(cdr PRIVATE ${srcs_cdr} ${hdrs_private_cdr} ${CMAKE_CURRENT_LIST_DIR}/../../ddsrt/src/bswap.c)
   target_include_directories(cdr PUBLIC "${CMAKE_CURRENT_LIST_DIR}/include"
                                          "${PROJECT_BINARY_DIR}/include"
                                          "${CMAKE_CURRENT_LIST_DIR}/../../ddsrt/include"
