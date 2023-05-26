@@ -269,12 +269,12 @@ static uint32_t pub_thread (void *varg)
     {
       for (size_t j = 0; j < NWR_PUB; j++)
       {
-        if (chk[i][j])
-          continue;
         dds_instance_handle_t ih;
         dds_builtintopic_endpoint_t *ep;
         rc = dds_get_matched_subscriptions (wr[i][j], &ih, 1);
         CU_ASSERT_FATAL (rc == 0 || rc == 1);
+        if (chk[i][j])
+          continue;
         if (rc == 1)
         {
           ep = dds_get_matched_subscription_data (wr[i][j], ih);
@@ -411,12 +411,12 @@ static uint32_t sub_thread (void *varg)
     {
       for (size_t j = 0; j < NWR_PUB; j++)
       {
-        if (chk[i][j])
-          continue;
         dds_instance_handle_t ih;
         dds_builtintopic_endpoint_t *ep;
         rc = dds_get_matched_publications (rd[i][j], &ih, 1);
         CU_ASSERT_FATAL (rc == 0 || rc == 1);
+        if (chk[i][j])
+          continue;
         if (rc == 1)
         {
           ep = dds_get_matched_publication_data (rd[i][j], ih);
