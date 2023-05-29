@@ -20,8 +20,7 @@
 #define IDL_EXPRESSION \
   (IDL_LITERAL|IDL_UNARY_OPERATOR|IDL_BINARY_OPERATOR)
 
-typedef enum idl_operator idl_operator_t;
-enum idl_operator {
+typedef enum idl_operator {
   IDL_NOP = 0,
 #define IDL_UNARY_OPERATOR (1ull<<21)
   IDL_MINUS = (IDL_UNARY_OPERATOR|1u),
@@ -38,7 +37,7 @@ enum idl_operator {
   IDL_MULTIPLY,
   IDL_DIVIDE,
   IDL_MODULO
-};
+} idl_operator_t;
 
 idl_operator_t idl_operator(const void *node);
 

@@ -16,8 +16,7 @@
 
 struct idl_pstate;
 
-typedef enum idl_accept idl_accept_t;
-enum idl_accept {
+typedef enum idl_accept {
   IDL_ACCEPT_INHERIT_SPEC,
   IDL_ACCEPT_SWITCH_TYPE_SPEC,
   IDL_ACCEPT_MODULE,
@@ -39,7 +38,7 @@ enum idl_accept {
   IDL_ACCEPT_SEQUENCE,
   IDL_ACCEPT_STRING,
   IDL_ACCEPT /**< generic callback, used if no specific callback exists */
-};
+} idl_accept_t;
 
 /* generating native language representations for types is relatively
    straightforward, but generating serialization code requires more context.
@@ -64,30 +63,27 @@ typedef idl_retcode_t(*idl_visitor_callback_t)(
    instruct the visitor to recurse, iterate and/or revisit by signalling the
    inverse */
 
-typedef enum idl_visit_recurse idl_visit_recurse_t;
-enum idl_visit_recurse {
+typedef enum idl_visit_recurse {
   IDL_VISIT_RECURSE_BY_DEFAULT = 0,
   IDL_VISIT_RECURSE = (1<<0), /**< Recurse into subtree(s) */
   IDL_VISIT_DONT_RECURSE = (1<<1) /**< Do not recurse into subtree(s) */
-};
+} idl_visit_recurse_t;
 
 /* FIXME: it now applies to the next level. instead, it should apply to the
         current level. in which case IDL_VISIT_ITERATE instructs the
         visitor to continue, IDL_VISIT_DONT_ITERATE does the inverse!
 */
-typedef enum idl_visit_iterate idl_visit_iterate_t;
-enum idl_visit_iterate {
+typedef enum idl_visit_iterate {
   IDL_VISIT_ITERATE_BY_DEFAULT = 0,
   IDL_VISIT_ITERATE = (1<<2), /**< Iterate over subtree(s) */
   IDL_VISIT_DONT_ITERATE = (1<<3) /**< Do not iterate over subtree(s) */
-};
+} idl_visit_iterate_t;
 
-typedef enum idl_visit_revisit idl_visit_revisit_t;
-enum idl_visit_revisit {
+typedef enum idl_visit_revisit {
   IDL_VISIT_DONT_REVISIT_BY_DEFAULT = 0,
   IDL_VISIT_REVISIT = (1<<4), /**< Revisit node(s) on exit */
   IDL_VISIT_DONT_REVISIT = (1<<5) /**< Do not revisit node(s) on exit */
-};
+} idl_visit_revisit_t;
 
 /** Visit associated type specifier (callback signal) */
 #define IDL_VISIT_TYPE_SPEC (1<<6)

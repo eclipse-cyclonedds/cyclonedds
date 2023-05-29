@@ -72,8 +72,7 @@
 
 /* bits 20 - 21 are reserved for operators (not exposed in tree) */
 
-typedef enum idl_type idl_type_t;
-enum idl_type {
+typedef enum idl_type {
   IDL_NULL = 0u,
   IDL_TYPEDEF = (1llu<<19),
   /* constructed types */
@@ -119,7 +118,7 @@ enum idl_type {
   IDL_FLOAT = (IDL_BASE_TYPE | IDL_FLOATING_PT_TYPE | 1u),
   IDL_DOUBLE = (IDL_BASE_TYPE | IDL_FLOATING_PT_TYPE | 2u),
   IDL_LDOUBLE = (IDL_BASE_TYPE | IDL_FLOATING_PT_TYPE | 3u)
-};
+} idl_type_t;
 
 #define IDL_TYPE_MASK ((IDL_TYPEDEF << 1) - 1)
 
@@ -180,25 +179,22 @@ struct idl_path {
   const idl_node_t **nodes;
 };
 
-typedef enum idl_autoid idl_autoid_t;
-enum idl_autoid {
+typedef enum idl_autoid {
   IDL_SEQUENTIAL,
   IDL_HASH
-};
+} idl_autoid_t;
 
-typedef enum idl_extensibility idl_extensibility_t;
-enum idl_extensibility {
+typedef enum idl_extensibility {
   IDL_FINAL,
   IDL_APPENDABLE,
   IDL_MUTABLE
-};
+} idl_extensibility_t;
 
-typedef enum idl_try_construct idl_try_construct_t;
-enum idl_try_construct {
+typedef enum idl_try_construct {
   IDL_DISCARD,
   IDL_USE_DEFAULT,
   IDL_TRIM
-};
+} idl_try_construct_t;
 
 typedef uint32_t allowable_data_representations_t;
 #define IDL_ALLOWABLE_DATAREPRESENTATION_DEFAULT (0xffffffff)

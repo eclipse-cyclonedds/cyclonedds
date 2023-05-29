@@ -59,8 +59,7 @@ struct idl_typeinfo_typemap {
   size_t typemap_size;
 };
 
-typedef enum idl_warning idl_warning_t;
-enum idl_warning {
+typedef enum idl_warning {
   IDL_WARN_GENERIC,
   IDL_WARN_IMPLICIT_EXTENSIBILITY,
   IDL_WARN_EXTRA_TOKEN_DIRECTIVE,
@@ -68,7 +67,7 @@ enum idl_warning {
   IDL_WARN_INHERIT_APPENDABLE,
   IDL_WARN_ENUM_CONSECUTIVE,
   IDL_WARN_UNSUPPORTED_ANNOTATIONS
-};
+} idl_warning_t;
 
 typedef bool (*track_warning_fn)(idl_warning_t warning);
 
