@@ -13,14 +13,13 @@
 
 #include "idl/tree.h"
 
-typedef enum idl_equality idl_equality_t;
-enum idl_equality {
+typedef enum idl_equality {
   IDL_INVALID = -3,
   IDL_MISMATCH = -2, /**< type mismatch */
   IDL_LESS = -1,
   IDL_EQUAL,
   IDL_GREATER,
-};
+} idl_equality_t;
 
 IDL_EXPORT idl_equality_t
 idl_compare(
