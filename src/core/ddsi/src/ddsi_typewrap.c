@@ -1001,7 +1001,7 @@ static dds_return_t add_minimal_typeobj (struct ddsi_domaingv *gv, struct xt_typ
         xt->_u.structure.members.seq[n].flags = mto->_u.struct_type.member_seq._buffer[n].common.member_flags;
         if ((ret = ddsi_type_register_dep (gv, &xt->id, &xt->_u.structure.members.seq[n].type, &mto->_u.struct_type.member_seq._buffer[n].common.member_type_id)) != DDS_RETCODE_OK)
         {
-          for (uint32_t m = 0; m < n - 1; m++)
+          for (uint32_t m = 0; m < n; m++)
             ddsi_type_unref_locked (gv, xt->_u.structure.members.seq[m].type);
           if (xt->_u.structure.base_type)
             ddsi_type_unref_locked (gv, xt->_u.structure.base_type);
@@ -1025,7 +1025,7 @@ static dds_return_t add_minimal_typeobj (struct ddsi_domaingv *gv, struct xt_typ
         xt->_u.union_type.members.seq[n].flags = mto->_u.union_type.member_seq._buffer[n].common.member_flags;
         if ((ret = ddsi_type_register_dep (gv, &xt->id, &xt->_u.union_type.members.seq[n].type, &mto->_u.union_type.member_seq._buffer[n].common.type_id)) != DDS_RETCODE_OK)
         {
-          for (uint32_t m = 0; m < n - 1; m++)
+          for (uint32_t m = 0; m < n; m++)
           {
             ddsi_type_unref_locked (gv, xt->_u.union_type.members.seq[m].type);
             ddsrt_free (xt->_u.union_type.members.seq[m].label_seq._buffer);
@@ -1170,7 +1170,7 @@ static dds_return_t add_complete_typeobj (struct ddsi_domaingv *gv, struct xt_ty
         xt->_u.structure.members.seq[n].flags = cto->_u.struct_type.member_seq._buffer[n].common.member_flags;
         if ((ret = ddsi_type_register_dep (gv, &xt->id, &xt->_u.structure.members.seq[n].type, &cto->_u.struct_type.member_seq._buffer[n].common.member_type_id)) != DDS_RETCODE_OK)
         {
-          for (uint32_t m = 0; m < n - 1; m++)
+          for (uint32_t m = 0; m < n; m++)
           {
             ddsi_type_unref_locked (gv, xt->_u.structure.members.seq[m].type);
             xt_applied_member_annotations_fini (&xt->_u.structure.members.seq[m].detail.annotations);
@@ -1197,7 +1197,7 @@ static dds_return_t add_complete_typeobj (struct ddsi_domaingv *gv, struct xt_ty
         xt->_u.union_type.members.seq[n].flags = cto->_u.union_type.member_seq._buffer[n].common.member_flags;
         if ((ret = ddsi_type_register_dep (gv, &xt->id, &xt->_u.union_type.members.seq[n].type, &cto->_u.union_type.member_seq._buffer[n].common.type_id)) != DDS_RETCODE_OK)
         {
-          for (uint32_t m = 0; m < n - 1; m++)
+          for (uint32_t m = 0; m < n; m++)
           {
             ddsi_type_unref_locked (gv, xt->_u.union_type.members.seq[m].type);
             ddsrt_free (xt->_u.union_type.members.seq[m].label_seq._buffer);
