@@ -85,10 +85,13 @@ int LLVMFuzzerTestOneInput(
         ddsi_typeid_copy_impl (&type_info.x.complete.typeid_with_size.type_id, &type_id_complete->x);
 
         struct ddsi_type *type;
-        ddsi_type_ref_proxy (&gv, &type, &type_info, DDSI_TYPEID_KIND_COMPLETE, NULL);
-        if (type)
+        dds_return_t ret = ddsi_type_ref_proxy (&gv, &type, &type_info, DDSI_TYPEID_KIND_COMPLETE, NULL);
+        if (ret == DDS_RETCODE_OK)
+        {
+          assert (type != NULL);
           ddsi_type_add_typeobj (&gv, type, &type_object_complete->x);
-        ddsi_type_unref (&gv, type);
+          ddsi_type_unref (&gv, type);
+        }
         ddsi_typeinfo_fini (&type_info);
       }
     }
