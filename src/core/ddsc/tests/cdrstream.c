@@ -1972,9 +1972,9 @@ static void init_sub4 (uint8_t *data)
 {
   struct CdrStreamSkipDefault_t4_sub *t4 = (struct CdrStreamSkipDefault_t4_sub *) data;
   t4->f2.s2.s2 = ddsrt_malloc (sizeof (*t4->f2.s2.s2));
-  (*t4->f2.s2.s2) = (dds_sequence_long) { ._length = 3, ._maximum = 3, ._release = true, ._buffer = ddsrt_malloc (3 * sizeof (t4->f2.s2.s2->_buffer)) };
+  (*t4->f2.s2.s2) = (dds_sequence_long) { ._length = 3, ._maximum = 3, ._release = true, ._buffer = ddsrt_malloc (3 * sizeof (*t4->f2.s2.s2->_buffer)) };
   t4->f4.s2 = ddsrt_malloc (sizeof (*t4->f2.s2.s2));
-  (*t4->f4.s2) = (dds_sequence_long) { ._length = 1, ._maximum = 4, ._release = true, ._buffer = ddsrt_malloc (4 * sizeof (t4->f4.s2->_buffer)) };
+  (*t4->f4.s2) = (dds_sequence_long) { ._length = 1, ._maximum = 4, ._release = true, ._buffer = ddsrt_malloc (4 * sizeof (*t4->f4.s2->_buffer)) };
 }
 
 static void check_t4 (uint8_t *data)
