@@ -39,6 +39,17 @@
 #include "dds__builtin.h"
 #include "dds__statistics.h"
 #include "dds__psmx.h"
+/* LH: likely some of the following includes can go */
+#if 0
+#include "dds__data_allocator.h"
+#include "dds/ddsi/ddsi_sertype.h"
+#include "dds/ddsi/ddsi_entity_index.h"
+#include "dds/ddsi/ddsi_security_omg.h"
+#include "dds/ddsi/ddsi_statistics.h"
+#include "dds/ddsi/ddsi_endpoint_match.h"
+#include "dds/ddsi/ddsi_serdata.h"
+#include "dds/ddsi/ddsi_tkmap.h"
+#endif
 
 DECL_ENTITY_LOCK_UNLOCK (dds_reader)
 
@@ -482,6 +493,74 @@ const struct dds_entity_deriver dds_entity_deriver_reader = {
   .refresh_statistics = dds_reader_refresh_statistics,
   .invoke_cbs_for_pending_events = dds_reader_invoke_cbs_for_pending_events
 };
+
+
+dds_return_t dds_reader_store_historical_serdata (dds_entity_t reader, dds_guid_t guid, bool autodispose, struct ddsi_serdata *serdata)
+{
+  dds_return_t ret;
+  dds_entity * e;
+  if ((ret = dds_entity_pin (reader, &e)) < 0)
+    return ret;
+  else if (dds_entity_kind (e) != DDS_KIND_READER)
+  {
+    dds_entity_unpin (e);
+    return DDS_RETCODE_ILLEGAL_OPERATION;
+  }
+
+  dds_reader *dds_rd = (dds_reader *) e;
+  struct ddsi_reader *rd = dds_rd->m_rd;
+  struct ddsi_domaingv *gv = rd->e.gv;
+
+  /* The serdata->writer_info contains the ddsi guid in BE format.
+   * To compare this with the guid we'll transfer the guid
+   * to the right format and compare both.
+   * LH: It feels a bit weird having to do this transformation,
+   * but it seems to work. However, I do have a difficulty in explaining
+   * why this is necessary. */
+  struct ddsi_guid ddsiguid, tmp;
+  memcpy(&tmp, &guid, 16);
+  ddsiguid = ddsi_ntoh_guid(tmp);
+
+  ddsi_thread_state_awake (ddsi_lookup_thread_state (), gv);
+  ddsrt_mutex_lock (&rd->e.lock);
+
+  /* retrieve the topic key map used to get the instance id of the serdata */
+  struct ddsi_tkmap_instance * tk = ddsi_tkmap_lookup_instance_ref (gv->m_tkmap, serdata);
+  if (tk == NULL) {
+    ret = DDS_RETCODE_BAD_PARAMETER;
+    goto fail_get_writer_info;
+  }
+
+  /* historical data is always unregistered */
+  serdata->statusinfo |= DDSI_STATUSINFO_UNREGISTER;
+  /* set the writer guid of the serdata */
+  serdata->writer_guid = ddsiguid;
+  /* timestamp and seqnum have already been set in the serdata by the caller */
+
+  /* We'll use the lowest possible strength when inserting historical data
+   * to ensure that live writers which are stronger always take precedence.
+   * We'll still need to figure out how to ensure that a live writer takes
+   * precedence in case the live writer also has the lowest possible strength.
+   */
+  struct ddsi_writer_info wi;
+  wi.guid = ddsiguid;
+  wi.ownership_strength = INT32_MIN; /* use the lowest possible strength to ensure that live writers with a  */
+  wi.auto_dispose = autodispose;
+  wi.iid = tk->m_iid;
+  if (!dds_rhc_store (dds_rd->m_rhc, &wi, serdata, tk))
+  {
+    ret = DDS_RETCODE_ERROR;
+    goto fail_rhc_store;
+  }
+
+fail_rhc_store:
+  ddsi_tkmap_instance_unref (gv->m_tkmap, tk);
+fail_get_writer_info:
+  ddsrt_mutex_unlock (&rd->e.lock);
+  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
+  dds_entity_unpin (e);
+  return ret;
+}
 
 static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscriber, dds_entity_t topic, const dds_qos_t *qos, const dds_listener_t *listener, struct dds_rhc *rhc)
 {
