@@ -930,6 +930,11 @@ dds_get_listener(dds_entity_t entity, dds_listener_t * listener);
  * attached, this operation will replace it with the new one. In other
  * words, all related callbacks are replaced (possibly with NULL).
  *
+ * A call to this operation will immediately invoke any listener callbacks for
+ * which the corresponding status flag is set. It may cause spurious invocations,
+ * including multiple invocations for one listener. For most cases this is unlikely,
+ * but for the DATA_ON_READERS listeners it is quite likely, though not certain.
+ *
  * When listener parameter is NULL, all listener callbacks that were possibly
  * set on the Entity will be removed.
  *

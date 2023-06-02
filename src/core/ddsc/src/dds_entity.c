@@ -73,6 +73,9 @@ struct dds_statistics *dds_entity_deriver_dummy_create_statistics (const struct 
 void dds_entity_deriver_dummy_refresh_statistics (const struct dds_entity *e, struct dds_statistics *s) {
   (void) e; (void) s;
 }
+void dds_entity_deriver_dummy_invoke_cbs_for_pending_events(struct dds_entity *e, uint32_t status) {
+  (void) e; (void) status;
+}
 
 DDS_EXPORT extern inline void dds_entity_deriver_interrupt (struct dds_entity *e);
 DDS_EXPORT extern inline void dds_entity_deriver_close (struct dds_entity *e);
@@ -83,6 +86,7 @@ DDS_EXPORT extern inline bool dds_entity_supports_set_qos (struct dds_entity *e)
 DDS_EXPORT extern inline bool dds_entity_supports_validate_status (struct dds_entity *e);
 DDS_EXPORT extern inline struct dds_statistics *dds_entity_deriver_create_statistics (const struct dds_entity *e);
 DDS_EXPORT extern inline void dds_entity_deriver_refresh_statistics (const struct dds_entity *e, struct dds_statistics *s);
+DDS_EXPORT extern inline void dds_entity_deriver_invoke_cbs_for_pending_events (struct dds_entity *e, uint32_t status);
 
 static int compare_instance_handle (const void *va, const void *vb)
 {
@@ -1006,10 +1010,16 @@ static void pushdown_listener (dds_entity *e)
       while (c->m_cb_pending_count > 0)
         ddsrt_cond_wait (&c->m_observers_cond, &c->m_observers_lock);
 
+      c->m_cb_pending_count++;
       ddsrt_mutex_lock (&e->m_observers_lock);
       dds_override_inherited_listener (&c->m_listener, &e->m_listener);
       ddsrt_mutex_unlock (&e->m_observers_lock);
 
+      uint32_t status = ddsrt_atomic_ld32 (&c->m_status.m_status_and_mask) & SAM_STATUS_MASK;
+      if (status) {
+        dds_entity_deriver_invoke_cbs_for_pending_events(c, status);
+      }
+      c->m_cb_pending_count--;
       ddsrt_mutex_unlock (&c->m_observers_lock);
 
       pushdown_listener (c);
@@ -1021,10 +1031,12 @@ static void pushdown_listener (dds_entity *e)
   ddsrt_mutex_unlock (&e->m_mutex);
 }
 
+
 dds_return_t dds_set_listener (dds_entity_t entity, const dds_listener_t *listener)
 {
   dds_entity *e, *x;
   dds_return_t rc;
+  uint32_t status;
 
   if ((rc = dds_entity_pin (entity, &e)) != DDS_RETCODE_OK)
     return rc;
@@ -1055,7 +1067,22 @@ dds_return_t dds_set_listener (dds_entity_t entity, const dds_listener_t *listen
 
   ddsrt_mutex_unlock (&e->m_observers_lock);
   pushdown_listener (e);
+  /* Check for pending events, and when needed notify their listeners. */
+  ddsrt_mutex_lock (&e->m_observers_lock);
+  e->m_cb_pending_count++;
+  while (e->m_cb_count > 0)
+    ddsrt_cond_wait (&e->m_observers_cond, &e->m_observers_lock);
+  e->m_cb_count++;
+  status = ddsrt_atomic_ld32 (&e->m_status.m_status_and_mask) & SAM_STATUS_MASK;
+  if (listener && status) {
+    dds_entity_deriver_invoke_cbs_for_pending_events(e, status);
+  }
+  e->m_cb_count--;
+  e->m_cb_pending_count--;
+  ddsrt_cond_broadcast (&e->m_observers_cond);
+  ddsrt_mutex_unlock (&e->m_observers_lock);
   dds_entity_unpin (e);
+
   return DDS_RETCODE_OK;
 }
 

@@ -167,6 +167,25 @@ static uint32_t get_bandwidth_limit (dds_transport_priority_qospolicy_t transpor
 #endif
 }
 
+void dds_writer_invoke_cbs_for_pending_events(struct dds_entity *e, uint32_t status)
+{
+  dds_writer * const wr = (dds_writer *) e;
+  struct dds_listener const * const lst =  &e->m_listener;
+
+  if (lst->on_publication_matched && (status & DDS_PUBLICATION_MATCHED_STATUS)) {
+    status_cb_publication_matched_invoke(wr);
+  }
+  if (lst->on_liveliness_lost && (status & DDS_LIVELINESS_LOST_STATUS)) {
+    status_cb_liveliness_lost_invoke(wr);
+  }
+  if (lst->on_offered_incompatible_qos && (status & DDS_OFFERED_INCOMPATIBLE_QOS_STATUS)) {
+    status_cb_offered_incompatible_qos_invoke(wr);
+  }
+  if (lst->on_offered_deadline_missed && (status & DDS_OFFERED_DEADLINE_MISSED_STATUS)) {
+    status_cb_offered_deadline_missed_invoke(wr);
+  }
+}
+
 static void dds_writer_interrupt (dds_entity *e) ddsrt_nonnull_all;
 
 static void dds_writer_interrupt (dds_entity *e)
@@ -280,7 +299,8 @@ const struct dds_entity_deriver dds_entity_deriver_writer = {
   .set_qos = dds_writer_qos_set,
   .validate_status = dds_writer_status_validate,
   .create_statistics = dds_writer_create_statistics,
-  .refresh_statistics = dds_writer_refresh_statistics
+  .refresh_statistics = dds_writer_refresh_statistics,
+  .invoke_cbs_for_pending_events = dds_writer_invoke_cbs_for_pending_events
 };
 
 #ifdef DDS_HAS_SHM
