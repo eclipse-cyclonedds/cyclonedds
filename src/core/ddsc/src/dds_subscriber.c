@@ -44,7 +44,8 @@ const struct dds_entity_deriver dds_entity_deriver_subscriber = {
   .set_qos = dds_subscriber_qos_set,
   .validate_status = dds_subscriber_status_validate,
   .create_statistics = dds_entity_deriver_dummy_create_statistics,
-  .refresh_statistics = dds_entity_deriver_dummy_refresh_statistics
+  .refresh_statistics = dds_entity_deriver_dummy_refresh_statistics,
+  .invoke_cbs_for_pending_events = dds_entity_deriver_dummy_invoke_cbs_for_pending_events
 };
 
 dds_entity_t dds__create_subscriber_l (dds_participant *participant, bool implicit, const dds_qos_t *qos, const dds_listener_t *listener)

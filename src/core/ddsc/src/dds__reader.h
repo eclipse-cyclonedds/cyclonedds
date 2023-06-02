@@ -23,6 +23,11 @@ struct ddsi_status_cb_data;
 
 void dds_reader_status_cb (void *entity, const struct ddsi_status_cb_data * data);
 
+/** @brief Invokes listeners for events signalled in the entity status
+  * @note expects `e->m_observers_lock` to be held
+  */
+void dds_reader_invoke_cbs_for_pending_events(struct dds_entity *e, uint32_t status);
+
 dds_return_t dds_return_reader_loan (dds_reader *rd, void **buf, int32_t bufsz);
 
 /*

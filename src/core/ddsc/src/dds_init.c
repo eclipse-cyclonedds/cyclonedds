@@ -43,7 +43,8 @@ const struct dds_entity_deriver dds_entity_deriver_cyclonedds = {
   .set_qos = dds_entity_deriver_dummy_set_qos,
   .validate_status = dds_entity_deriver_dummy_validate_status,
   .create_statistics = dds_entity_deriver_dummy_create_statistics,
-  .refresh_statistics = dds_entity_deriver_dummy_refresh_statistics
+  .refresh_statistics = dds_entity_deriver_dummy_refresh_statistics,
+  .invoke_cbs_for_pending_events = dds_entity_deriver_dummy_invoke_cbs_for_pending_events
 };
 
 dds_cyclonedds_entity dds_global;

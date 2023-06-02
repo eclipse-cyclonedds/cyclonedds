@@ -283,7 +283,8 @@ const struct dds_entity_deriver dds_entity_deriver_topic = {
   .set_qos = dds_topic_qos_set,
   .validate_status = dds_topic_status_validate,
   .create_statistics = dds_entity_deriver_dummy_create_statistics,
-  .refresh_statistics = dds_entity_deriver_dummy_refresh_statistics
+  .refresh_statistics = dds_entity_deriver_dummy_refresh_statistics,
+  .invoke_cbs_for_pending_events = dds_entity_deriver_dummy_invoke_cbs_for_pending_events
 };
 
 /**
