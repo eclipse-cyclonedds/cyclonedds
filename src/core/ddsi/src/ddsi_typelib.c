@@ -409,6 +409,9 @@ struct ddsi_type * ddsi_type_lookup (struct ddsi_domaingv *gv, const ddsi_typeid
 }
 
 static dds_return_t ddsi_type_new (struct ddsi_domaingv *gv, struct ddsi_type **type, const struct DDS_XTypes_TypeIdentifier *type_id, const struct DDS_XTypes_TypeObject *type_obj)
+  ddsrt_attribute_warn_unused_result ddsrt_nonnull((1,2,3));
+
+static dds_return_t ddsi_type_new (struct ddsi_domaingv *gv, struct ddsi_type **type, const struct DDS_XTypes_TypeIdentifier *type_id, const struct DDS_XTypes_TypeObject *type_obj)
 {
   dds_return_t ret;
   struct ddsi_typeid_str tistr;
@@ -786,6 +789,9 @@ static dds_return_t get_typeid_with_size (DDS_XTypes_TypeIdentifierWithSize *typ
 }
 
 static dds_return_t DDS_XTypes_TypeIdentifierWithDependencies_deps_init (DDS_XTypes_TypeIdentifierWithDependencies *x, uint32_t n_deps)
+  ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
+
+static dds_return_t DDS_XTypes_TypeIdentifierWithDependencies_deps_init (DDS_XTypes_TypeIdentifierWithDependencies *x, uint32_t n_deps)
 {
   x->dependent_typeid_count = 0;
   x->dependent_typeids._release = true;
@@ -800,6 +806,9 @@ static dds_return_t DDS_XTypes_TypeIdentifierWithDependencies_deps_init (DDS_XTy
   }
   return DDS_RETCODE_OK;
 }
+
+static dds_return_t DDS_XTypes_TypeIdentifierWithDependencies_deps_append (DDS_XTypes_TypeIdentifierWithDependencies *x, const DDS_XTypes_TypeIdentifier *ti, const DDS_XTypes_TypeObject *to)
+  ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 
 static dds_return_t DDS_XTypes_TypeIdentifierWithDependencies_deps_append (DDS_XTypes_TypeIdentifierWithDependencies *x, const DDS_XTypes_TypeIdentifier *ti, const DDS_XTypes_TypeObject *to)
 {
@@ -831,6 +840,9 @@ static void DDS_XTypes_TypeIdentifierWithDependencies_deps_fini (DDS_XTypes_Type
 }
 
 static dds_return_t ddsi_typeinfo_deps_init (struct ddsi_typeinfo *type_info, uint32_t n_deps)
+  ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
+
+static dds_return_t ddsi_typeinfo_deps_init (struct ddsi_typeinfo *type_info, uint32_t n_deps)
 {
   dds_return_t ret;
   if ((ret = DDS_XTypes_TypeIdentifierWithDependencies_deps_init (&type_info->x.minimal, n_deps)) != 0)
@@ -841,6 +853,9 @@ static dds_return_t ddsi_typeinfo_deps_init (struct ddsi_typeinfo *type_info, ui
 }
 
 static dds_return_t ddsi_typeinfo_deps_append (struct ddsi_domaingv *gv, struct ddsi_typeinfo *type_info, const struct ddsi_type_dep *dep_c)
+  ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
+
+static dds_return_t ddsi_typeinfo_deps_append (struct ddsi_domaingv *gv, struct ddsi_typeinfo *type_info, const struct ddsi_type_dep *dep_c)
 {
   struct ddsi_type const * const dep_type_c = ddsi_type_lookup_locked (gv, &dep_c->dep_type_id);
   DDS_XTypes_TypeObject to_dep_m, to_dep_c;
@@ -849,17 +864,16 @@ static dds_return_t ddsi_typeinfo_deps_append (struct ddsi_domaingv *gv, struct 
 
   ddsi_xt_get_typeobject_kind_impl (&dep_type_c->xt, &to_dep_m, DDSI_TYPEID_KIND_MINIMAL);
   if ((ret = ddsi_typeobj_get_hash_id (&to_dep_m, &ti_dep_m)))
-  {
-    ddsi_typeobj_fini_impl (&to_dep_m);
-    return ret;
-  }
+    goto err_ti_dep_m;
 
   struct ddsi_type *dep_type_m = ddsi_type_lookup_locked_impl (gv, &ti_dep_m.x);
   if (dep_type_m == NULL)
-    ddsi_type_new (gv, &dep_type_m, &ti_dep_m.x, &to_dep_m);
+    ret = ddsi_type_new (gv, &dep_type_m, &ti_dep_m.x, &to_dep_m);
   else
-    ddsi_type_add_typeobj (gv, dep_type_m, &to_dep_m);
+    ret = ddsi_type_add_typeobj (gv, dep_type_m, &to_dep_m);
   // don't increase refc for the dependency because the parent type has the ref
+  if (ret != 0)
+    goto err_dep_type_m;
 
   ddsi_xt_get_typeobject_kind_impl (&dep_type_c->xt, &to_dep_c, DDSI_TYPEID_KIND_COMPLETE);
 
@@ -869,8 +883,10 @@ static dds_return_t ddsi_typeinfo_deps_append (struct ddsi_domaingv *gv, struct 
     ret = DDS_XTypes_TypeIdentifierWithDependencies_deps_append (&type_info->x.complete, &dep_type_c->xt.id.x, &to_dep_c);
 
   ddsi_typeobj_fini_impl (&to_dep_c);
-  ddsi_typeobj_fini_impl (&to_dep_m);
+err_dep_type_m:
   ddsi_typeid_fini (&ti_dep_m);
+err_ti_dep_m:
+  ddsi_typeobj_fini_impl (&to_dep_m);
   return ret;
 }
 

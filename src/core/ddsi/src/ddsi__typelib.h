@@ -60,7 +60,8 @@ dds_return_t ddsi_type_ref_id_locked (struct ddsi_domaingv *gv, struct ddsi_type
 dds_return_t ddsi_type_ref_proxy (struct ddsi_domaingv *gv, struct ddsi_type **type, const ddsi_typeinfo_t *type_info, ddsi_typeid_kind_t kind, const ddsi_guid_t *proxy_guid);
 
 /** @component type_system */
-dds_return_t ddsi_type_add_typeobj (struct ddsi_domaingv *gv, struct ddsi_type *type, const struct DDS_XTypes_TypeObject *type_obj);
+dds_return_t ddsi_type_add_typeobj (struct ddsi_domaingv *gv, struct ddsi_type *type, const struct DDS_XTypes_TypeObject *type_obj)
+  ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 
 /** @component type_system */
 dds_return_t ddsi_type_get_typeinfo_ser (struct ddsi_domaingv *gv, const struct ddsi_type *type_c, unsigned char **data, uint32_t *sz);
