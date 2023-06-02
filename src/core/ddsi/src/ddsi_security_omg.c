@@ -1060,7 +1060,6 @@ dds_return_t ddsi_omg_security_check_create_participant (struct ddsi_participant
   DDS_Security_IdentityToken identity_token;
   DDS_Security_PermissionsToken permissions_token = DDS_SECURITY_TOKEN_INIT;
   DDS_Security_PermissionsCredentialToken credential_token = DDS_SECURITY_TOKEN_INIT;
-  struct ddsi_participant_sec_attributes *sec_attr = NULL;
   DDS_Security_Qos par_qos;
   ddsi_guid_t candidate_guid;
   ddsi_guid_t adjusted_guid;
@@ -1086,9 +1085,6 @@ dds_return_t ddsi_omg_security_check_create_participant (struct ddsi_participant
   }
   pp->e.guid = ddsi_ntoh_guid(adjusted_guid);
 
-  sec_attr = participant_sec_attributes_new(&pp->e.guid);
-  sec_attr->local_identity_handle = identity_handle;
-
   ETRACE (pp, "adjusted_guid: "PGUIDFMT" ", PGUID (pp->e.guid));
 
   /* Get the identity token and add this to the plist of the participant */
@@ -1103,6 +1099,8 @@ dds_return_t ddsi_omg_security_check_create_participant (struct ddsi_participant
   DDS_Security_DataHolder_deinit(&identity_token);
   pp->plist->present |= PP_IDENTITY_TOKEN;
 
+  struct ddsi_participant_sec_attributes * const sec_attr = participant_sec_attributes_new(&pp->e.guid);
+  sec_attr->local_identity_handle = identity_handle;
   sec_attr->permissions_handle = sc->access_control_context->validate_local_permissions(
        sc->access_control_context, sc->authentication_context, identity_handle,
        (DDS_Security_DomainId)domain_id, &par_qos, &exception);
