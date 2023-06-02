@@ -2025,7 +2025,9 @@ CU_Test (ddsc_cdrstream, skip_default)
 
     struct dds_cdrstream_desc desc_pub, desc_sub;
     dds_cdrstream_desc_from_topic_desc (&desc_pub, tests[i].desc_pub);
+    assert (desc_pub.ops.ops);
     dds_cdrstream_desc_from_topic_desc (&desc_sub, tests[i].desc_sub);
+    assert (desc_sub.ops.ops);
 
     dds_ostreamLE_t os = { .x.m_xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2 };
     uint8_t *sample_pub = ddsrt_malloc (desc_pub.size);
