@@ -439,6 +439,8 @@ CU_Theory((int32_t n_inst, uint8_t unreg_nth, uint8_t dispose_nth), ddsc_deadlin
   } while (!test_finished);
 }
 
+
+#ifndef SKIP_DEADLINE_UPDATE
 #define DEADLINE DDS_MSECS(100)
 
 //deadline callback function, this function's purpose is to delay the monitor thread such that while instance's
@@ -499,14 +501,13 @@ static void check_statuses(dds_entity_t wr, dds_entity_t rd, uint32_t cnt_1, uin
 
   check_statuses_explicit(wr, rd, total, last_expired);
 }
+#endif
 
 CU_Test(ddsc_deadline, update)
 {
-  #ifdef SKIP_DEADLINE_UPDATE
+#ifdef SKIP_DEADLINE_UPDATE
   CU_PASS("Deadline update test is disabled.");
-  return;
-  #endif
-
+#else
   dds_entity_t pp = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
   CU_ASSERT_FATAL(pp > 0);
 
@@ -601,6 +602,7 @@ CU_Test(ddsc_deadline, update)
 
   ddsi_delete_xevent(xev);
   dds_delete(pp);
+#endif
 }
 
 CU_Test(ddsc_deadline, insanely_short)
