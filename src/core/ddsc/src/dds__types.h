@@ -119,6 +119,10 @@ typedef struct dds_entity_deriver {
   dds_return_t (*validate_status) (uint32_t mask);
   struct dds_statistics * (*create_statistics) (const struct dds_entity *e);
   void (*refresh_statistics) (const struct dds_entity *e, struct dds_statistics *s);
+  /// Invoke listeners for which the corresponding event flag is set in the status mask
+  /// @note expects `e->m_observers_lock` to be held on entry
+  /// @note may unlock and re-lock `e->m_observers_lock`
+  void (*invoke_cbs_for_pending_events) (struct dds_entity *e, uint32_t status);
 } dds_entity_deriver;
 
 struct dds_waitset;
@@ -207,6 +211,9 @@ struct dds_statistics *dds_entity_deriver_dummy_create_statistics (const struct 
 /** @notincomponent */
 void dds_entity_deriver_dummy_refresh_statistics (const struct dds_entity *e, struct dds_statistics *s);
 
+/** @notincomponent */
+void dds_entity_deriver_dummy_invoke_cbs_for_pending_events(struct dds_entity *e, uint32_t status);
+
 /** @component generic_entity */
 inline void dds_entity_deriver_interrupt (struct dds_entity *e) {
   (dds_entity_deriver_table[e->m_kind]->interrupt) (e);
@@ -250,6 +257,11 @@ inline struct dds_statistics *dds_entity_deriver_create_statistics (const struct
 /** @component statistics */
 inline void dds_entity_deriver_refresh_statistics (const struct dds_entity *e, struct dds_statistics *s) {
   dds_entity_deriver_table[e->m_kind]->refresh_statistics (e, s);
+}
+
+/** @component entity_listener */
+inline void dds_entity_deriver_invoke_cbs_for_pending_events (struct dds_entity *e, uint32_t status) {
+  dds_entity_deriver_table[e->m_kind]->invoke_cbs_for_pending_events (e, status);
 }
 
 typedef struct dds_cyclonedds_entity {

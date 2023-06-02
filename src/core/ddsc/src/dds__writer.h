@@ -25,6 +25,9 @@ struct ddsi_status_cb_data;
 void dds_writer_status_cb (void *entity, const struct ddsi_status_cb_data * data);
 
 /** @component writer */
+void dds_writer_invoke_cbs_for_pending_events(struct dds_entity *e, uint32_t status);
+
+/** @component writer */
 dds_return_t dds_return_writer_loan(dds_writer *writer, void **buf, int32_t bufsz) ddsrt_nonnull_all;
 
 /** @component writer */
