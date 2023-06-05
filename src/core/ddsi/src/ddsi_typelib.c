@@ -1442,14 +1442,25 @@ static dds_return_t check_type_resolved_impl_locked (struct ddsi_domaingv *gv, c
   return ret;
 }
 
-static dds_return_t wait_for_type_resolved_impl_locked (struct ddsi_domaingv *gv, dds_duration_t timeout, const struct ddsi_type *type, ddsi_type_include_deps_t resolved_kind)
+static dds_return_t wait_for_type_resolved_impl_locked (struct ddsi_domaingv *gv, const ddsi_typeid_t *type_id, dds_duration_t timeout, const struct ddsi_type *type, ddsi_type_include_deps_t resolved_kind, ddsi_type_request_t request)
 {
   const dds_time_t tnow = dds_time ();
   const dds_time_t abstimeout = (DDS_INFINITY - timeout <= tnow) ? DDS_NEVER : (tnow + timeout);
-  while (!ddsi_type_resolved_locked (gv, type, resolved_kind))
+  bool resolved = ddsi_type_resolved_locked (gv, type, resolved_kind);
+  while (!resolved)
   {
     if (!ddsrt_cond_waituntil (&gv->typelib_resolved_cond, &gv->typelib_lock, abstimeout))
       return DDS_RETCODE_TIMEOUT;
+
+    resolved = ddsi_type_resolved_locked (gv, type, resolved_kind);
+    if (request == DDSI_TYPE_SEND_REQUEST && !resolved)
+    {
+      ddsrt_mutex_unlock (&gv->typelib_lock);
+      if (!ddsi_tl_request_type (gv, type_id, NULL, resolved_kind))
+        request = DDSI_TYPE_NO_REQUEST;
+      ddsrt_mutex_lock (&gv->typelib_lock);
+      resolved = ddsi_type_resolved_locked (gv, type, resolved_kind);
+    }
   }
   ddsi_type_ref_locked (gv, NULL, type);
   return DDS_RETCODE_OK;
@@ -1476,7 +1487,7 @@ dds_return_t ddsi_wait_for_type_resolved (struct ddsi_domaingv *gv, const ddsi_t
     return DDS_RETCODE_PRECONDITION_NOT_MET;
 
   ddsrt_mutex_lock (&gv->typelib_lock);
-  ret = wait_for_type_resolved_impl_locked (gv, timeout, *type, resolved_kind);
+  ret = wait_for_type_resolved_impl_locked (gv, type_id, timeout, *type, resolved_kind, request);
   ddsrt_mutex_unlock (&gv->typelib_lock);
 
   return ret;
