@@ -61,7 +61,8 @@
 #include "dds/export.h"
 
 /** @file md5.h
- * The message digest algorithm computes a 128-bit hash from a message.
+ * The MD5 hash (a 128-bit hash, still suitable for detecting unintentional corruption,
+ * but no longer to be used where a cryptographic hash is needed)
  * 
  * This package supports both compile-time and run-time determination of CPU
  * byte order.  If ARCH_IS_BIG_ENDIAN is defined as 0, the code will be
