@@ -219,3 +219,41 @@ ddsrt_strndup(const char *str, size_t len)
 
   return s;
 }
+
+void
+ddsrt_str_trim(char *str)
+{
+  int index, i;
+
+  if (str == NULL) {
+    return;
+  }
+  
+  /* trim leading white spaces */
+  index = 0;
+  while(str[index] == ' ' || str[index] == '\t' || str[index] == '\n') {
+    index++;
+  }
+
+  /* shift all trailing characters to its left */
+  i = 0;
+  while(str[i + index] != '\0') {
+    str[i] = str[i + index];
+    i++;
+  }
+  str[i] = '\0'; /* terminate string with NULL */
+
+  /* trim trailing white spaces */
+  i = 0;
+  index = -1;
+  while(str[i] != '\0') {
+    if(str[i] != ' ' && str[i] != '\t' && str[i] != '\n') {
+      index = i;
+    }
+    i++;
+  }
+
+  /* mark the next character to last non white space character as NULL */
+  str[index + 1] = '\0';
+}
+

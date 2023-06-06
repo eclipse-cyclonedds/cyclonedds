@@ -190,6 +190,16 @@ ddsrt_str_replace(
     size_t max)
 ddsrt_nonnull_all;
 
+/**
+ * @brief Trim leading and trailing white space characters.
+ *
+ * @param[in,out] str  pointer to string.
+ *
+ */
+DDS_EXPORT void
+ddsrt_str_trim(
+  char *str);
+
 #if defined (__cplusplus)
 }
 #endif
