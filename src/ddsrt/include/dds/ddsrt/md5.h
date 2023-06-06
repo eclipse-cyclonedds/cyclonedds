@@ -60,7 +60,10 @@
 #include <stddef.h>
 #include "dds/export.h"
 
-/*
+/** @file md5.h
+ * The MD5 hash (a 128-bit hash, still suitable for detecting unintentional corruption,
+ * but no longer to be used where a cryptographic hash is needed)
+ * 
  * This package supports both compile-time and run-time determination of CPU
  * byte order.  If ARCH_IS_BIG_ENDIAN is defined as 0, the code will be
  * compiled to run only on little-endian CPUs; if ARCH_IS_BIG_ENDIAN is
@@ -73,7 +76,7 @@
 typedef unsigned char ddsrt_md5_byte_t; /* 8-bit byte */
 typedef unsigned int ddsrt_md5_word_t; /* 32-bit word */
 
-/* Define the state of the MD5 Algorithm. */
+/** @brief The state object for the MD5 Algorithm. */
 typedef struct ddsrt_md5_state_s {
     ddsrt_md5_word_t count[2];        /* message length in bits, lsw first */
     ddsrt_md5_word_t abcd[4];         /* digest buffer */
@@ -85,13 +88,28 @@ extern "C"
 {
 #endif
 
-/* Initialize the algorithm. */
+/**
+ * @brief Initialize the @ref ddsrt_md5_state_s
+ * 
+ * @param[out] pms the state object to initialize
+ */
 DDS_EXPORT void ddsrt_md5_init(ddsrt_md5_state_t *pms);
 
-/* Append a string to the message. */
+/**
+ * @brief Add bytes to the message
+ * 
+ * @param[in,out] pms the state object
+ * @param[in] data pointer to data from which to compute the hash
+ * @param[in] nbytes size of the data in bytes
+ */
 DDS_EXPORT void ddsrt_md5_append(ddsrt_md5_state_t *pms, const ddsrt_md5_byte_t *data, unsigned nbytes);
 
-/* Finish the message and return the digest. */
+/**
+ * @brief Finish the message and return the hash
+ * 
+ * @param[in,out] pms the state object
+ * @param[out] digest the 128-bit hash
+ */
 DDS_EXPORT void ddsrt_md5_finish(ddsrt_md5_state_t *pms, ddsrt_md5_byte_t digest[16]);
 
 #ifdef __cplusplus

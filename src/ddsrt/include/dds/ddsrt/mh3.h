@@ -11,6 +11,11 @@
 #ifndef DDSRT_MH3_H
 #define DDSRT_MH3_H
 
+/** @file mh3.h
+ * The Murmur hash is designed to be fast and is intended for use in hash based lookups.
+ * It is not suitable for cryptographic purposes.
+ */
+
 #include <stdint.h>
 #include <stddef.h>
 
@@ -20,6 +25,14 @@
 extern "C" {
 #endif
 
+/**
+ * @brief Generate a 32-bit hash
+ * 
+ * @param[in] key pointer to key from which to compute the hash
+ * @param[in] len size of the key in bytes
+ * @param[in] seed a 32-bit seed to use for computing the hash
+ * @return the hash
+ */
 DDS_EXPORT uint32_t
 ddsrt_mh3(
   const void *key,
