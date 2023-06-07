@@ -1,0 +1,188 @@
+// Copyright(c) 2023 ZettaScale Technology and others
+//
+// This program and the accompanying materials are made available under the
+// terms of the Eclipse Public License v. 2.0 which is available at
+// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+// v. 1.0 which is available at
+// http://www.eclipse.org/org/documents/edl-v10.php.
+//
+// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+
+@final
+struct SerdataKeyOrder {
+    @key uint8 a;
+    uint8 b;
+    @key uint64 c;
+};
+
+@final
+struct SerdataKeyOrderId {
+    @id(2) @key uint8 a;
+    @id(3) uint8 b;
+    @id(1) @key uint64 c;
+};
+
+@final @autoid(HASH)
+struct SerdataKeyOrderHashId {
+    @key uint8 a;       // 158712076
+    uint8 b;            // 241167250
+    @key uint64 c;      //    559690
+};
+
+@appendable
+struct SerdataKeyOrderAppendable {
+    @id(3) @key uint8 a;
+    @id(2) uint8 b;
+    @id(1) @key uint64 c;
+};
+
+@mutable
+struct SerdataKeyOrderMutable {
+    @id(3) @key uint8 a;
+    @id(2) uint8 b;
+    @id(1) @key uint64 c;
+};
+
+@final
+struct SerdataKeyString {
+    @key uint8 a;
+    @key string b;
+};
+
+@final
+struct SerdataKeyStringBounded {
+    @key uint8 a;
+    @key string<3> b;
+};
+
+@appendable
+struct SerdataKeyStringAppendable {
+    @key uint8 a;
+    @key string b;
+};
+
+@appendable
+struct SerdataKeyStringBoundedAppendable {
+    @key uint8 a;
+    @key string<3> b;
+};
+
+@final
+struct SerdataKeyArr {
+    @key uint8 a[12];
+};
+
+// TODO: currently not supported
+// @final
+// struct SerdataKeyArrStrBounded {
+//     @key string<2> a[2];
+// };
+
+
+// Nested aggregated types
+
+@final
+struct SerdataKeyOrderFinalNestedMutable {
+    @id(3) @key uint8 x;
+    @id(2) uint8 y;
+    @id(1) @key SerdataKeyOrderMutable z;
+};
+
+@appendable
+struct SerdataKeyOrderAppendableNestedMutable {
+    @id(3) @key uint8 x;
+    @id(2) uint8 y;
+    @id(1) @key SerdataKeyOrderMutable z;
+};
+
+@mutable
+struct SerdataKeyOrderMutableNestedMutable {
+    @id(3) @key uint8 x;
+    @id(2) uint8 y;
+    @id(1) @key SerdataKeyOrderMutable z;
+};
+
+@mutable
+struct SerdataKeyOrderMutableNestedAppendable {
+    @id(3) @key uint8 x;
+    @id(2) uint8 y;
+    @id(1) @key SerdataKeyOrderAppendable z;
+};
+
+@mutable
+struct SerdataKeyOrderMutableNestedFinal {
+    @id(3) @key uint8 x;
+    @id(2) uint8 y;
+    @id(1) @key SerdataKeyOrder z;
+};
+
+// Implicit key members in nested type
+
+@final @nested
+struct SerdataKeyNestedFinalImplicitSubtype {
+    @id(3) uint8 x;
+    @id(2) uint8 y;
+    @id(1) SerdataKeyOrder z;
+};
+@final
+struct SerdataKeyNestedFinalImplicit {
+    @id(3) @key SerdataKeyNestedFinalImplicitSubtype d;
+    @id(2) SerdataKeyNestedFinalImplicitSubtype e;
+    @id(1) @key uint32 f;
+};
+
+
+@final @nested
+struct SerdataKeyNestedFinalImplicit2Subtype3 {
+    uint8 x;
+    uint8 y;
+};
+@final @nested
+struct SerdataKeyNestedFinalImplicit2Subtype2 {
+    @key SerdataKeyNestedFinalImplicit2Subtype3 e;
+    SerdataKeyNestedFinalImplicit2Subtype3 f;
+};
+@final @nested
+struct SerdataKeyNestedFinalImplicit2Subtype1 {
+    SerdataKeyNestedFinalImplicit2Subtype2 c;
+    SerdataKeyNestedFinalImplicit2Subtype2 d;
+};
+@final
+struct SerdataKeyNestedFinalImplicit2 {
+    @key SerdataKeyNestedFinalImplicit2Subtype1 a;
+    SerdataKeyNestedFinalImplicit2Subtype1 b;
+};
+
+@mutable @nested
+struct SerdataKeyNestedMutableImplicitSubtype {
+    @id(3) uint8 x;
+    @id(2) uint8 y;
+    @id(1) SerdataKeyOrder z;
+};
+@appendable
+struct SerdataKeyNestedMutableImplicit {
+    @id(3) @key SerdataKeyNestedMutableImplicitSubtype d;
+    @id(2) SerdataKeyNestedMutableImplicitSubtype e;
+    @id(1) @key uint32 f;
+};
+
+@appendable @nested
+struct SerdataKeyInheritMutableNested {
+    @key @id(9) uint16 nx;
+    @id(8) uint16 ny;
+    @key @id(7) uint16 nz;
+};
+
+@mutable @nested
+struct SerdataKeyInheritMutableBase {
+    @id(6) @key SerdataKeyInheritMutableNested bx;
+    @id(5) uint16 by;
+    @id(4) @key uint16 bz;
+};
+
+@mutable
+struct SerdataKeyInheritMutable : SerdataKeyInheritMutableBase {
+    @id(3) SerdataKeyInheritMutableNested a;
+    @id(2) uint16 b;
+    @id(1) uint16 c;
+};

@@ -1,0 +1,42 @@
+// Copyright(c) 2022 to 2023 ZettaScale Technology and others
+//
+// This program and the accompanying materials are made available under the
+// terms of the Eclipse Public License v. 2.0 which is available at
+// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+// v. 1.0 which is available at
+// http://www.eclipse.org/org/documents/edl-v10.php.
+//
+// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+
+module CdrStreamKeySize {
+  @topic @final struct t1 { @key long a; @key short b; };
+  @topic @final struct t2 { @key char a; @key long long b; @key short c; };
+  @nested @final struct nested3 { @key char a; @key long long b; @key short c; }; @topic @final struct t3 { @key nested3 a; };
+  @nested @final struct nested4 { char a; short b; }; @topic @final struct t4 { @key nested4 a; @key long long b; @key char c; };
+  @topic @final struct t5 { @key long a[5]; };
+  @nested @final struct nested6 { @key long long a; }; @topic @final struct t6 { @key nested6 a; long b[5]; @key char c; @key float d; };
+  @nested @final struct nested7_1 { @key short a; }; @nested @final struct nested7_2 { @key long long a; }; @topic @final struct t7 { @key nested7_1 a; @key nested7_2 b; @key char c; @key nested7_1 d; };
+  @topic @final struct t8 { @key char a[15]; };
+  @topic @final struct t9 { @key short a[6]; };
+  @nested @final struct nested10 { @key long long a; long b; }; @topic @final struct t10 { nested10 a; @key nested10 b; };
+  @topic @final struct t11 { @key string<3> a; @key long long b; };
+  @topic @final struct t12 { @key char a; @key string<3> b; @key long c; };
+  @topic @final struct t13 { @key @id(2) float a; @key @id(1) char b; @key @id(0) double c; };
+  @topic @final struct t14 { @key @id(0) char b; @key @id(1) double a; @key @id(2) float c; };
+  @topic @final struct t15 { @key @id(0) char c1; @key @id(2) char c2; @key @id(4) char c3; @key @id(1) long l1; @key @id(3) long l2; };
+  enum e16 { E16_0, E16_1 }; @topic @final struct t16 { @key e16 a; };
+  @bit_bound(8) enum e17 { E17_0, E17_1 }; @topic @final struct t17 { @key e17 a; };
+  @bit_bound(16) enum e18 { E18_0, E18_1 }; @topic @final struct t18 { @key char a; @key e18 b[4]; };
+  bitmask bm19 { BM19_0, BM19_1 }; @topic @final struct t19 { @key bm19 a; };
+  @bit_bound(8) bitmask bm20 { BM20_0, BM20_1 }; @topic @final struct t20 { @key bm20 a; };
+  @bit_bound(43) bitmask bm21 { BM21_0, BM21_1 }; @topic @final struct t21 { @key char a; @key bm21 b[1]; };
+
+  @topic @appendable struct t22 { @key int32 a; };
+  @topic @mutable struct t23 { @key int32 a; };
+  @nested @appendable struct nested24 { int32 a; }; @topic @appendable struct t24 { @key nested24 a; };
+  @nested @mutable struct nested25 { int32 a; }; @topic @mutable struct t25 { @key nested25 a; };
+  @nested @appendable struct nested26 { int8 a; }; @topic @mutable struct t26 { @key nested26 a; };
+  @nested @appendable struct nested27 { int32 a; @key uint8 b; }; @topic @appendable struct t27 { @key nested27 a; };
+  @bit_bound(8) enum e28 { E28_0, E28_1 }; @topic @mutable struct t28 { @key e28 a[2]; };
+  @nested @mutable struct base29 { @key int32 k; }; @topic @mutable struct t29 : base29 { int32 a; };
+};

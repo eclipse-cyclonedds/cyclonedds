@@ -133,10 +133,10 @@ struct stack_type {
 
 struct key_meta_data {
   char *name;
-  uint32_t inst_offs;
-  uint32_t n_order;
-  uint32_t *order;
-  uint32_t key_idx;
+  uint32_t inst_offs;         /**< instruction offset in the instruction set */
+  uint32_t n_order;           /**< number or order entries (nesting level of key field) */
+  uint32_t *order;            /**< order of the key field in the containing aggregated type */
+  uint32_t key_idx;           /**< index of this key when sorting key fields in definition order */
   uint32_t dims;
   uint32_t size;
   bool dheader;
@@ -151,8 +151,6 @@ struct descriptor {
   uint32_t n_opcodes; /**< number of opcodes in descriptor */
   uint32_t flags; /**< topic descriptor flag values */
   uint32_t data_representations; /**< restrict data representations for top-level type */
-  uint32_t keysz_xcdr1; /**< size of the XCDR1 serialized key (or set to MAX_FIXED_KEY + 1 if more than MAX_FIXED_KEY) */
-  uint32_t keysz_xcdr2; /**< size of the XCDR2 serialized key (or set to MAX_FIXED_KEY + 1 if more than MAX_FIXED_KEY) */
   struct stack_type *type_stack;
   struct constructed_type *constructed_types;
   struct instructions key_offsets;

@@ -208,14 +208,26 @@ enum gen_serdata_key_input_kind {
   GSKIK_CDRKEY
 };
 
-static inline bool is_topic_fixed_key(uint32_t flagset, uint32_t xcdrv)
+static inline bool is_topic_fixed_key_impl (uint32_t flagset, uint32_t xcdrv, bool key_hash)
 {
   if (xcdrv == DDSI_RTPS_CDR_ENC_VERSION_1)
     return flagset & DDS_TOPIC_FIXED_KEY;
+  else if (xcdrv == DDSI_RTPS_CDR_ENC_VERSION_2 && key_hash)
+    return flagset & DDS_TOPIC_FIXED_KEY_XCDR2_KEYHASH;
   else if (xcdrv == DDSI_RTPS_CDR_ENC_VERSION_2)
     return flagset & DDS_TOPIC_FIXED_KEY_XCDR2;
   assert (0);
   return false;
+}
+
+static inline bool is_topic_fixed_key (uint32_t flagset, uint32_t xcdrv)
+{
+  return is_topic_fixed_key_impl (flagset, xcdrv, false);
+}
+
+static inline bool is_topic_fixed_key_keyhash (uint32_t flagset, uint32_t xcdrv)
+{
+  return is_topic_fixed_key_impl (flagset, xcdrv, true);
 }
 
 static bool gen_serdata_key (const struct dds_sertype_default *type, struct dds_serdata_default_key *kh, enum gen_serdata_key_input_kind input_kind, void *input)
@@ -254,7 +266,7 @@ static bool gen_serdata_key (const struct dds_sertype_default *type, struct dds_
     switch (input_kind)
     {
       case GSKIK_SAMPLE:
-        dds_stream_write_key (&os, &dds_cdrstream_default_allocator, input, &type->type);
+        dds_stream_write_key (&os, DDS_CDR_KEY_SERIALIZATION_SAMPLE, &dds_cdrstream_default_allocator, input, &type->type);
         break;
       case GSKIK_CDRSAMPLE:
         if (!dds_stream_extract_key_from_data (input, &os, &dds_cdrstream_default_allocator, &type->type))
@@ -263,7 +275,7 @@ static bool gen_serdata_key (const struct dds_sertype_default *type, struct dds_
       case GSKIK_CDRKEY:
         assert (is);
         assert (is->m_xcdr_version == DDSI_RTPS_CDR_ENC_VERSION_1);
-        dds_stream_extract_key_from_key (is, &os, &dds_cdrstream_default_allocator, &type->type);
+        dds_stream_extract_key_from_key (is, &os, DDS_CDR_KEY_SERIALIZATION_SAMPLE, &dds_cdrstream_default_allocator, &type->type);
         break;
     }
     assert (os.m_index < (1u << 30));
@@ -343,13 +355,6 @@ static struct dds_serdata_default *serdata_default_from_ser_common (const struct
   dds_istream_init (&is, actual_size, d->data, xcdr_version);
   if (!gen_serdata_key_from_cdr (&is, &d->key, tp, kind == SDK_KEY))
     goto err;
-  // for (int n = 0; n < d->key.keysize; n++) {
-  //   if (d->key.buftype == KEYBUFTYPE_DYNALLOC || d->key.buftype == KEYBUFTYPE_DYNALIAS)
-  //     printf("%02x ", d->key.u.dynbuf[n]);
-  //   else
-  //     printf("%02x ", d->key.u.stbuf[n]);
-  // }
-  // printf("\n");
   return d;
 
 err:
@@ -439,7 +444,7 @@ static struct ddsi_serdata *serdata_default_from_ser_iov_nokey (const struct dds
 static struct ddsi_serdata *serdata_default_from_keyhash_cdr (const struct ddsi_sertype *tpcmn, const ddsi_keyhash_t *keyhash)
 {
   const struct dds_sertype_default *tp = (const struct dds_sertype_default *)tpcmn;
-  if (!is_topic_fixed_key (tp->type.flagset, DDSI_RTPS_CDR_ENC_VERSION_2))
+  if (!is_topic_fixed_key_keyhash (tp->type.flagset, DDSI_RTPS_CDR_ENC_VERSION_2))
   {
     /* keyhash is MD5 of a key value, so impossible to turn into a key value */
     return NULL;
@@ -557,7 +562,7 @@ static struct dds_serdata_default *serdata_default_from_sample_cdr_common (const
       ostream_add_to_serdata_default (&os, &d);
       break;
     case SDK_KEY:
-      dds_stream_write_key (&os, &dds_cdrstream_default_allocator, sample, &tp->type);
+      dds_stream_write_key (&os, DDS_CDR_KEY_SERIALIZATION_SAMPLE, &dds_cdrstream_default_allocator, sample, &tp->type);
       ostream_add_to_serdata_default (&os, &d);
 
       /* FIXME: detect cases where the XCDR1 and 2 representations are equal,
@@ -784,18 +789,13 @@ static void serdata_default_get_keyhash (const struct ddsi_serdata *serdata_comm
      ostream is calculated using this CDR representation (XTypes spec 7.6.8, RTPS spec 9.6.3.8) */
   dds_ostreamBE_t os;
   dds_ostreamBE_init (&os, &dds_cdrstream_default_allocator, 0, xcdrv);
-  dds_stream_extract_keyBE_from_key (&is, &os, &dds_cdrstream_default_allocator, &tp->type);
+  dds_stream_extract_keyBE_from_key (&is, &os, DDS_CDR_KEY_SERIALIZATION_KEYHASH, &dds_cdrstream_default_allocator, &tp->type);
   assert (is.m_index == d->key.keysize);
 
-  /* We know the key size for XCDR2 encoding, but for XCDR1 there can be additional
-     padding because of 8-byte alignment of key fields */
-  if (xcdrv == DDSI_RTPS_CDR_ENC_VERSION_2)
-    assert (os.x.m_index == d->key.keysize);
-
-  /* Cannot use is_topic_fixed_key here, because in case there is a bounded string
-     key field, it may contain a shorter string and fit in the 16 bytes */
+  /* Don't use the actual key size for checking if hashing is required,
+     but the worst-case key-size (see also XTypes spec 7.6.8 step 5.2) */
   uint32_t actual_keysz = os.x.m_index;
-  if (force_md5 || actual_keysz > DDS_FIXED_KEY_MAX_SIZE)
+  if (force_md5 || !is_topic_fixed_key_keyhash (tp->type.flagset, xcdrv))
   {
     ddsrt_md5_state_t md5st;
     ddsrt_md5_init (&md5st);

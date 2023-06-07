@@ -24,6 +24,8 @@
 #include "MinXcdrVersion.h"
 #include "CdrStreamOptimize.h"
 #include "CdrStreamSkipDefault.h"
+#include "CdrStreamKeySize.h"
+#include "CdrStreamKeyExt.h"
 
 #define DDS_DOMAINID1 0
 #define DDS_DOMAINID2 1
@@ -849,7 +851,7 @@ static const dds_key_descriptor_t TestIdl_MsgKeysNested_keys[3] =
   { "msg_field1.submsg_field4.submsg2_field2", 37, 2 }
 };
 
-const dds_topic_descriptor_t TestIdl_MsgKeysNested_desc = { sizeof (TestIdl_MsgKeysNested), sizeof (char *), DDS_TOPIC_FIXED_KEY | DDS_TOPIC_FIXED_KEY_XCDR2, 3u, "TestIdl::MsgKeysNested", TestIdl_MsgKeysNested_keys, 8, TestIdl_MsgKeysNested_ops, "" };
+const dds_topic_descriptor_t TestIdl_MsgKeysNested_desc = { sizeof (TestIdl_MsgKeysNested), sizeof (char *), 0u, 3u, "TestIdl::MsgKeysNested", TestIdl_MsgKeysNested_keys, 8, TestIdl_MsgKeysNested_ops, "" };
 
 static void * sample_empty_keysnested (void)
 {
@@ -2050,6 +2052,103 @@ CU_Test (ddsc_cdrstream, skip_default)
 
     dds_cdrstream_desc_fini (&desc_pub, &dds_cdrstream_default_allocator);
     dds_cdrstream_desc_fini (&desc_sub, &dds_cdrstream_default_allocator);
+  }
+}
+#undef D
+
+#define VAR (DDS_FIXED_KEY_MAX_SIZE + 1)
+#define D(n) (&CdrStreamKeySize_ ## n ## _desc)
+CU_Test(ddsc_cdrstream, key_size)
+{
+  static const struct {
+    const dds_topic_descriptor_t *desc;
+    bool fixed_key_xcdr1;
+    bool fixed_key_xcdr2;
+    uint32_t keysz_xcdr1;
+    uint32_t keysz_xcdr2;
+    bool fixed_key_xcdrv2_keyhash;
+  } tests[] = {
+    { D(t1), true, true, 6, 6, true },   // key size: 4 + 2
+    { D(t2), false, true, VAR, 14, true },  // key size: 1 + 7/3 (pad) + 8 + 2
+    { D(t3), false, true, VAR, 14, true },  // key size: 1 + 7/3 (pad) + 8 + 2
+    { D(t4), false, true, VAR, 13, true },  // key size: 1 + 1 (pad) + 2 + 4/0 (pad) + 8 + 1
+    { D(t5), false, false, VAR, VAR, false },
+    { D(t6), true, true, 16, 16, true }, // key size: 8 + 1 + 3 (pad) + 4
+    { D(t7), false, true, VAR, 16, true }, // key size: 2 + 6/2 (pad) + 8 + 1 + 1 (pad) 2
+    { D(t8), true, true, 15, 15, true },
+    { D(t9), true, true, 12, 12, true },
+    { D(t10), true, true, 8, 8, true }, // key size: 8
+    { D(t11), true, true, 16, 16, true }, // key size: 8 + 8
+    { D(t12), true, true, 16, 16, true }, // key size: 1 + 3 (pad) + 8 + 4
+    { D(t13), true, true, 16, 16, true }, // key size XCDR1: 4 + 1 + 3 (pad) + 8 / XCDR2: 8 + 1 + 3 (pad) + 4
+    { D(t14), false, true, VAR, 16, true }, // key size XCDR1: 1 + 7 (pad) + 8 + 4 / XCDR2: 1 + 3 (pad) + 8 + 4
+    { D(t15), true, true, 12, 12, false }, // key size XCDR1: 1 + 1 + 1 + 1 (pad) + 4 + 4 / XCDR2: 1 + 1 + 1 + 1 (pad) + 4 + 4 / XCDR2_KH: 1 + 3 (pad) + 4 + 1 + 3 (pad) + 4 + 1
+    { D(t16), true, true, 4, 4, true }, // key size: 4
+    { D(t17), true, true, 1, 1, true }, // key size: 1
+    { D(t18), true, true, 10, 16, true }, // key size XCDR1: 1 + 1 (pad) + 4 * 2 / XCDR2: 1 + 3 (pad) + 4 (dheader) + 4 * 2
+    { D(t19), true, true, 4, 4, true }, // key size: 4
+    { D(t20), true, true, 1, 1, true }, // key size: 1
+    { D(t21), true, true, 16, 16, true }, // key size XCDR1: 1 + 7 (pad) + 1 * 8 / XCDR2: 1 + 3 (pad) + 4 (dheader) + 1 * 8 /
+
+    { D(t22), false, true, 0, 8, true }, // key size: XCDR2: 4 (dh) + 4
+    { D(t23), false, true, 0, 12, true }, // key size: XCDR2: 4 (dh) + 4 (emh) + 4
+    { D(t24), false, true, 0, 12, true }, // key size: XCDR2: 4 (dh) + 4 (dh) + 4
+    { D(t25), false, false, 0, VAR, true }, // key size: XCDR2: 4 (dh) + 4 (emh) + 4 (dh) + 4 (emh) + 4
+    { D(t26), false, false, 0, VAR, true }, // key size: XCDR2: 4 (dh) + 4 (emh) + 4 (emh-nextint) + 4 (dh) + 1
+    { D(t27), false, true, 0, 9, true }, // key size: XCDR2: 4 (dh) + 4 (dh) + 1
+    { D(t28), false, true, 0, 14, true }, // key size: XCDR2: 4 (dh) + 4 (emh) + 4 (dh) + 2 * 1
+    { D(t29), false, true, 0, 12, true }, // key size: XCDR2: 4 (dh) + 4 (emh) + 4
+  };
+
+  for (size_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++) {
+    printf ("running test for type: %s\n", tests[i].desc->m_typename);
+
+    uint32_t keysz_xcdrv1 = 0, keysz_xcdrv2 = 0;
+    struct dds_cdrstream_desc desc;
+    dds_cdrstream_desc_from_topic_desc (&desc, tests[i].desc);
+    uint32_t key_flags = dds_stream_key_flags (&desc, &keysz_xcdrv1, &keysz_xcdrv2);
+    CU_ASSERT_EQUAL_FATAL ((key_flags & DDS_TOPIC_FIXED_KEY) != 0, tests[i].fixed_key_xcdr1);
+    CU_ASSERT_EQUAL_FATAL ((key_flags & DDS_TOPIC_FIXED_KEY_XCDR2) != 0, tests[i].fixed_key_xcdr2);
+    CU_ASSERT_EQUAL_FATAL (keysz_xcdrv1, tests[i].keysz_xcdr1);
+    CU_ASSERT_EQUAL_FATAL (keysz_xcdrv2, tests[i].keysz_xcdr2);
+    CU_ASSERT_EQUAL_FATAL ((key_flags & DDS_TOPIC_FIXED_KEY_XCDR2_KEYHASH) != 0, tests[i].fixed_key_xcdrv2_keyhash);
+    dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
+  }
+}
+#undef VAR
+#undef D
+
+#define D(n) (&CdrStreamKeyExt_ ## n ## _desc)
+CU_Test(ddsc_cdrstream, key_flags_ext)
+{
+  static const struct {
+    const dds_topic_descriptor_t *desc;
+    bool key_appendable;
+    bool key_mutable;
+  } tests[] = {
+    { D(t1), false, false },
+    { D(t1a), false, false },
+    { D(t2), true, false },
+    { D(t3), false, true },
+    { D(t4), false, false },
+    { D(t4a), true, false },
+    { D(t4b), true, false },
+    { D(t5), false, false },
+    { D(t5a), false, true },
+    { D(t5b), false, true },
+    { D(t6), true, false },
+    { D(t6a), true, true },
+    { D(t6b), true, true },
+  };
+
+  for (size_t i = 0; i < sizeof (tests) / sizeof (tests[0]); i++) {
+    printf ("running test for type: %s\n", tests[i].desc->m_typename);
+    struct dds_cdrstream_desc desc;
+    dds_cdrstream_desc_from_topic_desc (&desc, tests[i].desc);
+    uint32_t key_flags = dds_stream_key_flags (&desc, NULL, NULL);
+    CU_ASSERT_EQUAL_FATAL ((key_flags & DDS_TOPIC_KEY_APPENDABLE) != 0, tests[i].key_appendable);
+    CU_ASSERT_EQUAL_FATAL ((key_flags & DDS_TOPIC_KEY_MUTABLE) != 0, tests[i].key_mutable);
+    dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
   }
 }
 #undef D

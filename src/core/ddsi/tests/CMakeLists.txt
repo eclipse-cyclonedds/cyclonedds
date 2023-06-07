@@ -18,8 +18,7 @@ set(ddsi_test_sources
     "plist.c"
     "plist_leasedur.c"
     "radmin.c"
-    "sysdeps.c"
-    "mem_ser.h")
+    "sysdeps.c")
 
 if(ENABLE_SECURITY)
   set(ddsi_test_sources ${ddsi_test_sources} "security_msg.c")
@@ -33,7 +32,8 @@ target_include_directories(
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsc/src>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/include>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/src>"
-    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../cdr/include>")
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../cdr/include>"
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../cdr/test>")
 if(ENABLE_SHM)
   target_include_directories(
     cunit_ddsi PRIVATE

@@ -481,9 +481,9 @@ int main (int argc, char **argv)
   dds_stream_print_sample (ptr, ptr2, ptr3, 0);
 
   dds_stream_extract_key_from_data (ptr, ptr2, ptr3, ptr4);
-  dds_stream_extract_key_from_key (ptr, ptr2, ptr3, ptr4);
+  dds_stream_extract_key_from_key (ptr, ptr2, 0, ptr3, ptr4);
   dds_stream_extract_keyBE_from_data (ptr, ptr2, ptr3, ptr4);
-  dds_stream_extract_keyBE_from_key (ptr, ptr2, ptr3, ptr4);
+  dds_stream_extract_keyBE_from_key (ptr, ptr2, 0, ptr3, ptr4);
   dds_cdrstream_desc_from_topic_desc (ptr, ptr2);
   dds_cdrstream_desc_fini (ptr, ptr2);
 

@@ -22,6 +22,9 @@ idlc_generate(TARGET DataRepresentationTypes FILES DataRepresentationTypes.idl W
 idlc_generate(TARGET MinXcdrVersion FILES MinXcdrVersion.idl)
 idlc_generate(TARGET CdrStreamOptimize FILES CdrStreamOptimize.idl WARNINGS no-implicit-extensibility)
 idlc_generate(TARGET CdrStreamSkipDefault FILES CdrStreamSkipDefault.idl)
+idlc_generate(TARGET CdrStreamKeySize FILES CdrStreamKeySize.idl)
+idlc_generate(TARGET CdrStreamKeyExt FILES CdrStreamKeyExt.idl)
+idlc_generate(TARGET SerdataData FILES SerdataData.idl)
 if(ENABLE_TYPE_DISCOVERY)
   idlc_generate(TARGET XSpace FILES XSpace.idl XSpaceEnum.idl XSpaceMustUnderstand.idl XSpaceTypeConsistencyEnforcement.idl WARNINGS no-implicit-extensibility no-inherit-appendable)
   idlc_generate(TARGET XSpaceNoTypeInfo FILES XSpaceNoTypeInfo.idl NO_TYPE_INFO WARNINGS no-implicit-extensibility)
@@ -90,6 +93,7 @@ set(ddsc_test_sources
     "test_oneliner.c"
     "test_oneliner.h"
     "cdrstream.c"
+    "serdata_keys.c"
   )
 
 if(ENABLE_LIFESPAN)
@@ -123,7 +127,8 @@ target_include_directories(
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsc/src>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/include>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/src>"
-  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../cdr/include>")
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../cdr/include>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../cdr/test>")
 if(ENABLE_SHM)
   target_include_directories(
     cunit_ddsc PRIVATE
@@ -131,7 +136,7 @@ if(ENABLE_SHM)
 endif()
 
 target_link_libraries(cunit_ddsc PRIVATE
-  RoundTrip Space TypesArrayKey WriteTypes InstanceHandleTypes RWData CreateWriter DataRepresentationTypes MinXcdrVersion CdrStreamOptimize CdrStreamSkipDefault ddsc)
+  RoundTrip Space TypesArrayKey WriteTypes InstanceHandleTypes RWData CreateWriter DataRepresentationTypes MinXcdrVersion CdrStreamOptimize CdrStreamSkipDefault CdrStreamKeySize CdrStreamKeyExt SerdataData ddsc)
 
 if(ENABLE_TYPE_DISCOVERY)
   target_link_libraries(cunit_ddsc PRIVATE
