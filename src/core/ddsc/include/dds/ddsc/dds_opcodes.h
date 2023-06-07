@@ -610,6 +610,36 @@ enum dds_stream_typecode_subtype {
  */
 #define DDS_TOPIC_RESTRICT_DATA_REPRESENTATION  (1u << 7)
 
+
+/**
+ * @anchor DDS_TOPIC_KEY_MUTABLE
+ * @ingroup topic_flags
+ * @brief Set if any of the key fields of a type is in a mutable aggregated type.
+ */
+#define DDS_TOPIC_KEY_MUTABLE                  (1u << 8)
+
+/**
+ * @anchor DDS_TOPIC_KEY_APPENDABLE
+ * @ingroup topic_flags
+ * @brief Set if any of the key fields of a type is in an appendable aggregated type.
+ */
+#define DDS_TOPIC_KEY_APPENDABLE                (1u << 9)
+
+/**
+ * @anchor DDS_TOPIC_FIXED_KEY_XCDR2_KEYHASH
+ * @ingroup topic_flags
+ * @brief The XCDRV2 serialized key with field in member-id order fits
+ * in 16 bytes. If statically determined that a serialized key that is
+ * used to get the keyhash always fits in 16 bytes, the spec specifies
+ * that the keyhash of a sample is the resulting CDR. If it is longer
+ * we must use MD5 to hash the resultant key CDR.
+ *
+ * The XCDRV1 key-hash is calculated from the serialized key with the
+ * fields in definition order, so DDS_TOPIC_FIXED_KEY can also be used
+ * for key-hash for XCDR1.
+ */
+#define DDS_TOPIC_FIXED_KEY_XCDR2_KEYHASH       (1u << 10)
+
 /**
  * @anchor DDS_FIXED_KEY_MAX_SIZE
  * @ingroup topic_flags

@@ -160,13 +160,8 @@ dds_return_t ddsi_sertype_cdr_init (const struct ddsi_domaingv *gv, struct ddsi_
   st->c.fixed_size = (st->c.fixed_size || (desc->m_flagset & DDS_TOPIC_FIXED_SIZE)) ? 1u : 0u;
   st->c.allowed_data_representation = DDS_DATA_REPRESENTATION_FLAG_XCDR2;
   st->encoding_format = ddsi_sertype_extensibility_enc_format (type_ext);
-  /* Store the encoding version used for writing data using this sertype. When reading data,
-     the encoding version from the encapsulation header in the CDR is used */
-  st->type.size = desc->m_size;
-  st->type.align = desc->m_align;
-  st->type.flagset = desc->m_flagset;
-  st->type.ops.nops = dds_stream_countops (desc->m_ops, 0, NULL);
-  st->type.ops.ops = ddsrt_memdup (desc->m_ops, st->type.ops.nops * sizeof (*st->type.ops.ops));
+
+  dds_cdrstream_desc_init (&st->type, &dds_cdrstream_default_allocator, desc->m_size, desc->m_align, desc->m_flagset, desc->m_ops, desc->m_keys, desc->m_nkeys);
 
   if (dds_stream_type_nesting_depth (desc->m_ops) > DDS_CDRSTREAM_MAX_NESTING_DEPTH)
   {

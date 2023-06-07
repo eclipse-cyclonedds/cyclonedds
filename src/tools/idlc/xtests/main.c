@@ -31,24 +31,7 @@ static void free_sample (void *s)
 static void init_desc (struct dds_cdrstream_desc *cdrstream_desc)
 {
   memset (cdrstream_desc, 0, sizeof (*cdrstream_desc));
-  *cdrstream_desc = (struct dds_cdrstream_desc) {
-    .size = desc->m_size,
-    .align = desc->m_align,
-    .flagset = desc->m_flagset,
-    .ops.nops = dds_stream_countops (desc->m_ops, desc->m_nkeys, desc->m_keys),
-    .ops.ops = (uint32_t *) desc->m_ops
-  };
-
-  cdrstream_desc->keys.nkeys = desc->m_nkeys;
-  if (cdrstream_desc->keys.nkeys > 0)
-  {
-    cdrstream_desc->keys.keys = dds_alloc (cdrstream_desc->keys.nkeys  * sizeof (*cdrstream_desc->keys.keys));
-    for (uint32_t i = 0; i < cdrstream_desc->keys.nkeys; i++)
-    {
-      cdrstream_desc->keys.keys[i].ops_offs = desc->m_keys[i].m_offset;
-      cdrstream_desc->keys.keys[i].idx = desc->m_keys[i].m_idx;
-    }
-  }
+  dds_cdrstream_desc_init (cdrstream_desc, &dds_cdrstream_default_allocator, desc->m_size, desc->m_align, desc->m_flagset, desc->m_ops, desc->m_keys, desc->m_nkeys);
 }
 
 static void print_raw_cdr (dds_ostream_t *os)
@@ -171,12 +154,12 @@ int main(int argc, char **argv)
 
       // write key
       dds_ostream_t os_wr_key = { NULL, 0, 0, DDSI_RTPS_CDR_ENC_VERSION_2 };
-      dds_stream_write_key (&os_wr_key, &dds_cdrstream_default_allocator, msg_wr, &cdrstream_desc);
+      dds_stream_write_key (&os_wr_key, DDS_CDR_KEY_SERIALIZATION_SAMPLE, &dds_cdrstream_default_allocator, msg_wr, &cdrstream_desc);
 
       // extract key from key
       dds_istream_t is_key_from_key = { os_wr_key.m_buffer, os_wr_key.m_size, 0, DDSI_RTPS_CDR_ENC_VERSION_2 };
       dds_ostream_t os_key_from_key = { NULL, 0, 0, DDSI_RTPS_CDR_ENC_VERSION_2 };
-      dds_stream_extract_key_from_key (&is_key_from_key, &os_key_from_key, &dds_cdrstream_default_allocator, &cdrstream_desc);
+      dds_stream_extract_key_from_key (&is_key_from_key, &os_key_from_key, DDS_CDR_KEY_SERIALIZATION_SAMPLE, &dds_cdrstream_default_allocator, &cdrstream_desc);
       res = rd_cmp_print_key (&os_key_from_key, msg_wr, &cdrstream_desc);
 
       dds_ostream_fini (&os_key_from_data, &dds_cdrstream_default_allocator);
@@ -191,8 +174,6 @@ int main(int argc, char **argv)
       break;
   }
 
-  if (cdrstream_desc.keys.nkeys > 0)
-    dds_free (cdrstream_desc.keys.keys);
-
+  dds_cdrstream_desc_fini (&cdrstream_desc, &dds_cdrstream_default_allocator);
   return res;
 }

@@ -3670,18 +3670,32 @@ idl_keytype_t idl_is_topic_key(const void *node, bool keylist, const idl_path_t 
         return IDL_KEYTYPE_NONE;
 
       if (member->key.value)
+      {
         key = IDL_KEYTYPE_EXPLICIT;
+        all_keys = false;
+      }
       /* possibly implicit @key, but only if no other members are explicitly
         annotated, an intermediate aggregate type has no explicitly annotated
         fields and node is not on the first level */
-      else if (all_keys || no_specific_key(idl_parent(member)))
+      else if (all_keys)
       {
-        all_keys = (i > 1);
-        key = (i > 1) ? IDL_KEYTYPE_IMPLICIT : IDL_KEYTYPE_NONE;
+        if (no_specific_key(idl_parent(member)))
+          key = IDL_KEYTYPE_IMPLICIT;
+        else
+        {
+          key = IDL_KEYTYPE_NONE;
+          all_keys = false;
+        }
+      }
+      else if (no_specific_key(idl_parent(member)) && i > 1)
+      {
+        key = IDL_KEYTYPE_IMPLICIT;
+        all_keys = true;
       }
       else
       {
         key = IDL_KEYTYPE_NONE;
+        all_keys = false;
       }
 
       /* if key member found, get the id from the declarator node which

@@ -32,6 +32,19 @@ extern "C" {
 
 #define SERDATA_DEFAULT_KEYSIZE_MASK        0x3FFFFFFFu
 
+
+/**
+ * @brief Key buffer
+ *
+ * Stores the serialized key in XCDRV2 encoding, which is the
+ * serialized KeyHolder obtained from the data type, as defined
+ * in the XTypes spec secion 7.2.2.4.7.
+ *
+ * The keyholder members are serialized in the order they are
+ * defined, and the extensibility is the same as the actual
+ * data-type. As a result, the serialized key can have DHEADERS
+ * and/or EMHEADERS in case of an appendable or mutable data-type.
+ */
 struct dds_serdata_default_key {
   unsigned buftype : 2;
   unsigned keysize : 30;

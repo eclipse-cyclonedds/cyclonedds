@@ -33,9 +33,6 @@
 #define TYPE (16)
 #define SUBTYPE (8)
 
-#define XCDR1_MAX_ALIGN 8
-#define XCDR2_MAX_ALIGN 4
-
 static const uint16_t nop = UINT16_MAX;
 
 static idl_retcode_t push_field(
@@ -1931,25 +1928,6 @@ static void free_ctype_keys(struct constructed_type_key *key)
   }
 }
 
-static uint32_t add_to_key_size(uint32_t keysize, uint32_t field_size, bool dheader, uint32_t field_dims, uint32_t field_align, uint32_t max_align)
-{
-  uint32_t sz = keysize;
-  if (field_align > max_align)
-    field_align = max_align;
-  if (dheader) {
-    uint32_t dh_size = 4, dh_align = 4;
-    if (sz % dh_align)
-      sz += dh_align - (sz % dh_align);
-    sz += dh_size;
-  }
-  if (sz % field_align)
-    sz += field_align - (sz % field_align);
-  sz += field_size * field_dims;
-  if (sz > DDS_FIXED_KEY_MAX_SIZE)
-    sz = DDS_FIXED_KEY_MAX_SIZE + 1;
-  return sz;
-}
-
 static idl_retcode_t get_ctype_keys(const idl_pstate_t *pstate, struct descriptor *descriptor, struct constructed_type *ctype, struct constructed_type_key **keys, uint32_t *n_keys, bool parent_is_key, uint32_t base_type_ops_offs);
 
 static idl_retcode_t get_ctype_keys_adr(
@@ -2236,18 +2214,10 @@ static idl_retcode_t descriptor_init_keys(const idl_pstate_t *pstate, struct con
       offs_len--;
     }
   }
-  assert(key_index == descriptor->n_keys);
-
-  // calculate key size for XCDR1 keys (by definition order)
-  for (uint32_t k = 0; k < descriptor->n_keys; k++)
-    descriptor->keysz_xcdr1 = add_to_key_size(descriptor->keysz_xcdr1, descriptor->keys[k].size, false, descriptor->keys[k].dims, descriptor->keys[k].align, XCDR1_MAX_ALIGN);
+  assert (key_index == descriptor->n_keys);
 
   // sort keys by member id (scoped within the containing aggregated type)
   qsort(descriptor->keys, descriptor->n_keys, sizeof (*descriptor->keys), key_meta_data_cmp);
-
-  // calculate key size for XCDR2 keys (ordered by member id)
-  for (uint32_t k = 0; k < descriptor->n_keys; k++)
-    descriptor->keysz_xcdr2 = add_to_key_size(descriptor->keysz_xcdr2, descriptor->keys[k].size, descriptor->keys[k].dheader, descriptor->keys[k].dims, descriptor->keys[k].align, XCDR2_MAX_ALIGN);
 
   return IDL_RETCODE_OK;
 }
@@ -2304,10 +2274,6 @@ static int print_flags(FILE *fp, struct descriptor *descriptor, bool type_info)
 
   if (descriptor->flags & DDS_TOPIC_CONTAINS_UNION)
     vec[len++] = "DDS_TOPIC_CONTAINS_UNION";
-  if (descriptor->flags & DDS_TOPIC_FIXED_KEY)
-    vec[len++] = "DDS_TOPIC_FIXED_KEY";
-  if (descriptor->flags & DDS_TOPIC_FIXED_KEY_XCDR2)
-    vec[len++] = "DDS_TOPIC_FIXED_KEY_XCDR2";
   if (descriptor->flags & DDS_TOPIC_RESTRICT_DATA_REPRESENTATION)
     vec[len++] = "DDS_TOPIC_RESTRICT_DATA_REPRESENTATION";
 
@@ -2627,12 +2593,6 @@ generate_descriptor_impl(
   if ((ret = descriptor_init_keys(pstate, ctype, ctype_keys, descriptor, n_keys, (pstate->config.flags & IDL_FLAG_KEYLIST) != 0)) < 0)
     goto err;
   free_ctype_keys(ctype_keys);
-
-  /* Set fixed-key flags */
-  if (descriptor->keysz_xcdr1 > 0 && descriptor->keysz_xcdr1 <= DDS_FIXED_KEY_MAX_SIZE)
-    descriptor->flags |= DDS_TOPIC_FIXED_KEY;
-  if (descriptor->keysz_xcdr2 > 0 && descriptor->keysz_xcdr2 <= DDS_FIXED_KEY_MAX_SIZE)
-    descriptor->flags |= DDS_TOPIC_FIXED_KEY_XCDR2;
 
   /* set data representation restriction flag and mask (ignore unsupported data representations) */
   allowable_data_representations_t dr = idl_allowable_data_representations(descriptor->topic);

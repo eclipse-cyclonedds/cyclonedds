@@ -1,0 +1,25 @@
+// Copyright(c) 2022 to 2023 ZettaScale Technology and others
+//
+// This program and the accompanying materials are made available under the
+// terms of the Eclipse Public License v. 2.0 which is available at
+// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+// v. 1.0 which is available at
+// http://www.eclipse.org/org/documents/edl-v10.php.
+//
+// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+
+module CdrStreamKeyExt {
+  @final struct t1 { @key long a; };
+  @final struct t1a { @key @external long a; };
+  @appendable struct t2 { @key long a; };
+  @mutable struct t3 { @key long a; };
+  @appendable struct nested4 { @key long a; }; @final struct t4 { @key long a; nested4 b; };
+  @appendable struct nested4a { @key long a; }; @final struct t4a { @key long a; @key nested4a b; };
+  @appendable struct nested4b { long a; }; @final struct t4b { @key long a; @key nested4b b; };
+  @mutable struct nested5 { @key long a; }; @final struct t5 { @key long a; nested5 b; };
+  @mutable struct nested5a { @key long a; }; @final struct t5a { @key long a; @key nested5a b; };
+  @mutable struct nested5b { long a; }; @final struct t5b { @key long a; @key nested5b b; };
+  @mutable struct nested6 { @key long a; }; @appendable struct t6 { @key long a; nested6 b; };
+  @mutable struct nested6a { @key long a; }; @appendable struct t6a { @key long a; @key nested6a b; };
+  @mutable struct nested6b { long a; }; @appendable struct t6b { @key long a; @key nested6b b; };
+};
