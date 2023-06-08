@@ -302,8 +302,8 @@ static bool string_to_properties(const char *str, DDS_Security_PropertySeq *prop
     if (strlen(tok) == 0)
       continue;
     char *name = ddsrt_strsep (&tok, "=");
-    ddsrt_str_trim(name);
-    ddsrt_str_trim(tok);
+    name = ddsrt_str_trim_ord_space(name);
+    tok = ddsrt_str_trim_ord_space(tok);
     if (name == NULL || tok == NULL || properties->_length >= properties->_maximum)
     {
       ddsrt_free (copy);
@@ -333,8 +333,8 @@ bool ac_check_subjects_are_equal(const char *permissions_sn, const char *identit
   {
     char *value_pmsn;
     char *name_idsn = ddsrt_strsep (&tok_idsn, "=");
-    ddsrt_str_trim(name_idsn);
-    ddsrt_str_trim(tok_idsn);
+    name_idsn = ddsrt_str_trim_ord_space(name_idsn);
+    tok_idsn = ddsrt_str_trim_ord_space(tok_idsn);
     if (name_idsn == NULL || tok_idsn == NULL)
       goto check_subj_equal_failed;
     value_pmsn = DDS_Security_Property_get_value(&prop_pmsn, name_idsn);

@@ -191,13 +191,15 @@ ddsrt_str_replace(
 ddsrt_nonnull_all;
 
 /**
- * @brief Trim leading and trailing white space characters.
+ * @brief Trim leading and trailing ordinary space character (' ' ascii 32) from string.
  *
- * @param[in,out] str  pointer to string.
+ * @param[in] str  pointer to string.
  *
+ * @returns Pointer to original trimed string 
+ *          without leading and trailing ordinary space character
  */
-DDS_EXPORT void
-ddsrt_str_trim(
+DDS_EXPORT char *
+ddsrt_str_trim_ord_space(
   char *str);
 
 #if defined (__cplusplus)

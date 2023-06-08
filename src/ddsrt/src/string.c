@@ -220,40 +220,30 @@ ddsrt_strndup(const char *str, size_t len)
   return s;
 }
 
-void
-ddsrt_str_trim(char *str)
+char *
+ddsrt_str_trim_ord_space(char *str)
 {
-  int index, i;
+  char *end;
 
-  if (str == NULL) {
-    return;
-  }
-  
-  /* trim leading white spaces */
-  index = 0;
-  while(str[index] == ' ' || str[index] == '\t' || str[index] == '\n') {
-    index++;
-  }
-
-  /* shift all trailing characters to its left */
-  i = 0;
-  while(str[i + index] != '\0') {
-    str[i] = str[i + index];
-    i++;
-  }
-  str[i] = '\0'; /* terminate string with NULL */
-
-  /* trim trailing white spaces */
-  i = 0;
-  index = -1;
-  while(str[i] != '\0') {
-    if(str[i] != ' ' && str[i] != '\t' && str[i] != '\n') {
-      index = i;
+  if (str != NULL)
+  { 
+    /* trim leading space */
+    while ((*str != '\0') && (*str == ' ')) {
+      ++str;
     }
-    i++;
+    if (*str == '\0') { /* All spaces? */
+      return str;
+    }
+
+    /* trim trailing space */
+    end = str + strlen(str) - 1;
+    while ((end > str) && (*end == ' ')) {
+      end--;
+    }
+    /* add new null terminator character */
+    end[1] = '\0';
   }
 
-  /* mark the next character to last non white space character as NULL */
-  str[index + 1] = '\0';
+  return str;
 }
 

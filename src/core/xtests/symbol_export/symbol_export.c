@@ -988,7 +988,7 @@ int main (int argc, char **argv)
   ddsrt_strlcpy (ptr, ptr2, 1);
   ddsrt_strlcat (ptr, ptr2, 1);
   ddsrt_str_replace (ptr, ptr2, ptr3, 1);
-  ddsrt_str_trim (ptr);
+  ddsrt_str_trim_ord_space (ptr);
 
   // ddsrt/strtol.h
   ddsrt_todigit (0);
