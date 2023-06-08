@@ -168,7 +168,7 @@ function(IDLC_GENERATE_GENERIC)
         message(FATAL_ERROR "Cannot use base dir with different file tree from input file (${_base_dir_abs} to ${_file} yields ${_file_path_rel})")
       endif()
       string(REPLACE ${_name_ext} "" _mid_dir_path ${_file_path_rel})
-      string(REGEX REPLACE "[\\/]$" "" _mid_dir_path ${_mid_dir_path})
+      string(REGEX REPLACE "[\\/]$" "" _mid_dir_path "${_mid_dir_path}")
     endif()
 
     set(_file_outputs "")
