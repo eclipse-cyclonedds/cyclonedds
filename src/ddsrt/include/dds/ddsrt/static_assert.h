@@ -38,4 +38,23 @@
   } while (0)
 #endif
 
+// _Generic is C11, gcc and clang have supported it for a long time already
+// and will happily do it also when compiling C99 code.  Microsoft did add
+// it eventually, but only when compiling with /std:c11 according to the
+// docs.
+//
+// Skipping the test for non-whitelisted cases means this should work on
+// all Linux and macOS builds without breaking other platforms.  That is
+// a reasonable compromise.
+#if (__STDC__ == 1 && __STDC_VERSION__ >= 201112L) || \
+    (__GNUC__*10000 + __GNUC_MINOR__*100 + __GNUC_PATCHLEVEL__) >= 40900 || \
+    (__clang_major__*10000 + __clang_minor__*100 + __clang_patchlevel__) >= 30000
+#define DDSRT_STATIC_ASSERT_IS_UNSIGNED(v_) \
+  DDSRT_STATIC_ASSERT(_Generic(v_, \
+    uint8_t: 1, uint16_t: 1, uint32_t: 1, uint64_t: 1, \
+    default: 0))
+#else
+#define DDSRT_STATIC_ASSERT_IS_UNSIGNED(v_) DDSRT_STATIC_ASSERT(1)
+#endif
+
 #endif
