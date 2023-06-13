@@ -166,9 +166,9 @@ void idl_yypstate_delete_stack(idl_yypstate *yyps);
 %type <type_spec> type_spec simple_type_spec template_type_spec
                   switch_type_spec const_type annotation_member_type
                   any_const_type struct_inherit_spec
-%type <literal> literal positive_int_const fixed_array_size
+%type <literal> literal positive_int_const fixed_array_size fixed_array_sizes
 %type <const_expr> const_expr or_expr xor_expr and_expr shift_expr add_expr
-                   mult_expr unary_expr primary_expr fixed_array_sizes
+                   mult_expr unary_expr primary_expr
                    annotation_member_default
 %type <kind> shift_operator add_operator mult_operator unary_operator base_type_spec floating_pt_type integer_type
              signed_int unsigned_int char_type wide_char_type boolean_type
