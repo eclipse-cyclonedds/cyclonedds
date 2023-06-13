@@ -3028,12 +3028,20 @@ idl_create_declarator(
   static const struct methods methods = {
     delete_declarator, 0, describe_declarator };
 
+  for (idl_const_expr_t *ce = const_expr; ce; ce = idl_next(ce)) {
+    assert(idl_mask(ce) & IDL_LITERAL);
+    idl_literal_t const * const lit = ce;
+    if (lit->value.uint32 == 0) {
+      idl_error(pstate, idl_location(lit), "Array bound must be positive.");
+      return IDL_RETCODE_OUT_OF_RANGE;
+    }
+  }
+
   if ((ret = create_node(pstate, size, mask, location, &methods, &node)))
     return ret;
   node->name = name;
   node->const_expr = const_expr;
   for (idl_const_expr_t *ce = const_expr; ce; ce = idl_next(ce)) {
-    assert(idl_mask(ce) & IDL_LITERAL);
     assert(!((idl_node_t *)ce)->parent);
     ((idl_node_t *)ce)->parent = (idl_node_t *)node;
   }
