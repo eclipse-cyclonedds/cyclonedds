@@ -822,8 +822,13 @@ static dds_return_t xt_valid_array_bounds (struct ddsi_domaingv *gv, const struc
   uint32_t dims = 1;
   while (t->_d == DDS_XTypes_TK_ARRAY)
   {
+    if (t->_u.array.bounds._length == 0)
+      return DDS_RETCODE_BAD_PARAMETER;
     for (uint32_t n = 0; n < t->_u.array.bounds._length; n++)
     {
+      DDSRT_STATIC_ASSERT_IS_UNSIGNED(t->_u.array.bounds._buffer[n]);
+      if (t->_u.array.bounds._buffer[n] == 0)
+        return DDS_RETCODE_BAD_PARAMETER;
       if (UINT32_MAX / dims < t->_u.array.bounds._buffer[n])
       {
         GVTRACE ("array bound overflow\n");
