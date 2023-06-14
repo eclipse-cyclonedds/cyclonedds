@@ -32,20 +32,20 @@ int64_t ddsi_writer_hbcontrol_intv (const struct ddsi_writer *wr, const struct d
 void ddsi_writer_hbcontrol_note_asyncwrite (struct ddsi_writer *wr, ddsrt_mtime_t tnow);
 
 /** @component outgoing_rtps */
-int ddsi_writer_hbcontrol_ack_required (const struct ddsi_writer *wr, const struct ddsi_whc_state *whcst, ddsrt_mtime_t tnow);
+enum ddsi_hbcontrol_ack_required ddsi_writer_hbcontrol_ack_required (const struct ddsi_writer *wr, const struct ddsi_whc_state *whcst, ddsrt_mtime_t tnow);
 
 /** @component outgoing_rtps */
-struct ddsi_xmsg *ddsi_writer_hbcontrol_piggyback (struct ddsi_writer *wr, const struct ddsi_whc_state *whcst, ddsrt_mtime_t tnow, uint32_t packetid, int *hbansreq);
+struct ddsi_xmsg *ddsi_writer_hbcontrol_piggyback (struct ddsi_writer *wr, const struct ddsi_whc_state *whcst, ddsrt_mtime_t tnow, uint32_t packetid, enum ddsi_hbcontrol_ack_required *hbansreq);
 
 /** @component outgoing_rtps */
 int ddsi_writer_hbcontrol_must_send (const struct ddsi_writer *wr, const struct ddsi_whc_state *whcst, ddsrt_mtime_t tnow);
 
 /** @component outgoing_rtps */
-struct ddsi_xmsg *ddsi_writer_hbcontrol_create_heartbeat (struct ddsi_writer *wr, const struct ddsi_whc_state *whcst, ddsrt_mtime_t tnow, int hbansreq, int issync);
+struct ddsi_xmsg *ddsi_writer_hbcontrol_create_heartbeat (struct ddsi_writer *wr, const struct ddsi_whc_state *whcst, ddsrt_mtime_t tnow, enum ddsi_hbcontrol_ack_required hbansreq, int issync);
 
 #ifdef DDS_HAS_SECURITY
 /** @component outgoing_rtps */
-struct ddsi_xmsg *ddsi_writer_hbcontrol_p2p(struct ddsi_writer *wr, const struct ddsi_whc_state *whcst, int hbansreq, struct ddsi_proxy_reader *prd);
+struct ddsi_xmsg *ddsi_writer_hbcontrol_p2p(struct ddsi_writer *wr, const struct ddsi_whc_state *whcst, enum ddsi_hbcontrol_ack_required hbansreq, struct ddsi_proxy_reader *prd);
 #endif
 
 struct ddsi_heartbeat_xevent_cb_arg {

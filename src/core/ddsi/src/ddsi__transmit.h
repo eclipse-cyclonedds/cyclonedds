@@ -12,6 +12,7 @@
 #define DDSI__TRANSMIT_H
 
 #include "dds/ddsi/ddsi_transmit.h"
+#include "dds/ddsi/ddsi_hbcontrol.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -58,7 +59,7 @@ int ddsi_enqueue_sample_wrlock_held (struct ddsi_writer *wr, ddsi_seqno_t seq, s
 void ddsi_enqueue_spdp_sample_wrlock_held (struct ddsi_writer *wr, ddsi_seqno_t seq, struct ddsi_serdata *serdata, struct ddsi_proxy_reader *prd);
 
 /** @component outgoing_rtps */
-void ddsi_add_heartbeat (struct ddsi_xmsg *msg, struct ddsi_writer *wr, const struct ddsi_whc_state *whcst, int hbansreq, int hbliveliness, ddsi_entityid_t dst, int issync);
+void ddsi_add_heartbeat (struct ddsi_xmsg *msg, struct ddsi_writer *wr, const struct ddsi_whc_state *whcst, enum ddsi_hbcontrol_ack_required hbansreq, int hbliveliness, ddsi_entityid_t dst, int issync);
 
 /** @component outgoing_rtps */
 int ddsi_write_sample_p2p_wrlock_held(struct ddsi_writer *wr, ddsi_seqno_t seq, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk, struct ddsi_proxy_reader *prd);

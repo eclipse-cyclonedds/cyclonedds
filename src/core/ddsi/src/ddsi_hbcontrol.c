@@ -43,11 +43,11 @@ void ddsi_writer_hbcontrol_init (struct ddsi_hbcontrol *hbc)
   hbc->last_packetid = 0;
 }
 
-static void writer_hbcontrol_note_hb (struct ddsi_writer *wr, ddsrt_mtime_t tnow, int ansreq)
+static void writer_hbcontrol_note_hb (struct ddsi_writer *wr, ddsrt_mtime_t tnow, enum ddsi_hbcontrol_ack_required ansreq)
 {
   struct ddsi_hbcontrol * const hbc = &wr->hbcontrol;
 
-  if (ansreq)
+  if (ansreq != DDSI_HBC_ACK_REQ_NO)
     hbc->t_of_last_ackhb = tnow;
   hbc->t_of_last_hb = tnow;
 
@@ -112,7 +112,7 @@ int ddsi_writer_hbcontrol_must_send (const struct ddsi_writer *wr, const struct 
   return (tnow.v >= hbc->t_of_last_hb.v + ddsi_writer_hbcontrol_intv (wr, whcst, tnow));
 }
 
-struct ddsi_xmsg *ddsi_writer_hbcontrol_create_heartbeat (struct ddsi_writer *wr, const struct ddsi_whc_state *whcst, ddsrt_mtime_t tnow, int hbansreq, int issync)
+struct ddsi_xmsg *ddsi_writer_hbcontrol_create_heartbeat (struct ddsi_writer *wr, const struct ddsi_whc_state *whcst, ddsrt_mtime_t tnow, enum ddsi_hbcontrol_ack_required hbansreq, int issync)
 {
   struct ddsi_domaingv const * const gv = wr->e.gv;
   struct ddsi_xmsg *msg;
@@ -120,7 +120,6 @@ struct ddsi_xmsg *ddsi_writer_hbcontrol_create_heartbeat (struct ddsi_writer *wr
 
   ASSERT_MUTEX_HELD (&wr->e.lock);
   assert (wr->reliable);
-  assert (hbansreq >= 0);
 
   if ((msg = ddsi_xmsg_new (gv->xmsgpool, &wr->e.guid, wr->c.pp, sizeof (ddsi_rtps_info_ts_t) + sizeof (ddsi_rtps_heartbeat_t), DDSI_XMSG_KIND_CONTROL)) == NULL)
     /* out of memory at worst slows down traffic */
@@ -210,7 +209,7 @@ struct ddsi_xmsg *ddsi_writer_hbcontrol_create_heartbeat (struct ddsi_writer *wr
   return msg;
 }
 
-static int writer_hbcontrol_ack_required_generic (const struct ddsi_writer *wr, const struct ddsi_whc_state *whcst, ddsrt_mtime_t tlast, ddsrt_mtime_t tnow, int piggyback)
+static enum ddsi_hbcontrol_ack_required writer_hbcontrol_ack_required_generic (const struct ddsi_writer *wr, const struct ddsi_whc_state *whcst, ddsrt_mtime_t tlast, ddsrt_mtime_t tnow, int piggyback)
 {
   struct ddsi_domaingv const * const gv = wr->e.gv;
   struct ddsi_hbcontrol const * const hbc = &wr->hbcontrol;
@@ -226,33 +225,33 @@ static int writer_hbcontrol_ack_required_generic (const struct ddsi_writer *wr, 
        piggybacked onto it, so that the scheduled heartbeat can be
        suppressed. */
     if (tnow.v >= tlast.v + 4 * hb_intv_ack / 5)
-      return 2;
+      return DDSI_HBC_ACK_REQ_YES_AND_FLUSH;
   }
   else
   {
     /* For heartbeat events use a slightly longer interval */
     if (tnow.v >= tlast.v + hb_intv_ack)
-      return 2;
+      return DDSI_HBC_ACK_REQ_YES_AND_FLUSH;
   }
 
   if (whcst->unacked_bytes >= wr->whc_low + (wr->whc_high - wr->whc_low) / 2)
   {
     if (tnow.v >= hbc->t_of_last_ackhb.v + gv->config.const_hb_intv_sched_min)
-      return 2;
+      return DDSI_HBC_ACK_REQ_YES_AND_FLUSH;
     else if (tnow.v >= hbc->t_of_last_ackhb.v + gv->config.const_hb_intv_min)
-      return 1;
+      return DDSI_HBC_ACK_REQ_YES;
   }
 
-  return 0;
+  return DDSI_HBC_ACK_REQ_NO;
 }
 
-int ddsi_writer_hbcontrol_ack_required (const struct ddsi_writer *wr, const struct ddsi_whc_state *whcst, ddsrt_mtime_t tnow)
+enum ddsi_hbcontrol_ack_required ddsi_writer_hbcontrol_ack_required (const struct ddsi_writer *wr, const struct ddsi_whc_state *whcst, ddsrt_mtime_t tnow)
 {
   struct ddsi_hbcontrol const * const hbc = &wr->hbcontrol;
   return writer_hbcontrol_ack_required_generic (wr, whcst, hbc->t_of_last_write, tnow, 0);
 }
 
-struct ddsi_xmsg *ddsi_writer_hbcontrol_piggyback (struct ddsi_writer *wr, const struct ddsi_whc_state *whcst, ddsrt_mtime_t tnow, uint32_t packetid, int *hbansreq)
+struct ddsi_xmsg *ddsi_writer_hbcontrol_piggyback (struct ddsi_writer *wr, const struct ddsi_whc_state *whcst, ddsrt_mtime_t tnow, uint32_t packetid, enum ddsi_hbcontrol_ack_required *hbansreq)
 {
   struct ddsi_hbcontrol * const hbc = &wr->hbcontrol;
   uint32_t last_packetid;
@@ -273,12 +272,12 @@ struct ddsi_xmsg *ddsi_writer_hbcontrol_piggyback (struct ddsi_writer *wr, const
   ddsi_writer_hbcontrol_note_asyncwrite (wr, tnow);
 
   *hbansreq = writer_hbcontrol_ack_required_generic (wr, whcst, tlast, tnow, 1);
-  if (*hbansreq >= 2) {
+  if (*hbansreq >= DDSI_HBC_ACK_REQ_YES_AND_FLUSH) {
     /* So we force a heartbeat in - but we also rely on our caller to
        send the packet out */
     msg = ddsi_writer_hbcontrol_create_heartbeat (wr, whcst, tnow, *hbansreq, 1);
     if (wr->test_suppress_flush_on_sync_heartbeat)
-      *hbansreq = 1;
+      *hbansreq = DDSI_HBC_ACK_REQ_YES;
   } else if (last_packetid != packetid && tnow.v - t_of_last_hb.v > DDS_USECS (100)) {
     /* If we crossed a packet boundary since the previous write,
        piggyback a heartbeat, with *hbansreq determining whether or
@@ -293,7 +292,7 @@ struct ddsi_xmsg *ddsi_writer_hbcontrol_piggyback (struct ddsi_writer *wr, const
        present. */
     msg = ddsi_writer_hbcontrol_create_heartbeat (wr, whcst, tnow, *hbansreq, 1);
   } else {
-    *hbansreq = 0;
+    *hbansreq = DDSI_HBC_ACK_REQ_NO;
     msg = NULL;
   }
 
@@ -303,7 +302,7 @@ struct ddsi_xmsg *ddsi_writer_hbcontrol_piggyback (struct ddsi_writer *wr, const
     {
       ETRACE (wr, "heartbeat(wr "PGUIDFMT"%s) piggybacked, resched in %g s (min-ack [none], avail-seq %"PRIu64", xmit %"PRIu64")\n",
               PGUID (wr->e.guid),
-              *hbansreq ? "" : " final",
+              *hbansreq != DDSI_HBC_ACK_REQ_NO ? "" : " final",
               (hbc->tsched.v == DDS_NEVER) ? INFINITY : (double) (hbc->tsched.v - tnow.v) / 1e9,
               whcst->max_seq, ddsi_writer_read_seq_xmit(wr));
     }
@@ -311,7 +310,7 @@ struct ddsi_xmsg *ddsi_writer_hbcontrol_piggyback (struct ddsi_writer *wr, const
     {
       ETRACE (wr, "heartbeat(wr "PGUIDFMT"%s) piggybacked, resched in %g s (min-ack %"PRIu64"%s, avail-seq %"PRIu64", xmit %"PRIu64")\n",
               PGUID (wr->e.guid),
-              *hbansreq ? "" : " final",
+              *hbansreq != DDSI_HBC_ACK_REQ_NO ? "" : " final",
               (hbc->tsched.v == DDS_NEVER) ? INFINITY : (double) (hbc->tsched.v - tnow.v) / 1e9,
               root_rdmatch (wr)->min_seq,
               root_rdmatch (wr)->all_have_replied_to_hb ? "" : "!",
@@ -323,7 +322,7 @@ struct ddsi_xmsg *ddsi_writer_hbcontrol_piggyback (struct ddsi_writer *wr, const
 }
 
 #ifdef DDS_HAS_SECURITY
-struct ddsi_xmsg *ddsi_writer_hbcontrol_p2p(struct ddsi_writer *wr, const struct ddsi_whc_state *whcst, int hbansreq, struct ddsi_proxy_reader *prd)
+struct ddsi_xmsg *ddsi_writer_hbcontrol_p2p(struct ddsi_writer *wr, const struct ddsi_whc_state *whcst, enum ddsi_hbcontrol_ack_required hbansreq, struct ddsi_proxy_reader *prd)
 {
   struct ddsi_domaingv const * const gv = wr->e.gv;
   struct ddsi_xmsg *msg;
@@ -363,7 +362,7 @@ struct ddsi_xmsg *ddsi_writer_hbcontrol_p2p(struct ddsi_writer *wr, const struct
 }
 #endif
 
-void ddsi_add_heartbeat (struct ddsi_xmsg *msg, struct ddsi_writer *wr, const struct ddsi_whc_state *whcst, int hbansreq, int hbliveliness, ddsi_entityid_t dst, int issync)
+void ddsi_add_heartbeat (struct ddsi_xmsg *msg, struct ddsi_writer *wr, const struct ddsi_whc_state *whcst, enum ddsi_hbcontrol_ack_required hbansreq, int hbliveliness, ddsi_entityid_t dst, int issync)
 {
   struct ddsi_domaingv const * const gv = wr->e.gv;
   struct ddsi_xmsg_marker sm_marker;
@@ -373,7 +372,6 @@ void ddsi_add_heartbeat (struct ddsi_xmsg *msg, struct ddsi_writer *wr, const st
   ASSERT_MUTEX_HELD (&wr->e.lock);
 
   assert (wr->reliable);
-  assert (hbansreq >= 0);
   assert (hbliveliness >= 0);
 
   if (gv->config.meas_hb_to_ack_latency)
@@ -386,7 +384,7 @@ void ddsi_add_heartbeat (struct ddsi_xmsg *msg, struct ddsi_writer *wr, const st
   hb = ddsi_xmsg_append (msg, &sm_marker, sizeof (ddsi_rtps_heartbeat_t));
   ddsi_xmsg_submsg_init (msg, sm_marker, DDSI_RTPS_SMID_HEARTBEAT);
 
-  if (!hbansreq)
+  if (hbansreq == DDSI_HBC_ACK_REQ_NO)
     hb->smhdr.flags |= DDSI_HEARTBEAT_FLAG_FINAL;
   if (hbliveliness)
     hb->smhdr.flags |= DDSI_HEARTBEAT_FLAG_LIVELINESS;
@@ -432,29 +430,22 @@ void ddsi_add_heartbeat (struct ddsi_xmsg *msg, struct ddsi_writer *wr, const st
 }
 
 #ifdef DDS_HAS_SECURITY
-static int send_heartbeat_to_all_readers_check_and_sched (struct ddsi_xevent *ev, struct ddsi_writer *wr, const struct ddsi_whc_state *whcst, ddsrt_mtime_t tnow, ddsrt_mtime_t *t_next)
+static bool send_heartbeat_to_all_readers_check_and_sched (struct ddsi_xevent *ev, struct ddsi_writer *wr, const struct ddsi_whc_state *whcst, ddsrt_mtime_t tnow, ddsrt_mtime_t *t_next, enum ddsi_hbcontrol_ack_required *hbansreq)
 {
-  int send;
+  bool send_heartbeat = false;
   if (!ddsi_writer_must_have_hb_scheduled (wr, whcst))
-  {
     wr->hbcontrol.tsched = DDSRT_MTIME_NEVER;
-    send = -1;
-  }
   else if (!ddsi_writer_hbcontrol_must_send (wr, whcst, tnow))
-  {
     wr->hbcontrol.tsched = ddsrt_mtime_add_duration (tnow, ddsi_writer_hbcontrol_intv (wr, whcst, tnow));
-    send = -1;
-  }
   else
   {
-    const int hbansreq = ddsi_writer_hbcontrol_ack_required (wr, whcst, tnow);
+    *hbansreq = ddsi_writer_hbcontrol_ack_required (wr, whcst, tnow);
     wr->hbcontrol.tsched = ddsrt_mtime_add_duration (tnow, ddsi_writer_hbcontrol_intv (wr, whcst, tnow));
-    send = hbansreq;
+    send_heartbeat = true;
   }
-
   ddsi_resched_xevent_if_earlier (ev, wr->hbcontrol.tsched);
   *t_next = wr->hbcontrol.tsched;
-  return send;
+  return send_heartbeat;
 }
 
 static void send_heartbeat_to_all_readers (struct ddsi_xpack *xp, struct ddsi_xevent *ev, struct ddsi_writer *wr, ddsrt_mtime_t tnow)
@@ -466,8 +457,8 @@ static void send_heartbeat_to_all_readers (struct ddsi_xpack *xp, struct ddsi_xe
   ddsrt_mutex_lock (&wr->e.lock);
 
   ddsi_whc_get_state(wr->whc, &whcst);
-  const int hbansreq = send_heartbeat_to_all_readers_check_and_sched (ev, wr, &whcst, tnow, &t_next);
-  if (hbansreq >= 0)
+  enum ddsi_hbcontrol_ack_required hbansreq;
+  if (send_heartbeat_to_all_readers_check_and_sched (ev, wr, &whcst, tnow, &t_next, &hbansreq))
   {
     struct ddsi_wr_prd_match *m;
     struct ddsi_guid last_guid = { .prefix = {.u = {0,0,0}}, .entityid = {0} };
@@ -485,12 +476,12 @@ static void send_heartbeat_to_all_readers (struct ddsi_xpack *xp, struct ddsi_xe
           ETRACE (wr, " heartbeat(wr "PGUIDFMT" rd "PGUIDFMT" %s) send, resched in %g s (min-ack %"PRIu64", avail-seq %"PRIu64")\n",
               PGUID (wr->e.guid),
               PGUID (m->prd_guid),
-              hbansreq ? "" : " final",
+              hbansreq != DDSI_HBC_ACK_REQ_NO ? "" : " final",
               (double)(t_next.v - tnow.v) / 1e9,
               m->seq,
               m->last_seq);
 
-          struct ddsi_xmsg *msg = ddsi_writer_hbcontrol_p2p(wr, &whcst, hbansreq, prd);
+          struct ddsi_xmsg *msg = ddsi_writer_hbcontrol_p2p (wr, &whcst, hbansreq, prd);
           if (msg != NULL)
           {
             ddsrt_mutex_unlock (&wr->e.lock);
@@ -541,7 +532,7 @@ void ddsi_heartbeat_xevent_cb (struct ddsi_domaingv *gv, struct ddsi_xevent *ev,
 
   struct ddsi_xmsg *msg;
   ddsrt_mtime_t t_next;
-  int hbansreq = 0;
+  enum ddsi_hbcontrol_ack_required hbansreq = DDSI_HBC_ACK_REQ_NO;
   struct ddsi_whc_state whcst;
 
 #ifdef DDS_HAS_SECURITY
@@ -557,13 +548,13 @@ void ddsi_heartbeat_xevent_cb (struct ddsi_domaingv *gv, struct ddsi_xevent *ev,
   ddsi_whc_get_state(wr->whc, &whcst);
   if (!ddsi_writer_must_have_hb_scheduled (wr, &whcst))
   {
-    hbansreq = 1; /* just for trace */
+    hbansreq = DDSI_HBC_ACK_REQ_YES; /* just for avoiding the "final" in the trace output */
     msg = NULL; /* Need not send it now, and no need to schedule it for the future */
     t_next.v = DDS_NEVER;
   }
   else if (!ddsi_writer_hbcontrol_must_send (wr, &whcst, tnow))
   {
-    hbansreq = 1; /* just for trace */
+    hbansreq = DDSI_HBC_ACK_REQ_YES; /* just for avoiding the "final" in the trace output */
     msg = NULL;
     t_next.v = tnow.v + ddsi_writer_hbcontrol_intv (wr, &whcst, tnow);
   }
@@ -578,7 +569,7 @@ void ddsi_heartbeat_xevent_cb (struct ddsi_domaingv *gv, struct ddsi_xevent *ev,
   {
     GVTRACE ("heartbeat(wr "PGUIDFMT"%s) %s, resched in %g s (min-ack [none], avail-seq %"PRIu64", xmit %"PRIu64")\n",
              PGUID (wr->e.guid),
-             hbansreq ? "" : " final",
+             hbansreq != DDSI_HBC_ACK_REQ_NO ? "" : " final",
              msg ? "sent" : "suppressed",
              (t_next.v == DDS_NEVER) ? INFINITY : (double)(t_next.v - tnow.v) / 1e9,
              whcst.max_seq, ddsi_writer_read_seq_xmit (wr));
@@ -587,7 +578,7 @@ void ddsi_heartbeat_xevent_cb (struct ddsi_domaingv *gv, struct ddsi_xevent *ev,
   {
     GVTRACE ("heartbeat(wr "PGUIDFMT"%s) %s, resched in %g s (min-ack %"PRId64"%s, avail-seq %"PRIu64", xmit %"PRIu64")\n",
              PGUID (wr->e.guid),
-             hbansreq ? "" : " final",
+             hbansreq != DDSI_HBC_ACK_REQ_NO ? "" : " final",
              msg ? "sent" : "suppressed",
              (t_next.v == DDS_NEVER) ? INFINITY : (double)(t_next.v - tnow.v) / 1e9,
              ((struct ddsi_wr_prd_match *) ddsrt_avl_root_non_empty (&ddsi_wr_readers_treedef, &wr->readers))->min_seq,
