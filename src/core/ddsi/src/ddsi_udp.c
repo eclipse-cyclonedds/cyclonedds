@@ -121,7 +121,7 @@ static ssize_t ddsi_udp_conn_read (struct ddsi_tran_conn * conn_cmn, unsigned ch
   return nrecv;
 }
 
-static ssize_t ddsi_udp_conn_write (struct ddsi_tran_conn * conn_cmn, const ddsi_locator_t *dst, size_t niov, const ddsrt_iovec_t *iov, uint32_t flags)
+static ssize_t ddsi_udp_conn_write (struct ddsi_tran_conn * conn_cmn, const ddsi_locator_t *dst, const ddsi_tran_write_msgfrags_t *msgfrags, uint32_t flags)
 {
   ddsi_udp_conn_t conn = (ddsi_udp_conn_t) conn_cmn;
   struct ddsi_domaingv * const gv = conn->m_base.m_base.gv;
@@ -134,13 +134,13 @@ static ssize_t ddsi_udp_conn_write (struct ddsi_tran_conn * conn_cmn, const ddsi
   ddsrt_mtime_t tnow = { 0 };
 #endif
   union addr dstaddr;
-  assert (niov <= INT_MAX);
+  assert (msgfrags->niov <= INT_MAX);
   ddsi_ipaddr_from_loc (&dstaddr.x, dst);
   ddsrt_msghdr_t msg = {
     .msg_name = &dstaddr.x,
     .msg_namelen = (socklen_t) ddsrt_sockaddr_get_size (&dstaddr.a),
-    .msg_iov = (ddsrt_iovec_t *) iov,
-    .msg_iovlen = (ddsrt_msg_iovlen_t) niov
+    .msg_iov = (ddsrt_iovec_t *) msgfrags->iov,
+    .msg_iovlen = (ddsrt_msg_iovlen_t) msgfrags->niov
 #if DDSRT_MSGHDR_FLAGS
     , .msg_flags = (int) flags
 #endif

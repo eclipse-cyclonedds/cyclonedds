@@ -138,6 +138,7 @@ void ddsi_get_participant_builtin_topic_data (const struct ddsi_participant *pp,
 #ifndef NDEBUG
         kind = pp->m_locator.kind;
 #endif
+        // FIXME: if the switches strip off VLAN tags on egress ports, then we using the packet's source address is probably wrong in cases where VLANs are being used
         data_port = meta_port = pp->m_locator.port;
       }
       assert (kind == gv->interfaces[i].extloc.kind);

@@ -3493,12 +3493,10 @@ void ddsi_trigger_recv_threads (const struct ddsi_domaingv *gv)
         char buf[DDSI_LOCSTRLEN];
         char dummy = 0;
         const ddsi_locator_t *dst = gv->recv_threads[i].arg.u.single.loc;
-        ddsrt_iovec_t iov;
-        iov.iov_base = &dummy;
-        iov.iov_len = 1;
+        DDSI_DECL_CONST_TRAN_WRITE_MSGFRAGS_PTR(msgfrags, ((ddsrt_iovec_t){ .iov_base = &dummy, .iov_len = 1 }));
         GVTRACE ("ddsi_trigger_recv_threads: %"PRIu32" single %s\n", i, ddsi_locator_to_string (buf, sizeof (buf), dst));
         // all sockets listen on at least the interfaces used for transmitting (at least for now)
-        ddsi_conn_write (gv->xmit_conns[0], dst, 1, &iov, 0);
+        ddsi_conn_write (gv->xmit_conns[0], dst, msgfrags, 0);
         break;
       }
       case DDSI_RTM_MANY: {

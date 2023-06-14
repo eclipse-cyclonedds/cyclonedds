@@ -1328,6 +1328,7 @@ static void joinleave_mcast_helper (struct ddsi_domaingv *gv, struct ddsi_tran_c
 {
   char buf[DDSI_LOCSTRLEN];
   assert (ddsi_is_mcaddr (gv, n));
+
   if (n->kind != DDSI_LOCATOR_KIND_UDPv4MCGEN)
   {
     if (joinleave (gv, gv->mship, conn, NULL, n) < 0)

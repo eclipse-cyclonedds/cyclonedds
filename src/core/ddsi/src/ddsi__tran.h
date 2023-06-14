@@ -15,6 +15,8 @@
 
 #include "dds/ddsrt/ifaddrs.h"
 #include "dds/ddsrt/atomics.h"
+#include "dds/ddsrt/static_assert.h"
+#include "dds/ddsrt/countargs.h"
 #include "dds/ddsi/ddsi_locator.h"
 #include "dds/ddsi/ddsi_config.h"
 #include "dds/ddsi/ddsi_tran.h"
@@ -39,6 +41,45 @@ struct ddsi_domaingv;
    coincidence!  */
 #define DDSI_TRAN_RANDOM_PORT_NUMBER 0
 
+#define DDSI_TRAN_RESERVED_IOV_SLOTS 1
+
+typedef struct ddsi_tran_write_msgfrags {
+  size_t niov; // only counts ones in iov
+  ddsrt_iovec_t tran_reserved[DDSI_TRAN_RESERVED_IOV_SLOTS];
+  ddsrt_iovec_t iov[];
+} ddsi_tran_write_msgfrags_t;
+
+// That tran_reserved and iov form a contiguous block of memory is guaranteed if I understand the spec correctly
+DDSRT_STATIC_ASSERT (offsetof (ddsi_tran_write_msgfrags_t, tran_reserved) + DDSI_TRAN_RESERVED_IOV_SLOTS * sizeof (ddsrt_iovec_t) == offsetof (ddsi_tran_write_msgfrags_t, iov));
+
+#define DDSI_DECL_TRAN_WRITE_MSGFRAGS_PTR(name_, n_) \
+  unsigned char name_##_ddsi_tran_write_msgfrags_buf[sizeof (ddsi_tran_write_msgfrags_t) + (n_) * sizeof (ddsrt_iovec_t)]; \
+  ddsi_tran_write_msgfrags_t * const name_ = (ddsi_tran_write_msgfrags_t *) name_##_ddsi_tran_write_msgfrags_buf;
+
+#define DDSI_DECL_CONST_TRAN_WRITE_MSGFRAGS_MSVC_WORKAROUND(x) x
+
+#define DDSI_DECL_CONST_TRAN_WRITE_MSGFRAGS_PTR3_1(name_, idx_, e_) \
+  name_##_nonconst->iov[idx_] = e_
+#define DDSI_DECL_CONST_TRAN_WRITE_MSGFRAGS_PTR3_2(name_, idx_, e_, ...) \
+  DDSI_DECL_CONST_TRAN_WRITE_MSGFRAGS_MSVC_WORKAROUND(DDSI_DECL_CONST_TRAN_WRITE_MSGFRAGS_PTR3_1(name_, idx_+1, __VA_ARGS__)); \
+  DDSI_DECL_CONST_TRAN_WRITE_MSGFRAGS_PTR3_1(name_, idx_, e_)
+#define DDSI_DECL_CONST_TRAN_WRITE_MSGFRAGS_PTR3_3(name_, idx_, e_, ...) \
+  DDSI_DECL_CONST_TRAN_WRITE_MSGFRAGS_MSVC_WORKAROUND(DDSI_DECL_CONST_TRAN_WRITE_MSGFRAGS_PTR3_2(name_, idx_+1, __VA_ARGS__)); \
+  DDSI_DECL_CONST_TRAN_WRITE_MSGFRAGS_PTR3_1(name_, idx_, e_)
+#define DDSI_DECL_CONST_TRAN_WRITE_MSGFRAGS_PTR3_4(name_, idx_, e_, ...) \
+  DDSI_DECL_CONST_TRAN_WRITE_MSGFRAGS_MSVC_WORKAROUND(DDSI_DECL_CONST_TRAN_WRITE_MSGFRAGS_PTR3_3(name_, idx_+1, __VA_ARGS__)); \
+  DDSI_DECL_CONST_TRAN_WRITE_MSGFRAGS_PTR3_1(name_, idx_, e_)
+#define DDSI_DECL_CONST_TRAN_WRITE_MSGFRAGS_PTR2(name_, n_, ...) \
+  unsigned char name_##_ddsi_tran_write_msgfrags_buf[sizeof (ddsi_tran_write_msgfrags_t) + (n_) * sizeof (ddsrt_iovec_t)]; \
+  ddsi_tran_write_msgfrags_t * const name_##_nonconst = (ddsi_tran_write_msgfrags_t *) name_##_ddsi_tran_write_msgfrags_buf; \
+  name_##_nonconst->niov = n_; \
+  DDSI_DECL_CONST_TRAN_WRITE_MSGFRAGS_MSVC_WORKAROUND(DDSI_DECL_CONST_TRAN_WRITE_MSGFRAGS_PTR3_##n_(name_, 0, __VA_ARGS__)); \
+  const ddsi_tran_write_msgfrags_t * const name_ = name_##_nonconst
+#define DDSI_DECL_CONST_TRAN_WRITE_MSGFRAGS_PTR1(name_, n_, ...) \
+  DDSI_DECL_CONST_TRAN_WRITE_MSGFRAGS_MSVC_WORKAROUND(DDSI_DECL_CONST_TRAN_WRITE_MSGFRAGS_PTR2(name_, n_, __VA_ARGS__))
+#define DDSI_DECL_CONST_TRAN_WRITE_MSGFRAGS_PTR(name_, ...) \
+  DDSI_DECL_CONST_TRAN_WRITE_MSGFRAGS_MSVC_WORKAROUND(DDSI_DECL_CONST_TRAN_WRITE_MSGFRAGS_PTR1(name_, DDSRT_COUNT_ARGS(__VA_ARGS__), __VA_ARGS__))
+
 enum ddsi_tran_qos_purpose {
   DDSI_TRAN_QOS_XMIT_UC, // will send unicast only
   DDSI_TRAN_QOS_XMIT_MC, // may send unicast or multicast
@@ -48,7 +89,7 @@ enum ddsi_tran_qos_purpose {
 
 /* Function pointer types */
 typedef ssize_t (*ddsi_tran_read_fn_t) (struct ddsi_tran_conn *, unsigned char *, size_t, bool, ddsi_locator_t *);
-typedef ssize_t (*ddsi_tran_write_fn_t) (struct ddsi_tran_conn *, const ddsi_locator_t *, size_t, const ddsrt_iovec_t *, uint32_t);
+typedef ssize_t (*ddsi_tran_write_fn_t) (struct ddsi_tran_conn *, const ddsi_locator_t *, const ddsi_tran_write_msgfrags_t *, uint32_t);
 typedef int (*ddsi_tran_locator_fn_t) (struct ddsi_tran_factory *, struct ddsi_tran_base *, ddsi_locator_t *);
 typedef bool (*ddsi_tran_supports_fn_t) (const struct ddsi_tran_factory *, int32_t);
 typedef ddsrt_socket_t (*ddsi_tran_handle_fn_t) (struct ddsi_tran_base *);
@@ -70,6 +111,10 @@ typedef int (*ddsi_is_mcaddr_fn_t) (const struct ddsi_tran_factory *tran, const 
 typedef int (*ddsi_is_ssm_mcaddr_fn_t) (const struct ddsi_tran_factory *tran, const ddsi_locator_t *loc);
 typedef int (*ddsi_is_valid_port_fn_t) (const struct ddsi_tran_factory *tran, uint32_t port);
 typedef uint32_t (*ddsi_receive_buffer_size_fn_t) (const struct ddsi_tran_factory *fact);
+typedef uint32_t (*m_get_locator_port_fn_t) (const struct ddsi_tran_factory *factory, const ddsi_locator_t *loc);
+typedef void (*m_set_locator_port_fn_t) (const struct ddsi_tran_factory *factory, ddsi_locator_t *loc, uint32_t port);
+typedef uint32_t (*m_get_locator_aux_fn_t) (const struct ddsi_tran_factory *factory, const ddsi_locator_t *loc);
+typedef void (*m_set_locator_aux_fn_t) (const struct ddsi_tran_factory *factory, ddsi_locator_t *loc, uint32_t aux);
 
 enum ddsi_nearby_address_result {
   DNAR_UNREACHABLE, /**< no way to reach this address */
@@ -176,6 +221,10 @@ struct ddsi_tran_factory
   ddsi_is_valid_port_fn_t m_is_valid_port_fn;
   ddsi_receive_buffer_size_fn_t m_receive_buffer_size_fn;
   ddsi_locator_from_sockaddr_fn_t m_locator_from_sockaddr_fn;
+  m_get_locator_port_fn_t m_get_locator_port_fn;
+  m_set_locator_port_fn_t m_set_locator_port_fn;
+  m_get_locator_aux_fn_t m_get_locator_aux_fn;
+  m_set_locator_aux_fn_t m_set_locator_aux_fn;
 
   /* Data */
 
@@ -244,6 +293,31 @@ inline bool ddsi_factory_supports (const struct ddsi_tran_factory *factory, int3
 }
 
 /** @component transport */
+inline uint32_t ddsi_tran_get_locator_port (const struct ddsi_tran_factory *factory, const ddsi_locator_t *loc) {
+  return factory->m_get_locator_port_fn ? factory->m_get_locator_port_fn (factory, loc) : loc->port;
+}
+
+/** @component transport */
+inline uint32_t ddsi_tran_get_locator_aux (const struct ddsi_tran_factory *factory, const ddsi_locator_t *loc) {
+  return factory->m_get_locator_aux_fn ? factory->m_get_locator_aux_fn (factory, loc) : 0;
+}
+
+/** @component transport */
+inline void ddsi_tran_set_locator_port (const struct ddsi_tran_factory *factory, ddsi_locator_t *loc, uint32_t port) {
+  if (factory->m_set_locator_port_fn)
+    factory->m_set_locator_port_fn (factory, loc, port);
+  else
+    loc->port = port;
+}
+
+/** @component transport */
+inline void ddsi_tran_set_locator_aux (const struct ddsi_tran_factory *factory, ddsi_locator_t *loc, uint32_t aux) {
+  assert (factory->m_set_locator_aux_fn || aux == 0);
+  if (factory->m_set_locator_aux_fn)
+    factory->m_set_locator_aux_fn (factory, loc, aux);
+}
+
+/** @component transport */
 inline int ddsi_is_valid_port (const struct ddsi_tran_factory *factory, uint32_t port) {
   return factory->m_is_valid_port_fn (factory, port);
 }
@@ -300,8 +374,8 @@ inline int ddsi_conn_locator (struct ddsi_tran_conn * conn, ddsi_locator_t * loc
 }
 
 /** @component transport */
-inline ssize_t ddsi_conn_write (struct ddsi_tran_conn * conn, const ddsi_locator_t *dst, size_t niov, const ddsrt_iovec_t *iov, uint32_t flags) {
-  return conn->m_closed ? -1 : (conn->m_write_fn) (conn, dst, niov, iov, flags);
+inline ssize_t ddsi_conn_write (struct ddsi_tran_conn * conn, const ddsi_locator_t *dst, const ddsi_tran_write_msgfrags_t *msgfrags, uint32_t flags) {
+  return conn->m_closed ? -1 : (conn->m_write_fn) (conn, dst, msgfrags, flags);
 }
 
 /** @component transport */

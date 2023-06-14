@@ -72,13 +72,10 @@ static void cpemitchunk(struct st *st, ddsi_locator_t loc)
   snprintf(header, sizeof (header), "\r\n%04"PRIX16"\r\n\r\n", (uint16_t)(st->pos - 8));
   memcpy(st->chunkbuf, header, (st->pos > 8) ? 8 : 10);
 
-  ddsrt_iovec_t iov;
-  iov.iov_base = st->chunkbuf;
-  iov.iov_len = (ddsrt_iov_len_t) ((st->pos > 8) ? st->pos : 10);
-
-  if (ddsi_conn_write (st->conn, &loc, 1, &iov, 0) < 0)
+  DDSI_DECL_CONST_TRAN_WRITE_MSGFRAGS_PTR (msgfrags,
+    ((ddsrt_iovec_t){ .iov_base = st->chunkbuf, .iov_len = (ddsrt_iov_len_t) ((st->pos > 8) ? st->pos : 10) }));
+  if (ddsi_conn_write (st->conn, &loc, msgfrags, 0) < 0)
     st->error = true;
-
   st->pos = 8;
 }
 
@@ -638,7 +635,6 @@ static void debmon_handle_connection (struct ddsi_debug_monitor *dm, struct ddsi
 {
   ddsi_locator_t loc;
   const char *http_header = "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n";
-  const ddsrt_iovec_t iov = { .iov_base = (void *) http_header, .iov_len = (ddsrt_iov_len_t) strlen (http_header) };
 
   struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
   struct st st = {
@@ -654,7 +650,11 @@ static void debmon_handle_connection (struct ddsi_debug_monitor *dm, struct ddsi
     return;
   }
 
-  if (ddsi_conn_write (st.conn, &loc, 1, &iov, 0) < 0) {
+  DDSI_DECL_CONST_TRAN_WRITE_MSGFRAGS_PTR(msgfrags, ((ddsrt_iovec_t){
+    .iov_base = (void *) http_header,
+    .iov_len = (ddsrt_iov_len_t) strlen (http_header)
+  }));
+  if (ddsi_conn_write (st.conn, &loc, msgfrags, 0) < 0) {
     // If we cant even send headers dont bother with encoding the rest
     return;
   }

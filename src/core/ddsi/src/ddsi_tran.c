@@ -36,7 +36,11 @@ extern inline int ddsi_listener_locator (struct ddsi_tran_listener * listener, d
 extern inline int ddsi_listener_listen (struct ddsi_tran_listener * listener);
 extern inline struct ddsi_tran_conn * ddsi_listener_accept (struct ddsi_tran_listener * listener);
 extern inline ssize_t ddsi_conn_read (struct ddsi_tran_conn * conn, unsigned char * buf, size_t len, bool allow_spurious, ddsi_locator_t *srcloc);
-extern inline ssize_t ddsi_conn_write (struct ddsi_tran_conn * conn, const ddsi_locator_t *dst, size_t niov, const ddsrt_iovec_t *iov, uint32_t flags);
+extern inline ssize_t ddsi_conn_write (struct ddsi_tran_conn * conn, const ddsi_locator_t *dst, const ddsi_tran_write_msgfrags_t *msgfrags, uint32_t flags);
+extern inline uint32_t ddsi_tran_get_locator_port (const struct ddsi_tran_factory *factory, const ddsi_locator_t *loc);
+extern inline void ddsi_tran_set_locator_port (const struct ddsi_tran_factory *factory, ddsi_locator_t *loc, uint32_t port);
+extern inline uint32_t ddsi_tran_get_locator_aux (const struct ddsi_tran_factory *factory, const ddsi_locator_t *loc);
+extern inline void ddsi_tran_set_locator_aux (const struct ddsi_tran_factory *factory, ddsi_locator_t *loc, uint32_t aux);
 
 void ddsi_factory_add (struct ddsi_domaingv *gv, struct ddsi_tran_factory * factory)
 {
