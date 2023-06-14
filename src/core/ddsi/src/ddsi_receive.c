@@ -699,12 +699,12 @@ struct ddsi_xmsg * ddsi_gap_info_create_gap(struct ddsi_writer *wr, struct ddsi_
 struct defer_hb_state {
   struct ddsi_xmsg *m;
   struct ddsi_xeventq *evq;
-  int hbansreq;
+  enum ddsi_hbcontrol_ack_required hbansreq;
   uint64_t wr_iid;
   uint64_t prd_iid;
 };
 
-static void defer_heartbeat_to_peer (struct ddsi_writer *wr, const struct ddsi_whc_state *whcst, struct ddsi_proxy_reader *prd, int hbansreq, struct defer_hb_state *defer_hb_state)
+static void defer_heartbeat_to_peer (struct ddsi_writer *wr, const struct ddsi_whc_state *whcst, struct ddsi_proxy_reader *prd, enum ddsi_hbcontrol_ack_required hbansreq, struct defer_hb_state *defer_hb_state)
 {
   ETRACE (wr, "defer_heartbeat_to_peer: "PGUIDFMT" -> "PGUIDFMT" - queue for transmit\n", PGUID (wr->e.guid), PGUID (prd->e.guid));
 
@@ -735,7 +735,7 @@ static void defer_heartbeat_to_peer (struct ddsi_writer *wr, const struct ddsi_w
   defer_hb_state->prd_iid = prd->e.iid;
 }
 
-static void force_heartbeat_to_peer (struct ddsi_writer *wr, const struct ddsi_whc_state *whcst, struct ddsi_proxy_reader *prd, int hbansreq, struct defer_hb_state *defer_hb_state)
+static void force_heartbeat_to_peer (struct ddsi_writer *wr, const struct ddsi_whc_state *whcst, struct ddsi_proxy_reader *prd, enum ddsi_hbcontrol_ack_required hbansreq, struct defer_hb_state *defer_hb_state)
 {
   defer_heartbeat_to_peer (wr, whcst, prd, hbansreq, defer_hb_state);
   ddsi_qxev_msg (wr->evq, defer_hb_state->m);

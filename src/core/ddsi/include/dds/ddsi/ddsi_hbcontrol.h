@@ -34,6 +34,12 @@ struct ddsi_hbcontrol {
   uint32_t hbs_since_last_write; ///< Number of heartbeats sent since last write
   uint32_t last_packetid;        ///< Last RTPS message id containing a heartbeat from this writer
 };
+
+/// @brief Encoding for possible ways of adding heartbeats to messages
+enum ddsi_hbcontrol_ack_required {
+  DDSI_HBC_ACK_REQ_NO,           ///< Heartbeat does not require a response (FINAL flag set)
+  DDSI_HBC_ACK_REQ_YES,          ///< Heartbeat requires a response, may continue packing
+  DDSI_HBC_ACK_REQ_YES_AND_FLUSH ///< Heartbeat requires a response, must send immediately
 };
 
 #if defined (__cplusplus)

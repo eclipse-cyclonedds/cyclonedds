@@ -426,7 +426,7 @@ static void transmit_sample_unlocks_wr (struct ddsi_xpack *xp, struct ddsi_write
   /* on entry: &wr->e.lock held; on exit: lock no longer held */
   struct ddsi_domaingv const * const gv = wr->e.gv;
   struct ddsi_xmsg *hmsg = NULL;
-  int hbansreq = 0;
+  enum ddsi_hbcontrol_ack_required hbansreq = DDSI_HBC_ACK_REQ_NO;
   uint32_t sz;
   assert(xp);
   assert((wr->heartbeat_xevent != NULL) == (whcst != NULL));
@@ -459,7 +459,7 @@ static void transmit_sample_unlocks_wr (struct ddsi_xpack *xp, struct ddsi_write
 
   if(hmsg)
     ddsi_xpack_addmsg (xp, hmsg, 0);
-  if (hbansreq >= 2)
+  if (hbansreq >= DDSI_HBC_ACK_REQ_YES_AND_FLUSH)
     ddsi_xpack_send (xp, true);
 }
 
