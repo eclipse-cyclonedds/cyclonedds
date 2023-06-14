@@ -80,23 +80,25 @@
 
 static int add_peer_address_ports (const struct ddsi_domaingv *gv, struct ddsi_addrset *as, ddsi_locator_t *loc)
 {
+  struct ddsi_tran_factory * const tran = ddsi_factory_find_supported_kind (gv, loc->kind);
+  assert (tran != NULL);
   char buf[DDSI_LOCSTRLEN];
   int32_t maxidx;
 
   // check whether port number, address type and mode make sense, and prepare the
   // locator by patching the first port number to use if none is given
-  if (loc->port != DDSI_LOCATOR_PORT_INVALID)
+  if (ddsi_tran_get_locator_port (tran, loc) != DDSI_LOCATOR_PORT_INVALID)
   {
     maxidx = 0;
   }
   else if (ddsi_is_mcaddr (gv, loc))
   {
-    loc->port = ddsi_get_port (&gv->config, DDSI_PORT_MULTI_DISC, 0);
+    ddsi_tran_set_locator_port (tran, loc, ddsi_get_port (&gv->config, DDSI_PORT_MULTI_DISC, 0));
     maxidx = 0;
   }
   else
   {
-    loc->port = ddsi_get_port (&gv->config, DDSI_PORT_UNI_DISC, 0);
+    ddsi_tran_set_locator_port (tran, loc, ddsi_get_port (&gv->config, DDSI_PORT_UNI_DISC, 0));
     maxidx = gv->config.maxAutoParticipantIndex;
   }
 
@@ -104,7 +106,7 @@ static int add_peer_address_ports (const struct ddsi_domaingv *gv, struct ddsi_a
   ddsi_add_locator_to_addrset (gv, as, loc);
   for (int32_t i = 1; i < maxidx; i++)
   {
-    loc->port = ddsi_get_port (&gv->config, DDSI_PORT_UNI_DISC, i);
+    ddsi_tran_set_locator_port (tran, loc, ddsi_get_port (&gv->config, DDSI_PORT_UNI_DISC, i));
     GVLOG (DDS_LC_CONFIG, ", :%"PRIu32, loc->port);
     ddsi_add_locator_to_addrset (gv, as, loc);
   }
@@ -355,10 +357,13 @@ static int string_to_default_locator (const struct ddsi_domaingv *gv, ddsi_locat
       GVERROR ("%s: invalid address kind (%s)\n", string, tag);
       return -1;
   }
-  if (port != DDSI_LOCATOR_PORT_INVALID && !ddsi_is_unspec_locator(loc))
-    loc->port = port;
-  else
+  if (port == DDSI_LOCATOR_PORT_INVALID || ddsi_is_unspec_locator(loc))
     loc->port = DDSI_LOCATOR_PORT_INVALID;
+  else
+  {
+    struct ddsi_tran_factory * const tran = ddsi_factory_find_supported_kind (gv, loc->kind);
+    ddsi_tran_set_locator_port (tran, loc, port);
+  }
   assert (mc == -1 || mc == 0 || mc == 1);
   if (mc >= 0)
   {
@@ -1170,6 +1175,15 @@ static int iceoryx_init (struct ddsi_domaingv *gv)
 }
 #endif
 
+static void set_locator_port_if_not_unspec_locator (const struct ddsi_domaingv *gv, ddsi_locator_t *loc, uint32_t port)
+{
+  if (!ddsi_is_unspec_locator (loc))
+  {
+    struct ddsi_tran_factory * const tran = ddsi_factory_find_supported_kind (gv, loc->kind);
+    ddsi_tran_set_locator_port (tran, loc, port);
+  }
+}
+
 int ddsi_init (struct ddsi_domaingv *gv)
 {
   uint32_t port_disc_uc = 0;
@@ -1237,6 +1251,7 @@ int ddsi_init (struct ddsi_domaingv *gv)
       gv->config.publish_uc_locators = 1;
       gv->config.enable_uc_locators = 0;
       gv->config.participantIndex = DDSI_PARTICIPANT_INDEX_NONE;
+      gv->config.maxAutoParticipantIndex = 0;
       gv->config.many_sockets_mode = DDSI_MSM_NO_UNICAST;
       if (ddsi_raweth_init (gv) < 0)
         goto err_udp_tcp_init;
@@ -1551,12 +1566,9 @@ int ddsi_init (struct ddsi_domaingv *gv)
       }
 
       /* Set multicast locators */
-      if (!ddsi_is_unspec_locator(&gv->loc_spdp_mc))
-        gv->loc_spdp_mc.port = ddsi_conn_port (gv->disc_conn_mc);
-      if (!ddsi_is_unspec_locator(&gv->loc_meta_mc))
-        gv->loc_meta_mc.port = ddsi_conn_port (gv->disc_conn_mc);
-      if (!ddsi_is_unspec_locator(&gv->loc_default_mc))
-        gv->loc_default_mc.port = ddsi_conn_port (gv->data_conn_mc);
+      set_locator_port_if_not_unspec_locator (gv, &gv->loc_spdp_mc, ddsi_conn_port (gv->disc_conn_mc));
+      set_locator_port_if_not_unspec_locator (gv, &gv->loc_meta_mc, ddsi_conn_port (gv->disc_conn_mc));
+      set_locator_port_if_not_unspec_locator (gv, &gv->loc_default_mc, ddsi_conn_port (gv->data_conn_mc));
     }
   }
   else

@@ -2907,15 +2907,10 @@ static enum do_locator_result do_locator (ddsi_locators_t *ls, uint64_t present,
       /* silently drop "reserved" locators. */
       return DOLOC_IGNORED;
     case DDSI_LOCATOR_KIND_RAWETH:
-      if (!ddsi_vendor_is_eclipse (dd->vendorid))
-        return DOLOC_IGNORED;
-      else
-      {
-        if (!ddsi_is_valid_port (fact, loc.port))
-          return DOLOC_INVALID;
-        if (!locator_address_prefix_zero (&loc, 10))
-          return DOLOC_INVALID;
-      }
+      if (!ddsi_is_valid_port (fact, loc.port))
+        return DOLOC_INVALID;
+      if (!locator_address_prefix_zero (&loc, 10))
+        return DOLOC_INVALID;
       break;
     default:
       return DOLOC_IGNORED;

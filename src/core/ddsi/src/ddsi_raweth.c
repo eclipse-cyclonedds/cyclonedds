@@ -22,6 +22,8 @@
 
 #if defined(__linux) && !LWIP_SOCKET
 #include <linux/if_packet.h>
+#include <linux/if_ether.h>
+#include <linux/filter.h>
 #include <sys/types.h>
 #include <ifaddrs.h>
 #include <string.h>
@@ -35,17 +37,38 @@ typedef struct ddsi_raweth_conn {
   int m_ifindex;
 } *ddsi_raweth_conn_t;
 
+
+struct ddsi_ethernet_header {
+  unsigned char dmac[ETH_ALEN];
+  unsigned char smac[ETH_ALEN];
+  unsigned short proto;
+} __attribute__((packed));
+
+
+struct ddsi_vlan_header {
+  struct ddsi_ethernet_header e;
+  unsigned short vtag;
+  unsigned short proto;
+} __attribute__((packed));
+
+union ddsi_cmessage {
+  struct cmsghdr chdr;
+  char buf[CMSG_SPACE(sizeof(struct tpacket_auxdata))];
+};
+
 static char *ddsi_raweth_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc, struct ddsi_tran_conn * conn, int with_port)
 {
   (void) conn;
   if (with_port)
-    (void) snprintf(dst, sizeof_dst, "[%02x:%02x:%02x:%02x:%02x:%02x]:%u",
+    (void) snprintf(dst, sizeof_dst, "[%02x:%02x:%02x:%02x:%02x:%02x.%u.%u]:%u",
                     loc->address[10], loc->address[11], loc->address[12],
-                    loc->address[13], loc->address[14], loc->address[15], loc->port);
+                    loc->address[13], loc->address[14], loc->address[15],
+                    loc->port >> 20, (loc->port >> 17) & 7, loc->port & 0xffff);
   else
-    (void) snprintf(dst, sizeof_dst, "[%02x:%02x:%02x:%02x:%02x:%02x]",
+    (void) snprintf(dst, sizeof_dst, "[%02x:%02x:%02x:%02x:%02x:%02x.%u.%u]",
                     loc->address[10], loc->address[11], loc->address[12],
-                    loc->address[13], loc->address[14], loc->address[15]);
+                    loc->address[13], loc->address[14], loc->address[15],
+                    loc->port >> 20, (loc->port >> 17) & 7);
   return dst;
 }
 
@@ -55,30 +78,53 @@ static ssize_t ddsi_raweth_conn_read (struct ddsi_tran_conn * conn, unsigned cha
   ssize_t ret = 0;
   struct msghdr msghdr;
   struct sockaddr_ll src;
-  struct iovec msg_iov;
+  struct ddsi_ethernet_header ehdr;
+  union ddsi_cmessage cmessage;
+  struct tpacket_auxdata *pauxd;
+  struct cmsghdr *cptr;
+  uint16_t vtag = 0;
+  uint32_t port;
+  struct iovec msg_iov[2];
   socklen_t srclen = (socklen_t) sizeof (src);
   (void) allow_spurious;
 
-  msg_iov.iov_base = (void*) buf;
-  msg_iov.iov_len = len;
+  msg_iov[0].iov_base = (void *) &ehdr;;
+  msg_iov[0].iov_len = sizeof (ehdr);
+  msg_iov[1].iov_base = (void *) buf;
+  msg_iov[1].iov_len = len;
 
   memset (&msghdr, 0, sizeof (msghdr));
 
   msghdr.msg_name = &src;
   msghdr.msg_namelen = srclen;
-  msghdr.msg_iov = &msg_iov;
-  msghdr.msg_iovlen = 1;
+  msghdr.msg_iov = msg_iov;
+  msghdr.msg_iovlen = 2;
+  msghdr.msg_control = &cmessage;
+  msghdr.msg_controllen = sizeof(cmessage);
 
   do {
     rc = ddsrt_recvmsg(((ddsi_raweth_conn_t) conn)->m_sock, &msghdr, 0, &ret);
   } while (rc == DDS_RETCODE_INTERRUPTED);
 
-  if (ret > 0)
+  if (ret > (ssize_t) sizeof (ehdr))
   {
+    ret -= (ssize_t) sizeof (ehdr);
+
+    for (cptr = CMSG_FIRSTHDR(&msghdr); cptr; cptr = CMSG_NXTHDR( &msghdr, cptr))
+    {
+      if ((cptr->cmsg_len < CMSG_LEN(sizeof( struct tpacket_auxdata))) || (cptr->cmsg_level != SOL_PACKET) || (cptr->cmsg_type != PACKET_AUXDATA))
+        continue;
+      pauxd = (struct tpacket_auxdata *)CMSG_DATA(cptr);
+      vtag = pauxd->tp_vlan_tci;
+      break;
+    }
+
+    // FIXME: ((vtag & 0xf000) << 16)) looks decidedly odd, << 4 would make more sense
+    port = (uint32_t)(ntohs (src.sll_protocol) + ((vtag & 0xfff) << 20) + ((vtag & 0xf000) << 16));
     if (srcloc)
     {
       srcloc->kind = DDSI_LOCATOR_KIND_RAWETH;
-      srcloc->port = ntohs (src.sll_protocol);
+      srcloc->port = port;
       memset(srcloc->address, 0, 10);
       memcpy(srcloc->address + 10, src.sll_addr, 6);
     }
@@ -106,7 +152,7 @@ static ssize_t ddsi_raweth_conn_read (struct ddsi_tran_conn * conn, unsigned cha
   return ret;
 }
 
-static ssize_t ddsi_raweth_conn_write (struct ddsi_tran_conn * conn, const ddsi_locator_t *dst, size_t niov, const ddsrt_iovec_t *iov, uint32_t flags)
+static ssize_t ddsi_raweth_conn_write (struct ddsi_tran_conn * conn, const ddsi_locator_t *dst, const ddsi_tran_write_msgfrags_t *msgfrags, uint32_t flags)
 {
   ddsi_raweth_conn_t uc = (ddsi_raweth_conn_t) conn;
   dds_return_t rc;
@@ -115,22 +161,49 @@ static ssize_t ddsi_raweth_conn_write (struct ddsi_tran_conn * conn, const ddsi_
   int sendflags = 0;
   struct msghdr msg;
   struct sockaddr_ll dstaddr;
-  assert(niov <= INT_MAX);
+  struct ddsi_vlan_header vhdr;
+  uint16_t vtag;
+  size_t hdrlen;
+
+  assert(msgfrags->niov <= INT_MAX - 1); // we'll be adding one later on
   memset (&dstaddr, 0, sizeof (dstaddr));
   dstaddr.sll_family = AF_PACKET;
-  dstaddr.sll_protocol = htons ((uint16_t) dst->port);
+  dstaddr.sll_protocol = htons ((uint16_t) uc->m_base.m_base.m_port);
   dstaddr.sll_ifindex = uc->m_ifindex;
   dstaddr.sll_halen = 6;
   memcpy(dstaddr.sll_addr, dst->address + 10, 6);
+
+  vtag = (uint16_t)(((dst->port >> 20) & 0xfff) + (((dst->port >> 16) & 0xe) << 12));
+
+  memcpy(vhdr.e.dmac, dstaddr.sll_addr, 6);
+  memcpy(vhdr.e.smac, uc->m_base.m_base.gv->interfaces[0].loc.address + 10, 6);
+
+  if (vtag) {
+    vhdr.e.proto = htons ((uint16_t) ETH_P_8021Q);
+    vhdr.vtag = htons (vtag);
+    vhdr.proto = htons ((uint16_t) uc->m_base.m_base.m_port);
+    hdrlen = sizeof(vhdr);
+  } else {
+    vhdr.e.proto = htons ((uint16_t) uc->m_base.m_base.m_port);
+    hdrlen = 14;
+  }
+
+  DDSRT_STATIC_ASSERT(DDSI_TRAN_RESERVED_IOV_SLOTS >= 1);
+  // beware: casting const away; it works with how things are now, but it is a bit nasty
+  ddsrt_iovec_t * const iovs = (ddsrt_iovec_t *) &msgfrags->tran_reserved[DDSI_TRAN_RESERVED_IOV_SLOTS - 1];
+  iovs[0].iov_base = &vhdr;
+  iovs[0].iov_len = hdrlen;
+
   memset(&msg, 0, sizeof(msg));
   msg.msg_name = &dstaddr;
   msg.msg_namelen = sizeof(dstaddr);
   msg.msg_flags = (int) flags;
-  msg.msg_iov = (ddsrt_iovec_t *) iov;
-  msg.msg_iovlen = niov;
+  msg.msg_iov = iovs;
+  msg.msg_iovlen = msgfrags->niov + 1;
 #ifdef MSG_NOSIGNAL
   sendflags |= MSG_NOSIGNAL;
 #endif
+
   do {
     rc = ddsrt_sendmsg (uc->m_sock, &msg, sendflags, &ret);
   } while ((rc == DDS_RETCODE_INTERRUPTED) ||
@@ -172,12 +245,46 @@ static int ddsi_raweth_conn_locator (struct ddsi_tran_factory * fact, struct dds
   return ret;
 }
 
+/* The linux kernel appears to remove the vlan tag before applying the filter and adjusting the ethernet header.
+ * Therefore the used filter only checks if the ethernet type is as expected.
+ * When that would not be the case the following filter could be used instead.
+ * Alternative filter: ether proto port or (ether proto 0x8100 and ether[16:2] == port)
+ *
+ *   { 0x28, 0, 0, 0x0000000c },  ldh [12] - load half word from frame offset 12, which is the ethernet type
+ *   { 0x15, 3, 0, 0x00001ce8 },  jeq #0x1ce8 - equal to port goto accept
+ *   { 0x15, 0, 3, 0x00008100 },  jeq #0x8100 - mot equal 802.1Q vlan protocol goto drop
+ *   { 0x28, 0, 0, 0x00000010 },  ldh [16] - load half word at offset 16
+ *   { 0x15, 0, 1, 0x00001ce8 },  jne #0x1ce8 - not equal to port goto drop
+ *   { 0x6, 0, 0, 0x00040000 },   accept: ret #-1 - accept packet
+ *   { 0x6, 0, 0, 0x00000000 }    drop: ret #0 - drop packet
+ */
+static dds_return_t ddsi_raweth_set_filter (struct ddsi_tran_factory * fact, ddsrt_socket_t sock, uint32_t port)
+{
+  struct sock_filter code[] = {
+      { 0x28, 0, 0, 0x0000000c },        /* ldh [12] - load half word from frame offset 12, which is the ethernet type */
+      { 0x15, 0, 1, (port & 0xffff) },   /* jeq port- not equal to port goto drop */
+      { 0x6, 0, 0, 0x00040000 },         /* ret #-1 - accept packe t*/
+      { 0x6, 0, 0, 0x00000000 }          /* drop: #0 - drop packet */
+  };
+  struct sock_fprog prg = { .len = sizeof(code)/sizeof(struct sock_filter), .filter = code };
+  dds_return_t rc;
+
+  rc = ddsrt_setsockopt (sock, SOL_SOCKET, SO_ATTACH_FILTER, &prg, sizeof (prg));
+  if (rc != DDS_RETCODE_OK)
+  {
+    DDS_CERROR (&fact->gv->logconfig, "ddsrt_setsockopt attach filter for protocol %u failed ... retcode = %d\n", port, rc);
+    return DDS_RETCODE_ERROR;
+  }
+  return DDS_RETCODE_OK;
+}
+
 static dds_return_t ddsi_raweth_create_conn (struct ddsi_tran_conn **conn_out, struct ddsi_tran_factory * fact, uint32_t port, const struct ddsi_tran_qos *qos)
 {
   ddsrt_socket_t sock;
   dds_return_t rc;
   ddsi_raweth_conn_t uc = NULL;
   struct sockaddr_ll addr;
+  struct packet_mreq mreq;
   bool mcast = (qos->m_purpose == DDSI_TRAN_QOS_RECV_MC);
   struct ddsi_domaingv const * const gv = fact->gv;
   struct ddsi_network_interface const * const intf = qos->m_interface ? qos->m_interface : &gv->interfaces[0];
@@ -190,7 +297,7 @@ static dds_return_t ddsi_raweth_create_conn (struct ddsi_tran_conn **conn_out, s
     return DDS_RETCODE_ERROR;
   }
 
-  rc = ddsrt_socket(&sock, PF_PACKET, SOCK_DGRAM, htons((uint16_t)port));
+  rc = ddsrt_socket(&sock, PF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
   if (rc != DDS_RETCODE_OK)
   {
     DDS_CERROR (&fact->gv->logconfig, "ddsi_raweth_create_conn %s port %u failed ... retcode = %d\n", mcast ? "multicast" : "unicast", port, rc);
@@ -199,7 +306,7 @@ static dds_return_t ddsi_raweth_create_conn (struct ddsi_tran_conn **conn_out, s
 
   memset(&addr, 0, sizeof(addr));
   addr.sll_family = AF_PACKET;
-  addr.sll_protocol = htons((uint16_t)port);
+  addr.sll_protocol = htons(ETH_P_ALL);
   addr.sll_ifindex = (int)intf->if_index;
   addr.sll_pkttype = PACKET_HOST | PACKET_BROADCAST | PACKET_MULTICAST;
   rc = ddsrt_bind(sock, (struct sockaddr *)&addr, sizeof(addr));
@@ -208,6 +315,34 @@ static dds_return_t ddsi_raweth_create_conn (struct ddsi_tran_conn **conn_out, s
     ddsrt_close(sock);
     DDS_CERROR (&fact->gv->logconfig, "ddsi_raweth_create_conn %s bind port %u failed ... retcode = %d\n", mcast ? "multicast" : "unicast", port, rc);
     return DDS_RETCODE_ERROR;
+  }
+
+  memset(&mreq, 0, sizeof (mreq));
+  mreq.mr_ifindex = (int)intf->if_index;
+  mreq.mr_type = PACKET_MR_PROMISC;
+  mreq.mr_alen = 6;
+
+  rc = ddsrt_setsockopt (sock, SOL_PACKET, PACKET_ADD_MEMBERSHIP, (void*)&mreq, (socklen_t)sizeof (mreq));
+  if (rc != DDS_RETCODE_OK)
+  {
+    ddsrt_close(sock);
+    DDS_CERROR (&fact->gv->logconfig, "ddsi_raweth_create_conn %s set promiscuous mode failed ... retcode = %d\n", mcast ? "multicast" : "unicast", rc);
+    return DDS_RETCODE_ERROR;
+  }
+
+  int one = 1;
+  rc = ddsrt_setsockopt (sock, SOL_PACKET, PACKET_AUXDATA, &one, sizeof(one));
+  if (rc != DDS_RETCODE_OK)
+  {
+    DDS_CWARNING (&fact->gv->logconfig, "ddsi_raweth_create_conn %s set to receive auxilary data failed ... retcode = %d\n", mcast ? "multicast" : "unicast", rc);
+  }
+
+  rc = ddsi_raweth_set_filter (fact, sock, port);
+  if (rc != DDS_RETCODE_OK)
+  {
+    ddsrt_close(sock);
+    DDS_CERROR (&fact->gv->logconfig, "ddsi_raweth_create_conn %s set fiter failed ... retcode = %d\n", mcast ? "multicast" : "unicast", rc);
+    return rc;
   }
 
   if ((uc = (ddsi_raweth_conn_t) ddsrt_malloc (sizeof (*uc))) == NULL)
@@ -233,6 +368,7 @@ static dds_return_t ddsi_raweth_create_conn (struct ddsi_tran_conn **conn_out, s
   *conn_out = &uc->m_base;
   return DDS_RETCODE_OK;
 }
+
 
 static int isbroadcast(const ddsi_locator_t *loc)
 {
@@ -345,8 +481,23 @@ static enum ddsi_locator_from_string_result ddsi_raweth_address_from_string (con
       str++;
     }
   }
+  if (*str == '.')
+  {
+    unsigned vlanid, vlancfi;
+    int p;
+    if (sscanf (str, ".%u.%u%n", &vlanid, &vlancfi, &p) != 2)
+      return AFSR_INVALID;
+    else if (vlanid == 0 || vlanid > 4094)
+      return AFSR_INVALID;
+    else if (vlancfi > 7)
+      return AFSR_INVALID;
+    loc->port = (vlanid << 20) | (vlancfi << 17);
+    str += p;
+  }
   if (*str)
+  {
     return AFSR_INVALID;
+  }
   return AFSR_OK;
 }
 
@@ -366,8 +517,16 @@ static int ddsi_raweth_enumerate_interfaces (struct ddsi_tran_factory * fact, en
 
 static int ddsi_raweth_is_valid_port (const struct ddsi_tran_factory *fact, uint32_t port)
 {
+  uint32_t eport;
+  uint32_t vlanid;
+  uint32_t vlancfi;
+
+  eport = port & 0xffffu;
+  vlanid = (port >> 20) & 0xfffu;
+  vlancfi = (port >> 16) & 0x1u;
+
   (void) fact;
-  return (port >= 1 && port <= 65535);
+  return (eport >= 1 && eport <= 65535) && (vlanid < 4095) && vlancfi == 0;
 }
 
 static uint32_t ddsi_raweth_receive_buffer_size (const struct ddsi_tran_factory *fact)
@@ -390,6 +549,32 @@ static int ddsi_raweth_locator_from_sockaddr (const struct ddsi_tran_factory *tr
   return 0;
 }
 
+static uint32_t ddsi_raweth_get_locator_port (const struct ddsi_tran_factory *factory, const ddsi_locator_t *loc)
+{
+  (void) factory;
+  return loc->port & 0xffff;
+}
+
+static uint32_t ddsi_raweth_get_locator_aux (const struct ddsi_tran_factory *factory, const ddsi_locator_t *loc)
+{
+  (void) factory;
+  return loc->port >> 16;
+}
+
+static void ddsi_raweth_set_locator_port (const struct ddsi_tran_factory *factory, ddsi_locator_t *loc, uint32_t port)
+{
+  (void) factory;
+  assert ((port & 0xffff0000) == 0);
+  loc->port = (loc->port & 0xffff0000) | port;
+}
+
+static void ddsi_raweth_set_locator_aux (const struct ddsi_tran_factory *factory, ddsi_locator_t *loc, uint32_t aux)
+{
+  (void) factory;
+  assert ((aux & 0xffff0000) == 0);
+  loc->port = (loc->port & 0xffff) | (aux << 16);
+}
+
 int ddsi_raweth_init (struct ddsi_domaingv *gv)
 {
   struct ddsi_tran_factory *fact = ddsrt_malloc (sizeof (*fact));
@@ -397,7 +582,7 @@ int ddsi_raweth_init (struct ddsi_domaingv *gv)
   fact->gv = gv;
   fact->m_free_fn = ddsi_raweth_deinit;
   fact->m_typename = "raweth";
-  fact->m_default_spdp_address = "raweth/ff:ff:ff:ff:ff:ff";
+  fact->m_default_spdp_address = "raweth/01:00:5e:7f:00:01";
   fact->m_connless = 1;
   fact->m_enable_spdp = 1;
   fact->m_supports_fn = ddsi_raweth_supports;
@@ -415,6 +600,10 @@ int ddsi_raweth_init (struct ddsi_domaingv *gv)
   fact->m_is_valid_port_fn = ddsi_raweth_is_valid_port;
   fact->m_receive_buffer_size_fn = ddsi_raweth_receive_buffer_size;
   fact->m_locator_from_sockaddr_fn = ddsi_raweth_locator_from_sockaddr;
+  fact->m_get_locator_port_fn = ddsi_raweth_get_locator_port;
+  fact->m_set_locator_port_fn = ddsi_raweth_set_locator_port;
+  fact->m_get_locator_aux_fn = ddsi_raweth_get_locator_aux;
+  fact->m_set_locator_aux_fn = ddsi_raweth_set_locator_aux;
   ddsi_factory_add (gv, fact);
   GVLOG (DDS_LC_CONFIG, "raweth initialized\n");
   return 0;

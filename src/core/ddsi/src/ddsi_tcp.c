@@ -602,7 +602,7 @@ static void set_msghdr_iov (ddsrt_msghdr_t *mhdr, ddsrt_iovec_t *iov, size_t iov
   mhdr->msg_iovlen = (ddsrt_msg_iovlen_t)iovlen;
 }
 
-static ssize_t ddsi_tcp_conn_write (struct ddsi_tran_conn * base, const ddsi_locator_t *dst, size_t niov, const ddsrt_iovec_t *iov, uint32_t flags)
+static ssize_t ddsi_tcp_conn_write (struct ddsi_tran_conn * base, const ddsi_locator_t *dst, const ddsi_tran_write_msgfrags_t *msgfrags, uint32_t flags)
 {
   struct ddsi_tran_factory_tcp * const fact = (struct ddsi_tran_factory_tcp *) base->m_factory;
   struct ddsi_domaingv const * const gv = fact->fact.gv;
@@ -620,16 +620,16 @@ static ssize_t ddsi_tcp_conn_write (struct ddsi_tran_conn * base, const ddsi_loc
     struct sockaddr_storage x;
     union addr a;
   } dstaddr;
-  assert(niov <= INT_MAX);
+  assert(msgfrags->niov <= INT_MAX);
   ddsi_ipaddr_from_loc(&dstaddr.x, dst);
   memset(&msg, 0, sizeof(msg));
-  set_msghdr_iov (&msg, (ddsrt_iovec_t *) iov, niov);
+  set_msghdr_iov (&msg, (ddsrt_iovec_t *) msgfrags->iov, msgfrags->niov);
   msg.msg_name = &dstaddr;
   msg.msg_namelen = ddsrt_sockaddr_get_size(&dstaddr.a.a);
 #if DDSRT_MSGHDR_FLAGS
   msg.msg_flags = (int) flags;
 #endif
-  len = iovlen_sum (niov, iov);
+  len = iovlen_sum (msgfrags->niov, msgfrags->iov);
   (void) base;
 
   conn = ddsi_tcp_cache_find (fact, &msg);

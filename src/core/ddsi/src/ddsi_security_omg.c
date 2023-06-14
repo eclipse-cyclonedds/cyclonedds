@@ -3787,8 +3787,7 @@ ddsi_security_secure_conn_write(
     const struct ddsi_domaingv *gv,
     struct ddsi_tran_conn * conn,
     const ddsi_locator_t *dst,
-    size_t niov,
-    const ddsrt_iovec_t *iov,
+    const ddsi_tran_write_msgfrags_t *iov,
     uint32_t flags,
     ddsi_rtps_msg_len_t *msg_len,
     bool dst_one,
@@ -3807,7 +3806,7 @@ ddsi_security_secure_conn_write(
   assert(conn);
   assert(msg_len);
   assert(sec_info);
-  assert(niov > 0);
+  assert(iov->niov > 0);
   assert(conn_write_cb);
 
   if (dst_one)
@@ -3818,7 +3817,7 @@ ddsi_security_secure_conn_write(
     }
   }
 
-  hdr = (ddsi_rtps_header_t *) iov[0].iov_base;
+  hdr = (ddsi_rtps_header_t *) iov->iov[0].iov_base;
   guid.prefix = ddsi_ntoh_guid_prefix (hdr->guid_prefix);
   guid.entityid.u = DDSI_ENTITYID_PARTICIPANT;
 
@@ -3826,11 +3825,11 @@ ddsi_security_secure_conn_write(
    *  on-stack buffer or allocate one on the heap ...
    */
   srclen = 0;
-  for (size_t i = 0; i < niov; i++)
+  for (size_t i = 0; i < iov->niov; i++)
   {
     /* Do not copy MsgLen submessage in case of a stream connection */
     if (i != 1 || !conn->m_stream)
-      srclen += iov[i].iov_len;
+      srclen += iov->iov[i].iov_len;
   }
   if (srclen <= sizeof (stbuf))
     srcbuf = stbuf;
@@ -3839,12 +3838,12 @@ ddsi_security_secure_conn_write(
 
   /* ... then copy data into buffer */
   srclen = 0;
-  for (size_t i = 0; i < niov; i++)
+  for (size_t i = 0; i < iov->niov; i++)
   {
     if (i != 1 || !conn->m_stream)
     {
-      memcpy (srcbuf + srclen, iov[i].iov_base, iov[i].iov_len);
-      srclen += iov[i].iov_len;
+      memcpy (srcbuf + srclen, iov->iov[i].iov_base, iov->iov[i].iov_len);
+      srclen += iov->iov[i].iov_len;
     }
   }
 
@@ -3853,33 +3852,26 @@ ddsi_security_secure_conn_write(
     ret = -1;
   else
   {
-    ddsrt_iovec_t tmp_iov[3];
-    size_t tmp_niov;
-
     if (conn->m_stream)
     {
       /* Add MsgLen submessage after Header */
       assert (dstlen <= UINT32_MAX - sizeof (*msg_len));
       msg_len->length = (uint32_t) (dstlen + sizeof (*msg_len));
-
-      tmp_iov[0].iov_base = dstbuf;
-      tmp_iov[0].iov_len = DDSI_RTPS_MESSAGE_HEADER_SIZE;
-      tmp_iov[1].iov_base = (void *) msg_len;
-      tmp_iov[1].iov_len = sizeof (*msg_len);
-      tmp_iov[2].iov_base = dstbuf + DDSI_RTPS_MESSAGE_HEADER_SIZE;
-      tmp_iov[2].iov_len = (ddsrt_iov_len_t) (dstlen - DDSI_RTPS_MESSAGE_HEADER_SIZE);
-      tmp_niov = 3;
+      DDSI_DECL_CONST_TRAN_WRITE_MSGFRAGS_PTR(msgfrags,
+        ((ddsrt_iovec_t){ .iov_base = dstbuf, .iov_len = DDSI_RTPS_MESSAGE_HEADER_SIZE }),
+        ((ddsrt_iovec_t){ .iov_base = (void *) msg_len, .iov_len = sizeof (*msg_len) }),
+        ((ddsrt_iovec_t){ .iov_base = dstbuf + DDSI_RTPS_MESSAGE_HEADER_SIZE,
+          .iov_len = (ddsrt_iov_len_t) (dstlen - DDSI_RTPS_MESSAGE_HEADER_SIZE) }));
+      ret = conn_write_cb (conn, dst, msgfrags, flags);
     }
     else
     {
       assert (dstlen <= UINT32_MAX);
       msg_len->length = (uint32_t) dstlen;
-
-      tmp_iov[0].iov_base = dstbuf;
-      tmp_iov[0].iov_len = (ddsrt_iov_len_t) dstlen;
-      tmp_niov = 1;
+      DDSI_DECL_CONST_TRAN_WRITE_MSGFRAGS_PTR(msgfrags,
+        ((ddsrt_iovec_t){ .iov_base = dstbuf, .iov_len = (ddsrt_iov_len_t) dstlen }));
+      ret = conn_write_cb (conn, dst, msgfrags, flags);
     }
-    ret = conn_write_cb (conn, dst, tmp_niov, tmp_iov, flags);
     ddsrt_free (dstbuf);
   }
 

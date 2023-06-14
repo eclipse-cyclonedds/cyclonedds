@@ -117,8 +117,11 @@ struct ddsi_xmsg {
 #define DDSI_XMSG_MAX_SUBMESSAGE_IOVECS 3
 
 #ifdef IOV_MAX
+#if IOV_MAX < DDSI_TRAN_RESERVED_IOV_SLOTS + DDSI_XMSG_MAX_SUBMESSAGE_IOVECS
+#error "the io vector math doesn't work out"
+#endif
 #if IOV_MAX > 0 && IOV_MAX < 256
-#define DDSI_XMSG_MAX_MESSAGE_IOVECS IOV_MAX
+#define DDSI_XMSG_MAX_MESSAGE_IOVECS (IOV_MAX - DDSI_TRAN_RESERVED_IOV_SLOTS)
 #endif
 #endif /* defined IOV_MAX */
 #ifndef DDSI_XMSG_MAX_MESSAGE_IOVECS
@@ -145,8 +148,10 @@ struct ddsi_xpack
   unsigned packetid;
   ddsrt_atomic_uint32_t calls;
   uint32_t call_flags;
-  size_t niov;
-  ddsrt_iovec_t *iov;
+  /* The list of iov's where the first one is reserved to be used by the transport layer.
+   * The member iov is a pointer to the second element of the iov list.
+   */
+  ddsi_tran_write_msgfrags_t *msgfrags;
   enum ddsi_xmsg_dstmode dstmode;
   struct ddsi_domaingv *gv;
 
@@ -1030,7 +1035,8 @@ static void ddsi_xmsg_chain_add (struct ddsi_xmsg_chain *chain, struct ddsi_xmsg
 static void ddsi_xpack_reinit (struct ddsi_xpack *xp)
 {
   xp->dstmode = NN_XMSG_DST_UNSET;
-  xp->niov = 0;
+  if (xp->msgfrags)
+    xp->msgfrags->niov = 0;
   xp->call_flags = 0;
   xp->msg_len.length = 0;
   xp->includes_rexmit = false;
@@ -1052,7 +1058,7 @@ struct ddsi_xpack * ddsi_xpack_new (struct ddsi_domaingv *gv, bool async_mode)
   xp = ddsrt_malloc (sizeof (*xp));
   memset (xp, 0, sizeof (*xp));
   xp->async_mode = async_mode;
-  xp->iov = NULL;
+  xp->msgfrags = NULL;
   xp->gv = gv;
 
   /* Fixed header fields, initialized just once */
@@ -1076,9 +1082,10 @@ struct ddsi_xpack * ddsi_xpack_new (struct ddsi_domaingv *gv, bool async_mode)
 
 void ddsi_xpack_free (struct ddsi_xpack *xp)
 {
-  assert (xp->niov == 0);
+  assert (xp->msgfrags == NULL || xp->msgfrags->niov == 0);
   assert (xp->included_msgs.latest == NULL);
-  ddsrt_free (xp->iov);
+  if (xp->msgfrags != NULL)
+    ddsrt_free (xp->msgfrags);
   ddsrt_free (xp);
 }
 
@@ -1094,8 +1101,7 @@ static ssize_t ddsi_xpack_send_rtps(struct ddsi_xpack * xp, const ddsi_xlocator_
                       xp->gv,
                       loc->conn,
                       &loc->c,
-                      xp->niov,
-                      xp->iov,
+                      xp->msgfrags,
                       xp->call_flags,
                       &(xp->msg_len),
                       (xp->dstmode == NN_XMSG_DST_ONE || xp->dstmode == NN_XMSG_DST_ALL_UC),
@@ -1105,7 +1111,7 @@ static ssize_t ddsi_xpack_send_rtps(struct ddsi_xpack * xp, const ddsi_xlocator_
   else
 #endif /* DDS_HAS_SECURITY */
   {
-    ret = ddsi_conn_write (loc->conn, &loc->c, xp->niov, xp->iov, xp->call_flags);
+    ret = ddsi_conn_write (loc->conn, &loc->c, xp->msgfrags, xp->call_flags);
   }
 
   return ret;
@@ -1147,8 +1153,8 @@ static ssize_t ddsi_xpack_send1 (const ddsi_xlocator_t *loc, void * varg)
 #ifndef NDEBUG
     {
       size_t i, len;
-      for (i = 0, len = 0; i < xp->niov; i++) {
-        len += xp->iov[i].iov_len;
+      for (i = 0, len = 0; i < xp->msgfrags->niov; i++) {
+        len += xp->msgfrags->iov[i].iov_len;
       }
       /* Possible number of bytes written can be larger
        * due to security. */
@@ -1178,9 +1184,9 @@ static void ddsi_xpack_send_real (struct ddsi_xpack *xp)
   struct ddsi_domaingv const * const gv = xp->gv;
   size_t calls;
 
-  assert (xp->niov <= DDSI_XMSG_MAX_MESSAGE_IOVECS);
+  assert (xp->msgfrags == NULL || xp->msgfrags->niov <= DDSI_XMSG_MAX_MESSAGE_IOVECS);
 
-  if (xp->niov == 0)
+  if (xp->msgfrags == NULL || xp->msgfrags->niov == 0)
   {
     return;
   }
@@ -1191,9 +1197,9 @@ static void ddsi_xpack_send_real (struct ddsi_xpack *xp)
   {
     int i;
     GVTRACE ("ddsi_xpack_send %"PRIu32":", xp->msg_len.length);
-    for (i = 0; i < (int) xp->niov; i++)
+    for (i = 0; i < (int) xp->msgfrags->niov; i++)
     {
-      GVTRACE (" %p:%lu", (void *) xp->iov[i].iov_base, (unsigned long) xp->iov[i].iov_len);
+      GVTRACE (" %p:%lu", (void *) xp->msgfrags->iov[i].iov_base, (unsigned long) xp->msgfrags->iov[i].iov_len);
     }
   }
 
@@ -1304,9 +1310,10 @@ void ddsi_xpack_send (struct ddsi_xpack *xp, bool immediately)
     // copy xp
     struct ddsi_xpack *xp1 = ddsrt_malloc (sizeof (*xp));
     memcpy(xp1, xp, sizeof(*xp1));
-    if (xp->iov != NULL) {
-      xp1->iov = ddsrt_malloc(xp->niov * sizeof(*xp->iov));
-      memcpy(xp1->iov, xp->iov, (xp->niov * sizeof(*xp->iov)));
+    if (xp->msgfrags != NULL) {
+      xp1->msgfrags = ddsrt_malloc (sizeof (*xp->msgfrags) + xp->msgfrags->niov * sizeof (ddsrt_iovec_t));
+      xp1->msgfrags->niov = xp->msgfrags->niov;
+      memcpy (xp1->msgfrags->iov, xp->msgfrags->iov, xp->msgfrags->niov * sizeof (*xp->msgfrags->iov));
     }
     ddsi_xpack_reinit (xp);
     xp1->sendq_next = NULL;
@@ -1388,10 +1395,10 @@ static int ddsi_xpack_mayaddmsg (const struct ddsi_xpack *xp, const struct ddsi_
   const unsigned max_msg_size = rexmit ? xp->gv->config.max_rexmit_msg_size : xp->gv->config.max_msg_size;
   unsigned payload_size;
 
-  if (xp->niov == 0)
+  if (xp->msgfrags->niov == 0)
     return 1;
   assert (xp->included_msgs.latest != NULL);
-  if (xp->niov + DDSI_XMSG_MAX_SUBMESSAGE_IOVECS > DDSI_XMSG_MAX_MESSAGE_IOVECS)
+  if (xp->msgfrags->niov + DDSI_XMSG_MAX_SUBMESSAGE_IOVECS > DDSI_XMSG_MAX_MESSAGE_IOVECS)
     return 0;
 
   payload_size = m->refd_payload ? (unsigned) m->refd_payload_iov.iov_len : 0;
@@ -1446,18 +1453,21 @@ int ddsi_xpack_addmsg (struct ddsi_xpack *xp, struct ddsi_xmsg *m, const uint32_
   assert ((m->sz % 4) == 0);
   assert (m->refd_payload == NULL || (m->refd_payload_iov.iov_len % 4) == 0);
 
-  if (xp->iov == NULL)
-    xp->iov = ddsrt_malloc (DDSI_XMSG_MAX_MESSAGE_IOVECS * sizeof (*xp->iov));
+  if (xp->msgfrags == NULL)
+  {
+    xp->msgfrags = ddsrt_malloc (sizeof (*xp->msgfrags) + DDSI_XMSG_MAX_MESSAGE_IOVECS * sizeof (ddsrt_iovec_t));
+    xp->msgfrags->niov = 0;
+  }
 
   if (!ddsi_xpack_mayaddmsg (xp, m, flags))
   {
-    assert (xp->niov > 0);
+    assert (xp->msgfrags->niov > 0);
     ddsi_xpack_send (xp, false);
     assert (ddsi_xpack_mayaddmsg (xp, m, flags));
     result = 1;
   }
 
-  niov = xp->niov;
+  niov = xp->msgfrags->niov;
   sz = xp->msg_len.length;
 
   /* We try to merge iovecs, but we can never merge across messages
@@ -1490,17 +1500,17 @@ int ddsi_xpack_addmsg (struct ddsi_xpack *xp, struct ddsi_xmsg *m, const uint32_
   {
     copy_addressing_info (xp, m);
     xp->hdr.guid_prefix = m->data->src.guid_prefix;
-    xp->iov[niov].iov_base = (void*) &xp->hdr;
-    xp->iov[niov].iov_len = sizeof (xp->hdr);
-    sz = xp->iov[niov].iov_len;
+    xp->msgfrags->iov[niov].iov_base = (void*) &xp->hdr;
+    xp->msgfrags->iov[niov].iov_len = sizeof (xp->hdr);
+    sz = xp->msgfrags->iov[niov].iov_len;
     niov++;
 
     /* Add MSG_LEN sub message for stream based transports */
 
     if (!gv->m_factory->m_connless)
     {
-      xp->iov[niov].iov_base = (void*) &xp->msg_len;
-      xp->iov[niov].iov_len = sizeof (xp->msg_len);
+      xp->msgfrags->iov[niov].iov_base = (void*) &xp->msg_len;
+      xp->msgfrags->iov[niov].iov_len = sizeof (xp->msg_len);
       sz += sizeof (xp->msg_len);
       niov++;
     }
@@ -1513,14 +1523,14 @@ int ddsi_xpack_addmsg (struct ddsi_xpack *xp, struct ddsi_xmsg *m, const uint32_
   }
   else
   {
-    xpo_niov = xp->niov;
+    xpo_niov = xp->msgfrags->niov;
     xpo_sz = xp->msg_len.length;
     if (!ddsi_guid_prefix_eq (xp->last_src, &m->data->src.guid_prefix))
     {
       /* If m's source participant differs from that of the source
          currently set in the packed message, add an InfoSRC note. */
-      xp->iov[niov].iov_base = (void*) &m->data->src;
-      xp->iov[niov].iov_len = sizeof (m->data->src);
+      xp->msgfrags->iov[niov].iov_base = (void*) &m->data->src;
+      xp->msgfrags->iov[niov].iov_len = sizeof (m->data->src);
       sz += sizeof (m->data->src);
       xp->last_src = &m->data->src.guid_prefix;
       niov++;
@@ -1551,14 +1561,14 @@ int ddsi_xpack_addmsg (struct ddsi_xpack *xp, struct ddsi_xmsg *m, const uint32_
   {
     /* Try to merge iovecs, a few large ones should be more efficient
        than many small ones */
-    if ((char *) xp->iov[niov-1].iov_base + xp->iov[niov-1].iov_len == (char *) dst)
+    if ((char *) xp->msgfrags->iov[niov-1].iov_base + xp->msgfrags->iov[niov-1].iov_len == (char *) dst)
     {
-      xp->iov[niov-1].iov_len += (ddsrt_iov_len_t)sizeof (*dst);
+      xp->msgfrags->iov[niov-1].iov_len += (ddsrt_iov_len_t)sizeof (*dst);
     }
     else
     {
-      xp->iov[niov].iov_base = (void*) dst;
-      xp->iov[niov].iov_len = sizeof (*dst);
+      xp->msgfrags->iov[niov].iov_base = (void*) dst;
+      xp->msgfrags->iov[niov].iov_len = sizeof (*dst);
       niov++;
     }
     sz += sizeof (*dst);
@@ -1566,12 +1576,12 @@ int ddsi_xpack_addmsg (struct ddsi_xpack *xp, struct ddsi_xmsg *m, const uint32_
   }
 
   /* Append submessage; can possibly be merged with preceding iovec */
-  if ((char *) xp->iov[niov-1].iov_base + xp->iov[niov-1].iov_len == (char *) m->data->payload)
-    xp->iov[niov-1].iov_len += (ddsrt_iov_len_t)m->sz;
+  if ((char *) xp->msgfrags->iov[niov-1].iov_base + xp->msgfrags->iov[niov-1].iov_len == (char *) m->data->payload)
+    xp->msgfrags->iov[niov-1].iov_len += (ddsrt_iov_len_t)m->sz;
   else
   {
-    xp->iov[niov].iov_base = m->data->payload;
-    xp->iov[niov].iov_len = (ddsrt_iov_len_t)m->sz;
+    xp->msgfrags->iov[niov].iov_base = m->data->payload;
+    xp->msgfrags->iov[niov].iov_len = (ddsrt_iov_len_t)m->sz;
     niov++;
   }
   sz += m->sz;
@@ -1582,7 +1592,7 @@ int ddsi_xpack_addmsg (struct ddsi_xpack *xp, struct ddsi_xmsg *m, const uint32_
      merging iovecs here. */
   if (m->refd_payload)
   {
-    xp->iov[niov] = m->refd_payload_iov;
+    xp->msgfrags->iov[niov] = m->refd_payload_iov;
     sz += m->refd_payload_iov.iov_len;
     niov++;
   }
@@ -1595,7 +1605,7 @@ int ddsi_xpack_addmsg (struct ddsi_xpack *xp, struct ddsi_xmsg *m, const uint32_
   /* Set total message length in MSG_LEN sub message */
   assert((uint32_t)sz == sz);
   xp->msg_len.length = (uint32_t) sz;
-  xp->niov = niov;
+  xp->msgfrags->niov = niov;
 
   const bool rexmit = xp->includes_rexmit || ddsi_xmsg_is_rexmit (m);
   const uint32_t max_msg_size = rexmit ? xp->gv->config.max_rexmit_msg_size : xp->gv->config.max_msg_size;
@@ -1604,7 +1614,7 @@ int ddsi_xpack_addmsg (struct ddsi_xpack *xp, struct ddsi_xmsg *m, const uint32_
     GVTRACE (" => now niov %d sz %"PRIuSIZE" > max_msg_size %"PRIu32", ddsi_xpack_send niov %d sz %"PRIu32" now\n",
              (int) niov, sz, max_msg_size, (int) xpo_niov, xpo_sz);
     xp->msg_len.length = xpo_sz;
-    xp->niov = xpo_niov;
+    xp->msgfrags->niov = xpo_niov;
     ddsi_xpack_send (xp, false);
     result = ddsi_xpack_addmsg (xp, m, flags); /* Retry on emptied xp */
   }

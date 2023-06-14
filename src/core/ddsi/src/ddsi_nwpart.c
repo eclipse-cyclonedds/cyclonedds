@@ -213,7 +213,13 @@ static bool nwpart_iter_ok (const struct nwpart_iter *it)
 static void nwpart_iter_append_address (struct nwpart_iter *it, const char *tok, const ddsi_locator_t *loc, uint32_t port)
 {
   struct ddsi_networkpartition_address ***nextpp;
+  // we're messing with the contents of loc_to_use, save the "aux" data
+  // (vlan, pcp for ethernet, 0 for udp/tcp) so we can patch it in later
+  struct ddsi_tran_factory * const tran = ddsi_factory_find_supported_kind (it->gv, loc->kind);
+  assert (tran != NULL);
+  const uint32_t loc_aux = ddsi_tran_get_locator_aux (tran, loc);
   ddsi_locator_t loc_to_use = *loc;
+
   if (ddsi_is_mcaddr (it->gv, loc))
   {
 #ifdef DDS_HAS_SSM
@@ -253,14 +259,20 @@ static void nwpart_iter_append_address (struct nwpart_iter *it, const char *tok,
     }
   }
 
+#if 0
+  if (vlanid != 0 && loc->kind == DDSI_LOCATOR_KIND_RAWETH)
+    loc_port = ((((uint32_t)(vlanid<<4) & 0xfff0) + (uint32_t)((vlanpcp & 0x7)<<1)) << 16) + (port & 0xffff);
+#endif
+
   if (!nwpart_iter_ok (it))
     return;
   else if ((**nextpp = ddsrt_malloc (sizeof (***nextpp))) == NULL)
     nwpart_iter_error (it, tok, "out of memory");
   else
   {
+    ddsi_tran_set_locator_port (tran, &loc_to_use, port);
+    ddsi_tran_set_locator_aux (tran, &loc_to_use, loc_aux);
     (**nextpp)->loc = loc_to_use;
-    (**nextpp)->loc.port = port;
     (**nextpp)->next = NULL;
     DDSRT_WARNING_MSVC_OFF(6011);
     *nextpp = &(**nextpp)->next;
@@ -284,7 +296,7 @@ static void convert_network_partition_addresses_one (struct nwpart_iter *npit, s
     case AFSR_UNKNOWN:  nwpart_iter_error (npit, tok, "unknown address"); return;
     case AFSR_MISMATCH: nwpart_iter_error (npit, tok, "address family mismatch"); return;
   }
-  if (loc.port != 0)
+  if (ddsi_tran_get_locator_port (npit->gv->m_factory, &loc) != 0)
     nwpart_iter_error (npit, tok, "no port number expected");
   else if (ddsi_is_mcaddr (npit->gv, &loc))
     nwpart_iter_append_address (npit, tok, &loc, port_mc);
@@ -327,7 +339,10 @@ static int convert_network_partition_interfaces (struct ddsi_domaingv *gv, uint3
       if (i == gv->n_interfaces)
         nwpart_iter_error (&npit, tok, "network partition references non-existent/configured interface");
       else
+      {
+        // FIXME: with raweth, this doesn't support a vlan id. It is possible to set the unicast address instead, so I think it is ok
         nwpart_iter_append_address (&npit, tok, &gv->interfaces[i].loc, port_data_uc);
+      }
     }
     ddsrt_free (copy);
   }

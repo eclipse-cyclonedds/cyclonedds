@@ -44,22 +44,11 @@ static struct ddsi_tran_conn * fakeconn;
 static struct ddsi_tran_factory * fakenet;
 static struct ddsi_thread_state *thrst;
 static struct ddsi_rbufpool *rbpool;
-// static struct ddsi_tkmap_instance *tk;
 
 static void null_log_sink(void *varg, const dds_log_data_t *msg)
 {
-    (void)varg;
-    (void)msg;
-}
-
-static ssize_t fakeconn_write(struct ddsi_tran_conn * conn, const ddsi_locator_t *dst, size_t niov, const ddsrt_iovec_t *iov, uint32_t flags)
-{
-    return (ssize_t)niov;
-}
-
-static ssize_t fakeconn_read(struct ddsi_tran_conn * conn, unsigned char *buf, size_t len, bool allow_spurious, ddsi_locator_t *srcloc)
-{
-    return (ssize_t)len;
+  (void)varg;
+  (void)msg;
 }
 
 int LLVMFuzzerTestOneInput(
@@ -93,9 +82,6 @@ int LLVMFuzzerTestOneInput(
   ddsi_vnet_init(&gv, "fake", 123);
   fakenet = ddsi_factory_find(&gv, "fake");
   ddsi_factory_create_conn(&fakeconn, fakenet, 0, &(const struct ddsi_tran_qos){.m_purpose = DDSI_TRAN_QOS_XMIT_UC, .m_interface = &gv.interfaces[0]});
-  fakeconn = ddsrt_realloc(fakeconn, sizeof(struct ddsi_tran_conn) + 128);
-  fakeconn->m_read_fn = &fakeconn_read;
-  fakeconn->m_write_fn = &fakeconn_write;
 
   rbpool = ddsi_rbufpool_new(&gv.logconfig, gv.config.rbuf_size, gv.config.rmsg_chunk_size);
   ddsi_rbufpool_setowner(rbpool, ddsrt_thread_self());
@@ -111,7 +97,7 @@ int LLVMFuzzerTestOneInput(
 
   ddsi_fini(&gv);
   ddsi_rbufpool_free(rbpool);
-  free (fakeconn);
+  ddsrt_free (fakeconn);
 
   // On shutdown there is an expectation that the thread was discovered dynamically.
   // We overrode it in the setup code, we undo it now.

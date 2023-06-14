@@ -1054,8 +1054,7 @@ ddsi_rtps_msg_state_t ddsi_security_decode_rtps_message (struct ddsi_thread_stat
  *
  * @param[in]     conn          Connection to use.
  * @param[in]     dst           Possible destination information.
- * @param[in]     niov          Number of io vectors.
- * @param[in]     iov           Array of io vectors.
+ * @param[in]     msgfrags      Sequence of fragments that constitute the message.
  * @param[in]     flags         Connection write flags.
  * @param[in,out] msg_len       Submessage containing length.
  * @param[in]     dst_one       Is there only one specific destination?
@@ -1071,8 +1070,7 @@ ddsi_security_secure_conn_write(
     const struct ddsi_domaingv *gv,
     struct ddsi_tran_conn * conn,
     const ddsi_locator_t *dst,
-    size_t niov,
-    const ddsrt_iovec_t *iov,
+    const ddsi_tran_write_msgfrags_t *msgfrags,
     uint32_t flags,
     ddsi_rtps_msg_len_t *msg_len,
     bool dst_one,

@@ -852,11 +852,11 @@ static enum update_result uf_int64_unit (struct ddsi_cfgst *cfgst, int64_t *elem
   } else if (sscanf (value, "%lf%n", &v_dbl, &pos) == 1 && (mult = lookup_multiplier (cfgst, unittab, value, pos, v_dbl == 0, def_mult, 1)) != 0) {
     double dmult = (double) mult;
     assert (dmult > 0);
-    // avoid needing something llround(), make it possible, scale it and
+    // avoid needing something llround(), make it positive, scale it and
     // add 0.5 to get decent rounding behaviour
     const double v_dbl_abs_scaled = ((v_dbl >= 0) ? 1.0 : -1.0) * v_dbl * dmult + 0.5;
     // - C99, therefore 2's complement by 7.18.1.1
-    // - INT64_MIN = 0x8000...0 is exactly representable, so < is correct
+    // - INT64_MIN = 0x8000...0 is exactly representable
     // - INT64_MAX = 0x7fff...f is not exactly representable and rounds up
     // v_dbl_abs_scaled is >= 0 and with -INT64_MAX > INT64_MIN, checking
     // it is strictly less than ((double) INT64_MAX) guarantees we can
