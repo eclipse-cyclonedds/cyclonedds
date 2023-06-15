@@ -219,3 +219,31 @@ ddsrt_strndup(const char *str, size_t len)
 
   return s;
 }
+
+char *
+ddsrt_str_trim_ord_space(char *str)
+{
+  char *end;
+
+  if (str != NULL)
+  { 
+    /* trim leading space */
+    while ((*str != '\0') && (*str == ' ')) {
+      ++str;
+    }
+    if (*str == '\0') { /* All spaces? */
+      return str;
+    }
+
+    /* trim trailing space */
+    end = str + strlen(str) - 1;
+    while ((end > str) && (*end == ' ')) {
+      end--;
+    }
+    /* add new null terminator character */
+    end[1] = '\0';
+  }
+
+  return str;
+}
+

@@ -130,3 +130,17 @@ CU_Theory((const char *s1, const char *s2, size_t n), ddsrt_strndup, too_short)
   CU_ASSERT(s && strcmp(s, s2) == 0);
   ddsrt_free(s);
 }
+
+CU_TheoryDataPoints(ddsrt_str_trim_ord_space, basic) = {
+  CU_DataPoints(const char *, "C=AT", " C=AT", "C=AT ", "C =AT", "C= AT", " C = AT", " C = AT "),
+  CU_DataPoints(const char *, "C=AT", "C=AT", "C=AT", "C =AT", "C= AT", "C = AT", "C = AT")
+};
+
+CU_Theory((const char *s1, const char *s2), ddsrt_str_trim_ord_space, basic)
+{
+  char str[32] = {'\0'};
+  strcpy(str, s1);
+  char *s = ddsrt_str_trim_ord_space(str);
+  CU_ASSERT(s && strcmp(s, s2) == 0);
+}
+
