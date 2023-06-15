@@ -11,6 +11,10 @@
 #ifndef DDSRT_BSWAP_H
 #define DDSRT_BSWAP_H
 
+/** @file bswap.h
+  This header implements byteswapping (between big endian and little endian) for different integer types.
+*/
+
 #include <stdint.h>
 #include <stdlib.h>
 
@@ -21,32 +25,65 @@
 extern "C" {
 #endif
 
+/**
+ * @brief Defines the byte order options: native, big endian, and little endian
+ */
 enum ddsrt_byte_order_selector {
   DDSRT_BOSEL_NATIVE,
   DDSRT_BOSEL_BE,
   DDSRT_BOSEL_LE,
 };
 
+/**
+ * @brief Byteswap uint16_t
+ * 
+ * @param[in] x
+ * @return the byteswapped uint16_t
+ */
 DDS_INLINE_EXPORT inline uint16_t ddsrt_bswap2u (uint16_t x)
 {
   return (uint16_t) ((x >> 8) | (x << 8));
 }
 
+/**
+ * @brief Byteswap int16_t
+ * 
+ * @param[in] x
+ * @return the byteswapped int16_t
+ */
 DDS_INLINE_EXPORT inline int16_t ddsrt_bswap2 (int16_t x)
 {
   return (int16_t) ddsrt_bswap2u ((uint16_t) x);
 }
 
+/**
+ * @brief Byteswap uint32_t
+ * 
+ * @param[in] x
+ * @return the byteswapped uint32_t
+ */
 DDS_INLINE_EXPORT inline uint32_t ddsrt_bswap4u (uint32_t x)
 {
   return (x >> 24) | ((x >> 8) & 0xff00) | ((x << 8) & 0xff0000) | (x << 24);
 }
 
+/**
+ * @brief Byteswap int32_t
+ * 
+ * @param[in] x
+ * @return the byteswapped int32_t
+ */
 DDS_INLINE_EXPORT inline int32_t ddsrt_bswap4 (int32_t x)
 {
   return (int32_t) ddsrt_bswap4u ((uint32_t) x);
 }
 
+/**
+ * @brief Byteswap uint64_t
+ * 
+ * @param[in] x
+ * @return the byteswapped uint64_t
+ */
 DDS_INLINE_EXPORT inline uint64_t ddsrt_bswap8u (uint64_t x)
 {
   const uint32_t newhi = ddsrt_bswap4u ((uint32_t) x);
@@ -54,11 +91,32 @@ DDS_INLINE_EXPORT inline uint64_t ddsrt_bswap8u (uint64_t x)
   return ((uint64_t) newhi << 32) | (uint64_t) newlo;
 }
 
+/**
+ * @brief Byteswap int64_t
+ * 
+ * @param[in] x
+ * @return the byteswapped int64_t
+ */
 DDS_INLINE_EXPORT inline int64_t ddsrt_bswap8 (int64_t x)
 {
   return (int64_t) ddsrt_bswap8u ((uint64_t) x);
 }
 
+/**
+ * @brief Macros for byteswapping
+ * 
+ * These macros are for converting integer types from and to big endian or little endian.
+ * They abstract from the endianness of your system by providing a different implementation based on the value of DDSRT_ENDIAN
+ * (for example if you want to convert to big endian, it converts if your system is little endian,
+ * but if your system is already big endian, the conversion is skipped).
+ * Postfix numbers indicate the number of bytes of the integer (2,4,8 for 16-bit, 32-bit, 64-bit respectively),
+ * whilst an 'u' postfix indicates an unsigned integer type.
+ * 
+ * - ddsrt_toBE: convert from native to big endian
+ * - ddsrt_toLE: convert from native to little endian
+ * - ddsrt_toBO: convert from native to byte order 'bo', @see ddsrt_byte_order_selector
+ * - ddsrt_fromBE: convert from big endian to native endianness (DDSRT_ENDIAN)
+ */
 #if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
 #define ddsrt_toBE2(x) ddsrt_bswap2 (x)
 #define ddsrt_toBE2u(x) ddsrt_bswap2u (x)
