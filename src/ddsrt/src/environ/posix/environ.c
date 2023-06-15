@@ -25,7 +25,7 @@ isenvvar(const char *name)
 dds_return_t
 ddsrt_getenv(const char *name, const char **value)
 {
-  char *env;
+  const char *env;
 
   assert(name != NULL);
   assert(value != NULL);
