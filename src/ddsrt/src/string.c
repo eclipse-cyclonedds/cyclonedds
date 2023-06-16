@@ -99,7 +99,9 @@ ddsrt_strlcpy(
     if (size <= srclen) {
       len = size - 1;
     }
-    memcpy(dest, src, len);
+    if (len > 0) {
+      memcpy(dest, src, len);
+    }
     dest[len] = '\0';
   }
 

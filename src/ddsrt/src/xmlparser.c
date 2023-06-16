@@ -192,7 +192,9 @@ static int make_chars_available (struct ddsrt_xmlp_state *st, size_t nmin)
     /* ensure buffer space is available */
     if (st->fp != NULL) {
         if (pos + nmin > st->cbufmax) {
-            memmove (st->cbuf, st->cbuf + pos, st->cbufn - pos);
+            if (st->cbufn > pos) {
+              memmove (st->cbuf, st->cbuf + pos, st->cbufn - pos);
+            }
             st->cbufn -= pos;
             st->cbufp -= pos;
             if (st->cbufmark != NOMARKER) {
