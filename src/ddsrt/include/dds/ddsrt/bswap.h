@@ -37,7 +37,7 @@ enum ddsrt_byte_order_selector {
 /**
  * @brief Byteswap uint16_t
  * 
- * @param[in] x
+ * @param[in] x the uint16_t to byteswap
  * @return the byteswapped uint16_t
  */
 DDS_INLINE_EXPORT inline uint16_t ddsrt_bswap2u (uint16_t x)
@@ -48,7 +48,7 @@ DDS_INLINE_EXPORT inline uint16_t ddsrt_bswap2u (uint16_t x)
 /**
  * @brief Byteswap int16_t
  * 
- * @param[in] x
+ * @param[in] x the int16_t to byteswap
  * @return the byteswapped int16_t
  */
 DDS_INLINE_EXPORT inline int16_t ddsrt_bswap2 (int16_t x)
@@ -59,7 +59,7 @@ DDS_INLINE_EXPORT inline int16_t ddsrt_bswap2 (int16_t x)
 /**
  * @brief Byteswap uint32_t
  * 
- * @param[in] x
+ * @param[in] x the uint32_t to byteswap
  * @return the byteswapped uint32_t
  */
 DDS_INLINE_EXPORT inline uint32_t ddsrt_bswap4u (uint32_t x)
@@ -70,7 +70,7 @@ DDS_INLINE_EXPORT inline uint32_t ddsrt_bswap4u (uint32_t x)
 /**
  * @brief Byteswap int32_t
  * 
- * @param[in] x
+ * @param[in] x the int32_t to byteswap
  * @return the byteswapped int32_t
  */
 DDS_INLINE_EXPORT inline int32_t ddsrt_bswap4 (int32_t x)
@@ -81,7 +81,7 @@ DDS_INLINE_EXPORT inline int32_t ddsrt_bswap4 (int32_t x)
 /**
  * @brief Byteswap uint64_t
  * 
- * @param[in] x
+ * @param[in] x the uint64_t to byteswap
  * @return the byteswapped uint64_t
  */
 DDS_INLINE_EXPORT inline uint64_t ddsrt_bswap8u (uint64_t x)
@@ -94,7 +94,7 @@ DDS_INLINE_EXPORT inline uint64_t ddsrt_bswap8u (uint64_t x)
 /**
  * @brief Byteswap int64_t
  * 
- * @param[in] x
+ * @param[in] x the int64_t to byteswap
  * @return the byteswapped int64_t
  */
 DDS_INLINE_EXPORT inline int64_t ddsrt_bswap8 (int64_t x)
