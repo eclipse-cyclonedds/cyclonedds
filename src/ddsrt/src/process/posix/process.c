@@ -50,14 +50,12 @@ ddsrt_getprocessname(void)
 #else
   const char * appname = NULL;
 
-  char buff[400];
+  char buff[400] = {'\0'};
   FILE *fp;
   if ((fp = fopen("/proc/self/cmdline", "r")) != NULL) {
-    buff[0] = '\0';
     for(size_t i = 0; i < sizeof(buff); ++i) {
       int c = fgetc(fp);
       if (c == EOF || c == '\0') {
-        buff[i] = '\0';
         break;
       } else {
         buff[i] = (char) c;

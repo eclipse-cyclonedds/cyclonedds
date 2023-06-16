@@ -118,7 +118,7 @@ struct format_address_arg {
 static void format_address (const ddsi_xlocator_t *n, void *varg)
 {
   struct format_address_arg *arg = varg;
-  char buf[DDSI_LOCSTRLEN];
+  char buf[DDSI_LOCSTRLEN] = {'\0'};
 
   if (!arg->buf) return;
 
