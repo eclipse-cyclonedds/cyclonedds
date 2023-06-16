@@ -14,16 +14,40 @@
 #include "dds/export.h"
 #include "dds/ddsrt/sync.h"
 
+/**
+ * @file cdtors.h
+ * @brief Contains initializing and finalizing functions for some ddsrt units, and provides a singleton mutex and cond.
+ * 
+ * Initializes and finalizes mutexes of ddsrt/random and ddsrt/atomics, and for Windows also the ddsrt/socket
+ * (not necessary for other platforms).
+ */
+
 #if defined (__cplusplus)
 extern "C" {
 #endif
 
+/**
+ * @brief Initialize ddsrt units
+ */
 void ddsrt_init(void);
 
+/**
+ * @brief Finalize ddsrt units
+ */
 void ddsrt_fini(void);
 
+/**
+ * @brief Get a pointer to the global 'init_mutex'
+ * 
+ * @return ddsrt_mutex_t* pointer to the mutex
+ */
 ddsrt_mutex_t *ddsrt_get_singleton_mutex(void);
 
+/**
+ * @brief Get a pointer to the global 'init_cond'
+ * 
+ * @return ddsrt_cond_t* pointer to the condition
+ */
 ddsrt_cond_t *ddsrt_get_singleton_cond(void);
 
 #if defined (__cplusplus)
