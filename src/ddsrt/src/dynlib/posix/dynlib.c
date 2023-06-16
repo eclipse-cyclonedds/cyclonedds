@@ -29,7 +29,7 @@ dds_return_t ddsrt_dlopen (const char *name, bool translate, ddsrt_dynlib_t *han
 #else
     static const char suffix[] = ".so";
 #endif
-    char* lib_name;
+    char* lib_name = NULL;
     if (ddsrt_asprintf (&lib_name, "lib%s%s", name, suffix) == -1)
       return DDS_RETCODE_OUT_OF_RESOURCES;
     *handle = dlopen (lib_name, RTLD_GLOBAL | RTLD_NOW);
