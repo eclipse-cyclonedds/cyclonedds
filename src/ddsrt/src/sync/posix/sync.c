@@ -119,6 +119,7 @@ ddsrt_cond_waituntil(
   }
 
   abort();
+  return false;
 }
 
 bool
