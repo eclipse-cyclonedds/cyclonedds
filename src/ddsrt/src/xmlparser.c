@@ -192,7 +192,11 @@ static int make_chars_available (struct ddsrt_xmlp_state *st, size_t nmin)
     /* ensure buffer space is available */
     if (st->fp != NULL) {
         if (pos + nmin > st->cbufmax) {
-            memmove (st->cbuf, st->cbuf + pos, st->cbufn - pos);
+            if (st->cbufn > pos) { /* MISRA RULE-21-18. (The size_t argument passed to any function in string.h shall have an appropriate value ) */
+                memmove (st->cbuf, st->cbuf + pos, st->cbufn - pos); 
+            } else if (st->cbufn < pos) {
+                abort();
+            }
             st->cbufn -= pos;
             st->cbufp -= pos;
             if (st->cbufmark != NOMARKER) {
