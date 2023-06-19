@@ -13,16 +13,23 @@
 
 #include "dds/ddsrt/sockets.h"
 
+/**
+  @file ifaddrs.h
+  @brief This header deals with interface addresses
+*/
+
 #if defined (__cplusplus)
 extern "C" {
 #endif
 
+/** @brief The interface type */
 enum ddsrt_iftype {
   DDSRT_IFTYPE_UNKNOWN,
   DDSRT_IFTYPE_WIRED,
   DDSRT_IFTYPE_WIFI
 };
 
+/** @brief Linked list of interface addresses */
 struct ddsrt_ifaddrs {
   struct ddsrt_ifaddrs *next;
   char *name;
@@ -36,15 +43,38 @@ struct ddsrt_ifaddrs {
 
 typedef struct ddsrt_ifaddrs ddsrt_ifaddrs_t;
 
+/**
+ * @brief Get the interface addresses (@ref ddsrt_ifaddrs) for specific address families
+ * 
+ * Note that array 'afs' must be terminated with an element 'DDSRT_AF_TERM'.
+ * 
+ * @param[out] ifap interface address pointer
+ * @param[in] afs an array of address families
+ * @return a DDS_RETCODE
+ */
 dds_return_t
 ddsrt_getifaddrs(
   ddsrt_ifaddrs_t **ifap,
   const int *afs);
 
+/**
+ * @brief Free the interface addresses
+ * 
+ * @param[in] ifa the interface addresses to free
+ */
 void
 ddsrt_freeifaddrs(
   ddsrt_ifaddrs_t *ifa);
 
+/**
+ * @brief Get the mac address for a given interface name
+ * 
+ * Copies the first 6 bytes of the mac address into the buffer 'mac_addr'.
+ * 
+ * @param[in] interface_name the name of the interface
+ * @param[out] mac_addr a buffer to copy the mac address into
+ * @return a DDS_RETCODE
+ */
 dds_return_t
 ddsrt_eth_get_mac_addr(
   char *interface_name,
