@@ -2434,9 +2434,11 @@ int main (int argc, char *argv[])
 
   /* Just before starting the threads but after setting everything up, wait for
      the required number of peers, if requested to do so */
+  dds_time_t tnow;
+  bool ok;
   if (initmaxwait > 0)
   {
-    dds_time_t tnow = dds_time ();
+    tnow = dds_time ();
     const dds_time_t tendwait = tnow + (dds_duration_t) (initmaxwait * 1e9);
     ddsrt_mutex_lock (&disc_lock);
     while (matchcount < minmatch && tnow < tendwait)
@@ -2446,15 +2448,15 @@ int main (int argc, char *argv[])
       ddsrt_mutex_lock (&disc_lock);
       tnow = dds_time ();
     }
-    const bool ok = (matchcount >= minmatch);
-    if (!ok)
+    const bool status_ok = (matchcount >= minmatch);
+    if (!status_ok)
     {
       /* set minmatch to an impossible value to avoid a match occurring between now and
          the determining of the exit status from causing a successful return */
       minmatch = UINT32_MAX;
     }
     ddsrt_mutex_unlock (&disc_lock);
-    if (!ok)
+    if (!status_ok)
       goto err_minmatch_wait;
     dds_sleepfor (DDS_MSECS (100));
   }
@@ -2540,7 +2542,7 @@ int main (int argc, char *argv[])
 
   /* Run until time limit reached or a signal received.  (The time calculations
      ignore the possibility of overflow around the year 2260.) */
-  dds_time_t tnow = dds_time ();
+  tnow = dds_time ();
   const dds_time_t tstart = tnow;
   if (tref == DDS_INFINITY)
     tref = tstart;
@@ -2557,7 +2559,6 @@ int main (int argc, char *argv[])
     /* bail out if too few readers discovered within the deadline */
     if (tnow >= tmatch)
     {
-      bool ok;
       ddsrt_mutex_lock (&disc_lock);
       ok = (matchcount >= minmatch);
       ddsrt_mutex_unlock (&disc_lock);
@@ -2730,7 +2731,7 @@ err_minmatch_wait:
   }
   free (pongstat);
 
-  bool ok = true;
+  ok = true;
 
   {
     ddsrt_avl_iter_t it;

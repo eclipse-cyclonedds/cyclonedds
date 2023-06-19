@@ -988,15 +988,15 @@ void *ddsrt_avl_root_non_empty (const ddsrt_avl_treedef_t *td, const ddsrt_avl_t
  ****
  **************************************************************************************/
 
-void ddsrt_avl_ctreedef_init (ddsrt_avl_ctreedef_t *td, size_t avlnodeoffset, size_t keyoffset, ddsrt_avl_compare_t comparekk, ddsrt_avl_augment_t augment, uint32_t flags)
+void ddsrt_avl_ctreedef_init (ddsrt_avl_ctreedef_t *td, size_t avlnodeoffset, size_t keyoffset, ddsrt_avl_compare_t comparekk, ddsrt_avl_augment_t avl_augment, uint32_t flags)
 {
-    treedef_init_common (&td->t, avlnodeoffset, keyoffset, augment, flags);
+    treedef_init_common (&td->t, avlnodeoffset, keyoffset, avl_augment, flags);
     td->t.u.comparekk = comparekk;
 }
 
-void ddsrt_avl_ctreedef_init_r (ddsrt_avl_ctreedef_t *td, size_t avlnodeoffset, size_t keyoffset, ddsrt_avl_compare_r_t comparekk_r, void *cmp_arg, ddsrt_avl_augment_t augment, uint32_t flags)
+void ddsrt_avl_ctreedef_init_r (ddsrt_avl_ctreedef_t *td, size_t avlnodeoffset, size_t keyoffset, ddsrt_avl_compare_r_t comparekk_r, void *cmp_arg, ddsrt_avl_augment_t avl_augment, uint32_t flags)
 {
-    treedef_init_common (&td->t, avlnodeoffset, keyoffset, augment, flags | DDSRT_AVL_TREEDEF_FLAG_R);
+    treedef_init_common (&td->t, avlnodeoffset, keyoffset, avl_augment, flags | DDSRT_AVL_TREEDEF_FLAG_R);
     td->t.cmp_arg = cmp_arg;
     td->t.u.comparekk_r = comparekk_r;
 }
