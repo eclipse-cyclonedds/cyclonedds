@@ -503,7 +503,7 @@ static void free_whc_node_contents (struct dds_whc_default_node *whcn)
   ddsi_serdata_unref (whcn->serdata);
 }
 
-static void whc_default_free (struct ddsi_whc *whc_generic)
+void whc_default_free (struct ddsi_whc *whc_generic)
 {
   /* Freeing stuff without regards for maintaining data structures */
   struct whc_impl * const whc = (struct whc_impl *)whc_generic;
