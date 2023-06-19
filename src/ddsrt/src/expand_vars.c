@@ -95,9 +95,7 @@ static char *expand_varbrace (const char **src, expand_fn expand, expand_lookup_
         goto err;
     }
     name = ddsrt_malloc ((size_t) (*src - start) + 1);
-    if (*src > start) {
-      memcpy (name, start, (size_t) (*src - start));
-    }
+    memcpy (name, start, (size_t) (*src - start));
     name[*src - start] = 0;
     if (**src == '}') {
         (*src)++;
