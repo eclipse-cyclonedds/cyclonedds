@@ -81,7 +81,7 @@ DDS_EXPORT void free_iox_chunk(iox_sub_t *iox_sub, void **iox_chunk);
 DDS_EXPORT iceoryx_header_t *iceoryx_header_from_chunk(const void *iox_chunk);
 
 /** @component iceoryx_support */
-void shm_set_loglevel(enum ddsi_shm_loglevel);
+void shm_set_loglevel(enum ddsi_shm_loglevel level);
 
 /** @component iceoryx_support */
 void *shm_create_chunk(iox_pub_t iox_pub, size_t size);
