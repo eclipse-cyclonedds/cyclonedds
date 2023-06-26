@@ -113,7 +113,7 @@ typedef struct {
 } dds_log_data_t;
 
 /** Function signature that log and trace callbacks must adhere too. */
-typedef void (*dds_log_write_fn_t) (void *, const dds_log_data_t *);
+typedef void (*dds_log_write_fn_t) (void * p, const dds_log_data_t * d);
 
 /** Semi-opaque type for log/trace configuration. */
 struct ddsrt_log_cfg_common {
