@@ -203,13 +203,13 @@ static void lwregs_fini (struct lwregs *rt)
     ddsrt_ehh_free (rt->regs);
 }
 
-static int lwregs_contains (struct lwregs *rt, uint64_t iid, uint64_t wr_iid)
+static bool lwregs_contains (struct lwregs *rt, uint64_t iid, uint64_t wr_iid)
 {
   struct lwreg dummy = { .iid = iid, .wr_iid = wr_iid };
   return rt->regs != NULL && ddsrt_ehh_lookup (rt->regs, &dummy) != NULL;
 }
 
-static int lwregs_add (struct lwregs *rt, uint64_t iid, uint64_t wr_iid)
+static bool lwregs_add (struct lwregs *rt, uint64_t iid, uint64_t wr_iid)
 {
   struct lwreg dummy = { .iid = iid, .wr_iid = wr_iid };
   if (rt->regs == NULL)
@@ -217,7 +217,7 @@ static int lwregs_add (struct lwregs *rt, uint64_t iid, uint64_t wr_iid)
   return ddsrt_ehh_add (rt->regs, &dummy);
 }
 
-static int lwregs_delete (struct lwregs *rt, uint64_t iid, uint64_t wr_iid)
+static bool lwregs_delete (struct lwregs *rt, uint64_t iid, uint64_t wr_iid)
 {
   struct lwreg dummy = { .iid = iid, .wr_iid = wr_iid };
   return rt->regs != NULL && ddsrt_ehh_remove (rt->regs, &dummy);
@@ -416,7 +416,7 @@ static void drop_instance_noupdate_no_writers (struct dds_rhc_default * __restri
 static bool update_conditions_locked (struct dds_rhc_default *rhc, bool called_from_insert, const struct trigger_info_pre *pre, const struct trigger_info_post *post, const struct trigger_info_qcond *trig_qc, const struct rhc_instance *inst);
 static void account_for_nonempty_to_empty_transition (struct dds_rhc_default * __restrict rhc, struct rhc_instance * __restrict * __restrict instptr, const char *__restrict traceprefix);
 #ifndef NDEBUG
-static int rhc_check_counts_locked (struct dds_rhc_default *rhc, bool check_conds, bool check_qcmask);
+static bool rhc_check_counts_locked (struct dds_rhc_default *rhc, bool check_conds, bool check_qcmask);
 #endif
 
 static uint32_t instance_iid_hash (const void *va)
@@ -1015,12 +1015,12 @@ static bool content_filter_accepts (const dds_reader *reader, const struct ddsi_
   return ret;
 }
 
-static int inst_accepts_sample_by_writer_guid (const struct rhc_instance *inst, const struct ddsi_writer_info *wrinfo)
+static bool inst_accepts_sample_by_writer_guid (const struct rhc_instance *inst, const struct ddsi_writer_info *wrinfo)
 {
   return (inst->wr_iid_islive && inst->wr_iid == wrinfo->iid) || memcmp (&wrinfo->guid, &inst->wr_guid, sizeof (inst->wr_guid)) < 0;
 }
 
-static int inst_accepts_sample (const struct dds_rhc_default *rhc, const struct rhc_instance *inst, const struct ddsi_writer_info *wrinfo, const struct ddsi_serdata *sample, const bool has_data)
+static bool inst_accepts_sample (const struct dds_rhc_default *rhc, const struct rhc_instance *inst, const struct ddsi_writer_info *wrinfo, const struct ddsi_serdata *sample, const bool has_data)
 {
   if (rhc->by_source_ordering) {
     /* source ordering, so compare timestamps*/
@@ -1030,10 +1030,10 @@ static int inst_accepts_sample (const struct dds_rhc_default *rhc, const struct 
       /* one or both of the samples has no valid timestamp,
          or both are at the same time, writer guid check */
       if (!inst_accepts_sample_by_writer_guid (inst, wrinfo))
-        return 0;
+        return false;
     } else if (sample->timestamp.v < inst->tstamp.v) {
       /* sample is before inst, so definitely reject */
-      return 0;
+      return false;
     }
     /* sample is later than inst, further checks may be needed */
   }
@@ -1043,7 +1043,7 @@ static int inst_accepts_sample (const struct dds_rhc_default *rhc, const struct 
       inst->tstamp.v != DDS_TIME_INVALID) {
     if (sample->timestamp.v < INT64_MIN + rhc->minimum_separation ||
         sample->timestamp.v - rhc->minimum_separation < inst->tstamp.v) {
-      return 0;//reject
+      return false;//reject
     }
   }
 
@@ -1053,18 +1053,18 @@ static int inst_accepts_sample (const struct dds_rhc_default *rhc, const struct 
     if (strength > inst->strength) {
       /* ok */
     } else if (strength < inst->strength) {
-      return 0;
+      return false;
     } else if (inst_accepts_sample_by_writer_guid (inst, wrinfo)) {
       /* ok */
     } else {
-      return 0;
+      return false;
     }
   }
   if (has_data && !content_filter_accepts (rhc->reader, sample, inst, wrinfo->iid, inst->iid))
   {
-    return 0;
+    return false;
   }
-  return 1;
+  return true;
 }
 
 static void update_inst_common (struct rhc_instance *inst, const struct ddsi_writer_info * __restrict wrinfo, ddsrt_wctime_t tstamp)
@@ -1173,7 +1173,7 @@ static void dds_rhc_register (struct dds_rhc_default *rhc, struct rhc_instance *
     }
     else
     {
-      int x = lwregs_delete (&rhc->registrations, inst->iid, wr_iid);
+      bool x = lwregs_delete (&rhc->registrations, inst->iid, wr_iid);
       assert (x);
       (void) x;
       TRACE ("restore");
@@ -1193,7 +1193,7 @@ static void dds_rhc_register (struct dds_rhc_default *rhc, struct rhc_instance *
     {
       /* 2nd writer => properly register the one we knew about */
       TRACE ("rescue1");
-      int x;
+      bool x;
       x = lwregs_add (&rhc->registrations, inst->iid, inst_wr_iid);
       assert (x);
       (void) x;
@@ -1252,13 +1252,13 @@ static void account_for_nonempty_to_empty_transition (struct dds_rhc_default *__
   }
 }
 
-static int rhc_unregister_delete_registration (struct dds_rhc_default *rhc, const struct rhc_instance *inst, uint64_t wr_iid)
+static bool rhc_unregister_delete_registration (struct dds_rhc_default *rhc, const struct rhc_instance *inst, uint64_t wr_iid)
 {
   /* Returns 1 if last registration just disappeared */
   if (inst->wrcount == 0)
   {
     TRACE ("unknown(#0)");
-    return 0;
+    return false;
   }
   else if (inst->wrcount == 1 && inst->wr_iid_islive)
   {
@@ -1266,18 +1266,18 @@ static int rhc_unregister_delete_registration (struct dds_rhc_default *rhc, cons
     if (wr_iid != inst->wr_iid)
     {
       TRACE ("unknown(cache)");
-      return 0;
+      return false;
     }
     else
     {
       TRACE ("last(cache)");
-      return 1;
+      return true;
     }
   }
   else if (!lwregs_delete (&rhc->registrations, inst->iid, wr_iid))
   {
     TRACE ("unknown(regs)");
-    return 0;
+    return false;
   }
   else
   {
@@ -1292,11 +1292,11 @@ static int rhc_unregister_delete_registration (struct dds_rhc_default *rhc, cons
       TRACE (",delreg(remain)");
       (void) lwregs_delete (&rhc->registrations, inst->iid, inst->wr_iid);
     }
-    return 1;
+    return true;
   }
 }
 
-static int rhc_unregister_updateinst (struct dds_rhc_default *rhc, struct rhc_instance *inst, const struct ddsi_writer_info * __restrict wrinfo, ddsrt_wctime_t tstamp, struct trigger_info_qcond *trig_qc, bool * __restrict nda)
+static bool rhc_unregister_updateinst (struct dds_rhc_default *rhc, struct rhc_instance *inst, const struct ddsi_writer_info * __restrict wrinfo, ddsrt_wctime_t tstamp, struct trigger_info_qcond *trig_qc, bool * __restrict nda)
 {
   assert (inst->wrcount > 0);
   if (wrinfo->auto_dispose)
@@ -1315,7 +1315,7 @@ static int rhc_unregister_updateinst (struct dds_rhc_default *rhc, struct rhc_in
       inst->strength = 0;
       TRACE (",clearcache");
     }
-    return 0;
+    return false;
   }
   else
   {
@@ -1346,13 +1346,13 @@ static int rhc_unregister_updateinst (struct dds_rhc_default *rhc, struct rhc_in
         *nda = true;
       }
       inst->wr_iid_islive = 0;
-      return 0;
+      return false;
     }
     else if (inst->isdisposed)
     {
       /* No content left, no registrations left, so drop */
       TRACE (",#0,empty,nowriters,disposed");
-      return 1;
+      return true;
     }
     else
     {
@@ -1369,7 +1369,7 @@ static int rhc_unregister_updateinst (struct dds_rhc_default *rhc, struct rhc_in
       account_for_empty_to_nonempty_transition (rhc, inst);
       inst->wr_iid_islive = 0;
       *nda = true;
-      return 0;
+      return false;
     }
   }
 }
@@ -2737,10 +2737,10 @@ static int32_t dds_rhc_default_takecdr (struct dds_rhc *rhc_common, bool lock, s
 
 #ifndef NDEBUG
 #define CHECK_MAX_CONDS 64
-static int rhc_check_counts_locked (struct dds_rhc_default *rhc, bool check_conds, bool check_qcmask)
+static bool rhc_check_counts_locked (struct dds_rhc_default *rhc, bool check_conds, bool check_qcmask)
 {
   if (!rhc->xchecks)
-    return 1;
+    return true;
 
   const uint32_t ncheck = rhc->nconds < CHECK_MAX_CONDS ? rhc->nconds : CHECK_MAX_CONDS;
   uint32_t n_instances = 0, n_nonempty_instances = 0;
@@ -2900,7 +2900,7 @@ static int rhc_check_counts_locked (struct dds_rhc_default *rhc, bool check_cond
     assert (rhc->n_nonempty_instances == n_nonempty_instances);
   }
 
-  return 1;
+  return true;
 }
 #undef CHECK_MAX_CONDS
 #endif
