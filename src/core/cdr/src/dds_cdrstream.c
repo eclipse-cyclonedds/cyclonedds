@@ -449,6 +449,7 @@ static uint32_t get_collection_elem_size (uint32_t insn, const uint32_t * __rest
       break;
   }
   abort ();
+  return 0u;
 }
 
 static uint32_t get_adr_type_size (uint32_t insn, const uint32_t * __restrict ops)
@@ -954,6 +955,7 @@ static uint32_t read_union_discriminant (dds_istream_t * __restrict is, uint32_t
       break;
     default: return 0;
   }
+  return 0;
 }
 
 static const uint32_t *find_union_case (const uint32_t * __restrict union_ops, uint32_t disc)
@@ -1144,6 +1146,7 @@ static uint32_t get_length_code_seq (const enum dds_stream_typecode subtype)
       break;
   }
   abort ();
+  return 0u;
 }
 
 static uint32_t get_length_code_arr (const enum dds_stream_typecode subtype)
@@ -1166,6 +1169,7 @@ static uint32_t get_length_code_arr (const enum dds_stream_typecode subtype)
       break;
   }
   abort ();
+  return 0u;
 }
 
 static uint32_t get_length_code (const uint32_t * __restrict ops)
@@ -1239,6 +1243,7 @@ static bool is_member_present (const char * __restrict data, const uint32_t * __
     }
   }
   abort ();
+  return false;
 }
 
 #if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
