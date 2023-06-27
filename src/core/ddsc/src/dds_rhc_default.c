@@ -185,7 +185,7 @@ static uint32_t lwreg_hash (const void *vl)
   return (uint32_t) (l->iid ^ l->wr_iid);
 }
 
-static int lwreg_equals (const void *va, const void *vb)
+static bool lwreg_equals (const void *va, const void *vb)
 {
   const struct lwreg * a = va;
   const struct lwreg * b = vb;
@@ -425,7 +425,7 @@ static uint32_t instance_iid_hash (const void *va)
   return (uint32_t) a->iid;
 }
 
-static int instance_iid_eq (const void *va, const void *vb)
+static bool instance_iid_eq (const void *va, const void *vb)
 {
   const struct rhc_instance *a = va;
   const struct rhc_instance *b = vb;

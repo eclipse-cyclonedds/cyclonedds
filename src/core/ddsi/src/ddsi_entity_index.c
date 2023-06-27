@@ -61,14 +61,14 @@ static uint32_t hash_entity_guid_wrapper (const void *c)
   return hash_entity_guid (c);
 }
 
-static int entity_guid_eq (const struct ddsi_entity_common *a, const struct ddsi_entity_common *b)
+static bool entity_guid_eq (const struct ddsi_entity_common *a, const struct ddsi_entity_common *b)
 {
   return
     a->guid.prefix.u[0] == b->guid.prefix.u[0] && a->guid.prefix.u[1] == b->guid.prefix.u[1] &&
     a->guid.prefix.u[2] == b->guid.prefix.u[2] && a->guid.entityid.u == b->guid.entityid.u;
 }
 
-static int entity_guid_eq_wrapper (const void *a, const void *b)
+static bool entity_guid_eq_wrapper (const void *a, const void *b)
 {
   return entity_guid_eq (a, b);
 }
@@ -274,7 +274,7 @@ static void remove_from_all_entities (struct ddsi_entity_index *ei, struct ddsi_
 
 static void entity_index_insert (struct ddsi_entity_index *ei, struct ddsi_entity_common *e)
 {
-  int x;
+  bool x;
   x = ddsrt_chh_add (ei->guid_hash, e);
   (void)x;
   assert (x);
@@ -283,7 +283,7 @@ static void entity_index_insert (struct ddsi_entity_index *ei, struct ddsi_entit
 
 static void entity_index_remove (struct ddsi_entity_index *ei, struct ddsi_entity_common *e)
 {
-  int x;
+  bool x;
   remove_from_all_entities (ei, e);
   x = ddsrt_chh_remove (ei->guid_hash, e);
   (void)x;

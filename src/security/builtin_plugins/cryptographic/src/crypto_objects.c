@@ -83,7 +83,7 @@ static uint32_t crypto_object_hash(const void *obj)
   return (uint32_t)((x * c) >> 32);
 }
 
-static int crypto_object_equal(const void *ha, const void *hb)
+static bool crypto_object_equal(const void *ha, const void *hb)
 {
   const CryptoObject *la = ha;
   const CryptoObject *lb = hb;

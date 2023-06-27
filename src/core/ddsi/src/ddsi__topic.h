@@ -28,7 +28,7 @@ int ddsi_is_topic_entityid (ddsi_entityid_t id);
 #ifdef DDS_HAS_TOPIC_DISCOVERY
 
 /** @component ddsi_topic */
-int ddsi_topic_definition_equal (const struct ddsi_topic_definition *tpd_a, const struct ddsi_topic_definition *tpd_b);
+bool ddsi_topic_definition_equal (const struct ddsi_topic_definition *tpd_a, const struct ddsi_topic_definition *tpd_b);
 
 /** @component ddsi_topic */
 uint32_t ddsi_topic_definition_hash (const struct ddsi_topic_definition *tpd);
