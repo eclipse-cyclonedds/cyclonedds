@@ -955,6 +955,7 @@ static uint32_t read_union_discriminant (dds_istream_t * __restrict is, uint32_t
       break;
     default: return 0;
   }
+  abort ();
   return 0;
 }
 
