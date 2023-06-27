@@ -28,7 +28,7 @@ struct ddsi_whc *dds_whc_new (struct ddsi_domaingv *gv, const struct whc_writer_
 struct whc_writer_info *dds_whc_make_wrinfo (struct dds_writer *wr, const dds_qos_t *qos);
 
 /** @component whc */
-void dds_whc_free_wrinfo (struct whc_writer_info *);
+void dds_whc_free_wrinfo (struct whc_writer_info *info);
 
 #if defined (__cplusplus)
 }
