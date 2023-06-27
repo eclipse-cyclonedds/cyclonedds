@@ -214,7 +214,7 @@ static uint32_t threadmon_domain_hash (const void *va)
   return v >> 16;
 }
 
-static int threadmon_domain_eq (const void *va, const void *vb)
+static bool threadmon_domain_eq (const void *va, const void *vb)
 {
   const struct threadmon_domain *a = va;
   const struct threadmon_domain *b = vb;

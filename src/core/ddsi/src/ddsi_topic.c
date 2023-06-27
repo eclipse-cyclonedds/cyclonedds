@@ -327,7 +327,7 @@ static void unref_topic_definition (struct ddsi_domaingv *gv, struct ddsi_topic_
   ddsrt_mutex_unlock (&gv->topic_defs_lock);
 }
 
-int ddsi_topic_definition_equal (const struct ddsi_topic_definition *tpd_a, const struct ddsi_topic_definition *tpd_b)
+bool ddsi_topic_definition_equal (const struct ddsi_topic_definition *tpd_a, const struct ddsi_topic_definition *tpd_b)
 {
   if (tpd_a != NULL && tpd_b != NULL)
   {

@@ -165,7 +165,7 @@ static uint32_t wrinfo_hash (const void *va)
                       (a->wrid + UINT64_C (10242350189706880077))) >> 32);
 }
 
-static int wrinfo_eq (const void *va, const void *vb)
+static bool wrinfo_eq (const void *va, const void *vb)
 {
   const struct wrinfo *a = va;
   const struct wrinfo *b = vb;

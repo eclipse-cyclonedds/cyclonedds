@@ -57,7 +57,7 @@ static uint32_t typecache_hash (const void *vinfo)
     return (uint32_t) (((info->key.u32[0] + UINT64_C (16292676669999574021)) * (info->key.u32[1] + UINT64_C (10242350189706880077))) >> 32);
 }
 
-static int typecache_equal (const void *va, const void *vb)
+static bool typecache_equal (const void *va, const void *vb)
 {
   const struct typeinfo *a = va;
   const struct typeinfo *b = vb;

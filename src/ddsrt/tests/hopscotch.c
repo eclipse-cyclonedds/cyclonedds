@@ -37,7 +37,7 @@ static uint32_t hash_uint32 (const void *v)
   return h;
 }
 
-static int equals_uint32 (const void *a, const void *b)
+static bool equals_uint32 (const void *a, const void *b)
 {
   return *((uint32_t *) a) == *((uint32_t *) b);
 }

@@ -221,7 +221,7 @@ static uint32_t whc_node_hash (const void *vn)
   return (uint32_t) ((x * c) >> 32);
 }
 
-static int whc_node_eq (const void *va, const void *vb)
+static bool whc_node_eq (const void *va, const void *vb)
 {
   const struct dds_whc_default_node *a = va;
   const struct dds_whc_default_node *b = vb;
@@ -235,7 +235,7 @@ static uint32_t whc_idxnode_hash_key (const void *vn)
   return (uint32_t)n->iid;
 }
 
-static int whc_idxnode_eq_key (const void *va, const void *vb)
+static bool whc_idxnode_eq_key (const void *va, const void *vb)
 {
   const struct whc_idxnode *a = va;
   const struct whc_idxnode *b = vb;
