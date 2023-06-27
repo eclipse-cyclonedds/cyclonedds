@@ -145,7 +145,7 @@ static void sertype_builtin_free_samples (const struct ddsi_sertype *sertype_com
 #endif
     if (op & DDS_FREE_CONTENTS_BIT)
     {
-      void (*f) (void *) = 0;
+      void (*f) (void *a) = 0;
       char *ptr = ptrs[0];
       switch (tp->entity_kind)
       {

@@ -90,7 +90,7 @@ static uint32_t combine_reset_on_invoke (const dds_listener_t *dst, const dds_li
   return copy_bits (dst->reset_on_invoke, src->reset_on_invoke, status);
 }
 
-static void dds_combine_listener (bool (*op) (uint32_t inherited, void (*)(void), void (*)(void)), dds_listener_t * __restrict dst, const dds_listener_t * __restrict src)
+static void dds_combine_listener (bool (*op) (uint32_t inherited, void (*dst)(void), void (*src)(void)), dds_listener_t * __restrict dst, const dds_listener_t * __restrict src)
 {
 #define C(NAME_, name_) do { \
     if (op (dst->inherited & DDS_##NAME_##_STATUS, (void (*)(void)) dst->on_##name_, (void (*)(void)) src->on_##name_)){ \
