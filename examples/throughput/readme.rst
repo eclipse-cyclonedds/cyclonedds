@@ -72,25 +72,25 @@ To avoid mixing the output, run the publisher and subscriber in separate termina
 
 #. Open 2 terminals.
 
-#. In the first terminal start publisher by running **publisher**.
+#. In the first terminal start publisher by running **ThroughputPublisher**.
 
    Publisher usage (parameters must be supplied in order):
 
-   ``./publisher [payloadSize (bytes)] [burstInterval (ms)] [burstSize (samples)] [timeOut (seconds)] [partitionName]``
+   ``./ThroughputPublisher [payloadSize (bytes)] [burstInterval (ms)] [burstSize (samples)] [timeOut (seconds)] [partitionName]``
 
    Defaults:
 
-   ``./publisher 8192 0 1 0 "Throughput example"``
+   ``./ThroughputPublisher 8192 0 1 0 "Throughput example"``
 
-#. In the second terminal start subscriber by running **subscriber**.
+#. In the second terminal start subscriber by running **ThroughputSubscriber**.
 
    Subscriber usage (parameters must be supplied in order):
 
-   ``./subscriber [maxCycles (0=infinite)] [pollingDelay (ms, 0 = event based)] [partitionName]``
+   ``./ThroughputSubscriber [maxCycles (0=infinite)] [pollingDelay (ms, 0 = event based)] [partitionName]``
 
    Defaults:
 
-   ``./subscriber 0 0 "Throughput example"``  
+   ``./ThroughputSubscriber 0 0 "Throughput example"``  
 
 #. To achieve optimal performance, set the CPU affinity so that the publisher and subscriber 
    run on separate CPU cores and use real-time scheduling:
@@ -102,15 +102,15 @@ To avoid mixing the output, run the publisher and subscriber in separate termina
       .. code-block:: console
 
         Publisher usage:
-          ``taskset -c 0 chrt -f 80 ./publisher [payloadSize (bytes)] [burstInterval (ms)] [burstSize (samples)] [timeOut (seconds)] [partitionName]``
+          ``taskset -c 0 chrt -f 80 ./ThroughputSubscriber [payloadSize (bytes)] [burstInterval (ms)] [burstSize (samples)] [timeOut (seconds)] [partitionName]``
         Subscriber usage:
-          ``taskset -c 1 chrt -f 80 ./subscriber [maxCycles (0 = infinite)] [pollingDelay (ms, 0 = event based)] [partitionName]``
+          ``taskset -c 1 chrt -f 80 ./ThroughputSubscriber [maxCycles (0 = infinite)] [pollingDelay (ms, 0 = event based)] [partitionName]``
 
     .. group-tab:: Windows
 
       .. code-block:: console
 
         Publisher usage:
-          ``START /affinity 1 /high cmd /k "publisher.exe" [payloadSize (bytes)] [burstInterval (ms)] [burstSize (samples)] [timeOut (seconds)] [partitionName]``
+          ``START /affinity 1 /high cmd /k "ThroughputSubscriber.exe" [payloadSize (bytes)] [burstInterval (ms)] [burstSize (samples)] [timeOut (seconds)] [partitionName]``
         Subscriber usage:
-          ``START /affinity 2 /high cmd /k "subscriber.exe" [maxCycles (0 = infinite)] [pollingDelay (ms, 0 = event based)] [partitionName]``
+          ``START /affinity 2 /high cmd /k "ThroughputSubscriber.exe" [maxCycles (0 = infinite)] [pollingDelay (ms, 0 = event based)] [partitionName]``
