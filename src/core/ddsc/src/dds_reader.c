@@ -372,7 +372,7 @@ STATUS_CB_IMPL (reader, sample_lost,                SAMPLE_LOST,                
 STATUS_CB_IMPL (reader, requested_deadline_missed,  REQUESTED_DEADLINE_MISSED,  total_count_change)
 STATUS_CB_IMPL (reader, requested_incompatible_qos, REQUESTED_INCOMPATIBLE_QOS, total_count_change)
 
-void dds_reader_status_cb (void *entity, const ddsi_status_cb_data_t *data)
+void dds_reader_status_cb (void *entity, const struct ddsi_status_cb_data *data)
 {
   dds_reader * const rd = entity;
 
