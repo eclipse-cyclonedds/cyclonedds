@@ -1388,7 +1388,7 @@ dds_create_topic_sertype (
   struct ddsi_sertype **sertype,
   const dds_qos_t *qos,
   const dds_listener_t *listener,
-  const ddsi_plist_t *sedp_plist);
+  const struct ddsi_plist *sedp_plist);
 
 /**
  * @brief Finds a locally created or discovered remote topic by topic name and type information

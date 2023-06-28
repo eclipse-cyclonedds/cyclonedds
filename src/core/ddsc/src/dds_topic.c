@@ -597,7 +597,7 @@ error_typeref:
   return rc;
 }
 
-dds_entity_t dds_create_topic_sertype (dds_entity_t participant, const char *name, struct ddsi_sertype **sertype, const dds_qos_t *qos, const dds_listener_t *listener, const ddsi_plist_t *sedp_plist)
+dds_entity_t dds_create_topic_sertype (dds_entity_t participant, const char *name, struct ddsi_sertype **sertype, const dds_qos_t *qos, const dds_listener_t *listener, const struct ddsi_plist *sedp_plist)
 {
   (void) sedp_plist;
   return dds_create_topic_impl (participant, name, false, sertype, qos, listener, false);
