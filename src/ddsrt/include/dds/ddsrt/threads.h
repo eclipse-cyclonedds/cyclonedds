@@ -58,7 +58,7 @@ extern "C" {
 /**
  * @brief Definition for a thread routine invoked on thread create.
  */
-typedef uint32_t (*ddsrt_thread_routine_t)(void*);
+typedef uint32_t (*ddsrt_thread_routine_t)(void* p);
 
 /**
  * @brief Definition of the thread attributes
@@ -257,7 +257,7 @@ DDS_EXPORT dds_return_t ddsrt_thread_getname_anythread (ddsrt_thread_list_id_t t
  */
 DDS_EXPORT dds_return_t
 ddsrt_thread_cleanup_push(
-  void (*routine)(void*),
+  void (*routine)(void* p),
   void *arg);
 
 /**

@@ -343,7 +343,7 @@ crypto_participant_key_material_new(
 struct CryptoObjectTable;
 
 typedef uint32_t (*CryptoObjectHashFunction)(const void *obj);
-typedef int (*CryptoObjectEqualFunction)(const void *ha, const void *hb);
+typedef bool (*CryptoObjectEqualFunction)(const void *ha, const void *hb);
 typedef CryptoObject *(*CryptoObjectFindFunction)(const struct CryptoObjectTable *table, const void *arg);
 
 struct CryptoObjectTable *

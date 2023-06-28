@@ -613,7 +613,7 @@ static void thread_init(void)
   (void)pthread_once(&thread_once, &thread_init_once);
 }
 
-dds_return_t ddsrt_thread_cleanup_push (void (*routine) (void *), void *arg)
+dds_return_t ddsrt_thread_cleanup_push (void (*routine) (void * p), void *arg)
 {
   int err;
   thread_cleanup_t *prev, *tail;

@@ -90,9 +90,9 @@ static int32_t tl_request_get_deps (struct ddsi_domaingv * const gv, struct ddsr
   return cnt;
 }
 
-static int deps_typeid_equal (const void *type_id_a, const void *type_id_b)
+static bool deps_typeid_equal (const void *type_id_a, const void *type_id_b)
 {
-  return !ddsi_typeid_compare (type_id_a, type_id_b);
+  return ddsi_typeid_compare (type_id_a, type_id_b) == 0;
 }
 
 static uint32_t deps_typeid_hash (const void *type_id)

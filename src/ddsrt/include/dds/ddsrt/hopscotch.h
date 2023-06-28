@@ -12,6 +12,7 @@
 #define DDSRT_HOPSCOTCH_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #include "dds/export.h"
 
@@ -54,7 +55,7 @@ typedef uint32_t (*ddsrt_hh_hash_fn) (const void *a);
  * The input arguments are pointers to the user data objects to compare.
  * Returns int meant to be interpreted as bool (1 is match, 0 is no match)
  */
-typedef int (*ddsrt_hh_equals_fn) (const void *a, const void *b);
+typedef bool (*ddsrt_hh_equals_fn) (const void *a, const void *b);
 
 /**
  * @brief User defined garbage collection function for buckets (only used for concurrent version).
@@ -126,10 +127,10 @@ DDS_EXPORT void *ddsrt_hh_lookup (const struct ddsrt_hh * __restrict rt, const v
  *
  * @param[in,out] rt the hash table
  * @param[in] data user data to add
- * @return int meant to be interpreted as bool (1 is success, element added; 0 is failure, element not added)
+ * @return false iff key already present
  * @see ddsrt_hh_remove
  */
-DDS_EXPORT int ddsrt_hh_add (struct ddsrt_hh * __restrict rt, void * __restrict data) ddsrt_nonnull_all;
+DDS_EXPORT bool ddsrt_hh_add (struct ddsrt_hh * __restrict rt, void * __restrict data) ddsrt_nonnull_all;
 
 /**
  * @brief Remove an element from the hash table.
@@ -140,10 +141,10 @@ DDS_EXPORT int ddsrt_hh_add (struct ddsrt_hh * __restrict rt, void * __restrict 
  *
  * @param[in,out] rt the hash table
  * @param[in] keyobject user data to remove
- * @return int meant to be interpreted as bool (1 is success, 0 is failure)
+ * @return false iff key not present
  * @see ddsrt_hh_add
  */
-DDS_EXPORT int ddsrt_hh_remove (struct ddsrt_hh * __restrict rt, const void * __restrict keyobject) ddsrt_nonnull_all;
+DDS_EXPORT bool ddsrt_hh_remove (struct ddsrt_hh * __restrict rt, const void * __restrict keyobject) ddsrt_nonnull_all;
 
 /**
  * @brief Like @ref ddsrt_hh_add, but without returning success/failure result.
@@ -269,10 +270,10 @@ void *ddsrt_chh_lookup (struct ddsrt_chh * __restrict rt, const void * __restric
  *
  * @param[in,out] rt the hash table
  * @param[in] data user data to add
- * @return int meant to be interpreted as bool (1 is success, 0 is failure)
+ * @return false iff key already present
  * @see ddsrt_chh_remove
  */
-int ddsrt_chh_add (struct ddsrt_chh * __restrict rt, void * __restrict data);
+bool ddsrt_chh_add (struct ddsrt_chh * __restrict rt, void * __restrict data);
 
 /**
  * @brief Concurrent version of @ref ddsrt_hh_remove
@@ -282,10 +283,10 @@ int ddsrt_chh_add (struct ddsrt_chh * __restrict rt, void * __restrict data);
  *
  * @param[in,out] rt the hash table
  * @param[in] keyobject user data to remove
- * @return int meant to be interpreted as bool (1 is success, 0 is failure)
+ * @return false iff key not present
  * @see ddsrt_chh_add
  */
-int ddsrt_chh_remove (struct ddsrt_chh * __restrict rt, const void * __restrict keyobject);
+bool ddsrt_chh_remove (struct ddsrt_chh * __restrict rt, const void * __restrict keyobject);
 
 /**
  * @brief Concurrent version of @ref ddsrt_hh_enum
@@ -384,10 +385,10 @@ void *ddsrt_ehh_lookup (const struct ddsrt_ehh * __restrict rt, const void * __r
  *
  * @param[in,out] rt the hash table
  * @param[in] data user data to add
- * @return int meant to be interpreted as bool (1 is success, 0 is failure)
+ * @return false iff key already present
  * @see ddsrt_ehh_remove
  */
-int ddsrt_ehh_add (struct ddsrt_ehh * __restrict rt, const void * __restrict data);
+bool ddsrt_ehh_add (struct ddsrt_ehh * __restrict rt, const void * __restrict data);
 
 /**
  * @brief Embedded data version of @ref ddsrt_hh_remove
@@ -396,10 +397,10 @@ int ddsrt_ehh_add (struct ddsrt_ehh * __restrict rt, const void * __restrict dat
  *
  * @param[in,out] rt the hash table
  * @param[in] keyobject user data to remove
- * @return int meant to be interpreted as bool (1 is success, 0 is failure)
+ * @return false iff key not present
  * @see ddsrt_ehh_add
  */
-int ddsrt_ehh_remove (struct ddsrt_ehh * __restrict rt, const void * __restrict keyobject);
+bool ddsrt_ehh_remove (struct ddsrt_ehh * __restrict rt, const void * __restrict keyobject);
 
 /**
  * @brief Embedded data version of @ref ddsrt_hh_enum

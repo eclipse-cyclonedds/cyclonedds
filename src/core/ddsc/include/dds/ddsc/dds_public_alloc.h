@@ -118,9 +118,9 @@ DDS_EXPORT void * dds_realloc_zero (void * ptr, size_t size);
 DDS_EXPORT void dds_free (void * ptr);
 
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
-typedef void * (*dds_alloc_fn_t) (size_t);
-typedef void * (*dds_realloc_fn_t) (void *, size_t);
-typedef void (*dds_free_fn_t) (void *);
+typedef void * (*dds_alloc_fn_t) (size_t p);
+typedef void * (*dds_realloc_fn_t) (void * a, size_t b);
+typedef void (*dds_free_fn_t) (void *p);
 #endif // DOXYGEN_SHOULD_SKIP_THIS
 
 /**

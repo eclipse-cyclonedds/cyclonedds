@@ -74,12 +74,12 @@ static uint32_t dds_tk_hash_void (const void *inst)
   return dds_tk_hash (inst);
 }
 
-static int dds_tk_equals (const struct ddsi_tkmap_instance *a, const struct ddsi_tkmap_instance *b)
+static bool dds_tk_equals (const struct ddsi_tkmap_instance *a, const struct ddsi_tkmap_instance *b)
 {
-  return (a->m_sample->ops == b->m_sample->ops) ? ddsi_serdata_eqkey (a->m_sample, b->m_sample) : 0;
+  return a->m_sample->ops == b->m_sample->ops && ddsi_serdata_eqkey (a->m_sample, b->m_sample);
 }
 
-static int dds_tk_equals_void (const void *a, const void *b)
+static bool dds_tk_equals_void (const void *a, const void *b)
 {
   return dds_tk_equals (a, b);
 }
@@ -226,7 +226,7 @@ void ddsi_tkmap_instance_unref (struct ddsi_tkmap *map, struct ddsi_tkmap_instan
   if (new == REFC_DELETE)
   {
     /* Remove from hash table */
-    int removed = ddsrt_chh_remove(map->m_hh, tk);
+    bool removed = ddsrt_chh_remove(map->m_hh, tk);
     assert (removed);
     (void)removed;
 

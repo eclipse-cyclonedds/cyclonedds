@@ -65,7 +65,7 @@ static void sertype_plist_realloc_samples (void **ptrs, const struct ddsi_sertyp
   ddsi_plist_t *new = (oldcount == count) ? old : dds_realloc (old, count * sizeof (ddsi_plist_t));
   if (new)
   {
-    for (size_t i = count; i < oldcount; i++)
+    for (size_t i = oldcount; i < count; i++)
       ddsi_plist_init_empty (&new[i]);
     for (size_t i = 0; i < count; i++)
       ptrs[i] = &new[i];

@@ -183,7 +183,7 @@ static uint32_t security_object_hash(const void *obj)
   return (uint32_t)((x * c) >> 32);
 }
 
-static int security_object_equal(const void *ha, const void *hb)
+static bool security_object_equal(const void *ha, const void *hb)
 {
   const SecurityObject *la = ha;
   const SecurityObject *lb = hb;
@@ -279,7 +279,7 @@ static uint32_t remote_guid_hash(const void *obj)
   return (tmp[0] ^ tmp[1] ^ tmp[2] ^ tmp[3]);
 }
 
-static int remote_guid_equal(const void *ha, const void *hb)
+static bool remote_guid_equal(const void *ha, const void *hb)
 {
   const RemoteIdentityInfo *la = ha;
   const RemoteIdentityInfo *lb = hb;
