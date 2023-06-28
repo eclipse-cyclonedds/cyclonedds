@@ -64,18 +64,18 @@ ddsrt_strncasecmp(
 }
 
 char *
-ddsrt_strsep(char **str, const char *sep)
+ddsrt_strsep(char **stringp, const char *delim)
 {
   char *ret;
-  if (**str == '\0')
+  if (**stringp == '\0')
     return 0;
-  ret = *str;
-  while (**str && strchr (sep, **str) == 0)
-    (*str)++;
-  if (**str != '\0')
+  ret = *stringp;
+  while (**stringp && strchr (delim, **stringp) == 0)
+    (*stringp)++;
+  if (**stringp != '\0')
   {
-    **str = '\0';
-    (*str)++;
+    **stringp = '\0';
+    (*stringp)++;
   }
   return ret;
 }
@@ -144,12 +144,12 @@ ddsrt_strlcat(
 }
 
 void *
-ddsrt_memdup(const void *src, size_t n)
+ddsrt_memdup(const void *ptr, size_t len)
 {
   void *dest = NULL;
 
-  if (n != 0 && (dest = ddsrt_malloc_s(n)) != NULL) {
-    memcpy(dest, src, n);
+  if (len != 0 && (dest = ddsrt_malloc_s(len)) != NULL) {
+    memcpy(dest, ptr, len);
   }
 
   return dest;

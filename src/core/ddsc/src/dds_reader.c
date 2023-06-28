@@ -372,9 +372,9 @@ STATUS_CB_IMPL (reader, sample_lost,                SAMPLE_LOST,                
 STATUS_CB_IMPL (reader, requested_deadline_missed,  REQUESTED_DEADLINE_MISSED,  total_count_change)
 STATUS_CB_IMPL (reader, requested_incompatible_qos, REQUESTED_INCOMPATIBLE_QOS, total_count_change)
 
-void dds_reader_status_cb (void *ventity, const ddsi_status_cb_data_t *data)
+void dds_reader_status_cb (void *entity, const ddsi_status_cb_data_t *data)
 {
-  dds_reader * const rd = ventity;
+  dds_reader * const rd = entity;
 
   /* When data is NULL, it means that the DDSI reader is deleted. */
   if (data == NULL)
@@ -758,11 +758,11 @@ dds_entity_t dds_create_reader_rhc (dds_entity_t participant_or_subscriber, dds_
   return dds_create_reader_int (participant_or_subscriber, topic, qos, listener, rhc);
 }
 
-uint32_t dds_reader_lock_samples (dds_entity_t reader)
+uint32_t dds_reader_lock_samples (dds_entity_t entity)
 {
   dds_reader *rd;
   uint32_t n;
-  if (dds_reader_lock (reader, &rd) != DDS_RETCODE_OK)
+  if (dds_reader_lock (entity, &rd) != DDS_RETCODE_OK)
     return 0;
   n = dds_rhc_lock_samples (rd->m_rhc);
   dds_reader_unlock (rd);
@@ -821,7 +821,7 @@ dds_entity_t dds_get_subscriber (dds_entity_t entity)
   }
 }
 
-dds_return_t dds__reader_data_allocator_init (const dds_reader *rd, dds_data_allocator_t *data_allocator)
+dds_return_t dds__reader_data_allocator_init (const struct dds_reader *rd, dds_data_allocator_t *data_allocator)
 {
 #ifdef DDS_HAS_SHM
   dds_iox_allocator_t *d = (dds_iox_allocator_t *) data_allocator->opaque.bytes;
@@ -843,7 +843,7 @@ dds_return_t dds__reader_data_allocator_init (const dds_reader *rd, dds_data_all
 #endif
 }
 
-dds_return_t dds__reader_data_allocator_fini (const dds_reader *rd, dds_data_allocator_t *data_allocator)
+dds_return_t dds__reader_data_allocator_fini (const struct dds_reader *rd, dds_data_allocator_t *data_allocator)
 {
 #ifdef DDS_HAS_SHM
   dds_iox_allocator_t *d = (dds_iox_allocator_t *) data_allocator->opaque.bytes;

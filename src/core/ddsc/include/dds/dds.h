@@ -1388,7 +1388,7 @@ dds_create_topic_sertype (
   struct ddsi_sertype **sertype,
   const dds_qos_t *qos,
   const dds_listener_t *listener,
-  const struct ddsi_plist *sedp_plist);
+  const ddsi_plist_t *sedp_plist);
 
 /**
  * @brief Finds a locally created or discovered remote topic by topic name and type information
@@ -4155,7 +4155,7 @@ dds_lookup_instance(dds_entity_t entity, const void *data);
  * @component data_instance
  *
  * @param[in]  entity Reader, writer, readcondition or querycondition entity.
- * @param[in]  inst   Instance handle.
+ * @param[in]  ih     Instance handle.
  * @param[out] data   pointer to an instance, to which the key ID corresponding to the instance handle will be
  *    returned, the sample in the instance should be ignored.
  *
@@ -4173,7 +4173,7 @@ dds_lookup_instance(dds_entity_t entity, const void *data);
 DDS_EXPORT dds_return_t
 dds_instance_get_key(
   dds_entity_t entity,
-  dds_instance_handle_t inst,
+  dds_instance_handle_t ih,
   void *data);
 
 /**

@@ -42,11 +42,11 @@ dds_entity_t dds__get_builtin_topic_pseudo_handle_from_typename (const char *typ
  * @brief Get actual topic in related participant related to topic 'id'.
  * @component builtin_topic
  *
- * @param e         entity to get the built-in topic from
+ * @param entity    entity to get the built-in topic from
  * @param topic     pseudo handle to get the actual built-in topic for
  * @returns the built-in topic entity
  */
-dds_entity_t dds__get_builtin_topic (dds_entity_t e, dds_entity_t topic);
+dds_entity_t dds__get_builtin_topic (dds_entity_t entity, dds_entity_t topic);
 
 /**
  * @brief Constructs the QoS object for a built-in topic QoS

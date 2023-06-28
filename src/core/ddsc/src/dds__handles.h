@@ -157,13 +157,13 @@ int32_t dds_handle_delete(struct dds_handle_link *link);
  *
  * Returns OK when succeeded.
  */
-int32_t dds_handle_pin(dds_handle_t hdl, struct dds_handle_link **entity);
+int32_t dds_handle_pin(dds_handle_t hdl, struct dds_handle_link **link);
 
 /** @component handles */
-int32_t dds_handle_pin_with_origin(dds_handle_t hdl, bool from_user, struct dds_handle_link **entity);
+int32_t dds_handle_pin_with_origin(dds_handle_t hdl, bool from_user, struct dds_handle_link **link);
 
 /** @component handles */
-int32_t dds_handle_pin_and_ref_with_origin(dds_handle_t hdl, bool from_user, struct dds_handle_link **entity);
+int32_t dds_handle_pin_and_ref_with_origin(dds_handle_t hdl, bool from_user, struct dds_handle_link **link);
 
 /** @component handles */
 void dds_handle_repin(struct dds_handle_link *link);

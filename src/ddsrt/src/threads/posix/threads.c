@@ -77,14 +77,14 @@ int _open(const char *name, int mode) { return -1; }
 #endif
 
 size_t
-ddsrt_thread_getname(char *str, size_t size)
+ddsrt_thread_getname(char * __restrict name, size_t size)
 {
 #ifdef MAXTHREADNAMESIZE
   char buf[MAXTHREADNAMESIZE + 1] = "";
 #endif
   size_t cnt = 0;
 
-  assert(str != NULL);
+  assert(name != NULL);
   assert(size > 0);
 
 #if defined(__linux)
@@ -92,23 +92,23 @@ ddsrt_thread_getname(char *str, size_t size)
      allow space for. prctl is favored over pthread_getname_np for
      portability. e.g. musl libc. */
   (void)prctl(PR_GET_NAME, (unsigned long)buf, 0UL, 0UL, 0UL);
-  cnt = ddsrt_strlcpy(str, buf, size);
+  cnt = ddsrt_strlcpy(name, buf, size);
 #elif defined(__APPLE__)
   /* pthread_getname_np on APPLE uses strlcpy to copy the thread name, but
      does not return the number of bytes (that would have been) written. Use
      an intermediate buffer. */
   (void)pthread_getname_np(pthread_self(), buf, sizeof(buf));
-  cnt = ddsrt_strlcpy(str, buf, size);
+  cnt = ddsrt_strlcpy(name, buf, size);
 #elif defined(__FreeBSD__)
   (void)pthread_get_name_np(pthread_self(), buf, sizeof(buf));
-  cnt = ddsrt_strlcpy(str, buf, size);
+  cnt = ddsrt_strlcpy(name, buf, size);
 #elif defined(__sun)
 #if !(__SunOS_5_6 || __SunOS_5_7 || __SunOS_5_8 || __SunOS_5_9 || __SunOS_5_10)
   (void)pthread_getname_np(pthread_self(), buf, sizeof(buf));
 #else
   buf[0] = 0;
 #endif
-  cnt = ddsrt_strlcpy(str, buf, size);
+  cnt = ddsrt_strlcpy(name, buf, size);
 #elif defined(__VXWORKS__)
   {
     char *ptr;
@@ -120,21 +120,21 @@ ddsrt_thread_getname(char *str, size_t size)
     if (ptr == NULL) {
       ptr = buf;
     }
-    cnt = ddsrt_strlcpy(str, ptr, size);
+    cnt = ddsrt_strlcpy(name, ptr, size);
   }
 #elif defined(__QNXNTO__)
   (void)pthread_getname_np(pthread_self(), buf, sizeof(buf));
-  cnt = ddsrt_strlcpy(str, buf, size);
+  cnt = ddsrt_strlcpy(name, buf, size);
 #elif defined(__ZEPHYR__) && defined(CONFIG_THREAD_NAME)
   (void)pthread_getname_np(pthread_self(), buf, sizeof(buf));
-  cnt = ddsrt_strlcpy(str, buf, size);
+  cnt = ddsrt_strlcpy(name, buf, size);
 #endif
 
   /* Thread identifier is used as fall back if thread name lookup is not
      supported or the thread name is empty. */
   if (cnt == 0) {
     ddsrt_tid_t tid = ddsrt_gettid();
-    cnt = (size_t)snprintf(str, size, "%"PRIdTID, tid);
+    cnt = (size_t)snprintf(name, size, "%"PRIdTID, tid);
   }
 
   return cnt;
@@ -246,13 +246,13 @@ K_THREAD_STACK_ARRAY_DEFINE(zephyr_stacks, CYCLONEDDS_THREAD_COUNT, CYCLONEDDS_T
 
 dds_return_t
 ddsrt_thread_create (
-  ddsrt_thread_t *threadptr,
+  ddsrt_thread_t *thread,
   const char *name,
-  const ddsrt_threadattr_t *threadAttr,
-  uint32_t (*start_routine) (void *),
+  const ddsrt_threadattr_t *attr,
+  ddsrt_thread_routine_t start_routine,
   void *arg)
 {
-  pthread_attr_t attr;
+  pthread_attr_t pattr;
   thread_context_t *ctx;
   ddsrt_threadattr_t tattr;
   int result, create_ret;
@@ -260,11 +260,11 @@ ddsrt_thread_create (
   sigset_t set, oset;
 #endif
 
-  assert (threadptr != NULL);
+  assert (thread != NULL);
   assert (name != NULL);
-  assert (threadAttr != NULL);
+  assert (attr != NULL);
   assert (start_routine != NULL);
-  tattr = *threadAttr;
+  tattr = *attr;
 
 #if defined(__ZEPHYR__)
   /* Override requested size by size of statically allocated stacks */
@@ -277,21 +277,21 @@ ddsrt_thread_create (
   }
 #endif
 
-  if (pthread_attr_init (&attr) != 0)
+  if (pthread_attr_init (&pattr) != 0)
     return DDS_RETCODE_ERROR;
 
 #if defined(__VXWORKS__)
   /* pthread_setname_np is not available on VxWorks. Use pthread_attr_setname
      instead (proprietary VxWorks extension). */
-  (void)pthread_attr_setname (&attr, name);
+  (void)pthread_attr_setname (&pattr, name);
 #endif
 
 #if !defined(__ZEPHYR__)
-  if (pthread_attr_setscope (&attr, PTHREAD_SCOPE_SYSTEM) != 0)
+  if (pthread_attr_setscope (&pattr, PTHREAD_SCOPE_SYSTEM) != 0)
     goto err;
 #endif
 
-  if (pthread_attr_setdetachstate (&attr, PTHREAD_CREATE_JOINABLE) != 0) {
+  if (pthread_attr_setdetachstate (&pattr, PTHREAD_CREATE_JOINABLE) != 0) {
     goto err;
   }
 
@@ -303,7 +303,7 @@ ddsrt_thread_create (
 #endif
 
 #if !defined(__ZEPHYR__)
-    if ((result = pthread_attr_setstacksize (&attr, tattr.stackSize)) != 0)
+    if ((result = pthread_attr_setstacksize (&pattr, tattr.stackSize)) != 0)
     {
       DDS_ERROR ("ddsrt_thread_create(%s): pthread_attr_setstacksize(%"PRIu32") failed with error %d\n", name, tattr.stackSize, result);
       goto err;
@@ -369,20 +369,20 @@ ddsrt_thread_create (
         break;
     }
     if (tattr.schedClass != DDSRT_SCHED_DEFAULT) {
-      if ((result = pthread_attr_setschedpolicy (&attr, policy)) != 0)
+      if ((result = pthread_attr_setschedpolicy (&pattr, policy)) != 0)
       {
         DDS_ERROR("ddsrt_thread_create(%s): pthread_attr_setschedpolicy(%d) failed with error %d\n", name, policy, result);
         goto err;
       }
     }
     sched_param.sched_priority = tattr.schedPriority;
-    if ((result = pthread_attr_setschedparam (&attr, &sched_param)) != 0)
+    if ((result = pthread_attr_setschedparam (&pattr, &sched_param)) != 0)
     {
       DDS_ERROR("ddsrt_thread_create(%s): pthread_attr_setschedparam(priority = %d) failed with error %d\n", name, tattr.schedPriority, result);
       goto err;
     }
 #if !defined(__ZEPHYR__)
-    if ((result = pthread_attr_setinheritsched (&attr, PTHREAD_EXPLICIT_SCHED)) != 0)
+    if ((result = pthread_attr_setinheritsched (&pattr, PTHREAD_EXPLICIT_SCHED)) != 0)
     {
       DDS_ERROR("ddsrt_thread_create(%s): pthread_attr_setinheritsched(EXPLICIT) failed with error %d\n", name, result);
       goto err;
@@ -409,7 +409,7 @@ ddsrt_thread_create (
 #endif
   sigprocmask (SIG_BLOCK, &set, &oset);
 #endif /* !defined(__ZEPHYR__) */
-  if ((create_ret = pthread_create (&threadptr->v, &attr, os_startRoutineWrapper, ctx)) != 0)
+  if ((create_ret = pthread_create (&thread->v, &pattr, os_startRoutineWrapper, ctx)) != 0)
   {
     DDS_ERROR ("os_threadCreate(%s): pthread_create failed with error %d\n", name, create_ret);
     goto err_create;
@@ -417,14 +417,14 @@ ddsrt_thread_create (
 #if !defined(__ZEPHYR__)
   sigprocmask (SIG_SETMASK, &oset, NULL);
 #endif
-  pthread_attr_destroy (&attr);
+  pthread_attr_destroy (&pattr);
   return DDS_RETCODE_OK;
 
 err_create:
   ddsrt_free (ctx->name);
   ddsrt_free (ctx);
 err:
-  pthread_attr_destroy (&attr);
+  pthread_attr_destroy (&pattr);
   return DDS_RETCODE_ERROR;
 }
 
@@ -466,9 +466,9 @@ ddsrt_thread_self(void)
   return id;
 }
 
-bool ddsrt_thread_equal(ddsrt_thread_t a, ddsrt_thread_t b)
+bool ddsrt_thread_equal(ddsrt_thread_t t1, ddsrt_thread_t t2)
 {
-  return (pthread_equal(a.v, b.v) != 0);
+  return (pthread_equal(t1.v, t2.v) != 0);
 }
 
 dds_return_t

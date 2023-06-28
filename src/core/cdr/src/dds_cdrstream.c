@@ -4312,10 +4312,10 @@ static const uint32_t * dds_stream_print_sample1 (char * __restrict *buf, size_t
   return ops;
 }
 
-size_t dds_stream_print_sample (dds_istream_t * __restrict is, const struct dds_cdrstream_desc * __restrict desc, char * __restrict buf, size_t bufsize)
+size_t dds_stream_print_sample (dds_istream_t * __restrict is, const struct dds_cdrstream_desc * __restrict desc, char * __restrict buf, size_t size)
 {
-  (void) dds_stream_print_sample1 (&buf, &bufsize, is, desc->ops.ops, true, false);
-  return bufsize;
+  (void) dds_stream_print_sample1 (&buf, &size, is, desc->ops.ops, true, false);
+  return size;
 }
 
 static void dds_stream_print_key_impl (dds_istream_t * __restrict is, const uint32_t *ops, uint16_t key_offset_count, const uint32_t * key_offset_insn,
@@ -4344,25 +4344,25 @@ static void dds_stream_print_key_impl (dds_istream_t * __restrict is, const uint
   }
 }
 
-size_t dds_stream_print_key (dds_istream_t * __restrict is, const struct dds_cdrstream_desc * __restrict desc, char * __restrict buf, size_t bufsize)
+size_t dds_stream_print_key (dds_istream_t * __restrict is, const struct dds_cdrstream_desc * __restrict desc, char * __restrict buf, size_t size)
 {
-  bool cont = prtf (&buf, &bufsize, ":k:{");
+  bool cont = prtf (&buf, &size, ":k:{");
   bool needs_comma = false;
   for (uint32_t i = 0; cont && i < desc->keys.nkeys; i++)
   {
     if (needs_comma)
-      (void) prtf (&buf, &bufsize, ",");
+      (void) prtf (&buf, &size, ",");
     needs_comma = true;
     const uint32_t *op = desc->ops.ops + desc->keys.keys[i].ops_offs;
     switch (DDS_OP (*op))
     {
       case DDS_OP_KOF: {
         uint16_t n_offs = DDS_OP_LENGTH (*op);
-        dds_stream_print_key_impl (is, desc->ops.ops + op[1], --n_offs, op + 2, &buf, &bufsize, &cont);
+        dds_stream_print_key_impl (is, desc->ops.ops + op[1], --n_offs, op + 2, &buf, &size, &cont);
         break;
       }
       case DDS_OP_ADR: {
-        dds_stream_print_key_impl (is, op, 0, NULL, &buf, &bufsize, &cont);
+        dds_stream_print_key_impl (is, op, 0, NULL, &buf, &size, &cont);
         break;
       }
       default:
@@ -4370,8 +4370,8 @@ size_t dds_stream_print_key (dds_istream_t * __restrict is, const struct dds_cdr
         break;
     }
   }
-  (void) prtf (&buf, &bufsize, "}");
-  return bufsize;
+  (void) prtf (&buf, &size, "}");
+  return size;
 }
 
 /* Gets the (minimum) extensibility of the types used for this topic, and returns the XCDR

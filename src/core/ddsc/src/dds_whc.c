@@ -151,17 +151,17 @@ static void free_deferred_free_list (struct dds_whc_default_node *deferred_free_
 static void get_state_locked (const struct whc_impl *whc, struct ddsi_whc_state *st);
 
 static uint32_t whc_default_remove_acked_messages_full (struct whc_impl *whc, ddsi_seqno_t max_drop_seq, struct ddsi_whc_node **deferred_free_list);
-static uint32_t whc_default_remove_acked_messages (struct ddsi_whc *whc, ddsi_seqno_t max_drop_seq, struct ddsi_whc_state *whcst, struct ddsi_whc_node **deferred_free_list);
-static void whc_default_free_deferred_free_list (struct ddsi_whc *whc, struct ddsi_whc_node *deferred_free_list);
-static void whc_default_get_state (const struct ddsi_whc *whc, struct ddsi_whc_state *st);
-static int whc_default_insert (struct ddsi_whc *whc, ddsi_seqno_t max_drop_seq, ddsi_seqno_t seq, ddsrt_mtime_t exp, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk);
-static ddsi_seqno_t whc_default_next_seq (const struct ddsi_whc *whc, ddsi_seqno_t seq);
-static bool whc_default_borrow_sample (const struct ddsi_whc *whc, ddsi_seqno_t seq, struct ddsi_whc_borrowed_sample *sample);
-static bool whc_default_borrow_sample_key (const struct ddsi_whc *whc, const struct ddsi_serdata *serdata_key, struct ddsi_whc_borrowed_sample *sample);
-static void whc_default_return_sample (struct ddsi_whc *whc, struct ddsi_whc_borrowed_sample *sample, bool update_retransmit_info);
-static void whc_default_sample_iter_init (const struct ddsi_whc *whc, struct ddsi_whc_sample_iter *opaque_it);
+static uint32_t whc_default_remove_acked_messages (struct ddsi_whc *whc_generic, ddsi_seqno_t max_drop_seq, struct ddsi_whc_state *whcst, struct ddsi_whc_node **deferred_free_list);
+static void whc_default_free_deferred_free_list (struct ddsi_whc *whc_generic, struct ddsi_whc_node *deferred_free_list);
+static void whc_default_get_state (const struct ddsi_whc *whc_generic, struct ddsi_whc_state *st);
+static int whc_default_insert (struct ddsi_whc *whc_generic, ddsi_seqno_t max_drop_seq, ddsi_seqno_t seq, ddsrt_mtime_t exp, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk);
+static ddsi_seqno_t whc_default_next_seq (const struct ddsi_whc *whc_generic, ddsi_seqno_t seq);
+static bool whc_default_borrow_sample (const struct ddsi_whc *whc_generic, ddsi_seqno_t seq, struct ddsi_whc_borrowed_sample *sample);
+static bool whc_default_borrow_sample_key (const struct ddsi_whc *whc_generic, const struct ddsi_serdata *serdata_key, struct ddsi_whc_borrowed_sample *sample);
+static void whc_default_return_sample (struct ddsi_whc *whc_generic, struct ddsi_whc_borrowed_sample *sample, bool update_retransmit_info);
+static void whc_default_sample_iter_init (const struct ddsi_whc *whc_generic, struct ddsi_whc_sample_iter *opaque_it);
 static bool whc_default_sample_iter_borrow_next (struct ddsi_whc_sample_iter *opaque_it, struct ddsi_whc_borrowed_sample *sample);
-static void whc_default_free (struct ddsi_whc *whc);
+static void whc_default_free (struct ddsi_whc *whc_generic);
 
 static const ddsrt_avl_treedef_t whc_seq_treedef =
   DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct whc_intvnode, avlnode), offsetof (struct whc_intvnode, min), compare_seq, 0);

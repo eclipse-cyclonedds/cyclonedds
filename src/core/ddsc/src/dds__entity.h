@@ -77,7 +77,7 @@ inline bool dds_entity_is_enabled (const dds_entity *e) {
 }
 
 /** @component generic_entity */
-bool dds_entity_status_set (dds_entity *e, status_mask_t t) ddsrt_attribute_warn_unused_result;
+bool dds_entity_status_set (dds_entity *e, status_mask_t status) ddsrt_attribute_warn_unused_result;
 
 /** @component generic_entity */
 inline void dds_entity_status_reset (dds_entity *e, status_mask_t t) {
@@ -204,7 +204,7 @@ dds_return_t dds_entity_pin_for_delete (dds_entity_t hdl, bool explicit, bool fr
 void dds_entity_unpin (dds_entity *e);
 
 /** @component generic_entity */
-dds_return_t dds_entity_lock (dds_entity_t hdl, dds_entity_kind_t kind, dds_entity **e);
+dds_return_t dds_entity_lock (dds_entity_t hdl, dds_entity_kind_t kind, dds_entity **eptr);
 
 /** @component generic_entity */
 void dds_entity_unlock (dds_entity *e);
