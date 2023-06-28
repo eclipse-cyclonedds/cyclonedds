@@ -47,7 +47,7 @@ const struct dds_entity_deriver dds_entity_deriver_publisher = {
   .refresh_statistics = dds_entity_deriver_dummy_refresh_statistics
 };
 
-dds_entity_t dds__create_publisher_l (dds_participant *participant, bool implicit, const dds_qos_t *qos, const dds_listener_t *listener)
+dds_entity_t dds__create_publisher_l (struct dds_participant *participant, bool implicit, const dds_qos_t *qos, const dds_listener_t *listener)
 {
   dds_publisher *pub;
   dds_entity_t hdl;

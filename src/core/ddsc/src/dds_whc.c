@@ -437,9 +437,9 @@ struct whc_writer_info *dds_whc_make_wrinfo (struct dds_writer *wr, const dds_qo
   return wrinfo;
 }
 
-void dds_whc_free_wrinfo (struct whc_writer_info *wrinfo)
+void dds_whc_free_wrinfo (struct whc_writer_info *info)
 {
-  ddsrt_free (wrinfo);
+  ddsrt_free (info);
 }
 
 struct ddsi_whc *dds_whc_new (struct ddsi_domaingv *gv, const struct whc_writer_info *wrinfo)
