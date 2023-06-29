@@ -38,7 +38,6 @@ static const char ext[] = "so";
 #include "plugin.h"
 #include "idl/heap.h"
 #include "idl/string.h"
-#include "idlc/generator.h"
 
 static size_t extlen = sizeof(ext) - 1;
 
@@ -147,10 +146,6 @@ static int run_library_locator(const char *command, char **out_output) {
   return -1;
 }
 
-
-extern const idlc_option_t** idlc_generator_options(void);
-extern int idlc_generate(const idl_pstate_t *pstate, const idlc_generator_config_t *config);
-
 int32_t
 idlc_load_generator(idlc_generator_plugin_t *plugin, const char *lang)
 {
@@ -159,15 +154,6 @@ idlc_load_generator(idlc_generator_plugin_t *plugin, const char *lang)
   size_t len = strlen(lang);
   void *handle = NULL;
   idlc_generate_t generate = 0;
-
-  /* short-circuit on builtin generator */
-  if (idl_strcasecmp(lang, "C") == 0) {
-    plugin->handle = NULL;
-    plugin->generator_options = &idlc_generator_options;
-    plugin->generator_annotations = 0;
-    plugin->generate = &idlc_generate;
-    return 0;
-  }
 
   /* special case for python generator
         The 'active' idlpy library is dependend on which python is active. Idlpy is installed

@@ -12,10 +12,6 @@
 include(CUnit)
 
 set(sources
-  ../src/plugin.c
-  ../src/generator.c
-  ../src/descriptor.c
-  ../src/types.c
   test_common.c
   descriptor.c)
 
@@ -29,9 +25,11 @@ add_cunit_executable(cunit_idlc ${sources})
 
 target_include_directories(
   cunit_idlc PRIVATE
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/../include>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../src>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../../core/ddsi/include>"
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../../core/cdr/include>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../../core/cdr/include>")
 
 if(MSVC)
@@ -39,4 +37,4 @@ if(MSVC)
   target_compile_options(cunit_idlc PRIVATE /wd6255 /wd6263)
 endif()
 
-target_link_libraries(cunit_idlc PRIVATE idl ddsc ${CMAKE_DL_LIBS})
+target_link_libraries(cunit_idlc PRIVATE idl libidlc ddsc ${CMAKE_DL_LIBS})

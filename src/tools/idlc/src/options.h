@@ -11,7 +11,12 @@
 #ifndef OPTIONS_H
 #define OPTIONS_H
 
-#include "idlc/options.h"
+#include "libidlc/idl_defs.h"
+
+#define IDLC_NO_MEMORY (-1)
+#define IDLC_BAD_OPTION (-2)
+#define IDLC_NO_ARGUMENT (-3)
+#define IDLC_BAD_ARGUMENT (-4)
 
 #define IDLC_BAD_INPUT (-5) /**< conflicting options or missing "-h" */
 

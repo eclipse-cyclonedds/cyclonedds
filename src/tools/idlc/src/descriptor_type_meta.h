@@ -1,4 +1,4 @@
-// Copyright(c) 2021 to 2022 ZettaScale Technology and others
+// Copyright(c) 2021 to 2023 ZettaScale Technology and others
 //
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License v. 2.0 which is available at
@@ -11,8 +11,9 @@
 #ifndef DESCRIPTOR_TYPE_META_H
 #define DESCRIPTOR_TYPE_META_H
 
-#include "generator.h"
+#include "libidlc/descriptor_type_meta.h"
 #include "dds/ddsi/ddsi_xt_typeinfo.h"
+#include "dds/ddsi/ddsi_xt_typemap.h"
 
 struct type_meta {
   bool finalized;
@@ -43,17 +44,5 @@ generate_descriptor_type_meta (
 void
 descriptor_type_meta_fini (
   struct descriptor_type_meta *dtm);
-
-idl_retcode_t
-print_type_meta_ser (
-  FILE *fp,
-  const idl_pstate_t *pstate,
-  const idl_node_t *node);
-
-idl_retcode_t
-generate_type_meta_ser (
-  const idl_pstate_t *pstate,
-  const idl_node_t *node,
-  idl_typeinfo_typemap_t *result);
 
 #endif /* DESCRIPTOR_TYPE_META_H */

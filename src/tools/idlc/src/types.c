@@ -21,8 +21,9 @@
 #include "idl/string.h"
 #include "idl/processor.h"
 
-#include "generator.h"
 #include "descriptor.h"
+#include "generator.h"
+#include "types.h"
 
 static const char *
 get_type_prefix(const idl_type_spec_t *type_spec)
@@ -206,8 +207,6 @@ emit_field(
 
   return IDL_RETCODE_OK;
 }
-
-extern idl_retcode_t generate_descriptor(const idl_pstate_t *, struct generator *, const idl_node_t *);
 
 static idl_retcode_t
 emit_struct(
@@ -689,8 +688,6 @@ emit_const(
     return IDL_RETCODE_NO_MEMORY;
   return IDL_RETCODE_OK;
 }
-
-idl_retcode_t generate_types(const idl_pstate_t *pstate, struct generator *generator);
 
 idl_retcode_t generate_types(const idl_pstate_t *pstate, struct generator *generator)
 {

@@ -32,11 +32,10 @@
 #include "mcpp_lib.h"
 #include "mcpp_out.h"
 
-#include "idlc/generator.h"
-#include "generator.h"
+#include "libidlc/idl_defs.h"
 #include "plugin.h"
 #include "options.h"
-#include "descriptor_type_meta.h"
+#include "libidlc/descriptor_type_meta.h"
 #include "file.h"
 
 #if 0

@@ -12,6 +12,7 @@
 #define DESCRIPTOR_H
 
 #include "idl/processor.h"
+#include "libidlc/idl_defs.h"
 
 #define MAX_KEY_OFFS (255)
 
@@ -171,5 +172,7 @@ emit_topic_descriptor(
   const idl_pstate_t *pstate,
   const idl_node_t *node,
   void *user_data);
+
+idl_retcode_t generate_descriptor(const idl_pstate_t *pstate, struct generator *generator, const idl_node_t *node);
 
 #endif /* DESCRIPTOR_H */

@@ -25,7 +25,8 @@
 #include "idl/version.h"
 #include "idl/processor.h"
 #include "idl/print.h"
-#include "idlc/generator.h"
+#include "types.h"
+#include "options.h"
 
 const char *export_macro = NULL;
 const char *header_guard_prefix = "DDSC_";
@@ -305,10 +306,7 @@ static idl_retcode_t print_includes(FILE *fh, const idl_source_t *source)
   return IDL_RETCODE_OK;
 }
 
-extern idl_retcode_t
-generate_types(const idl_pstate_t *pstate, struct generator *generator);
-
-idl_retcode_t
+static idl_retcode_t
 generate_nosetup(const idl_pstate_t *pstate, struct generator *generator)
 {
   idl_retcode_t ret;
@@ -363,13 +361,13 @@ static const idlc_option_t *opts[] = {
   NULL
 };
 
-const idlc_option_t** idlc_generator_options(void)
+const idlc_option_t** generator_options(void)
 {
   return opts;
 }
 
 idl_retcode_t
-idlc_generate(const idl_pstate_t *pstate, const idlc_generator_config_t *config)
+generate(const idl_pstate_t *pstate, const idlc_generator_config_t *config)
 {
   idl_retcode_t ret = IDL_RETCODE_NO_MEMORY;
   struct generator generator;
