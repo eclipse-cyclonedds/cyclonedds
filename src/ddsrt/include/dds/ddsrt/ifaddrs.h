@@ -24,21 +24,21 @@ extern "C" {
 
 /** @brief The interface type */
 enum ddsrt_iftype {
-  DDSRT_IFTYPE_UNKNOWN, ///< An unknown interface
+  DDSRT_IFTYPE_UNKNOWN, ///< An unknown interface type
   DDSRT_IFTYPE_WIRED, ///< A wired interface (e.g. ethernet)
-  DDSRT_IFTYPE_WIFI ///< A wifi interface
+  DDSRT_IFTYPE_WIFI ///< A wifi (IEEE 802.11) interface
 };
 
 /** @brief Linked list of interface addresses */
 struct ddsrt_ifaddrs {
-  struct ddsrt_ifaddrs *next; ///< next pointer of the linked list
+  struct ddsrt_ifaddrs *next; ///< pointer to the next interface in the returned list of interfaces
   char *name; ///< name of the interface
-  uint32_t index; ///< the index of the interface
-  uint32_t flags; ///< flags from 'struct ifaddrs'
+  uint32_t index; ///< a unique integer associated with the interface
+  uint32_t flags; ///< interface flags e.g. IFF_LOOPBACK, IFF_MASTER, IFF_MULTICAST
   enum ddsrt_iftype type; ///< @see ddsrt_iftype
   struct sockaddr *addr; ///< network address of this interface
-  struct sockaddr *netmask; ///< netmask of this interface
-  struct sockaddr *broadaddr; ///< broadcast address of this interface
+  struct sockaddr *netmask; ///< netmask of this interface (or NULL if it doesn't have one)
+  struct sockaddr *broadaddr; ///< broadcast address of this interface (or NULL if it doesn't have one)
 };
 
 typedef struct ddsrt_ifaddrs ddsrt_ifaddrs_t;
