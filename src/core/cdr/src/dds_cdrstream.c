@@ -395,10 +395,10 @@ static void dds_os_put_bytes (dds_ostream_t * __restrict os, const struct dds_cd
   os->m_index += l;
 }
 
-static void dds_os_put_bytes_aligned (dds_ostream_t * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator, const void * __restrict data, uint32_t num, uint32_t elem_sz, align_t align, void **dst)
+static void dds_os_put_bytes_aligned (dds_ostream_t * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator, const void * __restrict data, uint32_t num, uint32_t elem_sz, align_t cdr_align, void **dst)
 {
   const uint32_t sz = num * elem_sz;
-  dds_cdr_alignto_clear_and_resize (os, allocator, align, sz);
+  dds_cdr_alignto_clear_and_resize (os, allocator, cdr_align, sz);
   if (dst)
     *dst = os->m_buffer + os->m_index;
   memcpy (os->m_buffer + os->m_index, data, sz);
@@ -563,9 +563,9 @@ static inline bool op_type_base (const uint32_t insn)
 
 static inline bool check_optimize_impl (uint32_t xcdr_version, const uint32_t *ops, uint32_t size, uint32_t num, uint32_t *off, uint32_t member_offs)
 {
-  align_t align = dds_cdr_get_align (xcdr_version, size);
-  if (*off % ALIGN(align))
-    *off += ALIGN(align) - (*off % ALIGN(align));
+  align_t cdr_align = dds_cdr_get_align (xcdr_version, size);
+  if (*off % ALIGN(cdr_align))
+    *off += ALIGN(cdr_align) - (*off % ALIGN(cdr_align));
   if (member_offs + ops[1] != *off)
     return false;
   *off += num * size;
@@ -3376,10 +3376,10 @@ static void dds_stream_extract_key_from_key_prim_op (dds_istream_t * __restrict 
         elem_size = DDS_OP_TYPE_SZ (insn);
       else
         abort ();
-      const align_t align = dds_cdr_get_align (os->m_xcdr_version, elem_size);
+      const align_t cdr_align = dds_cdr_get_align (os->m_xcdr_version, elem_size);
       const uint32_t num = ops[2];
-      dds_cdr_alignto (is, align);
-      dds_cdr_alignto_clear_and_resize (os, allocator, align, num * elem_size);
+      dds_cdr_alignto (is, cdr_align);
+      dds_cdr_alignto_clear_and_resize (os, allocator, cdr_align, num * elem_size);
       void * const dst = os->m_buffer + os->m_index;
       dds_is_get_bytes (is, dst, num, elem_size);
       os->m_index += num * elem_size;
@@ -3483,10 +3483,10 @@ static void dds_stream_extract_keyBE_from_key_prim_op (dds_istream_t * __restric
         elem_size = DDS_OP_TYPE_SZ (insn);
       else
         abort ();
-      const align_t align = dds_cdr_get_align (os->x.m_xcdr_version, elem_size);
+      const align_t cdr_align = dds_cdr_get_align (os->x.m_xcdr_version, elem_size);
       const uint32_t num = ops[2];
-      dds_cdr_alignto (is, align);
-      dds_cdr_alignto_clear_and_resizeBE (os, allocator, align, num * elem_size);
+      dds_cdr_alignto (is, cdr_align);
+      dds_cdr_alignto_clear_and_resizeBE (os, allocator, cdr_align, num * elem_size);
       void const * const src = is->m_buffer + is->m_index;
       void * const dst = os->x.m_buffer + os->x.m_index;
 #if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
