@@ -69,6 +69,7 @@ prepend(hdrs_private_ddsc "${CMAKE_CURRENT_LIST_DIR}/src/"
   dds__qos.h
   dds__readcond.h
   dds__guardcond.h
+  dds__read.h
   dds__reader.h
   dds__rhc_default.h
   dds__statistics.h

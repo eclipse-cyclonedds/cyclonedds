@@ -3195,6 +3195,9 @@ dds_read_wl(
  *
  * When using a readcondition or querycondition, their masks are or'd with the given mask.
  *
+ * If the sample/view/instance state component in the mask is 0 and there is no read or query condition,
+ * to combine it with, it is treated as equivalent to any sample/view/instance state.
+ *
  * @param[in]  reader_or_condition Reader, readcondition or querycondition entity.
  * @param[out] buf An array of pointers to samples into which data is read (pointers can be NULL).
  * @param[out] si Pointer to an array of @ref dds_sample_info_t returned for each data value.
@@ -3231,6 +3234,9 @@ dds_read_mask(
  * @component read_data
  *
  * When using a readcondition or querycondition, their masks are or'd with the given mask.
+ *
+ * If the sample/view/instance state component in the mask is 0 and there is no read or query condition,
+ * to combine it with, it is treated as equivalent to any sample/view/instance state.
  *
  * After dds_read_mask_wl function is being called and the data has been handled, dds_return_loan() function must be called to possibly free memory
  *
@@ -3503,6 +3509,9 @@ dds_take_wl(
  *
  * When using a readcondition or querycondition, their masks are or'd with the given mask.
  *
+ * If the sample/view/instance state component in the mask is 0 and there is no read or query condition,
+ * to combine it with, it is treated as equivalent to any sample/view/instance state.
+ *
  * @param[in]  reader_or_condition Reader, readcondition or querycondition entity.
  * @param[out] buf An array of pointers to samples into which data is read (pointers can be NULL).
  * @param[out] si Pointer to an array of @ref dds_sample_info_t returned for each data value.
@@ -3538,6 +3547,9 @@ dds_take_mask(
  * @component read_data
  *
  * When using a readcondition or querycondition, their masks are or'd with the given mask.
+ *
+ * If the sample/view/instance state component in the mask is 0 and there is no read or query condition,
+ * to combine it with, it is treated as equivalent to any sample/view/instance state.
  *
  * After dds_take_mask_wl function is being called and the data has been handled, dds_return_loan() function must be called to possibly free memory
  *
@@ -3586,6 +3598,11 @@ dds_take_mask_wl(
  * is made available through @ref ddsi_serdata structures. Returned samples are
  * marked as READ.
  *
+ * When using a readcondition or querycondition, their masks are or'd with the given mask.
+ *
+ * If the sample/view/instance state component in the mask is 0 and there is no read or query condition,
+ * to combine it with, it is treated as equivalent to any sample/view/instance state.
+ *
  * Return value provides information about the number of samples read, which will
  * be <= maxs. Based on the count, the buffer will contain serialized data to be
  * read only when valid_data bit in sample info structure is set.
@@ -3633,6 +3650,11 @@ dds_readcdr(
  * This operation implements the same functionality as dds_read_instance_wl, except that
  * samples are now in their serialized form. The serialized data is made available through
  * @ref ddsi_serdata structures. Returned samples are marked as READ.
+ *
+ * When using a readcondition or querycondition, their masks are or'd with the given mask.
+ *
+ * If the sample/view/instance state component in the mask is 0 and there is no read or query condition,
+ * to combine it with, it is treated as equivalent to any sample/view/instance state.
  *
  * Return value provides information about the number of samples read, which will
  * be <= maxs. Based on the count, the buffer will contain serialized data to be
@@ -3684,6 +3706,11 @@ dds_readcdr_instance (
  * is made available through @ref ddsi_serdata structures. Once read the data is
  * removed from the reader and cannot be 'read' or 'taken' again.
  *
+ * When using a readcondition or querycondition, their masks are or'd with the given mask.
+ *
+ * If the sample/view/instance state component in the mask is 0 and there is no read or query condition,
+ * to combine it with, it is treated as equivalent to any sample/view/instance state.
+ *
  * Return value provides information about the number of samples read, which will
  * be <= maxs. Based on the count, the buffer will contain serialized data to be
  * read only when valid_data bit in sample info structure is set.
@@ -3731,6 +3758,11 @@ dds_takecdr(
  * This operation implements the same functionality as dds_take_instance_wl, except that
  * samples are now in their serialized form. The serialized data is made available through
  * @ref ddsi_serdata structures. Returned samples are marked as READ.
+ *
+ * When using a readcondition or querycondition, their masks are or'd with the given mask.
+ *
+ * If the sample/view/instance state component in the mask is 0 and there is no read or query condition,
+ * to combine it with, it is treated as equivalent to any sample/view/instance state.
  *
  * Return value provides information about the number of samples read, which will
  * be <= maxs. Based on the count, the buffer will contain serialized data to be
@@ -4076,6 +4108,117 @@ dds_read_next_wl(
   void **buf,
   dds_sample_info_t *si);
 
+/**
+ * @brief Function type for sample collector argument in read/take-with-collector
+ * @ingroup reading
+ * @component read_data
+ *
+ * This defines the function type used by @ref dds_read_with_collector and @ref
+ * dds_take_with_collector for passing samples to be included in the result to an
+ * application defined function for collecting them in whatever way it needs.  The
+ * function is called for each sample while the RHC is locked, and so it is advisable to
+ * only perform a small amount of work.  Calling Cyclone DDS API functions is not
+ * supported.
+ *
+ * It is called for the samples in the order compatible with the requirements of the DDS
+ * specification, in particular that means instances are contiguous.  Setting the ranks
+ * correctly can therefore be done by looking for a change in si.instance_handle and
+ * performing a final fixup for the final instance after the call to read or take.
+ *
+ * @param[in] arg A pointer to the application-defined argument passed to read/take
+ * @param[in] si A fully initialized sample info object, but with the sample_rank and generation_rank set to 0
+ * @param[in] st The underlying ddsi_sertype (needed only if si.valid_data is false)
+ * @param[in] sd The sample, if si.valid_data is false, the type has been erased (hence the "st" argument)
+ *
+ * @return An indication of success or failure
+ * @retval DDS_RETCODE_OK
+ *           the sample was successfully handled and reading can continue
+ * @retval otherwise
+ *           an error, this will propagated to the caller if it occurs on the first call
+ *           otherwise the return valu eof read/take will be the number of samples
+ *           successfully collected
+ */
+typedef dds_return_t (*dds_read_with_collector_fn_t) (
+  void *arg,
+  const dds_sample_info_t *si,
+  const struct ddsi_sertype *st,
+  struct ddsi_serdata *sd);
+
+/**
+ * @brief Read samples while collecting result in an application-defined way
+ * @ingroup reading
+ * @component read_data
+ *
+ * When using a readcondition or querycondition, their masks are or'd with the given mask.
+ *
+ * If the sample/view/instance state component in the mask is 0 and there is no read or query condition,
+ * to combine it with, it is treated as equivalent to any sample/view/instance state.
+ *
+ * @param[in] reader_or_condition Handle of a reader or a read/query condition
+ * @param[in] maxs Maximum number of samples (1 .. INT32_MAX)
+ * @param[in] handle Instance handle or 0 if not reading a specific instance
+ * @param[in] mask Sample/view/instance state mask
+ * @param[in] collect_sample Function be called for each sample in the result
+ * @param[in] collect_sample_arg Arbitrary argument passed to "collect_sample"
+ * @return The number of returned samples or an error code
+ * @retval > 0 number of samples passed successfully collected by collect_sample
+ * @retval 0   success, no matching data
+ * @retval DDS_RETCODE_ERROR
+ *             An internal error has occurred.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             One of the given arguments is not valid.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION
+ *             The operation is invoked on an inappropriate object.
+ * @retval DDS_RETCODE_ALREADY_DELETED
+ *             The entity has already been deleted.
+ * @retval < 0 Return value of failing collect_sample on first invocation
+ */
+DDS_EXPORT dds_return_t
+dds_read_with_collector (
+  dds_entity_t reader_or_condition,
+  uint32_t maxs,
+  dds_instance_handle_t handle,
+  uint32_t mask,
+  dds_read_with_collector_fn_t collect_sample,
+  void *collect_sample_arg);
+
+/**
+ * @brief Take samples while collecting result in an application-defined way
+ * @ingroup reading
+ * @component read_data
+ *
+ * When using a readcondition or querycondition, their masks are or'd with the given mask.
+ *
+ * If the sample/view/instance state component in the mask is 0 and there is no read or query condition,
+ * to combine it with, it is treated as equivalent to any sample/view/instance state.
+ *
+ * @param[in] reader_or_condition Handle of a reader or a read/query condition
+ * @param[in] maxs Maximum number of samples (1 .. INT32_MAX)
+ * @param[in] handle Instance handle or 0 if not taking from a specific instance
+ * @param[in] mask Sample/view/instance state mask
+ * @param[in] collect_sample Function be called for each sample in the result
+ * @param[in] collect_sample_arg Arbitrary argument passed to "collect_sample"
+ * @return The number of returned samples or an error code
+ * @retval > 0 number of samples passed successfully collected by collect_sample
+ * @retval 0   success, no matching data
+ * @retval DDS_RETCODE_ERROR
+ *             An internal error has occurred.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             One of the given arguments is not valid.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION
+ *             The operation is invoked on an inappropriate object.
+ * @retval DDS_RETCODE_ALREADY_DELETED
+ *             The entity has already been deleted.
+ * @retval < 0 Return value of failing collect_sample on first invocation
+ */
+DDS_EXPORT dds_return_t
+dds_take_with_collector (
+  dds_entity_t reader_or_condition,
+  uint32_t maxs,
+  dds_instance_handle_t handle,
+  uint32_t mask,
+  dds_read_with_collector_fn_t collect_sample,
+  void *collect_sample_arg);
 
 /**
  * @defgroup loan (Loans API)

@@ -795,17 +795,6 @@ dds_entity_t dds_create_reader_rhc (dds_entity_t participant_or_subscriber, dds_
   return dds_create_reader_int (participant_or_subscriber, topic, qos, listener, rhc);
 }
 
-uint32_t dds_reader_lock_samples (dds_entity_t reader)
-{
-  dds_reader *rd;
-  uint32_t n;
-  if (dds_reader_lock (reader, &rd) != DDS_RETCODE_OK)
-    return 0;
-  n = dds_rhc_lock_samples (rd->m_rhc);
-  dds_reader_unlock (rd);
-  return n;
-}
-
 dds_return_t dds_reader_wait_for_historical_data (dds_entity_t reader, dds_duration_t max_wait)
 {
   dds_reader *rd;

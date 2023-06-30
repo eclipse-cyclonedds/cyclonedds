@@ -33,6 +33,7 @@
 #include "dds/ddsc/dds_rhc.h"
 #include "dds__entity.h"
 #include "dds__topic.h"
+#include "dds__read.h"
 #include "dds__rhc_default.h"
 
 #ifdef DDS_HAS_LIFESPAN
@@ -322,7 +323,7 @@ static void print_seq (int n, const dds_sample_info_t *iseq, const RhcTypes_T *m
   }
 }
 
-static void rdtkcond (struct dds_rhc *rhc, dds_readcond *cond, const struct check *chk, bool print, int max, const char *opname, int32_t (*op) (struct dds_rhc *rhc, bool lock, void **values, dds_sample_info_t *info_seq, uint32_t max_samples, uint32_t mask, dds_instance_handle_t handle, dds_readcond *cond), uint32_t states_seen[STATIC_ARRAY_DIM 2*2*3][2])
+static void rdtkcond (struct dds_rhc *rhc, dds_readcond *cond, const struct check *chk, bool print, int max, const char *opname, dds_rhc_read_take_t op, uint32_t states_seen[STATIC_ARRAY_DIM 2*2*3][2])
 {
   int cnt;
 
@@ -330,7 +331,10 @@ static void rdtkcond (struct dds_rhc *rhc, dds_readcond *cond, const struct chec
     printf ("%s:\n", opname);
 
   ddsi_thread_state_awake_domain_ok (ddsi_lookup_thread_state ());
-  cnt = op (rhc, true, rres_ptrs, rres_iseq, (max <= 0) ? (uint32_t) (sizeof (rres_iseq) / sizeof (rres_iseq[0])) : (uint32_t) max, cond ? NO_STATE_MASK_SET : (DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE), 0, cond);
+  struct dds_read_collect_sample_arg arg;
+  dds_read_collect_sample_arg_init (&arg, rres_ptrs, rres_iseq);
+  cnt = op (rhc, (max <= 0) ? (int32_t) (sizeof (rres_iseq) / sizeof (rres_iseq[0])) : max, cond ? DDS_RHC_NO_STATE_MASK_SET : (DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE), 0, cond, dds_read_collect_sample, &arg);
+  dds_read_check_and_handle_instance_switch (&arg, 0);
   ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
   if (max > 0 && cnt > max) {
     printf ("%s TOO MUCH DATA (%d > %d)\n", opname, cnt, max);
