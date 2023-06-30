@@ -2458,7 +2458,7 @@ dds_write(dds_entity_t writer, const void *data);
  * datapackets for network efficiency. The normal `dds_write()` no longer
  * guarantee that data is sent on the network automatically.
  *
- * @param[in]  writer The writer entity.
+ * @param[in]  entity The writer entity.
 
  * @returns A dds_return_t indicating success or failure.
  * @retval DDS_RETCODE_OK
@@ -2473,7 +2473,7 @@ dds_write(dds_entity_t writer, const void *data);
  *             The entity has already been deleted.
  */
 DDS_EXPORT dds_return_t
-dds_write_flush(dds_entity_t writer);
+dds_write_flush(dds_entity_t entity);
 
 /**
  * @brief Write a serialized value of a data instance
@@ -2668,7 +2668,7 @@ dds_create_querycondition(
  * This means that the guardcondition can be used to wake up a waitset when
  * data is in the reader history with states that matches the given mask.
  *
- * @param[in]   participant  Participant on which to create the guardcondition.
+ * @param[in]   owner  Participant on which to create the guardcondition.
  *
  * @returns A valid condition handle or an error code.
  *
@@ -2682,7 +2682,7 @@ dds_create_querycondition(
  *             The entity has already been deleted.
  */
 DDS_EXPORT dds_entity_t
-dds_create_guardcondition(dds_entity_t participant);
+dds_create_guardcondition(dds_entity_t owner);
 
 /**
  * @brief Sets the trigger status of a guardcondition.
@@ -2769,7 +2769,7 @@ typedef intptr_t dds_attach_t;
  * conditions of the attached entities evaluates to TRUE or until the timeout
  * expires.
  *
- * @param[in]  participant  Domain participant which the WaitSet contains.
+ * @param[in]  owner  Domain participant which the WaitSet contains.
  *
  * @returns A valid waitset handle or an error code.
  *
@@ -2783,7 +2783,7 @@ typedef intptr_t dds_attach_t;
  *             The entity has already been deleted.
  */
 DDS_EXPORT dds_entity_t
-dds_create_waitset(dds_entity_t participant);
+dds_create_waitset(dds_entity_t owner);
 
 /**
  * @brief Acquire previously attached entities.

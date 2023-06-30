@@ -144,12 +144,12 @@ ddsrt_strlcat(
 }
 
 void *
-ddsrt_memdup(const void *ptr, size_t len)
+ddsrt_memdup(const void *src, size_t n)
 {
   void *dest = NULL;
 
-  if (len != 0 && (dest = ddsrt_malloc_s(len)) != NULL) {
-    memcpy(dest, ptr, len);
+  if (n != 0 && (dest = ddsrt_malloc_s(n)) != NULL) {
+    memcpy(dest, src, n);
   }
 
   return dest;

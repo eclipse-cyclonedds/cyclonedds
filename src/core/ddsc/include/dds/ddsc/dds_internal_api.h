@@ -43,12 +43,12 @@ extern "C" {
  * available samples issue #74. As a work around to support LENGTH_UNLIMITED in C++.
  * dds_reader_lock_samples() and @ref DDS_READ_WITHOUT_LOCK are needed.
  *
- * @param[in]   entity  Reader to lock the cache of.
+ * @param[in]   reader  Reader to lock the cache of.
  *
  * @returns the number of samples in the reader cache.
  */
 DDS_EXPORT uint32_t
-dds_reader_lock_samples (dds_entity_t entity);
+dds_reader_lock_samples (dds_entity_t reader);
 
 /**
  * @ingroup internal

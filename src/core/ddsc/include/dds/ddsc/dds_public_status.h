@@ -202,7 +202,7 @@ dds_inconsistent_topic_status_t;
  * and reset the status. The value can be obtained, only if the status is enabled for an entity.
  * NULL value for status is allowed and it will reset the trigger value when status is enabled.
  *
- * @param[in]  entity The topic entity to get the status
+ * @param[in]  topic  The topic entity to get the status
  * @param[out] status The pointer to @ref dds_inconsistent_topic_status_t to get the status
  *
  * @returns  0 - Success
@@ -219,7 +219,7 @@ dds_inconsistent_topic_status_t;
  */
 DDS_EXPORT dds_return_t
 dds_get_inconsistent_topic_status (
-  dds_entity_t entity,
+  dds_entity_t topic,
   dds_inconsistent_topic_status_t * status);
 
 /**
@@ -231,7 +231,7 @@ dds_get_inconsistent_topic_status (
  * and reset the status. The value can be obtained, only if the status is enabled for an entity.
  * NULL value for status is allowed and it will reset the trigger value when status is enabled.
  *
- * @param[in]  entity  The writer entity to get the status
+ * @param[in]  writer  The writer entity to get the status
  * @param[out] status  The pointer to @ref dds_publication_matched_status_t to get the status
  *
  * @returns  0 - Success
@@ -248,7 +248,7 @@ dds_get_inconsistent_topic_status (
  */
 DDS_EXPORT dds_return_t
 dds_get_publication_matched_status (
-  dds_entity_t entity,
+  dds_entity_t writer,
   dds_publication_matched_status_t * status);
 
 /**
@@ -260,7 +260,7 @@ dds_get_publication_matched_status (
  * and reset the status. The value can be obtained, only if the status is enabled for an entity.
  * NULL value for status is allowed and it will reset the trigger value when status is enabled.
  *
- * @param[in]  entity  The writer entity to get the status
+ * @param[in]  writer  The writer entity to get the status
  * @param[out] status  The pointer to @ref dds_liveliness_lost_status_t to get the status
  *
  * @returns  0 - Success
@@ -277,7 +277,7 @@ dds_get_publication_matched_status (
  */
 DDS_EXPORT dds_return_t
 dds_get_liveliness_lost_status (
-  dds_entity_t entity,
+  dds_entity_t writer,
   dds_liveliness_lost_status_t * status);
 
 /**
@@ -289,7 +289,7 @@ dds_get_liveliness_lost_status (
  * and reset the status. The value can be obtained, only if the status is enabled for an entity.
  * NULL value for status is allowed and it will reset the trigger value when status is enabled.
  *
- * @param[in]  entity  The writer entity to get the status
+ * @param[in]  writer  The writer entity to get the status
  * @param[out] status  The pointer to @ref dds_offered_deadline_missed_status_t to get the status
  *
  * @returns  0 - Success
@@ -306,7 +306,7 @@ dds_get_liveliness_lost_status (
  */
 DDS_EXPORT dds_return_t
 dds_get_offered_deadline_missed_status(
-  dds_entity_t entity,
+  dds_entity_t writer,
   dds_offered_deadline_missed_status_t *status);
 
 /**
@@ -318,7 +318,7 @@ dds_get_offered_deadline_missed_status(
  * and reset the status. The value can be obtained, only if the status is enabled for an entity.
  * NULL value for status is allowed and it will reset the trigger value when status is enabled.
  *
- * @param[in]  entity  The writer entity to get the status
+ * @param[in]  writer  The writer entity to get the status
  * @param[out] status  The pointer to @ref dds_offered_incompatible_qos_status_t to get the status
  *
  * @returns  0 - Success
@@ -335,7 +335,7 @@ dds_get_offered_deadline_missed_status(
  */
 DDS_EXPORT dds_return_t
 dds_get_offered_incompatible_qos_status (
-  dds_entity_t entity,
+  dds_entity_t writer,
   dds_offered_incompatible_qos_status_t * status);
 
 /**
@@ -347,7 +347,7 @@ dds_get_offered_incompatible_qos_status (
  * and reset the status. The value can be obtained, only if the status is enabled for an entity.
  * NULL value for status is allowed and it will reset the trigger value when status is enabled.
  *
- * @param[in]  entity  The reader entity to get the status
+ * @param[in]  reader  The reader entity to get the status
  * @param[out] status  The pointer to @ref dds_subscription_matched_status_t to get the status
  *
  * @returns  0 - Success
@@ -364,7 +364,7 @@ dds_get_offered_incompatible_qos_status (
  */
 DDS_EXPORT dds_return_t
 dds_get_subscription_matched_status (
-  dds_entity_t entity,
+  dds_entity_t reader,
   dds_subscription_matched_status_t * status);
 
 /**
@@ -376,7 +376,7 @@ dds_get_subscription_matched_status (
  * and reset the status. The value can be obtained, only if the status is enabled for an entity.
  * NULL value for status is allowed and it will reset the trigger value when status is enabled.
  *
- * @param[in]  entity  The reader entity to get the status
+ * @param[in]  reader  The reader entity to get the status
  * @param[out] status  The pointer to @ref dds_liveliness_changed_status_t to get the status
  *
  * @returns  0 - Success
@@ -393,7 +393,7 @@ dds_get_subscription_matched_status (
  */
 DDS_EXPORT dds_return_t
 dds_get_liveliness_changed_status (
-  dds_entity_t entity,
+  dds_entity_t reader,
   dds_liveliness_changed_status_t * status);
 
 /**
@@ -405,7 +405,7 @@ dds_get_liveliness_changed_status (
  * and reset the status. The value can be obtained, only if the status is enabled for an entity.
  * NULL value for status is allowed and it will reset the trigger value when status is enabled.
  *
- * @param[in]  entity  The reader entity to get the status
+ * @param[in]  reader  The reader entity to get the status
  * @param[out] status  The pointer to @ref dds_sample_rejected_status_t to get the status
  *
  * @returns  0 - Success
@@ -422,7 +422,7 @@ dds_get_liveliness_changed_status (
  */
 DDS_EXPORT dds_return_t
 dds_get_sample_rejected_status (
-  dds_entity_t entity,
+  dds_entity_t reader,
   dds_sample_rejected_status_t * status);
 
 /**
@@ -434,7 +434,7 @@ dds_get_sample_rejected_status (
  * and reset the status. The value can be obtained, only if the status is enabled for an entity.
  * NULL value for status is allowed and it will reset the trigger value when status is enabled.
  *
- * @param[in]  entity  The reader entity to get the status
+ * @param[in]  reader  The reader entity to get the status
  * @param[out] status  The pointer to @ref dds_sample_lost_status_t to get the status
  *
  * @returns A dds_return_t indicating success or failure
@@ -452,7 +452,7 @@ dds_get_sample_rejected_status (
  */
 DDS_EXPORT dds_return_t
 dds_get_sample_lost_status (
-  dds_entity_t entity,
+  dds_entity_t reader,
   dds_sample_lost_status_t * status);
 
 /**
@@ -464,7 +464,7 @@ dds_get_sample_lost_status (
  * and reset the status. The value can be obtained, only if the status is enabled for an entity.
  * NULL value for status is allowed and it will reset the trigger value when status is enabled.
  *
- * @param[in]  entity  The reader entity to get the status
+ * @param[in]  reader  The reader entity to get the status
  * @param[out] status  The pointer to @ref dds_requested_deadline_missed_status_t to get the status
  *
  * @returns A dds_return_t indicating success or failure
@@ -482,7 +482,7 @@ dds_get_sample_lost_status (
  */
 DDS_EXPORT dds_return_t
 dds_get_requested_deadline_missed_status (
-  dds_entity_t entity,
+  dds_entity_t reader,
   dds_requested_deadline_missed_status_t * status);
 
 /**
@@ -494,7 +494,7 @@ dds_get_requested_deadline_missed_status (
  * and reset the status. The value can be obtained, only if the status is enabled for an entity.
  * NULL value for status is allowed and it will reset the trigger value when status is enabled.
  *
- * @param[in]  entity  The reader entity to get the status
+ * @param[in]  reader  The reader entity to get the status
  * @param[out] status  The pointer to @ref dds_requested_incompatible_qos_status_t to get the status
  *
  * @returns A dds_return_t indicating success or failure
@@ -512,7 +512,7 @@ dds_get_requested_deadline_missed_status (
  */
 DDS_EXPORT dds_return_t
 dds_get_requested_incompatible_qos_status (
-  dds_entity_t entity,
+  dds_entity_t reader,
   dds_requested_incompatible_qos_status_t * status);
 
 #if defined (__cplusplus)

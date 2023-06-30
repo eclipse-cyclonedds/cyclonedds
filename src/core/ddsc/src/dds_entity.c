@@ -1735,11 +1735,11 @@ static void pushdown_write_flush (dds_entity *e)
   ddsrt_mutex_unlock (&e->m_mutex);
 }
 
-dds_return_t dds_write_flush (dds_entity_t writer)
+dds_return_t dds_write_flush (dds_entity_t entity)
 {
   dds_entity *e;
   dds_return_t rc;
-  if ((rc = dds_entity_pin (writer, &e)) != DDS_RETCODE_OK)
+  if ((rc = dds_entity_pin (entity, &e)) != DDS_RETCODE_OK)
     return rc;
   struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
   ddsi_thread_state_awake (thrst, &e->m_domain->gv);

@@ -31,7 +31,7 @@ const struct dds_entity_deriver dds_entity_deriver_guardcondition = {
   .refresh_statistics = dds_entity_deriver_dummy_refresh_statistics
 };
 
-dds_entity_t dds_create_guardcondition (dds_entity_t participant)
+dds_entity_t dds_create_guardcondition (dds_entity_t owner)
 {
   dds_entity *e;
   dds_return_t rc;
@@ -43,7 +43,7 @@ dds_entity_t dds_create_guardcondition (dds_entity_t participant)
   if ((rc = dds_init ()) < 0)
     return rc;
 
-  if ((rc = dds_entity_lock (participant, DDS_KIND_DONTCARE, &e)) != DDS_RETCODE_OK)
+  if ((rc = dds_entity_lock (owner, DDS_KIND_DONTCARE, &e)) != DDS_RETCODE_OK)
     goto err_entity_lock;
 
   switch (dds_entity_kind (e))
