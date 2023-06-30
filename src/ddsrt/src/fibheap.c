@@ -27,10 +27,10 @@ static int cmp (const ddsrt_fibheap_def_t *fhdef, const ddsrt_fibheap_node_t *a,
     return fhdef->cmp ((const char *) a - fhdef->offset, (const char *) b - fhdef->offset);
 }
 
-void ddsrt_fibheap_def_init (ddsrt_fibheap_def_t *fhdef, uintptr_t offset, int (*cmp) (const void *va, const void *vb))
+void ddsrt_fibheap_def_init (ddsrt_fibheap_def_t *fhdef, uintptr_t offset, int (*compare) (const void *va, const void *vb))
 {
     fhdef->offset = offset;
-    fhdef->cmp = cmp;
+    fhdef->cmp = compare;
 }
 
 void ddsrt_fibheap_init (const ddsrt_fibheap_def_t *fhdef, ddsrt_fibheap_t *fh)
