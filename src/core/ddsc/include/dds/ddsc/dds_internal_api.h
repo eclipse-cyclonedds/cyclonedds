@@ -22,35 +22,6 @@ extern "C" {
 #endif
 
 /**
- * @anchor DDS_READ_WITHOUT_LOCK
- * @ingroup internal
- * @brief Constant to use with dds_read() or dds_take() when using dds_reader_lock_samples()
- */
-#define DDS_READ_WITHOUT_LOCK (0xFFFFFFED)
-
-/**
- * @ingroup internal
- * @component reader
- * @unstable
- * @brief Returns number of samples in read cache and locks the reader cache,
- * to make sure that the samples content doesn't change.
- *
- * Because the cache is locked, you should be able to read/take without having to
- * lock first. This is done by passing the @ref DDS_READ_WITHOUT_LOCK value to the
- * read/take call as maxs. Then the read/take will not lock but still unlock.
- *
- * CycloneDDS doesn't support a read/take that just returns all
- * available samples issue #74. As a work around to support LENGTH_UNLIMITED in C++.
- * dds_reader_lock_samples() and @ref DDS_READ_WITHOUT_LOCK are needed.
- *
- * @param[in]   reader  Reader to lock the cache of.
- *
- * @returns the number of samples in the reader cache.
- */
-DDS_EXPORT uint32_t
-dds_reader_lock_samples (dds_entity_t reader);
-
-/**
  * @ingroup internal
  * @component topic
  * @unstable

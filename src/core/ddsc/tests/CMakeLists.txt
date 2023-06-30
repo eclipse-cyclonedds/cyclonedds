@@ -60,6 +60,7 @@ set(ddsc_test_sources
     "qosmatch.c"
     "querycondition.c"
     "guardcondition.c"
+    "readcollect.c"
     "readcondition.c"
     "reader.c"
     "reader_iterator.c"

@@ -91,6 +91,12 @@ static void test_ddsrt_vasprintf (char **buf, const char *fmt, ...)
   va_end (ap);
 }
 
+static dds_return_t test_collect_sample (void *arg, const dds_sample_info_t *si, const struct ddsi_sertype *st, struct ddsi_serdata *serdata)
+{
+  (void)arg; (void)si; (void)st; (void)serdata;
+  return 0;
+}
+
 /* Check that all exported functions are actually exported
    in case of a build that has testing disabled. All newly added
    functions that are exported (including DDSI and DDSRT) should
@@ -208,6 +214,8 @@ int main (int argc, char **argv)
   dds_take_next_wl (1, ptr, ptr);
   dds_read_next (1, ptr, ptr);
   dds_read_next_wl (1, ptr, ptr);
+  dds_read_with_collector (1, 0, 1, 0, test_collect_sample, ptr);
+  dds_take_with_collector (1, 0, 1, 0, test_collect_sample, ptr);
   dds_return_loan (1, ptr, 0);
   dds_lookup_instance (1, ptr);
   dds_instance_get_key (1, 1, ptr);
@@ -240,9 +248,6 @@ int main (int argc, char **argv)
   dds_data_allocator_fini (ptr);
   void* d = dds_data_allocator_alloc (ptr, 0);
   dds_data_allocator_free (ptr, d);
-
-  // dds_internal_api.h
-  dds_reader_lock_samples (1);
 
   // dds_loan_api.h
   dds_is_loan_available (1);
@@ -432,13 +437,10 @@ int main (int argc, char **argv)
   dds_rhc_relinquish_ownership (ptr, 1);
   dds_rhc_set_qos (ptr, ptr);
   dds_rhc_free (ptr);
-  dds_rhc_read (ptr, 0, ptr, ptr, 0, 0, 1, ptr);
-  dds_rhc_take (ptr, 0, ptr, ptr, 0, 0, 1, ptr);
-  dds_rhc_readcdr (ptr, 0, ptr, ptr, 0, 0, 0, 0, 1);
-  dds_rhc_takecdr (ptr, 0, ptr, ptr, 0, 0, 0, 0, 1);
+  dds_rhc_read (ptr, 0, 0, 1, ptr, 0, 0);
+  dds_rhc_take (ptr, 0, 0, 1, ptr, 0, 0);
   dds_rhc_add_readcondition (ptr, ptr);
   dds_rhc_remove_readcondition (ptr, ptr);
-  dds_rhc_lock_samples (ptr);
   dds_reader_data_available_cb (ptr);
 
   // dds_statistics.h
