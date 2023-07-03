@@ -8,6 +8,7 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
+#include <errno.h>
 #include <stdio.h>
 #include <ctype.h>
 #include <stdarg.h>
@@ -1314,11 +1315,14 @@ static enum update_result uf_int (struct ddsi_cfgst *cfgst, void *parent, struct
 {
   int * const elem = cfg_address (cfgst, parent, cfgelem);
   char *endptr;
+  int orig_errno = errno;
+  errno = 0;
   long v = strtol (value, &endptr, 10);
   if (*value == 0 || *endptr != 0)
     return cfg_error (cfgst, "%s: not a decimal integer", value);
-  if (v != (int) v)
+  if (v != (int) v || errno)
     return cfg_error (cfgst, "%s: value out of range", value);
+  errno = orig_errno;
   *elem = (int) v;
   return URES_SUCCESS;
 }
@@ -1359,11 +1363,14 @@ static enum update_result uf_uint (struct ddsi_cfgst *cfgst, void *parent, struc
 {
   uint32_t * const elem = cfg_address (cfgst, parent, cfgelem);
   char *endptr;
+  int orig_errno = errno;
+  errno = 0;
   unsigned long v = strtoul (value, &endptr, 10);
   if (*value == 0 || *endptr != 0)
     return cfg_error (cfgst, "%s: not a decimal integer", value);
-  if (v != (uint32_t) v)
+  if (v != (uint32_t) v || errno)
     return cfg_error (cfgst, "%s: value out of range", value);
+  errno = orig_errno;
   *elem = (uint32_t) v;
   return URES_SUCCESS;
 }
