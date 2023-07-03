@@ -56,11 +56,11 @@ dds_return_t dds__writer_data_allocator_fini (const struct dds_writer *wr, dds_d
   ddsrt_nonnull_all;
 
 /** @component data_alloc */
-dds_return_t dds__reader_data_allocator_init (const struct dds_reader *wr, dds_data_allocator_t *data_allocator)
+dds_return_t dds__reader_data_allocator_init (const struct dds_reader *rd, dds_data_allocator_t *data_allocator)
   ddsrt_nonnull_all;
 
 /** @component data_alloc */
-dds_return_t dds__reader_data_allocator_fini (const struct dds_reader *wr, dds_data_allocator_t *data_allocator)
+dds_return_t dds__reader_data_allocator_fini (const struct dds_reader *rd, dds_data_allocator_t *data_allocator)
   ddsrt_nonnull_all;
 
 #if defined (__cplusplus)

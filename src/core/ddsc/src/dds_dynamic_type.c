@@ -535,7 +535,7 @@ dds_return_t dds_dynamic_member_set_must_understand (dds_dynamic_type_t *type, u
   return (type->ret = set_member_bool_prop (type, member_id, is_must_understand, ddsi_dynamic_type_member_set_must_understand, 0));
 }
 
-dds_return_t dds_dynamic_type_register (dds_dynamic_type_t *type, dds_typeinfo_t **type_info)
+dds_return_t dds_dynamic_type_register (dds_dynamic_type_t *type, struct ddsi_typeinfo **type_info)
 {
   dds_return_t ret;
   if ((ret = check_type_param (type, false)) != DDS_RETCODE_OK)

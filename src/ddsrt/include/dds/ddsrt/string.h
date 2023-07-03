@@ -75,16 +75,16 @@ ddsrt_strsep(
  * is obtained with @ddsrt_malloc and must be freed with @ddsrt_free when it
  * is no longer used.
  *
- * @param[in]  ptr  Pointer to block of memory to duplicate.
- * @param[in]  len  Number of bytes to copy into newly allocated buffer.
+ * @param[in]  src  Pointer to block of memory to duplicate.
+ * @param[in]  n    Number of bytes to copy into newly allocated buffer.
  *
  * @returns A new block of memory that is a duplicate of the block pointed to
  *          by @ptr or NULL if not enough memory was available.
  */
 DDS_EXPORT void *
 ddsrt_memdup(
-  const void *ptr,
-  size_t len)
+  const void *src,
+  size_t n)
 ddsrt_nonnull((1))
 ddsrt_attribute_malloc;
 

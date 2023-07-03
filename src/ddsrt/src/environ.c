@@ -44,15 +44,15 @@ static const char * expand_lookup_env(const char *name, void * data)
     return env;
 }
 
-char *ddsrt_expand_envvars_sh (const char *src0, uint32_t domid)
+char *ddsrt_expand_envvars_sh (const char *string, uint32_t domid)
 {
     struct expand_env_data env = { .domid = domid, .idstr = "" };
-    return ddsrt_expand_vars_sh(src0, &expand_lookup_env, &env);
+    return ddsrt_expand_vars_sh(string, &expand_lookup_env, &env);
 }
 
-char *ddsrt_expand_envvars (const char *src0, uint32_t domid)
+char *ddsrt_expand_envvars (const char *string, uint32_t domid)
 {
     struct expand_env_data env = { .domid = domid, .idstr = "" };
-    return ddsrt_expand_vars(src0, &expand_lookup_env, &env);
+    return ddsrt_expand_vars(string, &expand_lookup_env, &env);
 }
 

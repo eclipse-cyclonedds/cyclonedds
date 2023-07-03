@@ -315,12 +315,12 @@ void dds_log_cfg (const struct ddsrt_log_cfg *cfg, uint32_t cat, const char *fil
   }
 }
 
-void dds_log_id (uint32_t cat, uint32_t id, const char *file, uint32_t line, const char *func, const char *fmt, ...)
+void dds_log_id (uint32_t cat, uint32_t domid, const char *file, uint32_t line, const char *func, const char *fmt, ...)
 {
   if (dds_get_log_mask () & cat) {
     va_list ap;
     va_start (ap, fmt);
-    vlog (&logconfig, cat, id, file, line, func, fmt, ap);
+    vlog (&logconfig, cat, domid, file, line, func, fmt, ap);
     va_end (ap);
   }
 }
