@@ -20,7 +20,7 @@ extern "C" {
 struct ddsi_status_cb_data;
 
 /** @component reader */
-void dds_reader_status_cb (void *entity, const struct ddsi_status_cb_data * data);
+void dds_reader_status_cb (void *ventity, const struct ddsi_status_cb_data * data);
 
 /** @component reader */
 dds_return_t dds_return_reader_loan (dds_reader *rd, void **buf, int32_t bufsz);
@@ -39,10 +39,10 @@ dds_return_t dds_return_reader_loan (dds_reader *rd, void **buf, int32_t bufsz);
  *
  * Used to support LENGTH_UNLIMITED in C++.
  *
- * @param entity reader entity
+ * @param reader reader entity
  * @return the number of samples
  */
-DDS_EXPORT uint32_t dds_reader_lock_samples (dds_entity_t entity);
+DDS_EXPORT uint32_t dds_reader_lock_samples (dds_entity_t reader);
 
 DEFINE_ENTITY_LOCK_UNLOCK(dds_reader, DDS_KIND_READER, reader)
 

@@ -14,10 +14,10 @@
 
 void
 ddsrt_threadattr_init (
-  ddsrt_threadattr_t *tattr)
+  ddsrt_threadattr_t *attr)
 {
-  assert(tattr != NULL);
-  tattr->schedClass = DDSRT_SCHED_DEFAULT;
-  tattr->schedPriority = 0;
-  tattr->stackSize = 0;
+  assert(attr != NULL);
+  attr->schedClass = DDSRT_SCHED_DEFAULT;
+  attr->schedPriority = 0;
+  attr->stackSize = 0;
 }

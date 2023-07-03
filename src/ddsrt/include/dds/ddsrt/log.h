@@ -261,7 +261,7 @@ dds_log_cfg_init(
 void
 dds_log_cfg(
     const struct ddsrt_log_cfg *cfg,
-    uint32_t prio,
+    uint32_t cat,
     const char *file,
     uint32_t line,
     const char *func,
@@ -280,7 +280,7 @@ dds_log_cfg(
  */
 void
 dds_log_id(
-    uint32_t prio,
+    uint32_t cat,
     uint32_t domid,
     const char *file,
     uint32_t line,
@@ -299,7 +299,7 @@ dds_log_id(
  */
 DDS_EXPORT void
 dds_log(
-    uint32_t prio,
+    uint32_t cat,
     const char *file,
     uint32_t line,
     const char *func,

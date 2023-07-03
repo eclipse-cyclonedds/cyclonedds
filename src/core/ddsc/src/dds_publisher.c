@@ -47,7 +47,7 @@ const struct dds_entity_deriver dds_entity_deriver_publisher = {
   .refresh_statistics = dds_entity_deriver_dummy_refresh_statistics
 };
 
-dds_entity_t dds__create_publisher_l (dds_participant *par, bool implicit, const dds_qos_t *qos, const dds_listener_t *listener)
+dds_entity_t dds__create_publisher_l (struct dds_participant *participant, bool implicit, const dds_qos_t *qos, const dds_listener_t *listener)
 {
   dds_publisher *pub;
   dds_entity_t hdl;
@@ -58,18 +58,18 @@ dds_entity_t dds__create_publisher_l (dds_participant *par, bool implicit, const
   if (qos)
     ddsi_xqos_mergein_missing (new_qos, qos, DDS_PUBLISHER_QOS_MASK);
   ddsi_xqos_mergein_missing (new_qos, &ddsi_default_qos_publisher_subscriber, ~(uint64_t)0);
-  dds_apply_entity_naming(new_qos, par->m_entity.m_qos, &par->m_entity.m_domain->gv);
+  dds_apply_entity_naming(new_qos, participant->m_entity.m_qos, &participant->m_entity.m_domain->gv);
 
-  if ((ret = ddsi_xqos_valid (&par->m_entity.m_domain->gv.logconfig, new_qos)) != DDS_RETCODE_OK)
+  if ((ret = ddsi_xqos_valid (&participant->m_entity.m_domain->gv.logconfig, new_qos)) != DDS_RETCODE_OK)
   {
     dds_delete_qos (new_qos);
     return ret;
   }
 
   pub = dds_alloc (sizeof (*pub));
-  hdl = dds_entity_init (&pub->m_entity, &par->m_entity, DDS_KIND_PUBLISHER, implicit, true, new_qos, listener, DDS_PUBLISHER_STATUS_MASK);
+  hdl = dds_entity_init (&pub->m_entity, &participant->m_entity, DDS_KIND_PUBLISHER, implicit, true, new_qos, listener, DDS_PUBLISHER_STATUS_MASK);
   pub->m_entity.m_iid = ddsi_iid_gen ();
-  dds_entity_register_child (&par->m_entity, &pub->m_entity);
+  dds_entity_register_child (&participant->m_entity, &pub->m_entity);
   dds_entity_init_complete (&pub->m_entity);
   return hdl;
 }

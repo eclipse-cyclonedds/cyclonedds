@@ -15,15 +15,15 @@
 
 dds_return_t
 ddsrt_gethostname(
-  char *name,
-  size_t len)
+  char *hostname,
+  size_t buffersize)
 {
-  assert(name != NULL);
-  assert(len <= INT_MAX);
+  assert(hostname != NULL);
+  assert(buffersize <= INT_MAX);
 
-  if (len == 0) {
+  if (buffersize == 0) {
     return DDS_RETCODE_BAD_PARAMETER;
-  } else if (gethostname(name, (int)len) == 0) {
+  } else if (gethostname(hostname, (int)buffersize) == 0) {
     return DDS_RETCODE_OK;
   }
 

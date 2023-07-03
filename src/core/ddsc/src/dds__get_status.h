@@ -21,11 +21,11 @@
   }
 
 #define DDS_GET_STATUS_COMMON(ent_type_, status_) \
-  dds_return_t dds_get_##status_##_status (dds_entity_t entity, dds_##status_##_status_t *status) \
+  dds_return_t dds_get_##status_##_status (dds_entity_t ent_type_, dds_##status_##_status_t *status) \
   { \
     dds_##ent_type_ *ent; \
     dds_return_t ret; \
-    if ((ret = dds_##ent_type_##_lock (entity, &ent)) != DDS_RETCODE_OK) \
+    if ((ret = dds_##ent_type_##_lock (ent_type_, &ent)) != DDS_RETCODE_OK) \
       return ret; \
     ddsrt_mutex_lock (&ent->m_entity.m_observers_lock); \
     dds_get_##status_##_status_locked (ent, status); \

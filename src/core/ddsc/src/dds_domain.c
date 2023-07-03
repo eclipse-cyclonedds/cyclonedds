@@ -270,13 +270,13 @@ static dds_entity_t dds_domain_create_internal_xml_or_raw (dds_domain **domain_o
   return domh;
 }
 
-dds_entity_t dds_domain_create_internal (dds_domain **domain_out, dds_domainid_t id, bool implicit, const char *config_xml)
+dds_entity_t dds_domain_create_internal (dds_domain **domain_out, dds_domainid_t id, bool implicit, const char *config)
 {
-  const struct config_source config = { .kind = CFGKIND_XML, .u = { .xml = config_xml } };
-  return dds_domain_create_internal_xml_or_raw (domain_out, id, implicit, &config);
+  const struct config_source config_src = { .kind = CFGKIND_XML, .u = { .xml = config } };
+  return dds_domain_create_internal_xml_or_raw (domain_out, id, implicit, &config_src);
 }
 
-dds_entity_t dds_create_domain (const dds_domainid_t domain, const char *config_xml)
+dds_entity_t dds_create_domain (const dds_domainid_t domain, const char *config)
 {
   dds_domain *dom;
   dds_entity_t ret;
@@ -284,35 +284,35 @@ dds_entity_t dds_create_domain (const dds_domainid_t domain, const char *config_
   if (domain == DDS_DOMAIN_DEFAULT)
     return DDS_RETCODE_BAD_PARAMETER;
 
-  if (config_xml == NULL)
-    config_xml = "";
+  if (config == NULL)
+    config = "";
 
   /* Make sure DDS instance is initialized. */
   if ((ret = dds_init ()) < 0)
     return ret;
 
-  const struct config_source config = { .kind = CFGKIND_XML, .u = { .xml = config_xml } };
-  ret = dds_domain_create_internal_xml_or_raw (&dom, domain, false, &config);
+  const struct config_source config_src = { .kind = CFGKIND_XML, .u = { .xml = config } };
+  ret = dds_domain_create_internal_xml_or_raw (&dom, domain, false, &config_src);
   dds_entity_unpin_and_drop_ref (&dds_global.m_entity);
   return ret;
 }
 
-dds_entity_t dds_create_domain_with_rawconfig (const dds_domainid_t domain, const struct ddsi_config *config_raw)
+dds_entity_t dds_create_domain_with_rawconfig (const dds_domainid_t domain, const struct ddsi_config *config)
 {
   dds_domain *dom;
   dds_entity_t ret;
 
   if (domain == DDS_DOMAIN_DEFAULT)
     return DDS_RETCODE_BAD_PARAMETER;
-  if (config_raw == NULL)
+  if (config == NULL)
     return DDS_RETCODE_BAD_PARAMETER;
 
   /* Make sure DDS instance is initialized. */
   if ((ret = dds_init ()) < 0)
     return ret;
 
-  const struct config_source config = { .kind = CFGKIND_RAW, .u = { .raw = config_raw } };
-  ret = dds_domain_create_internal_xml_or_raw (&dom, domain, false, &config);
+  const struct config_source config_src = { .kind = CFGKIND_RAW, .u = { .raw = config } };
+  ret = dds_domain_create_internal_xml_or_raw (&dom, domain, false, &config_src);
   dds_entity_unpin_and_drop_ref (&dds_global.m_entity);
   return ret;
 }

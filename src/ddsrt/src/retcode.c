@@ -42,7 +42,7 @@ static const char *xretcodes[] = {
   "Not found"
 };
 
-const char *dds_strretcode (dds_return_t rc)
+const char *dds_strretcode (dds_return_t ret)
 {
   const dds_return_t nretcodes = (dds_return_t) (sizeof (retcodes) / sizeof (retcodes[0]));
   const dds_return_t nxretcodes = (dds_return_t) (sizeof (xretcodes) / sizeof (xretcodes[0]));
@@ -52,15 +52,15 @@ const char *dds_strretcode (dds_return_t rc)
      is called with a -N for N a API return value, so ... play it safe and use the
      magnitude.  Specially handle INT32_MIN to avoid undefined behaviour on integer
      overflow. */
-  if (rc == INT32_MIN)
+  if (ret == INT32_MIN)
     return xretcodes[0];
 
-  if (rc < 0)
-    rc = -rc;
-  if (rc >= 0 && rc < nretcodes)
-    return retcodes[rc];
-  else if (rc >= (-DDS_XRETCODE_BASE) && rc < (-DDS_XRETCODE_BASE) + nxretcodes)
-    return xretcodes[rc - (-DDS_XRETCODE_BASE)];
+  if (ret < 0)
+    ret = -ret;
+  if (ret >= 0 && ret < nretcodes)
+    return retcodes[ret];
+  else if (ret >= (-DDS_XRETCODE_BASE) && ret < (-DDS_XRETCODE_BASE) + nxretcodes)
+    return xretcodes[ret - (-DDS_XRETCODE_BASE)];
   else
     return xretcodes[0];
 }

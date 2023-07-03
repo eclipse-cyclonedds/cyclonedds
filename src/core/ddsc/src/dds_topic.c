@@ -597,19 +597,19 @@ error_typeref:
   return rc;
 }
 
-dds_entity_t dds_create_topic_sertype (dds_entity_t participant, const char *name, struct ddsi_sertype **sertype, const dds_qos_t *qos, const dds_listener_t *listener, const ddsi_plist_t *sedp_plist)
+dds_entity_t dds_create_topic_sertype (dds_entity_t participant, const char *name, struct ddsi_sertype **sertype, const dds_qos_t *qos, const dds_listener_t *listener, const struct ddsi_plist *sedp_plist)
 {
   (void) sedp_plist;
   return dds_create_topic_impl (participant, name, false, sertype, qos, listener, false);
 }
 
-dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descriptor_t *desc, const char *name, const dds_qos_t *qos, const dds_listener_t *listener)
+dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descriptor_t *descriptor, const char *name, const dds_qos_t *qos, const dds_listener_t *listener)
 {
   dds_entity_t hdl;
   struct dds_entity *ppent;
   dds_return_t ret;
 
-  if (desc == NULL || name == NULL)
+  if (descriptor == NULL || name == NULL)
     return DDS_RETCODE_BAD_PARAMETER;
 
   if ((ret = dds_entity_pin (participant, &ppent)) < 0)
@@ -625,9 +625,9 @@ dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descrip
      is required and the only valid value for this QoS. If the data representation is not set in
      the QoS (or no QoS object provided), the allowed data representations are added to the
      QoS object. */
-  uint32_t allowed_repr = desc->m_flagset & DDS_TOPIC_RESTRICT_DATA_REPRESENTATION ?
-      desc->restrict_data_representation : DDS_DATA_REPRESENTATION_RESTRICT_DEFAULT;
-  uint16_t min_xcdrv = dds_stream_minimum_xcdr_version (desc->m_ops);
+  uint32_t allowed_repr = descriptor->m_flagset & DDS_TOPIC_RESTRICT_DATA_REPRESENTATION ?
+      descriptor->restrict_data_representation : DDS_DATA_REPRESENTATION_RESTRICT_DEFAULT;
+  uint16_t min_xcdrv = dds_stream_minimum_xcdr_version (descriptor->m_ops);
   if (min_xcdrv == DDSI_RTPS_CDR_ENC_VERSION_2)
     allowed_repr &= ~DDS_DATA_REPRESENTATION_FLAG_XCDR1;
   if ((hdl = dds_ensure_valid_data_representation (tpqos, allowed_repr, true)) != 0)
@@ -637,7 +637,7 @@ dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descrip
   dds_data_representation_id_t data_representation = tpqos->data_representation.value.ids[0];
 
   struct dds_sertype_default *st = ddsrt_malloc (sizeof (*st));
-  if ((hdl = dds_sertype_default_init (ppent->m_domain, st, desc, min_xcdrv, data_representation)) < 0)
+  if ((hdl = dds_sertype_default_init (ppent->m_domain, st, descriptor, min_xcdrv, data_representation)) < 0)
   {
     ddsrt_free (st);
     goto err_st_init;
