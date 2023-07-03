@@ -30,6 +30,7 @@
 
 #define MAX_RUNS 4
 #define WRITER_DEADLINE DDS_MSECS(50)
+#define DEADLINE DDS_MSECS(100)
 
 #define DDS_DOMAINID_PUB 0
 #define DDS_DOMAINID_SUB 1
@@ -441,7 +442,10 @@ CU_Theory((int32_t n_inst, uint8_t unreg_nth, uint8_t dispose_nth), ddsc_deadlin
 
 
 #ifndef SKIP_DEADLINE_UPDATE
-#define DEADLINE DDS_MSECS(100)
+
+static ddsrt_mtime_t xevent_in = { 0 };
+static ddsrt_mtime_t xevent_out = { 0 };
+static uint32_t deadline_period = DEADLINE;
 
 //deadline callback function, this function's purpose is to delay the monitor thread such that while instance's
 //deadline may expire, the event thread is blocked by this function, and updates to instances are "queued" if they happen
@@ -453,7 +457,10 @@ static void cb (struct ddsi_domaingv *gv, struct ddsi_xevent *xev, struct ddsi_x
   (void) xp;
   (void) ptr;
   (void) tm;
-  dds_sleepfor(DEADLINE);
+  xevent_in = ddsrt_time_monotonic();
+  xevent_out.v = 0;
+  dds_sleepfor(deadline_period);
+  xevent_out = ddsrt_time_monotonic();
 }
 
 // this function writes the sample with the specified message id, and updates writetime and expiredcnt
@@ -464,7 +471,7 @@ static void write_and_update(dds_entity_t wr, int msg_id, ddsrt_mtime_t *writeti
   dds_return_t rc = dds_write(wr, &msg);
   CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
   ddsrt_mtime_t now = ddsrt_time_monotonic();
-  *expiredcnt += (uint32_t)((now.v-writetime->v)/DEADLINE);
+  *expiredcnt += (uint32_t)((now.v-writetime->v)/deadline_period);
   *writetime = now;
 }
 
@@ -495,113 +502,159 @@ static void check_statuses(dds_entity_t wr, dds_entity_t rd, uint32_t cnt_1, uin
 
   dds_time_t d1 = now.v-t1.v,
              d2 = now.v-t2.v;
-  int64_t c1 = d1/DEADLINE, c2 = d2/DEADLINE;
+  int64_t c1 = d1/deadline_period, c2 = d2/deadline_period;
   uint32_t total = (uint32_t)(cnt_1 + cnt_2 + c1 + c2);
-  dds_instance_handle_t last_expired = (d1%DEADLINE < d2%DEADLINE) ? h1 : h2;
+  dds_instance_handle_t last_expired = (d1%deadline_period < d2%deadline_period) ? h1 : h2;
 
   check_statuses_explicit(wr, rd, total, last_expired);
 }
 #endif
+
+#define VALIDATE_TIME_CONSTRAINTS(constraint) \
+  if (!(constraint)) { \
+    rerun_test = true; \
+    deadline_period *= 2; \
+    printf("Timing is off: restarting test with wider deadline. New deadline now %d...\n", deadline_period); \
+    goto delete_entities; \
+  }
+
+#define NORMALIZE_TIME(xevent,offset) (int32_t)(xevent.v - offset.v)
+
+#define SLEEP_UNTIL(offset,interval) dds_sleepfor((dds_duration_t)(offset.v + (int64_t)(interval) - ddsrt_time_monotonic().v))
 
 CU_Test(ddsc_deadline, update)
 {
 #ifdef SKIP_DEADLINE_UPDATE
   CU_PASS("Deadline update test is disabled.");
 #else
-  dds_entity_t pp = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
-  CU_ASSERT_FATAL(pp > 0);
+  bool rerun_test;
 
-  char topicname[100];
-  create_unique_topic_name ("ddsc_deadline_update", topicname, sizeof topicname);
-  dds_entity_t tp = dds_create_topic(pp, &Space_Type1_desc, topicname, NULL, NULL);
-  CU_ASSERT_FATAL(tp > 0);
+  do {
+    rerun_test = false;
+    dds_entity_t pp = dds_create_participant(DDS_DOMAIN_DEFAULT, NULL, NULL);
+    CU_ASSERT_FATAL(pp > 0);
 
-  //qos
-  dds_qos_t qos;
-  ddsi_xqos_init_empty (&qos);
-  qos.present |= DDSI_QP_HISTORY | DDSI_QP_DESTINATION_ORDER | DDSI_QP_DEADLINE;
-  qos.history.kind = DDS_HISTORY_KEEP_LAST;
-  qos.history.depth = 1;
-  qos.destination_order.kind = DDS_DESTINATIONORDER_BY_SOURCE_TIMESTAMP;
-  qos.deadline.deadline = DEADLINE;
+    char topicname[100];
+    create_unique_topic_name ("ddsc_deadline_update", topicname, sizeof topicname);
+    dds_entity_t tp = dds_create_topic(pp, &Space_Type1_desc, topicname, NULL, NULL);
+    CU_ASSERT_FATAL(tp > 0);
 
-  dds_entity_t wr = dds_create_writer(pp, tp, &qos, NULL);
-  CU_ASSERT_FATAL(wr > 0);
+    //qos
+    dds_qos_t qos;
+    ddsi_xqos_init_empty (&qos);
+    qos.present |= DDSI_QP_HISTORY | DDSI_QP_DESTINATION_ORDER | DDSI_QP_DEADLINE;
+    qos.history.kind = DDS_HISTORY_KEEP_LAST;
+    qos.history.depth = 1;
+    qos.destination_order.kind = DDS_DESTINATIONORDER_BY_SOURCE_TIMESTAMP;
+    qos.deadline.deadline = deadline_period;
 
-  dds_entity_t rd = dds_create_reader (pp, tp, &qos, NULL);
-  CU_ASSERT_FATAL(rd > 0);
+    dds_entity_t wr = dds_create_writer(pp, tp, &qos, NULL);
+    CU_ASSERT_FATAL(wr > 0);
 
-  dds_return_t rc = dds_set_status_mask(wr, DDS_PUBLICATION_MATCHED_STATUS);
-  CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+    dds_entity_t rd = dds_create_reader (pp, tp, &qos, NULL);
+    CU_ASSERT_FATAL(rd > 0);
 
-  uint32_t status = 0;
-  while(!(status & DDS_PUBLICATION_MATCHED_STATUS))
-  {
-    /* Polling sleep. */
-    dds_sleepfor (DDS_MSECS(1));
-
+    dds_return_t rc = dds_set_status_mask(wr, DDS_PUBLICATION_MATCHED_STATUS);
     CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
-    rc = dds_get_status_changes (wr, &status);
-  }
 
-  struct ddsi_domaingv *gvptr = get_domaingv (wr);
-  struct ddsi_xevent *xev = ddsi_qxev_callback (
-    gvptr->xevents,
-    ddsrt_mtime_add_duration(ddsrt_time_monotonic(), (dds_duration_t)(0.5*DEADLINE)),
-    cb,
-    NULL, 0, true);  //this should sleep the thread that updates the statuses from 0.5*DEADLINE to 1.5*DEADLINE
-  CU_ASSERT_FATAL(xev != NULL);
+    uint32_t status = 0;
+    while(!(status & DDS_PUBLICATION_MATCHED_STATUS))
+    {
+      /* Polling sleep. */
+      dds_sleepfor (DDS_MSECS(1));
 
-  Space_Type1 msg1 = { 1, 0, 0 },
-              msg2 = { 2, 0, 0 };
-  rc = dds_write(wr, &msg1);  // should expire @ DEADLINE
-  ddsrt_mtime_t tw1 = ddsrt_time_monotonic();
-  CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
-  rc = dds_write(wr, &msg2);  // should expire @ DEADLINE
-  ddsrt_mtime_t tw2 = ddsrt_time_monotonic();
-  CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+      CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+      rc = dds_get_status_changes (wr, &status);
+    }
 
-  dds_instance_handle_t ih1 = dds_lookup_instance(wr, &msg1),
-                        ih2 = dds_lookup_instance(wr, &msg2);
-  uint32_t expired_1 = 0, expired_2 = 0;
+    struct ddsi_domaingv *gvptr = get_domaingv (wr);
+    ddsrt_mtime_t time_offset = ddsrt_time_monotonic();
+    struct ddsi_xevent *xev = ddsi_qxev_callback (
+      gvptr->xevents,
+      ddsrt_mtime_add_duration(time_offset, (dds_duration_t)(0.5*deadline_period)),
+      cb,
+      &deadline_period, sizeof(int32_t), true);  //this should sleep the thread that updates the statuses from 0.5*deadline_period to 1.5*deadline_period
+    CU_ASSERT_FATAL(xev != NULL);
 
-  dds_sleepfor((dds_duration_t)(0.7*DEADLINE));  //t = 0.7
-  write_and_update(wr, 2, &tw2, &expired_2);        // should expire @ 1.7*DEADLINE
-  dds_sleepfor((dds_duration_t)(0.4*DEADLINE));  //t = 1.1
+    Space_Type1 msg1 = { 1, 0, 0 },
+                msg2 = { 2, 0, 0 };
+    rc = dds_write(wr, &msg1);  // should expire @ deadline_period
+    ddsrt_mtime_t tw1 = ddsrt_time_monotonic();
+    CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
+    rc = dds_write(wr, &msg2);  // should expire @ deadline_period
+    ddsrt_mtime_t tw2 = ddsrt_time_monotonic();
+    CU_ASSERT_EQUAL_FATAL(rc, DDS_RETCODE_OK);
 
-  // now msg1 should have expired once, but since the monitor thread is sleeping it should not yet be updated
-  check_statuses_explicit(wr, rd, 0, 0);
+    dds_instance_handle_t ih1 = dds_lookup_instance(wr, &msg1),
+                          ih2 = dds_lookup_instance(wr, &msg2);
+    uint32_t expired_1 = 0, expired_2 = 0;
 
-  dds_sleepfor((dds_duration_t)(0.2*DEADLINE));  //t = 1.3
-  //now msg1's expiration should have happened, but it is refreshed
-  write_and_update(wr, 1, &tw1, &expired_1);      // should expire @ 2.3*DEADLINE
-  dds_sleepfor((dds_duration_t)(0.3*DEADLINE));  //t = 1.6
-  //the monitor thread should have processed the "queued" expirations now
-  check_statuses(wr, rd, expired_1, expired_2, tw1, tw2, ih1, ih2);
-  write_and_update(wr, 2, &tw2, &expired_2);      // should expire @ 2.6*DEADLINE
+    SLEEP_UNTIL(time_offset, 0.7*deadline_period);
+    write_and_update(wr, 2, &tw2, &expired_2);        // should expire @ 1.7*deadline_period
+    SLEEP_UNTIL(time_offset, 1.1*deadline_period);
 
-  dds_sleepfor((dds_duration_t)(0.9*DEADLINE));  //t = 2.5
-  //msg1 should have expired again, but msg2 should still be "alive"
-  check_statuses(wr, rd, expired_1, expired_2, tw1, tw2, ih1, ih2);
-  dds_sleepfor((dds_duration_t)(0.2*DEADLINE));  //t = 2.7
-  //msg2 should have expired as well now
-  check_statuses(wr, rd, expired_1, expired_2, tw1, tw2, ih1, ih2);
-  dds_sleepfor((dds_duration_t)(0.9*DEADLINE));  //t = 3.6
-  //msg1 should have expired an additional time
-  check_statuses(wr, rd, expired_1, expired_2, tw1, tw2, ih1, ih2);
-  dds_sleepfor((dds_duration_t)(0.4*DEADLINE));  //t = 4.0
-  //msg2 should have expired an additional time
-  check_statuses(wr, rd, expired_1, expired_2, tw1, tw2, ih1, ih2);
-  write_and_update(wr, 1, &tw1, &expired_1);      // should expire @ 5.0*DEADLINE
-  dds_sleepfor((dds_duration_t)(1.8*DEADLINE));  //t = 5.8
-  //msg1 should have expired 1 time, msg2 should have expired 2 times
-  check_statuses(wr, rd, expired_1, expired_2, tw1, tw2, ih1, ih2);
-  dds_sleepfor((dds_duration_t)(2.3*DEADLINE));  //t = 8.1
-  //msg1 should have expired 3 times, msg2 should have expired 2 times
-  check_statuses(wr, rd, expired_1, expired_2, tw1, tw2, ih1, ih2);
+    // now msg1 should have expired once, but since the monitor thread is sleeping it should not yet be updated
+    VALIDATE_TIME_CONSTRAINTS(
+        NORMALIZE_TIME(xevent_in, time_offset) > 0.4*deadline_period &&
+        NORMALIZE_TIME(xevent_in, time_offset) < 0.6*deadline_period &&
+        xevent_out.v == 0);
+    check_statuses_explicit(wr, rd, 0, 0);
 
-  ddsi_delete_xevent(xev);
-  dds_delete(pp);
+    SLEEP_UNTIL(time_offset, 1.3*deadline_period);
+    //now msg1's expiration should have happened, but it is refreshed
+    write_and_update(wr, 1, &tw1, &expired_1);      // should expire @ 2.3*deadline_period
+    SLEEP_UNTIL(time_offset, 1.6*deadline_period);
+    //the monitor thread should have processed the "queued" expirations now
+    VALIDATE_TIME_CONSTRAINTS(
+        NORMALIZE_TIME(xevent_out, time_offset) > 1.5*deadline_period &&
+        NORMALIZE_TIME(xevent_out, time_offset) < 1.7*deadline_period &&
+        NORMALIZE_TIME(ddsrt_time_monotonic(), time_offset) < 1.7*deadline_period);
+
+    check_statuses(wr, rd, expired_1, expired_2, tw1, tw2, ih1, ih2);
+    write_and_update(wr, 2, &tw2, &expired_2);      // should expire @ 2.6*deadline_period
+
+    SLEEP_UNTIL(time_offset, 2.5*deadline_period);
+    //msg1 should have expired again, but msg2 should still be "alive"
+    VALIDATE_TIME_CONSTRAINTS(
+        NORMALIZE_TIME(ddsrt_time_monotonic(), time_offset) > 2.4*deadline_period &&
+        NORMALIZE_TIME(ddsrt_time_monotonic(), time_offset) < 2.6*deadline_period);
+    check_statuses(wr, rd, expired_1, expired_2, tw1, tw2, ih1, ih2);
+    SLEEP_UNTIL(time_offset, 2.8*deadline_period);
+    //msg2 should have expired as well now
+    VALIDATE_TIME_CONSTRAINTS(
+        NORMALIZE_TIME(ddsrt_time_monotonic(), time_offset) > 2.7*deadline_period &&
+        NORMALIZE_TIME(ddsrt_time_monotonic(), time_offset) < 2.9*deadline_period);
+    check_statuses(wr, rd, expired_1, expired_2, tw1, tw2, ih1, ih2);
+    SLEEP_UNTIL(time_offset, 3.8*deadline_period);
+    //msg1 should have expired an additional time
+    VALIDATE_TIME_CONSTRAINTS(
+        NORMALIZE_TIME(ddsrt_time_monotonic(), time_offset) > 3.7*deadline_period &&
+        NORMALIZE_TIME(ddsrt_time_monotonic(), time_offset) < 3.9*deadline_period);
+    check_statuses(wr, rd, expired_1, expired_2, tw1, tw2, ih1, ih2);
+    SLEEP_UNTIL(time_offset, 4.0*deadline_period);
+    //msg2 should have expired an additional time
+    VALIDATE_TIME_CONSTRAINTS(
+        NORMALIZE_TIME(ddsrt_time_monotonic(), time_offset) > 3.9*deadline_period &&
+        NORMALIZE_TIME(ddsrt_time_monotonic(), time_offset) < 4.1*deadline_period);
+    check_statuses(wr, rd, expired_1, expired_2, tw1, tw2, ih1, ih2);
+    write_and_update(wr, 1, &tw1, &expired_1);      // should expire @ 5.0*deadline_period
+    SLEEP_UNTIL(time_offset, 5.8*deadline_period);
+    //msg1 should have expired 1 time, msg2 should have expired 2 times
+    VALIDATE_TIME_CONSTRAINTS(
+        NORMALIZE_TIME(ddsrt_time_monotonic(), time_offset) > 5.7*deadline_period &&
+        NORMALIZE_TIME(ddsrt_time_monotonic(), time_offset) < 5.9*deadline_period);
+    check_statuses(wr, rd, expired_1, expired_2, tw1, tw2, ih1, ih2);
+    SLEEP_UNTIL(time_offset, 8.2*deadline_period);
+    //msg1 should have expired 3 times, msg2 should have expired 2 times
+    VALIDATE_TIME_CONSTRAINTS(
+        NORMALIZE_TIME(ddsrt_time_monotonic(), time_offset) > 8.1*deadline_period &&
+        NORMALIZE_TIME(ddsrt_time_monotonic(), time_offset) < 8.3*deadline_period);
+    check_statuses(wr, rd, expired_1, expired_2, tw1, tw2, ih1, ih2);
+
+    delete_entities:
+    ddsi_delete_xevent(xev);
+    dds_delete(pp);
+  } while (rerun_test);
 #endif
 }
 
