@@ -102,12 +102,11 @@ ddsrt_strtod(const char *nptr, char **endptr, double *dblptr)
   dds_return_t ret = DDS_RETCODE_OK;
 
   assert(nptr != NULL);
-  assert(dblptr != NULL);
+  assert(dblptr != NULL); 
 
   orig_errno = errno;
-  errno = 0;
-
   if (os_lcNumericGet() == '.') {
+    errno = 0;
     /* The current locale uses '.', so strtod can be used as is. */
     dbl = strtod(nptr, endptr);
   } else {
@@ -140,6 +139,7 @@ ddsrt_strtod(const char *nptr, char **endptr, double *dblptr)
 
     /* Now that we have a copy with the proper locale LC_NUMERIC, we can use
        strtod() for the conversion. */
+    errno = 0;
     dbl = strtod(nptrCopy, &nptrCopyEnd);
 
     /* Calculate the proper end char when needed. */

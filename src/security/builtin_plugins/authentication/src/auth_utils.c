@@ -229,6 +229,7 @@ static BIO *load_file_into_BIO (const char *filename, DDS_Security_SecurityExcep
   FILE *fp;
   size_t n;
   char tmp[512];
+  int orig_errno = errno;
 
   if ((bio = BIO_new (BIO_s_mem ())) == NULL)
   {
@@ -252,13 +253,15 @@ static BIO *load_file_into_BIO (const char *filename, DDS_Security_SecurityExcep
     DDS_Security_Exception_set (ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "load_file_into_BIO: seek to end failed");
     goto err_get_length;
   }
+  errno = 0;
   long max = ftell (fp);
   DDSRT_STATIC_ASSERT(ULONG_MAX <= SIZE_MAX);
-  if (max < 0)
+  if (max < 0 || errno)
   {
     DDS_Security_Exception_set (ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "load_file_into_BIO: ftell failed");
     goto err_get_length;
   }
+  errno = orig_errno;
   if (fseek (fp, 0, SEEK_SET) != 0)
   {
     DDS_Security_Exception_set (ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "load_file_into_BIO: seek to begin failed");
