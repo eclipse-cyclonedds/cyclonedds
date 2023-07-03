@@ -2107,6 +2107,32 @@ static void set_mode (int xoptind, int xargc, char * const xargv[])
   }
 }
 
+static bool wait_for_initial_matches (void)
+{
+  dds_time_t tnow = dds_time ();
+  const dds_time_t tendwait = tnow + (dds_duration_t) (initmaxwait * 1e9);
+  ddsrt_mutex_lock (&disc_lock);
+  while (matchcount < minmatch && tnow < tendwait)
+  {
+    ddsrt_mutex_unlock (&disc_lock);
+    dds_sleepfor (DDS_MSECS (100));
+    ddsrt_mutex_lock (&disc_lock);
+    tnow = dds_time ();
+  }
+  const bool ok = (matchcount >= minmatch);
+  if (!ok)
+  {
+    /* set minmatch to an impossible value to avoid a match occurring between now and
+       the determining of the exit status from causing a successful return */
+    minmatch = UINT32_MAX;
+  }
+  ddsrt_mutex_unlock (&disc_lock);
+  if (!ok)
+    return false;
+  dds_sleepfor (DDS_MSECS (100));
+  return true;
+}
+
 int main (int argc, char *argv[])
 {
   dds_entity_t ws;
@@ -2434,30 +2460,8 @@ int main (int argc, char *argv[])
 
   /* Just before starting the threads but after setting everything up, wait for
      the required number of peers, if requested to do so */
-  if (initmaxwait > 0)
-  {
-    dds_time_t tnow = dds_time ();
-    const dds_time_t tendwait = tnow + (dds_duration_t) (initmaxwait * 1e9);
-    ddsrt_mutex_lock (&disc_lock);
-    while (matchcount < minmatch && tnow < tendwait)
-    {
-      ddsrt_mutex_unlock (&disc_lock);
-      dds_sleepfor (DDS_MSECS (100));
-      ddsrt_mutex_lock (&disc_lock);
-      tnow = dds_time ();
-    }
-    const bool ok = (matchcount >= minmatch);
-    if (!ok)
-    {
-      /* set minmatch to an impossible value to avoid a match occurring between now and
-         the determining of the exit status from causing a successful return */
-      minmatch = UINT32_MAX;
-    }
-    ddsrt_mutex_unlock (&disc_lock);
-    if (!ok)
-      goto err_minmatch_wait;
-    dds_sleepfor (DDS_MSECS (100));
-  }
+  if (initmaxwait > 0 && !wait_for_initial_matches())
+    goto err_minmatch_wait;
 
   if (pub_rate > 0)
     ddsrt_thread_create (&pubtid, "pub", &attr, pubthread, NULL);
@@ -2557,11 +2561,11 @@ int main (int argc, char *argv[])
     /* bail out if too few readers discovered within the deadline */
     if (tnow >= tmatch)
     {
-      bool ok;
+      bool status_ok;
       ddsrt_mutex_lock (&disc_lock);
-      ok = (matchcount >= minmatch);
+      status_ok = (matchcount >= minmatch);
       ddsrt_mutex_unlock (&disc_lock);
-      if (ok)
+      if (status_ok)
         tmatch = DDS_NEVER;
       else
       {

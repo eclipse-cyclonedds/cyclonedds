@@ -249,7 +249,7 @@ ddsrt_thread_create (
   ddsrt_thread_t *threadptr,
   const char *name,
   const ddsrt_threadattr_t *threadAttr,
-  uint32_t (*start_routine) (void *),
+  uint32_t (*start_routine) (void * p),
   void *arg)
 {
   pthread_attr_t attr;
@@ -613,7 +613,7 @@ static void thread_init(void)
   (void)pthread_once(&thread_once, &thread_init_once);
 }
 
-dds_return_t ddsrt_thread_cleanup_push (void (*routine) (void *), void *arg)
+dds_return_t ddsrt_thread_cleanup_push (void (*routine) (void * p), void *arg)
 {
   int err;
   thread_cleanup_t *prev, *tail;

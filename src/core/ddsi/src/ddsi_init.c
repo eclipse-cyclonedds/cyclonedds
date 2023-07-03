@@ -938,7 +938,7 @@ fail:
   return -1;
 }
 
-static int ddsi_sertype_equal_wrap (const void *a, const void *b)
+static bool ddsi_sertype_equal_wrap (const void *a, const void *b)
 {
   return ddsi_sertype_equal (a, b);
 }
@@ -949,7 +949,7 @@ static uint32_t ddsi_sertype_hash_wrap (const void *tp)
 }
 
 #ifdef DDS_HAS_TOPIC_DISCOVERY
-static int topic_definition_equal_wrap (const void *tpd_a, const void *tpd_b)
+static bool topic_definition_equal_wrap (const void *tpd_a, const void *tpd_b)
 {
   return ddsi_topic_definition_equal (tpd_a, tpd_b);
 }

@@ -72,7 +72,7 @@ static uint32_t handle_hash (const void *va)
   return (uint32_t) a->hdl;
 }
 
-static int handle_equal (const void *va, const void *vb)
+static bool handle_equal (const void *va, const void *vb)
 {
   const struct dds_handle_link *a = va;
   const struct dds_handle_link *b = vb;
@@ -117,7 +117,6 @@ void dds_handle_server_fini (void)
   }
 }
 
-static bool hhadd (struct ddsrt_hh *ht, void *elem) { return ddsrt_hh_add (ht, elem); }
 static dds_handle_t dds_handle_create_int (struct dds_handle_link *link, bool implicit, bool refc_counts_children, bool user_access)
 {
   uint32_t flags = HDL_FLAG_PENDING;
@@ -129,7 +128,7 @@ static dds_handle_t dds_handle_create_int (struct dds_handle_link *link, bool im
     do {
       link->hdl = (int32_t) (ddsrt_random () & INT32_MAX);
     } while (link->hdl == 0 || link->hdl >= DDS_MIN_PSEUDO_HANDLE);
-  } while (!hhadd (handles.ht, link));
+  } while (!ddsrt_hh_add (handles.ht, link));
   return link->hdl;
 }
 
@@ -168,7 +167,7 @@ dds_return_t dds_handle_register_special (struct dds_handle_link *link, bool imp
     handles.count++;
     ddsrt_atomic_st32 (&link->cnt_flags, HDL_FLAG_PENDING | (implicit ? HDL_FLAG_IMPLICIT : HDL_REFCOUNT_UNIT) | (allow_children ? HDL_FLAG_ALLOW_CHILDREN : 0) | 1u);
     link->hdl = handle;
-    if (hhadd (handles.ht, link))
+    if (ddsrt_hh_add (handles.ht, link))
       ret = handle;
     else
       ret = DDS_RETCODE_BAD_PARAMETER;

@@ -6,4 +6,6 @@ queries:
   - uses: ./codeql-coding-standards/c/misra/src/rules/RULE-10-2/AdditionSubtractionOnEssentiallyCharType.ql
   - uses: ./codeql-coding-standards/c/misra/src/rules/RULE-21-19/ValuesReturnedByLocaleSettingUsedAsPtrToConst.ql
   - uses: ./codeql-coding-standards/c/misra/src/rules/RULE-9-1/ObjectWithAutoStorageDurationReadBeforeInit.ql
+  - uses: ./codeql-coding-standards/c/misra/src/rules/RULE-5-3/IdentifierHidingC.ql
   - uses: ./codeql-coding-standards/c/misra/src/rules/RULE-17-4/NonVoidFunctionReturnCondition.ql
+  - uses: ./codeql-coding-standards/c/misra/src/rules/RULE-8-2/FunctionTypesNotInPrototypeForm.ql

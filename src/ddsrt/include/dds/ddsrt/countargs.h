@@ -11,7 +11,14 @@
 #ifndef DDSRT_COUNTARGS_H
 #define DDSRT_COUNTARGS_H
 
+/** @file countargs.h
+  @brief This header provides a macro @ref DDSRT_COUNT_ARGS that returns the number of arguments provided
+  (the other macros are just helper macros for @ref DDSRT_COUNT_ARGS)
+*/
+
 #define DDSRT_COUNT_ARGS_MSVC_WORKAROUND(x) x
+
+/** @brief Returns the number of arguments provided (at most 10) */
 #define DDSRT_COUNT_ARGS(...) DDSRT_COUNT_ARGS1 (__VA_ARGS__, 10,9,8,7,6,5,4,3,2,1,0)
 #define DDSRT_COUNT_ARGS1(...) DDSRT_COUNT_ARGS_MSVC_WORKAROUND (DDSRT_COUNT_ARGS_ARGN (__VA_ARGS__))
 #define DDSRT_COUNT_ARGS_ARGN(a,b,c,d,e,f,g,h,i,j,n,...) n

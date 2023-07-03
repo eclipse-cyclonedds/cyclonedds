@@ -394,11 +394,11 @@ free_typeid:
   return new_topic_def;
 }
 
-static int ktopic_type_guid_equal (const void *ktp_guid_a, const void *ktp_guid_b)
+static bool ktopic_type_guid_equal (const void *ktp_guid_a, const void *ktp_guid_b)
 {
   struct ktopic_type_guid *a = (struct ktopic_type_guid *) ktp_guid_a;
   struct ktopic_type_guid *b = (struct ktopic_type_guid *) ktp_guid_b;
-  return !ddsi_typeid_compare (a->type_id, b->type_id);
+  return ddsi_typeid_compare (a->type_id, b->type_id) == 0;
 }
 
 static uint32_t ktopic_type_guid_hash (const void *ktp_guid)
