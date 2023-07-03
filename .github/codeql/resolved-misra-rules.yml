@@ -5,4 +5,8 @@ queries:
   - uses: ./codeql-coding-standards/c/misra/src/rules/RULE-3-1/CharacterSequencesAndUsedWithinAComment.ql
   - uses: ./codeql-coding-standards/c/misra/src/rules/RULE-10-2/AdditionSubtractionOnEssentiallyCharType.ql
   - uses: ./codeql-coding-standards/c/misra/src/rules/RULE-21-19/ValuesReturnedByLocaleSettingUsedAsPtrToConst.ql
+  - uses: ./codeql-coding-standards/c/misra/src/rules/RULE-5-3/IdentifierHidingC.ql
   - uses: ./codeql-coding-standards/c/misra/src/rules/RULE-17-4/NonVoidFunctionReturnCondition.ql
+  - uses: ./codeql-coding-standards/c/misra/src/rules/RULE-8-2/FunctionTypesNotInPrototypeForm.ql
+  - uses: ./codeql-coding-standards/c/misra/src/rules/RULE-8-3/DeclarationsOfAFunctionSameNameAndType.ql #[1/2]
+#  - uses: ./codeql-coding-standards/c/misra/src/rules/RULE-8-3/DeclarationsOfAnObjectSameNameAndType.ql #[2/2]

@@ -395,10 +395,10 @@ static void dds_os_put_bytes (dds_ostream_t * __restrict os, const struct dds_cd
   os->m_index += l;
 }
 
-static void dds_os_put_bytes_aligned (dds_ostream_t * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator, const void * __restrict data, uint32_t num, uint32_t elem_sz, align_t align, void **dst)
+static void dds_os_put_bytes_aligned (dds_ostream_t * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator, const void * __restrict data, uint32_t num, uint32_t elem_sz, align_t cdr_align, void **dst)
 {
   const uint32_t sz = num * elem_sz;
-  dds_cdr_alignto_clear_and_resize (os, allocator, align, sz);
+  dds_cdr_alignto_clear_and_resize (os, allocator, cdr_align, sz);
   if (dst)
     *dst = os->m_buffer + os->m_index;
   memcpy (os->m_buffer + os->m_index, data, sz);
@@ -564,9 +564,9 @@ static inline bool op_type_base (const uint32_t insn)
 
 static inline bool check_optimize_impl (uint32_t xcdr_version, const uint32_t *ops, uint32_t size, uint32_t num, uint32_t *off, uint32_t member_offs)
 {
-  align_t align = dds_cdr_get_align (xcdr_version, size);
-  if (*off % ALIGN(align))
-    *off += ALIGN(align) - (*off % ALIGN(align));
+  align_t cdr_align = dds_cdr_get_align (xcdr_version, size);
+  if (*off % ALIGN(cdr_align))
+    *off += ALIGN(cdr_align) - (*off % ALIGN(cdr_align));
   if (member_offs + ops[1] != *off)
     return false;
   *off += num * size;
@@ -955,6 +955,7 @@ static uint32_t read_union_discriminant (dds_istream_t * __restrict is, uint32_t
       break;
     default: return 0;
   }
+  abort ();
   return 0;
 }
 
@@ -3381,10 +3382,10 @@ static void dds_stream_extract_key_from_key_prim_op (dds_istream_t * __restrict 
         elem_size = DDS_OP_TYPE_SZ (insn);
       else
         abort ();
-      const align_t align = dds_cdr_get_align (os->m_xcdr_version, elem_size);
+      const align_t cdr_align = dds_cdr_get_align (os->m_xcdr_version, elem_size);
       const uint32_t num = ops[2];
-      dds_cdr_alignto (is, align);
-      dds_cdr_alignto_clear_and_resize (os, allocator, align, num * elem_size);
+      dds_cdr_alignto (is, cdr_align);
+      dds_cdr_alignto_clear_and_resize (os, allocator, cdr_align, num * elem_size);
       void * const dst = os->m_buffer + os->m_index;
       dds_is_get_bytes (is, dst, num, elem_size);
       os->m_index += num * elem_size;
@@ -3488,10 +3489,10 @@ static void dds_stream_extract_keyBE_from_key_prim_op (dds_istream_t * __restric
         elem_size = DDS_OP_TYPE_SZ (insn);
       else
         abort ();
-      const align_t align = dds_cdr_get_align (os->x.m_xcdr_version, elem_size);
+      const align_t cdr_align = dds_cdr_get_align (os->x.m_xcdr_version, elem_size);
       const uint32_t num = ops[2];
-      dds_cdr_alignto (is, align);
-      dds_cdr_alignto_clear_and_resizeBE (os, allocator, align, num * elem_size);
+      dds_cdr_alignto (is, cdr_align);
+      dds_cdr_alignto_clear_and_resizeBE (os, allocator, cdr_align, num * elem_size);
       void const * const src = is->m_buffer + is->m_index;
       void * const dst = os->x.m_buffer + os->x.m_index;
 #if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
@@ -4317,10 +4318,10 @@ static const uint32_t * dds_stream_print_sample1 (char * __restrict *buf, size_t
   return ops;
 }
 
-size_t dds_stream_print_sample (dds_istream_t * __restrict is, const struct dds_cdrstream_desc * __restrict desc, char * __restrict buf, size_t bufsize)
+size_t dds_stream_print_sample (dds_istream_t * __restrict is, const struct dds_cdrstream_desc * __restrict desc, char * __restrict buf, size_t size)
 {
-  (void) dds_stream_print_sample1 (&buf, &bufsize, is, desc->ops.ops, true, false);
-  return bufsize;
+  (void) dds_stream_print_sample1 (&buf, &size, is, desc->ops.ops, true, false);
+  return size;
 }
 
 static void dds_stream_print_key_impl (dds_istream_t * __restrict is, const uint32_t *ops, uint16_t key_offset_count, const uint32_t * key_offset_insn,
@@ -4349,25 +4350,25 @@ static void dds_stream_print_key_impl (dds_istream_t * __restrict is, const uint
   }
 }
 
-size_t dds_stream_print_key (dds_istream_t * __restrict is, const struct dds_cdrstream_desc * __restrict desc, char * __restrict buf, size_t bufsize)
+size_t dds_stream_print_key (dds_istream_t * __restrict is, const struct dds_cdrstream_desc * __restrict desc, char * __restrict buf, size_t size)
 {
-  bool cont = prtf (&buf, &bufsize, ":k:{");
+  bool cont = prtf (&buf, &size, ":k:{");
   bool needs_comma = false;
   for (uint32_t i = 0; cont && i < desc->keys.nkeys; i++)
   {
     if (needs_comma)
-      (void) prtf (&buf, &bufsize, ",");
+      (void) prtf (&buf, &size, ",");
     needs_comma = true;
     const uint32_t *op = desc->ops.ops + desc->keys.keys[i].ops_offs;
     switch (DDS_OP (*op))
     {
       case DDS_OP_KOF: {
         uint16_t n_offs = DDS_OP_LENGTH (*op);
-        dds_stream_print_key_impl (is, desc->ops.ops + op[1], --n_offs, op + 2, &buf, &bufsize, &cont);
+        dds_stream_print_key_impl (is, desc->ops.ops + op[1], --n_offs, op + 2, &buf, &size, &cont);
         break;
       }
       case DDS_OP_ADR: {
-        dds_stream_print_key_impl (is, op, 0, NULL, &buf, &bufsize, &cont);
+        dds_stream_print_key_impl (is, op, 0, NULL, &buf, &size, &cont);
         break;
       }
       default:
@@ -4375,8 +4376,8 @@ size_t dds_stream_print_key (dds_istream_t * __restrict is, const struct dds_cdr
         break;
     }
   }
-  (void) prtf (&buf, &bufsize, "}");
-  return bufsize;
+  (void) prtf (&buf, &size, "}");
+  return size;
 }
 
 /* Gets the (minimum) extensibility of the types used for this topic, and returns the XCDR

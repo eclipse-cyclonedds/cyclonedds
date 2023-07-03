@@ -33,10 +33,10 @@ DEFINE_ENTITY_LOCK_UNLOCK(dds_publisher, DDS_KIND_PUBLISHER, publisher)
 dds_entity_t dds__create_publisher_l(struct dds_participant *participant, bool implicit, const dds_qos_t *qos, const dds_listener_t *listener);
 
 /** @component publisher */
-dds_return_t dds_publisher_begin_coherent (dds_entity_t e);
+dds_return_t dds_publisher_begin_coherent (dds_entity_t publisher);
 
 /** @component publisher */
-dds_return_t dds_publisher_end_coherent (dds_entity_t e);
+dds_return_t dds_publisher_end_coherent (dds_entity_t publisher);
 
 #if defined (__cplusplus)
 }

@@ -46,7 +46,7 @@ static uint32_t access_control_object_hash(const void *obj)
   return (unsigned)((x * c) >> 32);
 }
 
-static int access_control_object_equal(const void *ha, const void *hb)
+static bool access_control_object_equal(const void *ha, const void *hb)
 {
   const AccessControlObject *la = ha;
   const AccessControlObject *lb = hb;

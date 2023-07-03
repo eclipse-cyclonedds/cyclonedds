@@ -64,18 +64,18 @@ ddsrt_strncasecmp(
 }
 
 char *
-ddsrt_strsep(char **str, const char *sep)
+ddsrt_strsep(char **stringp, const char *delim)
 {
   char *ret;
-  if (**str == '\0')
+  if (**stringp == '\0')
     return 0;
-  ret = *str;
-  while (**str && strchr (sep, **str) == 0)
-    (*str)++;
-  if (**str != '\0')
+  ret = *stringp;
+  while (**stringp && strchr (delim, **stringp) == 0)
+    (*stringp)++;
+  if (**stringp != '\0')
   {
-    **str = '\0';
-    (*str)++;
+    **stringp = '\0';
+    (*stringp)++;
   }
   return ret;
 }

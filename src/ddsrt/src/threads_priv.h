@@ -16,7 +16,7 @@
 /** \brief Internal structure used to store cleanup handlers (private) */
 typedef struct {
   void *prev;
-  void (*routine)(void *);
+  void (*routine)(void * p);
   void *arg;
 } thread_cleanup_t;
 

@@ -170,7 +170,7 @@ static void treedestroy_arg (const ddsrt_avl_treedef_t *td, ddsrt_avl_node_t *n,
     }
 }
 
-void ddsrt_avl_free (const ddsrt_avl_treedef_t *td, ddsrt_avl_tree_t *tree, void (*freefun) (void *node))
+void ddsrt_avl_free (const ddsrt_avl_treedef_t *td, ddsrt_avl_tree_t *tree, void (*freefun) (void *vnode))
 {
     ddsrt_avl_node_t *n = tree->root;
     tree->root = NULL;
@@ -179,7 +179,7 @@ void ddsrt_avl_free (const ddsrt_avl_treedef_t *td, ddsrt_avl_tree_t *tree, void
     }
 }
 
-void ddsrt_avl_free_arg (const ddsrt_avl_treedef_t *td, ddsrt_avl_tree_t *tree, void (*freefun) (void *node, void *arg), void *arg)
+void ddsrt_avl_free_arg (const ddsrt_avl_treedef_t *td, ddsrt_avl_tree_t *tree, void (*freefun) (void *vnode, void *arg), void *arg)
 {
     ddsrt_avl_node_t *n = tree->root;
     tree->root = NULL;
@@ -549,10 +549,10 @@ void ddsrt_avl_delete (const ddsrt_avl_treedef_t *td, ddsrt_avl_tree_t *tree, vo
     delete_generic (td, tree, vnode, NULL);
 }
 
-void ddsrt_avl_swap_node (const ddsrt_avl_treedef_t *td, ddsrt_avl_tree_t *tree, void *vold, void *vnew)
+void ddsrt_avl_swap_node (const ddsrt_avl_treedef_t *td, ddsrt_avl_tree_t *tree, void *voldn, void *vnewn)
 {
-    ddsrt_avl_node_t *old = node_from_onode_nonnull (td, vold);
-    ddsrt_avl_node_t *new = node_from_onode_nonnull (td, vnew);
+    ddsrt_avl_node_t *old = node_from_onode_nonnull (td, voldn);
+    ddsrt_avl_node_t *new = node_from_onode_nonnull (td, vnewn);
     *nodeptr_from_node (tree, old) = new;
     /* use memmove so partially overlap between old & new is allowed
        (yikes!, but exploited by the memory allocator, and not a big
@@ -988,15 +988,15 @@ void *ddsrt_avl_root_non_empty (const ddsrt_avl_treedef_t *td, const ddsrt_avl_t
  ****
  **************************************************************************************/
 
-void ddsrt_avl_ctreedef_init (ddsrt_avl_ctreedef_t *td, size_t avlnodeoffset, size_t keyoffset, ddsrt_avl_compare_t comparekk, ddsrt_avl_augment_t augment, uint32_t flags)
+void ddsrt_avl_ctreedef_init (ddsrt_avl_ctreedef_t *td, size_t avlnodeoffset, size_t keyoffset, ddsrt_avl_compare_t comparekk, ddsrt_avl_augment_t avl_augment, uint32_t flags)
 {
-    treedef_init_common (&td->t, avlnodeoffset, keyoffset, augment, flags);
+    treedef_init_common (&td->t, avlnodeoffset, keyoffset, avl_augment, flags);
     td->t.u.comparekk = comparekk;
 }
 
-void ddsrt_avl_ctreedef_init_r (ddsrt_avl_ctreedef_t *td, size_t avlnodeoffset, size_t keyoffset, ddsrt_avl_compare_r_t comparekk_r, void *cmp_arg, ddsrt_avl_augment_t augment, uint32_t flags)
+void ddsrt_avl_ctreedef_init_r (ddsrt_avl_ctreedef_t *td, size_t avlnodeoffset, size_t keyoffset, ddsrt_avl_compare_r_t comparekk_r, void *cmp_arg, ddsrt_avl_augment_t avl_augment, uint32_t flags)
 {
-    treedef_init_common (&td->t, avlnodeoffset, keyoffset, augment, flags | DDSRT_AVL_TREEDEF_FLAG_R);
+    treedef_init_common (&td->t, avlnodeoffset, keyoffset, avl_augment, flags | DDSRT_AVL_TREEDEF_FLAG_R);
     td->t.cmp_arg = cmp_arg;
     td->t.u.comparekk_r = comparekk_r;
 }
@@ -1007,13 +1007,13 @@ void ddsrt_avl_cinit (const ddsrt_avl_ctreedef_t *td, ddsrt_avl_ctree_t *tree)
     tree->count = 0;
 }
 
-void ddsrt_avl_cfree (const ddsrt_avl_ctreedef_t *td, ddsrt_avl_ctree_t *tree, void (*freefun) (void *node))
+void ddsrt_avl_cfree (const ddsrt_avl_ctreedef_t *td, ddsrt_avl_ctree_t *tree, void (*freefun) (void *vnode))
 {
     tree->count = 0;
     ddsrt_avl_free (&td->t, &tree->t, freefun);
 }
 
-void ddsrt_avl_cfree_arg (const ddsrt_avl_ctreedef_t *td, ddsrt_avl_ctree_t *tree, void (*freefun) (void *node, void *arg), void *arg)
+void ddsrt_avl_cfree_arg (const ddsrt_avl_ctreedef_t *td, ddsrt_avl_ctree_t *tree, void (*freefun) (void *vnode, void *arg), void *arg)
 {
     tree->count = 0;
     ddsrt_avl_free_arg (&td->t, &tree->t, freefun, arg);
@@ -1064,40 +1064,40 @@ void *ddsrt_avl_clookup_succ (const ddsrt_avl_ctreedef_t *td, const ddsrt_avl_ct
     return ddsrt_avl_lookup_succ (&td->t, &tree->t, key);
 }
 
-void ddsrt_avl_cinsert (const ddsrt_avl_ctreedef_t *td, ddsrt_avl_ctree_t *tree, void *node)
+void ddsrt_avl_cinsert (const ddsrt_avl_ctreedef_t *td, ddsrt_avl_ctree_t *tree, void *vnode)
 {
     tree->count++;
-    ddsrt_avl_insert (&td->t, &tree->t, node);
+    ddsrt_avl_insert (&td->t, &tree->t, vnode);
 }
 
-void ddsrt_avl_cdelete (const ddsrt_avl_ctreedef_t *td, ddsrt_avl_ctree_t *tree, void *node)
+void ddsrt_avl_cdelete (const ddsrt_avl_ctreedef_t *td, ddsrt_avl_ctree_t *tree, void *vnode)
 {
     assert (tree->count > 0);
     tree->count--;
-    ddsrt_avl_delete (&td->t, &tree->t, node);
+    ddsrt_avl_delete (&td->t, &tree->t, vnode);
 }
 
-void ddsrt_avl_cinsert_ipath (const ddsrt_avl_ctreedef_t *td, ddsrt_avl_ctree_t *tree, void *node, ddsrt_avl_ipath_t *path)
+void ddsrt_avl_cinsert_ipath (const ddsrt_avl_ctreedef_t *td, ddsrt_avl_ctree_t *tree, void *vnode, ddsrt_avl_ipath_t *path)
 {
     tree->count++;
-    ddsrt_avl_insert_ipath (&td->t, &tree->t, node, path);
+    ddsrt_avl_insert_ipath (&td->t, &tree->t, vnode, path);
 }
 
-void ddsrt_avl_cdelete_dpath (const ddsrt_avl_ctreedef_t *td, ddsrt_avl_ctree_t *tree, void *node, ddsrt_avl_dpath_t *path)
+void ddsrt_avl_cdelete_dpath (const ddsrt_avl_ctreedef_t *td, ddsrt_avl_ctree_t *tree, void *vnode, ddsrt_avl_dpath_t *path)
 {
     assert (tree->count > 0);
     tree->count--;
-    ddsrt_avl_delete_dpath (&td->t, &tree->t, node, path);
+    ddsrt_avl_delete_dpath (&td->t, &tree->t, vnode, path);
 }
 
-void ddsrt_avl_cswap_node (const ddsrt_avl_ctreedef_t *td, ddsrt_avl_ctree_t *tree, void *old, void *new)
+void ddsrt_avl_cswap_node (const ddsrt_avl_ctreedef_t *td, ddsrt_avl_ctree_t *tree, void *voldn, void *vnewn)
 {
-    ddsrt_avl_swap_node (&td->t, &tree->t, old, new);
+    ddsrt_avl_swap_node (&td->t, &tree->t, voldn, vnewn);
 }
 
-void ddsrt_avl_caugment_update (const ddsrt_avl_ctreedef_t *td, void *node)
+void ddsrt_avl_caugment_update (const ddsrt_avl_ctreedef_t *td, void *vnode)
 {
-    ddsrt_avl_augment_update (&td->t, node);
+    ddsrt_avl_augment_update (&td->t, vnode);
 }
 
 int ddsrt_avl_cis_empty (const ddsrt_avl_ctree_t *tree)

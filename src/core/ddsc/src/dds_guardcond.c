@@ -73,12 +73,12 @@ dds_entity_t dds_create_guardcondition (dds_entity_t owner)
   return rc;
 }
 
-dds_return_t dds_set_guardcondition (dds_entity_t condition, bool triggered)
+dds_return_t dds_set_guardcondition (dds_entity_t guardcond, bool triggered)
 {
   dds_guardcond *gcond;
   dds_return_t rc;
 
-  if ((rc = dds_guardcond_lock (condition, &gcond)) != DDS_RETCODE_OK)
+  if ((rc = dds_guardcond_lock (guardcond, &gcond)) != DDS_RETCODE_OK)
     return rc;
   else
   {
@@ -96,7 +96,7 @@ dds_return_t dds_set_guardcondition (dds_entity_t condition, bool triggered)
   }
 }
 
-dds_return_t dds_read_guardcondition (dds_entity_t condition, bool *triggered)
+dds_return_t dds_read_guardcondition (dds_entity_t guardcond, bool *triggered)
 {
   dds_guardcond *gcond;
   dds_return_t rc;
@@ -105,7 +105,7 @@ dds_return_t dds_read_guardcondition (dds_entity_t condition, bool *triggered)
     return DDS_RETCODE_BAD_PARAMETER;
 
   *triggered = false;
-  if ((rc = dds_guardcond_lock (condition, &gcond)) != DDS_RETCODE_OK)
+  if ((rc = dds_guardcond_lock (guardcond, &gcond)) != DDS_RETCODE_OK)
     return rc;
   else
   {
@@ -115,7 +115,7 @@ dds_return_t dds_read_guardcondition (dds_entity_t condition, bool *triggered)
   }
 }
 
-dds_return_t dds_take_guardcondition (dds_entity_t condition, bool *triggered)
+dds_return_t dds_take_guardcondition (dds_entity_t guardcond, bool *triggered)
 {
   dds_guardcond *gcond;
   dds_return_t rc;
@@ -124,7 +124,7 @@ dds_return_t dds_take_guardcondition (dds_entity_t condition, bool *triggered)
     return DDS_RETCODE_BAD_PARAMETER;
 
   *triggered = false;
-  if ((rc = dds_guardcond_lock (condition, &gcond)) != DDS_RETCODE_OK)
+  if ((rc = dds_guardcond_lock (guardcond, &gcond)) != DDS_RETCODE_OK)
     return rc;
   else
   {

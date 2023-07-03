@@ -82,11 +82,11 @@ dds_entity_t dds_create_readcondition (dds_entity_t reader, uint32_t mask)
   }
 }
 
-dds_entity_t dds_get_datareader (dds_entity_t condition)
+dds_entity_t dds_get_datareader (dds_entity_t entity)
 {
   struct dds_entity *e;
   dds_return_t rc;
-  if ((rc = dds_entity_pin (condition, &e)) != DDS_RETCODE_OK)
+  if ((rc = dds_entity_pin (entity, &e)) != DDS_RETCODE_OK)
     return rc;
   else
   {

@@ -40,8 +40,8 @@ static void dds_stream_write_keyBO_impl (DDS_OSTREAM_T * __restrict os, const st
       {
         case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: {
           const uint32_t elem_size = get_primitive_size (DDS_OP_SUBTYPE (insn));
-          const align_t align = dds_cdr_get_align (((struct dds_ostream *)os)->m_xcdr_version, elem_size);
-          dds_cdr_alignto_clear_and_resizeBO (os, allocator, align, num * elem_size);
+          const align_t cdr_align = dds_cdr_get_align (((struct dds_ostream *)os)->m_xcdr_version, elem_size);
+          dds_cdr_alignto_clear_and_resizeBO (os, allocator, cdr_align, num * elem_size);
           void * const dst = ((struct dds_ostream *)os)->m_buffer + ((struct dds_ostream *)os)->m_index;
           dds_os_put_bytes ((struct dds_ostream *)os, allocator, addr, num * elem_size);
           dds_stream_swap_if_needed_insituBO (dst, elem_size, num);
@@ -316,7 +316,7 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_pl (dds_istream_t * __
 
 static const uint32_t *dds_stream_extract_keyBO_from_data1 (dds_istream_t * __restrict is, DDS_OSTREAM_T * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator,
   uint32_t ops_offs_idx, uint32_t * __restrict ops_offs, const uint32_t * const __restrict op0, const uint32_t * const __restrict op0_type, const uint32_t * __restrict ops, bool mutable_member, bool mutable_member_or_parent,
-  uint32_t n_keys, uint32_t * __restrict keys_remaining, const dds_cdrstream_desc_key_t * __restrict keys, struct key_off_info * __restrict key_offs)
+  uint32_t n_keys, uint32_t * __restrict keys_remaining, const dds_cdrstream_desc_key_t * __restrict key, struct key_off_info * __restrict key_offs)
 {
   uint32_t insn;
   while ((insn = *ops) != DDS_OP_RTS)
@@ -324,20 +324,20 @@ static const uint32_t *dds_stream_extract_keyBO_from_data1 (dds_istream_t * __re
     switch (DDS_OP (insn))
     {
       case DDS_OP_ADR:
-        ops = dds_stream_extract_keyBO_from_data_adr (insn, is, os, allocator, ops_offs_idx, ops_offs, op0, op0_type, ops, mutable_member, mutable_member_or_parent, n_keys, keys_remaining, keys, key_offs);
+        ops = dds_stream_extract_keyBO_from_data_adr (insn, is, os, allocator, ops_offs_idx, ops_offs, op0, op0_type, ops, mutable_member, mutable_member_or_parent, n_keys, keys_remaining, key, key_offs);
         break;
       case DDS_OP_JSR:
-        (void) dds_stream_extract_keyBO_from_data1 (is, os, allocator, ops_offs_idx, ops_offs, op0, op0_type, ops + DDS_OP_JUMP (insn), mutable_member, mutable_member_or_parent, n_keys, keys_remaining, keys, key_offs);
+        (void) dds_stream_extract_keyBO_from_data1 (is, os, allocator, ops_offs_idx, ops_offs, op0, op0_type, ops + DDS_OP_JUMP (insn), mutable_member, mutable_member_or_parent, n_keys, keys_remaining, key, key_offs);
         ops++;
         break;
       case DDS_OP_RTS: case DDS_OP_JEQ: case DDS_OP_JEQ4: case DDS_OP_KOF: case DDS_OP_PLM:
         abort ();
         break;
       case DDS_OP_DLC:
-        ops = dds_stream_extract_keyBO_from_data_delimited (is, os, allocator, ops_offs_idx, ops_offs, op0, ops, ops, mutable_member_or_parent, n_keys, keys_remaining, keys, key_offs);
+        ops = dds_stream_extract_keyBO_from_data_delimited (is, os, allocator, ops_offs_idx, ops_offs, op0, ops, ops, mutable_member_or_parent, n_keys, keys_remaining, key, key_offs);
         break;
       case DDS_OP_PLC:
-        ops = dds_stream_extract_keyBO_from_data_pl (is, os, allocator, ops_offs_idx, ops_offs, op0, ops, ops, n_keys, keys_remaining, keys, key_offs);
+        ops = dds_stream_extract_keyBO_from_data_pl (is, os, allocator, ops_offs_idx, ops_offs, op0, ops, ops, n_keys, keys_remaining, key, key_offs);
         break;
     }
   }
