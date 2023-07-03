@@ -289,13 +289,13 @@ err:
     return NULL;
 }
 
-char *ddsrt_expand_vars_sh (const char *src0, expand_lookup_fn lookup, void * data)
+char *ddsrt_expand_vars_sh (const char *string, expand_lookup_fn lookup, void * data)
 {
-  return ddsrt_expand_vars_sh1 (src0, lookup, data, 0);
+  return ddsrt_expand_vars_sh1 (string, lookup, data, 0);
 }
 
-char *ddsrt_expand_vars (const char *src0, expand_lookup_fn lookup, void * data)
+char *ddsrt_expand_vars (const char *string, expand_lookup_fn lookup, void * data)
 {
-  return ddsrt_expand_vars1 (src0, lookup, data, 0);
+  return ddsrt_expand_vars1 (string, lookup, data, 0);
 }
 

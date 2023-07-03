@@ -23,13 +23,13 @@ DDS_EXPORT extern inline ddsrt_etime_t ddsrt_etime_add_duration(ddsrt_etime_t ab
 #if !_WIN32 && !DDSRT_WITH_FREERTOS
 #include <errno.h>
 
-void dds_sleepfor(dds_duration_t n)
+void dds_sleepfor(dds_duration_t reltime)
 {
   struct timespec t, r;
 
-  if (n >= 0) {
-    t.tv_sec = (time_t) (n / DDS_NSECS_IN_SEC);
-    t.tv_nsec = (long) (n % DDS_NSECS_IN_SEC);
+  if (reltime >= 0) {
+    t.tv_sec = (time_t) (reltime / DDS_NSECS_IN_SEC);
+    t.tv_nsec = (long) (reltime % DDS_NSECS_IN_SEC);
     while (nanosleep(&t, &r) == -1 && errno == EINTR) {
       t = r;
     }
@@ -38,7 +38,7 @@ void dds_sleepfor(dds_duration_t n)
 #endif
 
 size_t
-ddsrt_ctime(dds_time_t n, char *str, size_t size)
+ddsrt_ctime(dds_time_t abstime, char *str, size_t size)
 {
   struct tm tm;
 #if __SunOS_5_6 || __MINGW32__
@@ -49,7 +49,7 @@ ddsrt_ctime(dds_time_t n, char *str, size_t size)
 #endif
   char buf[] = "YYYY-mm-dd HH:MM:SS.hh:mm"; /* RFC 3339 */
   size_t cnt;
-  time_t sec = (time_t)(n / DDS_NSECS_IN_SEC);
+  time_t sec = (time_t)(abstime / DDS_NSECS_IN_SEC);
 
   assert(str != NULL);
 

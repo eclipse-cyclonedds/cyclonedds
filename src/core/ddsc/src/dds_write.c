@@ -578,9 +578,9 @@ dds_return_t dds_write_impl (dds_writer *wr, const void * data, dds_time_t tstam
   return ret;
 }
 
-dds_return_t dds_writecdr_impl (dds_writer *wr, struct ddsi_xpack *xp, struct ddsi_serdata *dinp, bool flush)
+dds_return_t dds_writecdr_impl (dds_writer *wr, struct ddsi_xpack *xp, struct ddsi_serdata *d, bool flush)
 {
-  return dds_writecdr_impl_common (wr->m_wr, xp, (struct ddsi_serdata_any *) dinp, flush, wr);
+  return dds_writecdr_impl_common (wr->m_wr, xp, (struct ddsi_serdata_any *) d, flush, wr);
 }
 
 void dds_write_flush_impl (dds_writer *wr)

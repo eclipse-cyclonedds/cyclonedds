@@ -502,7 +502,7 @@ dds_entity_t dds_get_publisher (dds_entity_t writer)
   }
 }
 
-dds_return_t dds__writer_data_allocator_init (const dds_writer *wr, dds_data_allocator_t *data_allocator)
+dds_return_t dds__writer_data_allocator_init (const struct dds_writer *wr, dds_data_allocator_t *data_allocator)
 {
 #ifdef DDS_HAS_SHM
   dds_iox_allocator_t *d = (dds_iox_allocator_t *) data_allocator->opaque.bytes;
@@ -524,7 +524,7 @@ dds_return_t dds__writer_data_allocator_init (const dds_writer *wr, dds_data_all
 #endif
 }
 
-dds_return_t dds__writer_data_allocator_fini (const dds_writer *wr, dds_data_allocator_t *data_allocator)
+dds_return_t dds__writer_data_allocator_fini (const struct dds_writer *wr, dds_data_allocator_t *data_allocator)
 {
 #ifdef DDS_HAS_SHM
   dds_iox_allocator_t *d = (dds_iox_allocator_t *) data_allocator->opaque.bytes;

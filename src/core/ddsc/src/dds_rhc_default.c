@@ -588,7 +588,7 @@ struct dds_rhc *dds_rhc_default_new_xchecks (dds_reader *reader, struct ddsi_dom
   return &rhc->common;
 }
 
-struct dds_rhc *dds_rhc_default_new (dds_reader *reader, const struct ddsi_sertype *type)
+struct dds_rhc *dds_rhc_default_new (struct dds_reader *reader, const struct ddsi_sertype *type)
 {
   return dds_rhc_default_new_xchecks (reader, &reader->m_entity.m_domain->gv, type, (reader->m_entity.m_domain->gv.config.enabled_xchecks & DDSI_XCHECK_RHC) != 0);
 }
