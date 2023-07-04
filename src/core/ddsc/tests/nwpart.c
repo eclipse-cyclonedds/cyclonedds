@@ -608,7 +608,11 @@ CU_Theory ((bool same_machine, bool proxypp_has_defmc, int n_ep_uc, int n_ep_mc,
     printf ("advertised plist: %s\n", buf);
   }
 
-  struct ddsi_addrset *as = ddsi_get_endpoint_addrset (&gv, &plist, as_default, NULL);
+  struct ddsi_network_packet_info pktinfo;
+  ddsi_set_unspec_locator (&pktinfo.src);
+  pktinfo.if_index = 0;
+  pktinfo.dst.kind = DDSI_LOCATOR_KIND_INVALID;
+  struct ddsi_addrset *as = ddsi_get_endpoint_addrset (&gv, &plist, as_default, &pktinfo, false, false);
 
   int n = 0;
   while (expected[n])

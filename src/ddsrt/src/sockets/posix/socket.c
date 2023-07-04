@@ -71,6 +71,21 @@ ddsrt_socket(ddsrt_socket_t *sockptr, int domain, int type, int protocol)
   return DDS_RETCODE_ERROR;
 }
 
+void
+ddsrt_socket_ext_init(
+  ddsrt_socket_ext_t *sockext,
+  ddsrt_socket_t sock)
+{
+  sockext->sock = sock;
+}
+
+void
+ddsrt_socket_ext_fini(
+  ddsrt_socket_ext_t *sockext)
+{
+  (void)sockext;
+}
+
 dds_return_t
 ddsrt_close(
   ddsrt_socket_t sock)
@@ -350,6 +365,7 @@ ddsrt_setsockopt(
       return DDS_RETCODE_ERROR;
     }
 #endif /* DDSRT_HAVE_IPV6 */
+    case IP_PKTINFO:
     case IP_MULTICAST_IF:
     case IP_MULTICAST_TTL:
     case IP_MULTICAST_LOOP:
@@ -386,7 +402,7 @@ ddsrt_setsockopt(
             }
           }
         } else if (optname == IP_DROP_MEMBERSHIP) {
-          if (maddr) {  
+          if (maddr) {
             if (net_if_ipv4_maddr_rm(iface, &(mreq->imr_multiaddr))) {
               net_if_ipv4_maddr_leave(iface, maddr);
               net_if_mcast_monitor(iface, &(maddr->address), false);
@@ -524,14 +540,14 @@ static ssize_t recvmsg(int sockfd, struct msghdr *msg, int flags)
 
 dds_return_t
 ddsrt_recvmsg(
-  ddsrt_socket_t sock,
+  const ddsrt_socket_ext_t *sockext,
   ddsrt_msghdr_t *msg,
   int flags,
   ssize_t *rcvd)
 {
   ssize_t n;
 
-  if ((n = recvmsg(sock, msg, flags)) != -1) {
+  if ((n = recvmsg(sockext->sock, msg, flags)) != -1) {
     assert(n >= 0);
     *rcvd = n;
     return DDS_RETCODE_OK;

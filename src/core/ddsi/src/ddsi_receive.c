@@ -2920,7 +2920,7 @@ static int handle_submsg_sequence
   struct ddsi_thread_state * const thrst,
   struct ddsi_domaingv *gv,
   struct ddsi_tran_conn * conn,
-  const ddsi_locator_t *srcloc,
+  const struct ddsi_network_packet_info *pktinfo,
   ddsrt_wctime_t tnowWC,
   ddsrt_etime_t tnowE,
   const ddsi_guid_prefix_t * const src_prefix,
@@ -2965,7 +2965,7 @@ static int handle_submsg_sequence
   rst->rtps_encoded = rtps_encoded;
   rst->vendor = hdr->vendorid;
   rst->protocol_version = hdr->version;
-  rst->srcloc = *srcloc;
+  rst->pktinfo = *pktinfo;
   rst->gv = gv;
   rst_live = 0;
   ts_for_latmeas = 0;
@@ -3190,7 +3190,7 @@ static int handle_submsg_sequence
   }
 }
 
-static void handle_rtps_message (struct ddsi_thread_state * const thrst, struct ddsi_domaingv *gv, struct ddsi_tran_conn * conn, const ddsi_guid_prefix_t *guidprefix, struct ddsi_rbufpool *rbpool, struct ddsi_rmsg *rmsg, size_t sz, unsigned char *msg, const ddsi_locator_t *srcloc)
+static void handle_rtps_message (struct ddsi_thread_state * const thrst, struct ddsi_domaingv *gv, struct ddsi_tran_conn * conn, const ddsi_guid_prefix_t *guidprefix, struct ddsi_rbufpool *rbpool, struct ddsi_rmsg *rmsg, size_t sz, unsigned char *msg, const struct ddsi_network_packet_info *pktinfo)
 {
   ddsi_rtps_header_t *hdr = (ddsi_rtps_header_t *) msg;
   assert (ddsi_thread_is_asleep ());
@@ -3212,22 +3212,26 @@ static void handle_rtps_message (struct ddsi_thread_state * const thrst, struct 
 
     if (gv->logconfig.c.mask & DDS_LC_TRACE)
     {
-      char addrstr[DDSI_LOCSTRLEN];
-      ddsi_locator_to_string(addrstr, sizeof(addrstr), srcloc);
-      GVTRACE ("HDR(%"PRIx32":%"PRIx32":%"PRIx32" vendor %d.%d) len %lu from %s\n",
-               PGUIDPREFIX (hdr->guid_prefix), hdr->vendorid.id[0], hdr->vendorid.id[1], (unsigned long) sz, addrstr);
+      char srcaddrstr[DDSI_LOCSTRLEN];
+      char dstaddrstr[DDSI_LOCSTRLEN] = "unknown";
+      ddsi_locator_to_string (srcaddrstr, sizeof(srcaddrstr), &pktinfo->src);
+      if (pktinfo->dst.kind != DDSI_LOCATOR_KIND_INVALID)
+        ddsi_locator_to_string (dstaddrstr, sizeof(dstaddrstr), &pktinfo->dst);
+      GVTRACE ("HDR(%"PRIx32":%"PRIx32":%"PRIx32" vendor %d.%d) len %lu from %s to %s@%"PRIu32"\n",
+               PGUIDPREFIX (hdr->guid_prefix), hdr->vendorid.id[0], hdr->vendorid.id[1], (unsigned long) sz,
+               srcaddrstr, dstaddrstr, pktinfo->if_index);
     }
     ddsi_rtps_msg_state_t res = ddsi_security_decode_rtps_message (thrst, gv, &rmsg, &hdr, &msg, &sz, rbpool, conn->m_stream);
     if (res != DDSI_RTPS_MSG_STATE_ERROR)
     {
-      handle_submsg_sequence (thrst, gv, conn, srcloc, ddsrt_time_wallclock (), ddsrt_time_elapsed (), &hdr->guid_prefix, guidprefix, msg, (size_t) sz, msg + DDSI_RTPS_MESSAGE_HEADER_SIZE, rmsg, res == DDSI_RTPS_MSG_STATE_ENCODED);
+      handle_submsg_sequence (thrst, gv, conn, pktinfo, ddsrt_time_wallclock (), ddsrt_time_elapsed (), &hdr->guid_prefix, guidprefix, msg, (size_t) sz, msg + DDSI_RTPS_MESSAGE_HEADER_SIZE, rmsg, res == DDSI_RTPS_MSG_STATE_ENCODED);
     }
   }
 }
 
-void ddsi_handle_rtps_message (struct ddsi_thread_state * const thrst, struct ddsi_domaingv *gv, struct ddsi_tran_conn * conn, const ddsi_guid_prefix_t *guidprefix, struct ddsi_rbufpool *rbpool, struct ddsi_rmsg *rmsg, size_t sz, unsigned char *msg, const ddsi_locator_t *srcloc)
+void ddsi_handle_rtps_message (struct ddsi_thread_state * const thrst, struct ddsi_domaingv *gv, struct ddsi_tran_conn * conn, const ddsi_guid_prefix_t *guidprefix, struct ddsi_rbufpool *rbpool, struct ddsi_rmsg *rmsg, size_t sz, unsigned char *msg, const struct ddsi_network_packet_info *pktinfo)
 {
-  handle_rtps_message (thrst, gv, conn, guidprefix, rbpool, rmsg, sz, msg, srcloc);
+  handle_rtps_message (thrst, gv, conn, guidprefix, rbpool, rmsg, sz, msg, pktinfo);
 }
 
 static bool do_packet (struct ddsi_thread_state * const thrst, struct ddsi_domaingv *gv, struct ddsi_tran_conn * conn, const ddsi_guid_prefix_t *guidprefix, struct ddsi_rbufpool *rbpool)
@@ -3242,7 +3246,7 @@ static bool do_packet (struct ddsi_thread_state * const thrst, struct ddsi_domai
   unsigned char * buff;
   size_t buff_len = maxsz;
   ddsi_rtps_header_t * hdr;
-  ddsi_locator_t srcloc;
+  struct ddsi_network_packet_info pktinfo;
 
   if (rmsg == NULL)
   {
@@ -3264,7 +3268,7 @@ static bool do_packet (struct ddsi_thread_state * const thrst, struct ddsi_domai
 
     /* Read in DDSI header plus MSG_LEN sub message that follows it */
 
-    sz = ddsi_conn_read (conn, buff, stream_hdr_size, true, &srcloc);
+    sz = ddsi_conn_read (conn, buff, stream_hdr_size, true, &pktinfo);
     if (sz == 0)
     {
       /* Spurious read -- which at this point is still ok */
@@ -3312,13 +3316,13 @@ static bool do_packet (struct ddsi_thread_state * const thrst, struct ddsi_domai
   {
     /* Get next packet */
 
-    sz = ddsi_conn_read (conn, buff, buff_len, true, &srcloc);
+    sz = ddsi_conn_read (conn, buff, buff_len, true, &pktinfo);
   }
 
   if (sz > 0 && !gv->deaf)
   {
     ddsi_rmsg_setsize (rmsg, (uint32_t) sz);
-    handle_rtps_message(thrst, gv, conn, guidprefix, rbpool, rmsg, (size_t) sz, buff, &srcloc);
+    handle_rtps_message(thrst, gv, conn, guidprefix, rbpool, rmsg, (size_t) sz, buff, &pktinfo);
   }
   ddsi_rmsg_commit (rmsg);
   return (sz > 0);

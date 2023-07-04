@@ -290,8 +290,10 @@ static void ddsi_plist_leasedur_new_proxypp_impl (bool include_lease_duration)
   unsigned char pkt_trailer[] = {
     SENTINEL
   };
-  ddsi_locator_t srcloc;
-  ddsi_conn_locator (gv.xmit_conns[0], &srcloc);
+  struct ddsi_network_packet_info pktinfo;
+  ddsi_conn_locator (gv.xmit_conns[0], &pktinfo.src);
+  pktinfo.dst.kind = DDSI_LOCATOR_KIND_INVALID;
+  pktinfo.if_index = 0;
   const ddsi_guid_t proxypp_guid = {
     .prefix = ddsi_ntoh_guid_prefix ((ddsi_guid_prefix_t){ .s = { TEST_GUIDPREFIX_BYTES } }),
     .entityid = { .u = DDSI_ENTITYID_PARTICIPANT }
@@ -313,7 +315,7 @@ static void ddsi_plist_leasedur_new_proxypp_impl (bool include_lease_duration)
   memcpy (buf + size, pkt_trailer, sizeof (pkt_trailer));
   size += sizeof (pkt_trailer);
   ddsi_rmsg_setsize (rmsg, (uint32_t) size);
-  ddsi_handle_rtps_message (thrst, &gv, gv.data_conn_uc, NULL, rbufpool, rmsg, size, buf, &srcloc);
+  ddsi_handle_rtps_message (thrst, &gv, gv.data_conn_uc, NULL, rbufpool, rmsg, size, buf, &pktinfo);
   ddsi_rmsg_commit (rmsg);
 
   // Discovery data processing is done by the dq.builtin thread, so we can't be
@@ -414,8 +416,10 @@ static void ddsi_plist_leasedur_new_proxyrd_impl (bool include_lease_duration)
   unsigned char pkt_p4[] = {
     SENTINEL
   };
-  ddsi_locator_t srcloc;
-  ddsi_conn_locator (gv.xmit_conns[0], &srcloc);
+  struct ddsi_network_packet_info pktinfo;
+  ddsi_conn_locator (gv.xmit_conns[0], &pktinfo.src);
+  pktinfo.dst.kind = DDSI_LOCATOR_KIND_INVALID;
+  pktinfo.if_index = 0;
   const ddsi_guid_t prd_guid = {
     .prefix = ddsi_ntoh_guid_prefix ((ddsi_guid_prefix_t){ .s = { TEST_GUIDPREFIX_BYTES } }),
     .entityid = { .u = 0x107 }
@@ -444,7 +448,7 @@ static void ddsi_plist_leasedur_new_proxyrd_impl (bool include_lease_duration)
   memcpy (buf + size, pkt_p4, sizeof (pkt_p4));
   size += sizeof (pkt_p4);
   ddsi_rmsg_setsize (rmsg, (uint32_t) size);
-  ddsi_handle_rtps_message (thrst, &gv, gv.data_conn_uc, NULL, rbufpool, rmsg, size, buf, &srcloc);
+  ddsi_handle_rtps_message (thrst, &gv, gv.data_conn_uc, NULL, rbufpool, rmsg, size, buf, &pktinfo);
   ddsi_rmsg_commit (rmsg);
 
   // Discovery data processing is done by the dq.builtin thread, so we can't be

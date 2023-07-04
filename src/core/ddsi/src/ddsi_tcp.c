@@ -464,7 +464,7 @@ static int32_t addrfam_to_locator_kind (int af)
   return (af == AF_INET) ? DDSI_LOCATOR_KIND_TCPv4 : DDSI_LOCATOR_KIND_TCPv6;
 }
 
-static ssize_t ddsi_tcp_conn_read (struct ddsi_tran_conn * conn, unsigned char *buf, size_t len, bool allow_spurious, ddsi_locator_t *srcloc)
+static ssize_t ddsi_tcp_conn_read (struct ddsi_tran_conn * conn, unsigned char *buf, size_t len, bool allow_spurious, struct ddsi_network_packet_info *pktinfo)
 {
   struct ddsi_tran_factory_tcp * const fact = (struct ddsi_tran_factory_tcp *) conn->m_factory;
   struct ddsi_domaingv const * const gv = fact->fact.gv;
@@ -489,10 +489,12 @@ static ssize_t ddsi_tcp_conn_read (struct ddsi_tran_conn * conn, unsigned char *
       pos += (size_t) n;
       if (pos == len)
       {
-        if (srcloc)
+        if (pktinfo)
         {
           const int32_t kind = addrfam_to_locator_kind (tcp->m_peer_addr.a.sa_family);
-          ddsi_ipaddr_to_loc(srcloc, &tcp->m_peer_addr.a, kind);
+          ddsi_ipaddr_to_loc (&pktinfo->src, &tcp->m_peer_addr.a, kind);
+          pktinfo->if_index = 0;
+          pktinfo->dst.kind = DDSI_LOCATOR_KIND_INVALID;
         }
         return (ssize_t) pos;
       }

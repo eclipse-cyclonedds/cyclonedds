@@ -21,6 +21,7 @@
 #include "dds/ddsi/ddsi_locator.h"
 #include "dds/ddsi/ddsi_protocol.h"
 #include "dds/ddsi/ddsi_radmin.h"
+#include "ddsi__tran.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -57,7 +58,7 @@ struct ddsi_receiver_state {
   ddsi_vendorid_t vendor;                   /* 2 */
   ddsi_protocol_version_t protocol_version; /* 2 => 44/48 */
   struct ddsi_tran_conn *conn;            /* Connection for request */
-  ddsi_locator_t srcloc;
+  struct ddsi_network_packet_info pktinfo;
   struct ddsi_domaingv *gv;
 };
 
