@@ -602,7 +602,7 @@ static int handle_spdp_alive (const struct ddsi_receiver_state *rst, ddsi_seqno_
       return 0;
     }
   }
-
+  
   if (!(datap->present & PP_PARTICIPANT_GUID) || !(datap->present & PP_BUILTIN_ENDPOINT_SET))
   {
     GVWARNING ("data (SPDP, vendor %u.%u): no/invalid payload\n", rst->vendor.id[0], rst->vendor.id[1]);
@@ -753,29 +753,24 @@ static int handle_spdp_alive (const struct ddsi_receiver_state *rst, ddsi_seqno_
     const ddsi_locators_t emptyset = { .n = 0, .first = NULL, .last = NULL };
     const ddsi_locators_t *uc;
     const ddsi_locators_t *mc;
-    ddsi_locator_t srcloc;
-    ddsi_interface_set_t intfs;
+    bool allow_srcloc;
+    ddsi_interface_set_t inherited_intfs;
 
-    srcloc = rst->srcloc;
     uc = (datap->present & PP_DEFAULT_UNICAST_LOCATOR) ? &datap->default_unicast_locators : &emptyset;
     mc = (datap->present & PP_DEFAULT_MULTICAST_LOCATOR) ? &datap->default_multicast_locators : &emptyset;
     if (gv->config.tcp_use_peeraddr_for_unicast)
       uc = &emptyset; // force use of source locator
-    else if (uc != &emptyset)
-      ddsi_set_unspec_locator (&srcloc); // can't always use the source address
+    allow_srcloc = (uc == &emptyset) && !ddsi_is_unspec_locator (&rst->pktinfo.src);
+    ddsi_interface_set_init (&inherited_intfs);
+    as_default = ddsi_addrset_from_locatorlists (gv, uc, mc, &rst->pktinfo, allow_srcloc, &inherited_intfs);
 
-    ddsi_interface_set_init (&intfs);
-    as_default = ddsi_addrset_from_locatorlists (gv, uc, mc, &srcloc, &intfs);
-
-    srcloc = rst->srcloc;
     uc = (datap->present & PP_METATRAFFIC_UNICAST_LOCATOR) ? &datap->metatraffic_unicast_locators : &emptyset;
     mc = (datap->present & PP_METATRAFFIC_MULTICAST_LOCATOR) ? &datap->metatraffic_multicast_locators : &emptyset;
     if (gv->config.tcp_use_peeraddr_for_unicast)
       uc = &emptyset; // force use of source locator
-    else if (uc != &emptyset)
-      ddsi_set_unspec_locator (&srcloc); // can't always use the source address
-    ddsi_interface_set_init (&intfs);
-    as_meta = ddsi_addrset_from_locatorlists (gv, uc, mc, &srcloc, &intfs);
+    allow_srcloc = (uc == &emptyset) && !ddsi_is_unspec_locator (&rst->pktinfo.src);
+    ddsi_interface_set_init (&inherited_intfs);
+    as_meta = ddsi_addrset_from_locatorlists (gv, uc, mc, &rst->pktinfo, allow_srcloc, &inherited_intfs);
 
     ddsi_log_addrset (gv, DDS_LC_DISCOVERY, " (data", as_default);
     ddsi_log_addrset (gv, DDS_LC_DISCOVERY, " meta", as_meta);

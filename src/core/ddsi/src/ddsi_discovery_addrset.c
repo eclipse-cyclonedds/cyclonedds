@@ -109,7 +109,7 @@ static void addrset_from_locatorlists_add_one (struct ddsi_domaingv const * cons
   }
 }
 
-struct ddsi_addrset *ddsi_addrset_from_locatorlists (const struct ddsi_domaingv *gv, const ddsi_locators_t *uc, const ddsi_locators_t *mc, const ddsi_locator_t *srcloc, const ddsi_interface_set_t *inherited_intfs)
+struct ddsi_addrset *ddsi_addrset_from_locatorlists (const struct ddsi_domaingv *gv, const ddsi_locators_t *uc, const ddsi_locators_t *mc, const struct ddsi_network_packet_info *pktinfo, bool allow_srcloc, const ddsi_interface_set_t *inherited_intfs)
 {
   struct ddsi_addrset *as = ddsi_new_addrset ();
   ddsi_interface_set_t intfs;
@@ -192,12 +192,13 @@ struct ddsi_addrset *ddsi_addrset_from_locatorlists (const struct ddsi_domaingv 
     addrset_from_locatorlists_add_one (gv, &loc, as, &intfs, &direct);
   }
 
-  if (ddsi_addrset_empty (as) && !ddsi_is_unspec_locator (srcloc))
+  // if no addresses were picked yet but we have a suitable source locator, use that source locator
+  if (ddsi_addrset_empty (as) && allow_srcloc && !ddsi_is_unspec_locator (&pktinfo->src))
   {
     //GVTRACE("add srcloc\n");
     // FIXME: conn_read should provide interface information in source address
     //GVTRACE (" add-srcloc");
-    addrset_from_locatorlists_add_one (gv, srcloc, as, &intfs, &direct);
+    addrset_from_locatorlists_add_one (gv, &pktinfo->src, as, &intfs, &direct);
   }
 
   if (ddsi_addrset_empty (as) && inherited_intfs)
@@ -227,7 +228,7 @@ struct ddsi_addrset *ddsi_addrset_from_locatorlists (const struct ddsi_domaingv 
   GVTRACE("enabled interfaces for multicast:");
   for (int i = 0; i < gv->n_interfaces; i++)
   {
-    if (intfs[i])
+    if (intfs->xs[i])
       GVTRACE(" %s(%d)", gv->interfaces[i].name, gv->interfaces[i].mc_capable);
   }
   GVTRACE("\n");
@@ -250,4 +251,3 @@ struct ddsi_addrset *ddsi_addrset_from_locatorlists (const struct ddsi_domaingv 
   }
   return as;
 }
-

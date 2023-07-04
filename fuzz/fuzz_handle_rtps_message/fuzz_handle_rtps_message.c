@@ -87,12 +87,12 @@ int LLVMFuzzerTestOneInput(
   ddsi_rbufpool_setowner(rbpool, ddsrt_thread_self());
 
   ddsi_guid_prefix_t guidprefix = { 0 };
-  ddsi_locator_t srcloc = { 0 };
+  struct ddsi_network_packet_info pktinfo = { 0 };
   struct ddsi_rmsg *rmsg = ddsi_rmsg_new (rbpool);
   unsigned char *buff = (unsigned char *) DDSI_RMSG_PAYLOAD (rmsg);
   memcpy (buff, data, size);
   ddsi_rmsg_setsize (rmsg, (uint32_t) size);
-  ddsi_handle_rtps_message (thrst, &gv, fakeconn, &guidprefix, rbpool, rmsg, size, buff, &srcloc);
+  ddsi_handle_rtps_message (thrst, &gv, fakeconn, &guidprefix, rbpool, rmsg, size, buff, &pktinfo);
   ddsi_rmsg_commit (rmsg);
 
   ddsi_fini(&gv);

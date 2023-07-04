@@ -600,6 +600,7 @@ CycloneDDS configuration</xs:documentation>
         <xs:element minOccurs="0" ref="config:DefragUnreliableMaxSamples"/>
         <xs:element minOccurs="0" ref="config:DeliveryQueueMaxSamples"/>
         <xs:element minOccurs="0" ref="config:EnableExpensiveChecks"/>
+        <xs:element minOccurs="0" ref="config:ExtendedPacketInfo"/>
         <xs:element minOccurs="0" ref="config:GenerateKeyhash"/>
         <xs:element minOccurs="0" ref="config:HeartbeatInterval"/>
         <xs:element minOccurs="0" ref="config:LateAckMode"/>
@@ -755,6 +756,13 @@ CycloneDDS configuration</xs:documentation>
         <xs:pattern value="((whc|rhc|xevent|all)(,(whc|rhc|xevent|all))*)|"/>
       </xs:restriction>
     </xs:simpleType>
+  </xs:element>
+  <xs:element name="ExtendedPacketInfo" type="xs:boolean">
+    <xs:annotation>
+      <xs:documentation>
+&lt;p&gt;Whether to enable the IP_PKTINFO on UDP sockets to get hold of the packet destination address and interface on which it was received. This allows for better filtering on discovery packets, but comes at a small performance penalty.&lt;/p&gt;
+&lt;p&gt;The default value is: &lt;code&gt;true&lt;/code&gt;&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
   </xs:element>
   <xs:element name="GenerateKeyhash" type="xs:boolean">
     <xs:annotation>
@@ -1939,9 +1947,9 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==&lt;br&gt;
     </xs:restriction>
   </xs:simpleType>
 </xs:schema>
-<!--- generated from ddsi_config.h[570f67bd3080674a4bad53d9580a8bb7ad1e6e4d] -->
+<!--- generated from ddsi_config.h[7a2ea305c6a2eab7fe285734641fe60da41874b6] -->
 <!--- generated from ddsi__cfgunits.h[bd22f0c0ed210501d0ecd3b07c992eca549ef5aa] -->
-<!--- generated from ddsi__cfgelems.h[d4d0b8c7cf61f0a1cfa4b62e02458cf7b8962536] -->
+<!--- generated from ddsi__cfgelems.h[0d6b51026a1233c9516629caf2de8748b027bc20] -->
 <!--- generated from ddsi_config.c[efeae198a5e12ca8977a655216470564b5c44b64] -->
 <!--- generated from _confgen.h[e32eabfc35e9f3a7dcb63b19ed148c0d17c6e5fc] -->
 <!--- generated from _confgen.c[237308acd53897a34e8c643e16e05a61d73ffd65] -->
