@@ -103,8 +103,6 @@ typedef void (*dds_loaned_sample_reset_f) (struct dds_loaned_sample *loaned_samp
  */
 typedef struct dds_loaned_sample_ops {
   dds_loaned_sample_free_f    free;
-  dds_loaned_sample_ref_f     ref;
-  dds_loaned_sample_unref_f   unref;
   dds_loaned_sample_reset_f   reset;
 } dds_loaned_sample_ops_t;
 

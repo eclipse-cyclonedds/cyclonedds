@@ -85,8 +85,6 @@ static void iox_loaned_sample_free (dds_loaned_sample_t *to_fini);
 
 static const dds_loaned_sample_ops_t ls_ops = {
   .free = iox_loaned_sample_free,
-  .ref = nullptr,
-  .unref = nullptr,
   .reset = nullptr
 };
 

@@ -41,8 +41,6 @@ static void heap_loan_reset (dds_loaned_sample_t *loaned_sample)
 
 const dds_loaned_sample_ops_t dds_loan_heap_ops = {
   .free = heap_loan_free,
-  .ref = NULL,
-  .unref = NULL,
   .reset = heap_loan_reset
 };
 

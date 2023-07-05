@@ -42,12 +42,8 @@ dds_return_t dds_loaned_sample_free (dds_loaned_sample_t *loaned_sample)
 
 dds_return_t dds_loaned_sample_ref (dds_loaned_sample_t *loaned_sample)
 {
-  dds_return_t ret;
   if (loaned_sample == NULL)
     return DDS_RETCODE_BAD_PARAMETER;
-
-  if (loaned_sample->ops.ref && (ret = loaned_sample->ops.ref (loaned_sample)) != DDS_RETCODE_OK)
-    return ret;
 
   ddsrt_atomic_inc32 (&loaned_sample->refc);
   return DDS_RETCODE_OK;
@@ -62,9 +58,6 @@ dds_return_t dds_loaned_sample_unref (dds_loaned_sample_t *loaned_sample)
   assert (ddsrt_atomic_ld32 (&loaned_sample->refc) > 0);
 
   dds_return_t ret = DDS_RETCODE_OK;
-  if (loaned_sample->ops.unref && (ret = loaned_sample->ops.unref (loaned_sample)) != DDS_RETCODE_OK)
-    return ret;
-
   if (ddsrt_atomic_dec32_nv (&loaned_sample->refc) == 0)
   {
     assert (loaned_sample->manager == NULL);

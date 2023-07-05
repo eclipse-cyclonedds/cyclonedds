@@ -119,11 +119,8 @@ static void cdds_loaned_sample_reset (struct dds_loaned_sample *loaned_sample);
 
 static const dds_loaned_sample_ops_t ls_ops = {
   .free = cdds_loaned_sample_free,
-  .ref = 0,
-  .unref = 0,
   .reset = cdds_loaned_sample_reset
 };
-
 
 
 static bool cdds_psmx_data_type_supported (dds_psmx_data_type_properties_t data_type_props)
