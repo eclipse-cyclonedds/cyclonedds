@@ -65,6 +65,9 @@ static struct ddsi_serdata_pserop *serdata_pserop_new (const struct ddsi_sertype
   assert (kind != SDK_EMPTY);
   if (size < 4 || size > UINT32_MAX - offsetof (struct ddsi_serdata_pserop, identifier))
     return NULL;
+  const uint16_t *hdrsrc = cdr_header;
+  if (hdrsrc[0] != CDR_LE && hdrsrc[0] != CDR_BE)
+    return NULL;
   struct ddsi_serdata_pserop *d = ddsrt_malloc (sizeof (*d) + size);
   if (d == NULL)
     return NULL;
@@ -72,10 +75,8 @@ static struct ddsi_serdata_pserop *serdata_pserop_new (const struct ddsi_sertype
   d->keyless = (tp->ops_key == NULL);
   d->pos = 0;
   d->size = (uint32_t) size;
-  const uint16_t *hdrsrc = cdr_header;
   d->identifier = hdrsrc[0];
   d->options = hdrsrc[1];
-  assert (d->identifier == CDR_LE || d->identifier == CDR_BE);
   if (kind == SDK_KEY && d->keyless)
     d->sample = NULL;
   else if ((d->sample = ddsrt_malloc ((kind == SDK_DATA) ? tp->memsize : 16)) == NULL)
@@ -138,15 +139,19 @@ static struct ddsi_serdata *serdata_pserop_from_ser (const struct ddsi_sertype *
 
 static struct ddsi_serdata *serdata_pserop_from_ser_iov (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, ddsrt_msg_iovlen_t niov, const ddsrt_iovec_t *iov, size_t size)
 {
-  const struct ddsi_sertype_pserop *tp = (const struct ddsi_sertype_pserop *)tpcmn;
   assert (niov >= 1);
+  if (iov[0].iov_len < 4)
+  {
+    // First fragment to short contain a full CDR header, we could handle it as long
+    // as size >= 4, but it can't really happen anyway (we use this to convert an
+    // already-vetted sample, so there must be a full header).  So check & reject
+    // makes the most sense.
+    return NULL;
+  }
+  const struct ddsi_sertype_pserop *tp = (const struct ddsi_sertype_pserop *)tpcmn;
   struct ddsi_serdata_pserop *d = serdata_pserop_new (tp, kind, size, iov[0].iov_base);
   if (d == NULL)
     return NULL;
-  const uint16_t *hdrsrc = (uint16_t *) iov[0].iov_base;
-  d->identifier = hdrsrc[0];
-  d->options = hdrsrc[1];
-  assert (d->identifier == CDR_LE || d->identifier == CDR_BE);
   memcpy (d->data + d->pos, (const char *) iov[0].iov_base + 4, iov[0].iov_len - 4);
   d->pos += (uint32_t) iov[0].iov_len - 4;
   for (ddsrt_msg_iovlen_t i = 1; i < niov; i++)
