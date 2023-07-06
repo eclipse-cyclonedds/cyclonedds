@@ -16,6 +16,12 @@
 #include "dds/ddsrt/sockets/posix.h"
 #endif
 
+/** @file sockets.h
+ * 
+ * This provides the interface for sockets. Most of the functions declared here, map directly onto the corresponding
+ * OS functions. Therefore the nitty gritty details are omitted as they should be available in the OS documentation.
+ */
+
 #if defined (__cplusplus)
 extern "C" {
 #endif
@@ -31,12 +37,35 @@ extern const struct in6_addr ddsrt_in6addr_loopback;
 #define DDSRT_AF_TERM (-1)
 
 #if DDSRT_HAVE_GETHOSTNAME
+/**
+ * @brief Get the hostname
+ * 
+ * The buffer needs to be large enough to hold the name including null terminator.
+ * On success, the buffer will include the null terminator.
+ * 
+ * @param[out] hostname a buffer to copy the name into
+ * @param[in] buffersize the space (in bytes) that may be used
+ * @return a DDS_RETCODE (OK, ERROR, NOT_ENOUGH_SPACE)
+ */
 DDS_EXPORT dds_return_t
 ddsrt_gethostname(
   char *hostname,
   size_t buffersize);
 #endif
 
+/**
+ * @brief Creates a socket
+ * 
+ * @param[out] sockptr a pointer to the socket (file descriptor) created
+ * @param[in] domain the communication domain, selects the protocol family e.g. PF_INET, PF_PACKET
+ * @param[in] type specifies communication semantics e.g. SOCK_STREAM, SOCK_RAW
+ * @param[in] protocol specifies a particular protocol to be used with the socket e.g. IPPROTO_TCP, IPPROTO_UDP.
+ *            Normally only a single protocol exists to support a particular socket type within a given protocol family,
+ *            in which case protocol can be specified as 0.
+ * @return a DDS_RETCODE (OK, ERROR, NOT_ALLOWED, BAD_PARAMETER, OUT_OF_RESOURCES)
+ * 
+ * See @ddsrt_bind, @ddsrt_close
+ */
 dds_return_t
 ddsrt_socket(
   ddsrt_socket_t *sockptr,
@@ -44,16 +73,48 @@ ddsrt_socket(
   int type,
   int protocol);
 
+/**
+ * @brief Close the socket
+ * 
+ * @param[in,out] sock the socket (file descriptor) created by @ref ddsrt_socket
+ * @return a DDS_RETCODE (OK, ERROR, INTERRUPTED, BAD_PARAMETER)
+ */
 dds_return_t
 ddsrt_close(
   ddsrt_socket_t sock);
 
+/**
+ * @brief Connects the socket to the address specified by 'addr'.
+ * 
+ * @param[in,out] sock the socket
+ * @param[in] addr a socket address
+ * @param[in] addrlen the size of 'addr'
+ * @return a DDS_RETCODE (OK, ERROR, TIMEOUT, and more)
+ * 
+ * See @ref ddsrt_accept
+ */
 dds_return_t
 ddsrt_connect(
   ddsrt_socket_t sock,
   const struct sockaddr *addr,
   socklen_t addrlen);
 
+/**
+ * @brief Accept a connect (@ref ddsrt_connect) request and create a new connected socket for it.
+ * 
+ * Is used with connection-based socket types (SOCK_STREAM, SOCK_SEQPACKET).
+ * - 'addrlen' must contain the size of the structure pointed to by 'addr' before the operation,
+ *   and afterwards will contain the the size of the peer address.
+ * - when not used, 'addr' and 'addrlen' must be NULL
+ * 
+ * @param[in,out] sock socket with which to wait for a connection
+ * @param[out] addr address of the connecting peer
+ * @param[in,out] addrlen the size (in bytes) of the structure pointed to by 'addr'
+ * @param[out] connptr pointer to the new connected socket.
+ * @return a DDS_RETCODE (OK, ERROR, and more)
+ * 
+ * See @ref ddsrt_bind, ddsrt_listen
+ */
 dds_return_t
 ddsrt_accept(
   ddsrt_socket_t sock,
@@ -61,23 +122,71 @@ ddsrt_accept(
   socklen_t *addrlen,
   ddsrt_socket_t *connptr);
 
+/**
+ * @brief Marks the socket referred to by 'sock' as a passive socket.
+ * 
+ * A passive socket will be used to accept incoming connection requests using @ref ddsrt_accept.
+ * 
+ * @param[in,out] sock file descriptor of the socket
+ * @param[in] backlog maximum number of pending connections
+ * @return a DDS_RETCODE (OK, ERROR, PRECONDITION_NOT_MET, BAD_PARAMETER, ILLEGAL_OPERATION)
+ */
 dds_return_t
 ddsrt_listen(
   ddsrt_socket_t sock,
   int backlog);
 
+/**
+ * @brief Assign an address to the socket.
+ * 
+ * When a socket is created with @ref ddsrt_socket, it exists in a name space (address family) but has no address assigned to it.
+ * @ref ddsrt_bind assigns the address specified by 'addr' to the socket referred to by the file descriptor 'sock'.
+ * 
+ * @param[in,out] sock the socket
+ * @param[in] addr address to assign to the socket
+ * @param[in] addrlen specifies the size, in bytes, of the address structure pointed to by 'addr'
+ * @return a DDS_RETCODE (OK, ERROR, NOT_ALLOWED, PRECONDITION_NOT_MET, BAD_PARAMETER)
+ */
 dds_return_t
 ddsrt_bind(
   ddsrt_socket_t sock,
   const struct sockaddr *addr,
   socklen_t addrlen);
 
+/**
+ * @brief Get the current address to which the socket is bound (@ref ddsrt_bind).
+ * 
+ * The 'addrlen' argument should be initialized to indicate the amount of space (in bytes)
+ * pointed to by 'addr'. On return it contains the actual size of the socket address.
+ * The returned address is truncated if the buffer provided is too small; in this case, 'addrlen' will return a value greater than was supplied to the call.
+ * 
+ * @param[in] sock the socket
+ * @param[out] addr the address of the socket
+ * @param[in,out] addrlen specifies the size, in bytes, of the address structure pointed to by 'addr'
+ * @return a DDS_RETCODE (OK, ERROR, BAD_PARAMETER, OUT_OF_RESOURCES)
+ */
 dds_return_t
 ddsrt_getsockname(
   ddsrt_socket_t sock,
   struct sockaddr *addr,
   socklen_t *addrlen);
 
+/**
+ * @brief Send data from a buffer
+ * 
+ * - Sends 'len' bytes of 'buf'
+ * - The 'flags' can be 0, or the bitwise OR of one or more of:
+ *   {MSG_CONFIRM, MSG_DONTROUTE, MSG_DONTWAIT, MSG_EOR, MSG_MORE, MSG_NOSIGNAL, MSG_OOB}
+ * 
+ * @param[in] sock the socket
+ * @param[in] buf buffer containing the data to send
+ * @param[in] len size (in bytes) of 'buf'
+ * @param[in] flags flags for special options
+ * @param[out] sent the number of bytes sent
+ * @return a DDS_RETCODE (OK, ERROR, and more)
+ * 
+ * See @ref ddsrt_recv
+ */
 dds_return_t
 ddsrt_send(
   ddsrt_socket_t sock,
@@ -86,6 +195,20 @@ ddsrt_send(
   int flags,
   ssize_t *sent);
 
+/**
+ * @brief Send a message
+ * 
+ * - The 'flags' can be 0, or the bitwise OR of one or more of:
+ *   {MSG_CONFIRM, MSG_DONTROUTE, MSG_DONTWAIT, MSG_EOR, MSG_MORE, MSG_NOSIGNAL, MSG_OOB}
+ * 
+ * @param[in] sock the socket
+ * @param[in] msg the message to send
+ * @param[in] flags flags for special options
+ * @param[out] sent the number of bytes sent
+ * @return a DDS_RETCODE (OK, ERROR, and more)
+ * 
+ * See @ref ddsrt_recvmsg
+ */
 dds_return_t
 ddsrt_sendmsg(
   ddsrt_socket_t sock,
@@ -93,6 +216,24 @@ ddsrt_sendmsg(
   int flags,
   ssize_t *sent);
 
+/**
+ * @brief Receive data into a buffer
+ * 
+ * - If a message is too long to fit in the supplied buffer, excess bytes may be discarded depending on
+ *   the type of socket the message is received from.
+ * - If no data is available at the socket, the call waits for a message to arrive, unless the socket is nonblocking (MSG_DONTWAIT).
+ * - The 'flags' can be 0, or the bitwise OR of one or more of:
+ *   {MSG_CMSG_CLOEXEC, MSG_DONTWAIT, MSG_ERRQUEUE, MSG_OOB, MSG_PEEK, MSG_TRUNC, MSG_WAITALL}
+ * 
+ * @param[in] sock the socket
+ * @param[out] buf buffer in which to receive the data
+ * @param[in] len the size available in the buffer
+ * @param[in] flags flags for special options
+ * @param[out] rcvd number of bytes received
+ * @return a DDS_RETCODE (OK, ERROR, TRY_AGAIN, BAD_PARAMETER, NO_CONNECTION, INTERRUPTED, OUT_OF_RESOURCES, ILLEGAL_OPERATION)
+ * 
+ * See @ref ddsrt_send
+ */
 dds_return_t
 ddsrt_recv(
   ddsrt_socket_t sock,
@@ -101,6 +242,23 @@ ddsrt_recv(
   int flags,
   ssize_t *rcvd);
 
+/**
+ * @brief Receive a message
+ * 
+ * - If a message is too long to fit in the supplied buffer, excess bytes may be discarded depending on
+ *   the type of socket the message is received from.
+ * - If no data is available at the socket, the call waits for a message to arrive, unless the socket is nonblocking (MSG_DONTWAIT).
+ * - The 'flags' can be 0, or the bitwise OR of one or more of:
+ *   {MSG_CMSG_CLOEXEC, MSG_DONTWAIT, MSG_ERRQUEUE, MSG_OOB, MSG_PEEK, MSG_TRUNC, MSG_WAITALL}
+ * 
+ * @param[in] sock the socket
+ * @param[out] msg the message received
+ * @param[in] flags flags for special options
+ * @param[out] rcvd number of bytes received
+ * @return a DDS_RETCODE (OK, ERROR, TRY_AGAIN, BAD_PARAMETER, NO_CONNECTION, INTERRUPTED, OUT_OF_RESOURCES, ILLEGAL_OPERATION)
+ * 
+ * See @ref ddsrt_sendmsg
+ */
 dds_return_t
 ddsrt_recvmsg(
   ddsrt_socket_t sock,
@@ -108,19 +266,51 @@ ddsrt_recvmsg(
   int flags,
   ssize_t *rcvd);
 
+/**
+ * @brief Get options from the socket.
+ * 
+ * Argument 'optlen' is a value-result argument, initially containing the size
+ * of the buffer pointed to by 'optval', and modified on return to indicate the 
+ * actual size of the value returned.
+ * 
+ * @param[in] sock the socket
+ * @param[in] level the level at which the option resides. For socket API use SOL_SOCKET
+ * @param[in] optname the name of the option (SO_REUSEADDR, SO_DONTROUTE, SO_BROADCAST, SO_SNDBUF, SO_RCVBUF, ...)
+ * @param[out] optval buffer into which to receive the option value
+ * @param[in,out] optlen size of buffer 'optval'
+ * @return a DDS_RETCODE (OK, ERROR, BAD_PARAMETER, UNSUPPORTED)
+ * 
+ * See @ref ddsrt_setsockopt
+ */
 dds_return_t
 ddsrt_getsockopt(
   ddsrt_socket_t sock,
-  int32_t level, /* SOL_SOCKET */
-  int32_t optname, /* SO_REUSEADDR, SO_DONTROUTE, SO_BROADCAST, SO_SNDBUF, SO_RCVBUF, ... */
+  int32_t level,
+  int32_t optname,
   void *optval,
   socklen_t *optlen);
 
+/**
+ * @brief Set options on the socket
+ * 
+ * Most socket-level options utilize an int argument for 'optval'.
+ * The argument should be nonzero to enable a boolean option,
+ * or zero if the option is to be disabled.
+ * 
+ * @param[in,out] sock the socket
+ * @param[in] level the level at which the option resides. For socket API use SOL_SOCKET
+ * @param[in] optname the name of the option (SO_REUSEADDR, SO_DONTROUTE, SO_BROADCAST, SO_SNDBUF, SO_RCVBUF, ...)
+ * @param[in] optval buffer containing the option value
+ * @param[in] optlen size of buffer 'optval'
+ * @return a DDS_RETCODE (OK, ERROR, BAD_PARAMETER, UNSUPPORTED)
+ * 
+ * See @ref ddsrt_getsockopt
+ */
 dds_return_t
 ddsrt_setsockopt(
   ddsrt_socket_t sock,
-  int32_t level, /* SOL_SOCKET */
-  int32_t optname, /* SO_REUSEADDR, SO_DONTROUTE, SO_BROADCAST, SO_SNDBUF, SO_RCVBUF, ... */
+  int32_t level,
+  int32_t optname,
   const void *optval,
   socklen_t optlen);
 
@@ -265,19 +455,49 @@ ddsrt_sockaddr_insamesubnet(
   const struct sockaddr *mask)
 ddsrt_nonnull_all;
 
+/**
+ * @brief Convert a string to a socket address
+ * 
+ * The socket address 'sa' can be any of type:
+ * (struct sockaddr_in*, struct sockaddr_in6*, struct sockaddr_storage*)
+ * Note that the data is copied into the existing socket address (does not allocate memory).
+ * 
+ * @param[in] af the address family (AF_INET, AF_INET6)
+ * @param[in] str the string input e.g. "192.0.2.0"
+ * @param[out] sa the socket address to overwrite
+ * @return a DDS_RETCODE (OK, BAD_PARAMETER)
+ * 
+ * See @ref ddsrt_sockaddrtostr
+ */
 dds_return_t
 ddsrt_sockaddrfromstr(
   int af, const char *str, void *sa);
 
+/**
+ * @brief Convert a socket address to a string
+ * 
+ * The socket address 'sa' can be any of type:
+ * (const struct sockaddr_in*, const struct sockaddr_in6*, const struct sockaddr_storage*)
+ * 
+ * @param[in] sa the socket address to convert into a string
+ * @param[out] buf a string buffer for the output
+ * @param[in] size the size (in bytes) of 'buf'
+ * @return a DDS_RETCODE (OK, BAD_PARAMETER, NOT_ENOUGH_SPACE)
+ * 
+ * See @ref ddsrt_sockaddrfromstr
+ */
 dds_return_t
 ddsrt_sockaddrtostr(
   const void *sa, char *buf, size_t size);
 
 #if DDSRT_HAVE_DNS
 DDSRT_WARNING_MSVC_OFF(4200)
+/**
+ * @brief A vector of socket addresses
+ */
 typedef struct {
-  size_t naddrs;
-  struct sockaddr_storage addrs[];
+  size_t naddrs; ///< Number of addresses
+  struct sockaddr_storage addrs[]; ///< Array containing socket addresses
 } ddsrt_hostent_t;
 DDSRT_WARNING_MSVC_ON(4200)
 
