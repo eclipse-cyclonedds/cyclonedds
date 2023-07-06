@@ -109,13 +109,8 @@ static void addrset_from_locatorlists_add_one (struct ddsi_domaingv const * cons
   }
 }
 
-struct ddsi_addrset *ddsi_addrset_from_locatorlists (const struct ddsi_domaingv *gv, const ddsi_locators_t *uc, const ddsi_locators_t *mc, const struct ddsi_network_packet_info *pktinfo, bool allow_srcloc, const ddsi_interface_set_t *inherited_intfs)
+static bool ddsi_addrset_from_locatorlist_allow_loopback (const struct ddsi_domaingv *gv, const ddsi_locators_t *uc)
 {
-  struct ddsi_addrset *as = ddsi_new_addrset ();
-  ddsi_interface_set_t intfs;
-  ddsi_interface_set_init (&intfs);
-
-  // if all interfaces are loopback, or all locators in uc are loopback, we're cool with loopback addresses
   bool allow_loopback;
   {
     bool a = true;
@@ -137,9 +132,15 @@ struct ddsi_addrset *ddsi_addrset_from_locatorlists (const struct ddsi_domaingv 
       continue;
     allow_loopback = (ddsi_is_nearby_address (gv, &l->loc, (size_t) gv->n_interfaces, gv->interfaces, NULL) == DNAR_SELF);
   }
-  //GVTRACE(" allow_loopback=%d\n", allow_loopback);
+  return allow_loopback;
+}
 
-  bool direct = false;
+static struct ddsi_addrset *ddsi_addrset_from_locatorlists_handle_uc (const struct ddsi_domaingv *gv, bool allow_loopback, const ddsi_locators_t *uc, ddsi_interface_set_t *intfs, bool *direct)
+{
+  struct ddsi_addrset *as = ddsi_new_addrset ();
+
+  *direct = false;
+  ddsi_interface_set_init (intfs);
   for (struct ddsi_locators_one *l = uc->first; l != NULL; l = l->next)
   {
 #if 0
@@ -189,27 +190,22 @@ struct ddsi_addrset *ddsi_addrset_from_locatorlists (const struct ddsi_domaingv 
       }
     }
 
-    addrset_from_locatorlists_add_one (gv, &loc, as, &intfs, &direct);
+    addrset_from_locatorlists_add_one (gv, &loc, as, intfs, direct);
   }
+  return as;
+}
 
-  // if no addresses were picked yet but we have a suitable source locator, use that source locator
-  if (ddsi_addrset_empty (as) && allow_srcloc && !ddsi_is_unspec_locator (&pktinfo->src))
-  {
-    //GVTRACE("add srcloc\n");
-    // FIXME: conn_read should provide interface information in source address
-    //GVTRACE (" add-srcloc");
-    addrset_from_locatorlists_add_one (gv, &pktinfo->src, as, &intfs, &direct);
-  }
-
+static void ddsi_addrset_from_locatorlists_intfs_fallback (const struct ddsi_domaingv *gv, const struct ddsi_addrset *as, const ddsi_interface_set_t *inherited_intfs, bool direct, ddsi_interface_set_t *intfs)
+{
   if (ddsi_addrset_empty (as) && inherited_intfs)
   {
     // implies no interfaces enabled in "intfs" yet -- just use whatever
     // we inherited for the purposes of selecting multicast addresses
     assert (!direct);
     for (int i = 0; i < gv->n_interfaces; i++)
-      assert (!intfs.xs[i]);
+      assert (!intfs->xs[i]);
     //GVTRACE (" using-inherited-intfs");
-    intfs = *inherited_intfs;
+    *intfs = *inherited_intfs;
   }
   else if (!direct && gv->config.multicast_ttl > 1)
   {
@@ -219,11 +215,14 @@ struct ddsi_addrset *ddsi_addrset_from_locatorlists (const struct ddsi_domaingv 
     //GVTRACE (" enabling-non-loopback/link-local");
     for (int i = 0; i < gv->n_interfaces; i++)
     {
-      assert (!intfs.xs[i]);
-      intfs.xs[i] = !(gv->interfaces[i].link_local || gv->interfaces[i].loopback);
+      assert (!intfs->xs[i]);
+      intfs->xs[i] = !(gv->interfaces[i].link_local || gv->interfaces[i].loopback);
     }
   }
+}
 
+static void ddsi_addrset_from_locatorlist_handle_mc (const struct ddsi_domaingv *gv, const ddsi_locators_t *mc, const ddsi_interface_set_t *intfs, struct ddsi_addrset *as)
+{
 #if 0
   GVTRACE("enabled interfaces for multicast:");
   for (int i = 0; i < gv->n_interfaces; i++)
@@ -238,7 +237,7 @@ struct ddsi_addrset *ddsi_addrset_from_locatorlists (const struct ddsi_domaingv 
   {
     for (int i = 0; i < gv->n_interfaces; i++)
     {
-      if (intfs.xs[i] && gv->interfaces[i].mc_capable)
+      if (intfs->xs[i] && gv->interfaces[i].mc_capable)
       {
         const ddsi_xlocator_t loc = {
           .conn = gv->xmit_conns[i],
@@ -249,5 +248,33 @@ struct ddsi_addrset *ddsi_addrset_from_locatorlists (const struct ddsi_domaingv 
       }
     }
   }
+}
+
+struct ddsi_addrset *ddsi_addrset_from_locatorlists (const struct ddsi_domaingv *gv, const ddsi_locators_t *uc, const ddsi_locators_t *mc, const struct ddsi_network_packet_info *pktinfo, bool allow_srcloc, const ddsi_interface_set_t *inherited_intfs)
+{
+  // if all interfaces are loopback, or all locators in uc are loopback, we're cool with loopback addresses
+  const bool allow_loopback = ddsi_addrset_from_locatorlist_allow_loopback (gv, uc);
+  //GVTRACE(" allow_loopback=%d\n", allow_loopback);
+
+  // choose unicast locators looking at interfaces, keeping track of which interfaces seem to connect directly
+  // the interfaces are needed to decide on which interfaces the multicast addresses are considered meaningful
+  bool direct;
+  ddsi_interface_set_t intfs;
+  struct ddsi_addrset *as = ddsi_addrset_from_locatorlists_handle_uc (gv, allow_loopback, uc, &intfs, &direct);
+
+  // if no addresses were picked yet but we have a suitable source locator, use that source locator
+  if (ddsi_addrset_empty (as) && allow_srcloc && !ddsi_is_unspec_locator (&pktinfo->src))
+  {
+    // FIXME: conn_read should provide interface information in source address
+    //GVTRACE (" add-srcloc");
+    addrset_from_locatorlists_add_one (gv, &pktinfo->src, as, &intfs, &direct);
+  }
+
+  // if no decisions yet on suitable interfaces, fall back on inherited interfaces (if any), or else whatever
+  // seems reasonable for the purposes of multicastinf
+  ddsi_addrset_from_locatorlists_intfs_fallback (gv, as, inherited_intfs, direct, &intfs);
+
+  // now that we have decided on interfaces, add multicast addresses if we think we can do something with them
+  ddsi_addrset_from_locatorlist_handle_mc (gv, mc, &intfs, as);
   return as;
 }
