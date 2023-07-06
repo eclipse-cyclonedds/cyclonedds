@@ -198,8 +198,7 @@ static int print_decl_type(
   return (int)len;
 }
 
-int print_type(
-  char *str, size_t size, const void *ptr, void *user_data)
+int print_type(char *str, size_t size, const void *ptr, void *user_data)
 {
   if (idl_is_base_type(ptr))
     return print_base_type(str, size, ptr, user_data);
@@ -208,8 +207,7 @@ int print_type(
   return print_decl_type(str, size, ptr, "_");
 }
 
-int print_scoped_name(
-  char *str, size_t size, const void *ptr, void *user_data)
+int print_scoped_name(char *str, size_t size, const void *ptr, void *user_data)
 {
   if (idl_is_base_type(ptr))
     return print_base_type(str, size, ptr, user_data);

@@ -1804,7 +1804,7 @@ err_gen:
 idl_retcode_t
 print_type_meta_ser (
   FILE *fp,
-  const idl_pstate_t *pstate,
+  const idl_pstate_t *state,
   const idl_node_t *node)
 {
   struct DDS_XTypes_TypeInformation type_information;
@@ -1816,7 +1816,7 @@ print_type_meta_ser (
   if (IDL_PRINTA(&type_name, print_type, node) < 0)
     return IDL_RETCODE_NO_MEMORY;
 
-  if ((rc = generate_type_meta_ser_impl (pstate, node, &type_information, &os_typeinfo, &os_typemap)))
+  if ((rc = generate_type_meta_ser_impl (state, node, &type_information, &os_typeinfo, &os_typemap)))
     return rc;
 
   if ((rc = print_typeinformation_comment (fp, &type_information)) != IDL_RETCODE_OK)
@@ -1833,7 +1833,7 @@ err_print:
 
 idl_retcode_t
 generate_type_meta_ser (
-  const idl_pstate_t *pstate,
+  const idl_pstate_t *state,
   const idl_node_t *node,
   idl_typeinfo_typemap_t *result)
 {
@@ -1842,7 +1842,7 @@ generate_type_meta_ser (
   dds_ostream_t os_typemap;
   idl_retcode_t rc;
 
-  if ((rc = generate_type_meta_ser_impl (pstate, node, &type_information, &os_typeinfo, &os_typemap)))
+  if ((rc = generate_type_meta_ser_impl (state, node, &type_information, &os_typeinfo, &os_typemap)))
     return rc;
 
   result->typeinfo = NULL;

@@ -33,10 +33,10 @@ IDLC_EXPORT const idlc_option_t**
 generator_options(void);
 
 IDLC_EXPORT int
-print_type(char *str, size_t len, const void *ptr, void *user_data);
+print_type(char *str, size_t size, const void *ptr, void *user_data);
 
 IDLC_EXPORT int
-print_scoped_name(char *str, size_t len, const void *ptr, void *user_data);
+print_scoped_name(char *str, size_t size, const void *ptr, void *user_data);
 
 #if defined(__cplusplus)
 }
