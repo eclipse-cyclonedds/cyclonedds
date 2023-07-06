@@ -95,7 +95,7 @@ static int compare_instance_handle (const void *va, const void *vb)
   return (*a == *b) ? 0 : (*a < *b) ? -1 : 1;
 }
 
-const ddsrt_avl_treedef_t dds_entity_children_td = DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct dds_entity, m_avlnode_child), offsetof (struct dds_entity, m_iid), compare_instance_handle, 0);
+const ddsrt_avl_treedef_t dds_entity_children_td = DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct dds_entity, m_avlnode_child), offsetof (struct dds_entity, m_iid), compare_instance_handle, NULL);
 
 static void dds_entity_observers_signal_delete (dds_entity *observed);
 
@@ -268,7 +268,7 @@ dds_entity_t dds_entity_init (dds_entity *e, dds_entity *parent, dds_entity_kind
 
   /* Special case: the on_data_on_readers event doesn't exist on DataReaders. */
   if (kind == DDS_KIND_READER)
-    e->m_listener.on_data_on_readers = 0;
+    e->m_listener.on_data_on_readers = NULL;
 
   if (parent)
   {
@@ -1054,7 +1054,7 @@ dds_return_t dds_set_listener (dds_entity_t entity, const dds_listener_t *listen
 
   /* Special case: the on_data_on_readers event doesn't exist on DataReaders. */
   if (dds_entity_kind (e) == DDS_KIND_READER)
-    e->m_listener.on_data_on_readers = 0;
+    e->m_listener.on_data_on_readers = NULL;
 
   x = e;
   while (dds_entity_kind (x) != DDS_KIND_CYCLONEDDS)

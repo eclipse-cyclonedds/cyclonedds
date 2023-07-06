@@ -145,7 +145,7 @@ static void sertype_builtin_free_samples (const struct ddsi_sertype *sertype_com
 #endif
     if (op & DDS_FREE_CONTENTS_BIT)
     {
-      void (*f) (void *a) = 0;
+      void (*f) (void *a) = NULL;
       char *ptr = ptrs[0];
       switch (tp->entity_kind)
       {
@@ -185,9 +185,9 @@ const struct ddsi_sertype_ops ddsi_sertype_ops_builtintopic = {
   .zero_samples = sertype_builtin_zero_samples,
   .realloc_samples = sertype_builtin_realloc_samples,
   .free_samples = sertype_builtin_free_samples,
-  .type_id = 0,
-  .type_map = 0,
-  .type_info = 0,
-  .get_serialized_size = 0,
-  .serialize_into = 0
+  .type_id = NULL,
+  .type_map = NULL,
+  .type_info = NULL,
+  .get_serialized_size = NULL,
+  .serialize_into =NULL 
 };

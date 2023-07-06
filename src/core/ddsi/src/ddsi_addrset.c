@@ -550,7 +550,7 @@ struct addrset_forall_helper_arg
   void * arg;
 };
 
-static void addrset_forall_helper (void *vnode, void *varg)
+static void addrset_forall_helper (const void *vnode, void *varg)
 {
   const struct ddsi_addrset_node *n = vnode;
   struct addrset_forall_helper_arg *arg = varg;

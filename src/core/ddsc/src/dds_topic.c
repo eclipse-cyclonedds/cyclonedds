@@ -931,7 +931,7 @@ dds_return_t dds_set_topic_filter_extended (dds_entity_t topic, const struct dds
       case DDS_TOPIC_FILTER_NONE:
         // treat function and argument as don't cares on input if mode = NONE, but
         // do make them null pointers in the internal representation
-        f.f.sample = 0;
+        f.f.sample = NULL;
         f.arg = NULL;
         valid = true;
         break;
@@ -942,7 +942,7 @@ dds_return_t dds_set_topic_filter_extended (dds_entity_t topic, const struct dds
       case DDS_TOPIC_FILTER_SAMPLE_ARG:
       case DDS_TOPIC_FILTER_SAMPLE_SAMPLEINFO_ARG:
         // can safely use any of the function pointers
-        valid = (filter->f.sample != 0);
+        valid = (filter->f.sample != NULL);
         break;
     }
     if (!valid)

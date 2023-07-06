@@ -200,7 +200,7 @@ typedef void (*ddsrt_avl_augment_t) (void *vnode, const void *left, const void *
 /**
  * @brief User defined walk function to perform an action on each node in the tree.
  */
-typedef void (*ddsrt_avl_walk_t) (void *vnode, void *arg);
+typedef void (*ddsrt_avl_walk_t) (const void *vnode, void *arg);
 
 /**
  * @brief Like @ref ddsrt_avl_walk_t, but works on const nodes.
