@@ -18,10 +18,7 @@ extern "C" {
 #include "dds/ddsc/dds_loan.h"
 #include "dds/ddsc/dds_psmx.h"
 
-DDS_EXPORT dds_return_t iox_create_psmx (
-  struct dds_psmx **psmx,
-  dds_loan_origin_type_t identifier,
-  const char *config);
+DDS_EXPORT dds_return_t iox_create_psmx (struct dds_psmx **psmx, dds_psmx_instance_id_t instance_id, const char *config);
 
 #if defined (__cplusplus)
 }

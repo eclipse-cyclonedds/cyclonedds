@@ -301,12 +301,13 @@ static dds_loaned_sample_t * cdds_psmx_ep_request_loan (struct dds_psmx_endpoint
 
     ls = dds_alloc (sizeof (*ls));
     ls->ops = ls_ops;
-    ls->loan_origin = (struct dds_psmx_endpoint *) cep;
+    ls->loan_origin.origin_kind = DDS_LOAN_ORIGIN_KIND_PSMX;
+    ls->loan_origin.psmx_endpoint = (struct dds_psmx_endpoint *) cep;
     ls->metadata = dds_alloc (sizeof (*ls->metadata));
     ls->metadata->sample_state = DDS_LOANED_SAMPLE_STATE_UNITIALIZED;
     ls->metadata->sample_size = size_requested;
     ls->metadata->block_size = sz;
-    ls->metadata->data_origin = cep->c.psmx_topic->psmx_instance->instance_type;
+    ls->metadata->instance_id = cep->c.psmx_topic->psmx_instance->instance_id;
     ls->metadata->data_type = cep->c.psmx_topic->data_type;
     ls->sample_ptr = dds_alloc (sz);
     memset (ls->sample_ptr, 0, sz);
@@ -323,7 +324,7 @@ static dds_return_t cdds_psmx_ep_write (struct dds_psmx_endpoint *psmx_ep, dds_l
   struct cdds_psmx_data sample = {
     .sample_state = (uint32_t) data->metadata->sample_state,
     .data_type = data->metadata->data_type,
-    .data_origin = data->metadata->data_origin,
+    .psmx_instance_id = data->metadata->instance_id,
     .sample_size = data->metadata->sample_size,
     .block_size = data->metadata->block_size,
     .timestamp = data->metadata->timestamp,
@@ -354,7 +355,7 @@ static dds_loaned_sample_t * incoming_sample_to_loan (struct cdds_psmx_endpoint 
   psmx_md->block_size = psmx_sample->block_size;
   psmx_md->cdr_identifier = psmx_sample->cdr_identifier;
   psmx_md->cdr_options = psmx_sample->cdr_options;
-  psmx_md->data_origin = psmx_sample->data_origin;
+  psmx_md->instance_id = psmx_sample->psmx_instance_id;
   psmx_md->data_type = psmx_sample->data_type;
   memcpy (&psmx_md->guid, &psmx_sample->guid, sizeof (psmx_sample->guid));
   psmx_md->hash = psmx_sample->hash;
@@ -366,7 +367,8 @@ static dds_loaned_sample_t * incoming_sample_to_loan (struct cdds_psmx_endpoint 
 
   dds_loaned_sample_t *ls = dds_alloc (sizeof (*ls));
   ls->ops = ls_ops;
-  ls->loan_origin = (struct dds_psmx_endpoint *) cep;
+  ls->loan_origin.origin_kind = DDS_LOAN_ORIGIN_KIND_PSMX;
+  ls->loan_origin.psmx_endpoint = (struct dds_psmx_endpoint *) cep;
   ls->metadata = psmx_md;
   ls->sample_ptr = dds_alloc (psmx_sample->data._length);
   memcpy (ls->sample_ptr, psmx_sample->data._buffer, psmx_sample->data._length);
@@ -491,13 +493,13 @@ static char * get_config_option_value (const char *conf, const char *option_name
   return NULL;
 }
 
-dds_return_t cdds_create_psmx (dds_psmx_t **psmx_out, dds_loan_origin_type_t psmx_type, const char *config)
+dds_return_t cdds_create_psmx (dds_psmx_t **psmx_out, dds_psmx_instance_id_t instance_id, const char *config)
 {
   assert (psmx_out);
 
   struct cdds_psmx *psmx = dds_alloc (sizeof (*psmx));
   psmx->c.instance_name = dds_string_dup ("cdds-psmx");
-  psmx->c.instance_type = psmx_type;
+  psmx->c.instance_id = instance_id;
   psmx->c.ops = psmx_instance_ops;
   dds_psmx_init_generic (&psmx->c);
   psmx->participant = -1;

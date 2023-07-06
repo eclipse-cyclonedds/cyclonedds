@@ -46,6 +46,30 @@ typedef enum dds_psmx_endpoint_type {
 typedef uint64_t dds_psmx_data_type_properties_t;
 
 /**
+ * @brief Identifier for the PSMX instance
+ */
+typedef uint32_t dds_psmx_instance_id_t;
+
+/**
+ * @brief describes the data which is transferred in addition to just the sample
+ */
+typedef struct dds_psmx_metadata {
+  dds_loaned_sample_state_t sample_state;
+  dds_loan_data_type_t data_type;
+  dds_psmx_instance_id_t instance_id;
+  uint32_t sample_size;
+  uint32_t block_size;
+  dds_guid_t guid;
+  dds_time_t timestamp;
+  uint32_t statusinfo;
+  uint32_t hash;
+  uint16_t cdr_identifier;
+  uint16_t cdr_options;
+  unsigned char keyhash[16];
+  uint32_t keysize : 30;  // to mirror fixed width of dds_serdata_default_key.keysize
+} dds_psmx_metadata_t;
+
+/**
  * @brief identifier used to distinguish between PSMX instances on nodes
  */
 typedef struct dds_psmx_node_identifier
@@ -228,7 +252,7 @@ typedef struct dds_psmx {
   const char *instance_name; //!< name of this PSMX instance
   int32_t priority; //!< priority of choosing this interface
   const struct ddsi_locator *locator; //!< the locator for this PSMX instance
-  dds_loan_origin_type_t instance_type; //!< the type identifier of this PSMX instance
+  dds_psmx_instance_id_t instance_id; //!< the identifier of this PSMX instance
   struct dds_psmx_topic_list_elem *psmx_topics; //!< associated topics
 } dds_psmx_t;
 

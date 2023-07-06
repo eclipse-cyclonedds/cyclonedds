@@ -18,10 +18,11 @@
 #define DDS_LOAN_H
 
 #include "dds/export.h"
-#include "dds/ddsc/dds_basic_types.h"
 #include "dds/ddsrt/retcode.h"
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/time.h"
+#include "dds/ddsc/dds_basic_types.h"
+#include "dds/ddsc/dds_loan.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -45,30 +46,6 @@ typedef enum dds_loaned_sample_state {
  * @brief Identifier used to distinguish between raw data types (C/C++/Python/...)
  */
 typedef uint32_t dds_loan_data_type_t;
-
-/**
- * @brief Identifier used to distinguish between types of loans (heap/iceoryx/...)
- */
-typedef uint32_t dds_loan_origin_type_t;
-
-/**
- * @brief describes the data which is transferred in addition to just the sample
- */
-typedef struct dds_psmx_metadata {
-  dds_loaned_sample_state_t sample_state;
-  dds_loan_data_type_t data_type;
-  dds_loan_origin_type_t data_origin;
-  uint32_t sample_size;
-  uint32_t block_size;
-  dds_guid_t guid;
-  dds_time_t timestamp;
-  uint32_t statusinfo;
-  uint32_t hash;
-  uint16_t cdr_identifier;
-  uint16_t cdr_options;
-  unsigned char keyhash[16];
-  uint32_t keysize : 30;  // to mirror fixed width of dds_serdata_default_key.keysize
-} dds_psmx_metadata_t;
 
 /**
  * @brief Definition for function to cleanup loaned sample
@@ -106,12 +83,22 @@ typedef struct dds_loaned_sample_ops {
   dds_loaned_sample_reset_f   reset;
 } dds_loaned_sample_ops_t;
 
+typedef enum dds_loaned_sample_origin_kind {
+  DDS_LOAN_ORIGIN_KIND_HEAP,
+  DDS_LOAN_ORIGIN_KIND_PSMX
+} dds_loaned_sample_origin_kind_t;
+
+typedef struct dds_loaned_sample_origin {
+  enum dds_loaned_sample_origin_kind origin_kind;
+  struct dds_psmx_endpoint *psmx_endpoint;
+} dds_loaned_sample_origin_t;
+
 /**
  * @brief The definition of a block of memory originating from a PSMX
  */
 typedef struct dds_loaned_sample {
   dds_loaned_sample_ops_t ops; /*the implementation specific ops for this sample*/
-  struct dds_psmx_endpoint *loan_origin; /*the origin of the loan*/
+  struct dds_loaned_sample_origin loan_origin; /*the origin of the loan*/
   struct dds_loan_manager *manager; /*the associated manager*/
   struct dds_psmx_metadata * metadata; /*pointer to the associated metadata*/
   void * sample_ptr; /*pointer to the loaned sample*/

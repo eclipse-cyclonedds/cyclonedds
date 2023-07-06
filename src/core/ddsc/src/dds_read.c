@@ -388,7 +388,7 @@ dds_return_t dds_return_reader_loan (dds_reader *rd, void **buf, int32_t bufsz)
 
       // Heap loans with no other references get cached for re-use
       // FIXME: is this a good idea? or should we just make sure we allocate memory efficiently?
-      if (loan->loan_origin || ddsrt_atomic_ld32 (&loan->refc) != 1)
+      if (loan->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_PSMX || ddsrt_atomic_ld32 (&loan->refc) != 1)
         dds_loaned_sample_unref (loan);
       else
       {

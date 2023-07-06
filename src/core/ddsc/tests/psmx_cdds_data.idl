@@ -19,7 +19,7 @@ enum sample_state {
 struct cdds_psmx_data {
   sample_state sample_state;
   uint32 data_type;
-  uint32 data_origin;
+  uint32 psmx_instance_id;
   uint32 sample_size;
   uint32 block_size;
   octet guid[16];

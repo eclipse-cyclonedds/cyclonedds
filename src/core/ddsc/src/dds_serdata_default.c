@@ -481,7 +481,8 @@ static struct ddsi_serdata *serdata_default_from_loaned_sample(const struct ddsi
   */
   const struct dds_sertype_default *t = (const struct dds_sertype_default *) tpcmn;
 
-  bool serialize_data = force_serialization || dds_psmx_endpoint_serialization_required (loan->loan_origin);
+  assert (loan->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_PSMX);
+  bool serialize_data = force_serialization || dds_psmx_endpoint_serialization_required (loan->loan_origin.psmx_endpoint);
 
   struct dds_serdata_default *d;
   if (serialize_data)

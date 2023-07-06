@@ -129,7 +129,7 @@ static struct ddsi_serdata *local_make_sample (struct ddsi_tkmap_instance **tk, 
   //
   // And for completeness: data arriving over the network never goes through here
   // either.
-  if (din->loan != NULL && din->loan->loan_origin != NULL)
+  if (din->loan != NULL && din->loan->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_PSMX)
     d = ddsi_serdata_copy_as_type (type, din);
   else
     d = ddsi_serdata_ref_as_type (type, din);
@@ -147,7 +147,7 @@ static struct ddsi_serdata *local_make_sample (struct ddsi_tkmap_instance **tk, 
   //
   // And for completeness: data arriving over the network never goes through here
   // either.
-  assert (d->loan == NULL || d->loan->loan_origin == NULL);
+  assert (d->loan == NULL || d->loan->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_HEAP);
   if (type != si->src_type)
     *tk = ddsi_tkmap_lookup_instance_ref (gv->m_tkmap, d);
   else
@@ -486,9 +486,9 @@ static dds_loaned_sample_t *get_loan_to_use (dds_writer *wr, const void *data, d
     dds_loan_manager_remove_loan (supplied_loan);
 
   assert ((supplied_loan == NULL) ||
-          (supplied_loan != NULL && ddsrt_atomic_ld32 (&supplied_loan->refc) == 1 && supplied_loan->loan_origin == NULL && supplied_loan->manager == NULL) ||
-          (supplied_loan != NULL && ddsrt_atomic_ld32 (&supplied_loan->refc) == 1 && supplied_loan->loan_origin != NULL && supplied_loan->manager == NULL));
-  if (supplied_loan && supplied_loan->loan_origin)
+          (supplied_loan != NULL && ddsrt_atomic_ld32 (&supplied_loan->refc) == 1 && supplied_loan->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_HEAP && supplied_loan->manager == NULL) ||
+          (supplied_loan != NULL && ddsrt_atomic_ld32 (&supplied_loan->refc) == 1 && supplied_loan->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_PSMX && supplied_loan->manager == NULL));
+  if (supplied_loan && supplied_loan->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_PSMX)
   {
     // a PSMX loan, use it
     *loan_to_free = NULL;
@@ -511,10 +511,10 @@ static dds_loaned_sample_t *get_loan_to_use (dds_writer *wr, const void *data, d
 
   // too many cases ...
   assert ((supplied_loan == NULL && loan == NULL) ||
-          (supplied_loan == NULL && loan != NULL && ddsrt_atomic_ld32 (&loan->refc) == 1 && loan->loan_origin != NULL && loan->manager == NULL) ||
-          (supplied_loan != NULL && loan == NULL && ddsrt_atomic_ld32 (&supplied_loan->refc) == 1 && supplied_loan->loan_origin == NULL && supplied_loan->manager == NULL) ||
-          (supplied_loan != NULL && loan == supplied_loan && ddsrt_atomic_ld32 (&loan->refc) == 1 && ddsrt_atomic_ld32 (&loan->refc) == 1 && loan->loan_origin != NULL && loan->manager == NULL) ||
-          (supplied_loan != NULL && loan != supplied_loan && ddsrt_atomic_ld32 (&supplied_loan->refc) == 1 && supplied_loan->loan_origin != NULL && supplied_loan->manager == NULL && ddsrt_atomic_ld32 (&loan->refc) == 1 && ddsrt_atomic_ld32 (&loan->refc) == 1 && loan->loan_origin != NULL && loan->manager == NULL));
+          (supplied_loan == NULL && loan != NULL && ddsrt_atomic_ld32 (&loan->refc) == 1 && loan->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_PSMX && loan->manager == NULL) ||
+          (supplied_loan != NULL && loan == NULL && ddsrt_atomic_ld32 (&supplied_loan->refc) == 1 && supplied_loan->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_HEAP && supplied_loan->manager == NULL) ||
+          (supplied_loan != NULL && loan == supplied_loan && ddsrt_atomic_ld32 (&loan->refc) == 1 && ddsrt_atomic_ld32 (&loan->refc) == 1 && loan->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_PSMX && loan->manager == NULL) ||
+          (supplied_loan != NULL && loan != supplied_loan && ddsrt_atomic_ld32 (&supplied_loan->refc) == 1 && supplied_loan->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_PSMX && supplied_loan->manager == NULL && ddsrt_atomic_ld32 (&loan->refc) == 1 && ddsrt_atomic_ld32 (&loan->refc) == 1 && loan->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_PSMX && loan->manager == NULL));
 
   // by definition different from loan
   // not to be freed yet: freeing it invalidates data
@@ -621,7 +621,8 @@ dds_return_t dds_write_impl (dds_writer *wr, const void *data, dds_time_t tstamp
   // 6.b ... through PSMX
   if (loan)
   {
-    struct dds_psmx_endpoint *endpoint = loan->loan_origin;
+    assert (loan->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_PSMX);
+    struct dds_psmx_endpoint *endpoint = loan->loan_origin.psmx_endpoint;
 
     // populate metadata fields
     struct dds_psmx_metadata *md = loan->metadata;

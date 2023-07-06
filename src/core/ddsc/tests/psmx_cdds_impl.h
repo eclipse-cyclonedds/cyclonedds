@@ -18,7 +18,7 @@
 extern "C" {
 #endif
 
-PSMX_CDDS_EXPORT dds_return_t cdds_create_psmx (dds_psmx_t **psmx, dds_loan_origin_type_t identifier, const char *config);
+PSMX_CDDS_EXPORT dds_return_t cdds_create_psmx (dds_psmx_t **psmx, dds_psmx_instance_id_t instance_id, const char *config);
 
 #if defined (__cplusplus)
 }

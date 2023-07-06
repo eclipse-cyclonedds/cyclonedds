@@ -45,7 +45,7 @@ struct dds_psmx_endpoint_list_elem {
  */
 typedef dds_return_t (*dds_psmx_create_fn) (
   struct dds_psmx **pubsub_message_exchange, /*output for the PSMX instance to be created*/
-  dds_loan_origin_type_t identifier, /*the unique identifier for this PSMX*/
+  dds_psmx_instance_id_t identifier, /*the unique identifier for this PSMX*/
   const char *config /*PSMX specific configuration*/
 );
 
