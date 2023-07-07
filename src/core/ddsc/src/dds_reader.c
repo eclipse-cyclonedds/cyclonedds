@@ -510,7 +510,6 @@ dds_return_t dds_reader_store_historical_serdata (dds_entity_t reader, dds_guid_
   dds_reader *dds_rd = (dds_reader *) e;
   struct ddsi_reader *rd = dds_rd->m_rd;
   struct ddsi_domaingv *gv = rd->e.gv;
-
   /* The serdata->writer_info contains the ddsi guid in BE format.
    * To compare this with the guid we'll transfer the guid
    * to the right format and compare both.
@@ -520,19 +519,24 @@ dds_return_t dds_reader_store_historical_serdata (dds_entity_t reader, dds_guid_
   struct ddsi_guid ddsiguid, tmp;
   memcpy(&tmp, &guid, 16);
   ddsiguid = ddsi_ntoh_guid(tmp);
-
   ddsi_thread_state_awake (ddsi_lookup_thread_state (), gv);
   ddsrt_mutex_lock (&rd->e.lock);
-
   /* retrieve the topic key map used to get the instance id of the serdata */
-  struct ddsi_tkmap_instance * tk = ddsi_tkmap_lookup_instance_ref (gv->m_tkmap, serdata);
+  struct ddsi_tkmap_instance *tk = ddsi_tkmap_lookup_instance_ref (gv->m_tkmap, serdata);
   if (tk == NULL) {
     ret = DDS_RETCODE_BAD_PARAMETER;
-    goto fail_get_writer_info;
+    goto fail_tkmap_lookup;
   }
-
+  /* retrieve the builtin key map to get the iid for the writer */
+  struct ddsi_tkmap_instance *tk_builtin = ddsi_builtintopic_get_tkmap_entry(gv->builtin_topic_interface, &ddsiguid);
+  if (tk_builtin == NULL) {
+    ret = DDS_RETCODE_BAD_PARAMETER;
+    goto fail_tk_builtin;
+  }
   /* historical data is always unregistered */
-  serdata->statusinfo |= DDSI_STATUSINFO_UNREGISTER;
+  if (!ddsi_builtintopic_is_visible(gv->builtin_topic_interface, &ddsiguid, ddsi_get_entity_vendorid(&rd->e))) {
+    serdata->statusinfo |= DDSI_STATUSINFO_UNREGISTER;
+  }
   /* set the writer guid of the serdata */
   serdata->writer_guid = ddsiguid;
   /* timestamp and seqnum have already been set in the serdata by the caller */
@@ -544,9 +548,12 @@ dds_return_t dds_reader_store_historical_serdata (dds_entity_t reader, dds_guid_
    */
   struct ddsi_writer_info wi;
   wi.guid = ddsiguid;
-  wi.ownership_strength = INT32_MIN; /* use the lowest possible strength to ensure that live writers with a  */
+  wi.ownership_strength = INT32_MIN; /* use the lowest possible strength to ensure that live writers always take precedence  */
   wi.auto_dispose = autodispose;
-  wi.iid = tk->m_iid;
+  wi.iid = tk_builtin->m_iid;
+#ifdef DDS_HAS_LIFESPAN
+  wi.lifespan_exp = DDSRT_MTIME_NEVER;
+#endif
   if (!dds_rhc_store (dds_rd->m_rhc, &wi, serdata, tk))
   {
     ret = DDS_RETCODE_ERROR;
@@ -554,8 +561,10 @@ dds_return_t dds_reader_store_historical_serdata (dds_entity_t reader, dds_guid_
   }
 
 fail_rhc_store:
+  ddsi_tkmap_instance_unref (gv->m_tkmap, tk_builtin);
+fail_tk_builtin:
   ddsi_tkmap_instance_unref (gv->m_tkmap, tk);
-fail_get_writer_info:
+fail_tkmap_lookup:
   ddsrt_mutex_unlock (&rd->e.lock);
   ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
   dds_entity_unpin (e);
