@@ -720,7 +720,7 @@ static void make_participants_dependent_on_ddsi2 (struct ddsi_domaingv *gv, cons
   }
 }
 
-static int handle_spdp_alive (const struct receiver_state *rst, seqno_t seq, ddsrt_wctime_t timestamp, const ddsi_plist_t *datap)
+static int handle_spdp_alive (const struct receiver_state *rst, seqno_t seq, ddsrt_wctime_t timestamp, ddsi_plist_t *datap)
 {
   struct ddsi_domaingv * const gv = rst->gv;
   const unsigned bes_sedp_announcer_mask =
@@ -832,15 +832,13 @@ static int handle_spdp_alive (const struct receiver_state *rst, seqno_t seq, dds
     builtin_endpoint_set &= NN_BES_MASK_NON_SECURITY;
   GVLOGDISC ("SPDP ST0 "PGUIDFMT" bes %"PRIx32"%s NEW", PGUID (datap->participant_guid), builtin_endpoint_set, is_secure ? " (secure)" : "");
 
-  if (datap->present & PP_PARTICIPANT_LEASE_DURATION)
-  {
-    lease_duration = datap->participant_lease_duration;
-  }
-  else
+  if (!(datap->present & PP_PARTICIPANT_LEASE_DURATION))
   {
     GVLOGDISC (" (PARTICIPANT_LEASE_DURATION defaulting to 100s)");
-    lease_duration = DDS_SECS (100);
+    datap->participant_lease_duration = DDS_SECS (100);
+    datap->present |= PP_PARTICIPANT_LEASE_DURATION;
   }
+  lease_duration = datap->participant_lease_duration;
 
   if (datap->present & PP_ADLINK_PARTICIPANT_VERSION_INFO) {
     if ((datap->adlink_participant_version_info.flags & NN_ADLINK_FL_DDSI2_PARTICIPANT_FLAG) &&
@@ -982,7 +980,7 @@ static int handle_spdp_alive (const struct receiver_state *rst, seqno_t seq, dds
   }
 }
 
-static void handle_spdp (const struct receiver_state *rst, ddsi_entityid_t pwr_entityid, seqno_t seq, const struct ddsi_serdata *serdata)
+static void handle_spdp (const struct receiver_state *rst, ddsi_entityid_t pwr_entityid, seqno_t seq, struct ddsi_serdata *serdata)
 {
   struct ddsi_domaingv * const gv = rst->gv;
   ddsi_plist_t decoded_data;
