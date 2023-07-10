@@ -28,7 +28,7 @@
 extern "C" {
 #endif
 
-struct dds_loan_manager;
+struct dds_loan_pool;
 struct dds_loaned_sample;
 struct dds_psmx_endpoint;
 
@@ -99,7 +99,7 @@ typedef struct dds_loaned_sample_origin {
 typedef struct dds_loaned_sample {
   dds_loaned_sample_ops_t ops; /*the implementation specific ops for this sample*/
   struct dds_loaned_sample_origin loan_origin; /*the origin of the loan*/
-  struct dds_loan_manager *manager; /*the associated manager*/
+  struct dds_loan_pool *loan_pool; /*the associated loan pool*/
   struct dds_psmx_metadata * metadata; /*pointer to the associated metadata*/
   void * sample_ptr; /*pointer to the loaned sample*/
   uint32_t loan_idx; /*the storage index of the loan*/
@@ -144,10 +144,7 @@ DDS_EXPORT dds_return_t dds_loaned_sample_unref (dds_loaned_sample_t *loaned_sam
  * @retval DDS_RETCODE_ALREADY_DELETED
  *             The reader entity has already been deleted.
  */
-DDS_EXPORT dds_return_t
-dds_reader_store_loaned_sample (
-  dds_entity_t reader,
-  dds_loaned_sample_t *data);
+DDS_EXPORT dds_return_t dds_reader_store_loaned_sample (dds_entity_t reader, dds_loaned_sample_t *data);
 
 #if defined(__cplusplus)
 }

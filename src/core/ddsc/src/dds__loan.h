@@ -19,15 +19,15 @@ extern "C" {
 #endif
 
 /**
- * @brief Implementation specific loan manager
+ * @brief Loan pool
  */
-typedef struct dds_loan_manager {
+typedef struct dds_loan_pool {
   //FIXME map better?
   dds_loaned_sample_t **samples;
   uint32_t n_samples_cap;
-  uint32_t n_samples_managed;
+  uint32_t n_samples;
   ddsrt_mutex_t mutex;
-} dds_loan_manager_t;
+} dds_loan_pool_t;
 
 
 /**
@@ -51,64 +51,63 @@ dds_return_t dds_loaned_sample_reset_sample (dds_loaned_sample_t *loaned_sample)
 
 
 /**
- * @brief Create a loan manager
+ * @brief Create a loan pool
  *
- * @param[out] manager Gets a pointer to the newly created loan manager
+ * @param[out] pool Gets a pointer to the newly created loan pool
  * @param[in] initial_cap Initial capacity
  * @return a DDS return code
  */
-dds_return_t dds_loan_manager_create (dds_loan_manager_t **manager, uint32_t initial_cap);
+dds_return_t dds_loan_pool_create (dds_loan_pool_t **pool, uint32_t initial_cap);
 
 /**
- * @brief Free a loan manager
+ * @brief Free a loan pool
  *
  * Ensures that the containers are cleaned up and all loans are returned
  *
- * @param manager  The loan manager to be freed
+ * @param pool  The loan pool to be freed
  * @return a DDS return code
  */
-dds_return_t dds_loan_manager_free (dds_loan_manager_t *manager);
+dds_return_t dds_loan_pool_free (dds_loan_pool_t *pool);
 
 /**
- * @brief Add a loan to be stored by the manager
+ * @brief Add a loan to be stored in the pool
  *
  * Takes over the reference of the `loaned_sample` passed in
  *
- * @param[in] manager  The loan manager to store the loan with
+ * @param[in] pool  The loan pool to store the loan with
  * @param[in] loaned_sample   The loaned sample to store
  * @return a DDS return code
  */
-dds_return_t dds_loan_manager_add_loan (dds_loan_manager_t *manager, dds_loaned_sample_t *loaned_sample);
+dds_return_t dds_loan_pool_add_loan (dds_loan_pool_t *pool, dds_loaned_sample_t *loaned_sample);
 
 /**
- * @brief Remove loan from storage of the manager
+ * @brief Remove loan from the loan pool
  *
  * @param[in] loaned_sample  The loaned sample to be removed
  * @return a DDS return code
  */
-dds_return_t dds_loan_manager_remove_loan (dds_loaned_sample_t *loaned_sample);
+dds_return_t dds_loan_pool_remove_loan (dds_loaned_sample_t *loaned_sample);
 
 /**
- * @brief Finds a loan in the loan manager storage
+ * @brief Finds a loan in the loan pool
  *
- * Finds a loan in the storage of the provided loan manager, based on
- * a sample pointer.
+ * Finds a loan in the pool, based on a sample pointer.
  *
  * Does not modify loaned sample's reference count.
  *
- * @param[in] manager  Loan manager to find the loan in
+ * @param[in] pool  Loan pool to find the loan in
  * @param[in] sample_ptr  Pointer of the sample to search for
  * @return A pointer to a loaned sample
  */
-dds_loaned_sample_t *dds_loan_manager_find_loan (dds_loan_manager_t *manager, const void *sample_ptr);
+dds_loaned_sample_t *dds_loan_pool_find_loan (dds_loan_pool_t *pool, const void *sample_ptr);
 
 /**
- * @brief Gets the first managed loan from this manager and removes it from the manager
+ * @brief Gets the first loan from this pool and removes it from the pool
  *
- * @param[in] manager  The loan manager to get the loan from
+ * @param[in] pool  The loan pool to get the loan from
  * @return Pointer to a loaned sample
  */
-dds_loaned_sample_t *dds_loan_manager_get_loan (dds_loan_manager_t *manager);
+dds_loaned_sample_t *dds_loan_pool_get_loan (dds_loan_pool_t *pool);
 
 #if defined(__cplusplus)
 }
