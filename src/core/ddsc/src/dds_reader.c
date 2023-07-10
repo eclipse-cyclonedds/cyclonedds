@@ -439,6 +439,7 @@ void dds_reader_status_cb (void *ventity, const struct ddsi_status_cb_data *data
     case DDS_OFFERED_DEADLINE_MISSED_STATUS_ID:
     case DDS_OFFERED_INCOMPATIBLE_QOS_STATUS_ID:
       assert (0);
+      break;
   }
 
   rd->m_entity.m_cb_count--;

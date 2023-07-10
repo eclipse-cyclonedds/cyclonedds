@@ -35,6 +35,7 @@ static bool dds_stream_write_enum_valueBO (DDS_OSTREAM_T * __restrict os, const 
       break;
     default:
       abort ();
+      break;
   }
   return true;
 }
@@ -73,6 +74,7 @@ static bool dds_stream_write_bitmask_valueBO (DDS_OSTREAM_T * __restrict os, con
     }
     default:
       abort ();
+      break;
   }
   return true;
 }
@@ -127,6 +129,7 @@ static bool dds_stream_write_enum_arrBO (DDS_OSTREAM_T * __restrict os, const st
       break;
     default:
       abort ();
+      break;
   }
   return true;
 }
@@ -177,6 +180,7 @@ static bool dds_stream_write_bitmask_arrBO (DDS_OSTREAM_T * __restrict os, const
     }
     default:
       abort ();
+      break;
   }
   return true;
 }
@@ -389,6 +393,7 @@ static bool dds_stream_write_union_discriminantBO (DDS_OSTREAM_T * __restrict os
       break;
     default:
       abort ();
+      break;
   }
   return true;
 }

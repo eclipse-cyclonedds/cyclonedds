@@ -1897,6 +1897,8 @@ static uint32_t qmask_from_dcpsquery (uint32_t sample_states, uint32_t view_stat
     case DDS_IST_NOT_ALIVE_NO_WRITERS:
       qminv |= DDS_ALIVE_INSTANCE_STATE | DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE;
       break;
+    default:
+      break;
   }
   return qminv;
 }
@@ -2345,6 +2347,7 @@ static uint32_t rhc_get_cond_trigger (struct rhc_instance * const inst, const dd
       break;
     default:
       DDS_FATAL("update_readconditions: sample_states invalid: %"PRIx32"\n", c->m_sample_states);
+      break;
   }
   return m ? 1 : 0;
 }
@@ -2552,6 +2555,7 @@ static bool update_conditions_locked (struct dds_rhc_default *rhc, bool called_f
         break;
       default:
         DDS_FATAL ("update_readconditions: sample_states invalid: %"PRIx32"\n", iter->m_sample_states);
+        break;
     }
 
     TRACE ("  cond %p %08"PRIx32": ", (void *) iter, iter->m_query.m_qcmask);
@@ -2612,6 +2616,7 @@ static bool update_conditions_locked (struct dds_rhc_default *rhc, bool called_f
           break;
         default:
           DDS_FATAL ("update_readconditions: sample_states invalid: %"PRIx32"\n", iter->m_sample_states);
+          break;
       }
 
       if (m_pre == m_post)

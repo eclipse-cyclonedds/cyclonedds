@@ -57,6 +57,8 @@ uint32_t ddsrt_mh3 (const void *key, size_t len, uint32_t seed)
         k1 *= c2;
         h1 ^= k1;
         /* FALLS THROUGH */
+      default:
+        break;
     }
   }
 

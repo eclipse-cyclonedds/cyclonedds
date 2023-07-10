@@ -154,6 +154,7 @@ void dds_writer_status_cb (void *entity, const struct ddsi_status_cb_data *data)
     case DDS_REQUESTED_DEADLINE_MISSED_STATUS_ID:
     case DDS_REQUESTED_INCOMPATIBLE_QOS_STATUS_ID:
       assert (0);
+      break;
   }
 
   wr->m_entity.m_cb_count--;

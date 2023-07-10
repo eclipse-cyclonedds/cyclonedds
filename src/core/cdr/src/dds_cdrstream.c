@@ -385,6 +385,8 @@ static void dds_stream_swap (void * __restrict vbuf, uint32_t size, uint32_t num
       }
       break;
     }
+    default:
+      break;
   }
 }
 
@@ -950,7 +952,7 @@ static uint32_t read_union_discriminant (dds_istream_t * __restrict is, uint32_t
         case 1: return dds_is_get1 (is);
         case 2: return dds_is_get2 (is);
         case 4: return dds_is_get4 (is);
-        default: abort ();
+        default: abort (); break;
       }
       break;
     default: return 0;
@@ -1193,6 +1195,7 @@ static uint32_t get_length_code (const uint32_t * __restrict ops)
             case 2: return LENGTH_CODE_2B;
             case 4: return LENGTH_CODE_4B;
             case 8: return LENGTH_CODE_8B;
+            default: break;
           }
           break;
         case DDS_OP_VAL_STR: case DDS_OP_VAL_BST: return LENGTH_CODE_ALSO_NEXTINT; /* nextint overlaps with length from serialized string data */
@@ -1481,6 +1484,8 @@ static const uint32_t *dds_stream_read_seq (dds_istream_t * __restrict is, char 
         case 4:
           dds_is_get_bytes (is, seq->_buffer, seq->_length, elem_size);
           break;
+        default:
+          break;
       }
       if (seq->_length < num)
         dds_stream_skip_forward (is, num - seq->_length, elem_size);
@@ -1567,6 +1572,7 @@ static const uint32_t *dds_stream_read_arr (dds_istream_t * __restrict is, char 
           break;
         default:
           abort ();
+          break;
       }
       return ops + 4;
     }
@@ -1648,7 +1654,7 @@ static const uint32_t *dds_stream_read_uni (dds_istream_t * __restrict is, char 
           case 1: *((uint32_t *) valaddr) = dds_is_get1 (is); break;
           case 2: *((uint32_t *) valaddr) = dds_is_get2 (is); break;
           case 4: *((uint32_t *) valaddr) = dds_is_get4 (is); break;
-          default: abort ();
+          default: abort (); break;
         }
         break;
       case DDS_OP_VAL_STR:
@@ -1711,7 +1717,7 @@ static inline const uint32_t *dds_stream_read_adr (uint32_t insn, dds_istream_t 
         case 1: *((uint32_t *) addr) = dds_is_get1 (is); break;
         case 2: *((uint32_t *) addr) = dds_is_get2 (is); break;
         case 4: *((uint32_t *) addr) = dds_is_get4 (is); break;
-        default: abort ();
+        default: abort (); break;
       }
       ops += 3;
       break;
@@ -1723,7 +1729,7 @@ static inline const uint32_t *dds_stream_read_adr (uint32_t insn, dds_istream_t 
         case 2: *((uint16_t *) addr) = dds_is_get2 (is); break;
         case 4: *((uint32_t *) addr) = dds_is_get4 (is); break;
         case 8: *((uint64_t *) addr) = dds_is_get8 (is); break;
-        default: abort ();
+        default: abort (); break;
       }
       ops += 4;
       break;
@@ -1808,7 +1814,7 @@ static const uint32_t *dds_stream_skip_adr_default (uint32_t insn, char * __rest
         case 2: *(uint16_t *) addr = 0; break;
         case 4: *(uint32_t *) addr = 0; break;
         case 8: *(uint64_t *) addr = 0; break;
-        default: abort ();
+        default: abort (); break;
       }
       return ops + 4;
     case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: {
@@ -2328,6 +2334,7 @@ static bool read_normalize_bitmask (uint64_t * __restrict val, char * __restrict
       break;
     default:
       abort ();
+      break;
   }
   if (!bitmask_value_valid (*val, bits_h, bits_l))
     return normalize_error_bool ();
@@ -2487,6 +2494,8 @@ static bool normalize_bitmaskarray (char * __restrict data, uint32_t * __restric
       *off += 8 * num;
       break;
     }
+    default:
+      break;
   }
   return true;
 }
@@ -2678,6 +2687,7 @@ static bool normalize_uni_disc (uint32_t * __restrict val, char * __restrict dat
       return read_normalize_enum (val, data, off, size, bswap, insn, ops[4]);
     default:
       abort ();
+      break;
   }
   return false;
 }
@@ -3355,7 +3365,7 @@ static void dds_stream_extract_key_from_key_prim_op (dds_istream_t * __restrict 
         case 2: dds_os_put2 (os, allocator, dds_is_get2 (is)); break;
         case 4: dds_os_put4 (os, allocator, dds_is_get4 (is)); break;
         case 8: assert (DDS_OP_TYPE(insn) == DDS_OP_VAL_BMK); dds_os_put8 (os, allocator, dds_is_get8 (is)); break;
-        default: abort ();
+        default: abort (); break;
       }
       break;
     case DDS_OP_VAL_STR: case DDS_OP_VAL_BST: {
@@ -3440,6 +3450,8 @@ static void dds_stream_swap_copy (void * __restrict vdst, const void * __restric
       }
       break;
     }
+    default:
+      break;
   }
 }
 #endif
@@ -3462,7 +3474,7 @@ static void dds_stream_extract_keyBE_from_key_prim_op (dds_istream_t * __restric
         case 2: dds_os_put2BE (os, allocator, dds_is_get2 (is)); break;
         case 4: dds_os_put4BE (os, allocator, dds_is_get4 (is)); break;
         case 8: assert (DDS_OP_TYPE (insn) == DDS_OP_VAL_BMK); dds_os_put8BE (os, allocator, dds_is_get8 (is)); break;
-        default: abort ();
+        default: abort (); break;
       }
       break;
     case DDS_OP_VAL_STR: case DDS_OP_VAL_BST: {
@@ -3703,7 +3715,7 @@ static void dds_stream_read_key_impl (dds_istream_t * __restrict is, char * __re
         case 1: *((uint32_t *) dst) = dds_is_get1 (is); break;
         case 2: *((uint32_t *) dst) = dds_is_get2 (is); break;
         case 4: *((uint32_t *) dst) = dds_is_get4 (is); break;
-        default: abort ();
+        default: abort (); break;
       }
       break;
     case DDS_OP_VAL_BMK:
@@ -3713,7 +3725,7 @@ static void dds_stream_read_key_impl (dds_istream_t * __restrict is, char * __re
         case 2: *((uint16_t *) dst) = dds_is_get2 (is); break;
         case 4: *((uint32_t *) dst) = dds_is_get4 (is); break;
         case 8: *((uint64_t *) dst) = dds_is_get8 (is); break;
-        default: abort ();
+        default: abort (); break;
       }
       break;
     case DDS_OP_VAL_STR: *((char **) dst) = dds_stream_reuse_string (is, *((char **) dst), allocator); break;
@@ -3752,6 +3764,7 @@ static void dds_stream_read_key_impl (dds_istream_t * __restrict is, char * __re
         }
         default:
           abort ();
+          break;
       }
       break;
     }
@@ -3899,6 +3912,7 @@ static bool prtf_enum_bitmask (char * __restrict *buf, size_t * __restrict bufsi
     }
     default:
       abort ();
+      break;
   }
   return false;
 }
@@ -3948,6 +3962,7 @@ static bool prtf_simple (char * __restrict *buf, size_t * __restrict bufsize, dd
     case DDS_OP_VAL_STR: case DDS_OP_VAL_BST: return prtf_str (buf, bufsize, is);
     case DDS_OP_VAL_ARR: case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: case DDS_OP_VAL_EXT:
       abort ();
+      break;
   }
   return false;
 }
