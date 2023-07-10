@@ -82,7 +82,6 @@ CU_Test (ddsc_loan, success, .init = create_entities, .fini = delete_entities)
       ._buffer = (uint8_t[]) { 'a' }
     }
   };
-  const unsigned char zeros[sizeof (s)] = { 0 };
   dds_return_t result;
   for (size_t i = 0; i < 3; i++)
   {
@@ -100,37 +99,16 @@ CU_Test (ddsc_loan, success, .init = create_entities, .fini = delete_entities)
   n = dds_read (reader, ptrs, si, 1, 1);
   CU_ASSERT_FATAL (n == 1);
   CU_ASSERT_FATAL (ptrs[0] != NULL && ptrs[1] == NULL);
-  memcpy(ptrscopy, ptrs, sizeof(*ptrs)*(uint32_t)n);
+  memcpy (ptrscopy, ptrs, sizeof (*ptrs) * (uint32_t) n);
   result = dds_return_loan (reader, ptrs, n);
   CU_ASSERT_FATAL (result == DDS_RETCODE_OK);
-  /* return resets buf[0] (so that it picks up the loan the next time) and zeros the data */
+  /* return resets buf[0] */
   CU_ASSERT_FATAL (ptrs[0] == NULL);
-  for (int32_t i = 0; i < n; i++)
-  {
-    assert (ptrscopy[i] != NULL); /* clang static analyzer */
-    CU_ASSERT_FATAL (memcmp (ptrscopy[i], zeros, sizeof (s)) == 0);
-  }
 
-  /* read 3, return: should work fine, causes realloc */
+  /* read 3, return: should work fine, causes allocating new ptrs */
   n = dds_read (reader, ptrs, si, 3, 3);
   CU_ASSERT_FATAL (n == 3);
-  CU_ASSERT_FATAL (ptrs[0] != NULL && ptrs[1] != NULL && ptrs[2] != NULL);
-  memset(ptrscopy, 0, sizeof(ptrscopy));
-  memcpy(ptrscopy, ptrs, sizeof(*ptrs)*(uint32_t)n);
-  result = dds_return_loan (reader, ptrs, n);
-  CU_ASSERT_FATAL (result == DDS_RETCODE_OK);
-  CU_ASSERT_FATAL (ptrs[0] == NULL);
-  for (int32_t i = 0; i < n; i++)
-  {
-    assert (ptrscopy[i] != NULL); /* clang static analyzer */
-    CU_ASSERT_FATAL (memcmp (ptrscopy[i], zeros, sizeof (s)) == 0);
-  }
-
-  /* read 1 using loan, expecting to get the same address (no realloc needed), defer return.
-     Expect ptrs[1] to remain unchanged, although that probably is really an implementation
-     detail rather than something one might want to rely on */
-  n = dds_read (read_condition, ptrs, si, 1, 1);
-  CU_ASSERT_FATAL (n == 1);
+  CU_ASSERT_FATAL (ptrs[0] != NULL && ptrs[0] != ptrscopy[0] && ptrs[1] != NULL && ptrs[2] != NULL);
 
   /* read 3, letting read allocate */
   int32_t n2;
