@@ -513,10 +513,10 @@ static dds_loaned_sample_t *get_loan_to_use (dds_writer *wr, const void *data, d
   assert ((supplied_loan == NULL && loan == NULL) ||
           (supplied_loan == NULL && loan != NULL && ddsrt_atomic_ld32 (&loan->refc) == 1 && loan->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_PSMX && loan->loan_pool == NULL) ||
           (supplied_loan != NULL && loan == NULL && ddsrt_atomic_ld32 (&supplied_loan->refc) == 1 && supplied_loan->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_HEAP && supplied_loan->loan_pool == NULL) ||
-          (supplied_loan != NULL && loan == supplied_loan && ddsrt_atomic_ld32 (&loan->refc) == 1 && ddsrt_atomic_ld32 (&loan->refc) == 1 && loan->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_PSMX && loan->loan_pool == NULL) ||
+          (supplied_loan != NULL && loan == supplied_loan && ddsrt_atomic_ld32 (&loan->refc) == 1 && loan->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_PSMX && loan->loan_pool == NULL) ||
           (supplied_loan != NULL && loan != supplied_loan
               && ddsrt_atomic_ld32 (&supplied_loan->refc) == 1 && supplied_loan->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_PSMX && supplied_loan->loan_pool == NULL
-              && ddsrt_atomic_ld32 (&loan->refc) == 1 && ddsrt_atomic_ld32 (&loan->refc) == 1 && loan->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_PSMX && loan->loan_pool == NULL));
+              && ddsrt_atomic_ld32 (&loan->refc) == 1 && loan->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_PSMX && loan->loan_pool == NULL));
 
   // by definition different from loan
   // not to be freed yet: freeing it invalidates data
