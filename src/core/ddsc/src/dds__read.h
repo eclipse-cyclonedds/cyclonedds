@@ -23,6 +23,7 @@ struct dds_read_collect_sample_arg {
   uint32_t next_idx;              /**< next index in ptrs/infos to be filled (initially 0) **/
   void **ptrs;                    /**< array of pointers to samples/serdatas to be filled **/
   dds_sample_info_t *infos;       /**< array of sample infos to be filled **/
+  struct dds_loan_manager *loan_manager;  /**< loan manager to be used for loaned sample administration **/
 };
 
 /** @brief Initialize the sample collector state
@@ -31,20 +32,36 @@ struct dds_read_collect_sample_arg {
  * @param[out] arg sample collector state to be initialized
  * @param[in] ptrs array of pointers to samples to be filled (collect_sample)
  *            or array to be filled with pointers-to-serdata (collect_sample_refs)
- * @param[in] infos array of sample infos to be filled */
-void dds_read_collect_sample_arg_init (struct dds_read_collect_sample_arg *arg, void **ptrs, dds_sample_info_t *infos);
+ * @param[in] infos array of sample infos to be filled
+ * @param[in] loan_manager
+ */
+void dds_read_collect_sample_arg_init (struct dds_read_collect_sample_arg *arg, void **ptrs, dds_sample_info_t *infos, struct dds_loan_manager *loan_manager);
 
 /** @brief Sample collector that deserializes the samples into ptrs[i]
  * @component read_data
  *
- * It assumes the ptrs and infos arrays are large enough.  On instance change it patches
- * the ranks in the sample infos using @ref dds_read_check_and_handle_instance_switch
+ * It assumes the ptrs and infos arrays are large enough and ptrs are valid and point to an
+ * allocated sample.  On instance change it patches the ranks in the sample infos using @ref
+ * dds_read_check_and_handle_instance_switch
  *
  * @see dds_read_with_collector_fn_t
  *
  * @retval DDS_RETCODE_OK if deserialization succeded
  * @retval DDS_RETCODE_ERROR if deserialization failed */
 dds_return_t dds_read_collect_sample (void *varg, const dds_sample_info_t *si, const struct ddsi_sertype *st, struct ddsi_serdata *sd);
+
+/** @brief Sample collector that deserializes the samples into ptrs[i]
+ * @component read_data
+ *
+ * It assumes the ptrs and infos arrays are large enough and ptrs are not allocated.
+ * On instance change it patches the ranks in the sample infos using @ref
+ * dds_read_check_and_handle_instance_switch
+ *
+ * @see dds_read_with_collector_fn_t
+ *
+ * @retval DDS_RETCODE_OK if deserialization succeded
+ * @retval DDS_RETCODE_ERROR if deserialization failed */
+dds_return_t dds_read_collect_sample_loan (void *varg, const dds_sample_info_t *si, const struct ddsi_sertype *st, struct ddsi_serdata *sd);
 
 /** @brief Sample collector that stores a pointer to the serdata and increments its refcount
  * @component read_data

@@ -179,9 +179,8 @@ CU_Test (ddsc_loan, take_cleanup, .init = create_entities, .fini = delete_entiti
   void *ptr0copy = NULL;
   dds_sample_info_t si[3];
 
-  /* take 1 from an empty reader: this should cause memory to be allocated for
-     1 sample only, be stored as the loan, but not become visisble to the
-     application */
+  /* take 1 from an empty reader: this should cause no memory to be allocated,
+     and null ptr handed over to the application */
   n = dds_take (reader, ptrs, si, 1, 1);
   CU_ASSERT_FATAL (n == 0);
   CU_ASSERT_FATAL (ptrs[0] == NULL && ptrs[1] == NULL);
@@ -196,44 +195,43 @@ CU_Test (ddsc_loan, take_cleanup, .init = create_entities, .fini = delete_entiti
   result = dds_return_loan (reader, ptrs, n);
   CU_ASSERT_FATAL (result == DDS_RETCODE_OK);
 
-  /* take 1 that's present: re-use a loan */
+  /* take 1 that's present: allocate a new loan */
   result = dds_write (writer, &s);
   CU_ASSERT_FATAL (result == 0);
   n = dds_take (reader, ptrs, si, 1, 1);
   CU_ASSERT_FATAL (n == 1);
-  CU_ASSERT_FATAL (ptrs[0] == ptr0copy && ptrs[1] == NULL);
+  CU_ASSERT_FATAL (ptrs[0] != NULL && ptrs[0] != ptr0copy && ptrs[1] == NULL);
   result = dds_return_loan (reader, ptrs, n);
   CU_ASSERT_FATAL (result == DDS_RETCODE_OK);
 
-  /* take that fails (for lack of data in this case) must reuse the loan, but
-     hand it back and restore the null pointer */
+  /* take that fails (for lack of data in this case), no memory allocated,
+     restore the null pointer */
   n = dds_take (reader, ptrs, si, 1, 1);
   CU_ASSERT_FATAL (n == 0);
   CU_ASSERT_FATAL (ptrs[0] == NULL && ptrs[1] == NULL);
 
-  /* take that succeeds again must therefore still be using the same address */
+  /* take that succeeds again must be using a new address */
   result = dds_write (writer, &s);
   CU_ASSERT_FATAL (result == 0);
   n = dds_take (reader, ptrs, si, 1, 1);
   CU_ASSERT_FATAL (n == 1);
-  CU_ASSERT_FATAL (ptrs[0] == ptr0copy && ptrs[1] == NULL);
+  CU_ASSERT_FATAL (ptrs[0] != NULL && ptrs[0] != ptr0copy && ptrs[1] == NULL);
 
-  /* take that fails (with the loan still out) must allocate new memory and
-     free it */
+  /* take that fails (with the loan still out) must not allocate memory */
   int32_t n2;
   void *ptrs2[3] = { NULL };
   n2 = dds_take (reader, ptrs2, si, 1, 1);
   CU_ASSERT_FATAL (n2 == 0);
   CU_ASSERT_FATAL (ptrs2[0] == NULL && ptrs2[1] == NULL);
 
-  /* return the loan and the next take should reuse the memory */
+  /* return the loan and the next take should do new allocation */
   result = dds_return_loan (reader, ptrs, n);
   CU_ASSERT_FATAL (result == DDS_RETCODE_OK);
   result = dds_write (writer, &s);
   CU_ASSERT_FATAL (result == 0);
   n = dds_take (reader, ptrs, si, 1, 1);
   CU_ASSERT_FATAL (n == 1);
-  CU_ASSERT_FATAL (ptrs[0] != NULL && ptrs[1] == NULL);
+  CU_ASSERT_FATAL (ptrs[0] != NULL && ptrs[0] != ptr0copy && ptrs[1] == NULL);
   result = dds_return_loan (reader, ptrs, n);
   CU_ASSERT_FATAL (result == DDS_RETCODE_OK);
 }
@@ -254,9 +252,8 @@ CU_Test (ddsc_loan, read_cleanup, .init = create_entities, .fini = delete_entiti
   void *ptr0copy;
   dds_sample_info_t si[3];
 
-  /* read 1 from an empty reader: this should cause memory to be allocated for
-     1 sample only, be stored as the loan, but not become visisble to the
-     application */
+  /* read 1 from an empty reader: no memory should be allocated, and null ptrs
+     returned to the application */
   n = dds_read (reader, ptrs, si, 1, 1);
   CU_ASSERT_FATAL (n == 0);
   CU_ASSERT_FATAL (ptrs[0] == NULL && ptrs[1] == NULL);
@@ -271,46 +268,45 @@ CU_Test (ddsc_loan, read_cleanup, .init = create_entities, .fini = delete_entiti
   result = dds_return_loan (reader, ptrs, n);
   CU_ASSERT_FATAL (result == DDS_RETCODE_OK);
 
-  /* if it really got handled as a loan, the same address must come out again
+  /* loans are allocated for each read, so a different address must come out
      (rely on address sanitizer allocating at a different address each time) */
   result = dds_write (writer, &s);
   CU_ASSERT_FATAL (result == 0);
   n = dds_read (read_condition_unread, ptrs, si, 1, 1);
   CU_ASSERT_FATAL (n == 1);
-  CU_ASSERT_FATAL (ptrs[0] == ptr0copy && ptrs[1] == NULL);
+  CU_ASSERT_FATAL (ptrs[0] != NULL && ptrs[0] != ptr0copy && ptrs[1] == NULL);
   ptr0copy = ptrs[0];
   result = dds_return_loan (reader, ptrs, n);
   CU_ASSERT_FATAL (result == DDS_RETCODE_OK);
 
-  /* take that fails (for lack of data in this case) must reuse the loan, but
-     hand it back and restore the null pointer */
+  /* take that fails (for lack of data in this case) must hand it back and
+     restore the null pointer */
   n = dds_read (read_condition_unread, ptrs, si, 1, 1);
   CU_ASSERT_FATAL (n == 0);
   CU_ASSERT_FATAL (ptrs[0] == NULL && ptrs[1] == NULL);
 
-  /* take that succeeds again must therefore still be using the same address */
+  /* take that succeeds again, using a new address */
   result = dds_write (writer, &s);
   CU_ASSERT_FATAL (result == 0);
   n = dds_read (read_condition_unread, ptrs, si, 1, 1);
   CU_ASSERT_FATAL (n == 1);
-  CU_ASSERT_FATAL (ptrs[0] == ptr0copy && ptrs[1] == NULL);
+  CU_ASSERT_FATAL (ptrs[0] != NULL && ptrs[0] != ptr0copy && ptrs[1] == NULL);
 
-  /* take that fails (with the loan still out) must allocate new memory and
-     free it */
+  /* take that fails (with the loan still out), no memory allocated */
   int32_t n2;
   void *ptrs2[3] = { NULL };
   n2 = dds_read (read_condition_unread, ptrs2, si, 1, 1);
   CU_ASSERT_FATAL (n2 == 0);
   CU_ASSERT_FATAL (ptrs2[0] == NULL && ptrs2[1] == NULL);
 
-  /* return the loan and the next take should reuse the memory */
+  /* return the loan and the next read should allocate a new loan */
   result = dds_return_loan (reader, ptrs, n);
   CU_ASSERT_FATAL (result == DDS_RETCODE_OK);
   result = dds_write (writer, &s);
   CU_ASSERT_FATAL (result == 0);
   n = dds_read (read_condition_unread, ptrs, si, 1, 1);
   CU_ASSERT_FATAL (n == 1);
-  CU_ASSERT_FATAL (ptrs[0] != NULL && ptrs[1] == NULL);
+  CU_ASSERT_FATAL (ptrs[0] != NULL && ptrs[0] != ptr0copy && ptrs[1] == NULL);
   result = dds_return_loan (reader, ptrs, n);
   CU_ASSERT_FATAL (result == DDS_RETCODE_OK);
 }

@@ -332,7 +332,7 @@ static void rdtkcond (struct dds_rhc *rhc, dds_readcond *cond, const struct chec
 
   ddsi_thread_state_awake_domain_ok (ddsi_lookup_thread_state ());
   struct dds_read_collect_sample_arg arg;
-  dds_read_collect_sample_arg_init (&arg, rres_ptrs, rres_iseq);
+  dds_read_collect_sample_arg_init (&arg, rres_ptrs, rres_iseq, NULL);
   cnt = op (rhc, (max <= 0) ? (int32_t) (sizeof (rres_iseq) / sizeof (rres_iseq[0])) : max, cond ? DDS_RHC_NO_STATE_MASK_SET : (DDS_ANY_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE), 0, cond, dds_read_collect_sample, &arg);
   ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
   if (max > 0 && cnt > max) {

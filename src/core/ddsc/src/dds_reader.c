@@ -90,9 +90,6 @@ static dds_return_t dds_reader_delete (dds_entity *e)
     ret = dds_remove_psmx_endpoint_from_list (psmx_endpoint, &psmx_endpoint->psmx_topic->psmx_endpoints);
   }
 
-  if (rd->m_loan_pool)
-    dds_loan_manager_free(rd->m_loan_pool);
-
   dds_entity_drop_ref (&rd->m_topic->m_entity);
   return ret;
 }
@@ -629,8 +626,6 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
   rd->m_topic = tp;
   rd->m_rhc = rhc ? rhc : dds_rhc_default_new (rd, tp->m_stype);
   rc = dds_loan_manager_create(&rd->m_loans, 0);
-  assert (rc == DDS_RETCODE_OK); // FIXME: can be out of resources
-  rc = dds_loan_manager_create(&rd->m_loan_pool, 0);
   assert (rc == DDS_RETCODE_OK); // FIXME: can be out of resources
   if (dds_rhc_associate (rd->m_rhc, rd, tp->m_stype, rd->m_entity.m_domain->gv.m_tkmap) < 0)
   {

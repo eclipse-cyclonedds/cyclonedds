@@ -25,11 +25,12 @@
 #include "dds__loan.h"
 #include "dds__heap_loan.h"
 
-void dds_read_collect_sample_arg_init (struct dds_read_collect_sample_arg *arg, void **ptrs, dds_sample_info_t *infos)
+void dds_read_collect_sample_arg_init (struct dds_read_collect_sample_arg *arg, void **ptrs, dds_sample_info_t *infos, struct dds_loan_manager *loan_manager)
 {
   arg->next_idx = 0;
   arg->ptrs = ptrs;
   arg->infos = infos;
+  arg->loan_manager = loan_manager;
 }
 
 dds_return_t dds_read_collect_sample (void *varg, const dds_sample_info_t *si, const struct ddsi_sertype *st, struct ddsi_serdata *sd)
@@ -37,6 +38,7 @@ dds_return_t dds_read_collect_sample (void *varg, const dds_sample_info_t *si, c
   struct dds_read_collect_sample_arg * const arg = varg;
   bool ok;
   arg->infos[arg->next_idx] = *si;
+
   if (si->valid_data)
     ok = ddsi_serdata_to_sample (sd, arg->ptrs[arg->next_idx], NULL, NULL);
   else
@@ -50,6 +52,29 @@ dds_return_t dds_read_collect_sample (void *varg, const dds_sample_info_t *si, c
   }
   arg->next_idx++;
   return ok ? DDS_RETCODE_OK : DDS_RETCODE_ERROR;
+}
+
+dds_return_t dds_read_collect_sample_loan (void *varg, const dds_sample_info_t *si, const struct ddsi_sertype *st, struct ddsi_serdata *sd)
+{
+  struct dds_read_collect_sample_arg * const arg = varg;
+  dds_return_t ret;
+
+  dds_loaned_sample_t *ls = sd->loan;
+  if (ls != NULL)
+    ret = dds_loaned_sample_ref (ls);
+  else
+    ret = dds_heap_loan (st, &ls);
+
+  if (ret == DDS_RETCODE_OK)
+  {
+    if ((ret = dds_loan_manager_add_loan (arg->loan_manager, ls)) == DDS_RETCODE_OK)
+    {
+      arg->ptrs[arg->next_idx] = ls->sample_ptr;
+      ret = dds_read_collect_sample (varg, si, st, sd);
+    }
+  }
+
+  return ret;
 }
 
 dds_return_t dds_read_collect_sample_refs (void *varg, const dds_sample_info_t *si, const struct ddsi_sertype *st, struct ddsi_serdata *sd)
@@ -130,7 +155,7 @@ static dds_return_t dds_readcdr_impl (bool take, dds_entity_t reader_or_conditio
     return DDS_RETCODE_BAD_PARAMETER;
   struct dds_read_collect_sample_arg collect_arg;
   DDSRT_STATIC_ASSERT (sizeof (struct ddsi_serdata *) == sizeof (void *));
-  dds_read_collect_sample_arg_init (&collect_arg, (void **) buf, si);
+  dds_read_collect_sample_arg_init (&collect_arg, (void **) buf, si, NULL);
   const dds_return_t ret = dds_read_with_collector_impl (take, reader_or_condition, maxs, mask, hand, true, dds_read_collect_sample_refs, &collect_arg);
   return ret;
 }
@@ -142,7 +167,7 @@ static dds_return_t dds_readcdr_impl (bool take, dds_entity_t reader_or_conditio
   has been locked. This is used to support C++ API reading length unlimited
   which is interpreted as "all relevant samples in cache".
 */
-static dds_return_t dds_read_impl (bool take, dds_entity_t reader_or_condition, void **buf, size_t bufsz, uint32_t maxs, dds_sample_info_t *si, uint32_t mask, dds_instance_handle_t hand, bool only_reader, bool loan)
+static dds_return_t dds_read_impl (bool take, dds_entity_t reader_or_condition, void **buf, size_t bufsz, uint32_t maxs, dds_sample_info_t *si, uint32_t mask, dds_instance_handle_t hand, bool only_reader, bool use_loan)
 {
   dds_return_t ret = DDS_RETCODE_OK;
   struct dds_entity *entity;
@@ -158,54 +183,25 @@ static dds_return_t dds_read_impl (bool take, dds_entity_t reader_or_condition, 
   struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
   ddsi_thread_state_awake (thrst, &entity->m_domain->gv);
 
-  /*return outstanding loans*/
+  /* return outstanding loans */
   if (buf[0] == NULL)
-    memset (buf, 0, sizeof(*buf)*maxs);
-  else if ((ret = dds_return_reader_loan(rd, buf, (int32_t)bufsz)) != DDS_RETCODE_OK) // FIXME: ??
+    memset (buf, 0, sizeof (*buf) * maxs);
+  else if ((ret = dds_return_reader_loan (rd, buf, (int32_t) bufsz)) != DDS_RETCODE_OK) // FIXME: ??
     goto fail_pinned_awake;
 
-  /*populate the output samples with pointers to loaned samples*/
-  if (loan || buf[0] == NULL)
-  {
-    ddsrt_mutex_lock (&rd->m_entity.m_mutex);
-
-    /*resize loan pool*/
-    for (uint32_t i = rd->m_loan_pool->n_samples_managed; i < maxs && ret == DDS_RETCODE_OK; i++)
-    {
-      dds_loaned_sample_t *ls;
-      if ((ret = dds_heap_loan (rd->m_topic->m_stype, &ls)) == DDS_RETCODE_OK)
-        ret = dds_loan_manager_add_loan(rd->m_loan_pool, ls);
-    }
-
-    ddsrt_mutex_unlock (&rd->m_entity.m_mutex);
-    if (ret != DDS_RETCODE_OK)
-      goto fail_pinned_awake;
-  }
-
   struct dds_read_collect_sample_arg collect_arg;
-  dds_read_collect_sample_arg_init (&collect_arg, buf, si, FIXME loan);
-  ret = dds_read_impl_common (take, rd, cond, maxs, mask, hand, dds_read_collect_sample, &collect_arg);
 
-  /* if no data read, restore the state to what it was before the call, with the sole
-     exception of holding on to a buffer we just allocated and that is pointed to by
-     rd->m_loan */
-  if (ret <= 0 && nodata_cleanups)
-  {
-    ddsrt_mutex_lock (&rd->m_entity.m_mutex);
-    if (nodata_cleanups & NC_CLEAR_LOAN_OUT)
-      rd->m_loan_out = false;
-    if (nodata_cleanups & NC_FREE_BUF)
-      ddsi_sertype_free_samples (rd->m_topic->m_stype, buf, maxs, DDS_FREE_ALL);
-    if (nodata_cleanups & NC_RESET_BUF)
-      buf[0] = NULL;
-    ddsrt_mutex_unlock (&rd->m_entity.m_mutex);
-  }
+  dds_read_collect_sample_arg_init (&collect_arg, buf, si, rd->m_loans);
+  dds_read_with_collector_fn_t collect_sample = (use_loan || buf[0] == NULL) ? dds_read_collect_sample_loan : dds_read_collect_sample;
+  ddsrt_mutex_lock (&rd->m_entity.m_mutex);
+  ret = dds_read_impl_common (take, rd, cond, maxs, mask, hand, collect_sample, &collect_arg);
+  ddsrt_mutex_unlock (&rd->m_entity.m_mutex);
+  dds_read_check_and_handle_instance_switch (&collect_arg, 0);
+
+fail_pinned_awake:
   ddsi_thread_state_asleep (thrst);
   dds_entity_unpin (entity);
   return ret;
-#undef NC_CLEAR_LOAN_OUT
-#undef NC_FREE_BUF
-#undef NC_RESET_BUF
 }
 
 dds_return_t dds_read (dds_entity_t reader_or_condition, void **buf, dds_sample_info_t *si, size_t bufsz, uint32_t maxs)
@@ -372,37 +368,19 @@ dds_return_t dds_return_reader_loan (dds_reader *rd, void **buf, int32_t bufsz)
        no data.  Return late so invalid handles can be detected. */
     return ret;
   }
-  ddsrt_mutex_lock (&rd->m_entity.m_mutex);
 
+  ddsrt_mutex_lock (&rd->m_entity.m_mutex);
+  dds_loaned_sample_t *loan;
   for (int32_t s = 0; s < bufsz && ret == DDS_RETCODE_OK; s++)
   {
-    void *sample = buf[s];
-    if (!sample)
-      continue;
-
-    dds_loaned_sample_t *loan = dds_loan_manager_find_loan (rd->m_loans, sample);
-
-    if (loan)
+    if (buf[s] != NULL && (loan = dds_loan_manager_find_loan (rd->m_loans, buf[s])) != NULL)
     {
       dds_loan_manager_remove_loan (loan);
-
-      // Heap loans with no other references get cached for re-use
-      // FIXME: is this a good idea? or should we just make sure we allocate memory efficiently?
-      if (loan->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_PSMX || ddsrt_atomic_ld32 (&loan->refc) != 1)
-        dds_loaned_sample_unref (loan);
-      else
-      {
-        if ((ret = dds_loan_manager_add_loan (rd->m_loan_pool, loan)) == DDS_RETCODE_OK)
-          dds_loaned_sample_reset_sample (loan);
-        else
-          dds_loaned_sample_unref (loan);
-      }
-
-      if (ret == DDS_RETCODE_OK)
-        buf[s] = NULL;
+      dds_loaned_sample_unref (loan);
+      buf[s] = NULL;
     }
   }
-
   ddsrt_mutex_unlock (&rd->m_entity.m_mutex);
+
   return ret;
 }
