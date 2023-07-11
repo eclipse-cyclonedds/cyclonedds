@@ -129,9 +129,9 @@ Text
 This element specifies the DDSI participant index used by this instance of the Cyclone DDS service for discovery purposes. Only one such participant id is used, independent of the number of actual DomainParticipants on the node. It is either:
  * auto: which will attempt to automatically determine an available participant index (see also Discovery/MaxAutoParticipantIndex), or
 
- * a non-negative integer less than 120, or
+ * a non-negative integer, or
 
- * none:, which causes it to use arbitrary port numbers for unicast sockets which entirely removes the constraints on the participant index but makes unicast discovery impossible.
+ * none: which causes it to use arbitrary port numbers for unicast sockets which entirely removes the constraints on the participant index but makes unicast discovery impossible.
 
 The default value is: `none`
 
@@ -1856,8 +1856,8 @@ The categorisation of tracing output is incomplete and hence most of the verbosi
 The default value is: `none`
 <!--- generated from ddsi_config.h[7a2ea305c6a2eab7fe285734641fe60da41874b6] -->
 <!--- generated from ddsi__cfgunits.h[bd22f0c0ed210501d0ecd3b07c992eca549ef5aa] -->
-<!--- generated from ddsi__cfgelems.h[0d6b51026a1233c9516629caf2de8748b027bc20] -->
-<!--- generated from ddsi_config.c[efeae198a5e12ca8977a655216470564b5c44b64] -->
+<!--- generated from ddsi__cfgelems.h[bf5f0d9b9265e4b6f3f61e7624325af68eb276bf] -->
+<!--- generated from ddsi_config.c[2d8c4ee6633a21fb69c3f7cb0bf685c1ca9e5132] -->
 <!--- generated from _confgen.h[e32eabfc35e9f3a7dcb63b19ed148c0d17c6e5fc] -->
 <!--- generated from _confgen.c[237308acd53897a34e8c643e16e05a61d73ffd65] -->
 <!--- generated from generate_rnc.c[b50e4b7ab1d04b2bc1d361a0811247c337b74934] -->

@@ -1566,7 +1566,7 @@ static enum update_result uf_participantIndex (struct ddsi_cfgst *cfgst, void *p
     *elem = DDSI_PARTICIPANT_INDEX_NONE;
     return URES_SUCCESS;
   } else {
-    return uf_int_min_max (cfgst, parent, cfgelem, first, value, 0, 120);
+    return uf_natint (cfgst, parent, cfgelem, first, value);
   }
 }
 
