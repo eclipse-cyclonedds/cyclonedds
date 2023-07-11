@@ -79,7 +79,7 @@ static enum ddsrt_iftype guess_iftype (const struct ifaddrs *sys_ifa)
         break;
     }
   }
-  fclose (fp);
+  (void) fclose (fp);
   return type;
 }
 #elif (defined(__APPLE__) && !TARGET_OS_IPHONE) || defined(__QNXNTO__) || defined(__FreeBSD__)  /* probably works for all BSDs */
@@ -281,9 +281,9 @@ dds_return_t ddsrt_eth_get_mac_addr (char *interface_name, unsigned char *mac_ad
         if (strcmp (ifa->name, interface_name) == 0)
         {
 #if defined __linux
-            memcpy (mac_addr, ((struct sockaddr_ll *)ifa->addr)->sll_addr, 6);
+            (void) memcpy (mac_addr, ((struct sockaddr_ll *)ifa->addr)->sll_addr, 6);
 #elif defined(__APPLE__) || defined(__QNXNTO__)
-            memcpy (mac_addr, LLADDR((struct sockaddr_dl *)ifa->addr), 6);
+            (void) memcpy (mac_addr, LLADDR((struct sockaddr_dl *)ifa->addr), 6);
 #else
 #error
 #endif

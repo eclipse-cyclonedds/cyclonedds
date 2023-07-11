@@ -399,15 +399,15 @@ ddsrt_thread_create (
 #if !defined(__ZEPHYR__)
   /* Block signal delivery in our own threads (SIGXCPU is excluded so we have a way of
      dumping stack traces, but that should be improved upon) */
-  sigfillset (&set);
+  (void) sigfillset (&set);
 #ifdef __APPLE__
   DDSRT_WARNING_GNUC_OFF(sign-conversion)
 #endif
-  sigdelset (&set, SIGXCPU);
+  (void) sigdelset (&set, SIGXCPU);
 #ifdef __APPLE__
   DDSRT_WARNING_GNUC_ON(sign-conversion)
 #endif
-  sigprocmask (SIG_BLOCK, &set, &oset);
+  (void) sigprocmask (SIG_BLOCK, &set, &oset);
 #endif /* !defined(__ZEPHYR__) */
   if ((create_ret = pthread_create (&thread->v, &pattr, os_startRoutineWrapper, ctx)) != 0)
   {
@@ -415,16 +415,16 @@ ddsrt_thread_create (
     goto err_create;
   }
 #if !defined(__ZEPHYR__)
-  sigprocmask (SIG_SETMASK, &oset, NULL);
+  (void) sigprocmask (SIG_SETMASK, &oset, NULL);
 #endif
-  pthread_attr_destroy (&pattr);
+  (void) pthread_attr_destroy (&pattr);
   return DDS_RETCODE_OK;
 
 err_create:
   ddsrt_free (ctx->name);
   ddsrt_free (ctx);
 err:
-  pthread_attr_destroy (&pattr);
+  (void) pthread_attr_destroy (&pattr);
   return DDS_RETCODE_ERROR;
 }
 
@@ -521,7 +521,7 @@ ddsrt_thread_list (
       tids[n] = (ddsrt_thread_list_id_t) tid;
     n++;
   }
-  closedir (dir);
+  (void) closedir (dir);
   /* If there were no threads, something must've gone badly wrong */
   return (n == 0) ? DDS_RETCODE_ERROR : n;
 }
@@ -552,7 +552,7 @@ ddsrt_thread_getname_anythread (
     if (namepos + 1 < size)
       name[namepos++] = (char) c;
   }
-  fclose (fp);
+  (void) fclose (fp);
   assert (size == 0 || namelen < size);
   if (size > 0)
     name[namelen] = 0;

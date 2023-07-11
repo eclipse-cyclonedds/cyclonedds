@@ -1061,12 +1061,12 @@ static struct ddsi_rsample *defrag_rsample_new (struct ddsi_rdata *rdata, const 
       return NULL;
     sentinel->first = sentinel->last = NULL;
     sentinel->min = sentinel->maxp1 = 0;
-    ddsrt_avl_lookup_ipath (&rsample_defrag_fragtree_treedef, &dfsample->fragtree, &sentinel->min, &ivpath);
+    (void) ddsrt_avl_lookup_ipath (&rsample_defrag_fragtree_treedef, &dfsample->fragtree, &sentinel->min, &ivpath);
     ddsrt_avl_insert_ipath (&rsample_defrag_fragtree_treedef, &dfsample->fragtree, sentinel, &ivpath);
   }
 
   /* add an interval for the first received fragment */
-  ddsrt_avl_lookup_ipath (&rsample_defrag_fragtree_treedef, &dfsample->fragtree, &rdata->min, &ivpath);
+  (void) ddsrt_avl_lookup_ipath (&rsample_defrag_fragtree_treedef, &dfsample->fragtree, &rdata->min, &ivpath);
   defrag_rsample_addiv (dfsample, rdata, &ivpath);
   return rsample;
 }
@@ -1383,7 +1383,7 @@ struct ddsi_rsample *ddsi_defrag_rsample (struct ddsi_defrag *defrag, struct dds
        child of the old maximum node */
     /* FIXME: MERGE THIS ONE WITH THE NEXT */
     TRACE (defrag, "  new max sample\n");
-    ddsrt_avl_lookup_ipath (&defrag_sampletree_treedef, &defrag->sampletree, &sampleinfo->seq, &path);
+    (void) ddsrt_avl_lookup_ipath (&defrag_sampletree_treedef, &defrag->sampletree, &sampleinfo->seq, &path);
     if ((sample = defrag_rsample_new (rdata, sampleinfo)) == NULL)
       return NULL;
     ddsrt_avl_insert_ipath (&defrag_sampletree_treedef, &defrag->sampletree, sample, &path);

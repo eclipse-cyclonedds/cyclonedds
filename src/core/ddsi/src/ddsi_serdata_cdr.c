@@ -59,7 +59,7 @@ static void *serdata_cdr_append (struct ddsi_serdata_cdr **d, size_t n)
 static void serdata_cdr_append_blob (struct ddsi_serdata_cdr **d, size_t sz, const void *data)
 {
   char *p = serdata_cdr_append (d, sz);
-  memcpy (p, data, sz);
+  (void) memcpy (p, data, sz);
 }
 
 static struct ddsi_serdata *fix_serdata_cdr (struct ddsi_serdata_cdr *d, uint32_t basehash)
@@ -148,7 +148,7 @@ static struct ddsi_serdata_cdr *serdata_cdr_from_ser_common (const struct ddsi_s
   assert (fragchain->min == 0);
   assert (fragchain->maxp1 >= off); /* CDR header must be in first fragment */
 
-  memcpy (&d->hdr, DDSI_RMSG_PAYLOADOFF (fragchain->rmsg, DDSI_RDATA_PAYLOAD_OFF (fragchain)), sizeof (d->hdr));
+  (void) memcpy (&d->hdr, DDSI_RMSG_PAYLOADOFF (fragchain->rmsg, DDSI_RDATA_PAYLOAD_OFF (fragchain)), sizeof (d->hdr));
   if (!is_valid_xcdr_id (d->hdr.identifier))
     goto err;
 
@@ -290,7 +290,7 @@ static void serdata_cdr_to_ser (const struct ddsi_serdata *serdata_common, size_
   const struct ddsi_serdata_cdr *d = (const struct ddsi_serdata_cdr *)serdata_common;
   assert (off < d->pos + sizeof(struct dds_cdr_header));
   assert (sz <= alignup_size (d->pos + sizeof(struct dds_cdr_header), 4) - off);
-  memcpy (buf, (char *) &d->hdr + off, sz);
+  (void) memcpy (buf, (char *) &d->hdr + off, sz);
 }
 
 static struct ddsi_serdata *serdata_cdr_to_ser_ref (const struct ddsi_serdata *serdata_common, size_t off, size_t sz, ddsrt_iovec_t *ref)

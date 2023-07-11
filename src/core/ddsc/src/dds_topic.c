@@ -408,7 +408,7 @@ static uint32_t ktopic_type_guid_hash (const void *ktp_guid)
   struct ktopic_type_guid *x = (struct ktopic_type_guid *) ktp_guid;
   DDS_XTypes_EquivalenceHash hash;
   ddsi_typeid_get_equivalence_hash (x->type_id, &hash);
-  memcpy (&hash32, hash, sizeof (hash32));
+  (void) memcpy (&hash32, hash, sizeof (hash32));
   return hash32;
 }
 
@@ -1115,13 +1115,13 @@ dds_return_t dds_delete_topic_descriptor (dds_topic_descriptor_t *descriptor)
 
 void dds_cdrstream_desc_from_topic_desc (struct dds_cdrstream_desc *desc, const dds_topic_descriptor_t *topic_desc)
 {
-  memset (desc, 0, sizeof (*desc));
+  (void) memset (desc, 0, sizeof (*desc));
   desc->size = topic_desc->m_size;
   desc->align = topic_desc->m_align;
   desc->flagset = topic_desc->m_flagset;
   desc->ops.nops = dds_stream_countops (topic_desc->m_ops, topic_desc->m_nkeys, topic_desc->m_keys);
   desc->ops.ops = dds_alloc (desc->ops.nops * sizeof (*desc->ops.ops));
-  memcpy (desc->ops.ops, topic_desc->m_ops, desc->ops.nops * sizeof (*desc->ops.ops));
+  (void) memcpy (desc->ops.ops, topic_desc->m_ops, desc->ops.nops * sizeof (*desc->ops.ops));
   desc->keys.nkeys = topic_desc->m_nkeys;
   if (desc->keys.nkeys > 0)
   {

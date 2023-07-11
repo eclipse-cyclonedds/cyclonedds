@@ -115,7 +115,7 @@ dds_return_t ddsrt_netstat_get (struct ddsrt_netstat_control *control, struct dd
         break;
     }
   }
-  fclose (fp);
+  (void) fclose (fp);
   return res;
 }
 

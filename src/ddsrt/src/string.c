@@ -99,7 +99,7 @@ ddsrt_strlcpy(
     if (size <= srclen) {
       len = size - 1;
     }
-    memcpy(dest, src, len);
+    (void) memcpy(dest, src, len);
     dest[len] = '\0';
   }
 
@@ -136,7 +136,7 @@ ddsrt_strlcat(
     if (size <= srclen) {
       len = size;
     }
-    memcpy(dest + destlen, src, len);
+    (void) memcpy(dest + destlen, src, len);
     dest[destlen + len] = '\0';
   }
 
@@ -149,7 +149,7 @@ ddsrt_memdup(const void *src, size_t n)
   void *dest = NULL;
 
   if (n != 0 && (dest = ddsrt_malloc_s(n)) != NULL) {
-    memcpy(dest, src, n);
+    (void) memcpy(dest, src, n);
   }
 
   return dest;
@@ -193,12 +193,12 @@ ddsrt_str_replace(
   {
     const char *found = strstr(cur, srch);
     const size_t skip = (size_t)(found - cur);
-    memcpy(tmp, cur, skip);
-    memcpy(tmp + skip, subst, lsubst);
+    (void) memcpy(tmp, cur, skip);
+    (void) memcpy(tmp + skip, subst, lsubst);
     tmp += skip + lsubst;
     cur += skip + lsrch;
   }
-  memcpy(tmp, cur, lstr - (size_t) (cur - str) + 1);
+  (void) memcpy(tmp, cur, lstr - (size_t) (cur - str) + 1);
   return res;
 }
 
@@ -213,7 +213,7 @@ ddsrt_strndup(const char *str, size_t len)
   while (str[n] != '\0' && n < len) { n++; }
 
   if ((s = ddsrt_malloc_s(n + 1)) != NULL) {
-    memcpy(s, str, n);
+    (void) memcpy(s, str, n);
     s[n] = '\0';
   }
 

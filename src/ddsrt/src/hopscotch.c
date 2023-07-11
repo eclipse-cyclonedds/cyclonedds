@@ -731,7 +731,7 @@ static uint32_t ddsrt_ehh_find_closer_free_bucket (struct ddsrt_ehh *rt, uint32_
             struct ddsrt_ehh_bucket * const nfb = (struct ddsrt_ehh_bucket *) (rt->buckets + new_free_bucket * rt->bucketsz);
             mb->hopinfo |= 1u << free_dist;
             fb->inuse = 1;
-            memcpy (fb->data, nfb->data, rt->elemsz);
+            (void) memcpy (fb->data, nfb->data, rt->elemsz);
             nfb->inuse = 0;
             mb->hopinfo &= ~(1u << move_free_distance);
             *free_distance -= free_dist - move_free_distance;
@@ -770,7 +770,7 @@ static void ddsrt_ehh_resize (struct ddsrt_ehh *rt)
             assert (!nb->inuse);
             nsb->hopinfo |= 1u << dist;
             nb->inuse = 1;
-            memcpy (nb->data, b->data, rt->elemsz);
+            (void) memcpy (nb->data, b->data, rt->elemsz);
         }
     }
 
@@ -806,7 +806,7 @@ bool ddsrt_ehh_add (struct ddsrt_ehh * __restrict rt, const void * __restrict da
                 assert ((uint32_t) free_bucket == ((start_bucket + free_distance) & idxmask));
                 sb->hopinfo |= 1u << free_distance;
                 fb->inuse = 1;
-                memcpy (fb->data, data, rt->elemsz);
+                (void) memcpy (fb->data, data, rt->elemsz);
                 assert (ddsrt_ehh_lookup_internal (rt, start_bucket, data));
                 return true;
             }

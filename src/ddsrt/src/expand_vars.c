@@ -95,7 +95,7 @@ static char *expand_varbrace (const char **src, expand_fn expand, expand_lookup_
         goto err;
     }
     name = ddsrt_malloc ((size_t) (*src - start) + 1);
-    memcpy (name, start, (size_t) (*src - start));
+    (void) memcpy (name, start, (size_t) (*src - start));
     name[*src - start] = 0;
     if (**src == '}') {
         (*src)++;
@@ -140,7 +140,7 @@ static char *expand_varbrace (const char **src, expand_fn expand, expand_lookup_
         }
         assert (**src == '}');
         alt = ddsrt_malloc ((size_t) (*src - altstart) + 1);
-        memcpy (alt, altstart, (size_t) (*src - altstart));
+        (void) memcpy (alt, altstart, (size_t) (*src - altstart));
         alt[*src - altstart] = 0;
         (*src)++;
         x = expand_var (name, op, alt, expand, lookup, data, depth);
@@ -162,7 +162,7 @@ static char *expand_varsimple (const char **src, expand_fn expand, expand_lookup
     }
     assert (*src > start);
     name = ddsrt_malloc ((size_t) (*src - start) + 1);
-    memcpy (name, start, (size_t) (*src - start));
+    (void) memcpy (name, start, (size_t) (*src - start));
     name[*src - start] = 0;
     x = expand_var (name, 0, NULL, expand, lookup, data, depth);
     ddsrt_free (name);

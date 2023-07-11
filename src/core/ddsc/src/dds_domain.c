@@ -103,7 +103,7 @@ static dds_entity_t dds_domain_init (dds_domain *domain, dds_domainid_t domain_i
   {
     case CFGKIND_RAW:
       domain->cfgst = NULL;
-      memcpy (&domain->gv.config, config->u.raw, sizeof (domain->gv.config));
+      (void) memcpy (&domain->gv.config, config->u.raw, sizeof (domain->gv.config));
       if (domain_id != DDS_DOMAIN_DEFAULT)
         domain->gv.config.domainId = domain_id;
       break;
@@ -205,7 +205,7 @@ fail_ddsi_config:
   if (domain->cfgst)
     ddsi_config_fini (domain->cfgst);
 fail_config:
-  dds_handle_delete (&domain->m_entity.m_hdllink);
+  (void) dds_handle_delete (&domain->m_entity.m_hdllink);
   return domh;
 }
 

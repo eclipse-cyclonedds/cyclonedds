@@ -43,7 +43,7 @@ ddsrt_gethostname(
 {
   char buf[HOST_NAME_MAX + 1 /* '\0' */];
 
-  memset(buf, 0, sizeof(buf));
+  (void) memset(buf, 0, sizeof(buf));
 
   if (gethostname(buf, HOST_NAME_MAX) == 0) {
     /* If truncation occurrs, no error is returned whether or not the buffer

@@ -37,7 +37,7 @@ dds_return_t ddsrt_readdir(ddsrt_dir_handle_t d, struct ddsrt_dirent *direntp)
     if (d && direntp) {
         d_entry = readdir(d);
         if (d_entry) {
-            ddsrt_strlcpy(direntp->d_name, d_entry->d_name, sizeof(direntp->d_name));
+            (void) ddsrt_strlcpy(direntp->d_name, d_entry->d_name, sizeof(direntp->d_name));
             result = DDS_RETCODE_OK;
         }
     }

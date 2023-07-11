@@ -54,7 +54,7 @@ static void default_sink (void *ptr, const dds_log_data_t *data)
   if (ptr)
   {
     (void) fwrite (data->message - data->hdrsize, 1, data->hdrsize + data->size + 1, (FILE *) ptr);
-    fflush ((FILE *) ptr);
+    (void) fflush ((FILE *) ptr);
   }
 }
 
@@ -159,7 +159,7 @@ void dds_log_cfg_init (struct ddsrt_log_cfg *cfg, uint32_t domid, uint32_t trace
 {
   struct ddsrt_log_cfg_impl *cfgimpl = (struct ddsrt_log_cfg_impl *) cfg;
   assert (domid != UINT32_MAX); /* because that's reserved for global use */
-  memset (cfgimpl, 0, sizeof (*cfgimpl));
+  (void) memset (cfgimpl, 0, sizeof (*cfgimpl));
   cfgimpl->c.mask = tracemask | DDS_LOG_MASK;
   cfgimpl->c.tracemask = tracemask;
   cfgimpl->c.domid = domid;
@@ -250,7 +250,7 @@ static void vlog1 (const struct ddsrt_log_cfg_impl *cfg, uint32_t cat, uint32_t 
       const size_t msglen = sizeof (msg) - 1;
       assert (lb->pos <= sizeof (lb->buf));
       assert (lb->pos >= msglen);
-      memcpy (lb->buf + lb->pos - msglen, msg, msglen);
+      (void) memcpy (lb->buf + lb->pos - msglen, msg, msglen);
     }
   }
 

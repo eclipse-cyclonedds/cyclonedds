@@ -179,7 +179,7 @@ md5_process(ddsrt_md5_state_t *pms, const ddsrt_md5_byte_t *data /*[64]*/)
                 X = (const ddsrt_md5_word_t *)data;
             } else {
                 /* not aligned */
-                memcpy(xbuf, data, 64);
+                (void) memcpy(xbuf, data, 64);
                 X = xbuf;
             }
         }
@@ -353,7 +353,7 @@ ddsrt_md5_append(ddsrt_md5_state_t *pms, const ddsrt_md5_byte_t *data, unsigned 
     if (offset) {
         unsigned copy = (offset + nbytes > 64 ? 64 - offset : nbytes);
 
-        memcpy(pms->buf + offset, p, copy);
+        (void) memcpy(pms->buf + offset, p, copy);
         if (offset + copy < 64)
             return;
         p += copy;
@@ -367,7 +367,7 @@ ddsrt_md5_append(ddsrt_md5_state_t *pms, const ddsrt_md5_byte_t *data, unsigned 
 
     /* Process a final partial block. */
     if (left)
-        memcpy(pms->buf, p, left);
+        (void) memcpy(pms->buf, p, left);
 }
 
 void

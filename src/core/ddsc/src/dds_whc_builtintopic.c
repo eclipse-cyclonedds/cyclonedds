@@ -160,7 +160,7 @@ static bool bwhc_sample_iter_borrow_next (struct ddsi_whc_sample_iter *opaque_it
   }
 
   /* most fields really don't matter, so memset */
-  memset (sample, 0, sizeof (*sample));
+  (void) memset (sample, 0, sizeof (*sample));
 
   switch (it->st)
   {

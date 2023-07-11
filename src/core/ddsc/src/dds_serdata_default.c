@@ -95,7 +95,7 @@ static void *serdata_default_append (struct dds_serdata_default **d, size_t n)
 static void serdata_default_append_blob (struct dds_serdata_default **d, size_t sz, const void *data)
 {
   char *p = serdata_default_append (d, sz);
-  memcpy (p, data, sz);
+  (void) memcpy (p, data, sz);
 }
 
 static const unsigned char *serdata_default_keybuf(const struct dds_serdata_default *d)
@@ -309,7 +309,7 @@ static struct dds_serdata_default *serdata_default_from_ser_common (const struct
   assert (fragchain->min == 0);
   assert (fragchain->maxp1 >= off); /* CDR header must be in first fragment */
 
-  memcpy (&d->hdr, DDSI_RMSG_PAYLOADOFF (fragchain->rmsg, DDSI_RDATA_PAYLOAD_OFF (fragchain)), sizeof (d->hdr));
+  (void) memcpy (&d->hdr, DDSI_RMSG_PAYLOADOFF (fragchain->rmsg, DDSI_RDATA_PAYLOAD_OFF (fragchain)), sizeof (d->hdr));
   if (!is_valid_xcdr_id (d->hdr.identifier))
     goto err;
 
@@ -374,7 +374,7 @@ static struct dds_serdata_default *serdata_default_from_ser_iov_common (const st
   if (d == NULL)
     return NULL;
 
-  memcpy (&d->hdr, iov[0].iov_base, sizeof (d->hdr));
+  (void) memcpy (&d->hdr, iov[0].iov_base, sizeof (d->hdr));
   if (!is_valid_xcdr_id (d->hdr.identifier))
     goto err;
   serdata_default_append_blob (&d, iov[0].iov_len - 4, (const char *) iov[0].iov_base + 4);
@@ -475,7 +475,7 @@ static struct dds_serdata_default *serdata_default_from_iox_common (const struct
   d->c.iox_chunk = iox_buffer;
   d->c.iox_subscriber = sub;
   if (ice_hdr->shm_data_state != IOX_CHUNK_CONTAINS_SERIALIZED_DATA)
-    gen_serdata_key_from_sample (tp, &d->key, iox_buffer);
+    (void) gen_serdata_key_from_sample (tp, &d->key, iox_buffer);
   else
   {
     // This is silly: we get here only from dds_write and so we have the original sample available
@@ -483,7 +483,7 @@ static struct dds_serdata_default *serdata_default_from_iox_common (const struct
     // to make do with what is available.
     dds_istream_t is;
     dds_istream_init (&is, ice_hdr->data_size, iox_buffer, tp->write_encoding_version);
-    gen_serdata_key_from_cdr (&is, &d->key, tp, kind == SDK_KEY);
+    (void) gen_serdata_key_from_cdr (&is, &d->key, tp, kind == SDK_KEY);
   }
   return d;
 }
@@ -670,7 +670,7 @@ static void serdata_default_to_ser (const struct ddsi_serdata *serdata_common, s
   const struct dds_serdata_default *d = (const struct dds_serdata_default *)serdata_common;
   assert (off < d->pos + sizeof(struct dds_cdr_header));
   assert (sz <= alignup_size (d->pos + sizeof(struct dds_cdr_header), 4) - off);
-  memcpy (buf, (char *)&d->hdr + off, sz);
+  (void) memcpy (buf, (char *)&d->hdr + off, sz);
 }
 
 static struct ddsi_serdata *serdata_default_to_ser_ref (const struct ddsi_serdata *serdata_common, size_t off, size_t sz, ddsrt_iovec_t *ref)
@@ -709,7 +709,7 @@ static bool serdata_default_to_sample_cdr (const struct ddsi_serdata *serdata_co
     } else {
       // should contain raw unserialized data
       // we could check the data_state but should not be needed
-      memcpy(sample, iox_chunk, hdr->data_size);
+      (void) memcpy(sample, iox_chunk, hdr->data_size);
     }
     return true;
   }
@@ -804,9 +804,9 @@ static void serdata_default_get_keyhash (const struct ddsi_serdata *serdata_comm
   }
   else
   {
-    memset (buf->value, 0, DDS_FIXED_KEY_MAX_SIZE);
+    (void) memset (buf->value, 0, DDS_FIXED_KEY_MAX_SIZE);
     if (actual_keysz > 0)
-      memcpy (buf->value, os.x.m_buffer, actual_keysz);
+      (void) memcpy (buf->value, os.x.m_buffer, actual_keysz);
   }
   dds_ostreamBE_fini (&os, &dds_cdrstream_default_allocator);
 }

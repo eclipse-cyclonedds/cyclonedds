@@ -116,7 +116,7 @@ static void sertype_builtin_zero_samples (const struct ddsi_sertype *sertype_com
 {
   const struct ddsi_sertype_builtintopic *tp = (const struct ddsi_sertype_builtintopic *)sertype_common;
   size_t size = get_size (tp->entity_kind);
-  memset (samples, 0, size * count);
+  (void) memset (samples, 0, size * count);
 }
 
 static void sertype_builtin_realloc_samples (void **ptrs, const struct ddsi_sertype *sertype_common, void *old, size_t oldcount, size_t count)
@@ -125,7 +125,7 @@ static void sertype_builtin_realloc_samples (void **ptrs, const struct ddsi_sert
   const size_t size = get_size (tp->entity_kind);
   char *new = (oldcount == count) ? old : dds_realloc (old, size * count);
   if (new && count > oldcount)
-    memset (new + size * oldcount, 0, size * (count - oldcount));
+    (void) memset (new + size * oldcount, 0, size * (count - oldcount));
   for (size_t i = 0; i < count; i++)
   {
     void *ptr = (char *) new + i * size;

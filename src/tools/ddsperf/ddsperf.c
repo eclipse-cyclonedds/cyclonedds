@@ -2278,7 +2278,7 @@ int main (int argc, char *argv[])
     cnt = snprintf (udata, sizeof (udata), UDATA_MAGIC"%d:%"PRIdPID":", submode != SM_NONE, ddsrt_getpid ());
     assert (cnt >= 0 && (size_t)cnt < sizeof (udata));
     if (ddsrt_gethostname (udata + cnt, sizeof (udata) - (size_t)cnt) != DDS_RETCODE_OK)
-      ddsrt_strlcpy (udata + cnt, "?", sizeof(udata) - (size_t)cnt);
+      (void) ddsrt_strlcpy (udata + cnt, "?", sizeof(udata) - (size_t)cnt);
     dds_qset_userdata (qos, udata, strlen (udata));
   }
   if ((dp = dds_create_participant (did, qos, NULL)) < 0)
@@ -2464,9 +2464,9 @@ int main (int argc, char *argv[])
     goto err_minmatch_wait;
 
   if (pub_rate > 0)
-    ddsrt_thread_create (&pubtid, "pub", &attr, pubthread, NULL);
+    (void) ddsrt_thread_create (&pubtid, "pub", &attr, pubthread, NULL);
   if (subthread_func != 0)
-    ddsrt_thread_create (&subtid, "sub", &attr, subthread_func, &subarg_data);
+    (void) ddsrt_thread_create (&subtid, "sub", &attr, subthread_func, &subarg_data);
   else if (submode == SM_LISTENER)
     set_data_available_listener (rd_data, "rd_data", data_available_listener, &subarg_data);
   /* Need to handle incoming "pong"s only if we can be sending "ping"s (whether that
@@ -2479,8 +2479,8 @@ int main (int argc, char *argv[])
   const bool pingpong_waitset = (ping_intv != DDS_NEVER && ignorelocal == DDS_IGNORELOCAL_NONE) || pingpongmode == SM_WAITSET;
   if (pingpong_waitset)
   {
-    ddsrt_thread_create (&subpingtid, "ping", &attr, subpingthread_waitset, &subarg_ping);
-    ddsrt_thread_create (&subpongtid, "pong", &attr, subpongthread_waitset, &subarg_pong);
+    (void) ddsrt_thread_create (&subpingtid, "ping", &attr, subpingthread_waitset, &subarg_ping);
+    (void) ddsrt_thread_create (&subpongtid, "pong", &attr, subpongthread_waitset, &subarg_pong);
   }
   else
   {
@@ -2536,7 +2536,7 @@ int main (int argc, char *argv[])
   DDSRT_WARNING_GNUC_ON(sign-conversion)
 #endif
   sigprocmask (SIG_BLOCK, &sigset, &osigset);
-  ddsrt_thread_create (&sigtid, "sigthread", &attr, sigthread, &sigset);
+  (void) ddsrt_thread_create (&sigtid, "sigthread", &attr, sigthread, &sigset);
 #if defined __APPLE__ || defined __linux
   signal (SIGXFSZ, sigxfsz_handler);
 #endif
@@ -2655,7 +2655,7 @@ int main (int argc, char *argv[])
     void (*osigint) (int);
     void (*osigterm) (int);
     kill (getpid (), SIGTERM);
-    ddsrt_thread_join (sigtid, NULL);
+    (void) ddsrt_thread_join (sigtid, NULL);
     osigint = signal (SIGINT, SIG_IGN);
     osigterm = signal (SIGTERM, SIG_IGN);
     sigprocmask (SIG_SETMASK, &osigset, NULL);
@@ -2665,13 +2665,13 @@ int main (int argc, char *argv[])
 #endif
 
   if (pub_rate > 0)
-    ddsrt_thread_join (pubtid, NULL);
+    (void) ddsrt_thread_join (pubtid, NULL);
   if (subthread_func != 0)
-    ddsrt_thread_join (subtid, NULL);
+    (void) ddsrt_thread_join (subtid, NULL);
   if (pingpong_waitset)
   {
-    ddsrt_thread_join (subpingtid, NULL);
-    ddsrt_thread_join (subpongtid, NULL);
+    (void) ddsrt_thread_join (subpingtid, NULL);
+    (void) ddsrt_thread_join (subpongtid, NULL);
   }
 
 err_minmatch_wait:

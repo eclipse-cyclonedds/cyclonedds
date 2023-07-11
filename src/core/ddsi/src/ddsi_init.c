@@ -1122,7 +1122,7 @@ int ddsi_init (struct ddsi_domaingv *gv)
     int sec = (int) (gv->tstart.v / 1000000000);
     int usec = (int) (gv->tstart.v % 1000000000) / 1000;
     char str[DDSRT_RFC3339STRLEN+1];
-    ddsrt_ctime(gv->tstart.v, str, sizeof(str));
+    (void) ddsrt_ctime(gv->tstart.v, str, sizeof(str));
     GVLOG (DDS_LC_CONFIG, "started at %d.06%d -- %s\n", sec, usec, str);
   }
 

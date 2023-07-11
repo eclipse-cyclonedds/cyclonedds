@@ -41,7 +41,7 @@ static void dds_stream_write_keyBO_impl (DDS_OSTREAM_T * __restrict os, const st
         case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: {
           const uint32_t elem_size = get_primitive_size (DDS_OP_SUBTYPE (insn));
           const align_t cdr_align = dds_cdr_get_align (((struct dds_ostream *)os)->m_xcdr_version, elem_size);
-          dds_cdr_alignto_clear_and_resizeBO (os, allocator, cdr_align, num * elem_size);
+          (void) dds_cdr_alignto_clear_and_resizeBO (os, allocator, cdr_align, num * elem_size);
           void * const dst = ((struct dds_ostream *)os)->m_buffer + ((struct dds_ostream *)os)->m_index;
           dds_os_put_bytes ((struct dds_ostream *)os, allocator, addr, num * elem_size);
           dds_stream_swap_if_needed_insituBO (dst, elem_size, num);
@@ -52,7 +52,7 @@ static void dds_stream_write_keyBO_impl (DDS_OSTREAM_T * __restrict os, const st
           if (xcdrv == DDSI_RTPS_CDR_ENC_VERSION_2)
           {
             /* reserve space for DHEADER */
-            dds_os_reserve4BO (os, allocator);
+            (void) dds_os_reserve4BO (os, allocator);
             offs = ((struct dds_ostream *)os)->m_index;
           }
           if (DDS_OP_SUBTYPE (insn) == DDS_OP_VAL_ENU)

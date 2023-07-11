@@ -1101,15 +1101,15 @@ static enum update_result uf_random_seed (struct ddsi_cfgst *cfgst, void *parent
 {
   ddsrt_prng_seed_t * const elem = cfg_address(cfgst, parent, cfgelem);
   if (strcmp(value, "") == 0) {
-    ddsrt_prng_makeseed(elem);
+    (void) ddsrt_prng_makeseed(elem);
   } else {
     ddsrt_md5_byte_t buf[16];
     ddsrt_md5_state_t md5st;
     ddsrt_md5_init (&md5st);
     ddsrt_md5_append (&md5st, (ddsrt_md5_byte_t *) value, (unsigned int) strlen(value));
     ddsrt_md5_finish (&md5st, buf);
-    memcpy((ddsrt_md5_byte_t*)elem, buf, 16);
-    memcpy(((ddsrt_md5_byte_t*)elem) + 16, buf, 16);
+    (void) memcpy((ddsrt_md5_byte_t*)elem, buf, 16);
+    (void) memcpy(((ddsrt_md5_byte_t*)elem) + 16, buf, 16);
   }
   return URES_SUCCESS;
 }

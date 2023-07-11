@@ -206,9 +206,9 @@ ddsrt_sockaddrfromstr(int af, const char *str, void *sa)
         return DDS_RETCODE_BAD_PARAMETER;
       }
 #endif
-      memset(sa, 0, sizeof(struct sockaddr_in));
+      (void) memset(sa, 0, sizeof(struct sockaddr_in));
       ((struct sockaddr_in *)sa)->sin_family = AF_INET;
-      memcpy(&((struct sockaddr_in *)sa)->sin_addr, &buf, sizeof(buf));
+      (void) memcpy(&((struct sockaddr_in *)sa)->sin_addr, &buf, sizeof(buf));
     } break;
 #if DDSRT_HAVE_IPV6
     case AF_INET6: {
@@ -216,9 +216,9 @@ ddsrt_sockaddrfromstr(int af, const char *str, void *sa)
       if (inet_pton(af, str, &buf) != 1) {
         return DDS_RETCODE_BAD_PARAMETER;
       } else {
-        memset(sa, 0, sizeof(struct sockaddr_in6));
+        (void) memset(sa, 0, sizeof(struct sockaddr_in6));
         ((struct sockaddr_in6 *)sa)->sin6_family = AF_INET6;
-        memcpy(&((struct sockaddr_in6 *)sa)->sin6_addr, &buf, sizeof(buf));
+        (void) memcpy(&((struct sockaddr_in6 *)sa)->sin6_addr, &buf, sizeof(buf));
       }
     } break;
 #endif
@@ -320,7 +320,7 @@ ddsrt_gethostbyname(const char *name, int af, ddsrt_hostent_t **hentp)
     }
   }
 
-  memset(&hints, 0, sizeof(hints));
+  (void) memset(&hints, 0, sizeof(hints));
   hints.ai_family = af;
 
   gai_err = getaddrinfo(name, NULL, &hints, &res);
@@ -389,7 +389,7 @@ ddsrt_gethostbyname(const char *name, int af, ddsrt_hostent_t **hentp)
              addrno < naddrs && ai != NULL;
              addrno++, ai = ai->ai_next)
         {
-          memcpy(&hent->addrs[addrno], res->ai_addr, res->ai_addrlen);
+          (void) memcpy(&hent->addrs[addrno], res->ai_addr, res->ai_addrlen);
         }
       } else {
         return DDS_RETCODE_OUT_OF_RESOURCES;
@@ -419,7 +419,7 @@ ddsrt_gethostbyname(const char *name, int af, ddsrt_hostent_t **hentp)
     size_t size = sizeof(**hentp) + (1 * sizeof((*hentp)->addrs[0]));
     *hentp = ddsrt_calloc_s(1, size);
     (*hentp)->naddrs = 1;
-    memcpy(&(*hentp)->addrs[0], he->h_addr, he->h_length);
+    (void) memcpy(&(*hentp)->addrs[0], he->h_addr, he->h_length);
     return DDS_RETCODE_OK;
   }
 }

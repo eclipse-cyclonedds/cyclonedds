@@ -282,7 +282,7 @@ static dds_return_t dds_writecdr_impl_common (struct ddsi_writer *ddsi_wr, struc
   // d = din: refc(d) = r, otherwise refc(d) = 1
 
   ddsi_thread_state_awake (thrst, ddsi_wr->e.gv);
-  ddsi_serdata_ref (&d->a); // d = din: refc(d) = r + 1, otherwise refc(d) = 2
+  (void) ddsi_serdata_ref (&d->a); // d = din: refc(d) = r + 1, otherwise refc(d) = 2
 
 #ifdef DDS_HAS_SHM
   // transfer ownership of an iceoryx chunk if it exists
@@ -326,7 +326,7 @@ static bool evalute_topic_filter (const dds_writer *wr, const void *data, bool w
       break;
     case DDS_TOPIC_FILTER_SAMPLE_SAMPLEINFO_ARG: {
       struct dds_sample_info si;
-      memset (&si, 0, sizeof (si));
+      (void) memset (&si, 0, sizeof (si));
       if (!f->f.sample_sampleinfo_arg (data, &si, f->arg))
         return false;
       break;
@@ -359,7 +359,7 @@ static bool fill_iox_chunk(dds_writer *wr, const void *sample, void *iox_chunk, 
   bool ret = true;
   iceoryx_header_t *iox_header = iceoryx_header_from_chunk(iox_chunk);
   if (has_fixed_size_type) {
-    memcpy(iox_chunk, sample, sample_size);
+    (void) memcpy(iox_chunk, sample, sample_size);
     iox_header->shm_data_state = IOX_CHUNK_CONTAINS_RAW_DATA;
   } else {
     size_t size = iox_header->data_size;
@@ -607,7 +607,7 @@ dds_return_t dds_writecdr_local_orphan_impl (struct ddsi_local_orphan_writer *lo
 
   ddsi_thread_state_awake (thrst, lowr->wr.e.gv);
   struct ddsi_tkmap_instance * const tk = ddsi_tkmap_lookup_instance_ref (lowr->wr.e.gv->m_tkmap, d);
-  deliver_locally (&lowr->wr, d, tk);
+  ret = deliver_locally (&lowr->wr, d, tk);
   ddsi_tkmap_instance_unref (lowr->wr.e.gv->m_tkmap, tk);
   ddsi_serdata_unref(d); // d = din: refc(d) = r - 1
   ddsi_thread_state_asleep (thrst);

@@ -24,7 +24,7 @@ void * dds_alloc (size_t size)
   if (ret == NULL) {
     DDS_FATAL("dds_alloc");
   } else {
-    memset (ret, 0, size);
+    (void) memset (ret, 0, size);
   }
   return ret;
 }
@@ -42,7 +42,7 @@ void * dds_realloc_zero (void * ptr, size_t size)
   void * ret = dds_realloc (ptr, size);
   if (ret)
   {
-    memset (ret, 0, size);
+    (void) memset (ret, 0, size);
   }
   return ret;
 }
@@ -64,7 +64,7 @@ char * dds_string_dup (const char * str)
   {
     size_t sz = strlen (str) + 1;
     ret = dds_alloc (sz);
-    memcpy (ret, str, sz);
+    (void) memcpy (ret, str, sz);
   }
   return ret;
 }

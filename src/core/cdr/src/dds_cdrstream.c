@@ -289,7 +289,7 @@ static uint64_t dds_is_get8 (dds_istream_t * __restrict is)
 static void dds_is_get_bytes (dds_istream_t * __restrict is, void * __restrict b, uint32_t num, uint32_t elem_size)
 {
   dds_cdr_alignto (is, dds_cdr_get_align (is->m_xcdr_version, elem_size));
-  memcpy (b, is->m_buffer + is->m_index, num * elem_size);
+  (void) memcpy (b, is->m_buffer + is->m_index, num * elem_size);
   is->m_index += num * elem_size;
 }
 
@@ -302,21 +302,21 @@ static void dds_os_put1 (dds_ostream_t * __restrict os, const struct dds_cdrstre
 
 static void dds_os_put2 (dds_ostream_t * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator, uint16_t v)
 {
-  dds_cdr_alignto_clear_and_resize (os, allocator, dds_cdr_get_align (os->m_xcdr_version, 2), 2);
+  (void) dds_cdr_alignto_clear_and_resize (os, allocator, dds_cdr_get_align (os->m_xcdr_version, 2), 2);
   *((uint16_t *) (os->m_buffer + os->m_index)) = v;
   os->m_index += 2;
 }
 
 static void dds_os_put4 (dds_ostream_t * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator, uint32_t v)
 {
-  dds_cdr_alignto_clear_and_resize (os, allocator, dds_cdr_get_align (os->m_xcdr_version, 4), 4);
+  (void) dds_cdr_alignto_clear_and_resize (os, allocator, dds_cdr_get_align (os->m_xcdr_version, 4), 4);
   *((uint32_t *) (os->m_buffer + os->m_index)) = v;
   os->m_index += 4;
 }
 
 static void dds_os_put8 (dds_ostream_t * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator, uint64_t v)
 {
-  dds_cdr_alignto_clear_and_resize (os, allocator, dds_cdr_get_align (os->m_xcdr_version, 8), 8);
+  (void) dds_cdr_alignto_clear_and_resize (os, allocator, dds_cdr_get_align (os->m_xcdr_version, 8), 8);
   size_t off_low = (DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN) ? 0 : 4, off_high = 4 - off_low;
   *((uint32_t *) (os->m_buffer + os->m_index + off_low)) = (uint32_t) v;
   *((uint32_t *) (os->m_buffer + os->m_index + off_high)) = (uint32_t) (v >> 32);
@@ -325,14 +325,14 @@ static void dds_os_put8 (dds_ostream_t * __restrict os, const struct dds_cdrstre
 
 static uint32_t dds_os_reserve4 (dds_ostream_t * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator)
 {
-  dds_cdr_alignto_clear_and_resize (os, allocator, dds_cdr_get_align (os->m_xcdr_version, 4), 4);
+  (void) dds_cdr_alignto_clear_and_resize (os, allocator, dds_cdr_get_align (os->m_xcdr_version, 4), 4);
   os->m_index += 4;
   return os->m_index;
 }
 
 static uint32_t dds_os_reserve8 (dds_ostream_t * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator)
 {
-  dds_cdr_alignto_clear_and_resize (os, allocator, dds_cdr_get_align (os->m_xcdr_version, 8), 8);
+  (void) dds_cdr_alignto_clear_and_resize (os, allocator, dds_cdr_get_align (os->m_xcdr_version, 8), 8);
   os->m_index += 8;
   return os->m_index;
 }
@@ -391,17 +391,17 @@ static void dds_stream_swap (void * __restrict vbuf, uint32_t size, uint32_t num
 static void dds_os_put_bytes (dds_ostream_t * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator, const void * __restrict b, uint32_t l)
 {
   dds_cdr_resize (os, allocator, l);
-  memcpy (os->m_buffer + os->m_index, b, l);
+  (void) memcpy (os->m_buffer + os->m_index, b, l);
   os->m_index += l;
 }
 
 static void dds_os_put_bytes_aligned (dds_ostream_t * __restrict os, const struct dds_cdrstream_allocator * __restrict allocator, const void * __restrict data, uint32_t num, uint32_t elem_sz, align_t cdr_align, void **dst)
 {
   const uint32_t sz = num * elem_sz;
-  dds_cdr_alignto_clear_and_resize (os, allocator, cdr_align, sz);
+  (void) dds_cdr_alignto_clear_and_resize (os, allocator, cdr_align, sz);
   if (dst)
     *dst = os->m_buffer + os->m_index;
-  memcpy (os->m_buffer + os->m_index, data, sz);
+  (void) memcpy (os->m_buffer + os->m_index, data, sz);
   os->m_index += sz;
 }
 
@@ -886,7 +886,7 @@ static char *dds_stream_reuse_string_bound (dds_istream_t * __restrict is, char 
     assert (str != NULL);
   else if (str == NULL)
     str = allocator->malloc (size);
-  memcpy (str, src, length > size ? size : length);
+  (void) memcpy (str, src, length > size ? size : length);
   if (length > size)
     str[size - 1] = '\0';
   is->m_index += length;
@@ -899,7 +899,7 @@ static char *dds_stream_reuse_string (dds_istream_t * __restrict is, char * __re
   const void *src = is->m_buffer + is->m_index;
   if (str == NULL || strlen (str) + 1 < length)
     str = allocator->realloc (str, length);
-  memcpy (str, src, length);
+  (void) memcpy (str, src, length);
   is->m_index += length;
   return str;
 }
@@ -1046,12 +1046,12 @@ static const uint32_t *skip_array_default (uint32_t insn, char * __restrict data
   {
     case DDS_OP_VAL_BLN: case DDS_OP_VAL_1BY: case DDS_OP_VAL_2BY: case DDS_OP_VAL_4BY: case DDS_OP_VAL_8BY: {
       const uint32_t elem_size = get_primitive_size (subtype);
-      memset (data, 0, num * elem_size);
+      (void) memset (data, 0, num * elem_size);
       return ops + 3;
     }
     case DDS_OP_VAL_ENU: case DDS_OP_VAL_BMK: {
       const uint32_t elem_size = DDS_OP_TYPE_SZ (insn);
-      memset (data, 0, num * elem_size);
+      (void) memset (data, 0, num * elem_size);
       return ops + 4 + (subtype == DDS_OP_VAL_BMK ? 1 : 0);
     }
     case DDS_OP_VAL_STR: {
@@ -1416,7 +1416,7 @@ static void realloc_sequence_buffer_if_needed (dds_sequence_t * __restrict seq, 
     if (init)
     {
       const uint32_t off = seq->_maximum * elem_size;
-      memset (seq->_buffer + off, 0, size - off);
+      (void) memset (seq->_buffer + off, 0, size - off);
     }
     seq->_maximum = num;
   }
@@ -1424,7 +1424,7 @@ static void realloc_sequence_buffer_if_needed (dds_sequence_t * __restrict seq, 
   {
     seq->_buffer = allocator->malloc (size);
     if (init)
-      memset (seq->_buffer, 0, size);
+      (void) memset (seq->_buffer, 0, size);
     seq->_release = true;
     seq->_maximum = num;
   }
@@ -1443,7 +1443,7 @@ static const uint32_t *dds_stream_read_seq (dds_istream_t * __restrict is, char 
   if (is_dheader_needed (subtype, is->m_xcdr_version))
   {
     /* skip DHEADER */
-    dds_is_get4 (is);
+    (void) dds_is_get4 (is);
   }
 
   const uint32_t num = dds_is_get4 (is);
@@ -1541,7 +1541,7 @@ static const uint32_t *dds_stream_read_arr (dds_istream_t * __restrict is, char 
   if (is_dheader_needed (subtype, is->m_xcdr_version))
   {
     /* skip DHEADER */
-    dds_is_get4 (is);
+    (void) dds_is_get4 (is);
   }
   const uint32_t num = ops[2];
   switch (subtype)
@@ -1631,7 +1631,7 @@ static const uint32_t *dds_stream_read_uni (dds_istream_t * __restrict is, char 
       if (*((char **) valaddr) == NULL)
       {
         *((char **) valaddr) = allocator->malloc (sz);
-        memset (*((char **) valaddr), 0, sz);
+        (void) memset (*((char **) valaddr), 0, sz);
       }
       valaddr = *((char **) valaddr);
     }
@@ -1680,7 +1680,7 @@ static void dds_stream_alloc_external (const uint32_t * __restrict ops, uint32_t
   if (*((char **) *addr) == NULL)
   {
     *((char **) *addr) = allocator->malloc (sz);
-    memset (*((char **) *addr), 0, sz);
+    (void) memset (*((char **) *addr), 0, sz);
   }
   *addr = *((char **) *addr);
 }
@@ -1998,7 +1998,7 @@ static const uint32_t *dds_stream_read_pl (dds_istream_t * __restrict is, char *
 
   /* default-initialize all members
       FIXME: optimize so that only members not in received data are initialized */
-  dds_stream_skip_pl_memberlist_default (data, allocator, ops);
+  (void) dds_stream_skip_pl_memberlist_default (data, allocator, ops);
 
   /* read DHEADER */
   uint32_t pl_sz = dds_is_get4 (is), pl_offs = is->m_index;
@@ -3372,7 +3372,7 @@ static void dds_stream_extract_key_from_key_prim_op (dds_istream_t * __restrict 
       {
         /* In case of non-primitive element type, reserve space for DHEADER in the
            output stream, and skip the DHEADER in the input */
-        dds_os_reserve4 (os, allocator);
+        (void) dds_os_reserve4 (os, allocator);
         offs = ((struct dds_ostream *)os)->m_index;
         (void) dds_is_get4 (is);
       }
@@ -3385,7 +3385,7 @@ static void dds_stream_extract_key_from_key_prim_op (dds_istream_t * __restrict 
       const align_t cdr_align = dds_cdr_get_align (os->m_xcdr_version, elem_size);
       const uint32_t num = ops[2];
       dds_cdr_alignto (is, cdr_align);
-      dds_cdr_alignto_clear_and_resize (os, allocator, cdr_align, num * elem_size);
+      (void) dds_cdr_alignto_clear_and_resize (os, allocator, cdr_align, num * elem_size);
       void * const dst = os->m_buffer + os->m_index;
       dds_is_get_bytes (is, dst, num, elem_size);
       os->m_index += num * elem_size;
@@ -3414,7 +3414,7 @@ static void dds_stream_swap_copy (void * __restrict vdst, const void * __restric
   switch (size)
   {
     case 1:
-      memcpy (vdst, vsrc, num);
+      (void) memcpy (vdst, vsrc, num);
       break;
     case 2: {
       const uint16_t *src = vsrc;
@@ -3479,7 +3479,7 @@ static void dds_stream_extract_keyBE_from_key_prim_op (dds_istream_t * __restric
       {
         /* In case of non-primitive element type, reserve space for DHEADER in the
            output stream, and skip the DHEADER in the input */
-        dds_os_reserve4BE (os, allocator);
+        (void) dds_os_reserve4BE (os, allocator);
         offs = ((struct dds_ostream *)os)->m_index;
         (void) dds_is_get4 (is);
       }
@@ -3492,7 +3492,7 @@ static void dds_stream_extract_keyBE_from_key_prim_op (dds_istream_t * __restric
       const align_t cdr_align = dds_cdr_get_align (os->x.m_xcdr_version, elem_size);
       const uint32_t num = ops[2];
       dds_cdr_alignto (is, cdr_align);
-      dds_cdr_alignto_clear_and_resizeBE (os, allocator, cdr_align, num * elem_size);
+      (void) dds_cdr_alignto_clear_and_resizeBE (os, allocator, cdr_align, num * elem_size);
       void const * const src = is->m_buffer + is->m_index;
       void * const dst = os->x.m_buffer + os->x.m_index;
 #if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
@@ -3552,7 +3552,7 @@ static void dds_stream_extract_key_from_data_skip_subtype (dds_istream_t * __res
     case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
       uint32_t remain = UINT32_MAX;
       for (uint32_t i = 0; i < num; i++)
-        dds_stream_extract_key_from_data1 (is, NULL, NULL, 0, NULL, NULL, NULL, subops, false, false, remain, &remain, NULL, NULL);
+        (void) dds_stream_extract_key_from_data1 (is, NULL, NULL, 0, NULL, NULL, NULL, subops, false, false, remain, &remain, NULL, NULL);
       break;
     }
     case DDS_OP_VAL_EXT: {
@@ -3675,7 +3675,7 @@ void dds_stream_read_sample (dds_istream_t * __restrict is, void * __restrict da
          from read-to-read, at the somewhat reasonable price of a slower deserialization
          and not being able to use preallocated sequences in topics containing unions. */
       dds_stream_free_sample (data, allocator, desc->ops.ops);
-      memset (data, 0, desc->size);
+      (void) memset (data, 0, desc->size);
     }
     (void) dds_stream_read_impl (is, data, allocator, desc->ops.ops, false);
   }

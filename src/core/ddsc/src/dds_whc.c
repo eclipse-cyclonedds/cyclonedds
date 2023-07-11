@@ -456,7 +456,7 @@ struct ddsi_whc *dds_whc_new (struct ddsi_domaingv *gv, const struct whc_writer_
   whc->xchecks = (gv->config.enabled_xchecks & DDSI_XCHECK_WHC) != 0;
   whc->gv = gv;
   whc->tkmap = gv->m_tkmap;
-  memcpy (&whc->wrinfo, wrinfo, sizeof (*wrinfo));
+  (void) memcpy (&whc->wrinfo, wrinfo, sizeof (*wrinfo));
   whc->seq_size = 0;
   whc->max_drop_seq = 0;
   whc->unacked_bytes = 0;
@@ -510,7 +510,7 @@ static void whc_default_free (struct ddsi_whc *whc_generic)
   check_whc (whc);
 
 #ifdef DDS_HAS_LIFESPAN
-  whc_sample_expired_cb (whc, DDSRT_MTIME_NEVER);
+  (void) whc_sample_expired_cb (whc, DDSRT_MTIME_NEVER);
   ddsi_lifespan_fini (&whc->lifespan);
 #endif
 

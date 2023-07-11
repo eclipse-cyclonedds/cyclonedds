@@ -43,7 +43,7 @@ static bool dds_qos_data_copy_out (const ddsi_octetseq_t *data, void **value, si
     {
       assert (data->value);
       *value = dds_alloc (data->length + 1);
-      memcpy (*value, data->value, data->length);
+      (void) memcpy (*value, data->value, data->length);
       ((char *) (*value))[data->length] = 0;
     }
   }
@@ -363,7 +363,7 @@ void dds_qunset_##prop_type_ (dds_qos_t * __restrict qos, const char * name) \
     if (qos->property.prop_field_.n > 1) \
     { \
       if (i < (qos->property.prop_field_.n - 1)) \
-        memmove (qos->property.prop_field_.props + i, qos->property.prop_field_.props + i + 1, \
+        (void) memmove (qos->property.prop_field_.props + i, qos->property.prop_field_.props + i + 1, \
           (qos->property.prop_field_.n - i - 1) * sizeof (*qos->property.prop_field_.props)); \
       qos->property.prop_field_.props = dds_realloc (qos->property.prop_field_.props, \
         (qos->property.prop_field_.n - 1) * sizeof (*qos->property.prop_field_.props)); \
@@ -767,7 +767,7 @@ bool dds_qget_bprop (const dds_qos_t * __restrict qos, const char * name, void *
   if (found)
   {
     if (value != NULL || sz != NULL)
-      dds_qos_data_copy_out (&qos->property.binary_value.props[i].value, value, sz);
+      (void) dds_qos_data_copy_out (&qos->property.binary_value.props[i].value, value, sz);
   }
   else
   {
@@ -814,7 +814,7 @@ bool dds_qget_data_representation (const dds_qos_t * __restrict qos, uint32_t *n
     {
       size_t sz = qos->data_representation.value.n * sizeof (*qos->data_representation.value.ids);
       *values = dds_alloc (sz);
-      memcpy (*values, qos->data_representation.value.ids, sz);
+      (void) memcpy (*values, qos->data_representation.value.ids, sz);
     }
     else
     {
@@ -878,11 +878,11 @@ void dds_apply_entity_naming(dds_qos_t *qos, /* optional */ dds_qos_t *parent_qo
   if (gv->config.entity_naming_mode == DDSI_ENTITY_NAMING_DEFAULT_FANCY && !(qos->present & DDSI_QP_ENTITY_NAME)) {
     char name_buf[16];
     ddsrt_mutex_lock(&gv->naming_lock);
-    ddsrt_prng_random_name(&gv->naming_rng, name_buf, sizeof(name_buf));
+    (void) ddsrt_prng_random_name(&gv->naming_rng, name_buf, sizeof(name_buf));
     ddsrt_mutex_unlock(&gv->naming_lock);
     if (parent_qos && parent_qos->present & DDSI_QP_ENTITY_NAME) {
       // Copy the parent prefix
-      memcpy(name_buf, parent_qos->entity_name, strnlen(parent_qos->entity_name, 3));
+      (void) memcpy(name_buf, parent_qos->entity_name, strnlen(parent_qos->entity_name, 3));
     }
     dds_qset_entity_name(qos, name_buf);
   }

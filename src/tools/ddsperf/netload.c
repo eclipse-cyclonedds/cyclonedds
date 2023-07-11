@@ -99,7 +99,7 @@ void record_netload_free (struct record_netload_state *st)
 {
   if (st)
   {
-    ddsrt_netstat_free (st->ctrl);
+    (void) ddsrt_netstat_free (st->ctrl);
     free (st->name);
     free (st);
   }

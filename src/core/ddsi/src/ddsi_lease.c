@@ -219,7 +219,7 @@ int64_t ddsi_check_and_handle_lease_expiration (struct ddsi_domaingv *gv, ddsrt_
     enum ddsi_entity_kind k = l->entity->kind;
 
     assert (l->tsched.v != TSCHED_NOT_ON_HEAP);
-    ddsrt_fibheap_extract_min (&lease_fhdef, &gv->leaseheap);
+    (void) ddsrt_fibheap_extract_min (&lease_fhdef, &gv->leaseheap);
     /* only possible concurrent action is to move tend into the future (renew_lease),
        all other operations occur with leaseheap_lock held */
     int64_t tend = (int64_t) ddsrt_atomic_ld64 (&l->tend);
