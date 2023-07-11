@@ -584,15 +584,25 @@ static dds_return_t xt_valid_struct_member_ids (struct ddsi_domaingv *gv, const 
 {
   assert (ddsi_xt_is_resolved (t) && t->_d == DDS_XTypes_TK_STRUCTURE);
   dds_return_t ret = DDS_RETCODE_OK;
+
   uint32_t cnt = 0;
   for (const struct xt_type *t1 = t; t1 && ddsi_xt_is_resolved (t1); t1 = t1->_u.structure.base_type ? &t1->_u.structure.base_type->xt : NULL)
     cnt += t1->_u.structure.members.length;
   if (cnt == 0 && !t->_u.structure.base_type)
   {
     GVTRACE ("struct has no members\n");
-    return DDS_RETCODE_BAD_PARAMETER;
+    ret = DDS_RETCODE_BAD_PARAMETER;
+    goto failed;
   }
+
   DDS_XTypes_MemberId *ids = ddsrt_malloc (cnt * sizeof (*ids));
+  if (ids == NULL)
+  {
+    GVTRACE ("out-of-memory while checking struct member ids\n");
+    ret = DDS_RETCODE_BAD_PARAMETER;
+    goto failed;
+  }
+
   uint32_t cnt1 = cnt;
   for (const struct xt_type *t1 = t; t1 && ddsi_xt_is_resolved (t1); t1 = t1->_u.structure.base_type ? &t1->_u.structure.base_type->xt : NULL)
   {
@@ -606,12 +616,13 @@ static dds_return_t xt_valid_struct_member_ids (struct ddsi_domaingv *gv, const 
     {
       GVTRACE ("duplicate member id %"PRIu32" in struct\n", ids[n]);
       ret = DDS_RETCODE_BAD_PARAMETER;
-      goto err;
+      goto failed_duplicate;
     }
   }
 
-err:
+failed_duplicate:
   ddsrt_free (ids);
+failed:
   return ret;
 }
 
@@ -619,13 +630,23 @@ static dds_return_t xt_valid_union_member_ids (struct ddsi_domaingv *gv, const s
 {
   assert (ddsi_xt_is_resolved (t) && t->_d == DDS_XTypes_TK_UNION);
   dds_return_t ret = DDS_RETCODE_OK;
+
   uint32_t cnt = t->_u.union_type.members.length;
   if (cnt == 0)
   {
     GVTRACE ("union has no members\n");
-    return DDS_RETCODE_BAD_PARAMETER;
+    ret = DDS_RETCODE_BAD_PARAMETER;
+    goto failed;
   }
+
   DDS_XTypes_MemberId *ids = ddsrt_malloc (cnt * sizeof (*ids));
+  if (ids == NULL)
+  {
+    GVTRACE ("out-of-memory while checking union member ids\n");
+    ret = DDS_RETCODE_BAD_PARAMETER;
+    goto failed;
+  }
+
   for (uint32_t n = 0; n < cnt; n++)
     ids[n] = t->_u.union_type.members.seq[n].id;
   qsort (ids, cnt, sizeof (*ids), xt_member_id_cmp);
@@ -635,12 +656,13 @@ static dds_return_t xt_valid_union_member_ids (struct ddsi_domaingv *gv, const s
     {
       GVTRACE ("duplicate member id %"PRIu32" in union\n", ids[n]);
       ret = DDS_RETCODE_BAD_PARAMETER;
-      goto err;
+      goto failed_duplicate;
     }
   }
 
-err:
+failed_duplicate:
   ddsrt_free (ids);
+failed:
   return ret;
 }
 
@@ -654,8 +676,23 @@ static dds_return_t xt_valid_enum_values (struct ddsi_domaingv *gv, const struct
 {
   assert (ddsi_xt_is_resolved (t) && t->_d == DDS_XTypes_TK_ENUM);
   dds_return_t ret = DDS_RETCODE_OK;
+
   uint32_t cnt = t->_u.enum_type.literals.length;
+  if (cnt == 0)
+  {
+    GVTRACE ("enum has no members\n");
+    ret = DDS_RETCODE_BAD_PARAMETER;
+    goto failed;
+  }
+
   int32_t *values = ddsrt_malloc (cnt * sizeof (*values));
+  if (values == NULL)
+  {
+    GVTRACE ("out-of-memory while checking enum values\n");
+    ret = DDS_RETCODE_OUT_OF_RESOURCES;
+    goto failed;
+  }
+
   for (uint32_t n = 0; n < cnt; n++)
     values[n] = t->_u.enum_type.literals.seq[n].value;
   qsort (values, cnt, sizeof (*values), xt_enum_value_cmp);
@@ -665,12 +702,13 @@ static dds_return_t xt_valid_enum_values (struct ddsi_domaingv *gv, const struct
     {
       GVTRACE ("duplicate enum value %"PRIi32"\n", values[n]);
       ret = DDS_RETCODE_BAD_PARAMETER;
-      goto err;
+      goto failed_duplicate;
     }
   }
 
-err:
+failed_duplicate:
   ddsrt_free (values);
+failed:
   return ret;
 }
 
@@ -685,7 +723,21 @@ static dds_return_t xt_valid_bitmask_positions (struct ddsi_domaingv *gv, const 
   assert (ddsi_xt_is_resolved (t) && t->_d == DDS_XTypes_TK_BITMASK);
   dds_return_t ret = DDS_RETCODE_OK;
   uint32_t cnt = t->_u.bitmask.bitflags.length;
+  if (cnt == 0)
+  {
+    GVTRACE ("bitmask has no bitflags\n");
+    ret = DDS_RETCODE_BAD_PARAMETER;
+    goto failed;
+  }
+
   uint16_t *positions = ddsrt_malloc (cnt * sizeof (*positions));
+  if (positions == NULL)
+  {
+    GVTRACE ("out-of-memory while checking bitmask positions\n");
+    ret = DDS_RETCODE_OUT_OF_RESOURCES;
+    goto failed;
+  }
+
   for (uint32_t n = 0; n < cnt; n++)
     positions[n] = t->_u.bitmask.bitflags.seq[n].position;
   qsort (positions, cnt, sizeof (*positions), xt_bitmask_position_cmp);
@@ -695,12 +747,13 @@ static dds_return_t xt_valid_bitmask_positions (struct ddsi_domaingv *gv, const 
     {
       GVTRACE ("duplicate bitmask position %"PRIu16"\n", positions[n]);
       ret = DDS_RETCODE_BAD_PARAMETER;
-      goto err;
+      goto failed_duplicate;
     }
   }
 
-err:
+failed_duplicate:
   ddsrt_free (positions);
+failed:
   return ret;
 }
 
