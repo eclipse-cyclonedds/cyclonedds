@@ -28,40 +28,28 @@ void ddsi_interface_set_init (ddsi_interface_set_t *intfs)
     intfs->xs[i] = false;
 }
 
-bool ddsi_include_multicast_locator_in_discovery (const struct ddsi_domaingv *gv)
+static uint32_t allow_multicast_mask_from_locator (const struct ddsi_domaingv *gv, const ddsi_locator_t *loc)
 {
+  uint32_t mask = 0;
 #ifdef DDS_HAS_SSM
-  /* Note that if the default multicast address is an SSM address,
-     we will simply advertise it. The recipients better understand
-     it means the writers will publish to address and the readers
-     favour SSM. */
-  if (ddsi_is_ssm_mcaddr (gv, &gv->loc_default_mc))
-    return (gv->config.allowMulticast & DDSI_AMC_SSM) != 0;
-  else
-    return (gv->config.allowMulticast & DDSI_AMC_ASM) != 0;
+  if (ddsi_is_ssm_mcaddr (gv, loc))
+    mask |= DDSI_AMC_SSM;
+  else if (ddsi_is_mcaddr (gv, loc))
+    mask |= DDSI_AMC_ASM;
 #else
-  return (gv->config.allowMulticast & DDSI_AMC_ASM) != 0;
+  if (ddsi_is_mcaddr (gv, loc))
+    mask |= DDSI_AMC_ASM;
 #endif
+  return mask;
 }
 
-static void allowmulticast_aware_add_to_addrset (const struct ddsi_domaingv *gv, uint32_t allow_multicast, struct ddsi_addrset *as, const ddsi_xlocator_t *loc)
+bool ddsi_include_multicast_locator_in_discovery (const struct ddsi_domaingv *gv)
 {
-#ifdef DDS_HAS_SSM
-  if (ddsi_is_ssm_mcaddr (gv, &loc->c))
-  {
-    if (!(allow_multicast & DDSI_AMC_SSM))
-      return;
-  }
-  else if (ddsi_is_mcaddr (gv, &loc->c))
-  {
-    if (!(allow_multicast & DDSI_AMC_ASM))
-      return;
-  }
-#else
-  if (ddsi_is_mcaddr (gv, &loc->c) && !(allow_multicast & DDSI_AMC_ASM))
-    return;
-#endif
-  ddsi_add_xlocator_to_addrset (gv, as, loc);
+  const uint32_t mask = allow_multicast_mask_from_locator (gv, &gv->loc_default_mc);
+  for (int i = 0; i < gv->n_interfaces; i++)
+    if (gv->interfaces[i].allow_multicast & mask)
+      return true;
+  return false;
 }
 
 static void addrset_from_locatorlists_add_one (struct ddsi_domaingv const * const gv, const struct ddsi_network_packet_info *pktinfo, const ddsi_locator_t *loc, struct ddsi_addrset *as, ddsi_interface_set_t *intfs, bool *direct, struct ddsi_addrset *routed_as)
@@ -262,16 +250,18 @@ static void ddsi_addrset_from_locatorlist_handle_mc (const struct ddsi_domaingv 
 
   for (struct ddsi_locators_one *l = mc->first; l != NULL; l = l->next)
   {
+    const uint32_t mask = allow_multicast_mask_from_locator (gv, &l->loc);
     for (int i = 0; i < gv->n_interfaces; i++)
     {
-      if (intfs->xs[i] && gv->interfaces[i].mc_capable)
+      if (intfs->xs[i] && // interface must be enabled for this peer
+          (gv->interfaces[i].allow_multicast & mask) && // and must allow multicast
+          ddsi_factory_supports (gv->xmit_conns[i]->m_factory, l->loc.kind))
       {
         const ddsi_xlocator_t loc = {
           .conn = gv->xmit_conns[i],
           .c = l->loc
         };
-        if (ddsi_factory_supports (loc.conn->m_factory, loc.c.kind))
-          allowmulticast_aware_add_to_addrset (gv, gv->config.allowMulticast, as, &loc);
+        ddsi_add_xlocator_to_addrset (gv, as, &loc);
       }
     }
   }

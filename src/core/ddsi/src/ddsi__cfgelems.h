@@ -70,8 +70,39 @@ static struct cfgelem network_interface_attributes[] = {
       "system. If set to 'true', the interface will be assumed to be multicast capable "
       "even when the interface flags returned by the operating system state it is not "
       "(this provides a workaround for some platforms). If set to 'false', the interface "
-      "will never be used for multicast.</p>")
-  ),
+      "will never be used for multicast.</p>"
+    )),
+  LIST("allow_multicast", NULL, 1, "default",
+    MEMBEROF(ddsi_config_network_interface_listelem, cfg.allow_multicast),
+    FUNCTIONS(0, uf_allow_multicast, 0, pf_allow_multicast),
+    DESCRIPTION(
+      "<p>This element controls whether Cyclone DDS uses multicasts for data "
+      "traffic on this interface.</p>\n"
+      "<p>It is a comma-separated list of some of the following keywords: "
+      "\"spdp\", \"asm\", \"ssm\", or either of \"false\" or \"true\", or "
+      "\"default\".</p>\n"
+      "<ul>\n"
+      "<li><i>spdp</i>: "
+      "enables the use of ASM (any-source multicast) for participant "
+      "discovery, joining the multicast group on the discovery socket, "
+      "transmitting SPDP messages to this group, but never advertising nor "
+      "using any multicast address in any discovery message, thus forcing "
+      "unicast communications for all endpoint discovery and user data."
+      "</li>\n"
+      "<li><i>asm</i>: "
+      "enables the use of ASM for all traffic, including receiving SPDP but "
+      "not transmitting SPDP messages via multicast"
+      "</li>\n"
+      "<li><i>ssm</i>: "
+      "enables the use of SSM (source-specific multicast) for all non-SPDP "
+      "traffic (if supported)"
+      "</li></ul>\n"
+      "<p>When set to \"false\" all multicasting is disabled; \"true\""
+      "enables the full use of multicasts. Listening for multicasts can "
+      "be controlled by General/MulticastRecvNetworkInterfaceAddresses.</p>\n"
+      "<p>The special value \"default\" takes the value from the global"
+      "General/AllowMulticast setting.</p>"),
+    VALUES("false","spdp","asm","ssm","true","default")),
   END_MARKER
 };
 
@@ -218,7 +249,8 @@ static struct cfgelem general_cfgelems[] = {
     MEMBER(allowMulticast),
     FUNCTIONS(0, uf_allow_multicast, 0, pf_allow_multicast),
     DESCRIPTION(
-      "<p>This element controls whether Cyclone DDS uses multicasts for data "
+      "<p>This element controls the default for the per-network interface "
+      "setting whether Cyclone DDS uses multicasts for discovery and data "
       "traffic.</p>\n"
       "<p>It is a comma-separated list of some of the following keywords: "
       "\"spdp\", \"asm\", \"ssm\", or either of \"false\" or \"true\", or "
@@ -238,14 +270,13 @@ static struct cfgelem general_cfgelems[] = {
       "<li><i>ssm</i>: "
       "enables the use of SSM (source-specific multicast) for all non-SPDP "
       "traffic (if supported)"
-      "</li>\n"
-      "</ul>\n"
-      "<p>When set to \"false\" all multicasting is disabled. The default, "
-      "\"true\" enables the full use of multicasts. Listening for multicasts can "
+      "</li></ul>\n"
+      "<p>When set to \"false\" all multicasting is disabled; \"true\""
+      "enables the full use of multicasts. Listening for multicasts can "
       "be controlled by General/MulticastRecvNetworkInterfaceAddresses.</p>\n"
-      "<p>\"default\" maps on spdp if the network is a WiFi network, on true "
-      "if it is a wired network</p>"),
-    VALUES("false","spdp","asm","ssm","true")),
+      "<p>The special value \"default\" maps on spdp if the network is a "
+      "WiFi network, on true if it is a wired network</p>"),
+    VALUES("false","spdp","asm","ssm","true","default")),
   BOOL(DEPRECATED("PreferMulticast"), NULL, 1, "false",
     MEMBER(depr_prefer_multicast),
     FUNCTIONS(0, uf_boolean, 0, pf_boolean),
@@ -1835,6 +1866,20 @@ static struct cfgelem discovery_peers_cfgelems[] = {
   END_MARKER
 };
 
+static struct cfgelem discovery_peers_cfgattrs[] = {
+  BOOL("AddLocalhost", NULL, 1, "default",
+    MEMBER(add_localhost_to_peers),
+    FUNCTIONS(0, uf_boolean_default, 0, pf_boolean_default),
+    DESCRIPTION(
+      "<p>This attribute determines controls the localhost will automatically "
+      "be added to the list of peers:.</p>\n"
+      "<ul><li><i>false</i>: never</li>\n"
+      "<li><i>true</i>: always</li>\n"
+      "<li><i>default</i>: if multicast discovery is unavailable<li></ul>"
+    )),
+  END_MARKER
+};
+
 static struct cfgelem discovery_cfgelems[] = {
   STRING("Tag", NULL, 1, "",
     MEMBER(domainTag),
@@ -1861,13 +1906,13 @@ static struct cfgelem discovery_cfgelems[] = {
       "disappears, allowing reconnection without loss of data when the "
       "discovery service restarts (or another instance takes over).</p>"),
     UNIT("duration_inf")),
-  GROUP("Peers", discovery_peers_cfgelems, NULL, 1,
+  GROUP("Peers", discovery_peers_cfgelems, discovery_peers_cfgattrs, 1,
     NOMEMBER,
     NOFUNCTIONS,
     DESCRIPTION(
       "<p>This element statically configures addresses for discovery.</p>"
     )),
-  STRING("ParticipantIndex", NULL, 1, "none",
+  STRING("ParticipantIndex", NULL, 1, "default",
     MEMBER(participantIndex),
     FUNCTIONS(0, uf_participantIndex, 0, pf_participantIndex),
     DESCRIPTION(
@@ -1881,7 +1926,9 @@ static struct cfgelem discovery_cfgelems[] = {
       "<li>a non-negative integer, or</li>\n"
       "<li><i>none</i>: which causes it to use arbitrary port numbers for "
       "unicast sockets which entirely removes the constraints on the "
-      "participant index but makes unicast discovery impossible.</li></ul>"
+      "participant index but makes unicast discovery impossible, or</li>"
+      "<li><i>default</i>: use <i>none</i> if multicast discovery is used on all "
+      "selected network interfaces, else <i>auto</i>.</li></ul>"
     )),
   INT("MaxAutoParticipantIndex", NULL, 1, "9",
     MEMBER(maxAutoParticipantIndex),

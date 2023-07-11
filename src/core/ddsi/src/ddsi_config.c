@@ -1559,7 +1559,10 @@ static void pf_domainId(struct ddsi_cfgst *cfgst, void *parent, struct cfgelem c
 static enum update_result uf_participantIndex (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int first, const char *value)
 {
   int * const elem = cfg_address (cfgst, parent, cfgelem);
-  if (ddsrt_strcasecmp (value, "auto") == 0) {
+  if (ddsrt_strcasecmp (value, "default") == 0) {
+    *elem = DDSI_PARTICIPANT_INDEX_DEFAULT;
+    return URES_SUCCESS;
+  } else if (ddsrt_strcasecmp (value, "auto") == 0) {
     *elem = DDSI_PARTICIPANT_INDEX_AUTO;
     return URES_SUCCESS;
   } else if (ddsrt_strcasecmp (value, "none") == 0) {

@@ -175,8 +175,8 @@ CycloneDDS configuration</xs:documentation>
 &lt;p&gt;This element specifies the DDSI participant index used by this instance of the Cyclone DDS service for discovery purposes. Only one such participant id is used, independent of the number of actual DomainParticipants on the node. It is either:&lt;/p&gt;
 &lt;ul&gt;&lt;li&gt;&lt;i&gt;auto&lt;/i&gt;: which will attempt to automatically determine an available participant index (see also Discovery/MaxAutoParticipantIndex), or&lt;/li&gt;
 &lt;li&gt;a non-negative integer, or&lt;/li&gt;
-&lt;li&gt;&lt;i&gt;none&lt;/i&gt;: which causes it to use arbitrary port numbers for unicast sockets which entirely removes the constraints on the participant index but makes unicast discovery impossible.&lt;/li&gt;&lt;/ul&gt;
-&lt;p&gt;The default value is: &lt;code&gt;none&lt;/code&gt;&lt;/p&gt;</xs:documentation>
+&lt;li&gt;&lt;i&gt;none&lt;/i&gt;: which causes it to use arbitrary port numbers for unicast sockets which entirely removes the constraints on the participant index but makes unicast discovery impossible, or&lt;/li&gt;&lt;li&gt;&lt;i&gt;default&lt;/i&gt;: use &lt;i&gt;none&lt;/i&gt; if multicast discovery is used on all selected network interfaces, else &lt;i&gt;auto&lt;/i&gt;.&lt;/li&gt;&lt;/ul&gt;
+&lt;p&gt;The default value is: &lt;code&gt;default&lt;/code&gt;&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
   <xs:element name="Peers">
@@ -188,6 +188,16 @@ CycloneDDS configuration</xs:documentation>
       <xs:sequence>
         <xs:element minOccurs="0" maxOccurs="unbounded" ref="config:Peer"/>
       </xs:sequence>
+      <xs:attribute name="AddLocalhost" type="xs:boolean">
+        <xs:annotation>
+          <xs:documentation>
+&lt;p&gt;This attribute determines controls the localhost will automatically be added to the list of peers:.&lt;/p&gt;
+&lt;ul&gt;&lt;li&gt;&lt;i&gt;false&lt;/i&gt;: never&lt;/li&gt;
+&lt;li&gt;&lt;i&gt;true&lt;/i&gt;: always&lt;/li&gt;
+&lt;li&gt;&lt;i&gt;default&lt;/i&gt;: if multicast discovery is unavailable&lt;li&gt;&lt;/ul&gt;
+&lt;p&gt;The default value is: &lt;code&gt;default&lt;/code&gt;&lt;/p&gt;</xs:documentation>
+        </xs:annotation>
+      </xs:attribute>
     </xs:complexType>
   </xs:element>
   <xs:element name="Peer">
@@ -321,20 +331,19 @@ CycloneDDS configuration</xs:documentation>
   <xs:element name="AllowMulticast">
     <xs:annotation>
       <xs:documentation>
-&lt;p&gt;This element controls whether Cyclone DDS uses multicasts for data traffic.&lt;/p&gt;
+&lt;p&gt;This element controls the default for the per-network interface setting whether Cyclone DDS uses multicasts for discovery and data traffic.&lt;/p&gt;
 &lt;p&gt;It is a comma-separated list of some of the following keywords: "spdp", "asm", "ssm", or either of "false" or "true", or "default".&lt;/p&gt;
 &lt;ul&gt;
 &lt;li&gt;&lt;i&gt;spdp&lt;/i&gt;: enables the use of ASM (any-source multicast) for participant discovery, joining the multicast group on the discovery socket, transmitting SPDP messages to this group, but never advertising nor using any multicast address in any discovery message, thus forcing unicast communications for all endpoint discovery and user data.&lt;/li&gt;
 &lt;li&gt;&lt;i&gt;asm&lt;/i&gt;: enables the use of ASM for all traffic, including receiving SPDP but not transmitting SPDP messages via multicast&lt;/li&gt;
-&lt;li&gt;&lt;i&gt;ssm&lt;/i&gt;: enables the use of SSM (source-specific multicast) for all non-SPDP traffic (if supported)&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;When set to "false" all multicasting is disabled. The default, "true" enables the full use of multicasts. Listening for multicasts can be controlled by General/MulticastRecvNetworkInterfaceAddresses.&lt;/p&gt;
-&lt;p&gt;"default" maps on spdp if the network is a WiFi network, on true if it is a wired network&lt;/p&gt;
+&lt;li&gt;&lt;i&gt;ssm&lt;/i&gt;: enables the use of SSM (source-specific multicast) for all non-SPDP traffic (if supported)&lt;/li&gt;&lt;/ul&gt;
+&lt;p&gt;When set to "false" all multicasting is disabled; "true"enables the full use of multicasts. Listening for multicasts can be controlled by General/MulticastRecvNetworkInterfaceAddresses.&lt;/p&gt;
+&lt;p&gt;The special value "default" maps on spdp if the network is a WiFi network, on true if it is a wired network&lt;/p&gt;
 &lt;p&gt;The default value is: &lt;code&gt;default&lt;/code&gt;&lt;/p&gt;</xs:documentation>
     </xs:annotation>
     <xs:simpleType>
       <xs:restriction base="xs:token">
-        <xs:pattern value="default|((false|spdp|asm|ssm|true)(,(false|spdp|asm|ssm|true))*)"/>
+        <xs:pattern value="default|((false|spdp|asm|ssm|true|default)(,(false|spdp|asm|ssm|true|default))*)"/>
       </xs:restriction>
     </xs:simpleType>
   </xs:element>
@@ -423,6 +432,20 @@ CycloneDDS configuration</xs:documentation>
           <xs:documentation>
 &lt;p&gt;This attribute specifies the address of the interface. With ipv4 allows  matching on the network part if the host part is set to zero. &lt;/p&gt;
 &lt;p&gt;The default value is: &lt;code&gt;&amp;lt;empty&amp;gt;&lt;/code&gt;&lt;/p&gt;</xs:documentation>
+        </xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="allow_multicast" type="xs:(null)">
+        <xs:annotation>
+          <xs:documentation>
+&lt;p&gt;This element controls whether Cyclone DDS uses multicasts for data traffic on this interface.&lt;/p&gt;
+&lt;p&gt;It is a comma-separated list of some of the following keywords: "spdp", "asm", "ssm", or either of "false" or "true", or "default".&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;i&gt;spdp&lt;/i&gt;: enables the use of ASM (any-source multicast) for participant discovery, joining the multicast group on the discovery socket, transmitting SPDP messages to this group, but never advertising nor using any multicast address in any discovery message, thus forcing unicast communications for all endpoint discovery and user data.&lt;/li&gt;
+&lt;li&gt;&lt;i&gt;asm&lt;/i&gt;: enables the use of ASM for all traffic, including receiving SPDP but not transmitting SPDP messages via multicast&lt;/li&gt;
+&lt;li&gt;&lt;i&gt;ssm&lt;/i&gt;: enables the use of SSM (source-specific multicast) for all non-SPDP traffic (if supported)&lt;/li&gt;&lt;/ul&gt;
+&lt;p&gt;When set to "false" all multicasting is disabled; "true"enables the full use of multicasts. Listening for multicasts can be controlled by General/MulticastRecvNetworkInterfaceAddresses.&lt;/p&gt;
+&lt;p&gt;The special value "default" takes the value from the globalGeneral/AllowMulticast setting.&lt;/p&gt;
+&lt;p&gt;The default value is: &lt;code&gt;default&lt;/code&gt;&lt;/p&gt;</xs:documentation>
         </xs:annotation>
       </xs:attribute>
       <xs:attribute name="autodetermine">
@@ -1947,10 +1970,10 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==&lt;br&gt;
     </xs:restriction>
   </xs:simpleType>
 </xs:schema>
-<!--- generated from ddsi_config.h[7a2ea305c6a2eab7fe285734641fe60da41874b6] -->
+<!--- generated from ddsi_config.h[9f834d377bdea61bea6507feed2fc4a8924dc02e] -->
 <!--- generated from ddsi__cfgunits.h[bd22f0c0ed210501d0ecd3b07c992eca549ef5aa] -->
-<!--- generated from ddsi__cfgelems.h[bf5f0d9b9265e4b6f3f61e7624325af68eb276bf] -->
-<!--- generated from ddsi_config.c[2d8c4ee6633a21fb69c3f7cb0bf685c1ca9e5132] -->
+<!--- generated from ddsi__cfgelems.h[f10059d775cf2e4961a2e9520bb1a4da6a124778] -->
+<!--- generated from ddsi_config.c[0a59324bd889637ea7d04765da9b76bbe74997c1] -->
 <!--- generated from _confgen.h[e32eabfc35e9f3a7dcb63b19ed148c0d17c6e5fc] -->
 <!--- generated from _confgen.c[237308acd53897a34e8c643e16e05a61d73ffd65] -->
 <!--- generated from generate_rnc.c[b50e4b7ab1d04b2bc1d361a0811247c337b74934] -->

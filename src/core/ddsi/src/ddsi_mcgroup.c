@@ -207,7 +207,11 @@ static int joinleave_mcgroups (const struct ddsi_domaingv *gv, struct ddsi_tran_
       int i, fails = 0, oks = 0;
       for (i = 0; i < gv->n_interfaces; i++)
       {
-        if (gv->interfaces[i].mc_capable)
+        // FIXME: not quite right to not take into account whether the address is for data or SPDP
+        // but it is still an improvement over only looking at whether it can handle multicast, and
+        // to do it right requires tracking multicast subscriptions per interface as well, so quite
+        // a bit of changing things around.  Better to do that in a follow-up step
+        if (gv->interfaces[i].allow_multicast)
         {
           if (gv->recvips_mode == DDSI_RECVIPS_MODE_ALL || gv->recvips_mode == DDSI_RECVIPS_MODE_PREFERRED || interface_in_recvips_p (gv->recvips, &gv->interfaces[i]))
           {

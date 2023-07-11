@@ -44,12 +44,8 @@ struct add_locator_to_ps_arg {
 static void add_locator_to_ps (const ddsi_locator_t *loc, void *varg)
 {
   struct add_locator_to_ps_arg *arg = varg;
-  struct ddsi_locators_one *elem = ddsrt_malloc (sizeof (struct ddsi_locators_one));
   struct ddsi_locators *locs;
   unsigned present_flag;
-
-  elem->loc = *loc;
-  elem->next = NULL;
 
   if (ddsi_is_mcaddr (arg->gv, loc)) {
     locs = &arg->ps->multicast_locators;
@@ -65,12 +61,27 @@ static void add_locator_to_ps (const ddsi_locator_t *loc, void *varg)
     locs->first = locs->last = NULL;
     arg->ps->present |= present_flag;
   }
-  locs->n++;
-  if (locs->first)
-    locs->last->next = elem;
-  else
-    locs->first = elem;
-  locs->last = elem;
+
+  // We may come here because of a set of xlocators in which the same locator
+  // appears twice, so dedup.  There's no harm in initializing the locator set
+  // in the parameter list, because we'll always add this if there was no list
+  // yet.
+  bool isnew = true;
+  for (const struct ddsi_locators_one *x = locs->first; x && isnew; x = x->next)
+    if (ddsi_compare_locators (&x->loc, loc) == 0)
+      isnew = false;
+  if (isnew)
+  {
+    struct ddsi_locators_one *elem = ddsrt_malloc (sizeof (struct ddsi_locators_one));
+    elem->loc = *loc;
+    elem->next = NULL;
+    locs->n++;
+    if (locs->first)
+      locs->last->next = elem;
+    else
+      locs->first = elem;
+    locs->last = elem;
+  }
 }
 
 static void add_xlocator_to_ps (const ddsi_xlocator_t *loc, void *varg)

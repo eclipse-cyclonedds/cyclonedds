@@ -131,15 +131,29 @@ This element specifies the DDSI participant index used by this instance of the C
 
  * a non-negative integer, or
 
- * none: which causes it to use arbitrary port numbers for unicast sockets which entirely removes the constraints on the participant index but makes unicast discovery impossible.
+ * none: which causes it to use arbitrary port numbers for unicast sockets which entirely removes the constraints on the participant index but makes unicast discovery impossible, or
+ * default: use none if multicast discovery is used on all selected network interfaces, else auto.
 
-The default value is: `none`
+The default value is: `default`
 
 
 #### //CycloneDDS/Domain/Discovery/Peers
+Attributes: [AddLocalhost](#cycloneddsdomaindiscoverypeersaddlocalhost)
 Children: [Peer](#cycloneddsdomaindiscoverypeerspeer)
 
 This element statically configures addresses for discovery.
+
+
+#### //CycloneDDS/Domain/Discovery/Peers[@AddLocalhost]
+Boolean
+
+This attribute determines controls the localhost will automatically be added to the list of peers:.
+ * false: never
+
+ * true: always
+
+ * default: if multicast discovery is unavailable * 
+The default value is: `default`
 
 
 ##### //CycloneDDS/Domain/Discovery/Peers/Peer
@@ -253,9 +267,9 @@ The General element specifies overall Cyclone DDS service settings.
 #### //CycloneDDS/Domain/General/AllowMulticast
 One of:
 * Keyword: default
-* Comma-separated list of: false, spdp, asm, ssm, true
+* Comma-separated list of: false, spdp, asm, ssm, true, default
 
-This element controls whether Cyclone DDS uses multicasts for data traffic.
+This element controls the default for the per-network interface setting whether Cyclone DDS uses multicasts for discovery and data traffic.
 
 It is a comma-separated list of some of the following keywords: "spdp", "asm", "ssm", or either of "false" or "true", or "default".
 
@@ -265,10 +279,9 @@ It is a comma-separated list of some of the following keywords: "spdp", "asm", "
 
  * ssm: enables the use of SSM (source-specific multicast) for all non-SPDP traffic (if supported)
 
+When set to "false" all multicasting is disabled; "true"enables the full use of multicasts. Listening for multicasts can be controlled by General/MulticastRecvNetworkInterfaceAddresses.
 
-When set to "false" all multicasting is disabled. The default, "true" enables the full use of multicasts. Listening for multicasts can be controlled by General/MulticastRecvNetworkInterfaceAddresses.
-
-"default" maps on spdp if the network is a WiFi network, on true if it is a wired network
+The special value "default" maps on spdp if the network is a WiFi network, on true if it is a wired network
 
 The default value is: `default`
 
@@ -340,7 +353,7 @@ This element specifies the network interfaces for use by Cyclone DDS. Multiple i
 
 
 ##### //CycloneDDS/Domain/General/Interfaces/NetworkInterface
-Attributes: [address](#cycloneddsdomaingeneralinterfacesnetworkinterfaceaddress), [autodetermine](#cycloneddsdomaingeneralinterfacesnetworkinterfaceautodetermine), [multicast](#cycloneddsdomaingeneralinterfacesnetworkinterfacemulticast), [name](#cycloneddsdomaingeneralinterfacesnetworkinterfacename), [prefer_multicast](#cycloneddsdomaingeneralinterfacesnetworkinterfaceprefermulticast), [presence_required](#cycloneddsdomaingeneralinterfacesnetworkinterfacepresencerequired), [priority](#cycloneddsdomaingeneralinterfacesnetworkinterfacepriority)
+Attributes: [address](#cycloneddsdomaingeneralinterfacesnetworkinterfaceaddress), [allow_multicast](#cycloneddsdomaingeneralinterfacesnetworkinterfaceallowmulticast), [autodetermine](#cycloneddsdomaingeneralinterfacesnetworkinterfaceautodetermine), [multicast](#cycloneddsdomaingeneralinterfacesnetworkinterfacemulticast), [name](#cycloneddsdomaingeneralinterfacesnetworkinterfacename), [prefer_multicast](#cycloneddsdomaingeneralinterfacesnetworkinterfaceprefermulticast), [presence_required](#cycloneddsdomaingeneralinterfacesnetworkinterfacepresencerequired), [priority](#cycloneddsdomaingeneralinterfacesnetworkinterfacepriority)
 
 This element defines a network interface. You can set autodetermine="true" to autoselect the interface CycloneDDS considers the highest quality. If autodetermine="false" (the default), you must specify the name and/or address attribute. If you specify both, they must match the same interface.
 
@@ -351,6 +364,28 @@ Text
 This attribute specifies the address of the interface. With ipv4 allows  matching on the network part if the host part is set to zero. 
 
 The default value is: `<empty>`
+
+
+##### //CycloneDDS/Domain/General/Interfaces/NetworkInterface[@allow_multicast]
+One of:
+* Keyword: default
+* Comma-separated list of: false, spdp, asm, ssm, true, default
+
+This element controls whether Cyclone DDS uses multicasts for data traffic on this interface.
+
+It is a comma-separated list of some of the following keywords: "spdp", "asm", "ssm", or either of "false" or "true", or "default".
+
+ * spdp: enables the use of ASM (any-source multicast) for participant discovery, joining the multicast group on the discovery socket, transmitting SPDP messages to this group, but never advertising nor using any multicast address in any discovery message, thus forcing unicast communications for all endpoint discovery and user data.
+
+ * asm: enables the use of ASM for all traffic, including receiving SPDP but not transmitting SPDP messages via multicast
+
+ * ssm: enables the use of SSM (source-specific multicast) for all non-SPDP traffic (if supported)
+
+When set to "false" all multicasting is disabled; "true"enables the full use of multicasts. Listening for multicasts can be controlled by General/MulticastRecvNetworkInterfaceAddresses.
+
+The special value "default" takes the value from the globalGeneral/AllowMulticast setting.
+
+The default value is: `default`
 
 
 ##### //CycloneDDS/Domain/General/Interfaces/NetworkInterface[@autodetermine]
@@ -1854,10 +1889,10 @@ While none prevents any message from being written to a DDSI2 log file.
 The categorisation of tracing output is incomplete and hence most of the verbosity levels and categories are not of much use in the current release. This is an ongoing process and here we describe the target situation rather than the current situation. Currently, the most useful verbosity levels are config, fine and finest.
 
 The default value is: `none`
-<!--- generated from ddsi_config.h[7a2ea305c6a2eab7fe285734641fe60da41874b6] -->
+<!--- generated from ddsi_config.h[9f834d377bdea61bea6507feed2fc4a8924dc02e] -->
 <!--- generated from ddsi__cfgunits.h[bd22f0c0ed210501d0ecd3b07c992eca549ef5aa] -->
-<!--- generated from ddsi__cfgelems.h[bf5f0d9b9265e4b6f3f61e7624325af68eb276bf] -->
-<!--- generated from ddsi_config.c[2d8c4ee6633a21fb69c3f7cb0bf685c1ca9e5132] -->
+<!--- generated from ddsi__cfgelems.h[f10059d775cf2e4961a2e9520bb1a4da6a124778] -->
+<!--- generated from ddsi_config.c[0a59324bd889637ea7d04765da9b76bbe74997c1] -->
 <!--- generated from _confgen.h[e32eabfc35e9f3a7dcb63b19ed148c0d17c6e5fc] -->
 <!--- generated from _confgen.c[237308acd53897a34e8c643e16e05a61d73ffd65] -->
 <!--- generated from generate_rnc.c[b50e4b7ab1d04b2bc1d361a0811247c337b74934] -->
