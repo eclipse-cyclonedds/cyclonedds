@@ -194,7 +194,6 @@ struct ddsi_domaingv {
   ddsi_locator_t extmask;
 
   /* Locators */
-
   ddsi_locator_t loc_spdp_mc;
   ddsi_locator_t loc_meta_mc;
   ddsi_locator_t loc_meta_uc;

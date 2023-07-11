@@ -2835,6 +2835,20 @@ static bool locator_address_zero (const ddsi_locator_t *loc)
   return locator_address_prefix_zero (loc, sizeof (loc->address));
 }
 
+static bool is_valid_psmx_instance_id (const struct ddsi_domaingv *gv, uint32_t psmx_instance_id)
+{
+  for (int i = 0; i < gv->n_interfaces; i++)
+  {
+    if (gv->interfaces[i].is_psmx)
+    {
+      assert (gv->interfaces[i].loc.kind == DDSI_LOCATOR_KIND_PSMX);
+      if (gv->interfaces[i].loc.port == psmx_instance_id)
+        return true;
+    }
+  }
+  return false;
+}
+
 static enum do_locator_result do_locator (ddsi_locators_t *ls, uint64_t present, uint64_t wanted, uint64_t fl, const struct dd *dd, struct ddsi_domaingv const * const gv)
 {
   ddsi_locator_t loc;
@@ -2901,6 +2915,8 @@ static enum do_locator_result do_locator (ddsi_locators_t *ls, uint64_t present,
       break;
     case DDSI_LOCATOR_KIND_PSMX:
       if (!ddsi_vendor_is_eclipse (dd->vendorid))
+        return DOLOC_IGNORED;
+      if (!is_valid_psmx_instance_id (gv, loc.port))
         return DOLOC_IGNORED;
       add_locator (ls, present, wanted, fl, &loc);
       return DOLOC_ACCEPTED;
