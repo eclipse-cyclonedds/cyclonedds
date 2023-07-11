@@ -1878,8 +1878,8 @@ static struct cfgelem discovery_cfgelems[] = {
       "<ul><li><i>auto</i>: which will attempt to automatically determine an "
       "available participant index "
       "(see also Discovery/MaxAutoParticipantIndex), or</li>\n"
-      "<li>a non-negative integer less than 120, or</li>\n"
-      "<li><i>none</i>:, which causes it to use arbitrary port numbers for "
+      "<li>a non-negative integer, or</li>\n"
+      "<li><i>none</i>: which causes it to use arbitrary port numbers for "
       "unicast sockets which entirely removes the constraints on the "
       "participant index but makes unicast discovery impossible.</li></ul>"
     )),
