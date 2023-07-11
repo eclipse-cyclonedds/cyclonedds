@@ -67,6 +67,7 @@ enum ddsi_shm_loglevel {
 
 #define DDSI_PARTICIPANT_INDEX_AUTO -1
 #define DDSI_PARTICIPANT_INDEX_NONE -2
+#define DDSI_PARTICIPANT_INDEX_DEFAULT -3
 
 /* ddsi_config_listelem must be an overlay for all used listelem types */
 struct ddsi_config_listelem {
@@ -223,6 +224,7 @@ struct ddsi_config_network_interface {
   int presence_required;
   enum ddsi_boolean_default multicast;
   struct ddsi_config_maybe_int32 priority;
+  uint32_t allow_multicast; // no need for a "maybe" type: DDSI_AMC_DEFAULT takes care of that
 };
 
 struct ddsi_config_network_interface_listelem {
@@ -357,6 +359,7 @@ struct ddsi_config
   struct ddsi_config_ignoredpartition_listelem *ignoredPartitions;
   struct ddsi_config_partitionmapping_listelem *partitionMappings;
 #endif /* DDS_HAS_NETWORK_PARTITIONS */
+  enum ddsi_boolean_default add_localhost_to_peers;
   struct ddsi_config_peer_listelem *peers;
   struct ddsi_config_thread_properties_listelem *thread_properties;
 

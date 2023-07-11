@@ -30,7 +30,7 @@ void ddsi_config_init_default (struct ddsi_config *cfg)
   cfg->domainTag = "";
   cfg->extDomainId.isdefault = 1;
   cfg->ds_grace_period = INT64_C (30000000000);
-  cfg->participantIndex = INT32_C (-2);
+  cfg->participantIndex = INT32_C (-3);
   cfg->maxAutoParticipantIndex = INT32_C (9);
   cfg->spdpMulticastAddressString = "239.255.0.1";
   cfg->spdp_interval.isdefault = 1;
@@ -100,10 +100,10 @@ void ddsi_config_init_default (struct ddsi_config *cfg)
   cfg->ssl_min_version.minor = 3;
 #endif /* DDS_HAS_SSL */
 }
-/* generated from ddsi_config.h[7a2ea305c6a2eab7fe285734641fe60da41874b6] */
+/* generated from ddsi_config.h[9f834d377bdea61bea6507feed2fc4a8924dc02e] */
 /* generated from ddsi__cfgunits.h[bd22f0c0ed210501d0ecd3b07c992eca549ef5aa] */
-/* generated from ddsi__cfgelems.h[bf5f0d9b9265e4b6f3f61e7624325af68eb276bf] */
-/* generated from ddsi_config.c[2d8c4ee6633a21fb69c3f7cb0bf685c1ca9e5132] */
+/* generated from ddsi__cfgelems.h[f10059d775cf2e4961a2e9520bb1a4da6a124778] */
+/* generated from ddsi_config.c[0a59324bd889637ea7d04765da9b76bbe74997c1] */
 /* generated from _confgen.h[e32eabfc35e9f3a7dcb63b19ed148c0d17c6e5fc] */
 /* generated from _confgen.c[237308acd53897a34e8c643e16e05a61d73ffd65] */
 /* generated from generate_rnc.c[b50e4b7ab1d04b2bc1d361a0811247c337b74934] */

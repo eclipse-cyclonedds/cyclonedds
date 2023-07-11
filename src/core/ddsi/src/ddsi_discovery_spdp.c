@@ -36,7 +36,14 @@
 
 static void maybe_add_pp_as_meta_to_as_disc (struct ddsi_domaingv *gv, const struct ddsi_addrset *as_meta)
 {
-  if (ddsi_addrset_empty_mc (as_meta) || !(gv->config.allowMulticast & DDSI_AMC_SPDP))
+  // FIXME: this is mostly equivalent to the pre-per-interface "allow_multicast" setting, but we can do much better
+  // because we know the interface on which received it, whether it was a multicast, and, for Cyclone peers, whether
+  // it was spontaneous or in response to one we sent
+  bool allow_mc_spdp = false;
+  for (int i = 0; i < gv->n_interfaces && !allow_mc_spdp; i++)
+    if (gv->interfaces[i].allow_multicast & DDSI_AMC_SPDP)
+      allow_mc_spdp = true;
+  if (ddsi_addrset_empty_mc (as_meta) || !allow_mc_spdp)
   {
     ddsi_xlocator_t loc;
     ddsi_addrset_any_uc (as_meta, &loc);

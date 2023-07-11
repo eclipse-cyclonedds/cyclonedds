@@ -170,9 +170,13 @@ static enum make_uc_sockets_ret make_uc_sockets (struct ddsi_domaingv *gv, uint3
   {
     assert (ppid == DDSI_PARTICIPANT_INDEX_NONE);
     *pdata = *pdisc = ddsi_get_port (&gv->config, DDSI_PORT_MULTI_DISC, ppid);
-    if (gv->config.allowMulticast)
+    if (gv->interfaces[0].allow_multicast)
     {
       /* FIXME: ugly hack - but we'll fix up after creating the multicast sockets */
+#ifndef NDEBUG // these are supposed to be consistent if DDSI_MSM_NO_UNICAST
+      for (int i = 1; i < gv->n_interfaces; i++)
+        assert (gv->interfaces[i].allow_multicast == gv->interfaces[0].allow_multicast);
+#endif
       return MUSRET_SUCCESS;
     }
   }
@@ -546,17 +550,31 @@ int ddsi_config_prep (struct ddsi_domaingv *gv, struct ddsi_cfgst *cfgst)
     gv->config.extDomainId.isdefault = 0;
   }
 
+  // Cater for some highly unusual configuration ...
+  if (gv->config.many_sockets_mode == DDSI_MSM_NO_UNICAST && gv->config.participantIndex == DDSI_PARTICIPANT_INDEX_DEFAULT)
+  {
+    gv->config.participantIndex = DDSI_PARTICIPANT_INDEX_NONE;
+  }
+
   {
     char message[256];
     int32_t ppidx;
-    if (gv->config.participantIndex >= 0 || gv->config.participantIndex == DDSI_PARTICIPANT_INDEX_NONE)
-      ppidx = gv->config.participantIndex;
-    else if (gv->config.participantIndex == DDSI_PARTICIPANT_INDEX_AUTO)
-      ppidx = gv->config.maxAutoParticipantIndex;
-    else
+    switch (gv->config.participantIndex)
     {
-      assert (0);
-      ppidx = 0;
+      case DDSI_PARTICIPANT_INDEX_NONE:
+        ppidx = gv->config.participantIndex;
+        break;
+      case DDSI_PARTICIPANT_INDEX_AUTO:
+      case DDSI_PARTICIPANT_INDEX_DEFAULT:
+        // check worst-case is valid, and for default this is the maximum value because we
+        // don't know yet whether it'll be "none" or "auto"
+        ppidx = gv->config.maxAutoParticipantIndex;
+        break;
+      default:
+        // configuration handling is supposed to ensure non-negative numbers
+        assert (gv->config.participantIndex >= 0);
+        ppidx = gv->config.participantIndex;
+        break;
     }
     if (!ddsi_valid_portmapping (&gv->config, ppidx, message, sizeof (message)))
     {
@@ -669,15 +687,30 @@ static void joinleave_spdp_defmcip_helper (const ddsi_xlocator_t *loc, void *var
 
 static int joinleave_spdp_defmcip (struct ddsi_domaingv *gv, int dojoin)
 {
+  bool include_spdp = false, include_default = false;
+  // FIXME: should do this per-interface here, not iterate over interfaces again deeper down the callstack
+  // That means replacing the interfaces on which to receive multicasts
+  // Doing that is probably a good plan anyway ...
+  for (int i = 0; i < gv->n_interfaces; i++)
+  {
+    if (gv->interfaces[i].allow_multicast & DDSI_AMC_SPDP)
+      include_spdp = true;
+    if (gv->interfaces[i].allow_multicast & ~DDSI_AMC_SPDP)
+      include_default = true;
+  }
+  if (!(include_spdp || include_default))
+  {
+    // No interest in multicasts at all, so no point in pretending we joined it either (which ddsi_join_mc
+    // will do) if we then know that it gets ignored deeper down.  See FIXME above ...
+    return 0;
+  }
+
+  struct joinleave_spdp_defmcip_helper_arg arg = { .gv = gv, .errcount = 0, .dojoin = dojoin };
   /* Addrset provides an easy way to filter out duplicates */
-  struct joinleave_spdp_defmcip_helper_arg arg;
   struct ddsi_addrset *as = ddsi_new_addrset ();
-  arg.gv = gv;
-  arg.errcount = 0;
-  arg.dojoin = dojoin;
-  if (gv->config.allowMulticast & DDSI_AMC_SPDP)
+  if (include_spdp)
     ddsi_add_locator_to_addrset (gv, as, &gv->loc_spdp_mc);
-  if (gv->config.allowMulticast & ~DDSI_AMC_SPDP)
+  if (include_default)
     ddsi_add_locator_to_addrset (gv, as, &gv->loc_default_mc);
   ddsi_addrset_forall (as, joinleave_spdp_defmcip_helper, &arg);
   ddsi_unref_addrset (as);
@@ -943,7 +976,11 @@ static int setup_and_start_recv_threads (struct ddsi_domaingv *gv)
   gv->recv_threads[0].arg.mode = DDSI_RTM_MANY;
   if (gv->m_factory->m_connless && gv->config.many_sockets_mode != DDSI_MSM_NO_UNICAST && multi_recv_thr)
   {
-    if (ddsi_is_mcaddr (gv, &gv->loc_default_mc) && !ddsi_is_ssm_mcaddr (gv, &gv->loc_default_mc) && (gv->config.allowMulticast & DDSI_AMC_ASM))
+    bool allow_asm_mc = false;
+    for (int i = 0; i < gv->n_interfaces && !allow_asm_mc; i++)
+      if (gv->interfaces[i].allow_multicast & DDSI_AMC_ASM)
+        allow_asm_mc = true;
+    if (ddsi_is_mcaddr (gv, &gv->loc_default_mc) && !ddsi_is_ssm_mcaddr (gv, &gv->loc_default_mc) && allow_asm_mc)
     {
       /* Multicast enabled, but it isn't an SSM address => handle data multicasts on a separate thread (the trouble with SSM addresses is that we only join matching writers, which our own sockets typically would not be) */
       gv->recv_threads[gv->n_recv_threads].name = "recvMC";
@@ -1068,7 +1105,7 @@ static void free_conns (struct ddsi_domaingv *gv)
   }
 }
 
-static int create_vnet_interface_for_psmx (struct ddsi_domaingv *gv, const char *psmx_instance_name, const ddsi_locator_t locator)
+static int create_vnet_interface_for_psmx (struct ddsi_domaingv *gv, const char *psmx_instance_name, const ddsi_locator_t locator, bool mc_capable)
 {
   assert (gv);
   assert (psmx_instance_name);
@@ -1094,11 +1131,12 @@ static int create_vnet_interface_for_psmx (struct ddsi_domaingv *gv, const char 
   intf->loc = locator;
   intf->extloc = intf->loc;
   intf->loopback = false;
-  intf->mc_capable = true; // FIXME: matters most for discovery, this avoids auto-lack-of-multicast-mitigation
+  intf->mc_capable = mc_capable; // FIXME: matters most for discovery, this avoids auto-lack-of-multicast-mitigation
   intf->mc_flaky = false;
   intf->name = ddsrt_strdup (psmx_instance_name);
   intf->point_to_point = false;
   intf->is_psmx = true;
+  intf->allow_multicast = mc_capable ? DDSI_AMC_TRUE : DDSI_AMC_FALSE; // align with mc_capable
   intf->netmask.kind = DDSI_LOCATOR_KIND_INVALID;
   intf->netmask.port = DDSI_LOCATOR_PORT_INVALID;
   memset (intf->netmask.address, 0, sizeof (intf->netmask.address) - 6);
@@ -1173,7 +1211,6 @@ int ddsi_init (struct ddsi_domaingv *gv, struct ddsi_psmx_instance_locators *psm
       gv->config.enable_uc_locators = 1;
       /* TCP affects what features are supported/required */
       gv->config.many_sockets_mode = DDSI_MSM_SINGLE_UNICAST;
-      gv->config.allowMulticast = DDSI_AMC_FALSE;
       if (ddsi_tcp_init (gv) < 0)
         goto err_udp_tcp_init;
       gv->m_factory = ddsi_factory_find (gv, gv->config.transport_selector == DDSI_TRANS_TCP ? "tcp" : "tcp6");
@@ -1207,48 +1244,105 @@ int ddsi_init (struct ddsi_domaingv *gv, struct ddsi_psmx_instance_locators *psm
     goto err_gather_nwif;
   }
 
+  if (!gv->m_factory->m_connless)
+  {
+    // equivalent to all behaviour where global setting was simply forced to false
+    // FIXME: it'd perhaps be nicer to give an error if any of these is explicitly set to allow multicast when we cannot do that
+    gv->config.allowMulticast = DDSI_AMC_FALSE;
+    for (int i = 0; i < gv->n_interfaces; i++)
+      gv->interfaces[i].allow_multicast = DDSI_AMC_FALSE;
+  }
+
+  if (gv->config.many_sockets_mode == DDSI_MSM_NO_UNICAST)
+  {
+    // only supported if there's at most a single real interface, otherwise it is too complicated for now
+    bool all_allow_mc = true, none_allow_mc = true;
+    for (int i = 0; i < gv->n_interfaces; i++)
+    {
+      if (gv->interfaces[i].allow_multicast)
+        none_allow_mc = false;
+      else
+        all_allow_mc = false;
+    }
+    if (!(all_allow_mc || none_allow_mc))
+    {
+      GVERROR ("ManySocketsMode \"none\" is incompatible with multiple interfaces where multicast capability differs\n");
+      goto err_gather_nwif;
+    }
+  }
+
   if (psmx_locators != NULL)
   {
+    // set multicast flags to match the real interface; not quite right
+    // because it isn't a real interface, so
+    // FIXME: add a "fake"/"real" flag to interface
+    bool none_allow_mc = true;
+    for (int i = 0; i < gv->n_interfaces && none_allow_mc; i++)
+      if (gv->interfaces[i].allow_multicast)
+        none_allow_mc = false;
     for (uint32_t i = 0; i < psmx_locators->length; i++)
     {
-      if (create_vnet_interface_for_psmx (gv, psmx_locators->instances[i].psmx_instance_name, psmx_locators->instances[i].locator) < 0)
+      if (create_vnet_interface_for_psmx (gv, psmx_locators->instances[i].psmx_instance_name, psmx_locators->instances[i].locator, !none_allow_mc) < 0)
         goto err_psmx;
     }
   }
 
-  if (gv->config.allowMulticast)
+  // All interfaces allow SPDP multicast:
+  // - default ppidx = NONE if no peers else AUTO, default peers = {}
+  //
+  // Some interfaces allow SPDP multicast:
+  // - default ppidx = AUTO, default peers = {}
+  //
+  // No interfaces allow SPDP multicast:
+  // - default ppidx = AUTO, default peers = { localhost }
+  //
+  // MaxAutoParticipantIndex -> 100  -+
+  // UnicastSPDPInterval -> 30s       |_ perhaps adding something like this
+  //   @silentports -> 5min           |  would make sense?
+  //   @dropafter -> 30min           -+
+  bool add_self_to_as_disc = false;
+  if (gv->config.participantIndex == DDSI_PARTICIPANT_INDEX_DEFAULT)
   {
+#ifndef NDEBUG
     for (int i = 0; i < gv->n_interfaces; i++)
     {
-      if (!gv->interfaces[i].mc_capable)
-      {
-        GVWARNING ("selected interface \"%s\" is not multicast-capable: disabling multicast\n", gv->interfaces[i].name);
-        gv->config.allowMulticast = DDSI_AMC_FALSE;
-        /* ensure discovery can work: firstly, that the process will be reachable on a "well-known" port
-         number, and secondly, that the local interface's IP address gets added to the discovery
-         address set */
-        gv->config.participantIndex = DDSI_PARTICIPANT_INDEX_AUTO;
-      }
-      else if (gv->config.allowMulticast & DDSI_AMC_DEFAULT)
-      {
-        /* default is dependent on network interface type: if multicast is believed to be flaky,
-         use multicast only for SPDP packets */
-        assert ((gv->config.allowMulticast & ~DDSI_AMC_DEFAULT) == 0);
-        if (gv->interfaces[i].mc_flaky)
-        {
-          gv->config.allowMulticast = DDSI_AMC_SPDP;
-          GVLOG (DDS_LC_CONFIG, "presumed flaky multicast, use for SPDP only\n");
-        }
-        else
-        {
-          GVLOG (DDS_LC_CONFIG, "presumed robust multicast support, use for everything\n");
-          gv->config.allowMulticast = DDSI_AMC_TRUE;
-        }
-      }
+      // sanity check that by now we have eliminated "default" from allow_multicast and
+      // that no bits in allow_multicast are set if the interface is not capable of
+      // handling multicast
+      assert ((gv->interfaces[i].allow_multicast & DDSI_AMC_DEFAULT) == 0);
+      assert (gv->interfaces[i].allow_multicast == 0 || gv->interfaces[i].mc_capable);
+    }
+#endif
+    bool all_allow_spdp_mc = true, none_allow_spdp_mc = true;
+    for (int i = 0; i < gv->n_interfaces; i++)
+    {
+      if (gv->interfaces[i].allow_multicast & DDSI_AMC_SPDP)
+        none_allow_spdp_mc = false;
+      else
+        all_allow_spdp_mc = false;
+    }
+    if (all_allow_spdp_mc && gv->config.peers == NULL)
+    {
+      GVTRACE ("all interfaces allow spdp multicast, no peers defined: defaulting participant index to \"none\"\n");
+      gv->config.participantIndex = DDSI_PARTICIPANT_INDEX_NONE;
+    } else if (all_allow_spdp_mc)
+    {
+      GVTRACE ("all interfaces allow spdp multicast, but peers defined: defaulting participant index to \"auto\"\n");
+      gv->config.participantIndex = DDSI_PARTICIPANT_INDEX_AUTO;
+    }
+    else
+    {
+      GVTRACE ("some interfaces disallow spdp multicast: defaulting participant index to \"auto\"\n");
+      gv->config.participantIndex = DDSI_PARTICIPANT_INDEX_AUTO;
+    }
+    if (gv->config.add_localhost_to_peers == DDSI_BOOLDEF_TRUE ||
+        (none_allow_spdp_mc && gv->config.add_localhost_to_peers != DDSI_BOOLDEF_FALSE))
+    {
+      // add self to as_disc, but only once we have everything set up to actually do that
+      add_self_to_as_disc = true;
     }
   }
 
-  assert ((gv->config.allowMulticast & DDSI_AMC_DEFAULT) == 0);
   if (set_recvips (gv) < 0)
     goto err_set_recvips;
   if (set_spdp_address (gv) < 0)
@@ -1406,6 +1500,7 @@ int ddsi_init (struct ddsi_domaingv *gv, struct ddsi_psmx_instance_locators *psm
 
   if (gv->m_factory->m_connless)
   {
+    assert (gv->config.participantIndex != DDSI_PARTICIPANT_INDEX_DEFAULT);
     if (gv->config.participantIndex >= 0 || gv->config.participantIndex == DDSI_PARTICIPANT_INDEX_NONE)
     {
       enum make_uc_sockets_ret musret = make_uc_sockets (gv, &port_disc_uc, &port_data_uc, gv->config.participantIndex);
@@ -1480,10 +1575,15 @@ int ddsi_init (struct ddsi_domaingv *gv, struct ddsi_psmx_instance_locators *psm
   gv->mship = ddsi_new_mcgroup_membership();
   if (gv->m_factory->m_connless)
   {
-    if (!(gv->config.many_sockets_mode == DDSI_MSM_NO_UNICAST && gv->config.allowMulticast))
+    bool allow_multicast = false;
+    for (int i = 0; i < gv->n_interfaces && !allow_multicast; i++)
+      if (gv->interfaces[i].allow_multicast)
+        allow_multicast = true;
+
+    if (!(gv->config.many_sockets_mode == DDSI_MSM_NO_UNICAST && allow_multicast))
       GVLOG (DDS_LC_CONFIG, "Unicast Ports: discovery %"PRIu32" data %"PRIu32"\n", ddsi_conn_port (gv->disc_conn_uc), ddsi_conn_port (gv->data_conn_uc));
 
-    if (gv->config.allowMulticast)
+    if (allow_multicast)
     {
       if (!create_multicast_sockets (gv))
         goto err_mc_conn;
@@ -1548,7 +1648,7 @@ int ddsi_init (struct ddsi_domaingv *gv, struct ddsi_psmx_instance_locators *psm
     for (int i = 0; i < gv->n_interfaces; i++)
     {
       const struct ddsi_tran_qos qos = {
-        .m_purpose = (gv->config.allowMulticast ? DDSI_TRAN_QOS_XMIT_MC : DDSI_TRAN_QOS_XMIT_UC),
+        .m_purpose = (gv->interfaces[i].allow_multicast ? DDSI_TRAN_QOS_XMIT_MC : DDSI_TRAN_QOS_XMIT_UC),
         .m_diffserv = 0,
         .m_interface = &gv->interfaces[i]
       };
@@ -1573,11 +1673,8 @@ int ddsi_init (struct ddsi_domaingv *gv, struct ddsi_psmx_instance_locators *psm
     goto err_network_partition_config;
 
   // Join SPDP, default multicast addresses if enabled
-  if (gv->m_factory->m_connless && gv->config.allowMulticast)
-  {
-    if (joinleave_spdp_defmcip (gv, 1) < 0)
-      goto err_joinleave_spdp;
-  }
+  if (gv->m_factory->m_connless && joinleave_spdp_defmcip (gv, 1) < 0)
+    goto err_joinleave_spdp;
 
   /* Create event queues */
   gv->xevents = ddsi_xeventq_new (gv, gv->config.max_queued_rexmit_bytes, gv->config.max_queued_rexmit_msgs);
@@ -1587,22 +1684,24 @@ int ddsi_init (struct ddsi_domaingv *gv, struct ddsi_psmx_instance_locators *psm
 #endif
 
   gv->as_disc = ddsi_new_addrset ();
-  if (gv->config.allowMulticast & DDSI_AMC_SPDP)
-    ddsi_add_locator_to_addrset (gv, gv->as_disc, &gv->loc_spdp_mc);
-  /* If multicast was enabled but not available, always add the local interface to the discovery address set.
-     Conversion via string and add_peer_addresses has the benefit that the port number expansion happens
-     automatically. */
   for (int i = 0; i < gv->n_interfaces; i++)
   {
-    if (!gv->interfaces[i].mc_capable && gv->config.peers == NULL)
+    if ((gv->interfaces[i].allow_multicast & DDSI_AMC_SPDP) &&
+        ddsi_factory_supports (gv->xmit_conns[i]->m_factory, gv->loc_spdp_mc.kind))
     {
-      struct ddsi_config_peer_listelem peer_local;
-      char local_addr[DDSI_LOCSTRLEN];
-      ddsi_locator_to_string_no_port (local_addr, sizeof (local_addr), &gv->interfaces[i].loc);
-      peer_local.next = NULL;
-      peer_local.peer = local_addr;
-      add_peer_addresses (gv, gv->as_disc, &peer_local);
+      const ddsi_xlocator_t xloc = { .conn = gv->xmit_conns[i], .c = gv->loc_spdp_mc };
+      ddsi_add_xlocator_to_addrset (gv, gv->as_disc, &xloc);
     }
+  }
+  if (add_self_to_as_disc)
+  {
+    struct ddsi_config_peer_listelem peer_local;
+    char local_addr[DDSI_LOCSTRLEN];
+    ddsi_locator_to_string_no_port (local_addr, sizeof (local_addr), &gv->interfaces[0].loc);
+    GVTRACE ("adding self (%s)\n", local_addr);
+    peer_local.next = NULL;
+    peer_local.peer = local_addr;
+    add_peer_addresses (gv, gv->as_disc, &peer_local);
   }
   if (gv->config.peers)
   {

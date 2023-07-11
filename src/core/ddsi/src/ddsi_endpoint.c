@@ -213,6 +213,35 @@ void ddsi_rebuild_writer_addrset (struct ddsi_writer *wr)
   ELOGDISC (wr, " (burst size %"PRIu32" rexmit %"PRIu32")\n", wr->init_burst_size_limit, wr->rexmit_burst_size_limit);
 }
 
+static bool nwpart_includes_ssm_enabled_interfaces (const struct ddsi_domaingv *gv, const struct ddsi_config_networkpartition_listelem *np)
+  ddsrt_nonnull ((1));
+
+static bool nwpart_includes_ssm_enabled_interfaces (const struct ddsi_domaingv *gv, const struct ddsi_config_networkpartition_listelem *np)
+{
+  if (np == NULL || np->uc_addresses == NULL)
+  {
+    // no network partition or one without unicast addresses -> any interface will do
+    for (int i = 0; i < gv->n_interfaces; i++)
+      if (gv->interfaces[i].allow_multicast & DDSI_AMC_SSM)
+        return true;
+    return false;
+  }
+  else
+  {
+    // only for those interfaces that are listed among the unicast addresses
+    // FIXME: this can be done more efficiently ...
+    for (const struct ddsi_networkpartition_address *a = np->uc_addresses; a; a = a->next)
+    {
+      for (int i = 0; i < gv->n_interfaces; i++)
+        if (a->loc.kind == gv->interfaces[i].loc.kind &&
+            memcmp (a->loc.address, gv->interfaces[i].loc.address, sizeof (a->loc.address)) == 0 &&
+            (gv->interfaces[i].allow_multicast & DDSI_AMC_SSM))
+          return true;
+    }
+    return false;
+  }
+}
+
 static void writer_get_alive_state_locked (struct ddsi_writer *wr, struct ddsi_alive_state *st)
 {
   st->alive = wr->alive;
@@ -745,6 +774,8 @@ int ddsi_writer_set_notalive (struct ddsi_writer *wr, bool notify)
 
 static void ddsi_new_writer_guid_common_init (struct ddsi_writer *wr, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos, struct ddsi_whc *whc, ddsi_status_cb_t status_cb, void * status_entity)
 {
+  struct ddsi_domaingv * const gv = wr->e.gv;
+
   ddsrt_cond_init (&wr->throttle_cond);
   wr->seq = 0;
   ddsrt_atomic_st64 (&wr->seq_xmit, (uint64_t) 0);
@@ -795,7 +826,7 @@ static void ddsi_new_writer_guid_common_init (struct ddsi_writer *wr, const char
   ddsi_set_topic_type_name (wr->xqos, topic_name, type->type_name);
 
   ELOGDISC (wr, "WRITER "PGUIDFMT" QOS={", PGUID (wr->e.guid));
-  ddsi_xqos_log (DDS_LC_DISCOVERY, &wr->e.gv->logconfig, wr->xqos);
+  ddsi_xqos_log (DDS_LC_DISCOVERY, &gv->logconfig, wr->xqos);
   ELOGDISC (wr, "}\n");
 
   assert (wr->xqos->present & DDSI_QP_RELIABILITY);
@@ -817,7 +848,7 @@ static void ddsi_new_writer_guid_common_init (struct ddsi_writer *wr, const char
   }
   wr->handle_as_transient_local = (wr->xqos->durability.kind == DDS_DURABILITY_TRANSIENT_LOCAL);
   wr->num_readers_requesting_keyhash +=
-    wr->e.gv->config.generate_keyhash &&
+    gv->config.generate_keyhash &&
     ((wr->e.guid.entityid.u & DDSI_ENTITYID_KIND_MASK) == DDSI_ENTITYID_KIND_WRITER_WITH_KEY);
   wr->type = ddsi_sertype_ref (type);
   wr->as = ddsi_new_addrset ();
@@ -827,7 +858,7 @@ static void ddsi_new_writer_guid_common_init (struct ddsi_writer *wr, const char
      partitions that match multiple network partitions.  From a safety
      point of view a wierd configuration. Here we chose the first one
      that we find */
-  wr->network_partition = ddsi_get_nwpart_from_mapping (&wr->e.gv->logconfig, &wr->e.gv->config, wr->xqos, wr->xqos->topic_name);
+  wr->network_partition = ddsi_get_nwpart_from_mapping (&gv->logconfig, &gv->config, wr->xqos, wr->xqos->topic_name);
 #endif /* DDS_HAS_NETWORK_PARTITIONS */
 
 #ifdef DDS_HAS_SSM
@@ -837,42 +868,42 @@ static void ddsi_new_writer_guid_common_init (struct ddsi_writer *wr, const char
      to advertise. */
   wr->supports_ssm = 0;
   wr->ssm_as = NULL;
-  if (wr->e.gv->config.allowMulticast & DDSI_AMC_SSM)
+  if (nwpart_includes_ssm_enabled_interfaces (gv, wr->network_partition))
   {
-    ddsi_xlocator_t loc;
-    int have_loc = 0;
+    const ddsi_locator_t *base_ssm_loc = NULL;
     if (wr->network_partition == NULL)
     {
-      if (ddsi_is_ssm_mcaddr (wr->e.gv, &wr->e.gv->loc_default_mc))
-      {
-        loc.conn = wr->e.gv->xmit_conns[0]; // FIXME: hack
-        loc.c = wr->e.gv->loc_default_mc;
-        have_loc = 1;
-      }
+      if (ddsi_is_ssm_mcaddr (gv, &gv->loc_default_mc))
+        base_ssm_loc = &gv->loc_default_mc;
     }
     else
     {
       if (wr->network_partition->ssm_addresses)
       {
-        assert (ddsi_is_ssm_mcaddr (wr->e.gv, &wr->network_partition->ssm_addresses->loc));
-        loc.conn = wr->e.gv->xmit_conns[0]; // FIXME: hack
-        loc.c = wr->network_partition->ssm_addresses->loc;
-        have_loc = 1;
+        assert (ddsi_is_ssm_mcaddr (gv, &wr->network_partition->ssm_addresses->loc));
+        base_ssm_loc = &wr->network_partition->ssm_addresses->loc;
       }
     }
-    if (have_loc)
+    if (base_ssm_loc != NULL)
     {
       wr->supports_ssm = 1;
       wr->ssm_as = ddsi_new_addrset ();
-      ddsi_add_xlocator_to_addrset (wr->e.gv, wr->ssm_as, &loc);
+      for (int i = 0; i < gv->n_interfaces; i++)
+      {
+        if ((gv->interfaces[i].allow_multicast & DDSI_AMC_SSM) && ddsi_factory_supports(gv->xmit_conns[i]->m_factory, base_ssm_loc->kind))
+        {
+          ddsi_xlocator_t loc = { .conn = gv->xmit_conns[i], .c = *base_ssm_loc };
+          ddsi_add_xlocator_to_addrset (gv, wr->ssm_as, &loc);
+        }
+      }
       ELOGDISC (wr, "writer "PGUIDFMT": ssm=%d", PGUID (wr->e.guid), wr->supports_ssm);
-      ddsi_log_addrset (wr->e.gv, DDS_LC_DISCOVERY, "", wr->ssm_as);
+      ddsi_log_addrset (gv, DDS_LC_DISCOVERY, "", wr->ssm_as);
       ELOGDISC (wr, "\n");
     }
   }
 #endif
 
-  wr->evq = wr->e.gv->xevents;
+  wr->evq = gv->xevents;
 
   /* heartbeat event will be deleted when the handler can't find a
      writer for it in the hash table. NEVER => won't ever be
@@ -908,8 +939,8 @@ static void ddsi_new_writer_guid_common_init (struct ddsi_writer *wr, const char
   }
   else
   {
-    wr->whc_low = wr->e.gv->config.whc_lowwater_mark;
-    wr->whc_high = wr->e.gv->config.whc_init_highwater_mark.value;
+    wr->whc_low = gv->config.whc_lowwater_mark;
+    wr->whc_high = gv->config.whc_init_highwater_mark.value;
   }
   assert (!(ddsi_is_builtin_entityid(wr->e.guid.entityid, DDSI_VENDORID_ECLIPSE) && !ddsi_is_builtin_volatile_endpoint(wr->e.guid.entityid)) ||
            (wr->whc_low == wr->whc_high && wr->whc_low == INT32_MAX));
@@ -1399,7 +1430,7 @@ static void reader_init_network_partition (struct ddsi_reader *rd)
       rd->uc_as = np->uc_addresses;
       rd->mc_as = np->asm_addresses;
 #ifdef DDS_HAS_SSM
-      if (np->ssm_addresses != NULL && (gv->config.allowMulticast & DDSI_AMC_SSM))
+      if (np->ssm_addresses != NULL && nwpart_includes_ssm_enabled_interfaces (gv, np))
         rd->favours_ssm = 1;
 #endif
     }
@@ -1418,7 +1449,7 @@ static void reader_init_network_partition (struct ddsi_reader *rd)
       /* Note: SSM requires NETWORK_PARTITIONS; if network partitions
          do not override the default, we should check whether the
          default is an SSM address. */
-      if (ddsi_is_ssm_mcaddr (gv, &gv->loc_default_mc) && (gv->config.allowMulticast & DDSI_AMC_SSM))
+      if (ddsi_is_ssm_mcaddr (gv, &gv->loc_default_mc) && nwpart_includes_ssm_enabled_interfaces (gv, np))
         rd->favours_ssm = 1;
     }
 #endif

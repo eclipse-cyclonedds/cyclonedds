@@ -90,6 +90,7 @@ static void intf_init (struct ddsi_network_interface *intf, int index, bool allo
   intf->if_index = 1000u + (uint32_t) index;
   intf->mc_capable = (!allow_mc || index == 1) ? 0 : 1;
   intf->mc_flaky = 0;
+  intf->allow_multicast = (allow_mc && intf->mc_capable) ? DDSI_AMC_TRUE : DDSI_AMC_FALSE;
   intf->point_to_point = 0;
   intf->loopback = (index == 0) ? 1 : 0;
   intf->prefer_multicast = 0;
@@ -508,7 +509,7 @@ CU_Theory ((bool same_machine, bool proxypp_has_defmc, int n_ep_uc, int n_ep_mc,
   struct ddsi_config config;
   ddsi_config_init_default (&config);
   config.transport_selector = DDSI_TRANS_UDP;
-  config.allowMulticast = DDSI_AMC_TRUE;
+  config.allowMulticast = DDSI_AMC_DEFAULT;
   errcount = 0;
   memset (&gv, 0, sizeof (gv)); // solves a spurious gcc-12 "uninitialized" warning
   setup (&gv, &config, true, false);
