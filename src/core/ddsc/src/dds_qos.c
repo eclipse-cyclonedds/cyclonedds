@@ -970,17 +970,17 @@ dds_return_t dds_ensure_valid_psmx_instances (dds_qos_t *qos, ddsi_data_type_pro
 
 bool dds_qos_has_psmx_instances (const dds_qos_t *qos, const char *psmx_instance_name)
 {
-  uint32_t n = 0;
-  char **values;
+  uint32_t n_instances = 0;
+  char **values = NULL;
   bool found = false;
-  dds_qget_psmx_instances (qos, &n, &values);
-  for (uint32_t i = 0; !found && values != NULL && i < n; i++)
+  dds_qget_psmx_instances (qos, &n_instances, &values);
+  for (uint32_t i = 0; !found && values != NULL && i < n_instances; i++)
   {
     if (strcmp (psmx_instance_name, values[i]) == 0)
       found = true;
     dds_free (values[i]);
   }
-  if (n > 0)
+  if (n_instances > 0)
     dds_free (values);
   return found;
 }
