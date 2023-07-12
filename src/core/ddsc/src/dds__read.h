@@ -33,7 +33,7 @@ struct dds_read_collect_sample_arg {
  * @param[in] ptrs array of pointers to samples to be filled (collect_sample)
  *            or array to be filled with pointers-to-serdata (collect_sample_refs)
  * @param[in] infos array of sample infos to be filled
- * @param[in] loan_pool
+ * @param[in] loan_pool the loan pool the loan will be inserted in
  */
 void dds_read_collect_sample_arg_init (struct dds_read_collect_sample_arg *arg, void **ptrs, dds_sample_info_t *infos, struct dds_loan_pool *loan_pool);
 
