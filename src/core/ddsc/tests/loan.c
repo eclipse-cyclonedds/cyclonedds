@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include "dds/dds.h"
 #include "test_common.h"
+#include "build_options.h"
 
 static dds_entity_t participant, topic, reader, writer, read_condition, read_condition_unread;
 
@@ -74,6 +75,7 @@ CU_Test (ddsc_loan, bad_params, .init = create_entities, .fini = delete_entities
   CU_ASSERT (result == DDS_RETCODE_ILLEGAL_OPERATION);
 }
 
+
 CU_Test (ddsc_loan, success, .init = create_entities, .fini = delete_entities)
 {
   const RoundTripModule_DataType s = {
@@ -108,7 +110,14 @@ CU_Test (ddsc_loan, success, .init = create_entities, .fini = delete_entities)
   /* read 3, return: should work fine, causes allocating new ptrs */
   n = dds_read (reader, ptrs, si, 3, 3);
   CU_ASSERT_FATAL (n == 3);
-  CU_ASSERT_FATAL (ptrs[0] != NULL && ptrs[0] != ptrscopy[0] && ptrs[1] != NULL && ptrs[2] != NULL);
+  CU_ASSERT_FATAL (ptrs[0] != NULL && ptrs[1] != NULL && ptrs[2] != NULL);
+
+#ifdef DDS_BUILD_OPTION_WITH_ASAN
+  // only with asan a new allocation gets an address not used before in this test
+  CU_ASSERT_FATAL (ptrs[0] != ptrscopy[0]);
+#else
+  (void) ptrscopy;
+#endif
 
   /* read 3, letting read allocate */
   int32_t n2;
@@ -178,7 +187,13 @@ CU_Test (ddsc_loan, take_cleanup, .init = create_entities, .fini = delete_entiti
   CU_ASSERT_FATAL (result == 0);
   n = dds_take (reader, ptrs, si, 1, 1);
   CU_ASSERT_FATAL (n == 1);
-  CU_ASSERT_FATAL (ptrs[0] != NULL && ptrs[0] != ptr0copy && ptrs[1] == NULL);
+  CU_ASSERT_FATAL (ptrs[0] != NULL && ptrs[1] == NULL);
+#ifdef DDS_BUILD_OPTION_WITH_ASAN
+  // only with asan a new allocation gets an address not used before in this test
+  CU_ASSERT_FATAL (ptrs[0] != ptr0copy);
+#else
+  (void) ptr0copy;
+#endif
   result = dds_return_loan (reader, ptrs, n);
   CU_ASSERT_FATAL (result == DDS_RETCODE_OK);
 
@@ -193,7 +208,10 @@ CU_Test (ddsc_loan, take_cleanup, .init = create_entities, .fini = delete_entiti
   CU_ASSERT_FATAL (result == 0);
   n = dds_take (reader, ptrs, si, 1, 1);
   CU_ASSERT_FATAL (n == 1);
-  CU_ASSERT_FATAL (ptrs[0] != NULL && ptrs[0] != ptr0copy && ptrs[1] == NULL);
+  CU_ASSERT_FATAL (ptrs[0] != NULL && ptrs[1] == NULL);
+#ifdef DDS_BUILD_OPTION_WITH_ASAN
+  CU_ASSERT_FATAL (ptrs[0] != ptr0copy);
+#endif
 
   /* take that fails (with the loan still out) must not allocate memory */
   int32_t n2;
@@ -209,7 +227,10 @@ CU_Test (ddsc_loan, take_cleanup, .init = create_entities, .fini = delete_entiti
   CU_ASSERT_FATAL (result == 0);
   n = dds_take (reader, ptrs, si, 1, 1);
   CU_ASSERT_FATAL (n == 1);
-  CU_ASSERT_FATAL (ptrs[0] != NULL && ptrs[0] != ptr0copy && ptrs[1] == NULL);
+  CU_ASSERT_FATAL (ptrs[0] != NULL && ptrs[1] == NULL);
+#ifdef DDS_BUILD_OPTION_WITH_ASAN
+  CU_ASSERT_FATAL (ptrs[0] != ptr0copy);
+#endif
   result = dds_return_loan (reader, ptrs, n);
   CU_ASSERT_FATAL (result == DDS_RETCODE_OK);
 }
@@ -252,7 +273,14 @@ CU_Test (ddsc_loan, read_cleanup, .init = create_entities, .fini = delete_entiti
   CU_ASSERT_FATAL (result == 0);
   n = dds_read (read_condition_unread, ptrs, si, 1, 1);
   CU_ASSERT_FATAL (n == 1);
-  CU_ASSERT_FATAL (ptrs[0] != NULL && ptrs[0] != ptr0copy && ptrs[1] == NULL);
+  CU_ASSERT_FATAL (ptrs[0] != NULL && ptrs[1] == NULL);
+#ifdef DDS_BUILD_OPTION_WITH_ASAN
+  // only with asan a new allocation gets an address not used before in this test
+  CU_ASSERT_FATAL (ptrs[0] != ptr0copy);
+#else
+  (void) ptr0copy;
+#endif
+
   ptr0copy = ptrs[0];
   result = dds_return_loan (reader, ptrs, n);
   CU_ASSERT_FATAL (result == DDS_RETCODE_OK);
@@ -268,7 +296,10 @@ CU_Test (ddsc_loan, read_cleanup, .init = create_entities, .fini = delete_entiti
   CU_ASSERT_FATAL (result == 0);
   n = dds_read (read_condition_unread, ptrs, si, 1, 1);
   CU_ASSERT_FATAL (n == 1);
-  CU_ASSERT_FATAL (ptrs[0] != NULL && ptrs[0] != ptr0copy && ptrs[1] == NULL);
+  CU_ASSERT_FATAL (ptrs[0] != NULL && ptrs[1] == NULL);
+#ifdef DDS_BUILD_OPTION_WITH_ASAN
+  CU_ASSERT_FATAL (ptrs[0] != ptr0copy);
+#endif
 
   /* take that fails (with the loan still out), no memory allocated */
   int32_t n2;
@@ -284,7 +315,11 @@ CU_Test (ddsc_loan, read_cleanup, .init = create_entities, .fini = delete_entiti
   CU_ASSERT_FATAL (result == 0);
   n = dds_read (read_condition_unread, ptrs, si, 1, 1);
   CU_ASSERT_FATAL (n == 1);
-  CU_ASSERT_FATAL (ptrs[0] != NULL && ptrs[0] != ptr0copy && ptrs[1] == NULL);
+  CU_ASSERT_FATAL (ptrs[0] != NULL && ptrs[1] == NULL);
+#ifdef DDS_BUILD_OPTION_WITH_ASAN
+  CU_ASSERT_FATAL (ptrs[0] != ptr0copy);
+#endif
   result = dds_return_loan (reader, ptrs, n);
   CU_ASSERT_FATAL (result == DDS_RETCODE_OK);
 }
+
