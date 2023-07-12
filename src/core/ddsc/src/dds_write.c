@@ -380,7 +380,7 @@ dds_return_t dds_request_writer_loan(dds_writer *wr, void **samples_ptr, int32_t
   int32_t index = 0;
 
   ddsrt_mutex_lock (&wr->m_entity.m_mutex);
-  dds_loaned_sample_t **loans_ptr = dds_alloc (sizeof(dds_loaned_sample_t*)*(size_t)n_samples);
+  dds_loaned_sample_t **loans_ptr = dds_alloc (sizeof(dds_loaned_sample_t *) * (size_t) n_samples);
   if (!loans_ptr)
   {
     ret = DDS_RETCODE_OUT_OF_RESOURCES;
@@ -390,12 +390,14 @@ dds_return_t dds_request_writer_loan(dds_writer *wr, void **samples_ptr, int32_t
   // attempt to request loans from an PSMX instance
   if (wr->m_topic->m_stype->fixed_size)
   {
-    for (uint32_t i = 0; i < wr->m_endpoint.psmx_endpoints.length; i++)
+    // FIXME: allow multiple psmx instances
+    assert (wr->m_endpoint.psmx_endpoints.length <= 1);
+    if (wr->m_endpoint.psmx_endpoints.length == 1)
     {
       for (; index < n_samples; index++)
       {
-        dds_loaned_sample_t *loan = dds_psmx_endpoint_request_loan (wr->m_endpoint.psmx_endpoints.endpoints[i], wr->m_topic->m_stype->zerocopy_size);
-        if (!loan)
+        dds_loaned_sample_t *loan = dds_psmx_endpoint_request_loan (wr->m_endpoint.psmx_endpoints.endpoints[0], wr->m_topic->m_stype->zerocopy_size);
+        if (loan == NULL)
         {
           ret = DDS_RETCODE_ERROR;
           goto fail;
@@ -505,8 +507,10 @@ static dds_loaned_sample_t *get_loan_to_use (dds_writer *wr, const void *data, d
   if (get_required_buffer_size (wr->m_topic, data, &required_size) && required_size)
   {
     // attempt to get a loan from a PSMX
-    for (uint32_t i = 0; i < wr->m_endpoint.psmx_endpoints.length && !loan; i++)
-      loan = dds_psmx_endpoint_request_loan (wr->m_endpoint.psmx_endpoints.endpoints[i], required_size);
+    assert (wr->m_endpoint.psmx_endpoints.length <= 1);
+    // FIXME: allow multiple psmx instances
+    if (wr->m_endpoint.psmx_endpoints.length == 1)
+      loan = dds_psmx_endpoint_request_loan (wr->m_endpoint.psmx_endpoints.endpoints[0], required_size);
   }
 
   // too many cases ...
