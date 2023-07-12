@@ -586,6 +586,53 @@ static void make_participants_dependent_on_ddsi2 (struct ddsi_domaingv *gv, cons
   }
 }
 
+enum find_internal_interface_index_result {
+  FIIIR_NO_INFO,
+  FIIIR_NO_MATCH,
+  FIIIR_MATCH
+};
+
+static enum find_internal_interface_index_result find_internal_interface_index (const struct ddsi_domaingv *gv, uint32_t nwstack_if_index, int *internal_if_index) ddsrt_nonnull_all;
+
+static enum find_internal_interface_index_result find_internal_interface_index (const struct ddsi_domaingv *gv, uint32_t nwstack_if_index, int *internal_if_index)
+{
+  if (nwstack_if_index == 0)
+    return FIIIR_NO_INFO;
+  for (int i = 0; i < gv->n_interfaces; i++)
+  {
+    if (gv->interfaces[i].if_index == nwstack_if_index)
+    {
+      *internal_if_index = i;
+      return FIIIR_MATCH;
+    }
+  }
+  return FIIIR_NO_MATCH;
+}
+
+static bool accept_packet_from_interface (const struct ddsi_domaingv *gv, const struct ddsi_receiver_state *rst)
+{
+  int internal_if_index;
+  switch (find_internal_interface_index (gv, rst->pktinfo.if_index, &internal_if_index))
+  {
+    case FIIIR_NO_MATCH:
+      // Don't accept SPDP packets received on a interface outside the enabled ones
+      break;
+    case FIIIR_MATCH:
+      // Accept all unicast packets (except those manifestly received over an interface we are not using)
+      // and multicast packets if we chose to do multicast discovery on the interface over we received it
+      if (!ddsi_is_mcaddr (gv, &rst->pktinfo.dst) || gv->interfaces[internal_if_index].allow_multicast & DDSI_AMC_SPDP)
+        return true;
+      break;
+    case FIIIR_NO_INFO:
+      // We could try to match the source address with an interface. Perhaps the destination address
+      // is available even though the interface index is not, allowing some tricks.  On Linux, Windows
+      // and macOS this shouldn't happen, so rather than complicate things unnecessarily, just accept
+      // the packet like we always used to do.
+      return true;
+  }
+  return false;
+}
+
 static int handle_spdp_alive (const struct ddsi_receiver_state *rst, ddsi_seqno_t seq, ddsrt_wctime_t timestamp, const ddsi_plist_t *datap)
 {
   struct ddsi_domaingv * const gv = rst->gv;
@@ -597,6 +644,13 @@ static int handle_spdp_alive (const struct ddsi_receiver_state *rst, ddsi_seqno_
   ddsi_guid_t privileged_pp_guid;
   dds_duration_t lease_duration;
   unsigned custom_flags = 0;
+
+  // Don't just process any SPDP packet but look at the network interface and uni/multicast
+  // One could refine this even further by also looking at the locators advertised in the
+  // packet, but this should suffice to drop unwanted multicast packets, which is the only
+  // use case I am currently aware of.
+  if (!accept_packet_from_interface (gv, rst))
+    return 0;
 
   /* If advertised domain id or domain tag doesn't match, ignore the message.  Do this first to
      minimize the impact such messages have. */
