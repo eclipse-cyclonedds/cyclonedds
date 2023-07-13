@@ -873,6 +873,8 @@ static void dds_stream_get_ops_info1 (const uint32_t * __restrict ops, uint32_t 
           if (DDS_OP_TYPE (insn) != DDS_OP_VAL_UNI)
             info->data_types |= DDS_DATA_TYPE_CONTAINS_STRUCT;
         }
+        if ((insn & DDS_OP_FLAG_KEY) && nestc == 0)
+          info->data_types |= DDS_DATA_TYPE_CONTAINS_KEY;
         if (op_type_optional (insn))
         {
           info->min_xcdrv = DDSI_RTPS_CDR_ENC_VERSION_2;

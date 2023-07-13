@@ -663,6 +663,7 @@ enum dds_stream_typecode_subtype {
 #define DDS_DATA_TYPE_CONTAINS_ARRAY              0x1ull << 9
 #define DDS_DATA_TYPE_CONTAINS_OPTIONAL           0x1ull << 10
 #define DDS_DATA_TYPE_CONTAINS_EXTERNAL           0x1ull << 11
+#define DDS_DATA_TYPE_CONTAINS_KEY                0x1ull << 12
 
 #define DDS_DATA_TYPE_IS_FIXED_SIZE               0x1ull << 63
 

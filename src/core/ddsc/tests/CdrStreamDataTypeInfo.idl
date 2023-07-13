@@ -22,6 +22,10 @@ module CdrStreamDataTypeInfo {
   struct dti_opt      { @optional long f1; };
   struct dti_ext      { @external long f1; };
 
+  struct dti_struct_key          { @key long f1; };
+  struct dti_struct_nested_key   { @key dti_struct f1; };
+  struct dti_struct_nested_nokey { dti_struct_key f1; };
+
   enum e { E1, E2 };
   union  dti_union switch (long) { case 1: long f1; };
   union  dti_union_string switch (long) { case 1: string f1; };

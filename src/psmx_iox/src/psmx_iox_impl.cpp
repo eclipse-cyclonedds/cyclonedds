@@ -392,9 +392,10 @@ iox_loaned_sample::~iox_loaned_sample()
 
 // dds_psmx_ops_t implementation
 
-static bool iox_data_type_supported (dds_psmx_data_type_properties_t data_type)
+static bool iox_data_type_supported (dds_psmx_data_type_properties_t data_type_props)
 {
-  (void) data_type;
+  if (data_type_props & DDS_DATA_TYPE_CONTAINS_KEY)
+    return false;
   return true;
 }
 
