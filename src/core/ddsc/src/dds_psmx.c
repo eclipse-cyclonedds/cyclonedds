@@ -16,9 +16,11 @@
 #include "dds/ddsi/ddsi_locator.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_endpoint.h"
+#include "dds/ddsc/dds_loan_api.h"
 #include "dds__types.h"
 #include "dds__psmx.h"
 #include "dds__qos.h"
+#include "dds__entity.h"
 
 static struct dds_psmx_endpoint * psmx_create_endpoint (struct dds_psmx_topic *psmx_topic, const struct dds_qos *qos, dds_psmx_endpoint_type_t endpoint_type);
 static dds_return_t psmx_delete_endpoint (struct dds_psmx_endpoint *psmx_endpoint);
@@ -363,4 +365,96 @@ void dds_psmx_locators_set_free (struct ddsi_psmx_locators_set *psmx_locators_se
   if (psmx_locators_set->length > 0)
     dds_free (psmx_locators_set->locators);
   dds_free (psmx_locators_set);
+}
+
+dds_psmx_features_t dds_psmx_supported_features (const struct dds_psmx *psmx_instance)
+{
+  if (psmx_instance == NULL || psmx_instance->ops.supported_features == NULL)
+    return 0u;
+  return psmx_instance->ops.supported_features (psmx_instance);
+}
+
+static bool endpoint_is_shm (const struct dds_endpoint *endpoint)
+{
+  bool is_shm_available = false;
+  // TODO: implement correct behavior in case of multiple PSMX endpoints
+  for (uint32_t i = 0; !is_shm_available && i < endpoint->psmx_endpoints.length; i++)
+  {
+    struct dds_psmx_endpoint *psmx_endpoint = endpoint->psmx_endpoints.endpoints[i];
+    if (psmx_endpoint == NULL)
+      continue;
+    is_shm_available = dds_psmx_supported_features (psmx_endpoint->psmx_topic->psmx_instance) & DDS_PSMX_FEATURE_SHARED_MEMORY;
+  }
+  return is_shm_available;
+}
+
+bool dds_is_shared_memory_available (const dds_entity_t entity)
+{
+  bool is_shm_available = false;
+  dds_entity *e;
+
+  if (dds_entity_pin (entity, &e) != DDS_RETCODE_OK)
+    return false;
+
+  switch (dds_entity_kind (e))
+  {
+    case DDS_KIND_READER: {
+      struct dds_reader const *const rd = (struct dds_reader *) e;
+      is_shm_available = endpoint_is_shm (&rd->m_endpoint);
+      break;
+    }
+    case DDS_KIND_WRITER: {
+      struct dds_writer const *const wr = (struct dds_writer *)e;
+      is_shm_available = endpoint_is_shm (&wr->m_endpoint);
+      break;
+    }
+    default:
+      break;
+  }
+
+  dds_entity_unpin (e);
+  return is_shm_available;
+}
+
+static bool endpoint_is_loan_available (const struct dds_endpoint *endpoint)
+{
+  bool is_loan_available = false;
+  // TODO: implement correct behavior in case of multiple PSMX endpoints
+  for (uint32_t i = 0; !is_loan_available && i < endpoint->psmx_endpoints.length; i++)
+  {
+    struct dds_psmx_endpoint *psmx_endpoint = endpoint->psmx_endpoints.endpoints[i];
+    if (psmx_endpoint == NULL)
+      continue;
+    bool is_shm_available = dds_psmx_supported_features (psmx_endpoint->psmx_topic->psmx_instance) & DDS_PSMX_FEATURE_SHARED_MEMORY;
+    is_loan_available = is_shm_available && !dds_psmx_endpoint_serialization_required (psmx_endpoint);
+  }
+  return is_loan_available;
+}
+
+bool dds_is_loan_available (const dds_entity_t entity)
+{
+  bool is_loan_available = false;
+  dds_entity *e;
+
+  if (dds_entity_pin (entity, &e) != DDS_RETCODE_OK)
+    return false;
+
+  switch (dds_entity_kind (e))
+  {
+    case DDS_KIND_READER: {
+      struct dds_reader const *const rd = (struct dds_reader *) e;
+      is_loan_available = endpoint_is_loan_available (&rd->m_endpoint);
+      break;
+    }
+    case DDS_KIND_WRITER: {
+      struct dds_writer const *const wr = (struct dds_writer *)e;
+      is_loan_available = endpoint_is_loan_available (&wr->m_endpoint);
+      break;
+    }
+    default:
+      break;
+  }
+
+  dds_entity_unpin (e);
+  return is_loan_available;
 }

@@ -247,7 +247,7 @@ int main (int argc, char **argv)
   // dds_loan_api.h
   // FIXME: restore functions
   // dds_is_loan_available (1);
-  // dds_is_shared_memory_available (1);
+  dds_is_shared_memory_available (1);
   // dds_loan_shared_memory_buffer (1, 0, ptr);
   // dds_loan_sample (1, ptr);
 

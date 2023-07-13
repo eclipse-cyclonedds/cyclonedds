@@ -51,6 +51,13 @@ typedef uint64_t dds_psmx_data_type_properties_t;
 typedef uint32_t dds_psmx_instance_id_t;
 
 /**
+ * @brief Defines the features that can be supported by PSMX implementation
+ */
+#define DDS_PSMX_FEATURE_SHARED_MEMORY  1ul << 0
+#define DDS_PSMX_FEATURE_ZERO_COPY      1ul << 1
+typedef uint32_t dds_psmx_features_t;
+
+/**
  * @brief describes the data which is transferred in addition to just the sample
  */
 typedef struct dds_psmx_metadata {
@@ -146,6 +153,18 @@ typedef dds_return_t (* dds_psmx_deinit_fn) (struct dds_psmx *psmx_instance);
 typedef dds_psmx_node_identifier_t (* dds_psmx_get_node_identifier_fn) (const struct dds_psmx *psmx_instance);
 
 /**
+ * @brief Definition for PSMX function to get supported features
+ *
+ * Returns an integer with the flags set for the features that are
+ * supported by the provided PSMX instance.
+ *
+ * @param[in] psmx_instance  a PSMX instance
+ * @returns the set of features supported by this PSMX instance
+ */
+typedef dds_psmx_features_t (* dds_psmx_supported_features_fn) (const struct dds_psmx *psmx_instance);
+
+
+/**
  * @brief functions which are used on a PSMX instance
  */
 typedef struct dds_psmx_ops {
@@ -155,6 +174,7 @@ typedef struct dds_psmx_ops {
   dds_psmx_delete_topic_fn         delete_topic;
   dds_psmx_deinit_fn               deinit;
   dds_psmx_get_node_identifier_fn  get_node_id;
+  dds_psmx_supported_features_fn   supported_features;
 } dds_psmx_ops_t;
 
 /**
@@ -366,6 +386,17 @@ DDS_EXPORT dds_return_t dds_psmx_topic_init_generic (struct dds_psmx_topic *topi
  * @return a DDS return code
  */
 DDS_EXPORT dds_return_t dds_psmx_topic_cleanup_generic(struct dds_psmx_topic *psmx_topic);
+
+
+/**
+ * @brief Gets the supported features for a PSMX instance
+ *
+ * Returns the set of supported features for the provided PSMX instance.
+ *
+ * @param[in] psmx_instance   the PSMX instance
+ * @return the set of features supported by this PSMX instance
+ */
+DDS_EXPORT dds_psmx_features_t dds_psmx_supported_features (const struct dds_psmx *psmx_instance);
 
 
 #if defined (__cplusplus)

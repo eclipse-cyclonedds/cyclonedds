@@ -45,7 +45,7 @@ static struct dds_psmx_topic* iox_create_topic (struct dds_psmx * psmx, const ch
 static dds_return_t iox_delete_topic (struct dds_psmx_topic *psmx_topic);
 static dds_return_t iox_psmx_deinit (struct dds_psmx * self);
 static dds_psmx_node_identifier_t iox_psmx_get_node_id (const struct dds_psmx * psmx);
-
+static dds_psmx_features_t iox_supported_features (const struct dds_psmx *psmx);
 
 static const dds_psmx_ops_t psmx_ops = {
   .data_type_supported = iox_data_type_supported,
@@ -53,7 +53,8 @@ static const dds_psmx_ops_t psmx_ops = {
   .create_topic = iox_create_topic,
   .delete_topic = iox_delete_topic,
   .deinit = iox_psmx_deinit,
-  .get_node_id = iox_psmx_get_node_id
+  .get_node_id = iox_psmx_get_node_id,
+  .supported_features = iox_supported_features
 };
 
 
@@ -474,6 +475,11 @@ static dds_psmx_node_identifier_t iox_psmx_get_node_id (const struct dds_psmx * 
   return reinterpret_cast<const iox_psmx*>(psmx)->_node_id;
 }
 
+static dds_psmx_features_t iox_supported_features (const struct dds_psmx *psmx)
+{
+  (void) psmx;
+  return DDS_PSMX_FEATURE_SHARED_MEMORY | DDS_PSMX_FEATURE_ZERO_COPY;
+}
 
 // dds_psmx_topic_ops_t implementation
 

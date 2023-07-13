@@ -82,6 +82,7 @@ static struct dds_psmx_topic * cdds_psmx_create_topic (struct dds_psmx * psmx,
 static dds_return_t cdds_psmx_delete_topic (struct dds_psmx_topic *psmx_topic);
 static dds_return_t cdds_psmx_deinit (struct dds_psmx *psmx);
 static dds_psmx_node_identifier_t cdds_psmx_get_node_id (const struct dds_psmx *psmx);
+static dds_psmx_features_t cdds_supported_features (const struct dds_psmx *psmx);
 
 static const dds_psmx_ops_t psmx_instance_ops = {
   .data_type_supported = cdds_psmx_data_type_supported,
@@ -89,7 +90,8 @@ static const dds_psmx_ops_t psmx_instance_ops = {
   .create_topic = cdds_psmx_create_topic,
   .delete_topic = cdds_psmx_delete_topic,
   .deinit = cdds_psmx_deinit,
-  .get_node_id = cdds_psmx_get_node_id
+  .get_node_id = cdds_psmx_get_node_id,
+  .supported_features = cdds_supported_features
 };
 
 static bool cdds_psmx_topic_serialization_required (dds_psmx_data_type_properties_t data_type_props);
@@ -227,6 +229,12 @@ static dds_psmx_node_identifier_t cdds_psmx_get_node_id (const struct dds_psmx *
   dds_psmx_node_identifier_t node_id;
   memcpy (node_id.x, &guid, sizeof (node_id.x));
   return node_id;
+}
+
+static dds_psmx_features_t cdds_supported_features (const struct dds_psmx *psmx)
+{
+  (void) psmx;
+  return DDS_PSMX_FEATURE_ZERO_COPY;
 }
 
 static bool cdds_psmx_topic_serialization_required (dds_psmx_data_type_properties_t data_type_props)
