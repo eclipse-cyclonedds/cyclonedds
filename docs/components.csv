@@ -24,7 +24,6 @@ DDSC,Miscellanous,Shared Memory Monitor,shm_monitor
 DDSC,Miscellanous,Statistics,statistics
 DDSC,Reading/writing data,Built-in Topic,builtin_topic
 DDSC,Reading/writing data,Coherent Sets,coherent_sets
-DDSC,Reading/writing data,Data Allocation,data_alloc
 DDSC,Reading/writing data,Data Instance,data_instance
 DDSC,Reading/writing data,Read Data,read_data
 DDSC,Reading/writing data,Reader History Cache,rhc

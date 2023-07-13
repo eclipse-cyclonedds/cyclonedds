@@ -160,12 +160,6 @@ struct ddsi_config;
 
 
 /**
- * @ingroup DOC_TODO
- * Special handle representing the entity which forces the dds_data_allocator to allocate on heap
- */
-#define DDS_DATA_ALLOCATOR_ALLOC_ON_HEAP   ((dds_entity_t) (DDS_MIN_PSEUDO_HANDLE + 257))
-
-/**
  * @defgroup entity_status (Entity Status)
  * @ingroup entity
  * All entities have a set of "status conditions"
