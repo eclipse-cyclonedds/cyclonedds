@@ -544,6 +544,7 @@ CU_Test(ddsc_entity, data_available, .init=init_entity_status, .fini=fini_entity
 
     ret = dds_get_status_changes (rea, &sta);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
+    CU_ASSERT(sta & DDS_DATA_AVAILABLE_STATUS);
 
     ret = dds_waitset_detach(waitSetrd, rea);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
@@ -647,12 +648,12 @@ CU_Test(ddsc_entity, all_data_available, .init=init_entity_status, .fini=fini_en
     /* status after taking the data should be reset */
     ret = dds_get_status_changes (rea, &sta);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
-    CU_ASSERT_NOT_EQUAL(sta, ~DDS_DATA_AVAILABLE_STATUS);
+    CU_ASSERT_FALSE(sta & DDS_DATA_AVAILABLE_STATUS);
 
-    /* status from reader2 */
+    /* status from reader2 should not be reset, as the take does not influence it*/
     ret = dds_get_status_changes (reader2, &sta);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
-    CU_ASSERT_NOT_EQUAL(sta, ~DDS_DATA_AVAILABLE_STATUS);
+    CU_ASSERT(sta & DDS_DATA_AVAILABLE_STATUS);
 
     /* status from subscriber */
     ret = dds_get_status_changes (subscriber, &sta);
