@@ -2034,7 +2034,7 @@ static bool readtake_w_qminv_inst_get_rank_info_shortcut (const struct readtake_
       latest_matches = inst->latest->isread;
       break;
   }
-  
+
   // If we'll hit the sample limit or we're not ending on the invalid sample or the
   // latest one, then presumably the generation rank of the latest sample we will be
   // returning can be anything, generally necessitating the long route.
@@ -2115,11 +2115,9 @@ static int32_t read_w_qminv_inst_validsamples (const struct readtake_w_qminv_ins
   if (limit_at_end_of_instance + invalid_sample_included == *state->limit)
   {
     // nothing matched, skip 2nd pass
-    // note that this doesn't save us from doing the 2nd pass through the samples
-    // if only the invalid sample matched
     return DDS_RETCODE_OK;
   }
-  
+
   struct rhc_sample *sample = inst->latest->next, * const end1 = sample;
   do {
     if ((qmask_of_sample (sample) & state->qminv) == 0 && (state->qcmask == 0 || (sample->conds & state->qcmask)))
@@ -2161,7 +2159,7 @@ static int32_t take_w_qminv_inst_validsamples (const struct readtake_w_qminv_ins
   // see read_w_qminv_inst_validsamples
   assert (*state->limit > 0);
   assert (inst->latest && (qmask_of_inst (inst) & state->qminv) == 0);
-  
+
   int32_t limit_at_end_of_instance;
   uint32_t last_generation_in_result;
   bool invalid_sample_included;
