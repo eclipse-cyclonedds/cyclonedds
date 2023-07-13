@@ -4121,12 +4121,10 @@ dds_read_next_wl(
  * supported.
  *
  * It is called for the samples in the order compatible with the requirements of the DDS
- * specification, in particular that means instances are contiguous.  Setting the ranks
- * correctly can therefore be done by looking for a change in si.instance_handle and
- * performing a final fixup for the final instance after the call to read or take.
+ * specification, in particular that means instances are contiguous.
  *
  * @param[in] arg A pointer to the application-defined argument passed to read/take
- * @param[in] si A fully initialized sample info object, but with the sample_rank and generation_rank set to 0
+ * @param[in] si A fully initialized sample info object
  * @param[in] st The underlying ddsi_sertype (needed only if si.valid_data is false)
  * @param[in] sd The sample, if si.valid_data is false, the type has been erased (hence the "st" argument)
  *
