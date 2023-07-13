@@ -306,9 +306,7 @@ CU_Test(ddsc_entity_get_parent, participant, .init=hierarchy_init, .fini=hierarc
     parent = dds_get_parent(g_participant);
     CU_ASSERT_NOT_EQUAL_FATAL(parent, DDS_ENTITY_NIL);
     parent = dds_get_parent(parent);
-    CU_ASSERT_NOT_EQUAL_FATAL(parent, DDS_ENTITY_NIL);
-    parent = dds_get_parent(parent);
-    CU_ASSERT_NOT_EQUAL_FATAL(parent, DDS_CYCLONEDDS_HANDLE);
+    CU_ASSERT_EQUAL_FATAL(parent, DDS_CYCLONEDDS_HANDLE);
 }
 /*************************************************************************************************/
 
@@ -470,9 +468,8 @@ CU_TheoryDataPoints(ddsc_entity_get_children, deleted_entities) = {
 CU_Theory((dds_entity_t *entity), ddsc_entity_get_children, deleted_entities, .init=hierarchy_init, .fini=hierarchy_fini)
 {
     dds_return_t ret;
-    dds_entity_t children[4];
     dds_delete(*entity);
-    ret = dds_get_children(*entity, children, 4);
+    ret = dds_get_children(*entity, NULL, 0);
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_BAD_PARAMETER);
 }
 /*************************************************************************************************/
@@ -593,7 +590,7 @@ CU_Theory((dds_entity_t entity), ddsc_entity_get_publisher, invalid_writers, .in
 
 /*************************************************************************************************/
 CU_TheoryDataPoints(ddsc_entity_get_publisher, non_writers) = {
-        CU_DataPoints(dds_entity_t*, &g_publisher, &g_reader, &g_publisher, &g_topic, &g_participant),
+        CU_DataPoints(dds_entity_t*, &g_subscriber, &g_reader, &g_publisher, &g_topic, &g_participant),
 };
 CU_Theory((dds_entity_t *cond), ddsc_entity_get_publisher, non_writers, .init=hierarchy_init, .fini=hierarchy_fini)
 {
