@@ -264,7 +264,7 @@ struct rhc_instance {
   unsigned autodispose : 1;    /* wrcount > 0 => at least one registered writer has had auto-dispose set on some update */
   unsigned wr_iid_islive : 1;  /* whether wr_iid is of a live writer */
   unsigned inv_exists : 1;     /* whether or not state change occurred since last sample (i.e., must return invalid sample) */
-  unsigned inv_isread : 1;     /* whether or not that state change has been read before */
+  unsigned inv_isread : 1;     /* whether or not that state change has been read before (undefined if !inv_exists) */
   unsigned deadline_reg : 1;   /* whether or not registered for a deadline (== isdisposed, except store() defers updates) */
   uint32_t disposed_gen;       /* bloody generation counters - worst invention of mankind */
   uint32_t no_writers_gen;     /* __/ */
@@ -1922,7 +1922,12 @@ static uint32_t qmask_from_mask_n_cond (uint32_t mask, dds_readcond* cond)
   return qminv;
 }
 
-static void set_sample_info (dds_sample_info_t *si, const struct rhc_instance *inst, const struct rhc_sample *sample)
+static uint32_t get_absolute_generation_rank (const struct rhc_instance *inst, const struct rhc_sample *sample)
+{
+  return (inst->disposed_gen + inst->no_writers_gen) - (sample->disposed_gen + sample->no_writers_gen);
+}
+
+static void make_sample_info (dds_sample_info_t *si, const struct rhc_instance *inst, const struct rhc_sample *sample, uint32_t sample_rank, uint32_t generation_rank)
 {
   si->sample_state = sample->isread ? DDS_SST_READ : DDS_SST_NOT_READ;
   si->view_state = inst->isnew ? DDS_VST_NEW : DDS_VST_OLD;
@@ -1931,14 +1936,14 @@ static void set_sample_info (dds_sample_info_t *si, const struct rhc_instance *i
   si->publication_handle = sample->wr_iid;
   si->disposed_generation_count = sample->disposed_gen;
   si->no_writers_generation_count = sample->no_writers_gen;
-  si->sample_rank = 0;     /* needs to be patched by sample collector cb: don't know last sample in returned set yet */
-  si->generation_rank = 0; /* __/ */
-  si->absolute_generation_rank = (inst->disposed_gen + inst->no_writers_gen) - (sample->disposed_gen + sample->no_writers_gen);
+  si->sample_rank = sample_rank;
+  si->generation_rank = generation_rank;
+  si->absolute_generation_rank = get_absolute_generation_rank (inst, sample);
   si->valid_data = true;
   si->source_timestamp = sample->sample->timestamp.v;
 }
 
-static void set_sample_info_invsample (dds_sample_info_t *si, const struct rhc_instance *inst)
+static void make_sample_info_invsample (dds_sample_info_t *si, const struct rhc_instance *inst)
 {
   si->sample_state = inst->inv_isread ? DDS_SST_READ : DDS_SST_NOT_READ;
   si->view_state = inst->isnew ? DDS_VST_NEW : DDS_VST_OLD;
@@ -1991,10 +1996,226 @@ static bool take_sample_update_conditions (struct dds_rhc_default *rhc, struct t
   return false;
 }
 
-static int32_t read_w_qminv_inst (struct dds_rhc_default * const __restrict rhc, int32_t * __restrict ncollected, struct rhc_instance * const __restrict inst, const int32_t max_samples, const uint32_t qminv, const dds_querycond_mask_t qcmask, dds_read_with_collector_fn_t collect_sample, void *collect_sample_arg)
+struct readtake_w_qminv_inst_state {
+  struct dds_rhc_default * __restrict rhc;
+  int32_t * __restrict limit;
+  uint32_t qminv;
+  dds_querycond_mask_t qcmask;
+  dds_read_with_collector_fn_t collect_sample;
+  void *collect_sample_arg;
+};
+
+static bool readtake_w_qminv_inst_get_rank_info_shortcut (const struct readtake_w_qminv_inst_state * __restrict state, struct rhc_instance * const __restrict inst, int32_t * __restrict limit_at_end_of_instance, uint32_t * __restrict last_generation_in_result, bool * __restrict invalid_sample_included)
 {
-  assert (max_samples > 0);
-  if (inst_is_empty (inst) || (qmask_of_inst (inst) & qminv) != 0)
+  // no shortcuts if the contents of the samples matter
+  if (state->qcmask != 0)
+    return false;
+
+  // We know how many read/not_read/any samples (+ invalid one) exist, these
+  // are all to be returned, provided they fit within the sample limit
+  uint32_t navail_valid = 0;
+  bool invalid_matches = false;
+  bool latest_matches = false;
+  switch (state->qminv & (DDS_READ_SAMPLE_STATE | DDS_NOT_READ_SAMPLE_STATE))
+  {
+    case 0: // any state
+      navail_valid = inst->nvsamples;
+      invalid_matches = inst->inv_exists;
+      latest_matches = true;
+      break;
+    case DDS_READ_SAMPLE_STATE: // everything except read = only not_read
+      navail_valid = inst->nvsamples  - inst->nvread;
+      invalid_matches = inst->inv_exists > inst->inv_isread;
+      latest_matches = !inst->latest->isread;
+      break;
+    case DDS_NOT_READ_SAMPLE_STATE: // everything except not_read = only read
+      navail_valid = inst->nvread;
+      invalid_matches = (bool) (inst->inv_exists & inst->inv_isread);
+      latest_matches = inst->latest->isread;
+      break;
+  }
+  
+  // If we'll hit the sample limit or we're not ending on the invalid sample or the
+  // latest one, then presumably the generation rank of the latest sample we will be
+  // returning can be anything, generally necessitating the long route.
+  //
+  // There is one exception: if there is only a single generation among the valid
+  // samples, then all generation ranks are known as well, and at least the invalid
+  // sample is not included.
+  *limit_at_end_of_instance = *state->limit - (int32_t) (navail_valid + invalid_matches);
+  if (navail_valid + invalid_matches <= (uint32_t) *state->limit && (invalid_matches || latest_matches))
+  {
+    if (invalid_matches)
+      *last_generation_in_result = inst->disposed_gen + inst->no_writers_gen;
+    else
+      *last_generation_in_result = inst->latest->disposed_gen + inst->latest->no_writers_gen;
+    *invalid_sample_included = invalid_matches;
+    return true;
+  }
+  else if (inst->latest->disposed_gen + inst->latest->no_writers_gen ==
+           inst->latest->next->disposed_gen + inst->latest->next->no_writers_gen)
+  {
+    if (*limit_at_end_of_instance < 0)
+      *limit_at_end_of_instance = 0;
+    *invalid_sample_included = false;
+    *last_generation_in_result = inst->latest->disposed_gen + inst->latest->no_writers_gen;
+    return true;
+  }
+  else
+  {
+    return false;
+  }
+}
+
+static void readtake_w_qminv_inst_get_rank_info (const struct readtake_w_qminv_inst_state * __restrict state, struct rhc_instance * const __restrict inst, int32_t * __restrict limit_at_end_of_instance, uint32_t * __restrict last_generation_in_result, bool * __restrict invalid_sample_included)
+{
+  assert (inst->latest != NULL);
+  if (!readtake_w_qminv_inst_get_rank_info_shortcut (state, inst, limit_at_end_of_instance, last_generation_in_result, invalid_sample_included))
+  {
+    struct rhc_sample *sample = inst->latest->next, * const end1 = sample;
+    int32_t pass1_limit = *state->limit;
+    uint32_t last_gen = 0;
+    do {
+      if ((qmask_of_sample (sample) & state->qminv) == 0 && (state->qcmask == 0 || (sample->conds & state->qcmask)))
+      {
+        /* sample state matches too */
+        last_gen = sample->disposed_gen + sample->no_writers_gen;
+        pass1_limit--;
+      }
+      sample = sample->next;
+    } while (pass1_limit > 0 && sample != end1);
+    if (inst->inv_exists && pass1_limit > 0 &&
+        (qmask_of_invsample (inst) & state->qminv) == 0 &&
+        (state->qcmask == 0 || (inst->conds & state->qcmask)))
+    {
+      last_gen = inst->disposed_gen + inst->no_writers_gen;
+      *invalid_sample_included = true;
+      pass1_limit--;
+    }
+    else
+    {
+      *invalid_sample_included = false;
+    }
+    *limit_at_end_of_instance = pass1_limit;
+    *last_generation_in_result = last_gen;
+  }
+}
+
+static int32_t read_w_qminv_inst_validsamples (const struct readtake_w_qminv_inst_state * __restrict state, struct rhc_instance * const __restrict inst, struct trigger_info_pre *pre, struct trigger_info_post *post, struct trigger_info_qcond *trig_qc)
+{
+  assert (*state->limit > 0);
+  assert (inst->latest && (qmask_of_inst (inst) & state->qminv) == 0);
+
+  // we need to know how many samples (valid + invalid) we will return
+  // for this instance for computing the sample rank
+  int32_t limit_at_end_of_instance;
+  uint32_t last_generation_in_result;
+  bool invalid_sample_included;
+  readtake_w_qminv_inst_get_rank_info (state, inst, &limit_at_end_of_instance, &last_generation_in_result, &invalid_sample_included);
+  if (limit_at_end_of_instance + invalid_sample_included == *state->limit)
+  {
+    // nothing matched, skip 2nd pass
+    // note that this doesn't save us from doing the 2nd pass through the samples
+    // if only the invalid sample matched
+    return DDS_RETCODE_OK;
+  }
+  
+  struct rhc_sample *sample = inst->latest->next, * const end1 = sample;
+  do {
+    if ((qmask_of_sample (sample) & state->qminv) == 0 && (state->qcmask == 0 || (sample->conds & state->qcmask)))
+    {
+      /* sample state matches too */
+      dds_sample_info_t si;
+      make_sample_info (&si, inst, sample, (uint32_t) (*state->limit - limit_at_end_of_instance), last_generation_in_result - (sample->disposed_gen + sample->no_writers_gen));
+      const int32_t rc = state->collect_sample (state->collect_sample_arg, &si, state->rhc->type, sample->sample);
+      if (rc < 0)
+      {
+        // If collector fails, all we can do is return a partial result:
+        // we have already performed side-effects that we can't roll back
+        // and the return value is the count and returning anything other
+        // then the actual returned number of samples causes data loss, and
+        // possibly leaks.
+        //
+        // We can return an error if we didn't do anything yet, so at least
+        // that gives the application a fighting chance to eventually discover
+        // the presence of a problem (if it persists)
+        return rc;
+      }
+      if (!sample->isread)
+      {
+        read_sample_update_conditions (state->rhc, pre, post, trig_qc, inst, sample->conds, false);
+        sample->isread = true;
+        inst->nvread++;
+        state->rhc->n_vread++;
+      }
+      (*state->limit)--;
+    }
+    sample = sample->next;
+  } while (*state->limit > 0 && sample != end1);
+  assert (*state->limit == limit_at_end_of_instance + invalid_sample_included);
+  return DDS_RETCODE_OK;
+}
+
+static int32_t take_w_qminv_inst_validsamples (const struct readtake_w_qminv_inst_state * __restrict state, struct rhc_instance * const __restrict inst, struct trigger_info_pre *pre, struct trigger_info_post *post, struct trigger_info_qcond *trig_qc)
+{
+  // see read_w_qminv_inst_validsamples
+  assert (*state->limit > 0);
+  assert (inst->latest && (qmask_of_inst (inst) & state->qminv) == 0);
+  
+  int32_t limit_at_end_of_instance;
+  uint32_t last_generation_in_result;
+  bool invalid_sample_included;
+  readtake_w_qminv_inst_get_rank_info (state, inst, &limit_at_end_of_instance, &last_generation_in_result, &invalid_sample_included);
+  if (limit_at_end_of_instance + invalid_sample_included == *state->limit)
+    return DDS_RETCODE_OK;
+
+  struct rhc_sample *psample = inst->latest;
+  struct rhc_sample *sample = psample->next;
+  uint32_t nvsamples = inst->nvsamples;
+  while (*state->limit > 0 && nvsamples--)
+  {
+    struct rhc_sample * const sample1 = sample->next;
+    if ((qmask_of_sample (sample) & state->qminv) != 0 || (state->qcmask != 0 && !(sample->conds & state->qcmask)))
+    {
+      /* sample mask doesn't match, or content predicate doesn't match */
+      psample = sample;
+    }
+    else
+    {
+      dds_sample_info_t si;
+      make_sample_info (&si, inst, sample, (uint32_t) (*state->limit - limit_at_end_of_instance), last_generation_in_result - (sample->disposed_gen + sample->no_writers_gen));
+      const int32_t rc = state->collect_sample (state->collect_sample_arg, &si, state->rhc->type, sample->sample);
+      if (rc < 0)
+        return rc;
+      take_sample_update_conditions (state->rhc, pre, post, trig_qc, inst, sample->conds, sample->isread);
+      state->rhc->n_vsamples--;
+      if (sample->isread)
+      {
+        inst->nvread--;
+        state->rhc->n_vread--;
+      }
+      if (--inst->nvsamples == 0)
+        inst->latest = NULL;
+      else
+      {
+        if (inst->latest == sample)
+          inst->latest = psample;
+        psample->next = sample1;
+      }
+      free_sample (state->rhc, inst, sample);
+      (*state->limit)--;
+    }
+    sample = sample1;
+  }
+  assert (*state->limit == limit_at_end_of_instance + invalid_sample_included);
+  return DDS_RETCODE_OK;
+}
+
+static int32_t read_w_qminv_inst (const struct readtake_w_qminv_inst_state * __restrict state, struct rhc_instance * const __restrict inst)
+{
+  const int32_t initial_limit = *state->limit;
+  assert (*state->limit > 0);
+  if (inst_is_empty (inst) || (qmask_of_inst (inst) & state->qminv) != 0)
   {
     /* no samples present, or the instance/view state doesn't match */
     return DDS_RETCODE_OK;
@@ -2004,74 +2225,40 @@ static int32_t read_w_qminv_inst (struct dds_rhc_default * const __restrict rhc,
   struct trigger_info_post post;
   struct trigger_info_qcond trig_qc;
   const uint32_t nread = inst_nread (inst);
-  dds_sample_info_t si;
   dds_return_t rc = DDS_RETCODE_OK;
-  int32_t n = 0;
   get_trigger_info_pre (&pre, inst);
   init_trigger_info_qcond (&trig_qc);
 
-  /* any valid samples precede a possible invalid sample */
-  if (inst->latest)
-  {
-    struct rhc_sample *sample = inst->latest->next, * const end1 = sample;
-    do {
-      if ((qmask_of_sample (sample) & qminv) == 0 && (qcmask == 0 || (sample->conds & qcmask)))
-      {
-        /* sample state matches too */
-        set_sample_info (&si, inst, sample);
-        if ((rc = collect_sample (collect_sample_arg, &si, rhc->type, sample->sample)) < 0)
-        {
-          // If collector fails, all we can do is return a partial result:
-          // we have already performed side-effects that we can't roll back
-          // and the return value is the count and returning anything other
-          // then the actual returned number of samples causes data loss, and
-          // possibly leaks.
-          //
-          // We can return an error if we didn't do anything yet, so at least
-          // that gives the application a fighting chance to eventually discover
-          // the presence of a problem (if it persists)
-          goto abort_on_error;
-        }
-        if (!sample->isread)
-        {
-          read_sample_update_conditions (rhc, &pre, &post, &trig_qc, inst, sample->conds, false);
-          sample->isread = true;
-          inst->nvread++;
-          rhc->n_vread++;
-        }
-        ++n;
-      }
-      sample = sample->next;
-    } while (n < max_samples && sample != end1);
-  }
+  /* valid samples come first */
+  if (inst->latest && (rc = read_w_qminv_inst_validsamples (state, inst, &pre, &post, &trig_qc)) < 0)
+    goto abort_on_error;
 
   /* add an invalid sample if it exists, matches and there is room in the result */
-  if (inst->inv_exists && n < max_samples && (qmask_of_invsample (inst) & qminv) == 0 && (qcmask == 0 || (inst->conds & qcmask)))
+  if (inst->inv_exists && *state->limit > 0 &&
+      (qmask_of_invsample (inst) & state->qminv) == 0 &&
+      (state->qcmask == 0 || (inst->conds & state->qcmask)))
   {
-    set_sample_info_invsample (&si, inst);
-    if ((rc = collect_sample (collect_sample_arg, &si, rhc->type, inst->tk->m_sample)) < 0)
+    /* ranks of an invalid sample are always 0 because it is the final entry for the instance */
+    dds_sample_info_t si;
+    make_sample_info_invsample (&si, inst);
+    if ((rc = state->collect_sample (state->collect_sample_arg, &si, state->rhc->type, inst->tk->m_sample)) < 0)
       goto abort_on_error;
     if (!inst->inv_isread)
     {
-      read_sample_update_conditions (rhc, &pre, &post, &trig_qc, inst, inst->conds, false);
+      read_sample_update_conditions (state->rhc, &pre, &post, &trig_qc, inst, inst->conds, false);
       inst->inv_isread = 1;
-      rhc->n_invread++;
+      state->rhc->n_invread++;
     }
-    ++n;
+    (*state->limit)--;
   }
 
 abort_on_error: ;
-  /* set generation counts in sample info now that we can compute them; update instance state */
   bool inst_became_old = false;
-  if (n > 0)
+  if (*state->limit < initial_limit && inst->isnew)
   {
-    (*ncollected) += n;
-    if (inst->isnew)
-    {
-      inst_became_old = true;
-      inst->isnew = 0;
-      rhc->n_new--;
-    }
+    inst_became_old = true;
+    inst->isnew = 0;
+    state->rhc->n_new--;
   }
   if (nread != inst_nread (inst) || inst_became_old)
   {
@@ -2080,93 +2267,54 @@ abort_on_error: ;
     assert (trig_qc.dec_conds_sample == 0);
     assert (trig_qc.inc_conds_invsample == 0);
     assert (trig_qc.inc_conds_sample == 0);
-    update_conditions_locked (rhc, false, &pre, &post, &trig_qc, inst);
+    update_conditions_locked (state->rhc, false, &pre, &post, &trig_qc, inst);
   }
   return rc;
 }
 
-static int32_t take_w_qminv_inst (struct dds_rhc_default * const __restrict rhc, int32_t * __restrict ncollected, struct rhc_instance * __restrict * __restrict instptr, const int32_t max_samples, const uint32_t qminv, const dds_querycond_mask_t qcmask, dds_read_with_collector_fn_t collect_sample, void *collect_sample_arg)
+static int32_t take_w_qminv_inst (const struct readtake_w_qminv_inst_state * __restrict state, struct rhc_instance * __restrict * __restrict instptr)
 {
-  struct rhc_instance *inst = *instptr;
-  assert (max_samples > 0);
-  if (inst_is_empty (inst) || (qmask_of_inst (inst) & qminv) != 0)
-  {
-    /* no samples present, or the instance/view state doesn't match */
+  // also see read_w_qminv_inst
+  const int32_t initial_limit = *state->limit;
+  struct rhc_instance * const inst = *instptr;
+  assert (*state->limit > 0);
+  if (inst_is_empty (inst) || (qmask_of_inst (inst) & state->qminv) != 0)
     return 0;
-  }
 
   struct trigger_info_pre pre;
   struct trigger_info_post post;
   struct trigger_info_qcond trig_qc;
-  dds_sample_info_t si;
   dds_return_t rc = DDS_RETCODE_OK;
-  int32_t n = 0;
   get_trigger_info_pre (&pre, inst);
   init_trigger_info_qcond (&trig_qc);
 
-  if (inst->latest)
-  {
-    struct rhc_sample *psample = inst->latest;
-    struct rhc_sample *sample = psample->next;
-    uint32_t nvsamples = inst->nvsamples;
-    while (nvsamples--)
-    {
-      struct rhc_sample * const sample1 = sample->next;
-      if ((qmask_of_sample (sample) & qminv) != 0 || (qcmask != 0 && !(sample->conds & qcmask)))
-      {
-        /* sample mask doesn't match, or content predicate doesn't match */
-        psample = sample;
-      }
-      else
-      {
-        set_sample_info (&si, inst, sample);
-        if ((rc = collect_sample (collect_sample_arg, &si, rhc->type, sample->sample)) < 0)
-          goto abort_on_error;
-        take_sample_update_conditions (rhc, &pre, &post, &trig_qc, inst, sample->conds, sample->isread);
-        rhc->n_vsamples--;
-        if (sample->isread)
-        {
-          inst->nvread--;
-          rhc->n_vread--;
-        }
-        if (--inst->nvsamples == 0)
-          inst->latest = NULL;
-        else
-        {
-          if (inst->latest == sample)
-            inst->latest = psample;
-          psample->next = sample1;
-        }
-        free_sample (rhc, inst, sample);
-        if (++n == max_samples)
-          break;
-      }
-      sample = sample1;
-    }
-  }
+  if (inst->latest && (rc = take_w_qminv_inst_validsamples (state, inst, &pre, &post, &trig_qc)) < 0)
+    goto abort_on_error;
 
-  if (inst->inv_exists && n < max_samples && (qmask_of_invsample (inst) & qminv) == 0 && (qcmask == 0 || (inst->conds & qcmask) != 0))
+  if (inst->inv_exists && *state->limit > 0 &&
+      (qmask_of_invsample (inst) & state->qminv) == 0 &&
+      (state->qcmask == 0 || (inst->conds & state->qcmask) != 0))
   {
-    set_sample_info_invsample (&si, inst);
-    if ((rc = collect_sample (collect_sample_arg, &si, rhc->type, inst->tk->m_sample)) < 0)
+    dds_sample_info_t si;
+    make_sample_info_invsample (&si, inst);
+    if ((rc = state->collect_sample (state->collect_sample_arg, &si, state->rhc->type, inst->tk->m_sample)) < 0)
       goto abort_on_error;
     struct trigger_info_qcond dummy_trig_qc;
 #ifndef NDEBUG
     init_trigger_info_qcond (&dummy_trig_qc);
 #endif
-    take_sample_update_conditions (rhc, &pre, &post, &trig_qc, inst, inst->conds, inst->inv_isread);
-    inst_clear_invsample (rhc, inst, &dummy_trig_qc);
-    ++n;
+    take_sample_update_conditions (state->rhc, &pre, &post, &trig_qc, inst, inst->conds, inst->inv_isread);
+    inst_clear_invsample (state->rhc, inst, &dummy_trig_qc);
+    (*state->limit)--;
   }
 
 abort_on_error: ;
-  if (n > 0)
+  if (*state->limit < initial_limit)
   {
-    (*ncollected) += n;
     if (inst->isnew)
     {
       inst->isnew = 0;
-      rhc->n_new--;
+      state->rhc->n_new--;
     }
     /* if nsamples = 0, it won't match anything, so no need to do anything here for drop_instance_noupdate_no_writers */
     get_trigger_info_cmn (&post.c, inst);
@@ -2174,32 +2322,31 @@ abort_on_error: ;
     assert (trig_qc.dec_conds_sample == 0);
     assert (trig_qc.inc_conds_invsample == 0);
     assert (trig_qc.inc_conds_sample == 0);
-    update_conditions_locked (rhc, false, &pre, &post, &trig_qc, inst);
+    update_conditions_locked (state->rhc, false, &pre, &post, &trig_qc, inst);
   }
 
   if (inst_is_empty (inst))
-    account_for_nonempty_to_empty_transition (rhc, instptr, "take: ");
+    account_for_nonempty_to_empty_transition (state->rhc, instptr, "take: ");
   return rc;
 }
 
-static dds_return_t read_w_qminv (struct dds_rhc_default * __restrict rhc, int32_t * __restrict ncollected, int32_t max_samples, uint32_t qminv, dds_instance_handle_t handle, dds_readcond * __restrict cond, dds_read_with_collector_fn_t collect_sample, void *collect_sample_arg)
+static dds_return_t read_w_qminv (const struct readtake_w_qminv_inst_state * __restrict state, dds_instance_handle_t handle)
 {
+  struct dds_rhc_default * const rhc = state->rhc;
   dds_return_t rc = DDS_RETCODE_OK;
-  assert (0 < max_samples && max_samples <= INT32_MAX);
+  assert (0 < *state->limit && *state->limit <= INT32_MAX);
   ddsrt_mutex_lock (&rhc->lock);
 
-  TRACE ("read_w_qminv(%p,%"PRId32",%"PRIx32",%"PRIx64",%p) - inst %"PRIu32" nonempty %"PRIu32" disp %"PRIu32" nowr %"PRIu32" new %"PRIu32" samples %"PRIu32"+%"PRIu32" read %"PRIu32"+%"PRIu32"\n", (void*) rhc, max_samples, qminv, handle, (void *) cond,
+  TRACE ("read_w_qminv(%p,%"PRId32",%"PRIx32",%"PRIx64") - inst %"PRIu32" nonempty %"PRIu32" disp %"PRIu32" nowr %"PRIu32" new %"PRIu32" samples %"PRIu32"+%"PRIu32" read %"PRIu32"+%"PRIu32"\n", (void*) rhc, *state->limit, state->qminv, handle,
     rhc->n_instances, rhc->n_nonempty_instances, rhc->n_not_alive_disposed,
     rhc->n_not_alive_no_writers, rhc->n_new, rhc->n_vsamples, rhc->n_invsamples,
     rhc->n_vread, rhc->n_invread);
-
-  const dds_querycond_mask_t qcmask = (cond && cond->m_query.m_filter) ? cond->m_query.m_qcmask : 0;
   if (handle)
   {
     struct rhc_instance template, *inst;
     template.iid = handle;
     if ((inst = ddsrt_hh_lookup (rhc->instances, &template)) != NULL)
-      rc = read_w_qminv_inst (rhc, ncollected, inst, max_samples, qminv, qcmask, collect_sample, collect_sample_arg);
+      rc = read_w_qminv_inst (state, inst);
     else
       rc = DDS_RETCODE_PRECONDITION_NOT_MET;
   }
@@ -2208,34 +2355,33 @@ static dds_return_t read_w_qminv (struct dds_rhc_default * __restrict rhc, int32
     struct rhc_instance * inst = oldest_nonempty_instance (rhc);
     struct rhc_instance * const end = inst;
     do {
-      rc = read_w_qminv_inst(rhc, ncollected, inst, max_samples - *ncollected, qminv, qcmask, collect_sample, collect_sample_arg);
+      rc = read_w_qminv_inst (state, inst);
       inst = next_nonempty_instance (inst);
-    } while (rc >= 0 && inst != end && *ncollected < max_samples);
+    } while (rc >= 0 && inst != end && *state->limit > 0);
   }
-  TRACE ("read: returning %"PRId32" with %"PRId32" collected\n", rc, *ncollected);
+  TRACE ("read: returning %"PRId32" with remaining limit %"PRId32"\n", rc, *state->limit);
   assert (rhc_check_counts_locked (rhc, true, false));
   ddsrt_mutex_unlock (&rhc->lock);
   return rc;
 }
 
-static dds_return_t take_w_qminv (struct dds_rhc_default * __restrict rhc, int32_t * __restrict ncollected, int32_t max_samples, uint32_t qminv, dds_instance_handle_t handle, dds_readcond * __restrict cond, dds_read_with_collector_fn_t collect_sample, void *collect_sample_arg)
+static dds_return_t take_w_qminv (const struct readtake_w_qminv_inst_state * __restrict state, dds_instance_handle_t handle)
 {
+  struct dds_rhc_default * const rhc = state->rhc;
   dds_return_t rc = DDS_RETCODE_OK;
-  assert (0 < max_samples && max_samples <= INT32_MAX);
+  assert (0 < *state->limit && *state->limit <= INT32_MAX);
   ddsrt_mutex_lock (&rhc->lock);
 
-  TRACE ("take_w_qminv(%p,%"PRId32",%"PRIx32",%"PRIx64",%p) - inst %"PRIu32" nonempty %"PRIu32" disp %"PRIu32" nowr %"PRIu32" new %"PRIu32" samples %"PRIu32"+%"PRIu32" read %"PRIu32"+%"PRIu32"\n", (void*) rhc, max_samples, qminv, handle, (void *) cond,
+  TRACE ("take_w_qminv(%p,%"PRId32",%"PRIx32",%"PRIx64") - inst %"PRIu32" nonempty %"PRIu32" disp %"PRIu32" nowr %"PRIu32" new %"PRIu32" samples %"PRIu32"+%"PRIu32" read %"PRIu32"+%"PRIu32"\n", (void*) rhc, *state->limit, state->qminv, handle,
     rhc->n_instances, rhc->n_nonempty_instances, rhc->n_not_alive_disposed,
     rhc->n_not_alive_no_writers, rhc->n_new, rhc->n_vsamples,
     rhc->n_invsamples, rhc->n_vread, rhc->n_invread);
-
-  const dds_querycond_mask_t qcmask = (cond && cond->m_query.m_filter) ? cond->m_query.m_qcmask : 0;
   if (handle)
   {
     struct rhc_instance template, *inst;
     template.iid = handle;
     if ((inst = ddsrt_hh_lookup (rhc->instances, &template)) != NULL)
-      rc = take_w_qminv_inst (rhc, ncollected, &inst, max_samples, qminv, qcmask, collect_sample, collect_sample_arg);
+      rc = take_w_qminv_inst (state, &inst);
     else
       rc = DDS_RETCODE_PRECONDITION_NOT_MET;
   }
@@ -2243,14 +2389,14 @@ static dds_return_t take_w_qminv (struct dds_rhc_default * __restrict rhc, int32
   {
     struct rhc_instance *inst = oldest_nonempty_instance (rhc);
     uint32_t n_insts = rhc->n_nonempty_instances;
-    while (rc >= 0 && n_insts-- > 0 && *ncollected < max_samples)
+    while (rc >= 0 && n_insts-- > 0 && *state->limit > 0)
     {
       struct rhc_instance * const inst1 = next_nonempty_instance (inst);
-      rc = take_w_qminv_inst (rhc, ncollected, &inst, max_samples - *ncollected, qminv, qcmask, collect_sample, collect_sample_arg);
+      rc = take_w_qminv_inst (state, &inst);
       inst = inst1;
     }
   }
-  TRACE ("take: returning %"PRId32" with %"PRId32" collected\n", rc, *ncollected);
+  TRACE ("take: returning %"PRId32" with remaining limit %"PRId32"\n", rc, *state->limit);
   assert (rhc_check_counts_locked (rhc, true, false));
   ddsrt_mutex_unlock (&rhc->lock);
   return rc;
@@ -2641,18 +2787,34 @@ static int32_t dds_rhc_default_read (struct dds_rhc *rhc_common, int32_t max_sam
 {
   struct dds_rhc_default * const rhc = (struct dds_rhc_default *) rhc_common;
   uint32_t qminv = qmask_from_mask_n_cond (mask, cond);
-  int32_t ncollected = 0;
-  dds_return_t rc = read_w_qminv (rhc, &ncollected, max_samples, qminv, handle, cond, collect_sample, collect_sample_arg);
-  return (rc < 0 && ncollected == 0) ? rc : ncollected;
+  int32_t limit = max_samples;
+  const struct readtake_w_qminv_inst_state readtake_w_qminv_inst_state = {
+    .rhc = rhc,
+    .limit = &limit,
+    .qminv = qminv,
+    .qcmask = (cond && cond->m_query.m_filter) ? cond->m_query.m_qcmask : 0,
+    .collect_sample = collect_sample,
+    .collect_sample_arg = collect_sample_arg
+  };
+  dds_return_t rc = read_w_qminv (&readtake_w_qminv_inst_state, handle);
+  return (rc < 0 && limit == max_samples) ? rc : (max_samples - limit);
 }
 
 static int32_t dds_rhc_default_take (struct dds_rhc *rhc_common, int32_t max_samples, uint32_t mask, dds_instance_handle_t handle, dds_readcond *cond, dds_read_with_collector_fn_t collect_sample, void *collect_sample_arg)
 {
   struct dds_rhc_default * const rhc = (struct dds_rhc_default *) rhc_common;
   uint32_t qminv = qmask_from_mask_n_cond(mask, cond);
-  int32_t ncollected = 0;
-  dds_return_t rc = take_w_qminv (rhc, &ncollected, max_samples, qminv, handle, cond, collect_sample, collect_sample_arg);
-  return (rc < 0 && ncollected == 0) ? rc : ncollected;
+  int32_t limit = max_samples;
+  const struct readtake_w_qminv_inst_state readtake_w_qminv_inst_state = {
+    .rhc = rhc,
+    .limit = &limit,
+    .qminv = qminv,
+    .qcmask = (cond && cond->m_query.m_filter) ? cond->m_query.m_qcmask : 0,
+    .collect_sample = collect_sample,
+    .collect_sample_arg = collect_sample_arg
+  };
+  dds_return_t rc = take_w_qminv (&readtake_w_qminv_inst_state, handle);
+  return (rc < 0 && limit == max_samples) ? rc : (max_samples - limit);
 }
 
 /*************************

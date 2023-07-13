@@ -25,41 +25,15 @@
 
 void dds_read_collect_sample_arg_init (struct dds_read_collect_sample_arg *arg, void **ptrs, dds_sample_info_t *infos)
 {
-  arg->first_of_inst_idx = 0;
   arg->next_idx = 0;
-  arg->last_iid = 0;
   arg->ptrs = ptrs;
   arg->infos = infos;
-}
-
-static void dds_read_patch_generations (dds_sample_info_t *si, uint32_t last_of_inst)
-{
-  const uint32_t ref = si[last_of_inst].disposed_generation_count + si[last_of_inst].no_writers_generation_count;
-  assert (si[last_of_inst].sample_rank == 0);
-  assert (si[last_of_inst].generation_rank == 0);
-  for (uint32_t i = 0; i < last_of_inst; i++)
-  {
-    si[i].sample_rank = last_of_inst - i;
-    si[i].generation_rank = ref - (si[i].disposed_generation_count + si[i].no_writers_generation_count);
-  }
-}
-
-void dds_read_check_and_handle_instance_switch (struct dds_read_collect_sample_arg * const arg, dds_instance_handle_t iid)
-{
-  if (iid != arg->last_iid)
-  {
-    if (arg->next_idx > arg->first_of_inst_idx + 1)
-      dds_read_patch_generations (arg->infos + arg->first_of_inst_idx, arg->next_idx - arg->first_of_inst_idx - 1);
-    arg->first_of_inst_idx = arg->next_idx;
-    arg->last_iid = iid;
-  }
 }
 
 dds_return_t dds_read_collect_sample (void *varg, const dds_sample_info_t *si, const struct ddsi_sertype *st, struct ddsi_serdata *sd)
 {
   struct dds_read_collect_sample_arg * const arg = varg;
   bool ok;
-  dds_read_check_and_handle_instance_switch (arg, si->instance_handle);
   arg->infos[arg->next_idx] = *si;
   if (si->valid_data)
     ok = ddsi_serdata_to_sample (sd, arg->ptrs[arg->next_idx], NULL, NULL);
@@ -80,7 +54,6 @@ dds_return_t dds_read_collect_sample_refs (void *varg, const dds_sample_info_t *
 {
   (void) st;
   struct dds_read_collect_sample_arg * const arg = varg;
-  dds_read_check_and_handle_instance_switch (arg, si->instance_handle);
   arg->infos[arg->next_idx] = *si;
   arg->ptrs[arg->next_idx] = ddsi_serdata_ref (sd);
   arg->next_idx++;
@@ -157,7 +130,6 @@ static dds_return_t dds_readcdr_impl (bool take, dds_entity_t reader_or_conditio
   DDSRT_STATIC_ASSERT (sizeof (struct ddsi_serdata *) == sizeof (void *));
   dds_read_collect_sample_arg_init (&collect_arg, (void **) buf, si);
   const dds_return_t ret = dds_read_with_collector_impl (take, reader_or_condition, maxs, mask, hand, true, dds_read_collect_sample_refs, &collect_arg);
-  dds_read_check_and_handle_instance_switch (&collect_arg, 0);
   return ret;
 }
 
@@ -228,7 +200,6 @@ static dds_return_t dds_read_impl (bool take, dds_entity_t reader_or_condition, 
   struct dds_read_collect_sample_arg collect_arg;
   dds_read_collect_sample_arg_init (&collect_arg, buf, si);
   ret = dds_read_impl_common (take, rd, cond, maxs, mask, hand, dds_read_collect_sample, &collect_arg);
-  dds_read_check_and_handle_instance_switch (&collect_arg, 0);
 
   /* if no data read, restore the state to what it was before the call, with the sole
      exception of holding on to a buffer we just allocated and that is pointed to by

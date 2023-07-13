@@ -20,9 +20,7 @@ extern "C" {
 
 /** @component read_data */
 struct dds_read_collect_sample_arg {
-  uint32_t first_of_inst_idx;     /**< first index in ptrs/infos for current instance (initially 0) **/
   uint32_t next_idx;              /**< next index in ptrs/infos to be filled (initially 0) **/
-  dds_instance_handle_t last_iid; /**< last seen instance handle (initially 0) **/
   void **ptrs;                    /**< array of pointers to samples/serdatas to be filled **/
   dds_sample_info_t *infos;       /**< array of sample infos to be filled **/
 };
@@ -58,18 +56,6 @@ dds_return_t dds_read_collect_sample (void *varg, const dds_sample_info_t *si, c
  *
  * @retval DDS_RETCODE_OK (can't fail) */
 dds_return_t dds_read_collect_sample_refs (void *varg, const dds_sample_info_t *si, const struct ddsi_sertype *st, struct ddsi_serdata *sd);
-
-/** @brief Function to check for instance change and patch ranks in sample infos for preceding instance
- * @component read_data
- *
- * @note This is called automatically by @ref dds_read_collect_sample and @ref
- * dds_read_collect_sample_refs for each sample, but the caller of @ref dds_rhc_read (or
- * @ref dds_rhc_take, or the other routes) needs to call it at the end to patch the final
- * instance.
- *
- * @param[in] arg Current state of the collector
- * @param[in] iid New instance handle, pass in 0 for handling the final instance */
-void dds_read_check_and_handle_instance_switch (struct dds_read_collect_sample_arg * const arg, dds_instance_handle_t iid);
 
 #if defined (__cplusplus)
 }
