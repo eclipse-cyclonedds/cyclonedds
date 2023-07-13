@@ -36,13 +36,13 @@ static void instance_handle_init (void)
   dds_qset_history (qos, DDS_HISTORY_KEEP_LAST, 1);
   dds_qset_reliability (qos, DDS_RELIABILITY_RELIABLE, DDS_INFINITY);
   create_unique_topic_name ("instance_handle", topicname, sizeof (topicname));
-  tp[0] = dds_create_topic (dp, &InstanceHandleTypes_A_desc, topicname, NULL, NULL);
+  tp[0] = dds_create_topic (dp, &InstanceHandleTypes_A_desc, topicname, qos, NULL);
   CU_ASSERT_FATAL (tp[0] > 0);
   create_unique_topic_name ("instance_handle", topicname, sizeof (topicname));
-  tp[1] = dds_create_topic (dp, &InstanceHandleTypes_A_desc, topicname, NULL, NULL);
+  tp[1] = dds_create_topic (dp, &InstanceHandleTypes_A_desc, topicname, qos, NULL);
   CU_ASSERT_FATAL (tp[1] > 0);
   create_unique_topic_name ("instance_handle", topicname, sizeof (topicname));
-  tp[2] = dds_create_topic (dp, &InstanceHandleTypes_C_desc, topicname, NULL, NULL);
+  tp[2] = dds_create_topic (dp, &InstanceHandleTypes_C_desc, topicname, qos, NULL);
   CU_ASSERT_FATAL (tp[2] > 0);
   dds_delete_qos (qos);
   for (size_t i = 0; i < 3; i++)
