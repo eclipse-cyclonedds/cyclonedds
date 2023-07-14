@@ -332,7 +332,6 @@ static void ddsi_plist_leasedur_new_proxypp_impl (bool include_lease_duration)
   // After waiting for a reasonable amount of time, the (fake) proxy participant
   // should exist and have picked up the lease duration from the message
   CU_ASSERT_FATAL (proxypp != NULL);
-  assert (proxypp); // for gcc/clang static analyzer
   CU_ASSERT_FATAL (proxypp->plist->qos.present & DDSI_QP_LIVELINESS);
   CU_ASSERT_FATAL (proxypp->plist->qos.liveliness.kind == DDS_LIVELINESS_AUTOMATIC);
   if (include_lease_duration) {
@@ -464,7 +463,6 @@ static void ddsi_plist_leasedur_new_proxyrd_impl (bool include_lease_duration)
   // After waiting for a reasonable amount of time, the (fake) proxy participant
   // should exist and have picked up the lease duration from the message
   CU_ASSERT_FATAL (prd != NULL);
-  assert (prd); // for gcc/clang static analyzer
   CU_ASSERT_FATAL (prd->c.xqos->present & DDSI_QP_LIVELINESS);
   if (include_lease_duration) {
     CU_ASSERT (prd->c.xqos->liveliness.kind == DDS_LIVELINESS_MANUAL_BY_PARTICIPANT);

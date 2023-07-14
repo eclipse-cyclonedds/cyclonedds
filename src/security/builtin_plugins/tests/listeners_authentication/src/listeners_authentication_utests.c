@@ -1677,7 +1677,6 @@ fill_handshake_message_token(
         }
 
         CU_ASSERT_FATAL(hash1_from_request != NULL);
-        assert(hash1_from_request != NULL); // for Clang's static analyzer
 
         set_binary_property_value(hash_c1, DDS_AUTHTOKEN_PROP_HASH_C1, hash1_from_request->value._buffer, hash1_from_request->value._length);
 
@@ -1764,7 +1763,6 @@ fill_handshake_message_token(
             else
             {
                 CU_ASSERT_FATAL (rc == DDS_SECURITY_VALIDATION_OK);
-                assert(rc == DDS_SECURITY_VALIDATION_OK); // for Clang's static analyzer
                 set_binary_property_value(signature, DDS_AUTHTOKEN_PROP_SIGNATURE, sign, (uint32_t)signlen);
                 ddsrt_free(sign);
             }
@@ -1967,10 +1965,8 @@ CU_Test(ddssec_builtin_listeners_auth, local_remote_set_before_validation)
     hash1_sent_in_request = find_binary_property(&handshake_token_out, DDS_AUTHTOKEN_PROP_HASH_C1);
 
     CU_ASSERT_FATAL(dh1 != NULL);
-    assert(dh1 != NULL); // for Clang's static analyzer
     CU_ASSERT_FATAL(dh1->value._length > 0);
     CU_ASSERT_FATAL(dh1->value._buffer != NULL);
-    assert(dh1->value._length > 0 && dh1->value._buffer != NULL); // for Clang's static analyzer
 
     dh1_pub_key.data = dh1->value._buffer;
     dh1_pub_key.length = dh1->value._length;

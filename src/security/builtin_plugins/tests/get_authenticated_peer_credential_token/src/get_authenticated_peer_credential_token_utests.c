@@ -1230,9 +1230,8 @@ fill_handshake_message_token(
         dh2 = &tokens[idx++];
         hash_c2 = &tokens[idx++];
 
-        CU_ASSERT(hash1_from_request != NULL);
-        CU_ASSERT(hash2_from_reply != NULL);
-        assert(hash1_from_request && hash2_from_reply); // for Clang's static analyzer
+        CU_ASSERT_FATAL(hash1_from_request != NULL);
+        CU_ASSERT_FATAL(hash2_from_reply != NULL);
 
         set_binary_property_value(hash_c1, DDS_AUTHTOKEN_PROP_HASH_C1, hash1_from_request->value._buffer, hash1_from_request->value._length);
         set_binary_property_value(hash_c2, DDS_AUTHTOKEN_PROP_HASH_C2, hash2_from_reply->value._buffer, hash2_from_reply->value._length);
@@ -1359,7 +1358,6 @@ CU_Test(ddssec_builtin_get_authenticated_peer_credential,token_after_request )
                     &exception);
 
     CU_ASSERT_FATAL(result == DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_MESSAGE);
-    assert(result == DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_MESSAGE); // for Clang's static analyzer
 
     /* mock reply */
     dh1 = find_binary_property(&handshake_token_out, DDS_AUTHTOKEN_PROP_DH1);
@@ -1392,7 +1390,6 @@ CU_Test(ddssec_builtin_get_authenticated_peer_credential,token_after_request )
                         handshake_handle,
                         &exception);
     CU_ASSERT_FATAL(result == DDS_SECURITY_VALIDATION_OK_FINAL_MESSAGE);
-    assert(result == DDS_SECURITY_VALIDATION_OK_FINAL_MESSAGE); // for Clang's static analyzer
 
     /*
      * Actual test.
@@ -1403,27 +1400,22 @@ CU_Test(ddssec_builtin_get_authenticated_peer_credential,token_after_request )
                         handshake_handle,
                         &exception);
 
-    CU_ASSERT_TRUE (success);
-    assert(success); // for Clang's static analyzer
+    CU_ASSERT_TRUE_FATAL (success);
 
     CU_ASSERT_FATAL(credential_token.class_id != NULL);
-    assert(credential_token.class_id); // for Clang's static analyzer
     CU_ASSERT(strcmp(credential_token.class_id, DDS_AUTHTOKEN_CLASS_ID) == 0);
     CU_ASSERT(credential_token.properties._length == 2);
     CU_ASSERT(credential_token.binary_properties._length == 0);
 
     c_id = find_property(&credential_token, DDS_AUTHTOKEN_PROP_C_ID);
     CU_ASSERT_FATAL(c_id != NULL);
-    assert(c_id); // for GCC's static analyzer
     CU_ASSERT_FATAL(c_id->value != NULL);
-    assert(c_id && c_id->value); // for Clang's static analyzer
     //printf("c_id->value: %s\n", c_id->value);
     CU_ASSERT(strcmp(c_id->value, REMOTE_IDENTITY_CERTIFICATE) == 0);
 
     c_perm = find_property(&credential_token, DDS_AUTHTOKEN_PROP_C_PERM);
     CU_ASSERT_FATAL(c_perm != NULL);
     CU_ASSERT_FATAL(c_perm->value != NULL);
-    assert(c_perm && c_perm->value); // for Clang's static analyzer
     //printf("c_perm->value: %s\n", c_perm->value);
     CU_ASSERT(strcmp(c_perm->value, PERMISSIONS_DOCUMENT) == 0);
 
@@ -1490,7 +1482,6 @@ CU_Test(ddssec_builtin_get_authenticated_peer_credential,token_after_reply )
                     &exception);
 
     CU_ASSERT_FATAL(result == DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_MESSAGE);
-    assert(result == DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_MESSAGE); // for Clang's static analyzer
 
     /* mock final */
     dh2 = find_binary_property(&handshake_token_out, DDS_AUTHTOKEN_PROP_DH2);
@@ -1524,7 +1515,6 @@ CU_Test(ddssec_builtin_get_authenticated_peer_credential,token_after_reply )
                         &exception);
 
     CU_ASSERT_FATAL(result == DDS_SECURITY_VALIDATION_OK);
-    assert(result == DDS_SECURITY_VALIDATION_OK); // for Clang's static analyzer
 
     /*
      * Actual test.
@@ -1535,8 +1525,7 @@ CU_Test(ddssec_builtin_get_authenticated_peer_credential,token_after_reply )
                         handshake_handle,
                         &exception);
 
-    CU_ASSERT_TRUE (success);
-    assert(success); // for Clang's static analyzer
+    CU_ASSERT_TRUE_FATAL (success);
 
     CU_ASSERT_FATAL(credential_token.class_id != NULL);
     CU_ASSERT(strcmp(credential_token.class_id, DDS_AUTHTOKEN_CLASS_ID) == 0);
@@ -1545,17 +1534,13 @@ CU_Test(ddssec_builtin_get_authenticated_peer_credential,token_after_reply )
 
     c_id = find_property(&credential_token, DDS_AUTHTOKEN_PROP_C_ID);
     CU_ASSERT_FATAL(c_id != NULL);
-    assert(c_id); // for GCC's static analyzer
     CU_ASSERT_FATAL(c_id->value != NULL);
-    assert(c_id && c_id->value); // for Clang's static analyzer
     //printf("c_id->value: %s\n", c_id->value);
     CU_ASSERT(strcmp(c_id->value, REMOTE_IDENTITY_CERTIFICATE) == 0);
 
     c_perm = find_property(&credential_token, DDS_AUTHTOKEN_PROP_C_PERM);
     CU_ASSERT_FATAL(c_perm != NULL);
-    assert(c_perm); // for Clang, GCC static analyzers
     CU_ASSERT_FATAL(c_perm->value != NULL);
-    assert(c_perm->value); // for Clang's static analyzer
     //printf("c_perm->value: %s\n", c_perm->value);
     CU_ASSERT(strcmp(c_perm->value, PERMISSIONS_DOCUMENT) == 0);
 
@@ -1571,8 +1556,7 @@ CU_Test(ddssec_builtin_get_authenticated_peer_credential,token_after_reply )
     CU_ASSERT(credential_token.binary_properties._length == 0);
 
     success = g_auth->return_handshake_handle(g_auth, handshake_handle, &exception);
-    CU_ASSERT_TRUE (success);
-    assert(success); // for Clang's static analyzer
+    CU_ASSERT_TRUE_FATAL (success);
 
     reset_exception(&exception);
 

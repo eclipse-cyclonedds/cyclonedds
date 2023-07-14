@@ -1407,7 +1407,6 @@ fill_handshake_message_token(
         }
 
         CU_ASSERT_FATAL(hash1_from_request != NULL);
-        assert(hash1_from_request != NULL); // for Clang's static analyzer
 
         set_binary_property_value(hash_c1, DDS_AUTHTOKEN_PROP_HASH_C1, hash1_from_request->value._buffer, hash1_from_request->value._length);
 
@@ -1710,10 +1709,8 @@ CU_Test(ddssec_builtin_process_handshake,happy_day_after_request)
     hash1_sentrequest = find_binary_property(&handshake_token_out, DDS_AUTHTOKEN_PROP_HASH_C1);
 
     CU_ASSERT_FATAL(dh1 != NULL);
-    assert(dh1 != NULL); // for Clang's static analyzer
     CU_ASSERT_FATAL(dh1->value._length > 0);
     CU_ASSERT_FATAL(dh1->value._buffer != NULL);
-    assert(dh1->value._length > 0 && dh1->value._buffer != NULL); // for Clang's static analyzer
 
     dh1_pub_key.data = dh1->value._buffer;
     dh1_pub_key.length = dh1->value._length;
@@ -2004,10 +2001,8 @@ CU_Test(ddssec_builtin_process_handshake,invalid_certificate)
     hash1_sentrequest = find_binary_property(&handshake_token_out, DDS_AUTHTOKEN_PROP_HASH_C1);
 
     CU_ASSERT_FATAL(dh1 != NULL);
-    assert(dh1 != NULL); // for Clang's static analyzer
     CU_ASSERT_FATAL(dh1->value._length > 0);
     CU_ASSERT_FATAL(dh1->value._buffer != NULL);
-    assert(dh1->value._length > 0 && dh1->value._buffer != NULL); // for Clang's static analyzer
 
     /* prepare reply */
     dh1_pub_key.data = dh1->value._buffer;
@@ -2094,10 +2089,8 @@ CU_Test(ddssec_builtin_process_handshake,invalid_dsign_algo)
     hash1_sentrequest = find_binary_property(&handshake_token_out, DDS_AUTHTOKEN_PROP_HASH_C1);
 
     CU_ASSERT_FATAL(dh1 != NULL);
-    assert(dh1 != NULL); // for Clang's static analyzer
     CU_ASSERT_FATAL(dh1->value._length > 0);
     CU_ASSERT_FATAL(dh1->value._buffer != NULL);
-    assert(dh1->value._length > 0 && dh1->value._buffer != NULL); // for Clang's static analyzer
 
     /* prepare reply */
     dh1_pub_key.data = dh1->value._buffer;
@@ -2178,10 +2171,8 @@ CU_Test(ddssec_builtin_process_handshake,invalid_kagree_algo)
     hash1_sentrequest = find_binary_property(&handshake_token_out, DDS_AUTHTOKEN_PROP_HASH_C1);
 
     CU_ASSERT_FATAL(dh1 != NULL);
-    assert (dh1 != NULL); // for Clang's static analyzer
     CU_ASSERT_FATAL(dh1->value._length > 0);
     CU_ASSERT_FATAL(dh1->value._buffer != NULL);
-    assert (dh1->value._length > 0 && dh1->value._buffer != NULL); // for Clang's static analyzer
 
     /* prepare reply */
     dh1_pub_key.data = dh1->value._buffer;
@@ -2261,10 +2252,8 @@ CU_Test(ddssec_builtin_process_handshake,invalid_diffie_hellman)
     hash1_sentrequest = find_binary_property(&handshake_token_out, DDS_AUTHTOKEN_PROP_HASH_C1);
 
     CU_ASSERT_FATAL(dh1 != NULL);
-    assert (dh1 != NULL); // for Clang's static analyzer
     CU_ASSERT_FATAL(dh1->value._length > 0);
     CU_ASSERT_FATAL(dh1->value._buffer != NULL);
-    assert (dh1->value._length > 0 && dh1->value._buffer != NULL); // for Clang's static analyzer
 
     /* prepare reply */
     fill_handshake_message_token(
@@ -2399,7 +2388,6 @@ CU_Test(ddssec_builtin_process_handshake,extended_certificate_check)
         printf("begin_handshake_request failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
     CU_ASSERT_FATAL(result == DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_MESSAGE);
-    assert(result == DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_MESSAGE); // for Clang's static analyzer
 
     /* get challenge 1 from the message */
     challenge1_glb = find_binary_property(&handshake_token_out, DDS_AUTHTOKEN_PROP_CHALLENGE1);
@@ -2410,10 +2398,8 @@ CU_Test(ddssec_builtin_process_handshake,extended_certificate_check)
     hash1_sentrequest = find_binary_property(&handshake_token_out, DDS_AUTHTOKEN_PROP_HASH_C1);
 
     CU_ASSERT_FATAL(dh1 != NULL);
-    assert(dh1 != NULL); // for Clang's static analyzer
     CU_ASSERT_FATAL(dh1->value._length > 0);
     CU_ASSERT_FATAL(dh1->value._buffer != NULL);
-    assert(dh1->value._length > 0 && dh1->value._buffer != NULL); // for Clang's static analyzer
 
     dh1_pub_key.data = dh1->value._buffer;
     dh1_pub_key.length = dh1->value._length;
@@ -2489,10 +2475,8 @@ CU_Test(ddssec_builtin_process_handshake,extended_certificate_check)
     hash1_sentrequest = find_binary_property(&handshake_token_out, DDS_AUTHTOKEN_PROP_HASH_C1);
 
     CU_ASSERT_FATAL(dh1 != NULL);
-    assert (dh1 != NULL); // for Clang's static analyzer
     CU_ASSERT_FATAL(dh1->value._length > 0);
     CU_ASSERT_FATAL(dh1->value._buffer != NULL);
-    assert (dh1->value._length > 0 && dh1->value._buffer != NULL); // for Clang's static analyzer
 
     dh1_pub_key.data = dh1->value._buffer;
     dh1_pub_key.length = dh1->value._length;
@@ -2563,10 +2547,8 @@ CU_Test(ddssec_builtin_process_handshake,extended_certificate_check)
     hash1_sentrequest = find_binary_property(&handshake_token_out, DDS_AUTHTOKEN_PROP_HASH_C1);
 
     CU_ASSERT_FATAL(dh1 != NULL);
-    assert (dh1 != NULL); // for Clang's static analyzer
     CU_ASSERT_FATAL(dh1->value._length > 0);
     CU_ASSERT_FATAL(dh1->value._buffer != NULL);
-    assert (dh1->value._length > 0 && dh1->value._buffer != NULL); // for Clang's static analyzer
 
     dh1_pub_key.data = dh1->value._buffer;
     dh1_pub_key.length = dh1->value._length;
@@ -2644,7 +2626,6 @@ CU_Test(ddssec_builtin_process_handshake,crl)
         printf("begin_handshake_request failed: %s\n", exception.message ? exception.message : "Error message missing");
     }
     CU_ASSERT_FATAL(result == DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_MESSAGE);
-    assert(result == DDS_SECURITY_VALIDATION_PENDING_HANDSHAKE_MESSAGE); // for Clang's static analyzer
 
     /* get challenge 1 from the message */
     challenge1_glb = find_binary_property(&handshake_token_out, "challenge1");
@@ -2655,10 +2636,8 @@ CU_Test(ddssec_builtin_process_handshake,crl)
     hash1_sentrequest = find_binary_property(&handshake_token_out, "hash_c1");
 
     CU_ASSERT_FATAL(dh1 != NULL);
-    assert(dh1 != NULL); // for Clang's static analyzer
     CU_ASSERT_FATAL(dh1->value._length > 0);
     CU_ASSERT_FATAL(dh1->value._buffer != NULL);
-    assert(dh1->value._length > 0 && dh1->value._buffer != NULL); // for Clang's static analyzer
 
     dh1_pub_key.data = dh1->value._buffer;
     dh1_pub_key.length = dh1->value._length;
