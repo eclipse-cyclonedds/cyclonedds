@@ -21,7 +21,7 @@ etc.
 
 To contribute code, it may be helpful to know that build configurations for Azure DevOps Pipelines 
 are present in the repositories.
-There is a test suite using CTest and |url::cunit_link| that can be built locally.
+There is a test suite using CTest that can be built locally.
 
 .. tabs::
 
@@ -36,16 +36,6 @@ There is a test suite using CTest and |url::cunit_link| that can be built locall
             cmake --build .
             ctest
 
-        This build requires |url::cunit_link|. You can
-        install this yourself, or you can choose to instead rely on the
-        |url::conan_link| packaging system that the CI build
-        infrastructure also uses. In that case, install Conan in the build
-        directory before running CMake:
-
-        .. code-block:: bash
-
-            conan install .. --build missing
-
     .. group-tab:: macOS
 
         Set the CMake variable ``BUILD_TESTING`` to ``ON`` when configuring, e.g.:
@@ -57,16 +47,6 @@ There is a test suite using CTest and |url::cunit_link| that can be built locall
             cmake --build .
             ctest
 
-        This build requires |url::cunit_link|. You can
-        install this yourself, or you can choose to instead rely on the
-        |url::conan_link| packaging system that the CI build
-        infrastructure also uses. In that case, install Conan in the build
-        directory before running CMake:
-
-        .. code-block:: bash
-
-            conan install .. --build missing
-
     .. group-tab:: Windows
 
         Set the CMake variable ``BUILD_TESTING`` to ``ON`` when configuring, e.g.:
@@ -77,24 +57,3 @@ There is a test suite using CTest and |url::cunit_link| that can be built locall
             cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON ..
             cmake --build .
             ctest
-
-        This build requires |url::cunit_link|. You can
-        install this yourself, or you can choose to instead rely on the
-        |url::conan_link| packaging system that the CI build
-        infrastructure also uses. In that case, install Conan in the build
-        directory before running CMake:
-
-        .. code-block:: bash
-
-            conan install .. --build missing
-
-        This automatically downloads and builds CUnit (and currently OpenSSL for transport security).
-
-        .. note::
-
-            Depending on the generator, you may also need to add switches to select the architecture and build type, e.g.:
-
-            .. code-block:: bash
-
-                conan install -s arch=x86_64 -s build_type=Debug ..
-

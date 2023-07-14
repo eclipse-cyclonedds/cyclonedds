@@ -292,6 +292,7 @@ CU_Test(ddsc_publisher, wait_for_acks)
 
 CU_Test(ddsc_publisher, coherency)
 {
+  CU_PASS ("coherency not implemented yet");
   return;
 }
 

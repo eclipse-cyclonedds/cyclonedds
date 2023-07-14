@@ -12,6 +12,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
+#include <setjmp.h>
 
 #ifdef __APPLE__
 #include <pthread.h>
@@ -315,6 +316,7 @@ CU_Test(dds_log, newline_terminates, .fini=reset)
   CU_ASSERT_PTR_NULL_FATAL(msg);
   DDS_ERROR("baz\n");
   CU_ASSERT_PTR_NOT_NULL_FATAL(msg);
+  assert(msg);
   CU_ASSERT(strcmp(msg, "foobarbaz\n") == 0);
   ddsrt_free(msg);
 #endif
@@ -331,6 +333,7 @@ CU_Test(dds_log, disabled_categories_discarded, .fini=reset)
   dds_set_log_mask(DDS_LC_FATAL | DDS_LC_ERROR | DDS_LC_INFO);
   DDS_INFO("foobar\n");
   CU_ASSERT_PTR_NOT_NULL_FATAL(msg);
+  assert(msg);
   CU_ASSERT(strcmp(msg, "foobar\n") == 0);
   ddsrt_free(msg);
 #endif
@@ -505,5 +508,6 @@ CU_Theory((bool local, int mode, bool expect_in_trace), dds_log, fatal_aborts)
   (void) local;
   (void) mode;
   (void) expect_in_trace;
+  CU_PASS ("test skipped on this platform");
 #endif
 }

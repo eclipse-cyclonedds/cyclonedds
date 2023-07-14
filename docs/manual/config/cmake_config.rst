@@ -18,7 +18,7 @@ addition to the standard options such as ``CMAKE_BUILD_TYPE``):
     * - ``-DBUILD_EXAMPLES=ON``
       - Build the included examples
     * - ``-DBUILD_TESTING=ON``
-      - Build the test suite (this requires |url::cunit_link|), see :ref:`contributing_to_dds`.
+      - Build the test suite (forces exporting all symbols from the library)
     * - ``-DBUILD_IDLC=NO``
       - Disable building the IDL compiler (affects building examples, tests and ``ddsperf``)
     * - ``-DBUILD_DDSPERF=NO``

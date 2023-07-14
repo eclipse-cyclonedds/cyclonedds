@@ -1,6 +1,8 @@
 exitcode=0
-bin/HelloworldPublisher & pub_pid=$!
-bin/HelloworldSubscriber & sub_pid=$!
+d=bin
+[ -d bin/${BUILD_TYPE} ] && d=bin/${BUILD_TYPE}
+$d/HelloworldPublisher & pub_pid=$!
+$d/HelloworldSubscriber & sub_pid=$!
 for n in {5..0} ; do
     if ! kill -0 $pub_pid 2>/dev/null && ! kill -0 $sub_pid 2>/dev/null; then
         break

@@ -20,7 +20,6 @@
     <depend>iceoryx_binding_c</depend>
     <depend>iceoryx_posh</depend>
     <depend>iceoryx_hoofs</depend>
-    <test_depend>libcunit-dev</test_depend>
 
     <doc_depend>doxygen</doc_depend>
     <doc_depend>python3-breathe</doc_depend>
