@@ -49,14 +49,12 @@ CU_Test(ddsrt_environ, setenv)
   rc = ddsrt_setenv(name, value);
   CU_ASSERT_EQUAL(rc, DDS_RETCODE_OK);
   ptr = getenv(name);
-  CU_ASSERT_PTR_NOT_NULL(ptr);
-  assert (ptr != NULL); /* for the benefit of clang's static analyzer */
+  CU_ASSERT_PTR_NOT_NULL_FATAL(ptr);
   CU_ASSERT_STRING_EQUAL(ptr, "bar");
   /* Ensure value is copied into the environment. */
   value[2] = 'z';
   ptr = getenv(name);
-  CU_ASSERT_PTR_NOT_NULL(ptr);
-  assert (ptr != NULL); /* for the benefit of clang's static analyzer */
+  CU_ASSERT_PTR_NOT_NULL_FATAL(ptr);
   CU_ASSERT_STRING_EQUAL(ptr, "bar");
   rc = ddsrt_setenv(name, "");
   CU_ASSERT_EQUAL(rc, DDS_RETCODE_OK);

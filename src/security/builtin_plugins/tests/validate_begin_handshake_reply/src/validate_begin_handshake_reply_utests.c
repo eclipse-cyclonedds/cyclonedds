@@ -1618,7 +1618,6 @@ CU_Test(ddssec_builtin_validate_begin_handshake_reply,invalid_participant_data ,
 
     property = find_binary_property(&handshake_token_in, "c.pdata");
     CU_ASSERT_FATAL(property != NULL);
-    assert(property != NULL); // for Clang's static analyzer
 
     ddsrt_free(property->name);
     property->name = ddsrt_strdup("c.pdatax");

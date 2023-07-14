@@ -151,7 +151,6 @@ CU_Test(ddsc_participant_lease_duration, builtin_topic)
         if (memcmp (&ppg[i], &s->key, sizeof (s->key)) == 0)
           break;
       CU_ASSERT_FATAL (i < 3); // thanks to domain tag
-      assert (i < 3); // Clang static analyzer doesn't get CU_ASSERT_FATAL
       if (!si.valid_data)
         continue;
       nseen += !seen[i];

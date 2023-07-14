@@ -101,7 +101,7 @@ static void suite_register_local_datareader_init(void)
                        participant_permissions,
                        &participant_properties,
                        &participant_security_attributes,
-                       &exception)) != DDS_SECURITY_HANDLE_NIL)
+                       &exception)) != DDS_SECURITY_HANDLE_NIL);
 
   /* Now call the function. */
   remote_participant_crypto_handle = crypto->crypto_key_factory->register_matched_remote_participant(
@@ -174,8 +174,7 @@ CU_Test(ddssec_builtin_register_local_datareader, happy_day, .init = suite_regis
       &exception);
 
   /* A valid handle to be returned */
-  CU_ASSERT(result != 0);
-  assert(result != 0); // for Clang's static analyzer
+  CU_ASSERT_FATAL(result != 0);
 
   CU_ASSERT(exception.code == DDS_SECURITY_ERR_OK_CODE);
 
@@ -231,9 +230,8 @@ CU_Test(ddssec_builtin_register_local_datareader, builtin_endpoint, .init = suit
     printf("register_local_datareader: %s\n", exception.message ? exception.message : "Error message missing");
 
   /* A valid handle to be returned */
-  CU_ASSERT(result != 0);
+  CU_ASSERT_FATAL(result != 0);
   CU_ASSERT(exception.code == DDS_SECURITY_ERR_OK_CODE);
-  assert(result != 0); // for Clang's static analyzer
 
   /* NOTE: It would be better to check if the keys have been generated but there is no interface to get them from handle */
   reader_crypto = (local_datareader_crypto *)result;
@@ -286,7 +284,6 @@ CU_Test(ddssec_builtin_register_local_datareader, special_endpoint_name, .init =
 
   /* A valid handle to be returned */
   CU_ASSERT_FATAL(result != 0);
-  assert(result != 0); // for Clang's static analyzer
   CU_ASSERT_FATAL(exception.code == DDS_SECURITY_ERR_OK_CODE);
   CU_ASSERT_FATAL(((local_datareader_crypto *)result)->is_builtin_participant_volatile_message_secure_reader);
   reset_exception(&exception);

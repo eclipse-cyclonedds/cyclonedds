@@ -404,7 +404,7 @@ CU_Test(ddssec_fsm, create, .init = fsm_control_init, .fini = fsm_control_fini)
 {
   /* Test single running state machine. Check creation of a single State Machine */
   fsm_auth = dds_security_fsm_create (g_fsm_control, HandshakeTransistions, HandshakeTransistionsSize, &fsm_arg);
-  CU_ASSERT_FATAL (fsm_auth != NULL)
+  CU_ASSERT_FATAL (fsm_auth != NULL);
 
   /* set a delay that doesn't expire. Should be terminate when fsm is freed. */
   dds_security_fsm_set_timeout (fsm_auth, timeout_cb, DDS_SECS(30));
@@ -560,7 +560,7 @@ CU_Test(ddssec_fsm, parallel_timeout, .init = fsm_control_init, .fini = fsm_cont
 CU_Test(ddssec_fsm, delete_with_timeout, .init = fsm_control_init, .fini = fsm_control_fini)
 {
   fsm_timeout = dds_security_fsm_create (g_fsm_control, timeout_transitions, timeout_transitionsSize, &fsm_arg);
-  CU_ASSERT_FATAL (fsm_timeout != NULL)
+  CU_ASSERT_FATAL (fsm_timeout != NULL);
   dds_security_fsm_start (fsm_timeout);
   ddsrt_mutex_lock (&g_lock);
   while (visited_timeout == 0)

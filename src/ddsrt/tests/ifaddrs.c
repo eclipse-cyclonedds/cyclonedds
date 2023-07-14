@@ -74,7 +74,6 @@ CU_Test(ddsrt_getifaddrs, ipv4)
   CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
   for (ifa = ifa_root; ifa; ifa = ifa->next) {
     CU_ASSERT_PTR_NOT_EQUAL_FATAL(ifa->addr, NULL);
-    assert (ifa->addr != NULL); /* for the benefit of clang's static analyzer */
     CU_ASSERT_EQUAL(ifa->addr->sa_family, AF_INET);
     if (ifa->addr->sa_family == AF_INET) {
       if (ifa->flags & IFF_LOOPBACK) {
@@ -132,7 +131,6 @@ CU_Test(ddsrt_getifaddrs, ipv6)
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     for (ifa = ifa_root; ifa; ifa = ifa->next) {
       CU_ASSERT_PTR_NOT_EQUAL_FATAL(ifa->addr, NULL);
-      assert (ifa->addr != NULL); /* for the benefit of clang's static analyzer */
       CU_ASSERT_EQUAL(ifa->addr->sa_family, AF_INET6);
       if (ifa->addr->sa_family == AF_INET6) {
         have_ipv6 = 1;
@@ -173,7 +171,6 @@ CU_Test(ddsrt_getifaddrs, ipv4_n_ipv6)
     CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
     for (ifa = ifa_root; ifa; ifa = ifa->next) {
       CU_ASSERT_PTR_NOT_EQUAL_FATAL(ifa->addr, NULL);
-      assert (ifa->addr != NULL); /* for the benefit of clang's static analyzer */
       CU_ASSERT(ifa->addr->sa_family == AF_INET ||
                 ifa->addr->sa_family == AF_INET6);
       if (ifa->addr->sa_family == AF_INET) {

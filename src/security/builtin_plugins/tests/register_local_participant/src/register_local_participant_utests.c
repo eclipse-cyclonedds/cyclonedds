@@ -152,7 +152,6 @@ CU_Test(ddssec_builtin_register_local_participant, empty_identity, .init = suite
 
   CU_ASSERT(exception.code == DDS_SECURITY_ERR_IDENTITY_EMPTY_CODE);
   CU_ASSERT_FATAL(exception.message != NULL);
-  assert(exception.message != NULL); // for Clang's static analyzer
   CU_ASSERT(!strcmp(exception.message, DDS_SECURITY_ERR_IDENTITY_EMPTY_MESSAGE));
   CU_ASSERT(result == 0);
 

@@ -825,7 +825,6 @@ static void encode_datareader_submessage_not_signed(uint32_t transformation_kind
 
   reader_crypto = register_local_datareader(&datareader_security_attributes, &datareader_properties);
   CU_ASSERT_FATAL(reader_crypto != 0);
-  assert(reader_crypto != 0); // for Clang's static analyzer
 
   session_keys = get_datareader_session(reader_crypto);
 
@@ -851,7 +850,6 @@ static void encode_datareader_submessage_not_signed(uint32_t transformation_kind
   }
 
   CU_ASSERT_FATAL(result);
-  assert(result); // for Clang's static analyzer
   CU_ASSERT(exception.code == 0);
   CU_ASSERT(exception.message == NULL);
 
@@ -859,7 +857,6 @@ static void encode_datareader_submessage_not_signed(uint32_t transformation_kind
 
   result = check_encoded_data(&encoded_buffer, is_encrypted, &header, &footer, &data);
   CU_ASSERT_FATAL(result);
-  assert(result); // for Clang's static analyzer
 
   CU_ASSERT(header->transform_identifier.transformation_kind[3] == transformation_kind);
 
@@ -978,7 +975,6 @@ static void encode_datareader_submessage_sign(uint32_t transformation_kind)
 
   reader_crypto = register_local_datareader(&datareader_security_attributes, &datareader_properties);
   CU_ASSERT_FATAL(reader_crypto != 0);
-  assert(reader_crypto != 0); // for Clang's static analyzer
 
   session_keys = get_datareader_session(reader_crypto);
 
@@ -988,7 +984,6 @@ static void encode_datareader_submessage_sign(uint32_t transformation_kind)
   {
     writer_crypto = register_remote_datawriter(reader_crypto);
     CU_ASSERT_FATAL(writer_crypto != 0);
-    assert(writer_crypto != 0); // for Clang's static analyzer
     writer_list._buffer[i] = writer_crypto;
   }
 
@@ -1009,7 +1004,6 @@ static void encode_datareader_submessage_sign(uint32_t transformation_kind)
   }
 
   CU_ASSERT_FATAL(result);
-  assert(result); // for Clang's static analyzer
   CU_ASSERT(exception.code == 0);
   CU_ASSERT(exception.message == NULL);
 
@@ -1018,7 +1012,6 @@ static void encode_datareader_submessage_sign(uint32_t transformation_kind)
 
   result = check_encoded_data(&encoded_buffer, is_encrypted, &header, &footer, &data);
   CU_ASSERT_FATAL(result);
-  assert(result); // for Clang's static analyzer
 
   CU_ASSERT(header->transform_identifier.transformation_kind[3] == transformation_kind);
 

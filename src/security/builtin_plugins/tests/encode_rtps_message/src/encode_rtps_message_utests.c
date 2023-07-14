@@ -827,7 +827,6 @@ static void encode_rtps_message_not_authenticated(DDS_Security_CryptoTransformKi
   }
 
   CU_ASSERT_FATAL(result);
-  assert(result); // for Clang's static analyzer
   CU_ASSERT(exception.code == 0);
   CU_ASSERT(exception.message == NULL);
 
@@ -835,7 +834,6 @@ static void encode_rtps_message_not_authenticated(DDS_Security_CryptoTransformKi
 
   result = check_encoded_data(&encoded_buffer, encrypted, &header, &footer, &data);
   CU_ASSERT_FATAL(result);
-  assert(result); // for Clang's static analyzer
 
   CU_ASSERT(header->transform_identifier.transformation_kind[3] == transformation_kind);
 
@@ -1090,7 +1088,6 @@ CU_Test(ddssec_builtin_encode_rtps_message, invalid_args, .init = suite_encode_r
   memset(&empty_reader_list, 0, sizeof(empty_reader_list));
 
   CU_ASSERT_FATAL(local_particpant_crypto != 0);
-  assert(local_particpant_crypto != 0); // for Clang's static analyzer
 
   register_remote_participants();
   for (i = 0; i < sizeof (remote_particpant_cryptos) / sizeof (remote_particpant_cryptos[0]); i++)
@@ -1100,7 +1097,6 @@ CU_Test(ddssec_builtin_encode_rtps_message, invalid_args, .init = suite_encode_r
   }
 
   CU_ASSERT_FATAL(remote_particpant_cryptos[0] != 0);
-  assert(remote_particpant_cryptos[0] != 0); // for Clang's static analyzer
 
   reader_list._length = reader_list._maximum = 1;
   reader_list._buffer = DDS_Security_ParticipantCryptoHandleSeq_allocbuf(1);

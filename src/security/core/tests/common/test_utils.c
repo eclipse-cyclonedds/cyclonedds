@@ -634,7 +634,6 @@ DDS_Security_DatawriterCryptoHandle get_builtin_writer_crypto_handle(dds_entity_
   pp = entidx_lookup_participant_guid(pp_entity->m_domain->gv.entity_index, &pp_entity->m_guid);
   wr = ddsi_get_builtin_writer (pp, entityid);
   CU_ASSERT_FATAL(wr != NULL);
-  assert(wr != NULL); /* for Clang's static analyzer */
   crypto_handle = wr->sec_attr->crypto_handle;
   thread_state_asleep(lookup_thread_state());
   dds_entity_unpin(pp_entity);
@@ -650,7 +649,6 @@ DDS_Security_DatawriterCryptoHandle get_writer_crypto_handle(dds_entity_t writer
   thread_state_awake(lookup_thread_state(), &wr_entity->m_domain->gv);
   wr = entidx_lookup_writer_guid(wr_entity->m_domain->gv.entity_index, &wr_entity->m_guid);
   CU_ASSERT_FATAL(wr != NULL);
-  assert(wr != NULL); /* for Clang's static analyzer */
   crypto_handle = wr->sec_attr->crypto_handle;
   thread_state_asleep(lookup_thread_state());
   dds_entity_unpin(wr_entity);

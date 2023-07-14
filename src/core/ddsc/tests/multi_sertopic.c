@@ -587,7 +587,7 @@ static void ddsc_multi_sertype_impl (dds_entity_t pp_pub, dds_entity_t pp_sub, e
         CU_ASSERT_FATAL (si.source_timestamp >= 1 && si.source_timestamp <= 3);
         CU_ASSERT_FATAL (u._d == 3);
         CU_ASSERT_FATAL (u._u.a._length == 1);
-        assert (u._u.a._buffer != NULL); /* for Clang static analyzer */
+        CU_ASSERT_FATAL (u._u.a._buffer != NULL);
         CU_ASSERT_FATAL (u._u.a._buffer[0].v[0] == 4);
         CU_ASSERT_FATAL (u._u.a._buffer[0].v[1] == 2);
         dds_free (u._u.a._buffer);

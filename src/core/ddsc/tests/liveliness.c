@@ -93,7 +93,6 @@ static seqno_t get_pmd_seqno(dds_entity_t participant)
   pp = entidx_lookup_participant_guid(pp_entity->m_domain->gv.entity_index, &pp_entity->m_guid);
   wr = ddsi_get_builtin_writer (pp, NN_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
   CU_ASSERT_FATAL(wr != NULL);
-  assert(wr != NULL); /* for Clang's static analyzer */
   seqno = wr->seq;
   thread_state_asleep(lookup_thread_state());
   dds_entity_unpin(pp_entity);
@@ -204,9 +203,9 @@ static void test_pmd_count(dds_liveliness_kind_t kind, uint32_t ldur, double mul
   /* End-start should be mult - 1 under ideal circumstances, but consider the test successful
            when at least 50% of the expected PMD's was sent. This checks that the frequency for sending
            PMDs was increased when the writer was added. */
-  CU_ASSERT_FATAL((double) (end_seqno - start_seqno) >= (kind == DDS_LIVELINESS_AUTOMATIC ? (50 * (mult - 1)) / 100 : 0))
+  CU_ASSERT_FATAL((double) (end_seqno - start_seqno) >= (kind == DDS_LIVELINESS_AUTOMATIC ? (50 * (mult - 1)) / 100 : 0));
   if (kind != DDS_LIVELINESS_AUTOMATIC)
-    CU_ASSERT_FATAL((double) (get_pmd_seqno(g_pub_participant) - start_seqno) < mult)
+    CU_ASSERT_FATAL((double) (get_pmd_seqno(g_pub_participant) - start_seqno) < mult);
 
   /* cleanup */
   if (remote_reader)
@@ -499,7 +498,6 @@ static void test_lease_duration_pwr(bool remote_reader)
   dds_builtintopic_endpoint_t *ep;
   ep = dds_get_matched_publication_data(reader, wrs[0]);
   CU_ASSERT_FATAL(ep != NULL);
-  assert(ep != NULL); /* for Clang's static analyzer */
   CU_ASSERT_EQUAL_FATAL(ep->qos->liveliness.lease_duration, DDS_MSECS(ldur));
   dds_builtintopic_free_endpoint (ep);
 

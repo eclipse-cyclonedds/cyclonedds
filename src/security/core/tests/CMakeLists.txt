@@ -46,7 +46,7 @@ function(add_wrapper libname linklibs)
     set_target_properties("dds_security_${libname}_wrapper" PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
   endif()
 
-  target_link_libraries("dds_security_${libname}_wrapper" PRIVATE CUnit)
+  target_link_libraries("dds_security_${libname}_wrapper" PRIVATE CycloneDDS::ucunit)
   target_include_directories("dds_security_${libname}_wrapper" PRIVATE "${CUNIT_DIR}/include")
 
   target_link_libraries("dds_security_${libname}_wrapper" PUBLIC ddsc ${linklibs})
