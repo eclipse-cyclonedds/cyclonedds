@@ -277,7 +277,6 @@ CU_Test(ddsc_typelookup, get_typeobj, .init = typelookup_init, .fini = typelooku
   endpoint_info_t *reader_ep = find_typeid_match (g_participant2, DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION, rd_type_id, topic_name_rd, DDSI_TYPEID_KIND_MINIMAL);
   CU_ASSERT_FATAL (writer_ep != NULL);
   CU_ASSERT_FATAL (reader_ep != NULL);
-  assert (writer_ep && reader_ep); // clang static analyzer
   endpoint_info_free (writer_ep);
   endpoint_info_free (reader_ep);
 
@@ -331,7 +330,6 @@ CU_Test(ddsc_typelookup, api_resolve, .init = typelookup_init, .fini = typelooku
   /* wait for DCPSPublication to be received */
   endpoint_info_t *writer_ep = find_typeid_match (g_participant2, DDS_BUILTIN_TOPIC_DCPSPUBLICATION, type_id, name, DDSI_TYPEID_KIND_COMPLETE);
   CU_ASSERT_FATAL (writer_ep != NULL);
-  assert (writer_ep); // clang static analyzer
 
   /* check if type can be resolved */
   dds_topic_descriptor_t *desc;
@@ -389,7 +387,6 @@ CU_Test(ddsc_typelookup, api_resolve_invalid, .init = typelookup_init, .fini = t
   /* wait for DCPSPublication to be received */
   endpoint_info_t *writer_ep = find_typeid_match (g_participant2, DDS_BUILTIN_TOPIC_DCPSPUBLICATION, type_id, name, DDSI_TYPEID_KIND_COMPLETE);
   CU_ASSERT_FATAL (writer_ep != NULL);
-  assert (writer_ep); // clang static analyzer
 
   /* confirm that invalid type id cannot be resolved */
   struct dds_entity *e;

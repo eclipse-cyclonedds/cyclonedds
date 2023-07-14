@@ -52,12 +52,13 @@ jobs:
         topic_discovery: off
         idlc_testing: off # temporary dislabled because of passing -t option to idlc in this test for recursive types
         cc: gcc-10
-      'Ubuntu 18.04 LTS with GCC 7 (Debug, x86_64)':
-        image: ubuntu-18.04
-        conanfile: conanfile102.txt
-        cc: gcc-7
-      'Ubuntu 20.04 LTS with Clang 10 (Debug, x86_64)':
-        image: ubuntu-20.04
+      'Ubuntu 22.04 LTS with GCC 10 (Debug, x86_64, no tests)':
+        image: ubuntu-22.04
+        cc: gcc-10
+        testing: off
+        idlc_xtests: off
+      'Ubuntu 22.04 LTS with Clang 12 (Debug, x86_64)':
+        image: ubuntu-22.04
         analyzer: on
         sanitizer: address,undefined
         cc: clang-10
@@ -88,10 +89,19 @@ jobs:
         sanitizer: undefined
         cc: clang
         coverage: on
-      'Windows 2019 with Visual Studio 2019 (Visual Studio 2017, Debug, x86)':
+      'macOS 12 with gcc 12 (Debug, analyzer, x86_64)':
+        image: macOS-12
+        sanitizer: undefined
+        deadline_update_skip: on
+        cc: gcc-12
+        analyzer: on
+      # 32-bit Windows: without SSL/security because Chocolateley only provides 64-bit OpenSSL
+      'Windows 2019 with Visual Studio 2019 (Visual Studio 2017, Debug, x86, no security)':
         arch: x86
         image: windows-2019
-        idlc_testing: off
+        ssl: off
+        security: off
+        idlc_xtests: off
         generator: 'Visual Studio 16 2019'
         toolset: v141
       'Windows 2019 with Visual Studio 2019 (Debug, x86_64)':

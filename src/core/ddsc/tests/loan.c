@@ -106,7 +106,6 @@ CU_Test (ddsc_loan, success, .init = create_entities, .fini = delete_entities)
   CU_ASSERT_FATAL (result == DDS_RETCODE_OK);
   /* return resets buf[0] (so that it picks up the loan the next time) and zeros the data */
   CU_ASSERT_FATAL (ptrs[0] == NULL);
-  assert (ptr0copy != NULL); /* clang static analyzer */
   CU_ASSERT_FATAL (memcmp (ptr0copy, zeros, sizeof (s)) == 0);
 
   /* read 3, return: should work fine, causes realloc */
@@ -118,7 +117,6 @@ CU_Test (ddsc_loan, success, .init = create_entities, .fini = delete_entities)
   result = dds_return_loan (reader, ptrs, n);
   CU_ASSERT_FATAL (result == DDS_RETCODE_OK);
   CU_ASSERT_FATAL (ptrs[0] == NULL);
-  assert (ptr0copy != NULL); /* clang static analyzer */
   CU_ASSERT_FATAL (memcmp (ptr0copy, zeros, 3 * sizeof (s)) == 0);
 
   /* read 1 using loan, expecting to get the same address (no realloc needed), defer return.
@@ -143,7 +141,6 @@ CU_Test (ddsc_loan, success, .init = create_entities, .fini = delete_entities)
   {
     const struct RoundTripModule_DataType *a = ptrs[0];
     const struct RoundTripModule_DataType *b = ptrs2[0];
-    assert (a != NULL && b != NULL); /* clang static analyzer */
     CU_ASSERT_FATAL (a->payload._length == b->payload._length);
     CU_ASSERT_FATAL (a->payload._buffer != b->payload._buffer);
     CU_ASSERT_FATAL (a->payload._buffer[0] == b->payload._buffer[0]);

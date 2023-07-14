@@ -204,7 +204,6 @@ CU_Test(ddssec_builtin_register_remote_datareader, happy_day, .init = suite_regi
   /* A valid handle to be returned */
   CU_ASSERT_FATAL(result != 0);
   CU_ASSERT_FATAL(exception.code == DDS_SECURITY_ERR_OK_CODE);
-  assert(result != 0); // for Clang's static analyzer
 
   /* NOTE: It would be better to check if the keys have been generated but there is no interface to get them from handle */
   reader_crypto = (remote_datareader_crypto *)result;
@@ -268,7 +267,6 @@ CU_Test(ddssec_builtin_register_remote_datareader, volatile_secure, .init = suit
 
   /* A valid handle to be returned */
   CU_ASSERT_FATAL(result != 0);
-  assert(result != 0); // for Clang's static analyzer
   CU_ASSERT_FATAL(((remote_datareader_crypto *)result)->is_builtin_participant_volatile_message_secure_reader);
   CU_ASSERT_FATAL(exception.code == DDS_SECURITY_ERR_OK_CODE);
   reset_exception(&exception);
@@ -314,9 +312,8 @@ CU_Test(ddssec_builtin_register_remote_datareader, with_origin_authentication, .
     printf("register_remote_datareader: %s\n", exception.message ? exception.message : "Error message missing");
 
   /* A valid handle to be returned */
-  CU_ASSERT(result != 0);
+  CU_ASSERT_FATAL(result != 0);
   CU_ASSERT(exception.code == DDS_SECURITY_ERR_OK_CODE);
-  assert(result != 0); // for Clang's static analyzer
 
   /* NOTE: It would be better to check if the keys have been generated but there is no interface to get them from handle */
   reader_crypto = (remote_datareader_crypto *)result;

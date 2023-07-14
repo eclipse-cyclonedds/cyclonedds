@@ -69,7 +69,7 @@ while True:
     sleep(rng.exponential())
 ```
 
-Today DDS is also popular in robotics and autonomous vehicles because those really depend on high-throuhgput, low-latency control systems without introducing a single point of failure by having a message broker in the middle.
+Today DDS is also popular in robotics and autonomous vehicles because those really depend on high-throughput, low-latency control systems without introducing a single point of failure by having a message broker in the middle.
 Indeed, it is by far the most used and the default middleware choice in ROS 2.
 It is used to transfer commands, sensor data and even video and point clouds between components.
 
@@ -99,7 +99,7 @@ With references to the individual OMG specifications, the following is available
 - [DDS XTypes](https://www.omg.org/spec/DDS-XTypes/1.3/PDF) - the structural type system (some [caveats](docs/dev/xtypes_relnotes.md) here)
 - [DDSI-RTPS](https://www.omg.org/spec/DDSI-RTPS/2.5/PDF) - the interoperable network protocol
 
-The network stack in Cyclone DDS has been around for over a decade in one form or another and has proven itself in many systems, including large, high-availability ones and systems where interoperation with other implementations was needed.
+The network stack in Cyclone DDS has been around for over a decade in one form or another and has proven itself in many systems, including large, high-availability ones and systems where interoperatibility with other implementations was needed.
 
 This repository provides the core of Cyclone DDS including its C API, the [OMG C++](https://github.com/eclipse-cyclonedds/cyclonedds-cxx) and the [Python](https://github.com/eclipse-cyclonedds/cyclonedds-python) language bindings are in sibling repositories.
 
@@ -134,7 +134,7 @@ Depending on whether you want to develop applications using Cyclone DDS or contr
 There are some configuration options specified using CMake defines in addition to the standard options like `CMAKE_BUILD_TYPE`:
 
 * `-DBUILD_EXAMPLES=ON`: to build the included examples
-* `-DBUILD_TESTING=ON`: to build the test suite (this requires [CUnit](http://cunit.sourceforge.net/), see [Contributing to Eclipse Cyclone DDS](#contributing-to-eclipse-cyclone-dds) below for more information)
+* `-DBUILD_TESTING=ON`: to build the test suite (forces exporting all symbols from the library)
 * `-DBUILD_IDLC=NO`: to disable building the IDL compiler (affects building examples, tests and `ddsperf`)
 * `-DBUILD_DDSPERF=NO`: to disable building the [`ddsperf`](https://github.com/eclipse-cyclonedds/cyclonedds/tree/master/src/tools/ddsperf) tool for performance measurement
 * `-DENABLE_SSL=NO`: to not look for OpenSSL, remove TLS/TCP support and avoid building the plugins that implement authentication and encryption (default is `AUTO` to enable them if OpenSSL is found)
@@ -189,24 +189,13 @@ Note that the default build type is a release build with debug information inclu
 
 We very much welcome all contributions to the project, whether that is questions, examples, bug
 fixes, enhancements or improvements to the documentation, or anything else really.
-When considering contributing code, it might be good to know that build configurations for Azure pipelines are present in the repository and that there is a test suite using CTest and CUnit that can be built locally if desired.
+When considering contributing code, it might be good to know that build configurations for Azure pipelines are present in the repository and that there is a test suite built using a simple testing framework and CTest that can be built locally if desired.
 To build it, set the cmake variable `BUILD_TESTING` to on when configuring, e.g.:
 
     $ cd build
     $ cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON ..
     $ cmake --build .
     $ ctest
-
-Such a build requires the presence of [CUnit](http://cunit.sourceforge.net/).
-You can install this yourself, or you can choose to instead rely on the [Conan](https://conan.io) packaging system that the CI build infrastructure also uses.
-In that case, install Conan and do:
-
-    $ conan install .. --build missing
-
-in the build directory prior to running cmake.
-
-For Windows, depending on the generator, you might also need to add switches to select the architecture and build type, e.g., `conan install -s arch=x86_64 -s build_type=Debug ..`
-This will automatically download and/or build CUnit (and, at the moment, OpenSSL).
 
 ## Documentation
 

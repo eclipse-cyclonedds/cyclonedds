@@ -175,7 +175,7 @@ static void test_whc_end_state(dds_durability_kind_t d, dds_reliability_kind_t r
   writer = dds_create_writer (g_publisher, topic, g_qos, NULL);
   CU_ASSERT_FATAL(writer > 0);
   ret = dds_set_status_mask(writer, DDS_PUBLICATION_MATCHED_STATUS);
-  CU_ASSERT_FATAL (ret == DDS_RETCODE_OK)
+  CU_ASSERT_FATAL (ret == DDS_RETCODE_OK);
 
   reader = lrd ? create_and_sync_reader (g_subscriber, topic, g_qos, writer) : 0;
   reader_remote = rrd ? create_and_sync_reader (g_remote_subscriber, remote_topic, g_qos, writer) : 0;

@@ -1,9 +1,0 @@
-[requires]
-cunit/2.1-3
-openssl/1.1.1j
-
-[generators]
-cmake
-
-[options]
-cunit:shared=True

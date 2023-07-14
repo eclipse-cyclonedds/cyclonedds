@@ -784,7 +784,6 @@ CU_Test(ddssec_builtin_decode_serialized_payload, invalid_data, .init = suite_de
   }
 
   CU_ASSERT_FATAL(result);
-  assert(result); // for Clang's static analyzer
   CU_ASSERT(exception.code == 0);
   CU_ASSERT(exception.message == NULL);
 

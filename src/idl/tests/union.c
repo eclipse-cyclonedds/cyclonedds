@@ -466,6 +466,7 @@ CU_Test(idl_union, default_discriminator_unsigned_int)
       CU_ASSERT(u->default_case && u->default_case->const_expr);
       CU_ASSERT_PTR_EQUAL(idl_parent(u->default_case), u);
     }
+    CU_ASSERT_FATAL(u->default_case->const_expr);
     CU_ASSERT_FATAL(idl_is_literal(u->default_case->const_expr));
     l = u->default_case->const_expr;
     CU_ASSERT_FATAL(idl_type(l) == IDL_UINT8);

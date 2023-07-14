@@ -298,7 +298,7 @@ static uint32_t chhtest_thread (void *varg)
         {
           const uint32_t ix = (raw_oper >> 2) % arg->nkeys;
           bool x = ddsrt_chh_lookup (arg->chh, ksptrs[ix]);
-          if (arg->check && ((ix < n) ? !x : x)) { CU_ASSERT_FATAL (0) };
+          if (arg->check && ((ix < n) ? !x : x)) { CU_ASSERT_FATAL (0); }
           arg->lookups++;
         }
         break;
