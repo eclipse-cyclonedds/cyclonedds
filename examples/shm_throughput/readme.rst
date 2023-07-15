@@ -75,7 +75,7 @@ It is recommended that you run the publisher and subscriber in separate terminal
 - In the second terminal start the subscriber by running ShmThroughputSubscriber
 
   subscriber usage (parameters must be supplied in order):
-    ``./ShmThroughputSubscriber [maxCycles (0=infinite)] [pollingDelay (ms, 0 = event based)] [partitionName] [payloadSize (bytes]``
+    ``./ShmThroughputSubscriber [maxCycles (0=infinite)] [pollingDelay (ms, 0 = event based)] [partitionName] [payloadSize (bytes)]``
   defaults:
     ``./ShmThroughputSubscriber 0 0 "Throughput example" 8192``
 
@@ -85,14 +85,14 @@ It is recommended that you run the publisher and subscriber in separate terminal
   publisher usage:
     ``taskset -c 0 chrt -f 80 ./ShmThroughputPublisher [payloadSize (bytes)] [burstInterval (ms)] [burstSize (samples)] [timeOut (seconds)] [partitionName]``
   subscriber usage:
-    ``taskset -c 1 chrt -f 80 ./ShmThroughputSubscriber [maxCycles (0 = infinite)] [pollingDelay (ms, 0 = event based)] [partitionName] [payloadSize (bytes]``
+    ``taskset -c 1 chrt -f 80 ./ShmThroughputSubscriber [maxCycles (0 = infinite)] [pollingDelay (ms, 0 = event based)] [partitionName] [payloadSize (bytes)]``
 
   On Windows the CPU affinity and prioritized scheduling class can be set as follows:
 
   publisher usage:
     ``START /affinity 1 /high cmd /k "ShmThroughputPublisher.exe" [payloadSize (bytes)] [burstInterval (ms)] [burstSize (samples)] [timeOut (seconds)] [partitionName]``
   subscriber usage:
-    ``START /affinity 2 /high cmd /k "ShmThroughputSubscriber.exe" [maxCycles (0 = infinite)] [pollingDelay (ms, 0 = event based)] [partitionName] [payloadSize (bytes]``
+    ``START /affinity 2 /high cmd /k "ShmThroughputSubscriber.exe" [maxCycles (0 = infinite)] [pollingDelay (ms, 0 = event based)] [partitionName] [payloadSize (bytes)]``
 
 
 
