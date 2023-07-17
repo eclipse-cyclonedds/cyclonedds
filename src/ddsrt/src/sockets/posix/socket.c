@@ -332,7 +332,7 @@ ddsrt_setsockopt(
           } else {
             maddr = net_if_ipv6_maddr_add(iface, &(mreq->ipv6mr_multiaddr));
             if (maddr) {
-              net_if_ipv6_maddr_join(maddr);
+              net_if_ipv6_maddr_join(iface, maddr);
               net_if_mcast_monitor(iface, &(maddr->address), true);
               return DDS_RETCODE_OK;
             }
@@ -340,7 +340,7 @@ ddsrt_setsockopt(
         } else if (optname == IPV6_LEAVE_GROUP) {
           if (maddr) {
             if (net_if_ipv6_maddr_rm(iface, &(mreq->ipv6mr_multiaddr))) {
-              net_if_ipv6_maddr_leave(maddr);
+              net_if_ipv6_maddr_leave(iface, maddr);
               net_if_mcast_monitor(iface, &(maddr->address), false);
               return DDS_RETCODE_OK;
             }
@@ -380,7 +380,7 @@ ddsrt_setsockopt(
           } else {
             maddr = net_if_ipv4_maddr_add(iface, &(mreq->imr_multiaddr));
             if (maddr) {
-              net_if_ipv4_maddr_join(maddr);
+              net_if_ipv4_maddr_join(iface, maddr);
               net_if_mcast_monitor(iface, &(maddr->address), true);
               return DDS_RETCODE_OK;
             }
@@ -388,7 +388,7 @@ ddsrt_setsockopt(
         } else if (optname == IP_DROP_MEMBERSHIP) {
           if (maddr) {  
             if (net_if_ipv4_maddr_rm(iface, &(mreq->imr_multiaddr))) {
-              net_if_ipv4_maddr_leave(maddr);
+              net_if_ipv4_maddr_leave(iface, maddr);
               net_if_mcast_monitor(iface, &(maddr->address), false);
               return DDS_RETCODE_OK;
             }

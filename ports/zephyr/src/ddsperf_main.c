@@ -13,7 +13,7 @@ char **environ = (char*[]) {
   NULL
 };
 
-void main(void)
+int main(void)
 {
     printf("CycloneDDS DDSPerf (%s)\n", CONFIG_BOARD);
 #if BUILD_DDSPERF_PING
@@ -23,5 +23,5 @@ void main(void)
 #endif
     ddsperf_main(sizeof(args)/sizeof(args[0]), args);
     printf("Done\n");
-    return;
+    return 0;
 }

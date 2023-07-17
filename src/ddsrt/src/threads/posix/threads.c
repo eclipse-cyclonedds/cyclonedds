@@ -314,7 +314,7 @@ ddsrt_thread_create (
       DDS_ERROR ("ddsrt_thread_create(%s): CYCLONEDDS_THREAD_COUNT(%d) exceeded\n", name, currThrIdx);
       goto err;
     }
-    if ((result = pthread_attr_setstack (&attr, &zephyr_stacks[currThrIdx], tattr.stackSize)) != 0)
+    if ((result = pthread_attr_setstack (&pattr, &zephyr_stacks[currThrIdx], tattr.stackSize)) != 0)
     {
       DDS_ERROR ("ddsrt_thread_create(%s): pthread_attr_setstack(%p, %"PRIu32") failed with error %d\n",
         name, &zephyr_stacks[currThrIdx], tattr.stackSize, result);
@@ -348,6 +348,17 @@ ddsrt_thread_create (
       DDS_ERROR("ddsrt_thread_create(%s): pthread_getschedparam(self) failed with error %d\n", name, result);
       goto err;
     }
+#else
+    if ((result = pthread_attr_getschedparam(&pattr, &sched_param)) != 0)
+    {
+      DDS_ERROR("ddsrt_thread_create(%s): pthread_attr_getschedparam() failed with error %d\n", name, result);
+      goto err;
+    }
+    if ((result = pthread_attr_getschedpolicy(&pattr, &policy)) != 0)
+    {
+      DDS_ERROR("ddsrt_thread_create(%s): pthread_attr_getschedpolicy() failed with error %d\n", name, result);
+      goto err;
+    }
 #endif
     switch (tattr.schedClass)
     {
@@ -360,27 +371,33 @@ ddsrt_thread_create (
         policy = SCHED_FIFO;
         break;
       case DDSRT_SCHED_TIMESHARE:
-#if !defined(__ZEPHYR__)
         policy = SCHED_OTHER;
-#else
-        DDS_ERROR("ddsrt_thread_create(%s): timeshare scheduling class not supported on this platform\n", name);
-        goto err;
-#endif
         break;
     }
-    if (tattr.schedClass != DDSRT_SCHED_DEFAULT) {
+    if (tattr.schedClass != DDSRT_SCHED_DEFAULT)
+    {
       if ((result = pthread_attr_setschedpolicy (&pattr, policy)) != 0)
       {
         DDS_ERROR("ddsrt_thread_create(%s): pthread_attr_setschedpolicy(%d) failed with error %d\n", name, policy, result);
         goto err;
       }
     }
-    sched_param.sched_priority = tattr.schedPriority;
+
+    if ((tattr.schedPriority >= sched_get_priority_min(policy)) && (tattr.schedPriority <= sched_get_priority_max(policy)))
+    {
+      sched_param.sched_priority = tattr.schedPriority;
+    }
+    else
+    {
+      DDS_WARNING("ddsrt_thread_create(%s): requested thread priority(%d) invalid for policy(%d), fall-back to default\n: %d", name, tattr.schedPriority, policy, sched_param.sched_priority);
+    }
+
     if ((result = pthread_attr_setschedparam (&pattr, &sched_param)) != 0)
     {
       DDS_ERROR("ddsrt_thread_create(%s): pthread_attr_setschedparam(priority = %d) failed with error %d\n", name, tattr.schedPriority, result);
       goto err;
     }
+
 #if !defined(__ZEPHYR__)
     if ((result = pthread_attr_setinheritsched (&pattr, PTHREAD_EXPLICIT_SCHED)) != 0)
     {

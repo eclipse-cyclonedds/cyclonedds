@@ -14,7 +14,7 @@ char **environ = (char*[]) {
   NULL
 };
 
-void main(void)
+int main(void)
 {
     int ret;
     printf("CycloneDDS Roundtrip (%s)\n", CONFIG_BOARD);
@@ -34,5 +34,5 @@ void main(void)
     ret = roundtrip_pong(sizeof(args)/sizeof(args[0]), args);
 #endif
     printf("Done (ret=%d)\n", ret);
-    return;
+    return 0;
 }
