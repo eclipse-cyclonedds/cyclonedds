@@ -22,7 +22,7 @@
 #include "dds/ddsi/ddsi_serdata.h"
 
 #include "dds/ddsc/dds_psmx.h"
-#include "dds__loan.h"
+#include "dds__loaned_sample.h"
 #include "dds__heap_loan.h"
 
 void dds_read_collect_sample_arg_init (struct dds_read_collect_sample_arg *arg, void **ptrs, dds_sample_info_t *infos, struct dds_loan_pool *loan_pool)

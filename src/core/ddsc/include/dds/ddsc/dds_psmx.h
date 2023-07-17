@@ -17,7 +17,7 @@
 
 #include "dds/export.h"
 #include "dds/dds.h"
-#include "dds/ddsc/dds_loan.h"
+#include "dds/ddsc/dds_loaned_sample.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -220,11 +220,21 @@ typedef struct dds_psmx_topic_ops {
 /**
  * @brief Definition for function to requests a loan from the PSMX
  *
- * @param[in] psmx_endpoint        the endpoint to loan from
+ * @param[in] psmx_endpoint   the endpoint to loan from
  * @param[in] size_requested  the size of the loan requested
  * @returns a pointer to the loaned block on success
  */
 typedef dds_loaned_sample_t * (* dds_psmx_endpoint_request_loan_fn) (struct dds_psmx_endpoint *psmx_endpoint, uint32_t size_requested);
+
+/**
+ * @brief Definition for function to requests a raw loan (without an encapsulating loaned sample) from the PSMX
+ *
+ * @param[in] psmx_endpoint   the endpoint to loan from
+ * @param[in] size_requested  the size of the loan requested
+ * @param[out] buffer         buffer to write the loan pointer in
+ * @returns a DDS return code
+ */
+typedef dds_return_t (* dds_psmx_endpoint_request_raw_loan_fn) (struct dds_psmx_endpoint *psmx_endpoint, uint32_t size_requested, void **buffer);
 
 /**
  * @brief Definition of function to write data on a PSMX endpoint
@@ -259,6 +269,7 @@ typedef dds_return_t (* dds_psmx_endpoint_on_data_available_fn) (struct dds_psmx
  */
 typedef struct dds_psmx_endpoint_ops {
   dds_psmx_endpoint_request_loan_fn       request_loan;
+  dds_psmx_endpoint_request_raw_loan_fn   request_raw_loan;
   dds_psmx_endpoint_write_fn              write;
   dds_psmx_endpoint_take_fn               take;
   dds_psmx_endpoint_on_data_available_fn  on_data_available;

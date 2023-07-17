@@ -64,7 +64,7 @@
 #endif
 
 #include "dds/ddsc/dds_internal_api.h"
-#include "dds/ddsc/dds_loan_api.h"
+#include "dds/ddsc/dds_loaned_sample.h"
 #include "dds/ddsc/dds_rhc.h"
 #include "dds/ddsc/dds_statistics.h"
 #include "dds/ddsc/dds_psmx.h"
@@ -216,7 +216,6 @@ int main (int argc, char **argv)
   dds_read_next_wl (1, ptr, ptr);
   dds_read_with_collector (1, 0, 1, 0, test_collect_sample, ptr);
   dds_take_with_collector (1, 0, 1, 0, test_collect_sample, ptr);
-  dds_return_loan (1, ptr, 0);
   dds_lookup_instance (1, ptr);
   dds_instance_get_key (1, 1, ptr);
   dds_begin_coherent (1);
@@ -241,15 +240,14 @@ int main (int argc, char **argv)
   dds_get_typeinfo (1, ptr);
   dds_free_typeinfo (ptr);
   dds_get_entity_sertype (1, ptr);
-  dds_request_loan (1, ptr, 0);
-  dds_reader_store_loaned_sample (1, ptr);
 
-  // dds_loan_api.h
-  // FIXME: restore functions
-  // dds_is_loan_available (1);
+  // dds_public_loan_api.h
+  dds_request_loan (1, ptr, 0);
+  dds_return_loan (1, ptr, 0);
   dds_is_shared_memory_available (1);
-  // dds_loan_shared_memory_buffer (1, 0, ptr);
-  // dds_loan_sample (1, ptr);
+  dds_loan_shared_memory_buffer (1, 0, ptr);
+  dds_is_loan_available (1); // deprecated
+  dds_loan_sample (1, ptr); // deprecated
 
   // dds_public_alloc.h
   dds_alloc (0);
@@ -498,10 +496,10 @@ int main (int argc, char **argv)
   dds_psmx_topic_init_generic (ptr, ptr2, ptr3);
   dds_psmx_topic_cleanup_generic (ptr);
 
-  // dds_loan.h
+  // dds_loaned_sample.h
   dds_loaned_sample_ref (ptr);
   dds_loaned_sample_unref (ptr);
-
+  dds_reader_store_loaned_sample (1, ptr);
 
 #ifdef DDS_HAS_SECURITY
   // dds_security_timed_cb.h

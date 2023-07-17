@@ -11,7 +11,7 @@
 #include <string.h>
 #include "dds/ddsi/ddsi_sertype.h"
 #include "dds/cdr/dds_cdrstream.h"
-#include "dds__loan.h"
+#include "dds__loaned_sample.h"
 #include "dds__heap_loan.h"
 #include "dds__entity.h"
 

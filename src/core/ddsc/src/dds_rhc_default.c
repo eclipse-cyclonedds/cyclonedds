@@ -25,7 +25,7 @@
 
 #include "dds__entity.h"
 #include "dds__reader.h"
-#include "dds__loan.h"
+#include "dds__loaned_sample.h"
 #include "dds/ddsc/dds_rhc.h"
 #include "dds__rhc_default.h"
 #include "dds/ddsi/ddsi_tkmap.h"

@@ -15,3 +15,9 @@ struct SC_Model {
 struct NSC_Model {
   string a,b,c;
 };
+
+struct PsmxType1 {
+  long	long_1;
+  long	long_2;
+  long	long_3;
+};

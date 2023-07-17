@@ -24,7 +24,7 @@
 #include "dds/ddsi/ddsi_builtin_topic_if.h"
 #include "dds/ddsc/dds_psmx.h"
 #include "dds__handles.h"
-#include "dds__loan.h"
+#include "dds__loaned_sample.h"
 
 
 #if defined (__cplusplus)

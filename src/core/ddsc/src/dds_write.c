@@ -25,11 +25,10 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_deliver_locally.h"
 #include "dds/ddsi/ddsi_addrset.h"
-#include "dds/ddsc/dds_loan.h"
 #include "dds__heap_loan.h"
 #include "dds__writer.h"
 #include "dds__write.h"
-#include "dds__loan.h"
+#include "dds__loaned_sample.h"
 #include "dds__psmx.h"
 
 struct ddsi_serdata_plain { struct ddsi_serdata p; };

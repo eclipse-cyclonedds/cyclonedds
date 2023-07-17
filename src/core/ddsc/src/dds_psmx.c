@@ -16,7 +16,7 @@
 #include "dds/ddsi/ddsi_locator.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_endpoint.h"
-#include "dds/ddsc/dds_loan_api.h"
+#include "dds/dds.h"
 #include "dds__types.h"
 #include "dds__psmx.h"
 #include "dds__qos.h"
@@ -457,4 +457,35 @@ bool dds_is_loan_available (const dds_entity_t entity)
 
   dds_entity_unpin (e);
   return is_loan_available;
+}
+
+dds_return_t dds_loan_shared_memory_buffer (dds_entity_t writer, size_t size, void **buffer)
+{
+  dds_entity *e;
+  dds_return_t ret = DDS_RETCODE_OK;
+
+  if (dds_entity_pin (writer, &e) != DDS_RETCODE_OK)
+    return false;
+
+  if (dds_entity_kind (e) != DDS_KIND_WRITER)
+  {
+    ret = DDS_RETCODE_BAD_PARAMETER;
+  }
+  else
+  {
+    struct dds_writer const *const wr = (struct dds_writer *) e;
+    *buffer = NULL;
+
+    // TODO: implement correct behavior in case of multiple PSMX endpoints
+    for (uint32_t i = 0; *buffer != NULL && i < wr->m_endpoint.psmx_endpoints.length; i++)
+    {
+      struct dds_psmx_endpoint *psmx_endpoint = wr->m_endpoint.psmx_endpoints.endpoints[i];
+      if (psmx_endpoint == NULL || !(dds_psmx_supported_features (psmx_endpoint->psmx_topic->psmx_instance) & DDS_PSMX_FEATURE_SHARED_MEMORY))
+        continue;
+      psmx_endpoint->ops.request_raw_loan (psmx_endpoint, (uint32_t) size, buffer);
+    }
+
+  }
+  dds_entity_unpin (e);
+  return ret;
 }

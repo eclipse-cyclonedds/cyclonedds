@@ -102,7 +102,7 @@ static bool endpoint_has_psmx_enabled (dds_entity_t rd_or_wr)
   {
     case DDS_KIND_READER: {
       struct dds_reader const * const rd = (struct dds_reader *) x;
-      psmx_enabled  = (rd->m_endpoint.psmx_endpoints.length > 0);
+      psmx_enabled = (rd->m_endpoint.psmx_endpoints.length > 0);
       break;
     }
     case DDS_KIND_WRITER: {
@@ -116,7 +116,7 @@ static bool endpoint_has_psmx_enabled (dds_entity_t rd_or_wr)
     }
   }
   dds_entity_unpin (x);
-  return psmx_enabled ;
+  return psmx_enabled;
 }
 
 static uint32_t reader_unicast_port (dds_entity_t rdhandle)
@@ -775,7 +775,7 @@ static void dotest (const dds_topic_descriptor_t *tpdesc, const void *sample, en
 CU_Test(ddsc_psmx, one_writer, .timeout = 120)
 {
   failed = false;
-  dotest (&Space_Type1_desc, &(const Space_Type1){ 0 }, LDM_NONE, false, false);
+  dotest (&PsmxType1_desc, &(const PsmxType1){ 0 }, LDM_NONE, false, false);
   CU_ASSERT (!failed);
 }
 
@@ -810,35 +810,35 @@ CU_Test(ddsc_psmx, one_writer_dynsize_strkey, .timeout = 120)
 CU_Test(ddsc_psmx, one_writer_fastpath, .timeout = 120)
 {
   failed = false;
-  dotest (&Space_Type1_desc, &(const Space_Type1){ 0 }, LDM_FASTPATH, false, false);
+  dotest (&PsmxType1_desc, &(const PsmxType1){ 0 }, LDM_FASTPATH, false, false);
   CU_ASSERT (!failed);
 }
 
 CU_Test(ddsc_psmx, one_writer_slowpath, .timeout = 120)
 {
   failed = false;
-  dotest (&Space_Type1_desc, &(const Space_Type1){ 0 }, LDM_SLOWPATH, false, false);
+  dotest (&Space_Type3_desc, &(const PsmxType1){ 0 }, LDM_SLOWPATH, false, false);
   CU_ASSERT (!failed);
 }
 
 CU_Test(ddsc_psmx, one_writer_wloan, .timeout = 120)
 {
   failed = false;
-  dotest (&Space_Type1_desc, &(const Space_Type1){ 0 }, LDM_NONE, true, false);
+  dotest (&PsmxType1_desc, &(const PsmxType1){ 0 }, LDM_NONE, true, false);
   CU_ASSERT (!failed);
 }
 
 CU_Test(ddsc_psmx, one_writer_rloan, .timeout = 120)
 {
   failed = false;
-  dotest (&Space_Type1_desc, &(const Space_Type1){ 0 }, LDM_NONE, false, true);
+  dotest (&PsmxType1_desc, &(const PsmxType1){ 0 }, LDM_NONE, false, true);
   CU_ASSERT (!failed);
 }
 
 CU_Test(ddsc_psmx, one_writer_wrloan, .timeout = 120)
 {
   failed = false;
-  dotest (&Space_Type1_desc, &(const Space_Type1){ 0 }, LDM_NONE, true, true);
+  dotest (&PsmxType1_desc, &(const PsmxType1){ 0 }, LDM_NONE, true, true);
   CU_ASSERT (!failed);
 }
 
@@ -873,7 +873,7 @@ CU_Test(ddsc_psmx, partition_xtalk)
   const dds_entity_t pp = create_participant (0);
   char topicname[100];
   create_unique_topic_name ("test_psmx", topicname, sizeof (topicname));
-  const dds_entity_t tp = dds_create_topic (pp, &Space_Type1_desc, topicname, NULL, NULL);
+  const dds_entity_t tp = dds_create_topic (pp, &PsmxType1_desc, topicname, NULL, NULL);
   CU_ASSERT_FATAL (tp > 0);
 
   dds_qos_t *qos = dds_create_qos ();
@@ -929,15 +929,15 @@ CU_Test(ddsc_psmx, partition_xtalk)
       CU_ASSERT_FATAL (checkwr > 0);
     }
 
-    rc = dds_write (wr, &(Space_Type1){ 1, 2, 3 });
+    rc = dds_write (wr, &(PsmxType1){ 1, 2, 3 });
     CU_ASSERT_FATAL (rc == 0);
     if (checkwr)
     {
-      rc = dds_write (checkwr, &(Space_Type1){ 4, 5, 6 });
+      rc = dds_write (checkwr, &(PsmxType1){ 4, 5, 6 });
       CU_ASSERT_FATAL (rc == 0);
     }
 
-    Space_Type1 t;
+    PsmxType1 t;
     void *tptr = &t;
     dds_sample_info_t si;
     while ((rc = dds_take (rd, &tptr, &si, 1, 1)) <= 0)

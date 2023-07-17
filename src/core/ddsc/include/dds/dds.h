@@ -46,6 +46,7 @@
 #include "dds/ddsc/dds_public_status.h"
 #include "dds/ddsc/dds_public_listener.h"
 #include "dds/ddsc/dds_public_dynamic_type.h"
+#include "dds/ddsc/dds_public_loan_api.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -4193,81 +4194,6 @@ dds_take_with_collector (
   uint32_t mask,
   dds_read_with_collector_fn_t collect_sample,
   void *collect_sample_arg);
-
-/**
- * @brief request loans from an entity.
- * @ingroup loan
- *
- * @param[in] entity The entity to request loans from.
- * @param[out] buf Pointer to the array to store the pointers to the loaned samples into.
- * @param[out] bufsz The number of loans to request.
- *
- * @returns A dds_return_t indicating success or failure, either the number of loans received,
- *          or a failure code.
- *
- * @retval >= 0
- *             The operation was successful, returns the number of loans.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             One or more parameters are invalid.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The reader entity has already been deleted.
- */
-DDS_EXPORT dds_return_t
-dds_request_loan(
-  dds_entity_t entity,
-  void **buf,
-  int32_t bufsz);
-
-/**
- * @defgroup loan (Loans API)
- * @ingroup dds
- */
-
-/**
- * @brief Return loaned samples to a reader or writer
- * @ingroup loan
- * @component read_data
- *
- * Used to release sample buffers returned by a read/take operation (a reader-loan)
- * or, in case shared memory is enabled, of the loan_sample operation (a writer-loan).
- *
- * When the application provides an empty buffer to a reader-loan, memory is allocated and
- * managed by DDS. By calling dds_return_loan(), the reader-loan is released so that the buffer
- * can be reused during a successive read/take operation. When a condition is provided, the
- * reader to which the condition belongs is looked up.
- *
- * Writer-loans are normally released implicitly when writing a loaned sample, but you can
- * cancel a writer-loan prematurely by invoking the return_loan() operation. For writer loans, buf is
- * overwritten with null pointers for all successfully returned entries. Any failure causes it to abort,
- * possibly midway through buf.
- *
- * @param[in] entity The entity that the loan belongs to.
- * @param[in,out] buf An array of (pointers to) samples, some or all of which will be set to null pointers.
- * @param[in] bufsz The number of (pointers to) samples stored in buf.
- *
- * @returns A dds_return_t indicating success or failure
- * @retval DDS_RETCODE_OK
- *             - the operation was successful; for a writer loan, all entries in buf are set to null
- *             - this specifically includes cases where bufsz <= 0 while entity is valid
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             - the entity parameter is not a valid parameter
- *             - buf is null, or bufsz > 0 and buf[0] = null
- *             - (for writer loans) buf[0 <= i < bufsz] is null; operation is aborted, all buf[j < i] = null on return
- * @retval DDS_RETCODE_PRECONDITION_NOT_MET
- *             - (for reader loans) buf was already returned (not guaranteed to be detected)
- *             - (for writer loans) buf[0 <= i < bufsz] does not correspond to an outstanding loan, all buf[j < i] = null on return
- * @retval DDS_RETCODE_UNSUPPORTED
- *             - (for writer loans) invoked on a writer not supporting loans.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             - the operation is invoked on an inappropriate object.
- */
-DDS_EXPORT dds_return_t
-dds_return_loan(
-  dds_entity_t entity,
-  void **buf,
-  int32_t bufsz);
 
 /**
  * @defgroup instance_handle (Instance Handles)

@@ -10,19 +10,18 @@
 // SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
 /**
- * @defgroup loan (Loaned samples)
+ * @defgroup loaned_sample (Loaned samples)
  * @ingroup dds
  */
 
-#ifndef DDS_LOAN_H
-#define DDS_LOAN_H
+#ifndef DDS_LOANED_SAMPLE_H
+#define DDS_LOANED_SAMPLE_H
 
 #include "dds/export.h"
 #include "dds/ddsrt/retcode.h"
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/time.h"
 #include "dds/ddsc/dds_basic_types.h"
-#include "dds/ddsc/dds_loan.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -150,4 +149,4 @@ DDS_EXPORT dds_return_t dds_reader_store_loaned_sample (dds_entity_t reader, dds
 }
 #endif
 
-#endif /* DDS_LOAN_H */
+#endif /* DDS_LOANED_SAMPLE_H */

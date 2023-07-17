@@ -8,10 +8,10 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
-#ifndef DDS__LOAN_H
-#define DDS__LOAN_H
+#ifndef DDS__LOANED_SAMPLE_H
+#define DDS__LOANED_SAMPLE_H
 
-#include "dds/ddsc/dds_loan.h"
+#include "dds/ddsc/dds_loaned_sample.h"
 #include "dds__types.h"
 
 #if defined(__cplusplus)
@@ -22,7 +22,6 @@ extern "C" {
  * @brief Loan pool
  */
 typedef struct dds_loan_pool {
-  //FIXME map better?
   dds_loaned_sample_t **samples;
   uint32_t n_samples_cap;
   uint32_t n_samples;
@@ -113,4 +112,4 @@ dds_loaned_sample_t *dds_loan_pool_get_loan (dds_loan_pool_t *pool);
 }
 #endif
 
-#endif /* DDS__LOAN_H */
+#endif /* DDS__LOANED_SAMPLE_H */

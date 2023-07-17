@@ -22,6 +22,7 @@
 #include "dds__topic.h"
 #include "dds__builtin.h"
 #include "dds__subscriber.h" // for non-materialized DATA_ON_READERS
+#include "dds/dds.h"
 #include "dds/version.h"
 #include "dds/ddsi/ddsi_pmd.h"
 #include "dds/ddsi/ddsi_xqos.h"
@@ -1612,6 +1613,11 @@ dds_return_t dds_request_loan (dds_entity_t entity, void **buf, int32_t bufsz)
   }
   dds_entity_unpin (p_entity);
   return ret;
+}
+
+dds_return_t dds_loan_sample (dds_entity_t writer, void **sample)
+{
+  return dds_request_loan (writer, sample, 1);
 }
 
 dds_return_t dds_return_loan (dds_entity_t entity, void **buf, int32_t bufsz)

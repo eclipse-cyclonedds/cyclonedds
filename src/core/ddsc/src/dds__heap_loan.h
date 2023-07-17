@@ -11,14 +11,15 @@
 #ifndef DDS__HEAP_LOAN_H
 #define DDS__HEAP_LOAN_H
 
-#include "dds/ddsc/dds_loan.h"
 #include "dds__types.h"
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-dds_return_t dds_heap_loan (const struct ddsi_sertype *type, dds_loaned_sample_t **loaned_sample);
+struct dds_loaned_sample_t;
+
+dds_return_t dds_heap_loan (const struct ddsi_sertype *type, struct dds_loaned_sample **loaned_sample);
 
 #if defined(__cplusplus)
 }

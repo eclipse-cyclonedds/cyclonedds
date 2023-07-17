@@ -17,7 +17,7 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/mh3.h"
 #include "dds/ddsrt/strtol.h"
-#include "dds/ddsc/dds_loan.h"
+#include "dds/ddsc/dds_loaned_sample.h"
 #include "dds/ddsc/dds_psmx.h"
 
 #include "iceoryx_hoofs/posix_wrapper/signal_watcher.hpp"
@@ -70,12 +70,14 @@ static const dds_psmx_topic_ops_t psmx_topic_ops = {
 
 
 static dds_loaned_sample_t * iox_req_loan (struct dds_psmx_endpoint *psmx_endpoint, uint32_t size_requested);
+static dds_return_t iox_req_raw_loan (struct dds_psmx_endpoint *psmx_endpoint, uint32_t size_requested, void **buffer);
 static dds_return_t iox_write (struct dds_psmx_endpoint * psmx_endpoint, dds_loaned_sample_t * data);
 static dds_loaned_sample_t * iox_take (struct dds_psmx_endpoint * psmx_endpoint);
 static dds_return_t iox_on_data_available (struct dds_psmx_endpoint * psmx_endpoint, dds_entity_t reader);
 
 static const dds_psmx_endpoint_ops_t psmx_ep_ops = {
   .request_loan = iox_req_loan,
+  .request_raw_loan = iox_req_raw_loan,
   .write = iox_write,
   .take = iox_take,
   .on_data_available = iox_on_data_available
@@ -521,6 +523,29 @@ static dds_loaned_sample_t* iox_req_loan (struct dds_psmx_endpoint *psmx_endpoin
   }
 
   return result_ptr;
+}
+
+static dds_return_t iox_req_raw_loan (struct dds_psmx_endpoint *psmx_endpoint, uint32_t size_requested, void **buffer)
+{
+  auto cpp_ep_ptr = reinterpret_cast<iox_psmx_endpoint*>(psmx_endpoint);
+  dds_return_t ret = DDS_RETCODE_OK;
+  if (psmx_endpoint->endpoint_type != DDS_PSMX_ENDPOINT_TYPE_WRITER)
+  {
+    ret = DDS_RETCODE_BAD_PARAMETER;
+  }
+  else
+  {
+    auto ptr = reinterpret_cast<iox::popo::UntypedPublisher*>(cpp_ep_ptr->_iox_endpoint);
+    ptr->loan(size_requested + iox_padding)
+      .and_then([&](void* loan_ptr) {
+        *buffer = loan_ptr;
+      })
+      .or_else([&](auto& error) {
+        fprintf(stderr, ERROR_PREFIX "failure getting loan: %s\n", iox::popo::asStringLiteral(error));
+      });
+  }
+
+  return ret;
 }
 
 static dds_return_t iox_write (struct dds_psmx_endpoint * psmx_endpoint, dds_loaned_sample_t * data)

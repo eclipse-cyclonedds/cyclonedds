@@ -12,7 +12,7 @@
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsi/ddsi_sertype.h"
 #include "dds/cdr/dds_cdrstream.h"
-#include "dds__loan.h"
+#include "dds__loaned_sample.h"
 #include "dds__entity.h"
 
 static dds_return_t loan_pool_remove_loan_locked (dds_loaned_sample_t *loaned_sample);

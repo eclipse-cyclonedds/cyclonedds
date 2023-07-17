@@ -24,7 +24,7 @@
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds__serdata_default.h"
-#include "dds__loan.h"
+#include "dds__loaned_sample.h"
 #include "dds__heap_loan.h"
 #include "dds__psmx.h"
 
