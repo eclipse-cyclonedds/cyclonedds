@@ -14,7 +14,7 @@ char **environ = (char*[]) {
   NULL
 };
 
-void main(void)
+int main(void)
 {
     int ret;
     printf("CycloneDDS Throughput (%s)\n", CONFIG_BOARD);
@@ -26,5 +26,5 @@ void main(void)
     ret = throughput_sub(sizeof(args)/sizeof(args[0]), args);
 #endif
     printf("Done (ret=%d)\n", ret);
-    return;
+    return 0;
 }

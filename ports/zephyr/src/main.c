@@ -202,7 +202,7 @@ void helloworld_subscriber()
     DDS_FATAL("dds_delete (domain): %s\n", dds_strretcode(-rc));
 }
 
-void main(void)
+int main(void)
 {
     printf("CycloneDDS Hello World! %s\n", CONFIG_BOARD);
 #if BUILD_HELLOWORLD_PUB
@@ -211,5 +211,5 @@ void main(void)
     helloworld_subscriber();
 #endif
     printf("Done\n");
-    return;
+    return 0;
 }
