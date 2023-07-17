@@ -148,10 +148,10 @@ typedef uint32_t(*ddsi_serdata_zerocopy_size_t) (const struct ddsi_serdata* d);
 
 // Used for taking a loaned sample and constructing a serdata around this
 // takes over ownership of loan on success (leaves it unchanged on failure)
-typedef struct ddsi_serdata* (*ddsi_serdata_from_loan_t) (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, const char *sample, struct dds_loaned_sample *loan, bool force_serialization);
+typedef struct ddsi_serdata* (*ddsi_serdata_from_loan_t) (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, const char *sample, struct dds_loaned_sample *loaned_sample, bool force_serialization);
 
 // Used for constructing a serdata from data received on a PSMX
-typedef struct ddsi_serdata* (*ddsi_serdata_from_psmx_t) (const struct ddsi_sertype *type, struct dds_loaned_sample *data);
+typedef struct ddsi_serdata* (*ddsi_serdata_from_psmx_t) (const struct ddsi_sertype *type, struct dds_loaned_sample *loaned_sample);
 
 
 struct ddsi_serdata_ops {

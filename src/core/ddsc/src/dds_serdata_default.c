@@ -470,89 +470,6 @@ static struct ddsi_serdata *serdata_default_from_keyhash_cdr_nokey (const struct
   return fix_serdata_default_nokey(d, tp->c.serdata_basehash);
 }
 
-static struct ddsi_serdata *serdata_default_from_loaned_sample(const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, const char *sample, dds_loaned_sample_t *loan, bool force_serialization)
-{
-  /*
-    type = the type of data being serialized
-    kind = the kind of data contained (key or normal)
-    sample = the raw sample made into the serdata
-    loan = the loaned buffer in use
-    force_serialization = whether the contents of the loaned sample should be serialized
-  */
-  const struct dds_sertype_default *t = (const struct dds_sertype_default *) tpcmn;
-
-  assert (loan->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_PSMX);
-  bool serialize_data = force_serialization || dds_psmx_endpoint_serialization_required (loan->loan_origin.psmx_endpoint);
-
-  struct dds_serdata_default *d;
-  if (serialize_data)
-  {
-    // maybe if there is a loan and that loan is not the sample, use the loan block as the serialization buffer?
-    d = (struct dds_serdata_default *) tpcmn->serdata_ops->from_sample (tpcmn, kind, sample);
-  }
-  else
-  {
-    d = serdata_default_new (t, kind, t->write_encoding_version);
-    if (d == NULL || !gen_serdata_key_from_sample (t, &d->key, sample))
-      return NULL;
-  }
-
-  if (d != NULL)
-  {
-    // now owner of loan
-    d->c.loan = loan;
-    d->c.loan->metadata->cdr_options = d->hdr.options;
-    switch (d->hdr.identifier)
-    {
-      case DDSI_RTPS_CDR_BE:
-      case DDSI_RTPS_CDR_LE:
-      case DDSI_RTPS_PL_CDR_BE:
-      case DDSI_RTPS_PL_CDR_LE:
-        d->c.loan->metadata->cdr_identifier = DDSI_RTPS_CDR_ENC_VERSION_1;
-        break;
-      case DDSI_RTPS_CDR2_BE:
-      case DDSI_RTPS_CDR2_LE:
-      case DDSI_RTPS_D_CDR2_BE:
-      case DDSI_RTPS_D_CDR2_LE:
-      case DDSI_RTPS_PL_CDR2_BE:
-      case DDSI_RTPS_PL_CDR2_LE:
-        d->c.loan->metadata->cdr_identifier = DDSI_RTPS_CDR_ENC_VERSION_2;
-        break;
-      default:
-        d->c.loan->metadata->cdr_identifier = DDSI_RTPS_CDR_ENC_VERSION_UNDEF;
-    }
-
-    if (d->c.loan->sample_ptr != sample) //if the sample we are serializing is itself not loaned
-    {
-      assert (d->c.loan->metadata->sample_state == DDS_LOANED_SAMPLE_STATE_UNITIALIZED);
-      if (serialize_data)
-      {
-        d->c.loan->metadata->sample_state = (kind == SDK_KEY ? DDS_LOANED_SAMPLE_STATE_SERIALIZED_KEY : DDS_LOANED_SAMPLE_STATE_SERIALIZED_DATA);
-        memcpy (d->c.loan->sample_ptr, d->data, d->c.loan->metadata->sample_size);
-      }
-      else
-      {
-        d->c.loan->metadata->sample_state = DDS_LOANED_SAMPLE_STATE_RAW;
-        memcpy (d->c.loan->sample_ptr, sample, d->c.loan->metadata->sample_size);
-      }
-    }
-    else
-    {
-      d->c.loan->metadata->sample_state = DDS_LOANED_SAMPLE_STATE_RAW;
-    }
-
-    d->c.loan->metadata->hash = d->c.hash;
-
-    struct ddsi_keyhash kh;
-    serdata_default_get_keyhash (&d->c, &kh, true);
-    memcpy (d->c.loan->metadata->keyhash, kh.value, sizeof (d->c.loan->metadata->keyhash));
-    d->c.loan->metadata->keysize = d->key.keysize;
-  }
-
-  return (struct ddsi_serdata *) d;
-}
-
-
 static void istream_from_serdata_default (dds_istream_t * __restrict s, const struct dds_serdata_default * __restrict d)
 {
   if (d->c.loan != NULL)
@@ -882,6 +799,88 @@ static bool loaned_sample_state_to_serdata_kind (dds_loaned_sample_state_t lss, 
   }
   // "impossible" value
   return false;
+}
+
+static struct ddsi_serdata *serdata_default_from_loaned_sample (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, const char *sample, dds_loaned_sample_t *loaned_sample, bool force_serialization)
+{
+  /*
+    type = the type of data being serialized
+    kind = the kind of data contained (key or normal)
+    sample = the raw sample made into the serdata
+    loaned_sample = the loaned buffer in use
+    force_serialization = whether the contents of the loaned sample should be serialized
+  */
+  const struct dds_sertype_default *tp = (const struct dds_sertype_default *) type;
+
+  assert (loaned_sample->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_PSMX);
+  bool serialize_data = force_serialization || dds_psmx_endpoint_serialization_required (loaned_sample->loan_origin.psmx_endpoint);
+
+  struct dds_serdata_default *d;
+  if (serialize_data)
+  {
+    // maybe if there is a loan and that loan is not the sample, use the loan block as the serialization buffer?
+    d = (struct dds_serdata_default *) type->serdata_ops->from_sample (type, kind, sample);
+  }
+  else
+  {
+    d = serdata_default_new (tp, kind, tp->write_encoding_version);
+    if (d == NULL || !gen_serdata_key_from_sample (tp, &d->key, sample))
+      return NULL;
+  }
+
+  if (d != NULL)
+  {
+    // now owner of loan
+    d->c.loan = loaned_sample;
+    d->c.loan->metadata->cdr_options = d->hdr.options;
+    switch (d->hdr.identifier)
+    {
+      case DDSI_RTPS_CDR_BE:
+      case DDSI_RTPS_CDR_LE:
+      case DDSI_RTPS_PL_CDR_BE:
+      case DDSI_RTPS_PL_CDR_LE:
+        d->c.loan->metadata->cdr_identifier = DDSI_RTPS_CDR_ENC_VERSION_1;
+        break;
+      case DDSI_RTPS_CDR2_BE:
+      case DDSI_RTPS_CDR2_LE:
+      case DDSI_RTPS_D_CDR2_BE:
+      case DDSI_RTPS_D_CDR2_LE:
+      case DDSI_RTPS_PL_CDR2_BE:
+      case DDSI_RTPS_PL_CDR2_LE:
+        d->c.loan->metadata->cdr_identifier = DDSI_RTPS_CDR_ENC_VERSION_2;
+        break;
+      default:
+        d->c.loan->metadata->cdr_identifier = DDSI_RTPS_CDR_ENC_VERSION_UNDEF;
+    }
+
+    if (d->c.loan->sample_ptr != sample) //if the sample we are serializing is itself not loaned
+    {
+      assert (d->c.loan->metadata->sample_state == DDS_LOANED_SAMPLE_STATE_UNITIALIZED);
+      if (serialize_data)
+      {
+        d->c.loan->metadata->sample_state = (kind == SDK_KEY ? DDS_LOANED_SAMPLE_STATE_SERIALIZED_KEY : DDS_LOANED_SAMPLE_STATE_SERIALIZED_DATA);
+        memcpy (d->c.loan->sample_ptr, d->data, d->c.loan->metadata->sample_size);
+      }
+      else
+      {
+        d->c.loan->metadata->sample_state = DDS_LOANED_SAMPLE_STATE_RAW;
+        memcpy (d->c.loan->sample_ptr, sample, d->c.loan->metadata->sample_size);
+      }
+    }
+    else
+    {
+      d->c.loan->metadata->sample_state = DDS_LOANED_SAMPLE_STATE_RAW;
+    }
+
+    d->c.loan->metadata->hash = d->c.hash;
+
+    struct ddsi_keyhash kh;
+    serdata_default_get_keyhash (&d->c, &kh, true);
+    memcpy (d->c.loan->metadata->keyhash, kh.value, sizeof (d->c.loan->metadata->keyhash));
+    d->c.loan->metadata->keysize = d->key.keysize;
+  }
+
+  return (struct ddsi_serdata *) d;
 }
 
 static struct ddsi_serdata * serdata_default_from_psmx (const struct ddsi_sertype *type, dds_loaned_sample_t *loaned_sample)
