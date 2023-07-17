@@ -252,11 +252,6 @@ static bool sertype_default_serialize_into (const struct ddsi_sertype *type, con
   return dds_stream_write_sample(&os, &dds_cdrstream_default_allocator, sample, &type_default->type);
 }
 
-static ddsi_data_type_properties_t sertype_default_calculate_datatype_props (const dds_topic_descriptor_t *desc)
-{
-  return (ddsi_data_type_properties_t) dds_stream_data_types (desc->m_ops);
-}
-
 const struct ddsi_sertype_ops dds_sertype_ops_default = {
   .version = ddsi_sertype_v0,
   .arg = 0,
@@ -277,8 +272,7 @@ const struct ddsi_sertype_ops dds_sertype_ops_default = {
 #endif
   .derive_sertype = sertype_default_derive_sertype,
   .get_serialized_size = sertype_default_get_serialized_size,
-  .serialize_into = sertype_default_serialize_into,
-  .calculate_datatype_props = sertype_default_calculate_datatype_props
+  .serialize_into = sertype_default_serialize_into
 };
 
 dds_return_t dds_sertype_default_init (const struct dds_domain *domain, struct dds_sertype_default *st, const dds_topic_descriptor_t *desc, uint16_t min_xcdrv, dds_data_representation_id_t data_representation)
@@ -319,10 +313,7 @@ dds_return_t dds_sertype_default_init (const struct dds_domain *domain, struct d
   st->serpool = domain->serpool;
 
   dds_cdrstream_desc_init (&st->type, &dds_cdrstream_default_allocator, desc->m_size, desc->m_align, desc->m_flagset, desc->m_ops, desc->m_keys, desc->m_nkeys);
-
-  st->c.data_type_props = 0ull;
-  if (st->c.ops->calculate_datatype_props)
-    st->c.data_type_props |= st->c.ops->calculate_datatype_props (desc);
+  st->c.data_type_props = (ddsi_data_type_properties_t) dds_stream_data_types (desc->m_ops);
   if (st->c.fixed_size)
     st->c.data_type_props |= DDS_DATA_TYPE_IS_FIXED_SIZE;
 

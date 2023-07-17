@@ -132,10 +132,6 @@ typedef ddsi_typeinfo_t * (*ddsi_sertype_typeinfo_t) (const struct ddsi_sertype 
    serdata_ops for the provided data representation */
 typedef struct ddsi_sertype * (*ddsi_sertype_derive_t) (const struct ddsi_sertype *sertype, dds_data_representation_id_t data_representation, dds_type_consistency_enforcement_qospolicy_t tce_qos);
 
-/* Generate the datatype properties flags for this type
-   Used in the PSMX to determine essential properties of the type*/
-typedef ddsi_data_type_properties_t (* ddsi_sertype_calculate_datatype_properties_t) (const dds_topic_descriptor_t *desc);
-
 struct ddsi_sertype_v0;
 typedef void (*ddsi_sertype_v0_t) (struct ddsi_sertype_v0 *dummy);
 
@@ -163,7 +159,6 @@ struct ddsi_sertype_ops {
   ddsi_sertype_derive_t derive_sertype;
   ddsi_sertype_get_serialized_size_t get_serialized_size;
   ddsi_sertype_serialize_into_t serialize_into;
-  ddsi_sertype_calculate_datatype_properties_t calculate_datatype_props;
 };
 
 /** @component typesupport_if */
