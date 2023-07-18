@@ -717,6 +717,8 @@ static void wait_for_receive_threads (struct ddsi_domaingv *gv)
 
 static struct ddsi_sertype *make_special_type_pserop (const char *typename, size_t memsize, size_t nops, const enum ddsi_pserop *ops, size_t nops_key, const enum ddsi_pserop *ops_key)
 {
+  assert (ddsi_plist_memsize_generic (ops) == memsize);
+  assert (ops_key == NULL || (memsize >= 16 && ddsi_plist_memsize_generic (ops_key) == 16));
   struct ddsi_sertype_pserop *st = ddsrt_malloc (sizeof (*st));
   memset (st, 0, sizeof (*st));
   ddsi_sertype_init (&st->c, typename, &ddsi_sertype_ops_pserop, &ddsi_serdata_ops_pserop, nops_key == 0);
