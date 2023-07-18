@@ -316,7 +316,6 @@ CU_Test(dds_log, newline_terminates, .fini=reset)
   CU_ASSERT_PTR_NULL_FATAL(msg);
   DDS_ERROR("baz\n");
   CU_ASSERT_PTR_NOT_NULL_FATAL(msg);
-  assert(msg);
   CU_ASSERT(strcmp(msg, "foobarbaz\n") == 0);
   ddsrt_free(msg);
 #endif
@@ -333,7 +332,6 @@ CU_Test(dds_log, disabled_categories_discarded, .fini=reset)
   dds_set_log_mask(DDS_LC_FATAL | DDS_LC_ERROR | DDS_LC_INFO);
   DDS_INFO("foobar\n");
   CU_ASSERT_PTR_NOT_NULL_FATAL(msg);
-  assert(msg);
   CU_ASSERT(strcmp(msg, "foobar\n") == 0);
   ddsrt_free(msg);
 #endif

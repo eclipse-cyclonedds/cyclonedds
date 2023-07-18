@@ -528,7 +528,6 @@ CU_Test(ddsc_builtin_topics, cant_use_real_topic)
     dds_reader *rd_ent = NULL;
     rc = dds_reader_lock (rd, &rd_ent);
     CU_ASSERT_FATAL (rc == 0 && rd_ent != NULL);
-    assert (rc == 0 && rd_ent != NULL);
     const dds_entity_t real_topic = rd_ent->m_topic->m_entity.m_hdllink.hdl;
     dds_reader_unlock (rd_ent);
 

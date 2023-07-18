@@ -84,13 +84,11 @@ static void get_type (dds_entity_t entity, ddsi_typeid_t **type_id, char **type_
   ddsi_thread_state_awake (ddsi_lookup_thread_state (), &e->m_domain->gv);
   struct ddsi_entity_common *ec = ddsi_entidx_lookup_guid_untyped (e->m_domain->gv.entity_index, &e->m_guid);
   CU_ASSERT_FATAL (ec != NULL);
-  assert (ec);
   if (ec->kind == DDSI_EK_PROXY_READER || ec->kind == DDSI_EK_PROXY_WRITER)
   {
     struct ddsi_generic_proxy_endpoint *gpe = (struct ddsi_generic_proxy_endpoint *)ec;
     CU_ASSERT_FATAL (gpe != NULL);
     CU_ASSERT_FATAL (gpe->c.type_pair != NULL);
-    assert (gpe->c.type_pair);
     if (kind == DDSI_TYPEID_KIND_COMPLETE)
     {
       CU_ASSERT_FATAL (gpe->c.type_pair->complete != NULL);
@@ -107,7 +105,6 @@ static void get_type (dds_entity_t entity, ddsi_typeid_t **type_id, char **type_
   {
     struct ddsi_reader *rd = (struct ddsi_reader *) ec;
     CU_ASSERT_FATAL (rd->c.type_pair != NULL);
-    assert (rd->c.type_pair);
     if (kind == DDSI_TYPEID_KIND_COMPLETE)
     {
       CU_ASSERT_FATAL (rd->c.type_pair->complete != NULL);
@@ -124,7 +121,6 @@ static void get_type (dds_entity_t entity, ddsi_typeid_t **type_id, char **type_
   {
     struct ddsi_writer *wr = (struct ddsi_writer *) ec;
     CU_ASSERT_FATAL (wr->c.type_pair != NULL);
-    assert (wr->c.type_pair);
     if (kind == DDSI_TYPEID_KIND_COMPLETE)
     {
       CU_ASSERT_FATAL (wr->c.type_pair->complete != NULL);
@@ -285,7 +281,6 @@ CU_Test(ddsc_typelookup, get_typeobj, .init = typelookup_init, .fini = typelooku
   dds_get_typeobj (g_participant2, rd_type_id, DDS_SECS (3), &to_rd);
   CU_ASSERT_FATAL (to_wr != NULL);
   CU_ASSERT_FATAL (to_rd != NULL);
-  assert (to_rd && to_wr);
   ret = dds_free_typeobj (to_wr);
   CU_ASSERT_EQUAL_FATAL (ret, DDS_RETCODE_OK);
   ret = dds_free_typeobj (to_rd);

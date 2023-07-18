@@ -318,7 +318,6 @@ CU_Test(ddsc_reader_create, topic_lifespan)
   char name[100];
   dds_qos_t *qos = dds_create_qos ();
   CU_ASSERT_FATAL (qos != NULL);
-  assert (qos);
   dds_qset_lifespan (qos, DDS_SECS (3)); // value doesn't matter
   create_unique_topic_name ("ddsc_reader_create_topic_lifespan", name, sizeof name);
   dds_entity_t tp = dds_create_topic (pp, &Space_Type1_desc, name, qos, NULL);
@@ -332,7 +331,6 @@ CU_Test(ddsc_reader_create, topic_lifespan)
   // because get_qos does something funny
   struct dds_entity *x;
   rc = dds_entity_pin (rd, &x);
-  assert (rc == DDS_RETCODE_OK);
   CU_ASSERT_FATAL (rc == 0);
   CU_ASSERT_FATAL (x->m_qos != NULL);
   CU_ASSERT (!dds_qget_lifespan (x->m_qos, NULL));
