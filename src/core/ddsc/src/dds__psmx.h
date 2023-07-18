@@ -1,4 +1,4 @@
-// Copyright(c) 2022 ZettaScale Technology and others
+// Copyright(c) 2023 ZettaScale Technology and others
 //
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License v. 2.0 which is available at
@@ -22,18 +22,22 @@ struct dds_endpoint;
 
 DDSRT_STATIC_ASSERT (sizeof (dds_psmx_data_type_properties_t) == sizeof (ddsi_data_type_properties_t));
 
-/* linked list describing a number of topics */
+/**
+ * @brief linked list describing a number of topics
+ */
 struct dds_psmx_topic_list_elem {
-  struct dds_psmx_topic * topic; /*the current element in the list*/
-  struct dds_psmx_topic_list_elem * prev; /*the previous element in the list*/
-  struct dds_psmx_topic_list_elem * next; /*the next element in the list*/
+  struct dds_psmx_topic * topic; //!< the current element in the list
+  struct dds_psmx_topic_list_elem * prev; //!< the previous element in the list
+  struct dds_psmx_topic_list_elem * next; //!< the next element in the list
 };
 
-/* linked list describing a number of endpoints */
+/**
+ * @brief linked list describing a number of endpoints
+ */
 struct dds_psmx_endpoint_list_elem {
-  struct dds_psmx_endpoint * endpoint; /*the current element in the list*/
-  struct dds_psmx_endpoint_list_elem * prev; /*the previous element in the list*/
-  struct dds_psmx_endpoint_list_elem * next; /*the next element in the list*/
+  struct dds_psmx_endpoint * endpoint; //!< the current element in the list
+  struct dds_psmx_endpoint_list_elem * prev; //!< the previous element in the list
+  struct dds_psmx_endpoint_list_elem * next; //!< the next element in the list
 };
 
 /**
@@ -44,9 +48,9 @@ struct dds_psmx_endpoint_list_elem {
  * @returns a DDS return code
  */
 typedef dds_return_t (*dds_psmx_create_fn) (
-  struct dds_psmx **pubsub_message_exchange, /*output for the PSMX instance to be created*/
-  dds_psmx_instance_id_t identifier, /*the unique identifier for this PSMX*/
-  const char *config /*PSMX specific configuration*/
+  struct dds_psmx **pubsub_message_exchange, // output for the PSMX instance to be created
+  dds_psmx_instance_id_t identifier, // the unique identifier for this PSMX
+  const char *config // PSMX specific configuration
 );
 
 dds_return_t dds_pubsub_message_exchange_init (const struct ddsi_domaingv *gv, struct dds_domain *domain);

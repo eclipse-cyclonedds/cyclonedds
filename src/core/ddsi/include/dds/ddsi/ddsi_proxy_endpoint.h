@@ -72,7 +72,7 @@ struct ddsi_proxy_writer {
 #ifdef DDS_HAS_SSM
   unsigned supports_ssm: 1; /* iff 1, this proxy writer supports SSM */
 #endif
-  unsigned local_psmx: 1; /*whether this is a proxy writer for a local PSMX*/
+  unsigned local_psmx: 1; /* whether this is a proxy writer for a local PSMX */
   uint32_t alive_vclock; /* virtual clock counting transitions between alive/not-alive */
   struct ddsi_defrag *defrag; /* defragmenter for this proxy writer; FIXME: perhaps shouldn't be for historical data */
   struct ddsi_reorder *reorder; /* message reordering for this proxy writer, out-of-sync readers can have their own, see pwr_rd_match */
