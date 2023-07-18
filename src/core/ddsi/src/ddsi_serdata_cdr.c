@@ -129,6 +129,9 @@ static inline bool is_valid_xcdr_id (unsigned short cdr_identifier)
 
 /* Construct a serdata from a fragchain received over the network */
 static struct ddsi_serdata_cdr *serdata_cdr_from_ser_common (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, const struct ddsi_rdata *fragchain, size_t size)
+  ddsrt_nonnull_all;
+
+static struct ddsi_serdata_cdr *serdata_cdr_from_ser_common (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, const struct ddsi_rdata *fragchain, size_t size)
 {
   assert (kind == SDK_DATA);
   const struct ddsi_sertype_cdr *tp = (const struct ddsi_sertype_cdr *)tpcmn;

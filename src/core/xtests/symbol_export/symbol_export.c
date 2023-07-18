@@ -74,6 +74,8 @@
 #include "dds__write.h" // dds_write_impl, dds_writecdr_impl
 
 DDSRT_WARNING_DEPRECATED_OFF
+DDSRT_WARNING_GNUC_OFF (unused-result)
+DDSRT_WARNING_CLANG_OFF (unused-result)
 
 DDSRT_WARNING_CLANG_OFF(unused-result)
 DDSRT_WARNING_GNUC_OFF(unused-result)

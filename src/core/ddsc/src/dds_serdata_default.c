@@ -344,6 +344,9 @@ static bool gen_serdata_key_from_cdr (dds_istream_t * __restrict is, struct dds_
 
 /* Construct a serdata from a fragchain received over the network */
 static struct dds_serdata_default *serdata_default_from_ser_common (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, const struct ddsi_rdata *fragchain, size_t size)
+  ddsrt_nonnull_all;
+
+static struct dds_serdata_default *serdata_default_from_ser_common (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, const struct ddsi_rdata *fragchain, size_t size)
 {
   const struct dds_sertype_default *tp = (const struct dds_sertype_default *)tpcmn;
 
@@ -366,18 +369,17 @@ static struct dds_serdata_default *serdata_default_from_ser_common (const struct
   if (!is_valid_xcdr_id (d->hdr.identifier))
     goto err;
 
-  while (fragchain)
+  for (const struct ddsi_rdata *frag = fragchain; frag != NULL; frag = frag->nextfrag)
   {
-    assert (fragchain->min <= off);
-    assert (fragchain->maxp1 <= size);
-    if (fragchain->maxp1 > off)
+    assert (frag->min <= off);
+    assert (frag->maxp1 <= size);
+    if (frag->maxp1 > off)
     {
       /* only copy if this fragment adds data */
-      const unsigned char *payload = DDSI_RMSG_PAYLOADOFF (fragchain->rmsg, DDSI_RDATA_PAYLOAD_OFF (fragchain));
-      serdata_default_append_blob (&d, fragchain->maxp1 - off, payload + off - fragchain->min);
-      off = fragchain->maxp1;
+      const unsigned char *payload = DDSI_RMSG_PAYLOADOFF (frag->rmsg, DDSI_RDATA_PAYLOAD_OFF (frag));
+      serdata_default_append_blob (&d, frag->maxp1 - off, payload + off - frag->min);
+      off = frag->maxp1;
     }
-    fragchain = fragchain->nextfrag;
   }
 
   const bool needs_bswap = !DDSI_RTPS_CDR_ENC_IS_NATIVE (d->hdr.identifier);
