@@ -29,10 +29,12 @@ typedef dds_return_t (*read_op) (dds_entity_t rd_or_cnd, uint32_t maxs, dds_inst
 static Space_Type1 getdata (const dds_sample_info_t *si, const struct ddsi_sertype *st, struct ddsi_serdata *sd)
 {
   Space_Type1 s;
+  bool ok;
   if (si->valid_data)
-    ddsi_serdata_to_sample (sd, &s, NULL, NULL);
+    ok = ddsi_serdata_to_sample (sd, &s, NULL, NULL);
   else
-    ddsi_serdata_untyped_to_sample (st, sd, &s, NULL, NULL);
+    ok = ddsi_serdata_untyped_to_sample (st, sd, &s, NULL, NULL);
+  CU_ASSERT_FATAL (ok);
   return s;
 }
 
@@ -96,7 +98,7 @@ static void dotest (read_op op)
   rc = op (rd, INT32_MAX, 0, 0, coll_fail_after_1, &arg1);
   CU_ASSERT_FATAL (rc == 1);
   CU_ASSERT_FATAL (arg1.k >= 0 && arg1.k <= 2);
-  
+
   // same should be true if instance handle is provided, use a different instance just because we can
   dds_instance_handle_t ih;
   rc = dds_register_instance (wr, &ih, &(Space_Type1){ .long_1 = (1+arg1.k)%3, .long_2 = 0, .long_3 = 0 });
@@ -107,11 +109,11 @@ static void dotest (read_op op)
   rc = op (rd, INT32_MAX, ih, 0, coll_fail_after_1, &arg2);
   CU_ASSERT_FATAL (rc == 1);
   CU_ASSERT_FATAL (arg2.k == (1+arg1.k)%3);
-  
+
   assert (op == dds_peek_with_collector || op == dds_read_with_collector || op == dds_take_with_collector);
   bool isread = (op == dds_read_with_collector);
   bool isnew = (op == dds_peek_with_collector);
-  
+
   // check that the remainder is as we expect it
   Space_Type1 xs[10];
   dds_sample_info_t si[10];

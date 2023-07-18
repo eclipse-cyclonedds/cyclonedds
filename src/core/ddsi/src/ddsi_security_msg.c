@@ -175,7 +175,7 @@ int ddsi_volatile_secure_data_filter(struct ddsi_writer *wr, struct ddsi_proxy_r
   assert(serdata);
 
   /* guid_offset + 4 because 4 bytes header is at 0 */
-  (void)ddsi_serdata_to_ser_ref(serdata, guid_offset + 4, sizeof(ddsi_guid_t), &guid_ref);
+  struct ddsi_serdata *serdata_ref = ddsi_serdata_to_ser_ref(serdata, guid_offset + 4, sizeof(ddsi_guid_t), &guid_ref);
   assert(guid_ref.iov_len == sizeof(ddsi_guid_t));
   assert(guid_ref.iov_base);
   msg_guid = (ddsi_guid_t*)guid_ref.iov_base;
@@ -187,7 +187,7 @@ int ddsi_volatile_secure_data_filter(struct ddsi_writer *wr, struct ddsi_proxy_r
     pass = ddsi_guid_eq(msg_guid, &pp_guid);
   }
 
-  ddsi_serdata_to_ser_unref(serdata, &guid_ref);
+  ddsi_serdata_to_ser_unref(serdata_ref, &guid_ref);
 
   return pass;
 }
