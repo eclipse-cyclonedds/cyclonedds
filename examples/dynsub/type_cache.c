@@ -252,6 +252,7 @@ static void build_typecache_ti (const DDS_XTypes_TypeIdentifier *typeid, size_t 
         const DDS_XTypes_CompleteTypeObject *tobj = get_complete_typeobj_for_hashid (typeid->_u.equivalence_hash);
         build_typecache_to (tobj, align, size);
         info = malloc (sizeof (*info));
+        assert (info);
         *info = (struct typeinfo){ .key = { .key = (uintptr_t) typeid }, .typeobj = tobj, .release = NULL, .align = *align, .size = *size };
         type_cache_add (info);
       }
@@ -289,6 +290,7 @@ void build_typecache_to (const DDS_XTypes_CompleteTypeObject *typeobj, size_t *a
         *align = sizeof (int);
         *size = sizeof (int);
         info = malloc (sizeof (*info));
+        assert (info);
         *info = (struct typeinfo){ .key = { .key = (uintptr_t) typeobj }, .typeobj = typeobj, .release = NULL, .align = *align, .size = *size };
         ddsrt_hh_add (typecache, info);
       }
@@ -310,6 +312,7 @@ void build_typecache_to (const DDS_XTypes_CompleteTypeObject *typeobj, size_t *a
         else
           *align = *size = 1;
         info = malloc (sizeof (*info));
+        assert (info);
         *info = (struct typeinfo){ .key = { .key = (uintptr_t) typeobj }, .typeobj = typeobj, .release = NULL, .align = *align, .size = *size };
         ddsrt_hh_add (typecache, info);
       }
@@ -327,6 +330,7 @@ void build_typecache_to (const DDS_XTypes_CompleteTypeObject *typeobj, size_t *a
         *align = a;
         *size = s;
         info = malloc (sizeof (*info));
+        assert (info);
         *info = (struct typeinfo){ .key = { .key = (uintptr_t) typeobj }, .typeobj = typeobj, .release = NULL, .align = *align, .size = *size };
         ddsrt_hh_add (typecache, info);
       }
@@ -354,6 +358,7 @@ void build_typecache_to (const DDS_XTypes_CompleteTypeObject *typeobj, size_t *a
         if (*size % *align)
           *size += *align - (*size % *align);
         info = malloc (sizeof (*info));
+        assert (info);
         *info = (struct typeinfo){ .key = { .key = (uintptr_t) typeobj }, .typeobj = typeobj, .release = NULL, .align = *align, .size = *size };
         ddsrt_hh_add (typecache, info);
       }
@@ -391,6 +396,7 @@ void build_typecache_to (const DDS_XTypes_CompleteTypeObject *typeobj, size_t *a
         if (*size % *align)
           *size += *align - (*size % *align);
         info = malloc (sizeof (*info));
+        assert (info);
         *info = (struct typeinfo){ .key = { .key = (uintptr_t) typeobj }, .typeobj = typeobj, .release = NULL, .align = *align, .size = *size };
         ddsrt_hh_add (typecache, info);
       }
@@ -468,6 +474,7 @@ static bool load_deps_ti (dds_entity_t participant, const DDS_XTypes_TypeIdentif
           return load_deps_failed ();
         DDS_XTypes_TypeObject * const xtypeobj = (DDS_XTypes_TypeObject *) typeobj;
         info = malloc (sizeof (*info));
+        assert (info);
         memcpy (info->id, typeid->_u.equivalence_hash, sizeof (info->id));
         info->typeobj = xtypeobj;
         info->lineno = 0;

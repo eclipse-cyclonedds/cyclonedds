@@ -816,6 +816,9 @@ static dds_return_t ddsi_tcp_create_conn (struct ddsi_tran_conn **conn_out, stru
   return DDS_RETCODE_OK;
 }
 
+#if defined __GNUC__ && __GNUC__ >= 13
+DDSRT_WARNING_GNUC_OFF (analyzer-fd-leak)
+#endif
 static int ddsi_tcp_listen (struct ddsi_tran_listener * listener)
 {
 #ifdef DDS_HAS_SSL
@@ -833,6 +836,9 @@ static int ddsi_tcp_listen (struct ddsi_tran_listener * listener)
 
   return ret;
 }
+#if defined __GNUC__ && __GNUC__ >= 13
+DDSRT_WARNING_GNUC_ON (analyzer-fd-leak)
+#endif
 
 static struct ddsi_tran_conn * ddsi_tcp_accept (struct ddsi_tran_listener * listener)
 {

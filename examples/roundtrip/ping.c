@@ -53,8 +53,7 @@ static void exampleDeleteTimeStats (ExampleTimeStats *stats)
   free (stats->values);
 }
 
-static ExampleTimeStats *exampleAddTimingToTimeStats
-  (ExampleTimeStats *stats, dds_time_t timing)
+static void exampleAddTimingToTimeStats (ExampleTimeStats *stats, dds_time_t timing)
 {
   if (stats->valuesSize > stats->valuesMax)
   {
@@ -70,8 +69,6 @@ static ExampleTimeStats *exampleAddTimingToTimeStats
   stats->min = (stats->count == 0 || timing < stats->min) ? timing : stats->min;
   stats->max = (stats->count == 0 || timing > stats->max) ? timing : stats->max;
   stats->count++;
-
-  return stats;
 }
 
 static int exampleCompareul (const void* a, const void* b)
@@ -166,16 +163,16 @@ static void data_available(dds_entity_t rd, void *arg)
 
   /* Update stats */
   difference = (postWriteTime - preWriteTime)/DDS_NSECS_IN_USEC;
-  writeAccess = *exampleAddTimingToTimeStats (&writeAccess, difference);
-  writeAccessOverall = *exampleAddTimingToTimeStats (&writeAccessOverall, difference);
+  exampleAddTimingToTimeStats (&writeAccess, difference);
+  exampleAddTimingToTimeStats (&writeAccessOverall, difference);
 
   difference = (postTakeTime - preTakeTime)/DDS_NSECS_IN_USEC;
-  readAccess = *exampleAddTimingToTimeStats (&readAccess, difference);
-  readAccessOverall = *exampleAddTimingToTimeStats (&readAccessOverall, difference);
+  exampleAddTimingToTimeStats (&readAccess, difference);
+  exampleAddTimingToTimeStats (&readAccessOverall, difference);
 
   difference = (postTakeTime - info[0].source_timestamp)/DDS_NSECS_IN_USEC;
-  roundTrip = *exampleAddTimingToTimeStats (&roundTrip, difference);
-  roundTripOverall = *exampleAddTimingToTimeStats (&roundTripOverall, difference);
+  exampleAddTimingToTimeStats (&roundTrip, difference);
+  exampleAddTimingToTimeStats (&roundTripOverall, difference);
 
   if (!warmUp) {
     /* Print stats each second */
