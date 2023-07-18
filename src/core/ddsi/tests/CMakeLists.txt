@@ -17,6 +17,7 @@ set(ddsi_test_sources
     "plist_generic.c"
     "plist.c"
     "plist_leasedur.c"
+    "pmd_message.c"
     "radmin.c"
     "sysdeps.c"
     "mem_ser.h")
