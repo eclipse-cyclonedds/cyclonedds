@@ -435,7 +435,7 @@ static bool load_deps_ti (dds_entity_t participant, const DDS_XTypes_TypeIdentif
     case DDS_XTypes_EK_COMPLETE: {
       struct type_hashid_map templ, *info;
       memcpy (templ.id, typeid->_u.equivalence_hash, sizeof (templ.id));
-      if ((info = type_hashid_map_lookup (&templ)) != NULL)
+      if (type_hashid_map_lookup (&templ) != NULL)
         return true;
       else
       {
