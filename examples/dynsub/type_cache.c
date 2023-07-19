@@ -46,21 +46,32 @@ static bool type_hashid_map_equal (const void *va, const void *vb)
   return memcmp (a->id, b->id, sizeof (a->id)) == 0;
 }
 
-void type_hashid_map_init (void)
+static void type_hashid_map_init (void)
 {
   type_hashid_map = ddsrt_hh_new (1, type_hashid_map_hash, type_hashid_map_equal);
 }
 
-struct type_hashid_map * type_hashid_map_lookup (struct type_hashid_map *templ)
+static struct type_hashid_map * type_hashid_map_lookup (struct type_hashid_map *templ)
 {
   return ddsrt_hh_lookup (type_hashid_map, templ);
 }
 
-void type_hashid_map_add (struct type_hashid_map *info)
+static void type_hashid_map_add (struct type_hashid_map *info)
 {
   ddsrt_hh_add (type_hashid_map, info);
 }
 
+static void free_type_hashid_map (void *vinfo, void *varg)
+{
+  (void) varg;
+  free (vinfo);
+}
+
+static void type_hashid_map_free (void)
+{
+  ddsrt_hh_enum (type_hashid_map, free_type_hashid_map, NULL);
+  ddsrt_hh_free (type_hashid_map);
+}
 
 // Hash table requires a hash function and an equality test.  The key in the hash table is the address
 // of the type object or type identifier.  The hash function distinguishes between 32-bit and 64-bit
@@ -84,6 +95,7 @@ static bool typecache_equal (const void *va, const void *vb)
 void type_cache_init (void)
 {
   typecache = ddsrt_hh_new (1, typecache_hash, typecache_equal);
+  type_hashid_map_init ();
 }
 
 struct typeinfo *type_cache_lookup (struct typeinfo *templ)
@@ -109,6 +121,7 @@ void type_cache_free (void)
 {
   ddsrt_hh_enum (typecache, free_typeinfo, NULL);
   ddsrt_hh_free (typecache);
+  type_hashid_map_free ();
 }
 
 // Building the type cache: the TypeObjects come in a variety of formats (see the spec for the details,

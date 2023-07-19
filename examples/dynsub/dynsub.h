@@ -47,13 +47,11 @@ struct ppc {
   int lineno;
 };
 
-void type_hashid_map_init (void);
-struct type_hashid_map * type_hashid_map_lookup (struct type_hashid_map *templ);
-void type_hashid_map_add (struct type_hashid_map *info);
 void type_cache_init (void);
 struct typeinfo *type_cache_lookup (struct typeinfo *templ);
 void type_cache_add (struct typeinfo *info);
 void type_cache_free (void);
+
 struct type_hashid_map *lookup_hashid (const DDS_XTypes_EquivalenceHash hashid);
 const DDS_XTypes_CompleteTypeObject *get_complete_typeobj_for_hashid (const DDS_XTypes_EquivalenceHash hashid);
 void build_typecache_to (const DDS_XTypes_CompleteTypeObject *typeobj, size_t *align, size_t *size);

@@ -152,7 +152,6 @@ int main (int argc, char **argv)
   // The one magic step: get a topic and type object ...
   DDS_XTypes_TypeObject *xtypeobj;
   type_cache_init ();
-  type_hashid_map_init ();
   if ((ret = get_topic_and_typeobj (argv[1], DDS_SECS (10), &topic, &xtypeobj)) < 0)
   {
     fprintf (stderr, "get_topic_and_typeobj: %s\n", dds_strretcode (ret));
