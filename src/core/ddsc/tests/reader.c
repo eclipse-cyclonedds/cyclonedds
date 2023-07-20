@@ -3212,3 +3212,103 @@ CU_Test(ddsc_take_mask_wl, combination_of_states, .init=reader_init, .fini=reade
     CU_ASSERT_EQUAL_FATAL(ret, MAX_SAMPLES - expected_cnt);
 }
 /*************************************************************************************************/
+
+static void do_readtake_sample_rank (dds_return_t (*op) (dds_entity_t reader_or_condition, void **buf, dds_sample_info_t *si, size_t bufsz, uint32_t maxs))
+{
+  const dds_entity_t dp = dds_create_participant (0, NULL, NULL);
+  CU_ASSERT_FATAL (dp > 0);
+  char topicname[100];
+  dds_qos_t *qos = dds_create_qos ();
+  dds_qset_history (qos, DDS_HISTORY_KEEP_ALL, 0);
+  create_unique_topic_name ("readtake_sample_rank", topicname, sizeof (topicname));
+  const dds_entity_t tp = dds_create_topic (dp, &Space_Type1_desc, topicname, qos, NULL);
+  CU_ASSERT_FATAL (tp > 0);
+  dds_delete_qos (qos);
+
+  dds_return_t rc;
+  int nsamp[4] = { 1, 0, 0, 0};
+  Space_Type1 xs[13];
+  void *buf[sizeof (xs) / sizeof (xs[0])];
+  dds_sample_info_t si[sizeof (xs) / sizeof (xs[0])];
+  for (size_t i = 0; i < sizeof (xs) / sizeof (xs[0]); i++)
+    buf[i] = &xs[i];
+  while (nsamp[3] == 0)
+  {
+    int totsamp = 0;
+    printf ("samples/instance: ");
+    for (int i = 0; nsamp[i] > 0; i++) {
+      totsamp += nsamp[i];
+      printf (" %d", nsamp[i]);
+    }
+    printf ("\n");
+    fflush (stdout);
+
+    for (int nrd = 1; nrd < totsamp + 1; nrd++)
+    {
+      const dds_entity_t rd = dds_create_reader (dp, tp, NULL, NULL);
+      CU_ASSERT_FATAL (rd > 0);
+      const dds_entity_t wr = dds_create_writer (dp, tp, NULL, NULL);
+      CU_ASSERT_FATAL (wr > 0);
+      
+      // write as many samples as planned for each instance,
+      // add an invalid one iff # == 4
+      for (int i = 0; nsamp[i] > 0; i++) {
+        for (int s = 0; s < nsamp[i]; s++) {
+          rc = ((s < 4) ? dds_write : dds_dispose) (wr, &(Space_Type1){ .long_1 = i, .long_2 = s, 0 });
+          CU_ASSERT_FATAL (rc == 0);
+        }
+      }
+      
+      assert (nrd < (int) (sizeof (xs) / sizeof (xs[0])));
+      int n = (int) op (rd, buf, si, (size_t) nrd, (uint32_t) nrd);
+      CU_ASSERT_FATAL (n == ((nrd <= totsamp) ? nrd : totsamp));
+      //printf (" -- read %d ranks", n);
+      //for (int i = 0; i < n; i++)
+      //  printf (" %"PRIu32, si[i].sample_rank);
+      //printf ("\n");
+      
+      {
+        int i = 0;
+        while (i < n)
+        {
+          CU_ASSERT_FATAL (0 <= xs[i].long_1 && xs[i].long_1 <= 2);
+          const int nsamp_of_inst = (i + nsamp[xs[i].long_1] < n) ? nsamp[xs[i].long_1] : n - i;
+          //printf ("i = %d nsamp_of_inst = %d\n", i, nsamp_of_inst);
+          assert (nsamp_of_inst > 0);
+          CU_ASSERT_FATAL (si[i].sample_rank == (uint32_t) (nsamp_of_inst - 1));
+          CU_ASSERT_FATAL (xs[i].long_3 == 0);
+          CU_ASSERT_FATAL ((int) si[i].sample_rank < nsamp_of_inst);
+          const int first_of_inst = i;
+          for (int j = 0; j < nsamp_of_inst; j++)
+          {
+            CU_ASSERT_FATAL (si[i + j].instance_handle == si[first_of_inst].instance_handle);
+            CU_ASSERT_FATAL (si[i + j].sample_rank == (uint32_t) (nsamp_of_inst - j - 1));
+            CU_ASSERT_FATAL (xs[i + j].long_2 == j);
+          }
+          i += nsamp_of_inst;
+        }
+      }
+
+      rc = dds_delete (rd);
+      CU_ASSERT_FATAL (rc == 0);
+      rc = dds_delete (wr);
+      CU_ASSERT_FATAL (rc == 0);
+    }
+    
+    // increment # samples per instance
+    { int i = 0; while (++nsamp[i] == 5) nsamp[i++] = 1; }
+  }
+
+  rc = dds_delete (dp);
+  CU_ASSERT_FATAL (rc == 0);
+}
+
+CU_Test (ddsc_read, sample_rank)
+{
+  do_readtake_sample_rank (dds_read);
+}
+
+CU_Test (ddsc_take, sample_rank)
+{
+  do_readtake_sample_rank (dds_take);
+}

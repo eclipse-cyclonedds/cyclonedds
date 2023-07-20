@@ -2124,7 +2124,7 @@ static int32_t read_w_qminv_inst_validsamples (const struct readtake_w_qminv_ins
     {
       /* sample state matches too */
       dds_sample_info_t si;
-      make_sample_info (&si, inst, sample, (uint32_t) (*state->limit - limit_at_end_of_instance), last_generation_in_result - (sample->disposed_gen + sample->no_writers_gen));
+      make_sample_info (&si, inst, sample, (uint32_t) (*state->limit - limit_at_end_of_instance - 1), last_generation_in_result - (sample->disposed_gen + sample->no_writers_gen));
       const int32_t rc = state->collect_sample (state->collect_sample_arg, &si, state->rhc->type, sample->sample);
       if (rc < 0)
       {
@@ -2181,7 +2181,7 @@ static int32_t take_w_qminv_inst_validsamples (const struct readtake_w_qminv_ins
     else
     {
       dds_sample_info_t si;
-      make_sample_info (&si, inst, sample, (uint32_t) (*state->limit - limit_at_end_of_instance), last_generation_in_result - (sample->disposed_gen + sample->no_writers_gen));
+      make_sample_info (&si, inst, sample, (uint32_t) (*state->limit - limit_at_end_of_instance - 1), last_generation_in_result - (sample->disposed_gen + sample->no_writers_gen));
       const int32_t rc = state->collect_sample (state->collect_sample_arg, &si, state->rhc->type, sample->sample);
       if (rc < 0)
         return rc;
