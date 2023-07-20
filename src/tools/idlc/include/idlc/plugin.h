@@ -11,7 +11,7 @@
 #ifndef PLUGIN_H
 #define PLUGIN_H
 
-#include "libidlc/idl_defs.h"
+#include "common.h"
 
 typedef struct idlc_generator_plugin idlc_generator_plugin_t;
 struct idlc_generator_plugin {

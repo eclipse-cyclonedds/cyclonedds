@@ -1,4 +1,4 @@
-// Copyright(c) 2021 to 2023 ZettaScale Technology and others
+// Copyright(c) 2021 to 2022 ZettaScale Technology and others
 //
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License v. 2.0 which is available at
@@ -8,12 +8,19 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
-#ifndef DESCRIPTOR_TYPE_META_H
-#define DESCRIPTOR_TYPE_META_H
+#ifndef GENERATOR_COMMON_DESCRIPTOR_TYPE_META_H
+#define GENERATOR_COMMON_DESCRIPTOR_TYPE_META_H
 
-#include "libidlc/descriptor_type_meta.h"
+#include "common.h"
+
 #include "dds/ddsi/ddsi_xt_typeinfo.h"
 #include "dds/ddsi/ddsi_xt_typemap.h"
+
+#include "idl/processor.h"
+
+#if defined (__cplusplus)
+extern "C" {
+#endif
 
 struct type_meta {
   bool finalized;
@@ -32,17 +39,33 @@ struct descriptor_type_meta {
   struct type_meta *stack;
 };
 
-idl_retcode_t
+IDL_COMMON_EXPORT idl_retcode_t
 get_type_hash (DDS_XTypes_EquivalenceHash hash, const DDS_XTypes_TypeObject *to);
 
-idl_retcode_t
+IDL_COMMON_EXPORT idl_retcode_t
+print_type_meta_ser (
+  FILE *fp,
+  const idl_pstate_t *state,
+  const idl_node_t *node);
+
+IDL_COMMON_EXPORT idl_retcode_t
+generate_type_meta_ser (
+  const idl_pstate_t *state,
+  const idl_node_t *node,
+  idl_typeinfo_typemap_t *result);
+
+IDL_COMMON_EXPORT idl_retcode_t
 generate_descriptor_type_meta (
   const idl_pstate_t *pstate,
   const idl_node_t *node,
   struct descriptor_type_meta *dtm);
 
-void
+IDL_COMMON_EXPORT void
 descriptor_type_meta_fini (
   struct descriptor_type_meta *dtm);
 
-#endif /* DESCRIPTOR_TYPE_META_H */
+#if defined(__cplusplus)
+}
+#endif
+
+#endif /* GENERATOR_COMMON_DESCRIPTOR_TYPE_META_H */

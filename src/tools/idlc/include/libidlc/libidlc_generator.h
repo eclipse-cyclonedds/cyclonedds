@@ -8,15 +8,14 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
-#ifndef IDLC_GENERATOR_H
-#define IDLC_GENERATOR_H
+#ifndef LIBIDLC_LIBIDLC_GENERATOR_H
+#define LIBIDLC_LIBIDLC_GENERATOR_H
 
 #include <stdint.h>
 
-#include "idl/processor.h"
 #include "idl/tree.h"
-#include "idl_defs.h"
-#include "libidlc/libidlc_export.h"
+#include "libidlc_export.h"
+#include "common.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -26,20 +25,14 @@ extern "C" {
 #define IDLC_GENERATOR_ANNOTATIONS generator_annotations
 #define IDLC_GENERATE generate
 
-IDLC_EXPORT idl_retcode_t
+LIBIDLC_EXPORT idl_retcode_t
 generate(const idl_pstate_t *pstate, const idlc_generator_config_t *config);
 
-IDLC_EXPORT const idlc_option_t**
+LIBIDLC_EXPORT const idlc_option_t**
 generator_options(void);
-
-IDLC_EXPORT int
-print_type(char *str, size_t size, const void *ptr, void *user_data);
-
-IDLC_EXPORT int
-print_scoped_name(char *str, size_t size, const void *ptr, void *user_data);
 
 #if defined(__cplusplus)
 }
 #endif
 
-#endif /* IDLC_GENERATOR_H */
+#endif /* LIBIDLC_LIBIDLC_GENERATOR_H */

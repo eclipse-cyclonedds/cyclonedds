@@ -15,8 +15,8 @@
 
 #include "dds/ddsc/dds_opcodes.h"
 #include "idl/string.h"
-#include "descriptor.h"
-#include "plugin.h"
+#include "libidlc/libidlc__descriptor.h"
+#include "idlc/plugin.h"
 #include "test_common.h"
 
 #include "CUnit/Theory.h"

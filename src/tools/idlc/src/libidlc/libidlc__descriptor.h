@@ -12,7 +12,7 @@
 #define DESCRIPTOR_H
 
 #include "idl/processor.h"
-#include "libidlc/idl_defs.h"
+#include "generator_common/common.h"
 
 #define MAX_KEY_OFFS (255)
 

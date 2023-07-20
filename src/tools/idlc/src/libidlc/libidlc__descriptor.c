@@ -24,10 +24,13 @@
 #include "idl/stream.h"
 #include "idl/string.h"
 
-#include "generator.h"
-#include "descriptor.h"
+#include "libidlc__generator.h"
+#include "libidlc__descriptor.h"
 #include "hashid.h"
-#include "libidlc/descriptor_type_meta.h"
+#ifdef DDS_HAS_TYPELIB
+#include "generator_common/descriptor_type_meta.h"
+#endif
+
 #include "dds/ddsc/dds_opcodes.h"
 
 #define TYPE (16)

@@ -21,9 +21,9 @@
 #include "idl/string.h"
 #include "idl/processor.h"
 
-#include "descriptor.h"
-#include "generator.h"
-#include "types.h"
+#include "libidlc__descriptor.h"
+#include "libidlc__generator.h"
+#include "libidlc__types.h"
 
 static const char *
 get_type_prefix(const idl_type_spec_t *type_spec)

@@ -14,7 +14,8 @@
 #include <stdio.h>
 
 #include "idl/processor.h"
-#include "libidlc/generator.h"
+#include "common.h"
+#include "libidlc_generator.h"
 
 #include <stdlib.h>
 #include <string.h>
