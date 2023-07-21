@@ -22,10 +22,12 @@
 
 static struct {
     bool print_help;
+    CU_ErrorAction error_action;
     const char *suite;
     const char *test;
 } opts = {
     false,
+    CUEA_FAIL,
     "*",
     "*"
 };
@@ -78,6 +80,7 @@ static void help(const char *name)
     printf("Usage: %s [OPTIONS]\n", name);
     printf("\n");
     printf("Possible options:\n");
+    printf("  -f           fail fast: abort on failed fatal assert\n");
     printf("  -h           display this help and exit\n");
     printf("  -s PATTERN   run only tests in suites matching pattern\n");
     printf("  -t PATTERN   run only test matching pattern\n");
@@ -97,6 +100,9 @@ static int parse_options(int argc, char *argv[])
         switch ((argv[i][0] == '-') ? argv[i][1] : 0) {
             case 'h':
                 opts.print_help = true;
+                break;
+            case 'f':
+                opts.error_action = CUEA_ABORT;
                 break;
             case 's':
                 if ((i+1) < argc) {
@@ -176,6 +182,7 @@ int main(int argc, char *argv[])
 /* CMake will expand the macro below to register all suites and tests. */
 @defns@
 
+    CU_set_error_action(opts.error_action);
     CU_basic_run_tests();
 
     if (CU_get_error() != CUE_SUCCESS) {

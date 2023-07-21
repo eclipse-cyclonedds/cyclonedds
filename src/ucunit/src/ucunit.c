@@ -26,6 +26,20 @@ static struct CU_Suite *cur_suite;
 static struct CU_Test *cur_test;
 static jmp_buf fatal_jmpbuf;
 static uint32_t failure_count;
+static CU_ErrorAction error_action;
+
+void CU_set_error_action (CU_ErrorAction action)
+{
+  error_action = action;
+}
+
+void CU_fatal (void)
+{
+  if (error_action == CUEA_FAIL)
+    longjmp (fatal_jmpbuf, 1);
+  else
+    abort ();
+}
 
 void CU_assertImplementation (bool value, int line, const char *expr, const char *file, const char *something, bool isfatal)
 {
@@ -50,11 +64,12 @@ void CU_assertImplementation (bool value, int line, const char *expr, const char
   cur_test->latest_failure = fr;
 
   if (isfatal)
-    longjmp (fatal_jmpbuf, 1);
+    CU_fatal ();
 }
 
 CU_ErrorCode CU_initialize_registry (void)
 {
+  error_action = CUEA_FAIL;
   output_filename_root = NULL;
   failure_count = 0;
   last_error = CUE_SUCCESS;
