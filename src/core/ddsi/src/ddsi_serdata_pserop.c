@@ -94,7 +94,6 @@ static struct ddsi_serdata *serdata_pserop_fix (const struct ddsi_sertype_pserop
   d->c.hash = tp->c.serdata_basehash;
   if (ops != NULL)
   {
-    assert (d->pos >= 16 && tp->memsize >= 16);
     if (plist_deser_generic (d->sample, d->data, d->pos, needs_bswap, (d->c.kind == SDK_DATA) ? tp->ops : tp->ops_key) < 0)
     {
       ddsrt_free (d->sample);
