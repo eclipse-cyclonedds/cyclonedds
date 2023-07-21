@@ -3213,13 +3213,19 @@ CU_Test(ddsc_take_mask_wl, combination_of_states, .init=reader_init, .fini=reade
 }
 /*************************************************************************************************/
 
-static bool test_even_long_2 (const void *vsample)
+static bool test_even_long_2_and_long_3_neq_0 (const void *vsample)
 {
   const Space_Type1 *sample = vsample;
-  return (sample->long_2 % 2) == 0;
+  return (sample->long_2 % 2) == 0 && sample->long_3 != 0;
 }
 
-static void do_readtake_sample_rank (dds_return_t (*op) (dds_entity_t reader_or_condition, void **buf, dds_sample_info_t *si, size_t bufsz, uint32_t maxs, uint32_t mask))
+static bool test_long_2_eq_2 (const void *vsample)
+{
+  const Space_Type1 *sample = vsample;
+  return (sample->long_2 == 2);
+}
+
+static void do_readtake_sample_rank (const char *opname_past_tense, dds_return_t (*op) (dds_entity_t reader_or_condition, void **buf, dds_sample_info_t *si, size_t bufsz, uint32_t maxs, uint32_t mask))
 {
   const dds_entity_t dp = dds_create_participant (0, NULL, NULL);
   CU_ASSERT_FATAL (dp > 0);
@@ -3249,19 +3255,19 @@ static void do_readtake_sample_rank (dds_return_t (*op) (dds_entity_t reader_or_
     printf ("\n");
     fflush (stdout);
 
-    for (int drop_even_long_2 = 0; drop_even_long_2 <= 1; drop_even_long_2++)
+    for (int skip_even_long_2 = 0; skip_even_long_2 <= 1; skip_even_long_2++)
     {
-      //printf (" drop_even_long_2 %d", drop_even_long_2);
-      int totsamp_after_maybe_dropping_even = 0;
-      if (!drop_even_long_2)
-        totsamp_after_maybe_dropping_even = totsamp;
+      printf ("  skip_even_long_2 %d\n", skip_even_long_2);
+      int totsamp_after_maybe_skipping_even = 0;
+      if (!skip_even_long_2)
+        totsamp_after_maybe_skipping_even = totsamp;
       else
       {
         for (int i = 0; nsamp[i] > 0; i++)
-          totsamp_after_maybe_dropping_even += nsamp[i] / 2;
+          totsamp_after_maybe_skipping_even += nsamp[i] / 2;
       }
 
-      for (int nrd = 1; nrd < totsamp + 1; nrd++)
+      for (int rdlimit = 1; rdlimit < totsamp + 1; rdlimit++)
       {
         const dds_entity_t rd = dds_create_reader (dp, tp, NULL, NULL);
         CU_ASSERT_FATAL (rd > 0);
@@ -3270,16 +3276,56 @@ static void do_readtake_sample_rank (dds_return_t (*op) (dds_entity_t reader_or_
 
         // write as many samples as planned for each instance,
         // add an invalid one iff # == 4
-        for (int i = 0; nsamp[i] > 0; i++) {
-          for (int s = 0; s < nsamp[i]; s++) {
-            rc = ((s < 4) ? dds_write : dds_dispose) (wr, &(Space_Type1){ .long_1 = i, .long_2 = s, 0 });
+        //
+        // constructing an invalid sample requires reading the
+        // already published data before disposing it
+        for (int i = 0; nsamp[i] > 0; i++)
+        {
+          const int nwrites = (nsamp[i] <= 3) ? nsamp[i] : 3;
+          for (int s = 0; s < nwrites; s++)
+          {
+            // Need invalid samples are also processed by the query condition (for better
+            // or for worse, because it doesn't get told whether it is valid).  For the
+            // test, use long_3 to not match an invalid sample.
+            rc = dds_write (wr, &(Space_Type1){ .long_1 = i, .long_2 = s, .long_3 = 1 });
+            CU_ASSERT_FATAL (rc == 0);
+          }
+          if (nsamp[i] > nwrites)
+          {
+            // Cyclone reader/writer instance handles are the same, so this'll work for reading
+            // only the samples we just wrote.  The obvious simpler alternative would be to first
+            // do all the writes, then read everything once, then do the disposes.  But why would
+            // one ever want to always do things the simple way?
+            dds_instance_handle_t ih;
+            rc = dds_register_instance (wr, &ih, &(Space_Type1){ .long_1 = i, .long_2 = 0, .long_3 = 0 });
+            CU_ASSERT_FATAL (rc == 0);
+            assert (nwrites == 3);
+            const dds_entity_t qc = dds_create_querycondition (rd, 0, test_long_2_eq_2);
+            rc = dds_read_instance (qc, buf, si, 1, 1, ih);
+            CU_ASSERT_FATAL (rc == 1);
+            CU_ASSERT_FATAL (xs[0].long_1 == i && xs[0].long_2 == 2 && xs[0].long_3 == 1);
+            rc = dds_delete (qc);
+            CU_ASSERT_FATAL (rc == 0);
+            rc = dds_dispose (wr, &(Space_Type1){ .long_1 = i, .long_2 = 0, .long_3 = 0 });
             CU_ASSERT_FATAL (rc == 0);
           }
         }
 
-        if (drop_even_long_2)
+        // Skipping everything with an even value for long_2 in the read where check the sample_rank
+        // - contents of each instance is a prefix of:
+        //     (unread,   valid, .long_2 = 0, .long_3 = 1)
+        //     (unread,   valid, .long_2 = 1, .long_3 = 1)
+        //     (   X  ,   valid, .long_2 = 2, .long_3 = 1) -- X is unread if nwrites < 3 else read
+        //     (unread, invalid, .long_2 = 0, .long_3 = 0)
+        //   where long_2 = 0 on the invalid sample is because it is an attribute
+        // - reading all samples with even long 2 & long_3 != 0 changes this to
+        //     (  read,   valid, .long_2 = 0, .long_3 = 1)
+        //     (unread,   valid, .long_2 = 1, .long_3 = 1)
+        //     (  read,   valid, .long_2 = 2, .long_3 = 1)
+        //     (unread, invalid, .long_2 = 0, .long_3 = 0)
+        if (skip_even_long_2)
         {
-          const dds_entity_t qc = dds_create_querycondition (rd, 0, test_even_long_2);
+          const dds_entity_t qc = dds_create_querycondition (rd, 0, test_even_long_2_and_long_3_neq_0);
           rc = dds_read (qc, buf, si, sizeof (xs) / sizeof (xs[0]), (uint32_t) (sizeof (xs) / sizeof (xs[0])));
           CU_ASSERT_FATAL (rc >= 0);
           for (int i = 0; i < rc; i++)
@@ -3288,33 +3334,33 @@ static void do_readtake_sample_rank (dds_return_t (*op) (dds_entity_t reader_or_
           CU_ASSERT_FATAL (rc == 0);
         }
 
-        assert (nrd < (int) (sizeof (xs) / sizeof (xs[0])));
-        int n = (int) op (rd, buf, si, (size_t) nrd, (uint32_t) nrd, (drop_even_long_2 ? DDS_NOT_READ_SAMPLE_STATE : 0));
-        CU_ASSERT_FATAL (n == ((nrd <= totsamp_after_maybe_dropping_even) ? nrd : totsamp_after_maybe_dropping_even));
-        //printf (" -- read %d ranks", n);
-        //for (int i = 0; i < n; i++)
-        //  printf (" %"PRIu32, si[i].sample_rank);
-        //printf ("\n");
+        assert (rdlimit < (int) (sizeof (xs) / sizeof (xs[0])));
+        int n = (int) op (rd, buf, si, (size_t) rdlimit, (uint32_t) rdlimit, (skip_even_long_2 ? DDS_NOT_READ_SAMPLE_STATE : 0));
+        printf ("  -- %s %d (<= %d), ranks:", opname_past_tense, n, rdlimit);
+        for (int i = 0; i < n; i++)
+          printf (" %"PRIu32, si[i].sample_rank);
+        printf ("\n");
+        CU_ASSERT_FATAL (n == ((rdlimit <= totsamp_after_maybe_skipping_even) ? rdlimit : totsamp_after_maybe_skipping_even));
 
         {
           int i = 0;
           while (i < n)
           {
             CU_ASSERT_FATAL (0 <= xs[i].long_1 && xs[i].long_1 <= 2);
-            CU_ASSERT_FATAL (!drop_even_long_2 || (xs[i].long_2 % 2) != 0);
-            const int nsamp_after_maybe_dropping_even = drop_even_long_2 ? nsamp[xs[i].long_1] / 2 : nsamp[xs[i].long_1];
-            const int nsamp_of_inst = (i + nsamp_after_maybe_dropping_even < n) ? nsamp_after_maybe_dropping_even : n - i;
+            CU_ASSERT_FATAL (!skip_even_long_2 || (xs[i].long_2 % 2) != 0);
+            const int nsamp_after_maybe_skipping_even = skip_even_long_2 ? nsamp[xs[i].long_1] / 2 : nsamp[xs[i].long_1];
+            const int nsamp_of_inst = (i + nsamp_after_maybe_skipping_even < n) ? nsamp_after_maybe_skipping_even : n - i;
             //printf ("i = %d nsamp_of_inst = %d\n", i, nsamp_of_inst);
             assert (nsamp_of_inst > 0);
             CU_ASSERT_FATAL (si[i].sample_rank == (uint32_t) (nsamp_of_inst - 1));
-            CU_ASSERT_FATAL (xs[i].long_3 == 0);
+            CU_ASSERT_FATAL ((!si[i].valid_data && xs[i].long_3 == 0) || (si[i].valid_data && xs[i].long_3 == 1));
             CU_ASSERT_FATAL ((int) si[i].sample_rank < nsamp_of_inst);
             const int first_of_inst = i;
             for (int j = 0; j < nsamp_of_inst; j++)
             {
               CU_ASSERT_FATAL (si[i + j].instance_handle == si[first_of_inst].instance_handle);
               CU_ASSERT_FATAL (si[i + j].sample_rank == (uint32_t) (nsamp_of_inst - j - 1));
-              CU_ASSERT_FATAL (xs[i + j].long_2 == (drop_even_long_2) ? 2*j+1 : j);
+              CU_ASSERT_FATAL (xs[i + j].long_2 == (skip_even_long_2) ? 2*j+1 : j);
             }
             i += nsamp_of_inst;
           }
@@ -3337,10 +3383,10 @@ static void do_readtake_sample_rank (dds_return_t (*op) (dds_entity_t reader_or_
 
 CU_Test (ddsc_read, sample_rank)
 {
-  do_readtake_sample_rank (dds_read_mask);
+  do_readtake_sample_rank ("read", dds_read_mask);
 }
 
 CU_Test (ddsc_take, sample_rank)
 {
-  do_readtake_sample_rank (dds_take_mask);
+  do_readtake_sample_rank ("took", dds_take_mask);
 }
