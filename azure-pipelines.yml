@@ -66,7 +66,6 @@ jobs:
         cc: gcc-10
         testing: off
         idlc_xtests: off
-        conan_shared_objects: True
       'Ubuntu 22.04 LTS with Clang 12 (Debug, x86_64)':
         image: ubuntu-22.04
         analyzer: on
@@ -108,9 +107,12 @@ jobs:
         deadline_update_skip: on
         cc: gcc-12
         analyzer: on
-      'Windows 2019 with Visual Studio 2019 (Visual Studio 2017, Debug, x86)':
+      # 32-bit Windows: without SSL/security because Chocolateley only provides 64-bit OpenSSL
+      'Windows 2019 with Visual Studio 2019 (Visual Studio 2017, Debug, x86, no security)':
         arch: x86
         image: windows-2019
+        ssl: off
+        security: off
         idlc_xtests: off
         generator: 'Visual Studio 16 2019'
         toolset: v141

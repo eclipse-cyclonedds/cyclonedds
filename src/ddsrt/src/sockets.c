@@ -392,6 +392,7 @@ ddsrt_gethostbyname(const char *name, int af, ddsrt_hostent_t **hentp)
           (void) memcpy(&hent->addrs[addrno], res->ai_addr, res->ai_addrlen);
         }
       } else {
+        freeaddrinfo(res);
         return DDS_RETCODE_OUT_OF_RESOURCES;
       }
 

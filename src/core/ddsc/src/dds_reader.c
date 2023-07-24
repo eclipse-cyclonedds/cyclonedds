@@ -255,7 +255,7 @@ void dds_reader_data_available_cb (struct dds_reader *rd)
 
   ddsrt_mutex_lock (&rd->m_entity.m_observers_lock);
   const uint32_t status_and_mask = ddsrt_atomic_ld32 (&rd->m_entity.m_status.m_status_and_mask);
-  if (lst->on_data_on_readers == 0 && lst->on_data_available == 0)
+  if (lst->on_data_on_readers == NULL && lst->on_data_available == NULL)
     signal = data_avail_cb_set_status (&rd->m_entity, status_and_mask);
   else
   {

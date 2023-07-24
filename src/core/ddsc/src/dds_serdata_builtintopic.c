@@ -432,9 +432,9 @@ const struct ddsi_serdata_ops ddsi_serdata_ops_builtintopic = {
   .get_size = serdata_builtin_get_size,
   .eqkey = serdata_builtin_eqkey,
   .free = serdata_builtin_free,
-  .from_ser = 0,
-  .from_ser_iov = 0,
-  .from_keyhash = 0,
+  .from_ser = NULL,
+  .from_ser_iov = NULL,
+  .from_keyhash = NULL,
   .from_sample = ddsi_serdata_builtin_from_sample,
   .to_ser = serdata_builtin_to_ser,
   .to_sample = serdata_builtin_to_sample,
@@ -443,7 +443,7 @@ const struct ddsi_serdata_ops ddsi_serdata_ops_builtintopic = {
   .to_untyped = serdata_builtin_to_untyped,
   .untyped_to_sample = serdata_builtin_untyped_to_sample,
   .print = serdata_builtin_type_print,
-  .get_keyhash = 0
+  .get_keyhash =NULL 
 };
 
 #ifdef DDS_HAS_TOPIC_DISCOVERY
@@ -487,9 +487,9 @@ const struct ddsi_serdata_ops ddsi_serdata_ops_builtintopic_topic = {
   .get_size = serdata_builtin_get_size,
   .eqkey = serdata_builtin_eqkey,
   .free = serdata_builtin_free,
-  .from_ser = 0,
-  .from_ser_iov = 0,
-  .from_keyhash = 0,
+  .from_ser = NULL,
+  .from_ser_iov = NULL,
+  .from_keyhash = NULL,
   .from_sample = ddsi_serdata_builtin_from_sample_topic,
   .to_ser = serdata_builtin_to_ser,
   .to_sample = serdata_builtin_to_sample,
@@ -498,7 +498,7 @@ const struct ddsi_serdata_ops ddsi_serdata_ops_builtintopic_topic = {
   .to_untyped = serdata_builtin_to_untyped,
   .untyped_to_sample = serdata_builtin_untyped_to_sample,
   .print = serdata_builtin_type_print,
-  .get_keyhash = 0
+  .get_keyhash =NULL 
 };
 
 #endif /* DDS_HAS_TOPIC_DISCOVERY */

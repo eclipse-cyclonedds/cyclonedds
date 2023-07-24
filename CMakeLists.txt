@@ -74,33 +74,6 @@ if(APPLE)
   endif()
 endif()
 
-# Conan
-if(EXISTS "${CMAKE_BINARY_DIR}/conanbuildinfo.cmake")
-  include(${CMAKE_BINARY_DIR}/conanbuildinfo.cmake)
-  if(APPLE)
-    # By default Conan strips all RPATHs (see conanbuildinfo.cmake), which
-    # causes tests to fail as the executables cannot find the library target.
-    # By setting KEEP_RPATHS, Conan does not set CMAKE_SKIP_RPATH and the
-    # resulting binaries still have the RPATH information. This is fine because
-    # CMake will strip the build RPATH information in the install step.
-    #
-    # NOTE:
-    # Conan's default approach is to use the "imports" feature, which copies
-    # all the dependencies into the bin directory. Of course, this doesn't work
-    # quite that well for libraries generated in this Project (see Conan
-    # documentation).
-    #
-    # See the links below for more information.
-    # https://github.com/conan-io/conan/issues/337
-    # https://docs.conan.io/en/latest/howtos/manage_shared_libraries/rpaths.html
-    # https://gitlab.kitware.com/cmake/community/wikis/doc/cmake/RPATH-handling
-    conan_basic_setup(KEEP_RPATHS)
-  else()
-    conan_basic_setup()
-  endif()
-  conan_define_targets()
-endif()
-
 # Set reasonably strict warning options for clang, gcc, msvc
 # Enable coloured ouput if Ninja is used for building
 if("${CMAKE_C_COMPILER_ID}" STREQUAL "Clang" OR
@@ -238,9 +211,9 @@ endif()
 find_package(codecov)
 set(MEMORYCHECK_COMMAND_OPTIONS "--track-origins=yes --leak-check=full --trace-children=yes --child-silent-after-fork=yes --xml=yes --xml-file=TestResultValgrind_%p.xml --tool=memcheck --show-reachable=yes --leak-resolution=high")
 
-# By default building the testing tree is enabled by including CTest, but
-# since not everybody has CUnit, and because it is not strictly required to
-# build the product itself, switch to off by default.
+# Tests (integrated with CTest) are not built by default: not only are they not useful to
+# most people, building the test suite also forces exporting way more symbols from the
+# library so we can actually build the tests.
 option(BUILD_TESTING "Build the testing tree." OFF)
 
 # Include the xtests for idlc. These tests use the idl compiler (C back-end) to

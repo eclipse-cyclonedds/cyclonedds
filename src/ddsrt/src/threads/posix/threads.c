@@ -635,6 +635,7 @@ dds_return_t ddsrt_thread_cleanup_push (void (*routine) (void * p), void *arg)
     tail->arg = arg;
     if ((err = pthread_setspecific(thread_cleanup_key, tail)) != 0) {
       assert(err != EINVAL);
+      ddsrt_free(tail); 
       return DDS_RETCODE_OUT_OF_RESOURCES;
     }
     return DDS_RETCODE_OK;

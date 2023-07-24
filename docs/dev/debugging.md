@@ -53,27 +53,13 @@ $ apt-get install gcc-8 g++-8 clang-6.0 bison
 su - travis
 ```
 
-5. Install The [Conan C/C++ Package Manager](https://conan.io).
-
- ```
-$ pip install conan --upgrade --user
-$ conan user
-```
-
-6. Add the required repositories.
-
- ```
-$ conan remote add atolab https://api.bintray.com/conan/atolab/public-conan
-$ conan remote add bincrafters https://api.bintray.com/conan/bincrafters/public-conan
-```
-
-7. Clone the git repository.
+5. Clone the git repository.
 
  ```
 $ git clone https://github.com/eclipse-cyclonedds/cyclonedds.git
 ```
 
-8. Build the project and run the tests.
+6. Build the project and run the tests.
 
  > By default CMake and Conan will choose *gcc*. To switch to *clang*, set the
  > CC and CXX environment variables to clang and clang++ respectively.
@@ -83,7 +69,6 @@ $ export CC=gcc-8
 $ export CXX=g++-8
 $ cd cyclonedds
 $ mkdir build
-$ conan install ..
 $ cmake -DBUILD_TESTING=on ../src
 $ cmake --build .
 $ ctest -T test

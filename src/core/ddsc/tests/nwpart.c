@@ -656,7 +656,6 @@ CU_Theory ((const char *pistr, const char *msmstr), ddsc_nwpart, full_stack_init
   CU_ASSERT_FATAL (eh > 0);
   const struct ddsi_domaingv *gv = get_domaingv (eh);
   CU_ASSERT_FATAL (gv != NULL);
-  assert (gv != NULL);
   // construct a configuration using this interface
   char *config = NULL;
   (void) ddsrt_asprintf (&config,
@@ -689,7 +688,6 @@ CU_Theory ((const char *pistr, const char *msmstr), ddsc_nwpart, full_stack_init
   CU_ASSERT_FATAL (eh > 0);
   gv = get_domaingv (eh);
   CU_ASSERT_FATAL (gv != NULL);
-  assert (gv != NULL);
   // verify that the unicast address and port number in the network partition
   // are correct (this is slightly different from the other tests: those mock
   // most of the code, this uses the actual code)

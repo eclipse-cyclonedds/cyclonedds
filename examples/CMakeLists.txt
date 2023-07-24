@@ -64,6 +64,10 @@ if (ENABLE_TOPIC_DISCOVERY)
     FILES
       dynsub/variouspub_types.idl
       dynsub/dynsub.c
+      dynsub/dynsub.h
+      dynsub/type_cache.c
+      dynsub/print_sample.c
+      dynsub/print_type.c
       dynsub/variouspub.c
       dynsub/CMakeLists.txt
       dynsub/readme.rst

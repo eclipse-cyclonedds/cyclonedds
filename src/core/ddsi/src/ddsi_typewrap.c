@@ -509,17 +509,23 @@ static void set_member_detail (struct xt_member_detail *dst, const DDS_XTypes_Co
 {
   ddsrt_strlcpy (dst->name, src->name, sizeof (dst->name));
   ddsi_xt_get_namehash (dst->name_hash, dst->name);
-  if (src->ann_builtin) {
-    dst->annotations.ann_builtin = ddsrt_calloc(1, sizeof(struct DDS_XTypes_AppliedBuiltinMemberAnnotations));
+  if (src->ann_builtin)
+  {
+    dst->annotations.ann_builtin = ddsrt_calloc (1, sizeof(struct DDS_XTypes_AppliedBuiltinMemberAnnotations));
     DDS_XTypes_AppliedBuiltinMemberAnnotations_copy (dst->annotations.ann_builtin, src->ann_builtin);
-  } else {
+  }
+  else
+  {
     dst->annotations.ann_builtin = NULL;
   }
 
-  if (src->ann_custom) {
-    dst->annotations.ann_custom = ddsrt_calloc(1, sizeof(DDS_XTypes_AppliedAnnotationSeq));
+  if (src->ann_custom)
+  {
+    dst->annotations.ann_custom = ddsrt_calloc (1, sizeof(DDS_XTypes_AppliedAnnotationSeq));
     DDS_XTypes_AppliedAnnotationSeq_copy (dst->annotations.ann_custom, src->ann_custom);
-  } else {
+  }
+  else
+  {
     dst->annotations.ann_custom = NULL;
   }
 }
@@ -584,15 +590,25 @@ static dds_return_t xt_valid_struct_member_ids (struct ddsi_domaingv *gv, const 
 {
   assert (ddsi_xt_is_resolved (t) && t->_d == DDS_XTypes_TK_STRUCTURE);
   dds_return_t ret = DDS_RETCODE_OK;
+
   uint32_t cnt = 0;
   for (const struct xt_type *t1 = t; t1 && ddsi_xt_is_resolved (t1); t1 = t1->_u.structure.base_type ? &t1->_u.structure.base_type->xt : NULL)
     cnt += t1->_u.structure.members.length;
   if (cnt == 0 && !t->_u.structure.base_type)
   {
     GVTRACE ("struct has no members\n");
-    return DDS_RETCODE_BAD_PARAMETER;
+    ret = DDS_RETCODE_BAD_PARAMETER;
+    goto failed;
   }
+
   DDS_XTypes_MemberId *ids = ddsrt_malloc (cnt * sizeof (*ids));
+  if (ids == NULL)
+  {
+    GVTRACE ("out-of-memory while checking struct member ids\n");
+    ret = DDS_RETCODE_BAD_PARAMETER;
+    goto failed;
+  }
+
   uint32_t cnt1 = cnt;
   for (const struct xt_type *t1 = t; t1 && ddsi_xt_is_resolved (t1); t1 = t1->_u.structure.base_type ? &t1->_u.structure.base_type->xt : NULL)
   {
@@ -606,12 +622,13 @@ static dds_return_t xt_valid_struct_member_ids (struct ddsi_domaingv *gv, const 
     {
       GVTRACE ("duplicate member id %"PRIu32" in struct\n", ids[n]);
       ret = DDS_RETCODE_BAD_PARAMETER;
-      goto err;
+      goto failed_duplicate;
     }
   }
 
-err:
+failed_duplicate:
   ddsrt_free (ids);
+failed:
   return ret;
 }
 
@@ -619,13 +636,23 @@ static dds_return_t xt_valid_union_member_ids (struct ddsi_domaingv *gv, const s
 {
   assert (ddsi_xt_is_resolved (t) && t->_d == DDS_XTypes_TK_UNION);
   dds_return_t ret = DDS_RETCODE_OK;
+
   uint32_t cnt = t->_u.union_type.members.length;
   if (cnt == 0)
   {
     GVTRACE ("union has no members\n");
-    return DDS_RETCODE_BAD_PARAMETER;
+    ret = DDS_RETCODE_BAD_PARAMETER;
+    goto failed;
   }
+
   DDS_XTypes_MemberId *ids = ddsrt_malloc (cnt * sizeof (*ids));
+  if (ids == NULL)
+  {
+    GVTRACE ("out-of-memory while checking union member ids\n");
+    ret = DDS_RETCODE_BAD_PARAMETER;
+    goto failed;
+  }
+
   for (uint32_t n = 0; n < cnt; n++)
     ids[n] = t->_u.union_type.members.seq[n].id;
   qsort (ids, cnt, sizeof (*ids), xt_member_id_cmp);
@@ -635,12 +662,13 @@ static dds_return_t xt_valid_union_member_ids (struct ddsi_domaingv *gv, const s
     {
       GVTRACE ("duplicate member id %"PRIu32" in union\n", ids[n]);
       ret = DDS_RETCODE_BAD_PARAMETER;
-      goto err;
+      goto failed_duplicate;
     }
   }
 
-err:
+failed_duplicate:
   ddsrt_free (ids);
+failed:
   return ret;
 }
 
@@ -654,8 +682,23 @@ static dds_return_t xt_valid_enum_values (struct ddsi_domaingv *gv, const struct
 {
   assert (ddsi_xt_is_resolved (t) && t->_d == DDS_XTypes_TK_ENUM);
   dds_return_t ret = DDS_RETCODE_OK;
+
   uint32_t cnt = t->_u.enum_type.literals.length;
+  if (cnt == 0)
+  {
+    GVTRACE ("enum has no members\n");
+    ret = DDS_RETCODE_BAD_PARAMETER;
+    goto failed;
+  }
+
   int32_t *values = ddsrt_malloc (cnt * sizeof (*values));
+  if (values == NULL)
+  {
+    GVTRACE ("out-of-memory while checking enum values\n");
+    ret = DDS_RETCODE_OUT_OF_RESOURCES;
+    goto failed;
+  }
+
   for (uint32_t n = 0; n < cnt; n++)
     values[n] = t->_u.enum_type.literals.seq[n].value;
   qsort (values, cnt, sizeof (*values), xt_enum_value_cmp);
@@ -665,12 +708,13 @@ static dds_return_t xt_valid_enum_values (struct ddsi_domaingv *gv, const struct
     {
       GVTRACE ("duplicate enum value %"PRIi32"\n", values[n]);
       ret = DDS_RETCODE_BAD_PARAMETER;
-      goto err;
+      goto failed_duplicate;
     }
   }
 
-err:
+failed_duplicate:
   ddsrt_free (values);
+failed:
   return ret;
 }
 
@@ -685,7 +729,21 @@ static dds_return_t xt_valid_bitmask_positions (struct ddsi_domaingv *gv, const 
   assert (ddsi_xt_is_resolved (t) && t->_d == DDS_XTypes_TK_BITMASK);
   dds_return_t ret = DDS_RETCODE_OK;
   uint32_t cnt = t->_u.bitmask.bitflags.length;
+  if (cnt == 0)
+  {
+    GVTRACE ("bitmask has no bitflags\n");
+    ret = DDS_RETCODE_BAD_PARAMETER;
+    goto failed;
+  }
+
   uint16_t *positions = ddsrt_malloc (cnt * sizeof (*positions));
+  if (positions == NULL)
+  {
+    GVTRACE ("out-of-memory while checking bitmask positions\n");
+    ret = DDS_RETCODE_OUT_OF_RESOURCES;
+    goto failed;
+  }
+
   for (uint32_t n = 0; n < cnt; n++)
     positions[n] = t->_u.bitmask.bitflags.seq[n].position;
   qsort (positions, cnt, sizeof (*positions), xt_bitmask_position_cmp);
@@ -695,12 +753,13 @@ static dds_return_t xt_valid_bitmask_positions (struct ddsi_domaingv *gv, const 
     {
       GVTRACE ("duplicate bitmask position %"PRIu16"\n", positions[n]);
       ret = DDS_RETCODE_BAD_PARAMETER;
-      goto err;
+      goto failed_duplicate;
     }
   }
 
-err:
+failed_duplicate:
   ddsrt_free (positions);
+failed:
   return ret;
 }
 
@@ -1491,7 +1550,7 @@ static void DDS_XTypes_AppliedAnnotationParameterSeq_copy (struct DDS_XTypes_App
     (*dst)->_buffer = ddsrt_calloc (src->_length, sizeof (*(*dst)->_buffer));
     for (uint32_t n = 0; n < src->_length; n++)
       DDS_XTypes_AppliedAnnotationParameter_copy (&(*dst)->_buffer[n], &src->_buffer[n]);
-    (*dst)->_release = src->_release;
+    (*dst)->_release = true;
   }
 }
 
@@ -1513,7 +1572,7 @@ static void DDS_XTypes_AppliedAnnotationSeq_copy (struct DDS_XTypes_AppliedAnnot
     dst->_buffer = ddsrt_calloc (src->_length, sizeof (*dst->_buffer));
     for (uint32_t n = 0; n < src->_length; n++)
       DDS_XTypes_AppliedAnnotation_copy (&dst->_buffer[n], &src->_buffer[n]);
-    dst->_release = src->_release;
+    dst->_release = true;
   }
 }
 
@@ -1522,16 +1581,8 @@ static void DDS_XTypes_AppliedBuiltinMemberAnnotations_copy (struct DDS_XTypes_A
   if (src)
   {
     dst->unit = src->unit ? ddsrt_strdup (src->unit) : NULL;
-    if (src->min) {
-      dst->min = ddsrt_memdup(src->min, sizeof(struct DDS_XTypes_AnnotationParameterValue));
-    } else {
-      dst->min = NULL;
-    }
-    if (src->max) {
-      dst->max = ddsrt_memdup(src->max, sizeof(struct DDS_XTypes_AnnotationParameterValue));
-    } else {
-      dst->max = NULL;
-    }
+    dst->min = src->min ? ddsrt_memdup (src->min, sizeof(struct DDS_XTypes_AnnotationParameterValue)) : NULL;
+    dst->max = src->max ? ddsrt_memdup (src->max, sizeof(struct DDS_XTypes_AnnotationParameterValue)) : NULL;
     dst->hash_id = src->hash_id ? ddsrt_strdup (src->hash_id) : NULL;
   }
 }
@@ -1539,17 +1590,23 @@ static void DDS_XTypes_AppliedBuiltinMemberAnnotations_copy (struct DDS_XTypes_A
 static void get_type_detail (DDS_XTypes_CompleteTypeDetail *dst, const struct xt_type_detail *src)
 {
   ddsrt_strlcpy (dst->type_name, src->type_name, sizeof (dst->type_name));
-  if (src->annotations.ann_builtin) {
-    dst->ann_builtin = ddsrt_calloc(1, sizeof(struct DDS_XTypes_AppliedBuiltinTypeAnnotations));
+  if (src->annotations.ann_builtin)
+  {
+    dst->ann_builtin = ddsrt_calloc (1, sizeof(struct DDS_XTypes_AppliedBuiltinTypeAnnotations));
     DDS_XTypes_AppliedBuiltinTypeAnnotations_copy (dst->ann_builtin, src->annotations.ann_builtin);
-  } else {
+  }
+  else
+  {
     dst->ann_builtin = NULL;
   }
 
-  if (src->annotations.ann_custom) {
+  if (src->annotations.ann_custom)
+  {
     dst->ann_custom = ddsrt_calloc(1, sizeof(DDS_XTypes_AppliedAnnotationSeq));
     DDS_XTypes_AppliedAnnotationSeq_copy (dst->ann_custom, src->annotations.ann_custom);
-  } else {
+  }
+  else
+  {
     dst->ann_custom = NULL;
   }
 }
@@ -1557,17 +1614,23 @@ static void get_type_detail (DDS_XTypes_CompleteTypeDetail *dst, const struct xt
 static void get_member_detail (DDS_XTypes_CompleteMemberDetail *dst, const struct xt_member_detail *src)
 {
   ddsrt_strlcpy (dst->name, src->name, sizeof (dst->name));
-  if (src->annotations.ann_builtin) {
-    dst->ann_builtin = ddsrt_calloc(1, sizeof(struct DDS_XTypes_AppliedBuiltinMemberAnnotations));
+  if (src->annotations.ann_builtin)
+  {
+    dst->ann_builtin = ddsrt_calloc (1, sizeof(struct DDS_XTypes_AppliedBuiltinMemberAnnotations));
     DDS_XTypes_AppliedBuiltinMemberAnnotations_copy (dst->ann_builtin, src->annotations.ann_builtin);
-  } else {
+  }
+  else
+  {
     dst->ann_builtin = NULL;
   }
 
-  if (src->annotations.ann_custom) {
-    dst->ann_custom = ddsrt_calloc(1, sizeof(DDS_XTypes_AppliedAnnotationSeq));
+  if (src->annotations.ann_custom)
+  {
+    dst->ann_custom = ddsrt_calloc (1, sizeof(DDS_XTypes_AppliedAnnotationSeq));
     DDS_XTypes_AppliedAnnotationSeq_copy (dst->ann_custom, src->annotations.ann_custom);
-  } else {
+  }
+  else
+  {
     dst->ann_custom = NULL;
   }
 }
@@ -1587,8 +1650,25 @@ static void xt_applied_member_annotations_fini (struct xt_applied_member_annotat
     ddsrt_free (ann->ann_builtin->hash_id);
     ddsrt_free (ann->ann_builtin);
   }
-  // TODO: implement custom annotations
-  //ddsrt_free (xt->_u.structure.members.seq[n].detail.annotations.ann_custom);
+  if (ann->ann_custom)
+  {
+    if (ann->ann_custom->_release)
+    {
+      for (uint32_t n = 0; n < ann->ann_custom->_length; n++)
+      {
+        ddsi_typeid_fini_impl (&ann->ann_custom->_buffer[n].annotation_typeid);
+        if (ann->ann_custom->_buffer[n].param_seq->_release)
+        {
+          for (uint32_t p = 0; p < ann->ann_custom->_buffer[n].param_seq->_length; p++)
+            ddsrt_free (ann->ann_custom->_buffer[n].param_seq->_buffer[p].paramname_hash);
+          ddsrt_free (ann->ann_custom->_buffer[n].param_seq->_buffer);
+        }
+        ddsrt_free (ann->ann_custom->_buffer[n].param_seq);
+      }
+      ddsrt_free (ann->ann_custom->_buffer);
+    }
+    ddsrt_free (ann->ann_custom);
+  }
 }
 
 void ddsi_xt_type_fini (struct ddsi_domaingv *gv, struct xt_type *xt, bool include_typeid)

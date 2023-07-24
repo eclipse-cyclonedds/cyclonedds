@@ -58,23 +58,7 @@ cmake --build . --target install
  ```
 mkdir build
 cd build
-conan install -s arch=x86 ..
-```
-
-> For actual cross-compilation environments the instructions above will not
-> install the correct packages. Even when e.g. Clang instead of GCC was used
-> to build the simulator, the mismatch between Conan and CMake will break the
-> build. To install the correct packages for the target, specify the required
-> settings e.g. when the simulator was built using Clang 7.0, use
-> `conan install -s arch=x86 -s compiler=clang -s compiler.version=7.0 ..`.
-> If packages are not yet available for the target, as is usually the case
-> with actual embedded targets, export the path to the toolchain file in the
-> `CONAN_CMAKE_TOOLCHAIN_FILE` environment variable and add the `-b` flag to
-> build the packages.
-
-2. Build Eclipse Cyclone DDS.
- ```
-$ cmake -DCMAKE_TOOLCHAIN_FILE=/path/to/toolchain/file -DWITH_FREERTOS=on ../src
+cmake -DCMAKE_TOOLCHAIN_FILE=/path/to/toolchain/file -DWITH_FREERTOS=on ../src
 ```
 
 > Examples (and tests) can be executed like usual. The simulator provides a
