@@ -550,7 +550,7 @@ struct addrset_forall_helper_arg
   void * arg;
 };
 
-static void addrset_forall_helper (void *vnode, void *varg)
+static void addrset_forall_helper (const void *vnode, void *varg)
 {
   const struct ddsi_addrset_node *n = vnode;
   struct addrset_forall_helper_arg *arg = varg;
@@ -564,8 +564,8 @@ size_t ddsi_addrset_forall_count (struct ddsi_addrset *as, ddsi_addrset_forall_f
   arg1.f = f;
   arg1.arg = arg;
   LOCK (as);
-  ddsrt_avl_cwalk (&addrset_treedef, &as->mcaddrs, addrset_forall_helper, &arg1);
-  ddsrt_avl_cwalk (&addrset_treedef, &as->ucaddrs, addrset_forall_helper, &arg1);
+  ddsrt_avl_cconst_walk (&addrset_treedef, &as->mcaddrs, addrset_forall_helper, &arg1);
+  ddsrt_avl_cconst_walk (&addrset_treedef, &as->ucaddrs, addrset_forall_helper, &arg1);
   count = ddsrt_avl_ccount (&as->ucaddrs) + ddsrt_avl_ccount (&as->mcaddrs);
   UNLOCK (as);
   return count;
@@ -585,12 +585,12 @@ size_t ddsi_addrset_forall_uc_else_mc_count (struct ddsi_addrset *as, ddsi_addrs
   LOCK (as);
   if (!ddsrt_avl_cis_empty (&as->ucaddrs))
   {
-    ddsrt_avl_cwalk (&addrset_treedef, &as->ucaddrs, addrset_forall_helper, &arg1);
+    ddsrt_avl_cconst_walk (&addrset_treedef, &as->ucaddrs, addrset_forall_helper, &arg1);
     count = ddsrt_avl_ccount (&as->ucaddrs);
   }
   else
   {
-    ddsrt_avl_cwalk (&addrset_treedef, &as->mcaddrs, addrset_forall_helper, &arg1);
+    ddsrt_avl_cconst_walk (&addrset_treedef, &as->mcaddrs, addrset_forall_helper, &arg1);
     count = ddsrt_avl_ccount (&as->mcaddrs);
   }
   UNLOCK (as);
@@ -604,7 +604,7 @@ size_t ddsi_addrset_forall_mc_count (struct ddsi_addrset *as, ddsi_addrset_foral
   arg1.f = f;
   arg1.arg = arg;
   LOCK (as);
-  ddsrt_avl_cwalk (&addrset_treedef, &as->mcaddrs, addrset_forall_helper, &arg1);
+  ddsrt_avl_cconst_walk (&addrset_treedef, &as->mcaddrs, addrset_forall_helper, &arg1);
   count = ddsrt_avl_ccount (&as->mcaddrs);
   UNLOCK (as);
   return count;

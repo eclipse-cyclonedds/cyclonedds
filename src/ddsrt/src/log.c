@@ -115,7 +115,7 @@ static void set_log_sink (log_sink_t *sink, dds_log_write_fn_t func, void *ptr)
      responsible for that. Ensure this operation is deterministic and that on
      return, no thread in the DDS stack still uses the deprecated sink. */
   lock_sink (WRLOCK);
-  sink->func = (func != 0) ? func : default_sink;
+  sink->func = (func != NULL) ? func : default_sink;
   sink->ptr = ptr;
   unlock_sink ();
 }
@@ -266,13 +266,13 @@ static void vlog1 (const struct ddsrt_log_cfg_impl *cfg, uint32_t cat, uint32_t 
     data.size = lb->pos - BUF_OFFSET - 1;
     data.hdrsize = hdrsize;
 
-    dds_log_write_fn_t f = 0;
+    dds_log_write_fn_t f = NULL;
     void *f_arg = NULL;
     if (cat & DDS_LOG_MASK)
     {
       f = sinks[LOG].func;
       f_arg = (f == default_sink) ? cfg->sink_fps[LOG] : sinks[LOG].ptr;
-      assert (f != 0);
+      assert (f != NULL);
       f (f_arg, &data);
     }
     /* if tracing is enabled, then print to trace if it matches the
@@ -282,7 +282,7 @@ static void vlog1 (const struct ddsrt_log_cfg_impl *cfg, uint32_t cat, uint32_t 
     {
       dds_log_write_fn_t const g = sinks[TRACE].func;
       void * const g_arg = (g == default_sink) ? cfg->sink_fps[TRACE] : sinks[TRACE].ptr;
-      assert (g != 0);
+      assert (g != NULL);
       if (g != f || g_arg != f_arg)
         g (g_arg, &data);
     }

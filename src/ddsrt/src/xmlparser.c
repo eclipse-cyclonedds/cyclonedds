@@ -124,11 +124,11 @@ static void ddsrt_xmlp_new_setCB (struct ddsrt_xmlp_state *st, void *varg, const
 {
   st->varg = varg;
   st->cb = *cb;
-  if (st->cb.attr == 0) st->cb.attr = cb_null_attr;
-  if (st->cb.elem_open == 0) st->cb.elem_open = cb_null_elem_open;
-  if (st->cb.elem_data == 0) st->cb.elem_data = cb_null_elem_data;
-  if (st->cb.elem_close == 0) st->cb.elem_close = cb_null_elem_close;
-  if (st->cb.error == 0) st->cb.error = cb_null_error;
+  if (st->cb.attr == NULL) st->cb.attr = cb_null_attr;
+  if (st->cb.elem_open == NULL) st->cb.elem_open = cb_null_elem_open;
+  if (st->cb.elem_data == NULL) st->cb.elem_data = cb_null_elem_data;
+  if (st->cb.elem_close == NULL) st->cb.elem_close = cb_null_elem_close;
+  if (st->cb.error == NULL) st->cb.error = cb_null_error;
 }
 
 struct ddsrt_xmlp_state *ddsrt_xmlp_new_file (FILE *fp, void *varg, const struct ddsrt_xmlp_callbacks *cb)

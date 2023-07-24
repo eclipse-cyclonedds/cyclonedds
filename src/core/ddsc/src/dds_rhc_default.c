@@ -929,7 +929,7 @@ static bool add_sample (struct dds_rhc_default *rhc, struct rhc_instance *inst, 
   if (rhc->nqconds != 0)
   {
     for (dds_readcond *rc = rhc->conds; rc != NULL; rc = rc->m_next)
-      if (rc->m_query.m_filter != 0 && eval_predicate_sample (rhc, s->sample, rc->m_query.m_filter))
+      if (rc->m_query.m_filter != NULL && eval_predicate_sample (rhc, s->sample, rc->m_query.m_filter))
         s->conds |= rc->m_query.m_qcmask;
   }
 
@@ -2384,7 +2384,7 @@ static bool dds_rhc_default_add_readcondition (struct dds_rhc *rhc_common, dds_r
   ddsrt_mutex_lock (&rhc->lock);
 
   /* Allocate a slot in the condition bitmasks; return an error no more slots are available */
-  if (cond->m_query.m_filter != 0)
+  if (cond->m_query.m_filter != NULL)
   {
     dds_querycond_mask_t avail_qcmask = ~(dds_querycond_mask_t)0;
     for (dds_readcond *rc = rhc->conds; rc != NULL; rc = rc->m_next)
@@ -2408,7 +2408,7 @@ static bool dds_rhc_default_add_readcondition (struct dds_rhc *rhc_common, dds_r
   rhc->conds = cond;
 
   uint32_t trigger = 0;
-  if (cond->m_query.m_filter == 0)
+  if (cond->m_query.m_filter == NULL)
   {
     /* Read condition is not cached inside the instances and samples, so it only needs
        to be evaluated on the non-empty instances */
@@ -2555,7 +2555,7 @@ static bool update_conditions_locked (struct dds_rhc_default *rhc, bool called_f
     }
 
     TRACE ("  cond %p %08"PRIx32": ", (void *) iter, iter->m_query.m_qcmask);
-    if (iter->m_query.m_filter == 0)
+    if (iter->m_query.m_filter == NULL)
     {
       assert (dds_entity_kind (&iter->m_entity) == DDS_KIND_COND_READ);
       if (m_pre == m_post)

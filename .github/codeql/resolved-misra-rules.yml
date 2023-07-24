@@ -12,3 +12,4 @@ queries:
   - uses: ./codeql-coding-standards/c/misra/src/rules/RULE-22-8/ErrnoSetToZeroPriorToCall.ql
   - uses: ./codeql-coding-standards/c/misra/src/rules/RULE-8-3/DeclarationsOfAFunctionSameNameAndType.ql #[1/2]
 #  - uses: ./codeql-coding-standards/c/misra/src/rules/RULE-8-3/DeclarationsOfAnObjectSameNameAndType.ql #[2/2]
+#  - uses: ./codeql-coding-standards/c/misra/src/rules/RULE-11-1/ConversionBetweenFunctionPointerAndOtherType.ql

@@ -162,7 +162,7 @@ static ddsrt_avl_tree_t helper_tree = {
   &helper_node.avlnode
 };
 
-static void log_stacktrace_helper (void *vnode, void *varg)
+static void log_stacktrace_helper (const void *vnode, void *varg)
 {
   struct log_stacktrace_thread_arg * const arg = varg;
   (void) vnode;
@@ -176,7 +176,7 @@ static void log_stacktrace_helper (void *vnode, void *varg)
 
 static uint32_t log_stacktrace_thread (void *varg)
 {
-  ddsrt_avl_walk (&helper_treedef, &helper_tree, log_stacktrace_helper, varg);
+  ddsrt_avl_const_walk (&helper_treedef, &helper_tree, log_stacktrace_helper, varg);
   return 0;
 }
 
