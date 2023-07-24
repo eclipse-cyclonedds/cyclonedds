@@ -333,7 +333,7 @@ static int cmp_instance_handle (const void *va, const void *vb)
 }
 
 /* AVL tree of ppant structures indexed on handle using cmp_instance_handle */
-static ddsrt_avl_treedef_t ppants_td = DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct ppant, avlnode), offsetof (struct ppant, handle), cmp_instance_handle, 0);
+static ddsrt_avl_treedef_t ppants_td = DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct ppant, avlnode), offsetof (struct ppant, handle), cmp_instance_handle, NULL);
 static ddsrt_avl_tree_t ppants;
 
 /* Priority queue (Fibonacci heap) of ppant structures with tdeadline as key */
@@ -2445,7 +2445,7 @@ int main (int argc, char *argv[])
   subthread_arg_init (&subarg_data, rd_data, 1000);
   subthread_arg_init (&subarg_ping, rd_ping, 100);
   subthread_arg_init (&subarg_pong, rd_pong, 100);
-  uint32_t (*subthread_func) (void *arg) = 0;
+  uint32_t (*subthread_func) (void *arg) = NULL;
   switch (submode)
   {
     case SM_NONE:     break;
@@ -2465,7 +2465,7 @@ int main (int argc, char *argv[])
 
   if (pub_rate > 0)
     ddsrt_thread_create (&pubtid, "pub", &attr, pubthread, NULL);
-  if (subthread_func != 0)
+  if (subthread_func != NULL)
     ddsrt_thread_create (&subtid, "sub", &attr, subthread_func, &subarg_data);
   else if (submode == SM_LISTENER)
     set_data_available_listener (rd_data, "rd_data", data_available_listener, &subarg_data);
@@ -2666,7 +2666,7 @@ int main (int argc, char *argv[])
 
   if (pub_rate > 0)
     ddsrt_thread_join (pubtid, NULL);
-  if (subthread_func != 0)
+  if (subthread_func != NULL)
     ddsrt_thread_join (subtid, NULL);
   if (pingpong_waitset)
   {

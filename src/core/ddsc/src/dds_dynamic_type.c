@@ -498,12 +498,12 @@ static dds_return_t set_member_bool_prop (dds_dynamic_type_t *type, uint32_t mem
 
 dds_return_t dds_dynamic_member_set_key (dds_dynamic_type_t *type, uint32_t member_id, bool is_key)
 {
-  return (type->ret = set_member_bool_prop (type, member_id, is_key, ddsi_dynamic_type_member_set_key, 0));
+  return (type->ret = set_member_bool_prop (type, member_id, is_key, ddsi_dynamic_type_member_set_key, NULL));
 }
 
 dds_return_t dds_dynamic_member_set_optional (dds_dynamic_type_t *type, uint32_t member_id, bool is_optional)
 {
-  return (type->ret = set_member_bool_prop (type, member_id, is_optional, ddsi_dynamic_type_member_set_optional, 0));
+  return (type->ret = set_member_bool_prop (type, member_id, is_optional, ddsi_dynamic_type_member_set_optional, NULL));
 }
 
 dds_return_t dds_dynamic_member_set_external (dds_dynamic_type_t *type, uint32_t member_id, bool is_external)
@@ -532,7 +532,7 @@ dds_return_t dds_dynamic_member_set_hashid (dds_dynamic_type_t *type, uint32_t m
 
 dds_return_t dds_dynamic_member_set_must_understand (dds_dynamic_type_t *type, uint32_t member_id, bool is_must_understand)
 {
-  return (type->ret = set_member_bool_prop (type, member_id, is_must_understand, ddsi_dynamic_type_member_set_must_understand, 0));
+  return (type->ret = set_member_bool_prop (type, member_id, is_must_understand, ddsi_dynamic_type_member_set_must_understand, NULL));
 }
 
 dds_return_t dds_dynamic_type_register (dds_dynamic_type_t *type, struct ddsi_typeinfo **type_info)

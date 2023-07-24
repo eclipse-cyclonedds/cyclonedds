@@ -12,6 +12,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
+#include <setjmp.h>
 
 #ifdef __APPLE__
 #include <pthread.h>
@@ -505,5 +506,6 @@ CU_Theory((bool local, int mode, bool expect_in_trace), dds_log, fatal_aborts)
   (void) local;
   (void) mode;
   (void) expect_in_trace;
+  CU_PASS ("test skipped on this platform");
 #endif
 }

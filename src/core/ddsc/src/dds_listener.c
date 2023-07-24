@@ -37,7 +37,6 @@ void dds_delete_listener (dds_listener_t * __restrict listener)
 {
   dds_free (listener);
 }
-
 void dds_reset_listener (dds_listener_t * __restrict listener)
 {
   if (listener)
@@ -45,19 +44,19 @@ void dds_reset_listener (dds_listener_t * __restrict listener)
     dds_listener_t * const l = listener;
     l->inherited = 0;
     l->reset_on_invoke = 0;
-    l->on_data_available = 0;
-    l->on_data_on_readers = 0;
-    l->on_inconsistent_topic = 0;
-    l->on_liveliness_changed = 0;
-    l->on_liveliness_lost = 0;
-    l->on_offered_deadline_missed = 0;
-    l->on_offered_incompatible_qos = 0;
-    l->on_publication_matched = 0;
-    l->on_requested_deadline_missed = 0;
-    l->on_requested_incompatible_qos = 0;
-    l->on_sample_lost = 0;
-    l->on_sample_rejected = 0;
-    l->on_subscription_matched = 0;
+    l->on_data_available = NULL;
+    l->on_data_on_readers = NULL;
+    l->on_inconsistent_topic = NULL;
+    l->on_liveliness_changed = NULL;
+    l->on_liveliness_lost = NULL;
+    l->on_offered_deadline_missed = NULL;
+    l->on_offered_incompatible_qos = NULL;
+    l->on_publication_matched = NULL;
+    l->on_requested_deadline_missed = NULL;
+    l->on_requested_incompatible_qos = NULL;
+    l->on_sample_lost = NULL;
+    l->on_sample_rejected = NULL;
+    l->on_subscription_matched = NULL;
   }
 }
 
@@ -70,7 +69,7 @@ void dds_copy_listener (dds_listener_t * __restrict dst, const dds_listener_t * 
 static bool dds_combine_listener_merge (uint32_t inherited, void (*dst)(void), void (*src)(void))
 {
   (void)inherited;
-  return dst == 0 && src != 0;
+  return dst == NULL && src != NULL;
 }
 
 static bool dds_combine_listener_override_inherited (uint32_t inherited, void (*dst)(void), void (*src)(void))

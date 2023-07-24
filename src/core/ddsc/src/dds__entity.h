@@ -161,7 +161,7 @@ union dds_status_union {
     struct dds_listener const * const listener = &e->m_entity.m_listener; \
     update_##name_ (&e->m_##name_##_status, data);                      \
     bool signal;                                                        \
-    if (listener->on_##name_ == 0)                                      \
+    if (listener->on_##name_ == NULL)                                      \
       signal = dds_entity_status_set (&e->m_entity, DDS_##NAME_##_STATUS); \
     else                                                                \
       signal = status_cb_##name_##_invoke (e);                          \

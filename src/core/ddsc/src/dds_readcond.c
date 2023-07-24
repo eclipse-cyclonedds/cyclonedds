@@ -74,7 +74,7 @@ dds_entity_t dds_create_readcondition (dds_entity_t reader, uint32_t mask)
   else
   {
     dds_entity_t hdl;
-    dds_readcond *cond = dds_create_readcond_impl (rd, DDS_KIND_COND_READ, mask, 0);
+    dds_readcond *cond = dds_create_readcond_impl (rd, DDS_KIND_COND_READ, mask, NULL);
     assert (cond);
     hdl = cond->m_entity.m_hdllink.hdl;
     dds_entity_init_complete (&cond->m_entity);

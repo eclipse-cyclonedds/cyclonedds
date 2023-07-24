@@ -164,7 +164,7 @@ static bool whc_default_sample_iter_borrow_next (struct ddsi_whc_sample_iter *op
 static void whc_default_free (struct ddsi_whc *whc_generic);
 
 static const ddsrt_avl_treedef_t whc_seq_treedef =
-  DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct whc_intvnode, avlnode), offsetof (struct whc_intvnode, min), compare_seq, 0);
+  DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct whc_intvnode, avlnode), offsetof (struct whc_intvnode, min), compare_seq, NULL);
 
 static const struct ddsi_whc_ops whc_ops = {
   .insert = whc_default_insert,

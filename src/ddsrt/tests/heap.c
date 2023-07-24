@@ -36,7 +36,6 @@ CU_Test(ddsrt_heap, malloc)
       size_t s = allocsizes[i] * allocsizes[j]; /* Allocates up to 1MB */
       void *ptr = ddsrt_malloc(s);
       CU_ASSERT_PTR_NOT_NULL_FATAL(ptr); /* ddsrt_malloc is supposed to abort on failure */
-      assert(ptr);
       memset(ptr, 0, s); /* This potentially segfaults if the actual allocated block is too small */
       ddsrt_free(ptr);
     }
@@ -70,7 +69,6 @@ CU_Test(ddsrt_heap, realloc)
       printf("ddsrt_realloc(%p) %zu -> %zu\n", ptr, prevs, s);
       ptr = ddsrt_realloc(ptr, s);
       CU_ASSERT_PTR_NOT_NULL_FATAL(ptr); /* ddsrt_realloc is supposed to abort on failure */
-      assert(ptr);
       unchanged = (prevs < s) ? prevs : s;
       if(unchanged) {
         CU_ASSERT (ptr && ptr[0] == 1 && !memcmp(ptr, ptr + 1, unchanged - 1)); /* ddsrt_realloc shouldn't change memory */

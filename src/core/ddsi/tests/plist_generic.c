@@ -166,8 +166,7 @@ CU_Test (ddsi_plist_generic, ser_and_deser)
     size_t sersize;
     dds_return_t ret;
     ret = ddsi_plist_ser_generic (&ser, &sersize, descs[i].data, descs[i].desc);
-    if (ret != DDS_RETCODE_OK)
-      CU_ASSERT_FATAL (ret == DDS_RETCODE_OK);
+    CU_ASSERT_FATAL (ret == DDS_RETCODE_OK);
     if (sersize != descs[i].exp_sersize)
       CU_ASSERT (sersize == descs[i].exp_sersize);
     /* if sizes don't match, still check prefix */
@@ -292,8 +291,7 @@ CU_Test (ddsi_plist_generic, invalid_input)
       char * const ser = serbuf + ((8 - ((uintptr_t)serbuf % 8)) % 8) + 4;
       memcpy (ser, descs_invalid[i].ser, descs_invalid[i].sersize);
       dds_return_t ret = ddsi_plist_deser_generic (&mem, ser, descs_invalid[i].sersize, false, descs_invalid[i].desc);
-      if (ret == DDS_RETCODE_OK)
-        CU_ASSERT_FATAL (ret != DDS_RETCODE_OK);
+      CU_ASSERT_FATAL (ret != DDS_RETCODE_OK);
     }
     ddsrt_free (serbuf);
   }

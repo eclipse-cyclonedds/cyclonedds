@@ -1,9 +1,7 @@
 #ifndef CUNIT_TEST_H
 #define CUNIT_TEST_H
 
-#include <stdbool.h>
-#include <CUnit/CUnit.h>
-#include <CUnit/CUError.h>
+#include "ucunit/ucunit.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -93,4 +91,3 @@ typedef struct {
 #endif
 
 #endif /* CUNIT_TEST_H */
-

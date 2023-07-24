@@ -56,7 +56,7 @@ static int dds_domain_compare (const void *va, const void *vb)
 }
 
 static const ddsrt_avl_treedef_t dds_domaintree_def = DDSRT_AVL_TREEDEF_INITIALIZER (
-  offsetof (dds_domain, m_node), offsetof (dds_domain, m_id), dds_domain_compare, 0);
+  offsetof (dds_domain, m_node), offsetof (dds_domain, m_id), dds_domain_compare, NULL);
 
 struct config_source {
   enum { CFGKIND_XML, CFGKIND_RAW } kind;

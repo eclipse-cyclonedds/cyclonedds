@@ -36,7 +36,7 @@ static int cmp_ktopic_name (const void *a, const void *b)
   return strcmp (a, b);
 }
 
-const ddsrt_avl_treedef_t participant_ktopics_treedef = DDSRT_AVL_TREEDEF_INITIALIZER_INDKEY(offsetof (struct dds_ktopic, pp_ktopics_avlnode), offsetof (struct dds_ktopic, name), cmp_ktopic_name, 0);
+const ddsrt_avl_treedef_t participant_ktopics_treedef = DDSRT_AVL_TREEDEF_INITIALIZER_INDKEY(offsetof (struct dds_ktopic, pp_ktopics_avlnode), offsetof (struct dds_ktopic, name), cmp_ktopic_name, NULL);
 
 static dds_return_t dds_participant_status_validate (uint32_t mask)
 {

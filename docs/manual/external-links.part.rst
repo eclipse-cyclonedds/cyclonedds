@@ -1,13 +1,5 @@
 .. HTML external Links:
 
-.. |url::cunit_link| raw:: html
-
-   <a href="https://cunit.sourceforge.net/" target="_blank">CUnit</a>
-
-.. |url::conan_link| raw:: html
-
-   <a href="https://conan.io/" target="_blank">Conan</a>
-
 .. |url::eclipse_link| raw:: html
 
    <a href="https://www.eclipse.org/legal/ECA.php/">Eclipse Contributor Agreement</a>

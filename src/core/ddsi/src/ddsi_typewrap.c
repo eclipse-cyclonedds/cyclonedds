@@ -509,17 +509,23 @@ static void set_member_detail (struct xt_member_detail *dst, const DDS_XTypes_Co
 {
   ddsrt_strlcpy (dst->name, src->name, sizeof (dst->name));
   ddsi_xt_get_namehash (dst->name_hash, dst->name);
-  if (src->ann_builtin) {
-    dst->annotations.ann_builtin = ddsrt_calloc(1, sizeof(struct DDS_XTypes_AppliedBuiltinMemberAnnotations));
+  if (src->ann_builtin)
+  {
+    dst->annotations.ann_builtin = ddsrt_calloc (1, sizeof(struct DDS_XTypes_AppliedBuiltinMemberAnnotations));
     DDS_XTypes_AppliedBuiltinMemberAnnotations_copy (dst->annotations.ann_builtin, src->ann_builtin);
-  } else {
+  }
+  else
+  {
     dst->annotations.ann_builtin = NULL;
   }
 
-  if (src->ann_custom) {
-    dst->annotations.ann_custom = ddsrt_calloc(1, sizeof(DDS_XTypes_AppliedAnnotationSeq));
+  if (src->ann_custom)
+  {
+    dst->annotations.ann_custom = ddsrt_calloc (1, sizeof(DDS_XTypes_AppliedAnnotationSeq));
     DDS_XTypes_AppliedAnnotationSeq_copy (dst->annotations.ann_custom, src->ann_custom);
-  } else {
+  }
+  else
+  {
     dst->annotations.ann_custom = NULL;
   }
 }
@@ -1544,7 +1550,7 @@ static void DDS_XTypes_AppliedAnnotationParameterSeq_copy (struct DDS_XTypes_App
     (*dst)->_buffer = ddsrt_calloc (src->_length, sizeof (*(*dst)->_buffer));
     for (uint32_t n = 0; n < src->_length; n++)
       DDS_XTypes_AppliedAnnotationParameter_copy (&(*dst)->_buffer[n], &src->_buffer[n]);
-    (*dst)->_release = src->_release;
+    (*dst)->_release = true;
   }
 }
 
@@ -1566,7 +1572,7 @@ static void DDS_XTypes_AppliedAnnotationSeq_copy (struct DDS_XTypes_AppliedAnnot
     dst->_buffer = ddsrt_calloc (src->_length, sizeof (*dst->_buffer));
     for (uint32_t n = 0; n < src->_length; n++)
       DDS_XTypes_AppliedAnnotation_copy (&dst->_buffer[n], &src->_buffer[n]);
-    dst->_release = src->_release;
+    dst->_release = true;
   }
 }
 
@@ -1575,16 +1581,8 @@ static void DDS_XTypes_AppliedBuiltinMemberAnnotations_copy (struct DDS_XTypes_A
   if (src)
   {
     dst->unit = src->unit ? ddsrt_strdup (src->unit) : NULL;
-    if (src->min) {
-      dst->min = ddsrt_memdup(src->min, sizeof(struct DDS_XTypes_AnnotationParameterValue));
-    } else {
-      dst->min = NULL;
-    }
-    if (src->max) {
-      dst->max = ddsrt_memdup(src->max, sizeof(struct DDS_XTypes_AnnotationParameterValue));
-    } else {
-      dst->max = NULL;
-    }
+    dst->min = src->min ? ddsrt_memdup (src->min, sizeof(struct DDS_XTypes_AnnotationParameterValue)) : NULL;
+    dst->max = src->max ? ddsrt_memdup (src->max, sizeof(struct DDS_XTypes_AnnotationParameterValue)) : NULL;
     dst->hash_id = src->hash_id ? ddsrt_strdup (src->hash_id) : NULL;
   }
 }
@@ -1592,17 +1590,23 @@ static void DDS_XTypes_AppliedBuiltinMemberAnnotations_copy (struct DDS_XTypes_A
 static void get_type_detail (DDS_XTypes_CompleteTypeDetail *dst, const struct xt_type_detail *src)
 {
   ddsrt_strlcpy (dst->type_name, src->type_name, sizeof (dst->type_name));
-  if (src->annotations.ann_builtin) {
-    dst->ann_builtin = ddsrt_calloc(1, sizeof(struct DDS_XTypes_AppliedBuiltinTypeAnnotations));
+  if (src->annotations.ann_builtin)
+  {
+    dst->ann_builtin = ddsrt_calloc (1, sizeof(struct DDS_XTypes_AppliedBuiltinTypeAnnotations));
     DDS_XTypes_AppliedBuiltinTypeAnnotations_copy (dst->ann_builtin, src->annotations.ann_builtin);
-  } else {
+  }
+  else
+  {
     dst->ann_builtin = NULL;
   }
 
-  if (src->annotations.ann_custom) {
+  if (src->annotations.ann_custom)
+  {
     dst->ann_custom = ddsrt_calloc(1, sizeof(DDS_XTypes_AppliedAnnotationSeq));
     DDS_XTypes_AppliedAnnotationSeq_copy (dst->ann_custom, src->annotations.ann_custom);
-  } else {
+  }
+  else
+  {
     dst->ann_custom = NULL;
   }
 }
@@ -1610,17 +1614,23 @@ static void get_type_detail (DDS_XTypes_CompleteTypeDetail *dst, const struct xt
 static void get_member_detail (DDS_XTypes_CompleteMemberDetail *dst, const struct xt_member_detail *src)
 {
   ddsrt_strlcpy (dst->name, src->name, sizeof (dst->name));
-  if (src->annotations.ann_builtin) {
-    dst->ann_builtin = ddsrt_calloc(1, sizeof(struct DDS_XTypes_AppliedBuiltinMemberAnnotations));
+  if (src->annotations.ann_builtin)
+  {
+    dst->ann_builtin = ddsrt_calloc (1, sizeof(struct DDS_XTypes_AppliedBuiltinMemberAnnotations));
     DDS_XTypes_AppliedBuiltinMemberAnnotations_copy (dst->ann_builtin, src->annotations.ann_builtin);
-  } else {
+  }
+  else
+  {
     dst->ann_builtin = NULL;
   }
 
-  if (src->annotations.ann_custom) {
-    dst->ann_custom = ddsrt_calloc(1, sizeof(DDS_XTypes_AppliedAnnotationSeq));
+  if (src->annotations.ann_custom)
+  {
+    dst->ann_custom = ddsrt_calloc (1, sizeof(DDS_XTypes_AppliedAnnotationSeq));
     DDS_XTypes_AppliedAnnotationSeq_copy (dst->ann_custom, src->annotations.ann_custom);
-  } else {
+  }
+  else
+  {
     dst->ann_custom = NULL;
   }
 }
@@ -1640,8 +1650,25 @@ static void xt_applied_member_annotations_fini (struct xt_applied_member_annotat
     ddsrt_free (ann->ann_builtin->hash_id);
     ddsrt_free (ann->ann_builtin);
   }
-  // TODO: implement custom annotations
-  //ddsrt_free (xt->_u.structure.members.seq[n].detail.annotations.ann_custom);
+  if (ann->ann_custom)
+  {
+    if (ann->ann_custom->_release)
+    {
+      for (uint32_t n = 0; n < ann->ann_custom->_length; n++)
+      {
+        ddsi_typeid_fini_impl (&ann->ann_custom->_buffer[n].annotation_typeid);
+        if (ann->ann_custom->_buffer[n].param_seq->_release)
+        {
+          for (uint32_t p = 0; p < ann->ann_custom->_buffer[n].param_seq->_length; p++)
+            ddsrt_free (ann->ann_custom->_buffer[n].param_seq->_buffer[p].paramname_hash);
+          ddsrt_free (ann->ann_custom->_buffer[n].param_seq->_buffer);
+        }
+        ddsrt_free (ann->ann_custom->_buffer[n].param_seq);
+      }
+      ddsrt_free (ann->ann_custom->_buffer);
+    }
+    ddsrt_free (ann->ann_custom);
+  }
 }
 
 void ddsi_xt_type_fini (struct ddsi_domaingv *gv, struct xt_type *xt, bool include_typeid)

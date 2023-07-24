@@ -57,8 +57,6 @@ While developing for |var-project|, additional tools and dependencies may be req
 
  - Shared memory
     |url::iceoryx_link|
- - Unit testing / Development
-    |url::cunit_link|
  - Documentation
     |url::sphinx_link|
  - Security 

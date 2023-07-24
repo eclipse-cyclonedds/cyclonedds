@@ -319,7 +319,7 @@ static ddsrt_avl_node_t *rebalance_one (const ddsrt_avl_treedef_t *td, ddsrt_avl
            way up to the root even when not needed for the rebalancing
            itself. */
         int height = (height_L < height_R ? height_R : height_L) + 1;
-        if (td->augment == 0 && height == node->height) {
+        if (td->augment == NULL && height == node->height) {
             return NULL;
         } else {
             node->height = height;
