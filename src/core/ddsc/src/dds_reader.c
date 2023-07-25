@@ -71,7 +71,7 @@ static void dds_reader_close (dds_entity *e)
   if (rd->m_iox_sub)
   {
   //will wait for any runing callback using the iceoryx subscriber of this reader
-    dds_shm_monitor_detach_reader(&rd->m_entity.m_domain->m_shm_monitor, rd);
+    (void) dds_shm_monitor_detach_reader(&rd->m_entity.m_domain->m_shm_monitor, rd);
   //from now on no callbacks on this reader will run
   }
 #endif
@@ -453,22 +453,22 @@ void dds_reader_invoke_cbs_for_pending_events(struct dds_entity *e, uint32_t sta
   struct dds_listener const * const lst =  &e->m_listener;
 
   if (lst->on_requested_deadline_missed && (status & DDS_REQUESTED_DEADLINE_MISSED_STATUS)) {
-    status_cb_requested_deadline_missed_invoke(rdr);
+    (void) status_cb_requested_deadline_missed_invoke(rdr);
   }
   if (lst->on_requested_incompatible_qos && (status & DDS_REQUESTED_INCOMPATIBLE_QOS_STATUS)) {
-    status_cb_requested_incompatible_qos_invoke(rdr);
+    (void) status_cb_requested_incompatible_qos_invoke(rdr);
   }
   if (lst->on_sample_lost && (status & DDS_SAMPLE_LOST_STATUS)) {
-    status_cb_sample_lost_invoke(rdr);
+    (void) status_cb_sample_lost_invoke(rdr);
   }
   if (lst->on_sample_rejected && (status & DDS_SAMPLE_REJECTED_STATUS)) {
-    status_cb_sample_rejected_invoke(rdr);
+    (void) status_cb_sample_rejected_invoke(rdr);
   }
   if (lst->on_liveliness_changed && (status & DDS_LIVELINESS_CHANGED_STATUS)) {
-    status_cb_liveliness_changed_invoke(rdr);
+    (void) status_cb_liveliness_changed_invoke(rdr);
   }
   if (lst->on_subscription_matched && (status & DDS_SUBSCRIPTION_MATCHED_STATUS)) {
-    status_cb_subscription_matched_invoke(rdr);
+    (void) status_cb_subscription_matched_invoke(rdr);
   }
   if ((status & DDS_DATA_AVAILABLE_STATUS)) {
     const uint32_t status_and_mask = ddsrt_atomic_ld32 (&e->m_status.m_status_and_mask);

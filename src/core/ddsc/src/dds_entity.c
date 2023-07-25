@@ -527,7 +527,7 @@ static dds_return_t really_delete_pinned_closed_locked (struct dds_entity *e, en
     ddsrt_avl_delete (&dds_entity_children_td, &p->m_children, e);
     if (dds_handle_drop_childref_and_pin (&p->m_hdllink, delstate != DIS_FROM_PARENT))
     {
-      dds_handle_close(&p->m_hdllink);
+      (void) dds_handle_close(&p->m_hdllink);
       assert (dds_handle_is_closed (&p->m_hdllink));
       assert (dds_handle_is_not_refd (&p->m_hdllink));
       assert (ddsrt_avl_is_empty (&p->m_children));
@@ -855,7 +855,7 @@ static void pushdown_pubsub_qos (dds_entity *e)
 
       ddsrt_mutex_lock (&c->m_mutex);
       ddsrt_mutex_lock (&e->m_mutex);
-      dds_set_qos_locked_impl (c, e->m_qos, DDSI_QP_GROUP_DATA | DDSI_QP_PARTITION);
+      (void) dds_set_qos_locked_impl (c, e->m_qos, DDSI_QP_GROUP_DATA | DDSI_QP_PARTITION);
       ddsrt_mutex_unlock (&c->m_mutex);
       dds_entity_unpin (c);
     }
@@ -893,7 +893,7 @@ static void pushdown_topic_qos (dds_entity *e, struct dds_ktopic *ktp)
       struct dds_participant * const pp = dds_entity_participant (e);
       ddsrt_mutex_lock (&e->m_mutex);
       ddsrt_mutex_lock (&pp->m_entity.m_mutex);
-      dds_set_qos_locked_impl (e, ktp->qos, DDSI_QP_TOPIC_DATA);
+      (void) dds_set_qos_locked_impl (e, ktp->qos, DDSI_QP_TOPIC_DATA);
       ddsrt_mutex_unlock (&pp->m_entity.m_mutex);
       ddsrt_mutex_unlock (&e->m_mutex);
       break;
@@ -1279,7 +1279,7 @@ dds_return_t dds_get_guid (dds_entity_t entity, dds_guid_t *guid)
     case DDS_KIND_TOPIC: {
       DDSRT_STATIC_ASSERT (sizeof (dds_guid_t) == sizeof (ddsi_guid_t));
       ddsi_guid_t tmp = ddsi_ntoh_guid (e->m_guid);
-      memcpy (guid, &tmp, sizeof (*guid));
+      (void) memcpy (guid, &tmp, sizeof (*guid));
       ret = DDS_RETCODE_OK;
       break;
     }

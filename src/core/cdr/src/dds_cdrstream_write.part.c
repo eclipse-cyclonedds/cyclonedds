@@ -193,7 +193,7 @@ static const uint32_t *dds_stream_write_seqBO (DDS_OSTREAM_T * __restrict os, co
   if (is_dheader_needed (subtype, xcdrv))
   {
     /* reserve space for DHEADER */
-    dds_os_reserve4BO (os, allocator);
+    (void) dds_os_reserve4BO (os, allocator);
     offs = ((struct dds_ostream *)os)->m_index;
   }
 
@@ -290,7 +290,7 @@ static const uint32_t *dds_stream_write_arrBO (DDS_OSTREAM_T * __restrict os, co
   if (is_dheader_needed (subtype, xcdrv))
   {
     /* reserve space for DHEADER */
-    dds_os_reserve4BO (os, allocator);
+    (void) dds_os_reserve4BO (os, allocator);
     offs = ((struct dds_ostream *)os)->m_index;
   }
   const uint32_t num = ops[2];
@@ -581,7 +581,7 @@ static const uint32_t *dds_stream_write_plBO (DDS_OSTREAM_T * __restrict os, con
   ops++;
 
   /* alloc space for dheader */
-  dds_os_reserve4BO (os, allocator);
+  (void) dds_os_reserve4BO (os, allocator);
   uint32_t data_offs = os->x.m_index;
 
   /* write members, including members from base types */

@@ -277,7 +277,7 @@ char *ddsi_ipaddr_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t 
     switch (src.ss_family)
     {
       case AF_INET:
-        ddsrt_sockaddrtostr ((const struct sockaddr *) &src, dst, sizeof_dst);
+        (void) ddsrt_sockaddrtostr ((const struct sockaddr *) &src, dst, sizeof_dst);
         pos = strlen (dst);
         if (with_port) {
           assert(pos <= sizeof_dst);
@@ -287,7 +287,7 @@ char *ddsi_ipaddr_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t 
 #if DDSRT_HAVE_IPV6
       case AF_INET6:
         dst[0] = '[';
-        ddsrt_sockaddrtostr ((const struct sockaddr *) &src, dst + 1, sizeof_dst);
+        (void) ddsrt_sockaddrtostr ((const struct sockaddr *) &src, dst + 1, sizeof_dst);
         pos = strlen (dst);
         if (with_port) {
           assert(pos <= sizeof_dst);

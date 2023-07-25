@@ -449,7 +449,7 @@ void ddsrt_avl_insert (const ddsrt_avl_treedef_t *td, ddsrt_avl_tree_t *tree, vo
     } else {
         key = LOAD_DIRKEY (node, td);
     }
-    ddsrt_avl_lookup_ipath (td, tree, key, &path);
+    (void) ddsrt_avl_lookup_ipath (td, tree, key, &path);
     ddsrt_avl_insert_ipath (td, tree, vnode, &path);
 }
 
@@ -557,7 +557,7 @@ void ddsrt_avl_swap_node (const ddsrt_avl_treedef_t *td, ddsrt_avl_tree_t *tree,
     /* use memmove so partially overlap between old & new is allowed
        (yikes!, but exploited by the memory allocator, and not a big
        deal to get right) */
-    memmove (new, old, sizeof (*new));
+    (void) memmove (new, old, sizeof (*new));
     if (new->cs[0]) {
         new->cs[0]->parent = new;
     }

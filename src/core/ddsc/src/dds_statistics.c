@@ -24,7 +24,7 @@ struct dds_statistics *dds_alloc_statistics (const struct dds_entity *e, const s
   s->opaque = e->m_iid;
   s->time = 0;
   s->count = d->count;
-  memset (s->kv, 0, d->count * sizeof (s->kv[0]));
+  (void) memset (s->kv, 0, d->count * sizeof (s->kv[0]));
   for (size_t i = 0; i < s->count; i++)
   {
     s->kv[i].kind = d->kv[i].kind;

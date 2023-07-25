@@ -143,7 +143,7 @@ dds_entity_t dds__get_builtin_topic (dds_entity_t entity, dds_entity_t topic)
   {
     /* keep ownership for built-in sertypes because there are re-used, lifetime for these
        sertypes is bound to domain */
-    ddsi_sertype_ref (sertype);
+    (void) ddsi_sertype_ref (sertype);
   }
   dds_delete_qos (qos);
   dds_entity_unpin (e);
@@ -345,7 +345,7 @@ static void dds__builtin_write_endpoint (const struct ddsi_entity_common *e, dds
         abort ();
         break;
     }
-    dds_writecdr_local_orphan_impl (bwr, serdata);
+    (void) dds_writecdr_local_orphan_impl (bwr, serdata);
   }
 }
 
@@ -355,7 +355,7 @@ static void dds__builtin_write_topic (const struct ddsi_topic_definition *tpd, d
   struct dds_domain *dom = vdomain;
   struct ddsi_local_orphan_writer *bwr = dom->builtintopic_writer_topics;
   struct ddsi_serdata *serdata = dds__builtin_make_sample_topic_impl (tpd, timestamp, alive);
-  dds_writecdr_local_orphan_impl (bwr, serdata);
+  (void) dds_writecdr_local_orphan_impl (bwr, serdata);
 }
 #endif
 

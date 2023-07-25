@@ -329,7 +329,7 @@ size_t ddsrt_prng_random_name(ddsrt_prng_t *prng, char* output, size_t output_si
       size_t len = strlen(parts[i]);
       if (len > output_size - 1) len = output_size - 1;
       slen += len;
-      memcpy(output, parts[i], len);
+      (void) memcpy(output, parts[i], len);
 
       if (i == 0 && len > 0) {
         // capitalize
@@ -353,7 +353,7 @@ void ddsrt_random_init (void)
     static ddsrt_atomic_uint32_t counter = DDSRT_ATOMIC_UINT32_INIT (0);
     /* Poor man's initialisation */
     DDSRT_STATIC_ASSERT (sizeof (seed.key) / sizeof (seed.key[0]) >= 4);
-    memset (&seed, 0, sizeof (seed));
+    (void) memset (&seed, 0, sizeof (seed));
     dds_time_t now = dds_time ();
     seed.key[0] = (uint32_t) ddsrt_getpid ();
     seed.key[1] = (uint32_t) ((uint64_t) now >> 32);

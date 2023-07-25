@@ -65,10 +65,10 @@ static dds_builtintopic_endpoint_t *make_builtintopic_endpoint (const ddsi_guid_
   ddsi_guid_t tmp;
   ep = dds_alloc (sizeof (*ep));
   tmp = ddsi_hton_guid (*guid);
-  memcpy (&ep->key, &tmp, sizeof (ep->key));
+  (void) memcpy (&ep->key, &tmp, sizeof (ep->key));
   ep->participant_instance_handle = ppiid;
   tmp = ddsi_hton_guid (*ppguid);
-  memcpy (&ep->participant_key, &tmp, sizeof (ep->participant_key));
+  (void) memcpy (&ep->participant_key, &tmp, sizeof (ep->participant_key));
   ep->qos = dds_create_qos ();
   ddsi_xqos_mergein_missing (ep->qos, qos, ~(DDSI_QP_TOPIC_NAME | DDSI_QP_TYPE_NAME));
   ep->topic_name = dds_string_dup (qos->topic_name);

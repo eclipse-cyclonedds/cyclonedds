@@ -168,16 +168,16 @@ void dds_writer_invoke_cbs_for_pending_events(struct dds_entity *e, uint32_t sta
   struct dds_listener const * const lst =  &e->m_listener;
 
   if (lst->on_publication_matched && (status & DDS_PUBLICATION_MATCHED_STATUS)) {
-    status_cb_publication_matched_invoke(wr);
+    (void) status_cb_publication_matched_invoke(wr);
   }
   if (lst->on_liveliness_lost && (status & DDS_LIVELINESS_LOST_STATUS)) {
-    status_cb_liveliness_lost_invoke(wr);
+    (void) status_cb_liveliness_lost_invoke(wr);
   }
   if (lst->on_offered_incompatible_qos && (status & DDS_OFFERED_INCOMPATIBLE_QOS_STATUS)) {
-    status_cb_offered_incompatible_qos_invoke(wr);
+    (void) status_cb_offered_incompatible_qos_invoke(wr);
   }
   if (lst->on_offered_deadline_missed && (status & DDS_OFFERED_DEADLINE_MISSED_STATUS)) {
-    status_cb_offered_deadline_missed_invoke(wr);
+    (void) status_cb_offered_deadline_missed_invoke(wr);
   }
 }
 
@@ -187,7 +187,7 @@ static void dds_writer_interrupt (dds_entity *e)
 {
   struct ddsi_domaingv * const gv = &e->m_domain->gv;
   ddsi_thread_state_awake (ddsi_lookup_thread_state (), gv);
-  ddsi_unblock_throttled_writer (gv, &e->m_guid);
+  (void) ddsi_unblock_throttled_writer (gv, &e->m_guid);
   ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
 }
 
@@ -462,7 +462,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
     assert (part_topic != NULL);
     wr->m_iox_pub = iox_pub_init(&(iox_pub_storage_t){0}, gv->config.iceoryx_service, wr->m_topic->m_stype->type_name, part_topic, &opts);
     ddsrt_free (part_topic);
-    memset(wr->m_iox_pub_loans, 0, sizeof(wr->m_iox_pub_loans));
+    (void) memset(wr->m_iox_pub_loans, 0, sizeof(wr->m_iox_pub_loans));
   }
 #endif
 

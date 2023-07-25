@@ -210,7 +210,7 @@ dds_return_t dds_security_load_security_library (const dds_security_plugin_confi
   if (lib_ret != DDS_RETCODE_OK)
   {
     char buffer[256];
-    ddsrt_dlerror (buffer, sizeof (buffer));
+    (void) ddsrt_dlerror (buffer, sizeof (buffer));
     GVERROR ("Could not load %s library: %s\n", security_plugin->name, buffer);
     goto load_error;
   }

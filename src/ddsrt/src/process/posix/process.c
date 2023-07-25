@@ -66,7 +66,7 @@ ddsrt_getprocessname(void)
     if (buff[0] != '\0') {
       appname = _basename(buff);
     }
-    fclose(fp);
+    (void) fclose(fp);
   }
 #endif
 

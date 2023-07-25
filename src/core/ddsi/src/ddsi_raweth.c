@@ -205,14 +205,14 @@ static dds_return_t ddsi_raweth_create_conn (struct ddsi_tran_conn **conn_out, s
   rc = ddsrt_bind(sock, (struct sockaddr *)&addr, sizeof(addr));
   if (rc != DDS_RETCODE_OK)
   {
-    ddsrt_close(sock);
+    (void) ddsrt_close(sock);
     DDS_CERROR (&fact->gv->logconfig, "ddsi_raweth_create_conn %s bind port %u failed ... retcode = %d\n", mcast ? "multicast" : "unicast", port, rc);
     return DDS_RETCODE_ERROR;
   }
 
   if ((uc = (ddsi_raweth_conn_t) ddsrt_malloc (sizeof (*uc))) == NULL)
   {
-    ddsrt_close(sock);
+    (void) ddsrt_close(sock);
     return DDS_RETCODE_ERROR;
   }
 
@@ -287,7 +287,7 @@ static void ddsi_raweth_release_conn (struct ddsi_tran_conn * conn)
               conn->m_base.m_multicast ? "multicast" : "unicast",
               uc->m_sock,
               uc->m_base.m_base.m_port);
-  ddsrt_close (uc->m_sock);
+  (void) ddsrt_close (uc->m_sock);
   ddsrt_free (conn);
 }
 

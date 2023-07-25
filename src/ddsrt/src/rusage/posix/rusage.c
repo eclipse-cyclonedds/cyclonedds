@@ -86,7 +86,7 @@ ddsrt_getrusage_anythread (
       }
     }
   }
-  fclose (fp);
+  (void) fclose (fp);
   assert (savepos < sizeof (save));
   save[savepos] = 0;
   if (savepos == sizeof (save) - 1)
@@ -144,7 +144,7 @@ ddsrt_getrusage_anythread (
         break;
     }
   }
-  fclose (fp);
+  (void) fclose (fp);
   return (state == ERROR) ? DDS_RETCODE_ERROR : DDS_RETCODE_OK;
 }
 

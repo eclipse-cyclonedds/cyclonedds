@@ -126,7 +126,7 @@ static void sertype_default_free (struct ddsi_sertype *tpcmn)
 static void sertype_default_zero_samples (const struct ddsi_sertype *sertype_common, void *sample, size_t count)
 {
   const struct dds_sertype_default *tp = (const struct dds_sertype_default *)sertype_common;
-  memset (sample, 0, tp->type.size * count);
+  (void) memset (sample, 0, tp->type.size * count);
 }
 
 static void sertype_default_realloc_samples (void **ptrs, const struct ddsi_sertype *sertype_common, void *old, size_t oldcount, size_t count)
@@ -135,7 +135,7 @@ static void sertype_default_realloc_samples (void **ptrs, const struct ddsi_sert
   const size_t size = tp->type.size;
   char *new = (oldcount == count) ? old : dds_realloc (old, size * count);
   if (new && count > oldcount)
-    memset (new + size * oldcount, 0, size * (count - oldcount));
+    (void) memset (new + size * oldcount, 0, size * (count - oldcount));
   for (size_t i = 0; i < count; i++)
   {
     void *ptr = (char *) new + i * size;

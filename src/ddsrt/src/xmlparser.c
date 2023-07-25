@@ -193,7 +193,7 @@ static bool make_chars_available (struct ddsrt_xmlp_state *st, size_t nmin)
   /* ensure buffer space is available */
   if (st->fp != NULL) {
     if (pos + nmin > st->cbufmax) {
-      memmove (st->cbuf, st->cbuf + pos, st->cbufn - pos);
+      (void) memmove (st->cbuf, st->cbuf + pos, st->cbufn - pos);
       st->cbufn -= pos;
       st->cbufp -= pos;
       if (st->cbufmark != NOMARKER) {
@@ -430,7 +430,7 @@ static int save_payload (char **payload, struct ddsrt_xmlp_state *st, int trim)
     } else {
       p = ddsrt_malloc (last - first + 2);
       /* Could be improved, parser error will be "invalid char sequence" if malloc fails. */
-      memcpy (p, st->tp + first, last - first + 1);
+      (void) memcpy (p, st->tp + first, last - first + 1);
       p[last - first + 1] = 0;
     }
   }
@@ -473,7 +473,7 @@ static int next_token_tag_withoutclose (struct ddsrt_xmlp_state *st, char **payl
     } else if (!qq_isidentfirst (peek_char (st))) {
       return TOK_ERROR;
     } else {
-      next_token_ident (st, payload);
+      (void) next_token_ident (st, payload);
       return tok;
     }
   }
@@ -630,7 +630,7 @@ static int parse_element (struct ddsrt_xmlp_state *st, uintptr_t parentinfo)
 
   while (peek_token (st) == TOK_ID) {
     char *content;
-    next_token (st, &aname);
+    (void) next_token (st, &aname);
     if (next_token (st, NULL) != '=') {
       PE_LOCAL_ERROR ("expecting '=' following attribute name", aname);
     }

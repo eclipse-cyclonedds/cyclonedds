@@ -22,7 +22,7 @@
 void ddsrt_mutex_init (ddsrt_mutex_t *mutex)
 {
   assert (mutex != NULL);
-  pthread_mutex_init (&mutex->mutex, NULL);
+  (void) pthread_mutex_init (&mutex->mutex, NULL);
 }
 
 void ddsrt_mutex_destroy (ddsrt_mutex_t *mutex)
@@ -67,7 +67,7 @@ ddsrt_cond_init (ddsrt_cond_t *cond)
 {
   assert (cond != NULL);
 
-  pthread_cond_init (&cond->cond, NULL);
+  (void) pthread_cond_init (&cond->cond, NULL);
 }
 
 void
