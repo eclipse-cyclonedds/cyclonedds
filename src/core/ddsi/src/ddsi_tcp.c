@@ -1179,7 +1179,7 @@ static enum ddsi_nearby_address_result ddsi_tcp_is_nearby_address (const ddsi_lo
 static int ddsi_tcp_is_valid_port (const struct ddsi_tran_factory *fact, uint32_t port)
 {
   (void) fact;
-  return (port <= 65535);
+  return (0 < port && port <= 65535);
 }
 
 static uint32_t ddsi_tcp_receive_buffer_size (const struct ddsi_tran_factory *fact)

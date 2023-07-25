@@ -112,7 +112,9 @@ static enum make_uc_sockets_ret make_uc_sockets (struct ddsi_domaingv *gv, uint3
   *pdisc = ddsi_get_port (&gv->config, DDSI_PORT_UNI_DISC, ppid);
   *pdata = ddsi_get_port (&gv->config, DDSI_PORT_UNI_DATA, ppid);
 
-  if (!ddsi_is_valid_port (gv->m_factory, *pdisc) || !ddsi_is_valid_port (gv->m_factory, *pdata))
+  if (*pdisc != 0 && !ddsi_is_valid_port (gv->m_factory, *pdisc))
+    return MUSRET_INVALID_PORTS;
+  if (*pdata != 0 && !ddsi_is_valid_port (gv->m_factory, *pdata))
     return MUSRET_INVALID_PORTS;
 
   const struct ddsi_tran_qos qos = { .m_purpose = DDSI_TRAN_QOS_RECV_UC, .m_diffserv = 0, .m_interface = NULL };
@@ -1489,8 +1491,10 @@ int ddsi_init (struct ddsi_domaingv *gv)
   }
   else
   {
-    if (gv->config.tcp_port == -1)
+    if (gv->config.tcp_port < 0)
       ; /* nop */
+    else if (gv->config.tcp_port == 0)
+      ; /* kernel-allocated random port */
     else if (!ddsi_is_valid_port (gv->m_factory, (uint32_t) gv->config.tcp_port))
     {
       GVERROR ("Listener port %d is out of range for transport %s\n", gv->config.tcp_port, gv->m_factory->m_typename);

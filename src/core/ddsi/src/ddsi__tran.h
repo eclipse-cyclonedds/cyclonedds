@@ -252,7 +252,7 @@ inline dds_return_t ddsi_factory_create_conn (struct ddsi_tran_conn **conn, stru
   *conn = NULL;
   if ((qos->m_interface != NULL) != (qos->m_purpose == DDSI_TRAN_QOS_XMIT_UC || qos->m_purpose == DDSI_TRAN_QOS_XMIT_MC))
     return DDS_RETCODE_BAD_PARAMETER;
-  if (!ddsi_is_valid_port (factory, port))
+  if (port != 0 && !ddsi_is_valid_port (factory, port))
     return DDS_RETCODE_BAD_PARAMETER;
   return factory->m_create_conn_fn (conn, factory, port, qos);
 }
@@ -260,7 +260,7 @@ inline dds_return_t ddsi_factory_create_conn (struct ddsi_tran_conn **conn, stru
 /** @component transport */
 inline dds_return_t ddsi_factory_create_listener (struct ddsi_tran_listener **listener, struct ddsi_tran_factory * factory, uint32_t port, const struct ddsi_tran_qos *qos) {
   *listener = NULL;
-  if (!ddsi_is_valid_port (factory, port))
+  if (port != 0 && !ddsi_is_valid_port (factory, port))
     return DDS_RETCODE_BAD_PARAMETER;
   return factory->m_create_listener_fn (listener, factory, port, qos);
 }

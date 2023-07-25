@@ -856,7 +856,7 @@ static void ddsi_udp_fini (struct ddsi_tran_factory * fact_cmn)
 static int ddsi_udp_is_valid_port (const struct ddsi_tran_factory *fact, uint32_t port)
 {
   (void) fact;
-  return (port <= 65535);
+  return (0 < port && port <= 65535);
 }
 
 static uint32_t ddsi_udp_receive_buffer_size (const struct ddsi_tran_factory *fact_cmn)
