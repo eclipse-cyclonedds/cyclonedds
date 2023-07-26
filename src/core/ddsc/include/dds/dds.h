@@ -4573,7 +4573,7 @@ dds_get_matched_publication_data (
   dds_entity_t reader,
   dds_instance_handle_t ih);
 
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
 /**
  * @brief Gets the type information from endpoint information that was
  *        retrieved by dds_get_matched_subscription_data or
@@ -4595,7 +4595,8 @@ DDS_EXPORT dds_return_t
 dds_builtintopic_get_endpoint_type_info (
   dds_builtintopic_endpoint_t * builtintopic_endpoint,
   const dds_typeinfo_t ** type_info);
-#endif
+
+#endif /* DDS_HAS_TYPELIB */
 
 /**
  * @brief Free the endpoint information that was retrieved by
@@ -4808,7 +4809,7 @@ dds_free_typeobj (
  *             The operation is invoked on an inappropriate object.
  * @retval DDS_RETCODE_UNSUPPORTED
  *             Cyclone DDS built without type discovery
- *             (cf. DDS_HAS_TYPE_DISCOVERY)
+ *             (cf. DDS_HAS_TYPELIB)
 */
 DDS_EXPORT dds_return_t
 dds_get_typeinfo (
@@ -4831,7 +4832,7 @@ dds_get_typeinfo (
  *             The type_info parameter is NULL
  * @retval DDS_RETCODE_UNSUPPORTED
  *             Cyclone DDS built without type discovery
- *             (cf. DDS_HAS_TYPE_DISCOVERY)
+ *             (cf. DDS_HAS_TYPELIB)
 */
 DDS_EXPORT dds_return_t
 dds_free_typeinfo (

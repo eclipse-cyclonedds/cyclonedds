@@ -166,7 +166,7 @@ static void reader_qos_mismatch (struct ddsi_reader * rd, dds_qos_policy_id_t re
 }
 
 static bool topickind_qos_match_p_lock (struct ddsi_domaingv *gv, struct ddsi_entity_common *rd, const dds_qos_t *rdqos, struct ddsi_entity_common *wr, const dds_qos_t *wrqos, dds_qos_policy_id_t *reason
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
     , const struct ddsi_type_pair *rd_type_pair, const struct ddsi_type_pair *wr_type_pair
 #endif
 )
@@ -204,6 +204,8 @@ static bool topickind_qos_match_p_lock (struct ddsi_domaingv *gv, struct ddsi_en
       proxypp_guid = &((struct ddsi_generic_proxy_endpoint *) wr)->c.proxypp->e.guid;
     }
   }
+#elif DDS_HAS_TYPELIB
+  bool ret = ddsi_qos_match_p (gv, rdqos, wrqos, reason, rd_type_pair, wr_type_pair);
 #else
   bool ret = ddsi_qos_match_p (gv, rdqos, wrqos, reason);
 #endif
@@ -260,7 +262,7 @@ static void connect_writer_with_proxy_reader (struct ddsi_writer *wr, struct dds
     return;
   if (wr->e.onlylocal)
     return;
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
   if (!isb0 && !topickind_qos_match_p_lock (gv, &prd->e, prd->c.xqos, &wr->e, wr->xqos, &reason, prd->c.type_pair, wr->c.type_pair))
 #else
   if (!isb0 && !topickind_qos_match_p_lock (gv, &prd->e, prd->c.xqos, &wr->e, wr->xqos, &reason))
@@ -302,7 +304,7 @@ static void connect_proxy_writer_with_reader (struct ddsi_proxy_writer *pwr, str
     return;
   if (rd->e.onlylocal)
     return;
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
   if (!isb0 && !topickind_qos_match_p_lock (rd->e.gv, &rd->e, rd->xqos, &pwr->e, pwr->c.xqos, &reason, rd->c.type_pair, pwr->c.type_pair))
 #else
   if (!isb0 && !topickind_qos_match_p_lock (rd->e.gv, &rd->e, rd->xqos, &pwr->e, pwr->c.xqos, &reason))
@@ -372,7 +374,7 @@ static void connect_writer_with_reader (struct ddsi_writer *wr, struct ddsi_read
     return;
   if (ignore_local_p (&wr->e.guid, &rd->e.guid, wr->xqos, rd->xqos))
     return;
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
   if (!topickind_qos_match_p_lock (wr->e.gv, &rd->e, rd->xqos, &wr->e, wr->xqos, &reason, rd->c.type_pair, wr->c.type_pair))
 #else
   if (!topickind_qos_match_p_lock (wr->e.gv, &rd->e, rd->xqos, &wr->e, wr->xqos, &reason))

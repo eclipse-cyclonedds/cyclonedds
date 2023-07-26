@@ -20,7 +20,6 @@
 #include "dds/ddsi/ddsi_sertype.h"
 #include "ddsi__plist_generic.h"
 #include "ddsi__serdata_pserop.h"
-#include "ddsi__typelookup.h"
 
 static bool sertype_pserop_equal (const struct ddsi_sertype *acmn, const struct ddsi_sertype *bcmn)
 {

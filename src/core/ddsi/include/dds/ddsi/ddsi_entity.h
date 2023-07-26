@@ -50,7 +50,7 @@ typedef struct ddsi_status_cb_data
 typedef void (*ddsi_status_cb_t) (void *entity, const ddsi_status_cb_data_t *data);
 
 typedef struct ddsi_type_pair
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
 {
   struct ddsi_type *minimal;
   struct ddsi_type *complete;

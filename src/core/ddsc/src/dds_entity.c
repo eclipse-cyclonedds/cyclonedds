@@ -30,6 +30,10 @@
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/ddsi_sertype.h"
 
+#ifdef DDS_HAS_TYPELIB
+#include "dds/ddsi/ddsi_typelib.h"
+#endif
+
 extern inline dds_entity *dds_entity_from_handle_link (struct dds_handle_link *hdllink);
 extern inline bool dds_entity_is_enabled (const dds_entity *e);
 extern inline void dds_entity_status_reset (dds_entity *e, status_mask_t t);
@@ -1629,7 +1633,7 @@ dds_return_t dds_return_loan (dds_entity_t entity, void **buf, int32_t bufsz)
   return ret;
 }
 
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
 
 dds_return_t dds_get_typeinfo (dds_entity_t entity, dds_typeinfo_t **type_info)
 {
@@ -1677,7 +1681,7 @@ dds_return_t dds_free_typeinfo (dds_typeinfo_t *type_info)
   return DDS_RETCODE_OK;
 }
 
-#else
+#else /* DDS_HAS_TYPELIB */
 
 dds_return_t dds_get_typeinfo (dds_entity_t entity, dds_typeinfo_t **type_info)
 {
@@ -1692,7 +1696,7 @@ dds_return_t dds_free_typeinfo (dds_typeinfo_t *type_info)
   return DDS_RETCODE_UNSUPPORTED;
 }
 
-#endif /* DDS_HAS_TYPE_DISCOVERY */
+#endif /* DDS_HAS_TYPELIB */
 
 
 dds_return_t dds_get_entity_sertype (dds_entity_t entity, const struct ddsi_sertype **sertype)

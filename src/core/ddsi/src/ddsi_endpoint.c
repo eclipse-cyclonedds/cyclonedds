@@ -416,7 +416,7 @@ static bool is_onlylocal_endpoint (struct ddsi_participant *pp, const char *topi
 
 static void endpoint_common_init (struct ddsi_entity_common *e, struct ddsi_endpoint_common *c, struct ddsi_domaingv *gv, enum ddsi_entity_kind kind, const struct ddsi_guid *guid, const struct ddsi_guid *group_guid, struct ddsi_participant *pp, bool onlylocal, const struct ddsi_sertype *sertype)
 {
-#ifndef DDS_HAS_TYPE_DISCOVERY
+#ifndef DDS_HAS_TYPELIB
   DDSRT_UNUSED_ARG (sertype);
 #endif
   ddsi_entity_common_init (e, gv, guid, kind, ddsrt_time_wallclock (), DDSI_VENDORID_ECLIPSE, pp->e.onlylocal || onlylocal);
@@ -426,7 +426,7 @@ static void endpoint_common_init (struct ddsi_entity_common *e, struct ddsi_endp
   else
     memset (&c->group_guid, 0, sizeof (c->group_guid));
 
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
   c->type_pair = ddsrt_malloc (sizeof (*c->type_pair));
 
   /* Referencing the top-level type shouldn't fail at this point. The sertype that is passed,
@@ -449,7 +449,7 @@ static void endpoint_common_fini (struct ddsi_entity_common *e, struct ddsi_endp
   if (c->pp)
   {
     ddsi_unref_participant (c->pp, &e->guid);
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
     if (c->type_pair)
     {
       ddsi_type_unref (e->gv, c->type_pair->minimal);
@@ -1023,7 +1023,7 @@ struct ddsi_local_orphan_writer *ddsi_new_local_orphan_writer (struct ddsi_domai
   wr->c.pp = NULL;
   memset (&wr->c.group_guid, 0, sizeof (wr->c.group_guid));
 
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
   wr->c.type_pair = NULL;
 #endif
 
@@ -1313,7 +1313,7 @@ dds_return_t ddsi_delete_writer (struct ddsi_domaingv *gv, const struct ddsi_gui
     ddsrt_mtime_to_sec_usec (&tsec, &tusec, tsched);
     GVLOGDISC ("delete_writer(guid "PGUIDFMT") - unack'ed samples, will delete when ack'd or at t = %"PRId32".%06"PRId32"\n",
                PGUID (*guid), tsec, tusec);
-    
+
     struct ddsi_delete_writer_xevent_cb_arg arg = { .wr_guid = wr->e.guid };
     ddsi_qxev_callback (gv->xevents, tsched, ddsi_delete_writer_xevent_cb, &arg, sizeof (arg), false);
   }

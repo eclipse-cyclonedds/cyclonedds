@@ -20,6 +20,10 @@
 #include "dds/ddsi/ddsi_typewrap.h"
 #include "dds/ddsi/ddsi_xt_typeinfo.h"
 #include "dds/ddsi/ddsi_xt_typemap.h"
+#ifdef DDS_HAS_TYPELIB
+#include "dds/ddsi/ddsi_typelib.h"
+#endif
+
 #include "dds/cdr/dds_cdrstream.h"
 #include "dds/ddsc/dds_opcodes.h"
 

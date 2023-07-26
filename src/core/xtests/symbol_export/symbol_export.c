@@ -51,6 +51,9 @@
 #include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_gc.h"
+#ifdef DDS_HAS_TYPELIB
+#include "dds/ddsi/ddsi_typelib.h"
+#endif
 
 #ifdef DDS_HAS_SECURITY
 #include "dds/security/core/dds_security_serialize.h"
@@ -228,7 +231,7 @@ int main (int argc, char **argv)
   dds_get_matched_subscription_data (1, 1);
   dds_get_matched_publications (1, ptr, 0);
   dds_get_matched_publication_data (1, 1);
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
   dds_builtintopic_get_endpoint_type_info (ptr, ptr);
 #endif
   dds_builtintopic_free_endpoint (ptr);
@@ -409,7 +412,7 @@ int main (int argc, char **argv)
   dds_get_requested_deadline_missed_status (1, ptr);
   dds_get_requested_incompatible_qos_status (1, ptr);
 
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
   // dds_public_dynamic_type.h
   dds_dynamic_member_set_external (ptr, 0, 0);
   dds_dynamic_member_set_hashid (ptr, 0, ptr);
@@ -641,7 +644,7 @@ int main (int argc, char **argv)
   ddsi_serdata_from_loaned_sample (ptr, 0, ptr);
 #endif
 
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
   // ddsi_typewrap.h
   ddsi_typeid_compare (ptr, ptr);
   ddsi_typeid_copy (ptr, ptr);

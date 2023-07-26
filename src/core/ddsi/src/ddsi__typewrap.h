@@ -24,8 +24,6 @@
 extern "C" {
 #endif
 
-#ifdef DDS_HAS_TYPE_DISCOVERY
-
 #define XT_FLAG_EXTENSIBILITY_MASK  0x7
 
 #define DDS_XTypes_TRY_CONSTRUCT_INVALID 0
@@ -36,7 +34,7 @@ extern "C" {
 struct xt_type;
 
 /** @component xtypes_wrapper */
-bool ddsi_type_id_with_deps_equal (const struct DDS_XTypes_TypeIdentifierWithDependencies *a, const struct DDS_XTypes_TypeIdentifierWithDependencies *b, ddsi_type_include_deps_t deps);
+bool ddsi_type_id_with_deps_equal (const struct DDS_XTypes_TypeIdentifierWithDependencies *a, const struct DDS_XTypes_TypeIdentifierWithDependencies *b, enum ddsi_type_include_deps deps);
 
 /** @component xtypes_wrapper */
 const char * ddsi_typekind_descr (unsigned char disc);
@@ -82,8 +80,6 @@ void ddsi_xt_copy (struct ddsi_domaingv *gv, struct xt_type *dst, const struct x
 
 /** @component xtypes_wrapper */
 void ddsi_xt_get_namehash (DDS_XTypes_NameHash name_hash, const char *name);
-
-#endif /* DDS_HAS_TYPE_DISCOVERY */
 
 #if defined (__cplusplus)
 }

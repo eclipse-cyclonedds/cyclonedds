@@ -16,7 +16,10 @@
 
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_entity.h"
+
+#ifdef DDS_HAS_TOPIC_DISCOVERY
 #include "dds/ddsi/ddsi_typelib.h"
+#endif
 
 #if defined (__cplusplus)
 extern "C" {

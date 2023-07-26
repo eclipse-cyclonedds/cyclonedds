@@ -23,7 +23,7 @@
 extern "C" {
 #endif
 
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
 
 #define DDS_XTypes_TRY_CONSTRUCT_INVALID 0
 #define DDS_XTypes_TRY_CONSTRUCT_DISCARD DDS_XTypes_TRY_CONSTRUCT1
@@ -43,10 +43,10 @@ typedef enum ddsi_typeid_kind {
   DDSI_TYPEID_KIND_FULLY_DESCRIPTIVE
 } ddsi_typeid_kind_t;
 
-typedef enum ddsi_type_include_deps {
+enum ddsi_type_include_deps {
   DDSI_TYPE_IGNORE_DEPS,
   DDSI_TYPE_INCLUDE_DEPS
-} ddsi_type_include_deps_t;
+};
 
 /** @component xtypes_wrapper */
 DDS_EXPORT int ddsi_typeid_compare (const ddsi_typeid_t *a, const ddsi_typeid_t *b);
@@ -87,14 +87,14 @@ DDS_EXPORT void ddsi_typeid_fini (ddsi_typeid_t *type_id);
 /** @component xtypes_wrapper */
 void ddsi_typeobj_fini (ddsi_typeobj_t *typeobj);
 
-#else /* DDS_HAS_TYPE_DISCOVERY */
+#else /* DDS_HAS_TYPELIB */
 
 typedef void ddsi_typeid_t;
 typedef int ddsi_typeid_kind_t;
 typedef void ddsi_typemap_t;
 typedef void ddsi_typeinfo_t;
 
-#endif /* DDS_HAS_TYPE_DISCOVERY */
+#endif /* DDS_HAS_TYPELIB */
 
 #if defined (__cplusplus)
 }

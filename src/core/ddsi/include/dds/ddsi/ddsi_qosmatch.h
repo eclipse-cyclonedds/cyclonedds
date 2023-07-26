@@ -42,9 +42,11 @@ bool ddsi_qos_match_mask_p (
     const dds_qos_t *wr_qos,
     uint64_t mask,
     dds_qos_policy_id_t *reason
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
     , const struct ddsi_type_pair *rd_type_pair
     , const struct ddsi_type_pair *wr_type_pair
+#endif
+#ifdef DDS_HAS_TYPE_DISCOVERY
     , bool *rd_typeid_req_lookup
     , bool *wr_typeid_req_lookup
 #endif
@@ -56,9 +58,11 @@ bool ddsi_qos_match_p (
     const dds_qos_t *rd_qos,
     const dds_qos_t *wr_qos,
     dds_qos_policy_id_t *reason
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
     , const struct ddsi_type_pair *rd_type_pair
     , const struct ddsi_type_pair *wr_type_pair
+#endif
+#ifdef DDS_HAS_TYPE_DISCOVERY
     , bool *rd_typeid_req_lookup
     , bool *wr_typeid_req_lookup
 #endif

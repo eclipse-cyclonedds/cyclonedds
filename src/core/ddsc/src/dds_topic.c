@@ -228,7 +228,7 @@ static void dds_topic_close (dds_entity *e)
   struct dds_ktopic * const ktp = tp->m_ktopic;
   assert (dds_entity_kind (e->m_parent) == DDS_KIND_PARTICIPANT);
   dds_participant * const pp = (dds_participant *) e->m_parent;
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
   ddsi_type_unref_sertype (&e->m_domain->gv, tp->m_stype);
 #endif
   dds_free (tp->m_name);
@@ -454,7 +454,7 @@ dds_entity_t dds_create_topic_impl (
     pp = (struct dds_participant *) par_ent;
   }
 
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
   /* ensure that in case type information is present, both minimal and complete
      type identifiers are present for the top-level type */
   ddsi_typeinfo_t *type_info = ddsi_sertype_typeinfo (*sertype);
@@ -553,7 +553,7 @@ dds_entity_t dds_create_topic_impl (
     ddsrt_mutex_unlock (&gv->sertypes_lock);
   }
 
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
   struct ddsi_type *type;
   if ((rc = ddsi_type_ref_local (gv, &type, sertype_registered, DDSI_TYPEID_KIND_MINIMAL)) != DDS_RETCODE_OK
       || ddsi_type_ref_local (gv, NULL, sertype_registered, DDSI_TYPEID_KIND_COMPLETE) != DDS_RETCODE_OK)
@@ -591,7 +591,7 @@ dds_entity_t dds_create_topic_impl (
 
  error:
   dds_delete_qos (new_qos);
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
 error_typeref:
 #endif
   dds_entity_unpin (&pp->m_entity);
@@ -1048,14 +1048,19 @@ dds_return_t dds_get_type_name (dds_entity_t topic, char *name, size_t size)
 
 DDS_GET_STATUS(topic, inconsistent_topic, INCONSISTENT_TOPIC, total_count_change)
 
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
 
 dds_return_t dds_create_topic_descriptor (dds_find_scope_t scope, dds_entity_t participant, const dds_typeinfo_t *type_info, dds_duration_t timeout, dds_topic_descriptor_t **descriptor)
 {
   dds_return_t ret;
 
+#ifdef DDS_HAS_TYPE_DISCOVERY
   if (scope != DDS_FIND_SCOPE_GLOBAL && scope != DDS_FIND_SCOPE_LOCAL_DOMAIN)
     return DDS_RETCODE_BAD_PARAMETER;
+#else
+  if (scope != DDS_FIND_SCOPE_LOCAL_DOMAIN)
+    return DDS_RETCODE_BAD_PARAMETER;
+#endif
   if (type_info == NULL || descriptor == NULL)
     return DDS_RETCODE_BAD_PARAMETER;
 
@@ -1097,7 +1102,7 @@ dds_return_t dds_delete_topic_descriptor (dds_topic_descriptor_t *descriptor)
   return DDS_RETCODE_OK;
 }
 
-#else /* DDS_HAS_TYPE_DISCOVERY */
+#else /* DDS_HAS_TYPELIB */
 
 dds_return_t dds_create_topic_descriptor (dds_find_scope_t scope, dds_entity_t participant, const dds_typeinfo_t *type_info, dds_duration_t timeout, dds_topic_descriptor_t **descriptor)
 {
@@ -1111,7 +1116,7 @@ dds_return_t dds_delete_topic_descriptor (dds_topic_descriptor_t *descriptor)
   return DDS_RETCODE_UNSUPPORTED;
 }
 
-#endif /* DDS_HAS_TYPE_DISCOVERY */
+#endif /* DDS_HAS_TYPELIB */
 
 void dds_cdrstream_desc_from_topic_desc (struct dds_cdrstream_desc *desc, const dds_topic_descriptor_t *topic_desc)
 {

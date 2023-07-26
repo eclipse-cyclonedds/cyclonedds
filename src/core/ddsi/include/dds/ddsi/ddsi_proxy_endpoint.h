@@ -40,7 +40,7 @@ struct ddsi_proxy_endpoint_common
   ddsi_guid_t group_guid; /* 0:0:0:0 if not available */
   ddsi_vendorid_t vendor; /* cached from proxypp->vendor */
   ddsi_seqno_t seq; /* sequence number of most recent SEDP message */
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
   struct ddsi_type_pair *type_pair;
 #endif
 #ifdef DDS_HAS_SECURITY

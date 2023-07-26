@@ -142,6 +142,7 @@ There are some configuration options specified using CMake defines in addition t
 * `-DENABLE_SECURITY=NO`: to not build the security interfaces and hooks in the core code, nor the plugins (one can enable security without OpenSSL present, you'll just have to find plugins elsewhere in that case)
 * `-DENABLE_LIFESPAN=NO`: to exclude support for finite lifespans QoS
 * `-DENABLE_DEADLINE_MISSED=NO`: to exclude support for finite deadline QoS settings
+* `-DENABLE_TYPELIB=NO`: to exclude support for type library, requires also disabling type and topic discovery using `-DENABLE_TYPE_DISCOVERY=NO` and `-DENABLE_TOPIC_DISCOVERY=NO`
 * `-DENABLE_TYPE_DISCOVERY=NO`: to exclude support for type discovery and checking type compatibility (effectively most of XTypes), requires also disabling topic discovery using `-DENABLE_TOPIC_DISCOVERY=NO`
 * `-DENABLE_TOPIC_DISCOVERY=NO`: to exclude support for topic discovery
 * `-DENABLE_SOURCE_SPECIFIC_MULTICAST=NO`: to disable support for source-specific multicast (disabling this and `-DENABLE_IPV6=NO` may be needed for QNX builds)

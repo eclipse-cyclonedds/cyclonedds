@@ -25,7 +25,7 @@ idlc_generate(TARGET CdrStreamSkipDefault FILES CdrStreamSkipDefault.idl)
 idlc_generate(TARGET CdrStreamKeySize FILES CdrStreamKeySize.idl)
 idlc_generate(TARGET CdrStreamKeyExt FILES CdrStreamKeyExt.idl)
 idlc_generate(TARGET SerdataData FILES SerdataData.idl)
-if(ENABLE_TYPE_DISCOVERY)
+if(ENABLE_TYPELIB)
   idlc_generate(TARGET XSpace FILES XSpace.idl XSpaceEnum.idl XSpaceMustUnderstand.idl XSpaceTypeConsistencyEnforcement.idl WARNINGS no-implicit-extensibility no-inherit-appendable)
   idlc_generate(TARGET XSpaceNoTypeInfo FILES XSpaceNoTypeInfo.idl NO_TYPE_INFO WARNINGS no-implicit-extensibility)
   idlc_generate(TARGET TypeBuilderTypes FILES TypeBuilderTypes.idl WARNINGS no-implicit-extensibility)
@@ -105,18 +105,25 @@ if(ENABLE_DEADLINE_MISSED)
   list(APPEND ddsc_test_sources "deadline.c")
 endif()
 
-if(ENABLE_TYPE_DISCOVERY)
+if(ENABLE_TYPELIB)
   list(APPEND ddsc_test_sources
-    "xtypes.c"
+    "xtypes_common.c"
+    "xtypes_common.h"
+    "xtypes_typeinfo.c"
     "data_representation.c"
     "typebuilder.c"
     "dynamic_type.c"
   )
 endif()
 
+if(ENABLE_TYPE_DISCOVERY)
+  list(APPEND ddsc_test_sources
+    "xtypes_typelookup.c"
+    "xtypes_assignability.c")
+endif()
+
 if(ENABLE_TOPIC_DISCOVERY)
   list(APPEND ddsc_test_sources
-    "typelookup.c"
     "topic_discovery.c"
     "topic_find_global.c")
 endif()
@@ -139,7 +146,7 @@ endif()
 target_link_libraries(cunit_ddsc PRIVATE
   RoundTrip Space TypesArrayKey WriteTypes InstanceHandleTypes RWData CreateWriter DataRepresentationTypes MinXcdrVersion CdrStreamOptimize CdrStreamSkipDefault CdrStreamKeySize CdrStreamKeyExt SerdataData ddsc)
 
-if(ENABLE_TYPE_DISCOVERY)
+if(ENABLE_TYPELIB)
   target_link_libraries(cunit_ddsc PRIVATE
   XSpace XSpaceNoTypeInfo TypeBuilderTypes DynamicTypeTypes)
 endif()

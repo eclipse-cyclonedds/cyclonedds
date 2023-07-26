@@ -23,12 +23,16 @@
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "ddsi__typelib.h"
+#include "ddsi__typewrap.h"
+#include "ddsi__typelookup.h"
+#include "ddsi__endpoint_match.h"
 #include "dds/dds.h"
 #include "dds/version.h"
 #include "dds__domain.h"
 #include "dds__entity.h"
 
 #include "test_common.h"
+#include "xtypes_common.h"
 #include "config_env.h"
 #include "XSpace.h"
 
@@ -398,4 +402,116 @@ CU_Test(ddsc_typelookup, api_resolve_invalid, .init = typelookup_init, .fini = t
   ddsi_typeid_fini (type_id);
   dds_free (type_id);
   dds_free (type_name);
+}
+
+static void test_proxy_rd_matches (dds_entity_t wr, bool exp_match)
+{
+  struct dds_entity *x;
+  dds_return_t rc = dds_entity_pin (wr, &x);
+  CU_ASSERT_EQUAL_FATAL (rc, DDS_RETCODE_OK);
+  struct dds_writer *dds_wr = (struct dds_writer *) x;
+  CU_ASSERT_EQUAL_FATAL (dds_wr->m_wr->num_readers, exp_match ? 1 : 0);
+  dds_entity_unpin (x);
+}
+
+static void mod_dep_test (dds_sequence_DDS_XTypes_TypeIdentifierTypeObjectPair *type_id_obj_seq, uint32_t kind)
+{
+  // Remove member n2 from dep_test_nested
+  if (kind == DDS_XTypes_EK_MINIMAL)
+  {
+    assert (type_id_obj_seq->_buffer[1].type_object._u.minimal._d == DDS_XTypes_TK_STRUCTURE);
+    assert (type_id_obj_seq->_buffer[1].type_object._u.minimal._u.struct_type.member_seq._length == 2);
+    type_id_obj_seq->_buffer[1].type_object._u.minimal._u.struct_type.member_seq._length = 1;
+  }
+  else
+  {
+    assert (type_id_obj_seq->_buffer[1].type_object._u.complete._d == DDS_XTypes_TK_STRUCTURE);
+    assert (type_id_obj_seq->_buffer[1].type_object._u.complete._u.struct_type.member_seq._length == 2);
+    type_id_obj_seq->_buffer[1].type_object._u.complete._u.struct_type.member_seq._length = 1;
+  }
+
+  // Recalculate type ids for dep_test_nested and replace dep_test.f1 member type id
+  ddsi_typeid_t type_id;
+  if (kind == DDS_XTypes_EK_MINIMAL)
+  {
+    assert (type_id_obj_seq->_buffer[0].type_object._u.minimal._d == DDS_XTypes_TK_STRUCTURE);
+    ddsi_typeid_fini_impl (&type_id_obj_seq->_buffer[0].type_object._u.minimal._u.struct_type.member_seq._buffer[0].common.member_type_id);
+    ddsi_typeobj_get_hash_id (&type_id_obj_seq->_buffer[1].type_object, &type_id);
+    ddsi_typeid_copy_impl (&type_id_obj_seq->_buffer[0].type_object._u.minimal._u.struct_type.member_seq._buffer[0].common.member_type_id, &type_id.x);
+  }
+  else
+  {
+    assert (type_id_obj_seq->_buffer[0].type_object._u.complete._d == DDS_XTypes_TK_STRUCTURE);
+    ddsi_typeid_fini_impl (&type_id_obj_seq->_buffer[0].type_object._u.complete._u.struct_type.member_seq._buffer[0].common.member_type_id);
+    ddsi_typeobj_get_hash_id (&type_id_obj_seq->_buffer[1].type_object, &type_id);
+    ddsi_typeid_copy_impl (&type_id_obj_seq->_buffer[0].type_object._u.complete._u.struct_type.member_seq._buffer[0].common.member_type_id, &type_id.x);
+  }
+}
+
+CU_Test (ddsc_typelookup, resolve_dep_type, .init = typelookup_init, .fini = typelookup_fini)
+{
+  struct ddsi_domaingv *gv = get_domaingv (g_participant1);
+  char topic_name[100];
+  create_unique_topic_name ("ddsc_typelookup", topic_name, sizeof (topic_name));
+
+  // local writer
+  dds_entity_t topic = dds_create_topic (g_participant1, &XSpace_dep_test_desc, topic_name, NULL, NULL);
+  CU_ASSERT_FATAL (topic > 0);
+  dds_entity_t wr = dds_create_writer (g_participant1, topic, NULL, NULL);
+  CU_ASSERT_FATAL (wr > 0);
+
+  dds_topic_descriptor_t desc;
+  xtypes_util_modify_type_meta (&desc, &XSpace_dep_test_desc, mod_dep_test, true, DDS_XTypes_EK_BOTH);
+
+  DDS_XTypes_TypeInformation *ti;
+  typeinfo_deser (&ti, &desc.type_information);
+  struct ddsi_guid pp_guid, rd_guid;
+  gen_test_guid (gv, &pp_guid, DDSI_ENTITYID_PARTICIPANT);
+  gen_test_guid (gv, &rd_guid, DDSI_ENTITYID_KIND_READER_NO_KEY);
+  test_proxy_rd_create (gv, topic_name, ti, DDS_RETCODE_OK, &pp_guid, &rd_guid);
+  test_proxy_rd_matches (wr, false);
+
+  struct ddsi_generic_proxy_endpoint **gpe_match_upd = NULL;
+  uint32_t n_match_upd = 0;
+  DDS_Builtin_TypeLookup_Reply reply;
+  DDS_XTypes_TypeMapping *tmap;
+  typemap_deser (&tmap, &desc.type_mapping);
+
+  // add proxy reader's top-level type
+  reply = (DDS_Builtin_TypeLookup_Reply) {
+    .header = { .remoteEx = DDS_RPC_REMOTE_EX_OK, .relatedRequestId = { .sequence_number = { .low = 1, .high = 0 }, .writer_guid = { .guidPrefix = { 0 }, .entityId = { .entityKind = DDSI_EK_WRITER, .entityKey = { 0 } } } } },
+    .return_data = { ._d = DDS_Builtin_TypeLookup_getTypes_HashId, ._u = { .getType = { ._d = DDS_RETCODE_OK, ._u = { .result =
+      { .types = { ._length = 1, ._maximum = 1, ._release = false, ._buffer = &tmap->identifier_object_pair_minimal._buffer[0] } } } } } }
+    };
+  ddsi_tl_add_types (gv, &reply, &gpe_match_upd, &n_match_upd);
+  // FIXME expect matching triggered (but matching would fail because deps are unresolved), this needs to be fixed in ddsi_tl_handle_reply
+  CU_ASSERT_EQUAL_FATAL (n_match_upd, 1);
+  ddsrt_free (gpe_match_upd);
+
+  // add nested type and expect match
+  gpe_match_upd = NULL;
+  n_match_upd = 0;
+  reply = (DDS_Builtin_TypeLookup_Reply) {
+    .header = { .remoteEx = DDS_RPC_REMOTE_EX_OK, .relatedRequestId = { .sequence_number = { .low = 1, .high = 0 }, .writer_guid = { .guidPrefix = { 0 }, .entityId = { .entityKind = DDSI_EK_WRITER, .entityKey = { 0 } } } } },
+    .return_data = { ._d = DDS_Builtin_TypeLookup_getTypes_HashId, ._u = { .getType = { ._d = DDS_RETCODE_OK, ._u = { .result =
+      { .types = { ._length = 1, ._maximum = 1, ._release = false, ._buffer = &tmap->identifier_object_pair_minimal._buffer[1] } } } } } }
+    };
+  ddsi_tl_add_types (gv, &reply, &gpe_match_upd, &n_match_upd);
+  CU_ASSERT_EQUAL_FATAL (n_match_upd, 1);
+
+  assert (gpe_match_upd);
+  for (uint32_t e = 0; e < n_match_upd; e++)
+    ddsi_update_proxy_endpoint_matching (gv, gpe_match_upd[e]);
+  ddsrt_free (gpe_match_upd);
+
+  test_proxy_rd_matches (wr, true);
+
+  // clean up
+  test_proxy_rd_fini (gv, &pp_guid, &rd_guid);
+  ddsi_typeinfo_fini ((ddsi_typeinfo_t *) ti);
+  ddsrt_free (ti);
+  ddsi_typemap_fini ((ddsi_typemap_t *) tmap);
+  ddsrt_free (tmap);
+  ddsrt_free ((void *) desc.type_information.data);
+  ddsrt_free ((void *) desc.type_mapping.data);
 }

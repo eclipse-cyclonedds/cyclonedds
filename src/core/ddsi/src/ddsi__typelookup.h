@@ -13,8 +13,6 @@
 
 #include "dds/features.h"
 
-#ifdef DDS_HAS_TYPE_DISCOVERY
-
 #include <stdint.h>
 #include "dds/ddsrt/time.h"
 #include "dds/ddsrt/hopscotch.h"
@@ -40,6 +38,7 @@ struct ddsi_serdata;
 struct ddsi_sertype;
 struct ddsi_type;
 struct ddsi_generic_proxy_endpoint;
+enum ddsi_type_include_deps;
 
 /**
  * @component type_lookup
@@ -47,7 +46,7 @@ struct ddsi_generic_proxy_endpoint;
  * Send a type lookup request message in order to request type information for the
  * provided type identifier.
  */
-bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const ddsi_typeid_t *type_id, const ddsi_guid_t *proxypp_guid, ddsi_type_include_deps_t deps);
+bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const ddsi_typeid_t *type_id, const ddsi_guid_t *proxypp_guid, enum ddsi_type_include_deps deps);
 
 /**
  * @component type_lookup
@@ -78,5 +77,5 @@ void ddsi_tl_handle_reply (struct ddsi_domaingv *gv, struct ddsi_serdata *sample
 #if defined (__cplusplus)
 }
 #endif
-#endif /* DDS_HAS_TYPE_DISCOVERY */
+
 #endif /* DDSI__TYPELOOKUP_H */

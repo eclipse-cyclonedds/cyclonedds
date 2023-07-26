@@ -93,6 +93,19 @@ set_target_properties(ddsc PROPERTIES
 set_target_properties(ddsc PROPERTIES EXPORT_PROPERTIES
     "SHM_SUPPORT_IS_AVAILABLE")
 
+# define target property to indicate if Cyclone DDS is compiled with type library support
+define_property(TARGET
+    PROPERTY TYPELIB_IS_AVAILABLE
+    BRIEF_DOCS "Indicator whether type library is available with current Cyclone DDS build configuration."
+    FULL_DOCS "Indicator whether type library is available with current Cyclone DDS build configuration."
+    )
+set_property(
+    TARGET ddsc
+    APPEND PROPERTY TYPELIB_IS_AVAILABLE "${ENABLE_TYPELIB}")
+set_property(
+    TARGET ddsc
+    APPEND PROPERTY EXPORT_PROPERTIES "TYPELIB_IS_AVAILABLE")
+
 # define target property to indicate if Cyclone DDS is compiled with type discovery
 define_property(TARGET
     PROPERTY TYPE_DISCOVERY_IS_AVAILABLE

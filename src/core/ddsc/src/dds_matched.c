@@ -120,7 +120,8 @@ dds_builtintopic_endpoint_t *dds_get_matched_publication_data (dds_entity_t read
   return ret;
 }
 
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
+
 dds_return_t dds_builtintopic_get_endpoint_type_info (dds_builtintopic_endpoint_t * builtintopic_endpoint, const dds_typeinfo_t ** type_info)
 {
   if (builtintopic_endpoint == NULL || type_info == NULL)
@@ -132,7 +133,8 @@ dds_return_t dds_builtintopic_get_endpoint_type_info (dds_builtintopic_endpoint_
     *type_info = NULL;
   return DDS_RETCODE_OK;
 }
-#endif
+
+#endif /* DDS_HAS_TYPELIB */
 
 void dds_builtintopic_free_endpoint (dds_builtintopic_endpoint_t * builtintopic_endpoint)
 {

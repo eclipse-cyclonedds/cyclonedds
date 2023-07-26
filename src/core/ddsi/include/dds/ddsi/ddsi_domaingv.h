@@ -315,7 +315,7 @@ struct ddsi_domaingv {
   ddsrt_mutex_t sertypes_lock;
   struct ddsrt_hh *sertypes;
 
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
   ddsrt_mutex_t typelib_lock;
   ddsrt_avl_tree_t typelib;
   ddsrt_avl_tree_t typedeps;

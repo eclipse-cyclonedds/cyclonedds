@@ -794,7 +794,7 @@ static bool print_data_representation (char * __restrict *buf, size_t * __restri
   return prtf (buf, bufsize, ")");
 }
 
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
 
 static dds_return_t deser_type_information (void * __restrict dst, struct flagset *flagset, uint64_t flag, const struct dd * __restrict dd, struct ddsi_domaingv const * const gv)
 {
@@ -881,7 +881,7 @@ static bool print_type_information (char * __restrict *buf, size_t * __restrict 
     ddsi_make_typeid_str (&tpstrc, ddsi_typeinfo_complete_typeid (*x)));
 }
 
-#endif /* DDS_HAS_TYPE_DISCOVERY */
+#endif /* DDS_HAS_TYPELIB */
 
 // The XE1 .. XE3 codes are the only ones dealing with an enumerated type and are
 // assumed to map to the same type, which would traditionally be an "int", but in
@@ -2040,7 +2040,7 @@ static const struct piddesc piddesc_omg[] = {
   { DDSI_PID_DATA_REPRESENTATION, PDF_QOS | PDF_FUNCTION, DDSI_QP_DATA_REPRESENTATION, "DATA_REPRESENTATION",
     offsetof (struct ddsi_plist, qos.data_representation), membersize (struct ddsi_plist, qos.data_representation),
     { .f = { .deser = deser_data_representation, .ser = ser_data_representation, .valid = valid_data_representation, .equal = equal_data_representation, .unalias = unalias_data_representation, .fini = fini_data_representation, .print = print_data_representation } }, 0 },
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
   { DDSI_PID_TYPE_INFORMATION, PDF_QOS | PDF_FUNCTION, DDSI_QP_TYPE_INFORMATION, "TYPE_INFORMATION",
     offsetof (struct ddsi_plist, qos.type_information), membersize (struct ddsi_plist, qos.type_information),
     { .f = { .deser = deser_type_information, .ser = ser_type_information, .valid = valid_type_information, .unalias = unalias_type_information, .fini = fini_type_information, .equal = equal_type_information, .print = print_type_information } }, 0 },
@@ -2184,7 +2184,7 @@ struct piddesc_index {
 
    FIXME: should compute them at build-time */
 #define DEFAULT_PROC_ARRAY_SIZE                20
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
 #define DEFAULT_OMG_PIDS_ARRAY_SIZE            (DDSI_PID_TYPE_INFORMATION + 1)
 #else
 #define DEFAULT_OMG_PIDS_ARRAY_SIZE            (DDSI_PID_TYPE_CONSISTENCY_ENFORCEMENT + 1)
@@ -2223,7 +2223,7 @@ static const struct piddesc_index piddesc_vendor_index[] = {
 /* List of entries that require unalias, fini processing;
    initialized by ddsi_plist_init_tables; will assert when
    table too small or too large */
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
 static const struct piddesc *piddesc_unalias[18 + SECURITY_PROC_ARRAY_SIZE];
 static const struct piddesc *piddesc_fini[18 + SECURITY_PROC_ARRAY_SIZE];
 #else

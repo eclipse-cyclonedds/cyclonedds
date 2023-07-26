@@ -10,8 +10,6 @@
 
 #include "dds/features.h"
 
-#ifdef DDS_HAS_TYPE_DISCOVERY
-
 #include <string.h>
 #include <stdlib.h>
 #include "dds/ddsrt/heap.h"
@@ -45,7 +43,7 @@ static int ddsi_typeid_compare_dep_src (const void *typedep_a, const void *typed
 const ddsrt_avl_treedef_t ddsi_typedeps_treedef = DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct ddsi_type_dep, src_avl_node), 0, ddsi_typeid_compare_src_dep, 0);
 const ddsrt_avl_treedef_t ddsi_typedeps_reverse_treedef = DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct ddsi_type_dep, dep_avl_node), 0, ddsi_typeid_compare_dep_src, 0);
 
-bool ddsi_typeinfo_equal (const ddsi_typeinfo_t *a, const ddsi_typeinfo_t *b, ddsi_type_include_deps_t deps)
+bool ddsi_typeinfo_equal (const ddsi_typeinfo_t *a, const ddsi_typeinfo_t *b, enum ddsi_type_include_deps deps)
 {
   if (a == NULL || b == NULL)
     return a == b;
@@ -696,11 +694,15 @@ dds_return_t ddsi_type_ref_local (struct ddsi_domaingv *gv, struct ddsi_type **t
     goto err;
   }
 
+#ifdef DDS_HAS_TYPELIB
   if (resolved)
   {
     GVTRACE ("type %s resolved\n", ddsi_make_typeid_str_impl (&tistr, type_id));
     ddsrt_cond_broadcast (&gv->typelib_resolved_cond);
   }
+#else
+  (void) resolved;
+#endif
   ddsrt_mutex_unlock (&gv->typelib_lock);
 
   if (gpe_match_upd != NULL)
@@ -1311,7 +1313,7 @@ void ddsi_type_get_gpe_matches (struct ddsi_domaingv *gv, const struct ddsi_type
   ddsi_typeid_fini (&tmpl.dep_type_id);
 }
 
-bool ddsi_type_resolved_locked (struct ddsi_domaingv *gv, const struct ddsi_type *type, ddsi_type_include_deps_t resolved_kind)
+bool ddsi_type_resolved_locked (struct ddsi_domaingv *gv, const struct ddsi_type *type, enum ddsi_type_include_deps resolved_kind)
 {
   bool resolved = type && ddsi_xt_is_resolved (&type->xt);
   assert (resolved_kind == DDSI_TYPE_IGNORE_DEPS || resolved_kind == DDSI_TYPE_INCLUDE_DEPS);
@@ -1333,7 +1335,7 @@ bool ddsi_type_resolved_locked (struct ddsi_domaingv *gv, const struct ddsi_type
   return resolved;
 }
 
-bool ddsi_type_resolved (struct ddsi_domaingv *gv, const struct ddsi_type *type, ddsi_type_include_deps_t resolved_kind)
+bool ddsi_type_resolved (struct ddsi_domaingv *gv, const struct ddsi_type *type, enum ddsi_type_include_deps resolved_kind)
 {
   ddsrt_mutex_lock (&gv->typelib_lock);
   bool ret = ddsi_type_resolved_locked (gv, type, resolved_kind);
@@ -1436,7 +1438,10 @@ void ddsi_type_pair_free (struct ddsi_type_pair *type_pair)
   ddsrt_free (type_pair);
 }
 
-static dds_return_t check_type_resolved_impl_locked (struct ddsi_domaingv *gv, const ddsi_typeid_t *type_id, dds_duration_t timeout, struct ddsi_type **type, ddsi_type_include_deps_t resolved_kind, bool *resolved)
+
+#ifdef DDS_HAS_TYPELIB
+
+static dds_return_t check_type_resolved_impl_locked (struct ddsi_domaingv *gv, const ddsi_typeid_t *type_id, dds_duration_t timeout, struct ddsi_type **type, enum ddsi_type_include_deps resolved_kind, bool *resolved)
 {
   dds_return_t ret = DDS_RETCODE_OK;
 
@@ -1458,7 +1463,7 @@ static dds_return_t check_type_resolved_impl_locked (struct ddsi_domaingv *gv, c
   return ret;
 }
 
-static dds_return_t wait_for_type_resolved_impl_locked (struct ddsi_domaingv *gv, dds_duration_t timeout, const struct ddsi_type *type, ddsi_type_include_deps_t resolved_kind)
+static dds_return_t wait_for_type_resolved_impl_locked (struct ddsi_domaingv *gv, dds_duration_t timeout, const struct ddsi_type *type, enum ddsi_type_include_deps resolved_kind)
 {
   const dds_time_t tnow = dds_time ();
   const dds_time_t abstimeout = (DDS_INFINITY - timeout <= tnow) ? DDS_NEVER : (tnow + timeout);
@@ -1471,7 +1476,7 @@ static dds_return_t wait_for_type_resolved_impl_locked (struct ddsi_domaingv *gv
   return DDS_RETCODE_OK;
 }
 
-dds_return_t ddsi_wait_for_type_resolved (struct ddsi_domaingv *gv, const ddsi_typeid_t *type_id, dds_duration_t timeout, struct ddsi_type **type, ddsi_type_include_deps_t resolved_kind, ddsi_type_request_t request)
+dds_return_t ddsi_wait_for_type_resolved (struct ddsi_domaingv *gv, const ddsi_typeid_t *type_id, dds_duration_t timeout, struct ddsi_type **type, enum ddsi_type_include_deps resolved_kind, ddsi_type_request_t request)
 {
   dds_return_t ret;
   bool resolved;
@@ -1487,9 +1492,13 @@ dds_return_t ddsi_wait_for_type_resolved (struct ddsi_domaingv *gv, const ddsi_t
   if (ret != DDS_RETCODE_OK || resolved)
     return ret;
 
+#ifdef DDS_HAS_TYPE_DISCOVERY
   // TODO: provide proxy pp guid to ddsi_tl_request_type so that request can be sent to a specific node
   if (request == DDSI_TYPE_SEND_REQUEST && !ddsi_tl_request_type (gv, type_id, NULL, resolved_kind))
     return DDS_RETCODE_PRECONDITION_NOT_MET;
+#else
+  assert (request == DDSI_TYPE_NO_REQUEST);
+#endif
 
   ddsrt_mutex_lock (&gv->typelib_lock);
   ret = wait_for_type_resolved_impl_locked (gv, timeout, *type, resolved_kind);
@@ -1498,4 +1507,4 @@ dds_return_t ddsi_wait_for_type_resolved (struct ddsi_domaingv *gv, const ddsi_t
   return ret;
 }
 
-#endif /* DDS_HAS_TYPE_DISCOVERY */
+#endif /* DDS_HAS_TYPELIB */

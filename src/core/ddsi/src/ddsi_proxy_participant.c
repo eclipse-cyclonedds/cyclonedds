@@ -12,6 +12,7 @@
 #include <string.h>
 #include <stddef.h>
 
+#include "dds/dds.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsi/ddsi_domaingv.h"

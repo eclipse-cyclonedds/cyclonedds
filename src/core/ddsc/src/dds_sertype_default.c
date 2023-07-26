@@ -60,7 +60,7 @@ static bool sertype_default_equal (const struct ddsi_sertype *acmn, const struct
   return true;
 }
 
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
 
 static ddsi_typeid_t * sertype_default_typeid (const struct ddsi_sertype *tpcmn, ddsi_typeid_kind_t kind)
 {
@@ -90,7 +90,7 @@ static ddsi_typeinfo_t *sertype_default_typeinfo (const struct ddsi_sertype *tpc
   return ddsi_typeinfo_deser (tp->typeinfo_ser.data, tp->typeinfo_ser.sz);
 }
 
-#endif /* DDS_HAS_TYPE_DISCOVERY */
+#endif /* DDS_HAS_TYPELIB */
 
 static uint32_t sertype_default_hash (const struct ddsi_sertype *tpcmn)
 {
@@ -262,7 +262,7 @@ const struct ddsi_sertype_ops dds_sertype_ops_default = {
   .zero_samples = sertype_default_zero_samples,
   .realloc_samples = sertype_default_realloc_samples,
   .free_samples = sertype_default_free_samples,
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
   .type_id = sertype_default_typeid,
   .type_map = sertype_default_typemap,
   .type_info = sertype_default_typeinfo,
