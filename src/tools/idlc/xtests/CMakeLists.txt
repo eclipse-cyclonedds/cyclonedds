@@ -96,7 +96,7 @@ if(MSVC)
   set(_libs "${_libs}\\;${_windows_kit_libs}/um/${CMAKE_MSVC_ARCH}")
 endif()
 
-if(ENABLE_TYPE_DISCOVERY)
+if(ENABLE_TYPELIB)
   set(_type_meta 1)
 endif()
 

@@ -28,7 +28,7 @@
 
 #include "CUnit/Theory.h"
 
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
 
 static void *calloc_no_fail (size_t count, size_t size)
 {
@@ -1028,4 +1028,4 @@ CU_Test(idlc_type_meta, type_obj_annotations)
 
 
 
-#endif /* DDS_HAS_TYPE_DISCOVERY */
+#endif /* DDS_HAS_TYPELIB */

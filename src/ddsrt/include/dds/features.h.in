@@ -29,6 +29,9 @@
 /* Whether or not features dependent on OpenSSL are included */
 #cmakedefine DDS_HAS_SSL 1
 
+/* Whether or not support for type library is included */
+#cmakedefine DDS_HAS_TYPELIB 1
+
 /* Whether or not support for type discovery is included */
 #cmakedefine DDS_HAS_TYPE_DISCOVERY 1
 

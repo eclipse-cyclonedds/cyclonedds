@@ -258,7 +258,7 @@ struct dds_qos {
   /* xx */char *topic_name;
   /* xx */char *type_name;
   /* xx */char *entity_name;
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
   /* xx */struct ddsi_typeinfo *type_information;
 #endif
   /*      PublisherQos, SubscriberQos: */

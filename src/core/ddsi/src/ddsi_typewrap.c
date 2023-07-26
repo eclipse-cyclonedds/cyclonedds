@@ -248,7 +248,7 @@ static bool type_id_with_sizeseq_equal (const struct dds_sequence_DDS_XTypes_Typ
   return true;
 }
 
-bool ddsi_type_id_with_deps_equal (const struct DDS_XTypes_TypeIdentifierWithDependencies *a, const struct DDS_XTypes_TypeIdentifierWithDependencies *b, ddsi_type_include_deps_t deps)
+bool ddsi_type_id_with_deps_equal (const struct DDS_XTypes_TypeIdentifierWithDependencies *a, const struct DDS_XTypes_TypeIdentifierWithDependencies *b, enum ddsi_type_include_deps deps)
 {
   return type_id_with_size_equal (&a->typeid_with_size, &b->typeid_with_size)
     && a->dependent_typeid_count == b->dependent_typeid_count

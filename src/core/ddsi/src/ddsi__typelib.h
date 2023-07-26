@@ -26,8 +26,6 @@
 extern "C" {
 #endif
 
-#ifdef DDS_HAS_TYPE_DISCOVERY
-
 extern const ddsrt_avl_treedef_t ddsi_typelib_treedef;
 extern const ddsrt_avl_treedef_t ddsi_typedeps_treedef;
 extern const ddsrt_avl_treedef_t ddsi_typedeps_reverse_treedef;
@@ -37,6 +35,7 @@ struct ddsi_sertype;
 struct ddsi_type;
 struct ddsi_type_pair;
 struct ddsi_generic_proxy_endpoint;
+enum ddsi_type_include_deps;
 
 enum ddsi_type_state {
   DDSI_TYPE_UNRESOLVED,
@@ -99,7 +98,7 @@ void ddsi_type_unreg_proxy (struct ddsi_domaingv *gv, struct ddsi_type *type, co
 void ddsi_type_unref_locked (struct ddsi_domaingv *gv, struct ddsi_type *type);
 
 /** @component type_system */
-bool ddsi_type_resolved_locked (struct ddsi_domaingv *gv, const struct ddsi_type *type, ddsi_type_include_deps_t resolved_kind);
+bool ddsi_type_resolved_locked (struct ddsi_domaingv *gv, const struct ddsi_type *type, enum ddsi_type_include_deps resolved_kind);
 
 /** @component type_system */
 void ddsi_type_free (struct ddsi_type *type);
@@ -140,8 +139,6 @@ struct ddsi_type * ddsi_type_lookup_locked (struct ddsi_domaingv *gv, const ddsi
  * be updated if new entries are added.
  */
 void ddsi_type_get_gpe_matches (struct ddsi_domaingv *gv, const struct ddsi_type *type, struct ddsi_generic_proxy_endpoint ***gpe_match_upd, uint32_t *n_match_upd);
-
-#endif /* DDS_HAS_TYPE_DISCOVERY */
 
 #if defined (__cplusplus)
 }

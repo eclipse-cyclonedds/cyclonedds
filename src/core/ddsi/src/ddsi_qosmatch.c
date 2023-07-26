@@ -68,7 +68,7 @@ static int partitions_match_p (const dds_qos_t *a, const dds_qos_t *b)
   }
 }
 
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
 
 static uint32_t is_endpoint_type_resolved (struct ddsi_domaingv *gv, char *type_name, const ddsi_type_pair_t *type_pair, bool *req_lookup, const char *entity)
   ddsrt_nonnull((1, 2, 3));
@@ -105,7 +105,7 @@ static uint32_t is_endpoint_type_resolved (struct ddsi_domaingv *gv, char *type_
   return compl_resolved ? DDS_XTypes_EK_COMPLETE : DDS_XTypes_EK_MINIMAL;
 }
 
-#endif /* DDS_HAS_TYPE_DISCOVERY */
+#endif /* DDS_HAS_TYPELIB */
 
 static int data_representation_match_p (const dds_qos_t *rd_qos, const dds_qos_t *wr_qos)
 {
@@ -121,7 +121,7 @@ static int data_representation_match_p (const dds_qos_t *rd_qos, const dds_qos_t
   return 0;
 }
 
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
 static bool type_pair_has_id (const ddsi_type_pair_t *pair)
 {
   return pair && (pair->minimal || pair->complete);
@@ -134,9 +134,11 @@ bool ddsi_qos_match_mask_p (
     const dds_qos_t *wr_qos,
     uint64_t mask,
     dds_qos_policy_id_t *reason
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
     , const struct ddsi_type_pair *rd_type_pair
     , const struct ddsi_type_pair *wr_type_pair
+#endif
+#ifdef DDS_HAS_TYPE_DISCOVERY
     , bool *rd_typeid_req_lookup
     , bool *wr_typeid_req_lookup
 #endif
@@ -154,6 +156,9 @@ bool ddsi_qos_match_mask_p (
     *rd_typeid_req_lookup = false;
   if (wr_typeid_req_lookup != NULL)
     *wr_typeid_req_lookup = false;
+#elif DDS_HAS_TYPELIB
+  bool *rd_typeid_req_lookup = NULL;
+  bool *wr_typeid_req_lookup = NULL;
 #endif
 
   mask &= rd_qos->present & wr_qos->present;
@@ -214,7 +219,7 @@ bool ddsi_qos_match_mask_p (
     return false;
   }
 
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
   if (!type_pair_has_id (rd_type_pair) || !type_pair_has_id (wr_type_pair))
   {
     // Type info missing on either or both: automatic failure if "force type validation"
@@ -277,9 +282,11 @@ bool ddsi_qos_match_p (
     const dds_qos_t *rd_qos,
     const dds_qos_t *wr_qos,
     dds_qos_policy_id_t *reason
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
     , const struct ddsi_type_pair *rd_type_pair
     , const struct ddsi_type_pair *wr_type_pair
+#endif
+#ifdef DDS_HAS_TYPE_DISCOVERY
     , bool *rd_typeid_req_lookup
     , bool *wr_typeid_req_lookup
 #endif
@@ -288,6 +295,8 @@ bool ddsi_qos_match_p (
   dds_qos_policy_id_t dummy;
 #ifdef DDS_HAS_TYPE_DISCOVERY
   return ddsi_qos_match_mask_p (gv, rd_qos, wr_qos, ~(uint64_t)0, reason ? reason : &dummy, rd_type_pair, wr_type_pair, rd_typeid_req_lookup, wr_typeid_req_lookup);
+#elif DDS_HAS_TYPELIB
+  return ddsi_qos_match_mask_p (gv, rd_qos, wr_qos, ~(uint64_t)0, reason ? reason : &dummy, rd_type_pair, wr_type_pair);
 #else
   return ddsi_qos_match_mask_p (gv, rd_qos, wr_qos, ~(uint64_t)0, reason ? reason : &dummy);
 #endif

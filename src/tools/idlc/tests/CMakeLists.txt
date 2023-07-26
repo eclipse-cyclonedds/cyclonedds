@@ -19,7 +19,7 @@ set(sources
   test_common.c
   descriptor.c)
 
-if(ENABLE_TYPE_DISCOVERY)
+if(ENABLE_TYPELIB)
   list(APPEND sources
     ../src/descriptor_type_meta.c
     type_meta.c)

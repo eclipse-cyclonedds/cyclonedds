@@ -23,6 +23,9 @@
 #include "dds/ddsi/ddsi_xmsg.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "dds/ddsi/ddsi_security_omg.h"
+#include "dds/ddsi/ddsi_tkmap.h"
+#include "dds/ddsi/ddsi_statistics.h"
+#include "dds/ddsi/ddsi_sertype.h"
 #include "dds/cdr/dds_cdrstream.h"
 #include "dds__writer.h"
 #include "dds__listener.h"
@@ -31,11 +34,9 @@
 #include "dds__topic.h"
 #include "dds__get_status.h"
 #include "dds__qos.h"
-#include "dds/ddsi/ddsi_tkmap.h"
 #include "dds__whc.h"
 #include "dds__statistics.h"
 #include "dds__data_allocator.h"
-#include "dds/ddsi/ddsi_statistics.h"
 
 #ifdef DDS_HAS_SHM
 #include "dds__shm_qos.h"

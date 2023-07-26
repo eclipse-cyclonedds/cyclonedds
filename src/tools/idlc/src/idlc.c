@@ -68,7 +68,7 @@ static struct {
   bool werror;
   int help;
   int version;
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
   int no_type_info;
 #endif
   /* (emulated) command line options for mcpp */
@@ -629,7 +629,7 @@ static const idlc_option_t *compopts[] = {
     "Attempts to recreate directory structure matching input. "
     "Use without the -o option will compile IDL files in-place. "
     "Fail-silent if root_dir is not a parent of input" },
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
   &(idlc_option_t){
     IDLC_FLAG, { .flag = &config.no_type_info }, 't', "", "",
     "Don't generate type information in the topic descriptor" },
@@ -693,7 +693,7 @@ int main(int argc, char *argv[])
   config.disable_warnings.size = 0;
   config.disable_warnings.count = 0;
   config.werror = false;
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
   config.no_type_info = 0;
 #endif
 
@@ -784,11 +784,11 @@ int main(int argc, char *argv[])
         if(idl_normalize_path(config.base_dir, &generator_config.base_dir) < 0)
           goto err_generate;
       }
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
       if(!config.no_type_info)
         generator_config.generate_type_info = true;
       generator_config.generate_typeinfo_typemap = generate_type_meta_ser;
-#endif // DDS_HAS_TYPE_DISCOVERY
+#endif // DDS_HAS_TYPELIB
       if (gen.generate)
         ret = gen.generate(pstate, &generator_config);
 

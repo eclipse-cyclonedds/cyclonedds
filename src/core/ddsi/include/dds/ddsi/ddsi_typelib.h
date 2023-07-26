@@ -25,11 +25,10 @@
 extern "C" {
 #endif
 
-#ifdef DDS_HAS_TYPE_DISCOVERY
-
 struct ddsi_domaingv;
 struct ddsi_sertype;
 struct ddsi_type;
+enum ddsi_type_include_deps;
 
 typedef enum ddsi_type_request {
   DDSI_TYPE_NO_REQUEST,
@@ -43,7 +42,7 @@ struct ddsi_typeid_str {
 
 
 /** @component type_system */
-DDS_EXPORT bool ddsi_typeinfo_equal (const ddsi_typeinfo_t *a, const ddsi_typeinfo_t *b, ddsi_type_include_deps_t deps);
+DDS_EXPORT bool ddsi_typeinfo_equal (const ddsi_typeinfo_t *a, const ddsi_typeinfo_t *b, enum ddsi_type_include_deps deps);
 
 /** @component type_system */
 DDS_EXPORT ddsi_typeid_t *ddsi_typeinfo_typeid (const ddsi_typeinfo_t *type_info, ddsi_typeid_kind_t kind);
@@ -103,13 +102,16 @@ void ddsi_type_unref_sertype (struct ddsi_domaingv *gv, const struct ddsi_sertyp
 struct ddsi_typeobj *ddsi_type_get_typeobj (struct ddsi_domaingv *gv, const struct ddsi_type *type);
 
 /** @component type_system */
-bool ddsi_type_resolved (struct ddsi_domaingv *gv, const struct ddsi_type *type, ddsi_type_include_deps_t resolved_kind);
+bool ddsi_type_resolved (struct ddsi_domaingv *gv, const struct ddsi_type *type, enum ddsi_type_include_deps resolved_kind);
 
 /** @component type_system */
 struct ddsi_domaingv *ddsi_type_get_gv (const struct ddsi_type *type);
 
 /** @component type_system */
 DDS_XTypes_TypeKind ddsi_type_get_kind (const struct ddsi_type *type);
+
+
+#ifdef DDS_HAS_TYPELIB
 
 /**
  * @brief Waits for the provided type to be resolved
@@ -118,7 +120,9 @@ DDS_XTypes_TypeKind ddsi_type_get_kind (const struct ddsi_type *type);
  * In case the type is succesfully resolved (or was already resolved), this
  * function increases the refcount for this type. Caller should do the unref.
  */
-dds_return_t ddsi_wait_for_type_resolved (struct ddsi_domaingv *gv, const ddsi_typeid_t *type_id, dds_duration_t timeout, struct ddsi_type **type, ddsi_type_include_deps_t resolved_kind, ddsi_type_request_t request);
+dds_return_t ddsi_wait_for_type_resolved (struct ddsi_domaingv *gv, const ddsi_typeid_t *type_id, dds_duration_t timeout, struct ddsi_type **type, enum ddsi_type_include_deps resolved_kind, ddsi_type_request_t request);
+
+#endif
 
 /**
  * @brief Returns the type lookup meta object for the provided type identifier.
@@ -136,8 +140,6 @@ DDS_EXPORT struct ddsi_type * ddsi_type_lookup (struct ddsi_domaingv *gv, const 
  *
  */
 DDS_EXPORT int ddsi_type_compare (const struct ddsi_type *a, const struct ddsi_type *b);
-
-#endif /* DDS_HAS_TYPE_DISCOVERY */
 
 #if defined (__cplusplus)
 }

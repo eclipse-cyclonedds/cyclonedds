@@ -43,7 +43,7 @@ install(
   DESTINATION "${CMAKE_INSTALL_EXAMPLESDIR}/throughput"
   COMPONENT dev)
 
-if (ENABLE_TYPE_DISCOVERY)
+if (ENABLE_TYPELIB)
   install(
     FILES
       dyntype/dyntype.c
@@ -94,7 +94,7 @@ if (ENABLE_TOPIC_DISCOVERY)
   add_subdirectory(listtopics)
   add_subdirectory(dynsub)
 endif ()
-if (ENABLE_TYPE_DISCOVERY)
+if (ENABLE_TYPELIB)
   add_subdirectory(dyntype)
 endif ()
 if (ENABLE_SHM)

@@ -16,7 +16,6 @@
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsi/ddsi_xqos.h"
 #include "dds/ddsi/ddsi_typewrap.h"
-#include "dds/ddsi/ddsi_typelib.h"
 #include "dds/ddsc/dds_public_alloc.h"
 #include "dds/cdr/dds_cdrstream.h"
 #include "dds/export.h"

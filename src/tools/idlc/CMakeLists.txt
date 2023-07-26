@@ -26,7 +26,7 @@ set(sources
   src/descriptor.c
   src/types.c)
 
-if(ENABLE_TYPE_DISCOVERY)
+if(ENABLE_TYPELIB)
   list(APPEND headers src/descriptor_type_meta.h)
   list(APPEND sources src/descriptor_type_meta.c)
 endif()

@@ -45,7 +45,7 @@ enum ddsi_liveliness_changed_data_extra {
 struct ddsi_endpoint_common {
   struct ddsi_participant *pp;
   ddsi_guid_t group_guid;
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
   struct ddsi_type_pair *type_pair;
 #endif
 };

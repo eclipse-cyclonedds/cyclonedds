@@ -199,6 +199,8 @@ bool dds__validate_builtin_reader_qos (const dds_domain *dom, dds_entity_t topic
     dds_qos_policy_id_t dummy;
 #ifdef DDS_HAS_TYPE_DISCOVERY
     return ddsi_qos_match_mask_p (bwr->wr.e.gv, qos, bwr->wr.xqos, qmask, &dummy, NULL, NULL, NULL, NULL) && !qos_has_resource_limits (qos);
+#elif DDS_HAS_TYPELIB
+    return ddsi_qos_match_mask_p (bwr->wr.e.gv, qos, bwr->wr.xqos, qmask, &dummy, NULL, NULL) && !qos_has_resource_limits (qos);
 #else
     return ddsi_qos_match_mask_p (bwr->wr.e.gv, qos, bwr->wr.xqos, qmask, &dummy) && !qos_has_resource_limits (qos);
 #endif

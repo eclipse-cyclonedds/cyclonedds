@@ -50,7 +50,6 @@ set(srcs_ddsi
   ddsi_acknack.c
   ddsi_list_genptr.c
   ddsi_wraddrset.c
-  ddsi_typelib.c
   ddsi_entity.c
   ddsi_endpoint_match.c
   ddsi_participant.c
@@ -111,7 +110,6 @@ set(hdrs_ddsi
   ddsi_xqos.h
   ddsi_ownip.h
   ddsi_config.h
-  ddsi_typelib.h
   ddsi_entity.h
   ddsi_endpoint_match.h
   ddsi_participant.h
@@ -182,7 +180,6 @@ set(hdrs_private_ddsi
   ddsi__time.h
   ddsi__topic.h
   ddsi__tran.h
-  ddsi__typelib.h
   ddsi__udp.h
   ddsi__vendor.h
   ddsi__vnet.h
@@ -229,6 +226,17 @@ if(ENABLE_DEADLINE_MISSED)
     ddsi_deadline.h
   )
 endif()
+if(ENABLE_TYPELIB)
+  list(APPEND srcs_ddsi
+    ddsi_typelib.c
+  )
+  list(APPEND hdrs_ddsi
+    ddsi_typelib.h
+  )
+  list(APPEND hdrs_private_ddsi
+    ddsi__typelib.h
+  )
+endif()
 if(ENABLE_TOPIC_DISCOVERY)
   list(APPEND srcs_ddsi
     ddsi_discovery_topic.c
@@ -237,19 +245,16 @@ if(ENABLE_TOPIC_DISCOVERY)
     ddsi__discovery_topic.h
   )
 endif()
-if(ENABLE_TYPE_DISCOVERY)
+if(ENABLE_TYPELIB)
   list(APPEND srcs_ddsi
     ddsi_xt_typeinfo.c
-    ddsi_xt_typelookup.c
     ddsi_xt_typemap.c
-    ddsi_typelookup.c
     ddsi_typewrap.c
     ddsi_typebuilder.c
     ddsi_dynamic_type.c
   )
   list(APPEND hdrs_ddsi
     ddsi_xt_typeinfo.h
-    ddsi_xt_typelookup.h
     ddsi_xt_typemap.h
     ddsi_typewrap.h
     ddsi_typebuilder.h
@@ -257,8 +262,19 @@ if(ENABLE_TYPE_DISCOVERY)
   )
   list(APPEND hdrs_private_ddsi
     ddsi__xt_impl.h
-    ddsi__typelookup.h
     ddsi__dynamic_type.h
+  )
+endif()
+if(ENABLE_TYPE_DISCOVERY)
+  list(APPEND srcs_ddsi
+    ddsi_xt_typelookup.c
+    ddsi_typelookup.c
+  )
+  list(APPEND hdrs_ddsi
+    ddsi_xt_typelookup.h
+  )
+  list(APPEND hdrs_private_ddsi
+    ddsi__typelookup.h
   )
 endif()
 if(ENABLE_SECURITY)

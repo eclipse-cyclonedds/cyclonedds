@@ -70,7 +70,7 @@ static int proxy_endpoint_common_init (struct ddsi_entity_common *e, struct ddsi
   c->as = ddsi_ref_addrset (as);
   c->vendor = proxypp->vendor;
   c->seq = seq;
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
   if (plist->qos.present & DDSI_QP_TYPE_INFORMATION)
   {
     if ((c->type_pair = ddsrt_calloc (1, sizeof (*c->type_pair))) == NULL)
@@ -99,12 +99,12 @@ static int proxy_endpoint_common_init (struct ddsi_entity_common *e, struct ddsi
 
   ret = ddsi_ref_proxy_participant (proxypp, c);
 
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
 err:
 #endif
   if (ret != DDS_RETCODE_OK)
   {
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
     if (c->type_pair != NULL)
     {
       if (c->type_pair->minimal)
@@ -162,12 +162,12 @@ static bool has_iceoryx_address (struct ddsi_domaingv * const gv, struct ddsi_ad
 }
 #endif /* DDS_HAS_SHM */
 
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
 bool ddsi_is_proxy_endpoint (const struct ddsi_entity_common *e)
 {
   return e->kind == DDSI_EK_PROXY_READER || e->kind == DDSI_EK_PROXY_WRITER;
 }
-#endif /* DDS_HAS_TYPE_DISCOVERY */
+#endif /* DDS_HAS_TYPELIB */
 
 void ddsi_send_entityid_to_prd (struct ddsi_proxy_reader *prd, const ddsi_guid_t *guid)
 {
@@ -382,7 +382,7 @@ static void gc_delete_proxy_writer (struct ddsi_gcreq *gcreq)
   ELOGDISC (pwr, "gc_delete_proxy_writer (%p, "PGUIDFMT")\n", (void *) gcreq, PGUID (pwr->e.guid));
   ddsi_gcreq_free (gcreq);
 
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
   if (pwr->c.type_pair != NULL)
   {
     ddsi_type_unref (pwr->e.gv, pwr->c.type_pair->minimal);
@@ -459,7 +459,7 @@ int ddsi_delete_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *
   ddsi_local_reader_ary_setinvalid (&pwr->rdary);
   GVLOGDISC ("- deleting\n");
   ddsi_builtintopic_write_endpoint (gv->builtin_topic_interface, &pwr->e, timestamp, false);
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
   /* Unregister from type before removing from entity index, because a tl_lookup_reply
      could be pending and will trigger an update of the endpoint matching for all
      endpoints that are registered for the type. This call removes this proxy writer
@@ -731,7 +731,7 @@ static void gc_delete_proxy_reader (struct ddsi_gcreq *gcreq)
   ELOGDISC (prd, "gc_delete_proxy_reader (%p, "PGUIDFMT")\n", (void *) gcreq, PGUID (prd->e.guid));
   ddsi_gcreq_free (gcreq);
 
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
   if (prd->c.type_pair != NULL)
   {
     ddsi_type_unref (prd->e.gv, prd->c.type_pair->minimal);
@@ -776,7 +776,7 @@ int ddsi_delete_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *
     return DDS_RETCODE_BAD_PARAMETER;
   }
   ddsi_builtintopic_write_endpoint (gv->builtin_topic_interface, &prd->e, timestamp, false);
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
   /* Unregister the proxy guid with the ddsi_type before removing from
      entity index, because a tl_lookup_reply could be pending and will
      trigger an update of the endpoint matching for all endpoints that

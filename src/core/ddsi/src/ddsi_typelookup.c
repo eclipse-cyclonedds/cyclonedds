@@ -105,7 +105,7 @@ static uint32_t deps_typeid_hash (const void *type_id)
   return hash32;
 }
 
-static dds_return_t create_tl_request_msg (struct ddsi_domaingv * const gv, DDS_Builtin_TypeLookup_Request *request, const struct ddsi_writer *wr, const ddsi_guid_t *proxypp_guid, struct ddsi_type *type, ddsi_type_include_deps_t resolve_deps)
+static dds_return_t create_tl_request_msg (struct ddsi_domaingv * const gv, DDS_Builtin_TypeLookup_Request *request, const struct ddsi_writer *wr, const ddsi_guid_t *proxypp_guid, struct ddsi_type *type, enum ddsi_type_include_deps resolve_deps)
 {
   int32_t cnt = 0;
   uint32_t index = 0;
@@ -160,7 +160,7 @@ err:
   return (dds_return_t) cnt;
 }
 
-bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const ddsi_typeid_t *type_id, const ddsi_guid_t *proxypp_guid, ddsi_type_include_deps_t deps)
+bool ddsi_tl_request_type (struct ddsi_domaingv * const gv, const ddsi_typeid_t *type_id, const ddsi_guid_t *proxypp_guid, enum ddsi_type_include_deps deps)
 {
   struct ddsi_typeid_str tidstr;
   assert (ddsi_typeid_is_hash (type_id));

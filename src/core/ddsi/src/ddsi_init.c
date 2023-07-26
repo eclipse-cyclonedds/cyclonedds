@@ -961,7 +961,7 @@ static uint32_t topic_definition_hash_wrap (const void *tpd)
 {
   return ddsi_topic_definition_hash (tpd);
 }
-#endif /* DDS_HAS_TYPE_DISCOVERY */
+#endif /* DDS_HAS_TOPIC_DISCOVERY */
 
 static void reset_deaf_mute (struct ddsi_domaingv *gv, struct ddsi_xevent *xev, UNUSED_ARG (struct ddsi_xpack *xp), UNUSED_ARG (void *varg), UNUSED_ARG (ddsrt_mtime_t tnow))
 {
@@ -1317,7 +1317,7 @@ int ddsi_init (struct ddsi_domaingv *gv)
   ddsrt_mutex_init (&gv->sertypes_lock);
   gv->sertypes = ddsrt_hh_new (1, ddsi_sertype_hash_wrap, ddsi_sertype_equal_wrap);
 
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
   ddsrt_mutex_init (&gv->typelib_lock);
   ddsrt_cond_init (&gv->typelib_resolved_cond);
   ddsrt_avl_init (&ddsi_typelib_treedef, &gv->typelib);
@@ -1658,7 +1658,7 @@ err_unicast_sockets:
 #endif
   ddsrt_mutex_destroy (&gv->new_topic_lock);
   ddsrt_cond_destroy (&gv->new_topic_cond);
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
   ddsrt_avl_free (&ddsi_typelib_treedef, &gv->typelib, 0);
   ddsrt_avl_free (&ddsi_typedeps_treedef, &gv->typedeps, 0);
   ddsrt_avl_free (&ddsi_typedeps_reverse_treedef, &gv->typedeps_reverse, 0);
@@ -1979,7 +1979,7 @@ void ddsi_fini (struct ddsi_domaingv *gv)
   ddsrt_hh_free (gv->topic_defs);
   ddsrt_mutex_destroy (&gv->topic_defs_lock);
 #endif /* DDS_HAS_TOPIC_DISCOVERY */
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
 #ifndef NDEBUG
   {
     assert(ddsrt_avl_is_empty(&gv->typelib));
@@ -1991,7 +1991,7 @@ void ddsi_fini (struct ddsi_domaingv *gv)
   ddsrt_avl_free (&ddsi_typedeps_treedef, &gv->typedeps, 0);
   ddsrt_avl_free (&ddsi_typedeps_reverse_treedef, &gv->typedeps_reverse, 0);
   ddsrt_mutex_destroy (&gv->typelib_lock);
-#endif /* DDS_HAS_TYPE_DISCOVERY */
+#endif /* DDS_HAS_TYPELIB */
 #ifndef NDEBUG
   {
     struct ddsrt_hh_iter it;

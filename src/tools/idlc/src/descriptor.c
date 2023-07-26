@@ -2299,7 +2299,7 @@ static int print_flags(FILE *fp, struct descriptor *descriptor, bool type_info)
   if (fixed_size)
     vec[len++] = "DDS_TOPIC_FIXED_SIZE";
 
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
   if (type_info)
     vec[len++] = "DDS_TOPIC_XTYPES_METADATA";
 #else
@@ -2354,7 +2354,7 @@ static int print_descriptor(FILE *fp, struct descriptor *descriptor, bool type_i
   if (idl_fprintf(fp, fmt, descriptor->n_opcodes, type) < 0)
     return -1;
 
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
   if (type_info) {
     fmt = ",\n"
           "  .type_information = { .data = TYPE_INFO_CDR_%1$s, .sz = TYPE_INFO_CDR_SZ_%1$s },\n" /* CDR serialized XTypes TypeInformation object */
@@ -2623,7 +2623,7 @@ generate_descriptor(
     { ret = IDL_RETCODE_NO_MEMORY; goto err_print; }
   if (print_keys(generator->source.handle, &descriptor, inst_count) < 0)
     { ret = IDL_RETCODE_NO_MEMORY; goto err_print; }
-#ifdef DDS_HAS_TYPE_DISCOVERY
+#ifdef DDS_HAS_TYPELIB
   if (generator->config.c.generate_type_info && print_type_meta_ser(generator->source.handle, pstate, node) < 0)
     { ret = IDL_RETCODE_NO_MEMORY; goto err_print; }
   if (print_descriptor(generator->source.handle, &descriptor, generator->config.c.generate_type_info) < 0)

@@ -590,6 +590,7 @@ CU_Test (ddsc_dynamic_type, no_members, .init = dynamic_type_init, .fini = dynam
   dds_dynamic_type_unref (&dunion);
 }
 
+#ifdef DDS_HAS_TYPE_DISCOVERY
 static void create_type_topic_wr (dds_entity_t pp, const char *topic_name, ddsi_typeid_t **type_id)
 {
   dds_dynamic_type_t dsubstruct = dds_dynamic_type_create (pp, (dds_dynamic_type_descriptor_t) { .kind = DDS_DYNAMIC_STRUCTURE, .name = "dynamic_substruct" });
@@ -616,9 +617,11 @@ static void create_type_topic_wr (dds_entity_t pp, const char *topic_name, ddsi_
   dds_delete_topic_descriptor (descriptor);
   dds_dynamic_type_unref (&dstruct);
 }
+#endif /* DDS_HAS_TYPE_DISCOVERY */
 
 CU_Test (ddsc_dynamic_type, existing, .init = dynamic_type_init, .fini = dynamic_type_fini)
 {
+#ifdef DDS_HAS_TYPE_DISCOVERY
   dds_return_t ret;
   char topic_name[100];
   create_unique_topic_name ("ddsc_dynamic_type", topic_name, sizeof (topic_name));
@@ -684,6 +687,7 @@ CU_Test (ddsc_dynamic_type, existing, .init = dynamic_type_init, .fini = dynamic
   ddsrt_free (type_id2);
 
   dds_delete (domain2);
+#endif /* DDS_HAS_TYPE_DISCOVERY */
 }
 
 CU_Test (ddsc_dynamic_type, existing_constructing, .init = dynamic_type_init, .fini = dynamic_type_fini)
