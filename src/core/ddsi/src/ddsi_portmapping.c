@@ -15,6 +15,9 @@
 #include "dds/ddsi/ddsi_config.h"
 #include "ddsi__portmapping.h"
 
+// for a static assert on DDSI_TRAN_RANDOM_PORT_NUMBER
+#include "ddsi__tran.h"
+
 static bool get_port_int (uint32_t *port, const struct ddsi_portmapping *map, enum ddsi_port which, uint32_t domain_id, int32_t participant_index, char *str_if_overflow, size_t strsize)
 {
   uint32_t off = UINT32_MAX, ppidx = UINT32_MAX;
@@ -38,7 +41,7 @@ static bool get_port_int (uint32_t *port, const struct ddsi_portmapping *map, en
       if (participant_index == DDSI_PARTICIPANT_INDEX_NONE)
       {
         /* participant index "none" means unicast ports get chosen by the transport */
-        *port = 0;
+        *port = DDSI_TRAN_RANDOM_PORT_NUMBER;
         return true;
       }
       off = map->d1;
@@ -48,7 +51,7 @@ static bool get_port_int (uint32_t *port, const struct ddsi_portmapping *map, en
       if (participant_index == DDSI_PARTICIPANT_INDEX_NONE)
       {
         /* participant index "none" means unicast ports get chosen by the transport */
-        *port = 0;
+        *port = DDSI_TRAN_RANDOM_PORT_NUMBER;
         return true;
       }
       off = map->d3;
@@ -62,6 +65,7 @@ static bool get_port_int (uint32_t *port, const struct ddsi_portmapping *map, en
   /* For the mapping to be valid, the port number must be in range of an unsigned 32 bit integer and must
      not be 0 (as that is used for indicating a random port should be selected by the transport).  The
      transports may limit this further, but at least we won't have to worry about overflow anymore. */
+  DDSRT_STATIC_ASSERT (DDSI_TRAN_RANDOM_PORT_NUMBER == 0);
   *port = (uint32_t) (a + b);
   if (a <= UINT32_MAX && b <= UINT32_MAX - a && *port > 0)
     return true;

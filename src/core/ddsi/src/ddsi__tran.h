@@ -33,6 +33,12 @@ struct ddsi_domaingv;
 /* Flags */
 #define DDSI_TRAN_ON_CONNECT 0x0001
 
+/* Magic value for port number argument in create_conn and create_listener to indicate
+   that a random port number is requested.  Note that 0 also happens to be illegal in UDP
+   and TCP and is DDSI_LOCATOR_PORT_INVALID in the DDSI spec.  What a fortunate
+   coincidence!  */
+#define DDSI_TRAN_RANDOM_PORT_NUMBER 0
+
 enum ddsi_tran_qos_purpose {
   DDSI_TRAN_QOS_XMIT_UC, // will send unicast only
   DDSI_TRAN_QOS_XMIT_MC, // may send unicast or multicast
@@ -252,7 +258,7 @@ inline dds_return_t ddsi_factory_create_conn (struct ddsi_tran_conn **conn, stru
   *conn = NULL;
   if ((qos->m_interface != NULL) != (qos->m_purpose == DDSI_TRAN_QOS_XMIT_UC || qos->m_purpose == DDSI_TRAN_QOS_XMIT_MC))
     return DDS_RETCODE_BAD_PARAMETER;
-  if (port != 0 && !ddsi_is_valid_port (factory, port))
+  if (port != DDSI_TRAN_RANDOM_PORT_NUMBER && !ddsi_is_valid_port (factory, port))
     return DDS_RETCODE_BAD_PARAMETER;
   return factory->m_create_conn_fn (conn, factory, port, qos);
 }
@@ -260,7 +266,7 @@ inline dds_return_t ddsi_factory_create_conn (struct ddsi_tran_conn **conn, stru
 /** @component transport */
 inline dds_return_t ddsi_factory_create_listener (struct ddsi_tran_listener **listener, struct ddsi_tran_factory * factory, uint32_t port, const struct ddsi_tran_qos *qos) {
   *listener = NULL;
-  if (port != 0 && !ddsi_is_valid_port (factory, port))
+  if (port != DDSI_TRAN_RANDOM_PORT_NUMBER && !ddsi_is_valid_port (factory, port))
     return DDS_RETCODE_BAD_PARAMETER;
   return factory->m_create_listener_fn (listener, factory, port, qos);
 }

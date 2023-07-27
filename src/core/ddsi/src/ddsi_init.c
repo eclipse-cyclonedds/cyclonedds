@@ -112,9 +112,9 @@ static enum make_uc_sockets_ret make_uc_sockets (struct ddsi_domaingv *gv, uint3
   *pdisc = ddsi_get_port (&gv->config, DDSI_PORT_UNI_DISC, ppid);
   *pdata = ddsi_get_port (&gv->config, DDSI_PORT_UNI_DATA, ppid);
 
-  if (*pdisc != 0 && !ddsi_is_valid_port (gv->m_factory, *pdisc))
+  if (*pdisc != DDSI_TRAN_RANDOM_PORT_NUMBER && !ddsi_is_valid_port (gv->m_factory, *pdisc))
     return MUSRET_INVALID_PORTS;
-  if (*pdata != 0 && !ddsi_is_valid_port (gv->m_factory, *pdata))
+  if (*pdata != DDSI_TRAN_RANDOM_PORT_NUMBER && !ddsi_is_valid_port (gv->m_factory, *pdata))
     return MUSRET_INVALID_PORTS;
 
   const struct ddsi_tran_qos qos = { .m_purpose = DDSI_TRAN_QOS_RECV_UC, .m_diffserv = 0, .m_interface = NULL };
@@ -285,7 +285,7 @@ static int string_to_default_locator (const struct ddsi_domaingv *gv, ddsi_locat
       GVERROR ("%s: invalid address kind (%s)\n", string, tag);
       return -1;
   }
-  if (port != 0 && !ddsi_is_unspec_locator(loc))
+  if (port != DDSI_LOCATOR_PORT_INVALID && !ddsi_is_unspec_locator(loc))
     loc->port = port;
   else
     loc->port = DDSI_LOCATOR_PORT_INVALID;
@@ -1492,8 +1492,8 @@ int ddsi_init (struct ddsi_domaingv *gv)
   else
   {
     if (gv->config.tcp_port < 0)
-      ; /* nop */
-    else if (gv->config.tcp_port == 0)
+      ; /* no TCP listener */
+    else if (gv->config.tcp_port == DDSI_TRAN_RANDOM_PORT_NUMBER)
       ; /* kernel-allocated random port */
     else if (!ddsi_is_valid_port (gv->m_factory, (uint32_t) gv->config.tcp_port))
     {
