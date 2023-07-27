@@ -41,8 +41,7 @@ void dds_read_collect_sample_arg_init (struct dds_read_collect_sample_arg *arg, 
  * @component read_data
  *
  * It assumes the ptrs and infos arrays are large enough and ptrs are valid and point to an
- * allocated sample.  On instance change it patches the ranks in the sample infos using @ref
- * dds_read_check_and_handle_instance_switch
+ * allocated sample.
  *
  * @see dds_read_with_collector_fn_t
  *
@@ -54,8 +53,6 @@ dds_return_t dds_read_collect_sample (void *varg, const dds_sample_info_t *si, c
  * @component read_data
  *
  * It assumes the ptrs and infos arrays are large enough and ptrs are not allocated.
- * On instance change it patches the ranks in the sample infos using @ref
- * dds_read_check_and_handle_instance_switch
  *
  * @see dds_read_with_collector_fn_t
  *
@@ -66,8 +63,7 @@ dds_return_t dds_read_collect_sample_loan (void *varg, const dds_sample_info_t *
 /** @brief Sample collector that stores a pointer to the serdata and increments its refcount
  * @component read_data
  *
- * It assumes the ptrs and infos arrays are large enough.  On instance change it patches
- * the ranks in the sample infos using @ref dds_read_check_and_handle_instance_switch
+ * It assumes the ptrs and infos arrays are large enough.
  *
  * @see dds_read_with_collector_fn_t
  *

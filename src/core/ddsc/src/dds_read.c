@@ -196,7 +196,6 @@ static dds_return_t dds_read_impl (bool take, dds_entity_t reader_or_condition, 
   ddsrt_mutex_lock (&rd->m_entity.m_mutex);
   ret = dds_read_impl_common (take, rd, cond, maxs, mask, hand, collect_sample, &collect_arg);
   ddsrt_mutex_unlock (&rd->m_entity.m_mutex);
-  dds_read_check_and_handle_instance_switch (&collect_arg, 0);
 
 fail_pinned_awake:
   ddsi_thread_state_asleep (thrst);
