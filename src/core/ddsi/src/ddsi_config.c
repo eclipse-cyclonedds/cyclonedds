@@ -17,6 +17,7 @@
 #include <assert.h>
 #include <limits.h>
 #include <string.h>
+#include <math.h>
 
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/log.h"
@@ -584,11 +585,22 @@ static int list_index (const char *list[], const char *elem)
 }
 
 static int64_t lookup_multiplier (struct ddsi_cfgst *cfgst, const struct unit *unittab, const char *value, int unit_pos, int value_is_zero, int64_t def_mult, int err_on_unrecognised)
+  ddsrt_nonnull((1, 3));
+
+static int64_t lookup_multiplier (struct ddsi_cfgst *cfgst, const struct unit *unittab, const char *value, int unit_pos, int value_is_zero, int64_t def_mult, int err_on_unrecognised)
 {
   assert (0 <= unit_pos && (size_t) unit_pos <= strlen(value));
   while (value[unit_pos] == ' ')
     unit_pos++;
-  if (value[unit_pos] == 0)
+  if (unittab == NULL)
+  {
+    if (value[unit_pos] != 0) {
+      (void) cfg_error (cfgst, "%s: no unit expected", value);
+      return 0;
+    }
+    return def_mult;
+  }
+  else if (value[unit_pos] == 0)
   {
     if (value_is_zero) {
       /* No matter what unit, 0 remains just that.  For convenience,
@@ -811,30 +823,51 @@ static void do_print_uint32_bitset (struct ddsi_cfgst *cfgst, uint32_t mask, siz
   cfg_logelem (cfgst, sources, "%s%s", res, suffix);
 }
 
-static enum update_result uf_natint64_unit(struct ddsi_cfgst *cfgst, int64_t *elem, const char *value, const struct unit *unittab, int64_t def_mult, int64_t min, int64_t max)
+static enum update_result uf_int64_unit (struct ddsi_cfgst *cfgst, int64_t *elem, const char *value, const struct unit *unittab, int64_t def_mult, int64_t min, int64_t max)
+  ddsrt_nonnull ((1, 2, 3));
+
+static enum update_result uf_int64_unit (struct ddsi_cfgst *cfgst, int64_t *elem, const char *value, const struct unit *unittab, int64_t def_mult, int64_t min, int64_t max)
 {
   DDSRT_WARNING_MSVC_OFF(4996);
   int pos;
   double v_dbl;
   int64_t v_int;
   int64_t mult;
+  // Some static analyzers don't "get it" and will report false positives on an
+  // uninitialized value for *elem when returning cfg_error(...)
+  *elem = 0;
   /* try convert as integer + optional unit; if that fails, try
      floating point + optional unit (round, not truncate, to integer) */
   if (*value == 0) {
-    *elem = 0; /* some static analyzers don't "get it" */
     return cfg_error(cfgst, "%s: empty string is not a valid value", value);
   } else if (sscanf (value, "%" SCNd64 "%n", &v_int, &pos) == 1 && (mult = lookup_multiplier (cfgst, unittab, value, pos, v_int == 0, def_mult, 0)) != 0) {
     assert(mult > 0);
-    if (v_int < 0 || v_int > max / mult || mult * v_int < min)
+    if (v_int < INT64_MIN / mult || v_int > INT64_MAX / mult)
       return cfg_error (cfgst, "%s: value out of range", value);
-    *elem = mult * v_int;
+    const int64_t v_int_scaled = v_int * mult;
+    if (v_int_scaled < min || v_int_scaled > max)
+      return cfg_error (cfgst, "%s: value out of range", value);
+    *elem = v_int_scaled;
     return URES_SUCCESS;
-  } else if (sscanf(value, "%lf%n", &v_dbl, &pos) == 1 && (mult = lookup_multiplier (cfgst, unittab, value, pos, v_dbl == 0, def_mult, 1)) != 0) {
+  } else if (sscanf (value, "%lf%n", &v_dbl, &pos) == 1 && (mult = lookup_multiplier (cfgst, unittab, value, pos, v_dbl == 0, def_mult, 1)) != 0) {
     double dmult = (double) mult;
     assert (dmult > 0);
-    if ((int64_t) (v_dbl * dmult + 0.5) < min || (int64_t) (v_dbl * dmult + 0.5) > max)
+    // avoid needing something llround(), make it possible, scale it and
+    // add 0.5 to get decent rounding behaviour
+    const double v_dbl_abs_scaled = ((v_dbl >= 0) ? 1.0 : -1.0) * v_dbl * dmult + 0.5;
+    // - C99, therefore 2's complement by 7.18.1.1
+    // - INT64_MIN = 0x8000...0 is exactly representable, so < is correct
+    // - INT64_MAX = 0x7fff...f is not exactly representable and rounds up
+    // v_dbl_abs_scaled is >= 0 and with -INT64_MAX > INT64_MIN, checking
+    // it is strictly less than ((double) INT64_MAX) guarantees we can
+    // convert to int64_t and negate it if the input is negative without
+    // risking signed overflow.
+    if (v_dbl_abs_scaled >= (double) INT64_MAX)
       return cfg_error(cfgst, "%s: value out of range", value);
-    *elem = (int64_t) (v_dbl * dmult + 0.5);
+    const int64_t v_int_scaled = ((v_dbl >= 0) ? 1 : -1) * (int64_t) v_dbl_abs_scaled;
+    if (v_int_scaled < min || v_int_scaled > max)
+      return cfg_error (cfgst, "%s: value out of range", value);
+    *elem = v_int_scaled;
     return URES_SUCCESS;
   } else {
     *elem = 0; /* some static analyzers don't "get it" */
@@ -1057,7 +1090,7 @@ static void pf_string (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem co
 static enum update_result uf_memsize (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
 {
   int64_t size = 0;
-  if (uf_natint64_unit (cfgst, &size, value, unittab_memsize, 1, 0, INT32_MAX) != URES_SUCCESS)
+  if (uf_int64_unit (cfgst, &size, value, unittab_memsize, 1, 0, INT32_MAX) != URES_SUCCESS)
     return URES_ERROR;
   else {
     uint32_t * const elem = cfg_address (cfgst, parent, cfgelem);
@@ -1075,7 +1108,7 @@ static void pf_memsize (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem c
 static enum update_result uf_memsize16 (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
 {
   int64_t size = 0;
-  if (uf_natint64_unit (cfgst, &size, value, unittab_memsize, 1, 0, UINT16_MAX) != URES_SUCCESS)
+  if (uf_int64_unit (cfgst, &size, value, unittab_memsize, 1, 0, UINT16_MAX) != URES_SUCCESS)
     return URES_ERROR;
   else {
     uint16_t * const elem = cfg_address (cfgst, parent, cfgelem);
@@ -1293,7 +1326,7 @@ static enum update_result uf_maybe_memsize (struct ddsi_cfgst *cfgst, void *pare
     elem->isdefault = 1;
     elem->value = 0;
     return URES_SUCCESS;
-  } else if (uf_natint64_unit (cfgst, &size, value, unittab_memsize, 1, 0, INT32_MAX) != URES_SUCCESS) {
+  } else if (uf_int64_unit (cfgst, &size, value, unittab_memsize, 1, 0, INT32_MAX) != URES_SUCCESS) {
     return URES_ERROR;
   } else {
     elem->isdefault = 0;
@@ -1314,28 +1347,21 @@ static void pf_maybe_memsize (struct ddsi_cfgst *cfgst, void *parent, struct cfg
 static enum update_result uf_int (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
 {
   int * const elem = cfg_address (cfgst, parent, cfgelem);
-  char *endptr;
-  int orig_errno = errno;
-  errno = 0;
-  long v = strtol (value, &endptr, 10);
-  if (*value == 0 || *endptr != 0)
-    return cfg_error (cfgst, "%s: not a decimal integer", value);
-  if (v != (int) v || errno)
-    return cfg_error (cfgst, "%s: value out of range", value);
-  errno = orig_errno;
-  *elem = (int) v;
+  int64_t x;
+  if (uf_int64_unit (cfgst, &x, value, NULL, 1, INT_MIN, INT_MAX) != URES_SUCCESS)
+    return URES_ERROR;
+  *elem = (int) x;
   return URES_SUCCESS;
 }
 
-static enum update_result uf_int_min_max (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int first, const char *value, int min, int max)
+static enum update_result uf_int_min_max (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value, int min, int max)
 {
   int *elem = cfg_address (cfgst, parent, cfgelem);
-  if (uf_int (cfgst, parent, cfgelem, first, value) != URES_SUCCESS)
+  int64_t x;
+  if (uf_int64_unit (cfgst, &x, value, NULL, 1, min, max) != URES_SUCCESS)
     return URES_ERROR;
-  else if (*elem < min || *elem > max)
-    return cfg_error (cfgst, "%s: out of range", value);
-  else
-    return URES_SUCCESS;
+  *elem = (int) x;
+  return URES_SUCCESS;
 }
 
 static void pf_int (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, uint32_t sources)
@@ -1362,16 +1388,10 @@ static enum update_result uf_natint_255(struct ddsi_cfgst *cfgst, void *parent, 
 static enum update_result uf_uint (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
 {
   uint32_t * const elem = cfg_address (cfgst, parent, cfgelem);
-  char *endptr;
-  int orig_errno = errno;
-  errno = 0;
-  unsigned long v = strtoul (value, &endptr, 10);
-  if (*value == 0 || *endptr != 0)
-    return cfg_error (cfgst, "%s: not a decimal integer", value);
-  if (v != (uint32_t) v || errno)
-    return cfg_error (cfgst, "%s: value out of range", value);
-  errno = orig_errno;
-  *elem = (uint32_t) v;
+  int64_t x;
+  if (uf_int64_unit (cfgst, &x, value, NULL, 1, 0, UINT32_MAX) != URES_SUCCESS)
+    return URES_ERROR;
+  *elem = (uint32_t) x;
   return URES_SUCCESS;
 }
 
@@ -1383,7 +1403,7 @@ static void pf_uint (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem cons
 
 static enum update_result uf_duration_gen (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, const char *value, int64_t def_mult, int64_t min_ns, int64_t max_ns)
 {
-  return uf_natint64_unit (cfgst, cfg_address (cfgst, parent, cfgelem), value, unittab_duration, def_mult, min_ns, max_ns);
+  return uf_int64_unit (cfgst, cfg_address (cfgst, parent, cfgelem), value, unittab_duration, def_mult, min_ns, max_ns);
 }
 
 static enum update_result uf_duration_inf (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
@@ -1405,7 +1425,7 @@ static enum update_result uf_duration_ms_1hr (struct ddsi_cfgst *cfgst, void *pa
 static enum update_result uf_nop_duration_ms_1hr (struct ddsi_cfgst *cfgst, UNUSED_ARG(void *parent), UNUSED_ARG(struct cfgelem const * const cfgelem), UNUSED_ARG (int first), const char *value)
 {
   int64_t dummy;
-  return uf_natint64_unit (cfgst, &dummy, value, unittab_duration, DDS_MSECS (1), 0, DDS_SECS (3600));
+  return uf_int64_unit (cfgst, &dummy, value, unittab_duration, DDS_MSECS (1), 0, DDS_SECS (3600));
 }
 
 static enum update_result uf_duration_ms_1s (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
