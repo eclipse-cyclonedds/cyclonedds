@@ -711,7 +711,7 @@ struct ddsi_debug_monitor *ddsi_new_debug_monitor (struct ddsi_domaingv *gv, int
   if ((dm->tran_factory = ddsi_factory_find (gv, "tcp")) == NULL)
     dm->tran_factory = ddsi_factory_find (gv, "tcp6");
 
-  if (port != 0 && !ddsi_is_valid_port (dm->tran_factory, (uint32_t) port))
+  if (port != DDSI_TRAN_RANDOM_PORT_NUMBER && !ddsi_is_valid_port (dm->tran_factory, (uint32_t) port))
   {
     GVERROR ("debug monitor port number %"PRId32" is invalid\n", port);
     goto err_invalid_port;
