@@ -139,9 +139,6 @@ void ddsi_set_unspec_locator (ddsi_locator_t *loc);
 /** @component locators */
 void ddsi_set_unspec_xlocator (ddsi_xlocator_t *loc);
 
-/** @component locators */
-int ddsi_add_addresses_to_addrset (const struct ddsi_domaingv *gv, struct ddsi_addrset *as, const char *addrs, int port_mode, const char *msgtag, int req_mc);
-
 
 #ifdef DDS_HAS_SSM
 

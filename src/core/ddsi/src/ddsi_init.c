@@ -78,11 +78,81 @@
 #include "iceoryx_binding_c/runtime.h"
 #endif
 
+static int add_peer_address_ports (const struct ddsi_domaingv *gv, struct ddsi_addrset *as, ddsi_locator_t *loc)
+{
+  char buf[DDSI_LOCSTRLEN];
+  int32_t maxidx;
+
+  // check whether port number, address type and mode make sense, and prepare the
+  // locator by patching the first port number to use if none is given
+  if (loc->port != DDSI_LOCATOR_PORT_INVALID)
+  {
+    maxidx = 0;
+  }
+  else if (ddsi_is_mcaddr (gv, loc))
+  {
+    loc->port = ddsi_get_port (&gv->config, DDSI_PORT_MULTI_DISC, 0);
+    maxidx = 0;
+  }
+  else
+  {
+    loc->port = ddsi_get_port (&gv->config, DDSI_PORT_UNI_DISC, 0);
+    maxidx = gv->config.maxAutoParticipantIndex;
+  }
+
+  GVLOG (DDS_LC_CONFIG, "add_peer_address: add %s", ddsi_locator_to_string (buf, sizeof (buf), loc));
+  ddsi_add_locator_to_addrset (gv, as, loc);
+  for (int32_t i = 1; i < maxidx; i++)
+  {
+    loc->port = ddsi_get_port (&gv->config, DDSI_PORT_UNI_DISC, i);
+    GVLOG (DDS_LC_CONFIG, ", :%"PRIu32, loc->port);
+    ddsi_add_locator_to_addrset (gv, as, loc);
+  }
+  GVLOG (DDS_LC_CONFIG, "\n");
+  return 0;
+}
+
+static int add_peer_address (const struct ddsi_domaingv *gv, struct ddsi_addrset *as, const char *addrs)
+{
+  DDSRT_WARNING_MSVC_OFF(4996);
+  char *addrs_copy, *cursor, *a;
+  int retval = -1;
+  addrs_copy = ddsrt_strdup (addrs);
+  cursor = addrs_copy;
+  while ((a = ddsrt_strsep (&cursor, ",")) != NULL)
+  {
+    ddsi_locator_t loc;
+    switch (ddsi_locator_from_string (gv, &loc, a, gv->m_factory))
+    {
+      case AFSR_OK:
+        break;
+      case AFSR_INVALID:
+        GVERROR ("add_peer_address: %s: not a valid address\n", a);
+        goto error;
+      case AFSR_UNKNOWN:
+        GVERROR ("add_peer_address: %s: unknown address\n", a);
+        goto error;
+      case AFSR_MISMATCH:
+        GVERROR ("add_peer_address: %s: address family mismatch\n", a);
+        goto error;
+    }
+    if (add_peer_address_ports (gv, as, &loc) < 0)
+    {
+      goto error;
+    }
+  }
+  retval = 0;
+ error:
+  ddsrt_free (addrs_copy);
+  return retval;
+  DDSRT_WARNING_MSVC_ON(4996);
+}
+
 static void add_peer_addresses (const struct ddsi_domaingv *gv, struct ddsi_addrset *as, const struct ddsi_config_peer_listelem *list)
 {
   while (list)
   {
-    ddsi_add_addresses_to_addrset (gv, as, list->peer, -1, "add_peer_addresses", 0);
+    add_peer_address (gv, as, list->peer);
     list = list->next;
   }
 }
