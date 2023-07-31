@@ -313,7 +313,7 @@ static bool ddsrt_chh_data_valid_p (void *data)
     return data != NULL && data != CHH_BUSY;
 }
 
-static int ddsrt_chh_init (struct ddsrt_chh *rt, uint32_t init_size, ddsrt_hh_hash_fn hash, ddsrt_hh_equals_fn equals, ddsrt_hh_buckets_gc_fn gc_buckets, void *gc_buckets_arg)
+static void ddsrt_chh_init (struct ddsrt_chh *rt, uint32_t init_size, ddsrt_hh_hash_fn hash, ddsrt_hh_equals_fn equals, ddsrt_hh_buckets_gc_fn gc_buckets, void *gc_buckets_arg)
 {
     uint32_t size;
     uint32_t i;
@@ -338,7 +338,6 @@ static int ddsrt_chh_init (struct ddsrt_chh *rt, uint32_t init_size, ddsrt_hh_ha
         ddsrt_atomic_stvoidp (&b->data, NULL);
     }
     ddsrt_mutex_init (&rt->change_lock);
-    return 0;
 }
 
 static void ddsrt_chh_fini (struct ddsrt_chh *rt)
@@ -350,12 +349,8 @@ static void ddsrt_chh_fini (struct ddsrt_chh *rt)
 struct ddsrt_chh *ddsrt_chh_new (uint32_t init_size, ddsrt_hh_hash_fn hash, ddsrt_hh_equals_fn equals, ddsrt_hh_buckets_gc_fn gc_buckets, void *gc_buckets_arg)
 {
     struct ddsrt_chh *hh = ddsrt_malloc (sizeof (*hh));
-    if (ddsrt_chh_init (hh, init_size, hash, equals, gc_buckets, gc_buckets_arg) < 0) {
-        ddsrt_free (hh);
-        return NULL;
-    } else {
-        return hh;
-    }
+    ddsrt_chh_init (hh, init_size, hash, equals, gc_buckets, gc_buckets_arg);
+    return hh;
 }
 
 void ddsrt_chh_free (struct ddsrt_chh * __restrict hh)
