@@ -148,7 +148,7 @@ ddsrt_strtod(const char *nptr, char **endptr, double *dblptr)
     }
   }
 
-  if ((dbl == HUGE_VALF || dbl == HUGE_VALL || dbl == 0) && errno == ERANGE) {
+  if ((dbl == HUGE_VAL || dbl == 0) && errno == ERANGE) {
     ret = DDS_RETCODE_OUT_OF_RANGE;
   } else {
     errno = orig_errno;
