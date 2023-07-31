@@ -55,9 +55,11 @@ const char *dds_strretcode (dds_return_t ret)
   if (ret == INT32_MIN)
     return xretcodes[0];
 
+  // INT32_MIN has already been handled and so this is safe
+  // and will guarantee ret >= 0.
   if (ret < 0)
     ret = -ret;
-  if (ret >= 0 && ret < nretcodes)
+  if (ret < nretcodes)
     return retcodes[ret];
   else if (ret >= (-DDS_XRETCODE_BASE) && ret < (-DDS_XRETCODE_BASE) + nxretcodes)
     return xretcodes[ret - (-DDS_XRETCODE_BASE)];
