@@ -4397,8 +4397,7 @@ static uint32_t add_to_key_size_impl (uint32_t keysize, uint32_t field_size, uin
 
 static void add_to_key_size_xcdrv1 (struct key_props *k, uint32_t field_size, uint32_t field_dims, uint32_t field_align)
 {
-  if (k->min_xcdrv == DDSI_RTPS_CDR_ENC_VERSION_1)
-    k->sz_xcdrv1 = add_to_key_size_impl (k->sz_xcdrv1, field_size, field_dims, field_align, XCDR1_MAX_ALIGN);
+  k->sz_xcdrv1 = add_to_key_size_impl (k->sz_xcdrv1, field_size, field_dims, field_align, XCDR1_MAX_ALIGN);
 }
 
 static void add_to_key_size_xcdrv2 (struct key_props *k, uint32_t field_size, uint32_t field_dims, uint32_t field_align)
@@ -4425,8 +4424,6 @@ static const uint32_t *dds_stream_key_size_arr (const uint32_t * __restrict ops,
   const enum dds_stream_typecode subtype = DDS_OP_SUBTYPE (insn);
   uint32_t bound = ops[2];
 
-  if (is_dheader_needed (subtype, DDSI_RTPS_CDR_ENC_VERSION_1))
-    add_to_key_size_xcdrv1 (k, 4, 1, 4);
   if (is_dheader_needed (subtype, DDSI_RTPS_CDR_ENC_VERSION_2))
     add_to_key_size_xcdrv2 (k, 4, 1, 4);
 
@@ -4734,7 +4731,7 @@ uint32_t dds_stream_key_flags (struct dds_cdrstream_desc *desc, uint32_t *keysz_
         key_flags |= DDS_TOPIC_KEY_APPENDABLE;
 
       if (keysz_xcdrv1 != NULL)
-        *keysz_xcdrv1 = key_properties.sz_xcdrv1;
+        *keysz_xcdrv1 = key_properties.min_xcdrv == DDSI_RTPS_CDR_ENC_VERSION_1 ? key_properties.sz_xcdrv1 : 0;
       if (keysz_xcdrv2 != NULL)
         *keysz_xcdrv2 = key_properties.sz_xcdrv2;
     }
