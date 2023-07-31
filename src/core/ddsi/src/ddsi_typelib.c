@@ -1498,6 +1498,7 @@ dds_return_t ddsi_wait_for_type_resolved (struct ddsi_domaingv *gv, const ddsi_t
     return DDS_RETCODE_PRECONDITION_NOT_MET;
 #else
   assert (request == DDSI_TYPE_NO_REQUEST);
+  (void) request;
 #endif
 
   ddsrt_mutex_lock (&gv->typelib_lock);
