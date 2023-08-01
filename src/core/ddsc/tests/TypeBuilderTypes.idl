@@ -399,8 +399,10 @@ module TypeBuilderTypes {
     t27_1 f1;
   };
 
-  /* unbounded string key */
+  /* bounded and unbounded string key */
   struct t28 {
     @key string f1;
+    @key string<3> f2;
   };
+
 };
