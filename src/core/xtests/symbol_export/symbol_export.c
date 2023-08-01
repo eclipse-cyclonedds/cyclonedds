@@ -53,6 +53,7 @@
 #include "dds/ddsi/ddsi_gc.h"
 #ifdef DDS_HAS_TYPELIB
 #include "dds/ddsi/ddsi_typelib.h"
+#include "dds/ddsi/ddsi_typebuilder.h"
 #endif
 
 #ifdef DDS_HAS_SECURITY
@@ -490,6 +491,7 @@ int main (int argc, char **argv)
   dds_stream_extract_keyBE_from_data (ptr, ptr2, ptr3, ptr4);
   dds_stream_extract_keyBE_from_key (ptr, ptr2, 0, ptr3, ptr4);
   dds_cdrstream_desc_from_topic_desc (ptr, ptr2);
+  dds_cdrstream_desc_init (ptr, ptr2, 0, 0, 0, ptr3, ptr4, 0);
   dds_cdrstream_desc_fini (ptr, ptr2);
 
 #ifdef DDS_HAS_SECURITY
@@ -683,16 +685,20 @@ int main (int argc, char **argv)
   // ddsi_config_impl.h
   ddsi_config_fini (ptr);
 
-  // ddsi/q_thread.h
+  // ddsi/ddsi_thread.h
   ddsi_lookup_thread_state ();
   ddsi_lookup_thread_state_real ();
 
-  // ddsi/q_gc.h
+  // ddsi/ddsi_gc.h
   ddsi_gcreq_new (ptr, ptr);
   ddsi_gcreq_free (ptr);
   ddsi_gcreq_enqueue (ptr);
   ddsi_gcreq_get_arg (ptr);
   ddsi_gcreq_set_arg (ptr, ptr2);
+
+  // ddsi/ddsi_typebuilder.h
+  ddsi_topic_descriptor_from_type (ptr, ptr2, ptr3);
+  ddsi_topic_descriptor_fini (ptr);
 
   // ddsrt/atomics.h
   ddsrt_atomic_ld32 (ptr);

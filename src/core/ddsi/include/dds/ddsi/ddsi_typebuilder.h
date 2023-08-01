@@ -23,10 +23,10 @@ extern "C" {
 #endif
 
 /** @component dynamic_types */
-dds_return_t ddsi_topic_descriptor_from_type (struct ddsi_domaingv *gv, dds_topic_descriptor_t *desc, const struct ddsi_type *type);
+DDS_EXPORT dds_return_t ddsi_topic_descriptor_from_type (struct ddsi_domaingv *gv, dds_topic_descriptor_t *desc, const struct ddsi_type *type);
 
 /** @component dynamic_types */
-void ddsi_topic_descriptor_fini (dds_topic_descriptor_t *desc);
+DDS_EXPORT void ddsi_topic_descriptor_fini (dds_topic_descriptor_t *desc);
 
 #if defined (__cplusplus)
 }
