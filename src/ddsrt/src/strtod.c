@@ -174,18 +174,44 @@ ddsrt_strtod(const char *nptr, char **endptr, double *dblptr)
 dds_return_t
 ddsrt_strtof(const char *nptr, char **endptr, float *fltptr)
 {
-  /* Just use os_strtod(). */
-  /* FIXME: This will have to do for now, but a single-precision floating
-            point number is definitely not a double-precision floating point
-            number. */
-  double dbl = 0.0;
-  dds_return_t ret;
+  float flt;
+  int orig_errno;
+  dds_return_t ret = DDS_RETCODE_OK;
 
   assert(nptr != NULL);
   assert(fltptr != NULL);
 
-  ret = ddsrt_strtod(nptr, endptr, &dbl);
-  *fltptr = (float)dbl;
+  orig_errno = errno;
+  if (os_lcNumericGet() == '.') {
+    errno = 0;
+    /* The current locale uses '.', so strtof can be used as is. */
+    flt = strtof(nptr, endptr);
+  } else {
+    /* The current locale has to be normalized to use '.' for the floating
+       point string. */
+    char  nptrCopy[DOUBLE_STRING_MAX_LENGTH];
+    char *nptrCopyEnd = NULL;
+    delocalize_floating_point_str(nptr, nptrCopy, &nptrCopyEnd);
+
+    /* Now that we have a copy with the proper locale LC_NUMERIC, we can use
+       strtof() for the conversion. */
+    errno = 0;
+    flt = strtof(nptrCopy, &nptrCopyEnd);
+
+    /* Calculate the proper end char when needed. */
+    if (endptr != NULL) {
+      *endptr = (char*)nptr + (nptrCopyEnd - nptrCopy);
+    }
+  }
+
+  if ((flt == HUGE_VALF || flt == 0) && errno == ERANGE) {
+    ret = DDS_RETCODE_OUT_OF_RANGE;
+  } else {
+    errno = orig_errno;
+  }
+
+  *fltptr = flt;
+
   return ret;
 }
 
