@@ -226,17 +226,6 @@ if(ENABLE_DEADLINE_MISSED)
     ddsi_deadline.h
   )
 endif()
-if(ENABLE_TYPELIB)
-  list(APPEND srcs_ddsi
-    ddsi_typelib.c
-  )
-  list(APPEND hdrs_ddsi
-    ddsi_typelib.h
-  )
-  list(APPEND hdrs_private_ddsi
-    ddsi__typelib.h
-  )
-endif()
 if(ENABLE_TOPIC_DISCOVERY)
   list(APPEND srcs_ddsi
     ddsi_discovery_topic.c
@@ -249,6 +238,7 @@ if(ENABLE_TYPELIB)
   list(APPEND srcs_ddsi
     ddsi_xt_typeinfo.c
     ddsi_xt_typemap.c
+    ddsi_typelib.c
     ddsi_typewrap.c
     ddsi_typebuilder.c
     ddsi_dynamic_type.c
@@ -256,12 +246,14 @@ if(ENABLE_TYPELIB)
   list(APPEND hdrs_ddsi
     ddsi_xt_typeinfo.h
     ddsi_xt_typemap.h
+    ddsi_typelib.h
     ddsi_typewrap.h
     ddsi_typebuilder.h
     ddsi_dynamic_type.h
   )
   list(APPEND hdrs_private_ddsi
     ddsi__xt_impl.h
+    ddsi__typelib.h
     ddsi__dynamic_type.h
   )
 endif()

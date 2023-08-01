@@ -25,6 +25,8 @@
 extern "C" {
 #endif
 
+#ifdef DDS_HAS_TYPELIB
+
 struct ddsi_domaingv;
 struct ddsi_sertype;
 struct ddsi_type;
@@ -140,6 +142,8 @@ DDS_EXPORT struct ddsi_type * ddsi_type_lookup (struct ddsi_domaingv *gv, const 
  *
  */
 DDS_EXPORT int ddsi_type_compare (const struct ddsi_type *a, const struct ddsi_type *b);
+
+#endif /* DDS_HAS_TYPELIB */
 
 #if defined (__cplusplus)
 }

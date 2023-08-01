@@ -15,6 +15,8 @@
 extern "C" {
 #endif
 
+#ifdef DDS_HAS_TYPELIB
+
 struct ddsi_typeinfo;
 
 /**
@@ -623,6 +625,8 @@ DDS_EXPORT dds_return_t dds_dynamic_type_unref (dds_dynamic_type_t *type);
  */
 DDS_EXPORT dds_dynamic_type_t dds_dynamic_type_dup (const dds_dynamic_type_t *src);
 
+
+#endif /* DDS_HAS_TYPELIB */
 
 #if defined (__cplusplus)
 }

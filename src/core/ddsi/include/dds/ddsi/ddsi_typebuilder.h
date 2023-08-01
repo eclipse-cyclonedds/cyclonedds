@@ -22,11 +22,15 @@
 extern "C" {
 #endif
 
+#ifdef DDS_HAS_TYPELIB
+
 /** @component dynamic_types */
 DDS_EXPORT dds_return_t ddsi_topic_descriptor_from_type (struct ddsi_domaingv *gv, dds_topic_descriptor_t *desc, const struct ddsi_type *type);
 
 /** @component dynamic_types */
 DDS_EXPORT void ddsi_topic_descriptor_fini (dds_topic_descriptor_t *desc);
+
+#endif /* DDS_HAS_TYPELIB */
 
 #if defined (__cplusplus)
 }
