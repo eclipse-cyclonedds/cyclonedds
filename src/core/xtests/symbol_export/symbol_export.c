@@ -696,9 +696,11 @@ int main (int argc, char **argv)
   ddsi_gcreq_get_arg (ptr);
   ddsi_gcreq_set_arg (ptr, ptr2);
 
+#ifdef DDS_HAS_TYPELIB
   // ddsi/ddsi_typebuilder.h
   ddsi_topic_descriptor_from_type (ptr, ptr2, ptr3);
   ddsi_topic_descriptor_fini (ptr);
+#endif
 
   // ddsrt/atomics.h
   ddsrt_atomic_ld32 (ptr);

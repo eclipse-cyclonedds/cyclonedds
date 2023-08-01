@@ -21,6 +21,8 @@
 extern "C" {
 #endif
 
+#ifdef DDS_HAS_TYPELIB
+
 struct ddsi_dynamic_type_struct_member_param {
   uint32_t id;
   const char *name;
@@ -130,6 +132,8 @@ struct ddsi_type * ddsi_dynamic_type_dup (const struct ddsi_type *src);
 
 /** @component dynamic_type_support */
 bool ddsi_dynamic_type_is_constructing (const struct ddsi_type *type);
+
+#endif /* DDS_HAS_TYPELIB */
 
 #if defined (__cplusplus)
 }
