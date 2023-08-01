@@ -94,6 +94,39 @@ os_lcNumericReplace(char *str) {
   }
 }
 
+/** @brief Delocalize a floating point string to use '.' as its decimal separator.
+ *  @param[in] nptr the localized floating point string.
+ *  @param[out] nptrCopy the delocalized floating point string (needs to have a length of DOUBLE_STRING_MAX_LENGTH).
+ *  @param[out] nptrCopyEnd a pointer to the end of the delocalized floating point string.
+ */
+static void delocalize_floating_point_str(const char *nptr, char *nptrCopy, char **nptrCopyEnd)
+{
+    /* The current locale uses ',', so we can not use the standard functions as
+       is, but have to do extra work because ospl uses "x.x" doubles (notice
+       the dot). Just copy the string and replace the LC_NUMERIC. */
+    char *nptrCopyIdx;
+    char *nptrIdx;
+
+    /* It is possible that the given nptr just starts with a double
+       representation but continues with other data. To be able to copy not too
+       much and not too little, we have to scan across nptr until we detect the
+       doubles' end. */
+    nptrIdx = (char*)nptr;
+    nptrCopyIdx = nptrCopy;
+    *nptrCopyEnd = nptrCopyIdx + DOUBLE_STRING_MAX_LENGTH - 1;
+    while (VALID_DOUBLE_CHAR(*nptrIdx) && (nptrCopyIdx < *nptrCopyEnd)) {
+      if (*nptrIdx == '.') {
+        /* Replace '.' with locale LC_NUMERIC to get strtod to work. */
+        *nptrCopyIdx = os_lcNumericGet();
+      } else {
+        *nptrCopyIdx = *nptrIdx;
+      }
+      nptrIdx++;
+      nptrCopyIdx++;
+    }
+    *nptrCopyIdx = '\0';
+}
+
 dds_return_t
 ddsrt_strtod(const char *nptr, char **endptr, double *dblptr)
 {
@@ -110,32 +143,11 @@ ddsrt_strtod(const char *nptr, char **endptr, double *dblptr)
     /* The current locale uses '.', so strtod can be used as is. */
     dbl = strtod(nptr, endptr);
   } else {
-    /* The current locale uses ',', so we can not use the standard functions as
-       is, but have to do extra work because ospl uses "x.x" doubles (notice
-       the dot). Just copy the string and replace the LC_NUMERIC. */
+    /* The current locale has to be normalized to use '.' for the floating
+       point string. */
     char  nptrCopy[DOUBLE_STRING_MAX_LENGTH];
-    char *nptrCopyIdx;
-    char *nptrCopyEnd;
-    char *nptrIdx;
-
-    /* It is possible that the given nptr just starts with a double
-       representation but continues with other data. To be able to copy not too
-       much and not too little, we have to scan across nptr until we detect the
-       doubles' end. */
-    nptrIdx = (char*)nptr;
-    nptrCopyIdx = nptrCopy;
-    nptrCopyEnd = nptrCopyIdx + DOUBLE_STRING_MAX_LENGTH - 1;
-    while (VALID_DOUBLE_CHAR(*nptrIdx) && (nptrCopyIdx < nptrCopyEnd)) {
-      if (*nptrIdx == '.') {
-        /* Replace '.' with locale LC_NUMERIC to get strtod to work. */
-        *nptrCopyIdx = os_lcNumericGet();
-      } else {
-        *nptrCopyIdx = *nptrIdx;
-      }
-      nptrIdx++;
-      nptrCopyIdx++;
-    }
-    *nptrCopyIdx = '\0';
+    char *nptrCopyEnd = NULL;
+    delocalize_floating_point_str(nptr, nptrCopy, &nptrCopyEnd);
 
     /* Now that we have a copy with the proper locale LC_NUMERIC, we can use
        strtod() for the conversion. */
