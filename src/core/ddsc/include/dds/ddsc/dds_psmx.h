@@ -65,15 +65,12 @@ typedef struct dds_psmx_metadata {
   dds_loan_data_type_t data_type;
   dds_psmx_instance_id_t instance_id;
   uint32_t sample_size;
-  uint32_t block_size;
   dds_guid_t guid;
   dds_time_t timestamp;
   uint32_t statusinfo;
   uint32_t hash;
   uint16_t cdr_identifier;
   uint16_t cdr_options;
-  unsigned char keyhash[16];
-  uint32_t keysize : 30;  // to mirror fixed width of dds_serdata_default_key.keysize
 } dds_psmx_metadata_t;
 
 /**

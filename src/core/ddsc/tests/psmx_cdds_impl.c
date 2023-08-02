@@ -316,7 +316,6 @@ static dds_loaned_sample_t * cdds_psmx_ep_request_loan (struct dds_psmx_endpoint
     ls->metadata = dds_alloc (sizeof (*ls->metadata));
     ls->metadata->sample_state = DDS_LOANED_SAMPLE_STATE_UNITIALIZED;
     ls->metadata->sample_size = size_requested;
-    ls->metadata->block_size = sz;
     ls->metadata->instance_id = cep->c.psmx_topic->psmx_instance->instance_id;
     ls->metadata->data_type = cep->c.psmx_topic->data_type;
     ls->sample_ptr = dds_alloc (sz);
@@ -345,16 +344,13 @@ static dds_return_t cdds_psmx_ep_write (struct dds_psmx_endpoint *psmx_ep, dds_l
     .data_type = data->metadata->data_type,
     .psmx_instance_id = data->metadata->instance_id,
     .sample_size = data->metadata->sample_size,
-    .block_size = data->metadata->block_size,
     .timestamp = data->metadata->timestamp,
     .statusinfo = data->metadata->statusinfo,
     .hash = data->metadata->hash,
     .cdr_identifier = data->metadata->cdr_identifier,
     .cdr_options = data->metadata->cdr_options,
-    .keysize = data->metadata->keysize
   };
   memcpy (&sample.guid, &data->metadata->guid, sizeof (sample.guid));
-  memcpy (&sample.keyhash, data->metadata->keyhash, sizeof (sample.keyhash));
   sample.data._length = sample.data._maximum = data->metadata->sample_size;
   sample.data._release = true;
   sample.data._buffer = data->sample_ptr;
@@ -371,15 +367,12 @@ static dds_loaned_sample_t * cdds_psmx_ep_take (struct dds_psmx_endpoint *psmx_e
 static dds_loaned_sample_t * incoming_sample_to_loan (struct cdds_psmx_endpoint *cep, const struct cdds_psmx_data *psmx_sample)
 {
   struct dds_psmx_metadata *psmx_md = dds_alloc (sizeof (*psmx_md));
-  psmx_md->block_size = psmx_sample->block_size;
   psmx_md->cdr_identifier = psmx_sample->cdr_identifier;
   psmx_md->cdr_options = psmx_sample->cdr_options;
   psmx_md->instance_id = psmx_sample->psmx_instance_id;
   psmx_md->data_type = psmx_sample->data_type;
   memcpy (&psmx_md->guid, &psmx_sample->guid, sizeof (psmx_sample->guid));
   psmx_md->hash = psmx_sample->hash;
-  memcpy (psmx_md->keyhash, &psmx_sample->keyhash, sizeof (psmx_md->keyhash));
-  psmx_md->keysize = (psmx_sample->keysize & 0x3fffffff);
   psmx_md->sample_size = psmx_sample->sample_size;
   psmx_md->sample_state = (enum dds_loaned_sample_state) psmx_sample->sample_state;
   psmx_md->statusinfo = psmx_sample->statusinfo;

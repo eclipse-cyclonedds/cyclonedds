@@ -873,11 +873,6 @@ static struct ddsi_serdata *serdata_default_from_loaned_sample (const struct dds
     }
 
     d->c.loan->metadata->hash = d->c.hash;
-
-    struct ddsi_keyhash kh;
-    serdata_default_get_keyhash (&d->c, &kh, true);
-    memcpy (d->c.loan->metadata->keyhash, kh.value, sizeof (d->c.loan->metadata->keyhash));
-    d->c.loan->metadata->keysize = d->key.keysize;
   }
 
   return (struct ddsi_serdata *) d;

@@ -68,7 +68,6 @@ dds_return_t dds_heap_loan (const struct ddsi_sertype *type, dds_loaned_sample_t
     return DDS_RETCODE_OUT_OF_RESOURCES;
   }
 
-  s->c.metadata->block_size = sizeof (struct dds_psmx_metadata);
   s->c.metadata->sample_state = DDS_LOANED_SAMPLE_STATE_RAW;
   s->c.metadata->cdr_identifier = DDSI_RTPS_CDR_ENC_VERSION_UNDEF;
   s->c.metadata->cdr_options = 0;

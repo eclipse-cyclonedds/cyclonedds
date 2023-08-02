@@ -368,7 +368,6 @@ iox_loaned_sample::iox_loaned_sample(struct dds_psmx_endpoint *origin, uint32_t 
   metadata->data_type = origin->psmx_topic->data_type;
   metadata->instance_id = origin->psmx_topic->psmx_instance->instance_id;
   metadata->sample_size = sz;
-  metadata->block_size = sz + iox_padding;
 }
 
 iox_loaned_sample::~iox_loaned_sample()
