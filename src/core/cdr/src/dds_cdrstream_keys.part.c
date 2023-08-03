@@ -168,11 +168,13 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_delimited (dds_istream
 {
   uint32_t delimited_sz_is = dds_is_get4 (is), delimited_offs_is = is->m_index, insn;
 
-  /* At this point we can safely assume that at least one of the members
-     of this aggregated type is part of the key, so we need to add the dheader */
   uint32_t delimited_offs_os = 0;
   if (os != NULL)
+  {
+    /* At this point we can safely assume that at least one of the members
+      of this aggregated type is part of the key, so we need to add the dheader */
     delimited_offs_os = dds_os_reserve4BO (os, allocator);
+  }
 
   ops++;
   while ((insn = *ops) != DDS_OP_RTS)
@@ -193,6 +195,10 @@ static const uint32_t *dds_stream_extract_keyBO_from_data_delimited (dds_istream
         break;
     }
   }
+
+  /* Skip remainder of serialized data for this appendable type */
+  if (delimited_sz_is > is->m_index - delimited_offs_is)
+    is->m_index += delimited_sz_is - (is->m_index - delimited_offs_is);
 
   /* if not in skip mode: add dheader in os */
   if (os != NULL)
