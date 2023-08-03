@@ -21,14 +21,11 @@ struct cdds_psmx_data {
   uint32 data_type;
   uint32 psmx_instance_id;
   uint32 sample_size;
-  uint32 block_size;
   octet guid[16];
   int64 timestamp;
   uint32 statusinfo;
   uint32 hash;
   uint16 cdr_identifier;
   uint16 cdr_options;
-  octet keyhash[16];
-  uint32 keysize;
   sequence<octet> data;
 };

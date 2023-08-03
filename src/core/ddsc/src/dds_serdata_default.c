@@ -193,13 +193,21 @@ static struct dds_serdata_default *serdata_default_new (const struct dds_sertype
   return serdata_default_new_size (tp, kind, DEFAULT_NEW_SIZE, xcdr_version);
 }
 
-static inline bool is_valid_xcdr_id (unsigned short cdr_identifier)
+static inline bool is_valid_xcdr1_id (unsigned short cdr_identifier)
 {
-  /* PL_CDR_(L|B)E version 1 only supported for discovery data, using ddsi_serdata_plist */
-  return (cdr_identifier == DDSI_RTPS_CDR_LE || cdr_identifier == DDSI_RTPS_CDR_BE
-    || cdr_identifier == DDSI_RTPS_CDR2_LE || cdr_identifier == DDSI_RTPS_CDR2_BE
+  return (cdr_identifier == DDSI_RTPS_CDR_LE || cdr_identifier == DDSI_RTPS_CDR_BE);
+}
+
+static inline bool is_valid_xcdr2_id (unsigned short cdr_identifier)
+{
+  return (cdr_identifier == DDSI_RTPS_CDR2_LE || cdr_identifier == DDSI_RTPS_CDR2_BE
     || cdr_identifier == DDSI_RTPS_D_CDR2_LE || cdr_identifier == DDSI_RTPS_D_CDR2_BE
     || cdr_identifier == DDSI_RTPS_PL_CDR2_LE || cdr_identifier == DDSI_RTPS_PL_CDR2_BE);
+}
+
+static inline bool is_valid_xcdr_id (unsigned short cdr_identifier)
+{
+  return is_valid_xcdr1_id (cdr_identifier) || is_valid_xcdr2_id (cdr_identifier);
 }
 
 enum gen_serdata_key_input_kind {
@@ -618,7 +626,7 @@ static struct ddsi_serdata *serdata_default_to_untyped (const struct ddsi_serdat
   const struct dds_serdata_default *d = (const struct dds_serdata_default *)serdata_common;
   const struct dds_sertype_default *tp = (const struct dds_sertype_default *)d->c.type;
 
-  assert (DDSI_RTPS_CDR_ENC_IS_NATIVE (d->hdr.identifier));
+  assert (d->hdr.identifier == DDSI_RTPS_SAMPLE_NATIVE || DDSI_RTPS_CDR_ENC_IS_NATIVE (d->hdr.identifier));
   struct dds_serdata_default *d_tl = serdata_default_new (tp, SDK_KEY, DDSI_RTPS_CDR_ENC_VERSION_2);
   if (d_tl == NULL)
     return NULL;
@@ -673,13 +681,14 @@ static bool serdata_default_to_sample_cdr (const struct ddsi_serdata *serdata_co
   const struct dds_sertype_default *tp = (const struct dds_sertype_default *) d->c.type;
   dds_istream_t is;
   if (bufptr) abort(); else { (void)buflim; } /* FIXME: haven't implemented that bit yet! */
-  assert (DDSI_RTPS_CDR_ENC_IS_NATIVE (d->hdr.identifier));
   if (d->c.loan != NULL && d->c.loan->metadata->sample_state == DDS_LOANED_SAMPLE_STATE_RAW)
   {
+    assert (d->c.loan->metadata->cdr_identifier == DDSI_RTPS_SAMPLE_NATIVE);
     memcpy (sample, d->c.loan->sample_ptr, d->c.loan->metadata->sample_size);
   }
   else
   {
+    assert (DDSI_RTPS_CDR_ENC_IS_NATIVE (d->hdr.identifier));
     istream_from_serdata_default (&is, d);
     if (d->c.kind == SDK_KEY)
       dds_stream_read_key (&is, sample, &dds_cdrstream_default_allocator, &tp->type);
@@ -832,44 +841,29 @@ static struct ddsi_serdata *serdata_default_from_loaned_sample (const struct dds
   {
     // now owner of loan
     d->c.loan = loaned_sample;
-    d->c.loan->metadata->cdr_options = d->hdr.options;
-    switch (d->hdr.identifier)
-    {
-      case DDSI_RTPS_CDR_BE:
-      case DDSI_RTPS_CDR_LE:
-      case DDSI_RTPS_PL_CDR_BE:
-      case DDSI_RTPS_PL_CDR_LE:
-        d->c.loan->metadata->cdr_identifier = DDSI_RTPS_CDR_ENC_VERSION_1;
-        break;
-      case DDSI_RTPS_CDR2_BE:
-      case DDSI_RTPS_CDR2_LE:
-      case DDSI_RTPS_D_CDR2_BE:
-      case DDSI_RTPS_D_CDR2_LE:
-      case DDSI_RTPS_PL_CDR2_BE:
-      case DDSI_RTPS_PL_CDR2_LE:
-        d->c.loan->metadata->cdr_identifier = DDSI_RTPS_CDR_ENC_VERSION_2;
-        break;
-      default:
-        d->c.loan->metadata->cdr_identifier = DDSI_RTPS_CDR_ENC_VERSION_UNDEF;
-    }
-
     if (d->c.loan->sample_ptr != sample) //if the sample we are serializing is itself not loaned
     {
       assert (d->c.loan->metadata->sample_state == DDS_LOANED_SAMPLE_STATE_UNITIALIZED);
       if (serialize_data)
       {
         d->c.loan->metadata->sample_state = (kind == SDK_KEY ? DDS_LOANED_SAMPLE_STATE_SERIALIZED_KEY : DDS_LOANED_SAMPLE_STATE_SERIALIZED_DATA);
+        d->c.loan->metadata->cdr_identifier = d->hdr.identifier;
+        d->c.loan->metadata->cdr_options = d->hdr.options;
         memcpy (d->c.loan->sample_ptr, d->data, d->c.loan->metadata->sample_size);
       }
       else
       {
         d->c.loan->metadata->sample_state = DDS_LOANED_SAMPLE_STATE_RAW;
+        d->c.loan->metadata->cdr_identifier = DDSI_RTPS_SAMPLE_NATIVE;
+        d->c.loan->metadata->cdr_options = 0;
         memcpy (d->c.loan->sample_ptr, sample, d->c.loan->metadata->sample_size);
       }
     }
     else
     {
       d->c.loan->metadata->sample_state = DDS_LOANED_SAMPLE_STATE_RAW;
+      d->c.loan->metadata->cdr_identifier = DDSI_RTPS_SAMPLE_NATIVE;
+      d->c.loan->metadata->cdr_options = 0;
     }
 
     d->c.loan->metadata->hash = d->c.hash;
@@ -886,25 +880,41 @@ static struct ddsi_serdata * serdata_default_from_psmx (const struct ddsi_sertyp
   if (!loaned_sample_state_to_serdata_kind (md->sample_state, &kind))
     return NULL;
 
-  struct dds_serdata_default *d = serdata_default_new_size (tp, kind, md->sample_size, md->cdr_identifier);
+  uint32_t xcdr_version;
+  if (is_valid_xcdr1_id (md->cdr_identifier))
+    xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_1;
+  else if (is_valid_xcdr2_id (md->cdr_identifier))
+    xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_2;
+  else if (md->cdr_identifier == DDSI_RTPS_SAMPLE_NATIVE)
+    xcdr_version = DDSI_RTPS_CDR_ENC_VERSION_UNDEF;
+  else
+    return NULL;
+
+  struct dds_serdata_default *d = serdata_default_new_size (tp, kind, md->sample_size, xcdr_version);
   d->c.hash = md->hash;
   d->c.statusinfo = md->statusinfo;
   d->c.timestamp.v = md->timestamp;
-  d->hdr.identifier = DDSI_RTPS_CDR_ENC_TO_NATIVE (md->cdr_identifier);
+  if (md->cdr_identifier == DDSI_RTPS_SAMPLE_NATIVE)
+    d->hdr.identifier = DDSI_RTPS_SAMPLE_NATIVE;
   d->hdr.options = md->cdr_options;
 
   if (md->sample_state == DDS_LOANED_SAMPLE_STATE_RAW)
   {
+    if (d->hdr.identifier != DDSI_RTPS_SAMPLE_NATIVE)
+    {
+      serdata_default_free (&d->c);
+      return NULL;
+    }
     d->c.loan = loaned_sample;
     dds_loaned_sample_ref (d->c.loan);
   }
   else
   {
-    const uint32_t xcdr_version = ddsi_sertype_enc_id_xcdr_version (d->hdr.identifier);
+    assert (md->sample_state == DDS_LOANED_SAMPLE_STATE_SERIALIZED_DATA || md->sample_state == DDS_LOANED_SAMPLE_STATE_SERIALIZED_KEY);
     uint32_t actual_size;
 
     // FIXME: how much do we trust PSMX-provided data? If we *really* trust it, we can skip this
-    if (!dds_stream_normalize(loaned_sample->sample_ptr, md->sample_size, false, xcdr_version, &tp->type, md->sample_state == DDS_LOANED_SAMPLE_STATE_SERIALIZED_KEY, &actual_size))
+    if (!dds_stream_normalize (loaned_sample->sample_ptr, md->sample_size, false, xcdr_version, &tp->type, md->sample_state == DDS_LOANED_SAMPLE_STATE_SERIALIZED_KEY, &actual_size))
     {
       serdata_default_free (&d->c);
       return NULL;
@@ -914,7 +924,7 @@ static struct ddsi_serdata * serdata_default_from_psmx (const struct ddsi_sertyp
     assert (rc == 0); // FIXME: this ain't guaranteed
     (void) rc;
     dds_istream_t is;
-    dds_istream_init (&is, md->sample_size, loaned_sample->sample_ptr, md->cdr_identifier);
+    dds_istream_init (&is, md->sample_size, loaned_sample->sample_ptr, xcdr_version);
     if (md->sample_state == DDS_LOANED_SAMPLE_STATE_SERIALIZED_DATA)
       dds_stream_read_sample (&is, d->c.loan->sample_ptr, &dds_cdrstream_default_allocator, &tp->type);
     else

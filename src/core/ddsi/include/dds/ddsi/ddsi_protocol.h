@@ -114,39 +114,41 @@ typedef struct ddsi_rtps_info_src {
 
 #if DDSRT_ENDIAN == DDSRT_LITTLE_ENDIAN
 
-#define DDSI_RTPS_CDR_BE      0x0000u
-#define DDSI_RTPS_CDR_LE      0x0100u
-#define DDSI_RTPS_PL_CDR_BE   0x0200u
-#define DDSI_RTPS_PL_CDR_LE   0x0300u
-#define DDSI_RTPS_CDR2_BE     0x0600u
-#define DDSI_RTPS_CDR2_LE     0x0700u
-#define DDSI_RTPS_D_CDR2_BE   0x0800u
-#define DDSI_RTPS_D_CDR2_LE   0x0900u
-#define DDSI_RTPS_PL_CDR2_BE  0x0a00u
-#define DDSI_RTPS_PL_CDR2_LE  0x0b00u
+#define DDSI_RTPS_CDR_BE         0x0000u
+#define DDSI_RTPS_CDR_LE         0x0100u
+#define DDSI_RTPS_PL_CDR_BE      0x0200u
+#define DDSI_RTPS_PL_CDR_LE      0x0300u
+#define DDSI_RTPS_CDR2_BE        0x0600u
+#define DDSI_RTPS_CDR2_LE        0x0700u
+#define DDSI_RTPS_D_CDR2_BE      0x0800u
+#define DDSI_RTPS_D_CDR2_LE      0x0900u
+#define DDSI_RTPS_PL_CDR2_BE     0x0a00u
+#define DDSI_RTPS_PL_CDR2_LE     0x0b00u
+#define DDSI_RTPS_SAMPLE_NATIVE  0x00c0u
 
-#define DDSI_RTPS_CDR_ENC_LE(x) (((x) & 0x0100) == 0x0100)
+#define DDSI_RTPS_CDR_ENC_LE(x) (assert((x) != DDSI_RTPS_SAMPLE_NATIVE), ((x) & 0x0100) == 0x0100)
 #define DDSI_RTPS_CDR_ENC_IS_NATIVE(x) (DDSI_RTPS_CDR_ENC_LE ((x)))
-#define DDSI_RTPS_CDR_ENC_IS_VALID(x) (!((x) > DDSI_RTPS_PL_CDR2_LE || (x) == 0x0400 || (x) == 0x0500))
-#define DDSI_RTPS_CDR_ENC_TO_NATIVE(x) ((x) | 0x0100)
+#define DDSI_RTPS_CDR_ENC_IS_VALID(x) (!((x) > DDSI_RTPS_PL_CDR2_LE || (x) == DDSI_RTPS_SAMPLE_NATIVE || (x) == 0x0400 || (x) == 0x0500))
+#define DDSI_RTPS_CDR_ENC_TO_NATIVE(x) (assert((x) != DDSI_RTPS_SAMPLE_NATIVE), ((x) | 0x0100))
 
 #else
 
-#define DDSI_RTPS_CDR_BE      0x0000u
-#define DDSI_RTPS_CDR_LE      0x0001u
-#define DDSI_RTPS_PL_CDR_BE   0x0002u
-#define DDSI_RTPS_PL_CDR_LE   0x0003u
-#define DDSI_RTPS_CDR2_BE     0x0006u
-#define DDSI_RTPS_CDR2_LE     0x0007u
-#define DDSI_RTPS_D_CDR2_BE   0x0008u
-#define DDSI_RTPS_D_CDR2_LE   0x0009u
-#define DDSI_RTPS_PL_CDR2_BE  0x000au
-#define DDSI_RTPS_PL_CDR2_LE  0x000bu
+#define DDSI_RTPS_CDR_BE         0x0000u
+#define DDSI_RTPS_CDR_LE         0x0001u
+#define DDSI_RTPS_PL_CDR_BE      0x0002u
+#define DDSI_RTPS_PL_CDR_LE      0x0003u
+#define DDSI_RTPS_CDR2_BE        0x0006u
+#define DDSI_RTPS_CDR2_LE        0x0007u
+#define DDSI_RTPS_D_CDR2_BE      0x0008u
+#define DDSI_RTPS_D_CDR2_LE      0x0009u
+#define DDSI_RTPS_PL_CDR2_BE     0x000au
+#define DDSI_RTPS_PL_CDR2_LE     0x000bu
+#define DDSI_RTPS_SAMPLE_NATIVE  0xc000u
 
-#define DDSI_RTPS_CDR_ENC_LE(x) (((x) & 0x0001) == 0x0001)
+#define DDSI_RTPS_CDR_ENC_LE(x) (assert((x) != DDSI_RTPS_SAMPLE_NATIVE), ((x) & 0x0001) == 0x0001)
 #define DDSI_RTPS_CDR_ENC_IS_NATIVE(x) (!DDSI_RTPS_CDR_ENC_LE ((x)))
-#define DDSI_RTPS_CDR_ENC_IS_VALID(x) (!((x) > DDSI_RTPS_PL_CDR2_LE || (x) == 0x0004 || (x) == 0x0005))
-#define DDSI_RTPS_CDR_ENC_TO_NATIVE(x) ((x) & ~0x0001)
+#define DDSI_RTPS_CDR_ENC_IS_VALID(x) (!((x) > DDSI_RTPS_PL_CDR2_LE || (x) == DDSI_RTPS_SAMPLE_NATIVE || (x) == 0x0004 || (x) == 0x0005))
+#define DDSI_RTPS_CDR_ENC_TO_NATIVE(x) (assert((x) != DDSI_RTPS_SAMPLE_NATIVE), ((x) & ~0x0001))
 
 #endif
 
