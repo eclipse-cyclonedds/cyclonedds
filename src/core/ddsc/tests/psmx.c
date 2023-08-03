@@ -48,6 +48,7 @@ static void fail (void) { failed = true; }
 static void fail_match (void) { fail (); }
 static void fail_addrset (void) { fail (); }
 static void fail_instance_state (void) { fail (); }
+static void fail_timestamp (void) { fail (); }
 static void fail_no_data (void) { fail (); }
 static void fail_too_much_data (void) { fail (); }
 
@@ -331,7 +332,7 @@ static dds_return_t take_wl (dds_entity_t rd_or_cnd, void **buf, dds_sample_info
   return dds_take_wl (rd_or_cnd, buf, si, maxs);
 }
 
-static bool alldataseen (struct tracebuf *tb, int nrds, const dds_entity_t *rds, dds_instance_state_t instance_state, bool use_rd_loan)
+static bool alldataseen (struct tracebuf *tb, int nrds, const dds_entity_t *rds, dds_instance_state_t instance_state, bool use_rd_loan, dds_time_t ts)
 {
   dds_return_t (* const takeop) (dds_entity_t, void **, dds_sample_info_t *, uint32_t) = use_rd_loan ? take_wl : take;
   assert (nrds > 0);
@@ -374,6 +375,12 @@ static bool alldataseen (struct tracebuf *tb, int nrds, const dds_entity_t *rds,
           {
             print (tb, "[rd %d %s while expecting %s] ", i, istatestr (si.instance_state), istatestr (instance_state));
             fail_instance_state ();
+            goto out;
+          }
+          if (si.source_timestamp != ts)
+          {
+            print (tb, "[rd %d source timestamp %"PRId64" while expecting %"PRId64"] ", i, si.source_timestamp, ts);
+            fail_timestamp ();
             goto out;
           }
           dataseen[i] += n;
@@ -684,13 +691,13 @@ static void dotest (const dds_topic_descriptor_t *tpdesc, const void *sample, en
       //dds_sleepfor (DDS_MSECS (100));
       static struct {
         const char *info;
-        dds_return_t (*op) (dds_entity_t wr, const void *data);
+        dds_return_t (*op) (dds_entity_t wr, const void *data, dds_time_t timestamp);
         dds_instance_state_t istate;
       } const ops[] = {
-        { "w", dds_write, DDS_ALIVE_INSTANCE_STATE },
-        { "d", dds_dispose, DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE },
-        { "w", dds_write, DDS_ALIVE_INSTANCE_STATE }, // needed to make unregister visible in RHC
-        { "u", dds_unregister_instance, DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE }
+        { "w", dds_write_ts, DDS_ALIVE_INSTANCE_STATE },
+        { "d", dds_dispose_ts, DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE },
+        { "w", dds_write_ts, DDS_ALIVE_INSTANCE_STATE }, // needed to make unregister visible in RHC
+        { "u", dds_unregister_instance_ts, DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE }
       };
       for (size_t opidx = 0; opidx < sizeof (ops) / sizeof (ops[0]); opidx++)
       {
@@ -701,7 +708,7 @@ static void dotest (const dds_topic_descriptor_t *tpdesc, const void *sample, en
         // and we can't trust the application to get that right.
         // FIXME: dds_dispose does a use-after-free when handed a loan, that's bad
         const void *sample_to_write = sample;
-        if (use_wr_loan && ops[opidx].op == dds_write)
+        if (use_wr_loan && ops[opidx].op == dds_write_ts)
         {
           void *loan;
           rc = dds_request_loan (wr, &loan, 1);
@@ -710,9 +717,10 @@ static void dotest (const dds_topic_descriptor_t *tpdesc, const void *sample, en
           sample_to_write = loan;
         }
 
-        rc = ops[opidx].op (wr, sample_to_write);
+        dds_time_t ts = dds_time ();
+        rc = ops[opidx].op (wr, sample_to_write, ts);
         CU_ASSERT_FATAL (rc == 0);
-        if (!alldataseen (&tb, MAX_READERS_PER_DOMAIN, rds, ops[opidx].istate, use_rd_loan))
+        if (!alldataseen (&tb, MAX_READERS_PER_DOMAIN, rds, ops[opidx].istate, use_rd_loan, ts))
         {
           fail_one = true;
           goto next;

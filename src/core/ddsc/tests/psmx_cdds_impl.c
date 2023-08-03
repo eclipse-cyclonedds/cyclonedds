@@ -376,6 +376,7 @@ static dds_loaned_sample_t * incoming_sample_to_loan (struct cdds_psmx_endpoint 
   psmx_md->sample_size = psmx_sample->sample_size;
   psmx_md->sample_state = (enum dds_loaned_sample_state) psmx_sample->sample_state;
   psmx_md->statusinfo = psmx_sample->statusinfo;
+  psmx_md->timestamp = psmx_sample->timestamp;
 
   dds_loaned_sample_t *ls = dds_alloc (sizeof (*ls));
   ls->ops = ls_ops;
