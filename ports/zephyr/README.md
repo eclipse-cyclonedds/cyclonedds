@@ -33,5 +33,5 @@ The CycloneDDS configuration in `config.xml` is automatically converted to a cha
 Alternatively, [dds_create_domain_with_rawconfig](https://cyclonedds.io/docs/cyclonedds/latest/api/domain.html?#c.dds_create_domain_with_rawconfig) can be used without XML configuration data.
 
 ## Zephyr versions
-At the time of writing, CycloneDDS has been tested on Zephyr [v3.3.0](https://github.com/zephyrproject-rtos/zephyr/releases/tag/v3.3.0) and [v3.4.0](https://github.com/zephyrproject-rtos/zephyr/releases/tag/v3.4.0). However, for the NXP X-S32Z27X-DC board an issue exists in `v3.4.0` that can cause CycloneDDS to crash. This is fixed on the Zephyr main branch, therefore we suggest using zephyrproject-rtos/zephyr@14342969150a35f3c26afa513a4725bdec310799.
+At the time of writing, CycloneDDS has been tested on Zephyr [v3.3.0](https://github.com/zephyrproject-rtos/zephyr/releases/tag/v3.3.0) and [v3.4.0](https://github.com/zephyrproject-rtos/zephyr/releases/tag/v3.4.0). However, for the NXP X-S32Z27X-DC board an issue exists in `v3.4.0` that can cause CycloneDDS to crash. This is fixed on the Zephyr main branch, therefore we suggest using [@143429](https://github.com/zephyrproject-rtos/zephyr/commit/14342969150a35f3c26afa513a4725bdec310799).
  
