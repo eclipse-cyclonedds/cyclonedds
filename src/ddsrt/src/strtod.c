@@ -171,50 +171,6 @@ ddsrt_strtod(const char *nptr, char **endptr, double *dblptr)
   return ret;
 }
 
-dds_return_t
-ddsrt_strtof(const char *nptr, char **endptr, float *fltptr)
-{
-  float flt;
-  int orig_errno;
-  dds_return_t ret = DDS_RETCODE_OK;
-
-  assert(nptr != NULL);
-  assert(fltptr != NULL);
-
-  orig_errno = errno;
-  if (os_lcNumericGet() == '.') {
-    errno = 0;
-    /* The current locale uses '.', so strtof can be used as is. */
-    flt = strtof(nptr, endptr);
-  } else {
-    /* The current locale has to be normalized to use '.' for the floating
-       point string. */
-    char  nptrCopy[DOUBLE_STRING_MAX_LENGTH];
-    char *nptrCopyEnd = NULL;
-    delocalize_floating_point_str(nptr, nptrCopy, &nptrCopyEnd);
-
-    /* Now that we have a copy with the proper locale LC_NUMERIC, we can use
-       strtof() for the conversion. */
-    errno = 0;
-    flt = strtof(nptrCopy, &nptrCopyEnd);
-
-    /* Calculate the proper end char when needed. */
-    if (endptr != NULL) {
-      *endptr = (char*)nptr + (nptrCopyEnd - nptrCopy);
-    }
-  }
-
-  if ((flt == HUGE_VALF || flt == 0) && errno == ERANGE) {
-    ret = DDS_RETCODE_OUT_OF_RANGE;
-  } else {
-    errno = orig_errno;
-  }
-
-  *fltptr = flt;
-
-  return ret;
-}
-
 int
 ddsrt_dtostr(double src, char *str, size_t size)
 {

@@ -39,19 +39,6 @@ dds_return_t
 ddsrt_strtod(const char *nptr, char **endptr, double *dblptr);
 
 /**
- * @brief Convert a string to a floating point number.
- *
- * @param[in]   nptr    A string to convert into a float.
- * @param[in]   endptr  If not NULL, a char* where the address of first invalid
- *                      character is stored.
- * @param[out]  fltptr  A float where the floating-point number is stored.
- *
- * @returns A dds_return_t indicating success or failure.
- */
-dds_return_t
-ddsrt_strtof(const char *nptr, char **endptr, float *fltptr);
-
-/**
  * @brief Convert a double-precision floating-point number to a string.
  *
  * @param[in]  src   Double-precision floating-point number to convert.
