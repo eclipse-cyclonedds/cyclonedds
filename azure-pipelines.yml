@@ -18,7 +18,8 @@ variables:
   cyclonedds_uri: '<CycloneDDS><Domain><Internal><EnableExpensiveChecks>rhc,whc</EnableExpensiveChecks><LivelinessMonitoring>true</LivelinessMonitoring></Internal><Tracing><Verbosity>config</Verbosity><OutputFile>stderr</OutputFile></Tracing></Domain></CycloneDDS>'
 
 jobs:
-- job: BuildAndTest
+- job: build_and_test
+  displayName: Build and test Cyclone
   pool:
     vmImage: $(image)
   strategy:
@@ -142,8 +143,9 @@ jobs:
   steps:
     - template: /.azure/templates/build-test.yml
 
-- job: CoverageAndTestsReport
-  dependsOn: BuildAndTest
+- job: coverage_and_test_report
+  displayName: Coverage and Tests Report
+  dependsOn: build_and_test
   condition: succeededOrFailed()  # Always run, even when failed tests, because they should be reported in the dasboard of course!
   pool:
     vmImage: ubuntu-20.04
@@ -165,3 +167,29 @@ jobs:
     inputs:
       codeCoverageTool: Cobertura
       summaryFileLocation: coverage.xml
+
+- job: python_binding
+  displayName: Python Binding
+  pool:
+    vmImage: $(image)
+  strategy:
+    matrix:
+      'Test and fuzzing (Ubuntu 22.04 LTS, Clang 12, Debug)':
+        image: ubuntu-22.04
+        cc: clang-12
+        build_type: Debug
+  steps:
+    - template: /.azure/templates/python-binding.yml
+
+- job: cxx_binding
+  displayName: C++ Binding
+  pool:
+    vmImage: $(image)
+  strategy:
+    matrix:
+      'Build and test (Ubuntu 22.04 LTS, Clang 12, Debug)':
+        image: ubuntu-22.04
+        cc: clang-12
+        build_type: Debug
+  steps:
+    - template: /.azure/templates/cxx-binding.yml
