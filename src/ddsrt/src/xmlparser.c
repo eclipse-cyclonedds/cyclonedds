@@ -377,13 +377,18 @@ static void discard_payload (struct ddsrt_xmlp_state *st)
   st->tpescp = 0;
 }
 
-static void append_literal_to_payload (struct ddsrt_xmlp_state *st, int c)
+static dds_return_t append_literal_to_payload (struct ddsrt_xmlp_state *st, int c)
 {
   st->tp[st->tpp++] = (char) c;
   if (st->tpp == st->tpsz) {
     st->tpsz += 1024;
-    st->tp = ddsrt_realloc (st->tp, st->tpsz);
+    st->tp = ddsrt_realloc_s (st->tp, st->tpsz);
+    if (st->tp == NULL) {
+      return DDS_RETCODE_OUT_OF_RESOURCES;
+    }
   }
+
+  return DDS_RETCODE_OK;
 }
 
 static int append_to_payload (struct ddsrt_xmlp_state *st, int c)
@@ -396,8 +401,10 @@ static int append_to_payload (struct ddsrt_xmlp_state *st, int c)
     }
     st->tpp = st->tpescp + n;
   }
-  append_literal_to_payload (st, c);
   st->tpescp = st->tpp;
+  if (append_literal_to_payload (st, c) < 0) {
+    return -1;
+  };
   return 0;
 }
 
@@ -445,7 +452,9 @@ static int save_payload (char **payload, struct ddsrt_xmlp_state *st, int trim)
 static int next_token_ident (struct ddsrt_xmlp_state *st, char **payload)
 {
   while (qq_isidentcont (peek_char (st))) {
-    append_literal_to_payload(st, next_char(st));
+    if (append_literal_to_payload (st, next_char(st)) < 0) {
+      return TOK_ERROR;
+    }
   }
   if (save_payload (payload, st, 0) < 0) {
     return TOK_ERROR;
@@ -482,7 +491,9 @@ static int next_token_string (struct ddsrt_xmlp_state *st, char **payload, const
 {
   /* positioned at first character of string */
   while (!peek_chars (st, endm, 0) && peek_char (st) != TOK_EOF) {
-    append_literal_to_payload(st, next_char (st));
+    if (append_literal_to_payload (st, next_char (st)) < 0) {
+      return TOK_ERROR;
+    }
   }
   if (!peek_chars (st, endm, 1)) {
     discard_payload (st);
@@ -670,7 +681,9 @@ static int parse_element (struct ddsrt_xmlp_state *st, uintptr_t parentinfo)
         do {
           /* gobble up content until EOF or markup */
           while (peek_char (st) != '<' && peek_char (st) != TOK_EOF) {
-            append_literal_to_payload (st, next_char (st));
+            if (append_literal_to_payload (st, next_char (st)) < 0) {
+              PE_LOCAL_ERROR ("invalid character sequence", 0);
+            }
           }
           /* if the mark-up happens to be a CDATA, consume it, and gobble up characters
              until the closing marker is reached, which then also gets consumed */
