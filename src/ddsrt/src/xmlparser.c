@@ -396,12 +396,8 @@ static int append_to_payload (struct ddsrt_xmlp_state *st, int c)
     }
     st->tpp = st->tpescp + n;
   }
-  st->tp[st->tpp++] = (char) c;
+  append_literal_to_payload (st, c);
   st->tpescp = st->tpp;
-  if (st->tpp == st->tpsz) {
-    st->tpsz += 1024;
-    st->tp = ddsrt_realloc (st->tp, st->tpsz);
-  }
   return 0;
 }
 
