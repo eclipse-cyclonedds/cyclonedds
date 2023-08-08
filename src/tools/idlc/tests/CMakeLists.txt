@@ -37,4 +37,4 @@ if(MSVC)
   target_compile_options(cunit_idlc PRIVATE /wd6255 /wd6263)
 endif()
 
-target_link_libraries(cunit_idlc PRIVATE idl libidlc idl_common ddsc ${CMAKE_DL_LIBS})
+target_link_libraries(cunit_idlc PRIVATE idl libidlc ddsc ${CMAKE_DL_LIBS})

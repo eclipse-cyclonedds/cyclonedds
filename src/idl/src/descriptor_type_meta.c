@@ -15,7 +15,7 @@
 #include <string.h>
 #include <inttypes.h>
 
-#include "dds/ddsrt/md5.h"
+#include "idl/md5.h"
 #include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_typewrap.h"
 #include "dds/ddsi/ddsi_xt_typeinfo.h"
@@ -33,7 +33,7 @@
 #include "idl/stream.h"
 #include "idl/string.h"
 #include "idl/misc.h"
-#include "descriptor_type_meta.h"
+#include "idl/descriptor_type_meta.h"
 
 static struct dds_cdrstream_allocator idlc_cdrstream_default_allocator = { idl_malloc, idl_realloc, idl_free };
 
@@ -336,10 +336,10 @@ get_type_hash (DDS_XTypes_EquivalenceHash hash, const DDS_XTypes_TypeObject *to)
 
   // get md5 of serialized cdr and store first 14 bytes in equivalence hash parameter
   char buf[16];
-  ddsrt_md5_state_t md5st;
-  ddsrt_md5_init (&md5st);
-  ddsrt_md5_append (&md5st, (ddsrt_md5_byte_t *) os.m_buffer, os.m_index);
-  ddsrt_md5_finish (&md5st, (ddsrt_md5_byte_t *) buf);
+  idl_md5_state_t md5st;
+  idl_md5_init (&md5st);
+  idl_md5_append (&md5st, (idl_md5_byte_t *) os.m_buffer, os.m_index);
+  idl_md5_finish (&md5st, (idl_md5_byte_t *) buf);
   memcpy (hash, buf, sizeof(DDS_XTypes_EquivalenceHash));
   dds_ostream_fini (&os, &idlc_cdrstream_default_allocator);
   return IDL_RETCODE_OK;
@@ -380,10 +380,10 @@ get_namehash (DDS_XTypes_NameHash name_hash, const char *name)
 {
   /* FIXME: multi byte utf8 chars? */
   char buf[16];
-  ddsrt_md5_state_t md5st;
-  ddsrt_md5_init (&md5st);
-  ddsrt_md5_append (&md5st, (ddsrt_md5_byte_t *) name, (uint32_t) strlen (name));
-  ddsrt_md5_finish (&md5st, (ddsrt_md5_byte_t *) buf);
+  idl_md5_state_t md5st;
+  idl_md5_init (&md5st);
+  idl_md5_append (&md5st, (idl_md5_byte_t *) name, (uint32_t) strlen (name));
+  idl_md5_finish (&md5st, (idl_md5_byte_t *) buf);
   memcpy (name_hash, buf, sizeof (DDS_XTypes_NameHash));
 }
 

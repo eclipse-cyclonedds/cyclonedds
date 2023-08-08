@@ -11,12 +11,12 @@
 #ifndef GENERATOR_COMMON_DESCRIPTOR_TYPE_META_H
 #define GENERATOR_COMMON_DESCRIPTOR_TYPE_META_H
 
-#include "common.h"
-
 #include "dds/ddsi/ddsi_xt_typeinfo.h"
 #include "dds/ddsi/ddsi_xt_typemap.h"
 
+#include "idl/export.h"
 #include "idl/processor.h"
+#include "idl/print.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -39,28 +39,28 @@ struct descriptor_type_meta {
   struct type_meta *stack;
 };
 
-IDL_COMMON_EXPORT idl_retcode_t
+IDL_EXPORT idl_retcode_t
 get_type_hash (DDS_XTypes_EquivalenceHash hash, const DDS_XTypes_TypeObject *to);
 
-IDL_COMMON_EXPORT idl_retcode_t
+IDL_EXPORT idl_retcode_t
 print_type_meta_ser (
   FILE *fp,
   const idl_pstate_t *state,
   const idl_node_t *node);
 
-IDL_COMMON_EXPORT idl_retcode_t
+IDL_EXPORT idl_retcode_t
 generate_type_meta_ser (
   const idl_pstate_t *state,
   const idl_node_t *node,
   idl_typeinfo_typemap_t *result);
 
-IDL_COMMON_EXPORT idl_retcode_t
+IDL_EXPORT idl_retcode_t
 generate_descriptor_type_meta (
   const idl_pstate_t *pstate,
   const idl_node_t *node,
   struct descriptor_type_meta *dtm);
 
-IDL_COMMON_EXPORT void
+IDL_EXPORT void
 descriptor_type_meta_fini (
   struct descriptor_type_meta *dtm);
 

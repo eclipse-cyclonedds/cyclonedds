@@ -110,6 +110,11 @@ set(sources
   src/tree.h
   src/keylist.h)
 
+if(ENABLE_TYPELIB)
+list(APPEND headers include/idl/descriptor_type_meta.h)
+list(APPEND sources src/descriptor_type_meta.c)
+endif()
+
 # import generic utility sources from ddsrt to avoid duplication
 # NOTE: an additional INTERFACE library defined in ddsrt would be ideal, but
 #       the GENERATED property is not propagated before 3.20. using an OBJECT
@@ -157,6 +162,7 @@ set_target_properties(
 
 generate_export_header(idl EXPORT_FILE_NAME include/idl/export.h)
 
+target_link_libraries(idl PUBLIC ddsc)
 
 target_include_directories(
   idl
@@ -166,7 +172,10 @@ target_include_directories(
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>"
   INTERFACE
-    "$<INSTALL_INTERFACE:include>")
+    "$<INSTALL_INTERFACE:include>"
+  PRIVATE
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../core/ddsi/include>"
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../core/cdr/include>")
 
 target_link_libraries(idl PRIVATE Threads::Threads)
 

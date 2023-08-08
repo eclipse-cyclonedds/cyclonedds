@@ -12,7 +12,8 @@
 #define DESCRIPTOR_H
 
 #include "idl/processor.h"
-#include "generator_common/common.h"
+
+struct generator;
 
 #define MAX_KEY_OFFS (255)
 

@@ -17,6 +17,7 @@
 
 #include "libidlc__generator.h"
 
+#include "idlc/plugin.h"
 #include "idl/file.h"
 #include "idl/heap.h"
 #include "idl/retcode.h"

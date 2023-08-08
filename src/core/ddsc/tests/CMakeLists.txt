@@ -144,7 +144,7 @@ if(ENABLE_SHM)
 endif()
 
 target_link_libraries(cunit_ddsc PRIVATE
-  RoundTrip Space TypesArrayKey WriteTypes InstanceHandleTypes RWData CreateWriter DataRepresentationTypes MinXcdrVersion CdrStreamOptimize CdrStreamSkipDefault CdrStreamKeySize CdrStreamKeyExt SerdataData ddsc idl_common)
+  RoundTrip Space TypesArrayKey WriteTypes InstanceHandleTypes RWData CreateWriter DataRepresentationTypes MinXcdrVersion CdrStreamOptimize CdrStreamSkipDefault CdrStreamKeySize CdrStreamKeyExt SerdataData ddsc)
 
 if(ENABLE_TYPELIB)
   target_link_libraries(cunit_ddsc PRIVATE

@@ -34,9 +34,8 @@
 
 #include "plugin.h"
 #include "options.h"
-#include "common.h"
 #ifdef DDS_HAS_TYPELIB
-#include "descriptor_type_meta.h"
+#include "idl/descriptor_type_meta.h"
 #endif
 #include "file.h"
 

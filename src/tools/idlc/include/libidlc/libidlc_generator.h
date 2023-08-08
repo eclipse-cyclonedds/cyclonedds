@@ -15,7 +15,7 @@
 
 #include "idl/tree.h"
 #include "libidlc_export.h"
-#include "common.h"
+#include "idlc/plugin.h"
 
 #if defined (__cplusplus)
 extern "C" {

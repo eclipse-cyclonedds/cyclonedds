@@ -14,7 +14,6 @@
 #include <stdio.h>
 
 #include "idl/processor.h"
-#include "common.h"
 #include "libidlc_generator.h"
 
 #include <stdlib.h>

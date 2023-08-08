@@ -28,7 +28,7 @@
 #include "libidlc__descriptor.h"
 #include "hashid.h"
 #ifdef DDS_HAS_TYPELIB
-#include "generator_common/descriptor_type_meta.h"
+#include "idl/descriptor_type_meta.h"
 #endif
 
 #include "dds/ddsc/dds_opcodes.h"
