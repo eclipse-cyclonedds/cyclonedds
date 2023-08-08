@@ -13,11 +13,11 @@ include(GenerateExportHeader)
 configure_file(src/idlc/config.h.in config.h)
 
 set(headers
-  include/idlc/plugin.h
+  include/idlc/generator.h
   ${CMAKE_CURRENT_BINARY_DIR}/config.h)
 set(sources
   src/idlc/idlc.c
-  src/idlc/plugin.c
+  src/idlc/generator.c
   src/idlc/options.c)
 
 add_executable(idlc ${sources} ${headers})

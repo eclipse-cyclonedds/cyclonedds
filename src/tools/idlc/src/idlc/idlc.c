@@ -32,7 +32,7 @@
 #include "mcpp_lib.h"
 #include "mcpp_out.h"
 
-#include "plugin.h"
+#include "generator.h"
 #include "options.h"
 #ifdef DDS_HAS_TYPELIB
 #include "idl/descriptor_type_meta.h"

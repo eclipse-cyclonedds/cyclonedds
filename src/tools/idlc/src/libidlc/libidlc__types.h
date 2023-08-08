@@ -11,7 +11,7 @@
 #ifndef TYPES_H
 #define TYPES_H
 
-#include "idlc/plugin.h"
+#include "idlc/generator.h"
 
 idl_retcode_t generate_types(const idl_pstate_t *pstate, struct generator *generator);
 

@@ -35,7 +35,7 @@ static const char ext[] = "so";
 #define SUBPROCESS_PCLOSE pclose
 #endif
 
-#include "plugin.h"
+#include "generator.h"
 #include "idl/heap.h"
 #include "idl/string.h"
 
