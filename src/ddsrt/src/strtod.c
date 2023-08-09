@@ -14,6 +14,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
 #include "dds/ddsrt/io.h"
 #include "dds/ddsrt/log.h"
@@ -133,6 +134,8 @@ ddsrt_strtod(const char *nptr, char **endptr, double *dblptr)
   double dbl;
   int orig_errno;
   dds_return_t ret = DDS_RETCODE_OK;
+  char *string_end = NULL;
+  bool successfully_parsed = false;
 
   assert(nptr != NULL);
   assert(dblptr != NULL); 
@@ -141,26 +144,60 @@ ddsrt_strtod(const char *nptr, char **endptr, double *dblptr)
   if (os_lcNumericGet() == '.') {
     errno = 0;
     /* The current locale uses '.', so strtod can be used as is. */
-    dbl = strtod(nptr, endptr);
+    dbl = strtod(nptr, &string_end);
+
+    /* Check that something was parsed */
+    if (nptr != string_end) {
+      successfully_parsed = true;
+    }
+    
+    /* Set the proper end char when needed. */
+    if (endptr != NULL) {
+      *endptr = string_end;
+    }
   } else {
     /* The current locale has to be normalized to use '.' for the floating
        point string. */
     char  nptrCopy[DOUBLE_STRING_MAX_LENGTH];
-    char *nptrCopyEnd = NULL;
-    delocalize_floating_point_str(nptr, nptrCopy, &nptrCopyEnd);
+    delocalize_floating_point_str(nptr, nptrCopy, &string_end);
 
     /* Now that we have a copy with the proper locale LC_NUMERIC, we can use
        strtod() for the conversion. */
     errno = 0;
-    dbl = strtod(nptrCopy, &nptrCopyEnd);
+    dbl = strtod(nptrCopy, &string_end);
+
+    /* Check that something was parsed */
+    if (nptrCopy != string_end) {
+      successfully_parsed = true;
+    }
 
     /* Calculate the proper end char when needed. */
     if (endptr != NULL) {
-      *endptr = (char*)nptr + (nptrCopyEnd - nptrCopy);
+      *endptr = (char*)nptr + (string_end - nptrCopy);
     }
   }
 
-  if ((dbl == HUGE_VAL || dbl == 0) && errno == ERANGE) {
+  // There are two erroring scenarios from `strtod`.
+  //
+  // 1. The floating point value to be parsed is too large:
+  //    In this case `strtod` sets `errno` to `ERANGE` and will return a
+  //    parsed value of either `-HUGE_VAL` or `HUGE_VAL` depending on the
+  //    initial sign present in the string.
+  //
+  // 2. The string contains a non-numeric prefix:
+  //    In the case junk is passed in `strtod` parses nothing. As a result,
+  //    the value that is returned corresponds to `0.0`. To differentiate
+  //    between the parsing scenarios of junk being passed in versus a valid
+  //    floating point string that parses to 0 (such as "0.0") `strtod` also
+  //    ensures that the provided end pointer == start pointer in the case
+  //    that a junk prefix is encountered.
+  //
+  // The two other scenarios that we want to reject are:
+  //
+  // 3. The value being parsed results in `-nan` or `nan`.
+  // 4. The value being parsed results in `-inf` or `inf`.
+  if (errno == ERANGE || !successfully_parsed
+      || isnan(dbl) || isinf(dbl)) {
     ret = DDS_RETCODE_OUT_OF_RANGE;
   } else {
     errno = orig_errno;

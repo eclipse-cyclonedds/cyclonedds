@@ -28,6 +28,15 @@ extern "C" {
 /**
  * @brief Convert a string to a double precision floating point number.
  *
+ * This operation handles locale specific manipulation of the floating point 
+ * string and then sets the output double based on the parsing via `strtod` 
+ * from the standard library. The function returns a failure iff:
+ * - the string to be parsed represents a value that is too large to store in a double.
+ * - the string contains junk.
+ * - the string parses to either `-nan` or `nan`.
+ * - the string parses to either `-inf` or `inf`.
+ * It is otherwise successful.
+ *
  * @param[in]   nptr    A string to convert into a double.
  * @param[out]  endptr  If not NULL, a char* where the address of first invalid
  *                      character is stored.
