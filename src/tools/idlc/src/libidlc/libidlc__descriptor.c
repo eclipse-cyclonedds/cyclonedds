@@ -145,19 +145,8 @@ static idl_retcode_t
 stash_opcode(
   const idl_pstate_t *pstate, struct descriptor *descriptor, struct instructions *instructions, uint32_t index, uint32_t code, uint32_t order)
 {
-  enum dds_stream_typecode typecode;
   struct instruction inst = { OPCODE, { .opcode = { .code = code, .order = order } } };
-
   descriptor->n_opcodes++;
-  if (DDS_OP (code) == DDS_OP_ADR || DDS_OP (code) == DDS_OP_JEQ4)
-  {
-    typecode = DDS_OP_TYPE (code);
-    if (typecode == DDS_OP_VAL_ARR)
-      typecode = DDS_OP_SUBTYPE (code);
-    if (typecode == DDS_OP_VAL_UNI)
-      descriptor->flags |= DDS_TOPIC_CONTAINS_UNION;
-  }
-
   return stash_instruction(pstate, instructions, index, &inst);
 }
 
@@ -2275,8 +2264,6 @@ static int print_flags(FILE *fp, struct descriptor *descriptor, bool type_info)
   const char *vec[MAX_FLAGS] = { NULL };
   size_t cnt, len = 0;
 
-  if (descriptor->flags & DDS_TOPIC_CONTAINS_UNION)
-    vec[len++] = "DDS_TOPIC_CONTAINS_UNION";
   if (descriptor->flags & DDS_TOPIC_RESTRICT_DATA_REPRESENTATION)
     vec[len++] = "DDS_TOPIC_RESTRICT_DATA_REPRESENTATION";
 

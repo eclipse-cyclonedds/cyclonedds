@@ -193,7 +193,6 @@ struct typebuilder_data
   struct typebuilder_dep_types dep_types;
   uint32_t n_keys;
   struct typebuilder_key *keys;
-  bool contains_union;
   bool fixed_size;
 };
 
@@ -563,8 +562,6 @@ static dds_return_t typebuilder_add_type (struct typebuilder_data *tbd, uint32_t
       tb_type->cdr_align = 0;
       *align = is_ext ? dds_alignof (void *) : aggrtype->align;
       *size = is_ext ? sizeof (void *) : aggrtype->size;
-      if (type->xt._d == DDS_XTypes_TK_UNION)
-        tbd->contains_union = true;
       break;
     }
     case DDS_XTypes_TK_FLOAT128:
@@ -781,7 +778,6 @@ static dds_return_t typebuilder_add_union (struct typebuilder_data *tbd, struct 
   tb_aggrtype->detail._union.member_offs = disc_sz;
   align_to (&tb_aggrtype->detail._union.member_offs, member_align);
 
-  tbd->contains_union = true;
 err:
   return ret;
 }
@@ -1683,8 +1679,6 @@ static dds_return_t set_implicit_keys_aggrtype (struct typebuilder_aggregated_ty
 static uint32_t get_descriptor_flagset (const struct typebuilder_data *tbd)
 {
   uint32_t flags = 0u;
-  if (tbd->contains_union)
-    flags |= DDS_TOPIC_CONTAINS_UNION;
   if (tbd->fixed_size)
     flags |= DDS_TOPIC_FIXED_SIZE;
   flags |= DDS_TOPIC_XTYPES_METADATA;

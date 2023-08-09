@@ -156,7 +156,7 @@ const dds_topic_descriptor_t DDS_Builtin_TypeLookup_Request_desc =
 {
   .m_size = sizeof (DDS_Builtin_TypeLookup_Request),
   .m_align = dds_alignof (DDS_Builtin_TypeLookup_Request),
-  .m_flagset = DDS_TOPIC_CONTAINS_UNION,
+  .m_flagset = 0u,
   .m_nkeys = 0u,
   .m_typename = "DDS::Builtin::TypeLookup_Request",
   .m_keys = NULL,
@@ -169,7 +169,7 @@ const struct dds_cdrstream_desc DDS_Builtin_TypeLookup_Request_cdrstream_desc =
 {
   .size = sizeof (DDS_Builtin_TypeLookup_Request),
   .align = dds_alignof (DDS_Builtin_TypeLookup_Request),
-  .flagset = DDS_TOPIC_CONTAINS_UNION,
+  .flagset = 0u,
   .keys = {
     .nkeys = 0u,
     .keys = NULL
@@ -868,7 +868,7 @@ const dds_topic_descriptor_t DDS_Builtin_TypeLookup_Reply_desc =
 {
   .m_size = sizeof (DDS_Builtin_TypeLookup_Reply),
   .m_align = dds_alignof (DDS_Builtin_TypeLookup_Reply),
-  .m_flagset = DDS_TOPIC_CONTAINS_UNION,
+  .m_flagset = 0u,
   .m_nkeys = 0u,
   .m_typename = "DDS::Builtin::TypeLookup_Reply",
   .m_keys = NULL,
@@ -881,7 +881,7 @@ const struct dds_cdrstream_desc DDS_Builtin_TypeLookup_Reply_cdrstream_desc =
 {
   .size = sizeof (DDS_Builtin_TypeLookup_Reply),
   .align = dds_alignof (DDS_Builtin_TypeLookup_Reply),
-  .flagset = DDS_TOPIC_CONTAINS_UNION,
+  .flagset = 0u,
   .keys = {
     .nkeys = 0u,
     .keys = NULL

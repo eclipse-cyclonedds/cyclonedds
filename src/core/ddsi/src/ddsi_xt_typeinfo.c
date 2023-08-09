@@ -102,7 +102,7 @@ const dds_topic_descriptor_t DDS_XTypes_TypeIdentifier_desc =
 {
   .m_size = sizeof (DDS_XTypes_TypeIdentifier),
   .m_align = dds_alignof (DDS_XTypes_TypeIdentifier),
-  .m_flagset = DDS_TOPIC_CONTAINS_UNION,
+  .m_flagset = 0u,
   .m_nkeys = 0u,
   .m_typename = "DDS::XTypes::TypeIdentifier",
   .m_keys = NULL,
@@ -115,7 +115,7 @@ const struct dds_cdrstream_desc DDS_XTypes_TypeIdentifier_cdrstream_desc =
 {
   .size = sizeof (DDS_XTypes_TypeIdentifier),
   .align = dds_alignof (DDS_XTypes_TypeIdentifier),
-  .flagset = DDS_TOPIC_CONTAINS_UNION,
+  .flagset = 0u,
   .keys = {
     .nkeys = 0u,
     .keys = NULL
@@ -729,7 +729,7 @@ const dds_topic_descriptor_t DDS_XTypes_TypeObject_desc =
 {
   .m_size = sizeof (DDS_XTypes_TypeObject),
   .m_align = dds_alignof (DDS_XTypes_TypeObject),
-  .m_flagset = DDS_TOPIC_CONTAINS_UNION,
+  .m_flagset = 0u,
   .m_nkeys = 0u,
   .m_typename = "DDS::XTypes::TypeObject",
   .m_keys = NULL,
@@ -742,7 +742,7 @@ const struct dds_cdrstream_desc DDS_XTypes_TypeObject_cdrstream_desc =
 {
   .size = sizeof (DDS_XTypes_TypeObject),
   .align = dds_alignof (DDS_XTypes_TypeObject),
-  .flagset = DDS_TOPIC_CONTAINS_UNION,
+  .flagset = 0u,
   .keys = {
     .nkeys = 0u,
     .keys = NULL
@@ -872,7 +872,7 @@ const dds_topic_descriptor_t DDS_XTypes_TypeInformation_desc =
 {
   .m_size = sizeof (DDS_XTypes_TypeInformation),
   .m_align = dds_alignof (DDS_XTypes_TypeInformation),
-  .m_flagset = DDS_TOPIC_CONTAINS_UNION,
+  .m_flagset = 0u,
   .m_nkeys = 0u,
   .m_typename = "DDS::XTypes::TypeInformation",
   .m_keys = NULL,
@@ -885,7 +885,7 @@ const struct dds_cdrstream_desc DDS_XTypes_TypeInformation_cdrstream_desc =
 {
   .size = sizeof (DDS_XTypes_TypeInformation),
   .align = dds_alignof (DDS_XTypes_TypeInformation),
-  .flagset = DDS_TOPIC_CONTAINS_UNION,
+  .flagset = 0u,
   .keys = {
     .nkeys = 0u,
     .keys = NULL

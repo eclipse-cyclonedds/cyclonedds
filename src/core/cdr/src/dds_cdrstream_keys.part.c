@@ -383,7 +383,7 @@ static void dds_stream_extract_keyBO_from_key_impl (dds_istream_t * __restrict i
      and write the key-only CDR for this sample */
   void *sample = allocator->malloc (desc->size);
   memset (sample, 0, desc->size);
-  (void) dds_stream_read_impl (is, sample, allocator, desc->ops.ops, false, CDR_KIND_KEY);
+  (void) dds_stream_read_impl (is, sample, allocator, desc->ops.ops, false, CDR_KIND_KEY, SAMPLE_DATA_INITIALIZED);
   if (ser_kind == DDS_CDR_KEY_SERIALIZATION_KEYHASH)
     dds_stream_write_keyBE ((dds_ostreamBE_t *) os, ser_kind, allocator, sample, desc);
   else

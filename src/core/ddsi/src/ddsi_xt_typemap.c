@@ -625,7 +625,7 @@ const dds_topic_descriptor_t DDS_XTypes_TypeMapping_desc =
 {
   .m_size = sizeof (DDS_XTypes_TypeMapping),
   .m_align = dds_alignof (DDS_XTypes_TypeMapping),
-  .m_flagset = DDS_TOPIC_CONTAINS_UNION,
+  .m_flagset = 0u,
   .m_nkeys = 0u,
   .m_typename = "DDS::XTypes::TypeMapping",
   .m_keys = NULL,
@@ -638,7 +638,7 @@ const struct dds_cdrstream_desc DDS_XTypes_TypeMapping_cdrstream_desc =
 {
   .size = sizeof (DDS_XTypes_TypeMapping),
   .align = dds_alignof (DDS_XTypes_TypeMapping),
-  .flagset = DDS_TOPIC_CONTAINS_UNION,
+  .flagset = 0u,
   .keys = {
     .nkeys = 0u,
     .keys = NULL
