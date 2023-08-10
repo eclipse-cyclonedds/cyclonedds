@@ -906,20 +906,13 @@ uint32_t dds_stream_countops (const uint32_t * __restrict ops, uint32_t nkeys, c
   return (uint32_t) (ops_end - ops);
 }
 
-static char *dds_stream_reuse_string_bound (dds_istream_t * __restrict is, char * __restrict str, const struct dds_cdrstream_allocator * __restrict allocator, const uint32_t size, bool alloc, enum sample_data_state sample_state)
+static char *dds_stream_reuse_string_bound (dds_istream_t * __restrict is, char * __restrict str, const uint32_t size)
 {
   const uint32_t length = dds_is_get4 (is);
   const void *src = is->m_buffer + is->m_index;
   /* FIXME: validation now rejects data containing an oversize bounded string,
      so this check is superfluous, but perhaps rejecting such a sample is the
      wrong thing to do */
-  if (sample_state == SAMPLE_DATA_INITIALIZED)
-  {
-    if (!alloc)
-      assert (str != NULL);
-    else if (str == NULL)
-      str = allocator->malloc (size);
-  }
   memcpy (str, src, length > size ? size : length);
   if (length > size)
     str[size - 1] = '\0';
@@ -1571,7 +1564,7 @@ static const uint32_t *dds_stream_read_seq (dds_istream_t * __restrict is, char 
       seq->_length = (num <= seq->_maximum) ? num : seq->_maximum;
       char *ptr = (char *) seq->_buffer;
       for (uint32_t i = 0; i < seq->_length; i++)
-        (void) dds_stream_reuse_string_bound (is, ptr + i * elem_size, allocator, elem_size, false, sample_state);
+        (void) dds_stream_reuse_string_bound (is, ptr + i * elem_size, elem_size);
       for (uint32_t i = seq->_length; i < num; i++)
         dds_stream_skip_string (is);
       return ops + 3 + bound_op;
@@ -1645,7 +1638,7 @@ static const uint32_t *dds_stream_read_arr (dds_istream_t * __restrict is, char 
       char *ptr = (char *) addr;
       const uint32_t elem_size = ops[4];
       for (uint32_t i = 0; i < num; i++)
-        (void) dds_stream_reuse_string_bound (is, ptr + i * elem_size, allocator, elem_size, false, sample_state);
+        (void) dds_stream_reuse_string_bound (is, ptr + i * elem_size, elem_size);
       return ops + 5;
     }
     case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: case DDS_OP_VAL_ARR: case DDS_OP_VAL_UNI: case DDS_OP_VAL_STU: {
@@ -1755,7 +1748,7 @@ static inline const uint32_t *dds_stream_read_adr (uint32_t insn, dds_istream_t 
     case DDS_OP_VAL_4BY: *((uint32_t *) addr) = dds_is_get4 (is); ops += 2; break;
     case DDS_OP_VAL_8BY: *((uint64_t *) addr) = dds_is_get8 (is); ops += 2; break;
     case DDS_OP_VAL_STR: *((char **) addr) = dds_stream_reuse_string (is, *((char **) addr), allocator, sample_state); ops += 2; break;
-    case DDS_OP_VAL_BST: (void) dds_stream_reuse_string_bound (is, (char *) addr, allocator, ops[2], false, sample_state); ops += 3; break;
+    case DDS_OP_VAL_BST: (void) dds_stream_reuse_string_bound (is, (char *) addr, ops[2]); ops += 3; break;
     case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: ops = dds_stream_read_seq (is, addr, allocator, ops, insn, cdr_kind, sample_state); break;
     case DDS_OP_VAL_ARR: ops = dds_stream_read_arr (is, addr, allocator, ops, insn, cdr_kind, sample_state); break;
     case DDS_OP_VAL_UNI: ops = dds_stream_read_uni (is, addr, data, allocator, ops, insn, cdr_kind, sample_state); break;
@@ -3779,7 +3772,7 @@ static void dds_stream_read_key_impl (dds_istream_t * __restrict is, char * __re
       }
       break;
     case DDS_OP_VAL_STR: *((char **) dst) = dds_stream_reuse_string (is, *((char **) dst), allocator, sample_state); break;
-    case DDS_OP_VAL_BST: (void) dds_stream_reuse_string_bound (is, dst, allocator, ops[2], false, sample_state); break;
+    case DDS_OP_VAL_BST: (void) dds_stream_reuse_string_bound (is, dst, ops[2]); break;
     case DDS_OP_VAL_ARR: {
       const enum dds_stream_typecode subtype = DDS_OP_SUBTYPE (insn);
       uint32_t num = ops[2];
