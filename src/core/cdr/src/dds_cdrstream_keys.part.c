@@ -17,7 +17,7 @@ static void dds_stream_write_keyBO_impl (DDS_OSTREAM_T * __restrict os, const st
   void *addr = (char *) src + ops[1];
 
   if (op_type_external (insn))
-    dds_stream_alloc_external (ops, insn, &addr, allocator);
+    addr = *((char **) addr);
 
   switch (DDS_OP_TYPE (insn))
   {
