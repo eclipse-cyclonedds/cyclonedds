@@ -34,6 +34,7 @@
 #include "ddsi__tran.h"
 #include "ddsi__vendor.h"
 #include "ddsi__addrset.h"
+#include "ddsi__spdp_schedule.h"
 
 typedef struct proxy_purge_data {
   struct ddsi_proxy_participant *proxypp;
@@ -45,6 +46,37 @@ typedef struct proxy_purge_data {
 const ddsrt_avl_treedef_t ddsi_proxypp_proxytp_treedef =
   DDSRT_AVL_TREEDEF_INITIALIZER (offsetof (struct ddsi_proxy_topic, avlnode), offsetof (struct ddsi_proxy_topic, entityid), ddsi_compare_entityid, 0);
 #endif
+
+enum maybe_update_as_disc_for_proxypp_op { MUADFPOP_ADD, MUADFPOP_REMOVE_ON_DELETE, MUADFPOP_REMOVE_ON_EXPIRY };
+
+static void maybe_update_as_disc_for_proxypp (struct ddsi_domaingv *gv, const struct ddsi_addrset *as_meta, enum maybe_update_as_disc_for_proxypp_op op)
+{
+  // FIXME: this is mostly equivalent to the pre-per-interface "allow_multicast" setting, but we can do much better
+  // because we know the interface on which received it, whether it was a multicast, and, for Cyclone peers, whether
+  // it was spontaneous or in response to one we sent
+  bool allow_mc_spdp = false;
+  for (int i = 0; i < gv->n_interfaces && !allow_mc_spdp; i++)
+    if (gv->interfaces[i].allow_multicast & DDSI_AMC_SPDP)
+      allow_mc_spdp = true;
+  if (ddsi_addrset_empty_mc (as_meta) || !allow_mc_spdp)
+  {
+    // FIXME: should perhaps do all unicast addresses
+    // FIXME: relying on "any_uc" to always return the same address is very bad
+    ddsi_xlocator_t loc;
+    ddsi_addrset_any_uc (as_meta, &loc);
+    switch (op)
+    {
+      case MUADFPOP_ADD:
+        if (ddsi_spdp_ref_locator (gv->spdp_schedule, &loc) != DDS_RETCODE_OK)
+          abort (); // FIXME: propagate and delete proxy participant
+        break;
+      case MUADFPOP_REMOVE_ON_DELETE:
+      case MUADFPOP_REMOVE_ON_EXPIRY:
+        ddsi_spdp_unref_locator (gv->spdp_schedule, &loc, (op == MUADFPOP_REMOVE_ON_EXPIRY));
+        break;
+    }
+  }
+}
 
 static void proxy_participant_replace_minl (struct ddsi_proxy_participant *proxypp, bool manbypp, struct ddsi_lease *lnew)
 {
@@ -479,11 +511,13 @@ bool ddsi_new_proxy_participant (struct ddsi_proxy_participant **proxy_participa
   }
 #endif
   *proxy_participant = proxypp;
+  maybe_update_as_disc_for_proxypp (gv, proxypp->as_meta, MUADFPOP_ADD);
   return true;
 }
 
 int ddsi_update_proxy_participant_plist_locked (struct ddsi_proxy_participant *proxypp, ddsi_seqno_t seq, const struct ddsi_plist *datap, ddsrt_wctime_t timestamp)
 {
+  // FIXME: need to (eventually) support updating locator lists, that now also involves the SPDP schedule tables
   if (seq > proxypp->seq)
   {
     proxypp->seq = seq;
@@ -682,6 +716,7 @@ static void delete_ppt (struct ddsi_proxy_participant *proxypp, ddsrt_wctime_t t
   }
   ddsrt_free (child_entities);
 
+  maybe_update_as_disc_for_proxypp (proxypp->e.gv, proxypp->as_meta, isimplicit ? MUADFPOP_REMOVE_ON_EXPIRY : MUADFPOP_REMOVE_ON_DELETE);
   gcreq_proxy_participant (proxypp);
 }
 

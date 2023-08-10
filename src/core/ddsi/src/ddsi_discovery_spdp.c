@@ -34,22 +34,10 @@
 #include "ddsi__lease.h"
 #include "ddsi__xqos.h"
 
-static void maybe_add_pp_as_meta_to_as_disc (struct ddsi_domaingv *gv, const struct ddsi_addrset *as_meta)
-{
-  // FIXME: this is mostly equivalent to the pre-per-interface "allow_multicast" setting, but we can do much better
-  // because we know the interface on which received it, whether it was a multicast, and, for Cyclone peers, whether
-  // it was spontaneous or in response to one we sent
-  bool allow_mc_spdp = false;
-  for (int i = 0; i < gv->n_interfaces && !allow_mc_spdp; i++)
-    if (gv->interfaces[i].allow_multicast & DDSI_AMC_SPDP)
-      allow_mc_spdp = true;
-  if (ddsi_addrset_empty_mc (as_meta) || !allow_mc_spdp)
-  {
-    ddsi_xlocator_t loc;
-    ddsi_addrset_any_uc (as_meta, &loc);
-    ddsi_add_xlocator_to_addrset (gv, gv->as_disc, &loc);
-  }
-}
+static bool get_pp_and_spdp_wr (struct ddsi_domaingv *gv, const ddsi_guid_t *pp_guid, struct ddsi_participant **pp, struct ddsi_writer **spdp_wr)
+  ddsrt_nonnull_all;
+static bool resend_spdp_sample_by_guid_key (struct ddsi_writer *wr, const ddsi_guid_t *guid, struct ddsi_proxy_reader *prd)
+  ddsrt_nonnull ((1, 2));
 
 struct locators_builder {
   ddsi_locators_t *dst;
@@ -895,8 +883,6 @@ static enum handle_spdp_result handle_spdp_alive (const struct ddsi_receiver_sta
   GVLOGDISC (" QOS={");
   ddsi_xqos_log (DDS_LC_DISCOVERY, &gv->logconfig, &datap->qos);
   GVLOGDISC ("}\n");
-
-  maybe_add_pp_as_meta_to_as_disc (gv, as_meta);
 
   struct ddsi_proxy_participant *proxy_participant;
   if (!ddsi_new_proxy_participant (&proxy_participant, gv, &datap->participant_guid, builtin_endpoint_set, &privileged_pp_guid, as_default, as_meta, datap, lease_duration, rst->vendor, custom_flags, timestamp, seq))
