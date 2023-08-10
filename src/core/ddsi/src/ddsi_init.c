@@ -69,6 +69,7 @@
 #include "ddsi__typelib.h"
 #include "ddsi__vendor.h"
 #include "ddsi__sockwaitset.h"
+#include "ddsi__spdp_schedule.h"
 
 #include "dds__whc.h"
 #include "dds/cdr/dds_cdrstream.h"
@@ -1708,6 +1709,9 @@ int ddsi_init (struct ddsi_domaingv *gv, struct ddsi_psmx_instance_locators *psm
     add_peer_addresses (gv, gv->as_disc, gv->config.peers);
   }
 
+  gv->spdp_schedule = ddsi_spdp_scheduler_new (gv);
+  if (gv->spdp_schedule == NULL) abort (); // FIXME: handle OOM here, it is not that hard ...
+  
   gv->gcreq_queue = ddsi_gcreq_queue_new (gv);
 
   ddsrt_atomic_st32 (&gv->rtps_keepgoing, 1);
@@ -2011,6 +2015,9 @@ void ddsi_stop (struct ddsi_domaingv *gv)
 
 void ddsi_fini (struct ddsi_domaingv *gv)
 {
+  /* No participants or proxy participants left, so this is safe */
+  ddsi_spdp_scheduler_delete (gv->spdp_schedule);
+  
   /* The receive threads have already been stopped, therefore
      defragmentation and reorder state can't change anymore and
      can be freed. */

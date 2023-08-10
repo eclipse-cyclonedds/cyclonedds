@@ -76,12 +76,27 @@ struct ddsi_xmsg *ddsi_xmsg_new (struct ddsi_xmsgpool *pool, const ddsi_guid_t *
  * @brief For sending to a particular destination (participant)
  * @component rtps_submsg
  *
+ * m may not have a destination yet
+ *
  * @param gv    domain globals
  * @param m     xmsg
  * @param gp    guid prefix
  * @param loc  destination locator
  */
-void ddsi_xmsg_setdst1 (struct ddsi_domaingv *gv, struct ddsi_xmsg *m, const ddsi_guid_prefix_t *gp, const ddsi_xlocator_t *loc);
+void ddsi_xmsg_setdst1 (struct ddsi_domaingv *gv, struct ddsi_xmsg *m, const ddsi_guid_prefix_t *gp, const ddsi_xlocator_t *loc)
+  ddsrt_nonnull_all;
+
+/**
+ * @brief For sending to a particular destination (participant)
+ * @component rtps_submsg
+ *
+ * @param gv    domain globals
+ * @param m     xmsg
+ * @param gp    guid prefix
+ * @param loc  destination locator
+ */
+void ddsi_xmsg_setdst1_generic (struct ddsi_domaingv *gv, struct ddsi_xmsg *m, const ddsi_guid_prefix_t *gp, const ddsi_xlocator_t *loc)
+ddsrt_nonnull_all;
 
 /** @component rtps_submsg */
 bool ddsi_xmsg_getdst1_prefix (struct ddsi_xmsg *m, ddsi_guid_prefix_t *gp)

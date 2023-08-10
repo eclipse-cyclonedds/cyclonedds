@@ -76,6 +76,7 @@ set(srcs_ddsi
   ddsi_radmin.c
   ddsi_receive.c
   ddsi_sockwaitset.c
+  ddsi_spdp_schedule.c
   ddsi_sysdeps.c
   ddsi_thread.c
   ddsi_transmit.c
@@ -203,6 +204,7 @@ set(hdrs_private_ddsi
   ddsi__radmin.h
   ddsi__receive.h
   ddsi__sockwaitset.h
+  ddsi__spdp_schedule.h
   ddsi__thread.h
   ddsi__transmit.h
   ddsi__whc.h

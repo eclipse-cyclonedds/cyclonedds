@@ -708,6 +708,25 @@ void ddsi_xmsg_setdst1 (struct ddsi_domaingv *gv, struct ddsi_xmsg *m, const dds
   ddsi_xmsg_setdst1_common (gv, m, gp);
 }
 
+void ddsi_xmsg_setdst1_generic (struct ddsi_domaingv *gv, struct ddsi_xmsg *m, const ddsi_guid_prefix_t *gp, const ddsi_xlocator_t *loc)
+{
+  switch (m->dstmode)
+  {
+    case NN_XMSG_DST_UNSET:
+    case NN_XMSG_DST_ONE:
+      break;
+    case NN_XMSG_DST_ALL:
+      ddsi_unref_addrset (m->dstaddr.all.as);
+      break;
+    case NN_XMSG_DST_ALL_UC:
+      ddsi_unref_addrset (m->dstaddr.all_uc.as);
+      break;
+  }
+  m->dstmode = NN_XMSG_DST_ONE;
+  m->dstaddr.one.loc = *loc;
+  ddsi_xmsg_setdst1_common (gv, m, gp);
+}
+
 bool ddsi_xmsg_getdst1_prefix (struct ddsi_xmsg *m, ddsi_guid_prefix_t *gp)
 {
   if (m->dstmode == NN_XMSG_DST_ONE)
