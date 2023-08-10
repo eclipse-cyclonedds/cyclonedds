@@ -18,17 +18,16 @@
 #include "dds/ddsi/ddsi_typelib.h"
 #include "dds/ddsi/ddsi_typewrap.h"
 #include "dds/ddsc/dds_opcodes.h"
-#include "descriptor_type_meta.h"
 #include "dds/cdr/dds_cdrstream.h"
 #include "idl/string.h"
-#include "descriptor.h"
-#include "descriptor_type_meta.h"
-#include "plugin.h"
+#include "libidlc/libidlc__descriptor.h"
+#include "idlc/generator.h"
 #include "test_common.h"
 
 #include "CUnit/Theory.h"
 
 #ifdef DDS_HAS_TYPELIB
+#include "idl/descriptor_type_meta.h"
 
 static void *calloc_no_fail (size_t count, size_t size)
 {

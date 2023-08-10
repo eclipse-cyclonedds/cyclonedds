@@ -1,4 +1,4 @@
-// Copyright(c) 2021 ZettaScale Technology and others
+// Copyright(c) 2023 ZettaScale Technology and others
 //
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License v. 2.0 which is available at
@@ -8,12 +8,11 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
-#ifndef IDLC_TEST_COMMON_H
-#define IDLC_TEST_COMMON_H
+#ifndef TYPES_H
+#define TYPES_H
 
-#include <stdlib.h>
-#include "libidlc/libidlc__descriptor.h"
+#include "idlc/generator.h"
 
-idl_retcode_t generate_test_descriptor (idl_pstate_t *pstate, const char *idl, struct descriptor *descriptor);
+idl_retcode_t generate_types(const idl_pstate_t *pstate, struct generator *generator);
 
-#endif /* IDLC_TEST_COMMON_H */
+#endif /* TYPES_H */

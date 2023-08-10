@@ -28,6 +28,7 @@
 #endif
 
 #include "idl/export.h"
+#include "processor.h"
 
 typedef int(*idl_print_t)(char *, size_t, const void *, void *);
 
@@ -76,5 +77,11 @@ IDL_EXPORT int idl_print__(
 
 #define IDL_PRINT(strp_, print_, ...) \
   IDL_PRINT__(strp_, print_, __VA_ARGS__, )
+
+IDL_EXPORT int
+print_type(char *str, size_t size, const void *ptr, void *user_data);
+
+IDL_EXPORT int
+print_scoped_name(char *str, size_t size, const void *ptr, void *user_data);
 
 #endif /* IDL_PRINT_H */

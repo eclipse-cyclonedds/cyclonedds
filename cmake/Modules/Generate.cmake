@@ -17,7 +17,11 @@ function(IDLC_GENERATE)
   cmake_parse_arguments(
     IDLC "${options}" "${one_value_keywords}" "${multi_value_keywords}" "" ${ARGN})
 
+  set(_idlc_shared_lib "$<TARGET_FILE:CycloneDDS::libidlc>")
+  set(_idlc_depends CycloneDDS::libidlc)
+
   set(gen_args
+    BACKEND ${_idlc_shared_lib}
     ${IDLC_UNPARSED_ARGUMENTS}
     TARGET ${IDLC_TARGET}
     BASE_DIR ${IDLC_BASE_DIR}
@@ -26,7 +30,8 @@ function(IDLC_GENERATE)
     INCLUDES ${IDLC_INCLUDES}
     WARNINGS ${IDLC_WARNINGS}
     OUTPUT_DIR ${IDLC_OUTPUT_DIR}
-    DEFAULT_EXTENSIBILITY ${IDLC_DEFAULT_EXTENSIBILITY})
+    DEFAULT_EXTENSIBILITY ${IDLC_DEFAULT_EXTENSIBILITY}
+    DEPENDS ${_idlc_depends})
   if(${IDLC_NO_TYPE_INFO})
     list(APPEND gen_args NO_TYPE_INFO)
   endif()

@@ -13,6 +13,8 @@
 
 #include "idl/processor.h"
 
+struct generator;
+
 #define MAX_KEY_OFFS (255)
 
 /* The name of the member that is added as the first member in a struct to
@@ -171,5 +173,7 @@ emit_topic_descriptor(
   const idl_pstate_t *pstate,
   const idl_node_t *node,
   void *user_data);
+
+idl_retcode_t generate_descriptor(const idl_pstate_t *pstate, struct generator *generator, const idl_node_t *node);
 
 #endif /* DESCRIPTOR_H */

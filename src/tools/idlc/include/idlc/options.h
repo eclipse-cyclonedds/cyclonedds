@@ -1,4 +1,4 @@
-// Copyright(c) 2020 to 2021 ZettaScale Technology and others
+// Copyright(c) 2021 ZettaScale Technology and others
 //
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License v. 2.0 which is available at
@@ -11,18 +11,15 @@
 #ifndef IDLC_OPTIONS_H
 #define IDLC_OPTIONS_H
 
-#include <stdbool.h>
-
-#if defined(__cplusplus)
-extern "C" {
-#endif
-
 #define IDLC_NO_MEMORY (-1)
 #define IDLC_BAD_OPTION (-2)
 #define IDLC_NO_ARGUMENT (-3)
 #define IDLC_BAD_ARGUMENT (-4)
 
+#define IDLC_BAD_INPUT (-5) /**< conflicting options or missing "-h" */
+
 typedef struct idlc_option idlc_option_t;
+
 struct idlc_option {
   enum {
     IDLC_FLAG, /**< flag-only, i.e. (sub)option without argument */
@@ -40,8 +37,8 @@ struct idlc_option {
   char *help;
 };
 
-#if defined(__cplusplus)
-}
-#endif
+int parse_options(int argc, char **argv, idlc_option_t **options);
+void print_help(const char *argv0, const char *rest, idlc_option_t **options);
+void print_usage(const char *argv0, const char *rest);
 
 #endif /* IDLC_OPTIONS_H */

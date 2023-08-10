@@ -24,10 +24,13 @@
 #include "idl/stream.h"
 #include "idl/string.h"
 
-#include "generator.h"
-#include "descriptor.h"
+#include "libidlc__generator.h"
+#include "libidlc__descriptor.h"
 #include "hashid.h"
-#include "descriptor_type_meta.h"
+#ifdef DDS_HAS_TYPELIB
+#include "idl/descriptor_type_meta.h"
+#endif
+
 #include "dds/ddsc/dds_opcodes.h"
 
 #define TYPE (16)
@@ -2516,8 +2519,6 @@ ctype_fini(struct constructed_type *ctype)
   if (ctype->instructions.table)
    idl_free (ctype->instructions.table);
 }
-
-idl_retcode_t generate_descriptor(const idl_pstate_t *pstate, struct generator *generator, const idl_node_t *node);
 
 void
 descriptor_fini(struct descriptor *descriptor)

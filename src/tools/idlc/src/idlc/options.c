@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <getopt.h>
+#include <stdbool.h>
 
 #include "idl/heap.h"
 #include "idl/string.h"

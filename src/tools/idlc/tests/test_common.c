@@ -13,7 +13,6 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#include "descriptor.h"
 #include "test_common.h"
 
 #include "CUnit/Theory.h"
