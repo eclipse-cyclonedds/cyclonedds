@@ -168,7 +168,8 @@ CU_Test (ddsi_plist_leasedur, ser_spdp, .init = setup, .fini = teardown)
   struct ddsi_xmsg *m = ddsi_xmsg_new (gv.xmsgpool, &guid, NULL, 64, DDSI_XMSG_KIND_DATA);
   CU_ASSERT_FATAL (m != NULL);
   struct ddsi_xmsg_marker marker;
-  (void) ddsi_xmsg_append (m, &marker, 0);
+  void *x = ddsi_xmsg_append (m, &marker, 0);
+  (void) x;
 
   ddsi_plist_t plist;
   ddsi_plist_init_empty (&plist);
@@ -199,7 +200,8 @@ CU_Test (ddsi_plist_leasedur, ser_others, .init = setup, .fini = teardown)
     struct ddsi_xmsg *m = ddsi_xmsg_new (gv.xmsgpool, &guid, NULL, 64, DDSI_XMSG_KIND_DATA);
     CU_ASSERT_FATAL (m != NULL);
     struct ddsi_xmsg_marker marker;
-    (void) ddsi_xmsg_append (m, &marker, 0);
+    void *x = ddsi_xmsg_append (m, &marker, 0);
+    (void) x;
 
     ddsi_plist_t plist;
     ddsi_plist_init_empty (&plist);
