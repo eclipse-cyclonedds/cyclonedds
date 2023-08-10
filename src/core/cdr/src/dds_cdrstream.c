@@ -924,18 +924,26 @@ static char *dds_stream_reuse_string (dds_istream_t * __restrict is, char * __re
 {
   const uint32_t length = dds_is_get4 (is);
   const void *src = is->m_buffer + is->m_index;
+  is->m_index += length;
   if (sample_state == SAMPLE_DATA_INITIALIZED && str != NULL)
+  {
+    if (length == 1 && str[0] == '\0')
+      return str;
     allocator->free (str);
+  }
   str = allocator->malloc (length);
   memcpy (str, src, length);
-  is->m_index += length;
   return str;
 }
 
 static char *dds_stream_reuse_string_empty (char * __restrict str, const struct dds_cdrstream_allocator * __restrict allocator, enum sample_data_state sample_state)
 {
   if (sample_state == SAMPLE_DATA_INITIALIZED && str != NULL)
+  {
+    if (str[0] == '\0')
+      return str;
     allocator->free (str);
+  }
   str = allocator->malloc (1);
   str[0] = '\0';
   return str;
