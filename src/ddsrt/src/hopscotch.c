@@ -328,7 +328,8 @@ static int ddsrt_chh_init (struct ddsrt_chh *rt, uint32_t init_size, ddsrt_hh_ha
     rt->gc_buckets = gc_buckets;
     rt->gc_buckets_arg = gc_buckets_arg;
 
-    buckets = ddsrt_malloc (offsetof (struct ddsrt_chh_bucket_array, bs) + size * sizeof (*buckets->bs));
+    if ((buckets = ddsrt_malloc (offsetof (struct ddsrt_chh_bucket_array, bs) + size * sizeof (*buckets->bs))) == NULL)
+      return -1;
     ddsrt_atomic_stvoidp (&rt->buckets, buckets);
     buckets->size = size;
     for (i = 0; i < size; i++) {
@@ -350,7 +351,7 @@ static void ddsrt_chh_fini (struct ddsrt_chh *rt)
 struct ddsrt_chh *ddsrt_chh_new (uint32_t init_size, ddsrt_hh_hash_fn hash, ddsrt_hh_equals_fn equals, ddsrt_hh_buckets_gc_fn gc_buckets, void *gc_buckets_arg)
 {
     struct ddsrt_chh *hh = ddsrt_malloc (sizeof (*hh));
-    if (ddsrt_chh_init (hh, init_size, hash, equals, gc_buckets, gc_buckets_arg) < 0) {
+    if (hh != NULL && ddsrt_chh_init (hh, init_size, hash, equals, gc_buckets, gc_buckets_arg) < 0) {
         ddsrt_free (hh);
         return NULL;
     } else {

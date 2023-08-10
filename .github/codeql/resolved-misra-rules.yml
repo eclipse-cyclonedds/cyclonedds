@@ -15,3 +15,4 @@ queries:
   - uses: ./codeql-coding-standards/c/misra/src/rules/RULE-22-1/CloseFileHandleWhenNoLongerNeededMisra.ql
   - uses: ./codeql-coding-standards/c/misra/src/rules/RULE-22-1/FreeMemoryWhenNoLongerNeededMisra.ql
 #  - uses: ./codeql-coding-standards/c/misra/src/rules/RULE-11-1/ConversionBetweenFunctionPointerAndOtherType.ql
+#  - uses: ./codeql-coding-standards/c/misra/src/rules/RULE-2-1/UnreachableCode.ql
