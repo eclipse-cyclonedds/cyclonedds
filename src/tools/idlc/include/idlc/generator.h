@@ -8,8 +8,8 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
-#ifndef PLUGIN_H
-#define PLUGIN_H
+#ifndef IDLC_GENERATOR_H
+#define IDLC_GENERATOR_H
 
 #include "options.h"
 #include "idl/print.h"
@@ -46,4 +46,4 @@ struct idlc_generator_plugin {
 int idlc_load_generator(idlc_generator_plugin_t *plugin, const char *lang);
 void idlc_unload_generator(idlc_generator_plugin_t *plugin);
 
-#endif /* PLUGIN_H */
+#endif /* IDLC_GENERATOR_H */

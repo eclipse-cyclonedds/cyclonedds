@@ -8,8 +8,8 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
-#ifndef VECTOR_H
-#define VECTOR_H
+#ifndef IDL_VECTOR_H
+#define IDL_VECTOR_H
 
 #include <stddef.h>
 #include <stdbool.h>
@@ -33,4 +33,4 @@ const void *idl_boxed_vector_next_c (struct idl_boxed_vector_iter *it);
 const void *idl_boxed_vector_first_c (const struct idl_boxed_vector *v, struct idl_boxed_vector_iter *it);
 void idl_boxed_vector_sort (struct idl_boxed_vector *v, int (*cmp) (const void *a, const void *b));
 
-#endif
+#endif /* IDL_VECTOR_H */
