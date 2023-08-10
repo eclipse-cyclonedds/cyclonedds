@@ -1707,9 +1707,6 @@ static const uint32_t *dds_stream_read_uni (dds_istream_t * __restrict is, char 
 
 static void dds_stream_alloc_external (const uint32_t * __restrict ops, uint32_t insn, void ** addr, const struct dds_cdrstream_allocator * __restrict allocator, enum sample_data_state * sample_state)
 {
-  /* Allocate memory for @external member. This memory must be initialized to 0,
-      because the type may contain sequences that need to have 0 index/size
-      or external fields that need to be initialized to null */
   uint32_t sz = get_adr_type_size (insn, ops);
   if (*sample_state != SAMPLE_DATA_INITIALIZED || *((char **) *addr) == NULL)
   {
