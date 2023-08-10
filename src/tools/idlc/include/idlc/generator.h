@@ -43,7 +43,7 @@ struct idlc_generator_plugin {
   idlc_generate_t generate;
 };
 
-int idlc_load_generator(idlc_generator_plugin_t *gen, const char *lang);
-void idlc_unload_generator(idlc_generator_plugin_t *gen);
+int idlc_load_generator(idlc_generator_plugin_t *plugin, const char *lang);
+void idlc_unload_generator(idlc_generator_plugin_t *plugin);
 
 #endif /* PLUGIN_H */

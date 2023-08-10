@@ -146,8 +146,7 @@ static int run_library_locator(const char *command, char **out_output) {
   return -1;
 }
 
-int32_t
-idlc_load_generator(idlc_generator_plugin_t *plugin, const char *lang)
+int idlc_load_generator(idlc_generator_plugin_t *plugin, const char *lang)
 {
   char buf[64], *file = NULL;
   const char *path;
