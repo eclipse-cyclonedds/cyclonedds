@@ -1414,6 +1414,30 @@ const uint32_t * dds_stream_write_with_byte_order (dds_ostream_t * __restrict os
     return dds_stream_write (os, allocator, data, ops);
 }
 
+static void malloc_sequence_buffer (dds_sequence_t * __restrict seq, const struct dds_cdrstream_allocator * __restrict allocator, uint32_t num, uint32_t elem_size)
+{
+  const uint32_t size = num * elem_size;
+  seq->_buffer = allocator->malloc (size);
+  seq->_release = true;
+  seq->_maximum = num;
+}
+
+static void grow_sequence_buffer_initialize (dds_sequence_t * __restrict seq, const struct dds_cdrstream_allocator * __restrict allocator, uint32_t num, uint32_t elem_size)
+{
+  // valid input for seq:
+  //  (_maximum == 0 && _buffer == NULL)
+  //  (_maximum == 0 && _buffer != NULL)
+  //  (_maximum >  0 && _buffer != NULL)
+  // if _buffer is a non-null pointer, it must point to memory
+  // obtained from "allocator"
+  const uint32_t size = num * elem_size;
+  const uint32_t off = seq->_maximum * elem_size;
+  seq->_buffer = allocator->realloc (seq->_buffer, size);
+  seq->_release = true; // usually already true
+  seq->_maximum = num;
+  memset (seq->_buffer + off, 0, size - off);
+}
+
 /**
  * Sequences of types that possibly contain pointers are maintained in initialized form for all
  * allocated entries (i.e., up to _maximum), not just the occupied ones (i.e., up to _length).
@@ -1426,62 +1450,51 @@ const uint32_t * dds_stream_write_with_byte_order (dds_ostream_t * __restrict os
  * can avoid by using its buffers in a slightly different way, and the additional memcpy/memset
  * on realloc, but those operations are usually cheaper than trying to free the sample.
  */
-static inline void adjust_sequence_buffer_initialize (dds_sequence_t * __restrict seq, const struct dds_cdrstream_allocator * __restrict allocator, uint32_t num, uint32_t elem_size, enum sample_data_state *sample_state)
+static void adjust_sequence_buffer_initialize (dds_sequence_t * __restrict seq, const struct dds_cdrstream_allocator * __restrict allocator, uint32_t num, uint32_t elem_size, enum sample_data_state *sample_state)
 {
-  const uint32_t size = num * elem_size;
-  bool malloc = true;
-
-  if (*sample_state == SAMPLE_DATA_INITIALIZED)
+  // If num == 0, dds_stream_read_seq short-circuits
+  assert (num > 0);
+  if (*sample_state != SAMPLE_DATA_INITIALIZED)
   {
-    /* maintain max sequence length (may not have been set by caller) */
-    if (seq->_length > seq->_maximum)
-      seq->_maximum = seq->_length;
-
-    if (num > seq->_maximum && seq->_release)
-    {
-      malloc = false;
-      seq->_buffer = allocator->realloc (seq->_buffer, size);
-      const uint32_t off = seq->_maximum * elem_size;
-      memset (seq->_buffer + off, 0, size - off);
-      seq->_maximum = num;
-    }
-    else if (num == 0 || seq->_maximum > 0)
-      malloc = false;
+    const uint32_t size = num * elem_size;
+    malloc_sequence_buffer (seq, allocator, num, elem_size);
+    memset (seq->_buffer, 0, size);
+    *sample_state = SAMPLE_DATA_INITIALIZED;
   }
   else
-    *sample_state = SAMPLE_DATA_INITIALIZED;
-
-  if (malloc)
   {
-    seq->_buffer = allocator->malloc (size);
-    memset (seq->_buffer, 0, size);
-    seq->_release = true;
-    seq->_maximum = num;
+    // Maintain max sequence length for broken applications that provided
+    // a pre-allocated buffer and only set _length.  (Would anyone really
+    // expect that to work?)
+    if (seq->_length > seq->_maximum)
+      seq->_maximum = seq->_length;
+    // We own the buffer if _release, in which case we realloc if we need
+    // more memory. We *take* ownership if we need memory but _maximum is
+    // 0, which is how we support initializing with all zeros.
+    if (num > seq->_maximum && (seq->_release || seq->_maximum == 0))
+      grow_sequence_buffer_initialize (seq, allocator, num, elem_size);
   }
 }
 
-static inline void adjust_sequence_buffer (dds_sequence_t * __restrict seq, const struct dds_cdrstream_allocator * __restrict allocator, uint32_t num, uint32_t elem_size, enum sample_data_state *sample_state)
+static void adjust_sequence_buffer (dds_sequence_t * __restrict seq, const struct dds_cdrstream_allocator * __restrict allocator, uint32_t num, uint32_t elem_size, enum sample_data_state *sample_state)
 {
-  const uint32_t size = num * elem_size;
-  bool malloc = true;
-  if (*sample_state == SAMPLE_DATA_INITIALIZED)
+  // Reduced version of adjust_sequence_buffer_initialize that avoids
+  // memsetting when we know it won't matter, e.g. a sequence of ints
+  // won't cause any trouble if the bits between _length and _maximum
+  // remain garbage.
+  assert (num > 0);
+  if (*sample_state != SAMPLE_DATA_INITIALIZED)
+    malloc_sequence_buffer (seq, allocator, num, elem_size);
+  else
   {
-    /* maintain max sequence length (may not have been set by caller) */
     if (seq->_length > seq->_maximum)
       seq->_maximum = seq->_length;
-
-    if (num > seq->_maximum && seq->_release)
+    if (num > seq->_maximum && (seq->_release || seq->_maximum == 0))
+    {
       allocator->free (seq->_buffer);
-    else if (num == 0 || seq->_maximum > 0)
-      malloc = false;
-  }
-
-  if (malloc)
-  {
-    seq->_buffer = allocator->malloc (size);
-    seq->_maximum = num;
-    seq->_release = true;
-    *sample_state = SAMPLE_DATA_UNINITIALIZED;
+      malloc_sequence_buffer (seq, allocator, num, elem_size);
+      *sample_state = SAMPLE_DATA_UNINITIALIZED;
+    }
   }
 }
 
