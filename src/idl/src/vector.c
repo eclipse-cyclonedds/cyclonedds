@@ -8,8 +8,6 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
-#define _GNU_SOURCE
-
 #include <stdlib.h>
 #include <stdint.h>
 #include <assert.h>
@@ -70,36 +68,7 @@ const void *idl_boxed_vector_first_c (const struct idl_boxed_vector *v, struct i
   return idl_boxed_vector_first ((struct idl_boxed_vector *) v, it);
 }
 
-struct cmp_context {
-  int (*cmp) (const void *a, const void *b);
-};
-
-#if defined __GLIBC__
-static int cmp_wrapper (const void *va, const void *vb, void *vcontext)
+void idl_boxed_vector_sort (struct idl_boxed_vector *v, int (*cmp) (const void **a, const void **b))
 {
-  struct cmp_context *context = vcontext;
-  const void * const *a = va;
-  const void * const *b = vb;
-  return context->cmp (*a, *b);
-}
-#else
-static int cmp_wrapper (void *vcontext, const void *va, const void *vb)
-{
-  struct cmp_context *context = vcontext;
-  const void * const *a = va;
-  const void * const *b = vb;
-  return context->cmp (*a, *b);
-}
-#endif
-
-void idl_boxed_vector_sort (struct idl_boxed_vector *v, int (*cmp) (const void *a, const void *b))
-{
-  struct cmp_context context = { .cmp = cmp };
-#if defined __GLIBC__
-  qsort_r (v->xs, v->n, sizeof (*v->xs), cmp_wrapper, &context);
-#elif _WIN32
-  qsort_s (v->xs, v->n, sizeof (*v->xs), cmp_wrapper, &context);
-#else
-  qsort_r (v->xs, v->n, sizeof (*v->xs), &context, cmp_wrapper);
-#endif
+  qsort (v->xs, v->n, sizeof (*v->xs), (int (*) (const void *, const void *)) cmp);
 }
