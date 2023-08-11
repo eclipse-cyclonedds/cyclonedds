@@ -31,6 +31,6 @@ void *idl_boxed_vector_next (struct idl_boxed_vector_iter *it);
 void *idl_boxed_vector_first (struct idl_boxed_vector *v, struct idl_boxed_vector_iter *it);
 const void *idl_boxed_vector_next_c (struct idl_boxed_vector_iter *it);
 const void *idl_boxed_vector_first_c (const struct idl_boxed_vector *v, struct idl_boxed_vector_iter *it);
-void idl_boxed_vector_sort (struct idl_boxed_vector *v, int (*cmp) (const void *a, const void *b));
+void idl_boxed_vector_sort (struct idl_boxed_vector *v, int (*cmp) (const void **a, const void **b));
 
 #endif /* IDL_VECTOR_H */

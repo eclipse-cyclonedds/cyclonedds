@@ -157,9 +157,9 @@ static struct key_container *key_containers_next (struct key_containers_iter *it
 
 /* ======= end of new/free/iterators/... wrappers ======== */
 
-static int cmp_parent_path (const void *a, const void *b)
+static int cmp_parent_path (const void **a, const void **b)
 {
-  return strcmp (a, b);
+  return strcmp (*a, *b);
 }
 
 static void sort_parent_paths (struct key_containers *key_containers)
