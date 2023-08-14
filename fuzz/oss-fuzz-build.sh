@@ -22,6 +22,7 @@ cmake \
     -DBUILD_EXAMPLES=NO \
     -DENABLE_SECURITY=NO \
     -DENABLE_SSL=NO \
+    -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
     -DCMAKE_INSTALL_PREFIX=/usr/local ..
 cmake --build .
 cmake --build . --target install
