@@ -114,7 +114,7 @@ static const dds_topic_descriptor_t type_uni_desc =
 {
   .m_size = sizeof (struct type_uni),
   .m_align = sizeof (void *),
-  .m_flagset = DDS_TOPIC_CONTAINS_UNION,
+  .m_flagset = 0u,
   .m_nkeys = 0,
   .m_typename = "multi_sertype_type",
   .m_keys = NULL,

@@ -569,7 +569,8 @@ enum dds_stream_typecode_subtype {
 /**
  * @anchor DDS_TOPIC_CONTAINS_UNION
  * @ingroup topic_flags
- * @brief at arbitrary deep nesting the topic type contains at least one union.
+ * @deprecated reserved for backward compatibility
+ * @brief ignored
  */
 #define DDS_TOPIC_CONTAINS_UNION                (1u << 2)
 
