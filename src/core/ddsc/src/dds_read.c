@@ -374,9 +374,12 @@ dds_return_t dds_return_reader_loan (dds_reader *rd, void **buf, int32_t bufsz)
   {
     if (buf[s] != NULL && (loan = dds_loan_pool_find_loan (rd->m_loans, buf[s])) != NULL)
     {
-      dds_loan_pool_remove_loan (loan);
-      dds_loaned_sample_unref (loan);
-      buf[s] = NULL;
+      ret = dds_loan_pool_remove_loan (loan);
+      if (ret == DDS_RETCODE_OK)
+      {
+        ret = dds_loaned_sample_unref (loan);
+        buf[s] = NULL;
+      }
     }
   }
   ddsrt_mutex_unlock (&rd->m_entity.m_mutex);
