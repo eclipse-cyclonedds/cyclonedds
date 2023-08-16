@@ -179,8 +179,13 @@ void iox_psmx::discover_node_id(dds_psmx_node_identifier_t node_id_fallback)
   else if (node_ids_present == 1)
   {
     const char *s = outstr.c_str();
-    for (uint32_t n = 0; n < 16; n++)
-      _node_id.x[n] = (uint8_t) strtoul(s + 2 * n, nullptr, 16);
+    char c[3] = {0};  //we need to manually truncate the id string, since the output value is too large for stroull
+    for (uint32_t n = 0; n < 16; n++) {
+      c[0] = s[2*n];
+      c[1] = s[2*n+1];
+      _node_id.x[n] = (uint8_t) strtoul(c, nullptr, 16);
+    }
+    fprintf(stderr, "\n");
   }
   else
   {
