@@ -21,3 +21,7 @@ struct PsmxType1 {
   long	long_2;
   long	long_3;
 };
+
+struct PsmxKeySupportCheck {
+  @key long k;
+};

@@ -220,6 +220,7 @@ static enum maybe_add_interface_result maybe_add_interface (struct ddsi_domaingv
   dst->loopback = loopback ? 1 : 0;
   dst->link_local = link_local ? 1 : 0;
   dst->if_index = ifa->index;
+  dst->is_psmx = false;
   if ((dst->name = ddsrt_strdup (ifa->name)) == NULL)
     return MAI_OUT_OF_MEMORY;
   dst->priority = loopback ? 2 : 0;

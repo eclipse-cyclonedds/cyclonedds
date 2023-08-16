@@ -120,6 +120,24 @@ static bool endpoint_has_psmx_enabled (dds_entity_t rd_or_wr)
   return psmx_enabled;
 }
 
+static bool psmx_supports_keys (dds_entity_t pp)
+{
+  // Default writer QoS: reliable, keep last 1, by-reception-timestamp, one non-wildcard partition,
+  // absolute nothing fancy in short.  If PSMX doesn't support that, we have a problem.
+  char checktopicname[100];
+  create_unique_topic_name ("test_psmx_keys", checktopicname, sizeof (checktopicname));
+  const dds_entity_t tp = dds_create_topic (pp, &PsmxKeySupportCheck_desc, checktopicname, NULL, NULL);
+  CU_ASSERT_FATAL (tp > 0);
+  const dds_entity_t wr = dds_create_writer (pp, tp, NULL, NULL);
+  CU_ASSERT_FATAL (wr > 0);
+  const bool type_supported = endpoint_has_psmx_enabled (wr);
+  dds_return_t rc = dds_delete (wr);
+  CU_ASSERT_FATAL (rc == 0);
+  rc = dds_delete (tp);
+  CU_ASSERT_FATAL (rc == 0);
+  return type_supported;
+}
+
 static uint32_t reader_unicast_port (dds_entity_t rdhandle)
 {
   dds_return_t rc;
@@ -533,6 +551,12 @@ static void dotest (const dds_topic_descriptor_t *tpdesc, const void *sample, en
     gvs[i] = get_domaingv (pp[i]);
   }
 
+  if (tpdesc->m_nkeys > 0 && !psmx_supports_keys (pp[0]))
+  {
+    CU_PASS("Topic uses keys, but PSMX does not");
+    goto skip_because_of_keys;
+  }
+
   uint32_t test_index = 0;
   for (int wr_use_psmx = 0; wr_use_psmx <= 1; wr_use_psmx++)
   {
@@ -771,6 +795,7 @@ static void dotest (const dds_topic_descriptor_t *tpdesc, const void *sample, en
     CU_ASSERT_FATAL (rc == 0);
   }
 
+skip_because_of_keys:
   rc = dds_delete (ws);
   CU_ASSERT_FATAL (rc == 0);
   for (int i = 0; i < MAX_DOMAINS; i++)
