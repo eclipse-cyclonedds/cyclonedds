@@ -866,7 +866,10 @@ static struct ddsi_serdata *serdata_default_from_loaned_sample (const struct dds
       d->c.loan->metadata->cdr_options = 0;
     }
 
-    d->c.loan->metadata->hash = d->c.hash;
+    if (tp->c.typekind_no_key)
+      (void) fix_serdata_default_nokey(d, tp->c.serdata_basehash);
+    else
+      (void) fix_serdata_default(d, tp->c.serdata_basehash);
   }
 
   return (struct ddsi_serdata *) d;
@@ -891,7 +894,6 @@ static struct ddsi_serdata * serdata_default_from_psmx (const struct ddsi_sertyp
     return NULL;
 
   struct dds_serdata_default *d = serdata_default_new_size (tp, kind, md->sample_size, xcdr_version);
-  d->c.hash = md->hash;
   d->c.statusinfo = md->statusinfo;
   d->c.timestamp.v = md->timestamp;
   if (md->cdr_identifier == DDSI_RTPS_SAMPLE_NATIVE)
@@ -932,6 +934,10 @@ static struct ddsi_serdata * serdata_default_from_psmx (const struct ddsi_sertyp
   }
 
   gen_serdata_key_from_sample (tp, &d->key, d->c.loan->sample_ptr);
+  if (tp->c.typekind_no_key)
+    (void) fix_serdata_default_nokey(d, tp->c.serdata_basehash);
+  else
+    (void) fix_serdata_default(d, tp->c.serdata_basehash);
   return (struct ddsi_serdata *) d;
 }
 

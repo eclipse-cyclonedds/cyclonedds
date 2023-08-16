@@ -346,7 +346,6 @@ static dds_return_t cdds_psmx_ep_write (struct dds_psmx_endpoint *psmx_ep, dds_l
     .sample_size = data->metadata->sample_size,
     .timestamp = data->metadata->timestamp,
     .statusinfo = data->metadata->statusinfo,
-    .hash = data->metadata->hash,
     .cdr_identifier = data->metadata->cdr_identifier,
     .cdr_options = data->metadata->cdr_options,
   };
@@ -372,7 +371,6 @@ static dds_loaned_sample_t * incoming_sample_to_loan (struct cdds_psmx_endpoint 
   psmx_md->instance_id = psmx_sample->psmx_instance_id;
   psmx_md->data_type = psmx_sample->data_type;
   memcpy (&psmx_md->guid, &psmx_sample->guid, sizeof (psmx_sample->guid));
-  psmx_md->hash = psmx_sample->hash;
   psmx_md->sample_size = psmx_sample->sample_size;
   psmx_md->sample_state = (enum dds_loaned_sample_state) psmx_sample->sample_state;
   psmx_md->statusinfo = psmx_sample->statusinfo;

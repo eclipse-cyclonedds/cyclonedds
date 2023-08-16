@@ -24,7 +24,6 @@ struct cdds_psmx_data {
   octet guid[16];
   int64 timestamp;
   uint32 statusinfo;
-  uint32 hash;
   uint16 cdr_identifier;
   uint16 cdr_options;
   sequence<octet> data;

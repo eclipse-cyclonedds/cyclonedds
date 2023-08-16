@@ -68,7 +68,6 @@ typedef struct dds_psmx_metadata {
   dds_guid_t guid;
   dds_time_t timestamp;
   uint32_t statusinfo;
-  uint32_t hash;
   uint16_t cdr_identifier;
   uint16_t cdr_options;
 } dds_psmx_metadata_t;
