@@ -137,7 +137,7 @@ DDS_EXPORT dds_return_t dds_loan_shared_memory_buffer (dds_entity_t writer, size
  *
  * @returns loan available or not
  */
-DDS_EXPORT bool dds_is_loan_available (const dds_entity_t entity);
+DDS_DEPRECATED_EXPORT bool dds_is_loan_available (const dds_entity_t entity);
 
 /**
  * @ingroup deprecated
@@ -154,7 +154,7 @@ DDS_EXPORT bool dds_is_loan_available (const dds_entity_t entity);
  *
  * @returns DDS_RETCODE_OK if successful, DDS_RETCODE_ERROR otherwise
  */
-DDS_EXPORT dds_return_t dds_loan_sample (dds_entity_t writer, void **sample);
+DDS_DEPRECATED_EXPORT dds_return_t dds_loan_sample (dds_entity_t writer, void **sample);
 
 #if defined(__cplusplus)
 }
