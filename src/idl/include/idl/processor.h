@@ -25,6 +25,7 @@
 #include "idl/scope.h"
 #include "idl/visit.h"
 #include "idl/attributes.h"
+#include "idl/md5.h"
 
 /* enable "#pragma keylist" for backwards compatibility */
 #define IDL_FLAG_KEYLIST (1u<<0)
@@ -88,6 +89,7 @@ struct idl_pstate {
   void *directive;
   idl_node_t *builtin_root, *root;
   idl_buffer_t buffer; /**< dynamically sized input buffer */
+  idl_md5_byte_t digest[16]; /**< md5 digest of idl source */
   struct {
     enum {
       IDL_SCAN,

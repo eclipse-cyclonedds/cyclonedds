@@ -51,8 +51,6 @@ static idl_retcode_t print_header(FILE *fh, const char *in, const char *out)
 
 static idl_retcode_t print_guard(FILE *fh, const char *in)
 {
-  if (fputs(header_guard_prefix, fh) < 0)
-    return IDL_RETCODE_NO_MEMORY;
   for (const char *ptr = in; *ptr; ptr++) {
     int chr = (unsigned char)*ptr;
     if (idl_islower((unsigned char)*ptr))
@@ -130,7 +128,7 @@ generate_nosetup(const idl_pstate_t *pstate, struct generator *generator)
 
   if ((ret = print_header(generator->header.handle, file, header_file)))
     return ret;
-  if ((ret = print_guard_if(generator->header.handle, header_file)))
+  if ((ret = print_guard_if(generator->header.handle, generator->config.guard_macro)))
     return ret;
   if ((ret = print_includes(generator->header.handle, pstate->sources)))
     return ret;
@@ -155,10 +153,40 @@ generate_nosetup(const idl_pstate_t *pstate, struct generator *generator)
     return ret;
   if (fputs("#ifdef __cplusplus\n}\n#endif\n\n", generator->header.handle) < 0)
     return IDL_RETCODE_NO_MEMORY;
-  if ((ret = print_guard_endif(generator->header.handle, header_file)))
+  if ((ret = print_guard_endif(generator->header.handle, generator->config.guard_macro)))
     return ret;
 
   return IDL_RETCODE_OK;
+}
+
+static char *
+create_guard(const char *prefix, const char *base, const idl_md5_byte_t digest[16])
+{
+  char *guard = NULL;
+  size_t guard_size = strlen(prefix) + strlen(base) + 34;
+  size_t offset = 0;
+
+  if(!(guard = idl_malloc(guard_size)))
+    return NULL;
+  if(!idl_strlcpy(guard, prefix, guard_size))
+    goto err_guard;
+  offset = strlen(guard);
+  if(!idl_strlcpy(&guard[offset], base, guard_size-offset))
+    goto err_guard;
+  offset = strlen(guard);
+  if(!idl_strlcpy(&guard[offset], "_", guard_size-offset))
+    goto err_guard;
+  for (size_t i=0; i<16; i++) {
+    offset = strlen(guard);
+    if(idl_snprintf(&guard[offset], guard_size-offset, "%02X", digest[i]) < 0)
+      goto err_guard;
+  }
+  return guard;
+
+err_guard:
+  if (guard != NULL)
+    idl_free(guard);
+  return NULL;
 }
 
 static const idlc_option_t *opts[] = {
@@ -209,8 +237,12 @@ generate(const idl_pstate_t *pstate, const idlc_generator_config_t *config)
   } else {
     generator.config.export_macro = NULL;
   }
+  if(!(generator.config.guard_macro = create_guard(header_guard_prefix, generator.header.path, pstate->digest)))
+    goto err_options;
   generator.config.generate_cdrstream_desc = (generate_cdrstream_desc != 0);
   ret = generate_nosetup(pstate, &generator);
+  if(generator.config.guard_macro)
+    idl_free(generator.config.guard_macro);
 
 err_options:
   if (generator.config.export_macro)
