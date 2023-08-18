@@ -22,6 +22,7 @@
 #include "dds/features.h"
 #include "dds/cdr/dds_cdrstream.h"
 #include "idl/heap.h"
+#include "idl/md5.h"
 #include "idl/misc.h"
 #include "idl/tree.h"
 #include "idl/string.h"
@@ -86,6 +87,8 @@ static int idlc_putc(int chr, MCPP_OUTDEST od);
 static int idlc_puts(const char *str, MCPP_OUTDEST od);
 static int idlc_printf(MCPP_OUTDEST od, const char *str, ...);
 
+static idl_md5_state_t md5state;
+
 #define CHUNK (4096)
 
 static int idlc_putn(const char *str, size_t len)
@@ -127,6 +130,7 @@ static int idlc_putn(const char *str, size_t len)
   memcpy(pstate->buffer.data + pstate->buffer.used, str, len);
   pstate->buffer.used += len;
   assert(pstate->buffer.used <= pstate->buffer.size);
+  idl_md5_append(&md5state, (idl_md5_byte_t*)str, (unsigned int)len);
   /* update scanner location */
   pstate->scanner.limit = pstate->buffer.data + pstate->buffer.used;
 
@@ -321,6 +325,7 @@ static idl_retcode_t idlc_parse(const idl_builtin_annotation_t ** generator_anno
                    IDL_FLAG_ANONYMOUS_TYPES |
                    IDL_FLAG_ANNOTATIONS;
 
+  idl_md5_init(&md5state);
   if(config.case_sensitive)
     flags |= IDL_FLAG_CASE_SENSITIVE;
 
@@ -415,6 +420,7 @@ static idl_retcode_t idlc_parse(const idl_builtin_annotation_t ** generator_anno
 
   if (ret == IDL_RETCODE_OK && config.compile) {
     assert(pstate);
+    idl_md5_finish(&md5state, pstate->digest);
     ret = idl_parse(pstate);
     assert(ret != IDL_RETCODE_NEED_REFILL);
     if (ret == IDL_RETCODE_OK) {

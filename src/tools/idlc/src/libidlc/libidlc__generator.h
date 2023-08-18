@@ -32,6 +32,7 @@ struct generator {
   struct {
     idlc_generator_config_t c;
     char *export_macro;
+    char *guard_macro;
     bool generate_cdrstream_desc;
   } config;
 };
