@@ -862,13 +862,19 @@ static enum update_result uf_int64_unit (struct ddsi_cfgst *cfgst, int64_t *elem
     // it is strictly less than ((double) INT64_MAX) guarantees we can
     // convert to int64_t and negate it if the input is negative without
     // risking signed overflow.
-    if (v_dbl_abs_scaled >= (double) INT64_MAX)
+    //
+    // Only accepting the value if A < B works to reject out-of-range and
+    // NaNs.  Rewriting as (A >= B) and swapping the two branches is not
+    // the same thing because NaNs always compare false.
+    if (v_dbl_abs_scaled < (double) INT64_MAX) {
+      const int64_t v_int_scaled = ((v_dbl >= 0) ? 1 : -1) * (int64_t) v_dbl_abs_scaled;
+      if (v_int_scaled < min || v_int_scaled > max)
+        return cfg_error (cfgst, "%s: value out of range", value);
+      *elem = v_int_scaled;
+      return URES_SUCCESS;
+    } else {
       return cfg_error(cfgst, "%s: value out of range", value);
-    const int64_t v_int_scaled = ((v_dbl >= 0) ? 1 : -1) * (int64_t) v_dbl_abs_scaled;
-    if (v_int_scaled < min || v_int_scaled > max)
-      return cfg_error (cfgst, "%s: value out of range", value);
-    *elem = v_int_scaled;
-    return URES_SUCCESS;
+    }
   } else {
     *elem = 0; /* some static analyzers don't "get it" */
     return cfg_error (cfgst, "%s: invalid value", value);
