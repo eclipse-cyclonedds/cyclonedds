@@ -53,8 +53,11 @@ typedef struct ddsi_tran_write_msgfrags {
 DDSRT_STATIC_ASSERT (offsetof (ddsi_tran_write_msgfrags_t, tran_reserved) + DDSI_TRAN_RESERVED_IOV_SLOTS * sizeof (ddsrt_iovec_t) == offsetof (ddsi_tran_write_msgfrags_t, iov));
 
 #define DDSI_DECL_TRAN_WRITE_MSGFRAGS_PTR(name_, n_) \
-  unsigned char name_##_ddsi_tran_write_msgfrags_buf[sizeof (ddsi_tran_write_msgfrags_t) + (n_) * sizeof (ddsrt_iovec_t)]; \
-  ddsi_tran_write_msgfrags_t * const name_ = (ddsi_tran_write_msgfrags_t *) name_##_ddsi_tran_write_msgfrags_buf;
+  union { \
+    unsigned char raw[sizeof (ddsi_tran_write_msgfrags_t) + (n_) * sizeof (ddsrt_iovec_t)]; \
+    ddsi_tran_write_msgfrags_t typed; \
+  } name_##_ddsi_tran_write_msgfrags_buf; \
+  ddsi_tran_write_msgfrags_t * const name_ = &name_##_ddsi_tran_write_msgfrags_buf.typed;
 
 #define DDSI_DECL_CONST_TRAN_WRITE_MSGFRAGS_MSVC_WORKAROUND(x) x
 
@@ -70,8 +73,11 @@ DDSRT_STATIC_ASSERT (offsetof (ddsi_tran_write_msgfrags_t, tran_reserved) + DDSI
   DDSI_DECL_CONST_TRAN_WRITE_MSGFRAGS_MSVC_WORKAROUND(DDSI_DECL_CONST_TRAN_WRITE_MSGFRAGS_PTR3_3(name_, idx_+1, __VA_ARGS__)); \
   DDSI_DECL_CONST_TRAN_WRITE_MSGFRAGS_PTR3_1(name_, idx_, e_)
 #define DDSI_DECL_CONST_TRAN_WRITE_MSGFRAGS_PTR2(name_, n_, ...) \
-  unsigned char name_##_ddsi_tran_write_msgfrags_buf[sizeof (ddsi_tran_write_msgfrags_t) + (n_) * sizeof (ddsrt_iovec_t)]; \
-  ddsi_tran_write_msgfrags_t * const name_##_nonconst = (ddsi_tran_write_msgfrags_t *) name_##_ddsi_tran_write_msgfrags_buf; \
+  union { \
+    unsigned char raw[sizeof (ddsi_tran_write_msgfrags_t) + (n_) * sizeof (ddsrt_iovec_t)]; \
+    ddsi_tran_write_msgfrags_t typed; \
+  } name_##_ddsi_tran_write_msgfrags_buf; \
+  ddsi_tran_write_msgfrags_t * const name_##_nonconst = &name_##_ddsi_tran_write_msgfrags_buf.typed; \
   name_##_nonconst->niov = n_; \
   DDSI_DECL_CONST_TRAN_WRITE_MSGFRAGS_MSVC_WORKAROUND(DDSI_DECL_CONST_TRAN_WRITE_MSGFRAGS_PTR3_##n_(name_, 0, __VA_ARGS__)); \
   const ddsi_tran_write_msgfrags_t * const name_ = name_##_nonconst
