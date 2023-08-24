@@ -361,10 +361,8 @@ iox_loaned_sample::iox_loaned_sample(struct dds_psmx_endpoint *origin, uint32_t 
   dds_loaned_sample_t {
     .ops = ls_ops,
     .loan_origin = { .origin_kind = DDS_LOAN_ORIGIN_KIND_PSMX, .psmx_endpoint = origin },
-    .loan_pool = nullptr,
     .metadata = ((struct dds_psmx_metadata *) ptr),
     .sample_ptr = ((char*) ptr) + iox_padding,  //alignment?
-    .loan_idx = 0,
     .refc = { .v = 1 }
   }
 {

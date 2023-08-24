@@ -21,13 +21,13 @@ extern "C" {
 /**
  * @brief Loan pool
  */
-typedef struct dds_loan_pool {
+struct dds_loan_pool {
   dds_loaned_sample_t **samples;
   uint32_t n_samples_cap;
   uint32_t n_samples;
-  ddsrt_mutex_t mutex;
-} dds_loan_pool_t;
+};
 
+typedef struct dds_loan_pool dds_loan_pool_t;
 
 /**
  * @brief Create a loan pool
@@ -36,7 +36,8 @@ typedef struct dds_loan_pool {
  * @param[in] initial_cap Initial capacity
  * @return a DDS return code
  */
-dds_return_t dds_loan_pool_create (dds_loan_pool_t **pool, uint32_t initial_cap);
+dds_return_t dds_loan_pool_create (dds_loan_pool_t **pool, uint32_t initial_cap)
+  ddsrt_nonnull_all;
 
 /**
  * @brief Free a loan pool
@@ -46,7 +47,8 @@ dds_return_t dds_loan_pool_create (dds_loan_pool_t **pool, uint32_t initial_cap)
  * @param pool  The loan pool to be freed
  * @return a DDS return code
  */
-dds_return_t dds_loan_pool_free (dds_loan_pool_t *pool);
+dds_return_t dds_loan_pool_free (dds_loan_pool_t *pool)
+  ddsrt_nonnull_all;
 
 /**
  * @brief Add a loan to be stored in the pool
@@ -57,36 +59,31 @@ dds_return_t dds_loan_pool_free (dds_loan_pool_t *pool);
  * @param[in] loaned_sample   The loaned sample to store
  * @return a DDS return code
  */
-dds_return_t dds_loan_pool_add_loan (dds_loan_pool_t *pool, dds_loaned_sample_t *loaned_sample);
+dds_return_t dds_loan_pool_add_loan (dds_loan_pool_t *pool, dds_loaned_sample_t *loaned_sample)
+  ddsrt_nonnull_all;
 
 /**
- * @brief Remove loan from the loan pool
- *
- * @param[in] loaned_sample  The loaned sample to be removed
- * @return a DDS return code
- */
-dds_return_t dds_loan_pool_remove_loan (dds_loaned_sample_t *loaned_sample);
-
-/**
- * @brief Finds a loan in the loan pool
+ * @brief Finds a loan in the loan pool and removes it
  *
  * Finds a loan in the pool, based on a sample pointer.
  *
  * Does not modify loaned sample's reference count.
  *
  * @param[in] pool  Loan pool to find the loan in
- * @param[in] sample_ptr  Pointer of the sample to search for
- * @return A pointer to a loaned sample
+ * @param[in] sample_ptr  Pointer of the sample to search for and remove
+ * @return A pointer to a loaned sample or null
  */
-dds_loaned_sample_t *dds_loan_pool_find_loan (dds_loan_pool_t *pool, const void *sample_ptr);
+dds_loaned_sample_t *dds_loan_pool_find_and_remove_loan (dds_loan_pool_t *pool, const void *sample_ptr)
+  ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
 
 /**
  * @brief Gets the first loan from this pool and removes it from the pool
  *
  * @param[in] pool  The loan pool to get the loan from
  * @return Pointer to a loaned sample
- */
-dds_loaned_sample_t *dds_loan_pool_get_loan (dds_loan_pool_t *pool);
+  */
+dds_loaned_sample_t *dds_loan_pool_get_loan (dds_loan_pool_t *pool)
+  ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
 
 #if defined(__cplusplus)
 }

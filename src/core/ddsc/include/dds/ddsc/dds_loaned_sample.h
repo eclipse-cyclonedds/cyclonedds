@@ -59,7 +59,7 @@ typedef void (*dds_loaned_sample_free_f) (struct dds_loaned_sample *loaned_sampl
  * @brief Container for implementation specific operations
  */
 typedef struct dds_loaned_sample_ops {
-  dds_loaned_sample_free_f    free;
+  dds_loaned_sample_free_f free;
 } dds_loaned_sample_ops_t;
 
 typedef enum dds_loaned_sample_origin_kind {
@@ -78,10 +78,8 @@ typedef struct dds_loaned_sample_origin {
 typedef struct dds_loaned_sample {
   dds_loaned_sample_ops_t ops; //!< the implementation specific ops for this sample
   struct dds_loaned_sample_origin loan_origin; //!< the origin of the loan
-  struct dds_loan_pool *loan_pool; //!< the associated loan pool
   struct dds_psmx_metadata * metadata; //!< pointer to the associated metadata
   void * sample_ptr; //!< pointer to the loaned sample
-  uint32_t loan_idx; //!< the storage index of the loan
   ddsrt_atomic_uint32_t refc; //!< the number of references to this loan
 } dds_loaned_sample_t;
 

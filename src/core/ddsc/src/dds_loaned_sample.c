@@ -10,6 +10,7 @@
 
 #include <string.h>
 #include "dds/ddsrt/sync.h"
+#include "dds/ddsrt/heap.h"
 #include "dds/ddsi/ddsi_sertype.h"
 #include "dds/cdr/dds_cdrstream.h"
 #include "dds__loaned_sample.h"
@@ -18,166 +19,107 @@
 DDS_EXPORT extern inline void dds_loaned_sample_ref (dds_loaned_sample_t *loaned_sample);
 DDS_EXPORT extern inline void dds_loaned_sample_unref (dds_loaned_sample_t *loaned_sample);
 
-static dds_return_t loan_pool_remove_loan_locked (dds_loaned_sample_t *loaned_sample);
+static dds_return_t loan_pool_expand_cap (dds_loan_pool_t *pool, uint32_t n)
+  ddsrt_nonnull_all;
 
-static dds_return_t loan_pool_expand_cap_locked (dds_loan_pool_t *pool, uint32_t n)
+static dds_return_t loan_pool_expand_cap (dds_loan_pool_t *pool, uint32_t n)
 {
-  if (pool == NULL)
-    return DDS_RETCODE_BAD_PARAMETER;
-  if (n > UINT32_MAX - pool->n_samples_cap)
-    return DDS_RETCODE_OUT_OF_RANGE;
-
+  assert (n <= UINT32_MAX - pool->n_samples_cap);
   uint32_t newcap = pool->n_samples_cap + n;
   dds_loaned_sample_t **newarray = NULL;
-  if (newcap > 0)
-  {
-    newarray = dds_realloc (pool->samples, sizeof (**newarray) * newcap);
-    if (newarray == NULL)
-      return DDS_RETCODE_OUT_OF_RESOURCES;
-    memset (newarray + pool->n_samples_cap, 0, sizeof (**newarray) * n);
-  }
+  newarray = ddsrt_realloc (pool->samples, sizeof (*newarray) * newcap);
+  if (newarray == NULL)
+    return DDS_RETCODE_OUT_OF_RESOURCES;
+  memset (newarray + pool->n_samples_cap, 0, sizeof (*newarray) * n);
   pool->samples = newarray;
   pool->n_samples_cap = newcap;
-
   return DDS_RETCODE_OK;
 }
 
-dds_return_t dds_loan_pool_create (dds_loan_pool_t **pool, uint32_t initial_cap)
+dds_return_t dds_loan_pool_create (dds_loan_pool_t **ppool, uint32_t initial_cap)
 {
-  if (pool == NULL)
-    return DDS_RETCODE_BAD_PARAMETER;
-
-  dds_return_t ret = DDS_RETCODE_OK;
-  if ((*pool = dds_alloc (sizeof (**pool))) == NULL)
+  dds_loan_pool_t *pool;
+  if ((pool = *ppool = ddsrt_malloc (sizeof (*pool))) == NULL)
     return DDS_RETCODE_OUT_OF_RESOURCES;
-  memset (*pool, 0, sizeof (**pool));
-  if ((ret = loan_pool_expand_cap_locked (*pool, initial_cap)) != DDS_RETCODE_OK)
-    dds_free (*pool);
-  ddsrt_mutex_init (&(*pool)->mutex);
-  return ret;
+  pool->n_samples = 0;
+  pool->n_samples_cap = initial_cap;
+  if (initial_cap == 0) {
+    // it makes sense to optimise this: most applications presumably will never use
+    // them on the writer, and there will probably also be subscribers that don't
+    // need them
+    pool->samples = NULL;
+  } else if ((pool->samples = ddsrt_malloc (pool->n_samples_cap * sizeof (*pool->samples))) == NULL) {
+    ddsrt_free (pool);
+    return DDS_RETCODE_OUT_OF_RESOURCES;
+  } else {
+    memset (pool->samples, 0, pool->n_samples_cap * sizeof (*pool->samples));
+  }
+  return DDS_RETCODE_OK;
 }
 
 dds_return_t dds_loan_pool_free (dds_loan_pool_t *pool)
 {
-  if (pool == NULL)
-    return DDS_RETCODE_BAD_PARAMETER;
-
-  for (uint32_t i = 0; i < pool->n_samples_cap; i++)
+  for (uint32_t i = 0; i < pool->n_samples; i++)
   {
     dds_loaned_sample_t *s = pool->samples[i];
-    if (s == NULL)
-      continue;
-    (void) dds_loan_pool_remove_loan (s);
-    (void) dds_loaned_sample_unref (s);
+    assert (s != NULL);
+    dds_loaned_sample_unref (s);
   }
-
-  ddsrt_mutex_destroy (&pool->mutex);
-  dds_free (pool->samples);
-  dds_free (pool);
+#ifndef NDEBUG
+  for (uint32_t i = pool->n_samples; i < pool->n_samples_cap; i++)
+    assert (pool->samples[i] == NULL);
+#endif
+  ddsrt_free (pool->samples);
+  ddsrt_free (pool);
   return DDS_RETCODE_OK;
 }
 
 dds_return_t dds_loan_pool_add_loan (dds_loan_pool_t *pool, dds_loaned_sample_t *loaned_sample)
 {
   dds_return_t ret;
-  if (pool == NULL || loaned_sample == NULL || loaned_sample->loan_pool != NULL)
-    return DDS_RETCODE_BAD_PARAMETER;
-
-  ddsrt_mutex_lock (&pool->mutex);
   if (pool->n_samples == pool->n_samples_cap)
   {
     uint32_t cap = pool->n_samples_cap;
-    uint32_t newcap = cap ? cap * 2 : 1;
-    if ((ret = loan_pool_expand_cap_locked (pool, newcap - cap)) != DDS_RETCODE_OK)
-    {
-      ddsrt_mutex_unlock (&pool->mutex);
+    uint32_t newcap;
+    if (cap == 0)
+      newcap = 1;
+    else if (cap <= UINT32_MAX / 2)
+      newcap = cap * 2;
+    else if (cap == UINT32_MAX)
+      return DDS_RETCODE_OUT_OF_RESOURCES;
+    else
+      newcap = UINT32_MAX;
+    if ((ret = loan_pool_expand_cap (pool, newcap - cap)) != DDS_RETCODE_OK)
       return ret;
-    }
   }
-
-  for (uint32_t i = 0; i < pool->n_samples_cap; i++)
-  {
-    if (!pool->samples[i])
-    {
-      loaned_sample->loan_idx = i;
-      pool->samples[i] = loaned_sample;
-      break;
-    }
-  }
-  loaned_sample->loan_pool = pool;
-  pool->n_samples++;
-  ddsrt_mutex_unlock (&pool->mutex);
-
+  pool->samples[pool->n_samples++] = loaned_sample;
   return DDS_RETCODE_OK;
 }
 
-static dds_return_t loan_pool_remove_loan_locked (dds_loaned_sample_t *loaned_sample)
+dds_loaned_sample_t *dds_loan_pool_find_and_remove_loan (dds_loan_pool_t *pool, const void *sample_ptr)
 {
-  assert (loaned_sample);
-  assert (loaned_sample->loan_pool);
-  dds_loan_pool_t *mgr = loaned_sample->loan_pool;
-  if (mgr->n_samples == 0 ||
-      loaned_sample->loan_idx >= mgr->n_samples_cap ||
-      loaned_sample != mgr->samples[loaned_sample->loan_idx])
+  for (uint32_t i = 0; i < pool->n_samples; i++)
   {
-    return DDS_RETCODE_BAD_PARAMETER;
+    if (pool->samples[i]->sample_ptr == sample_ptr)
+    {
+      dds_loaned_sample_t * const ls = pool->samples[i];
+      assert (pool->n_samples > 0);
+      if (i < --pool->n_samples)
+        pool->samples[i] = pool->samples[pool->n_samples];
+      pool->samples[pool->n_samples] = NULL;
+      return ls;
+    }
   }
-  else
-  {
-    mgr->samples[loaned_sample->loan_idx] = NULL;
-    mgr->n_samples--;
-    loaned_sample->loan_idx = UINT32_MAX;
-    loaned_sample->loan_pool = NULL;
-    return DDS_RETCODE_OK;
-  }
-}
-
-dds_return_t dds_loan_pool_remove_loan (dds_loaned_sample_t *loaned_sample)
-{
-  if (loaned_sample == NULL)
-    return DDS_RETCODE_BAD_PARAMETER;
-
-  dds_loan_pool_t *mgr = loaned_sample->loan_pool;
-  if (!mgr)
-    return DDS_RETCODE_OK;
-
-  dds_return_t ret;
-  ddsrt_mutex_lock (&mgr->mutex);
-  ret = loan_pool_remove_loan_locked (loaned_sample);
-  ddsrt_mutex_unlock (&mgr->mutex);
-  return ret;
-}
-
-dds_loaned_sample_t *dds_loan_pool_find_loan (dds_loan_pool_t *pool, const void *sample_ptr)
-{
-  if (pool == NULL)
-    return NULL;
-
-  dds_loaned_sample_t *ls = NULL;
-  ddsrt_mutex_lock (&pool->mutex);
-  for (uint32_t i = 0; ls == NULL && i < pool->n_samples_cap && sample_ptr; i++)
-  {
-    if (pool->samples[i] && pool->samples[i]->sample_ptr == sample_ptr)
-      ls = pool->samples[i];
-  }
-  ddsrt_mutex_unlock (&pool->mutex);
-  return ls;
+  return NULL;
 }
 
 dds_loaned_sample_t *dds_loan_pool_get_loan (dds_loan_pool_t *pool)
 {
-  if (pool == NULL || pool->samples == NULL)
+  if (pool->n_samples == 0)
     return NULL;
-
-  dds_loaned_sample_t *ls = NULL;
-  ddsrt_mutex_lock (&pool->mutex);
-  for (uint32_t i = 0; i < pool->n_samples_cap && ls == NULL; i++)
-  {
-    if (pool->samples[i])
-      ls = pool->samples[i];
-  }
-  if (ls != NULL)
-    loan_pool_remove_loan_locked (ls);
-  ddsrt_mutex_unlock (&pool->mutex);
+  --pool->n_samples;
+  dds_loaned_sample_t * const ls = pool->samples[pool->n_samples];
+  assert (ls != NULL);
+  pool->samples[pool->n_samples] = NULL;
   return ls;
 }

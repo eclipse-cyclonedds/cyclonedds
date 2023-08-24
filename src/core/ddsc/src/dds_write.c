@@ -451,10 +451,9 @@ dds_return_t dds_return_writer_loan (dds_writer *wr, void **samples_ptr, int32_t
     if (!sample)
       continue;
 
-    dds_loaned_sample_t * loan = dds_loan_pool_find_loan(wr->m_loans, sample);
+    dds_loaned_sample_t * loan = dds_loan_pool_find_and_remove_loan(wr->m_loans, sample);
     if (loan)
     {
-      (void) dds_loan_pool_remove_loan (loan);
       (void) dds_loaned_sample_unref (loan);
     }
     else
@@ -481,14 +480,12 @@ static uint32_t get_num_fast_path_readers (struct ddsi_writer *ddsi_wr)
 static dds_loaned_sample_t *get_loan_to_use (dds_writer *wr, const void *data, dds_loaned_sample_t **loan_to_free)
 {
   // 3. Check whether data is loaned
-  dds_loaned_sample_t *supplied_loan = dds_loan_pool_find_loan (wr->m_loans, data);
+  dds_loaned_sample_t *supplied_loan = dds_loan_pool_find_and_remove_loan (wr->m_loans, data);
   assert (supplied_loan == NULL || ddsrt_atomic_ld32 (&supplied_loan->refc) == 1);
-  if (supplied_loan)
-    dds_loan_pool_remove_loan (supplied_loan);
 
   assert ((supplied_loan == NULL) ||
-          (supplied_loan != NULL && ddsrt_atomic_ld32 (&supplied_loan->refc) == 1 && supplied_loan->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_HEAP && supplied_loan->loan_pool == NULL) ||
-          (supplied_loan != NULL && ddsrt_atomic_ld32 (&supplied_loan->refc) == 1 && supplied_loan->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_PSMX && supplied_loan->loan_pool == NULL));
+          (supplied_loan != NULL && ddsrt_atomic_ld32 (&supplied_loan->refc) == 1 && supplied_loan->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_HEAP) ||
+          (supplied_loan != NULL && ddsrt_atomic_ld32 (&supplied_loan->refc) == 1 && supplied_loan->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_PSMX));
   if (supplied_loan && supplied_loan->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_PSMX)
   {
     // a PSMX loan, use it
@@ -514,12 +511,12 @@ static dds_loaned_sample_t *get_loan_to_use (dds_writer *wr, const void *data, d
 
   // too many cases ...
   assert ((supplied_loan == NULL && loan == NULL) ||
-          (supplied_loan == NULL && loan != NULL && ddsrt_atomic_ld32 (&loan->refc) == 1 && loan->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_PSMX && loan->loan_pool == NULL) ||
-          (supplied_loan != NULL && loan == NULL && ddsrt_atomic_ld32 (&supplied_loan->refc) == 1 && supplied_loan->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_HEAP && supplied_loan->loan_pool == NULL) ||
-          (supplied_loan != NULL && loan == supplied_loan && ddsrt_atomic_ld32 (&loan->refc) == 1 && loan->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_PSMX && loan->loan_pool == NULL) ||
+          (supplied_loan == NULL && loan != NULL && ddsrt_atomic_ld32 (&loan->refc) == 1 && loan->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_PSMX) ||
+          (supplied_loan != NULL && loan == NULL && ddsrt_atomic_ld32 (&supplied_loan->refc) == 1 && supplied_loan->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_HEAP) ||
+          (supplied_loan != NULL && loan == supplied_loan && ddsrt_atomic_ld32 (&loan->refc) == 1 && loan->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_PSMX) ||
           (supplied_loan != NULL && loan != supplied_loan
-              && ddsrt_atomic_ld32 (&supplied_loan->refc) == 1 && supplied_loan->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_PSMX && supplied_loan->loan_pool == NULL
-              && ddsrt_atomic_ld32 (&loan->refc) == 1 && loan->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_PSMX && loan->loan_pool == NULL));
+              && ddsrt_atomic_ld32 (&supplied_loan->refc) == 1 && supplied_loan->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_PSMX
+              && ddsrt_atomic_ld32 (&loan->refc) == 1 && loan->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_PSMX));
 
   // by definition different from loan
   // not to be freed yet: freeing it invalidates data
@@ -535,7 +532,6 @@ static struct ddsi_serdata *make_serdata (struct ddsi_writer * const ddsi_wr, co
   else
   {
     assert (ddsrt_atomic_ld32 (&loan->refc) == 1);
-    assert (loan->loan_pool == NULL);
     d = ddsi_serdata_from_loaned_sample (ddsi_wr->type, writekey ? SDK_KEY : SDK_DATA, data, loan, !use_only_psmx);
   }
   if (d == NULL)

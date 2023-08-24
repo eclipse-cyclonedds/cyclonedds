@@ -318,7 +318,6 @@ static dds_loaned_sample_t * cdds_psmx_ep_request_loan (struct dds_psmx_endpoint
     ls->metadata->data_type = cep->c.psmx_topic->data_type;
     ls->sample_ptr = dds_alloc (sz);
     memset (ls->sample_ptr, 0, sz);
-    ls->loan_idx = 0;
     ddsrt_atomic_st32 (&ls->refc, 1);
   }
   return ls;
@@ -381,7 +380,6 @@ static dds_loaned_sample_t * incoming_sample_to_loan (struct cdds_psmx_endpoint 
   ls->metadata = psmx_md;
   ls->sample_ptr = dds_alloc (psmx_sample->data._length);
   memcpy (ls->sample_ptr, psmx_sample->data._buffer, psmx_sample->data._length);
-  ls->loan_idx = 0;
   ddsrt_atomic_st32 (&ls->refc, 1);
   return ls;
 }
