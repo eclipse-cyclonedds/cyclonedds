@@ -33,7 +33,8 @@ dds_return_t dds_return_writer_loan(dds_writer *writer, void **buf, int32_t bufs
 /** @component writer */
 dds_return_t dds__ddsi_writer_wait_for_acks (struct dds_writer *wr, ddsi_guid_t *rdguid, dds_time_t abstimeout);
 
-dds_return_t dds_request_writer_loan(dds_writer *wr, void **samples_ptr, int32_t n_samples);
+dds_return_t dds_request_writer_loan(dds_writer *wr, void **samples_ptr, int32_t n_samples)
+  ddsrt_nonnull_all;
 
 #if defined (__cplusplus)
 }

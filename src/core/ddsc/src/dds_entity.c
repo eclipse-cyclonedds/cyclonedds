@@ -1582,7 +1582,7 @@ dds_return_t dds_request_loan (dds_entity_t entity, void **buf, int32_t bufsz)
   dds_entity *p_entity;
   dds_return_t ret;
 
-  if (buf == NULL)
+  if (buf == NULL || bufsz <= 0)
     return DDS_RETCODE_BAD_PARAMETER;
 
   if ((ret = dds_entity_pin (entity, &p_entity)) < 0)

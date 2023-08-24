@@ -435,7 +435,7 @@ fail:
 
 fail_alloc:
   ddsrt_mutex_unlock (&wr->m_entity.m_mutex);
-  return ret < 0 ? ret : index;
+  return ret;
 }
 
 dds_return_t dds_return_writer_loan (dds_writer *wr, void **samples_ptr, int32_t n_samples)

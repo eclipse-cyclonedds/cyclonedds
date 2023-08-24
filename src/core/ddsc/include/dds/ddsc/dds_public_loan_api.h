@@ -29,24 +29,34 @@ extern "C" {
  */
 
 /**
- * @brief request loans from an entity.
+ * @brief Request loans from an entity.
  * @ingroup loan
+ *
+ * Borrow one or more samples from the entity, which currently must be a writer. These samples
+ * can then be returned using @ref `dds_return_loan` or they can be used to publish data
+ * using @ref `dds_write` or @ref `dds_writedispose`.
+ *
+ * If the topic type has a fixed size (and so no internal pointers) and a PSMX interface is configured,
+ * the memory will be borrowed from the PSMX implementation, which allows Cyclone to avoid copies
+ * and/or serialization if there is no need for sending the data over a network interface or storing it
+ * in the WHC.
  *
  * @param[in] entity The entity to request loans from.
  * @param[out] buf Pointer to the array to store the pointers to the loaned samples into.
- * @param[out] bufsz The number of loans to request.
+ * @param[out] bufsz The number of loans to request (> 0)
  *
- * @returns A dds_return_t indicating success or failure, either the number of loans received,
- *          or a failure code.
+ * @returns A dds_return_t indicating success or failure.
  *
- * @retval >= 0
- *             The operation was successful, returns the number of loans.
+ * @retval DDS_RETCODE_OK
+ *             The operation was successful.
  * @retval DDS_RETCODE_BAD_PARAMETER
  *             One or more parameters are invalid.
  * @retval DDS_RETCODE_ILLEGAL_OPERATION
  *             The operation is invoked on an inappropriate object.
  * @retval DDS_RETCODE_ALREADY_DELETED
- *             The reader entity has already been deleted.
+ *             The entity has already been deleted.
+ * @retval DDS_RETCODE_ERROR
+ *             An unfortunate incident occurred.
  */
 DDS_EXPORT dds_return_t dds_request_loan (dds_entity_t entity, void **buf, int32_t bufsz);
 

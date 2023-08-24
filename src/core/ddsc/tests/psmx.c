@@ -736,7 +736,7 @@ static void dotest (const dds_topic_descriptor_t *tpdesc, const void *sample, en
         {
           void *loan;
           rc = dds_request_loan (wr, &loan, 1);
-          CU_ASSERT_FATAL (rc == 1); // FIXME: doesn't it make more sense to let dds_request_loan return "OK"?
+          CU_ASSERT_FATAL (rc == 0);
           memcpy (loan, sample, tpdesc->m_size);
           sample_to_write = loan;
         }
@@ -889,7 +889,7 @@ CU_Test(ddsc_psmx, return_loan)
   {
     void *sample[3] = { NULL, NULL, NULL };
     rc = dds_request_loan (wr, sample, 3);
-    CU_ASSERT_FATAL (rc == 3);
+    CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
     rc = dds_return_loan (wr, sample, 3);
     CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
   }
