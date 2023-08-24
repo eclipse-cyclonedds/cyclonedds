@@ -15,57 +15,10 @@
 #include "dds__loaned_sample.h"
 #include "dds__entity.h"
 
+DDS_EXPORT extern inline void dds_loaned_sample_ref (dds_loaned_sample_t *loaned_sample);
+DDS_EXPORT extern inline void dds_loaned_sample_unref (dds_loaned_sample_t *loaned_sample);
+
 static dds_return_t loan_pool_remove_loan_locked (dds_loaned_sample_t *loaned_sample);
-
-static dds_return_t loaned_sample_free_locked (dds_loaned_sample_t *loaned_sample)
-{
-  assert (loaned_sample);
-  assert (ddsrt_atomic_ld32 (&loaned_sample->refc) == 0);
-
-  if (loaned_sample->ops.free)
-    loaned_sample->ops.free (loaned_sample);
-
-  return DDS_RETCODE_OK;
-}
-
-dds_return_t dds_loaned_sample_free (dds_loaned_sample_t *loaned_sample)
-{
-  if (loaned_sample == NULL || ddsrt_atomic_ld32 (&loaned_sample->refc) > 0 || loaned_sample->loan_pool == NULL)
-    return DDS_RETCODE_BAD_PARAMETER;
-
-  dds_return_t ret;
-  ddsrt_mutex_lock (&loaned_sample->loan_pool->mutex);
-  ret = loaned_sample_free_locked (loaned_sample);
-  ddsrt_mutex_unlock (&loaned_sample->loan_pool->mutex);
-  return ret;
-}
-
-dds_return_t dds_loaned_sample_ref (dds_loaned_sample_t *loaned_sample)
-{
-  if (loaned_sample == NULL)
-    return DDS_RETCODE_BAD_PARAMETER;
-
-  ddsrt_atomic_inc32 (&loaned_sample->refc);
-  return DDS_RETCODE_OK;
-}
-
-dds_return_t dds_loaned_sample_unref (dds_loaned_sample_t *loaned_sample)
-{
-  if (loaned_sample == NULL || ddsrt_atomic_ld32 (&loaned_sample->refc) == 0)
-    return DDS_RETCODE_BAD_PARAMETER;
-
-  assert (loaned_sample);
-  assert (ddsrt_atomic_ld32 (&loaned_sample->refc) > 0);
-
-  dds_return_t ret = DDS_RETCODE_OK;
-  if (ddsrt_atomic_dec32_nv (&loaned_sample->refc) == 0)
-  {
-    assert (loaned_sample->loan_pool == NULL);
-    ret = loaned_sample_free_locked (loaned_sample);
-  }
-
-  return ret;
-}
 
 static dds_return_t loan_pool_expand_cap_locked (dds_loan_pool_t *pool, uint32_t n)
 {

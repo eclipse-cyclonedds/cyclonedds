@@ -429,7 +429,7 @@ fail:
   if (index != n_samples && loans_ptr != NULL)  //we couldnt get the number of loans requested
   {
     for (int32_t i = 0; i < index; i++)
-      dds_loaned_sample_free (loans_ptr[i]);
+      dds_loaned_sample_unref (loans_ptr[i]);
   }
   dds_free (loans_ptr);
 

@@ -30,17 +30,6 @@ typedef struct dds_loan_pool {
 
 
 /**
- * @brief Generic loaned sample cleanup function
- *
- * Will be called when the loaned sample runs out of refs or is
- * retracted, calls the implementation specific functions
- *
- * @param[in] loaned_sample  A loaned sample
- * @return a DDS return code
- */
-dds_return_t dds_loaned_sample_free (dds_loaned_sample_t *loaned_sample);
-
-/**
  * @brief Create a loan pool
  *
  * @param[out] pool Gets a pointer to the newly created loan pool

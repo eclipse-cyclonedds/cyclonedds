@@ -48,25 +48,12 @@ typedef enum dds_loaned_sample_state {
 typedef uint32_t dds_loan_data_type_t;
 
 /**
- * @brief Definition for function to cleanup loaned sample
+ * @brief Definition for function to free a loaned sample
  *
  * @param[in] loaned_sample  A loaned sample
  */
-typedef void (*dds_loaned_sample_free_f) (struct dds_loaned_sample *loaned_sample);
-
-/**
- * @brief Definition for function to increment refcount on a loaned sample
- *
- * @param[in] loaned_sample  A loaned sample
- */
-typedef dds_return_t (*dds_loaned_sample_ref_f) (struct dds_loaned_sample *loaned_sample);
-
-/**
- * @brief Definition for function to decrement refcount on a loaned sample
- *
- * @param[in] loaned_sample  A loaned sample
- */
-typedef dds_return_t (*dds_loaned_sample_unref_f) (struct dds_loaned_sample *loaned_sample);
+typedef void (*dds_loaned_sample_free_f) (struct dds_loaned_sample *loaned_sample)
+  ddsrt_nonnull_all;
 
 /**
  * @brief Container for implementation specific operations
@@ -99,24 +86,25 @@ typedef struct dds_loaned_sample {
 } dds_loaned_sample_t;
 
 /**
- * @brief Generic function to increase the refcount for a sample
- *
- * This function calls the implementation specific function
+ * @brief Generic function to increase the refcount for a loaned sample
  *
  * @param[in] loaned_sample  A loaned sample
- * @return a DDS return code
  */
-DDS_EXPORT dds_return_t dds_loaned_sample_ref (dds_loaned_sample_t *loaned_sample);
+DDS_INLINE_EXPORT inline void ddsrt_nonnull_all dds_loaned_sample_ref (dds_loaned_sample_t *loaned_sample) {
+  ddsrt_atomic_inc32 (&loaned_sample->refc);
+}
 
 /**
- * @brief Generic function to decrease the refcount for a sample
+ * @brief Generic function to decrease the refcount for a loaned sample
  *
- * This function calls the implementation specific function
+ * Calls the PSMX plugin specific free function once the reference count reaches 0.
  *
  * @param[in] loaned_sample  A loaned sample
- * @return a DDS return code
  */
-DDS_EXPORT dds_return_t dds_loaned_sample_unref (dds_loaned_sample_t *loaned_sample);
+DDS_INLINE_EXPORT inline void ddsrt_nonnull_all dds_loaned_sample_unref (dds_loaned_sample_t *loaned_sample) {
+  if (ddsrt_atomic_dec32_ov (&loaned_sample->refc) == 1)
+    loaned_sample->ops.free (loaned_sample);
+}
 
 /**
  * @brief insert data from a loaned sample into the reader history cache
@@ -136,7 +124,8 @@ DDS_EXPORT dds_return_t dds_loaned_sample_unref (dds_loaned_sample_t *loaned_sam
  * @retval DDS_RETCODE_ALREADY_DELETED
  *             The reader entity has already been deleted.
  */
-DDS_EXPORT dds_return_t dds_reader_store_loaned_sample (dds_entity_t reader, dds_loaned_sample_t *data);
+DDS_EXPORT dds_return_t dds_reader_store_loaned_sample (dds_entity_t reader, dds_loaned_sample_t *data)
+  ddsrt_nonnull_all;
 
 #if defined(__cplusplus)
 }
