@@ -412,7 +412,7 @@ dds_return_t dds_request_writer_loan(dds_writer *wr, void **samples_ptr, int32_t
     for (; index < n_samples; index++)
     {
       dds_loaned_sample_t *loan;
-      if ((ret = dds_heap_loan (wr->m_topic->m_stype, &loan)) != DDS_RETCODE_OK)
+      if ((ret = dds_heap_loan (wr->m_topic->m_stype, DDS_LOANED_SAMPLE_STATE_RAW_DATA, &loan)) != DDS_RETCODE_OK)
         goto fail;
       loans_ptr[index] = loan;
     }

@@ -17,9 +17,10 @@
 extern "C" {
 #endif
 
-struct dds_loaned_sample_t;
+struct dds_loaned_sample;
 
-dds_return_t dds_heap_loan (const struct ddsi_sertype *type, struct dds_loaned_sample **loaned_sample);
+dds_return_t dds_heap_loan (const struct ddsi_sertype *type, dds_loaned_sample_state_t sample_state, struct dds_loaned_sample **loaned_sample)
+  ddsrt_nonnull_all;
 
 #if defined(__cplusplus)
 }

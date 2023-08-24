@@ -21,6 +21,9 @@ typedef struct dds_heap_loan {
 } dds_heap_loan_t;
 
 static void heap_loan_free (dds_loaned_sample_t *loaned_sample)
+  ddsrt_nonnull_all;
+
+static void heap_loan_free (dds_loaned_sample_t *loaned_sample)
 {
   assert (loaned_sample);
   dds_heap_loan_t *hl = (dds_heap_loan_t *) loaned_sample;
@@ -44,10 +47,9 @@ const dds_loaned_sample_ops_t dds_loan_heap_ops = {
   .reset = heap_loan_reset
 };
 
-dds_return_t dds_heap_loan (const struct ddsi_sertype *type, dds_loaned_sample_t **loaned_sample)
+dds_return_t dds_heap_loan (const struct ddsi_sertype *type, dds_loaned_sample_state_t sample_state, dds_loaned_sample_t **loaned_sample)
 {
-  if (type == NULL || loaned_sample == NULL)
-    return DDS_RETCODE_BAD_PARAMETER;
+  assert (sample_state == DDS_LOANED_SAMPLE_STATE_RAW_KEY || sample_state == DDS_LOANED_SAMPLE_STATE_RAW_DATA);
 
   dds_heap_loan_t *s = dds_alloc (sizeof (*s));
   if (s == NULL)
@@ -68,7 +70,7 @@ dds_return_t dds_heap_loan (const struct ddsi_sertype *type, dds_loaned_sample_t
     return DDS_RETCODE_OUT_OF_RESOURCES;
   }
 
-  s->c.metadata->sample_state = DDS_LOANED_SAMPLE_STATE_RAW;
+  s->c.metadata->sample_state = sample_state;
   s->c.metadata->cdr_identifier = DDSI_RTPS_SAMPLE_NATIVE;
   s->c.metadata->cdr_options = 0;
   s->c.loan_origin.origin_kind = DDS_LOAN_ORIGIN_KIND_HEAP;

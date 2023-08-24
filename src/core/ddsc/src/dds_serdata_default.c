@@ -681,7 +681,9 @@ static bool serdata_default_to_sample_cdr (const struct ddsi_serdata *serdata_co
   const struct dds_sertype_default *tp = (const struct dds_sertype_default *) d->c.type;
   dds_istream_t is;
   if (bufptr) abort(); else { (void)buflim; } /* FIXME: haven't implemented that bit yet! */
-  if (d->c.loan != NULL && d->c.loan->metadata->sample_state == DDS_LOANED_SAMPLE_STATE_RAW)
+  if (d->c.loan != NULL &&
+      (d->c.loan->metadata->sample_state == DDS_LOANED_SAMPLE_STATE_RAW_DATA ||
+       d->c.loan->metadata->sample_state == DDS_LOANED_SAMPLE_STATE_RAW_KEY))
   {
     assert (d->c.loan->metadata->cdr_identifier == DDSI_RTPS_SAMPLE_NATIVE);
     memcpy (sample, d->c.loan->sample_ptr, d->c.loan->metadata->sample_size);
@@ -709,7 +711,9 @@ static bool serdata_default_untyped_to_sample_cdr (const struct ddsi_sertype *se
   assert (DDSI_RTPS_CDR_ENC_IS_NATIVE (d->hdr.identifier));
   if (bufptr) abort(); else { (void)buflim; } /* FIXME: haven't implemented that bit yet! */
 
-  if (d->c.loan == NULL || d->c.loan->metadata->sample_state != DDS_LOANED_SAMPLE_STATE_RAW)
+  if (d->c.loan == NULL ||
+      (d->c.loan->metadata->sample_state != DDS_LOANED_SAMPLE_STATE_RAW_DATA &&
+       d->c.loan->metadata->sample_state != DDS_LOANED_SAMPLE_STATE_RAW_KEY))
   {
     istream_from_serdata_default (&is, d);
     dds_stream_read_key (&is, sample, &dds_cdrstream_default_allocator, &tp->type);
@@ -730,7 +734,9 @@ static size_t serdata_default_print_cdr (const struct ddsi_sertype *sertype_comm
   const struct dds_serdata_default *d = (const struct dds_serdata_default *)serdata_common;
   const struct dds_sertype_default *tp = (const struct dds_sertype_default *)sertype_common;
   dds_istream_t is;
-  if (d->c.loan != NULL && d->c.loan->metadata->sample_state == DDS_LOANED_SAMPLE_STATE_RAW)
+  if (d->c.loan != NULL &&
+      (d->c.loan->metadata->sample_state == DDS_LOANED_SAMPLE_STATE_RAW_KEY ||
+       d->c.loan->metadata->sample_state == DDS_LOANED_SAMPLE_STATE_RAW_DATA))
   {
     return (size_t) snprintf (buf, size, "[RAW]");
   }
@@ -795,10 +801,11 @@ static bool loaned_sample_state_to_serdata_kind (dds_loaned_sample_state_t lss, 
 {
   switch (lss)
   {
+    case DDS_LOANED_SAMPLE_STATE_RAW_KEY:
     case DDS_LOANED_SAMPLE_STATE_SERIALIZED_KEY:
       *kind = SDK_KEY;
       return true;
-    case DDS_LOANED_SAMPLE_STATE_RAW:
+    case DDS_LOANED_SAMPLE_STATE_RAW_DATA:
     case DDS_LOANED_SAMPLE_STATE_SERIALIZED_DATA:
       *kind = SDK_DATA;
       return true;
@@ -853,7 +860,7 @@ static struct ddsi_serdata *serdata_default_from_loaned_sample (const struct dds
       }
       else
       {
-        d->c.loan->metadata->sample_state = DDS_LOANED_SAMPLE_STATE_RAW;
+        d->c.loan->metadata->sample_state = (kind == SDK_KEY ? DDS_LOANED_SAMPLE_STATE_RAW_KEY : DDS_LOANED_SAMPLE_STATE_RAW_DATA);
         d->c.loan->metadata->cdr_identifier = DDSI_RTPS_SAMPLE_NATIVE;
         d->c.loan->metadata->cdr_options = 0;
         memcpy (d->c.loan->sample_ptr, sample, d->c.loan->metadata->sample_size);
@@ -861,7 +868,7 @@ static struct ddsi_serdata *serdata_default_from_loaned_sample (const struct dds
     }
     else
     {
-      d->c.loan->metadata->sample_state = DDS_LOANED_SAMPLE_STATE_RAW;
+      d->c.loan->metadata->sample_state = (kind == SDK_KEY ? DDS_LOANED_SAMPLE_STATE_RAW_KEY : DDS_LOANED_SAMPLE_STATE_RAW_DATA);
       d->c.loan->metadata->cdr_identifier = DDSI_RTPS_SAMPLE_NATIVE;
       d->c.loan->metadata->cdr_options = 0;
     }
@@ -900,37 +907,45 @@ static struct ddsi_serdata * serdata_default_from_psmx (const struct ddsi_sertyp
     d->hdr.identifier = DDSI_RTPS_SAMPLE_NATIVE;
   d->hdr.options = md->cdr_options;
 
-  if (md->sample_state == DDS_LOANED_SAMPLE_STATE_RAW)
+  switch (md->sample_state)
   {
-    if (d->hdr.identifier != DDSI_RTPS_SAMPLE_NATIVE)
-    {
-      serdata_default_free (&d->c);
+    case DDS_LOANED_SAMPLE_STATE_UNITIALIZED:
+      assert (0);
       return NULL;
-    }
-    d->c.loan = loaned_sample;
-    dds_loaned_sample_ref (d->c.loan);
-  }
-  else
-  {
-    assert (md->sample_state == DDS_LOANED_SAMPLE_STATE_SERIALIZED_DATA || md->sample_state == DDS_LOANED_SAMPLE_STATE_SERIALIZED_KEY);
-    uint32_t actual_size;
+    case DDS_LOANED_SAMPLE_STATE_RAW_KEY:
+    case DDS_LOANED_SAMPLE_STATE_RAW_DATA:
+      if (d->hdr.identifier != DDSI_RTPS_SAMPLE_NATIVE)
+      {
+        serdata_default_free (&d->c);
+        return NULL;
+      }
+      d->c.loan = loaned_sample;
+      dds_loaned_sample_ref (d->c.loan);
+      break;
+    case DDS_LOANED_SAMPLE_STATE_SERIALIZED_KEY:
+    case DDS_LOANED_SAMPLE_STATE_SERIALIZED_DATA: {
+      const bool just_key = (md->sample_state == DDS_LOANED_SAMPLE_STATE_SERIALIZED_KEY);
+      const dds_loaned_sample_state_t heap_loan_state = just_key ? DDS_LOANED_SAMPLE_STATE_RAW_KEY : DDS_LOANED_SAMPLE_STATE_RAW_DATA;
+      uint32_t actual_size;
 
-    // FIXME: how much do we trust PSMX-provided data? If we *really* trust it, we can skip this
-    if (!dds_stream_normalize (loaned_sample->sample_ptr, md->sample_size, false, xcdr_version, &tp->type, md->sample_state == DDS_LOANED_SAMPLE_STATE_SERIALIZED_KEY, &actual_size))
-    {
-      serdata_default_free (&d->c);
-      return NULL;
-    }
+      // FIXME: how much do we trust PSMX-provided data? If we *really* trust it, we can skip this
+      if (!dds_stream_normalize (loaned_sample->sample_ptr, md->sample_size, false, xcdr_version, &tp->type, just_key, &actual_size))
+      {
+        serdata_default_free (&d->c);
+        return NULL;
+      }
 
-    dds_return_t rc = dds_heap_loan (type, &d->c.loan); // FIXME: check return code
-    assert (rc == 0); // FIXME: this ain't guaranteed
-    (void) rc;
-    dds_istream_t is;
-    dds_istream_init (&is, md->sample_size, loaned_sample->sample_ptr, xcdr_version);
-    if (md->sample_state == DDS_LOANED_SAMPLE_STATE_SERIALIZED_DATA)
-      dds_stream_read_sample (&is, d->c.loan->sample_ptr, &dds_cdrstream_default_allocator, &tp->type);
-    else
-      dds_stream_read_key (&is, d->c.loan->sample_ptr, &dds_cdrstream_default_allocator, &tp->type);
+      dds_return_t rc = dds_heap_loan (type, heap_loan_state, &d->c.loan); // FIXME: check return code
+      assert (rc == 0); // FIXME: this ain't guaranteed
+      (void) rc;
+      dds_istream_t is;
+      dds_istream_init (&is, md->sample_size, loaned_sample->sample_ptr, xcdr_version);
+      if (just_key)
+        dds_stream_read_key (&is, d->c.loan->sample_ptr, &dds_cdrstream_default_allocator, &tp->type);
+      else
+        dds_stream_read_sample (&is, d->c.loan->sample_ptr, &dds_cdrstream_default_allocator, &tp->type);
+      break;
+    }
   }
 
   gen_serdata_key_from_sample (tp, &d->key, d->c.loan->sample_ptr);
