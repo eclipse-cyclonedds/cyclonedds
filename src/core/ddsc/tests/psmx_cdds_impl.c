@@ -119,11 +119,9 @@ static const dds_psmx_endpoint_ops_t psmx_ep_ops = {
 };
 
 static void cdds_loaned_sample_free (struct dds_loaned_sample *loaned_sample);
-static void cdds_loaned_sample_reset (struct dds_loaned_sample *loaned_sample);
 
 static const dds_loaned_sample_ops_t ls_ops = {
   .free = cdds_loaned_sample_free,
-  .reset = cdds_loaned_sample_reset
 };
 
 
@@ -472,12 +470,6 @@ static void cdds_loaned_sample_free (struct dds_loaned_sample *loaned_sample)
   dds_free (loaned_sample->metadata);
   dds_free (loaned_sample->sample_ptr);
   dds_free (loaned_sample);
-}
-
-static void cdds_loaned_sample_reset (struct dds_loaned_sample *loaned_sample)
-{
-  // FIXME
-  (void) loaned_sample;
 }
 
 static char * get_config_option_value (const char *conf, const char *option_name)

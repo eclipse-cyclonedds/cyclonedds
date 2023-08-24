@@ -67,14 +67,6 @@ dds_return_t dds_loaned_sample_unref (dds_loaned_sample_t *loaned_sample)
   return ret;
 }
 
-dds_return_t dds_loaned_sample_reset_sample (dds_loaned_sample_t *loaned_sample)
-{
-  assert(loaned_sample && ddsrt_atomic_ld32 (&loaned_sample->refc));
-  if (loaned_sample->ops.reset)
-    loaned_sample->ops.reset (loaned_sample);
-  return DDS_RETCODE_OK;
-}
-
 static dds_return_t loan_pool_expand_cap_locked (dds_loan_pool_t *pool, uint32_t n)
 {
   if (pool == NULL)

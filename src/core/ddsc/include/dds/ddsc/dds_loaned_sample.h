@@ -69,18 +69,10 @@ typedef dds_return_t (*dds_loaned_sample_ref_f) (struct dds_loaned_sample *loane
 typedef dds_return_t (*dds_loaned_sample_unref_f) (struct dds_loaned_sample *loaned_sample);
 
 /**
- * @brief Definition for function to reset contents of a loaned sample
- *
- * @param[in] loaned_sample  A loaned sample
- */
-typedef void (*dds_loaned_sample_reset_f) (struct dds_loaned_sample *loaned_sample);
-
-/**
  * @brief Container for implementation specific operations
  */
 typedef struct dds_loaned_sample_ops {
   dds_loaned_sample_free_f    free;
-  dds_loaned_sample_reset_f   reset;
 } dds_loaned_sample_ops_t;
 
 typedef enum dds_loaned_sample_origin_kind {

@@ -41,15 +41,6 @@ typedef struct dds_loan_pool {
 dds_return_t dds_loaned_sample_free (dds_loaned_sample_t *loaned_sample);
 
 /**
- * @brief Reset the contents for a sample
- *
- * @param[in] loaned_sample  A loaned sample
- * @return a DDS return code
- */
-dds_return_t dds_loaned_sample_reset_sample (dds_loaned_sample_t *loaned_sample);
-
-
-/**
  * @brief Create a loan pool
  *
  * @param[out] pool Gets a pointer to the newly created loan pool
