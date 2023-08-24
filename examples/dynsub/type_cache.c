@@ -195,8 +195,19 @@ static void build_typecache_ti (const DDS_XTypes_TypeIdentifier *typeid, size_t 
   {
     case DDS_XTypes_TI_STRING8_SMALL:
     case DDS_XTypes_TI_STRING8_LARGE: {
-      *align = _Alignof (unsigned char *);
-      *size = sizeof (unsigned char *);
+      uint32_t bound;
+      if (typeid->_d == DDS_XTypes_TI_PLAIN_SEQUENCE_SMALL) {
+        bound = typeid->_u.string_sdefn.bound;
+      } else {
+        bound = typeid->_u.string_ldefn.bound;
+      }
+      if (bound == 0) {
+        *align = _Alignof (unsigned char *);
+        *size = sizeof (unsigned char *);
+      } else {
+        *align = 1;
+        *size = bound;
+      }
       break;
     }
     case DDS_XTypes_TI_PLAIN_SEQUENCE_SMALL:
