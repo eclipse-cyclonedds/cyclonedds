@@ -355,7 +355,7 @@ static bool alldataseen (struct tracebuf *tb, int nrds, const dds_entity_t *rds,
   dds_return_t (* const takeop) (dds_entity_t, void **, dds_sample_info_t *, uint32_t) = use_rd_loan ? take_wl : take;
   assert (nrds > 0);
   dds_return_t rc;
-  const dds_entity_t ws = dds_create_waitset (dds_get_participant (rds[0]));
+  const dds_entity_t ws = dds_create_waitset (DDS_CYCLONEDDS_HANDLE);
   CU_ASSERT_FATAL (ws > 0);
   dds_entity_t *rdconds = dds_alloc ((size_t) nrds * sizeof (*rdconds));
   for (int i = 0; i < nrds; i++)
@@ -439,7 +439,7 @@ out:
   CU_ASSERT_FATAL (rc == 0);
   dds_free (rdconds);
   dds_free (dataseen);
-  return alldataseen;
+  return alldataseen && !toomuchdataseen;
 }
 
 struct fastpath_info {
@@ -606,15 +606,14 @@ static void dotest (const dds_topic_descriptor_t *tpdesc, const void *sample, en
       // path.
       bool override_fastpath_rdcount = wr_use_psmx;
 
+      test_index++;
       if (test_index >= test_index_start && test_index <= test_index_end)
       {
-        test_index++;
         print_time (&tb);
         print (&tb, " %05u -- wr: %s; rds:", test_index, wr_use_psmx ? "psmx" : "dds ");
       }
       else
       {
-        test_index++;
         goto skip;
       }
 
@@ -744,7 +743,7 @@ static void dotest (const dds_topic_descriptor_t *tpdesc, const void *sample, en
         dds_time_t ts = dds_time ();
         rc = ops[opidx].op (wr, sample_to_write, ts);
         CU_ASSERT_FATAL (rc == 0);
-        if (!alldataseen (&tb, MAX_READERS_PER_DOMAIN, rds, ops[opidx].istate, use_rd_loan, ts))
+        if (!alldataseen (&tb, nrds_active, rds, ops[opidx].istate, use_rd_loan, ts))
         {
           fail_one = true;
           goto next;
