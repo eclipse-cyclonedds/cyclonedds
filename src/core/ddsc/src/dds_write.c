@@ -342,12 +342,12 @@ static bool get_required_buffer_size(struct dds_topic *topic, const void *sample
 }
 
 static dds_return_t dds_write_basic_impl (struct ddsi_thread_state * const ts, dds_writer *wr, struct ddsi_serdata *d)
+  ddsrt_nonnull_all;
+
+static dds_return_t dds_write_basic_impl (struct ddsi_thread_state * const ts, dds_writer *wr, struct ddsi_serdata *d)
 {
   struct ddsi_writer *ddsi_wr = wr->m_wr;
   dds_return_t ret = DDS_RETCODE_OK;
-
-  if (d == NULL)
-    return DDS_RETCODE_BAD_PARAMETER;
 
   struct ddsi_tkmap_instance *tk = ddsi_tkmap_lookup_instance_ref (wr->m_entity.m_domain->gv.m_tkmap, d);
 
@@ -456,18 +456,6 @@ dds_return_t dds_return_writer_loan (dds_writer *wr, void **samples_ptr, int32_t
   return ret;
 }
 
-// Synchronizes the current number of fast path readers and returns it.
-// Locking the mutex is needed to synchronize the value.
-// This number may change concurrently any time we do not hold the lock,
-// i.e. become outdated when we return from the function.
-static uint32_t get_num_fast_path_readers (struct ddsi_writer *ddsi_wr)
-{
-  ddsrt_mutex_lock (&ddsi_wr->rdary.rdary_lock);
-  uint32_t n = ddsi_wr->rdary.n_readers;
-  ddsrt_mutex_unlock (&ddsi_wr->rdary.rdary_lock);
-  return n;
-}
-
 static dds_loaned_sample_t *get_loan_to_use (dds_writer *wr, const void *data, dds_loaned_sample_t **loan_to_free)
 {
   // 3. Check whether data is loaned
@@ -564,8 +552,6 @@ dds_return_t dds_write_impl (dds_writer *wr, const void *data, dds_time_t tstamp
   // actually distribute the data, so some further refactoring is needed.
   ddsrt_mutex_lock (&ddsi_wr->e.lock);
   const bool no_network_readers = ddsi_addrset_empty (ddsi_wr->as);
-  ddsrt_mutex_unlock (&ddsi_wr->e.lock);
-
   // NB: local readers are not in L := ddsi_wr->rdary if they use PSMX.
   // Furthermore, all readers that ignore local publishers will not use PSMX.
   // We will never use only(!) PSMX if there is any local reader in L.
@@ -573,7 +559,11 @@ dds_return_t dds_write_impl (dds_writer *wr, const void *data, dds_time_t tstamp
   // partially with PSMX as required by the QoS and type. The readers in L
   // will get the data via the local delivery mechanism (fast path or slow
   // path).
-  const uint32_t num_fast_path_readers = get_num_fast_path_readers (ddsi_wr);
+  // Modifications only happen when ddsi_wr->e.lock and ...rdary.lock held,
+  // so only holding the outer lock is fine.  It is possible a reader gets
+  // added or removed once we unlock.
+  const bool no_fast_path_readers = (ddsi_wr->rdary.n_readers == 0);
+  ddsrt_mutex_unlock (&ddsi_wr->e.lock);
 
   // If use_only_psmx is true, there were no fast path readers at the moment
   // we checked.
@@ -582,10 +572,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void *data, dds_time_t tstamp
   // and hence they are not considered for data transfer.
   // The alternative is to block new fast path connections entirely (by holding
   // the mutex) until data delivery is complete.
-  const bool use_only_psmx =
-      no_network_readers &&
-      ddsi_wr->xqos->durability.kind == DDS_DURABILITY_VOLATILE &&
-      num_fast_path_readers == 0;
+  const bool use_only_psmx = ddsi_wr->xqos->durability.kind == DDS_DURABILITY_VOLATILE && no_network_readers && no_fast_path_readers;
 
   // create a correct serdata
   struct ddsi_serdata * const d = make_serdata (ddsi_wr, data, loan, writekey, use_only_psmx);
