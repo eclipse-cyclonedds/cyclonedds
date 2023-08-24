@@ -24,18 +24,24 @@ struct dds_read_collect_sample_arg {
   void **ptrs;                    /**< array of pointers to samples/serdatas to be filled **/
   dds_sample_info_t *infos;       /**< array of sample infos to be filled **/
   struct dds_loan_pool *loan_pool;  /**< loan pool to be used for loaned sample administration **/
+  struct dds_loan_pool *heap_loan_cache; /**< pool of cached heap loans */
 };
 
 /** @brief Initialize the sample collector state
  * @component read_data
  *
  * @param[out] arg sample collector state to be initialized
- * @param[in] ptrs array of pointers to samples to be filled (collect_sample)
- *            or array to be filled with pointers-to-serdata (collect_sample_refs)
+ * @param[in] ptrs array of pointers to samples to be filled (collect_sample and
+ *            collect_sample_loan) or array to be filled with pointers-to-serdata
+ *            (collect_sample_refs)
  * @param[in] infos array of sample infos to be filled
- * @param[in] loan_pool the loan pool the loan will be inserted in
+ * @param[in] loan_pool the loan pool the loan will be inserted in (only used by
+ *            collect_sample_loan, may be null otherwise)
+ * @param[in] heap_loan_cache a cache of returned heap loans (optional; only used by
+ *            collect_sample_loan)
  */
-void dds_read_collect_sample_arg_init (struct dds_read_collect_sample_arg *arg, void **ptrs, dds_sample_info_t *infos, struct dds_loan_pool *loan_pool);
+void dds_read_collect_sample_arg_init (struct dds_read_collect_sample_arg *arg, void **ptrs, dds_sample_info_t *infos, struct dds_loan_pool *loan_pool, struct dds_loan_pool *heap_loan_cache)
+  ddsrt_nonnull ((1, 2, 3));
 
 /** @brief Sample collector that deserializes the samples into ptrs[i]
  * @component read_data

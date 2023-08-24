@@ -114,7 +114,9 @@ CU_Test (ddsc_loan, success, .init = create_entities, .fini = delete_entities)
 
 #ifdef DDS_BUILD_OPTION_WITH_ASAN
   // only with asan a new allocation gets an address not used before in this test
-  CU_ASSERT_FATAL (ptrs[0] != ptrscopy[0]);
+  // Current heap loans caching: memory can be reused immediately
+  //CU_ASSERT_FATAL (ptrs[0] != ptrscopy[0]);
+  CU_ASSERT_FATAL (ptrs[0] == ptrscopy[0]);
 #else
   (void) ptrscopy;
 #endif
@@ -190,7 +192,9 @@ CU_Test (ddsc_loan, take_cleanup, .init = create_entities, .fini = delete_entiti
   CU_ASSERT_FATAL (ptrs[0] != NULL && ptrs[1] == NULL);
 #ifdef DDS_BUILD_OPTION_WITH_ASAN
   // only with asan a new allocation gets an address not used before in this test
-  CU_ASSERT_FATAL (ptrs[0] != ptr0copy);
+  // Current heap loans caching: memory can be reused immediately
+  //CU_ASSERT_FATAL (ptrs[0] != ptr0copy);
+  CU_ASSERT_FATAL (ptrs[0] == ptr0copy);
 #else
   (void) ptr0copy;
 #endif
@@ -210,7 +214,10 @@ CU_Test (ddsc_loan, take_cleanup, .init = create_entities, .fini = delete_entiti
   CU_ASSERT_FATAL (n == 1);
   CU_ASSERT_FATAL (ptrs[0] != NULL && ptrs[1] == NULL);
 #ifdef DDS_BUILD_OPTION_WITH_ASAN
+  // Current heap loans caching: memory can be reused immediately but here
+  // they were lost in the read that returned no data
   CU_ASSERT_FATAL (ptrs[0] != ptr0copy);
+  //CU_ASSERT_FATAL (ptrs[0] == ptr0copy);
 #endif
 
   /* take that fails (with the loan still out) must not allocate memory */
@@ -229,7 +236,10 @@ CU_Test (ddsc_loan, take_cleanup, .init = create_entities, .fini = delete_entiti
   CU_ASSERT_FATAL (n == 1);
   CU_ASSERT_FATAL (ptrs[0] != NULL && ptrs[1] == NULL);
 #ifdef DDS_BUILD_OPTION_WITH_ASAN
+  // Current heap loans caching: memory can be reused immediately but here
+  // they were lost in the read that returned no data
   CU_ASSERT_FATAL (ptrs[0] != ptr0copy);
+  //CU_ASSERT_FATAL (ptrs[0] == ptr0copy);
 #endif
   result = dds_return_loan (reader, ptrs, n);
   CU_ASSERT_FATAL (result == DDS_RETCODE_OK);
@@ -276,7 +286,9 @@ CU_Test (ddsc_loan, read_cleanup, .init = create_entities, .fini = delete_entiti
   CU_ASSERT_FATAL (ptrs[0] != NULL && ptrs[1] == NULL);
 #ifdef DDS_BUILD_OPTION_WITH_ASAN
   // only with asan a new allocation gets an address not used before in this test
-  CU_ASSERT_FATAL (ptrs[0] != ptr0copy);
+  // Current heap loans caching: memory can be reused immediately
+  //CU_ASSERT_FATAL (ptrs[0] != ptr0copy);
+  CU_ASSERT_FATAL (ptrs[0] == ptr0copy);
 #else
   (void) ptr0copy;
 #endif
@@ -298,7 +310,10 @@ CU_Test (ddsc_loan, read_cleanup, .init = create_entities, .fini = delete_entiti
   CU_ASSERT_FATAL (n == 1);
   CU_ASSERT_FATAL (ptrs[0] != NULL && ptrs[1] == NULL);
 #ifdef DDS_BUILD_OPTION_WITH_ASAN
+  // Current heap loans caching: memory can be reused immediately but here
+  // they were lost in the read that returned no data
   CU_ASSERT_FATAL (ptrs[0] != ptr0copy);
+  //CU_ASSERT_FATAL (ptrs[0] == ptr0copy);
 #endif
 
   /* take that fails (with the loan still out), no memory allocated */
@@ -317,7 +332,10 @@ CU_Test (ddsc_loan, read_cleanup, .init = create_entities, .fini = delete_entiti
   CU_ASSERT_FATAL (n == 1);
   CU_ASSERT_FATAL (ptrs[0] != NULL && ptrs[1] == NULL);
 #ifdef DDS_BUILD_OPTION_WITH_ASAN
+  // Current heap loans caching: memory can be reused immediately but here
+  // they were lost in the read that returned no data
   CU_ASSERT_FATAL (ptrs[0] != ptr0copy);
+  //CU_ASSERT_FATAL (ptrs[0] == ptr0copy);
 #endif
   result = dds_return_loan (reader, ptrs, n);
   CU_ASSERT_FATAL (result == DDS_RETCODE_OK);

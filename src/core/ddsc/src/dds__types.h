@@ -391,6 +391,7 @@ typedef struct dds_reader {
   struct dds_rhc *m_rhc; /* aliases m_rd->rhc with a wider interface, FIXME: but m_rd owns it for resource management */
   struct ddsi_reader *m_rd;
   struct dds_loan_pool *m_loans; /* administration of outstanding loans */
+  struct dds_loan_pool *m_heap_loan_cache;
 
   /* Status metrics */
   dds_sample_rejected_status_t m_sample_rejected_status;
