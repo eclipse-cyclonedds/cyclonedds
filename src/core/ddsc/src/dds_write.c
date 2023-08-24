@@ -499,14 +499,15 @@ static dds_loaned_sample_t *get_loan_to_use (dds_writer *wr, const void *data, d
   // FIXME: the condition is actually: if not a PSMX loan, try to get one
   // FIXME: should this not be required to succeed? We're assuming the PSMX bit will work later on
   // FIXME: what about: supplied_loan is a heap loan and no PSMX involved? why not use it?
-  uint32_t required_size = 0;
-  if (get_required_buffer_size (wr->m_topic, data, &required_size) && required_size)
+  if (wr->m_endpoint.psmx_endpoints.length > 0)
   {
-    // attempt to get a loan from a PSMX
-    assert (wr->m_endpoint.psmx_endpoints.length <= 1);
-    // FIXME: allow multiple psmx instances
-    if (wr->m_endpoint.psmx_endpoints.length == 1)
+    uint32_t required_size = 0;
+    assert (wr->m_endpoint.psmx_endpoints.length == 1); // FIXME: support multiple PSMX instances
+    if (get_required_buffer_size (wr->m_topic, data, &required_size) && required_size)
+    {
+      // attempt to get a loan from a PSMX
       loan = dds_psmx_endpoint_request_loan (wr->m_endpoint.psmx_endpoints.endpoints[0], required_size);
+    }
   }
 
   // too many cases ...
