@@ -81,12 +81,15 @@ static void print_sample1_ti (const unsigned char *sample, const DDS_XTypes_Type
   {
     case DDS_XTypes_TI_STRING8_SMALL:
     case DDS_XTypes_TI_STRING8_LARGE: {
-      const char **p = (const char **) align (sample, c, _Alignof (char *), sizeof (char *));
+      const char *p = align (sample, c, _Alignof (char *), sizeof (char *));
       if (c->key || c->valid_data)
       {
         printf ("%s", sep);
         if (label) printf ("\"%s\":", label);
-        printf ("\"%s\"", *p);
+        if ((typeid->_d == DDS_XTypes_TI_PLAIN_SEQUENCE_SMALL) ? typeid->_u.string_sdefn.bound : typeid->_u.string_ldefn.bound)
+          printf ("\"%s\"", p);
+        else
+          printf ("\"%s\"", *((const char **) p));
       }
       break;
     }
