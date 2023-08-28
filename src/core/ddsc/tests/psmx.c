@@ -68,7 +68,7 @@ ${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}\
 <General>\
   <AllowMulticast>spdp</AllowMulticast>\
   <Interfaces>\
-    <PubSubMessageExchange name=\"${CDDS_PSMX_NAME:-cdds}\" library=\"psmx_${CDDS_PSMX_NAME:-cdds}\" priority=\"1000000\" config=\"LOCATOR=%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x;SERVICE_NAME=psmx%d;\" />\
+    <PubSubMessageExchange name=\"${CDDS_PSMX_NAME:-cdds}\" library=\"psmx_${CDDS_PSMX_NAME:-cdds}\" priority=\"1000000\" config=\"LOCATOR=%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x;SERVICE_NAME=psmx%d;KEYED_TOPICS=true;\" />\
   </Interfaces>\
 </General>\
 <Discovery>\
