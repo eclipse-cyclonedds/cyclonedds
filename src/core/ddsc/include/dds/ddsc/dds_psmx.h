@@ -81,26 +81,18 @@ typedef struct dds_psmx_node_identifier
 } dds_psmx_node_identifier_t;
 
 /**
- * @brief Definition for function that checks data type support
- *
- * Definition for function that checks whether a type with the provided
- * data type properties is supported by the PSMX implementation.
- *
- * @param[in] data_type_props  The properties of the data type.
- * @returns true if the type is supported, false otherwise
- */
-typedef bool (*dds_psmx_data_type_supported_fn) (dds_psmx_data_type_properties_t data_type_props);
-
-/**
  * @brief Definition for function that checks QoS support
  *
  * Definition for function that checks whether the provided QoS
  * is supported by the PSMX implementation.
  *
+ * @param[in] psmx_instance The PSMX instance.
+ * @param[in] forwhat whether for a topic/writer/reader (UNSET if topic)
+ * @param[in] data_type_props Data type properties
  * @param[in] qos  The QoS.
  * @returns true if the QoS is supported, false otherwise
  */
-typedef bool (*dds_psmx_qos_supported_fn) (const struct dds_qos *qos);
+typedef bool (*dds_psmx_type_qos_supported_fn) (struct dds_psmx *psmx_instance, dds_psmx_endpoint_type_t forwhat, dds_psmx_data_type_properties_t data_type_props, const struct dds_qos *qos);
 
 /**
  * @brief Definition for function to create a topic
@@ -164,8 +156,7 @@ typedef dds_psmx_features_t (* dds_psmx_supported_features_fn) (const struct dds
  * @brief functions which are used on a PSMX instance
  */
 typedef struct dds_psmx_ops {
-  dds_psmx_data_type_supported_fn  data_type_supported;
-  dds_psmx_qos_supported_fn        qos_supported;
+  dds_psmx_type_qos_supported_fn   type_qos_supported;
   dds_psmx_create_topic_fn         create_topic;
   dds_psmx_delete_topic_fn         delete_topic;
   dds_psmx_deinit_fn               deinit;

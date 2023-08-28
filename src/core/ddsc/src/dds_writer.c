@@ -364,7 +364,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
 
   if ((rc = dds_ensure_valid_data_representation (wqos, tp->m_stype->allowed_data_representation, false)) != 0)
     goto err_data_repr;
-  if ((rc = dds_ensure_valid_psmx_instances (wqos, tp->m_stype->data_type_props, &pub->m_entity.m_domain->psmx_instances)) != 0)
+  if ((rc = dds_ensure_valid_psmx_instances (wqos, DDS_PSMX_ENDPOINT_TYPE_WRITER, tp->m_stype->data_type_props, &pub->m_entity.m_domain->psmx_instances)) != 0)
     goto err_psmx;
 
   if ((rc = ddsi_xqos_valid (&gv->logconfig, wqos)) < 0 || (rc = validate_writer_qos(wqos)) != DDS_RETCODE_OK)

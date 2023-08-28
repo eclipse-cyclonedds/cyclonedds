@@ -929,7 +929,7 @@ bool dds_qget_psmx_instances (const dds_qos_t * __restrict qos, uint32_t *n_out,
   return true;
 }
 
-dds_return_t dds_ensure_valid_psmx_instances (dds_qos_t *qos, ddsi_data_type_properties_t data_type_props, const struct dds_psmx_set *psmx_instances)
+dds_return_t dds_ensure_valid_psmx_instances (dds_qos_t *qos, dds_psmx_endpoint_type_t forwhat, ddsi_data_type_properties_t data_type_props, const struct dds_psmx_set *psmx_instances)
 {
   uint32_t n_supported = 0;
   const char *supported_psmx[DDS_MAX_PSMX_INSTANCES];
@@ -940,7 +940,7 @@ dds_return_t dds_ensure_valid_psmx_instances (dds_qos_t *qos, ddsi_data_type_pro
     for (uint32_t i = 0; i < psmx_instances->length; i++)
     {
       struct dds_psmx *psmx = psmx_instances->instances[i];
-      if (psmx->ops.data_type_supported (data_type_props) && psmx->ops.qos_supported (qos))
+      if (psmx->ops.type_qos_supported (psmx, forwhat, data_type_props, qos))
         supported_psmx[n_supported++] = psmx->instance_name;
     }
   }
@@ -958,13 +958,14 @@ dds_return_t dds_ensure_valid_psmx_instances (dds_qos_t *qos, ddsi_data_type_pro
         if (strcmp (psmx_instances->instances[s]->instance_name, values[i]) == 0)
           psmx = psmx_instances->instances[i];
       }
-      if (psmx != NULL && psmx->ops.data_type_supported (data_type_props) && psmx->ops.qos_supported (qos))
+      if (psmx != NULL && psmx->ops.type_qos_supported (psmx, forwhat, data_type_props, qos))
         supported_psmx[n_supported++] = psmx->instance_name;
+      dds_free (values[i]);
     }
+    dds_free (values);
   }
 
   dds_qset_psmx_instances (qos, n_supported, supported_psmx);
-
   return DDS_RETCODE_OK;
 }
 

@@ -39,8 +39,7 @@
 namespace iox_psmx
 {
 
-static bool iox_data_type_supported (dds_psmx_data_type_properties_t data_type);
-static bool iox_qos_supported (const struct dds_qos * qos);
+static bool iox_type_qos_supported(struct dds_psmx * psmx, dds_psmx_endpoint_type_t forwhat, dds_psmx_data_type_properties_t data_type, const struct dds_qos * qos);
 static struct dds_psmx_topic* iox_create_topic (struct dds_psmx * psmx, const char * topic_name, dds_psmx_data_type_properties_t data_type_props);
 static dds_return_t iox_delete_topic (struct dds_psmx_topic *psmx_topic);
 static dds_return_t iox_psmx_deinit (struct dds_psmx * self);
@@ -48,8 +47,7 @@ static dds_psmx_node_identifier_t iox_psmx_get_node_id (const struct dds_psmx * 
 static dds_psmx_features_t iox_supported_features (const struct dds_psmx *psmx);
 
 static const dds_psmx_ops_t psmx_ops = {
-  .data_type_supported = iox_data_type_supported,
-  .qos_supported = iox_qos_supported,
+  .type_qos_supported = iox_type_qos_supported,
   .create_topic = iox_create_topic,
   .delete_topic = iox_delete_topic,
   .deinit = iox_psmx_deinit,
@@ -396,59 +394,58 @@ iox_loaned_sample::~iox_loaned_sample()
 
 // dds_psmx_ops_t implementation
 
-static bool iox_data_type_supported (dds_psmx_data_type_properties_t data_type_props)
+static bool iox_type_qos_supported(struct dds_psmx * psmx, dds_psmx_endpoint_type_t forwhat, dds_psmx_data_type_properties_t data_type_props, const struct dds_qos * qos)
 {
   if (data_type_props & DDS_DATA_TYPE_CONTAINS_KEY)
-    return false;
-  return true;
-}
+  {
+    auto iox_psmx = static_cast<struct iox_psmx *>(psmx);
+    if (!iox_psmx->_support_keyed_topics)
+      return false;
+  }
+  // Everything else is really dependent on the endpoint QoS, not the topic QoS, given
+  // that we don't support transient/persistent
+  if (forwhat == DDS_PSMX_ENDPOINT_TYPE_UNSET)
+  {
+    return true;
+  }
 
-static bool iox_qos_supported (const struct dds_qos * qos)
-{
-  dds_history_kind h_kind;
-  if (dds_qget_history (qos, &h_kind, NULL) && h_kind != DDS_HISTORY_KEEP_LAST)
+  dds_durability_kind_t d_kind = DDS_DURABILITY_VOLATILE;
+  dds_qget_durability (qos, &d_kind);
+  if (d_kind != DDS_DURABILITY_VOLATILE && d_kind != DDS_DURABILITY_TRANSIENT_LOCAL)
     return false;
-
-  dds_durability_kind_t d_kind;
-  if (dds_qget_durability (qos, &d_kind) && !(d_kind == DDS_DURABILITY_VOLATILE || d_kind == DDS_DURABILITY_TRANSIENT_LOCAL))
-    return false;
+  if (d_kind != DDS_DURABILITY_VOLATILE)
+  {
+    if (data_type_props & DDS_DATA_TYPE_CONTAINS_KEY)
+      return false;
+    dds_history_kind_t ds_history_kind = DDS_HISTORY_KEEP_LAST;
+    int32_t ds_history_depth = 1;
+    dds_qget_durability_service(qos, NULL, &ds_history_kind, &ds_history_depth, NULL, NULL, NULL);
+    if (ds_history_kind == DDS_HISTORY_KEEP_LAST && ds_history_depth > static_cast<int32_t>(iox::MAX_PUBLISHER_HISTORY))
+      return false;
+  }
 
   uint32_t n_partitions;
   char **partitions;
-  if (dds_qget_partition (qos, &n_partitions, &partitions))
+  if (dds_qget_partition(qos, &n_partitions, &partitions))
   {
     bool supported = n_partitions == 0 || (n_partitions == 1 && strlen (partitions[0]) > 0 && !is_wildcard_partition(partitions[0]));
     for (uint32_t n = 0; n < n_partitions; n++)
-      dds_free (partitions[n]);
+      dds_free(partitions[n]);
     if (n_partitions > 0)
-      dds_free (partitions);
+      dds_free(partitions);
     if (!supported)
       return false;
   }
 
-  dds_history_kind_t ds_history_kind;
-  int32_t ds_history_depth;
-  if (dds_qget_durability_service (qos, NULL, &ds_history_kind, &ds_history_depth, NULL, NULL, NULL))
-  {
-    if (d_kind == DDS_DURABILITY_TRANSIENT_LOCAL &&
-        ds_history_kind == DDS_HISTORY_KEEP_LAST &&
-        ds_history_depth > (int32_t)iox::MAX_PUBLISHER_HISTORY)
-      return false;
-  }
-
   dds_ignorelocal_kind_t ignore_local;
-  if (dds_qget_ignorelocal (qos, &ignore_local) && ignore_local != DDS_IGNORELOCAL_NONE)
+  if (dds_qget_ignorelocal(qos, &ignore_local) && ignore_local != DDS_IGNORELOCAL_NONE)
     return false;
-
   dds_liveliness_kind_t liveliness_kind;
-  if (dds_qget_liveliness (qos, &liveliness_kind, NULL) && liveliness_kind != DDS_LIVELINESS_AUTOMATIC)
+  if (dds_qget_liveliness(qos, &liveliness_kind, NULL) && liveliness_kind != DDS_LIVELINESS_AUTOMATIC)
     return false;
-
-
   dds_duration_t deadline_duration;
-  if (dds_qget_deadline (qos, &deadline_duration) && deadline_duration != DDS_INFINITY)
+  if (dds_qget_deadline(qos, &deadline_duration) && deadline_duration != DDS_INFINITY)
     return false;
-
   return true;
 }
 

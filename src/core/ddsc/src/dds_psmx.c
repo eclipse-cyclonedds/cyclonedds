@@ -316,7 +316,7 @@ dds_return_t dds_endpoint_add_psmx_endpoint (struct dds_endpoint *ep, const dds_
     struct dds_psmx_topic *psmx_topic = psmx_topics->topics[i];
     if (!dds_qos_has_psmx_instances (qos, psmx_topic->psmx_instance->instance_name))
       continue;
-    if (!psmx_topic->psmx_instance->ops.qos_supported (qos))
+    if (!psmx_topic->psmx_instance->ops.type_qos_supported (psmx_topic->psmx_instance, endpoint_type, psmx_topic->data_type_props, qos))
       continue;
     struct dds_psmx_endpoint *psmx_endpoint = psmx_create_endpoint (psmx_topic, qos, endpoint_type);
     if (psmx_endpoint == NULL)

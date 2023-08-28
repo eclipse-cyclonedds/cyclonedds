@@ -581,8 +581,7 @@ dds_entity_t dds_create_topic_impl (
   for (uint32_t i = 0; new_ktopic && i < dom->psmx_instances.length; i++)
   {
     struct dds_psmx *psmx = dom->psmx_instances.instances[i];
-    if (!psmx->ops.qos_supported (new_qos) ||
-        !psmx->ops.data_type_supported (sertype_registered->data_type_props))
+    if (!psmx->ops.type_qos_supported (psmx, DDS_PSMX_ENDPOINT_TYPE_UNSET, sertype_registered->data_type_props, new_qos))
       continue;
     struct dds_psmx_topic *psmx_topic = psmx->ops.create_topic (psmx, ktp->name, sertype_registered->data_type_props);
     if (psmx_topic == NULL)
