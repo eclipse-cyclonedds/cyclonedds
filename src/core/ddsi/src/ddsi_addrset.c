@@ -401,21 +401,40 @@ int ddsi_addrset_empty (const struct ddsi_addrset *as)
   return isempty;
 }
 
+static int ddsi_addrset_any_uc_locked (const struct ddsi_addrset *as, ddsi_xlocator_t *dst)
+{
+  if (ddsrt_avl_cis_empty (&as->ucaddrs))
+    return 0;
+  else
+  {
+    // FIXME: almost just as broken as it was: because we need to do multiple addresses if
+    // redundant_networking, and otherwise should use whatever wraddrset()'s calculations
+    // would yield.  This is merely a band-aid.
+    const struct ddsi_addrset_node *n = ddsrt_avl_croot_non_empty (&addrset_treedef, &as->ucaddrs);
+    if (n->loc.c.kind != DDSI_LOCATOR_KIND_PSMX)
+    {
+      *dst = n->loc;
+      return 1;
+    }
+    ddsrt_avl_citer_t it;
+    for (n = ddsrt_avl_citer_first (&addrset_treedef, &as->ucaddrs, &it); n; n = ddsrt_avl_citer_next (&it))
+    {
+      if (n->loc.c.kind != DDSI_LOCATOR_KIND_PSMX)
+      {
+        *dst = n->loc;
+        return 1;
+      }
+    }
+    return 0;
+  }
+}
+
 int ddsi_addrset_any_uc (const struct ddsi_addrset *as, ddsi_xlocator_t *dst)
 {
   LOCK (as);
-  if (ddsrt_avl_cis_empty (&as->ucaddrs))
-  {
-    UNLOCK (as);
-    return 0;
-  }
-  else
-  {
-    const struct ddsi_addrset_node *n = ddsrt_avl_croot_non_empty (&addrset_treedef, &as->ucaddrs);
-    *dst = n->loc;
-    UNLOCK (as);
-    return 1;
-  }
+  int r = ddsi_addrset_any_uc_locked (as, dst);
+  UNLOCK (as);
+  return r;
 }
 
 int ddsi_addrset_any_mc (const struct ddsi_addrset *as, ddsi_xlocator_t *dst)
@@ -438,13 +457,9 @@ int ddsi_addrset_any_mc (const struct ddsi_addrset *as, ddsi_xlocator_t *dst)
 void ddsi_addrset_any_uc_else_mc_nofail (const struct ddsi_addrset *as, ddsi_xlocator_t *dst)
 {
   LOCK (as);
-  if (!ddsrt_avl_cis_empty (&as->ucaddrs))
+  if (!ddsi_addrset_any_uc_locked (as, dst))
   {
-    const struct ddsi_addrset_node *n = ddsrt_avl_croot_non_empty (&addrset_treedef, &as->ucaddrs);
-    *dst = n->loc;
-  }
-  else
-  {
+    // FIXME: any uc can fail, but only if there are no addresses other than PSMX, we should escape disaster
     assert (!ddsrt_avl_cis_empty (&as->mcaddrs));
     const struct ddsi_addrset_node *n = ddsrt_avl_croot_non_empty (&addrset_treedef, &as->mcaddrs);
     *dst = n->loc;

@@ -694,6 +694,7 @@ static void ddsi_xmsg_setdst1_common (struct ddsi_domaingv *gv, struct ddsi_xmsg
 void ddsi_xmsg_setdst1 (struct ddsi_domaingv *gv, struct ddsi_xmsg *m, const ddsi_guid_prefix_t *gp, const ddsi_xlocator_t *loc)
 {
   assert (m->dstmode == NN_XMSG_DST_UNSET);
+  assert (loc->c.kind != DDSI_LOCATOR_KIND_PSMX);
   m->dstmode = NN_XMSG_DST_ONE;
   m->dstaddr.one.loc = *loc;
   ddsi_xmsg_setdst1_common (gv, m, gp);
@@ -1141,7 +1142,8 @@ static ssize_t ddsi_xpack_send1 (const ddsi_xlocator_t *loc, void * varg)
     }
   }
 
-  if (!gv->mute && loc->c.kind != DDSI_LOCATOR_KIND_PSMX)
+  assert (loc->c.kind != DDSI_LOCATOR_KIND_PSMX);
+  if (!gv->mute)
   {
     nbytes = ddsi_xpack_send_rtps(xp, loc);
 
