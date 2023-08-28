@@ -72,6 +72,7 @@ ${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}\
   </Interfaces>\
 </General>\
 <Discovery>\
+  <Tag>${CYCLONEDDS_PID}</Tag>\
   <ExternalDomainId>0</ExternalDomainId>\
 </Discovery>\
 <Tracing>\

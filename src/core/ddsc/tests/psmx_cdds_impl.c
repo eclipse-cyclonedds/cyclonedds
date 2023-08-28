@@ -28,6 +28,9 @@
 #else
 #define DDS_CONFIG \
   "${CYCLONEDDS_URI}," \
+  "<Discovery>" \
+    "<Tag>${CYCLONEDDS_PID}</Tag>" \
+  "</Discovery>" \
   "<Tracing>" \
     "<OutputFile>cyclonedds_psmx_impl.${CYCLONEDDS_DOMAIN_ID}.${CYCLONEDDS_PID}.log</OutputFile>" \
     "<Verbosity>finest</Verbosity>" \
