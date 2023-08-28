@@ -62,6 +62,7 @@ struct ddsi_rd_pwr_match {
   ddsrt_avl_node_t avlnode;
   ddsi_guid_t pwr_guid;
   unsigned pwr_alive: 1; /* tracks pwr's alive state */
+  unsigned via_psmx: 1; /* true iff there is a common psmx locator */
   uint32_t pwr_alive_vclock; /* used to ensure progress */
 #ifdef DDS_HAS_SSM
   ddsi_xlocator_t ssm_mc_loc;
@@ -75,12 +76,14 @@ struct ddsi_rd_pwr_match {
 struct ddsi_wr_rd_match {
   ddsrt_avl_node_t avlnode;
   ddsi_guid_t rd_guid;
+  unsigned via_psmx: 1; /* true iff there is a common psmx locator */
 };
 
 struct ddsi_rd_wr_match {
   ddsrt_avl_node_t avlnode;
   ddsi_guid_t wr_guid;
   unsigned wr_alive: 1; /* tracks wr's alive state */
+  unsigned via_psmx: 1; /* true iff there is a common psmx locator */
   uint32_t wr_alive_vclock; /* used to ensure progress */
 };
 
@@ -91,6 +94,7 @@ struct ddsi_wr_prd_match {
   unsigned has_replied_to_hb: 1; /* we must keep sending HBs until all readers have this set */
   unsigned all_have_replied_to_hb: 1; /* true iff 'has_replied_to_hb' for all readers in subtree */
   unsigned is_reliable: 1; /* true iff reliable proxy reader */
+  unsigned via_psmx: 1; /* true iff there is a common psmx locator */
   ddsi_seqno_t min_seq; /* smallest ack'd seq nr in subtree */
   ddsi_seqno_t max_seq; /* sort-of highest ack'd seq nr in subtree (see augment function) */
   ddsi_seqno_t seq; /* highest acknowledged seq nr */
@@ -113,6 +117,7 @@ struct ddsi_wr_prd_match {
 struct ddsi_prd_wr_match {
   ddsrt_avl_node_t avlnode;
   ddsi_guid_t wr_guid;
+  unsigned via_psmx: 1; /* true iff there is a common psmx locator */
 #ifdef DDS_HAS_SECURITY
   int64_t crypto_handle;
 #endif
@@ -137,6 +142,7 @@ struct ddsi_pwr_rd_match {
   unsigned heartbeatfrag_since_ack : 1; /* set when a HEARTBEATFRAG has been received since the last ACKNACK */
   unsigned directed_heartbeat : 1; /* set on receipt of a directed heartbeat, cleared on sending an ACKNACK */
   unsigned nack_sent_on_nackdelay : 1; /* set when the most recent NACK sent was because of the NackDelay  */
+  unsigned via_psmx: 1; /* true iff there is a common psmx locator */
   unsigned filtered : 1;
   union {
     struct {

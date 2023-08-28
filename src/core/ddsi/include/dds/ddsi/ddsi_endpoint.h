@@ -165,6 +165,12 @@ struct ddsi_reader
 #endif
 };
 
+struct ddsi_generic_endpoint
+{
+  struct ddsi_entity_common e;
+  struct ddsi_endpoint_common c;
+};
+
 DDS_EXPORT extern const ddsrt_avl_treedef_t ddsi_wr_readers_treedef;
 DDS_EXPORT extern const ddsrt_avl_treedef_t ddsi_wr_local_readers_treedef;
 DDS_EXPORT extern const ddsrt_avl_treedef_t ddsi_rd_writers_treedef;
