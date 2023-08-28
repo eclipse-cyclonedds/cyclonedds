@@ -55,7 +55,8 @@ enum topicsel {
   K256,  /* Keyed256 type: seq#, key, array-of-248-octet (sizeof = 256) */
   OU,    /* OneULong type: seq# */
   UK16,  /* Unkeyed16, type: seq#, array-of-12-octet (sizeof = 16) */
-  UK1024,/* Unkeyed1024, type: seq#, array-of-1020-octet (sizeof = 1024) */
+  UK1k,  /* Unkeyed1k, type: seq#, array-of-1020-octet (sizeof = 1024) */
+  UK64k, /* Unkeyed64k, type: seq#, array-of-65532-octet (sizeof = 65536) */
   S16,   /* Keyed, 16 octets, int64 junk, seq#, key */
   S256,  /* Keyed, 16 * S16, int64 junk, seq#, key */
   S4k,   /* Keyed, 16 * S256, int64 junk, seq#, key */
@@ -178,6 +179,9 @@ static uint64_t min_roundtrips = 0;
 
 /* Whether to gather/show latency information in "sub" mode */
 static bool sublatency = false;
+
+/* Use writer loans (only for memcpy-able types) */
+static bool use_writer_loan = false;
 
 /* Event queue for processing discovery events (data available on
    DCPSParticipant, subscription & publication matched)
@@ -367,7 +371,8 @@ union data {
   Keyed256 k256;
   OneULong ou;
   Unkeyed16 uk16;
-  Unkeyed1024 uk1024;
+  Unkeyed1k uk1k;
+  Unkeyed64k uk64k;
   Struct16 s16;
   Struct256 s256;
   Struct4k s4k;
@@ -567,38 +572,40 @@ static void *make_baggage (dds_sequence_octet *b, uint32_t cnt)
   return b->_buffer;
 }
 
-static uint32_t *getseqptr (union data *data)
+static size_t getseqoff (void)
 {
   switch (topicsel)
   {
-    case KS:     return &data->ks.seq;
-    case K32:    return &data->k32.seq;
-    case K256:   return &data->k256.seq;
-    case OU:     return &data->ou.seq;
-    case UK16:   return &data->uk16.seq;
-    case UK1024: return &data->uk1024.seq;
-    case S16:    return &data->s16.seq;
-    case S256:   return &data->s256.seq;
-    case S4k:    return &data->s4k.seq;
-    case S32k:   return &data->s32k.seq;
+    case KS:     return offsetof (union data, ks.seq);
+    case K32:    return offsetof (union data, k32.seq);
+    case K256:   return offsetof (union data, k256.seq);
+    case OU:     return offsetof (union data, ou.seq);
+    case UK16:   return offsetof (union data, uk16.seq);
+    case UK1k:   return offsetof (union data, uk1k.seq);
+    case UK64k:  return offsetof (union data, uk64k.seq);
+    case S16:    return offsetof (union data, s16.seq);
+    case S256:   return offsetof (union data, s256.seq);
+    case S4k:    return offsetof (union data, s4k.seq);
+    case S32k:   return offsetof (union data, s32k.seq);
   }
   return 0;
 }
 
-static uint32_t *getkeyvalptr (union data *data)
+static size_t getkeyvaloff (void)
 {
   switch (topicsel)
   {
-    case KS:     return &data->ks.keyval;
-    case K32:    return &data->k32.keyval;
-    case K256:   return &data->k256.keyval;
-    case OU:     return NULL;
-    case UK16:   return NULL;
-    case UK1024: return NULL;
-    case S16:    return &data->s16.keyval;
-    case S256:   return &data->s256.keyval;
-    case S4k:    return &data->s4k.keyval;
-    case S32k:   return &data->s32k.keyval;
+    case KS:     return offsetof (union data, ks.keyval);
+    case K32:    return offsetof (union data, k32.keyval);
+    case K256:   return offsetof (union data, k256.keyval);
+    case OU:     return SIZE_MAX;
+    case UK16:   return SIZE_MAX;
+    case UK1k:   return SIZE_MAX;
+    case UK64k:  return SIZE_MAX;
+    case S16:    return offsetof (union data, s16.keyval);
+    case S256:   return offsetof (union data, s256.keyval);
+    case S4k:    return offsetof (union data, s4k.keyval);
+    case S32k:   return offsetof (union data, s32k.keyval);
   }
   return 0;
 }
@@ -609,11 +616,9 @@ static void *init_sample (union data *data, uint32_t seq)
   memset (data, 0xee, sizeof (*data));
   if (topicsel == KS)
     baggage = make_baggage (&data->ks.baggage, baggagesize);
-  uint32_t * const seqptr = getseqptr (data);
-  uint32_t * const keyvalptr = getkeyvalptr (data);
-  *seqptr = seq;
-  if (keyvalptr)
-    *keyvalptr = 0;
+  *((uint32_t *) ((char *) data + getseqoff ())) = seq;
+  if (getkeyvaloff () != SIZE_MAX)
+    *((uint32_t *) ((char *) data + getkeyvaloff ())) = 0;
   return baggage;
 }
 
@@ -631,8 +636,8 @@ static uint32_t pubthread (void *varg)
   assert (topicsel != OU || nkeyvals == 1);
 
   baggage = init_sample (&data, 0);
-  uint32_t * const seqptr = getseqptr (&data);
-  uint32_t * const keyvalptr = getkeyvalptr (&data);
+  size_t seqoff = getseqoff ();
+  size_t keyvaloff = getkeyvaloff ();
   ihs = malloc (nkeyvals * sizeof (dds_instance_handle_t));
   assert(ihs);
   if (!register_instances)
@@ -644,8 +649,8 @@ static uint32_t pubthread (void *varg)
   {
     for (unsigned k = 0; k < nkeyvals; k++)
     {
-      if (keyvalptr)
-        *keyvalptr = k;
+      if (keyvaloff != SIZE_MAX)
+        *((uint32_t *) ((char *) &data + keyvaloff)) = 0;
       if ((result = dds_register_instance (wr_data, &ihs[k], &data)) != DDS_RETCODE_OK)
       {
         printf ("dds_register_instance failed: %d\n", result);
@@ -658,15 +663,31 @@ static uint32_t pubthread (void *varg)
   uint32_t time_interval = 1; // call dds_time() once for this many samples
   uint32_t time_counter = time_interval; // how many more samples on current time stamp
   uint32_t batch_counter = 0; // number of samples in current batch
-  if (keyvalptr)
-    *keyvalptr = 0;
+  if (keyvaloff != SIZE_MAX)
+    *((uint32_t *) ((char *) &data + keyvaloff)) = 0;
   tfirst = dds_time();
   dds_time_t t_write = tfirst;
   while (!ddsrt_atomic_ld32 (&termflag))
   {
     /* lsb of timestamp is abused to signal whether the sample is a ping requiring a response or not */
     bool reqresp = (ping_frac == 0) ? 0 : (ping_frac == UINT32_MAX) ? 1 : (ddsrt_random () <= ping_frac);
-    if ((result = dds_write_ts (wr_data, &data, (t_write & ~1) | reqresp)) != DDS_RETCODE_OK)
+    void *dataptr;
+    if (!use_writer_loan)
+      dataptr = &data;
+    else if ((result = dds_request_loan (wr_data, &dataptr, 1)) < 0)
+    {
+      printf ("request loan error: %d\n", result);
+      fflush (stdout);
+      exit (2);
+    }
+    else
+    {
+      *((uint32_t *) ((char *) dataptr + seqoff)) = *((uint32_t *) ((char *) &data + seqoff));
+      if (keyvaloff != SIZE_MAX)
+        *((uint32_t *) ((char *) dataptr + keyvaloff)) = *((uint32_t *) ((char *) &data + keyvaloff));
+    }
+
+    if ((result = dds_write_ts (wr_data, dataptr, (t_write & ~1) | reqresp)) != DDS_RETCODE_OK)
     {
       printf ("write error: %d\n", result);
       fflush (stdout);
@@ -706,9 +727,11 @@ static uint32_t pubthread (void *varg)
     ntot++;
     ddsrt_mutex_unlock (&pubstat_lock);
 
-    (*seqptr)++;
-    if (keyvalptr)
+    (*((uint32_t *) ((char *) &data + seqoff)))++;
+    if (keyvaloff != SIZE_MAX) {
+      uint32_t * const keyvalptr = (uint32_t *) ((char *) &data + keyvaloff);
       *keyvalptr = (*keyvalptr + 1) % nkeyvals;
+    }
 
     t_write = t_post_write;
     if (pub_rate < HUGE_VAL)
@@ -744,7 +767,8 @@ static uint32_t topic_payload_size (enum topicsel tp, uint32_t bgsize)
     case K256:   size = 256; break;
     case OU:     size = 4; break;
     case UK16:   size = 16; break;
-    case UK1024: size = 1024; break;
+    case UK1k:   size = 1024; break;
+    case UK64k:  size = 65536; break;
     case S16:    size = (uint32_t) sizeof (Struct16); break;
     case S256:   size = (uint32_t) sizeof (Struct256); break;
     case S4k:    size = (uint32_t) sizeof (Struct4k); break;
@@ -1041,7 +1065,8 @@ static bool process_data (dds_entity_t rd, struct subthread_arg *arg)
         case K256:   { Keyed256 *d    = mseq[i]; keyval = d->keyval; seq = d->seq; size = topic_payload_size (topicsel, 0); } break;
         case OU:     { OneULong *d    = mseq[i]; keyval = 0;         seq = d->seq; size = topic_payload_size (topicsel, 0); } break;
         case UK16:   { Unkeyed16 *d   = mseq[i]; keyval = 0;         seq = d->seq; size = topic_payload_size (topicsel, 0); } break;
-        case UK1024: { Unkeyed1024 *d = mseq[i]; keyval = 0;         seq = d->seq; size = topic_payload_size (topicsel, 0); } break;
+        case UK1k:   { Unkeyed1k *d   = mseq[i]; keyval = 0;         seq = d->seq; size = topic_payload_size (topicsel, 0); } break;
+        case UK64k:  { Unkeyed64k *d  = mseq[i]; keyval = 0;         seq = d->seq; size = topic_payload_size (topicsel, 0); } break;
         case S16:    { Struct16 *d    = mseq[i]; keyval = d->keyval; seq = d->seq; size = topic_payload_size (topicsel, 0); } break;
         case S256:   { Struct256 *d   = mseq[i]; keyval = d->keyval; seq = d->seq; size = topic_payload_size (topicsel, 0); } break;
         case S4k:    { Struct4k *d    = mseq[i]; keyval = d->keyval; seq = d->seq; size = topic_payload_size (topicsel, 0); } break;
@@ -1779,21 +1804,23 @@ static void usage (void)
 OPTIONS:\n\
   -L                  allow matching with endpoints in the same process\n\
                       to get throughput/latency in the same ddsperf process\n\
-  -T KS|K32|K256|OU   topic (KS is default):\n\
+  -T KS|K32|K256      topic (KS is default):\n\
                         KS   seq num, key value, sequence-of-octets\n\
                         K32  seq num, key value, array of 24 octets\n\
                         K256 seq num, key value, array of 248 octets\n\
-                        OU   seq num\n\
      S16|S256|S4k|S32k  S16  keyed, 16 octets, int64 junk, seq#, key\n\
                         S256 keyed, 16 * S16, int64 junk, seq#, key\n\
                         S4k  keyed, 16 * S256, int64 junk, seq#, key\n\
                         S32k keyed, 4 * S4k, int64 junk, seq#, key\n\
+     OU                 seq num\n\
+     UK16|UK256|UK1k|UK64k  seq, array of N-4 octets\n\
   -n N                number of key values to use for data (only for\n\
                       topics with a key value)\n\
   -u                  best-effort instead of reliable\n\
   -k all|N            keep-all or keep-last-N for data (ping/pong is\n\
                       always keep-last-1)\n\
   -c                  subscribe to CPU stats from peers and show them\n\
+  -l                  report one-way latency in subscriber mode\n\
   -d DEV:BW           report network load for device DEV with nominal\n\
                       bandwidth BW in bits/s (e.g., eth0:1e9)\n\
   -D DUR              run for at most DUR seconds\n\
@@ -1834,7 +1861,7 @@ MODE... is zero or more of:\n\
   sub [waitset|listener|polling]\n\
     Subscribe to data, with calls to take occurring either in a listener\n\
     (default), when a waitset is triggered, or by polling at 1kHz.\n\
-  pub [R[Hz]] [size S] [burst N] [[ping] X%%]\n\
+  pub [R[Hz]] [size S] [burst N] [[ping] X%%] [loan]\n\
     Publish bursts of data at rate R, optionally suffixed with Hz/kHz.  If\n\
     no rate is given or R is \"inf\", data is published as fast as\n\
     possible.  Each burst is a single sample by default, but can be set\n\
@@ -1842,7 +1869,8 @@ MODE... is zero or more of:\n\
     \"size S\", S may be suffixed with k/M/kB/MB/KiB/MiB.\n\
     If desired, a fraction of the samples can be treated as if it were a\n\
     ping, for this, specify a percentage either as \"ping X%%\" (the\n\
-    \"ping\" keyword is optional, the %% sign is not).\n\
+    \"ping\" keyword is optional, the %% sign is not).  \"loan\" uses\n\
+    loans on the writer.\n\
 \n\
   Payload size (including fixed part of topic) may be set as part of a\n\
   \"ping\" or \"pub\" specification for topic KS (there is only size,\n\
@@ -2074,6 +2102,10 @@ static void set_mode_pub (int *xoptind, int xargc, char * const xargv[])
       if (r < 0 || r > 100) error3 ("%s: ping fraction out of range\n", xargv[*xoptind]);
       ping_frac = (uint32_t) (UINT32_MAX * (r / 100.0) + 0.5);
     }
+    else if (strcmp (xargv[*xoptind], "loan") == 0)
+    {
+      use_writer_loan = true;
+    }
     else
     {
       error3 ("%s: unrecognised publish specification\n", xargv[*xoptind]);
@@ -2188,7 +2220,9 @@ int main (int argc, char *argv[])
         else if (strcmp (optarg, "K256") == 0) topicsel = K256;
         else if (strcmp (optarg, "OU") == 0) topicsel = OU;
         else if (strcmp (optarg, "UK16") == 0) topicsel = UK16;
-        else if (strcmp (optarg, "UK1024") == 0) topicsel = UK1024;
+        else if (strcmp (optarg, "UK1k") == 0) topicsel = UK1k;
+        else if (strcmp (optarg, "UK1024") == 0) topicsel = UK1k; // backwards compat
+        else if (strcmp (optarg, "UK64k") == 0) topicsel = UK64k;
         else if (strcmp (optarg, "S16") == 0) topicsel = S16;
         else if (strcmp (optarg, "S256") == 0) topicsel = S256;
         else if (strcmp (optarg, "S4k") == 0) topicsel = S4k;
@@ -2245,6 +2279,8 @@ int main (int argc, char *argv[])
     error3 ("-n %u invalid: topic OU has no key\n", nkeyvals);
   if (topicsel != KS && baggagesize != 0)
     error3 ("size %"PRIu32" invalid: only topic KS has a sequence\n", baggagesize);
+  if (topicsel == KS && use_writer_loan)
+    error3 ("topic KS is not supported with writer loans because it contains a sequence\n");
   if (baggagesize != 0 && baggagesize < 12)
     error3 ("size %"PRIu32" invalid: too small to allow for overhead\n", baggagesize);
   else if (baggagesize > 0)
@@ -2311,7 +2347,8 @@ int main (int argc, char *argv[])
       case K256:   tp_suf = "K256";   tp_desc = &Keyed256_desc; break;
       case OU:     tp_suf = "OU";     tp_desc = &OneULong_desc; break;
       case UK16:   tp_suf = "UK16";   tp_desc = &Unkeyed16_desc; break;
-      case UK1024: tp_suf = "UK1024"; tp_desc = &Unkeyed1024_desc; break;
+      case UK1k:   tp_suf = "UK1k";   tp_desc = &Unkeyed1k_desc; break;
+      case UK64k:  tp_suf = "UK64k";  tp_desc = &Unkeyed64k_desc; break;
       case S16:    tp_suf = "S16";    tp_desc = &Struct16_desc; break;
       case S256:   tp_suf = "S256";   tp_desc = &Struct256_desc; break;
       case S4k:    tp_suf = "S4k";    tp_desc = &Struct4k_desc; break;

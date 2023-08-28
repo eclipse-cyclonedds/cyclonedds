@@ -12,10 +12,17 @@ struct Unkeyed16
 };
 
 @final
-struct Unkeyed1024
+struct Unkeyed1k
 {
   unsigned long seq;
   octet baggage[1020];
+};
+
+@final
+struct Unkeyed64k
+{
+  unsigned long seq;
+  octet baggage[65532];
 };
 
 @final
