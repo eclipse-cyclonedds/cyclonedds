@@ -12,10 +12,12 @@
 #include <inttypes.h>
 #include <string>
 #include <memory>
+#include <optional>
 
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/mh3.h"
+#include "dds/ddsrt/random.h"
 #include "dds/ddsrt/strtol.h"
 #include "dds/ddsc/dds_loaned_sample.h"
 #include "dds/ddsc/dds_psmx.h"
@@ -31,20 +33,17 @@
 
 #define ERROR_PREFIX "=== [ICEORYX] "
 
-#define DEFAULT_INSTANCE_NAME "CycloneDDS-IOX-PSMX\0"
-#define DEFAULT_TOPIC_NAME "CycloneDDS-IOX-PSMX node_id discovery\0"
-
+static std::optional<dds_psmx_node_identifier_t> to_node_identifier(const std::string& str);
 
 /*forward declarations of functions*/
-namespace iox_psmx
-{
+namespace iox_psmx {
 
 static bool iox_type_qos_supported(struct dds_psmx * psmx, dds_psmx_endpoint_type_t forwhat, dds_psmx_data_type_properties_t data_type, const struct dds_qos * qos);
-static struct dds_psmx_topic* iox_create_topic (struct dds_psmx * psmx, const char * topic_name, dds_psmx_data_type_properties_t data_type_props);
-static dds_return_t iox_delete_topic (struct dds_psmx_topic *psmx_topic);
-static dds_return_t iox_psmx_deinit (struct dds_psmx * self);
-static dds_psmx_node_identifier_t iox_psmx_get_node_id (const struct dds_psmx * psmx);
-static dds_psmx_features_t iox_supported_features (const struct dds_psmx *psmx);
+static struct dds_psmx_topic* iox_create_topic(struct dds_psmx * psmx, const char * topic_name, dds_psmx_data_type_properties_t data_type_props);
+static dds_return_t iox_delete_topic(struct dds_psmx_topic * psmx_topic);
+static dds_return_t iox_psmx_deinit(struct dds_psmx * self);
+static dds_psmx_node_identifier_t iox_psmx_get_node_id(const struct dds_psmx * psmx);
+static dds_psmx_features_t iox_supported_features(const struct dds_psmx *psmx);
 
 static const dds_psmx_ops_t psmx_ops = {
   .type_qos_supported = iox_type_qos_supported,
@@ -56,9 +55,9 @@ static const dds_psmx_ops_t psmx_ops = {
 };
 
 
-static bool iox_serialization_required (dds_psmx_data_type_properties_t data_type);
-static struct dds_psmx_endpoint * iox_create_endpoint (struct dds_psmx_topic * psmx_topic, const struct dds_qos *qos, dds_psmx_endpoint_type_t endpoint_type);
-static dds_return_t iox_delete_endpoint (struct dds_psmx_endpoint * psmx_endpoint);
+static bool iox_serialization_required(dds_psmx_data_type_properties_t data_type);
+static struct dds_psmx_endpoint * iox_create_endpoint(struct dds_psmx_topic * psmx_topic, const struct dds_qos *qos, dds_psmx_endpoint_type_t endpoint_type);
+static dds_return_t iox_delete_endpoint(struct dds_psmx_endpoint * psmx_endpoint);
 
 static const dds_psmx_topic_ops_t psmx_topic_ops = {
   .serialization_required = iox_serialization_required,
@@ -67,11 +66,11 @@ static const dds_psmx_topic_ops_t psmx_topic_ops = {
 };
 
 
-static dds_loaned_sample_t * iox_req_loan (struct dds_psmx_endpoint *psmx_endpoint, uint32_t size_requested);
-static dds_return_t iox_req_raw_loan (struct dds_psmx_endpoint *psmx_endpoint, uint32_t size_requested, void **buffer);
-static dds_return_t iox_write (struct dds_psmx_endpoint * psmx_endpoint, dds_loaned_sample_t * data);
-static dds_loaned_sample_t * iox_take (struct dds_psmx_endpoint * psmx_endpoint);
-static dds_return_t iox_on_data_available (struct dds_psmx_endpoint * psmx_endpoint, dds_entity_t reader);
+static dds_loaned_sample_t * iox_req_loan(struct dds_psmx_endpoint *psmx_endpoint, uint32_t size_requested);
+static dds_return_t iox_req_raw_loan(struct dds_psmx_endpoint *psmx_endpoint, uint32_t size_requested, void **buffer);
+static dds_return_t iox_write(struct dds_psmx_endpoint * psmx_endpoint, dds_loaned_sample_t * data);
+static dds_loaned_sample_t * iox_take(struct dds_psmx_endpoint * psmx_endpoint);
+static dds_return_t iox_on_data_available(struct dds_psmx_endpoint * psmx_endpoint, dds_entity_t reader);
 
 static const dds_psmx_endpoint_ops_t psmx_ep_ops = {
   .request_loan = iox_req_loan,
@@ -82,10 +81,10 @@ static const dds_psmx_endpoint_ops_t psmx_ep_ops = {
 };
 
 
-static void iox_loaned_sample_free (dds_loaned_sample_t *to_fini);
+static void iox_loaned_sample_free(dds_loaned_sample_t *to_fini);
 
 static const dds_loaned_sample_ops_t ls_ops = {
-  .free = iox_loaned_sample_free,
+  .free = iox_loaned_sample_free
 };
 
 
@@ -94,50 +93,45 @@ static bool is_wildcard_partition(const char *str)
   return strchr(str, '*') || strchr(str, '?');
 }
 
-struct iox_psmx: public dds_psmx_t
+struct iox_psmx : public dds_psmx_t
 {
-  iox_psmx(dds_psmx_instance_id_t identifier, const char *service_name, const uint8_t *node_id_override);
+  iox_psmx(dds_psmx_instance_id_t identifier, const std::string& service_name, const std::optional<dds_psmx_node_identifier_t>& node_id_override, bool support_keyed_topics);
   ~iox_psmx();
   void discover_node_id(dds_psmx_node_identifier_t node_id_fallback);
-  char _service_name[64];
+  bool _support_keyed_topics;
+  iox::capro::IdString_t _service_name;
   std::unique_ptr<iox::popo::Listener> _listener;  //the listener needs to be created after iox runtime has been initialized
   dds_psmx_node_identifier_t _node_id = { 0 };
   std::shared_ptr<iox::popo::UntypedPublisher> _node_id_publisher;
 };
 
-iox_psmx::iox_psmx(dds_psmx_instance_id_t identifier, const char *service_name, const uint8_t *node_id_override):
+iox_psmx::iox_psmx(dds_psmx_instance_id_t identifier, const std::string& service_name, const std::optional<dds_psmx_node_identifier_t>& node_id_override, bool support_keyed_topics) :
   dds_psmx_t {
     .ops = psmx_ops,
-    .instance_name = dds_string_dup (DEFAULT_INSTANCE_NAME),
+    .instance_name = dds_string_dup ("CycloneDDS-IOX-PSMX"),
     .priority = 0,
     .locator = nullptr,
     .instance_id = identifier,
     .psmx_topics = nullptr
   },
-  _listener()
+  _support_keyed_topics{support_keyed_topics},
+  _service_name{iox::capro::IdString_t(iox::cxx::TruncateToCapacity, service_name)},
+  _listener{}
 {
-  if (service_name == nullptr)
-    snprintf(_service_name, sizeof (_service_name), "CycloneDDS iox_psmx %08X", identifier);  // FIXME: replace with hash of _instance_name and domain id?
-  else
-    snprintf(_service_name, sizeof (_service_name), "%s", service_name);
-
-  clock_t t = clock();
-  uint64_t instance_hash = static_cast<uint64_t>(t) ^ ((uint64_t)this) ^ identifier;
-
+  uint64_t instance_hash = (uint64_t) ddsrt_random() << 32 | ddsrt_random();
   char iox_runtime_name[64];
   snprintf(iox_runtime_name, sizeof(iox_runtime_name), "CycloneDDS-iox_psmx-%016" PRIx64, instance_hash);
   iox::runtime::PoshRuntime::initRuntime(iox_runtime_name);
   _listener = std::unique_ptr<iox::popo::Listener>(new iox::popo::Listener());
 
-  if (node_id_override == nullptr)
+  if (node_id_override.has_value())
+    _node_id = node_id_override.value();
+  else
   {
     dds_psmx_node_identifier_t node_id_fallback = { 0 };
-    memcpy (node_id_fallback.x, &instance_hash, sizeof (instance_hash));
+    memcpy(node_id_fallback.x, &instance_hash, sizeof (instance_hash));
     discover_node_id(node_id_fallback);
   }
-  else
-    memcpy(_node_id.x, node_id_override, sizeof (_node_id));
-
   dds_psmx_init_generic(this);
 }
 
@@ -145,65 +139,57 @@ iox_psmx::~iox_psmx()
 {
   if (dds_psmx_cleanup_generic(this) != DDS_RETCODE_OK)
   {
-    fprintf(stderr, ERROR_PREFIX "error during dds_psmx_cleanup_generic\n");
+    std::cerr << ERROR_PREFIX "error during dds_psmx_cleanup_generic" << std::endl;
     assert(false);
   }
 }
 
 void iox_psmx::discover_node_id(dds_psmx_node_identifier_t node_id_fallback)
 {
+  const iox::capro::IdString_t disctopic{"CycloneDDS-IOX-PSMX node_id discovery"};
   iox::runtime::ServiceDiscovery serviceDiscovery;
-  char tentative_node_id_str[64];
-  for (uint32_t n = 0; n < 16; n++)
-    snprintf(tentative_node_id_str + 2 * n, sizeof(tentative_node_id_str) - 2 * n, "%02" PRIx8, node_id_fallback.x[n]);
   unsigned int node_ids_present = 0;
   iox::capro::IdString_t outstr;
-  serviceDiscovery.findService(iox::capro::IdString_t{_service_name},
-                               iox::capro::IdString_t{DEFAULT_TOPIC_NAME},
+  serviceDiscovery.findService(_service_name,
+                               disctopic,
                                iox::capro::Wildcard,
-                               [&node_ids_present, &outstr](const iox::capro::ServiceDescription& s)
-                               {
+                               [&node_ids_present, &outstr](const iox::capro::ServiceDescription& s) {
                                  node_ids_present++;
                                  outstr = s.getEventIDString();
                                },
                                iox::popo::MessagingPattern::PUB_SUB);
-
   if (node_ids_present > 1)
   {
-    fprintf(stderr, ERROR_PREFIX "inconsistency during node id creation\n");
+    std::cerr << ERROR_PREFIX "inconsistency during node id creation" << std::endl;
     assert(false);
   }
   else if (node_ids_present == 1)
   {
-    const char *s = outstr.c_str();
-    char c[3] = {0};  //we need to manually truncate the id string, since the output value is too large for stroull
-    for (uint32_t n = 0; n < 16; n++) {
-      c[0] = s[2*n];
-      c[1] = s[2*n+1];
-      _node_id.x[n] = (uint8_t) strtoul(c, nullptr, 16);
-    }
-    fprintf(stderr, "\n");
+    _node_id = to_node_identifier(outstr).value();
   }
   else
   {
+    char tentative_node_id_str[33];
+    for (uint32_t n = 0; n < 16; n++)
+      snprintf(tentative_node_id_str + 2 * n, sizeof(tentative_node_id_str) - 2 * n, "%02" PRIx8, node_id_fallback.x[n]);
     _node_id = node_id_fallback;
-    _node_id_publisher = std::shared_ptr<iox::popo::UntypedPublisher>(new iox::popo::UntypedPublisher({_service_name, DEFAULT_TOPIC_NAME, tentative_node_id_str}));
+    _node_id_publisher = std::shared_ptr<iox::popo::UntypedPublisher>(new iox::popo::UntypedPublisher({_service_name, disctopic, tentative_node_id_str}));
   }
 }
 
-struct iox_psmx_topic: public dds_psmx_topic_t
+struct iox_psmx_topic : public dds_psmx_topic_t
 {
-  iox_psmx_topic(iox_psmx &psmx, const char * topic_name, dds_psmx_data_type_properties_t data_type_props);
+  iox_psmx_topic(iox_psmx& psmx, const char * topic_name, dds_psmx_data_type_properties_t data_type_props);
   ~iox_psmx_topic();
   iox_psmx &_parent;
   char _data_type_str[64];
 };
 
-iox_psmx_topic::iox_psmx_topic(iox_psmx &psmx, const char * topic_name, dds_psmx_data_type_properties_t data_type_props) :
+iox_psmx_topic::iox_psmx_topic(iox_psmx& psmx, const char * topic_name, dds_psmx_data_type_properties_t data_type_props) :
   dds_psmx_topic_t
   {
     .ops = psmx_topic_ops,
-    .psmx_instance = reinterpret_cast<struct dds_psmx*>(&psmx),
+    .psmx_instance = &psmx,
     .topic_name = 0,
     .data_type = 0,
     .psmx_endpoints = nullptr,
@@ -212,34 +198,35 @@ iox_psmx_topic::iox_psmx_topic(iox_psmx &psmx, const char * topic_name, dds_psmx
 {
   dds_psmx_topic_init_generic(this, &psmx, topic_name);
   snprintf(_data_type_str, sizeof (_data_type_str), "CycloneDDS iox_datatype %08X", data_type);
-  if (dds_add_psmx_topic_to_list(reinterpret_cast<struct dds_psmx_topic*>(this), &psmx.psmx_topics) != DDS_RETCODE_OK)
+  if (dds_add_psmx_topic_to_list(this, &psmx.psmx_topics) != DDS_RETCODE_OK)
   {
-    fprintf(stderr, ERROR_PREFIX "could not add PSMX topic to list\n");
+    std::cerr << ERROR_PREFIX "could not add PSMX topic to list" << std::endl;
     assert(false);
   }
 }
 
 iox_psmx_topic::~iox_psmx_topic()
 {
-  if (dds_psmx_topic_cleanup_generic(reinterpret_cast<struct dds_psmx_topic*>(this)) != DDS_RETCODE_OK)
+  if (dds_psmx_topic_cleanup_generic(static_cast<struct dds_psmx_topic *>(this)) != DDS_RETCODE_OK)
   {
-    fprintf(stderr, ERROR_PREFIX "could not remove PSMX from list\n");
+    std::cerr << ERROR_PREFIX "could not remove PSMX from list" << std::endl;
     assert(false);
   }
 }
 
-struct iox_psmx_endpoint: public dds_psmx_endpoint_t
+struct iox_psmx_endpoint : public dds_psmx_endpoint_t
 {
-  iox_psmx_endpoint(iox_psmx_topic &topic, const struct dds_qos *qos, dds_psmx_endpoint_type_t endpoint_type);
+  iox_psmx_endpoint(iox_psmx_topic& topic, const struct dds_qos * qos, dds_psmx_endpoint_type_t endpoint_type);
   ~iox_psmx_endpoint();
   iox_psmx_topic &_parent;
   void *_iox_endpoint = nullptr;
   dds_entity_t cdds_endpoint;
+  std::mutex lock; // Iceoryx isn't thread safe ...
 private:
-  char *get_partition_topic (const char *partition, const char *topic_name);
+  char *get_partition_topic(const char * partition, const char * topic_name);
 };
 
-char *iox_psmx_endpoint::get_partition_topic(const char *partition, const char *topic_name)
+char *iox_psmx_endpoint::get_partition_topic(const char * partition, const char * topic_name)
 {
   assert (partition);
   assert (!is_wildcard_partition(partition));
@@ -252,7 +239,7 @@ char *iox_psmx_endpoint::get_partition_topic(const char *partition, const char *
       size++;
     size++;
   }
-  char *combined = (char *) dds_alloc(size);
+  char *combined = static_cast<char *>(dds_alloc(size));
   if (combined == NULL)
     return NULL;
   char *dst = combined;
@@ -267,26 +254,25 @@ char *iox_psmx_endpoint::get_partition_topic(const char *partition, const char *
   return combined;
 }
 
-iox_psmx_endpoint::iox_psmx_endpoint(iox_psmx_topic &psmx_topic, const struct dds_qos *qos, dds_psmx_endpoint_type_t endpoint_type):
+iox_psmx_endpoint::iox_psmx_endpoint(iox_psmx_topic &psmx_topic, const struct dds_qos * qos, dds_psmx_endpoint_type_t endpoint_type):
   dds_psmx_endpoint_t
   {
     .ops = psmx_ep_ops,
-    .psmx_topic = reinterpret_cast<struct dds_psmx_topic*>(&psmx_topic),
+    .psmx_topic = &psmx_topic,
     .endpoint_type = endpoint_type
   }, _parent(psmx_topic)
 {
   char *partition_topic;
   uint32_t n_partitions;
   char **partitions;
-  if (dds_qget_partition (qos, &n_partitions, &partitions) && n_partitions > 0)
-  {
+  if (dds_qget_partition(qos, &n_partitions, &partitions) && n_partitions > 0) {
     assert(n_partitions == 1);
     partition_topic = get_partition_topic(partitions[0], psmx_topic.topic_name);
     dds_free(partitions[0]);
     dds_free(partitions);
-  }
-  else
+  } else {
     partition_topic = dds_string_dup(psmx_topic.topic_name);
+  }
 
   char iox_event_name[64];
   if (strlen(partition_topic) < 63)
@@ -296,7 +282,7 @@ iox_psmx_endpoint::iox_psmx_endpoint(iox_psmx_topic &psmx_topic, const struct dd
   else
   {
     strncpy(iox_event_name, partition_topic, sizeof(iox_event_name) - 9);
-    uint32_t partition_topic_hash = ddsrt_mh3(partition_topic, strlen (partition_topic), 0);
+    uint32_t partition_topic_hash = ddsrt_mh3(partition_topic, strlen(partition_topic), 0);
     snprintf(iox_event_name + sizeof(iox_event_name) - 9, 9, "%08X", partition_topic_hash);
   }
   dds_free(partition_topic);
@@ -346,16 +332,15 @@ iox_psmx_endpoint::iox_psmx_endpoint(iox_psmx_topic &psmx_topic, const struct dd
       break;
     }
     default:
-      fprintf(stderr, ERROR_PREFIX "PSMX endpoint type not accepted\n");
+      std::cerr << ERROR_PREFIX "PSMX endpoint type not accepted" << std::endl;
       assert(false);
   }
 
-  if (dds_add_psmx_endpoint_to_list(reinterpret_cast<struct dds_psmx_endpoint*>(this), &psmx_topic.psmx_endpoints) != DDS_RETCODE_OK)
+  if (dds_add_psmx_endpoint_to_list(this, &psmx_topic.psmx_endpoints) != DDS_RETCODE_OK)
   {
-    fprintf(stderr, ERROR_PREFIX "could not add PSMX endpoint to list\n");
+    std::cerr << ERROR_PREFIX "could not add PSMX endpoint to list" << std::endl;
     assert(false);
   }
-
 }
 
 iox_psmx_endpoint::~iox_psmx_endpoint()
@@ -364,39 +349,34 @@ iox_psmx_endpoint::~iox_psmx_endpoint()
   {
     case DDS_PSMX_ENDPOINT_TYPE_READER:
       {
-        auto sub = reinterpret_cast<iox::popo::UntypedSubscriber*>(_iox_endpoint);
+        auto sub = static_cast<iox::popo::UntypedSubscriber *>(_iox_endpoint);
         this->_parent._parent._listener->detachEvent(*sub, iox::popo::SubscriberEvent::DATA_RECEIVED);
         delete sub;
       }
       break;
     case DDS_PSMX_ENDPOINT_TYPE_WRITER:
-      delete reinterpret_cast<iox::popo::UntypedPublisher*>(_iox_endpoint);
+      delete static_cast<iox::popo::UntypedPublisher *>(_iox_endpoint);
       break;
     default:
-      fprintf(stderr, ERROR_PREFIX "PSMX endpoint type not accepted\n");
+      std::cerr << ERROR_PREFIX "PSMX endpoint type not accepted" << std::endl;
       assert(false);
   }
 }
 
-struct iox_metadata: public dds_psmx_metadata_t
-{
-  uint32_t sample_size;
-};
-
 static constexpr uint32_t iox_padding = sizeof(dds_psmx_metadata_t) % 8 ? (sizeof(dds_psmx_metadata_t) / 8 + 1 ) * 8 : sizeof(dds_psmx_metadata_t);
 
-struct iox_loaned_sample: public dds_loaned_sample_t
+struct iox_loaned_sample : public dds_loaned_sample_t
 {
-  iox_loaned_sample(struct dds_psmx_endpoint *origin, uint32_t sz, const void * ptr, dds_loaned_sample_state_t st);
+  iox_loaned_sample(struct dds_psmx_endpoint * origin, uint32_t sz, const void * ptr, dds_loaned_sample_state_t st);
   ~iox_loaned_sample();
 };
 
-iox_loaned_sample::iox_loaned_sample(struct dds_psmx_endpoint *origin, uint32_t sz, const void * ptr, dds_loaned_sample_state_t st):
+iox_loaned_sample::iox_loaned_sample(struct dds_psmx_endpoint * origin, uint32_t sz, const void * ptr, dds_loaned_sample_state_t st):
   dds_loaned_sample_t {
     .ops = ls_ops,
     .loan_origin = { .origin_kind = DDS_LOAN_ORIGIN_KIND_PSMX, .psmx_endpoint = origin },
     .metadata = ((struct dds_psmx_metadata *) ptr),
-    .sample_ptr = ((char*) ptr) + iox_padding,  //alignment?
+    .sample_ptr = const_cast<void *>(static_cast<const void *>(static_cast<const char *>(ptr) + iox_padding)),  //alignment?
     .refc = { .v = 1 }
   }
 {
@@ -409,24 +389,28 @@ iox_loaned_sample::iox_loaned_sample(struct dds_psmx_endpoint *origin, uint32_t 
 iox_loaned_sample::~iox_loaned_sample()
 {
   assert(loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_PSMX);
-  auto cpp_ep_ptr = reinterpret_cast<iox_psmx_endpoint*>(loan_origin.psmx_endpoint);
+  auto cpp_ep_ptr = static_cast<iox_psmx_endpoint*>(loan_origin.psmx_endpoint);
   if (metadata)
   {
     switch (cpp_ep_ptr->endpoint_type)
     {
-      case DDS_PSMX_ENDPOINT_TYPE_READER:
-        reinterpret_cast<iox::popo::UntypedSubscriber*>(cpp_ep_ptr->_iox_endpoint)->release(metadata);
+      case DDS_PSMX_ENDPOINT_TYPE_READER: {
+        const std::lock_guard<std::mutex> lock(cpp_ep_ptr->lock);
+        static_cast<iox::popo::UntypedSubscriber *>(cpp_ep_ptr->_iox_endpoint)->release(metadata);
         break;
-      case DDS_PSMX_ENDPOINT_TYPE_WRITER:
-        reinterpret_cast<iox::popo::UntypedPublisher*>(cpp_ep_ptr->_iox_endpoint)->release(metadata);
+      }
+      case DDS_PSMX_ENDPOINT_TYPE_WRITER: {
+        const std::lock_guard<std::mutex> lock(cpp_ep_ptr->lock);
+        static_cast<iox::popo::UntypedPublisher *>(cpp_ep_ptr->_iox_endpoint)->release(metadata);
         break;
-      default:
-        fprintf(stderr, ERROR_PREFIX "PSMX endpoint type not accepted\n");
+      }
+      default: {
+        std::cerr << ERROR_PREFIX "PSMX endpoint type not accepted" << std::endl;
         assert(false);
+      }
     }
   }
 }
-
 
 // dds_psmx_ops_t implementation
 
@@ -485,33 +469,33 @@ static bool iox_type_qos_supported(struct dds_psmx * psmx, dds_psmx_endpoint_typ
   return true;
 }
 
-static struct dds_psmx_topic* iox_create_topic (struct dds_psmx * psmx, const char *topic_name, dds_psmx_data_type_properties_t data_type_props)
+static struct dds_psmx_topic* iox_create_topic(struct dds_psmx * psmx, const char * topic_name, dds_psmx_data_type_properties_t data_type_props)
 {
   assert(psmx);
-  auto cpp_psmx_ptr = reinterpret_cast<iox_psmx*>(psmx);
-  return reinterpret_cast<struct dds_psmx_topic*>(new iox_psmx_topic(*cpp_psmx_ptr, topic_name, data_type_props));
+  auto cpp_psmx_ptr = static_cast<iox_psmx *>(psmx);
+  return new iox_psmx_topic(*cpp_psmx_ptr, topic_name, data_type_props);
 }
 
-static dds_return_t iox_delete_topic (struct dds_psmx_topic *psmx_topic)
+static dds_return_t iox_delete_topic(struct dds_psmx_topic * psmx_topic)
 {
   assert(psmx_topic);
-  delete reinterpret_cast<iox_psmx_topic*>(psmx_topic);
+  delete static_cast<iox_psmx_topic *>(psmx_topic);
   return DDS_RETCODE_OK;
 }
 
-static dds_return_t iox_psmx_deinit (struct dds_psmx * psmx)
+static dds_return_t iox_psmx_deinit(struct dds_psmx * psmx)
 {
   assert(psmx);
-  delete reinterpret_cast<iox_psmx*>(psmx);
+  delete static_cast<iox_psmx *>(psmx);
   return DDS_RETCODE_OK;
 }
 
-static dds_psmx_node_identifier_t iox_psmx_get_node_id (const struct dds_psmx * psmx)
+static dds_psmx_node_identifier_t iox_psmx_get_node_id(const struct dds_psmx * psmx)
 {
-  return reinterpret_cast<const iox_psmx*>(psmx)->_node_id;
+  return static_cast<const iox_psmx *>(psmx)->_node_id;
 }
 
-static dds_psmx_features_t iox_supported_features (const struct dds_psmx *psmx)
+static dds_psmx_features_t iox_supported_features(const struct dds_psmx * psmx)
 {
   (void) psmx;
   return DDS_PSMX_FEATURE_SHARED_MEMORY | DDS_PSMX_FEATURE_ZERO_COPY;
@@ -519,102 +503,102 @@ static dds_psmx_features_t iox_supported_features (const struct dds_psmx *psmx)
 
 // dds_psmx_topic_ops_t implementation
 
-static bool iox_serialization_required (dds_psmx_data_type_properties_t data_type)
+static bool iox_serialization_required(dds_psmx_data_type_properties_t data_type)
 {
   return (data_type & DDS_DATA_TYPE_IS_FIXED_SIZE) == 0 || DDS_DATA_TYPE_CONTAINS_INDIRECTIONS(data_type) != 0;
 }
 
-static struct dds_psmx_endpoint* iox_create_endpoint (struct dds_psmx_topic * psmx_topic, const struct dds_qos *qos, dds_psmx_endpoint_type_t endpoint_type)
+static struct dds_psmx_endpoint * iox_create_endpoint(struct dds_psmx_topic * psmx_topic, const struct dds_qos * qos, dds_psmx_endpoint_type_t endpoint_type)
 {
   assert(psmx_topic);
-  auto cpp_topic_ptr = reinterpret_cast<iox_psmx_topic*>(psmx_topic);
-  return reinterpret_cast<struct dds_psmx_endpoint*>(new iox_psmx_endpoint(*cpp_topic_ptr, qos, endpoint_type));
+  auto cpp_topic_ptr = static_cast<iox_psmx_topic*>(psmx_topic);
+  return new iox_psmx_endpoint(*cpp_topic_ptr, qos, endpoint_type);
 }
 
-static dds_return_t iox_delete_endpoint (struct dds_psmx_endpoint * psmx_endpoint)
+static dds_return_t iox_delete_endpoint(struct dds_psmx_endpoint * psmx_endpoint)
 {
   assert(psmx_endpoint);
-  delete reinterpret_cast<iox_psmx_endpoint*>(psmx_endpoint);
+  delete static_cast<iox_psmx_endpoint *>(psmx_endpoint);
   return DDS_RETCODE_OK;
 }
 
 // dds_psmx_endpoint_ops_t implementation
 
-static dds_loaned_sample_t* iox_req_loan (struct dds_psmx_endpoint *psmx_endpoint, uint32_t size_requested)
+static dds_loaned_sample_t * iox_req_loan(struct dds_psmx_endpoint *psmx_endpoint, uint32_t size_requested)
 {
-  auto cpp_ep_ptr = reinterpret_cast<iox_psmx_endpoint*>(psmx_endpoint);
+  auto cpp_ep_ptr = static_cast<iox_psmx_endpoint*>(psmx_endpoint);
   dds_loaned_sample_t *result_ptr = nullptr;
   if (psmx_endpoint->endpoint_type == DDS_PSMX_ENDPOINT_TYPE_WRITER)
   {
-    auto ptr = reinterpret_cast<iox::popo::UntypedPublisher*>(cpp_ep_ptr->_iox_endpoint);
+    auto ptr = static_cast<iox::popo::UntypedPublisher *>(cpp_ep_ptr->_iox_endpoint);
+    const std::lock_guard<std::mutex> lock(cpp_ep_ptr->lock);
     ptr->loan(size_requested + iox_padding)
       .and_then([&](const void* sample_ptr) {
-        result_ptr = reinterpret_cast<dds_loaned_sample_t*>(new iox_loaned_sample(psmx_endpoint, size_requested, sample_ptr, DDS_LOANED_SAMPLE_STATE_UNITIALIZED));
+        result_ptr = new iox_loaned_sample(psmx_endpoint, size_requested, sample_ptr, DDS_LOANED_SAMPLE_STATE_UNITIALIZED);
       })
       .or_else([&](auto& error) {
-        fprintf(stderr, ERROR_PREFIX "failure getting loan: %s\n", iox::popo::asStringLiteral(error));
+        std::cerr << ERROR_PREFIX "failure getting loan" << iox::popo::asStringLiteral(error) << std::endl;
       });
   }
 
   return result_ptr;
 }
 
-static dds_return_t iox_req_raw_loan (struct dds_psmx_endpoint *psmx_endpoint, uint32_t size_requested, void **buffer)
+static dds_return_t iox_req_raw_loan(struct dds_psmx_endpoint *psmx_endpoint, uint32_t size_requested, void **buffer)
 {
-  auto cpp_ep_ptr = reinterpret_cast<iox_psmx_endpoint*>(psmx_endpoint);
-  dds_return_t ret = DDS_RETCODE_OK;
+  auto cpp_ep_ptr = static_cast<iox_psmx_endpoint *>(psmx_endpoint);
   if (psmx_endpoint->endpoint_type != DDS_PSMX_ENDPOINT_TYPE_WRITER)
-  {
-    ret = DDS_RETCODE_BAD_PARAMETER;
-  }
+    return DDS_RETCODE_BAD_PARAMETER;
   else
   {
-    auto ptr = reinterpret_cast<iox::popo::UntypedPublisher*>(cpp_ep_ptr->_iox_endpoint);
+    dds_return_t ret = DDS_RETCODE_OK;
+    const std::lock_guard<std::mutex> lock(cpp_ep_ptr->lock);
+    auto ptr = static_cast<iox::popo::UntypedPublisher *>(cpp_ep_ptr->_iox_endpoint);
     ptr->loan(size_requested + iox_padding)
-      .and_then([&](void* loan_ptr) {
-        *buffer = loan_ptr;
-      })
-      .or_else([&](auto& error) {
-        fprintf(stderr, ERROR_PREFIX "failure getting loan: %s\n", iox::popo::asStringLiteral(error));
+      .and_then([buffer](void * loan_ptr) { *buffer = loan_ptr; })
+      .or_else([&ret](auto& error) {
+        std::cerr << ERROR_PREFIX "failure getting loan" << iox::popo::asStringLiteral(error) << std::endl;
+        ret = DDS_RETCODE_ERROR;
       });
+    return ret;
   }
-
-  return ret;
 }
 
-static dds_return_t iox_write (struct dds_psmx_endpoint * psmx_endpoint, dds_loaned_sample_t * data)
+static dds_return_t iox_write(struct dds_psmx_endpoint * psmx_endpoint, dds_loaned_sample_t * data)
 {
   assert(psmx_endpoint->endpoint_type == DDS_PSMX_ENDPOINT_TYPE_WRITER);
-  auto cpp_ep_ptr = reinterpret_cast<iox_psmx_endpoint*>(psmx_endpoint);
-  auto publisher = reinterpret_cast<iox::popo::UntypedPublisher*>(cpp_ep_ptr->_iox_endpoint);
+  auto cpp_ep_ptr = static_cast<iox_psmx_endpoint*>(psmx_endpoint);
+  auto publisher = static_cast<iox::popo::UntypedPublisher*>(cpp_ep_ptr->_iox_endpoint);
 
+  const std::lock_guard<std::mutex> lock(cpp_ep_ptr->lock);
   publisher->publish(data->metadata);
 
   // Clear metadata/sample_ptr so that any attempt to use it will cause a crash.  This gives no
   // guarantee whatsoever, but in practice it does help in discovering use of a iox writer loan
   // after publishing it.
-  data->metadata = NULL;
-  data->sample_ptr = NULL;
-
+  //
+  // It also prevents the destructor from freeing it
+  data->metadata = nullptr;
+  data->sample_ptr = nullptr;
   return DDS_RETCODE_OK;
 }
 
 static dds_loaned_sample_t * incoming_sample_to_loan(iox_psmx_endpoint *psmx_endpoint, const void *sample)
 {
-  auto md = reinterpret_cast<const dds_psmx_metadata_t*>(sample);
+  auto md = static_cast<const dds_psmx_metadata_t*>(sample);
   return new iox_loaned_sample(psmx_endpoint, md->sample_size, sample, md->sample_state);
 }
 
-static dds_loaned_sample_t * iox_take (struct dds_psmx_endpoint * psmx_endpoint)
+static dds_loaned_sample_t * iox_take(struct dds_psmx_endpoint * psmx_endpoint)
 {
   assert(psmx_endpoint->endpoint_type == DDS_PSMX_ENDPOINT_TYPE_READER);
-  auto cpp_ep_ptr = reinterpret_cast<iox_psmx_endpoint*>(psmx_endpoint);
-
-  auto subscriber = reinterpret_cast<iox::popo::UntypedSubscriber*>(cpp_ep_ptr->_iox_endpoint);
+  auto cpp_ep_ptr = static_cast<iox_psmx_endpoint*>(psmx_endpoint);
+  auto subscriber = static_cast<iox::popo::UntypedSubscriber*>(cpp_ep_ptr->_iox_endpoint);
   assert(subscriber);
   dds_loaned_sample_t *ptr = nullptr;
+  const std::lock_guard<std::mutex> lock(cpp_ep_ptr->lock);
   subscriber->take()
-    .and_then([&](const void * sample) {
+    .and_then([cpp_ep_ptr, &ptr](const void * sample) {
       ptr = incoming_sample_to_loan(cpp_ep_ptr, sample);
     });
   return ptr;
@@ -622,35 +606,36 @@ static dds_loaned_sample_t * iox_take (struct dds_psmx_endpoint * psmx_endpoint)
 
 static void on_incoming_data_callback(iox::popo::UntypedSubscriber * subscriber, iox_psmx_endpoint * psmx_endpoint)
 {
+  psmx_endpoint->lock.lock();
   while (subscriber->hasData())
   {
-    subscriber->take().and_then([&](auto& sample)
-    {
+    subscriber->take().and_then([psmx_endpoint](auto& sample) {
+      psmx_endpoint->lock.unlock();
       auto data = incoming_sample_to_loan(psmx_endpoint, sample);
-      (void) dds_reader_store_loaned_sample (psmx_endpoint->cdds_endpoint, data);
-      dds_loaned_sample_unref (data);
+      (void) dds_reader_store_loaned_sample(psmx_endpoint->cdds_endpoint, data);
+      dds_loaned_sample_unref(data);
+      psmx_endpoint->lock.lock();
     });
   }
+  psmx_endpoint->lock.unlock();
 }
 
-static dds_return_t iox_on_data_available (struct dds_psmx_endpoint * psmx_endpoint, dds_entity_t reader)
+static dds_return_t iox_on_data_available(struct dds_psmx_endpoint * psmx_endpoint, dds_entity_t reader)
 {
-  auto cpp_ep_ptr = reinterpret_cast<iox_psmx_endpoint*>(psmx_endpoint);
+  auto cpp_ep_ptr = static_cast<iox_psmx_endpoint *>(psmx_endpoint);
   assert(cpp_ep_ptr && cpp_ep_ptr->endpoint_type == DDS_PSMX_ENDPOINT_TYPE_READER);
 
   cpp_ep_ptr->cdds_endpoint = reader;
-  auto iox_subscriber = reinterpret_cast<iox::popo::UntypedSubscriber*>(cpp_ep_ptr->_iox_endpoint);
+  auto iox_subscriber = static_cast<iox::popo::UntypedSubscriber *>(cpp_ep_ptr->_iox_endpoint);
 
   dds_return_t returnval = DDS_RETCODE_ERROR;
+  const std::lock_guard<std::mutex> lock(cpp_ep_ptr->lock);
   cpp_ep_ptr->_parent._parent._listener->attachEvent(
     *iox_subscriber,
     iox::popo::SubscriberEvent::DATA_RECEIVED,
     iox::popo::createNotificationCallback(on_incoming_data_callback, *cpp_ep_ptr))
-      .and_then([&]()
-        { returnval = DDS_RETCODE_OK; })
-      .or_else([&](auto)
-        { std::cerr << "failed to attach subscriber\n";});
-
+      .and_then([&returnval]() { returnval = DDS_RETCODE_OK; })
+      .or_else([](auto) { std::cerr << ERROR_PREFIX "failed to attach subscriber" << std::endl; });
   return returnval;
 }
 
@@ -660,100 +645,108 @@ static dds_return_t iox_on_data_available (struct dds_psmx_endpoint * psmx_endpo
 static void iox_loaned_sample_free(dds_loaned_sample_t *loan)
 {
   assert(loan);
-  delete reinterpret_cast<iox_loaned_sample*>(loan);
+  delete static_cast<iox_loaned_sample *>(loan);
 }
 
 
 };  //namespace iox_psmx
 
 
-static char * get_config_option_value (const char *conf, const char *option_name)
+static std::optional<std::string> get_config_option_value(const char *conf, const char *option_name, bool tolower = false)
 {
-  char *copy = dds_string_dup(conf), *cursor = copy, *tok;
-  while ((tok = ddsrt_strsep(&cursor, ",/|;")) != nullptr)
+  char *copy = dds_string_dup (conf), *cursor = copy, *tok;
+  while ((tok = ddsrt_strsep (&cursor, ",/|;")) != nullptr)
   {
     if (strlen(tok) == 0)
       continue;
-    char *name = ddsrt_strsep(&tok, "=");
+    char *name = ddsrt_strsep (&tok, "=");
     if (name == nullptr || tok == nullptr)
     {
       dds_free(copy);
-      return nullptr;
+      return std::nullopt;
     }
-    if (strcmp(name, option_name) == 0)
+    if (strcmp (name, option_name) == 0)
     {
-      char *ret = dds_string_dup(tok);
+      std::string ret{tok};
       dds_free(copy);
+      if (tolower)
+        transform(ret.begin(), ret.end(), ret.begin(), ::tolower);
       return ret;
     }
   }
   dds_free(copy);
-  return nullptr;
+  return std::nullopt;
 }
 
-static iox::log::LogLevel toLogLevel(const char *level_str) {
-  if (strcmp(level_str, "OFF") == 0) return iox::log::LogLevel::kOff;
-  if (strcmp(level_str, "FATAL") == 0) return iox::log::LogLevel::kFatal;
-  if (strcmp(level_str, "ERROR") == 0) return iox::log::LogLevel::kError;
-  if (strcmp(level_str, "WARN") == 0) return iox::log::LogLevel::kWarn;
-  if (strcmp(level_str, "INFO") == 0) return iox::log::LogLevel::kInfo;
-  if (strcmp(level_str, "DEBUG") == 0) return iox::log::LogLevel::kDebug;
-  if (strcmp(level_str, "VERBOSE") == 0) return iox::log::LogLevel::kVerbose;
-  return iox::log::LogLevel::kOff;
+static std::optional<iox::log::LogLevel> to_loglevel(const std::string& str)
+{
+  if (str == "off") return iox::log::LogLevel::kOff;
+  if (str == "fatal") return iox::log::LogLevel::kFatal;
+  if (str == "error") return iox::log::LogLevel::kError;
+  if (str == "warn") return iox::log::LogLevel::kWarn;
+  if (str == "info") return iox::log::LogLevel::kInfo;
+  if (str == "debug") return iox::log::LogLevel::kDebug;
+  if (str == "verbose") return iox::log::LogLevel::kVerbose;
+  return std::nullopt;
 }
 
-dds_return_t iox_create_psmx (struct dds_psmx **psmx, dds_psmx_instance_id_t instance_id, const char *config)
+static std::optional<dds_psmx_node_identifier_t> to_node_identifier(const std::string& str)
+{
+  dds_psmx_node_identifier_t id;
+  if (str.length() != 2 * sizeof (id.x))
+    return std::nullopt;
+  for (uint32_t n = 0; n < 2 * sizeof (id.x); n++)
+  {
+    int32_t num;
+    if ((num = ddsrt_todigit(str[n])) < 0 || num >= 16)
+      return std::nullopt;
+    if ((n % 2) == 0)
+      id.x[n / 2] = (uint8_t) (num << 4);
+    else
+      id.x[n / 2] |= (uint8_t) num;
+  }
+  return id;
+}
+
+dds_return_t iox_create_psmx(struct dds_psmx **psmx, dds_psmx_instance_id_t instance_id, const char *config)
 {
   assert(psmx);
 
-  char *service_name = get_config_option_value(config, "SERVICE_NAME");
-  char *log_level = get_config_option_value(config, "LOG_LEVEL");
-  if (log_level != nullptr) {
-    iox::log::LogManager::GetLogManager().SetDefaultLogLevel(toLogLevel(log_level), iox::log::LogLevelOutput::kHideLogLevel);
+  // C++23 would have or_else/and_then, but C++23 is too new ...
+  auto opt_loglevel = get_config_option_value(config, "LOG_LEVEL", true);
+  if (opt_loglevel.has_value()) {
+    auto loglevel = to_loglevel (opt_loglevel.value());
+    if (!loglevel.has_value())
+      return DDS_RETCODE_ERROR;
+    iox::log::LogManager::GetLogManager().SetDefaultLogLevel(loglevel.value(), iox::log::LogLevelOutput::kHideLogLevel);
   }
 
-  char *lstr = get_config_option_value (config, "LOCATOR");
-  uint8_t locator_address[16] = { 0 };
-  uint8_t *node_id_override = nullptr;
-  if (lstr != nullptr)
-  {
-    if (strlen (lstr) != 32)
-    {
-      dds_free (lstr);
-      if (service_name)
-        dds_free(service_name);
-      if (log_level)
-        dds_free(log_level);
-      return DDS_RETCODE_BAD_PARAMETER;
-    }
-    for (uint32_t n = 0; n < 32 && lstr[n]; n++)
-    {
-      int32_t num;
-      if ((num = ddsrt_todigit (lstr[n])) < 0 || num >= 16)
-      {
-        dds_free (lstr);
-        if (service_name)
-          dds_free(service_name);
-        if (log_level)
-          dds_free(log_level);
-        return DDS_RETCODE_BAD_PARAMETER;
-      }
-      locator_address[n / 2] |= (uint8_t) ((n % 1) ? (num << 4) : num);
-    }
-    dds_free (lstr);
-    node_id_override = locator_address;
+  auto opt_service_name = get_config_option_value(config, "SERVICE_NAME");
+  std::string service_name;
+  if (opt_service_name.has_value())
+    service_name = opt_service_name.value();
+  else {
+    // FIXME: replace with hash of _instance_name and domain id?
+    service_name = std::string("CycloneDDS iox_psmx ") + std::to_string(instance_id);
   }
 
-  auto ptr = new iox_psmx::iox_psmx(instance_id, service_name, node_id_override);
+  auto opt_node_id = get_config_option_value(config, "LOCATOR");
+  std::optional<dds_psmx_node_identifier_t> node_id = std::nullopt;
+  if (opt_node_id.has_value()) {
+    node_id = to_node_identifier(opt_node_id.value());
+    if (!node_id.has_value())
+      return DDS_RETCODE_ERROR;
+  }
 
-  if (service_name)
-    dds_free(service_name);
-  if (log_level)
-    dds_free(log_level);
+  auto opt_keyed_topics = get_config_option_value(config, "KEYED_TOPICS", true);
+  bool keyed_topics = false;
+  if (opt_keyed_topics.has_value()) {
+    if (opt_keyed_topics.value() == "true")
+      keyed_topics = true;
+    else if (opt_keyed_topics.value() != "false")
+      return DDS_RETCODE_ERROR;
+  }
 
-  if (ptr == nullptr)
-    return DDS_RETCODE_ERROR;
-
-  *psmx = reinterpret_cast<struct dds_psmx*>(ptr);
-  return DDS_RETCODE_OK;
+  *psmx = new iox_psmx::iox_psmx(instance_id, service_name, node_id, keyed_topics);
+  return *psmx ? DDS_RETCODE_OK :  DDS_RETCODE_ERROR;
 }
