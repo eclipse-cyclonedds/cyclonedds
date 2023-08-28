@@ -68,7 +68,7 @@ ${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}\
 <General>\
   <AllowMulticast>spdp</AllowMulticast>\
   <Interfaces>\
-    <PubSubMessageExchange name=\"${CDDS_PSMX_NAME:-cdds}\" library=\"psmx_${CDDS_PSMX_NAME:-cdds}\" priority=\"1000000\" config=\"LOCATOR=%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x;\" />\
+    <PubSubMessageExchange name=\"${CDDS_PSMX_NAME:-cdds}\" library=\"psmx_${CDDS_PSMX_NAME:-cdds}\" priority=\"1000000\" config=\"LOCATOR=%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x;SERVICE_NAME=psmx%d;\" />\
   </Interfaces>\
 </General>\
 <Discovery>\
@@ -81,7 +81,8 @@ ${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}\
 </Tracing>\
 ",
     l[0], l[1], l[2], l[3], l[4], l[5], l[6], l[7], l[8], l[9], l[10], l[11], l[12], l[13], l[14], l[15],
-    (int) int_dom
+    (int) l[0],   // This prevents Iceoryx and Cyclone-based plugins from forwarding across the "network"
+    (int) int_dom // log file name
   );
   char *xconfigstr = ddsrt_expand_envvars (configstr, int_dom);
   const dds_entity_t dom = dds_create_domain (int_dom, xconfigstr);
