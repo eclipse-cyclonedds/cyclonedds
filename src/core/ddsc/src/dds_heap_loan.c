@@ -9,6 +9,7 @@
 // SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
 #include <string.h>
+#include "dds/ddsrt/heap.h"
 #include "dds/ddsi/ddsi_sertype.h"
 #include "dds/cdr/dds_cdrstream.h"
 #include "dds__loaned_sample.h"
@@ -17,6 +18,7 @@
 
 typedef struct dds_heap_loan {
   dds_loaned_sample_t c;
+  struct dds_psmx_metadata metadata; // pointed to by c.metadata
   const struct ddsi_sertype *m_stype;
 } dds_heap_loan_t;
 
@@ -25,12 +27,10 @@ static void heap_loan_free (dds_loaned_sample_t *loaned_sample)
 
 static void heap_loan_free (dds_loaned_sample_t *loaned_sample)
 {
-  assert (loaned_sample);
   dds_heap_loan_t *hl = (dds_heap_loan_t *) loaned_sample;
-  dds_free (hl->c.metadata);
-  if (hl->c.sample_ptr != NULL)
-    ddsi_sertype_free_sample (hl->m_stype, hl->c.sample_ptr, DDS_FREE_ALL);
-  dds_free (hl);
+  assert (hl->c.sample_ptr != NULL);
+  ddsi_sertype_free_sample (hl->m_stype, hl->c.sample_ptr, DDS_FREE_ALL);
+  ddsrt_free (hl);
 }
 
 void dds_heap_loan_reset (dds_loaned_sample_t *loaned_sample)
@@ -42,29 +42,23 @@ void dds_heap_loan_reset (dds_loaned_sample_t *loaned_sample)
 }
 
 const dds_loaned_sample_ops_t dds_loan_heap_ops = {
-  .free = heap_loan_free,
+  .free = heap_loan_free
 };
 
 dds_return_t dds_heap_loan (const struct ddsi_sertype *type, dds_loaned_sample_state_t sample_state, dds_loaned_sample_t **loaned_sample)
 {
   assert (sample_state == DDS_LOANED_SAMPLE_STATE_RAW_KEY || sample_state == DDS_LOANED_SAMPLE_STATE_RAW_DATA);
 
-  dds_heap_loan_t *s = dds_alloc (sizeof (*s));
+  dds_heap_loan_t *s = ddsrt_malloc (sizeof (*s));
   if (s == NULL)
     return DDS_RETCODE_OUT_OF_RESOURCES;
 
-  if ((s->c.metadata = dds_alloc (sizeof (*s->c.metadata))) == NULL)
-  {
-    dds_free (s);
-    return DDS_RETCODE_OUT_OF_RESOURCES;
-  }
-
+  s->c.metadata = &s->metadata;
   s->c.ops = dds_loan_heap_ops;
   s->m_stype = type;
   if ((s->c.sample_ptr = ddsi_sertype_alloc_sample (type)) == NULL)
   {
     dds_free (s);
-    dds_free (s->c.metadata);
     return DDS_RETCODE_OUT_OF_RESOURCES;
   }
 
@@ -74,8 +68,6 @@ dds_return_t dds_heap_loan (const struct ddsi_sertype *type, dds_loaned_sample_s
   s->c.loan_origin.origin_kind = DDS_LOAN_ORIGIN_KIND_HEAP;
   s->c.loan_origin.psmx_endpoint = NULL;
   ddsrt_atomic_st32 (&s->c.refc, 1);
-
-  *loaned_sample = (dds_loaned_sample_t *) s;
-
+  *loaned_sample = &s->c;
   return DDS_RETCODE_OK;
 }
