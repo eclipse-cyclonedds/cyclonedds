@@ -10,6 +10,7 @@
 
 #include <string.h>
 #include "dds/dds.h"
+#include "dds/ddsrt/io.h"
 #include "dds/ddsrt/environ.h"
 #include "dds/ddsrt/threads.h"
 #include "dds/ddsrt/heap.h"
@@ -42,6 +43,7 @@ static dds_entity_t g_domain = -1;
 
 struct cdds_psmx {
   struct dds_psmx c;
+  char *service_name;
   dds_entity_t participant;
   dds_entity_t on_data_waitset;
   dds_entity_t stop_cond;
@@ -119,7 +121,7 @@ static const dds_psmx_endpoint_ops_t psmx_ep_ops = {
 static void cdds_loaned_sample_free (struct dds_loaned_sample *loaned_sample);
 
 static const dds_loaned_sample_ops_t ls_ops = {
-  .free = cdds_loaned_sample_free,
+  .free = cdds_loaned_sample_free
 };
 
 
@@ -162,7 +164,14 @@ static struct dds_psmx_topic * cdds_psmx_create_topic (struct dds_psmx * psmx,
   }
 
   struct cdds_psmx_topic *ctp = dds_alloc (sizeof (*ctp));
-  ctp->topic = dds_create_topic (cpsmx->participant, &cdds_psmx_data_desc, topic_name, NULL, NULL);
+  char *ext_topic_name;
+  if (cpsmx->service_name == NULL)
+    ext_topic_name = ddsrt_strdup (topic_name);
+  else
+    ddsrt_asprintf (&ext_topic_name, "%s/%s", cpsmx->service_name, topic_name);
+  ctp->topic = dds_create_topic (cpsmx->participant, &cdds_psmx_data_desc, ext_topic_name, NULL, NULL);
+  ddsrt_free (ext_topic_name);
+
   ctp->c.ops = psmx_topic_ops;
   ctp->c.psmx_instance = psmx;
   ctp->c.data_type_props = data_type_props;
@@ -208,6 +217,8 @@ static dds_return_t cdds_psmx_deinit (struct dds_psmx *psmx)
   ddsrt_thread_create (&tid, "cdds_psmx_deinit", &tattr, deinit_thread, cpsmx);
 
   ddsrt_thread_join (tid, NULL);
+
+  ddsrt_free (cpsmx->service_name);
   dds_free (cpsmx);
 
   return DDS_RETCODE_OK;
@@ -342,7 +353,9 @@ static dds_return_t cdds_psmx_ep_write (struct dds_psmx_endpoint *psmx_ep, dds_l
   sample.data._length = sample.data._maximum = data->metadata->sample_size;
   sample.data._release = true;
   sample.data._buffer = data->sample_ptr;
-  dds_write (cep->psmx_cdds_endpoint, &sample);
+  dds_return_t rc = dds_write (cep->psmx_cdds_endpoint, &sample);
+  assert (rc == 0);
+  (void) rc;
   return DDS_RETCODE_OK;
 }
 
@@ -522,6 +535,9 @@ dds_return_t cdds_create_psmx (dds_psmx_t **psmx_out, dds_psmx_instance_id_t ins
       }
       dds_free (lstr);
     }
+
+    char *sn = get_config_option_value (config, "SERVICE_NAME");
+    psmx->service_name = sn;
   }
 
   *psmx_out = (dds_psmx_t *) psmx;
