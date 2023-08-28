@@ -495,6 +495,7 @@ int main (int argc, char **argv)
   dds_psmx_cleanup_generic (ptr);
   dds_psmx_topic_init_generic (ptr, ptr2, ptr3);
   dds_psmx_topic_cleanup_generic (ptr);
+  dds_psmx_supported_features (ptr);
 
   // dds_loaned_sample.h
   dds_loaned_sample_ref (ptr);
