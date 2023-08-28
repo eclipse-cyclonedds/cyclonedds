@@ -2446,22 +2446,23 @@ static int convert_deprecated_sharedmemory (struct ddsi_cfgst *cfgst)
 
   if (cfg->enable_shm)
   {
-    struct ddsi_config_psmx *psmx_cfg = psmx_append(cfg, "iox", "iox_interface");
+    struct ddsi_config_psmx *psmx_cfg = psmx_append(cfg, "iox", "psmx_iox");
     if (!psmx_cfg)
       return 0;
 
     size_t config_str_len = 0;
-    if (cfg->iceoryx_service != NULL)
+    if (cfg->iceoryx_service != NULL && cfg->iceoryx_service[0] != 0)
       config_str_len += strlen (IOX_CONFIG_SERVICE_NAME) + strlen (cfg->iceoryx_service) + 2; // plus 2 for = and ;
     if (cfg->shm_log_lvl != DDSI_SHM_OFF)
       config_str_len += strlen (IOX_CONFIG_LOG_LEVEL) + 9; // max length of log level string, plus 2 for = and ;
-    if (cfg->shm_locator != NULL)
+    if (cfg->shm_locator != NULL && cfg->shm_locator[0] != 0)
       config_str_len += strlen (IOX_CONFIG_LOCATOR) + strlen (cfg->shm_locator) + 2; // plus 2 for = and ;
 
     size_t sz = config_str_len + 1;
+    int pos = 0;
     psmx_cfg->config = ddsrt_malloc (sz);
-    if (cfg->iceoryx_service != NULL)
-      (void) snprintf (psmx_cfg->config, sz, "%s=%s;", IOX_CONFIG_SERVICE_NAME, cfg->iceoryx_service);
+    if (cfg->iceoryx_service != NULL && cfg->iceoryx_service[0] != 0)
+      pos += snprintf (psmx_cfg->config + pos, sz - (size_t) pos, "%s=%s;", IOX_CONFIG_SERVICE_NAME, cfg->iceoryx_service);
     if (cfg->shm_log_lvl != DDSI_SHM_OFF)
     {
       char *level_str = "OFF";
@@ -2475,10 +2476,12 @@ static int convert_deprecated_sharedmemory (struct ddsi_cfgst *cfgst)
         case DDSI_SHM_VERBOSE: level_str = "VERBOSE"; break;
       };
       assert (strlen (level_str) <= IOX_CONFIG_LOG_LEVEL_MAX_VALUE_LEN);
-      (void) snprintf (psmx_cfg->config + strlen (psmx_cfg->config), sz - strlen (psmx_cfg->config), "%s=%s;", IOX_CONFIG_LOG_LEVEL, level_str);
+      assert ((size_t) pos < sz);
+      pos += snprintf (psmx_cfg->config + pos, sz - (size_t) pos, "%s=%s;", IOX_CONFIG_LOG_LEVEL, level_str);
     }
-    if (cfg->shm_locator != NULL)
-      (void) snprintf (psmx_cfg->config, sz, "%s=%s;", IOX_CONFIG_LOCATOR, cfg->shm_locator);
+    if (cfg->shm_locator != NULL && cfg->shm_locator[0] != 0)
+      pos += snprintf (psmx_cfg->config + pos, sz - (size_t) pos, "%s=%s;", IOX_CONFIG_LOCATOR, cfg->shm_locator);
+    assert ((size_t) pos < sz);
   }
 
   return 1;
