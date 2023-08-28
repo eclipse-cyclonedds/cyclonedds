@@ -303,12 +303,48 @@ iox_psmx_endpoint::iox_psmx_endpoint(iox_psmx_topic &psmx_topic, const struct dd
 
   switch (endpoint_type)
   {
-    case DDS_PSMX_ENDPOINT_TYPE_READER:
-      _iox_endpoint = new iox::popo::UntypedSubscriber({_parent._parent._service_name, _parent._data_type_str, iox_event_name });
+    case DDS_PSMX_ENDPOINT_TYPE_READER: {
+      iox::popo::SubscriberOptions suboptions;
+      if (psmx_topic.data_type_props & DDS_DATA_TYPE_CONTAINS_KEY)
+      {
+        suboptions.queueCapacity = iox::popo::SubscriberChunkQueueData_t::MAX_CAPACITY;
+        suboptions.queueFullPolicy = iox::popo::QueueFullPolicy::BLOCK_PRODUCER;
+      }
+      else
+      {
+        dds_history_kind h_kind;
+        dds_durability_kind_t d_kind;
+        int32_t h_depth;
+        dds_qget_durability(qos, &d_kind);
+        dds_qget_history(qos, &h_kind, &h_depth);
+        if (h_kind != DDS_HISTORY_KEEP_LAST || (uint64_t) h_depth > iox::popo::SubscriberChunkQueueData_t::MAX_CAPACITY) {
+            suboptions.queueCapacity = iox::popo::SubscriberChunkQueueData_t::MAX_CAPACITY;
+            suboptions.queueFullPolicy = iox::popo::QueueFullPolicy::BLOCK_PRODUCER;
+          } else {
+            suboptions.queueCapacity = (uint64_t) h_depth;
+            suboptions.queueFullPolicy = iox::popo::QueueFullPolicy::DISCARD_OLDEST_DATA;
+          }
+        if (d_kind != DDS_DURABILITY_VOLATILE)
+          suboptions.requiresPublisherHistorySupport = true;
+      }
+      _iox_endpoint = new iox::popo::UntypedSubscriber({_parent._parent._service_name, _parent._data_type_str, iox_event_name }, suboptions);
       break;
-    case DDS_PSMX_ENDPOINT_TYPE_WRITER:
-      _iox_endpoint = new iox::popo::UntypedPublisher({_parent._parent._service_name, _parent._data_type_str, iox_event_name });
+    }
+    case DDS_PSMX_ENDPOINT_TYPE_WRITER: {
+      iox::popo::PublisherOptions puboptions;
+      dds_durability_kind_t d_kind;
+      dds_qget_durability(qos, &d_kind);
+      if (d_kind == DDS_DURABILITY_TRANSIENT_LOCAL)
+      {
+        int32_t ds_history_depth;
+        dds_qget_durability_service(qos, nullptr, nullptr, &ds_history_depth, nullptr, nullptr, nullptr);
+        puboptions.historyCapacity = (uint64_t) ds_history_depth; // iox_qos_supported() checked the range
+      }
+      // Does this indeed only block if the subscriber says BLOCK_PRODUCER?
+      puboptions.subscriberTooSlowPolicy = iox::popo::ConsumerTooSlowPolicy::WAIT_FOR_CONSUMER;
+      _iox_endpoint = new iox::popo::UntypedPublisher({_parent._parent._service_name, _parent._data_type_str, iox_event_name }, puboptions);
       break;
+    }
     default:
       fprintf(stderr, ERROR_PREFIX "PSMX endpoint type not accepted\n");
       assert(false);
