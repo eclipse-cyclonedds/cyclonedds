@@ -73,6 +73,23 @@ static bool print_sample1_simple (const unsigned char *sample, const uint8_t dis
   return false;
 }
 
+static const char *get_string_pointer (const unsigned char *sample, const DDS_XTypes_TypeIdentifier *typeid, struct context *c)
+{
+  bool bounded;
+  if (typeid->_d == DDS_XTypes_TI_STRING8_SMALL)
+    bounded = typeid->_u.string_sdefn.bound != 0;
+  else
+    bounded = typeid->_u.string_ldefn.bound != 0;
+  // must always call align for its side effects
+  if (bounded)
+    return align (sample, c, _Alignof (char), sizeof (char));
+  else
+  {
+    // if not "valid_data" and not a key field, this'll be a null pointer
+    return *((const char **) align (sample, c, _Alignof (char *), sizeof (char *)));
+  }
+}
+
 static void print_sample1_ti (const unsigned char *sample, const DDS_XTypes_TypeIdentifier *typeid, struct context *c, const char *sep, const char *label, bool is_base_type)
 {
   if (print_sample1_simple (sample, typeid->_d, c, sep, label, NULL))
@@ -81,15 +98,12 @@ static void print_sample1_ti (const unsigned char *sample, const DDS_XTypes_Type
   {
     case DDS_XTypes_TI_STRING8_SMALL:
     case DDS_XTypes_TI_STRING8_LARGE: {
-      const char *p = align (sample, c, _Alignof (char *), sizeof (char *));
+      const char *p = get_string_pointer (sample, typeid, c);
       if (c->key || c->valid_data)
       {
         printf ("%s", sep);
         if (label) printf ("\"%s\":", label);
-        if ((typeid->_d == DDS_XTypes_TI_PLAIN_SEQUENCE_SMALL) ? typeid->_u.string_sdefn.bound : typeid->_u.string_ldefn.bound)
-          printf ("\"%s\"", p);
-        else
-          printf ("\"%s\"", *((const char **) p));
+        printf ("\"%s\"", p);
       }
       break;
     }
