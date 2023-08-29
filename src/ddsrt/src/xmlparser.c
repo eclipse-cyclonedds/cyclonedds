@@ -382,9 +382,11 @@ static dds_return_t append_literal_to_payload (struct ddsrt_xmlp_state *st, int 
   st->tp[st->tpp++] = (char) c;
   if (st->tpp == st->tpsz) {
     st->tpsz += 1024;
-    st->tp = ddsrt_realloc_s (st->tp, st->tpsz);
-    if (st->tp == NULL) {
+    void *tp_realloc = ddsrt_realloc_s (st->tp, st->tpsz);
+    if (tp_realloc == NULL) {
       return DDS_RETCODE_OUT_OF_RESOURCES;
+    } else {
+      st->tp = tp_realloc;
     }
   }
 
