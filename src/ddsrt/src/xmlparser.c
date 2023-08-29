@@ -377,7 +377,7 @@ static void discard_payload (struct ddsrt_xmlp_state *st)
   st->tpescp = 0;
 }
 
-static dds_return_t append_literal_to_payload (struct ddsrt_xmlp_state *st, int c)
+static dds_return_t append_to_payload (struct ddsrt_xmlp_state *st, int c)
 {
   st->tp[st->tpp++] = (char) c;
   if (st->tpp == st->tpsz) {
@@ -393,7 +393,7 @@ static dds_return_t append_literal_to_payload (struct ddsrt_xmlp_state *st, int 
   return DDS_RETCODE_OK;
 }
 
-static int append_to_payload (struct ddsrt_xmlp_state *st, int c)
+static int append_to_payload_no_unescape (struct ddsrt_xmlp_state *st, int c)
 {
   if (st->tpescp < st->tpp) {
     size_t n = st->tpp - st->tpescp;
@@ -403,11 +403,15 @@ static int append_to_payload (struct ddsrt_xmlp_state *st, int c)
     }
     st->tpp = st->tpescp + n;
   }
+  int result = append_to_payload (st, c);
   st->tpescp = st->tpp;
-  if (append_literal_to_payload (st, c) < 0) {
+
+  if (result < 0) {
+    discard_payload (st);
     return -1;
+  } else {
+    return 0;
   }
-  return 0;
 }
 
 static int save_payload (char **payload, struct ddsrt_xmlp_state *st, int trim)
@@ -454,7 +458,7 @@ static int save_payload (char **payload, struct ddsrt_xmlp_state *st, int trim)
 static int next_token_ident (struct ddsrt_xmlp_state *st, char **payload)
 {
   while (qq_isidentcont (peek_char (st))) {
-    if (append_literal_to_payload (st, next_char(st)) < 0) {
+    if (append_to_payload (st, next_char(st)) < 0) {
       return TOK_ERROR;
     }
   }
@@ -493,7 +497,7 @@ static int next_token_string (struct ddsrt_xmlp_state *st, char **payload, const
 {
   /* positioned at first character of string */
   while (!peek_chars (st, endm, 0) && peek_char (st) != TOK_EOF) {
-    if (append_literal_to_payload (st, next_char (st)) < 0) {
+    if (append_to_payload (st, next_char (st)) < 0) {
       return TOK_ERROR;
     }
   }
@@ -683,7 +687,7 @@ static int parse_element (struct ddsrt_xmlp_state *st, uintptr_t parentinfo)
         do {
           /* gobble up content until EOF or markup */
           while (peek_char (st) != '<' && peek_char (st) != TOK_EOF) {
-            if (append_literal_to_payload (st, next_char (st)) < 0) {
+            if (append_to_payload (st, next_char (st)) < 0) {
               PE_LOCAL_ERROR ("invalid character sequence", 0);
             }
           }
@@ -691,7 +695,7 @@ static int parse_element (struct ddsrt_xmlp_state *st, uintptr_t parentinfo)
              until the closing marker is reached, which then also gets consumed */
           if (peek_chars (st, cdata_magic, 1)) {
             while (!peek_chars (st, "]]>", 1) && peek_char (st) != TOK_EOF) {
-              if (append_to_payload (st, next_char (st)) < 0) {
+              if (append_to_payload_no_unescape (st, next_char (st)) < 0) {
                 PE_LOCAL_ERROR ("invalid character sequence", 0);
               }
             }
