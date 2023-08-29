@@ -404,7 +404,7 @@ static int append_to_payload (struct ddsrt_xmlp_state *st, int c)
   st->tpescp = st->tpp;
   if (append_literal_to_payload (st, c) < 0) {
     return -1;
-  };
+  }
   return 0;
 }
 
