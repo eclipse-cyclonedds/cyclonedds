@@ -819,7 +819,8 @@ static unsigned uint32_popcnt (uint32_t x)
 
 static void do_print_uint32_bitset (struct cfgst *cfgst, uint32_t mask, size_t ncodes, const char **names, const uint32_t *codes, uint32_t sources, const char *suffix)
 {
-  char res[256] = "", *resp = res;
+  char res[256] = "";
+  size_t res_offset = 0;
   const char *prefix = "";
 #ifndef NDEBUG
   {
@@ -850,17 +851,21 @@ static void do_print_uint32_bitset (struct cfgst *cfgst, uint32_t mask, size_t n
     }
     if (pc_best != 0)
     {
-      resp += snprintf (resp, 256, "%s%s", prefix, names[i_best]);
+      int characters_written = snprintf (res + res_offset, sizeof(res) - res_offset, "%s%s", prefix, names[i_best]);
+      assert(characters_written >= 0);
+      res_offset += (size_t) characters_written;
       mask &= ~codes[i_best];
       prefix = ",";
     }
     else
     {
-      resp += snprintf (resp, 256, "%s0x%x", prefix, (unsigned) mask);
+      int characters_written = snprintf (res + res_offset, sizeof(res) - res_offset, "%s0x%x", prefix, (unsigned) mask);
+      assert(characters_written >= 0);
+      res_offset += (size_t) characters_written;
       mask = 0;
     }
   }
-  assert (resp <= res + sizeof (res));
+  assert (res_offset <= sizeof (res));
   cfg_logelem (cfgst, sources, "%s%s", res, suffix);
 }
 
