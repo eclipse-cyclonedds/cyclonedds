@@ -19,7 +19,8 @@ set(ddsi_test_sources
     "plist_leasedur.c"
     "pmd_message.c"
     "radmin.c"
-    "sysdeps.c")
+    "sysdeps.c"
+    "wraddrset.c")
 
 if(ENABLE_SECURITY)
   set(ddsi_test_sources ${ddsi_test_sources} "security_msg.c")
