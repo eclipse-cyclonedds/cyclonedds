@@ -377,27 +377,41 @@ static void discard_payload (struct ddsrt_xmlp_state *st)
   st->tpescp = 0;
 }
 
-static int append_to_payload (struct ddsrt_xmlp_state *st, int c, int islit)
+static dds_return_t append_to_payload (struct ddsrt_xmlp_state *st, int c)
 {
-  if (!islit) {
-    st->tp[st->tpp++] = (char) c;
-  } else {
-    if (st->tpescp < st->tpp) {
-      size_t n = st->tpp - st->tpescp;
-      if (unescape_insitu (st->tp + st->tpescp, &n) < 0) {
-        discard_payload (st);
-        return -1;
-      }
-      st->tpp = st->tpescp + n;
-    }
-    st->tp[st->tpp++] = (char) c;
-    st->tpescp = st->tpp;
-  }
+  st->tp[st->tpp++] = (char) c;
   if (st->tpp == st->tpsz) {
     st->tpsz += 1024;
-    st->tp = ddsrt_realloc (st->tp, st->tpsz);
+    void *tp_realloc = ddsrt_realloc_s (st->tp, st->tpsz);
+    if (tp_realloc == NULL) {
+      return DDS_RETCODE_OUT_OF_RESOURCES;
+    } else {
+      st->tp = tp_realloc;
+    }
   }
-  return 0;
+
+  return DDS_RETCODE_OK;
+}
+
+static int append_to_payload_no_unescape (struct ddsrt_xmlp_state *st, int c)
+{
+  if (st->tpescp < st->tpp) {
+    size_t n = st->tpp - st->tpescp;
+    if (unescape_insitu (st->tp + st->tpescp, &n) < 0) {
+      discard_payload (st);
+      return -1;
+    }
+    st->tpp = st->tpescp + n;
+  }
+  int result = append_to_payload (st, c);
+  st->tpescp = st->tpp;
+
+  if (result < 0) {
+    discard_payload (st);
+    return -1;
+  } else {
+    return 0;
+  }
 }
 
 static int save_payload (char **payload, struct ddsrt_xmlp_state *st, int trim)
@@ -444,7 +458,7 @@ static int save_payload (char **payload, struct ddsrt_xmlp_state *st, int trim)
 static int next_token_ident (struct ddsrt_xmlp_state *st, char **payload)
 {
   while (qq_isidentcont (peek_char (st))) {
-    if (append_to_payload (st, next_char (st), 0) < 0) {
+    if (append_to_payload (st, next_char(st)) < 0) {
       return TOK_ERROR;
     }
   }
@@ -483,7 +497,7 @@ static int next_token_string (struct ddsrt_xmlp_state *st, char **payload, const
 {
   /* positioned at first character of string */
   while (!peek_chars (st, endm, 0) && peek_char (st) != TOK_EOF) {
-    if (append_to_payload (st, next_char (st), 0) < 0) {
+    if (append_to_payload (st, next_char (st)) < 0) {
       return TOK_ERROR;
     }
   }
@@ -673,7 +687,7 @@ static int parse_element (struct ddsrt_xmlp_state *st, uintptr_t parentinfo)
         do {
           /* gobble up content until EOF or markup */
           while (peek_char (st) != '<' && peek_char (st) != TOK_EOF) {
-            if (append_to_payload (st, next_char (st), 0) < 0) {
+            if (append_to_payload (st, next_char (st)) < 0) {
               PE_LOCAL_ERROR ("invalid character sequence", 0);
             }
           }
@@ -681,7 +695,7 @@ static int parse_element (struct ddsrt_xmlp_state *st, uintptr_t parentinfo)
              until the closing marker is reached, which then also gets consumed */
           if (peek_chars (st, cdata_magic, 1)) {
             while (!peek_chars (st, "]]>", 1) && peek_char (st) != TOK_EOF) {
-              if (append_to_payload (st, next_char (st), 1) < 0) {
+              if (append_to_payload_no_unescape (st, next_char (st)) < 0) {
                 PE_LOCAL_ERROR ("invalid character sequence", 0);
               }
             }

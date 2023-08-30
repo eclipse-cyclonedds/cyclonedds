@@ -14,6 +14,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
 #include "dds/ddsrt/io.h"
 #include "dds/ddsrt/log.h"
@@ -94,28 +95,17 @@ os_lcNumericReplace(char *str) {
   }
 }
 
-dds_return_t
-ddsrt_strtod(const char *nptr, char **endptr, double *dblptr)
+/** @brief Delocalize a floating point string to use '.' as its decimal separator.
+ *  @param[in] nptr the localized floating point string.
+ *  @param[out] nptrCopy the delocalized floating point string (needs to have a length of DOUBLE_STRING_MAX_LENGTH).
+ *  @param[out] nptrCopyEnd a pointer to the end of the delocalized floating point string.
+ */
+static void delocalize_floating_point_str(const char *nptr, char *nptrCopy, char **nptrCopyEnd)
 {
-  double dbl;
-  int orig_errno;
-  dds_return_t ret = DDS_RETCODE_OK;
-
-  assert(nptr != NULL);
-  assert(dblptr != NULL); 
-
-  orig_errno = errno;
-  if (os_lcNumericGet() == '.') {
-    errno = 0;
-    /* The current locale uses '.', so strtod can be used as is. */
-    dbl = strtod(nptr, endptr);
-  } else {
     /* The current locale uses ',', so we can not use the standard functions as
        is, but have to do extra work because ospl uses "x.x" doubles (notice
        the dot). Just copy the string and replace the LC_NUMERIC. */
-    char  nptrCopy[DOUBLE_STRING_MAX_LENGTH];
     char *nptrCopyIdx;
-    char *nptrCopyEnd;
     char *nptrIdx;
 
     /* It is possible that the given nptr just starts with a double
@@ -124,8 +114,8 @@ ddsrt_strtod(const char *nptr, char **endptr, double *dblptr)
        doubles' end. */
     nptrIdx = (char*)nptr;
     nptrCopyIdx = nptrCopy;
-    nptrCopyEnd = nptrCopyIdx + DOUBLE_STRING_MAX_LENGTH - 1;
-    while (VALID_DOUBLE_CHAR(*nptrIdx) && (nptrCopyIdx < nptrCopyEnd)) {
+    *nptrCopyEnd = nptrCopyIdx + DOUBLE_STRING_MAX_LENGTH - 1;
+    while (VALID_DOUBLE_CHAR(*nptrIdx) && (nptrCopyIdx < *nptrCopyEnd)) {
       if (*nptrIdx == '.') {
         /* Replace '.' with locale LC_NUMERIC to get strtod to work. */
         *nptrCopyIdx = os_lcNumericGet();
@@ -136,19 +126,78 @@ ddsrt_strtod(const char *nptr, char **endptr, double *dblptr)
       nptrCopyIdx++;
     }
     *nptrCopyIdx = '\0';
+}
+
+dds_return_t
+ddsrt_strtod(const char *nptr, char **endptr, double *dblptr)
+{
+  double dbl;
+  int orig_errno;
+  dds_return_t ret = DDS_RETCODE_OK;
+  char *string_end = NULL;
+  bool successfully_parsed = false;
+
+  assert(nptr != NULL);
+  assert(dblptr != NULL); 
+
+  orig_errno = errno;
+  if (os_lcNumericGet() == '.') {
+    errno = 0;
+    /* The current locale uses '.', so strtod can be used as is. */
+    dbl = strtod(nptr, &string_end);
+
+    /* Check that something was parsed */
+    if (nptr != string_end) {
+      successfully_parsed = true;
+    }
+    
+    /* Set the proper end char when needed. */
+    if (endptr != NULL) {
+      *endptr = string_end;
+    }
+  } else {
+    /* The current locale has to be normalized to use '.' for the floating
+       point string. */
+    char  nptrCopy[DOUBLE_STRING_MAX_LENGTH];
+    delocalize_floating_point_str(nptr, nptrCopy, &string_end);
 
     /* Now that we have a copy with the proper locale LC_NUMERIC, we can use
        strtod() for the conversion. */
     errno = 0;
-    dbl = strtod(nptrCopy, &nptrCopyEnd);
+    dbl = strtod(nptrCopy, &string_end);
+
+    /* Check that something was parsed */
+    if (nptrCopy != string_end) {
+      successfully_parsed = true;
+    }
 
     /* Calculate the proper end char when needed. */
     if (endptr != NULL) {
-      *endptr = (char*)nptr + (nptrCopyEnd - nptrCopy);
+      *endptr = (char*)nptr + (string_end - nptrCopy);
     }
   }
 
-  if ((dbl == HUGE_VALF || dbl == HUGE_VALL || dbl == 0) && errno == ERANGE) {
+  // There are two erroring scenarios from `strtod`.
+  //
+  // 1. The floating point value to be parsed is too large:
+  //    In this case `strtod` sets `errno` to `ERANGE` and will return a
+  //    parsed value of either `-HUGE_VAL` or `HUGE_VAL` depending on the
+  //    initial sign present in the string.
+  //
+  // 2. The string contains a non-numeric prefix:
+  //    In the case junk is passed in `strtod` parses nothing. As a result,
+  //    the value that is returned corresponds to `0.0`. To differentiate
+  //    between the parsing scenarios of junk being passed in versus a valid
+  //    floating point string that parses to 0 (such as "0.0") `strtod` also
+  //    ensures that the provided end pointer == start pointer in the case
+  //    that a junk prefix is encountered.
+  //
+  // The two other scenarios that we want to reject are:
+  //
+  // 3. The value being parsed results in `-nan` or `nan`.
+  // 4. The value being parsed results in `-inf` or `inf`.
+  if (errno == ERANGE || !successfully_parsed
+      || isnan(dbl) || isinf(dbl)) {
     ret = DDS_RETCODE_OUT_OF_RANGE;
   } else {
     errno = orig_errno;
@@ -156,24 +205,6 @@ ddsrt_strtod(const char *nptr, char **endptr, double *dblptr)
 
   *dblptr = dbl;
 
-  return ret;
-}
-
-dds_return_t
-ddsrt_strtof(const char *nptr, char **endptr, float *fltptr)
-{
-  /* Just use os_strtod(). */
-  /* FIXME: This will have to do for now, but a single-precision floating
-            point number is definitely not a double-precision floating point
-            number. */
-  double dbl = 0.0;
-  dds_return_t ret;
-
-  assert(nptr != NULL);
-  assert(fltptr != NULL);
-
-  ret = ddsrt_strtod(nptr, endptr, &dbl);
-  *fltptr = (float)dbl;
   return ret;
 }
 
