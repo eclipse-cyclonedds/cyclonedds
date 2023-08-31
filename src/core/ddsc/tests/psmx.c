@@ -1012,7 +1012,9 @@ CU_Test (ddsc_psmx, basic)
   participant = create_participant (0);
   CU_ASSERT_FATAL (participant > 0);
 
-  topic = dds_create_topic (participant, &SC_Model_desc, "SC_Model", NULL, NULL);
+  char topicname[100];
+  create_unique_topic_name ("test_psmx_basic", topicname, sizeof (topicname));
+  topic = dds_create_topic (participant, &SC_Model_desc, topicname, NULL, NULL);
   CU_ASSERT_FATAL (topic > 0);
 
   writer = dds_create_writer (participant, topic, NULL, NULL);
