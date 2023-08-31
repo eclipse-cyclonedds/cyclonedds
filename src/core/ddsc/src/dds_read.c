@@ -276,7 +276,7 @@ dds_return_t dds_read (dds_entity_t reader_or_condition, void **buf, dds_sample_
 
 dds_return_t dds_read_wl (dds_entity_t reader_or_condition, void **buf, dds_sample_info_t *si, uint32_t maxs)
 {
-  return dds_read_impl (false, reader_or_condition, buf, maxs, maxs, si, 0, DDS_HANDLE_NIL, false, false);
+  return dds_read_impl (false, reader_or_condition, buf, maxs, maxs, si, 0, DDS_HANDLE_NIL, false, true);
 }
 
 dds_return_t dds_read_mask (dds_entity_t reader_or_condition, void **buf, dds_sample_info_t *si, size_t bufsz, uint32_t maxs, uint32_t mask)
