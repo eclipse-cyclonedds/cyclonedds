@@ -1045,7 +1045,7 @@ static bool process_data (dds_entity_t rd, struct subthread_arg *arg)
   dds_sample_info_t *iseq = arg->iseq;
   void **mseq = arg->mseq;
   int32_t nread_data;
-  if ((nread_data = dds_take (rd, mseq, iseq, max_samples, max_samples)) < 0)
+  if ((nread_data = dds_take_wl (rd, mseq, iseq, max_samples)) < 0)
     error2 ("dds_take (rd_data): %d\n", (int) nread_data);
   for (int32_t i = 0; i < nread_data; i++)
   {
