@@ -28,6 +28,43 @@
 #include "dds__heap_loan.h"
 #include "dds__psmx.h"
 
+/* This file implements the C language binding's default internal sample representation.
+
+  Most of it is fairly straightforward given:
+  - `data` ordinarily stores the guaranteed well-formed, native endianness serialised representation
+  - zero-copy support can screw that up, but only if the sample is amenable to zero-copying because it
+    contains no pointers
+  - the key always stores the actual key value in XCDR2 native endianness representation with the key
+    fields ordered in definition order (to protect against reording in mutable types, but without
+    having to do something to order them for final and appendable types)
+  - the key can alias the input data, and it can either be stored in a separately allocated block of
+    memory or a embedded array for tiny keys (serdata_default_keybuf() returns the correct address)
+
+  Regarding zero-copy support a.k.a. PSMX support a.k.a. loans: the loan pointer (`c.loan`) is always
+  a null pointer unless the serdata is constructed via:
+  - serdata_from_loan, or
+  - serdata_default_from_psmx
+
+  In case of `serdata_from_loan` (where the loan originates in dds_request_loan() and it is used
+  exclusively for writing):
+  - if “raw”:
+     - `d->c.loan->sample_ptr` points to sample contents
+     - `d->data` points to an empty CDR stream
+  - otherwise (doesn't really occur):
+     - `d->c.loan->sample_ptr` points to serialized data in borrowed memory
+     - `d->data` points to a local copy
+
+  In case of `serdata_default_from_psmx` (where the loan originates in PSMX and is used exclusively
+  for reading):
+  - if “raw”:
+      - `d->c.loan` points to PSMX-owned loan with sample contents
+      - `d->data` points to an empty CDR stream
+  - otherwise:
+      - `d->c.loan` null pointer
+      - `d->data` points to a local copy
+*/
+
+
 /* 8k entries in the freelist seems to be roughly the amount needed to send
    minimum-size (well, 4 bytes) samples as fast as possible over loopback
    while using large messages -- actually, it stands to reason that this would
@@ -139,16 +176,12 @@ static bool serdata_default_eqkey_nokey (const struct ddsi_serdata *acmn, const 
 static void serdata_default_free(struct ddsi_serdata *dcmn)
 {
   struct dds_serdata_default *d = (struct dds_serdata_default *)dcmn;
-  assert(ddsrt_atomic_ld32(&d->c.refc) == 0);
+  assert (ddsrt_atomic_ld32 (&d->c.refc) == 0);
 
   if (d->key.buftype == KEYBUFTYPE_DYNALLOC)
-    ddsrt_free(d->key.u.dynbuf);
-
-  /* refs(0)  user has discarded the sample already,
-     refs(1)  user still has the loan*/
+    ddsrt_free (d->key.u.dynbuf);
   if (d->c.loan)
-    dds_loaned_sample_unref(d->c.loan);
-
+    dds_loaned_sample_unref (d->c.loan);
   if (d->size > MAX_SIZE_FOR_POOL || !ddsi_freelist_push (&d->serpool->freelist, d))
     dds_free (d);
 }
@@ -710,14 +743,8 @@ static bool serdata_default_untyped_to_sample_cdr (const struct ddsi_sertype *se
   assert (d->c.ops == sertype_common->serdata_ops);
   assert (DDSI_RTPS_CDR_ENC_IS_NATIVE (d->hdr.identifier));
   if (bufptr) abort(); else { (void)buflim; } /* FIXME: haven't implemented that bit yet! */
-
-  if (d->c.loan == NULL ||
-      (d->c.loan->metadata->sample_state != DDS_LOANED_SAMPLE_STATE_RAW_DATA &&
-       d->c.loan->metadata->sample_state != DDS_LOANED_SAMPLE_STATE_RAW_KEY))
-  {
-    istream_from_serdata_default (&is, d);
-    dds_stream_read_key (&is, sample, &dds_cdrstream_default_allocator, &tp->type);
-  }
+  dds_istream_init (&is, d->key.keysize, serdata_default_keybuf (d), DDSI_RTPS_CDR_ENC_VERSION_2);
+  dds_stream_read_key (&is, sample, &dds_cdrstream_default_allocator, &tp->type);
   return true; /* FIXME: can't conversion to sample fail? */
 }
 
@@ -874,9 +901,9 @@ static struct ddsi_serdata *serdata_default_from_loaned_sample (const struct dds
     }
 
     if (tp->c.typekind_no_key)
-      (void) fix_serdata_default_nokey(d, tp->c.serdata_basehash);
+      (void) fix_serdata_default_nokey (d, tp->c.serdata_basehash);
     else
-      (void) fix_serdata_default(d, tp->c.serdata_basehash);
+      (void) fix_serdata_default (d, tp->c.serdata_basehash);
   }
 
   return (struct ddsi_serdata *) d;
@@ -921,11 +948,11 @@ static struct ddsi_serdata * serdata_default_from_psmx (const struct ddsi_sertyp
       }
       d->c.loan = loaned_sample;
       dds_loaned_sample_ref (d->c.loan);
+      gen_serdata_key_from_sample (tp, &d->key, d->c.loan->sample_ptr);
       break;
     case DDS_LOANED_SAMPLE_STATE_SERIALIZED_KEY:
     case DDS_LOANED_SAMPLE_STATE_SERIALIZED_DATA: {
       const bool just_key = (md->sample_state == DDS_LOANED_SAMPLE_STATE_SERIALIZED_KEY);
-      const dds_loaned_sample_state_t heap_loan_state = just_key ? DDS_LOANED_SAMPLE_STATE_RAW_KEY : DDS_LOANED_SAMPLE_STATE_RAW_DATA;
       uint32_t actual_size;
 
       // FIXME: how much do we trust PSMX-provided data? If we *really* trust it, we can skip this
@@ -934,25 +961,22 @@ static struct ddsi_serdata * serdata_default_from_psmx (const struct ddsi_sertyp
         serdata_default_free (&d->c);
         return NULL;
       }
-
-      dds_return_t rc = dds_heap_loan (type, heap_loan_state, &d->c.loan); // FIXME: check return code
-      assert (rc == 0); // FIXME: this ain't guaranteed
-      (void) rc;
+      serdata_default_append_blob (&d, actual_size, loaned_sample->sample_ptr);
       dds_istream_t is;
-      dds_istream_init (&is, md->sample_size, loaned_sample->sample_ptr, xcdr_version);
-      if (just_key)
-        dds_stream_read_key (&is, d->c.loan->sample_ptr, &dds_cdrstream_default_allocator, &tp->type);
-      else
-        dds_stream_read_sample (&is, d->c.loan->sample_ptr, &dds_cdrstream_default_allocator, &tp->type);
+      dds_istream_init (&is, actual_size, d->data, xcdr_version);
+      if (!gen_serdata_key_from_cdr (&is, &d->key, tp, just_key))
+      {
+        serdata_default_free (&d->c);
+        return NULL;
+      }
       break;
     }
   }
 
-  gen_serdata_key_from_sample (tp, &d->key, d->c.loan->sample_ptr);
   if (tp->c.typekind_no_key)
-    (void) fix_serdata_default_nokey(d, tp->c.serdata_basehash);
+    (void) fix_serdata_default_nokey (d, tp->c.serdata_basehash);
   else
-    (void) fix_serdata_default(d, tp->c.serdata_basehash);
+    (void) fix_serdata_default (d, tp->c.serdata_basehash);
   return (struct ddsi_serdata *) d;
 }
 

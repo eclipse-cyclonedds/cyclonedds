@@ -25,13 +25,14 @@
 #include "dds__loaned_sample.h"
 #include "dds__heap_loan.h"
 
-void dds_read_collect_sample_arg_init (struct dds_read_collect_sample_arg *arg, void **ptrs, dds_sample_info_t *infos, struct dds_loan_pool *loan_pool, struct dds_loan_pool *heap_loan_cache)
+void dds_read_collect_sample_arg_init (struct dds_read_collect_sample_arg *arg, void **ptrs, dds_sample_info_t *infos, struct dds_loan_pool *loan_pool, struct dds_loan_pool *heap_loan_cache, bool may_return_shared)
 {
   arg->next_idx = 0;
   arg->ptrs = ptrs;
   arg->infos = infos;
   arg->loan_pool = loan_pool;
   arg->heap_loan_cache = heap_loan_cache;
+  arg->may_return_shared = may_return_shared;
 }
 
 dds_return_t dds_read_collect_sample (void *varg, const dds_sample_info_t *si, const struct ddsi_sertype *st, struct ddsi_serdata *sd)
@@ -60,7 +61,7 @@ static dds_return_t dds_read_collect_sample_loan_zerocopy (struct dds_read_colle
   dds_loaned_sample_t * const ls = sd->loan;
   dds_return_t ret;
   if (ls == NULL)
-    return 1; // an slightly unusual choice of return value
+    return 1; // a slightly unusual choice of return value
   else if (ls->metadata->sample_state != DDS_LOANED_SAMPLE_STATE_RAW_DATA && ls->metadata->sample_state != DDS_LOANED_SAMPLE_STATE_RAW_KEY)
     return 1; // same here
   else if ((ret = dds_loan_pool_add_loan (arg->loan_pool, ls)) != DDS_RETCODE_OK)
@@ -80,7 +81,7 @@ dds_return_t dds_read_collect_sample_loan (void *varg, const dds_sample_info_t *
   struct dds_read_collect_sample_arg * const arg = varg;
   dds_return_t ret;
 
-  if ((ret = dds_read_collect_sample_loan_zerocopy (arg, si, sd)) <= 0)
+  if (arg->may_return_shared && (ret = dds_read_collect_sample_loan_zerocopy (arg, si, sd)) <= 0)
     return ret;
 
   const dds_loaned_sample_state_t state = (si->valid_data ? DDS_LOANED_SAMPLE_STATE_RAW_DATA : DDS_LOANED_SAMPLE_STATE_RAW_KEY);
@@ -185,7 +186,7 @@ static dds_return_t dds_readcdr_impl (bool take, dds_entity_t reader_or_conditio
     return DDS_RETCODE_BAD_PARAMETER;
   struct dds_read_collect_sample_arg collect_arg;
   DDSRT_STATIC_ASSERT (sizeof (struct ddsi_serdata *) == sizeof (void *));
-  dds_read_collect_sample_arg_init (&collect_arg, (void **) buf, si, NULL, NULL);
+  dds_read_collect_sample_arg_init (&collect_arg, (void **) buf, si, NULL, NULL, true);
   const dds_return_t ret = dds_read_with_collector_impl (take, reader_or_condition, maxs, mask, hand, true, dds_read_collect_sample_refs, &collect_arg);
   return ret;
 }
@@ -212,7 +213,7 @@ static dds_return_t dds_read_impl (bool take, dds_entity_t reader_or_condition, 
   // If buf[0] is a null pointer, the caller is requesting loans but historically we cannot assume
   // the array of pointers has already been initialised
   if (buf[0] == NULL)
-    memset (buf, 0, sizeof (*buf) * maxs);
+    memset (buf, 0, bufsz * sizeof (*buf));
 
   ddsrt_mutex_lock (&rd->m_entity.m_mutex);
 
@@ -238,11 +239,19 @@ static dds_return_t dds_read_impl (bool take, dds_entity_t reader_or_condition, 
   //   detected it ...
   if (buf[0] != NULL && (ret = return_reader_loan_locked (rd, buf, (int32_t) bufsz)) < 0)
     goto err_return_reader_loan_locked;
+  if (use_loan && buf[0] != NULL)
+  {
+    // If the application provided wants to use loans then there must not be any non-null
+    // pointers in buf left.  return_reader_loan_locked would already have errored out if
+    // there was a mixture of loaned pointers and non-loaned non-null pointers, therefore
+    // checking buf[0] here is sufficient.
+    ret = DDS_RETCODE_BAD_PARAMETER;
+    goto err_return_reader_loan_locked;
+  }
 
   struct dds_read_collect_sample_arg collect_arg;
-  dds_read_collect_sample_arg_init (&collect_arg, buf, si, rd->m_loans, rd->m_heap_loan_cache);
-  // FIXME: use_loan effectively means overwrite application-owned memory with loans.  Do we really want to offer that feature?
-  dds_read_with_collector_fn_t collect_sample = (use_loan || buf[0] == NULL) ? dds_read_collect_sample_loan : dds_read_collect_sample;
+  dds_read_collect_sample_arg_init (&collect_arg, buf, si, rd->m_loans, rd->m_heap_loan_cache, use_loan);
+  dds_read_with_collector_fn_t collect_sample = (buf[0] == NULL) ? dds_read_collect_sample_loan : dds_read_collect_sample;
   ret = dds_read_impl_common (take, rd, cond, maxs, mask, hand, collect_sample, &collect_arg);
 
   // Drop any remaining cached samples.  We have to be prepared to drop *some* because of the
@@ -484,8 +493,7 @@ dds_return_t dds_return_reader_loan (dds_reader *rd, void **buf, int32_t bufsz)
   }
 
   ddsrt_mutex_lock (&rd->m_entity.m_mutex);
-  return_reader_loan_locked_loop (rd, buf, 0, bufsz, true);
+  ret = return_reader_loan_locked_loop (rd, buf, 0, bufsz, true);
   ddsrt_mutex_unlock (&rd->m_entity.m_mutex);
-
   return ret;
 }

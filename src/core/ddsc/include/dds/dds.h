@@ -3073,43 +3073,58 @@ dds_waitset_wait_until(
 /**
  * @defgroup reading (Reading Data)
  * @ingroup reader
- * There are a number of ways to aquire data, divided into variations of "read" and "take".
- * The return value of a read/take operation is the number of elements returned. "max_samples"
- * should have the same type, as one can't return more than MAX_INT
- * this way, anyway. X, Y, CX, CY return to the various filtering
- * options, see the DCPS spec.
- *
- * O ::= read | take
- *
- * X             => CX
- * (empty)          (empty)
- * _next_instance   instance_handle_t prev
- *
- * Y             => CY
- * (empty)          uint32_t mask
- * _cond            cond_t cond -- refers to a read condition (or query if implemented)
  */
 
 /**
- * @brief Access and read the collection of data values (of same type) and sample info from the
- *        data reader, readcondition or querycondition.
+ * @brief Read data from the data reader, read or query condition
  * @ingroup reading
  * @component read_data
  *
- * Return value provides information about number of samples read, which will
- * be <= maxs. Based on the count, the buffer will contain data to be read only
- * when valid_data bit in sample info structure is set.
- * The buffer required for data values, could be allocated explicitly or can
- * use the memory from data reader to prevent copy. In the latter case, buffer and
- * sample_info should be returned back, once it is no longer using the Data.
- * Data values once read will remain in the buffer with the sample_state set to READ
- * and view_state set to NOT_NEW.
+ * Reads samples from the reader history cache, marking these samples as "read". It starts
+ * with an arbitrary (matching) instance, reading (matching) samples from the oldest to
+ * the most recent, then continues with another arbitrarily selected (matching) instance,
+ * etc. This continues until it has traversed the entire history cache or has gathered
+ * `maxs` samples.
  *
- * @param[in]  reader_or_condition Reader, readcondition or querycondition entity.
- * @param[out] buf An array of pointers to samples into which data is read (pointers can be NULL).
+ * The @ref `dds_take` operation can be used to also remove the returned samples from the
+ * history cache.
+ *
+ * For the plain `dds_read` operation, all instances and samples match. This is different
+ * for the more selective variants, where the documentation refers to this function and
+ * only gives detailed information where it differs.
+ *
+ * The `buf` parameter is used as follows:
+ * - If `buf[0]` on entry is a null pointer:
+ *   - on return `buf[0]` .. `buf[k-1]` will point to middleware-owned memory (a.k.a. loans); and
+ *   - `buf[k]` .. `buf[bufsz-1]` will be null pointers; where
+ *   - `k` is the returned number of samples
+ *
+ * - If `buf[0]` on entry is an outstanding sample loan (i.e., resulting from a previous call to, e.g., read), then:
+ *   - all of `buf[0]` .. `buf[k-1]` must be pointers to outstanding loans; and
+ *   - all of `buf[k]` .. `buf[bufsz-1]` must be null pointers; where
+ *   - `1 <= k < bufsz`; and
+ *   - all these outstanding loans are returned as-if through @ref `dds_return_loan`; and
+ *   - the result will be as if `buf[0]` had been a null pointer on entry.
+ *
+ * - If `buf[0]` on entry is any other address, then:
+ *   - all of `buf[0]` .. `buf[bufsz-1]` must point to memory suitable for storing samples; and
+ *   - the C binding requires that this memory must be initialized such that all embedded strings, externals,
+ *     optionals and sequences are initialized (null pointers are ok, sequences may also be all-0)
+ *
+ * The loans returned by `dds_read` operation are always private copies of the data. The
+ * variants with names ending in `_wl` instead return pointers to shared copies of the
+ * data where possible and forbid the third case above.
+ *
+ * The `si` array is filled with sample information on all returned samples. If the
+ * `valid_data` flag is set in the sample info for a particular sample, all fields of that
+ * sample are valid. Otherwise, only the key value is valid. For the C binding, all other
+ * fields will be set to 0.
+ *
+ * @param[in] reader_or_condition Reader, readcondition or querycondition entity.
+ * @param[in,out] buf An array of  `bufsz` pointers to samples (see above).
  * @param[out] si Pointer to an array of @ref dds_sample_info_t returned for each data value.
- * @param[in]  bufsz The size of buffer provided.
- * @param[in]  maxs Maximum number of samples to read.
+ * @param[in] bufsz The size of buffer provided.
+ * @param[in] maxs Maximum number of samples to read.
  *
  * @returns A dds_return_t with the number of samples read or an error code.
  *
@@ -3133,16 +3148,50 @@ dds_read(
   uint32_t maxs);
 
 /**
- * @brief Access and read loaned samples of data reader, readcondition or querycondition.
+ * @brief Read shared copies of data from the data reader, read or query condition
  * @ingroup reading
  * @component read_data
  *
- * After dds_read_wl function is being called and the data has been handled, dds_return_loan() function must be called to possibly free memory.
+ * Reads samples from the reader history cache, marking these samples as "read". It starts
+ * with an arbitrary (matching) instance, reading (matching) samples from the oldest to
+ * the most recent, then continues with another arbitrarily selected (matching) instance,
+ * etc. This continues until it has traversed the entire history cache or has gathered
+ * `maxs` samples.
  *
- * @param[in]  reader_or_condition Reader, readcondition or querycondition entity
- * @param[out] buf An array of pointers to samples into which data is read (pointers can be NULL)
- * @param[out] si Pointer to an array of @ref dds_sample_info_t returned for each data value
- * @param[in]  maxs Maximum number of samples to read
+ * The @ref `dds_take_wl` operation can be used to also remove the returned samples from
+ * the history cache.
+ *
+ * For the plain `dds_read_wl` operation, all instances and samples match. This is
+ * different for the more selective variants, where the documentation refers to this
+ * function and only gives detailed information where it differs.
+ *
+ * The `buf` parameter is used as follows:
+ * - If `buf[0]` on entry is a null pointer:
+ *   - on return `buf[0]` .. `buf[k-1]` will point to middleware-owned memory (a.k.a. loans); and
+ *   - `buf[k]` .. `buf[bufsz-1]` will be null pointers; where
+ *   - `k` is the returned number of samples
+ *
+ * - If `buf[0]` on entry is an outstanding sample loan (i.e., resulting from a previous call to, e.g., read), then:
+ *   - all of `buf[0]` .. `buf[k-1]` must be pointers to outstanding loans; and
+ *   - all of `buf[k]` .. `buf[bufsz-1]` must be null pointers; where
+ *   - `1 <= k < bufsz`; and
+ *   - all these outstanding loans are returned as-if through @ref `dds_return_loan`; and
+ *   - the result will be as if `buf[0]` had been a null pointer on entry.
+ *
+ * - If `buf[0]` on entry is any other address `DDS_RETCODE_BAD_PARAMETER` is returned.
+ *
+ * The loans returned by `dds_read_wl` operation return pointers to shared copies of the
+ * data where possible.  @ref `dds_read` can be used to obtain private copies instead.
+ *
+ * The `si` array is filled with sample information on all returned samples. If the
+ * `valid_data` flag is set in the sample info for a particular sample, all fields of that
+ * sample are valid. Otherwise, only the key value is valid. For the C binding, all other
+ * fields will be set to 0.
+ *
+ * @param[in] reader_or_condition Reader, readcondition or querycondition entity.
+ * @param[in,out] buf An array of `maxs` pointers to samples.
+ * @param[out] si Pointer to an array of @ref dds_sample_info_t returned for each data value.
+ * @param[in] maxs Maximum number of samples to read.
  *
  * @returns A dds_return_t with the number of samples read or an error code
  *
@@ -3165,22 +3214,25 @@ dds_read_wl(
   uint32_t maxs);
 
 /**
- * @brief Read the collection of data values and sample info from the data reader, readcondition
- *        or querycondition based on mask.
+ * @brief Read data matching sample/view/instance states from the data reader, read or query condition
  * @ingroup reading
  * @component read_data
  *
- * When using a readcondition or querycondition, their masks are or'd with the given mask.
+ * See @ref `dds_read`. The matching criterion referred to there is that the
+ * sample/view/instance states must match the specification in the `mask` parameter.
  *
- * If the sample/view/instance state component in the mask is 0 and there is no read or query condition,
- * to combine it with, it is treated as equivalent to any sample/view/instance state.
+ * If the sample/view/instance state component in the mask is 0 and `reader_or_condition`
+ * references a data reader (as opposed to a read or query condition), it is treated as
+ * equivalent to any sample/view/instance state. If `reader_or_condition` references a
+ * read or query condition, the matching states are the union of `mask` and the
+ * condition's mask.
  *
- * @param[in]  reader_or_condition Reader, readcondition or querycondition entity.
- * @param[out] buf An array of pointers to samples into which data is read (pointers can be NULL).
+ * @param[in] reader_or_condition Reader, readcondition or querycondition entity.
+ * @param[in,out] buf An array of `bufsz` pointers to samples.
  * @param[out] si Pointer to an array of @ref dds_sample_info_t returned for each data value.
- * @param[in]  bufsz The size of buffer provided.
- * @param[in]  maxs Maximum number of samples to read.
- * @param[in]  mask Filter the data based on dds_sample_state_t|dds_view_state_t|dds_instance_state_t.
+ * @param[in] bufsz The size of buffer provided.
+ * @param[in] maxs Maximum number of samples to read.
+ * @param[in] mask Filter the data based on dds_sample_state_t|dds_view_state_t|dds_instance_state_t.
  *
  * @returns A dds_return_t with the number of samples read or an error code.
  *
@@ -3205,20 +3257,21 @@ dds_read_mask(
   uint32_t mask);
 
 /**
- * @brief Access and read loaned samples of data reader, readcondition
- *        or querycondition based on mask
+ * @brief Read shared copies of data matching sample/view/instance states from the data reader, read or query condition
  * @ingroup reading
  * @component read_data
  *
- * When using a readcondition or querycondition, their masks are or'd with the given mask.
+ * See @ref `dds_read_wl`. The matching criterion referred to there is that the
+ * sample/view/instance states must match the specification in the `mask` parameter.
  *
- * If the sample/view/instance state component in the mask is 0 and there is no read or query condition,
- * to combine it with, it is treated as equivalent to any sample/view/instance state.
- *
- * After dds_read_mask_wl function is being called and the data has been handled, dds_return_loan() function must be called to possibly free memory
+ * If the sample/view/instance state component in the mask is 0 and `reader_or_condition`
+ * references a data reader (as opposed to a read or query condition), it is treated as
+ * equivalent to any sample/view/instance state. If `reader_or_condition` references a
+ * read or query condition, the matching states are the union of `mask` and the
+ * condition's mask.
  *
  * @param[in]  reader_or_condition Reader, readcondition or querycondition entity.
- * @param[out] buf An array of pointers to samples into which data is read (pointers can be NULL).
+ * @param[in,out] buf An array of `maxs` pointers to samples.
  * @param[out] si Pointer to an array of @ref dds_sample_info_t returned for each data value.
  * @param[in]  maxs Maximum number of samples to read.
  * @param[in]  mask Filter the data based on dds_sample_state_t|dds_view_state_t|dds_instance_state_t.
@@ -3245,20 +3298,19 @@ dds_read_mask_wl(
   uint32_t mask);
 
 /**
- * @brief Access and read the collection of data values (of same type) and sample info from the
- *        data reader, readcondition or querycondition, coped by the provided instance handle.
+ * @brief Read data for a specific instance from the data reader, read or query condition
  * @ingroup reading
  * @component read_data
  *
- * This operation implements the same functionality as dds_read, except that only data scoped to
- * the provided instance handle is read.
+ * See @ref `dds_read`. The matching criterion referred to there is that the instance
+ * handle must equal the `handle` parameter.
  *
- * @param[in]  reader_or_condition Reader, readcondition or querycondition entity.
- * @param[out] buf An array of pointers to samples into which data is read (pointers can be NULL).
+ * @param[in] reader_or_condition Reader, readcondition or querycondition entity.
+ * @param[in,out] buf An array of `bufsz` pointers to samples.
  * @param[out] si Pointer to an array of @ref dds_sample_info_t returned for each data value.
- * @param[in]  bufsz The size of buffer provided.
- * @param[in]  maxs Maximum number of samples to read.
- * @param[in]  handle Instance handle related to the samples to read.
+ * @param[in] bufsz The size of buffer provided.
+ * @param[in] maxs Maximum number of samples to read.
+ * @param[in] handle Instance handle related to the samples to read.
  *
  * @returns A dds_return_t with the number of samples read or an error code.
  *
@@ -3285,19 +3337,18 @@ dds_read_instance(
   dds_instance_handle_t handle);
 
 /**
- * @brief Access and read loaned samples of data reader, readcondition or querycondition,
- *        scoped by the provided instance handle.
+ * @brief Read shared copies of data for a specific instance from the data reader, read or query condition
  * @ingroup reading
  * @component read_data
  *
- * This operation implements the same functionality as dds_read_wl, except that only data
- * scoped to the provided instance handle is read.
+ * See @ref `dds_read_wl`. The matching criterion referred to there is that the instance
+ * handle must equal the `handle` parameter.
  *
- * @param[in]  reader_or_condition Reader, readcondition or querycondition entity.
- * @param[out] buf An array of pointers to samples into which data is read (pointers can be NULL).
+ * @param[in] reader_or_condition Reader, readcondition or querycondition entity.
+ * @param[in,out] buf An array of `maxs` pointers to samples.
  * @param[out] si Pointer to an array of @ref dds_sample_info_t returned for each data value.
- * @param[in]  maxs Maximum number of samples to read.
- * @param[in]  handle Instance handle related to the samples to read.
+ * @param[in] maxs Maximum number of samples to read.
+ * @param[in] handle Instance handle related to the samples to read.
  *
  * @returns A dds_return_t with the number of samples read or an error code.
  *
@@ -3323,21 +3374,27 @@ dds_read_instance_wl(
   dds_instance_handle_t handle);
 
 /**
- * @brief Read the collection of data values and sample info from the data reader, readcondition
- *        or querycondition based on mask and scoped by the provided instance handle.
+ * @brief Read data for a specific instance matching sample/view/instance states from the data reader, read or query condition
  * @ingroup reading
  * @component read_data
  *
- * This operation implements the same functionality as dds_read_mask, except that only data
- * scoped to the provided instance handle is read.
+ * See @ref `dds_read`. The matching criterion referred to there is that:
+ * - the instance handle must equal the `handle` parameter; and
+ * - the sample/view/instance states must match the specification in the `mask` parameter.
  *
- * @param[in]  reader_or_condition Reader, readcondition or querycondition entity.
- * @param[out] buf An array of pointers to samples into which data is read (pointers can be NULL).
+ * If the sample/view/instance state component in the mask is 0 and `reader_or_condition`
+ * references a data reader (as opposed to a read or query condition), it is treated as
+ * equivalent to any sample/view/instance state. If `reader_or_condition` references a
+ * read or query condition, the matching states are the union of `mask` and the
+ * condition's mask.
+ *
+ * @param[in] reader_or_condition Reader, readcondition or querycondition entity.
+ * @param[in,out] buf An array of  `bufsz` pointers to samples.
  * @param[out] si Pointer to an array of @ref dds_sample_info_t returned for each data value.
- * @param[in]  bufsz The size of buffer provided.
- * @param[in]  maxs Maximum number of samples to read.
- * @param[in]  handle Instance handle related to the samples to read.
- * @param[in]  mask Filter the data based on dds_sample_state_t|dds_view_state_t|dds_instance_state_t.
+ * @param[in] bufsz The size of buffer provided.
+ * @param[in] maxs Maximum number of samples to read.
+ * @param[in] handle Instance handle related to the samples to read.
+ * @param[in] mask Filter the data based on dds_sample_state_t|dds_view_state_t|dds_instance_state_t.
  *
  * @returns A dds_return_t with the number of samples read or an error code.
  *
@@ -3365,20 +3422,26 @@ dds_read_instance_mask(
   uint32_t mask);
 
 /**
- * @brief Access and read loaned samples of data reader, readcondition or
- *        querycondition based on mask, scoped by the provided instance handle.
+ * @brief Read shared copies of data for a specific instance matching sample/view/instance states from the data reader, read or query condition
  * @ingroup reading
  * @component read_data
  *
- * This operation implements the same functionality as dds_read_mask_wl, except that
- * only data scoped to the provided instance handle is read.
+ * See @ref `dds_read_wl`. The matching criterion referred to there is that:
+ * - the instance handle must equal the `handle` parameter; and
+ * - the sample/view/instance states must match the specification in the `mask` parameter.
  *
- * @param[in]  reader_or_condition Reader, readcondition or querycondition entity.
- * @param[out] buf An array of pointers to samples into which data is read (pointers can be NULL).
+ * If the sample/view/instance state component in the mask is 0 and `reader_or_condition`
+ * references a data reader (as opposed to a read or query condition), it is treated as
+ * equivalent to any sample/view/instance state. If `reader_or_condition` references a
+ * read or query condition, the matching states are the union of `mask` and the
+ * condition's mask.
+ *
+ * @param[in] reader_or_condition Reader, readcondition or querycondition entity.
+ * @param[in,out] buf An array of `maxs` pointers to samples.
  * @param[out] si Pointer to an array of @ref dds_sample_info_t returned for each data value.
- * @param[in]  maxs Maximum number of samples to read.
- * @param[in]  handle Instance handle related to the samples to read.
- * @param[in]  mask Filter the data based on dds_sample_state_t|dds_view_state_t|dds_instance_state_t.
+ * @param[in] maxs Maximum number of samples to read.
+ * @param[in] handle Instance handle related to the samples to read.
+ * @param[in] mask Filter the data based on dds_sample_state_t|dds_view_state_t|dds_instance_state_t.
  *
  * @returns A dds_return_t with the number of samples read or an error code.
  *
@@ -3405,25 +3468,113 @@ dds_read_instance_mask_wl(
   uint32_t mask);
 
 /**
- * @brief Access the collection of data values (of same type) and sample info from the
- *        data reader, readcondition or querycondition.
+ * @brief Read the first unread sample
  * @ingroup reading
  * @component read_data
  *
- * Data value once read is removed from the Data Reader cannot to
- * 'read' or 'taken' again.
- * Return value provides information about number of samples read, which will
- * be <= maxs. Based on the count, the buffer will contain data to be read only
- * when valid_data bit in sample info structure is set.
- * The buffer required for data values, could be allocated explicitly or can
- * use the memory from data reader to prevent copy. In the latter case, buffer and
- * sample_info should be returned back, once it is no longer using the Data.
+ * Equivalent to `dds_read_mask(reader, buf, si, 1, 1, DDS_NOT_READ_SAMPLE_STATE)`.
  *
- * @param[in]  reader_or_condition Reader, readcondition or querycondition entity.
- * @param[out] buf An array of pointers to samples into which data is read (pointers can be NULL).
+ * @param[in] reader The reader entity.
+ * @param[in,out] buf A pointer to a sample.
+ * @param[out] si The pointer to @ref dds_sample_info_t returned for a data value.
+ *
+ * @returns A dds_return_t indicating success or failure.
+ *
+ * @retval DDS_RETCODE_OK
+ *             The operation was successful.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             The entity parameter is not a valid parameter.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION
+ *             The operation is invoked on an inappropriate object.
+ * @retval DDS_RETCODE_ALREADY_DELETED
+ *             The entity has already been deleted.
+ */
+DDS_EXPORT dds_return_t
+dds_read_next(
+  dds_entity_t reader,
+  void **buf,
+  dds_sample_info_t *si);
+
+/**
+ * @brief Read a shared copy of the first unread sample
+ * @ingroup reading
+ * @component read_data
+ *
+ * Equivalent to `dds_read_mask_wl(reader, buf, si, 1, 1, DDS_NOT_READ_SAMPLE_STATE)`.
+ *
+ * @param[in] reader The reader entity.
+ * @param[in,out] buf A pointer to a sample.
+ * @param[out] si The pointer to @ref dds_sample_info_t returned for a data value.
+ *
+ * @returns A dds_return_t indicating success or failure.
+ *
+ * @returns A dds_return_t indicating success or failure.
+ *
+ * @retval DDS_RETCODE_OK
+ *             The operation was successful.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             The entity parameter is not a valid parameter.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION
+ *             The operation is invoked on an inappropriate object.
+ * @retval DDS_RETCODE_ALREADY_DELETED
+ *             The entity has already been deleted.
+ */
+DDS_EXPORT dds_return_t
+dds_read_next_wl(
+  dds_entity_t reader,
+  void **buf,
+  dds_sample_info_t *si);
+
+/**
+ * @brief Take data from the data reader, read or query condition
+ * @ingroup reading
+ * @component read_data
+ *
+ * Reads and removes samples from the reader history cache. It starts with an arbitrary
+ * (matching) instance, reading (matching) samples from the oldest to the most recent,
+ * then continues with another arbitrarily selected (matching) instance, etc. This
+ * continues until it has traversed the entire history cache or has gathered `maxs`
+ * samples.
+ *
+ * The @ref `dds_read` operation can be used to read samples without removing them from
+ * the history cache.
+ *
+ * For the plain `dds_take` operation, all instances and samples match. This is different
+ * for the more selective variants, where the documentation refers to this function and
+ * only gives detailed information where it differs.
+ *
+ * The `buf` parameter is used as follows:
+ * - If `buf[0]` on entry is a null pointer:
+ *   - on return `buf[0]` .. `buf[k-1]` will point to middleware-owned memory (a.k.a. loans); and
+ *   - `buf[k]` .. `buf[bufsz-1]` will be null pointers; where
+ *   - `k` is the returned number of samples
+ *
+ * - If `buf[0]` on entry is an outstanding sample loan (i.e., resulting from a previous call to, e.g., read), then:
+ *   - all of `buf[0]` .. `buf[k-1]` must be pointers to outstanding loans; and
+ *   - all of `buf[k]` .. `buf[bufsz-1]` must be null pointers; where
+ *   - `1 <= k < bufsz`; and
+ *   - all these outstanding loans are returned as-if through @ref `dds_return_loan`; and
+ *   - the result will be as if `buf[0]` had been a null pointer on entry.
+ *
+ * - If `buf[0]` on entry is any other address, then:
+ *   - all of `buf[0]` .. `buf[bufsz-1]` must point to memory suitable for storing samples; and
+ *   - the C binding requires that this memory must be initialized such that all embedded strings, externals,
+ *     optionals and sequences are initialized (null pointers are ok, sequences may also be all-0)
+ *
+ * The loans returned by `dds_take` operation are always private copies of the data. The
+ * variants with names ending in `_wl` instead return pointers to shared copies of the
+ * data where possible and forbid the third case above.
+ *
+ * The `si` array is filled with sample information on all returned samples. If the
+ * `valid_data` flag is set in the sample info for a particular sample, all fields of that
+ * sample are valid. Otherwise, only the key value is valid. For the C binding, all other
+ * fields will be set to 0.
+ *
+ * @param[in] reader_or_condition Reader, readcondition or querycondition entity.
+ * @param[in,out] buf An array of  `bufsz` pointers to samples (see above).
  * @param[out] si Pointer to an array of @ref dds_sample_info_t returned for each data value.
- * @param[in]  bufsz The size of buffer provided.
- * @param[in]  maxs Maximum number of samples to read.
+ * @param[in] bufsz The size of buffer provided.
+ * @param[in] maxs Maximum number of samples to read.
  *
  * @returns A dds_return_t with the number of samples read or an error code.
  *
@@ -3447,16 +3598,50 @@ dds_take(
   uint32_t maxs);
 
 /**
- * @brief Access loaned samples of data reader, readcondition or querycondition.
+ * @brief Take shared copies of data from the data reader, read or query condition
  * @ingroup reading
  * @component read_data
  *
- * After dds_take_wl function is being called and the data has been handled, dds_return_loan() function must be called to possibly free memory
+ * Reads and removes samples from the reader history cache. It starts with an arbitrary
+ * (matching) instance, reading (matching) samples from the oldest to the most recent,
+ * then continues with another arbitrarily selected (matching) instance, etc. This
+ * continues until it has traversed the entire history cache or has gathered `maxs`
+ * samples.
  *
- * @param[in]  reader_or_condition Reader, readcondition or querycondition entity.
- * @param[out] buf An array of pointers to samples into which data is read (pointers can be NULL).
+ * The @ref `dds_read_wl` operation can be used to read samples from the history cache
+ * with removing them.
+ *
+ * For the plain `dds_take_wl` operation, all instances and samples match. This is
+ * different for the more selective variants, where the documentation refers to this
+ * function and only gives detailed information where it differs.
+ *
+ * The `buf` parameter is used as follows:
+ * - If `buf[0]` on entry is a null pointer:
+ *   - on return `buf[0]` .. `buf[k-1]` will point to middleware-owned memory (a.k.a. loans); and
+ *   - `buf[k]` .. `buf[bufsz-1]` will be null pointers; where
+ *   - `k` is the returned number of samples
+ *
+ * - If `buf[0]` on entry is an outstanding sample loan (i.e., resulting from a previous call to, e.g., read), then:
+ *   - all of `buf[0]` .. `buf[k-1]` must be pointers to outstanding loans; and
+ *   - all of `buf[k]` .. `buf[bufsz-1]` must be null pointers; where
+ *   - `1 <= k < bufsz`; and
+ *   - all these outstanding loans are returned as-if through @ref `dds_return_loan`; and
+ *   - the result will be as if `buf[0]` had been a null pointer on entry.
+ *
+ * - If `buf[0]` on entry is any other address `DDS_RETCODE_BAD_PARAMETER` is returned.
+ *
+ * The loans returned by `dds_take_wl` operation return pointers to shared copies of the
+ * data where possible.  @ref `dds_take` can be used to obtain private copies instead.
+ *
+ * The `si` array is filled with sample information on all returned samples. If the
+ * `valid_data` flag is set in the sample info for a particular sample, all fields of that
+ * sample are valid. Otherwise, only the key value is valid. For the C binding, all other
+ * fields will be set to 0.
+ *
+ * @param[in] reader_or_condition Reader, readcondition or querycondition entity.
+ * @param[in,out] buf An array of `maxs` pointers to samples.
  * @param[out] si Pointer to an array of @ref dds_sample_info_t returned for each data value.
- * @param[in]  maxs Maximum number of samples to read.
+ * @param[in] maxs Maximum number of samples to read.
  *
  * @returns A dds_return_t with the number of samples read or an error code.
  *
@@ -3479,22 +3664,25 @@ dds_take_wl(
   uint32_t maxs);
 
 /**
- * @brief Take the collection of data values (of same type) and sample info from the
- *        data reader, readcondition or querycondition based on mask
+ * @brief Take data matching sample/view/instance states from the data reader, read or query condition
  * @ingroup reading
  * @component read_data
  *
- * When using a readcondition or querycondition, their masks are or'd with the given mask.
+ * See @ref `dds_take`. The matching criterion referred to there is that the
+ * sample/view/instance states must match the specification in the `mask` parameter.
  *
- * If the sample/view/instance state component in the mask is 0 and there is no read or query condition,
- * to combine it with, it is treated as equivalent to any sample/view/instance state.
+ * If the sample/view/instance state component in the mask is 0 and `reader_or_condition`
+ * references a data reader (as opposed to a read or query condition), it is treated as
+ * equivalent to any sample/view/instance state. If `reader_or_condition` references a
+ * read or query condition, the matching states are the union of `mask` and the
+ * condition's mask.
  *
- * @param[in]  reader_or_condition Reader, readcondition or querycondition entity.
- * @param[out] buf An array of pointers to samples into which data is read (pointers can be NULL).
+ * @param[in] reader_or_condition Reader, readcondition or querycondition entity.
+ * @param[in,out] buf An array of `bufsz` pointers to samples.
  * @param[out] si Pointer to an array of @ref dds_sample_info_t returned for each data value.
- * @param[in]  bufsz The size of buffer provided.
- * @param[in]  maxs Maximum number of samples to read.
- * @param[in]  mask Filter the data based on dds_sample_state_t|dds_view_state_t|dds_instance_state_t.
+ * @param[in] bufsz The size of buffer provided.
+ * @param[in] maxs Maximum number of samples to read.
+ * @param[in] mask Filter the data based on dds_sample_state_t|dds_view_state_t|dds_instance_state_t.
  *
  * @returns A dds_return_t with the number of samples read or an error code.
  *
@@ -3519,19 +3707,21 @@ dds_take_mask(
   uint32_t mask);
 
 /**
- * @brief  Access loaned samples of data reader, readcondition or querycondition based on mask.
+ * @brief Take shared copies of data matching sample/view/instance states from the data reader, read or query condition
  * @ingroup reading
  * @component read_data
  *
- * When using a readcondition or querycondition, their masks are or'd with the given mask.
+ * See @ref `dds_take_wl`. The matching criterion referred to there is that the
+ * sample/view/instance states must match the specification in the `mask` parameter.
  *
- * If the sample/view/instance state component in the mask is 0 and there is no read or query condition,
- * to combine it with, it is treated as equivalent to any sample/view/instance state.
- *
- * After dds_take_mask_wl function is being called and the data has been handled, dds_return_loan() function must be called to possibly free memory
+ * If the sample/view/instance state component in the mask is 0 and `reader_or_condition`
+ * references a data reader (as opposed to a read or query condition), it is treated as
+ * equivalent to any sample/view/instance state. If `reader_or_condition` references a
+ * read or query condition, the matching states are the union of `mask` and the
+ * condition's mask.
  *
  * @param[in]  reader_or_condition Reader, readcondition or querycondition entity.
- * @param[out] buf An array of pointers to samples into which data is read (pointers can be NULL).
+ * @param[in,out] buf An array of `maxs` pointers to samples.
  * @param[out] si Pointer to an array of @ref dds_sample_info_t returned for each data value.
  * @param[in]  maxs Maximum number of samples to read.
  * @param[in]  mask Filter the data based on dds_sample_state_t|dds_view_state_t|dds_instance_state_t.
@@ -3556,6 +3746,342 @@ dds_take_mask_wl(
   dds_sample_info_t *si,
   uint32_t maxs,
   uint32_t mask);
+
+/**
+ * @brief Take data for a specific instance from the data reader, read or query condition
+ * @ingroup reading
+ * @component read_data
+ *
+ * See @ref `dds_take`. The matching criterion referred to there is that the instance
+ * handle must equal the `handle` parameter.
+ *
+ * @param[in] reader_or_condition Reader, readcondition or querycondition entity.
+ * @param[in,out] buf An array of `bufsz` pointers to samples.
+ * @param[out] si Pointer to an array of @ref dds_sample_info_t returned for each data value.
+ * @param[in] bufsz The size of buffer provided.
+ * @param[in] maxs Maximum number of samples to read.
+ * @param[in] handle Instance handle related to the samples to read.
+ *
+ * @returns A dds_return_t with the number of samples read or an error code.
+ *
+ * @retval >=0
+ *             Number of samples read.
+ * @retval DDS_RETCODE_ERROR
+ *             An internal error has occurred.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             One of the given arguments is not valid.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION
+ *             The operation is invoked on an inappropriate object.
+ * @retval DDS_RETCODE_ALREADY_DELETED
+ *             The entity has already been deleted.
+ * @retval DDS_RETCODE_PRECONDITION_NOT_MET
+ *             The instance handle has not been registered with this reader.
+ */
+DDS_EXPORT dds_return_t
+dds_take_instance(
+  dds_entity_t reader_or_condition,
+  void **buf,
+  dds_sample_info_t *si,
+  size_t bufsz,
+  uint32_t maxs,
+  dds_instance_handle_t handle);
+
+/**
+ * @brief Take shared copies of data for a specific instance from the data reader, read or query condition
+ * @ingroup reading
+ * @component read_data
+ *
+ * See @ref `dds_take_wl`. The matching criterion referred to there is that the instance
+ * handle must equal the `handle` parameter.
+ *
+ * @param[in] reader_or_condition Reader, readcondition or querycondition entity.
+ * @param[in,out] buf An array of `maxs` pointers to samples.
+ * @param[out] si Pointer to an array of @ref dds_sample_info_t returned for each data value.
+ * @param[in] maxs Maximum number of samples to read.
+ * @param[in] handle Instance handle related to the samples to read.
+ *
+ * @returns A dds_return_t with the number of samples read or an error code.
+ *
+ * @retval >=0
+ *             Number of samples read.
+ * @retval DDS_RETCODE_ERROR
+ *             An internal error has occurred.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             One of the given arguments is not valid.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION
+ *             The operation is invoked on an inappropriate object.
+ * @retval DDS_RETCODE_ALREADY_DELETED
+ *             The entity has already been deleted.
+ * @retval DDS_RETCODE_PRECONDITION_NOT_MET
+ *             The instance handle has not been registered with this reader.
+ */
+DDS_EXPORT dds_return_t
+dds_take_instance_wl(
+  dds_entity_t reader_or_condition,
+  void **buf,
+  dds_sample_info_t *si,
+  uint32_t maxs,
+  dds_instance_handle_t handle);
+
+/**
+ * @brief Take data for a specific instance matching sample/view/instance states from the data reader, read or query condition
+ * @ingroup reading
+ * @component read_data
+ *
+ * See @ref `dds_take`. The matching criterion referred to there is that:
+ * - the instance handle must equal the `handle` parameter; and
+ * - the sample/view/instance states must match the specification in the `mask` parameter.
+ *
+ * If the sample/view/instance state component in the mask is 0 and `reader_or_condition`
+ * references a data reader (as opposed to a read or query condition), it is treated as
+ * equivalent to any sample/view/instance state. If `reader_or_condition` references a
+ * read or query condition, the matching states are the union of `mask` and the
+ * condition's mask.
+ *
+ * @param[in] reader_or_condition Reader, readcondition or querycondition entity.
+ * @param[in,out] buf An array of  `bufsz` pointers to samples.
+ * @param[out] si Pointer to an array of @ref dds_sample_info_t returned for each data value.
+ * @param[in] bufsz The size of buffer provided.
+ * @param[in] maxs Maximum number of samples to read.
+ * @param[in] handle Instance handle related to the samples to read.
+ * @param[in] mask Filter the data based on dds_sample_state_t|dds_view_state_t|dds_instance_state_t.
+ *
+ * @returns A dds_return_t with the number of samples read or an error code.
+ *
+ * @retval >=0
+ *             Number of samples read.
+ * @retval DDS_RETCODE_ERROR
+ *             An internal error has occurred.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             One of the given arguments is not valid.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION
+ *             The operation is invoked on an inappropriate object.
+ * @retval DDS_RETCODE_ALREADY_DELETED
+ *             The entity has already been deleted.
+ * @retval DDS_RETCODE_PRECONDITION_NOT_MET
+ *             The instance handle has not been registered with this reader.
+ */
+DDS_EXPORT dds_return_t
+dds_take_instance_mask(
+  dds_entity_t reader_or_condition,
+  void **buf,
+  dds_sample_info_t *si,
+  size_t bufsz,
+  uint32_t maxs,
+  dds_instance_handle_t handle,
+  uint32_t mask);
+
+/**
+ * @brief Take shared copies of data for a specific instance matching sample/view/instance states from the data reader, read or query condition
+ * @ingroup reading
+ * @component read_data
+ *
+ * See @ref `dds_take_wl`. The matching criterion referred to there is that:
+ * - the instance handle must equal the `handle` parameter; and
+ * - the sample/view/instance states must match the specification in the `mask` parameter.
+ *
+ * If the sample/view/instance state component in the mask is 0 and `reader_or_condition`
+ * references a data reader (as opposed to a read or query condition), it is treated as
+ * equivalent to any sample/view/instance state. If `reader_or_condition` references a
+ * read or query condition, the matching states are the union of `mask` and the
+ * condition's mask.
+ *
+ * @param[in] reader_or_condition Reader, readcondition or querycondition entity.
+ * @param[in,out] buf An array of `maxs` pointers to samples.
+ * @param[out] si Pointer to an array of @ref dds_sample_info_t returned for each data value.
+ * @param[in] maxs Maximum number of samples to read.
+ * @param[in] handle Instance handle related to the samples to read.
+ * @param[in] mask Filter the data based on dds_sample_state_t|dds_view_state_t|dds_instance_state_t.
+ *
+ * @returns A dds_return_t with the number of samples or an error code.
+ *
+ * @retval >= 0
+ *             Number of samples read.
+ * @retval DDS_RETCODE_ERROR
+ *             An internal error has occurred.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             One of the given arguments is not valid.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION
+ *             The operation is invoked on an inappropriate object
+ * @retval DDS_RETCODE_ALREADY_DELETED
+ *             The entity has already been deleted.
+ * @retval DDS_RETCODE_PRECONDITION_NOT_MET
+ *             The instance handle has not been registered with this reader.
+ */
+DDS_EXPORT dds_return_t
+dds_take_instance_mask_wl(
+  dds_entity_t reader_or_condition,
+  void **buf,
+  dds_sample_info_t *si,
+  uint32_t maxs,
+  dds_instance_handle_t handle,
+  uint32_t mask);
+
+/**
+ * @brief Take the first unread sample
+ * @ingroup reading
+ * @component read_data
+ *
+ * Equivalent to `dds_take_mask(reader, buf, si, 1, 1, DDS_NOT_READ_SAMPLE_STATE)`.
+ *
+ * @param[in] reader The reader entity.
+ * @param[in,out] buf A pointer to a sample.
+ * @param[out] si The pointer to @ref dds_sample_info_t returned for a data value.
+ *
+ * @returns A dds_return_t indicating success or failure.
+ *
+ * @retval DDS_RETCODE_OK
+ *             The operation was successful.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             The entity parameter is not a valid parameter.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION
+ *             The operation is invoked on an inappropriate object.
+ * @retval DDS_RETCODE_ALREADY_DELETED
+ *             The entity has already been deleted.
+ */
+DDS_EXPORT dds_return_t
+dds_take_next(
+  dds_entity_t reader,
+  void **buf,
+  dds_sample_info_t *si);
+
+/**
+ * @brief Take a shared copy of the first unread sample
+ * @ingroup reading
+ * @component read_data
+ *
+ * Equivalent to `dds_take_mask_wl(reader, buf, si, 1, 1, DDS_NOT_READ_SAMPLE_STATE)`.
+ *
+ * @param[in] reader The reader entity.
+ * @param[in,out] buf A pointer to a sample.
+ * @param[out] si The pointer to @ref dds_sample_info_t returned for a data value.
+ *
+ * @returns A dds_return_t indicating success or failure.
+ *
+ * @retval DDS_RETCODE_OK
+ *             The operation was successful.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             The entity parameter is not a valid parameter.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION
+ *             The operation is invoked on an inappropriate object.
+ * @retval DDS_RETCODE_ALREADY_DELETED
+ *             The entity has already been deleted.
+ */
+DDS_EXPORT dds_return_t
+dds_take_next_wl(
+  dds_entity_t reader,
+  void **buf,
+  dds_sample_info_t *si);
+
+/**
+ * @brief Function type for sample collector argument in read/take-with-collector
+ * @ingroup reading
+ * @component read_data
+ *
+ * This defines the function type used by @ref dds_read_with_collector and @ref
+ * dds_take_with_collector for passing samples to be included in the result to an
+ * application defined function for collecting them in whatever way it needs.  The
+ * function is called for each sample while the RHC is locked, and so it is advisable to
+ * only perform a small amount of work.  Calling Cyclone DDS API functions is not
+ * supported.
+ *
+ * It is called for the samples in the order compatible with the requirements of the DDS
+ * specification, in particular that means instances are contiguous.
+ *
+ * @param[in] arg A pointer to the application-defined argument passed to read/take
+ * @param[in] si A fully initialized sample info object
+ * @param[in] st The underlying ddsi_sertype (needed only if si.valid_data is false)
+ * @param[in] sd The sample, if si.valid_data is false, the type has been erased (hence the "st" argument)
+ *
+ * @return An indication of success or failure
+ * @retval DDS_RETCODE_OK
+ *           the sample was successfully handled and reading can continue
+ * @retval otherwise
+ *           an error, this will propagated to the caller if it occurs on the first call
+ *           otherwise the return valu eof read/take will be the number of samples
+ *           successfully collected
+ */
+typedef dds_return_t (*dds_read_with_collector_fn_t) (
+  void *arg,
+  const dds_sample_info_t *si,
+  const struct ddsi_sertype *st,
+  struct ddsi_serdata *sd);
+
+/**
+ * @brief Read samples while collecting result in an application-defined way
+ * @ingroup reading
+ * @component read_data
+ *
+ * When using a readcondition or querycondition, their masks are or'd with the given mask.
+ *
+ * If the sample/view/instance state component in the mask is 0 and there is no read or query condition,
+ * to combine it with, it is treated as equivalent to any sample/view/instance state.
+ *
+ * @param[in] reader_or_condition Handle of a reader or a read/query condition
+ * @param[in] maxs Maximum number of samples (1 .. INT32_MAX)
+ * @param[in] handle Instance handle or 0 if not reading a specific instance
+ * @param[in] mask Sample/view/instance state mask
+ * @param[in] collect_sample Function be called for each sample in the result
+ * @param[in] collect_sample_arg Arbitrary argument passed to "collect_sample"
+ * @return The number of returned samples or an error code
+ * @retval > 0 number of samples passed successfully collected by collect_sample
+ * @retval 0   success, no matching data
+ * @retval DDS_RETCODE_ERROR
+ *             An internal error has occurred.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             One of the given arguments is not valid.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION
+ *             The operation is invoked on an inappropriate object.
+ * @retval DDS_RETCODE_ALREADY_DELETED
+ *             The entity has already been deleted.
+ * @retval < 0 Return value of failing collect_sample on first invocation
+ */
+DDS_EXPORT dds_return_t
+dds_read_with_collector (
+  dds_entity_t reader_or_condition,
+  uint32_t maxs,
+  dds_instance_handle_t handle,
+  uint32_t mask,
+  dds_read_with_collector_fn_t collect_sample,
+  void *collect_sample_arg);
+
+/**
+ * @brief Take samples while collecting result in an application-defined way
+ * @ingroup reading
+ * @component read_data
+ *
+ * When using a readcondition or querycondition, their masks are or'd with the given mask.
+ *
+ * If the sample/view/instance state component in the mask is 0 and there is no read or query condition,
+ * to combine it with, it is treated as equivalent to any sample/view/instance state.
+ *
+ * @param[in] reader_or_condition Handle of a reader or a read/query condition
+ * @param[in] maxs Maximum number of samples (1 .. INT32_MAX)
+ * @param[in] handle Instance handle or 0 if not taking from a specific instance
+ * @param[in] mask Sample/view/instance state mask
+ * @param[in] collect_sample Function be called for each sample in the result
+ * @param[in] collect_sample_arg Arbitrary argument passed to "collect_sample"
+ * @return The number of returned samples or an error code
+ * @retval > 0 number of samples passed successfully collected by collect_sample
+ * @retval 0   success, no matching data
+ * @retval DDS_RETCODE_ERROR
+ *             An internal error has occurred.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             One of the given arguments is not valid.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION
+ *             The operation is invoked on an inappropriate object.
+ * @retval DDS_RETCODE_ALREADY_DELETED
+ *             The entity has already been deleted.
+ * @retval < 0 Return value of failing collect_sample on first invocation
+ */
+DDS_EXPORT dds_return_t
+dds_take_with_collector (
+  dds_entity_t reader_or_condition,
+  uint32_t maxs,
+  dds_instance_handle_t handle,
+  uint32_t mask,
+  dds_read_with_collector_fn_t collect_sample,
+  void *collect_sample_arg);
 
 /**
  * @anchor DDS_HAS_READCDR
@@ -3779,421 +4305,6 @@ dds_takecdr_instance (
     dds_sample_info_t *si,
     dds_instance_handle_t handle,
     uint32_t mask);
-
-
-/**
- * @brief Access the collection of data values (of same type) and sample info from the
- *        data reader, readcondition or querycondition but scoped by the given
- *        instance handle.
- * @ingroup reading
- * @component read_data
- *
- * This operation mplements the same functionality as dds_take, except that only data
- * scoped to the provided instance handle is taken.
- *
- * @param[in]  reader_or_condition Reader, readcondition or querycondition entity.
- * @param[out] buf An array of pointers to samples into which data is read (pointers can be NULL).
- * @param[out] si Pointer to an array of @ref dds_sample_info_t returned for each data value.
- * @param[in]  bufsz The size of buffer provided.
- * @param[in]  maxs Maximum number of samples to read.
- * @param[in]  handle Instance handle related to the samples to read.
- *
- * @returns A dds_return_t with the number of samples read or an error code.
- *
- * @retval >=0
- *             Number of samples read.
- * @retval DDS_RETCODE_ERROR
- *             An internal error has occurred.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             One of the given arguments is not valid.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The entity has already been deleted.
- * @retval DDS_RETCODE_PRECONDITION_NOT_MET
- *             The instance handle has not been registered with this reader.
- */
-DDS_EXPORT dds_return_t
-dds_take_instance(
-  dds_entity_t reader_or_condition,
-  void **buf,
-  dds_sample_info_t *si,
-  size_t bufsz,
-  uint32_t maxs,
-  dds_instance_handle_t handle);
-
-/**
- * @brief Access loaned samples of data reader, readcondition or querycondition,
- *        scoped by the given instance handle.
- * @ingroup reading
- * @component read_data
- *
- * This operation implements the same functionality as dds_take_wl, except that
- * only data scoped to the provided instance handle is read.
- *
- * @param[in]  reader_or_condition Reader, readcondition or querycondition entity.
- * @param[out] buf An array of pointers to samples into which data is read (pointers can be NULL).
- * @param[out] si Pointer to an array of @ref dds_sample_info_t returned for each data value.
- * @param[in]  maxs Maximum number of samples to read.
- * @param[in]  handle Instance handle related to the samples to read.
- *
- * @returns A dds_return_t with the number of samples read or an error code.
- *
- * @retval >=0
- *             Number of samples read.
- * @retval DDS_RETCODE_ERROR
- *             An internal error has occurred.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             One of the given arguments is not valid.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The entity has already been deleted.
- * @retval DDS_RETCODE_PRECONDITION_NOT_MET
- *             The instance handle has not been registered with this reader.
- */
-DDS_EXPORT dds_return_t
-dds_take_instance_wl(
-  dds_entity_t reader_or_condition,
-  void **buf,
-  dds_sample_info_t *si,
-  uint32_t maxs,
-  dds_instance_handle_t handle);
-
-/**
- * @brief Take the collection of data values (of same type) and sample info from the
- *        data reader, readcondition or querycondition based on mask and scoped
- *        by the given instance handle.
- * @ingroup reading
- * @component read_data
- *
- * This operation implements the same functionality as dds_take_mask, except that only
- * data scoped to the provided instance handle is read.
- *
- * @param[in]  reader_or_condition Reader, readcondition or querycondition entity.
- * @param[out] buf An array of pointers to samples into which data is read (pointers can be NULL).
- * @param[out] si Pointer to an array of @ref dds_sample_info_t returned for each data value.
- * @param[in]  bufsz The size of buffer provided.
- * @param[in]  maxs Maximum number of samples to read.
- * @param[in]  handle Instance handle related to the samples to read.
- * @param[in]  mask Filter the data based on dds_sample_state_t|dds_view_state_t|dds_instance_state_t.
- *
- * @returns A dds_return_t with the number of samples read or an error code.
- *
- * @retval >=0
- *             Number of samples read.
- * @retval DDS_RETCODE_ERROR
- *             An internal error has occurred.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             One of the given arguments is not valid.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The entity has already been deleted.
- * @retval DDS_RETCODE_PRECONDITION_NOT_MET
- *             The instance handle has not been registered with this reader.
- */
-DDS_EXPORT dds_return_t
-dds_take_instance_mask(
-  dds_entity_t reader_or_condition,
-  void **buf,
-  dds_sample_info_t *si,
-  size_t bufsz,
-  uint32_t maxs,
-  dds_instance_handle_t handle,
-  uint32_t mask);
-
-/**
- * @brief  Access loaned samples of data reader, readcondition or querycondition based
- *         on mask and scoped by the given intance handle.
- * @ingroup reading
- * @component read_data
- *
- * This operation implements the same functionality as dds_take_mask_wl, except that
- * only data scoped to the provided instance handle is read.
- *
- * @param[in]  reader_or_condition Reader, readcondition or querycondition entity.
- * @param[out] buf An array of pointers to samples into which data is read (pointers can be NULL).
- * @param[out] si Pointer to an array of @ref dds_sample_info_t returned for each data value.
- * @param[in]  maxs Maximum number of samples to read.
- * @param[in]  handle Instance handle related to the samples to read.
- * @param[in]  mask Filter the data based on dds_sample_state_t|dds_view_state_t|dds_instance_state_t.
- *
- * @returns A dds_return_t with the number of samples or an error code.
- *
- * @retval >= 0
- *             Number of samples read.
- * @retval DDS_RETCODE_ERROR
- *             An internal error has occurred.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             One of the given arguments is not valid.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The entity has already been deleted.
- * @retval DDS_RETCODE_PRECONDITION_NOT_MET
- *             The instance handle has not been registered with this reader.
- */
-DDS_EXPORT dds_return_t
-dds_take_instance_mask_wl(
-  dds_entity_t reader_or_condition,
-  void **buf,
-  dds_sample_info_t *si,
-  uint32_t maxs,
-  dds_instance_handle_t handle,
-  uint32_t mask);
-
-/**
- * @brief Read, copy and remove the status set for the entity
- * @ingroup reading
- * @component read_data
- *
- * This operation copies the next, non-previously accessed
- * data value and corresponding sample info and removes from
- * the data reader. As an entity, only reader is accepted.
- *
- * The read/take next functions return a single sample. The returned sample
- * has a sample state of NOT_READ, a view state of ANY_VIEW_STATE and an
- * instance state of ANY_INSTANCE_STATE.
- *
- * @param[in]  reader The reader entity.
- * @param[out] buf An array of pointers to samples into which data is read (pointers can be NULL).
- * @param[out] si The pointer to @ref dds_sample_info_t returned for a data value.
- *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             The operation was successful.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             The entity parameter is not a valid parameter.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The entity has already been deleted.
- */
-DDS_EXPORT dds_return_t
-dds_take_next(
-  dds_entity_t reader,
-  void **buf,
-  dds_sample_info_t *si);
-
-/**
- * @brief Read, copy and remove the status set for the entity
- * @ingroup reading
- * @component read_data
- *
- * This operation copies the next, non-previously accessed
- * data value and corresponding sample info and removes from
- * the data reader. As an entity, only reader is accepted.
- *
- * The read/take next functions return a single sample. The returned sample
- * has a sample state of NOT_READ, a view state of ANY_VIEW_STATE and an
- * instance state of ANY_INSTANCE_STATE.
- *
- * After dds_take_next_wl function is being called and the data has been handled,
- * dds_return_loan() function must be called to possibly free memory.
- *
- * @param[in]  reader The reader entity.
- * @param[out] buf An array of pointers to samples into which data is read (pointers can be NULL).
- * @param[out] si The pointer to @ref dds_sample_info_t returned for a data value.
- *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             The operation was successful.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             The entity parameter is not a valid parameter.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The entity has already been deleted.
- */
-DDS_EXPORT dds_return_t
-dds_take_next_wl(
-  dds_entity_t reader,
-  void **buf,
-  dds_sample_info_t *si);
-
-/**
- * @brief Read and copy the status set for the entity
- * @ingroup reading
- * @component read_data
- *
- * This operation copies the next, non-previously accessed
- * data value and corresponding sample info. As an entity,
- * only reader is accepted.
- *
- * The read/take next functions return a single sample. The returned sample
- * has a sample state of NOT_READ, a view state of ANY_VIEW_STATE and an
- * instance state of ANY_INSTANCE_STATE.
- *
- * @param[in]  reader The reader entity.
- * @param[out] buf An array of pointers to samples into which data is read (pointers can be NULL).
- * @param[out] si The pointer to @ref dds_sample_info_t returned for a data value.
- *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             The operation was successful.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             The entity parameter is not a valid parameter.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The entity has already been deleted.
- */
-DDS_EXPORT dds_return_t
-dds_read_next(
-  dds_entity_t reader,
-  void **buf,
-  dds_sample_info_t *si);
-
-/**
- * @brief Read and copy the status set for the loaned sample
- * @ingroup reading
- * @component read_data
- *
- * This operation copies the next, non-previously accessed
- * data value and corresponding loaned sample info. As an entity,
- * only reader is accepted.
- *
- * The read/take next functions return a single sample. The returned sample
- * has a sample state of NOT_READ, a view state of ANY_VIEW_STATE and an
- * instance state of ANY_INSTANCE_STATE.
- *
- * After dds_read_next_wl function is being called and the data has been handled,
- * dds_return_loan() function must be called to possibly free memory.
- *
- * @param[in]  reader The reader entity.
- * @param[out] buf An array of pointers to samples into which data is read (pointers can be NULL).
- * @param[out] si The pointer to @ref dds_sample_info_t returned for a data value.
- *
- * @returns A dds_return_t indicating success or failure.
- *
- * @retval DDS_RETCODE_OK
- *             The operation was successful.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             The entity parameter is not a valid parameter.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The entity has already been deleted.
- */
-DDS_EXPORT dds_return_t
-dds_read_next_wl(
-  dds_entity_t reader,
-  void **buf,
-  dds_sample_info_t *si);
-
-/**
- * @brief Function type for sample collector argument in read/take-with-collector
- * @ingroup reading
- * @component read_data
- *
- * This defines the function type used by @ref dds_read_with_collector and @ref
- * dds_take_with_collector for passing samples to be included in the result to an
- * application defined function for collecting them in whatever way it needs.  The
- * function is called for each sample while the RHC is locked, and so it is advisable to
- * only perform a small amount of work.  Calling Cyclone DDS API functions is not
- * supported.
- *
- * It is called for the samples in the order compatible with the requirements of the DDS
- * specification, in particular that means instances are contiguous.
- *
- * @param[in] arg A pointer to the application-defined argument passed to read/take
- * @param[in] si A fully initialized sample info object
- * @param[in] st The underlying ddsi_sertype (needed only if si.valid_data is false)
- * @param[in] sd The sample, if si.valid_data is false, the type has been erased (hence the "st" argument)
- *
- * @return An indication of success or failure
- * @retval DDS_RETCODE_OK
- *           the sample was successfully handled and reading can continue
- * @retval otherwise
- *           an error, this will propagated to the caller if it occurs on the first call
- *           otherwise the return valu eof read/take will be the number of samples
- *           successfully collected
- */
-typedef dds_return_t (*dds_read_with_collector_fn_t) (
-  void *arg,
-  const dds_sample_info_t *si,
-  const struct ddsi_sertype *st,
-  struct ddsi_serdata *sd);
-
-/**
- * @brief Read samples while collecting result in an application-defined way
- * @ingroup reading
- * @component read_data
- *
- * When using a readcondition or querycondition, their masks are or'd with the given mask.
- *
- * If the sample/view/instance state component in the mask is 0 and there is no read or query condition,
- * to combine it with, it is treated as equivalent to any sample/view/instance state.
- *
- * @param[in] reader_or_condition Handle of a reader or a read/query condition
- * @param[in] maxs Maximum number of samples (1 .. INT32_MAX)
- * @param[in] handle Instance handle or 0 if not reading a specific instance
- * @param[in] mask Sample/view/instance state mask
- * @param[in] collect_sample Function be called for each sample in the result
- * @param[in] collect_sample_arg Arbitrary argument passed to "collect_sample"
- * @return The number of returned samples or an error code
- * @retval > 0 number of samples passed successfully collected by collect_sample
- * @retval 0   success, no matching data
- * @retval DDS_RETCODE_ERROR
- *             An internal error has occurred.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             One of the given arguments is not valid.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The entity has already been deleted.
- * @retval < 0 Return value of failing collect_sample on first invocation
- */
-DDS_EXPORT dds_return_t
-dds_read_with_collector (
-  dds_entity_t reader_or_condition,
-  uint32_t maxs,
-  dds_instance_handle_t handle,
-  uint32_t mask,
-  dds_read_with_collector_fn_t collect_sample,
-  void *collect_sample_arg);
-
-/**
- * @brief Take samples while collecting result in an application-defined way
- * @ingroup reading
- * @component read_data
- *
- * When using a readcondition or querycondition, their masks are or'd with the given mask.
- *
- * If the sample/view/instance state component in the mask is 0 and there is no read or query condition,
- * to combine it with, it is treated as equivalent to any sample/view/instance state.
- *
- * @param[in] reader_or_condition Handle of a reader or a read/query condition
- * @param[in] maxs Maximum number of samples (1 .. INT32_MAX)
- * @param[in] handle Instance handle or 0 if not taking from a specific instance
- * @param[in] mask Sample/view/instance state mask
- * @param[in] collect_sample Function be called for each sample in the result
- * @param[in] collect_sample_arg Arbitrary argument passed to "collect_sample"
- * @return The number of returned samples or an error code
- * @retval > 0 number of samples passed successfully collected by collect_sample
- * @retval 0   success, no matching data
- * @retval DDS_RETCODE_ERROR
- *             An internal error has occurred.
- * @retval DDS_RETCODE_BAD_PARAMETER
- *             One of the given arguments is not valid.
- * @retval DDS_RETCODE_ILLEGAL_OPERATION
- *             The operation is invoked on an inappropriate object.
- * @retval DDS_RETCODE_ALREADY_DELETED
- *             The entity has already been deleted.
- * @retval < 0 Return value of failing collect_sample on first invocation
- */
-DDS_EXPORT dds_return_t
-dds_take_with_collector (
-  dds_entity_t reader_or_condition,
-  uint32_t maxs,
-  dds_instance_handle_t handle,
-  uint32_t mask,
-  dds_read_with_collector_fn_t collect_sample,
-  void *collect_sample_arg);
 
 /**
  * @defgroup instance_handle (Instance Handles)

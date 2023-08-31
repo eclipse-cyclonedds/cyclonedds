@@ -20,11 +20,12 @@ extern "C" {
 
 /** @component read_data */
 struct dds_read_collect_sample_arg {
-  uint32_t next_idx;              /**< next index in ptrs/infos to be filled (initially 0) **/
-  void **ptrs;                    /**< array of pointers to samples/serdatas to be filled **/
-  dds_sample_info_t *infos;       /**< array of sample infos to be filled **/
-  struct dds_loan_pool *loan_pool;  /**< loan pool to be used for loaned sample administration **/
+  uint32_t next_idx; /**< next index in ptrs/infos to be filled (initially 0) **/
+  void **ptrs; /**< array of pointers to samples/serdatas to be filled **/
+  dds_sample_info_t *infos; /**< array of sample infos to be filled **/
+  struct dds_loan_pool *loan_pool; /**< loan pool to be used for loaned sample administration **/
   struct dds_loan_pool *heap_loan_cache; /**< pool of cached heap loans */
+  bool may_return_shared; /**< iff true, returned samples may point to a shared copy; else always private */
 };
 
 /** @brief Initialize the sample collector state
@@ -39,8 +40,10 @@ struct dds_read_collect_sample_arg {
  *            collect_sample_loan, may be null otherwise)
  * @param[in] heap_loan_cache a cache of returned heap loans (optional; only used by
  *            collect_sample_loan)
+ * @param[in] may_return_shared whether or not the returned sample pointers may
+ *            point to shared copies or not.
  */
-void dds_read_collect_sample_arg_init (struct dds_read_collect_sample_arg *arg, void **ptrs, dds_sample_info_t *infos, struct dds_loan_pool *loan_pool, struct dds_loan_pool *heap_loan_cache)
+void dds_read_collect_sample_arg_init (struct dds_read_collect_sample_arg *arg, void **ptrs, dds_sample_info_t *infos, struct dds_loan_pool *loan_pool, struct dds_loan_pool *heap_loan_cache, bool may_return_shared)
   ddsrt_nonnull ((1, 2, 3));
 
 /** @brief Sample collector that deserializes the samples into ptrs[i]
