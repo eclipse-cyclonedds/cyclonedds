@@ -342,19 +342,8 @@ static const char *istatestr (dds_instance_state_t s)
   return "nowriters";
 }
 
-static dds_return_t take (dds_entity_t rd_or_cnd, void **buf, dds_sample_info_t *si, uint32_t maxs)
+static bool alldataseen (struct tracebuf *tb, int nrds, const dds_entity_t *rds, dds_instance_state_t instance_state, bool use_rd_loan, const dds_topic_descriptor_t *tpdesc, dds_time_t ts)
 {
-  return dds_take (rd_or_cnd, buf, si, maxs, maxs);
-}
-
-static dds_return_t take_wl (dds_entity_t rd_or_cnd, void **buf, dds_sample_info_t *si, uint32_t maxs)
-{
-  return dds_take_wl (rd_or_cnd, buf, si, maxs);
-}
-
-static bool alldataseen (struct tracebuf *tb, int nrds, const dds_entity_t *rds, dds_instance_state_t instance_state, bool use_rd_loan, dds_time_t ts)
-{
-  dds_return_t (* const takeop) (dds_entity_t, void **, dds_sample_info_t *, uint32_t) = use_rd_loan ? take_wl : take;
   assert (nrds > 0);
   dds_return_t rc;
   const dds_entity_t ws = dds_create_waitset (DDS_CYCLONEDDS_HANDLE);
@@ -385,12 +374,11 @@ static bool alldataseen (struct tracebuf *tb, int nrds, const dds_entity_t *rds,
     {
       if (rdconds[i] != 0)
       {
-        void *sampleptr = NULL;
+        void *sampleptr = use_rd_loan ? NULL : dds_alloc (tpdesc->m_size);
         dds_sample_info_t si;
         int32_t n;
-        while ((n = takeop (rdconds[i], &sampleptr, &si, 1)) > 0)
+        while ((n = dds_take (rdconds[i], &sampleptr, &si, 1, 1)) > 0)
         {
-          (void) dds_return_loan (rdconds[i], &sampleptr, n);
           if (si.instance_state != instance_state)
           {
             print (tb, "[rd %d %s while expecting %s] ", i, istatestr (si.instance_state), istatestr (instance_state));
@@ -408,6 +396,8 @@ static bool alldataseen (struct tracebuf *tb, int nrds, const dds_entity_t *rds,
             toomuchdataseen = true;
         }
         CU_ASSERT_FATAL (n == 0);
+        if (!use_rd_loan)
+          dds_sample_free (sampleptr, tpdesc, DDS_FREE_ALL);
       }
     }
     alldataseen = true;
@@ -745,7 +735,7 @@ static void dotest (const dds_topic_descriptor_t *tpdesc, const void *sample, en
         dds_time_t ts = dds_time ();
         rc = ops[opidx].op (wr, sample_to_write, ts);
         CU_ASSERT_FATAL (rc == 0);
-        if (!alldataseen (&tb, nrds_active, rds, ops[opidx].istate, use_rd_loan, ts))
+        if (!alldataseen (&tb, nrds_active, rds, ops[opidx].istate, use_rd_loan, tpdesc, ts))
         {
           fail_one = true;
           goto next;
@@ -1056,7 +1046,7 @@ CU_Test (ddsc_psmx, basic)
   dds_delete (dds_get_parent (participant));
 }
 
-CU_Test (ddsc_psmx, read_vs_read_with_loan)
+CU_Test (ddsc_psmx, zero_copy)
 {
   const struct {
     const dds_topic_descriptor_t *desc;
@@ -1073,7 +1063,7 @@ CU_Test (ddsc_psmx, read_vs_read_with_loan)
   for (size_t k = 0; k < sizeof (cases) / sizeof (cases[0]); k++)
   {
     char topicname[100];
-    create_unique_topic_name ("read_vs_read_with_loan", topicname, sizeof (topicname));
+    create_unique_topic_name ("zero_copy", topicname, sizeof (topicname));
     const dds_entity_t tp = dds_create_topic (pp, cases[k].desc, topicname, NULL, NULL);
     CU_ASSERT_FATAL (tp > 0);
     for (int psmx_enabled_i = 0; psmx_enabled_i <= 1; psmx_enabled_i++)
@@ -1085,97 +1075,90 @@ CU_Test (ddsc_psmx, read_vs_read_with_loan)
       for (int wrloan_i = 0; wrloan_i <= (cases[k].wrloan_ok ? 1 : 0); wrloan_i++)
       {
         const bool wrloan = wrloan_i;
-        for (int rdloan_i = 0; rdloan_i <= 1; rdloan_i++)
+        printf ("ddsc_psmx read_vs_read_with_loan: %s psmx %d wrloan %d", cases[k].desc->m_typename, psmx_enabled, wrloan);
+        fflush (stdout);
+
+        const dds_entity_t wr = dds_create_writer (pp, tp, qos, NULL);
+        CU_ASSERT_FATAL (wr > 0);
+        CU_ASSERT_FATAL (endpoint_has_psmx_enabled (wr) == psmx_enabled);
+        dds_entity_t rds[2];
+        const dds_entity_t ws = dds_create_waitset (pp);
+        for (size_t i = 0; i < sizeof (rds) / sizeof (rds[0]); i++)
         {
-          const bool rdloan = rdloan_i;
-          printf ("ddsc_psmx read_vs_read_with_loan: %s psmx %d wrloan %d rdloan %d", cases[k].desc->m_typename, psmx_enabled, wrloan, rdloan);
-          fflush (stdout);
-
-          const dds_entity_t wr = dds_create_writer (pp, tp, qos, NULL);
-          CU_ASSERT_FATAL (wr > 0);
-          CU_ASSERT_FATAL (endpoint_has_psmx_enabled (wr) == psmx_enabled);
-          dds_entity_t rds[2];
-          const dds_entity_t ws = dds_create_waitset (pp);
-          for (size_t i = 0; i < sizeof (rds) / sizeof (rds[0]); i++)
-          {
-            rds[i] = dds_create_reader (pp, tp, qos, NULL);
-            CU_ASSERT_FATAL (rds[i] > 0);
-            CU_ASSERT_FATAL (endpoint_has_psmx_enabled (rds[i]) == psmx_enabled);
-            sync_reader_writer (pp, rds[i], pp, wr);
-            rc = dds_set_status_mask (rds[i], DDS_DATA_AVAILABLE_STATUS);
-            CU_ASSERT_FATAL (rc == 0);
-            rc = dds_waitset_attach (ws, rds[i], rds[i]);
-            CU_ASSERT_FATAL (rc == 0);
-          }
-
-          const void *wrdata = cases[k].data;
-          if (wrloan)
-          {
-            void *tmp;
-            rc = dds_request_loan (wr, &tmp, 1);
-            CU_ASSERT_FATAL (rc == 0);
-            memcpy (tmp, wrdata, cases[k].desc->m_size);
-            wrdata = tmp;
-          }
-          printf (" | write %p", wrdata); fflush (stdout);
-          rc = dds_write (wr, wrdata);
+          rds[i] = dds_create_reader (pp, tp, qos, NULL);
+          CU_ASSERT_FATAL (rds[i] > 0);
+          CU_ASSERT_FATAL (endpoint_has_psmx_enabled (rds[i]) == psmx_enabled);
+          sync_reader_writer (pp, rds[i], pp, wr);
+          rc = dds_set_status_mask (rds[i], DDS_DATA_AVAILABLE_STATUS);
           CU_ASSERT_FATAL (rc == 0);
+          rc = dds_waitset_attach (ws, rds[i], rds[i]);
+          CU_ASSERT_FATAL (rc == 0);
+        }
 
-          // wait until all readers have data
+        const void *wrdata = cases[k].data;
+        if (wrloan)
+        {
+          void *tmp;
+          rc = dds_request_loan (wr, &tmp, 1);
+          CU_ASSERT_FATAL (rc == 0);
+          memcpy (tmp, wrdata, cases[k].desc->m_size);
+          wrdata = tmp;
+        }
+        printf (" | write %p", wrdata); fflush (stdout);
+        rc = dds_write (wr, wrdata);
+        CU_ASSERT_FATAL (rc == 0);
+
+        // wait until all readers have data
+        {
+          size_t ready = 0;
+          while (ready != sizeof (rds) / sizeof (rds[0]))
           {
-            size_t ready = 0;
-            while (ready != sizeof (rds) / sizeof (rds[0]))
+            dds_attach_t ts[2];
+            int32_t n = dds_waitset_wait (ws, ts, sizeof (ts) / sizeof (ts[0]), DDS_INFINITY);
+            CU_ASSERT_FATAL (n > 0);
+            ready += (size_t) n;
+            for (int32_t i = 0; i < n; i++)
             {
-              dds_attach_t ts[2];
-              int32_t n = dds_waitset_wait (ws, ts, sizeof (ts) / sizeof (ts[0]), DDS_INFINITY);
-              CU_ASSERT_FATAL (n > 0);
-              ready += (size_t) n;
-              for (int32_t i = 0; i < n; i++)
-              {
-                rc = dds_waitset_detach (ws, (dds_entity_t) ts[i]);
-                CU_ASSERT_FATAL (rc == 0);
-              }
+              rc = dds_waitset_detach (ws, (dds_entity_t) ts[i]);
+              CU_ASSERT_FATAL (rc == 0);
             }
           }
-          rc = dds_delete (ws);
+        }
+        rc = dds_delete (ws);
+        CU_ASSERT_FATAL (rc == 0);
+
+        dds_sample_info_t si;
+        void *rddata[sizeof (rds) / sizeof (rds[0])] = { NULL };
+        for (size_t i = 0; i < sizeof (rds) / sizeof (rds[0]); i++)
+        {
+          rc = dds_read (rds[i], &rddata[i], &si, 1, 1);
+          CU_ASSERT_FATAL (rc == 1);
+          printf (" | rddata[%d] %p", (int) i, rddata[i]); fflush (stdout);
+        }
+
+        // If not using _wl, private copies. Otherwise it gets very implementation-specific
+        // whether they are actually the same, but it is a test, so let's check. Changes to
+        // the implementation may well require changing this test.
+        if (!cases[k].wrloan_ok || !dds_is_shared_memory_available (wr))
+        {
+          for (size_t i = 0; i < sizeof (rds) / sizeof (rds[0]) - 1; i++)
+            for (size_t j = i + 1; j < sizeof (rds) / sizeof (rds[0]); j++)
+              CU_ASSERT (rddata[i] != rddata[j]);
+        }
+        else
+        {
+          for (size_t i = 1; i < sizeof (rds) / sizeof (rds[0]); i++)
+            CU_ASSERT (rddata[i] == rddata[0]);
+          CU_ASSERT ((wrloan && wrdata == rddata[0]) || (!wrloan && wrdata != rddata[0]));
+        }
+
+        printf ("\n"); fflush (stdout);
+        rc = dds_delete (wr);
+        CU_ASSERT_FATAL (rc == 0);
+        for (size_t i = 0; i < sizeof (rds) / sizeof (rds[0]); i++)
+        {
+          rc = dds_delete (rds[i]);
           CU_ASSERT_FATAL (rc == 0);
-
-          dds_sample_info_t si;
-          void *rddata[sizeof (rds) / sizeof (rds[0])] = { NULL };
-          for (size_t i = 0; i < sizeof (rds) / sizeof (rds[0]); i++)
-          {
-            if (rdloan)
-              rc = dds_read_wl (rds[i], &rddata[i], &si, 1);
-            else
-              rc = dds_read (rds[i], &rddata[i], &si, 1, 1);
-            CU_ASSERT_FATAL (rc == 1);
-            printf (" | rddata[%d] %p", (int) i, rddata[i]); fflush (stdout);
-          }
-
-          // If not using _wl, private copies. Otherwise it gets very implementation-specific
-          // whether they are actually the same, but it is a test, so let's check. Changes to
-          // the implementation may well require changing this test.
-          if (!rdloan || !cases[k].wrloan_ok || !dds_is_shared_memory_available (wr))
-          {
-            for (size_t i = 0; i < sizeof (rds) / sizeof (rds[0]) - 1; i++)
-              for (size_t j = i + 1; j < sizeof (rds) / sizeof (rds[0]); j++)
-                CU_ASSERT (rddata[i] != rddata[j]);
-          }
-          else
-          {
-            for (size_t i = 1; i < sizeof (rds) / sizeof (rds[0]); i++)
-              CU_ASSERT (rddata[i] == rddata[0]);
-            CU_ASSERT ((wrloan && wrdata == rddata[0]) || (!wrloan && wrdata != rddata[0]));
-          }
-
-          printf ("\n"); fflush (stdout);
-          rc = dds_delete (wr);
-          CU_ASSERT_FATAL (rc == 0);
-          for (size_t i = 0; i < sizeof (rds) / sizeof (rds[0]); i++)
-          {
-            rc = dds_delete (rds[i]);
-            CU_ASSERT_FATAL (rc == 0);
-          }
         }
       }
       dds_delete_qos (qos);

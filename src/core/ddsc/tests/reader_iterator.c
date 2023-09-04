@@ -17,6 +17,9 @@
 
 #include "test_common.h"
 
+// Because all the _wl variants are deprecated
+DDSRT_WARNING_DEPRECATED_OFF
+
 /**************************************************************************************************
  *
  * Test fixtures
