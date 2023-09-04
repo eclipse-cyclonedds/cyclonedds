@@ -60,7 +60,7 @@ dds_return_t dds_loan_pool_free (dds_loan_pool_t *pool)
  * @return a DDS return code
  */
 dds_return_t dds_loan_pool_add_loan (dds_loan_pool_t *pool, dds_loaned_sample_t *loaned_sample)
-  ddsrt_nonnull_all;
+  ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
 
 /**
  * @brief Finds a loan in the loan pool and removes it

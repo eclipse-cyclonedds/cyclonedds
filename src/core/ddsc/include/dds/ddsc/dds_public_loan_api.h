@@ -29,11 +29,11 @@ extern "C" {
  */
 
 /**
- * @brief Request loans from an entity.
+ * @brief Request a loan from an entity.
  * @ingroup loan
  *
- * Borrow one or more samples from the entity, which currently must be a writer. These samples
- * can then be returned using @ref `dds_return_loan` or they can be used to publish data
+ * Borrow a sample from the entity, which currently must be a writer. This sample
+ * can then be returned using @ref `dds_return_loan` or can be used to publish data
  * using @ref `dds_write` or @ref `dds_writedispose`.
  *
  * If the topic type has a fixed size (and so no internal pointers) and a PSMX interface is configured,
@@ -42,8 +42,7 @@ extern "C" {
  * in the WHC.
  *
  * @param[in] entity The entity to request loans from.
- * @param[out] buf Pointer to the array to store the pointers to the loaned samples into.
- * @param[out] bufsz The number of loans to request (> 0)
+ * @param[out] sample Where to store the address of the loaned sample.
  *
  * @returns A dds_return_t indicating success or failure.
  *
@@ -58,7 +57,7 @@ extern "C" {
  * @retval DDS_RETCODE_ERROR
  *             An unfortunate incident occurred.
  */
-DDS_EXPORT dds_return_t dds_request_loan (dds_entity_t entity, void **buf, int32_t bufsz);
+DDS_EXPORT dds_return_t dds_request_loan (dds_entity_t entity, void **sample);
 
 /**
  * @brief Return loaned samples to a reader or writer

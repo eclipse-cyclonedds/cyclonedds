@@ -726,7 +726,7 @@ static void dotest (const dds_topic_descriptor_t *tpdesc, const void *sample, en
         if (use_wr_loan && ops[opidx].op == dds_write_ts)
         {
           void *loan;
-          rc = dds_request_loan (wr, &loan, 1);
+          rc = dds_request_loan (wr, &loan);
           CU_ASSERT_FATAL (rc == 0);
           memcpy (loan, sample, tpdesc->m_size);
           sample_to_write = loan;
@@ -878,10 +878,10 @@ CU_Test(ddsc_psmx, return_loan)
 
   for (int i = 0; i < 10000; i ++)
   {
-    void *sample[3] = { NULL, NULL, NULL };
-    rc = dds_request_loan (wr, sample, 3);
+    void *sample;
+    rc = dds_request_loan (wr, &sample);
     CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
-    rc = dds_return_loan (wr, sample, 3);
+    rc = dds_return_loan (wr, &sample, 1);
     CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
   }
 
@@ -1099,7 +1099,7 @@ CU_Test (ddsc_psmx, zero_copy)
         if (wrloan)
         {
           void *tmp;
-          rc = dds_request_loan (wr, &tmp, 1);
+          rc = dds_request_loan (wr, &tmp);
           CU_ASSERT_FATAL (rc == 0);
           memcpy (tmp, wrdata, cases[k].desc->m_size);
           wrdata = tmp;

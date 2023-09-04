@@ -674,7 +674,7 @@ static uint32_t pubthread (void *varg)
     void *dataptr;
     if (!use_writer_loan)
       dataptr = &data;
-    else if ((result = dds_request_loan (wr_data, &dataptr, 1)) < 0)
+    else if ((result = dds_request_loan (wr_data, &dataptr)) < 0)
     {
       printf ("request loan error: %d\n", result);
       fflush (stdout);

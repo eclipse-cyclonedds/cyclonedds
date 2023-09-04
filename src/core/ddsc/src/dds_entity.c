@@ -1577,12 +1577,12 @@ dds_return_t dds_assert_liveliness (dds_entity_t entity)
   return rc;
 }
 
-dds_return_t dds_request_loan (dds_entity_t entity, void **buf, int32_t bufsz)
+dds_return_t dds_request_loan (dds_entity_t entity, void **sample)
 {
   dds_entity *p_entity;
   dds_return_t ret;
 
-  if (buf == NULL || bufsz <= 0)
+  if (sample == NULL)
     return DDS_RETCODE_BAD_PARAMETER;
 
   if ((ret = dds_entity_pin (entity, &p_entity)) < 0)
@@ -1592,7 +1592,7 @@ dds_return_t dds_request_loan (dds_entity_t entity, void **buf, int32_t bufsz)
   {
     case DDS_KIND_WRITER: {
       dds_writer *wr = (dds_writer *) p_entity;
-      ret = dds_request_writer_loan (wr, buf, bufsz);
+      ret = dds_request_writer_loan (wr, sample);
       break;
     }
     case DDS_KIND_DONTCARE:
@@ -1617,7 +1617,7 @@ dds_return_t dds_request_loan (dds_entity_t entity, void **buf, int32_t bufsz)
 
 dds_return_t dds_loan_sample (dds_entity_t writer, void **sample)
 {
-  return dds_request_loan (writer, sample, 1);
+  return dds_request_loan (writer, sample);
 }
 
 dds_return_t dds_return_loan (dds_entity_t entity, void **buf, int32_t bufsz)

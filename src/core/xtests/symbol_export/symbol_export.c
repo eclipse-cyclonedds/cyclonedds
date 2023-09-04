@@ -242,7 +242,7 @@ int main (int argc, char **argv)
   dds_get_entity_sertype (1, ptr);
 
   // dds_public_loan_api.h
-  dds_request_loan (1, ptr, 0);
+  dds_request_loan (1, ptr);
   dds_return_loan (1, ptr, 0);
   dds_is_shared_memory_available (1);
   dds_loan_shared_memory_buffer (1, 0, ptr);

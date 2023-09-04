@@ -370,37 +370,9 @@ static dds_return_t dds_write_basic_impl (struct ddsi_thread_state * const ts, d
   return ret;
 }
 
-static dds_loaned_sample_t *dds_request_writer_loan_psmx (dds_writer *wr)
-{
-  // FIXME: support multiple PSMX instances
-  return dds_psmx_endpoint_request_loan (wr->m_endpoint.psmx_endpoints.endpoints[0], wr->m_topic->m_stype->zerocopy_size);
-}
-
-static dds_loaned_sample_t *dds_request_writer_loan_heap (dds_writer *wr)
-{
-  dds_loaned_sample_t *loan;
-  if (dds_heap_loan (wr->m_topic->m_stype, DDS_LOANED_SAMPLE_STATE_RAW_DATA, &loan) != DDS_RETCODE_OK)
-    return NULL;
-  return loan;
-}
-
-static void dds_request_writer_loan_rollback (dds_writer *wr, void **samples_ptr, int32_t n_samples_valid)
-{
-  for (int32_t i = 0; i < n_samples_valid; i++)
-  {
-    dds_loaned_sample_t * const loan = dds_loan_pool_find_and_remove_loan (wr->m_loans, samples_ptr[i]);
-    assert (loan != NULL);
-    dds_loaned_sample_unref (loan);
-    // Null it or not? If someone fails to check the return, this'll probably cause a nice crash and for us
-    // it is not in the critical path.
-    samples_ptr[i] = NULL;
-  }
-}
-
-dds_return_t dds_request_writer_loan (dds_writer *wr, void **samples_ptr, int32_t n_samples)
+dds_return_t dds_request_writer_loan (dds_writer *wr, void **sample)
 {
   dds_return_t ret = DDS_RETCODE_OK;
-  dds_loaned_sample_t * (*request_loan) (dds_writer *wr);
 
   ddsrt_mutex_lock (&wr->m_entity.m_mutex);
   // We don't bother the PSMX interface with types that contain pointers, but we do
@@ -409,26 +381,19 @@ dds_return_t dds_request_writer_loan (dds_writer *wr, void **samples_ptr, int32_
   // One should expect the latter performance to be worse than the a plain write.
   // FIXME: allow multiple psmx instances
   assert (wr->m_endpoint.psmx_endpoints.length <= 1);
-  if (wr->m_endpoint.psmx_endpoints.length == 0 || !wr->m_topic->m_stype->fixed_size)
-    request_loan = dds_request_writer_loan_heap;
-  else
-    request_loan = dds_request_writer_loan_psmx;
 
-  for (int32_t i = 0; i < n_samples; i++)
-  {
-    dds_loaned_sample_t *loan = request_loan (wr);
-    if (loan != NULL)
-    {
-      dds_loan_pool_add_loan (wr->m_loans, loan);
-      samples_ptr[i] = loan->sample_ptr;
-    }
-    else
-    {
-      dds_request_writer_loan_rollback (wr, samples_ptr, i);
-      ret = DDS_RETCODE_ERROR;
-      break;
-    }
-  }
+  dds_loaned_sample_t *loan;
+  if (wr->m_endpoint.psmx_endpoints.length > 0 && wr->m_topic->m_stype->fixed_size)
+    loan = dds_psmx_endpoint_request_loan (wr->m_endpoint.psmx_endpoints.endpoints[0], wr->m_topic->m_stype->zerocopy_size);
+  else if ((ret = dds_heap_loan (wr->m_topic->m_stype, DDS_LOANED_SAMPLE_STATE_RAW_DATA, &loan)) != 0)
+    loan = NULL;
+
+  if (loan == NULL)
+    ret = DDS_RETCODE_ERROR;
+  else if ((ret = dds_loan_pool_add_loan (wr->m_loans, loan)) != 0)
+    dds_loaned_sample_unref (loan);
+  else
+    *sample = loan->sample_ptr;
   ddsrt_mutex_unlock (&wr->m_entity.m_mutex);
   return ret;
 }
