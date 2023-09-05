@@ -577,26 +577,16 @@ static void dotest (const dds_topic_descriptor_t *tpdesc, const void *sample, en
       bool fatal = false;
       bool fail_one = false;
 
-      //if (!wr_use_psmx)
-      //  goto next;
-
-      if (wr_use_psmx)
-      {
-        // Currently unsupported? PSMX writer with DDS readers in same domain
-        bool skip = false;
-        for (int i = 0; !skip && i < MAX_READERS_PER_DOMAIN; i++)
-          if (rdmode[i] == 1)
-            skip = true;
-        if (skip)
-          goto skip;
-      }
-
       // We want to be certain that local delivery happens via the PSMX, which is tricky
       // because we rather try not to make it visible at the API level. We test it here by
       // preventing the local short-circuit from working by temporarily forcing the "fast
-      // path" reader count to 0, so that nothing will get delivered if it picks the wrong
-      // path.
-      bool override_fastpath_rdcount = wr_use_psmx;
+      // path" reader count to 0 if there are no local non-PSMX readers, so that nothing
+      // will get delivered if it picks the wrong path.
+      bool have_local_dds_readers = false;
+      for (int i = 0; !have_local_dds_readers && i < MAX_READERS_PER_DOMAIN; i++)
+        if (rdmode[i] == 1)
+          have_local_dds_readers = true;
+      bool override_fastpath_rdcount = wr_use_psmx && !have_local_dds_readers;
 
       test_index++;
       if (test_index >= test_index_start && test_index <= test_index_end)
