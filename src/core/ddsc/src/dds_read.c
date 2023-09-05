@@ -64,7 +64,10 @@ static dds_return_t dds_read_collect_sample_loan_zerocopy (struct dds_read_colle
   else if (ls->metadata->sample_state != DDS_LOANED_SAMPLE_STATE_RAW_DATA && ls->metadata->sample_state != DDS_LOANED_SAMPLE_STATE_RAW_KEY)
     return 1; // same here
   else if ((ret = dds_loan_pool_add_loan (arg->loan_pool, ls)) != DDS_RETCODE_OK)
+  {
+    assert (ret < 0);
     return ret;
+  }
   else
   {
     dds_loaned_sample_ref (ls);
@@ -87,15 +90,15 @@ dds_return_t dds_read_collect_sample_loan (void *varg, const dds_sample_info_t *
   dds_loaned_sample_t *ls;
   if (arg->heap_loan_cache && (ls = dds_loan_pool_get_loan (arg->heap_loan_cache)) != NULL) {
     // lucky us, we can reuse a cached loaned_sample
-  } else if ((ret = dds_heap_loan (st, state, &ls)) == 0) {
+  } else if ((ret = dds_heap_loan (st, state, &ls)) == DDS_RETCODE_OK) {
     // new heap loan, eventually it'll end up in the cache
   } else {
     return ret;
   }
 
   arg->ptrs[arg->next_idx] = ls->sample_ptr;
-  if ((ret = dds_read_collect_sample (arg, si, st, sd)) != 0 ||
-      (ret = dds_loan_pool_add_loan (arg->loan_pool, ls)) != 0)
+  if ((ret = dds_read_collect_sample (arg, si, st, sd)) != DDS_RETCODE_OK ||
+      (ret = dds_loan_pool_add_loan (arg->loan_pool, ls)) != DDS_RETCODE_OK)
   {
     dds_loaned_sample_unref (ls);
     // take/read has to assume that all non-null pointers in the input array are valid (if
@@ -407,7 +410,7 @@ static void return_reader_loan_locked_onesample (dds_reader *rd, dds_loaned_samp
     // application data in a cache.
     if (reset)
       dds_heap_loan_reset (loan);
-    if (dds_loan_pool_add_loan (rd->m_heap_loan_cache, loan) != 0)
+    if (dds_loan_pool_add_loan (rd->m_heap_loan_cache, loan) != DDS_RETCODE_OK)
       dds_loaned_sample_unref (loan);
   }
 }

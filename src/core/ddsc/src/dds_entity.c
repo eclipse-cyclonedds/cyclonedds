@@ -713,7 +713,7 @@ dds_return_t dds_get_qos (dds_entity_t entity, dds_qos_t *qos)
 
   if ((ret = dds_entity_lock (entity, DDS_KIND_DONTCARE, &e)) != DDS_RETCODE_OK)
   {
-    if (dds__get_builtin_topic_name_typename (entity, NULL, NULL) == 0)
+    if (dds__get_builtin_topic_name_typename (entity, NULL, NULL) == DDS_RETCODE_OK)
       return dds_get_qos_builtin_topic (qos);
     else
       return ret;
@@ -976,7 +976,7 @@ dds_return_t dds_set_qos (dds_entity_t entity, const dds_qos_t *qos)
   }
 
   dds_entity_unpin (e);
-  return 0;
+  return DDS_RETCODE_OK;
 }
 
 dds_return_t dds_get_listener (dds_entity_t entity, dds_listener_t *listener)

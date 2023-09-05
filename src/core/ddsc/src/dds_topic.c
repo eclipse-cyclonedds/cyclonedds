@@ -432,7 +432,7 @@ dds_entity_t dds_create_topic_impl (
     const dds_listener_t *listener,
     bool is_builtin)
 {
-  dds_return_t rc = 0;
+  dds_return_t rc = DDS_RETCODE_OK;
   dds_participant *pp;
   dds_qos_t *new_qos = NULL;
   dds_entity_t hdl;
@@ -490,7 +490,7 @@ dds_entity_t dds_create_topic_impl (
    * best-effort will do "the right thing" and let a writer still default to
    * reliable ... (and keep behaviour unchanged) */
 
-  if ((rc = dds_ensure_valid_data_representation (new_qos, (*sertype)->allowed_data_representation, true)) != 0)
+  if ((rc = dds_ensure_valid_data_representation (new_qos, (*sertype)->allowed_data_representation, true)) != DDS_RETCODE_OK)
     goto error;
 
   struct ddsi_domaingv * const gv = &pp->m_entity.m_domain->gv;
@@ -657,7 +657,7 @@ dds_entity_t dds_create_topic (dds_entity_t participant, const dds_topic_descrip
   uint16_t min_xcdrv = dds_stream_minimum_xcdr_version (descriptor->m_ops);
   if (min_xcdrv == DDSI_RTPS_CDR_ENC_VERSION_2)
     allowed_repr &= ~DDS_DATA_REPRESENTATION_FLAG_XCDR1;
-  if ((hdl = dds_ensure_valid_data_representation (tpqos, allowed_repr, true)) != 0)
+  if ((hdl = dds_ensure_valid_data_representation (tpqos, allowed_repr, true)) != DDS_RETCODE_OK)
     goto err_data_repr;
 
   assert (tpqos->present & DDSI_QP_DATA_REPRESENTATION && tpqos->data_representation.value.n > 0);
@@ -745,7 +745,7 @@ static dds_entity_t find_local_topic_pp (dds_participant *pp, const char *name, 
   if (tp == NULL)
   {
     ddsrt_mutex_unlock (&pp->m_entity.m_mutex);
-    return 0;
+    return DDS_RETCODE_OK;
   }
   else
   {
@@ -832,7 +832,7 @@ static dds_return_t find_local_topic_impl (dds_find_scope_t scope, dds_participa
     ddsrt_mutex_lock (&dom->m_entity.m_mutex);
   }
   ddsrt_mutex_unlock (&dom->m_entity.m_mutex);
-  return 0;
+  return DDS_RETCODE_OK;
 }
 
 
@@ -901,7 +901,7 @@ static dds_entity_t dds_find_topic_impl (dds_find_scope_t scope, dds_entity_t pa
     ddsrt_mutex_lock (&gv->new_topic_lock);
     uint32_t tv = gv->new_topic_version;
     ddsrt_mutex_unlock (&gv->new_topic_lock);
-    if ((hdl = find_local_topic_impl (scope, pp_topic, name, type_info)) == 0 && scope == DDS_FIND_SCOPE_GLOBAL)
+    if ((hdl = find_local_topic_impl (scope, pp_topic, name, type_info)) == DDS_RETCODE_OK && scope == DDS_FIND_SCOPE_GLOBAL)
     {
 #ifdef DDS_HAS_TOPIC_DISCOVERY
       hdl = find_remote_topic_impl (pp_topic, name, type_info, timeout);
@@ -1043,7 +1043,7 @@ dds_return_t dds_get_name (dds_entity_t topic, char *name, size_t size)
   name[0] = '\0';
 
   const char *bname;
-  if (dds__get_builtin_topic_name_typename (topic, &bname, NULL) == 0)
+  if (dds__get_builtin_topic_name_typename (topic, &bname, NULL) == DDS_RETCODE_OK)
     ret = (dds_return_t) ddsrt_strlcpy (name, bname, size);
   else if ((ret = dds_topic_pin (topic, &t)) == DDS_RETCODE_OK)
   {
@@ -1062,7 +1062,7 @@ dds_return_t dds_get_type_name (dds_entity_t topic, char *name, size_t size)
   name[0] = '\0';
 
   const char *bname;
-  if (dds__get_builtin_topic_name_typename (topic, NULL, &bname) == 0)
+  if (dds__get_builtin_topic_name_typename (topic, NULL, &bname) == DDS_RETCODE_OK)
     ret = (dds_return_t) ddsrt_strlcpy (name, bname, size);
   else if ((ret = dds_topic_pin (topic, &t)) == DDS_RETCODE_OK)
   {

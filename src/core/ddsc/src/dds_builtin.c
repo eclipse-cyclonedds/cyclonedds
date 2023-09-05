@@ -85,7 +85,7 @@ dds_return_t dds__get_builtin_topic_name_typename (dds_entity_t pseudo_handle, c
     *name = n;
   if (typename)
     *typename = tn;
-  return 0;
+  return DDS_RETCODE_OK;
 }
 
 dds_entity_t dds__get_builtin_topic_pseudo_handle_from_typename (const char *typename)
