@@ -400,22 +400,29 @@ dds_return_t dds_request_writer_loan (dds_writer *wr, void **sample)
 
 dds_return_t dds_return_writer_loan (dds_writer *wr, void **samples_ptr, int32_t n_samples)
 {
-  if (n_samples < 0)
-    return DDS_RETCODE_BAD_PARAMETER;
-
   dds_return_t ret = DDS_RETCODE_OK;
   ddsrt_mutex_lock (&wr->m_entity.m_mutex);
-  for (int32_t i = 0; i < n_samples && ret == DDS_RETCODE_OK; i++)
+  for (int32_t i = 0; i < n_samples && samples_ptr[i] != NULL; i++)
   {
-    void *sample = samples_ptr[i];
-    if (!sample)
-      continue;
-
-    dds_loaned_sample_t * loan = dds_loan_pool_find_and_remove_loan(wr->m_loans, sample);
-    if (loan)
+    dds_loaned_sample_t * const loan = dds_loan_pool_find_and_remove_loan (wr->m_loans, samples_ptr[i]);
+    if (loan != NULL)
+    {
       dds_loaned_sample_unref (loan);
+      samples_ptr[i] = NULL;
+    }
+    else if (i == 0)
+    {
+      // match reader version of the loan: if first entry is bogus, abort with
+      // precondition not met ...
+      ret = DDS_RETCODE_PRECONDITION_NOT_MET;
+      break;
+    }
     else
+    {
+      // ... if any other entry is bogus, continue releasing loans and return
+      // bad parameter
       ret = DDS_RETCODE_BAD_PARAMETER;
+    }
   }
   ddsrt_mutex_unlock (&wr->m_entity.m_mutex);
   return ret;

@@ -64,34 +64,33 @@ DDS_EXPORT dds_return_t dds_request_loan (dds_entity_t entity, void **sample);
  * @ingroup loan
  * @component read_data
  *
- * Used to release sample buffers returned by a read/take operation (a reader-loan)
- * or, in case shared memory is enabled, of the loan_sample operation (a writer-loan).
+ * Used to release middleware-owned samples returned by a read/take operation and samples
+ * borrowed from the writer using @ref `dds_request_loan`.
  *
- * When the application provides an empty buffer to a reader-loan, memory is allocated and
- * managed by DDS. By calling dds_return_loan(), the reader-loan is released so that the buffer
- * can be reused during a successive read/take operation. When a condition is provided, the
- * reader to which the condition belongs is looked up.
+ * For reader loans, the @ref `dds_read` and @ref `dds_take` operations implicitly return
+ * outstanding loans referenced by the sample array passed in.  Looping until no data is
+ * returned therefore often eliminates the need for calling this function.
  *
- * Writer-loans are normally released implicitly when writing a loaned sample, but you can
- * cancel a writer-loan prematurely by invoking the return_loan() operation. For writer loans, buf is
- * overwritten with null pointers for all successfully returned entries. Any failure causes it to abort,
- * possibly midway through buf.
+ * For writer loans, a @ref `dds_write` operation takes over the loan.  Consequently, this
+ * function is only needed in the exceptional case where a loan is taken but ultimately
+ * not used to publish data.
  *
- * @param[in] entity The entity that the loan belongs to.
+ * @param[in] entity The entity that the loan(s) belong to. If a read or query condition is passed in for the entity, the reader for that condition is used.
  * @param[in,out] buf An array of (pointers to) samples, some or all of which will be set to null pointers.
- * @param[in] bufsz The number of (pointers to) samples stored in buf.
+ * @param[in] bufsz The size of the buffer.
  *
  * @returns A dds_return_t indicating success or failure
  * @retval DDS_RETCODE_OK
- *             - the operation was successful; for a writer loan, all entries in buf are set to null
- *             - this specifically includes cases where bufsz <= 0 while entity is valid
+ *             - the operation was successful
+ *             - a no-op if bufsz <= 0, otherwise
+ *             - buf[0] .. buf[k-1] were successfully returned loans, k = bufsz or buf[k] = null
+ *             - buf[0] is set to a null pointer, buf[k > 0] undefined
  * @retval DDS_RETCODE_BAD_PARAMETER
  *             - the entity parameter is not a valid parameter
  *             - buf is null, or bufsz > 0 and buf[0] = null
- *             - (for writer loans) buf[0 <= i < bufsz] is null; operation is aborted, all buf[j < i] = null on return
+ *             - a non-loan was encountered (all loans are still returned)
  * @retval DDS_RETCODE_PRECONDITION_NOT_MET
- *             - (for reader loans) buf was already returned (not guaranteed to be detected)
- *             - (for writer loans) buf[0 <= i < bufsz] does not correspond to an outstanding loan, all buf[j < i] = null on return
+ *             - bufsz > 0 and buf[0] != null but not a loan, nothing done
  * @retval DDS_RETCODE_UNSUPPORTED
  *             - (for writer loans) invoked on a writer not supporting loans.
  * @retval DDS_RETCODE_ILLEGAL_OPERATION
