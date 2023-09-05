@@ -195,35 +195,20 @@ static dds_return_t return_reader_loan_locked (dds_reader *rd, void **buf, int32
 
 static dds_return_t dds_read_impl (bool take, dds_entity_t reader_or_condition, void **buf, size_t bufsz, uint32_t maxs, dds_sample_info_t *si, uint32_t mask, dds_instance_handle_t hand, bool only_reader)
 {
-  dds_return_t ret = DDS_RETCODE_OK;
-  struct dds_entity *entity;
-  struct dds_reader *rd;
-  struct dds_readcond *cond;
-
   if (buf == NULL || si == NULL || maxs == 0 || bufsz == 0 || bufsz < maxs || maxs > INT32_MAX)
     return DDS_RETCODE_BAD_PARAMETER;
 
+  dds_return_t ret;
+  struct dds_entity *entity;
+  struct dds_reader *rd;
+  struct dds_readcond *cond;
   if ((ret = dds_read_impl_setup (reader_or_condition, only_reader, &entity, &rd, &cond, &mask)) < 0)
     return ret;
 
   struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
   ddsi_thread_state_awake (thrst, &entity->m_domain->gv);
 
-  // If buf[0] is a null pointer, the caller is requesting loans but historically we cannot assume
-  // the array of pointers has already been initialised
-  if (buf[0] == NULL)
-    memset (buf, 0, bufsz * sizeof (*buf));
-
   ddsrt_mutex_lock (&rd->m_entity.m_mutex);
-
-  // FIXME: does it actually make sense to return all loans here?
-  // or would it make more sense to only return non-"private" heap loans?
-  // and then after the read, drop any remaining "private" heap loans?
-  // that way we can avoid freeing/zeroing sample content where they get
-  // reused anyway (it could also be done by fixing up the cache afterward)
-
-  // add to pool: append to end
-  // remove from pool: remove from end
 
   // Using either user-supplied memory or loans (not a mixture of the two) and we expect the
   // array is fully initialized.  We assume no non-null pointers following the first null
@@ -241,8 +226,15 @@ static dds_return_t dds_read_impl (bool take, dds_entity_t reader_or_condition, 
 
   struct dds_read_collect_sample_arg collect_arg;
   dds_read_collect_sample_arg_init (&collect_arg, buf, si, rd->m_loans, rd->m_heap_loan_cache);
-  dds_read_with_collector_fn_t collect_sample = (buf[0] == NULL) ? dds_read_collect_sample_loan : dds_read_collect_sample;
+  const bool use_loan = (buf[0] == NULL);
+  const dds_read_with_collector_fn_t collect_sample = use_loan ? dds_read_collect_sample_loan : dds_read_collect_sample;
   ret = dds_read_impl_common (take, rd, cond, maxs, mask, hand, collect_sample, &collect_arg);
+
+  // If use_loan, make sure the `buf` is either fully initialized or ends on a null pointer
+  // so the various paths returning loans know when to stop.  (If no data returned and using
+  // loans, buf[0] is a null pointer, no point in updating it again.)
+  if (use_loan && ret > 0 && (size_t) ret < bufsz - 1)
+    buf[ret] = NULL;
 
   // Drop any remaining cached samples.  We have to be prepared to drop *some* because of the
   // path where PSMX delivers a serialized sample, which then gets converted into a heap loan
@@ -438,7 +430,6 @@ static dds_return_t return_reader_loan_locked_loop (dds_reader *rd, void **buf, 
     }
     else
     {
-      buf[s] = NULL;
       return_reader_loan_locked_onesample (rd, loan, reset);
     }
   }
@@ -463,17 +454,34 @@ static dds_return_t return_reader_loan_locked (dds_reader *rd, void **buf, int32
 
 dds_return_t dds_return_reader_loan (dds_reader *rd, void **buf, int32_t bufsz)
 {
-  dds_return_t ret = DDS_RETCODE_OK;
   if (bufsz <= 0)
   {
-    /* No data whatsoever, or an invocation following a failed read/take call.  Read/take
-       already take care of restoring the state prior to their invocation if they return
-       no data.  Return late so invalid handles can be detected. */
-    return ret;
+    // No data whatsoever, or an invocation following a failed read/take call.  Read/take
+    // already take care of restoring the state prior to their invocation if they return
+    // no data.  Return late so invalid handles can be detected.
+    return DDS_RETCODE_OK;
+  }
+  else if (buf[0] == NULL)
+  {
+    // Nothing to do
+    return DDS_RETCODE_OK;
   }
 
+  dds_return_t ret;
+  dds_loaned_sample_t *loan;
   ddsrt_mutex_lock (&rd->m_entity.m_mutex);
-  ret = return_reader_loan_locked_loop (rd, buf, 0, bufsz, true);
+  if ((loan = dds_loan_pool_find_and_remove_loan (rd->m_loans, buf[0])) == NULL)
+  {
+    // First entry is not a loan, thus: input assumed to consist of application-owned memory.
+    // That's not what this function is for.
+    ret = DDS_RETCODE_PRECONDITION_NOT_MET;
+  }
+  else
+  {
+    buf[0] = NULL;
+    return_reader_loan_locked_onesample (rd, loan, false);
+    ret = return_reader_loan_locked_loop (rd, buf, 1, bufsz, false);
+  }
   ddsrt_mutex_unlock (&rd->m_entity.m_mutex);
   return ret;
 }

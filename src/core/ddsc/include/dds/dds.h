@@ -3096,12 +3096,12 @@ dds_waitset_wait_until(
  * The `buf` parameter is used as follows:
  * - If `buf[0]` on entry is a null pointer:
  *   - on return `buf[0]` .. `buf[k-1]` will point to middleware-owned memory (a.k.a. loans); and
- *   - `buf[k]` .. `buf[bufsz-1]` will be null pointers; where
- *   - `k` is the returned number of samples
+ *   - `buf[k]` will be a null pointer if `0 <= k < bufsz-1`; and
+ *   - `0 <= k <= maxs` is the number of samples read (a.k.a. the return value).
  *
  * - If `buf[0]` on entry is an outstanding sample loan (i.e., resulting from a previous call to, e.g., read), then:
  *   - all of `buf[0]` .. `buf[k-1]` must be pointers to outstanding loans; and
- *   - all of `buf[k]` .. `buf[bufsz-1]` must be null pointers; where
+ *   - `k` = `bufsz` or `buf[k]` is a null pointer; where
  *   - `1 <= k < bufsz`; and
  *   - all these outstanding loans are returned as-if through @ref `dds_return_loan`; and
  *   - the result will be as if `buf[0]` had been a null pointer on entry.
@@ -3494,12 +3494,12 @@ dds_read_next_wl(
  * The `buf` parameter is used as follows:
  * - If `buf[0]` on entry is a null pointer:
  *   - on return `buf[0]` .. `buf[k-1]` will point to middleware-owned memory (a.k.a. loans); and
- *   - `buf[k]` .. `buf[bufsz-1]` will be null pointers; where
- *   - `k` is the returned number of samples
+ *   - `buf[k]` will be a null pointer if `0 <= k < bufsz-1`; and
+ *   - `0 <= k <= maxs` is the number of samples read (a.k.a. the return value).
  *
  * - If `buf[0]` on entry is an outstanding sample loan (i.e., resulting from a previous call to, e.g., read), then:
  *   - all of `buf[0]` .. `buf[k-1]` must be pointers to outstanding loans; and
- *   - all of `buf[k]` .. `buf[bufsz-1]` must be null pointers; where
+ *   - `k` = `bufsz` or `buf[k]` is a null pointer; where
  *   - `1 <= k < bufsz`; and
  *   - all these outstanding loans are returned as-if through @ref `dds_return_loan`; and
  *   - the result will be as if `buf[0]` had been a null pointer on entry.
