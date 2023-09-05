@@ -26,6 +26,21 @@
 extern "C" {
 #endif
 
+typedef struct ddsrt_allocation_ops {
+  void* (*malloc)  (size_t size);
+  void* (*calloc)  (size_t count, size_t size);
+  void* (*realloc) (void *memblk, size_t size);
+  void  (*free)    (void *ptr);
+} ddsrt_allocation_ops_t;
+
+/// @brief Set the memory allocators
+///
+/// Set the functions to malloc, calloc, realloc, and free memory. By default
+/// the functions of `stdlib` will be used.
+DDS_EXPORT void
+ddsrt_set_allocator(
+  ddsrt_allocation_ops_t custom_ops);
+
 /**
  * @brief Allocate memory from heap.
  *
