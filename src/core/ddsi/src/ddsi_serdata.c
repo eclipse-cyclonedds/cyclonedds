@@ -28,7 +28,7 @@ void ddsi_serdata_init (struct ddsi_serdata *d, const struct ddsi_sertype *tp, e
   d->statusinfo = 0;
   d->timestamp.v = INT64_MIN;
   d->twrite.v = INT64_MIN;
-  memset(&d->loan, 0, sizeof(d->loan));
+  d->loan = NULL;
   ddsrt_atomic_st32 (&d->refc, 1);
 }
 
