@@ -23,18 +23,19 @@
 #include "psmx_cdds_data.h"
 
 #define DDS_DOMAINID 50
+#define DDS_CONFIG_BASE \
+   "${CYCLONEDDS_URI}," \
+   "<Discovery>" \
+     "<Tag>${CYCLONEDDS_PID}</Tag>" \
+   "</Discovery>"
 #if 1
-#define DDS_CONFIG "${CYCLONEDDS_URI}"
+#define DDS_CONFIG DDS_CONFIG_BASE
 #else
-#define DDS_CONFIG \
-  "${CYCLONEDDS_URI}," \
-  "<Discovery>" \
-    "<Tag>${CYCLONEDDS_PID}</Tag>" \
-  "</Discovery>" \
-  "<Tracing>" \
-    "<OutputFile>cyclonedds_psmx_impl.${CYCLONEDDS_DOMAIN_ID}.${CYCLONEDDS_PID}.log</OutputFile>" \
-    "<Verbosity>finest</Verbosity>" \
-  "</Tracing>"
+#define DDS_CONFIG DDS_CONFIG_BASE \
+   "<Tracing>" \
+     "<OutputFile>cyclonedds_psmx_impl.${CYCLONEDDS_DOMAIN_ID}.${CYCLONEDDS_PID}.log</OutputFile>" \
+     "<Verbosity>finest</Verbosity>" \
+   "</Tracing>"
 #endif
 
 #define ON_DATA_INIT       0
