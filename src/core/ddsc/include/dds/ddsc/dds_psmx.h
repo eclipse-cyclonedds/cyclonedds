@@ -373,7 +373,7 @@ DDS_EXPORT dds_return_t dds_psmx_cleanup_generic (struct dds_psmx *psmx);
  * @param[in] topic_name  the topic name
  * @return a DDS return code
  */
-DDS_EXPORT dds_return_t dds_psmx_topic_init_generic (struct dds_psmx_topic *topic, const struct dds_psmx *psmx, const char *topic_name);
+DDS_EXPORT dds_return_t dds_psmx_topic_init_generic (struct dds_psmx_topic *psmx_topic, const struct dds_psmx *psmx, const char *topic_name);
 
 /**
  * @brief cleanup function for a topic

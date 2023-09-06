@@ -25,16 +25,16 @@
 static struct dds_psmx_endpoint * psmx_create_endpoint (struct dds_psmx_topic *psmx_topic, const struct dds_qos *qos, dds_psmx_endpoint_type_t endpoint_type);
 static dds_return_t psmx_delete_endpoint (struct dds_psmx_endpoint *psmx_endpoint);
 
-dds_return_t dds_add_psmx_topic_to_list (struct dds_psmx_topic *topic, struct dds_psmx_topic_list_elem **list)
+dds_return_t dds_add_psmx_topic_to_list (struct dds_psmx_topic *psmx_topic, struct dds_psmx_topic_list_elem **list)
 {
-  if (!topic)
+  if (!psmx_topic)
     return DDS_RETCODE_BAD_PARAMETER;
 
   struct dds_psmx_topic_list_elem *ptr = dds_alloc (sizeof (struct dds_psmx_topic_list_elem));
   if (!ptr)
     return DDS_RETCODE_OUT_OF_RESOURCES;
 
-  ptr->topic = topic;
+  ptr->topic = psmx_topic;
   ptr->next = NULL;
 
   if (!*list)
@@ -54,15 +54,15 @@ dds_return_t dds_add_psmx_topic_to_list (struct dds_psmx_topic *topic, struct dd
   return DDS_RETCODE_OK;
 }
 
-dds_return_t dds_remove_psmx_topic_from_list (struct dds_psmx_topic *topic, struct dds_psmx_topic_list_elem **list)
+dds_return_t dds_remove_psmx_topic_from_list (struct dds_psmx_topic *psmx_topic, struct dds_psmx_topic_list_elem **list)
 {
-  if (!topic || !list || !*list)
+  if (!psmx_topic || !list || !*list)
     return DDS_RETCODE_BAD_PARAMETER;
 
   dds_return_t ret = DDS_RETCODE_OK;
   struct dds_psmx_topic_list_elem *list_entry = *list;
 
-  while (list_entry && list_entry->topic != topic)
+  while (list_entry && list_entry->topic != psmx_topic)
     list_entry = list_entry->next;
 
   if (list_entry != NULL && (ret = list_entry->topic->psmx_instance->ops.delete_topic (list_entry->topic)) == DDS_RETCODE_OK)
@@ -257,7 +257,7 @@ static int compare_psmx_prio (const void *va, const void *vb)
   return (psmx1->priority == psmx2->priority) ? 0 : ((psmx1->priority < psmx2->priority) ? 1 : -1);
 }
 
-dds_return_t dds_pubsub_message_exchange_init (const struct ddsi_domaingv *gv, dds_domain *domain)
+dds_return_t dds_pubsub_message_exchange_init (const struct ddsi_domaingv *gv, struct dds_domain *domain)
 {
   dds_return_t ret = DDS_RETCODE_OK;
   if (gv->config.psmx_instances != NULL)
@@ -283,7 +283,7 @@ dds_return_t dds_pubsub_message_exchange_init (const struct ddsi_domaingv *gv, d
   return ret;
 }
 
-dds_return_t dds_pubsub_message_exchange_fini (dds_domain *domain)
+dds_return_t dds_pubsub_message_exchange_fini (struct dds_domain *domain)
 {
   dds_return_t ret = DDS_RETCODE_OK;
   for (uint32_t i = 0; ret == DDS_RETCODE_OK && i < domain->psmx_instances.length; i++)

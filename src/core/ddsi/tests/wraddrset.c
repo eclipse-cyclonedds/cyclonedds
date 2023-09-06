@@ -141,14 +141,14 @@ static void ddsi_wraddrset_some_cases (int casenumber, int cost, bool wr_psmx, c
   }
   const ddsi_plist_t plist_pp[4] = { PLIST_PP(0), PLIST_PP(1), PLIST_PP(2), PLIST_PP(3) };
   ddsi_guid_t wrppguid, rdppguid[4][3];
-    
+
   setup_and_start ();
   ddsi_thread_state_awake (ddsi_lookup_thread_state(), &gv);
   ddsi_new_participant (&wrppguid, &gv, RTPS_PF_PRIVILEGED_PP | RTPS_PF_IS_DDSI2_PP, &plist_pp[0]);
-  
+
   const struct ddsi_sertype st = {
     .ops = &(struct ddsi_sertype_ops){ .free = sertype_free },
-    .serdata_ops = &(struct ddsi_serdata_ops){ },
+    .serdata_ops = &(struct ddsi_serdata_ops){ NULL },
     .serdata_basehash = 0,
     .typekind_no_key = 1,
     .request_keyhash = 0,
@@ -161,7 +161,7 @@ static void ddsi_wraddrset_some_cases (int casenumber, int cost, bool wr_psmx, c
     .zerocopy_size = 8,
     .data_type_props = DDS_DATA_TYPE_IS_FIXED_SIZE
   };
-  
+
   struct ddsi_participant *pp = ddsi_entidx_lookup_participant_guid (gv.entity_index, &wrppguid);
   struct ddsi_writer *wr;
   ddsi_guid_t wrguid;
@@ -176,7 +176,7 @@ static void ddsi_wraddrset_some_cases (int casenumber, int cost, bool wr_psmx, c
   };
   ddsi_new_writer (&wr, &wrguid, NULL, pp, "Q", &st, &ddsi_default_qos_writer, &whc, NULL, NULL, wr_psmx ? &psmx_locs : NULL);
   assert (ddsi_entidx_lookup_writer_guid (gv.entity_index, &wrguid));
-  
+
   struct ddsi_tran_conn fake_conn = {
     .m_factory = ddsi_factory_find_supported_kind (&gv, DDSI_LOCATOR_KIND_PSMX),
     .m_interf = &(struct ddsi_network_interface){
@@ -224,7 +224,7 @@ static void ddsi_wraddrset_some_cases (int casenumber, int cost, bool wr_psmx, c
       ddsi_unref_addrset (rd_as);
     }
   }
-  
+
   if (casenumber == 0)
     DDS_CLOG (DDS_LC_CONTENT, &gv.logconfig, "    #rd/host  cost: addresses\n");
   DDS_CLOG (DDS_LC_CONTENT, &gv.logconfig, "%2d  ", casenumber+1);

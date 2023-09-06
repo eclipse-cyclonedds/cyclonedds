@@ -61,7 +61,7 @@ dds_return_t dds_endpoint_add_psmx_endpoint (struct dds_endpoint *ep, const dds_
 void dds_endpoint_remove_psmx_endpoints (struct dds_endpoint *ep);
 
 struct ddsi_psmx_locators_set *dds_get_psmx_locators_set (const dds_qos_t *qos, const struct dds_psmx_set *psmx_instances);
-void dds_psmx_locators_set_free (struct ddsi_psmx_locators_set *psmx_locators);
+void dds_psmx_locators_set_free (struct ddsi_psmx_locators_set *psmx_locators_set);
 
 /**
  * @brief Request a loan

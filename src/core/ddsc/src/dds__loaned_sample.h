@@ -36,7 +36,7 @@ typedef struct dds_loan_pool dds_loan_pool_t;
  * @param[in] initial_cap Initial capacity
  * @return a DDS return code
  */
-dds_return_t dds_loan_pool_create (dds_loan_pool_t **pool, uint32_t initial_cap)
+dds_return_t dds_loan_pool_create (dds_loan_pool_t **ppool, uint32_t initial_cap)
   ddsrt_nonnull_all;
 
 /**

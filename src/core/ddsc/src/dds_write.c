@@ -384,16 +384,20 @@ dds_return_t dds_request_writer_loan (dds_writer *wr, void **sample)
 
   dds_loaned_sample_t *loan;
   if (wr->m_endpoint.psmx_endpoints.length > 0 && wr->m_topic->m_stype->fixed_size)
-    loan = dds_psmx_endpoint_request_loan (wr->m_endpoint.psmx_endpoints.endpoints[0], wr->m_topic->m_stype->zerocopy_size);
+  {
+    if ((loan = dds_psmx_endpoint_request_loan (wr->m_endpoint.psmx_endpoints.endpoints[0], wr->m_topic->m_stype->zerocopy_size)) == NULL)
+      ret = DDS_RETCODE_ERROR;
+  }
   else if ((ret = dds_heap_loan (wr->m_topic->m_stype, DDS_LOANED_SAMPLE_STATE_RAW_DATA, &loan)) != DDS_RETCODE_OK)
     loan = NULL;
 
-  if (loan == NULL)
-    ret = DDS_RETCODE_ERROR;
-  else if ((ret = dds_loan_pool_add_loan (wr->m_loans, loan)) != DDS_RETCODE_OK)
-    dds_loaned_sample_unref (loan);
-  else
-    *sample = loan->sample_ptr;
+  if (loan != NULL)
+  {
+    if ((ret = dds_loan_pool_add_loan (wr->m_loans, loan)) != DDS_RETCODE_OK)
+      dds_loaned_sample_unref (loan);
+    else
+      *sample = loan->sample_ptr;
+  }
   ddsrt_mutex_unlock (&wr->m_entity.m_mutex);
   return ret;
 }
