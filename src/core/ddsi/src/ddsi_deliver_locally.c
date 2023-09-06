@@ -165,25 +165,6 @@ dds_return_t ddsi_deliver_locally_one (struct ddsi_domaingv *gv, struct ddsi_ent
   return DDS_RETCODE_OK;
 }
 
-static bool is_psmx_source_entity (const struct ddsi_entity_common *entity)
-{
-  // FIXME: ok only if #psmx <= 1
-  switch (entity->kind)
-  {
-    case DDSI_EK_WRITER: {
-      struct ddsi_writer const * const wr = (struct ddsi_writer *) entity;
-      return wr->c.psmx_locators.length > 0;
-    }
-    case DDSI_EK_PROXY_WRITER: {
-      struct ddsi_proxy_writer const * const pwr = (struct ddsi_proxy_writer *) entity;
-      return pwr->local_psmx;
-    }
-    default: {
-      return false;
-    }
-  }
-}
-
 static dds_return_t deliver_locally_slowpath (struct ddsi_domaingv *gv, struct ddsi_entity_common *source_entity, bool source_entity_locked, const struct ddsi_writer_info *wrinfo, const struct ddsi_deliver_locally_ops * __restrict ops, void *vsourceinfo)
 {
   /* When deleting, pwr is no longer accessible via the hash
@@ -201,15 +182,11 @@ static dds_return_t deliver_locally_slowpath (struct ddsi_domaingv *gv, struct d
     ddsrt_mutex_lock (&source_entity->lock);
   /* Local delivery from a PSMX writer to a PSMX reader is handled
      by PSMX and we must skip them here */
-  const bool skip_psmx = is_psmx_source_entity (source_entity);
   bool trace_is_first = true;
   for (struct ddsi_reader *rd = ops->first_reader (gv->entity_index, source_entity, &it);
        rd != NULL;
        rd = ops->next_reader (gv->entity_index, &it))
   {
-    // FIXME: ok only if #psmx <= 1
-    if (skip_psmx && rd->c.psmx_locators.length > 0)
-      continue;
     struct ddsi_serdata *payload;
     struct ddsi_tkmap_instance *tk;
     if (!type_sample_cache_lookup (&payload, &tk, &tsc, rd->type))

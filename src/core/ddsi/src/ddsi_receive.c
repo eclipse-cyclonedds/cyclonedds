@@ -2131,7 +2131,7 @@ static struct ddsi_reader *proxy_writer_first_in_sync_reader (struct ddsi_entity
   struct ddsi_pwr_rd_match *m;
   struct ddsi_reader *rd;
   for (m = ddsrt_avl_iter_first (&ddsi_pwr_readers_treedef, &pwr->readers, it); m != NULL; m = ddsrt_avl_iter_next (it))
-    if (m->in_sync == PRMSS_SYNC && (rd = ddsi_entidx_lookup_reader_guid (entity_index, &m->rd_guid)) != NULL)
+    if (!m->via_psmx && m->in_sync == PRMSS_SYNC && (rd = ddsi_entidx_lookup_reader_guid (entity_index, &m->rd_guid)) != NULL)
       return rd;
   return NULL;
 }
@@ -2141,7 +2141,7 @@ static struct ddsi_reader *proxy_writer_next_in_sync_reader (struct ddsi_entity_
   struct ddsi_pwr_rd_match *m;
   struct ddsi_reader *rd;
   for (m = ddsrt_avl_iter_next (it); m != NULL; m = ddsrt_avl_iter_next (it))
-    if (m->in_sync == PRMSS_SYNC && (rd = ddsi_entidx_lookup_reader_guid (entity_index, &m->rd_guid)) != NULL)
+    if (!m->via_psmx && m->in_sync == PRMSS_SYNC && (rd = ddsi_entidx_lookup_reader_guid (entity_index, &m->rd_guid)) != NULL)
       return rd;
   return NULL;
 }

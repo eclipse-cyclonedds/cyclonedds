@@ -1626,11 +1626,15 @@ struct ddsi_reader *ddsi_writer_first_in_sync_reader (struct ddsi_entity_index *
   assert (wrcmn->kind == DDSI_EK_WRITER);
   struct ddsi_writer *wr = (struct ddsi_writer *) wrcmn;
   struct ddsi_wr_rd_match *m = ddsrt_avl_iter_first (&ddsi_wr_local_readers_treedef, &wr->local_readers, it);
+  while (m && m->via_psmx)
+    m = ddsrt_avl_iter_next (it);
   return m ? ddsi_entidx_lookup_reader_guid (entity_index, &m->rd_guid) : NULL;
 }
 
 struct ddsi_reader *ddsi_writer_next_in_sync_reader (struct ddsi_entity_index *entity_index, ddsrt_avl_iter_t *it)
 {
   struct ddsi_wr_rd_match *m = ddsrt_avl_iter_next (it);
+  while (m && m->via_psmx)
+    m = ddsrt_avl_iter_next (it);
   return m ? ddsi_entidx_lookup_reader_guid (entity_index, &m->rd_guid) : NULL;
 }
