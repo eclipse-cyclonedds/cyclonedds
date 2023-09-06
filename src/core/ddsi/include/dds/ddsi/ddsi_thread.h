@@ -73,10 +73,24 @@ void ddsi_thread_vtime_trace (struct ddsi_thread_state *thrst);
 #define ddsi_thread_vtime_trace(thrst) do { } while (0)
 #endif /* DDSI_THREAD_DEBUG */
 
+/**
+ * When DDS_ALLOW_NESTED_DOMAIN is set, the thread state can store an additional
+ * gv pointer, so that in case of domain nesting in a single thread, the gv
+ * pointer of the nested domain won't overwrite the top-level domain's gv pointer.
+ * Nesting domains has several limitations, and is used for PSMX testing using the
+ * Cyclone DDS PSMX implementation.
+ */
+#ifdef DDS_ALLOW_NESTED_DOMAIN
+#define THREAD_BASE_NESTEDGV ddsrt_atomic_voidp_t nested_gv;
+#else
+#define THREAD_BASE_NESTEDGV
+#endif
+
 #define THREAD_BASE                             \
   ddsrt_atomic_uint32_t vtime;                  \
   enum ddsi_thread_state_kind state;            \
   ddsrt_atomic_voidp_t gv;                      \
+  THREAD_BASE_NESTEDGV                          \
   ddsrt_thread_t tid;                           \
   uint32_t (*f) (void *arg);                    \
   void *f_arg;                                  \
@@ -113,6 +127,10 @@ extern struct ddsi_thread_states thread_states;
 extern ddsrt_thread_local struct ddsi_thread_state *tsd_thread_state;
 #else
 DDS_EXPORT extern ddsrt_thread_local struct ddsi_thread_state *tsd_thread_state;
+#endif
+
+#ifdef DDS_ALLOW_NESTED_DOMAIN
+extern ddsrt_atomic_uint32_t dds_nested_gv_allowed;
 #endif
 
 /** @component thread_support */
@@ -190,7 +208,19 @@ inline void ddsi_thread_state_awake (struct ddsi_thread_state *thrst, const stru
   assert (gv != NULL);
   assert (thrst->state != DDSI_THREAD_STATE_ALIVE || gv == ddsrt_atomic_ldvoidp (&thrst->gv));
   ddsi_thread_vtime_trace (thrst);
+#ifdef DDS_ALLOW_NESTED_DOMAIN
+  assert ((vt & DDSI_VTIME_NEST_MASK) == 0 || gv == ddsrt_atomic_ldvoidp (&thrst->gv) || gv == ddsrt_atomic_ldvoidp (&thrst->nested_gv) || 0 == ddsrt_atomic_ldvoidp (&thrst->nested_gv));
+  if ((vt & DDSI_VTIME_NEST_MASK) == 0)
+    ddsrt_atomic_stvoidp (&thrst->gv, (struct ddsi_domaingv *) gv);
+  else if (gv != ddsrt_atomic_ldvoidp (&thrst->gv))
+  {
+    assert (ddsrt_atomic_ld32 (&dds_nested_gv_allowed));
+    ddsrt_atomic_stvoidp (&thrst->nested_gv, (struct ddsi_domaingv *) gv);
+  }
+#else
+  assert ((vt & DDSI_VTIME_NEST_MASK) == 0 || gv == ddsrt_atomic_ldvoidp (&thrst->gv));
   ddsrt_atomic_stvoidp (&thrst->gv, (struct ddsi_domaingv *) gv);
+#endif
   ddsrt_atomic_fence_stst ();
   ddsrt_atomic_st32 (&thrst->vtime, vt + 1u);
   /* nested calls a rare and an extra fence doesn't break things */

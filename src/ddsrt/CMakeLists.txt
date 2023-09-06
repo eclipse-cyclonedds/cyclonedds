@@ -314,6 +314,10 @@ foreach(feature SSL SECURITY LIFESPAN DEADLINE_MISSED NETWORK_PARTITIONS
   set(DDS_HAS_${feature} ${ENABLE_${feature}})
 endforeach()
 
+if(BUILD_TESTING)
+  set(DDS_ALLOW_NESTED_DOMAIN 1)
+endif()
+
 configure_file(include/dds/config.h.in include/dds/config.h)
 configure_file(include/dds/features.h.in include/dds/features.h)
 configure_file(include/dds/version.h.in include/dds/version.h)

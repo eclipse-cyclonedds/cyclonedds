@@ -38,4 +38,7 @@
 /* Whether or not support for topic discovery is included */
 #cmakedefine DDS_HAS_TOPIC_DISCOVERY 1
 
+/* Not for general use, specificly for testing psmx Cyclone DDS plugin */
+#cmakedefine DDS_ALLOW_NESTED_DOMAIN 1
+
 #endif

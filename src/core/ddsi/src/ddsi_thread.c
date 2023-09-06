@@ -27,6 +27,9 @@
 
 struct ddsi_thread_states thread_states;
 ddsrt_thread_local struct ddsi_thread_state *tsd_thread_state;
+#ifdef DDS_ALLOW_NESTED_DOMAIN
+ddsrt_atomic_uint32_t dds_nested_gv_allowed;
+#endif
 
 extern inline bool ddsi_vtime_awake_p (ddsi_vtime_t vtime);
 extern inline bool ddsi_vtime_asleep_p (ddsi_vtime_t vtime);
@@ -114,6 +117,9 @@ void ddsi_thread_states_init (void)
   struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state_real ();
   assert (ts0 == NULL || ts0 == thrst);
   (void) thrst;
+#ifdef DDS_ALLOW_NESTED_DOMAIN
+  ddsrt_atomic_st32 (&dds_nested_gv_allowed, 0);
+#endif
 }
 
 bool ddsi_thread_states_fini (void)
@@ -300,6 +306,9 @@ static struct ddsi_thread_state *init_thread_state (const char *tname, const str
 
   assert (ddsi_vtime_asleep_p (ddsrt_atomic_ld32 (&thrst->vtime)));
   ddsrt_atomic_stvoidp (&thrst->gv, (struct ddsi_domaingv *) gv);
+#ifdef DDS_ALLOW_NESTED_DOMAIN
+  ddsrt_atomic_stvoidp (&thrst->nested_gv, NULL);
+#endif
   (void) ddsrt_strlcpy (thrst->name, tname, sizeof (thrst->name));
   thrst->state = state;
   return thrst;

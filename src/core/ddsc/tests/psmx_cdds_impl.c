@@ -18,6 +18,7 @@
 #include "dds/ddsrt/strtol.h"
 #include "dds/ddsi/ddsi_locator.h"
 #include "dds/ddsi/ddsi_protocol.h"
+#include "dds/ddsi/ddsi_thread.h"
 #include "dds/ddsc/dds_psmx.h"
 #include "psmx_cdds_impl.h"
 #include "psmx_cdds_data.h"
@@ -506,6 +507,8 @@ static char * get_config_option_value (const char *conf, const char *option_name
 dds_return_t cdds_create_psmx (dds_psmx_t **psmx_out, dds_psmx_instance_id_t instance_id, const char *config)
 {
   assert (psmx_out);
+
+  ddsrt_atomic_st32 (&dds_nested_gv_allowed, 1);
 
   struct cdds_psmx *psmx = dds_alloc (sizeof (*psmx));
   psmx->c.instance_name = dds_string_dup ("cdds-psmx");
