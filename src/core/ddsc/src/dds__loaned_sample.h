@@ -32,7 +32,7 @@ typedef struct dds_loan_pool dds_loan_pool_t;
 /**
  * @brief Create a loan pool
  *
- * @param[out] pool Gets a pointer to the newly created loan pool
+ * @param[out] ppool Gets a pointer to the newly created loan pool
  * @param[in] initial_cap Initial capacity
  * @return a DDS return code
  */

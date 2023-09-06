@@ -368,7 +368,7 @@ DDS_EXPORT dds_return_t dds_psmx_cleanup_generic (struct dds_psmx *psmx);
  *
  * Should be called from all constructors of classes which inherit from struct dds_psmx_topic
  *
- * @param[in] topic  the topic to initialize
+ * @param[in] psmx_topic  the topic to initialize
  * @param[in] psmx  the PSMX instance
  * @param[in] topic_name  the topic name
  * @return a DDS return code
