@@ -217,13 +217,16 @@ dds_security_time_event_handle_t dds_security_timed_dispatcher_add (struct dds_s
 {
   ddsrt_mutex_lock (&d->lock);
   struct dds_security_timed_event * const ev = timed_event_new (d->next_timer, cb, trigger_time, arg);
+  // cache the (unique) timer handle for the return because we can't guarantee that we return
+  // from this function before the newly created timer fires and is freed
+  const dds_security_time_event_handle_t timer_handle = ev->handle;
   ddsrt_avl_insert (&timed_event_treedef, &d->events, ev);
   ddsrt_fibheap_insert (&timed_cb_queue_fhdef, &d->timers, ev);
   d->next_timer++;
   if (d->evt != NULL)
     (void) ddsi_resched_xevent_if_earlier (d->evt, calc_tsched (ev, dds_time ()));
   ddsrt_mutex_unlock (&d->lock);
-  return ev->handle;
+  return timer_handle;
 }
 
 void dds_security_timed_dispatcher_remove (struct dds_security_timed_dispatcher *d, dds_security_time_event_handle_t timer)
