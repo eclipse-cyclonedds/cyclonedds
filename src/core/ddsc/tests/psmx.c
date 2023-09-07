@@ -94,6 +94,13 @@ ${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}\
   return pp;
 }
 
+struct tracebuf {
+  char buf[512];
+  size_t pos;
+};
+
+static void print (struct tracebuf *tb, const char *fmt, ...) ddsrt_attribute_format_printf(2, 3);
+
 static bool endpoint_has_psmx_enabled (dds_entity_t rd_or_wr)
 {
   dds_return_t rc;
@@ -156,6 +163,8 @@ static uint32_t reader_unicast_port (dds_entity_t rdhandle)
 
 struct check_writer_addrset_helper_arg {
   uint32_t ports_seen;
+  bool unexpected_present;
+  struct tracebuf *tb;
   int nports;
   const uint32_t *ports;
 };
@@ -167,6 +176,8 @@ static void check_writer_addrset_helper (const ddsi_xlocator_t *loc, void *varg)
   CU_ASSERT_FATAL (loc->c.kind != DDSI_LOCATOR_KIND_PSMX);
   CU_ASSERT_FATAL (loc->c.port != 0);
   int i;
+  if (arg->tb)
+    print (arg->tb, "[%"PRIu32"]", loc->c.port);
   for (i = 0; i < arg->nports; i++)
   {
     if (arg->ports[i] == loc->c.port)
@@ -176,11 +187,27 @@ static void check_writer_addrset_helper (const ddsi_xlocator_t *loc, void *varg)
       break;
     }
   }
-  // unknown expected ports not allowed
-  CU_ASSERT_FATAL (i < arg->nports);
+  // Unknown expected ports not allowed but it can happen temporarily:
+  // - when we switch from a dds to a psmx writer, we start with just one local reader, but
+  // - the discovery of the demise of the old readers may not have taken place yet at the time of creation of the writer, and
+  // - acknowledgements had been received for all published data, and
+  // - consequently the writer was matched with the old readers, and then
+  // - the discovery of said demise happens just prior to fetching the list of matched subscriptions, but
+  // - also prior to the GC performing the actual unmatching of the proxy readers
+  // and in that case, the test code will see the correct set of readers, but there are still some ports
+  // lingering around.  It is very unlikely, but it *can* happen.  We will just have to restart the check,
+  // because the interface offers no good alternatives (total_count won't work because it doesn't count
+  // deletes, changing get_matched_subscriptions to include the ones being ferried over would mean storing
+  // additional data only for this weird case, etc.)
+  if (i == arg->nports)
+  {
+    if (arg->tb)
+      print (arg->tb, "[unexpected port %"PRIu32"]", loc->c.port);
+    arg->unexpected_present = true;
+  }
 }
 
-static bool check_writer_addrset (dds_entity_t wrhandle, int nports, const uint32_t *ports)
+static bool check_writer_addrset_once (struct tracebuf *tb, dds_entity_t wrhandle, int nports, const uint32_t *ports)
 {
   dds_return_t rc;
   struct dds_entity *x;
@@ -191,6 +218,8 @@ static bool check_writer_addrset (dds_entity_t wrhandle, int nports, const uint3
   CU_ASSERT_FATAL (nports < 31);
   struct check_writer_addrset_helper_arg arg = {
     .ports_seen = 0,
+    .tb = tb,
+    .unexpected_present = false,
     .nports = nports,
     .ports = ports
   };
@@ -198,7 +227,20 @@ static bool check_writer_addrset (dds_entity_t wrhandle, int nports, const uint3
   ddsi_addrset_forall (wr->as, check_writer_addrset_helper, &arg);
   ddsrt_mutex_unlock (&wr->e.lock);
   dds_entity_unpin (x);
-  return (arg.ports_seen == (1u << nports) - 1);
+  return (arg.ports_seen == (1u << nports) - 1) && !arg.unexpected_present;
+}
+
+static bool check_writer_addrset (struct tracebuf *tb, dds_entity_t wrhandle, int nports, const uint32_t *ports)
+{
+  const dds_time_t abstimeout = dds_time () + DDS_SECS (10);
+  do {
+    if (check_writer_addrset_once (NULL, wrhandle, nports, ports))
+      return true;
+    // this is such a crazily unlikely scenario a sleep is fine
+    print (tb, "!");
+    dds_sleepfor (DDS_MSECS (10));
+  } while (dds_time () < abstimeout);
+  return check_writer_addrset_once (tb, wrhandle, nports, ports);
 }
 
 static dds_entity_t create_endpoint (dds_entity_t tp, bool use_psmx, dds_entity_t (*f) (dds_entity_t pp, dds_entity_t tp, const dds_qos_t *qos, const dds_listener_t *listener))
@@ -228,13 +270,6 @@ static dds_entity_t create_writer (dds_entity_t tp, bool use_psmx)
 {
   return create_endpoint (tp, use_psmx, dds_create_writer);
 }
-
-struct tracebuf {
-  char buf[512];
-  size_t pos;
-};
-
-static void print (struct tracebuf *tb, const char *fmt, ...) ddsrt_attribute_format_printf(2, 3);
 
 static void print (struct tracebuf *tb, const char *fmt, ...)
 {
@@ -300,6 +335,18 @@ static bool allmatched (dds_entity_t ws, dds_entity_t wr, int nrds, const dds_en
   while (dds_time () < abstimeout)
   {
     (void) dds_waitset_wait_until (ws, NULL, 0, abstimeout);
+
+    // If we don't clear the status flags, the waitset will be spinning (which is good for
+    // triggering the crazy scenario described in check_writer_addrset_helper, but otherwise
+    // not so good).  So we just read it without bothering to check it.
+    //
+    // Use dds_take_status for a change, just because we can
+    {
+      uint32_t status;
+      dds_take_status (wr, &status, DDS_PUBLICATION_MATCHED_STATUS);
+      for (int i = 0; i < nrds; i++)
+        dds_take_status (rds[i], &status, DDS_SUBSCRIPTION_MATCHED_STATUS);
+    }
 
     dds_instance_handle_t ms[MAX_DOMAINS * MAX_READERS_PER_DOMAIN];
     int32_t nms = dds_get_matched_subscriptions (wr, ms, sizeof (ms) / sizeof (ms[0]));
@@ -665,7 +712,7 @@ static void dotest (const dds_topic_descriptor_t *tpdesc, const void *sample, en
         nports = j + 1;
       }
       print (&tb, "{"); for (int i = 0; i < nports; i++) print (&tb, " %u", ports[i]); print (&tb, " }");
-      if (!check_writer_addrset (wr, nports, ports))
+      if (!check_writer_addrset (&tb, wr, nports, ports))
       {
         fail_addrset ();
         fail_one = true;
