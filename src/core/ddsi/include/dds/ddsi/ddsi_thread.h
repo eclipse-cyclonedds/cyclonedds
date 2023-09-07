@@ -130,8 +130,7 @@ DDS_EXPORT extern ddsrt_thread_local struct ddsi_thread_state *tsd_thread_state;
 #endif
 
 #ifdef DDS_ALLOW_NESTED_DOMAIN
-extern ddsrt_atomic_uint32_t nested_gv_allowed;
-void ddsi_thread_nested_gv_allowed (bool allowed);
+DDS_EXPORT extern ddsrt_atomic_uint32_t ddsi_thread_nested_gv_allowed;
 #endif
 
 /** @component thread_support */
@@ -215,7 +214,7 @@ inline void ddsi_thread_state_awake (struct ddsi_thread_state *thrst, const stru
     ddsrt_atomic_stvoidp (&thrst->gv, (struct ddsi_domaingv *) gv);
   else if (gv != ddsrt_atomic_ldvoidp (&thrst->gv))
   {
-    assert (ddsrt_atomic_ld32 (&nested_gv_allowed));
+    assert (ddsrt_atomic_ld32 (&ddsi_thread_nested_gv_allowed));
     ddsrt_atomic_stvoidp (&thrst->nested_gv, (struct ddsi_domaingv *) gv);
   }
 #else

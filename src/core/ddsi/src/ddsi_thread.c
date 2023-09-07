@@ -28,7 +28,7 @@
 struct ddsi_thread_states thread_states;
 ddsrt_thread_local struct ddsi_thread_state *tsd_thread_state;
 #ifdef DDS_ALLOW_NESTED_DOMAIN
-ddsrt_atomic_uint32_t nested_gv_allowed;
+ddsrt_atomic_uint32_t ddsi_thread_nested_gv_allowed;
 #endif
 
 extern inline bool ddsi_vtime_awake_p (ddsi_vtime_t vtime);
@@ -62,13 +62,6 @@ void ddsi_thread_vtime_trace (struct ddsi_thread_state *thrst)
     thrst->stks_idx = 0;
   const int i = thrst->stks_idx;
   thrst->stks_depth[i] = backtrace (thrst->stks[i], DDSI_THREAD_STACKDEPTH);
-}
-#endif
-
-#ifdef DDS_ALLOW_NESTED_DOMAIN
-void ddsi_thread_nested_gv_allowed (bool allowed)
-{
-  ddsrt_atomic_st32 (&nested_gv_allowed, allowed ? 1 : 0);
 }
 #endif
 
@@ -125,7 +118,7 @@ void ddsi_thread_states_init (void)
   assert (ts0 == NULL || ts0 == thrst);
   (void) thrst;
 #ifdef DDS_ALLOW_NESTED_DOMAIN
-  ddsrt_atomic_st32 (&nested_gv_allowed, 0);
+  ddsrt_atomic_st32 (&ddsi_thread_nested_gv_allowed, 0);
 #endif
 }
 
