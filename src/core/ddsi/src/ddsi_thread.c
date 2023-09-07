@@ -65,10 +65,12 @@ void ddsi_thread_vtime_trace (struct ddsi_thread_state *thrst)
 }
 #endif
 
+#ifdef DDS_ALLOW_NESTED_DOMAIN
 void ddsi_thread_nested_gv_allowed (bool allowed)
 {
   ddsrt_atomic_st32 (&nested_gv_allowed, allowed ? 1 : 0);
 }
+#endif
 
 static void *ddsrt_malloc_aligned_cacheline (size_t size)
 {
