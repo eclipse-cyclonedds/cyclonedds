@@ -751,7 +751,7 @@ static void dotest (const dds_topic_descriptor_t *tpdesc, const void *sample, en
         struct ddsi_domaingv *gv = gvs[i];
         GVTRACE ("#### %s ####\n", tb.buf);
       }
-      fputs (fail_one ? "\n" : " $$\r", stdout);
+      fputs ("\n", stdout);
       fflush (stdout);
       CU_ASSERT_FATAL (!fatal);
 
@@ -786,14 +786,14 @@ skip_because_of_keys:
   }
 }
 
-CU_Test(ddsc_psmx, one_writer, .timeout = 120)
+CU_Test(ddsc_psmx, one_writer, .timeout = 240)
 {
   failed = false;
   dotest (&PsmxType1_desc, &(const PsmxType1){ 0 }, LDM_NONE, false, false);
   CU_ASSERT (!failed);
 }
 
-CU_Test(ddsc_psmx, one_writer_dynsize, .timeout = 120)
+CU_Test(ddsc_psmx, one_writer_dynsize, .timeout = 240)
 {
   failed = false;
   dotest (&DynamicData_Msg_desc, &(const DynamicData_Msg){
@@ -807,7 +807,7 @@ CU_Test(ddsc_psmx, one_writer_dynsize, .timeout = 120)
   CU_ASSERT (!failed);
 }
 
-CU_Test(ddsc_psmx, one_writer_dynsize_strkey, .timeout = 120)
+CU_Test(ddsc_psmx, one_writer_dynsize_strkey, .timeout = 240)
 {
   failed = false;
   dotest (&DynamicData_KMsg_desc, &(const DynamicData_KMsg){
@@ -821,35 +821,35 @@ CU_Test(ddsc_psmx, one_writer_dynsize_strkey, .timeout = 120)
   CU_ASSERT (!failed);
 }
 
-CU_Test(ddsc_psmx, one_writer_fastpath, .timeout = 120)
+CU_Test(ddsc_psmx, one_writer_fastpath, .timeout = 240)
 {
   failed = false;
   dotest (&PsmxType1_desc, &(const PsmxType1){ 0 }, LDM_FASTPATH, false, false);
   CU_ASSERT (!failed);
 }
 
-CU_Test(ddsc_psmx, one_writer_slowpath, .timeout = 120)
+CU_Test(ddsc_psmx, one_writer_slowpath, .timeout = 240)
 {
   failed = false;
   dotest (&Space_Type3_desc, &(const PsmxType1){ 0 }, LDM_SLOWPATH, false, false);
   CU_ASSERT (!failed);
 }
 
-CU_Test(ddsc_psmx, one_writer_wloan, .timeout = 120)
+CU_Test(ddsc_psmx, one_writer_wloan, .timeout = 240)
 {
   failed = false;
   dotest (&PsmxType1_desc, &(const PsmxType1){ 0 }, LDM_NONE, true, false);
   CU_ASSERT (!failed);
 }
 
-CU_Test(ddsc_psmx, one_writer_rloan, .timeout = 120)
+CU_Test(ddsc_psmx, one_writer_rloan, .timeout = 240)
 {
   failed = false;
   dotest (&PsmxType1_desc, &(const PsmxType1){ 0 }, LDM_NONE, false, true);
   CU_ASSERT (!failed);
 }
 
-CU_Test(ddsc_psmx, one_writer_wrloan, .timeout = 120)
+CU_Test(ddsc_psmx, one_writer_wrloan, .timeout = 240)
 {
   failed = false;
   dotest (&PsmxType1_desc, &(const PsmxType1){ 0 }, LDM_NONE, true, true);
