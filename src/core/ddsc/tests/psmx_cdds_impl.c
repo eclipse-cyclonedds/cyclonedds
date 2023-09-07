@@ -508,7 +508,7 @@ dds_return_t cdds_create_psmx (dds_psmx_t **psmx_out, dds_psmx_instance_id_t ins
 {
   assert (psmx_out);
 
-  ddsrt_atomic_st32 (&dds_nested_gv_allowed, 1);
+  ddsi_thread_nested_gv_allowed (true);
 
   struct cdds_psmx *psmx = dds_alloc (sizeof (*psmx));
   psmx->c.instance_name = dds_string_dup ("cdds-psmx");
