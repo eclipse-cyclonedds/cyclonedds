@@ -1157,5 +1157,5 @@ CU_Test (ddsc_psmx, zero_copy)
     rc = dds_delete (tp);
     CU_ASSERT_FATAL (rc == 0);
   }
-  dds_delete (pp);
+  dds_delete (dds_get_parent (pp));
 }
