@@ -159,6 +159,7 @@ static struct dds_psmx_topic * cdds_psmx_create_topic (struct dds_psmx * psmx,
     assert (ret == DDS_RETCODE_OK);
     (void) ret;
 
+    ddsrt_atomic_st32 (&cpsmx->on_data_thread_state, ON_DATA_RUNNING);
     struct on_data_available_thread_arg *data = dds_alloc (sizeof (*data));
     data->cpsmx = cpsmx;
 
@@ -403,8 +404,6 @@ static uint32_t on_data_available_thread (void *a)
   struct on_data_available_thread_arg *args = (struct on_data_available_thread_arg *) a;
   struct cdds_psmx *cpsmx = (struct cdds_psmx *) args->cpsmx;
   dds_free (args);
-
-  ddsrt_atomic_st32 (&cpsmx->on_data_thread_state, ON_DATA_RUNNING);
 
   while (ddsrt_atomic_ld32 (&cpsmx->on_data_thread_state) == ON_DATA_RUNNING || ddsrt_atomic_ld32 (&cpsmx->endpoint_refs) > 0)
   {
