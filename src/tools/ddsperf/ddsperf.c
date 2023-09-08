@@ -36,6 +36,7 @@
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsrt/fibheap.h"
 #include "dds/ddsrt/atomics.h"
+#include "dds/ddsrt/heap.h"
 
 #include "cputime.h"
 #include "netload.h"
@@ -165,12 +166,19 @@ static dds_duration_t ping_intv;
    pongs had been received */
 static uint32_t ping_timeouts = 0;
 
-/* Maximum allowed increase in RSS between 2nd RSS sample and
+/* Maximum allowed increase in RSS between initial RSS sample and
    final RSS sample: final one must be <=
    init * (1 + rss_factor/100) + rss_term  */
 static bool rss_check = false;
 static double rss_factor = 1;
 static double rss_term = 0;
+
+/* Maximum allowed increase in live memory between initial sample
+   and final sample: final one must be <=
+   init * (1 + livemem_factor/100) + livemem_term  */
+static bool livemem_check = false;
+static double livemem_factor = 1;
+static double livemem_term = 0;
 
 /* Minimum number of samples, minimum number of roundtrips to
    declare the run a success */
@@ -398,6 +406,71 @@ static void error3 (const char *fmt, ...)
   va_list ap;
   va_start (ap, fmt);
   verrorx (3, fmt, ap);
+}
+
+union ddsperf_malloc_header {
+  struct {
+    uint32_t sz;
+  } hdr;
+  uint64_t u64;
+  double dbl;
+  void *ptr;
+};
+
+static ddsrt_atomic_uint32_t ddsperf_malloc_live = DDSRT_ATOMIC_UINT32_INIT (0);
+static ddsrt_atomic_uint32_t ddsperf_malloc_peak = DDSRT_ATOMIC_UINT32_INIT (0);
+
+static void *ddsperf_malloc (size_t sz)
+{
+  assert (sz < UINT32_MAX - sizeof (union ddsperf_malloc_header));
+  union ddsperf_malloc_header *p = malloc (sz + sizeof (union ddsperf_malloc_header));
+  if (p == NULL)
+    return NULL;
+  const uint32_t x = ddsrt_atomic_add32_nv (&ddsperf_malloc_live, (uint32_t) sz);
+  uint32_t m;
+  do {
+    m = ddsrt_atomic_ld32 (&ddsperf_malloc_peak);
+  } while (x > m && !ddsrt_atomic_cas32 (&ddsperf_malloc_peak, m, x));
+  p->hdr.sz = (uint32_t) sz;
+  return p + 1;
+}
+
+static void ddsperf_free (void *ptr)
+{
+  if (ptr != NULL)
+  {
+    union ddsperf_malloc_header *p = (union ddsperf_malloc_header *) ptr - 1;
+    ddsrt_atomic_sub32 (&ddsperf_malloc_live, p->hdr.sz);
+    free (p);
+  }
+}
+
+static void *ddsperf_calloc (size_t cnt, size_t sz)
+{
+  assert (0 < sz && sz < UINT32_MAX && 0 < cnt && cnt < UINT32_MAX && sz < (UINT32_MAX - sizeof (union ddsperf_malloc_header)) / cnt);
+  void *p = ddsperf_malloc (cnt * sz);
+  memset (p, 0, cnt * sz);
+  return p;
+}
+
+static void *ddsperf_realloc (void *old, size_t sz)
+{
+  if (old && sz == 0)
+  {
+    ddsperf_free (old);
+    return NULL;
+  }
+  else
+  {
+    void *new = ddsperf_malloc (sz);
+    if (old)
+    {
+      union ddsperf_malloc_header *p = (union ddsperf_malloc_header *) old - 1;
+      memcpy (new, old, (sz < p->hdr.sz) ? sz : p->hdr.sz);
+      ddsperf_free (old);
+    }
+    return new;
+  }
 }
 
 static char *make_guidstr (struct guidstr *buf, const dds_guid_t *guid)
@@ -1827,6 +1900,8 @@ OPTIONS:\n\
   -Q KEY:VAL          set success criteria\n\
                         rss:X%%        max allowed increase in RSS, in %%\n\
                         rss:X         max allowed increase in RSS, in MB\n\
+                        livemem:X%%    like RSS, but exact allocations\n\
+                        livemem:X     like RSS, but exact allocations\n\
                         samples:N     min received messages by \"sub\"\n\
                         roundtrips:N  min roundtrips for \"pong\"\n\
                         minmatch:N    require >= N matching participants\n\
@@ -2183,6 +2258,7 @@ int main (int argc, char *argv[])
   char netload_if[256] = {0};
   double netload_bw = -1;
   double rss_init = 0.0, rss_final = 0.0;
+  double livemem_init = 0.0, livemem_final = 0.0;
   ddsrt_threadattr_init (&attr);
 
   argv0 = argv[0];
@@ -2235,6 +2311,9 @@ int main (int argc, char *argv[])
         if (sscanf (optarg, "rss:%lf%n", &d, &pos) == 1 && (optarg[pos] == 0 || optarg[pos] == '%')) {
           if (optarg[pos] == 0) rss_term = d * 1048576.0; else rss_factor = 1.0 + d / 100.0;
           rss_check = true;
+        } else if (sscanf (optarg, "livemem:%lf%n", &d, &pos) == 1 && (optarg[pos] == 0 || optarg[pos] == '%')) {
+          if (optarg[pos] == 0) livemem_term = d * 1048576.0; else livemem_factor = 1.0 + d / 100.0;
+          livemem_check = true;
         } else if (sscanf (optarg, "samples:%lu%n", &n, &pos) == 1 && optarg[pos] == 0) {
           min_received = (uint64_t) n;
         } else if (sscanf (optarg, "roundtrips:%lu%n", &n, &pos) == 1 && optarg[pos] == 0) {
@@ -2285,6 +2364,17 @@ int main (int argc, char *argv[])
     error3 ("size %"PRIu32" invalid: too small to allow for overhead\n", baggagesize);
   else if (baggagesize > 0)
     baggagesize -= 12;
+  
+  if (livemem_check)
+  {
+    // better make sure no calls to ddsrt_malloc, etc., take place before this
+    ddsrt_set_allocator ((ddsrt_allocation_ops_t){
+      .malloc = ddsperf_malloc,
+      .calloc = ddsperf_calloc,
+      .realloc = ddsperf_realloc,
+      .free = ddsperf_free
+    });
+  }
 
   struct record_netload_state *netload_state;
   if (netload_bw < 0)
@@ -2585,6 +2675,7 @@ int main (int argc, char *argv[])
   const dds_time_t tstart = tnow;
   if (tref == DDS_INFINITY)
     tref = tstart;
+  dds_time_t tminmatch = DDS_NEVER;
   dds_time_t tmatch = (maxwait == HUGE_VAL) ? DDS_NEVER : tstart + (int64_t) (maxwait * 1e9 + 0.5);
   const dds_time_t tstop = (dur == HUGE_VAL) ? DDS_NEVER : tstart + (int64_t) (dur * 1e9 + 0.5);
   dds_time_t tnext = tstart + DDS_SECS (1);
@@ -2594,6 +2685,9 @@ int main (int argc, char *argv[])
   {
     dds_time_t twakeup = DDS_NEVER;
     int32_t nxs;
+
+    if (tnow < tminmatch && matchcount >= minmatch)
+      tminmatch = tnow;
 
     /* bail out if too few readers discovered within the deadline */
     if (tnow >= tmatch)
@@ -2663,9 +2757,15 @@ int main (int argc, char *argv[])
       else
         tnext += DDS_SECS (1);
 
-      if (rss_init == 0.0 && matchcount >= minmatch && output)
+      // For initial RSS value use the one 5s after the minimum number of matches occurred or
+      // whatever is the latest one prior to that
+      if (tnow > tminmatch && (rss_init == 0.0 || tnow <= tminmatch + DDS_SECS (5)) && output)
+      {
         rss_init = record_cputime_read_rss (cputime_state);
+        livemem_init = ddsrt_atomic_ld32 (&ddsperf_malloc_live);
+      }
       rss_final = record_cputime_read_rss (cputime_state);
+      livemem_final = ddsrt_atomic_ld32 (&ddsperf_malloc_live);
     }
 
     /* If a "real" ping doesn't result in the expected number of pongs within a reasonable
@@ -2807,10 +2907,21 @@ err_minmatch_wait:
     printf ("[%"PRIdPID"] error: too few samples received from some peers\n", ddsrt_getpid ());
     ok = false;
   }
+  if (livemem_check && livemem_final >= livemem_init * livemem_factor + livemem_term)
+  {
+    printf ("[%"PRIdPID"] error: live memory grew too much (%.1fMB -> %.1fMB)\n", ddsrt_getpid (), livemem_init / 1048576.0, livemem_final / 1048576.0);
+    ok = false;
+  }
   if (rss_check && rss_final >= rss_init * rss_factor + rss_term)
   {
-    printf ("[%"PRIdPID"] error: RSS grew too much (%f -> %f)\n", ddsrt_getpid (), rss_init, rss_final);
+    printf ("[%"PRIdPID"] error: RSS grew too much (%.1fMB -> %.1fMB)\n", ddsrt_getpid (), rss_init / 1048576.0, rss_final / 1048576.0);
     ok = false;
+  }
+
+  if (livemem_check)
+  {
+    printf ("[%"PRIdPID"] note: livemem init %.1fMB peak %.1fMB final %.1fMB\n", ddsrt_getpid (), livemem_init / 1048576.0, (double) ddsrt_atomic_ld32 (&ddsperf_malloc_peak) / 1048576.0, livemem_final / 1048576.0);
+    printf ("[%"PRIdPID"] note: RSS init %.1fMB final %.1fMB\n", ddsrt_getpid (), rss_init / 1048576.0, rss_final / 1048576.0);
   }
   return ok ? 0 : 1;
 }
