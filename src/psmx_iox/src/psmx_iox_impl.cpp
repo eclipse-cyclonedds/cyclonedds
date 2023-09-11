@@ -14,6 +14,7 @@
 #include <memory>
 #include <optional>
 
+#include "dds/ddsrt/align.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/mh3.h"
@@ -363,20 +364,18 @@ iox_psmx_endpoint::~iox_psmx_endpoint()
   }
 }
 
-static constexpr uint32_t iox_padding = sizeof(dds_psmx_metadata_t) % 8 ? (sizeof(dds_psmx_metadata_t) / 8 + 1 ) * 8 : sizeof(dds_psmx_metadata_t);
-
 struct iox_loaned_sample : public dds_loaned_sample_t
 {
   iox_loaned_sample(struct dds_psmx_endpoint * origin, uint32_t sz, const void * ptr, dds_loaned_sample_state_t st);
   ~iox_loaned_sample();
 };
 
-iox_loaned_sample::iox_loaned_sample(struct dds_psmx_endpoint * origin, uint32_t sz, const void * ptr, dds_loaned_sample_state_t st):
+iox_loaned_sample::iox_loaned_sample(struct dds_psmx_endpoint * origin, uint32_t sz, const void * iox_payload, dds_loaned_sample_state_t st):
   dds_loaned_sample_t {
     .ops = ls_ops,
     .loan_origin = { .origin_kind = DDS_LOAN_ORIGIN_KIND_PSMX, .psmx_endpoint = origin },
-    .metadata = ((struct dds_psmx_metadata *) ptr),
-    .sample_ptr = const_cast<void *>(static_cast<const void *>(static_cast<const char *>(ptr) + iox_padding)),  //alignment?
+    .metadata = const_cast<dds_psmx_metadata_t *>(static_cast<const dds_psmx_metadata_t *>(iox::mepoo::ChunkHeader::fromUserPayload(iox_payload)->userHeader())),
+    .sample_ptr = const_cast<void *>(iox_payload),
     .refc = { .v = 1 }
   }
 {
@@ -390,18 +389,18 @@ iox_loaned_sample::~iox_loaned_sample()
 {
   assert(loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_PSMX);
   auto cpp_ep_ptr = static_cast<iox_psmx_endpoint*>(loan_origin.psmx_endpoint);
-  if (metadata)
+  if (sample_ptr)
   {
     switch (cpp_ep_ptr->endpoint_type)
     {
       case DDS_PSMX_ENDPOINT_TYPE_READER: {
         const std::lock_guard<std::mutex> lock(cpp_ep_ptr->lock);
-        static_cast<iox::popo::UntypedSubscriber *>(cpp_ep_ptr->_iox_endpoint)->release(metadata);
+        static_cast<iox::popo::UntypedSubscriber *>(cpp_ep_ptr->_iox_endpoint)->release(sample_ptr);
         break;
       }
       case DDS_PSMX_ENDPOINT_TYPE_WRITER: {
         const std::lock_guard<std::mutex> lock(cpp_ep_ptr->lock);
-        static_cast<iox::popo::UntypedPublisher *>(cpp_ep_ptr->_iox_endpoint)->release(metadata);
+        static_cast<iox::popo::UntypedPublisher *>(cpp_ep_ptr->_iox_endpoint)->release(sample_ptr);
         break;
       }
       default: {
@@ -511,7 +510,7 @@ static bool iox_serialization_required(dds_psmx_data_type_properties_t data_type
 static struct dds_psmx_endpoint * iox_create_endpoint(struct dds_psmx_topic * psmx_topic, const struct dds_qos * qos, dds_psmx_endpoint_type_t endpoint_type)
 {
   assert(psmx_topic);
-  auto cpp_topic_ptr = static_cast<iox_psmx_topic*>(psmx_topic);
+  auto cpp_topic_ptr = static_cast<iox_psmx_topic *>(psmx_topic);
   return new iox_psmx_endpoint(*cpp_topic_ptr, qos, endpoint_type);
 }
 
@@ -526,22 +525,22 @@ static dds_return_t iox_delete_endpoint(struct dds_psmx_endpoint * psmx_endpoint
 
 static dds_loaned_sample_t * iox_req_loan(struct dds_psmx_endpoint *psmx_endpoint, uint32_t size_requested)
 {
-  auto cpp_ep_ptr = static_cast<iox_psmx_endpoint*>(psmx_endpoint);
-  dds_loaned_sample_t *result_ptr = nullptr;
+  auto cpp_ep_ptr = static_cast<iox_psmx_endpoint *>(psmx_endpoint);
+  dds_loaned_sample_t *loaned_sample = nullptr;
   if (psmx_endpoint->endpoint_type == DDS_PSMX_ENDPOINT_TYPE_WRITER)
   {
-    auto ptr = static_cast<iox::popo::UntypedPublisher *>(cpp_ep_ptr->_iox_endpoint);
+    auto publisher = static_cast<iox::popo::UntypedPublisher *>(cpp_ep_ptr->_iox_endpoint);
     const std::lock_guard<std::mutex> lock(cpp_ep_ptr->lock);
-    ptr->loan(size_requested + iox_padding)
-      .and_then([&](const void* sample_ptr) {
-        result_ptr = new iox_loaned_sample(psmx_endpoint, size_requested, sample_ptr, DDS_LOANED_SAMPLE_STATE_UNITIALIZED);
+    publisher->loan(size_requested, iox::CHUNK_DEFAULT_USER_PAYLOAD_ALIGNMENT, sizeof(dds_psmx_metadata_t), alignof(dds_psmx_metadata_t))
+      .and_then([&](const void* iox_payload) {
+        loaned_sample = new iox_loaned_sample(psmx_endpoint, size_requested, iox_payload, DDS_LOANED_SAMPLE_STATE_UNITIALIZED);
       })
       .or_else([&](auto& error) {
         std::cerr << ERROR_PREFIX "failure getting loan" << iox::popo::asStringLiteral(error) << std::endl;
       });
   }
 
-  return result_ptr;
+  return loaned_sample;
 }
 
 static dds_return_t iox_req_raw_loan(struct dds_psmx_endpoint *psmx_endpoint, uint32_t size_requested, void **buffer)
@@ -553,9 +552,9 @@ static dds_return_t iox_req_raw_loan(struct dds_psmx_endpoint *psmx_endpoint, ui
   {
     dds_return_t ret = DDS_RETCODE_OK;
     const std::lock_guard<std::mutex> lock(cpp_ep_ptr->lock);
-    auto ptr = static_cast<iox::popo::UntypedPublisher *>(cpp_ep_ptr->_iox_endpoint);
-    ptr->loan(size_requested + iox_padding)
-      .and_then([buffer](void * loan_ptr) { *buffer = loan_ptr; })
+    auto publisher = static_cast<iox::popo::UntypedPublisher *>(cpp_ep_ptr->_iox_endpoint);
+    publisher->loan(size_requested, iox::CHUNK_DEFAULT_USER_PAYLOAD_ALIGNMENT, sizeof(dds_psmx_metadata_t), alignof(dds_psmx_metadata_t))
+      .and_then([buffer](void * iox_payload) { *buffer = iox_payload; })
       .or_else([&ret](auto& error) {
         std::cerr << ERROR_PREFIX "failure getting loan" << iox::popo::asStringLiteral(error) << std::endl;
         ret = DDS_RETCODE_ERROR;
@@ -567,11 +566,11 @@ static dds_return_t iox_req_raw_loan(struct dds_psmx_endpoint *psmx_endpoint, ui
 static dds_return_t iox_write(struct dds_psmx_endpoint * psmx_endpoint, dds_loaned_sample_t * data)
 {
   assert(psmx_endpoint->endpoint_type == DDS_PSMX_ENDPOINT_TYPE_WRITER);
-  auto cpp_ep_ptr = static_cast<iox_psmx_endpoint*>(psmx_endpoint);
+  auto cpp_ep_ptr = static_cast<iox_psmx_endpoint *>(psmx_endpoint);
   auto publisher = static_cast<iox::popo::UntypedPublisher*>(cpp_ep_ptr->_iox_endpoint);
 
   const std::lock_guard<std::mutex> lock(cpp_ep_ptr->lock);
-  publisher->publish(data->metadata);
+  publisher->publish(data->sample_ptr);
 
   // Clear metadata/sample_ptr so that any attempt to use it will cause a crash.  This gives no
   // guarantee whatsoever, but in practice it does help in discovering use of a iox writer loan
@@ -583,25 +582,25 @@ static dds_return_t iox_write(struct dds_psmx_endpoint * psmx_endpoint, dds_loan
   return DDS_RETCODE_OK;
 }
 
-static dds_loaned_sample_t * incoming_sample_to_loan(iox_psmx_endpoint *psmx_endpoint, const void *sample)
+static dds_loaned_sample_t * incoming_sample_to_loan(iox_psmx_endpoint *psmx_endpoint, const void *iox_payload)
 {
-  auto md = static_cast<const dds_psmx_metadata_t*>(sample);
-  return new iox_loaned_sample(psmx_endpoint, md->sample_size, sample, md->sample_state);
+  auto metadata = static_cast<const dds_psmx_metadata_t *>(iox::mepoo::ChunkHeader::fromUserPayload(iox_payload)->userHeader());
+  return new iox_loaned_sample(psmx_endpoint, metadata->sample_size, iox_payload, metadata->sample_state);
 }
 
 static dds_loaned_sample_t * iox_take(struct dds_psmx_endpoint * psmx_endpoint)
 {
   assert(psmx_endpoint->endpoint_type == DDS_PSMX_ENDPOINT_TYPE_READER);
-  auto cpp_ep_ptr = static_cast<iox_psmx_endpoint*>(psmx_endpoint);
+  auto cpp_ep_ptr = static_cast<iox_psmx_endpoint *>(psmx_endpoint);
   auto subscriber = static_cast<iox::popo::UntypedSubscriber*>(cpp_ep_ptr->_iox_endpoint);
   assert(subscriber);
-  dds_loaned_sample_t *ptr = nullptr;
+  dds_loaned_sample_t *loaned_sample = nullptr;
   const std::lock_guard<std::mutex> lock(cpp_ep_ptr->lock);
   subscriber->take()
-    .and_then([cpp_ep_ptr, &ptr](const void * sample) {
-      ptr = incoming_sample_to_loan(cpp_ep_ptr, sample);
+    .and_then([cpp_ep_ptr, &loaned_sample](const void * iox_payload) {
+      loaned_sample = incoming_sample_to_loan(cpp_ep_ptr, iox_payload);
     });
-  return ptr;
+  return loaned_sample;
 }
 
 static void on_incoming_data_callback(iox::popo::UntypedSubscriber * subscriber, iox_psmx_endpoint * psmx_endpoint)
