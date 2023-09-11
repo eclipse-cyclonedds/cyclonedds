@@ -99,12 +99,10 @@ static const dds_psmx_ops_t psmx_instance_ops = {
   .supported_features = cdds_supported_features
 };
 
-static bool cdds_psmx_topic_serialization_required (dds_data_type_properties_t data_type_props);
 static struct dds_psmx_endpoint * cdds_psmx_create_endpoint (struct dds_psmx_topic *psmx_topic, const struct dds_qos *qos, dds_psmx_endpoint_type_t endpoint_type);
 static dds_return_t cdds_psmx_delete_endpoint (struct dds_psmx_endpoint *psmx_endpoint);
 
 static const dds_psmx_topic_ops_t psmx_topic_ops = {
-  .serialization_required = cdds_psmx_topic_serialization_required,
   .create_endpoint = cdds_psmx_create_endpoint,
   .delete_endpoint = cdds_psmx_delete_endpoint
 };
@@ -244,13 +242,6 @@ static dds_psmx_features_t cdds_supported_features (const struct dds_psmx *psmx)
 {
   (void) psmx;
   return DDS_PSMX_FEATURE_ZERO_COPY;
-}
-
-static bool cdds_psmx_topic_serialization_required (dds_data_type_properties_t data_type_props)
-{
-  if (!(data_type_props & DDS_DATA_TYPE_IS_FIXED_SIZE) || DDS_DATA_TYPE_CONTAINS_INDIRECTIONS (data_type_props))
-    return true;
-  return false;
 }
 
 static struct dds_psmx_endpoint * cdds_psmx_create_endpoint (struct dds_psmx_topic *psmx_topic, const struct dds_qos *qos, dds_psmx_endpoint_type_t endpoint_type)

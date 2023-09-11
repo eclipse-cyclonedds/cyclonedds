@@ -193,9 +193,9 @@ static struct ddsi_sertype * sertype_default_derive_sertype (const struct ddsi_s
   (void) tce_qos;
 
   if (data_representation == DDS_DATA_REPRESENTATION_XCDR1)
-    required_ops = base_sertype->typekind_no_key ? &dds_serdata_ops_cdr_nokey : &dds_serdata_ops_cdr;
+    required_ops = base_sertype->has_key ? &dds_serdata_ops_cdr : &dds_serdata_ops_cdr_nokey;
   else if (data_representation == DDS_DATA_REPRESENTATION_XCDR2)
-    required_ops = base_sertype->typekind_no_key ? &dds_serdata_ops_xcdr2_nokey : &dds_serdata_ops_xcdr2;
+    required_ops = base_sertype->has_key ? &dds_serdata_ops_xcdr2 : &dds_serdata_ops_xcdr2_nokey;
   else
     abort ();
 
@@ -299,13 +299,12 @@ dds_return_t dds_sertype_default_init (const struct dds_domain *domain, struct d
   if (!dds_stream_extensibility (desc->m_ops, &type_ext))
     return DDS_RETCODE_BAD_PARAMETER;
 
-  ddsi_sertype_init (&st->c, desc->m_typename, &dds_sertype_ops_default, serdata_ops, (desc->m_nkeys == 0));
-  st->c.zerocopy_size = desc->m_size;
-  st->c.fixed_size = (st->c.fixed_size || (desc->m_flagset & DDS_TOPIC_FIXED_SIZE)) ? 1u : 0u;
-  st->c.allowed_data_representation = desc->m_flagset & DDS_TOPIC_RESTRICT_DATA_REPRESENTATION ?
+  uint32_t allowed_data_representation = desc->m_flagset & DDS_TOPIC_RESTRICT_DATA_REPRESENTATION ?
       desc->restrict_data_representation : DDS_DATA_REPRESENTATION_RESTRICT_DEFAULT;
   if (min_xcdrv == DDSI_RTPS_CDR_ENC_VERSION_2)
-    st->c.allowed_data_representation &= ~DDS_DATA_REPRESENTATION_FLAG_XCDR1;
+    allowed_data_representation &= ~DDS_DATA_REPRESENTATION_FLAG_XCDR1;
+
+  ddsi_sertype_init_props (&st->c, desc->m_typename, &dds_sertype_ops_default, serdata_ops, desc->m_size, dds_stream_data_types (desc->m_ops), allowed_data_representation, 0);
   st->encoding_format = ddsi_sertype_extensibility_enc_format (type_ext);
   /* Store the encoding version used for writing data using this sertype. When reading data,
      the encoding version from the encapsulation header in the CDR is used */
@@ -313,9 +312,6 @@ dds_return_t dds_sertype_default_init (const struct dds_domain *domain, struct d
   st->serpool = domain->serpool;
 
   dds_cdrstream_desc_init (&st->type, &dds_cdrstream_default_allocator, desc->m_size, desc->m_align, desc->m_flagset, desc->m_ops, desc->m_keys, desc->m_nkeys);
-  st->c.data_type_props = dds_stream_data_types (desc->m_ops);
-  if (st->c.fixed_size)
-    st->c.data_type_props |= DDS_DATA_TYPE_IS_FIXED_SIZE;
 
   if (min_xcdrv == DDSI_RTPS_CDR_ENC_VERSION_2 && dds_stream_type_nesting_depth (desc->m_ops) > DDS_CDRSTREAM_MAX_NESTING_DEPTH)
   {

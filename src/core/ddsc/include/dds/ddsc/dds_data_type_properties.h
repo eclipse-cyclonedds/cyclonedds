@@ -34,19 +34,7 @@ extern "C" {
 #define DDS_DATA_TYPE_CONTAINS_EXTERNAL           (0x1ull << 11)
 #define DDS_DATA_TYPE_CONTAINS_KEY                (0x1ull << 12)
 
-#define DDS_DATA_TYPE_IS_FIXED_SIZE               (0x1ull << 63)
-
-/**
- * @brief Checks whether a type has indirections (pointers) based on its data-type properties
- */
-#define DDS_DATA_TYPE_CONTAINS_INDIRECTIONS(t) ((t) & \
-    (DDS_DATA_TYPE_CONTAINS_OPTIONAL \
-    | DDS_DATA_TYPE_CONTAINS_STRING \
-    | DDS_DATA_TYPE_CONTAINS_BSTRING \
-    | DDS_DATA_TYPE_CONTAINS_WSTRING \
-    | DDS_DATA_TYPE_CONTAINS_SEQUENCE \
-    | DDS_DATA_TYPE_CONTAINS_BSEQUENCE \
-    | DDS_DATA_TYPE_CONTAINS_EXTERNAL))
+#define DDS_DATA_TYPE_IS_MEMCPY_SAFE              (0x1ull << 63)
 
 typedef uint64_t dds_data_type_properties_t;
 

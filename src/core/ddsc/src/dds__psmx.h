@@ -70,12 +70,4 @@ void dds_psmx_locators_set_free (struct ddsi_psmx_locators_set *psmx_locators_se
  */
 dds_loaned_sample_t * dds_psmx_endpoint_request_loan (struct dds_psmx_endpoint *psmx_endpoint, uint32_t sz);
 
-/**
- * @brief Check if serialization is required
- *
- * @param[in] psmx_endpoint  the endpoint
- * @returns true if serialization is required
- */
-bool dds_psmx_endpoint_serialization_required (struct dds_psmx_endpoint *psmx_endpoint);
-
 #endif // DDS__PSMX_H

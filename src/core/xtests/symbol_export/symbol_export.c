@@ -602,6 +602,7 @@ int main (int argc, char **argv)
   // ddsi_sertype.h
   struct dds_type_consistency_enforcement_qospolicy tce = { 0, false, false, false, false, false };
   ddsi_sertype_v0 (ptr);
+  ddsi_sertype_init_props (ptr, ptr, ptr, ptr, 0, 0, 0, 0);
   ddsi_sertype_init_flags (ptr, ptr, ptr, ptr, 0);
   ddsi_sertype_init (ptr, ptr, ptr, ptr, 0);
   ddsi_sertype_fini (ptr);

@@ -314,7 +314,7 @@ static bool evalute_topic_filter (const dds_writer *wr, const void *data, bool w
 
 static bool requires_serialization(struct dds_topic *topic)
 {
-  return !topic->m_stype->fixed_size;
+  return !topic->m_stype->is_memcpy_safe;
 }
 
 static bool allows_serialization_into_buffer(struct dds_topic *topic)
@@ -329,7 +329,7 @@ static bool get_required_buffer_size(struct dds_topic *topic, const void *sample
   assert (topic && sz32 && sample);
 
   if (!requires_serialization(topic))
-    sz = topic->m_stype->zerocopy_size;
+    sz = topic->m_stype->sizeof_type;
   else if (allows_serialization_into_buffer(topic))
     sz = ddsi_sertype_get_serialized_size(topic->m_stype, (void*) sample);
   else
@@ -383,9 +383,9 @@ dds_return_t dds_request_writer_loan (dds_writer *wr, void **sample)
   assert (wr->m_endpoint.psmx_endpoints.length <= 1);
 
   dds_loaned_sample_t *loan;
-  if (wr->m_endpoint.psmx_endpoints.length > 0 && wr->m_topic->m_stype->fixed_size)
+  if (wr->m_endpoint.psmx_endpoints.length > 0 && wr->m_topic->m_stype->is_memcpy_safe)
   {
-    if ((loan = dds_psmx_endpoint_request_loan (wr->m_endpoint.psmx_endpoints.endpoints[0], wr->m_topic->m_stype->zerocopy_size)) == NULL)
+    if ((loan = dds_psmx_endpoint_request_loan (wr->m_endpoint.psmx_endpoints.endpoints[0], wr->m_topic->m_stype->sizeof_type)) == NULL)
       ret = DDS_RETCODE_ERROR;
   }
   else if ((ret = dds_heap_loan (wr->m_topic->m_stype, DDS_LOANED_SAMPLE_STATE_RAW_DATA, &loan)) != DDS_RETCODE_OK)

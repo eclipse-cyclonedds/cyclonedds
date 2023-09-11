@@ -44,7 +44,7 @@ bool ddsi_sertype_equal (const struct ddsi_sertype *a, const struct ddsi_sertype
     return false;
   if (a->serdata_ops != b->serdata_ops)
     return false;
-  if (a->typekind_no_key != b->typekind_no_key)
+  if (a->has_key != b->has_key)
     return false;
   return a->ops->equal (a, b);
 }
@@ -53,7 +53,7 @@ uint32_t ddsi_sertype_hash (const struct ddsi_sertype *a)
 {
   uint32_t h;
   h = ddsrt_mh3 (a->type_name, strlen (a->type_name), a->serdata_basehash);
-  h ^= a->serdata_basehash ^ (uint32_t) a->typekind_no_key;
+  h ^= a->serdata_basehash ^ (uint32_t) a->has_key;
   return h ^ a->ops->hash (a);
 }
 
@@ -163,24 +163,37 @@ void ddsi_sertype_unref (struct ddsi_sertype *sertype)
   }
 }
 
-void ddsi_sertype_init_flags (struct ddsi_sertype *tp, const char *type_name, const struct ddsi_sertype_ops *sertype_ops, const struct ddsi_serdata_ops *serdata_ops, uint32_t flags)
+void ddsi_sertype_init_props (struct ddsi_sertype *tp, const char *type_name, const struct ddsi_sertype_ops *sertype_ops, const struct ddsi_serdata_ops *serdata_ops, size_t sizeof_type, dds_data_type_properties_t data_type_props, uint32_t allowed_data_representation, uint32_t flags)
 {
   // only one version for now
   assert (sertype_ops->version == ddsi_sertype_v0);
-  assert ((flags & ~(uint32_t)DDSI_SERTYPE_FLAG_MASK) == 0);
+  assert ((flags & ~(uint32_t)DDSI_SERTYPE_PROPS_FLAG_MASK) == 0);
+  assert (sizeof_type > 0 || !(data_type_props & DDS_DATA_TYPE_IS_MEMCPY_SAFE));
+  assert (sizeof_type <= UINT32_MAX);
 
   ddsrt_atomic_st32 (&tp->flags_refc, 1);
   tp->type_name = ddsrt_strdup (type_name);
   tp->ops = sertype_ops;
   tp->serdata_ops = serdata_ops;
   tp->serdata_basehash = ddsi_sertype_compute_serdata_basehash (tp->serdata_ops);
-  tp->typekind_no_key = (flags & DDSI_SERTYPE_FLAG_TOPICKIND_NO_KEY) ? 1u : 0u;
   tp->request_keyhash = (flags & DDSI_SERTYPE_FLAG_REQUEST_KEYHASH) ? 1u : 0u;
-  tp->fixed_size = (flags & DDSI_SERTYPE_FLAG_FIXED_SIZE) ? 1u : 0u;
-  tp->allowed_data_representation = DDS_DATA_REPRESENTATION_RESTRICT_DEFAULT;
+  tp->has_key = (data_type_props & DDS_DATA_TYPE_CONTAINS_KEY) ? 1u : 0u;
+  tp->is_memcpy_safe = (data_type_props & DDS_DATA_TYPE_IS_MEMCPY_SAFE) ? 1u : 0u;
+  tp->allowed_data_representation = allowed_data_representation;
   tp->base_sertype = NULL;
-  tp->zerocopy_size = 0;
+  tp->sizeof_type = (uint32_t) sizeof_type;
+  tp->data_type_props = data_type_props;
   ddsrt_atomic_stvoidp (&tp->gv, NULL);
+}
+
+void ddsi_sertype_init_flags (struct ddsi_sertype *tp, const char *type_name, const struct ddsi_sertype_ops *sertype_ops, const struct ddsi_serdata_ops *serdata_ops, uint32_t flags)
+{
+  dds_data_type_properties_t data_type_props = 0;
+  if (!(flags & DDSI_SERTYPE_FLAG_TOPICKIND_NO_KEY))
+    data_type_props |= DDS_DATA_TYPE_CONTAINS_KEY;
+  // Discard "fixed size" flag: making use of this flag requires knowing the size
+  flags &= ~(DDSI_SERTYPE_FLAG_TOPICKIND_NO_KEY | DDSI_SERTYPE_FLAG_FIXED_SIZE);
+  ddsi_sertype_init_props (tp, type_name, sertype_ops, serdata_ops, 0, data_type_props, DDS_DATA_REPRESENTATION_RESTRICT_DEFAULT, flags);
 }
 
 void ddsi_sertype_init (struct ddsi_sertype *tp, const char *type_name, const struct ddsi_sertype_ops *sertype_ops, const struct ddsi_serdata_ops *serdata_ops, bool typekind_no_key)

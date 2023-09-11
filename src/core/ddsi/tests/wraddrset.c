@@ -151,16 +151,16 @@ static void ddsi_wraddrset_some_cases (int casenumber, int cost, bool wr_psmx, c
     .ops = &(struct ddsi_sertype_ops){ .free = sertype_free },
     .serdata_ops = &(struct ddsi_serdata_ops){ NULL },
     .serdata_basehash = 0,
-    .typekind_no_key = 1,
+    .has_key = 0,
     .request_keyhash = 0,
-    .fixed_size = 1,
+    .is_memcpy_safe = 1,
     .allowed_data_representation = DDS_DATA_REPRESENTATION_RESTRICT_DEFAULT,
     .type_name = "Q",
     .gv = DDSRT_ATOMIC_VOIDP_INIT (&gv),
     .flags_refc = DDSRT_ATOMIC_UINT32_INIT (0),
     .base_sertype = NULL,
-    .zerocopy_size = 8,
-    .data_type_props = DDS_DATA_TYPE_IS_FIXED_SIZE
+    .sizeof_type = 8,
+    .data_type_props = DDS_DATA_TYPE_IS_MEMCPY_SAFE
   };
 
   struct ddsi_participant *pp = ddsi_entidx_lookup_participant_guid (gv.entity_index, &wrppguid);

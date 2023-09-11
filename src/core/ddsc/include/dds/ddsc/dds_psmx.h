@@ -161,19 +161,6 @@ typedef struct dds_psmx_ops {
 } dds_psmx_ops_t;
 
 /**
- * @brief Definition for function to check if serialization is required
- *
- * Definition of a function that checks whether serialization is
- * required for a data type with the provided properties.
- *
- * @param[in] data_type_props  The properties of the data type
- * @returns true if serialization is required, else otherwise
- *
- * FIXME: I wonder if we shouldn't do this check in Cyclone's core? But it is true that, e.g., OpenSplice [cw]ould also say "no need", so it isn't simply complicating things
- */
-typedef bool (* dds_psmx_serialization_required_fn) (dds_data_type_properties_t data_type_props);
-
-/**
  * @brief Definition of function to create an endpoint for a topic
  *
  * @param[in] psmx_topic  The PSMX topic to create the endpoint for
@@ -194,7 +181,6 @@ typedef dds_return_t (* dds_psmx_delete_endpoint_fn) (struct dds_psmx_endpoint *
  * @brief functions which are used on a PSMX topic
  */
 typedef struct dds_psmx_topic_ops {
-  dds_psmx_serialization_required_fn serialization_required;
   dds_psmx_create_endpoint_fn        create_endpoint;
   dds_psmx_delete_endpoint_fn        delete_endpoint;
 } dds_psmx_topic_ops_t;

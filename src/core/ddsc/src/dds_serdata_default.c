@@ -856,7 +856,7 @@ static struct ddsi_serdata *serdata_default_from_loaned_sample (const struct dds
   const struct dds_sertype_default *tp = (const struct dds_sertype_default *) type;
 
   assert (loaned_sample->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_PSMX);
-  bool serialize_data = force_serialization || dds_psmx_endpoint_serialization_required (loaned_sample->loan_origin.psmx_endpoint);
+  bool serialize_data = force_serialization || !type->is_memcpy_safe;
 
   struct dds_serdata_default *d;
   if (serialize_data)
@@ -900,10 +900,10 @@ static struct ddsi_serdata *serdata_default_from_loaned_sample (const struct dds
       d->c.loan->metadata->cdr_options = 0;
     }
 
-    if (tp->c.typekind_no_key)
-      (void) fix_serdata_default_nokey (d, tp->c.serdata_basehash);
-    else
+    if (tp->c.has_key)
       (void) fix_serdata_default (d, tp->c.serdata_basehash);
+    else
+      (void) fix_serdata_default_nokey (d, tp->c.serdata_basehash);
   }
 
   return (struct ddsi_serdata *) d;
@@ -973,10 +973,10 @@ static struct ddsi_serdata * serdata_default_from_psmx (const struct ddsi_sertyp
     }
   }
 
-  if (tp->c.typekind_no_key)
-    (void) fix_serdata_default_nokey (d, tp->c.serdata_basehash);
-  else
+  if (tp->c.has_key)
     (void) fix_serdata_default (d, tp->c.serdata_basehash);
+  else
+    (void) fix_serdata_default_nokey (d, tp->c.serdata_basehash);
   return (struct ddsi_serdata *) d;
 }
 

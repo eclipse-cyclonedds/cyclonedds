@@ -56,12 +56,10 @@ static const dds_psmx_ops_t psmx_ops = {
 };
 
 
-static bool iox_serialization_required(dds_data_type_properties_t data_type);
 static struct dds_psmx_endpoint * iox_create_endpoint(struct dds_psmx_topic * psmx_topic, const struct dds_qos *qos, dds_psmx_endpoint_type_t endpoint_type);
 static dds_return_t iox_delete_endpoint(struct dds_psmx_endpoint * psmx_endpoint);
 
 static const dds_psmx_topic_ops_t psmx_topic_ops = {
-  .serialization_required = iox_serialization_required,
   .create_endpoint = iox_create_endpoint,
   .delete_endpoint = iox_delete_endpoint
 };
@@ -501,11 +499,6 @@ static dds_psmx_features_t iox_supported_features(const struct dds_psmx * psmx)
 }
 
 // dds_psmx_topic_ops_t implementation
-
-static bool iox_serialization_required(dds_data_type_properties_t data_type)
-{
-  return (data_type & DDS_DATA_TYPE_IS_FIXED_SIZE) == 0 || DDS_DATA_TYPE_CONTAINS_INDIRECTIONS(data_type) != 0;
-}
 
 static struct dds_psmx_endpoint * iox_create_endpoint(struct dds_psmx_topic * psmx_topic, const struct dds_qos * qos, dds_psmx_endpoint_type_t endpoint_type)
 {

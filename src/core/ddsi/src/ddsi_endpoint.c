@@ -1014,7 +1014,7 @@ dds_return_t ddsi_new_writer (struct ddsi_writer **wr_out, struct ddsi_guid *wrg
      awake and do not touch the thread's vtime (entidx_lookup already
      verifies we're awake) */
   wrguid->prefix = pp->e.guid.prefix;
-  kind = type->typekind_no_key ? DDSI_ENTITYID_KIND_WRITER_NO_KEY : DDSI_ENTITYID_KIND_WRITER_WITH_KEY;
+  kind = type->has_key ? DDSI_ENTITYID_KIND_WRITER_WITH_KEY : DDSI_ENTITYID_KIND_WRITER_NO_KEY;
   if ((rc = ddsi_participant_allocate_entityid (&wrguid->entityid, kind, pp)) < 0)
     return rc;
   return ddsi_new_writer_guid (wr_out, wrguid, group_guid, pp, topic_name, type, xqos, whc, status_cb, status_cb_arg, psmx_locators);
@@ -1532,7 +1532,7 @@ dds_return_t ddsi_new_reader (struct ddsi_reader **rd_out, struct ddsi_guid *rdg
   uint32_t kind;
 
   rdguid->prefix = pp->e.guid.prefix;
-  kind = type->typekind_no_key ? DDSI_ENTITYID_KIND_READER_NO_KEY : DDSI_ENTITYID_KIND_READER_WITH_KEY;
+  kind = type->has_key ? DDSI_ENTITYID_KIND_READER_WITH_KEY : DDSI_ENTITYID_KIND_READER_NO_KEY;
   if ((rc = ddsi_participant_allocate_entityid (&rdguid->entityid, kind, pp)) < 0)
     return rc;
   return ddsi_new_reader_guid (rd_out, rdguid, group_guid, pp, topic_name, type, xqos, rhc, status_cb, status_cb_arg, psmx_locators);

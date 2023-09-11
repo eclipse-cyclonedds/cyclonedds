@@ -40,16 +40,16 @@ struct ddsi_sertype {
   const struct ddsi_sertype_ops *ops;
   const struct ddsi_serdata_ops *serdata_ops;
   uint32_t serdata_basehash;
-  uint32_t typekind_no_key : 1;
+  uint32_t has_key : 1;
   uint32_t request_keyhash : 1;
-  uint32_t fixed_size : 1;
+  uint32_t is_memcpy_safe : 1;
   uint32_t allowed_data_representation; /* Allowed data representations set in IDL for this type, or DDS_DATA_REPRESENTATION_RESTRICT_DEFAULT in case of
                                             no restrictions in the IDL. Unsupported representations for the type are left out when creating the sertype. */
   char *type_name;
   ddsrt_atomic_voidp_t gv; /* set during registration */
   ddsrt_atomic_uint32_t flags_refc; /* counts refs from entities (topic, reader, writer), not from data */
   const struct ddsi_sertype *base_sertype; /* counted ref to sertype used to derive this sertype, used to overwrite the serdata_ops for a specific data representation */
-  uint32_t zerocopy_size;
+  uint32_t sizeof_type;
   dds_data_type_properties_t data_type_props; /* representation of properties of the data type */
 };
 
@@ -171,6 +171,10 @@ void ddsi_sertype_register_locked (struct ddsi_domaingv *gv, struct ddsi_sertype
 #define DDSI_SERTYPE_FLAG_FIXED_SIZE       (4u)
 
 #define DDSI_SERTYPE_FLAG_MASK (0x7u)
+#define DDSI_SERTYPE_PROPS_FLAG_MASK (DDSI_SERTYPE_FLAG_REQUEST_KEYHASH)
+
+/** @component typesupport_if */
+DDS_EXPORT void ddsi_sertype_init_props (struct ddsi_sertype *tp, const char *type_name, const struct ddsi_sertype_ops *sertype_ops, const struct ddsi_serdata_ops *serdata_ops, size_t sizeof_type, dds_data_type_properties_t data_type_props, uint32_t allowed_data_representation, uint32_t flags);
 
 /** @component typesupport_if */
 DDS_EXPORT void ddsi_sertype_init_flags (struct ddsi_sertype *tp, const char *type_name, const struct ddsi_sertype_ops *sertype_ops, const struct ddsi_serdata_ops *serdata_ops, uint32_t flags);

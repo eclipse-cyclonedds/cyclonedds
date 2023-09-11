@@ -191,12 +191,6 @@ dds_loaned_sample_t * dds_psmx_endpoint_request_loan (struct dds_psmx_endpoint *
   return psmx_endpoint->ops.request_loan (psmx_endpoint, sz);
 }
 
-bool dds_psmx_endpoint_serialization_required (struct dds_psmx_endpoint *psmx_endpoint)
-{
-  assert (psmx_endpoint && psmx_endpoint->psmx_topic);
-  return psmx_endpoint->psmx_topic->ops.serialization_required (psmx_endpoint->psmx_topic->data_type_props);
-}
-
 static dds_psmx_instance_id_t get_psmx_instance_id (const struct ddsi_domaingv * gv, const char *config_name)
 {
   uint32_t ext_domainid = gv->config.extDomainId.value;
@@ -426,7 +420,7 @@ static bool endpoint_is_loan_available (const struct dds_endpoint *endpoint)
     if (psmx_endpoint == NULL)
       continue;
     bool is_shm_available = dds_psmx_supported_features (psmx_endpoint->psmx_topic->psmx_instance) & DDS_PSMX_FEATURE_SHARED_MEMORY;
-    is_loan_available = is_shm_available && !dds_psmx_endpoint_serialization_required (psmx_endpoint);
+    is_loan_available = is_shm_available && (psmx_endpoint->psmx_topic->data_type_props & DDS_DATA_TYPE_IS_MEMCPY_SAFE);
   }
   return is_loan_available;
 }

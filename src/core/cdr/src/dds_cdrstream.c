@@ -4553,10 +4553,22 @@ uint32_t dds_stream_type_nesting_depth (const uint32_t * __restrict ops)
   return info.nesting_max;
 }
 
+static bool data_type_contains_indirections (dds_data_type_properties_t props)
+{
+  return props & (DDS_DATA_TYPE_CONTAINS_OPTIONAL
+                  | DDS_DATA_TYPE_CONTAINS_STRING
+                  | DDS_DATA_TYPE_CONTAINS_WSTRING
+                  | DDS_DATA_TYPE_CONTAINS_SEQUENCE
+                  | DDS_DATA_TYPE_CONTAINS_BSEQUENCE
+                  | DDS_DATA_TYPE_CONTAINS_EXTERNAL);
+}
+
 dds_data_type_properties_t dds_stream_data_types (const uint32_t * __restrict ops)
 {
   struct dds_cdrstream_ops_info info;
   dds_stream_get_ops_info (ops, &info);
+  if (!data_type_contains_indirections (info.data_types))
+    info.data_types |= DDS_DATA_TYPE_IS_MEMCPY_SAFE;
   return info.data_types;
 }
 
