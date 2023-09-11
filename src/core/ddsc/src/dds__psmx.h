@@ -20,8 +20,6 @@ struct dds_domain;
 struct dds_ktopic;
 struct dds_endpoint;
 
-DDSRT_STATIC_ASSERT (sizeof (dds_psmx_data_type_properties_t) == sizeof (ddsi_data_type_properties_t));
-
 /**
  * @brief linked list describing a number of topics
  */

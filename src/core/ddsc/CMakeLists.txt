@@ -98,6 +98,7 @@ prepend(hdrs_public_ddsc "$<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/include>$<
   ddsc/dds_opcodes.h
   ddsc/dds_loaned_sample.h
   ddsc/dds_psmx.h
+  ddsc/dds_data_type_properties.h
 )
 
 if(ENABLE_TYPELIB)

@@ -39,8 +39,8 @@ static std::optional<dds_psmx_node_identifier_t> to_node_identifier(const std::s
 /*forward declarations of functions*/
 namespace iox_psmx {
 
-static bool iox_type_qos_supported(struct dds_psmx * psmx, dds_psmx_endpoint_type_t forwhat, dds_psmx_data_type_properties_t data_type, const struct dds_qos * qos);
-static struct dds_psmx_topic* iox_create_topic(struct dds_psmx * psmx, const char * topic_name, dds_psmx_data_type_properties_t data_type_props);
+static bool iox_type_qos_supported(struct dds_psmx * psmx, dds_psmx_endpoint_type_t forwhat, dds_data_type_properties_t data_type, const struct dds_qos * qos);
+static struct dds_psmx_topic* iox_create_topic(struct dds_psmx * psmx, const char * topic_name, dds_data_type_properties_t data_type_props);
 static dds_return_t iox_delete_topic(struct dds_psmx_topic * psmx_topic);
 static dds_return_t iox_psmx_deinit(struct dds_psmx * self);
 static dds_psmx_node_identifier_t iox_psmx_get_node_id(const struct dds_psmx * psmx);
@@ -56,7 +56,7 @@ static const dds_psmx_ops_t psmx_ops = {
 };
 
 
-static bool iox_serialization_required(dds_psmx_data_type_properties_t data_type);
+static bool iox_serialization_required(dds_data_type_properties_t data_type);
 static struct dds_psmx_endpoint * iox_create_endpoint(struct dds_psmx_topic * psmx_topic, const struct dds_qos *qos, dds_psmx_endpoint_type_t endpoint_type);
 static dds_return_t iox_delete_endpoint(struct dds_psmx_endpoint * psmx_endpoint);
 
@@ -180,13 +180,13 @@ void iox_psmx::discover_node_id(dds_psmx_node_identifier_t node_id_fallback)
 
 struct iox_psmx_topic : public dds_psmx_topic_t
 {
-  iox_psmx_topic(iox_psmx& psmx, const char * topic_name, dds_psmx_data_type_properties_t data_type_props);
+  iox_psmx_topic(iox_psmx& psmx, const char * topic_name, dds_data_type_properties_t data_type_props);
   ~iox_psmx_topic();
   iox_psmx &_parent;
   char _data_type_str[64];
 };
 
-iox_psmx_topic::iox_psmx_topic(iox_psmx& psmx, const char * topic_name, dds_psmx_data_type_properties_t data_type_props) :
+iox_psmx_topic::iox_psmx_topic(iox_psmx& psmx, const char * topic_name, dds_data_type_properties_t data_type_props) :
   dds_psmx_topic_t
   {
     .ops = psmx_topic_ops,
@@ -413,7 +413,7 @@ iox_loaned_sample::~iox_loaned_sample()
 
 // dds_psmx_ops_t implementation
 
-static bool iox_type_qos_supported(struct dds_psmx * psmx, dds_psmx_endpoint_type_t forwhat, dds_psmx_data_type_properties_t data_type_props, const struct dds_qos * qos)
+static bool iox_type_qos_supported(struct dds_psmx * psmx, dds_psmx_endpoint_type_t forwhat, dds_data_type_properties_t data_type_props, const struct dds_qos * qos)
 {
   if (data_type_props & DDS_DATA_TYPE_CONTAINS_KEY)
   {
@@ -468,7 +468,7 @@ static bool iox_type_qos_supported(struct dds_psmx * psmx, dds_psmx_endpoint_typ
   return true;
 }
 
-static struct dds_psmx_topic* iox_create_topic(struct dds_psmx * psmx, const char * topic_name, dds_psmx_data_type_properties_t data_type_props)
+static struct dds_psmx_topic* iox_create_topic(struct dds_psmx * psmx, const char * topic_name, dds_data_type_properties_t data_type_props)
 {
   assert(psmx);
   auto cpp_psmx_ptr = static_cast<iox_psmx *>(psmx);
@@ -502,7 +502,7 @@ static dds_psmx_features_t iox_supported_features(const struct dds_psmx * psmx)
 
 // dds_psmx_topic_ops_t implementation
 
-static bool iox_serialization_required(dds_psmx_data_type_properties_t data_type)
+static bool iox_serialization_required(dds_data_type_properties_t data_type)
 {
   return (data_type & DDS_DATA_TYPE_IS_FIXED_SIZE) == 0 || DDS_DATA_TYPE_CONTAINS_INDIRECTIONS(data_type) != 0;
 }

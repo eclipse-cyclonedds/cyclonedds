@@ -18,6 +18,7 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/static_assert.h"
 #include "dds/cdr/dds_cdrstream.h"
+#include "dds/ddsc/dds_data_type_properties.h"
 
 #define TOKENPASTE(a, b) a ## b
 #define TOKENPASTE2(a, b) TOKENPASTE(a, b)
@@ -130,7 +131,7 @@ struct dds_cdrstream_ops_info {
   const uint32_t *ops_end;
   uint16_t min_xcdrv;
   uint32_t nesting_max;
-  uint64_t data_types;
+  dds_data_type_properties_t data_types;
 };
 
 static const uint32_t *dds_stream_skip_adr (uint32_t insn, const uint32_t * __restrict ops);
@@ -4552,7 +4553,7 @@ uint32_t dds_stream_type_nesting_depth (const uint32_t * __restrict ops)
   return info.nesting_max;
 }
 
-uint64_t dds_stream_data_types (const uint32_t * __restrict ops)
+dds_data_type_properties_t dds_stream_data_types (const uint32_t * __restrict ops)
 {
   struct dds_cdrstream_ops_info info;
   dds_stream_get_ops_info (ops, &info);

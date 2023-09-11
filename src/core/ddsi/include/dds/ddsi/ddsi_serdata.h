@@ -144,8 +144,6 @@ typedef size_t (*ddsi_serdata_print_t) (const struct ddsi_sertype *type, const s
    - buf needs to be at least 16 bytes large */
 typedef void (*ddsi_serdata_get_keyhash_t) (const struct ddsi_serdata *d, struct ddsi_keyhash *buf, bool force_md5);
 
-typedef uint32_t(*ddsi_serdata_zerocopy_size_t) (const struct ddsi_serdata* d);
-
 // Used for taking a loaned sample and constructing a serdata around this
 // takes over ownership of loan on success (leaves it unchanged on failure)
 typedef struct ddsi_serdata* (*ddsi_serdata_from_loan_t) (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, const char *sample, struct dds_loaned_sample *loaned_sample, bool force_serialization);
@@ -327,12 +325,6 @@ DDS_INLINE_EXPORT inline bool ddsi_serdata_print_untyped (const struct ddsi_sert
 /** @component typesupport_if */
 DDS_INLINE_EXPORT inline void ddsi_serdata_get_keyhash (const struct ddsi_serdata *d, struct ddsi_keyhash *buf, bool force_md5) {
   d->ops->get_keyhash (d, buf, force_md5);
-}
-
-/** @component typesupport_if */
-DDS_INLINE_EXPORT inline uint32_t ddsi_serdata_zerocopy_size(const struct ddsi_serdata* d)
-{
-  return d->type->zerocopy_size;
 }
 
 DDS_INLINE_EXPORT inline struct ddsi_serdata *ddsi_serdata_from_loaned_sample(const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, const char *sample, struct dds_loaned_sample *loan, bool force_serialization) ddsrt_nonnull_all;

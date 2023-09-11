@@ -313,7 +313,7 @@ dds_return_t dds_sertype_default_init (const struct dds_domain *domain, struct d
   st->serpool = domain->serpool;
 
   dds_cdrstream_desc_init (&st->type, &dds_cdrstream_default_allocator, desc->m_size, desc->m_align, desc->m_flagset, desc->m_ops, desc->m_keys, desc->m_nkeys);
-  st->c.data_type_props = (ddsi_data_type_properties_t) dds_stream_data_types (desc->m_ops);
+  st->c.data_type_props = dds_stream_data_types (desc->m_ops);
   if (st->c.fixed_size)
     st->c.data_type_props |= DDS_DATA_TYPE_IS_FIXED_SIZE;
 

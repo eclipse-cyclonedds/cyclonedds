@@ -60,7 +60,7 @@ extern "C" {
 dds_return_t dds_ensure_valid_data_representation (dds_qos_t *qos, uint32_t allowed_data_representations, bool topicqos);
 
 /** @component qos_obj */
-dds_return_t dds_ensure_valid_psmx_instances (dds_qos_t *qos, dds_psmx_endpoint_type_t forwhat, ddsi_data_type_properties_t data_type_props, const struct dds_psmx_set *psmx_instances);
+dds_return_t dds_ensure_valid_psmx_instances (dds_qos_t *qos, dds_psmx_endpoint_type_t forwhat, dds_data_type_properties_t data_type_props, const struct dds_psmx_set *psmx_instances);
 
 /** @component qos_obj */
 bool dds_qos_has_psmx_instances (const dds_qos_t *qos, const char *psmx_instance_name);

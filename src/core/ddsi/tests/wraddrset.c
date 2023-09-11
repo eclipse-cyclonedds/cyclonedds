@@ -21,6 +21,7 @@
 #include "dds/ddsi/ddsi_init.h"
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/ddsi_serdata.h"
+#include "dds/ddsc/dds_data_type_properties.h"
 #include "ddsi__addrset.h"
 #include "ddsi__participant.h"
 #include "ddsi__proxy_participant.h"

@@ -82,9 +82,9 @@ static const uint32_t sample_padding = sizeof (struct dds_psmx_metadata) % 8 ? (
 
 static uint32_t on_data_available_thread (void *a);
 
-static bool cdds_psmx_type_qos_supported (struct dds_psmx *psmx, dds_psmx_endpoint_type_t forwhat, dds_psmx_data_type_properties_t data_type_props, const struct dds_qos *qos);
+static bool cdds_psmx_type_qos_supported (struct dds_psmx *psmx, dds_psmx_endpoint_type_t forwhat, dds_data_type_properties_t data_type_props, const struct dds_qos *qos);
 static struct dds_psmx_topic * cdds_psmx_create_topic (struct dds_psmx * psmx,
-    const char * topic_name, dds_psmx_data_type_properties_t data_type_props);
+    const char * topic_name, dds_data_type_properties_t data_type_props);
 static dds_return_t cdds_psmx_delete_topic (struct dds_psmx_topic *psmx_topic);
 static dds_return_t cdds_psmx_deinit (struct dds_psmx *psmx);
 static dds_psmx_node_identifier_t cdds_psmx_get_node_id (const struct dds_psmx *psmx);
@@ -99,7 +99,7 @@ static const dds_psmx_ops_t psmx_instance_ops = {
   .supported_features = cdds_supported_features
 };
 
-static bool cdds_psmx_topic_serialization_required (dds_psmx_data_type_properties_t data_type_props);
+static bool cdds_psmx_topic_serialization_required (dds_data_type_properties_t data_type_props);
 static struct dds_psmx_endpoint * cdds_psmx_create_endpoint (struct dds_psmx_topic *psmx_topic, const struct dds_qos *qos, dds_psmx_endpoint_type_t endpoint_type);
 static dds_return_t cdds_psmx_delete_endpoint (struct dds_psmx_endpoint *psmx_endpoint);
 
@@ -130,14 +130,14 @@ static const dds_loaned_sample_ops_t ls_ops = {
 };
 
 
-static bool cdds_psmx_type_qos_supported (struct dds_psmx *psmx, dds_psmx_endpoint_type_t forwhat, dds_psmx_data_type_properties_t data_type_props, const struct dds_qos *qos)
+static bool cdds_psmx_type_qos_supported (struct dds_psmx *psmx, dds_psmx_endpoint_type_t forwhat, dds_data_type_properties_t data_type_props, const struct dds_qos *qos)
 {
   (void) psmx; (void) forwhat; (void) data_type_props; (void) qos;
   return true;
 }
 
 static struct dds_psmx_topic * cdds_psmx_create_topic (struct dds_psmx * psmx,
-    const char * topic_name, dds_psmx_data_type_properties_t data_type_props)
+    const char * topic_name, dds_data_type_properties_t data_type_props)
 {
   struct cdds_psmx *cpsmx = (struct cdds_psmx *) psmx;
   if (g_domain == -1)
@@ -246,7 +246,7 @@ static dds_psmx_features_t cdds_supported_features (const struct dds_psmx *psmx)
   return DDS_PSMX_FEATURE_ZERO_COPY;
 }
 
-static bool cdds_psmx_topic_serialization_required (dds_psmx_data_type_properties_t data_type_props)
+static bool cdds_psmx_topic_serialization_required (dds_data_type_properties_t data_type_props)
 {
   if (!(data_type_props & DDS_DATA_TYPE_IS_FIXED_SIZE) || DDS_DATA_TYPE_CONTAINS_INDIRECTIONS (data_type_props))
     return true;

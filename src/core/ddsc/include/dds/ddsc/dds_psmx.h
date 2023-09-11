@@ -18,6 +18,7 @@
 #include "dds/export.h"
 #include "dds/dds.h"
 #include "dds/ddsc/dds_loaned_sample.h"
+#include "dds/ddsc/dds_data_type_properties.h"
 
 #if defined (__cplusplus)
 extern "C" {
@@ -39,11 +40,6 @@ typedef enum dds_psmx_endpoint_type {
   DDS_PSMX_ENDPOINT_TYPE_READER,
   DDS_PSMX_ENDPOINT_TYPE_WRITER
 } dds_psmx_endpoint_type_t;
-
-/**
- * @brief identifier used to communicate the properties of the data being communicated
- */
-typedef uint64_t dds_psmx_data_type_properties_t;
 
 /**
  * @brief Identifier for the PSMX instance
@@ -92,7 +88,7 @@ typedef struct dds_psmx_node_identifier
  * @param[in] qos  The QoS.
  * @returns true if the QoS is supported, false otherwise
  */
-typedef bool (*dds_psmx_type_qos_supported_fn) (struct dds_psmx *psmx_instance, dds_psmx_endpoint_type_t forwhat, dds_psmx_data_type_properties_t data_type_props, const struct dds_qos *qos);
+typedef bool (*dds_psmx_type_qos_supported_fn) (struct dds_psmx *psmx_instance, dds_psmx_endpoint_type_t forwhat, dds_data_type_properties_t data_type_props, const struct dds_qos *qos);
 
 /**
  * @brief Definition for function to create a topic
@@ -108,7 +104,7 @@ typedef bool (*dds_psmx_type_qos_supported_fn) (struct dds_psmx *psmx_instance, 
 typedef struct dds_psmx_topic * (* dds_psmx_create_topic_fn) (
     struct dds_psmx * psmx_instance,
     const char * topic_name,
-    dds_psmx_data_type_properties_t data_type_props);
+    dds_data_type_properties_t data_type_props);
 
 /**
  * @brief Definition for function to destruct a topic
@@ -175,7 +171,7 @@ typedef struct dds_psmx_ops {
  *
  * FIXME: I wonder if we shouldn't do this check in Cyclone's core? But it is true that, e.g., OpenSplice [cw]ould also say "no need", so it isn't simply complicating things
  */
-typedef bool (* dds_psmx_serialization_required_fn) (dds_psmx_data_type_properties_t data_type_props);
+typedef bool (* dds_psmx_serialization_required_fn) (dds_data_type_properties_t data_type_props);
 
 /**
  * @brief Definition of function to create an endpoint for a topic
@@ -286,7 +282,7 @@ typedef struct dds_psmx_topic {
   char * topic_name; //!< the topic name
   dds_loan_data_type_t data_type; //!< the unique identifier associated with the data type of this topic
   struct dds_psmx_endpoint_list_elem *psmx_endpoints; //!< associated endpoints
-  dds_psmx_data_type_properties_t data_type_props; //!< the properties of the datatype associated with this topic
+  dds_data_type_properties_t data_type_props; //!< the properties of the datatype associated with this topic
 } dds_psmx_topic_t;
 
 /**
