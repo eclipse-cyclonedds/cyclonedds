@@ -84,7 +84,7 @@ static uint32_t on_data_available_thread (void *a);
 
 static bool cdds_psmx_type_qos_supported (struct dds_psmx *psmx, dds_psmx_endpoint_type_t forwhat, dds_data_type_properties_t data_type_props, const struct dds_qos *qos);
 static struct dds_psmx_topic * cdds_psmx_create_topic (struct dds_psmx * psmx,
-    const char * topic_name, dds_data_type_properties_t data_type_props);
+    const char * topic_name, const char * type_name, dds_data_type_properties_t data_type_props);
 static dds_return_t cdds_psmx_delete_topic (struct dds_psmx_topic *psmx_topic);
 static dds_return_t cdds_psmx_deinit (struct dds_psmx *psmx);
 static dds_psmx_node_identifier_t cdds_psmx_get_node_id (const struct dds_psmx *psmx);
@@ -135,7 +135,7 @@ static bool cdds_psmx_type_qos_supported (struct dds_psmx *psmx, dds_psmx_endpoi
 }
 
 static struct dds_psmx_topic * cdds_psmx_create_topic (struct dds_psmx * psmx,
-    const char * topic_name, dds_data_type_properties_t data_type_props)
+    const char * topic_name, const char * type_name, dds_data_type_properties_t data_type_props)
 {
   struct cdds_psmx *cpsmx = (struct cdds_psmx *) psmx;
   if (g_domain == -1)
@@ -169,20 +169,11 @@ static struct dds_psmx_topic * cdds_psmx_create_topic (struct dds_psmx * psmx,
 
   struct cdds_psmx_topic *ctp = dds_alloc (sizeof (*ctp));
   char *ext_topic_name;
-  if (cpsmx->service_name == NULL)
-    ext_topic_name = ddsrt_strdup (topic_name);
-  else
-    ddsrt_asprintf (&ext_topic_name, "%s/%s", cpsmx->service_name, topic_name);
+  ddsrt_asprintf (&ext_topic_name, "%s/%s", cpsmx->service_name ? cpsmx->service_name : "", topic_name);
   ctp->topic = dds_create_topic (cpsmx->participant, &cdds_psmx_data_desc, ext_topic_name, NULL, NULL);
   ddsrt_free (ext_topic_name);
-
-  ctp->c.ops = psmx_topic_ops;
-  ctp->c.psmx_instance = psmx;
-  ctp->c.data_type_props = data_type_props;
-  dds_psmx_topic_init_generic (&ctp->c, psmx, topic_name);
-
+  dds_psmx_topic_init_generic (&ctp->c, &psmx_topic_ops, psmx, topic_name, type_name, data_type_props);
   dds_add_psmx_topic_to_list (&ctp->c, &cpsmx->c.psmx_topics);
-
   return (struct dds_psmx_topic *) ctp;
 }
 

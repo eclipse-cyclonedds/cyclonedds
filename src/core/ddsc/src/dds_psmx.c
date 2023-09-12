@@ -168,11 +168,16 @@ dds_return_t dds_psmx_cleanup_generic (struct dds_psmx *psmx)
   return ret;
 }
 
-dds_return_t dds_psmx_topic_init_generic (struct dds_psmx_topic *psmx_topic, const struct dds_psmx * psmx, const char *topic_name)
+dds_return_t dds_psmx_topic_init_generic (struct dds_psmx_topic *psmx_topic, const dds_psmx_topic_ops_t *ops, const struct dds_psmx * psmx, const char *topic_name, const char * type_name, dds_data_type_properties_t data_type_props)
 {
+  psmx_topic->ops = *ops;
+  psmx_topic->psmx_instance = (struct dds_psmx *) psmx;
   psmx_topic->topic_name = dds_string_dup (topic_name);
+  psmx_topic->type_name = dds_string_dup (type_name);
   uint32_t topic_hash = ddsrt_mh3 (psmx_topic->topic_name, strlen (psmx_topic->topic_name), 0);
   psmx_topic->data_type = ddsrt_mh3 (&psmx->instance_id, sizeof (psmx->instance_id), topic_hash);
+  psmx_topic->data_type_props = data_type_props;
+  psmx_topic->psmx_endpoints = NULL;
   return DDS_RETCODE_OK;
 }
 
@@ -181,6 +186,7 @@ dds_return_t dds_psmx_topic_cleanup_generic (struct dds_psmx_topic *psmx_topic)
   dds_return_t ret = DDS_RETCODE_OK;
   while (ret == DDS_RETCODE_OK && psmx_topic->psmx_endpoints)
     ret = dds_remove_psmx_endpoint_from_list (psmx_topic->psmx_endpoints->endpoint, &psmx_topic->psmx_endpoints);
+  dds_free (psmx_topic->type_name);
   dds_free (psmx_topic->topic_name);
   return ret;
 }

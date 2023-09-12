@@ -40,7 +40,7 @@ static std::optional<dds_psmx_node_identifier_t> to_node_identifier(const std::s
 namespace iox_psmx {
 
 static bool iox_type_qos_supported(struct dds_psmx * psmx, dds_psmx_endpoint_type_t forwhat, dds_data_type_properties_t data_type, const struct dds_qos * qos);
-static struct dds_psmx_topic* iox_create_topic(struct dds_psmx * psmx, const char * topic_name, dds_data_type_properties_t data_type_props);
+static struct dds_psmx_topic* iox_create_topic(struct dds_psmx * psmx, const char * topic_name, const char * type_name, dds_data_type_properties_t data_type_props);
 static dds_return_t iox_delete_topic(struct dds_psmx_topic * psmx_topic);
 static dds_return_t iox_psmx_deinit(struct dds_psmx * self);
 static dds_psmx_node_identifier_t iox_psmx_get_node_id(const struct dds_psmx * psmx);
@@ -178,25 +178,18 @@ void iox_psmx::discover_node_id(dds_psmx_node_identifier_t node_id_fallback)
 
 struct iox_psmx_topic : public dds_psmx_topic_t
 {
-  iox_psmx_topic(iox_psmx& psmx, const char * topic_name, dds_data_type_properties_t data_type_props);
+  iox_psmx_topic(iox_psmx& psmx, const char * topic_name, const char * type_name, dds_data_type_properties_t data_type_props);
   ~iox_psmx_topic();
   iox_psmx &_parent;
   char _data_type_str[64];
 };
 
-iox_psmx_topic::iox_psmx_topic(iox_psmx& psmx, const char * topic_name, dds_data_type_properties_t data_type_props) :
-  dds_psmx_topic_t
-  {
-    .ops = psmx_topic_ops,
-    .psmx_instance = &psmx,
-    .topic_name = 0,
-    .data_type = 0,
-    .psmx_endpoints = nullptr,
-    .data_type_props = data_type_props
-  }, _parent(psmx)
+iox_psmx_topic::iox_psmx_topic(iox_psmx& psmx, const char * topic_name, const char * type_name, dds_data_type_properties_t data_type_props) :
+  _parent(psmx) // FIXME: superfluous
 {
-  dds_psmx_topic_init_generic(this, &psmx, topic_name);
-  snprintf(_data_type_str, sizeof (_data_type_str), "CycloneDDS iox_datatype %08X", data_type);
+  dds_psmx_topic_init_generic(this, &psmx_topic_ops, &psmx, topic_name, type_name, data_type_props);
+  if (ddsrt_strlcpy (_data_type_str, type_name, sizeof (_data_type_str)) >= sizeof (_data_type_str))
+    snprintf(_data_type_str, sizeof (_data_type_str), "CycloneDDS iox_datatype %08X", data_type);
   if (dds_add_psmx_topic_to_list(this, &psmx.psmx_topics) != DDS_RETCODE_OK)
   {
     std::cerr << ERROR_PREFIX "could not add PSMX topic to list" << std::endl;
@@ -466,11 +459,11 @@ static bool iox_type_qos_supported(struct dds_psmx * psmx, dds_psmx_endpoint_typ
   return true;
 }
 
-static struct dds_psmx_topic* iox_create_topic(struct dds_psmx * psmx, const char * topic_name, dds_data_type_properties_t data_type_props)
+static struct dds_psmx_topic* iox_create_topic(struct dds_psmx * psmx, const char * topic_name, const char * type_name, dds_data_type_properties_t data_type_props)
 {
   assert(psmx);
   auto cpp_psmx_ptr = static_cast<iox_psmx *>(psmx);
-  return new iox_psmx_topic(*cpp_psmx_ptr, topic_name, data_type_props);
+  return new iox_psmx_topic(*cpp_psmx_ptr, topic_name, type_name, data_type_props);
 }
 
 static dds_return_t iox_delete_topic(struct dds_psmx_topic * psmx_topic)

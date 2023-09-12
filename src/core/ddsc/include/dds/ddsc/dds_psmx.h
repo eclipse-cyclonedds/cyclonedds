@@ -98,12 +98,14 @@ typedef bool (*dds_psmx_type_qos_supported_fn) (struct dds_psmx *psmx_instance, 
  *
  * @param[in] psmx_instance  The PSMX instance.
  * @param[in] topic_name  The name of the topic to create
+ * @param[in] type_name The name of the DDS data type for this topic
  * @param[in] data_type_props  The data type properties for the topic's data type.
  * @returns a PSMX topic structure
  */
 typedef struct dds_psmx_topic * (* dds_psmx_create_topic_fn) (
     struct dds_psmx * psmx_instance,
     const char * topic_name,
+    const char * type_name,
     dds_data_type_properties_t data_type_props);
 
 /**
@@ -266,6 +268,7 @@ typedef struct dds_psmx_topic {
   dds_psmx_topic_ops_t ops; //!< associated functions
   struct dds_psmx *psmx_instance; //!< the PSMX instance which created this topic
   char * topic_name; //!< the topic name
+  char * type_name; //!< the type name
   dds_loan_data_type_t data_type; //!< the unique identifier associated with the data type of this topic
   struct dds_psmx_endpoint_list_elem *psmx_endpoints; //!< associated endpoints
   dds_data_type_properties_t data_type_props; //!< the properties of the datatype associated with this topic
@@ -351,11 +354,14 @@ DDS_EXPORT dds_return_t dds_psmx_cleanup_generic (struct dds_psmx *psmx);
  * Should be called from all constructors of classes which inherit from struct dds_psmx_topic
  *
  * @param[in] psmx_topic  the topic to initialize
+ * @param[in] ops vtable for this psmx_topic
  * @param[in] psmx  the PSMX instance
  * @param[in] topic_name  the topic name
+ * @param[in] type_name the DDS type name for this topic
+ * @param[in] data_type_props the data type's properties
  * @return a DDS return code
  */
-DDS_EXPORT dds_return_t dds_psmx_topic_init_generic (struct dds_psmx_topic *psmx_topic, const struct dds_psmx *psmx, const char *topic_name);
+DDS_EXPORT dds_return_t dds_psmx_topic_init_generic (struct dds_psmx_topic *psmx_topic, const dds_psmx_topic_ops_t *ops, const struct dds_psmx *psmx, const char *topic_name, const char *type_name, dds_data_type_properties_t data_type_props);
 
 /**
  * @brief cleanup function for a topic
