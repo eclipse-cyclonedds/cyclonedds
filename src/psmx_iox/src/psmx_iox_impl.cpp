@@ -445,7 +445,7 @@ static bool iox_type_qos_supported(struct dds_psmx * psmx, dds_psmx_endpoint_typ
   char **partitions;
   if (dds_qget_partition(qos, &n_partitions, &partitions))
   {
-    bool supported = n_partitions == 0 || (n_partitions == 1 && strlen (partitions[0]) > 0 && !is_wildcard_partition(partitions[0]));
+    bool supported = n_partitions == 0 || (n_partitions == 1 && !is_wildcard_partition(partitions[0]));
     for (uint32_t n = 0; n < n_partitions; n++)
       dds_free(partitions[n]);
     if (n_partitions > 0)
