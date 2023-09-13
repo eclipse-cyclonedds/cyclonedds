@@ -21,6 +21,7 @@
 #include "dds/ddsrt/retcode.h"
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/time.h"
+#include "dds/ddsrt/attributes.h"
 #include "dds/ddsc/dds_basic_types.h"
 
 #if defined(__cplusplus)
