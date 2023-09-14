@@ -38,6 +38,9 @@
 /* Not for general use, specificly for testing psmx Cyclone DDS plugin */
 #cmakedefine DDS_ALLOW_NESTED_DOMAIN 1
 
+/* Whether or not durable support is included */
+#cmakedefine DDS_HAS_DURABILITY 1
+
 /* Not intended for general use, whether building a static library, specifically testing psmx and security */
 #cmakedefine DDS_IS_STATIC_LIBRARY 1
 
