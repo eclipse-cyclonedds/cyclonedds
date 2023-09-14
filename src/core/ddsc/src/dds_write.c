@@ -200,10 +200,19 @@ static dds_return_t deliver_locally (struct ddsi_writer *wr, struct ddsi_serdata
   return rc;
 }
 
-static struct ddsi_serdata_any *convert_serdata(struct ddsi_writer *ddsi_wr, struct ddsi_serdata_any *din)
+static struct ddsi_serdata_any *convert_serdata (struct ddsi_writer *ddsi_wr, struct ddsi_serdata_any *din, bool require_copy)
+  ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
+
+static struct ddsi_serdata_any *convert_serdata (struct ddsi_writer *ddsi_wr, struct ddsi_serdata_any *din, bool require_copy)
 {
   struct ddsi_serdata_any *dout;
-  if (ddsi_wr->type == din->a.type)
+  if (require_copy)
+  {
+    dout = (struct ddsi_serdata_any *) ddsi_serdata_copy_as_type (ddsi_wr->type, &din->a);
+    // dout refc: must consume 1
+    // din refc: must consume 1 (independent of dact: types are distinct)
+  }
+  else if (ddsi_wr->type == din->a.type)
   {
     dout = din;
     // dout refc: must consume 1
@@ -239,49 +248,159 @@ static dds_return_t deliver_data_network (struct ddsi_thread_state * const thrst
 }
 
 static dds_return_t deliver_data_any (struct ddsi_thread_state * const thrst, struct ddsi_writer *ddsi_wr, struct ddsi_serdata_any *d, struct ddsi_xpack *xp, bool flush)
+  ddsrt_nonnull ((1, 2, 3)) ddsrt_attribute_warn_unused_result;
+
+static dds_return_t deliver_data_any (struct ddsi_thread_state * const thrst, struct ddsi_writer *ddsi_wr, struct ddsi_serdata_any *d, struct ddsi_xpack *xp, bool flush)
 {
   struct ddsi_tkmap_instance * const tk = ddsi_tkmap_lookup_instance_ref (ddsi_wr->e.gv->m_tkmap, &d->a);
   dds_return_t ret;
+  ddsi_serdata_ref (&d->a); // d = din: refc(d) = r + 1, otherwise refc(d) = 2
   if ((ret = deliver_data_network (thrst, ddsi_wr, d, xp, flush, tk)) != DDS_RETCODE_OK)
+    goto done;
+  if ((ret = deliver_locally (ddsi_wr, &d->a, tk)) != DDS_RETCODE_OK)
+    goto done;
+  if (d->a.loan)
   {
-    ddsi_tkmap_instance_unref (ddsi_wr->e.gv->m_tkmap, tk);
-    return ret;
+    // Loan metadata and origin assumed valid by now
+    const struct dds_loaned_sample * const loan = d->a.loan;
+    assert (loan->loan_origin.origin_kind == DDS_LOAN_ORIGIN_KIND_PSMX &&
+            loan->metadata->timestamp == d->a.timestamp.v &&
+            loan->metadata->statusinfo == d->a.statusinfo &&
+            memcmp (&loan->metadata->guid, &ddsi_wr->e.guid, sizeof (loan->metadata->guid)) == 0);
+    struct dds_psmx_endpoint * const endpoint = loan->loan_origin.psmx_endpoint;
+    ret = endpoint->ops.write (endpoint, d->a.loan);
   }
-  ret = deliver_locally (ddsi_wr, &d->a, tk);
+done:
   ddsi_tkmap_instance_unref (ddsi_wr->e.gv->m_tkmap, tk);
+  ddsi_serdata_unref (&d->a);
   return ret;
 }
 
-static dds_return_t dds_writecdr_impl_common (struct ddsi_writer *ddsi_wr, struct ddsi_xpack *xp, struct ddsi_serdata_any *din, bool flush)
+static dds_return_t dds_writecdr_impl_validate_loan (const struct dds_writer *wr, const struct ddsi_serdata_any *din)
+  ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
+
+static dds_return_t dds_writecdr_impl_validate_loan (const struct dds_writer *wr, const struct ddsi_serdata_any *din)
+{
+  assert (din->a.loan != NULL);
+  // Cases 4 and 8: bad parameter because a loan is passed in where none is expected
+  if (wr->m_endpoint.psmx_endpoints.length == 0)
+    return DDS_RETCODE_BAD_PARAMETER;
+  else
+  {
+    // Case 5 with mismatch in loan
+    dds_loaned_sample_t const * const loan = din->a.loan;
+    struct dds_psmx_metadata const * const md = loan->metadata;
+    if (loan->loan_origin.origin_kind != DDS_LOAN_ORIGIN_KIND_PSMX ||
+        loan->loan_origin.psmx_endpoint != wr->m_endpoint.psmx_endpoints.endpoints[0] ||
+        md->timestamp != din->a.timestamp.v ||
+        md->statusinfo != din->a.statusinfo ||
+        memcmp (&md->guid, &wr->m_entity.m_guid, sizeof (md->guid)) != 0)
+    {
+      return DDS_RETCODE_BAD_PARAMETER;
+    }
+  }
+  return DDS_RETCODE_OK;
+}
+
+static dds_return_t dds_writecdr_impl_ensureloan (struct dds_writer *wr, struct ddsi_serdata_any *din)
+  ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
+
+static dds_return_t dds_writecdr_impl_ensureloan (struct dds_writer *wr, struct ddsi_serdata_any *din)
+{
+  if (din->a.loan != NULL)
+    return DDS_RETCODE_OK;
+  assert (ddsrt_atomic_ld32 (&din->a.refc) == 1);
+
+  const uint32_t sersize = ddsi_serdata_size (&din->a);
+  dds_loaned_sample_t * const loan = dds_psmx_endpoint_request_loan (wr->m_endpoint.psmx_endpoints.endpoints[0], sersize - 4);
+  if (loan == NULL)
+    return DDS_RETCODE_OUT_OF_RESOURCES;
+  if (sersize > 4)
+    ddsi_serdata_to_ser (&din->a, 4, sersize - 4, loan->sample_ptr);
+  struct dds_psmx_metadata * const md = loan->metadata;
+  md->sample_state = (din->a.kind == SDK_KEY) ? DDS_LOANED_SAMPLE_STATE_SERIALIZED_KEY : DDS_LOANED_SAMPLE_STATE_SERIALIZED_DATA;
+  md->data_type = wr->m_endpoint.psmx_endpoints.endpoints[0]->psmx_topic->data_type;
+  md->instance_id = wr->m_endpoint.psmx_endpoints.endpoints[0]->psmx_topic->psmx_instance->instance_id;
+  md->sample_size = sersize - 4;
+  memcpy (&md->guid, &wr->m_entity.m_guid, sizeof (md->guid));
+  md->timestamp = din->a.timestamp.v;
+  md->statusinfo = din->a.statusinfo;
+  unsigned char cdr_header[4];
+  ddsi_serdata_to_ser (&din->a, 0, 4, cdr_header);
+  memcpy (&md->cdr_identifier, cdr_header, sizeof (md->cdr_identifier));
+  memcpy (&md->cdr_options, cdr_header + 2, sizeof (md->cdr_options));
+  din->a.loan = loan;
+  return DDS_RETCODE_OK;
+}
+
+static dds_return_t dds_writecdr_impl_common (struct dds_writer *wr, struct ddsi_writer *ddsi_wr, struct ddsi_xpack *xp, struct ddsi_serdata_any *din, bool flush)
+  ddsrt_nonnull((1, 2, 4)) ddsrt_attribute_warn_unused_result;
+
+static dds_return_t dds_writecdr_impl_common (struct dds_writer *wr, struct ddsi_writer *ddsi_wr, struct ddsi_xpack *xp, struct ddsi_serdata_any *din, bool flush)
 {
   // consumes 1 refc from din in all paths (weird, but ... history ...)
   // let refc(din) be r, so upon returning it must be r-1
   struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
-  int ret = DDS_RETCODE_OK;
+  dds_return_t ret;
 
-  struct ddsi_serdata_any * const d = convert_serdata(ddsi_wr, din);
-  if (d == NULL)
+  // Cases:
+  //    din    correct      psmx?   loan?
+  //    refc   sertype?
+  // 1. >=1    yes          no      no        no changes needed: send din
+  // 2. >1     yes          yes     no        add loan to copy, send copy
+  // 3. 1      yes          yes     no        add loan to din, send din
+  // 4. >=1    yes          no      yes       invalid, return BAD_PARAMETER
+  // 5. >=1    yes          yes     yes       send din if loan ok (5a) else return BAD_PARAMETER (5b)
+  // 6. >=1    no           no      no        convert + case 1
+  // 7. >=1    no           yes     no        convert + case 3
+  // 8. >=1    no           no      yes       invalid, return BAD_PARAMETER
+  // 9. >=1    no           yes     yes       convert + case 3
+  //
+  // Case 9 assumes the loan is not included in the conversion.  Cases 6-9 are weird
+  // ones anyway are almost never used, so no point in trying to be smart.  Only case
+  // 3 is worth the optimization of not making a copy if a unique pointer is passed in.
+
+  // Cases 4 and 8 and case 5a (mismatch in loan)
+  if (din->a.loan != NULL && (ret = dds_writecdr_impl_validate_loan (wr, din)) != DDS_RETCODE_OK)
   {
-    ddsi_serdata_unref(&din->a); // refc(din) = r - 1 as required
-    return DDS_RETCODE_ERROR;
+    ddsi_serdata_unref (&din->a);
+    return ret;
+  }
+
+  // Do we need a copy because we have to patch in a loan?
+  // This reduces cases 1, 2, 3, 5b, 6, 7, 9 to a simple process:
+  // - if uses_psmx and no loan present yet in `d`: add one
+  // - send d
+  // - if d != din, both need to be unref'd else only one
+  const bool uses_psmx = (wr->m_endpoint.psmx_endpoints.length > 0);
+  const bool require_copy = uses_psmx && din->a.loan == NULL && ddsrt_atomic_ld32 (&din->a.refc) > 1;
+  struct ddsi_serdata_any * const d = convert_serdata (ddsi_wr, din, require_copy);
+  if (d != din)
+  {
+    // Don't need din anymore, drop the reference.  (And if it was an alias, there'd be
+    // no additional refcount, in which case this unref call must not be done.)
+    ddsi_serdata_unref (&din->a);
+    if (d == NULL)
+      return DDS_RETCODE_ERROR;
+  }
+
+  // If we need a loan to be present because of PSMX, but none is, make one.  It could be
+  // that din didn't have one, or it could be that we copied it because of the refcount,
+  // or that we converted it.  Whichever the case may be, we need to make one.
+  if (uses_psmx && (ret = dds_writecdr_impl_ensureloan (wr, d)) != DDS_RETCODE_OK)
+  {
+    ddsi_serdata_unref (&d->a);
+    return ret;
   }
 
   // d = din: refc(d) = r, otherwise refc(d) = 1
-
   ddsi_thread_state_awake (thrst, ddsi_wr->e.gv);
-  ddsi_serdata_ref (&d->a); // d = din: refc(d) = r + 1, otherwise refc(d) = 2
-
   ret = deliver_data_any (thrst, ddsi_wr, d, xp, flush);
-
-  if(d != din)
-    ddsi_serdata_unref(&din->a); // d != din: refc(din) = r - 1 as required, refc(d) unchanged
-  ddsi_serdata_unref(&d->a); // d = din: refc(d) = r - 1, otherwise refc(din) = r-1 and refc(d) = 0
-
   ddsi_thread_state_asleep (thrst);
   return ret;
 }
 
-static bool evalute_topic_filter (const dds_writer *wr, const void *data, bool writekey)
+static bool evaluate_topic_filter (const dds_writer *wr, const void *data, bool writekey)
 {
   // false if data rejected by filter
   if (wr->m_topic->m_filter.mode == DDS_TOPIC_FILTER_NONE || writekey)
@@ -513,7 +632,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void *data, dds_time_t tstamp
     return DDS_RETCODE_BAD_PARAMETER;
 
   // 2. Topic filter
-  if (!evalute_topic_filter (wr, data, writekey))
+  if (!evaluate_topic_filter (wr, data, writekey))
     return DDS_RETCODE_OK;
 
   ddsi_thread_state_awake (thrst, &wr->m_entity.m_domain->gv);
@@ -597,7 +716,8 @@ fail_serdata:
 
 dds_return_t dds_writecdr_impl (dds_writer *wr, struct ddsi_xpack *xp, struct ddsi_serdata *d, bool flush)
 {
-  return dds_writecdr_impl_common (wr->m_wr, xp, (struct ddsi_serdata_any *) d, flush);
+  dds_return_t ret = dds_writecdr_impl_common (wr, wr->m_wr, xp, (struct ddsi_serdata_any *) d, flush);
+  return ret;
 }
 
 void dds_write_flush_impl (dds_writer *wr)

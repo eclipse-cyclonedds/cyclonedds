@@ -193,7 +193,7 @@ dds_return_t dds_psmx_topic_cleanup_generic (struct dds_psmx_topic *psmx_topic)
 
 dds_loaned_sample_t * dds_psmx_endpoint_request_loan (struct dds_psmx_endpoint *psmx_endpoint, uint32_t sz)
 {
-  assert (psmx_endpoint && psmx_endpoint->ops.request_loan);
+  assert (psmx_endpoint->ops.request_loan);
   return psmx_endpoint->ops.request_loan (psmx_endpoint, sz);
 }
 

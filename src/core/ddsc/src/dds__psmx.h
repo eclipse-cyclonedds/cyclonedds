@@ -68,6 +68,7 @@ void dds_psmx_locators_set_free (struct ddsi_psmx_locators_set *psmx_locators_se
  * @param[in] sz    size of the loan
  * @return a loaned sample
  */
-dds_loaned_sample_t * dds_psmx_endpoint_request_loan (struct dds_psmx_endpoint *psmx_endpoint, uint32_t sz);
+dds_loaned_sample_t * dds_psmx_endpoint_request_loan (struct dds_psmx_endpoint *psmx_endpoint, uint32_t sz)
+  ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
 
 #endif // DDS__PSMX_H

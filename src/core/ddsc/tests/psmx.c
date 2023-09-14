@@ -19,11 +19,12 @@
 #include "dds/ddsrt/environ.h"
 #include "dds/ddsrt/static_assert.h"
 
+#include "dds/dds.h"
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "ddsi__addrset.h"
 #include "ddsi__entity.h"
-#include "dds/dds.h"
 #include "dds__entity.h"
+#include "dds__serdata_default.h"
 
 #include "config_env.h"
 #include "test_common.h"
@@ -47,8 +48,10 @@ static bool failed;
 static void fail (void) { failed = true; }
 static void fail_match (void) { fail (); }
 static void fail_addrset (void) { fail (); }
+static void fail_valid_data (void) { fail (); }
 static void fail_instance_state (void) { fail (); }
 static void fail_timestamp (void) { fail (); }
+static void fail_content (void) { fail (); }
 static void fail_no_data (void) { fail (); }
 static void fail_too_much_data (void) { fail (); }
 
@@ -389,7 +392,7 @@ static const char *istatestr (dds_instance_state_t s)
   return "nowriters";
 }
 
-static bool alldataseen (struct tracebuf *tb, int nrds, const dds_entity_t *rds, dds_instance_state_t instance_state, bool use_rd_loan, const dds_topic_descriptor_t *tpdesc, dds_time_t ts)
+static bool alldataseen (struct tracebuf *tb, int nrds, const dds_entity_t *rds, dds_instance_state_t instance_state, bool valid_data, const void *sample_sent, bool (*eq) (const void *sent, const void *recvd, bool valid_data), bool use_rd_loan, const dds_topic_descriptor_t *tpdesc, dds_time_t ts)
 {
   assert (nrds > 0);
   dds_return_t rc;
@@ -426,6 +429,12 @@ static bool alldataseen (struct tracebuf *tb, int nrds, const dds_entity_t *rds,
         int32_t n;
         while ((n = dds_take (rdconds[i], &sampleptr, &si, 1, 1)) > 0)
         {
+          if (si.valid_data != valid_data)
+          {
+            print (tb, "[rd %d valid_data %d while expecting %d] ", i, si.valid_data, valid_data);
+            fail_valid_data ();
+            goto out;
+          }
           if (si.instance_state != instance_state)
           {
             print (tb, "[rd %d %s while expecting %s] ", i, istatestr (si.instance_state), istatestr (instance_state));
@@ -436,6 +445,12 @@ static bool alldataseen (struct tracebuf *tb, int nrds, const dds_entity_t *rds,
           {
             print (tb, "[rd %d source timestamp %"PRId64" while expecting %"PRId64"] ", i, si.source_timestamp, ts);
             fail_timestamp ();
+            goto out;
+          }
+          if (!eq (sample_sent, sampleptr, valid_data))
+          {
+            print (tb, "[rd %d content mismatch] ", i);
+            fail_content ();
             goto out;
           }
           dataseen[i] += n;
@@ -570,7 +585,13 @@ enum local_delivery_mode {
   LDM_SLOWPATH
 };
 
-static void dotest (const dds_topic_descriptor_t *tpdesc, const void *sample, enum local_delivery_mode ldm, bool use_wr_loan, bool use_rd_loan)
+enum write_mode {
+  WM_NORMAL,
+  WM_LOAN,
+  WM_FORWARDCDR
+};
+
+static void dotest (const dds_topic_descriptor_t *tpdesc, const void *sample, bool (*eq) (const void *sent, const void *recvd, bool valid_data), enum local_delivery_mode ldm, enum write_mode write_mode, bool use_rd_loan)
 {
   dds_return_t rc;
   dds_entity_t pp[MAX_DOMAINS];
@@ -743,13 +764,15 @@ static void dotest (const dds_topic_descriptor_t *tpdesc, const void *sample, en
       //dds_sleepfor (DDS_MSECS (100));
       static struct {
         const char *info;
-        dds_return_t (*op) (dds_entity_t wr, const void *data, dds_time_t timestamp);
+        enum { OP_WRITE, OP_DISPOSE, OP_WRITEDISPOSE, OP_UNREGISTER } op;
         dds_instance_state_t istate;
       } const ops[] = {
-        { "w", dds_write_ts, DDS_ALIVE_INSTANCE_STATE },
-        { "d", dds_dispose_ts, DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE },
-        { "w", dds_write_ts, DDS_ALIVE_INSTANCE_STATE }, // needed to make unregister visible in RHC
-        { "u", dds_unregister_instance_ts, DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE }
+        { "w", OP_WRITE, DDS_ALIVE_INSTANCE_STATE },
+        { "d", OP_DISPOSE, DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE },
+        { "w", OP_WRITE, DDS_ALIVE_INSTANCE_STATE },
+        { "wd", OP_WRITEDISPOSE, DDS_NOT_ALIVE_DISPOSED_INSTANCE_STATE },
+        { "w", OP_WRITE, DDS_ALIVE_INSTANCE_STATE },
+        { "u", OP_UNREGISTER, DDS_NOT_ALIVE_NO_WRITERS_INSTANCE_STATE }
       };
       for (size_t opidx = 0; opidx < sizeof (ops) / sizeof (ops[0]); opidx++)
       {
@@ -760,7 +783,7 @@ static void dotest (const dds_topic_descriptor_t *tpdesc, const void *sample, en
         // and we can't trust the application to get that right.
         // FIXME: dds_dispose does a use-after-free when handed a loan, that's bad
         const void *sample_to_write = sample;
-        if (use_wr_loan && ops[opidx].op == dds_write_ts)
+        if (write_mode == WM_LOAN && ops[opidx].op == OP_WRITE)
         {
           void *loan;
           rc = dds_request_loan (wr, &loan);
@@ -770,9 +793,36 @@ static void dotest (const dds_topic_descriptor_t *tpdesc, const void *sample, en
         }
 
         dds_time_t ts = dds_time ();
-        rc = ops[opidx].op (wr, sample_to_write, ts);
+        const bool valid_data = (ops[opidx].op == OP_WRITE || ops[opidx].op == OP_WRITEDISPOSE);
+        if (write_mode != WM_FORWARDCDR)
+        {
+          switch (ops[opidx].op)
+          {
+            case OP_WRITE: rc = dds_write_ts (wr, sample_to_write, ts); break;
+            case OP_DISPOSE: rc = dds_dispose_ts (wr, sample_to_write, ts); break;
+            case OP_WRITEDISPOSE: rc = dds_writedispose_ts (wr, sample_to_write, ts); break;
+            case OP_UNREGISTER: rc = dds_unregister_instance_ts (wr, sample_to_write, ts); break;
+          }
+        }
+        else
+        {
+          const struct ddsi_sertype *st;
+          rc = dds_get_entity_sertype (wr, &st);
+          CU_ASSERT_FATAL (rc == 0);
+          struct ddsi_serdata *sd = ddsi_serdata_from_sample (st, valid_data ? SDK_DATA : SDK_KEY, sample);
+          CU_ASSERT_FATAL (sd != NULL);
+          // the odious dds_writecdr overwrites these
+          switch (ops[opidx].op)
+          {
+            case OP_WRITE: sd->statusinfo = 0; break;
+            case OP_DISPOSE: case OP_WRITEDISPOSE: sd->statusinfo = DDSI_STATUSINFO_DISPOSE; break;
+            case OP_UNREGISTER: sd->statusinfo = DDSI_STATUSINFO_UNREGISTER; break;
+          }
+          sd->timestamp.v = ts;
+          rc = dds_forwardcdr (wr, sd);
+        }
         CU_ASSERT_FATAL (rc == 0);
-        if (!alldataseen (&tb, nrds_active, rds, ops[opidx].istate, use_rd_loan, tpdesc, ts))
+        if (!alldataseen (&tb, nrds_active, rds, ops[opidx].istate, valid_data, sample, eq, use_rd_loan, tpdesc, ts))
         {
           fail_one = true;
           goto next;
@@ -833,10 +883,60 @@ skip_because_of_keys:
   }
 }
 
+static bool eq_PsmxType1 (const void *vsent, const void *vrecvd, bool valid_data)
+{
+  const PsmxType1 *sent = vsent;
+  const PsmxType1 *recvd = vrecvd;
+  if (valid_data)
+    return sent->long_1 == recvd->long_1 && sent->long_2 == recvd->long_2 && sent->long_3 == recvd->long_3;
+  else
+    return recvd->long_1 == 0 && recvd->long_2 == 0 && recvd->long_3 == 0;
+}
+
+static bool eq_DynamicData_Msg (const void *vsent, const void *vrecvd, bool valid_data)
+{
+  const DynamicData_Msg *sent = vsent;
+  const DynamicData_Msg *recvd = vrecvd;
+  if (valid_data)
+  {
+    if (strcmp (sent->message, recvd->message) != 0 || sent->scalar != recvd->scalar || sent->values._length != recvd->values._length)
+      return false;
+    for (uint32_t i = 0; i < sent->values._length; i++)
+      if (sent->values._buffer[i] != recvd->values._buffer[i])
+        return false;
+    return true;
+  }
+  else
+  {
+    return recvd->message == NULL && recvd->scalar == 0 && recvd->values._length == 0;
+  }
+}
+
+static bool eq_DynamicData_KMsg (const void *vsent, const void *vrecvd, bool valid_data)
+{
+  const DynamicData_KMsg *sent = vsent;
+  const DynamicData_KMsg *recvd = vrecvd;
+  if (valid_data)
+  {
+    if (strcmp (sent->message, recvd->message) != 0 || sent->scalar != recvd->scalar || sent->values._length != recvd->values._length)
+      return false;
+    for (uint32_t i = 0; i < sent->values._length; i++)
+      if (sent->values._buffer[i] != recvd->values._buffer[i])
+        return false;
+    return true;
+  }
+  else
+  {
+    if (strcmp (sent->message, recvd->message) != 0)
+      return false;
+    return recvd->scalar == 0 && recvd->values._length == 0;
+  }
+}
+
 CU_Test(ddsc_psmx, one_writer, .timeout = 240)
 {
   failed = false;
-  dotest (&PsmxType1_desc, &(const PsmxType1){ 0 }, LDM_NONE, false, false);
+  dotest (&PsmxType1_desc, &(const PsmxType1){ 5, 3, 53 }, eq_PsmxType1, LDM_NONE, WM_NORMAL, false);
   CU_ASSERT (!failed);
 }
 
@@ -850,7 +950,7 @@ CU_Test(ddsc_psmx, one_writer_dynsize, .timeout = 240)
       ._length = 4, ._maximum = 4, ._release = false,
       ._buffer = (int32_t[]) { 193, 272, 54, 277 }
     }
-  }, LDM_NONE, false, false);
+  }, eq_DynamicData_Msg, LDM_NONE, WM_NORMAL, false);
   CU_ASSERT (!failed);
 }
 
@@ -864,42 +964,77 @@ CU_Test(ddsc_psmx, one_writer_dynsize_strkey, .timeout = 240)
       ._length = 4, ._maximum = 4, ._release = false,
       ._buffer = (int32_t[]) { 193, 272, 54, 277 }
     }
-  }, LDM_NONE, false, false);
+  }, eq_DynamicData_KMsg, LDM_NONE, WM_NORMAL, false);
   CU_ASSERT (!failed);
 }
 
 CU_Test(ddsc_psmx, one_writer_fastpath, .timeout = 240)
 {
   failed = false;
-  dotest (&PsmxType1_desc, &(const PsmxType1){ 0 }, LDM_FASTPATH, false, false);
+  dotest (&PsmxType1_desc, &(const PsmxType1){ 7, 3, 73 }, eq_PsmxType1, LDM_FASTPATH, WM_NORMAL, false);
   CU_ASSERT (!failed);
 }
 
 CU_Test(ddsc_psmx, one_writer_slowpath, .timeout = 240)
 {
   failed = false;
-  dotest (&Space_Type3_desc, &(const PsmxType1){ 0 }, LDM_SLOWPATH, false, false);
+  dotest (&Space_Type3_desc, &(const PsmxType1){ 2, 3, 23 }, eq_PsmxType1, LDM_SLOWPATH, WM_NORMAL, false);
   CU_ASSERT (!failed);
 }
 
 CU_Test(ddsc_psmx, one_writer_wloan, .timeout = 240)
 {
   failed = false;
-  dotest (&PsmxType1_desc, &(const PsmxType1){ 0 }, LDM_NONE, true, false);
+  dotest (&PsmxType1_desc, &(const PsmxType1){ 3, 7, 37 }, eq_PsmxType1, LDM_NONE, WM_LOAN, false);
   CU_ASSERT (!failed);
 }
 
 CU_Test(ddsc_psmx, one_writer_rloan, .timeout = 240)
 {
   failed = false;
-  dotest (&PsmxType1_desc, &(const PsmxType1){ 0 }, LDM_NONE, false, true);
+  dotest (&PsmxType1_desc, &(const PsmxType1){ 11, 17, 1117 }, eq_PsmxType1, LDM_NONE, WM_NORMAL, true);
   CU_ASSERT (!failed);
 }
 
 CU_Test(ddsc_psmx, one_writer_wrloan, .timeout = 240)
 {
   failed = false;
-  dotest (&PsmxType1_desc, &(const PsmxType1){ 0 }, LDM_NONE, true, true);
+  dotest (&PsmxType1_desc, &(const PsmxType1){ 5113, 51, 13 }, eq_PsmxType1, LDM_NONE, WM_LOAN, true);
+  CU_ASSERT (!failed);
+}
+
+CU_Test(ddsc_psmx, one_writer_forwardcdr, .timeout = 240)
+{
+  failed = false;
+  dotest (&PsmxType1_desc, &(const PsmxType1){ 5, 3, 53 }, eq_PsmxType1, LDM_NONE, WM_FORWARDCDR, false);
+  CU_ASSERT (!failed);
+}
+
+CU_Test(ddsc_psmx, one_writer_forwardcdr_dynsize, .timeout = 240)
+{
+  failed = false;
+  dotest (&DynamicData_Msg_desc, &(const DynamicData_Msg){
+    .message = "Muss es sein?",
+    .scalar = 135,
+    .values = {
+      ._length = 4, ._maximum = 4, ._release = false,
+      ._buffer = (int32_t[]) { 193, 272, 54, 277 }
+    }
+  }, eq_DynamicData_Msg, LDM_NONE, WM_FORWARDCDR, false);
+  CU_ASSERT (!failed);
+}
+
+CU_Test(ddsc_psmx, one_writer_forwardcdr_dynsize_strkey, .timeout = 240)
+{
+  failed = false;
+  dotest (&DynamicData_KMsg_desc, &(const DynamicData_KMsg){
+    .message = "Muss es sein?",
+    .scalar = 135,
+    .values = {
+      ._length = 4, ._maximum = 4, ._release = false,
+      ._buffer = (int32_t[]) { 193, 272, 54, 277 }
+    }
+  }, eq_DynamicData_KMsg, LDM_NONE, WM_FORWARDCDR, false);
   CU_ASSERT (!failed);
 }
 
