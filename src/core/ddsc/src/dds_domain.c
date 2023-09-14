@@ -32,6 +32,10 @@
 #include "dds__serdata_default.h"
 #include "dds__psmx.h"
 
+#ifdef DDS_HAS_DURABILITY
+#include "dds/durability/dds_durability.h"
+#endif
+
 static dds_return_t dds_domain_free (dds_entity *vdomain);
 
 const struct dds_entity_deriver dds_entity_deriver_domain = {
@@ -302,6 +306,11 @@ dds_entity_t dds_create_domain (const dds_domainid_t domain, const char *config)
   const struct config_source config_src = { .kind = CFGKIND_XML, .u = { .xml = config } };
   ret = dds_domain_create_internal_xml_or_raw (&dom, domain, false, &config_src);
   dds_entity_unpin_and_drop_ref (&dds_global.m_entity);
+
+#ifdef DDS_HAS_DURABILITY
+  dds_durability_init2(&dom->gv);
+#endif
+
   return ret;
 }
 
