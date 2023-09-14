@@ -236,7 +236,7 @@ install(TARGETS psmx_cdds
 
 # If Iceoryx is available, then also run all PSMX tests using Iceoryx.  Colcon complicates
 # things too much and it doesn't affect Cyclone's CI run anyway.
-if(ENABLE_SHM AND NOT DEFINED ENV{COLCON})
+if(ENABLE_ICEORYX AND NOT DEFINED ENV{COLCON})
 
   # We need to start RouDi, so we need to find it
   find_program(ICEORYX_ROUDI iox-roudi REQUIRED)
@@ -247,7 +247,7 @@ if(ENABLE_SHM AND NOT DEFINED ENV{COLCON})
   # when targetting just Linux and macOS.  However, that means macOS
   # will strip DYLD_LIBRARY_PATH from the environment and therefore we
   # cannot rely on "set_test_library_paths".
-  find_library(ICEORYX_LIB iceoryx_binding_c)
+  find_library(ICEORYX_LIB iceoryx_posh)
   get_filename_component(ICEORYX_LIB_PATH ${ICEORYX_LIB} DIRECTORY)
   if(APPLE)
     set(ICEORYX_ROUDI_LIBPATH "DYLD_LIBRARY_PATH=${ICEORYX_LIB_PATH}:$ENV{DYLD_LIBRARY_PATH}")

@@ -13,8 +13,7 @@ cmake_minimum_required(VERSION 3.10)
 project(CycloneDDS-PSMX-IOX VERSION 0.11.0 LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 17)
 
-find_package(iceoryx_hoofs REQUIRED)
-find_package(iceoryx_posh REQUIRED)
+message(STATUS "Building Iceoryx PSMX plugin")
 
 add_library(psmx_iox SHARED "src/psmx_iox_impl.cpp")
 
@@ -24,6 +23,5 @@ target_include_directories(psmx_iox PRIVATE "$<BUILD_INTERFACE:${CMAKE_CURRENT_S
 target_link_libraries(psmx_iox PRIVATE ddsc iceoryx_hoofs::iceoryx_hoofs iceoryx_posh::iceoryx_posh)
 
 install(TARGETS psmx_iox
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})

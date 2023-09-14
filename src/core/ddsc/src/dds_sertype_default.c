@@ -234,9 +234,6 @@ static dds_ostream_t ostream_from_buffer(void *buffer, size_t size, uint16_t wri
 static size_t sertype_default_get_serialized_size (const struct ddsi_sertype *type, const void *sample)
 {
   // We do not count the CDR header here.
-  // TODO Do we want to include CDR header into the serialization used by iceoryx?
-  //      If the endianness does not change, it appears not to be necessary (maybe for
-  //      XTypes)
   struct ddsi_serdata *serdata = ddsi_serdata_from_sample(type, SDK_DATA, sample);
   if (serdata == NULL)
     return SIZE_MAX;

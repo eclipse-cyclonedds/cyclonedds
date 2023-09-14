@@ -217,7 +217,7 @@ static int sedp_write_endpoint_impl
             if (!epcommon->pp->e.gv->xmit_conns[i]->m_factory->m_enable_spdp)
             {
               // skip any interfaces where the address kind doesn't match the selected transport
-              // as a reasonablish way of not advertising iceoryx locators here
+              // as a reasonablish way of not advertising PSMX locators here
               continue;
             }
             // FIXME: should have multiple loc_default_uc/loc_meta_uc or compute ports here

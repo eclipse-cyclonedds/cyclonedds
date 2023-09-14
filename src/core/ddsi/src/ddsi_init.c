@@ -73,12 +73,6 @@
 #include "dds__whc.h"
 #include "dds/cdr/dds_cdrstream.h"
 
-#ifdef DDS_HAS_SHM
-#include "dds/ddsi/ddsi_shm_transport.h"
-#include "dds/ddsrt/io.h"
-#include "iceoryx_binding_c/runtime.h"
-#endif
-
 static int add_peer_address_ports (const struct ddsi_domaingv *gv, struct ddsi_addrset *as, ddsi_locator_t *loc)
 {
   struct ddsi_tran_factory * const tran = ddsi_factory_find_supported_kind (gv, loc->kind);
@@ -1564,7 +1558,7 @@ int ddsi_init (struct ddsi_domaingv *gv, struct ddsi_psmx_instance_locators *psm
         .m_diffserv = 0,
         .m_interface = &gv->interfaces[i]
       };
-      // FIXME: looking up the factory here is a hack to support iceoryx in addition to (e.g.) UDP
+      // FIXME: looking up the factory here is a hack to support PSMX in addition to (e.g.) UDP
       struct ddsi_tran_factory * fact = ddsi_factory_find_supported_kind (gv, gv->interfaces[i].loc.kind);
       rc = ddsi_factory_create_conn (&gv->xmit_conns[i], fact, 0, &qos);
       if (rc != DDS_RETCODE_OK)

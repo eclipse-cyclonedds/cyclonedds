@@ -117,7 +117,7 @@ void ddsi_get_participant_builtin_topic_data (const struct ddsi_participant *pp,
       if (!gv->xmit_conns[i]->m_factory->m_enable_spdp)
       {
         // skip any interfaces where the address kind doesn't match the selected transport
-        // as a reasonablish way of not advertising iceoryx locators here
+        // as a reasonablish way of not advertising PSMX locators here
         continue;
       }
 #ifndef NDEBUG
