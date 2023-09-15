@@ -809,9 +809,9 @@ static void dotest (const dds_topic_descriptor_t *tpdesc, const void *sample, bo
           const struct ddsi_sertype *st;
           rc = dds_get_entity_sertype (wr, &st);
           CU_ASSERT_FATAL (rc == 0);
-          struct ddsi_serdata *sd = ddsi_serdata_from_sample (st, valid_data ? SDK_DATA : SDK_KEY, sample);
+          struct ddsi_serdata * const sd = ddsi_serdata_from_sample (st, valid_data ? SDK_DATA : SDK_KEY, sample);
           CU_ASSERT_FATAL (sd != NULL);
-          // the odious dds_writecdr overwrites these
+          // the odious dds_writecdr overwrites statusinfo and timestamp, but dds_forwardcdr is better behaved
           switch (ops[opidx].op)
           {
             case OP_WRITE: sd->statusinfo = 0; break;
@@ -819,7 +819,19 @@ static void dotest (const dds_topic_descriptor_t *tpdesc, const void *sample, bo
             case OP_UNREGISTER: sd->statusinfo = DDSI_STATUSINFO_UNREGISTER; break;
           }
           sd->timestamp.v = ts;
-          rc = dds_forwardcdr (wr, sd);
+          // dds_forwardcdr should make a copy when using PSMX and the input refcount > 1, so let's do
+          // a sanity check.  We want to catch both paths, set do half of them with refc 1, and half
+          // with refc > 1
+          if (!wr_use_psmx || (opidx % 2) == 0)
+            rc = dds_forwardcdr (wr, sd);
+          else
+          {
+            assert (ddsrt_atomic_ld32 (&sd->refc) >= 1 && sd->loan == NULL);
+            struct ddsi_serdata * const check_sd = ddsi_serdata_ref (sd);
+            rc = dds_forwardcdr (wr, check_sd);
+            assert (ddsrt_atomic_ld32 (&check_sd->refc) >= 1 && check_sd->loan == NULL);
+            ddsi_serdata_unref (check_sd);
+          }
         }
         CU_ASSERT_FATAL (rc == 0);
         if (!alldataseen (&tb, nrds_active, rds, ops[opidx].istate, valid_data, sample, eq, use_rd_loan, tpdesc, ts))
