@@ -372,7 +372,8 @@ static dds_loaned_sample_t * incoming_sample_to_loan (struct cdds_psmx_endpoint 
   ls->loan_origin.psmx_endpoint = (struct dds_psmx_endpoint *) cep;
   ls->metadata = psmx_md;
   ls->sample_ptr = dds_alloc (psmx_sample->data._length);
-  memcpy (ls->sample_ptr, psmx_sample->data._buffer, psmx_sample->data._length);
+  if (psmx_sample->data._length > 0)
+    memcpy (ls->sample_ptr, psmx_sample->data._buffer, psmx_sample->data._length);
   ddsrt_atomic_st32 (&ls->refc, 1);
   return ls;
 }
