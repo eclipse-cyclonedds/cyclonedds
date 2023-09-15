@@ -255,15 +255,15 @@ iox_psmx_endpoint::iox_psmx_endpoint(iox_psmx_topic &psmx_topic, const struct dd
   }, _parent(psmx_topic)
 {
   char *partition_topic;
-  uint32_t n_partitions;
-  char **partitions;
-  if (dds_qget_partition(qos, &n_partitions, &partitions) && n_partitions > 0) {
-    assert(n_partitions == 1);
-    partition_topic = get_partition_topic(partitions[0], psmx_topic.topic_name);
+  uint32_t n_partitions = 0;
+  char **partitions = NULL;
+  (void) dds_qget_partition(qos, &n_partitions, &partitions);
+  assert (n_partitions == 0 || n_partitions == 1);
+  partition_topic = get_partition_topic((n_partitions == 0) ? "" : partitions[0], psmx_topic.topic_name);
+  if (n_partitions > 0)
+  {
     dds_free(partitions[0]);
     dds_free(partitions);
-  } else {
-    partition_topic = dds_string_dup(psmx_topic.topic_name);
   }
 
   char iox_event_name[64];
