@@ -1844,12 +1844,14 @@ static struct cfgelem discovery_cfgelems[] = {
       "ff02::ffff:239.255.0.1, which is a non-standardised link-local "
       "multicast address.</p>"
     )),
-  STRING("SPDPInterval", NULL, 1, "30 s",
+  STRING("SPDPInterval", NULL, 1, "default",
     MEMBER(spdp_interval),
-    FUNCTIONS(0, uf_duration_ms_1hr, 0, pf_duration),
+    FUNCTIONS(0, uf_maybe_duration_ms_1hr, 0, pf_maybe_duration),
     DESCRIPTION(
       "<p>This element specifies the interval between spontaneous "
-      "transmissions of participant discovery packets.</p>"),
+      "transmissions of participant discovery packets.  The special "
+      "value \"default\" corresponds to approximately 80% of the "
+      "participant lease duration with a maximum of 30s.</p>"),
     UNIT("duration")),
   STRING("DefaultMulticastAddress", NULL, 1, "auto",
     MEMBER(defaultMulticastAddressString),

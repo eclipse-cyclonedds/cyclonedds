@@ -146,6 +146,12 @@ void gendef_pf_uint (FILE *out, void *parent, struct cfgelem const * const cfgel
 void gendef_pf_duration (FILE *out, void *parent, struct cfgelem const * const cfgelem) {
   gendef_pf_int64 (out, parent, cfgelem);
 }
+void gendef_pf_maybe_duration (FILE *out, void *parent, struct cfgelem const * const cfgelem) {
+  struct ddsi_config_maybe_duration const * const p = cfg_address (parent, cfgelem);
+  fprintf (out, "  cfg->%s.isdefault = %d;\n", cfgelem->membername, p->isdefault);
+  if (!p->isdefault)
+    fprintf (out, "  cfg->%s.value = INT64_C (%"PRIu64");\n", cfgelem->membername, p->value);
+}
 void gendef_pf_domainId(FILE *out, void *parent, struct cfgelem const * const cfgelem) {
   (void) out; (void) parent; (void) cfgelem;
   // skipped on purpose: set explicitly

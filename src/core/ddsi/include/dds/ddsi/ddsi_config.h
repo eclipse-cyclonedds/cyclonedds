@@ -115,6 +115,11 @@ struct ddsi_config_maybe_uint32 {
   uint32_t value;
 };
 
+struct ddsi_config_maybe_duration {
+  int isdefault;
+  dds_duration_t value;
+};
+
 struct ddsi_config_thread_properties_listelem {
   struct ddsi_config_thread_properties_listelem *next;
   char *name;
@@ -278,7 +283,7 @@ struct ddsi_config
   int maxAutoParticipantIndex;
   char *spdpMulticastAddressString;
   char *defaultMulticastAddressString;
-  int64_t spdp_interval;
+  struct ddsi_config_maybe_duration spdp_interval;
   int64_t spdp_response_delay_max;
   int64_t lease_duration;
   int64_t const_hb_intv_sched;
