@@ -99,6 +99,8 @@ if(ENABLE_ICEORYX)
   if(${iceoryx_hoofs_FOUND})
     find_package(iceoryx_posh ${iceoryx_required})
     set(ENABLE_ICEORYX ${iceoryx_posh_FOUND} CACHE STRING "" FORCE)
+  else()
+    set(ENABLE_ICEORYX "OFF")
   endif()
 endif()
 
