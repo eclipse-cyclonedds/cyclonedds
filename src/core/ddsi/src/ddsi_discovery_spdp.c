@@ -374,9 +374,6 @@ static void ddsi_spdp_directed_xevent_cb (struct ddsi_domaingv *gv, struct ddsi_
 
 static void resched_spdp_broadcast (struct ddsi_xevent *ev, struct ddsi_participant *pp, ddsrt_mtime_t tnow)
 {
-  /* schedule next when 80% of the interval has elapsed, or 2s
-     before the lease ends, whichever comes first (similar to PMD),
-     but never wait longer than spdp_interval */
   struct ddsi_domaingv * const gv = pp->e.gv;
   const dds_duration_t mindelta = DDS_MSECS (10);
   ddsrt_mtime_t tnext;
@@ -386,6 +383,8 @@ static void resched_spdp_broadcast (struct ddsi_xevent *ev, struct ddsi_particip
     intv = gv->config.spdp_interval.value;
   else
   {
+    // Default interval is 80% of the lease duration with a bit of fiddling around the
+    // edges (similar to PMD), and with an upper limit
     const dds_duration_t ldur = pp->plist->qos.liveliness.lease_duration;
     if (ldur < 5 * mindelta / 4)
       intv = mindelta;
