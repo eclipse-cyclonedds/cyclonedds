@@ -319,9 +319,6 @@ static dds_return_t dds_writecdr_impl_ensureloan (struct dds_writer *wr, struct 
     ddsi_serdata_to_ser (&din->a, 4, sersize - 4, loan->sample_ptr);
   struct dds_psmx_metadata * const md = loan->metadata;
   md->sample_state = (din->a.kind == SDK_KEY) ? DDS_LOANED_SAMPLE_STATE_SERIALIZED_KEY : DDS_LOANED_SAMPLE_STATE_SERIALIZED_DATA;
-  md->data_type = wr->m_endpoint.psmx_endpoints.endpoints[0]->psmx_topic->data_type;
-  md->instance_id = wr->m_endpoint.psmx_endpoints.endpoints[0]->psmx_topic->psmx_instance->instance_id;
-  md->sample_size = sersize - 4;
   memcpy (&md->guid, &wr->m_entity.m_guid, sizeof (md->guid));
   md->timestamp = din->a.timestamp.v;
   md->statusinfo = din->a.statusinfo;

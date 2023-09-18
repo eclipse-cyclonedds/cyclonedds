@@ -194,7 +194,12 @@ dds_return_t dds_psmx_topic_cleanup_generic (struct dds_psmx_topic *psmx_topic)
 dds_loaned_sample_t * dds_psmx_endpoint_request_loan (struct dds_psmx_endpoint *psmx_endpoint, uint32_t sz)
 {
   assert (psmx_endpoint->ops.request_loan);
-  return psmx_endpoint->ops.request_loan (psmx_endpoint, sz);
+  dds_loaned_sample_t *loaned_sample = psmx_endpoint->ops.request_loan (psmx_endpoint, sz);
+  loaned_sample->metadata->sample_state = DDS_LOANED_SAMPLE_STATE_UNITIALIZED;
+  loaned_sample->metadata->sample_size = sz;
+  loaned_sample->metadata->instance_id = psmx_endpoint->psmx_topic->psmx_instance->instance_id;
+  loaned_sample->metadata->data_type = psmx_endpoint->psmx_topic->data_type;
+  return loaned_sample;
 }
 
 static dds_psmx_instance_id_t get_psmx_instance_id (const struct ddsi_domaingv * gv, const char *config_name)

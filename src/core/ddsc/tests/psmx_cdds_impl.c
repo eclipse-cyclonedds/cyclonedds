@@ -303,10 +303,6 @@ static dds_loaned_sample_t * cdds_psmx_ep_request_loan (struct dds_psmx_endpoint
     ls->loan_origin.origin_kind = DDS_LOAN_ORIGIN_KIND_PSMX;
     ls->loan_origin.psmx_endpoint = (struct dds_psmx_endpoint *) cep;
     ls->metadata = dds_alloc (sizeof (*ls->metadata));
-    ls->metadata->sample_state = DDS_LOANED_SAMPLE_STATE_UNITIALIZED;
-    ls->metadata->sample_size = size_requested;
-    ls->metadata->instance_id = cep->c.psmx_topic->psmx_instance->instance_id;
-    ls->metadata->data_type = cep->c.psmx_topic->data_type;
     ls->sample_ptr = dds_alloc (sz);
     memset (ls->sample_ptr, 0, sz);
     ddsrt_atomic_st32 (&ls->refc, 1);

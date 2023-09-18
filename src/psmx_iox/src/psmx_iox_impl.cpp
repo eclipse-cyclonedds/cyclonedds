@@ -357,11 +357,11 @@ iox_psmx_endpoint::~iox_psmx_endpoint()
 
 struct iox_loaned_sample : public dds_loaned_sample_t
 {
-  iox_loaned_sample(struct dds_psmx_endpoint * origin, uint32_t sz, const void * ptr, dds_loaned_sample_state_t st);
+  iox_loaned_sample(struct dds_psmx_endpoint * origin, const void * iox_payload);
   ~iox_loaned_sample();
 };
 
-iox_loaned_sample::iox_loaned_sample(struct dds_psmx_endpoint * origin, uint32_t sz, const void * iox_payload, dds_loaned_sample_state_t st):
+iox_loaned_sample::iox_loaned_sample(struct dds_psmx_endpoint * origin, const void * iox_payload):
   dds_loaned_sample_t {
     .ops = ls_ops,
     .loan_origin = { .origin_kind = DDS_LOAN_ORIGIN_KIND_PSMX, .psmx_endpoint = origin },
@@ -370,10 +370,6 @@ iox_loaned_sample::iox_loaned_sample(struct dds_psmx_endpoint * origin, uint32_t
     .refc = { .v = 1 }
   }
 {
-  metadata->sample_state = st;
-  metadata->data_type = origin->psmx_topic->data_type;
-  metadata->instance_id = origin->psmx_topic->psmx_instance->instance_id;
-  metadata->sample_size = sz;
 }
 
 iox_loaned_sample::~iox_loaned_sample()
@@ -519,7 +515,7 @@ static dds_loaned_sample_t * iox_req_loan(struct dds_psmx_endpoint *psmx_endpoin
     const std::lock_guard<std::mutex> lock(cpp_ep_ptr->lock);
     publisher->loan(size_requested, iox::CHUNK_DEFAULT_USER_PAYLOAD_ALIGNMENT, sizeof(dds_psmx_metadata_t), alignof(dds_psmx_metadata_t))
       .and_then([&](const void* iox_payload) {
-        loaned_sample = new iox_loaned_sample(psmx_endpoint, size_requested, iox_payload, DDS_LOANED_SAMPLE_STATE_UNITIALIZED);
+        loaned_sample = new iox_loaned_sample(psmx_endpoint, iox_payload);
       })
       .or_else([&](auto& error) {
         std::cerr << ERROR_PREFIX "failure getting loan" << iox::popo::asStringLiteral(error) << std::endl;
@@ -570,8 +566,7 @@ static dds_return_t iox_write(struct dds_psmx_endpoint * psmx_endpoint, dds_loan
 
 static dds_loaned_sample_t * incoming_sample_to_loan(iox_psmx_endpoint *psmx_endpoint, const void *iox_payload)
 {
-  auto metadata = static_cast<const dds_psmx_metadata_t *>(iox::mepoo::ChunkHeader::fromUserPayload(iox_payload)->userHeader());
-  return new iox_loaned_sample(psmx_endpoint, metadata->sample_size, iox_payload, metadata->sample_state);
+  return new iox_loaned_sample(psmx_endpoint, iox_payload);
 }
 
 static dds_loaned_sample_t * iox_take(struct dds_psmx_endpoint * psmx_endpoint)
