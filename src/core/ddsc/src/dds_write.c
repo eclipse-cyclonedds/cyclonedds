@@ -486,9 +486,9 @@ static dds_return_t dds_write_basic_impl (struct ddsi_thread_state * const ts, d
   return ret;
 }
 
-dds_return_t dds_request_writer_loan (dds_writer *wr, void **sample)
+dds_return_t dds_request_writer_loan (dds_writer *wr, enum dds_writer_loan_type loan_type, uint32_t sz, void **sample)
 {
-  dds_return_t ret = DDS_RETCODE_OK;
+  dds_return_t ret = DDS_RETCODE_ERROR;
 
   ddsrt_mutex_lock (&wr->m_entity.m_mutex);
   // We don't bother the PSMX interface with types that contain pointers, but we do
@@ -498,17 +498,31 @@ dds_return_t dds_request_writer_loan (dds_writer *wr, void **sample)
   // FIXME: allow multiple psmx instances
   assert (wr->m_endpoint.psmx_endpoints.length <= 1);
 
-  dds_loaned_sample_t *loan;
-  if (wr->m_endpoint.psmx_endpoints.length > 0 && wr->m_topic->m_stype->is_memcpy_safe)
+  dds_loaned_sample_t *loan = NULL;
+  switch (loan_type)
   {
-    if ((loan = dds_psmx_endpoint_request_loan (wr->m_endpoint.psmx_endpoints.endpoints[0], wr->m_topic->m_stype->sizeof_type)) == NULL)
-      ret = DDS_RETCODE_ERROR;
-  }
-  else if ((ret = dds_heap_loan (wr->m_topic->m_stype, DDS_LOANED_SAMPLE_STATE_RAW_DATA, &loan)) != DDS_RETCODE_OK)
-    loan = NULL;
+    case DDS_WRITER_LOAN_RAW:
+      if (wr->m_endpoint.psmx_endpoints.length > 0)
+      {
+        if ((loan = dds_psmx_endpoint_request_loan (wr->m_endpoint.psmx_endpoints.endpoints[0], sz)) != NULL)
+          ret = DDS_RETCODE_OK;
+      }
+      break;
 
-  if (loan != NULL)
+    case DDS_WRITER_LOAN_REGULAR:
+      if (wr->m_endpoint.psmx_endpoints.length > 0 && wr->m_topic->m_stype->is_memcpy_safe)
+      {
+        if ((loan = dds_psmx_endpoint_request_loan (wr->m_endpoint.psmx_endpoints.endpoints[0], wr->m_topic->m_stype->sizeof_type)) != NULL)
+          ret = DDS_RETCODE_OK;
+      }
+      else
+        ret = dds_heap_loan (wr->m_topic->m_stype, DDS_LOANED_SAMPLE_STATE_RAW_DATA, &loan);
+      break;
+  }
+
+  if (ret == DDS_RETCODE_OK)
   {
+    assert (loan != NULL);
     if ((ret = dds_loan_pool_add_loan (wr->m_loans, loan)) != DDS_RETCODE_OK)
       dds_loaned_sample_unref (loan);
     else

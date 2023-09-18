@@ -66,14 +66,12 @@ static const dds_psmx_topic_ops_t psmx_topic_ops = {
 
 
 static dds_loaned_sample_t * iox_req_loan(struct dds_psmx_endpoint *psmx_endpoint, uint32_t size_requested);
-static dds_return_t iox_req_raw_loan(struct dds_psmx_endpoint *psmx_endpoint, uint32_t size_requested, void **buffer);
 static dds_return_t iox_write(struct dds_psmx_endpoint * psmx_endpoint, dds_loaned_sample_t * data);
 static dds_loaned_sample_t * iox_take(struct dds_psmx_endpoint * psmx_endpoint);
 static dds_return_t iox_on_data_available(struct dds_psmx_endpoint * psmx_endpoint, dds_entity_t reader);
 
 static const dds_psmx_endpoint_ops_t psmx_ep_ops = {
   .request_loan = iox_req_loan,
-  .request_raw_loan = iox_req_raw_loan,
   .write = iox_write,
   .take = iox_take,
   .on_data_available = iox_on_data_available
@@ -523,26 +521,6 @@ static dds_loaned_sample_t * iox_req_loan(struct dds_psmx_endpoint *psmx_endpoin
   }
 
   return loaned_sample;
-}
-
-static dds_return_t iox_req_raw_loan(struct dds_psmx_endpoint *psmx_endpoint, uint32_t size_requested, void **buffer)
-{
-  auto cpp_ep_ptr = static_cast<iox_psmx_endpoint *>(psmx_endpoint);
-  if (psmx_endpoint->endpoint_type != DDS_PSMX_ENDPOINT_TYPE_WRITER)
-    return DDS_RETCODE_BAD_PARAMETER;
-  else
-  {
-    dds_return_t ret = DDS_RETCODE_OK;
-    const std::lock_guard<std::mutex> lock(cpp_ep_ptr->lock);
-    auto publisher = static_cast<iox::popo::UntypedPublisher *>(cpp_ep_ptr->_iox_endpoint);
-    publisher->loan(size_requested, iox::CHUNK_DEFAULT_USER_PAYLOAD_ALIGNMENT, sizeof(dds_psmx_metadata_t), alignof(dds_psmx_metadata_t))
-      .and_then([buffer](void * iox_payload) { *buffer = iox_payload; })
-      .or_else([&ret](auto& error) {
-        std::cerr << ERROR_PREFIX "failure getting loan" << iox::popo::asStringLiteral(error) << std::endl;
-        ret = DDS_RETCODE_ERROR;
-      });
-    return ret;
-  }
 }
 
 static dds_return_t iox_write(struct dds_psmx_endpoint * psmx_endpoint, dds_loaned_sample_t * data)

@@ -245,7 +245,7 @@ int main (int argc, char **argv)
   dds_request_loan (1, ptr);
   dds_return_loan (1, ptr, 0);
   dds_is_shared_memory_available (1);
-  dds_loan_shared_memory_buffer (1, 0, ptr);
+  dds_request_loan_of_size (1, 0, ptr);
   dds_is_loan_available (1); // deprecated
   dds_loan_sample (1, ptr); // deprecated
 

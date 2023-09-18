@@ -108,14 +108,12 @@ static const dds_psmx_topic_ops_t psmx_topic_ops = {
 };
 
 static dds_loaned_sample_t * cdds_psmx_ep_request_loan (struct dds_psmx_endpoint *psmx_endpoint, uint32_t size_requested);
-static dds_return_t cdds_psmx_ep_request_raw_loan (struct dds_psmx_endpoint *psmx_ep, uint32_t size_requested, void **buffer);
 static dds_return_t cdds_psmx_ep_write (struct dds_psmx_endpoint *psmx_endpoint, dds_loaned_sample_t *data);
 static dds_loaned_sample_t * cdds_psmx_ep_take (struct dds_psmx_endpoint *psmx_endpoint);
 static dds_return_t cdds_psmx_ep_on_data_available (struct dds_psmx_endpoint *psmx_endpoint, dds_entity_t reader);
 
 static const dds_psmx_endpoint_ops_t psmx_ep_ops = {
   .request_loan = cdds_psmx_ep_request_loan,
-  .request_raw_loan = cdds_psmx_ep_request_raw_loan,
   .write = cdds_psmx_ep_write,
   .take = cdds_psmx_ep_take,
   .on_data_available = cdds_psmx_ep_on_data_available
@@ -308,15 +306,6 @@ static dds_loaned_sample_t * cdds_psmx_ep_request_loan (struct dds_psmx_endpoint
     ddsrt_atomic_st32 (&ls->refc, 1);
   }
   return ls;
-}
-
-static dds_return_t cdds_psmx_ep_request_raw_loan (struct dds_psmx_endpoint *psmx_ep, uint32_t size_requested, void **buffer)
-{
-  (void) psmx_ep;
-  dds_return_t ret = DDS_RETCODE_OK;
-  if ((*buffer = dds_alloc (size_requested)) == NULL)
-    ret = DDS_RETCODE_OUT_OF_RESOURCES;
-  return ret;
 }
 
 static dds_return_t cdds_psmx_ep_write (struct dds_psmx_endpoint *psmx_ep, dds_loaned_sample_t *data)

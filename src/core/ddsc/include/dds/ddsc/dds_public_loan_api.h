@@ -103,7 +103,7 @@ DDS_EXPORT dds_return_t dds_return_loan (dds_entity_t entity, void **buf, int32_
  * @component read_data
  * @brief Check if a shared memory is available to reader/writer.
  *
- * @note dds_loan_shared_memory_buffer can be used if and only if
+ * @note dds_request_loan_of_size can be used if and only if
  * dds_is_shared_memory_available returns true.
  *
  * @param[in] entity the handle of the entity
@@ -113,22 +113,23 @@ DDS_EXPORT dds_return_t dds_return_loan (dds_entity_t entity, void **buf, int32_
 DDS_EXPORT bool dds_is_shared_memory_available (const dds_entity_t entity);
 
 /**
+ * @brief Request a loan of a specified size from an entity.
  * @ingroup loan
- * @component read_data
- * @brief Loan a shared memory buffer of a specific size from the writer.
  *
- * @note Currently this function is to be used with dds_writecdr by adding the
- * loaned buffer in the serdata as loan->sample_ptr.
+ * Borrow a sample of a specified size from the entity, which currently must be a
+ * writer. This sample can then be returned using @ref `dds_return_loan` or can be
+ * used to publish data using @ref `dds_write` or @ref `dds_writedispose`.
+ *
  * @note The function can only be used if dds_is_shared_memory_available is
  *       true for the writer.
  *
- * @param[in] writer the writer to loan the buffer from
- * @param[in] size the requested buffer size
- * @param[out] buffer the loaned buffer
+ * @param[in] writer The entity to request loans from.
+ * @param[in] size the requested loan size
+ * @param[out] sample Where to store the address of the loaned sample.
  *
  * @returns DDS_RETCODE_OK if successful, DDS_RETCODE_ERROR otherwise
  */
-DDS_EXPORT dds_return_t dds_loan_shared_memory_buffer (dds_entity_t writer, size_t size, void **buffer);
+DDS_EXPORT dds_return_t dds_request_loan_of_size (dds_entity_t writer, size_t size, void **sample);
 
 /**
  * @ingroup deprecated

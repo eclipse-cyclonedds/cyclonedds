@@ -1592,7 +1592,7 @@ dds_return_t dds_request_loan (dds_entity_t entity, void **sample)
   {
     case DDS_KIND_WRITER: {
       dds_writer *wr = (dds_writer *) p_entity;
-      ret = dds_request_writer_loan (wr, sample);
+      ret = dds_request_writer_loan (wr, DDS_WRITER_LOAN_REGULAR, 0, sample);
       break;
     }
     case DDS_KIND_DONTCARE:

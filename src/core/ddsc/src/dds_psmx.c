@@ -21,6 +21,7 @@
 #include "dds__psmx.h"
 #include "dds__qos.h"
 #include "dds__entity.h"
+#include "dds__writer.h"
 
 static struct dds_psmx_endpoint * psmx_create_endpoint (struct dds_psmx_topic *psmx_topic, const struct dds_qos *qos, dds_psmx_endpoint_type_t endpoint_type);
 static dds_return_t psmx_delete_endpoint (struct dds_psmx_endpoint *psmx_endpoint);
@@ -464,7 +465,7 @@ bool dds_is_loan_available (const dds_entity_t entity)
   return is_loan_available;
 }
 
-dds_return_t dds_loan_shared_memory_buffer (dds_entity_t writer, size_t size, void **buffer)
+dds_return_t dds_request_loan_of_size (dds_entity_t writer, size_t size, void **sample)
 {
   dds_entity *e;
   dds_return_t ret = DDS_RETCODE_OK;
@@ -472,25 +473,11 @@ dds_return_t dds_loan_shared_memory_buffer (dds_entity_t writer, size_t size, vo
   if (dds_entity_pin (writer, &e) != DDS_RETCODE_OK)
     return false;
 
-  if (dds_entity_kind (e) != DDS_KIND_WRITER)
-  {
-    ret = DDS_RETCODE_BAD_PARAMETER;
-  }
+  if (dds_entity_kind (e) == DDS_KIND_WRITER)
+    ret = dds_request_writer_loan ((struct dds_writer *) e, DDS_WRITER_LOAN_RAW, (uint32_t) size, sample);
   else
-  {
-    struct dds_writer const *const wr = (struct dds_writer *) e;
-    *buffer = NULL;
+    ret = DDS_RETCODE_BAD_PARAMETER;
 
-    // TODO: implement correct behavior in case of multiple PSMX endpoints
-    for (uint32_t i = 0; *buffer != NULL && i < wr->m_endpoint.psmx_endpoints.length; i++)
-    {
-      struct dds_psmx_endpoint *psmx_endpoint = wr->m_endpoint.psmx_endpoints.endpoints[i];
-      if (psmx_endpoint == NULL || !(dds_psmx_supported_features (psmx_endpoint->psmx_topic->psmx_instance) & DDS_PSMX_FEATURE_SHARED_MEMORY))
-        continue;
-      psmx_endpoint->ops.request_raw_loan (psmx_endpoint, (uint32_t) size, buffer);
-    }
-
-  }
   dds_entity_unpin (e);
   return ret;
 }
