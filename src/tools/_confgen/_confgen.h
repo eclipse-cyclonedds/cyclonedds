@@ -39,6 +39,7 @@ void gendef_pf_maybe_memsize (FILE *fp, void *parent, struct cfgelem const * con
 void gendef_pf_int (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
 void gendef_pf_uint (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
 void gendef_pf_duration (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
+void gendef_pf_maybe_duration (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
 void gendef_pf_domainId(FILE *fp, void *parent, struct cfgelem const * const cfgelem);
 void gendef_pf_participantIndex (FILE *fp, void *parent, struct cfgelem const * const cfgelem);
 void gendef_pf_boolean (FILE *fp, void *parent, struct cfgelem const * const cfgelem);

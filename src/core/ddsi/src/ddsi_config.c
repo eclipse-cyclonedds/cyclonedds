@@ -171,7 +171,9 @@ DU(duration_ms_1s);
 DU(duration_us_1s);
 DU(duration_100ms_1hr);
 DU(nop_duration_ms_1hr);
+DU(maybe_duration_ms_1hr);
 PF(duration);
+PF(maybe_duration);
 DUPF(standards_conformance);
 DUPF(besmode);
 DUPF(retransmit_merging);
@@ -1417,6 +1419,19 @@ static enum update_result uf_duration_gen (struct ddsi_cfgst *cfgst, void *paren
   return uf_int64_unit (cfgst, cfg_address (cfgst, parent, cfgelem), value, unittab_duration, def_mult, min_ns, max_ns);
 }
 
+static enum update_result uf_maybe_duration_gen (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, const char *value, int64_t def_mult, int64_t min_ns, int64_t max_ns)
+{
+  struct ddsi_config_maybe_duration * const elem = cfg_address (cfgst, parent, cfgelem);
+  if (ddsrt_strcasecmp (value, "default") == 0) {
+    elem->isdefault = 1;
+    elem->value = 0;
+    return URES_SUCCESS;
+  } else {
+    elem->isdefault = 0;
+    return uf_int64_unit (cfgst, &elem->value, value, unittab_duration, def_mult, min_ns, max_ns);
+  }
+}
+
 static enum update_result uf_duration_inf (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
 {
   if (ddsrt_strcasecmp (value, "inf") == 0) {
@@ -1431,6 +1446,11 @@ static enum update_result uf_duration_inf (struct ddsi_cfgst *cfgst, void *paren
 static enum update_result uf_duration_ms_1hr (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
 {
   return uf_duration_gen (cfgst, parent, cfgelem, value, DDS_MSECS (1), 0, DDS_SECS (3600));
+}
+
+static enum update_result uf_maybe_duration_ms_1hr (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
+{
+  return uf_maybe_duration_gen (cfgst, parent, cfgelem, value, DDS_MSECS (1), 0, DDS_SECS (3600));
 }
 
 static enum update_result uf_nop_duration_ms_1hr (struct ddsi_cfgst *cfgst, UNUSED_ARG(void *parent), UNUSED_ARG(struct cfgelem const * const cfgelem), UNUSED_ARG (int first), const char *value)
@@ -1461,6 +1481,17 @@ static void pf_duration (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem 
     cfg_logelem (cfgst, sources, "inf");
   else
     pf_int64_unit (cfgst, *elem, sources, unittab_duration, "s");
+}
+
+static void pf_maybe_duration (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, uint32_t sources)
+{
+  struct ddsi_config_maybe_duration const * const elem = cfg_address (cfgst, parent, cfgelem);
+  if (elem->isdefault)
+    cfg_logelem (cfgst, sources, "default");
+  else if (elem->value == DDS_INFINITY)
+    cfg_logelem (cfgst, sources, "inf");
+  else
+    pf_int64_unit (cfgst, elem->value, sources, unittab_duration, "s");
 }
 
 static enum update_result uf_domainId (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)

@@ -355,8 +355,12 @@ static void ddsi_spdp_directed_xevent_cb (struct ddsi_domaingv *gv, struct ddsi_
              PGUID (pp->e.guid), PGUIDPREFIX (arg->dest_proxypp_guid_prefix), DDSI_ENTITYID_PARTICIPANT);
 
   // Directed events are used to send SPDP packets to newly discovered peers, and used just once
-  if (--arg->nrepeats == 0 || gv->config.spdp_interval < DDS_SECS (1) || pp->plist->qos.liveliness.lease_duration < DDS_SECS (1))
+  if (--arg->nrepeats == 0 ||
+      pp->plist->qos.liveliness.lease_duration < DDS_SECS (1) ||
+      (!gv->config.spdp_interval.isdefault && gv->config.spdp_interval.value < DDS_SECS (1)))
+  {
     ddsi_delete_xevent (ev);
+  }
   else
   {
     ddsrt_mtime_t tnext = ddsrt_mtime_add_duration (tnow, DDS_SECS (1));
@@ -371,22 +375,28 @@ static void ddsi_spdp_directed_xevent_cb (struct ddsi_domaingv *gv, struct ddsi_
 static void resched_spdp_broadcast (struct ddsi_xevent *ev, struct ddsi_participant *pp, ddsrt_mtime_t tnow)
 {
   /* schedule next when 80% of the interval has elapsed, or 2s
-   before the lease ends, whichever comes first (similar to PMD),
-   but never wait longer than spdp_interval */
+     before the lease ends, whichever comes first (similar to PMD),
+     but never wait longer than spdp_interval */
   struct ddsi_domaingv * const gv = pp->e.gv;
   const dds_duration_t mindelta = DDS_MSECS (10);
-  const dds_duration_t ldur = pp->plist->qos.liveliness.lease_duration;
   ddsrt_mtime_t tnext;
-  int64_t intv;
+  dds_duration_t intv;
 
-  if (ldur < 5 * mindelta / 4)
-    intv = mindelta;
-  else if (ldur < DDS_SECS (10))
-    intv = 4 * ldur / 5;
+  if (!gv->config.spdp_interval.isdefault)
+    intv = gv->config.spdp_interval.value;
   else
-    intv = ldur - DDS_SECS (2);
-  if (intv > gv->config.spdp_interval)
-    intv = gv->config.spdp_interval;
+  {
+    const dds_duration_t ldur = pp->plist->qos.liveliness.lease_duration;
+    if (ldur < 5 * mindelta / 4)
+      intv = mindelta;
+    else if (ldur < DDS_SECS (10))
+      intv = 4 * ldur / 5;
+    else
+      intv = ldur - DDS_SECS (2);
+    // Historical maximum interval is 30s, stick to that
+    if (intv > DDS_SECS (30))
+      intv = DDS_SECS (30);
+  }
 
   tnext = ddsrt_mtime_add_duration (tnow, intv);
   GVTRACE ("xmit spdp "PGUIDFMT" to %"PRIx32":%"PRIx32":%"PRIx32":%x (resched %gs)\n",
