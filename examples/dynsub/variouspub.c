@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <signal.h>
 #include <assert.h>
 
 #include "dds/dds.h"
@@ -109,6 +110,14 @@ static void usage (const char *argv0)
   exit (2);
 }
 
+static volatile sig_atomic_t interrupted;
+
+static void sigint (int sig)
+{
+  (void) sig;
+  interrupted = 1;
+}
+
 int main (int argc, char **argv)
 {
   if (argc != 2)
@@ -131,7 +140,8 @@ int main (int argc, char **argv)
   const dds_entity_t writer = dds_create_writer (participant, topic, NULL, NULL);
   uint32_t sample_idx = 0;
   uint32_t count = 0;
-  while (1)
+  signal (SIGINT, sigint);
+  while (!interrupted)
   {
     dds_return_t ret = 0;
     void *sample = tpentry->samples[sample_idx];
