@@ -328,9 +328,7 @@ bool ddsi_omg_get_writer_security_info (const struct ddsi_writer *wr, ddsi_secur
  *
  * @param[in] wr Writer to determine the publication writer from.
  *
- * @returns unsigned
- * @retval DDSI_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_SECURE_WRITER
- * @retval DDSI_ENTITYID_SEDP_BUILTIN_PUBLICATIONS_WRITER
+ * @returns Entity id to use for publishing writer discovery data
  */
 unsigned ddsi_determine_publication_writer(const struct ddsi_writer *wr);
 
@@ -386,9 +384,7 @@ bool ddsi_omg_get_reader_security_info (const struct ddsi_reader *rd, ddsi_secur
  *
  * @param[in] rd Reader to determine the subscription writer from.
  *
- * @returns unsigned
- * @retval DDSI_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_SECURE_WRITER
- * @retval DDSI_ENTITYID_SEDP_BUILTIN_SUBSCRIPTIONS_WRITER
+ * @returns Entity id to use for publishing reader discovery data
  */
 unsigned ddsi_determine_subscription_writer(const struct ddsi_reader *rd);
 
@@ -402,8 +398,7 @@ unsigned ddsi_determine_subscription_writer(const struct ddsi_reader *rd);
  *
  * @param[in] tp Topic to determine the writer from.
  *
- * @returns unsigned
- * @retval DDSI_ENTITYID_SEDP_BUILTIN_TOPIC_WRITER
+ * @returns Entity id to use for publishing topic discovery data
  */
 unsigned ddsi_determine_topic_writer(const struct ddsi_topic *tp);
 #endif /* DDS_HAS_TOPIC_DISCOVERY */
