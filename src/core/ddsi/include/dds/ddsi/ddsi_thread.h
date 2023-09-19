@@ -13,6 +13,7 @@
 
 #include <assert.h>
 #include "dds/export.h"
+#include "dds/features.h"
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/threads.h"
