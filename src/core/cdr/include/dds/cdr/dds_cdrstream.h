@@ -13,6 +13,7 @@
 
 #include "dds/ddsrt/bswap.h"
 #include "dds/ddsrt/static_assert.h"
+#include "dds/ddsc/dds_data_type_properties.h"
 #include "dds/dds.h"
 
 #if defined (__cplusplus)
@@ -246,7 +247,7 @@ uint32_t dds_stream_key_flags (struct dds_cdrstream_desc *desc, uint32_t *keysz_
 bool dds_stream_extensibility (const uint32_t * __restrict ops, enum dds_cdr_type_extensibility *ext);
 
 /** @component cdr_serializer */
-uint64_t dds_stream_data_types (const uint32_t * __restrict ops);
+dds_data_type_properties_t dds_stream_data_types (const uint32_t * __restrict ops);
 
 /** @component cdr_serializer */
 DDS_EXPORT void dds_cdrstream_desc_init (struct dds_cdrstream_desc *desc, const struct dds_cdrstream_allocator * __restrict allocator,
