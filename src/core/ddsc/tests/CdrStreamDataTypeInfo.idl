@@ -1,0 +1,34 @@
+// Copyright(c) 2023 ZettaScale Technology and others
+//
+// This program and the accompanying materials are made available under the
+// terms of the Eclipse Public License v. 2.0 which is available at
+// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+// v. 1.0 which is available at
+// http://www.eclipse.org/org/documents/edl-v10.php.
+//
+// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+
+module CdrStreamDataTypeInfo {
+  struct dti_struct   { long f1; };
+  struct dti_string   { string f1; };
+  struct dti_bstring  { string<5> f1; };
+  struct dti_seq      { sequence<long> f1; };
+  struct dti_bseq     { sequence<long, 5> f1; };
+  struct dti_seq_str  { sequence<string> f1; };
+  struct dti_arr      { long f1[3]; };
+  struct dti_arr_bstr { string<5> f1[3]; };
+  struct dti_opt      { @optional long f1; };
+  struct dti_ext      { @external long f1; };
+
+  struct dti_struct_key          { @key long f1; };
+  struct dti_struct_nested_key   { @key dti_struct f1; };
+  struct dti_struct_nested_nokey { dti_struct_key f1; };
+
+  enum e { E1, E2 };
+  union  dti_union switch (long) { case 1: long f1; };
+  union  dti_union_string switch (long) { case 1: string f1; };
+  union  dti_union_enum switch (e) { case E1: long f1; };
+  union  dti_union_seq switch (long) { case 1: sequence<long> f1; };
+  union  dti_union_arr switch (long) { case 1: long f1[3]; };
+  union  dti_union_struct switch (long) { case 1: dti_struct f1; };
+};

@@ -489,11 +489,7 @@ static void cdr_basic (struct ops const * const ops)
   /* Domains for pub and sub use a different domain id, but the portgain setting
    * in configuration is 0, so that both domains will map to the same port number.
    * This allows to create two domains in a single test process. */
-#ifdef DDS_HAS_SHM
-  const char* config = "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}<Discovery><ExternalDomainId>0</ExternalDomainId></Discovery><Domain id=\"any\"><SharedMemory><Enable>false</Enable></SharedMemory></Domain>";
-#else
   const char* config = "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}<Discovery><ExternalDomainId>0</ExternalDomainId></Discovery>";
-#endif
   char *conf_pub = ddsrt_expand_envvars (config, 0);
   char *conf_sub = ddsrt_expand_envvars (config, 1);
   const dds_entity_t pub_dom = dds_create_domain (0, conf_pub);
@@ -708,11 +704,7 @@ static void cdr_forward (struct ops const * const ops)
   dds_return_t rc;
   char topicname[100];
 
-#ifdef DDS_HAS_SHM
-  const char* config = "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}<Domain id=\"any\"><SharedMemory><Enable>false</Enable></SharedMemory></Domain>";
-#else
   const char* config = "${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}";
-#endif
   char* conf = ddsrt_expand_envvars(config, 0);
   const dds_entity_t dom = dds_create_domain(0, conf);
   ddsrt_free (conf);
@@ -840,13 +832,6 @@ static void cdr_timeout (struct ops const * const ops)
   const char *config = "\
 ${CYCLONEDDS_URI}${CYCLONEDDS_URI:+,}\
 <Discovery><ExternalDomainId>0</ExternalDomainId></Discovery>"
-#ifdef DDS_HAS_SHM
-"<Domain id=\"any\">\
-  <SharedMemory>\
-    <Enable>false</Enable>\
-  </SharedMemory>\
-</Domain>"
-#endif
 "<Internal>\
   <Watermarks>\
     <WhcHigh>0B</WhcHigh>\

@@ -200,28 +200,24 @@ function(process_cunit_source_file SOURCE_FILE HEADER_FILE SUITES TESTS)
 endfunction()
 
 function(set_test_library_paths TEST_NAME)
-  if(ENABLE_SHM)
-    find_library(ICEORYX_LIB iceoryx_binding_c)
-    get_filename_component(ICEORYX_LIB_PATH ${ICEORYX_LIB} DIRECTORY)
-  endif ()
   file(TO_NATIVE_PATH "${CUNIT_LIBRARY_DIR}" cudir)
   if(APPLE)
     set_property(
       TEST ${TEST_NAME}
       PROPERTY ENVIRONMENT
-      "DYLD_LIBRARY_PATH=${cudir}:${CMAKE_LIBRARY_OUTPUT_DIRECTORY}:${ICEORYX_LIB_PATH}:$ENV{DYLD_LIBRARY_PATH}")
+      "DYLD_LIBRARY_PATH=${cudir}:${CMAKE_LIBRARY_OUTPUT_DIRECTORY}:$ENV{DYLD_LIBRARY_PATH}")
   elseif(WIN32)
     string(REPLACE "/" "\\" cudir "${cudir}")
     string(REPLACE ";" "\\;" paths "$ENV{PATH}")
     set_property(
       TEST ${TEST_NAME}
       PROPERTY ENVIRONMENT
-      "PATH=${cudir}\\;${ICEORYX_LIB_PATH}\\;${paths}")
+      "PATH=${cudir}\\;${paths}")
   else()
     set_property(
       TEST ${TEST_NAME}
       PROPERTY ENVIRONMENT
-      "LD_LIBRARY_PATH=${CMAKE_LIBRARY_OUTPUT_DIRECTORY}:${ICEORYX_LIB_PATH}:$ENV{LD_LIBRARY_PATH}")
+      "LD_LIBRARY_PATH=${CMAKE_LIBRARY_OUTPUT_DIRECTORY}:$ENV{LD_LIBRARY_PATH}")
   endif()
 endfunction()
 

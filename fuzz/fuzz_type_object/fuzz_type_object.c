@@ -60,7 +60,7 @@ int LLVMFuzzerTestOneInput(
   dds_set_log_sink(null_log_sink, NULL);
   dds_set_trace_sink(null_log_sink, NULL);
 
-  ddsi_init(&gv);
+  ddsi_init(&gv, NULL);
 
   ddsi_typemap_t *type_map = ddsi_typemap_deser (data, (uint32_t) size);
   if (type_map != NULL)

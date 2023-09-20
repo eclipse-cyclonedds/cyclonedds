@@ -40,11 +40,6 @@ static const char *config =
     "    <ExternalDomainId>0</ExternalDomainId>"
     "    <Tag>\\${CYCLONEDDS_PID}</Tag>"
     "  </Discovery>"
-#ifdef DDS_HAS_SHM
-    "  <SharedMemory>"
-    "    <Enable>false</Enable>"
-    "  </SharedMemory>"
-#endif
     "  <Security>"
     "    <Authentication>"
     "      <Library finalizeFunction=\"finalize_authentication\" initFunction=\"init_authentication\"/>"

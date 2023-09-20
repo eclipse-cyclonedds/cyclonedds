@@ -24,7 +24,7 @@
 #include "dds/ddsi/ddsi_log.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_unused.h"
-#include "ddsi__ownip.h"
+#include "ddsi__nwinterfaces.h"
 #include "ddsi__misc.h"
 #include "ddsi__addrset.h" /* unspec locator */
 #include "ddsi__ipaddr.h"
@@ -220,6 +220,7 @@ static enum maybe_add_interface_result maybe_add_interface (struct ddsi_domaingv
   dst->loopback = loopback ? 1 : 0;
   dst->link_local = link_local ? 1 : 0;
   dst->if_index = ifa->index;
+  dst->is_psmx = false;
   if ((dst->name = ddsrt_strdup (ifa->name)) == NULL)
     return MAI_OUT_OF_MEMORY;
   dst->priority = loopback ? 2 : 0;
@@ -405,7 +406,7 @@ static void log_arbitrary_selection (struct ddsi_domaingv *gv, const struct ddsi
   GVLOG (DDS_LC_INFO, "\n");
 }
 
-int ddsi_find_own_ip (struct ddsi_domaingv *gv)
+int ddsi_gather_network_interfaces (struct ddsi_domaingv *gv)
 {
   char addrbuf[DDSI_LOCSTRLEN];
 

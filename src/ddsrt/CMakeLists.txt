@@ -310,9 +310,13 @@ set(DDSRT_WITH_LWIP ${WITH_LWIP})
 set(DDSRT_WITH_FREERTOS ${WITH_FREERTOS})
 
 foreach(feature SSL SECURITY LIFESPAN DEADLINE_MISSED NETWORK_PARTITIONS
-                SSM TYPELIB TYPE_DISCOVERY TOPIC_DISCOVERY SHM)
+                SSM TYPELIB TYPE_DISCOVERY TOPIC_DISCOVERY)
   set(DDS_HAS_${feature} ${ENABLE_${feature}})
 endforeach()
+
+if(BUILD_TESTING)
+  set(DDS_ALLOW_NESTED_DOMAIN 1)
+endif()
 
 configure_file(include/dds/config.h.in include/dds/config.h)
 configure_file(include/dds/features.h.in include/dds/features.h)

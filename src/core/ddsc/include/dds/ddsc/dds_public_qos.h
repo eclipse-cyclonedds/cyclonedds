@@ -591,6 +591,21 @@ dds_qset_entity_name (
   dds_qos_t * __restrict qos,
   const char * name);
 
+/**
+ * @ingroup qos_setters
+ * @component qos_obj
+ * @brief Set the supported PSMX instances of a qos structure
+ *
+ * @param[in,out] qos    - Pointer to a dds_qos_t structure that will store the policy
+ * @param[in]     n      - Number of PSMX instances
+ * @param[in]     values - Names of the PSMX instances kind values
+ */
+DDS_EXPORT void
+dds_qset_psmx_instances (
+  dds_qos_t * __restrict qos,
+  uint32_t n,
+  const char **values);
+
 
 /**
  * @defgroup qos_getters (QoS Getters)
@@ -1094,6 +1109,23 @@ dds_qget_data_representation (
  *            or if a buffer to store the name could not be allocated.
  */
 DDS_EXPORT bool dds_qget_entity_name (const dds_qos_t * __restrict qos, char **name);
+
+
+/**
+ * @ingroup qos_getters
+ * @component qos_obj
+ * @brief Gets the names of the PSMX instances set in a qos structure
+ *
+ * @param qos     Pointer to a dds_qos_t structure
+ * @param n_out   Number of PSMX instance names returned
+ * @param values  Names of the PSMX instances
+ * @return bool indicating success or failure
+ */
+DDS_EXPORT bool
+dds_qget_psmx_instances (
+  const dds_qos_t * __restrict qos,
+  uint32_t *n_out,
+  char ***values);
 
 #if defined (__cplusplus)
 }

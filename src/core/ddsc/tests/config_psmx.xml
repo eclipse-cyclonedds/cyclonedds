@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<?xml-model href="https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/master/etc/cyclonedds.xsd"
+        schematypens="http://www.w3.org/2001/XMLSchema" ?>
+<!--
+  Copyright(c) 2023 ADLINK Technology Limited and others
+
+  This program and the accompanying materials are made available under the
+  terms of the Eclipse Public License v. 2.0 which is available at
+  http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+  v. 1.0 which is available at
+  http://www.eclipse.org/org/documents/edl-v10.php.
+
+  SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+-->
+<CycloneDDS xmlns="https://cdds.io/config">
+  <Domain id="57">
+    <General>
+      <Interfaces>
+        <NetworkInterface address="127.0.0.1" />
+        <PubSubMessageExchange name="cdds" library="${CDDS_PSMX_LIB}" priority ="1000000" />
+      </Interfaces>
+      <AllowMulticast>true</AllowMulticast>
+      <EnableMulticastLoopback>true</EnableMulticastLoopback>
+    </General>
+    <Compatibility>
+      <StandardsConformance>lax</StandardsConformance>
+    </Compatibility>
+    <Tracing>
+      <Verbosity>finest</Verbosity>
+      <OutputFile>cdds.log.${CYCLONEDDS_PID}</OutputFile>
+    </Tracing>
+  </Domain>
+</CycloneDDS>

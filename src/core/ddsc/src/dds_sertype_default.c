@@ -26,10 +26,7 @@
 #include "dds/ddsi/ddsi_typelib.h"
 #include "dds/cdr/dds_cdrstream.h"
 #include "dds__serdata_default.h"
-
-#ifdef DDS_HAS_SHM
-#include "dds/ddsi/ddsi_xmsg.h"
-#endif
+#include "dds__psmx.h"
 
 static bool sertype_default_equal (const struct ddsi_sertype *acmn, const struct ddsi_sertype *bcmn)
 {
@@ -196,9 +193,9 @@ static struct ddsi_sertype * sertype_default_derive_sertype (const struct ddsi_s
   (void) tce_qos;
 
   if (data_representation == DDS_DATA_REPRESENTATION_XCDR1)
-    required_ops = base_sertype->typekind_no_key ? &dds_serdata_ops_cdr_nokey : &dds_serdata_ops_cdr;
+    required_ops = base_sertype->has_key ? &dds_serdata_ops_cdr : &dds_serdata_ops_cdr_nokey;
   else if (data_representation == DDS_DATA_REPRESENTATION_XCDR2)
-    required_ops = base_sertype->typekind_no_key ? &dds_serdata_ops_xcdr2_nokey : &dds_serdata_ops_xcdr2;
+    required_ops = base_sertype->has_key ? &dds_serdata_ops_xcdr2 : &dds_serdata_ops_xcdr2_nokey;
   else
     abort ();
 
@@ -237,10 +234,9 @@ static dds_ostream_t ostream_from_buffer(void *buffer, size_t size, uint16_t wri
 static size_t sertype_default_get_serialized_size (const struct ddsi_sertype *type, const void *sample)
 {
   // We do not count the CDR header here.
-  // TODO Do we want to include CDR header into the serialization used by iceoryx?
-  //      If the endianness does not change, it appears not to be necessary (maybe for
-  //      XTypes)
   struct ddsi_serdata *serdata = ddsi_serdata_from_sample(type, SDK_DATA, sample);
+  if (serdata == NULL)
+    return SIZE_MAX;
   size_t serialized_size = ddsi_serdata_size(serdata) - sizeof(struct dds_cdr_header);
   ddsi_serdata_unref(serdata);
   return serialized_size;
@@ -300,15 +296,12 @@ dds_return_t dds_sertype_default_init (const struct dds_domain *domain, struct d
   if (!dds_stream_extensibility (desc->m_ops, &type_ext))
     return DDS_RETCODE_BAD_PARAMETER;
 
-  ddsi_sertype_init (&st->c, desc->m_typename, &dds_sertype_ops_default, serdata_ops, (desc->m_nkeys == 0));
-#ifdef DDS_HAS_SHM
-  st->c.iox_size = desc->m_size;
-#endif
-  st->c.fixed_size = (st->c.fixed_size || (desc->m_flagset & DDS_TOPIC_FIXED_SIZE)) ? 1u : 0u;
-  st->c.allowed_data_representation = desc->m_flagset & DDS_TOPIC_RESTRICT_DATA_REPRESENTATION ?
+  uint32_t allowed_data_representation = desc->m_flagset & DDS_TOPIC_RESTRICT_DATA_REPRESENTATION ?
       desc->restrict_data_representation : DDS_DATA_REPRESENTATION_RESTRICT_DEFAULT;
   if (min_xcdrv == DDSI_RTPS_CDR_ENC_VERSION_2)
-    st->c.allowed_data_representation &= ~DDS_DATA_REPRESENTATION_FLAG_XCDR1;
+    allowed_data_representation &= ~DDS_DATA_REPRESENTATION_FLAG_XCDR1;
+
+  ddsi_sertype_init_props (&st->c, desc->m_typename, &dds_sertype_ops_default, serdata_ops, desc->m_size, dds_stream_data_types (desc->m_ops), allowed_data_representation, 0);
   st->encoding_format = ddsi_sertype_extensibility_enc_format (type_ext);
   /* Store the encoding version used for writing data using this sertype. When reading data,
      the encoding version from the encapsulation header in the CDR is used */

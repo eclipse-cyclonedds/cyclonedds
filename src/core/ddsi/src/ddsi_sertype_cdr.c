@@ -22,11 +22,6 @@
 #include "ddsi__serdata_cdr.h"
 #include "dds/cdr/dds_cdrstream.h"
 
-
-#ifdef DDS_HAS_SHM
-#include "ddsi__xmsg.h"
-#endif
-
 static bool sertype_cdr_equal (const struct ddsi_sertype *acmn, const struct ddsi_sertype *bcmn)
 {
   const struct ddsi_sertype_cdr *a = (struct ddsi_sertype_cdr *) acmn;
@@ -156,9 +151,8 @@ dds_return_t ddsi_sertype_cdr_init (const struct ddsi_domaingv *gv, struct ddsi_
   if (!dds_stream_extensibility (desc->m_ops, &type_ext))
     return DDS_RETCODE_BAD_PARAMETER;
 
-  ddsi_sertype_init (&st->c, desc->m_typename, &ddsi_sertype_ops_cdr, &ddsi_serdata_ops_cdr, (desc->m_nkeys == 0));
-  st->c.fixed_size = (st->c.fixed_size || (desc->m_flagset & DDS_TOPIC_FIXED_SIZE)) ? 1u : 0u;
-  st->c.allowed_data_representation = DDS_DATA_REPRESENTATION_FLAG_XCDR2;
+  ddsi_sertype_init_props (&st->c, desc->m_typename, &ddsi_sertype_ops_cdr, &ddsi_serdata_ops_cdr, desc->m_size, dds_stream_data_types (desc->m_ops), DDS_DATA_REPRESENTATION_FLAG_XCDR2, 0);
+
   st->encoding_format = ddsi_sertype_extensibility_enc_format (type_ext);
 
   dds_cdrstream_desc_init (&st->type, &dds_cdrstream_default_allocator, desc->m_size, desc->m_align, desc->m_flagset, desc->m_ops, desc->m_keys, desc->m_nkeys);

@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include "dds/dds.h"
 #include "test_common.h"
+#include "build_options.h"
 
 static dds_entity_t participant, topic, reader, writer, read_condition, read_condition_unread;
 
@@ -74,6 +75,7 @@ CU_Test (ddsc_loan, bad_params, .init = create_entities, .fini = delete_entities
   CU_ASSERT (result == DDS_RETCODE_ILLEGAL_OPERATION);
 }
 
+
 CU_Test (ddsc_loan, success, .init = create_entities, .fini = delete_entities)
 {
   const RoundTripModule_DataType s = {
@@ -82,7 +84,6 @@ CU_Test (ddsc_loan, success, .init = create_entities, .fini = delete_entities)
       ._buffer = (uint8_t[]) { 'a' }
     }
   };
-  const unsigned char zeros[3 * sizeof (s)] = { 0 };
   dds_return_t result;
   for (size_t i = 0; i < 3; i++)
   {
@@ -93,37 +94,32 @@ CU_Test (ddsc_loan, success, .init = create_entities, .fini = delete_entities)
   /* rely on things like address sanitizer, valgrind for detecting double frees and leaks */
   int32_t n;
   void *ptrs[3] = { NULL };
-  void *ptr0copy, *ptr1copy;
+  void *ptrscopy[3] = { NULL };
   dds_sample_info_t si[3];
 
   /* read 1, return: this should cause memory to be allocated for 1 sample only */
   n = dds_read (reader, ptrs, si, 1, 1);
   CU_ASSERT_FATAL (n == 1);
   CU_ASSERT_FATAL (ptrs[0] != NULL && ptrs[1] == NULL);
-  ptr0copy = ptrs[0];
+  memcpy (ptrscopy, ptrs, sizeof (*ptrs) * (uint32_t) n);
   result = dds_return_loan (reader, ptrs, n);
   CU_ASSERT_FATAL (result == DDS_RETCODE_OK);
-  /* return resets buf[0] (so that it picks up the loan the next time) and zeros the data */
+  /* return resets buf[0] */
   CU_ASSERT_FATAL (ptrs[0] == NULL);
-  CU_ASSERT_FATAL (memcmp (ptr0copy, zeros, sizeof (s)) == 0);
 
-  /* read 3, return: should work fine, causes realloc */
+  /* read 3, return: should work fine, causes allocating new ptrs */
   n = dds_read (reader, ptrs, si, 3, 3);
   CU_ASSERT_FATAL (n == 3);
   CU_ASSERT_FATAL (ptrs[0] != NULL && ptrs[1] != NULL && ptrs[2] != NULL);
-  ptr0copy = ptrs[0];
-  ptr1copy = ptrs[1];
-  result = dds_return_loan (reader, ptrs, n);
-  CU_ASSERT_FATAL (result == DDS_RETCODE_OK);
-  CU_ASSERT_FATAL (ptrs[0] == NULL);
-  CU_ASSERT_FATAL (memcmp (ptr0copy, zeros, 3 * sizeof (s)) == 0);
 
-  /* read 1 using loan, expecting to get the same address (no realloc needed), defer return.
-     Expect ptrs[1] to remain unchanged, although that probably is really an implementation
-     detail rather than something one might want to rely on */
-  n = dds_read (read_condition, ptrs, si, 1, 1);
-  CU_ASSERT_FATAL (n == 1);
-  CU_ASSERT_FATAL (ptrs[0] == ptr0copy && ptrs[1] == ptr1copy);
+#ifdef DDS_BUILD_OPTION_WITH_ASAN
+  // only with asan a new allocation gets an address not used before in this test
+  // Current heap loans caching: memory can be reused immediately
+  //CU_ASSERT_FATAL (ptrs[0] != ptrscopy[0]);
+  CU_ASSERT_FATAL (ptrs[0] == ptrscopy[0]);
+#else
+  (void) ptrscopy;
+#endif
 
   /* read 3, letting read allocate */
   int32_t n2;
@@ -131,7 +127,6 @@ CU_Test (ddsc_loan, success, .init = create_entities, .fini = delete_entities)
   n2 = dds_read (read_condition, ptrs2, si, 3, 3);
   CU_ASSERT_FATAL (n2 == 3);
   CU_ASSERT_FATAL (ptrs2[0] != NULL && ptrs2[1] != NULL && ptrs2[2] != NULL);
-  CU_ASSERT_FATAL (ptrs2[0] != ptrs[0]);
 
   /* contents of first sample should be the same; the point of comparing them
      is that valgrind/address sanitizer will get angry with us if one of them
@@ -152,14 +147,9 @@ CU_Test (ddsc_loan, success, .init = create_entities, .fini = delete_entities)
 
   /* use "dds_return_loan" to free the second result immediately, there's no
      easy way to check this happens short of using a custom sertype */
-  ptr0copy = ptrs2[0];
   result = dds_return_loan (read_condition, ptrs2, n2);
   CU_ASSERT_FATAL (result == DDS_RETCODE_OK);
   CU_ASSERT_FATAL (ptrs2[0] == NULL);
-
-  //This should be a use-after-free
-  //CU_ASSERT_FATAL (memcmp (ptr0copy, zeros, sizeof (s)) == 0);
-  (void) ptr0copy;
 }
 
 CU_Test (ddsc_loan, take_cleanup, .init = create_entities, .fini = delete_entities)
@@ -175,12 +165,11 @@ CU_Test (ddsc_loan, take_cleanup, .init = create_entities, .fini = delete_entiti
   /* rely on things like address sanitizer, valgrind for detecting double frees and leaks */
   int32_t n;
   void *ptrs[3] = { NULL };
-  void *ptr0copy;
+  void *ptr0copy = NULL;
   dds_sample_info_t si[3];
 
-  /* take 1 from an empty reader: this should cause memory to be allocated for
-     1 sample only, be stored as the loan, but not become visisble to the
-     application */
+  /* take 1 from an empty reader: this should cause no memory to be allocated,
+     and null ptr handed over to the application */
   n = dds_take (reader, ptrs, si, 1, 1);
   CU_ASSERT_FATAL (n == 0);
   CU_ASSERT_FATAL (ptrs[0] == NULL && ptrs[1] == NULL);
@@ -195,46 +184,63 @@ CU_Test (ddsc_loan, take_cleanup, .init = create_entities, .fini = delete_entiti
   result = dds_return_loan (reader, ptrs, n);
   CU_ASSERT_FATAL (result == DDS_RETCODE_OK);
 
-  /* if it really got handled as a loan, the same address must come out again
-     (rely on address sanitizer allocating at a different address each time) */
+  /* take 1 that's present: allocate a new loan */
   result = dds_write (writer, &s);
   CU_ASSERT_FATAL (result == 0);
   n = dds_take (reader, ptrs, si, 1, 1);
   CU_ASSERT_FATAL (n == 1);
-  CU_ASSERT_FATAL (ptrs[0] == ptr0copy && ptrs[1] == NULL);
-  ptr0copy = ptrs[0];
+  CU_ASSERT_FATAL (ptrs[0] != NULL && ptrs[1] == NULL);
+#ifdef DDS_BUILD_OPTION_WITH_ASAN
+  // only with asan a new allocation gets an address not used before in this test
+  // Current heap loans caching: memory can be reused immediately
+  //CU_ASSERT_FATAL (ptrs[0] != ptr0copy);
+  CU_ASSERT_FATAL (ptrs[0] == ptr0copy);
+#else
+  (void) ptr0copy;
+#endif
   result = dds_return_loan (reader, ptrs, n);
   CU_ASSERT_FATAL (result == DDS_RETCODE_OK);
 
-  /* take that fails (for lack of data in this case) must reuse the loan, but
-     hand it back and restore the null pointer */
+  /* take that fails (for lack of data in this case), no memory allocated,
+     restore the null pointer */
   n = dds_take (reader, ptrs, si, 1, 1);
   CU_ASSERT_FATAL (n == 0);
   CU_ASSERT_FATAL (ptrs[0] == NULL && ptrs[1] == NULL);
 
-  /* take that succeeds again must therefore still be using the same address */
+  /* take that succeeds again must be using a new address */
   result = dds_write (writer, &s);
   CU_ASSERT_FATAL (result == 0);
   n = dds_take (reader, ptrs, si, 1, 1);
   CU_ASSERT_FATAL (n == 1);
-  CU_ASSERT_FATAL (ptrs[0] == ptr0copy && ptrs[1] == NULL);
+  CU_ASSERT_FATAL (ptrs[0] != NULL && ptrs[1] == NULL);
+#ifdef DDS_BUILD_OPTION_WITH_ASAN
+  // Current heap loans caching: memory can be reused immediately but here
+  // they were lost in the read that returned no data
+  CU_ASSERT_FATAL (ptrs[0] != ptr0copy);
+  //CU_ASSERT_FATAL (ptrs[0] == ptr0copy);
+#endif
 
-  /* take that fails (with the loan still out) must allocate new memory and
-     free it */
+  /* take that fails (with the loan still out) must not allocate memory */
   int32_t n2;
   void *ptrs2[3] = { NULL };
   n2 = dds_take (reader, ptrs2, si, 1, 1);
   CU_ASSERT_FATAL (n2 == 0);
   CU_ASSERT_FATAL (ptrs2[0] == NULL && ptrs2[1] == NULL);
 
-  /* return the loan and the next take should reuse the memory */
+  /* return the loan and the next take should do new allocation */
   result = dds_return_loan (reader, ptrs, n);
   CU_ASSERT_FATAL (result == DDS_RETCODE_OK);
   result = dds_write (writer, &s);
   CU_ASSERT_FATAL (result == 0);
   n = dds_take (reader, ptrs, si, 1, 1);
   CU_ASSERT_FATAL (n == 1);
-  CU_ASSERT_FATAL (ptrs[0] == ptr0copy && ptrs[1] == NULL);
+  CU_ASSERT_FATAL (ptrs[0] != NULL && ptrs[1] == NULL);
+#ifdef DDS_BUILD_OPTION_WITH_ASAN
+  // Current heap loans caching: memory can be reused immediately but here
+  // they were lost in the read that returned no data
+  CU_ASSERT_FATAL (ptrs[0] != ptr0copy);
+  //CU_ASSERT_FATAL (ptrs[0] == ptr0copy);
+#endif
   result = dds_return_loan (reader, ptrs, n);
   CU_ASSERT_FATAL (result == DDS_RETCODE_OK);
 }
@@ -255,9 +261,8 @@ CU_Test (ddsc_loan, read_cleanup, .init = create_entities, .fini = delete_entiti
   void *ptr0copy;
   dds_sample_info_t si[3];
 
-  /* read 1 from an empty reader: this should cause memory to be allocated for
-     1 sample only, be stored as the loan, but not become visisble to the
-     application */
+  /* read 1 from an empty reader: no memory should be allocated, and null ptrs
+     returned to the application */
   n = dds_read (reader, ptrs, si, 1, 1);
   CU_ASSERT_FATAL (n == 0);
   CU_ASSERT_FATAL (ptrs[0] == NULL && ptrs[1] == NULL);
@@ -272,46 +277,67 @@ CU_Test (ddsc_loan, read_cleanup, .init = create_entities, .fini = delete_entiti
   result = dds_return_loan (reader, ptrs, n);
   CU_ASSERT_FATAL (result == DDS_RETCODE_OK);
 
-  /* if it really got handled as a loan, the same address must come out again
+  /* loans are allocated for each read, so a different address must come out
      (rely on address sanitizer allocating at a different address each time) */
   result = dds_write (writer, &s);
   CU_ASSERT_FATAL (result == 0);
   n = dds_read (read_condition_unread, ptrs, si, 1, 1);
   CU_ASSERT_FATAL (n == 1);
-  CU_ASSERT_FATAL (ptrs[0] == ptr0copy && ptrs[1] == NULL);
+  CU_ASSERT_FATAL (ptrs[0] != NULL && ptrs[1] == NULL);
+#ifdef DDS_BUILD_OPTION_WITH_ASAN
+  // only with asan a new allocation gets an address not used before in this test
+  // Current heap loans caching: memory can be reused immediately
+  //CU_ASSERT_FATAL (ptrs[0] != ptr0copy);
+  CU_ASSERT_FATAL (ptrs[0] == ptr0copy);
+#else
+  (void) ptr0copy;
+#endif
+
   ptr0copy = ptrs[0];
   result = dds_return_loan (reader, ptrs, n);
   CU_ASSERT_FATAL (result == DDS_RETCODE_OK);
 
-  /* take that fails (for lack of data in this case) must reuse the loan, but
-     hand it back and restore the null pointer */
+  /* take that fails (for lack of data in this case) must hand it back and
+     restore the null pointer */
   n = dds_read (read_condition_unread, ptrs, si, 1, 1);
   CU_ASSERT_FATAL (n == 0);
   CU_ASSERT_FATAL (ptrs[0] == NULL && ptrs[1] == NULL);
 
-  /* take that succeeds again must therefore still be using the same address */
+  /* take that succeeds again, using a new address */
   result = dds_write (writer, &s);
   CU_ASSERT_FATAL (result == 0);
   n = dds_read (read_condition_unread, ptrs, si, 1, 1);
   CU_ASSERT_FATAL (n == 1);
-  CU_ASSERT_FATAL (ptrs[0] == ptr0copy && ptrs[1] == NULL);
+  CU_ASSERT_FATAL (ptrs[0] != NULL && ptrs[1] == NULL);
+#ifdef DDS_BUILD_OPTION_WITH_ASAN
+  // Current heap loans caching: memory can be reused immediately but here
+  // they were lost in the read that returned no data
+  CU_ASSERT_FATAL (ptrs[0] != ptr0copy);
+  //CU_ASSERT_FATAL (ptrs[0] == ptr0copy);
+#endif
 
-  /* take that fails (with the loan still out) must allocate new memory and
-     free it */
+  /* take that fails (with the loan still out), no memory allocated */
   int32_t n2;
   void *ptrs2[3] = { NULL };
   n2 = dds_read (read_condition_unread, ptrs2, si, 1, 1);
   CU_ASSERT_FATAL (n2 == 0);
   CU_ASSERT_FATAL (ptrs2[0] == NULL && ptrs2[1] == NULL);
 
-  /* return the loan and the next take should reuse the memory */
+  /* return the loan and the next read should allocate a new loan */
   result = dds_return_loan (reader, ptrs, n);
   CU_ASSERT_FATAL (result == DDS_RETCODE_OK);
   result = dds_write (writer, &s);
   CU_ASSERT_FATAL (result == 0);
   n = dds_read (read_condition_unread, ptrs, si, 1, 1);
   CU_ASSERT_FATAL (n == 1);
-  CU_ASSERT_FATAL (ptrs[0] == ptr0copy && ptrs[1] == NULL);
+  CU_ASSERT_FATAL (ptrs[0] != NULL && ptrs[1] == NULL);
+#ifdef DDS_BUILD_OPTION_WITH_ASAN
+  // Current heap loans caching: memory can be reused immediately but here
+  // they were lost in the read that returned no data
+  CU_ASSERT_FATAL (ptrs[0] != ptr0copy);
+  //CU_ASSERT_FATAL (ptrs[0] == ptr0copy);
+#endif
   result = dds_return_loan (reader, ptrs, n);
   CU_ASSERT_FATAL (result == DDS_RETCODE_OK);
 }
+

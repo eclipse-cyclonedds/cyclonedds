@@ -177,22 +177,16 @@ static dds_return_t deliver_locally_slowpath (struct ddsi_domaingv *gv, struct d
      reliable samples that are rejected are simply discarded. */
   struct type_sample_cache tsc;
   ddsrt_avl_iter_t it;
-  struct ddsi_reader *rd;
   type_sample_cache_init (&tsc);
   if (!source_entity_locked)
     ddsrt_mutex_lock (&source_entity->lock);
-  rd = ops->first_reader (gv->entity_index, source_entity, &it);
-  if (rd != NULL)
-    EETRACE (source_entity, " =>");
-  while (rd != NULL)
+  /* Local delivery from a PSMX writer to a PSMX reader is handled
+     by PSMX and we must skip them here */
+  bool trace_is_first = true;
+  for (struct ddsi_reader *rd = ops->first_reader (gv->entity_index, source_entity, &it);
+       rd != NULL;
+       rd = ops->next_reader (gv->entity_index, &it))
   {
-#ifdef DDS_HAS_SHM
-    if (rd->has_iceoryx) {
-      rd = ops->next_reader(gv->entity_index, &it);
-      continue; // skip iceoryx readers
-    }
-#endif
-
     struct ddsi_serdata *payload;
     struct ddsi_tkmap_instance *tk;
     if (!type_sample_cache_lookup (&payload, &tk, &tsc, rd->type))
@@ -203,10 +197,10 @@ static dds_return_t deliver_locally_slowpath (struct ddsi_domaingv *gv, struct d
     /* check payload to allow for deserialisation failures */
     if (payload)
     {
-      EETRACE (source_entity, " "PGUIDFMT, PGUID (rd->e.guid));
+      EETRACE (source_entity, "%s "PGUIDFMT, trace_is_first ? " =>" : "", PGUID (rd->e.guid));
+      trace_is_first = false;
       (void) ddsi_rhc_store (rd->rhc, wrinfo, payload, tk);
     }
-    rd = ops->next_reader (gv->entity_index, &it);
   }
   EETRACE (source_entity, "\n");
   if (!source_entity_locked)

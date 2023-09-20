@@ -77,7 +77,7 @@ int LLVMFuzzerTestOneInput(
   dds_set_log_sink(null_log_sink, NULL);
   dds_set_trace_sink(null_log_sink, NULL);
 
-  ddsi_init(&gv);
+  ddsi_init(&gv, NULL);
 
   ddsi_vnet_init(&gv, "fake", 123);
   fakenet = ddsi_factory_find(&gv, "fake");

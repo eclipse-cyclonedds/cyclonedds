@@ -1,4 +1,4 @@
-// Copyright(c) 2006 to 2022 ZettaScale Technology and others
+// Copyright(c) 2023 ZettaScale Technology and others
 //
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License v. 2.0 which is available at
@@ -8,27 +8,25 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
-#ifndef DDSI__OWNIP_H
-#define DDSI__OWNIP_H
+#ifndef DDSI_PSMX_H
+#define DDSI_PSMX_H
 
-#include <stdbool.h>
-
-#include "dds/ddsrt/ifaddrs.h"
-#include "dds/ddsrt/sockets.h"
 #include "dds/ddsi/ddsi_locator.h"
-#include "dds/ddsi/ddsi_ownip.h"
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
 
-struct ddsi_domaingv;
-
-/** @component network_if_selection */
-int ddsi_find_own_ip (struct ddsi_domaingv *gv);
+struct ddsi_psmx_instance_locators {
+  uint32_t length;
+  struct {
+    char *psmx_instance_name;
+    ddsi_locator_t locator;
+  } *instances;
+};
 
 #if defined (__cplusplus)
 }
 #endif
 
-#endif /* DDSI__OWNIP_H */
+#endif // DDSI_PSMX_H

@@ -1,0 +1,31 @@
+// Copyright(c) 2023 ZettaScale Technology and others
+//
+// This program and the accompanying materials are made available under the
+// terms of the Eclipse Public License v. 2.0 which is available at
+// http://www.eclipse.org/legal/epl-2.0, or the Eclipse Distribution License
+// v. 1.0 which is available at
+// http://www.eclipse.org/org/documents/edl-v10.php.
+//
+// SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
+
+enum sample_state {
+  SAMPLE_STATE_UNITIALIZED,
+  SAMPLE_STATE_RAW_KEY,
+  SAMPLE_STATE_RAW_DATA,
+  SAMPLE_STATE_SERIALIZED_KEY,
+  SAMPLE_STATE_SERIALIZED_DATA
+};
+
+@topic @final
+struct cdds_psmx_data {
+  sample_state sample_state;
+  uint32 data_type;
+  uint32 psmx_instance_id;
+  uint32 sample_size;
+  octet guid[16];
+  int64 timestamp;
+  uint32 statusinfo;
+  uint16 cdr_identifier;
+  uint16 cdr_options;
+  sequence<octet> data;
+};

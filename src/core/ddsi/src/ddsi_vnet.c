@@ -103,20 +103,19 @@ static int ddsi_vnet_is_not (const struct ddsi_tran_factory *tran, const ddsi_lo
 
 static enum ddsi_nearby_address_result ddsi_vnet_is_nearby_address (const ddsi_locator_t *loc, size_t ninterf, const struct ddsi_network_interface interf[], size_t *interf_idx)
 {
-  enum ddsi_nearby_address_result default_result = DNAR_UNREACHABLE;
   for (size_t i = 0; i < ninterf; i++)
   {
-    if (interf[i].loc.kind != loc->kind)
-      continue;
-    default_result = DNAR_DISTANT;
-    if (memcmp (interf[i].loc.address, loc->address, sizeof (loc->address)) == 0 && interf[i].loc.port == loc->port)
+    /* Routing is not supported in all cases when the vnet interface is used,
+       so we can't use DNAR_DISTANT in case a locator of a matching kind is
+       not local */
+    if (interf[i].loc.kind == loc->kind && memcmp (interf[i].loc.address, loc->address, sizeof (loc->address)) == 0 && interf[i].loc.port == loc->port)
     {
       if (interf_idx)
         *interf_idx = i;
       return DNAR_SELF;
     }
   }
-  return default_result;
+  return DNAR_UNREACHABLE;
 }
 
 static enum ddsi_locator_from_string_result ddsi_vnet_address_from_string (const struct ddsi_tran_factory *tran_cmn, ddsi_locator_t *loc, const char *str)

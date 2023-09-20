@@ -47,7 +47,7 @@ emit_implicit_sequence(
 {
   struct generator *gen = user_data;
   char *name, *type, *macro, dims[32] = "";
-  const char *fmt, *star = "", *lpar = "", *rpar = "", *type_prefix = "";
+  const char *fmt, *star = "", *lpar = "", *rpar = "";
   const idl_type_spec_t *type_spec = idl_type_spec(node);
 
   (void)pstate;
@@ -74,7 +74,7 @@ emit_implicit_sequence(
     star = "*";
   }
 
-  type_prefix = get_type_prefix(type_spec);
+  const char *type_prefix = get_type_prefix(type_spec);
 
   // https://www.omg.org/spec/C/1.0/PDF section 1.11
   if (IDL_PRINTA(&name, print_type, node) < 0)
@@ -139,7 +139,7 @@ emit_field(
 {
   struct generator *gen = user_data;
   char *type;
-  const char *fmt, *indent, *name, *str_ptr = "", *ptr_open = "", *ptr_close = "", *type_prefix = "";
+  const char *fmt, *indent, *name, *str_ptr = "", *ptr_open = "", *ptr_close = "";
   const void *root;
   idl_literal_t *literal;
   idl_type_spec_t *type_spec;
@@ -169,7 +169,7 @@ emit_field(
     }
   }
 
-  type_prefix = get_type_prefix(type_spec);
+  const char *type_prefix = get_type_prefix(type_spec);
 
   fmt = "%s";
   if (idl_fprintf(gen->header.handle, fmt, indent) < 0)
@@ -396,7 +396,7 @@ emit_sequence_typedef(
   idl_retcode_t ret;
   struct generator *gen = user_data;
   char *type, *name, dims[32] = "";
-  const char *fmt, *spc = " ", *star = "", *lpar = "", *rpar = "", *type_prefix = "";
+  const char *fmt, *spc = " ", *star = "", *lpar = "", *rpar = "";
   const idl_declarator_t *declarator;
   const idl_literal_t *literal;
   const idl_type_spec_t *type_spec;
@@ -419,7 +419,7 @@ emit_sequence_typedef(
     star = "*";
   }
 
-  type_prefix = get_type_prefix(type_spec);
+  const char *type_prefix = get_type_prefix(type_spec);
 
   if (IDL_PRINTA(&type, print_type, type_spec) < 0)
     return IDL_RETCODE_NO_MEMORY;
@@ -463,7 +463,7 @@ emit_typedef(
 {
   struct generator *gen = user_data;
   char dims[32] = "";
-  const char *fmt, *star = "", *type_prefix = "";
+  const char *fmt, *star = "";
   char *name = NULL, *type = NULL;
   const idl_declarator_t *declarator;
   const idl_literal_t *literal;
@@ -478,7 +478,7 @@ emit_typedef(
   else if (idl_is_string(type_spec))
     star = "*";
 
-  type_prefix = get_type_prefix(type_spec);
+  const char *type_prefix = get_type_prefix(type_spec);
 
   if (IDL_PRINTA(&type, print_type, type_spec) < 0)
     return IDL_RETCODE_NO_MEMORY;

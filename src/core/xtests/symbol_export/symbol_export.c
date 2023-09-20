@@ -63,17 +63,13 @@
 #include "dds/security/core/dds_security_shared_secret.h"
 #endif
 
-#include "dds/ddsc/dds_data_allocator.h"
 #include "dds/ddsc/dds_internal_api.h"
-#include "dds/ddsc/dds_loan_api.h"
+#include "dds/ddsc/dds_loaned_sample.h"
 #include "dds/ddsc/dds_rhc.h"
 #include "dds/ddsc/dds_statistics.h"
+#include "dds/ddsc/dds_psmx.h"
 
 #include "dds/cdr/dds_cdrstream.h"
-
-#ifdef DDS_HAS_SHM
-#include "dds/ddsi/ddsi_shm_transport.h"
-#endif
 
 DDSRT_WARNING_DEPRECATED_OFF
 
@@ -220,7 +216,6 @@ int main (int argc, char **argv)
   dds_read_next_wl (1, ptr, ptr);
   dds_read_with_collector (1, 0, 1, 0, test_collect_sample, ptr);
   dds_take_with_collector (1, 0, 1, 0, test_collect_sample, ptr);
-  dds_return_loan (1, ptr, 0);
   dds_lookup_instance (1, ptr);
   dds_instance_get_key (1, 1, ptr);
   dds_begin_coherent (1);
@@ -246,18 +241,13 @@ int main (int argc, char **argv)
   dds_free_typeinfo (ptr);
   dds_get_entity_sertype (1, ptr);
 
-  // dds_data_allocator.h
-  dds_data_allocator_init (1, ptr);
-  dds_data_allocator_init_heap (ptr);
-  dds_data_allocator_fini (ptr);
-  void* d = dds_data_allocator_alloc (ptr, 0);
-  dds_data_allocator_free (ptr, d);
-
-  // dds_loan_api.h
-  dds_is_loan_available (1);
+  // dds_public_loan_api.h
+  dds_request_loan (1, ptr);
+  dds_return_loan (1, ptr, 0);
   dds_is_shared_memory_available (1);
-  dds_loan_shared_memory_buffer (1, 0, ptr);
-  dds_loan_sample (1, ptr);
+  dds_request_loan_of_size (1, 0, ptr);
+  dds_is_loan_available (1); // deprecated
+  dds_loan_sample (1, ptr); // deprecated
 
   // dds_public_alloc.h
   dds_alloc (0);
@@ -369,6 +359,7 @@ int main (int argc, char **argv)
   dds_qset_type_consistency (ptr, 0, 0, 0, 0, 0, 0);
   dds_qset_data_representation (ptr, 0, ptr2);
   dds_qset_entity_name (ptr, ptr2);
+  dds_qset_psmx_instances (ptr, 0, ptr2);
   dds_qget_userdata (ptr, ptr2, ptr);
   dds_qget_topicdata (ptr, ptr2, ptr);
   dds_qget_groupdata (ptr, ptr2, ptr);
@@ -399,6 +390,7 @@ int main (int argc, char **argv)
   dds_qget_type_consistency (ptr, 0, ptr, ptr, ptr, ptr, ptr);
   dds_qget_data_representation (ptr, ptr, ptr);
   dds_qget_entity_name (ptr, ptr);
+  dds_qget_psmx_instances (ptr, ptr2, ptr3);
 
   // dds_public_status.h
   dds_get_inconsistent_topic_status (1, ptr);
@@ -453,7 +445,7 @@ int main (int argc, char **argv)
   dds_delete_statistics (ptr);
   dds_lookup_statistic (ptr, ptr);
 
-  // ddsi_cdrstream.h
+  // dds_cdrstream.h
   bool ret_cdrs;
   dds_istream_init (ptr, 0, ptr2, 0);
   dds_istream_fini (ptr);
@@ -493,6 +485,22 @@ int main (int argc, char **argv)
   dds_cdrstream_desc_from_topic_desc (ptr, ptr2);
   dds_cdrstream_desc_init (ptr, ptr2, 0, 0, 0, ptr3, ptr4, 0);
   dds_cdrstream_desc_fini (ptr, ptr2);
+
+  // dds_psmx.h
+  dds_add_psmx_endpoint_to_list (ptr, ptr2);
+  dds_add_psmx_topic_to_list (ptr, ptr2);
+  dds_remove_psmx_endpoint_from_list (ptr, ptr2);
+  dds_remove_psmx_topic_from_list (ptr, ptr2);
+  dds_psmx_init_generic (ptr);
+  dds_psmx_cleanup_generic (ptr);
+  dds_psmx_topic_init_generic (ptr, ptr2, ptr3, ptr4, ptr, 0);
+  dds_psmx_topic_cleanup_generic (ptr);
+  dds_psmx_supported_features (ptr);
+
+  // dds_loaned_sample.h
+  dds_loaned_sample_ref (ptr);
+  dds_loaned_sample_unref (ptr);
+  dds_reader_store_loaned_sample (1, ptr);
 
 #ifdef DDS_HAS_SECURITY
   // dds_security_timed_cb.h
@@ -594,6 +602,7 @@ int main (int argc, char **argv)
   // ddsi_sertype.h
   struct dds_type_consistency_enforcement_qospolicy tce = { 0, false, false, false, false, false };
   ddsi_sertype_v0 (ptr);
+  ddsi_sertype_init_props (ptr, ptr, ptr, ptr, 0, 0, 0, 0);
   ddsi_sertype_init_flags (ptr, ptr, ptr, ptr, 0);
   ddsi_sertype_init (ptr, ptr, ptr, ptr, 0);
   ddsi_sertype_fini (ptr);
@@ -640,11 +649,8 @@ int main (int argc, char **argv)
   ddsi_serdata_print (ptr, buf, 0);
   ddsi_serdata_print_untyped (ptr, ptr, buf, 0);
   ddsi_serdata_get_keyhash (ptr, ptr, 0);
-#ifdef DDS_HAS_SHM
-  ddsi_serdata_iox_size (ptr);
-  ddsi_serdata_from_iox (ptr, 0, ptr, ptr);
-  ddsi_serdata_from_loaned_sample (ptr, 0, ptr);
-#endif
+  ddsi_serdata_from_loaned_sample (ptr, 0, ptr2, ptr3, 0);
+  ddsi_serdata_from_psmx (ptr, ptr2);
 
 #ifdef DDS_HAS_TYPELIB
   // ddsi_typewrap.h
@@ -1036,15 +1042,6 @@ int main (int argc, char **argv)
   test_ddsrt_vasprintf (ptr, " ");
   ddsrt_asprintf (ptr, " ");
 
-#if DDS_HAS_SHM
-  // ddsi/ddsi_shm_transport.h
-  // - ROS 2 rmw_cyclonedds_cpp uses these
-  // - Iceoryx integration in ROS 2 will need rework anyway, so
-  //   best to keep these until we change that
-  free_iox_chunk (ptr, ptr2);
-  iceoryx_header_from_chunk (ptr);
-  shm_set_data_state (ptr, (iox_shm_data_state_t)0);
-#endif
   return 0;
 }
 

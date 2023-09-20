@@ -55,7 +55,12 @@ static void threads_vtime_gather_for_wait (const struct ddsi_domaingv *gv, uint3
            correct; if instead it has gone through another cycle since loading thrst[i].vtime, then
            the thread will be dropped from the live threads on the next check.  So it won't ever wait
            with unknown duration for progres of threads stuck in another domain */
-        if (gv == ddsrt_atomic_ldvoidp (&cur->thrst[i].gv))
+#ifdef DDS_ALLOW_NESTED_DOMAIN
+        const bool this_domain = gv == ddsrt_atomic_ldvoidp (&cur->thrst[i].gv) || gv == ddsrt_atomic_ldvoidp (&cur->thrst[i].nested_gv);
+#else
+        const bool this_domain = gv == ddsrt_atomic_ldvoidp (&cur->thrst[i].gv);
+#endif
+        if (this_domain)
         {
           assert (dstidx < nthreads);
           ivs[dstidx].thrst = &cur->thrst[i];
@@ -76,7 +81,12 @@ static int threads_vtime_check (const struct ddsi_domaingv *gv, uint32_t *nivs, 
   {
     ddsi_vtime_t vtime = ddsrt_atomic_ld32 (&ivs[i].thrst->vtime);
     assert (ddsi_vtime_awake_p (ivs[i].vtime));
-    if (!ddsi_vtime_gt (vtime, ivs[i].vtime) && ddsrt_atomic_ldvoidp (&ivs[i].thrst->gv) == gv)
+#ifdef DDS_ALLOW_NESTED_DOMAIN
+    const bool this_domain = ddsrt_atomic_ldvoidp (&ivs[i].thrst->gv) == gv || ddsrt_atomic_ldvoidp (&ivs[i].thrst->nested_gv) == gv;
+#else
+    const bool this_domain = ddsrt_atomic_ldvoidp (&ivs[i].thrst->gv) == gv;
+#endif
+    if (!ddsi_vtime_gt (vtime, ivs[i].vtime) && this_domain)
       ++i;
     else
     {

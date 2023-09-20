@@ -64,7 +64,7 @@ static void printhead(
   (void)level;
   (void)flags;
   (void)units;
-  assert(level < (sizeof(headerchars) - 1));
+  assert(level < (sizeof(headerchars)));
   fprintf(out, ".. _`%s`:\n\n%s\n", elem->meta.title, elem->meta.title);
   for(size_t i = strlen(elem->meta.title); i > 0; --i)
     fputc(headerchars[level], out);

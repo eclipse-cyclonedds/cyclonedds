@@ -665,22 +665,93 @@ void ddsi_free_wr_rd_match (struct ddsi_wr_rd_match *m)
   if (m) ddsrt_free (m);
 }
 
+static bool connected_via_psmx_bothlocal (const struct ddsi_generic_endpoint *a, const struct ddsi_generic_endpoint *b)
+{
+  // a bit inefficient if the lists get long, but it is correct and harmless with lists
+  // of at most length 1, as is the case for now
+  for (uint32_t i = 0; i < a->c.psmx_locators.length; i++)
+    for (uint32_t j = 0; j < b->c.psmx_locators.length; j++)
+      if (memcmp (&a->c.psmx_locators.locators[i], &b->c.psmx_locators.locators[j], sizeof (ddsi_locator_t)) == 0)
+        return true;
+  return false;
+}
+
+struct connected_via_psmx_leftlocal_rightproxy_helper_arg {
+  const struct ddsi_psmx_locators_set *locs;
+  bool match;
+};
+
+static void connected_via_psmx_leftlocal_rightproxy_helper (const ddsi_xlocator_t *loc, void *varg)
+{
+  struct connected_via_psmx_leftlocal_rightproxy_helper_arg *arg = varg;
+  if (!arg->match)
+  {
+    for (uint32_t i = 0; i < arg->locs->length; i++)
+      if (memcmp (&loc->c, &arg->locs->locators[i], sizeof (ddsi_locator_t)) == 0)
+        arg->match = true;
+  }
+}
+
+static bool connected_via_psmx_leftlocal_rightproxy (const struct ddsi_generic_endpoint *a, const struct ddsi_addrset *b_as)
+{
+  if (a->c.psmx_locators.length == 0)
+    return false;
+  struct connected_via_psmx_leftlocal_rightproxy_helper_arg arg = { .locs = &a->c.psmx_locators, .match = false };
+  ddsi_addrset_forall ((struct ddsi_addrset *) b_as, connected_via_psmx_leftlocal_rightproxy_helper, &arg);
+  return arg.match;
+}
+
+static bool connected_via_psmx_leftlocal (const struct ddsi_generic_endpoint *a, const struct ddsi_entity_common *b)
+{
+  switch (b->kind)
+  {
+    case DDSI_EK_PARTICIPANT:
+    case DDSI_EK_PROXY_PARTICIPANT:
+    case DDSI_EK_TOPIC:
+      assert (0);
+      break;
+    case DDSI_EK_READER:
+    case DDSI_EK_WRITER:
+      return connected_via_psmx_bothlocal (a, (const struct ddsi_generic_endpoint *) b);
+    case DDSI_EK_PROXY_READER:
+    case DDSI_EK_PROXY_WRITER:
+      return connected_via_psmx_leftlocal_rightproxy (a, ((const struct ddsi_generic_proxy_endpoint *) b)->c.as);
+  }
+  return false;
+}
+
+static bool connected_via_psmx (const struct ddsi_entity_common *a, const struct ddsi_entity_common *b)
+{
+  switch (a->kind)
+  {
+    case DDSI_EK_PARTICIPANT:
+    case DDSI_EK_PROXY_PARTICIPANT:
+    case DDSI_EK_TOPIC:
+      assert (0);
+      break;
+    case DDSI_EK_READER:
+    case DDSI_EK_WRITER:
+      return connected_via_psmx_leftlocal ((const struct ddsi_generic_endpoint *) a, b);
+    case DDSI_EK_PROXY_READER:
+    case DDSI_EK_PROXY_WRITER:
+      // Never matching proxy with proxy
+      assert (b->kind != DDSI_EK_PROXY_READER && b->kind != DDSI_EK_PROXY_WRITER);
+      return connected_via_psmx_leftlocal ((const struct ddsi_generic_endpoint *) b, a);
+  }
+  return false;
+}
+
 void ddsi_writer_add_connection (struct ddsi_writer *wr, struct ddsi_proxy_reader *prd, int64_t crypto_handle)
 {
   struct ddsi_wr_prd_match *m = ddsrt_malloc (sizeof (*m));
   ddsrt_avl_ipath_t path;
-  int pretend_everything_acked;
-
-#ifdef DDS_HAS_SHM
-  const bool use_iceoryx = prd->is_iceoryx && !(wr->xqos->ignore_locator_type & DDSI_LOCATOR_KIND_SHEM);
-#else
-  const bool use_iceoryx = false;
-#endif
+  bool pretend_everything_acked;
 
   m->prd_guid = prd->e.guid;
   m->is_reliable = (prd->c.xqos->reliability.kind > DDS_RELIABILITY_BEST_EFFORT);
   m->assumed_in_sync = (wr->e.gv->config.retransmit_merging == DDSI_REXMIT_MERGE_ALWAYS);
-  m->has_replied_to_hb = !m->is_reliable || use_iceoryx;
+  m->via_psmx = connected_via_psmx (&wr->e, &prd->e);
+  m->has_replied_to_hb = !m->is_reliable || m->via_psmx;
   m->all_have_replied_to_hb = 0;
   m->non_responsive_count = 0;
   m->rexmit_requests = 0;
@@ -695,17 +766,17 @@ void ddsi_writer_add_connection (struct ddsi_writer *wr, struct ddsi_proxy_reade
   {
     ELOGDISC (wr, "  ddsi_writer_add_connection(wr "PGUIDFMT" prd "PGUIDFMT") - prd is being deleted\n",
               PGUID (wr->e.guid), PGUID (prd->e.guid));
-    pretend_everything_acked = 1;
+    pretend_everything_acked = true;
   }
-  else if (!m->is_reliable || use_iceoryx)
+  else if (!m->is_reliable || m->via_psmx)
   {
     /* Pretend a best-effort reader has ack'd everything, even waht is
        still to be published. */
-    pretend_everything_acked = 1;
+    pretend_everything_acked = true;
   }
   else
   {
-    pretend_everything_acked = 0;
+    pretend_everything_acked = false;
   }
   ddsrt_mutex_unlock (&prd->e.lock);
   m->prev_acknack = 0;
@@ -716,11 +787,7 @@ void ddsi_writer_add_connection (struct ddsi_writer *wr, struct ddsi_proxy_reade
   m->t_nackfrag_accepted.v = 0;
 
   ddsrt_mutex_lock (&wr->e.lock);
-#ifdef DDS_HAS_SHM
-  if (pretend_everything_acked || prd->is_iceoryx)
-#else
   if (pretend_everything_acked)
-#endif
     m->seq = DDSI_MAX_SEQ_NUMBER;
   else
     m->seq = wr->seq;
@@ -798,14 +865,10 @@ void ddsi_writer_add_local_connection (struct ddsi_writer *wr, struct ddsi_reade
   ELOGDISC (wr, "  ddsi_writer_add_local_connection(wr "PGUIDFMT" rd "PGUIDFMT")",
             PGUID (wr->e.guid), PGUID (rd->e.guid));
   m->rd_guid = rd->e.guid;
+  m->via_psmx = connected_via_psmx (&wr->e, &rd->e);
   ddsrt_avl_insert_ipath (&ddsi_wr_local_readers_treedef, &wr->local_readers, m, &path);
-
-#ifdef DDS_HAS_SHM
-  if (!wr->has_iceoryx || !rd->has_iceoryx)
-    ddsi_local_reader_ary_insert(&wr->rdary, rd);
-#else
-  ddsi_local_reader_ary_insert(&wr->rdary, rd);
-#endif
+  if (!m->via_psmx)
+    ddsi_local_reader_ary_insert (&wr->rdary, rd);
 
   /* Store available data into the late joining reader when it is reliable (we don't do
      historical data for best-effort data over the wire, so also not locally). */
@@ -832,6 +895,7 @@ void ddsi_reader_add_connection (struct ddsi_reader *rd, struct ddsi_proxy_write
   ddsrt_avl_ipath_t path;
 
   m->pwr_guid = pwr->e.guid;
+  m->via_psmx = connected_via_psmx (&rd->e, &pwr->e);
   m->pwr_alive = alive_state->alive;
   m->pwr_alive_vclock = alive_state->vclock;
 #ifdef DDS_HAS_SECURITY
@@ -913,6 +977,7 @@ void ddsi_reader_add_local_connection (struct ddsi_reader *rd, struct ddsi_write
   ddsrt_avl_ipath_t path;
 
   m->wr_guid = wr->e.guid;
+  m->via_psmx = connected_via_psmx (&rd->e, &wr->e);
   m->wr_alive = alive_state->alive;
   m->wr_alive_vclock = alive_state->vclock;
 
@@ -959,12 +1024,6 @@ void ddsi_proxy_writer_add_connection (struct ddsi_proxy_writer *pwr, struct dds
 
   assert (rd->type || ddsi_is_builtin_endpoint (rd->e.guid.entityid, DDSI_VENDORID_ECLIPSE));
 
-#ifdef DDS_HAS_SHM
-  const bool use_iceoryx = pwr->is_iceoryx && !(rd->xqos->ignore_locator_type & DDSI_LOCATOR_KIND_SHEM);
-#else
-  const bool use_iceoryx = false;
-#endif
-
   ELOGDISC (pwr, "  ddsi_proxy_writer_add_connection(pwr "PGUIDFMT" rd "PGUIDFMT")",
             PGUID (pwr->e.guid), PGUID (rd->e.guid));
   m->rd_guid = rd->e.guid;
@@ -995,6 +1054,7 @@ void ddsi_proxy_writer_add_connection (struct ddsi_proxy_writer *pwr, struct dds
   m->heartbeatfrag_since_ack = 0;
   m->directed_heartbeat = 0;
   m->nack_sent_on_nackdelay = 0;
+  m->via_psmx = connected_via_psmx (&pwr->e, &rd->e);
 
 #ifdef DDS_HAS_SECURITY
   m->crypto_handle = crypto_handle;
@@ -1015,7 +1075,7 @@ void ddsi_proxy_writer_add_connection (struct ddsi_proxy_writer *pwr, struct dds
     /* builtins really don't care about multiple copies or anything */
     m->in_sync = PRMSS_SYNC;
   }
-  else if (use_iceoryx)
+  else if (m->via_psmx)
   {
     m->in_sync = PRMSS_SYNC;
   }
@@ -1077,7 +1137,7 @@ void ddsi_proxy_writer_add_connection (struct ddsi_proxy_writer *pwr, struct dds
       m->filtered = 1;
     }
 
-    const ddsrt_mtime_t tsched = use_iceoryx ? DDSRT_MTIME_NEVER : ddsrt_mtime_add_duration (tnow, pwr->e.gv->config.preemptive_ack_delay);
+    const ddsrt_mtime_t tsched = pwr->local_psmx ? DDSRT_MTIME_NEVER : ddsrt_mtime_add_duration (tnow, pwr->e.gv->config.preemptive_ack_delay);
     {
       struct ddsi_acknack_xevent_cb_arg arg = { .pwr_guid = pwr->e.guid, .rd_guid = rd->e.guid };
       m->acknack_xevent = ddsi_qxev_callback (pwr->evq, tsched, ddsi_acknack_xevent_cb, &arg, sizeof (arg), false);
@@ -1095,12 +1155,8 @@ void ddsi_proxy_writer_add_connection (struct ddsi_proxy_writer *pwr, struct dds
 
   ddsrt_avl_insert_ipath (&ddsi_pwr_readers_treedef, &pwr->readers, m, &path);
 
-#ifdef DDS_HAS_SHM
-  if (!pwr->is_iceoryx || !rd->has_iceoryx)
-    ddsi_local_reader_ary_insert(&pwr->rdary, rd);
-#else
-  ddsi_local_reader_ary_insert(&pwr->rdary, rd);
-#endif
+  if (!m->via_psmx)
+    ddsi_local_reader_ary_insert (&pwr->rdary, rd);
 
   ddsrt_mutex_unlock (&pwr->e.lock);
   ddsi_send_entityid_to_pwr (pwr, &rd->e.guid);
@@ -1122,6 +1178,7 @@ void ddsi_proxy_reader_add_connection (struct ddsi_proxy_reader *prd, struct dds
   ddsrt_avl_ipath_t path;
 
   m->wr_guid = wr->e.guid;
+  m->via_psmx = connected_via_psmx (&prd->e, &wr->e);
 #ifdef DDS_HAS_SECURITY
   m->crypto_handle = crypto_handle;
 #else

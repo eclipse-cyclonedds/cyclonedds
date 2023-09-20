@@ -1,4 +1,4 @@
-// Copyright(c) 2006 to 2019 ZettaScale Technology and others
+// Copyright(c) 2022 to 2023 ZettaScale Technology and others
 //
 // This program and the accompanying materials are made available under the
 // terms of the Eclipse Public License v. 2.0 which is available at
@@ -8,25 +8,25 @@
 //
 // SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
-#ifndef DDS__LOAN_H
-#define DDS__LOAN_H
+#ifndef DDS__HEAP_LOAN_H
+#define DDS__HEAP_LOAN_H
+
+#include "dds__types.h"
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-#ifdef DDS_HAS_SHM
+struct dds_loaned_sample;
 
-/** @component write_data */
-void dds_register_pub_loan(dds_writer *wr, void *pub_loan);
+dds_return_t dds_heap_loan (const struct ddsi_sertype *type, dds_loaned_sample_state_t sample_state, struct dds_loaned_sample **loaned_sample)
+  ddsrt_nonnull_all;
 
-/** @component write_data */
-bool dds_deregister_pub_loan(dds_writer *wr, const void *pub_loan);
-
-#endif /* DDS_HAS_SHM */
+void dds_heap_loan_reset (struct dds_loaned_sample *loaned_sample)
+  ddsrt_nonnull_all;
 
 #if defined(__cplusplus)
 }
 #endif
 
-#endif /* DDS__LOAN_H */
+#endif /* DDS__HEAP_LOAN_H */

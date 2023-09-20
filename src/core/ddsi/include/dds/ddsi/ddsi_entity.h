@@ -82,7 +82,7 @@ struct ddsi_entity_common {
 };
 
 struct ddsi_local_reader_ary {
-  ddsrt_mutex_t rdary_lock;
+  ddsrt_mutex_t rdary_lock; /* mutations only ever happen when (proxy) writer lock also held (excepting careful hacks in tests) */
   unsigned valid: 1; /* always true until (proxy-)writer is being deleted; !valid => !fastpath_ok */
   unsigned fastpath_ok: 1; /* if not ok, fall back to using GUIDs (gives access to the reader-writer match data for handling readers that bumped into resource limits, hence can flip-flop, unlike "valid") */
   uint32_t n_readers;

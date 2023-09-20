@@ -22,6 +22,7 @@
 #include "dds__topic.h"
 #include "dds__builtin.h"
 #include "dds__subscriber.h" // for non-materialized DATA_ON_READERS
+#include "dds/dds.h"
 #include "dds/version.h"
 #include "dds/ddsi/ddsi_pmd.h"
 #include "dds/ddsi/ddsi_xqos.h"
@@ -712,7 +713,7 @@ dds_return_t dds_get_qos (dds_entity_t entity, dds_qos_t *qos)
 
   if ((ret = dds_entity_lock (entity, DDS_KIND_DONTCARE, &e)) != DDS_RETCODE_OK)
   {
-    if (dds__get_builtin_topic_name_typename (entity, NULL, NULL) == 0)
+    if (dds__get_builtin_topic_name_typename (entity, NULL, NULL) == DDS_RETCODE_OK)
       return dds_get_qos_builtin_topic (qos);
     else
       return ret;
@@ -975,7 +976,7 @@ dds_return_t dds_set_qos (dds_entity_t entity, const dds_qos_t *qos)
   }
 
   dds_entity_unpin (e);
-  return 0;
+  return DDS_RETCODE_OK;
 }
 
 dds_return_t dds_get_listener (dds_entity_t entity, dds_listener_t *listener)
@@ -1574,6 +1575,49 @@ dds_return_t dds_assert_liveliness (dds_entity_t entity)
   }
   dds_entity_unpin (e);
   return rc;
+}
+
+dds_return_t dds_request_loan (dds_entity_t entity, void **sample)
+{
+  dds_entity *p_entity;
+  dds_return_t ret;
+
+  if (sample == NULL)
+    return DDS_RETCODE_BAD_PARAMETER;
+
+  if ((ret = dds_entity_pin (entity, &p_entity)) < 0)
+    return ret;
+
+  switch (dds_entity_kind (p_entity))
+  {
+    case DDS_KIND_WRITER: {
+      dds_writer *wr = (dds_writer *) p_entity;
+      ret = dds_request_writer_loan (wr, DDS_WRITER_LOAN_REGULAR, 0, sample);
+      break;
+    }
+    case DDS_KIND_DONTCARE:
+    case DDS_KIND_CYCLONEDDS:
+    case DDS_KIND_DOMAIN:
+    case DDS_KIND_WAITSET:
+    case DDS_KIND_COND_GUARD:
+    case DDS_KIND_PARTICIPANT:
+    case DDS_KIND_TOPIC:
+    case DDS_KIND_PUBLISHER:
+    case DDS_KIND_SUBSCRIBER:
+    case DDS_KIND_READER:
+    case DDS_KIND_COND_READ:
+    case DDS_KIND_COND_QUERY: {
+      ret = DDS_RETCODE_ILLEGAL_OPERATION;
+      break;
+    }
+  }
+  dds_entity_unpin (p_entity);
+  return ret;
+}
+
+dds_return_t dds_loan_sample (dds_entity_t writer, void **sample)
+{
+  return dds_request_loan (writer, sample);
 }
 
 dds_return_t dds_return_loan (dds_entity_t entity, void **buf, int32_t bufsz)

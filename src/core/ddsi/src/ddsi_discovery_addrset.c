@@ -95,6 +95,8 @@ static void addrset_from_locatorlists_add_one (struct ddsi_domaingv const * cons
           // do not use link-local or loopback interfaces transmit conn for distant nodes
           if (gv->interfaces[i].link_local || gv->interfaces[i].loopback)
             continue;
+          if (gv->interfaces[i].loc.kind != loc->kind)
+            continue;
           ddsi_add_xlocator_to_addrset (gv, as, &(const ddsi_xlocator_t) {
             .conn = gv->xmit_conns[i],
             .c = *loc });

@@ -43,4 +43,22 @@ typedef int32_t dds_entity_t;
  */
 #define DDS_CYCLONEDDS_HANDLE ((dds_entity_t)(DDS_MIN_PSEUDO_HANDLE + 256))
 
+/**
+ * @brief Structure of a GUID in any builtin topic sample.
+ * @ingroup builtintopic
+ */
+typedef struct dds_builtintopic_guid
+{
+  uint8_t v[16]; /**< 16-byte unique identifier */
+}
+dds_builtintopic_guid_t;
+
+/**
+ * @brief Structure of a GUID in any builtin topic sample.
+ * @ingroup builtintopic
+ * @ref dds_builtintopic_guid_t is a bit of a weird name for what everyone just calls a GUID,
+ * so let us try and switch to using the more logical one.
+ */
+typedef struct dds_builtintopic_guid dds_guid_t;
+
 #endif /*_DDS_PUBLIC_TYPES_H_*/

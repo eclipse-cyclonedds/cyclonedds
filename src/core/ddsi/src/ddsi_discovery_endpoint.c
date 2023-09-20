@@ -78,10 +78,9 @@ static void add_xlocator_to_ps (const ddsi_xlocator_t *loc, void *varg)
   add_locator_to_ps (&loc->c, varg);
 }
 
-#ifdef DDS_HAS_SHM
-static void add_iox_locator_to_ps(const ddsi_locator_t* loc, struct add_locator_to_ps_arg *arg)
+static void add_psmx_locator_to_ps(const ddsi_locator_t* loc, struct add_locator_to_ps_arg *arg)
 {
-  struct ddsi_locators_one* elem = ddsrt_malloc(sizeof(struct ddsi_locators_one));
+  struct ddsi_locators_one* elem = ddsrt_malloc (sizeof(struct ddsi_locators_one));
   struct ddsi_locators* locs = &arg->ps->unicast_locators;
   unsigned present_flag = PP_UNICAST_LOCATOR;
 
@@ -95,7 +94,7 @@ static void add_iox_locator_to_ps(const ddsi_locator_t* loc, struct add_locator_
     arg->ps->present |= present_flag;
   }
 
-  //add iceoryx to the FRONT of the list of addresses, to indicate its higher priority
+  // add PSMX locator to the FRONT of the list of addresses, to indicate its higher priority
   if (locs->first)
     elem->next = locs->first;
   else
@@ -103,7 +102,6 @@ static void add_iox_locator_to_ps(const ddsi_locator_t* loc, struct add_locator_
   locs->first = elem;
   locs->n++;
 }
-#endif
 
 static int sedp_write_endpoint_impl
 (
@@ -202,14 +200,15 @@ static int sedp_write_endpoint_impl
     if (as)
       ddsi_addrset_forall (as, add_xlocator_to_ps, &arg);
 
-#ifdef DDS_HAS_SHM
-    assert(wr->xqos->present & DDSI_QP_LOCATOR_MASK);
-    if (!(xqos->ignore_locator_type & DDSI_LOCATOR_KIND_SHEM))
+    if (epcommon->psmx_locators.length > 0)
     {
+      //something goes wrong here when reader does not have a PSMX instance set but writer does
       if (!(arg.ps->present & PP_UNICAST_LOCATOR) || 0 == arg.ps->unicast_locators.n)
       {
         if (epcommon->pp->e.gv->config.many_sockets_mode == DDSI_MSM_MANY_UNICAST)
+        {
           add_locator_to_ps(&epcommon->pp->m_locator, &arg);
+        }
         else
         {
           // FIXME: same as what SPDP uses, should be refactored, now more than ever
@@ -218,7 +217,7 @@ static int sedp_write_endpoint_impl
             if (!epcommon->pp->e.gv->xmit_conns[i]->m_factory->m_enable_spdp)
             {
               // skip any interfaces where the address kind doesn't match the selected transport
-              // as a reasonablish way of not advertising iceoryx locators here
+              // as a reasonablish way of not advertising PSMX locators here
               continue;
             }
             // FIXME: should have multiple loc_default_uc/loc_meta_uc or compute ports here
@@ -235,9 +234,9 @@ static int sedp_write_endpoint_impl
           add_locator_to_ps (&epcommon->pp->e.gv->loc_default_mc, &arg);
       }
 
-      add_iox_locator_to_ps(&gv->loc_iceoryx_addr, &arg);
+      for (uint32_t i = 0; i < epcommon->psmx_locators.length; i++)
+        add_psmx_locator_to_ps (&epcommon->psmx_locators.locators[i], &arg);
     }
-#endif
 
 #ifdef DDS_HAS_TYPELIB
     assert (sertype);

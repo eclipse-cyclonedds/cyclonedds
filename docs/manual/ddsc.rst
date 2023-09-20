@@ -28,7 +28,6 @@ C API reference
    api/status_conditions
    api/builtin
    api/statistics
-   api/alloc
    api/serialization
    api/internal
    api/deprecated
