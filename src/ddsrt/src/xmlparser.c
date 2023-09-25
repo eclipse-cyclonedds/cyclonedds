@@ -261,18 +261,22 @@ static int peek_char (struct ddsrt_xmlp_state *st)
   return st->cbuf[st->cbufp];
 }
 
-static bool peek_chars (struct ddsrt_xmlp_state *st, const char *seq, int consume)
+static bool peek_chars_impl (struct ddsrt_xmlp_state *st, const char *seq, size_t n, int consume)
 {
-  size_t n = strlen (seq);
   if (!make_chars_available (st, n)) {
     return false;
   }
-  if (memcmp (st->cbuf + st->cbufp, seq, n) != 0) {
+  if (st->cbuf[st->cbufp] != seq[0] || memcmp (st->cbuf + st->cbufp, seq, n) != 0) {
     return false;
   } else {
     if (consume) st->cbufp += n;
     return true;
   }
+}
+
+static bool peek_chars (struct ddsrt_xmlp_state *st, const char *seq, int consume)
+{
+  return peek_chars_impl (st, seq, strlen (seq), consume);
 }
 
 static bool qq_isspace (int x)
@@ -495,8 +499,9 @@ static int next_token_tag_withoutclose (struct ddsrt_xmlp_state *st, char **payl
 
 static int next_token_string (struct ddsrt_xmlp_state *st, char **payload, const char *endm)
 {
+  const size_t endm_len = strlen (endm);
   /* positioned at first character of string */
-  while (!peek_chars (st, endm, 0) && peek_char (st) != TOK_EOF) {
+  while (!peek_chars_impl (st, endm, endm_len, 0) && peek_char (st) != TOK_EOF) {
     if (append_to_payload (st, next_char (st)) < 0) {
       return TOK_ERROR;
     }
