@@ -497,6 +497,7 @@ dds_return_t cdds_create_psmx (dds_psmx_t **psmx_out, dds_psmx_instance_id_t ins
         dds_free (lstr);
         goto err_locator;
       }
+      unsigned char * const dst = (unsigned char *) psmx->c.locator->address;
       for (uint32_t n = 0; n < 32 && lstr[n]; n++)
       {
         int32_t num;
@@ -505,7 +506,10 @@ dds_return_t cdds_create_psmx (dds_psmx_t **psmx_out, dds_psmx_instance_id_t ins
           dds_free (lstr);
           goto err_locator;
         }
-        ((char *) (psmx->c.locator->address))[n / 2] |= (char) ((n % 1) ? (num << 4) : num);
+        if ((n % 2) == 0)
+          dst[n / 2] = (uint8_t) (num << 4);
+        else
+          dst[n / 2] |= (uint8_t) num;
       }
       dds_free (lstr);
     }
