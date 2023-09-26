@@ -210,7 +210,7 @@ static dds_psmx_instance_id_t get_psmx_instance_id (const struct ddsi_domaingv *
   return ddsrt_mh3 (config_name, strlen (config_name), hashed_id);
 }
 
-static dds_return_t psmx_instance_load (const struct ddsi_domaingv *gv, struct ddsi_config_psmx *config, struct dds_psmx **out)
+static dds_return_t psmx_instance_load (const struct ddsi_domaingv *gv, struct ddsi_config_psmx *config, struct dds_psmx **out, ddsrt_dynlib_t *lib_handle)
 {
   dds_psmx_create_fn creator = NULL;
   const char *lib_name;
@@ -247,6 +247,7 @@ static dds_return_t psmx_instance_load (const struct ddsi_domaingv *gv, struct d
   }
   psmx_instance->priority = config->priority.value;
   *out = psmx_instance;
+  *lib_handle = handle;
   return DDS_RETCODE_OK;
 
 err_init:
@@ -273,8 +274,13 @@ dds_return_t dds_pubsub_message_exchange_init (const struct ddsi_domaingv *gv, s
     {
       GVLOG(DDS_LC_INFO, "Loading PSMX instances %s\n", iface->cfg.name);
       struct dds_psmx *psmx = NULL;
-      if (psmx_instance_load (gv, &iface->cfg, &psmx) == DDS_RETCODE_OK)
-        domain->psmx_instances.instances[domain->psmx_instances.length++] = psmx;
+      ddsrt_dynlib_t lib_handle;
+      if (psmx_instance_load (gv, &iface->cfg, &psmx, &lib_handle) == DDS_RETCODE_OK)
+      {
+        domain->psmx_instances.instances[domain->psmx_instances.length] = psmx;
+        domain->psmx_instances.lib_handles[domain->psmx_instances.length] = lib_handle;
+        domain->psmx_instances.length++;
+      }
       else
       {
         GVERROR ("error loading PSMX instance \"%s\"\n", iface->cfg.name);
@@ -296,7 +302,10 @@ dds_return_t dds_pubsub_message_exchange_fini (struct dds_domain *domain)
   {
     struct dds_psmx *psmx = domain->psmx_instances.instances[i];
     if ((ret = psmx->ops.deinit (psmx)) == DDS_RETCODE_OK)
+    {
+      (void) ddsrt_dlclose (domain->psmx_instances.lib_handles[i]);
       domain->psmx_instances.instances[i] = NULL;
+    }
   }
   return ret;
 }

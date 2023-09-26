@@ -15,6 +15,7 @@
 
 #include "dds/dds.h"
 #include "dds/ddsrt/sync.h"
+#include "dds/ddsrt/dynlib.h"
 #include "dds/ddsi/ddsi_protocol.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #ifdef DDS_HAS_TOPIC_DISCOVERY
@@ -273,6 +274,7 @@ typedef struct dds_cyclonedds_entity {
 struct dds_psmx_set {
   uint32_t length;
   struct dds_psmx *instances[DDS_MAX_PSMX_INSTANCES];
+  ddsrt_dynlib_t lib_handles[DDS_MAX_PSMX_INSTANCES];
 };
 
 typedef struct dds_domain {
