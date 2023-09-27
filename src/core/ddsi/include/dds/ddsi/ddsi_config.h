@@ -322,6 +322,7 @@ struct ddsi_config
   uint32_t max_rexmit_msg_size;
   uint32_t init_transmit_extra_pct;
   uint32_t max_rexmit_burst_size;
+  uint32_t max_frags_in_rexmit_of_sample;
 
   int publish_uc_locators; /* Publish discovery unicast locators */
   int enable_uc_locators; /* If false, don't even try to create a unicast socket */

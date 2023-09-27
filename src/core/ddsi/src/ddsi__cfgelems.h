@@ -1003,6 +1003,13 @@ static struct cfgelem internal_burstsize_cfgelems[] = {
       "Besides, the retransmits will be unicast, and so any multicast advantage "
       "will be lost as well.</p>"),
     UNIT("memsize")),
+  STRING("MaxFragsRexmitSample", NULL, 1, "1",
+    MEMBER(max_frags_in_rexmit_of_sample),
+    FUNCTIONS(0, uf_pos_uint, 0, pf_uint),
+    DESCRIPTION(
+      "<p>This element controls the maximum number of fragments of a sample that "
+      "are retransmit in response to a NACK of the entire sample (as opposed to "
+      "what is sent in response to a NACKFRAG requesting specific fragments).</p>")),
   END_MARKER
 };
 
