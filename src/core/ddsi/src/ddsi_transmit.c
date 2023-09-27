@@ -486,8 +486,15 @@ int ddsi_enqueue_sample_wrlock_held (struct ddsi_writer *wr, ddsi_seqno_t seq, s
     /* end-of-transaction messages are empty, but still need to be sent */
     nfrags = 1;
   }
-  if (!isnew && nfrags > 1)
-    nfrags = 1;
+  if (!isnew && nfrags > gv->config.max_frags_in_rexmit_of_sample)
+  {
+    /* Implementations that never use NACKFRAG are allowed by the specification and for such a peer,
+       we must always respond with the full sample on a NACK.  For all other implementations (and
+       certainly for Cyclone) it makes much more sense to do a small initial retransmit.
+     
+       (I am not aware of any implementations that never use NACKFRAG.) */
+    nfrags = gv->config.max_frags_in_rexmit_of_sample;
+  }
   for (i = 0; i < nfrags && enqueued != DDSI_QXEV_MSG_REXMIT_DROPPED; i++)
   {
     struct ddsi_xmsg *fmsg = NULL;
@@ -508,7 +515,11 @@ int ddsi_enqueue_sample_wrlock_held (struct ddsi_writer *wr, ddsi_seqno_t seq, s
     }
     else
     {
-      /* Implementations that never use NACKFRAG are allowed by the specification, and for such a peer, we must always force out the full sample on a retransmit request. I am not aware of any such implementations so leaving the override flag in, but not actually using it at the moment. Should set force = (i != 0) for "known bad" implementations. */
+      /* For implementations that never use NACKFRAG if we enqueue the first fragment, we must enqueue
+         everything, because dropping the tail is guaranteed to result in another full NACK anyway.
+
+         I am not aware of any such implementations so leaving the override flag in, if it turns out they do
+         exist, set force = (i != 0) for "known bad" implementations. */
       const int force = 0;
       if(fmsg)
       {

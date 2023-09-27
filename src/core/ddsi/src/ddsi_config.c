@@ -162,6 +162,7 @@ DUPF(uint32);
 #endif
 DU(natint);
 DU(natint_255);
+DU(pos_uint);
 DUPF(participantIndex);
 DU(dyn_port);
 DUPF(memsize);
@@ -1413,6 +1414,16 @@ static enum update_result uf_uint (struct ddsi_cfgst *cfgst, void *parent, struc
   uint32_t * const elem = cfg_address (cfgst, parent, cfgelem);
   int64_t x;
   if (uf_int64_unit (cfgst, &x, value, NULL, 1, 0, UINT32_MAX) != URES_SUCCESS)
+    return URES_ERROR;
+  *elem = (uint32_t) x;
+  return URES_SUCCESS;
+}
+
+static enum update_result uf_pos_uint (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, UNUSED_ARG (int first), const char *value)
+{
+  uint32_t * const elem = cfg_address (cfgst, parent, cfgelem);
+  int64_t x;
+  if (uf_int64_unit (cfgst, &x, value, NULL, 1, 1, UINT32_MAX) != URES_SUCCESS)
     return URES_ERROR;
   *elem = (uint32_t) x;
   return URES_SUCCESS;
