@@ -98,6 +98,7 @@ thread_main(
   }
 
   assert(targ->pop <= pushed);
+  (void) pushed;
 
   if (targ->block) {
     ddsrt_mutex_lock(targ->mutex);
