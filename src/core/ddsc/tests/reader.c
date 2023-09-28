@@ -3393,3 +3393,159 @@ CU_Test (ddsc_take, sample_rank)
 {
   do_readtake_sample_rank ("took", dds_take_mask);
 }
+
+static void ddsc_peek_setup (dds_entity_t *dp, dds_entity_t *rd, dds_instance_handle_t *ih)
+{
+  *dp = dds_create_participant (0, NULL, NULL);
+  CU_ASSERT_FATAL (*dp > 0);
+  char topicname[100];
+  create_unique_topic_name ("ddsc_peek", topicname, sizeof (topicname));
+  const dds_entity_t tp = dds_create_topic (*dp, &Space_Type1_desc, topicname, NULL, NULL);
+  CU_ASSERT_FATAL (tp > 0);
+  *rd = dds_create_reader (*dp, tp, NULL, NULL);
+  CU_ASSERT_FATAL (*rd > 0);
+  const dds_entity_t wr = dds_create_writer (*dp, tp, NULL, NULL);
+  CU_ASSERT_FATAL (wr > 0);
+  dds_return_t rc;
+  rc = dds_write (wr, &(Space_Type1){ 2,2,2 });
+  CU_ASSERT_FATAL (rc == 0);
+  rc = dds_write (wr, &(Space_Type1){ 3,3,3 });
+  CU_ASSERT_FATAL (rc == 0);
+  rc = dds_write (wr, &(Space_Type1){ 5,5,5 });
+  CU_ASSERT_FATAL (rc == 0);
+  *ih = dds_lookup_instance (*rd, &(Space_Type1){ 3,3,3 });
+  CU_ASSERT_FATAL (*ih != 0);
+}
+
+CU_Test (ddsc_peek, plain)
+{
+  dds_entity_t dp, rd;
+  dds_instance_handle_t ih;
+  dds_entity_t rc;
+  ddsc_peek_setup (&dp, &rd, &ih);
+  dds_sample_info_t si[3];
+  Space_Type1 xs[3];
+  void *ptrs[] = { &xs[0], &xs[1], &xs[2] };
+  for (int k = 0; k < 2; k++)
+  {
+    uint32_t seen = 0;
+    rc = dds_peek (rd, ptrs, si, 3, 3);
+    CU_ASSERT_FATAL (rc == 3);
+    for (int32_t i = 0; i < rc; i++)
+    {
+      CU_ASSERT_FATAL (xs[i].long_1 == xs[i].long_2 && xs[i].long_2 == xs[i].long_3);
+      CU_ASSERT_FATAL (xs[i].long_1 <= 31);
+      seen |= 1u << xs[i].long_1;
+      CU_ASSERT_FATAL (si[i].view_state == DDS_NEW_VIEW_STATE);
+      CU_ASSERT_FATAL (si[i].sample_state == DDS_NOT_READ_SAMPLE_STATE);
+    }
+    CU_ASSERT_FATAL (seen == 44u);
+  }
+  rc = dds_delete (dp);
+  CU_ASSERT_FATAL (rc == 0);
+}
+
+CU_Test (ddsc_peek, mask)
+{
+  dds_entity_t dp, rd;
+  dds_instance_handle_t ih;
+  dds_entity_t rc;
+  ddsc_peek_setup (&dp, &rd, &ih);
+  dds_sample_info_t si[3];
+  Space_Type1 xs[3];
+  void *ptrs[] = { &xs[0], &xs[1], &xs[2] };
+  rc = dds_read (rd, ptrs, si, 1, 1);
+  CU_ASSERT_FATAL (rc == 1 && xs[0].long_1 <= 31);
+  const uint32_t not_visible = 1u << xs[0].long_1;
+  // dds_read gest tested elsewhere, no need to redo that here
+  for (int k = 0; k < 2; k++)
+  {
+    uint32_t seen = 0;
+    rc = dds_peek_mask (rd, ptrs, si, 3, 3, DDS_NOT_READ_SAMPLE_STATE);
+    CU_ASSERT_FATAL (rc == 2);
+    for (int32_t i = 0; i < rc; i++)
+    {
+      CU_ASSERT_FATAL (xs[i].long_1 == xs[i].long_2 && xs[i].long_2 == xs[i].long_3);
+      CU_ASSERT_FATAL (xs[i].long_1 <= 31);
+      seen |= 1u << xs[i].long_1;
+      CU_ASSERT_FATAL (si[i].view_state == DDS_NEW_VIEW_STATE);
+      CU_ASSERT_FATAL (si[i].sample_state == DDS_NOT_READ_SAMPLE_STATE);
+    }
+    CU_ASSERT_FATAL (seen == (44u & ~not_visible));
+  }
+  rc = dds_delete (dp);
+  CU_ASSERT_FATAL (rc == 0);
+}
+
+CU_Test (ddsc_peek, instance)
+{
+  dds_entity_t dp, rd;
+  dds_instance_handle_t ih;
+  dds_entity_t rc;
+  ddsc_peek_setup (&dp, &rd, &ih);
+  dds_sample_info_t si[3];
+  Space_Type1 xs[3];
+  void *ptrs[] = { &xs[0], &xs[1], &xs[2] };
+  rc = dds_peek_instance (rd, ptrs, si, 3, 3, ih);
+  CU_ASSERT_FATAL (rc == 1);
+  CU_ASSERT_FATAL (xs[0].long_1 == xs[0].long_2 && xs[0].long_2 == xs[0].long_3);
+  CU_ASSERT_FATAL (xs[0].long_1 <= 31);
+  const int32_t expect = xs[0].long_1;
+  CU_ASSERT_FATAL (si[0].view_state == DDS_NEW_VIEW_STATE);
+  CU_ASSERT_FATAL (si[0].sample_state == DDS_NOT_READ_SAMPLE_STATE);
+  rc = dds_peek_instance (rd, ptrs, si, 3, 3, ih);
+  CU_ASSERT_FATAL (rc == 1);
+  CU_ASSERT_FATAL (xs[0].long_1 == xs[0].long_2 && xs[0].long_2 == xs[0].long_3);
+  CU_ASSERT_FATAL (xs[0].long_1 == expect);
+  CU_ASSERT_FATAL (si[0].view_state == DDS_NEW_VIEW_STATE);
+  CU_ASSERT_FATAL (si[0].sample_state == DDS_NOT_READ_SAMPLE_STATE);
+  rc = dds_delete (dp);
+  CU_ASSERT_FATAL (rc == 0);
+}
+
+CU_Test (ddsc_peek, instance_mask)
+{
+  dds_entity_t dp, rd;
+  dds_instance_handle_t ih;
+  dds_entity_t rc;
+  ddsc_peek_setup (&dp, &rd, &ih);
+  dds_sample_info_t si[3];
+  Space_Type1 xs[3];
+  void *ptrs[] = { &xs[0], &xs[1], &xs[2] };
+  rc = dds_read_instance (rd, ptrs, si, 1, 1, ih);
+  CU_ASSERT_FATAL (rc == 1 && xs[0].long_1 <= 31);
+  const int32_t expect = xs[0].long_1;
+  rc = dds_peek_instance_mask (rd, ptrs, si, 3, 3, ih, DDS_NOT_READ_SAMPLE_STATE);
+  CU_ASSERT_FATAL (rc == 0);
+  rc = dds_peek_instance_mask (rd, ptrs, si, 3, 3, ih, DDS_READ_SAMPLE_STATE);
+  CU_ASSERT_FATAL (rc == 1);
+  CU_ASSERT_FATAL (xs[0].long_1 == xs[0].long_2 && xs[0].long_2 == xs[0].long_3);
+  CU_ASSERT_FATAL (xs[0].long_1 == expect);
+  CU_ASSERT_FATAL (si[0].view_state == DDS_NOT_NEW_VIEW_STATE);
+  CU_ASSERT_FATAL (si[0].sample_state == DDS_READ_SAMPLE_STATE);
+  rc = dds_delete (dp);
+  CU_ASSERT_FATAL (rc == 0);
+}
+
+CU_Test (ddsc_peek, next)
+{
+  dds_entity_t dp, rd;
+  dds_instance_handle_t ih;
+  dds_entity_t rc;
+  ddsc_peek_setup (&dp, &rd, &ih);
+  dds_sample_info_t si[3];
+  Space_Type1 xs[3];
+  void *ptrs[] = { &xs[0], &xs[1], &xs[2] };
+  // not much of an expectation yet, but at least it should return something
+  // unread even if we try it a couple of times
+  for (int i = 0; i < 4; i++)
+  {
+    rc = dds_peek_next (rd, ptrs, si);
+    CU_ASSERT_FATAL (rc == 1);
+    CU_ASSERT_FATAL (xs[0].long_1 == xs[0].long_2 && xs[0].long_2 == xs[0].long_3);
+    CU_ASSERT_FATAL (si[0].view_state == DDS_NEW_VIEW_STATE);
+    CU_ASSERT_FATAL (si[0].sample_state == DDS_NOT_READ_SAMPLE_STATE);
+  }
+  rc = dds_delete (dp);
+  CU_ASSERT_FATAL (rc == 0);
+}

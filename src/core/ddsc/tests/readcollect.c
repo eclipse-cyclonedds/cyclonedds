@@ -108,8 +108,9 @@ static void dotest (read_op op)
   CU_ASSERT_FATAL (rc == 1);
   CU_ASSERT_FATAL (arg2.k == (1+arg1.k)%3);
   
-  assert (op == dds_read_with_collector || op == dds_take_with_collector);
+  assert (op == dds_peek_with_collector || op == dds_read_with_collector || op == dds_take_with_collector);
   bool isread = (op == dds_read_with_collector);
+  bool isnew = (op == dds_peek_with_collector);
   
   // check that the remainder is as we expect it
   Space_Type1 xs[10];
@@ -117,29 +118,35 @@ static void dotest (read_op op)
   void *ptrs[10];
   for (uint32_t i = 0; i < 10; i++)
     ptrs[i] = &xs[i];
-  rc = dds_take (rd, ptrs, si, 2 + isread, 2 + isread);
+  rc = dds_take (rd, ptrs, si, (size_t) (2 + isread + isnew), (uint32_t) (2 + isread + isnew));
   for (int i = 0; i < rc; i++)
-    printf ("take(1) %"PRId32", %"PRId32"\n", xs[i].long_1, xs[i].long_2);
-  CU_ASSERT_FATAL (rc == 2 + isread);
+    printf ("take(1) %"PRId32", %"PRId32" %c%c\n", xs[i].long_1, xs[i].long_2,
+            (si[i].sample_state == DDS_NOT_READ_SAMPLE_STATE) ? 'f' : 's',
+            (si[i].view_state == DDS_NEW_VIEW_STATE) ? 'n' : 'o');
+  CU_ASSERT_FATAL (rc == (int32_t) (2 + isread + isnew));
   for (int i = 0; i < rc; i++)
   {
     CU_ASSERT_FATAL (xs[i].long_1 == arg1.k);
     CU_ASSERT_FATAL (si[i].sample_state == (i == 0 && isread ? DDS_READ_SAMPLE_STATE : DDS_NOT_READ_SAMPLE_STATE));
-    CU_ASSERT_FATAL (si[i].view_state == DDS_NOT_NEW_VIEW_STATE);
+    CU_ASSERT_FATAL (si[i].view_state == (isnew ? DDS_NEW_VIEW_STATE : DDS_NOT_NEW_VIEW_STATE));
   }
-  rc = dds_take_instance (rd, ptrs, si, 2 + isread, 2 + isread, ih);
+  rc = dds_take_instance (rd, ptrs, si, (size_t) (2 + isread + isnew), (uint32_t) (2 + isread + isnew), ih);
   for (int i = 0; i < rc; i++)
-    printf ("take(2) %"PRId32", %"PRId32"\n", xs[i].long_1, xs[i].long_2);
-  CU_ASSERT_FATAL (rc == 2 + isread);
+    printf ("take(2) %"PRId32", %"PRId32" %c%c\n", xs[i].long_1, xs[i].long_2,
+            (si[i].sample_state == DDS_NOT_READ_SAMPLE_STATE) ? 'f' : 's',
+            (si[i].view_state == DDS_NEW_VIEW_STATE) ? 'n' : 'o');
+  CU_ASSERT_FATAL (rc == (int32_t) (2 + isread + isnew));
   for (int i = 0; i < rc; i++)
   {
     CU_ASSERT_FATAL (xs[i].long_1 == arg2.k);
     CU_ASSERT_FATAL (si[i].sample_state == (i == 0 && isread ? DDS_READ_SAMPLE_STATE : DDS_NOT_READ_SAMPLE_STATE));
-    CU_ASSERT_FATAL (si[i].view_state == DDS_NOT_NEW_VIEW_STATE);
+    CU_ASSERT_FATAL (si[i].view_state == (isnew ? DDS_NEW_VIEW_STATE : DDS_NOT_NEW_VIEW_STATE));
   }
   rc = dds_take (rd, ptrs, si, 10, 10);
   for (int i = 0; i < rc; i++)
-    printf ("take(3) %"PRId32", %"PRId32"\n", xs[i].long_1, xs[i].long_2);
+    printf ("take(3) %"PRId32", %"PRId32" %c%c\n", xs[i].long_1, xs[i].long_2,
+            (si[i].sample_state == DDS_NOT_READ_SAMPLE_STATE) ? 'f' : 's',
+            (si[i].view_state == DDS_NEW_VIEW_STATE) ? 'n' : 'o');
   CU_ASSERT_FATAL (rc == 3);
   for (int i = 0; i < rc; i++)
   {
@@ -150,6 +157,11 @@ static void dotest (read_op op)
 
   rc = dds_delete (dp);
   CU_ASSERT_FATAL (rc == 0);
+}
+
+CU_Test(ddsc_read_with_collector, peek)
+{
+  dotest (dds_peek_with_collector);
 }
 
 CU_Test(ddsc_read_with_collector, read)
