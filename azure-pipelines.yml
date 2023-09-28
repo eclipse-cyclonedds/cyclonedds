@@ -67,23 +67,23 @@ jobs:
         cc: gcc-10
         testing: off
         idlc_xtests: off
-      'Ubuntu 22.04 LTS with Clang 12 (Debug, x86_64)':
+      'Ubuntu 22.04 LTS with Clang 13 (Debug, x86_64)':
         image: ubuntu-22.04
         analyzer: on
         sanitizer: address,undefined
-        cc: clang-12
-      'Ubuntu 22.04 LTS with Clang 12 (Debug, x86_64, no security)':
+        cc: clang-13
+      'Ubuntu 22.04 LTS with Clang 13 (Debug, x86_64, no security)':
         image: ubuntu-22.04
         sanitizer: address,undefined
         security: off
-        cc: clang-12
-      'Ubuntu 22.04 LTS with Clang 12 (Release, x86_64, no topic discovery)':
+        cc: clang-13
+      'Ubuntu 22.04 LTS with Clang 13 (Release, x86_64, no topic discovery)':
         image: ubuntu-22.04
         build_type: Release
         sanitizer: undefined
         topic_discovery: off
         idlc_xtests: off # temporary disabled because of passing -t option to idlc in this test for recursive types
-        cc: clang-12
+        cc: clang-13
       'macOS 11 with Clang 12 (Debug, x86_64)':
         image: macOS-11
         sanitizer: address,undefined
@@ -174,9 +174,9 @@ jobs:
     vmImage: $(image)
   strategy:
     matrix:
-      'Test and fuzzing (Ubuntu 22.04 LTS, Clang 12, Debug)':
+      'Test and fuzzing (Ubuntu 22.04 LTS, Clang 13, Debug)':
         image: ubuntu-22.04
-        cc: clang-12
+        cc: clang-13
         build_type: Debug
   steps:
     - template: /.azure/templates/python-binding.yml
@@ -187,9 +187,9 @@ jobs:
     vmImage: $(image)
   strategy:
     matrix:
-      'Build and test (Ubuntu 22.04 LTS, Clang 12, Debug)':
+      'Build and test (Ubuntu 22.04 LTS, Clang 13, Debug)':
         image: ubuntu-22.04
-        cc: clang-12
+        cc: clang-13
         build_type: Debug
   steps:
     - template: /.azure/templates/cxx-binding.yml
