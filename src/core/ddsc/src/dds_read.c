@@ -143,7 +143,13 @@ static dds_return_t dds_read_impl_setup (dds_entity_t reader_or_condition, bool 
   return DDS_RETCODE_OK;
 }
 
-static dds_return_t dds_read_impl_common (bool take, struct dds_reader *rd, struct dds_readcond *cond, uint32_t maxs, uint32_t mask, dds_instance_handle_t hand, dds_read_with_collector_fn_t collect_sample, void *collect_sample_arg)
+enum dds_read_impl_common_oper {
+  READ_OPER_PEEK,
+  READ_OPER_READ,
+  READ_OPER_TAKE
+};
+
+static dds_return_t dds_read_impl_common (enum dds_read_impl_common_oper oper, struct dds_reader *rd, struct dds_readcond *cond, uint32_t maxs, uint32_t mask, dds_instance_handle_t hand, dds_read_with_collector_fn_t collect_sample, void *collect_sample_arg)
 {
   /* read/take resets data available status -- must reset before reading because
      the actual writing is protected by RHC lock, not by rd->m_entity.m_lock */
@@ -152,16 +158,24 @@ static dds_return_t dds_read_impl_common (bool take, struct dds_reader *rd, stru
   if (sm_old & (DDS_DATA_ON_READERS_STATUS << SAM_ENABLED_SHIFT))
     dds_entity_status_reset (rd->m_entity.m_parent, DDS_DATA_ON_READERS_STATUS);
 
-  dds_return_t ret;
+  dds_return_t ret = DDS_RETCODE_ERROR;
   assert (maxs <= INT32_MAX);
-  if (take)
-    ret = dds_rhc_take (rd->m_rhc, (int32_t) maxs, mask, hand, cond, collect_sample, collect_sample_arg);
-  else
-    ret = dds_rhc_read (rd->m_rhc, (int32_t) maxs, mask, hand, cond, collect_sample, collect_sample_arg);
+  switch (oper)
+  {
+    case READ_OPER_PEEK:
+      ret = dds_rhc_peek (rd->m_rhc, (int32_t) maxs, mask, hand, cond, collect_sample, collect_sample_arg);
+      break;
+    case READ_OPER_READ:
+      ret = dds_rhc_read (rd->m_rhc, (int32_t) maxs, mask, hand, cond, collect_sample, collect_sample_arg);
+      break;
+    case READ_OPER_TAKE:
+      ret = dds_rhc_take (rd->m_rhc, (int32_t) maxs, mask, hand, cond, collect_sample, collect_sample_arg);
+      break;
+  }
   return ret;
 }
 
-static dds_return_t dds_read_with_collector_impl (bool take, dds_entity_t reader_or_condition, uint32_t maxs, uint32_t mask, dds_instance_handle_t hand, bool only_reader, dds_read_with_collector_fn_t collect_sample, void *collect_sample_arg)
+static dds_return_t dds_read_with_collector_impl (enum dds_read_impl_common_oper oper, dds_entity_t reader_or_condition, uint32_t maxs, uint32_t mask, dds_instance_handle_t hand, bool only_reader, dds_read_with_collector_fn_t collect_sample, void *collect_sample_arg)
 {
   dds_return_t ret;
   struct dds_entity *entity;
@@ -176,27 +190,27 @@ static dds_return_t dds_read_with_collector_impl (bool take, dds_entity_t reader
 
   struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
   ddsi_thread_state_awake (thrst, &entity->m_domain->gv);
-  ret = dds_read_impl_common (take, rd, cond, maxs, mask, hand, collect_sample, collect_sample_arg);
+  ret = dds_read_impl_common (oper, rd, cond, maxs, mask, hand, collect_sample, collect_sample_arg);
   ddsi_thread_state_asleep (thrst);
   dds_entity_unpin (entity);
   return ret;
 }
 
-static dds_return_t dds_readcdr_impl (bool take, dds_entity_t reader_or_condition, struct ddsi_serdata **buf, uint32_t maxs, dds_sample_info_t *si, uint32_t mask, dds_instance_handle_t hand)
+static dds_return_t dds_readcdr_impl (enum dds_read_impl_common_oper oper, dds_entity_t reader_or_condition, struct ddsi_serdata **buf, uint32_t maxs, dds_sample_info_t *si, uint32_t mask, dds_instance_handle_t hand)
 {
   if (buf == NULL || si == NULL)
     return DDS_RETCODE_BAD_PARAMETER;
   struct dds_read_collect_sample_arg collect_arg;
   DDSRT_STATIC_ASSERT (sizeof (struct ddsi_serdata *) == sizeof (void *));
   dds_read_collect_sample_arg_init (&collect_arg, (void **) buf, si, NULL, NULL);
-  const dds_return_t ret = dds_read_with_collector_impl (take, reader_or_condition, maxs, mask, hand, true, dds_read_collect_sample_refs, &collect_arg);
+  const dds_return_t ret = dds_read_with_collector_impl (oper, reader_or_condition, maxs, mask, hand, true, dds_read_collect_sample_refs, &collect_arg);
   return ret;
 }
 
 static dds_return_t return_reader_loan_locked (dds_reader *rd, void **buf, int32_t bufsz)
   ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
 
-static dds_return_t dds_read_impl (bool take, dds_entity_t reader_or_condition, void **buf, size_t bufsz, uint32_t maxs, dds_sample_info_t *si, uint32_t mask, dds_instance_handle_t hand, bool only_reader)
+static dds_return_t dds_read_impl (enum dds_read_impl_common_oper oper, dds_entity_t reader_or_condition, void **buf, size_t bufsz, uint32_t maxs, dds_sample_info_t *si, uint32_t mask, dds_instance_handle_t hand, bool only_reader)
 {
   if (buf == NULL || si == NULL || maxs == 0 || bufsz == 0 || bufsz < maxs || maxs > INT32_MAX)
     return DDS_RETCODE_BAD_PARAMETER;
@@ -231,7 +245,7 @@ static dds_return_t dds_read_impl (bool take, dds_entity_t reader_or_condition, 
   dds_read_collect_sample_arg_init (&collect_arg, buf, si, rd->m_loans, rd->m_heap_loan_cache);
   const bool use_loan = (buf[0] == NULL);
   const dds_read_with_collector_fn_t collect_sample = use_loan ? dds_read_collect_sample_loan : dds_read_collect_sample;
-  ret = dds_read_impl_common (take, rd, cond, maxs, mask, hand, collect_sample, &collect_arg);
+  ret = dds_read_impl_common (oper, rd, cond, maxs, mask, hand, collect_sample, &collect_arg);
 
   // If use_loan, make sure the `buf` is either fully initialized or ends on a null pointer
   // so the various paths returning loans know when to stop.  (If no data returned and using
@@ -254,9 +268,39 @@ err_return_reader_loan_locked:
   return ret;
 }
 
+dds_return_t dds_peek (dds_entity_t reader_or_condition, void **buf, dds_sample_info_t *si, size_t bufsz, uint32_t maxs)
+{
+  return dds_read_impl (READ_OPER_PEEK, reader_or_condition, buf, bufsz, maxs, si, 0, DDS_HANDLE_NIL, false);
+}
+
+dds_return_t dds_peek_mask (dds_entity_t reader_or_condition, void **buf, dds_sample_info_t *si, size_t bufsz, uint32_t maxs, uint32_t mask)
+{
+  return dds_read_impl (READ_OPER_PEEK, reader_or_condition, buf, bufsz, maxs, si, mask, DDS_HANDLE_NIL, false);
+}
+
+dds_return_t dds_peek_instance (dds_entity_t reader_or_condition, void **buf, dds_sample_info_t *si, size_t bufsz, uint32_t maxs, dds_instance_handle_t handle)
+{
+  if (handle == DDS_HANDLE_NIL)
+    return DDS_RETCODE_PRECONDITION_NOT_MET;
+  return dds_read_impl (READ_OPER_PEEK, reader_or_condition, buf, bufsz, maxs, si, 0, handle, false);
+}
+
+dds_return_t dds_peek_instance_mask (dds_entity_t reader_or_condition, void **buf, dds_sample_info_t *si, size_t bufsz, uint32_t maxs, dds_instance_handle_t handle, uint32_t mask)
+{
+  if (handle == DDS_HANDLE_NIL)
+    return DDS_RETCODE_PRECONDITION_NOT_MET;
+  return dds_read_impl (READ_OPER_PEEK, reader_or_condition, buf, bufsz, maxs, si, mask, handle, false);
+}
+
+dds_return_t dds_peek_next (dds_entity_t reader, void **buf, dds_sample_info_t *si)
+{
+  uint32_t mask = DDS_NOT_READ_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
+  return dds_read_impl (READ_OPER_PEEK, reader, buf, 1u, 1u, si, mask, DDS_HANDLE_NIL, true);
+}
+
 dds_return_t dds_read (dds_entity_t reader_or_condition, void **buf, dds_sample_info_t *si, size_t bufsz, uint32_t maxs)
 {
-  return dds_read_impl (false, reader_or_condition, buf, bufsz, maxs, si, 0, DDS_HANDLE_NIL, false);
+  return dds_read_impl (READ_OPER_READ, reader_or_condition, buf, bufsz, maxs, si, 0, DDS_HANDLE_NIL, false);
 }
 
 dds_return_t dds_read_wl (dds_entity_t reader_or_condition, void **buf, dds_sample_info_t *si, uint32_t maxs)
@@ -266,7 +310,7 @@ dds_return_t dds_read_wl (dds_entity_t reader_or_condition, void **buf, dds_samp
 
 dds_return_t dds_read_mask (dds_entity_t reader_or_condition, void **buf, dds_sample_info_t *si, size_t bufsz, uint32_t maxs, uint32_t mask)
 {
-  return dds_read_impl (false, reader_or_condition, buf, bufsz, maxs, si, mask, DDS_HANDLE_NIL, false);
+  return dds_read_impl (READ_OPER_READ, reader_or_condition, buf, bufsz, maxs, si, mask, DDS_HANDLE_NIL, false);
 }
 
 dds_return_t dds_read_mask_wl (dds_entity_t reader_or_condition, void **buf, dds_sample_info_t *si, uint32_t maxs, uint32_t mask)
@@ -278,7 +322,7 @@ dds_return_t dds_read_instance (dds_entity_t reader_or_condition, void **buf, dd
 {
   if (handle == DDS_HANDLE_NIL)
     return DDS_RETCODE_PRECONDITION_NOT_MET;
-  return dds_read_impl (false, reader_or_condition, buf, bufsz, maxs, si, 0, handle, false);
+  return dds_read_impl (READ_OPER_READ, reader_or_condition, buf, bufsz, maxs, si, 0, handle, false);
 }
 
 dds_return_t dds_read_instance_wl (dds_entity_t reader_or_condition, void **buf, dds_sample_info_t *si, uint32_t maxs, dds_instance_handle_t handle)
@@ -290,7 +334,7 @@ dds_return_t dds_read_instance_mask (dds_entity_t reader_or_condition, void **bu
 {
   if (handle == DDS_HANDLE_NIL)
     return DDS_RETCODE_PRECONDITION_NOT_MET;
-  return dds_read_impl (false, reader_or_condition, buf, bufsz, maxs, si, mask, handle, false);
+  return dds_read_impl (READ_OPER_READ, reader_or_condition, buf, bufsz, maxs, si, mask, handle, false);
 }
 
 dds_return_t dds_read_instance_mask_wl (dds_entity_t reader_or_condition, void **buf, dds_sample_info_t *si, uint32_t maxs, dds_instance_handle_t handle, uint32_t mask)
@@ -301,7 +345,7 @@ dds_return_t dds_read_instance_mask_wl (dds_entity_t reader_or_condition, void *
 dds_return_t dds_read_next (dds_entity_t reader, void **buf, dds_sample_info_t *si)
 {
   uint32_t mask = DDS_NOT_READ_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
-  return dds_read_impl (false, reader, buf, 1u, 1u, si, mask, DDS_HANDLE_NIL, true);
+  return dds_read_impl (READ_OPER_READ, reader, buf, 1u, 1u, si, mask, DDS_HANDLE_NIL, true);
 }
 
 dds_return_t dds_read_next_wl (dds_entity_t reader, void **buf, dds_sample_info_t *si)
@@ -311,7 +355,7 @@ dds_return_t dds_read_next_wl (dds_entity_t reader, void **buf, dds_sample_info_
 
 dds_return_t dds_take (dds_entity_t reader_or_condition, void **buf, dds_sample_info_t *si, size_t bufsz, uint32_t maxs)
 {
-  return dds_read_impl (true, reader_or_condition, buf, bufsz, maxs, si, 0, DDS_HANDLE_NIL, false);
+  return dds_read_impl (READ_OPER_TAKE, reader_or_condition, buf, bufsz, maxs, si, 0, DDS_HANDLE_NIL, false);
 }
 
 dds_return_t dds_take_wl (dds_entity_t reader_or_condition, void **buf, dds_sample_info_t *si, uint32_t maxs)
@@ -321,7 +365,7 @@ dds_return_t dds_take_wl (dds_entity_t reader_or_condition, void **buf, dds_samp
 
 dds_return_t dds_take_mask (dds_entity_t reader_or_condition, void **buf, dds_sample_info_t *si, size_t bufsz, uint32_t maxs, uint32_t mask)
 {
-  return dds_read_impl (true, reader_or_condition, buf, bufsz, maxs, si, mask, DDS_HANDLE_NIL, false);
+  return dds_read_impl (READ_OPER_TAKE, reader_or_condition, buf, bufsz, maxs, si, mask, DDS_HANDLE_NIL, false);
 }
 
 dds_return_t dds_take_mask_wl (dds_entity_t reader_or_condition, void **buf, dds_sample_info_t *si, uint32_t maxs, uint32_t mask)
@@ -333,7 +377,7 @@ dds_return_t dds_take_instance (dds_entity_t reader_or_condition, void **buf, dd
 {
   if (handle == DDS_HANDLE_NIL)
     return DDS_RETCODE_PRECONDITION_NOT_MET;
-  return dds_read_impl (true, reader_or_condition, buf, bufsz, maxs, si, 0, handle, false);
+  return dds_read_impl (READ_OPER_TAKE, reader_or_condition, buf, bufsz, maxs, si, 0, handle, false);
 }
 
 dds_return_t dds_take_instance_wl (dds_entity_t reader_or_condition, void **buf, dds_sample_info_t *si, uint32_t maxs, dds_instance_handle_t handle)
@@ -345,7 +389,7 @@ dds_return_t dds_take_instance_mask (dds_entity_t reader_or_condition, void **bu
 {
   if (handle == DDS_HANDLE_NIL)
     return DDS_RETCODE_PRECONDITION_NOT_MET;
-  return dds_read_impl (true, reader_or_condition, buf, bufsz, maxs, si, mask, handle, false);
+  return dds_read_impl (READ_OPER_TAKE, reader_or_condition, buf, bufsz, maxs, si, mask, handle, false);
 }
 
 dds_return_t dds_take_instance_mask_wl (dds_entity_t reader_or_condition, void **buf, dds_sample_info_t *si, uint32_t maxs, dds_instance_handle_t handle, uint32_t mask)
@@ -356,7 +400,7 @@ dds_return_t dds_take_instance_mask_wl (dds_entity_t reader_or_condition, void *
 dds_return_t dds_take_next (dds_entity_t reader, void **buf, dds_sample_info_t *si)
 {
   uint32_t mask = DDS_NOT_READ_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE;
-  return dds_read_impl (true, reader, buf, 1u, 1u, si, mask, DDS_HANDLE_NIL, true);
+  return dds_read_impl (READ_OPER_TAKE, reader, buf, 1u, 1u, si, mask, DDS_HANDLE_NIL, true);
 }
 
 dds_return_t dds_take_next_wl (dds_entity_t reader, void **buf, dds_sample_info_t *si)
@@ -364,38 +408,55 @@ dds_return_t dds_take_next_wl (dds_entity_t reader, void **buf, dds_sample_info_
   return dds_take_next (reader, buf, si);
 }
 
+dds_return_t dds_peekcdr (dds_entity_t reader_or_condition, struct ddsi_serdata **buf, uint32_t maxs, dds_sample_info_t *si, uint32_t mask)
+{
+  return dds_readcdr_impl (READ_OPER_PEEK, reader_or_condition, buf, maxs, si, mask, DDS_HANDLE_NIL);
+}
+
+dds_return_t dds_peekcdr_instance (dds_entity_t reader_or_condition, struct ddsi_serdata **buf, uint32_t maxs, dds_sample_info_t *si, dds_instance_handle_t handle, uint32_t mask)
+{
+  if (handle == DDS_HANDLE_NIL)
+    return DDS_RETCODE_PRECONDITION_NOT_MET;
+  return dds_readcdr_impl (READ_OPER_PEEK, reader_or_condition, buf, maxs, si, mask, handle);
+}
+
 dds_return_t dds_readcdr (dds_entity_t reader_or_condition, struct ddsi_serdata **buf, uint32_t maxs, dds_sample_info_t *si, uint32_t mask)
 {
-  return dds_readcdr_impl (false, reader_or_condition, buf, maxs, si, mask, DDS_HANDLE_NIL);
+  return dds_readcdr_impl (READ_OPER_READ, reader_or_condition, buf, maxs, si, mask, DDS_HANDLE_NIL);
 }
 
 dds_return_t dds_readcdr_instance (dds_entity_t reader_or_condition, struct ddsi_serdata **buf, uint32_t maxs, dds_sample_info_t *si, dds_instance_handle_t handle, uint32_t mask)
 {
   if (handle == DDS_HANDLE_NIL)
     return DDS_RETCODE_PRECONDITION_NOT_MET;
-  return dds_readcdr_impl(false, reader_or_condition, buf, maxs, si, mask, handle);
+  return dds_readcdr_impl (READ_OPER_READ, reader_or_condition, buf, maxs, si, mask, handle);
 }
 
 dds_return_t dds_takecdr (dds_entity_t reader_or_condition, struct ddsi_serdata **buf, uint32_t maxs, dds_sample_info_t *si, uint32_t mask)
 {
-  return dds_readcdr_impl (true, reader_or_condition, buf, maxs, si, mask, DDS_HANDLE_NIL);
+  return dds_readcdr_impl (READ_OPER_TAKE, reader_or_condition, buf, maxs, si, mask, DDS_HANDLE_NIL);
 }
 
 dds_return_t dds_takecdr_instance (dds_entity_t reader_or_condition, struct ddsi_serdata **buf, uint32_t maxs, dds_sample_info_t *si, dds_instance_handle_t handle, uint32_t mask)
 {
   if (handle == DDS_HANDLE_NIL)
     return DDS_RETCODE_PRECONDITION_NOT_MET;
-  return dds_readcdr_impl (true, reader_or_condition, buf, maxs, si, mask, handle);
+  return dds_readcdr_impl (READ_OPER_TAKE, reader_or_condition, buf, maxs, si, mask, handle);
+}
+
+dds_return_t dds_peek_with_collector (dds_entity_t reader_or_condition, uint32_t maxs, dds_instance_handle_t handle, uint32_t mask, dds_read_with_collector_fn_t collect_sample, void *collect_sample_arg)
+{
+  return dds_read_with_collector_impl (READ_OPER_PEEK, reader_or_condition, maxs, mask, handle, false, collect_sample, collect_sample_arg);
 }
 
 dds_return_t dds_read_with_collector (dds_entity_t reader_or_condition, uint32_t maxs, dds_instance_handle_t handle, uint32_t mask, dds_read_with_collector_fn_t collect_sample, void *collect_sample_arg)
 {
-  return dds_read_with_collector_impl (false, reader_or_condition, maxs, mask, handle, false, collect_sample, collect_sample_arg);
+  return dds_read_with_collector_impl (READ_OPER_READ, reader_or_condition, maxs, mask, handle, false, collect_sample, collect_sample_arg);
 }
 
 dds_return_t dds_take_with_collector (dds_entity_t reader_or_condition, uint32_t maxs, dds_instance_handle_t handle, uint32_t mask, dds_read_with_collector_fn_t collect_sample, void *collect_sample_arg)
 {
-  return dds_read_with_collector_impl (true, reader_or_condition, maxs, mask, handle, false, collect_sample, collect_sample_arg);
+  return dds_read_with_collector_impl (READ_OPER_TAKE, reader_or_condition, maxs, mask, handle, false, collect_sample, collect_sample_arg);
 }
 
 static void return_reader_loan_locked_onesample (dds_reader *rd, dds_loaned_sample_t *loan, bool reset)

@@ -2102,7 +2102,7 @@ static void readtake_w_qminv_inst_get_rank_info (const struct readtake_w_qminv_i
   }
 }
 
-static int32_t read_w_qminv_inst_validsamples (const struct readtake_w_qminv_inst_state * __restrict state, struct rhc_instance * const __restrict inst, struct trigger_info_pre *pre, struct trigger_info_post *post, struct trigger_info_qcond *trig_qc)
+static int32_t read_w_qminv_inst_validsamples (const struct readtake_w_qminv_inst_state * __restrict state, bool mark_as_read, struct rhc_instance * const __restrict inst, struct trigger_info_pre *pre, struct trigger_info_post *post, struct trigger_info_qcond *trig_qc)
 {
   assert (*state->limit > 0);
   assert (inst->latest && (qmask_of_inst (inst) & state->qminv) == 0);
@@ -2140,7 +2140,7 @@ static int32_t read_w_qminv_inst_validsamples (const struct readtake_w_qminv_ins
         // the presence of a problem (if it persists)
         return rc;
       }
-      if (!sample->isread)
+      if (mark_as_read && !sample->isread)
       {
         read_sample_update_conditions (state->rhc, pre, post, trig_qc, inst, sample->conds, false);
         sample->isread = true;
@@ -2210,7 +2210,7 @@ static int32_t take_w_qminv_inst_validsamples (const struct readtake_w_qminv_ins
   return DDS_RETCODE_OK;
 }
 
-static int32_t read_w_qminv_inst (const struct readtake_w_qminv_inst_state * __restrict state, struct rhc_instance * const __restrict inst)
+static int32_t read_w_qminv_inst (const struct readtake_w_qminv_inst_state * __restrict state, bool mark_as_read, struct rhc_instance * const __restrict inst)
 {
   const int32_t initial_limit = *state->limit;
   assert (*state->limit > 0);
@@ -2229,7 +2229,7 @@ static int32_t read_w_qminv_inst (const struct readtake_w_qminv_inst_state * __r
   init_trigger_info_qcond (&trig_qc);
 
   /* valid samples come first */
-  if (inst->latest && (rc = read_w_qminv_inst_validsamples (state, inst, &pre, &post, &trig_qc)) < 0)
+  if (inst->latest && (rc = read_w_qminv_inst_validsamples (state, mark_as_read, inst, &pre, &post, &trig_qc)) < 0)
     goto abort_on_error;
 
   /* add an invalid sample if it exists, matches and there is room in the result */
@@ -2242,7 +2242,7 @@ static int32_t read_w_qminv_inst (const struct readtake_w_qminv_inst_state * __r
     make_sample_info_invsample (&si, inst);
     if ((rc = state->collect_sample (state->collect_sample_arg, &si, state->rhc->type, inst->tk->m_sample)) < 0)
       goto abort_on_error;
-    if (!inst->inv_isread)
+    if (mark_as_read && !inst->inv_isread)
     {
       read_sample_update_conditions (state->rhc, &pre, &post, &trig_qc, inst, inst->conds, false);
       inst->inv_isread = 1;
@@ -2253,7 +2253,7 @@ static int32_t read_w_qminv_inst (const struct readtake_w_qminv_inst_state * __r
 
 abort_on_error: ;
   bool inst_became_old = false;
-  if (*state->limit < initial_limit && inst->isnew)
+  if (mark_as_read && *state->limit < initial_limit && inst->isnew)
   {
     inst_became_old = true;
     inst->isnew = 0;
@@ -2329,7 +2329,7 @@ abort_on_error: ;
   return rc;
 }
 
-static dds_return_t read_w_qminv (const struct readtake_w_qminv_inst_state * __restrict state, dds_instance_handle_t handle)
+static dds_return_t read_w_qminv (const struct readtake_w_qminv_inst_state * __restrict state, bool mark_as_read, dds_instance_handle_t handle)
 {
   struct dds_rhc_default * const rhc = state->rhc;
   dds_return_t rc = DDS_RETCODE_OK;
@@ -2345,7 +2345,7 @@ static dds_return_t read_w_qminv (const struct readtake_w_qminv_inst_state * __r
     struct rhc_instance template, *inst;
     template.iid = handle;
     if ((inst = ddsrt_hh_lookup (rhc->instances, &template)) != NULL)
-      rc = read_w_qminv_inst (state, inst);
+      rc = read_w_qminv_inst (state, mark_as_read, inst);
     else
       rc = DDS_RETCODE_PRECONDITION_NOT_MET;
   }
@@ -2354,7 +2354,7 @@ static dds_return_t read_w_qminv (const struct readtake_w_qminv_inst_state * __r
     struct rhc_instance * inst = oldest_nonempty_instance (rhc);
     struct rhc_instance * const end = inst;
     do {
-      rc = read_w_qminv_inst (state, inst);
+      rc = read_w_qminv_inst (state, mark_as_read, inst);
       inst = next_nonempty_instance (inst);
     } while (rc >= 0 && inst != end && *state->limit > 0);
   }
@@ -2782,36 +2782,45 @@ static bool update_conditions_locked (struct dds_rhc_default *rhc, bool called_f
  ******  READ/TAKE  ******
  *************************/
 
-static int32_t dds_rhc_default_read (struct dds_rhc *rhc_common, int32_t max_samples, uint32_t mask, dds_instance_handle_t handle, dds_readcond *cond, dds_read_with_collector_fn_t collect_sample, void *collect_sample_arg)
+static struct readtake_w_qminv_inst_state make_readtake_w_qminv_inst_state (struct dds_rhc_default *rhc, int32_t *limit, uint32_t mask, dds_readcond *cond, dds_read_with_collector_fn_t collect_sample, void *collect_sample_arg)
 {
-  struct dds_rhc_default * const rhc = (struct dds_rhc_default *) rhc_common;
-  uint32_t qminv = qmask_from_mask_n_cond (mask, cond);
-  int32_t limit = max_samples;
-  const struct readtake_w_qminv_inst_state readtake_w_qminv_inst_state = {
+  const struct readtake_w_qminv_inst_state st = {
     .rhc = rhc,
-    .limit = &limit,
-    .qminv = qminv,
+    .limit = limit,
+    .qminv = qmask_from_mask_n_cond (mask, cond),
     .qcmask = (cond && cond->m_query.m_filter) ? cond->m_query.m_qcmask : 0,
     .collect_sample = collect_sample,
     .collect_sample_arg = collect_sample_arg
   };
-  dds_return_t rc = read_w_qminv (&readtake_w_qminv_inst_state, handle);
+  return st;
+}
+
+static int32_t dds_rhc_default_peek (struct dds_rhc *rhc_common, int32_t max_samples, uint32_t mask, dds_instance_handle_t handle, dds_readcond *cond, dds_read_with_collector_fn_t collect_sample, void *collect_sample_arg)
+{
+  struct dds_rhc_default * const rhc = (struct dds_rhc_default *) rhc_common;
+  int32_t limit = max_samples;
+  const struct readtake_w_qminv_inst_state readtake_w_qminv_inst_state =
+    make_readtake_w_qminv_inst_state (rhc, &limit, mask, cond, collect_sample, collect_sample_arg);
+  dds_return_t rc = read_w_qminv (&readtake_w_qminv_inst_state, false, handle);
+  return (rc < 0 && limit == max_samples) ? rc : (max_samples - limit);
+}
+
+static int32_t dds_rhc_default_read (struct dds_rhc *rhc_common, int32_t max_samples, uint32_t mask, dds_instance_handle_t handle, dds_readcond *cond, dds_read_with_collector_fn_t collect_sample, void *collect_sample_arg)
+{
+  struct dds_rhc_default * const rhc = (struct dds_rhc_default *) rhc_common;
+  int32_t limit = max_samples;
+  const struct readtake_w_qminv_inst_state readtake_w_qminv_inst_state =
+    make_readtake_w_qminv_inst_state (rhc, &limit, mask, cond, collect_sample, collect_sample_arg);
+  dds_return_t rc = read_w_qminv (&readtake_w_qminv_inst_state, true, handle);
   return (rc < 0 && limit == max_samples) ? rc : (max_samples - limit);
 }
 
 static int32_t dds_rhc_default_take (struct dds_rhc *rhc_common, int32_t max_samples, uint32_t mask, dds_instance_handle_t handle, dds_readcond *cond, dds_read_with_collector_fn_t collect_sample, void *collect_sample_arg)
 {
   struct dds_rhc_default * const rhc = (struct dds_rhc_default *) rhc_common;
-  uint32_t qminv = qmask_from_mask_n_cond(mask, cond);
   int32_t limit = max_samples;
-  const struct readtake_w_qminv_inst_state readtake_w_qminv_inst_state = {
-    .rhc = rhc,
-    .limit = &limit,
-    .qminv = qminv,
-    .qcmask = (cond && cond->m_query.m_filter) ? cond->m_query.m_qcmask : 0,
-    .collect_sample = collect_sample,
-    .collect_sample_arg = collect_sample_arg
-  };
+  const struct readtake_w_qminv_inst_state readtake_w_qminv_inst_state =
+    make_readtake_w_qminv_inst_state (rhc, &limit, mask, cond, collect_sample, collect_sample_arg);
   dds_return_t rc = take_w_qminv (&readtake_w_qminv_inst_state, handle);
   return (rc < 0 && limit == max_samples) ? rc : (max_samples - limit);
 }
@@ -2998,6 +3007,7 @@ static const struct dds_rhc_ops dds_rhc_default_ops = {
     .set_qos = dds_rhc_default_set_qos,
     .free = dds_rhc_default_free
   },
+  .peek = dds_rhc_default_peek,
   .read = dds_rhc_default_read,
   .take = dds_rhc_default_take,
   .add_readcondition = dds_rhc_default_add_readcondition,

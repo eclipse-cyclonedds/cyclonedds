@@ -39,6 +39,7 @@ struct dds_rhc_ops {
   /* A copy of DDSI rhc ops comes first so we can use either interface without
      additional indirections */
   struct ddsi_rhc_ops rhc_ops;
+  dds_rhc_read_take_t peek;
   dds_rhc_read_take_t read;
   dds_rhc_read_take_t take;
   dds_rhc_add_readcondition_t add_readcondition;
@@ -84,6 +85,11 @@ DDS_INLINE_EXPORT inline void dds_rhc_set_qos (struct dds_rhc *rhc, const struct
 /** @component rhc */
 DDS_INLINE_EXPORT inline void dds_rhc_free (struct dds_rhc *rhc) {
   rhc->common.ops->rhc_ops.free (&rhc->common.rhc);
+}
+
+/** @component rhc */
+DDS_INLINE_EXPORT inline int32_t dds_rhc_peek (struct dds_rhc *rhc, int32_t max_samples, uint32_t mask, dds_instance_handle_t handle, struct dds_readcond *cond, dds_read_with_collector_fn_t collect_sample, void *collect_sample_arg) {
+  return (rhc->common.ops->peek) (rhc, max_samples, mask, handle, cond, collect_sample, collect_sample_arg);
 }
 
 /** @component rhc */
