@@ -4266,34 +4266,33 @@ dds_take_with_collector (
 #define DDS_HAS_READCDR 1
 
 /**
- * @brief Access the collection of serialized data values (of same type) and
- *        sample info from the data reader, readcondition or querycondition
- *        without updating state.
+ * @brief Get references to a representation of the samples in a reader history cache and their accompanying sample infodata values (of same type) without updating state
  * @ingroup reading
  * @component read_data
  *
- * This call accesses the serialized data from the data reader, readcondition or
- * querycondition and makes it available to the application. The serialized data
- * is made available through @ref ddsi_serdata structures. Returned samples are
- * marked not marked as READ.
+ * This operation returns references to the internal representation of samples (`struct ddsi_serdata`), which can
+ * then be used in a variety of ways. Examples are converting it to application representation and obtaining a copy or a
+ * reference of the serialized representation. If the underlying implementation (`struct ddsi_sertype`) is known to
+ * the application, other options may exist as well.
+ *
+ * The data is left in the reader history cache and the sample state and view state of the returned samples and their
+ * instances are not updated; @ref `dds_readcdr` updates these states; @ref `dds_takecdr` removes the data
+ * from the history cache.
+ *
+ * The returned references must eventually be released by calling @ref `ddsi_serdata_unref`. There is no guarantee
+ * the type pointer survives beyond the existence of the reader from which the references were read.
  *
  * When using a readcondition or querycondition, their masks are or'd with the given mask.
  *
  * If the sample/view/instance state component in the mask is 0 and there is no read or query condition,
  * to combine it with, it is treated as equivalent to any sample/view/instance state.
  *
- * Return value provides information about the number of samples read, which will
- * be <= maxs. Based on the count, the buffer will contain serialized data to be
- * read only when valid_data bit in sample info structure is set.
- * The buffer required for data values, could be allocated explicitly or can
- * use the memory from data reader to prevent copy. In the latter case, buffer and
- * sample_info should be returned back, once it is no longer using the data.
+ * Note that this is a simple wrapper around @ref `dds_peek_with_collector`.
  *
  * @param[in]  reader_or_condition Reader, readcondition or querycondition entity.
- * @param[out] buf An array of pointers to @ref ddsi_serdata structures that contain
- *                 the serialized data. The pointers can be NULL.
+ * @param[out] buf Filled with references @ref ddsi_serdata structures.
  * @param[in]  maxs Maximum number of samples to read.
- * @param[out] si Pointer to an array of @ref dds_sample_info_t returned for each data value.
+ * @param[out] si Filled with sample info.
  * @param[in]  mask Filter the data based on dds_sample_state_t|dds_view_state_t|dds_instance_state_t.
  *
  * @returns A dds_return_t with the number of samples read or an error code.
@@ -4320,34 +4319,34 @@ dds_peekcdr(
   uint32_t mask);
 
 /**
- * @brief Access the collection of serialized data values (of same type) and
- *        sample info from the data reader, readcondition or querycondition
- *        scoped by the provided instance handle without updating state.
+ * @brief Get references to a representation of the samples of a specific instance in a reader history cache and their accompanying sample infodata values (of same type) without updating state
  * @ingroup reading
  * @component read_data
  *
- * This operation implements the same functionality as dds_read_instance_wl, except that
- * samples are now in their serialized form. The serialized data is made available through
- * @ref ddsi_serdata structures. Returned samples are not marked as READ.
+ * This operation returns references to the internal representation of samples (`struct ddsi_serdata`), which can
+ * then be used in a variety of ways. Examples are converting it to application representation and obtaining a copy or a
+ * reference of the serialized representation. If the underlying implementation (`struct ddsi_sertype`) is known to
+ * the application, other options may exist as well.
+ *
+ * The data is left in the reader history cache and the sample state and view state of the returned samples and their
+ * instances are not updated; @ref `dds_readcdr` updates these states; @ref `dds_takecdr` removes the data
+ * from the history cache.
+ *
+ * The returned references must eventually be released by calling @ref `ddsi_serdata_unref`. There is no guarantee
+ * the type pointer survives beyond the existence of the reader from which the references were read.
  *
  * When using a readcondition or querycondition, their masks are or'd with the given mask.
  *
  * If the sample/view/instance state component in the mask is 0 and there is no read or query condition,
  * to combine it with, it is treated as equivalent to any sample/view/instance state.
  *
- * Return value provides information about the number of samples read, which will
- * be <= maxs. Based on the count, the buffer will contain serialized data to be
- * read only when valid_data bit in sample info structure is set.
- * The buffer required for data values, could be allocated explicitly or can
- * use the memory from data reader to prevent copy. In the latter case, buffer and
- * sample_info should be returned back, once it is no longer using the data.
+ * Note that this is a simple wrapper around @ref `dds_peek_with_collector`.
  *
  * @param[in]  reader_or_condition Reader, readcondition or querycondition entity.
- * @param[out] buf An array of pointers to @ref ddsi_serdata structures that contain
- *                 the serialized data. The pointers can be NULL.
+ * @param[out] buf Filled with references @ref ddsi_serdata structures.
  * @param[in]  maxs Maximum number of samples to read.
- * @param[out] si Pointer to an array of @ref dds_sample_info_t returned for each data value.
- * @param[in]  handle Instance handle related to the samples to read.
+ * @param[out] si Filled with sample info.
+ * @param[in]  handle Handle of instance from which to read samples.
  * @param[in]  mask Filter the data based on dds_sample_state_t|dds_view_state_t|dds_instance_state_t.
  *
  * @returns A dds_return_t with the number of samples read or an error code.
@@ -4375,33 +4374,33 @@ dds_peekcdr_instance (
     uint32_t mask);
 
 /**
- * @brief Access the collection of serialized data values (of same type) and
- *        sample info from the data reader, readcondition or querycondition.
+ * @brief Get references to a representation of the samples in a reader history cache and their accompanying sample infodata values (of same type) and marking them as read
  * @ingroup reading
  * @component read_data
  *
- * This call accesses the serialized data from the data reader, readcondition or
- * querycondition and makes it available to the application. The serialized data
- * is made available through @ref ddsi_serdata structures. Returned samples are
- * marked as READ.
+ * This operation returns references to the internal representation of samples (`struct ddsi_serdata`), which can
+ * then be used in a variety of ways. Examples are converting it to application representation and obtaining a copy or a
+ * reference of the serialized representation. If the underlying implementation (`struct ddsi_sertype`) is known to
+ * the application, other options may exist as well.
+ *
+ * The data is left in the reader history cache and the sample state and view state of the returned samples and their
+ * instances are updated; @ref `dds_peekcdr` returns the data without updating these states; @ref `dds_takecdr`
+ * removes the data from the history cache.
+ *
+ * The returned references must eventually be released by calling @ref `ddsi_serdata_unref`. There is no guarantee
+ * the type pointer survives beyond the existence of the reader from which the references were read.
  *
  * When using a readcondition or querycondition, their masks are or'd with the given mask.
  *
  * If the sample/view/instance state component in the mask is 0 and there is no read or query condition,
  * to combine it with, it is treated as equivalent to any sample/view/instance state.
  *
- * Return value provides information about the number of samples read, which will
- * be <= maxs. Based on the count, the buffer will contain serialized data to be
- * read only when valid_data bit in sample info structure is set.
- * The buffer required for data values, could be allocated explicitly or can
- * use the memory from data reader to prevent copy. In the latter case, buffer and
- * sample_info should be returned back, once it is no longer using the data.
+ * Note that this is a simple wrapper around @ref `dds_read_with_collector`.
  *
  * @param[in]  reader_or_condition Reader, readcondition or querycondition entity.
- * @param[out] buf An array of pointers to @ref ddsi_serdata structures that contain
- *                 the serialized data. The pointers can be NULL.
+ * @param[out] buf Filled with references @ref ddsi_serdata structures.
  * @param[in]  maxs Maximum number of samples to read.
- * @param[out] si Pointer to an array of @ref dds_sample_info_t returned for each data value.
+ * @param[out] si Filled with sample info.
  * @param[in]  mask Filter the data based on dds_sample_state_t|dds_view_state_t|dds_instance_state_t.
  *
  * @returns A dds_return_t with the number of samples read or an error code.
@@ -4428,34 +4427,34 @@ dds_readcdr(
   uint32_t mask);
 
 /**
- * @brief Access the collection of serialized data values (of same type) and
- *        sample info from the data reader, readcondition or querycondition
- *        scoped by the provided instance handle.
+ * @brief Get references to a representation of the samples of a specific instance in a reader history cache and their accompanying sample infodata values (of same type) and marking them as read
  * @ingroup reading
  * @component read_data
  *
- * This operation implements the same functionality as dds_read_instance_wl, except that
- * samples are now in their serialized form. The serialized data is made available through
- * @ref ddsi_serdata structures. Returned samples are marked as READ.
+ * This operation returns references to the internal representation of samples (`struct ddsi_serdata`), which can
+ * then be used in a variety of ways. Examples are converting it to application representation and obtaining a copy or a
+ * reference of the serialized representation. If the underlying implementation (`struct ddsi_sertype`) is known to
+ * the application, other options may exist as well.
+ *
+ * The data is left in the reader history cache and the sample state and view state of the returned samples and their
+ * instances are updated; @ref `dds_peekcdr` returns the data without updating these states; @ref `dds_takecdr`
+ * removes the data from the history cache.
+ *
+ * The returned references must eventually be released by calling @ref `ddsi_serdata_unref`. There is no guarantee
+ * the type pointer survives beyond the existence of the reader from which the references were read.
  *
  * When using a readcondition or querycondition, their masks are or'd with the given mask.
  *
  * If the sample/view/instance state component in the mask is 0 and there is no read or query condition,
  * to combine it with, it is treated as equivalent to any sample/view/instance state.
  *
- * Return value provides information about the number of samples read, which will
- * be <= maxs. Based on the count, the buffer will contain serialized data to be
- * read only when valid_data bit in sample info structure is set.
- * The buffer required for data values, could be allocated explicitly or can
- * use the memory from data reader to prevent copy. In the latter case, buffer and
- * sample_info should be returned back, once it is no longer using the data.
+ * Note that this is a simple wrapper around @ref `dds_read_with_collector`.
  *
  * @param[in]  reader_or_condition Reader, readcondition or querycondition entity.
- * @param[out] buf An array of pointers to @ref ddsi_serdata structures that contain
- *                 the serialized data. The pointers can be NULL.
+ * @param[out] buf Filled with references @ref ddsi_serdata structures.
  * @param[in]  maxs Maximum number of samples to read.
- * @param[out] si Pointer to an array of @ref dds_sample_info_t returned for each data value.
- * @param[in]  handle Instance handle related to the samples to read.
+ * @param[out] si Filled with sample info.
+ * @param[in]  handle Handle of instance from which to read samples.
  * @param[in]  mask Filter the data based on dds_sample_state_t|dds_view_state_t|dds_instance_state_t.
  *
  * @returns A dds_return_t with the number of samples read or an error code.
@@ -4483,33 +4482,33 @@ dds_readcdr_instance (
     uint32_t mask);
 
 /**
- * @brief Access the collection of serialized data values (of same type) and
- *        sample info from the data reader, readcondition or querycondition.
+ * @brief Get references to a representation of the samples in a reader history cache and their accompanying sample infodata values (of same type) and remove them from the cache
  * @ingroup reading
  * @component read_data
  *
- * This call accesses the serialized data from the data reader, readcondition or
- * querycondition and makes it available to the application. The serialized data
- * is made available through @ref ddsi_serdata structures. Once read the data is
- * removed from the reader and cannot be 'read' or 'taken' again.
+ * This operation returns references to the internal representation of samples (`struct ddsi_serdata`), which can
+ * then be used in a variety of ways. Examples are converting it to application representation and obtaining a copy or a
+ * reference of the serialized representation. If the underlying implementation (`struct ddsi_sertype`) is known to
+ * the application, other options may exist as well.
+ *
+ * The data is removed from the reader history cache; @ref `dds_peekcdr` leaves them in and leaves the sample and
+ * view states unchanged; @ref `dds_readcdr` leaves the data in the cache but does update the sample and view
+ * states.
+ *
+ * The returned references must eventually be released by calling @ref `ddsi_serdata_unref`. There is no guarantee
+ * the type pointer survives beyond the existence of the reader from which the references were read.
  *
  * When using a readcondition or querycondition, their masks are or'd with the given mask.
  *
  * If the sample/view/instance state component in the mask is 0 and there is no read or query condition,
  * to combine it with, it is treated as equivalent to any sample/view/instance state.
  *
- * Return value provides information about the number of samples read, which will
- * be <= maxs. Based on the count, the buffer will contain serialized data to be
- * read only when valid_data bit in sample info structure is set.
- * The buffer required for data values, could be allocated explicitly or can
- * use the memory from data reader to prevent copy. In the latter case, buffer and
- * sample_info should be returned back, once it is no longer using the data.
+ * Note that this is a simple wrapper around @ref `dds_take_with_collector`.
  *
  * @param[in]  reader_or_condition Reader, readcondition or querycondition entity.
- * @param[out] buf An array of pointers to @ref ddsi_serdata structures that contain
- *                 the serialized data. The pointers can be NULL.
+ * @param[out] buf Filled with references @ref ddsi_serdata structures.
  * @param[in]  maxs Maximum number of samples to read.
- * @param[out] si Pointer to an array of @ref dds_sample_info_t returned for each data value.
+ * @param[out] si Filled with sample info.
  * @param[in]  mask Filter the data based on dds_sample_state_t|dds_view_state_t|dds_instance_state_t.
  *
  * @returns A dds_return_t with the number of samples read or an error code.
@@ -4536,34 +4535,34 @@ dds_takecdr(
   uint32_t mask);
 
 /**
- * @brief Access the collection of serialized data values (of same type) and
- *        sample info from the data reader, readcondition or querycondition
- *        scoped by the provided instance handle.
+ * @brief Get references to a representation of the samples of a specific instance in a reader history cache and their accompanying sample infodata values (of same type) and remove them from the cache
  * @ingroup reading
  * @component read_data
  *
- * This operation implements the same functionality as dds_take_instance_wl, except that
- * samples are now in their serialized form. The serialized data is made available through
- * @ref ddsi_serdata structures. Returned samples are marked as READ.
+ * This operation returns references to the internal representation of samples (`struct ddsi_serdata`), which can
+ * then be used in a variety of ways. Examples are converting it to application representation and obtaining a copy or a
+ * reference of the serialized representation. If the underlying implementation (`struct ddsi_sertype`) is known to
+ * the application, other options may exist as well.
+ *
+ * The data is removed from the reader history cache; @ref `dds_peekcdr` leaves them in and leaves the sample and
+ * view states unchanged; @ref `dds_readcdr` leaves the data in the cache but does update the sample and view
+ * states.
+ *
+ * The returned references must eventually be released by calling @ref `ddsi_serdata_unref`. There is no guarantee
+ * the type pointer survives beyond the existence of the reader from which the references were read.
  *
  * When using a readcondition or querycondition, their masks are or'd with the given mask.
  *
  * If the sample/view/instance state component in the mask is 0 and there is no read or query condition,
  * to combine it with, it is treated as equivalent to any sample/view/instance state.
  *
- * Return value provides information about the number of samples read, which will
- * be <= maxs. Based on the count, the buffer will contain serialized data to be
- * read only when valid_data bit in sample info structure is set.
- * The buffer required for data values, could be allocated explicitly or can
- * use the memory from data reader to prevent copy. In the latter case, buffer and
- * sample_info should be returned back, once it is no longer using the data.
+ * Note that this is a simple wrapper around @ref `dds_take_with_collector`.
  *
  * @param[in]  reader_or_condition Reader, readcondition or querycondition entity.
- * @param[out] buf An array of pointers to @ref ddsi_serdata structures that contain
- *                 the serialized data. The pointers can be NULL.
+ * @param[out] buf Filled with references @ref ddsi_serdata structures.
  * @param[in]  maxs Maximum number of samples to read.
- * @param[out] si Pointer to an array of @ref dds_sample_info_t returned for each data value.
- * @param[in]  handle Instance handle related to the samples to read.
+ * @param[out] si Filled with sample info.
+ * @param[in]  handle Handle of instance from which to read samples.
  * @param[in]  mask Filter the data based on dds_sample_state_t|dds_view_state_t|dds_instance_state_t.
  *
  * @returns A dds_return_t with the number of samples read or an error code.
