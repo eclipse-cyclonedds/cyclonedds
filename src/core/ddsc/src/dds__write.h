@@ -11,6 +11,8 @@
 #ifndef DDS__WRITE_H
 #define DDS__WRITE_H
 
+#include "dds/export.h"
+
 #if defined (__cplusplus)
 extern "C" {
 #endif
@@ -29,6 +31,7 @@ typedef enum {
 } dds_write_action;
 
 /** @component write_data */
+DDS_EXPORT_INTERNAL_FUNCTION
 dds_return_t dds_write_impl (dds_writer *wr, const void *data, dds_time_t tstamp, dds_write_action action);
 
 /** @component write_data */
