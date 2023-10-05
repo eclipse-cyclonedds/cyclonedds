@@ -71,6 +71,8 @@
 
 #include "dds/cdr/dds_cdrstream.h"
 
+#include "dds__write.h" // dds_write_impl
+
 DDSRT_WARNING_DEPRECATED_OFF
 
 #ifdef DDS_HAS_SECURITY
@@ -1050,6 +1052,9 @@ int main (int argc, char **argv)
   // ddsrt/io.h
   test_ddsrt_vasprintf (ptr, " ");
   ddsrt_asprintf (ptr, " ");
+
+  // dds__write.h
+  dds_write_impl (ptr, ptr, 0, (dds_write_action) 0);
 
   return 0;
 }
