@@ -465,7 +465,7 @@ static int correct_nwpart_aux_locator (struct ddsi_domaingv *gv)
       }
     }
   }
-  return nwpart_iter_fini (&npit) ? 0 : -1;;
+  return nwpart_iter_fini (&npit) ? 0 : -1;
 }
 
 int ddsi_convert_nwpart_config (struct ddsi_domaingv *gv, uint32_t port_data_uc)
