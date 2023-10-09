@@ -386,7 +386,7 @@ static int joinleave_asm_mcgroup (ddsrt_socket_t socket, int join, const ddsi_lo
   mreq.mr_ifindex = (int)interf->if_index;
   mreq.mr_type = PACKET_MR_MULTICAST;
   mreq.mr_alen = 6;
-  memcpy(mreq.mr_address, mcloc + 10, 6);
+  memcpy(mreq.mr_address, mcloc->address + 10, 6);
   rc = ddsrt_setsockopt(socket, SOL_PACKET, join ? PACKET_ADD_MEMBERSHIP : PACKET_DROP_MEMBERSHIP, &mreq, sizeof(mreq));
   return (rc == DDS_RETCODE_OK) ? 0 : rc;
 }

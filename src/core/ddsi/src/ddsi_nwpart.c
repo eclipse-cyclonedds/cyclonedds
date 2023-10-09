@@ -420,6 +420,54 @@ static int check_nwpart_address_consistency (struct ddsi_domaingv *gv)
   return nwpart_iter_fini (&npit) ? 0 : -1;
 }
 
+static int correct_nwpart_aux_locator (struct ddsi_domaingv *gv)
+{
+  struct nwpart_iter npit;
+  nwpart_iter_init (&npit, gv);
+  struct ddsi_config_networkpartition_listelem *np;
+
+  if (gv->config.transport_selector != DDSI_TRANS_RAWETH)
+    return 0;
+
+  struct ddsi_tran_factory * const tran = ddsi_factory_find_supported_kind (gv, DDSI_LOCATOR_KIND_RAWETH);
+  assert (tran != NULL);
+
+  while ((np = nwpart_iter_next (&npit)) != NULL)
+  {
+    uint32_t loc_aux = 0;
+
+    for (struct ddsi_networkpartition_address *a = np->asm_addresses; a && loc_aux == 0; a = a->next)
+      loc_aux = ddsi_tran_get_locator_aux (tran, &a->loc);
+    for (struct ddsi_networkpartition_address *a = np->uc_addresses; a && loc_aux == 0; a = a->next)
+      loc_aux = ddsi_tran_get_locator_aux (tran, &a->loc);
+    if (loc_aux > 0)
+    {
+      uint32_t aux;
+      for (struct ddsi_networkpartition_address *a = np->asm_addresses; a; a = a->next)
+      {
+        if ((aux = ddsi_tran_get_locator_aux (tran, &a->loc)) == 0)
+          ddsi_tran_set_locator_aux (tran, &a->loc, loc_aux);
+        else if (aux != loc_aux)
+        {
+          nwpart_iter_error (&npit, "", "network partition should use the same vlan id for each address");
+          break;
+        }
+      }
+      for (struct ddsi_networkpartition_address *a = np->uc_addresses; a; a = a->next)
+      {
+        if ((aux = ddsi_tran_get_locator_aux (tran, &a->loc)) == 0)
+          ddsi_tran_set_locator_aux (tran, &a->loc, loc_aux);
+        else if (aux != loc_aux)
+        {
+          nwpart_iter_error (&npit, "", "network partition should use the same vlan id for each address");
+          break;
+        }
+      }
+    }
+  }
+  return nwpart_iter_fini (&npit) ? 0 : -1;
+}
+
 int ddsi_convert_nwpart_config (struct ddsi_domaingv *gv, uint32_t port_data_uc)
 {
   int rc;
@@ -428,6 +476,8 @@ int ddsi_convert_nwpart_config (struct ddsi_domaingv *gv, uint32_t port_data_uc)
   if ((rc = convert_network_partition_interfaces (gv, port_data_uc)) < 0)
     return rc;
   if ((rc = check_nwpart_address_consistency (gv)) < 0)
+    return rc;
+  if ((rc = correct_nwpart_aux_locator (gv)) < 0)
     return rc;
   return 0;
 }
