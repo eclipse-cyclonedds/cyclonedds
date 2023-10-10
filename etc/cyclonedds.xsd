@@ -1864,14 +1864,14 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==&lt;br&gt;
 &lt;li&gt;&lt;i&gt;whc&lt;/i&gt;: tracing of writer history cache changes&lt;/li&gt;
 &lt;li&gt;&lt;i&gt;tcp&lt;/i&gt;: tracing of TCP-specific activity&lt;/li&gt;
 &lt;li&gt;&lt;i&gt;topic&lt;/i&gt;: tracing of topic definitions&lt;/li&gt;
-&lt;li&gt;&lt;i&gt;plist&lt;/i&gt;: tracing of discovery parameter list interpretation&lt;/li&gt;&lt;/ul&gt;
+&lt;li&gt;&lt;i&gt;plist&lt;/i&gt;: tracing of discovery parameter list interpretation&lt;/li&gt;&lt;li&gt;&lt;i&gt;durability&lt;/i&gt;: tracing of durable data&lt;/li&gt;&lt;/ul&gt;
 &lt;p&gt;In addition, there is the keyword &lt;i&gt;trace&lt;/i&gt; that enables all but &lt;i&gt;radmin&lt;/i&gt;, &lt;i&gt;topic&lt;/i&gt;, &lt;i&gt;plist&lt;/i&gt; and &lt;i&gt;whc&lt;/i&gt;&lt;/p&gt;.
 &lt;p&gt;The categorisation of tracing output is incomplete and hence most of the verbosity levels and categories are not of much use in the current release. This is an ongoing process and here we describe the target situation rather than the current situation. Currently, the most useful is &lt;i&gt;trace&lt;/i&gt;.&lt;/p&gt;
 &lt;p&gt;The default value is: &lt;code&gt;&amp;lt;empty&amp;gt;&lt;/code&gt;&lt;/p&gt;</xs:documentation>
     </xs:annotation>
     <xs:simpleType>
       <xs:restriction base="xs:token">
-        <xs:pattern value="((fatal|error|warning|info|config|discovery|data|radmin|timing|traffic|topic|tcp|plist|whc|throttle|rhc|content|shm|trace)(,(fatal|error|warning|info|config|discovery|data|radmin|timing|traffic|topic|tcp|plist|whc|throttle|rhc|content|shm|trace))*)|"/>
+        <xs:pattern value="((fatal|error|warning|info|config|discovery|data|radmin|timing|traffic|topic|tcp|plist|whc|throttle|rhc|durability|content|shm|trace)(,(fatal|error|warning|info|config|discovery|data|radmin|timing|traffic|topic|tcp|plist|whc|throttle|rhc|durability|content|shm|trace))*)|"/>
       </xs:restriction>
     </xs:simpleType>
   </xs:element>

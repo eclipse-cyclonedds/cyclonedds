@@ -76,12 +76,14 @@ extern "C" {
 #define DDS_LC_RHC (65536u)
 /** Include content in traces. */
 #define DDS_LC_CONTENT (131072u)
+/** Debug/trace messages related to Durability */
+#define DDS_LC_DUR (262144u)
 /** All common trace categories. */
 #define DDS_LC_ALL \
     (DDS_LC_FATAL | DDS_LC_ERROR | DDS_LC_WARNING | DDS_LC_INFO | \
      DDS_LC_CONFIG | DDS_LC_DISCOVERY | DDS_LC_DATA | DDS_LC_TRACE | \
      DDS_LC_TIMING | DDS_LC_TRAFFIC | DDS_LC_TCP | DDS_LC_THROTTLE | \
-     DDS_LC_CONTENT)
+     DDS_LC_CONTENT | DDS_LC_DUR)
 /** @}*/
 
 #define DDS_LOG_MASK \

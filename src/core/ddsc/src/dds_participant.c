@@ -27,6 +27,10 @@
 #include "dds__builtin.h"
 #include "dds__qos.h"
 
+#ifdef DDS_HAS_DURABILITY
+#include "dds/durability/dds_durability.h"
+#endif
+
 DECL_ENTITY_LOCK_UNLOCK (dds_participant)
 
 #define DDS_PARTICIPANT_STATUS_MASK    (0u)
@@ -57,6 +61,11 @@ static dds_return_t dds_participant_delete (dds_entity *e)
   if ((ret = ddsi_delete_participant (&e->m_domain->gv, &e->m_guid)) < 0)
     DDS_CERROR (&e->m_domain->gv.logconfig, "dds_participant_delete: internal error %"PRId32"\n", ret);
   ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
+
+#ifdef DDS_HAS_DURABILITY
+  dds_durability_fini();
+#endif
+
   return DDS_RETCODE_OK;
 }
 
@@ -157,9 +166,15 @@ dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_
   ddsrt_mutex_unlock (&dom->m_entity.m_mutex);
 
   dds_entity_init_complete (&pp->m_entity);
+
   /* drop temporary extra ref to domain, dds_init */
   dds_entity_unpin_and_drop_ref (&dom->m_entity);
   dds_entity_unpin_and_drop_ref (&dds_global.m_entity);
+
+#ifdef DDS_HAS_DURABILITY
+  dds_durability_init (domain, &dom->gv);
+#endif
+
   return ret;
 
 err_entity_init:
