@@ -2603,7 +2603,7 @@ The default value is: ``false``
 ------------------------------------
 
 One of:
-* Comma-separated list of: fatal, error, warning, info, config, discovery, data, radmin, timing, traffic, topic, tcp, plist, whc, throttle, rhc, content, malformed, trace, user, user1, user2, user3
+* Comma-separated list of: fatal, error, warning, info, config, discovery, data, radmin, timing, traffic, topic, tcp, plist, whc, throttle, rhc, content, malformed, durability, trace, user, user1, user2, user3
 * Or empty
 
 This element enables individual logging categories. These are enabled in addition to those enabled by Tracing/Verbosity. Recognised categories are:
@@ -2639,6 +2639,7 @@ This element enables individual logging categories. These are enabled in additio
  * topic: tracing of topic definitions
 
  * plist: tracing of discovery parameter list interpretation
+ * durability: tracing of durable data
 
  * content: tracing of sample contents
 

@@ -1900,6 +1900,7 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==&lt;br&gt;
 &lt;li&gt;&lt;i&gt;plist&lt;/i&gt;: tracing of discovery parameter list interpretation&lt;/li&gt;
 &lt;li&gt;&lt;i&gt;content&lt;/i&gt;: tracing of sample contents&lt;/li&gt;
 &lt;li&gt;&lt;i&gt;malformed&lt;/i&gt;: dump malformed full packet as warning&lt;/li&gt;
+&lt;li&gt;&lt;i&gt;durability&lt;/i&gt;: tracing of durable data&lt;/li&gt;&lt;/li&gt;
 &lt;li&gt;&lt;i&gt;user&lt;/i&gt;: all user-defined tracing categories&lt;/li&gt;
 &lt;li&gt;&lt;i&gt;user1&lt;/i&gt;: user-defined tracing category 1&lt;/li&gt;
 &lt;li&gt;&lt;i&gt;user2&lt;/i&gt;: user-defined tracing category 2&lt;/li&gt;
@@ -1911,7 +1912,7 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==&lt;br&gt;
     </xs:annotation>
     <xs:simpleType>
       <xs:restriction base="xs:token">
-        <xs:pattern value="((fatal|error|warning|info|config|discovery|data|radmin|timing|traffic|topic|tcp|plist|whc|throttle|rhc|content|malformed|trace|user|user1|user2|user3)(,(fatal|error|warning|info|config|discovery|data|radmin|timing|traffic|topic|tcp|plist|whc|throttle|rhc|content|malformed|trace|user|user1|user2|user3))*)|"/>
+        <xs:pattern value="((fatal|error|warning|info|config|discovery|data|radmin|timing|traffic|topic|tcp|plist|whc|throttle|rhc|content|malformed|trace|user|user1|user2|user3)(,(fatal|error|warning|info|config|discovery|data|radmin|timing|traffic|topic|tcp|plist|whc|throttle|rhc|content|malformed|durability|trace|user|user1|user2|user3))*)|"/>
       </xs:restriction>
     </xs:simpleType>
   </xs:element>

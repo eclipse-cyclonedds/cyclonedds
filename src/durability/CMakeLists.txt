@@ -20,10 +20,12 @@ target_include_directories(
     "$<BUILD_INTERFACE:${binary_dir}/include>")
 
 set(headers
-  "${source_dir}/include/dds/durability/dds_durability.h")
+  "${source_dir}/include/dds/durability/dds_durability.h"
+  "${source_dir}/include/dds/durability/client_durability.h")
 
 set(sources
-  "${source_dir}/src/dds_durability.c")
+  "${source_dir}/src/dds_durability.c"
+  "${source_dir}/src/client_durability.c")
   
 target_sources(durability INTERFACE ${headers} ${sources})
 
