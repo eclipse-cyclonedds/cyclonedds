@@ -1000,7 +1000,7 @@ static int handle_AckNack (struct ddsi_receiver_state *rst, ddsrt_etime_t tnow, 
   enqueued = 1;
   seq_xmit = ddsi_writer_read_seq_xmit (wr);
   ddsi_gap_info_init(&gi);
-  const bool gap_for_already_acked = ddsi_vendor_is_eclipse (rst->vendor) && prd->c.xqos->durability.kind == DDS_DURABILITY_VOLATILE && seqbase <= rn->seq;
+  const bool gap_for_already_acked = ddsi_vendor_is_eclipse (rst->vendor) && prd->c.xqos->durability.kind != DDS_DURABILITY_TRANSIENT_LOCAL && seqbase <= rn->seq;
   const ddsi_seqno_t min_seq_to_rexmit = gap_for_already_acked ? rn->seq + 1 : 0;
   uint32_t limit = wr->rexmit_burst_size_limit;
   for (uint32_t i = 0; i < numbits && seqbase + i <= seq_xmit && enqueued && limit > 0; i++)
