@@ -1864,7 +1864,7 @@ dds_return_t ddsi_reader_get_matched_publications (struct ddsi_reader *rd, uint6
   return (dds_return_t) nwrs_act;
 }
 
-bool ddsi_writer_find_matched_reader (struct ddsi_writer *wr, uint64_t ih, struct ddsi_entity_common **rdc, struct dds_qos **rdqos, struct ddsi_entity_common **ppc)
+bool ddsi_writer_find_matched_reader (struct ddsi_writer *wr, uint64_t ih, const struct ddsi_entity_common **rdc, const struct dds_qos **rdqos, const struct ddsi_entity_common **ppc)
 {
   /* FIXME: this ought not be so inefficient */
   struct ddsi_domaingv *gv = wr->e.gv;
@@ -1895,14 +1895,15 @@ bool ddsi_writer_find_matched_reader (struct ddsi_writer *wr, uint64_t ih, struc
       found = true;
       *rdc = &rd->e;
       *rdqos = rd->xqos;
-      *ppc = &rd->c.pp->e;
+      // The day orphan readers are introduced in addition to orphan writers, rd->c.pp may be a null pointer
+      *ppc = rd->c.pp ? &rd->c.pp->e : NULL;
     }
   }
   ddsrt_mutex_unlock (&wr->e.lock);
   return found;
 }
 
-bool ddsi_reader_find_matched_writer (struct ddsi_reader *rd, uint64_t ih, struct ddsi_entity_common **wrc, struct dds_qos **wrqos, struct ddsi_entity_common **ppc)
+bool ddsi_reader_find_matched_writer (struct ddsi_reader *rd, uint64_t ih, const struct ddsi_entity_common **wrc, const struct dds_qos **wrqos, const struct ddsi_entity_common **ppc)
 {
   /* FIXME: this ought not be so inefficient */
   struct ddsi_domaingv *gv = rd->e.gv;
@@ -1933,7 +1934,8 @@ bool ddsi_reader_find_matched_writer (struct ddsi_reader *rd, uint64_t ih, struc
       found = true;
       *wrc = &wr->e;
       *wrqos = wr->xqos;
-      *ppc = &wr->c.pp->e;
+      // Orphan writers have no participant
+      *ppc = wr->c.pp ? &wr->c.pp->e : NULL;
     }
   }
   ddsrt_mutex_unlock (&rd->e.lock);

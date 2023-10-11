@@ -76,6 +76,8 @@ static dds_builtintopic_endpoint_t *make_builtintopic_endpoint (const ddsi_guid_
   return ep;
 }
 
+static const struct ddsi_entity_common null_entity_common;
+
 dds_builtintopic_endpoint_t *dds_get_matched_subscription_data (dds_entity_t writer, dds_instance_handle_t ih)
 {
   dds_writer *wr;
@@ -83,15 +85,19 @@ dds_builtintopic_endpoint_t *dds_get_matched_subscription_data (dds_entity_t wri
     return NULL;
 
   dds_builtintopic_endpoint_t *ret = NULL;
-  struct ddsi_entity_common *rdc;
-  struct dds_qos *rdqos;
-  struct ddsi_entity_common *ppc;
+  const struct ddsi_entity_common *rdc;
+  const struct dds_qos *rdqos;
+  const struct ddsi_entity_common *ppc;
 
   // thread must be "awake" while pointers to DDSI entities are being used
   struct ddsi_domaingv * const gv = &wr->m_entity.m_domain->gv;
   ddsi_thread_state_awake (ddsi_lookup_thread_state (), gv);
   if (ddsi_writer_find_matched_reader (wr->m_wr, ih, &rdc, &rdqos, &ppc))
+  {
+    if (ppc == NULL)
+      ppc = &null_entity_common;
     ret = make_builtintopic_endpoint (&rdc->guid, &ppc->guid, ppc->iid, rdqos);
+  }
   ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
 
   dds_writer_unlock (wr);
@@ -105,15 +111,19 @@ dds_builtintopic_endpoint_t *dds_get_matched_publication_data (dds_entity_t read
     return NULL;
 
   dds_builtintopic_endpoint_t *ret = NULL;
-  struct ddsi_entity_common *wrc;
-  struct dds_qos *wrqos;
-  struct ddsi_entity_common *ppc;
+  const struct ddsi_entity_common *wrc;
+  const struct dds_qos *wrqos;
+  const struct ddsi_entity_common *ppc;
 
   // thread must be "awake" while pointers to DDSI entities are being used
   struct ddsi_domaingv * const gv = &rd->m_entity.m_domain->gv;
   ddsi_thread_state_awake (ddsi_lookup_thread_state (), gv);
   if (ddsi_reader_find_matched_writer (rd->m_rd, ih, &wrc, &wrqos, &ppc))
+  {
+    if (ppc == NULL)
+      ppc = &null_entity_common;
     ret = make_builtintopic_endpoint (&wrc->guid, &ppc->guid, ppc->iid, wrqos);
+  }
   ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
 
   dds_reader_unlock (rd);
