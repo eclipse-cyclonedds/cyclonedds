@@ -558,3 +558,41 @@ CU_Test(ddsc_builtin_topics, get_qos)
     check_default_qos_of_builtin_entity (tps[i].h, CDQOBE_TOPIC);
   }
 }
+
+CU_Test(ddsc_builtin_topics, get_matched_publication)
+{
+  static const dds_entity_t tps[] = {
+    DDS_BUILTIN_TOPIC_DCPSPARTICIPANT,
+#ifdef DDS_HAS_TOPIC_DISCOVERY
+    DDS_BUILTIN_TOPIC_DCPSTOPIC,
+#endif
+    DDS_BUILTIN_TOPIC_DCPSPUBLICATION,
+    DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION
+  };
+  static const dds_guid_t zguid;
+  // pseudo handles always exist and it actually works even in the absence of a domain
+  // not sure whether that's a feature or a bug ...
+  const dds_entity_t dp = dds_create_participant (0, NULL, NULL);
+  CU_ASSERT_FATAL (dp > 0);
+  dds_return_t rc;
+  for (size_t i = 0; i < sizeof (tps) / sizeof (tps[0]); i++)
+  {
+    const dds_entity_t rd = dds_create_reader (dp, tps[i], NULL, NULL);
+    CU_ASSERT_FATAL (rd > 0);
+    dds_instance_handle_t wrih;
+    // Application may not create writers, one local orphan writer, no remote writers
+    // Function returns actual number of matches, even if greater than the size of the
+    // output array.
+    rc = dds_get_matched_publications (rd, &wrih, 1);
+    CU_ASSERT_FATAL (rc == 1);
+    dds_builtintopic_endpoint_t *ep = dds_get_matched_publication_data (rd, wrih);
+    CU_ASSERT_FATAL (ep != NULL);
+    CU_ASSERT_FATAL (memcmp (&ep->participant_key, &zguid, sizeof (ep->participant_key)) == 0);
+    CU_ASSERT_FATAL (ep->participant_instance_handle == 0);
+    dds_builtintopic_free_endpoint (ep);
+    rc = dds_delete (rd);
+    CU_ASSERT_FATAL (rc == 0);
+  }
+  rc = dds_delete (dp);
+  CU_ASSERT_FATAL (rc == 0);
+}
