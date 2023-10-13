@@ -78,6 +78,7 @@ set(headers
 set(sources
   "${source_dir}/src/atomics.c"
   "${source_dir}/src/avl.c"
+  "${source_dir}/src/dynlib.c"
   "${source_dir}/src/bits.c"
   "${source_dir}/src/bswap.c"
   "${source_dir}/src/io.c"
@@ -316,6 +317,10 @@ endforeach()
 
 if(BUILD_TESTING)
   set(DDS_ALLOW_NESTED_DOMAIN 1)
+endif()
+
+if (NOT BUILD_SHARED_LIBS)
+  set(DDS_IS_STATIC_LIBRARY 1)
 endif()
 
 configure_file(include/dds/config.h.in include/dds/config.h)

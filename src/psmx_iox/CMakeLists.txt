@@ -9,19 +9,37 @@
 #
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
-cmake_minimum_required(VERSION 3.10)
-project(CycloneDDS-PSMX-IOX VERSION 0.11.0 LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 17)
+include(GenerateExportHeader)
 
 message(STATUS "Building Iceoryx PSMX plugin")
 
-add_library(psmx_iox SHARED "src/psmx_iox_impl.cpp")
+if(BUILD_SHARED_LIBS)
+  add_library(psmx_iox SHARED "src/psmx_iox_impl.cpp" "include/psmx_iox_impl.hpp")
+else()
+  add_library(psmx_iox OBJECT "src/psmx_iox_impl.cpp" "include/psmx_iox_impl.hpp")
+  set_property(GLOBAL APPEND PROPERTY cdds_plugin_list psmx_iox)
+  set_property(GLOBAL PROPERTY psmx_iox_symbols iox_create_psmx)
+endif()
 
 set_target_properties(psmx_iox PROPERTIES VERSION ${PROJECT_VERSION})
+generate_export_header(psmx_iox BASE_NAME DDS_PSMX_IOX EXPORT_FILE_NAME "${CMAKE_CURRENT_BINARY_DIR}/include/psmx_iox_export.h")
 
-target_include_directories(psmx_iox PRIVATE "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>")
-target_link_libraries(psmx_iox PRIVATE ddsc iceoryx_hoofs::iceoryx_hoofs iceoryx_posh::iceoryx_posh)
+target_include_directories(psmx_iox PRIVATE
+  "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/ddsrt/include>"
+  "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/core/include>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../ddsrt/include>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../core/ddsc/include>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../core/ddsi/include>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>")
+
+target_link_libraries(psmx_iox PRIVATE iceoryx_hoofs::iceoryx_hoofs iceoryx_posh::iceoryx_posh)
+if(BUILD_SHARED_LIBS)
+  target_link_libraries(psmx_iox PRIVATE ddsc)
+endif()
 
 install(TARGETS psmx_iox
+  EXPORT "${PROJECT_NAME}"
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})

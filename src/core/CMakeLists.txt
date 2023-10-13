@@ -11,11 +11,7 @@
 #
 include (GenerateExportHeader)
 
-if (BUILD_SHARED_LIBS OR NOT DEFINED BUILD_SHARED_LIBS)
-  add_library(ddsc SHARED "")
-else()
-  add_library(ddsc)
-endif()
+add_library(ddsc)
 
 if(BUILD_TESTING)
   set_property(TARGET ddsc PROPERTY WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
@@ -65,6 +61,26 @@ endif()
 include(cdr/CMakeLists.txt)
 include(ddsi/CMakeLists.txt)
 include(ddsc/CMakeLists.txt)
+
+# The not-so-elegant inclusion of all configured plug-ins for static builds.  At least it
+# keeps most of the dirty things in one place.
+if(NOT BUILD_SHARED_LIBS)
+  get_property(plugin_list GLOBAL PROPERTY cdds_plugin_list)
+  if(plugin_list)
+    list(JOIN plugin_list "," plugin_commasep)
+    target_compile_options(ddsc PRIVATE "-DPLUGINS=${plugin_commasep}")
+    target_link_libraries(ddsc PRIVATE ${plugin_list})
+    foreach(plugin ${plugin_list})
+      set(propname ${plugin}_symbols)
+      get_property(plugin_symbols GLOBAL PROPERTY ${propname})
+      list(JOIN plugin_symbols "," plugin_symbols_commasep)
+      target_compile_options(ddsc PRIVATE "-DPLUGIN_SYMBOLS_${plugin}=${plugin_symbols_commasep}")
+    endforeach()
+  endif()
+  if(ENABLE_SSL)
+    target_link_libraries(ddsc PUBLIC security_openssl)
+  endif()
+endif()
 
 add_coverage(ddsc)
 target_link_libraries(ddsc PRIVATE "$<BUILD_INTERFACE:ddsrt>")

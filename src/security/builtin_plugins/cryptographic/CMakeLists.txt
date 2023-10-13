@@ -29,7 +29,13 @@ set(private_headers
   src/cryptography.h
   ../include/crypto_tokens.h)
 
-add_library(dds_security_crypto SHARED ${sources} ${private_headers})
+if(BUILD_SHARED_LIBS)
+  add_library(dds_security_crypto SHARED ${sources} ${private_headers})
+else()
+  add_library(dds_security_crypto OBJECT ${sources} ${private_headers})
+  set_property(GLOBAL APPEND PROPERTY cdds_plugin_list dds_security_crypto)
+  set_property(GLOBAL PROPERTY dds_security_crypto_symbols init_crypto finalize_crypto)
+endif()
 
 generate_export_header(
     dds_security_crypto
@@ -38,7 +44,9 @@ generate_export_header(
 )
 
 target_link_libraries(dds_security_crypto PRIVATE security_openssl)
-target_link_libraries(dds_security_crypto PUBLIC ddsc)
+if(BUILD_SHARED_LIBS)
+  target_link_libraries(dds_security_crypto PUBLIC ddsc)
+endif()
 target_link_libraries(dds_security_crypto PUBLIC OpenSSL::SSL)
 if(CMAKE_GENERATOR MATCHES "Visual Studio")
   set_target_properties(dds_security_crypto PROPERTIES LINK_FLAGS "/ignore:4099")
