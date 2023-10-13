@@ -23,7 +23,13 @@ set(private_headers
   src/access_control.h
   ../include/ac_tokens.h)
 
-add_library(dds_security_ac SHARED ${sources} ${private_headers})
+if(BUILD_SHARED_LIBS)
+  add_library(dds_security_ac SHARED ${sources} ${private_headers})
+else()
+  add_library(dds_security_ac OBJECT ${sources} ${private_headers})
+  set_property(GLOBAL APPEND PROPERTY cdds_plugin_list dds_security_ac)
+  set_property(GLOBAL PROPERTY dds_security_ac_symbols init_access_control finalize_access_control)
+endif()
 
 generate_export_header(
     dds_security_ac
@@ -32,7 +38,9 @@ generate_export_header(
 )
 
 target_link_libraries(dds_security_ac PRIVATE security_openssl)
-target_link_libraries(dds_security_ac PUBLIC ddsc)
+if(BUILD_SHARED_LIBS)
+  target_link_libraries(dds_security_ac PUBLIC ddsc)
+endif()
 target_link_libraries(dds_security_ac PUBLIC OpenSSL::SSL)
 if(CMAKE_GENERATOR MATCHES "Visual Studio")
   set_target_properties(dds_security_ac PROPERTIES LINK_FLAGS "/ignore:4099")

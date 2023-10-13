@@ -34,12 +34,7 @@ else()
   include(Generate)
   include(GenerateExportHeader)
 
-  if (BUILD_SHARED_LIBS OR NOT DEFINED BUILD_SHARED_LIBS)
-    add_library(cdr SHARED "")
-  else()
-    add_library(cdr)
-  endif()
-
+  add_library(cdr)
   add_library(${PROJECT_NAME}::cdr ALIAS cdr)
 
   target_sources(cdr PRIVATE ${srcs_cdr} ${hdrs_private_cdr} ${CMAKE_CURRENT_LIST_DIR}/../../ddsrt/src/bswap.c)

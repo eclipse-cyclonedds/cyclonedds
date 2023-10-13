@@ -11,6 +11,7 @@
 #
 include (GenerateExportHeader)
 include (CUnit)
+include (Generate)
 
 idlc_generate(TARGET SecurityCoreTests FILES SecurityCoreTests.idl WARNINGS no-implicit-extensibility)
 
@@ -18,7 +19,36 @@ function(add_wrapper libname linklibs)
   set(srcs_wrapper
     "${CMAKE_CURRENT_LIST_DIR}/common/${libname}_wrapper.c"
     "${CMAKE_CURRENT_LIST_DIR}/common/plugin_wrapper_msg_q.c")
-  add_library("dds_security_${libname}_wrapper" SHARED "")
+  add_library("dds_security_${libname}_wrapper")
+  if(NOT BUILD_SHARED_LIBS)
+    set_property(GLOBAL APPEND PROPERTY cdds_plugin_list dds_security_${libname}_wrapper)
+    set_property(GLOBAL PROPERTY dds_security_${libname}_wrapper_symbols
+      init_test_${libname}_wrapped finalize_test_${libname}_wrapped
+      init_test_${libname}_missing_func finalize_test_${libname}_missing_func
+      init_test_${libname}_all_ok finalize_test_${libname}_all_ok)
+    if(libname STREQUAL authentication)
+      set_property(GLOBAL APPEND PROPERTY dds_security_${libname}_wrapper_symbols
+        init_test_${libname}_init_error finalize_test_${libname}_init_error)
+    elseif(libname STREQUAL access_control)
+      set_property(GLOBAL APPEND PROPERTY dds_security_${libname}_wrapper_symbols
+        init_test_${libname}_local_participant_not_allowed
+        init_test_${libname}_local_topic_not_allowed
+        init_test_${libname}_local_writer_not_allowed
+        init_test_${libname}_local_reader_not_allowed
+        init_test_${libname}_local_permissions_not_allowed
+        init_test_${libname}_remote_participant_not_allowed
+        init_test_${libname}_remote_topic_not_allowed
+        init_test_${libname}_remote_writer_not_allowed
+        init_test_${libname}_remote_reader_not_allowed
+        init_test_${libname}_remote_reader_relay_only
+        init_test_${libname}_remote_permissions_not_allowed
+        finalize_test_${libname}_not_allowed)
+    elseif(libname STREQUAL cryptography)
+      set_property(GLOBAL APPEND PROPERTY dds_security_${libname}_wrapper_symbols
+        init_test_${libname}_store_tokens finalize_test_${libname}_store_tokens
+        init_test_${libname}_plain_data finalize_test_${libname}_plain_data)
+    endif()
+  endif()
   if(CMAKE_GENERATOR MATCHES "Visual Studio")
     set_target_properties("dds_security_${libname}_wrapper" PROPERTIES LINK_FLAGS "/ignore:4099")
   endif()
@@ -48,8 +78,10 @@ function(add_wrapper libname linklibs)
 
   target_link_libraries("dds_security_${libname}_wrapper" PRIVATE CycloneDDS::ucunit)
   target_include_directories("dds_security_${libname}_wrapper" PRIVATE "${CUNIT_DIR}/include")
+  if(BUILD_SHARED_LIBS)
+    target_link_libraries("dds_security_${libname}_wrapper" PUBLIC ddsc ${linklibs})
+  endif()
 
-  target_link_libraries("dds_security_${libname}_wrapper" PUBLIC ddsc ${linklibs})
   target_sources("dds_security_${libname}_wrapper" PRIVATE ${srcs_wrapper})
   target_include_directories("dds_security_${libname}_wrapper"
     PUBLIC
@@ -57,6 +89,7 @@ function(add_wrapper libname linklibs)
       "$<BUILD_INTERFACE:$<TARGET_PROPERTY:security_core,INTERFACE_INCLUDE_DIRECTORIES>>"
       "$<BUILD_INTERFACE:$<TARGET_PROPERTY:ddsrt,INTERFACE_INCLUDE_DIRECTORIES>>"
       "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
+      "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../builtin_plugins/include>"
       "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../../core/ddsi/include>"
       "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../../core/ddsi/src>"
       "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../../core/ddsc/src>")
@@ -109,7 +142,7 @@ target_include_directories(
         "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../../core/ddsi/include>"
         "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../../core/ddsi/src>"
         "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../../core/ddsc/src>"
- )
+  )
 if(ENABLE_SSL AND OPENSSL_FOUND)
   target_include_directories(
     cunit_security_core PRIVATE
@@ -128,3 +161,9 @@ if(ENABLE_SSL AND OPENSSL_FOUND)
   target_link_libraries(cunit_security_core PRIVATE security_openssl)
 endif()
 target_include_directories(cunit_security_core PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
+
+if(NOT BUILD_SHARED_LIBS)
+  install(TARGETS dds_security_authentication_wrapper EXPORT "${PROJECT_NAME}")
+  install(TARGETS dds_security_cryptography_wrapper EXPORT "${PROJECT_NAME}")
+  install(TARGETS dds_security_access_control_wrapper EXPORT "${PROJECT_NAME}")
+endif()
