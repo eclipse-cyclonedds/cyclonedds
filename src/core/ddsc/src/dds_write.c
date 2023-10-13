@@ -777,8 +777,15 @@ dds_return_t dds_write_impl (dds_writer *wr, const void *data, dds_time_t timest
     return DDS_RETCODE_OK;
 
 #ifdef DDS_HAS_DURABILITY
+  /* check if the quorum of durable services for the writer is fulfilled
+   *
+   * LH:
+   * todo this currently is solution to handle the case when the quorum is not yet reached.
+   * A better solution would be to use the max_blocking_time and use it to figure out
+   * if the quorum is reached within this time frame. The headbang period would then be
+   * used to check if the quorum is met. */
   if ((ddsi_wr->xqos->durability.kind == DDS_DURABILITY_TRANSIENT) || (ddsi_wr->xqos->durability.kind == DDS_DURABILITY_PERSISTENT)) {
-    if ((ret = dds_durability_check_quorum_reached(wr)) != DDS_RETCODE_OK) {
+    if (!wr->quorum_reached) {
       return DDS_RETCODE_PRECONDITION_NOT_MET;
     }
   }
