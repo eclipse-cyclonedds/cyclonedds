@@ -20,6 +20,7 @@
 #include "ddsc/dds.h"
 #include <string.h>
 #include "dds__writer.h"
+#include "dds/ddsi/ddsi_endpoint.h"
 
 #define DEFAULT_QOURUM                       1
 #define DEFAULT_IDENT                        "durable_support"
@@ -296,7 +297,7 @@ static int create_request_partition_expression (struct com_t *com, char **reques
     DDS_ERROR("Failed to create request partition expression\n");
     return -1;
   }
-  /* todo: perhaps add a configurable set of request partitions */
+  /* todo: LH perhaps add a configurable set of request partitions */
   /* set the request partition*/
   *request_partition = ddsrt_strdup(req_pname);
   return 0;
@@ -687,8 +688,35 @@ static void dc_free_partitions (uint32_t plen, char **partitions)
   ddsrt_free(partitions);
 }
 
+static ddsi_guid_prefix_t dc_ddsi_hton_guid_prefix (ddsi_guid_prefix_t p)
+{
+  int i;
+  for (i = 0; i < 3; i++)
+    p.u[i] = ddsrt_toBE4u (p.u[i]);
+  return p;
+}
 
-static void dc_check_quorum_reached (struct dc_t *dc, dds_entity_t writer)
+static ddsi_entityid_t dc_ddsi_hton_entityid (ddsi_entityid_t e)
+{
+  e.u = ddsrt_toBE4u (e.u);
+  return e;
+}
+
+static ddsi_guid_t dc_ddsi_hton_guid (ddsi_guid_t g)
+{
+  g.prefix = dc_ddsi_hton_guid_prefix (g.prefix);
+  g.entityid = dc_ddsi_hton_entityid (g.entityid);
+  return g;
+}
+
+static void dc_ddsiguid2guid (dds_guid_t *dds_guid, const ddsi_guid_t *ddsi_guid)
+{
+  ddsi_guid_t tmp;
+  tmp = dc_ddsi_hton_guid (*ddsi_guid);
+  memcpy (dds_guid, &tmp, sizeof (*dds_guid));
+}
+
+static void dc_check_quorum_reached (struct dc_t *dc, dds_entity_t writer, bool new_qe)
 {
   dds_qos_t *qos;
   dds_writer *wr;
@@ -717,10 +745,12 @@ static void dc_check_quorum_reached (struct dc_t *dc, dds_entity_t writer)
     goto err_writer_lock;
   }
   key.tpname = ddsrt_strdup(wr->m_topic->m_name);
-  /* nothing to do if quorum was already reached */
-  if (!wr->quorum_reached) {
+  if (((!wr->quorum_reached) && (new_qe)) || ((wr->quorum_reached) && (!new_qe))) {
+    /* the quorum was not reached and a new quorum entry has been found, or
+     * the quorum was reached and a quorum entry has been lost
+     * In both cases check if the quorum still holds */
     for (i=0; i < plen && quorum_reached; i++) {
-      /* lookup the quorum entry and if a quorum has reached for all relevant data containers */
+      /* lookup the quorum entry, and determine if a quorum has reached for all relevant data containers */
       key.partition = ddsrt_strdup(partitions[i]);
       if ((qe = ddsrt_avl_clookup (&quorum_entry_td, &dc->quorum_entries, &key)) == NULL)  {
         quorum_reached = false;
@@ -729,7 +759,14 @@ static void dc_check_quorum_reached (struct dc_t *dc, dds_entity_t writer)
       }
       ddsrt_free(key.partition);
     }
-    wr->quorum_reached = quorum_reached;
+    if (wr->quorum_reached != quorum_reached) {
+      dds_guid_t guid;
+      char id_str[37];
+
+      wr->quorum_reached = quorum_reached;
+      dc_ddsiguid2guid(&guid, &wr->m_entity.m_guid);
+      DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "quorum for writer \"%s\" %s\n", dc_stringify_id(guid.v, id_str), quorum_reached ? "reached" : "lost");
+    }
   }
   ddsrt_free(key.tpname);
   dds_writer_unlock (wr);
@@ -740,6 +777,8 @@ err_get_qos:
   dds_delete_qos(qos);
     return;
 }
+
+
 
 /* get a quorum counter for the builtin endoint and create a quorum counter for the endpoint */
 static struct quorum_entry_t *dc_get_or_create_quorum_entry (struct dc_t *dc, dds_builtintopic_endpoint_t *ep)
@@ -865,7 +904,7 @@ static void default_durable_writer_matched_cb (dds_entity_t writer, dds_publicat
       dc_link_handle_to_quorum_entry(dc, ih, qe);
       /* a relevant data container from a durable service for this writer has become available.
        * Reevaluate if the quorum has been reached */
-      dc_check_quorum_reached(dc, writer);
+      dc_check_quorum_reached(dc, writer, true);
     }
     dds_builtintopic_free_endpoint(ep);
   } else {
@@ -876,7 +915,7 @@ static void default_durable_writer_matched_cb (dds_entity_t writer, dds_publicat
     qe = dc_unlink_handle_to_quorum_entry(dc, ih);
     /* a data container from a durable service has been lost.
      * reevaluate if the quorum still holds */
-    dc_check_quorum_reached(dc, writer);
+    dc_check_quorum_reached(dc, writer, false);
   }
   err_inc_or_create_quorum_entry:
 err_last_subscription_handle:
@@ -1097,3 +1136,121 @@ err_get_qos:
   dds_delete_qos(qos);
   return rc;
 }
+
+#if 0
+dds_return_t dds_durability_wait_for_quorum (dds_writer *wr)
+{
+  dds_return_t ret = DDS_RETCODE_ERROR;
+  ddsrt_mtime_t tnow = ddsrt_time_monotonic ();
+  ddsrt_mtime_t timeout;
+  dds_duration_t sleep_duration;
+  dds_entity_t writer;
+
+  /* This function is called from dds_write() while the writer lock is held.
+   * To make sure that we temporarily release the writer lock
+   * while we wait until the quorum has been reached, we need access
+   * to the entity handle in order to acquire the lock each time
+   * we recheck.*/
+  writer = (dds_entity_t)wr->m_entity.m_hdllink.hdl;
+  /* No need to check for quorum for non-durable writers */
+  if (wr->m_wr->xqos->durability.kind <= DDS_DURABILITY_TRANSIENT_LOCAL) {
+    ret = DDS_RETCODE_OK;
+    goto done;
+  }
+  timeout = ddsrt_mtime_add_duration (tnow, wr->m_wr->xqos->reliability.max_blocking_time);
+  /* If the quorum is reached we'll immediately return DDS_RETCODE_OK.
+   * Note that for volatile and transient-local writers the quorum
+   * is but definition reached, so this function will always return with
+   * DDS_RETCODE_OK in those case. */
+  if (wr->quorum_reached) {
+    ret = DDS_RETCODE_OK;
+    goto done;
+  }
+  /* The quorum for a durable writer is not reached.
+   * We will head bang until the quorum is reached.
+   * To prevent starvation we use a max 10ms sleep in between.
+   * If the quorum is reached within the max_blocking_time,
+   * DDS_RETCODE_OK is returned, otherwise DDS_PRECONDITION_NOT_MET
+   * is returned. */
+  do {
+    sleep_duration = DDS_MSECS(10);
+    dds_writer_unlock(wr);
+    dds_sleepfor (sleep_duration);
+    if ((ret = dds_writer_lock (writer, &wr)) != DDS_RETCODE_OK) {
+      goto err_writer_lock;
+    }
+    tnow = ddsrt_time_monotonic ();
+    if (tnow.v >= timeout.v) {
+      ret = DDS_RETCODE_PRECONDITION_NOT_MET;
+      break;
+    }
+    if (wr->quorum_reached) {
+      ret = DDS_RETCODE_OK;
+      break;
+    }
+  } while (true);
+done:
+  dds_writer_unlock(wr);
+err_writer_lock:
+  return ret;
+}
+#endif
+
+/* Retrieve the quorum_reached value from the dds_writer that corresponds to the writer entity */
+static dds_return_t dds_durability_get_quorum_reached (dds_entity_t writer, bool *quorum_reached, ddsrt_mtime_t *timeout)
+{
+  dds_return_t ret = DDS_RETCODE_OK;
+  dds_writer *wr;
+  ddsrt_mtime_t tnow;
+
+  *quorum_reached = false;
+  if ((ret = dds_writer_lock (writer, &wr)) != DDS_RETCODE_OK) {
+    goto err_writer_lock;
+  }
+  /* determine the timeout lazily */
+  if (timeout->v == DDS_TIME_INVALID) {
+    tnow = ddsrt_time_monotonic ();
+    *timeout = ddsrt_mtime_add_duration (tnow,wr->m_wr->xqos->reliability.max_blocking_time);
+  }
+  /* retrieve quorum reached */
+  *quorum_reached = wr->quorum_reached;
+  dds_writer_unlock(wr);
+err_writer_lock:
+  return ret;
+}
+
+dds_return_t dds_durability_wait_for_quorum (dds_entity_t writer)
+{
+  dds_return_t ret = DDS_RETCODE_ERROR;
+  ddsrt_mtime_t tnow = ddsrt_time_monotonic ();
+  ddsrt_mtime_t timeout;
+  dds_duration_t tdur;
+  bool quorum_reached;
+
+  /* Check if the quorum for a durable writer is reached.
+   * If not, we will head bang until the quorum is reached.
+   * To prevent starvation we use a 10ms sleep in between.
+   * When the quorum is reached within the max_blocking_time,
+   * DDS_RETCODE_OK is returned, otherwise DDS_PRECONDITION_NOT_MET
+   * is returned. The max_blocking_time itself is retrieved lazily
+   * on the first call to dds_durability_get_quorum_reached(). */
+  timeout.v = DDS_TIME_INVALID;
+  do {
+    if ((ret = dds_durability_get_quorum_reached(writer, &quorum_reached, &timeout)) != DDS_RETCODE_OK) {
+      break;
+    }
+    if (quorum_reached) {
+      ret = DDS_RETCODE_OK;
+      break;
+    }
+    tnow = ddsrt_time_monotonic();
+    if (tnow.v >= timeout.v) {
+      ret = DDS_RETCODE_PRECONDITION_NOT_MET;
+      break;
+    }
+    tdur = (timeout.v -tnow.v <= DDS_MSECS(10)) ? timeout.v - tnow.v : DDS_MSECS(10);
+    dds_sleepfor (tdur);
+  } while (true);  /* Note: potential but deliberate infinite loop when max_blocking_time is set to DDS_INFINITY. */
+  return ret;
+}
+
