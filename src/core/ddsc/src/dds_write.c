@@ -46,6 +46,19 @@ dds_return_t dds_write (dds_entity_t writer, const void *data)
   if (data == NULL)
     return DDS_RETCODE_BAD_PARAMETER;
 
+#ifdef DDS_HAS_DURABILITY
+  /* determine if the quorum of durable services for the writer is fulfilled.
+   *
+   * LH: This implementation may be suboptimal, because determining whether the
+   * quorum is fulfilled, and the actual publication of the data is not done
+   * within the same writer lock. So after the quorum has been established,
+   * and before the data is published, the quorum could have been dropped.
+   * Chances for this to happen are slim, but still ... */
+  if ((ret = dds_durability_wait_for_quorum(writer)) != DDS_RETCODE_OK) {
+    return ret;
+  }
+#endif
+
   if ((ret = dds_writer_lock (writer, &wr)) != DDS_RETCODE_OK)
     return ret;
   ret = dds_write_impl (wr, data, dds_time (), 0);
@@ -822,6 +835,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void *data, dds_time_t timest
   //       - deliver serdata
   //   c. no psmx
   //     - ddsi_serdata_from_sample, deliver serdata
+
   ddsi_thread_state_awake (thrst, &wr->m_entity.m_domain->gv);
   struct ddsi_serdata *serdata;
   struct dds_loaned_sample *psmx_loan;

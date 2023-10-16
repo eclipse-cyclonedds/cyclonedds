@@ -428,7 +428,7 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
 
 #if DDS_HAS_DURABILITY
   /* quorum applies only to durable writers, initially quorum is not reached */
-  wr->quorum_reached = (wqos->durability.kind <= DDS_DURABILITY_VOLATILE) ? true : false;
+  wr->quorum_reached = (wqos->durability.kind <= DDS_DURABILITY_TRANSIENT_LOCAL) ? true : false;
 #endif
 
   struct ddsi_sertype *sertype = ddsi_sertype_derive_sertype (tp->m_stype, data_representation,
