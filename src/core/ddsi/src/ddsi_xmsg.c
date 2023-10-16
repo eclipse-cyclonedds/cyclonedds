@@ -1179,7 +1179,6 @@ static void ddsi_xpack_send1v (const ddsi_xlocator_t *loc, void * varg)
 static void ddsi_xpack_send_real (struct ddsi_xpack *xp)
 {
   struct ddsi_domaingv const * const gv = xp->gv;
-  size_t calls;
 
   assert (xp->msgfrags == NULL || xp->msgfrags->niov <= DDSI_XMSG_MAX_MESSAGE_IOVECS);
 
@@ -1200,23 +1199,34 @@ static void ddsi_xpack_send_real (struct ddsi_xpack *xp)
     }
   }
 
+  size_t calls = 0;
   GVTRACE (" [");
-  if (xp->dstmode == NN_XMSG_DST_ONE)
+  switch (xp->dstmode)
   {
-    calls = 1;
-    (void) ddsi_xpack_send1 (&xp->dstaddr.loc, xp);
-  }
-  else
-  {
-    /* Send to all addresses in as - as ultimately references the writer's
-       address set, which is currently replaced rather than changed whenever
-       it is updated, but that might not be something we want to guarantee */
-    calls = 0;
-    if (xp->dstaddr.all.as)
-    {
-      calls = ddsi_addrset_forall_count (xp->dstaddr.all.as, ddsi_xpack_send1v, xp);
-      ddsi_unref_addrset (xp->dstaddr.all.as);
-    }
+    case NN_XMSG_DST_UNSET:
+      assert (0);
+      break;
+    case NN_XMSG_DST_ONE:
+      (void) ddsi_xpack_send1 (&xp->dstaddr.loc, xp);
+      calls++;
+      break;
+    case NN_XMSG_DST_ALL:
+      /* Send to all addresses in as - as ultimately references the writer's
+         address set, which is currently replaced rather than changed whenever
+         it is updated, but that might not be something we want to guarantee */
+      if (xp->dstaddr.all.as)
+      {
+        calls = ddsi_addrset_forall_count (xp->dstaddr.all.as, ddsi_xpack_send1v, xp);
+        ddsi_unref_addrset (xp->dstaddr.all.as);
+      }
+      break;
+    case NN_XMSG_DST_ALL_UC:
+      if (xp->dstaddr.all_uc.as)
+      {
+        calls = ddsi_addrset_forall_uc_else_mc_count (xp->dstaddr.all_uc.as, ddsi_xpack_send1v, xp);
+        ddsi_unref_addrset (xp->dstaddr.all_uc.as);
+      }
+      break;
   }
   GVTRACE (" ]\n");
   if (calls)
