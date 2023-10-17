@@ -937,8 +937,7 @@ void ddsi_reader_add_connection (struct ddsi_reader *rd, struct ddsi_proxy_write
     {
       /* pwr->supports_ssm is set if ddsi_addrset_contains_ssm(pwr->ssm), so
        any_ssm must succeed. */
-      if (!ddsi_addrset_any_uc (pwr->c.as, &m->ssm_src_loc))
-        assert (0);
+      ddsi_addrset_any_uc (pwr->c.as, &m->ssm_src_loc);
       if (!ddsi_addrset_any_ssm (rd->e.gv, pwr->c.as, &m->ssm_mc_loc))
         assert (0);
       /* FIXME: for now, assume that the ports match for datasock_mc --

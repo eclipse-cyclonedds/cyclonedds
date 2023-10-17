@@ -39,10 +39,8 @@ static void maybe_add_pp_as_meta_to_as_disc (struct ddsi_domaingv *gv, const str
   if (ddsi_addrset_empty_mc (as_meta) || !(gv->config.allowMulticast & DDSI_AMC_SPDP))
   {
     ddsi_xlocator_t loc;
-    if (ddsi_addrset_any_uc (as_meta, &loc))
-    {
-      ddsi_add_xlocator_to_addrset (gv, gv->as_disc, &loc);
-    }
+    ddsi_addrset_any_uc (as_meta, &loc);
+    ddsi_add_xlocator_to_addrset (gv, gv->as_disc, &loc);
   }
 }
 
@@ -784,9 +782,9 @@ static int handle_spdp_alive (const struct ddsi_receiver_state *rst, ddsi_seqno_
     GVLOGDISC (")");
   }
 
-  if (ddsi_addrset_empty_uc (as_default) || ddsi_addrset_empty_uc (as_meta))
+  if (!(ddsi_addrset_contains_non_psmx_uc (as_default) && ddsi_addrset_contains_non_psmx_uc (as_meta)))
   {
-    GVLOGDISC (" (no unicast address");
+    GVLOGDISC (" (no unicast address)");
     ddsi_unref_addrset (as_default);
     ddsi_unref_addrset (as_meta);
     return 1;
