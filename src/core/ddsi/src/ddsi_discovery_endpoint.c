@@ -512,13 +512,13 @@ void ddsi_handle_sedp_alive_endpoint (const struct ddsi_receiver_state *rst, dds
   }
 
   as = ddsi_get_endpoint_addrset (gv, datap, proxypp->as_default, gv->config.tcp_use_peeraddr_for_unicast ? &rst->srcloc : NULL);
-  if (ddsi_addrset_empty (as))
+  ddsi_log_addrset (gv, DDS_LC_DISCOVERY, " (as", as);
+  if (ddsi_addrset_empty (as) || !ddsi_addrset_contains_non_psmx_uc (as))
   {
     ddsi_unref_addrset (as);
-    E (" no address", err);
+    E (": no (unicast) address)", err);
   }
 
-  ddsi_log_addrset(gv, DDS_LC_DISCOVERY, " (as", as);
 #ifdef DDS_HAS_SSM
   ssm = 0;
   if (sedp_kind == SEDP_KIND_WRITER)

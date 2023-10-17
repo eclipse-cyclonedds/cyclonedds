@@ -401,40 +401,49 @@ int ddsi_addrset_empty (const struct ddsi_addrset *as)
   return isempty;
 }
 
-static int ddsi_addrset_any_uc_locked (const struct ddsi_addrset *as, ddsi_xlocator_t *dst)
+int ddsi_addrset_contains_non_psmx_uc (const struct ddsi_addrset *as)
 {
-  if (ddsrt_avl_cis_empty (&as->ucaddrs))
-    return 0;
-  else
+  int have_non_psmx_uc = 0;
+  LOCK (as);
+  ddsrt_avl_citer_t it;
+  for (const struct ddsi_addrset_node *n = ddsrt_avl_citer_first (&addrset_treedef, &as->ucaddrs, &it); n; n = ddsrt_avl_citer_next (&it))
   {
-    // FIXME: almost just as broken as it was: because we need to do multiple addresses if
-    // redundant_networking, and otherwise should use whatever wraddrset()'s calculations
-    // would yield.  This is merely a band-aid.
-    const struct ddsi_addrset_node *n = ddsrt_avl_croot_non_empty (&addrset_treedef, &as->ucaddrs);
+    if (n->loc.c.kind != DDSI_LOCATOR_KIND_PSMX)
+    {
+      have_non_psmx_uc = 1;
+      break;
+    }
+  }
+  UNLOCK (as);
+  return have_non_psmx_uc;
+}
+
+void ddsi_addrset_any_uc (const struct ddsi_addrset *as, ddsi_xlocator_t *dst)
+{
+#ifndef NDEBUG
+  dst->c.kind = DDSI_LOCATOR_KIND_INVALID;
+#endif
+  LOCK (as);
+  const struct ddsi_addrset_node *n = ddsrt_avl_croot_non_empty (&addrset_treedef, &as->ucaddrs);
+  if (n->loc.c.kind != DDSI_LOCATOR_KIND_PSMX)
+  {
+    *dst = n->loc;
+    goto done;
+  }
+  ddsrt_avl_citer_t it;
+  for (n = ddsrt_avl_citer_first (&addrset_treedef, &as->ucaddrs, &it); n; n = ddsrt_avl_citer_next (&it))
+  {
     if (n->loc.c.kind != DDSI_LOCATOR_KIND_PSMX)
     {
       *dst = n->loc;
-      return 1;
+      goto done;
     }
-    ddsrt_avl_citer_t it;
-    for (n = ddsrt_avl_citer_first (&addrset_treedef, &as->ucaddrs, &it); n; n = ddsrt_avl_citer_next (&it))
-    {
-      if (n->loc.c.kind != DDSI_LOCATOR_KIND_PSMX)
-      {
-        *dst = n->loc;
-        return 1;
-      }
-    }
-    return 0;
   }
-}
-
-int ddsi_addrset_any_uc (const struct ddsi_addrset *as, ddsi_xlocator_t *dst)
-{
-  LOCK (as);
-  int r = ddsi_addrset_any_uc_locked (as, dst);
+done:
   UNLOCK (as);
-  return r;
+  // SPDP, SEDP processing check the address sets and reject any remote entity that doesn't
+  // have a non-PSMX unicast address, making this unreachable.
+  assert (dst->c.kind != DDSI_LOCATOR_KIND_INVALID);
 }
 
 int ddsi_addrset_any_mc (const struct ddsi_addrset *as, ddsi_xlocator_t *dst)
@@ -452,19 +461,6 @@ int ddsi_addrset_any_mc (const struct ddsi_addrset *as, ddsi_xlocator_t *dst)
     UNLOCK (as);
     return 1;
   }
-}
-
-void ddsi_addrset_any_uc_else_mc_nofail (const struct ddsi_addrset *as, ddsi_xlocator_t *dst)
-{
-  LOCK (as);
-  if (!ddsi_addrset_any_uc_locked (as, dst))
-  {
-    // FIXME: any uc can fail, but only if there are no addresses other than PSMX, we should escape disaster
-    assert (!ddsrt_avl_cis_empty (&as->mcaddrs));
-    const struct ddsi_addrset_node *n = ddsrt_avl_croot_non_empty (&addrset_treedef, &as->mcaddrs);
-    *dst = n->loc;
-  }
-  UNLOCK (as);
 }
 
 struct addrset_forall_helper_arg
@@ -499,36 +495,15 @@ void ddsi_addrset_forall (struct ddsi_addrset *as, ddsi_addrset_forall_fun_t f, 
   (void) ddsi_addrset_forall_count (as, f, arg);
 }
 
-size_t ddsi_addrset_forall_uc_else_mc_count (struct ddsi_addrset *as, ddsi_addrset_forall_fun_t f, void *arg)
+size_t ddsi_addrset_forall_uc_count (struct ddsi_addrset *as, ddsi_addrset_forall_fun_t f, void *arg)
 {
   struct addrset_forall_helper_arg arg1;
   size_t count;
   arg1.f = f;
   arg1.arg = arg;
   LOCK (as);
-  if (!ddsrt_avl_cis_empty (&as->ucaddrs))
-  {
-    ddsrt_avl_cconst_walk (&addrset_treedef, &as->ucaddrs, addrset_forall_helper, &arg1);
-    count = ddsrt_avl_ccount (&as->ucaddrs);
-  }
-  else
-  {
-    ddsrt_avl_cconst_walk (&addrset_treedef, &as->mcaddrs, addrset_forall_helper, &arg1);
-    count = ddsrt_avl_ccount (&as->mcaddrs);
-  }
-  UNLOCK (as);
-  return count;
-}
-
-size_t ddsi_addrset_forall_mc_count (struct ddsi_addrset *as, ddsi_addrset_forall_fun_t f, void *arg)
-{
-  struct addrset_forall_helper_arg arg1;
-  size_t count;
-  arg1.f = f;
-  arg1.arg = arg;
-  LOCK (as);
-  ddsrt_avl_cconst_walk (&addrset_treedef, &as->mcaddrs, addrset_forall_helper, &arg1);
-  count = ddsrt_avl_ccount (&as->mcaddrs);
+  ddsrt_avl_cconst_walk (&addrset_treedef, &as->ucaddrs, addrset_forall_helper, &arg1);
+  count = ddsrt_avl_ccount (&as->ucaddrs);
   UNLOCK (as);
   return count;
 }

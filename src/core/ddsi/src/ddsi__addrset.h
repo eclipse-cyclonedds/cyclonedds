@@ -90,13 +90,16 @@ int ddsi_addrset_empty_uc (const struct ddsi_addrset *as);
 int ddsi_addrset_empty_mc (const struct ddsi_addrset *as);
 
 /** @component locators */
-int ddsi_addrset_any_uc (const struct ddsi_addrset *as, ddsi_xlocator_t *dst);
+void ddsi_addrset_any_uc (const struct ddsi_addrset *as, ddsi_xlocator_t *dst);
 
 /** @component locators */
 int ddsi_addrset_any_mc (const struct ddsi_addrset *as, ddsi_xlocator_t *dst);
 
 /** @component locators */
 void ddsi_addrset_any_uc_else_mc_nofail (const struct ddsi_addrset *as, ddsi_xlocator_t *dst);
+
+/** @component locators */
+int ddsi_addrset_contains_non_psmx_uc (const struct ddsi_addrset *as);
 
 
 /* Keeps AS locked */
@@ -108,10 +111,7 @@ int ddsi_addrset_forone (struct ddsi_addrset *as, ddsi_addrset_forone_fun_t f, v
 size_t ddsi_addrset_forall_count (struct ddsi_addrset *as, ddsi_addrset_forall_fun_t f, void *arg);
 
 /** @component locators */
-size_t ddsi_addrset_forall_uc_else_mc_count (struct ddsi_addrset *as, ddsi_addrset_forall_fun_t f, void *arg);
-
-/** @component locators */
-size_t ddsi_addrset_forall_mc_count (struct ddsi_addrset *as, ddsi_addrset_forall_fun_t f, void *arg);
+size_t ddsi_addrset_forall_uc_count (struct ddsi_addrset *as, ddsi_addrset_forall_fun_t f, void *arg);
 
 /** @component locators */
 void ddsi_log_addrset (struct ddsi_domaingv *gv, uint32_t tf, const char *prefix, const struct ddsi_addrset *as);

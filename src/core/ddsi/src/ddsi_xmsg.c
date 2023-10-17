@@ -717,7 +717,7 @@ void ddsi_xmsg_setdst_prd (struct ddsi_xmsg *m, const struct ddsi_proxy_reader *
   if (!prd->redundant_networking)
   {
     ddsi_xlocator_t loc;
-    ddsi_addrset_any_uc_else_mc_nofail (prd->c.as, &loc);
+    ddsi_addrset_any_uc (prd->c.as, &loc);
     ddsi_xmsg_setdst1 (prd->e.gv, m, &prd->e.guid.prefix, &loc);
   }
   else
@@ -738,7 +738,7 @@ void ddsi_xmsg_setdst_pwr (struct ddsi_xmsg *m, const struct ddsi_proxy_writer *
   if (!pwr->redundant_networking)
   {
     ddsi_xlocator_t loc;
-    ddsi_addrset_any_uc_else_mc_nofail (pwr->c.as, &loc);
+    ddsi_addrset_any_uc (pwr->c.as, &loc);
     ddsi_xmsg_setdst1 (pwr->e.gv, m, &pwr->e.guid.prefix, &loc);
   }
   else
@@ -1223,7 +1223,7 @@ static void ddsi_xpack_send_real (struct ddsi_xpack *xp)
     case NN_XMSG_DST_ALL_UC:
       if (xp->dstaddr.all_uc.as)
       {
-        calls = ddsi_addrset_forall_uc_else_mc_count (xp->dstaddr.all_uc.as, ddsi_xpack_send1v, xp);
+        calls = ddsi_addrset_forall_uc_count (xp->dstaddr.all_uc.as, ddsi_xpack_send1v, xp);
         ddsi_unref_addrset (xp->dstaddr.all_uc.as);
       }
       break;
