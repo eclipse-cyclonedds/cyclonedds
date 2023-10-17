@@ -8,8 +8,8 @@
   in idlc_generate().
 
 *****************************************************************/
-#ifndef CLIENT_DURABILITY_H
-#define CLIENT_DURABILITY_H
+#ifndef DURABLE_SUPPORT_H
+#define DURABLE_SUPPORT_H
 
 #include "dds/ddsc/dds_public_impl.h"
 
@@ -52,52 +52,92 @@ extern const dds_topic_descriptor_t DurableSupport_status_desc;
 #define DurableSupport_status_free(d,o) \
 dds_sample_free ((d), &DurableSupport_status_desc, (o))
 
-typedef struct DurableSupport_request_id_t
+typedef struct DurableSupport_range
 {
-  DurableSupport_id_t client;
-  uint64_t seq;
-} DurableSupport_request_id_t;
+  uint64_t lb;
+  uint64_t ub;
+} DurableSupport_range;
 
-extern const dds_topic_descriptor_t DurableSupport_request_id_t_desc;
-
-#define DurableSupport_request_id_t__alloc() \
-((DurableSupport_request_id_t*) dds_alloc (sizeof (DurableSupport_request_id_t)));
-
-#define DurableSupport_request_id_t_free(d,o) \
-dds_sample_free ((d), &DurableSupport_request_id_t_desc, (o))
-
-#ifndef DDS_SEQUENCE_STRING_DEFINED
-#define DDS_SEQUENCE_STRING_DEFINED
-typedef struct dds_sequence_string
+#ifndef DDS_SEQUENCE_DURABLESUPPORT_RANGE_DEFINED
+#define DDS_SEQUENCE_DURABLESUPPORT_RANGE_DEFINED
+typedef struct dds_sequence_DurableSupport_range
 {
   uint32_t _maximum;
   uint32_t _length;
-  char **_buffer;
+  struct DurableSupport_range *_buffer;
   bool _release;
-} dds_sequence_string;
+} dds_sequence_DurableSupport_range;
 
-#define dds_sequence_string__alloc() \
-((dds_sequence_string*) dds_alloc (sizeof (dds_sequence_string)));
+#define dds_sequence_DurableSupport_range__alloc() \
+((dds_sequence_DurableSupport_range*) dds_alloc (sizeof (dds_sequence_DurableSupport_range)));
 
-#define dds_sequence_string_allocbuf(l) \
-((char **) dds_alloc ((l) * sizeof (char*)))
-#endif /* DDS_SEQUENCE_STRING_DEFINED */
+#define dds_sequence_DurableSupport_range_allocbuf(l) \
+((struct DurableSupport_range *) dds_alloc ((l) * sizeof (struct DurableSupport_range)))
+#endif /* DDS_SEQUENCE_DURABLESUPPORT_RANGE_DEFINED */
 
-typedef struct DurableSupport_request
+typedef struct DurableSupport_writer
 {
-  struct DurableSupport_request_id_t requestid;
+  DurableSupport_id_t id;
+  uint32_t flags;
+  dds_sequence_DurableSupport_range ranges;
+} DurableSupport_writer;
+
+#ifndef DDS_SEQUENCE_DURABLESUPPORT_WRITER_DEFINED
+#define DDS_SEQUENCE_DURABLESUPPORT_WRITER_DEFINED
+typedef struct dds_sequence_DurableSupport_writer
+{
+  uint32_t _maximum;
+  uint32_t _length;
+  struct DurableSupport_writer *_buffer;
+  bool _release;
+} dds_sequence_DurableSupport_writer;
+
+#define dds_sequence_DurableSupport_writer__alloc() \
+((dds_sequence_DurableSupport_writer*) dds_alloc (sizeof (dds_sequence_DurableSupport_writer)));
+
+#define dds_sequence_DurableSupport_writer_allocbuf(l) \
+((struct DurableSupport_writer *) dds_alloc ((l) * sizeof (struct DurableSupport_writer)))
+#endif /* DDS_SEQUENCE_DURABLESUPPORT_WRITER_DEFINED */
+
+typedef struct DurableSupport_set
+{
   char * partition;
   char * tpname;
-  dds_sequence_string alignment_partition;
-} DurableSupport_request;
+  uint32_t flags;
+  dds_sequence_DurableSupport_writer writers;
+} DurableSupport_set;
 
-extern const dds_topic_descriptor_t DurableSupport_request_desc;
+#ifndef DDS_SEQUENCE_DURABLESUPPORT_SET_DEFINED
+#define DDS_SEQUENCE_DURABLESUPPORT_SET_DEFINED
+typedef struct dds_sequence_DurableSupport_set
+{
+  uint32_t _maximum;
+  uint32_t _length;
+  struct DurableSupport_set *_buffer;
+  bool _release;
+} dds_sequence_DurableSupport_set;
 
-#define DurableSupport_request__alloc() \
-((DurableSupport_request*) dds_alloc (sizeof (DurableSupport_request)));
+#define dds_sequence_DurableSupport_set__alloc() \
+((dds_sequence_DurableSupport_set*) dds_alloc (sizeof (dds_sequence_DurableSupport_set)));
 
-#define DurableSupport_request_free(d,o) \
-dds_sample_free ((d), &DurableSupport_request_desc, (o))
+#define dds_sequence_DurableSupport_set_allocbuf(l) \
+((struct DurableSupport_set *) dds_alloc ((l) * sizeof (struct DurableSupport_set)))
+#endif /* DDS_SEQUENCE_DURABLESUPPORT_SET_DEFINED */
+
+typedef struct DurableSupport_state
+{
+  DurableSupport_id_t id;
+  char * name;
+  dds_sequence_DurableSupport_set sets;
+} DurableSupport_state;
+
+extern const dds_topic_descriptor_t DurableSupport_state_desc;
+
+#define DurableSupport_state__alloc() \
+((DurableSupport_state*) dds_alloc (sizeof (DurableSupport_state)));
+
+#define DurableSupport_state_free(d,o) \
+dds_sample_free ((d), &DurableSupport_state_desc, (o))
 
 #define DurableSupport_BEADTYPE_SESSION 1
 #define DurableSupport_BEADTYPE_SET 2
@@ -106,7 +146,6 @@ dds_sample_free ((d), &DurableSupport_request_desc, (o))
 #define DurableSupport_SESSION_KIND_START 1
 #define DurableSupport_SESSION_KIND_END 2
 #define DurableSupport_SESSION_KIND_ABORT 3
-
 typedef struct DurableSupport_session_t
 {
   DurableSupport_session_kind_t kind;
@@ -137,12 +176,6 @@ typedef struct DurableSupport_set_t
   uint32_t flags;
   dds_sequence_DurableSupport_id_t addressees;
 } DurableSupport_set_t;
-
-typedef struct DurableSupport_range
-{
-  uint64_t lb;
-  uint64_t ub;
-} DurableSupport_range;
 
 #ifndef DDS_SEQUENCE_DURABLESUPPORT_RANGE_DEFINED
 #define DDS_SEQUENCE_DURABLESUPPORT_RANGE_DEFINED
@@ -216,8 +249,60 @@ extern const dds_topic_descriptor_t DurableSupport_bead_desc;
 #define DurableSupport_bead_free(d,o) \
 dds_sample_free ((d), &DurableSupport_bead_desc, (o))
 
+typedef int64_t DurableSupport_duration_t;
+
+#define DurableSupport_duration_t__alloc() \
+((DurableSupport_duration_t*) dds_alloc (sizeof (DurableSupport_duration_t)));
+
+typedef struct DurableSupport_request_id_t
+{
+  DurableSupport_id_t client;
+  uint64_t seq;
+} DurableSupport_request_id_t;
+
+extern const dds_topic_descriptor_t DurableSupport_request_id_t_desc;
+
+#define DurableSupport_request_id_t__alloc() \
+((DurableSupport_request_id_t*) dds_alloc (sizeof (DurableSupport_request_id_t)));
+
+#define DurableSupport_request_id_t_free(d,o) \
+dds_sample_free ((d), &DurableSupport_request_id_t_desc, (o))
+
+#ifndef DDS_SEQUENCE_STRING_DEFINED
+#define DDS_SEQUENCE_STRING_DEFINED
+typedef struct dds_sequence_string
+{
+  uint32_t _maximum;
+  uint32_t _length;
+  char **_buffer;
+  bool _release;
+} dds_sequence_string;
+
+#define dds_sequence_string__alloc() \
+((dds_sequence_string*) dds_alloc (sizeof (dds_sequence_string)));
+
+#define dds_sequence_string_allocbuf(l) \
+((char **) dds_alloc ((l) * sizeof (char*)))
+#endif /* DDS_SEQUENCE_STRING_DEFINED */
+
+typedef struct DurableSupport_request
+{
+  struct DurableSupport_request_id_t requestid;
+  dds_sequence_string partitions;
+  char * tpname;
+  DurableSupport_duration_t timeout;
+} DurableSupport_request;
+
+extern const dds_topic_descriptor_t DurableSupport_request_desc;
+
+#define DurableSupport_request__alloc() \
+((DurableSupport_request*) dds_alloc (sizeof (DurableSupport_request)));
+
+#define DurableSupport_request_free(d,o) \
+dds_sample_free ((d), &DurableSupport_request_desc, (o))
+
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* CLIENT_DURABILITY_H */
+#endif /* DURABLE_SUPPORT_H */

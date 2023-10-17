@@ -11,7 +11,7 @@
  */
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/durability/dds_durability.h"
-#include "dds/durability/client_durability.h"
+#include "dds/durability/durablesupport.h"
 #include "dds/ddsrt/atomics.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/heap.h"
@@ -157,6 +157,8 @@ struct com_t {
  */
 struct dc_t {
   struct {
+    DurableSupport_id_t id; /* the id of this client */
+    char id_str[37]; /* string representation of the service id */
     char *request_partition;  /* partition to send requests too; by default same as <hostname> */
     uint32_t quorum;  /*quorum of durable services needed to unblock durable writers */
     char *ident; /* ds identification */
@@ -292,7 +294,7 @@ static int create_request_partition_expression (struct com_t *com, char **reques
   char req_pname[1024] = { 0 };
   int result = 0;
 
-   (void)com;
+  (void)com;
   if ((result = get_host_specific_partition_name(req_pname, 1024)) < 0) {
     DDS_ERROR("Failed to create request partition expression\n");
     return -1;
@@ -317,6 +319,7 @@ static struct com_t *dc_com_new (struct dc_t *dc, const dds_domainid_t domainid,
   unsigned nps;
   dds_return_t ret;
   char *request_partition = NULL;
+  dds_guid_t guid;
 
   (void)dc;
   if ((com = (struct com_t *)ddsrt_malloc(sizeof(struct com_t))) == NULL) {
@@ -328,6 +331,15 @@ static struct com_t *dc_com_new (struct dc_t *dc, const dds_domainid_t domainid,
     DDS_ERROR("failed to create dc participant [%s]\n", dds_strretcode(-com->participant));
     goto err_create_participant;
   }
+  /* use the participant guid as the identification of this client */
+  if ((ret = dds_get_guid(com->participant, &guid)) != DDS_RETCODE_OK) {
+    DDS_ERROR("failed to get dc participant guid [%s]\n", dds_strretcode(-ret));
+    goto err_get_guid;
+  }
+  /* get and cache the id of the participant */
+  memcpy(dc->cfg.id, guid.v, 16);
+  (void)dc_stringify_id(dc->cfg.id, dc->cfg.id_str);
+  /* create subscriber */
   if ((status_sqos = dds_create_qos()) == NULL) {
     DDS_ERROR("failed to create the dc status subscriber qos\n");
     goto err_alloc_status_sqos;
@@ -537,6 +549,7 @@ err_status_subscriber:
   dds_free(bufcopy1);
   dds_free(ps1);
 err_alloc_status_sqos:
+err_get_guid:
   dds_delete(com->participant);
 err_create_participant:
   ddsrt_free(com);
@@ -552,6 +565,25 @@ static void dc_com_free (struct com_t *com)
   ddsrt_free(com);
   dc.com = NULL;
   return;
+}
+
+static dds_return_t dc_com_send_request (struct com_t *com, dds_entity_t reader)
+{
+  /* check for publication_matched() on the dc_request writer tomake sure that the request arrives */
+  /* create a request */
+  /* set the request on the pending liust */
+  /* send the request */
+
+  /* note: we allow doing a request for volatile readers */
+  DurableSupport_request *request;
+
+  request = DurableSupport_request__alloc();
+  memcpy(request->requestid.client, dc.cfg.id, 16);
+  DurableSupport_request_free(request, DDS_FREE_ALL);
+
+  (void)com;
+  (void)reader;
+  return DDS_RETCODE_OK;
 }
 
 static void dc_server_lost (struct dc_t *dc, DurableSupport_status *status)
@@ -985,9 +1017,12 @@ dds_return_t dds_durability_init (const dds_domainid_t domainid, struct ddsi_dom
   }
   /* This is the first participant, so let's create a durable client (dc).
    * The dc will also create a new participant, therefore
-   * increase the refcount for this participant as well. */
+   * increase the refcount for this participant as well.
+   * The guid of the participant for client durability will be used
+   * to identify this client. */
   ddsrt_atomic_inc32(&dc.refcount);
   dc.gv = gv;
+  /* Note: dc.cfg.id will be set once we create the participant in dc_com_new() */
   dc.cfg.quorum = DEFAULT_QOURUM;  /* LH: currently hardcoded set to 1, should be made configurable in future */
   dc.cfg.ident = ddsrt_strdup(DEFAULT_IDENT);
   ddsrt_avl_cinit(&server_td, &dc.servers);
@@ -1052,14 +1087,18 @@ bool dds_durability_is_terminating (void)
   return (ddsrt_atomic_ld32(&dc.termflag) > 0);
 }
 
-void dds_durability_new_local_reader (struct dds_reader *reader, struct dds_rhc *rhc)
+dds_return_t dds_durability_new_local_reader (dds_entity_t reader, struct dds_rhc *rhc)
 {
   /* create the administration to store transient data */
   /* create a durability reader that sucks and stores it in the store */
 
+  /* send a request */
+
+  dc_com_send_request (dc.com, reader);
+
   (void)rhc;
   (void)reader;
-  return;
+  return DDS_RETCODE_OK;;
 }
 
 /* This function checks if the writer has reached the quorum of matching durable containers

@@ -51,6 +51,10 @@
 #include "dds/ddsi/ddsi_tkmap.h"
 #endif
 
+#ifdef DDS_HAS_DURABILITY
+#include "dds/durability/dds_durability.h"
+#endif
+
 DECL_ENTITY_LOCK_UNLOCK (dds_reader)
 
 #define DDS_READER_STATUS_MASK                                   \
@@ -765,6 +769,11 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
   dds_topic_allow_set_qos (tp);
   dds_topic_unpin (tp);
   dds_subscriber_unlock (sub);
+
+#ifdef DDS_HAS_DURABILITY
+  dds_durability_new_local_reader(reader, rhc);
+#endif
+
   return reader;
 
 err_psmx_endpoint_setcb:

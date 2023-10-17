@@ -21,11 +21,11 @@ target_include_directories(
 
 set(headers
   "${source_dir}/include/dds/durability/dds_durability.h"
-  "${source_dir}/include/dds/durability/client_durability.h")
+  "${source_dir}/include/dds/durability/durablesupport.h")
 
 set(sources
   "${source_dir}/src/dds_durability.c"
-  "${source_dir}/src/client_durability.c")
+  "${source_dir}/src/durablesupport.c")
   
 target_sources(durability INTERFACE ${headers} ${sources})
 
