@@ -27,7 +27,7 @@ typedef int (*plugin_finalize)(void *context);
 
 dds_return_t dds_durability_init (const dds_domainid_t domain, struct ddsi_domaingv *gv);
 dds_return_t dds_durability_fini (void);
-void dds_durability_new_local_reader (struct dds_reader *reader, struct dds_rhc *rhc);
+dds_return_t dds_durability_new_local_reader (dds_entity_t reader, struct dds_rhc *rhc);
 dds_return_t dds_durability_new_local_writer (dds_entity_t writer);
 dds_return_t dds_durability_wait_for_quorum (dds_entity_t writer);
 
