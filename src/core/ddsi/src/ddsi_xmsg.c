@@ -1228,8 +1228,6 @@ static void ddsi_xpack_send_real (struct ddsi_xpack *xp)
 }
 
 #define SENDQ_MAX 200
-#define SENDQ_HW 10
-#define SENDQ_LW 0
 
 static uint32_t ddsi_xpack_sendq_thread (void *vgv)
 {
@@ -1249,7 +1247,7 @@ static uint32_t ddsi_xpack_sendq_thread (void *vgv)
     else
     {
       gv->sendq_head = xp->sendq_next;
-      if (--gv->sendq_length == SENDQ_LW)
+      if (--gv->sendq_length == 0)
         ddsrt_cond_broadcast (&gv->sendq_cond);
       ddsrt_mutex_unlock (&gv->sendq_lock);
       ddsi_xpack_send_real (xp);
@@ -1298,9 +1296,7 @@ void ddsi_xpack_sendq_fini (struct ddsi_domaingv *gv)
 void ddsi_xpack_send (struct ddsi_xpack *xp, bool immediately)
 {
   if (!xp->async_mode)
-  {
     ddsi_xpack_send_real (xp);
-  }
   else
   {
     struct ddsi_domaingv * const gv = xp->gv;
@@ -1315,18 +1311,14 @@ void ddsi_xpack_send (struct ddsi_xpack *xp, bool immediately)
     ddsi_xpack_reinit (xp);
     xp1->sendq_next = NULL;
     ddsrt_mutex_lock (&gv->sendq_lock);
-    if (immediately || gv->sendq_length > SENDQ_LW)
+    if (immediately || gv->sendq_length == 0)
       ddsrt_cond_broadcast (&gv->sendq_cond);
     if (gv->sendq_length >= SENDQ_MAX)
-    {
-        ddsrt_cond_wait (&gv->sendq_cond, &gv->sendq_lock);
-    }
+      ddsrt_cond_wait (&gv->sendq_cond, &gv->sendq_lock);
     if (gv->sendq_head)
       gv->sendq_tail->sendq_next = xp1;
     else
-    {
       gv->sendq_head = xp1;
-    }
     gv->sendq_tail = xp1;
     gv->sendq_length++;
     ddsrt_mutex_unlock (&gv->sendq_lock);
