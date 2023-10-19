@@ -260,6 +260,7 @@ static void vlog1 (const struct ddsrt_log_cfg_impl *cfg, uint32_t cat, uint32_t 
 
     data.priority = cat;
     data.file = file;
+    data.domid = domid;
     data.function = func;
     data.line = line;
     data.message = lb->buf + BUF_OFFSET;
