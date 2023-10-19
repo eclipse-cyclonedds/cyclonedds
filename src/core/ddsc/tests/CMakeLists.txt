@@ -72,6 +72,7 @@ set(ddsc_test_sources
     "reader.c"
     "reader_iterator.c"
     "read_instance.c"
+    "redundantnw.c"
     "register.c"
     "subscriber.c"
     "take_instance.c"
