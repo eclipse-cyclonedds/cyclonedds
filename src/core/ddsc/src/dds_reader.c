@@ -636,7 +636,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
   }
   dds_entity_add_ref_locked (&tp->m_entity);
 
-  if ((rc = dds_endpoint_add_psmx_endpoint (&rd->m_endpoint, rqos, tp->m_ktopic ? &tp->m_ktopic->psmx_topics : NULL, DDS_PSMX_ENDPOINT_TYPE_READER)) != DDS_RETCODE_OK)
+  if ((rc = dds_endpoint_add_psmx_endpoint (&rd->m_endpoint, rqos, &tp->m_ktopic->psmx_topics, DDS_PSMX_ENDPOINT_TYPE_READER)) != DDS_RETCODE_OK)
     goto err_create_endpoint;
 
   /* FIXME: listeners can come too soon ... should set mask based on listeners
