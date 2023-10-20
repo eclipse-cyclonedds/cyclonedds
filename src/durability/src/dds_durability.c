@@ -21,6 +21,7 @@
 #include <string.h>
 #include "dds__writer.h"
 #include "dds/ddsi/ddsi_endpoint.h"
+#include "dds/ddsrt/avl.h"
 
 #define DEFAULT_QOURUM                       1
 #define DEFAULT_IDENT                        "durable_support"
@@ -36,7 +37,6 @@ static char *dc_stringify_id(const DurableSupport_id_t id, char *buf)
                 id[8], id[9], id[10], id[11], id[12], id[13], id[14], id[15]);
   return buf;
 }
-
 
 struct server_t {
   ddsrt_avl_node_t node;
@@ -60,71 +60,6 @@ static void cleanup_server (void *n)
 }
 
 static const ddsrt_avl_ctreedef_t server_td = DDSRT_AVL_CTREEDEF_INITIALIZER(offsetof (struct server_t, node), offsetof (struct server_t, id), cmp_server, 0);
-
-
-struct quorum_entry_key_t {
-  char *partition;  /* the partition of the data container; should be a singleton */
-  char *tpname;  /* topic name */
-  /* LH: todo: add a type id to support xtypes */
-};
-
-struct quorum_entry_t {
-  ddsrt_avl_node_t node;
-  struct quorum_entry_key_t key;
-  uint32_t cnt;  /* the number of data containers found for this partition/topic combination */
-};
-
-static int cmp_quorum_entry (const void *a, const void *b)
-{
-  struct quorum_entry_key_t *qk1 = (struct quorum_entry_key_t *)a;
-  struct quorum_entry_key_t *qk2 = (struct quorum_entry_key_t *)b;
-  int cmp;
-
-  if ((cmp = strcmp(qk1->partition, qk2->partition)) < 0) {
-    return -1;
-  } else if (cmp > 0) {
-    return 1;
-  } else if ((cmp = strcmp(qk1->tpname, qk2->tpname)) < 0) {
-    return -1;
-  } else if (cmp > 0) {
-    return 1;
-  } else {
-    return 0;
-  }
-}
-
-static void cleanup_quorum_entry (void *n)
-{
-  struct quorum_entry_t *qe = (struct quorum_entry_t *)n;
-  ddsrt_free(qe->key.partition);
-  ddsrt_free(qe->key.tpname);
-  ddsrt_free(qe);
-}
-
-static const ddsrt_avl_ctreedef_t quorum_entry_td = DDSRT_AVL_CTREEDEF_INITIALIZER(offsetof (struct quorum_entry_t, node), offsetof (struct quorum_entry_t, key), cmp_quorum_entry, 0);
-
-struct handle_to_quorum_entry_t {
-  ddsrt_avl_node_t node;
-  dds_instance_handle_t ih;
-  struct quorum_entry_t *qe_ref;  /* reference to quorum entry */
-};
-
-static int cmp_instance_handle (const void *a, const void *b)
-{
-  dds_instance_handle_t *ih1 = (dds_instance_handle_t *)a;
-  dds_instance_handle_t *ih2 = (dds_instance_handle_t *)b;
-
-  return (*ih1 < *ih2) ? -1 : ((*ih1 > *ih2) ? 1 : 0);
-}
-
-static void cleanup_handle_to_quorum_entry (void *n)
-{
-  struct handle_to_quorum_entry_t *hqe = (struct handle_to_quorum_entry_t *)n;
-
-  ddsrt_free(hqe);
-}
-
-static const ddsrt_avl_ctreedef_t handle_to_quorum_entry_td = DDSRT_AVL_CTREEDEF_INITIALIZER(offsetof (struct handle_to_quorum_entry_t, node), offsetof (struct handle_to_quorum_entry_t, ih), cmp_instance_handle, 0);
 
 struct com_t {
   dds_entity_t participant; /* durable client participant */
@@ -163,6 +98,7 @@ struct dc_t {
     uint32_t quorum;  /*quorum of durable services needed to unblock durable writers */
     char *ident; /* ds identification */
   } cfg;
+  uint64_t seq;  /* monotonically increasing sequence number, bumped by 1 for each request by this client */
   ddsrt_atomic_uint32_t refcount;  /* refcount, increased/decreased when a participant is created/deleted */
   struct ddsi_domaingv *gv;  /* reference to ddsi domain settings */
   struct com_t *com;  /* ptr to durable client communication infra structure */
@@ -206,36 +142,6 @@ static unsigned split_string (const char ***p_ps, char **p_bufcopy, const char *
   *p_bufcopy = bufcopy;
   return nps;
 }
-
-#if 0
-/* callback function to update the sequence number administration of a container
- * and to optionally monitor the contents of data containers */
-static void default_data_available_cb (dds_entity_t rd, void *arg)
-{
-#define MAX_SAMPLES      100
-  int samplecount;
-  static void *samples[MAX_SAMPLES];
-  dds_sample_info_t info[MAX_SAMPLES];
-
-  (void)arg;
-
-  samplecount = dds_read_mask (rd, samples, info, MAX_SAMPLES, MAX_SAMPLES, DDS_NOT_READ_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ALIVE_INSTANCE_STATE);
-  printf("LH *** samplecount = %d\n", samplecount);
-  if (samplecount < 0) {
-    printf("LH *** dds_read_mask for status reader failed: %s", dds_strretcode(-samplecount));
-    goto samplecount_err;
-  }
-  for (int j = 0; j < samplecount; j++) {
-    DurableSupport_status *status = (DurableSupport_status *)samples[j];
-    printf("LH *** recv status(): name=%s\n", status->name);
-    info[j].publication_handle();
-
-  }
-samplecount_err:
-#undef MAX_SAMPLES
-  return;
-}
-#endif
 
 static struct server_t *create_server (struct dc_t *dc, DurableSupport_id_t id, const char *name, const char *hostname)
 {
@@ -305,6 +211,295 @@ static int create_request_partition_expression (struct com_t *com, char **reques
   return 0;
 }
 
+/* The following is used to build up an administration to evaluate
+ * if a writer has reached its quorum for durable containers.
+ * The administration uses data container counters to count the
+ * number of data container matches for a given writer. If the writer
+ * publishes on multiple partitions, we requires that for each of
+ * these partitions the quorum must be met in order for the publisher
+ * to start publishing.
+ * To retrieve the matching data containers for a writer we use
+ * dds_get_matched_subscriptions(). This call returns the matched
+ * reader for a given writer, even the onces that occurred before the
+ * quorum listener has been attached to the writer. To reduce the
+ * number of calls to dds_get_matched_subscriptions() we only call
+ * it there is a risk that the quorum changes.
+ */
+struct data_container_cnt_key_t {
+  char *partition;
+};
+
+struct data_container_cnt_t {
+  ddsrt_avl_node_t node;
+  struct data_container_cnt_key_t key;
+  uint32_t cnt;
+};
+
+static void cleanup_data_container_cnt (void *n)
+{
+  struct data_container_cnt_t *dcc = (struct data_container_cnt_t *)n;
+
+  ddsrt_free(dcc->key.partition);
+  ddsrt_free(dcc);
+}
+
+static int cmp_data_container_cnt (const void *a, const void *b)
+{
+  struct data_container_cnt_key_t *k1 = (struct data_container_cnt_key_t *)a;
+  struct data_container_cnt_key_t *k2 = (struct data_container_cnt_key_t *)b;
+
+  return strcmp(k1->partition, k2->partition);
+}
+
+static const ddsrt_avl_ctreedef_t data_container_cnt_td = DDSRT_AVL_CTREEDEF_INITIALIZER(offsetof (struct data_container_cnt_t, node), offsetof (struct data_container_cnt_t, key), cmp_data_container_cnt, 0);
+
+
+static struct data_container_cnt_t *create_data_container_cnt (ddsrt_avl_ctree_t *dcc_tree, const char *partition)
+{
+  struct data_container_cnt_t *dcc;
+
+  assert(partition);
+  dcc = (struct data_container_cnt_t *)ddsrt_malloc(sizeof(struct data_container_cnt_t));
+  dcc->key.partition = ddsrt_strdup(partition);
+  dcc->cnt = 0;
+  ddsrt_avl_cinsert(&data_container_cnt_td, dcc_tree, dcc);
+  return dcc;
+}
+
+static struct data_container_cnt_t *get_data_container_cnt (ddsrt_avl_ctree_t *dcc_tree, const char *partition, bool autocreate)
+{
+  struct data_container_cnt_t *dcc = NULL;
+  struct data_container_cnt_key_t key;
+
+  assert(dcc_tree);
+  assert(partition);
+  key.partition = ddsrt_strdup(partition);
+  if (((dcc = ddsrt_avl_clookup (&data_container_cnt_td, dcc_tree, &key)) == NULL) && autocreate) {
+    dcc = create_data_container_cnt(dcc_tree, partition);
+  }
+  ddsrt_free(key.partition);
+  return dcc;
+}
+
+static void dc_free_partitions (uint32_t plen, char **partitions)
+{
+  uint32_t i;
+
+  if (partitions == NULL) {
+    return;
+  }
+  for (i=0; i < plen; i++) {
+    ddsrt_free(partitions[i]);
+  }
+  ddsrt_free(partitions);
+}
+
+/* verifies if the user data of the endpoint contains the identifier
+ * that indicates that this endpoint is a durable container */
+static bool dc_is_ds_endpoint (struct com_t *com, dds_builtintopic_endpoint_t *ep, const char *ident)
+{
+  dds_builtintopic_endpoint_t template;
+  dds_builtintopic_participant_t *participant;
+  dds_instance_handle_t ih;
+  dds_return_t rc;
+  static void *samples[1];
+  static dds_sample_info_t info[1];
+  void *userdata;
+  size_t size = 0;
+  char id_str[37];
+  bool result = false;
+
+  assert(ep);
+  /* by convention, if the ident == NULL then return true */
+  if (ident == NULL) {
+    return true;
+  }
+  /* lookup the instance handle of the builtin participant endpoint that
+   * contains the participant of the subinfo */
+  memcpy(template.key.v,ep->participant_key.v,16);
+  if ((ih = dds_lookup_instance(com->rd_participant, &template)) == DDS_HANDLE_NIL) {
+    DDS_ERROR("Failed to lookup the participant of reader \"%s\"", dc_stringify_id(ep->key.v, id_str));
+    goto err_lookup_instance;
+  }
+  if ((rc = dds_read_instance(com->rd_participant, samples, info, 1, 1, ih)) <= 0) {
+    DDS_ERROR("Failed to read the participant of reader \"%s\"", dc_stringify_id(ep->key.v, id_str));
+    goto err_read_instance;
+  }
+  if (info[0].valid_data) {
+    participant = (dds_builtintopic_participant_t *)samples[0];
+    /* get the user data */
+    if (!dds_qget_userdata(participant->qos, &userdata, &size)) {
+      DDS_ERROR("Unable to retrieve the user data of reader \"%s\"", dc_stringify_id(ep->key.v, id_str));
+      goto err_qget_userdata;
+    }
+    if ((size != strlen(ident)) || (userdata == NULL) || (strcmp(userdata, ident) != 0)) {
+      /* the user data of the participant of the durable reader does not contain the ident,
+       * so the endoint is not from a remote DS */
+      result = false;
+    } else {
+      /* this endpoint's participant is a ds */
+      result = true;
+    }
+    dds_free(userdata);
+  }
+  return result;
+
+err_lookup_instance:
+err_read_instance:
+err_qget_userdata:
+  return false;
+}
+
+/* Determine if the quorum for the writer is reached or not.
+ * This function also does its job when the quorum threshold is 0,
+ * even though this case is likely to be prohibited because it
+ * violates eventual consistency. After all, how can you provide
+ * historical data if you allow that durable publishers start to
+ * publish when there is no durable support? */
+static void dc_check_quorum_reached (struct dc_t *dc, dds_entity_t writer, bool wr_appeared)
+{
+  /* precondition: the writer is only called when we know that the writer is durable */
+
+  dds_qos_t *qos;
+  dds_return_t ret;
+  uint32_t plen, i;
+  char **partitions;
+  char *tpname;
+  dds_writer *wr;
+  bool old_quorum_reached, quorum_reached = true;
+  bool to_check = false;
+  struct data_container_cnt_t *dcc;
+  dds_guid_t wguid;
+  char id_str[37];
+
+  qos = dds_create_qos();
+  if ((ret = dds_get_qos(writer, qos)) < 0) {
+    DDS_ERROR("failed to get qos from writer [%s]\n", dds_strretcode(ret));
+    goto err_get_qos;
+  }
+  if (!dds_qget_partition(qos, &plen, &partitions)) {
+    DDS_ERROR("failed to get partitions from qos\n");
+    goto err_qget_partition;
+  }
+  assert(plen > 0);
+  if (dds_get_guid(writer, &wguid) < 0) {
+    DDS_ERROR("failed to writer guid\n");
+    goto err_get_guid;
+  }
+  /* determine if the quorum is already satisfied or not */
+  if ((ret = dds_writer_lock (writer, &wr)) != DDS_RETCODE_OK) {
+    DDS_ERROR("failed to lock writer [%s]\n", dds_strretcode(ret));
+    goto err_writer_lock;
+  }
+  tpname = ddsrt_strdup(wr->m_topic->m_name);
+  old_quorum_reached = wr->quorum_reached;
+  to_check = ((!wr->quorum_reached) && (wr_appeared)) || ((wr->quorum_reached) && (!wr_appeared));
+  dds_writer_unlock (wr);
+  if (to_check) {
+    dds_instance_handle_t *rd_ihs;
+    size_t nrds = 128;
+    ddsrt_avl_ctree_t data_container_counters;
+
+    DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "checking quorum for writer \"%s\"\n", dc_stringify_id(wguid.v, id_str));
+    ddsrt_avl_cinit(&data_container_cnt_td, &data_container_counters);
+    /* Check if the quorum for the writer is lost or reached.
+     * We do this by calling dds_get_matched_subscriptions().
+     * This is an expensive call, but it works for now. At least we
+     * are protected against missing publication_matches() that could have
+     * occurred before the quorum listener was set on the writer.
+     * We only do this expensive call when there is a possibility
+     * that the quorum_reached property of the writer changes.
+     * Because the call to dds_get_matched_subscriptions() requires
+     * an preallocated list of reader handles and we don't know the
+     * size of the list beforehand, we dynamically extend the list
+     * until it is large enough to hold all handles of matching readers. */
+    do {
+      nrds = nrds * 2;
+      rd_ihs = ddsrt_malloc(nrds * sizeof(dds_instance_handle_t));
+      if ((ret = dds_get_matched_subscriptions(writer, rd_ihs, nrds)) > (int32_t)nrds) {
+        /* allocated list is too small, use a bigger list */
+        ddsrt_free(rd_ihs);
+      }
+    } while (ret > (int32_t)nrds);
+    /* We now have a list of handles to readers that match with the writer.
+     * Determine if the quorum is reached by verifying if the reader
+     * is a data container, an counting the matches. */
+    if ((ret >= 0) && (dc->cfg.quorum > (uint32_t)ret)) {
+      /* the number of matches is less than the quorum, so we are sure that
+       * the quorum cannot be reached.  */
+      quorum_reached = false;
+    } else if (ret >= 0) {
+      /* now walk over all reader handles, lookup the reader,
+       * and determine if the reader is a remote data container.
+       * If so, we have detected a matching remote data container and
+       * we increase the count for this container. */
+      for (i=0; i < (uint32_t)ret; i++) {
+        dds_builtintopic_endpoint_t *ep;
+
+        if ((ep = dds_get_matched_subscription_data(writer, rd_ihs[i])) != NULL) {
+          if (dc_is_ds_endpoint(dc->com, ep, dc->cfg.ident)) {
+            /* the matching endpoint represents a data container.
+             * Increase the count for this container. */
+            uint32_t ep_plen;
+            char **ep_partitions;
+
+            dds_qget_partition(ep->qos, &ep_plen, &ep_partitions);
+            assert(ep_plen == 1); /* this is a data container, so it must have a singleton as partition */
+            dcc = get_data_container_cnt(&data_container_counters, ep_partitions[0], true);
+            dcc->cnt++;
+            dc_free_partitions(ep_plen, ep_partitions);
+          }
+          dds_builtintopic_free_endpoint(ep);
+        }
+      }
+      /* Determine if the quorum is reached or not.
+       * We do this by walking over the partitions of the writer,
+       * lookup the corresponding data container counter, and determine
+       * if they meet the quorum. Only if the quorum is met for all
+       * partitions of the writer, then we are sure that the writer meets
+       * the quorum condition, and publication can proceed. */
+      quorum_reached = true;
+      for (i=0; i < plen; i++) {
+        if ((dcc = get_data_container_cnt(&data_container_counters, partitions[i], false)) == NULL) {
+          /* no data container counter found for this partitions of the writer, so
+           * quorom not reached */
+          quorum_reached = false;
+          break;
+        } else if (dcc->cnt < dc->cfg.quorum) {
+          /* quorom not (yet) reached */
+          quorum_reached = false;
+          break;
+        }
+      }
+    }
+    if (old_quorum_reached != quorum_reached) {
+      /* the quorum has changed, update the writer quorum setting */
+      if ((ret = dds_writer_lock (writer, &wr)) != DDS_RETCODE_OK) {
+        DDS_ERROR("failed to lock writer [%s]\n", dds_strretcode(ret));
+        goto err_writer_lock;
+      }
+      wr->quorum_reached = quorum_reached;
+      dds_writer_unlock (wr);
+      DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "quorum for writer \"%s\" %s\n", dc_stringify_id(wguid.v, id_str), quorum_reached ? "reached" : "lost");
+    } else {
+      DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "quorum for writer \"%s\" still %sreached\n", dc_stringify_id(wguid.v, id_str), quorum_reached ? "" : "not ");
+    }
+    ddsrt_avl_cfree(&data_container_cnt_td, &data_container_counters, cleanup_data_container_cnt);
+    ddsrt_free(rd_ihs);
+  }
+  dc_free_partitions(plen, partitions);
+  ddsrt_free(tpname);
+  dds_delete_qos(qos);
+  return;
+
+err_writer_lock:
+err_get_guid:
+  dc_free_partitions(plen, partitions);
+err_qget_partition:
+err_get_qos:
+  dds_delete_qos(qos);
+  return;
+}
 
 /* set up durable client infrastructure */
 static struct com_t *dc_com_new (struct dc_t *dc, const dds_domainid_t domainid, struct ddsi_domaingv *gv)
@@ -450,7 +645,7 @@ static struct com_t *dc_com_new (struct dc_t *dc, const dds_domainid_t domainid,
     DDS_ERROR("failed to create dc participant reader [%s]\n", dds_strretcode(-com->rd_participant));
     goto err_rd_participant;
   }
-  /* subinfo reader and listener to detect remote data containers */
+  /* subinfo reader to detect remote data containers */
   if ((com->rd_subinfo = dds_create_reader(com->participant, DDS_BUILTIN_TOPIC_DCPSSUBSCRIPTION, NULL, NULL)) < 0) {
     DDS_ERROR("failed to create dc subinfo reader [%s]\n", dds_strretcode(-com->rd_subinfo));
     goto err_rd_subinfo;
@@ -567,7 +762,13 @@ static void dc_com_free (struct com_t *com)
   return;
 }
 
-static dds_return_t dc_com_send_request (struct com_t *com, dds_entity_t reader)
+static uint64_t next_request_seq (struct dc_t *dc)
+{
+  (dc->seq)++;
+  return dc->seq;
+}
+
+static dds_return_t dc_com_request_write (struct com_t *com, dds_entity_t reader)
 {
   /* check for publication_matched() on the dc_request writer tomake sure that the request arrives */
   /* create a request */
@@ -576,14 +777,51 @@ static dds_return_t dc_com_send_request (struct com_t *com, dds_entity_t reader)
 
   /* note: we allow doing a request for volatile readers */
   DurableSupport_request *request;
+  dds_qos_t *rqos;
+  dds_return_t ret = DDS_RETCODE_OK;
+  uint32_t plen, i;
+  char **partitions;
 
+  if ((rqos = dds_create_qos()) == NULL) {
+    DDS_ERROR("Unable to create reader qos for dc_request");
+    goto err_alloc_rqos;
+  }
+  if ((ret = dds_get_qos(reader, rqos)) != DDS_RETCODE_OK) {
+    DDS_ERROR("Unable to get reader qos for dc_request");
+    goto err_get_qos;
+  }
+  if (!dds_qget_partition(rqos, &plen, &partitions)) {
+    DDS_ERROR("Failed to retrieve partition qos for dc_request");
+    goto err_qget_partition;
+  }
   request = DurableSupport_request__alloc();
   memcpy(request->requestid.client, dc.cfg.id, 16);
+  request->requestid.seq = next_request_seq(&dc);
+  request->partitions._length = plen;
+  request->partitions._maximum = plen;
+  request->partitions._buffer = dds_sequence_string_allocbuf(plen);
+  request->partitions._release = true;
+  for (i=0; i < plen; i++) {
+    request->partitions._buffer[i] = ddsrt_strdup(partitions[i]);
+  }
+  request->timeout = DDS_SECS(5);
+  /* todo: administrate the request */
+  if ((ret = dds_write(com->wr_request, request)) < 0) {
+    DDS_ERROR("com_set_bead_write failed [%s]", dds_strretcode(-ret));
+    goto err_request_write;
+  }
+  DDS_CLOG(DDS_LC_DUR, &dc.gv->logconfig, "dc_request sent\n");
+err_request_write:
+  dc_free_partitions(plen, partitions);
+  dds_delete_qos(rqos);
   DurableSupport_request_free(request, DDS_FREE_ALL);
+  return ret;
 
-  (void)com;
-  (void)reader;
-  return DDS_RETCODE_OK;
+err_qget_partition:
+err_get_qos:
+  dds_delete_qos(rqos);
+err_alloc_rqos:
+  return DDS_RETCODE_ERROR;
 }
 
 static void dc_server_lost (struct dc_t *dc, DurableSupport_status *status)
@@ -651,268 +889,12 @@ static int dc_process_status (dds_entity_t rd, struct dc_t *dc)
 #undef MAX_SAMPLES
 }
 
-/* verifies if the user data of the endpoint contains the identifier
- * that indicates that this endpoint is a durable container */
-static bool dc_is_ds_endpoint (struct com_t *com, dds_builtintopic_endpoint_t *ep, const char *ident)
-{
-  dds_builtintopic_endpoint_t template;
-  dds_builtintopic_participant_t *participant;
-  dds_instance_handle_t ih;
-  dds_return_t rc;
-  static void *samples[1];
-  static dds_sample_info_t info[1];
-  void *userdata;
-  size_t size = 0;
-  char id_str[37];
-  bool result = false;
-
-  assert(ep);
-  /* by convention, if the ident == NULL then return true */
-  if (ident == NULL) {
-    return true;
-  }
-  /* lookup the instance handle of the builtin participant endpoint that
-   * contains the participant of the subinfo */
-  memcpy(template.key.v,ep->participant_key.v,16);
-  if ((ih = dds_lookup_instance(com->rd_participant, &template)) == DDS_HANDLE_NIL) {
-    DDS_ERROR("Failed to lookup the participant of reader \"%s\"", dc_stringify_id(ep->key.v, id_str));
-    goto err_lookup_instance;
-  }
-  if ((rc = dds_read_instance(com->rd_participant, samples, info, 1, 1, ih)) <= 0) {
-    DDS_ERROR("Failed to read the participant of reader \"%s\"", dc_stringify_id(ep->key.v, id_str));
-    goto err_read_instance;
-  }
-  if (info[0].valid_data) {
-    participant = (dds_builtintopic_participant_t *)samples[0];
-    /* get the user data */
-    if (!dds_qget_userdata(participant->qos, &userdata, &size)) {
-      DDS_ERROR("Unable to retrieve the user data of reader \"%s\"", dc_stringify_id(ep->key.v, id_str));
-      goto err_qget_userdata;
-    }
-    if ((size != strlen(ident)) || (userdata == NULL) || (strcmp(userdata, ident) != 0)) {
-      /* the user data of the participant of the durable reader does not contain the ident,
-       * so the endoint is not from a remote DS */
-      result = false;
-    } else {
-      /* this endpoint's participant is a ds */
-      result = true;
-    }
-    dds_free(userdata);
-  }
-  return result;
-
-err_lookup_instance:
-err_read_instance:
-err_qget_userdata:
-  return false;
-}
-
-static void dc_free_partitions (uint32_t plen, char **partitions)
-{
-  uint32_t i;
-
-  if (partitions == NULL) {
-    return;
-  }
-  for (i=0; i < plen; i++) {
-    ddsrt_free(partitions[i]);
-  }
-  ddsrt_free(partitions);
-}
-
-static ddsi_guid_prefix_t dc_ddsi_hton_guid_prefix (ddsi_guid_prefix_t p)
-{
-  int i;
-  for (i = 0; i < 3; i++)
-    p.u[i] = ddsrt_toBE4u (p.u[i]);
-  return p;
-}
-
-static ddsi_entityid_t dc_ddsi_hton_entityid (ddsi_entityid_t e)
-{
-  e.u = ddsrt_toBE4u (e.u);
-  return e;
-}
-
-static ddsi_guid_t dc_ddsi_hton_guid (ddsi_guid_t g)
-{
-  g.prefix = dc_ddsi_hton_guid_prefix (g.prefix);
-  g.entityid = dc_ddsi_hton_entityid (g.entityid);
-  return g;
-}
-
-static void dc_ddsiguid2guid (dds_guid_t *dds_guid, const ddsi_guid_t *ddsi_guid)
-{
-  ddsi_guid_t tmp;
-  tmp = dc_ddsi_hton_guid (*ddsi_guid);
-  memcpy (dds_guid, &tmp, sizeof (*dds_guid));
-}
-
-static void dc_check_quorum_reached (struct dc_t *dc, dds_entity_t writer, bool new_qe)
-{
-  dds_qos_t *qos;
-  dds_writer *wr;
-  dds_return_t rc;
-  uint32_t plen, i;
-  char **partitions;
-  struct quorum_entry_key_t key;
-  struct quorum_entry_t *qe;
-  bool quorum_reached = true;
-
-  assert(writer);
-  assert(dc);
-
-  qos = dds_create_qos();
-  if ((rc = dds_get_qos(writer, qos)) < 0) {
-    DDS_ERROR("failed to get qos from writer [%s]", dds_strretcode(rc));
-    goto err_get_qos;
-  }
-  if (!dds_qget_partition(qos, &plen, &partitions)) {
-    DDS_ERROR("failed to get partitions from qos\n");
-    goto err_qget_partition;
-  }
-  assert(plen > 0);
-  if ((rc = dds_writer_lock (writer, &wr)) != DDS_RETCODE_OK) {
-    DDS_ERROR("failed to lock writer\n");
-    goto err_writer_lock;
-  }
-  key.tpname = ddsrt_strdup(wr->m_topic->m_name);
-  if (((!wr->quorum_reached) && (new_qe)) || ((wr->quorum_reached) && (!new_qe))) {
-    /* the quorum was not reached and a new quorum entry has been found, or
-     * the quorum was reached and a quorum entry has been lost
-     * In both cases check if the quorum still holds */
-    for (i=0; i < plen && quorum_reached; i++) {
-      /* lookup the quorum entry, and determine if a quorum has reached for all relevant data containers */
-      key.partition = ddsrt_strdup(partitions[i]);
-      if ((qe = ddsrt_avl_clookup (&quorum_entry_td, &dc->quorum_entries, &key)) == NULL)  {
-        quorum_reached = false;
-      } else {
-        quorum_reached = (qe->cnt >= dc->cfg.quorum);
-      }
-      ddsrt_free(key.partition);
-    }
-    if (wr->quorum_reached != quorum_reached) {
-      dds_guid_t guid;
-      char id_str[37];
-
-      wr->quorum_reached = quorum_reached;
-      dc_ddsiguid2guid(&guid, &wr->m_entity.m_guid);
-      DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "quorum for writer \"%s\" %s\n", dc_stringify_id(guid.v, id_str), quorum_reached ? "reached" : "lost");
-    }
-  }
-  ddsrt_free(key.tpname);
-  dds_writer_unlock (wr);
-err_writer_lock:
-  dc_free_partitions(plen, partitions);
-err_qget_partition:
-err_get_qos:
-  dds_delete_qos(qos);
-    return;
-}
-
-
-
-/* get a quorum counter for the builtin endoint and create a quorum counter for the endpoint */
-static struct quorum_entry_t *dc_get_or_create_quorum_entry (struct dc_t *dc, dds_builtintopic_endpoint_t *ep)
-{
-  struct quorum_entry_t *qe;
-  struct quorum_entry_key_t key;
-  uint32_t plen;
-  char **partitions;
-
-  if (!dds_qget_partition(ep->qos, &plen, &partitions)) {
-    DDS_ERROR("failed to get partitions from qos\n");
-    goto err_qget_partition;
-  }
-  assert(plen == 1);
-  key.tpname = ddsrt_strdup(ep->topic_name);
-  key.partition = ddsrt_strdup(partitions[0]);
-  if ((qe = ddsrt_avl_clookup (&quorum_entry_td, &dc->quorum_entries, &key)) == NULL)  {
-    /* create quorum entry */
-    if ((qe = (struct quorum_entry_t *)ddsrt_malloc(sizeof(struct quorum_entry_t))) == NULL) {
-      DDS_ERROR("failed to allocate quorum entry\n");
-      goto err_alloc_quorum_entry;
-    }
-    qe->key.partition = ddsrt_strdup(key.partition);
-    qe->key.tpname = ddsrt_strdup(key.tpname);
-    qe->cnt = 0;
-    ddsrt_avl_cinsert(&quorum_entry_td, &dc->quorum_entries, qe);
-    DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "quorum entry for \"%s.%s\" created\n", qe->key.partition, qe->key.tpname);
-  }
-  ddsrt_free(key.tpname);
-  ddsrt_free(key.partition);
-  dc_free_partitions(plen, partitions);
-  return qe;
-
-err_alloc_quorum_entry:
-  ddsrt_free(key.tpname);
-  ddsrt_free(key.partition);
-  dc_free_partitions(plen, partitions);
-err_qget_partition:
-  return NULL;
-}
-
-static struct quorum_entry_t *dc_link_handle_to_quorum_entry (struct dc_t *dc, dds_instance_handle_t ih, struct quorum_entry_t *qe)
-{
-  struct handle_to_quorum_entry_t *hqe;
-
-  assert(qe);
-  /* link the handle to the quorum entry, so we can lookup the
-   * quorum entry if the data container identified by the handle
-   * disappears */
-  if ((hqe = (struct handle_to_quorum_entry_t *)ddsrt_malloc(sizeof(struct handle_to_quorum_entry_t))) == NULL) {
-    DDS_ERROR("failed to allocate handle_to_quorum_entry_t\n");
-    goto err_alloc_hqe;
-  }
-  hqe->ih = ih;
-  hqe->qe_ref = qe;
-  ddsrt_avl_cinsert(&handle_to_quorum_entry_td, &dc->handle_to_quorum_entries, hqe);
-  qe->cnt++;
-  DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "quorum for \"%s.%s\" bumped to %" PRIu32 " (ih %" PRIx64 ")\n", qe->key.partition, qe->key.tpname, qe->cnt, ih);
-  return qe;
-
-err_alloc_hqe:
-  return NULL;
-}
-
-/* Update the quorum entry when a data container leaves.
- * Returns a reference to the quorum entry as long as there are still containers, or NULL otherwise */
-static struct quorum_entry_t *dc_unlink_handle_to_quorum_entry (struct dc_t *dc, dds_instance_handle_t ih)
-{
-  struct handle_to_quorum_entry_t *hqe;
-  struct quorum_entry_t *qe = NULL;
-  ddsrt_avl_dpath_t dpath_hqe, dpath_qe;
-
-  /* look up the quorum entry via the instance handle */
-  if ((hqe = ddsrt_avl_clookup_dpath (&handle_to_quorum_entry_td, &dc->handle_to_quorum_entries, &ih, &dpath_hqe)) != NULL) {
-    qe = hqe->qe_ref;
-    assert(qe);
-    assert(qe->cnt > 0);
-    qe->cnt--;
-    DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "quorum for \"%s.%s\" decreased to %" PRIu32 " (ih %" PRIx64 ")\n", qe->key.partition, qe->key.tpname, qe->cnt, ih);
-    if (qe->cnt == 0) {
-      /* by unlinking this subscription info, the last reference to the quorum entry is now gone.
-       * We can now garbage collect the quorum entry itself.  */
-      DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "quorum entry for \"%s.%s\" deleted\n", qe->key.partition, qe->key.tpname);
-      if (ddsrt_avl_clookup_dpath(&quorum_entry_td, &dc->quorum_entries, &qe->key, &dpath_qe)) {
-        ddsrt_avl_cdelete_dpath(&quorum_entry_td, &dc->quorum_entries, qe, &dpath_qe);
-        cleanup_quorum_entry(qe);
-        qe = NULL;
-      }
-    }
-    ddsrt_avl_cdelete_dpath(&handle_to_quorum_entry_td, &dc->handle_to_quorum_entries, hqe, &dpath_hqe);
-    cleanup_handle_to_quorum_entry(hqe);
-  }
-  return qe;
-}
-
 /* called when there is a match for a durable writer */
 static void default_durable_writer_matched_cb (dds_entity_t writer, dds_publication_matched_status_t status, void *arg)
 {
   struct dc_t *dc = (struct dc_t *)arg;
   dds_instance_handle_t ih;
   dds_builtintopic_endpoint_t *ep;
-  struct quorum_entry_t *qe;
 
   /* a reader has matched with a durable writer. */
   /* check if the reader is a data container.
@@ -924,32 +906,16 @@ static void default_durable_writer_matched_cb (dds_entity_t writer, dds_publicat
   }
   if ((ep = dds_get_matched_subscription_data(writer, ih)) != NULL) {
     if (dc_is_ds_endpoint(dc->com, ep, dc->cfg.ident)) {
-      /* a data container has matched with this writer.
-       * Increase the quorum counter for this container.
-       * If no quorum counter existed, then create one.
-       * Also link the subscription handle to the quorum counter,
-       * so that we can decrease the quorum counter in case the
-       * data container does not exist. */
-      if ((qe = dc_get_or_create_quorum_entry(dc, ep)) == NULL) {
-        goto err_inc_or_create_quorum_entry;
-      }
-      dc_link_handle_to_quorum_entry(dc, ih, qe);
-      /* a relevant data container from a durable service for this writer has become available.
-       * Reevaluate if the quorum has been reached */
+      /* A data container has matched with this writer.
+       * Check if the quorum is met. */
       dc_check_quorum_reached(dc, writer, true);
     }
     dds_builtintopic_free_endpoint(ep);
   } else {
-    /* the endpoint that represents a data container is not available any more.
-     * decrease the quorum counter for the data container associated with
-     * the handle. If the quorum counter reaches 0, we'll garbage collect
-     * the quorum counter entry. */
-    qe = dc_unlink_handle_to_quorum_entry(dc, ih);
-    /* a data container from a durable service has been lost.
-     * reevaluate if the quorum still holds */
+    /* the endpoint is not available any more.
+     * Check if the quorom has been lost*/
     dc_check_quorum_reached(dc, writer, false);
   }
-  err_inc_or_create_quorum_entry:
 err_last_subscription_handle:
   return;
 }
@@ -961,22 +927,7 @@ static uint32_t recv_handler (void *a)
   dds_attach_t wsresults[1];
   size_t wsresultsize = sizeof(wsresults)/sizeof(wsresults[0]);
   int n, j;
-  dds_return_t rc;
 
-  if ((dc->quorum_listener = dds_create_listener(dc)) == NULL) {
-    DDS_ERROR("failed to create quorum listener\n");
-    goto err_create_quorum_listener;
-  }
-  dds_lset_publication_matched(dc->quorum_listener, default_durable_writer_matched_cb);
-  if ((dc->subinfo_listener = dds_create_listener(dc)) == NULL) {
-    DDS_ERROR("failed to create subinfo listener\n");
-    goto err_create_subinfo_listener;
-  }
-  // dds_lset_data_available(dc->subinfo_listener, default_evaluate_quorum_cb);
-  if ((rc = dds_set_listener(dc->com->rd_subinfo, dc->subinfo_listener)) < 0) {
-    DDS_ERROR("Unable to set the subinfo listener\n");
-    goto err_set_listener;
-  }
   DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "start durable client thread\n");
   while (!dds_triggered(dc->com->ws)) {
     n = dds_waitset_wait_until (dc->com->ws, wsresults, wsresultsize, timeout);
@@ -990,19 +941,8 @@ static uint32_t recv_handler (void *a)
       }
     }
   }
-  dds_delete_listener(dc->subinfo_listener);
-  dc->subinfo_listener = NULL;
-  dds_delete_listener(dc->quorum_listener);
-  dc->quorum_listener = NULL;
   DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "stop durable client thread\n");
   return 0;
-
-err_set_listener:
-  dds_delete_listener(dc->subinfo_listener);
-err_create_subinfo_listener:
-  dds_delete_listener(dc->quorum_listener);
-err_create_quorum_listener:
-  return 1;
 }
 
 dds_return_t dds_durability_init (const dds_domainid_t domainid, struct ddsi_domaingv *gv)
@@ -1026,8 +966,12 @@ dds_return_t dds_durability_init (const dds_domainid_t domainid, struct ddsi_dom
   dc.cfg.quorum = DEFAULT_QOURUM;  /* LH: currently hardcoded set to 1, should be made configurable in future */
   dc.cfg.ident = ddsrt_strdup(DEFAULT_IDENT);
   ddsrt_avl_cinit(&server_td, &dc.servers);
-  ddsrt_avl_cinit(&quorum_entry_td, &dc.quorum_entries);
-  ddsrt_avl_cinit(&handle_to_quorum_entry_td, &dc.handle_to_quorum_entries);
+  /* create the quorum listener */
+  if ((dc.quorum_listener = dds_create_listener(&dc)) == NULL) {
+    DDS_ERROR("failed to create quorum listener\n");
+    goto err_create_quorum_listener;
+  }
+  dds_lset_publication_matched(dc.quorum_listener, default_durable_writer_matched_cb);
   if ((dc.com = dc_com_new(&dc, domainid, gv))== NULL) {
     DDS_ERROR("failed to initialize the durable client infrastructure\n");
     goto err_com_new;
@@ -1042,8 +986,8 @@ dds_return_t dds_durability_init (const dds_domainid_t domainid, struct ddsi_dom
 err_recv_thread:
   dc_com_free(dc.com);
 err_com_new:
-  ddsrt_avl_cfree(&quorum_entry_td,  &dc.quorum_entries, cleanup_quorum_entry);
-  ddsrt_avl_cfree(&server_td,  &dc.servers, cleanup_server);
+  dds_delete_listener(dc.quorum_listener);
+err_create_quorum_listener:
   return DDS_RETCODE_ERROR;
 }
 
@@ -1074,8 +1018,6 @@ dds_return_t dds_durability_fini (void)
       DDS_ERROR("failed to join the dc recv thread [%s]", dds_strretcode(rc));
     }
     dc_com_free(dc.com);
-    ddsrt_avl_cfree(&handle_to_quorum_entry_td,  &dc.handle_to_quorum_entries, cleanup_handle_to_quorum_entry);
-    ddsrt_avl_cfree(&quorum_entry_td,  &dc.quorum_entries, cleanup_quorum_entry);
     ddsrt_avl_cfree(&server_td,  &dc.servers, cleanup_server);
   }
   ddsrt_free(dc.cfg.ident);
@@ -1093,8 +1035,14 @@ dds_return_t dds_durability_new_local_reader (dds_entity_t reader, struct dds_rh
   /* create a durability reader that sucks and stores it in the store */
 
   /* send a request */
-
-  dc_com_send_request (dc.com, reader);
+  if (dc.com) {
+    // dc_send_cached_requests();
+    dc_com_request_write(dc.com, reader);
+  } else {
+    /* todo: apparently a reader is created before com is initialized.
+     * cache the request until com becomes available */
+    // dc_cache_request(reader, rhc);
+  }
 
   (void)rhc;
   (void)reader;
@@ -1137,7 +1085,7 @@ dds_return_t dds_durability_new_local_writer (dds_entity_t writer)
   assert(writer);
   qos = dds_create_qos();
   if ((rc = dds_get_qos(writer, qos)) < 0) {
-    DDS_ERROR("failed to get qos from writer [%s]", dds_strretcode(rc));
+    DDS_ERROR("failed to get qos from writer [%s]\n", dds_strretcode(rc));
     goto err_get_qos;
   }
   if (!dds_qget_durability(qos, &dkind)) {
@@ -1159,11 +1107,22 @@ dds_return_t dds_durability_new_local_writer (dds_entity_t writer)
       DDS_ERROR("failed to retrieve writer guid");
       goto err_get_guid;
     }
+    /* We now set a quorum listener on the durable writer.
+     * Each time a matching reader will appear, wewill get notified.
+     * Existing readers may already have matched before the listener takes effect,
+     * so these publication_match events may be missed. Luckily, we can request
+     * all matching readers using dds_get_matched_subscriptions().
+     *
+     * Note: be aware that the same readers can be present in the list provided
+     * by dds_get_matched_subscriptions(), and can also be triggered by the listener.
+     * Avoid counting these readers twice!
+     */
     DDS_CLOG(DDS_LC_DUR, &dc.gv->logconfig, "durable writer \"%s\" subject to quorum checking\n", dc_stringify_id(wguid.v, id_str));
     if ((rc = dds_set_listener(writer, dc.quorum_listener)) < 0) {
       DDS_ERROR("Unable to set the quorum listener on writer \"%s\"\n", dc_stringify_id(wguid.v, id_str));
       goto err_set_listener;
     }
+    dc_check_quorum_reached (&dc, writer, true);
   }
   dds_delete_qos(qos);
   return DDS_RETCODE_OK;
@@ -1175,65 +1134,6 @@ err_get_qos:
   dds_delete_qos(qos);
   return rc;
 }
-
-#if 0
-dds_return_t dds_durability_wait_for_quorum (dds_writer *wr)
-{
-  dds_return_t ret = DDS_RETCODE_ERROR;
-  ddsrt_mtime_t tnow = ddsrt_time_monotonic ();
-  ddsrt_mtime_t timeout;
-  dds_duration_t sleep_duration;
-  dds_entity_t writer;
-
-  /* This function is called from dds_write() while the writer lock is held.
-   * To make sure that we temporarily release the writer lock
-   * while we wait until the quorum has been reached, we need access
-   * to the entity handle in order to acquire the lock each time
-   * we recheck.*/
-  writer = (dds_entity_t)wr->m_entity.m_hdllink.hdl;
-  /* No need to check for quorum for non-durable writers */
-  if (wr->m_wr->xqos->durability.kind <= DDS_DURABILITY_TRANSIENT_LOCAL) {
-    ret = DDS_RETCODE_OK;
-    goto done;
-  }
-  timeout = ddsrt_mtime_add_duration (tnow, wr->m_wr->xqos->reliability.max_blocking_time);
-  /* If the quorum is reached we'll immediately return DDS_RETCODE_OK.
-   * Note that for volatile and transient-local writers the quorum
-   * is but definition reached, so this function will always return with
-   * DDS_RETCODE_OK in those case. */
-  if (wr->quorum_reached) {
-    ret = DDS_RETCODE_OK;
-    goto done;
-  }
-  /* The quorum for a durable writer is not reached.
-   * We will head bang until the quorum is reached.
-   * To prevent starvation we use a max 10ms sleep in between.
-   * If the quorum is reached within the max_blocking_time,
-   * DDS_RETCODE_OK is returned, otherwise DDS_PRECONDITION_NOT_MET
-   * is returned. */
-  do {
-    sleep_duration = DDS_MSECS(10);
-    dds_writer_unlock(wr);
-    dds_sleepfor (sleep_duration);
-    if ((ret = dds_writer_lock (writer, &wr)) != DDS_RETCODE_OK) {
-      goto err_writer_lock;
-    }
-    tnow = ddsrt_time_monotonic ();
-    if (tnow.v >= timeout.v) {
-      ret = DDS_RETCODE_PRECONDITION_NOT_MET;
-      break;
-    }
-    if (wr->quorum_reached) {
-      ret = DDS_RETCODE_OK;
-      break;
-    }
-  } while (true);
-done:
-  dds_writer_unlock(wr);
-err_writer_lock:
-  return ret;
-}
-#endif
 
 /* Retrieve the quorum_reached value from the dds_writer that corresponds to the writer entity */
 static dds_return_t dds_durability_get_quorum_reached (dds_entity_t writer, bool *quorum_reached, ddsrt_mtime_t *timeout)
@@ -1251,13 +1151,14 @@ static dds_return_t dds_durability_get_quorum_reached (dds_entity_t writer, bool
     tnow = ddsrt_time_monotonic ();
     *timeout = ddsrt_mtime_add_duration (tnow,wr->m_wr->xqos->reliability.max_blocking_time);
   }
-  /* retrieve quorum reached */
-  *quorum_reached = wr->quorum_reached;
+  /* retrieve quorum reached; by default true if quorum is 0 */
+  *quorum_reached = wr->quorum_reached | (dc.cfg.quorum == 0);
   dds_writer_unlock(wr);
 err_writer_lock:
   return ret;
 }
 
+/* wait for quorum reached, or timeout in case max_blocking_time is expired and quorum not yet reached */
 dds_return_t dds_durability_wait_for_quorum (dds_entity_t writer)
 {
   dds_return_t ret = DDS_RETCODE_ERROR;
@@ -1272,7 +1173,11 @@ dds_return_t dds_durability_wait_for_quorum (dds_entity_t writer)
    * When the quorum is reached within the max_blocking_time,
    * DDS_RETCODE_OK is returned, otherwise DDS_PRECONDITION_NOT_MET
    * is returned. The max_blocking_time itself is retrieved lazily
-   * on the first call to dds_durability_get_quorum_reached(). */
+   * on the first call to dds_durability_get_quorum_reached().
+   *
+   * LH: A better solution would be to wait on a condition variable,
+   * and get notified once the quorum is reached (or the max_blocking_time
+   * times out)  */
   timeout.v = DDS_TIME_INVALID;
   do {
     if ((ret = dds_durability_get_quorum_reached(writer, &quorum_reached, &timeout)) != DDS_RETCODE_OK) {
@@ -1291,5 +1196,11 @@ dds_return_t dds_durability_wait_for_quorum (dds_entity_t writer)
     dds_sleepfor (tdur);
   } while (true);  /* Note: potential but deliberate infinite loop when max_blocking_time is set to DDS_INFINITY. */
   return ret;
+}
+
+/* get the configured quorum */
+uint32_t dds_durability_get_quorum (void)
+{
+  return dc.cfg.quorum;
 }
 
