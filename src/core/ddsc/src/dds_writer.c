@@ -427,8 +427,16 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
     goto err_pipe_open;
 
 #if DDS_HAS_DURABILITY
-  /* quorum applies only to durable writers, initially quorum is not reached */
-  wr->quorum_reached = (wqos->durability.kind <= DDS_DURABILITY_TRANSIENT_LOCAL) ? true : false;
+  /* quorum applies only to durable writers.
+   * By default quorum reached for volatile and transient-local writers
+   * For durable writer the quorum is initially reached when quorum threshold == 0
+   * (but we'll likely prohibit this case as an invalid configuration because
+   * it may lead to eventual inconsistencies).  */
+  uint32_t quorum = dds_durability_get_quorum();
+  wr->quorum_reached = true;
+  if (wqos->durability.kind >= DDS_DURABILITY_TRANSIENT) {
+    wr->quorum_reached = (quorum == 0);
+  }
 #endif
 
   struct ddsi_sertype *sertype = ddsi_sertype_derive_sertype (tp->m_stype, data_representation,
