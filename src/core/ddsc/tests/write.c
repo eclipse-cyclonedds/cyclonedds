@@ -292,3 +292,36 @@ CU_Test(ddsc_write, batch_flush)
     CU_ASSERT_FATAL (result > 0);
   }
 }
+
+CU_Test(ddsc_write, async_one_unrel_sample)
+{
+  // Avoid shared memory because we need the debugging tricks in DDSI
+  // Use a special port number to reduce interference from other tests, because
+  // we depend on best-effort data making it through
+  const char *config_override =
+  "<Domain id=\"any\">"
+  "  <Discovery><Ports><Base>7350</Base></Ports></Discovery>"
+  "</Domain>";
+
+  // Relying on unreliable communication leads to a really flaky test, so
+  // try a few times
+  int result = 0;
+  for (int attempt = 0; result <= 0 && attempt < 10; attempt++)
+  {
+    // We don't now why it failed if it failed, so let's sleep a while before
+    // trying again
+    if (attempt > 0)
+      dds_sleepfor (DDS_MSECS (100));
+    result = test_oneliner_with_config
+      ("pm w(lb=0.01,r=be) "
+       "sm r'(lb=0.01,r=be) "
+       "?pm w ?sm r' "
+       "wr w (3,4,5) " // exactly 1 packet ever into the queue must arrive
+       "take!{(3,4,5)} r'", // (except it is best-effort ...)
+       config_override);
+  }
+
+  // It really should have succeeded after several attempts
+  CU_ASSERT_FATAL (result > 0);
+}
+

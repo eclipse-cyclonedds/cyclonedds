@@ -186,6 +186,11 @@ set_tests_properties(
 configure_file("deadline_update.h.in" "deadline_update.h")
 configure_file("build_options.h.in" "build_options.h")
 
+# Serialize some really problematic tests: those relying on unreliable communication
+# and the deadline tests with their tight timing
+foreach(t async_one_unrel_sample relwr_unrelrd_network)
+  set_tests_properties(CUnit_ddsc_write_${t} PROPERTIES RUN_SERIAL TRUE)
+endforeach()
 if(ENABLE_DEADLINE_MISSED)
   foreach(t
       basic
