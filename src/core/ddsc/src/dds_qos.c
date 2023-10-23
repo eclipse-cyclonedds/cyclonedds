@@ -17,6 +17,7 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/ddsi_domaingv.h"
+#include "dds/ddsi/ddsi_serdata.h"
 #include "dds/ddsi/ddsi_sertype.h"
 #include "dds__qos.h"
 #include "dds__topic.h"
@@ -929,40 +930,45 @@ bool dds_qget_psmx_instances (const dds_qos_t * __restrict qos, uint32_t *n_out,
   return true;
 }
 
-dds_return_t dds_ensure_valid_psmx_instances (dds_qos_t *qos, dds_psmx_endpoint_type_t forwhat, dds_data_type_properties_t data_type_props, const struct dds_psmx_set *psmx_instances)
+dds_return_t dds_ensure_valid_psmx_instances (dds_qos_t *qos, dds_psmx_endpoint_type_t forwhat, const struct ddsi_sertype *stype, const struct dds_psmx_set *psmx_instances)
 {
   uint32_t n_supported = 0;
   const char *supported_psmx[DDS_MAX_PSMX_INSTANCES];
 
-  if (!(qos->present & DDSI_QP_PSMX))
+  // Check sertype has operations required by PSMX
+  if ((forwhat == DDS_PSMX_ENDPOINT_TYPE_WRITER && stype->serdata_ops->from_loaned_sample) ||
+      (forwhat == DDS_PSMX_ENDPOINT_TYPE_READER && stype->serdata_ops->from_psmx))
   {
-    assert (psmx_instances->length <= DDS_MAX_PSMX_INSTANCES);
-    for (uint32_t i = 0; i < psmx_instances->length; i++)
+    if (!(qos->present & DDSI_QP_PSMX))
     {
-      struct dds_psmx *psmx = psmx_instances->instances[i];
-      if (psmx->ops.type_qos_supported (psmx, forwhat, data_type_props, qos))
-        supported_psmx[n_supported++] = psmx->instance_name;
-    }
-  }
-  else
-  {
-    uint32_t n = 0;
-    char **values;
-    dds_qget_psmx_instances (qos, &n, &values);
-    for (uint32_t i = 0; i < n; i++)
-    {
-      struct dds_psmx *psmx = NULL;
-      for (uint32_t s = 0; psmx == NULL && s < psmx_instances->length; s++)
+      assert (psmx_instances->length <= DDS_MAX_PSMX_INSTANCES);
+      for (uint32_t i = 0; i < psmx_instances->length; i++)
       {
-        assert (psmx_instances->instances[s]);
-        if (strcmp (psmx_instances->instances[s]->instance_name, values[i]) == 0)
-          psmx = psmx_instances->instances[i];
+        struct dds_psmx *psmx = psmx_instances->instances[i];
+        if (psmx->ops.type_qos_supported (psmx, forwhat, stype->data_type_props, qos))
+          supported_psmx[n_supported++] = psmx->instance_name;
       }
-      if (psmx != NULL && psmx->ops.type_qos_supported (psmx, forwhat, data_type_props, qos))
-        supported_psmx[n_supported++] = psmx->instance_name;
-      dds_free (values[i]);
     }
-    dds_free (values);
+    else
+    {
+      uint32_t n = 0;
+      char **values;
+      dds_qget_psmx_instances (qos, &n, &values);
+      for (uint32_t i = 0; i < n; i++)
+      {
+        struct dds_psmx *psmx = NULL;
+        for (uint32_t s = 0; psmx == NULL && s < psmx_instances->length; s++)
+        {
+          assert (psmx_instances->instances[s]);
+          if (strcmp (psmx_instances->instances[s]->instance_name, values[i]) == 0)
+            psmx = psmx_instances->instances[i];
+        }
+        if (psmx != NULL && psmx->ops.type_qos_supported (psmx, forwhat, stype->data_type_props, qos))
+          supported_psmx[n_supported++] = psmx->instance_name;
+        dds_free (values[i]);
+      }
+      dds_free (values);
+    }
   }
 
   dds_qset_psmx_instances (qos, n_supported, supported_psmx);
