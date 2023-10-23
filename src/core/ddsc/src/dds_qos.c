@@ -936,8 +936,8 @@ dds_return_t dds_ensure_valid_psmx_instances (dds_qos_t *qos, dds_psmx_endpoint_
   const char *supported_psmx[DDS_MAX_PSMX_INSTANCES];
 
   // Check sertype has operations required by PSMX
-  if (forwhat == DDS_PSMX_ENDPOINT_TYPE_WRITER && stype->serdata_ops->from_loaned_sample ||
-      forwhat == DDS_PSMX_ENDPOINT_TYPE_READER && stype->serdata_ops->from_psmx)
+  if ((forwhat == DDS_PSMX_ENDPOINT_TYPE_WRITER && stype->serdata_ops->from_loaned_sample) ||
+      (forwhat == DDS_PSMX_ENDPOINT_TYPE_READER && stype->serdata_ops->from_psmx))
   {
     if (!(qos->present & DDSI_QP_PSMX))
     {
