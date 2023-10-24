@@ -988,6 +988,7 @@ err_recv_thread:
 err_com_new:
   dds_delete_listener(dc.quorum_listener);
 err_create_quorum_listener:
+  ddsrt_free(dc.cfg.ident);
   return DDS_RETCODE_ERROR;
 }
 
@@ -1019,8 +1020,8 @@ dds_return_t dds_durability_fini (void)
     }
     dc_com_free(dc.com);
     ddsrt_avl_cfree(&server_td,  &dc.servers, cleanup_server);
+    ddsrt_free(dc.cfg.ident);
   }
-  ddsrt_free(dc.cfg.ident);
   return DDS_RETCODE_OK;
 }
 
