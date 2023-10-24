@@ -9,6 +9,7 @@
 // SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 
 #include "dds/ddsrt/process.h"
+#include "dds/ddsrt/string.h"
 
 #include <FreeRTOS.h>
 #include <task.h>
@@ -22,5 +23,5 @@ ddsrt_getpid(void)
 char *
 ddsrt_getprocessname(void)
 {
-  return pcTaskGetName(xTaskGetCurrentTaskHandle());
+  return ddsrt_strdup(pcTaskGetName(xTaskGetCurrentTaskHandle()));
 }
