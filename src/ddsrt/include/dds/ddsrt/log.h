@@ -82,12 +82,18 @@ extern "C" {
 #define DDS_LC_SYSDEF (524288u)
 /** Debug/trace messages related to qos provider. */
 #define DDS_LC_QOSPROV (1048576u)
+/** Reserved for user defined log categories (e.g. user application that uses Cyclone logger) */
+#define DDS_LC_USER1 (1u << 29)
+#define DDS_LC_USER2 (1u << 30)
+#define DDS_LC_USER3 (1u << 31)
+#define DDS_LC_USER (DDS_LC_USER1 | DDS_LC_USER2 | DDS_LC_USER3)
+
 /** All common trace categories. */
 #define DDS_LC_ALL \
     (DDS_LC_FATAL | DDS_LC_ERROR | DDS_LC_WARNING | DDS_LC_INFO | \
      DDS_LC_CONFIG | DDS_LC_DISCOVERY | DDS_LC_DATA | DDS_LC_TRACE | \
      DDS_LC_TIMING | DDS_LC_TRAFFIC | DDS_LC_TCP | DDS_LC_THROTTLE | \
-     DDS_LC_CONTENT)
+     DDS_LC_CONTENT | DDS_LC_USER)
 /** @}*/
 
 #define DDS_LOG_MASK \
