@@ -12,6 +12,7 @@
 
 #include "dds/ddsrt/attributes.h"
 #include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/process.h"
 
 static ddsrt_allocation_ops_t ddsrt_allocator = {
   .malloc = malloc,
@@ -40,7 +41,7 @@ ddsrt_malloc(size_t size)
 
   if (ptr == NULL) {
     /* Heap exhausted */
-    abort();
+    ddsrt_abort();
   }
 
   return ptr;
@@ -55,7 +56,7 @@ ddsrt_calloc(size_t count, size_t size)
 
   if (ptr == NULL) {
     /* Heap exhausted */
-    abort();
+    ddsrt_abort();
   }
 
   return ptr;
@@ -79,7 +80,7 @@ ddsrt_realloc(void *memblk, size_t size)
 
   if (ptr == NULL){
     /* Heap exhausted */
-    abort();
+    ddsrt_abort();
   }
 
   return ptr;

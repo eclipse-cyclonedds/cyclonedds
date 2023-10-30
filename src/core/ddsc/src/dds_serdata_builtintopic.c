@@ -16,6 +16,7 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/md5.h"
+#include "dds/ddsrt/process.h"
 #include "dds/ddsrt/hopscotch.h"
 
 #include "dds/ddsi/ddsi_xqos.h"
@@ -97,7 +98,7 @@ static size_t serdata_builtin_sizeof(enum ddsi_sertype_builtintopic_entity_kind 
     case DSBT_WRITER:
       return sizeof (struct ddsi_serdata_builtintopic_endpoint);
   }
-  abort ();
+  ddsrt_abort();
   return 0;
 }
 
@@ -244,7 +245,7 @@ struct ddsi_serdata *dds_serdata_builtin_from_endpoint (const struct ddsi_sertyp
         from_entity_proxy_wr ((struct ddsi_serdata_builtintopic_endpoint *) d, (const struct ddsi_proxy_writer *) entity);
         break;
       case DDSI_EK_TOPIC:
-        abort ();
+        ddsrt_abort();
         break;
     }
     ddsrt_mutex_unlock (&entity->qos_lock);
@@ -375,7 +376,7 @@ static bool serdata_builtin_untyped_to_sample (const struct ddsi_sertype *type, 
 {
   const struct ddsi_serdata_builtintopic *d = (const struct ddsi_serdata_builtintopic *)serdata_common;
   const struct ddsi_sertype_builtintopic *tp = (const struct ddsi_sertype_builtintopic *)type;
-  if (bufptr) abort(); else { (void)buflim; } /* FIXME: haven't implemented that bit yet! */
+  if (bufptr) ddsrt_abort(); else { (void)buflim; } /* FIXME: haven't implemented that bit yet! */
   /* FIXME: completing builtin topic support along these lines requires subscribers, publishers and topics to also become DDSI entities - which is probably a good thing anyway */
   switch (tp->entity_kind)
   {

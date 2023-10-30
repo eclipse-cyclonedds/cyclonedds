@@ -757,7 +757,7 @@ static void wait_for_receive_threads_helper (struct ddsi_domaingv *gv, struct dd
   struct wait_for_receive_threads_helper_arg * const arg = varg;
   (void) xp;
   if (arg->count++ == gv->config.recv_thread_stop_maxretries)
-    abort ();
+    ddsrt_abort();
   ddsi_trigger_recv_threads (gv);
   (void) ddsi_resched_xevent_if_earlier (xev, ddsrt_mtime_add_duration (tnow, DDS_SECS (1)));
 }

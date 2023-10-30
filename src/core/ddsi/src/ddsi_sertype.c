@@ -17,6 +17,7 @@
 #include "dds/ddsrt/md5.h"
 #include "dds/ddsrt/mh3.h"
 #include "dds/ddsrt/hopscotch.h"
+#include "dds/ddsrt/process.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsi/ddsi_freelist.h"
 #include "dds/ddsi/ddsi_iid.h"
@@ -244,7 +245,7 @@ uint16_t ddsi_sertype_get_native_enc_identifier (uint32_t enc_version, uint32_t 
         return CONCAT(DDSI_RTPS_D_CDR2, SUFFIX);
       return CONCAT(DDSI_RTPS_CDR2, SUFFIX);
     default:
-      abort (); /* unsupported */
+      ddsrt_abort(); /* unsupported */
   }
 #undef SUFFIX
 #undef CONCAT
@@ -262,7 +263,7 @@ uint16_t ddsi_sertype_extensibility_enc_format (enum dds_cdr_type_extensibility 
     case DDS_CDR_TYPE_EXT_MUTABLE:
       return DDSI_RTPS_CDR_ENC_FORMAT_PL;
     default:
-      abort ();
+      ddsrt_abort();
   }
 }
 
@@ -293,7 +294,7 @@ uint32_t ddsi_sertype_enc_id_enc_format (uint16_t cdr_identifier)
     case DDSI_RTPS_PL_CDR2_LE: case DDSI_RTPS_PL_CDR2_BE:
       return DDSI_RTPS_CDR_ENC_FORMAT_PL;
     default:
-      abort ();
+      ddsrt_abort();
   }
 }
 

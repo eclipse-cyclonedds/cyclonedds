@@ -15,6 +15,7 @@
 #include "dds/ddsrt/static_assert.h"
 #include "dds/ddsrt/io.h"
 #include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/process.h"
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsi/ddsi_thread.h"
@@ -632,7 +633,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
   if (dds_rhc_associate (rd->m_rhc, rd, tp->m_stype, rd->m_entity.m_domain->gv.m_tkmap) < 0)
   {
     /* FIXME: see also create_querycond, need to be able to undo entity_init */
-    abort ();
+    ddsrt_abort();
   }
   dds_entity_add_ref_locked (&tp->m_entity);
 
