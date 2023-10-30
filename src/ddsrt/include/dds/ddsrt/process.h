@@ -70,6 +70,14 @@ ddsrt_getpid(void);
 DDS_EXPORT char *
 ddsrt_getprocessname(void);
 
+/**
+ * @brief Terminates the process in an abnormal fashion.
+ *
+ * Does not return. Immediately terminates the process.
+ */
+DDS_EXPORT void
+ddsrt_abort(void);
+
 #if defined (__cplusplus)
 }
 #endif
