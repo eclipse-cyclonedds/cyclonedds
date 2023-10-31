@@ -1262,14 +1262,6 @@ static struct cfgelem internal_cfgelems[] = {
       "and calculating round trip times. This is non-standard behaviour. The "
       "measured latencies are quite noisy and are currently not used "
       "anywhere.</p>")),
-  BOOL("UnicastResponseToSPDPMessages", NULL, 1, "true",
-    MEMBER(unicast_response_to_spdp_messages),
-    FUNCTIONS(0, uf_boolean, 0, pf_boolean),
-    DESCRIPTION(
-      "<p>This element controls whether the response to a newly discovered "
-      "participant is sent as a unicasted SPDP packet instead of "
-      "rescheduling the periodic multicasted one. There is no known benefit "
-      "to setting this to <i>false</i>.</p>")),
   INT("SynchronousDeliveryPriorityThreshold", NULL, 1, "0",
     MEMBER(synchronous_delivery_priority_threshold),
     FUNCTIONS(0, uf_int, 0, pf_int),

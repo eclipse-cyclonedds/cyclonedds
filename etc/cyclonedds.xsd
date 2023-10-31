@@ -651,7 +651,6 @@ CycloneDDS configuration</xs:documentation>
         <xs:element minOccurs="0" ref="config:SynchronousDeliveryLatencyBound"/>
         <xs:element minOccurs="0" ref="config:SynchronousDeliveryPriorityThreshold"/>
         <xs:element minOccurs="0" ref="config:Test"/>
-        <xs:element minOccurs="0" ref="config:UnicastResponseToSPDPMessages"/>
         <xs:element minOccurs="0" ref="config:UseMulticastIfMreqn"/>
         <xs:element minOccurs="0" ref="config:Watermarks"/>
         <xs:element minOccurs="0" ref="config:WriterLingerDuration"/>
@@ -1126,13 +1125,6 @@ CycloneDDS configuration</xs:documentation>
       <xs:documentation>
 &lt;p&gt;This element controls the fraction of outgoing packets to drop, specified as samples per thousand.&lt;/p&gt;
 &lt;p&gt;The default value is: &lt;code&gt;0&lt;/code&gt;&lt;/p&gt;</xs:documentation>
-    </xs:annotation>
-  </xs:element>
-  <xs:element name="UnicastResponseToSPDPMessages" type="xs:boolean">
-    <xs:annotation>
-      <xs:documentation>
-&lt;p&gt;This element controls whether the response to a newly discovered participant is sent as a unicasted SPDP packet instead of rescheduling the periodic multicasted one. There is no known benefit to setting this to &lt;i&gt;false&lt;/i&gt;.&lt;/p&gt;
-&lt;p&gt;The default value is: &lt;code&gt;true&lt;/code&gt;&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
   <xs:element name="UseMulticastIfMreqn" type="xs:integer">
@@ -1970,9 +1962,9 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==&lt;br&gt;
     </xs:restriction>
   </xs:simpleType>
 </xs:schema>
-<!--- generated from ddsi_config.h[eaf2059de5eccc422ae9ebd9bb3c40fd1d7545d3] -->
+<!--- generated from ddsi_config.h[007a7968df8cbc42a122109bd139ac85bab0f6c9] -->
 <!--- generated from ddsi__cfgunits.h[bd22f0c0ed210501d0ecd3b07c992eca549ef5aa] -->
-<!--- generated from ddsi__cfgelems.h[fc5746cc2e55b4ab9daf9bd51bc263cf30ece564] -->
+<!--- generated from ddsi__cfgelems.h[4549945443af9c1fe8014d973d4b1cff52a7acdb] -->
 <!--- generated from ddsi_config.c[2d3406ce4db09358597689d7382f80185634eb69] -->
 <!--- generated from _confgen.h[e32eabfc35e9f3a7dcb63b19ed148c0d17c6e5fc] -->
 <!--- generated from _confgen.c[237308acd53897a34e8c643e16e05a61d73ffd65] -->

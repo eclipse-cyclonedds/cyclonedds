@@ -486,17 +486,11 @@ static void respond_to_spdp (const struct ddsi_domaingv *gv, const ddsi_guid_t *
     int64_t delay = (int64_t) delay_norm * delay_max_ms / 1000;
     ddsrt_mtime_t tsched = ddsrt_mtime_add_duration (tnow, delay);
     GVTRACE (" %"PRId64, delay);
-    if (!pp->e.gv->config.unicast_response_to_spdp_messages)
-      /* pp can't reach gc_delete_participant => can safely reschedule */
-      (void) ddsi_resched_xevent_if_earlier (pp->spdp_xevent, tsched);
-    else
-    {
-      struct ddsi_spdp_directed_xevent_cb_arg arg = {
-        .pp_guid = pp->e.guid,
-        .nrepeats = 4, .dest_proxypp_guid_prefix = dest_proxypp_guid->prefix
-      };
-      ddsi_qxev_callback (gv->xevents, tsched, ddsi_spdp_directed_xevent_cb, &arg, sizeof (arg), false);
-    }
+    struct ddsi_spdp_directed_xevent_cb_arg arg = {
+      .pp_guid = pp->e.guid,
+      .nrepeats = 4, .dest_proxypp_guid_prefix = dest_proxypp_guid->prefix
+    };
+    ddsi_qxev_callback (gv->xevents, tsched, ddsi_spdp_directed_xevent_cb, &arg, sizeof (arg), false);
   }
   ddsi_entidx_enum_participant_fini (&est);
 }
