@@ -369,7 +369,6 @@ struct ddsi_config
   uint32_t rbuf_size;                /* << size of a single receiver buffer */
   enum ddsi_besmode besmode;
   int meas_hb_to_ack_latency;
-  int unicast_response_to_spdp_messages;
   int synchronous_delivery_priority_threshold;
   int64_t synchronous_delivery_latency_bound;
 

@@ -51,7 +51,6 @@ void ddsi_config_init_default (struct ddsi_config *cfg)
   cfg->defrag_unreliable_maxsamples = UINT32_C (4);
   cfg->defrag_reliable_maxsamples = UINT32_C (16);
   cfg->besmode = INT32_C (1);
-  cfg->unicast_response_to_spdp_messages = INT32_C (1);
   cfg->synchronous_delivery_latency_bound = INT64_C (9223372036854775807);
   cfg->retransmit_merging_period = INT64_C (5000000);
   cfg->const_hb_intv_sched = INT64_C (100000000);
@@ -100,9 +99,9 @@ void ddsi_config_init_default (struct ddsi_config *cfg)
   cfg->ssl_min_version.minor = 3;
 #endif /* DDS_HAS_TCP_TLS */
 }
-/* generated from ddsi_config.h[eaf2059de5eccc422ae9ebd9bb3c40fd1d7545d3] */
+/* generated from ddsi_config.h[007a7968df8cbc42a122109bd139ac85bab0f6c9] */
 /* generated from ddsi__cfgunits.h[bd22f0c0ed210501d0ecd3b07c992eca549ef5aa] */
-/* generated from ddsi__cfgelems.h[fc5746cc2e55b4ab9daf9bd51bc263cf30ece564] */
+/* generated from ddsi__cfgelems.h[4549945443af9c1fe8014d973d4b1cff52a7acdb] */
 /* generated from ddsi_config.c[2d3406ce4db09358597689d7382f80185634eb69] */
 /* generated from _confgen.h[e32eabfc35e9f3a7dcb63b19ed148c0d17c6e5fc] */
 /* generated from _confgen.c[237308acd53897a34e8c643e16e05a61d73ffd65] */
