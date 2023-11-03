@@ -50,7 +50,7 @@ int ddsi_write_and_fini_plist (struct ddsi_writer *wr, ddsi_plist_t *ps, bool al
 /* When calling the following functions, wr->lock must be held */
 
 /** @component outgoing_rtps */
-dds_return_t ddsi_create_fragment_message (struct ddsi_writer *wr, ddsi_seqno_t seq, struct ddsi_serdata *serdata, uint32_t fragnum, uint16_t nfrags, struct ddsi_proxy_reader *prd,struct ddsi_xmsg **msg, int isnew, uint32_t advertised_fragnum);
+dds_return_t ddsi_create_fragment_message (struct ddsi_writer *wr, ddsi_seqno_t seq, struct ddsi_serdata *serdata, uint32_t fragnum, uint16_t nfrags, const struct ddsi_proxy_reader *prd,struct ddsi_xmsg **msg, int isnew, uint32_t advertised_fragnum);
 
 /** @component outgoing_rtps */
 int ddsi_enqueue_sample_wrlock_held (struct ddsi_writer *wr, ddsi_seqno_t seq, struct ddsi_serdata *serdata, struct ddsi_proxy_reader *prd, int isnew);

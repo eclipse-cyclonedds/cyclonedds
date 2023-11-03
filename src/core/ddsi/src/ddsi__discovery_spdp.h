@@ -42,19 +42,6 @@ void ddsi_get_participant_builtin_topic_data (const struct ddsi_participant *pp,
   ddsrt_nonnull_all;
 
 /** @component discovery */
-int ddsi_spdp_write (struct ddsi_participant *pp);
-
-/** @component discovery */
-int ddsi_spdp_dispose_unregister (struct ddsi_participant *pp);
-
-struct ddsi_spdp_broadcast_xevent_cb_arg {
-  ddsi_guid_t pp_guid;
-};
-
-/** @component discovery */
-void ddsi_spdp_broadcast_xevent_cb (struct ddsi_domaingv *gv, struct ddsi_xevent *ev, UNUSED_ARG (struct ddsi_xpack *xp), void *varg, ddsrt_mtime_t tnow);
-
-/** @component discovery */
 void ddsi_handle_spdp (const struct ddsi_receiver_state *rst, ddsi_entityid_t pwr_entityid, ddsi_seqno_t seq, const struct ddsi_serdata *serdata);
 
 #if defined (__cplusplus)

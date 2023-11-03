@@ -1858,7 +1858,7 @@ static void dohearing_maybe_imm (struct oneliner_ctx *ctx, bool immediate)
       wait_for_cleanup (ctx, ctx->es[ent], &xprime->m_guid);
       ddsi_thread_state_awake (ddsi_lookup_thread_state (), &xprime->m_domain->gv);
       if ((pp = ddsi_entidx_lookup_participant_guid (xprime->m_domain->gv.entity_index, &xprime->m_guid)) != NULL)
-        ddsi_spdp_force_republish (pp->e.gv->spdp_schedule, pp);
+        ddsi_spdp_force_republish (pp->e.gv->spdp_schedule, pp, NULL);
       ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
       dds_entity_unpin (xprime);
     }

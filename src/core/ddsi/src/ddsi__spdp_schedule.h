@@ -18,7 +18,8 @@
 extern "C" {
 #endif
 
-struct spdp_admin;
+struct spdp_admin; // ddsi_participant::e.lock gets locked while spdp_admin::lock is held
+struct ddsi_proxy_reader;
 
 struct spdp_admin *ddsi_spdp_scheduler_new (struct ddsi_domaingv *gv)
   ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
@@ -26,10 +27,12 @@ struct spdp_admin *ddsi_spdp_scheduler_new (struct ddsi_domaingv *gv)
 void ddsi_spdp_scheduler_delete (struct spdp_admin *adm)
   ddsrt_nonnull_all;
 
+// Locks `pp->e.lock`
 dds_return_t ddsi_spdp_register_participant (struct spdp_admin *adm, const struct ddsi_participant *pp)
   ddsrt_nonnull_all ddsrt_attribute_warn_unused_result;
 
 // Not an error if `pp` is not registered
+// Locks `pp->e.lock`
 void ddsi_spdp_unregister_participant (struct spdp_admin *adm, const struct ddsi_participant *pp)
   ddsrt_nonnull_all;
 
@@ -45,8 +48,10 @@ void ddsi_spdp_handle_aging_locators_xevent_cb (struct ddsi_domaingv *gv, struct
 void ddsi_spdp_handle_live_locators_xevent_cb (struct ddsi_domaingv *gv, struct ddsi_xevent *xev, struct ddsi_xpack *xp, void *varg, ddsrt_mtime_t tnow)
   ddsrt_nonnull ((1, 2, 3));
 
-void ddsi_spdp_force_republish (struct spdp_admin *adm, const struct ddsi_participant *pp)
-  ddsrt_nonnull_all;
+// Locks `pp->e.lock`
+// returns false iff there is no SPDP sample yet
+bool ddsi_spdp_force_republish (struct spdp_admin *adm, const struct ddsi_participant *pp, const struct ddsi_proxy_reader *prd)
+  ddsrt_nonnull ((1, 2));
 
 #if defined (__cplusplus)
 }

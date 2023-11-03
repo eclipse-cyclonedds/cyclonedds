@@ -33,11 +33,10 @@
 #include "ddsi__transmit.h"
 #include "ddsi__lease.h"
 #include "ddsi__xqos.h"
+#include "ddsi__spdp_schedule.h"
 
 static bool get_pp_and_spdp_wr (struct ddsi_domaingv *gv, const ddsi_guid_t *pp_guid, struct ddsi_participant **pp, struct ddsi_writer **spdp_wr)
   ddsrt_nonnull_all;
-static bool resend_spdp_sample_by_guid_key (struct ddsi_writer *wr, const ddsi_guid_t *guid, struct ddsi_proxy_reader *prd)
-  ddsrt_nonnull ((1, 2));
 
 struct locators_builder {
   ddsi_locators_t *dst;
@@ -217,105 +216,11 @@ void ddsi_get_participant_builtin_topic_data (const struct ddsi_participant *pp,
 #endif
 }
 
-int ddsi_spdp_write (struct ddsi_participant *pp)
-{
-  struct ddsi_writer *wr;
-  ddsi_plist_t ps;
-  struct ddsi_participant_builtin_topic_data_locators locs;
-
-  if (pp->e.onlylocal) {
-    /* This topic is only locally available. */
-    return 0;
-  }
-
-  dds_return_t ret = ddsi_get_builtin_writer (pp, DDSI_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER, &wr);
-  if (ret == DDS_RETCODE_OK && wr == NULL)
-    return 0;
-
-  ETRACE (pp, "ddsi_spdp_write("PGUIDFMT")\n", PGUID (pp->e.guid));
-  if (ret != DDS_RETCODE_OK)
-  {
-    ETRACE (pp, "ddsi_spdp_write("PGUIDFMT") - builtin participant writer not found\n", PGUID (pp->e.guid));
-    return 0;
-  }
-  assert (wr != NULL);
-  ddsi_get_participant_builtin_topic_data (pp, &ps, &locs);
-  return ddsi_write_and_fini_plist (wr, &ps, true);
-}
-
-static int ddsi_spdp_dispose_unregister_with_wr (struct ddsi_participant *pp, unsigned entityid)
-{
-  ddsi_plist_t ps;
-  struct ddsi_writer *wr;
-
-  dds_return_t ret = ddsi_get_builtin_writer (pp, entityid, &wr);
-  if (ret == DDS_RETCODE_OK && wr == NULL)
-    return 0;
-  else if (ret != DDS_RETCODE_OK)
-  {
-    ETRACE (pp, "ddsi_spdp_dispose_unregister("PGUIDFMT") - builtin participant %s writer not found\n",
-            PGUID (pp->e.guid), entityid == DDSI_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER ? "secure" : "");
-    return 0;
-  }
-  assert (wr != NULL);
-  ddsi_plist_init_empty (&ps);
-  ps.present |= PP_PARTICIPANT_GUID;
-  ps.participant_guid = pp->e.guid;
-  return ddsi_write_and_fini_plist (wr, &ps, false);
-}
-
-int ddsi_spdp_dispose_unregister (struct ddsi_participant *pp)
-{
-  /*
-   * When disposing a participant, it should be announced on both the
-   * non-secure and secure writers.
-   * The receiver will decide from which writer it accepts the dispose.
-   */
-  int ret = ddsi_spdp_dispose_unregister_with_wr(pp, DDSI_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER);
-  if ((ret > 0) && ddsi_omg_participant_is_secure(pp))
-  {
-    ret = ddsi_spdp_dispose_unregister_with_wr(pp, DDSI_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER);
-  }
-  return ret;
-}
-
 struct ddsi_spdp_directed_xevent_cb_arg {
   ddsi_guid_t pp_guid;
   int nrepeats;
   ddsi_guid_prefix_t dest_proxypp_guid_prefix;
 };
-
-static bool resend_spdp_sample_by_guid_key (struct ddsi_writer *wr, const ddsi_guid_t *guid, struct ddsi_proxy_reader *prd)
-{
-  /* Look up data in (transient-local) WHC by key value -- FIXME: clearly
-   a slightly more efficient and elegant way of looking up the key value
-   is to be preferred */
-  struct ddsi_domaingv *gv = wr->e.gv;
-  bool sample_found;
-  ddsi_plist_t ps;
-  ddsi_plist_init_empty (&ps);
-  ps.present |= PP_PARTICIPANT_GUID;
-  ps.participant_guid = *guid;
-  struct ddsi_serdata *sd = ddsi_serdata_from_sample (gv->spdp_type, SDK_KEY, &ps);
-  ddsi_plist_fini (&ps);
-  struct ddsi_whc_borrowed_sample sample;
-
-  ddsrt_mutex_lock (&wr->e.lock);
-  sample_found = ddsi_whc_borrow_sample_key (wr->whc, sd, &sample);
-  if (sample_found)
-  {
-    /* Claiming it is new rather than a retransmit so that the rexmit
-       limiting won't kick in.  It is best-effort and therefore the
-       updating of the last transmitted sequence number won't take
-       place anyway.  Nor is it necessary to fiddle with heartbeat
-       control stuff. */
-    ddsi_enqueue_spdp_sample_wrlock_held (wr, sample.seq, sample.serdata, prd);
-    ddsi_whc_return_sample(wr->whc, &sample, false);
-  }
-  ddsrt_mutex_unlock (&wr->e.lock);
-  ddsi_serdata_unref (sd);
-  return sample_found;
-}
 
 static bool get_pp_and_spdp_wr (struct ddsi_domaingv *gv, const ddsi_guid_t *pp_guid, struct ddsi_participant **pp, struct ddsi_writer **spdp_wr)
 {
@@ -349,15 +254,23 @@ static void ddsi_spdp_directed_xevent_cb (struct ddsi_domaingv *gv, struct ddsi_
   const ddsi_guid_t guid = { .prefix = arg->dest_proxypp_guid_prefix, .entityid = { .u = DDSI_ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER } };
   struct ddsi_proxy_reader *prd;
   if ((prd = ddsi_entidx_lookup_proxy_reader_guid (gv->entity_index, &guid)) == NULL)
+  {
     GVTRACE ("xmit spdp: no proxy reader "PGUIDFMT"\n", PGUID (guid));
-  else if (!resend_spdp_sample_by_guid_key (spdp_wr, &arg->pp_guid, prd))
-    GVTRACE ("xmit spdp: suppressing early spdp response from "PGUIDFMT" to %"PRIx32":%"PRIx32":%"PRIx32":%x\n",
-             PGUID (pp->e.guid), PGUIDPREFIX (arg->dest_proxypp_guid_prefix), DDSI_ENTITYID_PARTICIPANT);
-
-  // Directed events are used to send SPDP packets to newly discovered peers, and used just once
-  if (--arg->nrepeats == 0 ||
-      pp->plist->qos.liveliness.lease_duration < DDS_SECS (1) ||
-      (!gv->config.spdp_interval.isdefault && gv->config.spdp_interval.value < DDS_SECS (1)))
+    ddsi_delete_xevent (ev);
+  }
+  else if (!ddsi_spdp_force_republish (gv->spdp_schedule, pp, prd))
+  {
+    // it is just a local race, so a few milliseconds should be plenty
+    ddsrt_mtime_t tnext = ddsrt_mtime_add_duration (tnow, DDS_MSECS (10));
+    GVTRACE ("xmit spdp "PGUIDFMT" to %"PRIx32":%"PRIx32":%"PRIx32":%x too early (resched %gs)\n",
+             PGUID (pp->e.guid),
+             PGUIDPREFIX (arg->dest_proxypp_guid_prefix), DDSI_ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
+             (double)(tnext.v - tnow.v) / 1e9);
+    (void) ddsi_resched_xevent_if_earlier (ev, tnext);
+  }
+  else if (--arg->nrepeats == 0 ||
+           pp->plist->qos.liveliness.lease_duration < DDS_SECS (1) ||
+           (!gv->config.spdp_interval.isdefault && gv->config.spdp_interval.value < DDS_SECS (1)))
   {
     ddsi_delete_xevent (ev);
   }
@@ -370,70 +283,6 @@ static void ddsi_spdp_directed_xevent_cb (struct ddsi_domaingv *gv, struct ddsi_
              (double)(tnext.v - tnow.v) / 1e9);
     (void) ddsi_resched_xevent_if_earlier (ev, tnext);
   }
-}
-
-static void resched_spdp_broadcast (struct ddsi_xevent *ev, struct ddsi_participant *pp, ddsrt_mtime_t tnow)
-{
-  struct ddsi_domaingv * const gv = pp->e.gv;
-  const dds_duration_t mindelta = DDS_MSECS (10);
-  ddsrt_mtime_t tnext;
-  dds_duration_t intv;
-
-  if (!gv->config.spdp_interval.isdefault)
-    intv = gv->config.spdp_interval.value;
-  else
-  {
-    // Default interval is 80% of the lease duration with a bit of fiddling around the
-    // edges (similar to PMD), and with an upper limit
-    const dds_duration_t ldur = pp->plist->qos.liveliness.lease_duration;
-    if (ldur < 5 * mindelta / 4)
-      intv = mindelta;
-    else if (ldur < DDS_SECS (10))
-      intv = 4 * ldur / 5;
-    else
-      intv = ldur - DDS_SECS (2);
-    // Historical maximum interval is 30s, stick to that
-    if (intv > DDS_SECS (30))
-      intv = DDS_SECS (30);
-  }
-
-  tnext = ddsrt_mtime_add_duration (tnow, intv);
-  GVTRACE ("xmit spdp "PGUIDFMT" to %"PRIx32":%"PRIx32":%"PRIx32":%x (resched %gs)\n",
-           PGUID (pp->e.guid),
-           0,0,0, DDSI_ENTITYID_SPDP_BUILTIN_PARTICIPANT_READER,
-           (double)(tnext.v - tnow.v) / 1e9);
-  (void) ddsi_resched_xevent_if_earlier (ev, tnext);
-}
-
-void ddsi_spdp_broadcast_xevent_cb (struct ddsi_domaingv *gv, struct ddsi_xevent *ev, UNUSED_ARG (struct ddsi_xpack *xp), void *varg, ddsrt_mtime_t tnow)
-{
-  /* Like the writer pointer in the heartbeat event, the participant pointer in the spdp event is assumed valid. */
-  struct ddsi_spdp_broadcast_xevent_cb_arg * const arg = varg;
-  struct ddsi_participant *pp;
-  struct ddsi_writer *spdp_wr;
-
-  if (!get_pp_and_spdp_wr (gv, &arg->pp_guid, &pp, &spdp_wr))
-    return;
-
-  if (!resend_spdp_sample_by_guid_key (spdp_wr, &arg->pp_guid, NULL))
-  {
-#ifndef NDEBUG
-    /* If undirected, it is pp->spdp_xevent, and that one must never
-       run into an empty WHC unless it is already marked for deletion.
-
-       If directed, it may happen in response to an SPDP packet during
-       creation of the participant.  This is because pp is inserted in
-       the hash table quite early on, which, in turn, is because it
-       needs to be visible for creating its builtin endpoints.  But in
-       this case, the initial broadcast of the SPDP packet of pp will
-       happen shortly. */
-    ddsrt_mutex_lock (&pp->e.lock);
-    assert (ddsi_delete_xevent_pending (ev));
-    ddsrt_mutex_unlock (&pp->e.lock);
-#endif
-  }
-
-  resched_spdp_broadcast (ev, pp, tnow);
 }
 
 static unsigned pseudo_random_delay (const ddsi_guid_t *x, const ddsi_guid_t *y, ddsrt_mtime_t tnow)
