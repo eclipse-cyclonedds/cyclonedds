@@ -124,7 +124,7 @@ static dds_return_t ddsi_create_fragment_message_simple (struct ddsi_writer *wr,
   return 0;
 }
 
-dds_return_t ddsi_create_fragment_message (struct ddsi_writer *wr, ddsi_seqno_t seq, struct ddsi_serdata *serdata, uint32_t fragnum, uint16_t nfrags, struct ddsi_proxy_reader *prd, struct ddsi_xmsg **pmsg, int isnew, uint32_t advertised_fragnum)
+dds_return_t ddsi_create_fragment_message (struct ddsi_writer *wr, ddsi_seqno_t seq, struct ddsi_serdata *serdata, uint32_t fragnum, uint16_t nfrags, const struct ddsi_proxy_reader *prd, struct ddsi_xmsg **pmsg, int isnew, uint32_t advertised_fragnum)
 {
   /* We always fragment into FRAGMENT_SIZEd fragments, which are near
      the smallest allowed fragment size & can't be bothered (yet) to

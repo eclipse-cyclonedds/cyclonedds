@@ -609,6 +609,10 @@ struct ddsi_participant *ddsi_ref_participant (struct ddsi_participant *pp, cons
   return pp;
 }
 
+// FIXME: do this in the proper location
+ddsrt_nonnull_all ddsrt_attribute_warn_unused_result
+static int update_participant_spdp_sample (struct ddsi_participant *pp, bool isalive);
+
 void ddsi_unref_participant (struct ddsi_participant *pp, const struct ddsi_guid *guid_of_refing_entity)
 {
   static const unsigned builtin_endpoints_tab[] = {
@@ -684,7 +688,11 @@ void ddsi_unref_participant (struct ddsi_participant *pp, const struct ddsi_guid
 
     if (pp->pmd_update_xevent)
       ddsi_delete_xevent (pp->pmd_update_xevent);
+
+    // FIXME: locking
+    update_participant_spdp_sample (pp, false);
     ddsi_spdp_unregister_participant (gv->spdp_schedule, pp);
+    ddsi_serdata_unref (pp->spdp_serdata);
 
     /* If this happens to be the privileged_pp, clear it */
     ddsrt_mutex_lock (&gv->privileged_pp_lock);
@@ -753,6 +761,36 @@ void ddsi_unref_participant (struct ddsi_participant *pp, const struct ddsi_guid
   {
     ddsrt_mutex_unlock (&pp->refc_lock);
   }
+}
+
+ddsrt_nonnull_all ddsrt_attribute_warn_unused_result
+static int update_participant_spdp_sample_locked (struct ddsi_participant *pp, bool isalive)
+{
+  if (pp->e.onlylocal)
+    return 0;
+
+  ddsi_plist_t ps;
+  struct ddsi_participant_builtin_topic_data_locators locs;
+  ddsi_get_participant_builtin_topic_data (pp, &ps, &locs);
+  struct ddsi_serdata * const serdata = ddsi_serdata_from_sample (pp->e.gv->spdp_type, isalive ? SDK_DATA : SDK_KEY, &ps);
+  ddsi_plist_fini (&ps);
+  serdata->statusinfo = isalive ? 0 : (DDSI_STATUSINFO_DISPOSE | DDSI_STATUSINFO_UNREGISTER);
+  serdata->timestamp = ddsrt_time_wallclock ();
+
+  ++pp->spdp_seqno;
+  if (pp->spdp_serdata)
+    ddsi_serdata_unref (pp->spdp_serdata);
+  pp->spdp_serdata = serdata;
+  return 0;
+}
+
+ddsrt_nonnull_all ddsrt_attribute_warn_unused_result
+static int update_participant_spdp_sample (struct ddsi_participant *pp, bool isalive)
+{
+  ddsrt_mutex_lock (&pp->e.lock);
+  const int ret = update_participant_spdp_sample_locked (pp, isalive);
+  ddsrt_mutex_unlock (&pp->e.lock);
+  return ret;
 }
 
 dds_return_t ddsi_new_participant (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv, unsigned flags, const ddsi_plist_t *plist)
@@ -833,6 +871,8 @@ dds_return_t ddsi_new_participant (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv
   pp->plist = ddsrt_malloc (sizeof (*pp->plist));
   ddsi_plist_copy (pp->plist, plist);
   ddsi_xqos_mergein_missing(&pp->plist->qos, &gv->default_local_xqos_pp, ~(uint64_t)0);
+  pp->spdp_seqno = 0;
+  pp->spdp_serdata = NULL;
 
 #ifdef DDS_HAS_SECURITY
   pp->sec_attr = NULL;
@@ -957,6 +997,7 @@ dds_return_t ddsi_new_participant (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv
 
   if (!(flags & RTPS_PF_NO_BUILTIN_WRITERS) || !(flags & RTPS_PF_NO_PRIVILEGED_PP))
   {
+    update_participant_spdp_sample (pp, true);
     if (ddsi_spdp_register_participant (gv->spdp_schedule, pp) != 0)
       abort (); // FIXME
 
@@ -1004,9 +1045,9 @@ void ddsi_update_participant_plist (struct ddsi_participant *pp, const ddsi_plis
 {
   ddsrt_mutex_lock (&pp->e.lock);
   if (ddsi_update_qos_locked (&pp->e, &pp->plist->qos, &plist->qos, ddsrt_time_wallclock ()))
-    ddsi_spdp_write (pp); // FIXME: this takes care of generating new SPDP message; it seems to not handle the secure one
+    update_participant_spdp_sample_locked (pp, true);
   ddsrt_mutex_unlock (&pp->e.lock);
-  ddsi_spdp_force_republish (pp->e.gv->spdp_schedule, pp);
+  ddsi_spdp_force_republish (pp->e.gv->spdp_schedule, pp, NULL);
 }
 
 static void gc_delete_participant (struct ddsi_gcreq *gcreq)

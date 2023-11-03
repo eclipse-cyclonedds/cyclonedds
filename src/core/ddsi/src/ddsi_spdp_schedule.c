@@ -190,7 +190,7 @@ struct spdp_admin *ddsi_spdp_scheduler_new (struct ddsi_domaingv *gv)
   ddsrt_avl_init (&spdp_loc_td, &adm->aging);
   ddsrt_avl_init (&spdp_loc_td, &adm->live);
   ddsrt_avl_init (&spdp_pp_td, &adm->pp);
-  
+
   struct add_as_disc_helper_arg arg = { .adm = adm, .all_ok = true };
   ddsi_addrset_forall (gv->as_disc, add_as_disc_helper, &arg);
   if (!arg.all_ok)
@@ -202,7 +202,7 @@ struct spdp_admin *ddsi_spdp_scheduler_new (struct ddsi_domaingv *gv)
     ddsrt_free (adm);
     return NULL;
   }
-  
+
   // from here on we potentially have multiple threads messing with `adm`
   const ddsrt_mtime_t t_sched = ddsrt_mtime_add_duration (ddsrt_time_monotonic (), DDS_MSECS (0));
   adm->aging_xev = ddsi_qxev_callback (gv->xevents, t_sched, ddsi_spdp_handle_aging_locators_xevent_cb, NULL, 0, true);
@@ -224,51 +224,21 @@ void ddsi_spdp_scheduler_delete (struct spdp_admin *adm)
   ddsrt_free (adm);
 }
 
-#ifndef NDEBUG
-static bool spdp_message_exists (const struct ddsi_participant *pp)
-{
-  struct ddsi_writer *spdp_wr;
-  dds_return_t ret = ddsi_get_builtin_writer (pp, DDSI_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER, &spdp_wr);
-  if (ret != DDS_RETCODE_OK || spdp_wr == NULL)
-    return true;
-  else
-  {
-    // Construct a key for looking up the SPDP sample in the WHC ...
-    ddsi_plist_t ps;
-    ddsi_plist_init_empty (&ps);
-    ps.present |= PP_PARTICIPANT_GUID;
-    ps.participant_guid = pp->e.guid;
-    struct ddsi_serdata * const sdkey = ddsi_serdata_from_sample (pp->e.gv->spdp_type, SDK_KEY, &ps);
-    ddsi_plist_fini (&ps);
-    // ... then borrow it, surreptitiously increment its refcount before returning it so we can unlock earlier ...
-    struct ddsi_whc_borrowed_sample sample;
-    ddsrt_mutex_lock (&spdp_wr->e.lock);
-    const bool exists = ddsi_whc_borrow_sample_key (spdp_wr->whc, sdkey, &sample);
-    if (exists)
-      ddsi_whc_return_sample (spdp_wr->whc, &sample, false);
-    ddsrt_mutex_unlock (&spdp_wr->e.lock);
-    return exists;
-  }
-}
-#endif
-
 dds_return_t ddsi_spdp_register_participant (struct spdp_admin *adm, const struct ddsi_participant *pp)
 {
-  /* SPDP periodic broadcast uses the retransmit path, so the initial
-     publication must be done differently. Must be later than making
-     the participant globally visible, or the SPDP processing won't
-     recognise the participant as a local one. */
-  if (ddsi_spdp_write ((struct ddsi_participant *) pp) < 0)
-    return DDS_RETCODE_OK; // FIXME: Need to check why it can fail; this is what it used to do
-
-  ddsi_spdp_force_republish (adm, pp);
+#ifndef NDEBUG
+  ddsrt_mutex_lock ((ddsrt_mutex_t *) &pp->e.lock);
+  assert (pp->spdp_seqno == 1);
+  assert (pp->spdp_serdata);
+  assert (pp->spdp_serdata->statusinfo == 0);
+  ddsrt_mutex_unlock ((ddsrt_mutex_t *) &pp->e.lock);
+#endif
+  ddsi_spdp_force_republish (adm, pp, NULL);
 
   // FIXME: let's just cache the serdata in the participant and do all the publishing in this file
 
   // FIXME: what about the secure writer? It overwrites its as with as_disc on creation, but it is reliable and therefore the matching code will recompute it, so I don't think there is any need to do anything for that one (except possibly making sure it does get updated on a QoS change)
-  
-  // FIXME: why would I register a participant if its SPDP writer cannot be found? Maybe it can change ...
-  assert (spdp_message_exists (pp));
+
   ddsrt_mutex_lock (&adm->lock);
   ddsrt_avl_ipath_t ip;
   const struct spdp_pp template = { .pp = pp };
@@ -293,25 +263,22 @@ dds_return_t ddsi_spdp_register_participant (struct spdp_admin *adm, const struc
   }
 }
 
-static struct ddsi_addrset *make_spdp_addrset (struct spdp_admin *adm)
-{
-  struct ddsi_addrset *as = ddsi_new_addrset ();
-  ddsrt_mutex_lock (&adm->lock);
-  ddsrt_avl_iter_t loc_it;
-  for (struct spdp_loc_live *n = ddsrt_avl_iter_first (&spdp_loc_td, &adm->live, &loc_it); n; n = ddsrt_avl_iter_next (&loc_it))
-    ddsi_add_xlocator_to_addrset (adm->gv, as, &n->c.xloc);
-  for (struct spdp_loc_aging *n = ddsrt_avl_iter_first (&spdp_loc_td, &adm->aging, &loc_it); n; n = ddsrt_avl_iter_next (&loc_it))
-    ddsi_add_xlocator_to_addrset (adm->gv, as, &n->c.xloc);
-  ddsrt_mutex_unlock (&adm->lock);
-  return as;
-}
-
 void ddsi_spdp_unregister_participant (struct spdp_admin *adm, const struct ddsi_participant *pp)
 {
+#ifndef NDEBUG
+  ddsrt_mutex_lock ((ddsrt_mutex_t *) &pp->e.lock);
+  assert (pp->spdp_seqno > 1);
+  assert (pp->spdp_serdata);
+  assert (pp->spdp_serdata->statusinfo == (DDSI_STATUSINFO_DISPOSE | DDSI_STATUSINFO_UNREGISTER));
+  ddsrt_mutex_unlock ((ddsrt_mutex_t *) &pp->e.lock);
+#endif
+  ddsi_spdp_force_republish (adm, pp, NULL);
+
   ddsrt_mutex_lock (&adm->lock);
   ddsrt_avl_dpath_t dp;
   const struct spdp_pp template = { .pp = pp };
   struct spdp_pp *ppn;
+
   // FIXME: do I really have to allow for ppn == NULL?
   if ((ppn = ddsrt_avl_lookup_dpath (&spdp_pp_td, &adm->pp, &template, &dp)) != NULL)
   {
@@ -320,29 +287,6 @@ void ddsi_spdp_unregister_participant (struct spdp_admin *adm, const struct ddsi
     ddsrt_free (ppn);
   }
   ddsrt_mutex_unlock (&adm->lock);
-  
-  /* SPDP relies on the WHC, but dispose-unregister will empty
-     it. The event handler verifies the event has already been
-     scheduled for deletion when it runs into an empty WHC */
-  // FIXME: store serdata in pp and this hack can go away
-  // HACK HACK HACK
-  struct ddsi_addrset *as = make_spdp_addrset (adm);
-  const ddsi_guid_t subguid = { .prefix = pp->e.guid.prefix, .entityid = { .u = DDSI_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER } };
-  struct ddsi_writer *wr = ddsi_entidx_lookup_writer_guid (pp->e.gv->entity_index, &subguid);
-  assert (wr != NULL);
-  ddsrt_mutex_lock (&wr->e.lock);
-  ddsi_unref_addrset (wr->as);
-  wr->as = as;
-  ddsrt_mutex_unlock (&wr->e.lock);
-  // HACK HACK HACK
-  // FIXME: this currently also handles the secure SPDP message, but that may change
-  ddsi_spdp_dispose_unregister ((struct ddsi_participant *) pp);
-  // HACK HACK HACK
-  ddsrt_mutex_lock (&wr->e.lock);
-  ddsi_unref_addrset (wr->as);
-  wr->as = ddsi_new_addrset ();
-  ddsrt_mutex_unlock (&wr->e.lock);
-  // HACK HACK HACK
 }
 
 dds_return_t ddsi_spdp_ref_locator (struct spdp_admin *adm, const ddsi_xlocator_t *xloc)
@@ -420,50 +364,68 @@ void ddsi_spdp_unref_locator (struct spdp_admin *adm, const ddsi_xlocator_t *xlo
   ddsrt_mutex_unlock (&adm->lock);
 }
 
+enum resend_spdp_dst_kind {
+  RSDK_LOCATOR,
+  RSDK_PROXY_READER
+};
+
+struct resend_spdp_dst {
+  enum resend_spdp_dst_kind kind;
+  union {
+    const ddsi_xlocator_t *xloc;
+    const struct ddsi_proxy_reader *prd;
+  } u;
+};
+
 ddsrt_nonnull ((2, 3))
-static void resend_spdp (struct ddsi_xpack *xp, const struct ddsi_participant *pp, const ddsi_xlocator_t *xloc)
+static void resend_spdp (struct ddsi_xpack *xp, const struct ddsi_participant *pp, const struct resend_spdp_dst *dst)
 {
+  // SPDP writer serves no purpose other than providing some things to ddsi_create_fragment_message, and for
+  // SPDP most of that information is in the uninteresting state (because it is best-effort and can't be
+  // fragmented) but passing all that info in a different way is also unpleasant.
   struct ddsi_writer *spdp_wr;
   dds_return_t ret = ddsi_get_builtin_writer (pp, DDSI_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER, &spdp_wr);
   if (ret != DDS_RETCODE_OK || spdp_wr == NULL)
+  {
+    ETRACE (pp, "ddsi_spdp_write("PGUIDFMT") - builtin participant writer not found\n", PGUID (pp->e.guid));
     return;
-  // Construct a key for looking up the SPDP sample in the WHC ...
-  // FIXME: this is just way too inefficient (and we do it over and over ...)
-  // FIXME: why not cache a pointer to it in pp?
-  ddsi_plist_t ps;
-  ddsi_plist_init_empty (&ps);
-  ps.present |= PP_PARTICIPANT_GUID;
-  ps.participant_guid = pp->e.guid;
-  struct ddsi_serdata * const sdkey = ddsi_serdata_from_sample (pp->e.gv->spdp_type, SDK_KEY, &ps);
-  ddsi_plist_fini (&ps);
-  // ... then borrow it, surreptitiously increment its refcount before returning it so we can unlock earlier ...
-  struct ddsi_whc_borrowed_sample sample;
-  ddsrt_mutex_lock (&spdp_wr->e.lock);
-  if (!ddsi_whc_borrow_sample_key (spdp_wr->whc, sdkey, &sample))
-    sample.serdata = NULL;
-  else
-  {
-    (void) ddsi_serdata_ref (sample.serdata);
-    ddsi_whc_return_sample (spdp_wr->whc, &sample, false);
   }
-  ddsrt_mutex_unlock (&spdp_wr->e.lock);
-  ddsi_serdata_unref (sdkey);
-  // ... and send it
-  if (sample.serdata)
+
+  const ddsi_xlocator_t *xloc = NULL;
+  const struct ddsi_proxy_reader *prd = NULL;
+  switch (dst->kind)
   {
-    static const ddsi_guid_prefix_t nullguidprefix;
-    struct ddsi_xmsg *msg;
-    if (ddsi_create_fragment_message (spdp_wr, sample.seq, sample.serdata, 0, UINT16_MAX, NULL, &msg, 1, UINT32_MAX) >= 0)
-    {
-      // FIXME: ddsi_create_fragment_message set the wrong destination, maybe refactor that?
+    case RSDK_LOCATOR:
+      xloc = dst->u.xloc;
+      prd = NULL;
+      break;
+    case RSDK_PROXY_READER:
+      xloc = NULL;
+      prd = dst->u.prd;
+      break;
+  }
+  assert ((xloc != NULL) != (prd != NULL));
+
+  ddsrt_mutex_lock ((ddsrt_mutex_t *) &pp->e.lock);
+  ddsi_seqno_t seqno = pp->spdp_seqno;
+  struct ddsi_serdata *serdata = ddsi_serdata_ref (pp->spdp_serdata);
+  ddsrt_mutex_unlock ((ddsrt_mutex_t *) &pp->e.lock);
+
+  static const ddsi_guid_prefix_t nullguidprefix;
+  struct ddsi_xmsg *msg;
+  // FIXME: need a spdp_wr for this, but we don't need one for any other reason (can't fragment them anyway, so its trivial)
+  if (ddsi_create_fragment_message (spdp_wr, seqno, serdata, 0, UINT16_MAX, prd, &msg, 1, UINT32_MAX) >= 0)
+  {
+    // FIXME: ddsi_create_fragment_message set the wrong destination so we have to patch it. Maybe refactor that?
+    if (xloc)
       ddsi_xmsg_setdst1_generic (pp->e.gv, msg, &nullguidprefix, xloc);
-      if (xp)
-        ddsi_xpack_addmsg (xp, msg, 0);
-      else
-        ddsi_qxev_msg (pp->e.gv->xevents, msg);
-    }
-    ddsi_serdata_unref (sample.serdata);
+
+    if (xp)
+      ddsi_xpack_addmsg (xp, msg, 0);
+    else
+      ddsi_qxev_msg (pp->e.gv->xevents, msg);
   }
+  ddsi_serdata_unref (serdata);
 }
 
 ddsrt_nonnull_all
@@ -486,7 +448,7 @@ static ddsrt_mtime_t spdp_do_aging_locators (struct spdp_admin *adm, struct ddsi
     {
       ddsrt_avl_iter_t it;
       for (struct spdp_pp *ppn = ddsrt_avl_iter_first (&spdp_pp_td, &adm->pp, &it); ppn; ppn = ddsrt_avl_iter_next (&it))
-        resend_spdp (xp, ppn->pp, &n->c.xloc);
+        resend_spdp (xp, ppn->pp, &(struct resend_spdp_dst){ .kind = RSDK_LOCATOR, .u = { .xloc = &n->c.xloc }});
       // Why do we keep trying an address where there used to be one if there's no one anymore? Well,
       // there might be someone else in the same situation with the cable cut ...
       //
@@ -563,7 +525,7 @@ static ddsrt_mtime_t spdp_do_live_locators (struct spdp_admin *adm, struct ddsi_
   for (struct spdp_loc_live *n = ddsrt_avl_iter_first (&spdp_loc_td, &adm->live, &loc_it); n; n = ddsrt_avl_iter_next (&loc_it))
     for (struct spdp_pp *ppn = ddsrt_avl_iter_first (&spdp_pp_td, &adm->pp, &pp_it); ppn; ppn = ddsrt_avl_iter_next (&pp_it))
       if (t_cutoff.v >= ppn->tsched.v)
-        resend_spdp (xp, ppn->pp, &n->c.xloc);
+        resend_spdp (xp, ppn->pp, &(struct resend_spdp_dst){ .kind = RSDK_LOCATOR, .u = { .xloc = &n->c.xloc }});
   // Update schedule
   ddsrt_mtime_t t_sched = DDSRT_MTIME_NEVER;
   for (struct spdp_pp *ppn = ddsrt_avl_iter_first (&spdp_pp_td, &adm->pp, &pp_it); ppn; ppn = ddsrt_avl_iter_next (&pp_it))
@@ -591,7 +553,7 @@ void ddsi_spdp_handle_live_locators_xevent_cb (struct ddsi_domaingv *gv, struct 
   ddsi_resched_xevent_if_earlier (xev, t_sched);
 }
 
-void ddsi_spdp_force_republish (struct spdp_admin *adm, const struct ddsi_participant *pp)
+bool ddsi_spdp_force_republish (struct spdp_admin *adm, const struct ddsi_participant *pp, const struct ddsi_proxy_reader *prd)
 {
   // Used for: initial publication, QoS update, dispose+unregister, faster rediscovery in
   // oneliner in implementation of "hearing!"
@@ -600,12 +562,36 @@ void ddsi_spdp_force_republish (struct spdp_admin *adm, const struct ddsi_partic
   //
   // This gets called from various threads and not all of them have a message packer at hand.
   // Passing a null pointer for "xpack" hands it off to the tev thread for publication.
-  ddsrt_mutex_lock (&adm->lock);
-  ddsrt_avl_iter_t loc_it;
-  for (struct spdp_loc_live *n = ddsrt_avl_iter_first (&spdp_loc_td, &adm->live, &loc_it); n; n = ddsrt_avl_iter_next (&loc_it))
-    resend_spdp (NULL, pp, &n->c.xloc);
-  for (struct spdp_loc_aging *n = ddsrt_avl_iter_first (&spdp_loc_td, &adm->aging, &loc_it); n; n = ddsrt_avl_iter_next (&loc_it))
-    resend_spdp (NULL, pp, &n->c.xloc);
-  ddsrt_mutex_unlock (&adm->lock);
-}
+  if (prd == NULL)
+  {
+#ifndef NDEBUG
+    ddsrt_mutex_lock ((ddsrt_mutex_t *) &pp->e.lock);
+    assert (pp->spdp_serdata);
+    ddsrt_mutex_unlock ((ddsrt_mutex_t *) &pp->e.lock);
+#endif
 
+    ddsrt_mutex_lock (&adm->lock);
+    ddsrt_avl_iter_t loc_it;
+    for (struct spdp_loc_live *n = ddsrt_avl_iter_first (&spdp_loc_td, &adm->live, &loc_it); n; n = ddsrt_avl_iter_next (&loc_it))
+      resend_spdp (NULL, pp, &(struct resend_spdp_dst){ .kind = RSDK_LOCATOR, .u = { .xloc = &n->c.xloc }});
+    for (struct spdp_loc_aging *n = ddsrt_avl_iter_first (&spdp_loc_td, &adm->aging, &loc_it); n; n = ddsrt_avl_iter_next (&loc_it))
+      resend_spdp (NULL, pp, &(struct resend_spdp_dst){ .kind = RSDK_LOCATOR, .u = { .xloc = &n->c.xloc }});
+    ddsrt_mutex_unlock (&adm->lock);
+    return true;
+  }
+  else
+  {
+    ddsrt_mutex_lock ((ddsrt_mutex_t *) &pp->e.lock);
+    if (pp->spdp_serdata != NULL)
+    {
+      ddsrt_mutex_unlock ((ddsrt_mutex_t *) &pp->e.lock);
+      resend_spdp (NULL, pp, &(struct resend_spdp_dst){ .kind = RSDK_PROXY_READER, .u = { .prd = prd }});
+      return true;
+    }
+    else
+    {
+      ddsrt_mutex_unlock ((ddsrt_mutex_t *) &pp->e.lock);
+      return false;
+    }
+  }
+}
