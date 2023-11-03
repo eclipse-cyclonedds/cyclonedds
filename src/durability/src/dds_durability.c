@@ -61,6 +61,69 @@ static void cleanup_server (void *n)
 
 static const ddsrt_avl_ctreedef_t server_td = DDSRT_AVL_CTREEDEF_INITIALIZER(offsetof (struct server_t, node), offsetof (struct server_t, id), cmp_server, 0);
 
+/* This represents a request for historical data. */
+struct pending_request_t {
+  ddsrt_avl_node_t node;  /* represents a node in the tree of pending requests */
+  ddsrt_fibheap_node_t fhnode;  /* represents a node in the priority queue */
+  dds_instance_handle_t ih; /* the instance handle that represents the reader */
+  uint64_t seq; /* the sequence number of the request; this is used as the key */
+  dds_entity_t reader; /* the reader that does the request */
+  struct dds_rhc *rhc; /* reader rhc */
+  dds_duration_t exptime; /* expiry time for this pending request */
+};
+
+static int cmp_pending_request (const void *a, const void *b)
+{
+  uint64_t *s1 = (uint64_t *)a;
+  uint64_t *s2 = (uint64_t *)b;
+
+  return (*s1 < *s2) ? -1 : ((*s1 > *s2) ? 1 : 0);
+}
+
+static void cleanup_pending_request (void *n)
+{
+  struct pending_request_t *pr = (struct pending_request_t *)n;
+  ddsrt_free(pr);
+}
+
+static int cmp_exp_time (const void *a, const void *b)
+{
+  struct pending_request_t *pr1 = (struct pending_request_t *)a;
+  struct pending_request_t *pr2 = (struct pending_request_t *)b;
+
+  return (pr1->exptime < pr2->exptime) ? -1 : ((pr1->exptime > pr2->exptime) ? 1 : 0);
+}
+
+static const ddsrt_avl_ctreedef_t pending_requests_td = DDSRT_AVL_CTREEDEF_INITIALIZER(offsetof (struct pending_request_t, node), offsetof (struct pending_request_t, seq), cmp_pending_request, 0);
+
+static const ddsrt_fibheap_def_t pending_requests_fd = DDSRT_FIBHEAPDEF_INITIALIZER(offsetof (struct pending_request_t, fhnode), cmp_exp_time);
+
+/* Administration to keep track of the request readers of a ds
+ * that can act as a target to send requests for historical data to..
+ * Based on this administration requests for historical data are published immediately,
+ * or pending until a ds is found that matches. */
+
+struct matched_request_reader_t {
+  ddsrt_avl_node_t node;
+  dds_instance_handle_t ih;  /* the instance handle of the matched request reader for my own request writer */
+};
+
+static int cmp_matched_request_reader (const void *a, const void *b)
+{
+  dds_instance_handle_t *ih1 = (dds_instance_handle_t *)a;
+  dds_instance_handle_t *ih2 = (dds_instance_handle_t *)b;
+
+  return (*ih1 < *ih2) ? -1 : ((*ih1 > *ih2) ? 1 : 0);
+}
+
+static void cleanup_matched_request_reader (void *n)
+{
+  struct matched_request_reader_t *mrr = (struct matched_request_reader_t *)n;
+  ddsrt_free(mrr);
+}
+
+static const ddsrt_avl_ctreedef_t matched_request_readers_td = DDSRT_AVL_CTREEDEF_INITIALIZER(offsetof (struct matched_request_reader_t, node), offsetof (struct matched_request_reader_t, ih), cmp_matched_request_reader, 0);
+
 struct com_t {
   dds_entity_t participant; /* durable client participant */
   dds_entity_t status_subscriber; /* subscriber used to receive status messages */
@@ -93,7 +156,7 @@ struct com_t {
 struct dc_t {
   struct {
     DurableSupport_id_t id; /* the id of this client */
-    char id_str[37]; /* string representation of the service id */
+    char id_str[37]; /* string representation of the client id */
     char *request_partition;  /* partition to send requests too; by default same as <hostname> */
     uint32_t quorum;  /*quorum of durable services needed to unblock durable writers */
     char *ident; /* ds identification */
@@ -111,8 +174,12 @@ struct dc_t {
   ddsrt_avl_ctree_t servers; /* tree containing all discovered durable servers */
   dds_listener_t *subinfo_listener;  /* listener to detect remote containers */
   dds_listener_t *quorum_listener; /* listener to check if a quorum is reached */
-  ddsrt_avl_ctree_t quorum_entries; /* tree containing quora for all discovered data containers */
-  ddsrt_avl_ctree_t handle_to_quorum_entries; /* tree that maps subscription handles to references to quorum entries */
+  dds_listener_t *request_listener; /* listener to check if request reader is available */
+  ddsrt_avl_ctree_t pending_requests; /* tree containing pending requests  */
+  ddsrt_fibheap_t pending_requests_fh; /* priority queue for pending requests, prioritized by expiry time */
+  dds_instance_handle_t selected_request_reader_ih; /* instance handle to matched request reader, DDS_HANDLE_NIL if not available */
+  ddsrt_avl_ctree_t matched_request_readers; /* tree containing the request readers on a ds that match with my ds writer */
+  uint32_t nr_of_matched_dc_requests; /* indicates the number of matched dc_request readers for the dc_request writer of this client */
 };
 
 static struct dc_t dc = { 0 };  /* static durable client structure */
@@ -302,8 +369,8 @@ static bool dc_is_ds_endpoint (struct com_t *com, dds_builtintopic_endpoint_t *e
   dds_builtintopic_participant_t *participant;
   dds_instance_handle_t ih;
   dds_return_t rc;
-  static void *samples[1];
-  static dds_sample_info_t info[1];
+  void *samples[1] = { NULL };
+  dds_sample_info_t info[1];
   void *userdata;
   size_t size = 0;
   char id_str[37];
@@ -342,10 +409,12 @@ static bool dc_is_ds_endpoint (struct com_t *com, dds_builtintopic_endpoint_t *e
     }
     dds_free(userdata);
   }
+  (void)dds_return_loan (com->rd_participant, samples, rc);
   return result;
 
 err_lookup_instance:
 err_read_instance:
+  (void)dds_return_loan (com->rd_participant, samples, rc);
 err_qget_userdata:
   return false;
 }
@@ -576,7 +645,10 @@ static struct com_t *dc_com_new (struct dc_t *dc, const dds_domainid_t domainid,
     DDS_ERROR("failed to create dc status read condition [%s]\n", dds_strretcode(-com->rc_status));
     goto err_rc_status;
   }
-  /* create dc_request writer */
+  /* create dc_request writer
+   * The dc_request topic is a transient-local topic, which ensures that
+   * a late joining DS can still get a request provided it has not not
+   * expired. */
   if (create_request_partition_expression(com, &request_partition) < 0) {
     DDS_ERROR("failed to create dc request partition\n");
     goto err_request_partition;
@@ -592,8 +664,9 @@ static struct com_t *dc_com_new (struct dc_t *dc, const dds_domainid_t domainid,
     DDS_ERROR("Failed to create dc publisher for request topic [%s]\n", dds_strretcode(-com->request_publisher));
     goto err_request_publisher;
   }
-  dds_qset_durability(tqos, DDS_DURABILITY_VOLATILE);
-  dds_qset_history(tqos, DDS_HISTORY_KEEP_ALL, DDS_LENGTH_UNLIMITED);
+  /* create dc_request writer */
+  dds_qset_durability(tqos, DDS_DURABILITY_TRANSIENT_LOCAL);
+  dds_qset_history(tqos, DDS_HISTORY_KEEP_LAST, 1);
   if ((com->tp_request = dds_create_topic (com->participant, &DurableSupport_request_desc, "dc_request", tqos, NULL)) < 0) {
     DDS_ERROR("failed to create the dc request topic [%s]\n", dds_strretcode(-com->tp_request));
     goto err_tp_request;
@@ -606,6 +679,18 @@ static struct com_t *dc_com_new (struct dc_t *dc, const dds_domainid_t domainid,
     DDS_ERROR("failed to copy dc request topic qos [%s]\n", dds_strretcode(-ret));
     goto err_copy_request_wqos;
   }
+  /* The writer data lifecycle of a dc_request writer has an
+   * autodispose policy. This makes it possible to cancel requests
+   * when the client disconnects from the DS. */
+  dds_qset_writer_data_lifecycle(request_wqos, true);
+  /* if we attach the request_listener now to the request writer here, then it
+   * is that possible the function triggers before this com_new() function
+   * has been finished. Because the request listener callback requires
+   * the com to be initialized (in the dc_is_ds_endpoint() call) this would
+   * then lead to a crash. For that reason we cannot attach the request listener
+   * to wr_request here, but we have to do it after com has been initialized
+   * (in activate_request_listener()). To not miss out on any triggers, we need to
+   * call dds_get_matched_subscription_data() after com has been initialized */
   if ((com->wr_request = dds_create_writer(com->request_publisher, com->tp_request, request_wqos, NULL)) < 0) {
     DDS_ERROR("failed to create dc request writer [%s]\n", dds_strretcode(-com->wr_request));
     goto err_wr_request;
@@ -762,15 +847,9 @@ static void dc_com_free (struct com_t *com)
   return;
 }
 
-static uint64_t next_request_seq (struct dc_t *dc)
+static dds_return_t dc_com_request_write (struct com_t *com, dds_entity_t reader, uint64_t seq)
 {
-  (dc->seq)++;
-  return dc->seq;
-}
-
-static dds_return_t dc_com_request_write (struct com_t *com, dds_entity_t reader)
-{
-  /* check for publication_matched() on the dc_request writer tomake sure that the request arrives */
+  /* check for publication_matched() on the dc_request writer to make sure that the request arrives */
   /* create a request */
   /* set the request on the pending liust */
   /* send the request */
@@ -796,7 +875,7 @@ static dds_return_t dc_com_request_write (struct com_t *com, dds_entity_t reader
   }
   request = DurableSupport_request__alloc();
   memcpy(request->requestid.client, dc.cfg.id, 16);
-  request->requestid.seq = next_request_seq(&dc);
+  request->requestid.seq = seq;
   request->partitions._length = plen;
   request->partitions._maximum = plen;
   request->partitions._buffer = dds_sequence_string_allocbuf(plen);
@@ -805,12 +884,11 @@ static dds_return_t dc_com_request_write (struct com_t *com, dds_entity_t reader
     request->partitions._buffer[i] = ddsrt_strdup(partitions[i]);
   }
   request->timeout = DDS_SECS(5);
-  /* todo: administrate the request */
   if ((ret = dds_write(com->wr_request, request)) < 0) {
-    DDS_ERROR("com_set_bead_write failed [%s]", dds_strretcode(-ret));
+    DDS_ERROR("failed to publish dc_request [%s]", dds_strretcode(-ret));
     goto err_request_write;
   }
-  DDS_CLOG(DDS_LC_DUR, &dc.gv->logconfig, "dc_request sent\n");
+  DDS_CLOG(DDS_LC_DUR, &dc.gv->logconfig, "publish dc_request {\"client\":\"%s\", \"seq\":%" PRIu64 "}\n", dc.cfg.id_str, seq);
 err_request_write:
   dc_free_partitions(plen, partitions);
   dds_delete_qos(rqos);
@@ -859,14 +937,18 @@ static int dc_process_status (dds_entity_t rd, struct dc_t *dc)
 {
 #define MAX_SAMPLES   100
 
-  static void *samples[MAX_SAMPLES];
-  static dds_sample_info_t info[MAX_SAMPLES];
+  void *samples[MAX_SAMPLES] = { NULL };
+  dds_sample_info_t info[MAX_SAMPLES];
   int samplecount;
   int j;
 
+  /* dds_read/take allocates memory for the data if samples[0] is a null pointer.
+   * The memory must be released when done by returning the loan */
+  samples[0]= NULL;
   samplecount = dds_take_mask (rd, samples, info, MAX_SAMPLES, MAX_SAMPLES, DDS_NOT_READ_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE);
   if (samplecount < 0) {
     DDS_ERROR("durable client failed to take ds_status [%s]", dds_strretcode(-samplecount));
+    goto err_samplecount;
   } else {
     /* call the handler function to process the status sample */
     for (j = 0; !dds_triggered(dc->com->ws) && j < samplecount; j++) {
@@ -885,6 +967,8 @@ static int dc_process_status (dds_entity_t rd, struct dc_t *dc)
       }
     }
   }
+  (void)dds_return_loan (rd, samples, samplecount);
+err_samplecount:
   return samplecount;
 #undef MAX_SAMPLES
 }
@@ -913,11 +997,127 @@ static void default_durable_writer_matched_cb (dds_entity_t writer, dds_publicat
     dds_builtintopic_free_endpoint(ep);
   } else {
     /* the endpoint is not available any more.
-     * Check if the quorom has been lost*/
+     * Check if the quorem has been lost */
     dc_check_quorum_reached(dc, writer, false);
   }
 err_last_subscription_handle:
   return;
+}
+
+/* publish a reader request
+ * The reader request is published as a transient-local topic which is
+ * keyed by the guid of this client and a monotonically increasing sequence number.
+ * Even though this is not recommended, this allows multiple requests from the
+ * same reader (because they have a different sequence number).
+ *
+ * For each outgoing request, a pending request entry will be created to administrate
+ * the outgoing requests. Pending requests can have a expiration. Expired pending
+ * requests will lead to removal of the pending request, and a dispose of the
+ * corresponding reader request to prevent that late joining
+ */
+static struct pending_request_t *dc_publish_reader_request (struct dc_t *dc, dds_entity_t reader, struct dds_rhc *rhc)
+{
+  struct pending_request_t *pr;
+  dds_instance_handle_t ih;
+  dds_return_t rc;
+
+  /* verify if the reader still exists; if not, delete the request */
+  if ((rc = dds_get_instance_handle(reader, &ih)) != DDS_RETCODE_OK) {
+    DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "No need to publish dc_request, reader is not available\n");
+    return NULL;
+  }
+  /* create a pending request entry and insert it in the table of pending requests */
+  if ((pr = (struct pending_request_t *)ddsrt_malloc(sizeof(struct pending_request_t))) == NULL) {
+    DDS_ERROR("Failed to allocate a reader request\n");
+    goto err_alloc_reader_request;
+  }
+  memset(pr, 0, sizeof(struct pending_request_t));
+  pr->ih = ih;
+  pr->seq = ++(dc->seq);
+  pr->reader = reader;
+  pr->rhc = rhc;
+  ddsrt_avl_cinsert(&pending_requests_td, &dc->pending_requests, pr);
+  /* publish the request  */
+  if ((rc = dc_com_request_write(dc->com, reader, dc->seq)) != DDS_RETCODE_OK) {
+    DDS_ERROR("Failed to publish dc_request\n");
+    goto err_publish_reader_request;
+  }
+  return pr;
+
+err_publish_reader_request:
+  ddsrt_avl_cdelete(&pending_requests_td, &dc->pending_requests, pr);
+  cleanup_pending_request(pr);
+  --(dc->seq);
+err_alloc_reader_request:
+  return NULL;
+}
+
+/* a dc_request reader endpoint on a DS has been found that matched with my dc_request writer */
+static struct matched_request_reader_t *dc_add_matched_request_reader (struct dc_t *dc, dds_builtintopic_endpoint_t *ep, dds_instance_handle_t ih)
+{
+  struct matched_request_reader_t *mrr;
+  uint32_t cnt;
+  char id_str[37];
+
+  assert(ep);
+  if ((mrr = ddsrt_avl_clookup (&matched_request_readers_td, &dc->matched_request_readers, &ih)) == NULL) {
+    mrr = (struct matched_request_reader_t *)ddsrt_malloc(sizeof(struct matched_request_reader_t));
+    mrr->ih = ih;
+    ddsrt_avl_cinsert(&matched_request_readers_td, &dc->matched_request_readers, mrr);
+    cnt = (uint32_t)ddsrt_avl_ccount(&dc->matched_request_readers);
+    dc->nr_of_matched_dc_requests = cnt;
+    DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "matching dc_request reader \"%s\" discovered (ih: %" PRIx64 ") [%" PRIu32 "]\n", dc_stringify_id(ep->key.v, id_str), ih, cnt);
+  }
+  return mrr;
+}
+
+/* a dc_request reader has been lost */
+static void dc_remove_matched_request_reader (struct dc_t *dc, dds_instance_handle_t ih)
+{
+  struct matched_request_reader_t *mrr;
+  ddsrt_avl_dpath_t dpath;
+  uint32_t cnt;
+
+  if ((mrr = ddsrt_avl_clookup_dpath(&matched_request_readers_td, &dc->matched_request_readers, &ih, &dpath)) != NULL) {
+    ddsrt_avl_cdelete_dpath(&matched_request_readers_td, &dc->matched_request_readers, mrr, &dpath);
+    cleanup_matched_request_reader(mrr);
+    cnt = (uint32_t)ddsrt_avl_ccount(&dc->matched_request_readers);
+    dc->nr_of_matched_dc_requests = cnt;
+    DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "matching dc_request reader lost (ih: %" PRIx64 ") [%" PRIu32 "]\n", ih, cnt);
+  }
+}
+
+/* called when the dc_request writer has been found or lost a matching dc_request reader.
+ * Due to synchronous triggering we see them all  */
+static void default_request_writer_matched_cb (dds_entity_t writer, dds_publication_matched_status_t status, void *arg)
+{
+  struct dc_t *dc = (struct dc_t *)arg;
+  dds_instance_handle_t ih;
+  dds_builtintopic_endpoint_t *ep;
+
+  /* A reader has matched (or lost) with a dc_request writer. */
+  /* As long as there is at least one match with a dc_request
+   * reader located on a ds, we can publish safely publish
+   * requests. If there is no match with such dc_request reader,
+   * we have to postpone the publication of dc_request until such
+   * dc_request reader becomes available. */
+  assert(writer);
+  if ((ih = status.last_subscription_handle) == DDS_HANDLE_NIL) {
+    DDS_ERROR("failed to receive valid last_subscription_handle\n");
+    return;
+  }
+  if ((ep = dds_get_matched_subscription_data(writer, ih)) != NULL) {
+    if (dc_is_ds_endpoint(dc->com, ep, dc->cfg.ident)) {
+      /* A dc_request reader on a data container has matched with the dc_request writer.
+       * From now on it is allowed to publish requests.
+       * In case there are any pending requests, we can sent them now */
+      dc_add_matched_request_reader(dc, ep, ih);
+    }
+    dds_builtintopic_free_endpoint(ep);
+  } else {
+    /* the dc_request endpoint is not available any more. */
+    dc_remove_matched_request_reader(dc, ih);
+  }
 }
 
 static uint32_t recv_handler (void *a)
@@ -945,6 +1145,70 @@ static uint32_t recv_handler (void *a)
   return 0;
 }
 
+/* set the request listener to learn about the existence of matching request readers.
+ * Because matches may have occurred already before */
+
+static dds_return_t activate_request_listener (struct dc_t *dc)
+{
+  dds_return_t rc, ret;
+  dds_guid_t wguid;
+  char id_str[37];
+  size_t nrds = 128;
+  dds_instance_handle_t *rd_ihs;
+  int i;
+  dds_builtintopic_endpoint_t *ep;
+  bool selected = false;  /* indicates if a dc_request reader is selected to accept our requests */
+
+  assert(dc);
+  assert(dc->com);
+  if ((rc = dds_get_guid(dc->com->wr_request, &wguid)) != DDS_RETCODE_OK) {
+    DDS_ERROR("failed to retrieve writer guid for request writer");
+    goto err_get_guid;
+  }
+  if ((rc = dds_set_listener(dc->com->wr_request, dc->request_listener)) < 0) {
+    DDS_ERROR("Unable to set the request listener on writer \"%s\"\n", dc_stringify_id(wguid.v, id_str));
+    goto err_set_listener;
+  }
+  /* matches for this listener may have occurred before the listener was attached.
+   * To get these matches, we need to call dds_get_matched_subscriptions().
+   * We don't know the size of the array holding the matches beforehand, so
+   * we dynamically this list. */
+  do {
+    nrds = nrds * 2;
+    rd_ihs = ddsrt_malloc(nrds * sizeof(dds_instance_handle_t));
+    if ((ret = dds_get_matched_subscriptions(dc->com->wr_request, rd_ihs, nrds)) > (int32_t)nrds) {
+      /* allocated list is too small, use a bigger list */
+      ddsrt_free(rd_ihs);
+    }
+  } while (ret > (int32_t)nrds);
+  /* The local host request reader only match requests with a ds on the same host.
+   * As long as there is at least one match, then we know there is a dc_request reader
+   * on the local node. If the dc_request reader belongs to a ds, then we have found
+   * a ds on the local node. */
+  DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "request listener activated, currently found %" PRIu32 " matching dc_request readers\n", (uint32_t)ret);
+  for (i=0; i < ret && !selected; i++) {
+    /* check if the matched reader belongs to a ds  */
+    if ((ep = dds_get_matched_subscription_data(dc->com->wr_request, rd_ihs[i])) != NULL) {
+      if (dc_is_ds_endpoint(dc->com, ep, dc->cfg.ident)) {
+        /* A dc_request reader on a DS has matched with the dc_request writer.
+         * From now on it is allowed to publish requests.
+         * In case there are any pending requests, we can sent them now */
+        dc_add_matched_request_reader(dc, ep, rd_ihs[i]);
+      }
+      dds_builtintopic_free_endpoint(ep);
+    } else {
+      /* the dc_request endpoint is not available any more. */
+      dc_remove_matched_request_reader(dc, rd_ihs[i]);
+    }
+  }
+  ddsrt_free(rd_ihs);
+  return rc;
+
+err_set_listener:
+err_get_guid:
+  return DDS_RETCODE_ERROR;
+}
+
 dds_return_t dds_durability_init (const dds_domainid_t domainid, struct ddsi_domaingv *gv)
 {
   dds_return_t rc;
@@ -965,17 +1229,29 @@ dds_return_t dds_durability_init (const dds_domainid_t domainid, struct ddsi_dom
   /* Note: dc.cfg.id will be set once we create the participant in dc_com_new() */
   dc.cfg.quorum = DEFAULT_QOURUM;  /* LH: currently hardcoded set to 1, should be made configurable in future */
   dc.cfg.ident = ddsrt_strdup(DEFAULT_IDENT);
+  dc.selected_request_reader_ih = DDS_HANDLE_NIL;
+  dc.nr_of_matched_dc_requests = 0;
   ddsrt_avl_cinit(&server_td, &dc.servers);
+  ddsrt_avl_cinit(&pending_requests_td, &dc.pending_requests);
+  ddsrt_avl_cinit(&matched_request_readers_td, &dc.matched_request_readers);
+  ddsrt_fibheap_init(&pending_requests_fd, &dc.pending_requests_fh);
   /* create the quorum listener */
   if ((dc.quorum_listener = dds_create_listener(&dc)) == NULL) {
     DDS_ERROR("failed to create quorum listener\n");
     goto err_create_quorum_listener;
   }
   dds_lset_publication_matched(dc.quorum_listener, default_durable_writer_matched_cb);
+  /* create the request listener */
+  if ((dc.request_listener = dds_create_listener(&dc)) == NULL) {
+    DDS_ERROR("failed to create request listener\n");
+    goto err_create_request_listener;
+  }
+  dds_lset_publication_matched(dc.request_listener, default_request_writer_matched_cb);
   if ((dc.com = dc_com_new(&dc, domainid, gv))== NULL) {
     DDS_ERROR("failed to initialize the durable client infrastructure\n");
     goto err_com_new;
   }
+  activate_request_listener(&dc);
   /* start a thread to process messages coming from a ds */
   ddsrt_threadattr_init(&dc.recv_tattr);
   if ((rc = ddsrt_thread_create(&dc.recv_tid, "dc", &dc.recv_tattr, recv_handler, &dc)) != DDS_RETCODE_OK) {
@@ -986,6 +1262,8 @@ dds_return_t dds_durability_init (const dds_domainid_t domainid, struct ddsi_dom
 err_recv_thread:
   dc_com_free(dc.com);
 err_com_new:
+  dds_delete_listener(dc.request_listener);
+err_create_request_listener:
   dds_delete_listener(dc.quorum_listener);
 err_create_quorum_listener:
   ddsrt_free(dc.cfg.ident);
@@ -1018,7 +1296,11 @@ dds_return_t dds_durability_fini (void)
     if ((rc = ddsrt_thread_join(dc.recv_tid, NULL)) < 0) {
       DDS_ERROR("failed to join the dc recv thread [%s]", dds_strretcode(rc));
     }
+    dds_delete_listener(dc.request_listener);
+    dds_delete_listener(dc.quorum_listener);
     dc_com_free(dc.com);
+    ddsrt_avl_cfree(&matched_request_readers_td,  &dc.matched_request_readers, cleanup_matched_request_reader);
+    ddsrt_avl_cfree(&pending_requests_td,  &dc.pending_requests, cleanup_pending_request);
     ddsrt_avl_cfree(&server_td,  &dc.servers, cleanup_server);
     ddsrt_free(dc.cfg.ident);
   }
@@ -1032,46 +1314,72 @@ bool dds_durability_is_terminating (void)
 
 dds_return_t dds_durability_new_local_reader (dds_entity_t reader, struct dds_rhc *rhc)
 {
-  /* create the administration to store transient data */
-  /* create a durability reader that sucks and stores it in the store */
+  dds_durability_kind_t dkind;
+  dds_qos_t *qos, *parqos;
+  dds_return_t rc = DDS_RETCODE_ERROR;
 
-  /* send a request */
-  if (dc.com) {
-    // dc_send_cached_requests();
-    dc_com_request_write(dc.com, reader);
-  } else {
-    /* todo: apparently a reader is created before com is initialized.
-     * cache the request until com becomes available */
-    // dc_cache_request(reader, rhc);
+  /* check if the reader is a durable reader from a "real" user application,
+   * if so, send a request to obtain historical data */
+  assert(reader);
+  qos = dds_create_qos();
+  if ((rc = dds_get_qos(reader, qos)) < 0) {
+    DDS_ERROR("failed to get qos from reader [%s]\n", dds_strretcode(rc));
+    goto err_get_qos;
   }
+  if (!dds_qget_durability(qos, &dkind)) {
+    DDS_ERROR("failed to retrieve durability qos\n");
+    goto err_qget_durability;
+  }
+  if ((dkind == DDS_DURABILITY_TRANSIENT) || (dkind == DDS_DURABILITY_PERSISTENT)) {
+    dds_entity_t par;
+    void *userdata;
+    size_t size = 0;
 
-  (void)rhc;
-  (void)reader;
-  return DDS_RETCODE_OK;;
-}
+    /* Creation of a durable reader must only lead to the publication
+     * of a dc_request when the reader is a "real" application reader.
+     * If the reader belongs to a participant that carries user data
+     * containing the IDENT, then the reader is a data container.
+     * We don't need to generate dc_requests for data containers */
+    if ((par = dds_get_participant(reader)) < 0) {
+      DDS_ERROR("Unable to retrieve the participant of the reader [%s]\n", dds_strretcode(rc));
+      goto err_get_participant;
+    }
+    if ((parqos = dds_create_qos()) == NULL) {
+      DDS_ERROR("Failed to allocate qos\n");
+      goto err_alloc_parqos;
+    }
+    if ((rc = dds_get_qos(par, parqos)) < 0) {
+      DDS_ERROR("Failed to get topic qos [%s]", dds_strretcode(rc));
+      goto err_get_parqos;
+    }
+    if (!dds_qget_userdata(parqos, &userdata, &size)) {
+      DDS_ERROR("Unable to retrieve the participant's user data for reader\n");
+      goto err_qget_userdata;
+    }
+    if ((size != strlen(IDENT)) || (userdata == NULL)  || (strcmp(userdata, IDENT) != 0)) {
+      /* the user data of the participant for this durable reader does
+       * not contain the ident, so the endoint is not from a remote DS.
+       * We can now publish a dc_request for this durable reader. The
+       * dc_request is published as a transient-local topic. This means
+       * that a late joining DS will receive the DS as long as the request
+       * is not yet disposed.*/
+      (void)dc_publish_reader_request(&dc, reader, rhc);
+    }
+    dds_free(userdata);
+    dds_delete_qos(parqos);
+  }
+  dds_delete_qos(qos);
+  return rc;
 
-/* This function checks if the writer has reached the quorum of matching durable containers
- *
- * It is NOT sufficient to verify if the quorum of durable services is reached.
- * If a writer would unblock when the quorum of durable services is reached, then
- * it is by no means certain that the durable writer has discovered the corresponding
- * data containers of these durable services. Data that has is published before the
- * data containers have been discovered by the writers, would not be delivered to
- * the data containers.
- *
- * For this reason, the quorum must be calculated based on the number of discovered
- * data containers for a writer. This also implies that if a writer has reached a quorum,
- * some other writer may not have reached the quorum yet.
- *
- * return
- *   DDS_RETCODE_OK             if quorum is reached
- *   DDS_PRECONDITION_NOT_MET   otherwise
- */
-dds_return_t dds_durability_check_quorum_reached (struct dds_writer *writer)
-{
-  /* temporarily disabled */
-  (void)writer;
-  return DDS_RETCODE_OK;
+err_qget_userdata:
+err_get_parqos:
+  dds_delete_qos(parqos);
+err_alloc_parqos:
+err_get_participant:
+err_qget_durability:
+err_get_qos:
+  dds_delete_qos(qos);
+  return rc;
 }
 
 dds_return_t dds_durability_new_local_writer (dds_entity_t writer)
@@ -1123,7 +1431,7 @@ dds_return_t dds_durability_new_local_writer (dds_entity_t writer)
       DDS_ERROR("Unable to set the quorum listener on writer \"%s\"\n", dc_stringify_id(wguid.v, id_str));
       goto err_set_listener;
     }
-    dc_check_quorum_reached (&dc, writer, true);
+    dc_check_quorum_reached(&dc, writer, true);
   }
   dds_delete_qos(qos);
   return DDS_RETCODE_OK;
@@ -1159,7 +1467,20 @@ err_writer_lock:
   return ret;
 }
 
-/* wait for quorum reached, or timeout in case max_blocking_time is expired and quorum not yet reached */
+/* This function waits for a quorum of durable data containers to be available,
+ * or timeout in case max_blocking_time is expired and quorum not yet reached.
+ *
+ * If the quorum is not reached before the max_blocking_time() is expired,
+ * DDS_RETCODE_PRECONDITION
+ *
+ * The quorum is calculated based on the number of discovered and matched data containers
+ * for a writer. This also implies that if a writer has reached a quorum,
+ * some other writer may not have reached the quorum yet.
+ *
+ * return
+ *   DDS_RETCODE_OK             if quorum is reached
+ *   DDS_PRECONDITION_NOT_MET   otherwise
+ */
 dds_return_t dds_durability_wait_for_quorum (dds_entity_t writer)
 {
   dds_return_t ret = DDS_RETCODE_ERROR;
@@ -1178,7 +1499,7 @@ dds_return_t dds_durability_wait_for_quorum (dds_entity_t writer)
    *
    * LH: A better solution would be to wait on a condition variable,
    * and get notified once the quorum is reached (or the max_blocking_time
-   * times out)  */
+   * times out) */
   timeout.v = DDS_TIME_INVALID;
   do {
     if ((ret = dds_durability_get_quorum_reached(writer, &quorum_reached, &timeout)) != DDS_RETCODE_OK) {
