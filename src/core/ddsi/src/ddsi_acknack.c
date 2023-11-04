@@ -231,7 +231,7 @@ static void add_acknack (struct ddsi_xmsg *msg, const struct ddsi_proxy_writer *
   ddsi_security_encode_datareader_submsg (msg, sm_marker, pwr, &rwn->rd_guid);
 }
 
-static enum ddsi_add_acknack_result get_acknack_info (const struct ddsi_proxy_writer *pwr, const struct ddsi_pwr_rd_match *rwn, struct ddsi_last_nack_summary *nack_summary, struct ddsi_add_acknack_info *info, bool ackdelay_passed, bool nackdelay_passed)
+static enum ddsi_add_acknack_result get_acknack_info (const struct ddsi_proxy_writer *pwr, const struct ddsi_pwr_rd_match *rwn, struct ddsi_last_nack_summary *nack_summary, struct ddsi_add_acknack_info *info, bool ackdelay_passed, bool nackdelay_passed, bool *reschedule)
 {
   /* If pwr->have_seen_heartbeat == 0, no heartbeat has been received
      by this proxy writer yet, so we'll be sending a pre-emptive
@@ -250,6 +250,7 @@ static enum ddsi_add_acknack_result get_acknack_info (const struct ddsi_proxy_wr
     nack_summary->seq_end_p1 = 0;
     nack_summary->frag_base = 0;
     nack_summary->frag_end_p1 = 0;
+    *reschedule = rwn->ack_requested;
     result = AANR_ACK;
   }
   else
@@ -274,6 +275,7 @@ static enum ddsi_add_acknack_result get_acknack_info (const struct ddsi_proxy_wr
     nack_summary->frag_end_p1 = frag_end_p1;
     nack_summary->seq_base = seq_base;
     nack_summary->frag_base = frag_base;
+    *reschedule = true;
 
     // [seq_base:0 .. seq_end_p1:0) and [seq_end_p1:frag_base .. seq_end_p1:frag_end_p1) if frag_end_p1 > 0
     if (seq_base > rwn->last_nack.seq_end_p1 || (seq_base == rwn->last_nack.seq_end_p1 && frag_base >= rwn->last_nack.frag_end_p1))
@@ -358,8 +360,9 @@ void ddsi_sched_acknack_if_needed (struct ddsi_xevent *ev, struct ddsi_proxy_wri
   const bool nackdelay_passed = (tnow.v >= ddsrt_mtime_add_duration (rwn->t_last_nack, gv->config.nack_delay).v);
   struct ddsi_add_acknack_info info;
   struct ddsi_last_nack_summary nack_summary;
+  bool reschedule;
   const enum ddsi_add_acknack_result aanr =
-    get_acknack_info (pwr, rwn, &nack_summary, &info, ackdelay_passed, nackdelay_passed);
+    get_acknack_info (pwr, rwn, &nack_summary, &info, ackdelay_passed, nackdelay_passed, &reschedule);
   if (aanr == AANR_SUPPRESSED_ACK)
     ; // nothing to be done now
   else if (avoid_suppressed_nack && aanr == AANR_SUPPRESSED_NACK)
@@ -373,15 +376,22 @@ static struct ddsi_xmsg *make_and_resched_acknack (struct ddsi_xevent *ev, struc
   struct ddsi_domaingv * const gv = pwr->e.gv;
   struct ddsi_xmsg *msg;
   struct ddsi_add_acknack_info info;
+  bool reschedule;
 
   struct ddsi_last_nack_summary nack_summary;
   const enum ddsi_add_acknack_result aanr =
     get_acknack_info (pwr, rwn, &nack_summary, &info,
                       tnow.v >= ddsrt_mtime_add_duration (rwn->t_last_ack, gv->config.ack_delay).v,
-                      tnow.v >= ddsrt_mtime_add_duration (rwn->t_last_nack, gv->config.nack_delay).v);
+                      tnow.v >= ddsrt_mtime_add_duration (rwn->t_last_nack, gv->config.nack_delay).v, &reschedule);
 
   if (aanr == AANR_SUPPRESSED_ACK)
+  {
+      if (reschedule)
+    {
+      (void) ddsi_resched_xevent_if_earlier (ev, ddsrt_mtime_add_duration (rwn->t_last_nack, gv->config.nack_delay));
+    }
     return NULL;
+  }
   else if (avoid_suppressed_nack && aanr == AANR_SUPPRESSED_NACK)
   {
     (void) ddsi_resched_xevent_if_earlier (ev, ddsrt_mtime_add_duration (rwn->t_last_nack, gv->config.nack_delay));
