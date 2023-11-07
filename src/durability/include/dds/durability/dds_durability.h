@@ -17,9 +17,6 @@
 #include "dds__types.h"
 #include "dds/ddsc/dds_rhc.h"
 
-/* This is the user data that identifies a durable service */
-#define IDENT                        "durable_support"
-
 #if defined (__cplusplus)
 extern "C" {
 #endif
