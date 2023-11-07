@@ -67,9 +67,10 @@ struct pending_request_t {
   ddsrt_fibheap_node_t fhnode;  /* represents a node in the priority queue */
   dds_instance_handle_t ih; /* the instance handle that represents the reader */
   uint64_t seq; /* the sequence number of the request; this is used as the key */
+  dds_time_t birth_time; /* time this pending event was created */
   dds_entity_t reader; /* the reader that does the request */
   struct dds_rhc *rhc; /* reader rhc */
-  dds_duration_t exptime; /* expiry time for this pending request */
+  dds_time_t exp_time; /* Expire time for this pending request */
 };
 
 static int cmp_pending_request (const void *a, const void *b)
@@ -91,7 +92,7 @@ static int cmp_exp_time (const void *a, const void *b)
   struct pending_request_t *pr1 = (struct pending_request_t *)a;
   struct pending_request_t *pr2 = (struct pending_request_t *)b;
 
-  return (pr1->exptime < pr2->exptime) ? -1 : ((pr1->exptime > pr2->exptime) ? 1 : 0);
+  return (pr1->exp_time < pr2->exp_time) ? -1 : ((pr1->exp_time > pr2->exp_time) ? 1 : 0);
 }
 
 static const ddsrt_avl_ctreedef_t pending_requests_td = DDSRT_AVL_CTREEDEF_INITIALIZER(offsetof (struct pending_request_t, node), offsetof (struct pending_request_t, seq), cmp_pending_request, 0);
@@ -140,6 +141,7 @@ struct com_t {
   dds_entity_t rd_participant; /* participant reader */
   dds_entity_t rd_subinfo; /* DCPSSubscription reader */
   dds_entity_t rc_subinfo; /* DCPSSubscription read condition */
+  dds_entity_t pending_request_guard;  /* trigger expiration of pending request */
   dds_listener_t *status_listener; /* listener on status topic */
   dds_entity_t ws;
 };
@@ -177,6 +179,8 @@ struct dc_t {
   dds_listener_t *request_listener; /* listener to check if request reader is available */
   ddsrt_avl_ctree_t pending_requests; /* tree containing pending requests  */
   ddsrt_fibheap_t pending_requests_fh; /* priority queue for pending requests, prioritized by expiry time */
+  ddsrt_mutex_t pending_request_mutex; /* pending request queue mutex */
+  ddsrt_cond_t pending_request_cond; /* pending request condition */
   dds_instance_handle_t selected_request_reader_ih; /* instance handle to matched request reader, DDS_HANDLE_NIL if not available */
   ddsrt_avl_ctree_t matched_request_readers; /* tree containing the request readers on a ds that match with my ds writer */
   uint32_t nr_of_matched_dc_requests; /* indicates the number of matched dc_request readers for the dc_request writer of this client */
@@ -371,7 +375,7 @@ static bool dc_is_ds_endpoint (struct com_t *com, dds_builtintopic_endpoint_t *e
   dds_return_t rc;
   void *samples[1] = { NULL };
   dds_sample_info_t info[1];
-  void *userdata;
+  void *userdata = NULL;
   size_t size = 0;
   char id_str[37];
   bool result = false;
@@ -739,10 +743,23 @@ static struct com_t *dc_com_new (struct dc_t *dc, const dds_domainid_t domainid,
     DDS_ERROR("failed to create dc subinfo read condition [%s]\n", dds_strretcode(-com->rc_subinfo));
     goto err_rc_subinfo;
   }
+  /* create pending reuqest guard condition */
+  if ((com->pending_request_guard = dds_create_guardcondition(com->participant)) < 0) {
+    DDS_ERROR("failed to create guard condition [%s]\n", dds_strretcode(-com->pending_request_guard));
+    goto err_create_pending_request_guard_condition;
+  }
+  if ((ret = dds_set_guardcondition(com->pending_request_guard, false)) < 0) {
+    DDS_ERROR("failed to initialize guard condition [%s]\n", dds_strretcode(-ret));
+    goto err_set_guard_condition;
+  }
   /* create waitset and attach read conditions */
   if ((com->ws = dds_create_waitset(com->participant)) < 0) {
     DDS_ERROR("failed to create dc waitset [%s]\n", dds_strretcode(-com->ws));
     goto err_waitset;
+  }
+  if ((ret = dds_waitset_attach (com->ws, com->pending_request_guard, com->pending_request_guard)) < 0) {
+    DDS_ERROR("failed to attach pending request guard condition to waitset [%s]\n", dds_strretcode(-ret));
+    goto err_attach_pending_request_guard;
   }
   if ((ret = dds_waitset_attach (com->ws, com->rc_status, com->rd_status)) < 0) {
     DDS_ERROR("failed to attach dc status reader to waitset [%s]\n", dds_strretcode(-ret));
@@ -776,8 +793,13 @@ err_attach_ws:
 err_attach_rd_response:
   dds_waitset_detach(com->ws, com->rc_status);
 err_attach_rd_status:
+  dds_waitset_detach(com->ws, com->pending_request_guard);
+err_attach_pending_request_guard:
   dds_delete(com->ws);
 err_waitset:
+  dds_delete(com->pending_request_guard);
+err_create_pending_request_guard_condition:
+err_set_guard_condition:
   dds_delete(com->rc_subinfo);
 err_rc_subinfo:
   dds_delete(com->rd_subinfo);
@@ -902,6 +924,11 @@ err_alloc_rqos:
   return DDS_RETCODE_ERROR;
 }
 
+static dds_return_t dc_com_request_dispose (struct com_t *com, dds_instance_handle_t ih)
+{
+  return dds_dispose_ih(com->wr_request, ih);
+}
+
 static void dc_server_lost (struct dc_t *dc, DurableSupport_status *status)
 {
   struct server_t *server;
@@ -1004,6 +1031,31 @@ err_last_subscription_handle:
   return;
 }
 
+static void dc_add_pending_request (struct dc_t *dc, struct pending_request_t *pr)
+{
+  ddsrt_avl_ipath_t ipath;
+  dds_return_t ret;
+
+  assert(pr);
+  ddsrt_mutex_lock(&dc->pending_request_mutex);
+  if ((ddsrt_avl_clookup_ipath(&pending_requests_td, &dc->pending_requests, &pr->seq, &ipath)) != NULL) {
+    /* there is already an outstanding reader request for this reader */
+    DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "There is already an outstanding reader request with seq %" PRIu64 "\n", pr->seq);
+    ddsrt_mutex_unlock(&dc->pending_request_mutex);
+    return;
+  }
+  /* pending request not yet available, add it to tree of pending request */
+  ddsrt_avl_cinsert(&pending_requests_td, &dc->pending_requests, pr);
+  ddsrt_fibheap_insert(&pending_requests_fd, &dc->pending_requests_fh, pr);
+  if (pr == ddsrt_fibheap_min(&pending_requests_fd, &dc->pending_requests_fh)) {
+    /* trigger the main loop in the recv_handler to recalculate the timeout */
+    if ((ret = dds_set_guardcondition(dc->com->pending_request_guard, true)) < 0) {
+      DDS_ERROR("failed to set pending request guard to true [%s]", dds_strretcode(ret));
+    }
+  }
+  ddsrt_mutex_unlock(&dc->pending_request_mutex);
+}
+
 /* publish a reader request
  * The reader request is published as a transient-local topic which is
  * keyed by the guid of this client and a monotonically increasing sequence number.
@@ -1020,6 +1072,7 @@ static struct pending_request_t *dc_publish_reader_request (struct dc_t *dc, dds
   struct pending_request_t *pr;
   dds_instance_handle_t ih;
   dds_return_t rc;
+  dds_time_t now = dds_time();
 
   /* verify if the reader still exists; if not, delete the request */
   if ((rc = dds_get_instance_handle(reader, &ih)) != DDS_RETCODE_OK) {
@@ -1032,14 +1085,27 @@ static struct pending_request_t *dc_publish_reader_request (struct dc_t *dc, dds
     goto err_alloc_reader_request;
   }
   memset(pr, 0, sizeof(struct pending_request_t));
-  pr->ih = ih;
-  pr->seq = ++(dc->seq);
+  pr->birth_time = now;
+  pr->ih = ih;  /*  handle that corresponds to the reader for which this request is done; key for the pending_request tree */
+  pr->seq = ++(dc->seq); /* sequence number; key for the fibheap tree */
   pr->reader = reader;
   pr->rhc = rhc;
-  ddsrt_avl_cinsert(&pending_requests_td, &dc->pending_requests, pr);
+  /* LH: We currently never dispose a request to a DS on the same hos
+   * (which is the only mode we currently support for now). In this way
+   * a disconnect with the DS will lead to a dispose of the request
+   * on the DS (by virtue of the autodispose property). A reconnect with
+   * the DS will lead to the request being received again.
+   * Once we allow sending requests to (multiple) remote DSs, we need to
+   * implement a mechanism to detect a disconnect with the DS, and
+   * perhaps choose to another DS to send a request.
+   * We also need to cancel requests to DSs that have not responded yet in
+   * case we received the required data from one of the DSs  */
+  pr->exp_time = DDS_NEVER;
+  /* add the pending request */
+  dc_add_pending_request(dc, pr);
   /* publish the request  */
   if ((rc = dc_com_request_write(dc->com, reader, dc->seq)) != DDS_RETCODE_OK) {
-    DDS_ERROR("Failed to publish dc_request\n");
+    DDS_ERROR("Failed to publish dc_request #%" PRIu64 "\n", dc->seq);
     goto err_publish_reader_request;
   }
   return pr;
@@ -1047,9 +1113,33 @@ static struct pending_request_t *dc_publish_reader_request (struct dc_t *dc, dds
 err_publish_reader_request:
   ddsrt_avl_cdelete(&pending_requests_td, &dc->pending_requests, pr);
   cleanup_pending_request(pr);
-  --(dc->seq);
 err_alloc_reader_request:
   return NULL;
+}
+
+/* dispose the request with key 'seq' */
+static void dc_dispose_reader_request (struct dc_t *dc, uint64_t seq)
+{
+  dds_return_t rc;
+  dds_instance_handle_t ih;
+  DurableSupport_request request;
+
+  /* create a dummy request containing the key fields to retrieve the instance handle */
+  memcpy(request.requestid.client, dc->cfg.id, 16);
+  request.requestid.seq = seq;
+  if ((ih = dds_lookup_instance(dc->com->wr_request, &request)) == DDS_HANDLE_NIL) {
+    DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "dc_request #%" PRIu64 " not available,  nothing to dispose\n", seq);
+    return;
+  }
+  if ((rc = dc_com_request_dispose(dc->com, ih)) != DDS_RETCODE_OK) {
+    DDS_ERROR("Failed to dispose dc_request #%" PRIu64 " [%s]\n", seq, dds_strretcode(-rc));
+    goto err_dispose_reader_request;
+  }
+  DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "dispose dc_request {\"client\":\"%s\", \"seq\":%" PRIu64 "}\n", dc->cfg.id_str, seq);
+  return;
+
+err_dispose_reader_request:
+  return;
 }
 
 /* a dc_request reader endpoint on a DS has been found that matched with my dc_request writer */
@@ -1120,12 +1210,48 @@ static void default_request_writer_matched_cb (dds_entity_t writer, dds_publicat
   }
 }
 
+/* handle expired pending request and determine the next timeout */
+static void dc_process_pending_request_guard (struct dc_t *dc, dds_time_t *timeout)
+{
+  dds_return_t ret;
+  struct pending_request_t *pr;
+  dds_time_t now = dds_time();
+
+  ddsrt_mutex_lock(&dc->pending_request_mutex);
+  do {
+    pr = ddsrt_fibheap_min(&pending_requests_fd, &dc->pending_requests_fh);
+    if ((pr == NULL) || (now < pr->exp_time)) {
+      /* there is no pending request, or the first pending request is not yet expired */
+      break;
+    }
+    /* The head is expired. Remove the pending request from the priority queue
+     * and dispose it to prevent that a DS reacts to an expired request */
+    if ((pr = ddsrt_fibheap_extract_min(&pending_requests_fd, &dc->pending_requests_fh)) != NULL) {
+      DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "process pending request %" PRIu64 "\n", pr->seq);
+      dc_dispose_reader_request(dc, pr->seq);
+      cleanup_pending_request(pr);
+    }
+  } while (true);
+  /* recalculate the remaining timeout */
+  *timeout = (pr == NULL) ? DDS_NEVER : pr->exp_time;
+  if ((ret = dds_set_guardcondition(dc->com->pending_request_guard, false)) < 0) {
+    DDS_ERROR("failed to set pending request guard to false [%s]", dds_strretcode(ret));
+  }
+  if (*timeout != DDS_NEVER) {
+    dds_duration_t tnext = *timeout - now;
+    int64_t sec = (int64_t)(tnext / DDS_NSECS_IN_SEC);
+    uint32_t usec = (uint32_t)((tnext % DDS_NSECS_IN_SEC) / DDS_NSECS_IN_USEC);
+    DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "next pending request timeout at %" PRId64 ".%06" PRIu32 "s\n", sec, usec);
+  }
+  ddsrt_mutex_unlock(&dc->pending_request_mutex);
+}
+
 static uint32_t recv_handler (void *a)
 {
   struct dc_t *dc = (struct dc_t *)a;
-  dds_duration_t timeout = DDS_INFINITY;
-  dds_attach_t wsresults[1];
-  size_t wsresultsize = sizeof(wsresults)/sizeof(wsresults[0]);
+  dds_time_t timeout = DDS_NEVER;
+  dds_attach_t wsresults[2];
+  size_t wsresultsize = sizeof(wsresults) / sizeof(wsresults[0]);
   int n, j;
 
   DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "start durable client thread\n");
@@ -1137,8 +1263,13 @@ static uint32_t recv_handler (void *a)
       for (j=0; j < n && (size_t)j < wsresultsize; j++) {
         if (wsresults[j] == dc->com->rd_status) {
           dc_process_status(dc->com->rd_status, dc);
+        } else if (wsresults[j] == dc->com->pending_request_guard) {
+          dc_process_pending_request_guard(dc, &timeout);
         }
       }
+    } else {
+      /* timeout */
+      dc_process_pending_request_guard(dc, &timeout);
     }
   }
   DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "stop durable client thread\n");
@@ -1232,9 +1363,11 @@ dds_return_t dds_durability_init (const dds_domainid_t domainid, struct ddsi_dom
   dc.selected_request_reader_ih = DDS_HANDLE_NIL;
   dc.nr_of_matched_dc_requests = 0;
   ddsrt_avl_cinit(&server_td, &dc.servers);
-  ddsrt_avl_cinit(&pending_requests_td, &dc.pending_requests);
   ddsrt_avl_cinit(&matched_request_readers_td, &dc.matched_request_readers);
+  ddsrt_avl_cinit(&pending_requests_td, &dc.pending_requests);
   ddsrt_fibheap_init(&pending_requests_fd, &dc.pending_requests_fh);
+  ddsrt_mutex_init(&dc.pending_request_mutex);
+  ddsrt_cond_init(&dc.pending_request_cond);
   /* create the quorum listener */
   if ((dc.quorum_listener = dds_create_listener(&dc)) == NULL) {
     DDS_ERROR("failed to create quorum listener\n");
@@ -1266,6 +1399,11 @@ err_com_new:
 err_create_request_listener:
   dds_delete_listener(dc.quorum_listener);
 err_create_quorum_listener:
+  ddsrt_cond_destroy(&dc.pending_request_cond);
+  ddsrt_mutex_destroy(&dc.pending_request_mutex);
+  ddsrt_avl_cfree(&pending_requests_td,  &dc.pending_requests, cleanup_pending_request);
+  ddsrt_avl_cfree(&matched_request_readers_td,  &dc.matched_request_readers, cleanup_matched_request_reader);
+  ddsrt_avl_cfree(&server_td,  &dc.servers, cleanup_server);
   ddsrt_free(dc.cfg.ident);
   return DDS_RETCODE_ERROR;
 }
@@ -1299,6 +1437,8 @@ dds_return_t dds_durability_fini (void)
     dds_delete_listener(dc.request_listener);
     dds_delete_listener(dc.quorum_listener);
     dc_com_free(dc.com);
+    ddsrt_cond_destroy(&dc.pending_request_cond);
+    ddsrt_mutex_destroy(&dc.pending_request_mutex);
     ddsrt_avl_cfree(&matched_request_readers_td,  &dc.matched_request_readers, cleanup_matched_request_reader);
     ddsrt_avl_cfree(&pending_requests_td,  &dc.pending_requests, cleanup_pending_request);
     ddsrt_avl_cfree(&server_td,  &dc.servers, cleanup_server);
@@ -1356,9 +1496,9 @@ dds_return_t dds_durability_new_local_reader (dds_entity_t reader, struct dds_rh
       DDS_ERROR("Unable to retrieve the participant's user data for reader\n");
       goto err_qget_userdata;
     }
-    if ((size != strlen(IDENT)) || (userdata == NULL)  || (strcmp(userdata, IDENT) != 0)) {
+    if ((size != strlen(dc.cfg.ident)) || (userdata == NULL)  || (strcmp(userdata, dc.cfg.ident) != 0)) {
       /* the user data of the participant for this durable reader does
-       * not contain the ident, so the endoint is not from a remote DS.
+       * not contain the ident, so the endpoint is not from a remote DS.
        * We can now publish a dc_request for this durable reader. The
        * dc_request is published as a transient-local topic. This means
        * that a late joining DS will receive the DS as long as the request
