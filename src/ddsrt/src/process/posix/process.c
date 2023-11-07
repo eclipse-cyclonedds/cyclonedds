@@ -89,3 +89,9 @@ ddsrt_abort(void)
 {
   abort();
 }
+
+void
+ddsrt_exit(int status)
+{
+  exit(status);
+}
