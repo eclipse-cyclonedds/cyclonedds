@@ -869,6 +869,8 @@ static void dc_com_free (struct com_t *com)
   return;
 }
 
+#define MAX_TOPIC_NAME_SIZE                  255
+
 static dds_return_t dc_com_request_write (struct com_t *com, dds_entity_t reader, uint64_t seq)
 {
   /* check for publication_matched() on the dc_request writer to make sure that the request arrives */
@@ -882,6 +884,8 @@ static dds_return_t dc_com_request_write (struct com_t *com, dds_entity_t reader
   dds_return_t ret = DDS_RETCODE_OK;
   uint32_t plen, i;
   char **partitions;
+  dds_entity_t topic;
+  char tpname[MAX_TOPIC_NAME_SIZE];
 
   if ((rqos = dds_create_qos()) == NULL) {
     DDS_ERROR("Unable to create reader qos for dc_request");
@@ -895,6 +899,17 @@ static dds_return_t dc_com_request_write (struct com_t *com, dds_entity_t reader
     DDS_ERROR("Failed to retrieve partition qos for dc_request");
     goto err_qget_partition;
   }
+  if ((topic = dds_get_topic(reader)) < 0) {
+    DDS_ERROR("Failed to get topic for reader [%s]", dds_strretcode(topic));
+    goto err_get_topic;
+  }
+  if ((ret = dds_get_name(topic, tpname, sizeof(tpname))) < 0) {
+    DDS_ERROR("Failed to get topic name from reader [%s]", dds_strretcode(ret));
+    goto err_get_name;
+  } else if (ret > MAX_TOPIC_NAME_SIZE) {
+    DDS_ERROR("topic name '%s...', name too long [%s]", tpname, dds_strretcode(ret));
+    goto err_get_name_size;
+  }
   request = DurableSupport_request__alloc();
   memcpy(request->requestid.client, dc.cfg.id, 16);
   request->requestid.seq = seq;
@@ -905,12 +920,17 @@ static dds_return_t dc_com_request_write (struct com_t *com, dds_entity_t reader
   for (i=0; i < plen; i++) {
     request->partitions._buffer[i] = ddsrt_strdup(partitions[i]);
   }
+  request->tpname = ddsrt_strdup(tpname);
   request->timeout = DDS_SECS(5);
   if ((ret = dds_write(com->wr_request, request)) < 0) {
     DDS_ERROR("failed to publish dc_request [%s]", dds_strretcode(-ret));
     goto err_request_write;
   }
   DDS_CLOG(DDS_LC_DUR, &dc.gv->logconfig, "publish dc_request {\"client\":\"%s\", \"seq\":%" PRIu64 "}\n", dc.cfg.id_str, seq);
+
+err_get_topic:
+err_get_name:
+err_get_name_size:
 err_request_write:
   dc_free_partitions(plen, partitions);
   dds_delete_qos(rqos);
@@ -1099,7 +1119,7 @@ static struct pending_request_t *dc_publish_reader_request (struct dc_t *dc, dds
    * implement a mechanism to detect a disconnect with the DS, and
    * perhaps choose to another DS to send a request.
    * We also need to cancel requests to DSs that have not responded yet in
-   * case we received the required data from one of the DSs  */
+   * case we received the required data from one of the DSs */
   pr->exp_time = DDS_NEVER;
   /* add the pending request */
   dc_add_pending_request(dc, pr);
