@@ -137,6 +137,8 @@ int main (int argc, char **argv)
   dds_create_participant (0, ptr, ptr);
   dds_create_domain (0, ptr);
   dds_create_domain_with_rawconfig (0, ptr);
+  dds_set_domain_lifecycle(0,0);
+  dds_get_domain_lifecycle(0,ptr);
   dds_get_parent (1);
   dds_get_participant (1);
   dds_get_children (1, ptr, 0);
