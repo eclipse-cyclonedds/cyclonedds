@@ -491,4 +491,36 @@ dds_return_t dds_free_typeobj (dds_typeobj_t *type_obj)
   return DDS_RETCODE_UNSUPPORTED;
 }
 
+dds_return_t dds_set_domain_lifecycle(const dds_entity_t domain, const enum dds_domain_lifecycle state) {
+    dds_return_t result = DDS_RETCODE_ERROR;
+    if (dds_init () < 0) {
+        result = DDS_RETCODE_PRECONDITION_NOT_MET;
+    } else {
+        if (DDS_CYCLONEDDS_HANDLE == domain) {
+            switch (state) {
+            case DDS_DOMAIN_LIFECYCLE_OPERATIONAL:
+                // Only initialisation->operational is valid
+                if (LIFECYCLE_STATE == DDS_DOMAIN_LIFECYCLE_INITIALISATION) {
+                  result = ddsrt_lock();
+                  if (result == DDS_RETCODE_SUCCESS) {
+                    LIFECYCLE_STATE = state;
+                  } // else result is the error from ddsrt_lock()
+                } else {
+                  result = DDS_RETCODE_PRECONDITION_NOT_MET;
+                }
+                break;
+            case DDS_DOMAIN_LIFECYCLE_INITIALISATION:
+                result = DDS_RETCODE_PRECONDITION_NOT_MET;
+                break;
+            default:
+                result = DDS_RETCODE_ERROR;
+                break;
+            }
+        } else {
+          result = DDS_RETCODE_ILLEGAL_OPEATION;
+        }
+    }
+    return result;
+}
+
 #endif /* DDS_HAS_TYPE_DISCOVERY */

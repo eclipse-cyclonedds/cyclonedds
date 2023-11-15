@@ -1110,6 +1110,25 @@ enum dds_domain_lifecycle{
   DDS_DOMAIN_LIFECYCLE_OPERATIONAL
 };
 
+/// @brief Function to indicate where we are in the domain's lifecycle
+/// @note Domains starts out in the INITIALISATION
+/// state. The only transition currently allowed is to set it OPERATIONAL.
+/// The transition is currently only possible when applied to all domains via
+/// the `DDS_CYCLONEDDS_HANDLE`.
+///
+/// @param[in] domain The domain entity for which to set the lifecycle state. Only accepts `DDS_CYCLONEDDS_HANDLE`.
+/// @param[in] state The new state
+/// @return a dds_retcode_t indicating success or failure
+/// @retval DDS_RETCODE_OK transition was successful
+/// @retval DDS_RETCODE_ERROR Internal error prevented the transition. Should not be possible.
+/// @retval DDS_RETCODE_ILLEGAL_OPERATION handle refers to a non-domain entity
+/// @retval DDS_RETCODE_PRECONDITION_NOT_MET attempt at an disallowed transition
+/// @retval DDS_RETCODE_PRECONDITION_NOT_MET Cyclone DDS has not been initialised yet
+DDS_EXPORT
+dds_return_t dds_set_domain_lifecycle (
+  const dds_entity_t domain,
+  const enum dds_domain_lifecycle state);
+
 /**
  * @brief Get entity parent.
  * @ingroup entity
