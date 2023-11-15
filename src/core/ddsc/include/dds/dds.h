@@ -1103,6 +1103,13 @@ dds_create_domain(const dds_domainid_t domain, const char *config);
 DDS_EXPORT dds_entity_t
 dds_create_domain_with_rawconfig(const dds_domainid_t domain, const struct ddsi_config *config);
 
+/// @brief Supported lifecycle states
+/// @ingroup domain
+enum dds_domain_lifecycle{
+  DDS_DOMAIN_LIFECYCLE_INITIALISATION,
+  DDS_DOMAIN_LIFECYCLE_OPERATIONAL
+};
+
 /**
  * @brief Get entity parent.
  * @ingroup entity
