@@ -1129,6 +1129,25 @@ dds_return_t dds_set_domain_lifecycle (
   const dds_entity_t domain,
   const enum dds_domain_lifecycle state);
 
+/// @brief Get the status of the domain lifecycle
+///
+/// The domain life-cycle state represents the operational phase of the domain. Currently
+/// the supported states are:
+///
+///     * Initialisation
+///     * Operational
+///
+/// @param[in] domain The domain entity for which to get the life-cycle state for. Only accepts `DDS_CYCLONEDDS_HANDLE`.
+/// @param[out] state The life-cycle state for the provided domain.
+/// @return a dds_retcode_t indicating success or failure
+/// @retval DDS_RETCODE_SUCCESS The state was successfully retrieved.
+/// @retval DDS_RETCODE_BAD_PARAMETER An incorrect domain provided. Only supports `DDS_CYCLONEDDS_HANDLE` currently.
+/// @retval DDS_RETCODE_PRECONDITION_NOT_MET An invalid pointer was provided for getting the state.
+DDS_EXPORT
+dds_return_t dds_get_domain_lifecycle(
+  const dds_entity_t domain,
+  enum dds_domain_lifecycle *state);
+
 /**
  * @brief Get entity parent.
  * @ingroup entity
