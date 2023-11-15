@@ -33,7 +33,7 @@
 #include "dds__psmx.h"
 
 static dds_return_t dds_domain_free (dds_entity *vdomain);
-static dds_domain_lifecycle LIFECYCLE_STATE = DDS_DOMAIN_LIFECYCLE_INITIALISATION;
+static enum dds_domain_lifecycle LIFECYCLE_STATE = DDS_DOMAIN_LIFECYCLE_INITIALISATION;
 
 const struct dds_entity_deriver dds_entity_deriver_domain = {
   .interrupt = dds_entity_deriver_dummy_interrupt,
