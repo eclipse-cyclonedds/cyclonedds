@@ -36,6 +36,7 @@ dds_return_t dds_write_impl (dds_writer *wr, const void *data, dds_time_t timest
   ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 
 /** @component write_data */
+DDS_EXPORT_INTERNAL_FUNCTION
 dds_return_t dds_writecdr_impl (dds_writer *wr, struct ddsi_xpack *xp, struct ddsi_serdata *d, bool flush)
   ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 

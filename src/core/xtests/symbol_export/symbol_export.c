@@ -71,7 +71,7 @@
 
 #include "dds/cdr/dds_cdrstream.h"
 
-#include "dds__write.h" // dds_write_impl
+#include "dds__write.h" // dds_write_impl, dds_writecdr_impl
 
 DDSRT_WARNING_DEPRECATED_OFF
 
@@ -1058,6 +1058,7 @@ int main (int argc, char **argv)
 
   // dds__write.h
   dds_write_impl (ptr, ptr, 0, (dds_write_action) 0);
+  dds_writecdr_impl (ptr, ptr, ptr, false);
 
   return 0;
 }
