@@ -254,6 +254,11 @@ typedef int64_t DurableSupport_duration_t;
 #define DurableSupport_duration_t__alloc() \
 ((DurableSupport_duration_t*) dds_alloc (sizeof (DurableSupport_duration_t)));
 
+typedef uint16_t DurableSupport_responsetype_t;
+
+#define DurableSupport_responsetype_t__alloc() \
+((DurableSupport_responsetype_t*) dds_alloc (sizeof (DurableSupport_responsetype_t)));
+
 typedef struct DurableSupport_request_id_t
 {
   DurableSupport_id_t client;
@@ -300,6 +305,79 @@ extern const dds_topic_descriptor_t DurableSupport_request_desc;
 
 #define DurableSupport_request_free(d,o) \
 dds_sample_free ((d), &DurableSupport_request_desc, (o))
+
+#define DurableSupport_RESPONSETYPE_SET 1
+#define DurableSupport_RESPONSETYPE_DATA 2
+#ifndef DDS_SEQUENCE_DURABLESUPPORT_REQUEST_ID_T_DEFINED
+#define DDS_SEQUENCE_DURABLESUPPORT_REQUEST_ID_T_DEFINED
+typedef struct dds_sequence_DurableSupport_request_id_t
+{
+  uint32_t _maximum;
+  uint32_t _length;
+  struct DurableSupport_request_id_t *_buffer;
+  bool _release;
+} dds_sequence_DurableSupport_request_id_t;
+
+#define dds_sequence_DurableSupport_request_id_t__alloc() \
+((dds_sequence_DurableSupport_request_id_t*) dds_alloc (sizeof (dds_sequence_DurableSupport_request_id_t)));
+
+#define dds_sequence_DurableSupport_request_id_t_allocbuf(l) \
+((struct DurableSupport_request_id_t *) dds_alloc ((l) * sizeof (struct DurableSupport_request_id_t)))
+#endif /* DDS_SEQUENCE_DURABLESUPPORT_REQUEST_ID_T_DEFINED */
+
+typedef struct DurableSupport_response_set_t
+{
+  char * partition;
+  char * tpname;
+  uint32_t flags;
+  dds_sequence_DurableSupport_request_id_t requestids;
+} DurableSupport_response_set_t;
+
+#ifndef DDS_SEQUENCE_OCTET_DEFINED
+#define DDS_SEQUENCE_OCTET_DEFINED
+typedef struct dds_sequence_octet
+{
+  uint32_t _maximum;
+  uint32_t _length;
+  uint8_t *_buffer;
+  bool _release;
+} dds_sequence_octet;
+
+#define dds_sequence_octet__alloc() \
+((dds_sequence_octet*) dds_alloc (sizeof (dds_sequence_octet)));
+
+#define dds_sequence_octet_allocbuf(l) \
+((uint8_t *) dds_alloc ((l) * sizeof (uint8_t)))
+#endif /* DDS_SEQUENCE_OCTET_DEFINED */
+
+typedef struct DurableSupport_response_data_t
+{
+  dds_sequence_octet blob;
+} DurableSupport_response_data_t;
+
+typedef struct DurableSupport_response_content
+{
+  DurableSupport_responsetype_t _d;
+  union
+  {
+    struct DurableSupport_response_set_t set;
+    struct DurableSupport_response_data_t data;
+  } _u;
+} DurableSupport_response_content;
+
+typedef struct DurableSupport_response
+{
+  DurableSupport_id_t id;
+  struct DurableSupport_response_content body;
+} DurableSupport_response;
+
+extern const dds_topic_descriptor_t DurableSupport_response_desc;
+
+#define DurableSupport_response__alloc() \
+((DurableSupport_response*) dds_alloc (sizeof (DurableSupport_response)));
+
+#define DurableSupport_response_free(d,o) \
+dds_sample_free ((d), &DurableSupport_response_desc, (o))
 
 #ifdef __cplusplus
 }
