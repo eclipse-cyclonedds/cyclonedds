@@ -393,3 +393,47 @@ CU_Test(ddsc_domain_create, raw_config)
   ddsrt_free (arg_raw.buf);
 }
 
+CU_Test(ddsc_domain_lifecycle, basic_transition)
+{
+    dds_domain_lifecycle_t lifecycle_state = -1;
+    dds_return_t retval = dds_get_domain_lifecycle(DDS_CYCLONEDDS_HANDLE, &lifecycle_state);
+    CU_ASSERT_EQUAL(retval, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL(lifecycle_state, DDS_DOMAIN_LIFECYCLE_INITIALISATION);
+    
+    retval = dds_set_domain_lifecycle(DDS_CYCLONEDDS_HANDLE, DDS_DOMAIN_LIFECYCLE_OPERATIONAL);
+    CU_ASSERT_EQUAL(retval, DDS_RETCODE_OK);
+    retval = dds_get_domain_lifecycle(DDS_CYCLONEDDS_HANDLE, &lifecycle_state);
+    CU_ASSERT_EQUAL(retval, DDS_RETCODE_OK);
+    CU_ASSERT_EQUAL(lifecycle_state, DDS_DOMAIN_LIFECYCLE_OPERATIONAL);
+}
+
+CU_Test(ddsc_domain_lifecycle, invalid_transitions)
+{
+    dds_domain_lifecycle_t lifecycle_state = -1;
+    
+    // Null check, get
+    dds_return_t retval = dds_get_domain_lifecycle(DDS_CYCLONEDDS_HANDLE, NULL);
+    CU_ASSERT_EQUAL(retval, DDS_RETCODE_PRECONDITION_NOT_MET);
+    
+    // Invalid handle, get
+    retval = dds_get_domain_lifecycle(0, &lifecycle_state);
+    CU_ASSERT_EQUAL(retval, DDS_RETCODE_BAD_PARAMETER);
+    
+    // Invalid init->init transition
+    retval = dds_set_domain_lifecycle(DDS_CYCLONEDDS_HANDLE, DDS_DOMAIN_LIFECYCLE_INITIALISATION);
+    CU_ASSERT_EQUAL(retval, DDS_RETCODE_PRECONDITION_NOT_MET);
+    
+    // Invalid handle, set
+    retval = dds_set_domain_lifecycle(0, DDS_DOMAIN_LIFECYCLE_OPERATIONAL);
+    CU_ASSERT_EQUAL(retval, DDS_RETCODE_ILLEGAL_OPERATION);
+    
+    // Invalid operatational->init transition
+    retval = dds_set_domain_lifecycle(DDS_CYCLONEDDS_HANDLE, DDS_DOMAIN_LIFECYCLE_OPERATIONAL);
+    CU_ASSERT_EQUAL(retval, DDS_RETCODE_OK);
+    retval = dds_set_domain_lifecycle(DDS_CYCLONEDDS_HANDLE, DDS_DOMAIN_LIFECYCLE_INITIALISATION);
+    CU_ASSERT_EQUAL(retval, DDS_RETCODE_PRECONDITION_NOT_MET);
+    
+    // Nonexistent state
+    retval = dds_set_domain_lifecycle(DDS_CYCLONEDDS_HANDLE, 3);
+    CU_ASSERT_EQUAL(retval, DDS_RETCODE_PRECONDITION_NOT_MET);
+}
