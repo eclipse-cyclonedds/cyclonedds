@@ -1105,10 +1105,10 @@ dds_create_domain_with_rawconfig(const dds_domainid_t domain, const struct ddsi_
 
 /// @brief Supported lifecycle states
 /// @ingroup domain
-enum dds_domain_lifecycle{
+typedef enum dds_domain_lifecycle{
   DDS_DOMAIN_LIFECYCLE_INITIALISATION,
   DDS_DOMAIN_LIFECYCLE_OPERATIONAL
-};
+} dds_domain_lifecycle_t;
 
 /// @brief Function to indicate where we are in the domain's lifecycle
 /// @note Domains starts out in the INITIALISATION
