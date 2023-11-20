@@ -455,15 +455,15 @@ dds_return_t dds_set_domain_lifecycle(const dds_entity_t domain, const enum dds_
                   if (result == DDS_RETCODE_OK) {
                     LIFECYCLE_STATE = state;
                   } // else result is the error from ddsrt_lock()
-                } else {
+                } else { // only allow init->operational
                   result = DDS_RETCODE_PRECONDITION_NOT_MET;
                 }
                 break;
             case DDS_DOMAIN_LIFECYCLE_INITIALISATION:
                 result = DDS_RETCODE_PRECONDITION_NOT_MET;
                 break;
-            default:
-                result = DDS_RETCODE_ERROR;
+            default: // for MISRA compliance, no fall through :(
+                result = DDS_RETCODE_PRECONDITION_NOT_MET;
                 break;
             }
         } else {
