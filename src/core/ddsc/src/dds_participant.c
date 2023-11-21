@@ -91,11 +91,11 @@ const struct dds_entity_deriver dds_entity_deriver_participant = {
   .invoke_cbs_for_pending_events = dds_entity_deriver_dummy_invoke_cbs_for_pending_events
 };
 
-dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_t *qos, const dds_listener_t *listener)
+static dds_entity_t create_participant_flags_guid (const dds_domainid_t domain, const dds_qos_t *qos, const dds_listener_t *listener, uint32_t flags, const dds_guid_t *guid)
 {
   dds_domain *dom;
   dds_entity_t ret;
-  ddsi_guid_t guid;
+  ddsi_guid_t ddsi_guid;
   dds_participant * pp;
   ddsi_plist_t plist;
   dds_qos_t *new_qos = NULL;
@@ -132,7 +132,16 @@ dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_
   ddsi_xqos_mergein_missing (&plist.qos, new_qos, ~(uint64_t)0);
 
   ddsi_thread_state_awake (ddsi_lookup_thread_state (), &dom->gv);
-  ret = ddsi_new_participant (&guid, &dom->gv, 0, &plist);
+  if (guid == NULL)
+    ddsi_generate_participant_guid (&ddsi_guid, &dom->gv);
+  else
+  {
+    ddsi_guid_t ddsi_guid_tmp;
+    DDSRT_STATIC_ASSERT (sizeof (dds_guid_t) == sizeof (ddsi_guid_t));
+    memcpy (&ddsi_guid_tmp, guid, sizeof (ddsi_guid_tmp));
+    ddsi_guid = ddsi_ntoh_guid (ddsi_guid_tmp);
+  }
+  ret = ddsi_new_participant (&ddsi_guid, &dom->gv, flags, &plist);
   ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
   ddsi_plist_fini (&plist);
   if (ret < 0)
@@ -145,8 +154,8 @@ dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_
   if ((ret = dds_entity_init (&pp->m_entity, &dom->m_entity, DDS_KIND_PARTICIPANT, false, true, new_qos, listener, DDS_PARTICIPANT_STATUS_MASK)) < 0)
     goto err_entity_init;
 
-  pp->m_entity.m_guid = guid;
-  pp->m_entity.m_iid = ddsi_get_entity_instanceid (&dom->gv, &guid);
+  pp->m_entity.m_guid = ddsi_guid;
+  pp->m_entity.m_iid = ddsi_get_entity_instanceid (&dom->gv, &ddsi_guid);
   pp->m_entity.m_domain = dom;
   pp->m_builtin_subscriber = 0;
   ddsrt_avl_init (&participant_ktopics_treedef, &pp->m_ktopics);
@@ -173,6 +182,17 @@ err_domain_create:
 err_dds_init:
   return ret;
 }
+
+dds_entity_t dds_create_participant_guid (const dds_domainid_t domain, const dds_qos_t *qos, const dds_listener_t *listener, uint32_t flags, const dds_guid_t *guid)
+{
+  return create_participant_flags_guid (domain, qos, listener, flags, guid);
+}
+
+dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_t *qos, const dds_listener_t *listener)
+{
+  return create_participant_flags_guid (domain, qos, listener, 0, NULL);
+}
+
 
 dds_return_t dds_lookup_participant (dds_domainid_t domain_id, dds_entity_t *participants, size_t size)
 {

@@ -15,6 +15,7 @@
 #define DDS_INTERNAL_API_H
 
 #include "dds/export.h"
+#include "dds/dds.h"
 #include "dds/cdr/dds_cdrstream.h"
 
 #if defined (__cplusplus)
@@ -33,6 +34,24 @@ extern "C" {
 */
 DDS_EXPORT void
 dds_cdrstream_desc_from_topic_desc (struct dds_cdrstream_desc *desc, const dds_topic_descriptor_t *topic_desc);
+
+/**
+ * @ingroup internal
+ * @component participant
+ * @unstable
+ * @brief Create a participant with the specified GUID
+ *
+ * @param[in]  domain The domain in which to create the participant (can be DDS_DOMAIN_DEFAULT). DDS_DOMAIN_DEFAULT is for using the domain in the configuration.
+ * @param[in]  qos The QoS to set on the new participant (can be NULL).
+ * @param[in]  listener Any listener functions associated with the new participant (can be NULL).
+ * @param[in]  flags The flags to be used when creating the participant
+ * @param[in]  guid The GUID for the new participant
+ *
+ * @returns A valid participant handle or an error code. @see dds_create_participant for details
+ */
+DDS_EXPORT dds_entity_t
+dds_create_participant_guid (const dds_domainid_t domain, const dds_qos_t *qos, const dds_listener_t *listener, uint32_t flags, const dds_guid_t *guid);
+
 
 #if defined (__cplusplus)
 }
