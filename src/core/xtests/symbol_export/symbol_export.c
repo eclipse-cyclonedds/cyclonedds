@@ -145,6 +145,7 @@ int main (int argc, char **argv)
   dds_get_listener (1, ptr);
   dds_set_listener (1, ptr);
   dds_create_participant (0, ptr, ptr);
+  dds_create_participant_guid (1, ptr, ptr2, 0, ptr3);
   dds_create_domain (0, ptr);
   dds_create_domain_with_rawconfig (0, ptr);
   dds_get_parent (1);

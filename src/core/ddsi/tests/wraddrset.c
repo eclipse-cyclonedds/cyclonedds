@@ -145,6 +145,7 @@ static void ddsi_wraddrset_some_cases (int casenumber, int cost, bool wr_psmx, c
 
   setup_and_start ();
   ddsi_thread_state_awake (ddsi_lookup_thread_state(), &gv);
+  ddsi_generate_participant_guid (&wrppguid, &gv);
   ddsi_new_participant (&wrppguid, &gv, RTPS_PF_PRIVILEGED_PP | RTPS_PF_IS_DDSI2_PP, &plist_pp[0]);
 
   const struct ddsi_sertype st = {

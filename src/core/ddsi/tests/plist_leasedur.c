@@ -368,6 +368,7 @@ static void ddsi_plist_leasedur_new_proxyrd_impl (bool include_lease_duration)
   plist.qos.liveliness.kind = DDS_LIVELINESS_AUTOMATIC;
   plist.qos.liveliness.lease_duration = DDS_SECS (10);
   ddsi_thread_state_awake (thrst, &gv);
+  ddsi_generate_participant_guid (&ppguid, &gv);
   dds_return_t ret = ddsi_new_participant (&ppguid, &gv, RTPS_PF_PRIVILEGED_PP | RTPS_PF_IS_DDSI2_PP, &plist);
   ddsi_thread_state_asleep (thrst);
   CU_ASSERT_FATAL (ret >= 0);

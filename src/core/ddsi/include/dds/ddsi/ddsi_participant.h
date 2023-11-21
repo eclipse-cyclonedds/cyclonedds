@@ -62,12 +62,19 @@ struct ddsi_participant
 };
 
 /**
- * @brief Create a new participant in the domain
+ * @brief Generates a new participant GUID
+ *
+ * @param[out] ppguid  The generated participant GUID
+ * @param[in] gv  Domain globals
+ */
+void ddsi_generate_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv);
+
+/**
+ * @brief Create a new participant with a specified GUID
  * @component ddsi_participant
  *
- * @param[out] ppguid
- *               On successful return: the GUID of the new participant;
- *               Undefined on error.
+ * @param[in] ppguid  The GUID for the new participant
+ * @param[in]  gv  Domain globals
  * @param[in]  flags
  *               Zero or more of:
  *               - RTPS_PF_NO_BUILTIN_READERS   do not create discovery readers in new ppant
@@ -75,21 +82,16 @@ struct ddsi_participant
  *               - RTPS_PF_PRIVILEGED_PP        FIXME: figure out how to describe this ...
  *               - RTPS_PF_IS_DDSI2_PP          FIXME: OSPL holdover - there is no DDSI2E here
  *               - RTPS_PF_ONLY_LOCAL           FIXME: not used, it seems
- * @param[in]  plist
- *               Parameters/QoS for this participant
+ * @param[in]  plist  Parameters/QoS for this participant
  *
  * @returns A dds_return_t indicating success or failure.
  *
  * @retval DDS_RETCODE_OK
- *               Success, there is now a local participant with the GUID stored in
- *               *ppguid
- * @retval DDS_RETCODE_OUT_OF_RESOURCES
- *               Failed to allocate a new GUID (note: currently this will always
- *               happen after 2**24-1 successful calls to new_participant ...).
+ *               Success
  * @retval DDS_RETCODE_OUT_OF_RESOURCES
  *               The configured maximum number of participants has been reached.
 */
-dds_return_t ddsi_new_participant (struct ddsi_guid *ppguid, struct ddsi_domaingv *gv, unsigned flags, const struct ddsi_plist *plist);
+dds_return_t ddsi_new_participant (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv, unsigned flags, const struct ddsi_plist *plist);
 
 /**
  * @component ddsi_participant

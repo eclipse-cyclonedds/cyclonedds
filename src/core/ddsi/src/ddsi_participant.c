@@ -771,7 +771,7 @@ void ddsi_unref_participant (struct ddsi_participant *pp, const struct ddsi_guid
   }
 }
 
-static dds_return_t new_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv, unsigned flags, const ddsi_plist_t *plist)
+dds_return_t ddsi_new_participant (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv, unsigned flags, const ddsi_plist_t *plist)
 {
   struct ddsi_participant *pp;
   ddsi_guid_t subguid, group_guid;
@@ -1013,17 +1013,17 @@ new_pp_err:
   return ret;
 }
 
-dds_return_t ddsi_new_participant (ddsi_guid_t *p_ppguid, struct ddsi_domaingv *gv, unsigned flags, const ddsi_plist_t *plist)
+void ddsi_generate_participant_guid (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv)
 {
   union { uint64_t u64; uint32_t u32[2]; } u;
   u.u32[0] = gv->ppguid_base.prefix.u[1];
   u.u32[1] = gv->ppguid_base.prefix.u[2];
   u.u64 += ddsi_iid_gen ();
-  p_ppguid->prefix.u[0] = gv->ppguid_base.prefix.u[0];
-  p_ppguid->prefix.u[1] = u.u32[0];
-  p_ppguid->prefix.u[2] = u.u32[1];
-  p_ppguid->entityid.u = DDSI_ENTITYID_PARTICIPANT;
-  return new_participant_guid (p_ppguid, gv, flags, plist);
+
+  ppguid->prefix.u[0] = gv->ppguid_base.prefix.u[0];
+  ppguid->prefix.u[1] = u.u32[0];
+  ppguid->prefix.u[2] = u.u32[1];
+  ppguid->entityid.u = DDSI_ENTITYID_PARTICIPANT;
 }
 
 void ddsi_update_participant_plist (struct ddsi_participant *pp, const ddsi_plist_t *plist)
