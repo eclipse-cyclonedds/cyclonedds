@@ -505,20 +505,15 @@ static struct ddsi_xmsg *make_and_resched_acknack (struct ddsi_xevent *ev, struc
 
 static dds_duration_t preemptive_acknack_interval (const struct ddsi_pwr_rd_match *rwn)
 {
-  if (rwn->t_last_ack.v < rwn->tcreate.v)
-    return 0;
+  const dds_duration_t age = rwn->t_last_ack.v - rwn->tcreate.v;
+  if (age <= DDS_SECS (10))
+    return DDS_SECS (1);
+  else if (age <= DDS_SECS (60))
+    return DDS_SECS (2);
+  else if (age <= DDS_SECS (120))
+    return DDS_SECS (5);
   else
-  {
-    const dds_duration_t age = rwn->t_last_ack.v - rwn->tcreate.v;
-    if (age <= DDS_SECS (10))
-      return DDS_SECS (1);
-    else if (age <= DDS_SECS (60))
-      return DDS_SECS (2);
-    else if (age <= DDS_SECS (120))
-      return DDS_SECS (5);
-    else
-      return DDS_SECS (10);
-  }
+    return DDS_SECS (10);
 }
 
 static struct ddsi_xmsg *make_preemptive_acknack (struct ddsi_xevent *ev, struct ddsi_proxy_writer *pwr, struct ddsi_pwr_rd_match *rwn, ddsrt_mtime_t tnow)
