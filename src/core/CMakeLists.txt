@@ -13,7 +13,7 @@ include (GenerateExportHeader)
 
 add_library(ddsc)
 
-if(BUILD_TESTING OR EXPORT_ALL_SYMBOLS)
+if(BUILD_TESTING OR EXPORT_ALL_SYMBOLS OR ENABLE_DURABILITY)
   set_property(TARGET ddsc PROPERTY WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
 else()
   set_property(TARGET ddsc PROPERTY C_VISIBILITY_PRESET hidden)
