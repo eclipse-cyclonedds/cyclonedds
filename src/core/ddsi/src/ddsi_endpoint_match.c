@@ -1026,7 +1026,7 @@ void ddsi_proxy_writer_add_connection (struct ddsi_proxy_writer *pwr, struct dds
   ELOGDISC (pwr, "  ddsi_proxy_writer_add_connection(pwr "PGUIDFMT" rd "PGUIDFMT")",
             PGUID (pwr->e.guid), PGUID (rd->e.guid));
   m->rd_guid = rd->e.guid;
-  m->tcreate = ddsrt_time_monotonic ();
+  m->tcreate = tnow;
 
   /* We track the last heartbeat count value per reader--proxy-writer
      pair, so that we can correctly handle directed heartbeats. The
