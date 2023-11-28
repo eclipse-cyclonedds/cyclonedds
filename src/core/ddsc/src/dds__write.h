@@ -32,13 +32,16 @@ typedef enum {
 
 /** @component write_data */
 DDS_EXPORT_INTERNAL_FUNCTION
-dds_return_t dds_write_impl (dds_writer *wr, const void *data, dds_time_t tstamp, dds_write_action action);
+dds_return_t dds_write_impl (dds_writer *wr, const void *data, dds_time_t timestamp, dds_write_action action)
+  ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 
 /** @component write_data */
-dds_return_t dds_writecdr_impl (dds_writer *wr, struct ddsi_xpack *xp, struct ddsi_serdata *d, bool flush);
+dds_return_t dds_writecdr_impl (dds_writer *wr, struct ddsi_xpack *xp, struct ddsi_serdata *d, bool flush)
+  ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 
 /** @component write_data */
-dds_return_t dds_writecdr_local_orphan_impl (struct ddsi_local_orphan_writer *lowr, struct ddsi_serdata *d);
+dds_return_t dds_writecdr_local_orphan_impl (struct ddsi_local_orphan_writer *lowr, struct ddsi_serdata *d)
+  ddsrt_nonnull_all;
 
 /** @component write_data */
 void dds_write_flush_impl (dds_writer *wr);

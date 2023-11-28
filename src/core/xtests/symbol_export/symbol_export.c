@@ -75,6 +75,9 @@
 
 DDSRT_WARNING_DEPRECATED_OFF
 
+DDSRT_WARNING_CLANG_OFF(unused-result)
+DDSRT_WARNING_GNUC_OFF(unused-result)
+
 #ifdef DDS_HAS_SECURITY
 static void test_DDS_Security_Exception_vset (void *ptr, const char *msg, ...)
 {
