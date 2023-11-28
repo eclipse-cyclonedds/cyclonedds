@@ -1320,20 +1320,29 @@ CU_Test (ddsc_psmx, zero_copy)
           printf (" | rddata[%d] %p", (int) i, rddata[i]); fflush (stdout);
         }
 
-        // If not using _wl, private copies. Otherwise it gets very implementation-specific
-        // whether they are actually the same, but it is a test, so let's check. Changes to
-        // the implementation may well require changing this test.
-        if (!cases[k].wrloan_ok || !dds_is_shared_memory_available (wr))
-        {
-          for (size_t i = 0; i < sizeof (rds) / sizeof (rds[0]) - 1; i++)
-            for (size_t j = i + 1; j < sizeof (rds) / sizeof (rds[0]); j++)
-              CU_ASSERT (rddata[i] != rddata[j]);
-        }
-        else
+        // For self-contained types: if somewhere in the process a loan gets
+        // involved the readers will get the same address.
+        //
+        // Iceoryx -> shared memory -> whenever the writer uses a loan or Iceoryx is used
+        // CDDS-based plugin -> many copies but it works if the writer uses a loan and
+        //   PSMX is avoided (because the plugin always produces separate copies)
+        //
+        // This is obviously very implementation-specific, but as this is a test,
+        // let's check. Changes to the implementation will likely require changing
+        // this test.
+        if (cases[k].wrloan_ok &&
+            (( dds_is_shared_memory_available (wr) && (wrloan || psmx_enabled)) ||
+             (!dds_is_shared_memory_available (wr) && (wrloan && !psmx_enabled))))
         {
           for (size_t i = 1; i < sizeof (rds) / sizeof (rds[0]); i++)
             CU_ASSERT (rddata[i] == rddata[0]);
           CU_ASSERT ((wrloan && wrdata == rddata[0]) || (!wrloan && wrdata != rddata[0]));
+        }
+        else
+        {
+          for (size_t i = 0; i < sizeof (rds) / sizeof (rds[0]) - 1; i++)
+            for (size_t j = i + 1; j < sizeof (rds) / sizeof (rds[0]); j++)
+              CU_ASSERT (rddata[i] != rddata[j]);
         }
 
         printf ("\n"); fflush (stdout);

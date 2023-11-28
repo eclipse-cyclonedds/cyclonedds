@@ -80,5 +80,5 @@ DDS_EXPORT extern inline bool ddsi_serdata_eqkey (const struct ddsi_serdata *a, 
 DDS_EXPORT extern inline bool ddsi_serdata_print (const struct ddsi_serdata *d, char *buf, size_t size);
 DDS_EXPORT extern inline bool ddsi_serdata_print_untyped (const struct ddsi_sertype *type, const struct ddsi_serdata *d, char *buf, size_t size);
 DDS_EXPORT extern inline void ddsi_serdata_get_keyhash (const struct ddsi_serdata *d, struct ddsi_keyhash *buf, bool force_md5);
-DDS_EXPORT extern inline struct ddsi_serdata *ddsi_serdata_from_loaned_sample (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, const char *sample, struct dds_loaned_sample *loan, bool force_serialization);
+DDS_EXPORT extern inline struct ddsi_serdata *ddsi_serdata_from_loaned_sample (const struct ddsi_sertype *type, enum ddsi_serdata_kind kind, const char *sample, struct dds_loaned_sample *loan, bool will_require_cdr);
 DDS_EXPORT extern inline struct ddsi_serdata *ddsi_serdata_from_psmx (const struct ddsi_sertype *type, struct dds_loaned_sample *data);
