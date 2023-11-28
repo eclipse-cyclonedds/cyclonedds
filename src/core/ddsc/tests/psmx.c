@@ -23,6 +23,7 @@
 #include "dds/ddsi/ddsi_entity_index.h"
 #include "ddsi__addrset.h"
 #include "ddsi__entity.h"
+#include "ddsi__xevent.h"
 #include "dds__entity.h"
 #include "dds__serdata_default.h"
 
@@ -236,11 +237,12 @@ static bool check_writer_addrset_once (struct tracebuf *tb, dds_entity_t wrhandl
 static bool check_writer_addrset (struct tracebuf *tb, dds_entity_t wrhandle, int nports, const uint32_t *ports)
 {
   const dds_time_t abstimeout = dds_time () + DDS_SECS (10);
+  bool exclaimed = false;
   do {
     if (check_writer_addrset_once (NULL, wrhandle, nports, ports))
       return true;
     // this is such a crazily unlikely scenario a sleep is fine
-    print (tb, "!");
+    if (!exclaimed) { print (tb, "!"); exclaimed = true; }
     dds_sleepfor (DDS_MSECS (10));
   } while (dds_time () < abstimeout);
   return check_writer_addrset_once (tb, wrhandle, nports, ports);
@@ -571,6 +573,33 @@ static void print_time (struct tracebuf *tb)
   print (tb, "%d.%06d", (int32_t) (t / DDS_NSECS_IN_SEC), (int32_t) (t % DDS_NSECS_IN_SEC) / 1000);
 }
 
+static void check_transmit_queue_empty_helper (void *vflag)
+{
+  ddsrt_atomic_or32 (vflag, 1);
+}
+
+static void check_transmit_queue_empty (struct tracebuf *tb, struct ddsi_domaingv *gvs[MAX_DOMAINS])
+{
+  dds_time_t tstop = dds_time () + DDS_SECS (5);
+  ddsrt_atomic_uint32_t flag;
+  print (tb, "; check xmit queue (");
+  print_time (tb);
+  print (tb, ") dom ");
+  for (int i = 0; i < MAX_DOMAINS; i++)
+  {
+    ddsrt_atomic_st32 (&flag, 0);
+    print (tb, "%d:", i);
+    ddsi_qxev_nt_callback (gvs[i]->xevents, check_transmit_queue_empty_helper, &flag);
+    while (!ddsrt_atomic_ld32 (&flag) && dds_time () < tstop)
+      dds_sleepfor (DDS_MSECS (10));
+    print_time (tb);
+    if (ddsrt_atomic_ld32 (&flag))
+      print (tb, "(ok)");
+    else
+      print (tb, "(dead)");
+  }
+}
+
 enum local_delivery_mode {
   // Avoid Cyclone's internal local delivery path, to guarantee that PSMX is actually used
   // (done by overwriting the fast path table)
@@ -717,6 +746,11 @@ static void dotest (const dds_topic_descriptor_t *tpdesc, const void *sample, bo
       };
       if (!allmatched (ws, wr, nrds_active, rds))
       {
+        // sanity check for a once-observed problem where SEDP fails because a
+        // scheduling problem with a pre-emptive ACKNACK event causes event thread
+        // to not get around to sending queued messages, which resulted in the SEDP
+        // data never making it out
+        check_transmit_queue_empty (&tb, gvs);
         fail_match ();
         fail_one = true;
         goto next;
@@ -900,9 +934,9 @@ static bool eq_PsmxType1 (const void *vsent, const void *vrecvd, bool valid_data
   const PsmxType1 *sent = vsent;
   const PsmxType1 *recvd = vrecvd;
   if (valid_data)
-    return sent->long_1 == recvd->long_1 && sent->long_2 == recvd->long_2 && sent->long_3 == recvd->long_3;
+    return sent->xy.x == recvd->xy.x && sent->xy.y == recvd->xy.y && sent->z == recvd->z;
   else
-    return recvd->long_1 == 0 && recvd->long_2 == 0 && recvd->long_3 == 0;
+    return recvd->xy.x == 0 && recvd->xy.y == 0 && recvd->z == 0;
 }
 
 static bool eq_DynamicData_Msg (const void *vsent, const void *vrecvd, bool valid_data)
@@ -948,7 +982,7 @@ static bool eq_DynamicData_KMsg (const void *vsent, const void *vrecvd, bool val
 CU_Test(ddsc_psmx, one_writer, .timeout = 240)
 {
   failed = false;
-  dotest (&PsmxType1_desc, &(const PsmxType1){ 5, 3, 53 }, eq_PsmxType1, LDM_NONE, WM_NORMAL, false);
+  dotest (&PsmxType1_desc, &(const PsmxType1){ {5, 3}, 53 }, eq_PsmxType1, LDM_NONE, WM_NORMAL, false);
   CU_ASSERT (!failed);
 }
 
@@ -983,42 +1017,42 @@ CU_Test(ddsc_psmx, one_writer_dynsize_strkey, .timeout = 240)
 CU_Test(ddsc_psmx, one_writer_fastpath, .timeout = 240)
 {
   failed = false;
-  dotest (&PsmxType1_desc, &(const PsmxType1){ 7, 3, 73 }, eq_PsmxType1, LDM_FASTPATH, WM_NORMAL, false);
+  dotest (&PsmxType1_desc, &(const PsmxType1){ {7, 3}, 73 }, eq_PsmxType1, LDM_FASTPATH, WM_NORMAL, false);
   CU_ASSERT (!failed);
 }
 
 CU_Test(ddsc_psmx, one_writer_slowpath, .timeout = 240)
 {
   failed = false;
-  dotest (&Space_Type3_desc, &(const PsmxType1){ 2, 3, 23 }, eq_PsmxType1, LDM_SLOWPATH, WM_NORMAL, false);
+  dotest (&Space_Type3_desc, &(const PsmxType1){ {2, 3}, 23 }, eq_PsmxType1, LDM_SLOWPATH, WM_NORMAL, false);
   CU_ASSERT (!failed);
 }
 
 CU_Test(ddsc_psmx, one_writer_wloan, .timeout = 240)
 {
   failed = false;
-  dotest (&PsmxType1_desc, &(const PsmxType1){ 3, 7, 37 }, eq_PsmxType1, LDM_NONE, WM_LOAN, false);
+  dotest (&PsmxType1_desc, &(const PsmxType1){ {3, 7}, 37 }, eq_PsmxType1, LDM_NONE, WM_LOAN, false);
   CU_ASSERT (!failed);
 }
 
 CU_Test(ddsc_psmx, one_writer_rloan, .timeout = 240)
 {
   failed = false;
-  dotest (&PsmxType1_desc, &(const PsmxType1){ 11, 17, 1117 }, eq_PsmxType1, LDM_NONE, WM_NORMAL, true);
+  dotest (&PsmxType1_desc, &(const PsmxType1){ {11, 17}, 251 }, eq_PsmxType1, LDM_NONE, WM_NORMAL, true);
   CU_ASSERT (!failed);
 }
 
 CU_Test(ddsc_psmx, one_writer_wrloan, .timeout = 240)
 {
   failed = false;
-  dotest (&PsmxType1_desc, &(const PsmxType1){ 5113, 51, 13 }, eq_PsmxType1, LDM_NONE, WM_LOAN, true);
+  dotest (&PsmxType1_desc, &(const PsmxType1){ {5113, 51}, 13 }, eq_PsmxType1, LDM_NONE, WM_LOAN, true);
   CU_ASSERT (!failed);
 }
 
 CU_Test(ddsc_psmx, one_writer_forwardcdr, .timeout = 240)
 {
   failed = false;
-  dotest (&PsmxType1_desc, &(const PsmxType1){ 5, 3, 53 }, eq_PsmxType1, LDM_NONE, WM_FORWARDCDR, false);
+  dotest (&PsmxType1_desc, &(const PsmxType1){ {5, 3}, 53 }, eq_PsmxType1, LDM_NONE, WM_FORWARDCDR, false);
   CU_ASSERT (!failed);
 }
 
@@ -1137,11 +1171,11 @@ CU_Test(ddsc_psmx, partition_xtalk)
       CU_ASSERT_FATAL (checkwr > 0);
     }
 
-    rc = dds_write (wr, &(PsmxType1){ 1, 2, 3 });
+    rc = dds_write (wr, &(PsmxType1){ {1, 2}, 3 });
     CU_ASSERT_FATAL (rc == 0);
     if (checkwr)
     {
-      rc = dds_write (checkwr, &(PsmxType1){ 4, 5, 6 });
+      rc = dds_write (checkwr, &(PsmxType1){ {4, 5}, 6 });
       CU_ASSERT_FATAL (rc == 0);
     }
 
@@ -1152,9 +1186,9 @@ CU_Test(ddsc_psmx, partition_xtalk)
       dds_sleepfor (DDS_MSECS (10));
     CU_ASSERT_FATAL (rc == 1);
     if (checkwr == 0) {
-      CU_ASSERT_FATAL (t.long_1 == 1 && t.long_2 == 2 && t.long_3 == 3);
+      CU_ASSERT_FATAL (t.xy.x == 1 && t.xy.y == 2 && t.z == 3);
     } else {
-      CU_ASSERT_FATAL (t.long_1 == 4 && t.long_2 == 5 && t.long_3 == 6);
+      CU_ASSERT_FATAL (t.xy.x == 4 && t.xy.y == 5 && t.z == 6);
     }
 
     rc = dds_delete (wr);
