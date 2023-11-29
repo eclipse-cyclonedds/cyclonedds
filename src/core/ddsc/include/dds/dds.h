@@ -2105,7 +2105,7 @@ dds_unregister_instance_ih(dds_entity_t writer, dds_instance_handle_t handle);
  *
  * @param[in]  writer    The writer to which instance is associated.
  * @param[in]  data      The instance with the key value.
- * @param[in]  timestamp The timestamp used at registration.
+ * @param[in]  timestamp The timestamp for the unregistration (>= 0).
  *
  * @returns A dds_return_t indicating success or failure.
  *
@@ -2133,7 +2133,7 @@ dds_unregister_instance_ts(
  *
  * @param[in]  writer    The writer to which instance is associated.
  * @param[in]  handle    The instance handle.
- * @param[in]  timestamp The timestamp used at registration.
+ * @param[in]  timestamp The timestamp for the unregistration (>= 0).
  *
  * @returns A dds_return_t indicating success or failure.
  *
@@ -2217,7 +2217,7 @@ dds_writedispose(dds_entity_t writer, const void *data);
  *
  * @param[in]  writer    The writer to dispose the data instance from.
  * @param[in]  data      The data to be written and disposed.
- * @param[in]  timestamp The timestamp used as source timestamp.
+ * @param[in]  timestamp The timestamp used as source timestamp (>= 0).
  *
  * @returns A dds_return_t indicating success or failure.
  *
@@ -2314,7 +2314,7 @@ dds_dispose(dds_entity_t writer, const void *data);
  * @param[in]  writer    The writer to dispose the data instance from.
  * @param[in]  data      The data sample that identifies the instance
  *                       to be disposed.
- * @param[in]  timestamp The timestamp used as source timestamp.
+ * @param[in]  timestamp The timestamp used as source timestamp (>= 0).
  *
  * @returns A dds_return_t indicating success or failure.
  *
@@ -2392,7 +2392,7 @@ dds_dispose_ih(dds_entity_t writer, dds_instance_handle_t handle);
  *
  * @param[in]  writer    The writer to dispose the data instance from.
  * @param[in]  handle    The handle to identify an instance.
- * @param[in]  timestamp The timestamp used as source timestamp.
+ * @param[in]  timestamp The timestamp used as source timestamp (>= 0).
  *
  * @returns A dds_return_t indicating success or failure.
  *
@@ -2523,7 +2523,7 @@ dds_forwardcdr(dds_entity_t writer, struct ddsi_serdata *serdata);
  *
  * @param[in]  writer The writer entity.
  * @param[in]  data Value to be written.
- * @param[in]  timestamp Source timestamp.
+ * @param[in]  timestamp Source timestamp (>= 0).
  *
  * @returns A dds_return_t indicating success or failure.
  */

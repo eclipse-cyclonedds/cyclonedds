@@ -137,6 +137,9 @@ dds_return_t dds_unregister_instance_ih_ts (dds_entity_t writer, dds_instance_ha
   dds_writer *wr;
   struct ddsi_tkmap_instance *tk;
 
+  if (timestamp < 0)
+    return DDS_RETCODE_BAD_PARAMETER;
+
   if ((ret = dds_writer_lock (writer, &wr)) != DDS_RETCODE_OK)
     return ret;
 
@@ -171,6 +174,9 @@ dds_return_t dds_writedispose_ts (dds_entity_t writer, const void *data, dds_tim
   dds_return_t ret;
   dds_writer *wr;
 
+  if (data == NULL || timestamp < 0)
+    return DDS_RETCODE_BAD_PARAMETER;
+
   if ((ret = dds_writer_lock (writer, &wr)) != DDS_RETCODE_OK)
     return ret;
 
@@ -199,7 +205,7 @@ dds_return_t dds_dispose_ts (dds_entity_t writer, const void *data, dds_time_t t
   dds_return_t ret;
   dds_writer *wr;
 
-  if (data == NULL)
+  if (data == NULL || timestamp < 0)
     return DDS_RETCODE_BAD_PARAMETER;
 
   if ((ret = dds_writer_lock (writer, &wr)) != DDS_RETCODE_OK)
@@ -217,6 +223,9 @@ dds_return_t dds_dispose_ih_ts (dds_entity_t writer, dds_instance_handle_t handl
 {
   dds_return_t ret;
   dds_writer *wr;
+
+  if (timestamp < 0)
+    return DDS_RETCODE_BAD_PARAMETER;
 
   if ((ret = dds_writer_lock (writer, &wr)) != DDS_RETCODE_OK)
     return ret;
