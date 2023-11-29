@@ -163,9 +163,8 @@ static void printelem(
     struct cfgelem *ce = firstelem(elem->attributes);
     while (ce) {
       if (!isnop(ce)) {
-        fprintf(out, "%s[%s](", sep, name(ce));
+        fputs(sep, out);
         printlink(out, level, flags, ce, units);
-        fprintf(out, ")");
         sep = ", ";
         cnt++;
       }
