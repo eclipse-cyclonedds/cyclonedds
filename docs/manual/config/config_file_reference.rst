@@ -21,7 +21,7 @@ CycloneDDS configuration
 //CycloneDDS/Domain
 *******************
 
-Attributes: [Id](`//CycloneDDS/Domain[@Id]`_)
+Attributes: `//CycloneDDS/Domain[@Id]`_
 Children: `//CycloneDDS/Domain/Compatibility`_, `//CycloneDDS/Domain/Discovery`_, `//CycloneDDS/Domain/General`_, `//CycloneDDS/Domain/Internal`_, `//CycloneDDS/Domain/Partitioning`_, `//CycloneDDS/Domain/SSL`_, `//CycloneDDS/Domain/Security`_, `//CycloneDDS/Domain/SharedMemory`_, `//CycloneDDS/Domain/Sizing`_, `//CycloneDDS/Domain/TCP`_, `//CycloneDDS/Domain/Threads`_, `//CycloneDDS/Domain/Tracing`_
 
 The General element specifying Domain related settings.
@@ -225,7 +225,7 @@ This element statically configures addresses for discovery.
 //CycloneDDS/Domain/Discovery/Peers/Peer
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Attributes: [Address](`//CycloneDDS/Domain/Discovery/Peers/Peer[@Address]`_)
+Attributes: `//CycloneDDS/Domain/Discovery/Peers/Peer[@Address]`_
 
 This element statically configures addresses for discovery.
 
@@ -441,7 +441,7 @@ The default value is: ``true``
 //CycloneDDS/Domain/General/EntityAutoNaming
 --------------------------------------------
 
-Attributes: [seed](`//CycloneDDS/Domain/General/EntityAutoNaming[@seed]`_)
+Attributes: `//CycloneDDS/Domain/General/EntityAutoNaming[@seed]`_
 
 One of: empty, fancy
 
@@ -515,7 +515,7 @@ This element specifies the network interfaces for use by Cyclone DDS. Multiple i
 //CycloneDDS/Domain/General/Interfaces/NetworkInterface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Attributes: [address](`//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@address]`_), [autodetermine](`//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@autodetermine]`_), [multicast](`//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@multicast]`_), [name](`//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@name]`_), [prefer_multicast](`//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@prefer_multicast]`_), [presence_required](`//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@presence_required]`_), [priority](`//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@priority]`_)
+Attributes: `//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@address]`_, `//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@autodetermine]`_, `//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@multicast]`_, `//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@name]`_, `//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@prefer_multicast]`_, `//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@presence_required]`_, `//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@priority]`_
 
 This element defines a network interface. You can set autodetermine="true" to autoselect the interface CycloneDDS considers the highest quality. If autodetermine="false" (the default), you must specify the name and/or address attribute. If you specify both, they must match the same interface.
 
@@ -609,7 +609,7 @@ The default value is: ``default``
 //CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Attributes: [config](`//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange[@config]`_), [library](`//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange[@library]`_), [name](`//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange[@name]`_), [priority](`//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange[@priority]`_)
+Attributes: `//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange[@config]`_, `//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange[@library]`_, `//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange[@name]`_, `//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange[@priority]`_
 
 This element defines a PSMX.
 
@@ -971,7 +971,7 @@ The default value is: ``false``
 //CycloneDDS/Domain/Internal/HeartbeatInterval
 ----------------------------------------------
 
-Attributes: [max](`//CycloneDDS/Domain/Internal/HeartbeatInterval[@max]`_), [min](`//CycloneDDS/Domain/Internal/HeartbeatInterval[@min]`_), [minsched](`//CycloneDDS/Domain/Internal/HeartbeatInterval[@minsched]`_)
+Attributes: `//CycloneDDS/Domain/Internal/HeartbeatInterval[@max]`_, `//CycloneDDS/Domain/Internal/HeartbeatInterval[@min]`_, `//CycloneDDS/Domain/Internal/HeartbeatInterval[@minsched]`_
 
 Number-with-unit
 
@@ -1041,7 +1041,7 @@ The default value is: ``false``
 //CycloneDDS/Domain/Internal/LivelinessMonitoring
 -------------------------------------------------
 
-Attributes: [Interval](`//CycloneDDS/Domain/Internal/LivelinessMonitoring[@Interval]`_), [StackTraces](`//CycloneDDS/Domain/Internal/LivelinessMonitoring[@StackTraces]`_)
+Attributes: `//CycloneDDS/Domain/Internal/LivelinessMonitoring[@Interval]`_, `//CycloneDDS/Domain/Internal/LivelinessMonitoring[@StackTraces]`_
 
 Boolean
 
@@ -1157,7 +1157,7 @@ The default value is: ``-1``
 //CycloneDDS/Domain/Internal/MultipleReceiveThreads
 ---------------------------------------------------
 
-Attributes: [maxretries](`//CycloneDDS/Domain/Internal/MultipleReceiveThreads[@maxretries]`_)
+Attributes: `//CycloneDDS/Domain/Internal/MultipleReceiveThreads[@maxretries]`_
 
 One of: false, true, default
 
@@ -1235,7 +1235,7 @@ The default value is: ``true``
 //CycloneDDS/Domain/Internal/RediscoveryBlacklistDuration
 ---------------------------------------------------------
 
-Attributes: [enforce](`//CycloneDDS/Domain/Internal/RediscoveryBlacklistDuration[@enforce]`_)
+Attributes: `//CycloneDDS/Domain/Internal/RediscoveryBlacklistDuration[@enforce]`_
 
 Number-with-unit
 
@@ -1337,7 +1337,7 @@ The default value is: ``128``
 //CycloneDDS/Domain/Internal/SocketReceiveBufferSize
 ----------------------------------------------------
 
-Attributes: [max](`//CycloneDDS/Domain/Internal/SocketReceiveBufferSize[@max]`_), [min](`//CycloneDDS/Domain/Internal/SocketReceiveBufferSize[@min]`_)
+Attributes: `//CycloneDDS/Domain/Internal/SocketReceiveBufferSize[@max]`_, `//CycloneDDS/Domain/Internal/SocketReceiveBufferSize[@min]`_
 
 The settings in this element control the size of the socket receive buffers. The operating system provides some size receive buffer upon creation of the socket, this option can be used to increase the size of the buffer beyond that initially provided by the operating system. If the buffer size cannot be increased to the requested minimum size, an error is reported.
 
@@ -1377,7 +1377,7 @@ The default value is: ``default``
 //CycloneDDS/Domain/Internal/SocketSendBufferSize
 -------------------------------------------------
 
-Attributes: [max](`//CycloneDDS/Domain/Internal/SocketSendBufferSize[@max]`_), [min](`//CycloneDDS/Domain/Internal/SocketSendBufferSize[@min]`_)
+Attributes: `//CycloneDDS/Domain/Internal/SocketSendBufferSize[@max]`_, `//CycloneDDS/Domain/Internal/SocketSendBufferSize[@min]`_
 
 The settings in this element control the size of the socket send buffers. The operating system provides some size send buffer upon creation of the socket, this option can be used to increase the size of the buffer beyond that initially provided by the operating system. If the buffer size cannot be increased to the requested minimum size, an error is reported.
 
@@ -1598,7 +1598,7 @@ The IgnoredPartitions element specifies DCPS partition/topic combinations that a
 //CycloneDDS/Domain/Partitioning/IgnoredPartitions/IgnoredPartition
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Attributes: [DCPSPartitionTopic](`//CycloneDDS/Domain/Partitioning/IgnoredPartitions/IgnoredPartition[@DCPSPartitionTopic]`_)
+Attributes: `//CycloneDDS/Domain/Partitioning/IgnoredPartitions/IgnoredPartition[@DCPSPartitionTopic]`_
 
 Text
 
@@ -1634,7 +1634,7 @@ The NetworkPartitions element specifies the Cyclone DDS network partitions.
 //CycloneDDS/Domain/Partitioning/NetworkPartitions/NetworkPartition
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Attributes: [Address](`//CycloneDDS/Domain/Partitioning/NetworkPartitions/NetworkPartition[@Address]`_), [Interface](`//CycloneDDS/Domain/Partitioning/NetworkPartitions/NetworkPartition[@Interface]`_), [Name](`//CycloneDDS/Domain/Partitioning/NetworkPartitions/NetworkPartition[@Name]`_)
+Attributes: `//CycloneDDS/Domain/Partitioning/NetworkPartitions/NetworkPartition[@Address]`_, `//CycloneDDS/Domain/Partitioning/NetworkPartitions/NetworkPartition[@Interface]`_, `//CycloneDDS/Domain/Partitioning/NetworkPartitions/NetworkPartition[@Name]`_
 
 Text
 
@@ -1699,7 +1699,7 @@ The PartitionMappings element specifies the mapping from DCPS partition/topic co
 //CycloneDDS/Domain/Partitioning/PartitionMappings/PartitionMapping
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Attributes: [DCPSPartitionTopic](`//CycloneDDS/Domain/Partitioning/PartitionMappings/PartitionMapping[@DCPSPartitionTopic]`_), [NetworkPartition](`//CycloneDDS/Domain/Partitioning/PartitionMappings/PartitionMapping[@NetworkPartition]`_)
+Attributes: `//CycloneDDS/Domain/Partitioning/PartitionMappings/PartitionMapping[@DCPSPartitionTopic]`_, `//CycloneDDS/Domain/Partitioning/PartitionMappings/PartitionMapping[@NetworkPartition]`_
 
 Text
 
@@ -1929,7 +1929,7 @@ The default value is: ``<empty>``
 //CycloneDDS/Domain/Security/AccessControl/Library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Attributes: [finalizeFunction](`//CycloneDDS/Domain/Security/AccessControl/Library[@finalizeFunction]`_), [initFunction](`//CycloneDDS/Domain/Security/AccessControl/Library[@initFunction]`_), [path](`//CycloneDDS/Domain/Security/AccessControl/Library[@path]`_)
+Attributes: `//CycloneDDS/Domain/Security/AccessControl/Library[@finalizeFunction]`_, `//CycloneDDS/Domain/Security/AccessControl/Library[@initFunction]`_, `//CycloneDDS/Domain/Security/AccessControl/Library[@path]`_
 
 Text
 
@@ -2121,7 +2121,7 @@ The default value is: ``false``
 //CycloneDDS/Domain/Security/Authentication/Library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Attributes: [finalizeFunction](`//CycloneDDS/Domain/Security/Authentication/Library[@finalizeFunction]`_), [initFunction](`//CycloneDDS/Domain/Security/Authentication/Library[@initFunction]`_), [path](`//CycloneDDS/Domain/Security/Authentication/Library[@path]`_)
+Attributes: `//CycloneDDS/Domain/Security/Authentication/Library[@finalizeFunction]`_, `//CycloneDDS/Domain/Security/Authentication/Library[@initFunction]`_, `//CycloneDDS/Domain/Security/Authentication/Library[@path]`_
 
 Text
 
@@ -2235,7 +2235,7 @@ This element configures the Cryptographic plugin of the DDS Security specificati
 //CycloneDDS/Domain/Security/Cryptographic/Library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Attributes: [finalizeFunction](`//CycloneDDS/Domain/Security/Cryptographic/Library[@finalizeFunction]`_), [initFunction](`//CycloneDDS/Domain/Security/Cryptographic/Library[@initFunction]`_), [path](`//CycloneDDS/Domain/Security/Cryptographic/Library[@path]`_)
+Attributes: `//CycloneDDS/Domain/Security/Cryptographic/Library[@finalizeFunction]`_, `//CycloneDDS/Domain/Security/Cryptographic/Library[@initFunction]`_, `//CycloneDDS/Domain/Security/Cryptographic/Library[@path]`_
 
 Text
 
@@ -2431,7 +2431,7 @@ This element is used to set thread properties.
 //CycloneDDS/Domain/Threads/Thread
 ----------------------------------
 
-Attributes: [Name](`//CycloneDDS/Domain/Threads/Thread[@Name]`_)
+Attributes: `//CycloneDDS/Domain/Threads/Thread[@Name]`_
 Children: `//CycloneDDS/Domain/Threads/Thread/Scheduling`_, `//CycloneDDS/Domain/Threads/Thread/StackSize`_
 
 This element is used to set thread properties.
@@ -2648,6 +2648,6 @@ The default value is: ``none``
    generated from _confgen.c[237308acd53897a34e8c643e16e05a61d73ffd65] 
    generated from generate_rnc.c[b50e4b7ab1d04b2bc1d361a0811247c337b74934] 
    generated from generate_md.c[789b92e422631684352909cfb8bf43f6ceb16a01] 
-   generated from generate_rst.c[c35cdcdfc0bd4f10a801204a6cc5d540af696b6e] 
+   generated from generate_rst.c[6be105c28be9ee5fc54b0f7e44d89cdf974563ec] 
    generated from generate_xsd.c[6b6818d7f17a35d56c376c04ec1410427f34c0f0] 
    generated from generate_defconfig.c[63ca9d8ae2f1ce2e761c9d4c0510a45eb062d830] 

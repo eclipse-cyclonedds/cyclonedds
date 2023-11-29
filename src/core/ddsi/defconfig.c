@@ -107,6 +107,6 @@ void ddsi_config_init_default (struct ddsi_config *cfg)
 /* generated from _confgen.c[237308acd53897a34e8c643e16e05a61d73ffd65] */
 /* generated from generate_rnc.c[b50e4b7ab1d04b2bc1d361a0811247c337b74934] */
 /* generated from generate_md.c[789b92e422631684352909cfb8bf43f6ceb16a01] */
-/* generated from generate_rst.c[c35cdcdfc0bd4f10a801204a6cc5d540af696b6e] */
+/* generated from generate_rst.c[6be105c28be9ee5fc54b0f7e44d89cdf974563ec] */
 /* generated from generate_xsd.c[6b6818d7f17a35d56c376c04ec1410427f34c0f0] */
 /* generated from generate_defconfig.c[63ca9d8ae2f1ce2e761c9d4c0510a45eb062d830] */
