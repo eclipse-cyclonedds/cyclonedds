@@ -31,3 +31,5 @@ C API reference
    api/serialization
    api/internal
    api/deprecated
+   api/psmx
+   api/dynamic
