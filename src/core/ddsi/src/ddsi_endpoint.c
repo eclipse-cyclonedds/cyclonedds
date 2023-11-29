@@ -960,7 +960,7 @@ static void ddsi_new_writer_guid_common_init (struct ddsi_writer *wr, const char
   ddsi_local_reader_ary_init (&wr->rdary);
 }
 
-dds_return_t ddsi_new_writer_guid (struct ddsi_writer **wr_out, const struct ddsi_guid *guid, const struct ddsi_guid *group_guid, struct ddsi_participant *pp, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos, struct ddsi_whc *whc, ddsi_status_cb_t status_cb, void *status_entity, struct ddsi_psmx_locators_set *psmx_locators)
+dds_return_t ddsi_new_writer (struct ddsi_writer **wr_out, const struct ddsi_guid *guid, const struct ddsi_guid *group_guid, struct ddsi_participant *pp, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos, struct ddsi_whc *whc, ddsi_status_cb_t status_cb, void *status_entity, struct ddsi_psmx_locators_set *psmx_locators)
 {
   struct ddsi_writer *wr;
   ddsrt_mtime_t tnow = ddsrt_time_monotonic ();
@@ -1044,19 +1044,13 @@ dds_return_t ddsi_new_writer_guid (struct ddsi_writer **wr_out, const struct dds
   return 0;
 }
 
-dds_return_t ddsi_new_writer (struct ddsi_writer **wr_out, struct ddsi_guid *wrguid, const struct ddsi_guid *group_guid, struct ddsi_participant *pp, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos, struct ddsi_whc * whc, ddsi_status_cb_t status_cb, void *status_cb_arg, struct ddsi_psmx_locators_set *psmx_locators)
+dds_return_t ddsi_generate_writer_guid (struct ddsi_guid *wrguid, struct ddsi_participant *participant, const struct ddsi_sertype *sertype)
 {
-  dds_return_t rc;
-  uint32_t kind;
-
-  /* participant can't be freed while we're mucking around cos we are
-     awake and do not touch the thread's vtime (entidx_lookup already
-     verifies we're awake) */
-  wrguid->prefix = pp->e.guid.prefix;
-  kind = type->has_key ? DDSI_ENTITYID_KIND_WRITER_WITH_KEY : DDSI_ENTITYID_KIND_WRITER_NO_KEY;
-  if ((rc = ddsi_participant_allocate_entityid (&wrguid->entityid, kind, pp)) < 0)
-    return rc;
-  return ddsi_new_writer_guid (wr_out, wrguid, group_guid, pp, topic_name, type, xqos, whc, status_cb, status_cb_arg, psmx_locators);
+  /* participant can't be freed while we're mucking around cos we are awake and do not touch the thread's vtime
+     (entidx_lookup already verifies we're awake) */
+  wrguid->prefix = participant->e.guid.prefix;
+  uint32_t kind = sertype->has_key ? DDSI_ENTITYID_KIND_WRITER_WITH_KEY : DDSI_ENTITYID_KIND_WRITER_NO_KEY;
+  return ddsi_participant_allocate_entityid (&wrguid->entityid, kind, participant);
 }
 
 struct ddsi_local_orphan_writer *ddsi_new_local_orphan_writer (struct ddsi_domaingv *gv, ddsi_entityid_t entityid, const char *topic_name, struct ddsi_sertype *type, const struct dds_qos *xqos, struct ddsi_whc *whc)
@@ -1479,9 +1473,9 @@ static void reader_init_network_partition (struct ddsi_reader *rd)
 }
 #endif /* DDS_HAS_NETWORK_PARTITIONS */
 
-dds_return_t ddsi_new_reader_guid (struct ddsi_reader **rd_out, const struct ddsi_guid *guid, const struct ddsi_guid *group_guid, struct ddsi_participant *pp, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos, struct ddsi_rhc *rhc, ddsi_status_cb_t status_cb, void * status_entity, struct ddsi_psmx_locators_set *psmx_locators)
+dds_return_t ddsi_new_reader (struct ddsi_reader **rd_out, const struct ddsi_guid *guid, const struct ddsi_guid *group_guid, struct ddsi_participant *pp, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos, struct ddsi_rhc *rhc, ddsi_status_cb_t status_cb, void * status_entity, struct ddsi_psmx_locators_set *psmx_locators)
 {
-  /* see ddsi_new_writer_guid for commenets */
+  /* see ddsi_new_writer for commenets */
 
   struct ddsi_reader *rd;
   ddsrt_mtime_t tnow = ddsrt_time_monotonic ();
@@ -1565,16 +1559,11 @@ dds_return_t ddsi_new_reader_guid (struct ddsi_reader **rd_out, const struct dds
   return 0;
 }
 
-dds_return_t ddsi_new_reader (struct ddsi_reader **rd_out, struct ddsi_guid *rdguid, const struct ddsi_guid *group_guid, struct ddsi_participant *pp, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos, struct ddsi_rhc * rhc, ddsi_status_cb_t status_cb, void *status_cb_arg, struct ddsi_psmx_locators_set *psmx_locators)
+dds_return_t ddsi_generate_reader_guid (struct ddsi_guid *rdguid, struct ddsi_participant *participant, const struct ddsi_sertype *sertype)
 {
-  dds_return_t rc;
-  uint32_t kind;
-
-  rdguid->prefix = pp->e.guid.prefix;
-  kind = type->has_key ? DDSI_ENTITYID_KIND_READER_WITH_KEY : DDSI_ENTITYID_KIND_READER_NO_KEY;
-  if ((rc = ddsi_participant_allocate_entityid (&rdguid->entityid, kind, pp)) < 0)
-    return rc;
-  return ddsi_new_reader_guid (rd_out, rdguid, group_guid, pp, topic_name, type, xqos, rhc, status_cb, status_cb_arg, psmx_locators);
+  rdguid->prefix = participant->e.guid.prefix;
+  uint32_t kind = sertype->has_key ? DDSI_ENTITYID_KIND_READER_WITH_KEY : DDSI_ENTITYID_KIND_READER_NO_KEY;
+  return ddsi_participant_allocate_entityid (&rdguid->entityid, kind, participant);
 }
 
 static void gc_delete_reader (struct ddsi_gcreq *gcreq)

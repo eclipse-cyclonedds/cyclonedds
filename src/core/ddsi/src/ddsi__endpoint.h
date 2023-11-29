@@ -60,9 +60,6 @@ int ddsi_is_keyed_endpoint_entityid (ddsi_entityid_t id);
 int ddsi_is_builtin_volatile_endpoint (ddsi_entityid_t id);
 
 /** @component ddsi_endpoint */
-dds_return_t ddsi_new_writer_guid (struct ddsi_writer **wr_out, const struct ddsi_guid *guid, const struct ddsi_guid *group_guid, struct ddsi_participant *pp, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos, struct ddsi_whc *whc, ddsi_status_cb_t status_cb, void *status_entity, struct ddsi_psmx_locators_set *psmx_locators);
-
-/** @component ddsi_endpoint */
 int ddsi_is_writer_entityid (ddsi_entityid_t id);
 
 /** @component ddsi_endpoint */
@@ -97,9 +94,6 @@ void ddsi_writer_set_alive_may_unlock (struct ddsi_writer *wr, bool notify);
 
 /** @component ddsi_endpoint */
 int ddsi_writer_set_notalive (struct ddsi_writer *wr, bool notify);
-
-/** @component ddsi_endpoint */
-dds_return_t ddsi_new_reader_guid (struct ddsi_reader **rd_out, const struct ddsi_guid *guid, const struct ddsi_guid *group_guid, struct ddsi_participant *pp, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos, struct ddsi_rhc *rhc, ddsi_status_cb_t status_cb, void * status_entity, struct ddsi_psmx_locators_set *psmx_locators);
 
 /** @component ddsi_endpoint */
 int ddsi_is_reader_entityid (ddsi_entityid_t id);

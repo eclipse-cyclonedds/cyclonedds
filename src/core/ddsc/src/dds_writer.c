@@ -27,6 +27,7 @@
 #include "dds/ddsi/ddsi_statistics.h"
 #include "dds/ddsi/ddsi_sertype.h"
 #include "dds/cdr/dds_cdrstream.h"
+#include "dds/ddsc/dds_internal_api.h"
 #include "dds__writer.h"
 #include "dds__listener.h"
 #include "dds__init.h"
@@ -298,7 +299,8 @@ const struct dds_entity_deriver dds_entity_deriver_writer = {
   .invoke_cbs_for_pending_events = dds_writer_invoke_cbs_for_pending_events
 };
 
-dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entity_t topic, const dds_qos_t *qos, const dds_listener_t *listener)
+
+static dds_entity_t dds_create_writer_int (dds_entity_t participant_or_publisher, dds_guid_t *guid, dds_entity_t topic, const dds_qos_t *qos, const dds_listener_t *listener)
 {
   dds_return_t rc;
   dds_publisher *pub = NULL;
@@ -427,9 +429,26 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   if (!sertype)
     sertype = tp->m_stype;
 
+  if (guid == NULL)
+  {
+    rc = ddsi_generate_writer_guid (&wr->m_entity.m_guid, pp, sertype);
+    if (rc != DDS_RETCODE_OK)
+      goto err_wr_guid;
+  }
+  else
+  {
+    ddsi_guid_t ddsi_guid;
+    DDSRT_STATIC_ASSERT (sizeof (dds_guid_t) == sizeof (ddsi_guid_t));
+    memcpy (&ddsi_guid, guid, sizeof (ddsi_guid));
+    wr->m_entity.m_guid = ddsi_ntoh_guid (ddsi_guid);
+  }
   struct ddsi_psmx_locators_set *vl_set = dds_get_psmx_locators_set (wqos, &wr->m_entity.m_domain->psmx_instances);
   rc = ddsi_new_writer (&wr->m_wr, &wr->m_entity.m_guid, NULL, pp, tp->m_name, sertype, wqos, wr->m_whc, dds_writer_status_cb, wr, vl_set);
-  assert(rc == DDS_RETCODE_OK);
+  if (rc != DDS_RETCODE_OK)
+  {
+    /* FIXME: can be out-of-resources at the very least; would leak allocated entity id */
+    abort ();
+  }
   dds_psmx_locators_set_free (vl_set);
   ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
 
@@ -452,11 +471,12 @@ dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entit
   ddsrt_mutex_unlock (&gv->sendq_running_lock);
   return writer;
 
+err_wr_guid:
 err_pipe_open:
 #ifdef DDS_HAS_SECURITY
 err_not_allowed:
-  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
 #endif
+  ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
 err_bad_qos:
 err_data_repr:
 err_psmx:
@@ -470,6 +490,16 @@ err_pin_topic:
   if (created_implicit_pub)
     (void) dds_delete (publisher);
   return rc;
+}
+
+dds_entity_t dds_create_writer (dds_entity_t participant_or_publisher, dds_entity_t topic, const dds_qos_t *qos, const dds_listener_t *listener)
+{
+  return dds_create_writer_int (participant_or_publisher, NULL, topic, qos, listener);
+}
+
+dds_entity_t dds_create_writer_guid (dds_entity_t participant_or_publisher, dds_entity_t topic, const dds_qos_t *qos, const dds_listener_t *listener, dds_guid_t *guid)
+{
+  return dds_create_writer_int (participant_or_publisher, guid, topic, qos, listener);
 }
 
 dds_entity_t dds_get_publisher (dds_entity_t writer)

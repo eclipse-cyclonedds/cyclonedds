@@ -171,9 +171,11 @@ int main (int argc, char **argv)
   dds_resume (1);
   dds_wait_for_acks (1, 0);
   dds_create_reader (1, 1, ptr, ptr);
+  dds_create_reader_guid (1, 1, ptr, ptr2, ptr3);
   dds_create_reader_rhc (1, 1, ptr, ptr, ptr);
   dds_reader_wait_for_historical_data (1, 0);
   dds_create_writer (1, 1, ptr, ptr);
+  dds_create_writer_guid (1, 1, ptr, ptr2, ptr3);
   dds_register_instance (1, ptr, ptr);
   dds_unregister_instance (1, ptr);
   dds_unregister_instance_ih (1, 1);

@@ -176,6 +176,9 @@ static void ddsi_wraddrset_some_cases (int casenumber, int cost, bool wr_psmx, c
       .free = whc_free
     }
   };
+  dds_return_t ret = ddsi_generate_writer_guid (&wrguid, pp, &st);
+  assert (ret == DDS_RETCODE_OK);
+  (void) ret;
   ddsi_new_writer (&wr, &wrguid, NULL, pp, "Q", &st, &ddsi_default_qos_writer, &whc, NULL, NULL, wr_psmx ? &psmx_locs : NULL);
   assert (ddsi_entidx_lookup_writer_guid (gv.entity_index, &wrguid));
 
