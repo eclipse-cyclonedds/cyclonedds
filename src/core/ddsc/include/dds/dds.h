@@ -3086,8 +3086,8 @@ dds_waitset_wait_until(
  * etc. This continues until it has traversed the entire history cache or has gathered
  * `maxs` samples.
  *
- * The @ref `dds_read` operation can be used to mark the returned samples as "read"; the
- * @ref `dds_take` operation can be used to also remove the returned samples from the
+ * The @ref dds_read operation can be used to mark the returned samples as "read"; the
+ * @ref dds_take operation can be used to also remove the returned samples from the
  * history cache.
  *
  * For the plain `dds_peek` operation, all instances and samples match. This is different
@@ -3104,7 +3104,7 @@ dds_waitset_wait_until(
  *   - all of `buf[0]` .. `buf[k-1]` must be pointers to outstanding loans; and
  *   - `k` = `bufsz` or `buf[k]` is a null pointer; where
  *   - `1 <= k < bufsz`; and
- *   - all these outstanding loans are returned as-if through @ref `dds_return_loan`; and
+ *   - all these outstanding loans are returned as-if through @ref dds_return_loan; and
  *   - the result will be as if `buf[0]` had been a null pointer on entry.
  *
  * - If `buf[0]` on entry is any other address, then:
@@ -3153,7 +3153,7 @@ dds_peek(
  * @ingroup reading
  * @component read_data
  *
- * See @ref `dds_peek`. The matching criterion referred to there is that the
+ * See @ref dds_peek. The matching criterion referred to there is that the
  * sample/view/instance states must match the specification in the `mask` parameter.
  *
  * If the sample/view/instance state component in the mask is 0 and `reader_or_condition`
@@ -3196,7 +3196,7 @@ dds_peek_mask(
  * @ingroup reading
  * @component read_data
  *
- * See @ref `dds_peek`. The matching criterion referred to there is that the instance
+ * See @ref dds_peek. The matching criterion referred to there is that the instance
  * handle must equal the `handle` parameter.
  *
  * @param[in] reader_or_condition Reader, readcondition or querycondition entity.
@@ -3235,7 +3235,7 @@ dds_peek_instance(
  * @ingroup reading
  * @component read_data
  *
- * See @ref `dds_peek`. The matching criterion referred to there is that:
+ * See @ref dds_peek. The matching criterion referred to there is that:
  * - the instance handle must equal the `handle` parameter; and
  * - the sample/view/instance states must match the specification in the `mask` parameter.
  *
@@ -3317,8 +3317,8 @@ dds_peek_next(
  * etc. This continues until it has traversed the entire history cache or has gathered
  * `maxs` samples.
  *
- * The @ref `dds_peek` operation can be read samples without marking them as "read"; the
- * @ref `dds_take` operation can be used to also remove the returned samples from the
+ * The @ref dds_peek operation can be read samples without marking them as "read"; the
+ * @ref dds_take operation can be used to also remove the returned samples from the
  * history cache.
  *
  * For the plain `dds_read` operation, all instances and samples match. This is different
@@ -3335,7 +3335,7 @@ dds_peek_next(
  *   - all of `buf[0]` .. `buf[k-1]` must be pointers to outstanding loans; and
  *   - `k` = `bufsz` or `buf[k]` is a null pointer; where
  *   - `1 <= k < bufsz`; and
- *   - all these outstanding loans are returned as-if through @ref `dds_return_loan`; and
+ *   - all these outstanding loans are returned as-if through @ref dds_return_loan; and
  *   - the result will be as if `buf[0]` had been a null pointer on entry.
  *
  * - If `buf[0]` on entry is any other address, then:
@@ -3416,7 +3416,7 @@ dds_read_wl(
  * @ingroup reading
  * @component read_data
  *
- * See @ref `dds_read`. The matching criterion referred to there is that the
+ * See @ref dds_read. The matching criterion referred to there is that the
  * sample/view/instance states must match the specification in the `mask` parameter.
  *
  * If the sample/view/instance state component in the mask is 0 and `reader_or_condition`
@@ -3459,7 +3459,7 @@ dds_read_mask(
  * @ingroup reading
  * @component read_data
  *
- * @deprecated Alias for @ref `dds_read_mask` where `bufsz` = `maxs`.
+ * @deprecated Alias for @ref dds_read_mask where `bufsz` = `maxs`.
  *
  * @param[in]  reader_or_condition Reader, readcondition or querycondition entity.
  * @param[in,out] buf An array of `maxs` pointers to samples.
@@ -3493,7 +3493,7 @@ dds_read_mask_wl(
  * @ingroup reading
  * @component read_data
  *
- * See @ref `dds_read`. The matching criterion referred to there is that the instance
+ * See @ref dds_read. The matching criterion referred to there is that the instance
  * handle must equal the `handle` parameter.
  *
  * @param[in] reader_or_condition Reader, readcondition or querycondition entity.
@@ -3532,7 +3532,7 @@ dds_read_instance(
  * @ingroup reading
  * @component read_data
  *
- * @deprecated Alias for @ref `dds_read_instance` where `bufsz` = `maxs`.
+ * @deprecated Alias for @ref dds_read_instance where `bufsz` = `maxs`.
  *
  * @param[in] reader_or_condition Reader, readcondition or querycondition entity.
  * @param[in,out] buf An array of `maxs` pointers to samples.
@@ -3568,7 +3568,7 @@ dds_read_instance_wl(
  * @ingroup reading
  * @component read_data
  *
- * See @ref `dds_read`. The matching criterion referred to there is that:
+ * See @ref dds_read. The matching criterion referred to there is that:
  * - the instance handle must equal the `handle` parameter; and
  * - the sample/view/instance states must match the specification in the `mask` parameter.
  *
@@ -3616,7 +3616,7 @@ dds_read_instance_mask(
  * @ingroup reading
  * @component read_data
  *
- * @deprecated Alias for @ref  `dds_read_instance_mask` where `bufsz` = `maxs`.
+ * @deprecated Alias for @ref dds_read_instance_mask where `bufsz` = `maxs`.
  *
  * @param[in] reader_or_condition Reader, readcondition or querycondition entity.
  * @param[in,out] buf An array of `maxs` pointers to samples.
@@ -3682,7 +3682,7 @@ dds_read_next(
  * @ingroup reading
  * @component read_data
  *
- * @deprecated Alias for @ref `dds_read_next`.
+ * @deprecated Alias for @ref dds_read_next.
  *
  * @param[in] reader The reader entity.
  * @param[in,out] buf A pointer to a sample.
@@ -3716,8 +3716,8 @@ dds_read_next_wl(
  * continues until it has traversed the entire history cache or has gathered `maxs`
  * samples.
  *
- * The @ref `dds_read` operation can be used to read samples without removing them from
- * the history cache but marking them as "read"; the @ref `dds_peek` operation can be used
+ * The @ref dds_read operation can be used to read samples without removing them from
+ * the history cache but marking them as "read"; the @ref dds_peek operation can be used
  * to read samples from the cache without changing any internal state.
  *
  * For the plain `dds_take` operation, all instances and samples match. This is different
@@ -3734,7 +3734,7 @@ dds_read_next_wl(
  *   - all of `buf[0]` .. `buf[k-1]` must be pointers to outstanding loans; and
  *   - `k` = `bufsz` or `buf[k]` is a null pointer; where
  *   - `1 <= k < bufsz`; and
- *   - all these outstanding loans are returned as-if through @ref `dds_return_loan`; and
+ *   - all these outstanding loans are returned as-if through @ref dds_return_loan; and
  *   - the result will be as if `buf[0]` had been a null pointer on entry.
  *
  * - If `buf[0]` on entry is any other address, then:
@@ -3783,7 +3783,7 @@ dds_take(
  * @ingroup reading
  * @component read_data
  *
- * @deprecated Alias for @ref `dds_take` where `bufsz` = `maxs`.
+ * @deprecated Alias for @ref dds_take where `bufsz` = `maxs`.
  *
  * @param[in] reader_or_condition Reader, readcondition or querycondition entity.
  * @param[in,out] buf An array of `maxs` pointers to samples.
@@ -3815,7 +3815,7 @@ dds_take_wl(
  * @ingroup reading
  * @component read_data
  *
- * See @ref `dds_take`. The matching criterion referred to there is that the
+ * See @ref dds_take. The matching criterion referred to there is that the
  * sample/view/instance states must match the specification in the `mask` parameter.
  *
  * If the sample/view/instance state component in the mask is 0 and `reader_or_condition`
@@ -3892,7 +3892,7 @@ dds_take_mask_wl(
  * @ingroup reading
  * @component read_data
  *
- * See @ref `dds_take`. The matching criterion referred to there is that the instance
+ * See @ref dds_take. The matching criterion referred to there is that the instance
  * handle must equal the `handle` parameter.
  *
  * @param[in] reader_or_condition Reader, readcondition or querycondition entity.
@@ -3931,7 +3931,7 @@ dds_take_instance(
  * @ingroup reading
  * @component read_data
  *
- * @deprecated Alias for @ref `dds_take_instance` where `bufsz` = `maxs`.
+ * @deprecated Alias for @ref dds_take_instance where `bufsz` = `maxs`.
  *
  * @param[in] reader_or_condition Reader, readcondition or querycondition entity.
  * @param[in,out] buf An array of `maxs` pointers to samples.
@@ -3967,7 +3967,7 @@ dds_take_instance_wl(
  * @ingroup reading
  * @component read_data
  *
- * See @ref `dds_take`. The matching criterion referred to there is that:
+ * See @ref dds_take. The matching criterion referred to there is that:
  * - the instance handle must equal the `handle` parameter; and
  * - the sample/view/instance states must match the specification in the `mask` parameter.
  *
@@ -4015,7 +4015,7 @@ dds_take_instance_mask(
  * @ingroup reading
  * @component read_data
  *
- * @deprecated Alias for @ref `dds_take_instance_mask` where `bufsz` = `maxs`.
+ * @deprecated Alias for @ref dds_take_instance_mask where `bufsz` = `maxs`.
  *
  * @param[in] reader_or_condition Reader, readcondition or querycondition entity.
  * @param[in,out] buf An array of `maxs` pointers to samples.
@@ -4081,7 +4081,7 @@ dds_take_next(
  * @ingroup reading
  * @component read_data
  *
- * @deprecated Alias for @ref `dds_take_next`.
+ * @deprecated Alias for @ref dds_take_next.
  *
  * @param[in] reader The reader entity.
  * @param[in,out] buf A pointer to a sample.
@@ -4276,10 +4276,10 @@ dds_take_with_collector (
  * the application, other options may exist as well.
  *
  * The data is left in the reader history cache and the sample state and view state of the returned samples and their
- * instances are not updated; @ref `dds_readcdr` updates these states; @ref `dds_takecdr` removes the data
+ * instances are not updated; @ref dds_readcdr updates these states; @ref dds_takecdr removes the data
  * from the history cache.
  *
- * The returned references must eventually be released by calling @ref `ddsi_serdata_unref`. There is no guarantee
+ * The returned references must eventually be released by calling @ref ddsi_serdata_unref. There is no guarantee
  * the type pointer survives beyond the existence of the reader from which the references were read.
  *
  * When using a readcondition or querycondition, their masks are or'd with the given mask.
@@ -4287,7 +4287,7 @@ dds_take_with_collector (
  * If the sample/view/instance state component in the mask is 0 and there is no read or query condition,
  * to combine it with, it is treated as equivalent to any sample/view/instance state.
  *
- * Note that this is a simple wrapper around @ref `dds_peek_with_collector`.
+ * Note that this is a simple wrapper around @ref dds_peek_with_collector.
  *
  * @param[in]  reader_or_condition Reader, readcondition or querycondition entity.
  * @param[out] buf Filled with references @ref ddsi_serdata structures.
@@ -4329,10 +4329,10 @@ dds_peekcdr(
  * the application, other options may exist as well.
  *
  * The data is left in the reader history cache and the sample state and view state of the returned samples and their
- * instances are not updated; @ref `dds_readcdr` updates these states; @ref `dds_takecdr` removes the data
+ * instances are not updated; @ref dds_readcdr updates these states; @ref dds_takecdr removes the data
  * from the history cache.
  *
- * The returned references must eventually be released by calling @ref `ddsi_serdata_unref`. There is no guarantee
+ * The returned references must eventually be released by calling @ref ddsi_serdata_unref. There is no guarantee
  * the type pointer survives beyond the existence of the reader from which the references were read.
  *
  * When using a readcondition or querycondition, their masks are or'd with the given mask.
@@ -4340,7 +4340,7 @@ dds_peekcdr(
  * If the sample/view/instance state component in the mask is 0 and there is no read or query condition,
  * to combine it with, it is treated as equivalent to any sample/view/instance state.
  *
- * Note that this is a simple wrapper around @ref `dds_peek_with_collector`.
+ * Note that this is a simple wrapper around @ref dds_peek_with_collector.
  *
  * @param[in]  reader_or_condition Reader, readcondition or querycondition entity.
  * @param[out] buf Filled with references @ref ddsi_serdata structures.
@@ -4384,10 +4384,10 @@ dds_peekcdr_instance (
  * the application, other options may exist as well.
  *
  * The data is left in the reader history cache and the sample state and view state of the returned samples and their
- * instances are updated; @ref `dds_peekcdr` returns the data without updating these states; @ref `dds_takecdr`
+ * instances are updated; @ref dds_peekcdr returns the data without updating these states; @ref dds_takecdr
  * removes the data from the history cache.
  *
- * The returned references must eventually be released by calling @ref `ddsi_serdata_unref`. There is no guarantee
+ * The returned references must eventually be released by calling @ref ddsi_serdata_unref. There is no guarantee
  * the type pointer survives beyond the existence of the reader from which the references were read.
  *
  * When using a readcondition or querycondition, their masks are or'd with the given mask.
@@ -4395,7 +4395,7 @@ dds_peekcdr_instance (
  * If the sample/view/instance state component in the mask is 0 and there is no read or query condition,
  * to combine it with, it is treated as equivalent to any sample/view/instance state.
  *
- * Note that this is a simple wrapper around @ref `dds_read_with_collector`.
+ * Note that this is a simple wrapper around @ref dds_read_with_collector.
  *
  * @param[in]  reader_or_condition Reader, readcondition or querycondition entity.
  * @param[out] buf Filled with references @ref ddsi_serdata structures.
@@ -4437,10 +4437,10 @@ dds_readcdr(
  * the application, other options may exist as well.
  *
  * The data is left in the reader history cache and the sample state and view state of the returned samples and their
- * instances are updated; @ref `dds_peekcdr` returns the data without updating these states; @ref `dds_takecdr`
+ * instances are updated; @ref dds_peekcdr returns the data without updating these states; @ref dds_takecdr
  * removes the data from the history cache.
  *
- * The returned references must eventually be released by calling @ref `ddsi_serdata_unref`. There is no guarantee
+ * The returned references must eventually be released by calling @ref ddsi_serdata_unref. There is no guarantee
  * the type pointer survives beyond the existence of the reader from which the references were read.
  *
  * When using a readcondition or querycondition, their masks are or'd with the given mask.
@@ -4448,7 +4448,7 @@ dds_readcdr(
  * If the sample/view/instance state component in the mask is 0 and there is no read or query condition,
  * to combine it with, it is treated as equivalent to any sample/view/instance state.
  *
- * Note that this is a simple wrapper around @ref `dds_read_with_collector`.
+ * Note that this is a simple wrapper around @ref dds_read_with_collector.
  *
  * @param[in]  reader_or_condition Reader, readcondition or querycondition entity.
  * @param[out] buf Filled with references @ref ddsi_serdata structures.
@@ -4491,11 +4491,11 @@ dds_readcdr_instance (
  * reference of the serialized representation. If the underlying implementation (`struct ddsi_sertype`) is known to
  * the application, other options may exist as well.
  *
- * The data is removed from the reader history cache; @ref `dds_peekcdr` leaves them in and leaves the sample and
- * view states unchanged; @ref `dds_readcdr` leaves the data in the cache but does update the sample and view
+ * The data is removed from the reader history cache; @ref dds_peekcdr leaves them in and leaves the sample and
+ * view states unchanged; @ref dds_readcdr leaves the data in the cache but does update the sample and view
  * states.
  *
- * The returned references must eventually be released by calling @ref `ddsi_serdata_unref`. There is no guarantee
+ * The returned references must eventually be released by calling @ref ddsi_serdata_unref. There is no guarantee
  * the type pointer survives beyond the existence of the reader from which the references were read.
  *
  * When using a readcondition or querycondition, their masks are or'd with the given mask.
@@ -4503,7 +4503,7 @@ dds_readcdr_instance (
  * If the sample/view/instance state component in the mask is 0 and there is no read or query condition,
  * to combine it with, it is treated as equivalent to any sample/view/instance state.
  *
- * Note that this is a simple wrapper around @ref `dds_take_with_collector`.
+ * Note that this is a simple wrapper around @ref dds_take_with_collector.
  *
  * @param[in]  reader_or_condition Reader, readcondition or querycondition entity.
  * @param[out] buf Filled with references @ref ddsi_serdata structures.
@@ -4544,11 +4544,11 @@ dds_takecdr(
  * reference of the serialized representation. If the underlying implementation (`struct ddsi_sertype`) is known to
  * the application, other options may exist as well.
  *
- * The data is removed from the reader history cache; @ref `dds_peekcdr` leaves them in and leaves the sample and
- * view states unchanged; @ref `dds_readcdr` leaves the data in the cache but does update the sample and view
+ * The data is removed from the reader history cache; @ref dds_peekcdr leaves them in and leaves the sample and
+ * view states unchanged; @ref dds_readcdr leaves the data in the cache but does update the sample and view
  * states.
  *
- * The returned references must eventually be released by calling @ref `ddsi_serdata_unref`. There is no guarantee
+ * The returned references must eventually be released by calling @ref ddsi_serdata_unref. There is no guarantee
  * the type pointer survives beyond the existence of the reader from which the references were read.
  *
  * When using a readcondition or querycondition, their masks are or'd with the given mask.
@@ -4556,7 +4556,7 @@ dds_takecdr(
  * If the sample/view/instance state component in the mask is 0 and there is no read or query condition,
  * to combine it with, it is treated as equivalent to any sample/view/instance state.
  *
- * Note that this is a simple wrapper around @ref `dds_take_with_collector`.
+ * Note that this is a simple wrapper around @ref dds_take_with_collector.
  *
  * @param[in]  reader_or_condition Reader, readcondition or querycondition entity.
  * @param[out] buf Filled with references @ref ddsi_serdata structures.

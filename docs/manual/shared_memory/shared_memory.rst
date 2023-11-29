@@ -42,7 +42,7 @@ Prerequisites
 
      git clone https://github.com/eclipse-iceoryx/iceoryx.git -b release_2.0
      cd iceoryx
-     cmake -Bbuild -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DBUILD_SHARED_LIBS=ON -Hiceoryx_meta
+     cmake -Bbuild -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DROUDI_ENVIRONMENT=on -DBUILD_SHARED_LIBS=ON -Hiceoryx_meta
      cmake --build build --config Release --target install
 
 #. Get |var-project-short| and build it with shared memory support:
@@ -51,7 +51,7 @@ Prerequisites
 
      git clone https://github.com/eclipse-cyclonedds/cyclonedds.git
      cd cyclonedds
-     cmake -Bbuild -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DBUILD_EXAMPLES=On -DCMAKE_PREFIX_PATH=~/iceoryx/install/
+     cmake -Bbuild -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DENABLE_ICEORYX=On -DBUILD_EXAMPLES=On -DCMAKE_PREFIX_PATH=~/iceoryx/install/
      cmake --build build --config Release --target install
 
 When the compiler has finished, the files for both iceoryx and |var-project-short| can 

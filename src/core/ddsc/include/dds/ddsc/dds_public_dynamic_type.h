@@ -316,7 +316,7 @@ DDS_EXPORT dds_dynamic_type_t dds_dynamic_type_create (dds_entity_t entity, dds_
  * @component dynamic_type_api
  *
  * @param[in,out] type Dynamic Type to set the extensibility for. This can be a structure, union, bitmask or enum type. This type must be in the CONSTRUCTING state and have no members added.
- * @param[in] extensibility The extensibility to set (@ref enum dds_dynamic_type_extensibility).
+ * @param[in] extensibility The extensibility to set (@ref dds_dynamic_type_extensibility).
  *
  * @return dds_return_t Return code. In case of an error, the return code field in the provided type is also set to this value.
  *

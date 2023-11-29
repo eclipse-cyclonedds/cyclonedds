@@ -34,6 +34,7 @@ struct dds_psmx_endpoint;
 
 /**
  * @brief State of the data contained in a memory block
+ * @ingroup loaned_sample
  */
 typedef enum dds_loaned_sample_state {
   DDS_LOANED_SAMPLE_STATE_UNITIALIZED,
@@ -45,11 +46,13 @@ typedef enum dds_loaned_sample_state {
 
 /**
  * @brief Identifier used to distinguish between raw data types (C/C++/Python/...)
+ * @ingroup loaned_sample
  */
 typedef uint32_t dds_loan_data_type_t;
 
 /**
  * @brief Definition for function to free a loaned sample
+ * @ingroup loaned_sample
  *
  * @param[in] loaned_sample  A loaned sample
  */
@@ -58,6 +61,7 @@ typedef void (*dds_loaned_sample_free_f) (struct dds_loaned_sample *loaned_sampl
 
 /**
  * @brief Container for implementation specific operations
+ * @ingroup loaned_sample
  */
 typedef struct dds_loaned_sample_ops {
   dds_loaned_sample_free_f free;
@@ -75,6 +79,7 @@ typedef struct dds_loaned_sample_origin {
 
 /**
  * @brief The definition of a block of memory originating from a PSMX
+ * @ingroup loaned_sample
  */
 typedef struct dds_loaned_sample {
   dds_loaned_sample_ops_t ops; //!< the implementation specific ops for this sample
@@ -86,6 +91,7 @@ typedef struct dds_loaned_sample {
 
 /**
  * @brief Generic function to increase the refcount for a loaned sample
+ * @ingroup loaned_sample
  *
  * @param[in] loaned_sample  A loaned sample
  */
@@ -95,6 +101,7 @@ DDS_INLINE_EXPORT inline void ddsrt_nonnull_all dds_loaned_sample_ref (dds_loane
 
 /**
  * @brief Generic function to decrease the refcount for a loaned sample
+ * @ingroup loaned_sample
  *
  * Calls the PSMX plugin specific free function once the reference count reaches 0.
  *

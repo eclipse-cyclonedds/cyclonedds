@@ -82,7 +82,7 @@ static void printlink(
   (void)flags;
   (void)units;
   assert(elem->meta.title);
-  fprintf(out, "`%s`_", elem->meta.title);
+  fprintf(out, ":ref:`%s<%s>`", elem->name, elem->meta.title);
 }
 
 static void printtype(
@@ -163,9 +163,8 @@ static void printelem(
     struct cfgelem *ce = firstelem(elem->attributes);
     while (ce) {
       if (!isnop(ce)) {
-        fprintf(out, "%s[%s](", sep, name(ce));
+        fputs(sep, out);
         printlink(out, level, flags, ce, units);
-        fprintf(out, ")");
         sep = ", ";
         cnt++;
       }

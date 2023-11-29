@@ -33,8 +33,8 @@ extern "C" {
  * @ingroup loan
  *
  * Borrow a sample from the entity, which currently must be a writer. This sample
- * can then be returned using @ref `dds_return_loan` or can be used to publish data
- * using @ref `dds_write` or @ref `dds_writedispose`.
+ * can then be returned using @ref dds_return_loan or can be used to publish data
+ * using @ref dds_write or @ref dds_writedispose.
  *
  * If the topic type has a fixed size (and so no internal pointers) and a PSMX interface is configured,
  * the memory will be borrowed from the PSMX implementation, which allows Cyclone to avoid copies
@@ -65,13 +65,13 @@ DDS_EXPORT dds_return_t dds_request_loan (dds_entity_t entity, void **sample);
  * @component read_data
  *
  * Used to release middleware-owned samples returned by a read/take operation and samples
- * borrowed from the writer using @ref `dds_request_loan`.
+ * borrowed from the writer using @ref dds_request_loan.
  *
- * For reader loans, the @ref `dds_read` and @ref `dds_take` operations implicitly return
+ * For reader loans, the @ref dds_read and @ref dds_take operations implicitly return
  * outstanding loans referenced by the sample array passed in.  Looping until no data is
  * returned therefore often eliminates the need for calling this function.
  *
- * For writer loans, a @ref `dds_write` operation takes over the loan.  Consequently, this
+ * For writer loans, a @ref dds_write operation takes over the loan.  Consequently, this
  * function is only needed in the exceptional case where a loan is taken but ultimately
  * not used to publish data.
  *
@@ -117,8 +117,8 @@ DDS_EXPORT bool dds_is_shared_memory_available (const dds_entity_t entity);
  * @ingroup loan
  *
  * Borrow a sample of a specified size from the entity, which currently must be a
- * writer. This sample can then be returned using @ref `dds_return_loan` or can be
- * used to publish data using @ref `dds_write` or @ref `dds_writedispose`.
+ * writer. This sample can then be returned using @ref dds_return_loan or can be
+ * used to publish data using @ref dds_write or @ref dds_writedispose.
  *
  * @note The function can only be used if dds_is_shared_memory_available is
  *       true for the writer.

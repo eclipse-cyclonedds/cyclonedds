@@ -11,7 +11,7 @@ Below is the full (generated) reference of XML you can use to configure |var-pro
 //CycloneDDS
 ############
 
-Children: `//CycloneDDS/Domain`_
+Children: :ref:`Domain<//CycloneDDS/Domain>`
 
 CycloneDDS configuration
 
@@ -21,8 +21,8 @@ CycloneDDS configuration
 //CycloneDDS/Domain
 *******************
 
-Attributes: [Id](`//CycloneDDS/Domain[@Id]`_)
-Children: `//CycloneDDS/Domain/Compatibility`_, `//CycloneDDS/Domain/Discovery`_, `//CycloneDDS/Domain/General`_, `//CycloneDDS/Domain/Internal`_, `//CycloneDDS/Domain/Partitioning`_, `//CycloneDDS/Domain/SSL`_, `//CycloneDDS/Domain/Security`_, `//CycloneDDS/Domain/SharedMemory`_, `//CycloneDDS/Domain/Sizing`_, `//CycloneDDS/Domain/TCP`_, `//CycloneDDS/Domain/Threads`_, `//CycloneDDS/Domain/Tracing`_
+Attributes: :ref:`Id<//CycloneDDS/Domain[@Id]>`
+Children: :ref:`Compatibility<//CycloneDDS/Domain/Compatibility>`, :ref:`Discovery<//CycloneDDS/Domain/Discovery>`, :ref:`General<//CycloneDDS/Domain/General>`, :ref:`Internal|Unsupported<//CycloneDDS/Domain/Internal>`, :ref:`Partitioning<//CycloneDDS/Domain/Partitioning>`, :ref:`SSL<//CycloneDDS/Domain/SSL>`, :ref:`Security|DDSSecurity<//CycloneDDS/Domain/Security>`, :ref:`SharedMemory<//CycloneDDS/Domain/SharedMemory>`, :ref:`Sizing<//CycloneDDS/Domain/Sizing>`, :ref:`TCP<//CycloneDDS/Domain/TCP>`, :ref:`Threads<//CycloneDDS/Domain/Threads>`, :ref:`Tracing<//CycloneDDS/Domain/Tracing>`
 
 The General element specifying Domain related settings.
 
@@ -44,7 +44,7 @@ The default value is: ``any``
 //CycloneDDS/Domain/Compatibility
 =================================
 
-Children: `//CycloneDDS/Domain/Compatibility/AssumeRtiHasPmdEndpoints`_, `//CycloneDDS/Domain/Compatibility/ExplicitlyPublishQosSetToDefault`_, `//CycloneDDS/Domain/Compatibility/ManySocketsMode`_, `//CycloneDDS/Domain/Compatibility/StandardsConformance`_
+Children: :ref:`AssumeRtiHasPmdEndpoints<//CycloneDDS/Domain/Compatibility/AssumeRtiHasPmdEndpoints>`, :ref:`ExplicitlyPublishQosSetToDefault<//CycloneDDS/Domain/Compatibility/ExplicitlyPublishQosSetToDefault>`, :ref:`ManySocketsMode<//CycloneDDS/Domain/Compatibility/ManySocketsMode>`, :ref:`StandardsConformance<//CycloneDDS/Domain/Compatibility/StandardsConformance>`
 
 The Compatibility element allows you to specify various settings related to compatibility with standards and with other DDSI implementations.
 
@@ -112,7 +112,7 @@ The default value is: ``lax``
 //CycloneDDS/Domain/Discovery
 =============================
 
-Children: `//CycloneDDS/Domain/Discovery/DSGracePeriod`_, `//CycloneDDS/Domain/Discovery/DefaultMulticastAddress`_, `//CycloneDDS/Domain/Discovery/EnableTopicDiscoveryEndpoints`_, `//CycloneDDS/Domain/Discovery/ExternalDomainId`_, `//CycloneDDS/Domain/Discovery/LeaseDuration`_, `//CycloneDDS/Domain/Discovery/MaxAutoParticipantIndex`_, `//CycloneDDS/Domain/Discovery/ParticipantIndex`_, `//CycloneDDS/Domain/Discovery/Peers`_, `//CycloneDDS/Domain/Discovery/Ports`_, `//CycloneDDS/Domain/Discovery/SPDPInterval`_, `//CycloneDDS/Domain/Discovery/SPDPMulticastAddress`_, `//CycloneDDS/Domain/Discovery/Tag`_
+Children: :ref:`DSGracePeriod<//CycloneDDS/Domain/Discovery/DSGracePeriod>`, :ref:`DefaultMulticastAddress<//CycloneDDS/Domain/Discovery/DefaultMulticastAddress>`, :ref:`EnableTopicDiscoveryEndpoints<//CycloneDDS/Domain/Discovery/EnableTopicDiscoveryEndpoints>`, :ref:`ExternalDomainId<//CycloneDDS/Domain/Discovery/ExternalDomainId>`, :ref:`LeaseDuration<//CycloneDDS/Domain/Discovery/LeaseDuration>`, :ref:`MaxAutoParticipantIndex<//CycloneDDS/Domain/Discovery/MaxAutoParticipantIndex>`, :ref:`ParticipantIndex<//CycloneDDS/Domain/Discovery/ParticipantIndex>`, :ref:`Peers<//CycloneDDS/Domain/Discovery/Peers>`, :ref:`Ports<//CycloneDDS/Domain/Discovery/Ports>`, :ref:`SPDPInterval<//CycloneDDS/Domain/Discovery/SPDPInterval>`, :ref:`SPDPMulticastAddress<//CycloneDDS/Domain/Discovery/SPDPMulticastAddress>`, :ref:`Tag<//CycloneDDS/Domain/Discovery/Tag>`
 
 The Discovery element allows you to specify various parameters related to the discovery of peers.
 
@@ -215,7 +215,7 @@ The default value is: ``none``
 //CycloneDDS/Domain/Discovery/Peers
 -----------------------------------
 
-Children: `//CycloneDDS/Domain/Discovery/Peers/Peer`_
+Children: :ref:`Peer<//CycloneDDS/Domain/Discovery/Peers/Peer>`
 
 This element statically configures addresses for discovery.
 
@@ -225,7 +225,7 @@ This element statically configures addresses for discovery.
 //CycloneDDS/Domain/Discovery/Peers/Peer
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Attributes: [Address](`//CycloneDDS/Domain/Discovery/Peers/Peer[@Address]`_)
+Attributes: :ref:`Address<//CycloneDDS/Domain/Discovery/Peers/Peer[@Address]>`
 
 This element statically configures addresses for discovery.
 
@@ -247,7 +247,7 @@ The default value is: ``<empty>``
 //CycloneDDS/Domain/Discovery/Ports
 -----------------------------------
 
-Children: `//CycloneDDS/Domain/Discovery/Ports/Base`_, `//CycloneDDS/Domain/Discovery/Ports/DomainGain`_, `//CycloneDDS/Domain/Discovery/Ports/MulticastDataOffset`_, `//CycloneDDS/Domain/Discovery/Ports/MulticastMetaOffset`_, `//CycloneDDS/Domain/Discovery/Ports/ParticipantGain`_, `//CycloneDDS/Domain/Discovery/Ports/UnicastDataOffset`_, `//CycloneDDS/Domain/Discovery/Ports/UnicastMetaOffset`_
+Children: :ref:`Base<//CycloneDDS/Domain/Discovery/Ports/Base>`, :ref:`DomainGain<//CycloneDDS/Domain/Discovery/Ports/DomainGain>`, :ref:`MulticastDataOffset<//CycloneDDS/Domain/Discovery/Ports/MulticastDataOffset>`, :ref:`MulticastMetaOffset<//CycloneDDS/Domain/Discovery/Ports/MulticastMetaOffset>`, :ref:`ParticipantGain<//CycloneDDS/Domain/Discovery/Ports/ParticipantGain>`, :ref:`UnicastDataOffset<//CycloneDDS/Domain/Discovery/Ports/UnicastDataOffset>`, :ref:`UnicastMetaOffset<//CycloneDDS/Domain/Discovery/Ports/UnicastMetaOffset>`
 
 The Ports element specifies various parameters related to the port numbers used for discovery. These all have default values specified by the DDSI 2.1 specification and rarely need to be changed.
 
@@ -379,7 +379,7 @@ The default value is: ``<empty>``
 //CycloneDDS/Domain/General
 ===========================
 
-Children: `//CycloneDDS/Domain/General/AllowMulticast`_, `//CycloneDDS/Domain/General/DontRoute`_, `//CycloneDDS/Domain/General/EnableMulticastLoopback`_, `//CycloneDDS/Domain/General/EntityAutoNaming`_, `//CycloneDDS/Domain/General/ExternalNetworkAddress`_, `//CycloneDDS/Domain/General/ExternalNetworkMask`_, `//CycloneDDS/Domain/General/FragmentSize`_, `//CycloneDDS/Domain/General/Interfaces`_, `//CycloneDDS/Domain/General/MaxMessageSize`_, `//CycloneDDS/Domain/General/MaxRexmitMessageSize`_, `//CycloneDDS/Domain/General/MulticastRecvNetworkInterfaceAddresses`_, `//CycloneDDS/Domain/General/MulticastTimeToLive`_, `//CycloneDDS/Domain/General/RedundantNetworking`_, `//CycloneDDS/Domain/General/Transport`_, `//CycloneDDS/Domain/General/UseIPv6`_
+Children: :ref:`AllowMulticast<//CycloneDDS/Domain/General/AllowMulticast>`, :ref:`DontRoute<//CycloneDDS/Domain/General/DontRoute>`, :ref:`EnableMulticastLoopback<//CycloneDDS/Domain/General/EnableMulticastLoopback>`, :ref:`EntityAutoNaming<//CycloneDDS/Domain/General/EntityAutoNaming>`, :ref:`ExternalNetworkAddress<//CycloneDDS/Domain/General/ExternalNetworkAddress>`, :ref:`ExternalNetworkMask<//CycloneDDS/Domain/General/ExternalNetworkMask>`, :ref:`FragmentSize<//CycloneDDS/Domain/General/FragmentSize>`, :ref:`Interfaces<//CycloneDDS/Domain/General/Interfaces>`, :ref:`MaxMessageSize<//CycloneDDS/Domain/General/MaxMessageSize>`, :ref:`MaxRexmitMessageSize<//CycloneDDS/Domain/General/MaxRexmitMessageSize>`, :ref:`MulticastRecvNetworkInterfaceAddresses<//CycloneDDS/Domain/General/MulticastRecvNetworkInterfaceAddresses>`, :ref:`MulticastTimeToLive<//CycloneDDS/Domain/General/MulticastTimeToLive>`, :ref:`RedundantNetworking<//CycloneDDS/Domain/General/RedundantNetworking>`, :ref:`Transport<//CycloneDDS/Domain/General/Transport>`, :ref:`UseIPv6<//CycloneDDS/Domain/General/UseIPv6>`
 
 The General element specifies overall Cyclone DDS service settings.
 
@@ -441,7 +441,7 @@ The default value is: ``true``
 //CycloneDDS/Domain/General/EntityAutoNaming
 --------------------------------------------
 
-Attributes: [seed](`//CycloneDDS/Domain/General/EntityAutoNaming[@seed]`_)
+Attributes: :ref:`seed<//CycloneDDS/Domain/General/EntityAutoNaming[@seed]>`
 
 One of: empty, fancy
 
@@ -505,7 +505,7 @@ The default value is: ``1344 B``
 //CycloneDDS/Domain/General/Interfaces
 --------------------------------------
 
-Children: `//CycloneDDS/Domain/General/Interfaces/NetworkInterface`_, `//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange`_
+Children: :ref:`NetworkInterface<//CycloneDDS/Domain/General/Interfaces/NetworkInterface>`, :ref:`PubSubMessageExchange<//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange>`
 
 This element specifies the network interfaces for use by Cyclone DDS. Multiple interfaces can be specified with an assigned priority. The list in use will be sorted by priority. If interfaces have an equal priority, the specification order will be preserved.
 
@@ -515,7 +515,7 @@ This element specifies the network interfaces for use by Cyclone DDS. Multiple i
 //CycloneDDS/Domain/General/Interfaces/NetworkInterface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Attributes: [address](`//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@address]`_), [autodetermine](`//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@autodetermine]`_), [multicast](`//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@multicast]`_), [name](`//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@name]`_), [prefer_multicast](`//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@prefer_multicast]`_), [presence_required](`//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@presence_required]`_), [priority](`//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@priority]`_)
+Attributes: :ref:`address<//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@address]>`, :ref:`autodetermine<//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@autodetermine]>`, :ref:`multicast<//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@multicast]>`, :ref:`name<//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@name]>`, :ref:`prefer_multicast<//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@prefer_multicast]>`, :ref:`presence_required<//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@presence_required]>`, :ref:`priority<//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@priority]>`
 
 This element defines a network interface. You can set autodetermine="true" to autoselect the interface CycloneDDS considers the highest quality. If autodetermine="false" (the default), you must specify the name and/or address attribute. If you specify both, they must match the same interface.
 
@@ -609,7 +609,7 @@ The default value is: ``default``
 //CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Attributes: [config](`//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange[@config]`_), [library](`//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange[@library]`_), [name](`//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange[@name]`_), [priority](`//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange[@priority]`_)
+Attributes: :ref:`config<//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange[@config]>`, :ref:`library<//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange[@library]>`, :ref:`name<//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange[@name]>`, :ref:`priority<//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange[@priority]>`
 
 This element defines a PSMX.
 
@@ -773,7 +773,7 @@ The default value is: ``default``
 //CycloneDDS/Domain/Internal
 ============================
 
-Children: `//CycloneDDS/Domain/Internal/AccelerateRexmitBlockSize`_, `//CycloneDDS/Domain/Internal/AckDelay`_, `//CycloneDDS/Domain/Internal/AutoReschedNackDelay`_, `//CycloneDDS/Domain/Internal/BuiltinEndpointSet`_, `//CycloneDDS/Domain/Internal/BurstSize`_, `//CycloneDDS/Domain/Internal/ControlTopic`_, `//CycloneDDS/Domain/Internal/DefragReliableMaxSamples`_, `//CycloneDDS/Domain/Internal/DefragUnreliableMaxSamples`_, `//CycloneDDS/Domain/Internal/DeliveryQueueMaxSamples`_, `//CycloneDDS/Domain/Internal/EnableExpensiveChecks`_, `//CycloneDDS/Domain/Internal/GenerateKeyhash`_, `//CycloneDDS/Domain/Internal/HeartbeatInterval`_, `//CycloneDDS/Domain/Internal/LateAckMode`_, `//CycloneDDS/Domain/Internal/LivelinessMonitoring`_, `//CycloneDDS/Domain/Internal/MaxParticipants`_, `//CycloneDDS/Domain/Internal/MaxQueuedRexmitBytes`_, `//CycloneDDS/Domain/Internal/MaxQueuedRexmitMessages`_, `//CycloneDDS/Domain/Internal/MaxSampleSize`_, `//CycloneDDS/Domain/Internal/MeasureHbToAckLatency`_, `//CycloneDDS/Domain/Internal/MonitorPort`_, `//CycloneDDS/Domain/Internal/MultipleReceiveThreads`_, `//CycloneDDS/Domain/Internal/NackDelay`_, `//CycloneDDS/Domain/Internal/PreEmptiveAckDelay`_, `//CycloneDDS/Domain/Internal/PrimaryReorderMaxSamples`_, `//CycloneDDS/Domain/Internal/PrioritizeRetransmit`_, `//CycloneDDS/Domain/Internal/RediscoveryBlacklistDuration`_, `//CycloneDDS/Domain/Internal/RetransmitMerging`_, `//CycloneDDS/Domain/Internal/RetransmitMergingPeriod`_, `//CycloneDDS/Domain/Internal/RetryOnRejectBestEffort`_, `//CycloneDDS/Domain/Internal/SPDPResponseMaxDelay`_, `//CycloneDDS/Domain/Internal/SecondaryReorderMaxSamples`_, `//CycloneDDS/Domain/Internal/SocketReceiveBufferSize`_, `//CycloneDDS/Domain/Internal/SocketSendBufferSize`_, `//CycloneDDS/Domain/Internal/SquashParticipants`_, `//CycloneDDS/Domain/Internal/SynchronousDeliveryLatencyBound`_, `//CycloneDDS/Domain/Internal/SynchronousDeliveryPriorityThreshold`_, `//CycloneDDS/Domain/Internal/Test`_, `//CycloneDDS/Domain/Internal/UnicastResponseToSPDPMessages`_, `//CycloneDDS/Domain/Internal/UseMulticastIfMreqn`_, `//CycloneDDS/Domain/Internal/Watermarks`_, `//CycloneDDS/Domain/Internal/WriterLingerDuration`_
+Children: :ref:`AccelerateRexmitBlockSize<//CycloneDDS/Domain/Internal/AccelerateRexmitBlockSize>`, :ref:`AckDelay<//CycloneDDS/Domain/Internal/AckDelay>`, :ref:`AutoReschedNackDelay<//CycloneDDS/Domain/Internal/AutoReschedNackDelay>`, :ref:`BuiltinEndpointSet<//CycloneDDS/Domain/Internal/BuiltinEndpointSet>`, :ref:`BurstSize<//CycloneDDS/Domain/Internal/BurstSize>`, :ref:`ControlTopic<//CycloneDDS/Domain/Internal/ControlTopic>`, :ref:`DefragReliableMaxSamples<//CycloneDDS/Domain/Internal/DefragReliableMaxSamples>`, :ref:`DefragUnreliableMaxSamples<//CycloneDDS/Domain/Internal/DefragUnreliableMaxSamples>`, :ref:`DeliveryQueueMaxSamples<//CycloneDDS/Domain/Internal/DeliveryQueueMaxSamples>`, :ref:`EnableExpensiveChecks<//CycloneDDS/Domain/Internal/EnableExpensiveChecks>`, :ref:`GenerateKeyhash<//CycloneDDS/Domain/Internal/GenerateKeyhash>`, :ref:`HeartbeatInterval<//CycloneDDS/Domain/Internal/HeartbeatInterval>`, :ref:`LateAckMode<//CycloneDDS/Domain/Internal/LateAckMode>`, :ref:`LivelinessMonitoring<//CycloneDDS/Domain/Internal/LivelinessMonitoring>`, :ref:`MaxParticipants<//CycloneDDS/Domain/Internal/MaxParticipants>`, :ref:`MaxQueuedRexmitBytes<//CycloneDDS/Domain/Internal/MaxQueuedRexmitBytes>`, :ref:`MaxQueuedRexmitMessages<//CycloneDDS/Domain/Internal/MaxQueuedRexmitMessages>`, :ref:`MaxSampleSize<//CycloneDDS/Domain/Internal/MaxSampleSize>`, :ref:`MeasureHbToAckLatency<//CycloneDDS/Domain/Internal/MeasureHbToAckLatency>`, :ref:`MonitorPort<//CycloneDDS/Domain/Internal/MonitorPort>`, :ref:`MultipleReceiveThreads<//CycloneDDS/Domain/Internal/MultipleReceiveThreads>`, :ref:`NackDelay<//CycloneDDS/Domain/Internal/NackDelay>`, :ref:`PreEmptiveAckDelay<//CycloneDDS/Domain/Internal/PreEmptiveAckDelay>`, :ref:`PrimaryReorderMaxSamples<//CycloneDDS/Domain/Internal/PrimaryReorderMaxSamples>`, :ref:`PrioritizeRetransmit<//CycloneDDS/Domain/Internal/PrioritizeRetransmit>`, :ref:`RediscoveryBlacklistDuration<//CycloneDDS/Domain/Internal/RediscoveryBlacklistDuration>`, :ref:`RetransmitMerging<//CycloneDDS/Domain/Internal/RetransmitMerging>`, :ref:`RetransmitMergingPeriod<//CycloneDDS/Domain/Internal/RetransmitMergingPeriod>`, :ref:`RetryOnRejectBestEffort<//CycloneDDS/Domain/Internal/RetryOnRejectBestEffort>`, :ref:`SPDPResponseMaxDelay<//CycloneDDS/Domain/Internal/SPDPResponseMaxDelay>`, :ref:`SecondaryReorderMaxSamples<//CycloneDDS/Domain/Internal/SecondaryReorderMaxSamples>`, :ref:`SocketReceiveBufferSize<//CycloneDDS/Domain/Internal/SocketReceiveBufferSize>`, :ref:`SocketSendBufferSize<//CycloneDDS/Domain/Internal/SocketSendBufferSize>`, :ref:`SquashParticipants<//CycloneDDS/Domain/Internal/SquashParticipants>`, :ref:`SynchronousDeliveryLatencyBound<//CycloneDDS/Domain/Internal/SynchronousDeliveryLatencyBound>`, :ref:`SynchronousDeliveryPriorityThreshold<//CycloneDDS/Domain/Internal/SynchronousDeliveryPriorityThreshold>`, :ref:`Test<//CycloneDDS/Domain/Internal/Test>`, :ref:`UnicastResponseToSPDPMessages<//CycloneDDS/Domain/Internal/UnicastResponseToSPDPMessages>`, :ref:`UseMulticastIfMreqn<//CycloneDDS/Domain/Internal/UseMulticastIfMreqn>`, :ref:`Watermarks<//CycloneDDS/Domain/Internal/Watermarks>`, :ref:`WriterLingerDuration<//CycloneDDS/Domain/Internal/WriterLingerDuration>`
 
 The Internal elements deal with a variety of settings that are evolving and that are not necessarily fully supported. For the majority of the Internal settings the functionality is supported, but the right to change the way the options control the functionality is reserved. This includes renaming or moving options.
 
@@ -843,7 +843,7 @@ The default value is: ``writers``
 //CycloneDDS/Domain/Internal/BurstSize
 --------------------------------------
 
-Children: `//CycloneDDS/Domain/Internal/BurstSize/MaxFragsRexmitSample`_, `//CycloneDDS/Domain/Internal/BurstSize/MaxInitTransmit`_, `//CycloneDDS/Domain/Internal/BurstSize/MaxRexmit`_
+Children: :ref:`MaxFragsRexmitSample<//CycloneDDS/Domain/Internal/BurstSize/MaxFragsRexmitSample>`, :ref:`MaxInitTransmit<//CycloneDDS/Domain/Internal/BurstSize/MaxInitTransmit>`, :ref:`MaxRexmit<//CycloneDDS/Domain/Internal/BurstSize/MaxRexmit>`
 
 Setting for controlling the size of transmitting bursts.
 
@@ -971,7 +971,7 @@ The default value is: ``false``
 //CycloneDDS/Domain/Internal/HeartbeatInterval
 ----------------------------------------------
 
-Attributes: [max](`//CycloneDDS/Domain/Internal/HeartbeatInterval[@max]`_), [min](`//CycloneDDS/Domain/Internal/HeartbeatInterval[@min]`_), [minsched](`//CycloneDDS/Domain/Internal/HeartbeatInterval[@minsched]`_)
+Attributes: :ref:`max<//CycloneDDS/Domain/Internal/HeartbeatInterval[@max]>`, :ref:`min<//CycloneDDS/Domain/Internal/HeartbeatInterval[@min]>`, :ref:`minsched<//CycloneDDS/Domain/Internal/HeartbeatInterval[@minsched]>`
 
 Number-with-unit
 
@@ -1041,7 +1041,7 @@ The default value is: ``false``
 //CycloneDDS/Domain/Internal/LivelinessMonitoring
 -------------------------------------------------
 
-Attributes: [Interval](`//CycloneDDS/Domain/Internal/LivelinessMonitoring[@Interval]`_), [StackTraces](`//CycloneDDS/Domain/Internal/LivelinessMonitoring[@StackTraces]`_)
+Attributes: :ref:`Interval<//CycloneDDS/Domain/Internal/LivelinessMonitoring[@Interval]>`, :ref:`StackTraces<//CycloneDDS/Domain/Internal/LivelinessMonitoring[@StackTraces]>`
 
 Boolean
 
@@ -1157,7 +1157,7 @@ The default value is: ``-1``
 //CycloneDDS/Domain/Internal/MultipleReceiveThreads
 ---------------------------------------------------
 
-Attributes: [maxretries](`//CycloneDDS/Domain/Internal/MultipleReceiveThreads[@maxretries]`_)
+Attributes: :ref:`maxretries<//CycloneDDS/Domain/Internal/MultipleReceiveThreads[@maxretries]>`
 
 One of: false, true, default
 
@@ -1235,7 +1235,7 @@ The default value is: ``true``
 //CycloneDDS/Domain/Internal/RediscoveryBlacklistDuration
 ---------------------------------------------------------
 
-Attributes: [enforce](`//CycloneDDS/Domain/Internal/RediscoveryBlacklistDuration[@enforce]`_)
+Attributes: :ref:`enforce<//CycloneDDS/Domain/Internal/RediscoveryBlacklistDuration[@enforce]>`
 
 Number-with-unit
 
@@ -1337,7 +1337,7 @@ The default value is: ``128``
 //CycloneDDS/Domain/Internal/SocketReceiveBufferSize
 ----------------------------------------------------
 
-Attributes: [max](`//CycloneDDS/Domain/Internal/SocketReceiveBufferSize[@max]`_), [min](`//CycloneDDS/Domain/Internal/SocketReceiveBufferSize[@min]`_)
+Attributes: :ref:`max<//CycloneDDS/Domain/Internal/SocketReceiveBufferSize[@max]>`, :ref:`min<//CycloneDDS/Domain/Internal/SocketReceiveBufferSize[@min]>`
 
 The settings in this element control the size of the socket receive buffers. The operating system provides some size receive buffer upon creation of the socket, this option can be used to increase the size of the buffer beyond that initially provided by the operating system. If the buffer size cannot be increased to the requested minimum size, an error is reported.
 
@@ -1377,7 +1377,7 @@ The default value is: ``default``
 //CycloneDDS/Domain/Internal/SocketSendBufferSize
 -------------------------------------------------
 
-Attributes: [max](`//CycloneDDS/Domain/Internal/SocketSendBufferSize[@max]`_), [min](`//CycloneDDS/Domain/Internal/SocketSendBufferSize[@min]`_)
+Attributes: :ref:`max<//CycloneDDS/Domain/Internal/SocketSendBufferSize[@max]>`, :ref:`min<//CycloneDDS/Domain/Internal/SocketSendBufferSize[@min]>`
 
 The settings in this element control the size of the socket send buffers. The operating system provides some size send buffer upon creation of the socket, this option can be used to increase the size of the buffer beyond that initially provided by the operating system. If the buffer size cannot be increased to the requested minimum size, an error is reported.
 
@@ -1455,7 +1455,7 @@ The default value is: ``0``
 //CycloneDDS/Domain/Internal/Test
 ---------------------------------
 
-Children: `//CycloneDDS/Domain/Internal/Test/XmitLossiness`_
+Children: :ref:`XmitLossiness<//CycloneDDS/Domain/Internal/Test/XmitLossiness>`
 
 Testing options.
 
@@ -1501,7 +1501,7 @@ The default value is: ``0``
 //CycloneDDS/Domain/Internal/Watermarks
 ---------------------------------------
 
-Children: `//CycloneDDS/Domain/Internal/Watermarks/WhcAdaptive`_, `//CycloneDDS/Domain/Internal/Watermarks/WhcHigh`_, `//CycloneDDS/Domain/Internal/Watermarks/WhcHighInit`_, `//CycloneDDS/Domain/Internal/Watermarks/WhcLow`_
+Children: :ref:`WhcAdaptive|WhcAdaptative<//CycloneDDS/Domain/Internal/Watermarks/WhcAdaptive>`, :ref:`WhcHigh<//CycloneDDS/Domain/Internal/Watermarks/WhcHigh>`, :ref:`WhcHighInit<//CycloneDDS/Domain/Internal/Watermarks/WhcHighInit>`, :ref:`WhcLow<//CycloneDDS/Domain/Internal/Watermarks/WhcLow>`
 
 Watermarks for flow-control.
 
@@ -1578,7 +1578,7 @@ The default value is: ``1 s``
 //CycloneDDS/Domain/Partitioning
 ================================
 
-Children: `//CycloneDDS/Domain/Partitioning/IgnoredPartitions`_, `//CycloneDDS/Domain/Partitioning/NetworkPartitions`_, `//CycloneDDS/Domain/Partitioning/PartitionMappings`_
+Children: :ref:`IgnoredPartitions<//CycloneDDS/Domain/Partitioning/IgnoredPartitions>`, :ref:`NetworkPartitions<//CycloneDDS/Domain/Partitioning/NetworkPartitions>`, :ref:`PartitionMappings<//CycloneDDS/Domain/Partitioning/PartitionMappings>`
 
 The Partitioning element specifies Cyclone DDS network partitions and how DCPS partition/topic combinations are mapped onto the network partitions.
 
@@ -1588,7 +1588,7 @@ The Partitioning element specifies Cyclone DDS network partitions and how DCPS p
 //CycloneDDS/Domain/Partitioning/IgnoredPartitions
 --------------------------------------------------
 
-Children: `//CycloneDDS/Domain/Partitioning/IgnoredPartitions/IgnoredPartition`_
+Children: :ref:`IgnoredPartition<//CycloneDDS/Domain/Partitioning/IgnoredPartitions/IgnoredPartition>`
 
 The IgnoredPartitions element specifies DCPS partition/topic combinations that are not distributed over the network.
 
@@ -1598,7 +1598,7 @@ The IgnoredPartitions element specifies DCPS partition/topic combinations that a
 //CycloneDDS/Domain/Partitioning/IgnoredPartitions/IgnoredPartition
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Attributes: [DCPSPartitionTopic](`//CycloneDDS/Domain/Partitioning/IgnoredPartitions/IgnoredPartition[@DCPSPartitionTopic]`_)
+Attributes: :ref:`DCPSPartitionTopic<//CycloneDDS/Domain/Partitioning/IgnoredPartitions/IgnoredPartition[@DCPSPartitionTopic]>`
 
 Text
 
@@ -1624,7 +1624,7 @@ The default value is: ``<empty>``
 //CycloneDDS/Domain/Partitioning/NetworkPartitions
 --------------------------------------------------
 
-Children: `//CycloneDDS/Domain/Partitioning/NetworkPartitions/NetworkPartition`_
+Children: :ref:`NetworkPartition<//CycloneDDS/Domain/Partitioning/NetworkPartitions/NetworkPartition>`
 
 The NetworkPartitions element specifies the Cyclone DDS network partitions.
 
@@ -1634,7 +1634,7 @@ The NetworkPartitions element specifies the Cyclone DDS network partitions.
 //CycloneDDS/Domain/Partitioning/NetworkPartitions/NetworkPartition
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Attributes: [Address](`//CycloneDDS/Domain/Partitioning/NetworkPartitions/NetworkPartition[@Address]`_), [Interface](`//CycloneDDS/Domain/Partitioning/NetworkPartitions/NetworkPartition[@Interface]`_), [Name](`//CycloneDDS/Domain/Partitioning/NetworkPartitions/NetworkPartition[@Name]`_)
+Attributes: :ref:`Address<//CycloneDDS/Domain/Partitioning/NetworkPartitions/NetworkPartition[@Address]>`, :ref:`Interface<//CycloneDDS/Domain/Partitioning/NetworkPartitions/NetworkPartition[@Interface]>`, :ref:`Name<//CycloneDDS/Domain/Partitioning/NetworkPartitions/NetworkPartition[@Name]>`
 
 Text
 
@@ -1689,7 +1689,7 @@ The default value is: ``<empty>``
 //CycloneDDS/Domain/Partitioning/PartitionMappings
 --------------------------------------------------
 
-Children: `//CycloneDDS/Domain/Partitioning/PartitionMappings/PartitionMapping`_
+Children: :ref:`PartitionMapping<//CycloneDDS/Domain/Partitioning/PartitionMappings/PartitionMapping>`
 
 The PartitionMappings element specifies the mapping from DCPS partition/topic combinations to Cyclone DDS network partitions.
 
@@ -1699,7 +1699,7 @@ The PartitionMappings element specifies the mapping from DCPS partition/topic co
 //CycloneDDS/Domain/Partitioning/PartitionMappings/PartitionMapping
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Attributes: [DCPSPartitionTopic](`//CycloneDDS/Domain/Partitioning/PartitionMappings/PartitionMapping[@DCPSPartitionTopic]`_), [NetworkPartition](`//CycloneDDS/Domain/Partitioning/PartitionMappings/PartitionMapping[@NetworkPartition]`_)
+Attributes: :ref:`DCPSPartitionTopic<//CycloneDDS/Domain/Partitioning/PartitionMappings/PartitionMapping[@DCPSPartitionTopic]>`, :ref:`NetworkPartition<//CycloneDDS/Domain/Partitioning/PartitionMappings/PartitionMapping[@NetworkPartition]>`
 
 Text
 
@@ -1737,7 +1737,7 @@ The default value is: ``<empty>``
 //CycloneDDS/Domain/SSL
 =======================
 
-Children: `//CycloneDDS/Domain/SSL/CertificateVerification`_, `//CycloneDDS/Domain/SSL/Ciphers`_, `//CycloneDDS/Domain/SSL/Enable`_, `//CycloneDDS/Domain/SSL/EntropyFile`_, `//CycloneDDS/Domain/SSL/KeyPassphrase`_, `//CycloneDDS/Domain/SSL/KeystoreFile`_, `//CycloneDDS/Domain/SSL/MinimumTLSVersion`_, `//CycloneDDS/Domain/SSL/SelfSignedCertificates`_, `//CycloneDDS/Domain/SSL/VerifyClient`_
+Children: :ref:`CertificateVerification<//CycloneDDS/Domain/SSL/CertificateVerification>`, :ref:`Ciphers<//CycloneDDS/Domain/SSL/Ciphers>`, :ref:`Enable<//CycloneDDS/Domain/SSL/Enable>`, :ref:`EntropyFile<//CycloneDDS/Domain/SSL/EntropyFile>`, :ref:`KeyPassphrase<//CycloneDDS/Domain/SSL/KeyPassphrase>`, :ref:`KeystoreFile<//CycloneDDS/Domain/SSL/KeystoreFile>`, :ref:`MinimumTLSVersion<//CycloneDDS/Domain/SSL/MinimumTLSVersion>`, :ref:`SelfSignedCertificates<//CycloneDDS/Domain/SSL/SelfSignedCertificates>`, :ref:`VerifyClient<//CycloneDDS/Domain/SSL/VerifyClient>`
 
 The SSL element allows specifying various parameters related to using SSL/TLS for DDSI over TCP.
 
@@ -1855,7 +1855,7 @@ The default value is: ``true``
 //CycloneDDS/Domain/Security
 ============================
 
-Children: `//CycloneDDS/Domain/Security/AccessControl`_, `//CycloneDDS/Domain/Security/Authentication`_, `//CycloneDDS/Domain/Security/Cryptographic`_
+Children: :ref:`AccessControl<//CycloneDDS/Domain/Security/AccessControl>`, :ref:`Authentication<//CycloneDDS/Domain/Security/Authentication>`, :ref:`Cryptographic<//CycloneDDS/Domain/Security/Cryptographic>`
 
 This element is used to configure Cyclone DDS with the DDS Security specification plugins and settings.
 
@@ -1865,7 +1865,7 @@ This element is used to configure Cyclone DDS with the DDS Security specificatio
 //CycloneDDS/Domain/Security/AccessControl
 ------------------------------------------
 
-Children: `//CycloneDDS/Domain/Security/AccessControl/Governance`_, `//CycloneDDS/Domain/Security/AccessControl/Library`_, `//CycloneDDS/Domain/Security/AccessControl/Permissions`_, `//CycloneDDS/Domain/Security/AccessControl/PermissionsCA`_
+Children: :ref:`Governance<//CycloneDDS/Domain/Security/AccessControl/Governance>`, :ref:`Library<//CycloneDDS/Domain/Security/AccessControl/Library>`, :ref:`Permissions<//CycloneDDS/Domain/Security/AccessControl/Permissions>`, :ref:`PermissionsCA<//CycloneDDS/Domain/Security/AccessControl/PermissionsCA>`
 
 This element configures the Access Control plugin of the DDS Security specification.
 
@@ -1929,7 +1929,7 @@ The default value is: ``<empty>``
 //CycloneDDS/Domain/Security/AccessControl/Library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Attributes: [finalizeFunction](`//CycloneDDS/Domain/Security/AccessControl/Library[@finalizeFunction]`_), [initFunction](`//CycloneDDS/Domain/Security/AccessControl/Library[@initFunction]`_), [path](`//CycloneDDS/Domain/Security/AccessControl/Library[@path]`_)
+Attributes: :ref:`finalizeFunction<//CycloneDDS/Domain/Security/AccessControl/Library[@finalizeFunction]>`, :ref:`initFunction<//CycloneDDS/Domain/Security/AccessControl/Library[@initFunction]>`, :ref:`path<//CycloneDDS/Domain/Security/AccessControl/Library[@path]>`
 
 Text
 
@@ -2031,7 +2031,7 @@ The default value is: ``<empty>``
 //CycloneDDS/Domain/Security/Authentication
 -------------------------------------------
 
-Children: `//CycloneDDS/Domain/Security/Authentication/CRL`_, `//CycloneDDS/Domain/Security/Authentication/IdentityCA`_, `//CycloneDDS/Domain/Security/Authentication/IdentityCertificate`_, `//CycloneDDS/Domain/Security/Authentication/IncludeOptionalFields`_, `//CycloneDDS/Domain/Security/Authentication/Library`_, `//CycloneDDS/Domain/Security/Authentication/Password`_, `//CycloneDDS/Domain/Security/Authentication/PrivateKey`_, `//CycloneDDS/Domain/Security/Authentication/TrustedCADirectory`_
+Children: :ref:`CRL<//CycloneDDS/Domain/Security/Authentication/CRL>`, :ref:`IdentityCA<//CycloneDDS/Domain/Security/Authentication/IdentityCA>`, :ref:`IdentityCertificate<//CycloneDDS/Domain/Security/Authentication/IdentityCertificate>`, :ref:`IncludeOptionalFields<//CycloneDDS/Domain/Security/Authentication/IncludeOptionalFields>`, :ref:`Library<//CycloneDDS/Domain/Security/Authentication/Library>`, :ref:`Password<//CycloneDDS/Domain/Security/Authentication/Password>`, :ref:`PrivateKey<//CycloneDDS/Domain/Security/Authentication/PrivateKey>`, :ref:`TrustedCADirectory<//CycloneDDS/Domain/Security/Authentication/TrustedCADirectory>`
 
 This element configures the Authentication plugin of the DDS Security specification.
 
@@ -2121,7 +2121,7 @@ The default value is: ``false``
 //CycloneDDS/Domain/Security/Authentication/Library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Attributes: [finalizeFunction](`//CycloneDDS/Domain/Security/Authentication/Library[@finalizeFunction]`_), [initFunction](`//CycloneDDS/Domain/Security/Authentication/Library[@initFunction]`_), [path](`//CycloneDDS/Domain/Security/Authentication/Library[@path]`_)
+Attributes: :ref:`finalizeFunction<//CycloneDDS/Domain/Security/Authentication/Library[@finalizeFunction]>`, :ref:`initFunction<//CycloneDDS/Domain/Security/Authentication/Library[@initFunction]>`, :ref:`path<//CycloneDDS/Domain/Security/Authentication/Library[@path]>`
 
 Text
 
@@ -2225,7 +2225,7 @@ The default value is: ``<empty>``
 //CycloneDDS/Domain/Security/Cryptographic
 ------------------------------------------
 
-Children: `//CycloneDDS/Domain/Security/Cryptographic/Library`_
+Children: :ref:`Library<//CycloneDDS/Domain/Security/Cryptographic/Library>`
 
 This element configures the Cryptographic plugin of the DDS Security specification.
 
@@ -2235,7 +2235,7 @@ This element configures the Cryptographic plugin of the DDS Security specificati
 //CycloneDDS/Domain/Security/Cryptographic/Library
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Attributes: [finalizeFunction](`//CycloneDDS/Domain/Security/Cryptographic/Library[@finalizeFunction]`_), [initFunction](`//CycloneDDS/Domain/Security/Cryptographic/Library[@initFunction]`_), [path](`//CycloneDDS/Domain/Security/Cryptographic/Library[@path]`_)
+Attributes: :ref:`finalizeFunction<//CycloneDDS/Domain/Security/Cryptographic/Library[@finalizeFunction]>`, :ref:`initFunction<//CycloneDDS/Domain/Security/Cryptographic/Library[@initFunction]>`, :ref:`path<//CycloneDDS/Domain/Security/Cryptographic/Library[@path]>`
 
 Text
 
@@ -2297,7 +2297,7 @@ The Shared Memory element allows specifying various parameters related to using 
 //CycloneDDS/Domain/Sizing
 ==========================
 
-Children: `//CycloneDDS/Domain/Sizing/ReceiveBufferChunkSize`_, `//CycloneDDS/Domain/Sizing/ReceiveBufferSize`_
+Children: :ref:`ReceiveBufferChunkSize<//CycloneDDS/Domain/Sizing/ReceiveBufferChunkSize>`, :ref:`ReceiveBufferSize<//CycloneDDS/Domain/Sizing/ReceiveBufferSize>`
 
 The Sizing element allows you to specify various configuration settings dealing with expected system sizes, buffer sizes, &c.
 
@@ -2335,7 +2335,7 @@ The default value is: ``1 MiB``
 //CycloneDDS/Domain/TCP
 =======================
 
-Children: `//CycloneDDS/Domain/TCP/AlwaysUsePeeraddrForUnicast`_, `//CycloneDDS/Domain/TCP/Enable`_, `//CycloneDDS/Domain/TCP/NoDelay`_, `//CycloneDDS/Domain/TCP/Port`_, `//CycloneDDS/Domain/TCP/ReadTimeout`_, `//CycloneDDS/Domain/TCP/WriteTimeout`_
+Children: :ref:`AlwaysUsePeeraddrForUnicast<//CycloneDDS/Domain/TCP/AlwaysUsePeeraddrForUnicast>`, :ref:`Enable<//CycloneDDS/Domain/TCP/Enable>`, :ref:`NoDelay<//CycloneDDS/Domain/TCP/NoDelay>`, :ref:`Port<//CycloneDDS/Domain/TCP/Port>`, :ref:`ReadTimeout<//CycloneDDS/Domain/TCP/ReadTimeout>`, :ref:`WriteTimeout<//CycloneDDS/Domain/TCP/WriteTimeout>`
 
 The TCP element allows you to specify various parameters related to running DDSI over TCP.
 
@@ -2421,7 +2421,7 @@ The default value is: ``2 s``
 //CycloneDDS/Domain/Threads
 ===========================
 
-Children: `//CycloneDDS/Domain/Threads/Thread`_
+Children: :ref:`Thread<//CycloneDDS/Domain/Threads/Thread>`
 
 This element is used to set thread properties.
 
@@ -2431,8 +2431,8 @@ This element is used to set thread properties.
 //CycloneDDS/Domain/Threads/Thread
 ----------------------------------
 
-Attributes: [Name](`//CycloneDDS/Domain/Threads/Thread[@Name]`_)
-Children: `//CycloneDDS/Domain/Threads/Thread/Scheduling`_, `//CycloneDDS/Domain/Threads/Thread/StackSize`_
+Attributes: :ref:`Name<//CycloneDDS/Domain/Threads/Thread[@Name]>`
+Children: :ref:`Scheduling<//CycloneDDS/Domain/Threads/Thread/Scheduling>`, :ref:`StackSize<//CycloneDDS/Domain/Threads/Thread/StackSize>`
 
 This element is used to set thread properties.
 
@@ -2473,7 +2473,7 @@ The default value is: ``<empty>``
 //CycloneDDS/Domain/Threads/Thread/Scheduling
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Children: `//CycloneDDS/Domain/Threads/Thread/Scheduling/Class`_, `//CycloneDDS/Domain/Threads/Thread/Scheduling/Priority`_
+Children: :ref:`Class<//CycloneDDS/Domain/Threads/Thread/Scheduling/Class>`, :ref:`Priority<//CycloneDDS/Domain/Threads/Thread/Scheduling/Priority>`
 
 This element configures the scheduling properties of the thread.
 
@@ -2521,7 +2521,7 @@ The default value is: ``default``
 //CycloneDDS/Domain/Tracing
 ===========================
 
-Children: `//CycloneDDS/Domain/Tracing/AppendToFile`_, `//CycloneDDS/Domain/Tracing/Category`_, `//CycloneDDS/Domain/Tracing/OutputFile`_, `//CycloneDDS/Domain/Tracing/PacketCaptureFile`_, `//CycloneDDS/Domain/Tracing/Verbosity`_
+Children: :ref:`AppendToFile<//CycloneDDS/Domain/Tracing/AppendToFile>`, :ref:`Category|EnableCategory<//CycloneDDS/Domain/Tracing/Category>`, :ref:`OutputFile<//CycloneDDS/Domain/Tracing/OutputFile>`, :ref:`PacketCaptureFile<//CycloneDDS/Domain/Tracing/PacketCaptureFile>`, :ref:`Verbosity<//CycloneDDS/Domain/Tracing/Verbosity>`
 
 The Tracing element controls the amount and type of information that is written into the tracing log by the DDSI service. This is useful to track the DDSI service during application development.
 
@@ -2648,6 +2648,6 @@ The default value is: ``none``
    generated from _confgen.c[237308acd53897a34e8c643e16e05a61d73ffd65] 
    generated from generate_rnc.c[b50e4b7ab1d04b2bc1d361a0811247c337b74934] 
    generated from generate_md.c[789b92e422631684352909cfb8bf43f6ceb16a01] 
-   generated from generate_rst.c[c35cdcdfc0bd4f10a801204a6cc5d540af696b6e] 
+   generated from generate_rst.c[3c4b523fbb57c8e4a7e247379d06a8021ccc21c4] 
    generated from generate_xsd.c[6b6818d7f17a35d56c376c04ec1410427f34c0f0] 
    generated from generate_defconfig.c[63ca9d8ae2f1ce2e761c9d4c0510a45eb062d830] 
