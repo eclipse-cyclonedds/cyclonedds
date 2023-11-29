@@ -63,33 +63,8 @@ The location where |var-project-short| looks for the config file is set through 
 
   export CYCLONEDDS_URI=file://cyclonedds.xml
 
-The following optional configuration parameters in SharedMemory govern how |var-project-short| treats shared memory:
-
-* Enable
-
-  * When set to *true* enables |var-project-short| to use shared memory for local data exchange
-
-  * Defaults to *false*
-
-* LogLevel
-
-  * Controls the output of the iceoryx runtime and can be set to, in order of decreasing output:
-
-    * *verbose*
-
-    * *debug*
-
-    * *info* (default)
-
-    * *warn*
-
-    * *error*
-
-    * *fatal*
-
-    * *off*
-
-The following is an example of a |var-project-short| configuration file supporting shared memory exchange:
+The following is an example of a |var-project-short| configuration file supporting shared memory exchange through iceoryx.
+Please check :ref:`//CycloneDDS/Domain/General/Interfaces/PubSubMessageExchange` for all configuration details.
 
 .. code-block:: xml
 
@@ -98,10 +73,11 @@ The following is an example of a |var-project-short| configuration file supporti
               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
               xsi:schemaLocation="https://cdds.io/config https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/iceoryx/etc/cyclonedds.xsd">
       <Domain id="any">
-          <SharedMemory>
-              <Enable>true</Enable>
-              <LogLevel>info</LogLevel>
-          </SharedMemory>
+          <General>
+              <Interfaces>
+                  <PubSubMessageExchange name="iox" library="psmx_iox" config="LOG_LEVEL=INFO;"/>
+              </Interfaces>
+          </General>
       </Domain>
   </CycloneDDS>
 
