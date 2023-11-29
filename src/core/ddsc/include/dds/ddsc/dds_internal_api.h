@@ -52,6 +52,39 @@ dds_cdrstream_desc_from_topic_desc (struct dds_cdrstream_desc *desc, const dds_t
 DDS_EXPORT dds_entity_t
 dds_create_participant_guid (const dds_domainid_t domain, const dds_qos_t *qos, const dds_listener_t *listener, uint32_t flags, const dds_guid_t *guid);
 
+/**
+ * @ingroup internal
+ * @component writer
+ * @unstable
+ * @brief Create a writer with the specified GUID
+ *
+ * @param[in]  participant_or_publisher The participant or publisher on which the writer is being created.
+ * @param[in]  topic The topic to write.
+ * @param[in]  qos The QoS to set on the new writer (can be NULL).
+ * @param[in]  listener Any listener functions associated with the new writer (can be NULL).
+ * @param[in]  guid The GUID for the new writer
+ *
+ * @returns A valid writer handle or an error code. @see dds_create_writer for details
+ */
+DDS_EXPORT dds_entity_t
+dds_create_writer_guid (dds_entity_t participant_or_publisher, dds_entity_t topic, const dds_qos_t *qos, const dds_listener_t *listener, dds_guid_t *guid);
+
+/**
+ * @ingroup internal
+ * @component reader
+ * @unstable
+ * @brief Create a reader with the specified GUID
+ *
+ * @param[in]  participant_or_subscriber The participant or subscriber on which the reader is being created.
+ * @param[in]  topic The topic to read.
+ * @param[in]  qos The QoS to set on the new reader (can be NULL).
+ * @param[in]  listener Any listener functions associated with the new reader (can be NULL).
+ * @param[in]  guid The GUID for the new reader
+ *
+ * @returns A valid reader handle or an error code. @see dds_create_reader for details
+ */
+DDS_EXPORT dds_entity_t
+dds_create_reader_guid (dds_entity_t participant_or_subscriber, dds_entity_t topic, const dds_qos_t *qos, const dds_listener_t *listener, dds_guid_t *guid);
 
 #if defined (__cplusplus)
 }

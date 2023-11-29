@@ -190,7 +190,10 @@ struct ddsi_local_orphan_writer *ddsi_new_local_orphan_writer (struct ddsi_domai
 void ddsi_delete_local_orphan_writer (struct ddsi_local_orphan_writer *wr);
 
 /** @component ddsi_endpoint */
-dds_return_t ddsi_new_writer (struct ddsi_writer **wr_out, struct ddsi_guid *wrguid, const struct ddsi_guid *group_guid, struct ddsi_participant *pp, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos, struct ddsi_whc * whc, ddsi_status_cb_t status_cb, void *status_cb_arg, struct ddsi_psmx_locators_set *psmx_locators);
+dds_return_t ddsi_generate_writer_guid (struct ddsi_guid *wrguid, struct ddsi_participant *participant, const struct ddsi_sertype *sertype);
+
+/** @component ddsi_endpoint */
+dds_return_t ddsi_new_writer (struct ddsi_writer **wr_out, const struct ddsi_guid *guid, const struct ddsi_guid *group_guid, struct ddsi_participant *pp, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos, struct ddsi_whc *whc, ddsi_status_cb_t status_cb, void *status_entity, struct ddsi_psmx_locators_set *psmx_locators);
 
 /** @component ddsi_endpoint */
 void ddsi_update_writer_qos (struct ddsi_writer *wr, const struct dds_qos *xqos);
@@ -217,7 +220,10 @@ struct ddsi_reader *ddsi_writer_first_in_sync_reader (struct ddsi_entity_index *
 struct ddsi_reader *ddsi_writer_next_in_sync_reader (struct ddsi_entity_index *entity_index, ddsrt_avl_iter_t *it);
 
 /** @component ddsi_endpoint */
-dds_return_t ddsi_new_reader (struct ddsi_reader **rd_out, struct ddsi_guid *rdguid, const struct ddsi_guid *group_guid, struct ddsi_participant *pp, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos, struct ddsi_rhc * rhc, ddsi_status_cb_t status_cb, void *status_cb_arg, struct ddsi_psmx_locators_set *psmx_locators);
+dds_return_t ddsi_generate_reader_guid (struct ddsi_guid *rdguid, struct ddsi_participant *participant, const struct ddsi_sertype *sertype);
+
+/** @component ddsi_endpoint */
+dds_return_t ddsi_new_reader (struct ddsi_reader **rd_out, const struct ddsi_guid *guid, const struct ddsi_guid *group_guid, struct ddsi_participant *pp, const char *topic_name, const struct ddsi_sertype *type, const struct dds_qos *xqos, struct ddsi_rhc *rhc, ddsi_status_cb_t status_cb, void * status_entity, struct ddsi_psmx_locators_set *psmx_locators);
 
 /** @component ddsi_endpoint */
 void ddsi_update_reader_qos (struct ddsi_reader *rd, const struct dds_qos *xqos);

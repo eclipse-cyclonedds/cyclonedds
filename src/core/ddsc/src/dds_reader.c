@@ -27,6 +27,7 @@
 #include "dds/ddsi/ddsi_endpoint_match.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsc/dds_rhc.h"
+#include "dds/ddsc/dds_internal_api.h"
 #include "dds__participant.h"
 #include "dds__subscriber.h"
 #include "dds__reader.h"
@@ -483,7 +484,7 @@ const struct dds_entity_deriver dds_entity_deriver_reader = {
   .invoke_cbs_for_pending_events = dds_reader_invoke_cbs_for_pending_events
 };
 
-static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscriber, dds_entity_t topic, const dds_qos_t *qos, const dds_listener_t *listener, struct dds_rhc *rhc)
+static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscriber, dds_entity_t topic, dds_guid_t *guid, const dds_qos_t *qos, const dds_listener_t *listener, struct dds_rhc *rhc)
 {
   dds_subscriber *sub = NULL;
   dds_entity_t subscriber;
@@ -605,7 +606,7 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
     {
       rc = DDS_RETCODE_NOT_ALLOWED_BY_SECURITY;
       ddsi_thread_state_asleep(ddsi_lookup_thread_state());
-      goto err_bad_qos;
+      goto err_not_allowed;
     }
   }
 #endif
@@ -637,7 +638,10 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
   dds_entity_add_ref_locked (&tp->m_entity);
 
   if ((rc = dds_endpoint_add_psmx_endpoint (&rd->m_endpoint, rqos, &tp->m_ktopic->psmx_topics, DDS_PSMX_ENDPOINT_TYPE_READER)) != DDS_RETCODE_OK)
+  {
+    ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
     goto err_create_endpoint;
+  }
 
   /* FIXME: listeners can come too soon ... should set mask based on listeners
      then atomically set the listeners, save the mask to a pending set and clear
@@ -645,11 +649,32 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
   dds_entity_init_complete (&rd->m_entity);
 
 
+  if (guid == NULL)
+  {
+    rc = ddsi_generate_reader_guid (&rd->m_entity.m_guid, pp, tp->m_stype);
+    if (rc != DDS_RETCODE_OK)
+    {
+      ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
+      goto err_rd_guid;
+    }
+  }
+  else
+  {
+    ddsi_guid_t ddsi_guid;
+    DDSRT_STATIC_ASSERT (sizeof (dds_guid_t) == sizeof (ddsi_guid_t));
+    memcpy (&ddsi_guid, guid, sizeof (ddsi_guid));
+    rd->m_entity.m_guid = ddsi_ntoh_guid (ddsi_guid);
+  }
+  struct ddsi_psmx_locators_set *vl_set = dds_get_psmx_locators_set (rqos, &rd->m_entity.m_domain->psmx_instances);
+
   /* Reader gets the sertype from the topic, as the serdata functions the reader uses are
      not specific for a data representation (the representation can be retrieved from the cdr header) */
-  struct ddsi_psmx_locators_set *vl_set = dds_get_psmx_locators_set (rqos, &rd->m_entity.m_domain->psmx_instances);
   rc = ddsi_new_reader (&rd->m_rd, &rd->m_entity.m_guid, NULL, pp, tp->m_name, tp->m_stype, rqos, &rd->m_rhc->common.rhc, dds_reader_status_cb, rd, vl_set);
-  assert (rc == DDS_RETCODE_OK); /* FIXME: can be out-of-resources at the very least */
+  if (rc != DDS_RETCODE_OK)
+  {
+    /* FIXME: can be out-of-resources at the very least; would leak allocated entity id */
+    abort ();
+  }
   dds_psmx_locators_set_free (vl_set);
   ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
 
@@ -680,9 +705,13 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
   return reader;
 
 err_psmx_endpoint_setcb:
+err_rd_guid:
   dds_endpoint_remove_psmx_endpoints (&rd->m_endpoint);
 err_create_endpoint:
 err_bad_qos:
+#ifdef DDS_HAS_SECURITY
+err_not_allowed:
+#endif
 err_data_repr:
 err_psmx:
   if (own_rqos)
@@ -808,14 +837,19 @@ dds_return_t dds_reader_store_loaned_sample_wr_metadata (dds_entity_t reader, dd
 
 dds_entity_t dds_create_reader (dds_entity_t participant_or_subscriber, dds_entity_t topic, const dds_qos_t *qos, const dds_listener_t *listener)
 {
-  return dds_create_reader_int (participant_or_subscriber, topic, qos, listener, NULL);
+  return dds_create_reader_int (participant_or_subscriber, topic, NULL, qos, listener, NULL);
+}
+
+dds_entity_t dds_create_reader_guid (dds_entity_t participant_or_subscriber, dds_entity_t topic, const dds_qos_t *qos, const dds_listener_t *listener, dds_guid_t *guid)
+{
+  return dds_create_reader_int (participant_or_subscriber, topic, guid, qos, listener, NULL);
 }
 
 dds_entity_t dds_create_reader_rhc (dds_entity_t participant_or_subscriber, dds_entity_t topic, const dds_qos_t *qos, const dds_listener_t *listener, struct dds_rhc *rhc)
 {
   if (rhc == NULL)
     return DDS_RETCODE_BAD_PARAMETER;
-  return dds_create_reader_int (participant_or_subscriber, topic, qos, listener, rhc);
+  return dds_create_reader_int (participant_or_subscriber, topic, NULL, qos, listener, rhc);
 }
 
 dds_return_t dds_reader_wait_for_historical_data (dds_entity_t reader, dds_duration_t max_wait)
