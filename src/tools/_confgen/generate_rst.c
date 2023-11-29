@@ -82,7 +82,7 @@ static void printlink(
   (void)flags;
   (void)units;
   assert(elem->meta.title);
-  fprintf(out, "`%s`_", elem->meta.title);
+  fprintf(out, ":ref:`%s<%s>`", elem->name, elem->meta.title);
 }
 
 static void printtype(
