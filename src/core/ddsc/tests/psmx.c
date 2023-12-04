@@ -1396,3 +1396,178 @@ CU_Test (ddsc_psmx, zero_copy)
   }
   dds_delete (dds_get_parent (pp));
 }
+
+static void deepcopy_sample_contents (const dds_topic_descriptor_t *tpdesc, void *output, const void *input)
+{
+  struct dds_cdrstream_desc desc;
+  dds_cdrstream_desc_from_topic_desc (&desc, tpdesc);
+  struct dds_ostream os;
+  dds_ostream_init (&os, &dds_cdrstream_default_allocator, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
+  dds_stream_write_sample (&os, &dds_cdrstream_default_allocator, input, &desc);
+  struct dds_istream is;
+  dds_istream_init (&is, os.m_index, os.m_buffer, os.m_xcdr_version);
+  memset (output, 0, desc.size);
+  dds_stream_read_sample (&is, output, &dds_cdrstream_default_allocator, &desc);
+  dds_istream_fini (&is);
+  dds_ostream_fini (&os, &dds_cdrstream_default_allocator);
+  dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
+}
+
+static const void *get_write_datapointer (dds_entity_t wr, const dds_topic_descriptor_t *tpdesc, const void *template, bool wrloan)
+{
+  if (!wrloan)
+    return template;
+  else
+  {
+    void *tmp;
+    dds_return_t rc = dds_request_loan (wr, &tmp);
+    CU_ASSERT_FATAL (rc == 0);
+    deepcopy_sample_contents (tpdesc, tmp, template);
+    return tmp;
+  }
+}
+
+static bool data_equal (const dds_topic_descriptor_t *tpdesc, const void *a, const void *b, bool justkey)
+{
+  struct dds_cdrstream_desc desc;
+  dds_cdrstream_desc_from_topic_desc (&desc, tpdesc);
+  struct dds_ostream osa, osb;
+  dds_ostream_init (&osa, &dds_cdrstream_default_allocator, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
+  dds_ostream_init (&osb, &dds_cdrstream_default_allocator, 0, DDSI_RTPS_CDR_ENC_VERSION_2);
+  if (justkey)
+  {
+    dds_stream_write_key (&osa, DDS_CDR_KEY_SERIALIZATION_SAMPLE, &dds_cdrstream_default_allocator, a, &desc);
+    dds_stream_write_key (&osb, DDS_CDR_KEY_SERIALIZATION_SAMPLE, &dds_cdrstream_default_allocator, b, &desc);
+  }
+  else
+  {
+    dds_stream_write_sample (&osa, &dds_cdrstream_default_allocator, a, &desc);
+    dds_stream_write_sample (&osb, &dds_cdrstream_default_allocator, b, &desc);
+  }
+  const bool eq = (osa.m_index == osb.m_index) && memcmp (osa.m_buffer, osb.m_buffer, osa.m_index) == 0;
+  dds_ostream_fini (&osa, &dds_cdrstream_default_allocator);
+  dds_ostream_fini (&osb, &dds_cdrstream_default_allocator);
+  dds_cdrstream_desc_fini (&desc, &dds_cdrstream_default_allocator);
+  return eq;
+}
+
+CU_Test (ddsc_psmx, writer_loan)
+{
+  const struct {
+    const dds_topic_descriptor_t *desc;
+    const struct {
+      dds_return_t (*op) (dds_entity_t wr, const void *data);
+      const void *data;
+    } step[2];
+  } cases[] = {
+    { &PsmxLoanTest0_desc, {
+      { dds_write, &(PsmxLoanTest0){ { 0x12345678, 0x55 }, 0x22 } },
+      { dds_dispose, &(PsmxLoanTest0){ { 0, 0 }, 0x22 } } } },
+    { &PsmxLoanTest1_desc, {
+      { dds_write, &(PsmxLoanTest1){ { 0x12345678, 0x55 }, 0x22, "aap" } },
+      { dds_dispose, &(PsmxLoanTest1){ { 0, 0, }, 0x22, "" } } } },
+    { &PsmxLoanTest2_desc, {
+      { dds_write, &(PsmxLoanTest2){ { 0x12345678, 0x55 }, 0x22, "noot" } },
+      { dds_dispose, &(PsmxLoanTest2){ { 0, 0, }, 0x22, "noot" } } } },
+  };
+  dds_return_t rc;
+
+  const dds_entity_t pp = create_participant (0);
+  CU_ASSERT_FATAL (pp > 0);
+  for (size_t k = 0; k < sizeof (cases) / sizeof (cases[0]); k++)
+  {
+    char topicname[100];
+    create_unique_topic_name ("writer_loan", topicname, sizeof (topicname));
+    const dds_entity_t tp = dds_create_topic (pp, cases[k].desc, topicname, NULL, NULL);
+    CU_ASSERT_FATAL (tp > 0);
+    for (int wr_psmx_enabled_i = 0; wr_psmx_enabled_i <= 1; wr_psmx_enabled_i++)
+    {
+      const bool wr_psmx_enabled = wr_psmx_enabled_i;
+      for (int rd_psmx_enabled_i = 0; rd_psmx_enabled_i <= 1; rd_psmx_enabled_i++)
+      {
+        const bool rd_psmx_enabled = rd_psmx_enabled_i;
+        for (int wrloan_i = 0; wrloan_i <= 1; wrloan_i++)
+        {
+          const bool wrloan = wrloan_i;
+          for (int rdloan_i = 0; rdloan_i <= 1; rdloan_i++)
+          {
+            const bool rdloan = rdloan_i;
+            dds_qos_t *qos;
+            printf ("ddsc_psmx writer_loan: %s psmx %d %d wrloan %d rdloan %d", cases[k].desc->m_typename, wr_psmx_enabled, rd_psmx_enabled, wrloan, rdloan);
+            fflush (stdout);
+
+            qos = dds_create_qos ();
+            if (!wr_psmx_enabled)
+              dds_qset_psmx_instances (qos, 0, NULL);
+            const dds_entity_t wr = dds_create_writer (pp, tp, qos, NULL);
+            CU_ASSERT_FATAL (wr > 0);
+            CU_ASSERT_FATAL (endpoint_has_psmx_enabled (wr) == wr_psmx_enabled);
+            dds_delete_qos (qos);
+
+            qos = dds_create_qos ();
+            if (!rd_psmx_enabled)
+              dds_qset_psmx_instances (qos, 0, NULL);
+            dds_entity_t rd;
+            const dds_entity_t ws = dds_create_waitset (pp);
+            rd = dds_create_reader (pp, tp, qos, NULL);
+            CU_ASSERT_FATAL (rd > 0);
+            CU_ASSERT_FATAL (endpoint_has_psmx_enabled (rd) == rd_psmx_enabled);
+            dds_delete_qos (qos);
+
+            rc = dds_set_status_mask (rd, DDS_DATA_AVAILABLE_STATUS);
+            CU_ASSERT_FATAL (rc == 0);
+            rc = dds_waitset_attach (ws, rd, 0);
+            CU_ASSERT_FATAL (rc == 0);
+
+            for (int step_i = 0; step_i < (int) (sizeof (cases[k].step) / sizeof (cases[k].step[0])); step_i++)
+            {
+              const void *wrdata = cases[k].step[step_i].data;
+              dds_return_t (* const op) (dds_entity_t wr, const void *data) = cases[k].step[step_i].op;
+
+              // dispose + loan is not supported (triggers use-after-free; this is documented, but bad)
+              if (op == dds_dispose && wrloan)
+                continue;
+
+              const bool justkey = (op != dds_write);
+              printf (" | %s %p", (op == dds_write) ? "write" : "dispose", wrdata); fflush (stdout);
+              rc = op (wr, get_write_datapointer (wr, cases[k].desc, wrdata, wrloan));
+              CU_ASSERT_FATAL (rc == 0);
+              (void) dds_waitset_wait (ws, NULL, 0, DDS_INFINITY);
+              dds_sample_info_t si;
+              void *rddata;
+              if (rdloan)
+                rddata = NULL;
+              else
+              {
+                rddata = ddsrt_malloc (cases[k].desc->m_size);
+                memset (rddata, 0, cases[k].desc->m_size);
+              }
+              rc = dds_take (rd, &rddata, &si, 1, 1);
+              CU_ASSERT_FATAL (rc == 1);
+              printf (" | rddata %p", rddata); fflush (stdout);
+              CU_ASSERT_FATAL (data_equal (cases[k].desc, wrdata, rddata, justkey));
+              if (!rdloan)
+                dds_sample_free (rddata, cases[k].desc, DDS_FREE_ALL);
+              else
+              {
+                rc = dds_return_loan (rd, &rddata, 1);
+                CU_ASSERT_FATAL (rc == DDS_RETCODE_OK);
+              }
+            }
+            printf ("\n"); fflush (stdout);
+
+            rc = dds_delete (wr);
+            CU_ASSERT_FATAL (rc == 0);
+            rc = dds_delete (rd);
+            CU_ASSERT_FATAL (rc == 0);
+            rc = dds_delete (ws);
+            CU_ASSERT_FATAL (rc == 0);
+          }
+        }
+      }
+    }
+    rc = dds_delete (tp);
+    CU_ASSERT_FATAL (rc == 0);
+  }
+  dds_delete (dds_get_parent (pp));
+}
