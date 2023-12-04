@@ -39,3 +39,20 @@ struct PsmxType1 {
 struct PsmxKeySupportCheck {
   @key long k;
 };
+
+struct PsmxLoanTest0 {
+  PsmxType1xy xy;
+  @key octet z;
+};
+
+struct PsmxLoanTest1 {
+  PsmxType1xy xy;
+  @key octet z;
+  string str;
+};
+
+struct PsmxLoanTest2 {
+  PsmxType1xy xy;
+  @key octet z;
+  @key string str;
+};
