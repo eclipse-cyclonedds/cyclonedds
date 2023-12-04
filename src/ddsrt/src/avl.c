@@ -510,9 +510,8 @@ static void delete_generic (const ddsrt_avl_treedef_t *td, ddsrt_avl_tree_t *tre
                 whence->cs[1]->parent = whence;
             }
             subst->cs[0] = node->cs[0];
-            if (subst->cs[0]) {
-                subst->cs[0]->parent = subst;
-            }
+            assert(subst->cs[0] != NULL);
+            subst->cs[0]->parent = subst;
             if (path) {
                 path->p.pnode[path->p.pnodeidx+1] = &subst->cs[0];
             }
@@ -521,9 +520,8 @@ static void delete_generic (const ddsrt_avl_treedef_t *td, ddsrt_avl_tree_t *tre
         subst->parent = node->parent;
         subst->height = node->height;
         subst->cs[1] = node->cs[1];
-        if (subst->cs[1]) {
-            subst->cs[1]->parent = subst;
-        }
+        assert(subst->cs[1] != NULL);
+        subst->cs[1]->parent = subst;
         *pnode = subst;
     }
 
