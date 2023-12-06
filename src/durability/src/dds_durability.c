@@ -584,12 +584,13 @@ static bool dc_is_ds_endpoint (struct com_t *com, dds_builtintopic_endpoint_t *e
   dds_builtintopic_participant_t *participant;
   dds_instance_handle_t ih;
   dds_return_t rc;
-  void *samples[1] = { NULL };
+  void *samples[1];
   dds_sample_info_t info[1];
   void *userdata = NULL;
   size_t size = 0;
   char id_str[37];
   bool result = false;
+  samples[0] = NULL;
 
   assert(ep);
   /* by convention, if the ident == NULL then return true */
@@ -624,13 +625,13 @@ static bool dc_is_ds_endpoint (struct com_t *com, dds_builtintopic_endpoint_t *e
     }
     dds_free(userdata);
   }
-  (void)dds_return_loan (com->rd_participant, samples, rc);
+  (void)dds_return_loan(com->rd_participant, samples, rc);
   return result;
 
-err_lookup_instance:
-err_read_instance:
-  (void)dds_return_loan (com->rd_participant, samples, rc);
 err_qget_userdata:
+  (void)dds_return_loan(com->rd_participant, samples, rc);
+err_read_instance:
+err_lookup_instance:
   return false;
 }
 
@@ -1150,7 +1151,7 @@ static int dc_process_status (dds_entity_t rd, struct dc_t *dc)
 {
 #define MAX_SAMPLES   100
 
-  void *samples[MAX_SAMPLES] = { NULL };
+  void *samples[MAX_SAMPLES];
   dds_sample_info_t info[MAX_SAMPLES];
   int samplecount;
   int j;
@@ -1161,7 +1162,6 @@ static int dc_process_status (dds_entity_t rd, struct dc_t *dc)
   samplecount = dds_take_mask (rd, samples, info, MAX_SAMPLES, MAX_SAMPLES, DDS_NOT_READ_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE);
   if (samplecount < 0) {
     DDS_ERROR("durable client failed to take ds_status [%s]", dds_strretcode(-samplecount));
-    goto err_samplecount;
   } else {
     /* call the handler function to process the status sample */
     for (j = 0; !dds_triggered(dc->com->ws) && j < samplecount; j++) {
@@ -1179,9 +1179,8 @@ static int dc_process_status (dds_entity_t rd, struct dc_t *dc)
         dc_server_discovered(dc, status);
       }
     }
+    (void)dds_return_loan(rd, samples, samplecount);
   }
-  (void)dds_return_loan (rd, samples, samplecount);
-err_samplecount:
   return samplecount;
 #undef MAX_SAMPLES
 }
@@ -1201,7 +1200,6 @@ static int dc_process_response (dds_entity_t rd, struct dc_t *dc)
   samplecount = dds_take_mask (rd, samples, info, MAX_SAMPLES, MAX_SAMPLES, DDS_NOT_READ_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE);
   if (samplecount < 0) {
     DDS_ERROR("failed to take dc_response [%s]", dds_strretcode(-samplecount));
-    goto err_samplecount;
   } else {
     /* process the response
      * we ignore invalid samples and only process valid responses */
@@ -1216,9 +1214,8 @@ static int dc_process_response (dds_entity_t rd, struct dc_t *dc)
         DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "dc_response %s%s\n", str, (len >= sizeof(str)) ? "..(trunc)" : "");
       }
     }
+    (void)dds_return_loan(rd, samples, samplecount);
   }
-  (void)dds_return_loan (rd, samples, samplecount);
-err_samplecount:
   return samplecount;
 
 #undef MAX_SAMPLES

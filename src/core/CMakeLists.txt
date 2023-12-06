@@ -17,7 +17,7 @@ else()
   add_library(ddsc)
 endif()
 
-if(BUILD_TESTING)
+if(BUILD_TESTING OR ENABLE_DURABILITY)
   set_property(TARGET ddsc PROPERTY WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
 else()
   set_property(TARGET ddsc PROPERTY C_VISIBILITY_PRESET hidden)
