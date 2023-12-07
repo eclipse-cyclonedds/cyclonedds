@@ -965,18 +965,21 @@ static void put_a_line(
  */
 {
     size_t  len;
-    char *  out_p;
-    char *  tp;
 
     if (no_output)
         return;
     len = strlen( out);
-    tp = out_p = out + len - 2;             /* Just before '\n'     */
-    while (char_type[ *out_p & UCHARMAX] & SPA)
-        out_p--;                    /* Remove trailing white spaces */
-    if (out_p < tp) {
-        *++out_p = '\n';
-        *++out_p = EOS;
+    if (len > 2)
+    {
+        char *  out_p;
+        char *  tp;
+        tp = out_p = out + len - 2;         /* Just before '\n'     */
+        while (out_p > out && char_type[ *out_p & UCHARMAX] & SPA)
+            out_p--;                /* Remove trailing white spaces */
+        if (out_p < tp && !(char_type[ *out_p & UCHARMAX] & SPA)) {
+            *++out_p = '\n';
+            *++out_p = EOS;
+        }
     }
     if (mcpp_fputs( out, MCPP_OUT) == EOF)
         cfatal( "File write error", NULL, 0L, NULL);        /* _F_  */
