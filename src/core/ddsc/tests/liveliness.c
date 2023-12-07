@@ -83,8 +83,9 @@ static ddsi_seqno_t get_pmd_seqno(dds_entity_t participant)
   CU_ASSERT_EQUAL_FATAL(dds_entity_pin(participant, &pp_entity), 0);
   ddsi_thread_state_awake(ddsi_lookup_thread_state(), &pp_entity->m_domain->gv);
   pp = ddsi_entidx_lookup_participant_guid(pp_entity->m_domain->gv.entity_index, &pp_entity->m_guid);
-  wr = ddsi_get_builtin_writer (pp, DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER);
+  dds_return_t ret = ddsi_get_builtin_writer (pp, DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER, &wr);
   CU_ASSERT_FATAL(wr != NULL);
+  CU_ASSERT_EQUAL_FATAL(ret, DDS_RETCODE_OK);
   seqno = wr->seq;
   ddsi_thread_state_asleep(ddsi_lookup_thread_state());
   dds_entity_unpin(pp_entity);

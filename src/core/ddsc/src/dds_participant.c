@@ -183,6 +183,8 @@ err_dds_init:
   return ret;
 }
 
+DDSRT_STATIC_ASSERT (DDS_PARTICIPANT_FLAGS_NO_DISCOVERY == (RTPS_PF_NO_BUILTIN_READERS | RTPS_PF_NO_BUILTIN_WRITERS | RTPS_PF_NO_PRIVILEGED_PP));
+
 dds_entity_t dds_create_participant_guid (const dds_domainid_t domain, const dds_qos_t *qos, const dds_listener_t *listener, uint32_t flags, const dds_guid_t *guid)
 {
   return create_participant_flags_guid (domain, qos, listener, flags, guid);

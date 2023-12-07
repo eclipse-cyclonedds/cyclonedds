@@ -62,19 +62,22 @@ static int ddsi_sedp_write_topic_impl (struct ddsi_writer *wr, int alive, const 
 
 int ddsi_sedp_write_topic (struct ddsi_topic *tp, bool alive)
 {
-  int res = 0;
   if (!(tp->pp->bes & DDSI_DISC_BUILTIN_ENDPOINT_TOPICS_ANNOUNCER))
-    return res;
-  if (!ddsi_is_builtin_entityid (tp->e.guid.entityid, DDSI_VENDORID_ECLIPSE) && !tp->e.onlylocal)
-  {
-    unsigned entityid = ddsi_determine_topic_writer (tp);
-    struct ddsi_writer *sedp_wr = ddsi_get_sedp_writer (tp->pp, entityid);
-    ddsrt_mutex_lock (&tp->e.qos_lock);
-    // the allocation type info object is freed with the plist
-    res = ddsi_sedp_write_topic_impl (sedp_wr, alive, &tp->e.guid, tp->definition->xqos, ddsi_type_pair_get_typeinfo (tp->e.gv, tp->definition->type_pair));
-    ddsrt_mutex_unlock (&tp->e.qos_lock);
-  }
-  return res;
+    return 0;
+  if (ddsi_is_builtin_entityid (tp->e.guid.entityid, DDSI_VENDORID_ECLIPSE) || tp->e.onlylocal)
+    return 0;
+
+  unsigned entityid = ddsi_determine_topic_writer (tp);
+  struct ddsi_writer *sedp_wr = ddsi_get_sedp_writer (tp->pp, entityid);
+  if (sedp_wr == NULL)
+    return 0;
+
+  int ret = 0;
+  ddsrt_mutex_lock (&tp->e.qos_lock);
+  // the allocation type info object is freed with the plist
+  ret = ddsi_sedp_write_topic_impl (sedp_wr, alive, &tp->e.guid, tp->definition->xqos, ddsi_type_pair_get_typeinfo (tp->e.gv, tp->definition->type_pair));
+  ddsrt_mutex_unlock (&tp->e.qos_lock);
+  return ret;
 }
 
 static const char *durability_to_string (dds_durability_kind_t k)

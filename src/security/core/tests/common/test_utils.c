@@ -632,8 +632,9 @@ DDS_Security_DatawriterCryptoHandle get_builtin_writer_crypto_handle(dds_entity_
   CU_ASSERT_EQUAL_FATAL(dds_entity_pin(participant, &pp_entity), 0);
   ddsi_thread_state_awake(ddsi_lookup_thread_state(), &pp_entity->m_domain->gv);
   pp = ddsi_entidx_lookup_participant_guid(pp_entity->m_domain->gv.entity_index, &pp_entity->m_guid);
-  wr = ddsi_get_builtin_writer (pp, entityid);
-  CU_ASSERT_FATAL(wr != NULL);
+  dds_return_t ret = ddsi_get_builtin_writer (pp, entityid, &wr);
+  CU_ASSERT_FATAL(ret, DDS_RETCODE_OK);
+  CU_ASSERT_EQUAL_FATAL(wr != NULL);
   crypto_handle = wr->sec_attr->crypto_handle;
   ddsi_thread_state_asleep(ddsi_lookup_thread_state());
   dds_entity_unpin(pp_entity);

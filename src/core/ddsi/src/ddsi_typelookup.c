@@ -59,7 +59,7 @@ static struct ddsi_writer *get_typelookup_writer (const struct ddsi_domaingv *gv
   while (wr == NULL && (pp = ddsi_entidx_enum_participant_next (&est)) != NULL)
   {
     if (participant_builtin_writers_ready (pp))
-      wr = ddsi_get_builtin_writer (pp, wr_eid);
+      (void) ddsi_get_builtin_writer (pp, wr_eid, &wr);
   }
   ddsi_entidx_enum_participant_fini (&est);
   ddsi_thread_state_asleep (ddsi_lookup_thread_state ());

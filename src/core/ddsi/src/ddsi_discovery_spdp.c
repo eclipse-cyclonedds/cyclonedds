@@ -236,18 +236,21 @@ int ddsi_spdp_write (struct ddsi_participant *pp)
   struct ddsi_participant_builtin_topic_data_locators locs;
 
   if (pp->e.onlylocal) {
-      /* This topic is only locally available. */
-      return 0;
+    /* This topic is only locally available. */
+    return 0;
   }
 
-  ETRACE (pp, "ddsi_spdp_write("PGUIDFMT")\n", PGUID (pp->e.guid));
+  dds_return_t ret = ddsi_get_builtin_writer (pp, DDSI_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER, &wr);
+  if (ret == DDS_RETCODE_OK && wr == NULL)
+    return 0;
 
-  if ((wr = ddsi_get_builtin_writer (pp, DDSI_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER)) == NULL)
+  ETRACE (pp, "ddsi_spdp_write("PGUIDFMT")\n", PGUID (pp->e.guid));
+  if (ret != DDS_RETCODE_OK)
   {
     ETRACE (pp, "ddsi_spdp_write("PGUIDFMT") - builtin participant writer not found\n", PGUID (pp->e.guid));
     return 0;
   }
-
+  assert (wr != NULL);
   ddsi_get_participant_builtin_topic_data (pp, &ps, &locs);
   return ddsi_write_and_fini_plist (wr, &ps, true);
 }
@@ -257,14 +260,16 @@ static int ddsi_spdp_dispose_unregister_with_wr (struct ddsi_participant *pp, un
   ddsi_plist_t ps;
   struct ddsi_writer *wr;
 
-  if ((wr = ddsi_get_builtin_writer (pp, entityid)) == NULL)
+  dds_return_t ret = ddsi_get_builtin_writer (pp, entityid, &wr);
+  if (ret == DDS_RETCODE_OK && wr == NULL)
+    return 0;
+  else if (ret != DDS_RETCODE_OK)
   {
     ETRACE (pp, "ddsi_spdp_dispose_unregister("PGUIDFMT") - builtin participant %s writer not found\n",
-            PGUID (pp->e.guid),
-            entityid == DDSI_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER ? "secure" : "");
+            PGUID (pp->e.guid), entityid == DDSI_ENTITYID_SPDP_RELIABLE_BUILTIN_PARTICIPANT_SECURE_WRITER ? "secure" : "");
     return 0;
   }
-
+  assert (wr != NULL);
   ddsi_plist_init_empty (&ps);
   ps.present |= PP_PARTICIPANT_GUID;
   ps.participant_guid = pp->e.guid;
@@ -331,11 +336,13 @@ static bool get_pp_and_spdp_wr (struct ddsi_domaingv *gv, const ddsi_guid_t *pp_
     GVTRACE ("handle_xevk_spdp "PGUIDFMT" - unknown guid\n", PGUID (*pp_guid));
     return false;
   }
-  if ((*spdp_wr = ddsi_get_builtin_writer (*pp, DDSI_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER)) == NULL)
+  if (ddsi_get_builtin_writer (*pp, DDSI_ENTITYID_SPDP_BUILTIN_PARTICIPANT_WRITER, spdp_wr) != DDS_RETCODE_OK)
   {
     GVTRACE ("handle_xevk_spdp "PGUIDFMT" - spdp writer of participant not found\n", PGUID (*pp_guid));
     return false;
   }
+  if (*spdp_wr == NULL)
+    return false;
   return true;
 }
 

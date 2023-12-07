@@ -263,30 +263,32 @@ static int sedp_write_endpoint_impl
 
 int ddsi_sedp_write_writer (struct ddsi_writer *wr)
 {
-  if ((!ddsi_is_builtin_entityid(wr->e.guid.entityid, DDSI_VENDORID_ECLIPSE)) && (!wr->e.onlylocal))
-  {
-    unsigned entityid = ddsi_determine_publication_writer(wr);
-    struct ddsi_writer *sedp_wr = ddsi_get_sedp_writer (wr->c.pp, entityid);
-    ddsi_security_info_t *security = NULL;
+  if (ddsi_is_builtin_entityid (wr->e.guid.entityid, DDSI_VENDORID_ECLIPSE) || wr->e.onlylocal)
+    return 0;
+
+  unsigned entityid = ddsi_determine_publication_writer (wr);
+  struct ddsi_writer *sedp_wr = ddsi_get_sedp_writer (wr->c.pp, entityid);
+  if (sedp_wr == NULL)
+    return 0;
+
 #ifdef DDS_HAS_SSM
-    struct ddsi_addrset *as = wr->ssm_as;
+  struct ddsi_addrset *as = wr->ssm_as;
 #else
-    struct ddsi_addrset *as = NULL;
+  struct ddsi_addrset *as = NULL;
 #endif
+
+  ddsi_security_info_t *security = NULL;
 #ifdef DDS_HAS_SECURITY
-    ddsi_security_info_t tmp;
-    if (ddsi_omg_get_writer_security_info (wr, &tmp))
-    {
-      security = &tmp;
-    }
+  ddsi_security_info_t tmp;
+  if (ddsi_omg_get_writer_security_info (wr, &tmp))
+    security = &tmp;
 #endif
+
 #ifdef DDS_HAS_TYPELIB
-    return sedp_write_endpoint_impl (sedp_wr, 1, &wr->e.guid, &wr->c, wr->xqos, as, security, wr->type);
+  return sedp_write_endpoint_impl (sedp_wr, 1, &wr->e.guid, &wr->c, wr->xqos, as, security, wr->type);
 #else
-    return sedp_write_endpoint_impl (sedp_wr, 1, &wr->e.guid, &wr->c, wr->xqos, as, security);
+  return sedp_write_endpoint_impl (sedp_wr, 1, &wr->e.guid, &wr->c, wr->xqos, as, security);
 #endif
-  }
-  return 0;
 }
 
 int ddsi_sedp_write_reader (struct ddsi_reader *rd)
@@ -294,8 +296,11 @@ int ddsi_sedp_write_reader (struct ddsi_reader *rd)
   if (ddsi_is_builtin_entityid (rd->e.guid.entityid, DDSI_VENDORID_ECLIPSE) || rd->e.onlylocal)
     return 0;
 
-  unsigned entityid = ddsi_determine_subscription_writer(rd);
+  unsigned entityid = ddsi_determine_subscription_writer (rd);
   struct ddsi_writer *sedp_wr = ddsi_get_sedp_writer (rd->c.pp, entityid);
+  if (sedp_wr == NULL)
+    return 0;
+
   ddsi_security_info_t *security = NULL;
   struct ddsi_addrset *as = NULL;
 #ifdef DDS_HAS_NETWORK_PARTITIONS
@@ -333,32 +338,36 @@ int ddsi_sedp_write_reader (struct ddsi_reader *rd)
 
 int ddsi_sedp_dispose_unregister_writer (struct ddsi_writer *wr)
 {
-  if ((!ddsi_is_builtin_entityid(wr->e.guid.entityid, DDSI_VENDORID_ECLIPSE)) && (!wr->e.onlylocal))
-  {
-    unsigned entityid = ddsi_determine_publication_writer(wr);
-    struct ddsi_writer *sedp_wr = ddsi_get_sedp_writer (wr->c.pp, entityid);
+  if (ddsi_is_builtin_entityid (wr->e.guid.entityid, DDSI_VENDORID_ECLIPSE) || wr->e.onlylocal)
+    return 0;
+
+  unsigned entityid = ddsi_determine_publication_writer (wr);
+  struct ddsi_writer *sedp_wr = ddsi_get_sedp_writer (wr->c.pp, entityid);
+  if (sedp_wr == NULL)
+    return 0;
+
 #ifdef DDS_HAS_TYPELIB
-    return sedp_write_endpoint_impl (sedp_wr, 0, &wr->e.guid, NULL, NULL, NULL, NULL, NULL);
+  return sedp_write_endpoint_impl (sedp_wr, 0, &wr->e.guid, NULL, NULL, NULL, NULL, NULL);
 #else
-    return sedp_write_endpoint_impl (sedp_wr, 0, &wr->e.guid, NULL, NULL, NULL, NULL);
+  return sedp_write_endpoint_impl (sedp_wr, 0, &wr->e.guid, NULL, NULL, NULL, NULL);
 #endif
-  }
-  return 0;
 }
 
 int ddsi_sedp_dispose_unregister_reader (struct ddsi_reader *rd)
 {
-  if ((!ddsi_is_builtin_entityid(rd->e.guid.entityid, DDSI_VENDORID_ECLIPSE)) && (!rd->e.onlylocal))
-  {
-    unsigned entityid = ddsi_determine_subscription_writer(rd);
-    struct ddsi_writer *sedp_wr = ddsi_get_sedp_writer (rd->c.pp, entityid);
+  if (ddsi_is_builtin_entityid (rd->e.guid.entityid, DDSI_VENDORID_ECLIPSE) || rd->e.onlylocal)
+    return 0;
+
+  unsigned entityid = ddsi_determine_subscription_writer (rd);
+  struct ddsi_writer *sedp_wr = ddsi_get_sedp_writer (rd->c.pp, entityid);
+  if (sedp_wr == NULL)
+    return 0;
+
 #ifdef DDS_HAS_TYPELIB
-    return sedp_write_endpoint_impl (sedp_wr, 0, &rd->e.guid, NULL, NULL, NULL, NULL, NULL);
+  return sedp_write_endpoint_impl (sedp_wr, 0, &rd->e.guid, NULL, NULL, NULL, NULL, NULL);
 #else
-    return sedp_write_endpoint_impl (sedp_wr, 0, &rd->e.guid, NULL, NULL, NULL, NULL);
+  return sedp_write_endpoint_impl (sedp_wr, 0, &rd->e.guid, NULL, NULL, NULL, NULL);
 #endif
-  }
-  return 0;
 }
 
 static const char *durability_to_string (dds_durability_kind_t k)

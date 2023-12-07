@@ -63,22 +63,23 @@ void ddsi_write_pmd_message (struct ddsi_thread_state * const thrst, struct ddsi
   struct ddsi_serdata *serdata;
   struct ddsi_tkmap_instance *tk;
 
-  if ((wr = ddsi_get_builtin_writer (pp, DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER)) == NULL)
+  if (ddsi_get_builtin_writer (pp, DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_MESSAGE_WRITER, &wr) != DDS_RETCODE_OK)
   {
     GVTRACE ("ddsi_write_pmd_message ("PGUIDFMT") - builtin pmd writer not found\n", PGUID (pp->e.guid));
-    return;
   }
+  else if (wr != NULL)
+  {
+    pmd.participantGuidPrefix = pp->e.guid.prefix;
+    pmd.kind = pmd_kind;
+    pmd.value.length = (uint32_t) sizeof (data);
+    pmd.value.value = data;
+    serdata = ddsi_serdata_from_sample (gv->pmd_type, SDK_DATA, &pmd);
+    serdata->timestamp = ddsrt_time_wallclock ();
 
-  pmd.participantGuidPrefix = pp->e.guid.prefix;
-  pmd.kind = pmd_kind;
-  pmd.value.length = (uint32_t) sizeof (data);
-  pmd.value.value = data;
-  serdata = ddsi_serdata_from_sample (gv->pmd_type, SDK_DATA, &pmd);
-  serdata->timestamp = ddsrt_time_wallclock ();
-
-  tk = ddsi_tkmap_lookup_instance_ref (gv->m_tkmap, serdata);
-  ddsi_write_sample_nogc (thrst, xp, wr, serdata, tk);
-  ddsi_tkmap_instance_unref (gv->m_tkmap, tk);
+    tk = ddsi_tkmap_lookup_instance_ref (gv->m_tkmap, serdata);
+    ddsi_write_sample_nogc (thrst, xp, wr, serdata, tk);
+    ddsi_tkmap_instance_unref (gv->m_tkmap, tk);
+  }
 #undef PMD_DATA_LENGTH
 }
 
