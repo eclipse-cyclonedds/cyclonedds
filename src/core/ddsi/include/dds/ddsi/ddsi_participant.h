@@ -26,6 +26,28 @@
 extern "C" {
 #endif
 
+/* Set this flag in new_participant to prevent the creation SPDP, SEDP
+   and PMD readers for that participant.  It doesn't really need it,
+   they all share the information anyway.  But you do need it once. */
+#define RTPS_PF_NO_BUILTIN_READERS 1u
+/* Set this flag to prevent the creation of SPDP, SEDP and PMD
+   writers.  It will then rely on the "privileged participant", which
+   must exist at the time of creation.  It creates a reference to that
+   "privileged participant" to ensure it won't disappear too early. */
+#define RTPS_PF_NO_BUILTIN_WRITERS 2u
+/* Set this flag to mark the participant as the "privileged
+   participant", there can only be one of these.  The privileged
+   participant MUST have all builtin readers and writers. */
+#define RTPS_PF_PRIVILEGED_PP 4u
+/* Set this flag to mark the participant as is_ddsi2_pp. */
+#define RTPS_PF_IS_DDSI2_PP 8u
+/* Set this flag to mark the participant as an local entity only. */
+#define RTPS_PF_ONLY_LOCAL 16u
+/* Set this flag to mark that no privileged participant should be used
+   for the built-in readers and writers. Can be used with NO_BUILTIN_READER and
+   NO_BUILTIN_WRITER flag to avoid any communication for built-in topics. */
+#define RTPS_PF_NO_PRIVILEGED_PP 32u
+
 struct ddsi_avail_entityid_set {
   struct ddsi_inverse_uint32_set x;
 };
@@ -42,6 +64,7 @@ struct ddsi_participant
   struct ddsi_entity_common e;
   uint32_t bes; /* built-in endpoint set */
   unsigned is_ddsi2_pp: 1; /* true for the "federation leader", the ddsi2 participant itself in OSPL; FIXME: probably should use this for broker mode as well ... */
+  uint32_t flags; /* flags used when creating this participant */
   struct ddsi_plist *plist; /* settings/QoS for this participant */
   struct ddsi_xevent *spdp_xevent; /* timed event for periodically publishing SPDP */
   struct ddsi_xevent *pmd_update_xevent; /* timed event for periodically publishing ParticipantMessageData */

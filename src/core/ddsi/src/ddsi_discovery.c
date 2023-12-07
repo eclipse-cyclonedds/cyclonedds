@@ -65,8 +65,9 @@
 
 struct ddsi_writer *ddsi_get_sedp_writer (const struct ddsi_participant *pp, unsigned entityid)
 {
-  struct ddsi_writer *sedp_wr = ddsi_get_builtin_writer (pp, entityid);
-  if (sedp_wr == NULL)
+  struct ddsi_writer *sedp_wr;
+  dds_return_t ret = ddsi_get_builtin_writer (pp, entityid, &sedp_wr);
+  if (ret != DDS_RETCODE_OK)
     DDS_FATAL ("sedp_write_writer: no SEDP builtin writer %x for "PGUIDFMT"\n", entityid, PGUID (pp->e.guid));
   return sedp_wr;
 }

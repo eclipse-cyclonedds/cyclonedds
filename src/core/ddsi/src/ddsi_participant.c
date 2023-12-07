@@ -717,7 +717,7 @@ void ddsi_unref_participant (struct ddsi_participant *pp, const struct ddsi_guid
 
     if (!(pp->e.onlylocal))
     {
-      if ((pp->bes & builtin_writers_besmask) != builtin_writers_besmask)
+      if ((pp->bes & builtin_writers_besmask) != builtin_writers_besmask && !(pp->flags & RTPS_PF_NO_PRIVILEGED_PP))
       {
         /* Participant doesn't have a full complement of built-in
            writers, therefore, it relies on gv->privileged_pp, and
@@ -780,7 +780,7 @@ dds_return_t ddsi_new_participant (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv
   struct ddsi_tran_conn * ppconn;
 
   /* no reserved bits may be set */
-  assert ((flags & ~(RTPS_PF_NO_BUILTIN_READERS | RTPS_PF_NO_BUILTIN_WRITERS | RTPS_PF_PRIVILEGED_PP | RTPS_PF_IS_DDSI2_PP | RTPS_PF_ONLY_LOCAL)) == 0);
+  assert ((flags & ~(RTPS_PF_NO_BUILTIN_READERS | RTPS_PF_NO_BUILTIN_WRITERS | RTPS_PF_PRIVILEGED_PP | RTPS_PF_IS_DDSI2_PP | RTPS_PF_ONLY_LOCAL | RTPS_PF_NO_PRIVILEGED_PP)) == 0);
   /* privileged participant MUST have builtin readers and writers */
   assert (!(flags & RTPS_PF_PRIVILEGED_PP) || (flags & (RTPS_PF_NO_BUILTIN_READERS | RTPS_PF_NO_BUILTIN_WRITERS)) == 0);
 
@@ -840,6 +840,7 @@ dds_return_t ddsi_new_participant (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv
   pp->builtin_refc = 0;
   pp->state = DDSI_PARTICIPANT_STATE_INITIALIZING;
   pp->is_ddsi2_pp = (flags & (RTPS_PF_PRIVILEGED_PP | RTPS_PF_IS_DDSI2_PP)) ? 1 : 0;
+  pp->flags = flags;
   ddsrt_mutex_init (&pp->refc_lock);
   ddsi_inverse_uint32_set_init(&pp->avail_entityids.x, 1, UINT32_MAX / DDSI_ENTITYID_ALLOCSTEP);
   assert (plist->qos.present & DDSI_QP_LIVELINESS);
@@ -862,13 +863,21 @@ dds_return_t ddsi_new_participant (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv
     ddsi_tkmap_instance_unref (gv->m_tkmap, pp->e.tk);
     pp->e.tk = ddsi_builtintopic_get_tkmap_entry (gv->builtin_topic_interface, &pp->e.guid);
     pp->e.iid = pp->e.tk->m_iid;
- }
+  }
 #else
   if (ddsi_xqos_has_prop_prefix (&pp->plist->qos, "dds.sec."))
   {
     /* disallow creating a participant with a security configuration if there is support for security
        has been left out */
     ret = DDS_RETCODE_PRECONDITION_NOT_MET;
+    goto not_allowed;
+  }
+#endif
+
+#ifdef DDS_HAS_SECURITY
+  if (ddsi_omg_participant_is_secure (pp) && (flags & RTPS_PF_NO_BUILTIN_WRITERS))
+  {
+    ret = DDS_RETCODE_BAD_PARAMETER;
     goto not_allowed;
   }
 #endif
@@ -925,8 +934,9 @@ dds_return_t ddsi_new_participant (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv
      the reference count of the privileged participant is incremented.
      If it is the privileged participant, set the global variable
      pointing to it.
-     Except when the participant is only locally available. */
-  if (!(flags & RTPS_PF_ONLY_LOCAL))
+     Except when the participant is only locally available or is
+     using a static topology. */
+  if (!(flags & (RTPS_PF_ONLY_LOCAL | RTPS_PF_NO_PRIVILEGED_PP)))
   {
     ddsrt_mutex_lock (&gv->privileged_pp_lock);
     if ((pp->bes & builtin_writers_besmask) != builtin_writers_besmask)
@@ -965,35 +975,36 @@ dds_return_t ddsi_new_participant (ddsi_guid_t *ppguid, struct ddsi_domaingv *gv
 
   ddsi_builtintopic_write_endpoint (gv->builtin_topic_interface, &pp->e, ddsrt_time_wallclock(), true);
 
-  /* SPDP periodic broadcast uses the retransmit path, so the initial
-     publication must be done differently. Must be later than making
-     the participant globally visible, or the SPDP processing won't
-     recognise the participant as a local one. */
-  if (ddsi_spdp_write (pp) >= 0)
+  if (!(flags & RTPS_PF_NO_BUILTIN_WRITERS) || !(flags & RTPS_PF_NO_PRIVILEGED_PP))
   {
-    /* Once the initial sample has been written, the automatic and
-       asynchronous broadcasting required by SPDP can start. Also,
-       since we're new alive, PMD updates can now start, too.
-       Schedule the first update for 100ms in the future to reduce the
-       impact of the first sample getting lost.  Note: these two may
-       fire before the calls return.  If the initial sample wasn't
-       accepted, all is lost, but we continue nonetheless, even though
-       the participant won't be able to discover or be discovered.  */
-    struct ddsi_spdp_broadcast_xevent_cb_arg arg = { .pp_guid = pp->e.guid };
-    pp->spdp_xevent = ddsi_qxev_callback (gv->xevents, ddsrt_mtime_add_duration (ddsrt_time_monotonic (), DDS_MSECS (100)), ddsi_spdp_broadcast_xevent_cb, &arg, sizeof (arg), false);
-  }
+    /* SPDP periodic broadcast uses the retransmit path, so the initial
+      publication must be done differently. Must be later than making
+      the participant globally visible, or the SPDP processing won't
+      recognise the participant as a local one. */
+    if (ddsi_spdp_write (pp) >= 0)
+    {
+      /* Once the initial sample has been written, the automatic and
+        asynchronous broadcasting required by SPDP can start. Also,
+        since we're new alive, PMD updates can now start, too.
+        Schedule the first update for 100ms in the future to reduce the
+        impact of the first sample getting lost.  Note: these two may
+        fire before the calls return.  If the initial sample wasn't
+        accepted, all is lost, but we continue nonetheless, even though
+        the participant won't be able to discover or be discovered.  */
+      struct ddsi_spdp_broadcast_xevent_cb_arg arg = { .pp_guid = pp->e.guid };
+      pp->spdp_xevent = ddsi_qxev_callback (gv->xevents, ddsrt_mtime_add_duration (ddsrt_time_monotonic (), DDS_MSECS (100)), ddsi_spdp_broadcast_xevent_cb, &arg, sizeof (arg), false);
+    }
 
-  {
-    ddsrt_mtime_t tsched = (pp->plist->qos.liveliness.lease_duration == DDS_INFINITY) ? DDSRT_MTIME_NEVER : (ddsrt_mtime_t){0};
-    struct ddsi_write_pmd_message_xevent_cb_arg arg = { .pp_guid = pp->e.guid };
-    pp->pmd_update_xevent = ddsi_qxev_callback (gv->xevents, tsched, ddsi_write_pmd_message_xevent_cb, &arg, sizeof (arg), false);
+    {
+      ddsrt_mtime_t tsched = (pp->plist->qos.liveliness.lease_duration == DDS_INFINITY) ? DDSRT_MTIME_NEVER : (ddsrt_mtime_t){0};
+      struct ddsi_write_pmd_message_xevent_cb_arg arg = { .pp_guid = pp->e.guid };
+      pp->pmd_update_xevent = ddsi_qxev_callback (gv->xevents, tsched, ddsi_write_pmd_message_xevent_cb, &arg, sizeof (arg), false);
+    }
   }
 
 #ifdef DDS_HAS_SECURITY
   if (ddsi_omg_participant_is_secure (pp))
-  {
     connect_participant_secure (gv, pp);
-  }
 #endif
   return ret;
 
@@ -1074,13 +1085,16 @@ dds_return_t ddsi_delete_participant (struct ddsi_domaingv *gv, const struct dds
   return 0;
 }
 
-struct ddsi_writer *ddsi_get_builtin_writer (const struct ddsi_participant *pp, unsigned entityid)
+dds_return_t ddsi_get_builtin_writer (const struct ddsi_participant *pp, unsigned entityid, struct ddsi_writer **bwr)
 {
   ddsi_guid_t bwr_guid;
   uint32_t bes_mask = 0;
 
-  if (pp->e.onlylocal) {
-      return NULL;
+  assert (bwr);
+  if (pp->e.onlylocal)
+  {
+    *bwr = NULL;
+    return DDS_RETCODE_OK;
   }
 
   /* If the participant the required built-in writer, we use it.  We
@@ -1139,7 +1153,7 @@ struct ddsi_writer *ddsi_get_builtin_writer (const struct ddsi_participant *pp, 
       break;
     default:
       DDS_FATAL ("get_builtin_writer called with entityid %x\n", entityid);
-      return NULL;
+      return DDS_RETCODE_BAD_PARAMETER;
   }
 
   if (pp->bes & bes_mask)
@@ -1148,7 +1162,7 @@ struct ddsi_writer *ddsi_get_builtin_writer (const struct ddsi_participant *pp, 
     bwr_guid.prefix = pp->e.guid.prefix;
     bwr_guid.entityid.u = entityid;
   }
-  else
+  else if (!(pp->flags & RTPS_PF_NO_PRIVILEGED_PP))
   {
     /* Must have a designated participant to use -- that is, before
        any application readers and writers may be created (indeed,
@@ -1164,8 +1178,16 @@ struct ddsi_writer *ddsi_get_builtin_writer (const struct ddsi_participant *pp, 
     ddsrt_mutex_unlock (&pp->e.gv->privileged_pp_lock);
     bwr_guid.entityid.u = entityid;
   }
+  else
+  {
+    /* NO_PRIVILEGED_PP flag is set, so it's okay that we don't have
+       a built-in writer at this point */
+    *bwr = NULL;
+    return DDS_RETCODE_OK;
+  }
 
-  return ddsi_entidx_lookup_writer_guid (pp->e.gv->entity_index, &bwr_guid);
+  *bwr = ddsi_entidx_lookup_writer_guid (pp->e.gv->entity_index, &bwr_guid);
+  return (*bwr != NULL) ? DDS_RETCODE_OK : DDS_RETCODE_PRECONDITION_NOT_MET;
 }
 
 dds_duration_t ddsi_participant_get_pmd_interval (struct ddsi_participant *pp)

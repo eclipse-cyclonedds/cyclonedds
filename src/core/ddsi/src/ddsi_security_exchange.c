@@ -42,7 +42,7 @@ bool ddsi_write_auth_handshake_message(const struct ddsi_participant *pp, const 
   ddsi_guid_t prd_guid;
   bool result = false;
 
-  if ((wr = ddsi_get_builtin_writer (pp, DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER)) == NULL) {
+  if (ddsi_get_builtin_writer (pp, DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_STATELESS_MESSAGE_WRITER, &wr) != DDS_RETCODE_OK || wr == NULL) {
     GVTRACE ("write_handshake("PGUIDFMT") - builtin stateless message writer not found", PGUID (pp->e.guid));
     return false;
   }
@@ -152,7 +152,7 @@ static bool write_crypto_exchange_message(const struct ddsi_participant *pp, con
   ddsi_seqno_t seq;
   int r;
 
-  if ((wr = ddsi_get_builtin_writer (pp, DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER)) == NULL)
+  if (ddsi_get_builtin_writer (pp, DDSI_ENTITYID_P2P_BUILTIN_PARTICIPANT_VOLATILE_SECURE_WRITER, &wr) != DDS_RETCODE_OK || wr == NULL)
   {
     GVLOG (DDS_LC_DISCOVERY, "write_crypto_exchange_message("PGUIDFMT") - builtin volatile secure writer not found\n", PGUID (pp->e.guid));
     return false;

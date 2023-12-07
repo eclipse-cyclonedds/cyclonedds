@@ -22,6 +22,10 @@
 extern "C" {
 #endif
 
+// Magic numbers match the set of internal flags we want to use but do not want to expose in the API.
+// The implementation contains static assert to ensure this is kept in sync.
+#define DDS_PARTICIPANT_FLAGS_NO_DISCOVERY (1u | 2u | 32u)
+
 /**
  * @ingroup internal
  * @component topic
