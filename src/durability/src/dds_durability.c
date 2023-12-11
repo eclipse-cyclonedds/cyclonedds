@@ -90,9 +90,54 @@ static char *dc_blob_image (dds_sequence_octet blob)
   return buf;
 }
 
+static int dc_stringify_request (char *buf, size_t n, const DurableSupport_request *request, bool valid_data)
+{
+  size_t i = 0;
+  int l;
+  char id_str[37];
+  int64_t sec;
+  uint32_t msec;
+
+  if (buf == NULL) {
+    goto err;
+  }
+  if (request == NULL) {
+    buf[0] = '\0';
+    return 0;
+  }
+  if (valid_data) {
+    /* also print non-key fields */
+    if (request->timeout == DDS_INFINITY) {
+      if ((l = snprintf(buf+i, n-i, "{\"client\":\"%s\", \"partition\":\"%s\", \"tpname\":\"%s\", \"timeout\":\"never\"}", dc_stringify_id(request->client, id_str), request->partition, request->tpname)) < 0) {
+        goto err;
+      }
+    } else {
+      sec = (int64_t)(request->timeout / DDS_NSECS_IN_SEC);
+      msec = (uint32_t)((request->timeout % DDS_NSECS_IN_SEC) / DDS_NSECS_IN_MSEC);
+      if ((l = snprintf(buf+i, n-i, "{\"client\":\"%s\", \"partition\":\"%s\", \"tpname\":\"%s\", \"timeout\":%" PRId64 ".%03" PRIu32 "}", dc_stringify_id(request->client, id_str), request->partition, request->tpname, sec, msec)) < 0) {
+        goto err;
+      }
+    }
+  } else {
+    /* only print key fields */
+    if ((l = snprintf(buf+i, n-i, "{\"client\":\"%s\", \"partition\":\"%s\", \"tpname\":\"%s\"}", dc_stringify_id(request->client, id_str), request->partition, request->tpname)) < 0) {
+      goto err;
+    }
+  }
+  i += (size_t)l;
+  if (i >= n) {
+    /* truncated */
+    buf[n-1] = '\0';
+  }
+  return (int)i;
+err:
+  DDS_ERROR("dc_stringify_request failed");
+  return -1;
+}
+
 static int dc_stringify_response (char *buf, size_t n, const DurableSupport_response *response)
 {
-  size_t i = 0, j = 0;
+  size_t i = 0;
   int l;
   char *str;
   char id_str[37];
@@ -113,23 +158,10 @@ static int dc_stringify_response (char *buf, size_t n, const DurableSupport_resp
   }
   switch (response->body._d) {
     case DurableSupport_RESPONSETYPE_SET :
-      if ((l = snprintf(buf+i, n-i, "\"partition\":\"%s\", \"tpname\":\"%s\", \"flags\":\"0x%04" PRIx32 "\", \"requestids\":[", response->body._u.set.partition, response->body._u.set.tpname, response->body._u.set.flags)) < 0) {
+      if ((l = snprintf(buf+i, n-i, "\"partition\":\"%s\", \"tpname\":\"%s\", \"flags\":\"0x%04" PRIx32 "\"", response->body._u.set.partition, response->body._u.set.tpname, response->body._u.set.flags)) < 0) {
         goto err;
       }
       i += (size_t)l;
-      for (j=0; j < response->body._u.set.requestids._length; j++) {
-        DurableSupport_request_id_t requestid = response->body._u.set.requestids._buffer[j];
-        if ((l = snprintf(buf+i, n-(size_t)i, "%s{\"client\":\"%s\", \"seq\":%" PRIu64 "}", (j==0) ? "" : ",", dc_stringify_id(requestid.client, id_str), requestid.seq)) < 0) {
-          goto err;
-        }
-        i += (size_t)l;
-        if (i >= n) {
-          goto trunc;
-        }
-      }
-      if (i < n) {
-        buf[i++] = ']';
-      }
       break;
     case DurableSupport_RESPONSETYPE_DATA :
       str = dc_blob_image(response->body._u.data.blob);
@@ -1085,27 +1117,28 @@ static void dc_com_free (struct com_t *com)
 
 #define MAX_TOPIC_NAME_SIZE                  255
 
-static dds_return_t dc_com_request_write (struct com_t *com, const char *partition, const char *tpname, uint64_t seq)
+static dds_return_t dc_com_request_write (struct com_t *com, const char *partition, const char *tpname)
 {
   /* note: we allow doing a request for volatile readers */
   DurableSupport_request *request;
   dds_return_t ret = DDS_RETCODE_OK;
+  char str[1024];
+  int l;
+  size_t len;
 
   request = DurableSupport_request__alloc();
-  memcpy(request->requestid.client, dc.cfg.id, 16);
-  request->requestid.seq = seq;
-  request->partitions._length = 1;
-  request->partitions._maximum = 1;
-  request->partitions._buffer = dds_sequence_string_allocbuf(1);
-  request->partitions._release = true;
-  request->partitions._buffer[0] = ddsrt_strdup(partition);
+  memcpy(request->client, dc.cfg.id, 16);
+  request->partition = ddsrt_strdup(partition);
   request->tpname = ddsrt_strdup(tpname);
   request->timeout = DDS_INFINITY;
+  l = dc_stringify_request(str, sizeof(str), request, true);
+  assert(l > 0);
+  len = (size_t)l;
   if ((ret = dds_write(com->wr_request, request)) < 0) {
-    DDS_ERROR("failed to publish dc_request [%s]", dds_strretcode(-ret));
+    DDS_ERROR("failed to publish dc_request %s%s [%s]", str, (len >= sizeof(str)) ? "..(trunc)" : "", dds_strretcode(-ret));
     goto err_request_write;
   }
-  DDS_CLOG(DDS_LC_DUR, &dc.gv->logconfig, "publish dc_request {\"client\":\"%s\", \"seq\":%" PRIu64 "}\n", dc.cfg.id_str, seq);
+  DDS_CLOG(DDS_LC_DUR, &dc.gv->logconfig, "publish dc_request %s%s\n", str, (len >= sizeof(str)) ? "..(trunc)" : "");
 err_request_write:
   DurableSupport_request_free(request, DDS_FREE_ALL);
   return ret;
@@ -1198,6 +1231,7 @@ static int dc_process_response (dds_entity_t rd, struct dc_t *dc)
    * The memory must be released when done by returning the loan */
   samples[0] = NULL;
   samplecount = dds_take_mask (rd, samples, info, MAX_SAMPLES, MAX_SAMPLES, DDS_NOT_READ_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE);
+
   if (samplecount < 0) {
     DDS_ERROR("failed to take dc_response [%s]", dds_strretcode(-samplecount));
   } else {
@@ -1252,61 +1286,6 @@ static struct proxy_set_t *dc_get_proxy_set (struct dc_t *dc, const char *partit
   ddsrt_free(key.partition);
   ddsrt_free(key.tpname);
   return proxy_set;
-}
-
-/* */
-static void dc_register_pending_request (struct dc_t *dc, struct proxy_set_t *proxy_set, const uint64_t seq)
-{
-  struct pending_request_t *pr;
-  ddsrt_avl_ipath_t ipath;
-  dds_return_t ret;
-
-  assert(seq > 0);
-  ddsrt_mutex_lock(&dc->pending_request_mutex);
-  if ((pr = ddsrt_avl_clookup_ipath(&pending_requests_td, &dc->pending_requests, &seq, &ipath)) != NULL) {
-    /* there is already an outstanding request with this sequence number */
-    assert(pr->proxy_set == proxy_set);
-    DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "There is already an outstanding request with seq %" PRIu64 "\n", seq);
-    ddsrt_mutex_unlock(&dc->pending_request_mutex);
-    return;
-  }
-  pr = (struct pending_request_t *)ddsrt_malloc(sizeof(struct pending_request_t));
-  pr->key.seq = seq;
-  pr->proxy_set = proxy_set;
-  pr->exp_time = DDS_NEVER;
-  /* pending request not yet available, add it to tree of pending request */
-  ddsrt_avl_cinsert(&pending_requests_td, &dc->pending_requests, pr);
-  ddsrt_fibheap_insert(&pending_requests_fd, &dc->pending_requests_fh, pr);
-  if ((pr->exp_time != DDS_NEVER) && (pr == ddsrt_fibheap_min(&pending_requests_fd, &dc->pending_requests_fh))) {
-    /* trigger the main loop in the recv_handler to recalculate the timeout */
-    if ((ret = dds_set_guardcondition(dc->com->pending_request_guard, true)) < 0) {
-      DDS_ERROR("failed to set pending request guard to true [%s]", dds_strretcode(ret));
-    }
-  }
-  ddsrt_mutex_unlock(&dc->pending_request_mutex);
-}
-
-/* publish a request for a specific data set
- * The request is published as a transient-local topic which is
- * keyed by the guid of this client and a monotonically increasing
- * sequence number. This allows multiple requests from the same client
- * (because they have a different sequence number). */
-static int dc_request_data_for_proxy_set (struct dc_t *dc, struct proxy_set_t *proxy_set, const uint64_t seq)
-{
-  dds_return_t rc;
-
-  assert(proxy_set);
-  assert(seq > 0);
-  assert(proxy_set->seq == seq);
-  /* register the request identified by seq with the proxy set
-   * We do this BEFORE we send the request, so that we are sure
-   * that when we receive the response the we can lookup the
-   * proxy set associated with this request */
-  dc_register_pending_request(dc, proxy_set, seq);
-  if ((rc = dc_com_request_write(dc->com, proxy_set->key.partition, proxy_set->key.tpname, seq)) != DDS_RETCODE_OK) {
-    DDS_ERROR("Failed to publish dc_request #%" PRIu64 "\n", dc->seq);
-  }
-  return (rc == DDS_RETCODE_OK) ? 0 : -1;
 }
 
 /* add the reader tree of readers for this proxy set */
@@ -1388,22 +1367,17 @@ static void dc_create_proxy_sets_for_reader (struct dc_t *dc, dds_entity_t reade
      * that when we receive the response (possibly immediately after
      * sending the request) the reader and rhc are present */
     dc_register_reader_to_proxy_set(dc, proxy_set, guid, rhc);
-    if (proxy_set->seq == 0) {
-      /* There is no pending request associated with this proxy set,
-       * so let's create a new pending request for this proxy set */
-      proxy_set->seq = ++(dc->seq);
-      if ((dc_request_data_for_proxy_set(dc, proxy_set, proxy_set->seq)) < 0) {
-        /* We failed to request data for this proxy set.
-         * We could do several things now, e.g., 1) try again until we succeed,
-         * 2) notify the application that no historical data could be retrieved,
-         * or 3) commit suicide because we cannot guarantee eventual consistency.
-         * For now, I choose for the latter. After all, it is expected that sending
-         * a request should never fail. */
-        abort();
-      }
-    } /* else there is already an outstanding pending request for this
-       * proxy set. In that case there is no need to republish the request,
-       * we can just piggyback on the current outstanding request */
+    /* send a request for this proxy set */
+    if ((rc = dc_com_request_write(dc->com, proxy_set->key.partition, proxy_set->key.tpname)) != DDS_RETCODE_OK) {
+      DDS_ERROR("Failed to publish dc_request for proxy set %s.%s\n", proxy_set->key.partition, proxy_set->key.tpname);
+      /* We failed to request data for this proxy set.
+        * We could do several things now, e.g., 1) try again until we succeed,
+        * 2) notify the application that no historical data could be retrieved,
+        * or 3) commit suicide because we cannot guarantee eventual consistency.
+        * For now, I choose for the latter. After all, it is expected that sending
+        * a request should never fails. */
+       abort();
+    }
   }
   dc_free_partitions(plen, partitions);
   dds_delete_qos(rqos);
@@ -1451,28 +1425,30 @@ err_last_subscription_handle:
   return;
 }
 
-/* dispose the request with key 'seq' */
-static void dc_dispose_reader_request (struct dc_t *dc, uint64_t seq)
+/* dispose the request for the proxy set */
+static void dc_dispose_reader_request (struct dc_t *dc, struct proxy_set_t *proxy_set)
 {
   dds_return_t rc;
   dds_instance_handle_t ih;
   DurableSupport_request request;
 
   /* create a dummy request containing the key fields to retrieve the instance handle */
-  memcpy(request.requestid.client, dc->cfg.id, 16);
-  request.requestid.seq = seq;
+  memcpy(request.client, dc->cfg.id, 16);
+  request.partition = ddsrt_strdup(proxy_set->key.partition);
+  request.tpname = ddsrt_strdup(proxy_set->key.tpname);
   if ((ih = dds_lookup_instance(dc->com->wr_request, &request)) == DDS_HANDLE_NIL) {
-    DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "dc_request #%" PRIu64 " not available,  nothing to dispose\n", seq);
-    return;
-  }
-  if ((rc = dc_com_request_dispose(dc->com, ih)) != DDS_RETCODE_OK) {
-    DDS_ERROR("Failed to dispose dc_request #%" PRIu64 " [%s]\n", seq, dds_strretcode(-rc));
+    DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "dc_request for proxy set %s.%s not found, unable to dispose\n", request.partition, request.tpname);
     goto err_dispose_reader_request;
   }
-  DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "dispose dc_request {\"client\":\"%s\", \"seq\":%" PRIu64 "}\n", dc->cfg.id_str, seq);
-  return;
-
+  if ((rc = dc_com_request_dispose(dc->com, ih)) != DDS_RETCODE_OK) {
+    DDS_ERROR("failed to dispose dc_request for proxy set %s.%s [%s]\n", request.partition, request.tpname, dds_strretcode(-rc));
+    goto err_dispose_reader_request;
+  }
+  /* LH: todo: use dc_stringify_request, but only print the keys */
+  DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "dispose dc_request {\"client\":\"%s\", \"partition\":\"%s\", \"tpname\":\"%s\"}\n", dc->cfg.id_str, request.partition, request.tpname);
 err_dispose_reader_request:
+  ddsrt_free(request.partition);
+  ddsrt_free(request.tpname);
   return;
 }
 
@@ -1562,7 +1538,7 @@ static void dc_process_pending_request_guard (struct dc_t *dc, dds_time_t *timeo
      * and dispose it to prevent that a DS reacts to an expired request */
     if ((pr = ddsrt_fibheap_extract_min(&pending_requests_fd, &dc->pending_requests_fh)) != NULL) {
       DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "process pending request %" PRIu64 "\n", pr->key.seq);
-      dc_dispose_reader_request(dc, pr->key.seq);
+      dc_dispose_reader_request(dc, pr->proxy_set);
       cleanup_pending_request(pr);
     }
   } while (true);

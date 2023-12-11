@@ -259,41 +259,10 @@ typedef uint16_t DurableSupport_responsetype_t;
 #define DurableSupport_responsetype_t__alloc() \
 ((DurableSupport_responsetype_t*) dds_alloc (sizeof (DurableSupport_responsetype_t)));
 
-typedef struct DurableSupport_request_id_t
-{
-  DurableSupport_id_t client;
-  uint64_t seq;
-} DurableSupport_request_id_t;
-
-extern const dds_topic_descriptor_t DurableSupport_request_id_t_desc;
-
-#define DurableSupport_request_id_t__alloc() \
-((DurableSupport_request_id_t*) dds_alloc (sizeof (DurableSupport_request_id_t)));
-
-#define DurableSupport_request_id_t_free(d,o) \
-dds_sample_free ((d), &DurableSupport_request_id_t_desc, (o))
-
-#ifndef DDS_SEQUENCE_STRING_DEFINED
-#define DDS_SEQUENCE_STRING_DEFINED
-typedef struct dds_sequence_string
-{
-  uint32_t _maximum;
-  uint32_t _length;
-  char **_buffer;
-  bool _release;
-} dds_sequence_string;
-
-#define dds_sequence_string__alloc() \
-((dds_sequence_string*) dds_alloc (sizeof (dds_sequence_string)));
-
-#define dds_sequence_string_allocbuf(l) \
-((char **) dds_alloc ((l) * sizeof (char*)))
-#endif /* DDS_SEQUENCE_STRING_DEFINED */
-
 typedef struct DurableSupport_request
 {
-  struct DurableSupport_request_id_t requestid;
-  dds_sequence_string partitions;
+  DurableSupport_id_t client;
+  char * partition;
   char * tpname;
   DurableSupport_duration_t timeout;
 } DurableSupport_request;
@@ -308,29 +277,11 @@ dds_sample_free ((d), &DurableSupport_request_desc, (o))
 
 #define DurableSupport_RESPONSETYPE_SET 1
 #define DurableSupport_RESPONSETYPE_DATA 2
-#ifndef DDS_SEQUENCE_DURABLESUPPORT_REQUEST_ID_T_DEFINED
-#define DDS_SEQUENCE_DURABLESUPPORT_REQUEST_ID_T_DEFINED
-typedef struct dds_sequence_DurableSupport_request_id_t
-{
-  uint32_t _maximum;
-  uint32_t _length;
-  struct DurableSupport_request_id_t *_buffer;
-  bool _release;
-} dds_sequence_DurableSupport_request_id_t;
-
-#define dds_sequence_DurableSupport_request_id_t__alloc() \
-((dds_sequence_DurableSupport_request_id_t*) dds_alloc (sizeof (dds_sequence_DurableSupport_request_id_t)));
-
-#define dds_sequence_DurableSupport_request_id_t_allocbuf(l) \
-((struct DurableSupport_request_id_t *) dds_alloc ((l) * sizeof (struct DurableSupport_request_id_t)))
-#endif /* DDS_SEQUENCE_DURABLESUPPORT_REQUEST_ID_T_DEFINED */
-
 typedef struct DurableSupport_response_set_t
 {
   char * partition;
   char * tpname;
   uint32_t flags;
-  dds_sequence_DurableSupport_request_id_t requestids;
 } DurableSupport_response_set_t;
 
 #ifndef DDS_SEQUENCE_OCTET_DEFINED
