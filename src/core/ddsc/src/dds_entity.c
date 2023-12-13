@@ -1629,7 +1629,7 @@ dds_return_t dds_return_loan (dds_entity_t entity, void **buf, int32_t bufsz)
   // bufsz <= 0 is accepted because it allows one to write:
   //
   // if (dds_return_loan(rd, buf, dds_take(rd, buf, ...)) < 0)
-  //   abort();
+  //   ddsrt_abort();
   //
   // with abort only being called if there is a real problem.
   //
