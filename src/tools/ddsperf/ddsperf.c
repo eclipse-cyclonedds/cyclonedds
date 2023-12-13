@@ -391,7 +391,7 @@ static void verrorx (int exitcode, const char *fmt, va_list ap)
 {
   vprintf (fmt, ap);
   fflush (stdout);
-  ddsrt_exit (exitcode);
+  exit (exitcode);
 }
 
 static void error2 (const char *fmt, ...)
@@ -728,7 +728,7 @@ static uint32_t pubthread (void *varg)
       {
         printf ("dds_register_instance failed: %d\n", result);
         fflush (stdout);
-        ddsrt_exit (2);
+        exit (2);
       }
     }
   }
@@ -751,7 +751,7 @@ static uint32_t pubthread (void *varg)
     {
       printf ("request loan error: %d\n", result);
       fflush (stdout);
-      ddsrt_exit (2);
+      exit (2);
     }
     else
     {
@@ -765,7 +765,7 @@ static uint32_t pubthread (void *varg)
       printf ("write error: %d\n", result);
       fflush (stdout);
       if (result != DDS_RETCODE_TIMEOUT)
-        ddsrt_exit (2);
+        exit (2);
       /* retry with original timestamp, it really is just a way of reporting
          blocking for an exceedingly long time, but do force a fresh time stamp
          for the next sample */
@@ -976,7 +976,7 @@ static int check_eseq (struct eseq_admin *ea, uint32_t seq, uint32_t keyval, uin
   if (keyval >= ea->nkeys)
   {
     printf ("received key %"PRIu32" >= nkeys %u\n", keyval, ea->nkeys);
-    ddsrt_exit (3);
+    exit (3);
   }
   ddsrt_mutex_lock (&ea->lock);
   for (uint32_t i = 0; i < ea->nph; i++)
@@ -1970,7 +1970,7 @@ EXAMPLES:\n\
     running for 10s\n\
 ", argv0, argv0, argv0);
   fflush (stdout);
-  ddsrt_exit (3);
+  exit (3);
 }
 
 struct string_int_map_elem {

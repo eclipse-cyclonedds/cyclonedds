@@ -848,7 +848,6 @@ int main (int argc, char **argv)
   ddsrt_getpid ();
   ddsrt_getprocessname ();
   ddsrt_abort ();
-  ddsrt_exit(0);
 
   // ddsrt/time.h
   ddsrt_mtime_t mt = { .v = 0};

@@ -79,15 +79,6 @@ ddsrt_getprocessname(void);
 DDS_EXPORT void
 ddsrt_abort (void) ddsrt_attribute_noreturn;
 
-/**
- * @brief Performs a normal process termination.
- *
- * @param status
- * @returns The least significant byte of `status` is returned to the parent.
- */
-DDS_EXPORT void
-ddsrt_exit(int status) ddsrt_attribute_noreturn;
-
 #if defined (__cplusplus)
 }
 #endif
