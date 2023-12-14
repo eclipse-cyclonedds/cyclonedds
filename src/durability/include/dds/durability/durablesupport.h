@@ -259,6 +259,11 @@ typedef uint16_t DurableSupport_responsetype_t;
 #define DurableSupport_responsetype_t__alloc() \
 ((DurableSupport_responsetype_t*) dds_alloc (sizeof (DurableSupport_responsetype_t)));
 
+typedef uint64_t DurableSupport_delivery_id_t;
+
+#define DurableSupport_delivery_id_t__alloc() \
+((DurableSupport_delivery_id_t*) dds_alloc (sizeof (DurableSupport_delivery_id_t)));
+
 typedef struct DurableSupport_request
 {
   DurableSupport_id_t client;
@@ -279,6 +284,7 @@ dds_sample_free ((d), &DurableSupport_request_desc, (o))
 #define DurableSupport_RESPONSETYPE_DATA 2
 typedef struct DurableSupport_response_set_t
 {
+  DurableSupport_delivery_id_t delivery_id;
   char * partition;
   char * tpname;
   uint32_t flags;

@@ -32,6 +32,10 @@
 
 #define DC_UNUSED_ARG(x)                     ((void)x)
 
+#define DC_FLAG_SET_NOT_FOUND                (((uint32_t)0x01) << 10)
+#define DC_FLAG_SET_BEGIN                    (((uint32_t)0x01) << 11)
+#define DC_FLAG_SET_END                      (((uint32_t)0x01) << 12)
+
 #define TRACE(...) DDS_CLOG (DDS_LC_DUR, &domaingv->logconfig, __VA_ARGS__)
 
 /************* start of common functions ****************/
@@ -158,7 +162,7 @@ static int dc_stringify_response (char *buf, size_t n, const DurableSupport_resp
   }
   switch (response->body._d) {
     case DurableSupport_RESPONSETYPE_SET :
-      if ((l = snprintf(buf+i, n-i, "\"partition\":\"%s\", \"tpname\":\"%s\", \"flags\":\"0x%04" PRIx32 "\"", response->body._u.set.partition, response->body._u.set.tpname, response->body._u.set.flags)) < 0) {
+      if ((l = snprintf(buf+i, n-i, "\"delivery_id\":%" PRIu64 ",\"partition\":\"%s\", \"tpname\":\"%s\", \"flags\":\"0x%04" PRIx32 "\"", response->body._u.set.delivery_id, response->body._u.set.partition, response->body._u.set.tpname, response->body._u.set.flags)) < 0) {
         goto err;
       }
       i += (size_t)l;
@@ -341,6 +345,27 @@ static const ddsrt_avl_ctreedef_t pending_requests_td = DDSRT_AVL_CTREEDEF_INITI
 
 static const ddsrt_fibheap_def_t pending_requests_fd = DDSRT_FIBHEAPDEF_INITIALIZER(offsetof (struct pending_request_t, fhnode), cmp_exp_time);
 
+
+struct delivery_ctx_t {
+  ddsrt_avl_node_t node;
+  DurableSupport_id_t id; /* id of the ds; key of the delivery context */
+  uint64_t delivery_id;  /* the id of the delivery by this ds; this is a monotonic increased sequence number */
+  struct proxy_set_t *proxy_set; /* current proxy_set for which responses are being received, NULL if not known */
+};
+
+static int delivery_ctx_cmp (const void *a, const void *b)
+{
+  return  memcmp(a, b, 16);
+}
+
+static void cleanup_delivery_ctx (void *n)
+{
+  struct delivery_ctx *delivery_ctx = (struct delivery_ctx *)n;
+  ddsrt_free(delivery_ctx);
+}
+
+static const ddsrt_avl_ctreedef_t delivery_ctx_td = DDSRT_AVL_CTREEDEF_INITIALIZER(offsetof (struct delivery_ctx_t, node), offsetof (struct delivery_ctx_t, id), delivery_ctx_cmp, 0);
+
 /* Administration to keep track of the request readers of a ds
  * that can act as a target to send requests for historical data to..
  * Based on this administration requests for historical data are published immediately,
@@ -427,6 +452,8 @@ struct dc_t {
   ddsrt_avl_ctree_t matched_request_readers; /* tree containing the request readers on a ds that match with my request writer */
   ddsrt_avl_ctree_t proxy_sets; /* tree containing the sets for which data has to be provided by a ds */
   uint32_t nr_of_matched_dc_requests; /* indicates the number of matched dc_request readers for the dc_request writer of this client */
+  struct delivery_ctx_t *delivery_ctx;  /* reference to current delivery context, NULL if none */
+  ddsrt_avl_ctree_t delivery_ctxs; /* table of delivery contexts, keyed by ds id */
 };
 
 static struct dc_t dc = { 0 };  /* static durable client structure */
@@ -1218,43 +1245,6 @@ static int dc_process_status (dds_entity_t rd, struct dc_t *dc)
 #undef MAX_SAMPLES
 }
 
-static int dc_process_response (dds_entity_t rd, struct dc_t *dc)
-{
-#define MAX_SAMPLES   100
-
-  void *samples[MAX_SAMPLES];
-  dds_sample_info_t info[MAX_SAMPLES];
-  int samplecount;
-  int j;
-
-  /* dds_read/take allocates memory for the data if samples[0] is a null pointer.
-   * The memory must be released when done by returning the loan */
-  samples[0] = NULL;
-  samplecount = dds_take_mask (rd, samples, info, MAX_SAMPLES, MAX_SAMPLES, DDS_NOT_READ_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE);
-
-  if (samplecount < 0) {
-    DDS_ERROR("failed to take dc_response [%s]", dds_strretcode(-samplecount));
-  } else {
-    /* process the response
-     * we ignore invalid samples and only process valid responses */
-    for (j = 0; !dds_triggered(dc->com->ws) && j < samplecount; j++) {
-      DurableSupport_response *response = (DurableSupport_response *)samples[j];
-      char str[1024] = { 0 };  /* max string representation size */
-      int l;
-      if (info[j].valid_data && ((l = dc_stringify_response(str, sizeof(str), response)) > 0)) {
-        size_t len = (size_t)l;
-
-        /* LH: TODO: add statistics for responses */
-        DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "dc_response %s%s\n", str, (len >= sizeof(str)) ? "..(trunc)" : "");
-      }
-    }
-    (void)dds_return_loan(rd, samples, samplecount);
-  }
-  return samplecount;
-
-#undef MAX_SAMPLES
-}
-
 static struct proxy_set_t *dc_create_proxy_set (struct dc_t *dc, const char *partition, const char *tpname)
 {
   struct proxy_set_t *proxy_set = NULL;
@@ -1286,6 +1276,247 @@ static struct proxy_set_t *dc_get_proxy_set (struct dc_t *dc, const char *partit
   ddsrt_free(key.partition);
   ddsrt_free(key.tpname);
   return proxy_set;
+}
+
+/* lookup the delivery context for the ds identified by id
+ * if not found and autocreate=true, then create the delivery context */
+static struct delivery_ctx_t *dc_get_delivery_ctx (struct dc_t *dc, DurableSupport_id_t id, bool autocreate)
+{
+  struct delivery_ctx_t *delivery_ctx = NULL;
+
+  if ((dc->delivery_ctx != NULL) && (memcmp(dc->delivery_ctx->id,id,16) == 0)) {
+    delivery_ctx = dc->delivery_ctx;
+  } else  if (((delivery_ctx = ddsrt_avl_clookup (&delivery_ctx_td, &dc->delivery_ctxs, id)) == NULL) && autocreate) {
+    delivery_ctx = ddsrt_malloc(sizeof(struct delivery_ctx_t));
+    memcpy(delivery_ctx->id,id,16);
+    delivery_ctx->delivery_id = 0;
+    delivery_ctx->proxy_set = NULL;
+    ddsrt_avl_cinsert(&delivery_ctx_td, &dc->delivery_ctxs, delivery_ctx);
+  }
+  return delivery_ctx;
+}
+
+/* Remove the current delivery */
+static void dc_remove_current_delivery (struct dc_t *dc)
+{
+  struct delivery_ctx_t *delivery_ctx;
+  ddsrt_avl_dpath_t dpath;
+
+  if (dc->delivery_ctx) {
+
+    if ((delivery_ctx = ddsrt_avl_clookup_dpath(&delivery_ctx_td, &dc->delivery_ctxs, dc->delivery_ctx->id, &dpath)) != NULL) {
+      assert(dc->delivery_ctx == delivery_ctx);
+      /* remove the delivery ctx from the tree */
+      ddsrt_avl_cdelete_dpath(&delivery_ctx_td, &dc->delivery_ctxs, delivery_ctx, &dpath);
+      cleanup_delivery_ctx(delivery_ctx);
+    }
+    /* reset the current delivery ctx */
+    dc->delivery_ctx = NULL;
+  }
+}
+
+/* Abort the current delivery (i.e., dc->delivery_ctx) */
+static void dc_abort_current_delivery (struct dc_t *dc)
+{
+  char id_str[37];
+
+  assert(dc->delivery_ctx);
+  DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "aborting delivery %" PRIu64 " from ds \"%s\"\n",
+    dc->delivery_ctx->delivery_id, dc_stringify_id(dc->delivery_ctx->id, id_str));
+  /* todo: reschedule the proxy set */
+
+  /* remove the current delivery ctx */
+  dc_remove_current_delivery(dc);
+}
+
+/* open the delivery context for the ds identified by id */
+static void dc_open_delivery (struct dc_t *dc,  DurableSupport_response *response)
+{
+  char id_str[37];
+  uint64_t delivery_id;
+
+  assert(response);
+  assert(response->body._u.set.flags & DC_FLAG_SET_BEGIN);
+  delivery_id = response->body._u.set.delivery_id;
+  /* now create the new delivery context */
+  if ((dc->delivery_ctx = dc_get_delivery_ctx(dc, response->id, true)) == NULL) {
+    DDS_ERROR("unable to create an delivery context for ds \"%s\" and delivery id %" PRIu64 "\n", dc_stringify_id(response->id, id_str), delivery_id);
+    abort();
+  }
+  /* set the delivery_id and proxy set for this delivery context */
+  dc->delivery_ctx->delivery_id = delivery_id;
+  if ((dc->delivery_ctx->proxy_set = dc_get_proxy_set(dc, response->body._u.set.partition, response->body._u.set.tpname, false)) == NULL) {
+    DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "no proxy set for \"%s.%s\" found, ignore delivery\n", response->body._u.set.partition, response->body._u.set.tpname);
+    /* abort this delivery context */
+    dc_abort_current_delivery(dc);
+    return;
+  }
+  DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "delivery %" PRIu64 " from ds \"%s\" for set \"%s.%s\" opened\n",
+      delivery_id, dc_stringify_id(dc->delivery_ctx->id, id_str), dc->delivery_ctx->proxy_set->key.partition, dc->delivery_ctx->proxy_set->key.tpname);
+}
+
+/* close the current delivery context for the ds identified by id */
+static void dc_close_delivery (struct dc_t *dc, DurableSupport_id_t id, DurableSupport_response_set_t *response_set)
+{
+  char id_str[37];
+
+  DC_UNUSED_ARG(response_set);
+  DC_UNUSED_ARG(id);
+  assert(response_set);
+  assert(response_set->flags & DC_FLAG_SET_END);
+  assert(memcmp(dc->delivery_ctx->id,id,16) == 0);
+  DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "delivery %" PRIu64 " from ds \"%s\" for set \"%s.%s\" closed\n",
+    dc->delivery_ctx->delivery_id, dc_stringify_id(dc->delivery_ctx->id, id_str), dc->delivery_ctx->proxy_set->key.partition, dc->delivery_ctx->proxy_set->key.tpname);
+  /* todo: mark the proxy set as complete */
+
+  /* remove current delivery ctx */
+  dc_remove_current_delivery(dc);
+}
+
+static void dc_process_set_response_begin(struct dc_t *dc, DurableSupport_response *response)
+{
+  assert(response);
+  assert(response->body._d == DurableSupport_RESPONSETYPE_SET);
+  /* A response set begin is received. If there already exists an open delivery
+   * context for this ds which has not been ended correctly, then this
+   * previous delivery has failed and needs to be aborted.  */
+  if ((dc->delivery_ctx = dc_get_delivery_ctx(dc, response->id, false)) != NULL) {
+    assert(memcmp(dc->delivery_ctx->id, response->id, 16) == 0);
+    DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "current open delivery %" PRIu64 " has missed an end\n", dc->delivery_ctx->delivery_id);
+    /* abort the currently open delivery */
+    dc_abort_current_delivery(dc);
+  }
+  assert(dc->delivery_ctx == NULL);
+  /* open the new delivery */
+  dc_open_delivery(dc, response);
+}
+
+static void dc_process_set_response_end (struct dc_t *dc, DurableSupport_response *response)
+{
+  char id_str[37];
+
+  /* A response set end is received. Lookup the existing delivery context for this ds */
+  if ((dc->delivery_ctx = dc_get_delivery_ctx(dc, response->id, false)) != NULL) {
+    assert(memcmp(dc->delivery_ctx->id, response->id, 16) == 0);
+    /* verify that this response set end belongs the currently opened delivery.
+     * by comparing the delivery_id. If they do not match, then this response
+     * set end does not belong to the currently opened set. This means that
+     * delivery of the currently opened set has failed and needs to be aborted. */
+    if (dc->delivery_ctx->delivery_id != response->body._u.set.delivery_id) {
+      DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "current open delivery %" PRIu64 " does not belong to end delivery %" PRIu64 "\n",
+          dc->delivery_ctx->delivery_id, response->body._u.set.delivery_id);
+      /* abort the currently open delivery */
+      dc_abort_current_delivery(dc);
+    } else {
+      /* the end belongs to the correct begin; we have received all data for the set
+       * and can properly close the delivery */
+      dc_close_delivery(dc, response->id, &response->body._u.set);
+    }
+  } else {
+    /* an end was received without a begin; no need to abort */
+    DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "end delivery %" PRIu64 " from ds \"%s\" for set \"%s.%s\" received, but no corresponding open delivery found\n",
+        response->body._u.set.delivery_id, dc_stringify_id(response->id, id_str), response->body._u.set.partition, response->body._u.set.tpname);
+  }
+}
+
+static void dc_process_set_response_not_found(struct dc_t *dc, DurableSupport_response *response)
+{
+  /* the set indicated in the response does not exist at the ds.
+   * This can for example happen when a transient reader has been created,
+   * but no transient writer exists. In such cases we can mark the reader
+   * as complete.
+   */
+  DC_UNUSED_ARG(dc);
+  DC_UNUSED_ARG(response);
+}
+
+static void dc_process_set_response (struct dc_t *dc, DurableSupport_response *response)
+{
+  assert(response->body._d == DurableSupport_RESPONSETYPE_SET);
+  if (response->body._u.set.flags &  DC_FLAG_SET_BEGIN) {
+    dc_process_set_response_begin(dc, response);
+  } else if (response->body._u.set.flags &  DC_FLAG_SET_END) {
+    dc_process_set_response_end(dc, response);
+  } else if (response->body._u.set.flags &  DC_FLAG_SET_NOT_FOUND) {
+    dc_process_set_response_not_found(dc, response);
+  } else {
+    DDS_ERROR("invalid response set flag 0x%04" PRIx32, response->body._u.set.flags);
+  }
+}
+
+static void dc_process_data_response (struct dc_t *dc, DurableSupport_response *response)
+{
+  struct proxy_set_t *proxy_set = NULL;
+
+  /* TODO:
+   * A DS also has a response reader (by virtue of the CycloneDDS instance it runs).
+   * Currently, a DS therefore also receives responses that it sends itself.
+   * Because they is no proxy set the data is not injected, but I still like
+   * to have that a ds never receives responses. */
+  if ((dc->delivery_ctx = dc_get_delivery_ctx(dc, response->id, false)) == NULL) {
+    /* There is no delivery context for this data, which means that this node
+     * did not request data for this set. If we do receive data, then we
+     * can safely ignore it. */
+    return;
+  }
+  if ((proxy_set = dc->delivery_ctx->proxy_set) == NULL) {
+    /* There is no proxy set for this data, which means that this node
+     * did not request data for this set. If we do receive data, then we
+     * can safely ignore it. */
+    return;
+  }
+  /* A response_set begin has been received. Because data delivery is reliable,
+   * we are sure that we missed no responses, so the data response that we received
+   * must belong to the proxy set. */
+//  printf("LH *** inject data from proxy set \"%s.%s\"\n", proxy_set->key.partition, proxy_set->key.tpname);
+}
+
+static int dc_process_response (dds_entity_t rd, struct dc_t *dc)
+{
+#define MAX_SAMPLES   100
+
+  void *samples[MAX_SAMPLES];
+  dds_sample_info_t info[MAX_SAMPLES];
+  int samplecount;
+  int j;
+
+  /* dds_read/take allocates memory for the data if samples[0] is a null pointer.
+   * The memory must be released when done by returning the loan */
+  samples[0] = NULL;
+  samplecount = dds_take_mask (rd, samples, info, MAX_SAMPLES, MAX_SAMPLES, DDS_NOT_READ_SAMPLE_STATE | DDS_ANY_VIEW_STATE | DDS_ANY_INSTANCE_STATE);
+
+  if (samplecount < 0) {
+    DDS_ERROR("failed to take dc_response [%s]", dds_strretcode(-samplecount));
+  } else {
+    /* process the response
+     * we ignore invalid samples and only process valid responses */
+    for (j = 0; !dds_triggered(dc->com->ws) && j < samplecount; j++) {
+      DurableSupport_response *response = (DurableSupport_response *)samples[j];
+      char str[1024] = { 0 };  /* max string representation size */
+      int l;
+      if (info[j].valid_data && ((l = dc_stringify_response(str, sizeof(str), response)) > 0)) {
+        size_t len = (size_t)l;
+
+        /* LH: TODO: add statistics for responses */
+        DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "dc_response %s%s\n", str, (len >= sizeof(str)) ? "..(trunc)" : "");
+        /* deliver the received response to the readers belonging to the proxy set */
+        switch (response->body._d) {
+          case DurableSupport_RESPONSETYPE_SET:
+            dc_process_set_response(dc, response);
+            break;
+          case DurableSupport_RESPONSETYPE_DATA:
+            dc_process_data_response(dc, response);
+            break;
+          default :
+            DDS_ERROR("invalid response type %" PRIu16, response->body._d);
+        }
+      }
+    }
+    (void)dds_return_loan(rd, samples, samplecount);
+  }
+  return samplecount;
+
+#undef MAX_SAMPLES
 }
 
 /* add the reader tree of readers for this proxy set */
@@ -1589,8 +1820,8 @@ static uint32_t recv_handler (void *a)
 }
 
 /* set the request listener to learn about the existence of matching request readers.
- * Because matches may have occurred already before */
-
+ * This purpose of this function is acquire matched subscriptions for late joining
+ * request writers. */
 static dds_return_t activate_request_listener (struct dc_t *dc)
 {
   dds_return_t rc, ret;
@@ -1674,6 +1905,8 @@ dds_return_t dds_durability_init (const dds_domainid_t domainid, struct ddsi_dom
   dc.cfg.ident = ddsrt_strdup(DEFAULT_IDENT);
   dc.selected_request_reader_ih = DDS_HANDLE_NIL;
   dc.nr_of_matched_dc_requests = 0;
+  dc.delivery_ctx = NULL; /* initially no current open delivery context */
+  ddsrt_avl_cinit(&delivery_ctx_td, &dc.delivery_ctxs);
   ddsrt_avl_cinit(&server_td, &dc.servers);
   ddsrt_avl_cinit(&matched_request_readers_td, &dc.matched_request_readers);
   ddsrt_avl_cinit(&pending_requests_td, &dc.pending_requests);
@@ -1738,7 +1971,7 @@ dds_return_t dds_durability_fini (void)
      return DDS_RETCODE_OK;
   }
   if (dc.com) {
-    /* indicate the the durable client is teminating */
+    /* indicate the the durable client is terminating */
     ddsrt_atomic_st32 (&dc.termflag, 1);
     /* force the dc thread to terminate */
     if ((rc = dds_waitset_set_trigger(dc.com->ws, true)) < 0) {
@@ -1751,6 +1984,7 @@ dds_return_t dds_durability_fini (void)
     dds_delete_listener(dc.request_listener);
     dds_delete_listener(dc.quorum_listener);
     dc_com_free(dc.com);
+    ddsrt_avl_cfree(&delivery_ctx_td,  &dc.delivery_ctxs, cleanup_delivery_ctx);
     ddsrt_cond_destroy(&dc.pending_request_cond);
     ddsrt_mutex_destroy(&dc.pending_request_mutex);
     ddsrt_avl_cfree(&proxy_set_td,  &dc.proxy_sets, cleanup_proxy_set);
