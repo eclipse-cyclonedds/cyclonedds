@@ -35,6 +35,9 @@ bool ddsi_valid_portmapping (const struct ddsi_config *config, int32_t participa
 /** @component port_mapping */
 uint32_t ddsi_get_port (const struct ddsi_config *config, enum ddsi_port which, int32_t participant_index);
 
+/** @component port_mapping */
+bool ddsi_get_port_int (uint32_t *port, const struct ddsi_portmapping *map, enum ddsi_port which, uint32_t domain_id, int32_t participant_index, char *str_if_overflow, size_t strsize);
+
 #if defined (__cplusplus)
 }
 #endif
