@@ -18,7 +18,7 @@
 // for a static assert on DDSI_TRAN_RANDOM_PORT_NUMBER
 #include "ddsi__tran.h"
 
-static bool get_port_int (uint32_t *port, const struct ddsi_portmapping *map, enum ddsi_port which, uint32_t domain_id, int32_t participant_index, char *str_if_overflow, size_t strsize)
+bool ddsi_get_port_int (uint32_t *port, const struct ddsi_portmapping *map, enum ddsi_port which, uint32_t domain_id, int32_t participant_index, char *str_if_overflow, size_t strsize)
 {
   uint32_t off = UINT32_MAX, ppidx = UINT32_MAX;
 
@@ -109,7 +109,7 @@ bool ddsi_valid_portmapping (const struct ddsi_config *config, int32_t participa
   int n = snprintf (msg, msgsize, "port number(s) of out range:");
   size_t pos = (n >= 0 && (size_t) n <= msgsize) ? (size_t) n : msgsize;
   do {
-    if (!get_port_int (&dummy_port, &config->ports, which, config->extDomainId.value, participant_index, str, sizeof (str)))
+    if (!ddsi_get_port_int (&dummy_port, &config->ports, which, config->extDomainId.value, participant_index, str, sizeof (str)))
     {
       n = snprintf (msg + pos, msgsize - pos, "%s %s %s", ok ? "" : ",", portname (which), str);
       if (n >= 0 && (size_t) n <= msgsize - pos)
@@ -125,7 +125,7 @@ uint32_t ddsi_get_port (const struct ddsi_config *config, enum ddsi_port which, 
   /* Not supposed to come here if port mapping is invalid */
   uint32_t port;
   char str[32];
-  bool ok = get_port_int (&port, &config->ports, which, config->extDomainId.value, participant_index, str, sizeof (str));
+  bool ok = ddsi_get_port_int (&port, &config->ports, which, config->extDomainId.value, participant_index, str, sizeof (str));
   assert (ok);
   (void) ok;
   return port;
