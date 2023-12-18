@@ -17,11 +17,27 @@ function(IDLC_GENERATE)
   cmake_parse_arguments(
     IDLC "${options}" "${one_value_keywords}" "${multi_value_keywords}" "" ${ARGN})
 
-  set(_idlc_shared_lib "$<TARGET_FILE:CycloneDDS::libidlc>")
-  set(_idlc_depends CycloneDDS::libidlc)
+  if (TARGET CycloneDDS::libidlc)
+    set(_idlc_backend "$<TARGET_FILE:CycloneDDS::libidlc>")
+    if (NOT DEFINED _idlc_generate_skipreport)
+      message(STATUS "Building internal IDLC backend")
+      set(_idlc_generate_skipreport 1 CACHE INTERNAL "")
+    endif()
+    set(_idlc_depends CycloneDDS::libidlc)
+  else()
+    find_library(_idlc_backend "cycloneddsidlc" NO_CMAKE_FIND_ROOT_PATH)
+    if (_idlc_backend)
+      if (NOT DEFINED _idlc_generate_skipreport)
+        message(STATUS "Using external IDLC backend: ${_idlc_backend}")
+        set(_idlc_generate_skipreport 1 CACHE INTERNAL "")
+      endif()
+    else()
+      message(FATAL_ERROR "Unable to find IDLC C-backend library: cycloneddsidlc")
+    endif()
+  endif()
 
   set(gen_args
-    BACKEND ${_idlc_shared_lib}
+    BACKEND ${_idlc_backend}
     ${IDLC_UNPARSED_ARGUMENTS}
     TARGET ${IDLC_TARGET}
     BASE_DIR ${IDLC_BASE_DIR}
@@ -32,12 +48,15 @@ function(IDLC_GENERATE)
     OUTPUT_DIR ${IDLC_OUTPUT_DIR}
     DEFAULT_EXTENSIBILITY ${IDLC_DEFAULT_EXTENSIBILITY}
     DEPENDS ${_idlc_depends})
+
   if(${IDLC_NO_TYPE_INFO})
     list(APPEND gen_args NO_TYPE_INFO)
   endif()
+
   if(${IDLC_WERROR})
     list(APPEND gen_args WERROR)
   endif()
+
   idlc_generate_generic(${gen_args})
 endfunction()
 
@@ -49,15 +68,7 @@ function(IDLC_GENERATE_GENERIC)
     IDLC "${options}" "${one_value_keywords}" "${multi_value_keywords}" "" ${ARGN})
 
   # find idlc binary
-  if(CMAKE_CROSSCOMPILING OR NOT BUILD_IDLC)
-    find_program(_idlc_executable idlc NO_CMAKE_FIND_ROOT_PATH REQUIRED)
-
-    if(_idlc_executable)
-      set(_idlc_depends "")
-    else()
-      message(FATAL_ERROR "Cannot find idlc executable")
-    endif()
-  else()
+  if(BUILD_IDLC)
     if (CMAKE_PROJECT_NAME STREQUAL "CycloneDDS")
       # By using the internal target when building CycloneDDS itself, prevent using an external idlc
       # This prevents a problem when an installed cyclone is on your prefix path when building cyclone again
@@ -67,6 +78,8 @@ function(IDLC_GENERATE_GENERIC)
       set(_idlc_executable CycloneDDS::idlc)
       set(_idlc_depends CycloneDDS::idlc)
     endif()
+  else()
+    find_program(_idlc_executable "idlc" NO_CMAKE_FIND_ROOT_PATH REQUIRED)
   endif()
 
   if(NOT IDLC_TARGET AND NOT IDLC_FILES)
