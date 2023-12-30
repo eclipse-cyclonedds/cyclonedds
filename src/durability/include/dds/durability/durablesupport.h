@@ -177,6 +177,11 @@ typedef struct DurableSupport_set_t
   dds_sequence_DurableSupport_id_t addressees;
 } DurableSupport_set_t;
 
+typedef struct DurableSupport_writer_properties_t
+{
+  bool autodispose;
+} DurableSupport_writer_properties_t;
+
 #ifndef DDS_SEQUENCE_DURABLESUPPORT_RANGE_DEFINED
 #define DDS_SEQUENCE_DURABLESUPPORT_RANGE_DEFINED
 typedef struct dds_sequence_DurableSupport_range
@@ -197,6 +202,7 @@ typedef struct dds_sequence_DurableSupport_range
 typedef struct DurableSupport_writer_t
 {
   DurableSupport_id_t id;
+  struct DurableSupport_writer_properties_t properties;
   uint32_t flags;
   dds_sequence_DurableSupport_range ranges;
 } DurableSupport_writer_t;
