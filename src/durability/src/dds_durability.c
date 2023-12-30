@@ -1473,11 +1473,12 @@ static enum ddsi_serdata_kind get_serdata_kind (uint8_t kind)
 /* These are the offsets used in the data responses.
  * TODO: These definitions should actually be shared between the ds and the client.
  */
-#define RESPONSE_HEADER_OFFSET_WT             8
-#define RESPONSE_HEADER_OFFSET_SEQNUM        16
-#define RESPONSE_HEADER_OFFSET_WRITER_GUID   24
-#define RESPONSE_HEADER_OFFSET_SERDATA_KIND  40
-#define RESPONSE_HEADER_OFFSET_SERDATA       41
+#define RESPONSE_HEADER_OFFSET_WT                    8
+#define RESPONSE_HEADER_OFFSET_SEQNUM               16
+#define RESPONSE_HEADER_OFFSET_WRITER_GUID          24
+#define RESPONSE_HEADER_OFFSET_SERDATA_KIND         40
+#define RESPONSE_HEADER_OFFSET_SERDATA_AUTODISPOSE  41
+#define RESPONSE_HEADER_OFFSET_SERDATA              42
 
 
 static void dc_process_data_response (struct dc_t *dc, DurableSupport_response *response)
@@ -1494,7 +1495,7 @@ static void dc_process_data_response (struct dc_t *dc, DurableSupport_response *
   enum ddsi_serdata_kind serdata_kind;
   dds_guid_t wguid;
   dds_return_t ret = DDS_RETCODE_OK;
-  bool autodispose;
+  bool autodispose = 0;
   struct proxy_set_reader_t *proxy_set_rd;
   char id_str[37];
 
@@ -1523,6 +1524,7 @@ static void dc_process_data_response (struct dc_t *dc, DurableSupport_response *
   wt = ddsrt_fromBE8(*((int64_t *)(response->body._u.data.blob._buffer + RESPONSE_HEADER_OFFSET_WT)));
   seqnum = ddsrt_fromBE8u(*((uint64_t *)(response->body._u.data.blob._buffer + RESPONSE_HEADER_OFFSET_SEQNUM)));
   memcpy(&wguid.v, response->body._u.data.blob._buffer + RESPONSE_HEADER_OFFSET_WRITER_GUID, 16);
+  autodispose = *((uint8_t *)response->body._u.data.blob._buffer + RESPONSE_HEADER_OFFSET_SERDATA_AUTODISPOSE);
   serdata_kind = get_serdata_kind(*((uint8_t *)response->body._u.data.blob._buffer + RESPONSE_HEADER_OFFSET_SERDATA_KIND));
   /* We could now potentially figure out if the response that has been received
    * contains fields that we cannot interpret. We can find that out by comparing
@@ -1556,7 +1558,6 @@ static void dc_process_data_response (struct dc_t *dc, DurableSupport_response *
     serdata->sequence_number = seqnum;
     serdata->timestamp.v = wt;
     memcpy(&serdata->writer_guid, &wguid, 16);
-    autodispose = false;  /* TODO: we have to retrieve the autodispose setting of the writer! */
     if ((ret = dds_reader_store_historical_serdata(reader, wguid, autodispose, serdata)) != DDS_RETCODE_OK) {
       DDS_ERROR("Failed to deliver historical data to reader \"%s\" [%s]\n", dc_stringify_id(proxy_set_rd->key.guid.v, id_str), dds_strretcode(ret));
       goto err_store_historical_serdata;
