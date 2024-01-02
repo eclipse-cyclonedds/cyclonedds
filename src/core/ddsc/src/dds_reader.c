@@ -537,8 +537,8 @@ dds_return_t dds_reader_store_historical_serdata (dds_entity_t reader, dds_guid_
     ret = DDS_RETCODE_BAD_PARAMETER;
     goto fail_tk_builtin;
   }
-  /* historical data is always unregistered */
-  if (!ddsi_builtintopic_is_visible(gv->builtin_topic_interface, &ddsiguid, ddsi_get_entity_vendorid(&rd->e))) {
+  /* inject historical data as unregistered when the proxy writer is not (yet?) discovered */
+  if (ddsi_entidx_lookup_proxy_writer_guid (gv->entity_index, &ddsiguid) == NULL) {
     serdata->statusinfo |= DDSI_STATUSINFO_UNREGISTER;
   }
   /* set the writer guid of the serdata */
