@@ -89,6 +89,9 @@ DDS_EXPORT void ddsi_typemap_fini (ddsi_typemap_t *typemap);
 DDS_EXPORT bool ddsi_typemap_equal (const ddsi_typemap_t *a, const ddsi_typemap_t *b);
 
 /** @component type_system */
+DDS_EXPORT const char * ddsi_typemap_get_type_name (const ddsi_typemap_t *typemap, const ddsi_typeid_t *type_id);
+
+/** @component type_system */
 dds_return_t ddsi_type_ref_local (struct ddsi_domaingv *gv, struct ddsi_type **type, const struct ddsi_sertype *sertype, ddsi_typeid_kind_t kind);
 
 /** @component type_system */

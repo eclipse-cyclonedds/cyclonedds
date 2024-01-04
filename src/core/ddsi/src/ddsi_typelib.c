@@ -206,6 +206,14 @@ const struct DDS_XTypes_TypeObject * ddsi_typemap_typeobj (const ddsi_typemap_t 
   return NULL;
 }
 
+const char * ddsi_typemap_get_type_name (const ddsi_typemap_t *typemap, const ddsi_typeid_t *type_id)
+{
+  const struct DDS_XTypes_TypeObject *type_obj = ddsi_typemap_typeobj (typemap, &type_id->x);
+  if (type_obj == NULL)
+    return NULL;
+  return ddsi_typeobj_get_type_name_impl (type_obj);
+}
+
 ddsi_typemap_t *ddsi_typemap_deser (const unsigned char *data, uint32_t sz)
 {
   unsigned char *data_ne;
