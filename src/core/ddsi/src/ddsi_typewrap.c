@@ -445,6 +445,30 @@ dds_return_t ddsi_typeobj_get_hash_id (const struct DDS_XTypes_TypeObject *type_
   return DDS_RETCODE_OK;
 }
 
+const char *ddsi_typeobj_get_type_name_impl (const struct DDS_XTypes_TypeObject *type_obj)
+{
+  if (type_obj->_d != DDS_XTypes_EK_COMPLETE)
+    return NULL;
+
+  switch (type_obj->_u.complete._d)
+  {
+    case DDS_XTypes_TK_ALIAS:
+      return type_obj->_u.complete._u.alias_type.header.detail.type_name;
+    case DDS_XTypes_TK_STRUCTURE:
+      return type_obj->_u.complete._u.struct_type.header.detail.type_name;
+    case DDS_XTypes_TK_UNION:
+      return type_obj->_u.complete._u.union_type.header.detail.type_name;
+    case DDS_XTypes_TK_BITSET:
+      return type_obj->_u.complete._u.bitset_type.header.detail.type_name;
+    case DDS_XTypes_TK_ENUM:
+      return type_obj->_u.complete._u.enumerated_type.header.detail.type_name;
+    case DDS_XTypes_TK_BITMASK:
+      return type_obj->_u.complete._u.bitmask_type.header.detail.type_name;
+    default:
+      return NULL;
+  }
+}
+
 void ddsi_typeobj_fini_impl (struct DDS_XTypes_TypeObject *typeobj)
 {
   dds_stream_free_sample (typeobj, &dds_cdrstream_default_allocator, DDS_XTypes_TypeObject_desc.m_ops);

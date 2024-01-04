@@ -47,6 +47,8 @@ dds_return_t ddsi_typeobj_get_hash_id (const struct DDS_XTypes_TypeObject *type_
 /** @component xtypes_wrapper */
 void ddsi_typeobj_get_hash_id_impl (const struct DDS_XTypes_TypeObject *type_obj, struct DDS_XTypes_TypeIdentifier *type_id);
 
+/** @component xtypes_wrapper */
+const char *ddsi_typeobj_get_type_name_impl (const struct DDS_XTypes_TypeObject *type_obj);
 
 /** @component xtypes_wrapper */
 dds_return_t ddsi_xt_type_init (struct ddsi_domaingv *gv, struct xt_type *xt, const ddsi_typeid_t *ti, const ddsi_typeobj_t *to);

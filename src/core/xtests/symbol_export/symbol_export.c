@@ -711,6 +711,7 @@ int main (int argc, char **argv)
   ddsi_typemap_deser (ptr, 0);
   ddsi_typemap_fini (ptr);
   ddsi_typemap_equal (ptr, ptr);
+  ddsi_typemap_get_type_name (ptr, ptr2);
   ddsi_type_lookup (ptr, ptr);
   ddsi_type_compare (ptr, ptr);
 
