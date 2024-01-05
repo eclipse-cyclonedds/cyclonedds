@@ -1240,12 +1240,12 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==<br>
 <li><i>whc</i>: tracing of writer history cache changes</li>
 <li><i>tcp</i>: tracing of TCP-specific activity</li>
 <li><i>topic</i>: tracing of topic definitions</li>
-<li><i>plist</i>: tracing of discovery parameter list interpretation</li></ul>
+<li><i>plist</i>: tracing of discovery parameter list interpretation</li><li><i>durability</i>: tracing of durable data</li></ul>
 <p>In addition, there is the keyword <i>trace</i> that enables all but <i>radmin</i>, <i>topic</i>, <i>plist</i> and <i>whc</i></p>.
 <p>The categorisation of tracing output is incomplete and hence most of the verbosity levels and categories are not of much use in the current release. This is an ongoing process and here we describe the target situation rather than the current situation. Currently, the most useful is <i>trace</i>.</p>
 <p>The default value is: <code>&lt;empty&gt;</code></p>""" ] ]
         element Category {
-          xsd:token { pattern = "((fatal|error|warning|info|config|discovery|data|radmin|timing|traffic|topic|tcp|plist|whc|throttle|rhc|content|shm|trace)(,(fatal|error|warning|info|config|discovery|data|radmin|timing|traffic|topic|tcp|plist|whc|throttle|rhc|content|shm|trace))*)|" }
+          xsd:token { pattern = "((fatal|error|warning|info|config|discovery|data|radmin|timing|traffic|topic|tcp|plist|whc|throttle|rhc|durability|content|shm|trace)(,(fatal|error|warning|info|config|discovery|data|radmin|timing|traffic|topic|tcp|plist|whc|throttle|rhc|durability|content|shm|trace))*)|" }
         }?
         & [ a:documentation [ xml:lang="en" """
 <p>This option specifies where the logging is printed to. Note that <i>stdout</i> and <i>stderr</i> are treated as special values, representing "standard out" and "standard error" respectively. No file is created unless logging categories are enabled using the Tracing/Verbosity or Tracing/EnabledCategory settings.</p>
@@ -1285,8 +1285,8 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==<br>
 }
 # generated from ddsi_config.h[570f67bd3080674a4bad53d9580a8bb7ad1e6e4d] 
 # generated from ddsi__cfgunits.h[bd22f0c0ed210501d0ecd3b07c992eca549ef5aa] 
-# generated from ddsi__cfgelems.h[13337a006d5313519c88c3f3643f27992840cfd3] 
-# generated from ddsi_config.c[efeae198a5e12ca8977a655216470564b5c44b64] 
+# generated from ddsi__cfgelems.h[de6d6357eef2d532b2450cec9732702107d2a03c] 
+# generated from ddsi_config.c[95a436fb315153cae24f6d95f7e924e1004882e1] 
 # generated from _confgen.h[e32eabfc35e9f3a7dcb63b19ed148c0d17c6e5fc] 
 # generated from _confgen.c[237308acd53897a34e8c643e16e05a61d73ffd65] 
 # generated from generate_rnc.c[b50e4b7ab1d04b2bc1d361a0811247c337b74934] 

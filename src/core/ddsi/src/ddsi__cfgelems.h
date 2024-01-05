@@ -138,7 +138,6 @@ static struct cfgelem entity_autonaming_attributes[] = {
   END_MARKER
 };
 
-
 static struct cfgelem general_cfgelems[] = {
   STRING("MulticastRecvNetworkInterfaceAddresses", NULL, 1, "preferred",
     MEMBER(networkRecvAddressStrings),
@@ -1962,6 +1961,7 @@ static struct cfgelem tracing_cfgelems[] = {
       "<li><i>tcp</i>: tracing of TCP-specific activity</li>\n"
       "<li><i>topic</i>: tracing of topic definitions</li>\n"
       "<li><i>plist</i>: tracing of discovery parameter list interpretation</li>"
+      "<li><i>durability</i>: tracing of durable data</li>"
       "</ul>\n"
       "<p>In addition, there is the keyword <i>trace</i> that enables all "
       "but <i>radmin</i>, <i>topic</i>, <i>plist</i> and <i>whc</i></p>.\n"
@@ -1973,7 +1973,7 @@ static struct cfgelem tracing_cfgelems[] = {
     VALUES(
       "fatal","error","warning","info","config","discovery","data","radmin",
       "timing","traffic","topic","tcp","plist","whc","throttle","rhc",
-      "content","shm","trace"
+      "durability","content","shm","trace"
     )),
   ENUM("Verbosity", NULL, 1, "none",
     NOMEMBER,

@@ -17,7 +17,7 @@ else()
   add_library(ddsc)
 endif()
 
-if(BUILD_TESTING)
+if(BUILD_TESTING OR ENABLE_DURABILITY)
   set_property(TARGET ddsc PROPERTY WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
 else()
   set_property(TARGET ddsc PROPERTY C_VISIBILITY_PRESET hidden)
@@ -60,6 +60,10 @@ if(ENABLE_SECURITY)
   target_include_directories(
     ddsc PUBLIC
     $<BUILD_INTERFACE:$<TARGET_PROPERTY:security_api,INTERFACE_INCLUDE_DIRECTORIES>>)
+endif()
+
+if(ENABLE_DURABILITY)
+  target_link_libraries(ddsc PRIVATE "$<BUILD_INTERFACE:durability>")
 endif()
 
 include(cdr/CMakeLists.txt)

@@ -302,6 +302,7 @@ dds_entity_t dds_create_domain (const dds_domainid_t domain, const char *config)
   const struct config_source config_src = { .kind = CFGKIND_XML, .u = { .xml = config } };
   ret = dds_domain_create_internal_xml_or_raw (&dom, domain, false, &config_src);
   dds_entity_unpin_and_drop_ref (&dds_global.m_entity);
+
   return ret;
 }
 

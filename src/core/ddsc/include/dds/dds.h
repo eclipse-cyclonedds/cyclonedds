@@ -1888,6 +1888,9 @@ dds_wait_for_acks(dds_entity_t publisher_or_writer, dds_duration_t timeout);
  * DOC_TODO The reader is a DDS Entity
  */
 
+DDS_EXPORT dds_return_t
+dds_reader_store_historical_serdata (dds_entity_t reader, dds_guid_t guid, bool autodispose, struct ddsi_serdata *serdata);
+
 /**
  * @brief Creates a new instance of a DDS reader.
  * @ingroup reader
