@@ -66,33 +66,78 @@ static char *dc_responsetype_image (DurableSupport_responsetype_t type)
   }
 }
 
-static char *dc_blob_image (dds_sequence_octet blob)
+static int dc_blob_image (dds_sequence_octet blob, char *buf, size_t n)
 {
-  char *buf;
-  uint32_t len;
-  uint32_t n;
-  uint32_t i;
+  uint32_t nrofbytes = 2 * blob._length + 1;  /* the number of bytes to fill when the complete blob is stored, including the '\0' */
+  uint32_t j;
+  size_t i = 0;
+  int l;
 
-#define BLOB_IMAGE_SIZE  24
-  len = (blob._length < BLOB_IMAGE_SIZE) ? blob._length : BLOB_IMAGE_SIZE;
-  n = len*2+1;
-  buf = ddsrt_malloc(n);
-  if (len < BLOB_IMAGE_SIZE) {
-    for (i=0; i < len; i++) {
-      sprintf(buf+i*2, "%02x", (char)blob._buffer[i]);
+  if (buf == NULL) {
+    /* no space allocated for display */
+    return -1;
+  }
+  if (n == 0) {
+    /* do not print anything */
+    return 0;
+  }
+  if (nrofbytes <= n) {
+    /* the complete blob fits in buf */
+    for (j=0; j < blob._length; j++) {
+      if ((l = snprintf(buf+i, n-i, "%02x", (uint8_t)blob._buffer[j])) < 0) {
+        goto err;
+      }
+      assert(l < (int)(n-i));  /* never truncated */
+      i += (size_t)l;
     }
   } else {
-    for (i=0; i < 11; i++) {
-      sprintf(buf+i*2, "%02x", (char)blob._buffer[i]);
-    }
-    strcpy(buf+22, "...");
-    for (i=0; i < 11; i++) {
-      sprintf(buf+25+i*2, "%02x", (char)blob._buffer[len-11+i]);
+    /* The blob does not fit in buf.
+     * if n < 5 then we display '..';
+     * if n >=5 and n < 7 we display 'AB..'
+     * if n > 7 we display 'AB..XY' (where the length of the head and tail varies depending on buf size n)
+     */
+    if (n < 5) {
+      if ((l = snprintf(buf+i, n-i, "..")) < 0) {
+        goto err;
+      }
+      i += (size_t)l;
+    } else if (n < 7) {
+      if ((l = snprintf(buf+i, n-i, "%02x..", (uint8_t)blob._buffer[0])) < 0) {
+        goto err;
+      }
+    } else {
+      /* calculate head and tail part */
+      size_t np = ((n-1) - 2) / 4;
+      size_t k;
+      /* print head */
+      for (k=0; k < np; k++) {
+        if ((l = snprintf(buf+i, n-i, "%02x", (uint8_t)blob._buffer[k])) < 0) {
+          goto err;
+        }
+        assert(l < (int)(n-i));    /* impossible to overflow buf */
+        i += (size_t)l;
+      }
+      /* print separator '..' */
+      if ((l = snprintf(buf+i, n-i, "%s", "..")) < 0) {
+        goto err;
+      }
+      assert(l < (int)(n-i));    /* impossible to overflow buf */
+      i += (size_t)l;
+      /* print tail */
+      for (k=0; k < np; k++) {
+        if ((l = snprintf(buf+i, n-i, "%02x", (uint8_t)blob._buffer[blob._length - np + k])) < 0) {
+          goto err;
+        }
+        assert(l < (int)(n-i));   /* impossible to overflow buf */
+        i += (size_t)l;
+      }
     }
   }
-  buf[2*len] = '\0';
-#undef BLOB_IMAGE_SIZE
-  return buf;
+  l = (int)i;
+  return (l >= (int)n) ? 0 /* no more space in buf */ : l;
+
+err:
+  return -1;
 }
 
 static int dc_stringify_request (char *buf, size_t n, const DurableSupport_request *request, bool valid_data)
@@ -144,8 +189,8 @@ static int dc_stringify_response (char *buf, size_t n, const DurableSupport_resp
 {
   size_t i = 0;
   int l;
-  char *str;
   char id_str[37];
+  char blob_str[64];
 
   if (buf == NULL) {
     goto err;
@@ -169,12 +214,12 @@ static int dc_stringify_response (char *buf, size_t n, const DurableSupport_resp
       i += (size_t)l;
       break;
     case DurableSupport_RESPONSETYPE_DATA :
-      str = dc_blob_image(response->body._u.data.blob);
-      if ((l = snprintf(buf+i, n-i, "\"blob\":\"%s\"", str)) < 0) {
-        ddsrt_free(str);
+      if (dc_blob_image(response->body._u.data.blob, blob_str, sizeof(blob_str)) < 0) {
         goto err;
       }
-      ddsrt_free(str);
+      if ((l = snprintf(buf+i, n-i, "\"blob\":\"%s\"", blob_str)) < 0) {
+        goto err;
+      }
       i += (size_t)l;
       break;
     default:
@@ -2282,7 +2327,7 @@ dds_return_t dds_durability_wait_for_quorum (dds_entity_t writer)
 
   /* Check if the quorum for a durable writer is reached.
    * If not, we will head bang until the quorum is reached.
-   * To prevent starvation we use a 10ms sleep in between.
+   * To prevent starvation we use a 10ms sleep in between successive headbangs.
    * When the quorum is reached within the max_blocking_time,
    * DDS_RETCODE_OK is returned, otherwise DDS_PRECONDITION_NOT_MET
    * is returned. The max_blocking_time itself is retrieved lazily
