@@ -1525,10 +1525,10 @@ static struct cfgelem internal_cfgelems[] = {
     DESCRIPTION(
     "<p>This element controls whether all traffic is handled by a single "
     "receive thread (false) or whether multiple receive threads may be used "
-    "to improve latency (true). By default it is disabled on Windows because "
-    "it appears that one cannot count on being able to send packets to "
-    "oneself, which is necessary to stop the thread during shutdown. "
-    "Currently multiple receive threads are only used for connectionless "
+    "to improve latency (true). The value \"default\" currently maps to "
+    "false because of firewalls potentially blocking the packets it sends "
+    "to itself to interrupt the blocking reads during termination.</p>"
+    "<p>Currently multiple receive threads are only used for connectionless "
     "transport (e.g., UDP) and ManySocketsMode not set to single (the "
     "default).</p>"),
     VALUES("false","true","default")),
