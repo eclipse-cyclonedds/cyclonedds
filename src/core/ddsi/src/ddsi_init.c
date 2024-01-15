@@ -905,25 +905,19 @@ static void make_special_types (struct ddsi_domaingv *gv)
 
 static bool use_multiple_receive_threads (const struct ddsi_config *cfg)
 {
-  /* Under some unknown circumstances Windows (at least Windows 10) exhibits
-     the interesting behaviour of losing its ability to let us send packets
-     to our own sockets. When that happens, dedicated receive threads can no
-     longer be stopped and Cyclone hangs in shutdown.  So until someone
-     figures out why this happens, it is probably best have a different
-     default on Windows. */
-#if _WIN32
-  const bool def = false;
-#else
-  const bool def = true;
-#endif
   switch (cfg->multiple_recv_threads)
   {
     case DDSI_BOOLDEF_FALSE:
+    case DDSI_BOOLDEF_DEFAULT:
+      // Too many people run into trouble with firewalls blocking the packets
+      // Cyclone sends to itself for interrupting the blocking reads.  So
+      // default to a single thread and multiplexing.
+      //
+      // (One could also consider multiple threads, but still doing select+read
+      // but having fewer threads is arguably a good thing in itself.)
       return false;
     case DDSI_BOOLDEF_TRUE:
       return true;
-    case DDSI_BOOLDEF_DEFAULT:
-      return def;
   }
   assert (0);
   return false;
