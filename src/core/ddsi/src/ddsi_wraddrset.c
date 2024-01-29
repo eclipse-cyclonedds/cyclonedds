@@ -324,9 +324,7 @@ static const int32_t cost_discarded = 1;
 
 // Cost associated with delivering another time to a reader that has
 // already been covered by a (selected) PSMX locator.
-// Currently, it is quite painful when this happens because it can
-// lead to user observable stuttering.
-static const int32_t cost_redundant_psmx = 1000000;
+static const int32_t cost_redundant_psmx = 0;
 
 // Cost associated with delivering data for the first time (slightly
 // negative cost makes it possible to give a slightly higher initial
