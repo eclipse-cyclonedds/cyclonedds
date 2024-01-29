@@ -1652,13 +1652,6 @@ int rtps_init (struct ddsi_domaingv *gv)
     gv->pcap_fp = NULL;
   }
 
-#ifdef DDS_HAS_NETWORK_PARTITIONS
-  /* Convert address sets in partition mappings from string to address sets now that we have
-     xmit_conns filled in */
-  if (convert_network_partition_addresses (gv, port_data_uc) < 0)
-    goto err_network_partition_addrset;
-#endif
-
   gv->mship = new_group_membership();
   if (gv->m_factory->m_connless)
   {
@@ -1748,6 +1741,13 @@ int rtps_init (struct ddsi_domaingv *gv)
     gv->intf_xlocators[i].conn = gv->xmit_conns[i];
     gv->intf_xlocators[i].c = gv->interfaces[i].loc;
   }
+
+#ifdef DDS_HAS_NETWORK_PARTITIONS
+  /* Convert address sets in partition mappings from string to address sets now that we have
+     xmit_conns filled in */
+  if (convert_network_partition_addresses (gv, gv->loc_default_uc.port) < 0)
+    goto err_network_partition_addrset;
+#endif
 
   // Join SPDP, default multicast addresses if enabled
   if (gv->m_factory->m_connless && gv->config.allowMulticast)
@@ -1882,6 +1882,11 @@ err_post_omg_security_init:
   q_omg_security_free (gv);
 #endif
 #endif
+#ifdef DDS_HAS_NETWORK_PARTITIONS
+err_network_partition_addrset:
+  for (struct ddsi_config_networkpartition_listelem *np = gv->config.networkPartitions; np; np = np->next)
+    free_config_networkpartition_addresses (np);
+#endif
 err_mc_conn:
   for (int i = 0; i < gv->n_interfaces; i++)
     gv->intf_xlocators[i].conn = NULL;
@@ -1889,11 +1894,6 @@ err_mc_conn:
   if (gv->pcap_fp)
     ddsrt_mutex_destroy (&gv->pcap_lock);
   free_group_membership (gv->mship);
-#ifdef DDS_HAS_NETWORK_PARTITIONS
-err_network_partition_addrset:
-  for (struct ddsi_config_networkpartition_listelem *np = gv->config.networkPartitions; np; np = np->next)
-    free_config_networkpartition_addresses (np);
-#endif
 err_unicast_sockets:
   ddsi_tkmap_free (gv->m_tkmap);
   nn_reorder_free (gv->spdp_reorder);
