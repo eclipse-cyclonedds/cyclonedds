@@ -303,10 +303,8 @@ static struct locset *wras_calc_locators (const struct ddsrt_log_cfg *logcfg, st
 static const int32_t cost_discarded = 1;
 
 // Cost associated with delivering another time to a reader that has
-// already been covered by a (selected) Iceoryx locator.  Currently,
-// it is quite painful when this happens because it can lead to user
-// observable stuttering
-static const int32_t cost_redundant_iceoryx = 1000000;
+// already been covered by a (selected) Iceoryx locator.
+static const int32_t cost_redundant_iceoryx = 0;
 
 // Cost associated with delivering data for the first time (slightly
 // negative cost makes it possible to give a slightly higher initial
