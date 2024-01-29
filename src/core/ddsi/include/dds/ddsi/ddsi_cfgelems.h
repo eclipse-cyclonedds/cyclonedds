@@ -1985,13 +1985,20 @@ static struct cfgelem tracing_cfgelems[] = {
       "<li><i>radmin</i>: receive buffer administration</li>\n"
       "<li><i>timing</i>: periodic reporting of CPU loads per thread</li>\n"
       "<li><i>traffic</i>: periodic reporting of total outgoing data</li>\n"
+      "<li><i>throttle</i>: tracing of throttling events</li>\n"
       "<li><i>whc</i>: tracing of writer history cache changes</li>\n"
+      "<li><i>rhc</i>: tracing of reader history cache changes</li>\n"
       "<li><i>tcp</i>: tracing of TCP-specific activity</li>\n"
       "<li><i>topic</i>: tracing of topic definitions</li>\n"
-      "<li><i>plist</i>: tracing of discovery parameter list interpretation</li>"
+      "<li><i>plist</i>: tracing of discovery parameter list interpretation</li>\n"
+      "<li><i>content</i>: tracing of sample contents</li>\n"
+      "<li><i>shm</i>: tracing of Iceoryx integration</li>\n"
+      "<li><i>malformed</i>: dump malformed full packet as warning</li>\n"
       "</ul>\n"
-      "<p>In addition, there is the keyword <i>trace</i> that enables all "
-      "but <i>radmin</i>, <i>topic</i>, <i>plist</i> and <i>whc</i></p>.\n"
+      "<p>In addition, there is the keyword <i>trace</i> that enables: "
+      "<i>fatal</i>, <i>error</i>, <i>warning</i>, <i>info</i>, <i>config</i>, "
+      "<i>discovery</i>, <i>data</i>, <i>trace</i>, <i>timing</i>, <i>traffic</i>, "
+      "<i>tcp</i>, <i>throttle</i>, <i>content</i>.</p>.\n"
       "<p>The categorisation of tracing output is incomplete and hence most "
       "of the verbosity levels and categories are not of much use in the "
       "current release. This is an ongoing process and here we describe the "
@@ -2000,7 +2007,7 @@ static struct cfgelem tracing_cfgelems[] = {
     VALUES(
       "fatal","error","warning","info","config","discovery","data","radmin",
       "timing","traffic","topic","tcp","plist","whc","throttle","rhc",
-      "content","shm","trace"
+      "content","shm","malformed","trace"
     )),
   ENUM("Verbosity", NULL, 1, "none",
     NOMEMBER,
