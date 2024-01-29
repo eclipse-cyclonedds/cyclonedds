@@ -2793,16 +2793,19 @@ static const char *submsg_name (ddsi_rtps_submessage_kind_t id, struct submsg_na
   return buffer->x;
 }
 
-static void malformed_packet_received (const struct ddsi_domaingv *gv, const unsigned char *msg, const unsigned char *submsg, size_t len, ddsi_vendorid_t vendorid)
+static void malformed_packet_received_shortmsg (const struct ddsi_domaingv *gv, const unsigned char *msg, const unsigned char *submsg, size_t len, ddsi_vendorid_t vendorid)
 {
   char tmp[1024];
   size_t i, pos, smsize;
-
+  
   struct submsg_name submsg_name_buffer;
   ddsi_rtps_submessage_kind_t smkind;
   const char *state0;
   const char *state1;
-  if (submsg == NULL || (submsg < msg || submsg >= msg + len)) {
+  // can safely subtract the two pointers after casting to uintptr_t, on all practical platforms
+  // this'll just give us a useful offset as long as submsg isn't a null pointer
+  const intptr_t offset = (intptr_t) ((uintptr_t) submsg - (uintptr_t) msg);
+  if (submsg == NULL || (submsg < msg || submsg > msg + len)) {
     // outside buffer shouldn't happen, but this is for dealing with junk, so better be careful
     smkind = DDSI_RTPS_SMID_PAD;
     state0 = "";
@@ -2818,19 +2821,20 @@ static void malformed_packet_received (const struct ddsi_domaingv *gv, const uns
     state1 = submsg_name (smkind, &submsg_name_buffer);
   }
   assert (submsg >= msg && submsg <= msg + len);
-
+  const size_t clamped_offset = (offset < 0) ? 0 : ((size_t) offset > len) ? len : (size_t) offset;
+  
   /* Show beginning of message and of submessage (as hex dumps) */
-  pos = (size_t) snprintf (tmp, sizeof (tmp), "malformed packet received from vendor %u.%u state %s%s <", vendorid.id[0], vendorid.id[1], state0, state1);
-  for (i = 0; i < 32 && i < len && msg + i < submsg && pos < sizeof (tmp); i++)
+  pos = (size_t) snprintf (tmp, sizeof (tmp), "malformed packet received from vendor %u.%u length %" PRIuSIZE " state %s%s <", vendorid.id[0], vendorid.id[1], len, state0, state1);
+  for (i = 0; i < 32 && i < len && i < clamped_offset && pos < sizeof (tmp); i++)
     pos += (size_t) snprintf (tmp + pos, sizeof (tmp) - pos, "%s%02x", (i > 0 && (i%4) == 0) ? " " : "", msg[i]);
   if (pos < sizeof (tmp))
-    pos += (size_t) snprintf (tmp + pos, sizeof (tmp) - pos, " @0x%x ", (int) (submsg - msg));
-  for (i = 0; i < 64 && i < len - (size_t) (submsg - msg) && pos < sizeof (tmp); i++)
-    pos += (size_t) snprintf (tmp + pos, sizeof (tmp) - pos, "%s%02x", (i > 0 && (i%4) == 0) ? " " : "", submsg[i]);
+    pos += (size_t) snprintf (tmp + pos, sizeof (tmp) - pos, " @%" PRIdPTR " ", offset);
+  for (i = 0; i < 64 && i < len - clamped_offset && pos < sizeof (tmp); i++)
+    pos += (size_t) snprintf (tmp + pos, sizeof (tmp) - pos, "%s%02x", (i > 0 && (i%4) == 0) ? " " : "", msg[clamped_offset + i]);
   if (pos < sizeof (tmp))
     pos += (size_t) snprintf (tmp + pos, sizeof (tmp) - pos, "> (note: maybe partially bswap'd)");
   assert (pos < (int) sizeof (tmp));
-
+  
   /* Partially decode header if we have enough bytes available */
   smsize = len - (size_t) (submsg - msg);
   if (smsize >= DDSI_RTPS_SUBMESSAGE_HEADER_SIZE && pos < sizeof (tmp)) {
@@ -2900,6 +2904,44 @@ static void malformed_packet_received (const struct ddsi_domaingv *gv, const uns
     }
   }
   GVWARNING ("%s\n", tmp);
+}
+
+static void malformed_packet_received_fulldump (const struct ddsi_domaingv *gv, const unsigned char *msg, const unsigned char *submsg, size_t len, ddsi_vendorid_t vendorid, uint32_t logmask)
+{
+  GVLOG (logmask, "malformed packet: vendor %u.%u msg %p submsg %p length %" PRIuSIZE " contents:\n", vendorid.id[0], vendorid.id[1], (void *) msg, (void *) submsg, len);
+  for (size_t off16 = 0; off16 < len; off16 += 16)
+  {
+    GVLOG (logmask, "%c%04" PRIxSIZE " ", (msg + off16 <= submsg && (size_t) (submsg - (msg + off16)) < 16) ? '*' : ' ', off16);
+    char sep = ' ';
+    size_t off1;
+    for (off1 = 0; off1 < 16 && off16 + off1 < len; off1++) {
+      if (msg + off16 + off1 == submsg)
+        sep = '[';
+      else if (sep == '[')
+        sep = ']';
+      else
+        sep =' ';
+      GVLOG (logmask, "%s%c%02x", (off1 == 8) ? " " : "", sep, msg[off16 + off1]);
+    }
+    for (; off1 < 16; off1++) {
+      GVLOG (logmask, "%s%c  ", (off1 == 8) ? " " : "", (sep == '[') ? ']' : sep);
+      sep = ' ';
+    }
+    GVLOG (logmask, "  |");
+    for (off1 = 0; off1 < 16 && off16 + off1 < len; off1++) {
+      GVLOG (logmask, "%c", isprint (msg[off16 + off1]) ? msg[off16 + off1] : '.');
+    }
+    GVLOG (logmask, "|\n");
+  }
+}
+
+static void malformed_packet_received (const struct ddsi_domaingv *gv, const unsigned char *msg, const unsigned char *submsg, size_t len, ddsi_vendorid_t vendorid)
+{
+  malformed_packet_received_shortmsg (gv, msg, submsg, len, vendorid);
+  if (gv->logconfig.c.mask & DDS_LC_MALFORMED)
+    malformed_packet_received_fulldump (gv, msg, submsg, len, vendorid, DDS_LC_WARNING);
+  else // dump it if we're writing a trace file, no matter the tracing options
+    malformed_packet_received_fulldump (gv, msg, submsg, len, vendorid, DDS_TRACE_MASK);
 }
 
 static struct ddsi_receiver_state *rst_cow_if_needed (int *rst_live, struct ddsi_rmsg *rmsg, struct ddsi_receiver_state *rst)

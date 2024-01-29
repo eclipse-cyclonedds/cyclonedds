@@ -1884,17 +1884,22 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==&lt;br&gt;
 &lt;li&gt;&lt;i&gt;radmin&lt;/i&gt;: receive buffer administration&lt;/li&gt;
 &lt;li&gt;&lt;i&gt;timing&lt;/i&gt;: periodic reporting of CPU loads per thread&lt;/li&gt;
 &lt;li&gt;&lt;i&gt;traffic&lt;/i&gt;: periodic reporting of total outgoing data&lt;/li&gt;
+&lt;li&gt;&lt;i&gt;throttle&lt;/i&gt;: tracing of throttling events&lt;/li&gt;
 &lt;li&gt;&lt;i&gt;whc&lt;/i&gt;: tracing of writer history cache changes&lt;/li&gt;
+&lt;li&gt;&lt;i&gt;rhc&lt;/i&gt;: tracing of reader history cache changes&lt;/li&gt;
 &lt;li&gt;&lt;i&gt;tcp&lt;/i&gt;: tracing of TCP-specific activity&lt;/li&gt;
 &lt;li&gt;&lt;i&gt;topic&lt;/i&gt;: tracing of topic definitions&lt;/li&gt;
-&lt;li&gt;&lt;i&gt;plist&lt;/i&gt;: tracing of discovery parameter list interpretation&lt;/li&gt;&lt;/ul&gt;
-&lt;p&gt;In addition, there is the keyword &lt;i&gt;trace&lt;/i&gt; that enables all but &lt;i&gt;radmin&lt;/i&gt;, &lt;i&gt;topic&lt;/i&gt;, &lt;i&gt;plist&lt;/i&gt; and &lt;i&gt;whc&lt;/i&gt;&lt;/p&gt;.
+&lt;li&gt;&lt;i&gt;plist&lt;/i&gt;: tracing of discovery parameter list interpretation&lt;/li&gt;
+&lt;li&gt;&lt;i&gt;content&lt;/i&gt;: tracing of sample contents&lt;/li&gt;
+&lt;li&gt;&lt;i&gt;malformed&lt;/i&gt;: dump malformed full packet as warning&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;In addition, there is the keyword &lt;i&gt;trace&lt;/i&gt; that enables: &lt;i&gt;fatal&lt;/i&gt;, &lt;i&gt;error&lt;/i&gt;, &lt;i&gt;warning&lt;/i&gt;, &lt;i&gt;info&lt;/i&gt;, &lt;i&gt;config&lt;/i&gt;, &lt;i&gt;discovery&lt;/i&gt;, &lt;i&gt;data&lt;/i&gt;, &lt;i&gt;trace&lt;/i&gt;, &lt;i&gt;timing&lt;/i&gt;, &lt;i&gt;traffic&lt;/i&gt;, &lt;i&gt;tcp&lt;/i&gt;, &lt;i&gt;throttle&lt;/i&gt;, &lt;i&gt;content&lt;/i&gt;.&lt;/p&gt;.
 &lt;p&gt;The categorisation of tracing output is incomplete and hence most of the verbosity levels and categories are not of much use in the current release. This is an ongoing process and here we describe the target situation rather than the current situation. Currently, the most useful is &lt;i&gt;trace&lt;/i&gt;.&lt;/p&gt;
 &lt;p&gt;The default value is: &lt;code&gt;&amp;lt;empty&amp;gt;&lt;/code&gt;&lt;/p&gt;</xs:documentation>
     </xs:annotation>
     <xs:simpleType>
       <xs:restriction base="xs:token">
-        <xs:pattern value="((fatal|error|warning|info|config|discovery|data|radmin|timing|traffic|topic|tcp|plist|whc|throttle|rhc|content|shm|trace)(,(fatal|error|warning|info|config|discovery|data|radmin|timing|traffic|topic|tcp|plist|whc|throttle|rhc|content|shm|trace))*)|"/>
+        <xs:pattern value="((fatal|error|warning|info|config|discovery|data|radmin|timing|traffic|topic|tcp|plist|whc|throttle|rhc|content|malformed|trace)(,(fatal|error|warning|info|config|discovery|data|radmin|timing|traffic|topic|tcp|plist|whc|throttle|rhc|content|malformed|trace))*)|"/>
       </xs:restriction>
     </xs:simpleType>
   </xs:element>
@@ -1964,8 +1969,8 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==&lt;br&gt;
 </xs:schema>
 <!--- generated from ddsi_config.h[007a7968df8cbc42a122109bd139ac85bab0f6c9] -->
 <!--- generated from ddsi__cfgunits.h[bd22f0c0ed210501d0ecd3b07c992eca549ef5aa] -->
-<!--- generated from ddsi__cfgelems.h[4549945443af9c1fe8014d973d4b1cff52a7acdb] -->
-<!--- generated from ddsi_config.c[2d3406ce4db09358597689d7382f80185634eb69] -->
+<!--- generated from ddsi__cfgelems.h[607a8f573eb5d87d6f93b1d9bce2947f29da56dc] -->
+<!--- generated from ddsi_config.c[d4ef67f90737b1bf8ae94ad932774fa015e3a2cf] -->
 <!--- generated from _confgen.h[e32eabfc35e9f3a7dcb63b19ed148c0d17c6e5fc] -->
 <!--- generated from _confgen.c[237308acd53897a34e8c643e16e05a61d73ffd65] -->
 <!--- generated from generate_rnc.c[b50e4b7ab1d04b2bc1d361a0811247c337b74934] -->
