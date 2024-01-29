@@ -79,6 +79,8 @@ extern "C" {
 #define DDS_LC_CONTENT (131072u)
 /** Debug/trace messages related to SHMEM */
 #define DDS_LC_SHM (262144u)
+/** Output full dump of malformed messages as warnings */
+#define DDS_LC_MALFORMED (524288u)
 /** All common trace categories. */
 #define DDS_LC_ALL \
     (DDS_LC_FATAL | DDS_LC_ERROR | DDS_LC_WARNING | DDS_LC_INFO | \

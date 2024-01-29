@@ -1774,7 +1774,7 @@ The default value is: "false".
 
 #### //CycloneDDS/Domain/Tracing/Category
 One of:
-* Comma-separated list of: fatal, error, warning, info, config, discovery, data, radmin, timing, traffic, topic, tcp, plist, whc, throttle, rhc, content, shm, trace
+* Comma-separated list of: fatal, error, warning, info, config, discovery, data, radmin, timing, traffic, topic, tcp, plist, whc, throttle, rhc, content, shm, malformed, trace
 * Or empty
 
 This element enables individual logging categories. These are enabled in addition to those enabled by Tracing/Verbosity. Recognised categories are:
@@ -1799,7 +1799,11 @@ This element enables individual logging categories. These are enabled in additio
 
  * traffic: periodic reporting of total outgoing data
 
+ * throttle: tracing of throttling events
+
  * whc: tracing of writer history cache changes
+
+ * rhc: tracing of reader history cache changes
 
  * tcp: tracing of TCP-specific activity
 
@@ -1807,7 +1811,14 @@ This element enables individual logging categories. These are enabled in additio
 
  * plist: tracing of discovery parameter list interpretation
 
-In addition, there is the keyword trace that enables all but radmin, topic, plist and whc.
+ * content: tracing of sample contents
+
+ * shm: tracing of Iceoryx integration
+
+ * malformed: dump malformed full packet as warning
+
+
+In addition, there is the keyword trace that enables: fatal, error, warning, info, config, discovery, data, trace, timing, traffic, tcp, throttle, content..
 The categorisation of tracing output is incomplete and hence most of the verbosity levels and categories are not of much use in the current release. This is an ongoing process and here we describe the target situation rather than the current situation. Currently, the most useful is trace.
 
 The default value is: "".
@@ -1856,8 +1867,8 @@ The categorisation of tracing output is incomplete and hence most of the verbosi
 The default value is: "none".
 <!--- generated from ddsi_config.h[87da706bc9c463a87326e87b311d8291d5761d43] -->
 <!--- generated from ddsi_cfgunits.h[fc550f1620aa20dcd9244ef4e24299d5001efbb4] -->
-<!--- generated from ddsi_cfgelems.h[a294ec068e0de39ae662e4709f6ed3226a2412f2] -->
-<!--- generated from ddsi_config.c[960218b9e3e9e0137b8a44c21006b5d75e4c9513] -->
+<!--- generated from ddsi_cfgelems.h[779636e47ae3db4f970aae732353db6d7ba9583f] -->
+<!--- generated from ddsi_config.c[f1481cfdb01fe1010eabd34a879d5aa2c2262bec] -->
 <!--- generated from _confgen.h[01ffa8a2e53b2309451756861466551cfe28c8ce] -->
 <!--- generated from _confgen.c[13cd40932d695abae1470202a42c18dc4d09ea84] -->
 <!--- generated from generate_rnc.c[a2ec6e48d33ac14a320c8ec3f320028a737920e0] -->
