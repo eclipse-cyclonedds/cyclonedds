@@ -1182,12 +1182,6 @@ static int ddsi_tcp_is_valid_port (const struct ddsi_tran_factory *fact, uint32_
   return (0 < port && port <= 65535);
 }
 
-static uint32_t ddsi_tcp_receive_buffer_size (const struct ddsi_tran_factory *fact)
-{
-  (void) fact;
-  return 0;
-}
-
 static char *ddsi_tcp_locator_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc, struct ddsi_tran_conn * conn, int with_port)
 {
   (void) conn;
@@ -1240,8 +1234,9 @@ int ddsi_tcp_init (struct ddsi_domaingv *gv)
   fact->fact.m_is_ssm_mcaddr_fn = ddsi_tcp_is_ssm_mcaddr;
   fact->fact.m_is_nearby_address_fn = ddsi_tcp_is_nearby_address;
   fact->fact.m_is_valid_port_fn = ddsi_tcp_is_valid_port;
-  fact->fact.m_receive_buffer_size_fn = ddsi_tcp_receive_buffer_size;
   fact->fact.m_locator_from_sockaddr_fn = ddsi_tcp_locator_from_sockaddr;
+
+  ddsrt_atomic_st32 (&fact->fact.m_receive_buf_size, 0);
 
 #if DDSRT_HAVE_IPV6
   if (gv->config.transport_selector == DDSI_TRANS_TCP6)
