@@ -56,6 +56,7 @@
 #include "dds/ddsi/ddsi_typelib.h"
 #include "dds/ddsi/ddsi_typebuilder.h"
 #endif
+#include "dds/ddsi/ddsi_proxy_endpoint.h"
 
 #ifdef DDS_HAS_SECURITY
 #include "dds/security/core/dds_security_serialize.h"
@@ -117,7 +118,7 @@ int main (int argc, char **argv)
 {
   (void) argc;
   (void) argv;
-  void *ptr = &ptr, *ptr2 = &ptr2, *ptr3 = &ptr3, *ptr4 = &ptr4;
+  void *ptr = &ptr, *ptr2 = &ptr2, *ptr3 = &ptr3, *ptr4 = &ptr4, *ptr5 = &ptr5, *ptr6 = &ptr6, *ptr7 = &ptr7, *ptr8 = &ptr8;
 
   /* The functions shouldn't actually be called, just included here so that
      the linker resolves the symbols. An early return (with unreachable code
@@ -739,6 +740,14 @@ int main (int argc, char **argv)
   // ddsi/ddsi_typebuilder.h
   ddsi_topic_descriptor_from_type (ptr, ptr2, ptr3);
   ddsi_topic_descriptor_fini (ptr);
+#endif
+
+  // ddsi/ddsi_proxy_endpoint.h
+  ddsi_new_proxy_writer (ptr, ptr2, ptr3, ptr4, ptr5, ptr6, ptr7, ptr8, ddsrt_time_wallclock(), 0);
+#ifdef DDS_HAS_SSM
+  ddsi_new_proxy_reader (ptr, ptr2, ptr3, ptr4, ptr5, ptr6, ddsrt_time_wallclock(), 0, 0);
+#else
+  ddsi_new_proxy_reader (ptr, ptr2, ptr3, ptr4, ptr5, ptr6, ddsrt_time_wallclock(), 0);
 #endif
 
   // ddsrt/atomics.h

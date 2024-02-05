@@ -55,44 +55,6 @@ void ddsi_send_entityid_to_pwr (struct ddsi_proxy_writer *pwr, const ddsi_guid_t
 void ddsi_send_entityid_to_prd (struct ddsi_proxy_reader *prd, const ddsi_guid_t *guid);
 
 /**
- * @brief To create a new proxy writer
- * @component ddsi_proxy_endpoint
- *
- * @param gv        domain globals
- * @param ppguid    the proxy participant is determined from the GUID and must exist
- * @param guid      guid for the proxy writer
- * @param as        address set
- * @param plist     parameter list
- * @param dqueue    receive queue
- * @param evq       event queue
- * @param timestamp timestamp to be used as creation time for the proxy writer
- * @param seq       sequence number
- * @returns 0 on success
- */
-int ddsi_new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct ddsi_addrset *as, const struct ddsi_plist *plist, struct ddsi_dqueue *dqueue, struct ddsi_xeventq *evq, ddsrt_wctime_t timestamp, ddsi_seqno_t seq);
-
-
-/**
- * @brief To create a new proxy reader
- * @component ddsi_proxy_endpoint
- *
- * @param gv            domain globals
- * @param ppguid        the proxy participant is determined from the GUID and must exist
- * @param guid          guid for the proxy reader
- * @param as            address set
- * @param plist         parameter list
- * @param timestamp     timestamp to be used as creation time for the proxy reader
- * @param seq           sequence number
- * @param favours_ssm   indicates if the proxy reader favors ssm
- * @return int
- */
-int ddsi_new_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct ddsi_addrset *as, const struct ddsi_plist *plist, ddsrt_wctime_t timestamp, ddsi_seqno_t seq
-#ifdef DDS_HAS_SSM
-, int favours_ssm
-#endif
-);
-
-/**
  * @brief Delete a proxy writer
  * @component ddsi_proxy_endpoint
  *

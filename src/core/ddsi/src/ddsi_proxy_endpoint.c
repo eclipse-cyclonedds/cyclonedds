@@ -227,7 +227,7 @@ static enum ddsi_reorder_mode get_proxy_writer_reorder_mode(const ddsi_entityid_
   return DDSI_REORDER_MODE_MONOTONICALLY_INCREASING;
 }
 
-int ddsi_new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct ddsi_addrset *as, const ddsi_plist_t *plist, struct ddsi_dqueue *dqueue, struct ddsi_xeventq *evq, ddsrt_wctime_t timestamp, ddsi_seqno_t seq)
+int ddsi_new_proxy_writer (struct ddsi_proxy_writer **proxy_writer, struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct ddsi_addrset *as, const ddsi_plist_t *plist, struct ddsi_dqueue *dqueue, struct ddsi_xeventq *evq, ddsrt_wctime_t timestamp, ddsi_seqno_t seq)
 {
   struct ddsi_proxy_participant *proxypp;
   struct ddsi_proxy_writer *pwr;
@@ -236,6 +236,7 @@ int ddsi_new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppg
   enum ddsi_reorder_mode reorder_mode;
   int ret;
 
+  assert (proxy_writer);
   assert (ddsi_is_writer_entityid (guid->entityid));
   assert (ddsi_entidx_lookup_proxy_writer_guid (gv->entity_index, guid) == NULL);
 
@@ -349,6 +350,7 @@ int ddsi_new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppg
   pwr->local_matching_inprogress = 0;
   ddsrt_mutex_unlock (&pwr->e.lock);
 
+  *proxy_writer = pwr;
   return 0;
 }
 
@@ -569,7 +571,7 @@ int ddsi_proxy_writer_set_notalive (struct ddsi_proxy_writer *pwr, bool notify)
 
 /* PROXY-READER ----------------------------------------------------- */
 
-int ddsi_new_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct ddsi_addrset *as, const ddsi_plist_t *plist, ddsrt_wctime_t timestamp, ddsi_seqno_t seq
+int ddsi_new_proxy_reader (struct ddsi_proxy_reader **proxy_reader, struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct ddsi_addrset *as, const ddsi_plist_t *plist, ddsrt_wctime_t timestamp, ddsi_seqno_t seq
 #ifdef DDS_HAS_SSM
 , int favours_ssm
 #endif
@@ -580,6 +582,7 @@ int ddsi_new_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *ppg
   ddsrt_mtime_t tnow = ddsrt_time_monotonic ();
   int ret;
 
+  assert (proxy_reader);
   assert (!ddsi_is_writer_entityid (guid->entityid));
   assert (ddsi_entidx_lookup_proxy_reader_guid (gv->entity_index, guid) == NULL);
 
@@ -627,6 +630,7 @@ int ddsi_new_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *ppg
   ddsrt_mutex_unlock (&prd->e.lock);
 
   ddsi_match_proxy_reader_with_writers (prd, tnow);
+  *proxy_reader = prd;
   return DDS_RETCODE_OK;
 }
 

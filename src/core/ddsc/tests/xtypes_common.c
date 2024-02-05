@@ -75,10 +75,11 @@ void test_proxy_rd_create (struct ddsi_domaingv *gv, const char *topic_name, DDS
   CU_ASSERT_FATAL (rc);
 
   ddsi_xqos_mergein_missing (&plist->qos, &ddsi_default_qos_reader, ~(uint64_t)0);
+  struct ddsi_proxy_reader *proxy_reader;
 #ifdef DDS_HAS_SSM
-  rc = ddsi_new_proxy_reader (gv, pp_guid, rd_guid, as, plist, ddsrt_time_wallclock (), 1, 0);
+  rc = ddsi_new_proxy_reader (&proxy_reader, gv, pp_guid, rd_guid, as, plist, ddsrt_time_wallclock (), 1, 0);
 #else
-  rc = ddsi_new_proxy_reader (gv, pp_guid, rd_guid, as, plist, ddsrt_time_wallclock (), 1);
+  rc = ddsi_new_proxy_reader (&proxy_reader, gv, pp_guid, rd_guid, as, plist, ddsrt_time_wallclock (), 1);
 #endif
   CU_ASSERT_EQUAL_FATAL (rc, exp_ret);
   ddsi_plist_fini (plist);
