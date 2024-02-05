@@ -75,9 +75,6 @@ void ddsi_proxy_participant_remove_pwr_lease_locked (struct ddsi_proxy_participa
 
 
 /** @component ddsi_proxy_participant */
-bool ddsi_new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, uint32_t bes, const struct ddsi_guid *privileged_pp_guid, struct ddsi_addrset *as_default, struct ddsi_addrset *as_meta, const struct ddsi_plist *plist, dds_duration_t tlease_dur, ddsi_vendorid_t vendor, unsigned custom_flags, ddsrt_wctime_t timestamp, ddsi_seqno_t seq);
-
-/** @component ddsi_proxy_participant */
 int ddsi_delete_proxy_participant_by_guid (struct ddsi_domaingv *gv, const struct ddsi_guid *guid, ddsrt_wctime_t timestamp, int isimplicit);
 
 #if defined (__cplusplus)

@@ -199,11 +199,12 @@ static void ddsi_wraddrset_some_cases (int casenumber, int cost, bool wr_psmx, c
         .entityid = { .u = DDSI_ENTITYID_PARTICIPANT }
       };
       struct ddsi_addrset *proxypp_as = ddsi_new_addrset ();
+      struct ddsi_proxy_participant *proxy_participant;
       ddsi_locator_t loc = ucloc[i]; loc.port = 1000 + (unsigned) j;
       ddsi_add_locator_to_addrset (&gv, proxypp_as, &loc);
       ddsi_add_locator_to_addrset (&gv, proxypp_as, &mcloc);
-      ddsi_new_proxy_participant (&gv, &rdppguid[i][j], 0, NULL, proxypp_as, ddsi_ref_addrset (proxypp_as), &plist_pp[i], DDS_INFINITY, DDSI_VENDORID_ECLIPSE, 0, ddsrt_time_wallclock (), 1);
-      assert (ddsi_entidx_lookup_proxy_participant_guid (gv.entity_index, &rdppguid[i][j]));
+      ddsi_new_proxy_participant (&proxy_participant, &gv, &rdppguid[i][j], 0, NULL, proxypp_as, ddsi_ref_addrset (proxypp_as), &plist_pp[i], DDS_INFINITY, DDSI_VENDORID_ECLIPSE, 0, ddsrt_time_wallclock (), 1);
+      assert (proxy_participant != NULL);
 
       const ddsi_guid_t rdguid = {
         .prefix = rdppguid[i][j].prefix,

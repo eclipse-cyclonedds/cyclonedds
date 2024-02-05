@@ -68,6 +68,9 @@ struct ddsi_proxy_participant
 extern const ddsrt_avl_treedef_t ddsi_proxypp_proxytp_treedef;
 #endif
 
+/** @component ddsi_proxy_participant */
+DDS_EXPORT bool ddsi_new_proxy_participant (struct ddsi_proxy_participant **proxy_participant, struct ddsi_domaingv *gv, const struct ddsi_guid *guid, uint32_t bes, const struct ddsi_guid *privileged_pp_guid, struct ddsi_addrset *as_default, struct ddsi_addrset *as_meta, const struct ddsi_plist *plist, dds_duration_t tlease_dur, ddsi_vendorid_t vendor, unsigned custom_flags, ddsrt_wctime_t timestamp, ddsi_seqno_t seq);
+
 #if defined (__cplusplus)
 }
 #endif
