@@ -115,14 +115,18 @@ static void create_proxy_builtin_endpoint_impl (struct ddsi_domaingv *gv, ddsrt_
   plist->qos.topic_name = dds_string_dup (topic_name);
   plist->qos.present |= DDSI_QP_TOPIC_NAME;
   if (ddsi_is_writer_entityid (ep_guid->entityid))
-    ddsi_new_proxy_writer (gv, ppguid, ep_guid, proxypp->as_meta, plist, gv->builtins_dqueue, gv->xevents, timestamp, 0);
+  {
+    struct ddsi_proxy_writer *proxy_writer;
+    ddsi_new_proxy_writer (&proxy_writer, gv, ppguid, ep_guid, proxypp->as_meta, plist, gv->builtins_dqueue, gv->xevents, timestamp, 0);
+  }
   else
   {
+    struct ddsi_proxy_reader *proxy_reader;
 #ifdef DDS_HAS_SSM
     const int ssm = ddsi_addrset_contains_ssm (gv, proxypp->as_meta);
-    ddsi_new_proxy_reader (gv, ppguid, ep_guid, proxypp->as_meta, plist, timestamp, 0, ssm);
+    ddsi_new_proxy_reader (&proxy_reader, gv, ppguid, ep_guid, proxypp->as_meta, plist, timestamp, 0, ssm);
 #else
-    ddsi_new_proxy_reader (gv, ppguid, ep_guid, proxypp->as_meta, plist, timestamp, 0);
+    ddsi_new_proxy_reader (&proxy_reader, gv, ppguid, ep_guid, proxypp->as_meta, plist, timestamp, 0);
 #endif
   }
 }

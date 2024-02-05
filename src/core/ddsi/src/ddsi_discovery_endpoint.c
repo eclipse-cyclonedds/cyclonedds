@@ -562,9 +562,10 @@ void ddsi_handle_sedp_alive_endpoint (const struct ddsi_receiver_state *rst, dds
         ddsi_update_proxy_writer (pwr, seq, as, xqos, timestamp);
       else
       {
+        struct ddsi_proxy_writer *proxy_writer;
         /* not supposed to get here for built-in ones, so can determine the channel based on the transport priority */
         assert (!ddsi_is_builtin_entityid (datap->endpoint_guid.entityid, vendorid));
-        ddsi_new_proxy_writer (gv, &ppguid, &datap->endpoint_guid, as, datap, gv->user_dqueue, gv->xevents, timestamp, seq);
+        ddsi_new_proxy_writer (&proxy_writer, gv, &ppguid, &datap->endpoint_guid, as, datap, gv->user_dqueue, gv->xevents, timestamp, seq);
       }
     }
     else
@@ -573,10 +574,11 @@ void ddsi_handle_sedp_alive_endpoint (const struct ddsi_receiver_state *rst, dds
         ddsi_update_proxy_reader (prd, seq, as, xqos, timestamp);
       else
       {
+        struct ddsi_proxy_reader *proxy_reader;
 #ifdef DDS_HAS_SSM
-        ddsi_new_proxy_reader (gv, &ppguid, &datap->endpoint_guid, as, datap, timestamp, seq, ssm);
+        ddsi_new_proxy_reader (&proxy_reader, gv, &ppguid, &datap->endpoint_guid, as, datap, timestamp, seq, ssm);
 #else
-        ddsi_new_proxy_reader (gv, &ppguid, &datap->endpoint_guid, as, datap, timestamp, seq);
+        ddsi_new_proxy_reader (&proxy_reader, gv, &ppguid, &datap->endpoint_guid, as, datap, timestamp, seq);
 #endif
       }
     }

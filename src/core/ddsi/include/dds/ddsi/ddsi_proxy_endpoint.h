@@ -101,6 +101,48 @@ struct ddsi_proxy_reader {
   ddsi_filter_fn_t filter;
 };
 
+
+/**
+ * @brief To create a new proxy writer
+ * @component ddsi_proxy_endpoint
+ *
+ * @param proxy_writer  out parameter for the created proxy writer
+ * @param gv        domain globals
+ * @param ppguid    the proxy participant is determined from the GUID and must exist
+ * @param guid      guid for the proxy writer
+ * @param as        address set
+ * @param plist     parameter list
+ * @param dqueue    receive queue
+ * @param evq       event queue
+ * @param timestamp timestamp to be used as creation time for the proxy writer
+ * @param seq       sequence number
+ * @returns 0 on success
+ */
+DDS_EXPORT int ddsi_new_proxy_writer (struct ddsi_proxy_writer **proxy_writer, struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct ddsi_addrset *as, const struct ddsi_plist *plist, struct ddsi_dqueue *dqueue, struct ddsi_xeventq *evq, ddsrt_wctime_t timestamp, ddsi_seqno_t seq);
+
+
+/**
+ * @brief To create a new proxy reader
+ * @component ddsi_proxy_endpoint
+ *
+ * @param proxy_reader  out parameter for the created proxy reader
+ * @param gv            domain globals
+ * @param ppguid        the proxy participant is determined from the GUID and must exist
+ * @param guid          guid for the proxy reader
+ * @param as            address set
+ * @param plist         parameter list
+ * @param timestamp     timestamp to be used as creation time for the proxy reader
+ * @param seq           sequence number
+ * @param favours_ssm   indicates if the proxy reader favors ssm
+ * @return int
+ */
+DDS_EXPORT int ddsi_new_proxy_reader (struct ddsi_proxy_reader **proxy_reader, struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, const struct ddsi_guid *guid, struct ddsi_addrset *as, const struct ddsi_plist *plist, ddsrt_wctime_t timestamp, ddsi_seqno_t seq
+
+#ifdef DDS_HAS_SSM
+, int favours_ssm
+#endif
+);
+
 #if defined (__cplusplus)
 }
 #endif
