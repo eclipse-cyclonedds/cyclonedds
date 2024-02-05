@@ -329,7 +329,7 @@ static void free_proxy_participant (struct ddsi_proxy_participant *proxypp)
   ddsrt_free (proxypp);
 }
 
-bool ddsi_new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, uint32_t bes, const struct ddsi_guid *privileged_pp_guid, struct ddsi_addrset *as_default, struct ddsi_addrset *as_meta, const ddsi_plist_t *plist, dds_duration_t tlease_dur, ddsi_vendorid_t vendor, unsigned custom_flags, ddsrt_wctime_t timestamp, ddsi_seqno_t seq)
+bool ddsi_new_proxy_participant (struct ddsi_proxy_participant **proxy_participant, struct ddsi_domaingv *gv, const struct ddsi_guid *ppguid, uint32_t bes, const struct ddsi_guid *privileged_pp_guid, struct ddsi_addrset *as_default, struct ddsi_addrset *as_meta, const ddsi_plist_t *plist, dds_duration_t tlease_dur, ddsi_vendorid_t vendor, unsigned custom_flags, ddsrt_wctime_t timestamp, ddsi_seqno_t seq)
 {
   /* No locking => iff all participants use unique guids, and sedp
      runs on a single thread, it can't go wrong. FIXME, maybe? The
@@ -343,6 +343,7 @@ bool ddsi_new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_gui
   assert (ppguid->entityid.u == DDSI_ENTITYID_PARTICIPANT);
   assert (ddsi_entidx_lookup_proxy_participant_guid (gv->entity_index, ppguid) == NULL);
   assert (privileged_pp_guid == NULL || privileged_pp_guid->entityid.u == DDSI_ENTITYID_PARTICIPANT);
+  assert (proxy_participant);
 
   ddsi_prune_deleted_participant_guids (gv->deleted_participants, ddsrt_time_monotonic ());
 
@@ -477,6 +478,7 @@ bool ddsi_new_proxy_participant (struct ddsi_domaingv *gv, const struct ddsi_gui
     ddsi_proxy_participant_create_handshakes (gv, proxypp);
   }
 #endif
+  *proxy_participant = proxypp;
   return true;
 }
 

@@ -853,7 +853,8 @@ static int handle_spdp_alive (const struct ddsi_receiver_state *rst, ddsi_seqno_
 
   maybe_add_pp_as_meta_to_as_disc (gv, as_meta);
 
-  if (!ddsi_new_proxy_participant (gv, &datap->participant_guid, builtin_endpoint_set, &privileged_pp_guid, as_default, as_meta, datap, lease_duration, rst->vendor, custom_flags, timestamp, seq))
+  struct ddsi_proxy_participant *proxy_participant;
+  if (!ddsi_new_proxy_participant (&proxy_participant, gv, &datap->participant_guid, builtin_endpoint_set, &privileged_pp_guid, as_default, as_meta, datap, lease_duration, rst->vendor, custom_flags, timestamp, seq))
   {
     /* If no proxy participant was created, don't respond */
     return 0;

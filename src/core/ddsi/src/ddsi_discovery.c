@@ -76,6 +76,7 @@ struct ddsi_proxy_participant *ddsi_implicitly_create_proxypp (struct ddsi_domai
 {
   ddsi_guid_t privguid;
   ddsi_plist_t pp_plist;
+  struct ddsi_proxy_participant *proxy_participant;
 
   if (memcmp (&ppguid->prefix, src_guid_prefix, sizeof (ppguid->prefix)) == 0)
     /* if the writer is owned by the participant itself, we're not interested */
@@ -109,7 +110,7 @@ struct ddsi_proxy_participant *ddsi_implicitly_create_proxypp (struct ddsi_domai
        doing anything about (1).  That means we fall back to the legacy mode of locally generating
        GIDs but leaving the system id unchanged if the remote is OSPL.  */
     actual_vendorid = (datap->present & PP_VENDORID) ?  datap->vendorid : vendorid;
-    (void) ddsi_new_proxy_participant (gv, ppguid, 0, &privguid, ddsi_new_addrset(), ddsi_new_addrset(), &pp_plist, DDS_INFINITY, actual_vendorid, DDSI_CF_IMPLICITLY_CREATED_PROXYPP, timestamp, seq);
+    (void) ddsi_new_proxy_participant (&proxy_participant, gv, ppguid, 0, &privguid, ddsi_new_addrset(), ddsi_new_addrset(), &pp_plist, DDS_INFINITY, actual_vendorid, DDSI_CF_IMPLICITLY_CREATED_PROXYPP, timestamp, seq);
   }
   else if (ppguid->prefix.u[0] == src_guid_prefix->u[0] && ddsi_vendor_is_eclipse_or_opensplice (vendorid))
   {
@@ -143,7 +144,7 @@ struct ddsi_proxy_participant *ddsi_implicitly_create_proxypp (struct ddsi_domai
       ddsrt_mutex_unlock (&privpp->e.lock);
 
       pp_plist.adlink_participant_version_info.flags &= ~DDSI_ADLINK_FL_PARTICIPANT_IS_DDSI2;
-      (void) ddsi_new_proxy_participant (gv, ppguid, 0, &privguid, as_default, as_meta, &pp_plist, DDS_INFINITY, vendorid, DDSI_CF_IMPLICITLY_CREATED_PROXYPP | DDSI_CF_PROXYPP_NO_SPDP, timestamp, seq);
+      (void) ddsi_new_proxy_participant (&proxy_participant, gv, ppguid, 0, &privguid, as_default, as_meta, &pp_plist, DDS_INFINITY, vendorid, DDSI_CF_IMPLICITLY_CREATED_PROXYPP | DDSI_CF_PROXYPP_NO_SPDP, timestamp, seq);
     }
   }
 

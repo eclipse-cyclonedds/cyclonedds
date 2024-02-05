@@ -56,6 +56,7 @@
 #include "dds/ddsi/ddsi_typelib.h"
 #include "dds/ddsi/ddsi_typebuilder.h"
 #endif
+#include "dds/ddsi/ddsi_proxy_participant.h"
 #include "dds/ddsi/ddsi_proxy_endpoint.h"
 
 #ifdef DDS_HAS_SECURITY
@@ -749,6 +750,9 @@ int main (int argc, char **argv)
 #else
   ddsi_new_proxy_reader (ptr, ptr2, ptr3, ptr4, ptr5, ptr6, ddsrt_time_wallclock(), 0);
 #endif
+
+  // ddsi/ddsi_proxy_participant.h
+  ddsi_new_proxy_participant (ptr, ptr2, ptr3, 0, ptr5, ptr6, ptr7, ptr8, 0, (ddsi_vendorid_t) { 0 }, 0, ddsrt_time_wallclock (), 0);
 
   // ddsrt/atomics.h
   ddsrt_atomic_ld32 (ptr);
