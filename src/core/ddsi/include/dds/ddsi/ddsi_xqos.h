@@ -384,7 +384,7 @@ void ddsi_xqos_mergein_missing (dds_qos_t *a, const dds_qos_t *b, uint64_t mask)
  *
  * @returns Bitmask of differences
  */
-uint64_t ddsi_xqos_delta (const dds_qos_t *a, const dds_qos_t *b, uint64_t mask);
+DDS_EXPORT uint64_t ddsi_xqos_delta (const dds_qos_t *a, const dds_qos_t *b, uint64_t mask);
 
 /**
  * @brief Add a property 'name' to the properties of "xqos" if it does not exists

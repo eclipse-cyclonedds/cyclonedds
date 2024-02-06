@@ -192,7 +192,7 @@ enum delete_impl_state {
 dds_return_t dds_delete_impl_pinned (dds_entity *e, enum delete_impl_state delstate);
 
 /** @component generic_entity */
-dds_return_t dds_entity_pin (dds_entity_t hdl, dds_entity **eptr);
+DDS_EXPORT dds_return_t dds_entity_pin (dds_entity_t hdl, dds_entity **eptr);
 
 /** @component generic_entity */
 dds_return_t dds_entity_pin_with_origin (dds_entity_t hdl, bool from_user, dds_entity **eptr);
@@ -201,7 +201,7 @@ dds_return_t dds_entity_pin_with_origin (dds_entity_t hdl, bool from_user, dds_e
 dds_return_t dds_entity_pin_for_delete (dds_entity_t hdl, bool explicit, bool from_user, dds_entity **eptr);
 
 /** @component generic_entity */
-void dds_entity_unpin (dds_entity *e);
+DDS_EXPORT void dds_entity_unpin (dds_entity *e);
 
 /** @component generic_entity */
 dds_return_t dds_entity_lock (dds_entity_t hdl, dds_entity_kind_t kind, dds_entity **eptr);

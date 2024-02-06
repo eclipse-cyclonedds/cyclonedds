@@ -495,7 +495,7 @@ ddsrt_nonnull_all;
  *
  * See @ref ddsrt_sockaddrtostr
  */
-dds_return_t
+DDS_EXPORT dds_return_t
 ddsrt_sockaddrfromstr(
   int af, const char *str, void *sa);
 

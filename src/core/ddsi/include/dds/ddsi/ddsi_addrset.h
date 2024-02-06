@@ -21,6 +21,7 @@ extern "C" {
 #endif
 
 struct ddsi_addrset;
+struct ddsi_domaingv;
 
 typedef void (*ddsi_addrset_forall_fun_t) (const ddsi_xlocator_t *loc, void *arg);
 
@@ -31,6 +32,21 @@ bool ddsi_addrset_empty (const struct ddsi_addrset *as)
 /** @component locators */
 void ddsi_addrset_forall (struct ddsi_addrset *as, ddsi_addrset_forall_fun_t f, void *arg)
   ddsrt_nonnull ((1,2));
+
+/** @component locators */
+DDS_EXPORT struct ddsi_addrset *ddsi_ref_addrset (struct ddsi_addrset *as);
+
+/** @component locators */
+DDS_EXPORT void ddsi_unref_addrset (struct ddsi_addrset *as);
+
+/** @component locators */
+DDS_EXPORT struct ddsi_addrset *ddsi_new_addrset (void)
+  ddsrt_attribute_warn_unused_result;
+
+/** @component locators */
+DDS_EXPORT void ddsi_add_locator_to_addrset (const struct ddsi_domaingv *gv, struct ddsi_addrset *as, const ddsi_locator_t *loc)
+  ddsrt_nonnull_all;
+
 
 #if defined (__cplusplus)
 }

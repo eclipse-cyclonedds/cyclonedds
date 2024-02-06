@@ -32,10 +32,10 @@ typedef struct ddsi_guid {
 } ddsi_guid_t;
 
 /** @component misc */
-ddsi_guid_t ddsi_hton_guid (ddsi_guid_t g);
+DDS_EXPORT ddsi_guid_t ddsi_hton_guid (ddsi_guid_t g);
 
 /** @component misc */
-ddsi_guid_t ddsi_ntoh_guid (ddsi_guid_t g);
+DDS_EXPORT ddsi_guid_t ddsi_ntoh_guid (ddsi_guid_t g);
 
 /** @component misc */
 ddsi_guid_prefix_t ddsi_hton_guid_prefix (ddsi_guid_prefix_t p);

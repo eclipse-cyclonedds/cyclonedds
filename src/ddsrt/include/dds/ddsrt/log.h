@@ -151,14 +151,14 @@ typedef struct ddsrt_log_cfg {
   } u;
 } ddsrt_log_cfg_t;
 
-extern uint32_t *const dds_log_mask;
+DDS_EXPORT extern uint32_t *const dds_log_mask;
 
 /**
  * @brief Get currently enabled log and trace categories.
  *
  * @returns A uint32_t with enabled categories set.
  */
-inline uint32_t
+DDS_INLINE_EXPORT inline uint32_t
 dds_get_log_mask(void)
 {
     return *dds_log_mask;

@@ -25,7 +25,7 @@ typedef struct ddsi_interface_set {
 
 /** @brief Initializes an interface set to all-false
  * @component discovery
- * 
+ *
  * @param[out] intfs interface set to initialize */
 void ddsi_interface_set_init (ddsi_interface_set_t *intfs)
   ddsrt_nonnull_all;
@@ -35,7 +35,7 @@ void ddsi_interface_set_init (ddsi_interface_set_t *intfs)
  *
  * @param[in] gv domain
  * @return true iff multicast locators are to be included */
-bool ddsi_include_multicast_locator_in_discovery (const struct ddsi_domaingv *gv)
+DDS_EXPORT bool ddsi_include_multicast_locator_in_discovery (const struct ddsi_domaingv *gv)
   ddsrt_nonnull_all;
 
 /** @brief Constructs a new address set from uni- and multicast locators received in SPDP or SEDP

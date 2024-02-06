@@ -44,7 +44,7 @@ struct ddsi_tran_qos;
 char *ddsi_xlocator_to_string (char *dst, size_t sizeof_dst, const ddsi_xlocator_t *loc);
 
 /** @component locators */
-char *ddsi_locator_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc);
+DDS_EXPORT char *ddsi_locator_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc);
 
 /** @component locators */
 char *ddsi_xlocator_to_string_no_port (char *dst, size_t sizeof_dst, const ddsi_xlocator_t *loc);

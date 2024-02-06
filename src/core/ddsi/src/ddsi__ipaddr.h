@@ -31,7 +31,7 @@ int ddsi_ipaddr_compare (const struct sockaddr *const sa1, const struct sockaddr
 char *ddsi_ipaddr_to_string (char *dst, size_t sizeof_dst, const ddsi_locator_t *loc, int with_port, const struct ddsi_network_interface *interf);
 
 /** @component ip_address */
-void ddsi_ipaddr_to_loc (ddsi_locator_t *dst, const struct sockaddr *src, int32_t kind);
+DDS_EXPORT void ddsi_ipaddr_to_loc (ddsi_locator_t *dst, const struct sockaddr *src, int32_t kind);
 
 /** @component ip_address */
 void ddsi_ipaddr_from_loc (struct sockaddr_storage *dst, const ddsi_locator_t *src);
