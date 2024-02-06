@@ -37,6 +37,7 @@
 #include "dds/ddsrt/xmlparser.h"
 #include "dds/ddsrt/io.h"
 #include "dds/ddsrt/ifaddrs.h"
+#include "dds/ddsrt/sockets.h"
 #if DDSRT_HAVE_FILESYSTEM
 #include "dds/ddsrt/filesystem.h"
 #endif
@@ -58,6 +59,17 @@
 #endif
 #include "dds/ddsi/ddsi_proxy_participant.h"
 #include "dds/ddsi/ddsi_proxy_endpoint.h"
+#include "dds/ddsi/ddsi_plist.h"
+#include "dds/ddsi/ddsi_xmsg.h"
+#include "dds/ddsi/ddsi_guid.h"
+#include "dds/ddsi/ddsi_tkmap.h"
+#include "dds/ddsi/ddsi_transmit.h"
+#include "dds/ddsi/ddsi_entity_index.h"
+#include "dds/ddsi/ddsi_addrset.h"
+#include "dds/ddsi/ddsi_tran.h"
+#include "dds/ddsi/ddsi_portmapping.h"
+#include "ddsi__ipaddr.h"
+#include "ddsi__discovery_addrset.h"
 
 #ifdef DDS_HAS_SECURITY
 #include "dds/security/core/dds_security_serialize.h"
@@ -78,7 +90,8 @@
 
 #include "dds/cdr/dds_cdrstream.h"
 
-#include "dds__write.h" // dds_write_impl, dds_writecdr_impl
+#include "dds__write.h"
+#include "dds__entity.h"
 
 DDSRT_WARNING_DEPRECATED_OFF
 DDSRT_WARNING_GNUC_OFF (unused-result)
@@ -716,6 +729,9 @@ int main (int argc, char **argv)
   ddsi_typemap_get_type_name (ptr, ptr2);
   ddsi_type_lookup (ptr, ptr);
   ddsi_type_compare (ptr, ptr);
+  ddsi_type_ref (ptr, ptr2, ptr3);
+  ddsi_type_unref (ptr, ptr2);
+  ddsi_type_add (ptr, ptr2, ptr3, ptr4, ptr5);
 
   ddsi_make_typeid_str (ptr, ptr);
 #endif
@@ -729,6 +745,8 @@ int main (int argc, char **argv)
   // ddsi/ddsi_thread.h
   ddsi_lookup_thread_state ();
   ddsi_lookup_thread_state_real ();
+  ddsi_thread_state_asleep (ptr);
+  ddsi_thread_state_awake (ptr, ptr2);
 
   // ddsi/ddsi_gc.h
   ddsi_gcreq_new (ptr, ptr);
@@ -753,6 +771,51 @@ int main (int argc, char **argv)
 
   // ddsi/ddsi_proxy_participant.h
   ddsi_new_proxy_participant (ptr, ptr2, ptr3, 0, ptr5, ptr6, ptr7, ptr8, 0, (ddsi_vendorid_t) { 0 }, 0, ddsrt_time_wallclock (), 0);
+
+  // ddsi/ddsi_plist.h
+  ddsi_plist_init_empty (ptr);
+  ddsi_plist_fini (ptr);
+
+  // ddsi/ddsi_xqos.h
+  ddsi_xqos_delta (ptr, ptr2, 0);
+
+  // ddsi/ddsi_xmsg.h
+  (void) ddsi_xpack_new (ptr, false);
+  ddsi_xpack_free (ptr);
+  ddsi_xpack_send (ptr, false);
+
+  // ddsi/ddsi_guid.h
+  ddsi_hton_guid ((ddsi_guid_t) { 0 });
+  ddsi_ntoh_guid ((ddsi_guid_t) { 0 });
+
+  // ddsi/ddsi_tkmap.h
+  (void) ddsi_tkmap_lookup_instance_ref (ptr, ptr2);
+  ddsi_tkmap_instance_unref (ptr, ptr2);
+
+  // ddsi/ddsi_transmit.h
+  ddsi_write_sample_gc (ptr, ptr2, ptr3, ptr4, ptr5);
+
+  // ddsi/ddsi_entity_index.h
+  (void) ddsi_entidx_lookup_writer_guid (ptr, ptr2);
+
+  // ddsi/ddsi_addrset.h
+  (void) ddsi_ref_addrset (ptr);
+  ddsi_unref_addrset (ptr);
+  (void) ddsi_new_addrset ();
+  ddsi_add_locator_to_addrset (ptr, ptr2, ptr3);
+
+  // ddsi/ddsi_tran.h
+  (void) ddsi_locator_to_string (ptr, 0, ptr2);
+
+  // ddsi/ddsi_portmapping.h
+  ddsi_get_port_int (ptr, ptr2, 0, 0, 0, ptr3, 0);
+
+  // ddsi__ipaddr.h
+  ddsi_ipaddr_to_loc (ptr, ptr2, 0);
+
+  // ddsi__discovery_addrset.h
+  ddsi_include_multicast_locator_in_discovery (ptr);
+
 
   // ddsrt/atomics.h
   ddsrt_atomic_ld32 (ptr);
@@ -1028,6 +1091,7 @@ int main (int argc, char **argv)
   // ddsrt/log.h
   dds_log (0, ptr, 0, ptr, " ");
   dds_set_log_mask (0); // ROS 2 rmw_cyclonedds_cpp needs this, probably erroneously
+  dds_get_log_mask ();
 
   // ddsrt/sockets.h
 #if DDSRT_HAVE_GETHOSTNAME
@@ -1092,9 +1156,16 @@ int main (int argc, char **argv)
   ddsrt_getifaddrs (ptr, ptr);
   ddsrt_freeifaddrs (ptr);
 
+  // ddsrt/sockets.h
+  ddsrt_sockaddrfromstr (0, ptr, ptr2);
+
   // dds__write.h
   dds_write_impl (ptr, ptr, 0, (dds_write_action) 0);
   dds_writecdr_impl (ptr, ptr, ptr, false);
+
+  // dds__entity.h
+  dds_entity_pin (0, ptr);
+  dds_entity_unpin (ptr);
 
   return 0;
 }

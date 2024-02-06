@@ -48,10 +48,10 @@ struct ddsi_tkmap_instance * ddsi_tkmap_find(struct ddsi_tkmap *map, struct ddsi
 struct ddsi_tkmap_instance * ddsi_tkmap_find_by_id (struct ddsi_tkmap *map, uint64_t iid);
 
 /** @component key_instance_map */
-struct ddsi_tkmap_instance * ddsi_tkmap_lookup_instance_ref (struct ddsi_tkmap *map, struct ddsi_serdata * sd);
+DDS_EXPORT struct ddsi_tkmap_instance * ddsi_tkmap_lookup_instance_ref (struct ddsi_tkmap *map, struct ddsi_serdata * sd);
 
 /** @component key_instance_map */
-void ddsi_tkmap_instance_unref (struct ddsi_tkmap *map, struct ddsi_tkmap_instance *tk);
+DDS_EXPORT void ddsi_tkmap_instance_unref (struct ddsi_tkmap *map, struct ddsi_tkmap_instance *tk);
 
 #if defined (__cplusplus)
 }

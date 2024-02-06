@@ -35,7 +35,7 @@ struct ddsi_thread_state;
  * @param tk        key-instance map instance
  * @return int
  */
-int ddsi_write_sample_gc (struct ddsi_thread_state * const thrst, struct ddsi_xpack *xp, struct ddsi_writer *wr, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk);
+DDS_EXPORT int ddsi_write_sample_gc (struct ddsi_thread_state * const thrst, struct ddsi_xpack *xp, struct ddsi_writer *wr, struct ddsi_serdata *serdata, struct ddsi_tkmap_instance *tk);
 
 /**
  * @component outgoing_rtps

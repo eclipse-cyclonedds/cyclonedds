@@ -187,7 +187,7 @@ inline bool ddsi_thread_is_asleep (void)
 }
 
 /** @component thread_support */
-inline void ddsi_thread_state_asleep (struct ddsi_thread_state *thrst)
+DDS_INLINE_EXPORT inline void ddsi_thread_state_asleep (struct ddsi_thread_state *thrst)
 {
   ddsi_vtime_t vt = ddsrt_atomic_ld32 (&thrst->vtime);
   assert (ddsi_vtime_awake_p (vt));
@@ -202,7 +202,7 @@ inline void ddsi_thread_state_asleep (struct ddsi_thread_state *thrst)
 }
 
 /** @component thread_support */
-inline void ddsi_thread_state_awake (struct ddsi_thread_state *thrst, const struct ddsi_domaingv *gv)
+DDS_INLINE_EXPORT inline void ddsi_thread_state_awake (struct ddsi_thread_state *thrst, const struct ddsi_domaingv *gv)
 {
   ddsi_vtime_t vt = ddsrt_atomic_ld32 (&thrst->vtime);
   assert ((vt & DDSI_VTIME_NEST_MASK) < DDSI_VTIME_NEST_MASK);

@@ -160,7 +160,7 @@ typedef struct ddsi_plist {
  *
  * @param[out] dest  plist_t to be initialized.
  */
-void ddsi_plist_init_empty (ddsi_plist_t *dest);
+DDS_EXPORT void ddsi_plist_init_empty (ddsi_plist_t *dest);
 
 /**
  * @brief Free memory owned by "ps"
@@ -174,7 +174,7 @@ void ddsi_plist_init_empty (ddsi_plist_t *dest);
  *
  * @param[in] ps   ddsi_plist_t for which to free memory
  */
-void ddsi_plist_fini (ddsi_plist_t *ps);
+DDS_EXPORT void ddsi_plist_fini (ddsi_plist_t *ps);
 
 #if defined (__cplusplus)
 }

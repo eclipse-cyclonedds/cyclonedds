@@ -19,6 +19,13 @@
 extern "C" {
 #endif
 
+enum ddsi_port {
+  DDSI_PORT_MULTI_DISC,
+  DDSI_PORT_MULTI_DATA,
+  DDSI_PORT_UNI_DISC,
+  DDSI_PORT_UNI_DATA
+};
+
 struct ddsi_portmapping {
   uint32_t base;
   uint32_t dg;
@@ -28,6 +35,9 @@ struct ddsi_portmapping {
   uint32_t d2;
   uint32_t d3;
 };
+
+/** @component port_mapping */
+DDS_EXPORT bool ddsi_get_port_int (uint32_t *port, const struct ddsi_portmapping *map, enum ddsi_port which, uint32_t domain_id, int32_t participant_index, char *str_if_overflow, size_t strsize);
 
 #if defined (__cplusplus)
 }
