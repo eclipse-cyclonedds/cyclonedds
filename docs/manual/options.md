@@ -6,7 +6,7 @@ CycloneDDS configuration
 
 ## //CycloneDDS/Domain
 Attributes: [Id](#cycloneddsdomainid)
-Children: [Compatibility](#cycloneddsdomaincompatibility), [Discovery](#cycloneddsdomaindiscovery), [General](#cycloneddsdomaingeneral), [Internal](#cycloneddsdomaininternal), [Partitioning](#cycloneddsdomainpartitioning), [SSL](#cycloneddsdomainssl), [Security](#cycloneddsdomainsecurity), [SharedMemory](#cycloneddsdomainsharedmemory), [Sizing](#cycloneddsdomainsizing), [TCP](#cycloneddsdomaintcp), [Threads](#cycloneddsdomainthreads), [Tracing](#cycloneddsdomaintracing)
+Children: [Compatibility](#cycloneddsdomaincompatibility), [Discovery](#cycloneddsdomaindiscovery), [Durability](#cycloneddsdomaindurability), [General](#cycloneddsdomaingeneral), [Internal](#cycloneddsdomaininternal), [Partitioning](#cycloneddsdomainpartitioning), [SSL](#cycloneddsdomainssl), [Security](#cycloneddsdomainsecurity), [SharedMemory](#cycloneddsdomainsharedmemory), [Sizing](#cycloneddsdomainsizing), [TCP](#cycloneddsdomaintcp), [Threads](#cycloneddsdomainthreads), [Tracing](#cycloneddsdomaintracing)
 
 The General element specifying Domain related settings.
 
@@ -256,6 +256,24 @@ Text
 String extension for domain id that remote participants must match to be discovered.
 
 The default value is: `<empty>`
+
+
+### //CycloneDDS/Domain/Durability
+Children: [Quorum](#cycloneddsdomaindurabilityquorum)
+
+This element specifies settings related to durable data.
+
+
+#### //CycloneDDS/Domain/Durability/Quorum
+Integer
+
+This element specifies the minimum number of durable services that must be available before a durable writer can successfully publish durable data. The value must be equal or higher to 1 to ensure that there is at least one durable service present in the network that can receive the durable data and make it available to late joiners. By specifying a number higher than 1, additional fault tolerance can be achieved.
+
+As long as the number of available durable services drops below the specified quorum, durable writers will not be able to publish durable data. Any attempt to do so by calling dds\_write() (or one of its variants) will return DDS\_RETCODE\_TIMEOUT if the quorum is not reached within the configured max\_blocking\_time.
+
+The default quorum value is set to 1.
+
+The default value is: `1`
 
 
 ### //CycloneDDS/Domain/General
@@ -1907,9 +1925,9 @@ While none prevents any message from being written to a DDSI2 log file.
 The categorisation of tracing output is incomplete and hence most of the verbosity levels and categories are not of much use in the current release. This is an ongoing process and here we describe the target situation rather than the current situation. Currently, the most useful verbosity levels are config, fine and finest.
 
 The default value is: `none`
-<!--- generated from ddsi_config.h[e6e75c7c07b3b91a92715063cfd8abdd0fbd8b08] -->
+<!--- generated from ddsi_config.h[c86e7819dea81365c20acec4519abc2a022feca8] -->
 <!--- generated from ddsi__cfgunits.h[bd22f0c0ed210501d0ecd3b07c992eca549ef5aa] -->
-<!--- generated from ddsi__cfgelems.h[de6d6357eef2d532b2450cec9732702107d2a03c] -->
+<!--- generated from ddsi__cfgelems.h[0fe5caa90873f3af7436f0f201edeccaea9fedd4] -->
 <!--- generated from ddsi_config.c[95a436fb315153cae24f6d95f7e924e1004882e1] -->
 <!--- generated from _confgen.h[e32eabfc35e9f3a7dcb63b19ed148c0d17c6e5fc] -->
 <!--- generated from _confgen.c[237308acd53897a34e8c643e16e05a61d73ffd65] -->
