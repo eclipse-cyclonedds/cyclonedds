@@ -286,6 +286,7 @@ dds_return_t dds_sertype_default_init (const struct dds_domain *domain, struct d
       break;
     default:
       abort ();
+      break;
   }
 
   /* Get the extensility of the outermost object in the type used for the topic. Note that the

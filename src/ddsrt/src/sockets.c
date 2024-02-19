@@ -119,6 +119,8 @@ ddsrt_sockaddr_isunspecified(const struct sockaddr *__restrict sa)
 #endif
     case AF_INET:
       return (((struct sockaddr_in *)sa)->sin_addr.s_addr == 0);
+    default:
+      break;
   }
 
   return false;
@@ -138,6 +140,8 @@ ddsrt_sockaddr_isloopback(const struct sockaddr *__restrict sa)
     case AF_INET:
       return (((const struct sockaddr_in *)sa)->sin_addr.s_addr
                   == htonl(INADDR_LOOPBACK));
+    default:
+      break;
   }
 
   return false;
@@ -182,6 +186,8 @@ ddsrt_sockaddr_insamesubnet(
         }
       } break;
 #endif
+    default:
+      break;
   }
 
   return eq;

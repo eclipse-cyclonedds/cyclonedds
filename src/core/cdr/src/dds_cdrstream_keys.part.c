@@ -66,6 +66,7 @@ static void dds_stream_write_keyBO_impl (DDS_OSTREAM_T * __restrict os, const st
         }
         default:
           abort ();
+          break;
       }
       break;
     }

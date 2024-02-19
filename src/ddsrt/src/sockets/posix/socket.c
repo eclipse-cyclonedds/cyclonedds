@@ -304,6 +304,8 @@ ddsrt_setsockopt(
     case SO_DONTROUTE:
       /* SO_DONTROUTE causes problems on macOS (e.g. no multicasting). */
       return DDS_RETCODE_OK;
+    default:
+      break;
   }
 
 #if defined(__ZEPHYR__)
@@ -398,6 +400,8 @@ ddsrt_setsockopt(
       }
       return DDS_RETCODE_ERROR;
     }
+    default:
+      break;
   }
 #endif /* __ZEPHYR__ */
 
