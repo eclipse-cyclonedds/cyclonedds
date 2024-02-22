@@ -441,12 +441,12 @@ static ssize_t ddsi_raweth_conn_read (struct ddsi_tran_conn * conn, unsigned cha
 
     if (bpf_hdr->bh_datalen == bpf_hdr->bh_caplen) 
     {
-      ret = bpf_hdr->bh_datalen - sizeof(struct ddsi_ethernet_header);
+      ret = (ssize_t)(bpf_hdr->bh_datalen - sizeof(struct ddsi_ethernet_header));
       if (ntohs(eth_hdr->proto) == ETHERTYPE_VLAN)
       {
         vtag = (struct ddsi_vlan_tag *)ptr;
         ptr += sizeof(*vtag);
-        ret -= sizeof(*vtag);
+        ret -= (ssize_t)sizeof(*vtag);
       }
       if ((size_t)ret <= len)
       {
@@ -562,7 +562,7 @@ static dds_return_t ddsi_raweth_create_conn (struct ddsi_tran_conn **conn_out, s
   dds_return_t rc;
   ddsrt_socket_t sock = -1;
   ddsi_raweth_conn_t uc = NULL;
-  struct sockaddr_dl addr;
+  struct sockaddr_dl addr = {0};
   bool mcast = (qos->m_purpose == DDSI_TRAN_QOS_RECV_MC);
   struct ddsi_domaingv const * const gv = fact->gv;
   struct ddsi_network_interface const * const intf = qos->m_interface ? qos->m_interface : &gv->interfaces[0];
