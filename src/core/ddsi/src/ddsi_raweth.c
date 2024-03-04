@@ -114,7 +114,7 @@ static char *ddsi_raweth_to_string (char *dst, size_t sizeof_dst, const ddsi_loc
 static void set_locator(ddsi_locator_t *srcloc, const uint8_t * addr, uint16_t port, uint16_t vtag)
 {
   srcloc->kind = DDSI_LOCATOR_KIND_RAWETH;
-  srcloc->port = (uint32_t)(port +  ((vtag & 0xfff) << 20) + ((vtag & 0xf000) << 4));
+  srcloc->port = (uint32_t)port +  (((uint32_t)vtag & 0xfff) << 20) + (((uint32_t)vtag & 0xf000) << 4);
   memset(srcloc->address, 0, 10);
   memcpy(srcloc->address + 10, addr, 6);
 }
@@ -151,7 +151,6 @@ static ssize_t ddsi_raweth_conn_read (struct ddsi_tran_conn * conn, unsigned cha
   struct tpacket_auxdata *pauxd;
   struct cmsghdr *cptr;
   uint16_t vtag = 0;
-//  uint32_t port;
   struct iovec msg_iov[2];
   socklen_t srclen = (socklen_t) sizeof (src);
   (void) allow_spurious;
@@ -223,7 +222,6 @@ static ssize_t ddsi_raweth_conn_write (struct ddsi_tran_conn * conn, const ddsi_
   struct msghdr msg;
   struct sockaddr_ll dstaddr;
   struct ddsi_vlan_header vhdr;
-//  uint16_t vtag;
   size_t hdrlen;
 
   assert(msgfrags->niov <= INT_MAX - 1); // we'll be adding one later on
@@ -331,7 +329,6 @@ static dds_return_t ddsi_raweth_create_conn (struct ddsi_tran_conn **conn_out, s
   memset(&addr, 0, sizeof(addr));
   addr.sll_family = AF_PACKET;
   addr.sll_protocol = htons(ETH_P_ALL);
-
   addr.sll_ifindex = (int)intf->if_index;
   addr.sll_pkttype = PACKET_HOST | PACKET_BROADCAST | PACKET_MULTICAST;
   rc = ddsrt_bind(sock, (struct sockaddr *)&addr, sizeof(addr));
@@ -477,7 +474,7 @@ static ssize_t ddsi_raweth_conn_read (struct ddsi_tran_conn * conn, unsigned cha
       {
         memcpy(buf, ptr, (size_t)ret);
         if (srcloc)
-          set_locator(srcloc, eth_hdr->smac, ntohs (eth_hdr->proto), (vtag ? vtag->tag : 0));
+          set_locator(srcloc, eth_hdr->smac, ntohs (eth_hdr->proto), (vtag ? ntohs(vtag->tag) : 0));
       }
       else
       {
