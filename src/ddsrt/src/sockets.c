@@ -29,7 +29,7 @@
 # endif /* _WIN32 */
 #endif /* LWIP_SOCKET */
 
-#if defined __APPLE__
+#if defined(__APPLE__) || defined(__FreeBSD__)
 #include <net/if_dl.h>
 #endif
 
@@ -74,7 +74,7 @@ ddsrt_sockaddr_get_size(const struct sockaddr *const sa)
     case AF_PACKET:
       sz = sizeof(struct sockaddr_ll);
       break;
-#elif defined __APPLE__
+#elif defined(__APPLE__) || defined(__FreeBSD__)
     case AF_LINK:
       sz = sizeof(struct sockaddr_dl);
       break;
