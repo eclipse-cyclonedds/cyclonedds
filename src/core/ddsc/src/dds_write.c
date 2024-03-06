@@ -680,7 +680,7 @@ static dds_return_t dds_write_impl_psmxloan_serdata (struct dds_writer *wr, cons
           dds_loaned_sample_unref (loan);
           return DDS_RETCODE_BAD_PARAMETER;
         }
-        break;
+        return DDS_RETCODE_OK;
       case DDS_LOAN_ORIGIN_KIND_HEAP:
         if (wr->m_endpoint.psmx_endpoints.length == 0)
         {
@@ -718,9 +718,9 @@ static dds_return_t dds_write_impl_psmxloan_serdata (struct dds_writer *wr, cons
             return DDS_RETCODE_OUT_OF_RESOURCES;
           }
         }
-        break;
+        return DDS_RETCODE_OK;
     }
-    return DDS_RETCODE_OK;
+    return DDS_RETCODE_ERROR;
   }
   else if (use_only_psmx && sertype->is_memcpy_safe)
   {
