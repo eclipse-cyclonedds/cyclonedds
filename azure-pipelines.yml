@@ -139,6 +139,12 @@ jobs:
       #  generator: 'MinGW Makefiles'
       #  cc: 'C:/msys64/mingw64/bin/gcc.exe'
       #  cxx: 'C:/msys64/mingw64/bin/g++.exe'
+      'Ubuntu 22.04 LTS with default GCC (Release, Iceoryx, Static, x86_64)':
+        image: ubuntu-22.04
+        idlc_xtests: off
+        build_type: Release
+        sharedlibs: off
+        iceoryx: on
 
   steps:
     - template: /.azure/templates/build-test.yml
