@@ -142,6 +142,9 @@ static void receive_data_wakeup_handler(struct dds_reader* rd)
     {
       // Ignore that doesn't match a known writer or proxy writer
       DDS_CLOG (DDS_LC_SHM, &gv->logconfig, "unknown source entity, ignore.\n");
+      shm_lock_iox_sub(rd->m_iox_sub);
+      iox_sub_release_chunk(rd->m_iox_sub, chunk);
+      shm_unlock_iox_sub(rd->m_iox_sub);
       continue;
     }
 
