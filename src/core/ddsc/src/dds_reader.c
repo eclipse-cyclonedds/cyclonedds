@@ -697,7 +697,14 @@ err_pin_topic:
   return rc;
 }
 
-static dds_return_t get_writer_info (struct ddsi_domaingv *gv, dds_guid_t *dds_guid, uint32_t statusinfo, struct ddsi_writer_info *wi)
+struct writer_metadata
+{
+  int32_t ownership_strength;
+  bool autodispose_unregistered_instances;
+  dds_duration_t lifespan_duration;
+};
+
+static dds_return_t get_writer_info (struct ddsi_domaingv *gv, dds_guid_t *dds_guid, uint32_t statusinfo, const struct writer_metadata *writer_md, struct ddsi_writer_info *wi)
 {
   dds_return_t ret = DDS_RETCODE_OK;
   struct dds_qos *xqos = NULL;
@@ -706,24 +713,32 @@ static dds_return_t get_writer_info (struct ddsi_domaingv *gv, dds_guid_t *dds_g
   // FIXME ntoh required?
   memcpy (&guid, dds_guid, sizeof (guid));
 
-  struct ddsi_entity_common *ec = ddsi_entidx_lookup_guid_untyped (gv->entity_index, &guid);
-  if (ec == NULL || (ec->kind != DDSI_EK_PROXY_WRITER && ec->kind != DDSI_EK_WRITER))
+  if (writer_md == NULL)
   {
-    ret = DDS_RETCODE_NOT_FOUND;
-    goto err;
-  }
-  else if (ec->kind == DDSI_EK_PROXY_WRITER)
-    xqos = ((struct ddsi_proxy_writer *) ec)->c.xqos;
-  else
-    xqos = ((struct ddsi_writer *) ec)->xqos;
+    struct ddsi_entity_common *ec = ddsi_entidx_lookup_guid_untyped (gv->entity_index, &guid);
+    if (ec == NULL || (ec->kind != DDSI_EK_PROXY_WRITER && ec->kind != DDSI_EK_WRITER))
+    {
+      ret = DDS_RETCODE_NOT_FOUND;
+      goto err;
+    }
+    else if (ec->kind == DDSI_EK_PROXY_WRITER)
+      xqos = ((struct ddsi_proxy_writer *) ec)->c.xqos;
+    else
+      xqos = ((struct ddsi_writer *) ec)->xqos;
 
-  ddsi_make_writer_info (wi, ec, xqos, statusinfo);
+    ddsi_make_writer_info (wi, ec, xqos, statusinfo);
+  }
+  else
+  {
+    uint64_t iid = ((uint64_t) guid.prefix.u[2] << 32llu) + guid.entityid.u;
+    ddsi_make_writer_info_params (wi, &guid, writer_md->ownership_strength, writer_md->autodispose_unregistered_instances, iid, statusinfo, writer_md->lifespan_duration);
+  }
 
 err:
   return ret;
 }
 
-dds_return_t dds_reader_store_loaned_sample (dds_entity_t reader, dds_loaned_sample_t *data)
+static dds_return_t dds_reader_store_loaned_sample_impl (dds_entity_t reader, dds_loaned_sample_t *data, const struct writer_metadata *writer_md)
 {
   dds_return_t ret;
   dds_entity * e;
@@ -745,8 +760,6 @@ dds_return_t dds_reader_store_loaned_sample (dds_entity_t reader, dds_loaned_sam
   // FIXME: what if the sample is overwritten?
   // if the sample is not matched to this reader, return ownership to the PSMX?
 
-  // After this call, loaned sample (data) may be freed
-  dds_guid_t guid = data->metadata->guid;
   struct ddsi_serdata * sd = ddsi_serdata_from_psmx (rd->type, data);
   if (sd == NULL)
   {
@@ -755,7 +768,7 @@ dds_return_t dds_reader_store_loaned_sample (dds_entity_t reader, dds_loaned_sam
   }
 
   struct ddsi_writer_info wi;
-  if ((ret = get_writer_info (gv, &guid, sd->statusinfo, &wi)) != DDS_RETCODE_OK)
+  if ((ret = get_writer_info (gv, &data->metadata->guid, sd->statusinfo, writer_md, &wi)) != DDS_RETCODE_OK)
     goto fail_get_writer_info;
 
   struct ddsi_tkmap_instance * tk = ddsi_tkmap_lookup_instance_ref (gv->m_tkmap, sd);
@@ -780,6 +793,17 @@ fail_serdata:
   ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
   dds_entity_unpin (e);
   return ret;
+}
+
+dds_return_t dds_reader_store_loaned_sample (dds_entity_t reader, dds_loaned_sample_t *data)
+{
+  return dds_reader_store_loaned_sample_impl (reader, data, NULL);
+}
+
+dds_return_t dds_reader_store_loaned_sample_wr_metadata (dds_entity_t reader, dds_loaned_sample_t *data, int32_t ownership_strength, bool autodispose_unregistered_instances, dds_duration_t lifespan_duration)
+{
+  struct writer_metadata writer_md = { .ownership_strength = ownership_strength, .autodispose_unregistered_instances = autodispose_unregistered_instances, .lifespan_duration = lifespan_duration };
+  return dds_reader_store_loaned_sample_impl (reader, data, &writer_md);
 }
 
 dds_entity_t dds_create_reader (dds_entity_t participant_or_subscriber, dds_entity_t topic, const dds_qos_t *qos, const dds_listener_t *listener)

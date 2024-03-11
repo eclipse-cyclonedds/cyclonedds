@@ -522,6 +522,7 @@ int main (int argc, char **argv)
   dds_loaned_sample_ref (ptr);
   dds_loaned_sample_unref (ptr);
   dds_reader_store_loaned_sample (1, ptr);
+  dds_reader_store_loaned_sample_wr_metadata (0, ptr, 0, 0, 0);
 
 #ifdef DDS_HAS_SECURITY
   // dds_security_timed_cb.h

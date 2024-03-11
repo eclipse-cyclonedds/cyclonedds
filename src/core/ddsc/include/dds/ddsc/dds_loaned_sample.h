@@ -133,6 +133,30 @@ DDS_INLINE_EXPORT inline void ddsrt_nonnull_all dds_loaned_sample_unref (dds_loa
 DDS_EXPORT dds_return_t dds_reader_store_loaned_sample (dds_entity_t reader, dds_loaned_sample_t *data)
   ddsrt_nonnull_all;
 
+/**
+ * @brief insert data from a loaned sample into the reader history cache using the provided writer meta-data
+ * @ingroup reading
+ *
+ * @param[in] reader The reader entity.
+ * @param[in] data Pointer to the loaned sample of the entity received
+ * @param[in] ownership_strength The ownership strength of the writer
+ * @param[in] autodispose_unregistered_instances Writer setting for auto-disposing unregistered entities
+ * @param[in] lifespan_duration Lifespan duration value configured for the writer
+ *
+ * @returns A dds_return_t indicating success or failure.
+ *
+ * @retval DDS_RETCODE_OK
+ *             The operation was successful.
+ * @retval DDS_RETCODE_BAD_PARAMETER
+ *             One or more parameters are invalid.
+ * @retval DDS_RETCODE_ILLEGAL_OPERATION
+ *             The operation is invoked on an inappropriate object.
+ * @retval DDS_RETCODE_ALREADY_DELETED
+ *             The reader entity has already been deleted.
+ */
+DDS_EXPORT dds_return_t dds_reader_store_loaned_sample_wr_metadata (dds_entity_t reader, dds_loaned_sample_t *data, int32_t ownership_strength, bool autodispose_unregistered_instances, dds_duration_t lifespan_duration)
+  ddsrt_nonnull_all;
+
 #if defined(__cplusplus)
 }
 #endif

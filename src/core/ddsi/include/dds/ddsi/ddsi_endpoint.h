@@ -196,7 +196,10 @@ dds_return_t ddsi_new_writer (struct ddsi_writer **wr_out, struct ddsi_guid *wrg
 void ddsi_update_writer_qos (struct ddsi_writer *wr, const struct dds_qos *xqos);
 
 /** @component ddsi_endpoint */
-void ddsi_make_writer_info(struct ddsi_writer_info *wrinfo, const struct ddsi_entity_common *e, const struct dds_qos *xqos, uint32_t statusinfo);
+void ddsi_make_writer_info (struct ddsi_writer_info *wrinfo, const struct ddsi_entity_common *e, const struct dds_qos *xqos, uint32_t statusinfo);
+
+/** @component ddsi_endpoint */
+void ddsi_make_writer_info_params (struct ddsi_writer_info *wrinfo, const ddsi_guid_t *wr_guid, int32_t ownership_strength, bool autodispose_unregistered_instances, uint64_t iid, uint32_t statusinfo, dds_duration_t lifespan_duration);
 
 /** @component ddsi_endpoint */
 dds_return_t ddsi_writer_wait_for_acks (struct ddsi_writer *wr, const ddsi_guid_t *rdguid, dds_time_t abstimeout);

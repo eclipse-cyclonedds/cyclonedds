@@ -132,21 +132,27 @@ int ddsi_is_keyed_endpoint_entityid (ddsi_entityid_t id)
   }
 }
 
-void ddsi_make_writer_info(struct ddsi_writer_info *wrinfo, const struct ddsi_entity_common *e, const struct dds_qos *xqos, uint32_t statusinfo)
+void ddsi_make_writer_info_params (struct ddsi_writer_info *wrinfo, const ddsi_guid_t *wr_guid, int32_t ownership_strength, bool autodispose_unregistered_instances, uint64_t iid, uint32_t statusinfo, dds_duration_t lifespan_duration)
 {
 #ifndef DDS_HAS_LIFESPAN
   DDSRT_UNUSED_ARG (statusinfo);
+  DDSRT_UNUSED_ARG (lifespan_duration);
 #endif
-  wrinfo->guid = e->guid;
-  wrinfo->ownership_strength = xqos->ownership_strength.value;
-  wrinfo->auto_dispose = xqos->writer_data_lifecycle.autodispose_unregistered_instances;
-  wrinfo->iid = e->iid;
+  wrinfo->guid = *wr_guid;
+  wrinfo->ownership_strength = ownership_strength;
+  wrinfo->auto_dispose = autodispose_unregistered_instances;
+  wrinfo->iid = iid;
 #ifdef DDS_HAS_LIFESPAN
-  if (xqos->lifespan.duration != DDS_INFINITY && (statusinfo & (DDSI_STATUSINFO_UNREGISTER | DDSI_STATUSINFO_DISPOSE)) == 0)
-    wrinfo->lifespan_exp = ddsrt_mtime_add_duration(ddsrt_time_monotonic(), xqos->lifespan.duration);
+  if (lifespan_duration != DDS_INFINITY && (statusinfo & (DDSI_STATUSINFO_UNREGISTER | DDSI_STATUSINFO_DISPOSE)) == 0)
+    wrinfo->lifespan_exp = ddsrt_mtime_add_duration (ddsrt_time_monotonic (), lifespan_duration);
   else
     wrinfo->lifespan_exp = DDSRT_MTIME_NEVER;
 #endif
+}
+
+void ddsi_make_writer_info (struct ddsi_writer_info *wrinfo, const struct ddsi_entity_common *e, const struct dds_qos *xqos, uint32_t statusinfo)
+{
+  ddsi_make_writer_info_params (wrinfo, &e->guid, xqos->ownership_strength.value, xqos->writer_data_lifecycle.autodispose_unregistered_instances, e->iid, statusinfo, xqos->lifespan.duration);
 }
 
 static uint32_t get_min_receive_buffer_size (struct ddsi_writer *wr)
