@@ -16,6 +16,7 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/ifaddrs.h"
+#include "dds/ddsrt/sockets.h"
 #include "dds/ddsi/ddsi_log.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "ddsi__tran.h"
@@ -407,3 +408,121 @@ int ddsi_enumerate_interfaces (struct ddsi_tran_factory * factory, enum ddsi_tra
 {
   return factory->m_enumerate_interfaces_fn (factory, transport_selector, interfs);
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+static dds_return_t set_socket_buffer (struct ddsi_domaingv const * const gv, ddsrt_socket_t sock, int32_t socket_option, const char *socket_option_name, const char *name, const struct ddsi_config_socket_buf_size *config, uint32_t default_min_size)
+{
+  // if (min, max)=   and   initbuf=   then  request=  and  result=
+  //    (def, def)          < defmin         defmin         whatever it is
+  //    (def, N)            anything         N              whatever it is
+  //    (M,   def)          < M              M              error if < M
+  //    (M,   N<M)          < M              M              error if < M
+  //    (M,  N>=M)          anything         N              error if < M
+  // defmin = 1MB for receive buffer, 0B for send buffer
+  const bool always_set_size = // whether to call setsockopt unconditionally
+    ((config->min.isdefault && !config->max.isdefault) ||
+     (!config->min.isdefault && !config->max.isdefault && config->max.value >= config->min.value));
+  const uint32_t socket_min_buf_size = // error if it ends up below this
+    !config->min.isdefault ? config->min.value : 0;
+  const uint32_t socket_req_buf_size = // size to request
+    (!config->max.isdefault && config->max.value > socket_min_buf_size) ? config->max.value
+    : !config->min.isdefault ? config->min.value
+    : default_min_size;
+
+  uint32_t actsize;
+  socklen_t optlen = (socklen_t) sizeof (actsize);
+  dds_return_t rc;
+
+  rc = ddsrt_getsockopt (sock, SOL_SOCKET, socket_option, &actsize, &optlen);
+  if (rc == DDS_RETCODE_BAD_PARAMETER || rc == DDS_RETCODE_UNSUPPORTED)
+  {
+    /* not all stacks support getting/setting RCVBUF */
+    GVLOG (DDS_LC_CONFIG, "cannot retrieve socket %s buffer size\n", name);
+    return DDS_RETCODE_OK;
+  }
+  else if (rc != DDS_RETCODE_OK)
+  {
+    GVERROR ("ddsi_udp_create_conn: get %s failed: %s\n", socket_option_name, dds_strretcode (rc));
+    return rc;
+  }
+
+  if (always_set_size || actsize < socket_req_buf_size)
+  {
+    (void) ddsrt_setsockopt (sock, SOL_SOCKET, socket_option, &socket_req_buf_size, sizeof (actsize));
+
+    /* We don't check the return code from setsockopt, because some O/Ss tend
+       to silently cap the buffer size.  The only way to make sure is to read
+       the option value back and check it is now set correctly. */
+    if ((rc = ddsrt_getsockopt (sock, SOL_SOCKET, socket_option, &actsize, &optlen)) != DDS_RETCODE_OK)
+    {
+      GVERROR ("ddsi_udp_create_conn: get %s failed: %s\n", socket_option_name, dds_strretcode (rc));
+      return rc;
+    }
+
+    if (actsize >= socket_req_buf_size)
+      GVLOG (DDS_LC_CONFIG, "socket %s buffer size set to %"PRIu32" bytes\n", name, actsize);
+    else if (actsize >= socket_min_buf_size)
+      GVLOG (DDS_LC_CONFIG,
+             "failed to increase socket %s buffer size to %"PRIu32" bytes, continuing with %"PRIu32" bytes\n",
+             name, socket_req_buf_size, actsize);
+    else
+    {
+      /* If the configuration states it must be >= X, then error out if the
+         kernel doesn't give us at least X */
+      GVLOG (DDS_LC_CONFIG | DDS_LC_ERROR,
+             "failed to increase socket %s buffer size to at least %"PRIu32" bytes, current is %"PRIu32" bytes\n",
+             name, socket_min_buf_size, actsize);
+      rc = DDS_RETCODE_NOT_ENOUGH_SPACE;
+    }
+  }
+
+  return (rc < 0) ? rc : (actsize > (uint32_t) INT32_MAX) ? INT32_MAX : (int32_t) actsize;
+}
+
+dds_return_t ddsi_tran_set_rcvbuf (struct ddsi_tran_factory *fact, ddsrt_socket_t sock, const struct ddsi_config_socket_buf_size *config, uint32_t default_min_size)
+{
+  dds_return_t rc;
+
+  if ((rc = set_socket_buffer (fact->gv, sock, SO_RCVBUF, "SO_RCVBUF", "receive", config, default_min_size)) < 0)
+    return rc;
+
+  if (rc > 0) {
+    // set fact->receive_buf_size to the smallest observed value
+    uint32_t old;
+    do {
+      old = ddsrt_atomic_ld32 (&fact->m_receive_buf_size);
+      if ((uint32_t) rc >= old)
+        break;
+    } while (!ddsrt_atomic_cas32 (&fact->m_receive_buf_size, old, (uint32_t) rc));
+  }
+  return rc;
+}
+
+dds_return_t ddsi_tran_set_sndbuf (struct ddsi_tran_factory *fact, ddsrt_socket_t sock, const struct ddsi_config_socket_buf_size *config, uint32_t default_min_size)
+{
+  return set_socket_buffer (fact->gv, sock, SO_SNDBUF, "SO_SNDBUF", "send", config, default_min_size);
+}
+
+
+
+
+
+
+
+

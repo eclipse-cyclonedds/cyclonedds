@@ -281,6 +281,7 @@ static dds_return_t set_dont_route (struct ddsi_domaingv const * const gv, ddsrt
   return rc;
 }
 
+#if 0
 static dds_return_t set_socket_buffer (struct ddsi_domaingv const * const gv, ddsrt_socket_t sock, int32_t socket_option, const char *socket_option_name, const char *name, const struct ddsi_config_socket_buf_size *config, uint32_t default_min_size)
 {
   // if (min, max)=   and   initbuf=   then  request=  and  result=
@@ -359,6 +360,7 @@ static dds_return_t set_sndbuf (struct ddsi_domaingv const * const gv, ddsrt_soc
 {
   return set_socket_buffer (gv, sock, SO_SNDBUF, "SO_SNDBUF", "send", config, 65536);
 }
+#endif
 
 static dds_return_t set_mc_options_transmit_ipv6 (struct ddsi_domaingv const * const gv, struct ddsi_network_interface const * const intf, ddsrt_socket_t sock)
 {
@@ -513,20 +515,12 @@ static dds_return_t ddsi_udp_create_conn (struct ddsi_tran_conn **conn_out, stru
     }
   }
 
-  if ((rc = set_rcvbuf (gv, sock, &gv->config.socket_rcvbuf_size)) < 0)
+  if ((rc = ddsi_tran_set_rcvbuf(fact_cmn, sock, &gv->config.socket_rcvbuf_size, 1048576)) < 0)
     goto fail_w_socket;
-  if (rc > 0) {
-    // set fact->receive_buf_size to the smallest observed value
-    uint32_t old;
-    do {
-      old = ddsrt_atomic_ld32 (&fact->receive_buf_size);
-      if ((uint32_t) rc >= old)
-        break;
-    } while (!ddsrt_atomic_cas32 (&fact->receive_buf_size, old, (uint32_t) rc));
-  }
 
-  if (set_sndbuf (gv, sock, &gv->config.socket_sndbuf_size) < 0)
-    goto fail_w_socket;
+  if ((rc = ddsi_tran_set_sndbuf(fact_cmn, sock, &gv->config.socket_sndbuf_size, 65536)) < 0)
+     goto fail_w_socket;
+
   if (gv->config.dontRoute && set_dont_route (gv, sock, ipv6) != DDS_RETCODE_OK)
     goto fail_w_socket;
 
@@ -865,12 +859,6 @@ static int ddsi_udp_is_valid_port (const struct ddsi_tran_factory *fact, uint32_
   return (0 < port && port <= 65535);
 }
 
-static uint32_t ddsi_udp_receive_buffer_size (const struct ddsi_tran_factory *fact_cmn)
-{
-  const struct ddsi_udp_tran_factory *fact = (const struct ddsi_udp_tran_factory *) fact_cmn;
-  return ddsrt_atomic_ld32 (&fact->receive_buf_size);
-}
-
 static int ddsi_udp_locator_from_sockaddr (const struct ddsi_tran_factory *tran_cmn, ddsi_locator_t *loc, const struct sockaddr *sockaddr)
 {
   struct ddsi_udp_tran_factory const * const tran = (const struct ddsi_udp_tran_factory *) tran_cmn;
@@ -915,7 +903,6 @@ int ddsi_udp_init (struct ddsi_domaingv*gv)
   fact->fact.m_locator_to_string_fn = ddsi_udp_locator_to_string;
   fact->fact.m_enumerate_interfaces_fn = ddsi_eth_enumerate_interfaces;
   fact->fact.m_is_valid_port_fn = ddsi_udp_is_valid_port;
-  fact->fact.m_receive_buffer_size_fn = ddsi_udp_receive_buffer_size;
   fact->fact.m_locator_from_sockaddr_fn = ddsi_udp_locator_from_sockaddr;
 #if DDSRT_HAVE_IPV6
   if (gv->config.transport_selector == DDSI_TRANS_UDP6)
@@ -925,7 +912,7 @@ int ddsi_udp_init (struct ddsi_domaingv*gv)
     fact->fact.m_default_spdp_address = "udp6/ff02::ffff:239.255.0.1";
   }
 #endif
-  ddsrt_atomic_st32 (&fact->receive_buf_size, UINT32_MAX);
+  ddsrt_atomic_st32 (&fact->fact.m_receive_buf_size, UINT32_MAX);
 
   ddsi_factory_add (gv, &fact->fact);
   GVLOG (DDS_LC_CONFIG, "udp initialized\n");

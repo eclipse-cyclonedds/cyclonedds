@@ -116,7 +116,6 @@ typedef int (*ddsi_is_loopbackaddr_fn_t) (const struct ddsi_tran_factory *tran, 
 typedef int (*ddsi_is_mcaddr_fn_t) (const struct ddsi_tran_factory *tran, const ddsi_locator_t *loc);
 typedef int (*ddsi_is_ssm_mcaddr_fn_t) (const struct ddsi_tran_factory *tran, const ddsi_locator_t *loc);
 typedef int (*ddsi_is_valid_port_fn_t) (const struct ddsi_tran_factory *tran, uint32_t port);
-typedef uint32_t (*ddsi_receive_buffer_size_fn_t) (const struct ddsi_tran_factory *fact);
 typedef uint32_t (*m_get_locator_port_fn_t) (const struct ddsi_tran_factory *factory, const ddsi_locator_t *loc);
 typedef void (*m_set_locator_port_fn_t) (const struct ddsi_tran_factory *factory, ddsi_locator_t *loc, uint32_t port);
 typedef uint32_t (*m_get_locator_aux_fn_t) (const struct ddsi_tran_factory *factory, const ddsi_locator_t *loc);
@@ -225,7 +224,6 @@ struct ddsi_tran_factory
   ddsi_locator_to_string_fn_t m_locator_to_string_fn;
   ddsi_enumerate_interfaces_fn_t m_enumerate_interfaces_fn;
   ddsi_is_valid_port_fn_t m_is_valid_port_fn;
-  ddsi_receive_buffer_size_fn_t m_receive_buffer_size_fn;
   ddsi_locator_from_sockaddr_fn_t m_locator_from_sockaddr_fn;
   m_get_locator_port_fn_t m_get_locator_port_fn;
   m_set_locator_port_fn_t m_set_locator_port_fn;
@@ -261,6 +259,10 @@ struct ddsi_tran_factory
   /// Default SPDP address for this transport (the spec only gives an UDPv4 default one), NULL if
   /// no default address exists.
   const char *m_default_spdp_address;
+
+  /// Actual minimum receive buffer size in use
+  /// Atomically loaded/stored so we don't have to lie about constness
+  ddsrt_atomic_uint32_t m_receive_buf_size;
 
   struct ddsi_domaingv *gv;
 
@@ -330,7 +332,7 @@ inline int ddsi_is_valid_port (const struct ddsi_tran_factory *factory, uint32_t
 
 /** @component transport */
 inline uint32_t ddsi_receive_buffer_size (const struct ddsi_tran_factory *factory) {
-  return factory->m_receive_buffer_size_fn (factory);
+  return ddsrt_atomic_ld32 (&factory->m_receive_buf_size);
 }
 
 /** @component transport */
@@ -451,6 +453,12 @@ void ddsi_listener_unblock (struct ddsi_tran_listener * listener);
 
 /** @component transport */
 void ddsi_listener_free (struct ddsi_tran_listener * listener);
+
+/** @component transport */
+dds_return_t ddsi_tran_set_rcvbuf (struct ddsi_tran_factory *fact, ddsrt_socket_t sock, const struct ddsi_config_socket_buf_size *config, uint32_t default_min_size);
+
+/** @component transport */
+dds_return_t ddsi_tran_set_sndbuf (struct ddsi_tran_factory *fact, ddsrt_socket_t sock, const struct ddsi_config_socket_buf_size *config, uint32_t default_min_size);
 
 #if defined (__cplusplus)
 }

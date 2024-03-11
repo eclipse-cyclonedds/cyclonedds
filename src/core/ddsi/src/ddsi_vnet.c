@@ -176,12 +176,6 @@ static int ddsi_vnet_is_valid_port (const struct ddsi_tran_factory *fact, uint32
   return true;
 }
 
-static uint32_t ddsi_vnet_receive_buffer_size (const struct ddsi_tran_factory *fact)
-{
-  (void) fact;
-  return 0;
-}
-
 static int ddsi_vnet_locator_from_sockaddr (const struct ddsi_tran_factory *tran, ddsi_locator_t *loc, const struct sockaddr *sockaddr)
 {
   (void) sockaddr;
@@ -224,8 +218,9 @@ int ddsi_vnet_init (struct ddsi_domaingv *gv, const char *name, int32_t locator_
   fact->m_base.m_locator_to_string_fn = ddsi_vnet_to_string;
   fact->m_base.m_enumerate_interfaces_fn = ddsi_vnet_enumerate_interfaces;
   fact->m_base.m_is_valid_port_fn = ddsi_vnet_is_valid_port;
-  fact->m_base.m_receive_buffer_size_fn = ddsi_vnet_receive_buffer_size;
   fact->m_base.m_locator_from_sockaddr_fn = ddsi_vnet_locator_from_sockaddr;
+  ddsrt_atomic_st32 (&fact->m_base.m_receive_buf_size, 0);
+
   ddsi_factory_add (gv, &fact->m_base);
   GVLOG (DDS_LC_CONFIG, "vnet %s initialized\n", name);
   return 0;

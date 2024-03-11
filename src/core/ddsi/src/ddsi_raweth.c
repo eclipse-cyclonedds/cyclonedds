@@ -326,6 +326,18 @@ static dds_return_t ddsi_raweth_create_conn (struct ddsi_tran_conn **conn_out, s
     return DDS_RETCODE_ERROR;
   }
 
+  if ((rc = ddsi_tran_set_rcvbuf(fact, sock, &gv->config.socket_rcvbuf_size, 1048576)) < 0)
+  {
+    ddsrt_close(sock);
+    return DDS_RETCODE_ERROR;
+  }
+
+  if ((rc = ddsi_tran_set_sndbuf(fact, sock, &gv->config.socket_sndbuf_size, 65536)) < 0)
+  {
+    ddsrt_close(sock);
+    return DDS_RETCODE_ERROR;
+  }
+
   memset(&addr, 0, sizeof(addr));
   addr.sll_family = AF_PACKET;
   addr.sll_protocol = htons(ETH_P_ALL);
@@ -859,12 +871,6 @@ static int ddsi_raweth_is_valid_port (const struct ddsi_tran_factory *fact, uint
   return (eport >= 1 && eport <= 65535) && (vlanid < 4095) && vlancfi == 0;
 }
 
-static uint32_t ddsi_raweth_receive_buffer_size (const struct ddsi_tran_factory *fact)
-{
-  (void) fact;
-  return 0;
-}
-
 static int ddsi_raweth_locator_from_sockaddr (const struct ddsi_tran_factory *tran, ddsi_locator_t *loc, const struct sockaddr *sockaddr)
 {
   (void) tran;
@@ -935,16 +941,18 @@ int ddsi_raweth_init (struct ddsi_domaingv *gv)
   fact->m_locator_to_string_fn = ddsi_raweth_to_string;
   fact->m_enumerate_interfaces_fn = ddsi_raweth_enumerate_interfaces;
   fact->m_is_valid_port_fn = ddsi_raweth_is_valid_port;
-  fact->m_receive_buffer_size_fn = ddsi_raweth_receive_buffer_size;
   fact->m_locator_from_sockaddr_fn = ddsi_raweth_locator_from_sockaddr;
   fact->m_get_locator_port_fn = ddsi_raweth_get_locator_port;
   fact->m_set_locator_port_fn = ddsi_raweth_set_locator_port;
   fact->m_get_locator_aux_fn = ddsi_raweth_get_locator_aux;
   fact->m_set_locator_aux_fn = ddsi_raweth_set_locator_aux;
+  ddsrt_atomic_st32 (&fact->m_receive_buf_size, UINT32_MAX);
+
   ddsi_factory_add (gv, fact);
   GVLOG (DDS_LC_CONFIG, "raweth initialized\n");
   return 0;
 }
+
 
 #else
 
