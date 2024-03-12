@@ -307,12 +307,12 @@ DDS_INLINE_EXPORT inline bool ddsi_serdata_eqkey (const struct ddsi_serdata *a, 
 }
 
 /** @component typesupport_if */
-DDS_INLINE_EXPORT inline bool ddsi_serdata_print (const struct ddsi_serdata *d, char *buf, size_t size) {
+DDS_INLINE_EXPORT inline size_t ddsi_serdata_print (const struct ddsi_serdata *d, char *buf, size_t size) {
   return d->ops->print (d->type, d, buf, size);
 }
 
 /** @component typesupport_if */
-DDS_INLINE_EXPORT inline bool ddsi_serdata_print_untyped (const struct ddsi_sertype *type, const struct ddsi_serdata *d, char *buf, size_t size) {
+DDS_INLINE_EXPORT inline size_t ddsi_serdata_print_untyped (const struct ddsi_sertype *type, const struct ddsi_serdata *d, char *buf, size_t size) {
   if (d->ops->print)
     return d->ops->print (type, d, buf, size);
   else
