@@ -1,0 +1,5 @@
+syntax = "proto2";
+package fuzz_handshake;
+message FuzzMsg {
+    required string msg = 1;
+}
