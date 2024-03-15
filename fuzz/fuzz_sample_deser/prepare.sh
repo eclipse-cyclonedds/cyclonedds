@@ -31,4 +31,4 @@ prepare_fuzz_deser() {
 }
 
 export -f prepare_fuzz_deser
-env -u CFLAGS -u CXXFLAGS -u LIB_FUZZING_ENGINE bash -euc prepare_fuzz_deser
+env -u CC -u CXX -u CFLAGS -u CXXFLAGS -u LIB_FUZZING_ENGINE bash -euc prepare_fuzz_deser
