@@ -23,6 +23,7 @@
 #include "dds/ddsi/ddsi_endpoint.h"
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsi/ddsi_serdata.h"
+#include "dds/ddsi/ddsi_typelib.h"
 
 #define DEFAULT_QOURUM                       1
 #define DEFAULT_IDENT                        "durable_support"
@@ -33,9 +34,9 @@
 
 #define DC_UNUSED_ARG(x)                     ((void)x)
 
-#define DC_FLAG_SET_NOT_FOUND                (((uint32_t)0x01) << 10)
-#define DC_FLAG_SET_BEGIN                    (((uint32_t)0x01) << 11)
-#define DC_FLAG_SET_END                      (((uint32_t)0x01) << 12)
+#define DC_FLAG_SET_NOT_FOUND                (((uint32_t)0x01) << 16)
+#define DC_FLAG_SET_BEGIN                    (((uint32_t)0x01) << 17)
+#define DC_FLAG_SET_END                      (((uint32_t)0x01) << 18)
 
 #define TRACE(...) DDS_CLOG (DDS_LC_DUR, &domaingv->logconfig, __VA_ARGS__)
 
@@ -158,19 +159,19 @@ static int dc_stringify_request (char *buf, size_t n, const DurableSupport_reque
   if (valid_data) {
     /* also print non-key fields */
     if (request->timeout == DDS_INFINITY) {
-      if ((l = snprintf(buf+i, n-i, "{\"client\":\"%s\", \"partition\":\"%s\", \"tpname\":\"%s\", \"timeout\":\"never\"}", dc_stringify_id(request->client, id_str), request->partition, request->tpname)) < 0) {
+      if ((l = snprintf(buf+i, n-i, "{\"client\":\"%s\", \"partition\":\"%s\", \"tpname\":\"%s\", \"type_id\":\"%s\", \"timeout\":\"never\"}", dc_stringify_id(request->client, id_str), request->partition, request->tpname, request->type_id)) < 0) {
         goto err;
       }
     } else {
       sec = (int64_t)(request->timeout / DDS_NSECS_IN_SEC);
       msec = (uint32_t)((request->timeout % DDS_NSECS_IN_SEC) / DDS_NSECS_IN_MSEC);
-      if ((l = snprintf(buf+i, n-i, "{\"client\":\"%s\", \"partition\":\"%s\", \"tpname\":\"%s\", \"timeout\":%" PRId64 ".%03" PRIu32 "}", dc_stringify_id(request->client, id_str), request->partition, request->tpname, sec, msec)) < 0) {
+      if ((l = snprintf(buf+i, n-i, "{\"client\":\"%s\", \"partition\":\"%s\", \"tpname\":\"%s\", \"type_id\":\"%s\", \"timeout\":%" PRId64 ".%03" PRIu32 "}", dc_stringify_id(request->client, id_str), request->partition, request->tpname, request->type_id, sec, msec)) < 0) {
         goto err;
       }
     }
   } else {
     /* only print key fields */
-    if ((l = snprintf(buf+i, n-i, "{\"client\":\"%s\", \"partition\":\"%s\", \"tpname\":\"%s\"}", dc_stringify_id(request->client, id_str), request->partition, request->tpname)) < 0) {
+    if ((l = snprintf(buf+i, n-i, "{\"client\":\"%s\", \"partition\":\"%s\", \"tpname\":\"%s\", \"type_id\":\"%s\"}", dc_stringify_id(request->client, id_str), request->partition, request->tpname, request->type_id)) < 0) {
       goto err;
     }
   }
@@ -208,7 +209,7 @@ static int dc_stringify_response (char *buf, size_t n, const DurableSupport_resp
   }
   switch (response->body._d) {
     case DurableSupport_RESPONSETYPE_SET :
-      if ((l = snprintf(buf+i, n-i, "\"delivery_id\":%" PRIu64 ",\"partition\":\"%s\", \"tpname\":\"%s\", \"flags\":\"0x%04" PRIx32 "\"", response->body._u.set.delivery_id, response->body._u.set.partition, response->body._u.set.tpname, response->body._u.set.flags)) < 0) {
+      if ((l = snprintf(buf+i, n-i, "\"delivery_id\":%" PRIu64 ",\"partition\":\"%s\", \"tpname\":\"%s\", \"type_id\":\"%s\", \"flags\":\"0x%04" PRIx32 "\"", response->body._u.set.delivery_id, response->body._u.set.partition, response->body._u.set.tpname, response->body._u.set.type_id, response->body._u.set.flags)) < 0) {
         goto err;
       }
       i += (size_t)l;
@@ -298,7 +299,7 @@ static const ddsrt_avl_ctreedef_t proxy_set_reader_td = DDSRT_AVL_CTREEDEF_INITI
 struct proxy_set_key_t {
   char *partition;   /* partition name */
   char *tpname;  /* topic name */
-  /* todo: typeid */
+  char *type_id;  /* type id */
 };
 
 struct proxy_set_t {
@@ -326,6 +327,12 @@ static int cmp_proxy_set (const void *a, const void *b)
   } else if (cmp > 0) {
     return 1;
   }
+  /* compare type id */
+  if ((cmp = strcmp(k1->type_id, k2->type_id)) < 0) {
+    return -1;
+  } else if (cmp > 0) {
+    return 1;
+  }
   return 0;
 }
 
@@ -336,6 +343,7 @@ static void cleanup_proxy_set (void *n)
   ddsrt_avl_cfree(&proxy_set_reader_td,  &proxy_set->readers, cleanup_proxy_set_reader);
   ddsrt_free(proxy_set->key.partition);
   ddsrt_free(proxy_set->key.tpname);
+  ddsrt_free(proxy_set->key.type_id);
   ddsrt_free(proxy_set);
 }
 
@@ -1191,7 +1199,7 @@ static void dc_com_free (struct com_t *com)
 
 #define MAX_TOPIC_NAME_SIZE                  255
 
-static dds_return_t dc_com_request_write (struct com_t *com, const char *partition, const char *tpname)
+static dds_return_t dc_com_request_write (struct com_t *com, const char *partition, const char *tpname, const char *type_id)
 {
   /* note: we allow doing a request for volatile readers */
   DurableSupport_request *request;
@@ -1204,6 +1212,7 @@ static dds_return_t dc_com_request_write (struct com_t *com, const char *partiti
   memcpy(request->client, dc.cfg.id, 16);
   request->partition = ddsrt_strdup(partition);
   request->tpname = ddsrt_strdup(tpname);
+  request->type_id = ddsrt_strdup(type_id);
   request->timeout = DDS_INFINITY;
   l = dc_stringify_request(str, sizeof(str), request, true);
   assert(l > 0);
@@ -1292,7 +1301,7 @@ static int dc_process_status (dds_entity_t rd, struct dc_t *dc)
 #undef MAX_SAMPLES
 }
 
-static struct proxy_set_t *dc_create_proxy_set (struct dc_t *dc, const char *partition, const char *tpname)
+static struct proxy_set_t *dc_create_proxy_set (struct dc_t *dc, const char *partition, const char *tpname, const char *type_id)
 {
   struct proxy_set_t *proxy_set = NULL;
 
@@ -1301,14 +1310,15 @@ static struct proxy_set_t *dc_create_proxy_set (struct dc_t *dc, const char *par
   proxy_set = (struct proxy_set_t *)ddsrt_malloc(sizeof(struct proxy_set_t));
   proxy_set->key.partition = ddsrt_strdup(partition);
   proxy_set->key.tpname =  ddsrt_strdup(tpname);
+  proxy_set->key.type_id = ddsrt_strdup(type_id);
   proxy_set->seq = 0; /* no pending request yet */
   ddsrt_avl_cinit(&proxy_set_reader_td, &proxy_set->readers);
   ddsrt_avl_cinsert(&proxy_set_td, &dc->proxy_sets, proxy_set);
-  DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "proxy set '%s.%s' created\n", proxy_set->key.partition, proxy_set->key.tpname);
+  DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "proxy set '%s.%s<%s>' created\n", proxy_set->key.partition, proxy_set->key.tpname, proxy_set->key.type_id);
   return proxy_set;
 }
 
-static struct proxy_set_t *dc_get_proxy_set (struct dc_t *dc, const char *partition, const char *tpname, bool autocreate)
+static struct proxy_set_t *dc_get_proxy_set (struct dc_t *dc, const char *partition, const char *tpname, const char *type_id, bool autocreate)
 {
   struct proxy_set_key_t key;
   struct proxy_set_t *proxy_set;
@@ -1317,11 +1327,13 @@ static struct proxy_set_t *dc_get_proxy_set (struct dc_t *dc, const char *partit
   assert(tpname);
   key.partition = ddsrt_strdup(partition);
   key.tpname = ddsrt_strdup(tpname);
+  key.type_id = ddsrt_strdup(type_id);
   if (((proxy_set = ddsrt_avl_clookup (&proxy_set_td, &dc->proxy_sets, &key)) == NULL) && autocreate) {
-    proxy_set = dc_create_proxy_set(dc, partition, tpname);
+    proxy_set = dc_create_proxy_set(dc, partition, tpname, type_id);
   }
   ddsrt_free(key.partition);
   ddsrt_free(key.tpname);
+  ddsrt_free(key.type_id);
   return proxy_set;
 }
 
@@ -1392,14 +1404,14 @@ static void dc_open_delivery (struct dc_t *dc,  DurableSupport_response *respons
   }
   /* set the delivery_id and proxy set for this delivery context */
   dc->delivery_ctx->delivery_id = delivery_id;
-  if ((dc->delivery_ctx->proxy_set = dc_get_proxy_set(dc, response->body._u.set.partition, response->body._u.set.tpname, false)) == NULL) {
-    DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "no proxy set for \"%s.%s\" found, ignore delivery\n", response->body._u.set.partition, response->body._u.set.tpname);
+  if ((dc->delivery_ctx->proxy_set = dc_get_proxy_set(dc, response->body._u.set.partition, response->body._u.set.tpname, response->body._u.set.type_id, false)) == NULL) {
+    DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "no proxy set for \"%s.%s<%s>\" found, ignore delivery\n", response->body._u.set.partition, response->body._u.set.tpname, response->body._u.set.type_id);
     /* abort this delivery context */
     dc_abort_current_delivery(dc);
     return;
   }
-  DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "delivery %" PRIu64 " from ds \"%s\" for set \"%s.%s\" opened\n",
-      delivery_id, dc_stringify_id(dc->delivery_ctx->id, id_str), dc->delivery_ctx->proxy_set->key.partition, dc->delivery_ctx->proxy_set->key.tpname);
+  DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "delivery %" PRIu64 " from ds \"%s\" for set \"%s.%s<%s>\" opened\n",
+      delivery_id, dc_stringify_id(dc->delivery_ctx->id, id_str), dc->delivery_ctx->proxy_set->key.partition, dc->delivery_ctx->proxy_set->key.tpname, dc->delivery_ctx->proxy_set->key.type_id);
 }
 
 /* close the current delivery context for the ds identified by id */
@@ -1693,16 +1705,21 @@ static void dc_create_proxy_sets_for_reader (struct dc_t *dc, dds_entity_t reade
   uint32_t plen, i;
   char **partitions;
   struct proxy_set_t *proxy_set = NULL;
-  dds_instance_handle_t ih;
   dds_guid_t guid;
   char id_str[37];
+  dds_typeinfo_t *typeinfo;
+  ddsi_typeid_t *tid = NULL;
+  struct ddsi_typeid_str tidstr = { 0 };
 
-  /* LH: perhaps the qos should be added as parameter, since the caller already has the qos */
-  /* verify if the reader still exists; if not, delete the request */
-  if ((rc = dds_get_instance_handle(reader, &ih)) != DDS_RETCODE_OK) {
-    DDS_CLOG(DDS_LC_DUR, &dc->gv->logconfig, "No need to create a proxy set, reader is not available [%s]\n", dds_strretcode(-rc));
-    return;
+  if ((rc = dds_get_typeinfo(reader, &typeinfo)) != DDS_RETCODE_OK) {
+    DDS_ERROR("Unable to retrieve typeinfo [%s]\n", dds_strretcode(-rc));
+    goto err_get_typeinfo;
   }
+  if ((tid = ddsi_typeinfo_typeid(typeinfo, DDSI_TYPEID_KIND_COMPLETE)) == NULL) {
+    DDS_ERROR("Unable to retrieve typeid [%s]\n", dds_strretcode(-rc));
+    goto err_typeid;
+  }
+  (void)ddsi_make_typeid_str(&tidstr, tid);
   /* get reader guid */
   if ((rc = dds_get_guid(reader, &guid)) < DDS_RETCODE_OK) {
     DDS_ERROR("Unable to retrieve the guid of the reader [%s]\n", dds_strretcode(-rc));
@@ -1738,7 +1755,7 @@ static void dc_create_proxy_sets_for_reader (struct dc_t *dc, dds_entity_t reade
   /* for each partition create a proxy set if it does not exist yet
    * and request data for the proxy set (if not done so already) */
   for (i=0; i < plen; i++) {
-    proxy_set = dc_get_proxy_set(dc, partitions[i], tpname, true);
+    proxy_set = dc_get_proxy_set(dc, partitions[i], tpname, tidstr.str, true);
     assert(proxy_set);
     /* Add the reader and rhc to this proxy set.
      * We do this BEFORE we send the request, so that we are sure
@@ -1746,7 +1763,7 @@ static void dc_create_proxy_sets_for_reader (struct dc_t *dc, dds_entity_t reade
      * sending the request) the reader and rhc are present */
     dc_register_reader_to_proxy_set(dc, proxy_set, guid, reader, rhc);
     /* send a request for this proxy set */
-    if ((rc = dc_com_request_write(dc->com, proxy_set->key.partition, proxy_set->key.tpname)) != DDS_RETCODE_OK) {
+    if ((rc = dc_com_request_write(dc->com, proxy_set->key.partition, proxy_set->key.tpname, proxy_set->key.type_id)) != DDS_RETCODE_OK) {
       DDS_ERROR("Failed to publish dc_request for proxy set %s.%s\n", proxy_set->key.partition, proxy_set->key.tpname);
       /* We failed to request data for this proxy set.
         * We could do several things now, e.g., 1) try again until we succeed,
@@ -1759,6 +1776,8 @@ static void dc_create_proxy_sets_for_reader (struct dc_t *dc, dds_entity_t reade
   }
   dc_free_partitions(plen, partitions);
   dds_delete_qos(rqos);
+  dds_free_typeinfo(typeinfo);
+  ddsrt_free(tid);
   return;
 
 err_qget_partition:
@@ -1769,6 +1788,10 @@ err_get_name_size:
 err_get_name:
 err_get_topic:
 err_get_guid:
+  ddsrt_free(tid);
+err_typeid:
+  dds_free_typeinfo(typeinfo);
+err_get_typeinfo:
   return;
 }
 
