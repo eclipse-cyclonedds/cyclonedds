@@ -103,6 +103,7 @@ typedef struct DurableSupport_set
 {
   char * partition;
   char * tpname;
+  char * type_id;
   uint32_t flags;
   dds_sequence_DurableSupport_writer writers;
 } DurableSupport_set;
@@ -173,6 +174,7 @@ typedef struct DurableSupport_set_t
 {
   char * partition;
   char * tpname;
+  char * type_id;
   uint32_t flags;
   dds_sequence_DurableSupport_id_t addressees;
 } DurableSupport_set_t;
@@ -275,6 +277,7 @@ typedef struct DurableSupport_request
   DurableSupport_id_t client;
   char * partition;
   char * tpname;
+  char * type_id;
   DurableSupport_duration_t timeout;
 } DurableSupport_request;
 
@@ -293,6 +296,7 @@ typedef struct DurableSupport_response_set_t
   DurableSupport_delivery_id_t delivery_id;
   char * partition;
   char * tpname;
+  char * type_id;
   uint32_t flags;
 } DurableSupport_response_set_t;
 
