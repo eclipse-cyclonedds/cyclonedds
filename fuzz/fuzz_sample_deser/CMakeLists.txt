@@ -17,4 +17,5 @@ target_include_directories(
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../src/core/ddsi/src>")
   
 target_compile_options(fuzz_sample_deser PRIVATE -fsanitize=fuzzer,address -g)
+set_target_properties(fuzz_sample_deser PROPERTIES LINKER_LANGUAGE CXX)
 target_link_libraries(fuzz_sample_deser fuzz_sample CycloneDDS::ddsc -fsanitize=fuzzer,address)
