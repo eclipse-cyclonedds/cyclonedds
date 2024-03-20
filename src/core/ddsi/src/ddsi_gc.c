@@ -35,14 +35,15 @@ struct ddsi_gcreq_queue {
   struct ddsi_thread_state *thrst;
 };
 
-static void threads_vtime_gather_for_wait (const struct ddsi_domaingv *gv, uint32_t *nivs, struct ddsi_idx_vtime *ivs, struct ddsi_thread_states_list *cur)
+static void threads_vtime_gather_for_wait (const struct ddsi_domaingv *gv, uint32_t *nivs, struct ddsi_idx_vtime *ivs, struct ddsi_thread_states_list *tslist)
 {
   /* copy vtimes of threads, skipping those that are sleeping */
 #ifndef NDEBUG
-  const uint32_t nthreads = cur->nthreads;
+  const uint32_t nthreads = tslist->nthreads;
 #endif
+  struct ddsi_thread_states_list *cur;
   uint32_t dstidx;
-  for (dstidx = 0; cur; cur = cur->next)
+  for (dstidx = 0, cur = tslist; cur; cur = cur->next)
   {
     for (uint32_t i = 0; i < DDSI_THREAD_STATE_BATCH; i++)
     {
