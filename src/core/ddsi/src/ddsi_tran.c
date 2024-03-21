@@ -14,6 +14,7 @@
 #include <ctype.h>
 
 #include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/process.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/ifaddrs.h"
 #include "dds/ddsi/ddsi_log.h"
@@ -147,7 +148,7 @@ void ddsi_conn_free (struct ddsi_tran_conn * conn)
                 break;
               case DDSI_RTM_SINGLE:
                 if (conn->m_base.gv->recv_threads[i].arg.u.single.conn == conn)
-                  abort();
+                  ddsrt_abort();
                 break;
             }
           }

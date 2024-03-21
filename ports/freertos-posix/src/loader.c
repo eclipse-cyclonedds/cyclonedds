@@ -49,7 +49,7 @@ void vAssertCalled(unsigned long ulLine, const char * const pcFileName)
     fprintf(stderr, "[ASSERT] %s:%lu"LF, pcFileName, ulLine);
   }
   taskEXIT_CRITICAL();
-  abort();
+  ddsrt_abort();
 }
 
 void vApplicationMallocFailedHook(void)

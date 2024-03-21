@@ -22,6 +22,7 @@
 #include "dds/ddsrt/cdtors.h"
 #include "dds/ddsrt/retcode.h"
 #include "dds/ddsrt/sync.h"
+#include "dds/ddsrt/process.h"
 #include "dds/ddsrt/threads.h"
 
 static int32_t min_fifo_prio = 250;
@@ -81,7 +82,7 @@ static uint32_t thread_main(void *ptr)
 #elif _WIN32
   int prio = GetThreadPriority(GetCurrentThread());
   if (prio == THREAD_PRIORITY_ERROR_RETURN)
-    abort();
+    ddsrt_abort();
   if (prio == attr->schedPriority) {
     arg->res = 1;
   }
@@ -92,7 +93,7 @@ static uint32_t thread_main(void *ptr)
 
   err = pthread_getschedparam(pthread_self(), &policy, &sched);
   if (err != 0) {
-    abort();
+    ddsrt_abort();
   }
   if (((policy == SCHED_OTHER && attr->schedClass == DDSRT_SCHED_TIMESHARE) ||
        (policy == SCHED_FIFO && attr->schedClass == DDSRT_SCHED_REALTIME))

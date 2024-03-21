@@ -51,7 +51,7 @@ void *ddsrt_malloc(size_t size)
   void *ptr;
 
   if ((ptr = ddsrt_malloc_s(size)) == NULL) {
-    abort();
+    ddsrt_abort();
   }
 
   return ptr;
@@ -80,7 +80,7 @@ void *ddsrt_calloc(size_t nmemb, size_t size)
   void *ptr = NULL;
 
   if ((ptr = ddsrt_calloc_s(nmemb, size)) == NULL) {
-    abort();
+    ddsrt_abort();
   }
 
   return ptr;
@@ -121,7 +121,7 @@ void *ddsrt_realloc(void *memblk, size_t size)
   void *ptr = NULL;
 
   if ((ptr = ddsrt_realloc_s(memblk, size)) == NULL) {
-    abort();
+    ddsrt_abort();
   }
 
   return ptr;

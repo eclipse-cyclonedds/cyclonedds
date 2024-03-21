@@ -17,6 +17,7 @@
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/md5.h"
 #include "dds/ddsrt/mh3.h"
+#include "dds/ddsrt/process.h"
 #include "dds/ddsi/ddsi_freelist.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/ddsi_domaingv.h"
@@ -169,7 +170,7 @@ static bool serdata_pserop_to_sample (const struct ddsi_serdata *serdata_common,
 {
   const struct ddsi_serdata_pserop *d = (const struct ddsi_serdata_pserop *)serdata_common;
   const struct ddsi_sertype_pserop *tp = (const struct ddsi_sertype_pserop *) d->c.type;
-  if (bufptr) abort(); else { (void)buflim; } /* FIXME: haven't implemented that bit yet! */
+  if (bufptr) ddsrt_abort(); else { (void)buflim; } /* FIXME: haven't implemented that bit yet! */
   if (d->c.kind == SDK_KEY)
     memcpy (sample, d->sample, 16);
   else
@@ -251,7 +252,7 @@ static bool serdata_pserop_untyped_to_sample (const struct ddsi_sertype *type_co
 {
   const struct ddsi_serdata_pserop *d = (const struct ddsi_serdata_pserop *)serdata_common;
   const struct ddsi_sertype_pserop *tp = (const struct ddsi_sertype_pserop *)type_common;
-  if (bufptr) abort(); else { (void)buflim; } /* FIXME: haven't implemented that bit yet! */
+  if (bufptr) ddsrt_abort(); else { (void)buflim; } /* FIXME: haven't implemented that bit yet! */
   if (tp->ops_key)
     memcpy (sample, d->sample, 16);
   return true;

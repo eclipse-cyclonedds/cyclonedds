@@ -19,6 +19,7 @@
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsrt/avl.h"
+#include "dds/ddsrt/process.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/hopscotch.h"
 #include "dds/ddsi/ddsi_domaingv.h"
@@ -1727,7 +1728,7 @@ unsigned ddsi_determine_publication_writer (const struct ddsi_writer *wr)
 unsigned ddsi_determine_topic_writer (const struct ddsi_topic *tp)
 {
   if (ddsi_omg_participant_is_discovery_protected (tp->pp))
-    abort (); /* FIXME: not implemented */
+    ddsrt_abort(); /* FIXME: not implemented */
   return DDSI_ENTITYID_SEDP_BUILTIN_TOPIC_WRITER;
 }
 #endif

@@ -11,6 +11,7 @@
 #include <assert.h>
 #include <string.h>
 #include "dds/ddsrt/string.h"
+#include "dds/ddsrt/process.h"
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_topic.h"
 #include "dds/ddsi/ddsi_endpoint.h"
@@ -282,7 +283,7 @@ struct ddsi_serdata *dds__builtin_make_sample_endpoint (const struct ddsi_entity
       type = dom->builtin_reader_type;
       break;
     default:
-      abort ();
+      ddsrt_abort();
       break;
   }
   assert (type != NULL);
@@ -344,7 +345,7 @@ static void dds__builtin_write_endpoint (const struct ddsi_entity_common *e, dds
         bwr = dom->builtintopic_writer_subscriptions;
         break;
       default:
-        abort ();
+        ddsrt_abort();
         break;
     }
     dds_writecdr_local_orphan_impl (bwr, serdata);

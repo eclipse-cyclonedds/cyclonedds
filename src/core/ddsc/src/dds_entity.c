@@ -13,6 +13,7 @@
 
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/log.h"
+#include "dds/ddsrt/process.h"
 #include "dds__entity.h"
 #include "dds__write.h"
 #include "dds__writer.h"
@@ -162,7 +163,7 @@ static bool entity_has_status (const dds_entity *e)
     case DDS_KIND_CYCLONEDDS:
       break;
     case DDS_KIND_DONTCARE:
-      abort ();
+      ddsrt_abort();
       break;
   }
   return false;
@@ -187,7 +188,7 @@ static bool entity_may_have_children (const dds_entity *e)
     case DDS_KIND_CYCLONEDDS:
       break;
     case DDS_KIND_DONTCARE:
-      abort ();
+      ddsrt_abort();
       break;
   }
   return true;
@@ -213,7 +214,7 @@ static bool entity_kind_has_qos (dds_entity_kind_t kind)
     case DDS_KIND_CYCLONEDDS:
       break;
     case DDS_KIND_DONTCARE:
-      abort ();
+      ddsrt_abort();
       break;
   }
   return false;
@@ -1628,7 +1629,7 @@ dds_return_t dds_return_loan (dds_entity_t entity, void **buf, int32_t bufsz)
   // bufsz <= 0 is accepted because it allows one to write:
   //
   // if (dds_return_loan(rd, buf, dds_take(rd, buf, ...)) < 0)
-  //   abort();
+  //   ddsrt_abort();
   //
   // with abort only being called if there is a real problem.
   //

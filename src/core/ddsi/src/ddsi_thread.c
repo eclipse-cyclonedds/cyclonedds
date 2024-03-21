@@ -15,6 +15,7 @@
 #include "dds/ddsrt/cdtors.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/log.h"
+#include "dds/ddsrt/process.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/threads.h"
@@ -351,7 +352,7 @@ static dds_return_t create_thread_int (struct ddsi_thread_state **ts1_out, const
 fatal:
   ddsrt_mutex_unlock (&thread_states.lock);
   *ts1_out = NULL;
-  abort ();
+  ddsrt_abort();
   return DDS_RETCODE_ERROR;
 }
 

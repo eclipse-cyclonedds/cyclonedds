@@ -457,7 +457,7 @@ void ddsrt_thread_init(uint32_t reason)
   if (reason != DLL_PROCESS_ATTACH)
     return;
   if ((cleanup = TlsAlloc()) == TLS_OUT_OF_INDEXES)
-    abort();
+    ddsrt_abort();
 }
 
 void ddsrt_thread_fini(uint32_t reason)

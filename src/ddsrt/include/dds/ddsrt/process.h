@@ -15,6 +15,7 @@
 #include "dds/ddsrt/time.h"
 #include "dds/ddsrt/types.h"
 #include "dds/ddsrt/retcode.h"
+#include "dds/ddsrt/attributes.h"
 
 #if DDSRT_WITH_FREERTOS
 #include <FreeRTOS.h>
@@ -69,6 +70,14 @@ ddsrt_getpid(void);
  */
 DDS_EXPORT char *
 ddsrt_getprocessname(void);
+
+/**
+ * @brief Terminates the process in an abnormal fashion.
+ *
+ * Does not return. Immediately terminates the process.
+ */
+DDS_EXPORT void
+ddsrt_abort (void) ddsrt_attribute_noreturn;
 
 #if defined (__cplusplus)
 }

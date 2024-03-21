@@ -17,6 +17,7 @@
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/md5.h"
 #include "dds/ddsrt/mh3.h"
+#include "dds/ddsrt/process.h"
 #include "dds/ddsi/ddsi_freelist.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/ddsi_domaingv.h"
@@ -250,7 +251,7 @@ static struct ddsi_serdata_cdr *serdata_cdr_from_sample_cdr_common (const struct
       ostream_add_to_serdata_cdr (&os, &d);
       break;
     case SDK_KEY:
-      abort ();
+      ddsrt_abort();
       break;
     case SDK_DATA:
       if (!dds_stream_write_sample (&os, &dds_cdrstream_default_allocator, sample, &tp->type))
@@ -314,7 +315,7 @@ static bool serdata_cdr_to_sample_cdr (const struct ddsi_serdata *serdata_common
   const struct ddsi_serdata_cdr *d = (const struct ddsi_serdata_cdr *)serdata_common;
   const struct ddsi_sertype_cdr *tp = (const struct ddsi_sertype_cdr *) d->c.type;
   dds_istream_t is;
-  if (bufptr) abort(); else { (void)buflim; } /* FIXME: haven't implemented that bit yet! */
+  if (bufptr) ddsrt_abort(); else { (void)buflim; } /* FIXME: haven't implemented that bit yet! */
   assert (DDSI_RTPS_CDR_ENC_IS_NATIVE (d->hdr.identifier));
   istream_from_serdata_cdr(&is, d);
   dds_stream_read_sample (&is, sample, &dds_cdrstream_default_allocator, &tp->type);

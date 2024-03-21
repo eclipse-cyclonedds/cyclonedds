@@ -13,6 +13,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/process.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_sertype.h"
@@ -930,7 +931,7 @@ static dds_return_t ddsi_type_get_typeinfo_toplevel (struct ddsi_domaingv *gv, s
   {
     ddsi_typeid_t ti_c;
     if (ddsi_typeobj_get_hash_id (&to_c, &ti_c) != 0)
-      abort ();
+      ddsrt_abort();
     assert (ddsi_typeid_compare (&type_c->xt.id, &ti_c) == 0);
     ddsi_typeid_fini (&ti_c);
   }

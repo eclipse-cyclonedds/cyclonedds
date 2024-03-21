@@ -84,3 +84,9 @@ ddsrt_getprocessname(void)
   }
 }
 
+void
+ddsrt_abort(void)
+{
+  abort();
+}
+

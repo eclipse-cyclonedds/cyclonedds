@@ -22,6 +22,7 @@
 #endif
 
 #include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/process.h"
 #include "dds/ddsrt/threads.h"
 #include "dds/ddsrt/sync.h"
 #include "dds/ddsrt/string.h"
@@ -740,7 +741,7 @@ static void ddsi_rdata_addbias (struct ddsi_rdata *rdata)
 #ifndef NDEBUG
   ASSERT_RBUFPOOL_OWNER (rmsg->chunk.rbuf->rbufpool);
   if (ddsrt_atomic_inc32_nv (&rdata->refcount_bias_added) != 1)
-    abort ();
+    ddsrt_abort();
 #endif
   ddsi_rmsg_addbias (rmsg);
 }
@@ -751,7 +752,7 @@ static void ddsi_rdata_rmbias_and_adjust (struct ddsi_rdata *rdata, int adjust)
   RMSGTRACE ("rdata_rmbias_and_adjust(%p, %d)\n", (void *) rdata, adjust);
 #ifndef NDEBUG
   if (ddsrt_atomic_dec32_ov (&rdata->refcount_bias_added) != 1)
-    abort ();
+    ddsrt_abort();
 #endif
   ddsi_rmsg_rmbias_and_adjust (rmsg, adjust);
 }
@@ -2574,7 +2575,7 @@ static uint32_t dqueue_thread (struct ddsi_dqueue *q)
               switch (b->kind)
               {
                 case DDSI_DQBK_STOP:
-                  abort ();
+                  ddsrt_abort();
                 case DDSI_DQBK_CALLBACK:
                   b->u.cb.cb (b->u.cb.arg);
                   break;

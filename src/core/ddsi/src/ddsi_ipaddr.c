@@ -15,6 +15,7 @@
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/bits.h"
+#include "dds/ddsrt/process.h"
 #include "dds/ddsrt/sockets.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsi/ddsi_domaingv.h"
@@ -255,7 +256,7 @@ enum ddsi_locator_from_string_result ddsi_ipaddr_from_string (ddsi_locator_t *lo
     struct sockaddr_in6 *x = (struct sockaddr_in6 *) &tmpaddr;
     x->sin6_port = htons (port);
 #else
-    abort ();
+    ddsrt_abort();
 #endif
   }
   ddsi_ipaddr_to_loc (loc, (struct sockaddr *)&tmpaddr, kind);

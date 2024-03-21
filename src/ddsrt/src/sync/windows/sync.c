@@ -61,7 +61,7 @@ ddsrt_cond_wait(ddsrt_cond_t *cond, ddsrt_mutex_t *mutex)
   assert(mutex != NULL);
 
   if (!SleepConditionVariableSRW(&cond->cond, &mutex->lock, INFINITE, 0)) {
-    abort();
+    ddsrt_abort();
   }
 }
 
@@ -108,7 +108,7 @@ ddsrt_cond_waitfor(
   if (SleepConditionVariableSRW(&cond->cond, &mutex->lock, msecs, 0)) {
     return true;
   } else if (GetLastError() != ERROR_TIMEOUT) {
-    abort();
+    ddsrt_abort();
   }
 
   return (dds_time() >= abstime) ? false : true;

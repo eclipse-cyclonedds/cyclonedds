@@ -13,6 +13,7 @@
 #include "dds/dds.h"
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/md5.h"
+#include "dds/ddsrt/process.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsi/ddsi_entity.h"
 #include "dds/ddsi/ddsi_typelib.h"
@@ -357,7 +358,7 @@ static dds_return_t set_type_flags (struct ddsi_type *type, uint16_t flag, uint1
         type->xt._u.union_type.flags = (type->xt._u.union_type.flags & (uint16_t) ~mask) | flag;
       break;
     default:
-      abort ();
+      ddsrt_abort();
   }
   return ret;
 }
@@ -376,7 +377,7 @@ dds_return_t ddsi_dynamic_type_set_extensibility (struct ddsi_type *type, enum d
   else if (extensibility == DDS_DYNAMIC_TYPE_EXT_MUTABLE)
     flag = DDS_XTypes_IS_MUTABLE;
   else
-    abort ();
+    ddsrt_abort();
   return set_type_flags (type, flag, DDS_DYNAMIC_TYPE_EXT_FINAL | DDS_DYNAMIC_TYPE_EXT_APPENDABLE | DDS_DYNAMIC_TYPE_EXT_MUTABLE);
 }
 
@@ -421,7 +422,7 @@ dds_return_t ddsi_dynamic_type_set_bitbound (struct ddsi_type *type, uint16_t bi
       }
       break;
     default:
-      abort ();
+      ddsrt_abort();
   }
   return ret;
 }

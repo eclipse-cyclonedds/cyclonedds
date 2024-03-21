@@ -13,6 +13,7 @@
 #include <string.h>
 
 #include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/process.h"
 #include "dds/ddsrt/sockets.h"
 #include "dds/ddsrt/sync.h"
 
@@ -195,13 +196,13 @@ void ddsi_sock_waitset_purge (struct ddsi_sock_waitset * ws, unsigned index)
   sz = ddsrt_atomic_ld32 (&ws->sz);
   close (ws->kqueue);
   if ((ws->kqueue = kqueue()) == -1)
-    abort (); /* FIXME */
+    ddsrt_abort(); /* FIXME */
   for (i = 0; i <= index; i++)
   {
     assert (ws->entries[i].fd >= 0);
     EV_SET(&kev, (unsigned)ws->entries[i].fd, EVFILT_READ, EV_ADD, 0, 0, &ws->entries[i]);
     if (kevent(ws->kqueue, &kev, 1, NULL, 0, NULL) == -1)
-      abort (); /* FIXME */
+      ddsrt_abort(); /* FIXME */
   }
   for (; i < sz; i++)
   {
@@ -226,7 +227,7 @@ void ddsi_sock_waitset_remove (struct ddsi_sock_waitset * ws, struct ddsi_tran_c
     struct kevent kev;
     EV_SET(&kev, (unsigned)ws->entries[i].fd, EVFILT_READ, EV_DELETE, 0, 0, 0);
     if (kevent(ws->kqueue, &kev, 1, NULL, 0, NULL) == -1)
-      abort (); /* FIXME */
+      ddsrt_abort(); /* FIXME */
     ws->entries[i].fd = -1;
   }
   ddsrt_mutex_unlock (&ws->lock);

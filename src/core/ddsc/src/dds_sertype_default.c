@@ -17,6 +17,7 @@
 #include "dds/ddsrt/md5.h"
 #include "dds/ddsrt/mh3.h"
 #include "dds/ddsrt/heap.h"
+#include "dds/ddsrt/process.h"
 #include "dds/ddsrt/string.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_freelist.h"
@@ -197,7 +198,7 @@ static struct ddsi_sertype * sertype_default_derive_sertype (const struct ddsi_s
   else if (data_representation == DDS_DATA_REPRESENTATION_XCDR2)
     required_ops = base_sertype->has_key ? &dds_serdata_ops_xcdr2 : &dds_serdata_ops_xcdr2_nokey;
   else
-    abort ();
+    ddsrt_abort();
 
   if (base_sertype->serdata_ops == required_ops)
     derived_sertype = (struct dds_sertype_default *) base_sertype_default;
@@ -285,7 +286,7 @@ dds_return_t dds_sertype_default_init (const struct dds_domain *domain, struct d
       serdata_ops = desc->m_nkeys ? &dds_serdata_ops_xcdr2 : &dds_serdata_ops_xcdr2_nokey;
       break;
     default:
-      abort ();
+      ddsrt_abort();
   }
 
   /* Get the extensility of the outermost object in the type used for the topic. Note that the

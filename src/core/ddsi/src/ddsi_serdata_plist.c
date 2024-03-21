@@ -17,6 +17,7 @@
 #include "dds/ddsrt/log.h"
 #include "dds/ddsrt/md5.h"
 #include "dds/ddsrt/mh3.h"
+#include "dds/ddsrt/process.h"
 #include "dds/ddsi/ddsi_freelist.h"
 #include "dds/ddsi/ddsi_tkmap.h"
 #include "dds/ddsi/ddsi_domaingv.h"
@@ -184,7 +185,7 @@ static bool serdata_plist_untyped_to_sample (const struct ddsi_sertype *tpcmn, c
   const struct ddsi_serdata_plist *d = (const struct ddsi_serdata_plist *)serdata_common;
   const struct ddsi_sertype_plist *tp = (const struct ddsi_sertype_plist *)tpcmn;
   struct ddsi_domaingv * const gv = ddsrt_atomic_ldvoidp (&tp->c.gv);
-  if (bufptr) abort(); else { (void)buflim; } /* FIXME: haven't implemented that bit yet! */
+  if (bufptr) ddsrt_abort(); else { (void)buflim; } /* FIXME: haven't implemented that bit yet! */
   ddsi_plist_src_t src = {
     .buf = (const unsigned char *) d->data,
     .bufsz = d->pos,
