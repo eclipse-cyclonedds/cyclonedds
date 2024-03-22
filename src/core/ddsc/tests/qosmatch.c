@@ -81,10 +81,12 @@ static void setqos (dds_qos_t *q, size_t i, bool isrd, bool create)
   }
 
   /* Cyclone's accepting unimplemented QoS settings is a bug, but it does allow
-     us to feed it all kinds of nonsense and see whether discovery manages it */
+     us to feed it all kinds of nonsense and see whether discovery manages it.
+     As far as the durability qos setting is concerned, we restrict it to VOLATILE
+     and TRANSIENT-LOCAL for the moment while implementing the durable profiles */
 
   /* this makes topic transient-local, keep-last 1 */
-  dds_qset_durability (q, (dds_durability_kind_t) ((i + 1) % 4));
+  dds_qset_durability (q, (dds_durability_kind_t) ((i + 1) % 2));
   dds_qset_history (q, (dds_history_kind_t) ((i + 1) % 2), (int32_t) (i + 1));
   dds_qset_resource_limits (q, (int32_t) i + 3, (int32_t) i + 2, (int32_t) i + 1);
   dds_qset_presentation (q, (dds_presentation_access_scope_kind_t) ((psi + 1) % 3), 1, 1);
