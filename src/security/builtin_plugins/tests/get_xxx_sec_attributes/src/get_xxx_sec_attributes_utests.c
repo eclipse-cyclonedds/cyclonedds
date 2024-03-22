@@ -23,10 +23,6 @@
 #include "common/src/loader.h"
 #include "config_env.h"
 
-#if OPENSLL_VERSION_NUMBER >= 0x10002000L
-#define AUTH_INCLUDE_EC
-#endif
-
 static const char *RELATIVE_PATH_TO_ETC_DIR = "/get_xxx_sec_attributes/etc/";
 
 static const char *IDENTITY_CERTIFICATE =

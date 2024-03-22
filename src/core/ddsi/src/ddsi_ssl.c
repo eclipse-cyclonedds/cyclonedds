@@ -129,52 +129,6 @@ static ssize_t ddsi_ssl_write (SSL *ssl, const void *buf, size_t len, dds_return
   return sent;
 }
 
-/* Standard OpenSSL init and thread support routines. See O'Reilly. */
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-static unsigned long ddsi_ssl_id (void)
-{
-  return (unsigned long) ddsrt_gettid ();
-}
-
-typedef struct CRYPTO_dynlock_value {
-  ddsrt_mutex_t m_mutex;
-} CRYPTO_dynlock_value;
-
-static CRYPTO_dynlock_value *ddsi_ssl_locks = NULL;
-
-static void ddsi_ssl_dynlock_lock (int mode, CRYPTO_dynlock_value *lock, const char *file, int line)
-{
-  (void) file;
-  (void) line;
-  if (mode & CRYPTO_LOCK)
-    ddsrt_mutex_lock (&lock->m_mutex);
-  else
-    ddsrt_mutex_unlock (&lock->m_mutex);
-}
-
-static void ddsi_ssl_lock (int mode, int n, const char *file, int line)
-{
-  ddsi_ssl_dynlock_lock (mode, &ddsi_ssl_locks[n], file, line);
-}
-
-static CRYPTO_dynlock_value *ddsi_ssl_dynlock_create (const char *file, int line)
-{
-  (void) file;
-  (void) line;
-  CRYPTO_dynlock_value *val = ddsrt_malloc (sizeof (*val));
-  ddsrt_mutex_init (&val->m_mutex);
-  return val;
-}
-
-static void ddsi_ssl_dynlock_destroy (CRYPTO_dynlock_value *lock, const char *file, int line)
-{
-  (void) file;
-  (void) line;
-  ddsrt_mutex_destroy (&lock->m_mutex);
-  ddsrt_free (lock);
-}
-#endif
-
 static int ddsi_ssl_password (char *buf, int num, int rwflag, void *udata)
 {
   size_t cnt;
@@ -361,48 +315,15 @@ static bool ddsi_ssl_init (struct ddsi_domaingv *gv)
   SSL_load_error_strings ();
   SSL_library_init ();
   OpenSSL_add_all_algorithms ();
-
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  {
-    const int locks = CRYPTO_num_locks ();
-    assert (locks >= 0);
-    ddsi_ssl_locks = ddsrt_malloc (sizeof (CRYPTO_dynlock_value) * (size_t) locks);
-    for (int i = 0; i < locks; i++)
-      ddsrt_mutex_init (&ddsi_ssl_locks[i].m_mutex);
-  }
-#endif
-  /* Leave these in place: OpenSSL 1.1 defines them as no-op macros that not even reference the symbol,
-     therefore leaving them in means we get compile time errors if we the library expects the callbacks
-     to be defined and we somehow failed to detect that previously */
-  CRYPTO_set_id_callback (ddsi_ssl_id);
-  CRYPTO_set_locking_callback (ddsi_ssl_lock);
-  CRYPTO_set_dynlock_create_callback (ddsi_ssl_dynlock_create);
-  CRYPTO_set_dynlock_lock_callback (ddsi_ssl_dynlock_lock);
-  CRYPTO_set_dynlock_destroy_callback (ddsi_ssl_dynlock_destroy);
   ddsi_ssl_ctx = ddsi_ssl_ctx_init (gv);
-
   return (ddsi_ssl_ctx != NULL);
 }
 
 static void ddsi_ssl_fini (void)
 {
   SSL_CTX_free (ddsi_ssl_ctx);
-  CRYPTO_set_id_callback (0);
-  CRYPTO_set_locking_callback (0);
-  CRYPTO_set_dynlock_create_callback (0);
-  CRYPTO_set_dynlock_lock_callback (0);
-  CRYPTO_set_dynlock_destroy_callback (0);
   ERR_free_strings ();
   EVP_cleanup ();
-
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  {
-    const int locks = CRYPTO_num_locks ();
-    for (int i = 0; i < locks; i++)
-      ddsrt_mutex_destroy (&ddsi_ssl_locks[i].m_mutex);
-    ddsrt_free (ddsi_ssl_locks);
-  }
-#endif
 }
 
 void ddsi_ssl_config_plugin (struct ddsi_ssl_plugins *plugin)

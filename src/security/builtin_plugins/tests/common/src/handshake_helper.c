@@ -50,26 +50,9 @@ static const BIGNUM *
 dh_get_public_key(
      DH *dhkey)
 {
-#ifdef AUTH_INCLUDE_DH_ACCESSORS
     const BIGNUM *pubkey, *privkey;
     DH_get0_key(dhkey, &pubkey, &privkey);
     return pubkey;
-#else
-    return dhkey->pub_key;
-#endif
-}
-
-static int
-dh_set_public_key(
-     DH *dhkey,
-     BIGNUM *pubkey)
-{
-#ifdef AUTH_INCLUDE_DH_ACCESSORS
-    return DH_set0_key(dhkey, pubkey, NULL);
-#else
-    dhkey->pub_key = pubkey;
-#endif
-    return 1;
 }
 
 ASN1_INTEGER *
@@ -208,8 +191,7 @@ modp_data_to_pubkey(
         goto fail_dhkey;
     }
 
-    dh_set_public_key(dhkey,bn);
-
+    DH_set0_key(dhkey, bn, NULL);
     if (!(pkey = EVP_PKEY_new())) {
         char *msg = get_openssl_error_message_for_test();
         printf("Failed to allocate pkey: %s", msg);
@@ -687,7 +669,6 @@ create_dh_key_ecdh(
 }
 
 #endif
-
 
 /* for DEBUG purposes */
 void print_binary_test( char* name, unsigned char *value, uint32_t size){
