@@ -704,7 +704,10 @@ static dds_entity_t dds_create_reader_int (dds_entity_t participant_or_subscribe
 
 #ifdef DDS_HAS_DURABILITY
   dds_durability_kind_t dkind;
-  dds_qget_durability(rqos, &dkind);
+  if (!dds_qget_durability(rqos, &dkind)) {
+    rc = DDS_RETCODE_ERROR;
+    goto err_qget_durability;
+  }
 #endif
 
   /* Create reader and associated read cache (if not provided by caller) */
@@ -811,6 +814,9 @@ err_psmx_endpoint_setcb:
 err_rd_guid:
   dds_endpoint_remove_psmx_endpoints (&rd->m_endpoint);
 err_create_endpoint:
+#ifdef DDS_HAS_DURABILITY
+err_qget_durability:
+#endif
 err_bad_qos:
 #ifdef DDS_HAS_SECURITY
 err_not_allowed:
