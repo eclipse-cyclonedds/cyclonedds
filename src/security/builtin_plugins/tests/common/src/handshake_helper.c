@@ -75,6 +75,7 @@ dh_set_public_key(
 ASN1_INTEGER *
 get_pubkey_asn1int(EVP_PKEY *pkey)
 {
+    ASN1_INTEGER *result;
     DH *dhkey = EVP_PKEY_get1_DH(pkey);
     if (!dhkey) {
         char *msg = get_openssl_error_message_for_test();
@@ -82,7 +83,9 @@ get_pubkey_asn1int(EVP_PKEY *pkey)
         ddsrt_free(msg);
         return NULL;
     }
-    return BN_to_ASN1_INTEGER(dh_get_public_key(dhkey), NULL);
+    result = BN_to_ASN1_INTEGER(dh_get_public_key(dhkey), NULL);
+    DH_free(dhkey);
+    return result;
 }
 
 int
@@ -411,7 +414,7 @@ get_pubkey_asn1int(EVP_PKEY *pkey)
         return NULL;
     }
     asn1int = BN_to_ASN1_INTEGER(pubkey_bn, NULL);
-    OPENSSL_free(pubkey_bn);
+    BN_free(pubkey_bn);
     return asn1int;
 }
 
@@ -555,6 +558,7 @@ fail_key_init:
     EVP_PKEY_CTX_free(pctx);
 fail_ctx:
     BN_free(pubkey);
+    ddsrt_free(buffer);
 fail_pubkey:
     ASN1_INTEGER_free(asn1int);
 fail_asni:
@@ -919,10 +923,6 @@ get_public_key(
     return result;
 }
 
-
-
-
-
 int
 check_shared_secret(
     dds_security_authentication *auth,
@@ -1079,9 +1079,9 @@ create_asymmetrical_signature_for_test(
         ddsrt_free(*signature);
     }
 
-    err_sign:
+err_sign:
     EVP_MD_CTX_destroy(mdctx);
-    err_create_ctx:
+err_create_ctx:
     return result;
 }
 

@@ -237,12 +237,12 @@ static DDS_Security_ValidationResult_t check_certificate_type_and_size(X509 *cer
 DDS_Security_ValidationResult_t check_certificate_expiry(const X509 *cert, DDS_Security_SecurityException *ex)
 {
   assert(cert);
-  if (X509_cmp_current_time(X509_get_notBefore(cert)) == 0)
+  if (X509_cmp_current_time(X509_get0_notBefore(cert)) == 0)
   {
     DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_CERT_STARTDATE_IN_FUTURE_CODE, DDS_SECURITY_VALIDATION_FAILED, DDS_SECURITY_ERR_CERT_STARTDATE_IN_FUTURE_MESSAGE);
     return DDS_SECURITY_VALIDATION_FAILED;
   }
-  if (X509_cmp_current_time(X509_get_notAfter(cert)) == 0)
+  if (X509_cmp_current_time(X509_get0_notAfter(cert)) == 0)
   {
     DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_CERT_EXPIRED_CODE, DDS_SECURITY_VALIDATION_FAILED, DDS_SECURITY_ERR_CERT_EXPIRED_MESSAGE);
     return DDS_SECURITY_VALIDATION_FAILED;
@@ -908,6 +908,7 @@ static int dh_set_public_key(DH *dhkey, BIGNUM *pubkey)
 
 static DDS_Security_ValidationResult_t dh_public_key_to_oct_modp(EVP_PKEY *pkey, unsigned char **buffer, uint32_t *length, DDS_Security_SecurityException *ex)
 {
+  DDS_Security_ValidationResult_t result = DDS_SECURITY_VALIDATION_FAILED;
   DH *dhkey;
   ASN1_INTEGER *asn1int;
   *buffer = NULL;
@@ -919,31 +920,32 @@ static DDS_Security_ValidationResult_t dh_public_key_to_oct_modp(EVP_PKEY *pkey,
   if (!(asn1int = BN_to_ASN1_INTEGER (dh_get_public_key(dhkey), NULL)))
   {
     DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to convert DH key to ASN1 integer: ");
-    DH_free(dhkey);
-    return DDS_SECURITY_VALIDATION_FAILED;
+    goto failed_asn1int;
   }
 
   int i2dlen = i2d_ASN1_INTEGER (asn1int, NULL);
   if (i2dlen <= 0)
   {
     DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to convert DH key to ASN1 integer: ");
-    DH_free(dhkey);
-    return DDS_SECURITY_VALIDATION_FAILED;
+    goto failed_i2d;
   }
 
   *length = (uint32_t) i2dlen;
   if ((*buffer = ddsrt_malloc (*length)) == NULL)
   {
     DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to convert DH key to ASN1 integer: ");
-    DH_free(dhkey);
-    return DDS_SECURITY_VALIDATION_FAILED;
+    goto failed_i2d;
   }
 
   unsigned char *buffer_arg = *buffer;
   (void) i2d_ASN1_INTEGER (asn1int, &buffer_arg);
+  result = DDS_SECURITY_VALIDATION_OK;
+
+failed_i2d:
   ASN1_INTEGER_free (asn1int);
+failed_asn1int:
   DH_free (dhkey);
-  return DDS_SECURITY_VALIDATION_OK;
+  return result;
 }
 
 static DDS_Security_ValidationResult_t dh_public_key_to_oct_ecdh(EVP_PKEY *pkey, unsigned char **buffer, uint32_t *length, DDS_Security_SecurityException *ex)
@@ -1040,6 +1042,7 @@ static DDS_Security_ValidationResult_t dh_oct_to_public_key_ecdh(EVP_PKEY **pkey
   EC_KEY *eckey;
   EC_GROUP *group;
   EC_POINT *point;
+
   if (!(group = EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1)))
   {
     DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to allocate EC group: ");
@@ -1210,6 +1213,7 @@ static DDS_Security_ValidationResult_t dh_oct_to_public_key_modp(EVP_PKEY **pkey
 
 static DDS_Security_ValidationResult_t dh_oct_to_public_key_ecdh(EVP_PKEY **pkey, const unsigned char *keystr, uint32_t size, DDS_Security_SecurityException *ex)
 {
+    DDS_Security_ValidationResult_t result = DDS_SECURITY_VALIDATION_OK;
     EVP_PKEY_CTX *ctx = NULL;
     OSSL_PARAM params[3];
     params[0] = OSSL_PARAM_construct_utf8_string(OSSL_PKEY_PARAM_GROUP_NAME, SN_X9_62_prime256v1, 0);
@@ -1224,17 +1228,19 @@ static DDS_Security_ValidationResult_t dh_oct_to_public_key_ecdh(EVP_PKEY **pkey
     if (EVP_PKEY_fromdata_init(ctx) != 1)
     {
         DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "EVP_PKEY_fromdata_init(EC) failed: ");
-        EVP_PKEY_CTX_free(ctx);
-        return DDS_SECURITY_VALIDATION_FAILED;
+        result = DDS_SECURITY_VALIDATION_FAILED;
+        goto failed;
     }
     if (EVP_PKEY_fromdata(ctx, pkey, EVP_PKEY_PUBLIC_KEY, params) != 1)
     {
         DDS_Security_Exception_set(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "EVP_PKEY_fromdata(EC) failed: ");
-        EVP_PKEY_CTX_free(ctx);
-        return DDS_SECURITY_VALIDATION_FAILED;
+        result = DDS_SECURITY_VALIDATION_FAILED;
+        goto failed;
     }
 
-    return DDS_SECURITY_VALIDATION_OK;
+failed:
+    EVP_PKEY_CTX_free(ctx);
+    return result;
 }
 
 #endif

@@ -38,6 +38,7 @@
 #include <WinSock2.h>
 #endif
 
+/* Setting this macro to 30000 specifies that the code will be compatible with openssl version 3 and lower like version 1.1 */
 #define OPENSSL_API_COMPAT 30000
 
 #include <openssl/opensslv.h>

@@ -279,11 +279,11 @@ get_certificate_expiry(
     /*_In_*/ X509 *cert)
 {
     dds_time_t expiry = DDS_TIME_INVALID;
-    ASN1_TIME *ans1;
+    const ASN1_TIME *ans1;
 
     assert(cert);
 
-    ans1 = X509_get_notAfter(cert);
+    ans1 = X509_get0_notAfter(cert);
     if (ans1 != NULL) {
         int days;
         int seconds;
@@ -454,12 +454,12 @@ static DDS_Security_boolean create_certificate_from_csr(const char* csr, long va
     /* ---------------------------------------------------------- *
      * Set X509V3 start date (now) and expiration date (+365 days)*
      * -----------------------------------------------------------*/
-    if (!(X509_gmtime_adj(X509_get_notBefore(newcert), -10))) {
+    if (!(X509_gmtime_adj(X509_getm_notBefore(newcert), -10))) {
         BIO_printf(outbio, "Error setting start time\n");
         return false;
     }
 
-    if (!(X509_gmtime_adj(X509_get_notAfter(newcert), valid_secs))) {
+    if (!(X509_gmtime_adj(X509_getm_notAfter(newcert), valid_secs))) {
         BIO_printf(outbio, "Error setting expiration time\n");
         return false;
     }
