@@ -751,7 +751,7 @@ err_lookup_instance:
 
 /* Determine if the quorum for the writer is reached or not.
  * This function also does its job when the quorum threshold is 0,
- * even though this case is likely to be prohibited because it
+ * even though this case should likely be prohibited because it
  * violates eventual consistency. After all, how can you provide
  * historical data if you allow that durable publishers start to
  * publish when there is no durable support? */
@@ -810,8 +810,9 @@ static void dc_check_quorum_reached (struct dc_t *dc, dds_entity_t writer, bool 
      * that the quorum_reached property of the writer changes.
      * Because the call to dds_get_matched_subscriptions() requires
      * an preallocated list of reader handles and we don't know the
-     * size of the list beforehand, we dynamically extend the list
-     * until it is large enough to hold all handles of matching readers. */
+     * size of the list beforehand, we initially bound the list to
+     * 256 and extend it dynamically  until it is large enough to hold
+     * all handles of matching readers. */
     do {
       nrds = nrds * 2;
       rd_ihs = ddsrt_malloc(nrds * sizeof(dds_instance_handle_t));
@@ -1751,7 +1752,6 @@ static void dc_create_proxy_sets_for_reader (struct dc_t *dc, dds_entity_t reade
     DDS_ERROR("failed to get partitions from qos\n");
     goto err_qget_partition;
   }
-  assert(plen > 0);
   /* for each partition create a proxy set if it does not exist yet
    * and request data for the proxy set (if not done so already) */
   for (i=0; i < plen; i++) {
@@ -2122,13 +2122,15 @@ err_create_quorum_listener:
   ddsrt_avl_cfree(&matched_request_readers_td,  &dc.matched_request_readers, cleanup_matched_request_reader);
   ddsrt_avl_cfree(&server_td,  &dc.servers, cleanup_server);
   ddsrt_free(dc.cfg.ident);
+  ddsrt_atomic_dec32(&dc.refcount);
+  memset(&dc, 0, sizeof(struct dc_t));
   return DDS_RETCODE_ERROR;
 }
 
 /* make sure that dc terminates when the last participant is destroyed */
 dds_return_t dds_durability_fini (void)
 {
-  dds_return_t rc;
+  dds_return_t rc = DDS_RETCODE_OK;
   uint32_t refcount;
 
   /* The durable client is deinitialized when the last participant is about

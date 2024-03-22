@@ -22,7 +22,7 @@ CycloneDDS configuration
 *******************
 
 Attributes: :ref:`Id<//CycloneDDS/Domain[@Id]>`
-Children: :ref:`Compatibility<//CycloneDDS/Domain/Compatibility>`, :ref:`Discovery<//CycloneDDS/Domain/Discovery>`, :ref:`Discovery<//CycloneDDS/Domain/Durability>`, :ref:`General<//CycloneDDS/Domain/General>`, :ref:`Internal|Unsupported<//CycloneDDS/Domain/Internal>`, :ref:`Partitioning<//CycloneDDS/Domain/Partitioning>`, :ref:`SSL<//CycloneDDS/Domain/SSL>`, :ref:`Security|DDSSecurity<//CycloneDDS/Domain/Security>`, :ref:`SharedMemory<//CycloneDDS/Domain/SharedMemory>`, :ref:`Sizing<//CycloneDDS/Domain/Sizing>`, :ref:`TCP<//CycloneDDS/Domain/TCP>`, :ref:`Threads<//CycloneDDS/Domain/Threads>`, :ref:`Tracing<//CycloneDDS/Domain/Tracing>`
+Children: :ref:`Compatibility<//CycloneDDS/Domain/Compatibility>`, :ref:`Discovery<//CycloneDDS/Domain/Discovery>`, :ref:`Durability<//CycloneDDS/Domain/Durability>`, :ref:`General<//CycloneDDS/Domain/General>`, :ref:`Internal|Unsupported<//CycloneDDS/Domain/Internal>`, :ref:`Partitioning<//CycloneDDS/Domain/Partitioning>`, :ref:`SSL<//CycloneDDS/Domain/SSL>`, :ref:`Security|DDSSecurity<//CycloneDDS/Domain/Security>`, :ref:`SharedMemory<//CycloneDDS/Domain/SharedMemory>`, :ref:`Sizing<//CycloneDDS/Domain/Sizing>`, :ref:`TCP<//CycloneDDS/Domain/TCP>`, :ref:`Threads<//CycloneDDS/Domain/Threads>`, :ref:`Tracing<//CycloneDDS/Domain/Tracing>`
 
 The General element specifying Domain related settings.
 
@@ -379,7 +379,7 @@ The default value is: ``<empty>``
 //CycloneDDS/Domain/Durability
 ==============================
 
-Children: `//CycloneDDS/Domain/Durability/Quorum`_
+Children: :ref:`Quorum<//CycloneDDS/Domain/Durability/Quorum>`
 
 This element specifies settings related to durable data.
 
@@ -2671,7 +2671,7 @@ The default value is: ``none``
 ..
    generated from ddsi_config.h[c86e7819dea81365c20acec4519abc2a022feca8] 
    generated from ddsi__cfgunits.h[bd22f0c0ed210501d0ecd3b07c992eca549ef5aa] 
-   generated from ddsi__cfgelems.h[0fe5caa90873f3af7436f0f201edeccaea9fedd4] 
+   generated from ddsi__cfgelems.h[fb5382bc6dbb34bca275d20c3c4282f948318862] 
    generated from ddsi_config.c[95a436fb315153cae24f6d95f7e924e1004882e1] 
    generated from _confgen.h[e32eabfc35e9f3a7dcb63b19ed148c0d17c6e5fc] 
    generated from _confgen.c[237308acd53897a34e8c643e16e05a61d73ffd65] 

@@ -63,9 +63,16 @@ static dds_return_t dds_participant_delete (dds_entity *e)
   ddsi_thread_state_asleep (ddsi_lookup_thread_state ());
 
 #ifdef DDS_HAS_DURABILITY
-  dds_durability_fini();
+  (void)dds_durability_fini();
 #endif
 
+  /* todo It seems incorrect that dds_participant_delete()
+   * always returns DDS_RETCODE_OK, even if an error has
+   * occurred along the way (e.g., in ddsi_delete_participant()).
+   * I tried returning the actual return code, but that causes
+   * test cases to fail. For now I leave it as is, but this is
+   * something that should be fixed eventually (I think).
+   */
   return DDS_RETCODE_OK;
 }
 
@@ -172,7 +179,9 @@ dds_entity_t dds_create_participant (const dds_domainid_t domain, const dds_qos_
   dds_entity_unpin_and_drop_ref (&dds_global.m_entity);
 
 #ifdef DDS_HAS_DURABILITY
-  dds_durability_init (domain, &dom->gv);
+  if (ret > 0) {
+    (void)dds_durability_init (domain, &dom->gv);
+  }
 #endif
 
   return ret;
