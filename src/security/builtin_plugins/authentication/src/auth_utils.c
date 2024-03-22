@@ -887,23 +887,9 @@ failed:
 
 static const BIGNUM *dh_get_public_key(DH *dhkey)
 {
-#ifdef AUTH_INCLUDE_DH_ACCESSORS
   const BIGNUM *pubkey, *privkey;
   DH_get0_key(dhkey, &pubkey, &privkey);
   return pubkey;
-#else
-  return dhkey->pub_key;
-#endif
-}
-
-static int dh_set_public_key(DH *dhkey, BIGNUM *pubkey)
-{
-#ifdef AUTH_INCLUDE_DH_ACCESSORS
-  return DH_set0_key(dhkey, pubkey, NULL);
-#else
-  dhkey->pub_key = pubkey;
-#endif
-  return 1;
 }
 
 static DDS_Security_ValidationResult_t dh_public_key_to_oct_modp(EVP_PKEY *pkey, unsigned char **buffer, uint32_t *length, DDS_Security_SecurityException *ex)
@@ -1014,7 +1000,7 @@ static DDS_Security_ValidationResult_t dh_oct_to_public_key_modp(EVP_PKEY **pkey
   }
 
   dhkey = DH_get_2048_256();
-  if (dh_set_public_key(dhkey, pubkey) == 0)
+  if (DH_set0_key(dhkey, pubkey, NULL) == 0)
   {
     DDS_Security_Exception_set_with_openssl_error(ex, DDS_AUTH_PLUGIN_CONTEXT, DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED, "Failed to set DH public key: ");
     goto fail_get_pubkey;

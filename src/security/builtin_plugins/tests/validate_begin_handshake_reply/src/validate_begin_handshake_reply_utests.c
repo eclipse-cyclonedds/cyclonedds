@@ -333,15 +333,7 @@ static DDS_Security_GUID_t remote_participant_guid2;
 static bool future_challenge_done = false;
 
 
-#if OPENSSL_VERSION_NUMBER >= 0x1000200fL
-#define AUTH_INCLUDE_EC
 #include <openssl/ec.h>
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
-#define AUTH_INCLUDE_DH_ACCESSORS
-#endif
-#else
-#error "version not found"
-#endif
 
 static void
 serializer_participant_data(
