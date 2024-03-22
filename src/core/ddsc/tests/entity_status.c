@@ -235,7 +235,7 @@ CU_Test(ddsc_entity, incompatible_qos, .init=init_entity_status, .fini=fini_enti
     dds_offered_incompatible_qos_status_t off_incompatible_qos;
     memset (&req_incompatible_qos, 0, sizeof (req_incompatible_qos));
     memset (&off_incompatible_qos, 0, sizeof (off_incompatible_qos));
-    dds_qset_durability (qos, DDS_DURABILITY_PERSISTENT);
+    dds_qset_durability (qos, DDS_DURABILITY_TRANSIENT_LOCAL);
 
     /* Create a reader with persistent durability */
     reader2 = dds_create_reader(participant, top, qos, NULL);
