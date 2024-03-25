@@ -38,7 +38,8 @@
 #include <WinSock2.h>
 #endif
 
-#define OPENSSL_API_COMPAT 10101
+/* Setting this macro to 30000 specifies that the code will be compatible with openssl version 3 and lower like version 1.1 */
+#define OPENSSL_API_COMPAT 30000
 
 #include <openssl/opensslv.h>
 #include <openssl/opensslconf.h>
@@ -51,6 +52,9 @@
 #include <openssl/ec.h>
 #if OPENSSL_VERSION_NUMBER >= 0x10100000L
 #define AUTH_INCLUDE_DH_ACCESSORS
+#endif
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+#include <openssl/core_names.h>
 #endif
 #else
 #error "OpenSSL version is not supported"
