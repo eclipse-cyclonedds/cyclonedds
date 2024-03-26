@@ -1737,7 +1737,7 @@ static struct cfgelem tcp_cfgelems[] = {
   END_MARKER
 };
 
-#ifdef DDS_HAS_SSL
+#ifdef DDS_HAS_TCP_TLS
 static struct cfgelem ssl_cfgelems[] = {
   BOOL("Enable", NULL, 1, "false",
     MEMBER(ssl_enable),
@@ -2189,7 +2189,7 @@ static struct cfgelem domain_cfgelems[] = {
       "<p>The TCP element allows you to specify various parameters related to "
       "running DDSI over TCP.</p>"
     )),
-#ifdef DDS_HAS_SSL
+#ifdef DDS_HAS_TCP_TLS
   GROUP("SSL", ssl_cfgelems, NULL, 1,
     NOMEMBER,
     NOFUNCTIONS,
@@ -2197,7 +2197,7 @@ static struct cfgelem domain_cfgelems[] = {
       "<p>The SSL element allows specifying various parameters related to "
       "using SSL/TLS for DDSI over TCP.</p>"
     ),
-    BEHIND_FLAG("DDS_HAS_SSL")
+    BEHIND_FLAG("DDS_HAS_TCP_TLS")
   ),
 #endif
   GROUP("SharedMemory", shmem_cfgelems, NULL, 1,
@@ -2232,7 +2232,7 @@ static struct cfgelem root_cfgelems[] = {
   MOVED("DDSSecurity", "CycloneDDS/Domain/Security"),
 #endif
   MOVED("SharedMemory", "CycloneDDS/Domain/SharedMemory"),
-#if DDS_HAS_SSL
+#if DDS_HAS_TCP_TLS
   MOVED("SSL", "CycloneDDS/Domain/SSL"),
 #endif
   MOVED("DDSI2E|DDSI2", "CycloneDDS/Domain"),

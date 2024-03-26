@@ -205,7 +205,7 @@ struct ddsi_config_omg_security_listelem {
 };
 #endif /* DDS_HAS_SECURITY */
 
-#ifdef DDS_HAS_SSL
+#ifdef DDS_HAS_TCP_TLS
 struct ddsi_config_ssl_min_version {
   int major;
   int minor;
@@ -340,7 +340,7 @@ struct ddsi_config
   int64_t tcp_write_timeout;
   int tcp_use_peeraddr_for_unicast;
 
-#ifdef DDS_HAS_SSL
+#ifdef DDS_HAS_TCP_TLS
   /* SSL support for TCP */
   int ssl_enable;
   int ssl_verify;
