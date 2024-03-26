@@ -13,7 +13,7 @@
 
 #include "dds/features.h"
 
-#ifdef DDS_HAS_SSL
+#ifdef DDS_HAS_TCP_TLS
 
 #ifdef _WIN32
 /* supposedly WinSock2 must be included before openssl headers otherwise winsock will be used */
@@ -45,5 +45,5 @@ void ddsi_ssl_config_plugin (struct ddsi_ssl_plugins *plugin);
 }
 #endif
 
-#endif /* DDS_HAS_SSL */
+#endif /* DDS_HAS_TCP_TLS */
 #endif /* DDSI__SSL_H */

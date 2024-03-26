@@ -188,7 +188,7 @@ DUPF(domainId);
 DUPF(transport_selector);
 DUPF(many_sockets_mode);
 DU(deaf_mute);
-#ifdef DDS_HAS_SSL
+#ifdef DDS_HAS_TCP_TLS
 DUPF(min_tls_version);
 #endif
 DUPF(shm_loglevel);
@@ -1073,7 +1073,7 @@ static void pf_xcheck (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem co
   do_print_uint32_bitset (cfgst, *p, sizeof (xcheck_codes) / sizeof (*xcheck_codes), xcheck_names, xcheck_codes, sources, suffix);
 }
 
-#ifdef DDS_HAS_SSL
+#ifdef DDS_HAS_TCP_TLS
 static enum update_result uf_min_tls_version (struct ddsi_cfgst *cfgst, UNUSED_ARG (void *parent), UNUSED_ARG (struct cfgelem const * const cfgelem), UNUSED_ARG (int first), const char *value)
 {
   static const char *vs[] = {

@@ -13,7 +13,7 @@
 #include "ddsi__tcp.h"
 #include "ddsi__ssl.h"
 
-#ifdef DDS_HAS_SSL
+#ifdef DDS_HAS_TCP_TLS
 
 #include <assert.h>
 #include <string.h>
@@ -339,4 +339,4 @@ void ddsi_ssl_config_plugin (struct ddsi_ssl_plugins *plugin)
   plugin->accept = ddsi_ssl_accept;
 }
 
-#endif /* DDS_HAS_SSL */
+#endif /* DDS_HAS_TCP_TLS */
