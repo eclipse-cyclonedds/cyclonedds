@@ -32,12 +32,15 @@ static dds_return_t read_sysdef (const char *path, struct dds_sysdef_system **sy
     ret = dds_sysdef_init_sysdef_str(path, sysdef, SYSDEF_SCOPE_QOS_LIB);
   } else {
     FILE *fp;
+  DDSRT_WARNING_MSVC_OFF(4996)
     if ((fp = fopen (path, "r")) == NULL)
     {
       SYSDEF_ERROR ("Error reading system definition: can't read from path '%s'\n", path);
       ret = DDS_RETCODE_BAD_PARAMETER;
     } else {
       ret = dds_sysdef_init_sysdef (fp, sysdef, SYSDEF_SCOPE_QOS_LIB);
+      (void)fclose(fp);
+  DDSRT_WARNING_MSVC_ON(4996)
     }
   }
 

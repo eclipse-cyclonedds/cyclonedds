@@ -1309,7 +1309,14 @@ static void qset_PARTITION (dds_qos_t *qos, struct dds_sysdef_QOS_POLICY_PARTITI
   for (struct dds_sysdef_QOS_POLICY_PARTITION_NAME_ELEMENT *v = qp->name->elements; v != NULL; v = (struct dds_sysdef_QOS_POLICY_PARTITION_NAME_ELEMENT *) v->xmlnode.next)
     partitions[i++] = v->element;
   dds_qset_partition (qos, c, partitions);
+#if _MSC_VER
+__pragma(warning(push))
+__pragma(warning(disable: 4090))
+#endif
   ddsrt_free (partitions);
+#if _MSC_VER
+__pragma(warning(pop))
+#endif
 }
 
 static bool qget_PRESENTATION (dds_qos_t *qos)
