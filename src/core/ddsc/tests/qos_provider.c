@@ -35,9 +35,9 @@
 #define N_PRO(ents) \
   "\n  <qos_profile>"ents"\n  </qos_profile>"
 #define ENT(qos,kind) \
-  "\n   <"#kind"_qos>"qos"\n   </"#kind"_qos>"
+  "\n   <" #kind "_qos>"qos"\n   </" #kind "_qos>"
 #define ENT_N(nm,qos,kind) \
-  "\n   <"#kind"_qos name=\""#nm"\">"qos"\n   </"#kind"_qos>"
+  "\n   <" #kind "_qos name=\""#nm"\">"qos"\n   </" #kind "_qos>"
 
 
 CU_TheoryDataPoints(qos_provider, create) = {
@@ -652,8 +652,11 @@ static inline dds_return_t qos_to_conf(dds_qos_t *qos, const sysdef_qos_conf_t *
     if (qos->partition.n > 0)
     {
       char *part_elems = ddsrt_strdup("");
-      for (uint32_t i = 0; i < qos->partition.n; i++)
+      for (uint32_t i = 0; i < qos->partition.n; i++) {
+        char *tmp = part_elems;
         ret = ddsrt_asprintf(&part_elems, "%s"QOS_PARTITION_ELEMENT, part_elems, qos->partition.strs[i]);
+        ddsrt_free(tmp);
+      }
       char *partition;
       ret = ddsrt_asprintf(&partition, QOS_POLIC_PARTITION_FMT, part_elems);
       ddsrt_free(part_elems);
@@ -1108,7 +1111,7 @@ CU_TheoryDataPoints(qos_provider, create_wrong_qos) = {
 };
 
 #define QOS_TO_CONF_SNGL(excl_msk,knd) \
-  def = DEF(LIB(lib1,PRO(pro00,ENT("%s",#knd)))); \
+  def = DEF(LIB(lib1,PRO(pro00,ENT("%s",knd)))); \
   qos.present ^= (excl_msk); \
   ret = qos_to_conf(&qos, &conf, &qos_conf, kind, &validate_mask, true);
 

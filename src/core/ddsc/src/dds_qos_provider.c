@@ -263,7 +263,7 @@ dds_return_t dds_create_qos_provider_scope (const char *path, dds_qos_provider_t
   if ((ret = read_validate_sysdef(path, &sysdef)) != DDS_RETCODE_OK)
     return ret;
   char *lib_name = NULL, *prof_name = NULL, *ent_name = NULL;
-  ret = resolve_token(key, &lib_name, &prof_name, &ent_name);
+  (void)resolve_token(key, &lib_name, &prof_name, &ent_name);
   if ((ret = init_qos_provider(sysdef, path, provider, lib_name, prof_name, ent_name)) != DDS_RETCODE_OK)
   {
     QOSPROV_ERROR("Failed to create qos provider file: %s, scope: %s", path, key);

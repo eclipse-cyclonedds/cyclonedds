@@ -952,9 +952,10 @@ static int proc_attr_guid_prefix (struct parse_sysdef_state * const pstate, cons
     return SD_PARSE_RESULT_DUPLICATE;
 
   *prefix = ddsrt_malloc (sizeof (**prefix));
-  union { struct dds_sysdef_participant_guid_prefix p; unsigned char d[sizeof (struct dds_sysdef_participant_guid_prefix)]; } u;
+  union { struct dds_sysdef_participant_guid_prefix p; unsigned char d[sizeof (struct dds_sysdef_participant_guid_prefix)]; } u = {.p = {0}};
   if (dds_sysdef_parse_hex (value, u.d) != SD_PARSE_RESULT_OK)
     return SD_PARSE_RESULT_ERR;
+
   (*prefix)->p = ddsrt_fromBE4u (u.p.p);
   return SD_PARSE_RESULT_OK;
 }
@@ -1876,7 +1877,7 @@ static int parse_mac_addr (const char *value, struct dds_sysdef_mac_addr **mac_a
     return SD_PARSE_RESULT_ERR;
 
   *mac_addr = ddsrt_malloc (sizeof (**mac_addr));
-  char v[13];
+  char v[13] = {'\0'};
   for (uint32_t i = 0; i < 6; i++)
     memcpy (v + 2 * i, value + 3 * i, 2);
   v[12] = '\0';
@@ -1906,8 +1907,11 @@ static int proc_elem_data (void *varg, UNUSED_ARG (uintptr_t eleminfo), const ch
 {
   struct parse_sysdef_state * const pstate = varg;
   int ret = SD_PARSE_RESULT_OK;
+  if (pstate == NULL) {
+    return SD_PARSE_RESULT_ERR; 
+  }
 
-  if (pstate == NULL || !pstate->current) {
+  if (!pstate->current) {
     PARSER_ERROR (pstate, line, "Current element NULL in processing element data");
     return SD_PARSE_RESULT_ERR;
   }
@@ -2208,6 +2212,11 @@ static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED
 {
   struct parse_sysdef_state * const pstate = varg;
   int ret = SD_PARSE_RESULT_OK;
+  if (pstate == NULL)
+  {
+    ret = SD_PARSE_RESULT_ERR;
+    goto status_ok;
+  }
 
   if (ddsrt_strcasecmp (name, "dds") == 0)
   {
@@ -2716,8 +2725,11 @@ static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED
     }
   }
 
-  PARSER_ERROR (pstate, line, "Unknown element '%s'", name);
-  ret = SD_PARSE_RESULT_SYNTAX_ERR;
+  if (ret == SD_PARSE_RESULT_OK)
+  {
+    PARSER_ERROR (pstate, line, "Unknown element '%s'", name);
+    ret = SD_PARSE_RESULT_SYNTAX_ERR;
+  }
 
   struct xml_element *e = pstate->current;
   while (e != NULL)
@@ -2744,7 +2756,7 @@ static dds_return_t sysdef_parse(struct ddsrt_xmlp_state *xmlps, struct parse_sy
 {
   dds_return_t ret = DDS_RETCODE_OK;
   int parse_result;
-  if ((parse_result = ddsrt_xmlp_parse (xmlps) != SD_PARSE_RESULT_OK))
+  if ((parse_result = ddsrt_xmlp_parse (xmlps)) != SD_PARSE_RESULT_OK)
   {
     SYSDEF_ERROR ("Error parsing system definition XML: %s (error code %d, line %d)\n", pstate->err_msg, ret, pstate->err_line);
     ret = DDS_RETCODE_ERROR;
@@ -3057,7 +3069,7 @@ dds_return_t dds_sysdef_init_data_types (FILE *fp, struct dds_sysdef_type_metada
 
   dds_return_t ret = DDS_RETCODE_OK;
   int parse_result;
-  if ((parse_result = ddsrt_xmlp_parse (xmlps) != SD_PARSE_RESULT_OK)) {
+  if ((parse_result = ddsrt_xmlp_parse (xmlps)) != SD_PARSE_RESULT_OK) {
     SYSDEF_ERROR ("Error parsing data types XML: %s (error code %d, line %d)\n", pstate.err_msg, ret, pstate.err_line);
     ret = DDS_RETCODE_ERROR;
     if (pstate.type_meta_data != NULL)
