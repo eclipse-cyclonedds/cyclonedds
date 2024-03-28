@@ -2194,3 +2194,57 @@ CU_Test(ddsc_cdrstream, key_flags_ext)
   }
 }
 #undef D
+
+typedef struct MutStructSeq
+{
+  dds_sequence_long b;
+  uint8_t c;
+} MutStructSeq;
+
+typedef struct ExternMutStructSeq
+{
+  struct MutStructSeq * x;
+} ExternMutStructSeq;
+
+static const uint32_t ExternMutStructSeq_ops [] =
+{
+  /* ExternMutStructSeq */
+  DDS_OP_DLC,
+  DDS_OP_ADR | DDS_OP_FLAG_OPT | DDS_OP_FLAG_EXT | DDS_OP_TYPE_EXT, offsetof (ExternMutStructSeq, x), (4u << 16u) + 5u /* MutStructSeq */, sizeof (MutStructSeq),
+  DDS_OP_RTS,
+
+  /* MutStructSeq */
+  DDS_OP_PLC,
+  DDS_OP_PLM | 5, 1u,
+  DDS_OP_PLM | 6, 2u,
+  DDS_OP_RTS,
+  DDS_OP_ADR | DDS_OP_TYPE_SEQ | DDS_OP_SUBTYPE_4BY | DDS_OP_FLAG_SGN, offsetof (MutStructSeq, b),
+  DDS_OP_RTS,
+  DDS_OP_ADR | DDS_OP_TYPE_1BY, offsetof (MutStructSeq, c),
+  DDS_OP_RTS
+};
+
+CU_Test(ddsc_cdrstream, init_sequence_in_external_struct)
+{
+  static uint8_t cdr[] = {
+    0x0d, 0x00, 0x00, 0x00, // 13 bytes follow for ExternMutStructSeq
+    0x01, 0x00, 0x00, 0x00, // optional member present + 3x pad
+    0x05, 0x00, 0x00, 0x00, // 5 bytes follow for MutStructSeq
+    0x02, 0x00, 0x00, 0x00, // EM: id=2, length code 0 = 1B
+    0x7b                    // 123: magic value for "c"
+  };
+  struct dds_cdrstream_desc descr;
+  memset (&descr, 0, sizeof (descr));
+  dds_cdrstream_desc_init (&descr, &dds_cdrstream_default_allocator, sizeof (ExternMutStructSeq), dds_alignof (ExternMutStructSeq), 0, ExternMutStructSeq_ops, NULL, 0);
+  uint32_t actual_size;
+  const bool byteswap = (DDSRT_ENDIAN != DDSRT_LITTLE_ENDIAN);
+  const bool norm_ok = dds_stream_normalize (cdr, sizeof (cdr), byteswap, DDSI_RTPS_CDR_ENC_VERSION_2, &descr, false, &actual_size);
+  CU_ASSERT_FATAL (norm_ok && actual_size == sizeof (cdr));
+  dds_istream_t is;
+  dds_istream_init (&is, sizeof (cdr), cdr, DDSI_RTPS_CDR_ENC_VERSION_2);
+  ExternMutStructSeq * sample = ddsrt_calloc (1, sizeof (*sample));
+  dds_stream_read_sample (&is, sample, &dds_cdrstream_default_allocator, &descr);
+  dds_stream_free_sample (sample, &dds_cdrstream_default_allocator, descr.ops.ops);
+  ddsrt_free (sample);
+  dds_cdrstream_desc_fini (&descr, &dds_cdrstream_default_allocator);
+}
