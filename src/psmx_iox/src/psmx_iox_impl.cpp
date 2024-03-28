@@ -92,16 +92,17 @@ static bool is_wildcard_partition(const char *str)
 
 struct iox_psmx : public dds_psmx_t
 {
-  iox_psmx(dds_psmx_instance_id_t identifier, const std::string& service_name, const dds_psmx_node_identifier_t& node_id, bool support_keyed_topics);
+  iox_psmx(dds_psmx_instance_id_t identifier, const std::string& service_name, const dds_psmx_node_identifier_t& node_id, bool support_keyed_topics, bool allow_nondisc_wr);
   ~iox_psmx();
   bool _support_keyed_topics;
+  bool _allow_nondisc_wr;
   iox::capro::IdString_t _service_name;
   std::unique_ptr<iox::popo::Listener> _listener;  //the listener needs to be created after iox runtime has been initialized
   dds_psmx_node_identifier_t _node_id = { 0 };
   std::shared_ptr<iox::popo::UntypedPublisher> _node_id_publisher;
 };
 
-iox_psmx::iox_psmx(dds_psmx_instance_id_t identifier, const std::string& service_name, const dds_psmx_node_identifier_t& node_id, bool support_keyed_topics) :
+iox_psmx::iox_psmx(dds_psmx_instance_id_t identifier, const std::string& service_name, const dds_psmx_node_identifier_t& node_id, bool support_keyed_topics, bool allow_nondisc_wr) :
   dds_psmx_t {
     .ops = psmx_ops,
     .instance_name = dds_string_dup ("CycloneDDS-IOX-PSMX"),
@@ -111,6 +112,7 @@ iox_psmx::iox_psmx(dds_psmx_instance_id_t identifier, const std::string& service
     .psmx_topics = nullptr
   },
   _support_keyed_topics{support_keyed_topics},
+  _allow_nondisc_wr{allow_nondisc_wr},
   _service_name{iox::capro::IdString_t(iox::cxx::TruncateToCapacity, service_name)},
   _listener{}
 {
@@ -359,9 +361,9 @@ iox_loaned_sample::~iox_loaned_sample()
 
 static bool iox_type_qos_supported(struct dds_psmx * psmx, dds_psmx_endpoint_type_t forwhat, dds_data_type_properties_t data_type_props, const struct dds_qos * qos)
 {
+  auto iox_psmx = static_cast<struct iox_psmx *>(psmx);
   if (data_type_props & DDS_DATA_TYPE_CONTAINS_KEY)
   {
-    auto iox_psmx = static_cast<struct iox_psmx *>(psmx);
     if (!iox_psmx->_support_keyed_topics)
       return false;
   }
@@ -409,6 +411,23 @@ static bool iox_type_qos_supported(struct dds_psmx * psmx, dds_psmx_endpoint_typ
   dds_duration_t deadline_duration;
   if (dds_qget_deadline(qos, &deadline_duration) && deadline_duration != DDS_INFINITY)
     return false;
+
+  if (forwhat == DDS_PSMX_ENDPOINT_TYPE_WRITER && iox_psmx->_allow_nondisc_wr)
+  {
+    // In case this instance is configured to allow delivering data from non-discovered
+    // writers, it will use specific settings for these 3 QoS policies when storing the
+    // sample in the RHC, so a writer must have these policies set to these specific values.
+    dds_ownership_kind_t ownership_kind;
+    if (dds_qget_ownership (qos, &ownership_kind) && ownership_kind != DDS_OWNERSHIP_SHARED)
+      return false;
+    bool autodispose;
+    if (dds_qget_writer_data_lifecycle (qos, &autodispose) && autodispose)
+      return false;
+    dds_duration_t lifespan;
+    if (dds_qget_lifespan (qos, &lifespan) && lifespan != DDS_INFINITY)
+      return false;
+  }
+
   return true;
 }
 
@@ -529,7 +548,21 @@ static void on_incoming_data_callback(iox::popo::UntypedSubscriber * subscriber,
     subscriber->take().and_then([psmx_endpoint](auto& sample) {
       psmx_endpoint->lock.unlock();
       auto data = incoming_sample_to_loan(psmx_endpoint, sample);
-      (void) dds_reader_store_loaned_sample(psmx_endpoint->cdds_endpoint, data);
+      if (psmx_endpoint->_parent._parent._allow_nondisc_wr)
+      {
+        // By using dds_reader_store_loaned_sample_wr_metadata, Cyclone will accept data
+        // from writers that are not discovered and use the provided defaults for the
+        // relevant QoS settings.
+        int32_t ownership_strength = 0;
+        bool autodispose_unregistered_instances = false;
+        dds_duration_t lifespan_duration = DDS_INFINITY;
+        (void) dds_reader_store_loaned_sample_wr_metadata(psmx_endpoint->cdds_endpoint, data, ownership_strength, autodispose_unregistered_instances, lifespan_duration);
+      }
+      else
+      {
+        (void) dds_reader_store_loaned_sample(psmx_endpoint->cdds_endpoint, data);
+      }
+
       dds_loaned_sample_unref(data);
       psmx_endpoint->lock.lock();
     });
@@ -666,6 +699,15 @@ dds_return_t iox_create_psmx(struct dds_psmx **psmx, dds_psmx_instance_id_t inst
       return DDS_RETCODE_ERROR;
   }
 
-  *psmx = new iox_psmx::iox_psmx(instance_id, service_name, node_id.value(), keyed_topics);
+  auto opt_allow_nondisc_wr = get_config_option_value(config, "ALLOW_NONDISCOVERED_WRITERS", true);
+  bool allow_nondisc_wr = false;
+  if (opt_allow_nondisc_wr.has_value()) {
+    if (opt_allow_nondisc_wr.value() == "true")
+      allow_nondisc_wr = true;
+    else if (opt_allow_nondisc_wr.value() != "false")
+      return DDS_RETCODE_ERROR;
+  }
+
+  *psmx = new iox_psmx::iox_psmx(instance_id, service_name, node_id.value(), keyed_topics, allow_nondisc_wr);
   return *psmx ? DDS_RETCODE_OK :  DDS_RETCODE_ERROR;
 }
