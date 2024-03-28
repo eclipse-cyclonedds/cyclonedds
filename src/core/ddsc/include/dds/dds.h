@@ -47,6 +47,7 @@
 #include "dds/ddsc/dds_public_listener.h"
 #include "dds/ddsc/dds_public_dynamic_type.h"
 #include "dds/ddsc/dds_public_loan_api.h"
+#include "dds/ddsc/dds_public_qos_provider.h"
 
 #if defined (__cplusplus)
 extern "C" {
