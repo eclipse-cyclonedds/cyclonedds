@@ -343,6 +343,10 @@ install(
   DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig"
   COMPONENT dev
 )
+install(
+  FILES "${CycloneDDS_SOURCE_DIR}/cmake/Modules/Generate.cmake"
+  DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}/idlc"
+  COMPONENT dev)
 
 # Generated file paths
 # although the following files are generated, they are checked into source
