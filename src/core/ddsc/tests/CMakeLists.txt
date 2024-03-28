@@ -151,6 +151,11 @@ if(ENABLE_TOPIC_DISCOVERY)
     "topic_find_global.c")
 endif()
 
+if(ENABLE_QOS_PROVIDER)
+  list(APPEND ddsc_test_sources
+    "qos_provider.c")
+endif()
+
 add_cunit_executable(cunit_ddsc ${ddsc_test_sources})
 target_include_directories(
   cunit_ddsc PRIVATE
