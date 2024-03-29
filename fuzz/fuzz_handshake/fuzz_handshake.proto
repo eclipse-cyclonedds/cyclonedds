@@ -1,5 +1,22 @@
-syntax = "proto2";
+syntax = "proto3";
 package fuzz_handshake;
+
+message TimeoutEvent {}
+message ReceivedMessageRequest {}
+message ReceivedMessageReply {}
+message ReceivedMessageFinal {}
+message ReceivedCryptoTokens {}
+
+message Event {
+    oneof event {
+        TimeoutEvent timeout = 1;
+        ReceivedMessageRequest request = 2;
+        ReceivedMessageReply reply = 3;
+        ReceivedMessageFinal final = 4;
+        ReceivedCryptoTokens crypto_tokens = 5;
+    }
+}
+
 message FuzzMsg {
-    required string msg = 1;
+    repeated Event events = 1;
 }
