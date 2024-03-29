@@ -2243,65 +2243,115 @@ err_get_qos:
   return rc;
 }
 
+/* Returns TRUE if the entity is an application entity, false otherwise */
+static bool is_application_entity (struct dc_t *dc, dds_entity_t entity)
+{
+  dds_qos_t *pqos;
+  dds_entity_t participant;
+  dds_return_t rc;
+  char *ident = dc->cfg.ident;
+  void *userdata;
+  size_t size = 0;
+  bool result = true;
+
+  /* by convention, if there is no ident every entity is considered a local entity */
+  if (ident == NULL) {
+    return true;
+  }
+  pqos = dds_create_qos();
+  /* get the entity's participant, and determine if ident is present in the userdata */
+  if ((participant = dds_get_participant(entity)) < 0) {
+    DDS_ERROR("dds_get_participant failed [%s]\n", dds_strretcode(participant));
+    goto err_get_participant;
+  }
+  if ((rc = dds_get_qos(participant, pqos)) < 0) {
+    DDS_ERROR("Failed to get participant qos [%s]\n", dds_strretcode(rc));
+    goto err_get_participant_qos;
+  }
+  if (!dds_qget_userdata(pqos, &userdata, &size)) {
+    DDS_ERROR("Unable to retrieve the participant's user data");
+    goto err_qget_userdata;
+  }
+  if ((size != strlen(ident)) || (userdata == NULL) || (strcmp(userdata, ident) != 0)) {
+    /* the user data of the participant of the entity does not contain the ident,
+     * so the entity is an application entity */
+    result = true;
+  } else {
+    /* the entity resides on a DS */
+    result = false;
+  }
+  dds_free(userdata);
+  dds_delete_qos(pqos);
+  return result;
+
+err_qget_userdata:
+err_get_participant_qos:
+err_get_participant:
+  dds_delete_qos(pqos);
+  return true;
+}
+
+/* check if the writer is a durable application writer, and if so, we need to keep track of the quorum */
 dds_return_t dds_durability_new_local_writer (dds_entity_t writer)
 {
   dds_durability_kind_t dkind;
-  dds_qos_t *qos;
-  dds_return_t rc = DDS_RETCODE_ERROR;
+  dds_qos_t *wqos;
+  dds_return_t rc ;
   dds_guid_t wguid;
   char id_str[37];
 
-  /* check if the writer is a durable writer, and if so, we need to keep track of the quorum */
-  assert(writer);
-  qos = dds_create_qos();
-  if ((rc = dds_get_qos(writer, qos)) < 0) {
-    DDS_ERROR("failed to get qos from writer [%s]\n", dds_strretcode(rc));
+  /* We only need to apply quorum checking for durable application writers.
+   * Writers created by a DS (if any) do not have to be subjected to
+   * quorum checking */
+  if ((rc = dds_get_guid(writer, &wguid)) != DDS_RETCODE_OK) {
+    DDS_ERROR("failed to retrieve writer guid\n");
+    goto err_get_guid;
+  }
+  wqos = dds_create_qos();
+  if ((rc = dds_get_qos(writer, wqos)) < 0) {
+    DDS_ERROR("failed to get qos from writer \"%s\" [%s]\n", dc_stringify_id(wguid.v, id_str), dds_strretcode(rc));
     goto err_get_qos;
   }
-  if (!dds_qget_durability(qos, &dkind)) {
-    DDS_ERROR("failed to retrieve durability qos");
+  if (!dds_qget_durability(wqos, &dkind)) {
+    DDS_ERROR("failed to retrieve durability qos for writer \"%s\"\n", dc_stringify_id(wguid.v, id_str));
     goto err_qget_durability;
   }
-  if ((dkind == DDS_DURABILITY_TRANSIENT) || (dkind == DDS_DURABILITY_PERSISTENT)) {
-    assert(dc.quorum_listener);
-    /* The writer is durable, so subjected to reaching a quorum before
-     * it can start publishing. We set a publication_matched listener on
-     * the writer. Each time a matching durable data container is discovered
-     * the listener will be triggered, causing relevant quora to be updated
-     * accordingly.
-     *
-     * Note that setting a publication_matched listener implies that we do NOT
-     * allow that user application can set a listener on durable writers.
-     * This is currently a limitation. */
-    if ((rc = dds_get_guid(writer, &wguid)) != DDS_RETCODE_OK) {
-      DDS_ERROR("failed to retrieve writer guid");
-      goto err_get_guid;
-    }
-    /* We now set a quorum listener on the durable writer.
-     * Each time a matching reader will appear, wewill get notified.
-     * Existing readers may already have matched before the listener takes effect,
-     * so these publication_match events may be missed. Luckily, we can request
-     * all matching readers using dds_get_matched_subscriptions().
-     *
-     * Note: be aware that the same readers can be present in the list provided
-     * by dds_get_matched_subscriptions(), and can also be triggered by the listener.
-     * Avoid counting these readers twice!
-     */
-    DDS_CLOG(DDS_LC_DUR, &dc.gv->logconfig, "durable writer \"%s\" subject to quorum checking\n", dc_stringify_id(wguid.v, id_str));
-    if ((rc = dds_set_listener(writer, dc.quorum_listener)) < 0) {
-      DDS_ERROR("Unable to set the quorum listener on writer \"%s\"\n", dc_stringify_id(wguid.v, id_str));
-      goto err_set_listener;
-    }
-    dc_check_quorum_reached(&dc, writer, true);
+  /* not a durable writer, no quorum checking required */
+  if ((dkind != DDS_DURABILITY_TRANSIENT) && (dkind != DDS_DURABILITY_PERSISTENT)) {
+    goto skip;
   }
-  dds_delete_qos(qos);
+  /* not an application writer, no quorum checking required */
+  if (!is_application_entity(&dc, writer)) {
+    goto skip;
+  }
+  assert(dc.quorum_listener);
+ /* The writer is a durable application writer, so subjected to reaching
+  * a quorum before it can start publishing. We set a publication_matched
+  * listener on the writer. Each time a matching durable data container is
+  * discovered the listener will be triggered, causing relevant quora to
+  * be updated accordingly.
+  *
+  * Note:
+  * - setting a publication_matched listener implies that we do NOT
+  *   allow that user applications can set a listener on durable writers.
+  *   This is currently a limitation.
+  * - be aware that the same readers can be present in the list provided
+  *   by dds_get_matched_subscriptions(), and can also be triggered by the listener.
+  *   Avoid counting these readers twice! */
+  if ((rc = dds_set_listener(writer, dc.quorum_listener)) < 0) {
+    DDS_ERROR("Unable to set the quorum listener on writer \"%s\"\n", dc_stringify_id(wguid.v, id_str));
+    goto err_set_listener;
+  }
+  dc_check_quorum_reached(&dc, writer, true);
+skip:
+  dds_delete_qos(wqos);
   return DDS_RETCODE_OK;
 
 err_set_listener:
-err_get_guid:
 err_qget_durability:
 err_get_qos:
-  dds_delete_qos(qos);
+  dds_delete_qos(wqos);
+err_get_guid:
   return rc;
 }
 
