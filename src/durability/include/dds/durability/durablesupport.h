@@ -275,6 +275,7 @@ typedef uint64_t DurableSupport_delivery_id_t;
 typedef struct DurableSupport_request
 {
   DurableSupport_id_t client;
+  DurableSupport_id_t rguid;
   char * partition;
   char * tpname;
   char * type_id;
