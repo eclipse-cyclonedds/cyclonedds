@@ -146,6 +146,7 @@ static int dc_stringify_request (char *buf, size_t n, const DurableSupport_reque
   size_t i = 0;
   int l;
   char id_str[37];
+  char rguid_str[37];
   int64_t sec;
   uint32_t msec;
 
@@ -159,7 +160,7 @@ static int dc_stringify_request (char *buf, size_t n, const DurableSupport_reque
   if (valid_data) {
     /* also print non-key fields */
     if (request->timeout == DDS_INFINITY) {
-      if ((l = snprintf(buf+i, n-i, "{\"client\":\"%s\", \"partition\":\"%s\", \"tpname\":\"%s\", \"type_id\":\"%s\", \"timeout\":\"never\"}", dc_stringify_id(request->client, id_str), request->partition, request->tpname, request->type_id)) < 0) {
+      if ((l = snprintf(buf+i, n-i, "{\"client\":\"%s\", \"rguid\":\"%s\", \"partition\":\"%s\", \"tpname\":\"%s\", \"type_id\":\"%s\", \"timeout\":\"never\"}", dc_stringify_id(request->client, id_str), dc_stringify_id(request->rguid, rguid_str), request->partition, request->tpname, request->type_id)) < 0) {
         goto err;
       }
     } else {
@@ -1200,7 +1201,7 @@ static void dc_com_free (struct com_t *com)
 
 #define MAX_TOPIC_NAME_SIZE                  255
 
-static dds_return_t dc_com_request_write (struct com_t *com, const char *partition, const char *tpname, const char *type_id)
+static dds_return_t dc_com_request_write (struct com_t *com, const dds_guid_t rguid, const char *partition, const char *tpname, const char *type_id)
 {
   /* note: we allow doing a request for volatile readers */
   DurableSupport_request *request;
@@ -1211,6 +1212,7 @@ static dds_return_t dc_com_request_write (struct com_t *com, const char *partiti
 
   request = DurableSupport_request__alloc();
   memcpy(request->client, dc.cfg.id, 16);
+  memcpy(request->rguid, rguid.v, 16);
   request->partition = ddsrt_strdup(partition);
   request->tpname = ddsrt_strdup(tpname);
   request->type_id = ddsrt_strdup(type_id);
@@ -1706,7 +1708,7 @@ static void dc_create_proxy_sets_for_reader (struct dc_t *dc, dds_entity_t reade
   uint32_t plen, i;
   char **partitions;
   struct proxy_set_t *proxy_set = NULL;
-  dds_guid_t guid;
+  dds_guid_t rguid;
   char id_str[37];
   dds_typeinfo_t *typeinfo;
   ddsi_typeid_t *tid = NULL;
@@ -1722,11 +1724,11 @@ static void dc_create_proxy_sets_for_reader (struct dc_t *dc, dds_entity_t reade
   }
   (void)ddsi_make_typeid_str(&tidstr, tid);
   /* get reader guid */
-  if ((rc = dds_get_guid(reader, &guid)) < DDS_RETCODE_OK) {
+  if ((rc = dds_get_guid(reader, &rguid)) < DDS_RETCODE_OK) {
     DDS_ERROR("Unable to retrieve the guid of the reader [%s]\n", dds_strretcode(-rc));
     goto err_get_guid;
   }
-  (void)dc_stringify_id(guid.v, id_str);
+  (void)dc_stringify_id(rguid.v, id_str);
   /* get topic name */
   if ((topic = dds_get_topic(reader)) < 0) {
     DDS_ERROR("Unable to get topic from reader [%s]\n", dds_strretcode(-topic));
@@ -1761,9 +1763,9 @@ static void dc_create_proxy_sets_for_reader (struct dc_t *dc, dds_entity_t reade
      * We do this BEFORE we send the request, so that we are sure
      * that when we receive the response (possibly immediately after
      * sending the request) the reader and rhc are present */
-    dc_register_reader_to_proxy_set(dc, proxy_set, guid, reader, rhc);
+    dc_register_reader_to_proxy_set(dc, proxy_set, rguid, reader, rhc);
     /* send a request for this proxy set */
-    if ((rc = dc_com_request_write(dc->com, proxy_set->key.partition, proxy_set->key.tpname, proxy_set->key.type_id)) != DDS_RETCODE_OK) {
+    if ((rc = dc_com_request_write(dc->com, rguid, proxy_set->key.partition, proxy_set->key.tpname, proxy_set->key.type_id)) != DDS_RETCODE_OK) {
       DDS_ERROR("Failed to publish dc_request for proxy set %s.%s\n", proxy_set->key.partition, proxy_set->key.tpname);
       /* We failed to request data for this proxy set.
         * We could do several things now, e.g., 1) try again until we succeed,
