@@ -27,9 +27,13 @@ add_library(fuzz_handshake_harness fuzz_handshake_harness.c)
 target_include_directories(
   fuzz_handshake_harness PRIVATE
   "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/ddsrt/include>"
+  "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/core/include>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../src/core/ddsc/src>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../src/core/ddsc/include>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../src/core/ddsi/src>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../src/core/ddsi/include>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../src/core/cdr/include>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../src/ddsrt/include>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../src/security/core/include>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../src/security/core/tests>"
   "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/security/core/tests>"
@@ -46,6 +50,8 @@ target_include_directories(
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../install/include>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/>")
 
+
+find_package(OpenSSL REQUIRED)
 target_link_libraries(fuzz_handshake
     fuzz_handshake_harness
     ${CMAKE_BINARY_DIR}/../LPM/src/libfuzzer/libprotobuf-mutator-libfuzzer.a
@@ -53,4 +59,5 @@ target_link_libraries(fuzz_handshake
     protobuf::libprotobuf
     CycloneDDS::ddsc
     $ENV{LIB_FUZZING_ENGINE}
+    OpenSSL::SSL
     stdc++)

@@ -15,4 +15,4 @@ prepare_fuzz_handshake() {
 }
 export -f prepare_fuzz_handshake
 
-env -u CFLAGS -u LIB_FUZZING_ENGINE CXXFLAGS="-O1 -fno-omit-frame-pointer -gline-tables-only -stdlib=libc++" bash -euc prepare_fuzz_handshake
+env -u CFLAGS -u CXXFLAGS -u LIB_FUZZING_ENGINE CXXFLAGS="-O1 -fno-omit-frame-pointer -gline-tables-only -stdlib=libc++" bash -euc prepare_fuzz_handshake
