@@ -63,6 +63,10 @@
 #include "dds/security/core/dds_security_shared_secret.h"
 #endif
 
+#ifdef DDS_HAS_QOS_PROVIDER
+#include "dds/ddsc/dds_public_qos_provider.h"
+#endif
+
 #include "dds/ddsc/dds_internal_api.h"
 #include "dds/ddsc/dds_loaned_sample.h"
 #include "dds/ddsc/dds_rhc.h"
@@ -613,6 +617,13 @@ int main (int argc, char **argv)
   DDS_Security_get_challenge2_from_secret_handle (1);
   DDS_Security_get_secret_from_secret_handle (1);
   DDS_Security_get_secret_size_from_secret_handle (1);
+#endif
+
+#ifdef DDS_HAS_QOS_PROVIDER
+  dds_create_qos_provider(ptr,ptr);
+  dds_create_qos_provider_scope(ptr,ptr,ptr);
+  dds_qos_provider_get_qos(ptr,0,ptr,ptr);
+  dds_delete_qos_provider(ptr);
 #endif
 
   // ddsi_sertype.h

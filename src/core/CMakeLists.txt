@@ -133,6 +133,19 @@ set_property(
     TARGET ddsc
     APPEND PROPERTY EXPORT_PROPERTIES "TOPIC_DISCOVERY_IS_AVAILABLE")
 
+# define target property to indicate if Cyclone DDS is compiled with qos provider
+define_property(TARGET
+    PROPERTY QOS_PROVIDER_IS_AVAILABLE
+    BRIEF_DOCS "Indicator whether qos provider is available with current Cyclone DDS build configuration."
+    FULL_DOCS "Indicator whether qos provider is available with current Cyclone DDS build configuration."
+    )
+set_property(
+    TARGET ddsc
+    APPEND PROPERTY QOS_PROVIDER_IS_AVAILABLE "${ENABLE_QOS_PROVIDER}")
+set_property(
+    TARGET ddsc
+    APPEND PROPERTY EXPORT_PROPERTIES "QOS_PROVIDER_IS_AVAILABLE")
+
 # Create a pseudo-target that other targets (i.e. examples, tests) can depend
 # on and can also be provided as import-target by a package-file when building
 # those targets outside the regular Cyclone build-tree (i.e. the installed tree)
