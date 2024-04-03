@@ -40,8 +40,10 @@ add_executable(fuzz_handshake fuzz_handshake.cc)
 protobuf_generate(TARGET fuzz_handshake LANGUAGE cpp PROTOS "${CMAKE_CURRENT_SOURCE_DIR}/fuzz_handshake.proto")
 target_include_directories(
   fuzz_handshake PRIVATE
+  "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/ddsrt/include>"
   "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/../libprotobuf-mutator>"
   "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/../LPM/external.protobuf/include>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../install/include>"
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/>")
 
 target_link_libraries(fuzz_handshake

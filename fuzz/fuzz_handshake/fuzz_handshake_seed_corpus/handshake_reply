@@ -1,0 +1,60 @@
+initiate_remote: false
+events {
+    timeout {
+    }
+}
+events {
+    reply {
+        token {
+            binary_properties {
+                name: "c.id",
+                value: "",
+                propagate: false
+            }
+            binary_properties {
+                name: "c.perm",
+                value: "",
+                propagate: false
+            }
+            binary_properties {
+                name: "c.pdata",
+                value: "\0\120\0\20\266\202\310\131\55\340\25\354\173\360\265\7\0\0\0\0\0\1\0\0",
+                propagate: false
+            }
+            binary_properties {
+                name: "c.dsign_algo",
+                value: "ECDSA-SHA256",
+                propagate: false
+            }
+            binary_properties {
+                name: "c.kagree_algo",
+                value: "ECDH+prime256v1-CEUM",
+                propagate: false
+            }
+            binary_properties {
+                name: "challenge1",
+                value: "\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000",
+                propagate: false
+            }
+            binary_properties {
+                name: "challenge2",
+                value: "\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000",
+                propagate: false
+            }
+            binary_properties {
+                name: "signature",
+                value: "\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000\000",
+                propagate: false
+            }
+            binary_properties {
+                name: "dh2",
+                value: "\002\001\001",
+                propagate: false
+            }
+        }
+    }
+}
+events {
+    crypto_tokens {
+    }
+}

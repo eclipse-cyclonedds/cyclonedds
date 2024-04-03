@@ -1,10 +1,33 @@
 syntax = "proto3";
 package fuzz_handshake;
 
+message Property {
+    bytes name = 1;
+    bytes value = 2;
+    bool propagate = 3;
+}
+
+message BinaryProperty {
+    bytes name = 1;
+    bytes value = 2;
+    bool propagate = 3;
+}
+
+message DataHolder {
+    repeated Property properties = 1;
+    repeated BinaryProperty binary_properties = 2;
+}
+
 message TimeoutEvent {}
-message ReceivedMessageRequest {}
-message ReceivedMessageReply {}
-message ReceivedMessageFinal {}
+message ReceivedMessageRequest {
+    DataHolder token = 1;
+}
+message ReceivedMessageReply {
+    DataHolder token = 1;
+}
+message ReceivedMessageFinal {
+    DataHolder token = 1;
+}
 message ReceivedCryptoTokens {}
 
 message Event {
@@ -18,5 +41,6 @@ message Event {
 }
 
 message FuzzMsg {
-    repeated Event events = 1;
+    bool initiate_remote = 1;
+    repeated Event events = 2;
 }
