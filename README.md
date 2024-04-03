@@ -148,7 +148,7 @@ There are some configuration options specified using CMake defines in addition t
 * `-DENABLE_SOURCE_SPECIFIC_MULTICAST=NO`: to disable support for source-specific multicast (disabling this and `-DENABLE_IPV6=NO` may be needed for QNX builds)
 * `-DENABLE_IPV6=NO`: to disable ipv6 support (disabling this and `-DENABLE_SOURCE_SPECIFIC_MULTICAST=NO` may be needed for QNX builds)
 * `-DBUILD_IDLC_XTESTS=NO`: Include a set of tests for the IDL compiler that use the C back-end to compile an idl file at (test) runtime, and use the C compiler to build a test application for the generated types, that is executed to do the actual testing (not supported on Windows)
-* `-DENABLE_QOS_PROVIDER=ON`: to include support for qos provider
+* `-DENABLE_QOS_PROVIDER=NO`: to disable support for qos provider
 
 ### For application developers
 

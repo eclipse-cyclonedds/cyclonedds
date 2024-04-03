@@ -98,7 +98,7 @@ dds_create_qos_provider_scope (const char *path, dds_qos_provider_t **provider,
  */
 DDS_EXPORT dds_return_t
 dds_qos_provider_get_qos (const dds_qos_provider_t *provider, dds_qos_kind_t type,
-                          const char *key, dds_qos_t **qos);
+                          const char *key, const dds_qos_t **qos);
 
 /**
  * @brief Finalize Qos Provider.

@@ -91,10 +91,9 @@
 
 #define _CREATE_NODE(pstate, element_type, element_kind, element_data_type, parent_kind, current, element_init, element_fini) \
   { \
-    CHECK_PARENT_NULL (pstate, current); \
     CHECK_PARENT_KIND (pstate, (parent_kind), current); \
-    (current) = new_node (pstate, element_kind, element_data_type, current, sizeof (struct element_type), element_init, element_fini); \
-    CHECK_PARENT_NULL (pstate, current); \
+    if (((current) = new_node (pstate, element_kind, element_data_type, current, sizeof (struct element_type), element_init, element_fini)) == NULL) \
+      return SD_PARSE_RESULT_ERR; \
   }
 
 #define CREATE_NODE_LIST(pstate, element_type, element_kind, element_init, element_fini, element_name, parent_type, parent_kind, current) \
@@ -156,7 +155,6 @@
 
 #define CREATE_NODE_QOS(pstate, element_type, element_kind, element_init, element_fini, current) \
   do { \
-    CHECK_PARENT_NULL (pstate, current); \
     bool allowed = false; \
     for (uint32_t n = 0; !allowed && n < sizeof (qos_policy_mapping_ ## element_kind) / sizeof (qos_policy_mapping_ ## element_kind[0]); n++) { \
       allowed = (current)->kind == qos_policy_mapping_ ## element_kind[n]; \
@@ -165,8 +163,8 @@
       PARSER_ERROR (pstate, line, "Invalid parent kind (%d) for element '%s'", (current)->kind, name); \
       return SD_PARSE_RESULT_SYNTAX_ERR; \
     } \
-    (current) = new_node (pstate, element_kind, ELEMENT_DATA_TYPE_GENERIC, current, sizeof (struct element_type), element_init, element_fini); \
-    CHECK_PARENT_NULL (pstate, current); \
+    if (((current) = new_node (pstate, element_kind, ELEMENT_DATA_TYPE_GENERIC, current, sizeof (struct element_type), element_init, element_fini)) == NULL) \
+      return SD_PARSE_RESULT_ERR;\
     current->retain = false; \
     current->handle_close = true; \
     goto status_ok; \
@@ -2207,13 +2205,11 @@ static int proc_elem_data (void *varg, UNUSED_ARG (uintptr_t eleminfo), const ch
 
 static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED_ARG (uintptr_t *eleminfo), const char *name, int line)
 {
+  if (varg == NULL)
+    return SD_PARSE_RESULT_ERR;
+
   struct parse_sysdef_state * const pstate = varg;
   int ret = SD_PARSE_RESULT_OK;
-  if (pstate == NULL)
-  {
-    ret = SD_PARSE_RESULT_ERR;
-    goto status_ok;
-  }
 
   if (ddsrt_strcasecmp (name, "dds") == 0)
   {
@@ -2234,11 +2230,10 @@ static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED
   }
   else
   {
-
+    CHECK_PARENT_NULL (pstate, pstate->current);
     if (pstate->scope & SYSDEF_SCOPE_TYPE_LIB)
     {
       // Type library
-      CHECK_PARENT_NULL (pstate, pstate->current);
       if (ddsrt_strcasecmp (name, "types") == 0)
         CREATE_NODE_SINGLE (pstate, dds_sysdef_type_lib, ELEMENT_KIND_TYPE_LIB, NO_INIT, fini_type_lib, type_libs, dds_sysdef_system, ELEMENT_KIND_DDS, pstate->current);
       else if (ddsrt_strcasecmp (name, "struct") == 0)
@@ -2248,7 +2243,6 @@ static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED
     if (pstate->scope & SYSDEF_SCOPE_QOS_LIB)
     {
       // QoS library
-      CHECK_PARENT_NULL (pstate, pstate->current);
       if (ddsrt_strcasecmp (name, "qos_library") == 0)
         CREATE_NODE_LIST (pstate, dds_sysdef_qos_lib, ELEMENT_KIND_QOS_LIB, NO_INIT, fini_qos_lib, qos_libs, dds_sysdef_system, ELEMENT_KIND_DDS, pstate->current);
       else if (ddsrt_strcasecmp (name, "qos_profile") == 0)
@@ -2483,7 +2477,6 @@ static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED
     if (pstate->scope & SYSDEF_SCOPE_DOMAIN_LIB)
     {
       // Domain library
-      CHECK_PARENT_NULL (pstate, pstate->current);
       if (ddsrt_strcasecmp (name, "domain_library") == 0)
         CREATE_NODE_LIST (pstate, dds_sysdef_domain_lib, ELEMENT_KIND_DOMAIN_LIB, NO_INIT, fini_domain_lib, domain_libs, dds_sysdef_system, ELEMENT_KIND_DDS, pstate->current);
       else if (ddsrt_strcasecmp (name, "domain") == 0)
@@ -2511,7 +2504,6 @@ static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED
     if (pstate->scope & SYSDEF_SCOPE_PARTICIPANT_LIB)
     {
       // Domain participant library
-      CHECK_PARENT_NULL (pstate, pstate->current);
       if (ddsrt_strcasecmp (name, "domain_participant_library") == 0)
         CREATE_NODE_LIST (pstate, dds_sysdef_participant_lib, ELEMENT_KIND_PARTICIPANT_LIB, NO_INIT, fini_participant_lib, participant_libs, dds_sysdef_system, ELEMENT_KIND_DDS, pstate->current);
       else if (ddsrt_strcasecmp (name, "domain_participant") == 0)
@@ -2536,7 +2528,6 @@ static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED
     if (pstate->scope & SYSDEF_SCOPE_APPLICATION_LIB)
     {
       // Application library
-      CHECK_PARENT_NULL (pstate, pstate->current);
       if (ddsrt_strcasecmp (name, "application_library") == 0)
         CREATE_NODE_LIST (pstate, dds_sysdef_application_lib, ELEMENT_KIND_APPLICATION_LIB, NO_INIT, fini_application_lib, application_libs, dds_sysdef_system, ELEMENT_KIND_DDS, pstate->current);
       else if (ddsrt_strcasecmp (name, "application") == 0)
@@ -2553,7 +2544,6 @@ static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED
     if (pstate->scope & SYSDEF_SCOPE_NODE_LIB)
     {
       // Node library
-      CHECK_PARENT_NULL (pstate, pstate->current);
       if (ddsrt_strcasecmp (name, "node_library") == 0)
         CREATE_NODE_LIST (pstate, dds_sysdef_node_lib, ELEMENT_KIND_NODE_LIB, NO_INIT, fini_node_lib, node_libs, dds_sysdef_system, ELEMENT_KIND_DDS, pstate->current);
       else if (ddsrt_strcasecmp (name, "node") == 0)
@@ -2578,7 +2568,6 @@ static int proc_elem_open (void *varg, UNUSED_ARG (uintptr_t parentinfo), UNUSED
     if (pstate->scope & SYSDEF_SCOPE_DEPLOYMENT_LIB)
     {
       // Deployment library
-      CHECK_PARENT_NULL (pstate, pstate->current);
       if (ddsrt_strcasecmp (name, "deployment_library") == 0)
         CREATE_NODE_LIST (pstate, dds_sysdef_deployment_lib, ELEMENT_KIND_DEPLOYMENT_LIB, NO_INIT, fini_deployment_lib, deployment_libs, dds_sysdef_system, ELEMENT_KIND_DDS, pstate->current);
       else if (ddsrt_strcasecmp (name, "deployment") == 0)

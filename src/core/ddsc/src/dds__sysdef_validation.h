@@ -17,9 +17,6 @@ extern "C" {
 #include "dds/dds.h"
 #include "dds__sysdef_model.h"
 
-#define SYSDEF_QOS_USERDATA_MAXLEN ((size_t) 255)
-#define SYSDEF_QOS_PARTITION_NAME_MAXLEN ((size_t) 255)
-
 dds_return_t dds_validate_qos_lib (
   const struct dds_sysdef_system *sysdef, uint64_t qos_mask);
 

@@ -253,7 +253,7 @@ CU_Theory((char *configuration, char *key, dds_qos_kind_t kind, dds_return_t cod
   // init qos provider with provided configuration
   dds_return_t ret = dds_create_qos_provider(configuration, &provider);
   CU_ASSERT_EQUAL(ret, DDS_RETCODE_OK);
-  dds_qos_t *qos;
+  const dds_qos_t *qos;
   // try to get qos with `key`, `kind`
   ret = dds_qos_provider_get_qos(provider, kind, key, &qos);
   CU_ASSERT_EQUAL(ret, code);
@@ -376,6 +376,8 @@ typedef struct sysdef_qos_conf
 } sysdef_qos_conf_t;
 
 #define QOS_FORMAT "     "
+#define CHECK_RET_OK(ret) \
+  if (ret < 0) goto fail;
 static inline dds_return_t qos_to_conf(dds_qos_t *qos, const sysdef_qos_conf_t *conf, char **out, dds_qos_kind_t kind, uint64_t *validate_mask, const bool ignore_ent)
 {
   char *sysdef_qos = ddsrt_strdup("");
@@ -400,6 +402,7 @@ static inline dds_return_t qos_to_conf(dds_qos_t *qos, const sysdef_qos_conf_t *
         ret = ddsrt_asprintf(&deadline, QOS_POLICY_DEADLINE_FMT(QOS_DURATION_FMT(nanosec)),
                              (long long)qos->deadline.deadline);
     }
+    CHECK_RET_OK(ret);
     char *tmp = sysdef_qos;
     ret = ddsrt_asprintf(&sysdef_qos, QOS_FORMAT"%s\n"QOS_FORMAT"%s", sysdef_qos, deadline);
     ddsrt_free(tmp);
@@ -414,6 +417,7 @@ static inline dds_return_t qos_to_conf(dds_qos_t *qos, const sysdef_qos_conf_t *
       ret = ddsrt_asprintf(&dest_order, "%s", QOS_POLICY_DESTINATION_ORDER_FMT(BY_RECEPTION_TIMESTAMP_DESTINATIONORDER_QOS));
     else
       ret = ddsrt_asprintf(&dest_order, "%s", QOS_POLICY_DESTINATION_ORDER_FMT(BY_SOURCE_TIMESTAMP_DESTINATIONORDER_QOS));
+    CHECK_RET_OK(ret);
     char *tmp = sysdef_qos;
     ret = ddsrt_asprintf(&sysdef_qos, QOS_FORMAT"%s\n"QOS_FORMAT"%s", sysdef_qos, dest_order);
     ddsrt_free(tmp);
@@ -432,6 +436,7 @@ static inline dds_return_t qos_to_conf(dds_qos_t *qos, const sysdef_qos_conf_t *
       ret = ddsrt_asprintf(&durability, "%s", QOS_POLICY_DURABILITY_FMT(TRANSIENT_DURABILITY_QOS));
     else
       ret = ddsrt_asprintf(&durability, "%s", QOS_POLICY_DURABILITY_FMT(PERSISTENT_DURABILITY_QOS));
+    CHECK_RET_OK(ret);
     char *tmp = sysdef_qos;
     ret = ddsrt_asprintf(&sysdef_qos, QOS_FORMAT"%s\n"QOS_FORMAT"%s", sysdef_qos, durability);
     ddsrt_free(tmp);
@@ -458,11 +463,13 @@ static inline dds_return_t qos_to_conf(dds_qos_t *qos, const sysdef_qos_conf_t *
         ret = ddsrt_asprintf(&service_cleanup_delay, QOS_SERVICE_CLEANUP_DELAY_FMT(QOS_DURATION_FMT(nanosec)),
                              (long long)qos->durability_service.service_cleanup_delay);
     }
+    CHECK_RET_OK(ret);
     char *history;
     if (qos->durability_service.history.kind == DDS_HISTORY_KEEP_LAST)
       ret = ddsrt_asprintf(&history, QOS_DURABILITY_SERVICE_HISTORY(KEEP_LAST_HISTORY_QOS), qos->durability_service.history.depth);
     else
       ret = ddsrt_asprintf(&history, QOS_DURABILITY_SERVICE_HISTORY(KEEP_ALL_HISTORY_QOS), qos->durability_service.history.depth);
+    CHECK_RET_OK(ret);
     char *durability_service;
     int32_t ms,mi,mspi;
     ms = qos->durability_service.resource_limits.max_samples;
@@ -476,6 +483,7 @@ static inline dds_return_t qos_to_conf(dds_qos_t *qos, const sysdef_qos_conf_t *
     ddsrt_free(ms_f);ddsrt_free(mi_f);ddsrt_free(mspi_f);
     ddsrt_free(service_cleanup_delay);
     ddsrt_free(history);
+    CHECK_RET_OK(ret);
     char *tmp = sysdef_qos;
     ret = ddsrt_asprintf(&sysdef_qos, QOS_FORMAT"%s\n"QOS_FORMAT"%s", sysdef_qos, durability_service);
     ddsrt_free(tmp);
@@ -490,6 +498,7 @@ static inline dds_return_t qos_to_conf(dds_qos_t *qos, const sysdef_qos_conf_t *
       ret = ddsrt_asprintf(&entity_factory, "%s", QOS_POLICY_ENTITYFACTORY_FMT(false));
     else
       ret = ddsrt_asprintf(&entity_factory, "%s", QOS_POLICY_ENTITYFACTORY_FMT(true));
+    CHECK_RET_OK(ret);
     char *tmp = sysdef_qos;
     ret = ddsrt_asprintf(&sysdef_qos, QOS_FORMAT"%s\n"QOS_FORMAT"%s", sysdef_qos, entity_factory);
     ddsrt_free(tmp);
@@ -506,10 +515,12 @@ static inline dds_return_t qos_to_conf(dds_qos_t *qos, const sysdef_qos_conf_t *
         char *tmp = data;
         ret = ddsrt_asprintf(&data, "%s%c", data, qos->group_data.value[i]);
         ddsrt_free(tmp);
+        CHECK_RET_OK(ret);
       }
       char *group_data;
       ret = ddsrt_asprintf(&group_data, QOS_POLICY_GOUPDATA_FMT, data);
       ddsrt_free(data);
+      CHECK_RET_OK(ret);
       char *tmp = sysdef_qos;
       ret = ddsrt_asprintf(&sysdef_qos, QOS_FORMAT"%s\n"QOS_FORMAT"%s", sysdef_qos, group_data);
       ddsrt_free(tmp);
@@ -525,6 +536,7 @@ static inline dds_return_t qos_to_conf(dds_qos_t *qos, const sysdef_qos_conf_t *
       ret = ddsrt_asprintf(&history, QOS_POLICY_HISTORY_FMT(KEEP_LAST_HISTORY_QOS), qos->history.depth);
     else
       ret = ddsrt_asprintf(&history, QOS_POLICY_HISTORY_FMT(KEEP_ALL_HISTORY_QOS), qos->history.depth);
+    CHECK_RET_OK(ret);
     char *tmp = sysdef_qos;
     ret = ddsrt_asprintf(&sysdef_qos, QOS_FORMAT"%s\n"QOS_FORMAT"%s", sysdef_qos, history);
     ddsrt_free(tmp);
@@ -551,6 +563,7 @@ static inline dds_return_t qos_to_conf(dds_qos_t *qos, const sysdef_qos_conf_t *
         ret = ddsrt_asprintf(&latency_budget, QOS_POLICY_LATENCYBUDGET_FMT(QOS_DURATION_FMT(nanosec)),
                              (long long)qos->latency_budget.duration);
     }
+    CHECK_RET_OK(ret);
     char *tmp = sysdef_qos;
     ret = ddsrt_asprintf(&sysdef_qos, QOS_FORMAT"%s\n"QOS_FORMAT"%s", sysdef_qos, latency_budget);
     ddsrt_free(tmp);
@@ -577,6 +590,7 @@ static inline dds_return_t qos_to_conf(dds_qos_t *qos, const sysdef_qos_conf_t *
        ret = ddsrt_asprintf(&lifespan, QOS_POLICY_LIFESPAN_FMT(QOS_DURATION_FMT(nanosec)),
                             (long long)qos->lifespan.duration);
     }
+    CHECK_RET_OK(ret);
     char *tmp = sysdef_qos;
     ret = ddsrt_asprintf(&sysdef_qos, QOS_FORMAT"%s\n"QOS_FORMAT"%s", sysdef_qos, lifespan);
     ddsrt_free(tmp);
@@ -603,6 +617,7 @@ static inline dds_return_t qos_to_conf(dds_qos_t *qos, const sysdef_qos_conf_t *
         ret = ddsrt_asprintf(&duration, QOS_LIVELINESS_DURATION(QOS_DURATION_FMT(nanosec)),
                              (long long)qos->liveliness.lease_duration);
     }
+    CHECK_RET_OK(ret);
     char *liveliness_kind;
     if (qos->liveliness.kind == DDS_LIVELINESS_AUTOMATIC)
       ret = ddsrt_asprintf(&liveliness_kind, "%s", QOS_LIVELINESS_KIND(AUTOMATIC_LIVELINESS_QOS));
@@ -610,10 +625,12 @@ static inline dds_return_t qos_to_conf(dds_qos_t *qos, const sysdef_qos_conf_t *
       ret = ddsrt_asprintf(&liveliness_kind, "%s", QOS_LIVELINESS_KIND(MANUAL_BY_PARTICIPANT_LIVELINESS_QOS));
     else
       ret = ddsrt_asprintf(&liveliness_kind, "%s", QOS_LIVELINESS_KIND(MANUAL_BY_TOPIC_LIVELINESS_QOS));
+    CHECK_RET_OK(ret);
     char *liveliness;
     ret = ddsrt_asprintf(&liveliness, QOS_POLICY_LIVELINESS_FMT, duration, liveliness_kind);
     ddsrt_free(duration);
     ddsrt_free(liveliness_kind);
+    CHECK_RET_OK(ret);
     char *tmp = sysdef_qos;
     ret = ddsrt_asprintf(&sysdef_qos, QOS_FORMAT"%s\n"QOS_FORMAT"%s", sysdef_qos, liveliness);
     ddsrt_free(tmp);
@@ -628,6 +645,7 @@ static inline dds_return_t qos_to_conf(dds_qos_t *qos, const sysdef_qos_conf_t *
       ret = ddsrt_asprintf(&ownership, "%s", QOS_POLICY_OWNERSHIP_FMT(SHARED_OWNERSHIP_QOS));
     else
       ret = ddsrt_asprintf(&ownership, "%s", QOS_POLICY_OWNERSHIP_FMT(EXCLUSIVE_OWNERSHIP_QOS));
+    CHECK_RET_OK(ret);
     char *tmp = sysdef_qos;
     ret = ddsrt_asprintf(&sysdef_qos, QOS_FORMAT"%s\n"QOS_FORMAT"%s", sysdef_qos, ownership);
     ddsrt_free(tmp);
@@ -639,6 +657,7 @@ static inline dds_return_t qos_to_conf(dds_qos_t *qos, const sysdef_qos_conf_t *
   {
     char *ownership_strength;
     ret = ddsrt_asprintf(&ownership_strength, QOS_POLICY_OWNERSHIPSTRENGTH_FMT, qos->ownership_strength.value);
+    CHECK_RET_OK(ret);
     char *tmp = sysdef_qos;
     ret = ddsrt_asprintf(&sysdef_qos, QOS_FORMAT"%s\n"QOS_FORMAT"%s", sysdef_qos, ownership_strength);
     ddsrt_free(tmp);
@@ -654,11 +673,14 @@ static inline dds_return_t qos_to_conf(dds_qos_t *qos, const sysdef_qos_conf_t *
       for (uint32_t i = 0; i < qos->partition.n; i++) {
         char *tmp = part_elems;
         ret = ddsrt_asprintf(&part_elems, "%s"QOS_PARTITION_ELEMENT, part_elems, qos->partition.strs[i]);
+        CHECK_RET_OK(ret);
         ddsrt_free(tmp);
       }
+      CHECK_RET_OK(ret);
       char *partition;
       ret = ddsrt_asprintf(&partition, QOS_POLIC_PARTITION_FMT, part_elems);
       ddsrt_free(part_elems);
+      CHECK_RET_OK(ret);
       char *tmp = sysdef_qos;
       ret = ddsrt_asprintf(&sysdef_qos, QOS_FORMAT"%s\n"QOS_FORMAT"%s", sysdef_qos, partition);
       ddsrt_free(tmp);
@@ -676,21 +698,25 @@ static inline dds_return_t qos_to_conf(dds_qos_t *qos, const sysdef_qos_conf_t *
       ret =  ddsrt_asprintf(&access_scope_kind, QOS_ACCESS_SCOPE_KIND(TOPIC_PRESENTATION_QOS));
     else
       ret =  ddsrt_asprintf(&access_scope_kind, QOS_ACCESS_SCOPE_KIND(GROUP_PRESENTATION_QOS));
+    CHECK_RET_OK(ret);
     char *coherent_access;
     if (qos->presentation.coherent_access)
       ret = ddsrt_asprintf(&coherent_access, "%s", QOS_COHERENT_ACCESS(true));
     else
       ret = ddsrt_asprintf(&coherent_access, "%s", QOS_COHERENT_ACCESS(false));
+    CHECK_RET_OK(ret);
     char *ordered_access;
     if (qos->presentation.ordered_access)
       ret = ddsrt_asprintf(&ordered_access, "%s", QOS_ORDERED_ACCESS(true));
     else
       ret = ddsrt_asprintf(&ordered_access, "%s", QOS_ORDERED_ACCESS(false));
+    CHECK_RET_OK(ret);
     char *presentation;
     ret = ddsrt_asprintf(&presentation, QOS_POLICY_PRESENTATION_FMT, access_scope_kind, coherent_access, ordered_access);
     ddsrt_free(access_scope_kind);
     ddsrt_free(coherent_access);
     ddsrt_free(ordered_access);
+    CHECK_RET_OK(ret);
     char *tmp = sysdef_qos;
     ret = ddsrt_asprintf(&sysdef_qos, QOS_FORMAT"%s\n"QOS_FORMAT"%s", sysdef_qos, presentation);
     ddsrt_free(tmp);
@@ -717,15 +743,18 @@ static inline dds_return_t qos_to_conf(dds_qos_t *qos, const sysdef_qos_conf_t *
         ret = ddsrt_asprintf(&max_blocking_time, QOS_RELIABILITY_DURATION(QOS_DURATION_FMT(nanosec)),
                              (long long)qos->reliability.max_blocking_time);
     }
+    CHECK_RET_OK(ret);
     char *reliability_kind;
     if (qos->reliability.kind == DDS_RELIABILITY_BEST_EFFORT)
       ret = ddsrt_asprintf(&reliability_kind, "%s", QOS_RELIABILITY_KIND(BEST_EFFORT_RELIABILITY_QOS));
     else
       ret = ddsrt_asprintf(&reliability_kind, "%s", QOS_RELIABILITY_KIND(RELIABLE_RELIABILITY_QOS));
+    CHECK_RET_OK(ret);
     char *reliability;
     ret = ddsrt_asprintf(&reliability, QOS_POLICY_RELIABILITY_FMT, max_blocking_time, reliability_kind);
     ddsrt_free(max_blocking_time);
     ddsrt_free(reliability_kind);
+    CHECK_RET_OK(ret);
     char *tmp = sysdef_qos;
     ret = ddsrt_asprintf(&sysdef_qos, QOS_FORMAT"%s\n"QOS_FORMAT"%s", sysdef_qos, reliability);
     ddsrt_free(tmp);
@@ -746,6 +775,7 @@ static inline dds_return_t qos_to_conf(dds_qos_t *qos, const sysdef_qos_conf_t *
     char *resource_limits;
     ret = ddsrt_asprintf(&resource_limits, QOS_POLICY_RESOURCE_LIMITS_FMT, ms_f, mi_f, mspi_f);
     ddsrt_free(ms_f);ddsrt_free(mi_f);ddsrt_free(mspi_f);
+    CHECK_RET_OK(ret);
     char *tmp = sysdef_qos;
     ret = ddsrt_asprintf(&sysdef_qos, QOS_FORMAT"%s\n"QOS_FORMAT"%s", sysdef_qos, resource_limits);
     ddsrt_free(tmp);
@@ -772,6 +802,7 @@ static inline dds_return_t qos_to_conf(dds_qos_t *qos, const sysdef_qos_conf_t *
         ret = ddsrt_asprintf(&time_based_filter, QOS_POLICY_TIMEBASEDFILTER_FMT(QOS_DURATION_FMT(nanosec)),
                              (long long)qos->time_based_filter.minimum_separation);
     }
+    CHECK_RET_OK(ret);
     char *tmp = sysdef_qos;
     ret = ddsrt_asprintf(&sysdef_qos, QOS_FORMAT"%s\n"QOS_FORMAT"%s", sysdef_qos, time_based_filter);
     ddsrt_free(tmp);
@@ -788,10 +819,12 @@ static inline dds_return_t qos_to_conf(dds_qos_t *qos, const sysdef_qos_conf_t *
         char *tmp = data;
         ret = ddsrt_asprintf(&data, "%s%c", data, qos->topic_data.value[i]);
         ddsrt_free(tmp);
+        CHECK_RET_OK(ret);
       }
       char *topic_data;
       ret = ddsrt_asprintf(&topic_data, QOS_POLICY_TOPICDATA_FMT, data);
       ddsrt_free(data);
+      CHECK_RET_OK(ret);
       char *tmp = sysdef_qos;
       ret = ddsrt_asprintf(&sysdef_qos, QOS_FORMAT"%s\n"QOS_FORMAT"%s", sysdef_qos, topic_data);
       ddsrt_free(tmp);
@@ -804,6 +837,7 @@ static inline dds_return_t qos_to_conf(dds_qos_t *qos, const sysdef_qos_conf_t *
   {
     char *priority;
     ret = ddsrt_asprintf(&priority, QOS_POLICY_TRANSPORTPRIORITY_FMT, qos->transport_priority.value);
+    CHECK_RET_OK(ret);
     char *tmp = sysdef_qos;
     ret = ddsrt_asprintf(&sysdef_qos, QOS_FORMAT"%s\n"QOS_FORMAT"%s", sysdef_qos, priority);
     ddsrt_free(tmp);
@@ -820,10 +854,12 @@ static inline dds_return_t qos_to_conf(dds_qos_t *qos, const sysdef_qos_conf_t *
         char *tmp = data;
         ret = ddsrt_asprintf(&data, "%s%c", data, qos->user_data.value[i]);
         ddsrt_free(tmp);
+        CHECK_RET_OK(ret);
       }
       char *user_data;
       ret = ddsrt_asprintf(&user_data, QOS_POLICY_USERDATA_FMT, data);
       ddsrt_free(data);
+      CHECK_RET_OK(ret);
       char *tmp = sysdef_qos;
       ret = ddsrt_asprintf(&sysdef_qos, QOS_FORMAT"%s\n"QOS_FORMAT"%s", sysdef_qos, user_data);
       ddsrt_free(tmp);
@@ -851,6 +887,7 @@ static inline dds_return_t qos_to_conf(dds_qos_t *qos, const sysdef_qos_conf_t *
         ret = ddsrt_asprintf(&nowriter_delay, QOS_NOWRITER_DELAY(QOS_DURATION_FMT(nanosec)),
                              (long long)qos->reader_data_lifecycle.autopurge_nowriter_samples_delay);
     }
+    CHECK_RET_OK(ret);
     char *disposed_delay;
     if (qos->reader_data_lifecycle.autopurge_disposed_samples_delay == DDS_INFINITY)
     {
@@ -868,10 +905,12 @@ static inline dds_return_t qos_to_conf(dds_qos_t *qos, const sysdef_qos_conf_t *
         ret = ddsrt_asprintf(&disposed_delay, QOS_DISPOSED_DELAY(QOS_DURATION_FMT(nanosec)),
                              (long long)qos->reader_data_lifecycle.autopurge_disposed_samples_delay);
     }
+    CHECK_RET_OK(ret);
     char *reader_data_lifecycle;
     ret = ddsrt_asprintf(&reader_data_lifecycle, QOS_POLICY_READERDATALIFECYCLE_FMT, nowriter_delay, disposed_delay);
     ddsrt_free(nowriter_delay);
     ddsrt_free(disposed_delay);
+    CHECK_RET_OK(ret);
     char *tmp = sysdef_qos;
     ret = ddsrt_asprintf(&sysdef_qos, QOS_FORMAT"%s\n"QOS_FORMAT"%s", sysdef_qos, reader_data_lifecycle);
     ddsrt_free(tmp);
@@ -886,6 +925,7 @@ static inline dds_return_t qos_to_conf(dds_qos_t *qos, const sysdef_qos_conf_t *
       ret = ddsrt_asprintf(&writer_data_lifecycle, "%s", QOS_POLICY_WRITERDATA_LIFECYCLE_FMT(true));
     else
       ret = ddsrt_asprintf(&writer_data_lifecycle, "%s", QOS_POLICY_WRITERDATA_LIFECYCLE_FMT(false));
+    CHECK_RET_OK(ret);
     char *tmp = sysdef_qos;
     ret = ddsrt_asprintf(&sysdef_qos, QOS_FORMAT"%s\n"QOS_FORMAT"%s", sysdef_qos, writer_data_lifecycle);
     ddsrt_free(tmp);
@@ -894,7 +934,7 @@ static inline dds_return_t qos_to_conf(dds_qos_t *qos, const sysdef_qos_conf_t *
   }
 
   *out = sysdef_qos;
-
+fail:
   return ret;
 }
 
@@ -909,10 +949,10 @@ static dds_qos_t get_supported_qos(dds_qos_t qos)
 static dds_return_t get_single_configuration(dds_qos_t *qos, sysdef_qos_conf_t *conf, dds_qos_kind_t kind, char **out_conf, uint64_t *validate_mask)
 {
   dds_return_t ret = DDS_RETCODE_OK;
-  char *qos_conf;
+  char *qos_conf = NULL;
   ret = qos_to_conf(qos, conf, &qos_conf, kind, validate_mask, false);
   CU_ASSERT_TRUE(ret >= 0);
-  char *def;
+  char *def = NULL;
   switch(kind)
   {
     case DDS_PARTICIPANT_QOS:
@@ -935,11 +975,11 @@ static dds_return_t get_single_configuration(dds_qos_t *qos, sysdef_qos_conf_t *
       break;
     default:
       ddsrt_free(qos_conf);
-      return DDS_RETCODE_BAD_PARAMETER;
-      break;
+      CU_FAIL("unsupported QOS_KIND");
   }
   ret = ddsrt_asprintf(out_conf, def, qos_conf);
   ddsrt_free(qos_conf);
+  CU_ASSERT_TRUE(ret >= 0);
 
   return ret;
 }
@@ -962,7 +1002,7 @@ CU_TheoryDataPoints(qos_provider, get_qos_default) = {
 CU_Theory((dds_qos_kind_t kind, sysdef_qos_conf_t dur_conf), qos_provider, get_qos_default)
 {
   dds_return_t ret = DDS_RETCODE_OK;
-  char *full_configuration;
+  char *full_configuration = NULL;
   dds_qos_t qos;
   switch(kind)
   {
@@ -997,7 +1037,7 @@ CU_Theory((dds_qos_kind_t kind, sysdef_qos_conf_t dur_conf), qos_provider, get_q
   ret = dds_create_qos_provider(full_configuration, &provider);
   ddsrt_free(full_configuration);
   CU_ASSERT_EQUAL(ret, DDS_RETCODE_OK);
-  dds_qos_t *act_qos;
+  const dds_qos_t *act_qos;
   // get qos from provider
   ret = dds_qos_provider_get_qos(provider, kind, "lib1::pro00", &act_qos);
   CU_ASSERT_EQUAL(ret, DDS_RETCODE_OK);
@@ -1076,7 +1116,7 @@ CU_TheoryDataPoints(qos_provider, get_qos_all) = {
 CU_Theory((dds_qos_kind_t kind),qos_provider, get_qos_all)
 {
   dds_return_t ret = DDS_RETCODE_OK;
-  char *full_configuration;
+  char *full_configuration = NULL;
   dds_qos_t qos = Q;
   sysdef_qos_conf_t dur_conf = {sec,sec,sec,sec,sec,sec,sec,sec,sec};
   uint64_t validate_mask = 0;
@@ -1088,7 +1128,7 @@ CU_Theory((dds_qos_kind_t kind),qos_provider, get_qos_all)
   ret = dds_create_qos_provider(full_configuration, &provider);
   ddsrt_free(full_configuration);
   CU_ASSERT_EQUAL(ret, DDS_RETCODE_OK);
-  dds_qos_t *act_qos;
+  const dds_qos_t *act_qos;
   ret = dds_qos_provider_get_qos(provider, kind, "lib1::pro00", &act_qos);
   CU_ASSERT_EQUAL(ret, DDS_RETCODE_OK);
   // calculate the difference between defined qos and qos from provider
@@ -1117,12 +1157,12 @@ CU_TheoryDataPoints(qos_provider, create_wrong_qos) = {
 CU_Theory((dds_qos_kind_t kind, dds_return_t code),qos_provider, create_wrong_qos)
 {
   dds_return_t ret = DDS_RETCODE_OK;
-  char *full_configuration;
+  char *full_configuration = NULL;
   dds_qos_t qos = Q;
   sysdef_qos_conf_t conf = {sec,sec,sec,sec,sec,sec,sec,sec,sec};
   uint64_t validate_mask = 0;
   char *def = NULL;
-  char *qos_conf;
+  char *qos_conf = NULL;
   // init sysdef configuration that contains qos that not related for this `kind` of entity
   // (wrong for this entity kind)
   switch(kind)
@@ -1146,12 +1186,12 @@ CU_Theory((dds_qos_kind_t kind, dds_return_t code),qos_provider, create_wrong_qo
       QOS_TO_CONF_SNGL(DDS_WRITER_QOS_MASK,datawriter);
       break;
     default:
-      ret = DDS_RETCODE_BAD_PARAMETER;
-      break;
+      CU_FAIL("unsupported QOS_KIND");
   }
   CU_ASSERT_TRUE(ret >= 0);
   ret = ddsrt_asprintf(&full_configuration, def, qos_conf);
   ddsrt_free(qos_conf);
+  CU_ASSERT_TRUE(ret >= 0);
   dds_qos_provider_t *provider = NULL;
   // init qos provider with create configuration
   ret = dds_create_qos_provider(full_configuration, &provider);

@@ -191,7 +191,7 @@ err:
   return ret;
 }
 
-dds_return_t dds_qos_provider_get_qos (const dds_qos_provider_t *provider, dds_qos_kind_t type, const char *key, dds_qos_t **qos)
+dds_return_t dds_qos_provider_get_qos (const dds_qos_provider_t *provider, dds_qos_kind_t type, const char *key, const dds_qos_t **qos)
 {
   dds_return_t ret = DDS_RETCODE_OK;
   if (provider == NULL || provider->keyed_qos == NULL)
@@ -218,18 +218,35 @@ err:
   return ret;
 }
 
-#define FILL_TOKEN_STR(start,end,token) \
-do { \
-  if ((start != NULL) && (end = strstr(start, PROVIDER_ITEM_SEP)) != NULL) \
-    token = ((end-start) > 0)? ddsrt_strndup(start, (size_t)(end-start)): ddsrt_strdup(PROVIDER_ITEM_SCOPE_NONE); \
-  else \
-    token = (start != NULL && *start != '\0')? ddsrt_strdup(start): ddsrt_strdup(PROVIDER_ITEM_SCOPE_NONE); \
-  start = (end != NULL)? end + strlen(PROVIDER_ITEM_SEP): NULL; \
-} while (0)
-#define FILL_TOKENS_STR(start,end,lib,prof,ent) \
-  FILL_TOKEN_STR(start, end, *lib); \
-  FILL_TOKEN_STR(start, end, *prof); \
-  FILL_TOKEN_STR(start, end, *ent); \
+static void fill_token(char **start, char **end, char **token)
+{
+  char *bg = *start;
+  char *ed = *end;
+  if ((bg != NULL) && (ed = strstr(bg, PROVIDER_ITEM_SEP)) != NULL)
+    *token = ((ed-bg) > 0)? ddsrt_strndup(bg, (size_t)(ed-bg)): ddsrt_strdup(PROVIDER_ITEM_SCOPE_NONE);
+  else
+    *token = (bg != NULL && *bg != '\0')? ddsrt_strdup(bg): ddsrt_strdup(PROVIDER_ITEM_SCOPE_NONE);
+  *start = (ed != NULL)? ed + strlen(PROVIDER_ITEM_SEP): NULL;
+  *end = ed;
+}
+
+static void fill_tokens_str(const char *start, char **lib, char **pro, char **ent)
+{
+  char *current = ddsrt_strdup(start);
+  char *next = current;
+  char *ending = next;
+  fill_token(&next, &ending, lib);
+  fill_token(&next, &ending, pro);
+  fill_token(&next, &ending, ent);
+  ddsrt_free(current);
+}
+
+static void empty_tokens_str(char *lib, char *pro, char *ent)
+{
+  ddsrt_free(lib);
+  ddsrt_free(pro);
+  ddsrt_free(ent);
+}
 
 static dds_return_t resolve_token(const char *key, char **lib, char **prof, char **ent)
 {
@@ -239,22 +256,10 @@ static dds_return_t resolve_token(const char *key, char **lib, char **prof, char
     ret = DDS_RETCODE_ERROR;
     goto err;
   }
-  const char *start = key;
-  const char *end = key;
-  FILL_TOKENS_STR(start, end, lib, prof, ent);
+  fill_tokens_str(key, lib, prof, ent);
 err:
   return ret;
 }
-
-#undef FILL_TOKENS_STR
-#undef FILL_TOKEN_STR
-
-#define EMPTY_TOKEN_STR(token) \
-    ddsrt_free(token);
-#define EMPTY_TOKENS_STR(lib,prof,ent) \
-  EMPTY_TOKEN_STR(lib); \
-  EMPTY_TOKEN_STR(prof); \
-  EMPTY_TOKEN_STR(ent);
 
 dds_return_t dds_create_qos_provider_scope (const char *path, dds_qos_provider_t **provider, const char *key)
 {
@@ -270,13 +275,10 @@ dds_return_t dds_create_qos_provider_scope (const char *path, dds_qos_provider_t
     goto err;
   }
 err:
-  EMPTY_TOKENS_STR(lib_name, prof_name, ent_name);
+  empty_tokens_str(lib_name, prof_name, ent_name);
   dds_sysdef_fini_sysdef(sysdef);
   return ret;
 }
-
-#undef EMPTY_TOKENS_STR
-#undef EMPTY_TOKEN_STR
 
 void dds_delete_qos_provider (dds_qos_provider_t *provider)
 {

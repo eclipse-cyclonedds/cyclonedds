@@ -47,14 +47,6 @@ static int is_wildcard_partition (const char *str)
 
 static dds_return_t validate_qos (dds_qos_t *qos, const char *qos_location)
 {
-  // User-data max length
-  size_t userdata_sz;
-  if (dds_qget_userdata (qos, NULL, &userdata_sz) && userdata_sz > SYSDEF_QOS_USERDATA_MAXLEN)
-  {
-    SYSDEF_ERROR ("Userdata QoS value length (%zu) exceeds maximum length (%zu) (%s)\n", userdata_sz, SYSDEF_QOS_USERDATA_MAXLEN, qos_location);
-    goto failed;
-  }
-
   // History
   dds_history_kind_t history_kind;
   int32_t history_depth;
@@ -71,13 +63,6 @@ static dds_return_t validate_qos (dds_qos_t *qos, const char *qos_location)
   {
     for (uint32_t i = 0; i < n_partitions; i++)
     {
-      size_t pn_sz = strlen (partitions[i]);
-      if (pn_sz > SYSDEF_QOS_PARTITION_NAME_MAXLEN)
-      {
-        SYSDEF_ERROR ("Partition name length (%zu) exceeds maximum length (%zu) (%s)\n", pn_sz, SYSDEF_QOS_PARTITION_NAME_MAXLEN, qos_location);
-        free_partitions (n_partitions, partitions);
-        goto failed;
-      }
       if (is_wildcard_partition (partitions[i]))
       {
         SYSDEF_ERROR ("Wildcards in partition name not supported (%s)\n", qos_location);

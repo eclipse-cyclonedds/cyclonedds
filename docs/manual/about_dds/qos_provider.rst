@@ -24,7 +24,6 @@ XML file syntax
 
 The syntax for the XML configuration file is defined in |url::omg_xml_1.0|.
 
-
 Entity QoS
 ----------
 
@@ -47,26 +46,26 @@ The fields in a Qos policy are described in XML using a 1-to-1 mapping with the 
 
 .. code-block:: C
 
-	struct Duration_t {
-		long sec;
-		unsigned long nanosec;
-	};
-	struct ReliabilityQosPolicy {
-		ReliabilityQosPolicyKind kind;
-		Duration_t max_blocking_time;
-	};
+    struct Duration_t {
+      long sec;
+      unsigned long nanosec;
+    };
+    struct ReliabilityQosPolicy {
+      ReliabilityQosPolicyKind kind;
+      Duration_t max_blocking_time;
+    };
 
 The equivalent representation in XML is as follows:
 
 .. code-block:: xml
 
-	<reliability>
+    <reliability>
       <kind></kind>
       <max_blocking_time>
-          <sec></sec>
-          <nanosec></nanosec>
+        <sec></sec>
+        <nanosec></nanosec>
       </max_blocking_time>
-	</reliability>
+    </reliability>
 
 Sequences
 ---------
@@ -75,28 +74,28 @@ In general, the sequences contained in the QoS policies are described with the f
 
 .. code-block:: xml
 
-	<a_sequence_member_name>
+    <a_sequence_member_name>
       <element>...</element>
       <element>...</element>
       ...
-	</a_sequence_member_name>
+    </a_sequence_member_name>
 
 Each element of the sequence is enclosed in an <element> tag, as shown in the following example:
 
 .. code-block:: xml
 
-	<property>
+    <property>
       <value>
-          <element>
-              <name>my name</name>
-              <value>my value</value>
-          </element>
-          <element>
-              <name>my name2</name>
-              <value>my value2</value>
-          </element>
+        <element>
+          <name>my name</name>
+          <value>my value</value>
+        </element>
+        <element>
+          <name>my name2</name>
+          <value>my value2</value>
+        </element>
       </value>
-	</property>
+    </property>
 
 
 Enumerations
@@ -107,7 +106,7 @@ Enumeration values are represented using their IDL string representation. For ex
 .. code-block:: xml
 
     <history>
-        <kind>KEEP_ALL_HISTORY_QOS</kind>
+      <kind>KEEP_ALL_HISTORY_QOS</kind>
     </history>
 
 
@@ -124,10 +123,10 @@ The following example shows the use of time values:
 .. code-block:: xml
 
     <deadline>
-        <period>
-            <sec>DURATION_INFINITE_SEC</sec>
-            <nanosec>DURATION_INFINITE_NSEC</nanosec>
-        </period>
+      <period>
+        <sec>DURATION_INFINITE_SEC</sec>
+        <nanosec>DURATION_INFINITE_NSEC</nanosec>
+      </period>
     </deadline>
 
 QoS Profiles
@@ -138,22 +137,18 @@ A QoS profile groups a set of related QoS, usually one per entity. For example:
 .. code-block:: xml
 
     <qos_profile name="StrictReliableCommunicationProfile">
-        <datawriter_qos>
-            <history>
-                <kind>KEEP_ALL_HISTORY_QOS</kind>
-            </history>
-            <reliability>
-                <kind>RELIABLE_RELIABILITY_QOS</kind>
-            </reliability>
-        </datawriter_qos>
-        <datareader_qos>
-            <history>
-                <kind>KEEP_ALL_HISTORY_QOS</kind>
-            </history>
-            <reliability>
-                <kind>RELIABLE_RELIABILITY_QOS</kind>
-            </reliability>
-        </datareader_qos>
+      <datareader_qos>
+        <history>
+          <kind>KEEP_LAST_HISTORY_QOS</kind>
+          <depth>5</depth>
+        </history>
+      </datareader_qos>
+      <datawriter_qos>
+       <history>
+          <kind>KEEP_LAST_HISTORY_QOS</kind>
+          <depth>1</depth>
+        </history>
+      </datawriter_qos>
     </qos_profile>
 
 XML Example
@@ -162,59 +157,53 @@ XML Example
 Consider the following XML file that describes two QoS profiles:
 
 - FooQosProfile
-    - DataWriterQos - Transient
-    - TopicQos      - ManualByTopic
+    - DataReaderQos - KEEP_LAST (5)
+    - DataWriterQos - KEEP_LAST (1)
+    - TopicQos      - KEEP_ALL
 - BarQosProfile
-    - DataWriterQos - Persistent
-    - TopicQos      - ManualByParticipant
+    - DataWriterQos - KEEP_ALL
+    - TopicQos      - KEEP_LAST (5)
 
 
 .. code-block:: xml
 
     <dds xmlns="http://www.omg.org/dds/"
-            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-            xsi:schemaLocation="file://DDS_QoSProfile.xsd">
-        <qos_library name="myqoslib">
-            <qos_profile name="foo_profile">
-                <datareader_qos>
-                    <durability>
-                        <kind>TRANSIENT_DURABILITY_QOS</kind>
-                    </durability>
-                    <history>
-                        <kind>KEEP_LAST_HISTORY_QOS</kind>
-                        <depth>5</depth>
-                    </history>
-                </datareader_qos>
-                <datawriter_qos>
-                    <durability>
-                        <kind>TRANSIENT_DURABILITY_QOS</kind>
-                    </durability>
-                </datawriter_qos>
-                <topic_qos name="my_topic">
-                    <liveliness>
-                        <kind>AUTOMATIC_LIVELINESS_QOS</kind>
-                        <lease_duration>
-                            <sec>QOS_DURATION_INFINITY_SEC</sec>
-                        </lease_duration>
-                    </liveliness>
-                </topic_qos>
-            </qos_profile>
-            <qos_profile name="bar_profile">
-                <datawriter_qos>
-                    <durability>
-                        <kind>PERSISTENT_DURABILITY_QOS</kind>
-                    </durability>
-                </datawriter_qos>
-                <topic_qos name="my_topic">
-                    <liveliness>
-                        <kind>MANUAL_BY_PARTICIPANT_LIVALINESS</kind>
-                        <lease_duration>
-                            <sec>QOS_DURATION_INFINITY_SEC</sec>
-                        </lease_duration>
-                    </liveliness>
-                </topic_qos>
-            </qos_profile>
-        </qos_library>
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="file://DDS_QoSProfile.xsd">
+      <qos_library name="myqoslib">
+        <qos_profile name="foo_profile">
+          <datareader_qos>
+            <history>
+              <kind>KEEP_LAST_HISTORY_QOS</kind>
+              <depth>5</depth>
+            </history>
+          </datareader_qos>
+          <datawriter_qos>
+           <history>
+              <kind>KEEP_LAST_HISTORY_QOS</kind>
+              <depth>1</depth>
+            </history>
+          </datawriter_qos>
+          <topic_qos name="my_topic">
+            <history>
+              <kind>KEEP_ALL_HISTORY_QOS</kind>
+            </history>
+          </topic_qos>
+        </qos_profile>
+        <qos_profile name="bar_profile">
+          <datawriter_qos>
+            <history>
+              <kind>KEEP_ALL_HISTORY_QOS</kind>
+            </history>
+          </datawriter_qos>
+            <topic_qos name="my_topic">
+              <history>
+                <kind>KEEP_LAST_HISTORY_QOS</kind>
+                <depth>10</depth>
+              </history>
+            </topic_qos>
+        </qos_profile>
+      </qos_library>
     </dds>
 
 
@@ -235,34 +224,34 @@ The following C application is an example to illustrate how the QoS settings fro
 
         int main (int argc, char **argv)
         {
-            (void) argc;
-            (void) argv;
+          (void) argc;
+          (void) argv;
 
-            // provider will contains:
-            // myqoslib::foo_profile                     READER
-            // myqoslib::foo_profile                     WRITER
-            // myqoslib::foo_profile::my_topic           TOPIC
-            // myqoslib::bar_profile                     WRITER
-            // myqoslib::bar_profile::my_topic           TOPIC
-            dds_qos_provider_t *provider;
-            dds_return_t ret = dds_create_qos_provider ("/path/to/qos_definitions.xml", &provider);
-            assert (ret == DDS_RETCODE_OK);
+          // provider will contains:
+          // myqoslib::foo_profile                     READER (KEEP_LAST 5)
+          // myqoslib::foo_profile                     WRITER (KEEP_LAST 1)
+          // myqoslib::foo_profile::my_topic           TOPIC  (KEEP_ALL)
+          // myqoslib::bar_profile                     WRITER (KEEP_ALL)
+          // myqoslib::bar_profile::my_topic           TOPIC  (KEEP_LAST 10)
+          dds_qos_provider_t *provider;
+          dds_return_t ret = dds_create_qos_provider ("/path/to/qos_definitions.xml", &provider);
+          assert (ret == DDS_RETCODE_OK);
 
-            dds_qos_t *tp_qos, *wr_qos;
-            // qos can be accessed by <lib_name>::<profile_name>::[entity_name] if exist.
-            ret = dds_qos_provider_get_qos (provider, DDS_TOPIC_QOS, "myqoslib::bar_profile::my_topic", &tp_qos);
-            assert (ret == DDS_RETCODE_OK);
-            // or if entity_qos is unnamed only by <lib_name>::<profile_name>.
-            ret = dds_qos_provider_get_qos (provider, DDS_WRITER_QOS, "myqoslib::bar_profile", &wr_qos);
-            assert (ret == DDS_RETCODE_OK);
+          const dds_qos_t *tp_qos, *wr_qos;
+          // qos can be accessed by <lib_name>::<profile_name>::[entity_name] if exist.
+          ret = dds_qos_provider_get_qos (provider, DDS_TOPIC_QOS, "myqoslib::bar_profile::my_topic", &tp_qos);
+          assert (ret == DDS_RETCODE_OK);
+          // or if entity_qos is unnamed only by <lib_name>::<profile_name>.
+          ret = dds_qos_provider_get_qos (provider, DDS_WRITER_QOS, "myqoslib::bar_profile", &wr_qos);
+          assert (ret == DDS_RETCODE_OK);
 
-            dds_entity_t pp = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
-            dds_entity_t tp = dds_create_topic (pp, &mydatatype_desc, "topic_A", tp_qos, NULL);
-            dds_entity_t wr = dds_create_writer (pp, tp, wr_qos, NULL);
-            dds_delete (pp);
-            dds_delete_qos_provider (provider);
+          dds_entity_t pp = dds_create_participant (DDS_DOMAIN_DEFAULT, NULL, NULL);
+          dds_entity_t tp = dds_create_topic (pp, &mydatatype_desc, "topic_A", tp_qos, NULL);
+          dds_entity_t wr = dds_create_writer (pp, tp, wr_qos, NULL);
+          dds_delete (pp);
+          dds_delete_qos_provider (provider);
 
-            return 0;
+          return 0;
         }
 
     .. group-tab:: C++
@@ -277,11 +266,11 @@ The following C application is an example to illustrate how the QoS settings fro
         int main()
         {
           // provider will contains:
-          // myqoslib::foo_profile                     READER
-          // myqoslib::foo_profile                     WRITER
-          // myqoslib::foo_profile::my_topic           TOPIC
-          // myqoslib::bar_profile                     WRITER
-          // myqoslib::bar_profile::my_topic           TOPIC
+          // myqoslib::foo_profile                     READER (KEEP_LAST 5)
+          // myqoslib::foo_profile                     WRITER (KEEP_LAST 1)
+          // myqoslib::foo_profile::my_topic           TOPIC  (KEEP_ALL)
+          // myqoslib::bar_profile                     WRITER (KEEP_ALL)
+          // myqoslib::bar_profile::my_topic           TOPIC  (KEEP_LAST 10)
           dds::core::QosProvider provider("/path/to/qos_definitions.xml");
           auto topic_qos = provider.topic_qos("myqoslib::bar_profile::my_topic");
           auto writer_qos = provider.datawriter_qos("myqoslib::bar_profile");
@@ -300,30 +289,30 @@ Let's extend XML file example above, and omit QoS settings details for simplicit
 .. code-block:: xml
 
     <dds xmlns="http://www.omg.org/dds/"
-            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-            xsi:schemaLocation="file://DDS_QoSProfile.xsd">
-        <qos_library name="qos1_lib">
-            <qos_profile name="foo_profile">
-                <datareader_qos/>
-                <datawriter_qos/>
-                <topic_qos/>
-            </qos_profile>
-            <qos_profile name="bar_profile">
-                <datawriter_qos/>
-                <topic_qos/>
-            </qos_profile>
-        </qos_library>
-        <qos_library name="qos2_lib">
-            <qos_profile name="foo_profile">
-                <datareader_qos/>
-                <datawriter_qos/>
-                <topic_qos/>
-            </qos_profile>
-            <qos_profile name="bar_profile">
-                <datawriter_qos/>
-                <topic_qos/>
-            </qos_profile>
-        </qos_library>
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="file://DDS_QoSProfile.xsd">
+      <qos_library name="qos1_lib">
+        <qos_profile name="foo_profile">
+          <datareader_qos/>
+          <datawriter_qos/>
+          <topic_qos/>
+        </qos_profile>
+        <qos_profile name="bar_profile">
+          <datawriter_qos/>
+          <topic_qos/>
+        </qos_profile>
+      </qos_library>
+      <qos_library name="qos2_lib">
+        <qos_profile name="foo_profile">
+          <datareader_qos/>
+          <datawriter_qos/>
+          <topic_qos/>
+        </qos_profile>
+        <qos_profile name="bar_profile">
+          <datawriter_qos/>
+          <topic_qos/>
+        </qos_profile>
+      </qos_library>
     </dds>
 
 Let's create QoS Provider that contains versions of both profiles from different libraries.
@@ -340,35 +329,35 @@ Let's create QoS Provider that contains versions of both profiles from different
 
           int main (int argc, char **argv)
           {
-              (void) argc;
-              (void) argv;
+            (void) argc;
+            (void) argv;
 
-              // foo_provider will contains:
-              // qos1_lib::foo_profile                     READER
-              // qos1_lib::foo_profile                     WRITER
-              // qos1_lib::foo_profile                     TOPIC
-              // qos2_lib::foo_profile                     READER
-              // qos2_lib::foo_profile                     WRITER
-              // qos2_lib::foo_profile                     TOPIC
-              dds_qos_provider_t *foo_provider;
-              char *foo_scope = "*::foo_profile";
-              dds_return_t ret = dds_create_qos_provider_scope ("/path/to/qos_definitions.xml", &foo_provider, foo_scope);
-              assert (ret == DDS_RETCODE_OK);
+            // foo_provider will contains:
+            // qos1_lib::foo_profile                     READER
+            // qos1_lib::foo_profile                     WRITER
+            // qos1_lib::foo_profile                     TOPIC
+            // qos2_lib::foo_profile                     READER
+            // qos2_lib::foo_profile                     WRITER
+            // qos2_lib::foo_profile                     TOPIC
+            dds_qos_provider_t *foo_provider;
+            char *foo_scope = "*::foo_profile";
+            dds_return_t ret = dds_create_qos_provider_scope ("/path/to/qos_definitions.xml", &foo_provider, foo_scope);
+            assert (ret == DDS_RETCODE_OK);
 
-              // bar_provider will contains:
-              // qos1_lib::bar_profile                     WRITER
-              // qos1_lib::bar_profile                     TOPIC
-              // qos2_lib::bar_profile                     WRITER
-              // qos2_lib::bar_profile                     TOPIC
-              dds_qos_provider_t *bar_provider;
-              char *bar_scope = "*::bar_profile";
-              dds_return_t ret = dds_create_qos_provider_scope ("/path/to/qos_definitions.xml", &bar_provider, bar_scope);
-              assert (ret == DDS_RETCODE_OK);
-              ...
-              dds_delete_qos_provider (foo_provider);
-              dds_delete_qos_provider (bar_provider);
+            // bar_provider will contains:
+            // qos1_lib::bar_profile                     WRITER
+            // qos1_lib::bar_profile                     TOPIC
+            // qos2_lib::bar_profile                     WRITER
+            // qos2_lib::bar_profile                     TOPIC
+            dds_qos_provider_t *bar_provider;
+            char *bar_scope = "*::bar_profile";
+            dds_return_t ret = dds_create_qos_provider_scope ("/path/to/qos_definitions.xml", &bar_provider, bar_scope);
+            assert (ret == DDS_RETCODE_OK);
+            ...
+            dds_delete_qos_provider (foo_provider);
+            dds_delete_qos_provider (bar_provider);
 
-              return 0;
+            return 0;
           }
 
     .. group-tab:: C++

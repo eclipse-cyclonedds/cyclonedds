@@ -83,8 +83,7 @@ struct dds_sysdef_type_metadata_admin;
 *
 * @return a DDS return code
 */
-DDS_EXPORT dds_return_t
-dds_sysdef_init_sysdef (FILE *fp, struct dds_sysdef_system **sysdef, uint32_t lib_scope);
+dds_return_t dds_sysdef_init_sysdef (FILE *fp, struct dds_sysdef_system **sysdef, uint32_t lib_scope);
 
 /**
 * @brief Initialize System definition from `xml` string.
@@ -99,8 +98,7 @@ dds_sysdef_init_sysdef (FILE *fp, struct dds_sysdef_system **sysdef, uint32_t li
 *
 * @return a DDS return code
 */
-DDS_EXPORT dds_return_t
-dds_sysdef_init_sysdef_str (const char *raw, struct dds_sysdef_system **sysdef, uint32_t lib_scope);
+dds_return_t dds_sysdef_init_sysdef_str (const char *raw, struct dds_sysdef_system **sysdef, uint32_t lib_scope);
 
 /**
 * @brief Finalize System definition.
@@ -112,8 +110,7 @@ dds_sysdef_init_sysdef_str (const char *raw, struct dds_sysdef_system **sysdef, 
 * @param[in] sysdef - Pointer to dds_sysdef_system structure.
 *
 */
-DDS_EXPORT void
-dds_sysdef_fini_sysdef (struct dds_sysdef_system *sysdef);
+void dds_sysdef_fini_sysdef (struct dds_sysdef_system *sysdef);
 
 /**
 * @brief Initialize System definition for data types.
@@ -127,8 +124,7 @@ dds_sysdef_fini_sysdef (struct dds_sysdef_system *sysdef);
 *
 * @return a DDS return code
 */
-DDS_EXPORT dds_return_t
-dds_sysdef_init_data_types (FILE *fp, struct dds_sysdef_type_metadata_admin **type_meta_data);
+dds_return_t dds_sysdef_init_data_types (FILE *fp, struct dds_sysdef_type_metadata_admin **type_meta_data);
 
 /**
 * @brief Finalize System definition for data types.
@@ -140,8 +136,7 @@ dds_sysdef_init_data_types (FILE *fp, struct dds_sysdef_type_metadata_admin **ty
 * @param[in,out] type_meta_data - Pointer dds_sysdef_type_metadata_admin structure.
 *
 */
-DDS_EXPORT void
-dds_sysdef_fini_data_types (struct dds_sysdef_type_metadata_admin *type_meta_data);
+void dds_sysdef_fini_data_types (struct dds_sysdef_type_metadata_admin *type_meta_data);
 
 #if defined (__cplusplus)
 }
