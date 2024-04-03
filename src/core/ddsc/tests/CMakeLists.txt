@@ -243,6 +243,40 @@ target_include_directories(
 
 target_link_libraries(oneliner PRIVATE RoundTrip Space ddsc)
 
+# PSMX dummy implementation for interface testing
+set(
+  psmx_dummy_sources
+  "psmx_dummy_impl.c"
+  "psmx_dummy_impl.h"
+)
+if(BUILD_SHARED_LIBS)
+  add_library(psmx_dummy SHARED ${psmx_dummy_sources})
+else()
+  add_library(psmx_dummy OBJECT ${psmx_dummy_sources})
+  set_property(GLOBAL APPEND PROPERTY cdds_plugin_list psmx_dummy)
+  set_property(GLOBAL PROPERTY psmx_dummy_symbols dummy_create_psmx)
+endif()
+generate_export_header(psmx_dummy BASE_NAME PSMX_DUMMY EXPORT_FILE_NAME "${CMAKE_CURRENT_BINARY_DIR}/include/dds/psmx_dummy/export.h")
+target_include_directories(
+  psmx_dummy PRIVATE
+  "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/ddsrt/include>"
+  "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/core/include>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/src/core/include>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../include>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../../ddsrt/include>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsc/include>"
+  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/include>"
+)
+if(BUILD_SHARED_LIBS)
+  target_link_libraries(psmx_dummy PRIVATE ddsc)
+endif()
+install(
+  TARGETS psmx_dummy
+  EXPORT "${PROJECT_NAME}"
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
 
 # PSMX implementation with Cyclone as transport, for testing
 if (BUILD_SHARED_LIBS)

@@ -31,6 +31,7 @@
 
 #include "config_env.h"
 #include "test_common.h"
+#include "psmx_dummy_public.h"
 #include "Array100.h"
 #include "DynamicData.h"
 #include "PsmxDataModels.h"
@@ -1032,6 +1033,80 @@ static bool eq_DynamicData_KMsg (const void *vsent, const void *vrecvd, bool val
   }
 }
 
+/** @brief Compare two sets of stats.
+ * 
+ * @param[in] mockstats1 first stats to compare
+ * @param[in] mockstats2 second stats to compare
+ * 
+ * @return A bitmask to indicate which elements are different, zero if all are equal.
+*/
+static uint32_t dummy_mockstats_cmp(const dummy_mockstats_t* mockstats1, const dummy_mockstats_t* mockstats2)
+{
+  uint32_t cmp = 0;
+  uint32_t shift = 0;
+
+  cmp |= ((uint32_t)(mockstats1->cnt_type_qos_supported != mockstats2->cnt_type_qos_supported) << shift++);
+  cmp |= ((uint32_t)(mockstats1->cnt_create_topic != mockstats2->cnt_create_topic) << shift++);
+  cmp |= ((uint32_t)(mockstats1->cnt_delete_topic != mockstats2->cnt_delete_topic) << shift++);
+  cmp |= ((uint32_t)(mockstats1->cnt_deinit != mockstats2->cnt_deinit) << shift++);
+  cmp |= ((uint32_t)(mockstats1->cnt_get_node_id != mockstats2->cnt_get_node_id) << shift++);
+  cmp |= ((uint32_t)(mockstats1->cnt_supported_features != mockstats2->cnt_supported_features) << shift++);
+  cmp |= ((uint32_t)(mockstats1->cnt_create_endpoint != mockstats2->cnt_create_endpoint) << shift++);
+  cmp |= ((uint32_t)(mockstats1->cnt_delete_endpoint != mockstats2->cnt_delete_endpoint) << shift++);
+  cmp |= ((uint32_t)(mockstats1->cnt_request_loan != mockstats2->cnt_request_loan) << shift++);
+  cmp |= ((uint32_t)(mockstats1->cnt_write != mockstats2->cnt_write) << shift++);
+  cmp |= ((uint32_t)(mockstats1->cnt_take != mockstats2->cnt_take) << shift++);
+  cmp |= ((uint32_t)(mockstats1->cnt_on_data_available != mockstats2->cnt_on_data_available) << shift++);
+  return cmp;
+}
+
+/** @brief Convert a set of stats to a string.
+ * 
+ * Truncates the output string if the string buffer capacity is too small.
+ * 
+ * @param[in] dmock stats to convert
+ * @param[out] str_out string buffer to write the string into
+ * @param[in] str_capacity number of bytes the string buffer can hold
+ * 
+ * @return Upon successful return, it returns the number of characters printed
+ *         (excluding the null byte used to end output to strings).
+ *         If an output error is encountered, a negative value is returned.
+*/
+static int dummy_mockstats_tostring(const dummy_mockstats_t* dmock, char* str_out, size_t str_capacity)
+{
+  return snprintf(
+    str_out,
+    str_capacity,
+    "\
+  type_qos_supported: %i\n\
+  create_topic: %i\n\
+  delete_topic: %i\n\
+  deinit: %i\n\
+  get_node_id: %i\n\
+  supported_features: %i\n\
+  \n\
+  create_endpoint: %i\n\
+  delete_endpoint: %i\n\
+  \n\
+  request_loan: %i\n\
+  write: %i\n\
+  take: %i\n\
+  on_data_available: %i\n",
+    dmock->cnt_type_qos_supported,
+    dmock->cnt_create_topic,
+    dmock->cnt_delete_topic,
+    dmock->cnt_deinit,
+    dmock->cnt_get_node_id,
+    dmock->cnt_supported_features,
+    dmock->cnt_create_endpoint,
+    dmock->cnt_delete_endpoint,
+    dmock->cnt_request_loan,
+    dmock->cnt_write,
+    dmock->cnt_take,
+    dmock->cnt_on_data_available
+  );
+}
+
 CU_Test(ddsc_psmx, one_writer, .timeout = 240)
 {
   failed = false;
@@ -1332,6 +1407,9 @@ CU_Test (ddsc_psmx, basic)
 /// - Create some entities
 /// - Check if shared memory is enabled.
 /// - Expectation: Shared memory is enabled iff the psmx interface supports it (use queried value).
+/// - Delete the domain
+/// - Check the function call counts of the dummy psmx.
+/// - Expectation: The counts match expectations. In particular, create counts must match their delete counterpart.
 /// 
 /// - Create a configuration with a psmx interface capable of shared memory and don't specify a locator.
 /// - Create a domain using this configuration.
@@ -1341,12 +1419,19 @@ CU_Test (ddsc_psmx, basic)
 /// - Create some entities
 /// - Check if shared memory is enabled.
 /// - Expectation: Shared memory is enabled iff the psmx interface supports it (use queried value).
+/// - Delete the domain
+/// - Check the function call counts of the dummy psmx.
+/// - Expectation: The counts match expectations. In particular, create counts must match their delete counterpart.
 /// 
-/// - The above two cases (with and without locator) are repeated for a
-///   psmx interface that supports shared memory, and a psmx interface that doesn't.
-/// 
-CU_Test(ddsc_psmx, shared_memory)
+CU_Test(ddsc_psmxif, shared_memory)
 {
+  const char* CDDS_PSMX_NAME = NULL;
+  ddsrt_getenv("CDDS_PSMX_NAME", &CDDS_PSMX_NAME);
+  ddsrt_setenv("CDDS_PSMX_NAME", "dummy"); // Make `create_participant()` use the dummy psmx.
+  dummy_mockstats_t dmock, dmock_expected;
+  char strbuf1[512];
+  char strbuf2[512];
+  size_t strbuf_size = sizeof(strbuf1);
   {
     // Check that the data types I'm planning to use are actually suitable for use with shared memory.
     dds_data_type_properties_t props;
@@ -1384,10 +1469,12 @@ CU_Test(ddsc_psmx, shared_memory)
       dds_domain* dom = NULL;
       CU_ASSERT_FATAL(domain_pin(domain, &dom));
       CU_ASSERT_FATAL(dom->psmx_instances.length == 1); // There shall be exactly one psmx instance.
-      dds_psmx_t* psmx_ptr = dom->psmx_instances.instances[0];
+      struct dummy_psmx* dpsmx = (struct dummy_psmx*)dom->psmx_instances.instances[0];
+      dpsmx->mockstats_get_ownership(&dmock);
+
       // The psmx must have an instance_name that is not an empty string.
-      CU_ASSERT_FATAL(psmx_ptr->instance_name != NULL && strcmp(psmx_ptr->instance_name, "") != 0);
-      supports_shared_memory = ((psmx_ptr->ops.supported_features(psmx_ptr) & DDS_PSMX_FEATURE_SHARED_MEMORY) == DDS_PSMX_FEATURE_SHARED_MEMORY);
+      CU_ASSERT_FATAL(dpsmx->c.instance_name != NULL && strcmp(dpsmx->c.instance_name, "") != 0);
+      supports_shared_memory = ((dpsmx->c.ops.supported_features(&dpsmx->c) & DDS_PSMX_FEATURE_SHARED_MEMORY) == DDS_PSMX_FEATURE_SHARED_MEMORY);
       domain_unpin(dom);
     }
     dds_entity_t writer1, reader1, writer2, reader2;
@@ -1416,6 +1503,7 @@ CU_Test(ddsc_psmx, shared_memory)
       CU_ASSERT_FATAL(reader2 > 0);
       dds_delete_qos(qos);
     }
+
     {
       // Check that shared memory is enabled when it should, and not enabled when it shouldn't.
       bool psmx_enabled;
@@ -1436,6 +1524,29 @@ CU_Test(ddsc_psmx, shared_memory)
       CU_ASSERT_FATAL(dds_is_shared_memory_available(reader2) == supports_shared_memory);
     }
     dds_delete(domain);
+
+    // Check number of calls against expected counts.
+    memset(&dmock_expected, 0, sizeof(dummy_mockstats_t));
+    dmock_expected.cnt_type_qos_supported = 10;
+    dmock_expected.cnt_create_topic = 2;
+    dmock_expected.cnt_delete_topic = 2;
+    dmock_expected.cnt_deinit = 1;
+    dmock_expected.cnt_get_node_id = 1;
+    dmock_expected.cnt_supported_features = 5;
+    dmock_expected.cnt_create_endpoint = 4;
+    dmock_expected.cnt_delete_endpoint = 4;
+    dmock_expected.cnt_on_data_available = 2; // This is perhaps unexpected, see below.
+    /*
+    NOTE: The `on_data_available` is triggered in
+    `dds_create_reader_int()`, even if no samples have been received at all.
+    */
+    uint32_t cmp = dummy_mockstats_cmp(&dmock, &dmock_expected);
+    if( cmp != 0 ){
+      dummy_mockstats_tostring(&dmock, strbuf1, strbuf_size);
+      dummy_mockstats_tostring(&dmock_expected, strbuf2, strbuf_size);
+      printf("actual calls:\n%s\nexpected calls:\n%s\n", strbuf1, strbuf2);
+      CU_ASSERT_FATAL(cmp == 0);
+    }
   }
 }
 
