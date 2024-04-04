@@ -253,7 +253,6 @@ DDS_Security_Serialize_string(
 
     memcpy(&(ser->buffer[ser->offset]), str, len);
     ser->offset += len;
-    serbuffer_align(ser, sizeof(uint32_t));
 }
 
 static void
@@ -556,8 +555,6 @@ DDS_Security_Deserialize_string(
 
     if (sz > 0 && (dser->cursor[sz-1] == 0)) {
        *value = ddsrt_strdup((char *)dser->cursor);
-       /* Consider padding */
-       sz = alignup_size(sz, sizeof(uint32_t));
        dser->cursor += sz;
        dser->remain -= sz;
     } else {
@@ -596,12 +593,10 @@ DDS_Security_Deserialize_OctetSeq(
     }
 
     if (seq->_length > 0) {
-        /* Consider padding */
-        size_t a_size = alignup_size(seq->_length, sizeof(uint32_t));
         seq->_buffer = ddsrt_malloc(seq->_length);
         memcpy(seq->_buffer, dser->cursor, seq->_length);
-        dser->cursor += a_size;
-        dser->remain -= a_size;
+        dser->cursor += seq->_length;
+        dser->remain -= seq->_length;
     } else {
         seq->_buffer = NULL;
     }
@@ -752,10 +747,13 @@ DDS_Security_Deserialize_ParticipantBuiltinTopicData(
         DDS_Security_Deserialize_align(dser, 4);
         r = DDS_Security_Deserialize_uint16(dser, &pid) &&
             DDS_Security_Deserialize_uint16(dser, &len);
-
-        if (r && (len <= dser->remain)) {
-            const unsigned char *next_cursor = dser->cursor + len;
-
+        if (!r) {
+            DDS_Security_Exception_set(ex, "Deserialization", DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED,
+                  "Deserialize parameter header failed");
+        } else if (len > dser->remain) {
+            DDS_Security_Exception_set(ex, "Deserialization", DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED,
+                  "Deserialize parameter failed: payload too long for buffer");
+        } else {
             switch (pid) {
             case PID_PARTICIPANT_GUID:
                 r = DDS_Security_Deserialize_BuiltinTopicKey(dser, pdata->key);
@@ -783,25 +781,12 @@ DDS_Security_Deserialize_ParticipantBuiltinTopicData(
                 dser->remain -= len;
                 break;
             }
-
-            if (r) {
-                if (dser->cursor != next_cursor) {
-                    DDS_Security_Exception_set(ex, "Deserialization", DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED,
-                            "Deserialize PID 0x%x failed: internal_size %d != external_size %d", pid, (int)len + (int)(dser->cursor - next_cursor), (int)len);
-                    r = 0;
-                }
-            } else {
+            if (!r) {
                 DDS_Security_Exception_set(ex, "Deserialization", DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED,
                         "Deserialize PID 0x%x failed: parsing failed", pid);
             }
-        } else {
-            if (!r) {
-                DDS_Security_Exception_set(ex, "Deserialization", DDS_SECURITY_ERR_UNDEFINED_CODE, DDS_SECURITY_VALIDATION_FAILED,
-                        "Deserialize parameter header failed");
-            }
         }
     } while (r && !ready && dser->remain > 0);
-
     return ready;
 }
 
