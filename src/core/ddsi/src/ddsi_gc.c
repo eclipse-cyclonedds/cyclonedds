@@ -103,7 +103,6 @@ static uint32_t gcreq_queue_thread (struct ddsi_gcreq_queue *q)
 {
   struct ddsi_thread_state * const thrst = ddsi_lookup_thread_state ();
   ddsrt_mtime_t next_thread_cputime = { 0 };
-  ddsrt_mtime_t t_ddsi_trigger_recv_threads = { 0 };
   int64_t shortsleep = DDS_MSECS (1);
   int64_t delay = DDS_MSECS (1); /* force evaluation after startup */
   struct ddsi_gcreq *gcreq = NULL;
@@ -112,19 +111,6 @@ static uint32_t gcreq_queue_thread (struct ddsi_gcreq_queue *q)
   while (!(q->terminate && q->count == 0))
   {
     LOG_THREAD_CPUTIME (&q->gv->logconfig, next_thread_cputime);
-
-    /* While deaf, we need to make sure the receive thread wakes up
-       every now and then to try recreating sockets & rejoining multicast
-       groups.  Do rate-limit it a bit. */
-    if (q->gv->deaf)
-    {
-      ddsrt_mtime_t tnow_mt = ddsrt_time_monotonic ();
-      if (tnow_mt.v > t_ddsi_trigger_recv_threads.v)
-      {
-        ddsi_trigger_recv_threads (q->gv);
-        t_ddsi_trigger_recv_threads.v = tnow_mt.v + DDS_MSECS (100);
-      }
-    }
 
     /* If we are waiting for a gcreq to become ready, don't bother
        looking at the queue; if we aren't, wait for a request to come
