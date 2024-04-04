@@ -81,6 +81,7 @@ if(ENABLE_SSL AND OPENSSL_FOUND)
     "builtintopic.c"
     "config.c"
     "crypto.c"
+    "deserialize.c"
     "handshake.c"
     "plugin_loading.c"
     "secure_communication.c"
