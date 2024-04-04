@@ -257,6 +257,19 @@ extern const dds_topic_descriptor_t DurableSupport_bead_desc;
 #define DurableSupport_bead_free(d,o) \
 dds_sample_free ((d), &DurableSupport_bead_desc, (o))
 
+typedef struct DurableSupport_control
+{
+  DurableSupport_id_t id;
+} DurableSupport_control;
+
+extern const dds_topic_descriptor_t DurableSupport_control_desc;
+
+#define DurableSupport_control__alloc() \
+((DurableSupport_control*) dds_alloc (sizeof (DurableSupport_control)));
+
+#define DurableSupport_control_free(d,o) \
+dds_sample_free ((d), &DurableSupport_control_desc, (o))
+
 typedef int64_t DurableSupport_duration_t;
 
 #define DurableSupport_duration_t__alloc() \
