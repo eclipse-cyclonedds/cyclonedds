@@ -1579,6 +1579,18 @@ static bool stream_is_member_present (uint32_t insn, dds_istream_t * __restrict 
   return !op_type_optional (insn) || is_mutable_member || dds_is_get1 (is);
 }
 
+static const uint32_t *initialize_and_skip_sequence (dds_sequence_t *seq, uint32_t insn, const uint32_t * __restrict ops, enum sample_data_state sample_state)
+{
+  if (sample_state == SAMPLE_DATA_UNINITIALIZED)
+  {
+    seq->_buffer = NULL;
+    seq->_maximum = 0;
+    seq->_release = true;
+  }
+  seq->_length = 0;
+  return skip_sequence_insns (insn, ops);
+}
+
 static const uint32_t *dds_stream_read_seq (dds_istream_t * __restrict is, char * __restrict addr, const struct dds_cdrstream_allocator * __restrict allocator, const uint32_t * __restrict ops, uint32_t insn, enum cdr_data_kind cdr_kind, enum sample_data_state sample_state)
 {
   dds_sequence_t * const seq = (dds_sequence_t *) addr;
@@ -1592,16 +1604,7 @@ static const uint32_t *dds_stream_read_seq (dds_istream_t * __restrict is, char 
 
   const uint32_t num = dds_is_get4 (is);
   if (num == 0)
-  {
-    if (sample_state == SAMPLE_DATA_UNINITIALIZED)
-    {
-      seq->_buffer = NULL;
-      seq->_maximum = 0;
-      seq->_release = true;
-    }
-    seq->_length = 0;
-    return skip_sequence_insns (insn, ops);
-  }
+    return initialize_and_skip_sequence (seq, insn, ops, sample_state);
 
   switch (subtype)
   {
@@ -1954,8 +1957,7 @@ static const uint32_t *dds_stream_skip_adr_default (uint32_t insn, char * __rest
       return ops + 4;
     case DDS_OP_VAL_SEQ: case DDS_OP_VAL_BSQ: {
       dds_sequence_t * const seq = (dds_sequence_t *) addr;
-      seq->_length = 0;
-      return skip_sequence_insns (insn, ops);
+      return initialize_and_skip_sequence (seq, insn, ops, sample_state);
     }
     case DDS_OP_VAL_ARR: {
       return skip_array_default (insn, addr, allocator, ops, sample_state);

@@ -180,8 +180,20 @@ static void print_sample1_to (const unsigned char *sample, const DDS_XTypes_Comp
       for (uint32_t i = 0; i < t->member_seq._length; i++)
       {
         const DDS_XTypes_CompleteStructMember *m = &t->member_seq._buffer[i];
-        c1.key = c->key && m->common.member_flags & DDS_XTypes_IS_KEY;
-        print_sample1_ti (p, &m->common.member_type_id, &c1, sep, *m->detail.name ? m->detail.name : NULL, false);
+        if (m->common.member_flags & DDS_XTypes_IS_OPTIONAL) {
+          void const * const *p1 = (const void *) align (p, &c1, _Alignof (void *), sizeof (void *));
+          if (*p1 == NULL) {
+            printf ("%s", sep);
+            if (*m->detail.name) printf ("\"%s\":", m->detail.name);
+            printf ("(nothing)");
+          } else {
+            struct context c2 = { .valid_data = c->valid_data, .key = false, .offset = 0, .maxalign = 1 };
+            print_sample1_ti (*p1, &m->common.member_type_id, &c2, sep, *m->detail.name ? m->detail.name : NULL, false);
+          }
+        } else {
+          c1.key = c->key && m->common.member_flags & DDS_XTypes_IS_KEY;
+          print_sample1_ti (p, &m->common.member_type_id, &c1, sep, *m->detail.name ? m->detail.name : NULL, false);
+        }
         sep = ",";
       }
       if (!is_base_type) printf ("}");

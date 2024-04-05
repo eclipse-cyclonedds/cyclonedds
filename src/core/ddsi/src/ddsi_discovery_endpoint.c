@@ -44,12 +44,8 @@ struct add_locator_to_ps_arg {
 static void add_locator_to_ps (const ddsi_locator_t *loc, void *varg)
 {
   struct add_locator_to_ps_arg *arg = varg;
-  struct ddsi_locators_one *elem = ddsrt_malloc (sizeof (struct ddsi_locators_one));
   struct ddsi_locators *locs;
   unsigned present_flag;
-
-  elem->loc = *loc;
-  elem->next = NULL;
 
   if (ddsi_is_mcaddr (arg->gv, loc)) {
     locs = &arg->ps->multicast_locators;
@@ -65,12 +61,27 @@ static void add_locator_to_ps (const ddsi_locator_t *loc, void *varg)
     locs->first = locs->last = NULL;
     arg->ps->present |= present_flag;
   }
-  locs->n++;
-  if (locs->first)
-    locs->last->next = elem;
-  else
-    locs->first = elem;
-  locs->last = elem;
+
+  // We may come here because of a set of xlocators in which the same locator
+  // appears twice, so dedup.  There's no harm in initializing the locator set
+  // in the parameter list, because we'll always add this if there was no list
+  // yet.
+  bool isnew = true;
+  for (const struct ddsi_locators_one *x = locs->first; x && isnew; x = x->next)
+    if (ddsi_compare_locators (&x->loc, loc) == 0)
+      isnew = false;
+  if (isnew)
+  {
+    struct ddsi_locators_one *elem = ddsrt_malloc (sizeof (struct ddsi_locators_one));
+    elem->loc = *loc;
+    elem->next = NULL;
+    locs->n++;
+    if (locs->first)
+      locs->last->next = elem;
+    else
+      locs->first = elem;
+    locs->last = elem;
+  }
 }
 
 static void add_xlocator_to_ps (const ddsi_xlocator_t *loc, void *varg)
@@ -389,19 +400,15 @@ static void addrset_from_locatorlists_collect_interfaces (const ddsi_xlocator_t 
   }
 }
 
-struct ddsi_addrset *ddsi_get_endpoint_addrset (const struct ddsi_domaingv *gv, const ddsi_plist_t *datap, struct ddsi_addrset *proxypp_as_default, const ddsi_locator_t *rst_srcloc)
+struct ddsi_addrset *ddsi_get_endpoint_addrset (const struct ddsi_domaingv *gv, const ddsi_plist_t *datap, struct ddsi_addrset *proxypp_as_default, const struct ddsi_network_packet_info *pktinfo, bool allow_srcloc, bool force_srcloc)
 {
   const ddsi_locators_t emptyset = { .n = 0, .first = NULL, .last = NULL };
   const ddsi_locators_t *uc = (datap->present & PP_UNICAST_LOCATOR) ? &datap->unicast_locators : &emptyset;
   const ddsi_locators_t *mc = (datap->present & PP_MULTICAST_LOCATOR) ? &datap->multicast_locators : &emptyset;
-  ddsi_locator_t srcloc;
-  if (rst_srcloc == NULL)
-    ddsi_set_unspec_locator (&srcloc);
-  else // force use of source locator
-  {
+  assert (!allow_srcloc || !ddsi_is_unspec_locator (&pktinfo->src));
+  assert (!force_srcloc || allow_srcloc);
+  if (force_srcloc)
     uc = &emptyset;
-    srcloc = *rst_srcloc;
-  }
 
   // any interface that works for the participant is presumed ok
   ddsi_interface_set_t intfs;
@@ -410,7 +417,7 @@ struct ddsi_addrset *ddsi_get_endpoint_addrset (const struct ddsi_domaingv *gv, 
     .gv = gv, .intfs = &intfs
   });
   //GVTRACE(" {%d%d%d%d}", intfs.xs[0], intfs.xs[1], intfs.xs[2], intfs.xs[3]);
-  struct ddsi_addrset *as = ddsi_addrset_from_locatorlists (gv, uc, mc, &srcloc, &intfs);
+  struct ddsi_addrset *as = ddsi_addrset_from_locatorlists (gv, uc, mc, pktinfo, allow_srcloc, &intfs);
   // if SEDP gives:
   // - no addresses, use ppant uni- and multicast addresses
   // - only multicast, use those for multicast and use ppant address for unicast
@@ -511,8 +518,11 @@ void ddsi_handle_sedp_alive_endpoint (const struct ddsi_receiver_state *rst, dds
     GVLOGDISC (" NEW");
   }
 
-  as = ddsi_get_endpoint_addrset (gv, datap, proxypp->as_default, gv->config.tcp_use_peeraddr_for_unicast ? &rst->srcloc : NULL);
-  ddsi_log_addrset (gv, DDS_LC_DISCOVERY, " (as", as);
+  // allow, force this way: original behaviour; allow_srcloc = true means SEDP quite quickly ends up using it
+  // in favour of inheriting addresses from participant
+  const bool allow_srcloc = gv->config.tcp_use_peeraddr_for_unicast && !ddsi_is_unspec_locator (&rst->pktinfo.src);
+  const bool force_srcloc = allow_srcloc;
+  as = ddsi_get_endpoint_addrset (gv, datap, proxypp->as_default, &rst->pktinfo, allow_srcloc, force_srcloc);
   if (ddsi_addrset_empty (as) || !ddsi_addrset_contains_non_psmx_uc (as))
   {
     ddsi_unref_addrset (as);

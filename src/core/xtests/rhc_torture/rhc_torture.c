@@ -145,7 +145,8 @@ static uint64_t store (struct ddsi_tkmap *tkmap, struct dds_rhc *rhc, struct dds
     char si_d = (sd->statusinfo & DDSI_STATUSINFO_DISPOSE) ? 'D' : '.';
     char si_u = (sd->statusinfo & DDSI_STATUSINFO_UNREGISTER) ? 'U' : '.';
     memset (&d, 0, sizeof (d));
-    ddsi_serdata_to_sample (sd, &d, NULL, NULL);
+    if (!ddsi_serdata_to_sample (sd, &d, NULL, NULL))
+      abort ();
     (void) print_tstamp (buf, sizeof (buf), sd->timestamp.v);
     if (sd->kind == SDK_KEY)
       printf ("STORE %c%c %16"PRIx64" %16"PRIx64" %2"PRId32" %6s %s\n", si_u, si_d, iid, wr->e.iid, d.k, "_", buf);
@@ -651,7 +652,7 @@ static void test_conditions (dds_entity_t pp, dds_entity_t tp, const int count, 
           if (conds[ci] <= 0) abort ();
           rhcconds[ci] = get_condaddr (conds[ci]);
           if (print) {
-            char buf[18];
+            char buf[19];
             snprintf (buf, sizeof (buf), "conds[%d]", ci);
             print_cond_w_addr (buf, conds[ci]);
           }

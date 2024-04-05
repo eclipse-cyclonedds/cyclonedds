@@ -160,6 +160,23 @@ static void proxy_endpoint_common_fini (struct ddsi_entity_common *e, struct dds
   ddsi_entity_common_fini (e);
 }
 
+#ifdef DDS_HAS_SSM
+static void addrset_interfaces_allow_ssm_helper (const ddsi_xlocator_t *xloc, void *vssm_allowed)
+{
+  bool *ssm_allowed = vssm_allowed;
+  if (xloc->conn->m_interf->allow_multicast & DDSI_AMC_SSM)
+    *ssm_allowed = true;
+}
+
+static bool addrset_interfaces_allow_ssm (struct ddsi_addrset *as)
+{
+  // FIXME: const variant of addrset_forall would be nice here
+  bool ssm_allowed = false;
+  ddsi_addrset_forall (as, addrset_interfaces_allow_ssm_helper, &ssm_allowed);
+  return ssm_allowed;
+}
+#endif
+
 #ifdef DDS_HAS_TYPELIB
 bool ddsi_is_proxy_endpoint (const struct ddsi_entity_common *e)
 {
@@ -263,7 +280,7 @@ int ddsi_new_proxy_writer (struct ddsi_domaingv *gv, const struct ddsi_guid *ppg
   pwr->have_seen_heartbeat = !isreliable;
   pwr->local_matching_inprogress = 1;
 #ifdef DDS_HAS_SSM
-  pwr->supports_ssm = (ddsi_addrset_contains_ssm (gv, as) && gv->config.allowMulticast & DDSI_AMC_SSM) ? 1 : 0;
+  pwr->supports_ssm = (ddsi_addrset_contains_ssm (gv, as) && addrset_interfaces_allow_ssm (as)) ? 1 : 0;
 #endif
   pwr->local_psmx = proxy_is_local_psmx(gv, as);
   if (plist->present & PP_CYCLONE_REDUNDANT_NETWORKING)
@@ -350,7 +367,7 @@ void ddsi_update_proxy_writer (struct ddsi_proxy_writer *pwr, ddsi_seqno_t seq, 
     if (! ddsi_addrset_eq_onesidederr (pwr->c.as, as))
     {
 #ifdef DDS_HAS_SSM
-      pwr->supports_ssm = (ddsi_addrset_contains_ssm (pwr->e.gv, as) && pwr->e.gv->config.allowMulticast & DDSI_AMC_SSM) ? 1 : 0;
+      pwr->supports_ssm = (ddsi_addrset_contains_ssm (pwr->e.gv, as) && addrset_interfaces_allow_ssm (as)) ? 1 : 0;
 #endif
       ddsi_unref_addrset (pwr->c.as);
       ddsi_ref_addrset (as);
@@ -581,7 +598,7 @@ int ddsi_new_proxy_reader (struct ddsi_domaingv *gv, const struct ddsi_guid *ppg
 
   prd->deleting = 0;
 #ifdef DDS_HAS_SSM
-  prd->favours_ssm = (favours_ssm && gv->config.allowMulticast & DDSI_AMC_SSM) ? 1 : 0;
+  prd->favours_ssm = (favours_ssm && addrset_interfaces_allow_ssm (as)) ? 1 : 0;
 #endif
   prd->local_psmx = proxy_is_local_psmx (gv, as);
   prd->is_fict_trans_reader = 0;

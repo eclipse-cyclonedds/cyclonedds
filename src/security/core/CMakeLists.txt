@@ -45,7 +45,7 @@ target_include_directories(security_core
         "$<BUILD_INTERFACE:$<TARGET_PROPERTY:ddsc,INTERFACE_INCLUDE_DIRECTORIES>>"
 )
 
-if(BUILD_TESTING AND BUILD_IDLC)
+if(BUILD_TESTING)
   add_subdirectory(tests)
 endif()
 

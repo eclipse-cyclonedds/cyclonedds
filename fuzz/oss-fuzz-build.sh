@@ -12,6 +12,7 @@
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
 
+source fuzz/fuzz_sample_deser/prepare.sh
 (
 mkdir build
 cd build

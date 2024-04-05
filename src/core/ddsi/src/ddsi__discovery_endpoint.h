@@ -30,10 +30,11 @@ struct ddsi_xevent;
 struct ddsi_xpack;
 struct ddsi_domaingv;
 struct ddsi_receiver_state;
+struct ddsi_network_packet_info;
 
 /** @component discovery */
-struct ddsi_addrset *ddsi_get_endpoint_addrset (const struct ddsi_domaingv *gv, const ddsi_plist_t *datap, struct ddsi_addrset *proxypp_as_default, const ddsi_locator_t *rst_srcloc)
-  ddsrt_attribute_warn_unused_result ddsrt_nonnull((1,2,3));
+struct ddsi_addrset *ddsi_get_endpoint_addrset (const struct ddsi_domaingv *gv, const ddsi_plist_t *datap, struct ddsi_addrset *proxypp_as_default, const struct ddsi_network_packet_info *pktinfo, bool allow_srcloc, bool force_srcloc)
+  ddsrt_attribute_warn_unused_result ddsrt_nonnull_all;
 
 /** @component discovery */
 int ddsi_sedp_write_writer (struct ddsi_writer *wr) ddsrt_nonnull_all;

@@ -13,32 +13,13 @@
 
 #include "dds/security/dds_security_api_types.h"
 
-/* There's OpenSSL 1.1.x and there's OpenSSL 1.0.2 and the difference is like
-   night and day: 1.1.0 deprecated all the initialization and cleanup routines
-   and so any library can link with OpenSSL and use it safely without breaking
-   the application code or some other library in the same process.
-
-   OpenSSL 1.0.2h deprecated the cleanup functions such as EVP_cleanup because
-   calling the initialisation functions multiple times was survivable, but an
-   premature invocation of the cleanup functions deadly. It still has the per-
-   thread error state that one ought to clean up, but that firstly requires
-   keeping track of which threads make OpenSSL calls, and secondly we do
-   perform OpenSSL calls on the applications main-thread and so cleaning up
-   might interfere with the application code.
-
-   Compatibility with 1.0.2 exists merely as a courtesy to those who insist on
-   using it with that problematic piece of code. We only initialise it, and we
-   don't clean up thread state. If Cyclone DDS is the only part of the process
-   that uses OpenSSL, it should be ok (just some some minor leaks at the end),
-   if the application code or another library also uses it, it'll probably be
-   fine too. */
-
 #ifdef _WIN32
 /* WinSock2 must be included before openssl 1.0.2 headers otherwise winsock will be used */
 #include <WinSock2.h>
 #endif
 
-#define OPENSSL_API_COMPAT 10101
+/* Setting this macro to 30000 specifies that the code will be compatible with openssl version 3 and lower like version 1.1 */
+#define OPENSSL_API_COMPAT 30000
 
 #include <openssl/opensslv.h>
 #include <openssl/opensslconf.h>
@@ -46,16 +27,10 @@
 #include <openssl/bio.h>
 #include <openssl/conf.h>
 
-#if OPENSSL_VERSION_NUMBER >= 0x1000200fL
-#define AUTH_INCLUDE_EC
 #include <openssl/ec.h>
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
-#define AUTH_INCLUDE_DH_ACCESSORS
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+#include <openssl/core_names.h>
 #endif
-#else
-#error "OpenSSL version is not supported"
-#endif
-
 #include <openssl/err.h>
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
@@ -68,12 +43,6 @@
 #include <openssl/x509_vfy.h>
 
 void dds_openssl_init (void);
-
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-/* 1.1.0 has it as a supported API. 1.0.2 has it in practice and since that has been
-   obsolete for ages, chances are that we can safely use it */
-struct tm *OPENSSL_gmtime(const time_t *timer, struct tm *result);
-#endif
 
 void DDS_Security_Exception_set_with_openssl_error (DDS_Security_SecurityException *ex, const char *context, int code, int minor_code, const char *error_area)
   ddsrt_nonnull_all;

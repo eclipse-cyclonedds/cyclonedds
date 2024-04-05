@@ -67,6 +67,7 @@ enum ddsi_shm_loglevel {
 
 #define DDSI_PARTICIPANT_INDEX_AUTO -1
 #define DDSI_PARTICIPANT_INDEX_NONE -2
+#define DDSI_PARTICIPANT_INDEX_DEFAULT -3
 
 /* ddsi_config_listelem must be an overlay for all used listelem types */
 struct ddsi_config_listelem {
@@ -204,7 +205,7 @@ struct ddsi_config_omg_security_listelem {
 };
 #endif /* DDS_HAS_SECURITY */
 
-#ifdef DDS_HAS_SSL
+#ifdef DDS_HAS_TCP_TLS
 struct ddsi_config_ssl_min_version {
   int major;
   int minor;
@@ -223,6 +224,7 @@ struct ddsi_config_network_interface {
   int presence_required;
   enum ddsi_boolean_default multicast;
   struct ddsi_config_maybe_int32 priority;
+  uint32_t allow_multicast; // no need for a "maybe" type: DDSI_AMC_DEFAULT takes care of that
 };
 
 struct ddsi_config_network_interface_listelem {
@@ -338,7 +340,7 @@ struct ddsi_config
   int64_t tcp_write_timeout;
   int tcp_use_peeraddr_for_unicast;
 
-#ifdef DDS_HAS_SSL
+#ifdef DDS_HAS_TCP_TLS
   /* SSL support for TCP */
   int ssl_enable;
   int ssl_verify;
@@ -357,6 +359,7 @@ struct ddsi_config
   struct ddsi_config_ignoredpartition_listelem *ignoredPartitions;
   struct ddsi_config_partitionmapping_listelem *partitionMappings;
 #endif /* DDS_HAS_NETWORK_PARTITIONS */
+  enum ddsi_boolean_default add_localhost_to_peers;
   struct ddsi_config_peer_listelem *peers;
   struct ddsi_config_thread_properties_listelem *thread_properties;
 
@@ -366,7 +369,6 @@ struct ddsi_config
   uint32_t rbuf_size;                /* << size of a single receiver buffer */
   enum ddsi_besmode besmode;
   int meas_hb_to_ack_latency;
-  int unicast_response_to_spdp_messages;
   int synchronous_delivery_priority_threshold;
   int64_t synchronous_delivery_latency_bound;
 
@@ -398,6 +400,7 @@ struct ddsi_config
   int retry_on_reject_besteffort;
   int generate_keyhash;
   uint32_t max_sample_size;
+  bool extended_packet_info;
 
   /* compability options */
   enum ddsi_standards_conformance standards_conformance;

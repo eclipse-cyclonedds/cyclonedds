@@ -36,7 +36,14 @@
 
 static void maybe_add_pp_as_meta_to_as_disc (struct ddsi_domaingv *gv, const struct ddsi_addrset *as_meta)
 {
-  if (ddsi_addrset_empty_mc (as_meta) || !(gv->config.allowMulticast & DDSI_AMC_SPDP))
+  // FIXME: this is mostly equivalent to the pre-per-interface "allow_multicast" setting, but we can do much better
+  // because we know the interface on which received it, whether it was a multicast, and, for Cyclone peers, whether
+  // it was spontaneous or in response to one we sent
+  bool allow_mc_spdp = false;
+  for (int i = 0; i < gv->n_interfaces && !allow_mc_spdp; i++)
+    if (gv->interfaces[i].allow_multicast & DDSI_AMC_SPDP)
+      allow_mc_spdp = true;
+  if (ddsi_addrset_empty_mc (as_meta) || !allow_mc_spdp)
   {
     ddsi_xlocator_t loc;
     ddsi_addrset_any_uc (as_meta, &loc);
@@ -479,17 +486,11 @@ static void respond_to_spdp (const struct ddsi_domaingv *gv, const ddsi_guid_t *
     int64_t delay = (int64_t) delay_norm * delay_max_ms / 1000;
     ddsrt_mtime_t tsched = ddsrt_mtime_add_duration (tnow, delay);
     GVTRACE (" %"PRId64, delay);
-    if (!pp->e.gv->config.unicast_response_to_spdp_messages)
-      /* pp can't reach gc_delete_participant => can safely reschedule */
-      (void) ddsi_resched_xevent_if_earlier (pp->spdp_xevent, tsched);
-    else
-    {
-      struct ddsi_spdp_directed_xevent_cb_arg arg = {
-        .pp_guid = pp->e.guid,
-        .nrepeats = 4, .dest_proxypp_guid_prefix = dest_proxypp_guid->prefix
-      };
-      ddsi_qxev_callback (gv->xevents, tsched, ddsi_spdp_directed_xevent_cb, &arg, sizeof (arg), false);
-    }
+    struct ddsi_spdp_directed_xevent_cb_arg arg = {
+      .pp_guid = pp->e.guid,
+      .nrepeats = 4, .dest_proxypp_guid_prefix = dest_proxypp_guid->prefix
+    };
+    ddsi_qxev_callback (gv->xevents, tsched, ddsi_spdp_directed_xevent_cb, &arg, sizeof (arg), false);
   }
   ddsi_entidx_enum_participant_fini (&est);
 }
@@ -579,6 +580,53 @@ static void make_participants_dependent_on_ddsi2 (struct ddsi_domaingv *gv, cons
   }
 }
 
+enum find_internal_interface_index_result {
+  FIIIR_NO_INFO,
+  FIIIR_NO_MATCH,
+  FIIIR_MATCH
+};
+
+static enum find_internal_interface_index_result find_internal_interface_index (const struct ddsi_domaingv *gv, uint32_t nwstack_if_index, int *internal_if_index) ddsrt_nonnull_all;
+
+static enum find_internal_interface_index_result find_internal_interface_index (const struct ddsi_domaingv *gv, uint32_t nwstack_if_index, int *internal_if_index)
+{
+  if (nwstack_if_index == 0)
+    return FIIIR_NO_INFO;
+  for (int i = 0; i < gv->n_interfaces; i++)
+  {
+    if (gv->interfaces[i].if_index == nwstack_if_index)
+    {
+      *internal_if_index = i;
+      return FIIIR_MATCH;
+    }
+  }
+  return FIIIR_NO_MATCH;
+}
+
+static bool accept_packet_from_interface (const struct ddsi_domaingv *gv, const struct ddsi_receiver_state *rst)
+{
+  int internal_if_index;
+  switch (find_internal_interface_index (gv, rst->pktinfo.if_index, &internal_if_index))
+  {
+    case FIIIR_NO_MATCH:
+      // Don't accept SPDP packets received on a interface outside the enabled ones
+      break;
+    case FIIIR_MATCH:
+      // Accept all unicast packets (except those manifestly received over an interface we are not using)
+      // and multicast packets if we chose to do multicast discovery on the interface over we received it
+      if (!ddsi_is_mcaddr (gv, &rst->pktinfo.dst) || gv->interfaces[internal_if_index].allow_multicast & DDSI_AMC_SPDP)
+        return true;
+      break;
+    case FIIIR_NO_INFO:
+      // We could try to match the source address with an interface. Perhaps the destination address
+      // is available even though the interface index is not, allowing some tricks.  On Linux, Windows
+      // and macOS this shouldn't happen, so rather than complicate things unnecessarily, just accept
+      // the packet like we always used to do.
+      return true;
+  }
+  return false;
+}
+
 static int handle_spdp_alive (const struct ddsi_receiver_state *rst, ddsi_seqno_t seq, ddsrt_wctime_t timestamp, const ddsi_plist_t *datap)
 {
   struct ddsi_domaingv * const gv = rst->gv;
@@ -591,6 +639,13 @@ static int handle_spdp_alive (const struct ddsi_receiver_state *rst, ddsi_seqno_
   dds_duration_t lease_duration;
   unsigned custom_flags = 0;
 
+  // Don't just process any SPDP packet but look at the network interface and uni/multicast
+  // One could refine this even further by also looking at the locators advertised in the
+  // packet, but this should suffice to drop unwanted multicast packets, which is the only
+  // use case I am currently aware of.
+  if (!accept_packet_from_interface (gv, rst))
+    return 0;
+
   /* If advertised domain id or domain tag doesn't match, ignore the message.  Do this first to
      minimize the impact such messages have. */
   {
@@ -602,7 +657,7 @@ static int handle_spdp_alive (const struct ddsi_receiver_state *rst, ddsi_seqno_
       return 0;
     }
   }
-
+  
   if (!(datap->present & PP_PARTICIPANT_GUID) || !(datap->present & PP_BUILTIN_ENDPOINT_SET))
   {
     GVWARNING ("data (SPDP, vendor %u.%u): no/invalid payload\n", rst->vendor.id[0], rst->vendor.id[1]);
@@ -753,29 +808,24 @@ static int handle_spdp_alive (const struct ddsi_receiver_state *rst, ddsi_seqno_
     const ddsi_locators_t emptyset = { .n = 0, .first = NULL, .last = NULL };
     const ddsi_locators_t *uc;
     const ddsi_locators_t *mc;
-    ddsi_locator_t srcloc;
-    ddsi_interface_set_t intfs;
+    bool allow_srcloc;
+    ddsi_interface_set_t inherited_intfs;
 
-    srcloc = rst->srcloc;
     uc = (datap->present & PP_DEFAULT_UNICAST_LOCATOR) ? &datap->default_unicast_locators : &emptyset;
     mc = (datap->present & PP_DEFAULT_MULTICAST_LOCATOR) ? &datap->default_multicast_locators : &emptyset;
     if (gv->config.tcp_use_peeraddr_for_unicast)
       uc = &emptyset; // force use of source locator
-    else if (uc != &emptyset)
-      ddsi_set_unspec_locator (&srcloc); // can't always use the source address
+    allow_srcloc = (uc == &emptyset) && !ddsi_is_unspec_locator (&rst->pktinfo.src);
+    ddsi_interface_set_init (&inherited_intfs);
+    as_default = ddsi_addrset_from_locatorlists (gv, uc, mc, &rst->pktinfo, allow_srcloc, &inherited_intfs);
 
-    ddsi_interface_set_init (&intfs);
-    as_default = ddsi_addrset_from_locatorlists (gv, uc, mc, &srcloc, &intfs);
-
-    srcloc = rst->srcloc;
     uc = (datap->present & PP_METATRAFFIC_UNICAST_LOCATOR) ? &datap->metatraffic_unicast_locators : &emptyset;
     mc = (datap->present & PP_METATRAFFIC_MULTICAST_LOCATOR) ? &datap->metatraffic_multicast_locators : &emptyset;
     if (gv->config.tcp_use_peeraddr_for_unicast)
       uc = &emptyset; // force use of source locator
-    else if (uc != &emptyset)
-      ddsi_set_unspec_locator (&srcloc); // can't always use the source address
-    ddsi_interface_set_init (&intfs);
-    as_meta = ddsi_addrset_from_locatorlists (gv, uc, mc, &srcloc, &intfs);
+    allow_srcloc = (uc == &emptyset) && !ddsi_is_unspec_locator (&rst->pktinfo.src);
+    ddsi_interface_set_init (&inherited_intfs);
+    as_meta = ddsi_addrset_from_locatorlists (gv, uc, mc, &rst->pktinfo, allow_srcloc, &inherited_intfs);
 
     ddsi_log_addrset (gv, DDS_LC_DISCOVERY, " (data", as_default);
     ddsi_log_addrset (gv, DDS_LC_DISCOVERY, " meta", as_meta);

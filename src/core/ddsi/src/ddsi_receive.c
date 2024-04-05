@@ -2793,16 +2793,19 @@ static const char *submsg_name (ddsi_rtps_submessage_kind_t id, struct submsg_na
   return buffer->x;
 }
 
-static void malformed_packet_received (const struct ddsi_domaingv *gv, const unsigned char *msg, const unsigned char *submsg, size_t len, ddsi_vendorid_t vendorid)
+static void malformed_packet_received_shortmsg (const struct ddsi_domaingv *gv, const unsigned char *msg, const unsigned char *submsg, size_t len, ddsi_vendorid_t vendorid)
 {
   char tmp[1024];
   size_t i, pos, smsize;
-
+  
   struct submsg_name submsg_name_buffer;
   ddsi_rtps_submessage_kind_t smkind;
   const char *state0;
   const char *state1;
-  if (submsg == NULL || (submsg < msg || submsg >= msg + len)) {
+  // can safely subtract the two pointers after casting to uintptr_t, on all practical platforms
+  // this'll just give us a useful offset as long as submsg isn't a null pointer
+  const intptr_t offset = (intptr_t) ((uintptr_t) submsg - (uintptr_t) msg);
+  if (submsg == NULL || (submsg < msg || submsg > msg + len)) {
     // outside buffer shouldn't happen, but this is for dealing with junk, so better be careful
     smkind = DDSI_RTPS_SMID_PAD;
     state0 = "";
@@ -2818,19 +2821,20 @@ static void malformed_packet_received (const struct ddsi_domaingv *gv, const uns
     state1 = submsg_name (smkind, &submsg_name_buffer);
   }
   assert (submsg >= msg && submsg <= msg + len);
-
+  const size_t clamped_offset = (offset < 0) ? 0 : ((size_t) offset > len) ? len : (size_t) offset;
+  
   /* Show beginning of message and of submessage (as hex dumps) */
-  pos = (size_t) snprintf (tmp, sizeof (tmp), "malformed packet received from vendor %u.%u state %s%s <", vendorid.id[0], vendorid.id[1], state0, state1);
-  for (i = 0; i < 32 && i < len && msg + i < submsg && pos < sizeof (tmp); i++)
+  pos = (size_t) snprintf (tmp, sizeof (tmp), "malformed packet received from vendor %u.%u length %" PRIuSIZE " state %s%s <", vendorid.id[0], vendorid.id[1], len, state0, state1);
+  for (i = 0; i < 32 && i < len && i < clamped_offset && pos < sizeof (tmp); i++)
     pos += (size_t) snprintf (tmp + pos, sizeof (tmp) - pos, "%s%02x", (i > 0 && (i%4) == 0) ? " " : "", msg[i]);
   if (pos < sizeof (tmp))
-    pos += (size_t) snprintf (tmp + pos, sizeof (tmp) - pos, " @0x%x ", (int) (submsg - msg));
-  for (i = 0; i < 64 && i < len - (size_t) (submsg - msg) && pos < sizeof (tmp); i++)
-    pos += (size_t) snprintf (tmp + pos, sizeof (tmp) - pos, "%s%02x", (i > 0 && (i%4) == 0) ? " " : "", submsg[i]);
+    pos += (size_t) snprintf (tmp + pos, sizeof (tmp) - pos, " @%" PRIdPTR " ", offset);
+  for (i = 0; i < 64 && i < len - clamped_offset && pos < sizeof (tmp); i++)
+    pos += (size_t) snprintf (tmp + pos, sizeof (tmp) - pos, "%s%02x", (i > 0 && (i%4) == 0) ? " " : "", msg[clamped_offset + i]);
   if (pos < sizeof (tmp))
     pos += (size_t) snprintf (tmp + pos, sizeof (tmp) - pos, "> (note: maybe partially bswap'd)");
   assert (pos < (int) sizeof (tmp));
-
+  
   /* Partially decode header if we have enough bytes available */
   smsize = len - (size_t) (submsg - msg);
   if (smsize >= DDSI_RTPS_SUBMESSAGE_HEADER_SIZE && pos < sizeof (tmp)) {
@@ -2902,6 +2906,44 @@ static void malformed_packet_received (const struct ddsi_domaingv *gv, const uns
   GVWARNING ("%s\n", tmp);
 }
 
+static void malformed_packet_received_fulldump (const struct ddsi_domaingv *gv, const unsigned char *msg, const unsigned char *submsg, size_t len, ddsi_vendorid_t vendorid, uint32_t logmask)
+{
+  GVLOG (logmask, "malformed packet: vendor %u.%u msg %p submsg %p length %" PRIuSIZE " contents:\n", vendorid.id[0], vendorid.id[1], (void *) msg, (void *) submsg, len);
+  for (size_t off16 = 0; off16 < len; off16 += 16)
+  {
+    GVLOG (logmask, "%c%04" PRIxSIZE " ", (msg + off16 <= submsg && (size_t) (submsg - (msg + off16)) < 16) ? '*' : ' ', off16);
+    char sep = ' ';
+    size_t off1;
+    for (off1 = 0; off1 < 16 && off16 + off1 < len; off1++) {
+      if (msg + off16 + off1 == submsg)
+        sep = '[';
+      else if (sep == '[')
+        sep = ']';
+      else
+        sep =' ';
+      GVLOG (logmask, "%s%c%02x", (off1 == 8) ? " " : "", sep, msg[off16 + off1]);
+    }
+    for (; off1 < 16; off1++) {
+      GVLOG (logmask, "%s%c  ", (off1 == 8) ? " " : "", (sep == '[') ? ']' : sep);
+      sep = ' ';
+    }
+    GVLOG (logmask, "  |");
+    for (off1 = 0; off1 < 16 && off16 + off1 < len; off1++) {
+      GVLOG (logmask, "%c", isprint (msg[off16 + off1]) ? msg[off16 + off1] : '.');
+    }
+    GVLOG (logmask, "|\n");
+  }
+}
+
+static void malformed_packet_received (const struct ddsi_domaingv *gv, const unsigned char *msg, const unsigned char *submsg, size_t len, ddsi_vendorid_t vendorid)
+{
+  malformed_packet_received_shortmsg (gv, msg, submsg, len, vendorid);
+  if (gv->logconfig.c.mask & DDS_LC_MALFORMED)
+    malformed_packet_received_fulldump (gv, msg, submsg, len, vendorid, DDS_LC_WARNING);
+  else // dump it if we're writing a trace file, no matter the tracing options
+    malformed_packet_received_fulldump (gv, msg, submsg, len, vendorid, DDS_TRACE_MASK);
+}
+
 static struct ddsi_receiver_state *rst_cow_if_needed (int *rst_live, struct ddsi_rmsg *rmsg, struct ddsi_receiver_state *rst)
 {
   if (! *rst_live)
@@ -2920,7 +2962,7 @@ static int handle_submsg_sequence
   struct ddsi_thread_state * const thrst,
   struct ddsi_domaingv *gv,
   struct ddsi_tran_conn * conn,
-  const ddsi_locator_t *srcloc,
+  const struct ddsi_network_packet_info *pktinfo,
   ddsrt_wctime_t tnowWC,
   ddsrt_etime_t tnowE,
   const ddsi_guid_prefix_t * const src_prefix,
@@ -2965,7 +3007,7 @@ static int handle_submsg_sequence
   rst->rtps_encoded = rtps_encoded;
   rst->vendor = hdr->vendorid;
   rst->protocol_version = hdr->version;
-  rst->srcloc = *srcloc;
+  rst->pktinfo = *pktinfo;
   rst->gv = gv;
   rst_live = 0;
   ts_for_latmeas = 0;
@@ -3190,7 +3232,7 @@ static int handle_submsg_sequence
   }
 }
 
-static void handle_rtps_message (struct ddsi_thread_state * const thrst, struct ddsi_domaingv *gv, struct ddsi_tran_conn * conn, const ddsi_guid_prefix_t *guidprefix, struct ddsi_rbufpool *rbpool, struct ddsi_rmsg *rmsg, size_t sz, unsigned char *msg, const ddsi_locator_t *srcloc)
+static void handle_rtps_message (struct ddsi_thread_state * const thrst, struct ddsi_domaingv *gv, struct ddsi_tran_conn * conn, const ddsi_guid_prefix_t *guidprefix, struct ddsi_rbufpool *rbpool, struct ddsi_rmsg *rmsg, size_t sz, unsigned char *msg, const struct ddsi_network_packet_info *pktinfo)
 {
   ddsi_rtps_header_t *hdr = (ddsi_rtps_header_t *) msg;
   assert (ddsi_thread_is_asleep ());
@@ -3212,22 +3254,26 @@ static void handle_rtps_message (struct ddsi_thread_state * const thrst, struct 
 
     if (gv->logconfig.c.mask & DDS_LC_TRACE)
     {
-      char addrstr[DDSI_LOCSTRLEN];
-      ddsi_locator_to_string(addrstr, sizeof(addrstr), srcloc);
-      GVTRACE ("HDR(%"PRIx32":%"PRIx32":%"PRIx32" vendor %d.%d) len %lu from %s\n",
-               PGUIDPREFIX (hdr->guid_prefix), hdr->vendorid.id[0], hdr->vendorid.id[1], (unsigned long) sz, addrstr);
+      char srcaddrstr[DDSI_LOCSTRLEN];
+      char dstaddrstr[DDSI_LOCSTRLEN] = "unknown";
+      ddsi_locator_to_string (srcaddrstr, sizeof(srcaddrstr), &pktinfo->src);
+      if (pktinfo->dst.kind != DDSI_LOCATOR_KIND_INVALID)
+        ddsi_locator_to_string (dstaddrstr, sizeof(dstaddrstr), &pktinfo->dst);
+      GVTRACE ("HDR(%"PRIx32":%"PRIx32":%"PRIx32" vendor %d.%d) len %lu from %s to %s@%"PRIu32"\n",
+               PGUIDPREFIX (hdr->guid_prefix), hdr->vendorid.id[0], hdr->vendorid.id[1], (unsigned long) sz,
+               srcaddrstr, dstaddrstr, pktinfo->if_index);
     }
     ddsi_rtps_msg_state_t res = ddsi_security_decode_rtps_message (thrst, gv, &rmsg, &hdr, &msg, &sz, rbpool, conn->m_stream);
     if (res != DDSI_RTPS_MSG_STATE_ERROR)
     {
-      handle_submsg_sequence (thrst, gv, conn, srcloc, ddsrt_time_wallclock (), ddsrt_time_elapsed (), &hdr->guid_prefix, guidprefix, msg, (size_t) sz, msg + DDSI_RTPS_MESSAGE_HEADER_SIZE, rmsg, res == DDSI_RTPS_MSG_STATE_ENCODED);
+      handle_submsg_sequence (thrst, gv, conn, pktinfo, ddsrt_time_wallclock (), ddsrt_time_elapsed (), &hdr->guid_prefix, guidprefix, msg, (size_t) sz, msg + DDSI_RTPS_MESSAGE_HEADER_SIZE, rmsg, res == DDSI_RTPS_MSG_STATE_ENCODED);
     }
   }
 }
 
-void ddsi_handle_rtps_message (struct ddsi_thread_state * const thrst, struct ddsi_domaingv *gv, struct ddsi_tran_conn * conn, const ddsi_guid_prefix_t *guidprefix, struct ddsi_rbufpool *rbpool, struct ddsi_rmsg *rmsg, size_t sz, unsigned char *msg, const ddsi_locator_t *srcloc)
+void ddsi_handle_rtps_message (struct ddsi_thread_state * const thrst, struct ddsi_domaingv *gv, struct ddsi_tran_conn * conn, const ddsi_guid_prefix_t *guidprefix, struct ddsi_rbufpool *rbpool, struct ddsi_rmsg *rmsg, size_t sz, unsigned char *msg, const struct ddsi_network_packet_info *pktinfo)
 {
-  handle_rtps_message (thrst, gv, conn, guidprefix, rbpool, rmsg, sz, msg, srcloc);
+  handle_rtps_message (thrst, gv, conn, guidprefix, rbpool, rmsg, sz, msg, pktinfo);
 }
 
 static bool do_packet (struct ddsi_thread_state * const thrst, struct ddsi_domaingv *gv, struct ddsi_tran_conn * conn, const ddsi_guid_prefix_t *guidprefix, struct ddsi_rbufpool *rbpool)
@@ -3242,7 +3288,7 @@ static bool do_packet (struct ddsi_thread_state * const thrst, struct ddsi_domai
   unsigned char * buff;
   size_t buff_len = maxsz;
   ddsi_rtps_header_t * hdr;
-  ddsi_locator_t srcloc;
+  struct ddsi_network_packet_info pktinfo;
 
   if (rmsg == NULL)
   {
@@ -3264,7 +3310,7 @@ static bool do_packet (struct ddsi_thread_state * const thrst, struct ddsi_domai
 
     /* Read in DDSI header plus MSG_LEN sub message that follows it */
 
-    sz = ddsi_conn_read (conn, buff, stream_hdr_size, true, &srcloc);
+    sz = ddsi_conn_read (conn, buff, stream_hdr_size, true, &pktinfo);
     if (sz == 0)
     {
       /* Spurious read -- which at this point is still ok */
@@ -3312,13 +3358,13 @@ static bool do_packet (struct ddsi_thread_state * const thrst, struct ddsi_domai
   {
     /* Get next packet */
 
-    sz = ddsi_conn_read (conn, buff, buff_len, true, &srcloc);
+    sz = ddsi_conn_read (conn, buff, buff_len, true, &pktinfo);
   }
 
   if (sz > 0 && !gv->deaf)
   {
     ddsi_rmsg_setsize (rmsg, (uint32_t) sz);
-    handle_rtps_message(thrst, gv, conn, guidprefix, rbpool, rmsg, (size_t) sz, buff, &srcloc);
+    handle_rtps_message(thrst, gv, conn, guidprefix, rbpool, rmsg, (size_t) sz, buff, &pktinfo);
   }
   ddsi_rmsg_commit (rmsg);
   return (sz > 0);

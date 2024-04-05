@@ -58,6 +58,6 @@ fi
 
 mkdir -p build
 cd build
-cmake -DCMAKE_INSTALL_PREFIX=$CYCLONEDDS_INSTALL_PREFIX -DBUILD_IDLC=ON ..
+cmake -DCMAKE_INSTALL_PREFIX=$CYCLONEDDS_INSTALL_PREFIX -DBUILD_IDLC=ON -DBUILD_EXAMPLES=ON ..
 cmake --build .
 cmake --build . --target install

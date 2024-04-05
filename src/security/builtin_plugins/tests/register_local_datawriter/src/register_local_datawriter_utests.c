@@ -25,10 +25,6 @@
 #include "common/src/crypto_helper.h"
 #include "crypto_objects.h"
 
-#if OPENSLL_VERSION_NUMBER >= 0x10002000L
-#define AUTH_INCLUDE_EC
-#endif
-
 #define TEST_SHARED_SECRET_SIZE 32
 
 static struct plugins_hdl *plugins = NULL;

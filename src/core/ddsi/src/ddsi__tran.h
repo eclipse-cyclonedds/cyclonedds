@@ -86,15 +86,23 @@ DDSRT_STATIC_ASSERT (offsetof (ddsi_tran_write_msgfrags_t, tran_reserved) + DDSI
 #define DDSI_DECL_CONST_TRAN_WRITE_MSGFRAGS_PTR(name_, ...) \
   DDSI_DECL_CONST_TRAN_WRITE_MSGFRAGS_MSVC_WORKAROUND(DDSI_DECL_CONST_TRAN_WRITE_MSGFRAGS_PTR1(name_, DDSRT_COUNT_ARGS(__VA_ARGS__), __VA_ARGS__))
 
+/// @brief Type for describing what the intended use of a connection being created is
 enum ddsi_tran_qos_purpose {
-  DDSI_TRAN_QOS_XMIT_UC, // will send unicast only
-  DDSI_TRAN_QOS_XMIT_MC, // may send unicast or multicast
-  DDSI_TRAN_QOS_RECV_UC, // will be used for receiving unicast
-  DDSI_TRAN_QOS_RECV_MC  // will be used for receiving multicast
+  DDSI_TRAN_QOS_XMIT_UC, ///< will send unicast only
+  DDSI_TRAN_QOS_XMIT_MC, ///< may send unicast or multicast
+  DDSI_TRAN_QOS_RECV_UC, ///< will be used for receiving unicast
+  DDSI_TRAN_QOS_RECV_MC  ///< will be used for receiving multicast
+};
+
+/// @brief Network packet info
+struct ddsi_network_packet_info {
+  ddsi_locator_t src;     ///< Source address
+  ddsi_locator_t dst; ///< Actual destination address in packet, pkt_dst.kind = INVALID if unknown (other fields undefined)
+  uint32_t if_index;      ///< Interface over which packet was received, 0 if unknown
 };
 
 /* Function pointer types */
-typedef ssize_t (*ddsi_tran_read_fn_t) (struct ddsi_tran_conn *, unsigned char *, size_t, bool, ddsi_locator_t *);
+typedef ssize_t (*ddsi_tran_read_fn_t) (struct ddsi_tran_conn *, unsigned char *, size_t, bool, struct ddsi_network_packet_info *pktinfo);
 typedef ssize_t (*ddsi_tran_write_fn_t) (struct ddsi_tran_conn *, const ddsi_locator_t *, const ddsi_tran_write_msgfrags_t *, uint32_t);
 typedef int (*ddsi_tran_locator_fn_t) (struct ddsi_tran_factory *, struct ddsi_tran_base *, ddsi_locator_t *);
 typedef bool (*ddsi_tran_supports_fn_t) (const struct ddsi_tran_factory *, int32_t);
@@ -385,8 +393,8 @@ inline ssize_t ddsi_conn_write (struct ddsi_tran_conn * conn, const ddsi_locator
 }
 
 /** @component transport */
-inline ssize_t ddsi_conn_read (struct ddsi_tran_conn * conn, unsigned char * buf, size_t len, bool allow_spurious, ddsi_locator_t *srcloc) {
-  return conn->m_closed ? -1 : conn->m_read_fn (conn, buf, len, allow_spurious, srcloc);
+inline ssize_t ddsi_conn_read (struct ddsi_tran_conn * conn, unsigned char * buf, size_t len, bool allow_spurious, struct ddsi_network_packet_info *pktinfo) {
+  return conn->m_closed ? -1 : conn->m_read_fn (conn, buf, len, allow_spurious, pktinfo);
 }
 
 /** @component transport */
