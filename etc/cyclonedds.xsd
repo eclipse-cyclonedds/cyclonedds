@@ -174,9 +174,9 @@ CycloneDDS configuration</xs:documentation>
       <xs:documentation>
 &lt;p&gt;This element specifies the DDSI participant index used by this instance of the Cyclone DDS service for discovery purposes. Only one such participant id is used, independent of the number of actual DomainParticipants on the node. It is either:&lt;/p&gt;
 &lt;ul&gt;&lt;li&gt;&lt;i&gt;auto&lt;/i&gt;: which will attempt to automatically determine an available participant index (see also Discovery/MaxAutoParticipantIndex), or&lt;/li&gt;
-&lt;li&gt;a non-negative integer less than 120, or&lt;/li&gt;
-&lt;li&gt;&lt;i&gt;none&lt;/i&gt;:, which causes it to use arbitrary port numbers for unicast sockets which entirely removes the constraints on the participant index but makes unicast discovery impossible.&lt;/li&gt;&lt;/ul&gt;
-&lt;p&gt;The default value is: &lt;code&gt;none&lt;/code&gt;&lt;/p&gt;</xs:documentation>
+&lt;li&gt;a non-negative integer, or&lt;/li&gt;
+&lt;li&gt;&lt;i&gt;none&lt;/i&gt;: which causes it to use arbitrary port numbers for unicast sockets which entirely removes the constraints on the participant index but makes unicast discovery impossible, or&lt;/li&gt;&lt;li&gt;&lt;i&gt;default&lt;/i&gt;: use &lt;i&gt;none&lt;/i&gt; if multicast discovery is used on all selected network interfaces, else &lt;i&gt;auto&lt;/i&gt;.&lt;/li&gt;&lt;/ul&gt;
+&lt;p&gt;The default value is: &lt;code&gt;default&lt;/code&gt;&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
   <xs:element name="Peers">
@@ -188,6 +188,16 @@ CycloneDDS configuration</xs:documentation>
       <xs:sequence>
         <xs:element minOccurs="0" maxOccurs="unbounded" ref="config:Peer"/>
       </xs:sequence>
+      <xs:attribute name="AddLocalhost" type="xs:boolean">
+        <xs:annotation>
+          <xs:documentation>
+&lt;p&gt;This attribute determines controls the localhost will automatically be added to the list of peers:.&lt;/p&gt;
+&lt;ul&gt;&lt;li&gt;&lt;i&gt;false&lt;/i&gt;: never&lt;/li&gt;
+&lt;li&gt;&lt;i&gt;true&lt;/i&gt;: always&lt;/li&gt;
+&lt;li&gt;&lt;i&gt;default&lt;/i&gt;: if multicast discovery is unavailable&lt;li&gt;&lt;/ul&gt;
+&lt;p&gt;The default value is: &lt;code&gt;default&lt;/code&gt;&lt;/p&gt;</xs:documentation>
+        </xs:annotation>
+      </xs:attribute>
     </xs:complexType>
   </xs:element>
   <xs:element name="Peer">
@@ -321,20 +331,19 @@ CycloneDDS configuration</xs:documentation>
   <xs:element name="AllowMulticast">
     <xs:annotation>
       <xs:documentation>
-&lt;p&gt;This element controls whether Cyclone DDS uses multicasts for data traffic.&lt;/p&gt;
+&lt;p&gt;This element controls the default for the per-network interface setting whether Cyclone DDS uses multicasts for discovery and data traffic.&lt;/p&gt;
 &lt;p&gt;It is a comma-separated list of some of the following keywords: "spdp", "asm", "ssm", or either of "false" or "true", or "default".&lt;/p&gt;
 &lt;ul&gt;
 &lt;li&gt;&lt;i&gt;spdp&lt;/i&gt;: enables the use of ASM (any-source multicast) for participant discovery, joining the multicast group on the discovery socket, transmitting SPDP messages to this group, but never advertising nor using any multicast address in any discovery message, thus forcing unicast communications for all endpoint discovery and user data.&lt;/li&gt;
 &lt;li&gt;&lt;i&gt;asm&lt;/i&gt;: enables the use of ASM for all traffic, including receiving SPDP but not transmitting SPDP messages via multicast&lt;/li&gt;
-&lt;li&gt;&lt;i&gt;ssm&lt;/i&gt;: enables the use of SSM (source-specific multicast) for all non-SPDP traffic (if supported)&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;When set to "false" all multicasting is disabled. The default, "true" enables the full use of multicasts. Listening for multicasts can be controlled by General/MulticastRecvNetworkInterfaceAddresses.&lt;/p&gt;
-&lt;p&gt;"default" maps on spdp if the network is a WiFi network, on true if it is a wired network&lt;/p&gt;
+&lt;li&gt;&lt;i&gt;ssm&lt;/i&gt;: enables the use of SSM (source-specific multicast) for all non-SPDP traffic (if supported)&lt;/li&gt;&lt;/ul&gt;
+&lt;p&gt;When set to "false" all multicasting is disabled; "true"enables the full use of multicasts. Listening for multicasts can be controlled by General/MulticastRecvNetworkInterfaceAddresses.&lt;/p&gt;
+&lt;p&gt;The special value "default" maps on spdp if the network is a WiFi network, on true if it is a wired network&lt;/p&gt;
 &lt;p&gt;The default value is: &lt;code&gt;default&lt;/code&gt;&lt;/p&gt;</xs:documentation>
     </xs:annotation>
     <xs:simpleType>
       <xs:restriction base="xs:token">
-        <xs:pattern value="default|((false|spdp|asm|ssm|true)(,(false|spdp|asm|ssm|true))*)"/>
+        <xs:pattern value="default|((false|spdp|asm|ssm|true|default)(,(false|spdp|asm|ssm|true|default))*)"/>
       </xs:restriction>
     </xs:simpleType>
   </xs:element>
@@ -423,6 +432,20 @@ CycloneDDS configuration</xs:documentation>
           <xs:documentation>
 &lt;p&gt;This attribute specifies the address of the interface. With ipv4 allows  matching on the network part if the host part is set to zero. &lt;/p&gt;
 &lt;p&gt;The default value is: &lt;code&gt;&amp;lt;empty&amp;gt;&lt;/code&gt;&lt;/p&gt;</xs:documentation>
+        </xs:annotation>
+      </xs:attribute>
+      <xs:attribute name="allow_multicast" type="xs:(null)">
+        <xs:annotation>
+          <xs:documentation>
+&lt;p&gt;This element controls whether Cyclone DDS uses multicasts for data traffic on this interface.&lt;/p&gt;
+&lt;p&gt;It is a comma-separated list of some of the following keywords: "spdp", "asm", "ssm", or either of "false" or "true", or "default".&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;i&gt;spdp&lt;/i&gt;: enables the use of ASM (any-source multicast) for participant discovery, joining the multicast group on the discovery socket, transmitting SPDP messages to this group, but never advertising nor using any multicast address in any discovery message, thus forcing unicast communications for all endpoint discovery and user data.&lt;/li&gt;
+&lt;li&gt;&lt;i&gt;asm&lt;/i&gt;: enables the use of ASM for all traffic, including receiving SPDP but not transmitting SPDP messages via multicast&lt;/li&gt;
+&lt;li&gt;&lt;i&gt;ssm&lt;/i&gt;: enables the use of SSM (source-specific multicast) for all non-SPDP traffic (if supported)&lt;/li&gt;&lt;/ul&gt;
+&lt;p&gt;When set to "false" all multicasting is disabled; "true"enables the full use of multicasts. Listening for multicasts can be controlled by General/MulticastRecvNetworkInterfaceAddresses.&lt;/p&gt;
+&lt;p&gt;The special value "default" takes the value from the globalGeneral/AllowMulticast setting.&lt;/p&gt;
+&lt;p&gt;The default value is: &lt;code&gt;default&lt;/code&gt;&lt;/p&gt;</xs:documentation>
         </xs:annotation>
       </xs:attribute>
       <xs:attribute name="autodetermine">
@@ -600,6 +623,7 @@ CycloneDDS configuration</xs:documentation>
         <xs:element minOccurs="0" ref="config:DefragUnreliableMaxSamples"/>
         <xs:element minOccurs="0" ref="config:DeliveryQueueMaxSamples"/>
         <xs:element minOccurs="0" ref="config:EnableExpensiveChecks"/>
+        <xs:element minOccurs="0" ref="config:ExtendedPacketInfo"/>
         <xs:element minOccurs="0" ref="config:GenerateKeyhash"/>
         <xs:element minOccurs="0" ref="config:HeartbeatInterval"/>
         <xs:element minOccurs="0" ref="config:LateAckMode"/>
@@ -627,7 +651,6 @@ CycloneDDS configuration</xs:documentation>
         <xs:element minOccurs="0" ref="config:SynchronousDeliveryLatencyBound"/>
         <xs:element minOccurs="0" ref="config:SynchronousDeliveryPriorityThreshold"/>
         <xs:element minOccurs="0" ref="config:Test"/>
-        <xs:element minOccurs="0" ref="config:UnicastResponseToSPDPMessages"/>
         <xs:element minOccurs="0" ref="config:UseMulticastIfMreqn"/>
         <xs:element minOccurs="0" ref="config:Watermarks"/>
         <xs:element minOccurs="0" ref="config:WriterLingerDuration"/>
@@ -755,6 +778,13 @@ CycloneDDS configuration</xs:documentation>
         <xs:pattern value="((whc|rhc|xevent|all)(,(whc|rhc|xevent|all))*)|"/>
       </xs:restriction>
     </xs:simpleType>
+  </xs:element>
+  <xs:element name="ExtendedPacketInfo" type="xs:boolean">
+    <xs:annotation>
+      <xs:documentation>
+&lt;p&gt;Whether to enable the IP_PKTINFO on UDP sockets to get hold of the packet destination address and interface on which it was received. This allows for better filtering on discovery packets, but comes at a small performance penalty.&lt;/p&gt;
+&lt;p&gt;The default value is: &lt;code&gt;true&lt;/code&gt;&lt;/p&gt;</xs:documentation>
+    </xs:annotation>
   </xs:element>
   <xs:element name="GenerateKeyhash" type="xs:boolean">
     <xs:annotation>
@@ -1095,13 +1125,6 @@ CycloneDDS configuration</xs:documentation>
       <xs:documentation>
 &lt;p&gt;This element controls the fraction of outgoing packets to drop, specified as samples per thousand.&lt;/p&gt;
 &lt;p&gt;The default value is: &lt;code&gt;0&lt;/code&gt;&lt;/p&gt;</xs:documentation>
-    </xs:annotation>
-  </xs:element>
-  <xs:element name="UnicastResponseToSPDPMessages" type="xs:boolean">
-    <xs:annotation>
-      <xs:documentation>
-&lt;p&gt;This element controls whether the response to a newly discovered participant is sent as a unicasted SPDP packet instead of rescheduling the periodic multicasted one. There is no known benefit to setting this to &lt;i&gt;false&lt;/i&gt;.&lt;/p&gt;
-&lt;p&gt;The default value is: &lt;code&gt;true&lt;/code&gt;&lt;/p&gt;</xs:documentation>
     </xs:annotation>
   </xs:element>
   <xs:element name="UseMulticastIfMreqn" type="xs:integer">
@@ -1861,17 +1884,22 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==&lt;br&gt;
 &lt;li&gt;&lt;i&gt;radmin&lt;/i&gt;: receive buffer administration&lt;/li&gt;
 &lt;li&gt;&lt;i&gt;timing&lt;/i&gt;: periodic reporting of CPU loads per thread&lt;/li&gt;
 &lt;li&gt;&lt;i&gt;traffic&lt;/i&gt;: periodic reporting of total outgoing data&lt;/li&gt;
+&lt;li&gt;&lt;i&gt;throttle&lt;/i&gt;: tracing of throttling events&lt;/li&gt;
 &lt;li&gt;&lt;i&gt;whc&lt;/i&gt;: tracing of writer history cache changes&lt;/li&gt;
+&lt;li&gt;&lt;i&gt;rhc&lt;/i&gt;: tracing of reader history cache changes&lt;/li&gt;
 &lt;li&gt;&lt;i&gt;tcp&lt;/i&gt;: tracing of TCP-specific activity&lt;/li&gt;
 &lt;li&gt;&lt;i&gt;topic&lt;/i&gt;: tracing of topic definitions&lt;/li&gt;
-&lt;li&gt;&lt;i&gt;plist&lt;/i&gt;: tracing of discovery parameter list interpretation&lt;/li&gt;&lt;/ul&gt;
-&lt;p&gt;In addition, there is the keyword &lt;i&gt;trace&lt;/i&gt; that enables all but &lt;i&gt;radmin&lt;/i&gt;, &lt;i&gt;topic&lt;/i&gt;, &lt;i&gt;plist&lt;/i&gt; and &lt;i&gt;whc&lt;/i&gt;&lt;/p&gt;.
+&lt;li&gt;&lt;i&gt;plist&lt;/i&gt;: tracing of discovery parameter list interpretation&lt;/li&gt;
+&lt;li&gt;&lt;i&gt;content&lt;/i&gt;: tracing of sample contents&lt;/li&gt;
+&lt;li&gt;&lt;i&gt;malformed&lt;/i&gt;: dump malformed full packet as warning&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;In addition, there is the keyword &lt;i&gt;trace&lt;/i&gt; that enables: &lt;i&gt;fatal&lt;/i&gt;, &lt;i&gt;error&lt;/i&gt;, &lt;i&gt;warning&lt;/i&gt;, &lt;i&gt;info&lt;/i&gt;, &lt;i&gt;config&lt;/i&gt;, &lt;i&gt;discovery&lt;/i&gt;, &lt;i&gt;data&lt;/i&gt;, &lt;i&gt;trace&lt;/i&gt;, &lt;i&gt;timing&lt;/i&gt;, &lt;i&gt;traffic&lt;/i&gt;, &lt;i&gt;tcp&lt;/i&gt;, &lt;i&gt;throttle&lt;/i&gt;, &lt;i&gt;content&lt;/i&gt;.&lt;/p&gt;.
 &lt;p&gt;The categorisation of tracing output is incomplete and hence most of the verbosity levels and categories are not of much use in the current release. This is an ongoing process and here we describe the target situation rather than the current situation. Currently, the most useful is &lt;i&gt;trace&lt;/i&gt;.&lt;/p&gt;
 &lt;p&gt;The default value is: &lt;code&gt;&amp;lt;empty&amp;gt;&lt;/code&gt;&lt;/p&gt;</xs:documentation>
     </xs:annotation>
     <xs:simpleType>
       <xs:restriction base="xs:token">
-        <xs:pattern value="((fatal|error|warning|info|config|discovery|data|radmin|timing|traffic|topic|tcp|plist|whc|throttle|rhc|content|shm|trace)(,(fatal|error|warning|info|config|discovery|data|radmin|timing|traffic|topic|tcp|plist|whc|throttle|rhc|content|shm|trace))*)|"/>
+        <xs:pattern value="((fatal|error|warning|info|config|discovery|data|radmin|timing|traffic|topic|tcp|plist|whc|throttle|rhc|content|malformed|trace)(,(fatal|error|warning|info|config|discovery|data|radmin|timing|traffic|topic|tcp|plist|whc|throttle|rhc|content|malformed|trace))*)|"/>
       </xs:restriction>
     </xs:simpleType>
   </xs:element>
@@ -1939,10 +1967,10 @@ MIIEpAIBAAKCAQEA3HIh...AOBaaqSV37XBUJg==&lt;br&gt;
     </xs:restriction>
   </xs:simpleType>
 </xs:schema>
-<!--- generated from ddsi_config.h[570f67bd3080674a4bad53d9580a8bb7ad1e6e4d] -->
+<!--- generated from ddsi_config.h[007a7968df8cbc42a122109bd139ac85bab0f6c9] -->
 <!--- generated from ddsi__cfgunits.h[bd22f0c0ed210501d0ecd3b07c992eca549ef5aa] -->
-<!--- generated from ddsi__cfgelems.h[d4d0b8c7cf61f0a1cfa4b62e02458cf7b8962536] -->
-<!--- generated from ddsi_config.c[efeae198a5e12ca8977a655216470564b5c44b64] -->
+<!--- generated from ddsi__cfgelems.h[607a8f573eb5d87d6f93b1d9bce2947f29da56dc] -->
+<!--- generated from ddsi_config.c[d4ef67f90737b1bf8ae94ad932774fa015e3a2cf] -->
 <!--- generated from _confgen.h[e32eabfc35e9f3a7dcb63b19ed148c0d17c6e5fc] -->
 <!--- generated from _confgen.c[237308acd53897a34e8c643e16e05a61d73ffd65] -->
 <!--- generated from generate_rnc.c[b50e4b7ab1d04b2bc1d361a0811247c337b74934] -->

@@ -107,6 +107,9 @@ static struct ddsi_serdata *serdata_pserop_fix (const struct ddsi_sertype_pserop
 }
 
 static struct ddsi_serdata *serdata_pserop_from_ser (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, const struct ddsi_rdata *fragchain, size_t size)
+  ddsrt_nonnull_all;
+
+static struct ddsi_serdata *serdata_pserop_from_ser (const struct ddsi_sertype *tpcmn, enum ddsi_serdata_kind kind, const struct ddsi_rdata *fragchain, size_t size)
 {
   const struct ddsi_sertype_pserop *tp = (const struct ddsi_sertype_pserop *)tpcmn;
   struct ddsi_serdata_pserop *d = serdata_pserop_new (tp, kind, size, DDSI_RMSG_PAYLOADOFF (fragchain->rmsg, DDSI_RDATA_PAYLOAD_OFF (fragchain)));
@@ -115,20 +118,19 @@ static struct ddsi_serdata *serdata_pserop_from_ser (const struct ddsi_sertype *
   uint32_t off = 4; /* must skip the CDR header */
   assert (fragchain->min == 0);
   assert (fragchain->maxp1 >= off); /* CDR header must be in first fragment */
-  while (fragchain)
+  for (const struct ddsi_rdata *frag = fragchain; frag != NULL; frag = frag->nextfrag)
   {
-    assert (fragchain->min <= off);
-    assert (fragchain->maxp1 <= size);
-    if (fragchain->maxp1 > off)
+    assert (frag->min <= off);
+    assert (frag->maxp1 <= size);
+    if (frag->maxp1 > off)
     {
       /* only copy if this fragment adds data */
-      const unsigned char *payload = DDSI_RMSG_PAYLOADOFF (fragchain->rmsg, DDSI_RDATA_PAYLOAD_OFF (fragchain));
-      uint32_t n = fragchain->maxp1 - off;
-      memcpy (d->data + d->pos, payload + off - fragchain->min, n);
+      const unsigned char *payload = DDSI_RMSG_PAYLOADOFF (frag->rmsg, DDSI_RDATA_PAYLOAD_OFF (frag));
+      uint32_t n = frag->maxp1 - off;
+      memcpy (d->data + d->pos, payload + off - frag->min, n);
       d->pos += n;
-      off = fragchain->maxp1;
+      off = frag->maxp1;
     }
-    fragchain = fragchain->nextfrag;
   }
   return serdata_pserop_fix (tp, d);
 }

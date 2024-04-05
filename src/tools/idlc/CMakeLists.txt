@@ -114,11 +114,6 @@ if (INSTALL_PDB)
   )
 endif()
 
-install(
-  FILES "${CycloneDDS_SOURCE_DIR}/cmake/Modules/Generate.cmake"
-  DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}/idlc"
-  COMPONENT dev)
-
 include("${CycloneDDS_SOURCE_DIR}/cmake/Modules/Generate.cmake")
 
 if(BUILD_TESTING)

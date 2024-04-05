@@ -225,6 +225,9 @@ void ddsi_xmsgpool_free (struct ddsi_xmsgpool *pool)
    (see below), transmits them, and releases them.
 */
 
+static void *ddsi_xmsg_append_impl (struct ddsi_xmsg *m, struct ddsi_xmsg_marker *marker, size_t sz)
+  ddsrt_nonnull ((1)) ddsrt_attribute_returns_nonnull;
+
 static void ddsi_xmsg_reinit (struct ddsi_xmsg *m, enum ddsi_xmsg_kind kind)
 {
   m->sz = 0;
@@ -513,7 +516,7 @@ void ddsi_xmsg_submsg_replace(struct ddsi_xmsg *msg, struct ddsi_xmsg_marker sm_
   /* Adjust the message size to the new sub-message. */
   if (old_len < new_len)
   {
-    ddsi_xmsg_append(msg, NULL, new_len - old_len);
+    (void) ddsi_xmsg_append_impl (msg, NULL, new_len - old_len);
   }
   else if (old_len > new_len)
   {
@@ -581,7 +584,7 @@ void *ddsi_xmsg_submsg_from_marker (struct ddsi_xmsg *msg, struct ddsi_xmsg_mark
   return msg->data->payload + marker.offset;
 }
 
-void *ddsi_xmsg_append (struct ddsi_xmsg *m, struct ddsi_xmsg_marker *marker, size_t sz)
+static void *ddsi_xmsg_append_impl (struct ddsi_xmsg *m, struct ddsi_xmsg_marker *marker, size_t sz)
 {
   static const size_t a = 4;
 
@@ -610,6 +613,11 @@ void *ddsi_xmsg_append (struct ddsi_xmsg *m, struct ddsi_xmsg_marker *marker, si
     marker->offset = m->sz;
   m->sz += sz;
   return p;
+}
+
+void *ddsi_xmsg_append (struct ddsi_xmsg *m, struct ddsi_xmsg_marker *marker, size_t sz)
+{
+  return ddsi_xmsg_append_impl (m, marker, sz);
 }
 
 void ddsi_xmsg_shrink (struct ddsi_xmsg *m, struct ddsi_xmsg_marker marker, size_t sz)
@@ -898,7 +906,7 @@ void ddsi_xmsg_setwriterseq_fragid (struct ddsi_xmsg *msg, const ddsi_guid_t *wr
   msg->kindspecific.data.wrfragid = wrfragid;
 }
 
-void *ddsi_xmsg_addpar_bo (struct ddsi_xmsg *m, ddsi_parameterid_t pid, size_t len, enum ddsrt_byte_order_selector bo)
+static void *ddsi_xmsg_addpar_bo_impl (struct ddsi_xmsg *m, ddsi_parameterid_t pid, size_t len, enum ddsrt_byte_order_selector bo)
 {
   const size_t len4 = (len + 3) & ~(size_t)3; /* must alloc a multiple of 4 */
   ddsi_parameter_t *phdr;
@@ -916,9 +924,14 @@ void *ddsi_xmsg_addpar_bo (struct ddsi_xmsg *m, ddsi_parameterid_t pid, size_t l
   return p;
 }
 
+void *ddsi_xmsg_addpar_bo (struct ddsi_xmsg *m, ddsi_parameterid_t pid, size_t len, enum ddsrt_byte_order_selector bo)
+{
+  return ddsi_xmsg_addpar_bo_impl (m, pid, len, bo);
+}
+
 void *ddsi_xmsg_addpar (struct ddsi_xmsg *m, ddsi_parameterid_t pid, size_t len)
 {
-  return ddsi_xmsg_addpar_bo(m, pid, len, DDSRT_BOSEL_NATIVE);
+  return ddsi_xmsg_addpar_bo_impl (m, pid, len, DDSRT_BOSEL_NATIVE);
 }
 
 void ddsi_xmsg_addpar_keyhash (struct ddsi_xmsg *m, const struct ddsi_serdata *serdata, bool force_md5)
@@ -954,12 +967,12 @@ void ddsi_xmsg_addpar_statusinfo (struct ddsi_xmsg *m, unsigned statusinfo)
 
 void ddsi_xmsg_addpar_sentinel (struct ddsi_xmsg * m)
 {
-  ddsi_xmsg_addpar (m, DDSI_PID_SENTINEL, 0);
+  ddsi_xmsg_addpar_bo_impl (m, DDSI_PID_SENTINEL, 0, DDSRT_BOSEL_NATIVE);
 }
 
 void ddsi_xmsg_addpar_sentinel_bo (struct ddsi_xmsg * m, enum ddsrt_byte_order_selector bo)
 {
-  ddsi_xmsg_addpar_bo (m, DDSI_PID_SENTINEL, 0, bo);
+  ddsi_xmsg_addpar_bo_impl (m, DDSI_PID_SENTINEL, 0, bo);
 }
 
 int ddsi_xmsg_addpar_sentinel_ifparam (struct ddsi_xmsg * m)

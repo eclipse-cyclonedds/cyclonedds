@@ -20,7 +20,7 @@
 
 static ddsrt_thread_local DWORD dynlib_last_err;
 
-dds_return_t ddsrt_dlopen (const char *name, bool translate, ddsrt_dynlib_t *handle)
+dds_return_t ddsrt_platform_dlopen (const char *name, bool translate, ddsrt_dynlib_t *handle)
 {
   assert (handle);
   *handle = NULL;
@@ -50,7 +50,7 @@ dds_return_t ddsrt_dlopen (const char *name, bool translate, ddsrt_dynlib_t *han
   return DDS_RETCODE_OK;
 }
 
-dds_return_t ddsrt_dlclose (ddsrt_dynlib_t handle)
+dds_return_t ddsrt_platform_dlclose (ddsrt_dynlib_t handle)
 {
   assert (handle);
   if (FreeLibrary ((HMODULE) handle) == 0)
@@ -62,7 +62,7 @@ dds_return_t ddsrt_dlclose (ddsrt_dynlib_t handle)
   return DDS_RETCODE_OK;
 }
 
-dds_return_t ddsrt_dlsym (ddsrt_dynlib_t handle, const char *symbol, void **address)
+dds_return_t ddsrt_platform_dlsym (ddsrt_dynlib_t handle, const char *symbol, void **address)
 {
   assert (handle);
   assert (address);
@@ -76,7 +76,7 @@ dds_return_t ddsrt_dlsym (ddsrt_dynlib_t handle, const char *symbol, void **addr
   return DDS_RETCODE_OK;
 }
 
-dds_return_t ddsrt_dlerror (char *buf, size_t buflen)
+dds_return_t ddsrt_platform_dlerror (char *buf, size_t buflen)
 {
   assert (buf);
   assert (buflen);

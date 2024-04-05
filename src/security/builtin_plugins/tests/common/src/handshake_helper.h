@@ -15,14 +15,41 @@
 #include "dds/security/core/dds_security_serialize.h"
 #include "dds/security/openssl_support.h"
 
-const BIGNUM *
-dh_get_public_key(
-     DH *dhkey);
+struct octet_seq {
+    unsigned char  *data;
+    uint32_t  length;
+};
+
+void
+octet_seq_init(
+    struct octet_seq *seq,
+    unsigned char *data,
+    uint32_t size);
+
+void
+octet_seq_deinit(
+    struct octet_seq *seq);
+
+ASN1_INTEGER *
+get_pubkey_asn1int(EVP_PKEY *pkey);
 
 int
-dh_set_public_key(
-    DH *dhkey,
-    BIGNUM *pubkey);
+get_dh_public_key_modp_2048(
+    EVP_PKEY *pkey,
+    struct octet_seq *pubkey);
+
+int
+get_dh_public_key_ecdh(
+    EVP_PKEY *pkey,
+    struct octet_seq *pubkey);
+
+int
+create_dh_key_modp_2048(
+    EVP_PKEY **pkey);
+
+int
+create_dh_key_ecdh(
+    EVP_PKEY **pkey);
 
 DDS_Security_ValidationResult_t
 create_signature_for_test(

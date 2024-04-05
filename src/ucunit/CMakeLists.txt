@@ -11,11 +11,7 @@
 #
 include (GenerateExportHeader)
 
-if (BUILD_SHARED_LIBS OR NOT DEFINED BUILD_SHARED_LIBS)
-  add_library(ucunit SHARED "")
-else()
-  add_library(ucunit)
-endif()
+add_library(ucunit)
 add_library(${PROJECT_NAME}::ucunit ALIAS ucunit)
 
 set(srcs_ucunit
@@ -43,3 +39,12 @@ target_sources(test_ucunit PRIVATE tests/test_ucunit.c)
 target_link_libraries(test_ucunit CycloneDDS::ucunit)
 
 add_test(NAME ucunit COMMAND $<TARGET_FILE_DIR:test_ucunit>/test_ucunit)
+
+if (NOT BUILD_SHARED_LIBS)
+  install(
+    TARGETS ucunit
+    EXPORT "${PROJECT_NAME}"
+    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}" COMPONENT lib
+    LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib
+    ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}" COMPONENT lib)
+endif()

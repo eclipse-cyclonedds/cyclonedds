@@ -20,3 +20,10 @@ struct C {
   @key
   short k;
 };
+
+module M1 {
+  @appendable
+  struct O {
+    @optional long x;
+  };
+};

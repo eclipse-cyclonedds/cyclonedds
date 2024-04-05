@@ -137,9 +137,7 @@ No major changes between the DDS Security plugins in OpenSplice and Cyclone
 are expected.
 
 The DDS Security plugins require OpenSSL. Cyclone DDS already uses OpenSSL.
-However, it expects (or at least it's preferred to have) version 1.1 or newer,
-while the OpenSplice Security plugins are build against 1.0.2. There are some
-API changes between the two versions. This will take some porting effort.
+We recommend a fully patched and supported version but 1.1.1 will still work.
 
 The build system should be ported from makefiles to cmake files.
 

@@ -179,7 +179,7 @@ Generated files with the IDL compiler
 
         .. code-block:: console
 
-            idlc -l C++ HelloWorldData.idl
+            idlc -l cxx HelloWorldData.idl
 
         This results in the following new files that need to be compiled and
         their associated object file linked with the Hello *World!* publisher

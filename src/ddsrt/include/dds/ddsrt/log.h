@@ -76,6 +76,12 @@ extern "C" {
 #define DDS_LC_RHC (65536u)
 /** Include content in traces. */
 #define DDS_LC_CONTENT (131072u)
+/** Output full dump of malformed messages as warnings */
+#define DDS_LC_MALFORMED (262144u)
+/** Debug/trace messages related to sysdef parser. */
+#define DDS_LC_SYSDEF (524288u)
+/** Debug/trace messages related to qos provider. */
+#define DDS_LC_QOSPROV (1048576u)
 /** All common trace categories. */
 #define DDS_LC_ALL \
     (DDS_LC_FATAL | DDS_LC_ERROR | DDS_LC_WARNING | DDS_LC_INFO | \

@@ -85,6 +85,13 @@ static void *samples_c[] = {
   NULL
 };
 
+static int32_t long_4 = 4;
+static void *samples_M1_O[] = {
+  &(M1_O){ .x = NULL },
+  &(M1_O){ .x = &long_4 },
+  NULL
+};
+
 static struct tpentry {
   const char *name;
   const dds_topic_descriptor_t *descr;
@@ -94,6 +101,7 @@ static struct tpentry {
   { "A", &A_desc, samples_a, offsetof (A, count) },
   { "B", &B_desc, samples_b, offsetof (B, a.count) },
   { "C", &C_desc, samples_c, offsetof (C, b.a.count) },
+  { "M1::O", &M1_O_desc, samples_M1_O, SIZE_MAX },
   { NULL, NULL, NULL, 0 }
 };
 
@@ -145,8 +153,12 @@ int main (int argc, char **argv)
   {
     dds_return_t ret = 0;
     void *sample = tpentry->samples[sample_idx];
-    uint32_t *countp = (uint32_t *) ((unsigned char *) sample + tpentry->count_offset);
-    *countp = count++;
+    uint32_t * const countp =
+      (tpentry->count_offset != SIZE_MAX)
+      ? (uint32_t *) ((unsigned char *) sample + tpentry->count_offset)
+      : 0;
+    if (countp)
+      *countp = count++;
     if ((ret = dds_write (writer, sample)) < 0)
     {
       fprintf (stderr, "dds_write: %s\n", dds_strretcode (ret));

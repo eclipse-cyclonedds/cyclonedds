@@ -46,13 +46,13 @@
 #define DDSI_BPF_IS_CLONING_DEV (1)
 #include <net/ethertypes.h>
 #include <net/if_ether.h>
-#endif    
+#endif
 #include <net/bpf.h>
 #include <net/if_dl.h>
 #define DDSI_ETHERTYPE_VLAN ETHERTYPE_VLAN
 #endif
 
-#if defined(__linux) 
+#if defined(__linux)
 #define DDSI_ETH_ADDR_LEN ETH_ALEN
 #define DDSI_LINK_FAMILY AF_PACKET
 
@@ -68,7 +68,7 @@ union ddsi_cmessage {
 
 typedef struct ddsi_raweth_conn {
   struct ddsi_tran_conn m_base;
-  ddsrt_socket_t m_sock;
+  ddsrt_socket_ext_t m_sockext;
   int m_ifindex;
 #if DDSI_USE_BSD
   ddsrt_mutex_t lock;
@@ -111,12 +111,14 @@ static char *ddsi_raweth_to_string (char *dst, size_t sizeof_dst, const ddsi_loc
   return dst;
 }
 
-static void set_locator(ddsi_locator_t *srcloc, const uint8_t * addr, uint16_t port, uint16_t vtag)
+static void set_pktinfo(struct ddsi_network_packet_info *pktinfo, const uint8_t * addr, uint16_t port, uint16_t vtag)
 {
-  srcloc->kind = DDSI_LOCATOR_KIND_RAWETH;
-  srcloc->port = (uint32_t)port +  (((uint32_t)vtag & 0xfff) << 20) + (((uint32_t)vtag & 0xf000) << 4);
-  memset(srcloc->address, 0, 10);
-  memcpy(srcloc->address + 10, addr, 6);
+  pktinfo->src.kind = DDSI_LOCATOR_KIND_RAWETH;
+  pktinfo->src.port = (uint32_t)port + (((uint32_t)vtag & 0xfff) << 20) + (((uint32_t)vtag & 0xf000) << 4);
+  memset(pktinfo->src.address, 0, 10);
+  memcpy(pktinfo->src.address + 10, addr, 6);
+  pktinfo->if_index = 0;
+  pktinfo->dst.kind = DDSI_LOCATOR_KIND_INVALID;
 }
 
 static size_t set_ethernet_header(struct ddsi_vlan_header *hdr, uint16_t proto, const ddsi_locator_t * dst, const ddsi_locator_t * src)
@@ -140,7 +142,7 @@ static size_t set_ethernet_header(struct ddsi_vlan_header *hdr, uint16_t proto, 
 }
 
 #if defined(__linux)
-static ssize_t ddsi_raweth_conn_read (struct ddsi_tran_conn * conn, unsigned char * buf, size_t len, bool allow_spurious, ddsi_locator_t *srcloc)
+static ssize_t ddsi_raweth_conn_read (struct ddsi_tran_conn * conn, unsigned char * buf, size_t len, bool allow_spurious, struct ddsi_network_packet_info *pktinfo)
 {
   dds_return_t rc;
   ssize_t ret = 0;
@@ -170,7 +172,7 @@ static ssize_t ddsi_raweth_conn_read (struct ddsi_tran_conn * conn, unsigned cha
   msghdr.msg_controllen = sizeof(cmessage);
 
   do {
-    rc = ddsrt_recvmsg(((ddsi_raweth_conn_t) conn)->m_sock, &msghdr, 0, &ret);
+    rc = ddsrt_recvmsg(&((ddsi_raweth_conn_t) conn)->m_sockext, &msghdr, 0, &ret);
   } while (rc == DDS_RETCODE_INTERRUPTED);
 
   if (ret > (ssize_t) sizeof (ehdr))
@@ -186,8 +188,8 @@ static ssize_t ddsi_raweth_conn_read (struct ddsi_tran_conn * conn, unsigned cha
       break;
     }
 
-    if (srcloc)
-      set_locator(srcloc, src.sll_addr, ntohs (src.sll_protocol), vtag);
+    if (pktinfo)
+      set_pktinfo(pktinfo, src.sll_addr, ntohs (src.sll_protocol), vtag);
 
     /* Check for udp packet truncation */
     if ((((size_t) ret) > len)
@@ -207,7 +209,7 @@ static ssize_t ddsi_raweth_conn_read (struct ddsi_tran_conn * conn, unsigned cha
            rc != DDS_RETCODE_BAD_PARAMETER &&
            rc != DDS_RETCODE_NO_CONNECTION)
   {
-    DDS_CERROR(&conn->m_base.gv->logconfig, "UDP recvmsg sock %d: ret %d retcode %d\n", (int) ((ddsi_raweth_conn_t) conn)->m_sock, (int) ret, rc);
+    DDS_CERROR(&conn->m_base.gv->logconfig, "UDP recvmsg sock %d: ret %d retcode %d\n", (int) ((ddsi_raweth_conn_t) conn)->m_sockext.sock, (int) ret, rc);
   }
   return ret;
 }
@@ -251,7 +253,7 @@ static ssize_t ddsi_raweth_conn_write (struct ddsi_tran_conn * conn, const ddsi_
 #endif
 
   do {
-    rc = ddsrt_sendmsg (uc->m_sock, &msg, sendflags, &ret);
+    rc = ddsrt_sendmsg (uc->m_sockext.sock, &msg, sendflags, &ret);
   } while ((rc == DDS_RETCODE_INTERRUPTED) ||
            (rc == DDS_RETCODE_TRY_AGAIN) ||
            (rc == DDS_RETCODE_NOT_ALLOWED && retry-- > 0));
@@ -374,7 +376,7 @@ static dds_return_t ddsi_raweth_create_conn (struct ddsi_tran_conn **conn_out, s
   }
 
   memset (uc, 0, sizeof (*uc));
-  uc->m_sock = sock;
+  ddsrt_socket_ext_init (&uc->m_sockext, sock);
   uc->m_ifindex = addr.sll_ifindex;
   ddsi_factory_conn_init (fact, intf, &uc->m_base);
   uc->m_base.m_base.m_port = port;
@@ -386,7 +388,7 @@ static dds_return_t ddsi_raweth_create_conn (struct ddsi_tran_conn **conn_out, s
   uc->m_base.m_write_fn = ddsi_raweth_conn_write;
   uc->m_base.m_disable_multiplexing_fn = 0;
 
-  DDS_CTRACE (&fact->gv->logconfig, "ddsi_raweth_create_conn %s socket %d port %u\n", mcast ? "multicast" : "unicast", uc->m_sock, uc->m_base.m_base.m_port);
+  DDS_CTRACE (&fact->gv->logconfig, "ddsi_raweth_create_conn %s socket %d port %u\n", mcast ? "multicast" : "unicast", uc->m_sockext.sock, uc->m_base.m_base.m_port);
   *conn_out = &uc->m_base;
   return DDS_RETCODE_OK;
 }
@@ -410,7 +412,7 @@ static int joinleave_asm_mcgroup (ddsrt_socket_t socket, int join, const ddsi_lo
 
 struct ddsi_vlan_tag {
   unsigned short tag;
-  unsigned short proto; 
+  unsigned short proto;
 };
 
 /* The ddsi_raweth_conn_read reads from the bpf file descriptor.
@@ -427,7 +429,7 @@ struct ddsi_vlan_tag {
  * the manipulations using the field to obtain the next packet in the buffer can be safely done.
  */
 
-static ssize_t ddsi_raweth_conn_read (struct ddsi_tran_conn * conn, unsigned char * buf, size_t len, bool allow_spurious, ddsi_locator_t *srcloc)
+static ssize_t ddsi_raweth_conn_read (struct ddsi_tran_conn * conn, unsigned char * buf, size_t len, bool allow_spurious, struct ddsi_network_packet_info *pktinfo)
 {
   ssize_t ret  = 0;
   dds_return_t rc = DDS_RETCODE_OK;
@@ -442,7 +444,7 @@ static ssize_t ddsi_raweth_conn_read (struct ddsi_tran_conn * conn, unsigned cha
 
   if (uc->avail == 0)
   {
-    if ((ret = read(uc->m_sock, uc->buffer, uc->buflen)) <= 0)
+    if ((ret = read(uc->m_sockext.sock, uc->buffer, uc->buflen)) <= 0)
     {
       DDS_CERROR (&conn->m_base.gv->logconfig, "ddsi_raweth_create_conn read failed ... retcode = %"PRIdSIZE"\n", ret);
       rc = DDS_RETCODE_ERROR;
@@ -457,11 +459,11 @@ static ssize_t ddsi_raweth_conn_read (struct ddsi_tran_conn * conn, unsigned cha
     ptr = uc->bptr;
     bpf_hdr = (struct bpf_hdr *) ptr;
     ptr += bpf_hdr->bh_hdrlen;
-  
+
     eth_hdr = (struct ddsi_ethernet_header *)ptr;
     ptr += sizeof(*eth_hdr);
 
-    if (bpf_hdr->bh_datalen == bpf_hdr->bh_caplen) 
+    if (bpf_hdr->bh_datalen == bpf_hdr->bh_caplen)
     {
       ret = (ssize_t)(bpf_hdr->bh_datalen - sizeof(struct ddsi_ethernet_header));
       if (ntohs(eth_hdr->proto) == ETHERTYPE_VLAN)
@@ -473,8 +475,8 @@ static ssize_t ddsi_raweth_conn_read (struct ddsi_tran_conn * conn, unsigned cha
       if ((size_t)ret <= len)
       {
         memcpy(buf, ptr, (size_t)ret);
-        if (srcloc)
-          set_locator(srcloc, eth_hdr->smac, ntohs (eth_hdr->proto), (vtag ? ntohs(vtag->tag) : 0));
+        if (pktinfo)
+          set_pktinfo(pktinfo, eth_hdr->smac, ntohs (eth_hdr->proto), (vtag ? ntohs(vtag->tag) : 0));
       }
       else
       {
@@ -520,7 +522,7 @@ static ssize_t ddsi_raweth_conn_write (struct ddsi_tran_conn * conn, const ddsi_
   iovs[0].iov_base = &vhdr;
   iovs[0].iov_len = hdrlen;
 
-  if ((ret = writev (uc->m_sock, iovs, (int)(msgfrags->niov + 1))) < 0)
+  if ((ret = writev (uc->m_sockext.sock, iovs, (int)(msgfrags->niov + 1))) < 0)
   {
       DDS_CERROR(&conn->m_base.gv->logconfig, "ddsi_raweth_conn_write failed with retcode %"PRIdSIZE, ret);
       rc = DDS_RETCODE_ERROR;
@@ -577,7 +579,7 @@ static dds_return_t ddsi_raweth_create_conn (struct ddsi_tran_conn **conn_out, s
 #else
   for (i = 0; i < 100; ++i) {
     char name[11] = {0};
-    sprintf (name, "/dev/bpf%d", i);
+    snprintf (name, sizeof (name), "/dev/bpf%d", i);
     sock = open (name, O_RDWR);
     if (sock >=0)
       break;
@@ -588,8 +590,8 @@ static dds_return_t ddsi_raweth_create_conn (struct ddsi_tran_conn **conn_out, s
   {
     DDS_CERROR (&fact->gv->logconfig, "ddsi_raweth_create_conn %s port %u failed ... retcode = %d\n", mcast ? "multicast" : "unicast", port, sock);
     return DDS_RETCODE_ERROR;
-  }  
-  
+  }
+
   // activate immediate mode (therefore, buf_len is initially set to "1")
   int mode = 1;
   if ((r = ioctl (sock, BIOCIMMEDIATE, &mode)) == -1 ) {
@@ -651,7 +653,7 @@ static dds_return_t ddsi_raweth_create_conn (struct ddsi_tran_conn **conn_out, s
   }
 
   memset (uc, 0, sizeof (*uc));
-  uc->m_sock = sock;
+  uc->m_sockext.sock = sock;
   uc->m_ifindex = addr.sdl_index;
   ddsi_factory_conn_init (fact, intf, &uc->m_base);
   uc->m_base.m_base.m_port = port;
@@ -668,7 +670,7 @@ static dds_return_t ddsi_raweth_create_conn (struct ddsi_tran_conn **conn_out, s
   uc->avail = 0;
   ddsrt_mutex_init (&uc->lock);
 
-  DDS_CTRACE (&fact->gv->logconfig, "ddsi_raweth_create_conn %s socket %d port %u\n", mcast ? "multicast" : "unicast", uc->m_sock, uc->m_base.m_base.m_port);
+  DDS_CTRACE (&fact->gv->logconfig, "ddsi_raweth_create_conn %s socket %d port %u\n", mcast ? "multicast" : "unicast", uc->m_sockext.sock, uc->m_base.m_base.m_port);
   *conn_out = &uc->m_base;
 
   return DDS_RETCODE_OK;
@@ -688,7 +690,7 @@ static int joinleave_asm_mcgroup (ddsrt_socket_t socket, int join, const ddsi_lo
 
 static ddsrt_socket_t ddsi_raweth_conn_handle (struct ddsi_tran_base * base)
 {
-  return ((ddsi_raweth_conn_t) base)->m_sock;
+  return ((ddsi_raweth_conn_t) base)->m_sockext.sock;
 }
 
 static bool ddsi_raweth_supports (const struct ddsi_tran_factory *fact, int32_t kind)
@@ -702,7 +704,7 @@ static int ddsi_raweth_conn_locator (struct ddsi_tran_factory * fact, struct dds
   ddsi_raweth_conn_t uc = (ddsi_raweth_conn_t) base;
   int ret = -1;
   (void) fact;
-  if (uc->m_sock != DDSRT_INVALID_SOCKET)
+  if (uc->m_sockext.sock != DDSRT_INVALID_SOCKET)
   {
     loc->kind = DDSI_LOCATOR_KIND_RAWETH;
     loc->port = uc->m_base.m_base.m_port;
@@ -729,7 +731,7 @@ static int ddsi_raweth_join_mc (struct ddsi_tran_conn * conn, const ddsi_locator
   {
     ddsi_raweth_conn_t uc = (ddsi_raweth_conn_t) conn;
     (void)srcloc;
-    return joinleave_asm_mcgroup(uc->m_sock, 1, mcloc, interf);
+    return joinleave_asm_mcgroup(uc->m_sockext.sock, 1, mcloc, interf);
   }
 }
 
@@ -741,7 +743,7 @@ static int ddsi_raweth_leave_mc (struct ddsi_tran_conn * conn, const ddsi_locato
   {
     ddsi_raweth_conn_t uc = (ddsi_raweth_conn_t) conn;
     (void)srcloc;
-    return joinleave_asm_mcgroup(uc->m_sock, 0, mcloc, interf);
+    return joinleave_asm_mcgroup(uc->m_sockext.sock, 0, mcloc, interf);
   }
 }
 
@@ -751,9 +753,10 @@ static void ddsi_raweth_release_conn (struct ddsi_tran_conn * conn)
   DDS_CTRACE (&conn->m_base.gv->logconfig,
               "ddsi_raweth_release_conn %s socket %d port %d\n",
               conn->m_base.m_multicast ? "multicast" : "unicast",
-              uc->m_sock,
+              uc->m_sockext.sock,
               uc->m_base.m_base.m_port);
-  ddsrt_close (uc->m_sock);
+  ddsrt_socket_ext_fini (&uc->m_sockext);
+  ddsrt_close (uc->m_sockext.sock);
   ddsrt_free (conn);
 }
 

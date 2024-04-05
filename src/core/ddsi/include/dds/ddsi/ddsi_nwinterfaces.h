@@ -33,6 +33,7 @@ struct ddsi_network_interface {
   unsigned link_local: 1;
   unsigned prefer_multicast: 1;
   unsigned is_psmx: 1;
+  uint32_t allow_multicast;
   int32_t priority;
   char *name;
 };

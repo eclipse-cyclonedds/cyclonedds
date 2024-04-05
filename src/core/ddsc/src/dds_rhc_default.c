@@ -621,7 +621,14 @@ static void dds_rhc_default_set_qos (struct ddsi_rhc *rhc_common, const dds_qos_
 
 static bool eval_predicate_sample (const struct dds_rhc_default *rhc, const struct ddsi_serdata *sample, bool (*pred) (const void *sample))
 {
-  ddsi_serdata_to_sample (sample, rhc->qcond_eval_samplebuf, NULL, NULL);
+  // What to do if deserialization fails? Consider it matching or not?
+  //
+  // This is used in query evaluation, so claiming it matches at least allows taking it,
+  // and at least it allows the application to detect something is amiss.  Always
+  // returning false would likely lead to endless loops in the application because some
+  // read condition remains triggered.
+  if (!ddsi_serdata_to_sample (sample, rhc->qcond_eval_samplebuf, NULL, NULL))
+    return true;
   bool ret = pred (rhc->qcond_eval_samplebuf);
   return ret;
 }
@@ -989,23 +996,30 @@ static bool content_filter_accepts (const dds_reader *reader, const struct ddsi_
       case DDS_TOPIC_FILTER_SAMPLE_SAMPLEINFO_ARG: {
         char *tmp;
         tmp = ddsi_sertype_alloc_sample (tp->m_stype);
-        ddsi_serdata_to_sample (sample, tmp, NULL, NULL);
-        switch (tp->m_filter.mode)
+        if (!ddsi_serdata_to_sample (sample, tmp, NULL, NULL))
         {
-          case DDS_TOPIC_FILTER_NONE:
-          case DDS_TOPIC_FILTER_SAMPLEINFO_ARG:
-            assert (0);
-          case DDS_TOPIC_FILTER_SAMPLE:
-            ret = (tp->m_filter.f.sample) (tmp);
-            break;
-          case DDS_TOPIC_FILTER_SAMPLE_ARG:
-            ret = (tp->m_filter.f.sample_arg) (tmp, tp->m_filter.arg);
-            break;
-          case DDS_TOPIC_FILTER_SAMPLE_SAMPLEINFO_ARG: {
-            struct dds_sample_info si;
-            content_filter_make_sampleinfo (&si, sample, inst, wr_iid, iid);
-            ret = tp->m_filter.f.sample_sampleinfo_arg (tmp, &si, tp->m_filter.arg);
-            break;
+          // Samples we can't deserialize are (presumably) best never inserted
+          ret = false;
+        }
+        else
+        {
+          switch (tp->m_filter.mode)
+          {
+            case DDS_TOPIC_FILTER_NONE:
+            case DDS_TOPIC_FILTER_SAMPLEINFO_ARG:
+              assert (0);
+            case DDS_TOPIC_FILTER_SAMPLE:
+              ret = (tp->m_filter.f.sample) (tmp);
+              break;
+            case DDS_TOPIC_FILTER_SAMPLE_ARG:
+              ret = (tp->m_filter.f.sample_arg) (tmp, tp->m_filter.arg);
+              break;
+            case DDS_TOPIC_FILTER_SAMPLE_SAMPLEINFO_ARG: {
+              struct dds_sample_info si;
+              content_filter_make_sampleinfo (&si, sample, inst, wr_iid, iid);
+              ret = tp->m_filter.f.sample_sampleinfo_arg (tmp, &si, tp->m_filter.arg);
+              break;
+            }
           }
         }
         ddsi_sertype_free_sample (tp->m_stype, tmp, DDS_FREE_ALL);
@@ -2922,10 +2936,11 @@ static bool rhc_check_counts_locked (struct dds_rhc_default *rhc, bool check_con
         {
           struct rhc_sample *sample = inst->latest->next, * const end = sample;
           do {
-            ddsi_serdata_to_sample (sample->sample, rhc->qcond_eval_samplebuf, NULL, NULL);
+            // Follow error handling choices made in eval_predicate_sample()
+            const bool asifmatch = !ddsi_serdata_to_sample (sample->sample, rhc->qcond_eval_samplebuf, NULL, NULL);
             qcmask = 0;
             for (rciter = rhc->conds; rciter; rciter = rciter->m_next)
-              if (rciter->m_query.m_filter != 0 && rciter->m_query.m_filter (rhc->qcond_eval_samplebuf))
+              if (rciter->m_query.m_filter != 0 && (asifmatch || rciter->m_query.m_filter (rhc->qcond_eval_samplebuf)))
                 qcmask |= rciter->m_query.m_qcmask;
             assert ((sample->conds & enabled_qcmask) == qcmask);
             sample = sample->next;

@@ -10,6 +10,7 @@
 # SPDX-License-Identifier: EPL-2.0 OR BSD-3-Clause
 #
 include(CUnit)
+include(Generate)
 
 idlc_generate(TARGET RoundTrip FILES RoundTrip.idl)
 idlc_generate(TARGET Space FILES Space.idl WARNINGS no-implicit-extensibility)
@@ -100,8 +101,24 @@ set(ddsc_test_sources
     "test_oneliner.h"
     "cdrstream.c"
     "serdata_keys.c"
-    "psmx.c"
   )
+
+# PSMX tests are tricky in a static build: we have a PSMX plugin that is based on Cyclone
+# so we can test the interface even when Iceoryx is not available, but supporting that
+# plugin is too complicated in a static build: it introduces a circular dependency and
+# that's too hard for me in CMake.
+#
+# On most platforms (Linux, Windows, macOS) we could still load it dynamically but that
+# fails to work because the shared library then includes its own copy of Cyclone DDS and
+# then the access to the application readers that the plugin needs is no longer possible
+# because they live in the other copy of the library.
+#
+# Fortunately, running them with Iceoryx doesn't suffer from this.  If we simply skip
+# these tests in a static build without Iceoryx and then we ensure the static build on CI
+# uses Iceoryx, we should be good.
+if(BUILD_SHARED_LIBS OR (ENABLE_ICEORYX AND NOT DEFINED ENV{COLCON}))
+  list(APPEND ddsc_test_sources "psmx.c")
+endif()
 
 if(ENABLE_LIFESPAN)
   list(APPEND ddsc_test_sources "lifespan.c")
@@ -132,6 +149,11 @@ if(ENABLE_TOPIC_DISCOVERY)
   list(APPEND ddsc_test_sources
     "topic_discovery.c"
     "topic_find_global.c")
+endif()
+
+if(ENABLE_QOS_PROVIDER)
+  list(APPEND ddsc_test_sources
+    "qos_provider.c")
 endif()
 
 add_cunit_executable(cunit_ddsc ${ddsc_test_sources})
@@ -222,23 +244,24 @@ target_link_libraries(oneliner PRIVATE RoundTrip Space ddsc)
 
 
 # PSMX implementation with Cyclone as transport, for testing
+if (BUILD_SHARED_LIBS)
+  idlc_generate(TARGET psmx_cdds_data FILES psmx_cdds_data.idl)
+  set(psmx_cdds_sources
+    "psmx_cdds_impl.c"
+    "psmx_cdds_impl.h")
+  add_library(psmx_cdds SHARED ${psmx_cdds_sources})
+  target_include_directories(
+    psmx_cdds PRIVATE
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/include>")
+  target_link_libraries(psmx_cdds PRIVATE ddsc psmx_cdds_data)
 
-idlc_generate(TARGET psmx_cdds_data FILES psmx_cdds_data.idl)
-set(psmx_cdds_sources
-  "psmx_cdds_impl.c"
-  "psmx_cdds_impl.h")
-add_library(psmx_cdds SHARED ${psmx_cdds_sources})
-target_include_directories(
-  psmx_cdds PRIVATE
-  "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
-  "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../../ddsi/include>")
-target_link_libraries(psmx_cdds PRIVATE ddsc psmx_cdds_data)
+  generate_export_header(psmx_cdds BASE_NAME PSMX_CDDS EXPORT_FILE_NAME "${CMAKE_CURRENT_BINARY_DIR}/include/dds/psmx_cdds/export.h")
 
-generate_export_header(psmx_cdds BASE_NAME PSMX_CDDS EXPORT_FILE_NAME "${CMAKE_CURRENT_BINARY_DIR}/include/dds/psmx_cdds/export.h")
-
-install(TARGETS psmx_cdds
+  install(TARGETS psmx_cdds
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+endif()
 
 # If Iceoryx is available, then also run all PSMX tests using Iceoryx.  Colcon complicates
 # things too much and it doesn't affect Cyclone's CI run anyway.
@@ -285,14 +308,23 @@ kill -0 `cat ctest_fixture_iox_roudi.pid`")
   set_tests_properties(stop_roudi PROPERTIES FIXTURES_CLEANUP iox)
   set_tests_properties(start_roudi stop_roudi PROPERTIES RESOURCE_LOCK iox_lock)
 
-  # Construct Iceoryx-variants of all PSMX tests
+  # Construct Iceoryx-variants of all PSMX tests if building shared libraries, map them to
+  # Iceoryx in a static build (because I don't know how to delete tests!)
   get_property(test_names DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY TESTS)
   list(FILTER test_names INCLUDE REGEX "^CUnit_ddsc_psmx_[A-Za-z_0-9]+$")
-  foreach(fullname ${test_names})
-    string(REGEX REPLACE "^CUnit_ddsc_psmx_(.*)" "\\1" shortname "${fullname}")
-    add_test(NAME ${fullname}_iox COMMAND cunit_ddsc -s ddsc_psmx -t ${shortname})
-    set_tests_properties(${fullname}_iox PROPERTIES FIXTURES_REQUIRED iox)
-    set_tests_properties(${fullname}_iox PROPERTIES RESOURCE_LOCK iox_lock)
-    set_tests_properties(${fullname}_iox PROPERTIES ENVIRONMENT "CDDS_PSMX_NAME=iox;LD_LIBRARY_PATH=$<TARGET_FILE_DIR:psmx_iox>:$ENV{LD_LIBRARY_PATH}")
-  endforeach()
+  if(BUILD_SHARED_LIBS)
+    foreach(fullname ${test_names})
+      string(REGEX REPLACE "^CUnit_ddsc_psmx_(.*)" "\\1" shortname "${fullname}")
+      add_test(NAME ${fullname}_iox COMMAND cunit_ddsc -s ddsc_psmx -t ${shortname})
+      set_tests_properties(${fullname}_iox PROPERTIES FIXTURES_REQUIRED iox)
+      set_tests_properties(${fullname}_iox PROPERTIES RESOURCE_LOCK iox_lock)
+      set_tests_properties(${fullname}_iox PROPERTIES ENVIRONMENT "CDDS_PSMX_NAME=iox;LD_LIBRARY_PATH=$<TARGET_FILE_DIR:psmx_iox>:$ENV{LD_LIBRARY_PATH}")
+    endforeach()
+  else()
+    foreach(fullname ${test_names})
+      set_tests_properties(${fullname} PROPERTIES FIXTURES_REQUIRED iox)
+      set_tests_properties(${fullname} PROPERTIES RESOURCE_LOCK iox_lock)
+      set_tests_properties(${fullname} PROPERTIES ENVIRONMENT "CDDS_PSMX_NAME=iox")
+    endforeach()
+  endif()
 endif()

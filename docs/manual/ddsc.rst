@@ -22,6 +22,7 @@ C API reference
    api/basics
    api/entity
    api/qos
+   api/qosprovider
    api/domain
    api/topic
    api/data

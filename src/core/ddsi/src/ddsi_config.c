@@ -188,7 +188,7 @@ DUPF(domainId);
 DUPF(transport_selector);
 DUPF(many_sockets_mode);
 DU(deaf_mute);
-#ifdef DDS_HAS_SSL
+#ifdef DDS_HAS_TCP_TLS
 DUPF(min_tls_version);
 #endif
 DUPF(shm_loglevel);
@@ -1007,10 +1007,10 @@ GENERIC_ENUM_CTYPE (shm_loglevel, enum ddsi_shm_loglevel)
 
 /* "trace" is special: it enables (nearly) everything */
 static const char *tracemask_names[] = {
-  "fatal", "error", "warning", "info", "config", "discovery", "data", "radmin", "timing", "traffic", "topic", "tcp", "plist", "whc", "throttle", "rhc", "content", "trace", NULL
+  "fatal", "error", "warning", "info", "config", "discovery", "data", "radmin", "timing", "traffic", "topic", "tcp", "plist", "whc", "throttle", "rhc", "content", "malformed", "trace", NULL
 };
 static const uint32_t tracemask_codes[] = {
-  DDS_LC_FATAL, DDS_LC_ERROR, DDS_LC_WARNING, DDS_LC_INFO, DDS_LC_CONFIG, DDS_LC_DISCOVERY, DDS_LC_DATA, DDS_LC_RADMIN, DDS_LC_TIMING, DDS_LC_TRAFFIC, DDS_LC_TOPIC, DDS_LC_TCP, DDS_LC_PLIST, DDS_LC_WHC, DDS_LC_THROTTLE, DDS_LC_RHC, DDS_LC_CONTENT, DDS_LC_ALL
+  DDS_LC_FATAL, DDS_LC_ERROR, DDS_LC_WARNING, DDS_LC_INFO, DDS_LC_CONFIG, DDS_LC_DISCOVERY, DDS_LC_DATA, DDS_LC_RADMIN, DDS_LC_TIMING, DDS_LC_TRAFFIC, DDS_LC_TOPIC, DDS_LC_TCP, DDS_LC_PLIST, DDS_LC_WHC, DDS_LC_THROTTLE, DDS_LC_RHC, DDS_LC_CONTENT, DDS_LC_MALFORMED, DDS_LC_ALL
 };
 
 static enum update_result uf_tracemask (struct ddsi_cfgst *cfgst, UNUSED_ARG (void *parent), UNUSED_ARG (struct cfgelem const * const cfgelem), UNUSED_ARG (int first), const char *value)
@@ -1073,7 +1073,7 @@ static void pf_xcheck (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem co
   do_print_uint32_bitset (cfgst, *p, sizeof (xcheck_codes) / sizeof (*xcheck_codes), xcheck_names, xcheck_codes, sources, suffix);
 }
 
-#ifdef DDS_HAS_SSL
+#ifdef DDS_HAS_TCP_TLS
 static enum update_result uf_min_tls_version (struct ddsi_cfgst *cfgst, UNUSED_ARG (void *parent), UNUSED_ARG (struct cfgelem const * const cfgelem), UNUSED_ARG (int first), const char *value)
 {
   static const char *vs[] = {
@@ -1559,14 +1559,17 @@ static void pf_domainId(struct ddsi_cfgst *cfgst, void *parent, struct cfgelem c
 static enum update_result uf_participantIndex (struct ddsi_cfgst *cfgst, void *parent, struct cfgelem const * const cfgelem, int first, const char *value)
 {
   int * const elem = cfg_address (cfgst, parent, cfgelem);
-  if (ddsrt_strcasecmp (value, "auto") == 0) {
+  if (ddsrt_strcasecmp (value, "default") == 0) {
+    *elem = DDSI_PARTICIPANT_INDEX_DEFAULT;
+    return URES_SUCCESS;
+  } else if (ddsrt_strcasecmp (value, "auto") == 0) {
     *elem = DDSI_PARTICIPANT_INDEX_AUTO;
     return URES_SUCCESS;
   } else if (ddsrt_strcasecmp (value, "none") == 0) {
     *elem = DDSI_PARTICIPANT_INDEX_NONE;
     return URES_SUCCESS;
   } else {
-    return uf_int_min_max (cfgst, parent, cfgelem, first, value, 0, 120);
+    return uf_natint (cfgst, parent, cfgelem, first, value);
   }
 }
 

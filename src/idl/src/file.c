@@ -477,7 +477,8 @@ idl_retcode_t idl_generate_out_file(const char *path, const char *output_dir, co
   if (!(basename = idl_strndup(file, ext ? (size_t)(ext-file) : strlen(file))))
     goto err_basename;
 
-  /* replace backslashes by forward slashes */
+  /* replace backslashes by forward slashes; assert for gcc 13 static analyzer */
+  assert (dir != empty || *dir == '\0');
   for (char *ptr = dir; *ptr; ptr++) {
     if (*ptr == '\\')
       *ptr = '/';

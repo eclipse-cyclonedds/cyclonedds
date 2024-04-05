@@ -12,11 +12,16 @@
 #include <errno.h>
 #include <ifaddrs.h>
 #include <string.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <fcntl.h>
+#include <arpa/inet.h>
 
 #include "dds/ddsrt/heap.h"
 #include "dds/ddsrt/ifaddrs.h"
 #include "dds/ddsrt/retcode.h"
 #include "dds/ddsrt/string.h"
+#include "dds/ddsrt/random.h"
 
 #if __APPLE__
   #include <TargetConditionals.h>
@@ -132,6 +137,116 @@ static enum ddsrt_iftype guess_iftype (const struct ifaddrs *sys_ifa)
 }
 #endif
 
+static bool is_the_kernel_likely_lying_about_multicast (const ddsrt_ifaddrs_t *ifa)
+{
+  assert (ifa->addr->sa_family == AF_INET || ifa->addr->sa_family == AF_INET6);
+  bool multicast_works = false;
+  const bool ipv6 = (ifa->addr->sa_family == AF_INET6);
+  socklen_t addrsz = ipv6 ? sizeof (struct sockaddr_in6) : sizeof (struct sockaddr_in);
+  // multicast over link local address works in macOS, but the default firewall rule is not happy with this
+  // so let us simply assume the "normal" loopback interface address like ::1 exists as well
+  if (ipv6 && IN6_IS_ADDR_LINKLOCAL (&((const struct sockaddr_in6 *) ifa->addr)->sin6_addr))
+    return false;
+  int sock = socket (ifa->addr->sa_family, SOCK_DGRAM, 0);
+  if (sock < 0)
+    return false;
+#ifdef __APPLE__
+  // macOS needs a short timeout, curiously enough! (but we don't need this code on macOS
+  // because the kernel tells it as it is
+  const struct timeval recvtimeo = { .tv_sec = 0, .tv_usec = 10000 };
+  if (setsockopt (sock, SOL_SOCKET, SO_RCVTIMEO, &recvtimeo, sizeof (recvtimeo)) != 0)
+    goto out;
+#endif
+  union ipsockaddr {
+    struct sockaddr gen;
+    struct sockaddr_in ipv4;
+    struct sockaddr_in6 ipv6;
+  } addr, mcaddr;
+  memset (&addr, 0, sizeof (addr));
+  memset (&mcaddr, 0, sizeof (mcaddr));
+  // Multicast address: abuse DDSI's default address because we need to pick something
+  if (ipv6) {
+    addr.ipv6 = *((struct sockaddr_in6 *) ifa->addr);
+    addr.ipv6.sin6_port = 0;
+    mcaddr = addr;
+    if (inet_pton (mcaddr.gen.sa_family, "ff02::ffff:239.255.0.1", &mcaddr.ipv6.sin6_addr) != 1)
+      goto out;
+  } else {
+    addr.ipv4 = *((struct sockaddr_in *) ifa->addr);
+    addr.ipv4.sin_addr.s_addr = htonl (INADDR_ANY); // because we can't receive multicasts otherwise
+    addr.ipv4.sin_port = 0;
+    mcaddr = addr;
+    if (inet_pton (mcaddr.gen.sa_family, "239.255.0.1", &mcaddr.ipv4.sin_addr) != 1)
+      goto out;
+  }
+  if (bind (sock, &addr.gen, addrsz) < 0)
+    goto out;
+  if (getsockname (sock, &addr.gen, &addrsz) < 0)
+    goto out;
+  if (ipv6)
+  {
+    const unsigned hops = 0;
+    struct ipv6_mreq ipv6mreq;
+    mcaddr.ipv6.sin6_port = addr.ipv6.sin6_port;
+    memset (&ipv6mreq, 0, sizeof (ipv6mreq));
+    ipv6mreq.ipv6mr_multiaddr = mcaddr.ipv6.sin6_addr;
+    ipv6mreq.ipv6mr_interface = ifa->index;
+    if (setsockopt (sock, IPPROTO_IPV6, IPV6_JOIN_GROUP, &ipv6mreq, sizeof (ipv6mreq)) != 0 ||
+        setsockopt (sock, IPPROTO_IPV6, IPV6_MULTICAST_IF, &ifa->index, sizeof (ifa->index)) != 0 ||
+        setsockopt (sock, IPPROTO_IPV6, IPV6_MULTICAST_HOPS, &hops, sizeof (hops)) != 0)
+      goto out;
+  }
+  else
+  {
+    const unsigned char ttl = 0;
+    struct ip_mreq mreq;
+    mcaddr.ipv4.sin_port = addr.ipv4.sin_port;
+    mreq.imr_multiaddr = mcaddr.ipv4.sin_addr;
+    mreq.imr_interface = addr.ipv4.sin_addr;
+    if (setsockopt (sock, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof (mreq)) != 0 ||
+        setsockopt (sock, IPPROTO_IP, IP_MULTICAST_IF, &addr.ipv4.sin_addr, sizeof (addr.ipv4.sin_addr)) != 0 ||
+        setsockopt (sock, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof (ttl)) != 0)
+      goto out;
+  }
+  // Use a 128 bit random payload to make it unlikely that we conclude multicast works
+  // because of some other packet that just happens to reach our socket in the (very)
+  // short time it exists
+  const uint32_t contents[4] = {
+    ddsrt_random (), ddsrt_random (), ddsrt_random (), ddsrt_random ()
+  };
+  ddsrt_msghdr_t msg = {
+    .msg_name = &mcaddr.gen,
+    .msg_namelen = addrsz,
+    .msg_iov = &(struct iovec) { .iov_len = sizeof (contents), .iov_base = (void *) &contents },
+    .msg_iovlen = 1,
+    .msg_control = NULL,
+    .msg_controllen = 0,
+    .msg_flags = 0
+  };
+  if (sendmsg (sock, &msg, 0) != (ssize_t) sizeof (contents))
+    goto out;
+#ifndef __APPLE__ // because we do a short timeout instead
+  if (fcntl (sock, F_SETFL, O_NONBLOCK) == -1)
+    goto out;
+#endif
+  unsigned char recvbuf[sizeof (contents)];
+  msg.msg_iov = &(struct iovec) { .iov_len = sizeof (recvbuf), .iov_base = recvbuf };
+  ssize_t nrecv;
+  while ((nrecv = recvmsg (sock, &msg, 0)) > 0)
+  {
+    if (nrecv == sizeof (recvbuf) &&
+        memcmp (recvbuf, contents, sizeof (recvbuf)) == 0 &&
+        !(msg.msg_flags & (MSG_TRUNC | MSG_CTRUNC)))
+    {
+      multicast_works = true;
+      break;
+    }
+  }
+out:
+  close (sock);
+  return multicast_works;
+}
+
 static dds_return_t
 copyaddr(ddsrt_ifaddrs_t **ifap, const struct ifaddrs *sys_ifa, enum ddsrt_iftype type)
 {
@@ -164,6 +279,16 @@ copyaddr(ddsrt_ifaddrs_t **ifap, const struct ifaddrs *sys_ifa, enum ddsrt_iftyp
        in which case copy it from the interface address */
     if (ifa->addr && ifa->netmask && ifa->netmask->sa_family == 0) {
       ifa->netmask->sa_family = ifa->addr->sa_family;
+    }
+    /* Common on Linux: a loopback interface that does not have the MULTICAST
+       flag but that does support multicast in reality, at least on IPv4.  Do
+       a trial run if we're doing something with INET */
+    if (ifa->addr &&
+        (ifa->flags & IFF_LOOPBACK) && !(ifa->flags & IFF_MULTICAST) &&
+        (ifa->addr->sa_family == AF_INET || ifa->addr->sa_family == AF_INET6))
+    {
+      if (is_the_kernel_likely_lying_about_multicast (ifa))
+        ifa->flags |= IFF_MULTICAST;
     }
   }
 

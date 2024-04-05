@@ -202,12 +202,13 @@ Text
 This element specifies the DDSI participant index used by this instance of the Cyclone DDS service for discovery purposes. Only one such participant id is used, independent of the number of actual DomainParticipants on the node. It is either:
  * auto: which will attempt to automatically determine an available participant index (see also Discovery/MaxAutoParticipantIndex), or
 
- * a non-negative integer less than 120, or
+ * a non-negative integer, or
 
- * none:, which causes it to use arbitrary port numbers for unicast sockets which entirely removes the constraints on the participant index but makes unicast discovery impossible.
+ * none: which causes it to use arbitrary port numbers for unicast sockets which entirely removes the constraints on the participant index but makes unicast discovery impossible, or
+ * default: use none if multicast discovery is used on all selected network interfaces, else auto.
 
 
-The default value is: ``none``
+The default value is: ``default``
 
 
 .. _`//CycloneDDS/Domain/Discovery/Peers`:
@@ -215,9 +216,27 @@ The default value is: ``none``
 //CycloneDDS/Domain/Discovery/Peers
 -----------------------------------
 
+Attributes: :ref:`AddLocalhost<//CycloneDDS/Domain/Discovery/Peers[@AddLocalhost]>`
 Children: :ref:`Peer<//CycloneDDS/Domain/Discovery/Peers/Peer>`
 
 This element statically configures addresses for discovery.
+
+
+.. _`//CycloneDDS/Domain/Discovery/Peers[@AddLocalhost]`:
+
+//CycloneDDS/Domain/Discovery/Peers[@AddLocalhost]
+--------------------------------------------------
+
+Boolean
+
+This attribute determines controls the localhost will automatically be added to the list of peers:.
+ * false: never
+
+ * true: always
+
+ * default: if multicast discovery is unavailable * 
+
+The default value is: ``default``
 
 
 .. _`//CycloneDDS/Domain/Discovery/Peers/Peer`:
@@ -391,9 +410,9 @@ The General element specifies overall Cyclone DDS service settings.
 
 One of:
 * Keyword: default
-* Comma-separated list of: false, spdp, asm, ssm, true
+* Comma-separated list of: false, spdp, asm, ssm, true, default
 
-This element controls whether Cyclone DDS uses multicasts for data traffic.
+This element controls the default for the per-network interface setting whether Cyclone DDS uses multicasts for discovery and data traffic.
 
 It is a comma-separated list of some of the following keywords: "spdp", "asm", "ssm", or either of "false" or "true", or "default".
 
@@ -404,10 +423,9 @@ It is a comma-separated list of some of the following keywords: "spdp", "asm", "
  * ssm: enables the use of SSM (source-specific multicast) for all non-SPDP traffic (if supported)
 
 
+When set to "false" all multicasting is disabled; "true"enables the full use of multicasts. Listening for multicasts can be controlled by General/MulticastRecvNetworkInterfaceAddresses.
 
-When set to "false" all multicasting is disabled. The default, "true" enables the full use of multicasts. Listening for multicasts can be controlled by General/MulticastRecvNetworkInterfaceAddresses.
-
-"default" maps on spdp if the network is a WiFi network, on true if it is a wired network
+The special value "default" maps on spdp if the network is a WiFi network, on true if it is a wired network
 
 The default value is: ``default``
 
@@ -515,7 +533,7 @@ This element specifies the network interfaces for use by Cyclone DDS. Multiple i
 //CycloneDDS/Domain/General/Interfaces/NetworkInterface
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Attributes: :ref:`address<//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@address]>`, :ref:`autodetermine<//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@autodetermine]>`, :ref:`multicast<//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@multicast]>`, :ref:`name<//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@name]>`, :ref:`prefer_multicast<//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@prefer_multicast]>`, :ref:`presence_required<//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@presence_required]>`, :ref:`priority<//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@priority]>`
+Attributes: :ref:`address<//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@address]>`, :ref:`allow_multicast<//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@allow_multicast]>`, :ref:`autodetermine<//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@autodetermine]>`, :ref:`multicast<//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@multicast]>`, :ref:`name<//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@name]>`, :ref:`prefer_multicast<//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@prefer_multicast]>`, :ref:`presence_required<//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@presence_required]>`, :ref:`priority<//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@priority]>`
 
 This element defines a network interface. You can set autodetermine="true" to autoselect the interface CycloneDDS considers the highest quality. If autodetermine="false" (the default), you must specify the name and/or address attribute. If you specify both, they must match the same interface.
 
@@ -530,6 +548,33 @@ Text
 This attribute specifies the address of the interface. With ipv4 allows  matching on the network part if the host part is set to zero. 
 
 The default value is: ``<empty>``
+
+
+.. _`//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@allow_multicast]`:
+
+//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@allow_multicast]
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+One of:
+* Keyword: default
+* Comma-separated list of: false, spdp, asm, ssm, true, default
+
+This element controls whether Cyclone DDS uses multicasts for data traffic on this interface.
+
+It is a comma-separated list of some of the following keywords: "spdp", "asm", "ssm", or either of "false" or "true", or "default".
+
+ * spdp: enables the use of ASM (any-source multicast) for participant discovery, joining the multicast group on the discovery socket, transmitting SPDP messages to this group, but never advertising nor using any multicast address in any discovery message, thus forcing unicast communications for all endpoint discovery and user data.
+
+ * asm: enables the use of ASM for all traffic, including receiving SPDP but not transmitting SPDP messages via multicast
+
+ * ssm: enables the use of SSM (source-specific multicast) for all non-SPDP traffic (if supported)
+
+
+When set to "false" all multicasting is disabled; "true"enables the full use of multicasts. Listening for multicasts can be controlled by General/MulticastRecvNetworkInterfaceAddresses.
+
+The special value "default" takes the value from the globalGeneral/AllowMulticast setting.
+
+The default value is: ``default``
 
 
 .. _`//CycloneDDS/Domain/General/Interfaces/NetworkInterface[@autodetermine]`:
@@ -773,7 +818,7 @@ The default value is: ``default``
 //CycloneDDS/Domain/Internal
 ============================
 
-Children: :ref:`AccelerateRexmitBlockSize<//CycloneDDS/Domain/Internal/AccelerateRexmitBlockSize>`, :ref:`AckDelay<//CycloneDDS/Domain/Internal/AckDelay>`, :ref:`AutoReschedNackDelay<//CycloneDDS/Domain/Internal/AutoReschedNackDelay>`, :ref:`BuiltinEndpointSet<//CycloneDDS/Domain/Internal/BuiltinEndpointSet>`, :ref:`BurstSize<//CycloneDDS/Domain/Internal/BurstSize>`, :ref:`ControlTopic<//CycloneDDS/Domain/Internal/ControlTopic>`, :ref:`DefragReliableMaxSamples<//CycloneDDS/Domain/Internal/DefragReliableMaxSamples>`, :ref:`DefragUnreliableMaxSamples<//CycloneDDS/Domain/Internal/DefragUnreliableMaxSamples>`, :ref:`DeliveryQueueMaxSamples<//CycloneDDS/Domain/Internal/DeliveryQueueMaxSamples>`, :ref:`EnableExpensiveChecks<//CycloneDDS/Domain/Internal/EnableExpensiveChecks>`, :ref:`GenerateKeyhash<//CycloneDDS/Domain/Internal/GenerateKeyhash>`, :ref:`HeartbeatInterval<//CycloneDDS/Domain/Internal/HeartbeatInterval>`, :ref:`LateAckMode<//CycloneDDS/Domain/Internal/LateAckMode>`, :ref:`LivelinessMonitoring<//CycloneDDS/Domain/Internal/LivelinessMonitoring>`, :ref:`MaxParticipants<//CycloneDDS/Domain/Internal/MaxParticipants>`, :ref:`MaxQueuedRexmitBytes<//CycloneDDS/Domain/Internal/MaxQueuedRexmitBytes>`, :ref:`MaxQueuedRexmitMessages<//CycloneDDS/Domain/Internal/MaxQueuedRexmitMessages>`, :ref:`MaxSampleSize<//CycloneDDS/Domain/Internal/MaxSampleSize>`, :ref:`MeasureHbToAckLatency<//CycloneDDS/Domain/Internal/MeasureHbToAckLatency>`, :ref:`MonitorPort<//CycloneDDS/Domain/Internal/MonitorPort>`, :ref:`MultipleReceiveThreads<//CycloneDDS/Domain/Internal/MultipleReceiveThreads>`, :ref:`NackDelay<//CycloneDDS/Domain/Internal/NackDelay>`, :ref:`PreEmptiveAckDelay<//CycloneDDS/Domain/Internal/PreEmptiveAckDelay>`, :ref:`PrimaryReorderMaxSamples<//CycloneDDS/Domain/Internal/PrimaryReorderMaxSamples>`, :ref:`PrioritizeRetransmit<//CycloneDDS/Domain/Internal/PrioritizeRetransmit>`, :ref:`RediscoveryBlacklistDuration<//CycloneDDS/Domain/Internal/RediscoveryBlacklistDuration>`, :ref:`RetransmitMerging<//CycloneDDS/Domain/Internal/RetransmitMerging>`, :ref:`RetransmitMergingPeriod<//CycloneDDS/Domain/Internal/RetransmitMergingPeriod>`, :ref:`RetryOnRejectBestEffort<//CycloneDDS/Domain/Internal/RetryOnRejectBestEffort>`, :ref:`SPDPResponseMaxDelay<//CycloneDDS/Domain/Internal/SPDPResponseMaxDelay>`, :ref:`SecondaryReorderMaxSamples<//CycloneDDS/Domain/Internal/SecondaryReorderMaxSamples>`, :ref:`SocketReceiveBufferSize<//CycloneDDS/Domain/Internal/SocketReceiveBufferSize>`, :ref:`SocketSendBufferSize<//CycloneDDS/Domain/Internal/SocketSendBufferSize>`, :ref:`SquashParticipants<//CycloneDDS/Domain/Internal/SquashParticipants>`, :ref:`SynchronousDeliveryLatencyBound<//CycloneDDS/Domain/Internal/SynchronousDeliveryLatencyBound>`, :ref:`SynchronousDeliveryPriorityThreshold<//CycloneDDS/Domain/Internal/SynchronousDeliveryPriorityThreshold>`, :ref:`Test<//CycloneDDS/Domain/Internal/Test>`, :ref:`UnicastResponseToSPDPMessages<//CycloneDDS/Domain/Internal/UnicastResponseToSPDPMessages>`, :ref:`UseMulticastIfMreqn<//CycloneDDS/Domain/Internal/UseMulticastIfMreqn>`, :ref:`Watermarks<//CycloneDDS/Domain/Internal/Watermarks>`, :ref:`WriterLingerDuration<//CycloneDDS/Domain/Internal/WriterLingerDuration>`
+Children: :ref:`AccelerateRexmitBlockSize<//CycloneDDS/Domain/Internal/AccelerateRexmitBlockSize>`, :ref:`AckDelay<//CycloneDDS/Domain/Internal/AckDelay>`, :ref:`AutoReschedNackDelay<//CycloneDDS/Domain/Internal/AutoReschedNackDelay>`, :ref:`BuiltinEndpointSet<//CycloneDDS/Domain/Internal/BuiltinEndpointSet>`, :ref:`BurstSize<//CycloneDDS/Domain/Internal/BurstSize>`, :ref:`ControlTopic<//CycloneDDS/Domain/Internal/ControlTopic>`, :ref:`DefragReliableMaxSamples<//CycloneDDS/Domain/Internal/DefragReliableMaxSamples>`, :ref:`DefragUnreliableMaxSamples<//CycloneDDS/Domain/Internal/DefragUnreliableMaxSamples>`, :ref:`DeliveryQueueMaxSamples<//CycloneDDS/Domain/Internal/DeliveryQueueMaxSamples>`, :ref:`EnableExpensiveChecks<//CycloneDDS/Domain/Internal/EnableExpensiveChecks>`, :ref:`ExtendedPacketInfo<//CycloneDDS/Domain/Internal/ExtendedPacketInfo>`, :ref:`GenerateKeyhash<//CycloneDDS/Domain/Internal/GenerateKeyhash>`, :ref:`HeartbeatInterval<//CycloneDDS/Domain/Internal/HeartbeatInterval>`, :ref:`LateAckMode<//CycloneDDS/Domain/Internal/LateAckMode>`, :ref:`LivelinessMonitoring<//CycloneDDS/Domain/Internal/LivelinessMonitoring>`, :ref:`MaxParticipants<//CycloneDDS/Domain/Internal/MaxParticipants>`, :ref:`MaxQueuedRexmitBytes<//CycloneDDS/Domain/Internal/MaxQueuedRexmitBytes>`, :ref:`MaxQueuedRexmitMessages<//CycloneDDS/Domain/Internal/MaxQueuedRexmitMessages>`, :ref:`MaxSampleSize<//CycloneDDS/Domain/Internal/MaxSampleSize>`, :ref:`MeasureHbToAckLatency<//CycloneDDS/Domain/Internal/MeasureHbToAckLatency>`, :ref:`MonitorPort<//CycloneDDS/Domain/Internal/MonitorPort>`, :ref:`MultipleReceiveThreads<//CycloneDDS/Domain/Internal/MultipleReceiveThreads>`, :ref:`NackDelay<//CycloneDDS/Domain/Internal/NackDelay>`, :ref:`PreEmptiveAckDelay<//CycloneDDS/Domain/Internal/PreEmptiveAckDelay>`, :ref:`PrimaryReorderMaxSamples<//CycloneDDS/Domain/Internal/PrimaryReorderMaxSamples>`, :ref:`PrioritizeRetransmit<//CycloneDDS/Domain/Internal/PrioritizeRetransmit>`, :ref:`RediscoveryBlacklistDuration<//CycloneDDS/Domain/Internal/RediscoveryBlacklistDuration>`, :ref:`RetransmitMerging<//CycloneDDS/Domain/Internal/RetransmitMerging>`, :ref:`RetransmitMergingPeriod<//CycloneDDS/Domain/Internal/RetransmitMergingPeriod>`, :ref:`RetryOnRejectBestEffort<//CycloneDDS/Domain/Internal/RetryOnRejectBestEffort>`, :ref:`SPDPResponseMaxDelay<//CycloneDDS/Domain/Internal/SPDPResponseMaxDelay>`, :ref:`SecondaryReorderMaxSamples<//CycloneDDS/Domain/Internal/SecondaryReorderMaxSamples>`, :ref:`SocketReceiveBufferSize<//CycloneDDS/Domain/Internal/SocketReceiveBufferSize>`, :ref:`SocketSendBufferSize<//CycloneDDS/Domain/Internal/SocketSendBufferSize>`, :ref:`SquashParticipants<//CycloneDDS/Domain/Internal/SquashParticipants>`, :ref:`SynchronousDeliveryLatencyBound<//CycloneDDS/Domain/Internal/SynchronousDeliveryLatencyBound>`, :ref:`SynchronousDeliveryPriorityThreshold<//CycloneDDS/Domain/Internal/SynchronousDeliveryPriorityThreshold>`, :ref:`Test<//CycloneDDS/Domain/Internal/Test>`, :ref:`UseMulticastIfMreqn<//CycloneDDS/Domain/Internal/UseMulticastIfMreqn>`, :ref:`Watermarks<//CycloneDDS/Domain/Internal/Watermarks>`, :ref:`WriterLingerDuration<//CycloneDDS/Domain/Internal/WriterLingerDuration>`
 
 The Internal elements deal with a variety of settings that are evolving and that are not necessarily fully supported. For the majority of the Internal settings the functionality is supported, but the right to change the way the options control the functionality is reserved. This includes renaming or moving options.
 
@@ -952,6 +997,18 @@ This element enables expensive checks in builds with assertions enabled and is i
 In addition, there is the keyword all that enables all checks.
 
 The default value is: ``<empty>``
+
+
+.. _`//CycloneDDS/Domain/Internal/ExtendedPacketInfo`:
+
+//CycloneDDS/Domain/Internal/ExtendedPacketInfo
+-----------------------------------------------
+
+Boolean
+
+Whether to enable the IP\_PKTINFO on UDP sockets to get hold of the packet destination address and interface on which it was received. This allows for better filtering on discovery packets, but comes at a small performance penalty.
+
+The default value is: ``true``
 
 
 .. _`//CycloneDDS/Domain/Internal/GenerateKeyhash`:
@@ -1472,18 +1529,6 @@ Integer
 This element controls the fraction of outgoing packets to drop, specified as samples per thousand.
 
 The default value is: ``0``
-
-
-.. _`//CycloneDDS/Domain/Internal/UnicastResponseToSPDPMessages`:
-
-//CycloneDDS/Domain/Internal/UnicastResponseToSPDPMessages
-----------------------------------------------------------
-
-Boolean
-
-This element controls whether the response to a newly discovered participant is sent as a unicasted SPDP packet instead of rescheduling the periodic multicasted one. There is no known benefit to setting this to false.
-
-The default value is: ``true``
 
 
 .. _`//CycloneDDS/Domain/Internal/UseMulticastIfMreqn`:
@@ -2546,7 +2591,7 @@ The default value is: ``false``
 ------------------------------------
 
 One of:
-* Comma-separated list of: fatal, error, warning, info, config, discovery, data, radmin, timing, traffic, topic, tcp, plist, whc, throttle, rhc, content, shm, trace
+* Comma-separated list of: fatal, error, warning, info, config, discovery, data, radmin, timing, traffic, topic, tcp, plist, whc, throttle, rhc, content, malformed, trace
 * Or empty
 
 This element enables individual logging categories. These are enabled in addition to those enabled by Tracing/Verbosity. Recognised categories are:
@@ -2571,7 +2616,11 @@ This element enables individual logging categories. These are enabled in additio
 
  * traffic: periodic reporting of total outgoing data
 
+ * throttle: tracing of throttling events
+
  * whc: tracing of writer history cache changes
+
+ * rhc: tracing of reader history cache changes
 
  * tcp: tracing of TCP-specific activity
 
@@ -2579,8 +2628,13 @@ This element enables individual logging categories. These are enabled in additio
 
  * plist: tracing of discovery parameter list interpretation
 
+ * content: tracing of sample contents
 
-In addition, there is the keyword trace that enables all but radmin, topic, plist and whc.
+ * malformed: dump malformed full packet as warning
+
+
+
+In addition, there is the keyword trace that enables: fatal, error, warning, info, config, discovery, data, trace, timing, traffic, tcp, throttle, content..
 The categorisation of tracing output is incomplete and hence most of the verbosity levels and categories are not of much use in the current release. This is an ongoing process and here we describe the target situation rather than the current situation. Currently, the most useful is trace.
 
 The default value is: ``<empty>``
@@ -2642,10 +2696,10 @@ The categorisation of tracing output is incomplete and hence most of the verbosi
 The default value is: ``none``
 
 ..
-   generated from ddsi_config.h[570f67bd3080674a4bad53d9580a8bb7ad1e6e4d] 
+   generated from ddsi_config.h[007a7968df8cbc42a122109bd139ac85bab0f6c9] 
    generated from ddsi__cfgunits.h[bd22f0c0ed210501d0ecd3b07c992eca549ef5aa] 
-   generated from ddsi__cfgelems.h[d4d0b8c7cf61f0a1cfa4b62e02458cf7b8962536] 
-   generated from ddsi_config.c[efeae198a5e12ca8977a655216470564b5c44b64] 
+   generated from ddsi__cfgelems.h[607a8f573eb5d87d6f93b1d9bce2947f29da56dc] 
+   generated from ddsi_config.c[d4ef67f90737b1bf8ae94ad932774fa015e3a2cf] 
    generated from _confgen.h[e32eabfc35e9f3a7dcb63b19ed148c0d17c6e5fc] 
    generated from _confgen.c[237308acd53897a34e8c643e16e05a61d73ffd65] 
    generated from generate_rnc.c[b50e4b7ab1d04b2bc1d361a0811247c337b74934] 

@@ -27,7 +27,7 @@
 #cmakedefine DDS_HAS_SSM 1
 
 /* Whether or not features dependent on OpenSSL are included */
-#cmakedefine DDS_HAS_SSL 1
+#cmakedefine DDS_HAS_TCP_TLS 1
 
 /* Whether or not support for type library is included */
 #cmakedefine DDS_HAS_TYPELIB 1
@@ -40,5 +40,12 @@
 
 /* Not for general use, specificly for testing psmx Cyclone DDS plugin */
 #cmakedefine DDS_ALLOW_NESTED_DOMAIN 1
+
+/* Not intended for general use, whether building a static library, specifically testing psmx and security */
+#cmakedefine DDS_IS_STATIC_LIBRARY 1
+
+/* Whether or not support for qos provider is included */
+#cmakedefine DDS_HAS_QOS_PROVIDER 1
+
 
 #endif
