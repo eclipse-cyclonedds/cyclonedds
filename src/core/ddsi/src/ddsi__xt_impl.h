@@ -15,6 +15,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <string.h>
 #include "dds/ddsrt/avl.h"
 #include "dds/ddsrt/misc.h"
 #include "dds/ddsi/ddsi_xt_typeinfo.h"
