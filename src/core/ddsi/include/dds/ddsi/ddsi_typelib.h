@@ -95,10 +95,13 @@ DDS_EXPORT const char * ddsi_typemap_get_type_name (const ddsi_typemap_t *typema
 dds_return_t ddsi_type_ref_local (struct ddsi_domaingv *gv, struct ddsi_type **type, const struct ddsi_sertype *sertype, ddsi_typeid_kind_t kind);
 
 /** @component type_system */
-void ddsi_type_ref (struct ddsi_domaingv *gv, struct ddsi_type **type, const struct ddsi_type *src);
+DDS_EXPORT dds_return_t ddsi_type_add (struct ddsi_domaingv *gv, struct ddsi_type **type_minimal, struct ddsi_type **type_complete, const ddsi_typeinfo_t *type_info, const ddsi_typemap_t *type_map);
 
 /** @component type_system */
-void ddsi_type_unref (struct ddsi_domaingv *gv, struct ddsi_type *type);
+DDS_EXPORT void ddsi_type_ref (struct ddsi_domaingv *gv, struct ddsi_type **type, const struct ddsi_type *src);
+
+/** @component type_system */
+DDS_EXPORT void ddsi_type_unref (struct ddsi_domaingv *gv, struct ddsi_type *type);
 
 /** @component type_system */
 void ddsi_type_unref_sertype (struct ddsi_domaingv *gv, const struct ddsi_sertype *sertype);

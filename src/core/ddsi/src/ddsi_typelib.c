@@ -646,30 +646,17 @@ static bool valid_top_level_type (const struct ddsi_type *type)
   return true;
 }
 
-dds_return_t ddsi_type_ref_local (struct ddsi_domaingv *gv, struct ddsi_type **type, const struct ddsi_sertype *sertype, ddsi_typeid_kind_t kind)
+static dds_return_t type_add_ref_impl (struct ddsi_domaingv *gv, struct ddsi_type **type, const ddsi_typeinfo_t *type_info, const ddsi_typemap_t *type_map, ddsi_typeid_kind_t kind)
 {
   struct ddsi_generic_proxy_endpoint **gpe_match_upd = NULL;
-  uint32_t n_match_upd = 0;
-  struct ddsi_typeid_str tistr;
   dds_return_t ret = DDS_RETCODE_OK;
+  uint32_t n_match_upd = 0;
   bool resolved = false;
-
-  assert (sertype);
-  assert (kind == DDSI_TYPEID_KIND_MINIMAL || kind == DDSI_TYPEID_KIND_COMPLETE);
-  ddsi_typeinfo_t *type_info = ddsi_sertype_typeinfo (sertype);
-  if (!type_info)
-  {
-    if (type)
-      *type = NULL;
-    return DDS_RETCODE_OK;
-  }
-
-  ddsi_typemap_t *type_map = ddsi_sertype_typemap (sertype);
+  struct ddsi_typeid_str tistr;
   const struct DDS_XTypes_TypeIdentifier *type_id = (kind == DDSI_TYPEID_KIND_MINIMAL) ? &type_info->x.minimal.typeid_with_size.type_id : &type_info->x.complete.typeid_with_size.type_id;
   const struct DDS_XTypes_TypeObject *type_obj = ddsi_typemap_typeobj (type_map, type_id);
 
-  GVTRACE ("ref ddsi_type local sertype %p id %s", sertype, ddsi_make_typeid_str_impl (&tistr, type_id));
-
+  assert (kind == DDSI_TYPEID_KIND_MINIMAL || kind == DDSI_TYPEID_KIND_COMPLETE);
   ddsrt_mutex_lock (&gv->typelib_lock);
   struct ddsi_type *t = ddsi_type_lookup_locked_impl (gv, type_id);
   if (!t)
@@ -696,7 +683,7 @@ dds_return_t ddsi_type_ref_local (struct ddsi_domaingv *gv, struct ddsi_type **t
       || (ret = type_add_deps (gv, t, type_info, type_map, kind, &n_match_upd, &gpe_match_upd))
       || (ret = ddsi_xt_validate (gv, &t->xt)))
   {
-    GVWARNING ("local sertype with invalid top-level type %s\n", ddsi_make_typeid_str (&tistr, &t->xt.id));
+    GVWARNING ("invalid top-level type %s\n", ddsi_make_typeid_str (&tistr, &t->xt.id));
     ddsi_type_unref_locked (gv, t);
     ddsrt_mutex_unlock (&gv->typelib_lock);
     goto err;
@@ -726,13 +713,44 @@ dds_return_t ddsi_type_ref_local (struct ddsi_domaingv *gv, struct ddsi_type **t
     *type = t;
 
 err:
-  ddsi_typemap_fini (type_map);
-  ddsrt_free (type_map);
-  ddsi_typeinfo_fini (type_info);
-  ddsrt_free (type_info);
   return ret;
 }
 
+dds_return_t ddsi_type_add (struct ddsi_domaingv *gv, struct ddsi_type **type_minimal, struct ddsi_type **type_complete, const ddsi_typeinfo_t *type_info, const ddsi_typemap_t *type_map)
+{
+  dds_return_t ret;
+  if ((ret = type_add_ref_impl (gv, type_minimal, type_info, type_map, DDSI_TYPEID_KIND_MINIMAL)) == DDS_RETCODE_OK)
+  {
+    assert (*type_minimal != NULL);
+    ret = type_add_ref_impl (gv, type_complete, type_info, type_map, DDSI_TYPEID_KIND_COMPLETE);
+  }
+  return ret;
+}
+
+dds_return_t ddsi_type_ref_local (struct ddsi_domaingv *gv, struct ddsi_type **type, const struct ddsi_sertype *sertype, ddsi_typeid_kind_t kind)
+{
+  dds_return_t ret = DDS_RETCODE_OK;
+  assert (sertype);
+  ddsi_typeinfo_t *type_info = ddsi_sertype_typeinfo (sertype);
+  if (!type_info)
+  {
+    if (type)
+      *type = NULL;
+  }
+  else
+  {
+    struct ddsi_typeid_str tistr;
+    ddsi_typemap_t *type_map = ddsi_sertype_typemap (sertype);
+    const struct DDS_XTypes_TypeIdentifier *type_id = (kind == DDSI_TYPEID_KIND_MINIMAL) ? &type_info->x.minimal.typeid_with_size.type_id : &type_info->x.complete.typeid_with_size.type_id;
+    GVTRACE ("ref ddsi_type local sertype %p id %s", sertype, ddsi_make_typeid_str_impl (&tistr, type_id));
+    ret = type_add_ref_impl (gv, type, type_info, type_map, kind);
+    ddsi_typemap_fini (type_map);
+    ddsrt_free (type_map);
+    ddsi_typeinfo_fini (type_info);
+    ddsrt_free (type_info);
+  }
+  return ret;
+}
 dds_return_t ddsi_type_ref_proxy (struct ddsi_domaingv *gv, struct ddsi_type **type, const ddsi_typeinfo_t *type_info, ddsi_typeid_kind_t kind, const ddsi_guid_t *proxy_guid)
 {
   dds_return_t ret = DDS_RETCODE_OK;
