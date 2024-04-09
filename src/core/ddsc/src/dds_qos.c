@@ -434,7 +434,9 @@ void dds_qset_entity_name (dds_qos_t * __restrict qos, const char * name)
 {
   if (qos == NULL || name == NULL)
     return;
-  qos->entity_name = dds_string_dup(name);
+  if (qos->present & DDSI_QP_ENTITY_NAME)
+    dds_free (qos->entity_name);
+  qos->entity_name = dds_string_dup (name);
   qos->present |= DDSI_QP_ENTITY_NAME;
 }
 
