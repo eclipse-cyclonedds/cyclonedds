@@ -3695,11 +3695,12 @@ const dds_qos_t ddsi_default_qos_topic = {
 };
 
 const dds_qos_t ddsi_default_qos_publisher_subscriber = {
-  .present = DDSI_QP_GROUP_DATA | DDSI_QP_PARTITION | DDSI_QP_ADLINK_ENTITY_FACTORY,
+  .present = DDSI_QP_GROUP_DATA | DDSI_QP_PARTITION | DDSI_QP_PRESENTATION | DDSI_QP_CYCLONE_IGNORELOCAL | DDSI_QP_ADLINK_ENTITY_FACTORY,
   .aliased = 0,
   .presentation.access_scope = DDS_PRESENTATION_INSTANCE,
   .presentation.coherent_access = 0,
   .presentation.ordered_access = 0,
+  .ignorelocal.value = DDS_IGNORELOCAL_NONE,
   .entity_factory.autoenable_created_entities = 1,
   .group_data.length = 0,
   .group_data.value = NULL,
