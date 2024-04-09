@@ -34,6 +34,9 @@ static void durability_check (const enum check_mode check_mode, const dds_qos_t 
     CU_ASSERT_FATAL ((int) k == v[0]);
   }
 }
+static void durability_invalid (dds_qos_t * const q, int const v) {
+  dds_qset_durability (q, (dds_durability_kind_t) ((int) DDS_DURABILITY_PERSISTENT + v + 1));
+}
 
 // Use constants derived from line numbers to ensure different QoS settings use different values
 // for attributes that can be set reasonably freely.
@@ -52,6 +55,12 @@ static void reliability_check (const enum check_mode check_mode, const dds_qos_t
     CU_ASSERT_FATAL (d == max_blocking_time_offset);
   }
 }
+static void reliability_invalid (dds_qos_t * const q, int const v) {
+  if (v == 0)
+    dds_qset_reliability (q, DDS_RELIABILITY_RELIABLE, -1);
+  else
+    dds_qset_reliability (q, (dds_reliability_kind_t) ((int) DDS_RELIABILITY_RELIABLE + v), 0);
+}
 
 static const int latency_budget_offset = __LINE__;
 static void latency_budget_set (dds_qos_t * const q, int const * const v) {
@@ -63,6 +72,10 @@ static void latency_budget_check (const enum check_mode check_mode, const dds_qo
   if (check_mode == CM_SET) {
     CU_ASSERT_FATAL (d == v[0] + latency_budget_offset);
   }
+}
+static void latency_budget_invalid (dds_qos_t * const q, int const v) {
+  (void)v;
+  dds_qset_latency_budget (q, -1);
 }
 
 #if DDS_HAS_DEADLINE_MISSED
@@ -78,6 +91,10 @@ static void deadline_check (const enum check_mode check_mode, const dds_qos_t * 
     CU_ASSERT_FATAL (d == v[0] + deadline_offset);
   }
 }
+static void deadline_invalid (dds_qos_t * const q, int const v) {
+  (void)v;
+  dds_qset_deadline (q, -1);
+}
 #endif
 
 // deadline >= time_based_filter
@@ -92,6 +109,10 @@ static void time_based_filter_check (const enum check_mode check_mode, const dds
     CU_ASSERT_FATAL (d == v[0] + time_based_filter_offset);
   }
 }
+static void time_based_filter_invalid (dds_qos_t * const q, int const v) {
+  (void)v;
+  dds_qset_time_based_filter (q, -1);
+}
 
 static void ownership_set (dds_qos_t * const q, int const * const v) {
   assert ((int) DDS_OWNERSHIP_SHARED <= v[0] && v[0] <= (int) DDS_OWNERSHIP_EXCLUSIVE);
@@ -105,6 +126,9 @@ static void ownership_check (const enum check_mode check_mode, const dds_qos_t *
     CU_ASSERT_FATAL ((int) k == v[0]);
   }
 }
+static void ownership_invalid (dds_qos_t * const q, int const v) {
+  dds_qset_ownership (q, (dds_ownership_kind_t) ((int) DDS_OWNERSHIP_EXCLUSIVE + v + 1));
+}
 
 static const int ownership_strength_offset = __LINE__;
 static void ownership_strength_set (dds_qos_t * const q, int const * const v) {
@@ -117,6 +141,7 @@ static void ownership_strength_check (const enum check_mode check_mode, const dd
     CU_ASSERT_FATAL (k == v[0] + ownership_strength_offset);
   }
 }
+// no invalid value for ownership strength exists
 
 static void destination_order_set (dds_qos_t * const q, int const * const v) {
   assert ((int) DDS_DESTINATIONORDER_BY_RECEPTION_TIMESTAMP <= v[0] && v[0] <= (int) DDS_DESTINATIONORDER_BY_SOURCE_TIMESTAMP);
@@ -129,6 +154,9 @@ static void destination_order_check (const enum check_mode check_mode, const dds
   if (check_mode == CM_SET) {
     CU_ASSERT_FATAL ((int) k == v[0]);
   }
+}
+static void destination_order_invalid (dds_qos_t * const q, int const v) {
+  dds_qset_destination_order (q, (dds_destination_order_kind_t) ((int) DDS_DESTINATIONORDER_BY_SOURCE_TIMESTAMP + v + 1));
 }
 
 #if DDS_HAS_LIFESPAN
@@ -143,6 +171,10 @@ static void lifespan_check (const enum check_mode check_mode, const dds_qos_t * 
     CU_ASSERT_FATAL (d == v[0] + lifespan_offset);
   }
 }
+static void lifespan_invalid (dds_qos_t * const q, int const v) {
+  (void)v;
+  dds_qset_lifespan (q, -1);
+}
 #endif
 
 static const int transport_priority_offset = __LINE__;
@@ -156,6 +188,7 @@ static void transport_priority_check (const enum check_mode check_mode, const dd
     CU_ASSERT_FATAL (d == v[0] + transport_priority_offset);
   }
 }
+// no invalid value for transport priority exists
 
 static const int history_depth = __LINE__;
 static void history_set (dds_qos_t * const q, int const * const v) {
@@ -172,6 +205,12 @@ static void history_check (const enum check_mode check_mode, const dds_qos_t * c
     CU_ASSERT_FATAL (d == history_depth);
   }
 }
+static void history_invalid (dds_qos_t * const q, int const v) {
+  if (v == 0)
+    dds_qset_history (q, DDS_HISTORY_KEEP_LAST, 0);
+  else
+    dds_qset_history (q, (dds_history_kind_t) ((int) DDS_HISTORY_KEEP_ALL + v + 1), 0);
+}
 
 static void liveliness_set (dds_qos_t * const q, int const * const v) {
   assert ((int) DDS_LIVELINESS_AUTOMATIC <= v[0] && v[0] <= (int) DDS_LIVELINESS_MANUAL_BY_TOPIC && v[1] >= 0);
@@ -186,6 +225,12 @@ static void liveliness_check (const enum check_mode check_mode, const dds_qos_t 
     CU_ASSERT_FATAL ((int) k == v[0]);
     CU_ASSERT_FATAL (d == DDS_SECS (1) + v[1]);
   }
+}
+static void liveliness_invalid (dds_qos_t * const q, int const v) {
+  if (v == 0)
+    dds_qset_liveliness (q, DDS_LIVELINESS_MANUAL_BY_TOPIC, -1);
+  else
+    dds_qset_liveliness (q, (dds_liveliness_kind_t) ((int) DDS_LIVELINESS_MANUAL_BY_TOPIC + v + 1), DDS_SECS (1));
 }
 
 static int32_t resource_limits_cnv (const int v, const int f, const int o)
@@ -215,6 +260,14 @@ static void resource_limits_check (const enum check_mode check_mode, const dds_q
     CU_ASSERT_FATAL (c == resource_limits_cnv (v[0],2,0));
   }
 }
+static void resource_limits_invalid (dds_qos_t * const q, int const v) {
+  assert (0 <= v && v <= 2);
+  switch (v) {
+    case 0: dds_qset_resource_limits (q, 0, DDS_LENGTH_UNLIMITED, DDS_LENGTH_UNLIMITED); break;
+    case 1: dds_qset_resource_limits (q, DDS_LENGTH_UNLIMITED, 0, DDS_LENGTH_UNLIMITED); break;
+    case 2: dds_qset_resource_limits (q, DDS_LENGTH_UNLIMITED, DDS_LENGTH_UNLIMITED, 0); break;
+  }
+}
 
 static void presentation_set (dds_qos_t * const q, int const * const v) {
   assert ((int) DDS_PRESENTATION_INSTANCE <= v[0] && v[0] <= (int) DDS_PRESENTATION_GROUP);
@@ -232,6 +285,10 @@ static void presentation_check (const enum check_mode check_mode, const dds_qos_
     CU_ASSERT_FATAL (w == v[1]);
     CU_ASSERT_FATAL (x == v[2]);
   }
+}
+static void presentation_invalid (dds_qos_t * const q, int const v) {
+  dds_qset_presentation (q, (dds_presentation_access_scope_kind_t) ((int) DDS_PRESENTATION_GROUP + v + 1), false, false);
+  // can't pass in non-bools for coherent/ordered access arguments
 }
 
 static void partition_set (dds_qos_t * const q, int const * const v) {
@@ -265,6 +322,7 @@ static void partition_check (const enum check_mode check_mode, const dds_qos_t *
     dds_free (ps);
   }
 }
+// no invalid value for partition exists
 
 static void ignorelocal_set (dds_qos_t * const q, int const * const v) {
   assert ((int) DDS_IGNORELOCAL_NONE <= v[0] && v[0] <= (int) DDS_IGNORELOCAL_PROCESS);
@@ -277,6 +335,9 @@ static void ignorelocal_check (const enum check_mode check_mode, const dds_qos_t
   if (check_mode == CM_SET) {
     CU_ASSERT_FATAL ((int) k == v[0]);
   }
+}
+static void ignorelocal_invalid (dds_qos_t * const q, int const v) {
+  dds_qset_ignorelocal (q, (dds_ignorelocal_kind_t) ((int) DDS_IGNORELOCAL_PROCESS + v + 1));
 }
 
 static void writer_batching_set (dds_qos_t * const q, int const * const v) {
@@ -291,6 +352,7 @@ static void writer_batching_check (const enum check_mode check_mode, const dds_q
     CU_ASSERT_FATAL ((int) k == v[0]);
   }
 }
+// no invalid value for writer batching exists: can't pass in garbage for a bool
 
 static void writer_data_lifecycle_set (dds_qos_t * const q, int const * const v) {
   assert (0 <= v[0] && v[0] <= 1);
@@ -304,6 +366,7 @@ static void writer_data_lifecycle_check (const enum check_mode check_mode, const
     CU_ASSERT_FATAL ((int) k == v[0]);
   }
 }
+// no invalid value for writer data lifecycle exists: can't pass in garbage for a bool
 
 static void reader_data_lifecycle_set (dds_qos_t * const q, int const * const v) {
   assert (0 <= v[0] && 0 <= v[1]);
@@ -316,6 +379,13 @@ static void reader_data_lifecycle_check (const enum check_mode check_mode, const
   if (check_mode == CM_SET) {
     CU_ASSERT_FATAL ((int) k == DDS_MSECS(100) + v[0]);
     CU_ASSERT_FATAL ((int) l == DDS_MSECS(200) + v[1]);
+  }
+}
+static void reader_data_lifecycle_invalid (dds_qos_t * const q, int const v) {
+  assert (0 <= v && v <= 1);
+  switch (v) {
+    case 0: dds_qset_reader_data_lifecycle (q, -1, 1); break;
+    case 1: dds_qset_reader_data_lifecycle (q, 1, -1); break;
   }
 }
 
@@ -345,6 +415,17 @@ static void durability_service_check (const enum check_mode check_mode, const dd
     CU_ASSERT_FATAL (f == resource_limits_cnv (v[2],2,10));
   }
 }
+static void durability_service_invalid (dds_qos_t * const q, int const v) {
+  switch (v) {
+    case 0: dds_qset_durability_service (q, -1, DDS_HISTORY_KEEP_LAST, 1, DDS_LENGTH_UNLIMITED, DDS_LENGTH_UNLIMITED, DDS_LENGTH_UNLIMITED); break;
+    case 1: dds_qset_durability_service (q, 0, DDS_HISTORY_KEEP_LAST, 0, DDS_LENGTH_UNLIMITED, DDS_LENGTH_UNLIMITED, DDS_LENGTH_UNLIMITED); break;
+    case 2: dds_qset_durability_service (q, 0, DDS_HISTORY_KEEP_LAST, 1, 0, DDS_LENGTH_UNLIMITED, DDS_LENGTH_UNLIMITED); break;
+    case 3: dds_qset_durability_service (q, 0, DDS_HISTORY_KEEP_LAST, 1, DDS_LENGTH_UNLIMITED, 0, DDS_LENGTH_UNLIMITED); break;
+    case 4: dds_qset_durability_service (q, 0, DDS_HISTORY_KEEP_LAST, 1, DDS_LENGTH_UNLIMITED, DDS_LENGTH_UNLIMITED, 0); break;
+    default: dds_qset_durability_service (q, 0, (dds_history_kind_t) ((int) DDS_HISTORY_KEEP_ALL + 1), 0, DDS_LENGTH_UNLIMITED, DDS_LENGTH_UNLIMITED, DDS_LENGTH_UNLIMITED); break;
+
+  }
+}
 
 static void entity_name_set (dds_qos_t * const q, int const * const v) {
   assert (0 <= v[0] && v[0] <= 1);
@@ -368,6 +449,7 @@ static void entity_name_check (const enum check_mode check_mode, const dds_qos_t
     dds_free (n);
   }
 }
+// no invalid value for entity name exists
 
 #define QA_TP (1u << 0)
 #define QA_PUB (1u << 1)
@@ -391,10 +473,12 @@ struct qostable_elem {
   const char *name;
   void (*set) (dds_qos_t * const q, int const * const v);
   void (*check) (const enum check_mode check_mode, const dds_qos_t * const q, int const * const v);
+  void (*invalid) (dds_qos_t * const q, int const v);
   dds_qos_policy_id_t policy_id;
   uint32_t appl;
   int max[MAX_VALUES];
   enum rxo_sense rxo[MAX_VALUES];
+  int max_invalid;
 };
 
 // Note: user/topic/group data covered by ddsc_userdata tests
@@ -403,34 +487,35 @@ struct qostable_elem {
 // FIXME: data_representation
 // FIXME: psmx_instances
 // FIXME: ignore_local (partial because it can be set on pp/pub/sub/rd/wr, we only apply to once)
-#define Q(name) #name, name##_set, name##_check
+#define QI(name) #name, name##_set, name##_check, name##_invalid
+#define Q0(name) #name, name##_set, name##_check, NULL
 #define P(NAME) DDS_##NAME##_QOS_POLICY_ID
 static const struct qostable_elem qostable[] = {
-  { Q(durability),            P(DURABILITY),            QA_TP | QA_RD | QA_WR, {3,0,0}, { RXO_IF_RD_LEQ } },
-  { Q(reliability),           P(RELIABILITY),           QA_TP | QA_RD | QA_WR, {1,0,0}, { RXO_IF_RD_LEQ } },
-  { Q(latency_budget),        P(LATENCYBUDGET),         QA_TP | QA_RD | QA_WR, {1,0,0}, { RXO_IF_RD_GEQ } },
+  { QI(durability),            P(DURABILITY),            QA_TP | QA_RD | QA_WR, {3,0,0}, { RXO_IF_RD_LEQ }, 0 },
+  { QI(reliability),           P(RELIABILITY),           QA_TP | QA_RD | QA_WR, {1,0,0}, { RXO_IF_RD_LEQ }, 1 },
+  { QI(latency_budget),        P(LATENCYBUDGET),         QA_TP | QA_RD | QA_WR, {1,0,0}, { RXO_IF_RD_GEQ }, 0 },
 #if DDS_HAS_DEADLINE_MISSED
-  { Q(deadline),              P(DEADLINE),              QA_TP | QA_RD | QA_WR, {1,0,0}, { RXO_IF_RD_GEQ } },
+  { QI(deadline),              P(DEADLINE),              QA_TP | QA_RD | QA_WR, {1,0,0}, { RXO_IF_RD_GEQ }, 0 },
 #endif
-  { Q(time_based_filter),     P(TIMEBASEDFILTER),               QA_RD,         {1,0,0}, { RXO_INAPPLICABLE } },
-  { Q(ownership),             P(OWNERSHIP),             QA_TP | QA_RD | QA_WR, {1,0,0}, { RXO_IF_EQ } },
-  { Q(ownership_strength),    P(OWNERSHIPSTRENGTH),                     QA_WR, {1,0,0}, { RXO_INAPPLICABLE } },
-  { Q(destination_order),     P(DESTINATIONORDER),      QA_TP | QA_RD | QA_WR, {1,0,0}, { RXO_IF_RD_LEQ } },
+  { QI(time_based_filter),     P(TIMEBASEDFILTER),               QA_RD,         {1,0,0}, { RXO_INAPPLICABLE }, 0 },
+  { QI(ownership),             P(OWNERSHIP),             QA_TP | QA_RD | QA_WR, {1,0,0}, { RXO_IF_EQ }, 0 },
+  { Q0(ownership_strength),    P(OWNERSHIPSTRENGTH),                     QA_WR, {1,0,0}, { RXO_INAPPLICABLE }, 0 },
+  { QI(destination_order),     P(DESTINATIONORDER),      QA_TP | QA_RD | QA_WR, {1,0,0}, { RXO_IF_RD_LEQ }, 0 },
 #if DDS_HAS_LIFESPAN
-  { Q(lifespan),              P(LIFESPAN),              QA_TP |         QA_WR, {1,0,0}, { RXO_INAPPLICABLE } },
+  { QI(lifespan),              P(LIFESPAN),              QA_TP |         QA_WR, {1,0,0}, { RXO_INAPPLICABLE }, 0 },
 #endif
-  { Q(transport_priority),    P(TRANSPORTPRIORITY),     QA_TP |         QA_WR, {1,0,0}, { RXO_INAPPLICABLE } },
-  { Q(history),               P(HISTORY),               QA_TP | QA_RD | QA_WR, {1,0,0}, { RXO_INAPPLICABLE } },
-  { Q(liveliness),            P(LIVELINESS),            QA_TP | QA_RD | QA_WR, {2,1,0}, { RXO_IF_RD_LEQ, RXO_IF_RD_GEQ } },
-  { Q(resource_limits),       P(RESOURCELIMITS),        QA_TP | QA_RD | QA_WR, {7,0,0}, { RXO_INAPPLICABLE } },
-  { Q(presentation),          P(PRESENTATION),                QA_PUB | QA_SUB, {2,1,1}, { RXO_IF_RD_LEQ, RXO_IF_RD_LEQ, RXO_IF_RD_LEQ } },
-  { Q(partition),             P(PARTITION),                   QA_PUB | QA_SUB, {2,0,0}, { RXO_PARTITION } },
-  { Q(ignorelocal),           P(INVALID),      QA_PUB | QA_SUB| QA_RD | QA_WR, {2,0,0}, { RXO_IGNORELOCAL } },
-  { Q(writer_batching),       P(INVALID),                               QA_WR, {1,0,0}, { RXO_INAPPLICABLE } },
-  { Q(writer_data_lifecycle), P(INVALID),                               QA_WR, {1,0,0}, { RXO_INAPPLICABLE } },
-  { Q(reader_data_lifecycle), P(INVALID),                       QA_RD,         {1,1,0}, { RXO_INAPPLICABLE } },
-  { Q(durability_service),    P(DURABILITYSERVICE),     QA_TP |         QA_WR, {1,1,7}, { RXO_INAPPLICABLE } },
-  { Q(entity_name),           P(INVALID),     QA_TP|QA_PUB|QA_SUB|QA_RD|QA_WR, {1,0,0}, { RXO_DONTEVENTRY } },
+  { Q0(transport_priority),    P(TRANSPORTPRIORITY),     QA_TP |         QA_WR, {1,0,0}, { RXO_INAPPLICABLE }, 0 },
+  { QI(history),               P(HISTORY),               QA_TP | QA_RD | QA_WR, {1,0,0}, { RXO_INAPPLICABLE }, 0 },
+  { QI(liveliness),            P(LIVELINESS),            QA_TP | QA_RD | QA_WR, {2,1,0}, { RXO_IF_RD_LEQ, RXO_IF_RD_GEQ }, 1 },
+  { QI(resource_limits),       P(RESOURCELIMITS),        QA_TP | QA_RD | QA_WR, {7,0,0}, { RXO_INAPPLICABLE }, 2 },
+  { QI(presentation),          P(PRESENTATION),                QA_PUB | QA_SUB, {2,1,1}, { RXO_IF_RD_LEQ, RXO_IF_RD_LEQ, RXO_IF_RD_LEQ }, 0 },
+  { Q0(partition),             P(PARTITION),                   QA_PUB | QA_SUB, {2,0,0}, { RXO_PARTITION }, 0 },
+  { QI(ignorelocal),           P(INVALID),      QA_PUB | QA_SUB| QA_RD | QA_WR, {2,0,0}, { RXO_IGNORELOCAL }, 0 },
+  { Q0(writer_batching),       P(INVALID),                               QA_WR, {1,0,0}, { RXO_INAPPLICABLE }, 0 },
+  { Q0(writer_data_lifecycle), P(INVALID),                               QA_WR, {1,0,0}, { RXO_INAPPLICABLE }, 0 },
+  { QI(reader_data_lifecycle), P(INVALID),                       QA_RD,         {1,1,0}, { RXO_INAPPLICABLE }, 1 },
+  { QI(durability_service),    P(DURABILITYSERVICE),     QA_TP |         QA_WR, {1,1,7}, { RXO_INAPPLICABLE }, 6 },
+  { Q0(entity_name),           P(INVALID),     QA_TP|QA_PUB|QA_SUB|QA_RD|QA_WR, {1,0,0}, { RXO_DONTEVENTRY }, 0 },
 };
 #undef P
 #undef Q
@@ -705,6 +790,54 @@ CU_Test(ddsc_qos_set, reader_two)
 CU_Test(ddsc_qos_set, writer_two)
 {
   do_endpoint (QA_WR, QA_WR | QA_PUB, false, do_entity_two, create_writer_wrapper);
+}
+
+static void do_entity_one_invalid (uint32_t appl_mask, const uint32_t check_mask, const bool sparse_qos, dds_entity_t base, dds_entity_t (* const create) (dds_entity_t base, const dds_qos_t *qos))
+{
+  (void)check_mask;
+  (void)sparse_qos;
+  // Check that for each applicable QoS setting garbage will cause the entity
+  // creation to fail.
+  for (size_t i = 0; i < sizeof (qostable) / sizeof (qostable[0]); i++)
+  {
+    if (qostable[i].invalid == NULL)
+      continue;
+    if ((qostable[i].appl & appl_mask) == 0)
+      continue;
+    for (int v = 0; v <= qostable[i].max_invalid; v++)
+    {
+      dds_qos_t *qos = dds_create_qos ();
+      qostable[i].invalid (qos, v);
+      const dds_entity_t ent = create (base, qos);
+      CU_ASSERT_FATAL (ent < 0);
+      dds_delete_qos (qos);
+    }
+  }
+}
+
+CU_Test(ddsc_qos_set, topic_one_invalid)
+{
+  do_nonendpoint (QA_TP, QA_TP, true, do_entity_one_invalid, create_topic_wrapper);
+}
+
+CU_Test(ddsc_qos_set, subscriber_one_invalid)
+{
+  do_nonendpoint (QA_SUB, QA_SUB, false, do_entity_one_invalid, create_subscriber_wrapper);
+}
+
+CU_Test(ddsc_qos_set, publisher_one_invalid)
+{
+  do_nonendpoint (QA_PUB, QA_PUB, false, do_entity_one_invalid, create_publisher_wrapper);
+}
+
+CU_Test(ddsc_qos_set, reader_one_invalid)
+{
+  do_endpoint (QA_RD, QA_RD | QA_SUB, false, do_entity_one_invalid, create_reader_wrapper);
+}
+
+CU_Test(ddsc_qos_set, writer_one_invalid)
+{
+  do_endpoint (QA_WR, QA_WR | QA_PUB, false, do_entity_one_invalid, create_writer_wrapper);
 }
 
 static void sync_on_discovery (const dds_entity_t dprd, const dds_entity_t dpwr)
