@@ -467,6 +467,12 @@ enum rxo_sense {
   RXO_DONTEVENTRY  // special for entity name: don't even try RxO matching on this
 };
 
+enum changeable {
+  C_NO,    // immutable QoS
+  C_YES,   // changeable in spec and impl
+  C_UNSUPP // changeable in spec, not in impl
+};
+
 #define MAX_VALUES 3
 
 struct qostable_elem {
@@ -479,6 +485,7 @@ struct qostable_elem {
   int max[MAX_VALUES];
   enum rxo_sense rxo[MAX_VALUES];
   int max_invalid;
+  enum changeable changeable;
 };
 
 // Note: user/topic/group data covered by ddsc_userdata tests
@@ -491,31 +498,31 @@ struct qostable_elem {
 #define Q0(name) #name, name##_set, name##_check, NULL
 #define P(NAME) DDS_##NAME##_QOS_POLICY_ID
 static const struct qostable_elem qostable[] = {
-  { QI(durability),            P(DURABILITY),            QA_TP | QA_RD | QA_WR, {3,0,0}, { RXO_IF_RD_LEQ }, 0 },
-  { QI(reliability),           P(RELIABILITY),           QA_TP | QA_RD | QA_WR, {1,0,0}, { RXO_IF_RD_LEQ }, 1 },
-  { QI(latency_budget),        P(LATENCYBUDGET),         QA_TP | QA_RD | QA_WR, {1,0,0}, { RXO_IF_RD_GEQ }, 0 },
+  { QI(durability),            P(DURABILITY),            QA_TP | QA_RD | QA_WR, {3,0,0}, { RXO_IF_RD_LEQ }, 0, C_NO },
+  { QI(reliability),           P(RELIABILITY),           QA_TP | QA_RD | QA_WR, {1,0,0}, { RXO_IF_RD_LEQ }, 1, C_NO },
+  { QI(latency_budget),        P(LATENCYBUDGET),         QA_TP | QA_RD | QA_WR, {1,0,0}, { RXO_IF_RD_GEQ }, 0, C_UNSUPP },
 #if DDS_HAS_DEADLINE_MISSED
-  { QI(deadline),              P(DEADLINE),              QA_TP | QA_RD | QA_WR, {1,0,0}, { RXO_IF_RD_GEQ }, 0 },
+  { QI(deadline),              P(DEADLINE),              QA_TP | QA_RD | QA_WR, {1,0,0}, { RXO_IF_RD_GEQ }, 0, C_UNSUPP },
 #endif
-  { QI(time_based_filter),     P(TIMEBASEDFILTER),               QA_RD,         {1,0,0}, { RXO_INAPPLICABLE }, 0 },
-  { QI(ownership),             P(OWNERSHIP),             QA_TP | QA_RD | QA_WR, {1,0,0}, { RXO_IF_EQ }, 0 },
-  { Q0(ownership_strength),    P(OWNERSHIPSTRENGTH),                     QA_WR, {1,0,0}, { RXO_INAPPLICABLE }, 0 },
-  { QI(destination_order),     P(DESTINATIONORDER),      QA_TP | QA_RD | QA_WR, {1,0,0}, { RXO_IF_RD_LEQ }, 0 },
+  { QI(time_based_filter),     P(TIMEBASEDFILTER),               QA_RD,         {1,0,0}, { RXO_INAPPLICABLE }, 0, C_YES },
+  { QI(ownership),             P(OWNERSHIP),             QA_TP | QA_RD | QA_WR, {1,0,0}, { RXO_IF_EQ }, 0, C_NO },
+  { Q0(ownership_strength),    P(OWNERSHIPSTRENGTH),                     QA_WR, {1,0,0}, { RXO_INAPPLICABLE }, 0, C_YES },
+  { QI(destination_order),     P(DESTINATIONORDER),      QA_TP | QA_RD | QA_WR, {1,0,0}, { RXO_IF_RD_LEQ }, 0, C_NO },
 #if DDS_HAS_LIFESPAN
-  { QI(lifespan),              P(LIFESPAN),              QA_TP |         QA_WR, {1,0,0}, { RXO_INAPPLICABLE }, 0 },
+  { QI(lifespan),              P(LIFESPAN),              QA_TP |         QA_WR, {1,0,0}, { RXO_INAPPLICABLE }, 0, C_YES },
 #endif
-  { Q0(transport_priority),    P(TRANSPORTPRIORITY),     QA_TP |         QA_WR, {1,0,0}, { RXO_INAPPLICABLE }, 0 },
-  { QI(history),               P(HISTORY),               QA_TP | QA_RD | QA_WR, {1,0,0}, { RXO_INAPPLICABLE }, 0 },
-  { QI(liveliness),            P(LIVELINESS),            QA_TP | QA_RD | QA_WR, {2,1,0}, { RXO_IF_RD_LEQ, RXO_IF_RD_GEQ }, 1 },
-  { QI(resource_limits),       P(RESOURCELIMITS),        QA_TP | QA_RD | QA_WR, {7,0,0}, { RXO_INAPPLICABLE }, 2 },
-  { QI(presentation),          P(PRESENTATION),                QA_PUB | QA_SUB, {2,1,1}, { RXO_IF_RD_LEQ, RXO_IF_RD_LEQ, RXO_IF_RD_LEQ }, 0 },
-  { Q0(partition),             P(PARTITION),                   QA_PUB | QA_SUB, {2,0,0}, { RXO_PARTITION }, 0 },
-  { QI(ignorelocal),           P(INVALID),      QA_PUB | QA_SUB| QA_RD | QA_WR, {2,0,0}, { RXO_IGNORELOCAL }, 0 },
-  { Q0(writer_batching),       P(INVALID),                               QA_WR, {1,0,0}, { RXO_INAPPLICABLE }, 0 },
-  { Q0(writer_data_lifecycle), P(INVALID),                               QA_WR, {1,0,0}, { RXO_INAPPLICABLE }, 0 },
-  { QI(reader_data_lifecycle), P(INVALID),                       QA_RD,         {1,1,0}, { RXO_INAPPLICABLE }, 1 },
-  { QI(durability_service),    P(DURABILITYSERVICE),     QA_TP |         QA_WR, {1,1,7}, { RXO_INAPPLICABLE }, 6 },
-  { Q0(entity_name),           P(INVALID),     QA_TP|QA_PUB|QA_SUB|QA_RD|QA_WR, {1,0,0}, { RXO_DONTEVENTRY }, 0 },
+  { Q0(transport_priority),    P(TRANSPORTPRIORITY),     QA_TP |         QA_WR, {1,0,0}, { RXO_INAPPLICABLE }, 0, C_YES },
+  { QI(history),               P(HISTORY),               QA_TP | QA_RD | QA_WR, {1,0,0}, { RXO_INAPPLICABLE }, 0, C_NO },
+  { QI(liveliness),            P(LIVELINESS),            QA_TP | QA_RD | QA_WR, {2,1,0}, { RXO_IF_RD_LEQ, RXO_IF_RD_GEQ }, 1, C_NO },
+  { QI(resource_limits),       P(RESOURCELIMITS),        QA_TP | QA_RD | QA_WR, {7,0,0}, { RXO_INAPPLICABLE }, 2, C_NO },
+  { QI(presentation),          P(PRESENTATION),                QA_PUB | QA_SUB, {2,1,1}, { RXO_IF_RD_LEQ, RXO_IF_RD_LEQ, RXO_IF_RD_LEQ }, 0, C_NO },
+  { Q0(partition),             P(PARTITION),                   QA_PUB | QA_SUB, {2,0,0}, { RXO_PARTITION }, 0, C_UNSUPP },
+  { QI(ignorelocal),           P(INVALID),      QA_PUB | QA_SUB| QA_RD | QA_WR, {2,0,0}, { RXO_IGNORELOCAL }, 0, C_NO },
+  { Q0(writer_batching),       P(INVALID),                               QA_WR, {1,0,0}, { RXO_INAPPLICABLE }, 0, C_NO },
+  { Q0(writer_data_lifecycle), P(INVALID),                               QA_WR, {1,0,0}, { RXO_INAPPLICABLE }, 0, C_YES },
+  { QI(reader_data_lifecycle), P(INVALID),                       QA_RD,         {1,1,0}, { RXO_INAPPLICABLE }, 1, C_YES },
+  { QI(durability_service),    P(DURABILITYSERVICE),     QA_TP |         QA_WR, {1,1,7}, { RXO_INAPPLICABLE }, 6, C_NO },
+  { Q0(entity_name),           P(INVALID),     QA_TP|QA_PUB|QA_SUB|QA_RD|QA_WR, {1,0,0}, { RXO_DONTEVENTRY }, 0, C_NO },
 };
 #undef P
 #undef Q
@@ -840,6 +847,75 @@ CU_Test(ddsc_qos_set, writer_one_invalid)
   do_endpoint (QA_WR, QA_WR | QA_PUB, false, do_entity_one_invalid, create_writer_wrapper);
 }
 
+static void check_qos (const bool is_appl, struct qostable_elem const * const te, dds_entity_t entity, int const * const v)
+{
+  dds_qos_t *qos = dds_create_qos ();
+  dds_return_t rc;
+  rc = dds_get_qos (entity, qos);
+  CU_ASSERT_FATAL (rc == 0);
+  te->check (is_appl ? CM_SET : CM_UNSET, qos, v);
+  dds_delete_qos (qos);
+}
+
+static void do_entity_one_change (uint32_t appl_mask, const uint32_t check_mask, const bool sparse_qos, dds_entity_t base, dds_entity_t (* const create) (dds_entity_t base, const dds_qos_t *qos))
+{
+  const int v0[MAX_VALUES] = { 0 };
+  const int v1[MAX_VALUES] = { 1 }; // intentionally {1,0...}
+  (void)check_mask;
+  (void)sparse_qos;
+  // Check that changes to mutable QoS (in spec & impl) are allowed and that changes
+  // to the others are rejected.  Check both the return value of dds_set_qos and the
+  // QoS after the (attempted) change.
+  for (size_t i = 0; i < sizeof (qostable) / sizeof (qostable[0]); i++)
+  {
+    if ((qostable[i].appl & appl_mask) == 0)
+      continue;
+    dds_qos_t *qos = dds_create_qos ();
+    qostable[i].set (qos, v0);
+    const dds_entity_t ent = create (base, qos);
+    CU_ASSERT_FATAL (ent > 0);
+    qostable[i].set (qos, v1);
+    dds_return_t rc = dds_set_qos (ent, qos);
+    dds_return_t expected = 0;
+    switch (qostable[i].changeable)
+    {
+      case C_YES: expected = 0; break;
+      case C_NO: expected = DDS_RETCODE_IMMUTABLE_POLICY; break;
+      case C_UNSUPP: expected = DDS_RETCODE_UNSUPPORTED; break;
+    }
+    CU_ASSERT_FATAL (rc == expected);
+    dds_delete_qos (qos);
+    check_qos (true, &qostable[i], ent, (rc == 0) ? v1 : v0);
+    rc = dds_delete (ent);
+    CU_ASSERT_FATAL (rc == 0);
+  }
+}
+
+CU_Test(ddsc_qos_set, topic_one_change)
+{
+  do_nonendpoint (QA_TP, QA_TP, true, do_entity_one_change, create_topic_wrapper);
+}
+
+CU_Test(ddsc_qos_set, subscriber_one_change)
+{
+  do_nonendpoint (QA_SUB, QA_SUB, false, do_entity_one_change, create_subscriber_wrapper);
+}
+
+CU_Test(ddsc_qos_set, publisher_one_change)
+{
+  do_nonendpoint (QA_PUB, QA_PUB, false, do_entity_one_change, create_publisher_wrapper);
+}
+
+CU_Test(ddsc_qos_set, reader_one_change)
+{
+  do_endpoint (QA_RD, QA_RD | QA_SUB, false, do_entity_one_change, create_reader_wrapper);
+}
+
+CU_Test(ddsc_qos_set, writer_one_change)
+{
+  do_endpoint (QA_WR, QA_WR | QA_PUB, false, do_entity_one_change, create_writer_wrapper);
+}
+
 static void sync_on_discovery (const dds_entity_t dprd, const dds_entity_t dpwr)
 {
   // Use a new, unique topic for each pair: the next-easiest way to prevent trouble
@@ -887,16 +963,6 @@ static void sync_on_discovery (const dds_entity_t dprd, const dds_entity_t dpwr)
   CU_ASSERT_FATAL (rc == 0);
   rc = dds_delete (tpckwr);
   CU_ASSERT_FATAL (rc == 0);
-}
-
-static void check_qos (const bool is_appl, struct qostable_elem const * const te, dds_entity_t entity, int const * const v)
-{
-  dds_qos_t *qos = dds_create_qos ();
-  dds_return_t rc;
-  rc = dds_get_qos (entity, qos);
-  CU_ASSERT_FATAL (rc == 0);
-  te->check (is_appl ? CM_SET : CM_UNSET, qos, v);
-  dds_delete_qos (qos);
 }
 
 static void do_ddsc_qos_set_endpoints_with_rxo (const dds_entity_t dprd, const dds_entity_t dpwr)
