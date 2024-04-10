@@ -20,6 +20,7 @@
 #include "dds/ddsi/ddsi_plist.h"
 #include "dds/ddsi/ddsi_domaingv.h"
 #include "dds/ddsi/ddsi_entity_index.h"
+#include "dds/ddsc/dds_internal_api.h"
 #include "dds/version.h"
 #include "dds__init.h"
 #include "dds__domain.h"
