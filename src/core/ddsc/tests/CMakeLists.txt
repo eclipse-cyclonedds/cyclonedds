@@ -66,6 +66,7 @@ set(ddsc_test_sources
     "publisher.c"
     "qos.c"
     "qosmatch.c"
+    "qos_set_match.c"
     "querycondition.c"
     "guardcondition.c"
     "readcollect.c"

@@ -246,6 +246,10 @@ set(MEMORYCHECK_COMMAND_OPTIONS "--track-origins=yes --leak-check=full --trace-c
 # library so we can actually build the tests.
 option(BUILD_TESTING "Build the testing tree." OFF)
 
+# For special-purpose builds it can be useful to export all symbols from the library,
+# like we do when building the tests.
+option(EXPORT_ALL_SYMBOLS "Export all symbols from the library." OFF)
+
 # Include the xtests for idlc. These tests use the idl compiler (C back-end) to
 # compile an idl file at (test) runtime, and use the C compiler to build a test
 # application for the generated types, that is executed to do the actual testing.
