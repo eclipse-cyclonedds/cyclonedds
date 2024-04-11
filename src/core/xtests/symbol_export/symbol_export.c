@@ -1166,6 +1166,8 @@ int main (int argc, char **argv)
   // dds__entity.h
   dds_entity_pin (0, ptr);
   dds_entity_unpin (ptr);
+  dds_entity_lock (0, 0, ptr);
+  dds_entity_unlock (ptr);
 
   return 0;
 }
